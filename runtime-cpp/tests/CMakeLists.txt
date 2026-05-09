@@ -74,6 +74,13 @@ artcade_test(physics_test
     artcade-physics)
 
 # ============================================================================
+# Fase 13: LuaHost error-handling — no Raylib, no GameAPI
+# ============================================================================
+artcade_test(lua_host_test
+    lua-host-test.cpp
+    artcade-lua-runtime)
+
+# ============================================================================
 # Fase 5+: test che richiedono Raylib reale (aggiunti quando ARTCADE_HAS_RAYLIB)
 # ============================================================================
 # (placeholder per test di renderer, input, audio — verranno aggiunti in Fase 5-8)

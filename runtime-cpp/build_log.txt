@@ -1,0 +1,4 @@
+Microsoft Windows [Versione 10.0.26200.8246]
+(c) Microsoft Corporation. Tutti i diritti riservati.
+
+C:\Users\Antonio\Desktop\ArtCade V2\runtime-cpp>

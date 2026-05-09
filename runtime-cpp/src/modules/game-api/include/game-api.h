@@ -42,6 +42,7 @@ private:
     void bindAudioAPI  (sol::state& lua);
     void bindStateAPI  (sol::state& lua);
     void bindDebugAPI  (sol::state& lua);
+    void bindSaveAPI   (sol::state& lua);
 };
 
 } // namespace ArtCade::Modules

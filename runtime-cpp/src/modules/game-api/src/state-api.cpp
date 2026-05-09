@@ -8,12 +8,20 @@ namespace ArtCade::Modules {
 void GameAPI::bindStateAPI(sol::state& lua) {
     auto* world = ctx_.world;
 
-    // state.get(key) → value (int | float | string | bool)
-    lua.set_function("state_get", [world](const std::string& key) -> sol::object {
-        // TODO: convert StateValue variant to sol::object
-        (void)world; (void)key;
-        return sol::nil;
-    });
+    // state.get(key) → value (int | float | string | bool) or nil if key absent
+    lua.set_function("state_get",
+        [world](sol::this_state ts, const std::string& key) -> sol::object
+        {
+            if (!world->hasGlobalState(key)) return sol::lua_nil;
+            sol::state_view L(ts);
+            auto val = world->getGlobalState(key);
+            // StateValue = variant<int32_t, float, std::string, bool>
+            if (auto* v = std::get_if<int32_t>    (&val)) return sol::make_object(L, *v);
+            if (auto* v = std::get_if<float>       (&val)) return sol::make_object(L, *v);
+            if (auto* v = std::get_if<std::string> (&val)) return sol::make_object(L, *v);
+            if (auto* v = std::get_if<bool>        (&val)) return sol::make_object(L, *v);
+            return sol::lua_nil;
+        });
 
     // state.set(key, value)
     lua.set_function("state_set", [world](const std::string& key, const sol::object& val) {

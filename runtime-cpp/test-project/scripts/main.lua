@@ -104,6 +104,47 @@ local function init()
     log("Coins:   " .. tostring(#coinIds))
 
     state.set("score", 0)
+    state.set("level", 1)
+    state.set("playerName", "Hero")
+    state.set("hardMode", false)
+
+    -- Verify state.get() round-trip (was broken: always returned nil)
+    local sc = state.get("score")
+    local lv = state.get("level")
+    local nm = state.get("playerName")
+    local hm = state.get("hardMode")
+    local nx = state.get("nonexistent")
+    if sc == 0 and lv == 1 and nm == "Hero" and hm == false and nx == nil then
+        log("state.get() OK: score=" .. tostring(sc) .. " level=" .. tostring(lv)
+            .. " name=" .. tostring(nm) .. " hard=" .. tostring(hm)
+            .. " nonexistent=" .. tostring(nx))
+    else
+        log("state.get() FAIL: sc=" .. tostring(sc) .. " lv=" .. tostring(lv)
+            .. " nm=" .. tostring(nm) .. " hm=" .. tostring(hm)
+            .. " nx=" .. tostring(nx))
+    end
+
+    -- Save/Load round-trip test (via SaveLoadManager)
+    local saveSlot = "test_slot"
+    local writeOK = save.write(saveSlot, {score=42, level=3, name="Tester", alive=true})
+    log("save.write -> " .. tostring(writeOK))
+
+    local data = save.read(saveSlot)
+    if data then
+        log(string.format("save.read  -> score=%s level=%s name=%s alive=%s",
+            tostring(data.score), tostring(data.level),
+            tostring(data.name),  tostring(data.alive)))
+    else
+        log("save.read  -> nil (FAIL)")
+    end
+
+    log("save.exists -> " .. tostring(save.exists(saveSlot)))
+
+    local slots = save.list()
+    log("save.list  -> " .. tostring(#slots) .. " slot(s)")
+
+    save.delete(saveSlot)
+    log("save.delete -> exists now? " .. tostring(save.exists(saveSlot)))
 
     -- ---- Physics world ----
     physics.setGravity(0, GRAVITY_Y)

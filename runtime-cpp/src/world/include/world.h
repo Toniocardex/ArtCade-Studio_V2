@@ -37,6 +37,7 @@ public:
     void syncPhysicsToEntities();
 
     // Global state (key-value store shared across scenes)
+    bool       hasGlobalState(const std::string& key) const;
     StateValue getGlobalState(const std::string& key) const;
     void       setGlobalState(const std::string& key, const StateValue& value);
 

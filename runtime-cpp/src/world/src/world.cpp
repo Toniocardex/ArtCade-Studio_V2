@@ -45,6 +45,10 @@ void World::syncPhysicsToEntities() {
     }
 }
 
+bool World::hasGlobalState(const std::string& key) const {
+    return globalState_.count(key) > 0;
+}
+
 StateValue World::getGlobalState(const std::string& key) const {
     auto it = globalState_.find(key);
     return (it != globalState_.end()) ? it->second : StateValue{0};

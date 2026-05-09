@@ -6,6 +6,7 @@ add_library(artcade-game-api
     src/audio-api.cpp
     src/state-api.cpp
     src/debug-api.cpp
+    src/save-api.cpp
 )
 target_include_directories(artcade-game-api
     PUBLIC  include
@@ -20,6 +21,7 @@ target_link_libraries(artcade-game-api
         artcade-audio
         artcade-entity-system
         artcade-scene-system
+        artcade-save-load
     PRIVATE
         lua54
 )

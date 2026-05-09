@@ -14,6 +14,7 @@ void GameAPI::registerAll(sol::state& lua) {
     bindAudioAPI  (lua);
     bindStateAPI  (lua);
     bindDebugAPI  (lua);
+    bindSaveAPI   (lua);
 }
 
 } // namespace ArtCade::Modules
