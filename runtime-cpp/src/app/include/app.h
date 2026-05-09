@@ -25,7 +25,6 @@ public:
     int run(int argc, char* argv[]);
 
 private:
-    // Owned modules (unique_ptr = clear ownership, no leaks)
     struct Modules;
     std::unique_ptr<Modules> mod_;
 
@@ -34,10 +33,18 @@ private:
     bool initModules(const std::string& projectPath);
     void shutdownModules();
     void mainLoop();
+    void loopIteration();      // singolo frame — usato sia dal while che dal callback WASM
     void renderActiveScene();
 
-    float targetDt_ = 1.f / 60.f;
-    bool  running_  = false;
+    float targetDt_    = 1.f / 60.f;
+    float accumulator_ = 0.f;          // persistent tra frame (necessario su WASM)
+    bool  running_     = false;
+
+#ifdef ARTCADE_WASM
+    // Emscripten richiede una callback statica — punta all'istanza corrente
+    static Application* webInstance_;
+    static void         webLoopCallback();
+#endif
 };
 
 } // namespace ArtCade

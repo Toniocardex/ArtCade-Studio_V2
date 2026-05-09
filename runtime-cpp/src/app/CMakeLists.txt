@@ -28,19 +28,32 @@ target_link_libraries(game PRIVATE
 )
 
 # ============================================================================
-# Emscripten WASM flags
+# Emscripten WASM — Fase 14
 # ============================================================================
 if(EMSCRIPTEN)
-    target_compile_options(game PRIVATE -fexceptions)
+    # Definisce ARTCADE_WASM → app.cpp usa emscripten_set_main_loop
+    target_compile_definitions(game PRIVATE ARTCADE_WASM)
+
+    # Eccezioni C++ necessarie per Sol2
+    target_compile_options(game PRIVATE -fexceptions -O2)
+
+    # Output: game.html + game.js + game.wasm
+    set_target_properties(game PROPERTIES SUFFIX ".html")
+
+    # Preload test-project nel filesystem virtuale WASM
+    set(PRELOAD_PATH "${CMAKE_SOURCE_DIR}/test-project")
+
     target_link_options(game PRIVATE
         -fexceptions
-        -s WASM=1
-        -s ALLOW_MEMORY_GROWTH=1
-        -s USE_WEBGL2=1
-        -s EXPORTED_RUNTIME_METHODS=["ccall","cwrap"]
-        --preload-file ${CMAKE_SOURCE_DIR}/../assets@/assets
+        -sWASM=1
+        -sUSE_GLFW=3
+        -sALLOW_MEMORY_GROWTH=1
+        -sFORCE_FILESYSTEM=1
+        -sEXPORTED_RUNTIME_METHODS=["ccall","cwrap"]
+        -sASYNCIFY=0
+        "--preload-file=${PRELOAD_PATH}@test-project"
+        -O2
     )
-    set_target_properties(game PROPERTIES SUFFIX ".js")
 else()
     # Native compiler warnings
     if(MSVC)

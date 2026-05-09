@@ -1,5 +1,9 @@
 #include "../include/app.h"
 
+#ifdef ARTCADE_WASM
+#include <emscripten/emscripten.h>
+#endif
+
 #include "../../modules/renderer/include/renderer.h"
 #include "../../modules/physics/include/physics.h"
 #include "../../modules/input/include/input.h"
@@ -60,10 +64,26 @@ struct Application::Modules {
 Application::Application()  : mod_(std::make_unique<Modules>()) {}
 Application::~Application() { shutdownModules(); }
 
+// ---- Emscripten static state --------------------------------------------
+
+#ifdef ARTCADE_WASM
+Application* Application::webInstance_ = nullptr;
+
+void Application::webLoopCallback() {
+    if (webInstance_) webInstance_->loopIteration();
+}
+#endif
+
 // ---- Entry point --------------------------------------------------------
 
 int Application::run(int argc, char* argv[]) {
+#ifdef ARTCADE_WASM
+    // Su WASM non ci sono argomenti runtime; il progetto è preloadato nel VFS
+    std::string projectPath = "test-project";
+    (void)argc; (void)argv;
+#else
     std::string projectPath = (argc > 1) ? argv[1] : "game.artcade";
+#endif
 
     if (!initModules(projectPath)) {
         std::cerr << "[App] Initialization failed.\n";
@@ -196,36 +216,54 @@ bool Application::initModules(const std::string& projectPath) {
     return true;
 }
 
+// ---- Single frame -------------------------------------------------------
+
+void Application::loopIteration() {
+    // Su WASM non c'è "shouldClose" (il browser gestisce la chiusura)
+#ifndef ARTCADE_WASM
+    if (!running_ || mod_->renderer->shouldClose()) {
+        running_ = false;
+        return;
+    }
+#endif
+
+    float frameTime = mod_->renderer->deltaTime();
+    accumulator_ += frameTime;
+
+    mod_->input->poll();
+
+    // Fixed timestep
+    while (accumulator_ >= targetDt_) {
+        mod_->timeManager->tick(targetDt_);
+        mod_->tweenManager->update(targetDt_);
+        mod_->spriteAnimator->update(targetDt_);
+        mod_->layerManager->update(targetDt_);
+        mod_->cameraManager->update(targetDt_);
+        mod_->gameStateManager->update(targetDt_);
+        mod_->eventBus->flushDeferred();
+        mod_->luaHost->tick(targetDt_);
+        mod_->physics->step(targetDt_);
+        mod_->world->syncPhysicsToEntities();
+        mod_->audio->update();
+        accumulator_ -= targetDt_;
+    }
+
+    renderActiveScene();
+    mod_->input->resetFrameState();
+}
+
 // ---- Main loop ----------------------------------------------------------
 
 void Application::mainLoop() {
-    float accumulator = 0.f;
-
-    while (running_ && !mod_->renderer->shouldClose()) {
-        float frameTime = mod_->renderer->deltaTime();
-        accumulator += frameTime;
-
-        mod_->input->poll();
-
-        // Fixed timestep
-        while (accumulator >= targetDt_) {
-            mod_->timeManager->tick(targetDt_);
-            mod_->tweenManager->update(targetDt_);
-            mod_->spriteAnimator->update(targetDt_);
-            mod_->layerManager->update(targetDt_);
-            mod_->cameraManager->update(targetDt_);
-            mod_->gameStateManager->update(targetDt_);
-            mod_->eventBus->flushDeferred();
-            mod_->luaHost->tick(targetDt_);
-            mod_->physics->step(targetDt_);
-            mod_->world->syncPhysicsToEntities();
-            mod_->audio->update();
-            accumulator -= targetDt_;
-        }
-
-        renderActiveScene();
-        mod_->input->resetFrameState();
-    }
+#ifdef ARTCADE_WASM
+    // Emscripten prende il controllo del loop — la callback viene chiamata
+    // da requestAnimationFrame del browser (~60fps). Non ritorna.
+    webInstance_ = this;
+    emscripten_set_main_loop(webLoopCallback, 0, 1);
+#else
+    while (running_ && !mod_->renderer->shouldClose())
+        loopIteration();
+#endif
 }
 
 // ---- Render -------------------------------------------------------------
