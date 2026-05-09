@@ -67,6 +67,13 @@ target_include_directories(texture_manager_test PRIVATE
 add_test(NAME texture_manager_test COMMAND texture_manager_test)
 
 # ============================================================================
+# Fase 12: Physics (Box2D) — nessuna dipendenza da Raylib o Lua
+# ============================================================================
+artcade_test(physics_test
+    physics-test.cpp
+    artcade-physics)
+
+# ============================================================================
 # Fase 5+: test che richiedono Raylib reale (aggiunti quando ARTCADE_HAS_RAYLIB)
 # ============================================================================
 # (placeholder per test di renderer, input, audio — verranno aggiunti in Fase 5-8)

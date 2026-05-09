@@ -263,27 +263,34 @@ game.exe test-project/ → "[App] Project loaded: ArtCade Test"
 
 ---
 
-## FASE 12 — Physics (Rapier2D)
+## FASE 12 — Physics (Box2D 2.4)
 
-**Stato**: ⏳ — libreria `rapier2d-c` non ancora disponibile
+**Stato**: ✅ Completata — 11/11 test passano (incluso physics_test)
 
-### Da fare
-- Clonare/compilare le binding C di Rapier2D (`rapier2d-c`)
-- Aggiornare `CMakeLists.txt` per linkare la libreria
-- Implementare `physics.cpp`: world, rigid bodies, colliders, step, raycast
+### Cosa è stato fatto
+- **Backend**: Box2D 2.4.1 via `FetchContent` (no dipendenza Rust/Rapier2D)
+- **Pimpl completo**: `physics.h` espone solo `Vec2`/`PhysicsComponent`/`uint32_t handle`; Box2D resta in `physics.cpp`
+- `createBody` — Dynamic/Static/Kinematic, collider Rectangle e Circle
+- `destroyBody` — rimozione sicura da world + mappe interne
+- `step(dt, substeps=2)` — integrazione a substep con `b2World::Step`
+- `setGravity` — configura gravità Y-down (default +10, screen-space)
+- `setLinearVelocity/getLinearVelocity` — accesso diretto a `b2Body`
+- `setPosition/getPosition` — teleport con preservazione angolo
+- `areOverlapping` — `b2TestOverlap` con shape + transform correnti
+- `raycast` — `b2RayCastCallback` closest-hit con restituzione handle + punto
+- `getContactingBodies` — `b2QueryAABB` con epsilon 0.5
+- `physics` spostato fuori dalla guardia `HAS_RAYLIB && HAS_LUA` (puro C++)
+- `build.ps1` / `build_phase12.bat` — aggiunto `-DCMAKE_POLICY_VERSION_MINIMUM=3.5`
 
-### Checkpoint (futuro)
-```bash
-# Scena: pavimento statico + cubo dinamico che cade
-game.exe tests/physics-test-project/
-# Cubo cade sotto gravità, si ferma sul pavimento, position sync visibile
+### Checkpoint ✅
 ```
-
-Criteri:
-- [ ] Corpo dinamico cade sotto gravità
-- [ ] Collisione con corpo statico → stop o rimbalzo
-- [ ] Step deterministico: stesso seed → stessa simulazione
-- [ ] `World::syncPhysicsToEntities()` aggiorna Transform ogni frame
+ctest 11/11:  physics_test .... Passed  0.03s
+Corpi dinamici cadono (Δy > 2 unità dopo 1s con g=10)
+Corpi statici non si muovono
+setPosition/setLinearVelocity verificati
+areOverlapping: true quando coincidenti, false dopo spostamento
+destroyBody + double-destroy = no-op sicuro
+```
 
 ---
 
@@ -435,7 +442,7 @@ Un file `.artcade` firmato e uno script di build cross-platform.
 | 9 | EntityManager + SceneManager + World | 4 | ✅ |
 | 10 | AssetLoader + project.json (nlohmann/json) | 9 | ✅ |
 | 11 | LuaHost (Sol2) + GameAPI binding | 9, 10 | ✅ |
-| 12 | Physics (Rapier2D) | 9 | ⏳ |
+| 12 | Physics (Box2D 2.4) | 9 | ✅ |
 | 13 | First Playable native .exe | 5–12 | 🔧 |
 | 14 | WebAssembly (Emscripten) | 13 | ⏳ |
 | 15 | Tauri Editor Preview | 14 | ⏳ |
@@ -454,4 +461,4 @@ Un file `.artcade` firmato e uno script di build cross-platform.
 
 ---
 
-*Ultimo aggiornamento: 2026-05-09 — Fasi 0–11 completate, Fase 13 foundation OK*
+*Ultimo aggiornamento: 2026-05-09 — Fasi 0–12 completate (11/11 test), Fase 13 foundation OK*

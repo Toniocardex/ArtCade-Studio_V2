@@ -45,7 +45,7 @@ endif()
 # Percorsi opzionali (non causano errori CMake se le dir non esistono)
 set(SOL2_INCLUDE_DIR          ${CMAKE_CURRENT_SOURCE_DIR}/libs/sol2/include)
 set(NLOHMANN_JSON_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libs/nlohmann-json/include)
-set(RAPIER2D_INCLUDE_DIR      ${CMAKE_CURRENT_SOURCE_DIR}/libs/rapier2d-c/include)
+set(RAPIER2D_INCLUDE_DIR      ${CMAKE_CURRENT_SOURCE_DIR}/libs/rapier2d-c/include)  # reserved
 set(LUA_INCLUDE_DIR           ${CMAKE_CURRENT_SOURCE_DIR}/libs/lua)
 
 # ============================================================================
@@ -80,6 +80,11 @@ add_subdirectory(src/modules/tween-manager)
 add_subdirectory(src/modules/save-load)
 
 # ============================================================================
+# Physics — Box2D puro C++, non dipende da Raylib o Lua (Fase 12)
+# ============================================================================
+add_subdirectory(src/modules/physics)
+
+# ============================================================================
 # Moduli con dipendenza da Raylib (Fase 5+)
 # ============================================================================
 if(ARTCADE_HAS_RAYLIB)
@@ -100,7 +105,6 @@ endif()
 # Moduli che richiedono sia Raylib sia Lua (Fase 9+)
 # ============================================================================
 if(ARTCADE_HAS_RAYLIB AND ARTCADE_HAS_LUA)
-    add_subdirectory(src/modules/physics)
     add_subdirectory(src/modules/entity-system)
     add_subdirectory(src/modules/scene-system)
     add_subdirectory(src/modules/asset-system)

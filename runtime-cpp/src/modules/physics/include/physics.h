@@ -2,39 +2,45 @@
 
 #include "../../../core/module.h"
 #include "../../../core/types.h"
+#include <memory>
 #include <vector>
 
 namespace ArtCade::Modules {
 
 /**
- * Physics — public interface for Rapier2D integration.
+ * Physics — wraps Box2D 2.4 (Fase 12).
  *
- * Other modules see only this header.
- * Rapier C bindings, body pool, and query cache stay in src/ (private).
+ * Tutte le strutture Box2D restano in src/physics.cpp via Pimpl.
+ * I moduli esterni vedono solo Vec2 / PhysicsComponent / handle uint32_t.
+ *
+ * Coordinate: screen-space Y-down.
+ * Gravità di default: {0, +10} → i corpi cadono verso Y crescente.
  */
 class Physics final : public IModule {
 public:
-    Physics() = default;
+    Physics();
+    ~Physics();          // definito in .cpp dove Impl è completo
 
-    bool init() override;
+    bool init()     override;
     void shutdown() override;
 
+    // ---- World config -------------------------------------------------------
     void setGravity(const Vec2& gravity);
 
-    // Fixed-timestep simulation step
+    // Fixed-timestep simulation step (substeps interni per stabilità)
     void step(float dt, uint32_t substeps = 2);
 
-    // Body lifecycle
+    // ---- Body lifecycle -----------------------------------------------------
     uint32_t createBody(EntityId entityId, const PhysicsComponent& comp);
     void     destroyBody(uint32_t handle);
 
-    // Velocity / position setters
+    // ---- Velocity / position ------------------------------------------------
     void setLinearVelocity(uint32_t handle, const Vec2& vel);
     Vec2 getLinearVelocity(uint32_t handle) const;
     void setPosition(uint32_t handle, const Vec2& pos);
     Vec2 getPosition(uint32_t handle) const;
 
-    // Collision queries
+    // ---- Collision queries --------------------------------------------------
     bool areOverlapping(uint32_t handle1, uint32_t handle2) const;
 
     struct RaycastResult {
@@ -43,15 +49,12 @@ public:
         Vec2     point;
         float    distance = 0.f;
     };
-    RaycastResult raycast(const Vec2& from, const Vec2& to) const;
-
-    std::vector<uint32_t> getContactingBodies(const Vec2& point) const;
+    RaycastResult         raycast(const Vec2& from, const Vec2& to) const;
+    std::vector<uint32_t> getContactingBodies(const Vec2& point)    const;
 
 private:
-    void*    world_          = nullptr;   // Opaque Rapier world
-    uint32_t nextHandle_     = 1;
-
-    std::unordered_map<uint32_t, EntityId> handleToEntity_;
+    struct Impl;
+    std::unique_ptr<Impl> impl_;
 };
 
 } // namespace ArtCade::Modules
