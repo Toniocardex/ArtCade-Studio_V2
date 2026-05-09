@@ -7,7 +7,11 @@ bool EntityManager::init()     { return true; }
 void EntityManager::shutdown() { entities_.clear(); classIndex_.clear(); tagIndex_.clear(); }
 
 EntityId EntityManager::createEntity(const EntityDef& def) {
-    EntityId id = nextId_++;
+    // Preserve the id from the def if it is non-zero (loaded from project.json).
+    // Otherwise assign the next sequential id.
+    EntityId id = (def.id != 0) ? def.id : nextId_;
+    // Keep nextId_ always one ahead of the highest allocated id.
+    if (id >= nextId_) nextId_ = id + 1;
     EntityDef copy = def;
     copy.id = id;
     rebuildIndex(id, copy);

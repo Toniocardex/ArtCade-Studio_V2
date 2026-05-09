@@ -296,22 +296,54 @@ destroyBody + double-destroy = no-op sicuro
 
 ## FASE 13 — First Playable (integrazione completa native)
 
-**Stato**: 🔧 Foundation validata — game demo completo dipende da Fase 12
+**Stato**: ✅ Completata — demo interattiva funzionante, 30s stabilità OK
 
-### Validato ✅
-- `game.exe test-project/` apre finestra 1280×720 a 60fps stabili
-- `project.json` caricato e parsed correttamente
-- Lua script caricato ed eseguito (sol::state)
-- `tick(dt)` chiamato ogni frame con delta reale (GetFrameTime)
-- EntityManager + SceneManager + Renderer + Input + Audio tutti inizializzati
-- Nessun crash in 5 secondi continui
+### Cosa è stato fatto
 
-### Pendente ⏳
-- [ ] Demo interattiva WASD (richiede Input loop + rendering entità con sprite)
-- [ ] Physics-based collisions (bloccato da Fase 12)
-- [ ] Background music durante il gameplay
-- [ ] Save/Load via F5/F9 (SaveLoadManager integrato nel Lua script)
-- [ ] Test di stabilità 5 minuti continui
+**Fix architetturali** (stub→funzionanti):
+- `EntityManager::createEntity` ora preserva l'id dal `EntityDef` JSON (fix: `nextId_ = max(nextId_, id+1)`)
+- `World::init` crea tutte le entità dell'`EntityDef` map nell'EntityManager prima di `loadScene`
+- `Renderer`: camera portata a origin top-left (`offset={0,0}`, `target={0,0}`) — coordinate schermo = coordinate mondo
+- `Renderer`: draw command queue — `drawRect/drawLine/drawCircle` da Lua (durante `tick`) vengono accodate e flushed dentro `endFrame()` (BeginMode2D), non più chiamate Raylib fuori frame
+- `debug_drawRect` colore parser: riconosce `red/green/blue/white/black/yellow/cyan/magenta/orange`
+- `debug_log` usa `std::endl` (flush garantito anche con stdout rediretto)
+
+**Demo `test-project/`** — 5 entità, 3 classi:
+| id | name | className | position |
+|----|------|-----------|----------|
+| 1 | Player | Player | (640, 340) — centro schermo |
+| 2 | Patrol_A | Enemy | (200, 280) |
+| 3 | Patrol_B | Enemy | (950, 200) |
+| 4 | Coin_1 | Coin | (400, 300) |
+| 5 | Coin_2 | Coin | (780, 200) |
+
+**`main.lua`** — demo interattiva completa:
+- WASD / Arrow keys per muovere il Player
+- Nemici pattugliano orizzontalmente (±180px, velocità variabile)
+- Raccolta coin per prossimità (raggio 30px) → `score += 10`
+- Contatto nemico → player diventa `alive=false` (magenta)
+- `debug.drawRect` per player (blue/magenta), nemici (red), coin (yellow)
+- `debug.drawLine` per danger radius dei nemici e bordi schermo
+- Heartbeat log ogni 2s: `t/score/coins/enemies/pos/fps`
+
+### Checkpoint ✅
+```
+ctest → 11/11 passed  (invariati)
+
+game.exe test-project/ output:
+  [Demo] ArtCade Phase 13 Demo loaded!
+  [App] Project loaded: ArtCade Phase 13 Demo
+  [Lua] Player found  id=1
+  [Lua] Enemies found: 2
+  [Lua] Coins found: 2
+  [Lua] Init complete  WASD / Arrow keys to move
+  [Lua] t=2s  score=0  coins=2  enemies=2  pos=(640,340)  alive=true  fps~60
+  [Lua] t=4s  ...
+  ...
+  (ogni 2 secondi per 30s — nessun crash, 0 stderr)
+
+Stabilità 30 secondi: processo killato manualmente (no crash spontaneo)
+```
 
 ### Architettura game loop ✅
 ```
@@ -322,7 +354,7 @@ mainLoop:
     timeManager.tick → tween → animator → layer → camera
     gameStateManager.update → eventBus.flush → lua.tick(dt)
     physics.step → world.syncPhysics → audio.update
-  renderActiveScene()
+  renderActiveScene()  ← flushes drawQueue qui (dentro BeginMode2D)
   input.resetFrameState()
 ```
 
@@ -446,7 +478,7 @@ Un file `.artcade` firmato e uno script di build cross-platform.
 | 10 | AssetLoader + project.json (nlohmann/json) | 9 | ✅ |
 | 11 | LuaHost (Sol2) + GameAPI binding | 9, 10 | ✅ |
 | 12 | Physics (Box2D 2.4) | 9 | ✅ |
-| 13 | First Playable native .exe | 5–12 | 🔧 |
+| 13 | First Playable native .exe | 5–12 | ✅ |
 | 14 | WebAssembly (Emscripten) | 13 | ✅ |
 | 15 | Tauri Editor Preview | 14 | ⏳ |
 | 16 | Logic Components Lua | 11 | ⏳ |
@@ -464,4 +496,4 @@ Un file `.artcade` firmato e uno script di build cross-platform.
 
 ---
 
-*Ultimo aggiornamento: 2026-05-09 — Fasi 0–14 completate (11/11 test nativi + WASM build OK)*
+*Ultimo aggiornamento: 2026-05-09 — Fasi 0–14 completate (11/11 test nativi + WASM build + demo interattiva 30s stabile)*

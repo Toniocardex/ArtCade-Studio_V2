@@ -1,5 +1,5 @@
 {
-  "projectName": "ArtCade Test",
+  "projectName": "ArtCade Phase 13 Demo",
   "version": "2.0.0",
   "gameResolution": [1280, 720],
   "targetFPS": 60,
@@ -8,17 +8,85 @@
   "entities": {
     "1": {
       "id": 1,
-      "name": "Box",
-      "className": "Box",
-      "tags": [],
+      "name": "Player",
+      "className": "Player",
+      "tags": ["player", "controllable"],
       "transform": {
-        "position": [200, 300],
+        "position": [640, 340],
         "scale": [1, 1],
         "rotation": 0
       },
       "sprite": {
         "spriteAssetId": "",
-        "tint": [1, 0.2, 0.2, 1],
+        "tint": [0.2, 0.6, 1.0, 1.0],
+        "alpha": 1.0,
+        "renderOrder": 1
+      }
+    },
+    "2": {
+      "id": 2,
+      "name": "Patrol_A",
+      "className": "Enemy",
+      "tags": ["enemy"],
+      "transform": {
+        "position": [200, 280],
+        "scale": [1, 1],
+        "rotation": 0
+      },
+      "sprite": {
+        "spriteAssetId": "",
+        "tint": [1.0, 0.2, 0.2, 1.0],
+        "alpha": 1.0,
+        "renderOrder": 0
+      }
+    },
+    "3": {
+      "id": 3,
+      "name": "Patrol_B",
+      "className": "Enemy",
+      "tags": ["enemy"],
+      "transform": {
+        "position": [950, 200],
+        "scale": [1, 1],
+        "rotation": 0
+      },
+      "sprite": {
+        "spriteAssetId": "",
+        "tint": [1.0, 0.4, 0.0, 1.0],
+        "alpha": 1.0,
+        "renderOrder": 0
+      }
+    },
+    "4": {
+      "id": 4,
+      "name": "Coin_1",
+      "className": "Coin",
+      "tags": ["pickup"],
+      "transform": {
+        "position": [400, 300],
+        "scale": [1, 1],
+        "rotation": 0
+      },
+      "sprite": {
+        "spriteAssetId": "",
+        "tint": [1.0, 0.9, 0.1, 1.0],
+        "alpha": 1.0,
+        "renderOrder": 0
+      }
+    },
+    "5": {
+      "id": 5,
+      "name": "Coin_2",
+      "className": "Coin",
+      "tags": ["pickup"],
+      "transform": {
+        "position": [780, 200],
+        "scale": [1, 1],
+        "rotation": 0
+      },
+      "sprite": {
+        "spriteAssetId": "",
+        "tint": [1.0, 0.9, 0.1, 1.0],
         "alpha": 1.0,
         "renderOrder": 0
       }
@@ -30,8 +98,8 @@
       "name": "Main Scene",
       "worldSize": [1280, 720],
       "viewportSize": [1280, 720],
-      "backgroundColor": [0.05, 0.05, 0.1, 1.0],
-      "entityIds": [1]
+      "backgroundColor": [0.04, 0.05, 0.12, 1.0],
+      "entityIds": [1, 2, 3, 4, 5]
     }
   }
 }

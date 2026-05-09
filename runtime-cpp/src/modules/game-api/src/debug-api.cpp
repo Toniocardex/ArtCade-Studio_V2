@@ -10,7 +10,7 @@ void GameAPI::bindDebugAPI(sol::state& lua) {
     auto* renderer = ctx_.renderer;
 
     lua.set_function("debug_log", [](const std::string& msg) {
-        std::cout << "[Lua] " << msg << "\n";
+        std::cout << "[Lua] " << msg << std::endl;  // endl flushes, ensuring capture in redirected stdout
     });
 
     lua.set_function("debug_drawLine",
@@ -27,8 +27,16 @@ void GameAPI::bindDebugAPI(sol::state& lua) {
 
     lua.set_function("debug_drawRect",
         [renderer](float x, float y, float w, float h, const std::string& color) {
-            Vec4 c = {1.f, 1.f, 0.f, 0.5f};  // default: semi-transparent yellow
-            (void)color; // TODO: full color parser
+            Vec4 c = {1.f, 1.f, 0.f, 0.7f};
+            if      (color == "red")     c = {1.f, 0.2f, 0.2f, 0.85f};
+            else if (color == "green")   c = {0.2f, 1.f, 0.2f, 0.85f};
+            else if (color == "blue")    c = {0.2f, 0.5f, 1.f, 0.85f};
+            else if (color == "white")   c = {1.f,  1.f,  1.f, 0.85f};
+            else if (color == "black")   c = {0.f,  0.f,  0.f, 0.85f};
+            else if (color == "yellow")  c = {1.f,  1.f,  0.f, 0.7f};
+            else if (color == "cyan")    c = {0.f,  1.f,  1.f, 0.7f};
+            else if (color == "magenta") c = {1.f,  0.f,  1.f, 0.7f};
+            else if (color == "orange")  c = {1.f,  0.6f, 0.f, 0.85f};
             renderer->drawRect(x, y, w, h, c);
         });
 

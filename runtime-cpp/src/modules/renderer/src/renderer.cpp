@@ -2,10 +2,20 @@
 #include "texture-cache.h"
 #include <raylib.h>
 #include <cstdint>
+#include <vector>
 
 namespace ArtCade::Modules {
 
 // ------------------------------------------------------------------ Pimpl
+
+// Deferred draw command — queued during tick(), flushed in endFrame().
+struct DrawCmd {
+    enum class Type { Rect, Line, Circle } type = Type::Rect;
+    float x  = 0.f, y  = 0.f;  // position / start
+    float x2 = 0.f, y2 = 0.f;  // end (Line) or w/h (Rect)
+    float r  = 0.f;             // radius (Circle)
+    unsigned char cr=255, cg=255, cb=255, ca=255;  // packed colour
+};
 
 struct Renderer::Impl {
     uint32_t    width  = 1280;
@@ -15,6 +25,9 @@ struct Renderer::Impl {
 
     Camera2D camera = {};
     TextureCache texCache;
+
+    // Draw commands queued by Lua during tick(); flushed in endFrame().
+    std::vector<DrawCmd> drawQueue;
 };
 
 // ------------------------------------------------------------------ helpers
@@ -45,9 +58,12 @@ bool Renderer::init() {
                impl_->title.c_str());
     SetTargetFPS(60);
 
-    // Camera origin at screen centre
-    impl_->camera.offset = { impl_->width * 0.5f, impl_->height * 0.5f };
+    // Top-left origin: world (0,0) == screen top-left.
+    // This matches the coordinate system used by project.json positions
+    // (e.g. position [640, 360] == centre of a 1280×720 window).
+    impl_->camera.offset = { 0.f, 0.f };
     impl_->camera.target = { 0.f, 0.f };
+    impl_->camera.zoom   = 1.f;
     impl_->open = true;
     return true;
 }
@@ -85,6 +101,24 @@ void Renderer::beginFrame(const Vec4& clearColor) {
 }
 
 void Renderer::endFrame() {
+    // Flush deferred draw commands (queued by Lua during tick()).
+    // Still inside BeginMode2D → uses camera/world space.
+    for (const auto& cmd : impl_->drawQueue) {
+        Color c{ cmd.cr, cmd.cg, cmd.cb, cmd.ca };
+        switch (cmd.type) {
+        case DrawCmd::Type::Rect:
+            DrawRectangleV({ cmd.x, cmd.y }, { cmd.x2, cmd.y2 }, c);
+            break;
+        case DrawCmd::Type::Line:
+            DrawLineV({ cmd.x, cmd.y }, { cmd.x2, cmd.y2 }, c);
+            break;
+        case DrawCmd::Type::Circle:
+            DrawCircleV({ cmd.x, cmd.y }, cmd.r, c);
+            break;
+        }
+    }
+    impl_->drawQueue.clear();
+
     EndMode2D();
     EndDrawing();
 }
@@ -115,15 +149,21 @@ void Renderer::drawSprite(const AssetId& assetId,
 }
 
 void Renderer::drawRect(float x, float y, float w, float h, const Vec4& color) {
-    DrawRectangleV({ x, y }, { w, h }, toColor(color));
+    Color c = toColor(color);
+    impl_->drawQueue.push_back({ DrawCmd::Type::Rect, x, y, w, h, 0.f,
+                                  c.r, c.g, c.b, c.a });
 }
 
 void Renderer::drawLine(float x1, float y1, float x2, float y2, const Vec4& color) {
-    DrawLineV({ x1, y1 }, { x2, y2 }, toColor(color));
+    Color c = toColor(color);
+    impl_->drawQueue.push_back({ DrawCmd::Type::Line, x1, y1, x2, y2, 0.f,
+                                  c.r, c.g, c.b, c.a });
 }
 
 void Renderer::drawCircle(float x, float y, float radius, const Vec4& color) {
-    DrawCircleV({ x, y }, radius, toColor(color));
+    Color c = toColor(color);
+    impl_->drawQueue.push_back({ DrawCmd::Type::Circle, x, y, 0.f, 0.f, radius,
+                                  c.r, c.g, c.b, c.a });
 }
 
 // ------------------------------------------------------------------ textures

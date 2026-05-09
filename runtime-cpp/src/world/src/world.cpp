@@ -13,6 +13,11 @@ World::World(Modules::EntityManager& em,
 void World::init(const ProjectDoc& doc) {
     sceneManager_.registerScenes(doc.scenes, doc.entities);
 
+    // Spawn all entities into the EntityManager so Lua and the
+    // render loop can access them via entityManager_.get(id).
+    for (const auto& [id, def] : doc.entities)
+        entityManager_.createEntity(def);
+
     if (!doc.activeSceneId.empty())
         loadScene(doc.activeSceneId);
 }
