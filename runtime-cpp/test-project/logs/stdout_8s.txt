@@ -1,0 +1,14 @@
+[Demo] ArtCade Phase 13 + Physics Demo loaded!
+[App] Project loaded: ArtCade Phase 13 Demo
+[Lua] Player found  id=1
+[Lua] Enemies: 2
+[Lua] Coins:   2
+[Lua] Gravity  (0, 500) px/s^2
+[Lua] Floor body  handle=1  spawn=(640,640)  size=1280x40
+[Lua] Ball  body  handle=2  spawn=(640,60)  size=44x44
+[Lua] Expected rest y = 598
+[Lua] Init OK - WASD to move player, watch ball fall
+[Lua] t=  2s  ball=(640.0,479.4) vy=240.0 [FALLING]  player=(640,340)  score=0  coins=2  fps=60
+[Lua] Coin collected! score=10
+[Lua] t=  4s  ball=(640.0,598.0) vy=  0.0 [AT_REST]  player=(420,311)  score=10  coins=2  fps=60
+[Lua] t=  6s  ball=(640.0,598.0) vy=  0.0 [AT_REST]  player=(585,391)  score=10  coins=2  fps=60

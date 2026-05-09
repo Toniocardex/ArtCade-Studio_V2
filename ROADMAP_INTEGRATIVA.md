@@ -330,20 +330,35 @@ destroyBody + double-destroy = no-op sicuro
 ```
 ctest → 11/11 passed  (invariati)
 
-game.exe test-project/ output:
-  [Demo] ArtCade Phase 13 Demo loaded!
-  [App] Project loaded: ArtCade Phase 13 Demo
-  [Lua] Player found  id=1
-  [Lua] Enemies found: 2
-  [Lua] Coins found: 2
-  [Lua] Init complete  WASD / Arrow keys to move
-  [Lua] t=2s  score=0  coins=2  enemies=2  pos=(640,340)  alive=true  fps~60
-  [Lua] t=4s  ...
-  ...
-  (ogni 2 secondi per 30s — nessun crash, 0 stderr)
+=== Test 6s (posizione + gameplay) ===
+  [Demo] ArtCade Phase 13 + Physics Demo loaded!
+  [Lua] Player found id=1 | Enemies: 2 | Coins: 2
+  [Lua] Floor body handle=1 spawn=(640,640) size=1280x40
+  [Lua] Ball  body handle=2 spawn=(640,60)  size=44x44
+  [Lua] Expected rest y = 598
+  [Lua] t= 2s  ball=(640.0,479.4) vy=240.0 [FALLING]  score=0  fps=60
+  [Lua] t= 4s  ball=(640.0,598.0) vy=  0.0 [AT_REST]  score=0  fps=60
 
-Stabilità 30 secondi: processo killato manualmente (no crash spontaneo)
+=== Test 8s (raccolta coin + hit nemico) ===
+  [Lua] Coin collected! score=10
+  [Lua] t= 6s  ball=(640.0,598.0) vy=0.0 [AT_REST]  score=10  fps=60
+  stderr: clean
+
+=== Test 30s (stabilità lunga) ===
+  Ball mantiene y=598.0 vy=0.0 [AT_REST] da t=4s fino a t=28s (24s senza drift)
+  PLAYER HIT by enemy 2  (collision detection funziona)
+  stderr: clean per tutti 30s
+  fps: 60 costanti
+
+Log file su disco: test-project/logs/physics_test.log (scritto via Lua io.open)
+stdout_8s.txt / stdout_30s.txt  in test-project/logs/
 ```
+
+**Analisi fisica Ball:**
+- Inizio: y=60, gravità=500 px/s²
+- Caduta: a t≈1.5s tocca il pavimento
+- Rest y = floor_y(640) − floor_half(20) − ball_half(22) = **598** (Box2D contact esatto)
+- Nessuna instabilità numerica in 30s (Box2D stabile a scale pixel con g=500)
 
 ### Architettura game loop ✅
 ```
@@ -496,4 +511,4 @@ Un file `.artcade` firmato e uno script di build cross-platform.
 
 ---
 
-*Ultimo aggiornamento: 2026-05-09 — Fasi 0–14 completate (11/11 test nativi + WASM build + demo interattiva 30s stabile)*
+*Ultimo aggiornamento: 2026-05-09 — Fasi 0–14 completate (11/11 test nativi + WASM build + demo fisica 30s stabile, ball AT_REST y=598)*

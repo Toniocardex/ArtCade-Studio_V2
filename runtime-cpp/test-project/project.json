@@ -90,6 +90,40 @@
         "alpha": 1.0,
         "renderOrder": 0
       }
+    },
+    "6": {
+      "id": 6,
+      "name": "PhysicsBall",
+      "className": "PhysicsBall",
+      "tags": ["physics"],
+      "transform": {
+        "position": [640, 60],
+        "scale": [1, 1],
+        "rotation": 0
+      },
+      "sprite": {
+        "spriteAssetId": "",
+        "tint": [0.0, 1.0, 0.5, 1.0],
+        "alpha": 1.0,
+        "renderOrder": 2
+      }
+    },
+    "7": {
+      "id": 7,
+      "name": "PhysicsFloor",
+      "className": "PhysicsFloor",
+      "tags": ["physics", "static"],
+      "transform": {
+        "position": [640, 640],
+        "scale": [1, 1],
+        "rotation": 0
+      },
+      "sprite": {
+        "spriteAssetId": "",
+        "tint": [0.5, 0.35, 0.1, 1.0],
+        "alpha": 1.0,
+        "renderOrder": 0
+      }
     }
   },
   "scenes": {
@@ -99,7 +133,7 @@
       "worldSize": [1280, 720],
       "viewportSize": [1280, 720],
       "backgroundColor": [0.04, 0.05, 0.12, 1.0],
-      "entityIds": [1, 2, 3, 4, 5]
+      "entityIds": [1, 2, 3, 4, 5, 6, 7]
     }
   }
 }

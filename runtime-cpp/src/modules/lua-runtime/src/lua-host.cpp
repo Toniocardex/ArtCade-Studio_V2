@@ -26,7 +26,8 @@ bool LuaHost::init() {
         sol::lib::math,
         sol::lib::string,
         sol::lib::table,
-        sol::lib::coroutine
+        sol::lib::coroutine,
+        sol::lib::io          // needed for log file writing in scripts
     );
 
     // Run any pending C++ → Lua binding registrations
