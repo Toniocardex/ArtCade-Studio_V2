@@ -1,0 +1,69 @@
+# Build artifacts
+build/
+dist/
+*.exe
+*.dll
+*.so
+*.dylib
+*.o
+*.obj
+*.a
+*.lib
+
+# CMake
+CMakeUserPresets.json
+cmake-build-debug/
+cmake-build-release/
+CMakeCache.txt
+CMakeFiles/
+Makefile
+
+# Emscripten
+*.wasm
+*.wasm.map
+*.js.map
+*.js~
+
+# Node/npm
+node_modules/
+package-lock.json
+yarn.lock
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+
+# Tauri
+src-tauri/target/
+dist/
+.tauri/
+
+# Temp/Dev
+.env
+.env.local
+temp/
+tmp/
+*.tmp
+
+# Asset development (gitignore loose assets, commit only in .artcade)
+assets/dev/
+*.psd
+*.aseprite
+*.ase
+
+# Runtime outputs
+*.artcade.debug
+profile-*.json
+
+# OS
+Thumbs.db
+.AppleDouble
+.LSOverride
+*.stackdump

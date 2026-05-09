@@ -1,0 +1,20 @@
+{
+  "name": "artcade-v2",
+  "version": "2.0.0",
+  "description": "ArtCade V2: Dual-runtime 2D game engine (C++ native + WebAssembly)",
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "workspaces": [
+    "editor"
+  ],
+  "scripts": {
+    "dev": "cd editor && npm run dev",
+    "build": "cd editor && npm run build",
+    "build:cpp": "cd runtime-cpp && mkdir -p build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release && cmake --build . --config Release",
+    "build:wasm": "cd runtime-cpp && mkdir -p build && cd build && emcmake cmake .. -DCMAKE_BUILD_TYPE=Release && cmake --build .",
+    "clean": "rm -rf runtime-cpp/build && rm -rf editor/dist && rm -rf runtime-wasm/build"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}
