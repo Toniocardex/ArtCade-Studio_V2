@@ -1,0 +1,457 @@
+# ArtCade V2 — Roadmap Integrativa
+
+> **Scopo**: tracciare fase per fase l'implementazione del runtime C++,
+> con criteri di test chiari per validare ogni step prima di procedere.
+>
+> Ogni fase termina con un **checkpoint**: se il checkpoint passa, si va avanti.
+> Se fallisce, si blocca lì finché non è risolto.
+
+---
+
+## Legenda stato
+
+| Simbolo | Significato |
+|---------|-------------|
+| ✅ | Completato e validato |
+| 🔧 | Implementato, validazione parziale (vedi note) |
+| ⏳ | Da fare |
+| 🔗 | Dipende da una fase precedente |
+
+---
+
+## FASE 0 — Struttura di progetto e architettura
+
+**Stato**: ✅ Completata
+
+### Cosa è stato fatto
+- Struttura modulare `src/modules/<nome>/{include/, src/, CMakeLists.txt}`
+- `core/types.h` — tipi condivisi (`EntityId`, `Vec2`, `Transform`, ecc.)
+- `core/module.h` — interfaccia `IModule` (init/shutdown non-copiabile)
+- `core/engine-context.h` — DI container non-owning con forward declarations
+- `app/app.cpp` — Pimpl con init/shutdown ordinati e main loop a timestep fisso
+- `app/main.cpp` — entry point 4 righe
+- `CMakeLists.txt` root — detect Emscripten, target `artcade-core`, subdirectory per ogni modulo
+- `CLAUDE.md` — decisioni architetturali documentate
+
+### Checkpoint ✅
+- [x] Struttura directory conforme alla regola "no god files"
+- [x] `engine-context.h` non include nessun header di modulo (solo forward decl)
+- [x] `main.cpp` ha esattamente 4 righe
+
+---
+
+## FASE 1 — Moduli core stateless (batch 1)
+
+**Stato**: ✅ Completata — ctest 3/3 (37 test totali)
+
+### Moduli inclusi
+1. **TimeManager** — time layer, pausa stack, delay/every timers (12 test)
+2. **EventBus** — pub/sub string-keyed con payload `std::any`, deferred emit (10 test)
+3. **VariableManager** — store int/float/bool/string con observer e snapshot (15 test)
+
+### Checkpoint ✅
+```
+ctest → time_manager_test    12/12 passed
+        event_bus_test       10/10 passed
+        variable_manager_test 15/15 passed
+```
+
+---
+
+## FASE 2 — Moduli core stateless (batch 2)
+
+**Stato**: ✅ Completata — ctest 6/6 (64 test totali)
+
+### Moduli inclusi
+4. **GameStateManager** — FSM a stringhe, guard, push/pop history, EventBus (10 test)
+5. **SpriteAnimator** — clip frame-based, loop/non-loop, onFinish, istanze per entity (13 test)
+6. **LayerManager** — z-order, visibilità, opacity tween, assegnazione entità (11 test)
+7. **CameraManager** — posizione/zoom lerp, follow, shake trauma-based, world↔screen (12 test)
+8. **TweenManager** — 13 easing, loop/pingpong, delay, onComplete — **bug delay fixato** (11 test)
+9. **SaveLoadManager** — slot su filesystem, serializzazione senza lib esterne (7 test)
+
+### Checkpoint ✅
+```
+ctest → game_state_test      10/10 passed
+        sprite_animator_test 13/13 passed
+        layer_manager_test   11/11 passed
+        camera_manager_test  12/12 passed
+        tween_manager_test   11/11 passed
+        save_load_test        7/7  passed
+```
+
+---
+
+## FASE 3 — Primo build CMake completo (senza Raylib)
+
+**Stato**: ✅ Completata — 10/10 test passed (MSVC 19.50, CMake 4.3.2)
+
+### Obiettivo
+Verificare che tutti i moduli stateless (Fasi 1–2) compilino insieme tramite CMake
+prima di aggiungere la dipendenza Raylib.
+
+### Checkpoint ✅
+```
+cmake .. -DARTCADE_BUILD_TESTS=ON
+ctest → 10/10 passed  (0.15s totali)
+```
+
+**Fix notevoli**:
+- `-DCMAKE_POLICY_VERSION_MINIMUM=3.5` necessario per Raylib 5.0 con CMake 4.3.2
+- Bug TweenManager delay: `effectiveDt = -e.delayRemaining` (overshoot dopo delay)
+
+---
+
+## FASE 4 — Librerie di terze parti
+
+**Stato**: ✅ Completata — CMake configure + full build OK
+
+### Installate in `runtime-cpp/libs/`
+```
+libs/raylib/        Raylib 5.0  (source, add_subdirectory)
+libs/lua/           Lua 5.4.7   (source, CMakeLists.txt custom — target: lua54)
+libs/sol2/          Sol2 3.3.0  (header-only, include/sol/sol.hpp)
+libs/nlohmann-json/ v3.11.3     (header-only, include/nlohmann/json.hpp)
+```
+
+### Fix notevoli
+- Lua 5.4 non aveva `CMakeLists.txt` → creato custom con `add_library(lua54 STATIC ...)`
+- Target `lua` → rinominato `lua54` in `game-api/CMakeLists.txt` e `lua-runtime/CMakeLists.txt`
+- Stub `.cpp` creati per tutti i moduli non ancora implementati
+- `TextureManager` Pimpl: `struct Texture2D;` forward-decl non compatibile con `typedef struct Texture {} Texture2D` di Raylib → risolto con Pimpl completo
+- `LuaHost`: `std::unique_ptr<sol::state>` in header con tipo incompleto → Pimpl + `~LuaHost()` definito in `.cpp`
+- `audio.h` mancava `#include <unordered_map>`
+- `app.cpp`: `std::string::ends_with` è C++20 → rimpiazzato con lambda C++17
+
+### Checkpoint ✅
+```
+[ArtCade] Raylib : FOUND
+[ArtCade] Lua    : FOUND
+cmake --build → 100% Built target game  (game.exe linka)
+ctest         → 10/10 passed
+```
+
+---
+
+## FASE 5 — Renderer (Raylib)
+
+**Stato**: ✅ Completata
+
+### Implementato
+- `renderer.h` — Pimpl completo (nessun tipo Raylib in header pubblico)
+- `renderer.cpp` — `InitWindow`, `Camera2D`, `BeginDrawing`/`EndDrawing`, `BeginMode2D`/`EndMode2D`
+- `texture-cache.h/cpp` — cache GPU interna con handle `uint32_t`
+- Primitive: `drawSprite` (DrawTexturePro), `drawRect`, `drawLine`, `drawCircle`
+- `deltaTime()` → wrappa `GetFrameTime()` (evita include raylib in app.cpp)
+- Ordine corretto: `setWindowSize()` prima di `init()` → finestra apre con dimensioni giuste
+
+### Checkpoint ✅
+- [x] Finestra 1280×720 apre senza crash
+- [x] Background color da `Vec4` corretta
+- [x] `Camera2D` centrata: origin a metà schermo
+- [x] TextureCache: placeholder magenta su file mancante
+
+---
+
+## FASE 6 — TextureManager integrato (con vero Raylib)
+
+**Stato**: ✅ Completata — 9 test (con stub Raylib, nessuna GPU richiesta)
+
+### Implementato
+- Pimpl completo: `Impl` con `Texture2D` by value (non puntatore)
+- `getInfo(handle, TextureInfo&)` → sostituisce `get()` che esponeva `Texture2D*`
+- Ref-counting: tre `load()` richiedono tre `release()` per liberare la GPU texture
+- Placeholder 1×1 magenta su file mancante o ID GPU = 0
+
+### Checkpoint ✅
+```
+ctest → texture_manager_test  9/9 passed
+```
+
+---
+
+## FASE 7 — Input
+
+**Stato**: ✅ Completata
+
+### Implementato
+- `input.cpp` — poll completo di Raylib (IsKeyDown/Pressed/Released per ogni keycode noto)
+- `keymap.cpp` — dizionario statico KeyboardEvent.code → Raylib keycode (70+ tasti)
+- `mouse` — posizione, 3 pulsanti
+- `resetFrameState()` — pulisce flag edge (pressed/released) a fine frame
+- Nessun import di raylib.h in header pubblico
+
+### Checkpoint ✅
+- [x] Keymap copre lettere A-Z, Digit0-9, Arrow*, F1-F12, Numpad, modificatori
+- [x] `wasKeyPressed` restituisce true solo per un frame (edge-triggered)
+- [x] Build senza errori, link OK
+
+---
+
+## FASE 8 — Audio
+
+**Stato**: ✅ Completata
+
+### Implementato
+- `audio.h` — Pimpl completo (Sound, Music nascosti in Impl; nessun raylib.h nel header)
+- `audio.cpp` — `InitAudioDevice`, Sound cache per path, Music streaming (`LoadMusicStream`)
+- Volume gerarchico: master (`SetMasterVolume`), music (`SetMusicVolume`), sfx (applicato su play)
+- `update()` → `UpdateMusicStream` ogni frame (obbligatorio per streaming)
+- `stopAll()` — ferma musica e tutti i suoni in cache
+
+### Checkpoint ✅
+- [x] Pimpl: nessun tipo Raylib in audio.h
+- [x] Build + link OK
+
+---
+
+## FASE 9 — EntityManager + SceneManager + World
+
+**Stato**: ✅ Completata
+
+### Implementato
+- **EntityManager**: `createEntity`, `destroyEntity`, `getPool(className)`, `getByTag`, index doppio (class + tag), `forEachInPool`
+- **SceneManager**: `registerScenes`, `loadScene`, `activeScene()` — carica dalla ProjectDoc
+- **World**: `syncPhysicsToEntities()` (copia posizioni da Rapier → Transform), `getGlobalState/setGlobalState`, `activeEntityIds()`
+
+### Checkpoint ✅
+- [x] EntityManager: create/destroy/pool query funzionanti
+- [x] SceneManager: load + activeScene() restituisce SceneDef corretta
+- [x] Build + link OK
+
+---
+
+## FASE 10 — AssetLoader + formato project.json
+
+**Stato**: ✅ Completata (dev mode; .artcade ZIP futuro)
+
+### Implementato
+- `asset-loader.cpp` con `nlohmann::json`
+- `loadDirectory(path, out)` → legge `project.json` nella cartella
+- Parser completo: `ProjectDoc`, `EntityDef` (transform, sprite, tags), `SceneDef` (entityIds, backgroundColor)
+- `loadLuaBytecode(path, bytes)` → risolve path relativo alla project root
+- `resolveAssetPath(assetId, type)` → `<root>/assets/<type>/<id>`
+- ZIP extraction (`.artcade`): stub per Phase 10b
+
+### Checkpoint ✅
+```
+game.exe test-project/ → "[App] Project loaded: ArtCade Test"
+```
+
+---
+
+## FASE 11 — LuaHost + GameAPI
+
+**Stato**: ✅ Completata
+
+### Implementato
+- **LuaHost** — Sol2 `sol::state` (Pimpl), open_libraries base/math/string/table/coroutine
+- `loadBytecodeBuffer` → `lua.load_buffer()` (funziona sia per sorgente `.lua` che bytecode `.luac`)
+- `loadBytecodeFile` → `lua.load_file()`
+- `tick(dt)` → chiama `tick` globale Lua con `sol::protected_function` (errori catturati in `lastError_`)
+- `registerBindings(callback)` → eseguiti su `init()` prima di caricare script
+- **GameAPI** — binding entity, physics, input, audio, state, debug già scheletrati con Sol2
+
+### Checkpoint ✅
+```
+[Lua] main.lua loaded — ArtCade V2 engine running!
+[Lua] tick  t=1.0
+[Lua] tick  t=2.0
+[Lua] tick  t=3.0
+[Lua] tick  t=4.0
+```
+
+---
+
+## FASE 12 — Physics (Rapier2D)
+
+**Stato**: ⏳ — libreria `rapier2d-c` non ancora disponibile
+
+### Da fare
+- Clonare/compilare le binding C di Rapier2D (`rapier2d-c`)
+- Aggiornare `CMakeLists.txt` per linkare la libreria
+- Implementare `physics.cpp`: world, rigid bodies, colliders, step, raycast
+
+### Checkpoint (futuro)
+```bash
+# Scena: pavimento statico + cubo dinamico che cade
+game.exe tests/physics-test-project/
+# Cubo cade sotto gravità, si ferma sul pavimento, position sync visibile
+```
+
+Criteri:
+- [ ] Corpo dinamico cade sotto gravità
+- [ ] Collisione con corpo statico → stop o rimbalzo
+- [ ] Step deterministico: stesso seed → stessa simulazione
+- [ ] `World::syncPhysicsToEntities()` aggiorna Transform ogni frame
+
+---
+
+## FASE 13 — First Playable (integrazione completa native)
+
+**Stato**: 🔧 Foundation validata — game demo completo dipende da Fase 12
+
+### Validato ✅
+- `game.exe test-project/` apre finestra 1280×720 a 60fps stabili
+- `project.json` caricato e parsed correttamente
+- Lua script caricato ed eseguito (sol::state)
+- `tick(dt)` chiamato ogni frame con delta reale (GetFrameTime)
+- EntityManager + SceneManager + Renderer + Input + Audio tutti inizializzati
+- Nessun crash in 5 secondi continui
+
+### Pendente ⏳
+- [ ] Demo interattiva WASD (richiede Input loop + rendering entità con sprite)
+- [ ] Physics-based collisions (bloccato da Fase 12)
+- [ ] Background music durante il gameplay
+- [ ] Save/Load via F5/F9 (SaveLoadManager integrato nel Lua script)
+- [ ] Test di stabilità 5 minuti continui
+
+### Architettura game loop ✅
+```
+initModules → renderer.init (window open) → audio.init → lua.init
+mainLoop:
+  input.poll()
+  fixed timestep (60Hz):
+    timeManager.tick → tween → animator → layer → camera
+    gameStateManager.update → eventBus.flush → lua.tick(dt)
+    physics.step → world.syncPhysics → audio.update
+  renderActiveScene()
+  input.resetFrameState()
+```
+
+---
+
+## FASE 14 — WebAssembly (Emscripten)
+
+**Stato**: ⏳ 🔗 FASE 13 completa
+
+### Prerequisiti
+```bash
+git clone https://github.com/emscripten-core/emsdk.git
+cd emsdk && ./emsdk install latest && ./emsdk activate latest
+source emsdk_env.sh
+```
+
+### Build
+```bash
+cd runtime-cpp
+mkdir build-wasm && cd build-wasm
+emcmake cmake .. -DCMAKE_BUILD_TYPE=Release
+cmake --build .
+# Output: game.js + game.wasm + game.html
+```
+
+### Checkpoint (futuro)
+```bash
+python -m http.server 8000
+# http://localhost:8000/game.html
+```
+
+Criteri:
+- [ ] Gioco si carica nel browser (Chrome/Firefox)
+- [ ] Input funziona
+- [ ] Audio funziona (Web Audio API)
+- [ ] Parity visiva con la versione nativa
+- [ ] Nessun errore in console
+
+---
+
+## FASE 15 — Tauri Editor Preview
+
+**Stato**: ⏳ 🔗 FASE 14
+
+### Obiettivo
+Il WASM prodotto dalla Fase 14 viene caricato nella WebView Tauri dell'editor.
+
+### Checkpoint (futuro)
+```bash
+cd editor
+npm run tauri:dev
+# Clicca "Preview" nell'editor
+```
+
+Criteri:
+- [ ] Preview panel mostra il gioco in real-time
+- [ ] Modifica di una proprietà nell'inspector → rebuild → preview aggiornato
+- [ ] Nessuna differenza visiva tra preview Tauri e browser standalone
+
+---
+
+## FASE 16 — Logic Components Lua di alto livello
+
+**Stato**: ⏳ 🔗 FASE 11
+
+Questi sono implementati interamente in Lua (non in C++), usando la GameAPI.
+
+| Component | Script |
+|-----------|--------|
+| HealthSystem | `scripts/components/health.lua` |
+| DialogueSystem | `scripts/components/dialogue.lua` |
+| InventorySystem | `scripts/components/inventory.lua` |
+| QuestTracker | `scripts/components/quest.lua` |
+| ParticleEmitter | `scripts/components/particles.lua` |
+| PathFollower | `scripts/components/path-follower.lua` |
+| Platformer Controller | `scripts/components/platformer.lua` |
+
+### Checkpoint per ogni component
+- Scena di test dedicata
+- Script Lua che verifica il comportamento atteso
+- Nessun errore Lua runtime dopo 60 secondi di gioco
+
+---
+
+## FASE 17 — Packaging e distribuzione
+
+**Stato**: ⏳ 🔗 FASI 13–14
+
+### Obiettivo
+Un file `.artcade` firmato e uno script di build cross-platform.
+
+```bash
+./scripts/pack-artcade.sh MyGame
+# Output: MyGame.artcade (ZIP firmato con manifest.json)
+```
+
+### Checkpoint (futuro)
+- [ ] `game.exe` + `MyGame.artcade` su Windows → gioca offline
+- [ ] `game.html` + `game.wasm` + `MyGame.artcade` → gioca in browser
+- [ ] File `.artcade` caricabile da `AssetLoader` senza estrazione manuale
+
+---
+
+## Riepilogo globale
+
+| Fase | Descrizione | Dipende da | Stato |
+|------|-------------|------------|-------|
+| 0 | Struttura + architettura | — | ✅ |
+| 1 | Moduli stateless batch 1 (Time, EventBus, VariableManager) | 0 | ✅ |
+| 2 | Moduli stateless batch 2 (GSM, Animator, Layer, Camera, Tween, Save) | 0 | ✅ |
+| 3 | Build CMake completo senza Raylib | 1–2 | ✅ |
+| 4 | Librerie di terze parti (Raylib, Lua, Sol2, nlohmann) | 0 | ✅ |
+| 5 | Renderer (Raylib window, Camera2D, draw calls) | 4 | ✅ |
+| 6 | TextureManager con vero Raylib | 5 | ✅ |
+| 7 | Input (keymap JS-style, poll Raylib) | 5 | ✅ |
+| 8 | Audio (Sound cache + Music streaming) | 5 | ✅ |
+| 9 | EntityManager + SceneManager + World | 4 | ✅ |
+| 10 | AssetLoader + project.json (nlohmann/json) | 9 | ✅ |
+| 11 | LuaHost (Sol2) + GameAPI binding | 9, 10 | ✅ |
+| 12 | Physics (Rapier2D) | 9 | ⏳ |
+| 13 | First Playable native .exe | 5–12 | 🔧 |
+| 14 | WebAssembly (Emscripten) | 13 | ⏳ |
+| 15 | Tauri Editor Preview | 14 | ⏳ |
+| 16 | Logic Components Lua | 11 | ⏳ |
+| 17 | Packaging e distribuzione | 13–14 | ⏳ |
+
+---
+
+## Regole operative
+
+1. **Non passare alla fase N+1 finché il checkpoint di N non è verde.**
+2. **I test vanno compilati ed eseguiti localmente** — non basta leggere il codice.
+3. **Ogni modulo nuovo** segue la struttura `include/` + `src/` + `CMakeLists.txt` + `tests/`.
+4. **No god files**: nessun file sorgente > ~300 righe senza una buona ragione.
+5. **Commit dopo ogni checkpoint verde**: messaggio con `feat:`, `fix:` o `test:` prefix.
+
+---
+
+*Ultimo aggiornamento: 2026-05-09 — Fasi 0–11 completate, Fase 13 foundation OK*

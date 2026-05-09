@@ -1,0 +1,37 @@
+{
+  "projectName": "ArtCade Test",
+  "version": "2.0.0",
+  "gameResolution": [1280, 720],
+  "targetFPS": 60,
+  "activeSceneId": "scene_main",
+  "mainScriptPath": "scripts/main.lua",
+  "entities": {
+    "1": {
+      "id": 1,
+      "name": "Box",
+      "className": "Box",
+      "tags": [],
+      "transform": {
+        "position": [200, 300],
+        "scale": [1, 1],
+        "rotation": 0
+      },
+      "sprite": {
+        "spriteAssetId": "",
+        "tint": [1, 0.2, 0.2, 1],
+        "alpha": 1.0,
+        "renderOrder": 0
+      }
+    }
+  },
+  "scenes": {
+    "scene_main": {
+      "id": "scene_main",
+      "name": "Main Scene",
+      "worldSize": [1280, 720],
+      "viewportSize": [1280, 720],
+      "backgroundColor": [0.05, 0.05, 0.1, 1.0],
+      "entityIds": [1]
+    }
+  }
+}

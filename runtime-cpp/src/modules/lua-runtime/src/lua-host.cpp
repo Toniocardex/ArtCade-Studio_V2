@@ -1,0 +1,125 @@
+#include "../include/lua-host.h"
+#include <memory>
+
+// Sol2 is a heavyweight header; include only in this TU.
+#define SOL_ALL_SAFETIES_ON 1
+#include <sol/sol.hpp>
+
+namespace ArtCade::Modules {
+
+// ------------------------------------------------------------------ Pimpl
+
+struct LuaHost::Impl {
+    sol::state lua;
+    bool       scriptLoaded = false;
+};
+
+// ------------------------------------------------------------------ lifecycle
+
+LuaHost::LuaHost()  : impl_(std::make_unique<Impl>()) {}
+LuaHost::~LuaHost() = default;
+
+bool LuaHost::init() {
+    // Open only the safe standard libraries (no io/os by default)
+    impl_->lua.open_libraries(
+        sol::lib::base,
+        sol::lib::math,
+        sol::lib::string,
+        sol::lib::table,
+        sol::lib::coroutine
+    );
+
+    // Run any pending C++ → Lua binding registrations
+    for (auto& cb : pendingBindings_)
+        cb(impl_->lua);
+    pendingBindings_.clear();
+
+    return true;
+}
+
+void LuaHost::shutdown() {
+    impl_->scriptLoaded = false;
+    // sol::state destructor handles Lua VM cleanup
+}
+
+// ------------------------------------------------------------------ bindings
+
+void LuaHost::registerBindings(BindingCallback cb) {
+    pendingBindings_.push_back(std::move(cb));
+}
+
+// ------------------------------------------------------------------ script loading
+
+bool LuaHost::loadBytecodeBuffer(const uint8_t* data, size_t size) {
+    auto result = impl_->lua.load_buffer(
+        reinterpret_cast<const char*>(data), size, "@main.luac");
+
+    if (!result.valid()) {
+        sol::error err = result;
+        lastError_ = std::string("load: ") + err.what();
+        return false;
+    }
+
+    // Execute the chunk (defines globals like 'tick', 'init', …)
+    sol::protected_function chunk = result;
+    auto run = chunk();
+    if (!run.valid()) {
+        sol::error err = run;
+        lastError_ = std::string("exec: ") + err.what();
+        return false;
+    }
+
+    impl_->scriptLoaded = true;
+    lastError_.clear();
+    return true;
+}
+
+bool LuaHost::loadBytecodeFile(const std::string& path) {
+    // Open file in binary mode
+    auto result = impl_->lua.load_file(path);
+    if (!result.valid()) {
+        sol::error err = result;
+        lastError_ = std::string("load_file: ") + err.what();
+        return false;
+    }
+
+    sol::protected_function chunk = result;
+    auto run = chunk();
+    if (!run.valid()) {
+        sol::error err = run;
+        lastError_ = std::string("exec_file: ") + err.what();
+        return false;
+    }
+
+    impl_->scriptLoaded = true;
+    lastError_.clear();
+    return true;
+}
+
+// ------------------------------------------------------------------ calls
+
+void LuaHost::tick(float dt) {
+    if (!impl_->scriptLoaded) return;
+
+    sol::protected_function fn = impl_->lua["tick"];
+    if (!fn.valid()) return;
+
+    auto result = fn(dt);
+    if (!result.valid()) {
+        sol::error err = result;
+        lastError_ = err.what();
+    }
+}
+
+void LuaHost::callFunction(const std::string& name) {
+    sol::protected_function fn = impl_->lua[name];
+    if (!fn.valid()) return;
+
+    auto result = fn();
+    if (!result.valid()) {
+        sol::error err = result;
+        lastError_ = err.what();
+    }
+}
+
+} // namespace ArtCade::Modules

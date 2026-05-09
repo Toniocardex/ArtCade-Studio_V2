@@ -7,5 +7,5 @@ target_include_directories(artcade-lua-runtime
 )
 target_link_libraries(artcade-lua-runtime
     PUBLIC  artcade-core
-    PRIVATE lua
+    PRIVATE lua54
 )

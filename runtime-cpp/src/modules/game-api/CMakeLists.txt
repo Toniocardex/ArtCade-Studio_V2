@@ -21,5 +21,5 @@ target_link_libraries(artcade-game-api
         artcade-entity-system
         artcade-scene-system
     PRIVATE
-        lua
+        lua54
 )

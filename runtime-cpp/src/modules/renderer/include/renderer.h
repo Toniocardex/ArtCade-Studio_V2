@@ -3,57 +3,60 @@
 #include "../../../core/module.h"
 #include "../../../core/types.h"
 #include <string>
+#include <memory>
 
 namespace ArtCade::Modules {
 
 /**
- * Renderer — public interface.
+ * Renderer — Raylib window + 2D draw API.
  *
- * Only this header is included by other modules.
- * Raylib, texture caching and drawable internals live in src/ (private).
+ * All Raylib types (Texture2D, Camera2D, Color …) are confined to
+ * renderer.cpp via Pimpl — no raylib.h leaks into includers.
  */
 class Renderer final : public IModule {
 public:
-    Renderer() = default;
+    Renderer();
+    ~Renderer();
 
-    bool init() override;
+    bool init()     override;
     void shutdown() override;
 
+    // Must be called before init() to configure window parameters
     void setWindowSize(uint32_t width, uint32_t height, const std::string& title);
 
-    // Frame control
+    // Frame lifecycle
     void beginFrame(const Vec4& clearColor);
     void endFrame();
     bool shouldClose() const;
 
-    // Drawing primitives
+    // Draw calls (valid between beginFrame/endFrame)
     void drawSprite(const AssetId& assetId,
-                    const Vec2& position,
-                    float       rotation,
-                    const Vec2& scale,
-                    const Vec4& tint,
-                    float       alpha);
+                    const Vec2&    position,
+                    float          rotation,   // degrees
+                    const Vec2&    scale,
+                    const Vec4&    tint,
+                    float          alpha);
 
-    void drawRect(float x, float y, float w, float h, const Vec4& color);
-    void drawLine(float x1, float y1, float x2, float y2, const Vec4& color);
+    void drawRect  (float x, float y, float w, float h, const Vec4& color);
+    void drawLine  (float x1, float y1, float x2, float y2, const Vec4& color);
     void drawCircle(float x, float y, float radius, const Vec4& color);
 
-    // Texture asset management
-    uint32_t    loadTexture(const std::string& filePath);
-    void        unloadTexture(uint32_t handle);
-    bool        isTextureLoaded(const AssetId& assetId) const;
+    // GPU texture management
+    uint32_t loadTexture  (const std::string& filePath);
+    void     unloadTexture(uint32_t handle);
+    bool     isTextureLoaded(const AssetId& assetId) const;
 
-    // Camera (basic; extend later)
+    // 2D camera
     void setCameraPosition(const Vec2& pos);
-    void setCameraZoom(float zoom);
+    void setCameraZoom    (float zoom);
 
-    uint32_t windowWidth()  const { return width_;  }
-    uint32_t windowHeight() const { return height_; }
+    uint32_t windowWidth()  const;
+    uint32_t windowHeight() const;
+    float    deltaTime()    const;   // wraps Raylib GetFrameTime()
 
 private:
-    uint32_t    width_  = 1280;
-    uint32_t    height_ = 720;
-    std::string title_  = "ArtCade V2";
+    struct Impl;
+    std::unique_ptr<Impl> impl_;
 };
 
 } // namespace ArtCade::Modules

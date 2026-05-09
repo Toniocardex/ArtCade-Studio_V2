@@ -25,10 +25,21 @@ namespace Modules {
     class SceneManager;
     class AssetLoader;
     class GameAPI;
+    class TimeManager;
+    class EventBus;
+    class VariableManager;
+    class GameStateManager;
+    class TextureManager;
+    class SpriteAnimator;
+    class LayerManager;
+    class CameraManager;
+    class TweenManager;
+    class SaveLoadManager;
 }
 class World;
 
 struct EngineContext {
+    // ---- core systems (existed before) ----
     Modules::Renderer*      renderer      = nullptr;
     Modules::Physics*       physics       = nullptr;
     Modules::Input*         input         = nullptr;
@@ -39,6 +50,18 @@ struct EngineContext {
     Modules::AssetLoader*   assetLoader   = nullptr;
     Modules::GameAPI*       gameAPI       = nullptr;
     World*                  world         = nullptr;
+
+    // ---- new modules ----
+    Modules::TimeManager*      timeManager      = nullptr;
+    Modules::EventBus*         eventBus         = nullptr;
+    Modules::VariableManager*  variableManager  = nullptr;
+    Modules::GameStateManager* gameStateManager = nullptr;
+    Modules::TextureManager*   textureManager   = nullptr;
+    Modules::SpriteAnimator*   spriteAnimator   = nullptr;
+    Modules::LayerManager*     layerManager     = nullptr;
+    Modules::CameraManager*    cameraManager    = nullptr;
+    Modules::TweenManager*     tweenManager     = nullptr;
+    Modules::SaveLoadManager*  saveLoadManager  = nullptr;
 };
 
 } // namespace ArtCade

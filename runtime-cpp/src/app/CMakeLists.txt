@@ -14,6 +14,17 @@ target_link_libraries(game PRIVATE
     artcade-audio
     artcade-entity-system
     artcade-scene-system
+    # New modules
+    artcade-time
+    artcade-event-bus
+    artcade-variable-manager
+    artcade-game-state
+    artcade-texture-manager
+    artcade-sprite-animator
+    artcade-layer-manager
+    artcade-camera-manager
+    artcade-tween-manager
+    artcade-save-load
 )
 
 # ============================================================================

@@ -1,6 +1,10 @@
 # Build artifacts
 build/
+build-*/
 dist/
+
+# Third-party libraries (large binaries, fetched at configure time)
+runtime-cpp/libs/
 *.exe
 *.dll
 *.so
