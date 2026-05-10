@@ -40,11 +40,40 @@ void GameAPI::bindDebugAPI(sol::state& lua) {
             renderer->drawRect(x, y, w, h, c);
         });
 
+    // Shared colour parser (reused by drawCircle and drawText)
+    auto parseColor = [](const std::string& color) -> Vec4 {
+        if      (color == "red")     return {1.f, 0.2f, 0.2f, 0.9f};
+        else if (color == "green")   return {0.2f, 1.f, 0.2f, 0.9f};
+        else if (color == "blue")    return {0.2f, 0.5f, 1.f, 0.9f};
+        else if (color == "white")   return {1.f,  1.f,  1.f, 1.f};
+        else if (color == "black")   return {0.f,  0.f,  0.f, 1.f};
+        else if (color == "yellow")  return {1.f,  1.f,  0.f, 0.9f};
+        else if (color == "cyan")    return {0.f,  1.f,  1.f, 0.9f};
+        else if (color == "magenta") return {1.f,  0.f,  1.f, 0.9f};
+        else if (color == "orange")  return {1.f,  0.6f, 0.f, 0.9f};
+        else if (color == "gray")    return {0.5f, 0.5f, 0.5f, 0.9f};
+        else if (color == "purple")  return {0.6f, 0.f,  1.f, 0.9f};
+        return {1.f, 1.f, 1.f, 1.f};  // default white
+    };
+
+    lua.set_function("debug_drawCircle",
+        [renderer, parseColor](float x, float y, float r, const std::string& color) {
+            renderer->drawCircle(x, y, r, parseColor(color));
+        });
+
+    lua.set_function("debug_drawText",
+        [renderer, parseColor](const std::string& text, float x, float y,
+                               int fontSize, const std::string& color) {
+            renderer->drawText(text, x, y, fontSize, parseColor(color));
+        });
+
     lua.script(R"(
         debug = {}
-        debug.log      = function(msg)                    return debug_log(msg)                         end
-        debug.drawLine = function(x1, y1, x2, y2, color) return debug_drawLine(x1,y1,x2,y2,color or "white") end
-        debug.drawRect = function(x, y, w, h, color)     return debug_drawRect(x,y,w,h,color or "yellow")    end
+        debug.log        = function(msg)                       return debug_log(msg)                              end
+        debug.drawLine   = function(x1,y1,x2,y2,color)        return debug_drawLine(x1,y1,x2,y2,color or "white") end
+        debug.drawRect   = function(x,y,w,h,color)            return debug_drawRect(x,y,w,h,color or "yellow")    end
+        debug.drawCircle = function(x,y,r,color)              return debug_drawCircle(x,y,r,color or "white")     end
+        debug.drawText   = function(text,x,y,fontSize,color)  return debug_drawText(text,x,y,fontSize or 20,color or "white") end
     )");
 }
 

@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ArtCade global styles */
+* { box-sizing: border-box; }
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #0B1121;
+  color: #D1D5DB;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar       { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: #0B1121; }
+::-webkit-scrollbar-thumb { background: #1A253A; border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: #2D3748; }
+
+/* Monaco: no extra border */
+.monaco-editor { border: none !important; }
+
+/* Neon glow helpers (used via inline style when needed) */
+.glow-cyan  { text-shadow: 0 0 8px #00FFFF; }
+.glow-mag   { text-shadow: 0 0 8px #FF00FF; }

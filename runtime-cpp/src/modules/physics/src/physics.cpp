@@ -224,8 +224,12 @@ Physics::RaycastResult Physics::raycast(const Vec2& from, const Vec2& to) const 
 
     b2Body* hitBody = cb.fixture->GetBody();
     auto it = impl_->bodyToHandle.find(hitBody);
-    if (it != impl_->bodyToHandle.end())
-        result.handle = it->second;
+    if (it != impl_->bodyToHandle.end()) {
+        result.handle   = it->second;
+        auto eit = impl_->bodies.find(result.handle);
+        if (eit != impl_->bodies.end())
+            result.entityId = eit->second.entityId;
+    }
 
     return result;
 }

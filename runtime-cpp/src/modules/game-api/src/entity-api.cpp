@@ -4,6 +4,7 @@
 
 #include <sol/sol.hpp>
 #include <tuple>
+#include <cmath>
 
 namespace ArtCade::Modules {
 
@@ -40,7 +41,14 @@ void GameAPI::bindEntityAPI(sol::state& lua) {
     });
 
     // entity.destroy(id)
-    lua.set_function("entity_destroy", [em](EntityId id) {
+    // Cleans up the physics body (if any) before removing the entity.
+    lua.set_function("entity_destroy", [em, physics](EntityId id) {
+        if (auto* e = em->get(id)) {
+            if (physics && e->physics.physicsHandle != 0) {
+                physics->destroyBody(e->physics.physicsHandle);
+                e->physics.physicsHandle = 0;
+            }
+        }
         em->destroyEntity(id);
     });
 
@@ -54,6 +62,78 @@ void GameAPI::bindEntityAPI(sol::state& lua) {
         return em->poolCount(cls);
     });
 
+    // -------------------------------------------------------------------------
+    // Object.spawn(className, x, y) → EntityId
+    // Creates a minimal runtime entity (no sprite/physics — pure logic object).
+    // The new entity is added to the class pool so pool.getAll() finds it.
+    // -------------------------------------------------------------------------
+    lua.set_function("object_spawn",
+        [em](const std::string& cls, float x, float y) -> EntityId {
+            EntityDef def;
+            def.id                   = 0;   // auto-assign
+            def.className            = cls;
+            def.transform.position   = { x, y };
+            def.transform.rotation   = 0.f;
+            def.transform.scale      = { 1.f, 1.f };
+            return em->createEntity(def);
+        });
+
+    // Object.destroy(id) — alias kept for spec compatibility
+    lua.set_function("object_destroy", [em, physics](EntityId id) {
+        if (auto* e = em->get(id)) {
+            if (physics && e->physics.physicsHandle != 0) {
+                physics->destroyBody(e->physics.physicsHandle);
+                e->physics.physicsHandle = 0;
+            }
+        }
+        em->destroyEntity(id);
+    });
+
+    // Object.findByTag(tag) → array of EntityIds
+    lua.set_function("object_findByTag", [em](const std::string& tag) {
+        return em->getByTag(tag);
+    });
+
+    // Object.findNear(x, y, radius, className?) → array of EntityIds
+    lua.set_function("object_findNear",
+        [em](sol::this_state ts, float x, float y, float radius,
+             sol::optional<std::string> cls) -> sol::object
+        {
+            sol::state_view L(ts);
+            sol::table result = L.create_table();
+
+            std::vector<EntityId> candidates =
+                cls ? em->getPool(*cls) : em->allIds();
+
+            int idx = 1;
+            float r2 = radius * radius;
+            for (EntityId eid : candidates) {
+                auto* e = em->get(eid);
+                if (!e) continue;
+                float dx = e->transform.position.x - x;
+                float dy = e->transform.position.y - y;
+                if (dx*dx + dy*dy <= r2)
+                    result[idx++] = eid;
+            }
+            return sol::make_object(L, result);
+        });
+
+    // Object.exists(id) → bool
+    lua.set_function("object_exists", [em](EntityId id) -> bool {
+        return em->exists(id);
+    });
+
+    // Object.distance(id1, id2) → float
+    lua.set_function("object_distance",
+        [em](EntityId id1, EntityId id2) -> float {
+            auto* e1 = em->get(id1);
+            auto* e2 = em->get(id2);
+            if (!e1 || !e2) return -1.f;
+            float dx = e1->transform.position.x - e2->transform.position.x;
+            float dy = e1->transform.position.y - e2->transform.position.y;
+            return std::sqrt(dx*dx + dy*dy);
+        });
+
     // Expose Lua-side convenience table wrappers
     lua.script(R"(
         entity = {}
@@ -66,6 +146,14 @@ void GameAPI::bindEntityAPI(sol::state& lua) {
         pool = {}
         pool.getAll = function(cls)  return pool_getAll(cls)  end
         pool.count  = function(cls)  return pool_count(cls)   end
+
+        object = {}
+        object.spawn     = function(cls, x, y)          return object_spawn(cls, x, y)         end
+        object.destroy   = function(id)                  return object_destroy(id)               end
+        object.findByTag = function(tag)                 return object_findByTag(tag)            end
+        object.findNear  = function(x, y, r, cls)        return object_findNear(x, y, r, cls)   end
+        object.exists    = function(id)                  return object_exists(id)               end
+        object.distance  = function(id1, id2)            return object_distance(id1, id2)        end
     )");
 }
 

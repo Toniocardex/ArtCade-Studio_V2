@@ -114,6 +114,23 @@ if(ARTCADE_HAS_RAYLIB AND ARTCADE_HAS_LUA)
 endif()
 
 # ============================================================================
+# Editor API — WASM bridge (EMSCRIPTEN_KEEPALIVE exports + EM_ASM notifications)
+# Compiles as no-op stubs on native targets so the rest of the engine can
+# include editor-api.h without any Emscripten dependency.
+# ============================================================================
+add_subdirectory(src/modules/editor-api)
+
+# ============================================================================
+# Smoke Tests — validate the full React ↔ WASM bridge architecture.
+# Enable with:  cmake .. -DARTCADE_BUILD_SMOKE_TESTS=ON
+# Best built with emcmake cmake for WASM; also works natively for ST-1/ST-2.
+# ============================================================================
+option(ARTCADE_BUILD_SMOKE_TESTS "Build WASM smoke tests (ST-1 … ST-4)" OFF)
+if(ARTCADE_BUILD_SMOKE_TESTS)
+    add_subdirectory(smoke-tests)
+endif()
+
+# ============================================================================
 # Tests (opzionale — abilita con -DARTCADE_BUILD_TESTS=ON)
 # ============================================================================
 option(ARTCADE_BUILD_TESTS "Build unit tests" OFF)

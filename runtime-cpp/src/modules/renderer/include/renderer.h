@@ -29,6 +29,14 @@ public:
     void endFrame();
     bool shouldClose() const;
 
+    // Discard any draw commands queued by Lua this tick.
+    // Called once per fixed-timestep iteration (before luaHost->tick) so that
+    // only the LAST tick's drawScene() commands survive to endFrame().
+    // Without this, a frame that runs 2+ ticks accumulates draw lists from
+    // every tick, which creates a one-frame ghost of objects destroyed
+    // mid-frame (e.g. the coin flash on pickup).
+    void clearDrawQueue();
+
     // Draw calls (valid between beginFrame/endFrame)
     void drawSprite(const AssetId& assetId,
                     const Vec2&    position,
@@ -40,6 +48,8 @@ public:
     void drawRect  (float x, float y, float w, float h, const Vec4& color);
     void drawLine  (float x1, float y1, float x2, float y2, const Vec4& color);
     void drawCircle(float x, float y, float radius, const Vec4& color);
+    void drawText  (const std::string& text, float x, float y,
+                    int fontSize, const Vec4& color);
 
     // GPU texture management
     uint32_t loadTexture  (const std::string& filePath);
@@ -49,6 +59,8 @@ public:
     // 2D camera
     void setCameraPosition(const Vec2& pos);
     void setCameraZoom    (float zoom);
+    Vec2 getCameraPosition() const;
+    float getCameraZoom()   const;
 
     uint32_t windowWidth()  const;
     uint32_t windowHeight() const;

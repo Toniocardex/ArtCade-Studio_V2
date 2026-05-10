@@ -1,6 +1,9 @@
 #include "../include/asset-loader.h"
+#include "zip-reader.h"
 #include <nlohmann/json.hpp>
+#include <filesystem>
 #include <fstream>
+#include <functional>
 #include <sstream>
 
 using json = nlohmann::json;
@@ -41,10 +44,17 @@ bool AssetLoader::loadDirectory(const std::string& dirPath, ProjectDoc& out) {
 }
 
 bool AssetLoader::loadArtcade(const std::string& archivePath, ProjectDoc& out) {
-    // Phase 10b: extract ZIP then parse project.json from temp dir
-    rootPath_ = archivePath;
+    // Build a stable temp directory derived from the archive path
+    const std::size_t h = std::hash<std::string>{}(archivePath);
+    namespace fs = std::filesystem;
+    const std::string tmpDir =
+        (fs::temp_directory_path() / ("artcade_" + std::to_string(h))).string();
+
+    if (!extractZip(archivePath, tmpDir)) return false;
+
+    rootPath_ = tmpDir;
     devMode_  = false;
-    return false;  // ZIP support: future
+    return parseProjectJson(tmpDir + "/project.json", out);
 }
 
 bool AssetLoader::loadLuaBytecode(const std::string& path,
@@ -148,8 +158,8 @@ bool AssetLoader::parseGameJson(const std::string&, ProjectDoc&) {
     return false;  // used internally by loadArtcade (future)
 }
 
-bool AssetLoader::extractZip(const std::string&, const std::string&) {
-    return false;  // Phase 10b
+bool AssetLoader::extractZip(const std::string& zipPath, const std::string& destDir) {
+    return ArtCade::zipExtractAll(zipPath, destDir);
 }
 
 } // namespace ArtCade::Modules

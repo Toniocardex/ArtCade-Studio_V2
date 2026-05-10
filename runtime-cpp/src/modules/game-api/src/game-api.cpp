@@ -8,13 +8,16 @@ bool GameAPI::init()     { return true; }
 void GameAPI::shutdown() {}
 
 void GameAPI::registerAll(sol::state& lua) {
-    bindEntityAPI (lua);
-    bindPhysicsAPI(lua);
-    bindInputAPI  (lua);
-    bindAudioAPI  (lua);
-    bindStateAPI  (lua);
-    bindDebugAPI  (lua);
-    bindSaveAPI   (lua);
+    bindDebugAPI  (lua);   // first: debug.log available for others
+    bindEventAPI  (lua);   // event bus (no deps)
+    bindTimeAPI   (lua);   // timer system (no deps)
+    bindEntityAPI (lua);   // entity / object / pool
+    bindPhysicsAPI(lua);   // collision / physics
+    bindInputAPI  (lua);   // input
+    bindAudioAPI  (lua);   // audio
+    bindStateAPI  (lua);   // state
+    bindSaveAPI   (lua);   // save
+    bindCameraAPI (lua);   // camera
 }
 
 } // namespace ArtCade::Modules

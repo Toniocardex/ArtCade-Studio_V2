@@ -1,0 +1,36 @@
+{
+  "name": "artcade-editor",
+  "version": "2.0.0",
+  "description": "ArtCade V2 Editor — React 19 + Vite + TailwindCSS + Monaco + Tauri",
+  "type": "module",
+  "scripts": {
+    "dev":          "vite",
+    "build":        "tsc && vite build",
+    "preview":      "vite preview",
+    "lint":         "tsc --noEmit",
+    "tauri":        "tauri",
+    "tauri:dev":    "tauri dev",
+    "tauri:build":  "tauri build"
+  },
+  "dependencies": {
+    "@monaco-editor/react":        "^4.6.0",
+    "@tauri-apps/api":             "^2.0.0",
+    "@tauri-apps/plugin-dialog":   "^2.0.0",
+    "@tauri-apps/plugin-fs":       "^2.0.0",
+    "@tauri-apps/plugin-shell":    "^2.0.0",
+    "lucide-react":                "^0.469.0",
+    "react":                       "^19.0.0",
+    "react-dom":                   "^19.0.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli":       "^2.0.0",
+    "@types/react":          "^19.0.0",
+    "@types/react-dom":      "^19.0.0",
+    "@vitejs/plugin-react":  "^4.3.4",
+    "autoprefixer":          "^10.4.20",
+    "postcss":               "^8.5.1",
+    "tailwindcss":           "^3.4.17",
+    "typescript":            "^5.7.2",
+    "vite":                  "^6.0.5"
+  }
+}

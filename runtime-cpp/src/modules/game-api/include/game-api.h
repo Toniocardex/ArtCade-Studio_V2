@@ -14,12 +14,16 @@ namespace ArtCade::Modules {
  * This is the single entry point for registering ALL game functions into the
  * Lua VM.  Actual binding logic is split by domain into separate .cpp files:
  *
- *   entity-api.cpp   — entity.*  (position, velocity, destroy)
- *   physics-api.cpp  — collision.*
+ *   entity-api.cpp   — entity.* / object.* / pool.*
+ *   physics-api.cpp  — collision.* / physics.*
  *   input-api.cpp    — input.*
  *   audio-api.cpp    — audio.*
  *   state-api.cpp    — state.*
  *   debug-api.cpp    — debug.*
+ *   save-api.cpp     — save.*
+ *   event-api.cpp    — event.*  (pure-Lua EventBus)
+ *   time-api.cpp     — time.*   (pure-Lua timer system)
+ *   camera-api.cpp   — camera.* (via Renderer)
  *
  * game-api.cpp calls each sub-binder in sequence — it stays < 50 lines.
  */
@@ -43,6 +47,9 @@ private:
     void bindStateAPI  (sol::state& lua);
     void bindDebugAPI  (sol::state& lua);
     void bindSaveAPI   (sol::state& lua);
+    void bindEventAPI  (sol::state& lua);
+    void bindTimeAPI   (sol::state& lua);
+    void bindCameraAPI (sol::state& lua);
 };
 
 } // namespace ArtCade::Modules

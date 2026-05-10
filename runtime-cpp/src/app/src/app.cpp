@@ -15,7 +15,6 @@
 #include "../../modules/game-api/include/game-api.h"
 #include "../../world/include/world.h"
 
-// New modules
 #include "../../modules/time/include/time-manager.h"
 #include "../../modules/event-bus/include/event-bus.h"
 #include "../../modules/variable-manager/include/variable-manager.h"
@@ -26,9 +25,12 @@
 #include "../../modules/camera-manager/include/camera-manager.h"
 #include "../../modules/tween-manager/include/tween-manager.h"
 #include "../../modules/save-load/include/save-load-manager.h"
+#include "../../modules/editor-api/include/editor-api.h"
 
+#include <cstring>
 #include <iostream>
 #include <memory>
+#include <vector>
 
 namespace ArtCade {
 
@@ -97,9 +99,17 @@ int Application::run(int argc, char* argv[]) {
 }
 
 // ---- Initialization (dependency order) ----------------------------------
+// Suddiviso in tre helper privati per mantenere ogni funzione < 50 righe.
 
 bool Application::initModules(const std::string& projectPath) {
-    // Layer 0a — stateless utility modules (no deps at all)
+    return initUtilities()
+        && initSubsystems()
+        && loadProject(projectPath);
+}
+
+// Layer 0 — moduli stateless (nessuna dipendenza da Raylib, Lua o tra loro).
+// Comprende anche GameStateManager che dipende solo da EventBus.
+bool Application::initUtilities() {
     mod_->eventBus        = std::make_unique<ArtCade::Modules::EventBus>();
     mod_->timeManager     = std::make_unique<ArtCade::Modules::TimeManager>();
     mod_->variableManager = std::make_unique<ArtCade::Modules::VariableManager>();
@@ -128,13 +138,17 @@ bool Application::initModules(const std::string& projectPath) {
     ctx_.cameraManager   = mod_->cameraManager.get();
     ctx_.saveLoadManager = mod_->saveLoadManager.get();
 
-    // GameStateManager needs EventBus
     mod_->gameStateManager = std::make_unique<ArtCade::Modules::GameStateManager>();
     mod_->gameStateManager->setEventBus(mod_->eventBus.get());
     if (!mod_->gameStateManager->init()) return false;
     ctx_.gameStateManager = mod_->gameStateManager.get();
 
-    // Layer 0b — leaf modules with no engine deps
+    return true;
+}
+
+// Layer 1-4 — sottosistemi con dipendenze da Raylib e Lua.
+// Ordine: renderer → physics/input/audio → textures → scene → world → API → Lua.
+bool Application::initSubsystems() {
     mod_->renderer      = std::make_unique<ArtCade::Modules::Renderer>();
     mod_->physics       = std::make_unique<ArtCade::Modules::Physics>();
     mod_->input         = std::make_unique<ArtCade::Modules::Input>();
@@ -142,7 +156,6 @@ bool Application::initModules(const std::string& projectPath) {
     mod_->entityManager = std::make_unique<ArtCade::Modules::EntityManager>();
     mod_->assetLoader   = std::make_unique<ArtCade::Modules::AssetLoader>();
 
-    // Set window params before init() opens the Raylib window
     mod_->renderer->setWindowSize(1280, 720, "ArtCade V2");
 
     if (!mod_->renderer->init()      ||
@@ -153,20 +166,18 @@ bool Application::initModules(const std::string& projectPath) {
         !mod_->assetLoader->init())
         return false;
 
-    // TextureManager needs Raylib window open
+    // TextureManager richiede la finestra Raylib già aperta
     mod_->textureManager = std::make_unique<ArtCade::Modules::TextureManager>();
     if (!mod_->textureManager->init()) return false;
     ctx_.textureManager = mod_->textureManager.get();
 
-    // Layer 1 — scene manager depends on entity manager
     mod_->sceneManager = std::make_unique<ArtCade::Modules::SceneManager>(*mod_->entityManager);
     if (!mod_->sceneManager->init()) return false;
 
-    // Layer 2 — world ties entity + scene + physics together
     mod_->world = std::make_unique<World>(
         *mod_->entityManager, *mod_->sceneManager, *mod_->physics);
 
-    // Layer 3 — build EngineContext so GameAPI and LuaHost can see everyone
+    // Popola EngineContext — GameAPI e LuaHost ne hanno bisogno
     ctx_.renderer      = mod_->renderer.get();
     ctx_.physics       = mod_->physics.get();
     ctx_.input         = mod_->input.get();
@@ -180,7 +191,6 @@ bool Application::initModules(const std::string& projectPath) {
     if (!mod_->gameAPI->init()) return false;
     ctx_.gameAPI = mod_->gameAPI.get();
 
-    // Layer 4 — Lua host (needs GameAPI to register bindings)
     mod_->luaHost = std::make_unique<ArtCade::Modules::LuaHost>();
     mod_->luaHost->registerBindings([&](sol::state& lua) {
         mod_->gameAPI->registerAll(lua);
@@ -188,13 +198,24 @@ bool Application::initModules(const std::string& projectPath) {
     if (!mod_->luaHost->init()) return false;
     ctx_.luaHost = mod_->luaHost.get();
 
-    // Load project
-    ProjectDoc doc;
+    // Wire EditorAPI to EntityManager + SceneManager so editor commands
+    // (editor_load_project, editor_set_transform) can reach engine state.
+    EditorAPI::wireEngine(mod_->entityManager.get(), mod_->sceneManager.get());
+    EditorAPI::init("#artcade-canvas");
+
+    return true;
+}
+
+// Layer 5 — carica il progetto (directory dev o .artcade), inizializza il
+// world con le entità/scene e inietta lo script Lua principale.
+bool Application::loadProject(const std::string& projectPath) {
     auto endsWith = [](const std::string& s, const char* suffix) {
-        std::size_t slen = std::strlen(suffix);
+        const std::size_t slen = std::strlen(suffix);
         return s.size() >= slen && s.compare(s.size() - slen, slen, suffix) == 0;
     };
-    bool loaded = endsWith(projectPath, ".artcade")
+
+    ProjectDoc doc;
+    const bool loaded = endsWith(projectPath, ".artcade")
         ? mod_->assetLoader->loadArtcade(projectPath, doc)
         : mod_->assetLoader->loadDirectory(projectPath, doc);
 
@@ -205,13 +226,11 @@ bool Application::initModules(const std::string& projectPath) {
 
     mod_->world->init(doc);
 
-    // Load main Lua script
     std::vector<uint8_t> bytecode;
     if (mod_->assetLoader->loadLuaBytecode(doc.mainScriptPath, bytecode))
         mod_->luaHost->loadBytecodeBuffer(bytecode.data(), bytecode.size());
 
     targetDt_ = 1.f / doc.targetFPS;
-
     std::cout << "[App] Project loaded: " << doc.projectName << "\n";
     return true;
 }
@@ -230,10 +249,24 @@ void Application::loopIteration() {
     float frameTime = mod_->renderer->deltaTime();
     accumulator_ += frameTime;
 
+    // Cap accumulator to prevent spiral-of-death: if a frame spike happens
+    // (e.g. audio trigger, entity destruction, JS GC) we allow at most 4
+    // fixed steps per render frame.  This trades a little temporal accuracy
+    // for rock-solid frame pacing and eliminates the "jump" on coin pick-up.
+    if (accumulator_ > targetDt_ * 4.f)
+        accumulator_ = targetDt_ * 4.f;
+
     mod_->input->poll();
 
     // Fixed timestep
     while (accumulator_ >= targetDt_) {
+        // Clear Lua draw queue BEFORE this tick so that if multiple ticks
+        // run in one render frame, only the LAST tick's drawScene() commands
+        // survive to endFrame().  Without this, a frame with 2+ ticks
+        // accumulates draw lists from every tick: objects destroyed in tick N
+        // still appear as ghosts from tick N-1 (the coin-pickup flash).
+        mod_->renderer->clearDrawQueue();
+
         mod_->timeManager->tick(targetDt_);
         mod_->tweenManager->update(targetDt_);
         mod_->spriteAnimator->update(targetDt_);
@@ -269,10 +302,10 @@ void Application::mainLoop() {
 // ---- Render -------------------------------------------------------------
 
 void Application::renderActiveScene() {
-    Vec4 bgColor = {0.08f, 0.08f, 0.1f, 1.f};
-
-    if (auto* scene = mod_->sceneManager->activeScene())
-        bgColor = scene->backgroundColor;
+    // Use scene background colour (or neutral dark if no active scene)
+    Vec4 bgColor = {0.05f, 0.07f, 0.10f, 1.f};
+    if (const SceneDef* sc = mod_->sceneManager->activeScene())
+        bgColor = sc->backgroundColor;
 
     mod_->renderer->beginFrame(bgColor);
 

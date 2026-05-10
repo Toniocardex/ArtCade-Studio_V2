@@ -81,6 +81,24 @@ artcade_test(lua_host_test
     artcade-lua-runtime)
 
 # ============================================================================
+# Fase 16: Logic Components — 5 Lua components via LuaHost + inline stubs
+# Nessuna dipendenza da Raylib o GameAPI (stubs iniettati come Lua puro).
+# ============================================================================
+artcade_test(logic_components_test
+    logic-components-test.cpp
+    artcade-lua-runtime)
+
+# ============================================================================
+# Fase 17: .artcade ZIP round-trip — richiede artcade-asset-system
+# (compilato solo quando Raylib + Lua sono presenti, come asset-system stesso)
+# ============================================================================
+if(ARTCADE_HAS_RAYLIB AND ARTCADE_HAS_LUA)
+    artcade_test(artcade_package_test
+        artcade-package-test.cpp
+        artcade-asset-system)
+endif()
+
+# ============================================================================
 # Fase 5+: test che richiedono Raylib reale (aggiunti quando ARTCADE_HAS_RAYLIB)
 # ============================================================================
 # (placeholder per test di renderer, input, audio — verranno aggiunti in Fase 5-8)

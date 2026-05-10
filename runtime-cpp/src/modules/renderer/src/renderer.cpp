@@ -10,10 +10,12 @@ namespace ArtCade::Modules {
 
 // Deferred draw command — queued during tick(), flushed in endFrame().
 struct DrawCmd {
-    enum class Type { Rect, Line, Circle } type = Type::Rect;
+    enum class Type { Rect, Line, Circle, Text } type = Type::Rect;
     float x  = 0.f, y  = 0.f;  // position / start
     float x2 = 0.f, y2 = 0.f;  // end (Line) or w/h (Rect)
     float r  = 0.f;             // radius (Circle)
+    int   fontSize = 20;        // Text font size
+    std::string text;           // Text content
     unsigned char cr=255, cg=255, cb=255, ca=255;  // packed colour
 };
 
@@ -94,6 +96,10 @@ uint32_t Renderer::windowHeight() const { return impl_->height; }
 
 // ------------------------------------------------------------------ frame
 
+void Renderer::clearDrawQueue() {
+    impl_->drawQueue.clear();
+}
+
 void Renderer::beginFrame(const Vec4& clearColor) {
     BeginDrawing();
     ClearBackground(toColor(clearColor));
@@ -114,6 +120,11 @@ void Renderer::endFrame() {
             break;
         case DrawCmd::Type::Circle:
             DrawCircleV({ cmd.x, cmd.y }, cmd.r, c);
+            break;
+        case DrawCmd::Type::Text:
+            DrawText(cmd.text.c_str(),
+                     static_cast<int>(cmd.x), static_cast<int>(cmd.y),
+                     cmd.fontSize, c);
             break;
         }
     }
@@ -137,7 +148,16 @@ void Renderer::drawSprite(const AssetId& assetId,
                            float          alpha)
 {
     const Texture2D* tex = impl_->texCache.getByPath(assetId);
-    if (!tex || tex->id == 0) return;
+    if (!tex || tex->id == 0) {
+        // Fallback: draw a tinted rectangle so entities are always visible
+        // in the editor even when their sprite asset is missing from the VFS.
+        const float fw = 32.f * scale.x;
+        const float fh = 32.f * scale.y;
+        DrawRectangleV({ pos.x - fw * 0.5f, pos.y - fh * 0.5f },
+                       { fw, fh },
+                       toColor(tint, alpha));
+        return;
+    }
 
     Rectangle src = { 0.f, 0.f, static_cast<float>(tex->width), static_cast<float>(tex->height) };
     Rectangle dst = { pos.x, pos.y,
@@ -150,20 +170,42 @@ void Renderer::drawSprite(const AssetId& assetId,
 
 void Renderer::drawRect(float x, float y, float w, float h, const Vec4& color) {
     Color c = toColor(color);
-    impl_->drawQueue.push_back({ DrawCmd::Type::Rect, x, y, w, h, 0.f,
-                                  c.r, c.g, c.b, c.a });
+    DrawCmd cmd;
+    cmd.type = DrawCmd::Type::Rect;
+    cmd.x = x;  cmd.y = y;  cmd.x2 = w;  cmd.y2 = h;
+    cmd.cr = c.r; cmd.cg = c.g; cmd.cb = c.b; cmd.ca = c.a;
+    impl_->drawQueue.push_back(std::move(cmd));
 }
 
 void Renderer::drawLine(float x1, float y1, float x2, float y2, const Vec4& color) {
     Color c = toColor(color);
-    impl_->drawQueue.push_back({ DrawCmd::Type::Line, x1, y1, x2, y2, 0.f,
-                                  c.r, c.g, c.b, c.a });
+    DrawCmd cmd;
+    cmd.type = DrawCmd::Type::Line;
+    cmd.x = x1; cmd.y = y1; cmd.x2 = x2; cmd.y2 = y2;
+    cmd.cr = c.r; cmd.cg = c.g; cmd.cb = c.b; cmd.ca = c.a;
+    impl_->drawQueue.push_back(std::move(cmd));
 }
 
 void Renderer::drawCircle(float x, float y, float radius, const Vec4& color) {
     Color c = toColor(color);
-    impl_->drawQueue.push_back({ DrawCmd::Type::Circle, x, y, 0.f, 0.f, radius,
-                                  c.r, c.g, c.b, c.a });
+    DrawCmd cmd;
+    cmd.type = DrawCmd::Type::Circle;
+    cmd.x = x; cmd.y = y; cmd.r = radius;
+    cmd.cr = c.r; cmd.cg = c.g; cmd.cb = c.b; cmd.ca = c.a;
+    impl_->drawQueue.push_back(std::move(cmd));
+}
+
+void Renderer::drawText(const std::string& text, float x, float y,
+                        int fontSize, const Vec4& color) {
+    Color c = toColor(color);
+    DrawCmd cmd;
+    cmd.type     = DrawCmd::Type::Text;
+    cmd.x        = x;
+    cmd.y        = y;
+    cmd.fontSize = fontSize;
+    cmd.text     = text;
+    cmd.cr = c.r; cmd.cg = c.g; cmd.cb = c.b; cmd.ca = c.a;
+    impl_->drawQueue.push_back(std::move(cmd));
 }
 
 // ------------------------------------------------------------------ textures
@@ -188,6 +230,14 @@ void Renderer::setCameraPosition(const Vec2& pos) {
 
 void Renderer::setCameraZoom(float zoom) {
     impl_->camera.zoom = (zoom > 0.f) ? zoom : 0.01f;
+}
+
+Vec2 Renderer::getCameraPosition() const {
+    return { impl_->camera.target.x, impl_->camera.target.y };
+}
+
+float Renderer::getCameraZoom() const {
+    return impl_->camera.zoom;
 }
 
 float Renderer::deltaTime() const {

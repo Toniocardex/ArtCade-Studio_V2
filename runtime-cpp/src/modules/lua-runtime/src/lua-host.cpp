@@ -30,6 +30,16 @@ bool LuaHost::init() {
         sol::lib::io          // needed for log file writing in scripts
     );
 
+    // Switch Lua 5.4 to generational GC mode.
+    // Generational GC is ideal for games: short-lived objects (coins, bullets,
+    // particles) are collected quickly in the minor cycle without touching
+    // long-lived entities.  This eliminates the "frame spike" that occurs when
+    // the standard incremental collector finally kicks in on a busy frame.
+    lua_State* L = impl_->lua.lua_state();
+    lua_gc(L, LUA_GCGEN,
+           0,   // minor multiplier  (0 = use Lua default, ~20)
+           0);  // major multiplier  (0 = use Lua default, ~100)
+
     // Run any pending C++ → Lua binding registrations
     for (auto& cb : pendingBindings_)
         cb(impl_->lua);
@@ -102,6 +112,18 @@ bool LuaHost::loadBytecodeFile(const std::string& path) {
 void LuaHost::tick(float dt) {
     if (!impl_->scriptLoaded) return;
 
+    // Advance internal timer system (injected by time-api.cpp).
+    // Safe no-op if time API was not registered (e.g. in unit tests).
+    sol::protected_function timeUpdate = impl_->lua["_time_update"];
+    if (timeUpdate.valid()) {
+        auto r = timeUpdate(dt);
+        if (!r.valid()) {
+            sol::error err = r;
+            lastError_ = err.what();
+            return;
+        }
+    }
+
     sol::protected_function fn = impl_->lua["tick"];
     if (!fn.valid()) return;
 
@@ -110,6 +132,11 @@ void LuaHost::tick(float dt) {
         sol::error err = result;
         lastError_ = err.what();
     }
+
+    // Run a tiny incremental GC step after every tick (~5 KB worth of work).
+    // This spreads collection across frames so no single frame pays the full
+    // GC cost when a burst of objects (coin, particles, callbacks) is freed.
+    lua_gc(impl_->lua.lua_state(), LUA_GCSTEP, 5);
 }
 
 void LuaHost::callFunction(const std::string& name) {

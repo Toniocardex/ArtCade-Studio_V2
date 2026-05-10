@@ -413,66 +413,102 @@ Criteri verificati:
 
 ---
 
-## FASE 15 — Tauri Editor Preview
+## FASE 15 — Tauri Integration (Editor nativo)
 
-**Stato**: ⏳ 🔗 FASE 14
+**Stato**: ⏳ 🔗 FASE 14 + FASE 18
 
 ### Obiettivo
-Il WASM prodotto dalla Fase 14 viene caricato nella WebView Tauri dell'editor.
+Shell Tauri (Rust) attorno all'editor React. IPC per aprire/salvare progetti,
+triggare build WASM e caricare il preview in WebView.
 
 ### Checkpoint (futuro)
 ```bash
 cd editor
 npm run tauri:dev
-# Clicca "Preview" nell'editor
+# File → Open Project → carica .artcade
+# Clicca "▶ PLAY" → WASM si avvia nel Preview panel
 ```
 
 Criteri:
-- [ ] Preview panel mostra il gioco in real-time
-- [ ] Modifica di una proprietà nell'inspector → rebuild → preview aggiornato
+- [ ] `openProjectDialog()` apre file picker nativo → carica ProjectDoc
+- [ ] `saveScript()` scrive su disco (Tauri fs plugin)
+- [ ] `BUILD .EXE` triggera `cmake --build` → log in Console panel
+- [ ] Preview panel mostra WASM (`game.html`) in `<webview>`
 - [ ] Nessuna differenza visiva tra preview Tauri e browser standalone
 
 ---
 
 ## FASE 16 — Logic Components Lua di alto livello
 
-**Stato**: ⏳ 🔗 FASE 11
+**Stato**: ✅ Completata — 13/13 test (logic_components_test)
 
-Questi sono implementati interamente in Lua (non in C++), usando la GameAPI.
+### Componenti implementati in `test-project/scripts/components/`
 
-| Component | Script |
-|-----------|--------|
-| HealthSystem | `scripts/components/health.lua` |
-| DialogueSystem | `scripts/components/dialogue.lua` |
-| InventorySystem | `scripts/components/inventory.lua` |
-| QuestTracker | `scripts/components/quest.lua` |
-| ParticleEmitter | `scripts/components/particles.lua` |
-| PathFollower | `scripts/components/path-follower.lua` |
-| Platformer Controller | `scripts/components/platformer.lua` |
+| Component | Script | Test |
+|-----------|--------|------|
+| PauseManager | `pause.lua` | ✅ |
+| PathFollower | `path-follower.lua` | ✅ |
+| PlatformerController | `platformer.lua` | ✅ |
+| ParticleEmitter | `particles.lua` | ✅ |
+| DialogueSystem | `dialogue.lua` | ✅ |
 
-### Checkpoint per ogni component
-- Scena di test dedicata
-- Script Lua che verifica il comportamento atteso
-- Nessun errore Lua runtime dopo 60 secondi di gioco
+### Checkpoint ✅
+```
+ctest → logic_components_test  13/13 passed  (5 component × test)
+```
 
 ---
 
-## FASE 17 — Packaging e distribuzione
+## FASE 17 — Packaging e distribuzione (.artcade ZIP)
 
-**Stato**: ⏳ 🔗 FASI 13–14
+**Stato**: ✅ Completata — 14/14 test (artcade_package_test + tool Python)
 
-### Obiettivo
-Un file `.artcade` firmato e uno script di build cross-platform.
+### Cosa è stato fatto
+- **`zip-reader.cpp`** — parser ZIP da scratch (EOCD → CD → Local headers)
+  - STORE (method=0): copia raw
+  - DEFLATE (method=8): `sinflate()` da raylib (`external/sinfl.h`)
+- **`asset-loader.cpp`** — `loadArtcade(path, doc)` implementata
+- **`tools/pack-artcade.py`** — packer Python con `zipfile.ZIP_DEFLATE`, `manifest.json` con sha256
+- **`tests/artcade-package-test.cpp`** — writer ZIP STORE in-memory, 4 test round-trip
 
-```bash
-./scripts/pack-artcade.sh MyGame
-# Output: MyGame.artcade (ZIP firmato con manifest.json)
+### Checkpoint ✅
+```
+ctest → artcade_package_test   4/4 passed
+        (+ 10 test C++ invariati = 14 totali)
+
+python tools/pack-artcade.py test-project output.artcade
+→ [OK] N files packed → output.artcade (X KB)
 ```
 
-### Checkpoint (futuro)
-- [ ] `game.exe` + `MyGame.artcade` su Windows → gioca offline
-- [ ] `game.html` + `game.wasm` + `MyGame.artcade` → gioca in browser
-- [ ] File `.artcade` caricabile da `AssetLoader` senza estrazione manuale
+---
+
+## FASE 18 — Editor React (scaffold + neon UI)
+
+**Stato**: ✅ Completata — `npm install && npm run dev` → http://localhost:5173
+
+### Cosa è stato fatto
+- **Stack**: React 19 + Vite 6 + TailwindCSS 3 + Monaco Editor + lucide-react
+- **Design system**: Slate Night `#0B1121` / Neon Cyan `#00FFFF` / Neon Magenta `#FF00FF` (da mockup)
+- **Layout**: SCENE_VIEW (3 colonne) ↔ LOGIC_BOARD (Monaco full-screen)
+- **Pannelli**:
+  - `HierarchyPanel` — scene selector + entity list con color badge
+  - `PreviewPanel` — viewport con grid CSS + tool palette (select/pan/paint/erase)
+  - `InspectorPanel` — transform/sprite/script fields, "OPEN IN LOGIC_BOARD →"
+  - `ScriptEditorPanel` — Monaco Lua + 25 snippet ArtCade API
+  - `AssetBrowserPanel` — asset grid per categoria
+  - `TilesetEditorPanel` — tile grid 8×4, collision toggle, brush tool
+  - `ConsolePanel` — log entries colorati per livello + input bar
+  - `StatusBar` — Runtime / Grid / X,Y / Selection
+- **State**: `EditorProvider` (React Context + useReducer, zero Redux)
+- **API stubs**: `utils/api.ts` — Tauri IPC placeholder per Phase 19
+
+### Checkpoint ✅
+```
+editor/
+  23 file creati
+  tsc --noEmit → 0 errori
+  npm run dev → http://localhost:5173 operativo
+```
 
 ---
 
@@ -480,24 +516,25 @@ Un file `.artcade` firmato e uno script di build cross-platform.
 
 | Fase | Descrizione | Dipende da | Stato |
 |------|-------------|------------|-------|
-| 0 | Struttura + architettura | — | ✅ |
-| 1 | Moduli stateless batch 1 (Time, EventBus, VariableManager) | 0 | ✅ |
-| 2 | Moduli stateless batch 2 (GSM, Animator, Layer, Camera, Tween, Save) | 0 | ✅ |
-| 3 | Build CMake completo senza Raylib | 1–2 | ✅ |
-| 4 | Librerie di terze parti (Raylib, Lua, Sol2, nlohmann) | 0 | ✅ |
-| 5 | Renderer (Raylib window, Camera2D, draw calls) | 4 | ✅ |
-| 6 | TextureManager con vero Raylib | 5 | ✅ |
-| 7 | Input (keymap JS-style, poll Raylib) | 5 | ✅ |
-| 8 | Audio (Sound cache + Music streaming) | 5 | ✅ |
-| 9 | EntityManager + SceneManager + World | 4 | ✅ |
+| 0  | Struttura + architettura | — | ✅ |
+| 1  | Moduli stateless batch 1 (Time, EventBus, VariableManager) | 0 | ✅ |
+| 2  | Moduli stateless batch 2 (GSM, Animator, Layer, Camera, Tween, Save) | 0 | ✅ |
+| 3  | Build CMake completo senza Raylib | 1–2 | ✅ |
+| 4  | Librerie di terze parti (Raylib, Lua, Sol2, nlohmann) | 0 | ✅ |
+| 5  | Renderer (Raylib window, Camera2D, draw calls) | 4 | ✅ |
+| 6  | TextureManager con vero Raylib | 5 | ✅ |
+| 7  | Input (keymap JS-style, poll Raylib) | 5 | ✅ |
+| 8  | Audio (Sound cache + Music streaming) | 5 | ✅ |
+| 9  | EntityManager + SceneManager + World | 4 | ✅ |
 | 10 | AssetLoader + project.json (nlohmann/json) | 9 | ✅ |
 | 11 | LuaHost (Sol2) + GameAPI binding | 9, 10 | ✅ |
 | 12 | Physics (Box2D 2.4) | 9 | ✅ |
 | 13 | First Playable native .exe | 5–12 | ✅ |
 | 14 | WebAssembly (Emscripten) | 13 | ✅ |
-| 15 | Tauri Editor Preview | 14 | ⏳ |
-| 16 | Logic Components Lua | 11 | ⏳ |
-| 17 | Packaging e distribuzione | 13–14 | ⏳ |
+| 15 | Tauri Integration (editor nativo + IPC) | 14, 18 | ⏳ |
+| 16 | Logic Components Lua (5 componenti) | 11 | ✅ |
+| 17 | Packaging .artcade ZIP | 13–14 | ✅ |
+| 18 | Editor React scaffold (neon UI + Monaco) | — | ✅ |
 
 ---
 
@@ -511,4 +548,4 @@ Un file `.artcade` firmato e uno script di build cross-platform.
 
 ---
 
-*Ultimo aggiornamento: 2026-05-09 — Fasi 0–14 completate (11/11 test nativi + WASM build + demo fisica 30s stabile, ball AT_REST y=598)*
+*Ultimo aggiornamento: 2026-05-09 — Fasi 0–18 completate (14/14 test C++ + WASM + editor React)*

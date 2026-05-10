@@ -7,6 +7,9 @@ add_library(artcade-game-api
     src/state-api.cpp
     src/debug-api.cpp
     src/save-api.cpp
+    src/event-api.cpp
+    src/time-api.cpp
+    src/camera-api.cpp
 )
 target_include_directories(artcade-game-api
     PUBLIC  include

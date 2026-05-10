@@ -46,6 +46,7 @@ public:
     struct RaycastResult {
         bool     hit      = false;
         uint32_t handle   = 0;
+        EntityId entityId = 0;
         Vec2     point;
         float    distance = 0.f;
     };

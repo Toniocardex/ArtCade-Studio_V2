@@ -36,10 +36,31 @@ void GameAPI::bindPhysicsAPI(sol::state& lua) {
         });
 
     // collision.raycast(x1, y1, x2, y2) → {hit, entityId, x, y, dist}
+    //   hit      — bool: true if the ray hit something
+    //   entityId — EntityId of the hit entity, or 0 if none
+    //   x, y     — world-space hit point
+    //   dist     — distance in pixels from (x1,y1) to hit point
     lua.set_function("collision_raycast",
-        [physics](float x1, float y1, float x2, float y2) -> sol::table {
-            (void)physics; (void)x1; (void)y1; (void)x2; (void)y2;
-            return sol::table{};  // TODO: return proper table (Fase 16)
+        [physics](sol::this_state ts, float x1, float y1, float x2, float y2) -> sol::object {
+            sol::state_view L(ts);
+            sol::table tbl = L.create_table(0, 5);
+
+            if (!physics) {
+                tbl["hit"]      = false;
+                tbl["entityId"] = 0;
+                tbl["x"]        = 0.f;
+                tbl["y"]        = 0.f;
+                tbl["dist"]     = 0.f;
+                return sol::make_object(L, tbl);
+            }
+
+            auto r = physics->raycast({ x1, y1 }, { x2, y2 });
+            tbl["hit"]      = r.hit;
+            tbl["entityId"] = static_cast<int>(r.entityId);
+            tbl["x"]        = r.point.x;
+            tbl["y"]        = r.point.y;
+            tbl["dist"]     = r.distance;
+            return sol::make_object(L, tbl);
         });
 
     // -------------------------------------------------------------------------

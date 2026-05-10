@@ -30,7 +30,16 @@ private:
 
     EngineContext ctx_;
 
+    // Top-level init — chiama i tre helper in ordine
     bool initModules(const std::string& projectPath);
+
+    // Layer 0: moduli stateless + GameStateManager
+    bool initUtilities();
+    // Layer 1-4: renderer, physics, input, audio, world, GameAPI, LuaHost
+    bool initSubsystems();
+    // Layer 5: carica project.json/.artcade, inizializza world, carica script Lua
+    bool loadProject(const std::string& projectPath);
+
     void shutdownModules();
     void mainLoop();
     void loopIteration();      // singolo frame — usato sia dal while che dal callback WASM
