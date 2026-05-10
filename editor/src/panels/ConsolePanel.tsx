@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
-import { isTauri }   from '@tauri-apps/api/core'
-import { listen }    from '@tauri-apps/api/event'
-import { useEditor } from '../store/editor-store'
+import { isTauri }         from '@tauri-apps/api/core'
+import { listen }          from '@tauri-apps/api/event'
+import { useConsoleLogs }  from '../store/editor-store'
 import type { ConsoleLevel } from '../types'
 
 const LEVEL_COLOR: Record<ConsoleLevel, string> = {
@@ -19,7 +19,7 @@ const LEVEL_LABEL: Record<ConsoleLevel, string> = {
 }
 
 export default function ConsolePanel() {
-  const { state, dispatch } = useEditor()
+  const { state, dispatch } = useConsoleLogs()
   const { consoleLogs } = state
   const bottomRef = useRef<HTMLDivElement>(null)
 

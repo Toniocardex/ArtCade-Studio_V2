@@ -1,8 +1,10 @@
-import { useEditor } from '../store/editor-store'
+import { useEditor, useConsoleLogs } from '../store/editor-store'
 
 export default function StatusBar() {
-  const { state } = useEditor()
-  const { project, selection, cursorPos, isPlaying } = state
+  const { state }         = useEditor()
+  const { state: volatile } = useConsoleLogs()
+  const { project, selection, isPlaying } = state
+  const { cursorPos } = volatile
 
   const selectedName = (selection.entityId != null && project)
     ? (project.entities[selection.entityId]?.name ?? 'Unknown')

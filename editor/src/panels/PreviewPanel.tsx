@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState } from 'react'
-import type { MouseEvent } from 'react'
 import { MousePointer2, Hand, Paintbrush, Eraser, Wifi, WifiOff } from 'lucide-react'
 import { useEditor } from '../store/editor-store'
+import type { ConsoleEntry } from '../types'
 import {
   loadWasmRuntime, editorSetMode,
   editorSelectEntity, editorDeselect,
@@ -18,17 +18,24 @@ const WASM_RUNTIME_SRC = '/runtime/game.js'
 type Tool = 'select' | 'pan' | 'paint' | 'erase'
 
 export default function PreviewPanel() {
+  // ── IMPORTANT: useEditor() subscribes ONLY to CoreContext (project,
+  // selection, isPlaying).  It does NOT subscribe to VolatileContext
+  // (consoleLogs, cursorPos), so this component is NOT re-rendered on every
+  // debug.log() call from Lua.
+  //
+  // Re-rendering PreviewPanel during Emscripten's rAF callback (triggered by
+  // LOG dispatch) causes React DOM reconciliation to run while WebGL is
+  // compositing its frame → one-frame flash visible as the canvas border and
+  // content briefly disappearing.  The context split in editor-store.tsx
+  // prevents this entirely.
   const { state, dispatch } = useEditor()
-  const { project, isPlaying, selection, projectPath } = state
+  const { project, isPlaying, selection } = state
 
   const canvasRef    = useRef<HTMLCanvasElement>(null)
   const [wasmReady,  setWasmReady]  = useState(() => isReady())
   const [activeTool, setActiveTool] = useState<Tool>('select')
 
   // ── Load WASM runtime once the canvas is mounted ─────────────────────────
-  // game.wasm self-loads its baked-in test-project; we then push the current
-  // React project into the C++ engine via editorLoadProject so the viewport
-  // reflects exactly what the Hierarchy/Inspector show.
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -37,48 +44,43 @@ export default function PreviewPanel() {
     loadWasmRuntime(canvas, WASM_RUNTIME_SRC, {
       onReady: () => {
         setWasmReady(true)
-        // Push current project into C++ engine so it renders the same scene
-        if (project) {
-          editorLoadProject(JSON.stringify(project))
-        }
-        dispatch({
+        if (project) editorLoadProject(JSON.stringify(project))
+
+        // Defer LOG dispatch out of the onRuntimeInitialized callback so that
+        // React reconciliation does not run synchronously inside the WASM
+        // initialisation sequence.
+        setTimeout(() => dispatch({
           type: 'LOG',
-          entry: {
-            id:      Date.now(),
-            time:    new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-            message: '[WASM] Runtime initialised — editor mode active.',
-            level:   'info',
-          },
-        })
+          entry: makeLogEntry('[WASM] Runtime initialised — editor mode active.', 'info'),
+        }), 0)
       },
 
-      // C++ clicked an entity in the viewport → sync React selection
       onEntitySelected: (entityId) => {
         dispatch({ type: 'SELECT_ENTITY', entityId })
       },
 
-      // C++ finished a gizmo drag → log for now; Inspector will update
-      // in a future phase when InspectorPanel subscribes to this
       onEntityTransformChanged: (_id, _x, _y, _rot, _sx, _sy) => {
         // Phase 21: dispatch UPDATE_ENTITY_TRANSFORM
       },
 
-      // debug.log() / engine logs forwarded to Console panel
+      // debug.log() / engine logs → Console panel.
+      //
+      // CRITICAL: use setTimeout(0) to defer the React state update out of
+      // Emscripten's requestAnimationFrame callback.  Without the deferral:
+      //   rAF → emscripten main-loop → C++ luaHost.tick → debug.log →
+      //   EM_ASM → window.onConsoleLine → dispatch(LOG) →
+      //   React reconciliation ← happens DURING WebGL frame composition
+      //   → browser compositor shows blank/partial frame = "coin pickup flash"
+      //
+      // With setTimeout(0) the dispatch is queued as a separate task that
+      // runs AFTER the current rAF + browser paint completes, fully
+      // decoupling React DOM updates from WebGL rendering.
       onConsoleLine: (message, level) => {
-        dispatch({
-          type: 'LOG',
-          entry: {
-            id:      Date.now() + Math.random(),
-            time:    new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-            message,
-            level:   (['info', 'warn', 'error', 'lua'] as const).includes(level as never)
-                       ? (level as 'info' | 'warn' | 'error' | 'lua')
-                       : 'info',
-          },
-        })
+        const entry = makeLogEntry(message, level)
+        setTimeout(() => dispatch({ type: 'LOG', entry }), 0)
       },
     })
-  }, [dispatch])   // run once on mount — WASM loads regardless of projectPath
+  }, [dispatch])   // run once on mount
 
   // ── Re-sync project into C++ whenever the user opens a new project ────────
   useEffect(() => {
@@ -102,14 +104,14 @@ export default function PreviewPanel() {
   // ── Canvas resolution matches game resolution ─────────────────────────────
   const res = project?.gameResolution ?? { x: 1280, y: 720 }
 
-  function handleMouseMove(e: MouseEvent<HTMLDivElement>) {
-    const rect = e.currentTarget.getBoundingClientRect()
-    dispatch({
-      type: 'SET_CURSOR',
-      x: Math.round(e.clientX - rect.left),
-      y: Math.round(e.clientY - rect.top),
-    })
-  }
+  // Background colour while WASM has not yet painted (prevents white flash).
+  const bgColor = (() => {
+    const sceneId = selection.sceneId ?? project?.activeSceneId
+    const bg = project && sceneId ? project.scenes[sceneId]?.backgroundColor : undefined
+    return bg
+      ? `rgb(${Math.round(bg.x * 255)},${Math.round(bg.y * 255)},${Math.round(bg.z * 255)})`
+      : '#0B1121'
+  })()
 
   return (
     <div className="h-full flex flex-col bg-[#111827] relative">
@@ -156,23 +158,31 @@ export default function PreviewPanel() {
         {wasmReady
           ? <><Wifi size={10} className="text-[#00FFFF]" /><span className="text-[#00FFFF]">RUNTIME READY</span></>
           : <><WifiOff size={10} className="text-[#9CA3AF]" /><span className="text-[#9CA3AF]">
-              {projectPath ? 'LOADING…' : 'NO PROJECT'}
+              {project ? 'LOADING…' : 'NO PROJECT'}
             </span></>
         }
       </div>
 
       {/* ── Viewport area ── */}
-      <div
-        className="flex-1 relative flex items-center justify-center p-6"
-        onMouseMove={handleMouseMove}
-      >
+      {/*
+        flex-1 + items-center + justify-center centres the canvas both
+        horizontally and vertically within the available space.
+        overflow-hidden clips any edge case where the canvas calculation
+        is slightly off due to browser rounding.
+      */}
+      <div className="flex-1 overflow-hidden flex items-center justify-center p-6">
         {/*
           The C++ WASM runtime renders directly into this canvas.
-          Emscripten is configured to target it via window.Module.canvas
-          before game.js runs (see wasm-bridge.ts → loadWasmRuntime).
+          Emscripten targets it via window.Module.canvas (see wasm-bridge.ts).
 
-          We size the canvas to the game resolution; CSS scales it to fit
-          the available space while preserving the aspect ratio.
+          Sizing strategy:
+          - width/height HTML attrs set the WebGL pixel resolution (1280×720).
+          - CSS maxWidth + maxHeight + aspectRatio let the browser scale the
+            canvas DOWN to fit the flex container while preserving the 16:9
+            ratio exactly.  Without aspectRatio, maxWidth alone constrains
+            the CSS width but leaves the height at its intrinsic 720px →
+            canvas overflows the container → overflow-hidden clips it from
+            the top → viewport appears off-centre.
         */}
         <canvas
           ref={canvasRef}
@@ -181,17 +191,11 @@ export default function PreviewPanel() {
           height={res.y}
           className="border border-[#1A253A] shadow-2xl"
           style={{
-            maxWidth:  '100%',
-            maxHeight: '100%',
-            // Show the scene background colour while WASM has not yet painted,
-            // preventing a white flash on load.
-            background: (() => {
-              const sceneId = selection.sceneId ?? project?.activeSceneId
-              const bg = project && sceneId ? project.scenes[sceneId]?.backgroundColor : undefined
-              return bg
-                ? `rgb(${Math.round(bg.x * 255)},${Math.round(bg.y * 255)},${Math.round(bg.z * 255)})`
-                : '#0B1121'
-            })(),
+            display:     'block',
+            maxWidth:    '100%',
+            maxHeight:   '100%',
+            aspectRatio: `${res.x} / ${res.y}`,
+            background:  bgColor,
           }}
         />
 
@@ -203,4 +207,22 @@ export default function PreviewPanel() {
       </div>
     </div>
   )
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function makeLogEntry(message: string, level: string): ConsoleEntry {
+  const validLevels = ['info', 'warn', 'error', 'lua'] as const
+  return {
+    id:      Date.now() + Math.random(),
+    time:    new Date().toLocaleTimeString('it-IT', {
+               hour: '2-digit', minute: '2-digit', second: '2-digit',
+             }),
+    message,
+    level:   validLevels.includes(level as never)
+               ? (level as ConsoleEntry['level'])
+               : 'info',
+  }
 }

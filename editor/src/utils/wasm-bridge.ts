@@ -22,6 +22,11 @@ export interface ArtCadeModule {
   calledRun: boolean
   canvas: HTMLCanvasElement
 
+  // Resolves asset paths (game.data, game.wasm) — called by Emscripten before
+  // the runtime starts.  We override it in window.Module to force /runtime/<path>
+  // regardless of the scriptDirectory (which is "" when game.js is async).
+  locateFile?: (path: string, prefix: string) => string
+
   // Emscripten runtime methods (exported via EXPORTED_RUNTIME_METHODS)
   ccall(name: string, returnType: string | null, argTypes: string[], args: unknown[]): unknown
   cwrap(name: string, returnType: string | null, argTypes: string[]): (...args: unknown[]) => unknown

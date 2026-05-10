@@ -1,12 +1,43 @@
-import { createContext, useContext, useReducer } from 'react'
+import { createContext, useContext, useReducer, useCallback, useMemo } from 'react'
 import type { ReactNode, Dispatch } from 'react'
 import type {
-  EditorState, EditorView, BottomTab,
+  EditorView, BottomTab,
   ScriptFile, ProjectDoc, ConsoleEntry,
 } from '../types'
 
 // ---------------------------------------------------------------------------
-// Sample project data
+// State split:
+//   CoreState    — project, selection, scripts, play-mode (changes rarely)
+//   VolatileState — consoleLogs, cursorPos (changes every frame / every log)
+//
+// WHY: all useContext() consumers re-render when their context value changes.
+// PreviewPanel must NOT re-render on every debug.log() from Lua, otherwise
+// React reconciliation runs during Emscripten's rAF callback → WebGL
+// compositing glitch visible as a one-frame flash when entities are destroyed.
+// ---------------------------------------------------------------------------
+
+// ---- Core state (stable) ---------------------------------------------------
+
+export interface CoreState {
+  project:          ProjectDoc | null
+  projectPath:      string | null
+  selection:        { entityId: number | null; sceneId: string | null }
+  view:             EditorView
+  bottomTab:        BottomTab
+  openScripts:      ScriptFile[]
+  activeScriptPath: string | null
+  isPlaying:        boolean
+}
+
+// ---- Volatile state (high-frequency) ---------------------------------------
+
+export interface VolatileState {
+  consoleLogs: ConsoleEntry[]
+  cursorPos:   { x: number; y: number }
+}
+
+// ---------------------------------------------------------------------------
+// Sample project (editor default until user opens a real one)
 // ---------------------------------------------------------------------------
 
 const SAMPLE_PROJECT: ProjectDoc = {
@@ -91,7 +122,7 @@ const INITIAL_LOGS: ConsoleEntry[] = [
   { id: 5, time: '16:42:10', message: "Lua Error: attempt to index nil in 'main.lua' line 42.", level: 'error' },
 ]
 
-const initialState: EditorState = {
+const initialCoreState: CoreState = {
   project:          SAMPLE_PROJECT,
   projectPath:      null,
   selection:        { entityId: null, sceneId: 'scene_main' },
@@ -100,8 +131,11 @@ const initialState: EditorState = {
   openScripts:      [{ path: 'scripts/player_controller.lua', content: SAMPLE_SCRIPT, isDirty: false }],
   activeScriptPath: 'scripts/player_controller.lua',
   isPlaying:        false,
-  consoleLogs:      INITIAL_LOGS,
-  cursorPos:        { x: 0, y: 0 },
+}
+
+const initialVolatileState: VolatileState = {
+  consoleLogs: INITIAL_LOGS,
+  cursorPos:   { x: 0, y: 0 },
 }
 
 // ---------------------------------------------------------------------------
@@ -122,7 +156,11 @@ export type Action =
   | { type: 'LOAD_PROJECT';      project: ProjectDoc; path: string }
   | { type: 'MARK_SCRIPT_SAVED'; path: string }
 
-function reducer(state: EditorState, action: Action): EditorState {
+// ---------------------------------------------------------------------------
+// Core reducer — handles project/selection/mode; ignores LOG and SET_CURSOR
+// ---------------------------------------------------------------------------
+
+function coreReducer(state: CoreState, action: Action): CoreState {
   switch (action.type) {
     case 'SELECT_ENTITY':
       return { ...state, selection: { ...state.selection, entityId: action.entityId } }
@@ -151,10 +189,6 @@ function reducer(state: EditorState, action: Action): EditorState {
     }
     case 'SET_ACTIVE_SCRIPT':
       return { ...state, activeScriptPath: action.path }
-    case 'LOG':
-      return { ...state, consoleLogs: [...state.consoleLogs, action.entry] }
-    case 'SET_CURSOR':
-      return { ...state, cursorPos: { x: action.x, y: action.y } }
     case 'LOAD_PROJECT': {
       const firstSceneId = Object.keys(action.project.scenes)[0] ?? null
       return {
@@ -176,31 +210,97 @@ function reducer(state: EditorState, action: Action): EditorState {
         ),
       }
     }
+    // LOG and SET_CURSOR are handled only by volatileReducer — return unchanged
+    default:
+      return state
   }
 }
 
 // ---------------------------------------------------------------------------
-// Context
+// Volatile reducer — handles logs and cursor; ignores everything else
 // ---------------------------------------------------------------------------
 
-interface EditorContextValue {
-  state:    EditorState
+function volatileReducer(state: VolatileState, action: Action): VolatileState {
+  switch (action.type) {
+    case 'LOG':
+      return { ...state, consoleLogs: [...state.consoleLogs, action.entry] }
+    case 'SET_CURSOR':
+      return { ...state, cursorPos: { x: action.x, y: action.y } }
+    default:
+      return state
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Contexts
+// ---------------------------------------------------------------------------
+
+interface CoreContextValue {
+  state:    CoreState
   dispatch: Dispatch<Action>
 }
 
-const EditorContext = createContext<EditorContextValue | null>(null)
+interface VolatileContextValue {
+  state:    VolatileState
+  dispatch: Dispatch<Action>
+}
+
+const CoreContext     = createContext<CoreContextValue | null>(null)
+const VolatileContext = createContext<VolatileContextValue | null>(null)
+
+// ---------------------------------------------------------------------------
+// Provider
+// ---------------------------------------------------------------------------
 
 export function EditorProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, initialState)
+  const [coreState,     coreDi]  = useReducer(coreReducer,     initialCoreState)
+  const [volatileState, volDi]   = useReducer(volatileReducer, initialVolatileState)
+
+  // Single stable dispatch that fans out to both reducers.
+  // Wrapped in useCallback so its reference never changes → contexts that
+  // receive it as a dep (useMemo below) won't needlessly re-create their value.
+  const dispatch = useCallback((action: Action) => {
+    coreDi(action)
+    volDi(action)
+  }, [coreDi, volDi])
+
+  // Memoize context values so reference only changes when the respective
+  // state slice changes.  PreviewPanel consumes CoreContext only → it will
+  // NOT re-render when consoleLogs or cursorPos change.
+  const coreValue     = useMemo(() => ({ state: coreState,     dispatch }), [coreState,     dispatch])
+  const volatileValue = useMemo(() => ({ state: volatileState, dispatch }), [volatileState, dispatch])
+
   return (
-    <EditorContext.Provider value={{ state, dispatch }}>
-      {children}
-    </EditorContext.Provider>
+    <CoreContext.Provider value={coreValue}>
+      <VolatileContext.Provider value={volatileValue}>
+        {children}
+      </VolatileContext.Provider>
+    </CoreContext.Provider>
   )
 }
 
-export function useEditor(): EditorContextValue {
-  const ctx = useContext(EditorContext)
+// ---------------------------------------------------------------------------
+// Hooks
+// ---------------------------------------------------------------------------
+
+/**
+ * useEditor() — subscribes to CoreContext (project, selection, mode, scripts).
+ * Does NOT re-render when consoleLogs or cursorPos change.
+ * Use for: PreviewPanel, HierarchyPanel, InspectorPanel, ScriptEditor, MenuBar, etc.
+ */
+export function useEditor(): CoreContextValue {
+  const ctx = useContext(CoreContext)
   if (!ctx) throw new Error('useEditor must be inside EditorProvider')
+  return ctx
+}
+
+/**
+ * useConsoleLogs() — subscribes to VolatileContext (consoleLogs, cursorPos).
+ * Re-renders on every log line and mouse move — use only where needed.
+ * Use for: ConsolePanel, StatusBar.
+ */
+export function useConsoleLogs(): VolatileContextValue {
+  const ctx = useContext(VolatileContext)
+  if (!ctx) throw new Error('useConsoleLogs must be inside EditorProvider')
   return ctx
 }
