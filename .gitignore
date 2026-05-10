@@ -46,6 +46,7 @@ yarn.lock
 
 # Tauri
 src-tauri/target/
+editor/src-tauri/target/
 dist/
 .tauri/
 
