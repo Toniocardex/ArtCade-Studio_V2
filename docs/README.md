@@ -108,6 +108,7 @@ Guida specializzata         (REACT_WASM_PATTERN.md o ECS_IMPLEMENTATION_GUIDE.md
 | **LOGIC_BOARD_DESIGN_GUIDELINES.md** | Best practice Logic Board (blackboard, segnali, data-driven, UX, bridge numerico) | ~5min | Editor / C++ bridge | ⭐ |
 | **LOGIC_BOARD_CONDITIONAL_DESIGN.md** | OR/AND ad albero, IF/ELSE, branch vs compatto, grafo, codegen Lua, didattica | ~10min | Editor / codegen | ⭐ |
 | **PIANO_SVILUPPO_COMMERCIALE.md** | Early Access 8 settimane: stabilità editor, demo, export web, vendita | ~15min | Product / founder | ⭐ |
+| **GUIDA_INTEGRAZIONE_SPLASH_LICENZE.md** | Splash editor vs runtime; Free/Pro; `pack-artcade.py`; watermark C++ | ~10min | Editor / tooling / runtime | ⭐ |
 | **COLLABORATORS_UPDATE.md** | Team alignment | 5–10min | Team | ⭐⭐ |
 
 ---
@@ -128,6 +129,7 @@ Guida specializzata         (REACT_WASM_PATTERN.md o ECS_IMPLEMENTATION_GUIDE.md
 | **Logic Board — design & UX** | LOGIC_BOARD_DESIGN_GUIDELINES.md | Intero (supporto a Parte III) | ⭐ |
 | **Logic Board — condizionali & branching** | LOGIC_BOARD_CONDITIONAL_DESIGN.md | Intero (OR/ELSE, grafo, scuole) | ⭐ |
 | **Go-to-market / roadmap commerciale** | PIANO_SVILUPPO_COMMERCIALE.md | Intero (fasi 1–4, rischi) | ⭐ |
+| **Splash + licenze Free/Pro** | GUIDA_INTEGRAZIONE_SPLASH_LICENZE.md | Intero | ⭐ |
 | **React-WASM** | TECHNICAL_OVERVIEW | §5.5 | Concettuale |
 | **React-WASM Implementazione** | REACT_WASM_PATTERN | Intera | Pratico |
 | **React-WASM Razionale** | ARCHITECTURAL_RATIONALE | §2 | Data-driven |

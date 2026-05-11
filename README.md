@@ -73,6 +73,12 @@ ArtCade V2/
 | **Build (Web)** | Emscripten | C++ → .wasm/.js |
 | **Distribution** | .artcade (ZIP) | Project package (scripts + assets) |
 
+## Documentation
+
+- **Index (all docs):** [docs/README.md](docs/README.md)
+- **Splash screen & Free/Pro licenses (editor + export + runtime):** [docs/GUIDA_INTEGRAZIONE_SPLASH_LICENZE.md](docs/GUIDA_INTEGRAZIONE_SPLASH_LICENZE.md)
+- **End-to-end integration:** [docs/ARCHITECTURE_INTEGRATION.md](docs/ARCHITECTURE_INTEGRATION.md)
+
 ## Getting Started
 
 (Coming soon in CLAUDE.md)
