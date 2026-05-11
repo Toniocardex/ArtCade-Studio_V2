@@ -33,8 +33,8 @@ git clone https://github.com/lua/lua.git lua
 # Download Sol2 (header-only, just clone)
 git clone https://github.com/ThePhD/sol2.git sol2
 
-# Download Rapier2D C bindings (or use pre-built)
-# For now, you may stub this with a minimal C header
+# Box2D 2.4: scaricato automaticamente da CMake (FetchContent) nel modulo physics;
+# non serve clonarlo in libs/.
 ```
 
 ## Step 3: Build for Native (Windows)
@@ -164,7 +164,7 @@ Refer to `ARCHITECTURE_DUAL_RUNTIME.md` for detailed specs on each system.
 Start with:
 1. **renderer.cpp** — Raylib window creation
 2. **input.cpp** — Keyboard polling
-3. **physics.cpp** — Rapier2D setup
+3. **physics.cpp** — Box2D setup
 4. **lua-host.cpp** — Lua VM initialization
 
 Good luck! 🚀

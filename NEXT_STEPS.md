@@ -87,23 +87,22 @@ bool Renderer::shouldClose() {
 
 ### 3. **Implement Physics** (1-2 weeks)
 
-**File**: `runtime-cpp/src/engine/physics.cpp`
+**File**: `runtime-cpp/src/modules/physics/src/physics.cpp`
 
-Rapier2D C binding integration:
+Box2D integration:
 ```cpp
 void Physics::init(...) {
-    // 1. Create Rapier world
-    // 2. Set gravity
-    // 3. Initialize broad-phase + narrow-phase
+    // 1. Create b2World + gravity
+    // 2. Configure contact listener if needed
 }
 
 uint32_t Physics::createBody(...) {
-    // 1. Create rigid body in Rapier
+    // 1. Create b2Body + fixtures in Box2D
     // 2. Return handle for later lookup
 }
 
 void Physics::step(float dt, uint32_t substeps) {
-    // 1. Call rapier world step
+    // 1. Call b2World::Step (fixed timestep)
 }
 ```
 

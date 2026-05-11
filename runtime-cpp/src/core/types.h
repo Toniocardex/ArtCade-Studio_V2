@@ -55,7 +55,7 @@ struct Collider {
 struct PhysicsComponent {
     BodyType bodyType     = BodyType::Dynamic;
     Collider collider;
-    uint32_t physicsHandle = 0;  // Opaque Rapier handle
+    uint32_t physicsHandle = 0;  // Opaque Box2D body id (internal pool index)
 };
 
 // ============================================================================

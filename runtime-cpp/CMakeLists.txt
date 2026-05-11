@@ -45,7 +45,6 @@ endif()
 # Percorsi opzionali (non causano errori CMake se le dir non esistono)
 set(SOL2_INCLUDE_DIR          ${CMAKE_CURRENT_SOURCE_DIR}/libs/sol2/include)
 set(NLOHMANN_JSON_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libs/nlohmann-json/include)
-set(RAPIER2D_INCLUDE_DIR      ${CMAKE_CURRENT_SOURCE_DIR}/libs/rapier2d-c/include)  # reserved
 set(LUA_INCLUDE_DIR           ${CMAKE_CURRENT_SOURCE_DIR}/libs/lua)
 
 # ============================================================================
@@ -58,8 +57,7 @@ target_include_directories(artcade-core INTERFACE
 # Aggiungi include di terze parti solo se le directory esistono
 foreach(_inc IN ITEMS
         ${SOL2_INCLUDE_DIR}
-        ${NLOHMANN_JSON_INCLUDE_DIR}
-        ${RAPIER2D_INCLUDE_DIR})
+        ${NLOHMANN_JSON_INCLUDE_DIR})
     if(EXISTS ${_inc})
         target_include_directories(artcade-core INTERFACE ${_inc})
     endif()

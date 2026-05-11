@@ -10,7 +10,8 @@
     "lint":         "tsc --noEmit",
     "tauri":        "tauri",
     "tauri:dev":    "tauri dev",
-    "tauri:build":  "tauri build"
+    "tauri:build":  "tauri build",
+    "build:icons":  "python scripts/build_app_icons.py"
   },
   "dependencies": {
     "@monaco-editor/react":        "^4.6.0",

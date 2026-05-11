@@ -212,7 +212,7 @@ ctest → texture_manager_test  9/9 passed
 ### Implementato
 - **EntityManager**: `createEntity`, `destroyEntity`, `getPool(className)`, `getByTag`, index doppio (class + tag), `forEachInPool`
 - **SceneManager**: `registerScenes`, `loadScene`, `activeScene()` — carica dalla ProjectDoc
-- **World**: `syncPhysicsToEntities()` (copia posizioni da Rapier → Transform), `getGlobalState/setGlobalState`, `activeEntityIds()`
+- **World**: `syncPhysicsToEntities()` (copia posizioni da Box2D → Transform), `getGlobalState/setGlobalState`, `activeEntityIds()`
 
 ### Checkpoint ✅
 - [x] EntityManager: create/destroy/pool query funzionanti
@@ -268,7 +268,7 @@ game.exe test-project/ → "[App] Project loaded: ArtCade Test"
 **Stato**: ✅ Completata — 11/11 test passano (incluso physics_test)
 
 ### Cosa è stato fatto
-- **Backend**: Box2D 2.4.1 via `FetchContent` (no dipendenza Rust/Rapier2D)
+- **Backend**: Box2D 2.4.1 via `FetchContent` (C++ puro, nessun binding Rust)
 - **Pimpl completo**: `physics.h` espone solo `Vec2`/`PhysicsComponent`/`uint32_t handle`; Box2D resta in `physics.cpp`
 - `createBody` — Dynamic/Static/Kinematic, collider Rectangle e Circle
 - `destroyBody` — rimozione sicura da world + mappe interne

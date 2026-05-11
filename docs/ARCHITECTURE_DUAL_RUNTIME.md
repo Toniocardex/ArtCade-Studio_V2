@@ -57,7 +57,7 @@ Same game logic (Lua bytecode), different rendering targets.
 │                                                              │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
 │  │ Renderer │  │ Physics  │  │ Input    │  │ Audio    │   │
-│  │(Raylib) │  │(Rapier2D)│  │(Raylib) │  │(Raylib) │   │
+│  │(Raylib) │  │(Box2D)  │  │(Raylib) │  │(Raylib) │   │
 │  └──────────┘  └──────────┘  └──────────┘  └──────────┘   │
 │                                                              │
 │  ┌──────────────────────────────────────────────────────┐  │
@@ -112,7 +112,7 @@ Runtime-C++                                        Runtime-WASM
     │                                                     │
     ├─ Load .artcade                                      ├─ Load .artcade
     ├─ Initialize Raylib                                  ├─ Initialize PixiJS + Raylib WASM
-    ├─ Initialize Rapier                                  ├─ Initialize Rapier WASM
+    ├─ Initialize Box2D                                   ├─ Initialize Box2D (WASM)
     ├─ Load Lua bytecode                                  ├─ Load Lua bytecode
     ├─ Main loop (tick, physics, render)                  ├─ Main loop (RAF, physics, render)
     └─→ Output to screen                                  └─→ Output to Canvas
@@ -150,9 +150,9 @@ class Renderer {
 - Y-sorting handled by render order (entity property)
 - Alpha blending via Raylib blend modes
 
-### 2. Physics (Rapier2D)
+### 2. Physics (Box2D)
 
-**Responsibility**: 2D rigid body physics via Rapier2D C bindings.
+**Responsibility**: 2D rigid body physics via Box2D 2.4 (C++, linked via CMake FetchContent).
 
 **API**:
 ```cpp
@@ -172,7 +172,7 @@ class Physics {
 ```
 
 **Implementation Notes**:
-- Rapier is Rust, use official C bindings (`rapier_c.h`)
+- Box2D: include `<box2d/box2d.h>`, `b2World` + bodies/fixtures; same code path native and Emscripten where applicable
 - Fixed timestep (deterministic)
 - Collider shapes: Rectangle, Circle
 - BodyTypes: Dynamic, Static, Kinematic
@@ -504,7 +504,7 @@ end
 - Includes `runtime-cpp/CMakeLists.txt`
 
 **runtime-cpp/CMakeLists.txt**:
-- Configures libraries: Raylib, Lua, Sol2, Rapier2D C
+- Configures libraries: Raylib, Lua, Sol2, Box2D (physics module)
 - Defines `game` target (executable)
 - Sets compiler flags per platform
 - Links Emscripten flags if building WASM
@@ -731,7 +731,7 @@ No surprises, no sync issues.
 ### Week 3-4: Core Systems
 
 - [ ] **Renderer complete** (sprite drawing, layer ordering, colors)
-- [ ] **Physics wrapper** (Rapier2D C binding, bodies, collision detection)
+- [ ] **Physics wrapper** (Box2D, bodies, collision detection)
 - [ ] **Input system** (keyboard polling, key mapping)
 - [ ] **Audio system** (sound/music playback via Raylib)
 - [ ] **Entity + World managers** (create, destroy, pool queries)
@@ -798,7 +798,7 @@ runtime-cpp/src/
 ├── engine/
 │   ├── types.h                  # All struct definitions
 │   ├── renderer.h/cpp           # Raylib wrapper
-│   ├── physics.h/cpp            # Rapier2D wrapper
+│   ├── physics.h/cpp            # Box2D wrapper
 │   ├── input.h/cpp              # Input polling
 │   ├── audio.h/cpp              # Raylib audio
 │   ├── lua-host.h/cpp           # Lua VM + bytecode

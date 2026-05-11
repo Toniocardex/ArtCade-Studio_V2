@@ -39,7 +39,7 @@ ArtCade V2/
 │   │   ├── game/        # Game state, entity manager
 │   │   ├── steam/       # Steam integration (future)
 │   │   └── utils/
-│   ├── libs/            # Third-party (raylib, lua, rapier-c)
+│   ├── libs/            # Third-party (raylib, lua, sol2, …); Box2D via FetchContent nel modulo physics
 │   ├── CMakeLists.txt   # Build config (Win + Emscripten)
 │   └── build/
 │
@@ -66,7 +66,7 @@ ArtCade V2/
 | **Editor Bridge** | Tauri (Rust) | File I/O, system integration, preview |
 | **Game Engine** | C++ (C++17) | Core game loop, deterministic |
 | **Graphics** | Raylib (C) | 2D rendering (native + WASM) |
-| **Physics** | Rapier2D (C binding) | 2D collisions, bodies |
+| **Physics** | Box2D 2.4 (C++) | 2D collisions, rigid bodies |
 | **Scripting** | Lua 5.4 + Sol2 | Game logic (bytecode compiled) |
 | **Audio** | Raylib Audio (OpenAL) | Sound, music |
 | **Build (Native)** | CMake + MSVC/GCC/Clang | Windows/Linux/macOS .exe |

@@ -25,7 +25,7 @@ FetchContent_MakeAvailable(box2d)
 add_library(artcade-physics
     src/physics.cpp
     src/body-pool.cpp
-    src/rapier-backend.cpp
+    src/physics-backend-stub.cpp
 )
 
 target_include_directories(artcade-physics
