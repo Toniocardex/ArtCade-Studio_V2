@@ -36,6 +36,15 @@ fn emit_log(app: &tauri::AppHandle, msg: &str, level: &str) {
     });
 }
 
+fn repo_root() -> Result<PathBuf, String> {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    manifest_dir
+        .parent()
+        .and_then(|editor| editor.parent())
+        .map(PathBuf::from)
+        .ok_or_else(|| "could not resolve repository root from CARGO_MANIFEST_DIR".to_string())
+}
+
 // ---------------------------------------------------------------------------
 // File system helpers
 // ---------------------------------------------------------------------------
@@ -70,20 +79,58 @@ fn resolve_path(path: String) -> Result<String, String> {
 // Build commands
 // ---------------------------------------------------------------------------
 
-/// Run `cmake --build <project_root>/runtime-cpp/build --config Release`.
+/// Configure and build the native runtime from the repository runtime-cpp dir.
 /// Each stdout/stderr line is emitted as a "build-log" event to the frontend.
 #[tauri::command]
-async fn run_build(app: tauri::AppHandle, project_root: String) -> Result<(), String> {
-    let build_dir = format!("{}/runtime-cpp/build", project_root);
-    emit_log(&app, &format!("[Build] cmake --build {build_dir} --parallel"), "info");
+async fn run_build(app: tauri::AppHandle, _project_root: String) -> Result<(), String> {
+    let repo = repo_root()?;
+    let runtime_dir = repo.join("runtime-cpp");
+    let build_dir = runtime_dir.join("build-msvc");
+    let vsdev_cmd = PathBuf::from(
+        r"C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\Common7\Tools\VsDevCmd.bat",
+    );
 
-    let mut child = Cmd::new("cmake")
-        .args(["--build", ".", "--config", "Release", "--parallel"])
-        .current_dir(&build_dir)
+    if !vsdev_cmd.exists() {
+        let msg = format!("[Build] Visual Studio DevCmd not found: {}", vsdev_cmd.display());
+        emit_log(&app, &msg, "error");
+        return Err(msg);
+    }
+
+    emit_log(
+        &app,
+        &format!("[Build] Configuring/building native runtime in {}", build_dir.display()),
+        "info",
+    );
+
+    std::fs::create_dir_all(&build_dir)
+        .map_err(|e| format!("create build dir '{}': {e}", build_dir.display()))?;
+
+    let script_path = build_dir.join("artcade-tauri-build.cmd");
+    let script = format!(
+        "@echo off\r\n\
+         call \"{}\" -arch=x64\r\n\
+         if errorlevel 1 exit /b %errorlevel%\r\n\
+         cmake -S \"{}\" -B \"{}\" -G \"NMake Makefiles\" -Wno-dev -DARTCADE_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5\r\n\
+         if errorlevel 1 exit /b %errorlevel%\r\n\
+         cmake --build \"{}\" --config Release\r\n\
+         exit /b %errorlevel%\r\n",
+        vsdev_cmd.display(),
+        runtime_dir.display(),
+        build_dir.display(),
+        build_dir.display(),
+    );
+    std::fs::write(&script_path, script)
+        .map_err(|e| format!("write build script '{}': {e}", script_path.display()))?;
+
+    let mut child = Cmd::new("cmd")
+        .arg("/d")
+        .arg("/c")
+        .arg(&script_path)
+        .current_dir(&repo)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .map_err(|e| format!("cmake not found: {e}"))?;
+        .map_err(|e| format!("failed to start native build: {e}"))?;
 
     // Stream stdout in a background thread
     if let Some(stdout) = child.stdout.take() {
@@ -130,11 +177,13 @@ async fn pack_project(
     project_root: String,
     output_path:  String,
 ) -> Result<(), String> {
-    let script = format!("{project_root}/tools/pack-artcade.py");
-    emit_log(&app, &format!("[Pack] python {script} → {output_path}"), "info");
+    let script = repo_root()?.join("runtime-cpp").join("tools").join("pack-artcade.py");
+    emit_log(&app, &format!("[Pack] python {} -> {output_path}", script.display()), "info");
 
     let mut child = Cmd::new("python")
-        .args([&script, &project_root, &output_path])
+        .arg(&script)
+        .arg(&project_root)
+        .arg(&output_path)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
@@ -146,6 +195,17 @@ async fn pack_project(
             for line in BufReader::new(stdout).lines().flatten() {
                 let _ = app_c.emit("build-log", BuildLogEntry {
                     message: line, level: "info".into(),
+                });
+            }
+        });
+    }
+
+    if let Some(stderr) = child.stderr.take() {
+        let app_c = app.clone();
+        std::thread::spawn(move || {
+            for line in BufReader::new(stderr).lines().flatten() {
+                let _ = app_c.emit("build-log", BuildLogEntry {
+                    message: line, level: "error".into(),
                 });
             }
         });

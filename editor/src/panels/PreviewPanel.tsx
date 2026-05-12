@@ -3,9 +3,8 @@ import { MousePointer2, Hand, Paintbrush, Eraser, Wifi, WifiOff } from 'lucide-r
 import { useEditor } from '../store/editor-store'
 import type { ConsoleEntry } from '../types'
 import {
-  loadWasmRuntime, editorSetMode,
-  editorSelectEntity, editorDeselect,
-  editorLoadProject, isReady,
+  loadWasmRuntime, isReady,
+  syncEditorRuntimeState,
 } from '../utils/wasm-bridge'
 
 // ---------------------------------------------------------------------------
@@ -33,6 +32,7 @@ export default function PreviewPanel() {
 
   const canvasRef    = useRef<HTMLCanvasElement>(null)
   const [wasmReady,  setWasmReady]  = useState(() => isReady())
+  const [engineReady, setEngineReady] = useState(false)
   const [activeTool, setActiveTool] = useState<Tool>('select')
 
   // ── Load WASM runtime once the canvas is mounted ─────────────────────────
@@ -44,7 +44,6 @@ export default function PreviewPanel() {
     loadWasmRuntime(canvas, WASM_RUNTIME_SRC, {
       onReady: () => {
         setWasmReady(true)
-        if (project) editorLoadProject(JSON.stringify(project))
 
         // Defer LOG dispatch out of the onRuntimeInitialized callback so that
         // React reconciliation does not run synchronously inside the WASM
@@ -59,8 +58,16 @@ export default function PreviewPanel() {
         dispatch({ type: 'SELECT_ENTITY', entityId })
       },
 
-      onEntityTransformChanged: (_id, _x, _y, _rot, _sx, _sy) => {
-        // Phase 21: dispatch UPDATE_ENTITY_TRANSFORM
+      onEntityTransformChanged: (entityId, x, y, rotation, scaleX, scaleY) => {
+        setTimeout(() => dispatch({
+          type: 'UPDATE_ENTITY_TRANSFORM',
+          entityId,
+          x,
+          y,
+          rotation,
+          scaleX,
+          scaleY,
+        }), 0)
       },
 
       // debug.log() / engine logs → Console panel.
@@ -77,6 +84,9 @@ export default function PreviewPanel() {
       // decoupling React DOM updates from WebGL rendering.
       onConsoleLine: (message, level) => {
         const entry = makeLogEntry(message, level)
+        if (message.includes('[EditorAPI] Bridge initialised')) {
+          setTimeout(() => setEngineReady(true), 0)
+        }
         setTimeout(() => dispatch({ type: 'LOG', entry }), 0)
       },
     })
@@ -84,22 +94,21 @@ export default function PreviewPanel() {
 
   // ── Re-sync project into C++ whenever the user opens a new project ────────
   useEffect(() => {
-    if (!wasmReady || !project) return
-    editorLoadProject(JSON.stringify(project))
-  }, [project, wasmReady])
+    if (!wasmReady || !engineReady || !project) return
+    syncEditorRuntimeState({ projectJson: JSON.stringify(project) })
+  }, [project, wasmReady, engineReady])
 
   // ── Sync play/edit mode to C++ ────────────────────────────────────────────
   useEffect(() => {
-    if (!wasmReady) return
-    editorSetMode(isPlaying ? 1 : 0)
-  }, [isPlaying, wasmReady])
+    if (!wasmReady || !engineReady) return
+    syncEditorRuntimeState({ mode: isPlaying ? 1 : 0 })
+  }, [isPlaying, wasmReady, engineReady])
 
   // ── Sync selected entity to C++ ──────────────────────────────────────────
   useEffect(() => {
-    if (!wasmReady) return
-    if (selection.entityId != null) editorSelectEntity(selection.entityId)
-    else editorDeselect()
-  }, [selection.entityId, wasmReady])
+    if (!wasmReady || !engineReady) return
+    syncEditorRuntimeState({ selectedEntityId: selection.entityId })
+  }, [selection.entityId, wasmReady, engineReady])
 
   // ── Canvas resolution matches game resolution ─────────────────────────────
   const res = project?.gameResolution ?? { x: 1280, y: 720 }

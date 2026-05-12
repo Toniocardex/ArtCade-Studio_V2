@@ -78,6 +78,7 @@ ArtCade V2/
 - **Index (all docs):** [docs/README.md](docs/README.md)
 - **Splash screen & Free/Pro licenses (editor + export + runtime):** [docs/GUIDA_INTEGRAZIONE_SPLASH_LICENZE.md](docs/GUIDA_INTEGRAZIONE_SPLASH_LICENZE.md)
 - **End-to-end integration:** [docs/ARCHITECTURE_INTEGRATION.md](docs/ARCHITECTURE_INTEGRATION.md)
+- **Global logic & UI (sensors, platformer feel, world UI, text juice):** [docs/GLOBAL_LOGIC_UI_ARCHITECTURE.md](docs/GLOBAL_LOGIC_UI_ARCHITECTURE.md)
 
 ## Getting Started
 

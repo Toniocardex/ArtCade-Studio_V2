@@ -1,5 +1,5 @@
 #include "../include/game-api.h"
-#include "../../entity-system/include/entity-manager.h"
+#include "../../runtime-entity-gateway/include/runtime-entity-gateway.h"
 #include "../../physics/include/physics.h"
 
 #include <sol/sol.hpp>
@@ -9,25 +9,25 @@
 namespace ArtCade::Modules {
 
 void GameAPI::bindEntityAPI(sol::state& lua) {
-    auto* em      = ctx_.entityManager;
+    auto* entities = ctx_.entityGateway;
     auto* physics = ctx_.physics;
 
     // entity.position(id) → x, y
-    lua.set_function("entity_position", [em](EntityId id) -> std::tuple<float, float> {
-        if (auto* e = em->get(id))
+    lua.set_function("entity_position", [entities](EntityId id) -> std::tuple<float, float> {
+        if (auto* e = entities->get(id))
             return { e->transform.position.x, e->transform.position.y };
         return { 0.f, 0.f };
     });
 
     // entity.setPosition(id, x, y)
-    lua.set_function("entity_setPosition", [em](EntityId id, float x, float y) {
-        if (auto* e = em->get(id))
+    lua.set_function("entity_setPosition", [entities](EntityId id, float x, float y) {
+        if (auto* e = entities->get(id))
             e->transform.position = { x, y };
     });
 
     // entity.velocity(id) → vx, vy
-    lua.set_function("entity_velocity", [em, physics](EntityId id) -> std::tuple<float, float> {
-        if (auto* e = em->get(id)) {
+    lua.set_function("entity_velocity", [entities, physics](EntityId id) -> std::tuple<float, float> {
+        if (auto* e = entities->get(id)) {
             auto vel = physics->getLinearVelocity(e->physics.physicsHandle);
             return { vel.x, vel.y };
         }
@@ -35,31 +35,31 @@ void GameAPI::bindEntityAPI(sol::state& lua) {
     });
 
     // entity.setVelocity(id, vx, vy)
-    lua.set_function("entity_setVelocity", [em, physics](EntityId id, float vx, float vy) {
-        if (auto* e = em->get(id))
+    lua.set_function("entity_setVelocity", [entities, physics](EntityId id, float vx, float vy) {
+        if (auto* e = entities->get(id))
             physics->setLinearVelocity(e->physics.physicsHandle, { vx, vy });
     });
 
     // entity.destroy(id)
     // Cleans up the physics body (if any) before removing the entity.
-    lua.set_function("entity_destroy", [em, physics](EntityId id) {
-        if (auto* e = em->get(id)) {
+    lua.set_function("entity_destroy", [entities, physics](EntityId id) {
+        if (auto* e = entities->get(id)) {
             if (physics && e->physics.physicsHandle != 0) {
                 physics->destroyBody(e->physics.physicsHandle);
                 e->physics.physicsHandle = 0;
             }
         }
-        em->destroyEntity(id);
+        entities->destroy(id);
     });
 
     // pool.getAll(className) → table of ids
-    lua.set_function("pool_getAll", [em](const std::string& cls) {
-        return em->getPool(cls);
+    lua.set_function("pool_getAll", [entities](const std::string& cls) {
+        return entities->poolByClass(cls);
     });
 
     // pool.count(className) → integer
-    lua.set_function("pool_count", [em](const std::string& cls) -> size_t {
-        return em->poolCount(cls);
+    lua.set_function("pool_count", [entities](const std::string& cls) -> size_t {
+        return entities->poolCount(cls);
     });
 
     // -------------------------------------------------------------------------
@@ -68,47 +68,47 @@ void GameAPI::bindEntityAPI(sol::state& lua) {
     // The new entity is added to the class pool so pool.getAll() finds it.
     // -------------------------------------------------------------------------
     lua.set_function("object_spawn",
-        [em](const std::string& cls, float x, float y) -> EntityId {
+        [entities](const std::string& cls, float x, float y) -> EntityId {
             EntityDef def;
             def.id                   = 0;   // auto-assign
             def.className            = cls;
             def.transform.position   = { x, y };
             def.transform.rotation   = 0.f;
             def.transform.scale      = { 1.f, 1.f };
-            return em->createEntity(def);
+            return entities->create(def);
         });
 
     // Object.destroy(id) — alias kept for spec compatibility
-    lua.set_function("object_destroy", [em, physics](EntityId id) {
-        if (auto* e = em->get(id)) {
+    lua.set_function("object_destroy", [entities, physics](EntityId id) {
+        if (auto* e = entities->get(id)) {
             if (physics && e->physics.physicsHandle != 0) {
                 physics->destroyBody(e->physics.physicsHandle);
                 e->physics.physicsHandle = 0;
             }
         }
-        em->destroyEntity(id);
+        entities->destroy(id);
     });
 
     // Object.findByTag(tag) → array of EntityIds
-    lua.set_function("object_findByTag", [em](const std::string& tag) {
-        return em->getByTag(tag);
+    lua.set_function("object_findByTag", [entities](const std::string& tag) {
+        return entities->byTag(tag);
     });
 
     // Object.findNear(x, y, radius, className?) → array of EntityIds
     lua.set_function("object_findNear",
-        [em](sol::this_state ts, float x, float y, float radius,
+        [entities](sol::this_state ts, float x, float y, float radius,
              sol::optional<std::string> cls) -> sol::object
         {
             sol::state_view L(ts);
             sol::table result = L.create_table();
 
             std::vector<EntityId> candidates =
-                cls ? em->getPool(*cls) : em->allIds();
+                cls ? entities->poolByClass(*cls) : entities->allIds();
 
             int idx = 1;
             float r2 = radius * radius;
             for (EntityId eid : candidates) {
-                auto* e = em->get(eid);
+                auto* e = entities->get(eid);
                 if (!e) continue;
                 float dx = e->transform.position.x - x;
                 float dy = e->transform.position.y - y;
@@ -119,15 +119,15 @@ void GameAPI::bindEntityAPI(sol::state& lua) {
         });
 
     // Object.exists(id) → bool
-    lua.set_function("object_exists", [em](EntityId id) -> bool {
-        return em->exists(id);
+    lua.set_function("object_exists", [entities](EntityId id) -> bool {
+        return entities->exists(id);
     });
 
     // Object.distance(id1, id2) → float
     lua.set_function("object_distance",
-        [em](EntityId id1, EntityId id2) -> float {
-            auto* e1 = em->get(id1);
-            auto* e2 = em->get(id2);
+        [entities](EntityId id1, EntityId id2) -> float {
+            auto* e1 = entities->get(id1);
+            auto* e2 = entities->get(id2);
             if (!e1 || !e2) return -1.f;
             float dx = e1->transform.position.x - e2->transform.position.x;
             float dy = e1->transform.position.y - e2->transform.position.y;

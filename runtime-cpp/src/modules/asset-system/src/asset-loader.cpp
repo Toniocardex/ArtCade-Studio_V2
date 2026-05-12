@@ -25,8 +25,27 @@ static Vec4 readVec4(const json& j, Vec4 def = {1,1,1,1}) {
         return { j[0].get<float>(), j[1].get<float>(),
                  j[2].get<float>(), j[3].get<float>() };
     if (j.is_object())
-        return { j.value("r", def.r), j.value("g", def.g),
-                 j.value("b", def.b), j.value("a", def.a) };
+        return {
+            j.contains("r") ? j["r"].get<float>() : j.value("x", def.r),
+            j.contains("g") ? j["g"].get<float>() : j.value("y", def.g),
+            j.contains("b") ? j["b"].get<float>() : j.value("z", def.b),
+            j.contains("a") ? j["a"].get<float>() : j.value("w", def.a)
+        };
+    return def;
+}
+
+static std::string readStringAny(const json& j,
+                                 const char* camel,
+                                 const char* snake,
+                                 const std::string& def = {}) {
+    if (j.contains(camel)) return j[camel].get<std::string>();
+    if (j.contains(snake)) return j[snake].get<std::string>();
+    return def;
+}
+
+static float readFloatAny(const json& j, const char* camel, const char* snake, float def) {
+    if (j.contains(camel)) return j[camel].get<float>();
+    if (j.contains(snake)) return j[snake].get<float>();
     return def;
 }
 
@@ -40,7 +59,9 @@ void AssetLoader::shutdown() {}
 bool AssetLoader::loadDirectory(const std::string& dirPath, ProjectDoc& out) {
     rootPath_ = dirPath;
     devMode_  = true;
-    return parseProjectJson(dirPath + "/project.json", out);
+    if (!parseProjectJson(dirPath + "/project.json", out)) return false;
+    parseGameJson(dirPath + "/game.json", out);
+    return true;
 }
 
 bool AssetLoader::loadArtcade(const std::string& archivePath, ProjectDoc& out) {
@@ -54,7 +75,9 @@ bool AssetLoader::loadArtcade(const std::string& archivePath, ProjectDoc& out) {
 
     rootPath_ = tmpDir;
     devMode_  = false;
-    return parseProjectJson(tmpDir + "/project.json", out);
+    if (!parseProjectJson(tmpDir + "/project.json", out)) return false;
+    parseGameJson(tmpDir + "/game.json", out);
+    return true;
 }
 
 bool AssetLoader::loadLuaBytecode(const std::string& path,
@@ -87,22 +110,25 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
     try { j = json::parse(f); }
     catch (...) { return false; }
 
-    out.projectName    = j.value("projectName",   "Untitled");
-    out.version        = j.value("version",        "2.0.0");
-    out.targetFPS      = j.value("targetFPS",       60.f);
-    out.activeSceneId  = j.value("activeSceneId",  std::string{});
-    out.mainScriptPath = j.value("mainScriptPath", std::string{"scripts/main.luac"});
+    out.projectName    = readStringAny(j, "projectName", "project_name", "Untitled");
+    out.version        = j.value("version", "2.0.0");
+    out.licenseTier    = readStringAny(j, "licenseTier", "license_tier", "free");
+    out.targetFPS      = readFloatAny(j, "targetFPS", "target_fps", 60.f);
+    out.activeSceneId  = readStringAny(j, "activeSceneId", "active_scene_id");
+    out.mainScriptPath = readStringAny(j, "mainScriptPath", "main_script_path", "scripts/main.luac");
 
     if (j.contains("gameResolution"))
         out.gameResolution = readVec2(j["gameResolution"]);
+    if (j.contains("game_resolution"))
+        out.gameResolution = readVec2(j["game_resolution"]);
 
     // Entities
     if (j.contains("entities") && j["entities"].is_object()) {
         for (auto& [key, ev] : j["entities"].items()) {
             EntityDef e;
-            e.id        = ev.value("id",        static_cast<EntityId>(0));
-            e.name      = ev.value("name",      std::string{});
-            e.className = ev.value("className", std::string{});
+            e.id        = ev.value("id", static_cast<EntityId>(0));
+            e.name      = ev.value("name", std::string{});
+            e.className = readStringAny(ev, "className", "class_name");
 
             if (ev.contains("tags") && ev["tags"].is_array())
                 e.tags = ev["tags"].get<std::vector<std::string>>();
@@ -118,11 +144,13 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
 
             if (ev.contains("sprite")) {
                 auto& s = ev["sprite"];
-                e.sprite.spriteAssetId = s.value("spriteAssetId", std::string{});
+                e.sprite.spriteAssetId = readStringAny(s, "spriteAssetId", "sprite_asset_id");
                 if (s.contains("tint"))
                     e.sprite.tint = readVec4(s["tint"]);
                 e.sprite.alpha       = s.value("alpha",       1.f);
-                e.sprite.renderOrder = s.value("renderOrder", 0);
+                e.sprite.renderOrder = s.contains("renderOrder")
+                    ? s["renderOrder"].get<int32_t>()
+                    : s.value("render_order", 0);
             }
 
             if (e.id != 0)
@@ -143,19 +171,41 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
                 s.viewportSize = readVec2(sv["viewportSize"], {800,600});
             if (sv.contains("backgroundColor"))
                 s.backgroundColor = readVec4(sv["backgroundColor"]);
+            if (sv.contains("background_color"))
+                s.backgroundColor = readVec4(sv["background_color"]);
 
             if (sv.contains("entityIds") && sv["entityIds"].is_array())
                 s.entityIds = sv["entityIds"].get<std::vector<EntityId>>();
+            if (sv.contains("entity_ids") && sv["entity_ids"].is_array())
+                s.entityIds = sv["entity_ids"].get<std::vector<EntityId>>();
 
             out.scenes[s.id] = std::move(s);
         }
     }
 
+    if (j.contains("thumbnails") && j["thumbnails"].is_object()) {
+        for (auto& [sceneId, thumbPath] : j["thumbnails"].items())
+            out.thumbnails[sceneId] = thumbPath.get<std::string>();
+    }
+
     return true;
 }
 
-bool AssetLoader::parseGameJson(const std::string&, ProjectDoc&) {
-    return false;  // used internally by loadArtcade (future)
+bool AssetLoader::parseGameJson(const std::string& path, ProjectDoc& out) {
+    std::ifstream f(path);
+    if (!f) return true;
+
+    json j;
+    try { j = json::parse(f); }
+    catch (...) { return false; }
+
+    if (j.contains("gameResolution"))
+        out.gameResolution = readVec2(j["gameResolution"], out.gameResolution);
+    if (j.contains("game_resolution"))
+        out.gameResolution = readVec2(j["game_resolution"], out.gameResolution);
+    out.targetFPS = readFloatAny(j, "targetFPS", "target_fps", out.targetFPS);
+    out.licenseTier = readStringAny(j, "licenseTier", "license_tier", out.licenseTier);
+    return true;
 }
 
 bool AssetLoader::extractZip(const std::string& zipPath, const std::string& destDir) {

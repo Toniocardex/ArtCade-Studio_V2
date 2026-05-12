@@ -40,6 +40,7 @@ public:
     std::vector<EntityId> allIds()                                const;
 
     // Bulk operations
+    void clear();
     void forEachInPool(const std::string& className,
                        const std::function<void(EntityId, EntityDef&)>& fn);
 

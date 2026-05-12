@@ -149,12 +149,21 @@ export function parseProjectDoc(jsonStr: string): ProjectDoc | null {
     return {
       projectName:    String(raw.projectName ?? raw.project_name ?? 'Untitled'),
       version:        String(raw.version ?? '1.0.0'),
+      licenseTier:    (() => {
+                       const tier = String(raw.licenseTier ?? raw.license_tier ?? 'free')
+                       return tier === 'pro' ? 'pro' : 'free'
+                     })(),
       gameResolution: toVec2(raw.gameResolution ?? raw.game_resolution ?? [1280, 720]),
       targetFPS:      Number(raw.targetFPS ?? raw.target_fps ?? 60),
       activeSceneId:  String(raw.activeSceneId ?? raw.active_scene_id ?? firstSceneId),
       mainScriptPath: String(raw.mainScriptPath ?? raw.main_script_path ?? 'scripts/main.lua'),
       entities,
       scenes,
+      thumbnails:     raw.thumbnails && typeof raw.thumbnails === 'object'
+                       ? Object.fromEntries(Object.entries(raw.thumbnails as Record<string, unknown>).map(
+                           ([key, value]) => [key, String(value)]
+                         ))
+                       : undefined,
     }
   } catch {
     return null

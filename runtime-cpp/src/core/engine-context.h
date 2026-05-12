@@ -23,6 +23,7 @@ namespace Modules {
     class LuaHost;
     class EntityManager;
     class SceneManager;
+    class RuntimeEntityGateway;
     class AssetLoader;
     class GameAPI;
     class TimeManager;
@@ -47,6 +48,7 @@ struct EngineContext {
     Modules::LuaHost*       luaHost       = nullptr;
     Modules::EntityManager* entityManager = nullptr;
     Modules::SceneManager*  sceneManager  = nullptr;
+    Modules::RuntimeEntityGateway* entityGateway = nullptr;
     Modules::AssetLoader*   assetLoader   = nullptr;
     Modules::GameAPI*       gameAPI       = nullptr;
     World*                  world         = nullptr;

@@ -11,6 +11,7 @@
 #include "../../modules/lua-runtime/include/lua-host.h"
 #include "../../modules/entity-system/include/entity-manager.h"
 #include "../../modules/scene-system/include/scene-manager.h"
+#include "../../modules/runtime-entity-gateway/include/runtime-entity-gateway.h"
 #include "../../modules/asset-system/include/asset-loader.h"
 #include "../../modules/game-api/include/game-api.h"
 #include "../../world/include/world.h"
@@ -44,6 +45,7 @@ struct Application::Modules {
     std::unique_ptr<ArtCade::Modules::LuaHost>       luaHost;
     std::unique_ptr<ArtCade::Modules::EntityManager> entityManager;
     std::unique_ptr<ArtCade::Modules::SceneManager>  sceneManager;
+    std::unique_ptr<ArtCade::Modules::RuntimeEntityGateway> entityGateway;
     std::unique_ptr<ArtCade::Modules::AssetLoader>   assetLoader;
     std::unique_ptr<ArtCade::Modules::GameAPI>       gameAPI;
     std::unique_ptr<World>                           world;
@@ -174,8 +176,12 @@ bool Application::initSubsystems() {
     mod_->sceneManager = std::make_unique<ArtCade::Modules::SceneManager>(*mod_->entityManager);
     if (!mod_->sceneManager->init()) return false;
 
+    mod_->entityGateway = std::make_unique<ArtCade::Modules::RuntimeEntityGateway>(
+        *mod_->entityManager, *mod_->sceneManager);
+    if (!mod_->entityGateway->init()) return false;
+
     mod_->world = std::make_unique<World>(
-        *mod_->entityManager, *mod_->sceneManager, *mod_->physics);
+        *mod_->entityGateway, *mod_->physics);
 
     // Popola EngineContext — GameAPI e LuaHost ne hanno bisogno
     ctx_.renderer      = mod_->renderer.get();
@@ -184,6 +190,7 @@ bool Application::initSubsystems() {
     ctx_.audio         = mod_->audio.get();
     ctx_.entityManager = mod_->entityManager.get();
     ctx_.sceneManager  = mod_->sceneManager.get();
+    ctx_.entityGateway = mod_->entityGateway.get();
     ctx_.assetLoader   = mod_->assetLoader.get();
     ctx_.world         = mod_->world.get();
 
@@ -200,7 +207,7 @@ bool Application::initSubsystems() {
 
     // Wire EditorAPI to EntityManager + SceneManager so editor commands
     // (editor_load_project, editor_set_transform) can reach engine state.
-    EditorAPI::wireEngine(mod_->entityManager.get(), mod_->sceneManager.get());
+    EditorAPI::wireEngine(mod_->entityGateway.get());
     EditorAPI::init("#artcade-canvas");
 
     return true;
@@ -282,6 +289,7 @@ void Application::loopIteration() {
     }
 
     renderActiveScene();
+    EditorAPI::flushConsoleLines();
     mod_->input->resetFrameState();
 }
 
@@ -332,6 +340,7 @@ void Application::shutdownModules() {
     if (mod_->luaHost)          { mod_->luaHost->shutdown();          mod_->luaHost.reset();          }
     if (mod_->gameAPI)          { mod_->gameAPI->shutdown();          mod_->gameAPI.reset();          }
     if (mod_->world)            { mod_->world->shutdown();            mod_->world.reset();            }
+    if (mod_->entityGateway)    { mod_->entityGateway->shutdown();    mod_->entityGateway.reset();    }
     if (mod_->sceneManager)     { mod_->sceneManager->shutdown();     mod_->sceneManager.reset();     }
     if (mod_->assetLoader)      { mod_->assetLoader->shutdown();      mod_->assetLoader.reset();      }
     if (mod_->entityManager)    { mod_->entityManager->shutdown();    mod_->entityManager.reset();    }

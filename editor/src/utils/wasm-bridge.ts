@@ -211,3 +211,19 @@ export function editorSetTransform(
     ['number', 'number', 'number', 'number', 'number', 'number'],
     [entityId, x, y, rotation, scaleX, scaleY])
 }
+
+export interface RuntimeSyncState {
+  projectJson?: string
+  mode?: 0 | 1
+  selectedEntityId?: number | null
+}
+
+/** Push editor state changes into the C++ runtime through the stable bridge API. */
+export function syncEditorRuntimeState(state: RuntimeSyncState): void {
+  if (state.projectJson != null) editorLoadProject(state.projectJson)
+  if (state.mode != null) editorSetMode(state.mode)
+  if (state.selectedEntityId !== undefined) {
+    if (state.selectedEntityId == null) editorDeselect()
+    else editorSelectEntity(state.selectedEntityId)
+  }
+}

@@ -17,17 +17,20 @@
 //              (set by wasm-bridge.ts BEFORE game.js loads)
 // =============================================================================
 
+#include <cstdint>
+#include <string>
+#include <utility>
+#include <vector>
+
 #ifdef __EMSCRIPTEN__
 
 #include <emscripten.h>
 #include <emscripten/html5.h>
-#include <cstdint>
 #include <functional>
 
 // Forward declarations -- defined in the engine modules
 namespace ArtCade::Modules {
-class EntityManager;
-class SceneManager;
+class RuntimeEntityGateway;
 }
 
 namespace ArtCade {
@@ -51,7 +54,7 @@ public:
     // editor commands (editor_load_project, editor_set_transform, ...) can
     // reach the engine's internal state.
     // -------------------------------------------------------------------------
-    static void wireEngine(Modules::EntityManager* em, Modules::SceneManager* sm);
+    static void wireEngine(Modules::RuntimeEntityGateway* gateway);
 
     // -------------------------------------------------------------------------
     // C++ -> React notifications (Smoke Test 3)
@@ -70,6 +73,8 @@ public:
 
     /** Engine / Lua debug.log() -> React Console panel. */
     static void notifyConsoleLine(const char* message, const char* level = "info");
+    static void queueConsoleLine(const char* message, const char* level = "info");
+    static void flushConsoleLines();
 
     // -------------------------------------------------------------------------
     // Accessors
@@ -85,8 +90,8 @@ public:
     static float    s_dragStartX, s_dragStartY;
 
     // Engine pointers wired in wireEngine()
-    static Modules::EntityManager* s_entityManager;
-    static Modules::SceneManager*  s_sceneManager;
+    static Modules::RuntimeEntityGateway* s_entityGateway;
+    static std::vector<std::pair<std::string, std::string>> s_consoleQueue;
 
 private:
     // Native input callbacks -- bypass the JS thread entirely (Smoke Test 2)
@@ -137,18 +142,18 @@ EMSCRIPTEN_KEEPALIVE void editor_set_transform(
 // =============================================================================
 #else // !__EMSCRIPTEN__
 
-#include <cstdint>
-
 namespace ArtCade {
-namespace Modules { class EntityManager; class SceneManager; }
+namespace Modules { class RuntimeEntityGateway; }
 
 struct EditorAPI {
     static void init(const char* = nullptr) {}
     static void shutdown() {}
-    static void wireEngine(Modules::EntityManager*, Modules::SceneManager*) {}
+    static void wireEngine(Modules::RuntimeEntityGateway*) {}
     static void notifyEntitySelected(uint32_t) {}
     static void notifyTransformChanged(uint32_t, float, float, float, float, float) {}
     static void notifyConsoleLine(const char*, const char* = nullptr) {}
+    static void queueConsoleLine(const char*, const char* = nullptr) {}
+    static void flushConsoleLines() {}
     static int      getMode()           { return 0; }
     static uint32_t getSelectedEntity() { return 0u; }
     static bool     isEditorMode()      { return true; }
@@ -156,6 +161,8 @@ struct EditorAPI {
     static uint32_t s_selectedEntityId;
     static bool     s_isDragging;
     static float    s_dragStartX, s_dragStartY;
+    static Modules::RuntimeEntityGateway* s_entityGateway;
+    static std::vector<std::pair<std::string, std::string>> s_consoleQueue;
 };
 } // namespace ArtCade
 

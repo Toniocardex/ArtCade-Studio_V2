@@ -69,12 +69,14 @@ export interface SceneDef {
 export interface ProjectDoc {
   projectName:    string
   version:        string
+  licenseTier?:   'free' | 'pro'
   gameResolution: Vec2
   targetFPS:      number
   activeSceneId:  string
   mainScriptPath: string
   entities:       Record<number, EntityDef>
   scenes:         Record<string, SceneDef>
+  thumbnails?:    Record<string, string>
 }
 
 // ---------------------------------------------------------------------------

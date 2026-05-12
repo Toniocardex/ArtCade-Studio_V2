@@ -1,7 +1,6 @@
 #include "../include/renderer.h"
 #include "texture-cache.h"
 #include <raylib.h>
-#include <cstdint>
 #include <vector>
 
 namespace ArtCade::Modules {

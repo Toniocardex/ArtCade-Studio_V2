@@ -43,35 +43,55 @@ export interface VolatileState {
 const SAMPLE_PROJECT: ProjectDoc = {
   projectName:    'Neon_Runner',
   version:        '2.0.0',
+  licenseTier:    'free',
   gameResolution: { x: 1280, y: 720 },
   targetFPS:      60,
   activeSceneId:  'scene_main',
   mainScriptPath: 'scripts/main.lua',
   entities: {
     1: {
-      id: 1, name: 'Player_Hero', className: 'Player', tags: ['player'],
-      transform: { position: { x: 120, y: 340 }, scale: { x: 1, y: 1 }, rotation: 0 },
-      sprite:    { spriteAssetId: 'hero_idle.png', tint: { x: 1, y: 1, z: 1, w: 1 }, alpha: 1, pivot: { x: 0.5, y: 1 }, renderOrder: 2 },
-      scriptPath: 'scripts/player_controller.lua',
+      id: 1, name: 'Player', className: 'Player', tags: ['player', 'controllable'],
+      transform: { position: { x: 640, y: 340 }, scale: { x: 1, y: 1 }, rotation: 0 },
+      sprite:    { spriteAssetId: '', tint: { x: 0.2, y: 0.6, z: 1, w: 1 }, alpha: 1, pivot: { x: 0.5, y: 0.5 }, renderOrder: 1 },
     },
     2: {
-      id: 2, name: 'Level_01_Tilemap', className: 'Tilemap', tags: ['map'],
-      transform: { position: { x: 0, y: 0 }, scale: { x: 1, y: 1 }, rotation: 0 },
-      sprite:    { spriteAssetId: 'forest_tileset.png', tint: { x: 1, y: 1, z: 1, w: 1 }, alpha: 1, pivot: { x: 0, y: 0 }, renderOrder: 0 },
+      id: 2, name: 'Patrol_A', className: 'Enemy', tags: ['enemy'],
+      transform: { position: { x: 200, y: 280 }, scale: { x: 1, y: 1 }, rotation: 0 },
+      sprite:    { spriteAssetId: '', tint: { x: 1, y: 0.2, z: 0.2, w: 1 }, alpha: 1, pivot: { x: 0.5, y: 0.5 }, renderOrder: 0 },
     },
     3: {
-      id: 3, name: 'Enemy_Slime_01', className: 'Slime', tags: ['enemy'],
-      transform: { position: { x: 500, y: 340 }, scale: { x: 1, y: 1 }, rotation: 0 },
-      sprite:    { spriteAssetId: '', tint: { x: 0.2, y: 1, z: 0.4, w: 1 }, alpha: 1, pivot: { x: 0.5, y: 1 }, renderOrder: 2 },
+      id: 3, name: 'Patrol_B', className: 'Enemy', tags: ['enemy'],
+      transform: { position: { x: 950, y: 200 }, scale: { x: 1, y: 1 }, rotation: 0 },
+      sprite:    { spriteAssetId: '', tint: { x: 1, y: 0.4, z: 0, w: 1 }, alpha: 1, pivot: { x: 0.5, y: 0.5 }, renderOrder: 0 },
+    },
+    4: {
+      id: 4, name: 'Coin_1', className: 'Coin', tags: ['pickup'],
+      transform: { position: { x: 400, y: 300 }, scale: { x: 1, y: 1 }, rotation: 0 },
+      sprite:    { spriteAssetId: '', tint: { x: 1, y: 0.9, z: 0.1, w: 1 }, alpha: 1, pivot: { x: 0.5, y: 0.5 }, renderOrder: 0 },
+    },
+    5: {
+      id: 5, name: 'Coin_2', className: 'Coin', tags: ['pickup'],
+      transform: { position: { x: 780, y: 200 }, scale: { x: 1, y: 1 }, rotation: 0 },
+      sprite:    { spriteAssetId: '', tint: { x: 1, y: 0.9, z: 0.1, w: 1 }, alpha: 1, pivot: { x: 0.5, y: 0.5 }, renderOrder: 0 },
+    },
+    6: {
+      id: 6, name: 'PhysicsBall', className: 'PhysicsBall', tags: ['physics'],
+      transform: { position: { x: 640, y: 60 }, scale: { x: 1, y: 1 }, rotation: 0 },
+      sprite:    { spriteAssetId: '', tint: { x: 0, y: 1, z: 0.5, w: 1 }, alpha: 1, pivot: { x: 0.5, y: 0.5 }, renderOrder: 2 },
+    },
+    7: {
+      id: 7, name: 'PhysicsFloor', className: 'PhysicsFloor', tags: ['physics', 'static'],
+      transform: { position: { x: 640, y: 640 }, scale: { x: 1, y: 1 }, rotation: 0 },
+      sprite:    { spriteAssetId: '', tint: { x: 0.5, y: 0.35, z: 0.1, w: 1 }, alpha: 1, pivot: { x: 0.5, y: 0.5 }, renderOrder: 0 },
     },
   },
   scenes: {
     scene_main: {
-      id: 'scene_main', name: 'Level_01',
-      worldSize:       { x: 3840, y: 720 },
+      id: 'scene_main', name: 'Main Scene',
+      worldSize:       { x: 1280, y: 720 },
       viewportSize:    { x: 1280, y: 720 },
-      backgroundColor: { x: 0.04, y: 0.07, z: 0.13, w: 1 },
-      entityIds: [1, 2, 3],
+      backgroundColor: { x: 0.04, y: 0.05, z: 0.12, w: 1 },
+      entityIds: [1, 2, 3, 4, 5, 6, 7],
     },
     scene_menu: {
       id: 'scene_menu', name: 'Main_Menu',
@@ -114,13 +134,7 @@ function tick(dt)
 end
 `
 
-const INITIAL_LOGS: ConsoleEntry[] = [
-  { id: 1, time: '16:42:01', message: 'ArtCade Engine Core Initialized.',              level: 'info'  },
-  { id: 2, time: '16:42:02', message: 'WASM Runtime: Memory allocated (64 MB).',        level: 'lua'   },
-  { id: 3, time: '16:42:03', message: 'Project loaded: Neon_Runner v2.0.0',             level: 'info'  },
-  { id: 4, time: '16:42:05', message: "Warning: 'hero_run.png' — non-power-of-two dimensions.", level: 'warn'  },
-  { id: 5, time: '16:42:10', message: "Lua Error: attempt to index nil in 'main.lua' line 42.", level: 'error' },
-]
+const INITIAL_LOGS: ConsoleEntry[] = []
 
 const initialCoreState: CoreState = {
   project:          SAMPLE_PROJECT,
@@ -155,6 +169,7 @@ export type Action =
   | { type: 'SET_CURSOR';        x: number; y: number }
   | { type: 'LOAD_PROJECT';      project: ProjectDoc; path: string }
   | { type: 'MARK_SCRIPT_SAVED'; path: string }
+  | { type: 'UPDATE_ENTITY_TRANSFORM'; entityId: number; x: number; y: number; rotation: number; scaleX: number; scaleY: number }
 
 // ---------------------------------------------------------------------------
 // Core reducer — handles project/selection/mode; ignores LOG and SET_CURSOR
@@ -200,6 +215,28 @@ function coreReducer(state: CoreState, action: Action): CoreState {
         activeScriptPath: null,
         isPlaying:   false,
         bottomTab:   'console',
+      }
+    }
+    case 'UPDATE_ENTITY_TRANSFORM': {
+      if (!state.project || !state.project.entities[action.entityId]) return state
+      const entity = state.project.entities[action.entityId]
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          entities: {
+            ...state.project.entities,
+            [action.entityId]: {
+              ...entity,
+              transform: {
+                ...entity.transform,
+                position: { x: action.x, y: action.y },
+                rotation: action.rotation,
+                scale: { x: action.scaleX, y: action.scaleY },
+              },
+            },
+          },
+        },
       }
     }
     case 'MARK_SCRIPT_SAVED': {

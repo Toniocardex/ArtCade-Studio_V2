@@ -4,8 +4,7 @@
 #include <string>
 
 namespace ArtCade::Modules {
-    class EntityManager;
-    class SceneManager;
+    class RuntimeEntityGateway;
     class Physics;
 }
 
@@ -21,9 +20,8 @@ namespace ArtCade {
  */
 class World {
 public:
-    World(Modules::EntityManager& entityManager,
-          Modules::SceneManager&  sceneManager,
-          Modules::Physics&       physics);
+    World(Modules::RuntimeEntityGateway& entityGateway,
+          Modules::Physics&              physics);
 
     // Initialise from a loaded project document
     void init(const ProjectDoc& doc);
@@ -45,9 +43,8 @@ public:
     std::vector<EntityId> activeEntityIds() const;
 
 private:
-    Modules::EntityManager& entityManager_;
-    Modules::SceneManager&  sceneManager_;
-    Modules::Physics&       physics_;
+    Modules::RuntimeEntityGateway& entityGateway_;
+    Modules::Physics&              physics_;
     GlobalState             globalState_;
 };
 

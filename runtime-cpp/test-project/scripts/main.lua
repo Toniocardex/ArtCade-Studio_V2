@@ -2,7 +2,8 @@
 -- ArtCade Phase 13 - Integration + Physics Demo
 -- Controls: WASD / Arrow keys to move player
 -- Physics:  green ball falls under gravity, rests on orange floor
--- Logging:  writes test-project/logs/physics_test.log every tick
+-- Logging:  writes event logs to the editor console; optional heartbeat rows
+--           stay file-only by default to avoid noisy UI updates.
 -- =============================================================================
 
 print("[Demo] ArtCade Phase 13 + Physics Demo loaded!")
@@ -23,6 +24,8 @@ local SCREEN_W     = 1280
 local SCREEN_H     = 720
 local GRAVITY_Y    = 500         -- px/s^2  (Y-down)
 local LOG_INTERVAL = 2           -- seconds between heartbeat log lines
+local FILE_LOGGING_ENABLED = true
+local HEARTBEAT_TO_CONSOLE = false
 
 -- ---------------------------------------------------------------------------
 -- Runtime state
@@ -56,9 +59,12 @@ local function clamp(v, lo, hi)
     return math.max(lo, math.min(hi, v))
 end
 
--- Write a line to both stdout AND the log file
-local function log(msg)
-    debug.log(msg)
+-- Write a line to the editor console and log file.
+-- Pass false as the second argument for file-only diagnostic rows.
+local function log(msg, toConsole)
+    if toConsole ~= false then
+        debug.log(msg)
+    end
     if logFile then
         logFile:write("[Lua] " .. msg .. "\n")
         logFile:flush()
@@ -69,8 +75,10 @@ end
 -- Init
 -- ---------------------------------------------------------------------------
 local function init()
-    -- Open log file (create directory path is already expected to exist)
-    logFile = io.open(logPath, "w")
+    -- File logging is optional: packaged/WASM runtimes may not expose this path.
+    if FILE_LOGGING_ENABLED then
+        logFile = io.open(logPath, "w")
+    end
     if logFile then
         logFile:write("=== ArtCade Phase 13 Physics Test Log ===\n")
         logFile:write("GRAVITY_Y = " .. tostring(GRAVITY_Y) .. " px/s^2\n")
@@ -78,8 +86,6 @@ local function init()
         logFile:write("FLOOR pos:      (640, 640)  size: 1280x40  [static]\n")
         logFile:write("------------------------------------------\n")
         logFile:flush()
-    else
-        debug.log("WARNING: could not open log file: " .. logPath)
     end
 
     -- ---- Position-based entities ----
@@ -318,7 +324,7 @@ local function writeHeartbeat()
         "t=%3.0fs  ball=(%.1f,%.1f) vy=%5.1f [%s]  player=(%.0f,%.0f)  score=%d  coins=%d  fps=%d",
         t, bx, by, vy, ballState, px, py, score, #coinIds, fps
     )
-    log(row)
+    log(row, HEARTBEAT_TO_CONSOLE)
 end
 
 -- ---------------------------------------------------------------------------

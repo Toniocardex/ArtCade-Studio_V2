@@ -5,7 +5,7 @@
 > **Versione**: 1.0  
 > **Data**: 2026-05-10
 
-**Vedi anche:** [`LOGIC_BOARD_SPEC.md`](LOGIC_BOARD_SPEC.md) — **Parte I** (termini) · **Parte III** (Logic Board: JSON, compilatore, UI) · [`LOGIC_BOARD_CONDITIONAL_DESIGN.md`](LOGIC_BOARD_CONDITIONAL_DESIGN.md) (OR/ELSE, branch) · [`GUIDA_INTEGRAZIONE_SPLASH_LICENZE.md`](GUIDA_INTEGRAZIONE_SPLASH_LICENZE.md) (splash editor + watermark export Free/Pro, `pack-artcade`) · [`ARCHITETTURA_TECNICA_ENGINE_2D.md`](ARCHITETTURA_TECNICA_ENGINE_2D.md) — §8–11.
+**Vedi anche:** [`LOGIC_BOARD_SPEC.md`](LOGIC_BOARD_SPEC.md) — **Parte I** (termini) · **Parte III** (Logic Board: JSON, compilatore, UI) · [`LOGIC_BOARD_CONDITIONAL_DESIGN.md`](LOGIC_BOARD_CONDITIONAL_DESIGN.md) (OR/ELSE, branch) · [`GUIDA_INTEGRAZIONE_SPLASH_LICENZE.md`](GUIDA_INTEGRAZIONE_SPLASH_LICENZE.md) (splash editor + watermark export Free/Pro, `pack-artcade`) · [`GLOBAL_LOGIC_UI_ARCHITECTURE.md`](GLOBAL_LOGIC_UI_ARCHITECTURE.md) (sensori, platformer feel, UI screen-space, text juice) · [`ARCHITETTURA_TECNICA_ENGINE_2D.md`](ARCHITETTURA_TECNICA_ENGINE_2D.md) — §8–11.
 
 ---
 

@@ -1,5 +1,6 @@
 // entity-manager.cpp — stub (Phase 9 implements entity lifecycle)
 #include "../include/entity-manager.h"
+#include <algorithm>
 
 namespace ArtCade::Modules {
 
@@ -24,6 +25,13 @@ void EntityManager::destroyEntity(EntityId id) {
     if (it == entities_.end()) return;
     removeFromIndex(id, it->second);
     entities_.erase(it);
+}
+
+void EntityManager::clear() {
+    entities_.clear();
+    classIndex_.clear();
+    tagIndex_.clear();
+    nextId_ = 1;
 }
 
 bool EntityManager::exists(EntityId id) const {

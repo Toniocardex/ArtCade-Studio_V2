@@ -8,7 +8,6 @@ target_include_directories(artcade-world
 target_link_libraries(artcade-world
     PUBLIC
         artcade-core
-        artcade-entity-system
-        artcade-scene-system
+        artcade-runtime-entity-gateway
         artcade-physics
 )

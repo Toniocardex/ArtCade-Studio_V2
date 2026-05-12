@@ -1,6 +1,7 @@
 import { Settings, ChevronRight } from 'lucide-react'
 import { useEditor } from '../store/editor-store'
 import type { EntityDef } from '../types'
+import { editorSetTransform, isReady } from '../utils/wasm-bridge'
 
 // ---- helpers ---------------------------------------------------------------
 
@@ -30,30 +31,23 @@ function Field({ label, value, cyan = false }: { label: string; value: string | 
   )
 }
 
-function XYFields({ label, x, y }: { label: string; x: number; y: number }) {
+function NumberField({
+  label, value, onCommit,
+}: {
+  label: string
+  value: number
+  onCommit: (value: number) => void
+}) {
   return (
-    <div className="mb-2">
-      <label className="text-[9px] text-[#9CA3AF] uppercase block mb-0.5">{label}</label>
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <label className="text-[8px] text-[#9CA3AF]/60">X</label>
-          <input
-            type="number"
-            defaultValue={x}
-            className="w-full bg-[#1A253A] border border-[#2D3748] rounded px-2 py-1
-                       text-xs text-[#D1D5DB] focus:outline-none focus:border-[#00FFFF]"
-          />
-        </div>
-        <div>
-          <label className="text-[8px] text-[#9CA3AF]/60">Y</label>
-          <input
-            type="number"
-            defaultValue={y}
-            className="w-full bg-[#1A253A] border border-[#2D3748] rounded px-2 py-1
-                       text-xs text-[#D1D5DB] focus:outline-none focus:border-[#00FFFF]"
-          />
-        </div>
-      </div>
+    <div>
+      <label className="text-[8px] text-[#9CA3AF]/60">{label}</label>
+      <input
+        type="number"
+        value={Number.isFinite(value) ? value : 0}
+        onChange={e => onCommit(Number(e.target.value))}
+        className="w-full bg-[#1A253A] border border-[#2D3748] rounded px-2 py-1
+                   text-xs text-[#D1D5DB] focus:outline-none focus:border-[#00FFFF]"
+      />
     </div>
   )
 }
@@ -62,6 +56,19 @@ function XYFields({ label, x, y }: { label: string; x: number; y: number }) {
 
 function EntityInspector({ entity }: { entity: EntityDef }) {
   const { dispatch } = useEditor()
+
+  function commitTransform(next: Partial<{
+    x: number; y: number; rotation: number; scaleX: number; scaleY: number
+  }>) {
+    const x = next.x ?? entity.transform.position.x
+    const y = next.y ?? entity.transform.position.y
+    const rotation = next.rotation ?? entity.transform.rotation
+    const scaleX = next.scaleX ?? entity.transform.scale.x
+    const scaleY = next.scaleY ?? entity.transform.scale.y
+
+    dispatch({ type: 'UPDATE_ENTITY_TRANSFORM', entityId: entity.id, x, y, rotation, scaleX, scaleY })
+    if (isReady()) editorSetTransform(entity.id, x, y, rotation, scaleX, scaleY)
+  }
 
   return (
     <div className="flex-1 overflow-y-auto px-4 py-3">
@@ -80,9 +87,24 @@ function EntityInspector({ entity }: { entity: EntityDef }) {
 
       {/* Transform */}
       <SectionRow label="Transform" />
-      <XYFields label="Position" x={entity.transform.position.x} y={entity.transform.position.y} />
-      <XYFields label="Scale"    x={entity.transform.scale.x}    y={entity.transform.scale.y} />
-      <Field label="Rotation" value={entity.transform.rotation.toFixed(1) + '°'} />
+      <div className="mb-2">
+        <label className="text-[9px] text-[#9CA3AF] uppercase block mb-0.5">Position</label>
+        <div className="grid grid-cols-2 gap-2">
+          <NumberField label="X" value={entity.transform.position.x} onCommit={x => commitTransform({ x })} />
+          <NumberField label="Y" value={entity.transform.position.y} onCommit={y => commitTransform({ y })} />
+        </div>
+      </div>
+      <div className="mb-2">
+        <label className="text-[9px] text-[#9CA3AF] uppercase block mb-0.5">Scale</label>
+        <div className="grid grid-cols-2 gap-2">
+          <NumberField label="X" value={entity.transform.scale.x} onCommit={scaleX => commitTransform({ scaleX })} />
+          <NumberField label="Y" value={entity.transform.scale.y} onCommit={scaleY => commitTransform({ scaleY })} />
+        </div>
+      </div>
+      <div className="mb-2">
+        <label className="text-[9px] text-[#9CA3AF] uppercase block mb-0.5">Rotation</label>
+        <NumberField label="Radians" value={entity.transform.rotation} onCommit={rotation => commitTransform({ rotation })} />
+      </div>
 
       {/* Sprite */}
       <SectionRow label="Sprite" />

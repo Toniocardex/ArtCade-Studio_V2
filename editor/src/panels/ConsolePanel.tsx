@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { isTauri }         from '@tauri-apps/api/core'
 import { listen }          from '@tauri-apps/api/event'
 import { useConsoleLogs }  from '../store/editor-store'
@@ -22,6 +22,28 @@ export default function ConsolePanel() {
   const { state, dispatch } = useConsoleLogs()
   const { consoleLogs } = state
   const bottomRef = useRef<HTMLDivElement>(null)
+  const [copyStatus, setCopyStatus] = useState<string | null>(null)
+
+  const allLogText = useMemo(() => consoleLogs
+    .map(entry => `[${entry.time}] ${LEVEL_LABEL[entry.level]} ${entry.message}`)
+    .join('\n'), [consoleLogs])
+
+  const errorLogText = useMemo(() => consoleLogs
+    .filter(entry => entry.level === 'error' || entry.level === 'warn')
+    .map(entry => `[${entry.time}] ${LEVEL_LABEL[entry.level]} ${entry.message}`)
+    .join('\n'), [consoleLogs])
+
+  async function copyText(text: string, label: string) {
+    if (!text) return
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopyStatus(`${label} COPIED`)
+      window.setTimeout(() => setCopyStatus(null), 1600)
+    } catch {
+      setCopyStatus('COPY FAILED')
+      window.setTimeout(() => setCopyStatus(null), 1600)
+    }
+  }
 
   // Subscribe to "build-log" events emitted by the Tauri Rust backend
   // (cmake --build / python pack-artcade.py output streamed line-by-line).
@@ -67,7 +89,35 @@ export default function ConsolePanel() {
 
   return (
     <div className="h-full flex flex-col bg-black/30">
-      <div className="flex-1 overflow-y-auto p-3 space-y-0.5 font-mono">
+      <div className="h-8 flex items-center justify-between px-3 border-b border-[#1A253A]">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => copyText(allLogText, 'LOGS')}
+            disabled={!consoleLogs.length}
+            className="px-2 py-1 rounded border border-[#1A253A] text-[9px] font-bold text-[#9CA3AF]
+                       hover:text-white hover:border-[#00FFFF]/60 disabled:opacity-40 disabled:hover:text-[#9CA3AF]
+                       disabled:hover:border-[#1A253A]"
+          >
+            COPY ALL
+          </button>
+          <button
+            type="button"
+            onClick={() => copyText(errorLogText, 'ERRORS')}
+            disabled={!errorLogText}
+            className="px-2 py-1 rounded border border-[#1A253A] text-[9px] font-bold text-[#F97316]
+                       hover:text-white hover:border-[#F97316]/70 disabled:opacity-40 disabled:hover:text-[#F97316]
+                       disabled:hover:border-[#1A253A]"
+          >
+            COPY ERRORS
+          </button>
+        </div>
+        {copyStatus && (
+          <span className="text-[9px] font-mono text-[#00FFFF]">{copyStatus}</span>
+        )}
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-3 space-y-0.5 font-mono select-text">
         {consoleLogs.map(entry => (
           <div key={entry.id} className="flex items-start gap-3 text-[10px] leading-5">
             <span className="text-[#9CA3AF]/50 flex-shrink-0">[{entry.time}]</span>
@@ -77,7 +127,9 @@ export default function ConsolePanel() {
             >
               {LEVEL_LABEL[entry.level]}
             </span>
-            <span style={{ color: LEVEL_COLOR[entry.level] }}>{entry.message}</span>
+            <span className="whitespace-pre-wrap break-words" style={{ color: LEVEL_COLOR[entry.level] }}>
+              {entry.message}
+            </span>
           </div>
         ))}
 

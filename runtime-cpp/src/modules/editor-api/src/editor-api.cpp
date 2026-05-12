@@ -11,6 +11,7 @@ uint32_t EditorAPI::s_selectedEntityId = 0u;
 bool     EditorAPI::s_isDragging       = false;
 float    EditorAPI::s_dragStartX       = 0.f;
 float    EditorAPI::s_dragStartY       = 0.f;
+Modules::RuntimeEntityGateway* EditorAPI::s_entityGateway = nullptr;
 } // namespace ArtCade
 
 #else // __EMSCRIPTEN__ ─────────────────────────────────────────────────────────
@@ -19,8 +20,7 @@ float    EditorAPI::s_dragStartY       = 0.f;
 // WASM implementation
 // =============================================================================
 
-#include "../../../modules/entity-system/include/entity-manager.h"
-#include "../../../modules/scene-system/include/scene-manager.h"
+#include "../../../modules/runtime-entity-gateway/include/runtime-entity-gateway.h"
 #include "../../../core/types.h"
 
 // nlohmann/json is available via artcade-core's include path
@@ -28,6 +28,9 @@ float    EditorAPI::s_dragStartY       = 0.f;
 
 #include <cstring>
 #include <cstdio>
+#include <string>
+#include <utility>
+#include <vector>
 
 using json = nlohmann::json;
 
@@ -40,14 +43,13 @@ bool     EditorAPI::s_isDragging       = false;
 float    EditorAPI::s_dragStartX       = 0.f;
 float    EditorAPI::s_dragStartY       = 0.f;
 
-Modules::EntityManager* EditorAPI::s_entityManager = nullptr;
-Modules::SceneManager*  EditorAPI::s_sceneManager  = nullptr;
+Modules::RuntimeEntityGateway* EditorAPI::s_entityGateway = nullptr;
+std::vector<std::pair<std::string, std::string>> EditorAPI::s_consoleQueue;
 
 // ── Engine wiring ─────────────────────────────────────────────────────────────
-void EditorAPI::wireEngine(Modules::EntityManager* em, Modules::SceneManager* sm) {
-    s_entityManager = em;
-    s_sceneManager  = sm;
-    notifyConsoleLine("[EditorAPI] Engine wired to EntityManager + SceneManager.", "info");
+void EditorAPI::wireEngine(Modules::RuntimeEntityGateway* gateway) {
+    s_entityGateway = gateway;
+    notifyConsoleLine("[EditorAPI] Engine wired to RuntimeEntityGateway.", "info");
 }
 
 // ── Init / Shutdown ───────────────────────────────────────────────────────────
@@ -76,8 +78,8 @@ EM_BOOL EditorAPI::onMouseMove(int, const EmscriptenMouseEvent* e, void*) {
     if (s_mode != 0) return EM_FALSE;
     if (s_isDragging && s_selectedEntityId != 0u) {
         // Live drag -- update entity position in EntityManager
-        if (s_entityManager) {
-            EntityDef* ent = s_entityManager->get(s_selectedEntityId);
+        if (s_entityGateway) {
+            EntityDef* ent = s_entityGateway->get(s_selectedEntityId);
             if (ent) {
                 ent->transform.position.x = static_cast<float>(e->targetX);
                 ent->transform.position.y = static_cast<float>(e->targetY);
@@ -143,6 +145,16 @@ void EditorAPI::notifyConsoleLine(const char* message, const char* level) {
         if (typeof window.onConsoleLine === 'function')
             window.onConsoleLine(msg, lvl);
     }, message, level);
+}
+
+void EditorAPI::queueConsoleLine(const char* message, const char* level) {
+    s_consoleQueue.emplace_back(message ? message : "", level ? level : "info");
+}
+
+void EditorAPI::flushConsoleLines() {
+    for (const auto& [message, level] : s_consoleQueue)
+        notifyConsoleLine(message.c_str(), level.c_str());
+    s_consoleQueue.clear();
 }
 
 } // namespace ArtCade
@@ -256,9 +268,8 @@ EMSCRIPTEN_KEEPALIVE void editor_load_project(const char* json_utf8) {
         ArtCade::EditorAPI::notifyConsoleLine("[EditorAPI] editor_load_project: empty JSON.", "warn");
         return;
     }
-    auto* em = ArtCade::EditorAPI::s_entityManager;
-    auto* sm = ArtCade::EditorAPI::s_sceneManager;
-    if (!em || !sm) {
+    auto* gateway = ArtCade::EditorAPI::s_entityGateway;
+    if (!gateway) {
         ArtCade::EditorAPI::notifyConsoleLine(
             "[EditorAPI] editor_load_project: engine not wired yet.", "warn");
         return;
@@ -303,14 +314,12 @@ EMSCRIPTEN_KEEPALIVE void editor_load_project(const char* json_utf8) {
         }
 
         // ── Push into engine ──────────────────────────────────────────────────
-        sm->registerScenes(sceneDefs, entityDefs);
-
         // Activate the first (or specified) scene
         std::string activeId = doc.value("activeSceneId",
                                doc.value("active_scene_id", std::string{}));
         if (activeId.empty() && !sceneDefs.empty())
             activeId = sceneDefs.begin()->first;
-        if (!activeId.empty()) sm->loadScene(activeId);
+        gateway->replaceProject(sceneDefs, entityDefs, activeId);
 
         char buf[128];
         std::snprintf(buf, sizeof(buf),
@@ -331,15 +340,9 @@ EMSCRIPTEN_KEEPALIVE void editor_set_transform(
     float rotation,
     float scaleX, float scaleY)
 {
-    auto* em = ArtCade::EditorAPI::s_entityManager;
-    if (!em) return;
-    ArtCade::EntityDef* ent = em->get(entityId);
-    if (!ent) return;
-    ent->transform.position.x = x;
-    ent->transform.position.y = y;
-    ent->transform.rotation   = rotation;
-    ent->transform.scale.x    = scaleX;
-    ent->transform.scale.y    = scaleY;
+    auto* gateway = ArtCade::EditorAPI::s_entityGateway;
+    if (!gateway) return;
+    if (!gateway->setTransform(entityId, {x, y}, rotation, {scaleX, scaleY})) return;
     // Notify React so Inspector stays in sync
     ArtCade::EditorAPI::notifyTransformChanged(entityId, x, y, rotation, scaleX, scaleY);
 }

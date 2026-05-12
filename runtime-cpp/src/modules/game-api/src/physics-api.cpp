@@ -1,5 +1,5 @@
 #include "../include/game-api.h"
-#include "../../entity-system/include/entity-manager.h"
+#include "../../runtime-entity-gateway/include/runtime-entity-gateway.h"
 #include "../../physics/include/physics.h"
 
 #include <sol/sol.hpp>
@@ -7,13 +7,13 @@
 namespace ArtCade::Modules {
 
 void GameAPI::bindPhysicsAPI(sol::state& lua) {
-    auto* em      = ctx_.entityManager;
+    auto* entities = ctx_.entityGateway;
     auto* physics = ctx_.physics;
 
     // collision.overlap(id1, id2) → bool
-    lua.set_function("collision_overlap", [em, physics](EntityId id1, EntityId id2) -> bool {
-        auto* e1 = em->get(id1);
-        auto* e2 = em->get(id2);
+    lua.set_function("collision_overlap", [entities, physics](EntityId id1, EntityId id2) -> bool {
+        auto* e1 = entities->get(id1);
+        auto* e2 = entities->get(id2);
         if (!e1 || !e2) return false;
         return physics->areOverlapping(e1->physics.physicsHandle,
                                        e2->physics.physicsHandle);
@@ -21,12 +21,12 @@ void GameAPI::bindPhysicsAPI(sol::state& lua) {
 
     // collision.touchingClass(entityId, className) → bool
     lua.set_function("collision_touchingClass",
-        [em, physics](EntityId id, const std::string& cls) -> bool {
-            auto* self = em->get(id);
+        [entities, physics](EntityId id, const std::string& cls) -> bool {
+            auto* self = entities->get(id);
             if (!self) return false;
-            for (EntityId otherId : em->getPool(cls)) {
+            for (EntityId otherId : entities->poolByClass(cls)) {
                 if (otherId == id) continue;
-                auto* other = em->get(otherId);
+                auto* other = entities->get(otherId);
                 if (!other) continue;
                 if (physics->areOverlapping(self->physics.physicsHandle,
                                             other->physics.physicsHandle))
@@ -75,12 +75,12 @@ void GameAPI::bindPhysicsAPI(sol::state& lua) {
     // Returns the opaque uint32_t handle, or 0 on failure.
     // -------------------------------------------------------------------------
     lua.set_function("physics_createBody",
-        [em, physics](EntityId id,
+        [entities, physics](EntityId id,
                       const std::string& bt,
                       const std::string& st,
                       float w, float h) -> uint32_t
         {
-            auto* e = em->get(id);
+            auto* e = entities->get(id);
             if (!e) return 0;
 
             PhysicsComponent comp;
@@ -116,8 +116,8 @@ void GameAPI::bindPhysicsAPI(sol::state& lua) {
 
     // physics.bodyPosition(entityId) → x, y  (direct from Box2D, not transform)
     lua.set_function("physics_bodyPosition",
-        [em, physics](EntityId id) -> std::tuple<float,float> {
-            auto* e = em->get(id);
+        [entities, physics](EntityId id) -> std::tuple<float,float> {
+            auto* e = entities->get(id);
             if (!e || e->physics.physicsHandle == 0) return {0.f,0.f};
             auto p = physics->getPosition(e->physics.physicsHandle);
             return {p.x, p.y};
