@@ -1,6 +1,6 @@
 import type {
   ProjectDoc, EntityDef, SceneDef, Vec2, Vec4, Transform, SpriteComponent,
-  AnimationState, PhysicsComponent, WorldSettings,
+  AnimationState, PhysicsComponent, WorldSettings, TilemapLayer, TileDef,
 } from '../types'
 import { DEFAULT_WORLD } from '../types'
 import { parseLogicBoards } from './logic-board/factory'
@@ -160,7 +160,43 @@ function parseScene(raw: unknown, fallbackId: string): SceneDef {
                        const raw = r.entityIds ?? r.entity_ids
                        return Array.isArray(raw) ? (raw as unknown[]).map(Number) : []
                      })(),
+    ...(() => {
+      const tm = parseTilemap(r.tilemap)
+      return tm ? { tilemap: tm } : {}
+    })(),
   }
+}
+
+function parseTilemap(raw: unknown): TilemapLayer | undefined {
+  if (!raw || typeof raw !== 'object') return undefined
+  const r = raw as Record<string, unknown>
+  const cols = Number(r.cols), rows = Number(r.rows)
+  const tileSize = Number(r.tileSize) || 32
+  if (!Number.isFinite(cols) || !Number.isFinite(rows) || cols < 1 || rows < 1)
+    return undefined
+  const arr = Array.isArray(r.data) ? (r.data as unknown[]).map(Number) : []
+  const data = new Array(cols * rows)
+    .fill(0)
+    .map((_, i) => (Number.isFinite(arr[i]) ? arr[i] : 0))
+  return { tileSize, cols, rows, data }
+}
+
+function parseTilePalette(raw: unknown): TileDef[] | undefined {
+  if (!Array.isArray(raw)) return undefined
+  const out: TileDef[] = []
+  for (const t of raw) {
+    if (!t || typeof t !== 'object') continue
+    const o = t as Record<string, unknown>
+    const id = Number(o.id)
+    if (!Number.isFinite(id) || id < 1) continue
+    out.push({
+      id,
+      name: String(o.name ?? `Tile ${id}`),
+      color: String(o.color ?? '#9CA3AF'),
+      solid: Boolean(o.solid),
+    })
+  }
+  return out.length ? out : undefined
 }
 
 /**
@@ -226,6 +262,7 @@ export function parseProjectDoc(jsonStr: string): ProjectDoc | null {
                          ))
                        : undefined,
       world:          parseWorld(raw.world),
+      tilePalette:    parseTilePalette(raw.tilePalette ?? raw.tile_palette),
       logicBoards:    parseLogicBoards(raw.logicBoards ?? raw.logic_boards),
     }
   } catch {
@@ -287,6 +324,7 @@ function serializeScene(scene: SceneDef) {
     viewportSize:    vec2Array(scene.viewportSize),
     backgroundColor: vec4Array(scene.backgroundColor),
     entityIds:       scene.entityIds,
+    ...(scene.tilemap ? { tilemap: scene.tilemap } : {}),
   }
 }
 
@@ -307,6 +345,9 @@ export function serializeProjectDoc(project: ProjectDoc): string {
     version:        project.version,
     licenseTier:    project.licenseTier ?? 'free',
     ...(project.world ? { world: project.world } : {}),
+    ...(project.tilePalette && project.tilePalette.length > 0
+      ? { tilePalette: project.tilePalette }
+      : {}),
     gameResolution: vec2Array(project.gameResolution),
     targetFPS:      project.targetFPS,
     activeSceneId:  project.activeSceneId,

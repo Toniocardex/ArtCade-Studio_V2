@@ -1,38 +1,60 @@
-import { useState } from 'react'
-import { Paintbrush, Eraser, Pipette, Settings } from 'lucide-react'
-
-interface Tile {
-  id:     number
-  isWall: boolean
-}
-
-const TILES: Tile[] = Array.from({ length: 32 }, (_, i) => ({
-  id:     i,
-  isWall: i < 8,
-}))
-
-// Alternating colors like the mockup
-function tileColor(id: number, selected: boolean): string {
-  if (selected) return '#1A253A'
-  return id % 2 === 0 ? '#111827' : '#0B1121'
-}
+import { useEffect, useRef, useState } from 'react'
+import { Paintbrush, Eraser, Pipette } from 'lucide-react'
+import { useEditor } from '../store/editor-store'
+import { DEFAULT_TILE_PALETTE } from '../types'
+import type { TileDef } from '../types'
 
 type TileTool = 'paint' | 'erase' | 'pick'
 
 export default function TilesetEditorPanel() {
-  const [selectedTile, setSelectedTile] = useState(0)
-  const [activeTool, setActiveTool]     = useState<TileTool>('paint')
-  const [isWall, setIsWall]             = useState(TILES[0].isWall)
+  const { state, dispatch } = useEditor()
+  const { project, selection } = state
 
-  function selectTile(tile: Tile) {
-    setSelectedTile(tile.id)
-    setIsWall(tile.isWall)
+  const sceneId = selection.sceneId ?? project?.activeSceneId ?? ''
+  const scene   = project?.scenes[sceneId]
+  const tilemap = scene?.tilemap
+  const palette: TileDef[] =
+    project?.tilePalette && project.tilePalette.length > 0
+      ? project.tilePalette
+      : DEFAULT_TILE_PALETTE
+
+  const [tool, setTool]           = useState<TileTool>('paint')
+  const [selectedTile, setSelectedTile] = useState<number>(palette[0]?.id ?? 1)
+  const painting = useRef(false)
+
+  // end a drag-paint anywhere the mouse is released
+  useEffect(() => {
+    const up = () => { painting.current = false }
+    window.addEventListener('mouseup', up)
+    return () => window.removeEventListener('mouseup', up)
+  }, [])
+
+  if (!project || !scene) {
+    return (
+      <div className="h-full bg-[#0B1121] flex items-center justify-center">
+        <span className="text-[#9CA3AF] text-xs">No scene selected</span>
+      </div>
+    )
+  }
+
+  const colorOf = (id: number) =>
+    id === 0 ? 'transparent' : (palette.find(t => t.id === id)?.color ?? '#374151')
+
+  function applyAt(index: number) {
+    if (!tilemap) return
+    if (tool === 'pick') {
+      const id = tilemap.data[index]
+      if (id > 0) setSelectedTile(id)
+      return
+    }
+    const tileId = tool === 'erase' ? 0 : selectedTile
+    dispatch({ type: 'TILEMAP_PAINT', sceneId, index, tileId })
   }
 
   return (
-    <div className="h-full flex bg-[#0B1121]">
+    <div className="h-full flex bg-[#0B1121] select-none">
 
-      {/* Mini toolbar */}
+      {/* Tool rail */}
       <div className="w-10 border-r border-[#1A253A] flex flex-col items-center py-3 gap-3 flex-shrink-0">
         {([
           { id: 'paint', Icon: Paintbrush },
@@ -41,10 +63,10 @@ export default function TilesetEditorPanel() {
         ] as const).map(({ id, Icon }) => (
           <button
             key={id}
-            onClick={() => setActiveTool(id)}
+            onClick={() => setTool(id)}
             title={id}
             className={`p-1.5 rounded transition-colors ${
-              activeTool === id
+              tool === id
                 ? 'text-[#FF00FF] bg-[#FF00FF]/10'
                 : 'text-[#9CA3AF] hover:text-white'
             }`}
@@ -52,74 +74,86 @@ export default function TilesetEditorPanel() {
             <Icon size={14} />
           </button>
         ))}
-        <div className="h-px w-6 bg-[#1A253A]" />
-        <button className="p-1.5 text-[#9CA3AF] hover:text-white">
-          <Settings size={14} />
-        </button>
       </div>
 
-      {/* Tile grid + properties */}
-      <div className="flex-1 p-4 flex gap-6 overflow-hidden">
-
-        {/* Tile grid */}
-        <div className="bg-[#111827] border border-[#1A253A] p-2 overflow-auto">
-          <div className="grid grid-cols-8 gap-1">
-            {TILES.map(tile => (
+      {/* Grid */}
+      <div className="flex-1 p-3 overflow-auto">
+        {!tilemap ? (
+          <div className="h-full flex flex-col items-center justify-center gap-3">
+            <span className="text-[#9CA3AF] text-xs">
+              No tilemap for “{scene.name}”.
+            </span>
+            <button
+              onClick={() => dispatch({ type: 'TILEMAP_INIT', sceneId })}
+              className="px-3 py-1.5 rounded text-xs font-semibold border
+                         border-[#0a5a5a] bg-[#062a2a] text-[#00FFFF]
+                         hover:bg-[#0a3a3a]"
+            >
+              ＋ Create Tilemap ({Math.round(scene.worldSize.x / 32)}×
+              {Math.round(scene.worldSize.y / 32)})
+            </button>
+          </div>
+        ) : (
+          <div
+            className="inline-grid border border-[#1A253A] bg-[#070b13]"
+            style={{
+              gridTemplateColumns: `repeat(${tilemap.cols}, 18px)`,
+              gridAutoRows: '18px',
+            }}
+          >
+            {tilemap.data.map((id, i) => (
               <div
-                key={tile.id}
-                onClick={() => selectTile(tile)}
-                style={{ backgroundColor: tileColor(tile.id, selectedTile === tile.id) }}
-                className={`w-10 h-10 border cursor-pointer transition-all relative select-none ${
-                  selectedTile === tile.id
-                    ? 'border-[#FF00FF] scale-105 z-10 shadow-[0_0_8px_#FF00FF44]'
-                    : 'border-white/5 hover:border-white/20'
-                }`}
-              >
-                {tile.isWall && (
-                  <div className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-bl" />
-                )}
-                <span className="absolute bottom-0 left-0 text-[6px] opacity-20 p-0.5">
-                  {tile.id}
-                </span>
-              </div>
+                key={i}
+                onMouseDown={() => { painting.current = true; applyAt(i) }}
+                onMouseEnter={() => { if (painting.current) applyAt(i) }}
+                className="border border-white/[0.04] hover:border-[#00FFFF]/40"
+                style={{ backgroundColor: colorOf(id) }}
+              />
             ))}
           </div>
+        )}
+      </div>
+
+      {/* Palette + info */}
+      <div className="w-52 border-l border-[#1A253A] p-3 flex flex-col gap-3 flex-shrink-0">
+        <div className="text-[9px] text-[#9CA3AF] uppercase tracking-widest">
+          Palette
+        </div>
+        <div className="grid grid-cols-4 gap-2">
+          {palette.map(t => (
+            <button
+              key={t.id}
+              onClick={() => { setSelectedTile(t.id); setTool('paint') }}
+              title={`${t.name}${t.solid ? ' (solid)' : ''}`}
+              className={`h-9 rounded border relative ${
+                selectedTile === t.id && tool !== 'erase'
+                  ? 'border-[#FF00FF] scale-105 shadow-[0_0_8px_#FF00FF44]'
+                  : 'border-white/10 hover:border-white/30'
+              }`}
+              style={{ backgroundColor: t.color }}
+            >
+              {t.solid && (
+                <span className="absolute top-0 right-0 w-1.5 h-1.5 bg-red-500 rounded-bl" />
+              )}
+            </button>
+          ))}
         </div>
 
-        {/* Selected tile properties */}
-        <div className="w-48 space-y-4 text-[10px] flex-shrink-0">
-          <div className="p-3 bg-[#1A253A] rounded border border-[#FF00FF]/30">
-            <span className="text-[#9CA3AF] block mb-2 uppercase text-[8px] tracking-widest">
-              Brush Selection
+        <div className="text-[10px] text-[#9CA3AF] border-t border-[#1A253A] pt-2 space-y-1">
+          <div>Tool: <span className="text-[#FF00FF] uppercase">{tool}</span></div>
+          <div>
+            Brush:{' '}
+            <span className="text-[#00FFFF]">
+              {tool === 'erase'
+                ? 'empty'
+                : palette.find(t => t.id === selectedTile)?.name ?? '—'}
             </span>
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-[#00FFFF]/10 border border-[#FF00FF]" />
-              <div>
-                <div className="font-bold text-[#FF00FF]">TILE_{selectedTile}</div>
-                <div className="text-[8px] text-[#9CA3AF]">16×16 px</div>
-              </div>
+          </div>
+          {tilemap && (
+            <div className="text-[8px] opacity-60">
+              {tilemap.cols}×{tilemap.rows} · {tilemap.tileSize}px
             </div>
-          </div>
-
-          <div className="space-y-3">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={isWall}
-                onChange={e => setIsWall(e.target.checked)}
-                className="accent-[#FF00FF]"
-              />
-              <span className="text-[#D1D5DB]">Collision (Solid)</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-not-allowed opacity-40">
-              <input type="checkbox" defaultChecked={false} disabled className="accent-[#FF00FF]" />
-              <span className="text-[#D1D5DB]">Auto-Tile Link</span>
-            </label>
-          </div>
-
-          <div className="text-[8px] text-[#9CA3AF] border-t border-[#1A253A] pt-2">
-            Tool: <span className="text-[#FF00FF] uppercase">{activeTool}</span>
-          </div>
+          )}
         </div>
       </div>
     </div>

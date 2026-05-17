@@ -4,7 +4,9 @@
 
 export * from './logic-board'
 export * from './components'
+export * from './tilemap'
 import type { LogicBoardDoc } from './logic-board'
+import type { TileDef, TilemapLayer } from './tilemap'
 import type {
   SensorComponent, PlatformerControllerComponent,
   HealthComponent, AutoDestroyComponent,
@@ -78,6 +80,7 @@ export interface SceneDef {
   viewportSize:    Vec2
   backgroundColor: Vec4
   entityIds:       number[]
+  tilemap?:        TilemapLayer   // Scene Editor Phase C (editor-side)
 }
 
 /** Global world simulation settings (Scene Editor Phase B). */
@@ -103,6 +106,7 @@ export interface ProjectDoc {
   entities:       Record<number, EntityDef>
   scenes:         Record<string, SceneDef>
   thumbnails?:    Record<string, string>
+  tilePalette?:   TileDef[]              // Scene Editor Phase C
   logicBoards?:   LogicBoardDoc          // visual game logic, compiled to Lua
 }
 

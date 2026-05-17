@@ -5,7 +5,7 @@ import type {
   ScriptFile, ProjectDoc, ConsoleEntry,
   LogicBoard, LogicEvent, ComponentKey, WorldSettings,
 } from '../types'
-import { DEFAULT_WORLD } from '../types'
+import { DEFAULT_WORLD, createTilemap } from '../types'
 import { createEntityDef, nextEntityId } from '../utils/project'
 
 // ---------------------------------------------------------------------------
@@ -182,6 +182,8 @@ export type Action =
   | { type: 'ENTITY_DELETE';     entityId: number }
   | { type: 'ENTITY_SET_VISIBLE'; entityId: number; visible: boolean }
   | { type: 'WORLD_SET';         patch: Partial<WorldSettings> }
+  | { type: 'TILEMAP_INIT';  sceneId: string }
+  | { type: 'TILEMAP_PAINT'; sceneId: string; index: number; tileId: number }
   // ---- Logic Board CRUD (all operate on project.logicBoards) ----
   | { type: 'LOGIC_ADD_BOARD';    board: LogicBoard }
   | { type: 'LOGIC_DELETE_BOARD'; boardId: string }
@@ -415,6 +417,43 @@ export function coreReducer(state: CoreState, action: Action): CoreState {
       return {
         ...state,
         project: { ...state.project, world },
+        projectDirty: true,
+      }
+    }
+    case 'TILEMAP_INIT': {
+      const sc = state.project?.scenes[action.sceneId]
+      if (!state.project || !sc) return state
+      const tm = createTilemap(sc.worldSize.x, sc.worldSize.y)
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          scenes: {
+            ...state.project.scenes,
+            [action.sceneId]: { ...sc, tilemap: tm },
+          },
+        },
+        projectDirty: true,
+      }
+    }
+    case 'TILEMAP_PAINT': {
+      const sc = state.project?.scenes[action.sceneId]
+      if (!state.project || !sc) return state
+      // auto-create the layer on first paint
+      const tm = sc.tilemap ?? createTilemap(sc.worldSize.x, sc.worldSize.y)
+      if (action.index < 0 || action.index >= tm.data.length) return state
+      if (tm.data[action.index] === action.tileId && sc.tilemap) return state
+      const data = tm.data.slice()
+      data[action.index] = action.tileId
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          scenes: {
+            ...state.project.scenes,
+            [action.sceneId]: { ...sc, tilemap: { ...tm, data } },
+          },
+        },
         projectDirty: true,
       }
     }
