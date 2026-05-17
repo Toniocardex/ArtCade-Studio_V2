@@ -1,5 +1,7 @@
 #include "../include/app.h"
 
+#include <raylib.h>   // GetScreenWidth/Height for splash overlay
+
 #ifdef ARTCADE_WASM
 #include <emscripten/emscripten.h>
 #endif
@@ -241,12 +243,9 @@ bool Application::loadProject(const std::string& projectPath) {
     targetDt_ = 1.f / doc.targetFPS;
     licenseTier_ = doc.licenseTier;
 
-    // Push splash screen if FREE tier
-    if (licenseTier_ == "free") {
-        mod_->gameStateManager->PushState(
-            std::make_unique<ArtCade::Modules::SplashState>(&ctx_, "free")
-        );
-    }
+    // Show branded splash overlay on FREE tier (watermark requirement)
+    if (licenseTier_ == "free")
+        splash_ = std::make_unique<ArtCade::Modules::SplashState>("free");
 
     std::cout << "[App] Project loaded: " << doc.projectName
               << " (license=" << licenseTier_ << ")\n";
@@ -296,6 +295,12 @@ void Application::loopIteration() {
         mod_->physics->step(targetDt_);
         mod_->world->syncPhysicsToEntities();
         mod_->audio->update();
+
+        if (splash_) {
+            splash_->update(targetDt_);
+            if (splash_->isDone()) splash_.reset();
+        }
+
         accumulator_ -= targetDt_;
     }
 
@@ -340,6 +345,10 @@ void Application::renderActiveScene() {
             e->sprite.tint,
             e->sprite.alpha);
     }
+
+    // FREE-tier splash overlay drawn on top of the game frame
+    if (splash_)
+        splash_->render(GetScreenWidth(), GetScreenHeight());
 
     mod_->renderer->endFrame();
 }

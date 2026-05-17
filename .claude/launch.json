@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "wasm-preview",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8123", "--directory", "runtime-cpp/build-wasm/src/app"],
+      "port": 8123
+    }
+  ]
+}

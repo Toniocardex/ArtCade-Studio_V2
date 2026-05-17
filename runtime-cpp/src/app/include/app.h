@@ -6,6 +6,9 @@
 
 namespace ArtCade {
 
+namespace Modules { class SplashState; }
+
+
 /**
  * Application — top-level orchestrator (Layer 4).
  *
@@ -49,6 +52,7 @@ private:
     float accumulator_      = 0.f;          // persistent tra frame (necessario su WASM)
     bool  running_          = false;
     std::string licenseTier_ = "free";      // from ProjectDoc, used by SplashState
+    std::unique_ptr<::ArtCade::Modules::SplashState> splash_;  // FREE-tier watermark overlay
 
 #ifdef ARTCADE_WASM
     // Emscripten richiede una callback statica — punta all'istanza corrente

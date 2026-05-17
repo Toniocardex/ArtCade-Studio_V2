@@ -1,118 +1,65 @@
 #include "../include/splash-state.h"
-#include "../../renderer/include/renderer.h"
-#include "../../../utils/logger.h"
-
-#ifdef ARTCADE_WASM
-#include <emscripten/emscripten.h>
-#endif
 
 #include <raylib.h>
+#include <algorithm>
 
 namespace ArtCade::Modules {
 
-SplashState::SplashState(EngineContext* ctx, const std::string& tier)
-    : GameState(ctx), licenseTier_(tier), timer_(0.0f) {}
-
-void SplashState::Enter() {
-    LOG_DEBUG("[SplashState] Entering splash screen (license=%s)", licenseTier_.c_str());
-    timer_ = 0.0f;
+namespace {
+constexpr float kSplashDuration = 4.5f;
+constexpr float kFadeDuration   = 0.5f;
 }
 
-void SplashState::Update(float dt) {
+SplashState::SplashState(const std::string& tier)
+    : licenseTier_(tier) {}
+
+void SplashState::update(float dt) {
     timer_ += dt;
-
-    // Display splash for 4.5 seconds, then request state pop
-    if (timer_ >= 4.5f) {
-        LOG_DEBUG("[SplashState] Splash complete, transitioning to gameplay");
-        // Signal that this state should be popped
-        // (GameStateManager will handle the pop on next frame)
-        shouldPop_ = true;
-    }
 }
 
-void SplashState::Render() {
-    // Get viewport dimensions from context
-    int screenWidth  = 1280;
-    int screenHeight = 720;
-    if (ctx_ && ctx_->renderer) {
-        // Use renderer's resolution if available
-        screenWidth  = 1280;  // Default from game.json
-        screenHeight = 720;
-    }
+bool SplashState::isDone() const {
+    return timer_ >= kSplashDuration;
+}
 
-    // Background: black
-    DrawRectangle(0, 0, screenWidth, screenHeight, BLACK);
-
+void SplashState::render(int screenWidth, int screenHeight) const {
     // Alpha fade in/out for smooth transition
     float alpha = 1.0f;
-    if (timer_ < 0.5f) {
-        // Fade in: 0s → 0.5s → alpha 0 → 1
-        alpha = timer_ / 0.5f;
-    } else if (timer_ > 4.0f) {
-        // Fade out: 4s → 4.5s → alpha 1 → 0
-        alpha = (4.5f - timer_) / 0.5f;
+    if (timer_ < kFadeDuration) {
+        alpha = timer_ / kFadeDuration;                       // fade in
+    } else if (timer_ > kSplashDuration - kFadeDuration) {
+        alpha = (kSplashDuration - timer_) / kFadeDuration;   // fade out
     }
+    alpha = std::clamp(alpha, 0.0f, 1.0f);
 
-    alpha = std::max(0.0f, std::min(1.0f, alpha));  // Clamp [0, 1]
-
-    // Logo area (center)
-    float logoX = screenWidth / 2.0f;
-    float logoY = screenHeight / 2.0f - 60.0f;
-
-    // Draw simple ArtCade logo text (white gradient)
-    Color logoColor = {
-        (unsigned char)(255 * alpha),
-        (unsigned char)(255 * alpha),
-        (unsigned char)(255 * alpha),
-        (unsigned char)(255 * alpha)
+    const auto a8 = [alpha](int v) -> unsigned char {
+        return static_cast<unsigned char>(v * alpha);
     };
 
-    DrawText(
-        "ARTCADE",
-        (int)(logoX - 120),
-        (int)(logoY - 40),
-        80,
-        logoColor
-    );
+    // Opaque black backdrop covers the game frame
+    DrawRectangle(0, 0, screenWidth, screenHeight,
+                  Color{0, 0, 0, a8(255)});
 
-    // Watermark (only if FREE tier)
+    const float cx = screenWidth  / 2.0f;
+    const float cy = screenHeight / 2.0f - 60.0f;
+
+    // Logo text
+    const Color logoColor{a8(255), a8(255), a8(255), a8(255)};
+    DrawText("ARTCADE", static_cast<int>(cx - 120),
+             static_cast<int>(cy - 40), 80, logoColor);
+
+    // Watermark — FREE tier only
     if (licenseTier_ == "free") {
-        Color watermarkColor = {
-            (unsigned char)(200 * alpha),
-            (unsigned char)(200 * alpha),
-            (unsigned char)(200 * alpha),
-            (unsigned char)(200 * alpha)
-        };
-
-        DrawText(
-            "MADE WITH ARTCADE",
-            (int)(logoX - 150),
-            (int)(logoY + 80),
-            24,
-            watermarkColor
-        );
+        const Color wmColor{a8(200), a8(200), a8(200), a8(200)};
+        DrawText("MADE WITH ARTCADE", static_cast<int>(cx - 150),
+                 static_cast<int>(cy + 80), 24, wmColor);
     }
 
-    // Version info
-    Color infoColor = {
-        (unsigned char)(150 * alpha),
-        (unsigned char)(150 * alpha),
-        (unsigned char)(150 * alpha),
-        (unsigned char)(200 * alpha)
-    };
-
-    const char* tierLabel = (licenseTier_ == "free") ? "Free Edition" : "Pro Edition";
-    DrawText(
-        tierLabel,
-        (int)(logoX - 60),
-        (int)(logoY + 130),
-        16,
-        infoColor
-    );
-}
-
-bool SplashState::ShouldPop() const {
-    return shouldPop_;
+    // Edition label
+    const Color infoColor{a8(150), a8(150), a8(150), a8(200)};
+    const char* tierLabel =
+        (licenseTier_ == "free") ? "Free Edition" : "Pro Edition";
+    DrawText(tierLabel, static_cast<int>(cx - 60),
+             static_cast<int>(cy + 130), 16, infoColor);
 }
 
 } // namespace ArtCade::Modules
