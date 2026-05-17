@@ -45,9 +45,10 @@ private:
     void loopIteration();      // singolo frame — usato sia dal while che dal callback WASM
     void renderActiveScene();
 
-    float targetDt_    = 1.f / 60.f;
-    float accumulator_ = 0.f;          // persistent tra frame (necessario su WASM)
-    bool  running_     = false;
+    float targetDt_        = 1.f / 60.f;
+    float accumulator_      = 0.f;          // persistent tra frame (necessario su WASM)
+    bool  running_          = false;
+    std::string licenseTier_ = "free";      // from ProjectDoc, used by SplashState
 
 #ifdef ARTCADE_WASM
     // Emscripten richiede una callback statica — punta all'istanza corrente

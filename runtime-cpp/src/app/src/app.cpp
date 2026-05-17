@@ -27,6 +27,7 @@
 #include "../../modules/tween-manager/include/tween-manager.h"
 #include "../../modules/save-load/include/save-load-manager.h"
 #include "../../modules/editor-api/include/editor-api.h"
+#include "../../modules/game-state/include/splash-state.h"
 
 #include <cstring>
 #include <iostream>
@@ -238,7 +239,17 @@ bool Application::loadProject(const std::string& projectPath) {
         mod_->luaHost->loadBytecodeBuffer(bytecode.data(), bytecode.size());
 
     targetDt_ = 1.f / doc.targetFPS;
-    std::cout << "[App] Project loaded: " << doc.projectName << "\n";
+    licenseTier_ = doc.licenseTier;
+
+    // Push splash screen if FREE tier
+    if (licenseTier_ == "free") {
+        mod_->gameStateManager->PushState(
+            std::make_unique<ArtCade::Modules::SplashState>(&ctx_, "free")
+        );
+    }
+
+    std::cout << "[App] Project loaded: " << doc.projectName
+              << " (license=" << licenseTier_ << ")\n";
     return true;
 }
 

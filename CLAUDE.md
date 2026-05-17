@@ -355,6 +355,9 @@ cmake --build . --config Release
 
 ---
 
-**Status**: Initialization  
-**Last Updated**: 2026-05-09  
+**Status**: Phase 20 - Release Polish (Early Access Prep)  
+**Last Updated**: 2026-05-17  
+**Current Phase**: 20 (Watermark system + SplashState, release notes, smoke test)  
+**Projected Early Access Launch**: 2026-05-21  
+**Schedule Status**: 2 weeks ahead of 12-week original roadmap  
 **Author**: Antonio + Claude
