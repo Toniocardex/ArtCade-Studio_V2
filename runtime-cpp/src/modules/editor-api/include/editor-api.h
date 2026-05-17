@@ -31,6 +31,7 @@
 // Forward declarations -- defined in the engine modules
 namespace ArtCade::Modules {
 class RuntimeEntityGateway;
+class LuaHost;
 }
 
 namespace ArtCade {
@@ -55,6 +56,13 @@ public:
     // reach the engine's internal state.
     // -------------------------------------------------------------------------
     static void wireEngine(Modules::RuntimeEntityGateway* gateway);
+
+    /**
+     * Wire the LuaHost so editor_reload_script() can push freshly compiled
+     * Logic Board Lua into the running VM. Called by Application after the
+     * LuaHost is initialised.
+     */
+    static void wireLua(Modules::LuaHost* luaHost);
 
     // -------------------------------------------------------------------------
     // C++ -> React notifications (Smoke Test 3)
@@ -89,8 +97,9 @@ public:
     static bool     s_isDragging;
     static float    s_dragStartX, s_dragStartY;
 
-    // Engine pointers wired in wireEngine()
+    // Engine pointers wired in wireEngine() / wireLua()
     static Modules::RuntimeEntityGateway* s_entityGateway;
+    static Modules::LuaHost*              s_luaHost;
     static std::vector<std::pair<std::string, std::string>> s_consoleQueue;
 
 private:
@@ -135,6 +144,15 @@ EMSCRIPTEN_KEEPALIVE void editor_set_transform(
     float rotation,
     float scaleX, float scaleY);
 
+/**
+ * Hot-reload game logic from the Logic Board editor.
+ * lua_utf8: null-terminated UTF-8 Lua SOURCE (compiled by the editor's
+ * compileLogicBoard()). Executed via LuaHost::loadLuaSource(), which
+ * redefines the global tick(). On error the previous script stays active
+ * and the message is pushed to the React console.
+ */
+EMSCRIPTEN_KEEPALIVE void editor_reload_script(const char* lua_utf8);
+
 } // extern "C"
 
 // =============================================================================
@@ -143,12 +161,13 @@ EMSCRIPTEN_KEEPALIVE void editor_set_transform(
 #else // !__EMSCRIPTEN__
 
 namespace ArtCade {
-namespace Modules { class RuntimeEntityGateway; }
+namespace Modules { class RuntimeEntityGateway; class LuaHost; }
 
 struct EditorAPI {
     static void init(const char* = nullptr) {}
     static void shutdown() {}
     static void wireEngine(Modules::RuntimeEntityGateway*) {}
+    static void wireLua(Modules::LuaHost*) {}
     static void notifyEntitySelected(uint32_t) {}
     static void notifyTransformChanged(uint32_t, float, float, float, float, float) {}
     static void notifyConsoleLine(const char*, const char* = nullptr) {}
@@ -162,6 +181,7 @@ struct EditorAPI {
     static bool     s_isDragging;
     static float    s_dragStartX, s_dragStartY;
     static Modules::RuntimeEntityGateway* s_entityGateway;
+    static Modules::LuaHost*              s_luaHost;
     static std::vector<std::pair<std::string, std::string>> s_consoleQueue;
 };
 } // namespace ArtCade

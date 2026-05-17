@@ -211,6 +211,7 @@ bool Application::initSubsystems() {
     // Wire EditorAPI to EntityManager + SceneManager so editor commands
     // (editor_load_project, editor_set_transform) can reach engine state.
     EditorAPI::wireEngine(mod_->entityGateway.get());
+    EditorAPI::wireLua(mod_->luaHost.get());   // hot-reload from Logic Board
     EditorAPI::init("#artcade-canvas");
 
     return true;

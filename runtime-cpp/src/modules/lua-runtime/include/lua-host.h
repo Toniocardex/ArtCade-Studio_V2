@@ -36,6 +36,12 @@ public:
     bool loadBytecodeFile(const std::string& path);
     bool loadBytecodeBuffer(const uint8_t* data, size_t size);
 
+    // Hot-reload: load and execute Lua SOURCE text (not bytecode).
+    // Re-defines globals such as tick() — used by the Logic Board editor's
+    // "Apply & Hot-Reload". Returns false and sets lastError() on syntax/
+    // runtime error, leaving the previously loaded script intact.
+    bool loadLuaSource(const std::string& sourceCode);
+
     // Execute the global "tick" function (called every fixed step)
     void tick(float dt);
 

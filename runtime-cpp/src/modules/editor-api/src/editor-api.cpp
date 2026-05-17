@@ -12,6 +12,7 @@ bool     EditorAPI::s_isDragging       = false;
 float    EditorAPI::s_dragStartX       = 0.f;
 float    EditorAPI::s_dragStartY       = 0.f;
 Modules::RuntimeEntityGateway* EditorAPI::s_entityGateway = nullptr;
+Modules::LuaHost*              EditorAPI::s_luaHost       = nullptr;
 } // namespace ArtCade
 
 #else // __EMSCRIPTEN__ ─────────────────────────────────────────────────────────
@@ -21,6 +22,7 @@ Modules::RuntimeEntityGateway* EditorAPI::s_entityGateway = nullptr;
 // =============================================================================
 
 #include "../../../modules/runtime-entity-gateway/include/runtime-entity-gateway.h"
+#include "../../../modules/lua-runtime/include/lua-host.h"
 #include "../../../core/types.h"
 
 // nlohmann/json is available via artcade-core's include path
@@ -44,12 +46,18 @@ float    EditorAPI::s_dragStartX       = 0.f;
 float    EditorAPI::s_dragStartY       = 0.f;
 
 Modules::RuntimeEntityGateway* EditorAPI::s_entityGateway = nullptr;
+Modules::LuaHost*              EditorAPI::s_luaHost       = nullptr;
 std::vector<std::pair<std::string, std::string>> EditorAPI::s_consoleQueue;
 
 // ── Engine wiring ─────────────────────────────────────────────────────────────
 void EditorAPI::wireEngine(Modules::RuntimeEntityGateway* gateway) {
     s_entityGateway = gateway;
     notifyConsoleLine("[EditorAPI] Engine wired to RuntimeEntityGateway.", "info");
+}
+
+void EditorAPI::wireLua(Modules::LuaHost* luaHost) {
+    s_luaHost = luaHost;
+    notifyConsoleLine("[EditorAPI] Engine wired to LuaHost (hot-reload ready).", "info");
 }
 
 // ── Init / Shutdown ───────────────────────────────────────────────────────────
@@ -345,6 +353,29 @@ EMSCRIPTEN_KEEPALIVE void editor_set_transform(
     if (!gateway->setTransform(entityId, {x, y}, rotation, {scaleX, scaleY})) return;
     // Notify React so Inspector stays in sync
     ArtCade::EditorAPI::notifyTransformChanged(entityId, x, y, rotation, scaleX, scaleY);
+}
+
+EMSCRIPTEN_KEEPALIVE void editor_reload_script(const char* lua_utf8) {
+    if (!lua_utf8 || !*lua_utf8) {
+        ArtCade::EditorAPI::notifyConsoleLine(
+            "[EditorAPI] editor_reload_script: empty source.", "warn");
+        return;
+    }
+    auto* host = ArtCade::EditorAPI::s_luaHost;
+    if (!host) {
+        ArtCade::EditorAPI::notifyConsoleLine(
+            "[EditorAPI] editor_reload_script: LuaHost not wired yet.", "warn");
+        return;
+    }
+
+    if (host->loadLuaSource(lua_utf8)) {
+        ArtCade::EditorAPI::notifyConsoleLine(
+            "[EditorAPI] Logic Board hot-reloaded ✓", "info");
+    } else {
+        std::string msg =
+            "[EditorAPI] Hot-reload failed: " + host->lastError();
+        ArtCade::EditorAPI::notifyConsoleLine(msg.c_str(), "error");
+    }
 }
 
 } // extern "C"

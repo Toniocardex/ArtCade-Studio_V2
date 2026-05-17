@@ -53,6 +53,7 @@ if(EMSCRIPTEN)
         "_editor_deselect"
         "_editor_load_project"
         "_editor_set_transform"
+        "_editor_reload_script"
         "_malloc"
         "_free"
     )

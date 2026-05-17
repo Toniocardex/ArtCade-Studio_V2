@@ -200,6 +200,23 @@ export function editorLoadProject(projectJson: string): void {
   }
 }
 
+/**
+ * Hot-reload compiled Logic Board Lua into the running C++ VM.
+ * Marshals the source through the Emscripten heap; the runtime executes it
+ * via LuaHost::loadLuaSource(), redefining the global tick().
+ * Returns false if the WASM module is not loaded yet.
+ */
+export function editorReloadScript(luaSource: string): boolean {
+  if (!_module) return false
+  const ptr = marshalString(luaSource)
+  try {
+    safeCall('editor_reload_script', null, ['number'], [ptr])
+    return true
+  } finally {
+    _module._free(ptr)
+  }
+}
+
 /** Push an Inspector transform change into the C++ scene. */
 export function editorSetTransform(
   entityId: number,

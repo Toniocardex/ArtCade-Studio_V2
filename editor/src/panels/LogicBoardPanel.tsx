@@ -13,6 +13,7 @@ import { useMemo, useState } from 'react'
 import { useEditor } from '../store/editor-store'
 import { allClassNames } from '../utils/project'
 import { compileLogicBoard } from '../utils/logic-board/compiler'
+import { editorReloadScript } from '../utils/wasm-bridge'
 import { createLogicBoard, createLogicEvent } from '../utils/logic-board/factory'
 import { TRIGGER_TYPES, defaultTrigger } from './logic-board/options'
 import type { LogicTriggerType } from '../types/logic-board'
@@ -31,6 +32,7 @@ export default function LogicBoardPanel() {
   const [mode, setMode] = useState<'visual' | 'lua'>('visual')
   const [newClass, setNewClass] = useState('')
   const [newTrigger, setNewTrigger] = useState<LogicTriggerType>('onUpdate')
+  const [applyMsg, setApplyMsg] = useState<string | null>(null)
 
   const board =
     boards.find((b) => b.boardId === selectedBoardId) ?? boards[0] ?? null
@@ -40,6 +42,16 @@ export default function LogicBoardPanel() {
     () => compileLogicBoard(boards),
     [boards],
   )
+
+  const handleApply = () => {
+    const ok = editorReloadScript(lua)
+    setApplyMsg(
+      ok
+        ? 'Sent to runtime — see Console for result'
+        : 'Runtime not loaded — press PLAY first',
+    )
+    window.setTimeout(() => setApplyMsg(null), 4000)
+  }
 
   const classes = project ? allClassNames(project) : []
 
@@ -60,6 +72,8 @@ export default function LogicBoardPanel() {
           boards={boards}
           board={board}
           onSelectBoard={setSelectedBoardId}
+          onApply={handleApply}
+          applyMsg={applyMsg}
         />
         <div className="flex-1 min-h-0">
           <ScriptEditorPanel />
@@ -76,6 +90,8 @@ export default function LogicBoardPanel() {
         boards={boards}
         board={board}
         onSelectBoard={setSelectedBoardId}
+        onApply={handleApply}
+        applyMsg={applyMsg}
       />
 
       {/* board management bar */}
@@ -225,12 +241,16 @@ function Header({
   boards,
   board,
   onSelectBoard,
+  onApply,
+  applyMsg,
 }: {
   mode: 'visual' | 'lua'
   setMode: (m: 'visual' | 'lua') => void
   boards: { boardId: string; target: { className?: string } }[]
   board: { boardId: string; target: { className?: string } } | null
   onSelectBoard: (id: string) => void
+  onApply: () => void
+  applyMsg: string | null
 }) {
   return (
     <div className="h-[52px] flex items-center gap-3.5 px-4 bg-[#111827] border-b border-[#1A253A]">
@@ -256,10 +276,13 @@ function Header({
         </span>
       )}
       <div className="flex-1" />
+      {applyMsg && (
+        <span className="text-[11px] text-[#9CA3AF]">{applyMsg}</span>
+      )}
       <button
-        title="Hot-reload pipeline arrives in iteration 4"
-        disabled
-        className="px-3 py-1.5 rounded text-xs font-semibold border border-[#0a5a5a] bg-[#062a2a] text-[#00FFFF] opacity-40 cursor-not-allowed"
+        title="Compile the Logic Board to Lua and hot-reload it into the running runtime"
+        onClick={onApply}
+        className="px-3 py-1.5 rounded text-xs font-semibold border border-[#0a5a5a] bg-[#062a2a] text-[#00FFFF] hover:bg-[#0a3a3a]"
       >
         ⟳ Apply &amp; Hot-Reload
       </button>

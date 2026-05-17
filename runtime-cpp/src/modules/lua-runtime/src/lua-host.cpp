@@ -107,6 +107,23 @@ bool LuaHost::loadBytecodeFile(const std::string& path) {
     return true;
 }
 
+bool LuaHost::loadLuaSource(const std::string& sourceCode) {
+    // safe_script compiles + runs the chunk; script_pass_on_error keeps the
+    // VM alive (and the previous tick/globals intact) if the new code throws.
+    auto result = impl_->lua.safe_script(
+        sourceCode, sol::script_pass_on_error, "@logic-board.lua");
+
+    if (!result.valid()) {
+        sol::error err = result;
+        lastError_ = std::string("hot-reload: ") + err.what();
+        return false;
+    }
+
+    impl_->scriptLoaded = true;
+    lastError_.clear();
+    return true;
+}
+
 // ------------------------------------------------------------------ calls
 
 void LuaHost::tick(float dt) {
