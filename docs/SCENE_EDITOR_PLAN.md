@@ -85,15 +85,52 @@ sensori Box2D. Questo documento mappa i gap e propone un percorso incrementale.
 - Render del tilemap: **decisione aperta** (vedi sotto) — overlay TS sul canvas
   vs render nel runtime C++.
 
-### Fase D — Runtime C++: componenti + tilemap + feedback viewport · ~2-3 gg
-**Tocca il motore — richiede rebuild WASM e validazione end-to-end.**
-- ECS: aggiungere `Sensor`, `PlatformerController`, `Health`, `AutoDestroy`
-  come componenti reali in `core/types.h` + sistemi relativi.
-- Tilemap: storage + rendering Raylib + collisioni Box2D per tile "solid".
-- Viewport feedback: gizmo selezione + cerchi sensori + grid disegnati in C++,
-  esposti via editor-api (coerente col pattern `editor_*` già usato).
-- Estendere `editor_load_project` per i nuovi campi.
-- Smoke test nel preview WASM.
+### Fase D — Runtime C++ · suddivisa in D1 / D2 / D3
+**Tocca il motore — rebuild WASM. Ogni sotto-fase è indipendente, testata e
+validata end-to-end nel preview PRIMA di passare alla successiva.**
+
+Vincolo di coerenza: il parser C++ deve usare **gli stessi nomi di campo**
+serializzati dall'editor TS (Fasi A/C), non sinonimi:
+`sensor{shape,radius,width,height,targetTag}`, `health{maxHp,currentHp,iFrames}`,
+`platformerController{maxSpeed,jumpForce,customGravity,coyoteTime,jumpBuffer}`,
+`autoDestroy{lifespan}` (0 = manuale); `tilemap{tileSize,cols,rows,data}`,
+`tilePalette[{id,name,color,solid}]`.
+
+#### D1 — Componenti ECS nel runtime + AutoDestroy system · rischio BASSO-MEDIO
+- `core/types.h`: `SensorComponent`, `PlatformerControllerComponent`,
+  `HealthComponent`, `AutoDestroyComponent` (+ `_timeAlive`); su `EntityDef`
+  come `std::optional<...>` (C++17, "opzionale" pulito).
+- `editor-api.cpp parseEntityDef`: leggere i 4 campi con i nomi esatti TS.
+- `app.cpp loopIteration`: **AutoDestroy system** dopo
+  `world->syncPhysicsToEntities()` — `lifespan>0`: `_timeAlive+=dt`; se
+  `>=lifespan` → `physics->destroyBody` (se handle) + `entityManager->destroyEntity`.
+- **Validazione**: project con `autoDestroy.lifespan=1.0` → entità sparisce
+  dopo ~1 s nel canvas WASM (entity count cala); sensor/health/platformer
+  parsati senza crash (console log conteggio). Nessuna regressione: progetti
+  senza i campi invariati.
+- **Commit D1**, poi STOP/validate prima di D2.
+
+#### D2 — Tilemap rendering + collisioni · rischio MEDIO
+- `core/types.h`: `SceneDef.tilemap` (`TilemapData{tileSize,cols,rows,
+  std::vector<int> data}`); `ProjectDoc` palette `id→Vec4 color` + `solid`.
+- `editor-api.cpp`: parse `scene.tilemap` + `project.tilePalette`.
+- `app.cpp renderActiveScene`: dopo gli sprite, loop celle → `drawRect`
+  col colore della palette (id 0 = skip).
+- `world.cpp init`: per ogni tile `solid` → `physics->createBody` static box.
+- **Validazione**: project con tilemap (celle solide) → tile colorati visibili
+  nel canvas (screenshot); una `PhysicsBall` che cade si **appoggia** su un
+  tile solido (fisica). Progetti senza tilemap invariati.
+- **Commit D2**, poi STOP/validate prima di D3.
+
+#### D3 — Feedback viewport: gizmo selezione + sensori · rischio BASSO-MEDIO
+- `app.cpp renderActiveScene`: se `EditorAPI::s_selectedEntityId != 0` e
+  `s_mode==0` (editor) → `drawRect` bordo attorno all'entità selezionata;
+  se ha `sensor` → `drawCircle`/`drawRect` dell'area (shape-aware).
+- Riusa primitive Renderer esistenti (`drawRect/drawCircle`) — niente API nuove.
+- **Validazione**: selezione entità da Hierarchy (`editor_select_entity`) →
+  gizmo visibile nel canvas (screenshot pre/post); entità con Sensor → area
+  disegnata; in play-mode (mode 1) i gizmo spariscono.
+- **Commit D3** → Fase D completa.
 
 ### Fase E — Theming: Dark / Light (default Dark) · ~1 gg · solo-TS
 **Obiettivo**: sostituire il tema "Neon" hard-coded con un sistema a temi
@@ -133,10 +170,12 @@ selezionabile **Dark / Light**, con **Dark come default**.
 
 | Fase | Stato |
 |------|-------|
-| A — Inspector a componenti | ✅ fatto (commit `efdc6af`) |
-| B — World settings + Hierarchy | ⏳ in corso |
-| C — Tile painter | ⏳ |
-| D — Runtime C++ | ⏳ |
+| A — Inspector a componenti | ✅ `efdc6af` |
+| B — World settings + Hierarchy | ✅ `97c8ba1` |
+| C — Tile painter (editor-side) | ✅ `4585b23` |
+| D1 — Componenti ECS + AutoDestroy | ⏳ in corso |
+| D2 — Tilemap render + collisioni | ⏳ |
+| D3 — Gizmo/sensori viewport | ⏳ |
 | E — Theming Dark/Light | ⏳ pianificato |
 
 ## Stima totale
