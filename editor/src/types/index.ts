@@ -2,6 +2,9 @@
 // Shared types — mirrors C++ ProjectDoc / EntityDef / SceneDef structs
 // ---------------------------------------------------------------------------
 
+export * from './logic-board'
+import type { LogicBoardDoc } from './logic-board'
+
 export interface Vec2 { x: number; y: number }
 export interface Vec4 { x: number; y: number; z: number; w: number }
 
@@ -77,6 +80,7 @@ export interface ProjectDoc {
   entities:       Record<number, EntityDef>
   scenes:         Record<string, SceneDef>
   thumbnails?:    Record<string, string>
+  logicBoards?:   LogicBoardDoc          // visual game logic, compiled to Lua
 }
 
 // ---------------------------------------------------------------------------
