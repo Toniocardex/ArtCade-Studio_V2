@@ -153,6 +153,41 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
                     : s.value("render_order", 0);
             }
 
+            // Optional gameplay components (Phase D1) — names mirror editor TS
+            if (ev.contains("sensor") && ev["sensor"].is_object()) {
+                auto& s = ev["sensor"];
+                SensorComponent sc;
+                sc.shape     = s.value("shape", std::string("Circle"));
+                sc.radius    = s.value("radius", 120.f);
+                sc.width     = s.value("width", 64.f);
+                sc.height    = s.value("height", 64.f);
+                sc.targetTag = s.value("targetTag", std::string("player"));
+                e.sensor = sc;
+            }
+            if (ev.contains("platformerController") && ev["platformerController"].is_object()) {
+                auto& p = ev["platformerController"];
+                PlatformerControllerComponent pc;
+                pc.maxSpeed      = p.value("maxSpeed", 300.f);
+                pc.jumpForce     = p.value("jumpForce", 600.f);
+                pc.customGravity = p.value("customGravity", 1500.f);
+                pc.coyoteTime    = p.value("coyoteTime", 0.15f);
+                pc.jumpBuffer    = p.value("jumpBuffer", 0.1f);
+                e.platformerController = pc;
+            }
+            if (ev.contains("health") && ev["health"].is_object()) {
+                auto& h = ev["health"];
+                HealthComponent hc;
+                hc.maxHp     = h.value("maxHp", 100.f);
+                hc.currentHp = h.value("currentHp", hc.maxHp);
+                hc.iFrames   = h.value("iFrames", 0.2f);
+                e.health = hc;
+            }
+            if (ev.contains("autoDestroy") && ev["autoDestroy"].is_object()) {
+                AutoDestroyComponent ac;
+                ac.lifespan = ev["autoDestroy"].value("lifespan", 0.f);
+                e.autoDestroy = ac;
+            }
+
             if (e.id != 0)
                 out.entities[e.id] = std::move(e);
         }

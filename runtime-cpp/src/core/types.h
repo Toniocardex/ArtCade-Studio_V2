@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <variant>
 #include <vector>
@@ -80,6 +81,39 @@ struct AnimationState {
 };
 
 // ============================================================================
+// Gameplay ECS components (Scene Editor — Phase D1)
+// Field names mirror the editor TS model (types/components.ts) so the JSON
+// produced by the editor maps 1:1 with no synonyms.
+// ============================================================================
+
+struct SensorComponent {
+    std::string shape     = "Circle";   // "Circle" | "Rectangle"
+    float       radius    = 120.f;      // Circle
+    float       width     = 64.f;       // Rectangle
+    float       height    = 64.f;       // Rectangle
+    std::string targetTag = "player";
+};
+
+struct PlatformerControllerComponent {
+    float maxSpeed      = 300.f;
+    float jumpForce     = 600.f;
+    float customGravity = 1500.f;
+    float coyoteTime    = 0.15f;
+    float jumpBuffer    = 0.1f;
+};
+
+struct HealthComponent {
+    float maxHp     = 100.f;
+    float currentHp = 100.f;
+    float iFrames   = 0.2f;
+};
+
+struct AutoDestroyComponent {
+    float lifespan  = 0.f;   // seconds; 0 = manual (never auto-destroy)
+    float _timeAlive = 0.f;  // runtime accumulator (not serialised)
+};
+
+// ============================================================================
 // Entity / Scene definitions
 // ============================================================================
 
@@ -92,6 +126,11 @@ struct EntityDef {
     SpriteComponent  sprite;
     PhysicsComponent physics;
     AnimationState   animation;
+    // Optional gameplay components (Phase D1)
+    std::optional<SensorComponent>               sensor;
+    std::optional<PlatformerControllerComponent> platformerController;
+    std::optional<HealthComponent>               health;
+    std::optional<AutoDestroyComponent>          autoDestroy;
 };
 
 struct SceneDef {

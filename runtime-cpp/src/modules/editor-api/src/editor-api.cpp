@@ -233,6 +233,41 @@ static ArtCade::EntityDef parseEntityDef(const json& j, ArtCade::EntityId fallba
         for (const auto& tag : j["tags"]) e.tags.push_back(tag.get<std::string>());
     if (j.contains("transform")) e.transform = parseTransform(j["transform"]);
     if (j.contains("sprite"))    e.sprite    = parseSprite(j["sprite"]);
+
+    // ── Optional gameplay components (Phase D1) — names mirror editor TS ──
+    if (j.contains("sensor") && j["sensor"].is_object()) {
+        const auto& s = j["sensor"];
+        ArtCade::SensorComponent sc;
+        sc.shape     = s.value("shape", std::string("Circle"));
+        sc.radius    = s.value("radius", 120.f);
+        sc.width     = s.value("width", 64.f);
+        sc.height    = s.value("height", 64.f);
+        sc.targetTag = s.value("targetTag", std::string("player"));
+        e.sensor = sc;
+    }
+    if (j.contains("platformerController") && j["platformerController"].is_object()) {
+        const auto& p = j["platformerController"];
+        ArtCade::PlatformerControllerComponent pc;
+        pc.maxSpeed      = p.value("maxSpeed", 300.f);
+        pc.jumpForce     = p.value("jumpForce", 600.f);
+        pc.customGravity = p.value("customGravity", 1500.f);
+        pc.coyoteTime    = p.value("coyoteTime", 0.15f);
+        pc.jumpBuffer    = p.value("jumpBuffer", 0.1f);
+        e.platformerController = pc;
+    }
+    if (j.contains("health") && j["health"].is_object()) {
+        const auto& h = j["health"];
+        ArtCade::HealthComponent hc;
+        hc.maxHp     = h.value("maxHp", 100.f);
+        hc.currentHp = h.value("currentHp", hc.maxHp);
+        hc.iFrames   = h.value("iFrames", 0.2f);
+        e.health = hc;
+    }
+    if (j.contains("autoDestroy") && j["autoDestroy"].is_object()) {
+        ArtCade::AutoDestroyComponent ac;
+        ac.lifespan = j["autoDestroy"].value("lifespan", 0.f);
+        e.autoDestroy = ac;
+    }
     return e;
 }
 

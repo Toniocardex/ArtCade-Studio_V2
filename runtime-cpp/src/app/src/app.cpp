@@ -295,6 +295,27 @@ void Application::loopIteration() {
         mod_->luaHost->tick(targetDt_);
         mod_->physics->step(targetDt_);
         mod_->world->syncPhysicsToEntities();
+
+        // AutoDestroy system (Phase D1): lifespan>0 → destroy after N seconds.
+        {
+            std::vector<ArtCade::EntityId> toKill;
+            for (ArtCade::EntityId id : mod_->entityManager->allIds()) {
+                ArtCade::EntityDef* e = mod_->entityManager->get(id);
+                if (!e || !e->autoDestroy || e->autoDestroy->lifespan <= 0.f)
+                    continue;
+                e->autoDestroy->_timeAlive += targetDt_;
+                if (e->autoDestroy->_timeAlive >= e->autoDestroy->lifespan)
+                    toKill.push_back(id);
+            }
+            for (ArtCade::EntityId id : toKill) {
+                ArtCade::EntityDef* e = mod_->entityManager->get(id);
+                if (e && e->physics.physicsHandle > 0)
+                    mod_->physics->destroyBody(e->physics.physicsHandle);
+                std::cout << "[AutoDestroy] destroyed entity " << id << "\n";
+                mod_->entityManager->destroyEntity(id);
+            }
+        }
+
         mod_->audio->update();
 
         if (splash_) {
