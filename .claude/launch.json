@@ -6,6 +6,12 @@
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "http.server", "8123", "--directory", "runtime-cpp/build-wasm/src/app"],
       "port": 8123
+    },
+    {
+      "name": "editor-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "editor", "--", "--port", "5180", "--strictPort"],
+      "port": 5180
     }
   ]
 }

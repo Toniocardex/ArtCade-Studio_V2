@@ -5,7 +5,7 @@ import StatusBar          from './components/StatusBar'
 import HierarchyPanel     from './panels/HierarchyPanel'
 import PreviewPanel       from './panels/PreviewPanel'
 import InspectorPanel     from './panels/InspectorPanel'
-import ScriptEditorPanel  from './panels/ScriptEditorPanel'
+import LogicBoardPanel    from './panels/LogicBoardPanel'
 import AssetBrowserPanel  from './panels/AssetBrowserPanel'
 import TilesetEditorPanel from './panels/TilesetEditorPanel'
 import ConsolePanel       from './panels/ConsolePanel'
@@ -111,8 +111,8 @@ function SceneView() {
 
 function LogicBoardView() {
   return (
-    <div className="flex-1 min-h-0 overflow-hidden">
-      <ScriptEditorPanel />
+    <div className="flex flex-1 min-h-0 overflow-hidden">
+      <LogicBoardPanel />
     </div>
   )
 }
