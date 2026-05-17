@@ -2,6 +2,7 @@ import type {
   ProjectDoc, EntityDef, SceneDef, Vec2, Vec4, Transform, SpriteComponent,
   AnimationState, PhysicsComponent,
 } from '../types'
+import { parseLogicBoards } from './logic-board/factory'
 
 // ---------------------------------------------------------------------------
 // C++ JSON normalisation helpers
@@ -200,6 +201,7 @@ export function parseProjectDoc(jsonStr: string): ProjectDoc | null {
                            ([key, value]) => [key, String(value)]
                          ))
                        : undefined,
+      logicBoards:    parseLogicBoards(raw.logicBoards ?? raw.logic_boards),
     }
   } catch {
     return null
@@ -280,6 +282,9 @@ export function serializeProjectDoc(project: ProjectDoc): string {
     entities,
     scenes,
     ...(project.thumbnails ? { thumbnails: project.thumbnails } : {}),
+    ...(project.logicBoards && project.logicBoards.length > 0
+      ? { logicBoards: project.logicBoards }
+      : {}),
   }
 
   return `${JSON.stringify(json, null, 2)}\n`

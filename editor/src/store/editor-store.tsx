@@ -3,6 +3,7 @@ import type { ReactNode, Dispatch } from 'react'
 import type {
   EditorView, BottomTab,
   ScriptFile, ProjectDoc, ConsoleEntry,
+  LogicBoard, LogicEvent,
 } from '../types'
 
 // ---------------------------------------------------------------------------
@@ -173,12 +174,35 @@ export type Action =
   | { type: 'MARK_PROJECT_SAVED' }
   | { type: 'MARK_SCRIPT_SAVED'; path: string }
   | { type: 'UPDATE_ENTITY_TRANSFORM'; entityId: number; x: number; y: number; rotation: number; scaleX: number; scaleY: number }
+  // ---- Logic Board CRUD (all operate on project.logicBoards) ----
+  | { type: 'LOGIC_ADD_BOARD';    board: LogicBoard }
+  | { type: 'LOGIC_DELETE_BOARD'; boardId: string }
+  | { type: 'LOGIC_ADD_EVENT';    boardId: string; event: LogicEvent }
+  | { type: 'LOGIC_UPDATE_EVENT'; boardId: string; event: LogicEvent }
+  | { type: 'LOGIC_DELETE_EVENT'; boardId: string; eventId: string }
 
 // ---------------------------------------------------------------------------
 // Core reducer — handles project/selection/mode; ignores LOG and SET_CURSOR
 // ---------------------------------------------------------------------------
 
-function coreReducer(state: CoreState, action: Action): CoreState {
+/**
+ * Apply a transform to project.logicBoards immutably and mark dirty.
+ * No-op (returns state unchanged) when there is no open project.
+ */
+function withBoards(
+  state: CoreState,
+  fn: (boards: LogicBoard[]) => LogicBoard[],
+): CoreState {
+  if (!state.project) return state
+  const next = fn(state.project.logicBoards ?? [])
+  return {
+    ...state,
+    project: { ...state.project, logicBoards: next },
+    projectDirty: true,
+  }
+}
+
+export function coreReducer(state: CoreState, action: Action): CoreState {
   switch (action.type) {
     case 'SELECT_ENTITY':
       return { ...state, selection: { ...state.selection, entityId: action.entityId } }
@@ -244,6 +268,48 @@ function coreReducer(state: CoreState, action: Action): CoreState {
         projectDirty: true,
       }
     }
+    case 'LOGIC_ADD_BOARD':
+      return withBoards(state, (b) =>
+        b.some((x) => x.boardId === action.board.boardId)
+          ? b
+          : [...b, action.board],
+      )
+    case 'LOGIC_DELETE_BOARD':
+      return withBoards(state, (b) =>
+        b.filter((x) => x.boardId !== action.boardId),
+      )
+    case 'LOGIC_ADD_EVENT':
+      return withBoards(state, (b) =>
+        b.map((board) =>
+          board.boardId === action.boardId
+            ? { ...board, events: [...board.events, action.event] }
+            : board,
+        ),
+      )
+    case 'LOGIC_UPDATE_EVENT':
+      return withBoards(state, (b) =>
+        b.map((board) =>
+          board.boardId === action.boardId
+            ? {
+                ...board,
+                events: board.events.map((e) =>
+                  e.id === action.event.id ? action.event : e,
+                ),
+              }
+            : board,
+        ),
+      )
+    case 'LOGIC_DELETE_EVENT':
+      return withBoards(state, (b) =>
+        b.map((board) =>
+          board.boardId === action.boardId
+            ? {
+                ...board,
+                events: board.events.filter((e) => e.id !== action.eventId),
+              }
+            : board,
+        ),
+      )
     case 'MARK_PROJECT_SAVED':
       return { ...state, projectDirty: false }
     case 'MARK_SCRIPT_SAVED': {

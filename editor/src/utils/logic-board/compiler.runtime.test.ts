@@ -10,7 +10,7 @@
 // correct under realistic tick(dt) scenarios.
 // ---------------------------------------------------------------------------
 
-import { describe, it, expect, beforeAll } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { LuaFactory } from 'wasmoon'
 import { compileLogicBoard } from './compiler'
 import type { LogicBoard, LogicEvent } from '../../types/logic-board'
