@@ -4,7 +4,7 @@ import { Cpu, Play, Square, FolderOpen, Save, Package, Hammer, ChevronDown } fro
 import { useEditor } from '../store/editor-store'
 import {
   openProjectDialog, loadProjectFile,
-  saveScript, savePackDialog, packProject, runBuild,
+  saveScript, saveProjectFile, savePackDialog, packProject, runBuild,
 } from '../utils/api'
 import { dirName } from '../utils/project'
 import type { ConsoleEntry } from '../types'
@@ -68,7 +68,7 @@ function FileMenu({ items }: { items: FileMenuItem[] }) {
 
 export default function MenuBar() {
   const { state, dispatch } = useEditor()
-  const { view, isPlaying, project, projectPath, openScripts, activeScriptPath } = state
+  const { view, isPlaying, project, projectPath, projectDirty, openScripts, activeScriptPath } = state
 
   const [fileMenuOpen, setFileMenuOpen] = useState(false)
   const [isBuilding,   setIsBuilding]   = useState(false)
@@ -122,6 +122,21 @@ export default function MenuBar() {
     }
   }
 
+  async function handleSaveProject() {
+    setFileMenuOpen(false)
+    if (!project || !projectPath) {
+      dispatch({ type: 'LOG', entry: makeLog('[File] No project loaded.', 'warn') })
+      return
+    }
+    try {
+      await saveProjectFile(projectPath, project)
+      dispatch({ type: 'MARK_PROJECT_SAVED' })
+      dispatch({ type: 'LOG', entry: makeLog(`[File] Saved project "${project.projectName}"`, 'info') })
+    } catch (err) {
+      dispatch({ type: 'LOG', entry: makeLog(`[File] Save project failed: ${err}`, 'error') })
+    }
+  }
+
   async function handlePackArtcade() {
     setFileMenuOpen(false)
     if (!projectPath) {
@@ -170,11 +185,17 @@ export default function MenuBar() {
       action:   handleOpenProject,
     },
     {
-      label:    'Save Script',
+      label:    projectDirty ? 'Save Project *' : 'Save Project',
       icon:     <Save size={12} />,
       shortcut: 'Ctrl+S',
-      action:   handleSaveScript,
+      action:   handleSaveProject,
       divider:  true,
+    },
+    {
+      label:    'Save Script',
+      icon:     <Save size={12} />,
+      shortcut: '',
+      action:   handleSaveScript,
     },
     {
       label:    'Pack .artcade…',

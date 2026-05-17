@@ -28,9 +28,10 @@ export default function PreviewPanel() {
   // content briefly disappearing.  The context split in editor-store.tsx
   // prevents this entirely.
   const { state, dispatch } = useEditor()
-  const { project, isPlaying, selection } = state
+  const { project, projectPath, isPlaying, selection } = state
 
   const canvasRef    = useRef<HTMLCanvasElement>(null)
+  const lastProjectLoadKeyRef = useRef<string | null>(null)
   const [wasmReady,  setWasmReady]  = useState(() => isReady())
   const [engineReady, setEngineReady] = useState(false)
   const [activeTool, setActiveTool] = useState<Tool>('select')
@@ -95,8 +96,17 @@ export default function PreviewPanel() {
   // ── Re-sync project into C++ whenever the user opens a new project ────────
   useEffect(() => {
     if (!wasmReady || !engineReady || !project) return
+    const loadKey = [
+      projectPath ?? project.projectName,
+      project.version,
+      project.activeSceneId,
+      Object.keys(project.entities).length,
+      Object.keys(project.scenes).length,
+    ].join('|')
+    if (lastProjectLoadKeyRef.current === loadKey) return
+    lastProjectLoadKeyRef.current = loadKey
     syncEditorRuntimeState({ projectJson: JSON.stringify(project) })
-  }, [project, wasmReady, engineReady])
+  }, [project, projectPath, wasmReady, engineReady])
 
   // ── Sync play/edit mode to C++ ────────────────────────────────────────────
   useEffect(() => {

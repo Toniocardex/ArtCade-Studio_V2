@@ -1,4 +1,7 @@
-import type { ProjectDoc, EntityDef, SceneDef, Vec2, Vec4, Transform, SpriteComponent } from '../types'
+import type {
+  ProjectDoc, EntityDef, SceneDef, Vec2, Vec4, Transform, SpriteComponent,
+  AnimationState, PhysicsComponent,
+} from '../types'
 
 // ---------------------------------------------------------------------------
 // C++ JSON normalisation helpers
@@ -59,6 +62,37 @@ function parseSprite(raw: unknown): SpriteComponent {
   }
 }
 
+function parseAnimation(raw: unknown): AnimationState | undefined {
+  if (!raw || typeof raw !== 'object') return undefined
+  const r = raw as Record<string, unknown>
+  return {
+    currentAnim:   String(r.currentAnim ?? r.current_anim ?? ''),
+    currentFrame:  Number(r.currentFrame ?? r.current_frame) || 0,
+    frameDuration: Number(r.frameDuration ?? r.frame_duration) || 0,
+    isPlaying:     Boolean(r.isPlaying ?? r.is_playing),
+    isLooping:     Boolean(r.isLooping ?? r.is_looping),
+  }
+}
+
+function parsePhysics(raw: unknown): PhysicsComponent | undefined {
+  if (!raw || typeof raw !== 'object') return undefined
+  const r = raw as Record<string, unknown>
+  const colliderRaw = r.collider && typeof r.collider === 'object'
+    ? r.collider as Record<string, unknown>
+    : {}
+  return {
+    bodyType: String(r.bodyType ?? r.body_type ?? 'Static') as PhysicsComponent['bodyType'],
+    collider: {
+      shape:    String(colliderRaw.shape ?? 'Rectangle') as PhysicsComponent['collider']['shape'],
+      size:     toVec2(colliderRaw.size),
+      offset:   toVec2(colliderRaw.offset),
+      density:  Number(colliderRaw.density) || 0,
+      friction: Number(colliderRaw.friction) || 0,
+      isSensor: Boolean(colliderRaw.isSensor ?? colliderRaw.is_sensor),
+    },
+  }
+}
+
 function parseEntity(raw: unknown, fallbackId: number): EntityDef {
   if (!raw || typeof raw !== 'object') {
     return {
@@ -74,6 +108,8 @@ function parseEntity(raw: unknown, fallbackId: number): EntityDef {
     tags:      Array.isArray(r.tags) ? r.tags.map(String) : [],
     transform: parseTransform(r.transform),
     sprite:    parseSprite(r.sprite),
+    animation:  parseAnimation(r.animation),
+    physics:    parsePhysics(r.physics),
     scriptPath: r.scriptPath != null ? String(r.scriptPath) : (r.script_path != null ? String(r.script_path) : undefined),
   }
 }
@@ -168,6 +204,85 @@ export function parseProjectDoc(jsonStr: string): ProjectDoc | null {
   } catch {
     return null
   }
+}
+
+function vec2Array(v: Vec2): [number, number] {
+  return [v.x, v.y]
+}
+
+function vec4Array(v: Vec4): [number, number, number, number] {
+  return [v.x, v.y, v.z, v.w]
+}
+
+function serializeTransform(t: Transform) {
+  return {
+    position: vec2Array(t.position),
+    scale:    vec2Array(t.scale),
+    rotation: t.rotation,
+  }
+}
+
+function serializeSprite(sprite: SpriteComponent) {
+  return {
+    spriteAssetId: sprite.spriteAssetId,
+    tint:          vec4Array(sprite.tint),
+    alpha:         sprite.alpha,
+    renderOrder:   sprite.renderOrder,
+    ...(sprite.pivot ? { pivot: vec2Array(sprite.pivot) } : {}),
+  }
+}
+
+function serializeEntity(entity: EntityDef) {
+  return {
+    id:        entity.id,
+    name:      entity.name,
+    className: entity.className,
+    tags:      entity.tags,
+    transform: serializeTransform(entity.transform),
+    sprite:    serializeSprite(entity.sprite),
+    ...(entity.scriptPath ? { scriptPath: entity.scriptPath } : {}),
+    ...(entity.animation ? { animation: entity.animation } : {}),
+    ...(entity.physics ? { physics: entity.physics } : {}),
+  }
+}
+
+function serializeScene(scene: SceneDef) {
+  return {
+    id:              scene.id,
+    name:            scene.name,
+    worldSize:       vec2Array(scene.worldSize),
+    viewportSize:    vec2Array(scene.viewportSize),
+    backgroundColor: vec4Array(scene.backgroundColor),
+    entityIds:       scene.entityIds,
+  }
+}
+
+export function serializeProjectDoc(project: ProjectDoc): string {
+  const entities = Object.fromEntries(
+    Object.values(project.entities)
+      .sort((a, b) => a.id - b.id)
+      .map(entity => [String(entity.id), serializeEntity(entity)])
+  )
+  const scenes = Object.fromEntries(
+    Object.values(project.scenes)
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .map(scene => [scene.id, serializeScene(scene)])
+  )
+
+  const json = {
+    projectName:    project.projectName,
+    version:        project.version,
+    licenseTier:    project.licenseTier ?? 'free',
+    gameResolution: vec2Array(project.gameResolution),
+    targetFPS:      project.targetFPS,
+    activeSceneId:  project.activeSceneId,
+    mainScriptPath: project.mainScriptPath,
+    entities,
+    scenes,
+    ...(project.thumbnails ? { thumbnails: project.thumbnails } : {}),
+  }
+
+  return `${JSON.stringify(json, null, 2)}\n`
 }
 
 // ---------------------------------------------------------------------------

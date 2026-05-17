@@ -9,7 +9,7 @@ import ScriptEditorPanel  from './panels/ScriptEditorPanel'
 import AssetBrowserPanel  from './panels/AssetBrowserPanel'
 import TilesetEditorPanel from './panels/TilesetEditorPanel'
 import ConsolePanel       from './panels/ConsolePanel'
-import { openProjectDialog, loadProjectFile, saveScript } from './utils/api'
+import { openProjectDialog, loadProjectFile, saveProjectFile, saveScript } from './utils/api'
 import type { BottomTab, ConsoleEntry } from './types'
 
 let _kbdLogId = 500
@@ -132,6 +132,18 @@ function EditorLayout() {
       // Ctrl+S — save active script
       if (e.key === 's' || e.key === 'S') {
         e.preventDefault()
+        if (state.view !== 'logic') {
+          if (!state.project || !state.projectPath) return
+          try {
+            await saveProjectFile(state.projectPath, state.project)
+            dispatch({ type: 'MARK_PROJECT_SAVED' })
+            dispatch({ type: 'LOG', entry: kbdLog(`Saved project "${state.project.projectName}"`, 'info') })
+          } catch (err) {
+            dispatch({ type: 'LOG', entry: kbdLog(`Save project failed: ${err}`, 'error') })
+          }
+          return
+        }
+
         const script = state.openScripts.find(s => s.path === state.activeScriptPath)
         if (!script) return
         if (!script.isDirty) {
@@ -165,7 +177,7 @@ function EditorLayout() {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [state.openScripts, state.activeScriptPath, dispatch])
+  }, [state.openScripts, state.activeScriptPath, state.project, state.projectPath, state.view, dispatch])
 
   return (
     <div className="flex flex-col w-full h-full bg-[#0B1121] text-[#D1D5DB] overflow-hidden select-none">

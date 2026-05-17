@@ -82,16 +82,30 @@ fn resolve_path(path: String) -> Result<String, String> {
 /// Configure and build the native runtime from the repository runtime-cpp dir.
 /// Each stdout/stderr line is emitted as a "build-log" event to the frontend.
 #[tauri::command]
-async fn run_build(app: tauri::AppHandle, _project_root: String) -> Result<(), String> {
+async fn run_build(app: tauri::AppHandle, project_root: String) -> Result<(), String> {
     let repo = repo_root()?;
     let runtime_dir = repo.join("runtime-cpp");
     let build_dir = runtime_dir.join("build-msvc");
+    let app_dir = build_dir.join("src").join("app");
+    let output_package = app_dir.join("game.artcade");
+    let pack_script = runtime_dir.join("tools").join("pack-artcade.py");
+    let project_root = PathBuf::from(project_root);
     let vsdev_cmd = PathBuf::from(
         r"C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\Common7\Tools\VsDevCmd.bat",
     );
 
     if !vsdev_cmd.exists() {
         let msg = format!("[Build] Visual Studio DevCmd not found: {}", vsdev_cmd.display());
+        emit_log(&app, &msg, "error");
+        return Err(msg);
+    }
+    if !project_root.join("project.json").exists() {
+        let msg = format!("[Build] project.json not found in {}", project_root.display());
+        emit_log(&app, &msg, "error");
+        return Err(msg);
+    }
+    if !pack_script.exists() {
+        let msg = format!("[Build] packer not found: {}", pack_script.display());
         emit_log(&app, &msg, "error");
         return Err(msg);
     }
@@ -113,11 +127,16 @@ async fn run_build(app: tauri::AppHandle, _project_root: String) -> Result<(), S
          cmake -S \"{}\" -B \"{}\" -G \"NMake Makefiles\" -Wno-dev -DARTCADE_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5\r\n\
          if errorlevel 1 exit /b %errorlevel%\r\n\
          cmake --build \"{}\" --config Release\r\n\
+         if errorlevel 1 exit /b %errorlevel%\r\n\
+         python \"{}\" \"{}\" \"{}\"\r\n\
          exit /b %errorlevel%\r\n",
         vsdev_cmd.display(),
         runtime_dir.display(),
         build_dir.display(),
         build_dir.display(),
+        pack_script.display(),
+        project_root.display(),
+        output_package.display(),
     );
     std::fs::write(&script_path, script)
         .map_err(|e| format!("write build script '{}': {e}", script_path.display()))?;
@@ -158,7 +177,8 @@ async fn run_build(app: tauri::AppHandle, _project_root: String) -> Result<(), S
 
     match child.wait() {
         Ok(status) if status.success() => {
-            emit_log(&app, "[Build] ✓ Build succeeded.", "info");
+            emit_log(&app, "[Build] Build succeeded.", "info");
+            emit_log(&app, &format!("[Build] Runnable output: {}", app_dir.display()), "info");
             Ok(())
         }
         Ok(status) => {

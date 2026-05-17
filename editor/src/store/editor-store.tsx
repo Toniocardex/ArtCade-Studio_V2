@@ -21,6 +21,7 @@ import type {
 export interface CoreState {
   project:          ProjectDoc | null
   projectPath:      string | null
+  projectDirty:     boolean
   selection:        { entityId: number | null; sceneId: string | null }
   view:             EditorView
   bottomTab:        BottomTab
@@ -139,6 +140,7 @@ const INITIAL_LOGS: ConsoleEntry[] = []
 const initialCoreState: CoreState = {
   project:          SAMPLE_PROJECT,
   projectPath:      null,
+  projectDirty:     false,
   selection:        { entityId: null, sceneId: 'scene_main' },
   view:             'scene',
   bottomTab:        'assets',
@@ -168,6 +170,7 @@ export type Action =
   | { type: 'LOG';               entry: ConsoleEntry }
   | { type: 'SET_CURSOR';        x: number; y: number }
   | { type: 'LOAD_PROJECT';      project: ProjectDoc; path: string }
+  | { type: 'MARK_PROJECT_SAVED' }
   | { type: 'MARK_SCRIPT_SAVED'; path: string }
   | { type: 'UPDATE_ENTITY_TRANSFORM'; entityId: number; x: number; y: number; rotation: number; scaleX: number; scaleY: number }
 
@@ -210,6 +213,7 @@ function coreReducer(state: CoreState, action: Action): CoreState {
         ...state,
         project:     action.project,
         projectPath: action.path,
+        projectDirty: false,
         selection:   { entityId: null, sceneId: action.project.activeSceneId || firstSceneId },
         openScripts: [],
         activeScriptPath: null,
@@ -237,8 +241,11 @@ function coreReducer(state: CoreState, action: Action): CoreState {
             },
           },
         },
+        projectDirty: true,
       }
     }
+    case 'MARK_PROJECT_SAVED':
+      return { ...state, projectDirty: false }
     case 'MARK_SCRIPT_SAVED': {
       return {
         ...state,

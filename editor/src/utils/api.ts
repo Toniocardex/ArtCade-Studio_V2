@@ -10,7 +10,7 @@ import { open  as dialogOpen,
          save  as dialogSave }                 from '@tauri-apps/plugin-dialog'
 import { readTextFile }                        from '@tauri-apps/plugin-fs'
 import type { ProjectDoc }                     from '../types'
-import { parseProjectDoc }                     from './project'
+import { parseProjectDoc, serializeProjectDoc } from './project'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -67,6 +67,12 @@ export async function saveScript(path: string, content: string): Promise<void> {
   if (!isTauri()) { notAvailable('saveScript'); return }
 
   await invoke('write_file', { path, content })
+}
+
+export async function saveProjectFile(path: string, project: ProjectDoc): Promise<void> {
+  if (!isTauri()) { notAvailable('saveProjectFile'); return }
+
+  await invoke('write_file', { path, content: serializeProjectDoc(project) })
 }
 
 // ---------------------------------------------------------------------------

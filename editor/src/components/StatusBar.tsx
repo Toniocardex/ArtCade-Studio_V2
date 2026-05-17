@@ -3,7 +3,7 @@ import { useEditor, useConsoleLogs } from '../store/editor-store'
 export default function StatusBar() {
   const { state }         = useEditor()
   const { state: volatile } = useConsoleLogs()
-  const { project, selection, isPlaying } = state
+  const { project, selection, isPlaying, projectDirty } = state
   const { cursorPos } = volatile
 
   const selectedName = (selection.entityId != null && project)
@@ -21,6 +21,7 @@ export default function StatusBar() {
         <span>Grid: 32px</span>
         <span>Lua: 5.4</span>
         <span>Raylib: 5.0</span>
+        {projectDirty && <span className="text-[#F97316]">Project: UNSAVED</span>}
       </div>
       <div className="flex items-center gap-4">
         <span>X: {cursorPos.x} Y: {cursorPos.y}</span>

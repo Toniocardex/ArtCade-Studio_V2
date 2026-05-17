@@ -112,6 +112,7 @@ export interface ConsoleEntry {
 export interface EditorState {
   project:          ProjectDoc | null
   projectPath:      string | null           // absolute path to project.json on disk
+  projectDirty:     boolean
   selection:        EditorSelection
   view:             EditorView
   bottomTab:        BottomTab
