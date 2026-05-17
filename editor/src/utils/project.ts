@@ -1,7 +1,8 @@
 import type {
   ProjectDoc, EntityDef, SceneDef, Vec2, Vec4, Transform, SpriteComponent,
-  AnimationState, PhysicsComponent,
+  AnimationState, PhysicsComponent, WorldSettings,
 } from '../types'
+import { DEFAULT_WORLD } from '../types'
 import { parseLogicBoards } from './logic-board/factory'
 import { COMPONENT_KEYS } from '../types/components'
 
@@ -123,7 +124,18 @@ function parseEntity(raw: unknown, fallbackId: number): EntityDef {
     animation:  parseAnimation(r.animation),
     physics:    parsePhysics(r.physics),
     scriptPath: r.scriptPath != null ? String(r.scriptPath) : (r.script_path != null ? String(r.script_path) : undefined),
+    ...(typeof r.visible === 'boolean' ? { visible: r.visible } : {}),
     ...parseComponents(r),
+  }
+}
+
+function parseWorld(raw: unknown): WorldSettings | undefined {
+  if (!raw || typeof raw !== 'object') return undefined
+  const r = raw as Record<string, unknown>
+  return {
+    gravity:        Number(r.gravity ?? DEFAULT_WORLD.gravity),
+    pixelsPerMeter: Number(r.pixelsPerMeter ?? DEFAULT_WORLD.pixelsPerMeter),
+    timeScale:      Number(r.timeScale ?? DEFAULT_WORLD.timeScale),
   }
 }
 
@@ -213,6 +225,7 @@ export function parseProjectDoc(jsonStr: string): ProjectDoc | null {
                            ([key, value]) => [key, String(value)]
                          ))
                        : undefined,
+      world:          parseWorld(raw.world),
       logicBoards:    parseLogicBoards(raw.logicBoards ?? raw.logic_boards),
     }
   } catch {
@@ -257,6 +270,7 @@ function serializeEntity(entity: EntityDef) {
     ...(entity.scriptPath ? { scriptPath: entity.scriptPath } : {}),
     ...(entity.animation ? { animation: entity.animation } : {}),
     ...(entity.physics ? { physics: entity.physics } : {}),
+    ...(entity.visible === false ? { visible: false } : {}),
     ...Object.fromEntries(
       COMPONENT_KEYS
         .filter((k) => (entity as unknown as Record<string, unknown>)[k])
@@ -292,6 +306,7 @@ export function serializeProjectDoc(project: ProjectDoc): string {
     projectName:    project.projectName,
     version:        project.version,
     licenseTier:    project.licenseTier ?? 'free',
+    ...(project.world ? { world: project.world } : {}),
     gameResolution: vec2Array(project.gameResolution),
     targetFPS:      project.targetFPS,
     activeSceneId:  project.activeSceneId,
@@ -310,6 +325,29 @@ export function serializeProjectDoc(project: ProjectDoc): string {
 // ---------------------------------------------------------------------------
 // Convenience helpers (unchanged from Phase 18)
 // ---------------------------------------------------------------------------
+
+/** Next free numeric entity id for a project. */
+export function nextEntityId(project: ProjectDoc): number {
+  const ids = Object.keys(project.entities).map(Number).filter(Number.isFinite)
+  return (ids.length ? Math.max(...ids) : 0) + 1
+}
+
+/** A new EntityDef with sane defaults (Phase B — add entity). */
+export function createEntityDef(
+  id: number,
+  name = `Entity_${id}`,
+  className = 'Entity',
+): EntityDef {
+  return {
+    id, name, className, tags: [],
+    transform: { position: { x: 0, y: 0 }, scale: { x: 1, y: 1 }, rotation: 0 },
+    sprite: {
+      spriteAssetId: '', tint: { x: 1, y: 1, z: 1, w: 1 },
+      alpha: 1, pivot: { x: 0.5, y: 0.5 }, renderOrder: 0,
+    },
+    visible: true,
+  }
+}
 
 /** Entities that belong to a given scene, in entityIds order. */
 export function getEntitiesInScene(project: ProjectDoc, sceneId: string): EntityDef[] {

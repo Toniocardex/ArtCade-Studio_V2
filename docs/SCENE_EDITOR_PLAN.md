@@ -95,27 +95,55 @@ sensori Box2D. Questo documento mappa i gap e propone un percorso incrementale.
 - Estendere `editor_load_project` per i nuovi campi.
 - Smoke test nel preview WASM.
 
+### Fase E — Theming: Dark / Light (default Dark) · ~1 gg · solo-TS
+**Obiettivo**: sostituire il tema "Neon" hard-coded con un sistema a temi
+selezionabile **Dark / Light**, con **Dark come default**.
+
+- Estrarre i colori hard-coded (`#0B1121`, `#00FFFF`, `#FF00FF`, `#F97316`,
+  `#1A253A`, `#9CA3AF`, `#D1D5DB`…) in **CSS custom properties** / token
+  Tailwind (`tailwind.config.js` `theme.extend.colors` + `:root` /
+  `[data-theme]`); i componenti usano i token, non i literal.
+- Due palette: `dark` (default — derivata dall'attuale Neon, contrasto alto)
+  e `light` (sfondi chiari, accenti adattati).
+- Theme switcher in UI (MenuBar o impostazioni) + persistenza scelta
+  (`localStorage`/settings); attributo `data-theme` su `<html>`.
+- `prefers-color-scheme` come fallback iniziale, override manuale.
+- Nessun rebuild WASM (puramente editor TS/CSS). Lo `PreviewPanel` resta
+  black-box: il tema riguarda solo la chrome dell'editor.
+- Test: util di risoluzione tema + persistenza.
+
+> Nota: tocca molti file (sostituzione literal → token). Da fare in modo
+> meccanico e verificabile (nessun cambiamento funzionale, solo styling).
+
 ---
 
-## Decisioni aperte (da rivedere insieme)
+## Decisioni (stato)
 
-1. **EntityDef.components**: tipi forti per ogni componente *oppure* mappa
-   generica `Record<string,unknown>` + registry? (forte = type-safety; generico
-   = estensibile senza toccare i tipi). **Raccomando: tipi forti + registry.**
-2. **Tile rendering**: overlay editor-side (rapido, ma diverge dal runtime) vs
-   render nel runtime C++ (fedele "what you see is what you get", ma Fase D).
-   **Raccomando: storage subito (Fase C), rendering nel runtime (Fase D).**
-3. **Ordine**: Fasi A→B→C solo-TS dimostrabili senza rebuild; Fase D in blocco
-   finale. Confermi questo ordine o vuoi prioritizzare il tile painter?
-4. **Scope Logic Board node-graph**: confermato fuori da questo piano (iterazione
-   dedicata separata, come concordato).
+1. **EntityDef.components**: ✅ DECISO — tipi forti + registry (Fase A fatta).
+2. **Tile rendering**: storage subito (Fase C), rendering nel runtime (Fase D).
+   **Raccomando ancora questo.**
+3. **Ordine**: ✅ CONFERMATO — A→B→C solo-TS, poi D runtime.
+4. **Logic Board node-graph**: fuori da questo piano (iterazione dedicata).
+5. **Theming (Fase E)**: ✅ RICHIESTO — Dark/Light, default Dark; collocato
+   dopo D ma indipendente (solo-TS, può slittare prima se prioritario).
 
 ---
+
+## Stato avanzamento
+
+| Fase | Stato |
+|------|-------|
+| A — Inspector a componenti | ✅ fatto (commit `efdc6af`) |
+| B — World settings + Hierarchy | ⏳ in corso |
+| C — Tile painter | ⏳ |
+| D — Runtime C++ | ⏳ |
+| E — Theming Dark/Light | ⏳ pianificato |
 
 ## Stima totale
 
-| Fasi solo-TS (A+B+C) | ~4 gg | basso rischio, nessun rebuild |
+| Fasi solo-TS (A+B+C) | ~4 gg | A fatta; basso rischio, nessun rebuild |
 | Fase D (runtime) | ~2-3 gg | tocca C++/WASM, validazione end-to-end |
-| **Totale** | **~6-7 gg** | |
+| Fase E (theming) | ~1 gg | solo-TS, meccanico |
+| **Totale** | **~7-8 gg** | |
 
 Lo scene editor resta usabile ad ogni fase; il valore è incrementale.

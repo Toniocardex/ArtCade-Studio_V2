@@ -3,8 +3,10 @@ import type { ReactNode, Dispatch } from 'react'
 import type {
   EditorView, BottomTab,
   ScriptFile, ProjectDoc, ConsoleEntry,
-  LogicBoard, LogicEvent, ComponentKey,
+  LogicBoard, LogicEvent, ComponentKey, WorldSettings,
 } from '../types'
+import { DEFAULT_WORLD } from '../types'
+import { createEntityDef, nextEntityId } from '../utils/project'
 
 // ---------------------------------------------------------------------------
 // State split:
@@ -176,6 +178,10 @@ export type Action =
   | { type: 'UPDATE_ENTITY_TRANSFORM'; entityId: number; x: number; y: number; rotation: number; scaleX: number; scaleY: number }
   | { type: 'ENTITY_SET_COMPONENT';    entityId: number; key: ComponentKey; value: object }
   | { type: 'ENTITY_REMOVE_COMPONENT'; entityId: number; key: ComponentKey }
+  | { type: 'ENTITY_ADD';        sceneId: string }
+  | { type: 'ENTITY_DELETE';     entityId: number }
+  | { type: 'ENTITY_SET_VISIBLE'; entityId: number; visible: boolean }
+  | { type: 'WORLD_SET';         patch: Partial<WorldSettings> }
   // ---- Logic Board CRUD (all operate on project.logicBoards) ----
   | { type: 'LOGIC_ADD_BOARD';    board: LogicBoard }
   | { type: 'LOGIC_DELETE_BOARD'; boardId: string }
@@ -340,6 +346,75 @@ export function coreReducer(state: CoreState, action: Action): CoreState {
           ...state.project,
           entities: { ...state.project.entities, [action.entityId]: rest },
         },
+        projectDirty: true,
+      }
+    }
+    case 'ENTITY_ADD': {
+      if (!state.project || !state.project.scenes[action.sceneId]) return state
+      const id = nextEntityId(state.project)
+      const ent = createEntityDef(id)
+      const scene = state.project.scenes[action.sceneId]
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          entities: { ...state.project.entities, [id]: ent },
+          scenes: {
+            ...state.project.scenes,
+            [action.sceneId]: { ...scene, entityIds: [...scene.entityIds, id] },
+          },
+        },
+        selection: { ...state.selection, entityId: id },
+        projectDirty: true,
+      }
+    }
+    case 'ENTITY_DELETE': {
+      if (!state.project || !state.project.entities[action.entityId]) return state
+      const entities = Object.fromEntries(
+        Object.entries(state.project.entities).filter(
+          ([k]) => Number(k) !== action.entityId,
+        ),
+      )
+      const scenes = Object.fromEntries(
+        Object.entries(state.project.scenes).map(([sid, sc]) => [
+          sid,
+          { ...sc, entityIds: sc.entityIds.filter((i) => i !== action.entityId) },
+        ]),
+      )
+      return {
+        ...state,
+        project: { ...state.project, entities, scenes },
+        selection: {
+          ...state.selection,
+          entityId:
+            state.selection.entityId === action.entityId
+              ? null
+              : state.selection.entityId,
+        },
+        projectDirty: true,
+      }
+    }
+    case 'ENTITY_SET_VISIBLE': {
+      if (!state.project || !state.project.entities[action.entityId]) return state
+      const e = state.project.entities[action.entityId]
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          entities: {
+            ...state.project.entities,
+            [action.entityId]: { ...e, visible: action.visible },
+          },
+        },
+        projectDirty: true,
+      }
+    }
+    case 'WORLD_SET': {
+      if (!state.project) return state
+      const world = { ...DEFAULT_WORLD, ...state.project.world, ...action.patch }
+      return {
+        ...state,
+        project: { ...state.project, world },
         projectDirty: true,
       }
     }

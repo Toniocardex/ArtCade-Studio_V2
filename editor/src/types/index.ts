@@ -63,6 +63,7 @@ export interface EntityDef {
   animation?:  AnimationState
   physics?:    PhysicsComponent
   scriptPath?: string
+  visible?:    boolean   // editor visibility (undefined = visible). Phase B.
   // ECS gameplay components (Scene Editor Phase A) — optional, strongly typed
   sensor?:               SensorComponent
   platformerController?: PlatformerControllerComponent
@@ -79,10 +80,22 @@ export interface SceneDef {
   entityIds:       number[]
 }
 
+/** Global world simulation settings (Scene Editor Phase B). */
+export interface WorldSettings {
+  gravity:        number   // m/s^2 (Box2D vertical gravity)
+  pixelsPerMeter: number   // metric scale, e.g. 100 px = 1 m
+  timeScale:      number   // engine speed multiplier (0..2, 1 = normal)
+}
+
+export const DEFAULT_WORLD: WorldSettings = {
+  gravity: 9.81, pixelsPerMeter: 100, timeScale: 1,
+}
+
 export interface ProjectDoc {
   projectName:    string
   version:        string
   licenseTier?:   'free' | 'pro'
+  world?:         WorldSettings
   gameResolution: Vec2
   targetFPS:      number
   activeSceneId:  string
