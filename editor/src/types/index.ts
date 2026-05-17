@@ -3,7 +3,12 @@
 // ---------------------------------------------------------------------------
 
 export * from './logic-board'
+export * from './components'
 import type { LogicBoardDoc } from './logic-board'
+import type {
+  SensorComponent, PlatformerControllerComponent,
+  HealthComponent, AutoDestroyComponent,
+} from './components'
 
 export interface Vec2 { x: number; y: number }
 export interface Vec4 { x: number; y: number; z: number; w: number }
@@ -58,6 +63,11 @@ export interface EntityDef {
   animation?:  AnimationState
   physics?:    PhysicsComponent
   scriptPath?: string
+  // ECS gameplay components (Scene Editor Phase A) — optional, strongly typed
+  sensor?:               SensorComponent
+  platformerController?: PlatformerControllerComponent
+  health?:               HealthComponent
+  autoDestroy?:          AutoDestroyComponent
 }
 
 export interface SceneDef {

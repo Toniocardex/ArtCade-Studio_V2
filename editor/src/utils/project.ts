@@ -3,6 +3,17 @@ import type {
   AnimationState, PhysicsComponent,
 } from '../types'
 import { parseLogicBoards } from './logic-board/factory'
+import { COMPONENT_KEYS } from '../types/components'
+
+/** Pass through known ECS component objects defensively (only if object). */
+function parseComponents(r: Record<string, unknown>): Record<string, object> {
+  const out: Record<string, object> = {}
+  for (const key of COMPONENT_KEYS) {
+    const v = r[key]
+    if (v && typeof v === 'object' && !Array.isArray(v)) out[key] = v as object
+  }
+  return out
+}
 
 // ---------------------------------------------------------------------------
 // C++ JSON normalisation helpers
@@ -112,6 +123,7 @@ function parseEntity(raw: unknown, fallbackId: number): EntityDef {
     animation:  parseAnimation(r.animation),
     physics:    parsePhysics(r.physics),
     scriptPath: r.scriptPath != null ? String(r.scriptPath) : (r.script_path != null ? String(r.script_path) : undefined),
+    ...parseComponents(r),
   }
 }
 
@@ -245,6 +257,11 @@ function serializeEntity(entity: EntityDef) {
     ...(entity.scriptPath ? { scriptPath: entity.scriptPath } : {}),
     ...(entity.animation ? { animation: entity.animation } : {}),
     ...(entity.physics ? { physics: entity.physics } : {}),
+    ...Object.fromEntries(
+      COMPONENT_KEYS
+        .filter((k) => (entity as unknown as Record<string, unknown>)[k])
+        .map((k) => [k, (entity as unknown as Record<string, unknown>)[k]]),
+    ),
   }
 }
 

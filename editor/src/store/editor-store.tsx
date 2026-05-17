@@ -3,7 +3,7 @@ import type { ReactNode, Dispatch } from 'react'
 import type {
   EditorView, BottomTab,
   ScriptFile, ProjectDoc, ConsoleEntry,
-  LogicBoard, LogicEvent,
+  LogicBoard, LogicEvent, ComponentKey,
 } from '../types'
 
 // ---------------------------------------------------------------------------
@@ -174,6 +174,8 @@ export type Action =
   | { type: 'MARK_PROJECT_SAVED' }
   | { type: 'MARK_SCRIPT_SAVED'; path: string }
   | { type: 'UPDATE_ENTITY_TRANSFORM'; entityId: number; x: number; y: number; rotation: number; scaleX: number; scaleY: number }
+  | { type: 'ENTITY_SET_COMPONENT';    entityId: number; key: ComponentKey; value: object }
+  | { type: 'ENTITY_REMOVE_COMPONENT'; entityId: number; key: ComponentKey }
   // ---- Logic Board CRUD (all operate on project.logicBoards) ----
   | { type: 'LOGIC_ADD_BOARD';    board: LogicBoard }
   | { type: 'LOGIC_DELETE_BOARD'; boardId: string }
@@ -310,6 +312,37 @@ export function coreReducer(state: CoreState, action: Action): CoreState {
             : board,
         ),
       )
+    case 'ENTITY_SET_COMPONENT': {
+      if (!state.project || !state.project.entities[action.entityId]) return state
+      const entity = state.project.entities[action.entityId]
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          entities: {
+            ...state.project.entities,
+            [action.entityId]: { ...entity, [action.key]: action.value },
+          },
+        },
+        projectDirty: true,
+      }
+    }
+    case 'ENTITY_REMOVE_COMPONENT': {
+      if (!state.project || !state.project.entities[action.entityId]) return state
+      const entity = state.project.entities[action.entityId]
+      // omit the component key immutably
+      const rest = Object.fromEntries(
+        Object.entries(entity).filter(([k]) => k !== action.key),
+      ) as typeof entity
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          entities: { ...state.project.entities, [action.entityId]: rest },
+        },
+        projectDirty: true,
+      }
+    }
     case 'MARK_PROJECT_SAVED':
       return { ...state, projectDirty: false }
     case 'MARK_SCRIPT_SAVED': {

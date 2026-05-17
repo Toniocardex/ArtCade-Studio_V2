@@ -1,7 +1,11 @@
-import { Settings, ChevronRight } from 'lucide-react'
+import { Settings, ChevronRight, Trash2 } from 'lucide-react'
 import { useEditor } from '../store/editor-store'
-import type { EntityDef } from '../types'
+import type { EntityDef, ComponentKey } from '../types'
 import { editorSetTransform, isReady } from '../utils/wasm-bridge'
+import {
+  COMPONENT_REGISTRY,
+  type ComponentDescriptor,
+} from './inspector/component-registry'
 
 // ---- helpers ---------------------------------------------------------------
 
@@ -49,6 +53,140 @@ function NumberField({
                    text-xs text-[#D1D5DB] focus:outline-none focus:border-[#00FFFF]"
       />
     </div>
+  )
+}
+
+// ---- data-driven component section -----------------------------------------
+
+function ComponentSection({
+  entity, desc,
+}: {
+  entity: EntityDef
+  desc: ComponentDescriptor
+}) {
+  const { dispatch } = useEditor()
+  const data = (entity as unknown as Record<string, unknown>)[desc.key] as
+    | Record<string, unknown>
+    | undefined
+  if (!data) return null
+
+  function commit(fieldKey: string, value: unknown) {
+    dispatch({
+      type: 'ENTITY_SET_COMPONENT',
+      entityId: entity.id,
+      key: desc.key,
+      value: { ...data, [fieldKey]: value },
+    })
+  }
+
+  return (
+    <div className="border border-[#1A253A] rounded-lg p-3 bg-[#1A253A]/10 mb-2">
+      <div
+        className="flex items-center justify-between text-[10px] font-bold
+                   border-b border-[#1A253A] pb-1 mb-2 uppercase tracking-widest"
+        style={{ color: desc.color }}
+      >
+        <span>{desc.label}</span>
+        <button
+          title="Remove component"
+          onClick={() =>
+            dispatch({
+              type: 'ENTITY_REMOVE_COMPONENT',
+              entityId: entity.id,
+              key: desc.key,
+            })
+          }
+          className="text-[#9CA3AF] hover:text-[#F87171]"
+        >
+          <Trash2 size={11} />
+        </button>
+      </div>
+
+      {desc.fields
+        .filter((f) => !f.visibleWhen || f.visibleWhen(data))
+        .map((f) => {
+          const v = data[f.key]
+          if (f.kind === 'select') {
+            return (
+              <div key={f.key} className="mb-2">
+                <label className="text-[9px] text-[#9CA3AF] uppercase">{f.label}</label>
+                <select
+                  value={String(v ?? '')}
+                  onChange={(e) => commit(f.key, e.target.value)}
+                  className="w-full bg-[#1A253A] border border-[#2D3748] rounded px-2 py-1
+                             text-xs text-[#D1D5DB] focus:outline-none focus:border-[#00FFFF]"
+                >
+                  {(f.options ?? []).map((o) => (
+                    <option key={o} value={o}>{o}</option>
+                  ))}
+                </select>
+              </div>
+            )
+          }
+          if (f.kind === 'checkbox') {
+            return (
+              <label key={f.key} className="flex items-center gap-2 mb-2 text-xs text-[#D1D5DB]">
+                <input
+                  type="checkbox"
+                  checked={Boolean(v)}
+                  onChange={(e) => commit(f.key, e.target.checked)}
+                />
+                {f.label}
+              </label>
+            )
+          }
+          const isNum = f.kind === 'number'
+          return (
+            <div key={f.key} className="mb-2">
+              <label className="text-[9px] text-[#9CA3AF] uppercase">{f.label}</label>
+              <input
+                type={isNum ? 'number' : 'text'}
+                value={isNum ? Number(v ?? 0) : String(v ?? '')}
+                min={f.min}
+                max={f.max}
+                step={f.step}
+                onChange={(e) =>
+                  commit(f.key, isNum ? Number(e.target.value) : e.target.value)
+                }
+                className="w-full bg-[#1A253A] border border-[#2D3748] rounded px-2 py-1
+                           text-xs text-[#D1D5DB] focus:outline-none focus:border-[#00FFFF]"
+              />
+            </div>
+          )
+        })}
+    </div>
+  )
+}
+
+function AddComponentBar({ entity }: { entity: EntityDef }) {
+  const { dispatch } = useEditor()
+  const missing = COMPONENT_REGISTRY.filter(
+    (d) => !(entity as unknown as Record<string, unknown>)[d.key],
+  )
+  if (missing.length === 0) return null
+
+  return (
+    <select
+      value=""
+      onChange={(e) => {
+        const desc = COMPONENT_REGISTRY.find((d) => d.key === e.target.value as ComponentKey)
+        if (desc)
+          dispatch({
+            type: 'ENTITY_SET_COMPONENT',
+            entityId: entity.id,
+            key: desc.key,
+            value: desc.create(),
+          })
+      }}
+      className="w-full mt-1 bg-[#1A253A] border border-dashed border-[#2D3748]
+                 rounded px-2 py-1.5 text-xs text-[#9CA3AF]
+                 focus:outline-none focus:border-[#00FFFF]"
+    >
+      <option value="">＋ Add Component…</option>
+      {missing.map((d) => (
+        <option key={d.key} value={d.key}>{d.label}</option>
+      ))}
+    </select>
   )
 }
 
@@ -111,6 +249,13 @@ function EntityInspector({ entity }: { entity: EntityDef }) {
       <Field label="Asset" value={entity.sprite.spriteAssetId || '(none)'} />
       <Field label="Alpha" value={entity.sprite.alpha.toFixed(2)} />
       <Field label="Render Order" value={entity.sprite.renderOrder} />
+
+      {/* ECS Components (data-driven) */}
+      <SectionRow label="Components" />
+      {COMPONENT_REGISTRY.map((desc) => (
+        <ComponentSection key={desc.key} entity={entity} desc={desc} />
+      ))}
+      <AddComponentBar entity={entity} />
 
       {/* Script */}
       {entity.scriptPath && (
