@@ -395,6 +395,40 @@ void Application::renderActiveScene() {
             e->sprite.alpha);
     }
 
+    // Phase D3: editor-only viewport feedback (gizmo + sensor area).
+    // Hidden in play mode (s_mode == 1) so it never shows in the game.
+    if (EditorAPI::s_mode == 0 && EditorAPI::s_selectedEntityId != 0) {
+        const auto* e = mod_->entityManager->get(EditorAPI::s_selectedEntityId);
+        if (e) {
+            const Vec2 p = e->transform.position;
+
+            // Sensor area first (under the box), shape-aware, translucent cyan
+            if (e->sensor) {
+                const Vec4 sc{0.f, 1.f, 1.f, 0.35f};
+                if (e->sensor->shape == "Rectangle") {
+                    const float sw = e->sensor->width, sh = e->sensor->height;
+                    mod_->renderer->drawRect(p.x - sw * 0.5f, p.y - sh * 0.5f,
+                                             sw, sh, sc);
+                } else {
+                    mod_->renderer->drawCircle(p.x, p.y, e->sensor->radius, sc);
+                }
+            }
+
+            // Selection box (yellow outline = 4 thin filled rects)
+            float w = e->physics.collider.size.x > 2.f
+                ? e->physics.collider.size.x : 40.f * e->transform.scale.x;
+            float h = e->physics.collider.size.y > 2.f
+                ? e->physics.collider.size.y : 40.f * e->transform.scale.y;
+            const float x = p.x - w * 0.5f, y = p.y - h * 0.5f;
+            const float t = 2.f;
+            const Vec4 g{1.f, 1.f, 0.f, 1.f};
+            mod_->renderer->drawRect(x,         y,         w, t, g); // top
+            mod_->renderer->drawRect(x,         y + h - t, w, t, g); // bottom
+            mod_->renderer->drawRect(x,         y,         t, h, g); // left
+            mod_->renderer->drawRect(x + w - t, y,         t, h, g); // right
+        }
+    }
+
     // FREE-tier splash overlay drawn on top of the game frame
     if (splash_)
         splash_->render(GetScreenWidth(), GetScreenHeight());
