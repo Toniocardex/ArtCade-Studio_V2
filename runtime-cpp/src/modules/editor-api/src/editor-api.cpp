@@ -333,6 +333,7 @@ static ArtCade::SceneDef parseSceneDef(const json& j, const ArtCade::SceneId& fa
         s.tilemap.rows     = tm.value("rows", 0);
         if (tm.contains("data") && tm["data"].is_array())
             s.tilemap.data = tm["data"].get<std::vector<int>>();
+        s.tilemap.tilesetAssetId = tm.value("tilesetAssetId", std::string{});
     }
     return s;
 }

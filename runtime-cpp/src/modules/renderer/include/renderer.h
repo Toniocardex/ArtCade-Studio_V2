@@ -45,6 +45,16 @@ public:
                     const Vec4&    tint,
                     float          alpha);
 
+    /**
+     * Phase F3: draw a sub-rectangle (atlas cell) of a texture at a
+     * top-left destination. Returns false if the texture is missing
+     * (caller can fall back to a colour rect). No rotation/origin —
+     * tiles are axis-aligned and positioned by their top-left corner.
+     */
+    bool drawSpriteRegion(const AssetId& assetId,
+                          float srcX, float srcY, float srcW, float srcH,
+                          float dstX, float dstY, float dstW, float dstH);
+
     void drawRect  (float x, float y, float w, float h, const Vec4& color);
     void drawLine  (float x1, float y1, float x2, float y2, const Vec4& color);
     void drawCircle(float x, float y, float radius, const Vec4& color);

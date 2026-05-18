@@ -167,6 +167,24 @@ void Renderer::drawSprite(const AssetId& assetId,
     DrawTexturePro(*tex, src, dst, origin, rotation, toColor(tint, alpha));
 }
 
+bool Renderer::drawSpriteRegion(const AssetId& assetId,
+                                float srcX, float srcY, float srcW, float srcH,
+                                float dstX, float dstY, float dstW, float dstH)
+{
+    const Texture2D* tex = impl_->texCache.getByPath(assetId);
+    if (!tex || tex->id == 0) {
+        // getByPath only looks up the cache; load on first use.
+        impl_->texCache.load(assetId);
+        tex = impl_->texCache.getByPath(assetId);
+    }
+    if (!tex || tex->id == 0) return false;   // caller falls back to colour
+
+    Rectangle src = { srcX, srcY, srcW, srcH };
+    Rectangle dst = { dstX, dstY, dstW, dstH };
+    DrawTexturePro(*tex, src, dst, { 0.f, 0.f }, 0.f, WHITE);
+    return true;
+}
+
 void Renderer::drawRect(float x, float y, float w, float h, const Vec4& color) {
     Color c = toColor(color);
     DrawCmd cmd;

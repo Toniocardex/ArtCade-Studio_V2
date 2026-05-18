@@ -233,6 +233,8 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
                 s.tilemap.rows     = tm.value("rows", 0);
                 if (tm.contains("data") && tm["data"].is_array())
                     s.tilemap.data = tm["data"].get<std::vector<int>>();
+                s.tilemap.tilesetAssetId =
+                    tm.value("tilesetAssetId", std::string{});
             }
 
             out.scenes[s.id] = std::move(s);
@@ -255,6 +257,21 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
             e.color = hexToVec4(t.value("color", std::string("#808080")));
             e.solid = t.value("solid", false);
             out.tilePalette.push_back(e);
+        }
+    }
+
+    // Tilesets (Phase F3) — spritesheet metadata, keyed by assetId
+    if (j.contains("tilesets") && j["tilesets"].is_object()) {
+        for (auto& [key, tv] : j["tilesets"].items()) {
+            if (!tv.is_object()) continue;
+            TilesetAsset ts;
+            ts.assetId         = tv.value("assetId", key);
+            ts.spriteImagePath = tv.value("spriteImagePath", std::string{});
+            ts.tileSize        = tv.value("tileSize", 32.f);
+            ts.margin          = tv.value("margin", 0);
+            ts.cols            = tv.value("cols", 1);
+            ts.rows            = tv.value("rows", 1);
+            out.tilesets.push_back(ts);
         }
     }
 

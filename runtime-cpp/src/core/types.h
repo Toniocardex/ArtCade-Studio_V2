@@ -139,6 +139,17 @@ struct TilemapData {
     int              cols     = 0;   // 0 = no tilemap
     int              rows     = 0;
     std::vector<int> data;           // size cols*rows, row-major, 0 = empty
+    std::string      tilesetAssetId; // Phase F3: spritesheet ref (empty = colour)
+};
+
+// Phase F3: spritesheet tileset. Cell id is 1-based, laid out L→R, T→B.
+struct TilesetAsset {
+    std::string assetId;
+    std::string spriteImagePath;
+    float       tileSize = 32.f;
+    int         margin   = 0;
+    int         cols     = 1;
+    int         rows     = 1;
 };
 
 struct SceneDef {
@@ -175,6 +186,7 @@ struct ProjectDoc {
     std::unordered_map<SceneId,  SceneDef>  scenes;
     std::unordered_map<SceneId,  std::string> thumbnails;
     std::vector<TilePaletteEntry> tilePalette;   // Phase D2
+    std::vector<TilesetAsset>     tilesets;      // Phase F3
 };
 
 // ============================================================================

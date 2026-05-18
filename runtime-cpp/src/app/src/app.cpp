@@ -242,6 +242,11 @@ bool Application::loadProject(const std::string& projectPath) {
     for (const auto& t : doc.tilePalette)
         tileColors_[t.id] = t.color;
 
+    // Phase F3: cache tilesets by id (spritesheet atlas rendering)
+    tilesets_.clear();
+    for (const auto& ts : doc.tilesets)
+        tilesets_[ts.assetId] = ts;
+
     std::vector<uint8_t> bytecode;
     if (mod_->assetLoader->loadLuaBytecode(doc.mainScriptPath, bytecode))
         mod_->luaHost->loadBytecodeBuffer(bytecode.data(), bytecode.size());
@@ -360,23 +365,43 @@ void Application::renderActiveScene() {
 
     mod_->renderer->beginFrame(bgColor);
 
-    // Phase D2: tilemap layer (drawn under entities)
+    // Phase D2/F3: tilemap layer (drawn under entities). When the layer
+    // references a tileset (F3) tiles are drawn as spritesheet cells;
+    // otherwise the D2 colour fallback (palette / grey) is used.
     if (const SceneDef* sc = mod_->sceneManager->activeScene()) {
         const auto& tm = sc->tilemap;
         if (tm.cols > 0 && tm.rows > 0) {
             const int n = static_cast<int>(tm.data.size());
+            const ArtCade::TilesetAsset* ts = nullptr;
+            if (!tm.tilesetAssetId.empty()) {
+                auto tsi = tilesets_.find(tm.tilesetAssetId);
+                if (tsi != tilesets_.end()) ts = &tsi->second;
+            }
             for (int r = 0; r < tm.rows; ++r) {
                 for (int c = 0; c < tm.cols; ++c) {
                     const int idx = r * tm.cols + c;
                     if (idx >= n) continue;
                     const int id = tm.data[idx];
                     if (id <= 0) continue;
-                    auto it = tileColors_.find(id);
-                    const Vec4 col = (it != tileColors_.end())
-                        ? it->second : Vec4{0.5f, 0.5f, 0.5f, 1.f};
-                    mod_->renderer->drawRect(
-                        c * tm.tileSize, r * tm.tileSize,
-                        tm.tileSize, tm.tileSize, col);
+                    const float dx = c * tm.tileSize;
+                    const float dy = r * tm.tileSize;
+                    bool drawn = false;
+                    if (ts && ts->cols > 0) {
+                        const int sCol = (id - 1) % ts->cols;
+                        const int sRow = (id - 1) / ts->cols;
+                        const float step = ts->tileSize + ts->margin;
+                        drawn = mod_->renderer->drawSpriteRegion(
+                            ts->spriteImagePath,
+                            sCol * step, sRow * step, ts->tileSize, ts->tileSize,
+                            dx, dy, tm.tileSize, tm.tileSize);
+                    }
+                    if (!drawn) {
+                        auto it = tileColors_.find(id);
+                        const Vec4 col = (it != tileColors_.end())
+                            ? it->second : Vec4{0.5f, 0.5f, 0.5f, 1.f};
+                        mod_->renderer->drawRect(dx, dy,
+                            tm.tileSize, tm.tileSize, col);
+                    }
                 }
             }
         }

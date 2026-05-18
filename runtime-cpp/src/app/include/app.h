@@ -56,6 +56,7 @@ private:
     std::string licenseTier_ = "free";      // from ProjectDoc, used by SplashState
     std::unique_ptr<::ArtCade::Modules::SplashState> splash_;  // FREE-tier watermark overlay
     std::unordered_map<int, ::ArtCade::Vec4> tileColors_;  // Phase D2: id → render colour
+    std::unordered_map<std::string, ::ArtCade::TilesetAsset> tilesets_;  // Phase F3
 
 #ifdef ARTCADE_WASM
     // Emscripten richiede una callback statica — punta all'istanza corrente
