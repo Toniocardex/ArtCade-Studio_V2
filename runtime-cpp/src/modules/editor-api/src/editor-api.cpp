@@ -368,6 +368,17 @@ static ArtCade::SceneDef parseSceneDef(const json& j, const ArtCade::SceneId& fa
     return s;
 }
 
+static ArtCade::TilesetAsset parseTilesetAsset(const json& j) {
+    ArtCade::TilesetAsset t;
+    t.assetId         = j.value("assetId",         j.value("asset_id", std::string{}));
+    t.spriteImagePath = j.value("spriteImagePath", j.value("sprite_image_path", std::string{}));
+    t.tileSize        = j.value("tileSize", j.value("tile_size", 32.f));
+    t.margin          = j.value("margin", 0);
+    t.cols            = j.value("cols", 1);
+    t.rows            = j.value("rows", 1);
+    return t;
+}
+
 extern "C" {
 
 EMSCRIPTEN_KEEPALIVE void editor_set_mode(int mode) {
@@ -470,6 +481,21 @@ EMSCRIPTEN_KEEPALIVE void editor_load_project(const char* json_utf8) {
             }
         }
 
+        // ── Parse tilesets (Phase F3) ─────────────────────────────────────────
+        std::vector<ArtCade::TilesetAsset> tilesets;
+        if (doc.contains("tilesets")) {
+            const auto& tsj = doc["tilesets"];
+            if (tsj.is_array()) {
+                for (const auto& item : tsj) tilesets.push_back(parseTilesetAsset(item));
+            } else if (tsj.is_object()) {
+                for (auto& [key, val] : tsj.items()) {
+                    auto t = parseTilesetAsset(val);
+                    if (t.assetId.empty()) t.assetId = key;
+                    tilesets.push_back(std::move(t));
+                }
+            }
+        }
+
         // ── Push into engine ──────────────────────────────────────────────────
         // Activate the first (or specified) scene
         std::string activeId = doc.value("activeSceneId",
@@ -477,6 +503,7 @@ EMSCRIPTEN_KEEPALIVE void editor_load_project(const char* json_utf8) {
         if (activeId.empty() && !sceneDefs.empty())
             activeId = sceneDefs.begin()->first;
         gateway->replaceProject(sceneDefs, entityDefs, activeId);
+        gateway->setTilesets(std::move(tilesets));
 
         char buf[128];
         std::snprintf(buf, sizeof(buf),

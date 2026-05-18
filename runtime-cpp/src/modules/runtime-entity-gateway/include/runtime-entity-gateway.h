@@ -43,6 +43,10 @@ public:
     bool replaceProject(const std::unordered_map<SceneId, SceneDef>& scenes,
                         const std::unordered_map<EntityId, EntityDef>& entityDefs,
                         const SceneId& activeSceneId);
+    // Phase F3: push project-level tileset assets into the SceneManager so
+    // the render path sees them after an editor hot-reload.
+    void setTilesets(std::vector<TilesetAsset> tilesets);
+
     bool loadScene(const SceneId& id);
     SceneId activeSceneId() const;
     const SceneDef* activeScene() const;

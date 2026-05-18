@@ -81,6 +81,10 @@ void RuntimeEntityGateway::registerScenes(
     sceneManager_.registerScenes(scenes, entityDefs);
 }
 
+void RuntimeEntityGateway::setTilesets(std::vector<TilesetAsset> tilesets) {
+    sceneManager_.setTilesets(std::move(tilesets));
+}
+
 bool RuntimeEntityGateway::replaceProject(
     const std::unordered_map<SceneId, SceneDef>& scenes,
     const std::unordered_map<EntityId, EntityDef>& entityDefs,

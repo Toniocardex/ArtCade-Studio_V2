@@ -2,6 +2,8 @@
 
 #include "../../../core/module.h"
 #include "../../../core/types.h"
+#include <vector>
+#include <utility>
 
 namespace ArtCade::Modules {
 
@@ -33,11 +35,20 @@ public:
     // Phase F2: mutable access for in-scene tile painting.
     SceneDef*         activeSceneMutable();
 
+    // Phase F3: project-level tileset assets (spritesheets). Set at startup
+    // from the ProjectDoc and refreshed on editor hot-reload so the render
+    // path always sees the current tilesets.
+    void setTilesets(std::vector<TilesetAsset> tilesets) {
+        tilesets_ = std::move(tilesets);
+    }
+    const std::vector<TilesetAsset>& tilesets() const { return tilesets_; }
+
 private:
     EntityManager&                               entityManager_;
     std::unordered_map<SceneId, SceneDef>        scenes_;
     std::unordered_map<EntityId, EntityDef>      entityDefs_;
     SceneId                                      activeId_;
+    std::vector<TilesetAsset>                    tilesets_;   // Phase F3
 };
 
 } // namespace ArtCade::Modules

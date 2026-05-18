@@ -247,6 +247,9 @@ bool Application::loadProject(const std::string& projectPath) {
     tilesets_.clear();
     for (const auto& ts : doc.tilesets)
         tilesets_[ts.assetId] = ts;
+    // Make tilesets live data in SceneManager so the render path also sees
+    // tilesets pushed by the editor via editor_load_project (hot-reload).
+    mod_->sceneManager->setTilesets(doc.tilesets);
 
     std::vector<uint8_t> bytecode;
     if (mod_->assetLoader->loadLuaBytecode(doc.mainScriptPath, bytecode))
@@ -375,8 +378,15 @@ void Application::renderActiveScene() {
             const int n = static_cast<int>(tm.data.size());
             const ArtCade::TilesetAsset* ts = nullptr;
             if (!tm.tilesetAssetId.empty()) {
-                auto tsi = tilesets_.find(tm.tilesetAssetId);
-                if (tsi != tilesets_.end()) ts = &tsi->second;
+                // Live source: SceneManager tilesets (refreshed on editor
+                // hot-reload), with the startup cache as fallback.
+                for (const auto& t : mod_->sceneManager->tilesets()) {
+                    if (t.assetId == tm.tilesetAssetId) { ts = &t; break; }
+                }
+                if (!ts) {
+                    auto tsi = tilesets_.find(tm.tilesetAssetId);
+                    if (tsi != tilesets_.end()) ts = &tsi->second;
+                }
             }
             for (int r = 0; r < tm.rows; ++r) {
                 for (int c = 0; c < tm.cols; ++c) {
