@@ -49,6 +49,18 @@ static float readFloatAny(const json& j, const char* camel, const char* snake, f
     return def;
 }
 
+// "#RRGGBB" / "#RGB" → Vec4 (0..1). Falls back to opaque grey on bad input.
+static Vec4 hexToVec4(const std::string& hex) {
+    auto h = hex;
+    if (!h.empty() && h[0] == '#') h.erase(0, 1);
+    if (h.size() == 3) h = { h[0],h[0], h[1],h[1], h[2],h[2] };
+    if (h.size() != 6) return {0.5f, 0.5f, 0.5f, 1.f};
+    auto byte = [&](int i) {
+        return static_cast<float>(std::stoi(h.substr(i, 2), nullptr, 16)) / 255.f;
+    };
+    return { byte(0), byte(2), byte(4), 1.f };
+}
+
 // ------------------------------------------------------------------ lifecycle
 
 bool AssetLoader::init()     { return true; }
@@ -214,6 +226,15 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
             if (sv.contains("entity_ids") && sv["entity_ids"].is_array())
                 s.entityIds = sv["entity_ids"].get<std::vector<EntityId>>();
 
+            if (sv.contains("tilemap") && sv["tilemap"].is_object()) {
+                const auto& tm = sv["tilemap"];
+                s.tilemap.tileSize = tm.value("tileSize", 32.f);
+                s.tilemap.cols     = tm.value("cols", 0);
+                s.tilemap.rows     = tm.value("rows", 0);
+                if (tm.contains("data") && tm["data"].is_array())
+                    s.tilemap.data = tm["data"].get<std::vector<int>>();
+            }
+
             out.scenes[s.id] = std::move(s);
         }
     }
@@ -221,6 +242,20 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
     if (j.contains("thumbnails") && j["thumbnails"].is_object()) {
         for (auto& [sceneId, thumbPath] : j["thumbnails"].items())
             out.thumbnails[sceneId] = thumbPath.get<std::string>();
+    }
+
+    // Tile palette (Phase D2) — id, name, hex color, solid
+    if (j.contains("tilePalette") && j["tilePalette"].is_array()) {
+        for (const auto& t : j["tilePalette"]) {
+            if (!t.is_object()) continue;
+            TilePaletteEntry e;
+            e.id    = t.value("id", 0);
+            if (e.id < 1) continue;
+            e.name  = t.value("name", std::string{});
+            e.color = hexToVec4(t.value("color", std::string("#808080")));
+            e.solid = t.value("solid", false);
+            out.tilePalette.push_back(e);
+        }
     }
 
     return true;

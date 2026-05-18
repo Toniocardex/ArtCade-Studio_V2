@@ -1,8 +1,10 @@
 #pragma once
 
 #include "../../core/engine-context.h"
+#include "../../core/types.h"
 #include <memory>
 #include <string>
+#include <unordered_map>
 
 namespace ArtCade {
 
@@ -53,6 +55,7 @@ private:
     bool  running_          = false;
     std::string licenseTier_ = "free";      // from ProjectDoc, used by SplashState
     std::unique_ptr<::ArtCade::Modules::SplashState> splash_;  // FREE-tier watermark overlay
+    std::unordered_map<int, ::ArtCade::Vec4> tileColors_;  // Phase D2: id → render colour
 
 #ifdef ARTCADE_WASM
     // Emscripten richiede una callback statica — punta all'istanza corrente

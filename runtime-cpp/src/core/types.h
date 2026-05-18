@@ -133,6 +133,14 @@ struct EntityDef {
     std::optional<AutoDestroyComponent>          autoDestroy;
 };
 
+// Tilemap (Scene Editor Phase D2) — field names mirror editor TS.
+struct TilemapData {
+    float            tileSize = 32.f;
+    int              cols     = 0;   // 0 = no tilemap
+    int              rows     = 0;
+    std::vector<int> data;           // size cols*rows, row-major, 0 = empty
+};
+
 struct SceneDef {
     SceneId             id;
     std::string         name;
@@ -140,6 +148,14 @@ struct SceneDef {
     Vec2                viewportSize = {800.f, 600.f};
     Vec4                backgroundColor;
     std::vector<EntityId> entityIds;
+    TilemapData         tilemap;     // cols==0 → absent
+};
+
+struct TilePaletteEntry {
+    int         id    = 0;
+    std::string name;
+    Vec4        color = {0.5f, 0.5f, 0.5f, 1.f};
+    bool        solid = false;
 };
 
 // ============================================================================
@@ -158,6 +174,7 @@ struct ProjectDoc {
     std::unordered_map<EntityId, EntityDef> entities;
     std::unordered_map<SceneId,  SceneDef>  scenes;
     std::unordered_map<SceneId,  std::string> thumbnails;
+    std::vector<TilePaletteEntry> tilePalette;   // Phase D2
 };
 
 // ============================================================================

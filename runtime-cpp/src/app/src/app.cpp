@@ -237,6 +237,11 @@ bool Application::loadProject(const std::string& projectPath) {
 
     mod_->world->init(doc);
 
+    // Phase D2: cache tile id → render colour for renderActiveScene()
+    tileColors_.clear();
+    for (const auto& t : doc.tilePalette)
+        tileColors_[t.id] = t.color;
+
     std::vector<uint8_t> bytecode;
     if (mod_->assetLoader->loadLuaBytecode(doc.mainScriptPath, bytecode))
         mod_->luaHost->loadBytecodeBuffer(bytecode.data(), bytecode.size());
@@ -354,6 +359,28 @@ void Application::renderActiveScene() {
         bgColor = sc->backgroundColor;
 
     mod_->renderer->beginFrame(bgColor);
+
+    // Phase D2: tilemap layer (drawn under entities)
+    if (const SceneDef* sc = mod_->sceneManager->activeScene()) {
+        const auto& tm = sc->tilemap;
+        if (tm.cols > 0 && tm.rows > 0) {
+            const int n = static_cast<int>(tm.data.size());
+            for (int r = 0; r < tm.rows; ++r) {
+                for (int c = 0; c < tm.cols; ++c) {
+                    const int idx = r * tm.cols + c;
+                    if (idx >= n) continue;
+                    const int id = tm.data[idx];
+                    if (id <= 0) continue;
+                    auto it = tileColors_.find(id);
+                    const Vec4 col = (it != tileColors_.end())
+                        ? it->second : Vec4{0.5f, 0.5f, 0.5f, 1.f};
+                    mod_->renderer->drawRect(
+                        c * tm.tileSize, r * tm.tileSize,
+                        tm.tileSize, tm.tileSize, col);
+                }
+            }
+        }
+    }
 
     for (EntityId id : mod_->world->activeEntityIds()) {
         const auto* e = mod_->entityManager->get(id);
