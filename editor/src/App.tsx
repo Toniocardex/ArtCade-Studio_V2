@@ -183,10 +183,18 @@ function EditorLayout() {
     <div className="flex flex-col w-full h-full bg-[#0B1121] text-[#D1D5DB] overflow-hidden select-none">
       <MenuBar />
 
-      {state.view === 'scene'
-        ? <SceneView />
-        : <LogicBoardView />
-      }
+      {/* Both views stay MOUNTED; we only toggle visibility. Unmounting
+          SceneView would detach the WASM canvas from the DOM while Emscripten
+          keeps rendering into the old (removed) node → returning to the scene
+          showed an empty viewport. `display:contents` keeps the flex layout
+          identical to rendering the view directly; `display:none` hides the
+          inactive one without tearing down its canvas. */}
+      <div style={{ display: state.view === 'scene' ? 'contents' : 'none' }}>
+        <SceneView />
+      </div>
+      <div style={{ display: state.view !== 'scene' ? 'contents' : 'none' }}>
+        <LogicBoardView />
+      </div>
 
       <StatusBar />
     </div>
