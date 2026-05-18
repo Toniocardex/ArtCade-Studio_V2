@@ -1,6 +1,20 @@
 import { useState } from 'react'
 import type { ElementType } from 'react'
 import { Image, Music, Code, FileText } from 'lucide-react'
+import { useEditor } from '../store/editor-store'
+
+/** Starter content used the first time a script asset is opened. */
+function scriptStub(name: string): string {
+  return [
+    `-- ${name}`,
+    '-- Opened from Assets. Edit and Ctrl+S to save.',
+    '',
+    'function tick(dt)',
+    '  -- your game logic here',
+    'end',
+    '',
+  ].join('\n')
+}
 
 type Category = 'ALL' | 'IMAGES' | 'AUDIO' | 'SCRIPTS'
 
@@ -31,9 +45,22 @@ function AssetIcon({ type }: { type: string }) {
 }
 
 export default function AssetBrowserPanel() {
+  const { state, dispatch } = useEditor()
   const [cat, setCat] = useState<Category>('ALL')
 
   const visible = SAMPLE_ASSETS.filter(a => cat === 'ALL' || a.type === cat)
+
+  // Double-click a script → open it in the Editor Script in its own tab.
+  // OPEN_SCRIPT dedupes by path, so an already-open script is just focused
+  // (its content / unsaved edits are preserved — never overwritten).
+  function openScript(name: string) {
+    const path = `scripts/${name}`
+    const already = state.openScripts.find(s => s.path === path)
+    dispatch({
+      type: 'OPEN_SCRIPT',
+      file: already ?? { path, content: scriptStub(name), isDirty: false },
+    })
+  }
 
   return (
     <div className="h-full flex flex-col bg-[var(--bg)]">
@@ -60,6 +87,10 @@ export default function AssetBrowserPanel() {
           {visible.map((asset, i) => (
             <div
               key={i}
+              onDoubleClick={() => {
+                if (asset.type === 'SCRIPTS') openScript(asset.name)
+              }}
+              title={asset.type === 'SCRIPTS' ? 'Double-click to open in Editor Script' : asset.name}
               className="flex flex-col items-center gap-2 p-2 rounded
                          border border-[var(--border)] hover:border-[rgb(var(--accent-rgb)/0.5)]
                          bg-[var(--bg)] cursor-pointer transition-colors group"

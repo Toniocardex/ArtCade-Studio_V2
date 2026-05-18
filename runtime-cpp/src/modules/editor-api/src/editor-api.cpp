@@ -133,6 +133,28 @@ static void paintTileAt(float x, float y) {
     EditorAPI::notifyTilemapPainted(col, row, tid);
 }
 
+// Pick the top-most entity whose clickable box contains the world point.
+// Entities are drawn centred on transform.position; we use a generous
+// 64px (×scale) hit box so they're easy to grab in the editor viewport.
+static uint32_t pickEntityAt(float x, float y) {
+    auto* gw = EditorAPI::s_entityGateway;
+    if (!gw) return 0u;
+    uint32_t hit = 0u;
+    for (ArtCade::EntityId id : gw->activeSceneIds()) {
+        const ArtCade::EntityDef* e = gw->get(id);
+        if (!e) continue;
+        float sx = e->transform.scale.x; if (sx < 0.f) sx = -sx;
+        float sy = e->transform.scale.y; if (sy < 0.f) sy = -sy;
+        const float hw = 32.f * (sx > 0.f ? sx : 1.f);
+        const float hh = 32.f * (sy > 0.f ? sy : 1.f);
+        const float cx = e->transform.position.x;
+        const float cy = e->transform.position.y;
+        if (x >= cx - hw && x <= cx + hw && y >= cy - hh && y <= cy + hh)
+            hit = id;   // later in the list = drawn on top → wins
+    }
+    return hit;
+}
+
 EM_BOOL EditorAPI::onMouseMove(int, const EmscriptenMouseEvent* e, void*) {
     if (s_mode != 0) return EM_FALSE;
     float wx, wy;
@@ -162,8 +184,18 @@ EM_BOOL EditorAPI::onMouseDown(int, const EmscriptenMouseEvent* e, void*) {
     toWorld(e, wx, wy);
     s_dragStartX = wx;
     s_dragStartY = wy;
-    if (s_tilePaintMode)
+    if (s_tilePaintMode) {
         paintTileAt(s_dragStartX, s_dragStartY);   // single click paints too
+        return EM_TRUE;
+    }
+    // Click-to-select: pick the entity under the cursor on the canvas so the
+    // user doesn't have to go through the Hierarchy panel. A hit also makes
+    // it the live-drag target (onMouseMove drags s_selectedEntityId).
+    const uint32_t picked = pickEntityAt(wx, wy);
+    if (picked != 0u) {
+        s_selectedEntityId = picked;
+        notifyEntitySelected(picked);
+    }
     return EM_TRUE;
 }
 

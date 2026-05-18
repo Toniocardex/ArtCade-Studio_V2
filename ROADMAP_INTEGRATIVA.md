@@ -548,4 +548,16 @@ editor/
 
 ---
 
+---
+
+## Backlog / Known Issues
+
+| # | Area | Problema | Priorità | Stato |
+|---|------|----------|----------|-------|
+| KI-1 | Editor Script (Monaco) | Glitch di rendering: il testo digitato si sovrappone alle righe (appare in alto e "salta"), widget di autocomplete mal posizionato/illeggibile. Mitigazioni applicate (offline loader, conditional mount, model uncontrolled `defaultValue`+`path`, `box-sizing: content-box` scoped su `.monaco-editor`) ma il problema persiste a livello di misurazione glifi/layout di Monaco nel build Tauri. Da affrontare con un'**integrazione Monaco dedicata** (valutare: build custom `monaco-editor` con feature minime + worker espliciti via Vite, oppure sostituzione con CodeMirror 6). Non bloccante: la logica si può editare via Logic Board / file esterni. | Media | ⏳ Aperto |
+
+---
+
+*Ultimo aggiornamento: 2026-05-18 — KI-1 (Editor Script Monaco) registrato; focus su workflow entità/asset.*
+
 *Ultimo aggiornamento: 2026-05-09 — Fasi 0–18 completate (14/14 test C++ + WASM + editor React)*
