@@ -243,6 +243,16 @@ export function compileLogicBoard(doc: LogicBoardDoc): string {
     'local _init_done = false',
     'local _timers = {}',
     '',
+    "-- Preserve the project's own tick(dt) so Logic Board logic is ADDITIVE,",
+    '-- not a replacement. Hot-reload redefines the global tick(); without this',
+    "-- capture the running game's script (movement, rendering, physics) would",
+    '-- be wiped and the canvas would appear frozen after Apply & Hot-Reload.',
+    '-- Captured once and kept pristine across repeated Applies.',
+    'if __artcade_project_tick == nil and not __artcade_board_active then',
+    `${INDENT}__artcade_project_tick = rawget(_G, "tick")`,
+    'end',
+    '__artcade_board_active = true',
+    '',
   ]
 
   const initBlocks: string[] = []
@@ -264,6 +274,8 @@ export function compileLogicBoard(doc: LogicBoardDoc): string {
     'end',
     '',
     'function tick(dt)',
+    `${INDENT}-- run the project's own game logic first (movement, render, physics)`,
+    `${INDENT}if __artcade_project_tick then __artcade_project_tick(dt) end`,
     `${INDENT}if not _init_done then`,
     `${INDENT}${INDENT}_logic_init()`,
     `${INDENT}${INDENT}_init_done = true`,
