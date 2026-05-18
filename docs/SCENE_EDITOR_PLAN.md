@@ -173,9 +173,9 @@ selezionabile **Dark / Light**, con **Dark come default**.
 | A — Inspector a componenti | ✅ `efdc6af` |
 | B — World settings + Hierarchy | ✅ `97c8ba1` |
 | C — Tile painter (editor-side) | ✅ `4585b23` |
-| D1 — Componenti ECS + AutoDestroy | ⏳ in corso |
-| D2 — Tilemap render + collisioni | ⏳ |
-| D3 — Gizmo/sensori viewport | ⏳ |
+| D1 — Componenti ECS + AutoDestroy | ✅ `704f370` |
+| D2 — Tilemap render + collisioni | ✅ `fe2d59c` |
+| D3 — Gizmo/sensori viewport | ✅ `1bc1c91` |
 | E — Theming Dark/Light | ⏳ pianificato |
 
 ## Stima totale
