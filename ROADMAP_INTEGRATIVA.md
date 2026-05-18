@@ -554,7 +554,7 @@ editor/
 
 | # | Area | Problema | Priorità | Stato |
 |---|------|----------|----------|-------|
-| KI-1 | Editor Script (Monaco) | Glitch di rendering: il testo digitato si sovrappone alle righe (appare in alto e "salta"), widget di autocomplete mal posizionato/illeggibile. Mitigazioni applicate (offline loader, conditional mount, model uncontrolled `defaultValue`+`path`, `box-sizing: content-box` scoped su `.monaco-editor`) ma il problema persiste a livello di misurazione glifi/layout di Monaco nel build Tauri. Da affrontare con un'**integrazione Monaco dedicata** (valutare: build custom `monaco-editor` con feature minime + worker espliciti via Vite, oppure sostituzione con CodeMirror 6). Non bloccante: la logica si può editare via Logic Board / file esterni. | Media | ⏳ Aperto |
+| KI-1 | Editor Script (Monaco) | Glitch di rendering (testo sovrapposto/scroll-jump + flicker/collasso al mount/tab-switch). **RISOLTO** implementando le specifiche `specifica_bidirezionale_monaco_react.pdf` + `docs/technical_specification_monaco_flicker.pdf`: componente `CodeEditor` con pattern **Measure-First** (ResizeObserver in `useLayoutEffect`, mount solo a geometria reale, `width/height` espliciti, `automaticLayout:false`, `lineHeight:22`, `fixedOverflowWidgets:true`) + modello **Uncontrolled** (`defaultValue` da ref, nessun feedback di `value`, key per file); bootstrap coordinato in `main.tsx` (`loader.init()` + `document.fonts.ready` prima del render); finestra Tauri `visible:false` → `getCurrentWindow().show()` dopo il render; CSP `worker-src 'self' blob:`; `box-sizing: content-box` scoped su `.monaco-editor`. | Media | ✅ Risolto |
 
 ---
 

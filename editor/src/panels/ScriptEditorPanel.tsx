@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import Editor from '@monaco-editor/react'
 import type { Monaco } from '@monaco-editor/react'
 import { useEditor } from '../store/editor-store'
+import CodeEditor from '../components/CodeEditor'
 
 /** Tracks the <html data-theme> attribute so Monaco follows the app theme. */
 function useThemeMode(): 'dark' | 'light' {
@@ -105,15 +105,11 @@ function ScriptTabBar({ paths, activePath, dirtyPaths, onSelect }: {
 // ---------------------------------------------------------------------------
 // Panel — the Editor Script view.
 //
-// Native, debt-free integration:
-//  • Mounted ONLY when active (App.tsx renders it conditionally), so Monaco
-//    always initialises inside a real, sized flex box — no display:none /
-//    display:contents 0-height workarounds, no forced relayout timers.
-//  • UNCONTROLLED model (defaultValue + path): edits flow one-way to the
-//    store via onChange; we never push `value` back, so Monaco never re-sets
-//    its model mid-edit (that caused the cursor/scroll-to-top glitch).
-//  • box-sizing for the Monaco subtree is reset to content-box in index.css
-//    (the app-wide `* { border-box }` otherwise mis-measures glyphs/widgets).
+// Native integration via <CodeEditor/> (Measure-First + Uncontrolled). The
+// editor is keyed by the active script path so switching tabs REMOUNTS it
+// with that file's content as the frozen initial value (uncontrolled): edits
+// flow one-way to the store via onChange. No `value` feedback, no forced
+// relayout timers, no loading overlay.
 // ---------------------------------------------------------------------------
 
 export default function ScriptEditorPanel() {
@@ -135,40 +131,15 @@ export default function ScriptEditorPanel() {
 
       <div className="flex-1 min-h-0 min-w-0 w-full bg-[var(--bg)]">
         {currentScript ? (
-          <Editor
-            height="100%"
+          <CodeEditor
+            key={currentScript.path}
             language="lua"
             theme={themeMode === 'light' ? 'light' : 'vs-dark'}
-            path={currentScript.path}
-            defaultValue={currentScript.content}
-            loading={
-              <div className="h-full w-full flex items-center justify-center
-                              bg-[var(--bg)] text-[var(--muted)] text-[11px]
-                              uppercase tracking-widest">
-                Loading editor…
-              </div>
+            value={currentScript.content}
+            onReady={(_editor, monaco) => registerLuaExtras(monaco)}
+            onChange={(v) =>
+              dispatch({ type: 'UPDATE_SCRIPT', path: currentScript.path, content: v })
             }
-            onMount={(_editor, monaco) => registerLuaExtras(monaco)}
-            options={{
-              fontSize:                13,
-              fontFamily:              "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
-              fontLigatures:           true,
-              minimap:                 { enabled: false },
-              scrollBeyondLastLine:    false,
-              wordWrap:                'on',
-              tabSize:                 2,
-              lineNumbers:             'on',
-              glyphMargin:             false,
-              folding:                 true,
-              automaticLayout:         true,
-              bracketPairColorization: { enabled: true },
-              renderLineHighlight:     'gutter',
-              cursorBlinking:          'smooth',
-            }}
-            onChange={value => {
-              if (value !== undefined && activeScriptPath)
-                dispatch({ type: 'UPDATE_SCRIPT', path: activeScriptPath, content: value })
-            }}
           />
         ) : (
           <div className="h-full flex flex-col items-center justify-center text-[var(--muted)]">
