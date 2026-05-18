@@ -147,11 +147,18 @@ export default function ScriptEditorPanel() {
       <div className="flex-1 min-h-0 min-w-0 w-full bg-[var(--bg)] relative">
         {currentScript ? (
           <Editor
+            // UNCONTROLLED. Feeding `value` back on every keystroke made
+            // @monaco-editor/react re-set the model each time, resetting
+            // scroll/cursor to line 1 then jumping back (the "text flashes
+            // at the top" glitch). `path` makes it keep one model per file
+            // (preserves per-file cursor/scroll on tab switch); `defaultValue`
+            // seeds a new file's model. Edits flow one-way to the store.
             height="100%"
             width="100%"
             language="lua"
             theme={themeMode === 'light' ? 'light' : 'vs-dark'}
-            value={currentScript.content}
+            defaultValue={currentScript.content}
+            path={currentScript.path}
             loading={
               <div className="absolute inset-0 flex items-center justify-center
                               bg-[var(--bg)] text-[var(--muted)] text-[11px]
