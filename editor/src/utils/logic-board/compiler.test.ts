@@ -204,6 +204,9 @@ describe('compileLogicBoard — actions', () => {
             { type: 'stopAllAudio' },
             { type: 'destroyEntity', target: { className: 'Bullet', first: true } },
             { type: 'spawnEntity', className: 'Enemy', x: 100, y: 0 },
+            { type: 'setGlobalState', key: 'level', value: 2 },
+            { type: 'emitEvent', name: 'wave_cleared' },
+            { type: 'emitEvent', name: 'dmg', payloadKey: 'amount', payloadValue: 5 },
             { type: 'debugLog', message: 'done' },
           ],
         }),
@@ -218,6 +221,9 @@ describe('compileLogicBoard — actions', () => {
     expect(lua).toContain('audio.stopAll()')
     expect(lua).toContain('entity.destroy((pool.getAll("Bullet")[1]))')
     expect(lua).toContain('object.spawn("Enemy", 100, 0)')
+    expect(lua).toContain('state.set("level", 2)')
+    expect(lua).toContain('event.emit("wave_cleared")')
+    expect(lua).toContain('event.emit("dmg", { ["amount"] = 5 })')
     expect(lua).toContain('debug.log("done")')
   })
 

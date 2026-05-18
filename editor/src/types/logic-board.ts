@@ -69,6 +69,8 @@ export type LogicAction =
   | { type: 'stopAllAudio' }
   | { type: 'destroyEntity'; target: TargetSelector }
   | { type: 'spawnEntity'; className: string; x: number; y: number }
+  | { type: 'setGlobalState'; key: string; value: number | string | boolean }
+  | { type: 'emitEvent'; name: string; payloadKey?: string; payloadValue?: number | string | boolean }
   | { type: 'debugLog'; message: string }
 
 export type LogicActionType = LogicAction['type']

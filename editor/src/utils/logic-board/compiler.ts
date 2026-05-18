@@ -118,6 +118,12 @@ function actionLua(a: LogicAction): string {
       return `entity.destroy(${targetExpr(a.target)})`
     case 'spawnEntity':
       return `object.spawn(${luaString(a.className)}, ${Number(a.x) || 0}, ${Number(a.y) || 0})`
+    case 'setGlobalState':
+      return `state.set(${luaString(a.key)}, ${luaValue(a.value)})`
+    case 'emitEvent':
+      return a.payloadKey
+        ? `event.emit(${luaString(a.name)}, { [${luaString(a.payloadKey)}] = ${luaValue(a.payloadValue ?? '')} })`
+        : `event.emit(${luaString(a.name)})`
     case 'debugLog':
       return `debug.log(${luaString(a.message)})`
   }

@@ -403,6 +403,47 @@ function ActionRow({
           <Num value={act.y} onChange={(n) => onChange({ ...act, y: n })} />
         </>
       )}
+      {act.type === 'setGlobalState' && (
+        <>
+          <span className={lbl}>key</span>
+          <Txt w="w-24" value={act.key} onChange={(s) => onChange({ ...act, key: s })} />
+          <span className={lbl}>value</span>
+          <Txt
+            w="w-20"
+            value={String(act.value)}
+            onChange={(s) =>
+              onChange({
+                ...act,
+                value: s !== '' && !isNaN(Number(s)) ? Number(s) : s,
+              })
+            }
+          />
+        </>
+      )}
+      {act.type === 'emitEvent' && (
+        <>
+          <span className={lbl}>name</span>
+          <Txt w="w-28" value={act.name} onChange={(s) => onChange({ ...act, name: s })} />
+          <span className={lbl}>payload</span>
+          <Txt
+            w="w-20"
+            value={act.payloadKey ?? ''}
+            placeholder="key"
+            onChange={(s) => onChange({ ...act, payloadKey: s })}
+          />
+          <Txt
+            w="w-20"
+            value={String(act.payloadValue ?? '')}
+            placeholder="value"
+            onChange={(s) =>
+              onChange({
+                ...act,
+                payloadValue: s !== '' && !isNaN(Number(s)) ? Number(s) : s,
+              })
+            }
+          />
+        </>
+      )}
       {act.type === 'debugLog' && (
         <Txt
           w="w-56"

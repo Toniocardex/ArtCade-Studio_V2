@@ -33,6 +33,8 @@ export const ACTION_TYPES: LogicActionType[] = [
   'stopAllAudio',
   'destroyEntity',
   'spawnEntity',
+  'setGlobalState',
+  'emitEvent',
   'debugLog',
 ]
 
@@ -99,6 +101,10 @@ export function defaultAction(type: LogicActionType): LogicAction {
       return { type: 'destroyEntity', target: 'self' }
     case 'spawnEntity':
       return { type: 'spawnEntity', className: '', x: 0, y: 0 }
+    case 'setGlobalState':
+      return { type: 'setGlobalState', key: 'level', value: 1 }
+    case 'emitEvent':
+      return { type: 'emitEvent', name: 'my_event', payloadKey: '', payloadValue: '' }
     case 'debugLog':
       return { type: 'debugLog', message: '' }
   }
@@ -154,6 +160,10 @@ export function actionSummary(a: LogicAction): string {
       return `destroyEntity ${targetLabel(a.target)}`
     case 'spawnEntity':
       return `spawnEntity "${a.className || '?'}" @ (${a.x}, ${a.y})`
+    case 'setGlobalState':
+      return `setGlobalState ${a.key} = ${a.value}`
+    case 'emitEvent':
+      return `emitEvent "${a.name || '?'}"${a.payloadKey ? ` { ${a.payloadKey} = ${a.payloadValue} }` : ''}`
     case 'debugLog':
       return `debugLog "${a.message}"`
   }
