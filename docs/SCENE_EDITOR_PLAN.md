@@ -179,7 +179,9 @@ selezionabile **Dark / Light**, con **Dark come default**.
 | F1 — Tileset-da-immagine (panel) | ✅ `b42048b` |
 | F2 — Painting in-scena (C++) + sync | ✅ `2cc1121` |
 | F3 — Render tile da spritesheet (atlas) | ✅ `6b64fe8` |
-| E — Theming Dark/Light | ⏳ pianificato (unica rimasta) |
+| E — Theming Dark/Light | ✅ `2051312` |
+
+**Scene Editor: tutte le fasi completate (A/B/C→F/D/E).**
 
 > **Follow-up noti (fuori scope F)**: asset-pipeline per immagini arbitrarie
 > editor→VFS WASM (oggi il tileset di test è preloadato); la tool-rail in
