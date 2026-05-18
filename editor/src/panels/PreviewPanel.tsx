@@ -141,11 +141,17 @@ export default function PreviewPanel() {
   }, [selection.entityId, wasmReady, engineReady])
 
   // ── Phase F2: sync tile-paint mode + brush tile to C++ ───────────────────
+  // Three tools drive tilemap painting:
+  //   • tile / paint → paint the brush cell selected in TILESET_EDITOR
+  //   • erase        → paint cell 0 (clears the tile) without touching the
+  //                     user's picked brush in the store
   useEffect(() => {
     if (!wasmReady || !engineReady) return
-    const painting = activeTool === 'tile'
+    const painting =
+      activeTool === 'tile' || activeTool === 'paint' || activeTool === 'erase'
     editorSetTilePaintMode(painting)
-    if (painting) editorSetSelectedTile(selectedTileCell)
+    if (painting)
+      editorSetSelectedTile(activeTool === 'erase' ? 0 : selectedTileCell)
   }, [activeTool, selectedTileCell, wasmReady, engineReady])
 
   // ── Canvas resolution matches game resolution ─────────────────────────────
@@ -167,12 +173,13 @@ export default function PreviewPanel() {
       <div className="absolute top-4 left-4 flex flex-col gap-2 z-40
                       bg-[var(--panel)] p-2 border border-[var(--border)] rounded-lg shadow-lg">
         {([
-          { id: 'select', Icon: MousePointer2, color: 'var(--accent)' },
-          { id: 'pan',    Icon: Hand,           color: 'var(--muted)' },
-        ] as const).map(({ id, Icon, color }) => (
+          { id: 'select', Icon: MousePointer2, color: 'var(--accent)', title: 'Select / move entities' },
+          { id: 'pan',    Icon: Hand,           color: 'var(--muted)',  title: 'Pan the view' },
+        ] as const).map(({ id, Icon, color, title }) => (
           <button
             key={id}
             onClick={() => setActiveTool(id)}
+            title={title}
             className={`p-1.5 rounded transition-colors ${
               activeTool === id ? 'bg-[rgb(var(--accent-rgb)/0.2)]' : 'hover:bg-[var(--panel-3)]'
             }`}
@@ -184,12 +191,13 @@ export default function PreviewPanel() {
         <div className="h-px w-full bg-[var(--border)]" />
 
         {([
-          { id: 'paint', Icon: Paintbrush },
-          { id: 'erase', Icon: Eraser     },
-        ] as const).map(({ id, Icon }) => (
+          { id: 'paint', Icon: Paintbrush, title: 'Paint tiles with the selected TILESET_EDITOR cell' },
+          { id: 'erase', Icon: Eraser,     title: 'Erase tiles (clears the cell under the cursor)' },
+        ] as const).map(({ id, Icon, title }) => (
           <button
             key={id}
             onClick={() => setActiveTool(id)}
+            title={title}
             className={`p-1.5 rounded transition-colors ${
               activeTool === id ? 'bg-[rgb(var(--accent-2-rgb)/0.2)]' : 'hover:bg-[var(--panel-3)]'
             }`}
