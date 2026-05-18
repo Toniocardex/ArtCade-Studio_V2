@@ -35,6 +35,7 @@ export interface ArtCadeModule {
   stringToUTF8(str: string, ptr: number, maxBytes: number): void
   _malloc(size: number): number
   _free(ptr: number): void
+  HEAPU8: Uint8Array
 
   // Console passthrough
   print?:    (text: string) => void
@@ -217,6 +218,38 @@ export function editorReloadScript(luaSource: string): boolean {
     return true
   } finally {
     _module._free(ptr)
+  }
+}
+
+/**
+ * Phase F3: upload an editor-loaded image (tileset spritesheet) into the C++
+ * renderer's texture cache, keyed by `path` (must equal the
+ * TilesetAsset.spriteImagePath the runtime renders with). Returns false if
+ * the runtime is not loaded yet. Copies the raw encoded bytes through the
+ * Emscripten heap (HEAPU8); too large for ccall's stack-based 'array').
+ */
+export function editorRegisterImage(
+  path: string,
+  bytes: Uint8Array,
+  ext: string,
+): boolean {
+  if (!_module || bytes.length === 0) return false
+  const pathPtr = marshalString(path)
+  const extPtr  = marshalString(ext)
+  const dataPtr = _module._malloc(bytes.length)
+  try {
+    _module.HEAPU8.set(bytes, dataPtr)
+    safeCall(
+      'editor_register_image',
+      null,
+      ['number', 'number', 'number', 'number'],
+      [pathPtr, dataPtr, bytes.length, extPtr],
+    )
+    return true
+  } finally {
+    _module._free(dataPtr)
+    _module._free(extPtr)
+    _module._free(pathPtr)
   }
 }
 

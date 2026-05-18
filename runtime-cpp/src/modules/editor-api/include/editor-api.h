@@ -32,6 +32,7 @@
 namespace ArtCade::Modules {
 class RuntimeEntityGateway;
 class LuaHost;
+class Renderer;
 }
 
 namespace ArtCade {
@@ -63,6 +64,13 @@ public:
      * LuaHost is initialised.
      */
     static void wireLua(Modules::LuaHost* luaHost);
+
+    /**
+     * Wire the Renderer so editor_register_image() can upload editor-loaded
+     * images (e.g. tilesets not present in the VFS) into the GPU texture
+     * cache. Called by Application after the Renderer is initialised.
+     */
+    static void wireRenderer(Modules::Renderer* renderer);
 
     // -------------------------------------------------------------------------
     // C++ -> React notifications (Smoke Test 3)
@@ -105,6 +113,7 @@ public:
     // Engine pointers wired in wireEngine() / wireLua()
     static Modules::RuntimeEntityGateway* s_entityGateway;
     static Modules::LuaHost*              s_luaHost;
+    static Modules::Renderer*             s_renderer;
     static std::vector<std::pair<std::string, std::string>> s_consoleQueue;
 
 private:
@@ -164,6 +173,15 @@ EMSCRIPTEN_KEEPALIVE void editor_set_tile_paint_mode(int enabled);
 /** Phase F2: set the brush tile id (0 = eraser). */
 EMSCRIPTEN_KEEPALIVE void editor_set_selected_tile(int tileId);
 
+/**
+ * Phase F3: upload an editor-loaded image (e.g. a tileset spritesheet not
+ * present in the WASM VFS) into the renderer's texture cache under `path`
+ * (must match TilesetAsset.spriteImagePath). `bytes` is the raw encoded
+ * image file (PNG/JPG/...); `ext` is the file-type hint, e.g. ".png".
+ */
+EMSCRIPTEN_KEEPALIVE void editor_register_image(
+    const char* path, const uint8_t* bytes, int len, const char* ext);
+
 } // extern "C"
 
 // =============================================================================
@@ -172,13 +190,14 @@ EMSCRIPTEN_KEEPALIVE void editor_set_selected_tile(int tileId);
 #else // !__EMSCRIPTEN__
 
 namespace ArtCade {
-namespace Modules { class RuntimeEntityGateway; class LuaHost; }
+namespace Modules { class RuntimeEntityGateway; class LuaHost; class Renderer; }
 
 struct EditorAPI {
     static void init(const char* = nullptr) {}
     static void shutdown() {}
     static void wireEngine(Modules::RuntimeEntityGateway*) {}
     static void wireLua(Modules::LuaHost*) {}
+    static void wireRenderer(Modules::Renderer*) {}
     static void notifyEntitySelected(uint32_t) {}
     static void notifyTransformChanged(uint32_t, float, float, float, float, float) {}
     static void notifyConsoleLine(const char*, const char* = nullptr) {}
@@ -196,6 +215,7 @@ struct EditorAPI {
     static int      s_selectedTileId;
     static Modules::RuntimeEntityGateway* s_entityGateway;
     static Modules::LuaHost*              s_luaHost;
+    static Modules::Renderer*             s_renderer;
     static std::vector<std::pair<std::string, std::string>> s_consoleQueue;
 };
 } // namespace ArtCade

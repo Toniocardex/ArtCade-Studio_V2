@@ -61,6 +61,16 @@ public:
     void drawText  (const std::string& text, float x, float y,
                     int fontSize, const Vec4& color);
 
+    /**
+     * Register/replace a GPU texture decoded from an in-memory image buffer
+     * under `assetId` (e.g. a tileset uploaded from the editor that is not
+     * in the VFS). `ext` is a raylib file-type hint, e.g. ".png".
+     * Returns false if the buffer could not be decoded.
+     */
+    bool registerImageFromMemory(const std::string& assetId,
+                                 const unsigned char* data, int len,
+                                 const std::string& ext);
+
     // GPU texture management
     uint32_t loadTexture  (const std::string& filePath);
     void     unloadTexture(uint32_t handle);

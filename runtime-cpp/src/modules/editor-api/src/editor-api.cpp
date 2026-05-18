@@ -15,6 +15,7 @@ bool     EditorAPI::s_tilePaintMode    = false;
 int      EditorAPI::s_selectedTileId   = 1;
 Modules::RuntimeEntityGateway* EditorAPI::s_entityGateway = nullptr;
 Modules::LuaHost*              EditorAPI::s_luaHost       = nullptr;
+Modules::Renderer*             EditorAPI::s_renderer      = nullptr;
 } // namespace ArtCade
 
 #else // __EMSCRIPTEN__ ─────────────────────────────────────────────────────────
@@ -25,6 +26,7 @@ Modules::LuaHost*              EditorAPI::s_luaHost       = nullptr;
 
 #include "../../../modules/runtime-entity-gateway/include/runtime-entity-gateway.h"
 #include "../../../modules/lua-runtime/include/lua-host.h"
+#include "../../../modules/renderer/include/renderer.h"
 #include "../../../core/types.h"
 
 // nlohmann/json is available via artcade-core's include path
@@ -51,6 +53,7 @@ int      EditorAPI::s_selectedTileId   = 1;
 
 Modules::RuntimeEntityGateway* EditorAPI::s_entityGateway = nullptr;
 Modules::LuaHost*              EditorAPI::s_luaHost       = nullptr;
+Modules::Renderer*             EditorAPI::s_renderer      = nullptr;
 std::vector<std::pair<std::string, std::string>> EditorAPI::s_consoleQueue;
 
 // Canvas selector captured in init(); used to map CSS mouse coords → world px.
@@ -80,6 +83,11 @@ void EditorAPI::wireEngine(Modules::RuntimeEntityGateway* gateway) {
 void EditorAPI::wireLua(Modules::LuaHost* luaHost) {
     s_luaHost = luaHost;
     notifyConsoleLine("[EditorAPI] Engine wired to LuaHost (hot-reload ready).", "info");
+}
+
+void EditorAPI::wireRenderer(Modules::Renderer* renderer) {
+    s_renderer = renderer;
+    notifyConsoleLine("[EditorAPI] Engine wired to Renderer (image upload ready).", "info");
 }
 
 // ── Init / Shutdown ───────────────────────────────────────────────────────────
@@ -379,6 +387,33 @@ EMSCRIPTEN_KEEPALIVE void editor_set_tile_paint_mode(int enabled) {
 
 EMSCRIPTEN_KEEPALIVE void editor_set_selected_tile(int tileId) {
     ArtCade::EditorAPI::s_selectedTileId = tileId;
+}
+
+EMSCRIPTEN_KEEPALIVE void editor_register_image(
+    const char* path, const uint8_t* bytes, int len, const char* ext) {
+    if (!path || !*path || !bytes || len <= 0) {
+        ArtCade::EditorAPI::notifyConsoleLine(
+            "[EditorAPI] editor_register_image: invalid arguments.", "warn");
+        return;
+    }
+    auto* r = ArtCade::EditorAPI::s_renderer;
+    if (!r) {
+        ArtCade::EditorAPI::notifyConsoleLine(
+            "[EditorAPI] editor_register_image: Renderer not wired yet.", "warn");
+        return;
+    }
+    const std::string fileExt = (ext && *ext) ? ext : ".png";
+    const bool ok = r->registerImageFromMemory(
+        path, reinterpret_cast<const unsigned char*>(bytes), len, fileExt);
+    if (ok) {
+        std::string msg = "[EditorAPI] Tileset image uploaded: ";
+        msg += path;
+        ArtCade::EditorAPI::notifyConsoleLine(msg.c_str(), "info");
+    } else {
+        std::string msg = "[EditorAPI] Failed to decode image: ";
+        msg += path;
+        ArtCade::EditorAPI::notifyConsoleLine(msg.c_str(), "error");
+    }
 }
 
 EMSCRIPTEN_KEEPALIVE void editor_deselect() {

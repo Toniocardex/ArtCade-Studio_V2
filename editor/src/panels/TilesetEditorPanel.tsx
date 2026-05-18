@@ -12,6 +12,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { ImagePlus, Eraser, Trash2 } from 'lucide-react'
 import { useEditor } from '../store/editor-store'
+import { editorRegisterImage } from '../utils/wasm-bridge'
 import type { TilesetAsset } from '../types'
 
 function deriveGrid(imgW: number, imgH: number, tileSize: number, margin: number) {
@@ -67,6 +68,14 @@ export default function TilesetEditorPanel() {
         if (scene)
           dispatch({ type: 'TILEMAP_SET_TILESETID', sceneId, assetId: asset.assetId })
         dispatch({ type: 'TILESET_SELECT_CELL', cellIndex: 1 })
+
+        // Phase F3: upload the raw image bytes into the C++ renderer so the
+        // tilemap draws the real spritesheet instead of the grey fallback.
+        // Keyed by file.name to match asset.spriteImagePath above.
+        file.arrayBuffer().then(buf => {
+          const ext = (file.name.match(/\.[^.]+$/)?.[0] ?? '.png').toLowerCase()
+          editorRegisterImage(file.name, new Uint8Array(buf), ext)
+        }).catch(() => { /* runtime not ready — stays grey until reload */ })
       }
       img.src = url
     }

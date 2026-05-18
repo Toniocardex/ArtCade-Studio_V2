@@ -23,6 +23,41 @@ uint32_t TextureCache::load(const std::string& path) {
     return h;
 }
 
+uint32_t TextureCache::registerFromMemory(const std::string& path,
+                                          const unsigned char* data, int len,
+                                          const std::string& ext) {
+    if (!data || len <= 0) return 0;
+
+    Image img = LoadImageFromMemory(ext.c_str(), data, len);
+    if (img.data == nullptr || img.width <= 0 || img.height <= 0) {
+        if (img.data) UnloadImage(img);
+        return 0;
+    }
+    Texture2D tex = LoadTextureFromImage(img);
+    UnloadImage(img);
+    if (tex.id == 0) return 0;
+
+    // Replace any existing entry for this path (re-upload / hot-swap).
+    auto existing = pathToHandle_.find(path);
+    if (existing != pathToHandle_.end()) {
+        auto bh = byHandle_.find(existing->second);
+        if (bh != byHandle_.end()) {
+            UnloadTexture(bh->second.tex);
+            bh->second.tex  = tex;
+            bh->second.path = path;
+            return existing->second;
+        }
+    }
+
+    uint32_t h = next_++;
+    Entry e;
+    e.path = path;
+    e.tex  = tex;
+    pathToHandle_[path] = h;
+    byHandle_[h] = std::move(e);
+    return h;
+}
+
 void TextureCache::unload(uint32_t handle) {
     auto it = byHandle_.find(handle);
     if (it == byHandle_.end()) return;

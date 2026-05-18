@@ -212,6 +212,7 @@ bool Application::initSubsystems() {
     // (editor_load_project, editor_set_transform) can reach engine state.
     EditorAPI::wireEngine(mod_->entityGateway.get());
     EditorAPI::wireLua(mod_->luaHost.get());   // hot-reload from Logic Board
+    EditorAPI::wireRenderer(mod_->renderer.get()); // tileset image upload (F3)
     EditorAPI::init("#artcade-canvas");
 
     return true;

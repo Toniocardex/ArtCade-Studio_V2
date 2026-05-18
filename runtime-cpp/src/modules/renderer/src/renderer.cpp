@@ -231,6 +231,12 @@ uint32_t Renderer::loadTexture(const std::string& path) {
     return impl_->texCache.load(path);
 }
 
+bool Renderer::registerImageFromMemory(const std::string& assetId,
+                                       const unsigned char* data, int len,
+                                       const std::string& ext) {
+    return impl_->texCache.registerFromMemory(assetId, data, len, ext) != 0;
+}
+
 void Renderer::unloadTexture(uint32_t handle) {
     impl_->texCache.unload(handle);
 }
