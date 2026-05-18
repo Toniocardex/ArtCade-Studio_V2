@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Editor from '@monaco-editor/react'
-import type { Monaco } from '@monaco-editor/react'
+import type { Monaco, OnMount } from '@monaco-editor/react'
 import { useEditor } from '../store/editor-store'
+
+type CodeEditor = Parameters<OnMount>[0]
 
 /** Tracks the <html data-theme> attribute so Monaco follows the app theme. */
 function useThemeMode(): 'dark' | 'light' {
@@ -108,11 +110,30 @@ function ScriptTabBar({ paths, activePath, dirtyPaths, onSelect }: {
 
 export default function ScriptEditorPanel() {
   const { state, dispatch } = useEditor()
-  const { openScripts, activeScriptPath } = state
+  const { openScripts, activeScriptPath, mode } = state
   const themeMode = useThemeMode()
 
   const currentScript = openScripts.find(s => s.path === activeScriptPath)
   const dirtyPaths    = new Set(openScripts.filter(s => s.isDirty).map(s => s.path))
+
+  // All three views stay mounted (App.tsx toggles `display`). Monaco mounts
+  // while this panel is display:none → it lays out at size 0 and stays
+  // collapsed until a manual interaction. Force a relayout whenever the
+  // Script view becomes active (and on script switch).
+  const editorRef = useRef<CodeEditor | null>(null)
+  useEffect(() => {
+    if (mode !== 'script' || !editorRef.current) return
+    const ed = editorRef.current
+    const relayout = () => ed.layout()
+    const r1 = requestAnimationFrame(relayout)
+    const t1 = window.setTimeout(relayout, 60)
+    const t2 = window.setTimeout(relayout, 200)
+    return () => {
+      cancelAnimationFrame(r1)
+      window.clearTimeout(t1)
+      window.clearTimeout(t2)
+    }
+  }, [mode, activeScriptPath])
 
   return (
     <div className="h-full w-full flex-1 min-w-0 flex flex-col bg-[var(--bg)]">
@@ -123,7 +144,7 @@ export default function ScriptEditorPanel() {
         onSelect={path => dispatch({ type: 'SET_ACTIVE_SCRIPT', path })}
       />
 
-      <div className="flex-1 min-h-0 min-w-0 w-full">
+      <div className="flex-1 min-h-0 min-w-0 w-full bg-[var(--bg)] relative">
         {currentScript ? (
           <Editor
             height="100%"
@@ -131,7 +152,19 @@ export default function ScriptEditorPanel() {
             language="lua"
             theme={themeMode === 'light' ? 'light' : 'vs-dark'}
             value={currentScript.content}
-            onMount={(_ed, monaco) => registerLuaExtras(monaco)}
+            loading={
+              <div className="absolute inset-0 flex items-center justify-center
+                              bg-[var(--bg)] text-[var(--muted)] text-[11px]
+                              uppercase tracking-widest">
+                Loading editor…
+              </div>
+            }
+            onMount={(ed, monaco) => {
+              editorRef.current = ed
+              registerLuaExtras(monaco)
+              // Initial relayout once the DOM node has real dimensions.
+              requestAnimationFrame(() => ed.layout())
+            }}
             options={{
               fontSize:                13,
               fontFamily:              "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
