@@ -2,8 +2,7 @@
 setlocal EnableExtensions EnableDelayedExpansion
 
 rem ArtCade WASM build script.
-rem - Loads MSVC build tools for nmake.
-rem - Loads Emscripten from EMSDK.
+rem - Uses Ninja + Emscripten only (no MSVC/nmake needed for the WASM target).
 rem - Configures/builds runtime-cpp/build-wasm.
 rem - Copies game.js/game.wasm/game.data to editor/public/runtime.
 
@@ -15,19 +14,16 @@ set "EDITOR_RUNTIME=%SCRIPT_DIR%..\editor\public\runtime"
 if "%EMSDK%"=="" set "EMSDK=C:\Users\Antonio\emsdk"
 set "EMSCRIPTEN=%EMSDK%\upstream\emscripten"
 
-set "VSDEV_CMD=C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\Common7\Tools\VsDevCmd.bat"
+rem Ninja: prefer PATH, fall back to the known local install.
+set "NINJA_DIR=C:\Users\Antonio\AppData\Local\ninja"
+if exist "%NINJA_DIR%\ninja.exe" set "PATH=%NINJA_DIR%;%PATH%"
+
 set "CMAKE_EXE=cmake"
 if exist "C:\Program Files\CMake\bin\cmake.exe" set "CMAKE_EXE=C:\Program Files\CMake\bin\cmake.exe"
 
 if /I "%~1"=="--clean" (
     echo [WASM] Removing "%BUILD_DIR%"
     if exist "%BUILD_DIR%" rmdir /s /q "%BUILD_DIR%"
-)
-
-if not exist "%VSDEV_CMD%" (
-    echo [FAIL] Visual Studio DevCmd not found:
-    echo        !VSDEV_CMD!
-    exit /b 1
 )
 
 if not exist "%EMSCRIPTEN%\emcmake.bat" (
@@ -43,14 +39,7 @@ if not exist "%EMSDK%\emsdk_env.bat" (
     exit /b 1
 )
 
-echo [WASM 1/5] Loading MSVC build environment...
-call "%VSDEV_CMD%" -arch=x64 >nul
-if errorlevel 1 (
-    echo [FAIL] Visual Studio environment setup failed.
-    exit /b 1
-)
-
-echo [WASM 2/5] Loading Emscripten environment...
+echo [WASM 1/4] Loading Emscripten environment...
 set "EMSDK_QUIET=1"
 call "%EMSDK%\emsdk_env.bat" >nul
 if errorlevel 1 (
@@ -60,11 +49,22 @@ if errorlevel 1 (
 
 pushd "%SCRIPT_DIR%" >nul
 
-echo [WASM 3/5] Configuring CMake...
+rem Guard: a CMake cache from a different generator (e.g. NMake/MSVC) makes
+rem reconfigure fail with "does not match the generator used previously".
+rem We standardise on Ninja; wipe a stale non-Ninja cache automatically.
+if exist "%BUILD_DIR%\CMakeCache.txt" (
+    findstr /C:"CMAKE_GENERATOR:INTERNAL=Ninja" "%BUILD_DIR%\CMakeCache.txt" >nul 2>&1
+    if errorlevel 1 (
+        echo [WASM] Stale non-Ninja CMake cache detected - cleaning "%BUILD_DIR%"
+        rmdir /s /q "%BUILD_DIR%"
+    )
+)
+
+echo [WASM 2/4] Configuring CMake (Ninja)...
 call "%EMSCRIPTEN%\emcmake.bat" "%CMAKE_EXE%" ^
     -S . ^
     -B "%BUILD_DIR%" ^
-    -G "NMake Makefiles" ^
+    -G Ninja ^
     -Wno-dev ^
     -DCMAKE_BUILD_TYPE=Release ^
     -DCMAKE_POLICY_VERSION_MINIMUM=3.5 ^
@@ -83,7 +83,7 @@ if exist "%OUTDIR%\game.js"   del /q "%OUTDIR%\game.js"
 if exist "%OUTDIR%\game.wasm" del /q "%OUTDIR%\game.wasm"
 if exist "%OUTDIR%\game.data" del /q "%OUTDIR%\game.data"
 
-echo [WASM 4/5] Building runtime...
+echo [WASM 3/4] Building runtime...
 call "%EMSCRIPTEN%\emmake.bat" "%CMAKE_EXE%" --build "%BUILD_DIR%" --config Release
 if errorlevel 1 (
     popd >nul
@@ -91,7 +91,7 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo [WASM 5/5] Copying preview runtime assets...
+echo [WASM 4/4] Copying preview runtime assets...
 if not exist "%OUTDIR%\game.js" (
     popd >nul
     echo [FAIL] Missing output: !OUTDIR!\game.js
