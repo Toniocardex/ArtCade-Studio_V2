@@ -54,7 +54,7 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
   {
     key: 'sensor',
     label: 'Sensor (Box2D Trigger)',
-    color: '#00FFFF',
+    color: 'var(--accent)',
     create: () => ({ ...SENSOR }),
     fields: [
       { key: 'shape', label: 'Shape', kind: 'select', options: ['Circle', 'Rectangle'] },
@@ -76,7 +76,7 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
   {
     key: 'platformerController',
     label: 'Platformer Controller',
-    color: '#FBBF24',
+    color: 'var(--yellow)',
     create: () => ({ ...PLATFORMER }),
     fields: [
       { key: 'maxSpeed', label: 'Max Speed (px/s)', kind: 'number', min: 0, step: 10 },
@@ -89,7 +89,7 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
   {
     key: 'health',
     label: 'Health',
-    color: '#F87171',
+    color: 'var(--danger)',
     create: () => ({ ...HEALTH }),
     fields: [
       { key: 'maxHp', label: 'Max HP', kind: 'number', min: 1, step: 1 },
@@ -100,7 +100,7 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
   {
     key: 'autoDestroy',
     label: 'Auto Destroy',
-    color: '#F97316',
+    color: 'var(--warn)',
     create: () => ({ ...AUTODESTROY }),
     fields: [
       { key: 'lifespan', label: 'Lifespan (s, 0=manual)', kind: 'number', min: 0, step: 0.1 },

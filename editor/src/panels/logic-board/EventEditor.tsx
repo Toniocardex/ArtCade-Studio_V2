@@ -25,11 +25,11 @@ import {
 // ---- tiny styled primitives ----------------------------------------------
 
 const sel =
-  'bg-[#0B1121] border border-[#2D3748] text-[#00FFFF] px-2 py-1 rounded text-xs'
+  'bg-[var(--bg)] border border-[var(--border-2)] text-[var(--accent)] px-2 py-1 rounded text-xs'
 const inp =
-  'bg-[#0B1121] border border-[#2D3748] text-[#D1D5DB] px-2 py-1 rounded text-xs'
-const lbl = 'text-[10px] uppercase tracking-wider text-[#9CA3AF]'
-const link = 'text-[#00FFFF] text-[11px] hover:underline cursor-pointer'
+  'bg-[var(--bg)] border border-[var(--border-2)] text-[var(--text)] px-2 py-1 rounded text-xs'
+const lbl = 'text-[10px] uppercase tracking-wider text-[var(--muted)]'
+const link = 'text-[var(--accent)] text-[11px] hover:underline cursor-pointer'
 
 function Num({
   value,
@@ -180,7 +180,7 @@ function TriggerFields({
           value={trigger.seconds}
           onChange={(n) => onChange({ ...trigger, seconds: n })}
         />
-        <label className="flex items-center gap-1 text-xs text-[#9CA3AF]">
+        <label className="flex items-center gap-1 text-xs text-[var(--muted)]">
           <input
             type="checkbox"
             checked={trigger.repeat}
@@ -207,7 +207,7 @@ function ConditionRow({
   onRemove: () => void
 }) {
   return (
-    <div className="flex items-center gap-2 bg-[#111827] border border-[#1A253A] rounded px-2 py-1.5">
+    <div className="flex items-center gap-2 bg-[var(--panel)] border border-[var(--border)] rounded px-2 py-1.5">
       <select
         className={sel}
         value={cond.type}
@@ -296,9 +296,9 @@ function ActionRow({
   onRemove: () => void
 }) {
   return (
-    <div className="flex items-center flex-wrap gap-2 bg-[#111827] border border-[#1A253A] rounded px-2 py-1.5">
+    <div className="flex items-center flex-wrap gap-2 bg-[var(--panel)] border border-[var(--border)] rounded px-2 py-1.5">
       <select
-        className={`${sel} text-[#F97316]`}
+        className={`${sel} text-[var(--warn)]`}
         value={act.type}
         onChange={(e) =>
           onChange(defaultAction(e.target.value as LogicAction['type']))
@@ -369,7 +369,7 @@ function ActionRow({
             onChange={(s) => onChange({ ...act, path: s })}
           />
           {act.type === 'playMusic' && (
-            <label className="flex items-center gap-1 text-xs text-[#9CA3AF]">
+            <label className="flex items-center gap-1 text-xs text-[var(--muted)]">
               <input
                 type="checkbox"
                 checked={act.loop !== false}
@@ -434,8 +434,8 @@ export default function EventEditor({
   const conditions = event.conditions ?? []
 
   return (
-    <div className="p-3 bg-[#0E1626] border-t border-[#1A253A] space-y-3">
-      <div className="text-[10px] uppercase tracking-widest text-[#00FFFF]">
+    <div className="p-3 bg-[var(--panel-3)] border-t border-[var(--border)] space-y-3">
+      <div className="text-[10px] uppercase tracking-widest text-[var(--accent)]">
         Edit Logic Event
       </div>
 
@@ -471,7 +471,7 @@ export default function EventEditor({
         <span className={`${lbl} w-20 pt-2`}>Conditions</span>
         <div className="flex-1 space-y-1.5">
           {conditions.length === 0 && (
-            <div className="text-[11px] text-[#5b6b82]">
+            <div className="text-[11px] text-[var(--muted-2)]">
               no conditions — event always proceeds (AND of all conditions)
             </div>
           )}
@@ -511,7 +511,7 @@ export default function EventEditor({
         <span className={`${lbl} w-20 pt-2`}>Actions</span>
         <div className="flex-1 space-y-1.5">
           {event.actions.length === 0 && (
-            <div className="text-[11px] text-[#5b6b82]">no actions yet</div>
+            <div className="text-[11px] text-[var(--muted-2)]">no actions yet</div>
           )}
           {event.actions.map((a, i) => (
             <ActionRow
@@ -546,7 +546,7 @@ export default function EventEditor({
 
       <div className="flex gap-2 pt-1">
         <button
-          className="px-3 py-1.5 rounded text-xs font-semibold bg-[#062a2a] border border-[#0a5a5a] text-[#00FFFF]"
+          className="px-3 py-1.5 rounded text-xs font-semibold bg-[var(--accent-bg)] border border-[var(--accent-bd)] text-[var(--accent)]"
           onClick={onDone}
         >
           ✓ Done

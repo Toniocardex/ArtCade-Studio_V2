@@ -11,17 +11,17 @@ export default function StatusBar() {
     : 'None'
 
   return (
-    <footer className="h-6 bg-[#1A253A] border-t border-[#2D3748]
+    <footer className="h-6 bg-[var(--border)] border-t border-[var(--border-2)]
                        flex items-center justify-between px-3 text-[9px]
-                       text-[#9CA3AF] flex-shrink-0 select-none">
+                       text-[var(--muted)] flex-shrink-0 select-none">
       <div className="flex items-center gap-4">
-        <span className={isPlaying ? 'text-red-400' : 'text-[#00FFFF]'}>
+        <span className={isPlaying ? 'text-red-400' : 'text-[var(--accent)]'}>
           Runtime: {isPlaying ? 'PLAYING' : 'READY'}
         </span>
         <span>Grid: 32px</span>
         <span>Lua: 5.4</span>
         <span>Raylib: 5.0</span>
-        {projectDirty && <span className="text-[#F97316]">Project: UNSAVED</span>}
+        {projectDirty && <span className="text-[var(--warn)]">Project: UNSAVED</span>}
       </div>
       <div className="flex items-center gap-4">
         <span>X: {cursorPos.x} Y: {cursorPos.y}</span>

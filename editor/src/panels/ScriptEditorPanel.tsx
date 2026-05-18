@@ -62,7 +62,7 @@ function ScriptTabBar({ paths, activePath, dirtyPaths, onSelect }: {
   onSelect:   (path: string) => void
 }) {
   return (
-    <div className="flex overflow-x-auto border-b border-[#1A253A] bg-[#0B1121] flex-shrink-0">
+    <div className="flex overflow-x-auto border-b border-[var(--border)] bg-[var(--bg)] flex-shrink-0">
       {paths.map(p => {
         const label = p.split('/').pop() ?? p
         const active = p === activePath
@@ -71,15 +71,15 @@ function ScriptTabBar({ paths, activePath, dirtyPaths, onSelect }: {
             key={p}
             onClick={() => onSelect(p)}
             className={`flex items-center gap-2 px-4 py-2 text-[11px] whitespace-nowrap
-                        border-r border-[#1A253A] transition-colors ${
+                        border-r border-[var(--border)] transition-colors ${
                           active
-                            ? 'bg-[#1A253A] text-[#FF00FF] border-t-2 border-t-[#FF00FF]'
-                            : 'text-[#9CA3AF] hover:text-[#D1D5DB] hover:bg-[#111827]'
+                            ? 'bg-[var(--border)] text-[var(--accent-2)] border-t-2 border-t-[var(--accent-2)]'
+                            : 'text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--panel)]'
                         }`}
           >
             {label}
             {dirtyPaths.has(p) && (
-              <span className="w-1.5 h-1.5 rounded-full bg-[#FF00FF] flex-shrink-0" />
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-2)] flex-shrink-0" />
             )}
           </button>
         )
@@ -100,7 +100,7 @@ export default function ScriptEditorPanel() {
   const dirtyPaths    = new Set(openScripts.filter(s => s.isDirty).map(s => s.path))
 
   return (
-    <div className="h-full flex flex-col bg-[#0B1121]">
+    <div className="h-full flex flex-col bg-[var(--bg)]">
       <ScriptTabBar
         paths={openScripts.map(s => s.path)}
         activePath={activeScriptPath}
@@ -138,11 +138,11 @@ export default function ScriptEditorPanel() {
             }}
           />
         ) : (
-          <div className="h-full flex flex-col items-center justify-center text-[#9CA3AF]">
+          <div className="h-full flex flex-col items-center justify-center text-[var(--muted)]">
             <span className="text-[11px] uppercase tracking-widest">
               No script open
             </span>
-            <span className="text-[10px] mt-1 text-[#9CA3AF]/50">
+            <span className="text-[10px] mt-1 text-[rgb(var(--muted-rgb)/0.5)]">
               Select an entity with a script in the Hierarchy panel
             </span>
           </div>

@@ -34,9 +34,9 @@ interface BottomTabConfig {
 }
 
 const BOTTOM_TABS: BottomTabConfig[] = [
-  { id: 'assets',  label: 'ASSETS',        color: '#00FFFF' },
-  { id: 'tileset', label: 'TILESET_EDITOR', color: '#FF00FF' },
-  { id: 'console', label: 'CONSOLE',       color: '#D1D5DB' },
+  { id: 'assets',  label: 'ASSETS',        color: 'var(--accent)' },
+  { id: 'tileset', label: 'TILESET_EDITOR', color: 'var(--accent-2)' },
+  { id: 'console', label: 'CONSOLE',       color: 'var(--text)' },
 ]
 
 function BottomPanel() {
@@ -44,9 +44,9 @@ function BottomPanel() {
   const { bottomTab } = state
 
   return (
-    <div className="h-64 border-t border-[#1A253A] bg-[#0B1121] flex flex-col flex-shrink-0">
+    <div className="h-64 border-t border-[var(--border)] bg-[var(--bg)] flex flex-col flex-shrink-0">
       {/* Tab bar */}
-      <div className="flex border-b border-[#1A253A] px-2 flex-shrink-0">
+      <div className="flex border-b border-[var(--border)] px-2 flex-shrink-0">
         {BOTTOM_TABS.map(tab => {
           const active = bottomTab === tab.id
           return (
@@ -56,7 +56,7 @@ function BottomPanel() {
               className={`px-4 py-2 text-[10px] font-bold transition-all whitespace-nowrap ${
                 active
                   ? 'border-b-2'
-                  : 'text-[#9CA3AF] hover:text-[#D1D5DB]'
+                  : 'text-[var(--muted)] hover:text-[var(--text)]'
               }`}
               style={active ? { color: tab.color, borderColor: tab.color } : {}}
             >
@@ -85,12 +85,12 @@ function SceneView() {
     <div className="flex flex-1 min-h-0 overflow-hidden">
 
       {/* Left sidebar — Hierarchy */}
-      <aside className="w-64 border-r border-[#1A253A] flex-shrink-0 overflow-hidden">
+      <aside className="w-64 border-r border-[var(--border)] flex-shrink-0 overflow-hidden">
         <HierarchyPanel />
       </aside>
 
       {/* Center — Viewport + bottom panel stacked */}
-      <section className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#111827]">
+      <section className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[var(--panel)]">
         <div className="flex-1 min-h-0 overflow-hidden">
           <PreviewPanel />
         </div>
@@ -98,7 +98,7 @@ function SceneView() {
       </section>
 
       {/* Right sidebar — Inspector */}
-      <aside className="w-72 border-l border-[#1A253A] flex-shrink-0 overflow-hidden">
+      <aside className="w-72 border-l border-[var(--border)] flex-shrink-0 overflow-hidden">
         <InspectorPanel />
       </aside>
     </div>
@@ -180,7 +180,7 @@ function EditorLayout() {
   }, [state.openScripts, state.activeScriptPath, state.project, state.projectPath, state.view, dispatch])
 
   return (
-    <div className="flex flex-col w-full h-full bg-[#0B1121] text-[#D1D5DB] overflow-hidden select-none">
+    <div className="flex flex-col w-full h-full bg-[var(--bg)] text-[var(--text)] overflow-hidden select-none">
       <MenuBar />
 
       {/* Both views stay MOUNTED; we only toggle visibility. Unmounting

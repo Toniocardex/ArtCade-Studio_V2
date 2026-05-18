@@ -5,10 +5,10 @@ import { useConsoleLogs }  from '../store/editor-store'
 import type { ConsoleLevel } from '../types'
 
 const LEVEL_COLOR: Record<ConsoleLevel, string> = {
-  info:  '#9CA3AF',   // gray
-  lua:   '#00FFFF',   // cyan
-  warn:  '#F97316',   // orange
-  error: '#EF4444',   // red
+  info:  'var(--muted)',   // gray
+  lua:   'var(--accent)',   // cyan
+  warn:  'var(--warn)',   // orange
+  error: 'var(--danger-2)',   // red
 }
 
 const LEVEL_LABEL: Record<ConsoleLevel, string> = {
@@ -89,15 +89,15 @@ export default function ConsolePanel() {
 
   return (
     <div className="h-full flex flex-col bg-black/30">
-      <div className="h-8 flex items-center justify-between px-3 border-b border-[#1A253A]">
+      <div className="h-8 flex items-center justify-between px-3 border-b border-[var(--border)]">
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => copyText(allLogText, 'LOGS')}
             disabled={!consoleLogs.length}
-            className="px-2 py-1 rounded border border-[#1A253A] text-[9px] font-bold text-[#9CA3AF]
-                       hover:text-white hover:border-[#00FFFF]/60 disabled:opacity-40 disabled:hover:text-[#9CA3AF]
-                       disabled:hover:border-[#1A253A]"
+            className="px-2 py-1 rounded border border-[var(--border)] text-[9px] font-bold text-[var(--muted)]
+                       hover:text-white hover:border-[rgb(var(--accent-rgb)/0.6)] disabled:opacity-40 disabled:hover:text-[var(--muted)]
+                       disabled:hover:border-[var(--border)]"
           >
             COPY ALL
           </button>
@@ -105,22 +105,22 @@ export default function ConsolePanel() {
             type="button"
             onClick={() => copyText(errorLogText, 'ERRORS')}
             disabled={!errorLogText}
-            className="px-2 py-1 rounded border border-[#1A253A] text-[9px] font-bold text-[#F97316]
-                       hover:text-white hover:border-[#F97316]/70 disabled:opacity-40 disabled:hover:text-[#F97316]
-                       disabled:hover:border-[#1A253A]"
+            className="px-2 py-1 rounded border border-[var(--border)] text-[9px] font-bold text-[var(--warn)]
+                       hover:text-white hover:border-[rgb(var(--warn-rgb)/0.7)] disabled:opacity-40 disabled:hover:text-[var(--warn)]
+                       disabled:hover:border-[var(--border)]"
           >
             COPY ERRORS
           </button>
         </div>
         {copyStatus && (
-          <span className="text-[9px] font-mono text-[#00FFFF]">{copyStatus}</span>
+          <span className="text-[9px] font-mono text-[var(--accent)]">{copyStatus}</span>
         )}
       </div>
 
       <div className="flex-1 overflow-y-auto p-3 space-y-0.5 font-mono select-text">
         {consoleLogs.map(entry => (
           <div key={entry.id} className="flex items-start gap-3 text-[10px] leading-5">
-            <span className="text-[#9CA3AF]/50 flex-shrink-0">[{entry.time}]</span>
+            <span className="text-[rgb(var(--muted-rgb)/0.5)] flex-shrink-0">[{entry.time}]</span>
             <span
               className="flex-shrink-0 font-bold"
               style={{ color: LEVEL_COLOR[entry.level] }}
@@ -139,13 +139,13 @@ export default function ConsolePanel() {
       </div>
 
       {/* Input bar */}
-      <div className="flex items-center gap-2 px-3 py-2 border-t border-[#1A253A]">
-        <span className="text-[#00FFFF] text-[10px]">&gt;</span>
+      <div className="flex items-center gap-2 px-3 py-2 border-t border-[var(--border)]">
+        <span className="text-[var(--accent)] text-[10px]">&gt;</span>
         <input
           type="text"
           placeholder="Enter Lua expression…"
-          className="flex-1 bg-transparent text-[10px] text-[#D1D5DB] outline-none
-                     placeholder:text-[#9CA3AF]/40"
+          className="flex-1 bg-transparent text-[10px] text-[var(--text)] outline-none
+                     placeholder:text-[rgb(var(--muted-rgb)/0.4)]"
         />
       </div>
     </div>

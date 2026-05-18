@@ -11,8 +11,8 @@ import {
 
 function SectionRow({ label }: { label: string }) {
   return (
-    <div className="flex items-center justify-between text-[10px] text-[#9CA3AF]
-                    font-bold border-b border-[#1A253A] pb-1 mt-4 mb-2 uppercase tracking-widest">
+    <div className="flex items-center justify-between text-[10px] text-[var(--muted)]
+                    font-bold border-b border-[var(--border)] pb-1 mt-4 mb-2 uppercase tracking-widest">
       {label}
       <ChevronRight size={11} />
     </div>
@@ -22,13 +22,13 @@ function SectionRow({ label }: { label: string }) {
 function Field({ label, value, cyan = false }: { label: string; value: string | number; cyan?: boolean }) {
   return (
     <div className="space-y-0.5 mb-2">
-      <label className="text-[9px] text-[#9CA3AF] uppercase">{label}</label>
+      <label className="text-[9px] text-[var(--muted)] uppercase">{label}</label>
       <input
         type="text"
         defaultValue={String(value)}
-        className={`w-full bg-[#1A253A] border border-[#2D3748] rounded px-2 py-1
-                    text-xs focus:outline-none focus:border-[#00FFFF] transition-colors ${
-                      cyan ? 'text-[#00FFFF]' : 'text-[#D1D5DB]'
+        className={`w-full bg-[var(--border)] border border-[var(--border-2)] rounded px-2 py-1
+                    text-xs focus:outline-none focus:border-[var(--accent)] transition-colors ${
+                      cyan ? 'text-[var(--accent)]' : 'text-[var(--text)]'
                     }`}
       />
     </div>
@@ -44,13 +44,13 @@ function NumberField({
 }) {
   return (
     <div>
-      <label className="text-[8px] text-[#9CA3AF]/60">{label}</label>
+      <label className="text-[8px] text-[rgb(var(--muted-rgb)/0.6)]">{label}</label>
       <input
         type="number"
         value={Number.isFinite(value) ? value : 0}
         onChange={e => onCommit(Number(e.target.value))}
-        className="w-full bg-[#1A253A] border border-[#2D3748] rounded px-2 py-1
-                   text-xs text-[#D1D5DB] focus:outline-none focus:border-[#00FFFF]"
+        className="w-full bg-[var(--border)] border border-[var(--border-2)] rounded px-2 py-1
+                   text-xs text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
       />
     </div>
   )
@@ -80,10 +80,10 @@ function ComponentSection({
   }
 
   return (
-    <div className="border border-[#1A253A] rounded-lg p-3 bg-[#1A253A]/10 mb-2">
+    <div className="border border-[var(--border)] rounded-lg p-3 bg-[rgb(var(--border-rgb)/0.1)] mb-2">
       <div
         className="flex items-center justify-between text-[10px] font-bold
-                   border-b border-[#1A253A] pb-1 mb-2 uppercase tracking-widest"
+                   border-b border-[var(--border)] pb-1 mb-2 uppercase tracking-widest"
         style={{ color: desc.color }}
       >
         <span>{desc.label}</span>
@@ -96,7 +96,7 @@ function ComponentSection({
               key: desc.key,
             })
           }
-          className="text-[#9CA3AF] hover:text-[#F87171]"
+          className="text-[var(--muted)] hover:text-[var(--danger)]"
         >
           <Trash2 size={11} />
         </button>
@@ -109,12 +109,12 @@ function ComponentSection({
           if (f.kind === 'select') {
             return (
               <div key={f.key} className="mb-2">
-                <label className="text-[9px] text-[#9CA3AF] uppercase">{f.label}</label>
+                <label className="text-[9px] text-[var(--muted)] uppercase">{f.label}</label>
                 <select
                   value={String(v ?? '')}
                   onChange={(e) => commit(f.key, e.target.value)}
-                  className="w-full bg-[#1A253A] border border-[#2D3748] rounded px-2 py-1
-                             text-xs text-[#D1D5DB] focus:outline-none focus:border-[#00FFFF]"
+                  className="w-full bg-[var(--border)] border border-[var(--border-2)] rounded px-2 py-1
+                             text-xs text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
                 >
                   {(f.options ?? []).map((o) => (
                     <option key={o} value={o}>{o}</option>
@@ -125,7 +125,7 @@ function ComponentSection({
           }
           if (f.kind === 'checkbox') {
             return (
-              <label key={f.key} className="flex items-center gap-2 mb-2 text-xs text-[#D1D5DB]">
+              <label key={f.key} className="flex items-center gap-2 mb-2 text-xs text-[var(--text)]">
                 <input
                   type="checkbox"
                   checked={Boolean(v)}
@@ -138,7 +138,7 @@ function ComponentSection({
           const isNum = f.kind === 'number'
           return (
             <div key={f.key} className="mb-2">
-              <label className="text-[9px] text-[#9CA3AF] uppercase">{f.label}</label>
+              <label className="text-[9px] text-[var(--muted)] uppercase">{f.label}</label>
               <input
                 type={isNum ? 'number' : 'text'}
                 value={isNum ? Number(v ?? 0) : String(v ?? '')}
@@ -148,8 +148,8 @@ function ComponentSection({
                 onChange={(e) =>
                   commit(f.key, isNum ? Number(e.target.value) : e.target.value)
                 }
-                className="w-full bg-[#1A253A] border border-[#2D3748] rounded px-2 py-1
-                           text-xs text-[#D1D5DB] focus:outline-none focus:border-[#00FFFF]"
+                className="w-full bg-[var(--border)] border border-[var(--border-2)] rounded px-2 py-1
+                           text-xs text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
               />
             </div>
           )
@@ -178,9 +178,9 @@ function AddComponentBar({ entity }: { entity: EntityDef }) {
             value: desc.create(),
           })
       }}
-      className="w-full mt-1 bg-[#1A253A] border border-dashed border-[#2D3748]
-                 rounded px-2 py-1.5 text-xs text-[#9CA3AF]
-                 focus:outline-none focus:border-[#00FFFF]"
+      className="w-full mt-1 bg-[var(--border)] border border-dashed border-[var(--border-2)]
+                 rounded px-2 py-1.5 text-xs text-[var(--muted)]
+                 focus:outline-none focus:border-[var(--accent)]"
     >
       <option value="">＋ Add Component…</option>
       {missing.map((d) => (
@@ -216,7 +216,7 @@ function EntityInspector({ entity }: { entity: EntityDef }) {
       {/* Tags */}
       <div className="flex flex-wrap gap-1 mb-3">
         {entity.tags.map(t => (
-          <span key={t} className="bg-[#1A253A] border border-[#2D3748] text-[#9CA3AF]
+          <span key={t} className="bg-[var(--border)] border border-[var(--border-2)] text-[var(--muted)]
                                    text-[9px] px-2 py-0.5 rounded">
             #{t}
           </span>
@@ -226,21 +226,21 @@ function EntityInspector({ entity }: { entity: EntityDef }) {
       {/* Transform */}
       <SectionRow label="Transform" />
       <div className="mb-2">
-        <label className="text-[9px] text-[#9CA3AF] uppercase block mb-0.5">Position</label>
+        <label className="text-[9px] text-[var(--muted)] uppercase block mb-0.5">Position</label>
         <div className="grid grid-cols-2 gap-2">
           <NumberField label="X" value={entity.transform.position.x} onCommit={x => commitTransform({ x })} />
           <NumberField label="Y" value={entity.transform.position.y} onCommit={y => commitTransform({ y })} />
         </div>
       </div>
       <div className="mb-2">
-        <label className="text-[9px] text-[#9CA3AF] uppercase block mb-0.5">Scale</label>
+        <label className="text-[9px] text-[var(--muted)] uppercase block mb-0.5">Scale</label>
         <div className="grid grid-cols-2 gap-2">
           <NumberField label="X" value={entity.transform.scale.x} onCommit={scaleX => commitTransform({ scaleX })} />
           <NumberField label="Y" value={entity.transform.scale.y} onCommit={scaleY => commitTransform({ scaleY })} />
         </div>
       </div>
       <div className="mb-2">
-        <label className="text-[9px] text-[#9CA3AF] uppercase block mb-0.5">Rotation</label>
+        <label className="text-[9px] text-[var(--muted)] uppercase block mb-0.5">Rotation</label>
         <NumberField label="Radians" value={entity.transform.rotation} onCommit={rotation => commitTransform({ rotation })} />
       </div>
 
@@ -267,8 +267,8 @@ function EntityInspector({ entity }: { entity: EntityDef }) {
               type: 'OPEN_SCRIPT',
               file: { path: entity.scriptPath!, content: '', isDirty: false },
             })}
-            className="w-full mt-1 px-3 py-1 bg-[#FF00FF]/10 border border-[#FF00FF]/40
-                       text-[#FF00FF] text-[10px] font-bold rounded hover:bg-[#FF00FF]/20
+            className="w-full mt-1 px-3 py-1 bg-[rgb(var(--accent-2-rgb)/0.1)] border border-[rgb(var(--accent-2-rgb)/0.4)]
+                       text-[var(--accent-2)] text-[10px] font-bold rounded hover:bg-[rgb(var(--accent-2-rgb)/0.2)]
                        transition-colors"
           >
             OPEN IN LOGIC_BOARD →
@@ -290,10 +290,10 @@ export default function InspectorPanel() {
     : null
 
   return (
-    <div className="h-full flex flex-col bg-[#0B1121]">
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-[#1A253A] flex-shrink-0">
-        <Settings size={13} className="text-[#9CA3AF]" />
-        <span className="text-[10px] font-bold text-[#9CA3AF] uppercase tracking-widest">Inspector</span>
+    <div className="h-full flex flex-col bg-[var(--bg)]">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-[var(--border)] flex-shrink-0">
+        <Settings size={13} className="text-[var(--muted)]" />
+        <span className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-widest">Inspector</span>
       </div>
 
       {entity ? (

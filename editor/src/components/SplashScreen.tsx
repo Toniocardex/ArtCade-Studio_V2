@@ -24,7 +24,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
   }, [onComplete]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0B1121] overflow-hidden pointer-events-none select-none font-mono text-white">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg)] overflow-hidden pointer-events-none select-none font-mono text-white">
       
       {/* 1. Isometric Grid Background (Appare al step 1) */}
       <div className={`absolute inset-0 transition-opacity duration-1000 ${step >= 1 ? 'opacity-30' : 'opacity-0'}`}
@@ -39,17 +39,17 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
       {step === 2 && (
         <div className="absolute inset-0 z-10 flex items-center justify-center opacity-70">
           {/* Ciano Streams */}
-          <div className="absolute h-px bg-[#00FFFF] animate-stream-h" style={{width: '40vw', top: '45%'}}></div>
-          <div className="absolute w-px bg-[#00FFFF] animate-stream-v" style={{height: '40vh', left: '45%'}}></div>
+          <div className="absolute h-px bg-[var(--accent)] animate-stream-h" style={{width: '40vw', top: '45%'}}></div>
+          <div className="absolute w-px bg-[var(--accent)] animate-stream-v" style={{height: '40vh', left: '45%'}}></div>
           {/* Magenta Streams (offset) */}
-          <div className="absolute h-px bg-[#FF00FF] animate-stream-h-reverse" style={{width: '40vw', top: '55%'}}></div>
-          <div className="absolute w-px bg-[#FF00FF] animate-stream-v-reverse" style={{height: '40vh', left: '55%'}}></div>
+          <div className="absolute h-px bg-[var(--accent-2)] animate-stream-h-reverse" style={{width: '40vw', top: '55%'}}></div>
+          <div className="absolute w-px bg-[var(--accent-2)] animate-stream-v-reverse" style={{height: '40vh', left: '55%'}}></div>
           
           {/* Pseudo-code data (flying to center) */}
-          <div className="absolute text-[8px] text-[#00FFFF]/50 animate-data-fly-tl">0xAF 10101 enTT</div>
-          <div className="absolute text-[8px] text-[#FF00FF]/50 animate-data-fly-tr">Lua::vm 0011 renderer</div>
-          <div className="absolute text-[8px] text-[#00FFFF]/50 animate-data-fly-bl">SYS_MSG physics_step</div>
-          <div className="absolute text-[8px] text-[#FF00FF]/50 animate-data-fly-br">0x00FF WASM_BOOT</div>
+          <div className="absolute text-[8px] text-[rgb(var(--accent-rgb)/0.5)] animate-data-fly-tl">0xAF 10101 enTT</div>
+          <div className="absolute text-[8px] text-[rgb(var(--accent-2-rgb)/0.5)] animate-data-fly-tr">Lua::vm 0011 renderer</div>
+          <div className="absolute text-[8px] text-[rgb(var(--accent-rgb)/0.5)] animate-data-fly-bl">SYS_MSG physics_step</div>
+          <div className="absolute text-[8px] text-[rgb(var(--accent-2-rgb)/0.5)] animate-data-fly-br">0x00FF WASM_BOOT</div>
         </div>
       )}
 
@@ -64,8 +64,8 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
           )}
           
           {/* Il bagliore neon Ciano/Magenta combinato */}
-          <div className="absolute -inset-10 z-0 bg-[#00FFFF] blur-[60px] opacity-20 rounded-full animate-synapse-pulse"></div>
-          <div className="absolute -inset-10 z-0 bg-[#FF00FF] blur-[80px] opacity-10 rounded-full animate-synapse-pulse delay-500"></div>
+          <div className="absolute -inset-10 z-0 bg-[var(--accent)] blur-[60px] opacity-20 rounded-full animate-synapse-pulse"></div>
+          <div className="absolute -inset-10 z-0 bg-[var(--accent-2)] blur-[80px] opacity-10 rounded-full animate-synapse-pulse delay-500"></div>
 
           {/* L'immagine Caricata */}
           <img 
@@ -86,21 +86,21 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
 
         {/* 4. Texts con Terminale effect (Step 4+) */}
         <div className="flex flex-col items-center gap-2">
-          <div className={`text-[#9CA3AF] tracking-[0.4em] text-xs uppercase font-mono transition-opacity duration-300 ${step >= 4 ? 'opacity-100' : 'opacity-0'}`}>
+          <div className={`text-[var(--muted)] tracking-[0.4em] text-xs uppercase font-mono transition-opacity duration-300 ${step >= 4 ? 'opacity-100' : 'opacity-0'}`}>
             {step === 4 ? <span className="animate-type-fast">Made with</span> : "Made with"}
           </div>
           
           <div className={`relative transition-all duration-700 delay-300 ${step >= 4 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-            <h1 className="text-6xl md:text-8xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white via-white to-[#00FFFF] drop-shadow-[0_0_12px_rgba(0,255,255,0.8)]">
+            <h1 className="text-6xl md:text-8xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white via-white to-[var(--accent)] drop-shadow-[0_0_12px_rgba(0,255,255,0.8)]">
               Artcade
             </h1>
             {/* Glitch Overlay Text */}
-            <h1 className="absolute inset-0 text-6xl md:text-8xl font-black tracking-tighter text-[#FF00FF] mix-blend-color-dodge opacity-0 hover:opacity-70 animate-text-glitch">
+            <h1 className="absolute inset-0 text-6xl md:text-8xl font-black tracking-tighter text-[var(--accent-2)] mix-blend-color-dodge opacity-0 hover:opacity-70 animate-text-glitch">
               Artcade
             </h1>
           </div>
 
-          <div className={`mt-5 px-5 py-1 border border-[#FF00FF] text-[#FF00FF] font-mono text-[9px] tracking-widest uppercase bg-[#FF00FF]/5 shadow-[0_0_10px_rgba(255,0,255,0.3)] transition-all duration-500 delay-700 ${step >= 4 ? 'opacity-100 scale-100' : 'opacity-0 scale-90'}`}>
+          <div className={`mt-5 px-5 py-1 border border-[var(--accent-2)] text-[var(--accent-2)] font-mono text-[9px] tracking-widest uppercase bg-[rgb(var(--accent-2-rgb)/0.05)] shadow-[0_0_10px_rgba(255,0,255,0.3)] transition-all duration-500 delay-700 ${step >= 4 ? 'opacity-100 scale-100' : 'opacity-0 scale-90'}`}>
             Free Edition / C++ Core
           </div>
         </div>
@@ -152,7 +152,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
 
         /* Terminal Type */
         @keyframes type-fast { from { width: 0; } to { width: 100%; } }
-        .animate-type-fast { overflow: hidden; white-space: nowrap; display: inline-block; animation: type-fast 0.4s steps(20, end) forwards; border-right: 2px solid #9CA3AF; }
+        .animate-type-fast { overflow: hidden; white-space: nowrap; display: inline-block; animation: type-fast 0.4s steps(20, end) forwards; border-right: 2px solid var(--muted); }
         
         /* Text Glitch */
         @keyframes text-glitch {

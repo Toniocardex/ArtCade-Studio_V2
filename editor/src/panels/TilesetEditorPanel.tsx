@@ -87,8 +87,8 @@ export default function TilesetEditorPanel() {
 
   if (!project || !scene) {
     return (
-      <div className="h-full bg-[#0B1121] flex items-center justify-center">
-        <span className="text-[#9CA3AF] text-xs">No scene selected</span>
+      <div className="h-full bg-[var(--bg)] flex items-center justify-center">
+        <span className="text-[var(--muted)] text-xs">No scene selected</span>
       </div>
     )
   }
@@ -97,7 +97,7 @@ export default function TilesetEditorPanel() {
   const { cols, rows } = grid
 
   return (
-    <div className="h-full flex bg-[#0B1121] select-none">
+    <div className="h-full flex bg-[var(--bg)] select-none">
       <input
         ref={fileRef}
         type="file"
@@ -107,43 +107,43 @@ export default function TilesetEditorPanel() {
       />
 
       {/* Left: controls */}
-      <div className="w-56 border-r border-[#1A253A] p-3 flex flex-col gap-3 flex-shrink-0">
+      <div className="w-56 border-r border-[var(--border)] p-3 flex flex-col gap-3 flex-shrink-0">
         <button
           onClick={() => fileRef.current?.click()}
           className="flex items-center justify-center gap-2 px-3 py-2 rounded
-                     text-xs font-semibold border border-[#0a5a5a] bg-[#062a2a]
-                     text-[#00FFFF] hover:bg-[#0a3a3a]"
+                     text-xs font-semibold border border-[var(--accent-bd)] bg-[var(--accent-bg)]
+                     text-[var(--accent)] hover:bg-[var(--accent-bg-h)]"
         >
           <ImagePlus size={13} /> Load tileset image
         </button>
 
         {(tileset || hasImage) && (
           <>
-            <div className="text-[10px] text-[#9CA3AF] uppercase tracking-widest">
+            <div className="text-[10px] text-[var(--muted)] uppercase tracking-widest">
               {tileset?.name ?? 'New tileset'}
             </div>
-            <label className="text-[9px] text-[#9CA3AF] uppercase flex items-center justify-between">
+            <label className="text-[9px] text-[var(--muted)] uppercase flex items-center justify-between">
               Tile size
               <input
                 type="number" min={1} value={tileSize}
                 onChange={e => applyGrid(Math.max(1, Number(e.target.value)), margin)}
-                className="w-16 bg-[#1A253A] border border-[#2D3748] text-[#00FFFF]
+                className="w-16 bg-[var(--border)] border border-[var(--border-2)] text-[var(--accent)]
                            text-[11px] rounded px-2 py-0.5 text-right"
               />
             </label>
-            <label className="text-[9px] text-[#9CA3AF] uppercase flex items-center justify-between">
+            <label className="text-[9px] text-[var(--muted)] uppercase flex items-center justify-between">
               Margin
               <input
                 type="number" min={0} value={margin}
                 onChange={e => applyGrid(tileSize, Math.max(0, Number(e.target.value)))}
-                className="w-16 bg-[#1A253A] border border-[#2D3748] text-[#00FFFF]
+                className="w-16 bg-[var(--border)] border border-[var(--border-2)] text-[var(--accent)]
                            text-[11px] rounded px-2 py-0.5 text-right"
               />
             </label>
-            <div className="text-[10px] text-[#9CA3AF] border-t border-[#1A253A] pt-2 space-y-1">
-              <div>Grid: <span className="text-[#00FFFF]">{cols}×{rows}</span></div>
+            <div className="text-[10px] text-[var(--muted)] border-t border-[var(--border)] pt-2 space-y-1">
+              <div>Grid: <span className="text-[var(--accent)]">{cols}×{rows}</span></div>
               <div>Brush cell:{' '}
-                <span className="text-[#FF00FF]">
+                <span className="text-[var(--accent-2)]">
                   {selectedTileCell === 0 ? 'eraser' : `#${selectedTileCell}`}
                 </span>
               </div>
@@ -152,8 +152,8 @@ export default function TilesetEditorPanel() {
               onClick={() => dispatch({ type: 'TILESET_SELECT_CELL', cellIndex: 0 })}
               className={`flex items-center gap-2 px-2 py-1.5 rounded text-xs border ${
                 selectedTileCell === 0
-                  ? 'border-[#FF00FF] text-[#FF00FF] bg-[#FF00FF]/10'
-                  : 'border-[#2D3748] text-[#9CA3AF] hover:text-[#D1D5DB]'
+                  ? 'border-[var(--accent-2)] text-[var(--accent-2)] bg-[rgb(var(--accent-2-rgb)/0.1)]'
+                  : 'border-[var(--border-2)] text-[var(--muted)] hover:text-[var(--text)]'
               }`}
             >
               <Eraser size={12} /> Eraser
@@ -164,7 +164,7 @@ export default function TilesetEditorPanel() {
                   dispatch({ type: 'TILESET_ASSET_REMOVE', assetId: tileset.assetId })
                 }
                 className="flex items-center gap-2 px-2 py-1.5 rounded text-xs
-                           text-[#9CA3AF] hover:text-[#F87171]"
+                           text-[var(--muted)] hover:text-[var(--danger)]"
               >
                 <Trash2 size={12} /> Remove tileset
               </button>
@@ -176,14 +176,14 @@ export default function TilesetEditorPanel() {
       {/* Right: image + grid overlay (cell picker) */}
       <div className="flex-1 overflow-auto p-3">
         {!hasImage ? (
-          <div className="h-full flex items-center justify-center text-[#9CA3AF] text-xs text-center">
+          <div className="h-full flex items-center justify-center text-[var(--muted)] text-xs text-center">
             {tileset
               ? `Tileset "${tileset.name}" (${tileset.cols}×${tileset.rows}) — reload the image to edit the grid.`
               : 'Load a spritesheet image to slice it into tiles.'}
           </div>
         ) : (
           <div
-            className="relative inline-block border border-[#1A253A]"
+            className="relative inline-block border border-[var(--border)]"
             style={{ lineHeight: 0 }}
           >
             <img src={imgUrl!} alt="tileset" className="block max-w-none" />
@@ -208,8 +208,8 @@ export default function TilesetEditorPanel() {
                     title={`cell #${cellId}`}
                     className={`border ${
                       sel
-                        ? 'border-[#FF00FF] bg-[#FF00FF]/20'
-                        : 'border-white/10 hover:border-[#00FFFF]/50'
+                        ? 'border-[var(--accent-2)] bg-[rgb(var(--accent-2-rgb)/0.2)]'
+                        : 'border-white/10 hover:border-[rgb(var(--accent-rgb)/0.5)]'
                     }`}
                   />
                 )

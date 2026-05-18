@@ -1,7 +1,8 @@
 import { useRef, useState, useEffect } from 'react'
 import type { ReactNode } from 'react'
-import { Cpu, Play, Square, FolderOpen, Save, Package, Hammer, ChevronDown } from 'lucide-react'
+import { Cpu, Play, Square, FolderOpen, Save, Package, Hammer, ChevronDown, Sun, Moon } from 'lucide-react'
 import { useEditor } from '../store/editor-store'
+import { applyTheme, toggleTheme, type Theme } from '../utils/theme'
 import {
   openProjectDialog, loadProjectFile,
   saveScript, saveProjectFile, savePackDialog, packProject, runBuild,
@@ -39,22 +40,22 @@ interface FileMenuItem {
 function FileMenu({ items }: { items: FileMenuItem[] }) {
   return (
     <div className="absolute top-full left-0 mt-1 z-[999]
-                    bg-[#0B1121] border border-[#1A253A] rounded shadow-2xl
+                    bg-[var(--bg)] border border-[var(--border)] rounded shadow-2xl
                     min-w-[220px] py-1 select-none">
       {items.map((item, i) => (
         <div key={i}>
           {item.divider && i > 0 && (
-            <div className="my-1 border-t border-[#1A253A]" />
+            <div className="my-1 border-t border-[var(--border)]" />
           )}
           <button
             onClick={item.action}
             className="w-full flex items-center gap-3 px-4 py-2
-                       text-[11px] text-[#D1D5DB] hover:bg-[#1A253A]
+                       text-[11px] text-[var(--text)] hover:bg-[var(--border)]
                        hover:text-white transition-colors text-left"
           >
-            <span className="text-[#9CA3AF] flex-shrink-0">{item.icon}</span>
+            <span className="text-[var(--muted)] flex-shrink-0">{item.icon}</span>
             <span className="flex-1">{item.label}</span>
-            <span className="text-[#9CA3AF]/60 font-mono text-[9px]">{item.shortcut}</span>
+            <span className="text-[rgb(var(--muted-rgb)/0.6)] font-mono text-[9px]">{item.shortcut}</span>
           </button>
         </div>
       ))}
@@ -69,6 +70,9 @@ function FileMenu({ items }: { items: FileMenuItem[] }) {
 export default function MenuBar() {
   const { state, dispatch } = useEditor()
   const { view, isPlaying, project, projectPath, projectDirty, openScripts, activeScriptPath } = state
+  const [theme, setTheme] = useState<Theme>(
+    () => (document.documentElement.getAttribute('data-theme') as Theme) || 'dark',
+  )
 
   const [fileMenuOpen, setFileMenuOpen] = useState(false)
   const [isBuilding,   setIsBuilding]   = useState(false)
@@ -209,17 +213,17 @@ export default function MenuBar() {
   // ---- render ------------------------------------------------------------
 
   return (
-    <header className="h-12 border-b border-[#1A253A] bg-[#0B1121]
+    <header className="h-12 border-b border-[var(--border)] bg-[var(--bg)]
                        flex items-center justify-between px-4 flex-shrink-0 z-50 select-none">
 
       {/* ── Left: logo + view toggle + file menu ── */}
       <div className="flex items-center gap-4">
 
         {/* Logo */}
-        <div className="flex items-center gap-2 text-[#00FFFF] font-bold text-lg tracking-tighter">
+        <div className="flex items-center gap-2 text-[var(--accent)] font-bold text-lg tracking-tighter">
           <Cpu size={20} />
           <span>Artcade</span>
-          <span className="text-xs text-[#9CA3AF] font-normal tracking-normal ml-1">
+          <span className="text-xs text-[var(--muted)] font-normal tracking-normal ml-1">
             v2.0 — {project?.projectName ?? 'No Project'}
           </span>
         </div>
@@ -231,8 +235,8 @@ export default function MenuBar() {
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-[11px] font-bold
                         transition-colors ${
               fileMenuOpen
-                ? 'bg-[#1A253A] text-[#D1D5DB]'
-                : 'text-[#9CA3AF] hover:bg-[#1A253A] hover:text-[#D1D5DB]'
+                ? 'bg-[var(--border)] text-[var(--text)]'
+                : 'text-[var(--muted)] hover:bg-[var(--border)] hover:text-[var(--text)]'
             }`}
           >
             FILE
@@ -242,13 +246,13 @@ export default function MenuBar() {
         </div>
 
         {/* Scene / Logic toggle */}
-        <div className="flex bg-[#1A253A] rounded p-1 gap-0.5">
+        <div className="flex bg-[var(--border)] rounded p-1 gap-0.5">
           <button
             onClick={() => dispatch({ type: 'SET_VIEW', view: 'scene' })}
             className={`px-4 py-1 text-[10px] rounded font-bold transition-all ${
               view === 'scene'
-                ? 'bg-[#00FFFF] text-[#0B1121]'
-                : 'text-[#9CA3AF] hover:bg-white/5'
+                ? 'bg-[var(--accent)] text-[var(--bg)]'
+                : 'text-[var(--muted)] hover:bg-white/5'
             }`}
           >
             SCENE_VIEW
@@ -257,8 +261,8 @@ export default function MenuBar() {
             onClick={() => dispatch({ type: 'SET_VIEW', view: 'logic' })}
             className={`px-4 py-1 text-[10px] rounded font-bold transition-all ${
               view === 'logic'
-                ? 'bg-[#FF00FF] text-[#0B1121]'
-                : 'text-[#9CA3AF] hover:bg-white/5'
+                ? 'bg-[var(--accent-2)] text-[var(--bg)]'
+                : 'text-[var(--muted)] hover:bg-white/5'
             }`}
           >
             LOGIC_BOARD
@@ -266,14 +270,28 @@ export default function MenuBar() {
         </div>
       </div>
 
-      {/* ── Right: play + build ── */}
+      {/* ── Right: theme + play + build ── */}
       <div className="flex items-center gap-2">
+        <button
+          onClick={() => {
+            const next = toggleTheme(theme)
+            applyTheme(next)
+            setTheme(next)
+          }}
+          title={theme === 'dark' ? 'Switch to Light theme' : 'Switch to Dark theme'}
+          className="flex items-center justify-center w-7 h-7 rounded border
+                     border-[var(--border-2)] text-[var(--muted)]
+                     hover:text-[var(--accent)] hover:border-[var(--accent-bd)] transition-all"
+        >
+          {theme === 'dark' ? <Sun size={13} /> : <Moon size={13} />}
+        </button>
+
         <button
           onClick={() => dispatch({ type: 'SET_PLAYING', playing: !isPlaying })}
           className={`flex items-center gap-2 px-4 py-1 rounded border text-xs font-bold transition-all ${
             isPlaying
               ? 'bg-red-500/20 border-red-500 text-red-400 hover:bg-red-500/30'
-              : 'bg-[#00FFFF]/10 border-[#00FFFF] text-[#00FFFF] hover:bg-[#00FFFF]/20'
+              : 'bg-[rgb(var(--accent-rgb)/0.1)] border-[var(--accent)] text-[var(--accent)] hover:bg-[rgb(var(--accent-rgb)/0.2)]'
           }`}
         >
           {isPlaying
@@ -285,11 +303,11 @@ export default function MenuBar() {
         <button
           onClick={handleBuildExe}
           disabled={isBuilding}
-          className={`flex items-center gap-2 px-3 py-1 text-[#0B1121] text-xs font-bold
+          className={`flex items-center gap-2 px-3 py-1 text-[var(--bg)] text-xs font-bold
                       rounded transition-all ${
             isBuilding
-              ? 'bg-[#FF00FF]/50 cursor-not-allowed'
-              : 'bg-[#FF00FF] hover:opacity-90'
+              ? 'bg-[rgb(var(--accent-2-rgb)/0.5)] cursor-not-allowed'
+              : 'bg-[var(--accent-2)] hover:opacity-90'
           }`}
         >
           <Hammer size={12} className={isBuilding ? 'animate-bounce' : ''} />

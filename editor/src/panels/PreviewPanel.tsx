@@ -157,31 +157,31 @@ export default function PreviewPanel() {
     const bg = project && sceneId ? project.scenes[sceneId]?.backgroundColor : undefined
     return bg
       ? `rgb(${Math.round(bg.x * 255)},${Math.round(bg.y * 255)},${Math.round(bg.z * 255)})`
-      : '#0B1121'
+      : 'var(--bg)'
   })()
 
   return (
-    <div className="h-full flex flex-col bg-[#111827] relative">
+    <div className="h-full flex flex-col bg-[var(--panel)] relative">
 
       {/* ── Tool palette (React overlay, Z above canvas) ── */}
       <div className="absolute top-4 left-4 flex flex-col gap-2 z-40
-                      bg-[#0B1121]/90 p-2 border border-[#1A253A] rounded">
+                      bg-[rgb(var(--bg-rgb)/0.9)] p-2 border border-[var(--border)] rounded">
         {([
-          { id: 'select', Icon: MousePointer2, color: '#00FFFF' },
-          { id: 'pan',    Icon: Hand,           color: '#9CA3AF' },
+          { id: 'select', Icon: MousePointer2, color: 'var(--accent)' },
+          { id: 'pan',    Icon: Hand,           color: 'var(--muted)' },
         ] as const).map(({ id, Icon, color }) => (
           <button
             key={id}
             onClick={() => setActiveTool(id)}
             className={`p-1.5 rounded transition-colors ${
-              activeTool === id ? 'bg-[#00FFFF]/20' : 'hover:bg-white/5'
+              activeTool === id ? 'bg-[rgb(var(--accent-rgb)/0.2)]' : 'hover:bg-white/5'
             }`}
           >
-            <Icon size={15} color={activeTool === id ? color : '#9CA3AF'} />
+            <Icon size={15} color={activeTool === id ? color : 'var(--muted)'} />
           </button>
         ))}
 
-        <div className="h-px w-full bg-[#1A253A]" />
+        <div className="h-px w-full bg-[var(--border)]" />
 
         {([
           { id: 'paint', Icon: Paintbrush },
@@ -191,33 +191,33 @@ export default function PreviewPanel() {
             key={id}
             onClick={() => setActiveTool(id)}
             className={`p-1.5 rounded transition-colors ${
-              activeTool === id ? 'bg-[#FF00FF]/20' : 'hover:bg-white/5'
+              activeTool === id ? 'bg-[rgb(var(--accent-2-rgb)/0.2)]' : 'hover:bg-white/5'
             }`}
           >
-            <Icon size={15} color={activeTool === id ? '#FF00FF' : '#9CA3AF'} />
+            <Icon size={15} color={activeTool === id ? 'var(--accent-2)' : 'var(--muted)'} />
           </button>
         ))}
 
-        <div className="h-px w-full bg-[#1A253A]" />
+        <div className="h-px w-full bg-[var(--border)]" />
 
         {/* Phase F2: in-scene tile painting */}
         <button
           onClick={() => setActiveTool('tile')}
           title={`Tile paint (brush ${selectedTileCell === 0 ? 'eraser' : '#' + selectedTileCell})`}
           className={`p-1.5 rounded transition-colors ${
-            activeTool === 'tile' ? 'bg-[#FF00FF]/20' : 'hover:bg-white/5'
+            activeTool === 'tile' ? 'bg-[rgb(var(--accent-2-rgb)/0.2)]' : 'hover:bg-white/5'
           }`}
         >
-          <Grid3x3 size={15} color={activeTool === 'tile' ? '#FF00FF' : '#9CA3AF'} />
+          <Grid3x3 size={15} color={activeTool === 'tile' ? 'var(--accent-2)' : 'var(--muted)'} />
         </button>
       </div>
 
       {/* ── WASM status badge ── */}
       <div className="absolute top-4 right-4 z-40 flex items-center gap-1.5
-                      bg-[#0B1121]/90 px-2 py-1 rounded border border-[#1A253A] text-[9px]">
+                      bg-[rgb(var(--bg-rgb)/0.9)] px-2 py-1 rounded border border-[var(--border)] text-[9px]">
         {wasmReady
-          ? <><Wifi size={10} className="text-[#00FFFF]" /><span className="text-[#00FFFF]">RUNTIME READY</span></>
-          : <><WifiOff size={10} className="text-[#9CA3AF]" /><span className="text-[#9CA3AF]">
+          ? <><Wifi size={10} className="text-[var(--accent)]" /><span className="text-[var(--accent)]">RUNTIME READY</span></>
+          : <><WifiOff size={10} className="text-[var(--muted)]" /><span className="text-[var(--muted)]">
               {project ? 'LOADING…' : 'NO PROJECT'}
             </span></>
         }
@@ -249,7 +249,7 @@ export default function PreviewPanel() {
           id="artcade-canvas"
           width={res.x}
           height={res.y}
-          className="border border-[#1A253A] shadow-2xl"
+          className="border border-[var(--border)] shadow-2xl"
           style={{
             display:     'block',
             maxWidth:    '100%',
@@ -260,7 +260,7 @@ export default function PreviewPanel() {
         />
 
         {/* Resolution badge */}
-        <div className="absolute bottom-8 right-8 text-[9px] text-[#1A253A]/80
+        <div className="absolute bottom-8 right-8 text-[9px] text-[rgb(var(--border-rgb)/0.8)]
                         bg-black/30 px-1 select-none pointer-events-none">
           {res.x}×{res.y}
         </div>

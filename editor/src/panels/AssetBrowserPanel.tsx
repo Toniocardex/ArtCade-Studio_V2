@@ -26,7 +26,7 @@ const ICON_MAP: Record<string, ElementType> = {
 
 function AssetIcon({ type }: { type: string }) {
   const Icon = ICON_MAP[type] ?? FileText
-  const color = type === 'IMAGES' ? '#00FFFF' : type === 'AUDIO' ? '#FF00FF' : '#F97316'
+  const color = type === 'IMAGES' ? 'var(--accent)' : type === 'AUDIO' ? 'var(--accent-2)' : 'var(--warn)'
   return <Icon size={22} color={color} />
 }
 
@@ -36,17 +36,17 @@ export default function AssetBrowserPanel() {
   const visible = SAMPLE_ASSETS.filter(a => cat === 'ALL' || a.type === cat)
 
   return (
-    <div className="h-full flex flex-col bg-[#0B1121]">
+    <div className="h-full flex flex-col bg-[var(--bg)]">
       {/* Category tabs */}
-      <div className="flex border-b border-[#1A253A] px-2 flex-shrink-0">
+      <div className="flex border-b border-[var(--border)] px-2 flex-shrink-0">
         {CATEGORIES.map(c => (
           <button
             key={c}
             onClick={() => setCat(c)}
             className={`px-4 py-2 text-[10px] font-bold transition-all ${
               cat === c
-                ? 'text-[#00FFFF] border-b-2 border-[#00FFFF]'
-                : 'text-[#9CA3AF] hover:text-[#D1D5DB]'
+                ? 'text-[var(--accent)] border-b-2 border-[var(--accent)]'
+                : 'text-[var(--muted)] hover:text-[var(--text)]'
             }`}
           >
             {c}
@@ -61,16 +61,16 @@ export default function AssetBrowserPanel() {
             <div
               key={i}
               className="flex flex-col items-center gap-2 p-2 rounded
-                         border border-[#1A253A] hover:border-[#00FFFF]/50
-                         bg-[#0B1121] cursor-pointer transition-colors group"
+                         border border-[var(--border)] hover:border-[rgb(var(--accent-rgb)/0.5)]
+                         bg-[var(--bg)] cursor-pointer transition-colors group"
             >
-              <div className="text-[#9CA3AF] group-hover:scale-110 transition-transform">
+              <div className="text-[var(--muted)] group-hover:scale-110 transition-transform">
                 <AssetIcon type={asset.type} />
               </div>
-              <span className="text-[9px] truncate w-full text-center text-[#9CA3AF]">
+              <span className="text-[9px] truncate w-full text-center text-[var(--muted)]">
                 {asset.name}
               </span>
-              <span className="text-[8px] text-[#9CA3AF]/50">{asset.size}</span>
+              <span className="text-[8px] text-[rgb(var(--muted-rgb)/0.5)]">{asset.size}</span>
             </div>
           ))}
         </div>
