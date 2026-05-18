@@ -115,7 +115,7 @@ export default function ScriptEditorPanel() {
   const dirtyPaths    = new Set(openScripts.filter(s => s.isDirty).map(s => s.path))
 
   return (
-    <div className="h-full flex flex-col bg-[var(--bg)]">
+    <div className="h-full w-full flex-1 min-w-0 flex flex-col bg-[var(--bg)]">
       <ScriptTabBar
         paths={openScripts.map(s => s.path)}
         activePath={activeScriptPath}
@@ -123,10 +123,11 @@ export default function ScriptEditorPanel() {
         onSelect={path => dispatch({ type: 'SET_ACTIVE_SCRIPT', path })}
       />
 
-      <div className="flex-1 min-h-0">
+      <div className="flex-1 min-h-0 min-w-0 w-full">
         {currentScript ? (
           <Editor
             height="100%"
+            width="100%"
             language="lua"
             theme={themeMode === 'light' ? 'light' : 'vs-dark'}
             value={currentScript.content}
