@@ -88,7 +88,7 @@ export default function ConsolePanel() {
   }, [consoleLogs.length])
 
   return (
-    <div className="h-full flex flex-col bg-black/30">
+    <div className="h-full flex flex-col bg-[var(--panel-3)]">
       <div className="h-8 flex items-center justify-between px-3 border-b border-[var(--border)]">
         <div className="flex items-center gap-2">
           <button
@@ -96,7 +96,7 @@ export default function ConsolePanel() {
             onClick={() => copyText(allLogText, 'LOGS')}
             disabled={!consoleLogs.length}
             className="px-2 py-1 rounded border border-[var(--border)] text-[9px] font-bold text-[var(--muted)]
-                       hover:text-white hover:border-[rgb(var(--accent-rgb)/0.6)] disabled:opacity-40 disabled:hover:text-[var(--muted)]
+                       hover:text-[var(--text)] hover:border-[rgb(var(--accent-rgb)/0.6)] disabled:opacity-40 disabled:hover:text-[var(--muted)]
                        disabled:hover:border-[var(--border)]"
           >
             COPY ALL
@@ -106,7 +106,7 @@ export default function ConsolePanel() {
             onClick={() => copyText(errorLogText, 'ERRORS')}
             disabled={!errorLogText}
             className="px-2 py-1 rounded border border-[var(--border)] text-[9px] font-bold text-[var(--warn)]
-                       hover:text-white hover:border-[rgb(var(--warn-rgb)/0.7)] disabled:opacity-40 disabled:hover:text-[var(--warn)]
+                       hover:text-[var(--text)] hover:border-[rgb(var(--warn-rgb)/0.7)] disabled:opacity-40 disabled:hover:text-[var(--warn)]
                        disabled:hover:border-[var(--border)]"
           >
             COPY ERRORS
@@ -134,7 +134,7 @@ export default function ConsolePanel() {
         ))}
 
         {/* Blinking cursor */}
-        <div className="text-white text-[10px] animate-pulse">&gt; _</div>
+        <div className="text-[var(--accent)] text-[10px] animate-pulse">&gt; _</div>
         <div ref={bottomRef} />
       </div>
 

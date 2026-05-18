@@ -26,7 +26,7 @@ export interface CoreState {
   projectPath:      string | null
   projectDirty:     boolean
   selection:        { entityId: number | null; sceneId: string | null }
-  view:             EditorView
+  mode:             EditorView
   bottomTab:        BottomTab
   openScripts:      ScriptFile[]
   activeScriptPath: string | null
@@ -146,7 +146,7 @@ const initialCoreState: CoreState = {
   projectPath:      null,
   projectDirty:     false,
   selection:        { entityId: null, sceneId: 'scene_main' },
-  view:             'scene',
+  mode:             'canvas',
   bottomTab:        'assets',
   openScripts:      [{ path: 'scripts/player_controller.lua', content: SAMPLE_SCRIPT, isDirty: false }],
   activeScriptPath: 'scripts/player_controller.lua',
@@ -166,7 +166,7 @@ const initialVolatileState: VolatileState = {
 export type Action =
   | { type: 'SELECT_ENTITY';     entityId: number | null }
   | { type: 'SELECT_SCENE';      sceneId: string }
-  | { type: 'SET_VIEW';          view: EditorView }
+  | { type: 'SET_MODE';          mode: EditorView }
   | { type: 'SET_BOTTOM_TAB';    tab: BottomTab }
   | { type: 'SET_PLAYING';       playing: boolean }
   | { type: 'UPDATE_SCRIPT';     path: string; content: string }
@@ -225,8 +225,8 @@ export function coreReducer(state: CoreState, action: Action): CoreState {
       return { ...state, selection: { ...state.selection, entityId: action.entityId } }
     case 'SELECT_SCENE':
       return { ...state, selection: { ...state.selection, sceneId: action.sceneId, entityId: null } }
-    case 'SET_VIEW':
-      return { ...state, view: action.view }
+    case 'SET_MODE':
+      return { ...state, mode: action.mode }
     case 'SET_BOTTOM_TAB':
       return { ...state, bottomTab: action.tab }
     case 'SET_PLAYING':
@@ -243,7 +243,7 @@ export function coreReducer(state: CoreState, action: Action): CoreState {
         ...state,
         openScripts:      exists ? state.openScripts : [...state.openScripts, action.file],
         activeScriptPath: action.file.path,
-        view:             'logic',
+        mode:             'script',
       }
     }
     case 'SET_ACTIVE_SCRIPT':

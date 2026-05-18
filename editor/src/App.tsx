@@ -1,11 +1,13 @@
 import { useEffect }       from 'react'
 import { EditorProvider, useEditor } from './store/editor-store'
 import MenuBar            from './components/MenuBar'
+import ModuleRail         from './components/ModuleRail'
 import StatusBar          from './components/StatusBar'
 import HierarchyPanel     from './panels/HierarchyPanel'
 import PreviewPanel       from './panels/PreviewPanel'
 import InspectorPanel     from './panels/InspectorPanel'
 import LogicBoardPanel    from './panels/LogicBoardPanel'
+import ScriptEditorPanel  from './panels/ScriptEditorPanel'
 import AssetBrowserPanel  from './panels/AssetBrowserPanel'
 import TilesetEditorPanel from './panels/TilesetEditorPanel'
 import ConsolePanel       from './panels/ConsolePanel'
@@ -44,7 +46,7 @@ function BottomPanel() {
   const { bottomTab } = state
 
   return (
-    <div className="h-64 border-t border-[var(--border)] bg-[var(--bg)] flex flex-col flex-shrink-0">
+    <div className="h-64 border-t border-[var(--border)] bg-[var(--panel)] flex flex-col flex-shrink-0">
       {/* Tab bar */}
       <div className="flex border-b border-[var(--border)] px-2 flex-shrink-0">
         {BOTTOM_TABS.map(tab => {
@@ -77,20 +79,20 @@ function BottomPanel() {
 }
 
 // ---------------------------------------------------------------------------
-// SCENE_VIEW layout: hierarchy | viewport+bottom | inspector
+// CANVAS mode layout: hierarchy | viewport+bottom | inspector
 // ---------------------------------------------------------------------------
 
-function SceneView() {
+function CanvasView() {
   return (
     <div className="flex flex-1 min-h-0 overflow-hidden">
 
       {/* Left sidebar — Hierarchy */}
-      <aside className="w-64 border-r border-[var(--border)] flex-shrink-0 overflow-hidden">
+      <aside className="w-64 border-r border-[var(--border)] flex-shrink-0 overflow-hidden bg-[var(--panel)]">
         <HierarchyPanel />
       </aside>
 
       {/* Center — Viewport + bottom panel stacked */}
-      <section className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[var(--panel)]">
+      <section className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[var(--bg)]">
         <div className="flex-1 min-h-0 overflow-hidden">
           <PreviewPanel />
         </div>
@@ -98,7 +100,7 @@ function SceneView() {
       </section>
 
       {/* Right sidebar — Inspector */}
-      <aside className="w-72 border-l border-[var(--border)] flex-shrink-0 overflow-hidden">
+      <aside className="w-72 border-l border-[var(--border)] flex-shrink-0 overflow-hidden bg-[var(--panel)]">
         <InspectorPanel />
       </aside>
     </div>
@@ -106,13 +108,25 @@ function SceneView() {
 }
 
 // ---------------------------------------------------------------------------
-// LOGIC_BOARD view: full-screen Monaco editor
+// LOGIC_BOARD mode
 // ---------------------------------------------------------------------------
 
 function LogicBoardView() {
   return (
     <div className="flex flex-1 min-h-0 overflow-hidden">
       <LogicBoardPanel />
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// SCRIPT mode: full-screen Lua editor
+// ---------------------------------------------------------------------------
+
+function ScriptEditorView() {
+  return (
+    <div className="flex flex-1 min-h-0 overflow-hidden">
+      <ScriptEditorPanel />
     </div>
   )
 }
@@ -132,7 +146,7 @@ function EditorLayout() {
       // Ctrl+S — save active script
       if (e.key === 's' || e.key === 'S') {
         e.preventDefault()
-        if (state.view !== 'logic') {
+        if (state.mode === 'canvas') {
           if (!state.project || !state.projectPath) return
           try {
             await saveProjectFile(state.projectPath, state.project)
@@ -177,26 +191,33 @@ function EditorLayout() {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [state.openScripts, state.activeScriptPath, state.project, state.projectPath, state.view, dispatch])
+  }, [state.openScripts, state.activeScriptPath, state.project, state.projectPath, state.mode, dispatch])
 
   return (
-    <div className="flex flex-col w-full h-full bg-[var(--bg)] text-[var(--text)] overflow-hidden select-none">
-      <MenuBar />
+    <div className="flex w-full h-full bg-[var(--bg)] text-[var(--text)] overflow-hidden select-none">
+      <ModuleRail />
 
-      {/* Both views stay MOUNTED; we only toggle visibility. Unmounting
-          SceneView would detach the WASM canvas from the DOM while Emscripten
-          keeps rendering into the old (removed) node → returning to the scene
-          showed an empty viewport. `display:contents` keeps the flex layout
-          identical to rendering the view directly; `display:none` hides the
-          inactive one without tearing down its canvas. */}
-      <div style={{ display: state.view === 'scene' ? 'contents' : 'none' }}>
-        <SceneView />
-      </div>
-      <div style={{ display: state.view !== 'scene' ? 'contents' : 'none' }}>
-        <LogicBoardView />
-      </div>
+      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+        <MenuBar />
 
-      <StatusBar />
+        {/* All three modes stay MOUNTED; we only toggle visibility. Unmounting
+            CanvasView would detach the WASM canvas from the DOM while Emscripten
+            keeps rendering into the old (removed) node → returning to Canvas
+            showed an empty viewport. `display:contents` keeps the flex layout
+            identical to rendering the view directly; `display:none` hides the
+            inactive ones without tearing down their canvas. */}
+        <div style={{ display: state.mode === 'canvas' ? 'contents' : 'none' }}>
+          <CanvasView />
+        </div>
+        <div style={{ display: state.mode === 'logic' ? 'contents' : 'none' }}>
+          <LogicBoardView />
+        </div>
+        <div style={{ display: state.mode === 'script' ? 'contents' : 'none' }}>
+          <ScriptEditorView />
+        </div>
+
+        <StatusBar />
+      </div>
     </div>
   )
 }

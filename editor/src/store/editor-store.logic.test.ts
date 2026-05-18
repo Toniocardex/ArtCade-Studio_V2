@@ -22,7 +22,7 @@ function baseState(project: ProjectDoc | null = emptyProject()): CoreState {
     projectPath: null,
     projectDirty: false,
     selection: { entityId: null, sceneId: 's' },
-    view: 'scene',
+    mode: 'canvas',
     bottomTab: 'assets',
     openScripts: [],
     activeScriptPath: null,

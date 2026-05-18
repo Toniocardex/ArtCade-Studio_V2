@@ -40,7 +40,7 @@ export default function EventCard({
       }`}
     >
       {/* header */}
-      <div className="flex items-center gap-2.5 px-3 py-2 bg-[var(--border)] border-b border-[var(--border)]">
+      <div className="flex items-center gap-2.5 px-3 py-2 bg-[var(--panel-3)] border-b border-[var(--border)]">
         <span className={`${pill} ${pWhen}`}>WHEN</span>
         <span className={`text-[var(--text)] font-semibold text-sm ${dim}`}>
           {triggerSummary(event.trigger)}

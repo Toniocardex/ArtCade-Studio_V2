@@ -1,8 +1,8 @@
 import { useRef, useState, useEffect } from 'react'
 import type { ReactNode } from 'react'
-import { Cpu, Play, Square, FolderOpen, Save, Package, Hammer, ChevronDown, Sun, Moon } from 'lucide-react'
+import { Cpu, Play, Square, FolderOpen, Save, Package, Hammer, ChevronDown } from 'lucide-react'
 import { useEditor } from '../store/editor-store'
-import { applyTheme, toggleTheme, type Theme } from '../utils/theme'
+import TopTabBar from './TopTabBar'
 import {
   openProjectDialog, loadProjectFile,
   saveScript, saveProjectFile, savePackDialog, packProject, runBuild,
@@ -40,7 +40,7 @@ interface FileMenuItem {
 function FileMenu({ items }: { items: FileMenuItem[] }) {
   return (
     <div className="absolute top-full left-0 mt-1 z-[999]
-                    bg-[var(--bg)] border border-[var(--border)] rounded shadow-2xl
+                    bg-[var(--panel)] border border-[var(--border)] rounded-lg shadow-2xl
                     min-w-[220px] py-1 select-none">
       {items.map((item, i) => (
         <div key={i}>
@@ -50,8 +50,8 @@ function FileMenu({ items }: { items: FileMenuItem[] }) {
           <button
             onClick={item.action}
             className="w-full flex items-center gap-3 px-4 py-2
-                       text-[11px] text-[var(--text)] hover:bg-[var(--border)]
-                       hover:text-white transition-colors text-left"
+                       text-[11px] text-[var(--text)] hover:bg-[var(--panel-3)]
+                       hover:text-[var(--text)] transition-colors text-left"
           >
             <span className="text-[var(--muted)] flex-shrink-0">{item.icon}</span>
             <span className="flex-1">{item.label}</span>
@@ -69,10 +69,7 @@ function FileMenu({ items }: { items: FileMenuItem[] }) {
 
 export default function MenuBar() {
   const { state, dispatch } = useEditor()
-  const { view, isPlaying, project, projectPath, projectDirty, openScripts, activeScriptPath } = state
-  const [theme, setTheme] = useState<Theme>(
-    () => (document.documentElement.getAttribute('data-theme') as Theme) || 'dark',
-  )
+  const { isPlaying, project, projectPath, projectDirty, openScripts, activeScriptPath } = state
 
   const [fileMenuOpen, setFileMenuOpen] = useState(false)
   const [isBuilding,   setIsBuilding]   = useState(false)
@@ -213,10 +210,10 @@ export default function MenuBar() {
   // ---- render ------------------------------------------------------------
 
   return (
-    <header className="h-12 border-b border-[var(--border)] bg-[var(--bg)]
+    <header className="h-12 border-b border-[var(--border)] bg-[var(--panel)]
                        flex items-center justify-between px-4 flex-shrink-0 z-50 select-none">
 
-      {/* ── Left: logo + view toggle + file menu ── */}
+      {/* ── Left: logo + mode tabs + file menu ── */}
       <div className="flex items-center gap-4">
 
         {/* Logo */}
@@ -245,52 +242,17 @@ export default function MenuBar() {
           {fileMenuOpen && <FileMenu items={fileItems} />}
         </div>
 
-        {/* Scene / Logic toggle */}
-        <div className="flex bg-[var(--border)] rounded p-1 gap-0.5">
-          <button
-            onClick={() => dispatch({ type: 'SET_VIEW', view: 'scene' })}
-            className={`px-4 py-1 text-[10px] rounded font-bold transition-all ${
-              view === 'scene'
-                ? 'bg-[var(--accent)] text-[var(--bg)]'
-                : 'text-[var(--muted)] hover:bg-white/5'
-            }`}
-          >
-            SCENE_VIEW
-          </button>
-          <button
-            onClick={() => dispatch({ type: 'SET_VIEW', view: 'logic' })}
-            className={`px-4 py-1 text-[10px] rounded font-bold transition-all ${
-              view === 'logic'
-                ? 'bg-[var(--accent-2)] text-[var(--bg)]'
-                : 'text-[var(--muted)] hover:bg-white/5'
-            }`}
-          >
-            LOGIC_BOARD
-          </button>
-        </div>
+        {/* Primary mode tabs */}
+        <TopTabBar />
       </div>
 
-      {/* ── Right: theme + play + build ── */}
+      {/* ── Right: play + build ── */}
       <div className="flex items-center gap-2">
-        <button
-          onClick={() => {
-            const next = toggleTheme(theme)
-            applyTheme(next)
-            setTheme(next)
-          }}
-          title={theme === 'dark' ? 'Switch to Light theme' : 'Switch to Dark theme'}
-          className="flex items-center justify-center w-7 h-7 rounded border
-                     border-[var(--border-2)] text-[var(--muted)]
-                     hover:text-[var(--accent)] hover:border-[var(--accent-bd)] transition-all"
-        >
-          {theme === 'dark' ? <Sun size={13} /> : <Moon size={13} />}
-        </button>
-
         <button
           onClick={() => dispatch({ type: 'SET_PLAYING', playing: !isPlaying })}
           className={`flex items-center gap-2 px-4 py-1 rounded border text-xs font-bold transition-all ${
             isPlaying
-              ? 'bg-red-500/20 border-red-500 text-red-400 hover:bg-red-500/30'
+              ? 'bg-[rgb(var(--danger-rgb)/0.15)] border-[var(--danger)] text-[var(--danger)] hover:bg-[rgb(var(--danger-rgb)/0.25)]'
               : 'bg-[rgb(var(--accent-rgb)/0.1)] border-[var(--accent)] text-[var(--accent)] hover:bg-[rgb(var(--accent-rgb)/0.2)]'
           }`}
         >

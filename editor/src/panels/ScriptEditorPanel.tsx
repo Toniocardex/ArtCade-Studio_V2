@@ -1,6 +1,20 @@
+import { useEffect, useState } from 'react'
 import Editor from '@monaco-editor/react'
 import type { Monaco } from '@monaco-editor/react'
 import { useEditor } from '../store/editor-store'
+
+/** Tracks the <html data-theme> attribute so Monaco follows the app theme. */
+function useThemeMode(): 'dark' | 'light' {
+  const read = () =>
+    document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark'
+  const [theme, setTheme] = useState<'dark' | 'light'>(read)
+  useEffect(() => {
+    const obs = new MutationObserver(() => setTheme(read()))
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+    return () => obs.disconnect()
+  }, [])
+  return theme
+}
 
 // ---------------------------------------------------------------------------
 // ArtCade Lua autocomplete — registered once on Monaco mount
@@ -62,7 +76,7 @@ function ScriptTabBar({ paths, activePath, dirtyPaths, onSelect }: {
   onSelect:   (path: string) => void
 }) {
   return (
-    <div className="flex overflow-x-auto border-b border-[var(--border)] bg-[var(--bg)] flex-shrink-0">
+    <div className="flex overflow-x-auto border-b border-[var(--border)] bg-[var(--panel)] flex-shrink-0">
       {paths.map(p => {
         const label = p.split('/').pop() ?? p
         const active = p === activePath
@@ -73,8 +87,8 @@ function ScriptTabBar({ paths, activePath, dirtyPaths, onSelect }: {
             className={`flex items-center gap-2 px-4 py-2 text-[11px] whitespace-nowrap
                         border-r border-[var(--border)] transition-colors ${
                           active
-                            ? 'bg-[var(--border)] text-[var(--accent-2)] border-t-2 border-t-[var(--accent-2)]'
-                            : 'text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--panel)]'
+                            ? 'bg-[var(--bg)] text-[var(--accent)] border-t-2 border-t-[var(--accent)]'
+                            : 'text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--panel-3)]'
                         }`}
           >
             {label}
@@ -95,6 +109,7 @@ function ScriptTabBar({ paths, activePath, dirtyPaths, onSelect }: {
 export default function ScriptEditorPanel() {
   const { state, dispatch } = useEditor()
   const { openScripts, activeScriptPath } = state
+  const themeMode = useThemeMode()
 
   const currentScript = openScripts.find(s => s.path === activeScriptPath)
   const dirtyPaths    = new Set(openScripts.filter(s => s.isDirty).map(s => s.path))
@@ -113,7 +128,7 @@ export default function ScriptEditorPanel() {
           <Editor
             height="100%"
             language="lua"
-            theme="vs-dark"
+            theme={themeMode === 'light' ? 'light' : 'vs-dark'}
             value={currentScript.content}
             onMount={(_ed, monaco) => registerLuaExtras(monaco)}
             options={{

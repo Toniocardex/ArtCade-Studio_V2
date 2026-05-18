@@ -115,8 +115,8 @@ export interface ProjectDoc {
 // Editor-only types
 // ---------------------------------------------------------------------------
 
-/** Top-level view: 3-column scene editor vs full-screen Lua code editor */
-export type EditorView = 'scene' | 'logic'
+/** Top-level mode: Canvas/Scene editor · Logic Board · Script editor */
+export type EditorView = 'canvas' | 'logic' | 'script'
 
 /** Bottom panel tab (visible only in scene view) */
 export type BottomTab = 'assets' | 'tileset' | 'console'
@@ -146,7 +146,7 @@ export interface EditorState {
   projectPath:      string | null           // absolute path to project.json on disk
   projectDirty:     boolean
   selection:        EditorSelection
-  view:             EditorView
+  mode:             EditorView
   bottomTab:        BottomTab
   openScripts:      ScriptFile[]
   activeScriptPath: string | null

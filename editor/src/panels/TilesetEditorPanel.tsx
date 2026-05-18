@@ -209,7 +209,7 @@ export default function TilesetEditorPanel() {
                     className={`border ${
                       sel
                         ? 'border-[var(--accent-2)] bg-[rgb(var(--accent-2-rgb)/0.2)]'
-                        : 'border-white/10 hover:border-[rgb(var(--accent-rgb)/0.5)]'
+                        : 'border-[var(--border)] hover:border-[rgb(var(--accent-rgb)/0.5)]'
                     }`}
                   />
                 )

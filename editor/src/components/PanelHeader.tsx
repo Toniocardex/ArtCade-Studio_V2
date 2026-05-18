@@ -5,7 +5,7 @@ interface PanelHeaderProps {
   children?: ReactNode
 }
 
-/** Neon-style panel header — slate border, ALL-CAPS label */
+/** Panel header — bottom border, muted ALL-CAPS label */
 export default function PanelHeader({ title, children }: PanelHeaderProps) {
   return (
     <div className="flex items-center justify-between px-3 py-2

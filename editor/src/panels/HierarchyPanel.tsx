@@ -105,7 +105,7 @@ export default function HierarchyPanel() {
 
   if (!project) {
     return (
-      <div className="h-full bg-[var(--bg)] flex items-center justify-center">
+      <div className="h-full bg-[var(--panel)] flex items-center justify-center">
         <span className="text-[var(--muted)] text-xs">No project</span>
       </div>
     )
@@ -118,7 +118,7 @@ export default function HierarchyPanel() {
     .filter((e): e is EntityDef => Boolean(e))
 
   return (
-    <div className="h-full flex flex-col bg-[var(--bg)]">
+    <div className="h-full flex flex-col bg-[var(--panel)]">
       <PanelHeader title="Hierarchy">
         <button
           onClick={() => scene && dispatch({ type: 'ENTITY_ADD', sceneId })}

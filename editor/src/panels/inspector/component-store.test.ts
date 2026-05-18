@@ -23,7 +23,7 @@ function baseState(p: ProjectDoc): CoreState {
   return {
     project: p, projectPath: null, projectDirty: false,
     selection: { entityId: 1, sceneId: 's' },
-    view: 'scene', bottomTab: 'assets',
+    mode: 'canvas', bottomTab: 'assets',
     openScripts: [], activeScriptPath: null, isPlaying: false, selectedTileCell: 1,
   }
 }

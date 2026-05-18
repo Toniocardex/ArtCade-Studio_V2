@@ -11,11 +11,11 @@ export default function StatusBar() {
     : 'None'
 
   return (
-    <footer className="h-6 bg-[var(--border)] border-t border-[var(--border-2)]
+    <footer className="h-6 bg-[var(--panel)] border-t border-[var(--border)]
                        flex items-center justify-between px-3 text-[9px]
                        text-[var(--muted)] flex-shrink-0 select-none">
       <div className="flex items-center gap-4">
-        <span className={isPlaying ? 'text-red-400' : 'text-[var(--accent)]'}>
+        <span className={isPlaying ? 'text-[var(--danger)]' : 'text-[var(--accent)]'}>
           Runtime: {isPlaying ? 'PLAYING' : 'READY'}
         </span>
         <span>Grid: 32px</span>

@@ -161,11 +161,11 @@ export default function PreviewPanel() {
   })()
 
   return (
-    <div className="h-full flex flex-col bg-[var(--panel)] relative">
+    <div className="h-full flex flex-col bg-[var(--bg)] relative">
 
       {/* ── Tool palette (React overlay, Z above canvas) ── */}
       <div className="absolute top-4 left-4 flex flex-col gap-2 z-40
-                      bg-[rgb(var(--bg-rgb)/0.9)] p-2 border border-[var(--border)] rounded">
+                      bg-[var(--panel)] p-2 border border-[var(--border)] rounded-lg shadow-lg">
         {([
           { id: 'select', Icon: MousePointer2, color: 'var(--accent)' },
           { id: 'pan',    Icon: Hand,           color: 'var(--muted)' },
@@ -174,7 +174,7 @@ export default function PreviewPanel() {
             key={id}
             onClick={() => setActiveTool(id)}
             className={`p-1.5 rounded transition-colors ${
-              activeTool === id ? 'bg-[rgb(var(--accent-rgb)/0.2)]' : 'hover:bg-white/5'
+              activeTool === id ? 'bg-[rgb(var(--accent-rgb)/0.2)]' : 'hover:bg-[var(--panel-3)]'
             }`}
           >
             <Icon size={15} color={activeTool === id ? color : 'var(--muted)'} />
@@ -191,7 +191,7 @@ export default function PreviewPanel() {
             key={id}
             onClick={() => setActiveTool(id)}
             className={`p-1.5 rounded transition-colors ${
-              activeTool === id ? 'bg-[rgb(var(--accent-2-rgb)/0.2)]' : 'hover:bg-white/5'
+              activeTool === id ? 'bg-[rgb(var(--accent-2-rgb)/0.2)]' : 'hover:bg-[var(--panel-3)]'
             }`}
           >
             <Icon size={15} color={activeTool === id ? 'var(--accent-2)' : 'var(--muted)'} />
@@ -205,7 +205,7 @@ export default function PreviewPanel() {
           onClick={() => setActiveTool('tile')}
           title={`Tile paint (brush ${selectedTileCell === 0 ? 'eraser' : '#' + selectedTileCell})`}
           className={`p-1.5 rounded transition-colors ${
-            activeTool === 'tile' ? 'bg-[rgb(var(--accent-2-rgb)/0.2)]' : 'hover:bg-white/5'
+            activeTool === 'tile' ? 'bg-[rgb(var(--accent-2-rgb)/0.2)]' : 'hover:bg-[var(--panel-3)]'
           }`}
         >
           <Grid3x3 size={15} color={activeTool === 'tile' ? 'var(--accent-2)' : 'var(--muted)'} />
@@ -214,7 +214,7 @@ export default function PreviewPanel() {
 
       {/* ── WASM status badge ── */}
       <div className="absolute top-4 right-4 z-40 flex items-center gap-1.5
-                      bg-[rgb(var(--bg-rgb)/0.9)] px-2 py-1 rounded border border-[var(--border)] text-[9px]">
+                      bg-[var(--panel)] px-2 py-1 rounded-lg border border-[var(--border)] shadow-lg text-[9px]">
         {wasmReady
           ? <><Wifi size={10} className="text-[var(--accent)]" /><span className="text-[var(--accent)]">RUNTIME READY</span></>
           : <><WifiOff size={10} className="text-[var(--muted)]" /><span className="text-[var(--muted)]">
@@ -260,8 +260,9 @@ export default function PreviewPanel() {
         />
 
         {/* Resolution badge */}
-        <div className="absolute bottom-8 right-8 text-[9px] text-[rgb(var(--border-rgb)/0.8)]
-                        bg-black/30 px-1 select-none pointer-events-none">
+        <div className="absolute bottom-8 right-8 text-[9px] text-[var(--muted)]
+                        bg-[var(--panel)] border border-[var(--border)] rounded px-1.5 py-0.5
+                        select-none pointer-events-none">
           {res.x}×{res.y}
         </div>
       </div>
