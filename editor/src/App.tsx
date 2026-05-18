@@ -200,21 +200,22 @@ function EditorLayout() {
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         <MenuBar />
 
-        {/* All three modes stay MOUNTED; we only toggle visibility. Unmounting
-            CanvasView would detach the WASM canvas from the DOM while Emscripten
-            keeps rendering into the old (removed) node → returning to Canvas
-            showed an empty viewport. `display:contents` keeps the flex layout
-            identical to rendering the view directly; `display:none` hides the
-            inactive ones without tearing down their canvas. */}
+        {/* Only CanvasView must stay MOUNTED: unmounting it would detach the
+            WASM canvas while Emscripten keeps rendering into the removed node
+            → empty viewport on return. It is kept alive via display toggling
+            (`contents` when active, `none` when hidden).
+
+            LogicBoardView / ScriptEditorView have NO WASM canvas, so they are
+            mounted CONDITIONALLY. This is required for Monaco: a permanently
+            mounted editor inside a `display:contents` (boxless) ancestor has
+            no containing block for its `height:100%`, so it laid out at ~0px
+            and stayed compact (text rendered at the top until a relayout).
+            Mounting only when active gives Monaco a real, sized box. */}
         <div style={{ display: state.mode === 'canvas' ? 'contents' : 'none' }}>
           <CanvasView />
         </div>
-        <div style={{ display: state.mode === 'logic' ? 'contents' : 'none' }}>
-          <LogicBoardView />
-        </div>
-        <div style={{ display: state.mode === 'script' ? 'contents' : 'none' }}>
-          <ScriptEditorView />
-        </div>
+        {state.mode === 'logic'  && <LogicBoardView />}
+        {state.mode === 'script' && <ScriptEditorView />}
 
         <StatusBar />
       </div>
