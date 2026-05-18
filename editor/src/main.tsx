@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
+import './utils/monaco-setup'   // point Monaco at the local bundle (offline)
 import App from './App'
 import { initTheme } from './utils/theme'
 

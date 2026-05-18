@@ -116,7 +116,8 @@ export default function TilesetEditorPanel() {
       />
 
       {/* Left: controls */}
-      <div className="w-56 border-r border-[var(--border)] p-3 flex flex-col gap-3 flex-shrink-0">
+      <div className="w-56 border-r border-[var(--border)] p-3 flex flex-col gap-3
+                      flex-shrink-0 overflow-y-auto min-h-0">
         <button
           onClick={() => fileRef.current?.click()}
           className="flex items-center justify-center gap-2 px-3 py-2 rounded
