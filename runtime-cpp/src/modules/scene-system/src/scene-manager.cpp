@@ -33,4 +33,9 @@ const SceneDef* SceneManager::getScene(const SceneId& id) const {
     return (it != scenes_.end()) ? &it->second : nullptr;
 }
 
+SceneDef* SceneManager::activeSceneMutable() {
+    auto it = scenes_.find(activeId_);
+    return (it != scenes_.end()) ? &it->second : nullptr;
+}
+
 } // namespace ArtCade::Modules

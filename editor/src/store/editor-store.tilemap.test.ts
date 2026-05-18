@@ -64,6 +64,20 @@ describe('coreReducer — tilemap', () => {
     expect(c.project!.scenes.s.tilemap!.data[1]).toBe(3)
   })
 
+  it('TILEMAP_PAINT_CELL resolves (col,row)→index via layer cols (F2)', () => {
+    let s = coreReducer(st(project()), { type: 'TILEMAP_INIT', sceneId: 's' })
+    const cols = s.project!.scenes.s.tilemap!.cols
+    s = coreReducer(s, { type: 'TILEMAP_PAINT_CELL', sceneId: 's', col: 3, row: 2, tileId: 7 })
+    expect(s.project!.scenes.s.tilemap!.data[2 * cols + 3]).toBe(7)
+    expect(s.projectDirty).toBe(true)
+    // out-of-range col/row → unchanged reference
+    const same = coreReducer(s, { type: 'TILEMAP_PAINT_CELL', sceneId: 's', col: 9999, row: 0, tileId: 7 })
+    expect(same).toBe(s)
+    // no tilemap → no-op
+    const noTm = coreReducer(st(project()), { type: 'TILEMAP_PAINT_CELL', sceneId: 's', col: 0, row: 0, tileId: 1 })
+    expect(noTm.projectDirty).toBe(false)
+  })
+
   it('no-op without project / unknown scene', () => {
     expect(
       coreReducer(st(project()), { type: 'TILEMAP_PAINT', sceneId: 'nope', index: 0, tileId: 1 }).projectDirty,

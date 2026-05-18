@@ -186,6 +186,7 @@ export type Action =
   | { type: 'WORLD_SET';         patch: Partial<WorldSettings> }
   | { type: 'TILEMAP_INIT';  sceneId: string }
   | { type: 'TILEMAP_PAINT'; sceneId: string; index: number; tileId: number }
+  | { type: 'TILEMAP_PAINT_CELL'; sceneId: string; col: number; row: number; tileId: number }
   | { type: 'TILESET_ASSET_ADD';     asset: TilesetAsset }
   | { type: 'TILESET_ASSET_REMOVE';  assetId: string }
   | { type: 'TILEMAP_SET_TILESETID'; sceneId: string; assetId: string }
@@ -451,6 +452,29 @@ export function coreReducer(state: CoreState, action: Action): CoreState {
       if (tm.data[action.index] === action.tileId && sc.tilemap) return state
       const data = tm.data.slice()
       data[action.index] = action.tileId
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          scenes: {
+            ...state.project.scenes,
+            [action.sceneId]: { ...sc, tilemap: { ...tm, data } },
+          },
+        },
+        projectDirty: true,
+      }
+    }
+    case 'TILEMAP_PAINT_CELL': {
+      // C++ painting sends (col,row); resolve to index using the layer cols.
+      const sc = state.project?.scenes[action.sceneId]
+      if (!state.project || !sc?.tilemap) return state
+      const tm = sc.tilemap
+      if (action.col < 0 || action.col >= tm.cols ||
+          action.row < 0 || action.row >= tm.rows) return state
+      const index = action.row * tm.cols + action.col
+      if (tm.data[index] === action.tileId) return state
+      const data = tm.data.slice()
+      data[index] = action.tileId
       return {
         ...state,
         project: {

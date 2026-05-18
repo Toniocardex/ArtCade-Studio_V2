@@ -1,10 +1,11 @@
 import { useRef, useEffect, useState } from 'react'
-import { MousePointer2, Hand, Paintbrush, Eraser, Wifi, WifiOff } from 'lucide-react'
+import { MousePointer2, Hand, Paintbrush, Eraser, Wifi, WifiOff, Grid3x3 } from 'lucide-react'
 import { useEditor } from '../store/editor-store'
 import type { ConsoleEntry } from '../types'
 import {
   loadWasmRuntime, isReady,
   syncEditorRuntimeState,
+  editorSetTilePaintMode, editorSetSelectedTile,
 } from '../utils/wasm-bridge'
 
 // ---------------------------------------------------------------------------
@@ -14,7 +15,7 @@ import {
 // ---------------------------------------------------------------------------
 const WASM_RUNTIME_SRC = '/runtime/game.js'
 
-type Tool = 'select' | 'pan' | 'paint' | 'erase'
+type Tool = 'select' | 'pan' | 'paint' | 'erase' | 'tile'
 
 export default function PreviewPanel() {
   // ── IMPORTANT: useEditor() subscribes ONLY to CoreContext (project,
@@ -28,10 +29,13 @@ export default function PreviewPanel() {
   // content briefly disappearing.  The context split in editor-store.tsx
   // prevents this entirely.
   const { state, dispatch } = useEditor()
-  const { project, projectPath, isPlaying, selection } = state
+  const { project, projectPath, isPlaying, selection, selectedTileCell } = state
 
   const canvasRef    = useRef<HTMLCanvasElement>(null)
   const lastProjectLoadKeyRef = useRef<string | null>(null)
+  // current scene id for the (mount-time) onTilemapPainted callback
+  const sceneIdRef = useRef<string>('')
+  sceneIdRef.current = selection.sceneId ?? project?.activeSceneId ?? ''
   const [wasmReady,  setWasmReady]  = useState(() => isReady())
   const [engineReady, setEngineReady] = useState(false)
   const [activeTool, setActiveTool] = useState<Tool>('select')
@@ -90,18 +94,34 @@ export default function PreviewPanel() {
         }
         setTimeout(() => dispatch({ type: 'LOG', entry }), 0)
       },
+
+      // Phase F2: C++ painted a tile in the scene → persist in the store.
+      onTilemapPainted: (col, row, tileId) => {
+        const sceneId = sceneIdRef.current
+        if (!sceneId) return
+        setTimeout(() => dispatch({
+          type: 'TILEMAP_PAINT_CELL', sceneId, col, row, tileId,
+        }), 0)
+      },
     })
   }, [dispatch])   // run once on mount
 
   // ── Re-sync project into C++ whenever the user opens a new project ────────
   useEffect(() => {
     if (!wasmReady || !engineReady || !project) return
+    // NOTE: tilemap.data is intentionally NOT in the key — during in-scene
+    // painting the C++ runtime is the source of truth and notifies React;
+    // re-syncing the whole project on every cell would flood editor_load_project.
+    // The tilemap STRUCTURE (cols/rows/tilesetAssetId) IS included so that
+    // creating/attaching a tileset re-syncs once and the runtime gets the layer.
+    const at = project.scenes[project.activeSceneId]?.tilemap
     const loadKey = [
       projectPath ?? project.projectName,
       project.version,
       project.activeSceneId,
       Object.keys(project.entities).length,
       Object.keys(project.scenes).length,
+      at ? `${at.cols}x${at.rows}:${at.tilesetAssetId ?? ''}` : 'no-tm',
     ].join('|')
     if (lastProjectLoadKeyRef.current === loadKey) return
     lastProjectLoadKeyRef.current = loadKey
@@ -119,6 +139,14 @@ export default function PreviewPanel() {
     if (!wasmReady || !engineReady) return
     syncEditorRuntimeState({ selectedEntityId: selection.entityId })
   }, [selection.entityId, wasmReady, engineReady])
+
+  // ── Phase F2: sync tile-paint mode + brush tile to C++ ───────────────────
+  useEffect(() => {
+    if (!wasmReady || !engineReady) return
+    const painting = activeTool === 'tile'
+    editorSetTilePaintMode(painting)
+    if (painting) editorSetSelectedTile(selectedTileCell)
+  }, [activeTool, selectedTileCell, wasmReady, engineReady])
 
   // ── Canvas resolution matches game resolution ─────────────────────────────
   const res = project?.gameResolution ?? { x: 1280, y: 720 }
@@ -169,6 +197,19 @@ export default function PreviewPanel() {
             <Icon size={15} color={activeTool === id ? '#FF00FF' : '#9CA3AF'} />
           </button>
         ))}
+
+        <div className="h-px w-full bg-[#1A253A]" />
+
+        {/* Phase F2: in-scene tile painting */}
+        <button
+          onClick={() => setActiveTool('tile')}
+          title={`Tile paint (brush ${selectedTileCell === 0 ? 'eraser' : '#' + selectedTileCell})`}
+          className={`p-1.5 rounded transition-colors ${
+            activeTool === 'tile' ? 'bg-[#FF00FF]/20' : 'hover:bg-white/5'
+          }`}
+        >
+          <Grid3x3 size={15} color={activeTool === 'tile' ? '#FF00FF' : '#9CA3AF'} />
+        </button>
       </div>
 
       {/* ── WASM status badge ── */}

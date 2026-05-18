@@ -84,6 +84,9 @@ public:
     static void queueConsoleLine(const char* message, const char* level = "info");
     static void flushConsoleLines();
 
+    /** Phase F2: a tile cell was painted in the scene -> React persists it. */
+    static void notifyTilemapPainted(int col, int row, int tileId);
+
     // -------------------------------------------------------------------------
     // Accessors
     // -------------------------------------------------------------------------
@@ -96,6 +99,8 @@ public:
     static uint32_t s_selectedEntityId;
     static bool     s_isDragging;
     static float    s_dragStartX, s_dragStartY;
+    static bool     s_tilePaintMode;   // Phase F2
+    static int      s_selectedTileId;  // Phase F2 (0 = eraser)
 
     // Engine pointers wired in wireEngine() / wireLua()
     static Modules::RuntimeEntityGateway* s_entityGateway;
@@ -153,6 +158,12 @@ EMSCRIPTEN_KEEPALIVE void editor_set_transform(
  */
 EMSCRIPTEN_KEEPALIVE void editor_reload_script(const char* lua_utf8);
 
+/** Phase F2: toggle in-scene tile painting (1 = on). */
+EMSCRIPTEN_KEEPALIVE void editor_set_tile_paint_mode(int enabled);
+
+/** Phase F2: set the brush tile id (0 = eraser). */
+EMSCRIPTEN_KEEPALIVE void editor_set_selected_tile(int tileId);
+
 } // extern "C"
 
 // =============================================================================
@@ -173,6 +184,7 @@ struct EditorAPI {
     static void notifyConsoleLine(const char*, const char* = nullptr) {}
     static void queueConsoleLine(const char*, const char* = nullptr) {}
     static void flushConsoleLines() {}
+    static void notifyTilemapPainted(int, int, int) {}
     static int      getMode()           { return 0; }
     static uint32_t getSelectedEntity() { return 0u; }
     static bool     isEditorMode()      { return true; }
@@ -180,6 +192,8 @@ struct EditorAPI {
     static uint32_t s_selectedEntityId;
     static bool     s_isDragging;
     static float    s_dragStartX, s_dragStartY;
+    static bool     s_tilePaintMode;
+    static int      s_selectedTileId;
     static Modules::RuntimeEntityGateway* s_entityGateway;
     static Modules::LuaHost*              s_luaHost;
     static std::vector<std::pair<std::string, std::string>> s_consoleQueue;

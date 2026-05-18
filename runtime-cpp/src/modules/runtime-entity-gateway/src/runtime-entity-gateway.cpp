@@ -110,6 +110,10 @@ const SceneDef* RuntimeEntityGateway::activeScene() const {
     return sceneManager_.activeScene();
 }
 
+SceneDef* RuntimeEntityGateway::activeSceneMutable() {
+    return sceneManager_.activeSceneMutable();
+}
+
 void RuntimeEntityGateway::forEachInPool(
     const std::string& className,
     const std::function<void(EntityId, EntityDef&)>& fn)

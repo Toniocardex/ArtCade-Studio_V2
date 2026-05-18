@@ -11,6 +11,8 @@ uint32_t EditorAPI::s_selectedEntityId = 0u;
 bool     EditorAPI::s_isDragging       = false;
 float    EditorAPI::s_dragStartX       = 0.f;
 float    EditorAPI::s_dragStartY       = 0.f;
+bool     EditorAPI::s_tilePaintMode    = false;
+int      EditorAPI::s_selectedTileId   = 1;
 Modules::RuntimeEntityGateway* EditorAPI::s_entityGateway = nullptr;
 Modules::LuaHost*              EditorAPI::s_luaHost       = nullptr;
 } // namespace ArtCade
@@ -44,6 +46,8 @@ uint32_t EditorAPI::s_selectedEntityId = 0u;
 bool     EditorAPI::s_isDragging       = false;
 float    EditorAPI::s_dragStartX       = 0.f;
 float    EditorAPI::s_dragStartY       = 0.f;
+bool     EditorAPI::s_tilePaintMode    = false;
+int      EditorAPI::s_selectedTileId   = 1;
 
 Modules::RuntimeEntityGateway* EditorAPI::s_entityGateway = nullptr;
 Modules::LuaHost*              EditorAPI::s_luaHost       = nullptr;
@@ -82,8 +86,34 @@ void EditorAPI::shutdown() {
 
 // ── Native input callbacks (Smoke Test 2) ─────────────────────────────────────
 
+// Phase F2: paint the brush tile into the active scene's tilemap cell
+// under (x,y). Assumes canvas==world 1:1 (no pan/zoom — like entity drag).
+static void paintTileAt(float x, float y) {
+    auto* gw = EditorAPI::s_entityGateway;
+    if (!gw) return;
+    ArtCade::SceneDef* sc = gw->activeSceneMutable();
+    if (!sc) return;
+    ArtCade::TilemapData& tm = sc->tilemap;
+    if (tm.cols <= 0 || tm.rows <= 0 || tm.tileSize <= 0.f) return;
+    const int col = static_cast<int>(x / tm.tileSize);
+    const int row = static_cast<int>(y / tm.tileSize);
+    if (col < 0 || col >= tm.cols || row < 0 || row >= tm.rows) return;
+    const int idx = row * tm.cols + col;
+    if (idx < 0 || idx >= static_cast<int>(tm.data.size())) return;
+    const int tid = EditorAPI::s_selectedTileId;
+    if (tm.data[idx] == tid) return;          // no-op: already that tile
+    tm.data[idx] = tid;
+    EditorAPI::notifyTilemapPainted(col, row, tid);
+}
+
 EM_BOOL EditorAPI::onMouseMove(int, const EmscriptenMouseEvent* e, void*) {
     if (s_mode != 0) return EM_FALSE;
+    if (s_tilePaintMode) {
+        if (s_isDragging)
+            paintTileAt(static_cast<float>(e->targetX),
+                        static_cast<float>(e->targetY));
+        return EM_TRUE;
+    }
     if (s_isDragging && s_selectedEntityId != 0u) {
         // Live drag -- update entity position in EntityManager
         if (s_entityGateway) {
@@ -102,6 +132,8 @@ EM_BOOL EditorAPI::onMouseDown(int, const EmscriptenMouseEvent* e, void*) {
     s_isDragging = true;
     s_dragStartX = static_cast<float>(e->targetX);
     s_dragStartY = static_cast<float>(e->targetY);
+    if (s_tilePaintMode)
+        paintTileAt(s_dragStartX, s_dragStartY);   // single click paints too
     return EM_TRUE;
 }
 
@@ -109,6 +141,7 @@ EM_BOOL EditorAPI::onMouseDown(int, const EmscriptenMouseEvent* e, void*) {
 EM_BOOL EditorAPI::onMouseUp(int, const EmscriptenMouseEvent* e, void*) {
     if (s_mode != 0) return EM_FALSE;
     s_isDragging = false;
+    if (s_tilePaintMode) return EM_TRUE;   // painting: no transform notify
 
     if (s_selectedEntityId != 0u) {
         const float finalX = static_cast<float>(e->targetX);
@@ -153,6 +186,13 @@ void EditorAPI::notifyConsoleLine(const char* message, const char* level) {
         if (typeof window.onConsoleLine === 'function')
             window.onConsoleLine(msg, lvl);
     }, message, level);
+}
+
+void EditorAPI::notifyTilemapPainted(int col, int row, int tileId) {
+    EM_ASM({
+        if (typeof window.onTilemapPainted === 'function')
+            window.onTilemapPainted($0, $1, $2);
+    }, col, row, tileId);
 }
 
 void EditorAPI::queueConsoleLine(const char* message, const char* level) {
@@ -308,6 +348,14 @@ EMSCRIPTEN_KEEPALIVE void editor_set_mode(int mode) {
 EMSCRIPTEN_KEEPALIVE void editor_select_entity(uint32_t entityId) {
     ArtCade::EditorAPI::s_selectedEntityId = entityId;
     // Notify renderer to draw selection gizmo (future: call renderer API)
+}
+
+EMSCRIPTEN_KEEPALIVE void editor_set_tile_paint_mode(int enabled) {
+    ArtCade::EditorAPI::s_tilePaintMode = (enabled != 0);
+}
+
+EMSCRIPTEN_KEEPALIVE void editor_set_selected_tile(int tileId) {
+    ArtCade::EditorAPI::s_selectedTileId = tileId;
 }
 
 EMSCRIPTEN_KEEPALIVE void editor_deselect() {

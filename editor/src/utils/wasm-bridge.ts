@@ -52,6 +52,7 @@ declare global {
     onEntityTransformChanged?:    (entityId: number, x: number, y: number,
                                    rot: number, sx: number, sy: number) => void
     onConsoleLine?:               (message: string, level: string) => void
+    onTilemapPainted?:            (col: number, row: number, tileId: number) => void
   }
 }
 
@@ -87,6 +88,7 @@ export interface WasmCallbacks {
   onEntityTransformChanged: (entityId: number, x: number, y: number,
                              rot: number, sx: number, sy: number) => void
   onConsoleLine:            (message: string, level: string) => void
+  onTilemapPainted?:        (col: number, row: number, tileId: number) => void
 }
 
 /**
@@ -112,6 +114,7 @@ export function loadWasmRuntime(
   window.onEntitySelected         = cbs.onEntitySelected
   window.onEntityTransformChanged = cbs.onEntityTransformChanged
   window.onConsoleLine            = cbs.onConsoleLine
+  window.onTilemapPainted         = cbs.onTilemapPainted
   // onObjectUpdated used by smoke tests (ST-3/ST-4)
   window.onObjectUpdated = (x, y) =>
     cbs.onEntityTransformChanged(0, x, y, 0, 1, 1)
@@ -215,6 +218,16 @@ export function editorReloadScript(luaSource: string): boolean {
   } finally {
     _module._free(ptr)
   }
+}
+
+/** Phase F2: toggle in-scene tile painting in the C++ runtime. */
+export function editorSetTilePaintMode(enabled: boolean): void {
+  safeCall('editor_set_tile_paint_mode', null, ['number'], [enabled ? 1 : 0])
+}
+
+/** Phase F2: set the brush tile id (0 = eraser). */
+export function editorSetSelectedTile(tileId: number): void {
+  safeCall('editor_set_selected_tile', null, ['number'], [tileId])
 }
 
 /** Push an Inspector transform change into the C++ scene. */

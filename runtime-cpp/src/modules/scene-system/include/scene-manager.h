@@ -30,6 +30,8 @@ public:
     SceneId           activeSceneId()     const { return activeId_; }
     const SceneDef*   activeScene()       const;
     const SceneDef*   getScene(const SceneId& id) const;
+    // Phase F2: mutable access for in-scene tile painting.
+    SceneDef*         activeSceneMutable();
 
 private:
     EntityManager&                               entityManager_;

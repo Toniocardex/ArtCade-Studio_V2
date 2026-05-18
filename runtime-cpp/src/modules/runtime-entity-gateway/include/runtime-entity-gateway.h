@@ -46,6 +46,7 @@ public:
     bool loadScene(const SceneId& id);
     SceneId activeSceneId() const;
     const SceneDef* activeScene() const;
+    SceneDef*       activeSceneMutable();   // Phase F2: in-scene tile painting
 
     void forEachInPool(const std::string& className,
                        const std::function<void(EntityId, EntityDef&)>& fn);
