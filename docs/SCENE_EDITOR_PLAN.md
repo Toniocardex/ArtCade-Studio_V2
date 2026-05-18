@@ -172,11 +172,18 @@ selezionabile **Dark / Light**, con **Dark come default**.
 |------|-------|
 | A — Inspector a componenti | ✅ `efdc6af` |
 | B — World settings + Hierarchy | ✅ `97c8ba1` |
-| C — Tile painter (editor-side) | ✅ `4585b23` |
+| C — Tile painter (editor-side, sostituita da F) | ✅ `4585b23` |
 | D1 — Componenti ECS + AutoDestroy | ✅ `704f370` |
 | D2 — Tilemap render + collisioni | ✅ `fe2d59c` |
 | D3 — Gizmo/sensori viewport | ✅ `1bc1c91` |
-| E — Theming Dark/Light | ⏳ pianificato |
+| F1 — Tileset-da-immagine (panel) | ✅ `b42048b` |
+| F2 — Painting in-scena (C++) + sync | ✅ `2cc1121` |
+| F3 — Render tile da spritesheet (atlas) | ✅ `6b64fe8` |
+| E — Theming Dark/Light | ⏳ pianificato (unica rimasta) |
+
+> **Follow-up noti (fuori scope F)**: asset-pipeline per immagini arbitrarie
+> editor→VFS WASM (oggi il tileset di test è preloadato); la tool-rail in
+> alto-sinistra copre quell'angolo del canvas durante il painting.
 
 ## Stima totale
 
