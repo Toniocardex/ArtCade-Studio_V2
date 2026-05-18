@@ -53,6 +53,24 @@ Modules::RuntimeEntityGateway* EditorAPI::s_entityGateway = nullptr;
 Modules::LuaHost*              EditorAPI::s_luaHost       = nullptr;
 std::vector<std::pair<std::string, std::string>> EditorAPI::s_consoleQueue;
 
+// Canvas selector captured in init(); used to map CSS mouse coords → world px.
+static std::string s_canvasSel = "#canvas";
+
+// EmscriptenMouseEvent.targetX/Y are in CSS pixels of the (scaled) canvas
+// element, but the world/tilemap is in the canvas' internal resolution
+// (e.g. 1280x720). Without this scale the painted cell / dragged entity is
+// offset proportionally to the CSS downscale factor.
+static void toWorld(const EmscriptenMouseEvent* e, float& wx, float& wy) {
+    double cssW = 0.0, cssH = 0.0;
+    int    iw   = 0,   ih   = 0;
+    emscripten_get_element_css_size (s_canvasSel.c_str(), &cssW, &cssH);
+    emscripten_get_canvas_element_size(s_canvasSel.c_str(), &iw,  &ih);
+    const float sx = (cssW > 0.0) ? static_cast<float>(iw / cssW) : 1.f;
+    const float sy = (cssH > 0.0) ? static_cast<float>(ih / cssH) : 1.f;
+    wx = static_cast<float>(e->targetX) * sx;
+    wy = static_cast<float>(e->targetY) * sy;
+}
+
 // ── Engine wiring ─────────────────────────────────────────────────────────────
 void EditorAPI::wireEngine(Modules::RuntimeEntityGateway* gateway) {
     s_entityGateway = gateway;
@@ -66,6 +84,7 @@ void EditorAPI::wireLua(Modules::LuaHost* luaHost) {
 
 // ── Init / Shutdown ───────────────────────────────────────────────────────────
 void EditorAPI::init(const char* canvasSelector) {
+    if (canvasSelector && *canvasSelector) s_canvasSel = canvasSelector;
     // Smoke Test 2: register native callbacks -- bypasses JS event loop entirely.
     emscripten_set_mousemove_callback(canvasSelector, nullptr, 1, onMouseMove);
     emscripten_set_mousedown_callback(canvasSelector, nullptr, 1, onMouseDown);
@@ -108,10 +127,11 @@ static void paintTileAt(float x, float y) {
 
 EM_BOOL EditorAPI::onMouseMove(int, const EmscriptenMouseEvent* e, void*) {
     if (s_mode != 0) return EM_FALSE;
+    float wx, wy;
+    toWorld(e, wx, wy);
     if (s_tilePaintMode) {
         if (s_isDragging)
-            paintTileAt(static_cast<float>(e->targetX),
-                        static_cast<float>(e->targetY));
+            paintTileAt(wx, wy);
         return EM_TRUE;
     }
     if (s_isDragging && s_selectedEntityId != 0u) {
@@ -119,8 +139,8 @@ EM_BOOL EditorAPI::onMouseMove(int, const EmscriptenMouseEvent* e, void*) {
         if (s_entityGateway) {
             EntityDef* ent = s_entityGateway->get(s_selectedEntityId);
             if (ent) {
-                ent->transform.position.x = static_cast<float>(e->targetX);
-                ent->transform.position.y = static_cast<float>(e->targetY);
+                ent->transform.position.x = wx;
+                ent->transform.position.y = wy;
             }
         }
     }
@@ -130,8 +150,10 @@ EM_BOOL EditorAPI::onMouseMove(int, const EmscriptenMouseEvent* e, void*) {
 EM_BOOL EditorAPI::onMouseDown(int, const EmscriptenMouseEvent* e, void*) {
     if (s_mode != 0) return EM_FALSE;
     s_isDragging = true;
-    s_dragStartX = static_cast<float>(e->targetX);
-    s_dragStartY = static_cast<float>(e->targetY);
+    float wx, wy;
+    toWorld(e, wx, wy);
+    s_dragStartX = wx;
+    s_dragStartY = wy;
     if (s_tilePaintMode)
         paintTileAt(s_dragStartX, s_dragStartY);   // single click paints too
     return EM_TRUE;
@@ -144,8 +166,8 @@ EM_BOOL EditorAPI::onMouseUp(int, const EmscriptenMouseEvent* e, void*) {
     if (s_tilePaintMode) return EM_TRUE;   // painting: no transform notify
 
     if (s_selectedEntityId != 0u) {
-        const float finalX = static_cast<float>(e->targetX);
-        const float finalY = static_cast<float>(e->targetY);
+        float finalX, finalY;
+        toWorld(e, finalX, finalY);
         notifyTransformChanged(s_selectedEntityId, finalX, finalY, 0.f, 1.f, 1.f);
     }
     return EM_TRUE;
