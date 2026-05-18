@@ -1,9 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Editor from '@monaco-editor/react'
-import type { Monaco, OnMount } from '@monaco-editor/react'
+import type { Monaco } from '@monaco-editor/react'
 import { useEditor } from '../store/editor-store'
-
-type CodeEditor = Parameters<OnMount>[0]
 
 /** Tracks the <html data-theme> attribute so Monaco follows the app theme. */
 function useThemeMode(): 'dark' | 'light' {
@@ -105,35 +103,26 @@ function ScriptTabBar({ paths, activePath, dirtyPaths, onSelect }: {
 }
 
 // ---------------------------------------------------------------------------
-// Panel (shown full-screen in LOGIC_BOARD view)
+// Panel — the Editor Script view.
+//
+// Native, debt-free integration:
+//  • Mounted ONLY when active (App.tsx renders it conditionally), so Monaco
+//    always initialises inside a real, sized flex box — no display:none /
+//    display:contents 0-height workarounds, no forced relayout timers.
+//  • UNCONTROLLED model (defaultValue + path): edits flow one-way to the
+//    store via onChange; we never push `value` back, so Monaco never re-sets
+//    its model mid-edit (that caused the cursor/scroll-to-top glitch).
+//  • box-sizing for the Monaco subtree is reset to content-box in index.css
+//    (the app-wide `* { border-box }` otherwise mis-measures glyphs/widgets).
 // ---------------------------------------------------------------------------
 
 export default function ScriptEditorPanel() {
   const { state, dispatch } = useEditor()
-  const { openScripts, activeScriptPath, mode } = state
+  const { openScripts, activeScriptPath } = state
   const themeMode = useThemeMode()
 
   const currentScript = openScripts.find(s => s.path === activeScriptPath)
   const dirtyPaths    = new Set(openScripts.filter(s => s.isDirty).map(s => s.path))
-
-  // All three views stay mounted (App.tsx toggles `display`). Monaco mounts
-  // while this panel is display:none → it lays out at size 0 and stays
-  // collapsed until a manual interaction. Force a relayout whenever the
-  // Script view becomes active (and on script switch).
-  const editorRef = useRef<CodeEditor | null>(null)
-  useEffect(() => {
-    if (mode !== 'script' || !editorRef.current) return
-    const ed = editorRef.current
-    const relayout = () => ed.layout()
-    const r1 = requestAnimationFrame(relayout)
-    const t1 = window.setTimeout(relayout, 60)
-    const t2 = window.setTimeout(relayout, 200)
-    return () => {
-      cancelAnimationFrame(r1)
-      window.clearTimeout(t1)
-      window.clearTimeout(t2)
-    }
-  }, [mode, activeScriptPath])
 
   return (
     <div className="h-full w-full flex-1 min-w-0 flex flex-col bg-[var(--bg)]">
@@ -144,34 +133,22 @@ export default function ScriptEditorPanel() {
         onSelect={path => dispatch({ type: 'SET_ACTIVE_SCRIPT', path })}
       />
 
-      <div className="flex-1 min-h-0 min-w-0 w-full bg-[var(--bg)] relative">
+      <div className="flex-1 min-h-0 min-w-0 w-full bg-[var(--bg)]">
         {currentScript ? (
           <Editor
-            // UNCONTROLLED. Feeding `value` back on every keystroke made
-            // @monaco-editor/react re-set the model each time, resetting
-            // scroll/cursor to line 1 then jumping back (the "text flashes
-            // at the top" glitch). `path` makes it keep one model per file
-            // (preserves per-file cursor/scroll on tab switch); `defaultValue`
-            // seeds a new file's model. Edits flow one-way to the store.
             height="100%"
-            width="100%"
             language="lua"
             theme={themeMode === 'light' ? 'light' : 'vs-dark'}
-            defaultValue={currentScript.content}
             path={currentScript.path}
+            defaultValue={currentScript.content}
             loading={
-              <div className="absolute inset-0 flex items-center justify-center
+              <div className="h-full w-full flex items-center justify-center
                               bg-[var(--bg)] text-[var(--muted)] text-[11px]
                               uppercase tracking-widest">
                 Loading editor…
               </div>
             }
-            onMount={(ed, monaco) => {
-              editorRef.current = ed
-              registerLuaExtras(monaco)
-              // Initial relayout once the DOM node has real dimensions.
-              requestAnimationFrame(() => ed.layout())
-            }}
+            onMount={(_editor, monaco) => registerLuaExtras(monaco)}
             options={{
               fontSize:                13,
               fontFamily:              "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",

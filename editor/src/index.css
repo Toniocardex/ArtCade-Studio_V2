@@ -104,13 +104,27 @@ html, body, #root {
   font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar       { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-::-webkit-scrollbar-thumb:hover { background: var(--border-2); }
+/* Custom scrollbar — scoped so it never overrides Monaco's own scrollbars
+   (Monaco renders/sizes them itself; styling them breaks gutter alignment). */
+:not(.monaco-editor)::-webkit-scrollbar       { width: 5px; height: 5px; }
+:not(.monaco-editor)::-webkit-scrollbar-track { background: var(--bg); }
+:not(.monaco-editor)::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+:not(.monaco-editor)::-webkit-scrollbar-thumb:hover { background: var(--border-2); }
 
-/* Monaco: no extra border */
+/* ---------------------------------------------------------------------------
+   Monaco editor isolation.
+   The global `* { box-sizing: border-box }` above is an app-wide reset, but
+   Monaco's view-lines, cursor and overlay widgets (suggest/hover) are
+   absolutely positioned and measured assuming the CSS default `content-box`.
+   Forcing border-box on them mis-measures glyph widths/line heights → typed
+   text overlaps existing lines and the autocomplete widget renders at the
+   wrong place. Re-assert content-box for the whole Monaco subtree (Monaco's
+   own class-scoped rules keep higher specificity where it needs border-box).
+   --------------------------------------------------------------------------- */
+.monaco-editor,
+.monaco-editor * {
+  box-sizing: content-box;
+}
 .monaco-editor { border: none !important; }
 
 /* Neon glow helpers (used via inline style when needed) */
