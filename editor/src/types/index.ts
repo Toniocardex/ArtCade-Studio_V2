@@ -6,7 +6,7 @@ export * from './logic-board'
 export * from './components'
 export * from './tilemap'
 import type { LogicBoardDoc } from './logic-board'
-import type { TileDef, TilemapLayer } from './tilemap'
+import type { TileDef, TilemapLayer, TilesetAsset } from './tilemap'
 import type {
   SensorComponent, PlatformerControllerComponent,
   HealthComponent, AutoDestroyComponent,
@@ -106,7 +106,8 @@ export interface ProjectDoc {
   entities:       Record<number, EntityDef>
   scenes:         Record<string, SceneDef>
   thumbnails?:    Record<string, string>
-  tilePalette?:   TileDef[]              // Scene Editor Phase C
+  tilePalette?:   TileDef[]              // Scene Editor Phase C (legacy colour)
+  tilesets?:      Record<string, TilesetAsset>  // Phase F: image tilesets
   logicBoards?:   LogicBoardDoc          // visual game logic, compiled to Lua
 }
 

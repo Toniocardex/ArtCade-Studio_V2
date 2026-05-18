@@ -20,7 +20,7 @@ function st(p: ProjectDoc): CoreState {
     project: p, projectPath: null, projectDirty: false,
     selection: { entityId: null, sceneId: 's' },
     view: 'scene', bottomTab: 'tileset',
-    openScripts: [], activeScriptPath: null, isPlaying: false,
+    openScripts: [], activeScriptPath: null, isPlaying: false, selectedTileCell: 1,
   }
 }
 

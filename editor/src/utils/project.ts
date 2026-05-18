@@ -1,6 +1,7 @@
 import type {
   ProjectDoc, EntityDef, SceneDef, Vec2, Vec4, Transform, SpriteComponent,
   AnimationState, PhysicsComponent, WorldSettings, TilemapLayer, TileDef,
+  TilesetAsset,
 } from '../types'
 import { DEFAULT_WORLD } from '../types'
 import { parseLogicBoards } from './logic-board/factory'
@@ -178,7 +179,33 @@ function parseTilemap(raw: unknown): TilemapLayer | undefined {
   const data = new Array(cols * rows)
     .fill(0)
     .map((_, i) => (Number.isFinite(arr[i]) ? arr[i] : 0))
-  return { tileSize, cols, rows, data }
+  const layer: TilemapLayer = { tileSize, cols, rows, data }
+  if (typeof r.tilesetAssetId === 'string' && r.tilesetAssetId)
+    layer.tilesetAssetId = r.tilesetAssetId
+  return layer
+}
+
+function parseTilesets(
+  raw: unknown,
+): Record<string, TilesetAsset> | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined
+  const out: Record<string, TilesetAsset> = {}
+  for (const [key, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (!v || typeof v !== 'object') continue
+    const o = v as Record<string, unknown>
+    const assetId = String(o.assetId ?? o.asset_id ?? key)
+    if (!assetId) continue
+    out[assetId] = {
+      assetId,
+      name:            String(o.name ?? assetId),
+      spriteImagePath: String(o.spriteImagePath ?? o.sprite_image_path ?? ''),
+      tileSize:        Number(o.tileSize ?? o.tile_size ?? 32),
+      margin:          Number(o.margin ?? 0),
+      cols:            Number(o.cols ?? 1),
+      rows:            Number(o.rows ?? 1),
+    }
+  }
+  return Object.keys(out).length ? out : undefined
 }
 
 function parseTilePalette(raw: unknown): TileDef[] | undefined {
@@ -263,6 +290,7 @@ export function parseProjectDoc(jsonStr: string): ProjectDoc | null {
                        : undefined,
       world:          parseWorld(raw.world),
       tilePalette:    parseTilePalette(raw.tilePalette ?? raw.tile_palette),
+      tilesets:       parseTilesets(raw.tilesets),
       logicBoards:    parseLogicBoards(raw.logicBoards ?? raw.logic_boards),
     }
   } catch {
@@ -347,6 +375,9 @@ export function serializeProjectDoc(project: ProjectDoc): string {
     ...(project.world ? { world: project.world } : {}),
     ...(project.tilePalette && project.tilePalette.length > 0
       ? { tilePalette: project.tilePalette }
+      : {}),
+    ...(project.tilesets && Object.keys(project.tilesets).length > 0
+      ? { tilesets: project.tilesets }
       : {}),
     gameResolution: vec2Array(project.gameResolution),
     targetFPS:      project.targetFPS,

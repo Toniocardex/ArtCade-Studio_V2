@@ -8,7 +8,7 @@
 import { isTauri, invoke }                    from '@tauri-apps/api/core'
 import { open  as dialogOpen,
          save  as dialogSave }                 from '@tauri-apps/plugin-dialog'
-import { readTextFile }                        from '@tauri-apps/plugin-fs'
+import { readTextFile, readFile }              from '@tauri-apps/plugin-fs'
 import type { ProjectDoc }                     from '../types'
 import { parseProjectDoc, serializeProjectDoc } from './project'
 
@@ -51,6 +51,42 @@ export async function loadProjectFile(path: string): Promise<ProjectDoc | null> 
     return parseProjectDoc(content)
   } catch (err) {
     console.error('[api] loadProjectFile failed:', err)
+    return null
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Tileset image I/O (Phase F)
+// ---------------------------------------------------------------------------
+
+/** Native file-picker for a spritesheet image. Returns the path or null. */
+export async function openImageDialog(): Promise<string | null> {
+  if (!isTauri()) { notAvailable('openImageDialog'); return null }
+
+  const selected = await dialogOpen({
+    title:    'Open Tileset Image',
+    multiple: false,
+    filters:  [{ name: 'Image', extensions: ['png', 'jpg', 'jpeg', 'gif'] }],
+  })
+  return typeof selected === 'string' ? selected : null
+}
+
+/** Read an image from disk and return a base64 data URL for React preview. */
+export async function readImageAsDataUrl(path: string): Promise<string | null> {
+  if (!isTauri()) { notAvailable('readImageAsDataUrl'); return null }
+
+  try {
+    const bytes = await readFile(path)
+    const ext = path.toLowerCase().split('.').pop() ?? 'png'
+    const mime =
+      ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg'
+      : ext === 'gif' ? 'image/gif'
+      : 'image/png'
+    let bin = ''
+    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i])
+    return `data:${mime};base64,${btoa(bin)}`
+  } catch (err) {
+    console.error('[api] readImageAsDataUrl failed:', err)
     return null
   }
 }

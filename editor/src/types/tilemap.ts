@@ -22,7 +22,30 @@ export interface TilemapLayer {
   tileSize: number   // px per cell
   cols:     number
   rows:     number
-  data:     number[] // row-major, values are TileDef.id (0 = empty)
+  data:     number[] // row-major, values are tile ids (0 = empty)
+  /** Phase F: reference to a ProjectDoc.tilesets entry. When set, tiles are
+   *  drawn as cells of that spritesheet (id = 1-based cell index); when
+   *  absent, the legacy TileDef/palette colour fallback (D2) is used. */
+  tilesetAssetId?: string
+}
+
+/**
+ * A spritesheet tileset (Phase F). Tiles are uniform cells of one image,
+ * laid out left→right, top→bottom. Cell id is 1-based (0 = empty).
+ * `cols`/`rows` are derived from the image size and stored for the runtime.
+ */
+export interface TilesetAsset {
+  assetId:         string  // stable id, e.g. "tileset_forest_01"
+  name:            string
+  spriteImagePath: string  // path/URL to the spritesheet image
+  tileSize:        number  // px per cell (square)
+  margin:          number  // px gap between cells (default 0)
+  cols:            number  // derived: floor((imgW + margin) / (tileSize + margin))
+  rows:            number  // derived from image height
+}
+
+export function tilesetCellCount(t: TilesetAsset): number {
+  return Math.max(0, t.cols) * Math.max(0, t.rows)
 }
 
 export const DEFAULT_TILE_PALETTE: TileDef[] = [

@@ -24,7 +24,7 @@ function baseState(p: ProjectDoc): CoreState {
     project: p, projectPath: null, projectDirty: false,
     selection: { entityId: 1, sceneId: 's' },
     view: 'scene', bottomTab: 'assets',
-    openScripts: [], activeScriptPath: null, isPlaying: false,
+    openScripts: [], activeScriptPath: null, isPlaying: false, selectedTileCell: 1,
   }
 }
 

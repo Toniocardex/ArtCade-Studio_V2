@@ -3,7 +3,7 @@ import type { ReactNode, Dispatch } from 'react'
 import type {
   EditorView, BottomTab,
   ScriptFile, ProjectDoc, ConsoleEntry,
-  LogicBoard, LogicEvent, ComponentKey, WorldSettings,
+  LogicBoard, LogicEvent, ComponentKey, WorldSettings, TilesetAsset,
 } from '../types'
 import { DEFAULT_WORLD, createTilemap } from '../types'
 import { createEntityDef, nextEntityId } from '../utils/project'
@@ -31,6 +31,7 @@ export interface CoreState {
   openScripts:      ScriptFile[]
   activeScriptPath: string | null
   isPlaying:        boolean
+  selectedTileCell: number   // Phase F: brush cell id (1-based, 0 = eraser)
 }
 
 // ---- Volatile state (high-frequency) ---------------------------------------
@@ -150,6 +151,7 @@ const initialCoreState: CoreState = {
   openScripts:      [{ path: 'scripts/player_controller.lua', content: SAMPLE_SCRIPT, isDirty: false }],
   activeScriptPath: 'scripts/player_controller.lua',
   isPlaying:        false,
+  selectedTileCell: 1,
 }
 
 const initialVolatileState: VolatileState = {
@@ -184,6 +186,10 @@ export type Action =
   | { type: 'WORLD_SET';         patch: Partial<WorldSettings> }
   | { type: 'TILEMAP_INIT';  sceneId: string }
   | { type: 'TILEMAP_PAINT'; sceneId: string; index: number; tileId: number }
+  | { type: 'TILESET_ASSET_ADD';     asset: TilesetAsset }
+  | { type: 'TILESET_ASSET_REMOVE';  assetId: string }
+  | { type: 'TILEMAP_SET_TILESETID'; sceneId: string; assetId: string }
+  | { type: 'TILESET_SELECT_CELL';   cellIndex: number }
   // ---- Logic Board CRUD (all operate on project.logicBoards) ----
   | { type: 'LOGIC_ADD_BOARD';    board: LogicBoard }
   | { type: 'LOGIC_DELETE_BOARD'; boardId: string }
@@ -457,6 +463,63 @@ export function coreReducer(state: CoreState, action: Action): CoreState {
         projectDirty: true,
       }
     }
+    case 'TILESET_ASSET_ADD': {
+      if (!state.project) return state
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          tilesets: {
+            ...(state.project.tilesets ?? {}),
+            [action.asset.assetId]: action.asset,
+          },
+        },
+        projectDirty: true,
+      }
+    }
+    case 'TILESET_ASSET_REMOVE': {
+      if (!state.project || !state.project.tilesets) return state
+      const tilesets = Object.fromEntries(
+        Object.entries(state.project.tilesets).filter(
+          ([k]) => k !== action.assetId,
+        ),
+      )
+      // detach from any scene that referenced it
+      const scenes = Object.fromEntries(
+        Object.entries(state.project.scenes).map(([sid, sc]) => {
+          if (sc.tilemap?.tilesetAssetId !== action.assetId) return [sid, sc]
+          const { tilesetAssetId: _drop, ...rest } = sc.tilemap
+          return [sid, { ...sc, tilemap: rest }]
+        }),
+      )
+      return {
+        ...state,
+        project: { ...state.project, tilesets, scenes },
+        projectDirty: true,
+      }
+    }
+    case 'TILEMAP_SET_TILESETID': {
+      const sc = state.project?.scenes[action.sceneId]
+      if (!state.project || !sc) return state
+      const tm = sc.tilemap ?? createTilemap(sc.worldSize.x, sc.worldSize.y)
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          scenes: {
+            ...state.project.scenes,
+            [action.sceneId]: {
+              ...sc,
+              tilemap: { ...tm, tilesetAssetId: action.assetId },
+            },
+          },
+        },
+        projectDirty: true,
+      }
+    }
+    case 'TILESET_SELECT_CELL':
+      // pure UI state — does not dirty the project
+      return { ...state, selectedTileCell: Math.max(0, action.cellIndex) }
     case 'MARK_PROJECT_SAVED':
       return { ...state, projectDirty: false }
     case 'MARK_SCRIPT_SAVED': {

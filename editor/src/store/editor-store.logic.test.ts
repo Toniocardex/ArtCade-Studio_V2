@@ -26,7 +26,7 @@ function baseState(project: ProjectDoc | null = emptyProject()): CoreState {
     bottomTab: 'assets',
     openScripts: [],
     activeScriptPath: null,
-    isPlaying: false,
+    isPlaying: false, selectedTileCell: 1,
   }
 }
 
