@@ -40,6 +40,22 @@ describe('coreReducer — hierarchy', () => {
     expect(s.projectDirty).toBe(true)
   })
 
+  it('ENTITY_DUPLICATE clones into a new id, offsets, selects it', () => {
+    const s = coreReducer(st(project()), { type: 'ENTITY_DUPLICATE', entityId: 1, sceneId: 's' })
+    expect(Object.keys(s.project!.entities)).toHaveLength(2)
+    const dup = s.project!.entities[2]
+    expect(dup).toBeDefined()
+    expect(dup.id).toBe(2)
+    expect(dup.name).toBe('A_Copy')
+    expect(dup.className).toBe('Player')
+    expect(dup.transform.position).toEqual({ x: 16, y: 16 })
+    // deep clone — mutating the copy must not touch the source
+    expect(s.project!.entities[1].transform.position).toEqual({ x: 0, y: 0 })
+    expect(s.project!.scenes.s.entityIds).toEqual([1, 2])
+    expect(s.selection.entityId).toBe(2)
+    expect(s.projectDirty).toBe(true)
+  })
+
   it('ENTITY_DELETE removes from entities + all scenes + deselects', () => {
     const s = coreReducer(st(project()), { type: 'ENTITY_DELETE', entityId: 1 })
     expect(s.project!.entities[1]).toBeUndefined()

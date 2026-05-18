@@ -181,6 +181,7 @@ export type Action =
   | { type: 'ENTITY_SET_COMPONENT';    entityId: number; key: ComponentKey; value: object }
   | { type: 'ENTITY_REMOVE_COMPONENT'; entityId: number; key: ComponentKey }
   | { type: 'ENTITY_ADD';        sceneId: string }
+  | { type: 'ENTITY_DUPLICATE';  entityId: number; sceneId: string }
   | { type: 'ENTITY_DELETE';     entityId: number }
   | { type: 'ENTITY_SET_VISIBLE'; entityId: number; visible: boolean }
   | { type: 'WORLD_SET';         patch: Partial<WorldSettings> }
@@ -368,6 +369,41 @@ export function coreReducer(state: CoreState, action: Action): CoreState {
         project: {
           ...state.project,
           entities: { ...state.project.entities, [id]: ent },
+          scenes: {
+            ...state.project.scenes,
+            [action.sceneId]: { ...scene, entityIds: [...scene.entityIds, id] },
+          },
+        },
+        selection: { ...state.selection, entityId: id },
+        projectDirty: true,
+      }
+    }
+    case 'ENTITY_DUPLICATE': {
+      if (
+        !state.project ||
+        !state.project.entities[action.entityId] ||
+        !state.project.scenes[action.sceneId]
+      )
+        return state
+      const src = state.project.entities[action.entityId]
+      const id = nextEntityId(state.project)
+      // Plain JSON-serializable EntityDef → deep clone is safe.
+      const clone: typeof src = JSON.parse(JSON.stringify(src))
+      clone.id = id
+      clone.name = `${src.name}_Copy`
+      clone.transform = {
+        ...clone.transform,
+        position: {
+          x: clone.transform.position.x + 16,
+          y: clone.transform.position.y + 16,
+        },
+      }
+      const scene = state.project.scenes[action.sceneId]
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          entities: { ...state.project.entities, [id]: clone },
           scenes: {
             ...state.project.scenes,
             [action.sceneId]: { ...scene, entityIds: [...scene.entityIds, id] },

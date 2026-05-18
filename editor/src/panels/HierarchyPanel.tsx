@@ -1,4 +1,4 @@
-import { Box, Eye, EyeOff, Plus, Trash2 } from 'lucide-react'
+import { Box, Copy, Eye, EyeOff, Plus, Trash2 } from 'lucide-react'
 import PanelHeader from '../components/PanelHeader'
 import { useEditor } from '../store/editor-store'
 import type { EntityDef } from '../types'
@@ -11,11 +11,12 @@ const CLASS_COLOR: Record<string, string> = {
   Enemy:   'var(--danger)',
 }
 
-function EntityRow({ entity, selected, onClick, onToggleVisible, onDelete }: {
+function EntityRow({ entity, selected, onClick, onToggleVisible, onDuplicate, onDelete }: {
   entity:  EntityDef
   selected: boolean
   onClick:  () => void
   onToggleVisible: () => void
+  onDuplicate: () => void
   onDelete: () => void
 }) {
   const color = CLASS_COLOR[entity.className] ?? 'var(--muted)'
@@ -40,6 +41,15 @@ function EntityRow({ entity, selected, onClick, onToggleVisible, onDelete }: {
           className={selected ? 'text-[var(--bg)]' : 'text-[var(--muted)] hover:text-[var(--text)]'}
         >
           {visible ? <Eye size={11} /> : <EyeOff size={11} />}
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onDuplicate() }}
+          title="Duplicate entity"
+          className={`opacity-0 group-hover:opacity-100 ${
+            selected ? 'text-[var(--bg)]' : 'text-[var(--muted)] hover:text-[var(--accent)]'
+          }`}
+        >
+          <Copy size={11} />
         </button>
         <button
           onClick={(e) => { e.stopPropagation(); onDelete() }}
@@ -161,6 +171,7 @@ export default function HierarchyPanel() {
               onToggleVisible={() =>
                 dispatch({ type: 'ENTITY_SET_VISIBLE', entityId: e.id, visible: e.visible === false })
               }
+              onDuplicate={() => dispatch({ type: 'ENTITY_DUPLICATE', entityId: e.id, sceneId })}
               onDelete={() => dispatch({ type: 'ENTITY_DELETE', entityId: e.id })}
             />
           ))
