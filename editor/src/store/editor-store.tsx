@@ -3,7 +3,8 @@ import type { ReactNode, Dispatch } from 'react'
 import type {
   EditorView, BottomTab,
   ScriptFile, ProjectDoc, ConsoleEntry,
-  LogicBoard, LogicEvent, ComponentKey, WorldSettings, TilesetAsset,
+  LogicBoard, LogicEvent, ComponentKey, WorldSettings, TilesetAsset, ImageAsset,
+  SpriteComponent,
 } from '../types'
 import { DEFAULT_WORLD, createTilemap } from '../types'
 import { createEntityDef, nextEntityId } from '../utils/project'
@@ -178,6 +179,7 @@ export type Action =
   | { type: 'MARK_PROJECT_SAVED' }
   | { type: 'MARK_SCRIPT_SAVED'; path: string }
   | { type: 'UPDATE_ENTITY_TRANSFORM'; entityId: number; x: number; y: number; rotation: number; scaleX: number; scaleY: number }
+  | { type: 'ENTITY_SET_SPRITE';       entityId: number; sprite: SpriteComponent }
   | { type: 'ENTITY_SET_COMPONENT';    entityId: number; key: ComponentKey; value: object }
   | { type: 'ENTITY_REMOVE_COMPONENT'; entityId: number; key: ComponentKey }
   | { type: 'ENTITY_ADD';        sceneId: string }
@@ -190,6 +192,8 @@ export type Action =
   | { type: 'TILEMAP_PAINT_CELL'; sceneId: string; col: number; row: number; tileId: number }
   | { type: 'TILESET_ASSET_ADD';     asset: TilesetAsset }
   | { type: 'TILESET_ASSET_REMOVE';  assetId: string }
+  | { type: 'ASSET_ADD';             asset: ImageAsset }
+  | { type: 'ASSET_REMOVE';          assetId: string }
   | { type: 'TILEMAP_SET_TILESETID'; sceneId: string; assetId: string }
   | { type: 'TILESET_SELECT_CELL';   cellIndex: number }
   // ---- Logic Board CRUD (all operate on project.logicBoards) ----
@@ -328,6 +332,21 @@ export function coreReducer(state: CoreState, action: Action): CoreState {
             : board,
         ),
       )
+    case 'ENTITY_SET_SPRITE': {
+      if (!state.project || !state.project.entities[action.entityId]) return state
+      const entity = state.project.entities[action.entityId]
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          entities: {
+            ...state.project.entities,
+            [action.entityId]: { ...entity, sprite: action.sprite },
+          },
+        },
+        projectDirty: true,
+      }
+    }
     case 'ENTITY_SET_COMPONENT': {
       if (!state.project || !state.project.entities[action.entityId]) return state
       const entity = state.project.entities[action.entityId]
@@ -555,6 +574,45 @@ export function coreReducer(state: CoreState, action: Action): CoreState {
       return {
         ...state,
         project: { ...state.project, tilesets, scenes },
+        projectDirty: true,
+      }
+    }
+    case 'ASSET_ADD': {
+      if (!state.project) return state
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          assets: {
+            ...(state.project.assets ?? {}),
+            [action.asset.id]: action.asset,
+          },
+        },
+        projectDirty: true,
+      }
+    }
+    case 'ASSET_REMOVE': {
+      if (!state.project || !state.project.assets) return state
+      const removed = state.project.assets[action.assetId]
+      const assets = Object.fromEntries(
+        Object.entries(state.project.assets).filter(
+          ([k]) => k !== action.assetId,
+        ),
+      )
+      // Detach the sprite from any entity that referenced this image so it
+      // falls back cleanly instead of pointing at a missing asset.
+      const entities = removed
+        ? Object.fromEntries(
+            Object.entries(state.project.entities).map(([eid, e]) =>
+              e.sprite?.spriteAssetId === removed.path
+                ? [eid, { ...e, sprite: { ...e.sprite, spriteAssetId: '' } }]
+                : [eid, e],
+            ),
+          )
+        : state.project.entities
+      return {
+        ...state,
+        project: { ...state.project, assets, entities },
         projectDirty: true,
       }
     }

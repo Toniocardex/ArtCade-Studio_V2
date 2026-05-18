@@ -8,7 +8,7 @@
 import { isTauri, invoke }                    from '@tauri-apps/api/core'
 import { open  as dialogOpen,
          save  as dialogSave }                 from '@tauri-apps/plugin-dialog'
-import { readTextFile, readFile }              from '@tauri-apps/plugin-fs'
+import { readTextFile, readFile, writeFile, mkdir } from '@tauri-apps/plugin-fs'
 import type { ProjectDoc }                     from '../types'
 import { parseProjectDoc, serializeProjectDoc } from './project'
 
@@ -87,6 +87,52 @@ export async function readImageAsDataUrl(path: string): Promise<string | null> {
     return `data:${mime};base64,${btoa(bin)}`
   } catch (err) {
     console.error('[api] readImageAsDataUrl failed:', err)
+    return null
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Persistent image asset library
+// ---------------------------------------------------------------------------
+
+/** Forward-slash join (Tauri normalises separators per-OS). */
+function joinPath(...parts: string[]): string {
+  return parts.map(p => p.replace(/[\\/]+$/, '')).join('/')
+}
+
+/**
+ * Copy an imported image into the project's `assets/images/` folder so it
+ * survives reopen / .artcade. Returns the path RELATIVE to the project root
+ * (also the key the runtime renders with), or null in browser mode.
+ */
+export async function importImageIntoProject(
+  projectRoot: string,
+  fileName: string,
+  bytes: Uint8Array,
+): Promise<string | null> {
+  if (!isTauri()) { notAvailable('importImageIntoProject'); return null }
+  const relDir  = 'assets/images'
+  const relPath = `${relDir}/${fileName}`
+  try {
+    await mkdir(joinPath(projectRoot, relDir), { recursive: true })
+    await writeFile(joinPath(projectRoot, relPath), bytes)
+    return relPath
+  } catch (err) {
+    console.error('[api] importImageIntoProject failed:', err)
+    return null
+  }
+}
+
+/** Read a project image (path relative to project root) as raw bytes. */
+export async function readProjectImageBytes(
+  projectRoot: string,
+  relPath: string,
+): Promise<Uint8Array | null> {
+  if (!isTauri()) { notAvailable('readProjectImageBytes'); return null }
+  try {
+    return await readFile(joinPath(projectRoot, relPath))
+  } catch (err) {
+    console.error('[api] readProjectImageBytes failed:', err)
     return null
   }
 }

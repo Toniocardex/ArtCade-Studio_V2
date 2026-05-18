@@ -94,6 +94,21 @@ export const DEFAULT_WORLD: WorldSettings = {
   gravity: 9.81, pixelsPerMeter: 100, timeScale: 1,
 }
 
+/**
+ * A project image asset (sprites, spritesheets). Stored in the project so it
+ * survives reopen/.artcade. `path` is relative to the project root
+ * (e.g. "assets/images/hero.png") and is also the key the runtime renders
+ * with (entity.sprite.spriteAssetId / TilesetAsset.spriteImagePath).
+ * `dataUrl` is a transient in-memory copy (browser / pre-save preview /
+ * delivery to the WASM runtime); it is NOT serialized.
+ */
+export interface ImageAsset {
+  id:       string
+  name:     string
+  path:     string
+  dataUrl?: string
+}
+
 export interface ProjectDoc {
   projectName:    string
   version:        string
@@ -108,6 +123,7 @@ export interface ProjectDoc {
   thumbnails?:    Record<string, string>
   tilePalette?:   TileDef[]              // Scene Editor Phase C (legacy colour)
   tilesets?:      Record<string, TilesetAsset>  // Phase F: image tilesets
+  assets?:        Record<string, ImageAsset>    // persistent image library
   logicBoards?:   LogicBoardDoc          // visual game logic, compiled to Lua
 }
 

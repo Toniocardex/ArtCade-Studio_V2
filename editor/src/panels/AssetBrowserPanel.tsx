@@ -1,7 +1,10 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { ElementType } from 'react'
-import { Image, Music, Code, FileText } from 'lucide-react'
+import { Image, Music, Code, FileText, ImagePlus } from 'lucide-react'
 import { useEditor } from '../store/editor-store'
+import { importImageIntoProject } from '../utils/api'
+import { dirName } from '../utils/project'
+import type { ImageAsset } from '../types'
 
 /** Starter content used the first time a script asset is opened. */
 function scriptStub(name: string): string {
@@ -20,16 +23,14 @@ type Category = 'ALL' | 'IMAGES' | 'AUDIO' | 'SCRIPTS'
 
 const CATEGORIES: Category[] = ['ALL', 'IMAGES', 'AUDIO', 'SCRIPTS']
 
+// Audio/scripts stay sample-only for now; IMAGES come from project.assets.
 const SAMPLE_ASSETS = [
-  { name: 'hero_idle.png',           type: 'IMAGES',  size: '12 KB' },
-  { name: 'hero_run.png',            type: 'IMAGES',  size: '28 KB' },
-  { name: 'forest_tileset.png',      type: 'IMAGES',  size: '64 KB' },
-  { name: 'bgm_main.ogg',            type: 'AUDIO',   size: '1.4 MB' },
-  { name: 'sfx_hurt.ogg',            type: 'AUDIO',   size: '22 KB'  },
-  { name: 'sfx_jump.ogg',            type: 'AUDIO',   size: '18 KB'  },
-  { name: 'player_controller.lua',   type: 'SCRIPTS', size: '1.1 KB' },
-  { name: 'enemy_ai.lua',            type: 'SCRIPTS', size: '840 B'  },
-  { name: 'platformer.lua',          type: 'SCRIPTS', size: '2.2 KB' },
+  { name: 'bgm_main.ogg',          type: 'AUDIO',   size: '1.4 MB' },
+  { name: 'sfx_hurt.ogg',          type: 'AUDIO',   size: '22 KB'  },
+  { name: 'sfx_jump.ogg',          type: 'AUDIO',   size: '18 KB'  },
+  { name: 'player_controller.lua', type: 'SCRIPTS', size: '1.1 KB' },
+  { name: 'enemy_ai.lua',          type: 'SCRIPTS', size: '840 B'  },
+  { name: 'platformer.lua',        type: 'SCRIPTS', size: '2.2 KB' },
 ]
 
 const ICON_MAP: Record<string, ElementType> = {
@@ -46,13 +47,63 @@ function AssetIcon({ type }: { type: string }) {
 
 export default function AssetBrowserPanel() {
   const { state, dispatch } = useEditor()
-  const [cat, setCat] = useState<Category>('ALL')
+  const [cat, setCat]   = useState<Category>('ALL')
+  const [msg, setMsg]   = useState<string | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
 
-  const visible = SAMPLE_ASSETS.filter(a => cat === 'ALL' || a.type === cat)
+  const project   = state.project
+  const images    = Object.values(project?.assets ?? {})
+  const selEntity = (project && state.selection.entityId != null)
+    ? project.entities[state.selection.entityId]
+    : null
 
-  // Double-click a script → open it in the Editor Script in its own tab.
-  // OPEN_SCRIPT dedupes by path, so an already-open script is just focused
-  // (its content / unsaved edits are preserved — never overwritten).
+  function flash(t: string) {
+    setMsg(t)
+    window.setTimeout(() => setMsg(null), 3000)
+  }
+
+  // ── Import an image into the project's persistent asset library ───────────
+  function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !project) return
+    const reader = new FileReader()
+    reader.onload = async () => {
+      const dataUrl = String(reader.result)
+      const buf  = await file.arrayBuffer()
+      const bytes = new Uint8Array(buf)
+      let relPath: string | null = null
+      if (state.projectPath) {
+        relPath = await importImageIntoProject(
+          dirName(state.projectPath), file.name, bytes,
+        )
+      }
+      // Browser / unsaved project: keep a stable path; persistence happens
+      // once the project is saved with an assets/ folder. dataUrl drives the
+      // immediate runtime render + thumbnail this session.
+      const path = relPath ?? `assets/images/${file.name}`
+      const asset: ImageAsset = {
+        id:   `img_${Date.now().toString(36)}`,
+        name: file.name,
+        path,
+        dataUrl,
+      }
+      dispatch({ type: 'ASSET_ADD', asset })
+      flash(relPath ? `Imported ${file.name}` : `${file.name} (save project to persist)`)
+    }
+    reader.readAsDataURL(file)
+    e.target.value = ''
+  }
+
+  function assignSprite(asset: ImageAsset) {
+    if (!selEntity) { flash('Select an entity first, then double-click an image'); return }
+    dispatch({
+      type: 'ENTITY_SET_SPRITE',
+      entityId: selEntity.id,
+      sprite: { ...selEntity.sprite, spriteAssetId: asset.path },
+    })
+    flash(`Sprite "${asset.name}" → ${selEntity.name}`)
+  }
+
   function openScript(name: string) {
     const path = `scripts/${name}`
     const already = state.openScripts.find(s => s.path === path)
@@ -62,10 +113,21 @@ export default function AssetBrowserPanel() {
     })
   }
 
+  const samples = SAMPLE_ASSETS.filter(a => cat === 'ALL' || a.type === cat)
+  const showImages = cat === 'ALL' || cat === 'IMAGES'
+
   return (
     <div className="h-full flex flex-col bg-[var(--bg)]">
-      {/* Category tabs */}
-      <div className="flex border-b border-[var(--border)] px-2 flex-shrink-0">
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/png,image/jpeg,image/gif"
+        className="hidden"
+        onChange={onPickFile}
+      />
+
+      {/* Category tabs + import */}
+      <div className="flex items-center border-b border-[var(--border)] px-2 flex-shrink-0">
         {CATEGORIES.map(c => (
           <button
             key={c}
@@ -79,14 +141,55 @@ export default function AssetBrowserPanel() {
             {c}
           </button>
         ))}
+        <div className="flex-1" />
+        {msg && <span className="text-[9px] text-[var(--muted)] mr-3">{msg}</span>}
+        <button
+          onClick={() => fileRef.current?.click()}
+          disabled={!project}
+          className="flex items-center gap-1.5 px-3 py-1 my-1 rounded text-[10px] font-semibold
+                     border border-[var(--accent-bd)] bg-[var(--accent-bg)] text-[var(--accent)]
+                     hover:bg-[var(--accent-bg-h)] disabled:opacity-40"
+        >
+          <ImagePlus size={12} /> Import image
+        </button>
       </div>
 
       {/* Asset grid */}
       <div className="flex-1 overflow-y-auto p-4">
+        {showImages && images.length === 0 && cat === 'IMAGES' && (
+          <p className="text-[var(--muted)] text-[10px] mb-3">
+            No images yet — use “Import image”. Double-click an image (with an
+            entity selected) to assign it as that entity's sprite.
+          </p>
+        )}
         <div className="grid grid-cols-6 gap-3">
-          {visible.map((asset, i) => (
+          {showImages && images.map(asset => (
             <div
-              key={i}
+              key={asset.id}
+              onDoubleClick={() => assignSprite(asset)}
+              title={selEntity
+                ? `Double-click → assign as sprite of "${selEntity.name}"`
+                : 'Select an entity, then double-click to assign as its sprite'}
+              className="flex flex-col items-center gap-2 p-2 rounded
+                         border border-[var(--border)] hover:border-[rgb(var(--accent-rgb)/0.5)]
+                         bg-[var(--bg)] cursor-pointer transition-colors group"
+            >
+              <div className="w-[22px] h-[22px] flex items-center justify-center group-hover:scale-110 transition-transform">
+                {asset.dataUrl
+                  ? <img src={asset.dataUrl} alt={asset.name}
+                         className="max-w-full max-h-full object-contain" style={{ imageRendering: 'pixelated' }} />
+                  : <AssetIcon type="IMAGES" />}
+              </div>
+              <span className="text-[9px] truncate w-full text-center text-[var(--muted)]">
+                {asset.name}
+              </span>
+              <span className="text-[8px] text-[rgb(var(--muted-rgb)/0.5)]">image</span>
+            </div>
+          ))}
+
+          {samples.map((asset, i) => (
+            <div
+              key={`s${i}`}
               onDoubleClick={() => {
                 if (asset.type === 'SCRIPTS') openScript(asset.name)
               }}

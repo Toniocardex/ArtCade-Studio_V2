@@ -13,7 +13,9 @@ import { useMemo, useRef, useState } from 'react'
 import { ImagePlus, Eraser, Trash2 } from 'lucide-react'
 import { useEditor } from '../store/editor-store'
 import { editorRegisterImage } from '../utils/wasm-bridge'
-import type { TilesetAsset } from '../types'
+import { importImageIntoProject } from '../utils/api'
+import { dirName } from '../utils/project'
+import type { TilesetAsset, ImageAsset } from '../types'
 
 function deriveGrid(imgW: number, imgH: number, tileSize: number, margin: number) {
   const step = tileSize + margin
@@ -52,16 +54,36 @@ export default function TilesetEditorPanel() {
     reader.onload = () => {
       const url = String(reader.result)
       const img = new Image()
-      img.onload = () => {
+      img.onload = async () => {
         setImgUrl(url)
         setImgWH({ w: img.naturalWidth, h: img.naturalHeight })
         const { cols, rows } = deriveGrid(
           img.naturalWidth, img.naturalHeight, tileSize, margin,
         )
+
+        // Persist into the project's image library (survives reopen/.artcade).
+        const buf   = await file.arrayBuffer()
+        const bytes = new Uint8Array(buf)
+        let relPath: string | null = null
+        if (state.projectPath) {
+          relPath = await importImageIntoProject(
+            dirName(state.projectPath), file.name, bytes,
+          )
+        }
+        const path = relPath ?? `assets/images/${file.name}`
+
+        const imageAsset: ImageAsset = {
+          id:   `img_${Date.now().toString(36)}`,
+          name: file.name,
+          path,
+          dataUrl: url,
+        }
+        dispatch({ type: 'ASSET_ADD', asset: imageAsset })
+
         const asset: TilesetAsset = {
           assetId: `tileset_${Date.now().toString(36)}`,
           name: file.name.replace(/\.[^.]+$/, ''),
-          spriteImagePath: file.name, // F3/asset-pipeline resolves the real path
+          spriteImagePath: path,   // references the persistent ImageAsset
           tileSize, margin, cols, rows,
         }
         dispatch({ type: 'TILESET_ASSET_ADD', asset })
@@ -69,13 +91,10 @@ export default function TilesetEditorPanel() {
           dispatch({ type: 'TILEMAP_SET_TILESETID', sceneId, assetId: asset.assetId })
         dispatch({ type: 'TILESET_SELECT_CELL', cellIndex: 1 })
 
-        // Phase F3: upload the raw image bytes into the C++ renderer so the
-        // tilemap draws the real spritesheet instead of the grey fallback.
-        // Keyed by file.name to match asset.spriteImagePath above.
-        file.arrayBuffer().then(buf => {
-          const ext = (file.name.match(/\.[^.]+$/)?.[0] ?? '.png').toLowerCase()
-          editorRegisterImage(file.name, new Uint8Array(buf), ext)
-        }).catch(() => { /* runtime not ready — stays grey until reload */ })
+        // Immediate delivery to the C++ renderer (keyed by the SAME path the
+        // runtime renders with); PreviewPanel also re-registers on reopen.
+        const ext = (file.name.match(/\.[^.]+$/)?.[0] ?? '.png').toLowerCase()
+        editorRegisterImage(path, bytes, ext)
       }
       img.src = url
     }

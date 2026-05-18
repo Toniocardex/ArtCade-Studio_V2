@@ -1,7 +1,7 @@
 import type {
   ProjectDoc, EntityDef, SceneDef, Vec2, Vec4, Transform, SpriteComponent,
   AnimationState, PhysicsComponent, WorldSettings, TilemapLayer, TileDef,
-  TilesetAsset,
+  TilesetAsset, ImageAsset,
 } from '../types'
 import { DEFAULT_WORLD } from '../types'
 import { parseLogicBoards } from './logic-board/factory'
@@ -185,6 +185,27 @@ function parseTilemap(raw: unknown): TilemapLayer | undefined {
   return layer
 }
 
+function parseAssets(
+  raw: unknown,
+): Record<string, ImageAsset> | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined
+  const out: Record<string, ImageAsset> = {}
+  for (const [key, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (!v || typeof v !== 'object') continue
+    const o = v as Record<string, unknown>
+    const id = String(o.id ?? key)
+    const path = String(o.path ?? '')
+    if (!id || !path) continue
+    out[id] = {
+      id,
+      name: String(o.name ?? id),
+      path,
+      // dataUrl is transient — never read from persisted JSON.
+    }
+  }
+  return Object.keys(out).length ? out : undefined
+}
+
 function parseTilesets(
   raw: unknown,
 ): Record<string, TilesetAsset> | undefined {
@@ -291,6 +312,7 @@ export function parseProjectDoc(jsonStr: string): ProjectDoc | null {
       world:          parseWorld(raw.world),
       tilePalette:    parseTilePalette(raw.tilePalette ?? raw.tile_palette),
       tilesets:       parseTilesets(raw.tilesets),
+      assets:         parseAssets(raw.assets),
       logicBoards:    parseLogicBoards(raw.logicBoards ?? raw.logic_boards),
     }
   } catch {
@@ -378,6 +400,16 @@ export function serializeProjectDoc(project: ProjectDoc): string {
       : {}),
     ...(project.tilesets && Object.keys(project.tilesets).length > 0
       ? { tilesets: project.tilesets }
+      : {}),
+    ...(project.assets && Object.keys(project.assets).length > 0
+      ? {
+          assets: Object.fromEntries(
+            Object.values(project.assets).map((a) => [
+              a.id,
+              { id: a.id, name: a.name, path: a.path },  // drop transient dataUrl
+            ]),
+          ),
+        }
       : {}),
     gameResolution: vec2Array(project.gameResolution),
     targetFPS:      project.targetFPS,
