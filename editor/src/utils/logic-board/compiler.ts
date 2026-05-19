@@ -195,6 +195,32 @@ function emitEventBody(ev: LogicEvent, board: LogicBoard, baseIndent: string): s
   const guard =
     condGuard === 'true' ? enableGuard : `${enableGuard} and (${condGuard})`
 
+  // onAnimationEnd / onDestroy need an engine-side hook that does not exist
+  // yet — emit nothing functional (safe no-op) so the board still compiles.
+  if (trig.type === 'onAnimationEnd' || trig.type === 'onDestroy') {
+    return [`${baseIndent}-- ${trig.type}: pending engine hook (no-op)`]
+  }
+
+  // onTriggerEnter / onTriggerExit: edge of collision.touchingClass with
+  // per-event memory in _trig (compiler-only, no engine change).
+  if (trig.type === 'onTriggerEnter' || trig.type === 'onTriggerExit') {
+    const key = luaString(`${board.boardId}:${ev.id}`)
+    const inner = baseIndent + INDENT
+    const cur = trig.withClass
+      ? `collision.touchingClass(self, ${luaString(trig.withClass)})`
+      : 'false'
+    const fire =
+      trig.type === 'onTriggerEnter'
+        ? `_tcur and not _trig[${key}]`
+        : `(not _tcur) and _trig[${key}]`
+    lines.push(`${baseIndent}local _tcur = ${cur}`)
+    lines.push(`${baseIndent}if (${fire}) and ${guard} then`)
+    lines.push(...emitActions(ev.actions, inner))
+    lines.push(`${baseIndent}end`)
+    lines.push(`${baseIndent}_trig[${key}] = _tcur`)
+    return lines
+  }
+
   // onMouseInput: edge/level detection with per-event memory in _mb.
   if (trig.type === 'onMouseInput') {
     const btn = trig.button === 'right' ? 1 : 0
@@ -331,6 +357,7 @@ export function compileLogicBoard(doc: LogicBoardDoc): string {
     'local _timers = {}',
     'local _logic_on = {}   -- toggleLogicEvent: false = disabled',
     'local _mb = {}         -- onMouseInput edge memory',
+    'local _trig = {}       -- onTriggerEnter/Exit edge memory',
     '',
     "-- Preserve the project's own tick(dt) so Logic Board logic is ADDITIVE,",
     '-- not a replacement. Hot-reload redefines the global tick(); without this',

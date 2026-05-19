@@ -358,3 +358,42 @@ describe('Logic Components — Phase B (new runtime-backed actions)', () => {
     expect(lua).toContain('camera.centerOn(self)')
   })
 })
+
+describe('Logic Components — Phase C (engine-hook triggers)', () => {
+  it('onTriggerEnter compiles an edge over collision.touchingClass', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({ trigger: { type: 'onTriggerEnter', withClass: 'Zone' },
+             actions: [{ type: 'debugLog', message: 'in' }] }),
+      ]),
+    ])
+    expect(lua).toContain('local _tcur = collision.touchingClass(self, "Zone")')
+    expect(lua).toContain('_tcur and not _trig[')
+    expect(lua).toContain('_trig["b1:e1"] = _tcur')
+    expect(lua).toContain('debug.log("in")')
+  })
+
+  it('onTriggerExit fires on the falling edge', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({ trigger: { type: 'onTriggerExit', withClass: 'Zone' },
+             actions: [{ type: 'debugLog', message: 'out' }] }),
+      ]),
+    ])
+    expect(lua).toContain('(not _tcur) and _trig[')
+  })
+
+  it('onAnimationEnd / onDestroy emit a safe no-op (no actions)', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({ id: 'ae', trigger: { type: 'onAnimationEnd', clipName: 'die' },
+             actions: [{ type: 'debugLog', message: 'NOPE' }] }),
+        ev({ id: 'od', trigger: { type: 'onDestroy' },
+             actions: [{ type: 'debugLog', message: 'NOPE2' }] }),
+      ]),
+    ])
+    expect(lua).toContain('onAnimationEnd: pending engine hook')
+    expect(lua).toContain('onDestroy: pending engine hook')
+    expect(lua).not.toContain('NOPE')
+  })
+})

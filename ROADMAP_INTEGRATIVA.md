@@ -556,7 +556,11 @@ editor/
 |---|------|----------|----------|-------|
 | KI-1 | Editor Script (Monaco) | Glitch di rendering (testo sovrapposto/scroll-jump + flicker/collasso al mount/tab-switch). **RISOLTO** implementando le specifiche `specifica_bidirezionale_monaco_react.pdf` + `docs/technical_specification_monaco_flicker.pdf`: componente `CodeEditor` con pattern **Measure-First** (ResizeObserver in `useLayoutEffect`, mount solo a geometria reale, `width/height` espliciti, `automaticLayout:false`, `lineHeight:22`, `fixedOverflowWidgets:true`) + modello **Uncontrolled** (`defaultValue` da ref, nessun feedback di `value`, key per file); bootstrap coordinato in `main.tsx` (`loader.init()` + `document.fonts.ready` prima del render); finestra Tauri `visible:false` → `getCurrentWindow().show()` dopo il render; CSP `worker-src 'self' blob:`; `box-sizing: content-box` scoped su `.monaco-editor`. | Media | ✅ Risolto |
 
+| KI-2 | Logic Components — hook engine | `onAnimationEnd` e `onDestroy` aggiunti a tipi/UI ma compilano a **no-op sicuro** (commento) perché il runtime non espone ancora un hook "animazione finita" / "pre-distruzione". `onTriggerEnter/Exit` invece funzionano (edge compiler-only su `collision.touchingClass`). Da completare con hook engine C++ (spriteAnimator → callback fine clip; entityManager → callback pre-destroy che invoca Lua). | Bassa | ⏳ Aperto |
+
 ---
+
+*Ultimo aggiornamento: 2026-05-19 — Logic Components A/B/C: A+B funzionali; C: onTriggerEnter/Exit ok, onAnimationEnd/onDestroy stub (KI-2). Monaco KI-1 risolto (overflow geo).*
 
 *Ultimo aggiornamento: 2026-05-18 — KI-1 (Editor Script Monaco) registrato; focus su workflow entità/asset.*
 

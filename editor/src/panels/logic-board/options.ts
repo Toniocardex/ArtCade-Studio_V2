@@ -19,6 +19,10 @@ export const TRIGGER_TYPES: LogicTriggerType[] = [
   'onStart',
   'onUpdate',
   'onCollision',
+  'onTriggerEnter',
+  'onTriggerExit',
+  'onAnimationEnd',
+  'onDestroy',
   'onInput',
   'onMouseInput',
   'onMessage',
@@ -75,6 +79,14 @@ export function defaultTrigger(type: LogicTriggerType): LogicTrigger {
       return { type: 'onUpdate' }
     case 'onCollision':
       return { type: 'onCollision', withClass: '' }
+    case 'onTriggerEnter':
+      return { type: 'onTriggerEnter', withClass: '' }
+    case 'onTriggerExit':
+      return { type: 'onTriggerExit', withClass: '' }
+    case 'onAnimationEnd':
+      return { type: 'onAnimationEnd', clipName: '' }
+    case 'onDestroy':
+      return { type: 'onDestroy' }
     case 'onInput':
       return { type: 'onInput', keyCode: 'Space', eventType: 'pressed' }
     case 'onMouseInput':
@@ -168,6 +180,14 @@ export function triggerSummary(t: LogicTrigger): string {
       return 'onUpdate · every tick'
     case 'onCollision':
       return `onCollision · with "${t.withClass || '?'}"`
+    case 'onTriggerEnter':
+      return `onTriggerEnter · "${t.withClass || '?'}"`
+    case 'onTriggerExit':
+      return `onTriggerExit · "${t.withClass || '?'}"`
+    case 'onAnimationEnd':
+      return `onAnimationEnd · "${t.clipName || 'any'}" (stub)`
+    case 'onDestroy':
+      return 'onDestroy (stub)'
     case 'onInput':
       return `onInput · key "${t.keyCode}" · ${t.eventType}`
     case 'onMouseInput':

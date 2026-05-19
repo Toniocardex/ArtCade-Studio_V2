@@ -172,6 +172,28 @@ function TriggerFields({
         </select>
       </span>
     )
+  if (trigger.type === 'onTriggerEnter' || trigger.type === 'onTriggerExit')
+    return (
+      <span className="flex items-center gap-2">
+        <span className={lbl}>with class</span>
+        <Txt
+          value={trigger.withClass ?? ''}
+          placeholder="Zone"
+          onChange={(s) => onChange({ ...trigger, withClass: s })}
+        />
+      </span>
+    )
+  if (trigger.type === 'onAnimationEnd')
+    return (
+      <span className="flex items-center gap-2">
+        <span className={lbl}>clip</span>
+        <Txt
+          value={trigger.clipName ?? ''}
+          placeholder="death (engine hook pending)"
+          onChange={(s) => onChange({ type: 'onAnimationEnd', clipName: s })}
+        />
+      </span>
+    )
   if (trigger.type === 'onMouseInput')
     return (
       <span className="flex items-center gap-2">

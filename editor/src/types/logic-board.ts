@@ -32,6 +32,10 @@ export type LogicTrigger =
   | { type: 'onStart' }                                             // once, in init()
   | { type: 'onUpdate' }                                            // every tick(dt)
   | { type: 'onCollision'; withClass?: string }                     // self touches a class
+  | { type: 'onTriggerEnter'; withClass?: string }                  // edge: started touching
+  | { type: 'onTriggerExit'; withClass?: string }                   // edge: stopped touching
+  | { type: 'onAnimationEnd'; clipName?: string }                   // needs engine hook (stub)
+  | { type: 'onDestroy' }                                           // needs engine hook (stub)
   | { type: 'onInput'; keyCode: string; eventType: 'pressed' | 'down' | 'released' }
   | { type: 'onMouseInput'; button: 'left' | 'right'; eventType: 'pressed' | 'down' | 'released' }
   | { type: 'onMessage'; messageName: string }                      // event.on listener
