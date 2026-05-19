@@ -1,20 +1,18 @@
 // ---------------------------------------------------------------------------
 // CodeEditor — native, zero-flicker Monaco wrapper.
 //
-// Implements the two prescribed patterns:
+//  • UNCONTROLLED (anti scroll-jump): initial text frozen in a ref, passed
+//    as `defaultValue`. We never feed `value` back, so a store update from
+//    onChange can't make @monaco-editor/react re-set the model.
 //
-//  • UNCONTROLLED (anti scroll-jump): the initial text is captured once via a
-//    ref and passed as `defaultValue`. We NEVER feed `value` back, so a store
-//    update from onChange can't make @monaco-editor/react re-set the model
-//    (which reset scroll/cursor → the "text flashes on line 1 then jumps").
-//
-//  • MEASURE-FIRST (anti flicker/collapse): the Editor is NOT mounted until a
-//    ResizeObserver (wired in useLayoutEffect) reports real geometry. Monaco
-//    then receives explicit width/height, `automaticLayout:false`, and an
-//    explicit `lineHeight` so the browser can't trigger a destructive second
-//    layout from late font metrics. The same observer intrinsically fixes the
-//    display:none→visible tab-switch case (0x0 → real triggers editor.layout
-//    before the user can interact).
+//  • MEASURE-FIRST (anti flicker): the Editor is not mounted until a
+//    ResizeObserver reports real geometry (>0). Mount gate only — we do NOT
+//    drive Monaco's pixel size from React state (an early transient measure
+//    left Monaco sized 1224px inside a 478px box → overflow/clipping). The
+//    Editor fills the container at 100%/100% with `automaticLayout:false`;
+//    the ResizeObserver imperatively calls `editor.layout()` (no args), so
+//    Monaco always re-measures its REAL current DOM box — correct even after
+//    flex reflow / display:none→visible tab switches.
 // ---------------------------------------------------------------------------
 
 import Editor from '@monaco-editor/react'
@@ -24,13 +22,10 @@ import { useLayoutEffect, useRef, useState } from 'react'
 type CodeEditorInstance = Parameters<OnMount>[0]
 
 export interface CodeEditorProps {
-  /** Initial text. Captured once — later changes do NOT re-set the model. */
   value:    string
   language: string
   theme:    string
   onChange: (value: string) => void
-  /** Called once with the live editor + monaco namespace (e.g. to register
-   *  language extras). */
   onReady?: (editor: CodeEditorInstance, monaco: Monaco) => void
 }
 
@@ -39,60 +34,58 @@ export default function CodeEditor({
 }: CodeEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const editorRef    = useRef<CodeEditorInstance | null>(null)
-  // Frozen once: feeding this back as `value` would re-set the model.
-  const initialValue = useRef(value)
-  const [geo, setGeo] = useState({ width: 0, height: 0 })
+  const initialValue = useRef(value)            // frozen — never re-fed as value
+  const [measured, setMeasured] = useState(false)
 
   useLayoutEffect(() => {
     const el = containerRef.current
     if (!el) return
+    let raf = 0
+    const relayout = () => {
+      // Auto-measure: Monaco reads its own (correctly 100%-sized) DOM box.
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => editorRef.current?.layout())
+    }
     const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const { width, height } = entry.contentRect
-        if (width > 0 && height > 0) {
-          setGeo({ width, height })
-          // Existing instance (e.g. tab became visible again): force a single
-          // synchronous re-layout before any user interaction.
-          editorRef.current?.layout({ width, height })
-        }
+      const { width, height } = entries[0].contentRect
+      if (width > 0 && height > 0) {
+        setMeasured(true)     // unlock the Measure-First mount gate
+        relayout()            // and re-fit the existing instance (tab switch)
       }
     })
     observer.observe(el)
-    return () => observer.disconnect()
+    return () => { cancelAnimationFrame(raf); observer.disconnect() }
   }, [])
 
   return (
-    <div
-      ref={containerRef}
-      className="w-full h-full relative bg-[var(--bg)]"
-    >
-      {geo.width > 0 && geo.height > 0 && (
+    <div ref={containerRef} className="w-full h-full relative bg-[var(--bg)]">
+      {measured && (
         <Editor
-          width={geo.width}
-          height={geo.height}
+          width="100%"
+          height="100%"
           language={language}
           theme={theme}
           defaultValue={initialValue.current}
           onChange={(v) => { if (v !== undefined) onChange(v) }}
           onMount={(editor, monaco) => {
             editorRef.current = editor
-            editor.layout({ width: geo.width, height: geo.height })
+            requestAnimationFrame(() => editor.layout())
             onReady?.(editor, monaco)
           }}
           options={{
-            automaticLayout:         false,   // ResizeObserver owns sizing
-            fontSize:                14,
-            lineHeight:              22,      // freeze vertical metrics
-            fontFamily:              "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
-            fontLigatures:           true,
-            minimap:                 { enabled: false },
-            scrollBeyondLastLine:    false,
-            fixedOverflowWidgets:    true,    // suggest/hover not clipped
-            wordWrap:                'on',
-            tabSize:                 2,
-            folding:                 true,
-            renderLineHighlight:     'gutter',
-            cursorBlinking:          'smooth',
+            automaticLayout:      false,   // ResizeObserver owns sizing
+            fontSize:             14,
+            lineHeight:           22,      // freeze vertical metrics
+            fontFamily:           "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
+            fontLigatures:        true,
+            minimap:              { enabled: false },
+            scrollBeyondLastLine: false,
+            fixedOverflowWidgets: true,    // suggest/hover not clipped
+            wordWrap:             'on',
+            tabSize:              2,
+            folding:              true,
+            renderLineHighlight:  'gutter',
+            cursorBlinking:       'smooth',
           }}
         />
       )}
