@@ -119,6 +119,13 @@ export default function PreviewPanel() {
     // The tilemap STRUCTURE (cols/rows/tilesetAssetId) IS included so that
     // creating/attaching a tileset re-syncs once and the runtime gets the layer.
     const at = project.scenes[project.activeSceneId]?.tilemap
+    // Sprite-assignment fingerprint: assigning a sprite to an entity mutates
+    // only entity.sprite.spriteAssetId — without this the loadKey wouldn't
+    // change and the runtime would never receive the new sprite (assets
+    // loaded but "not assigned"). Small (one short string per entity).
+    const spriteFp = Object.values(project.entities)
+      .map((e) => e.sprite?.spriteAssetId ?? '')
+      .join(',')
     const loadKey = [
       projectPath ?? project.projectName,
       project.version,
@@ -126,6 +133,7 @@ export default function PreviewPanel() {
       Object.keys(project.entities).length,
       Object.keys(project.scenes).length,
       at ? `${at.cols}x${at.rows}:${at.tilesetAssetId ?? ''}` : 'no-tm',
+      spriteFp,
     ].join('|')
     if (lastProjectLoadKeyRef.current === loadKey) return
     lastProjectLoadKeyRef.current = loadKey
