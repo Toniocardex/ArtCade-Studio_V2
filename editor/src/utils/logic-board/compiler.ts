@@ -75,6 +75,23 @@ function leafExpr(c: LogicCondition): string {
       return `(state.get(${luaString(c.key)}) ${c.operator} ${luaValue(c.value)})`
     case 'isKeyDown':
       return `input.isKeyDown(${luaString(c.keyCode)})`
+    case 'hasTag':
+      return `(function() for _,e in ipairs(object.findByTag(${luaString(c.tag)})) do if e==self then return true end end return false end)()`
+    case 'compareDistance':
+      return `(object.distance(self, ${targetExpr(c.target)}) ${c.operator} ${Number(c.value) || 0})`
+    case 'isMouseOver': {
+      const r2 = Math.pow(Number(c.radius) || 32, 2)
+      return `(function() local mx,my=input.mousePosition() local p=entity.position(self) local dx=mx-p.x local dy=my-p.y return (dx*dx+dy*dy) <= ${r2} end)()`
+    }
+    case 'raycastHit': {
+      const dx = Number(c.dirX) || 0
+      const dy = Number(c.dirY) || 0
+      const len = Number(c.length) || 0
+      const classChk = c.className
+        ? ` local ok=false for _,e in ipairs(pool.getAll(${luaString(c.className)})) do if e==r.entityId then ok=true break end end if not ok then return false end`
+        : ''
+      return `(function() local p=entity.position(self) local r=collision.raycast(p.x,p.y,p.x+(${dx})*(${len}),p.y+(${dy})*(${len})) if not r.hit then return false end${classChk} return true end)()`
+    }
     case 'chance':
       return `(math.random(100) <= ${Number(c.percent) || 0})`
   }
@@ -124,6 +141,8 @@ function actionLua(a: LogicAction): string {
       return a.payloadKey
         ? `event.emit(${luaString(a.name)}, { [${luaString(a.payloadKey)}] = ${luaValue(a.payloadValue ?? '')} })`
         : `event.emit(${luaString(a.name)})`
+    case 'toggleLogicEvent':
+      return `_logic_on[${luaString(a.eventId)}] = ${a.enabled ? 'true' : 'false'}`
     case 'debugLog':
       return `debug.log(${luaString(a.message)})`
   }
@@ -143,8 +162,30 @@ function emitActions(actions: LogicAction[], indent: string): string[] {
  */
 function emitEventBody(ev: LogicEvent, board: LogicBoard, baseIndent: string): string[] {
   const lines: string[] = []
-  const guard = conditionExpr(ev)
   const trig = ev.trigger
+
+  // Every event is gated by its toggleLogicEvent enable flag (default on).
+  const enableGuard = `_logic_on[${luaString(ev.id)}] ~= false`
+  const condGuard = conditionExpr(ev)
+  const guard =
+    condGuard === 'true' ? enableGuard : `${enableGuard} and (${condGuard})`
+
+  // onMouseInput: edge/level detection with per-event memory in _mb.
+  if (trig.type === 'onMouseInput') {
+    const btn = trig.button === 'right' ? 1 : 0
+    const key = luaString(`${board.boardId}:${ev.id}`)
+    const inner = baseIndent + INDENT
+    lines.push(`${baseIndent}local _mbcur = input.mouseButtonDown(${btn})`)
+    const fire =
+      trig.eventType === 'pressed' ? `_mbcur and not _mb[${key}]`
+      : trig.eventType === 'released' ? `(not _mbcur) and _mb[${key}]`
+      : `_mbcur`
+    lines.push(`${baseIndent}if (${fire}) and ${guard} then`)
+    lines.push(...emitActions(ev.actions, inner))
+    lines.push(`${baseIndent}end`)
+    lines.push(`${baseIndent}_mb[${key}] = _mbcur`)
+    return lines
+  }
 
   // Trigger-specific gating expression layered on top of the condition guard.
   let gate: string | null = null
@@ -209,7 +250,10 @@ function poolExpr(board: LogicBoard): string {
 function emitBoard(board: LogicBoard): { init: string[]; tick: string[] } {
   const enabled = board.events.filter((e) => e.enabled)
   const startEvents = enabled.filter((e) => e.trigger.type === 'onStart')
-  const tickEvents = enabled.filter((e) => e.trigger.type !== 'onStart')
+  const messageEvents = enabled.filter((e) => e.trigger.type === 'onMessage')
+  const tickEvents = enabled.filter(
+    (e) => e.trigger.type !== 'onStart' && e.trigger.type !== 'onMessage',
+  )
 
   const pool = poolExpr(board)
   const init: string[] = []
@@ -221,6 +265,18 @@ function emitBoard(board: LogicBoard): { init: string[]; tick: string[] } {
       init.push(...emitEventBody(ev, board, INDENT + INDENT))
     }
     init.push(`${INDENT}end`)
+  }
+
+  // onMessage → register an event.on listener once in init.
+  for (const ev of messageEvents) {
+    if (ev.trigger.type !== 'onMessage') continue
+    const I = INDENT
+    init.push(`${I}event.on(${luaString(ev.trigger.messageName)}, function()`)
+    init.push(`${I}${I}for _, self in ipairs(${pool}) do`)
+    init.push(`${I}${I}${I}local other = nil`)
+    init.push(...emitEventBody(ev, board, I + I + I))
+    init.push(`${I}${I}end`)
+    init.push(`${I}end)`)
   }
 
   if (tickEvents.length > 0) {
@@ -248,6 +304,8 @@ export function compileLogicBoard(doc: LogicBoardDoc): string {
     '',
     'local _init_done = false',
     'local _timers = {}',
+    'local _logic_on = {}   -- toggleLogicEvent: false = disabled',
+    'local _mb = {}         -- onMouseInput edge memory',
     '',
     "-- Preserve the project's own tick(dt) so Logic Board logic is ADDITIVE,",
     '-- not a replacement. Hot-reload redefines the global tick(); without this',

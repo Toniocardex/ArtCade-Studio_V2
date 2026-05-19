@@ -20,6 +20,8 @@ export const TRIGGER_TYPES: LogicTriggerType[] = [
   'onUpdate',
   'onCollision',
   'onInput',
+  'onMouseInput',
+  'onMessage',
   'onTimer',
 ]
 
@@ -35,6 +37,7 @@ export const ACTION_TYPES: LogicActionType[] = [
   'spawnEntity',
   'setGlobalState',
   'emitEvent',
+  'toggleLogicEvent',
   'debugLog',
 ]
 
@@ -42,6 +45,10 @@ export const CONDITION_TYPES = [
   'compareVariable',
   'compareClass',
   'isKeyDown',
+  'hasTag',
+  'compareDistance',
+  'isMouseOver',
+  'raycastHit',
   'chance',
 ] as const
 
@@ -61,6 +68,10 @@ export function defaultTrigger(type: LogicTriggerType): LogicTrigger {
       return { type: 'onCollision', withClass: '' }
     case 'onInput':
       return { type: 'onInput', keyCode: 'Space', eventType: 'pressed' }
+    case 'onMouseInput':
+      return { type: 'onMouseInput', button: 'left', eventType: 'pressed' }
+    case 'onMessage':
+      return { type: 'onMessage', messageName: 'my_event' }
     case 'onTimer':
       return { type: 'onTimer', seconds: 1, repeat: true }
   }
@@ -76,6 +87,14 @@ export function defaultCondition(
       return { type: 'compareClass', className: '' }
     case 'isKeyDown':
       return { type: 'isKeyDown', keyCode: 'Space' }
+    case 'hasTag':
+      return { type: 'hasTag', tag: 'enemy' }
+    case 'compareDistance':
+      return { type: 'compareDistance', target: 'self', operator: '<=', value: 100 }
+    case 'isMouseOver':
+      return { type: 'isMouseOver', radius: 32 }
+    case 'raycastHit':
+      return { type: 'raycastHit', dirX: 1, dirY: 0, length: 100, className: '' }
     case 'chance':
       return { type: 'chance', percent: 50 }
   }
@@ -105,6 +124,8 @@ export function defaultAction(type: LogicActionType): LogicAction {
       return { type: 'setGlobalState', key: 'level', value: 1 }
     case 'emitEvent':
       return { type: 'emitEvent', name: 'my_event', payloadKey: '', payloadValue: '' }
+    case 'toggleLogicEvent':
+      return { type: 'toggleLogicEvent', eventId: '', enabled: true }
     case 'debugLog':
       return { type: 'debugLog', message: '' }
   }
@@ -122,6 +143,10 @@ export function triggerSummary(t: LogicTrigger): string {
       return `onCollision · with "${t.withClass || '?'}"`
     case 'onInput':
       return `onInput · key "${t.keyCode}" · ${t.eventType}`
+    case 'onMouseInput':
+      return `onMouseInput · ${t.button} · ${t.eventType}`
+    case 'onMessage':
+      return `onMessage · "${t.messageName || '?'}"`
     case 'onTimer':
       return `onTimer · every ${t.seconds}s${t.repeat ? ' · repeat' : ''}`
   }
@@ -135,6 +160,14 @@ export function conditionSummary(c: LogicCondition): string {
       return `touching "${c.className || '?'}"`
     case 'isKeyDown':
       return `key "${c.keyCode}" down`
+    case 'hasTag':
+      return `has tag "${c.tag || '?'}"`
+    case 'compareDistance':
+      return `dist(${targetLabel(c.target)}) ${c.operator} ${c.value}`
+    case 'isMouseOver':
+      return `mouse over (r=${c.radius ?? 32})`
+    case 'raycastHit':
+      return `raycast (${c.dirX},${c.dirY})·${c.length}${c.className ? ` → "${c.className}"` : ''}`
     case 'chance':
       return `chance ${c.percent}%`
   }
@@ -164,6 +197,8 @@ export function actionSummary(a: LogicAction): string {
       return `setGlobalState ${a.key} = ${a.value}`
     case 'emitEvent':
       return `emitEvent "${a.name || '?'}"${a.payloadKey ? ` { ${a.payloadKey} = ${a.payloadValue} }` : ''}`
+    case 'toggleLogicEvent':
+      return `toggleLogicEvent "${a.eventId || '?'}" → ${a.enabled ? 'on' : 'off'}`
     case 'debugLog':
       return `debugLog "${a.message}"`
   }

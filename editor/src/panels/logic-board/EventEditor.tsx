@@ -172,6 +172,45 @@ function TriggerFields({
         </select>
       </span>
     )
+  if (trigger.type === 'onMouseInput')
+    return (
+      <span className="flex items-center gap-2">
+        <span className={lbl}>button</span>
+        <select
+          className={sel}
+          value={trigger.button}
+          onChange={(e) =>
+            onChange({ ...trigger, button: e.target.value as typeof trigger.button })
+          }
+        >
+          <option value="left">left</option>
+          <option value="right">right</option>
+        </select>
+        <select
+          className={sel}
+          value={trigger.eventType}
+          onChange={(e) =>
+            onChange({ ...trigger, eventType: e.target.value as typeof trigger.eventType })
+          }
+        >
+          {INPUT_EVENT_TYPES.map((t) => (
+            <option key={t} value={t}>{t}</option>
+          ))}
+        </select>
+      </span>
+    )
+  if (trigger.type === 'onMessage')
+    return (
+      <span className="flex items-center gap-2">
+        <span className={lbl}>message</span>
+        <Txt
+          w="w-40"
+          value={trigger.messageName}
+          placeholder="player_hit"
+          onChange={(s) => onChange({ type: 'onMessage', messageName: s })}
+        />
+      </span>
+    )
   if (trigger.type === 'onTimer')
     return (
       <span className="flex items-center gap-2">
@@ -269,6 +308,59 @@ function ConditionRow({
           value={cond.keyCode}
           onChange={(s) => onChange({ ...cond, keyCode: s })}
         />
+      )}
+      {cond.type === 'hasTag' && (
+        <Txt
+          value={cond.tag}
+          placeholder="enemy"
+          onChange={(s) => onChange({ ...cond, tag: s })}
+        />
+      )}
+      {cond.type === 'compareDistance' && (
+        <>
+          <span className={lbl}>target</span>
+          <TargetPicker
+            value={cond.target}
+            onChange={(t) => onChange({ ...cond, target: t })}
+          />
+          <select
+            className={sel}
+            value={cond.operator}
+            onChange={(e) =>
+              onChange({ ...cond, operator: e.target.value as (typeof COMPARISON_OPS)[number] })
+            }
+          >
+            {COMPARISON_OPS.map((o) => (
+              <option key={o} value={o}>{o}</option>
+            ))}
+          </select>
+          <Num value={cond.value} onChange={(n) => onChange({ ...cond, value: n })} />
+        </>
+      )}
+      {cond.type === 'isMouseOver' && (
+        <>
+          <span className={lbl}>radius</span>
+          <Num
+            value={cond.radius ?? 32}
+            onChange={(n) => onChange({ ...cond, radius: n })}
+          />
+        </>
+      )}
+      {cond.type === 'raycastHit' && (
+        <>
+          <span className={lbl}>dir</span>
+          <Num value={cond.dirX} onChange={(n) => onChange({ ...cond, dirX: n })} />
+          <Num value={cond.dirY} onChange={(n) => onChange({ ...cond, dirY: n })} />
+          <span className={lbl}>len</span>
+          <Num value={cond.length} onChange={(n) => onChange({ ...cond, length: n })} />
+          <span className={lbl}>class</span>
+          <Txt
+            w="w-24"
+            value={cond.className ?? ''}
+            placeholder="(any)"
+            onChange={(s) => onChange({ ...cond, className: s })}
+          />
+        </>
       )}
       {cond.type === 'chance' && (
         <Num
@@ -442,6 +534,25 @@ function ActionRow({
               })
             }
           />
+        </>
+      )}
+      {act.type === 'toggleLogicEvent' && (
+        <>
+          <span className={lbl}>event id</span>
+          <Txt
+            w="w-32"
+            value={act.eventId}
+            placeholder="evt_123"
+            onChange={(s) => onChange({ ...act, eventId: s })}
+          />
+          <label className="flex items-center gap-1 text-xs text-[var(--muted)]">
+            <input
+              type="checkbox"
+              checked={act.enabled}
+              onChange={(e) => onChange({ ...act, enabled: e.target.checked })}
+            />
+            enabled
+          </label>
         </>
       )}
       {act.type === 'debugLog' && (

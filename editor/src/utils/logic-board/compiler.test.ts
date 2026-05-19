@@ -156,7 +156,8 @@ describe('compileLogicBoard — triggers', () => {
         }),
       ]),
     ])
-    expect(lua).toContain('if collision.touchingClass(self, "Coin") then')
+    expect(lua).toContain('collision.touchingClass(self, "Coin")')
+    expect(lua).toContain('_logic_on["e1"] ~= false')
     expect(lua).toContain('state.add("score", 1)')
   })
 
@@ -264,10 +265,67 @@ describe('compileLogicBoard — realistic example', () => {
       },
     ])
     expect(lua).toContain('-- board: player_controller')
-    expect(lua).toContain('if input.wasKeyPressed("Space") then')
+    expect(lua).toContain('input.wasKeyPressed("Space")')
     expect(lua).toContain('entity.setVelocity(self, 0, -400)')
-    expect(lua).toContain('if collision.touchingClass(self, "Coin") then')
+    expect(lua).toContain('collision.touchingClass(self, "Coin")')
     expect(lua).toContain('state.add("coins", 1)')
     expect(lua).toContain('audio.playSound("sfx/coin.ogg", 1, 1)')
+  })
+})
+
+describe('Logic Components — Phase A (new blocks)', () => {
+  it('toggleLogicEvent gates every event via _logic_on', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({ id: 'A', trigger: { type: 'onUpdate' },
+             actions: [{ type: 'toggleLogicEvent', eventId: 'B', enabled: false }] }),
+      ]),
+    ])
+    expect(lua).toContain('local _logic_on = {}')
+    expect(lua).toContain('_logic_on["A"] ~= false')
+    expect(lua).toContain('_logic_on["B"] = false')
+  })
+
+  it('emits hasTag / compareDistance / isMouseOver / raycastHit', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({ trigger: { type: 'onUpdate' },
+             conditions: [
+               { type: 'hasTag', tag: 'enemy' },
+               { type: 'compareDistance', target: 'self', operator: '<=', value: 80 },
+               { type: 'isMouseOver', radius: 16 },
+               { type: 'raycastHit', dirX: 1, dirY: 0, length: 50, className: 'Wall' },
+             ],
+             actions: [{ type: 'debugLog', message: 'ok' }] }),
+      ]),
+    ])
+    expect(lua).toContain('object.findByTag("enemy")')
+    expect(lua).toContain('object.distance(self, self) <= 80')
+    expect(lua).toContain('<= 256')               // isMouseOver r^2 (16^2)
+    expect(lua).toContain('collision.raycast(')
+    expect(lua).toContain('pool.getAll("Wall")')
+  })
+
+  it('onMouseInput compiles a mouse edge-gated event', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({ trigger: { type: 'onMouseInput', button: 'left', eventType: 'pressed' },
+             actions: [{ type: 'debugLog', message: 'click' }] }),
+      ]),
+    ])
+    expect(lua).toContain('input.mouseButtonDown(0)')
+    expect(lua).toContain('_mb[')
+    expect(lua).toContain('debug.log("click")')
+  })
+
+  it('onMessage registers an event.on listener in init', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({ trigger: { type: 'onMessage', messageName: 'player_hit' },
+             actions: [{ type: 'debugLog', message: 'hit' }] }),
+      ]),
+    ])
+    expect(lua).toContain('event.on("player_hit", function()')
+    expect(lua).toContain('debug.log("hit")')
   })
 })

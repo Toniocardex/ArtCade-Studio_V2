@@ -33,6 +33,8 @@ export type LogicTrigger =
   | { type: 'onUpdate' }                                            // every tick(dt)
   | { type: 'onCollision'; withClass?: string }                     // self touches a class
   | { type: 'onInput'; keyCode: string; eventType: 'pressed' | 'down' | 'released' }
+  | { type: 'onMouseInput'; button: 'left' | 'right'; eventType: 'pressed' | 'down' | 'released' }
+  | { type: 'onMessage'; messageName: string }                      // event.on listener
   | { type: 'onTimer'; seconds: number; repeat: boolean }
 
 export type LogicTriggerType = LogicTrigger['type']
@@ -45,6 +47,10 @@ export type LogicCondition =
   | { type: 'compareClass'; className: string }                     // collision.touchingClass
   | { type: 'compareVariable'; key: string; operator: ComparisonOp; value: number | string }
   | { type: 'isKeyDown'; keyCode: string }                          // input.isKeyDown
+  | { type: 'hasTag'; tag: string }                                 // self has object tag
+  | { type: 'compareDistance'; target: TargetSelector; operator: ComparisonOp; value: number }
+  | { type: 'isMouseOver'; radius?: number }                        // cursor near self
+  | { type: 'raycastHit'; dirX: number; dirY: number; length: number; className?: string }
   | { type: 'chance'; percent: number }                             // math.random(100) <= n
 
 /**
@@ -71,6 +77,7 @@ export type LogicAction =
   | { type: 'spawnEntity'; className: string; x: number; y: number }
   | { type: 'setGlobalState'; key: string; value: number | string | boolean }
   | { type: 'emitEvent'; name: string; payloadKey?: string; payloadValue?: number | string | boolean }
+  | { type: 'toggleLogicEvent'; eventId: string; enabled: boolean }
   | { type: 'debugLog'; message: string }
 
 export type LogicActionType = LogicAction['type']
