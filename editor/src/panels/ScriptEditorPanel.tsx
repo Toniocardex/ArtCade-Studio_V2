@@ -1,7 +1,48 @@
 import { useEffect, useState } from 'react'
 import type { Monaco } from '@monaco-editor/react'
+import { isTauri } from '@tauri-apps/api/core'
 import { useEditor } from '../store/editor-store'
 import CodeEditor from '../components/CodeEditor'
+
+// ---------------------------------------------------------------------------
+// Plain textarea editor — used in the packaged Tauri desktop build.
+//
+// Monaco works great in the browser/dev server but in the embedded Tauri
+// WebView it currently flickers and loses syntax highlight / IntelliSense
+// (tracked KI-1). Until it's reintegrated cleanly, the desktop build falls
+// back to a robust, dependency-free textarea wired to the SAME store flow
+// (defaultValue + onChange → UPDATE_SCRIPT; Ctrl+S save handled in App.tsx).
+// ---------------------------------------------------------------------------
+function PlainCodeEditor({
+  value, onChange,
+}: { value: string; onChange: (v: string) => void }) {
+  return (
+    <textarea
+      defaultValue={value}
+      spellCheck={false}
+      autoComplete="off"
+      autoCorrect="off"
+      autoCapitalize="off"
+      wrap="off"
+      onChange={(e) => onChange(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === 'Tab') {
+          e.preventDefault()
+          const ta = e.currentTarget
+          const s = ta.selectionStart, en = ta.selectionEnd
+          ta.value = ta.value.slice(0, s) + '  ' + ta.value.slice(en)
+          ta.selectionStart = ta.selectionEnd = s + 2
+          onChange(ta.value)
+        }
+      }}
+      className="w-full h-full resize-none outline-none border-0
+                 bg-[var(--bg)] text-[var(--text)] p-3
+                 font-mono text-[13px] leading-[1.5]
+                 whitespace-pre overflow-auto"
+      style={{ tabSize: 2 }}
+    />
+  )
+}
 
 /** Tracks the <html data-theme> attribute so Monaco follows the app theme. */
 function useThemeMode(): 'dark' | 'light' {
@@ -131,16 +172,26 @@ export default function ScriptEditorPanel() {
 
       <div className="flex-1 min-h-0 min-w-0 w-full bg-[var(--bg)]">
         {currentScript ? (
-          <CodeEditor
-            key={currentScript.path}
-            language="lua"
-            theme={themeMode === 'light' ? 'light' : 'vs-dark'}
-            value={currentScript.content}
-            onReady={(_editor, monaco) => registerLuaExtras(monaco)}
-            onChange={(v) =>
-              dispatch({ type: 'UPDATE_SCRIPT', path: currentScript.path, content: v })
-            }
-          />
+          isTauri() ? (
+            <PlainCodeEditor
+              key={currentScript.path}
+              value={currentScript.content}
+              onChange={(v) =>
+                dispatch({ type: 'UPDATE_SCRIPT', path: currentScript.path, content: v })
+              }
+            />
+          ) : (
+            <CodeEditor
+              key={currentScript.path}
+              language="lua"
+              theme={themeMode === 'light' ? 'light' : 'vs-dark'}
+              value={currentScript.content}
+              onReady={(_editor, monaco) => registerLuaExtras(monaco)}
+              onChange={(v) =>
+                dispatch({ type: 'UPDATE_SCRIPT', path: currentScript.path, content: v })
+              }
+            />
+          )
         ) : (
           <div className="h-full flex flex-col items-center justify-center text-[var(--muted)]">
             <span className="text-[11px] uppercase tracking-widest">
