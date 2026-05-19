@@ -78,6 +78,15 @@ export type LogicAction =
   | { type: 'setGlobalState'; key: string; value: number | string | boolean }
   | { type: 'emitEvent'; name: string; payloadKey?: string; payloadValue?: number | string | boolean }
   | { type: 'toggleLogicEvent'; eventId: string; enabled: boolean }
+  | { type: 'applyImpulse'; target: TargetSelector; ix: number; iy: number }
+  | { type: 'applyForce'; target: TargetSelector; fx: number; fy: number }
+  | { type: 'setRotation'; target: TargetSelector; angle: number }
+  | { type: 'setScale'; target: TargetSelector; scaleX: number; scaleY: number }
+  | { type: 'setVisible'; target: TargetSelector; visible: boolean }
+  | { type: 'setColorTint'; target: TargetSelector; hexColor: string; alpha?: number }
+  | { type: 'loadScene'; sceneName: string }
+  | { type: 'restartScene' }
+  | { type: 'setCameraTarget'; target: TargetSelector }
   | { type: 'debugLog'; message: string }
 
 export type LogicActionType = LogicAction['type']

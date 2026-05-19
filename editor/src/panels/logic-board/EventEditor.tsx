@@ -555,6 +555,86 @@ function ActionRow({
           </label>
         </>
       )}
+      {(act.type === 'applyImpulse' || act.type === 'applyForce') && (
+        <>
+          <span className={lbl}>target</span>
+          <TargetPicker value={act.target} onChange={(t) => onChange({ ...act, target: t })} />
+          {act.type === 'applyImpulse' ? (
+            <>
+              <span className={lbl}>ix</span>
+              <Num value={act.ix} onChange={(n) => onChange({ ...act, ix: n })} />
+              <span className={lbl}>iy</span>
+              <Num value={act.iy} onChange={(n) => onChange({ ...act, iy: n })} />
+            </>
+          ) : (
+            <>
+              <span className={lbl}>fx</span>
+              <Num value={act.fx} onChange={(n) => onChange({ ...act, fx: n })} />
+              <span className={lbl}>fy</span>
+              <Num value={act.fy} onChange={(n) => onChange({ ...act, fy: n })} />
+            </>
+          )}
+        </>
+      )}
+      {act.type === 'setRotation' && (
+        <>
+          <span className={lbl}>target</span>
+          <TargetPicker value={act.target} onChange={(t) => onChange({ ...act, target: t })} />
+          <span className={lbl}>angle</span>
+          <Num value={act.angle} onChange={(n) => onChange({ ...act, angle: n })} />
+        </>
+      )}
+      {act.type === 'setScale' && (
+        <>
+          <span className={lbl}>target</span>
+          <TargetPicker value={act.target} onChange={(t) => onChange({ ...act, target: t })} />
+          <span className={lbl}>sx</span>
+          <Num value={act.scaleX} onChange={(n) => onChange({ ...act, scaleX: n })} />
+          <span className={lbl}>sy</span>
+          <Num value={act.scaleY} onChange={(n) => onChange({ ...act, scaleY: n })} />
+        </>
+      )}
+      {act.type === 'setVisible' && (
+        <>
+          <span className={lbl}>target</span>
+          <TargetPicker value={act.target} onChange={(t) => onChange({ ...act, target: t })} />
+          <label className="flex items-center gap-1 text-xs text-[var(--muted)]">
+            <input
+              type="checkbox"
+              checked={act.visible}
+              onChange={(e) => onChange({ ...act, visible: e.target.checked })}
+            />
+            visible
+          </label>
+        </>
+      )}
+      {act.type === 'setColorTint' && (
+        <>
+          <span className={lbl}>target</span>
+          <TargetPicker value={act.target} onChange={(t) => onChange({ ...act, target: t })} />
+          <input
+            type="color"
+            value={act.hexColor || '#ffffff'}
+            onChange={(e) => onChange({ ...act, hexColor: e.target.value })}
+            className="w-7 h-6 bg-transparent border border-[var(--border-2)] rounded"
+          />
+          <span className={lbl}>alpha</span>
+          <Num value={act.alpha ?? 1} onChange={(n) => onChange({ ...act, alpha: n })} />
+        </>
+      )}
+      {act.type === 'loadScene' && (
+        <>
+          <span className={lbl}>scene</span>
+          <Txt w="w-40" value={act.sceneName} placeholder="level_2"
+               onChange={(s) => onChange({ ...act, sceneName: s })} />
+        </>
+      )}
+      {act.type === 'setCameraTarget' && (
+        <>
+          <span className={lbl}>target</span>
+          <TargetPicker value={act.target} onChange={(t) => onChange({ ...act, target: t })} />
+        </>
+      )}
       {act.type === 'debugLog' && (
         <Txt
           w="w-56"

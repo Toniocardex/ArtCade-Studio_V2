@@ -329,3 +329,32 @@ describe('Logic Components — Phase A (new blocks)', () => {
     expect(lua).toContain('debug.log("hit")')
   })
 })
+
+describe('Logic Components — Phase B (new runtime-backed actions)', () => {
+  it('emits physics/transform/scene/camera actions', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({ trigger: { type: 'onUpdate' }, actions: [
+          { type: 'applyImpulse', target: 'self', ix: 0, iy: -300 },
+          { type: 'applyForce', target: 'self', fx: 10, fy: 0 },
+          { type: 'setRotation', target: 'self', angle: 1.57 },
+          { type: 'setScale', target: 'self', scaleX: 2, scaleY: 2 },
+          { type: 'setVisible', target: 'self', visible: false },
+          { type: 'setColorTint', target: 'self', hexColor: '#ff0000', alpha: 0.5 },
+          { type: 'loadScene', sceneName: 'level_2' },
+          { type: 'restartScene' },
+          { type: 'setCameraTarget', target: 'self' },
+        ] }),
+      ]),
+    ])
+    expect(lua).toContain('physics.applyImpulse(self, 0, -300)')
+    expect(lua).toContain('physics.applyForce(self, 10, 0)')
+    expect(lua).toContain('entity.setRotation(self, 1.57)')
+    expect(lua).toContain('entity.setScale(self, 2, 2)')
+    expect(lua).toContain('entity.setVisible(self, false)')
+    expect(lua).toContain('entity.setTint(self, 1.0000, 0.0000, 0.0000, 0.5)')
+    expect(lua).toContain('scene.load("level_2")')
+    expect(lua).toContain('scene.restart()')
+    expect(lua).toContain('camera.centerOn(self)')
+  })
+})

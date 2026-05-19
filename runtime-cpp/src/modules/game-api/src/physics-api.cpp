@@ -123,6 +123,25 @@ void GameAPI::bindPhysicsAPI(sol::state& lua) {
             return {p.x, p.y};
         });
 
+    // physics.applyImpulse(id, ix, iy) — velocity-space impulse (mass≈1)
+    lua.set_function("physics_applyImpulse",
+        [entities, physics](EntityId id, float ix, float iy) {
+            auto* e = entities->get(id);
+            if (!e || e->physics.physicsHandle == 0) return;
+            auto v = physics->getLinearVelocity(e->physics.physicsHandle);
+            physics->setLinearVelocity(e->physics.physicsHandle,
+                                       { v.x + ix, v.y + iy });
+        });
+    // physics.applyForce(id, fx, fy) — same velocity-space approximation
+    lua.set_function("physics_applyForce",
+        [entities, physics](EntityId id, float fx, float fy) {
+            auto* e = entities->get(id);
+            if (!e || e->physics.physicsHandle == 0) return;
+            auto v = physics->getLinearVelocity(e->physics.physicsHandle);
+            physics->setLinearVelocity(e->physics.physicsHandle,
+                                       { v.x + fx, v.y + fy });
+        });
+
     lua.script(R"(
         collision = {}
         collision.overlap       = function(id1, id2)     return collision_overlap(id1, id2)          end
@@ -135,6 +154,8 @@ void GameAPI::bindPhysicsAPI(sol::state& lua) {
                                 end
         physics.setGravity    = function(gx, gy)         return physics_setGravity(gx, gy)           end
         physics.bodyPosition  = function(id)             return physics_bodyPosition(id)              end
+        physics.applyImpulse  = function(id, ix, iy)     return physics_applyImpulse(id, ix, iy)      end
+        physics.applyForce    = function(id, fx, fy)     return physics_applyForce(id, fx, fy)        end
     )");
 }
 

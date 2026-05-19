@@ -52,6 +52,32 @@ void GameAPI::bindEntityAPI(sol::state& lua) {
         entities->destroy(id);
     });
 
+    // entity.setRotation(id, radians)
+    lua.set_function("entity_setRotation", [entities](EntityId id, float a) {
+        if (auto* e = entities->get(id)) e->transform.rotation = a;
+    });
+    // entity.setScale(id, sx, sy)
+    lua.set_function("entity_setScale", [entities](EntityId id, float sx, float sy) {
+        if (auto* e = entities->get(id)) e->transform.scale = { sx, sy };
+    });
+    // entity.setVisible(id, bool) — implemented via sprite alpha (no struct change)
+    lua.set_function("entity_setVisible", [entities](EntityId id, bool v) {
+        if (auto* e = entities->get(id)) e->sprite.alpha = v ? 1.f : 0.f;
+    });
+    // entity.setTint(id, r, g, b, a)  — components in 0..1
+    lua.set_function("entity_setTint",
+        [entities](EntityId id, float r, float g, float b, float a) {
+            if (auto* e = entities->get(id)) e->sprite.tint = { r, g, b, a };
+        });
+
+    // scene.load(name) / scene.restart()  — flow control via the gateway
+    lua.set_function("scene_load", [entities](const std::string& name) {
+        if (entities) entities->loadScene(name);
+    });
+    lua.set_function("scene_restart", [entities]() {
+        if (entities) entities->loadScene(entities->activeSceneId());
+    });
+
     // pool.getAll(className) → table of ids
     lua.set_function("pool_getAll", [entities](const std::string& cls) {
         return entities->poolByClass(cls);
@@ -142,6 +168,14 @@ void GameAPI::bindEntityAPI(sol::state& lua) {
         entity.velocity    = function(id)       return entity_velocity(id)       end
         entity.setVelocity = function(id,vx,vy) return entity_setVelocity(id,vx,vy) end
         entity.destroy     = function(id)       return entity_destroy(id)        end
+        entity.setRotation = function(id,a)     return entity_setRotation(id,a)  end
+        entity.setScale    = function(id,sx,sy) return entity_setScale(id,sx,sy) end
+        entity.setVisible  = function(id,v)     return entity_setVisible(id,v)   end
+        entity.setTint     = function(id,r,g,b,a) return entity_setTint(id,r,g,b,a) end
+
+        scene = {}
+        scene.load    = function(name) return scene_load(name) end
+        scene.restart = function()     return scene_restart()  end
 
         pool = {}
         pool.getAll = function(cls)  return pool_getAll(cls)  end

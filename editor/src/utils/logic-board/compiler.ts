@@ -143,6 +143,31 @@ function actionLua(a: LogicAction): string {
         : `event.emit(${luaString(a.name)})`
     case 'toggleLogicEvent':
       return `_logic_on[${luaString(a.eventId)}] = ${a.enabled ? 'true' : 'false'}`
+    case 'applyImpulse':
+      return `physics.applyImpulse(${targetExpr(a.target)}, ${Number(a.ix) || 0}, ${Number(a.iy) || 0})`
+    case 'applyForce':
+      return `physics.applyForce(${targetExpr(a.target)}, ${Number(a.fx) || 0}, ${Number(a.fy) || 0})`
+    case 'setRotation':
+      return `entity.setRotation(${targetExpr(a.target)}, ${Number(a.angle) || 0})`
+    case 'setScale':
+      return `entity.setScale(${targetExpr(a.target)}, ${Number(a.scaleX) || 0}, ${Number(a.scaleY) || 0})`
+    case 'setVisible':
+      return `entity.setVisible(${targetExpr(a.target)}, ${a.visible ? 'true' : 'false'})`
+    case 'setColorTint': {
+      const m = /^#?([0-9a-fA-F]{6})$/.exec(a.hexColor || '')
+      const hex = m ? m[1] : 'ffffff'
+      const r = (parseInt(hex.slice(0, 2), 16) / 255).toFixed(4)
+      const g = (parseInt(hex.slice(2, 4), 16) / 255).toFixed(4)
+      const b = (parseInt(hex.slice(4, 6), 16) / 255).toFixed(4)
+      const al = a.alpha == null ? 1 : Number(a.alpha)
+      return `entity.setTint(${targetExpr(a.target)}, ${r}, ${g}, ${b}, ${al})`
+    }
+    case 'loadScene':
+      return `scene.load(${luaString(a.sceneName)})`
+    case 'restartScene':
+      return `scene.restart()`
+    case 'setCameraTarget':
+      return `camera.centerOn(${targetExpr(a.target)})`
     case 'debugLog':
       return `debug.log(${luaString(a.message)})`
   }

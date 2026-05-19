@@ -38,6 +38,15 @@ export const ACTION_TYPES: LogicActionType[] = [
   'setGlobalState',
   'emitEvent',
   'toggleLogicEvent',
+  'applyImpulse',
+  'applyForce',
+  'setRotation',
+  'setScale',
+  'setVisible',
+  'setColorTint',
+  'loadScene',
+  'restartScene',
+  'setCameraTarget',
   'debugLog',
 ]
 
@@ -126,6 +135,24 @@ export function defaultAction(type: LogicActionType): LogicAction {
       return { type: 'emitEvent', name: 'my_event', payloadKey: '', payloadValue: '' }
     case 'toggleLogicEvent':
       return { type: 'toggleLogicEvent', eventId: '', enabled: true }
+    case 'applyImpulse':
+      return { type: 'applyImpulse', target: 'self', ix: 0, iy: -200 }
+    case 'applyForce':
+      return { type: 'applyForce', target: 'self', fx: 0, fy: -200 }
+    case 'setRotation':
+      return { type: 'setRotation', target: 'self', angle: 0 }
+    case 'setScale':
+      return { type: 'setScale', target: 'self', scaleX: 1, scaleY: 1 }
+    case 'setVisible':
+      return { type: 'setVisible', target: 'self', visible: true }
+    case 'setColorTint':
+      return { type: 'setColorTint', target: 'self', hexColor: '#ff0000', alpha: 1 }
+    case 'loadScene':
+      return { type: 'loadScene', sceneName: '' }
+    case 'restartScene':
+      return { type: 'restartScene' }
+    case 'setCameraTarget':
+      return { type: 'setCameraTarget', target: 'self' }
     case 'debugLog':
       return { type: 'debugLog', message: '' }
   }
@@ -199,6 +226,24 @@ export function actionSummary(a: LogicAction): string {
       return `emitEvent "${a.name || '?'}"${a.payloadKey ? ` { ${a.payloadKey} = ${a.payloadValue} }` : ''}`
     case 'toggleLogicEvent':
       return `toggleLogicEvent "${a.eventId || '?'}" → ${a.enabled ? 'on' : 'off'}`
+    case 'applyImpulse':
+      return `applyImpulse ${targetLabel(a.target)} (${a.ix}, ${a.iy})`
+    case 'applyForce':
+      return `applyForce ${targetLabel(a.target)} (${a.fx}, ${a.fy})`
+    case 'setRotation':
+      return `setRotation ${targetLabel(a.target)} → ${a.angle}`
+    case 'setScale':
+      return `setScale ${targetLabel(a.target)} → (${a.scaleX}, ${a.scaleY})`
+    case 'setVisible':
+      return `setVisible ${targetLabel(a.target)} → ${a.visible}`
+    case 'setColorTint':
+      return `setColorTint ${targetLabel(a.target)} ${a.hexColor}`
+    case 'loadScene':
+      return `loadScene "${a.sceneName || '?'}"`
+    case 'restartScene':
+      return 'restartScene'
+    case 'setCameraTarget':
+      return `setCameraTarget ${targetLabel(a.target)}`
     case 'debugLog':
       return `debugLog "${a.message}"`
   }
