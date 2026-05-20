@@ -2,9 +2,11 @@ import type { Dispatch } from 'react'
 import type { ProjectDoc } from '../types'
 import type { Action, CoreState } from '../store/editor-store'
 
-/** Script path to sync: active tab, else project main script. */
+/**
+ * Script path for Logic Board output — always the project entry script.
+ * Never the active tab (entity scripts must not receive compiled board Lua).
+ */
 export function resolveLogicScriptPath(state: CoreState): string | null {
-  if (state.activeScriptPath) return state.activeScriptPath
   return state.project?.mainScriptPath ?? null
 }
 
@@ -17,15 +19,26 @@ export function syncLogicBoardToScript(
   const path = resolveLogicScriptPath(state)
   if (!path) return false
 
-  const exists = state.openScripts.some((s) => s.path === path)
-  if (exists) {
-    dispatch({ type: 'UPDATE_SCRIPT', path, content: lua })
-  } else {
-    dispatch({
-      type: 'OPEN_SCRIPT',
-      file: { path, content: lua, isDirty: true },
-    })
+  dispatch({
+    type: 'UPSERT_SCRIPT',
+    path,
+    content: lua,
+    isDirty: false,
+    activate: true,
+  })
+  return true
+}
+
+/** Sync compiled board Lua into main, then switch to full Editor Script on that tab. */
+export function openMainScriptInEditor(
+  dispatch: Dispatch<Action>,
+  state: CoreState,
+  lua: string,
+): boolean {
+  if (!resolveLogicScriptPath(state) || !syncLogicBoardToScript(dispatch, state, lua)) {
+    return false
   }
+  dispatch({ type: 'SET_MODE', mode: 'script' })
   return true
 }
 

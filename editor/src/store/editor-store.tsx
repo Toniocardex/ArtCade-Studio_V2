@@ -172,6 +172,8 @@ export type Action =
   | { type: 'SET_PLAYING';       playing: boolean }
   | { type: 'UPDATE_SCRIPT';     path: string; content: string }
   | { type: 'OPEN_SCRIPT';       file: ScriptFile }
+  /** Add or update script buffer without switching editor mode (Logic Board sync). */
+  | { type: 'UPSERT_SCRIPT';    path: string; content: string; isDirty?: boolean; activate?: boolean }
   | { type: 'SET_ACTIVE_SCRIPT'; path: string }
   | { type: 'LOG';               entry: ConsoleEntry }
   | { type: 'SET_CURSOR';        x: number; y: number }
@@ -249,6 +251,20 @@ export function coreReducer(state: CoreState, action: Action): CoreState {
         openScripts:      exists ? state.openScripts : [...state.openScripts, action.file],
         activeScriptPath: action.file.path,
         mode:             'script',
+      }
+    }
+    case 'UPSERT_SCRIPT': {
+      const isDirty = action.isDirty ?? false
+      const exists = state.openScripts.some(s => s.path === action.path)
+      const openScripts = exists
+        ? state.openScripts.map(s =>
+            s.path === action.path ? { ...s, content: action.content, isDirty } : s,
+          )
+        : [...state.openScripts, { path: action.path, content: action.content, isDirty }]
+      return {
+        ...state,
+        openScripts,
+        ...(action.activate ? { activeScriptPath: action.path } : {}),
       }
     }
     case 'SET_ACTIVE_SCRIPT':

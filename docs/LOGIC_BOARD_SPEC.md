@@ -34,7 +34,7 @@ Logic Board              (il luogo di lavoro)
        └─ Logic Component (il mattone: trigger, condizione o azione)
 ```
 
-**Implementazione editor (oggi):** modalità **Visual** (Logic Event / Logic Component) + anteprima Lua live; toggle **Lua** apre lo stesso editor script (**CodeMirror 6 in iframe**, vedi `CODEMIRROR_EDITOR.md`). Le modifiche ai board compilano Lua e sincronizzano lo script aperto (`UPDATE_SCRIPT` → `update-from-logic`); **Apply & hot-reload** invia il sorgente al runtime WASM.
+**Implementazione editor (oggi):** modalità **Visual** (eventi) + tab **Script** (anteprima Lua read-only + **Apri in Editor Script**). Il main (`mainScriptPath`) si aggiorna in store (`UPSERT_SCRIPT`); l’edit completo con tab bar è nel modulo **Editor Script** (`CODEMIRROR_EDITOR.md`). **Apply & hot-reload** invia il Lua compilato al runtime WASM.
 
 ### Logic Event
 
@@ -553,7 +553,7 @@ Lo script testuale può: chiamare funzioni del blocco generato; **ridefinire** f
 - **Riordina:** drag & drop (opzionale).  
 - **Elimina:** icona cestino.  
 - **Visualizza Lua:** pannello read-only del sorgente generato.  
-- **Passa a Lua / Script:** toggle Visual ↔ Lua nel pannello Logic Board, oppure tab **Editor Script** globale (stesso `EngineScriptEditor`).
+- **Passa a Script:** toggle Visual ↔ Script (anteprima) nel pannello Logic Board; **Apri in Editor Script** per edit con tab bar.
 
 #### 7.3 Parametri per tipo (form / modali)
 

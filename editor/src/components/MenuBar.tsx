@@ -2,7 +2,6 @@ import { useRef, useState, useEffect } from 'react'
 import type { ReactNode } from 'react'
 import { Cpu, Play, Square, FolderOpen, Save, Package, Hammer, ChevronDown } from 'lucide-react'
 import { useEditor } from '../store/editor-store'
-import TopTabBar from './TopTabBar'
 import {
   openProjectDialog, loadProjectFile,
   saveScript, saveProjectFile, savePackDialog, packProject, runBuild,
@@ -242,8 +241,6 @@ export default function MenuBar() {
           {fileMenuOpen && <FileMenu items={fileItems} />}
         </div>
 
-        {/* Primary mode tabs */}
-        <TopTabBar />
       </div>
 
       {/* ── Right: play + build ── */}

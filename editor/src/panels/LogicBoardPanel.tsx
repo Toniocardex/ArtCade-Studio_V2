@@ -3,7 +3,7 @@
 //
 // Left: list of LogicEvent cards (collapsed summary / inline editor).
 // Right: live read-only Lua preview (recompiled on every store change).
-// A Visual/Lua toggle preserves access to the raw script editor (CodeMirror).
+// Visual / Script toggle: Script tab shows live Lua preview + opens full Editor Script.
 //
 // All mutations go through the store's LOGIC_* actions; the preview derives
 // from project.logicBoards via useMemo, so it is always in sync.
@@ -18,9 +18,10 @@ import { createLogicBoard, createLogicEvent } from '../utils/logic-board/factory
 import { TRIGGER_TYPES, defaultTrigger } from './logic-board/options'
 import type { LogicTriggerType } from '../types/logic-board'
 import EventCard from './logic-board/EventCard'
-import ScriptEditorPanel from './ScriptEditorPanel'
+import { LogicBoardLuaPreview } from './logic-board/LogicBoardLuaPreview'
 import {
   logicBoardsRevision,
+  openMainScriptInEditor,
   syncLogicBoardToScript,
 } from '../utils/sync-logic-board-script'
 
@@ -50,12 +51,12 @@ export default function LogicBoardPanel() {
   const boardsRevision = logicBoardsRevision(project)
   const prevBoardsRevision = useRef(boardsRevision)
 
-  // Visual Logic Board edits → store → Script editor iframe (update-from-logic).
+  // Visual edits → sync compiled Lua into main script buffer (Editor Script / hot-reload).
   useEffect(() => {
     if (prevBoardsRevision.current === boardsRevision) return
     prevBoardsRevision.current = boardsRevision
     syncLogicBoardToScript(dispatch, state, lua)
-  }, [boardsRevision, lua, dispatch, state.openScripts, state.activeScriptPath, state.project])
+  }, [boardsRevision, lua, dispatch, state])
 
   const handleApply = () => {
     syncLogicBoardToScript(dispatch, state, lua)
@@ -79,8 +80,9 @@ export default function LogicBoardPanel() {
   }
 
   if (mode === 'lua') {
+    const mainLabel = project.mainScriptPath.split('/').pop() ?? project.mainScriptPath
     return (
-      <div className="flex-1 flex flex-col min-h-0">
+      <div className="flex-1 flex flex-col min-h-0 bg-[var(--bg)]">
         <Header
           mode={mode}
           setMode={setMode}
@@ -90,9 +92,20 @@ export default function LogicBoardPanel() {
           onApply={handleApply}
           applyMsg={applyMsg}
         />
-        <div className="flex-1 min-h-0">
-          <ScriptEditorPanel />
-        </div>
+        <LogicBoardLuaPreview
+          lua={lua}
+          title={`${mainLabel} · anteprima generata`}
+          action={
+            <button
+              type="button"
+              title="Apri Editor Script con tutte le tab (main, player, …)"
+              onClick={() => openMainScriptInEditor(dispatch, state, lua)}
+              className="px-4 py-2 rounded text-xs font-semibold border border-[var(--accent-bd)] bg-[var(--accent-bg)] text-[var(--accent)] hover:bg-[var(--accent-bg-h)]"
+            >
+              Apri in Editor Script →
+            </button>
+          }
+        />
       </div>
     )
   }
@@ -231,18 +244,11 @@ export default function LogicBoardPanel() {
           )}
         </div>
 
-        {/* RIGHT — live Lua */}
-        <div className="flex-1 flex flex-col min-h-0 bg-[var(--panel-3)]">
-          <div className="h-9 flex items-center gap-2 px-4 border-b border-[var(--border)] bg-[var(--panel)]">
-            <span className="w-1.5 h-1.5 rounded-full bg-[var(--green)]" />
-            <span className="text-[10px] uppercase tracking-widest text-[var(--muted)]">
-              Generated Lua · read-only · live
-            </span>
-          </div>
-          <pre className="flex-1 overflow-auto p-4 text-xs leading-relaxed text-[var(--text-2)] font-mono whitespace-pre">
-            {lua}
-          </pre>
-        </div>
+        <LogicBoardLuaPreview
+          lua={lua}
+          title="Generated Lua · read-only · live"
+          liveDot
+        />
       </div>
     </div>
   )
@@ -312,7 +318,7 @@ function Header({
                 : 'text-[var(--muted)] hover:text-[var(--text)]'
             }`}
           >
-            {m === 'visual' ? 'Visual' : 'Lua'}
+            {m === 'visual' ? 'Visual' : 'Script'}
           </button>
         ))}
       </div>

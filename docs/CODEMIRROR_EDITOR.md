@@ -41,7 +41,7 @@ LogicBoardPanel (store LOGIC_*)
 
 - `LogicBoardPanel`: `useEffect` su revisione `logicBoards` + `handleApply` chiama sync prima del reload.
 - `lastSyncedRef` in `EngineScriptEditor` evita loop quando l’iframe emette `change` dopo un push esterno.
-- **Non implementato:** Lua digitato a mano → ricostruzione blocchi (`useCodeParser` è placeholder).
+- **Non implementato (v1):** parsing Lua → ricostruzione blocchi Logic Board.
 
 ## File
 
@@ -69,7 +69,7 @@ Output: `dist/index.html` + `dist/codemirror-frame.html` (+ chunk JS dedicati).
 
 1. `tauri:build` → Editor Script: righe allineate, syntax highlight Lua, tema dark/light.
 2. Cambio tab script / tema app → iframe riceve `set-theme` o remount con `key={path}`.
-3. Logic Board: modifica evento → tab Lua o Script aperto si aggiorna; **Apply & hot-reload** aggiorna il runtime.
+3. Logic Board: modifica evento → anteprima Script + main in store; **Apri in Editor Script** → modulo Script con tab bar; **Apply & hot-reload** aggiorna il runtime.
 4. `UPDATE_SCRIPT` da sorgente esterna (non digitazione iframe) → `update-from-logic` (anti-loop via `lastSyncedRef`).
 
 ## Riferimenti
