@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://artcade.dev/schemas/logic-board/condition-node.json",
+  "title": "LogicConditionNode",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": ["kind", "condition"],
+      "properties": {
+        "kind": { "const": "leaf" },
+        "condition": {
+          "type": "object",
+          "required": ["type"],
+          "properties": {
+            "type": { "type": "string" }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": ["kind", "operator", "statements"],
+      "properties": {
+        "kind": { "const": "group" },
+        "operator": { "enum": ["AND", "OR"] },
+        "statements": {
+          "type": "array",
+          "items": { "$ref": "#" },
+          "minItems": 1
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

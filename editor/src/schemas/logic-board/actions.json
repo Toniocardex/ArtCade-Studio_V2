@@ -321,7 +321,7 @@
       "category": "Graphics",
       "params": {
         "target": { "widget": "target", "label": "Target" },
-        "hexColor": { "widget": "string", "label": "Color" },
+        "hexColor": { "widget": "color", "label": "Color" },
         "alpha": { "widget": "number", "label": "Alpha" }
       }
     }

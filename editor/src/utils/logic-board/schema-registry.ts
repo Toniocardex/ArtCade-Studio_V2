@@ -11,12 +11,12 @@ import triggersJson from '../../schemas/logic-board/triggers.json'
 import actionsJson from '../../schemas/logic-board/actions.json'
 import conditionsJson from '../../schemas/logic-board/conditions.json'
 import targetSelectorSchema from '../../schemas/logic-board/target-selector.schema.json'
-
 import type {
   LogicAction,
   LogicBoard,
   LogicBoardDoc,
   LogicCondition,
+  LogicConditionNode,
   LogicTrigger,
 } from '../../types/logic-board'
 
@@ -28,6 +28,7 @@ export type ParamWidget =
   | 'boolean'
   | 'enum'
   | 'target'
+  | 'color'
 
 export interface ParamFieldMeta {
   widget: ParamWidget
@@ -69,15 +70,6 @@ const index = indexJson as {
   actions: string[]
   conditions: string[]
 }
-
-/** Actions rendered via SchemaParamForm in EventEditor (MVP slice). */
-export const SCHEMA_UI_ACTIONS = new Set([
-  'setGlobalState',
-  'loadScene',
-  'debugLog',
-  'spawnEntity',
-  'destroyEntity',
-])
 
 function deepClone<T>(v: T): T {
   return JSON.parse(JSON.stringify(v)) as T
@@ -165,9 +157,68 @@ export function getComponentMeta(kind: ComponentKind, type: string): ComponentMe
 }
 
 export function usesSchemaParamForm(kind: ComponentKind, type: string): boolean {
-  if (kind === 'trigger') return true
-  if (kind === 'action') return SCHEMA_UI_ACTIONS.has(type)
-  return false
+  return getRawSchema(kind, type) !== undefined
+}
+
+export function validateConditionNode(
+  node: unknown,
+  pathPrefix = '/conditionRoot',
+): ValidationResult {
+  const errors: ValidationIssue[] = []
+  if (!node || typeof node !== 'object') {
+    return { valid: false, errors: [{ path: pathPrefix, message: 'invalid condition node' }] }
+  }
+  const n = node as Record<string, unknown>
+  const kind = n.kind
+
+  if (kind === 'leaf') {
+    const cr = validateCondition(n.condition)
+    if (!cr.valid) {
+      errors.push(
+        ...cr.errors.map((x) => ({
+          ...x,
+          path: `${pathPrefix}/condition${x.path.replace('/condition', '')}`,
+        })),
+      )
+    }
+    return { valid: errors.length === 0, errors }
+  }
+
+  if (kind === 'group') {
+    if (n.operator !== 'AND' && n.operator !== 'OR') {
+      errors.push({ path: `${pathPrefix}/operator`, message: 'must be AND or OR' })
+    }
+    if (!Array.isArray(n.statements)) {
+      errors.push({ path: `${pathPrefix}/statements`, message: 'must be array' })
+    } else if (n.statements.length === 0) {
+      errors.push({ path: `${pathPrefix}/statements`, message: 'must have at least one child' })
+    } else {
+      n.statements.forEach((child, i) => {
+        const sr = validateConditionNode(child, `${pathPrefix}/statements[${i}]`)
+        if (!sr.valid) errors.push(...sr.errors)
+      })
+    }
+    return { valid: errors.length === 0, errors }
+  }
+
+  return {
+    valid: false,
+    errors: [{ path: `${pathPrefix}/kind`, message: 'must be "leaf" or "group"' }],
+  }
+}
+
+/** Default AND group with one compareVariable leaf (tree mode). */
+export function defaultConditionRoot(): LogicConditionNode {
+  return {
+    kind: 'group',
+    operator: 'AND',
+    statements: [
+      {
+        kind: 'leaf',
+        condition: { type: 'compareVariable', key: 'score', operator: '>=', value: 0 },
+      },
+    ],
+  }
 }
 
 export function validateTrigger(trigger: unknown): ValidationResult {
@@ -237,8 +288,15 @@ export function validateLogicEvent(
   const tr = validateTrigger(e.trigger)
   if (!tr.valid) errors.push(...tr.errors.map((x) => ({ ...x, path: pathPrefix + x.path })))
 
-  if (Array.isArray(e.conditions)) {
-    e.conditions.forEach((c, i) => {
+  const hasRoot =
+    e.conditionRoot != null && typeof e.conditionRoot === 'object'
+  const flatList = Array.isArray(e.conditions) ? e.conditions : []
+
+  if (hasRoot) {
+    const nr = validateConditionNode(e.conditionRoot, `${pathPrefix}/conditionRoot`)
+    if (!nr.valid) errors.push(...nr.errors)
+  } else {
+    flatList.forEach((c, i) => {
       const cr = validateCondition(c)
       if (!cr.valid) {
         errors.push(

@@ -5,8 +5,10 @@ import {
   listTriggerTypes,
   validateAction,
   validateCondition,
+  validateConditionNode,
   validateLogicBoard,
   validateLogicBoardDoc,
+  validateLogicEvent,
   validateTrigger,
 } from './schema-registry'
 import {
@@ -18,6 +20,7 @@ import {
   defaultTrigger,
 } from '../../panels/logic-board/options'
 import { createLogicBoard, createLogicEvent } from './factory'
+import type { LogicConditionNode } from '../../types/logic-board'
 
 describe('schema-registry', () => {
   it('index lists match options.ts catalogues', () => {
@@ -61,6 +64,42 @@ describe('schema-registry', () => {
 
   it('rejects unknown action type', () => {
     const r = validateAction({ type: 'notReal', foo: 1 })
+    expect(r.valid).toBe(false)
+  })
+
+  it('validates nested conditionRoot OR/AND', () => {
+    const root: LogicConditionNode = {
+      kind: 'group',
+      operator: 'OR',
+      statements: [
+        {
+          kind: 'leaf',
+          condition: { type: 'compareVariable', key: 'hasKey', operator: '==', value: 1 },
+        },
+        {
+          kind: 'group',
+          operator: 'AND',
+          statements: [
+            {
+              kind: 'leaf',
+              condition: { type: 'compareVariable', key: 'thief', operator: '==', value: 1 },
+            },
+            {
+              kind: 'leaf',
+              condition: { type: 'isKeyDown', keyCode: 'Space' },
+            },
+          ],
+        },
+      ],
+    }
+    expect(validateConditionNode(root).valid).toBe(true)
+    const ev = createLogicEvent({ type: 'onUpdate' }, [])
+    ev.conditionRoot = root
+    expect(validateLogicEvent(ev).valid).toBe(true)
+  })
+
+  it('rejects leaf without condition', () => {
+    const r = validateConditionNode({ kind: 'leaf' })
     expect(r.valid).toBe(false)
   })
 })

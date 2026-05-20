@@ -9,8 +9,8 @@
 - [x] Schemi draft-07 per tutti i trigger / action / condition MVP
 - [x] `schema-registry.ts` (Ajv) + test Vitest anti-drift
 - [x] Validazione load (skip eventi invalidi) + save (blocco)
-- [x] `SchemaParamForm` — tutti i trigger + 5 azioni prioritarie
-- [ ] Sprint 2: restanti azioni/condizioni su form schema; `conditionRoot` OR/AND
+- [x] `SchemaParamForm` — tutti i trigger + azioni/condizioni (schema-driven)
+- [x] Sprint 2: `condition-node.schema.json`, `ConditionTreeEditor`, validazione albero OR/AND
 
 ## Priorità aperte
 

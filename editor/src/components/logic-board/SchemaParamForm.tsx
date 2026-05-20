@@ -2,12 +2,13 @@
 // Dynamic parameter form driven by JSON Schema x-artcade.params metadata
 // ---------------------------------------------------------------------------
 
-import type { TargetSelector } from '../../types/logic-board'
 import {
   getComponentMeta,
   type ComponentKind,
   type ParamFieldMeta,
 } from '../../utils/logic-board/schema-registry'
+import type { TargetSelector } from '../../types/logic-board'
+import { TargetPicker } from './TargetPicker'
 
 const sel =
   'bg-[var(--bg)] border border-[var(--border-2)] text-[var(--accent)] px-2 py-1 rounded text-xs'
@@ -52,51 +53,6 @@ function Txt({
       placeholder={placeholder}
       onChange={(e) => onChange(e.target.value)}
     />
-  )
-}
-
-function TargetPicker({
-  value,
-  onChange,
-}: {
-  value: TargetSelector
-  onChange: (t: TargetSelector) => void
-}) {
-  const kind =
-    value === 'self' || value === 'other'
-      ? value
-      : typeof value === 'object' && 'entityId' in value
-        ? 'entityId'
-        : 'className'
-  return (
-    <span className="flex items-center gap-1">
-      <select
-        className={sel}
-        value={kind}
-        onChange={(e) => {
-          const k = e.target.value
-          if (k === 'self' || k === 'other') onChange(k)
-          else if (k === 'entityId') onChange({ entityId: 1 })
-          else onChange({ className: '', first: true })
-        }}
-      >
-        <option value="self">self</option>
-        <option value="other">other</option>
-        <option value="entityId">entity #</option>
-        <option value="className">class</option>
-      </select>
-      {kind === 'entityId' && typeof value === 'object' && 'entityId' in value && (
-        <Num w="w-16" value={value.entityId} onChange={(n) => onChange({ entityId: n })} />
-      )}
-      {kind === 'className' && typeof value === 'object' && 'className' in value && (
-        <Txt
-          w="w-28"
-          placeholder="ClassName"
-          value={value.className}
-          onChange={(s) => onChange({ className: s, first: true })}
-        />
-      )}
-    </span>
   )
 }
 
@@ -159,6 +115,18 @@ function Field({
           <TargetPicker
             value={(value as TargetSelector) ?? 'self'}
             onChange={(t) => onPatch(name, t)}
+          />
+        </span>
+      )
+    case 'color':
+      return (
+        <span key={name} className="flex items-center gap-2">
+          {label}
+          <input
+            type="color"
+            value={typeof value === 'string' && value ? value : '#ffffff'}
+            onChange={(e) => onPatch(name, e.target.value)}
+            className="w-7 h-6 bg-transparent border border-[var(--border-2)] rounded"
           />
         </span>
       )

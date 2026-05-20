@@ -625,12 +625,13 @@ Ogni Logic Component MVP ha uno schema **draft-07** in [`editor/src/schemas/logi
 |------|-----------|
 | `index.json` | Elenco tipi trigger / action / condition |
 | `triggers.json`, `actions.json`, `conditions.json` | Schema per tipo + metadati UI `x-artcade` |
+| `condition-node.schema.json` | Albero `LogicConditionNode` (leaf / group AND\|OR) |
 | `board.schema.json` | `LogicBoard` + shell `LogicEvent` |
 | `target-selector.schema.json` | `TargetSelector` per azioni/condizioni |
 
-**Runtime editor:** [`schema-registry.ts`](../editor/src/utils/logic-board/schema-registry.ts) (Ajv) espone `validateLogicBoard`, `getComponentMeta`, `list*Types`.
+**Runtime editor:** [`schema-registry.ts`](../editor/src/utils/logic-board/schema-registry.ts) (Ajv) espone `validateLogicBoard`, `validateConditionNode`, `getComponentMeta`, `list*Types`.
 
-**UI:** [`SchemaParamForm.tsx`](../editor/src/components/logic-board/SchemaParamForm.tsx) — tutti i trigger + azioni `setGlobalState`, `loadScene`, `debugLog`, `spawnEntity`, `destroyEntity`.
+**UI:** [`SchemaParamForm.tsx`](../editor/src/components/logic-board/SchemaParamForm.tsx) — parametri di trigger, azioni e condizioni; [`ConditionTreeEditor.tsx`](../editor/src/components/logic-board/ConditionTreeEditor.tsx) — modalità Flat (AND) vs Tree (OR/AND su `conditionRoot`).
 
 **Validazione:**
 
@@ -651,7 +652,7 @@ Modifica di un componente → aggiornare **TS** (`logic-board.ts`), **schema JSO
 | Sensor trigger | `onTriggerEnter/Exit` (compiler edge) | fixture sensor + log overlap | Event bus Lua in evoluzione |
 | Platformer feel | script Lua opzionale | `PlatformerControllerComponent` in `World` | C++ se componente su entità |
 | `wait` + coroutine | in SPEC, non in TS | — | Vedi [`LOGIC_BOARD_EDITOR_BACKLOG.md`](LOGIC_BOARD_EDITOR_BACKLOG.md) |
-| JSON Schema registry | Ajv + `SchemaParamForm` (trigger + 5 azioni) | — | `editor/src/schemas/logic-board/` |
+| JSON Schema registry | Ajv + `SchemaParamForm` + `ConditionTreeEditor` | — | `editor/src/schemas/logic-board/` |
 | Shaders / image points / bussola | — | — | Vedi [`ArtCade_V2_Riepilogo_Suggerimenti.md`](ArtCade_V2_Riepilogo_Suggerimenti.md) |
 
 ### 12. Dipendenze per l’implementazione
