@@ -128,6 +128,8 @@ export function defaultAction(type: LogicActionType): LogicAction {
       return { type: 'setCameraTarget', target: 'self' }
     case 'debugLog':
       return { type: 'debugLog', message: '' }
+    case 'wait':
+      return { type: 'wait', seconds: 1 }
   }
 }
 
@@ -227,6 +229,10 @@ export function actionSummary(a: LogicAction): string {
       return `setCameraTarget ${targetLabel(a.target)}`
     case 'debugLog':
       return `debugLog "${a.message}"`
+    case 'wait':
+      return a.then?.length
+        ? `wait ${a.seconds}s (then: ${a.then.length} action(s))`
+        : `wait ${a.seconds}s`
   }
 }
 

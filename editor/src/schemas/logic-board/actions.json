@@ -378,5 +378,25 @@
         "message": { "widget": "string", "label": "Message", "placeholder": "Hello" }
       }
     }
+  },
+  "wait": {
+    "type": "object",
+    "required": ["type", "seconds"],
+    "properties": {
+      "type": { "const": "wait" },
+      "seconds": { "type": "number", "minimum": 0 },
+      "then": {
+        "type": "array",
+        "items": { "type": "object" }
+      }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Wait",
+      "category": "System",
+      "params": {
+        "seconds": { "widget": "number", "label": "Seconds" }
+      }
+    }
   }
 }

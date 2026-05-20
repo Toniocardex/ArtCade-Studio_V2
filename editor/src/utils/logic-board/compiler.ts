@@ -170,6 +170,8 @@ function actionLua(a: LogicAction): string {
       return `camera.centerOn(${targetExpr(a.target)})`
     case 'debugLog':
       return `debug.log(${luaString(a.message)})`
+    case 'wait':
+      return `-- wait handled by emitActionSequence`
   }
 }
 
@@ -177,8 +179,37 @@ function actionLua(a: LogicAction): string {
 
 const INDENT = '  '
 
-function emitActions(actions: LogicAction[], indent: string): string[] {
-  return actions.map((a) => indent + actionLua(a))
+/**
+ * Emit actions in order; a `wait` splits the sequence — following actions (or
+ * `wait.then`) run inside time.delay so the game loop is not blocked.
+ */
+function emitActionSequence(actions: LogicAction[], indent: string): string[] {
+  if (actions.length === 0) return []
+
+  const lines: string[] = []
+  let i = 0
+  const batch: LogicAction[] = []
+  while (i < actions.length && actions[i].type !== 'wait') {
+    batch.push(actions[i++])
+  }
+  for (const a of batch) {
+    const code = actionLua(a)
+    if (!code.startsWith('--')) lines.push(indent + code)
+  }
+
+  if (i >= actions.length) return lines
+
+  const w = actions[i]
+  if (w.type !== 'wait') return lines
+
+  const secs = Number(w.seconds) || 0
+  const deferred = w.then?.length ? w.then : actions.slice(i + 1)
+  const inner = emitActionSequence(deferred, indent + INDENT)
+
+  lines.push(`${indent}time.delay(${secs}, function()`)
+  lines.push(...inner)
+  lines.push(`${indent}end)`)
+  return lines
 }
 
 /**
@@ -215,7 +246,7 @@ function emitEventBody(ev: LogicEvent, board: LogicBoard, baseIndent: string): s
         : `(not _tcur) and _trig[${key}]`
     lines.push(`${baseIndent}local _tcur = ${cur}`)
     lines.push(`${baseIndent}if (${fire}) and ${guard} then`)
-    lines.push(...emitActions(ev.actions, inner))
+    lines.push(...emitActionSequence(ev.actions, inner))
     lines.push(`${baseIndent}end`)
     lines.push(`${baseIndent}_trig[${key}] = _tcur`)
     return lines
@@ -232,7 +263,7 @@ function emitEventBody(ev: LogicEvent, board: LogicBoard, baseIndent: string): s
       : trig.eventType === 'released' ? `(not _mbcur) and _mb[${key}]`
       : `_mbcur`
     lines.push(`${baseIndent}if (${fire}) and ${guard} then`)
-    lines.push(...emitActions(ev.actions, inner))
+    lines.push(...emitActionSequence(ev.actions, inner))
     lines.push(`${baseIndent}end`)
     lines.push(`${baseIndent}_mb[${key}] = _mbcur`)
     return lines
@@ -255,16 +286,16 @@ function emitEventBody(ev: LogicEvent, board: LogicBoard, baseIndent: string): s
   } else if (trig.type === 'onTimer') {
     const key = luaString(`${board.boardId}:${ev.id}`)
     const inner = baseIndent + INDENT
-    lines.push(`${baseIndent}_timers[${key}] = (_timers[${key}] or 0) + dt`)
-    lines.push(`${baseIndent}if _timers[${key}] >= ${Number(trig.seconds) || 0} then`)
+    lines.push(`${baseIndent}_logic_timers[${key}] = (_logic_timers[${key}] or 0) + dt`)
+    lines.push(`${baseIndent}if _logic_timers[${key}] >= ${Number(trig.seconds) || 0} then`)
     if (trig.repeat) {
-      lines.push(`${inner}_timers[${key}] = 0`)
+      lines.push(`${inner}_logic_timers[${key}] = 0`)
     }
     if (guard === 'true') {
-      lines.push(...emitActions(ev.actions, inner))
+      lines.push(...emitActionSequence(ev.actions, inner))
     } else {
       lines.push(`${inner}if ${guard} then`)
-      lines.push(...emitActions(ev.actions, inner + INDENT))
+      lines.push(...emitActionSequence(ev.actions, inner + INDENT))
       lines.push(`${inner}end`)
     }
     lines.push(`${baseIndent}end`)
@@ -279,10 +310,10 @@ function emitEventBody(ev: LogicEvent, board: LogicBoard, baseIndent: string): s
         : guard
 
   if (fullGuard === 'true') {
-    lines.push(...emitActions(ev.actions, baseIndent))
+    lines.push(...emitActionSequence(ev.actions, baseIndent))
   } else {
     lines.push(`${baseIndent}if ${fullGuard} then`)
-    lines.push(...emitActions(ev.actions, baseIndent + INDENT))
+    lines.push(...emitActionSequence(ev.actions, baseIndent + INDENT))
     lines.push(`${baseIndent}end`)
   }
   return lines
@@ -354,7 +385,7 @@ export function compileLogicBoard(doc: LogicBoardDoc): string {
     '-- Do not edit by hand: changes will be overwritten on next save.',
     '',
     'local _init_done = false',
-    'local _timers = {}',
+    'local _logic_timers = {}   -- onTimer accumulators (not time.delay timers)',
     'local _logic_on = {}   -- toggleLogicEvent: false = disabled',
     'local _mb = {}         -- onMouseInput edge memory',
     'local _trig = {}       -- onTriggerEnter/Exit edge memory',

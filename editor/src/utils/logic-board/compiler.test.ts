@@ -86,7 +86,7 @@ describe('compileLogicBoard — structure', () => {
     expect(lua).toContain('function tick(dt)')
     expect(lua).toContain('if not _init_done then')
     expect(lua).toContain('_logic_init()')
-    expect(lua).toContain('local _timers = {}')
+    expect(lua).toContain('local _logic_timers = {}')
   })
 
   it('onStart goes into init block, not tick body', () => {
@@ -170,9 +170,9 @@ describe('compileLogicBoard — triggers', () => {
         }),
       ]),
     ])
-    expect(lua).toContain('_timers["b1:e1"] = (_timers["b1:e1"] or 0) + dt')
-    expect(lua).toContain('if _timers["b1:e1"] >= 2 then')
-    expect(lua).not.toContain('_timers["b1:e1"] = 0')
+    expect(lua).toContain('_logic_timers["b1:e1"] = (_logic_timers["b1:e1"] or 0) + dt')
+    expect(lua).toContain('if _logic_timers["b1:e1"] >= 2 then')
+    expect(lua).not.toContain('_logic_timers["b1:e1"] = 0')
   })
 
   it('onTimer repeat resets the accumulator', () => {
@@ -184,8 +184,8 @@ describe('compileLogicBoard — triggers', () => {
         }),
       ]),
     ])
-    expect(lua).toContain('_timers["b1:e1"] = 0')
-    expect(lua).toContain('if _timers["b1:e1"] >= 1.5 then')
+    expect(lua).toContain('_logic_timers["b1:e1"] = 0')
+    expect(lua).toContain('if _logic_timers["b1:e1"] >= 1.5 then')
   })
 })
 
@@ -381,6 +381,24 @@ describe('Logic Components — Phase C (engine-hook triggers)', () => {
       ]),
     ])
     expect(lua).toContain('(not _tcur) and _trig[')
+  })
+
+  it('wait splits actions with time.delay', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({
+          trigger: { type: 'onStart' },
+          actions: [
+            { type: 'debugLog', message: 'before' },
+            { type: 'wait', seconds: 1.5 },
+            { type: 'debugLog', message: 'after' },
+          ],
+        }),
+      ]),
+    ])
+    expect(lua).toContain('debug.log("before")')
+    expect(lua).toContain('time.delay(1.5, function()')
+    expect(lua).toContain('debug.log("after")')
   })
 
   it('onAnimationEnd / onDestroy emit a safe no-op (no actions)', () => {

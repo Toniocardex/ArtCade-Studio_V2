@@ -651,7 +651,7 @@ Modifica di un componente → aggiornare **TS** (`logic-board.ts`), **schema JSO
 | Spawn / destroy | `spawnEntity`, `destroyEntity` | destroy in coda post-physics | |
 | Sensor trigger | `onTriggerEnter/Exit` (compiler edge) | fixture sensor + log overlap | Event bus Lua in evoluzione |
 | Platformer feel | script Lua opzionale | `PlatformerControllerComponent` in `World` | C++ se componente su entità |
-| `wait` + coroutine | in SPEC, non in TS | — | Vedi [`LOGIC_BOARD_EDITOR_BACKLOG.md`](LOGIC_BOARD_EDITOR_BACKLOG.md) |
+| `wait` | azione Logic + `time.delay` in compiler | `time.*` in runtime | Azioni dopo `wait` in coda async |
 | JSON Schema registry | Ajv + `SchemaParamForm` + `ConditionTreeEditor` | — | `editor/src/schemas/logic-board/` |
 | Shaders / image points / bussola | — | — | Vedi [`ArtCade_V2_Riepilogo_Suggerimenti.md`](ArtCade_V2_Riepilogo_Suggerimenti.md) |
 

@@ -12,12 +12,15 @@
 - [x] `SchemaParamForm` — tutti i trigger + azioni/condizioni (schema-driven)
 - [x] Sprint 2: `condition-node.schema.json`, `ConditionTreeEditor`, validazione albero OR/AND
 
+## Completato (continuazione)
+
+### 2. `wait` + timer Lua — 2026-05
+
+- [x] Azione `wait` in `types/logic-board.ts`, schema, compiler (`time.delay`)
+- [x] Rinomina `_logic_timers` per non collidere con `time.*` runtime
+- [ ] Coroutine `coroutine.yield` (opzionale; `time.delay` copre il flusso lineare MVP)
+
 ## Priorità aperte
-
-### 2. `wait` + coroutine Lua (SPEC + Riepilogo)
-
-- Estendere `types/logic-board.ts` e `compiler.ts`.
-- Runtime: timer in `time-api` o coroutine in `LuaHost` (Sol2 già carica `coroutine`).
 
 ### 3. UX «Zero Matematica»
 

@@ -92,6 +92,8 @@ export type LogicAction =
   | { type: 'restartScene' }
   | { type: 'setCameraTarget'; target: TargetSelector }
   | { type: 'debugLog'; message: string }
+  /** Pauses the action sequence; following actions run inside time.delay (or use `then`). */
+  | { type: 'wait'; seconds: number; then?: LogicAction[] }
 
 export type LogicActionType = LogicAction['type']
 

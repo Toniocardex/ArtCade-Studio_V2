@@ -9,7 +9,7 @@
     "setVariable", "addVariable", "setPosition", "setVelocity", "playSound", "playMusic",
     "stopAllAudio", "destroyEntity", "spawnEntity", "setGlobalState", "emitEvent",
     "toggleLogicEvent", "applyImpulse", "applyForce", "setRotation", "setScale",
-    "setVisible", "setColorTint", "loadScene", "restartScene", "setCameraTarget", "debugLog"
+    "setVisible", "setColorTint", "loadScene", "restartScene", "setCameraTarget", "debugLog", "wait"
   ],
   "conditions": [
     "compareVariable", "compareClass", "isKeyDown", "hasTag", "compareDistance",
