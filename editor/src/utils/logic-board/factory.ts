@@ -13,6 +13,7 @@ import type {
   LogicEvent,
   LogicTrigger,
 } from '../../types/logic-board'
+import { validateLogicBoard, validateLogicEvent } from './schema-registry'
 
 let _seq = 0
 /** Monotonic, collision-free id (good enough for editor undo/redo). */
@@ -87,8 +88,17 @@ function parseBoard(raw: unknown): LogicBoard | null {
   const events = asArray(r.events)
     .map(parseEvent)
     .filter((e): e is LogicEvent => e !== null)
+    .filter((e, i) => {
+      const vr = validateLogicEvent(e, `/events[${i}]`)
+      if (vr.valid) return true
+      console.warn(
+        `[LogicBoard] Dropped invalid event on board "${r.boardId}":`,
+        vr.errors.map((x) => `${x.path} ${x.message}`).join('; '),
+      )
+      return false
+    })
 
-  return {
+  const board: LogicBoard = {
     boardId: r.boardId,
     target: {
       type,
@@ -101,6 +111,16 @@ function parseBoard(raw: unknown): LogicBoard | null {
     },
     events,
   }
+
+  const br = validateLogicBoard(board)
+  if (!br.valid) {
+    console.warn(
+      `[LogicBoard] Board "${r.boardId}" has structural issues:`,
+      br.errors.map((x) => x.message).join('; '),
+    )
+  }
+
+  return board
 }
 
 /**

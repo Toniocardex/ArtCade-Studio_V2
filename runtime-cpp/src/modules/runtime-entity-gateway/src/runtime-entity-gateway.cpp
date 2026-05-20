@@ -1,21 +1,128 @@
 #include "../include/runtime-entity-gateway.h"
 #include "../../entity-system/include/entity-manager.h"
 #include "../../scene-system/include/scene-manager.h"
+#include "../../physics/include/physics.h"
+
+#include <algorithm>
 
 namespace ArtCade::Modules {
 
 RuntimeEntityGateway::RuntimeEntityGateway(EntityManager& em, SceneManager& sm)
     : entityManager_(em), sceneManager_(sm) {}
 
-bool RuntimeEntityGateway::init() { return true; }
-void RuntimeEntityGateway::shutdown() {}
+bool RuntimeEntityGateway::init()     { return true; }
+void RuntimeEntityGateway::shutdown() {
+    pendingDestroy_.clear();
+    pendingSpawn_.clear();
+}
+
+void RuntimeEntityGateway::setPhysics(Physics* physics) {
+    physics_ = physics;
+}
+
+bool RuntimeEntityGateway::entityListedInActiveScene(EntityId id) const {
+    const SceneDef* scene = sceneManager_.activeScene();
+    if (!scene) return false;
+    return std::find(scene->entityIds.begin(), scene->entityIds.end(), id)
+           != scene->entityIds.end();
+}
+
+bool RuntimeEntityGateway::isEntityActiveInScene(EntityId id) const {
+    const EntityDef* e = entityManager_.get(id);
+    return e && e->runtime.sceneActive;
+}
+
+void RuntimeEntityGateway::ensurePhysicsBody(EntityDef& def) {
+    if (!physics_) return;
+    if (def.physics.physicsHandle != 0) return;
+
+    const bool hasCollider =
+        def.physics.collider.size.x > 2.f && def.physics.collider.size.y > 2.f;
+    if (!hasCollider && !def.platformerController) return;
+
+    PhysicsComponent comp = def.physics;
+    if (!hasCollider) {
+        comp.collider.size = { 32.f, 32.f };
+        comp.bodyType = BodyType::Dynamic;
+    }
+
+    const uint32_t handle = physics_->createBody(def.id, comp);
+    if (handle == 0) return;
+
+    def.physics = comp;
+    def.physics.physicsHandle = handle;
+    physics_->setPosition(handle, def.transform.position);
+
+    if (def.sensor)
+        physics_->addSensorFixture(handle, *def.sensor);
+}
+
+void RuntimeEntityGateway::teardownPhysicsBody(EntityDef& def) {
+    if (!physics_ || def.physics.physicsHandle == 0) return;
+    physics_->destroyBody(def.physics.physicsHandle);
+    def.physics.physicsHandle = 0;
+}
+
+void RuntimeEntityGateway::deactivateEntity(EntityId id) {
+    EntityDef* e = entityManager_.get(id);
+    if (!e) return;
+    e->runtime.sceneActive = false;
+    e->sprite.alpha = 0.f;
+    teardownPhysicsBody(*e);
+}
+
+void RuntimeEntityGateway::activateEntity(EntityId id) {
+    EntityDef* e = entityManager_.get(id);
+    if (!e) return;
+    e->runtime.sceneActive = true;
+    e->sprite.alpha = 1.f;
+    ensurePhysicsBody(*e);
+}
+
+void RuntimeEntityGateway::syncSceneActivation() {
+    for (EntityId id : entityManager_.allIds()) {
+        if (entityListedInActiveScene(id))
+            activateEntity(id);
+        else
+            deactivateEntity(id);
+    }
+}
 
 EntityId RuntimeEntityGateway::create(const EntityDef& def) {
-    return entityManager_.createEntity(def);
+    EntityDef copy = def;
+    copy.runtime.sceneActive = entityListedInActiveScene(copy.id);
+    const EntityId id = entityManager_.createEntity(copy);
+    EntityDef* e = entityManager_.get(id);
+    if (e && e->runtime.sceneActive)
+        ensurePhysicsBody(*e);
+    return id;
 }
 
 void RuntimeEntityGateway::destroy(EntityId id) {
+    EntityDef* e = entityManager_.get(id);
+    if (e) teardownPhysicsBody(*e);
     entityManager_.destroyEntity(id);
+}
+
+void RuntimeEntityGateway::queueDestroy(EntityId id) {
+    if (id == 0) return;
+    if (std::find(pendingDestroy_.begin(), pendingDestroy_.end(), id) == pendingDestroy_.end())
+        pendingDestroy_.push_back(id);
+}
+
+EntityId RuntimeEntityGateway::queueSpawn(const EntityDef& def) {
+    pendingSpawn_.push_back(def);
+    return def.id != 0 ? def.id : 0;
+}
+
+void RuntimeEntityGateway::flushPendingOperations() {
+    for (EntityId id : pendingDestroy_)
+        destroy(id);
+    pendingDestroy_.clear();
+
+    for (const EntityDef& def : pendingSpawn_)
+        create(def);
+    pendingSpawn_.clear();
 }
 
 bool RuntimeEntityGateway::exists(EntityId id) const {
@@ -49,20 +156,30 @@ bool RuntimeEntityGateway::setTransform(EntityId id, Vec2 position, float rotati
     if (!entity) return false;
     entity->transform.position = position;
     entity->transform.rotation = rotation;
-    entity->transform.scale = scale;
+    entity->transform.scale    = scale;
     return true;
 }
 
 std::vector<EntityId> RuntimeEntityGateway::poolByClass(const std::string& className) const {
-    return entityManager_.getPool(className);
+    std::vector<EntityId> out;
+    for (EntityId id : entityManager_.getPool(className)) {
+        if (isEntityActiveInScene(id))
+            out.push_back(id);
+    }
+    return out;
 }
 
 size_t RuntimeEntityGateway::poolCount(const std::string& className) const {
-    return entityManager_.poolCount(className);
+    return poolByClass(className).size();
 }
 
 std::vector<EntityId> RuntimeEntityGateway::byTag(const std::string& tag) const {
-    return entityManager_.getByTag(tag);
+    std::vector<EntityId> out;
+    for (EntityId id : entityManager_.getByTag(tag)) {
+        if (isEntityActiveInScene(id))
+            out.push_back(id);
+    }
+    return out;
 }
 
 std::vector<EntityId> RuntimeEntityGateway::allIds() const {
@@ -70,19 +187,22 @@ std::vector<EntityId> RuntimeEntityGateway::allIds() const {
 }
 
 std::vector<EntityId> RuntimeEntityGateway::activeSceneIds() const {
-    const auto* scene = sceneManager_.activeScene();
-    return scene ? scene->entityIds : std::vector<EntityId>{};
+    const SceneDef* scene = sceneManager_.activeScene();
+    if (!scene) return {};
+    std::vector<EntityId> out;
+    out.reserve(scene->entityIds.size());
+    for (EntityId id : scene->entityIds) {
+        if (isEntityActiveInScene(id))
+            out.push_back(id);
+    }
+    return out;
 }
 
 void RuntimeEntityGateway::registerScenes(
     const std::unordered_map<SceneId, SceneDef>& scenes,
-    const std::unordered_map<EntityId, EntityDef>& entityDefs)
+    const std::unordered_map<EntityId, EntityDef>& /*entityDefs*/)
 {
-    sceneManager_.registerScenes(scenes, entityDefs);
-}
-
-void RuntimeEntityGateway::setTilesets(std::vector<TilesetAsset> tilesets) {
-    sceneManager_.setTilesets(std::move(tilesets));
+    sceneManager_.registerScenes(scenes, {});
 }
 
 bool RuntimeEntityGateway::replaceProject(
@@ -92,18 +212,29 @@ bool RuntimeEntityGateway::replaceProject(
 {
     entityManager_.clear();
     sceneManager_.registerScenes(scenes, entityDefs);
-    for (const auto& [id, def] : entityDefs)
-        entityManager_.createEntity(def);
+    for (const auto& [id, def] : entityDefs) {
+        EntityDef copy = def;
+        copy.runtime.sceneActive = false;
+        entityManager_.createEntity(copy);
+    }
 
     if (!activeSceneId.empty())
-        return sceneManager_.loadScene(activeSceneId);
-    if (!scenes.empty())
-        return sceneManager_.loadScene(scenes.begin()->first);
+        sceneManager_.loadScene(activeSceneId);
+    else if (!scenes.empty())
+        sceneManager_.loadScene(scenes.begin()->first);
+
+    syncSceneActivation();
     return true;
 }
 
+void RuntimeEntityGateway::setTilesets(std::vector<TilesetAsset> tilesets) {
+    sceneManager_.setTilesets(std::move(tilesets));
+}
+
 bool RuntimeEntityGateway::loadScene(const SceneId& id) {
-    return sceneManager_.loadScene(id);
+    if (!sceneManager_.loadScene(id)) return false;
+    syncSceneActivation();
+    return true;
 }
 
 SceneId RuntimeEntityGateway::activeSceneId() const {
@@ -122,7 +253,10 @@ void RuntimeEntityGateway::forEachInPool(
     const std::string& className,
     const std::function<void(EntityId, EntityDef&)>& fn)
 {
-    entityManager_.forEachInPool(className, fn);
+    for (EntityId id : poolByClass(className)) {
+        EntityDef* e = entityManager_.get(id);
+        if (e) fn(id, *e);
+    }
 }
 
 } // namespace ArtCade::Modules

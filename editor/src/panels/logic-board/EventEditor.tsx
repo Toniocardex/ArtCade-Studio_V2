@@ -11,11 +11,12 @@ import type {
   LogicTrigger,
   TargetSelector,
 } from '../../types/logic-board'
+import { SchemaParamForm } from '../../components/logic-board/SchemaParamForm'
+import { usesSchemaParamForm } from '../../utils/logic-board/schema-registry'
 import {
   ACTION_TYPES,
   CONDITION_TYPES,
   COMPARISON_OPS,
-  INPUT_EVENT_TYPES,
   TRIGGER_TYPES,
   defaultAction,
   defaultCondition,
@@ -133,127 +134,14 @@ function TriggerFields({
   trigger: LogicTrigger
   onChange: (t: LogicTrigger) => void
 }) {
-  if (trigger.type === 'onCollision')
-    return (
-      <span className="flex items-center gap-2">
-        <span className={lbl}>with class</span>
-        <Txt
-          value={trigger.withClass ?? ''}
-          placeholder="Coin"
-          onChange={(s) => onChange({ type: 'onCollision', withClass: s })}
-        />
-      </span>
-    )
-  if (trigger.type === 'onInput')
-    return (
-      <span className="flex items-center gap-2">
-        <span className={lbl}>key</span>
-        <Txt
-          w="w-28"
-          value={trigger.keyCode}
-          placeholder="Space / KeyW"
-          onChange={(s) => onChange({ ...trigger, keyCode: s })}
-        />
-        <select
-          className={sel}
-          value={trigger.eventType}
-          onChange={(e) =>
-            onChange({
-              ...trigger,
-              eventType: e.target.value as typeof trigger.eventType,
-            })
-          }
-        >
-          {INPUT_EVENT_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
-      </span>
-    )
-  if (trigger.type === 'onTriggerEnter' || trigger.type === 'onTriggerExit')
-    return (
-      <span className="flex items-center gap-2">
-        <span className={lbl}>with class</span>
-        <Txt
-          value={trigger.withClass ?? ''}
-          placeholder="Zone"
-          onChange={(s) => onChange({ ...trigger, withClass: s })}
-        />
-      </span>
-    )
-  if (trigger.type === 'onAnimationEnd')
-    return (
-      <span className="flex items-center gap-2">
-        <span className={lbl}>clip</span>
-        <Txt
-          value={trigger.clipName ?? ''}
-          placeholder="death (engine hook pending)"
-          onChange={(s) => onChange({ type: 'onAnimationEnd', clipName: s })}
-        />
-      </span>
-    )
-  if (trigger.type === 'onMouseInput')
-    return (
-      <span className="flex items-center gap-2">
-        <span className={lbl}>button</span>
-        <select
-          className={sel}
-          value={trigger.button}
-          onChange={(e) =>
-            onChange({ ...trigger, button: e.target.value as typeof trigger.button })
-          }
-        >
-          <option value="left">left</option>
-          <option value="right">right</option>
-        </select>
-        <select
-          className={sel}
-          value={trigger.eventType}
-          onChange={(e) =>
-            onChange({ ...trigger, eventType: e.target.value as typeof trigger.eventType })
-          }
-        >
-          {INPUT_EVENT_TYPES.map((t) => (
-            <option key={t} value={t}>{t}</option>
-          ))}
-        </select>
-      </span>
-    )
-  if (trigger.type === 'onMessage')
-    return (
-      <span className="flex items-center gap-2">
-        <span className={lbl}>message</span>
-        <Txt
-          w="w-40"
-          value={trigger.messageName}
-          placeholder="player_hit"
-          onChange={(s) => onChange({ type: 'onMessage', messageName: s })}
-        />
-      </span>
-    )
-  if (trigger.type === 'onTimer')
-    return (
-      <span className="flex items-center gap-2">
-        <span className={lbl}>every (s)</span>
-        <Num
-          value={trigger.seconds}
-          onChange={(n) => onChange({ ...trigger, seconds: n })}
-        />
-        <label className="flex items-center gap-1 text-xs text-[var(--muted)]">
-          <input
-            type="checkbox"
-            checked={trigger.repeat}
-            onChange={(e) =>
-              onChange({ ...trigger, repeat: e.target.checked })
-            }
-          />
-          repeat
-        </label>
-      </span>
-    )
-  return null
+  return (
+    <SchemaParamForm
+      kind="trigger"
+      type={trigger.type}
+      value={trigger as unknown as Record<string, unknown>}
+      onChange={(next) => onChange(next as LogicTrigger)}
+    />
+  )
 }
 
 // ---- condition row --------------------------------------------------------
@@ -425,7 +313,16 @@ function ActionRow({
         ))}
       </select>
 
-      {act.type === 'setVariable' && (
+      {usesSchemaParamForm('action', act.type) && (
+        <SchemaParamForm
+          kind="action"
+          type={act.type}
+          value={act as unknown as Record<string, unknown>}
+          onChange={(next) => onChange(next as LogicAction)}
+        />
+      )}
+
+      {!usesSchemaParamForm('action', act.type) && act.type === 'setVariable' && (
         <>
           <span className={lbl}>key</span>
           <Txt w="w-24" value={act.key} onChange={(s) => onChange({ ...act, key: s })} />
@@ -494,7 +391,7 @@ function ActionRow({
           )}
         </>
       )}
-      {act.type === 'destroyEntity' && (
+      {!usesSchemaParamForm('action', act.type) && act.type === 'destroyEntity' && (
         <>
           <span className={lbl}>target</span>
           <TargetPicker
@@ -503,7 +400,7 @@ function ActionRow({
           />
         </>
       )}
-      {act.type === 'spawnEntity' && (
+      {!usesSchemaParamForm('action', act.type) && act.type === 'spawnEntity' && (
         <>
           <span className={lbl}>class</span>
           <Txt
@@ -517,7 +414,7 @@ function ActionRow({
           <Num value={act.y} onChange={(n) => onChange({ ...act, y: n })} />
         </>
       )}
-      {act.type === 'setGlobalState' && (
+      {!usesSchemaParamForm('action', act.type) && act.type === 'setGlobalState' && (
         <>
           <span className={lbl}>key</span>
           <Txt w="w-24" value={act.key} onChange={(s) => onChange({ ...act, key: s })} />
@@ -644,28 +541,12 @@ function ActionRow({
           <Num value={act.alpha ?? 1} onChange={(n) => onChange({ ...act, alpha: n })} />
         </>
       )}
-      {act.type === 'loadScene' && (
-        <>
-          <span className={lbl}>scene</span>
-          <Txt w="w-40" value={act.sceneName} placeholder="level_2"
-               onChange={(s) => onChange({ ...act, sceneName: s })} />
-        </>
-      )}
       {act.type === 'setCameraTarget' && (
         <>
           <span className={lbl}>target</span>
           <TargetPicker value={act.target} onChange={(t) => onChange({ ...act, target: t })} />
         </>
       )}
-      {act.type === 'debugLog' && (
-        <Txt
-          w="w-56"
-          value={act.message}
-          placeholder="message"
-          onChange={(s) => onChange({ ...act, message: s })}
-        />
-      )}
-
       <div className="flex-1" />
       <button className={link} onClick={onRemove} title="remove">
         ✕

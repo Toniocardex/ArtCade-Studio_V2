@@ -457,6 +457,10 @@ function onInput(keyCode, eventType)
 end
 ```
 
+**Implementazione runtime attuale (2026-05):** il compilatore in [`editor/src/utils/logic-board/compiler.ts`](../editor/src/utils/logic-board/compiler.ts) emette **solo** `init()` + `tick(dt)` con **polling** (`collision.touchingClass`, `input.isKeyDown`, …). Gli esempi con `function onCollision` sopra sono **target illustrativo**, non l'output generato oggi.
+
+**`scene.load` / `restartScene`:** `scene.load(name)` imposta la scena attiva in `RuntimeEntityGateway`, attiva solo le entità listate in `SceneDef.entityIds` (alpha + physics), **senza** cancellare `state.*` (blackboard = `VariableManager`). Vedi [`GLOBAL_LOGIC_UI_ARCHITECTURE.md`](GLOBAL_LOGIC_UI_ARCHITECTURE.md).
+
 #### 5.2 Algoritmo
 
 1. Raggruppare gli eventi per **trigger**.  
@@ -613,13 +617,50 @@ Coprono la maggior parte dei casi 2D semplici; estensioni successive come moduli
 | Gradualità | Board → Lua quando l’utente è pronto |
 | Manutenibilità | Logic Component come moduli TS testabili |
 
-### 11. Dipendenze per l’implementazione
+### 10.1 JSON Schema registry (editor, 2026-05)
+
+Ogni Logic Component MVP ha uno schema **draft-07** in [`editor/src/schemas/logic-board/`](../editor/src/schemas/logic-board/):
+
+| File | Contenuto |
+|------|-----------|
+| `index.json` | Elenco tipi trigger / action / condition |
+| `triggers.json`, `actions.json`, `conditions.json` | Schema per tipo + metadati UI `x-artcade` |
+| `board.schema.json` | `LogicBoard` + shell `LogicEvent` |
+| `target-selector.schema.json` | `TargetSelector` per azioni/condizioni |
+
+**Runtime editor:** [`schema-registry.ts`](../editor/src/utils/logic-board/schema-registry.ts) (Ajv) espone `validateLogicBoard`, `getComponentMeta`, `list*Types`.
+
+**UI:** [`SchemaParamForm.tsx`](../editor/src/components/logic-board/SchemaParamForm.tsx) — tutti i trigger + azioni `setGlobalState`, `loadScene`, `debugLog`, `spawnEntity`, `destroyEntity`.
+
+**Validazione:**
+
+- **Load:** `parseLogicBoards` scarta eventi non validi (`console.warn`).
+- **Save:** `saveProjectFile` blocca il write se `logicBoards` non passa Ajv.
+
+**Anti-drift:** `schema-registry.test.ts` verifica che ogni `defaultTrigger` / `defaultAction` / `defaultCondition` in [`options.ts`](../editor/src/panels/logic-board/options.ts) validi.
+
+Modifica di un componente → aggiornare **TS** (`logic-board.ts`), **schema JSON**, **compiler** nello stesso change set.
+
+### 11. Stato implementazione (runtime + editor)
+
+| Area | Editor / compiler | Runtime C++ | Note |
+|------|-------------------|-------------|------|
+| Blackboard globale `state.*` | `setGlobalState`, `compareVariable` | `VariableManager` via `state-api.cpp` | Persiste su `scene.load` |
+| `loadScene` / `restartScene` | azioni Logic | `World` + `RuntimeEntityGateway::syncSceneActivation` | Pool filtrati per scena attiva |
+| Spawn / destroy | `spawnEntity`, `destroyEntity` | destroy in coda post-physics | |
+| Sensor trigger | `onTriggerEnter/Exit` (compiler edge) | fixture sensor + log overlap | Event bus Lua in evoluzione |
+| Platformer feel | script Lua opzionale | `PlatformerControllerComponent` in `World` | C++ se componente su entità |
+| `wait` + coroutine | in SPEC, non in TS | — | Vedi [`LOGIC_BOARD_EDITOR_BACKLOG.md`](LOGIC_BOARD_EDITOR_BACKLOG.md) |
+| JSON Schema registry | Ajv + `SchemaParamForm` (trigger + 5 azioni) | — | `editor/src/schemas/logic-board/` |
+| Shaders / image points / bussola | — | — | Vedi [`ArtCade_V2_Riepilogo_Suggerimenti.md`](ArtCade_V2_Riepilogo_Suggerimenti.md) |
+
+### 12. Dipendenze per l’implementazione
 
 - Fase 19 (decoupling React–WASM, hot-reload) **completata**.  
-- Pannello React dedicato (es. `LogicBoardPanel.tsx`).  
-- Compilatore TypeScript (es. `logic-board/compiler.ts`).  
-- Tipi condivisi (es. `types/logic-board.ts`).  
-- **Nessun** requisito di modifica al runtime C++ per il MVP descritto (solo percorsi di caricamento script già esistenti).
+- Pannello React dedicato (`LogicBoardPanel.tsx`).  
+- Compilatore TypeScript (`logic-board/compiler.ts`).  
+- Tipi condivisi (`types/logic-board.ts`).  
+- Runtime C++: scene activation, blackboard unificato, sensor/platformer MVP, kill queue (2026-05).
 
 ---
 
@@ -631,6 +672,8 @@ Questa parte **non** duplica il contenuto: indica dove trovare le raccomandazion
 |-----------|-----------|
 | [`LOGIC_BOARD_DESIGN_GUIDELINES.md`](LOGIC_BOARD_DESIGN_GUIDELINES.md) | Blackboard locale/globale, Logic Messaging / segnali, nodi data-driven (JSON Schema), visual flow e organizzazione grafo, precisione numerica Lua ↔ C++ |
 | [`LOGIC_BOARD_CONDITIONAL_DESIGN.md`](LOGIC_BOARD_CONDITIONAL_DESIGN.md) | `LogicConditionGroup` (AND/OR ad albero), anti-pattern eventi duplicati, branching IF/ELSE, branch fisico vs blocco compatto, modello grafo, compilazione Lua, React Flow, uso didattico |
+| [`ArtCade_V2_Riepilogo_Suggerimenti.md`](ArtCade_V2_Riepilogo_Suggerimenti.md) | Visione UX «Zero Matematica», 8 gruppi componenti, shader, layout IDE |
+| [`LOGIC_BOARD_EDITOR_BACKLOG.md`](LOGIC_BOARD_EDITOR_BACKLOG.md) | Backlog editor post runtime-core (schema, wait, UX modale tasti) |
 
 Mantenere questi documenti in file dedicati evita di gonfiare il presente SPEC e permette aggiornamenti rapidi senza toccare glossario o contratti dati delle Parti I–III. Quando i tipi JSON/TS del condizionale saranno stabili, rispecchiarli in **Parte III**.
 

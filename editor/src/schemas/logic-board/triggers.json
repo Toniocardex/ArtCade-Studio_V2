@@ -1,0 +1,157 @@
+{
+  "onStart": {
+    "type": "object",
+    "required": ["type"],
+    "properties": { "type": { "const": "onStart" } },
+    "additionalProperties": false,
+    "x-artcade": { "label": "On Start", "category": "System", "params": {} }
+  },
+  "onUpdate": {
+    "type": "object",
+    "required": ["type"],
+    "properties": { "type": { "const": "onUpdate" } },
+    "additionalProperties": false,
+    "x-artcade": { "label": "On Update", "category": "System", "params": {} }
+  },
+  "onCollision": {
+    "type": "object",
+    "required": ["type"],
+    "properties": {
+      "type": { "const": "onCollision" },
+      "withClass": { "type": "string" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "On Collision",
+      "category": "Physics",
+      "params": {
+        "withClass": { "widget": "string", "label": "With class", "placeholder": "Coin" }
+      }
+    }
+  },
+  "onTriggerEnter": {
+    "type": "object",
+    "required": ["type"],
+    "properties": {
+      "type": { "const": "onTriggerEnter" },
+      "withClass": { "type": "string" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "On Trigger Enter",
+      "category": "Physics",
+      "params": {
+        "withClass": { "widget": "string", "label": "With class", "placeholder": "Zone" }
+      }
+    }
+  },
+  "onTriggerExit": {
+    "type": "object",
+    "required": ["type"],
+    "properties": {
+      "type": { "const": "onTriggerExit" },
+      "withClass": { "type": "string" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "On Trigger Exit",
+      "category": "Physics",
+      "params": {
+        "withClass": { "widget": "string", "label": "With class", "placeholder": "Zone" }
+      }
+    }
+  },
+  "onAnimationEnd": {
+    "type": "object",
+    "required": ["type"],
+    "properties": {
+      "type": { "const": "onAnimationEnd" },
+      "clipName": { "type": "string" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "On Animation End",
+      "category": "Graphics",
+      "params": {
+        "clipName": { "widget": "string", "label": "Clip", "placeholder": "death" }
+      }
+    }
+  },
+  "onDestroy": {
+    "type": "object",
+    "required": ["type"],
+    "properties": { "type": { "const": "onDestroy" } },
+    "additionalProperties": false,
+    "x-artcade": { "label": "On Destroy", "category": "System", "params": {} }
+  },
+  "onInput": {
+    "type": "object",
+    "required": ["type", "keyCode", "eventType"],
+    "properties": {
+      "type": { "const": "onInput" },
+      "keyCode": { "type": "string" },
+      "eventType": { "enum": ["pressed", "down", "released"] }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "On Input",
+      "category": "Input",
+      "params": {
+        "keyCode": { "widget": "string", "label": "Key", "placeholder": "Space / KeyW" },
+        "eventType": { "widget": "enum", "label": "Event", "options": ["pressed", "down", "released"] }
+      }
+    }
+  },
+  "onMouseInput": {
+    "type": "object",
+    "required": ["type", "button", "eventType"],
+    "properties": {
+      "type": { "const": "onMouseInput" },
+      "button": { "enum": ["left", "right"] },
+      "eventType": { "enum": ["pressed", "down", "released"] }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "On Mouse Input",
+      "category": "Input",
+      "params": {
+        "button": { "widget": "enum", "label": "Button", "options": ["left", "right"] },
+        "eventType": { "widget": "enum", "label": "Event", "options": ["pressed", "down", "released"] }
+      }
+    }
+  },
+  "onMessage": {
+    "type": "object",
+    "required": ["type", "messageName"],
+    "properties": {
+      "type": { "const": "onMessage" },
+      "messageName": { "type": "string" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "On Message",
+      "category": "Messaging",
+      "params": {
+        "messageName": { "widget": "string", "label": "Message", "placeholder": "player_hit" }
+      }
+    }
+  },
+  "onTimer": {
+    "type": "object",
+    "required": ["type", "seconds", "repeat"],
+    "properties": {
+      "type": { "const": "onTimer" },
+      "seconds": { "type": "number" },
+      "repeat": { "type": "boolean" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "On Timer",
+      "category": "System",
+      "params": {
+        "seconds": { "widget": "number", "label": "Every (s)" },
+        "repeat": { "widget": "boolean", "label": "Repeat" }
+      }
+    }
+  }
+}

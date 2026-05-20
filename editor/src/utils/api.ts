@@ -11,6 +11,7 @@ import { open  as dialogOpen,
 import { readTextFile, readFile, writeFile, mkdir } from '@tauri-apps/plugin-fs'
 import type { ProjectDoc }                     from '../types'
 import { parseProjectDoc, serializeProjectDoc } from './project'
+import { validateProjectBeforeSave } from './logic-board/validate-project'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -153,6 +154,8 @@ export async function saveScript(path: string, content: string): Promise<void> {
 
 export async function saveProjectFile(path: string, project: ProjectDoc): Promise<void> {
   if (!isTauri()) { notAvailable('saveProjectFile'); return }
+
+  validateProjectBeforeSave(project)
 
   await invoke('write_file', { path, content: serializeProjectDoc(project) })
 }

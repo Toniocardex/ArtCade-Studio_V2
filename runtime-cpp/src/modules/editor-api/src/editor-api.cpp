@@ -355,6 +355,7 @@ static ArtCade::EntityDef parseEntityDef(const json& j, ArtCade::EntityId fallba
         pc.customGravity = p.value("customGravity", 1500.f);
         pc.coyoteTime    = p.value("coyoteTime", 0.15f);
         pc.jumpBuffer    = p.value("jumpBuffer", 0.1f);
+        pc.groundClass   = p.value("groundClass", std::string("Ground"));
         e.platformerController = pc;
     }
     if (j.contains("health") && j["health"].is_object()) {

@@ -111,6 +111,8 @@ Guida specializzata         (REACT_WASM_PATTERN.md o ECS_IMPLEMENTATION_GUIDE.md
 | **PIANO_SVILUPPO_COMMERCIALE.md** | Early Access 8 settimane: stabilità editor, demo, export web, vendita | ~15min | Product / founder | ⭐ |
 | **GUIDA_INTEGRAZIONE_SPLASH_LICENZE.md** | Splash editor vs runtime; Free/Pro; `pack-artcade.py`; watermark C++ | ~10min | Editor / tooling / runtime | ⭐ |
 | **GLOBAL_LOGIC_UI_ARCHITECTURE.md** | Sensori Box2D, platformer feel, azioni world, UI screen-space, text juice | ~8min | C++ / gameplay / UI | ⭐ |
+| **ArtCade_V2_Riepilogo_Suggerimenti.md** | Visione UX Logic Board (8 gruppi), shader, widget zero-matematica | ~10min | Design / product | ⭐ |
+| **LOGIC_BOARD_EDITOR_BACKLOG.md** | Backlog editor (JSON Schema fatto; wait, UX, shader) | ~3min | Editor | ⭐ |
 | **COLLABORATORS_UPDATE.md** | Team alignment | 5–10min | Team | ⭐⭐ |
 
 ---

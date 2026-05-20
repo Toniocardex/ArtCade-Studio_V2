@@ -184,7 +184,9 @@ bool Application::initSubsystems() {
     if (!mod_->entityGateway->init()) return false;
 
     mod_->world = std::make_unique<World>(
-        *mod_->entityGateway, *mod_->physics);
+        *mod_->entityGateway, *mod_->physics, *mod_->variableManager);
+    mod_->entityGateway->setPhysics(mod_->physics.get());
+    mod_->world->setGameplayDeps(mod_->input.get());
 
     // Popola EngineContext — GameAPI e LuaHost ne hanno bisogno
     ctx_.renderer      = mod_->renderer.get();
@@ -306,14 +308,16 @@ void Application::loopIteration() {
         mod_->cameraManager->update(targetDt_);
         mod_->gameStateManager->update(targetDt_);
         mod_->eventBus->flushDeferred();
+        mod_->world->tickGameplaySystems(targetDt_);
         mod_->luaHost->tick(targetDt_);
         mod_->physics->step(targetDt_);
         mod_->world->syncPhysicsToEntities();
+        mod_->world->flushEntityQueues();
 
         // AutoDestroy system (Phase D1): lifespan>0 → destroy after N seconds.
         {
             std::vector<ArtCade::EntityId> toKill;
-            for (ArtCade::EntityId id : mod_->entityManager->allIds()) {
+            for (ArtCade::EntityId id : mod_->entityGateway->activeSceneIds()) {
                 ArtCade::EntityDef* e = mod_->entityManager->get(id);
                 if (!e || !e->autoDestroy || e->autoDestroy->lifespan <= 0.f)
                     continue;
@@ -321,13 +325,9 @@ void Application::loopIteration() {
                 if (e->autoDestroy->_timeAlive >= e->autoDestroy->lifespan)
                     toKill.push_back(id);
             }
-            for (ArtCade::EntityId id : toKill) {
-                ArtCade::EntityDef* e = mod_->entityManager->get(id);
-                if (e && e->physics.physicsHandle > 0)
-                    mod_->physics->destroyBody(e->physics.physicsHandle);
-                std::cout << "[AutoDestroy] destroyed entity " << id << "\n";
-                mod_->entityManager->destroyEntity(id);
-            }
+            for (ArtCade::EntityId id : toKill)
+                mod_->entityGateway->queueDestroy(id);
+            mod_->world->flushEntityQueues();
         }
 
         mod_->audio->update();

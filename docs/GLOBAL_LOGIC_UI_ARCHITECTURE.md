@@ -43,13 +43,13 @@ Componente / modulo specializzato per corpi **kinematic** che implementa:
 
 Azioni che **non** sono legate a una singola entita ma governano il **World**:
 
-| Area | Comportamento atteso |
-|------|----------------------|
-| **Spawn / destroy** | Gestione sicura della memoria: **kill queue** (o differita) **post physics step** per evitare use-after-free durante lo step. |
-| **Global state** | Variabili persistenti tra scene (punteggio, inventario, flag di missione). |
-| **Scene manager** | Caricamento scene, restart, **time scale** (pausa, slow-mo) a livello mondo. |
+| Area | Comportamento atteso | Stato runtime (2026-05) |
+|------|----------------------|-------------------------|
+| **Spawn / destroy** | Kill queue **post physics step** | `entity.destroy` / `object.destroy` in coda; flush dopo `physics.step` (`RuntimeEntityGateway`). `object.spawn` immediato nella scena attiva. |
+| **Global state** | Variabili persistenti tra scene | `state.*` → `VariableManager` (blackboard globale); **non** svuotato su `scene.load`. |
+| **Scene manager** | Caricamento scene, restart | `scene.load(name)` cambia scena attiva, attiva/disattiva entità (`sceneActive`), physics body on/off. |
 
-Allineamento concettuale con [`LOGIC_BOARD_SPEC.md`](LOGIC_BOARD_SPEC.md) e API Lua / `World` dove applicabile.
+Allineamento con [`LOGIC_BOARD_SPEC.md`](LOGIC_BOARD_SPEC.md) e API Lua in `runtime-cpp/src/modules/game-api/`.
 
 ---
 
@@ -79,8 +79,16 @@ Effetti nativi per aumentare la **qualita percepita** del gioco.
 
 ---
 
+## Sensor e platformer (implementazione)
+
+- **Sensor:** fixture Box2D aggiuntiva (`Physics::addSensorFixture`) da `EntityDef.sensor`; log enter/exit in `World::tickSensorOverlapEdges` (MVP debug).
+- **Platformer:** `PlatformerControllerComponent` applicato in C++ in `World::tickPlatformerControllers` (coyote, jump buffer, input WASD/Space) se presente sull'entità della scena attiva.
+
+---
+
 ## Riferimenti incrociati
 
+- [`ArtCade_V2_Riepilogo_Suggerimenti.md`](ArtCade_V2_Riepilogo_Suggerimenti.md) - tassonomia UX 8 gruppi e roadmap editor.
 - [`ARCHITETTURA_TECNICA_ENGINE_2D.md`](ARCHITETTURA_TECNICA_ENGINE_2D.md) - pipeline di frame, fisica, sync.
 - [`TECHNICAL_OVERVIEW.md`](TECHNICAL_OVERVIEW.md) - panoramica motore e moduli.
 - [`LOGIC_BOARD_SPEC.md`](LOGIC_BOARD_SPEC.md) - Logic Board / Event / Component.

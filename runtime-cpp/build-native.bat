@@ -12,7 +12,7 @@ if %ERRORLEVEL% NEQ 0 (
 )
 
 if not exist "%BUILD_DIR%\CMakeCache.txt" (
-    cmake -S . -B %BUILD_DIR% -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=Release
+    cmake -S . -B %BUILD_DIR% -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5
     if %ERRORLEVEL% NEQ 0 (
         echo [FAIL] cmake configure failed
         exit /b %ERRORLEVEL%

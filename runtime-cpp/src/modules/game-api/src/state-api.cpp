@@ -1,44 +1,37 @@
 #include "../include/game-api.h"
-#include "../../../world/include/world.h"
+#include "../../variable-manager/include/variable-manager.h"
 
 #include <sol/sol.hpp>
 
 namespace ArtCade::Modules {
 
 void GameAPI::bindStateAPI(sol::state& lua) {
-    auto* world = ctx_.world;
+    auto* vm = ctx_.variableManager;
 
-    // state.get(key) → value (int | float | string | bool) or nil if key absent
     lua.set_function("state_get",
-        [world](sol::this_state ts, const std::string& key) -> sol::object
+        [vm](sol::this_state ts, const std::string& key) -> sol::object
         {
-            if (!world->hasGlobalState(key)) return sol::lua_nil;
+            if (!vm || !vm->exists(key)) return sol::lua_nil;
             sol::state_view L(ts);
-            auto val = world->getGlobalState(key);
-            // StateValue = variant<int32_t, float, std::string, bool>
-            if (auto* v = std::get_if<int32_t>    (&val)) return sol::make_object(L, *v);
-            if (auto* v = std::get_if<float>       (&val)) return sol::make_object(L, *v);
-            if (auto* v = std::get_if<std::string> (&val)) return sol::make_object(L, *v);
-            if (auto* v = std::get_if<bool>        (&val)) return sol::make_object(L, *v);
+            auto val = vm->get(key);
+            if (auto* v = std::get_if<int32_t>(&val))     return sol::make_object(L, *v);
+            if (auto* v = std::get_if<float>(&val))      return sol::make_object(L, *v);
+            if (auto* v = std::get_if<std::string>(&val)) return sol::make_object(L, *v);
+            if (auto* v = std::get_if<bool>(&val))       return sol::make_object(L, *v);
             return sol::lua_nil;
         });
 
-    // state.set(key, value)
-    lua.set_function("state_set", [world](const std::string& key, const sol::object& val) {
-        if (val.is<int>())         world->setGlobalState(key, StateValue{val.as<int32_t>()});
-        else if (val.is<float>())  world->setGlobalState(key, StateValue{val.as<float>()});
-        else if (val.is<bool>())   world->setGlobalState(key, StateValue{val.as<bool>()});
-        else if (val.is<std::string>()) world->setGlobalState(key, StateValue{val.as<std::string>()});
+    lua.set_function("state_set", [vm](const std::string& key, const sol::object& val) {
+        if (!vm) return;
+        if (val.is<int>())         vm->setInt(key, val.as<int32_t>());
+        else if (val.is<float>())  vm->setFloat(key, val.as<float>());
+        else if (val.is<bool>())   vm->setBool(key, val.as<bool>());
+        else if (val.is<std::string>()) vm->setString(key, val.as<std::string>());
     });
 
-    // state.add(key, amount) → new value (numeric only)
-    lua.set_function("state_add", [world](const std::string& key, float amount) -> float {
-        auto cur = world->getGlobalState(key);
-        float next = 0.f;
-        if (auto* v = std::get_if<int32_t>(&cur))   next = static_cast<float>(*v) + amount;
-        else if (auto* v = std::get_if<float>(&cur)) next = *v + amount;
-        world->setGlobalState(key, StateValue{next});
-        return next;
+    lua.set_function("state_add", [vm](const std::string& key, float amount) -> float {
+        if (!vm) return 0.f;
+        return vm->addFloat(key, amount);
     });
 
     lua.script(R"(

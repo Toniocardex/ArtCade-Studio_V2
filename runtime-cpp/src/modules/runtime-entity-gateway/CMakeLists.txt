@@ -10,4 +10,5 @@ target_link_libraries(artcade-runtime-entity-gateway
         artcade-core
         artcade-entity-system
         artcade-scene-system
+        artcade-physics
 )

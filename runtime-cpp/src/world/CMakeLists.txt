@@ -10,4 +10,6 @@ target_link_libraries(artcade-world
         artcade-core
         artcade-runtime-entity-gateway
         artcade-physics
+        artcade-variable-manager
+        artcade-input
 )

@@ -14,56 +14,17 @@ import type {
   LogicTriggerType,
   TargetSelector,
 } from '../../types/logic-board'
+import {
+  listActionTypes,
+  listConditionTypes,
+  listTriggerTypes,
+} from '../../utils/logic-board/schema-registry'
 
-export const TRIGGER_TYPES: LogicTriggerType[] = [
-  'onStart',
-  'onUpdate',
-  'onCollision',
-  'onTriggerEnter',
-  'onTriggerExit',
-  'onAnimationEnd',
-  'onDestroy',
-  'onInput',
-  'onMouseInput',
-  'onMessage',
-  'onTimer',
-]
+export const TRIGGER_TYPES = listTriggerTypes() as LogicTriggerType[]
 
-export const ACTION_TYPES: LogicActionType[] = [
-  'setVariable',
-  'addVariable',
-  'setPosition',
-  'setVelocity',
-  'playSound',
-  'playMusic',
-  'stopAllAudio',
-  'destroyEntity',
-  'spawnEntity',
-  'setGlobalState',
-  'emitEvent',
-  'toggleLogicEvent',
-  'applyImpulse',
-  'applyForce',
-  'setRotation',
-  'setScale',
-  'setVisible',
-  'setColorTint',
-  'loadScene',
-  'restartScene',
-  'setCameraTarget',
-  'debugLog',
-]
+export const ACTION_TYPES = listActionTypes() as LogicActionType[]
 
-export const CONDITION_TYPES = [
-  'compareVariable',
-  'compareClass',
-  'isKeyDown',
-  'hasTag',
-  'compareDistance',
-  'isMouseOver',
-  'raycastHit',
-  'chance',
-] as const
+export const CONDITION_TYPES = listConditionTypes() as readonly LogicCondition['type'][]
 
 export const COMPARISON_OPS: ComparisonOp[] = ['==', '!=', '<', '<=', '>', '>=']
 

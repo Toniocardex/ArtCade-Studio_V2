@@ -100,6 +100,12 @@ struct PlatformerControllerComponent {
     float customGravity = 1500.f;
     float coyoteTime    = 0.15f;
     float jumpBuffer    = 0.1f;
+    std::string groundClass = "Ground";
+};
+
+/** Runtime-only: not serialized from project JSON. */
+struct EntityRuntimeFlags {
+    bool sceneActive = true;
 };
 
 struct HealthComponent {
@@ -131,6 +137,7 @@ struct EntityDef {
     std::optional<PlatformerControllerComponent> platformerController;
     std::optional<HealthComponent>               health;
     std::optional<AutoDestroyComponent>          autoDestroy;
+    EntityRuntimeFlags                           runtime;
 };
 
 // Tilemap (Scene Editor Phase D2) — field names mirror editor TS.

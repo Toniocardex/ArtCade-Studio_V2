@@ -1,0 +1,337 @@
+// ---------------------------------------------------------------------------
+// Logic Board JSON Schema registry — validation (Ajv) + UI metadata (x-artcade)
+// ---------------------------------------------------------------------------
+
+import Ajv, { type ErrorObject, type ValidateFunction } from 'ajv'
+import addFormats from 'ajv-formats'
+
+import indexJson from '../../schemas/logic-board/index.json'
+import boardSchema from '../../schemas/logic-board/board.schema.json'
+import triggersJson from '../../schemas/logic-board/triggers.json'
+import actionsJson from '../../schemas/logic-board/actions.json'
+import conditionsJson from '../../schemas/logic-board/conditions.json'
+import targetSelectorSchema from '../../schemas/logic-board/target-selector.schema.json'
+
+import type {
+  LogicAction,
+  LogicBoard,
+  LogicBoardDoc,
+  LogicCondition,
+  LogicTrigger,
+} from '../../types/logic-board'
+
+export type ComponentKind = 'trigger' | 'action' | 'condition'
+
+export type ParamWidget =
+  | 'string'
+  | 'number'
+  | 'boolean'
+  | 'enum'
+  | 'target'
+
+export interface ParamFieldMeta {
+  widget: ParamWidget
+  label: string
+  placeholder?: string
+  options?: string[]
+}
+
+export interface ComponentMeta {
+  label: string
+  category: string
+  params: Record<string, ParamFieldMeta>
+}
+
+export interface ValidationIssue {
+  path: string
+  message: string
+}
+
+export interface ValidationResult {
+  valid: boolean
+  errors: ValidationIssue[]
+}
+
+type SchemaRecord = Record<string, Record<string, unknown>>
+
+interface ArtCadeExt {
+  label?: string
+  category?: string
+  params?: Record<string, ParamFieldMeta>
+}
+
+const triggers = triggersJson as SchemaRecord
+const actions = actionsJson as SchemaRecord
+const conditions = conditionsJson as SchemaRecord
+
+const index = indexJson as {
+  triggers: string[]
+  actions: string[]
+  conditions: string[]
+}
+
+/** Actions rendered via SchemaParamForm in EventEditor (MVP slice). */
+export const SCHEMA_UI_ACTIONS = new Set([
+  'setGlobalState',
+  'loadScene',
+  'debugLog',
+  'spawnEntity',
+  'destroyEntity',
+])
+
+function deepClone<T>(v: T): T {
+  return JSON.parse(JSON.stringify(v)) as T
+}
+
+function resolveRefs(schema: Record<string, unknown>): Record<string, unknown> {
+  const s = deepClone(schema)
+  const walk = (node: unknown): void => {
+    if (!node || typeof node !== 'object') return
+    const o = node as Record<string, unknown>
+    if (o.$ref === './target-selector.schema.json') {
+      Object.keys(o).forEach((k) => delete o[k])
+      Object.assign(o, deepClone(targetSelectorSchema))
+      return
+    }
+    for (const v of Object.values(o)) walk(v)
+  }
+  walk(s)
+  return s
+}
+
+function getArtcade(schema: Record<string, unknown>): ArtCadeExt {
+  return (schema['x-artcade'] as ArtCadeExt | undefined) ?? {}
+}
+
+function ajvErrorToIssues(errors: ErrorObject[] | null | undefined, prefix: string): ValidationIssue[] {
+  if (!errors?.length) return []
+  return errors.map((e) => ({
+    path: prefix + (e.instancePath || ''),
+    message: e.message ?? 'invalid',
+  }))
+}
+
+const ajv = new Ajv({ allErrors: true, strict: false })
+addFormats(ajv)
+
+const validators = new Map<string, ValidateFunction>()
+
+function validatorKey(kind: ComponentKind, type: string): string {
+  return `${kind}:${type}`
+}
+
+function getRawSchema(kind: ComponentKind, type: string): Record<string, unknown> | undefined {
+  const table =
+    kind === 'trigger' ? triggers : kind === 'action' ? actions : conditions
+  return table[type] as Record<string, unknown> | undefined
+}
+
+function getValidator(kind: ComponentKind, type: string): ValidateFunction | undefined {
+  const key = validatorKey(kind, type)
+  let fn = validators.get(key)
+  if (fn) return fn
+
+  const raw = getRawSchema(kind, type)
+  if (!raw) return undefined
+
+  fn = ajv.compile(resolveRefs(raw))
+  validators.set(key, fn)
+  return fn
+}
+
+const boardValidator = ajv.compile(boardSchema as Record<string, unknown>)
+
+export function listTriggerTypes(): string[] {
+  return [...index.triggers]
+}
+
+export function listActionTypes(): string[] {
+  return [...index.actions]
+}
+
+export function listConditionTypes(): string[] {
+  return [...index.conditions]
+}
+
+export function getComponentMeta(kind: ComponentKind, type: string): ComponentMeta | undefined {
+  const raw = getRawSchema(kind, type)
+  if (!raw) return undefined
+  const ext = getArtcade(raw)
+  return {
+    label: ext.label ?? type,
+    category: ext.category ?? 'Other',
+    params: ext.params ?? {},
+  }
+}
+
+export function usesSchemaParamForm(kind: ComponentKind, type: string): boolean {
+  if (kind === 'trigger') return true
+  if (kind === 'action') return SCHEMA_UI_ACTIONS.has(type)
+  return false
+}
+
+export function validateTrigger(trigger: unknown): ValidationResult {
+  if (!trigger || typeof trigger !== 'object') {
+    return { valid: false, errors: [{ path: '/trigger', message: 'missing trigger' }] }
+  }
+  const type = (trigger as { type?: string }).type
+  if (!type) {
+    return { valid: false, errors: [{ path: '/trigger/type', message: 'missing type' }] }
+  }
+  const fn = getValidator('trigger', type)
+  if (!fn) {
+    return { valid: false, errors: [{ path: '/trigger/type', message: `unknown trigger: ${type}` }] }
+  }
+  const ok = fn(trigger)
+  return { valid: !!ok, errors: ajvErrorToIssues(fn.errors, '/trigger') }
+}
+
+export function validateAction(action: unknown): ValidationResult {
+  if (!action || typeof action !== 'object') {
+    return { valid: false, errors: [{ path: '/action', message: 'missing action' }] }
+  }
+  const type = (action as { type?: string }).type
+  if (!type) {
+    return { valid: false, errors: [{ path: '/action/type', message: 'missing type' }] }
+  }
+  const fn = getValidator('action', type)
+  if (!fn) {
+    return { valid: false, errors: [{ path: '/action/type', message: `unknown action: ${type}` }] }
+  }
+  const ok = fn(action)
+  return { valid: !!ok, errors: ajvErrorToIssues(fn.errors, '/action') }
+}
+
+export function validateCondition(condition: unknown): ValidationResult {
+  if (!condition || typeof condition !== 'object') {
+    return { valid: false, errors: [{ path: '/condition', message: 'missing condition' }] }
+  }
+  const type = (condition as { type?: string }).type
+  if (!type) {
+    return { valid: false, errors: [{ path: '/condition/type', message: 'missing type' }] }
+  }
+  const fn = getValidator('condition', type)
+  if (!fn) {
+    return { valid: false, errors: [{ path: '/condition/type', message: `unknown condition: ${type}` }] }
+  }
+  const ok = fn(condition)
+  return { valid: !!ok, errors: ajvErrorToIssues(fn.errors, '/condition') }
+}
+
+export function validateLogicEvent(
+  event: unknown,
+  pathPrefix = '/events[]',
+): ValidationResult {
+  const errors: ValidationIssue[] = []
+  if (!event || typeof event !== 'object') {
+    return { valid: false, errors: [{ path: pathPrefix, message: 'invalid event' }] }
+  }
+  const e = event as Record<string, unknown>
+  if (typeof e.id !== 'string' || !e.id) {
+    errors.push({ path: `${pathPrefix}/id`, message: 'id required' })
+  }
+  if (typeof e.enabled !== 'boolean') {
+    errors.push({ path: `${pathPrefix}/enabled`, message: 'enabled must be boolean' })
+  }
+
+  const tr = validateTrigger(e.trigger)
+  if (!tr.valid) errors.push(...tr.errors.map((x) => ({ ...x, path: pathPrefix + x.path })))
+
+  if (Array.isArray(e.conditions)) {
+    e.conditions.forEach((c, i) => {
+      const cr = validateCondition(c)
+      if (!cr.valid) {
+        errors.push(
+          ...cr.errors.map((x) => ({
+            ...x,
+            path: `${pathPrefix}/conditions[${i}]${x.path.replace('/condition', '')}`,
+          })),
+        )
+      }
+    })
+  }
+
+  if (!Array.isArray(e.actions)) {
+    errors.push({ path: `${pathPrefix}/actions`, message: 'actions must be array' })
+  } else {
+    e.actions.forEach((a, i) => {
+      const ar = validateAction(a)
+      if (!ar.valid) {
+        errors.push(
+          ...ar.errors.map((x) => ({
+            ...x,
+            path: `${pathPrefix}/actions[${i}]${x.path.replace('/action', '')}`,
+          })),
+        )
+      }
+    })
+  }
+
+  return { valid: errors.length === 0, errors }
+}
+
+export function validateLogicBoard(board: unknown): ValidationResult {
+  const errors: ValidationIssue[] = []
+  const ok = boardValidator(board)
+  if (!ok) {
+    errors.push(...ajvErrorToIssues(boardValidator.errors, ''))
+  }
+  if (!board || typeof board !== 'object') {
+    return { valid: false, errors }
+  }
+  const b = board as LogicBoard
+  b.events?.forEach((ev, i) => {
+    const er = validateLogicEvent(ev, `/events[${i}]`)
+    if (!er.valid) errors.push(...er.errors)
+  })
+  return { valid: errors.length === 0, errors }
+}
+
+export function validateLogicBoardDoc(doc: LogicBoardDoc | undefined): ValidationResult {
+  if (!doc?.length) return { valid: true, errors: [] }
+  const errors: ValidationIssue[] = []
+  doc.forEach((board, i) => {
+    const r = validateLogicBoard(board)
+    if (!r.valid) {
+      errors.push(
+        ...r.errors.map((e) => ({
+          ...e,
+          path: `/logicBoards[${i}]${e.path}`,
+        })),
+      )
+    }
+  })
+  return { valid: errors.length === 0, errors }
+}
+
+/** Strict validation before persisting project.json */
+export function assertLogicBoardsValid(doc: LogicBoardDoc | undefined): void {
+  const r = validateLogicBoardDoc(doc)
+  if (r.valid) return
+  const msg = r.errors
+    .slice(0, 8)
+    .map((e) => `${e.path}: ${e.message}`)
+    .join('\n')
+  throw new Error(
+    `Logic Board validation failed (${r.errors.length} issue(s)):\n${msg}${
+      r.errors.length > 8 ? '\n…' : ''
+    }`,
+  )
+}
+
+export function formatValidationErrors(result: ValidationResult): string {
+  return result.errors.map((e) => `${e.path}: ${e.message}`).join('\n')
+}
+
+// Type guards for schema-driven UI
+export function asTrigger(v: Record<string, unknown>): LogicTrigger {
+  return v as LogicTrigger
+}
+
+export function asAction(v: Record<string, unknown>): LogicAction {
+  return v as LogicAction
+}
+
+export function asCondition(v: Record<string, unknown>): LogicCondition {
+  return v as LogicCondition
+}

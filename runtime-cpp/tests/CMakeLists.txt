@@ -93,6 +93,10 @@ artcade_test(logic_components_test
 # (compilato solo quando Raylib + Lua sono presenti, come asset-system stesso)
 # ============================================================================
 if(ARTCADE_HAS_RAYLIB AND ARTCADE_HAS_LUA)
+    artcade_test(scene_gateway_test
+        scene-gateway-test.cpp
+        "artcade-runtime-entity-gateway;artcade-physics;artcade-variable-manager")
+
     artcade_test(artcade_package_test
         artcade-package-test.cpp
         artcade-asset-system)

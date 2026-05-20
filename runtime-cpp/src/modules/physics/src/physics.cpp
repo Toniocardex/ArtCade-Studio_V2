@@ -157,6 +157,37 @@ void Physics::destroyBody(uint32_t handle) {
     impl_->bodies.erase(it);
 }
 
+bool Physics::addSensorFixture(uint32_t bodyHandle, const SensorComponent& sensor) {
+    auto it = impl_->bodies.find(bodyHandle);
+    if (it == impl_->bodies.end()) return false;
+    b2Body* body = it->second.body;
+
+    b2FixtureDef fixDef;
+    fixDef.isSensor = true;
+    fixDef.density  = 0.f;
+    fixDef.friction = 0.f;
+
+    b2PolygonShape polyShape;
+    b2CircleShape  circleShape;
+
+    if (sensor.shape == "Rectangle") {
+        polyShape.SetAsBox(sensor.width * 0.5f, sensor.height * 0.5f);
+        fixDef.shape = &polyShape;
+    } else {
+        circleShape.m_radius = sensor.radius;
+        fixDef.shape = &circleShape;
+    }
+
+    body->CreateFixture(&fixDef);
+    return true;
+}
+
+void Physics::setBodyActive(uint32_t handle, bool active) {
+    auto it = impl_->bodies.find(handle);
+    if (it == impl_->bodies.end()) return;
+    it->second.body->SetEnabled(active);
+}
+
 // ============================================================================
 // Velocity / Position
 // ============================================================================

@@ -184,6 +184,7 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
                 pc.customGravity = p.value("customGravity", 1500.f);
                 pc.coyoteTime    = p.value("coyoteTime", 0.15f);
                 pc.jumpBuffer    = p.value("jumpBuffer", 0.1f);
+                pc.groundClass   = p.value("groundClass", std::string("Ground"));
                 e.platformerController = pc;
             }
             if (ev.contains("health") && ev["health"].is_object()) {

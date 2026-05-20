@@ -33,6 +33,9 @@ public:
     // ---- Body lifecycle -----------------------------------------------------
     uint32_t createBody(EntityId entityId, const PhysicsComponent& comp);
     void     destroyBody(uint32_t handle);
+    /** Second fixture on an existing body (sensor / trigger volume). */
+    bool     addSensorFixture(uint32_t bodyHandle, const SensorComponent& sensor);
+    void     setBodyActive(uint32_t handle, bool active);
 
     // ---- Velocity / position ------------------------------------------------
     void setLinearVelocity(uint32_t handle, const Vec2& vel);

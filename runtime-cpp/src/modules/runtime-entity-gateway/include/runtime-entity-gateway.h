@@ -9,6 +9,7 @@ namespace ArtCade::Modules {
 
 class EntityManager;
 class SceneManager;
+class Physics;
 
 /**
  * RuntimeEntityGateway is the migration point between the current
@@ -21,8 +22,14 @@ public:
     bool init() override;
     void shutdown() override;
 
+    void setPhysics(Physics* physics);
+
     EntityId create(const EntityDef& def);
     void destroy(EntityId id);
+    void queueDestroy(EntityId id);
+    EntityId queueSpawn(const EntityDef& def);
+    void flushPendingOperations();
+
     bool exists(EntityId id) const;
 
     EntityDef* get(EntityId id);
@@ -43,21 +50,32 @@ public:
     bool replaceProject(const std::unordered_map<SceneId, SceneDef>& scenes,
                         const std::unordered_map<EntityId, EntityDef>& entityDefs,
                         const SceneId& activeSceneId);
-    // Phase F3: push project-level tileset assets into the SceneManager so
-    // the render path sees them after an editor hot-reload.
     void setTilesets(std::vector<TilesetAsset> tilesets);
 
     bool loadScene(const SceneId& id);
+    void syncSceneActivation();
     SceneId activeSceneId() const;
     const SceneDef* activeScene() const;
-    SceneDef*       activeSceneMutable();   // Phase F2: in-scene tile painting
+    SceneDef*       activeSceneMutable();
 
     void forEachInPool(const std::string& className,
                        const std::function<void(EntityId, EntityDef&)>& fn);
 
+    bool isEntityActiveInScene(EntityId id) const;
+
 private:
     EntityManager& entityManager_;
     SceneManager& sceneManager_;
+    Physics*       physics_ = nullptr;
+
+    std::vector<EntityId> pendingDestroy_;
+    std::vector<EntityDef> pendingSpawn_;
+
+    bool entityListedInActiveScene(EntityId id) const;
+    void deactivateEntity(EntityId id);
+    void activateEntity(EntityId id);
+    void ensurePhysicsBody(EntityDef& def);
+    void teardownPhysicsBody(EntityDef& def);
 };
 
 } // namespace ArtCade::Modules

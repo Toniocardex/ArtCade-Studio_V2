@@ -15,9 +15,9 @@ Ogni entità possiede una tabella Lua privata (`self.vars`).
 - **Vantaggio**: Isolamento totale. Se un nemico cambia la sua variabile "salute", gli altri non ne risentono.
 
 ### 1.2 Global Blackboard (Engine Context)
-Una tabella Lua centralizzata nel `g_Context`.
+**Implementazione:** `VariableManager` esposto a Lua come `state.get` / `state.set` / `state.add` (`state-api.cpp`). Persiste tra `scene.load` (non viene svuotato al cambio scena).
 - **Utilizzo**: Punteggio totale, stato del livello (es. "isGameOver"), variabili persistenti.
-- **Vantaggio**: Facilita la comunicazione tra entità distanti e la persistenza dei salvataggi.
+- **Vantaggio**: Facilita la comunicazione tra entità distanti e la persistenza dei salvataggi (`save.*` usa lo stesso store).
 
 ---
 

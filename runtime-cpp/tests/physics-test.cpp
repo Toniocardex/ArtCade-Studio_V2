@@ -3,6 +3,7 @@
 // Non richiede Raylib né finestra grafica.
 
 #include "modules/physics/include/physics.h"
+#include "core/types.h"
 #include <cassert>
 #include <cstdio>
 #include <cmath>
@@ -131,7 +132,24 @@ int main() {
     phys.destroyBody(h1);
     printf("[PASS] 12. destroyBody + double-destroy no-op\n");
 
+    // ---- Test 13: addSensorFixture (Box2D sensor, no solid response) ----
+    uint32_t hSensorHost = phys.createBody(20, makeRect(BodyType::Dynamic, 2.f, 2.f));
+    SensorComponent sensor;
+    sensor.shape = "Rectangle";
+    sensor.width = 4.f;
+    sensor.height = 4.f;
+    assert(phys.addSensorFixture(hSensorHost, sensor));
+    uint32_t hTarget = phys.createBody(21, makeRect(BodyType::Static, 2.f, 2.f));
+    phys.setPosition(hTarget, { 0.f, 0.f });
+    for (int i = 0; i < 10; ++i)
+        phys.step(1.f / 60.f);
+    // Sensor overlaps static target at same origin; host dynamic body still exists
+    assert(phys.areOverlapping(hSensorHost, hTarget));
+    phys.destroyBody(hSensorHost);
+    phys.destroyBody(hTarget);
+    printf("[PASS] 13. addSensorFixture + overlap\n");
+
     phys.shutdown();
-    printf("\n[physics-test] 12/12 PASSED\n");
+    printf("\n[physics-test] 13/13 PASSED\n");
     return 0;
 }

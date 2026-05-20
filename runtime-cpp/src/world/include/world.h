@@ -2,10 +2,13 @@
 
 #include "../../core/types.h"
 #include <string>
+#include <unordered_map>
 
 namespace ArtCade::Modules {
     class RuntimeEntityGateway;
     class Physics;
+    class Input;
+    class VariableManager;
 }
 
 namespace ArtCade {
@@ -13,39 +16,51 @@ namespace ArtCade {
 /**
  * World — game-state orchestrator (Layer 3).
  *
- * Sits above individual modules; gives Lua API a single consistent place
- * to read/write state without knowing which module owns the data.
- *
- * Dependencies injected via constructor (no god-context stored long-term).
+ * Global blackboard: VariableManager (Lua state.* / save.*).
+ * Scene activation: RuntimeEntityGateway::syncSceneActivation on loadScene.
  */
 class World {
 public:
     World(Modules::RuntimeEntityGateway& entityGateway,
-          Modules::Physics&              physics);
+          Modules::Physics&              physics,
+          Modules::VariableManager&      variables);
 
-    // Initialise from a loaded project document
+    void setGameplayDeps(Modules::Input* input);
+
     void init(const ProjectDoc& doc);
     void shutdown();
 
-    // Scene control
     bool    loadScene(const SceneId& id);
     SceneId activeSceneId() const;
 
-    // Per-frame: sync physics positions back into entity transforms
     void syncPhysicsToEntities();
+    void tickGameplaySystems(float dt);
+    void flushEntityQueues();
 
-    // Global state (key-value store shared across scenes)
     bool       hasGlobalState(const std::string& key) const;
     StateValue getGlobalState(const std::string& key) const;
     void       setGlobalState(const std::string& key, const StateValue& value);
 
-    // Convenience
     std::vector<EntityId> activeEntityIds() const;
 
 private:
     Modules::RuntimeEntityGateway& entityGateway_;
     Modules::Physics&              physics_;
-    GlobalState             globalState_;
+    Modules::VariableManager&      variables_;
+    Modules::Input*                input_ = nullptr;
+
+    struct PlatformerRt {
+        float coyoteTimer     = 0.f;
+        float jumpBufferTimer = 0.f;
+    };
+    std::unordered_map<EntityId, PlatformerRt> platformerRt_;
+
+    /** Sensor overlap memory: entityId -> was overlapping target last frame. */
+    std::unordered_map<EntityId, bool> sensorWasOverlapping_;
+
+    bool isGrounded(EntityId id, const std::string& groundClass) const;
+    void tickPlatformerControllers(float dt);
+    void tickSensorOverlapEdges();
 };
 
 } // namespace ArtCade

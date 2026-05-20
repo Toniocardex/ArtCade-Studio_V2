@@ -42,14 +42,8 @@ void GameAPI::bindEntityAPI(sol::state& lua) {
 
     // entity.destroy(id)
     // Cleans up the physics body (if any) before removing the entity.
-    lua.set_function("entity_destroy", [entities, physics](EntityId id) {
-        if (auto* e = entities->get(id)) {
-            if (physics && e->physics.physicsHandle != 0) {
-                physics->destroyBody(e->physics.physicsHandle);
-                e->physics.physicsHandle = 0;
-            }
-        }
-        entities->destroy(id);
+    lua.set_function("entity_destroy", [entities](EntityId id) {
+        entities->queueDestroy(id);
     });
 
     // entity.setRotation(id, radians)
@@ -96,23 +90,17 @@ void GameAPI::bindEntityAPI(sol::state& lua) {
     lua.set_function("object_spawn",
         [entities](const std::string& cls, float x, float y) -> EntityId {
             EntityDef def;
-            def.id                   = 0;   // auto-assign
+            def.id                   = 0;
             def.className            = cls;
             def.transform.position   = { x, y };
             def.transform.rotation   = 0.f;
             def.transform.scale      = { 1.f, 1.f };
+            def.runtime.sceneActive  = true;
             return entities->create(def);
         });
 
-    // Object.destroy(id) — alias kept for spec compatibility
-    lua.set_function("object_destroy", [entities, physics](EntityId id) {
-        if (auto* e = entities->get(id)) {
-            if (physics && e->physics.physicsHandle != 0) {
-                physics->destroyBody(e->physics.physicsHandle);
-                e->physics.physicsHandle = 0;
-            }
-        }
-        entities->destroy(id);
+    lua.set_function("object_destroy", [entities](EntityId id) {
+        entities->queueDestroy(id);
     });
 
     // Object.findByTag(tag) → array of EntityIds
