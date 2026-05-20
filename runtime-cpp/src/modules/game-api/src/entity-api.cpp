@@ -125,19 +125,11 @@ void GameAPI::bindEntityAPI(sol::state& lua) {
 
     // -------------------------------------------------------------------------
     // Object.spawn(className, x, y) → EntityId
-    // Creates a minimal runtime entity (no sprite/physics — pure logic object).
-    // The new entity is added to the class pool so pool.getAll() finds it.
+    // Clones the project template (sprite, physics, tags, …); spawnFromClass logs to console.
     // -------------------------------------------------------------------------
     lua.set_function("object_spawn",
         [entities](const std::string& cls, float x, float y) -> EntityId {
-            EntityDef def;
-            def.id                   = 0;
-            def.className            = cls;
-            def.transform.position   = { x, y };
-            def.transform.rotation   = 0.f;
-            def.transform.scale      = { 1.f, 1.f };
-            def.runtime.sceneActive  = true;
-            return entities->create(def);
+            return entities->spawnFromClass(cls, x, y);
         });
 
     lua.set_function("object_destroy", [entities](EntityId id) {

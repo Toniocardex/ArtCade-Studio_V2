@@ -77,6 +77,11 @@ static void toWorld(const EmscriptenMouseEvent* e, float& wx, float& wy) {
 // ── Engine wiring ─────────────────────────────────────────────────────────────
 void EditorAPI::wireEngine(Modules::RuntimeEntityGateway* gateway) {
     s_entityGateway = gateway;
+    if (gateway) {
+        gateway->setSpawnLogCallback([](const std::string& msg) {
+            EditorAPI::queueConsoleLine(msg.c_str(), "info");
+        });
+    }
     notifyConsoleLine("[EditorAPI] Engine wired to RuntimeEntityGateway.", "info");
 }
 

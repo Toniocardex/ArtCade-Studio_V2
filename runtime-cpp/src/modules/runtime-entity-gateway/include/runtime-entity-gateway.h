@@ -7,6 +7,8 @@
 
 namespace ArtCade::Modules {
 
+using SpawnLogCallback = std::function<void(const std::string&)>;
+
 class EntityManager;
 class SceneManager;
 class Physics;
@@ -24,7 +26,12 @@ public:
 
     void setPhysics(Physics* physics);
 
+    /** Editor console (or tests): called after each spawnFromClass with "[Spawn] …" line. */
+    void setSpawnLogCallback(SpawnLogCallback cb);
+
     EntityId create(const EntityDef& def);
+    /** Spawn a new instance: clone first project entity of that class, else pool, else minimal. */
+    EntityId spawnFromClass(const std::string& className, float x, float y);
     void destroy(EntityId id);
     void queueDestroy(EntityId id);
     EntityId queueSpawn(const EntityDef& def);
@@ -87,6 +94,12 @@ private:
     enum class FadePhase { None, Out, In };
     FadePhase fadePhase_     = FadePhase::None;
 
+    /** First EntityDef seen per className when the project is loaded (spawn template). */
+    std::unordered_map<std::string, EntityDef> classPrototypes_;
+
+    SpawnLogCallback spawnLogCallback_;
+
+    void rebuildClassPrototypes(const std::unordered_map<EntityId, EntityDef>& entityDefs);
     bool entityListedInActiveScene(EntityId id) const;
     void deactivateEntity(EntityId id);
     void activateEntity(EntityId id);

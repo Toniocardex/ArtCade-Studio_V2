@@ -8,14 +8,16 @@ import {
   type ParamFieldMeta,
 } from '../../utils/logic-board/schema-registry'
 import type { TargetSelector } from '../../types/logic-board'
+import { enumDisplayLabel, fieldDisplayLabel } from '../../panels/logic-board/friendly-labels'
 import { TargetPicker } from './TargetPicker'
 import { KeyCapture } from './KeyCapture'
+import { ClassNamePicker } from './ClassNamePicker'
 
 const sel =
   'bg-[var(--bg)] border border-[var(--border-2)] text-[var(--accent)] px-2 py-1 rounded text-xs'
 const inp =
   'bg-[var(--bg)] border border-[var(--border-2)] text-[var(--text)] px-2 py-1 rounded text-xs'
-const lbl = 'text-[10px] uppercase tracking-wider text-[var(--muted)]'
+const lbl = 'text-[10px] text-[var(--muted)]'
 
 function Num({
   value,
@@ -58,17 +60,24 @@ function Txt({
 }
 
 function Field({
+  kind,
+  type,
   name,
   meta,
   value,
   onPatch,
 }: {
+  kind: ComponentKind
+  type: string
   name: string
   meta: ParamFieldMeta
   value: unknown
   onPatch: (key: string, val: unknown) => void
 }) {
-  const label = <span className={lbl}>{meta.label || name}</span>
+  const displayLabel =
+    fieldDisplayLabel(kind, type, name) ?? meta.label ?? name
+  const label = <span className={lbl}>{displayLabel}</span>
+  const enumCtx = `${kind}:${type}:${name}`
 
   switch (meta.widget) {
     case 'number':
@@ -89,7 +98,7 @@ function Field({
             checked={!!value}
             onChange={(e) => onPatch(name, e.target.checked)}
           />
-          {meta.label || name}
+          {displayLabel}
         </label>
       )
     case 'enum':
@@ -103,7 +112,7 @@ function Field({
           >
             {(meta.options ?? []).map((o) => (
               <option key={o} value={o}>
-                {o}
+                {enumDisplayLabel(enumCtx, o)}
               </option>
             ))}
           </select>
@@ -139,6 +148,20 @@ function Field({
             value={value != null ? String(value) : ''}
             placeholder={meta.placeholder}
             onChange={(code) => onPatch(name, code)}
+          />
+        </span>
+      )
+    case 'className':
+      return (
+        <span key={name} className="flex items-center gap-2">
+          {label}
+          <ClassNamePicker
+            value={value != null ? String(value) : ''}
+            onChange={(s) => onPatch(name, s)}
+            allowEmpty={
+              (kind === 'trigger' && name === 'withClass') ||
+              (kind === 'condition' && type === 'raycastHit' && name === 'className')
+            }
           />
         </span>
       )
@@ -183,6 +206,8 @@ export function SchemaParamForm({ kind, type, value, onChange }: SchemaParamForm
       {Object.entries(meta.params).map(([name, fieldMeta]) => (
         <Field
           key={name}
+          kind={kind}
+          type={type}
           name={name}
           meta={fieldMeta}
           value={value[name]}

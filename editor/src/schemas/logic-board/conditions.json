@@ -30,7 +30,7 @@
     "x-artcade": {
       "label": "Compare Class",
       "category": "Physics",
-      "params": { "className": { "widget": "string", "label": "Class", "placeholder": "Enemy" } }
+      "params": { "className": { "widget": "className", "label": "Object type" } }
     }
   },
   "isKeyDown": {
@@ -113,7 +113,7 @@
         "dirX": { "widget": "number", "label": "Dir X" },
         "dirY": { "widget": "number", "label": "Dir Y" },
         "length": { "widget": "number", "label": "Length" },
-        "className": { "widget": "string", "label": "Class", "placeholder": "(any)" }
+        "className": { "widget": "className", "label": "Object type (optional)" }
       }
     }
   },

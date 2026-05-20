@@ -24,6 +24,7 @@
 
 ### 3. UX «Zero Matematica»
 
+- [x] **Logic Board UX refresh (English)** — `friendly-labels.ts`, When / Only if / Then blocks, grouped pickers, advanced condition tree + Script tab tucked away — 2026-05
 - [x] Modale cattura tasto (`keyCapture` + `KeyCapture.tsx`) — 2026-05
 - [x] `spawnEntity`: `inheritFlip`, `imagePoint` + editor image points — 2026-05
 - [x] `moveInDirection` / bussola Forward-Backward — 2026-05
@@ -43,3 +44,7 @@
 ---
 
 *Flusso attuale: compilatore → `mainScriptPath` → WASM preview.*
+
+### 6. Runtime spawn (clone class template) — 2026-05
+
+- [x] `object.spawn` / `spawnEntity` clona la prima entità del progetto con quella `className` (sprite, physics, tag), posizione impostata, entità aggiunta alla scena attiva

@@ -5,6 +5,7 @@
 #include "modules/runtime-entity-gateway/include/runtime-entity-gateway.h"
 #include "modules/physics/include/physics.h"
 #include "modules/variable-manager/include/variable-manager.h"
+#include <algorithm>
 #include <iostream>
 
 using namespace ArtCade;
@@ -42,11 +43,14 @@ int main() {
     coin.id = 2;
     coin.className = "Coin";
     coin.name = "Coin";
+    coin.sprite.spriteAssetId = "sprites/coin.png";
+    coin.sprite.alpha = 1.f;
+    coin.tags = { "pickup" };
 
     SceneDef sceneA;
     sceneA.id = "scene_a";
     sceneA.name = "A";
-    sceneA.entityIds = { 1 };
+    sceneA.entityIds = { 1, 2 };
 
     SceneDef sceneB;
     sceneB.id = "scene_b";
@@ -64,7 +68,20 @@ int main() {
 
     CHECK(gw.replaceProject(scenes, entities, "scene_a"));
     CHECK(gw.poolCount("Player") == 1);
-    CHECK(gw.poolCount("Coin") == 0);
+    CHECK(gw.poolCount("Coin") == 1);
+
+    const EntityId spawned = gw.spawnFromClass("Coin", 50.f, 60.f);
+    CHECK(spawned != 0);
+    CHECK(gw.poolCount("Coin") == 2);
+    const EntityDef* spawnedDef = gw.get(spawned);
+    CHECK(spawnedDef && spawnedDef->runtime.sceneActive);
+    CHECK(spawnedDef->sprite.spriteAssetId == "sprites/coin.png");
+    CHECK(spawnedDef->transform.position.x == 50.f);
+    CHECK(spawnedDef->transform.position.y == 60.f);
+    const SceneDef* sceneAfter = gw.activeScene();
+    CHECK(sceneAfter && std::find(sceneAfter->entityIds.begin(),
+                                sceneAfter->entityIds.end(), spawned)
+                           != sceneAfter->entityIds.end());
 
     vm.setInt("score", 42);
     vm.setInt("lives", 3);

@@ -5,8 +5,36 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
+#include <iostream>
 
 namespace ArtCade::Modules {
+
+namespace {
+
+EntityDef cloneForSpawn(const EntityDef& proto, float x, float y) {
+    EntityDef copy = proto;
+    copy.id = 0;
+    copy.transform.position = { x, y };
+    copy.physics.physicsHandle = 0;
+    copy.runtime.sceneActive = true;
+    if (copy.sprite.alpha <= 0.f)
+        copy.sprite.alpha = 1.f;
+    return copy;
+}
+
+EntityDef minimalSpawnDef(const std::string& cls, float x, float y) {
+    EntityDef def;
+    def.id = 0;
+    def.name = cls;
+    def.className = cls;
+    def.transform.position = { x, y };
+    def.transform.scale = { 1.f, 1.f };
+    def.runtime.sceneActive = true;
+    return def;
+}
+
+} // namespace
 
 RuntimeEntityGateway::RuntimeEntityGateway(EntityManager& em, SceneManager& sm)
     : entityManager_(em), sceneManager_(sm) {}
@@ -16,11 +44,17 @@ void RuntimeEntityGateway::shutdown() {
     pendingDestroy_.clear();
     pendingSpawn_.clear();
     destroyBuffer_.clear();
+    classPrototypes_.clear();
+    spawnLogCallback_ = nullptr;
     fadePhase_ = FadePhase::None;
 }
 
 void RuntimeEntityGateway::setPhysics(Physics* physics) {
     physics_ = physics;
+}
+
+void RuntimeEntityGateway::setSpawnLogCallback(SpawnLogCallback cb) {
+    spawnLogCallback_ = std::move(cb);
 }
 
 bool RuntimeEntityGateway::entityListedInActiveScene(EntityId id) const {
@@ -101,7 +135,60 @@ EntityId RuntimeEntityGateway::create(const EntityDef& def) {
     return id;
 }
 
+void RuntimeEntityGateway::rebuildClassPrototypes(
+    const std::unordered_map<EntityId, EntityDef>& entityDefs)
+{
+    classPrototypes_.clear();
+    for (const auto& [id, def] : entityDefs) {
+        (void)id;
+        if (def.className.empty()) continue;
+        if (classPrototypes_.find(def.className) == classPrototypes_.end())
+            classPrototypes_[def.className] = def;
+    }
+}
+
+EntityId RuntimeEntityGateway::spawnFromClass(const std::string& className, float x, float y) {
+    EntityDef copy;
+    auto protoIt = classPrototypes_.find(className);
+    if (protoIt != classPrototypes_.end()) {
+        copy = cloneForSpawn(protoIt->second, x, y);
+    } else {
+        const std::vector<EntityId> pool = entityManager_.getPool(className);
+        const EntityDef* live = nullptr;
+        for (EntityId eid : pool) {
+            if ((live = entityManager_.get(eid))) break;
+        }
+        if (live)
+            copy = cloneForSpawn(*live, x, y);
+        else
+            copy = minimalSpawnDef(className, x, y);
+    }
+
+    const EntityId id = entityManager_.createEntity(copy);
+    if (SceneDef* scene = sceneManager_.activeSceneMutable()) {
+        if (std::find(scene->entityIds.begin(), scene->entityIds.end(), id)
+            == scene->entityIds.end())
+            scene->entityIds.push_back(id);
+    }
+    activateEntity(id);
+
+    char buf[96];
+    std::snprintf(buf, sizeof(buf), "[Spawn] %s #%u at (%.0f, %.0f)",
+                  className.c_str(), static_cast<unsigned>(id), x, y);
+    const std::string line(buf);
+    if (spawnLogCallback_)
+        spawnLogCallback_(line);
+    else
+        std::cout << line << std::endl;
+
+    return id;
+}
+
 void RuntimeEntityGateway::destroy(EntityId id) {
+    if (SceneDef* scene = sceneManager_.activeSceneMutable()) {
+        auto& ids = scene->entityIds;
+        ids.erase(std::remove(ids.begin(), ids.end(), id), ids.end());
+    }
     EntityDef* e = entityManager_.get(id);
     if (e) teardownPhysicsBody(*e);
     entityManager_.destroyEntity(id);
@@ -216,6 +303,7 @@ bool RuntimeEntityGateway::replaceProject(
     const SceneId& activeSceneId)
 {
     entityManager_.clear();
+    rebuildClassPrototypes(entityDefs);
     sceneManager_.registerScenes(scenes, entityDefs);
     for (const auto& [id, def] : entityDefs) {
         EntityDef copy = def;

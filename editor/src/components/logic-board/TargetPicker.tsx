@@ -30,10 +30,10 @@ export function TargetPicker({
           else onChange({ className: '', first: true })
         }}
       >
-        <option value="self">self</option>
-        <option value="other">other</option>
-        <option value="entityId">entity #</option>
-        <option value="className">class</option>
+        <option value="self">This object</option>
+        <option value="other">Other object</option>
+        <option value="entityId">Object #</option>
+        <option value="className">Objects of class</option>
       </select>
       {kind === 'entityId' && typeof value === 'object' && 'entityId' in value && (
         <input
@@ -46,7 +46,7 @@ export function TargetPicker({
       {kind === 'className' && typeof value === 'object' && 'className' in value && (
         <input
           className={`${inp} w-28`}
-          placeholder="ClassName"
+          placeholder="Class name"
           value={value.className}
           onChange={(e) => onChange({ className: e.target.value, first: true })}
         />

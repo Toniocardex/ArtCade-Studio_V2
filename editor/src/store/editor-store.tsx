@@ -188,6 +188,7 @@ export type Action =
   | { type: 'ENTITY_DUPLICATE';  entityId: number; sceneId: string }
   | { type: 'ENTITY_DELETE';     entityId: number }
   | { type: 'ENTITY_SET_VISIBLE'; entityId: number; visible: boolean }
+  | { type: 'ENTITY_SET_NAME';    entityId: number; name: string }
   | { type: 'WORLD_SET';         patch: Partial<WorldSettings> }
   | { type: 'TILEMAP_INIT';  sceneId: string }
   | { type: 'TILEMAP_PAINT'; sceneId: string; index: number; tileId: number }
@@ -484,6 +485,23 @@ export function coreReducer(state: CoreState, action: Action): CoreState {
           entities: {
             ...state.project.entities,
             [action.entityId]: { ...e, visible: action.visible },
+          },
+        },
+        projectDirty: true,
+      }
+    }
+    case 'ENTITY_SET_NAME': {
+      if (!state.project || !state.project.entities[action.entityId]) return state
+      const e = state.project.entities[action.entityId]
+      const name = action.name.trim()
+      if (!name || name === e.name) return state
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          entities: {
+            ...state.project.entities,
+            [action.entityId]: { ...e, name },
           },
         },
         projectDirty: true,

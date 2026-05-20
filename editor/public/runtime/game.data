@@ -19,64 +19,6 @@ FLOOR pos:      (640, 640)  size: 1280x40  [static]
 [Lua] Init OK - WASD to move player, watch ball fall
 [Lua] t=  2s  ball=(640.0,479.4) vy=240.0 [FALLING]  player=(640,340)  score=0  coins=2  fps=60
 [Lua] t=  4s  ball=(640.0,598.0) vy=  0.0 [AT_REST]  player=(640,340)  score=0  coins=2  fps=60
-[Demo] ArtCade Phase 13 + Physics Demo loaded!
-[App] Project loaded: ArtCade Phase 13 Demo
-[Lua] Player found  id=1
-[Lua] Enemies: 2
-[Lua] Coins:   2
-[Lua] state.get() OK: score=0 level=1 name=Hero hard=false nonexistent=nil
-[Lua] save.write -> true
-[Lua] save.read  -> score=42 level=3 name=Tester alive=true
-[Lua] save.exists -> true
-[Lua] save.list  -> 1 slot(s)
-[Lua] save.delete -> exists now? false
-[Lua] Gravity  (0, 500) px/s^2
-[Lua] Floor body  handle=1  spawn=(640,640)  size=1280x40
-[Lua] Ball  body  handle=2  spawn=(640,60)  size=44x44
-[Lua] Expected rest y = 598
-[Lua] Init OK - WASD to move player, watch ball fall
-[Lua] t=  2s  ball=(640.0,479.4) vy=240.0 [FALLING]  player=(640,340)  score=0  coins=2  fps=60
-[Lua] t=  4s  ball=(640.0,598.0) vy=  0.0 [AT_REST]  player=(640,340)  score=0  coins=2  fps=60
-[Demo] ArtCade Phase 13 + Physics Demo loaded!
-[App] Project loaded: ArtCade Phase 13 Demo
-[Lua] Player found  id=1
-[Lua] Enemies: 2
-[Lua] Coins:   2
-[Lua] Gravity  (0, 500) px/s^2
-[Lua] Floor body  handle=1  spawn=(640,640)  size=1280x40
-[Lua] Ball  body  handle=2  spawn=(640,60)  size=44x44
-[Lua] Expected rest y = 598
-[Lua] Init OK - WASD to move player, watch ball fall
-[Lua] t=  2s  ball=(640.0,479.4) vy=240.0 [FALLING]  player=(640,340)  score=0  coins=2  fps=60
-[Lua] Coin collected! score=10
-[Lua] t=  4s  ball=(640.0,598.0) vy=  0.0 [AT_REST]  player=(380,292)  score=10  coins=2  fps=60
-[Lua] t=  6s  ball=(640.0,598.0) vy=  0.0 [AT_REST]  player=(215,292)  score=10  coins=2  fps=60
-[Lua] PLAYER HIT by enemy 2  score=10
-[Lua] t=  8s  ball=(640.0,598.0) vy=  0.0 [AT_REST]  player=(292,292)  score=10  coins=2  fps=60
-[Lua] t= 10s  ball=(640.0,598.0) vy=  0.0 [AT_REST]  player=(292,292)  score=10  coins=2  fps=60
-[Lua] t= 12s  ball=(640.0,598.0) vy=  0.0 [AT_REST]  player=(292,292)  score=10  coins=2  fps=60
-[Lua] t= 14s  ball=(640.0,598.0) vy=  0.0 [AT_REST]  player=(292,292)  score=10  coins=2  fps=60
-[Lua] t= 16s  ball=(640.0,598.0) vy=  0.0 [AT_REST]  player=(292,292)  score=10  coins=2  fps=60
-[Lua] t= 18s  ball=(640.0,598.0) vy=  0.0 [AT_REST]  player=(292,292)  score=10  coins=2  fps=60
-[Lua] t= 20s  ball=(640.0,598.0) vy=  0.0 [AT_REST]  player=(292,292)  score=10  coins=2  fps=60
-[Lua] t= 22s  ball=(640.0,598.0) vy=  0.0 [AT_REST]  player=(292,292)  score=10  coins=2  fps=60
-[Lua] t= 24s  ball=(640.0,598.0) vy=  0.0 [AT_REST]  player=(292,292)  score=10  coins=2  fps=60
-[Lua] t= 26s  ball=(640.0,598.0) vy=  0.0 [AT_REST]  player=(292,292)  score=10  coins=2  fps=60
-[Lua] t= 28s  ball=(640.0,598.0) vy=  0.0 [AT_REST]  player=(292,292)  score=10  coins=2  fps=60
-[Demo] ArtCade Phase 13 + Physics Demo loaded!
-[App] Project loaded: ArtCade Phase 13 Demo
-[Lua] Player found  id=1
-[Lua] Enemies: 2
-[Lua] Coins:   2
-[Lua] Gravity  (0, 500) px/s^2
-[Lua] Floor body  handle=1  spawn=(640,640)  size=1280x40
-[Lua] Ball  body  handle=2  spawn=(640,60)  size=44x44
-[Lua] Expected rest y = 598
-[Lua] Init OK - WASD to move player, watch ball fall
-[Lua] t=  2s  ball=(640.0,479.4) vy=240.0 [FALLING]  player=(640,340)  score=0  coins=2  fps=60
-[Lua] Coin collected! score=10
-[Lua] t=  4s  ball=(640.0,598.0) vy=  0.0 [AT_REST]  player=(420,311)  score=10  coins=2  fps=60
-[Lua] t=  6s  ball=(640.0,598.0) vy=  0.0 [AT_REST]  player=(585,391)  score=10  coins=2  fps=60
 {
   "projectName": "ArtCade Phase 13 Demo",
   "version": "2.0.0",
@@ -1232,4 +1174,35 @@ function tick(dt)
         lastLog = t
         writeHeartbeat()
     end
+end
+-- Runtime Core smoke: scene.load preserves state.* (run via game.exe / WASM with multi-scene project)
+local function log(msg)
+    if debug and debug.log then debug.log("[smoke] " .. msg) end
+end
+
+function init()
+    state.set("score", 100)
+    log("init score=100")
+end
+
+function tick(dt)
+    if state.get("_smoke_done") then return end
+    local before = state.get("score")
+    if before ~= 100 then
+        log("FAIL score before load: " .. tostring(before))
+        state.set("_smoke_done", true)
+        return
+    end
+    if scene and scene.load then
+        scene.load("scene_b")
+        local after = state.get("score")
+        if after == 100 then
+            log("PASS scene.load preserved score")
+        else
+            log("FAIL score after load: " .. tostring(after))
+        end
+    else
+        log("SKIP scene.load not bound")
+    end
+    state.set("_smoke_done", true)
 end

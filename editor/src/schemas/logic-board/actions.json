@@ -150,7 +150,7 @@
       "label": "Spawn Entity",
       "category": "Entities",
       "params": {
-        "className": { "widget": "string", "label": "Class" },
+        "className": { "widget": "className", "label": "What to create" },
         "x": { "widget": "number", "label": "X" },
         "y": { "widget": "number", "label": "Y" },
         "inheritFlip": { "widget": "boolean", "label": "Inherit flip" },

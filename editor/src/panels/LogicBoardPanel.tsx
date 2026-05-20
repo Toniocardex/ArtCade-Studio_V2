@@ -14,7 +14,9 @@ import { compileLogicBoard } from '../utils/logic-board/compiler'
 import { editorReloadScript } from '../utils/wasm-bridge'
 import { createLogicBoard, createLogicEvent } from '../utils/logic-board/factory'
 import { TRIGGER_TYPES, defaultTrigger } from './logic-board/options'
-import type { LogicTriggerType } from '../types/logic-board'
+import { boardDisplayName } from './logic-board/friendly-labels'
+import type { LogicBoard, LogicTriggerType } from '../types/logic-board'
+import { TypePicker } from '../components/logic-board/TypePicker'
 import EventCard from './logic-board/EventCard'
 import { LogicBoardLuaPreview } from './logic-board/LogicBoardLuaPreview'
 import {
@@ -122,15 +124,13 @@ export default function LogicBoardPanel() {
 
       {/* board management bar */}
       <div className="flex items-center gap-3 px-4 py-2 border-b border-[var(--border)] bg-[var(--panel)]">
-        <span className="text-[10px] uppercase tracking-wider text-[var(--muted)]">
-          New board · target class
-        </span>
+        <span className="text-[11px] text-[var(--muted)]">New rulesheet · character class</span>
         <select
           className="bg-[var(--bg)] border border-[var(--border-2)] text-[var(--accent)] px-2 py-1 rounded text-xs"
           value={newClass}
           onChange={(e) => setNewClass(e.target.value)}
         >
-          <option value="">— pick class —</option>
+          <option value="">Choose a class…</option>
           {classes.map((c) => (
             <option key={c} value={c}>
               {c}
@@ -147,7 +147,7 @@ export default function LogicBoardPanel() {
           }}
           className="px-3 py-1 rounded text-xs font-semibold border border-[var(--border-2)] bg-[var(--border)] text-[var(--text)] disabled:opacity-40"
         >
-          ＋ New Board
+          New rulesheet
         </button>
         {board && (
           <button
@@ -157,20 +157,20 @@ export default function LogicBoardPanel() {
             }}
             className="px-3 py-1 rounded text-xs text-[var(--muted)] hover:text-[var(--danger)]"
           >
-            ⌦ Delete Board
+            Delete rulesheet
           </button>
         )}
       </div>
 
       <div className="flex-1 min-h-0 overflow-auto p-4">
           {!board ? (
-            <div className="text-[var(--muted)] text-sm mt-8 text-center">
-              No Logic Board yet. Pick a target class above and create one.
+            <div className="text-[var(--muted)] text-sm mt-8 text-center max-w-md mx-auto">
+              Choose a character class above, then add your first rule.
             </div>
           ) : (
             <>
-              <div className="text-[10px] uppercase tracking-widest text-[var(--muted)] mb-3">
-                Logic Events · {board.events.length} · evaluated every tick(dt)
+              <div className="text-xs text-[var(--muted)] mb-3">
+                Rules ({board.events.length})
               </div>
 
               {board.events.map((ev) => (
@@ -207,21 +207,16 @@ export default function LogicBoardPanel() {
                 />
               ))}
 
-              <div className="flex items-center gap-2 mt-2">
-                <select
-                  className="bg-[var(--bg)] border border-[var(--border-2)] text-[var(--accent)] px-2 py-1.5 rounded text-xs"
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                <TypePicker
+                  kind="trigger"
+                  types={TRIGGER_TYPES}
                   value={newTrigger}
-                  onChange={(e) =>
-                    setNewTrigger(e.target.value as LogicTriggerType)
-                  }
-                >
-                  {TRIGGER_TYPES.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(t) => setNewTrigger(t as LogicTriggerType)}
+                  className="max-w-[240px]"
+                />
                 <button
+                  type="button"
                   onClick={() => {
                     const ev = createLogicEvent(defaultTrigger(newTrigger))
                     dispatch({
@@ -231,9 +226,9 @@ export default function LogicBoardPanel() {
                     })
                     setEditingId(ev.id)
                   }}
-                  className="flex-1 px-3 py-2 rounded border border-dashed border-[var(--border-2)] text-[var(--muted)] text-xs hover:text-[var(--accent)] hover:border-[var(--accent-bd)]"
+                  className="flex-1 min-w-[140px] px-3 py-2 rounded border border-dashed border-[var(--border-2)] text-[var(--muted)] text-xs hover:text-[var(--accent)] hover:border-[var(--accent-bd)]"
                 >
-                  ＋ Add Event
+                  Add rule
                 </button>
               </div>
             </>
@@ -256,17 +251,29 @@ function Header({
 }: {
   mode: 'visual' | 'lua'
   setMode: (m: 'visual' | 'lua') => void
-  boards: { boardId: string; target: { className?: string } }[]
-  board: { boardId: string; target: { className?: string } } | null
+  boards: LogicBoard[]
+  board: LogicBoard | null
   onSelectBoard: (id: string) => void
   onApply: () => void
   applyMsg: string | null
 }) {
+  const rulesFor =
+    board?.target.type === 'entity_class' && board.target.className
+      ? board.target.className
+      : board
+        ? boardDisplayName(board)
+        : null
+
   return (
     <div className="h-[52px] flex items-center gap-3.5 px-4 bg-[var(--panel)] border-b border-[var(--border)]">
       <h1 className="text-sm font-semibold tracking-wide">
         ⬡ Logic <span className="text-[var(--accent)]">Board</span>
       </h1>
+      {rulesFor && (
+        <span className="text-[11px] text-[var(--muted)]">
+          Rules for <span className="text-[var(--text)] font-medium">{rulesFor}</span>
+        </span>
+      )}
       {boards.length > 0 && (
         <select
           className="bg-[var(--border)] border border-[var(--border-2)] text-[var(--accent)] px-2.5 py-1.5 rounded text-xs"
@@ -275,31 +282,33 @@ function Header({
         >
           {boards.map((b) => (
             <option key={b.boardId} value={b.boardId}>
-              {b.boardId}
+              {boardDisplayName(b)}
             </option>
           ))}
         </select>
-      )}
-      {board?.target.className && (
-        <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold border text-[var(--green)] border-[var(--green-bd)] bg-[var(--green-bg)]">
-          target ▸ class: {board.target.className}
-        </span>
       )}
       <div className="flex-1" />
       {applyMsg && (
         <span className="text-[11px] text-[var(--muted)]">{applyMsg}</span>
       )}
       <button
+        type="button"
         title="Compile the Logic Board to Lua and hot-reload it into the running runtime"
         onClick={onApply}
         className="px-3 py-1.5 rounded text-xs font-semibold border border-[var(--accent-bd)] bg-[var(--accent-bg)] text-[var(--accent)] hover:bg-[var(--accent-bg-h)]"
       >
-        ⟳ Apply &amp; Hot-Reload
+        Apply to game
       </button>
       <div className="flex rounded border border-[var(--border-2)] overflow-hidden">
         {(['visual', 'lua'] as const).map((m) => (
           <button
             key={m}
+            type="button"
+            title={
+              m === 'lua'
+                ? 'Advanced · generated Lua code'
+                : 'Visual rules editor'
+            }
             onClick={() => setMode(m)}
             className={`px-3 py-1.5 text-xs ${
               mode === m
@@ -307,7 +316,7 @@ function Header({
                 : 'text-[var(--muted)] hover:text-[var(--text)]'
             }`}
           >
-            {m === 'visual' ? 'Visual' : 'Script'}
+            {m === 'visual' ? 'Rules' : 'Script'}
           </button>
         ))}
       </div>

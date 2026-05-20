@@ -1,10 +1,11 @@
-import { useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ElementType } from 'react'
-import { Image, Music, Code, FileText, ImagePlus } from 'lucide-react'
+import { Image, Music, Code, FileText, ImagePlus, Trash2 } from 'lucide-react'
 import { useEditor } from '../store/editor-store'
 import { importImageIntoProject } from '../utils/api'
 import { dirName } from '../utils/project'
 import type { ImageAsset, ImagePointDef } from '../types'
+import { shouldIgnoreEditorShortcut } from '../utils/keyboard'
 
 /** Starter content used the first time a script asset is opened. */
 function scriptStub(name: string): string {
@@ -73,6 +74,27 @@ export default function AssetBrowserPanel() {
   }
 
   const selAsset = selAssetId && project?.assets?.[selAssetId]
+  const canRemove = Boolean(selAssetId && project?.assets?.[selAssetId])
+
+  const removeSelectedAsset = useCallback(() => {
+    if (!selAssetId || !project?.assets?.[selAssetId]) return
+    const name = project.assets[selAssetId].name
+    dispatch({ type: 'ASSET_REMOVE', assetId: selAssetId })
+    setSelAssetId(null)
+    flash(`Removed ${name}`)
+  }, [selAssetId, project, dispatch])
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key !== 'Delete' && e.key !== 'Backspace') return
+      if (shouldIgnoreEditorShortcut(e)) return
+      if (!selAssetId || !project?.assets?.[selAssetId]) return
+      e.preventDefault()
+      removeSelectedAsset()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [selAssetId, project, removeSelectedAsset])
 
   // ── Import an image into the project's persistent asset library ───────────
   function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -156,6 +178,17 @@ export default function AssetBrowserPanel() {
         <div className="flex-1" />
         {msg && <span className="text-[9px] text-[var(--muted)] mr-3">{msg}</span>}
         <button
+          type="button"
+          onClick={removeSelectedAsset}
+          disabled={!canRemove}
+          title={canRemove ? 'Remove image (Delete)' : 'Select an imported image to remove'}
+          className="flex items-center gap-1.5 px-3 py-1 my-1 mr-1 rounded text-[10px] font-semibold
+                     border border-[var(--border-2)] text-[var(--muted)]
+                     hover:text-[var(--danger)] hover:border-[var(--danger)] disabled:opacity-40"
+        >
+          <Trash2 size={12} /> Remove
+        </button>
+        <button
           onClick={() => fileRef.current?.click()}
           disabled={!project}
           className="flex items-center gap-1.5 px-3 py-1 my-1 rounded text-[10px] font-semibold
@@ -170,12 +203,14 @@ export default function AssetBrowserPanel() {
       <div className="flex-1 overflow-y-auto p-4">
         {showImages && images.length === 0 && cat === 'IMAGES' && (
           <p className="text-[var(--muted)] text-[10px] mb-3">
-            No images yet — use “Import image”. Double-click an image (with an
-            entity selected) to assign it as that entity's sprite.
+            No images yet — use “Import image”. Click to select; Delete or Remove
+            to discard. Double-click (with an entity selected) to assign sprite.
           </p>
         )}
         <div className="grid grid-cols-6 gap-3">
-          {showImages && images.map(asset => (
+          {showImages && images.map(asset => {
+            const selected = selAssetId === asset.id
+            return (
             <div
               key={asset.id}
               onClick={() => setSelAssetId(asset.id)}
@@ -183,9 +218,12 @@ export default function AssetBrowserPanel() {
               title={selEntity
                 ? `Double-click → assign as sprite of "${selEntity.name}"`
                 : 'Select an entity, then double-click to assign as its sprite'}
-              className="flex flex-col items-center gap-2 p-2 rounded
-                         border border-[var(--border)] hover:border-[rgb(var(--accent-rgb)/0.5)]
-                         bg-[var(--bg)] cursor-pointer transition-colors group"
+              className={`flex flex-col items-center gap-2 p-2 rounded border cursor-pointer transition-colors group
+                         bg-[var(--bg)] ${
+                selected
+                  ? 'border-[var(--accent)] ring-1 ring-[rgb(var(--accent-rgb)/0.35)]'
+                  : 'border-[var(--border)] hover:border-[rgb(var(--accent-rgb)/0.5)]'
+              }`}
             >
               <div className="w-[22px] h-[22px] flex items-center justify-center group-hover:scale-110 transition-transform">
                 {asset.dataUrl
@@ -198,7 +236,8 @@ export default function AssetBrowserPanel() {
               </span>
               <span className="text-[8px] text-[rgb(var(--muted-rgb)/0.5)]">image</span>
             </div>
-          ))}
+            )
+          })}
 
           {samples.map((asset, i) => (
             <div
@@ -224,9 +263,20 @@ export default function AssetBrowserPanel() {
 
         {selAsset && (
           <div className="mt-4 p-3 rounded border border-[var(--border)] bg-[var(--panel)]">
-            <p className="text-[10px] uppercase tracking-wider text-[var(--muted)] mb-2">
-              Image points — {selAsset.name}
-            </p>
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <p className="text-[10px] uppercase tracking-wider text-[var(--muted)]">
+                Image points — {selAsset.name}
+              </p>
+              <button
+                type="button"
+                onClick={removeSelectedAsset}
+                title="Remove image (Delete)"
+                className="flex items-center gap-1 px-2 py-1 rounded text-[10px]
+                           text-[var(--muted)] hover:text-[var(--danger)]"
+              >
+                <Trash2 size={11} /> Remove
+              </button>
+            </div>
             <ul className="space-y-1 mb-2">
               {(selAsset.imagePoints ?? []).map((pt, i) => (
                 <li key={pt.id || i} className="flex gap-2 items-center text-xs">

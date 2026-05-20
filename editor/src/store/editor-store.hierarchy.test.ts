@@ -63,6 +63,14 @@ describe('coreReducer — hierarchy', () => {
     expect(s.selection.entityId).toBeNull()
   })
 
+  it('ENTITY_SET_NAME renames entity and marks dirty', () => {
+    const s = coreReducer(st(project()), {
+      type: 'ENTITY_SET_NAME', entityId: 1, name: 'Hero',
+    })
+    expect(s.project!.entities[1].name).toBe('Hero')
+    expect(s.projectDirty).toBe(true)
+  })
+
   it('ENTITY_SET_VISIBLE toggles visibility immutably', () => {
     const prev = coreReducer(st(project()), { type: 'ENTITY_SET_VISIBLE', entityId: 1, visible: false })
     expect(prev.project!.entities[1].visible).toBe(false)

@@ -1,18 +1,19 @@
 // ---------------------------------------------------------------------------
-// Flat (AND list) vs tree (conditionRoot OR/AND) condition authoring
+// Advanced condition tree (AND / OR groups) — shown only when user opts in
 // ---------------------------------------------------------------------------
 
 import type { LogicCondition, LogicConditionNode, LogicEvent } from '../../types/logic-board'
 import { defaultConditionRoot } from '../../utils/logic-board/schema-registry'
 import { CONDITION_TYPES, defaultCondition } from '../../panels/logic-board/options'
 import { SchemaParamForm } from './SchemaParamForm'
+import { TypePicker } from './TypePicker'
 
 const sel =
   'bg-[var(--bg)] border border-[var(--border-2)] text-[var(--accent)] px-2 py-1 rounded text-xs'
-const lbl = 'text-[10px] uppercase tracking-wider text-[var(--muted)]'
+const lbl = 'text-[10px] font-medium text-[var(--muted)]'
 const link = 'text-[var(--accent)] text-[11px] hover:underline cursor-pointer'
 const panel =
-  'bg-[var(--panel)] border border-[var(--border)] rounded px-2 py-1.5 ml-2'
+  'bg-[var(--panel)] border border-[var(--border)] rounded px-2 py-1.5'
 
 export type ConditionMode = 'flat' | 'tree'
 
@@ -36,24 +37,23 @@ function NodeEditor({
   if (node.kind === 'leaf') {
     const cond = node.condition
     return (
-      <div className={`${panel} flex items-center flex-wrap gap-2`} style={{ marginLeft: depth * 12 }}>
-        <span className={lbl}>leaf</span>
-        <select
-          className={sel}
+      <div
+        className={`${panel} flex items-center flex-wrap gap-2`}
+        style={{ marginLeft: depth * 12 }}
+      >
+        <span className={lbl}>Check</span>
+        <TypePicker
+          kind="condition"
+          types={CONDITION_TYPES}
           value={cond.type}
-          onChange={(e) =>
+          onChange={(t) =>
             onChange({
               kind: 'leaf',
-              condition: defaultCondition(e.target.value as LogicCondition['type']),
+              condition: defaultCondition(t as LogicCondition['type']),
             })
           }
-        >
-          {CONDITION_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
+          className="max-w-[200px]"
+        />
         <SchemaParamForm
           kind="condition"
           type={cond.type}
@@ -63,8 +63,8 @@ function NodeEditor({
           }
         />
         {onRemove && (
-          <button className={link} onClick={onRemove} title="remove">
-            ✕
+          <button type="button" className={link} onClick={onRemove}>
+            Remove
           </button>
         )}
       </div>
@@ -72,10 +72,11 @@ function NodeEditor({
   }
 
   const group = node
+  const opLabel = group.operator === 'AND' ? 'All must pass' : 'Any can pass'
   return (
     <div className="flex flex-col gap-1" style={{ marginLeft: depth * 12 }}>
       <div className={`${panel} flex items-center flex-wrap gap-2`}>
-        <span className={lbl}>group</span>
+        <span className={lbl}>Group</span>
         <select
           className={sel}
           value={group.operator}
@@ -86,12 +87,13 @@ function NodeEditor({
             })
           }
         >
-          <option value="AND">AND</option>
-          <option value="OR">OR</option>
+          <option value="AND">All must pass</option>
+          <option value="OR">Any can pass</option>
         </select>
+        <span className="text-[10px] text-[var(--muted)]">{opLabel}</span>
         <button
-          className={link}
           type="button"
+          className={link}
           onClick={() =>
             onChange({
               ...group,
@@ -105,11 +107,11 @@ function NodeEditor({
             })
           }
         >
-          + leaf
+          + Add check
         </button>
         <button
-          className={link}
           type="button"
+          className={link}
           onClick={() =>
             onChange({
               ...group,
@@ -129,11 +131,11 @@ function NodeEditor({
             })
           }
         >
-          + subgroup
+          + Add group
         </button>
         {onRemove && (
-          <button className={link} onClick={onRemove} title="remove">
-            ✕
+          <button type="button" className={link} onClick={onRemove}>
+            Remove
           </button>
         )}
       </div>
@@ -158,119 +160,31 @@ function NodeEditor({
   )
 }
 
+/** Tree-only editor for advanced mode. */
 export function ConditionTreeEditor({
   event,
   onChange,
+  advanced = false,
 }: {
   event: LogicEvent
   onChange: (e: LogicEvent) => void
+  advanced?: boolean
 }) {
-  const mode = getConditionMode(event)
+  if (!advanced) return null
 
-  function setMode(next: ConditionMode) {
-    if (next === mode) return
-    if (next === 'tree') {
-      onChange({
-        ...event,
-        conditionRoot: event.conditionRoot ?? defaultConditionRoot(),
-        conditions: undefined,
-      })
-    } else {
-      const { conditionRoot: _r, ...rest } = event
-      onChange({
-        ...rest,
-        conditions: event.conditions?.length
-          ? event.conditions
-          : [defaultCondition('compareVariable')],
-      })
-    }
-  }
-
-  const conditions = event.conditions ?? []
+  const root = event.conditionRoot ?? defaultConditionRoot()
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-center gap-2">
-        <span className={lbl}>mode</span>
-        <select className={sel} value={mode} onChange={(e) => setMode(e.target.value as ConditionMode)}>
-          <option value="flat">Flat (AND list)</option>
-          <option value="tree">Tree (OR / AND)</option>
-        </select>
-      </div>
-
-      {mode === 'flat' && (
-        <>
-          {conditions.length === 0 && (
-            <p className="text-[10px] text-[var(--muted)] italic">
-              no conditions — event always proceeds
-            </p>
-          )}
-          {conditions.map((c, i) => (
-            <div
-              key={i}
-              className={`${panel} flex items-center flex-wrap gap-2 ml-0`}
-            >
-              <select
-                className={sel}
-                value={c.type}
-                onChange={(e) => {
-                  const next = conditions.slice()
-                  next[i] = defaultCondition(e.target.value as LogicCondition['type'])
-                  onChange({ ...event, conditions: next })
-                }}
-              >
-                {CONDITION_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-              <SchemaParamForm
-                kind="condition"
-                type={c.type}
-                value={c as unknown as Record<string, unknown>}
-                onChange={(next) => {
-                  const nextList = conditions.slice()
-                  nextList[i] = next as LogicCondition
-                  onChange({ ...event, conditions: nextList })
-                }}
-              />
-              <button
-                className={link}
-                onClick={() =>
-                  onChange({
-                    ...event,
-                    conditions: conditions.filter((_, j) => j !== i),
-                  })
-                }
-              >
-                ✕
-              </button>
-            </div>
-          ))}
-          <button
-            className={link}
-            type="button"
-            onClick={() =>
-              onChange({
-                ...event,
-                conditions: [...conditions, defaultCondition('compareVariable')],
-              })
-            }
-          >
-            + condition
-          </button>
-        </>
-      )}
-
-      {mode === 'tree' && event.conditionRoot && (
-        <NodeEditor
-          node={event.conditionRoot}
-          path="root"
-          depth={0}
-          onChange={(root) => onChange({ ...event, conditions: undefined, conditionRoot: root })}
-        />
-      )}
+      <p className="text-[10px] text-[var(--muted)]">
+        Combine checks: use groups for &quot;all must pass&quot; or &quot;any can pass&quot;.
+      </p>
+      <NodeEditor
+        node={root}
+        path="root"
+        depth={0}
+        onChange={(r) => onChange({ ...event, conditions: undefined, conditionRoot: r })}
+      />
     </div>
   )
 }

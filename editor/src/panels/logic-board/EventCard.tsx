@@ -1,14 +1,18 @@
 // ---------------------------------------------------------------------------
-// One LogicEvent rendered as a card: collapsed summary (WHEN/IF/THEN) or,
-// when expanded, the inline EventEditor.
+// One game rule: collapsed plain-English summary or expanded editor
 // ---------------------------------------------------------------------------
 
 import type { LogicEvent } from '../../types/logic-board'
-import { actionSummary, conditionSummary, triggerSummary } from './options'
+import {
+  actionSummaryPlain,
+  conditionsPlainList,
+  triggerSummaryPlain,
+} from './friendly-labels'
+import { RuleSentence } from '../../components/logic-board/RuleSentence'
 import EventEditor from './EventEditor'
 
 const pill =
-  'text-[11px] font-bold px-2 py-0.5 rounded border tracking-wide'
+  'text-[11px] font-bold px-2 py-0.5 rounded border tracking-wide shrink-0'
 const pWhen = 'text-[var(--accent)] border-[var(--accent-bd)] bg-[var(--accent-bg)]'
 const pIf = 'text-[var(--yellow)] border-[var(--pill-if-bd)] bg-[var(--pill-if-bg)]'
 const pThen = 'text-[var(--warn)] border-[var(--pill-then-bd)] bg-[var(--pill-then-bg)]'
@@ -30,7 +34,7 @@ export default function EventCard({
   onChange: (e: LogicEvent) => void
   onDoneEditing: () => void
 }) {
-  const conditions = event.conditions ?? []
+  const ifLines = conditionsPlainList(event)
   const dim = event.enabled ? '' : 'opacity-50'
 
   return (
@@ -39,17 +43,16 @@ export default function EventCard({
         editing ? 'border-[var(--accent)]' : 'border-[var(--border)]'
       }`}
     >
-      {/* header */}
-      <div className="flex items-center gap-2.5 px-3 py-2 bg-[var(--panel-3)] border-b border-[var(--border)]">
-        <span className={`${pill} ${pWhen}`}>WHEN</span>
-        <span className={`text-[var(--text)] font-semibold text-sm ${dim}`}>
-          {triggerSummary(event.trigger)}
-        </span>
+      <div className="flex items-start gap-2.5 px-3 py-2.5 bg-[var(--panel-3)] border-b border-[var(--border)]">
+        <span className={`${pill} ${pWhen}`}>When</span>
+        <RuleSentence text={triggerSummaryPlain(event.trigger)} dimmed={!event.enabled} />
         <div className="flex-1" />
         <button
+          type="button"
           onClick={onToggleEnabled}
-          title={event.enabled ? 'enabled' : 'disabled'}
-          className={`w-9 h-[18px] rounded-full relative transition-colors ${
+          title={event.enabled ? 'Rule on' : 'Rule off'}
+          aria-label={event.enabled ? 'Rule on' : 'Rule off'}
+          className={`w-9 h-[18px] rounded-full relative transition-colors shrink-0 ${
             event.enabled ? 'bg-[var(--accent-bd)]' : 'bg-[var(--border-2)]'
           }`}
         >
@@ -62,20 +65,22 @@ export default function EventCard({
           />
         </button>
         <button
+          type="button"
           onClick={onEdit}
-          className={`w-6 h-6 rounded border flex items-center justify-center text-xs ${
+          className={`w-7 h-7 rounded border flex items-center justify-center text-xs shrink-0 ${
             editing
               ? 'border-[var(--accent)] text-[var(--accent)]'
               : 'border-[var(--border-2)] text-[var(--muted)] hover:text-[var(--text)]'
           }`}
-          title="edit"
+          title="Edit rule"
         >
           ✎
         </button>
         <button
+          type="button"
           onClick={onDelete}
-          className="w-6 h-6 rounded border border-[var(--border-2)] text-[var(--muted)] hover:text-[var(--danger)] flex items-center justify-center text-xs"
-          title="delete"
+          className="w-7 h-7 rounded border border-[var(--border-2)] text-[var(--muted)] hover:text-[var(--danger)] flex items-center justify-center text-xs shrink-0"
+          title="Delete rule"
         >
           ⌦
         </button>
@@ -84,42 +89,33 @@ export default function EventCard({
       {editing ? (
         <EventEditor event={event} onChange={onChange} onDone={onDoneEditing} />
       ) : (
-        <div className={`px-3 py-2 space-y-1.5 ${dim}`}>
-          {conditions.length > 0 && (
-            <div className="flex items-start gap-2 pt-1">
-              <span className={`${pill} ${pIf}`}>IF</span>
-              <div className="flex flex-wrap gap-1.5">
-                {conditions.map((c, i) => (
-                  <span
+        <div className={`px-3 py-2.5 space-y-2 ${dim}`}>
+          {ifLines.length > 0 && (
+            <div className="flex items-start gap-2">
+              <span className={`${pill} ${pIf}`}>Only if</span>
+              <ul className="flex flex-col gap-1 list-none m-0 p-0">
+                {ifLines.map((line, i) => (
+                  <li
                     key={i}
-                    className="text-[11px] px-2 py-0.5 rounded bg-[var(--border)] border border-[var(--border-2)] text-[var(--text)]"
+                    className="text-xs text-[var(--text)] pl-0 before:content-['•'] before:mr-1.5 before:text-[var(--muted)]"
                   >
-                    {conditionSummary(c)}
-                  </span>
+                    {line}
+                  </li>
                 ))}
-              </div>
+              </ul>
             </div>
           )}
-          <div className="flex items-start gap-2 pt-1">
-            <span className={`${pill} ${pThen}`}>THEN</span>
-            <div className="flex flex-col gap-0.5">
-              {event.actions.length === 0 ? (
-                <span className="text-[11px] text-[var(--muted-2)]">
-                  (no actions)
-                </span>
-              ) : (
-                event.actions.map((a, i) => (
-                  <span key={i} className="text-xs text-[var(--text)]">
-                    <span className="text-[var(--warn)] font-semibold">
-                      {a.type}
-                    </span>{' '}
-                    <span className="text-[var(--muted)]">
-                      {actionSummary(a).replace(/^\S+\s?/, '')}
-                    </span>
-                  </span>
-                ))
-              )}
-            </div>
+          <div className="flex items-start gap-2">
+            <span className={`${pill} ${pThen}`}>Then</span>
+            {event.actions.length === 0 ? (
+              <span className="text-xs text-[var(--muted-2)]">No actions yet</span>
+            ) : (
+              <ol className="flex flex-col gap-1 list-decimal list-inside m-0 p-0 text-xs text-[var(--text)]">
+                {event.actions.map((a, i) => (
+                  <li key={i}>{actionSummaryPlain(a)}</li>
+                ))}
+              </ol>
+            )}
           </div>
         </div>
       )}

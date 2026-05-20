@@ -25,7 +25,7 @@
       "label": "On Collision",
       "category": "Physics",
       "params": {
-        "withClass": { "widget": "string", "label": "With class", "placeholder": "Coin" }
+        "withClass": { "widget": "className", "label": "With class" }
       }
     }
   },
@@ -41,7 +41,7 @@
       "label": "On Trigger Enter",
       "category": "Physics",
       "params": {
-        "withClass": { "widget": "string", "label": "With class", "placeholder": "Zone" }
+        "withClass": { "widget": "className", "label": "With class" }
       }
     }
   },
@@ -57,7 +57,7 @@
       "label": "On Trigger Exit",
       "category": "Physics",
       "params": {
-        "withClass": { "widget": "string", "label": "With class", "placeholder": "Zone" }
+        "withClass": { "widget": "className", "label": "With class" }
       }
     }
   },

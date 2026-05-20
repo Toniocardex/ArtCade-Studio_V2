@@ -1,14 +1,59 @@
+import { useCallback, useEffect } from 'react'
 import { Box, Copy, Eye, EyeOff, Plus, Trash2 } from 'lucide-react'
 import PanelHeader from '../components/PanelHeader'
 import { useEditor } from '../store/editor-store'
-import type { EntityDef } from '../types'
+import type { ConsoleEntry, EntityDef } from '../types'
 import { DEFAULT_WORLD } from '../types'
+import { shouldIgnoreEditorShortcut } from '../utils/keyboard'
+import { createEntityDef, nextEntityId } from '../utils/project'
 
 const CLASS_COLOR: Record<string, string> = {
   Player:  'var(--accent)',
   Tilemap: 'var(--muted)',
   Slime:   'var(--green-2)',
   Enemy:   'var(--danger)',
+}
+
+let _hierarchyLogId = 800
+function panelLog(message: string, level: ConsoleEntry['level']): ConsoleEntry {
+  const now = new Date()
+  return {
+    id: ++_hierarchyLogId,
+    time: now.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+    message,
+    level,
+  }
+}
+
+function AddEntityButton({
+  onClick,
+  disabled,
+  className = '',
+  variant = 'solid',
+}: {
+  onClick: () => void
+  disabled?: boolean
+  className?: string
+  variant?: 'solid' | 'dashed'
+}) {
+  const base =
+    variant === 'dashed'
+      ? 'border border-dashed border-[var(--border-2)] text-[var(--muted)] hover:text-[var(--accent)] hover:border-[var(--accent-bd)] bg-transparent'
+      : 'border border-[var(--accent-bd)] bg-[var(--accent-bg)] text-[var(--accent)] hover:bg-[var(--accent-bg-h)]'
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label="Add entity to the current scene"
+      title="Add entity to the current scene (Insert)"
+      className={`flex items-center justify-center gap-1.5 rounded text-[10px] font-semibold
+                  disabled:opacity-40 cursor-pointer ${base} ${className}`}
+    >
+      <Plus size={12} /> Add entity
+    </button>
+  )
 }
 
 function EntityRow({ entity, selected, onClick, onToggleVisible, onDuplicate, onDelete }: {
@@ -21,6 +66,7 @@ function EntityRow({ entity, selected, onClick, onToggleVisible, onDuplicate, on
 }) {
   const color = CLASS_COLOR[entity.className] ?? 'var(--muted)'
   const visible = entity.visible !== false
+  const showRowActions = selected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
   return (
     <div
       className={`group w-full flex items-center justify-between px-2 py-1.5
@@ -45,7 +91,7 @@ function EntityRow({ entity, selected, onClick, onToggleVisible, onDuplicate, on
         <button
           onClick={(e) => { e.stopPropagation(); onDuplicate() }}
           title="Duplicate entity"
-          className={`opacity-0 group-hover:opacity-100 ${
+          className={`${showRowActions} ${
             selected ? 'text-[var(--bg)]' : 'text-[var(--muted)] hover:text-[var(--accent)]'
           }`}
         >
@@ -54,7 +100,7 @@ function EntityRow({ entity, selected, onClick, onToggleVisible, onDuplicate, on
         <button
           onClick={(e) => { e.stopPropagation(); onDelete() }}
           title="Delete entity"
-          className="opacity-0 group-hover:opacity-100 text-[var(--muted)] hover:text-[var(--danger)]"
+          className={`${showRowActions} text-[var(--muted)] hover:text-[var(--danger)]`}
         >
           <Trash2 size={11} />
         </button>
@@ -111,7 +157,7 @@ function WorldSettingsSection() {
 
 export default function HierarchyPanel() {
   const { state, dispatch } = useEditor()
-  const { project, selection } = state
+  const { project, selection, mode } = state
 
   if (!project) {
     return (
@@ -127,17 +173,40 @@ export default function HierarchyPanel() {
     .map(id => project.entities[id])
     .filter((e): e is EntityDef => Boolean(e))
 
+  const addEntity = useCallback(() => {
+    if (!scene) return
+    const id = nextEntityId(project)
+    const preview = createEntityDef(id)
+    dispatch({ type: 'ENTITY_ADD', sceneId })
+    dispatch({
+      type: 'LOG',
+      entry: panelLog(`Added ${preview.name} — rename in Inspector`, 'info'),
+    })
+  }, [scene, sceneId, project, dispatch])
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (mode !== 'canvas') return
+      const isInsert = e.key === 'Insert'
+      const isAccel = e.ctrlKey && e.shiftKey && (e.key === 'N' || e.key === 'n')
+      if (!isInsert && !isAccel) return
+      if (shouldIgnoreEditorShortcut(e)) return
+      if (!scene) return
+      e.preventDefault()
+      addEntity()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [mode, scene, addEntity])
+
   return (
     <div className="h-full flex flex-col bg-[var(--panel)]">
       <PanelHeader title="Hierarchy">
-        <button
-          onClick={() => scene && dispatch({ type: 'ENTITY_ADD', sceneId })}
-          title="Add entity"
+        <AddEntityButton
+          onClick={addEntity}
           disabled={!scene}
-          className="text-[var(--accent)] cursor-pointer hover:opacity-70 disabled:opacity-30"
-        >
-          <Plus size={13} />
-        </button>
+          className="px-2.5 py-1"
+        />
       </PanelHeader>
 
       {/* Scene selector */}
@@ -158,7 +227,18 @@ export default function HierarchyPanel() {
       {/* Entity list */}
       <div className="flex-1 overflow-y-auto p-1 space-y-0.5">
         {entities.length === 0 ? (
-          <p className="text-[var(--muted)] text-[10px] px-2 pt-2">No entities.</p>
+          <div className="flex flex-col items-center gap-2 px-3 py-6 text-center">
+            <p className="text-[11px] text-[var(--text)] font-medium">This scene is empty</p>
+            <p className="text-[10px] text-[var(--muted)] leading-snug">
+              Add an object to place it on the canvas. Use Insert or the button below.
+            </p>
+            <AddEntityButton
+              onClick={addEntity}
+              disabled={!scene}
+              variant="dashed"
+              className="w-full mt-1 px-3 py-2"
+            />
+          </div>
         ) : (
           entities.map(e => (
             <EntityRow
@@ -178,12 +258,10 @@ export default function HierarchyPanel() {
         )}
       </div>
 
-      {/* World settings (mockup: left sidebar) */}
       <WorldSettingsSection />
 
-      {/* Footer */}
       <div className="px-2 py-1 border-t border-[var(--border)] text-[9px] text-[var(--muted)]">
-        {entities.length} entities · {scene?.name ?? '—'}
+        {entities.length} entities · {scene?.name ?? '—'} · Insert to add
       </div>
     </div>
   )

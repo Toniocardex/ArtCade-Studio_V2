@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Settings, ChevronRight, Trash2 } from 'lucide-react'
 import { useEditor } from '../store/editor-store'
 import type { EntityDef, ComponentKey } from '../types'
@@ -19,13 +20,36 @@ function SectionRow({ label }: { label: string }) {
   )
 }
 
-function Field({ label, value, cyan = false }: { label: string; value: string | number; cyan?: boolean }) {
+function Field({
+  label, value, onCommit, cyan = false,
+}: {
+  label: string
+  value: string | number
+  onCommit?: (value: string) => void
+  cyan?: boolean
+}) {
+  const [draft, setDraft] = useState(String(value))
+  useEffect(() => { setDraft(String(value)) }, [value])
+
+  function commit() {
+    if (onCommit && draft !== String(value)) onCommit(draft)
+  }
+
   return (
     <div className="space-y-0.5 mb-2">
       <label className="text-[9px] text-[var(--muted)] uppercase">{label}</label>
       <input
         type="text"
-        defaultValue={String(value)}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          e.stopPropagation()
+          if (e.key === 'Enter') {
+            commit()
+            ;(e.target as HTMLInputElement).blur()
+          }
+        }}
         className={`w-full bg-[var(--border)] border border-[var(--border-2)] rounded px-2 py-1
                     text-xs focus:outline-none focus:border-[var(--accent)] transition-colors ${
                       cyan ? 'text-[var(--accent)]' : 'text-[var(--text)]'
@@ -49,6 +73,7 @@ function NumberField({
         type="number"
         value={Number.isFinite(value) ? value : 0}
         onChange={e => onCommit(Number(e.target.value))}
+        onKeyDown={(e) => e.stopPropagation()}
         className="w-full bg-[var(--border)] border border-[var(--border-2)] rounded px-2 py-1
                    text-xs text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
       />
@@ -148,6 +173,7 @@ function ComponentSection({
                 onChange={(e) =>
                   commit(f.key, isNum ? Number(e.target.value) : e.target.value)
                 }
+                onKeyDown={(e) => e.stopPropagation()}
                 className="w-full bg-[var(--border)] border border-[var(--border-2)] rounded px-2 py-1
                            text-xs text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
               />
@@ -218,9 +244,16 @@ function EntityInspector({ entity }: { entity: EntityDef }) {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-3">
+    <div className="flex-1 overflow-y-auto px-4 py-3" data-panel="inspector">
       {/* Name */}
-      <Field label="Entity Name" value={entity.name} cyan />
+      <Field
+        label="Entity Name"
+        value={entity.name}
+        cyan
+        onCommit={(name) =>
+          dispatch({ type: 'ENTITY_SET_NAME', entityId: entity.id, name })
+        }
+      />
 
       {/* Tags */}
       <div className="flex flex-wrap gap-1 mb-3">
@@ -334,7 +367,7 @@ export default function InspectorPanel() {
     : null
 
   return (
-    <div className="h-full flex flex-col bg-[var(--panel)]">
+    <div className="h-full flex flex-col bg-[var(--panel)]" data-panel="inspector">
       <div className="flex items-center gap-2 px-3 py-2 border-b border-[var(--border)] flex-shrink-0">
         <Settings size={13} className="text-[var(--muted)]" />
         <span className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-widest">Inspector</span>

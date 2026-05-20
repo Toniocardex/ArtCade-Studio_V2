@@ -145,133 +145,32 @@ export function defaultAction(type: LogicActionType): LogicAction {
   }
 }
 
-// ---- human-readable summaries (collapsed card) ----------------------------
+// ---- human-readable summaries (collapsed card) — plain English UI --------
+
+import {
+  actionSummaryPlain,
+  conditionSummaryPlain,
+  targetDisplayLabel,
+  triggerSummaryPlain,
+} from './friendly-labels'
 
 export function triggerSummary(t: LogicTrigger): string {
-  switch (t.type) {
-    case 'onStart':
-      return 'onStart · once'
-    case 'onUpdate':
-      return 'onUpdate · every tick'
-    case 'onCollision':
-      return `onCollision · with "${t.withClass || '?'}"`
-    case 'onTriggerEnter':
-      return `onTriggerEnter · "${t.withClass || '?'}"`
-    case 'onTriggerExit':
-      return `onTriggerExit · "${t.withClass || '?'}"`
-    case 'onAnimationEnd':
-      return `onAnimationEnd · "${t.clipName || 'any'}"`
-    case 'onDestroy':
-      return 'onDestroy'
-    case 'onInput':
-      return `onInput · key "${t.keyCode}" · ${t.eventType}`
-    case 'onMouseInput':
-      return `onMouseInput · ${t.button} · ${t.eventType}`
-    case 'onMessage':
-      return `onMessage · "${t.messageName || '?'}"`
-    case 'onTimer':
-      return `onTimer · every ${t.seconds}s${t.repeat ? ' · repeat' : ''}`
-  }
+  return triggerSummaryPlain(t)
 }
 
 export function conditionSummary(c: LogicCondition): string {
-  switch (c.type) {
-    case 'compareVariable':
-      return `state.${c.key} ${c.operator} ${c.value}`
-    case 'compareClass':
-      return `touching "${c.className || '?'}"`
-    case 'isKeyDown':
-      return `key "${c.keyCode}" down`
-    case 'hasTag':
-      return `has tag "${c.tag || '?'}"`
-    case 'compareDistance':
-      return `dist(${targetLabel(c.target)}) ${c.operator} ${c.value}`
-    case 'isMouseOver':
-      return `mouse over (r=${c.radius ?? 32})`
-    case 'raycastHit':
-      return `raycast (${c.dirX},${c.dirY})·${c.length}${c.className ? ` → "${c.className}"` : ''}`
-    case 'chance':
-      return `chance ${c.percent}%`
-    case 'isSpaceFree':
-      return `space free @ (${c.x},${c.y}) ${c.w}×${c.h}`
-  }
+  return conditionSummaryPlain(c)
 }
 
 export function actionSummary(a: LogicAction): string {
-  switch (a.type) {
-    case 'setVariable':
-      return `setVariable ${a.key} = ${a.value}`
-    case 'addVariable':
-      return `addVariable ${a.key} += ${a.amount}`
-    case 'setPosition':
-      return `setPosition ${targetLabel(a.target)} → (${a.x}, ${a.y})`
-    case 'setVelocity':
-      return `setVelocity ${targetLabel(a.target)} → (${a.vx}, ${a.vy})`
-    case 'playSound':
-      return `playSound "${a.path || '?'}"`
-    case 'playMusic':
-      return `playMusic "${a.path || '?'}"${a.loop ? ' (loop)' : ''}`
-    case 'stopAllAudio':
-      return 'stopAllAudio'
-    case 'destroyEntity':
-      return `destroyEntity ${targetLabel(a.target)}`
-    case 'spawnEntity': {
-      const at = a.imagePoint
-        ? ` @ point "${a.imagePoint}"`
-        : ` @ (${a.x}, ${a.y})`
-      const flip = a.inheritFlip ? ' · inheritFlip' : ''
-      return `spawnEntity "${a.className || '?'}"${at}${flip}`
-    }
-    case 'moveInDirection':
-      return `moveInDirection ${targetLabel(a.target)} · ${a.direction} @ ${a.speed}`
-    case 'setGlobalState':
-      return `setGlobalState ${a.key} = ${a.value}`
-    case 'emitEvent':
-      return `emitEvent "${a.name || '?'}"${a.payloadKey ? ` { ${a.payloadKey} = ${a.payloadValue} }` : ''}`
-    case 'toggleLogicEvent':
-      return `toggleLogicEvent "${a.eventId || '?'}" → ${a.enabled ? 'on' : 'off'}`
-    case 'applyImpulse':
-      return `applyImpulse ${targetLabel(a.target)} (${a.ix}, ${a.iy})`
-    case 'applyForce':
-      return `applyForce ${targetLabel(a.target)} (${a.fx}, ${a.fy})`
-    case 'setRotation':
-      return `setRotation ${targetLabel(a.target)} → ${a.angle}`
-    case 'setScale':
-      return `setScale ${targetLabel(a.target)} → (${a.scaleX}, ${a.scaleY})`
-    case 'setVisible':
-      return `setVisible ${targetLabel(a.target)} → ${a.visible}`
-    case 'setColorTint':
-      return `setColorTint ${targetLabel(a.target)} ${a.hexColor}`
-    case 'loadScene':
-      return `loadScene "${a.sceneName || '?'}"${a.fadeSeconds ? ` fade ${a.fadeSeconds}s` : ''}`
-    case 'restartScene':
-      return 'restartScene'
-    case 'setCameraTarget':
-      return `setCameraTarget ${targetLabel(a.target)}`
-    case 'debugLog':
-      return `debugLog "${a.message}"`
-    case 'wait':
-      return a.then?.length
-        ? `wait ${a.seconds}s (then: ${a.then.length} action(s))`
-        : `wait ${a.seconds}s`
-    case 'moveByOffset':
-      return `moveByOffset ${targetLabel(a.target)} (${a.dx}, ${a.dy})`
-    case 'snapToGrid':
-      return `snapToGrid ${targetLabel(a.target)} · ${a.cellSize}px`
-    case 'setEntityShader':
-      return `shader ${a.shader} → ${targetLabel(a.target)}`
-    case 'setScreenShader':
-      return `screen shader ${a.shader}`
-  }
+  return actionSummaryPlain(a)
 }
 
+/** @deprecated Use targetDisplayLabel from friendly-labels in UI */
 export function targetLabel(t: TargetSelector): string {
-  if (t === 'self' || t === 'other') return t
-  if ('entityId' in t) return `#${t.entityId}`
-  if ('className' in t) return `${t.className}[1]`
-  return '?'
+  return targetDisplayLabel(t)
 }
 
 export function eventTitle(e: LogicEvent): string {
-  return triggerSummary(e.trigger)
+  return triggerSummaryPlain(e.trigger)
 }
