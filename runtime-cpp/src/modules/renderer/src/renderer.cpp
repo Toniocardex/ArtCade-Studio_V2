@@ -24,6 +24,8 @@ struct Renderer::Impl {
     uint32_t    height = 720;
     std::string title  = "ArtCade V2";
     bool        open   = false;
+    Vec2        worldSize = {1280.f, 720.f};
+    Vec2        viewportSize = {1280.f, 720.f};
 
     Camera2D camera = {};
     TextureCache texCache;
@@ -41,6 +43,24 @@ static Color toColor(const Vec4& v, float extraAlpha = 1.f) {
         static_cast<unsigned char>(v.g * 255.f),
         static_cast<unsigned char>(v.b * 255.f),
         static_cast<unsigned char>(v.a * extraAlpha * 255.f)
+    };
+}
+
+static Vec2 clampCameraTarget(
+    uint32_t width,
+    uint32_t height,
+    const Vec2& worldSize,
+    float zoom,
+    Vec2 target)
+{
+    const float z = (zoom > 0.f) ? zoom : 1.f;
+    const float visibleW = static_cast<float>(width) / z;
+    const float visibleH = static_cast<float>(height) / z;
+    const float maxX = std::max(0.f, worldSize.x - visibleW);
+    const float maxY = std::max(0.f, worldSize.y - visibleH);
+    return {
+        std::min(std::max(0.f, target.x), maxX),
+        std::min(std::max(0.f, target.y), maxY),
     };
 }
 
@@ -88,12 +108,32 @@ void Renderer::setWindowSize(uint32_t w, uint32_t h, const std::string& title) {
     if (impl_->open) {
         SetWindowSize(static_cast<int>(w), static_cast<int>(h));
         SetWindowTitle(title.c_str());
-        impl_->camera.offset = { w * 0.5f, h * 0.5f };
+        setSceneViewport(impl_->worldSize, impl_->viewportSize);
     }
 }
 
 uint32_t Renderer::windowWidth()  const { return impl_->width;  }
 uint32_t Renderer::windowHeight() const { return impl_->height; }
+
+void Renderer::setSceneViewport(const Vec2& worldSize, const Vec2& viewportSize) {
+    impl_->worldSize = {
+        std::max(1.f, worldSize.x),
+        std::max(1.f, worldSize.y),
+    };
+    impl_->viewportSize = {
+        std::max(1.f, viewportSize.x),
+        std::max(1.f, viewportSize.y),
+    };
+
+    const float sx = static_cast<float>(impl_->width) / impl_->viewportSize.x;
+    const float sy = static_cast<float>(impl_->height) / impl_->viewportSize.y;
+    impl_->camera.offset = { 0.f, 0.f };
+    impl_->camera.zoom = std::max(0.01f, std::min(sx, sy));
+    const Vec2 clamped = clampCameraTarget(
+        impl_->width, impl_->height, impl_->worldSize, impl_->camera.zoom,
+        { impl_->camera.target.x, impl_->camera.target.y });
+    impl_->camera.target = { clamped.x, clamped.y };
+}
 
 // ------------------------------------------------------------------ frame
 
@@ -232,6 +272,10 @@ void Renderer::drawRect(float x, float y, float w, float h, const Vec4& color) {
     impl_->drawQueue.push_back(std::move(cmd));
 }
 
+void Renderer::drawRectImmediate(float x, float y, float w, float h, const Vec4& color) {
+    DrawRectangleV({ x, y }, { w, h }, toColor(color));
+}
+
 void Renderer::drawLine(float x1, float y1, float x2, float y2, const Vec4& color) {
     Color c = toColor(color);
     DrawCmd cmd;
@@ -286,11 +330,41 @@ bool Renderer::isTextureLoaded(const AssetId& assetId) const {
 // ------------------------------------------------------------------ camera
 
 void Renderer::setCameraPosition(const Vec2& pos) {
-    impl_->camera.target = { pos.x, pos.y };
+    const Vec2 clamped = clampCameraTarget(
+        impl_->width, impl_->height, impl_->worldSize, impl_->camera.zoom, pos);
+    impl_->camera.target = { clamped.x, clamped.y };
 }
 
 void Renderer::setCameraZoom(float zoom) {
     impl_->camera.zoom = (zoom > 0.f) ? zoom : 0.01f;
+    const Vec2 clamped = clampCameraTarget(
+        impl_->width, impl_->height, impl_->worldSize, impl_->camera.zoom,
+        { impl_->camera.target.x, impl_->camera.target.y });
+    impl_->camera.target = { clamped.x, clamped.y };
+}
+
+void Renderer::panCameraByScreenDelta(float dx, float dy) {
+    const float zoom = (impl_->camera.zoom > 0.f) ? impl_->camera.zoom : 1.f;
+    setCameraPosition({
+        impl_->camera.target.x - dx / zoom,
+        impl_->camera.target.y - dy / zoom,
+    });
+}
+
+Vec2 Renderer::screenToWorld(float screenX, float screenY) const {
+    const float zoom = (impl_->camera.zoom > 0.f) ? impl_->camera.zoom : 1.f;
+    return {
+        (screenX - impl_->camera.offset.x) / zoom + impl_->camera.target.x,
+        (screenY - impl_->camera.offset.y) / zoom + impl_->camera.target.y,
+    };
+}
+
+Vec2 Renderer::visibleWorldSize() const {
+    const float zoom = (impl_->camera.zoom > 0.f) ? impl_->camera.zoom : 1.f;
+    return {
+        static_cast<float>(impl_->width) / zoom,
+        static_cast<float>(impl_->height) / zoom,
+    };
 }
 
 Vec2 Renderer::getCameraPosition() const {

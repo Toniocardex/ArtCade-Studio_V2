@@ -56,6 +56,8 @@ if(EMSCRIPTEN)
         "_editor_reload_script"
         "_editor_set_tile_paint_mode"
         "_editor_set_selected_tile"
+        "_editor_set_tool"
+        "_editor_set_guides_enabled"
         "_editor_register_image"
         "_malloc"
         "_free"

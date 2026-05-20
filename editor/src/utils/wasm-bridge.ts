@@ -386,6 +386,14 @@ export function editorSetSelectedTile(tileId: number): void {
   safeCall('editor_set_selected_tile', null, ['number'], [tileId])
 }
 
+export function editorSetTool(toolId: number): void {
+  safeCall('editor_set_tool', null, ['number'], [toolId])
+}
+
+export function editorSetGuidesEnabled(enabled: boolean): void {
+  safeCall('editor_set_guides_enabled', null, ['number'], [enabled ? 1 : 0])
+}
+
 export function editorSetTransform(
   entityId: number,
   x: number, y: number,

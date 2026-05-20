@@ -1,12 +1,12 @@
 import { useRef, useEffect, useLayoutEffect, useState } from 'react'
-import { MousePointer2, Hand, Paintbrush, Eraser, Wifi, WifiOff, Grid3x3 } from 'lucide-react'
+import { MousePointer2, Hand, Paintbrush, Eraser, Wifi, WifiOff, Grid3x3, Ruler } from 'lucide-react'
 import { useEditor } from '../store/editor-store'
 import type { ConsoleEntry } from '../types'
 import {
   loadWasmRuntime, isReady,
   syncEditorRuntimeState,
-  editorSetTilePaintMode, editorSetSelectedTile,
-  editorRegisterImage,
+  editorSetSelectedTile,
+  editorRegisterImage, editorSetTool, editorSetGuidesEnabled,
 } from '../utils/wasm-bridge'
 import { readProjectImageBytes } from '../utils/api'
 import { dirName } from '../utils/project'
@@ -14,6 +14,15 @@ import { dirName } from '../utils/project'
 import { WASM_RUNTIME_SRC } from '../utils/runtime-path'
 
 type Tool = 'select' | 'pan' | 'paint' | 'erase' | 'tile'
+type RuntimeToolId = 0 | 1 | 2 | 3
+
+const RUNTIME_TOOL: Record<Tool, RuntimeToolId> = {
+  select: 0,
+  pan:    1,
+  paint:  2,
+  erase:  3,
+  tile:   2,
+}
 
 export default function PreviewPanel() {
   // ── IMPORTANT: useEditor() subscribes ONLY to CoreContext (project,
@@ -38,6 +47,7 @@ export default function PreviewPanel() {
   const [wasmReady,  setWasmReady]  = useState(() => isReady())
   const [engineReady, setEngineReady] = useState(() => isReady())
   const [activeTool, setActiveTool] = useState<Tool>('select')
+  const [showEditorGuides, setShowEditorGuides] = useState(true)
 
   /** UI must reflect the window singleton (StrictMode/HMR can skip onReady). */
   const syncRuntimeUiFlags = () => {
@@ -147,7 +157,8 @@ export default function PreviewPanel() {
     // re-syncing the whole project on every cell would flood editor_load_project.
     // The tilemap STRUCTURE (cols/rows/tilesetAssetId) IS included so that
     // creating/attaching a tileset re-syncs once and the runtime gets the layer.
-    const at = project.scenes[project.activeSceneId]?.tilemap
+    const activeScene = project.scenes[project.activeSceneId]
+    const at = activeScene?.tilemap
     // Sprite-assignment fingerprint: assigning a sprite to an entity mutates
     // only entity.sprite.spriteAssetId — without this the loadKey wouldn't
     // change and the runtime would never receive the new sprite (assets
@@ -155,12 +166,16 @@ export default function PreviewPanel() {
     const spriteFp = Object.values(project.entities)
       .map((e) => e.sprite?.spriteAssetId ?? '')
       .join(',')
+    const sceneSizeFp = Object.values(project.scenes)
+      .map((s) => `${s.id}:${s.worldSize.x}x${s.worldSize.y}:${s.viewportSize.x}x${s.viewportSize.y}`)
+      .join(',')
     const loadKey = [
       projectPath ?? project.projectName,
       project.version,
       project.activeSceneId,
       Object.keys(project.entities).length,
       Object.keys(project.scenes).length,
+      sceneSizeFp,
       at ? `${at.cols}x${at.rows}:${at.tilesetAssetId ?? ''}` : 'no-tm',
       spriteFp,
     ].join('|')
@@ -223,10 +238,15 @@ export default function PreviewPanel() {
     if (!wasmReady || !engineReady) return
     const painting =
       activeTool === 'tile' || activeTool === 'paint' || activeTool === 'erase'
-    editorSetTilePaintMode(painting)
+    editorSetTool(RUNTIME_TOOL[activeTool])
     if (painting)
       editorSetSelectedTile(activeTool === 'erase' ? 0 : selectedTileCell)
   }, [activeTool, selectedTileCell, wasmReady, engineReady])
+
+  useEffect(() => {
+    if (!wasmReady || !engineReady) return
+    editorSetGuidesEnabled(showEditorGuides && !isPlaying)
+  }, [showEditorGuides, isPlaying, wasmReady, engineReady])
 
   // ── Canvas resolution matches game resolution ─────────────────────────────
   const res = project?.gameResolution ?? { x: 1280, y: 720 }
@@ -291,6 +311,18 @@ export default function PreviewPanel() {
           }`}
         >
           <Grid3x3 size={15} color={activeTool === 'tile' ? 'var(--accent-2)' : 'var(--muted)'} />
+        </button>
+
+        <div className="h-px w-full bg-[var(--border)]" />
+
+        <button
+          onClick={() => setShowEditorGuides(v => !v)}
+          title="Toggle editor guides"
+          className={`p-1.5 rounded transition-colors ${
+            showEditorGuides ? 'bg-[rgb(var(--accent-rgb)/0.2)]' : 'hover:bg-[var(--panel-3)]'
+          }`}
+        >
+          <Ruler size={15} color={showEditorGuides ? 'var(--accent)' : 'var(--muted)'} />
         </button>
       </div>
 

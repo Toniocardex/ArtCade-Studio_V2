@@ -66,3 +66,28 @@ export function createTilemap(
   const rows = Math.min(Math.max(Math.round(worldH / tileSize), 6), 48)
   return { tileSize, cols, rows, data: new Array(cols * rows).fill(0) }
 }
+
+/** Resize a tilemap to a new world size while preserving overlapping cells. */
+export function resizeTilemap(
+  tilemap: TilemapLayer,
+  worldW: number,
+  worldH: number,
+): TilemapLayer {
+  const next = createTilemap(worldW, worldH, tilemap.tileSize)
+  const data = next.data.slice()
+  const cols = Math.min(tilemap.cols, next.cols)
+  const rows = Math.min(tilemap.rows, next.rows)
+
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      data[row * next.cols + col] = tilemap.data[row * tilemap.cols + col] ?? 0
+    }
+  }
+
+  return {
+    ...tilemap,
+    cols: next.cols,
+    rows: next.rows,
+    data,
+  }
+}

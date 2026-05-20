@@ -32,11 +32,45 @@
 #include "../../modules/game-state/include/splash-state.h"
 
 #include <cstring>
+#include <algorithm>
 #include <iostream>
 #include <memory>
 #include <vector>
 
 namespace ArtCade {
+
+static void drawRectOutline(ArtCade::Modules::Renderer& renderer,
+                            float x, float y, float w, float h,
+                            const Vec4& color) {
+    renderer.drawLine(x,     y,     x + w, y,     color);
+    renderer.drawLine(x + w, y,     x + w, y + h, color);
+    renderer.drawLine(x + w, y + h, x,     y + h, color);
+    renderer.drawLine(x,     y + h, x,     y,     color);
+}
+
+static void drawEditorGuides(ArtCade::Modules::Renderer& renderer,
+                             const SceneDef& scene) {
+    const float w = std::max(1.f, scene.worldSize.x);
+    const float h = std::max(1.f, scene.worldSize.y);
+    const Vec4 grid{0.f, 0.85f, 1.f, 0.16f};
+    const float step = scene.tilemap.tileSize > 0.f ? scene.tilemap.tileSize : 32.f;
+    if (step >= 4.f) {
+        for (float x = step; x < w; x += step)
+            renderer.drawLine(x, 0.f, x, h, grid);
+        for (float y = step; y < h; y += step)
+            renderer.drawLine(0.f, y, w, y, grid);
+    }
+
+    drawRectOutline(renderer, 0.f, 0.f, w, h, Vec4{0.f, 0.95f, 1.f, 0.9f});
+
+    const Vec2 cam = renderer.getCameraPosition();
+    const Vec2 visible = renderer.visibleWorldSize();
+    drawRectOutline(renderer,
+        cam.x, cam.y,
+        std::max(1.f, visible.x),
+        std::max(1.f, visible.y),
+        Vec4{1.f, 0.8f, 0.1f, 0.9f});
+}
 
 // ---- Pimpl for module storage -------------------------------------------
 struct Application::Modules {
@@ -238,7 +272,16 @@ bool Application::loadProject(const std::string& projectPath) {
         return false;
     }
 
+    if (doc.gameResolution.x > 0.f && doc.gameResolution.y > 0.f) {
+        mod_->renderer->setWindowSize(
+            static_cast<uint32_t>(doc.gameResolution.x),
+            static_cast<uint32_t>(doc.gameResolution.y),
+            "ArtCade V2");
+    }
+
     mod_->world->init(doc);
+    if (const SceneDef* sc = mod_->sceneManager->activeScene())
+        mod_->renderer->setSceneViewport(sc->worldSize, sc->viewportSize);
 
     // Phase D2: cache tile id → render colour for renderActiveScene()
     tileColors_.clear();
@@ -364,16 +407,22 @@ void Application::mainLoop() {
 
 void Application::renderActiveScene() {
     // Use scene background colour (or neutral dark if no active scene)
-    Vec4 bgColor = {0.05f, 0.07f, 0.10f, 1.f};
-    if (const SceneDef* sc = mod_->sceneManager->activeScene())
-        bgColor = sc->backgroundColor;
+    const SceneDef* activeScene = mod_->sceneManager->activeScene();
+    const Vec4 clearColor = {0.015f, 0.018f, 0.025f, 1.f};
 
-    mod_->renderer->beginFrame(bgColor);
+    mod_->renderer->beginFrame(clearColor);
+    if (activeScene) {
+        mod_->renderer->drawRectImmediate(
+            0.f, 0.f,
+            std::max(1.f, activeScene->worldSize.x),
+            std::max(1.f, activeScene->worldSize.y),
+            activeScene->backgroundColor);
+    }
 
     // Phase D2/F3: tilemap layer (drawn under entities). When the layer
     // references a tileset (F3) tiles are drawn as spritesheet cells;
     // otherwise the D2 colour fallback (palette / grey) is used.
-    if (const SceneDef* sc = mod_->sceneManager->activeScene()) {
+    if (const SceneDef* sc = activeScene) {
         const auto& tm = sc->tilemap;
         if (tm.cols > 0 && tm.rows > 0) {
             const int n = static_cast<int>(tm.data.size());
@@ -436,6 +485,9 @@ void Application::renderActiveScene() {
     const float fade = mod_->entityGateway->sceneFadeAlpha();
     if (fade > 0.f)
         mod_->renderer->drawFadeOverlay(fade);
+
+    if (activeScene && EditorAPI::s_mode == 0 && EditorAPI::s_editorGuidesEnabled)
+        drawEditorGuides(*mod_->renderer, *activeScene);
 
     // Phase D3: editor-only viewport feedback (gizmo + sensor area).
     // Hidden in play mode (s_mode == 1) so it never shows in the game.

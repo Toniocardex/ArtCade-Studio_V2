@@ -109,6 +109,8 @@ public:
     static float    s_dragStartX, s_dragStartY;
     static bool     s_tilePaintMode;   // Phase F2
     static int      s_selectedTileId;  // Phase F2 (0 = eraser)
+    static int      s_editorTool;      // 0 select, 1 pan, 2 paint, 3 erase/tile
+    static bool     s_editorGuidesEnabled;
 
     // Engine pointers wired in wireEngine() / wireLua()
     static Modules::RuntimeEntityGateway* s_entityGateway;
@@ -173,6 +175,12 @@ EMSCRIPTEN_KEEPALIVE void editor_set_tile_paint_mode(int enabled);
 /** Phase F2: set the brush tile id (0 = eraser). */
 EMSCRIPTEN_KEEPALIVE void editor_set_selected_tile(int tileId);
 
+/** Editor viewport tool: 0 select, 1 pan, 2 paint, 3 erase/tile. */
+EMSCRIPTEN_KEEPALIVE void editor_set_tool(int toolId);
+
+/** Toggle runtime-side editor guides (world bounds / viewport / grid). */
+EMSCRIPTEN_KEEPALIVE void editor_set_guides_enabled(int enabled);
+
 /**
  * Phase F3: upload an editor-loaded image (e.g. a tileset spritesheet not
  * present in the WASM VFS) into the renderer's texture cache under `path`
@@ -213,6 +221,8 @@ struct EditorAPI {
     static float    s_dragStartX, s_dragStartY;
     static bool     s_tilePaintMode;
     static int      s_selectedTileId;
+    static int      s_editorTool;
+    static bool     s_editorGuidesEnabled;
     static Modules::RuntimeEntityGateway* s_entityGateway;
     static Modules::LuaHost*              s_luaHost;
     static Modules::Renderer*             s_renderer;

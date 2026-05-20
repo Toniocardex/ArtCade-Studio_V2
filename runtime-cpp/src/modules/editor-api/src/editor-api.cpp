@@ -13,6 +13,8 @@ float    EditorAPI::s_dragStartX       = 0.f;
 float    EditorAPI::s_dragStartY       = 0.f;
 bool     EditorAPI::s_tilePaintMode    = false;
 int      EditorAPI::s_selectedTileId   = 1;
+int      EditorAPI::s_editorTool       = 0;
+bool     EditorAPI::s_editorGuidesEnabled = true;
 Modules::RuntimeEntityGateway* EditorAPI::s_entityGateway = nullptr;
 Modules::LuaHost*              EditorAPI::s_luaHost       = nullptr;
 Modules::Renderer*             EditorAPI::s_renderer      = nullptr;
@@ -42,6 +44,17 @@ using json = nlohmann::json;
 
 namespace ArtCade {
 
+enum EditorToolId {
+    ToolSelect = 0,
+    ToolPan    = 1,
+    ToolPaint  = 2,
+    ToolErase  = 3,
+};
+
+static bool isPaintTool(int tool) {
+    return tool == ToolPaint || tool == ToolErase;
+}
+
 // ── Static state ──────────────────────────────────────────────────────────────
 int      EditorAPI::s_mode             = 0;
 uint32_t EditorAPI::s_selectedEntityId = 0u;
@@ -50,6 +63,8 @@ float    EditorAPI::s_dragStartX       = 0.f;
 float    EditorAPI::s_dragStartY       = 0.f;
 bool     EditorAPI::s_tilePaintMode    = false;
 int      EditorAPI::s_selectedTileId   = 1;
+int      EditorAPI::s_editorTool       = 0;
+bool     EditorAPI::s_editorGuidesEnabled = true;
 
 Modules::RuntimeEntityGateway* EditorAPI::s_entityGateway = nullptr;
 Modules::LuaHost*              EditorAPI::s_luaHost       = nullptr;
@@ -58,20 +73,35 @@ std::vector<std::pair<std::string, std::string>> EditorAPI::s_consoleQueue;
 
 // Canvas selector captured in init(); used to map CSS mouse coords → world px.
 static std::string s_canvasSel = "#canvas";
+static float s_lastPanScreenX = 0.f;
+static float s_lastPanScreenY = 0.f;
 
 // EmscriptenMouseEvent.targetX/Y are in CSS pixels of the (scaled) canvas
 // element, but the world/tilemap is in the canvas' internal resolution
 // (e.g. 1280x720). Without this scale the painted cell / dragged entity is
 // offset proportionally to the CSS downscale factor.
-static void toWorld(const EmscriptenMouseEvent* e, float& wx, float& wy) {
+static void toScreen(const EmscriptenMouseEvent* e, float& sxOut, float& syOut) {
     double cssW = 0.0, cssH = 0.0;
     int    iw   = 0,   ih   = 0;
     emscripten_get_element_css_size (s_canvasSel.c_str(), &cssW, &cssH);
     emscripten_get_canvas_element_size(s_canvasSel.c_str(), &iw,  &ih);
     const float sx = (cssW > 0.0) ? static_cast<float>(iw / cssW) : 1.f;
     const float sy = (cssH > 0.0) ? static_cast<float>(ih / cssH) : 1.f;
-    wx = static_cast<float>(e->targetX) * sx;
-    wy = static_cast<float>(e->targetY) * sy;
+    sxOut = static_cast<float>(e->targetX) * sx;
+    syOut = static_cast<float>(e->targetY) * sy;
+}
+
+static void toWorld(const EmscriptenMouseEvent* e, float& wx, float& wy) {
+    float screenX = 0.f, screenY = 0.f;
+    toScreen(e, screenX, screenY);
+    if (EditorAPI::s_renderer) {
+        const ArtCade::Vec2 world = EditorAPI::s_renderer->screenToWorld(screenX, screenY);
+        wx = world.x;
+        wy = world.y;
+    } else {
+        wx = screenX;
+        wy = screenY;
+    }
 }
 
 // ── Engine wiring ─────────────────────────────────────────────────────────────
@@ -162,6 +192,15 @@ static uint32_t pickEntityAt(float x, float y) {
 
 EM_BOOL EditorAPI::onMouseMove(int, const EmscriptenMouseEvent* e, void*) {
     if (s_mode != 0) return EM_FALSE;
+    if (s_editorTool == ToolPan && s_isDragging) {
+        float sx = 0.f, sy = 0.f;
+        toScreen(e, sx, sy);
+        if (s_renderer)
+            s_renderer->panCameraByScreenDelta(sx - s_lastPanScreenX, sy - s_lastPanScreenY);
+        s_lastPanScreenX = sx;
+        s_lastPanScreenY = sy;
+        return EM_TRUE;
+    }
     float wx, wy;
     toWorld(e, wx, wy);
     if (s_tilePaintMode) {
@@ -185,6 +224,9 @@ EM_BOOL EditorAPI::onMouseMove(int, const EmscriptenMouseEvent* e, void*) {
 EM_BOOL EditorAPI::onMouseDown(int, const EmscriptenMouseEvent* e, void*) {
     if (s_mode != 0) return EM_FALSE;
     s_isDragging = true;
+    toScreen(e, s_lastPanScreenX, s_lastPanScreenY);
+    if (s_editorTool == ToolPan)
+        return EM_TRUE;
     float wx, wy;
     toWorld(e, wx, wy);
     s_dragStartX = wx;
@@ -208,6 +250,7 @@ EM_BOOL EditorAPI::onMouseDown(int, const EmscriptenMouseEvent* e, void*) {
 EM_BOOL EditorAPI::onMouseUp(int, const EmscriptenMouseEvent* e, void*) {
     if (s_mode != 0) return EM_FALSE;
     s_isDragging = false;
+    if (s_editorTool == ToolPan) return EM_TRUE;   // panning: no transform notify
     if (s_tilePaintMode) return EM_TRUE;   // painting: no transform notify
 
     if (s_selectedEntityId != 0u) {
@@ -438,6 +481,17 @@ EMSCRIPTEN_KEEPALIVE void editor_set_selected_tile(int tileId) {
     ArtCade::EditorAPI::s_selectedTileId = tileId;
 }
 
+EMSCRIPTEN_KEEPALIVE void editor_set_tool(int toolId) {
+    if (toolId < ArtCade::ToolSelect || toolId > ArtCade::ToolErase)
+        toolId = ArtCade::ToolSelect;
+    ArtCade::EditorAPI::s_editorTool = toolId;
+    ArtCade::EditorAPI::s_tilePaintMode = ArtCade::isPaintTool(toolId);
+}
+
+EMSCRIPTEN_KEEPALIVE void editor_set_guides_enabled(int enabled) {
+    ArtCade::EditorAPI::s_editorGuidesEnabled = (enabled != 0);
+}
+
 EMSCRIPTEN_KEEPALIVE void editor_register_image(
     const char* path, const uint8_t* bytes, int len, const char* ext) {
     if (!path || !*path || !bytes || len <= 0) {
@@ -483,6 +537,9 @@ EMSCRIPTEN_KEEPALIVE void editor_load_project(const char* json_utf8) {
 
     try {
         const json doc = json::parse(json_utf8);
+        ArtCade::Vec2 gameResolution{1280.f, 720.f};
+        if (doc.contains("gameResolution"))      gameResolution = parseVec2(doc["gameResolution"]);
+        if (doc.contains("game_resolution"))     gameResolution = parseVec2(doc["game_resolution"]);
 
         // ── Parse entities ────────────────────────────────────────────────────
         std::unordered_map<ArtCade::EntityId, ArtCade::EntityDef> entityDefs;
@@ -542,6 +599,17 @@ EMSCRIPTEN_KEEPALIVE void editor_load_project(const char* json_utf8) {
             activeId = sceneDefs.begin()->first;
         gateway->replaceProject(sceneDefs, entityDefs, activeId);
         gateway->setTilesets(std::move(tilesets));
+        if (auto* renderer = ArtCade::EditorAPI::s_renderer) {
+            if (gameResolution.x > 0.f && gameResolution.y > 0.f) {
+                renderer->setWindowSize(
+                    static_cast<uint32_t>(gameResolution.x),
+                    static_cast<uint32_t>(gameResolution.y),
+                    "ArtCade V2");
+            }
+            if (const ArtCade::SceneDef* sc = gateway->activeScene()) {
+                renderer->setSceneViewport(sc->worldSize, sc->viewportSize);
+            }
+        }
 
         char buf[128];
         std::snprintf(buf, sizeof(buf),

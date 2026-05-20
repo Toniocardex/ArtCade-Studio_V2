@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Settings, ChevronRight, Trash2 } from 'lucide-react'
 import { useEditor } from '../store/editor-store'
-import type { EntityDef, ComponentKey } from '../types'
+import type { EntityDef, ComponentKey, SceneDef } from '../types'
 import { editorSetTransform, isReady } from '../utils/wasm-bridge'
 import {
   COMPONENT_REGISTRY,
@@ -106,6 +106,82 @@ function NumberField({
         className="w-full bg-[var(--border)] border border-[var(--border-2)] rounded px-2 py-1
                    text-xs text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
       />
+    </div>
+  )
+}
+
+function parseSceneDimension(value: string, fallback: number): number {
+  const n = Math.round(Number(value))
+  return Number.isFinite(n) ? Math.min(8192, Math.max(64, n)) : fallback
+}
+
+function SceneSettings({ scene }: { scene: SceneDef }) {
+  const { dispatch } = useEditor()
+
+  function commitWorld(patch: Partial<{ x: number; y: number }>) {
+    dispatch({
+      type: 'SCENE_SET_WORLD_SIZE',
+      sceneId: scene.id,
+      x: patch.x ?? scene.worldSize.x,
+      y: patch.y ?? scene.worldSize.y,
+    })
+  }
+
+  function commitViewport(patch: Partial<{ x: number; y: number }>) {
+    dispatch({
+      type: 'SCENE_SET_VIEWPORT_SIZE',
+      sceneId: scene.id,
+      x: patch.x ?? scene.viewportSize.x,
+      y: patch.y ?? scene.viewportSize.y,
+    })
+  }
+
+  return (
+    <div>
+      <SectionRow label="Scene Settings" />
+      <div className="mb-3">
+        <label className="text-[9px] text-[var(--muted)] uppercase block mb-0.5">Scene Size</label>
+        <div className="grid grid-cols-2 gap-2">
+          <Field
+            label="Width"
+            value={scene.worldSize.x}
+            onCommit={(value) => commitWorld({
+              x: parseSceneDimension(value, scene.worldSize.x),
+            })}
+          />
+          <Field
+            label="Height"
+            value={scene.worldSize.y}
+            onCommit={(value) => commitWorld({
+              y: parseSceneDimension(value, scene.worldSize.y),
+            })}
+          />
+        </div>
+      </div>
+      <div className="mb-3">
+        <label className="text-[9px] text-[var(--muted)] uppercase block mb-0.5">Viewport</label>
+        <div className="grid grid-cols-2 gap-2">
+          <Field
+            label="Width"
+            value={scene.viewportSize.x}
+            onCommit={(value) => commitViewport({
+              x: parseSceneDimension(value, scene.viewportSize.x),
+            })}
+          />
+          <Field
+            label="Height"
+            value={scene.viewportSize.y}
+            onCommit={(value) => commitViewport({
+              y: parseSceneDimension(value, scene.viewportSize.y),
+            })}
+          />
+        </div>
+      </div>
+      {scene.tilemap && (
+        <p className="text-[9px] text-[var(--muted)] leading-snug mb-3">
+          Tilemap: {scene.tilemap.cols} x {scene.tilemap.rows} cells at {scene.tilemap.tileSize}px.
+        </p>
+      )}
     </div>
   )
 }
@@ -285,7 +361,7 @@ function EntityInspector({ entity }: { entity: EntityDef }) {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-3" data-panel="inspector">
+    <>
       {/* Name */}
       <Field
         label="Entity Name"
@@ -427,7 +503,7 @@ function EntityInspector({ entity }: { entity: EntityDef }) {
           </button>
         </>
       )}
-    </div>
+    </>
   )
 }
 
@@ -440,6 +516,8 @@ export default function InspectorPanel() {
   const entity = (project && selection.entityId != null)
     ? project.entities[selection.entityId]
     : null
+  const sceneId = selection.sceneId ?? project?.activeSceneId
+  const scene = project && sceneId ? project.scenes[sceneId] : null
 
   return (
     <div className="h-full flex flex-col bg-[var(--panel)]" data-panel="inspector">
@@ -448,13 +526,22 @@ export default function InspectorPanel() {
         <span className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-widest">Inspector</span>
       </div>
 
-      {entity ? (
-        <EntityInspector key={entity.id} entity={entity} />
-      ) : (
-        <div className="flex-1 flex items-center justify-center opacity-20">
-          <span className="text-[10px] uppercase tracking-widest">Select an entity</span>
+      <div className="flex-1 overflow-y-auto px-4 py-3" data-panel="inspector">
+        {scene && <SceneSettings scene={scene} />}
+
+        {entity ? (
+          <EntityInspector key={entity.id} entity={entity} />
+        ) : (
+          <div className="py-8 flex items-center justify-center opacity-20">
+            <span className="text-[10px] uppercase tracking-widest">Select an entity</span>
+          </div>
+        )}
+        {!scene && (
+          <div className="py-8 flex items-center justify-center opacity-20">
+            <span className="text-[10px] uppercase tracking-widest">No active scene</span>
+          </div>
+        )}
         </div>
-      )}
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { coreReducer, type CoreState } from './editor-store'
 import { parseProjectDoc, serializeProjectDoc } from '../utils/project'
-import { createTilemap, DEFAULT_TILE_PALETTE } from '../types'
+import { createTilemap, DEFAULT_TILE_PALETTE, resizeTilemap } from '../types'
 import type { ProjectDoc } from '../types'
 
 function project(): ProjectDoc {
@@ -35,6 +35,24 @@ describe('createTilemap', () => {
   it('clamps tiny / huge worlds', () => {
     expect(createTilemap(50, 50, 32).cols).toBe(8)      // min 8
     expect(createTilemap(9999, 9999, 32).cols).toBe(64) // max 64
+  })
+})
+
+describe('resizeTilemap', () => {
+  it('preserves overlapping cells and pads new cells as empty', () => {
+    const tm = createTilemap(640, 320, 32)
+    tm.data[2 * tm.cols + 3] = 7
+
+    const bigger = resizeTilemap(tm, 1280, 640)
+    expect(bigger.cols).toBe(40)
+    expect(bigger.rows).toBe(20)
+    expect(bigger.data[2 * bigger.cols + 3]).toBe(7)
+    expect(bigger.data[bigger.data.length - 1]).toBe(0)
+
+    const smaller = resizeTilemap(bigger, 320, 192)
+    expect(smaller.cols).toBe(10)
+    expect(smaller.rows).toBe(6)
+    expect(smaller.data[2 * smaller.cols + 3]).toBe(7)
   })
 })
 
@@ -82,6 +100,24 @@ describe('coreReducer — tilemap', () => {
     expect(
       coreReducer(st(project()), { type: 'TILEMAP_PAINT', sceneId: 'nope', index: 0, tileId: 1 }).projectDirty,
     ).toBe(false)
+  })
+
+  it('SCENE_SET_WORLD_SIZE resizes an existing tilemap and marks dirty', () => {
+    let s = coreReducer(st(project()), { type: 'TILEMAP_INIT', sceneId: 's' })
+    const prevCols = s.project!.scenes.s.tilemap!.cols
+    s = coreReducer(s, { type: 'TILEMAP_PAINT_CELL', sceneId: 's', col: 3, row: 2, tileId: 4 })
+
+    const resized = coreReducer(s, {
+      type: 'SCENE_SET_WORLD_SIZE',
+      sceneId: 's',
+      x: 1280,
+      y: 640,
+    })
+    const tm = resized.project!.scenes.s.tilemap!
+    expect(resized.project!.scenes.s.worldSize).toEqual({ x: 1280, y: 640 })
+    expect(tm.cols).toBeGreaterThan(prevCols)
+    expect(tm.data[2 * tm.cols + 3]).toBe(4)
+    expect(resized.projectDirty).toBe(true)
   })
 })
 

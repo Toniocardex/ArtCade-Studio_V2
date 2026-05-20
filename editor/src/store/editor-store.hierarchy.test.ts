@@ -87,6 +87,20 @@ describe('coreReducer — hierarchy', () => {
     expect(s.projectDirty).toBe(true)
   })
 
+  it('scene size and viewport updates mark the project dirty', () => {
+    let s = coreReducer(st(project()), {
+      type: 'SCENE_SET_WORLD_SIZE', sceneId: 's', x: 1600, y: 900,
+    })
+    expect(s.project!.scenes.s.worldSize).toEqual({ x: 1600, y: 900 })
+    expect(s.projectDirty).toBe(true)
+
+    s = coreReducer({ ...s, projectDirty: false }, {
+      type: 'SCENE_SET_VIEWPORT_SIZE', sceneId: 's', x: 800, y: 450,
+    })
+    expect(s.project!.scenes.s.viewportSize).toEqual({ x: 800, y: 450 })
+    expect(s.projectDirty).toBe(true)
+  })
+
   it('actions are no-ops without project / unknown entity', () => {
     const noProj = { ...st(project()), project: null }
     expect(coreReducer(noProj, { type: 'ENTITY_ADD', sceneId: 's' }).projectDirty).toBe(false)

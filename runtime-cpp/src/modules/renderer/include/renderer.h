@@ -23,6 +23,7 @@ public:
 
     // Must be called before init() to configure window parameters
     void setWindowSize(uint32_t width, uint32_t height, const std::string& title);
+    void setSceneViewport(const Vec2& worldSize, const Vec2& viewportSize);
 
     // Frame lifecycle
     void beginFrame(const Vec4& clearColor);
@@ -57,6 +58,7 @@ public:
                           float dstX, float dstY, float dstW, float dstH);
 
     void drawRect  (float x, float y, float w, float h, const Vec4& color);
+    void drawRectImmediate(float x, float y, float w, float h, const Vec4& color);
     void drawLine  (float x1, float y1, float x2, float y2, const Vec4& color);
     void drawCircle(float x, float y, float radius, const Vec4& color);
     void drawText  (const std::string& text, float x, float y,
@@ -80,6 +82,9 @@ public:
     // 2D camera
     void setCameraPosition(const Vec2& pos);
     void setCameraZoom    (float zoom);
+    void panCameraByScreenDelta(float dx, float dy);
+    Vec2 screenToWorld    (float screenX, float screenY) const;
+    Vec2 visibleWorldSize () const;
     Vec2 getCameraPosition() const;
     float getCameraZoom()   const;
 

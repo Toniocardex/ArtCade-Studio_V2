@@ -6,7 +6,7 @@ import type {
   LogicBoard, LogicEvent, ComponentKey, WorldSettings, TilesetAsset, ImageAsset,
   SpriteComponent,
 } from '../types'
-import { DEFAULT_WORLD, createTilemap } from '../types'
+import { DEFAULT_WORLD, createTilemap, resizeTilemap } from '../types'
 import { createEntityDef, nextEntityId } from '../utils/project'
 
 // ---------------------------------------------------------------------------
@@ -191,6 +191,8 @@ export type Action =
   | { type: 'ENTITY_SET_NAME';    entityId: number; name: string }
   | { type: 'ENTITY_SET_CLASSNAME'; entityId: number; className: string }
   | { type: 'WORLD_SET';         patch: Partial<WorldSettings> }
+  | { type: 'SCENE_SET_WORLD_SIZE'; sceneId: string; x: number; y: number }
+  | { type: 'SCENE_SET_VIEWPORT_SIZE'; sceneId: string; x: number; y: number }
   | { type: 'TILEMAP_INIT';  sceneId: string }
   | { type: 'TILEMAP_PAINT'; sceneId: string; index: number; tileId: number }
   | { type: 'TILEMAP_PAINT_CELL'; sceneId: string; col: number; row: number; tileId: number }
@@ -545,6 +547,44 @@ export function coreReducer(state: CoreState, action: Action): CoreState {
       return {
         ...state,
         project: { ...state.project, world },
+        projectDirty: true,
+      }
+    }
+    case 'SCENE_SET_WORLD_SIZE': {
+      const sc = state.project?.scenes[action.sceneId]
+      if (!state.project || !sc) return state
+      const worldSize = { x: action.x, y: action.y }
+      if (sc.worldSize.x === worldSize.x && sc.worldSize.y === worldSize.y) return state
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          scenes: {
+            ...state.project.scenes,
+            [action.sceneId]: {
+              ...sc,
+              worldSize,
+              ...(sc.tilemap ? { tilemap: resizeTilemap(sc.tilemap, worldSize.x, worldSize.y) } : {}),
+            },
+          },
+        },
+        projectDirty: true,
+      }
+    }
+    case 'SCENE_SET_VIEWPORT_SIZE': {
+      const sc = state.project?.scenes[action.sceneId]
+      if (!state.project || !sc) return state
+      const viewportSize = { x: action.x, y: action.y }
+      if (sc.viewportSize.x === viewportSize.x && sc.viewportSize.y === viewportSize.y) return state
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          scenes: {
+            ...state.project.scenes,
+            [action.sceneId]: { ...sc, viewportSize },
+          },
+        },
         projectDirty: true,
       }
     }
