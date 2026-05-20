@@ -29,6 +29,7 @@ export type ParamWidget =
   | 'enum'
   | 'target'
   | 'color'
+  | 'keyCapture'
 
 export interface ParamFieldMeta {
   widget: ParamWidget

@@ -56,6 +56,7 @@ export type LogicCondition =
   | { type: 'isMouseOver'; radius?: number }                        // cursor near self
   | { type: 'raycastHit'; dirX: number; dirY: number; length: number; className?: string }
   | { type: 'chance'; percent: number }                             // math.random(100) <= n
+  | { type: 'isSpaceFree'; x: number; y: number; w: number; h: number }
 
 /**
  * Boolean tree for AND/OR/nested conditions (docs/LOGIC_BOARD_CONDITIONAL_DESIGN.md).
@@ -78,7 +79,21 @@ export type LogicAction =
   | { type: 'playMusic'; path: string; loop?: boolean }
   | { type: 'stopAllAudio' }
   | { type: 'destroyEntity'; target: TargetSelector }
-  | { type: 'spawnEntity'; className: string; x: number; y: number }
+  | {
+      type: 'spawnEntity'
+      className: string
+      x: number
+      y: number
+      inheritFlip?: boolean
+      /** Spawn at a named point on self's sprite asset (overrides x,y when set). */
+      imagePoint?: string
+    }
+  | {
+      type: 'moveInDirection'
+      target: TargetSelector
+      direction: 'up' | 'down' | 'left' | 'right' | 'forward' | 'backward'
+      speed: number
+    }
   | { type: 'setGlobalState'; key: string; value: number | string | boolean }
   | { type: 'emitEvent'; name: string; payloadKey?: string; payloadValue?: number | string | boolean }
   | { type: 'toggleLogicEvent'; eventId: string; enabled: boolean }
@@ -88,12 +103,16 @@ export type LogicAction =
   | { type: 'setScale'; target: TargetSelector; scaleX: number; scaleY: number }
   | { type: 'setVisible'; target: TargetSelector; visible: boolean }
   | { type: 'setColorTint'; target: TargetSelector; hexColor: string; alpha?: number }
-  | { type: 'loadScene'; sceneName: string }
+  | { type: 'loadScene'; sceneName: string; fadeSeconds?: number }
   | { type: 'restartScene' }
   | { type: 'setCameraTarget'; target: TargetSelector }
   | { type: 'debugLog'; message: string }
   /** Pauses the action sequence; following actions run inside time.delay (or use `then`). */
   | { type: 'wait'; seconds: number; then?: LogicAction[] }
+  | { type: 'moveByOffset'; target: TargetSelector; dx: number; dy: number }
+  | { type: 'snapToGrid'; target: TargetSelector; cellSize: number }
+  | { type: 'setEntityShader'; target: TargetSelector; shader: string }
+  | { type: 'setScreenShader'; shader: string }
 
 export type LogicActionType = LogicAction['type']
 

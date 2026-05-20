@@ -43,7 +43,8 @@ public:
                     float          rotation,   // degrees
                     const Vec2&    scale,
                     const Vec4&    tint,
-                    float          alpha);
+                    float          alpha,
+                    const std::string& shaderEffect = "");
 
     /**
      * Phase F3: draw a sub-rectangle (atlas cell) of a texture at a
@@ -85,6 +86,10 @@ public:
     uint32_t windowWidth()  const;
     uint32_t windowHeight() const;
     float    deltaTime()    const;   // wraps Raylib GetFrameTime()
+
+    void setScreenShader(const std::string& name);
+    void drawFadeOverlay(float alpha);
+    void drawScreenPostEffects();
 
 private:
     struct Impl;

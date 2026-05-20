@@ -63,12 +63,19 @@ struct PhysicsComponent {
 // Sprite / Animation
 // ============================================================================
 
+struct ImagePointDef {
+    std::string id;
+    float       x = 0.f;   // normalised 0..1 on sprite
+    float       y = 0.f;
+};
+
 struct SpriteComponent {
     AssetId spriteAssetId;
     Vec4    tint        = {1.f, 1.f, 1.f, 1.f};
     float   alpha       = 1.f;
     Vec2    pivot       = {0.5f, 0.5f};
     int32_t renderOrder = 0;
+    std::string shaderEffect;  // "" | outline | hit_flash | palette_swap | wave
 };
 
 struct AnimationState {
@@ -180,6 +187,11 @@ struct TilePaletteEntry {
 // Project document (root data model)
 // ============================================================================
 
+struct ImageAssetDef {
+    std::string assetId;
+    std::vector<ImagePointDef> imagePoints;
+};
+
 struct ProjectDoc {
     std::string  projectName;
     std::string  version         = "2.0.0";
@@ -194,6 +206,7 @@ struct ProjectDoc {
     std::unordered_map<SceneId,  std::string> thumbnails;
     std::vector<TilePaletteEntry> tilePalette;   // Phase D2
     std::vector<TilesetAsset>     tilesets;      // Phase F3
+    std::vector<ImageAssetDef>    imageAssets;   // editor assets + image points
 };
 
 // ============================================================================

@@ -22,11 +22,16 @@ void World::init(const ProjectDoc& doc) {
     entityGateway_.setPhysics(&physics_);
     entityGateway_.replaceProject(doc.scenes, doc.entities, doc.activeSceneId);
 
+    tileSolid_.clear();
+    activeTilemap_ = TilemapData{};
+    for (const auto& e : doc.tilePalette) tileSolid_[e.id] = e.solid;
+
     int created = 0;
     const SceneId sid = entityGateway_.activeSceneId();
     auto sceneIt = doc.scenes.find(sid);
     if (sceneIt == doc.scenes.end()) return;
-    const TilemapData& tm = sceneIt->second.tilemap;
+    activeTilemap_ = sceneIt->second.tilemap;
+    const TilemapData& tm = activeTilemap_;
     if (tm.cols <= 0 || tm.rows <= 0) return;
 
     std::unordered_map<int, bool> solid;
@@ -60,10 +65,22 @@ void World::shutdown() {
     variables_.clear();
     platformerRt_.clear();
     sensorWasOverlapping_.clear();
+    sensorEdgeBuffer_.clear();
+}
+
+std::vector<SensorEdgeEvent> World::pollSensorEdges() {
+    std::vector<SensorEdgeEvent> out;
+    out.swap(sensorEdgeBuffer_);
+    return out;
 }
 
 bool World::loadScene(const SceneId& id) {
-    return entityGateway_.loadScene(id);
+    if (!entityGateway_.loadScene(id)) return false;
+    if (const SceneDef* sc = entityGateway_.activeScene())
+        activeTilemap_ = sc->tilemap;
+    else
+        activeTilemap_ = TilemapData{};
+    return true;
 }
 
 SceneId World::activeSceneId() const {
@@ -174,6 +191,7 @@ void World::tickSensorOverlapEdges() {
         if (e->physics.physicsHandle == 0) continue;
 
         bool overlapping = false;
+        EntityId otherHit = INVALID_ENTITY;
         const std::string& target = e->sensor->targetTag;
 
         for (EntityId otherId : entityGateway_.byTag(target)) {
@@ -183,26 +201,75 @@ void World::tickSensorOverlapEdges() {
             if (physics_.areOverlapping(e->physics.physicsHandle,
                                         other->physics.physicsHandle)) {
                 overlapping = true;
+                otherHit = otherId;
                 break;
             }
         }
 
         const bool was = sensorWasOverlapping_[id];
-        if (overlapping && !was)
-            std::cout << "[Sensor] enter entity " << id << " tag=" << target << "\n";
-        else if (!overlapping && was)
-            std::cout << "[Sensor] exit entity " << id << " tag=" << target << "\n";
+        if (overlapping && !was) {
+            sensorEdgeBuffer_.push_back({ id, otherHit, target, true });
+        } else if (!overlapping && was) {
+            sensorEdgeBuffer_.push_back({ id, INVALID_ENTITY, target, false });
+        }
 
         sensorWasOverlapping_[id] = overlapping;
     }
 }
 
 void World::tickGameplaySystems(float dt) {
+    if (const SceneDef* sc = entityGateway_.activeScene())
+        activeTilemap_ = sc->tilemap;
     tickPlatformerControllers(dt);
+    tickSensorOverlapEdges();
 }
 
 void World::flushEntityQueues() {
     entityGateway_.flushPendingOperations();
+}
+
+void World::snapEntityToGrid(EntityId id, float cellSize) {
+    if (cellSize <= 0.f) return;
+    auto* e = entityGateway_.get(id);
+    if (!e) return;
+    const float cs = cellSize;
+    e->transform.position.x = std::round(e->transform.position.x / cs) * cs;
+    e->transform.position.y = std::round(e->transform.position.y / cs) * cs;
+    if (e->physics.physicsHandle != 0)
+        physics_.setPosition(e->physics.physicsHandle, e->transform.position);
+}
+
+void World::moveEntityByOffset(EntityId id, float dx, float dy) {
+    auto* e = entityGateway_.get(id);
+    if (!e) return;
+    e->transform.position.x += dx;
+    e->transform.position.y += dy;
+    if (e->physics.physicsHandle != 0)
+        physics_.setPosition(e->physics.physicsHandle, e->transform.position);
+}
+
+bool World::isSpaceFree(float x, float y, float w, float h) const {
+    const auto& tm = activeTilemap_;
+    if (tm.cols <= 0 || tm.rows <= 0 || tm.tileSize <= 0.f) return true;
+
+    const float ts = tm.tileSize;
+    const int c0 = static_cast<int>(std::floor(x / ts));
+    const int r0 = static_cast<int>(std::floor(y / ts));
+    const int c1 = static_cast<int>(std::floor((x + w) / ts));
+    const int r1 = static_cast<int>(std::floor((y + h) / ts));
+
+    for (int r = r0; r <= r1; ++r) {
+        for (int c = c0; c <= c1; ++c) {
+            if (c < 0 || r < 0 || c >= tm.cols || r >= tm.rows) return false;
+            const int idx = r * tm.cols + c;
+            if (idx >= static_cast<int>(tm.data.size())) continue;
+            const int tid = tm.data[idx];
+            if (tid <= 0) continue;
+            auto it = tileSolid_.find(tid);
+            if (it != tileSolid_.end() && it->second) return false;
+        }
+    }
+    return true;
 }
 
 } // namespace ArtCade

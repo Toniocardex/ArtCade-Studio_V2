@@ -4,7 +4,7 @@ import { Image, Music, Code, FileText, ImagePlus } from 'lucide-react'
 import { useEditor } from '../store/editor-store'
 import { importImageIntoProject } from '../utils/api'
 import { dirName } from '../utils/project'
-import type { ImageAsset } from '../types'
+import type { ImageAsset, ImagePointDef } from '../types'
 
 /** Starter content used the first time a script asset is opened. */
 function scriptStub(name: string): string {
@@ -49,6 +49,7 @@ export default function AssetBrowserPanel() {
   const { state, dispatch } = useEditor()
   const [cat, setCat]   = useState<Category>('ALL')
   const [msg, setMsg]   = useState<string | null>(null)
+  const [selAssetId, setSelAssetId] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const project   = state.project
@@ -61,6 +62,17 @@ export default function AssetBrowserPanel() {
     setMsg(t)
     window.setTimeout(() => setMsg(null), 3000)
   }
+
+  function patchAssetPoints(assetId: string, points: ImagePointDef[]) {
+    if (!project) return
+    const assets = { ...(project.assets ?? {}) }
+    const a = assets[assetId]
+    if (!a) return
+    assets[assetId] = { ...a, imagePoints: points }
+    dispatch({ type: 'ASSET_ADD', asset: { ...a, imagePoints: points } })
+  }
+
+  const selAsset = selAssetId && project?.assets?.[selAssetId]
 
   // ── Import an image into the project's persistent asset library ───────────
   function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -166,6 +178,7 @@ export default function AssetBrowserPanel() {
           {showImages && images.map(asset => (
             <div
               key={asset.id}
+              onClick={() => setSelAssetId(asset.id)}
               onDoubleClick={() => assignSprite(asset)}
               title={selEntity
                 ? `Double-click → assign as sprite of "${selEntity.name}"`
@@ -208,6 +221,65 @@ export default function AssetBrowserPanel() {
             </div>
           ))}
         </div>
+
+        {selAsset && (
+          <div className="mt-4 p-3 rounded border border-[var(--border)] bg-[var(--panel)]">
+            <p className="text-[10px] uppercase tracking-wider text-[var(--muted)] mb-2">
+              Image points — {selAsset.name}
+            </p>
+            <ul className="space-y-1 mb-2">
+              {(selAsset.imagePoints ?? []).map((pt, i) => (
+                <li key={pt.id || i} className="flex gap-2 items-center text-xs">
+                  <input
+                    className="bg-[var(--bg)] border border-[var(--border-2)] rounded px-1 w-20"
+                    value={pt.id}
+                    placeholder="id"
+                    onChange={(e) => {
+                      const pts = [...(selAsset.imagePoints ?? [])]
+                      pts[i] = { ...pt, id: e.target.value }
+                      patchAssetPoints(selAsset.id, pts)
+                    }}
+                  />
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="bg-[var(--bg)] border border-[var(--border-2)] rounded px-1 w-14"
+                    value={pt.x}
+                    onChange={(e) => {
+                      const pts = [...(selAsset.imagePoints ?? [])]
+                      pts[i] = { ...pt, x: parseFloat(e.target.value) || 0 }
+                      patchAssetPoints(selAsset.id, pts)
+                    }}
+                  />
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="bg-[var(--bg)] border border-[var(--border-2)] rounded px-1 w-14"
+                    value={pt.y}
+                    onChange={(e) => {
+                      const pts = [...(selAsset.imagePoints ?? [])]
+                      pts[i] = { ...pt, y: parseFloat(e.target.value) || 0 }
+                      patchAssetPoints(selAsset.id, pts)
+                    }}
+                  />
+                </li>
+              ))}
+            </ul>
+            <button
+              type="button"
+              className="text-[10px] text-[var(--accent)]"
+              onClick={() => {
+                const prev = selAsset.imagePoints ?? []
+                patchAssetPoints(selAsset.id, [
+                  ...prev,
+                  { id: `point_${prev.length + 1}`, x: 0.5, y: 0.5 },
+                ])
+              }}
+            >
+              + Add point
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

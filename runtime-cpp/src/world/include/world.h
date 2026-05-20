@@ -3,6 +3,7 @@
 #include "../../core/types.h"
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace ArtCade::Modules {
     class RuntimeEntityGateway;
@@ -12,6 +13,14 @@ namespace ArtCade::Modules {
 }
 
 namespace ArtCade {
+
+/** One sensor overlap edge detected this frame (consumed via pollSensorEdges). */
+struct SensorEdgeEvent {
+    EntityId    entityId = INVALID_ENTITY;
+    EntityId    otherId  = INVALID_ENTITY;
+    std::string targetTag;
+    bool        enter    = false;
+};
 
 /**
  * World — game-state orchestrator (Layer 3).
@@ -43,6 +52,13 @@ public:
 
     std::vector<EntityId> activeEntityIds() const;
 
+    /** Drain and clear sensor enter/exit events queued since last poll. */
+    std::vector<SensorEdgeEvent> pollSensorEdges();
+
+    void snapEntityToGrid(EntityId id, float cellSize);
+    void moveEntityByOffset(EntityId id, float dx, float dy);
+    bool isSpaceFree(float x, float y, float w, float h) const;
+
 private:
     Modules::RuntimeEntityGateway& entityGateway_;
     Modules::Physics&              physics_;
@@ -57,6 +73,10 @@ private:
 
     /** Sensor overlap memory: entityId -> was overlapping target last frame. */
     std::unordered_map<EntityId, bool> sensorWasOverlapping_;
+    std::vector<SensorEdgeEvent>       sensorEdgeBuffer_;
+
+    TilemapData  activeTilemap_;
+    std::unordered_map<int, bool> tileSolid_;
 
     bool isGrounded(EntityId id, const std::string& groundClass) const;
     void tickPlatformerControllers(float dt);

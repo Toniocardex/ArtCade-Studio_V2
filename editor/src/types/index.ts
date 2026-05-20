@@ -102,11 +102,19 @@ export const DEFAULT_WORLD: WorldSettings = {
  * `dataUrl` is a transient in-memory copy (browser / pre-save preview /
  * delivery to the WASM runtime); it is NOT serialized.
  */
+export interface ImagePointDef {
+  id: string
+  /** Normalised 0..1 on sprite texture */
+  x: number
+  y: number
+}
+
 export interface ImageAsset {
   id:       string
   name:     string
   path:     string
   dataUrl?: string
+  imagePoints?: ImagePointDef[]
 }
 
 export interface ProjectDoc {

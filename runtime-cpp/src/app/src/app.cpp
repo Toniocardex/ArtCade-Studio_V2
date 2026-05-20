@@ -309,6 +309,7 @@ void Application::loopIteration() {
         mod_->gameStateManager->update(targetDt_);
         mod_->eventBus->flushDeferred();
         mod_->world->tickGameplaySystems(targetDt_);
+        mod_->entityGateway->tickSceneTransition(targetDt_);
         mod_->luaHost->tick(targetDt_);
         mod_->physics->step(targetDt_);
         mod_->world->syncPhysicsToEntities();
@@ -428,8 +429,13 @@ void Application::renderActiveScene() {
             e->transform.rotation,
             e->transform.scale,
             e->sprite.tint,
-            e->sprite.alpha);
+            e->sprite.alpha,
+            e->sprite.shaderEffect);
     }
+
+    const float fade = mod_->entityGateway->sceneFadeAlpha();
+    if (fade > 0.f)
+        mod_->renderer->drawFadeOverlay(fade);
 
     // Phase D3: editor-only viewport feedback (gizmo + sensor area).
     // Hidden in play mode (s_mode == 1) so it never shows in the game.

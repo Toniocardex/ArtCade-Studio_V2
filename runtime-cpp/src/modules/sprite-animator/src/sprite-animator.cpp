@@ -11,6 +11,13 @@ bool SpriteAnimator::init() {
 void SpriteAnimator::shutdown() {
     clips_.clear();
     instances_.clear();
+    finishBuffer_.clear();
+}
+
+std::vector<SpriteAnimator::FinishEvent> SpriteAnimator::pollFinished() {
+    std::vector<FinishEvent> out;
+    out.swap(finishBuffer_);
+    return out;
 }
 
 // ------------------------------------------------------------------ clip definition
@@ -94,6 +101,7 @@ void SpriteAnimator::update(float dt) {
                 } else {
                     inst.frameIdx = count - 1;
                     inst.state    = PlayState::Stopped;
+                    finishBuffer_.push_back({ entity, inst.clipName });
                     if (inst.onFinish)
                         inst.onFinish(entity, inst.clipName);
                     break;

@@ -3,7 +3,9 @@
 #include "../../../core/module.h"
 #include "../../../core/types.h"
 #include <string>
+#include <unordered_map>
 #include <vector>
+#include <optional>
 
 namespace ArtCade::Modules {
 
@@ -40,9 +42,14 @@ public:
 
     bool isDevMode() const { return devMode_; }
 
+    /** Normalised image point 0..1 on asset path; empty if unknown. */
+    std::optional<Vec2> getImagePoint(const std::string& assetPath,
+                                      const std::string& pointId) const;
+
 private:
     bool        devMode_  = false;
     std::string rootPath_;
+    std::unordered_map<std::string, std::vector<ImagePointDef>> imagePointsByAsset_;
 
     bool parseProjectJson(const std::string& path, ProjectDoc& out);
     bool parseGameJson(const std::string& path,    ProjectDoc& out);

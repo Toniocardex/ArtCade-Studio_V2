@@ -44,7 +44,7 @@
     "x-artcade": {
       "label": "Is Key Down",
       "category": "Input",
-      "params": { "keyCode": { "widget": "string", "label": "Key", "placeholder": "Space" } }
+      "params": { "keyCode": { "widget": "keyCapture", "label": "Key", "placeholder": "Press key…" } }
     }
   },
   "hasTag": {
@@ -129,6 +129,28 @@
       "label": "Chance",
       "category": "State",
       "params": { "percent": { "widget": "number", "label": "Percent" } }
+    }
+  },
+  "isSpaceFree": {
+    "type": "object",
+    "required": ["type", "x", "y", "w", "h"],
+    "properties": {
+      "type": { "const": "isSpaceFree" },
+      "x": { "type": "number" },
+      "y": { "type": "number" },
+      "w": { "type": "number" },
+      "h": { "type": "number" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Is Space Free",
+      "category": "Physics",
+      "params": {
+        "x": { "widget": "number", "label": "X" },
+        "y": { "widget": "number", "label": "Y" },
+        "w": { "widget": "number", "label": "W" },
+        "h": { "widget": "number", "label": "H" }
+      }
     }
   }
 }

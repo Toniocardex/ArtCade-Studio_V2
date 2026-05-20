@@ -24,19 +24,21 @@
 
 ### 3. UX «Zero Matematica»
 
-- Modale cattura tasto per `onInput` (widget `keyCapture` nello schema).
-- `spawnEntity`: `inheritFlip`, image points dallo sprite editor.
-- `moveInDirection` / bussola Forward-Backward.
-- Azioni griglia: `moveByOffset`, `snapToGrid`, `isSpaceFree` (+ API C++).
+- [x] Modale cattura tasto (`keyCapture` + `KeyCapture.tsx`) — 2026-05
+- [x] `spawnEntity`: `inheritFlip`, `imagePoint` + editor image points — 2026-05
+- [x] `moveInDirection` / bussola Forward-Backward — 2026-05
+- [x] Azioni griglia: `moveByOffset`, `snapToGrid`, condizione `isSpaceFree` — 2026-05
 
 ### 4. Shaders built-in (Riepilogo §4)
 
-- `setEntityShader` / `setScreenShader` in renderer + azioni Logic.
+- [x] MVP `setEntityShader` / `setScreenShader` (outline, hit_flash, crt scanlines) — 2026-05
 
 ### 5. Runtime polish
 
-- Esporre sensor enter/exit a Lua (`event.on` / buffer C++).
-- Transizioni `loadScene` (fade) come parametro azione.
+- [x] Sensor enter/exit → Lua `sensor.poll()` (buffer `World`, tick ogni frame) — 2026-05
+- [x] Compilatore: `onTriggerEnter`/`Exit` via `sensor.poll` — 2026-05
+- [x] Transizioni `loadScene` (`fadeSeconds` + fade gateway) — 2026-05
+- [x] Hook `onAnimationEnd` / `onDestroy` → `animation.pollFinished` / `lifecycle.pollDestroyed` — 2026-05
 
 ---
 

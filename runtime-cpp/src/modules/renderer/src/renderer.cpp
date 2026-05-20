@@ -1,6 +1,7 @@
 #include "../include/renderer.h"
 #include "texture-cache.h"
 #include <raylib.h>
+#include <algorithm>
 #include <vector>
 
 namespace ArtCade::Modules {
@@ -29,6 +30,7 @@ struct Renderer::Impl {
 
     // Draw commands queued by Lua during tick(); flushed in endFrame().
     std::vector<DrawCmd> drawQueue;
+    std::string screenShader;
 };
 
 // ------------------------------------------------------------------ helpers
@@ -130,7 +132,30 @@ void Renderer::endFrame() {
     impl_->drawQueue.clear();
 
     EndMode2D();
+    drawScreenPostEffects();
     EndDrawing();
+}
+
+void Renderer::setScreenShader(const std::string& name) {
+    impl_->screenShader = name;
+}
+
+void Renderer::drawFadeOverlay(float alpha) {
+    if (alpha <= 0.f) return;
+    const int w = GetScreenWidth();
+    const int h = GetScreenHeight();
+    DrawRectangle(0, 0, w, h, Color{ 0, 0, 0,
+        static_cast<unsigned char>(std::min(255.f, alpha * 255.f)) });
+}
+
+void Renderer::drawScreenPostEffects() {
+    if (impl_->screenShader.empty() || impl_->screenShader == "none") return;
+    const int w = GetScreenWidth();
+    const int h = GetScreenHeight();
+    if (impl_->screenShader == "crt" || impl_->screenShader == "scanlines") {
+        for (int y = 0; y < h; y += 4)
+            DrawRectangle(0, y, w, 2, Color{ 0, 0, 0, 40 });
+    }
 }
 
 bool Renderer::shouldClose() const {
@@ -144,17 +169,30 @@ void Renderer::drawSprite(const AssetId& assetId,
                            float          rotation,
                            const Vec2&    scale,
                            const Vec4&    tint,
-                           float          alpha)
+                           float          alpha,
+                           const std::string& shaderEffect)
 {
+    const bool outline = (shaderEffect == "outline");
+    if (outline) {
+        const Vec4 outlineTint{ 0.f, 0.f, 0.f, tint.a };
+        const float o = 2.f;
+        drawSprite(assetId, { pos.x - o, pos.y }, rotation, scale, outlineTint, alpha, "");
+        drawSprite(assetId, { pos.x + o, pos.y }, rotation, scale, outlineTint, alpha, "");
+        drawSprite(assetId, { pos.x, pos.y - o }, rotation, scale, outlineTint, alpha, "");
+        drawSprite(assetId, { pos.x, pos.y + o }, rotation, scale, outlineTint, alpha, "");
+    }
+
+    Vec4 drawTint = tint;
+    if (shaderEffect == "hit_flash")
+        drawTint = { 1.f, 1.f, 1.f, tint.a };
+
     const Texture2D* tex = impl_->texCache.getByPath(assetId);
     if (!tex || tex->id == 0) {
-        // Fallback: draw a tinted rectangle so entities are always visible
-        // in the editor even when their sprite asset is missing from the VFS.
         const float fw = 32.f * scale.x;
         const float fh = 32.f * scale.y;
         DrawRectangleV({ pos.x - fw * 0.5f, pos.y - fh * 0.5f },
                        { fw, fh },
-                       toColor(tint, alpha));
+                       toColor(drawTint, alpha));
         return;
     }
 
@@ -164,7 +202,7 @@ void Renderer::drawSprite(const AssetId& assetId,
                       tex->height * scale.y };
     Vector2 origin = { dst.width * 0.5f, dst.height * 0.5f };
 
-    DrawTexturePro(*tex, src, dst, origin, rotation, toColor(tint, alpha));
+    DrawTexturePro(*tex, src, dst, origin, rotation, toColor(drawTint, alpha));
 }
 
 bool Renderer::drawSpriteRegion(const AssetId& assetId,

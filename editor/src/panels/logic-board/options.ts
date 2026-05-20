@@ -79,6 +79,8 @@ export function defaultCondition(
       return { type: 'raycastHit', dirX: 1, dirY: 0, length: 100, className: '' }
     case 'chance':
       return { type: 'chance', percent: 50 }
+    case 'isSpaceFree':
+      return { type: 'isSpaceFree', x: 0, y: 0, w: 32, h: 32 }
   }
 }
 
@@ -101,7 +103,9 @@ export function defaultAction(type: LogicActionType): LogicAction {
     case 'destroyEntity':
       return { type: 'destroyEntity', target: 'self' }
     case 'spawnEntity':
-      return { type: 'spawnEntity', className: '', x: 0, y: 0 }
+      return { type: 'spawnEntity', className: '', x: 0, y: 0, inheritFlip: false }
+    case 'moveInDirection':
+      return { type: 'moveInDirection', target: 'self', direction: 'forward', speed: 100 }
     case 'setGlobalState':
       return { type: 'setGlobalState', key: 'level', value: 1 }
     case 'emitEvent':
@@ -130,6 +134,14 @@ export function defaultAction(type: LogicActionType): LogicAction {
       return { type: 'debugLog', message: '' }
     case 'wait':
       return { type: 'wait', seconds: 1 }
+    case 'moveByOffset':
+      return { type: 'moveByOffset', target: 'self', dx: 0, dy: -32 }
+    case 'snapToGrid':
+      return { type: 'snapToGrid', target: 'self', cellSize: 32 }
+    case 'setEntityShader':
+      return { type: 'setEntityShader', target: 'self', shader: 'outline' }
+    case 'setScreenShader':
+      return { type: 'setScreenShader', shader: 'none' }
   }
 }
 
@@ -148,9 +160,9 @@ export function triggerSummary(t: LogicTrigger): string {
     case 'onTriggerExit':
       return `onTriggerExit · "${t.withClass || '?'}"`
     case 'onAnimationEnd':
-      return `onAnimationEnd · "${t.clipName || 'any'}" (stub)`
+      return `onAnimationEnd · "${t.clipName || 'any'}"`
     case 'onDestroy':
-      return 'onDestroy (stub)'
+      return 'onDestroy'
     case 'onInput':
       return `onInput · key "${t.keyCode}" · ${t.eventType}`
     case 'onMouseInput':
@@ -180,6 +192,8 @@ export function conditionSummary(c: LogicCondition): string {
       return `raycast (${c.dirX},${c.dirY})·${c.length}${c.className ? ` → "${c.className}"` : ''}`
     case 'chance':
       return `chance ${c.percent}%`
+    case 'isSpaceFree':
+      return `space free @ (${c.x},${c.y}) ${c.w}×${c.h}`
   }
 }
 
@@ -201,8 +215,15 @@ export function actionSummary(a: LogicAction): string {
       return 'stopAllAudio'
     case 'destroyEntity':
       return `destroyEntity ${targetLabel(a.target)}`
-    case 'spawnEntity':
-      return `spawnEntity "${a.className || '?'}" @ (${a.x}, ${a.y})`
+    case 'spawnEntity': {
+      const at = a.imagePoint
+        ? ` @ point "${a.imagePoint}"`
+        : ` @ (${a.x}, ${a.y})`
+      const flip = a.inheritFlip ? ' · inheritFlip' : ''
+      return `spawnEntity "${a.className || '?'}"${at}${flip}`
+    }
+    case 'moveInDirection':
+      return `moveInDirection ${targetLabel(a.target)} · ${a.direction} @ ${a.speed}`
     case 'setGlobalState':
       return `setGlobalState ${a.key} = ${a.value}`
     case 'emitEvent':
@@ -222,7 +243,7 @@ export function actionSummary(a: LogicAction): string {
     case 'setColorTint':
       return `setColorTint ${targetLabel(a.target)} ${a.hexColor}`
     case 'loadScene':
-      return `loadScene "${a.sceneName || '?'}"`
+      return `loadScene "${a.sceneName || '?'}"${a.fadeSeconds ? ` fade ${a.fadeSeconds}s` : ''}`
     case 'restartScene':
       return 'restartScene'
     case 'setCameraTarget':
@@ -233,6 +254,14 @@ export function actionSummary(a: LogicAction): string {
       return a.then?.length
         ? `wait ${a.seconds}s (then: ${a.then.length} action(s))`
         : `wait ${a.seconds}s`
+    case 'moveByOffset':
+      return `moveByOffset ${targetLabel(a.target)} (${a.dx}, ${a.dy})`
+    case 'snapToGrid':
+      return `snapToGrid ${targetLabel(a.target)} · ${a.cellSize}px`
+    case 'setEntityShader':
+      return `shader ${a.shader} → ${targetLabel(a.target)}`
+    case 'setScreenShader':
+      return `screen shader ${a.shader}`
   }
 }
 

@@ -97,7 +97,7 @@
       "label": "On Input",
       "category": "Input",
       "params": {
-        "keyCode": { "widget": "string", "label": "Key", "placeholder": "Space / KeyW" },
+        "keyCode": { "widget": "keyCapture", "label": "Key", "placeholder": "Press key…" },
         "eventType": { "widget": "enum", "label": "Event", "options": ["pressed", "down", "released"] }
       }
     }

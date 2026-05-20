@@ -10,6 +10,11 @@ add_library(artcade-game-api
     src/event-api.cpp
     src/time-api.cpp
     src/camera-api.cpp
+    src/sensor-api.cpp
+    src/animation-api.cpp
+    src/lifecycle-api.cpp
+    src/grid-api.cpp
+    src/shader-api.cpp
 )
 target_include_directories(artcade-game-api
     PUBLIC  include
@@ -26,6 +31,9 @@ target_link_libraries(artcade-game-api
         artcade-scene-system
         artcade-runtime-entity-gateway
         artcade-save-load
+        artcade-world
+        artcade-sprite-animator
+        artcade-asset-system
     PRIVATE
         lua54
 )

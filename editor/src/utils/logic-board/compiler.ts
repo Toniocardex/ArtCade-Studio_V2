@@ -94,6 +94,8 @@ function leafExpr(c: LogicCondition): string {
     }
     case 'chance':
       return `(math.random(100) <= ${Number(c.percent) || 0})`
+    case 'isSpaceFree':
+      return `grid.isSpaceFree(${Number(c.x) || 0}, ${Number(c.y) || 0}, ${Number(c.w) || 32}, ${Number(c.h) || 32})`
   }
 }
 
@@ -133,8 +135,32 @@ function actionLua(a: LogicAction): string {
       return `audio.stopAll()`
     case 'destroyEntity':
       return `entity.destroy(${targetExpr(a.target)})`
-    case 'spawnEntity':
-      return `object.spawn(${luaString(a.className)}, ${Number(a.x) || 0}, ${Number(a.y) || 0})`
+    case 'spawnEntity': {
+      const cls = luaString(a.className)
+      const spawn = a.imagePoint
+        ? `(function() local _px, _py = entity.imagePoint(self, ${luaString(a.imagePoint)}); return object.spawn(${cls}, _px, _py) end)()`
+        : `object.spawn(${cls}, ${Number(a.x) || 0}, ${Number(a.y) || 0})`
+      if (!a.inheritFlip) return spawn
+      return `(function() local _nid = ${spawn}; local _sx, _sy = entity.scale(self); local _fx = (_sx < 0) and -1 or 1; entity.setScale(_nid, _fx * math.abs(_sx), math.abs(_sy)); return _nid end)()`
+    }
+    case 'moveInDirection': {
+      const t = targetExpr(a.target)
+      const s = Number(a.speed) || 0
+      switch (a.direction) {
+        case 'up':
+          return `entity.setVelocity(${t}, 0, ${-s})`
+        case 'down':
+          return `entity.setVelocity(${t}, 0, ${s})`
+        case 'left':
+          return `entity.setVelocity(${t}, ${-s}, 0)`
+        case 'right':
+          return `entity.setVelocity(${t}, ${s}, 0)`
+        case 'forward':
+          return `(function() local _sx, _ = entity.scale(${t}); local _d = (_sx < 0) and -1 or 1; entity.setVelocity(${t}, _d * ${s}, 0) end)()`
+        case 'backward':
+          return `(function() local _sx, _ = entity.scale(${t}); local _d = (_sx < 0) and -1 or 1; entity.setVelocity(${t}, -_d * ${s}, 0) end)()`
+      }
+    }
     case 'setGlobalState':
       return `state.set(${luaString(a.key)}, ${luaValue(a.value)})`
     case 'emitEvent':
@@ -163,7 +189,9 @@ function actionLua(a: LogicAction): string {
       return `entity.setTint(${targetExpr(a.target)}, ${r}, ${g}, ${b}, ${al})`
     }
     case 'loadScene':
-      return `scene.load(${luaString(a.sceneName)})`
+      return a.fadeSeconds != null && a.fadeSeconds > 0
+        ? `scene.load(${luaString(a.sceneName)}, ${Number(a.fadeSeconds)})`
+        : `scene.load(${luaString(a.sceneName)})`
     case 'restartScene':
       return `scene.restart()`
     case 'setCameraTarget':
@@ -172,6 +200,14 @@ function actionLua(a: LogicAction): string {
       return `debug.log(${luaString(a.message)})`
     case 'wait':
       return `-- wait handled by emitActionSequence`
+    case 'moveByOffset':
+      return `grid.moveByOffset(${targetExpr(a.target)}, ${Number(a.dx) || 0}, ${Number(a.dy) || 0})`
+    case 'snapToGrid':
+      return `grid.snapToGrid(${targetExpr(a.target)}, ${Number(a.cellSize) || 32})`
+    case 'setEntityShader':
+      return `shaders.setEntity(${targetExpr(a.target)}, ${luaString(a.shader)})`
+    case 'setScreenShader':
+      return `shaders.setScreen(${luaString(a.shader)})`
   }
 }
 
@@ -226,29 +262,46 @@ function emitEventBody(ev: LogicEvent, board: LogicBoard, baseIndent: string): s
   const guard =
     condGuard === 'true' ? enableGuard : `${enableGuard} and (${condGuard})`
 
-  // onAnimationEnd / onDestroy need an engine-side hook that does not exist
-  // yet — emit nothing functional (safe no-op) so the board still compiles.
-  if (trig.type === 'onAnimationEnd' || trig.type === 'onDestroy') {
-    return [`${baseIndent}-- ${trig.type}: pending engine hook (no-op)`]
+  if (trig.type === 'onAnimationEnd') {
+    const inner = baseIndent + INDENT
+    const clipGuard =
+      trig.clipName && trig.clipName.length > 0
+        ? `af.clip == ${luaString(trig.clipName)}`
+        : 'true'
+    lines.push(`${baseIndent}for _, af in ipairs(_anim_finished[self] or {}) do`)
+    lines.push(`${baseIndent}${INDENT}if ${clipGuard} and ${guard} then`)
+    lines.push(...emitActionSequence(ev.actions, inner + INDENT))
+    lines.push(`${baseIndent}${INDENT}end`)
+    lines.push(`${baseIndent}end`)
+    return lines
   }
 
-  // onTriggerEnter / onTriggerExit: edge of collision.touchingClass with
-  // per-event memory in _trig (compiler-only, no engine change).
-  if (trig.type === 'onTriggerEnter' || trig.type === 'onTriggerExit') {
-    const key = luaString(`${board.boardId}:${ev.id}`)
+  if (trig.type === 'onDestroy') {
     const inner = baseIndent + INDENT
-    const cur = trig.withClass
-      ? `collision.touchingClass(self, ${luaString(trig.withClass)})`
-      : 'false'
-    const fire =
-      trig.type === 'onTriggerEnter'
-        ? `_tcur and not _trig[${key}]`
-        : `(not _tcur) and _trig[${key}]`
-    lines.push(`${baseIndent}local _tcur = ${cur}`)
-    lines.push(`${baseIndent}if (${fire}) and ${guard} then`)
-    lines.push(...emitActionSequence(ev.actions, inner))
+    lines.push(`${baseIndent}for _, de in ipairs(_destroy_events) do`)
+    lines.push(`${baseIndent}${INDENT}if de.entityId == self and ${guard} then`)
+    lines.push(...emitActionSequence(ev.actions, inner + INDENT))
+    lines.push(`${baseIndent}${INDENT}end`)
     lines.push(`${baseIndent}end`)
-    lines.push(`${baseIndent}_trig[${key}] = _tcur`)
+    return lines
+  }
+
+  // onTriggerEnter / onTriggerExit: edges from sensor.poll() (indexed in _sensor_by_ent).
+  if (trig.type === 'onTriggerEnter' || trig.type === 'onTriggerExit') {
+    const inner = baseIndent + INDENT
+    const tagGuard = trig.withClass
+      ? `se.tag == ${luaString(trig.withClass)}`
+      : 'true'
+    const edgeGuard =
+      trig.type === 'onTriggerEnter' ? 'se.enter' : '(not se.enter)'
+    lines.push(
+      `${baseIndent}for _, se in ipairs(_sensor_by_ent[self] or {}) do`,
+    )
+    lines.push(`${baseIndent}${INDENT}if ${tagGuard} and ${edgeGuard} and ${guard} then`)
+    lines.push(`${baseIndent}${INDENT}${INDENT}other = se.otherId`)
+    lines.push(...emitActionSequence(ev.actions, inner + INDENT))
+    lines.push(`${baseIndent}${INDENT}end`)
+    lines.push(`${baseIndent}end`)
     return lines
   }
 
@@ -329,6 +382,38 @@ function poolExpr(board: LogicBoard): string {
   return `{}`
 }
 
+function docUsesTriggerType(doc: LogicBoardDoc, types: Set<string>): boolean {
+  for (const board of doc) {
+    for (const ev of board.events) {
+      if (!ev.enabled) continue
+      if (types.has(ev.trigger.type)) return true
+    }
+  }
+  return false
+}
+
+const SENSOR_POLL_PREAMBLE = [
+  `${INDENT}local _sensor_by_ent = {}`,
+  `${INDENT}for _, se in ipairs(sensor.poll()) do`,
+  `${INDENT}${INDENT}local eid = se.entityId`,
+  `${INDENT}${INDENT}if not _sensor_by_ent[eid] then _sensor_by_ent[eid] = {} end`,
+  `${INDENT}${INDENT}table.insert(_sensor_by_ent[eid], se)`,
+  `${INDENT}end`,
+]
+
+const ANIM_POLL_PREAMBLE = [
+  `${INDENT}local _anim_finished = {}`,
+  `${INDENT}for _, af in ipairs(animation.pollFinished()) do`,
+  `${INDENT}${INDENT}local eid = af.entityId`,
+  `${INDENT}${INDENT}if not _anim_finished[eid] then _anim_finished[eid] = {} end`,
+  `${INDENT}${INDENT}table.insert(_anim_finished[eid], af)`,
+  `${INDENT}end`,
+]
+
+const DESTROY_POLL_PREAMBLE = [
+  `${INDENT}local _destroy_events = lifecycle.pollDestroyed()`,
+]
+
 function emitBoard(board: LogicBoard): { init: string[]; tick: string[] } {
   const enabled = board.events.filter((e) => e.enabled)
   const startEvents = enabled.filter((e) => e.trigger.type === 'onStart')
@@ -388,7 +473,6 @@ export function compileLogicBoard(doc: LogicBoardDoc): string {
     'local _logic_timers = {}   -- onTimer accumulators (not time.delay timers)',
     'local _logic_on = {}   -- toggleLogicEvent: false = disabled',
     'local _mb = {}         -- onMouseInput edge memory',
-    'local _trig = {}       -- onTriggerEnter/Exit edge memory',
     '',
     "-- Preserve the project's own tick(dt) so Logic Board logic is ADDITIVE,",
     '-- not a replacement. Hot-reload redefines the global tick(); without this',
@@ -404,6 +488,12 @@ export function compileLogicBoard(doc: LogicBoardDoc): string {
 
   const initBlocks: string[] = []
   const tickBlocks: string[] = []
+  const useSensor = docUsesTriggerType(
+    doc,
+    new Set(['onTriggerEnter', 'onTriggerExit']),
+  )
+  const useAnim = docUsesTriggerType(doc, new Set(['onAnimationEnd']))
+  const useDestroy = docUsesTriggerType(doc, new Set(['onDestroy']))
 
   for (const board of doc) {
     const { init, tick } = emitBoard(board)
@@ -427,6 +517,9 @@ export function compileLogicBoard(doc: LogicBoardDoc): string {
     `${INDENT}${INDENT}_logic_init()`,
     `${INDENT}${INDENT}_init_done = true`,
     `${INDENT}end`,
+    ...(useSensor ? SENSOR_POLL_PREAMBLE : []),
+    ...(useAnim ? ANIM_POLL_PREAMBLE : []),
+    ...(useDestroy ? DESTROY_POLL_PREAMBLE : []),
     ...tickBlocks,
     'end',
     '',

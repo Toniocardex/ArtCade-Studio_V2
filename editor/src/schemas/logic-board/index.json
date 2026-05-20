@@ -9,10 +9,11 @@
     "setVariable", "addVariable", "setPosition", "setVelocity", "playSound", "playMusic",
     "stopAllAudio", "destroyEntity", "spawnEntity", "setGlobalState", "emitEvent",
     "toggleLogicEvent", "applyImpulse", "applyForce", "setRotation", "setScale",
-    "setVisible", "setColorTint", "loadScene", "restartScene", "setCameraTarget", "debugLog", "wait"
+    "setVisible", "setColorTint", "loadScene", "restartScene", "setCameraTarget", "moveInDirection",
+    "moveByOffset", "snapToGrid", "setEntityShader", "setScreenShader", "debugLog", "wait"
   ],
   "conditions": [
     "compareVariable", "compareClass", "isKeyDown", "hasTag", "compareDistance",
-    "isMouseOver", "raycastHit", "chance"
+    "isMouseOver", "raycastHit", "chance", "isSpaceFree"
   ]
 }

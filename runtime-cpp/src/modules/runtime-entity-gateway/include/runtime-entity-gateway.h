@@ -53,6 +53,15 @@ public:
     void setTilesets(std::vector<TilesetAsset> tilesets);
 
     bool loadScene(const SceneId& id);
+    /** Fade to black, load scene, fade in. fadeSeconds <= 0 loads immediately. */
+    void requestLoadScene(const SceneId& id, float fadeSeconds = 0.f);
+    void tickSceneTransition(float dt);
+    /** 0 = no overlay, 1 = full black (for fade). */
+    float sceneFadeAlpha() const;
+
+    struct DestroyedEvent { EntityId entityId = 0; };
+    std::vector<DestroyedEvent> pollDestroyed();
+
     void syncSceneActivation();
     SceneId activeSceneId() const;
     const SceneDef* activeScene() const;
@@ -70,6 +79,13 @@ private:
 
     std::vector<EntityId> pendingDestroy_;
     std::vector<EntityDef> pendingSpawn_;
+    std::vector<DestroyedEvent> destroyBuffer_;
+
+    SceneId  pendingSceneId_;
+    float    fadeDuration_  = 0.f;
+    float    fadeElapsed_   = 0.f;
+    enum class FadePhase { None, Out, In };
+    FadePhase fadePhase_     = FadePhase::None;
 
     bool entityListedInActiveScene(EntityId id) const;
     void deactivateEntity(EntityId id);

@@ -4,6 +4,7 @@
 #include "../../physics/include/physics.h"
 
 #include <algorithm>
+#include <cmath>
 
 namespace ArtCade::Modules {
 
@@ -14,6 +15,8 @@ bool RuntimeEntityGateway::init()     { return true; }
 void RuntimeEntityGateway::shutdown() {
     pendingDestroy_.clear();
     pendingSpawn_.clear();
+    destroyBuffer_.clear();
+    fadePhase_ = FadePhase::None;
 }
 
 void RuntimeEntityGateway::setPhysics(Physics* physics) {
@@ -116,8 +119,10 @@ EntityId RuntimeEntityGateway::queueSpawn(const EntityDef& def) {
 }
 
 void RuntimeEntityGateway::flushPendingOperations() {
-    for (EntityId id : pendingDestroy_)
+    for (EntityId id : pendingDestroy_) {
+        destroyBuffer_.push_back({ id });
         destroy(id);
+    }
     pendingDestroy_.clear();
 
     for (const EntityDef& def : pendingSpawn_)
@@ -235,6 +240,52 @@ bool RuntimeEntityGateway::loadScene(const SceneId& id) {
     if (!sceneManager_.loadScene(id)) return false;
     syncSceneActivation();
     return true;
+}
+
+void RuntimeEntityGateway::requestLoadScene(const SceneId& id, float fadeSeconds) {
+    if (fadeSeconds <= 0.f) {
+        loadScene(id);
+        return;
+    }
+    pendingSceneId_ = id;
+    fadeDuration_   = fadeSeconds;
+    fadeElapsed_    = 0.f;
+    fadePhase_      = FadePhase::Out;
+}
+
+void RuntimeEntityGateway::tickSceneTransition(float dt) {
+    if (fadePhase_ == FadePhase::None) return;
+
+    fadeElapsed_ += dt;
+    const float half = fadeDuration_ * 0.5f;
+
+    if (fadePhase_ == FadePhase::Out) {
+        if (fadeElapsed_ >= half) {
+            loadScene(pendingSceneId_);
+            fadePhase_   = FadePhase::In;
+            fadeElapsed_ = 0.f;
+        }
+    } else if (fadePhase_ == FadePhase::In) {
+        if (fadeElapsed_ >= half) {
+            fadePhase_ = FadePhase::None;
+        }
+    }
+}
+
+float RuntimeEntityGateway::sceneFadeAlpha() const {
+    if (fadePhase_ == FadePhase::None || fadeDuration_ <= 0.f) return 0.f;
+    const float half = fadeDuration_ * 0.5f;
+    if (half <= 0.f) return 0.f;
+    if (fadePhase_ == FadePhase::Out)
+        return std::min(1.f, fadeElapsed_ / half);
+    return std::max(0.f, 1.f - fadeElapsed_ / half);
+}
+
+std::vector<RuntimeEntityGateway::DestroyedEvent>
+RuntimeEntityGateway::pollDestroyed() {
+    std::vector<DestroyedEvent> out;
+    out.swap(destroyBuffer_);
+    return out;
 }
 
 SceneId RuntimeEntityGateway::activeSceneId() const {

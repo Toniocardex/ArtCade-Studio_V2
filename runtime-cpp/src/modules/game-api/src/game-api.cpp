@@ -18,6 +18,11 @@ void GameAPI::registerAll(sol::state& lua) {
     bindStateAPI  (lua);   // state
     bindSaveAPI   (lua);   // save
     bindCameraAPI (lua);   // camera
+    bindSensorAPI    (lua);
+    bindAnimationAPI (lua);
+    bindLifecycleAPI (lua);
+    bindGridAPI      (lua);
+    bindShaderAPI    (lua);
 }
 
 } // namespace ArtCade::Modules

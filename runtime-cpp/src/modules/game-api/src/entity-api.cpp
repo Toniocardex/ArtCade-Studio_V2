@@ -1,16 +1,18 @@
 #include "../include/game-api.h"
 #include "../../runtime-entity-gateway/include/runtime-entity-gateway.h"
 #include "../../physics/include/physics.h"
+#include "../../asset-system/include/asset-loader.h"
 
 #include <sol/sol.hpp>
-#include <tuple>
 #include <cmath>
+#include <tuple>
 
 namespace ArtCade::Modules {
 
 void GameAPI::bindEntityAPI(sol::state& lua) {
     auto* entities = ctx_.entityGateway;
-    auto* physics = ctx_.physics;
+    auto* physics  = ctx_.physics;
+    auto* assets   = ctx_.assetLoader;
 
     // entity.position(id) → x, y
     lua.set_function("entity_position", [entities](EntityId id) -> std::tuple<float, float> {
@@ -54,6 +56,39 @@ void GameAPI::bindEntityAPI(sol::state& lua) {
     lua.set_function("entity_setScale", [entities](EntityId id, float sx, float sy) {
         if (auto* e = entities->get(id)) e->transform.scale = { sx, sy };
     });
+
+    // entity.scale(id) → sx, sy
+    lua.set_function("entity_scale", [entities](EntityId id) -> std::tuple<float, float> {
+        if (auto* e = entities->get(id))
+            return { e->transform.scale.x, e->transform.scale.y };
+        return { 1.f, 1.f };
+    });
+
+    lua.set_function("entity_imagePoint",
+        [entities, assets](EntityId id, const std::string& pointId) -> std::tuple<float, float> {
+            if (!entities) return { 0.f, 0.f };
+            auto* e = entities->get(id);
+            if (!e) return { 0.f, 0.f };
+            float px = 0.5f, py = 0.5f;
+            if (assets) {
+                if (auto pt = assets->getImagePoint(e->sprite.spriteAssetId, pointId)) {
+                    px = pt->x;
+                    py = pt->y;
+                }
+            }
+            float w = 32.f, h = 32.f;
+            if (e->physics.collider.shape == ColliderShape::Rectangle) {
+                w = e->physics.collider.size.x;
+                h = e->physics.collider.size.y;
+            } else {
+                w = h = e->physics.collider.size.x * 2.f;
+            }
+            const float sx = std::abs(e->transform.scale.x);
+            const float sy = std::abs(e->transform.scale.y);
+            const float lx = (px - e->sprite.pivot.x) * w * sx;
+            const float ly = (py - e->sprite.pivot.y) * h * sy;
+            return { e->transform.position.x + lx, e->transform.position.y + ly };
+        });
     // entity.setVisible(id, bool) — implemented via sprite alpha (no struct change)
     lua.set_function("entity_setVisible", [entities](EntityId id, bool v) {
         if (auto* e = entities->get(id)) e->sprite.alpha = v ? 1.f : 0.f;
@@ -65,9 +100,15 @@ void GameAPI::bindEntityAPI(sol::state& lua) {
         });
 
     // scene.load(name) / scene.restart()  — flow control via the gateway
-    lua.set_function("scene_load", [entities](const std::string& name) {
-        if (entities) entities->loadScene(name);
-    });
+    lua.set_function("scene_load",
+        [entities](const std::string& name, sol::optional<float> fadeSec) {
+            if (!entities) return;
+            const float fade = fadeSec.value_or(0.f);
+            if (fade > 0.f)
+                entities->requestLoadScene(name, fade);
+            else
+                entities->loadScene(name);
+        });
     lua.set_function("scene_restart", [entities]() {
         if (entities) entities->loadScene(entities->activeSceneId());
     });
@@ -158,11 +199,13 @@ void GameAPI::bindEntityAPI(sol::state& lua) {
         entity.destroy     = function(id)       return entity_destroy(id)        end
         entity.setRotation = function(id,a)     return entity_setRotation(id,a)  end
         entity.setScale    = function(id,sx,sy) return entity_setScale(id,sx,sy) end
+        entity.scale       = function(id)       return entity_scale(id)           end
+        entity.imagePoint  = function(id, pt)   return entity_imagePoint(id, pt)  end
         entity.setVisible  = function(id,v)     return entity_setVisible(id,v)   end
         entity.setTint     = function(id,r,g,b,a) return entity_setTint(id,r,g,b,a) end
 
         scene = {}
-        scene.load    = function(name) return scene_load(name) end
+        scene.load    = function(name, fade) return scene_load(name, fade) end
         scene.restart = function()     return scene_restart()  end
 
         pool = {}

@@ -80,6 +80,14 @@ public:
     bool isPlaying(EntityId entity) const;
     int  frameIndex(EntityId entity) const;
 
+    struct FinishEvent {
+        EntityId    entityId = 0;
+        std::string clipName;
+    };
+
+    /** Drain animation-finished events since last poll (non-loop clips only). */
+    std::vector<FinishEvent> pollFinished();
+
     // Remove instance data for an entity (e.g. on entity destroy)
     void removeEntity(EntityId entity);
 
@@ -96,6 +104,7 @@ private:
 
     std::unordered_map<std::string, Clip>        clips_;
     std::unordered_map<EntityId, AnimInstance>   instances_;
+    std::vector<FinishEvent>                   finishBuffer_;
 };
 
 } // namespace ArtCade::Modules

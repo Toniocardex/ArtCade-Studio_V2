@@ -136,12 +136,14 @@
   },
   "spawnEntity": {
     "type": "object",
-    "required": ["type", "className", "x", "y"],
+    "required": ["type", "className"],
     "properties": {
       "type": { "const": "spawnEntity" },
       "className": { "type": "string" },
       "x": { "type": "number" },
-      "y": { "type": "number" }
+      "y": { "type": "number" },
+      "inheritFlip": { "type": "boolean" },
+      "imagePoint": { "type": "string" }
     },
     "additionalProperties": false,
     "x-artcade": {
@@ -150,7 +152,35 @@
       "params": {
         "className": { "widget": "string", "label": "Class" },
         "x": { "widget": "number", "label": "X" },
-        "y": { "widget": "number", "label": "Y" }
+        "y": { "widget": "number", "label": "Y" },
+        "inheritFlip": { "widget": "boolean", "label": "Inherit flip" },
+        "imagePoint": { "widget": "string", "label": "Image point", "placeholder": "Muzzle" }
+      }
+    }
+  },
+  "moveInDirection": {
+    "type": "object",
+    "required": ["type", "target", "direction", "speed"],
+    "properties": {
+      "type": { "const": "moveInDirection" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "direction": {
+        "enum": ["up", "down", "left", "right", "forward", "backward"]
+      },
+      "speed": { "type": "number" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Move In Direction",
+      "category": "Physics",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "direction": {
+          "widget": "enum",
+          "label": "Direction",
+          "options": ["up", "down", "left", "right", "forward", "backward"]
+        },
+        "speed": { "widget": "number", "label": "Speed" }
       }
     }
   },
@@ -331,14 +361,16 @@
     "required": ["type", "sceneName"],
     "properties": {
       "type": { "const": "loadScene" },
-      "sceneName": { "type": "string" }
+      "sceneName": { "type": "string" },
+      "fadeSeconds": { "type": "number" }
     },
     "additionalProperties": false,
     "x-artcade": {
       "label": "Load Scene",
       "category": "System",
       "params": {
-        "sceneName": { "widget": "string", "label": "Scene", "placeholder": "Level2" }
+        "sceneName": { "widget": "string", "label": "Scene", "placeholder": "Level2" },
+        "fadeSeconds": { "widget": "number", "label": "Fade (s)", "placeholder": "0" }
       }
     }
   },
@@ -361,6 +393,86 @@
       "label": "Set Camera Target",
       "category": "Camera",
       "params": { "target": { "widget": "target", "label": "Target" } }
+    }
+  },
+  "moveByOffset": {
+    "type": "object",
+    "required": ["type", "target", "dx", "dy"],
+    "properties": {
+      "type": { "const": "moveByOffset" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "dx": { "type": "number" },
+      "dy": { "type": "number" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Move By Offset",
+      "category": "Physics",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "dx": { "widget": "number", "label": "ΔX" },
+        "dy": { "widget": "number", "label": "ΔY" }
+      }
+    }
+  },
+  "snapToGrid": {
+    "type": "object",
+    "required": ["type", "target", "cellSize"],
+    "properties": {
+      "type": { "const": "snapToGrid" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "cellSize": { "type": "number" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Snap To Grid",
+      "category": "Physics",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "cellSize": { "widget": "number", "label": "Cell size" }
+      }
+    }
+  },
+  "setEntityShader": {
+    "type": "object",
+    "required": ["type", "target", "shader"],
+    "properties": {
+      "type": { "const": "setEntityShader" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "shader": { "enum": ["none", "outline", "hit_flash", "palette_swap", "wave"] }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Set Entity Shader",
+      "category": "Graphics",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "shader": {
+          "widget": "enum",
+          "label": "Shader",
+          "options": ["none", "outline", "hit_flash", "palette_swap", "wave"]
+        }
+      }
+    }
+  },
+  "setScreenShader": {
+    "type": "object",
+    "required": ["type", "shader"],
+    "properties": {
+      "type": { "const": "setScreenShader" },
+      "shader": { "enum": ["none", "crt", "scanlines", "wave"] }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Set Screen Shader",
+      "category": "Graphics",
+      "params": {
+        "shader": {
+          "widget": "enum",
+          "label": "Shader",
+          "options": ["none", "crt", "scanlines", "wave"]
+        }
+      }
     }
   },
   "debugLog": {

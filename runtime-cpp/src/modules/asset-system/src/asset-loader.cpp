@@ -115,6 +115,7 @@ std::string AssetLoader::resolveAssetPath(const std::string& assetId,
 // ------------------------------------------------------------------ JSON parsing
 
 bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
+    imagePointsByAsset_.clear();
     std::ifstream f(path);
     if (!f) return false;
 
@@ -276,7 +277,38 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
         }
     }
 
+    if (j.contains("assets") && j["assets"].is_object()) {
+        for (auto& [key, av] : j["assets"].items()) {
+            if (!av.is_object()) continue;
+            ImageAssetDef ad;
+            ad.assetId = av.value("path", key);
+            if (av.contains("imagePoints") && av["imagePoints"].is_array()) {
+                for (const auto& pt : av["imagePoints"]) {
+                    if (!pt.is_object()) continue;
+                    ImagePointDef ip;
+                    ip.id = pt.value("id", std::string{});
+                    ip.x  = pt.value("x", 0.f);
+                    ip.y  = pt.value("y", 0.f);
+                    if (!ip.id.empty()) ad.imagePoints.push_back(ip);
+                }
+            }
+            out.imageAssets.push_back(ad);
+            if (!ad.imagePoints.empty())
+                imagePointsByAsset_[ad.assetId] = ad.imagePoints;
+        }
+    }
+
     return true;
+}
+
+std::optional<Vec2> AssetLoader::getImagePoint(const std::string& assetPath,
+                                                const std::string& pointId) const {
+    auto it = imagePointsByAsset_.find(assetPath);
+    if (it == imagePointsByAsset_.end()) return std::nullopt;
+    for (const auto& p : it->second) {
+        if (p.id == pointId) return Vec2{ p.x, p.y };
+    }
+    return std::nullopt;
 }
 
 bool AssetLoader::parseGameJson(const std::string& path, ProjectDoc& out) {

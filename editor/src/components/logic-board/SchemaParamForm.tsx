@@ -9,6 +9,7 @@ import {
 } from '../../utils/logic-board/schema-registry'
 import type { TargetSelector } from '../../types/logic-board'
 import { TargetPicker } from './TargetPicker'
+import { KeyCapture } from './KeyCapture'
 
 const sel =
   'bg-[var(--bg)] border border-[var(--border-2)] text-[var(--accent)] px-2 py-1 rounded text-xs'
@@ -127,6 +128,17 @@ function Field({
             value={typeof value === 'string' && value ? value : '#ffffff'}
             onChange={(e) => onPatch(name, e.target.value)}
             className="w-7 h-6 bg-transparent border border-[var(--border-2)] rounded"
+          />
+        </span>
+      )
+    case 'keyCapture':
+      return (
+        <span key={name} className="flex items-center gap-2">
+          {label}
+          <KeyCapture
+            value={value != null ? String(value) : ''}
+            placeholder={meta.placeholder}
+            onChange={(code) => onPatch(name, code)}
           />
         </span>
       )

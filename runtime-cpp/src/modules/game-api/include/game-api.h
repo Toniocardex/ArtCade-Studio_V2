@@ -24,6 +24,10 @@ namespace ArtCade::Modules {
  *   event-api.cpp    — event.*  (pure-Lua EventBus)
  *   time-api.cpp     — time.*   (pure-Lua timer system)
  *   camera-api.cpp   — camera.* (via Renderer)
+ *   sensor-api.cpp     — sensor.* (World overlap edges)
+ *   animation-api.cpp  — animation.pollFinished
+ *   lifecycle-api.cpp — lifecycle.pollDestroyed
+ *   grid-api.cpp       — grid.* (snap, offset, space check)
  *
  * game-api.cpp calls each sub-binder in sequence — it stays < 50 lines.
  */
@@ -50,6 +54,11 @@ private:
     void bindEventAPI  (sol::state& lua);
     void bindTimeAPI   (sol::state& lua);
     void bindCameraAPI (sol::state& lua);
+    void bindSensorAPI     (sol::state& lua);
+    void bindAnimationAPI  (sol::state& lua);
+    void bindLifecycleAPI  (sol::state& lua);
+    void bindGridAPI       (sol::state& lua);
+    void bindShaderAPI     (sol::state& lua);
 };
 
 } // namespace ArtCade::Modules

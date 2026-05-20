@@ -360,27 +360,61 @@ describe('Logic Components — Phase B (new runtime-backed actions)', () => {
 })
 
 describe('Logic Components — Phase C (engine-hook triggers)', () => {
-  it('onTriggerEnter compiles an edge over collision.touchingClass', () => {
+  it('onTriggerEnter compiles sensor.poll edges per entity', () => {
     const lua = compileLogicBoard([
       board([
         ev({ trigger: { type: 'onTriggerEnter', withClass: 'Zone' },
              actions: [{ type: 'debugLog', message: 'in' }] }),
       ]),
     ])
-    expect(lua).toContain('local _tcur = collision.touchingClass(self, "Zone")')
-    expect(lua).toContain('_tcur and not _trig[')
-    expect(lua).toContain('_trig["b1:e1"] = _tcur')
+    expect(lua).toContain('sensor.poll()')
+    expect(lua).toContain('_sensor_by_ent')
+    expect(lua).toContain('se.tag == "Zone"')
+    expect(lua).toContain('se.enter')
+    expect(lua).toContain('other = se.otherId')
+    expect(lua).not.toContain('_trig')
     expect(lua).toContain('debug.log("in")')
   })
 
-  it('onTriggerExit fires on the falling edge', () => {
+  it('onTriggerExit fires when se.enter is false', () => {
     const lua = compileLogicBoard([
       board([
         ev({ trigger: { type: 'onTriggerExit', withClass: 'Zone' },
              actions: [{ type: 'debugLog', message: 'out' }] }),
       ]),
     ])
-    expect(lua).toContain('(not _tcur) and _trig[')
+    expect(lua).toContain('(not se.enter)')
+    expect(lua).toContain('debug.log("out")')
+  })
+
+  it('moveInDirection forward uses entity.scale sign', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({
+          trigger: { type: 'onUpdate' },
+          actions: [
+            { type: 'moveInDirection', target: 'self', direction: 'forward', speed: 120 },
+          ],
+        }),
+      ]),
+    ])
+    expect(lua).toContain('entity.scale(self)')
+    expect(lua).toContain('entity.setVelocity')
+  })
+
+  it('spawnEntity inheritFlip copies scale sign', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({
+          trigger: { type: 'onStart' },
+          actions: [
+            { type: 'spawnEntity', className: 'Bullet', x: 0, y: 0, inheritFlip: true },
+          ],
+        }),
+      ]),
+    ])
+    expect(lua).toContain('entity.scale(self)')
+    expect(lua).toContain('entity.setScale(_nid')
   })
 
   it('wait splits actions with time.delay', () => {
@@ -401,17 +435,19 @@ describe('Logic Components — Phase C (engine-hook triggers)', () => {
     expect(lua).toContain('debug.log("after")')
   })
 
-  it('onAnimationEnd / onDestroy emit a safe no-op (no actions)', () => {
+  it('onAnimationEnd / onDestroy poll engine buffers', () => {
     const lua = compileLogicBoard([
       board([
         ev({ id: 'ae', trigger: { type: 'onAnimationEnd', clipName: 'die' },
-             actions: [{ type: 'debugLog', message: 'NOPE' }] }),
+             actions: [{ type: 'debugLog', message: 'done' }] }),
         ev({ id: 'od', trigger: { type: 'onDestroy' },
-             actions: [{ type: 'debugLog', message: 'NOPE2' }] }),
+             actions: [{ type: 'debugLog', message: 'bye' }] }),
       ]),
     ])
-    expect(lua).toContain('onAnimationEnd: pending engine hook')
-    expect(lua).toContain('onDestroy: pending engine hook')
-    expect(lua).not.toContain('NOPE')
+    expect(lua).toContain('animation.pollFinished()')
+    expect(lua).toContain('lifecycle.pollDestroyed()')
+    expect(lua).toContain('af.clip == "die"')
+    expect(lua).toContain('debug.log("done")')
+    expect(lua).toContain('debug.log("bye")')
   })
 })
