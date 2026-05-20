@@ -68,14 +68,49 @@ ArtCade V2/
 
 ## Getting Started
 
-(Coming soon in CLAUDE.md)
+```powershell
+cd "C:\Users\Antonio\Desktop\ArtCade V2"
+
+# Frontend build + schema validators
+npm run build
+
+# Tauri desktop app
+cd editor
+npm run tauri:dev
+```
+
+Native runtime and WASM builds require the matching local toolchain:
+
+```powershell
+# Native runtime: MSVC / CMake environment
+cmake -S runtime-cpp -B runtime-cpp\build-msvc -DARTCADE_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release
+cmake --build runtime-cpp\build-msvc --config Release
+
+# WASM runtime: MSVC + EMSDK environment
+runtime-cpp\build_wasm.bat
+```
+
+`BUILD .EXE` in the editor produces the runnable native bundle under:
+
+`runtime-cpp\build-msvc\src\app\game.exe` + `runtime-cpp\build-msvc\src\app\game.artcade`
+
+## Current Status
+
+- Runtime C++ MVP: complete native/WASM loop, Lua 5.4, Raylib, Box2D, asset loader, `.artcade` package loading.
+- Editor MVP: React/Tauri app, project open/save, script save, Logic Board, Scene Editor, asset import, console copy, dark/light theme.
+- Preview: WASM canvas is treated as a black box; React communicates through imperative bridge functions and buffered callbacks.
+- Logic Board: entity-first authoring, schema-driven forms, Ajv build-time validators for Tauri CSP, Lua compiler, runtime APIs for spawn/sensor/lifecycle/shaders.
+- Export: deterministic packer with `manifest.json`, `project.json`, scripts/assets, `licenseTier`, and native runnable bundle.
 
 ## Roadmap
 
-- **Week 1-2**: Architecture finalization, CMake setup
-- **Week 3-6**: C++ engine core (Raylib loop, physics, Lua host)
-- **Week 7-9**: WASM build, Emscripten integration
-- **Week 10-12**: Editor integration, polish, testing
+Historical roadmap is tracked in [ROADMAP_INTEGRATIVA.md](ROADMAP_INTEGRATIVA.md). The next useful work is:
+
+- Asset pipeline hardening for arbitrary imported images in packaged/WASM runtime.
+- Build WASM action exposed directly from the editor UI.
+- Lua diagnostics/markers inside the CodeMirror iframe.
+- Structured undo/redo for transform, tile painting, hierarchy and Logic Board edits.
+- Steamworks/no-op integration in a later release phase.
 
 ## License
 
@@ -83,5 +118,6 @@ GPL-3.0-or-later
 
 ---
 
-**Status**: Initialization phase  
-**Started**: 2026-05-09
+**Status**: MVP integration / release polish  
+**Started**: 2026-05-09  
+**Last updated**: 2026-05-20

@@ -2,7 +2,7 @@
 
 > **Versione**: 2.2  
 > **Data**: 2026-05-10  
-> **Status**: ✅ Pronto per distribuzione  
+> **Status**: ✅ MVP integrato, documenti in riallineamento continuo  
 > **Audience**: Team development
 
 ---
@@ -150,7 +150,7 @@ Guida specializzata         (REACT_WASM_PATTERN.md o ECS_IMPLEMENTATION_GUIDE.md
 
 1. **Distribuisci** `ARCHITECTURAL_RATIONALE.md` al team
 2. **Seguire la progressione di lettura** sopra
-3. **Usare checklist** in ARCHITECTURE_INTEGRATION.md per Fase 19
+3. **Usare checklist** in ARCHITECTURE_INTEGRATION.md per lo stato MVP integrato
 4. **Code review** con anti-pattern in REACT_WASM_PATTERN.md e ECS_IMPLEMENTATION_GUIDE.md
 
 ---
@@ -175,7 +175,7 @@ A: `ARCHITECTURAL_RATIONALE.md` — ti fornisce il contesto.
 A: No, leggi almeno ARCHITECTURAL_RATIONALE §1 (ECS) e §2 (Canvas). Capire il backend aiuta.
 
 **D: Quanto tempo impiegherà implementare tutto?**  
-A: Con questa documentazione, Fase 19 dovrebbe prendere ~3–5 giorni per una coppia dev React+C++.
+A: Fase 19 e il primo Scene/Build MVP sono già integrati. Le stime nuove vanno fatte sui follow-up: asset pipeline completa, build WASM da UI, diagnostica Lua e undo/redo.
 
 **D: Posso implementare solo parzialmente il pattern?**  
 A: No — black box canvas + buffering sono o entrambi O nessuno. Una soluzione mezza è peggio di nessuna.

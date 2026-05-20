@@ -277,41 +277,43 @@ setInterval(() => {
 |------|-----|--------|-------|--------|
 | 0–13 | ✅ Registry core | ✅ Layer 0–4 | ✅ Scaffold | Completato |
 | 14 | ✅ Hot-load | ✅ LuaHost | ✅ Canvas | Completato |
-| 15 | — | — | ✅ IPC Tauri | Da fare |
-| **19** | **✅** | **✅** | **✅ Buffering** | **IN PROGRESS** |
-| 20–24 | — | ✅ Extend | ✅ Editor tools | Future |
+| 15 | Gateway incrementale | Build/pack IPC | ✅ IPC Tauri | Completato MVP |
+| **19** | **RuntimeEntityGateway** | **✅** | **✅ Buffering** | **Completato MVP** |
+| 20–23 | Scene/Logic/Build polish | ✅ Extend | ✅ Editor tools | Completato MVP |
+| 24 | Steam/no-op future | — | — | Futuro |
 
-**Fase 19 = Integrazione Completa**: ECS + Moduli + React-WASM Decoupling testati insieme.
+**Fase 19 = Integrazione Completa MVP**: `RuntimeEntityGateway` + moduli runtime + React-WASM decoupling testati insieme. EnTT resta una direzione architetturale futura, non lo storage runtime corrente.
 
 ---
 
-## ✅ Checklist Integrazione (Fase 19)
+## ✅ Checklist Integrazione (Fase 19 MVP)
 
-- [ ] **ECS Core**
-  - [ ] EnTT registry in World
-  - [ ] Components definiti (Transform, Sprite, RigidBody, Script, ...)
-  - [ ] World exposes view<Cs...>()
+- [x] **RuntimeEntityGateway**
+  - [x] Espone `create`, `destroy`, `getTransform`, `setTransform`, `poolByClass`, `activeSceneIds`.
+  - [x] Implementato sopra `EntityManager` / `SceneManager`.
+  - [x] Usato da `EditorAPI`, `GameAPI` e `World` dove serve.
 
-- [ ] **Systems Accesso Registry**
-  - [ ] PhysicsSystem: `world.view<RigidBody, Transform>()`
-  - [ ] RenderSystem: `world.view<Transform, Sprite>()`
-  - [ ] LuaSystem: `world.view<Script, Transform>()`
+- [x] **Game Loop Integration**
+  - [x] `clearDrawQueue()` prima di `luaHost->tick()`.
+  - [x] Ordine stabile: Lua → Physics → Sync → Render.
+  - [x] Accumulator cap a 4× `targetDt`.
+  - [x] Kill queue / spawn gateway dopo step fisico dove richiesto.
 
-- [ ] **Game Loop Integration**
-  - [ ] clearDrawQueue() prima di luaHost->tick()
-  - [ ] Systems eseguono in ordine corretto (Lua → Physics → Sync → Render)
-  - [ ] Accumulator cap a 4× targetDt
+- [x] **React-WASM Decoupling**
+  - [x] PreviewPanel come black-box.
+  - [x] Callback C++ → React differite/buffered.
+  - [x] ConsolePanel polling/copy log.
+  - [x] Inspector/Hiearchy sincronizzati senza re-render ad alta frequenza del canvas.
+  - [x] TEST: coin pickup = no border flash.
 
-- [ ] **React-WASM Decoupling**
-  - [ ] PreviewPanel zero useContext volatile
-  - [ ] C++ callbacks → window._* buffers
-  - [ ] ConsolePanel polling ogni 100ms
-  - [ ] InspectorPanel polling ogni 200ms
-  - [ ] **TEST: Coin pickup = NO flash** ✅
+- [x] **Hot Sync**
+  - [x] `editor_load_project()` sostituisce progetto/scene/entity nel runtime.
+  - [x] `editor_set_transform()` aggiorna runtime e inspector.
+  - [x] Dedup sync progetto per evitare flood di `editor_load_project`.
 
-- [ ] **Hot-Reload**
-  - [ ] editorLoadProject() ricrea registry
-  - [ ] Lua script hot-reload preserva/resetta state
+### Nota EnTT
+
+La checklist EnTT originale è stata declassata a roadmap futura. Il runtime attuale non espone `World::view<Cs...>()`; il punto di migrazione è `RuntimeEntityGateway`, che consente di introdurre EnTT senza cambiare subito le API pubbliche editor/Lua.
 
 ---
 

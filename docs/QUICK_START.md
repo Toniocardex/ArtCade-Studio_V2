@@ -1,170 +1,110 @@
 # ArtCade V2: Quick Start Guide
 
+> Last updated: 2026-05-20  
+> Status: MVP integrated
+
 ## Prerequisites
 
-- **CMake** 3.20+ (https://cmake.org/)
-- **C++ Compiler**:
-  - Windows: MSVC 2019+ or MinGW
-  - macOS: Clang (Xcode)
-  - Linux: GCC or Clang
-- **Git** (https://git-scm.com/)
-- **Emscripten SDK** (for WASM builds) (https://emscripten.org/)
+- Node.js/npm installed for the React editor.
+- CMake 3.20+.
+- Windows native build: Visual Studio Build Tools / MSVC.
+- WASM build: Emscripten SDK active, plus the MSVC environment used by `runtime-cpp\build_wasm.bat`.
+- Git.
 
-## Step 1: Clone & Initialize
+The repo already vendors or configures the runtime third-party dependencies used by CMake. Do not clone Raylib/Lua/Sol2 manually unless the repository is missing them.
 
-```bash
-cd C:\Users\Antonio\Desktop\ArtCade\ V2
-git init
-git config user.name "Antonio"
-git config user.email "Antonino.cardelli@outlook.it"
+## Frontend / Editor
+
+```powershell
+cd "C:\Users\Antonio\Desktop\ArtCade V2"
+npm run build
 ```
 
-## Step 2: Setup Third-Party Libraries
+Run the Tauri editor:
 
-```bash
-cd runtime-cpp/libs
-
-# Download Raylib (if not already present)
-git clone https://github.com/raysan5/raylib.git raylib
-
-# Download Lua 5.4
-git clone https://github.com/lua/lua.git lua
-
-# Download Sol2 (header-only, just clone)
-git clone https://github.com/ThePhD/sol2.git sol2
-
-# Box2D 2.4: scaricato automaticamente da CMake (FetchContent) nel modulo physics;
-# non serve clonarlo in libs/.
+```powershell
+cd "C:\Users\Antonio\Desktop\ArtCade V2\editor"
+npm run tauri:dev
 ```
 
-## Step 3: Build for Native (Windows)
+Inside the editor:
 
-```bash
-cd C:\Users\Antonio\Desktop\ArtCade\ V2\runtime-cpp
-mkdir build && cd build
+- `File -> Open Project` loads a `project.json`.
+- `Save Project` writes the normalized `ProjectDoc`.
+- `PACK .ARTCADE` writes a package through `runtime-cpp/tools/pack-artcade.py`.
+- `BUILD .EXE` builds the native runtime and creates a runnable bundle.
 
-# MSVC (Visual Studio 2022)
-cmake .. -G "Visual Studio 17 2022" -DCMAKE_BUILD_TYPE=Release
-cmake --build . --config Release
+Native build output from the editor:
 
-# Output: Release/game.exe
-./Release/game.exe
+```text
+runtime-cpp\build-msvc\src\app\game.exe
+runtime-cpp\build-msvc\src\app\game.artcade
 ```
 
-## Step 4: Build for WASM (Emscripten)
+Both files must stay in the same folder for double-click launch.
 
-```bash
-cd C:\Users\Antonio\Desktop\ArtCade\ V2\runtime-cpp\build
+## Native Runtime
 
-# Setup Emscripten
-# On Windows: emcmdprompt.bat (comes with emsdk)
-# Or: source emsdk/emsdk_env.sh (Linux/macOS)
+From a Developer Command Prompt or an equivalent MSVC environment:
 
-emcmake cmake .. -DCMAKE_BUILD_TYPE=Release
-cmake --build .
-
-# Output: game.js, game.wasm
+```powershell
+cd "C:\Users\Antonio\Desktop\ArtCade V2"
+cmake -S runtime-cpp -B runtime-cpp\build-msvc -DARTCADE_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release
+cmake --build runtime-cpp\build-msvc --config Release
+ctest --test-dir runtime-cpp\build-msvc --output-on-failure
 ```
 
-## Step 5: Test Your Build
+Run a loose project:
 
-### Native Test
-```bash
-# Create a minimal game.artcade (or use dev folder)
-# Run game.exe
-cd Release
-./game.exe
+```powershell
+runtime-cpp\build-msvc\src\app\game.exe runtime-cpp\test-project
 ```
 
-### WASM Test
-```bash
-# Serve WASM output locally
-cd build
-python -m http.server 8000
-# Open http://localhost:8000 in browser
+Run a packed project from the app output folder:
+
+```powershell
+cd runtime-cpp\build-msvc\src\app
+.\game.exe
 ```
 
-## File Organization for Development
+The no-argument run expects `game.artcade` next to `game.exe`.
 
-### During Development (loose assets)
+## WASM Runtime
 
-```
-project-root/
-├── assets-dev/
-│   ├── game.json
-│   ├── project.json
-│   ├── sprites/
-│   │   └── player.png
-│   ├── audio/
-│   │   └── jump.ogg
-│   └── scripts/
-│       └── main.luac
+```powershell
+cd "C:\Users\Antonio\Desktop\ArtCade V2"
+runtime-cpp\build_wasm.bat
 ```
 
-### For Distribution (packed .artcade)
+The script builds Emscripten output and copies:
 
-```bash
-./scripts/pack-artcade.sh assets-dev/ MyGame.artcade
+```text
+editor\public\runtime\game.js
+editor\public\runtime\game.wasm
+editor\public\runtime\game.data
 ```
 
-## Common Commands
+The editor preview loads those files from `/runtime/`.
 
-### Rebuild Everything
+## Packaging
 
-```bash
-cd runtime-cpp/build
-cmake --build . --config Release --clean-first
+```powershell
+python runtime-cpp\tools\pack-artcade.py runtime-cpp\test-project runtime-cpp\build-msvc\src\app\game.artcade
 ```
 
-### Clean Build Artifacts
+The package contains `manifest.json`, `project.json`, scripts/assets when present, checksums and `licenseTier` with default `free`.
 
-```bash
-cd runtime-cpp
-rm -rf build
-mkdir build && cd build
-cmake ..
-```
+## Current Architecture Notes
 
-### Run with Debug Symbols
+- The editor and runtime share `ProjectDoc`.
+- The preview canvas is a black box; React talks to WASM through imperative bridge calls and buffered callbacks.
+- Runtime entity access goes through `RuntimeEntityGateway`, currently backed by `EntityManager` / `SceneManager`.
+- EnTT remains a future storage target, not the current runtime storage.
+- CodeMirror runs in an iframe to avoid editor flicker and keep the Tauri CSP safe.
 
-```bash
-cmake .. -DCMAKE_BUILD_TYPE=Debug
-cmake --build . --config Debug
-```
+## Next Work
 
-## Troubleshooting
-
-### CMake Not Found
-- Install CMake from https://cmake.org/download/
-- Add to PATH
-
-### MSVC Not Found
-- Install Visual Studio Community (MSVC toolset required)
-- Run cmake from "Developer Command Prompt for VS"
-
-### Emscripten Not Installed
-```bash
-# Download emsdk
-git clone https://github.com/emscripten-core/emsdk.git
-cd emsdk
-./emsdk install latest
-./emsdk activate latest
-
-# On Windows, use: emsdk.bat instead of ./emsdk
-```
-
-### Raylib Link Errors
-- Ensure `raylib` folder exists in `libs/`
-- CMakeLists.txt should auto-find it via `add_subdirectory(libs/raylib)`
-
-## Next: Implementation
-
-Refer to `ARCHITECTURE_DUAL_RUNTIME.md` for detailed specs on each system.
-
-Start with:
-1. **renderer.cpp** — Raylib window creation
-2. **input.cpp** — Keyboard polling
-3. **physics.cpp** — Box2D setup
-4. **lua-host.cpp** — Lua VM initialization
-
-Good luck! 🚀
+- Harden arbitrary image asset import for packaged/WASM runtime.
+- Expose WASM build from the editor UI.
+- Add Lua diagnostics/markers in the CodeMirror iframe.
+- Add structured undo/redo for editor operations.

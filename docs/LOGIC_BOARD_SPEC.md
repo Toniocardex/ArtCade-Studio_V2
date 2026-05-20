@@ -653,7 +653,7 @@ Modifica di un componente → aggiornare **TS** (`logic-board.ts`), **schema JSO
 | Platformer feel | script Lua opzionale | `PlatformerControllerComponent` in `World` | C++ se componente su entità |
 | `wait` | azione Logic + `time.delay` in compiler | `time.*` in runtime | Azioni dopo `wait` in coda async |
 | JSON Schema registry | Ajv build-time + `SchemaParamForm` + `ConditionTreeEditor` | — | `editor/src/schemas/logic-board/`, `validators.generated.ts` |
-| Shaders / image points / bussola | — | — | Vedi [`ArtCade_V2_Riepilogo_Suggerimenti.md`](ArtCade_V2_Riepilogo_Suggerimenti.md) |
+| Shaders / image points / bussola | `setEntityShader`, `setScreenShader`, `spawnEntity.imagePoint`, `moveInDirection` | `shader-api.cpp`, renderer screen shader MVP, spawn/image point helpers | Implementazione MVP; estensioni avanzate restano in [`ArtCade_V2_Riepilogo_Suggerimenti.md`](ArtCade_V2_Riepilogo_Suggerimenti.md) |
 
 ### 12. Dipendenze per l’implementazione
 

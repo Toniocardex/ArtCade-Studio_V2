@@ -1,6 +1,6 @@
 # Scene Editor — Piano di Sviluppo (da rivedere insieme)
 
-**Stato**: PROPOSTA — non ancora implementato
+**Stato**: COMPLETATO MVP — piano storico mantenuto come riferimento
 **Riferimento di design**: `C:\Users\Antonio\Desktop\ArtCade Workspace GUI.html` (mockup React) + `Logic_Board_GUI_mockup.png`
 **Data**: 2026-05-17
 
@@ -8,11 +8,11 @@
 
 ## Context
 
-Lo Scene Editor attuale di ArtCade V2 è **funzionale ma basilare**: layout corretto
-(Hierarchy | Preview | Inspector + BottomPanel), sync entity/transform con il
-runtime C++, console da Lua. Manca però tutto ciò che serve per *costruire
-davvero un livello*: tile painting, inspector a componenti ECS, world settings,
-feedback visuale (gizmo/sensori) nel viewport.
+Lo Scene Editor attuale di ArtCade V2 è passato dal layout basilare iniziale a un
+MVP utilizzabile: Hierarchy funzionale, Inspector a componenti, tile painting,
+tileset da immagine, sync entity/transform con runtime C++, render tilemap,
+collisioni tile solide e feedback viewport per gizmo/sensori. Questo documento
+rimane come piano storico e come checklist dei criteri che sono stati chiusi.
 
 Il mockup di riferimento mostra la versione "production": inspector a componenti
 con campi condizionali, tile painter interattivo, world settings, visualizzazione

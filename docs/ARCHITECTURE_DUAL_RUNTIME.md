@@ -870,18 +870,16 @@ while (!renderer.shouldClose()) {
 
 ## Next Steps
 
-1. **Verify project structure** is correct on disk
-2. **Install dependencies**:
-   - CMake 3.20+
-   - C++17 compiler (MSVC/GCC/Clang)
-   - Emscripten SDK (for WASM)
-   - Git
-3. **Review header files** to understand API contracts
-4. **Start with `renderer.cpp`** — implement Raylib window/draw calls
-5. **Proceed week-by-week** per roadmap
+This document is now the baseline architecture reference. The implementation has advanced past the original "ready for implementation" state:
+
+1. Native runtime, WASM runtime, Lua host, physics, packaging and Tauri editor are implemented at MVP level.
+2. `RuntimeEntityGateway` is the current migration layer over `EntityManager` / `SceneManager`; EnTT remains a future storage target.
+3. Preview uses the documented black-box canvas pattern with buffered C++ -> React callbacks.
+4. `.artcade` packaging is implemented with `manifest.json`, `project.json`, scripts/assets and `licenseTier`.
+5. Remaining work is tracked in `ROADMAP_INTEGRATIVA.md` and `docs/TECHNICAL_OVERVIEW.md`: asset pipeline hardening, WASM build from UI, Lua diagnostics, undo/redo and future Steam support.
 
 ---
 
 **Document Version**: 2.0.0  
-**Last Updated**: 2026-05-09  
-**Status**: Ready for Implementation
+**Last Updated**: 2026-05-20  
+**Status**: MVP Implemented / Architecture Reference

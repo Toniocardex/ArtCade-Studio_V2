@@ -161,6 +161,8 @@ ArtCade V2/
 
 ArtCade V2 abbandona l'OOP classico (inheritance, virtual methods) in favore di **Entity Component System (EnTT)** per due motivi critici:
 
+> **Stato repo (2026-05-20):** EnTT resta la direzione architetturale target. Il runtime corrente usa ancora `EntityManager` / `SceneManager`, mediati da `RuntimeEntityGateway`, per evitare un refactor big-bang. Le API editor/Lua devono passare dal gateway così la futura migrazione EnTT non cambia i contratti pubblici.
+
 1. **Cache Locality**: Array-of-Structs (SoA) vs Object-Oriented (OOP Object Layout)
    - OOP: Entity è un grande oggetto con tutti i dati mescolati → CPU cache miss
    - ECS: Componenti dello stesso tipo in array denso → CPU cache hit
@@ -1204,7 +1206,13 @@ Il **parser C++** (`zip-reader.cpp`) gestisce:
 | 14 | WebAssembly (Emscripten) | ✅ | game.html + game.js + game.wasm, VFS preload |
 | 16 | Logic Components Lua | ✅ | PauseManager, PathFollower, PlatformerController, ParticleEmitter, DialogueSystem — 13 test |
 | 17 | Packaging .artcade ZIP | ✅ | zip-reader.cpp (STORE+DEFLATE), pack-artcade.py, 4 test |
-| 18 | Editor React scaffold | ✅ | 7 pannelli, CodeMirror Lua (iframe), wasm-bridge.ts, Tauri IPC stub |
+| 18 | Editor React scaffold | ✅ | 7 pannelli, CodeMirror Lua (iframe), wasm-bridge.ts |
+| 15 | Tauri Integration | ✅ | open/save project, save script, import asset, build-log, build native, pack `.artcade` |
+| 19 | React-WASM decoupling + hot sync | ✅ | PreviewPanel black-box, buffered callbacks, `editor_load_project`, transform sync |
+| 20 | Logic Board runtime/editor polish | ✅ | entity-first authoring, schema Ajv build-time, wait, sensors, lifecycle, shaders, spawn |
+| 21 | Scene editor MVP | ✅ | component inspector, hierarchy actions, tilemap authoring/render/collision, gizmo/sensors |
+| 22 | Build/export MVP | ✅ | `BUILD .EXE` produces runnable `game.exe` + `game.artcade`, packer deterministic |
+| 23 | Release polish MVP | ✅ | Free/Pro `licenseTier`, runtime `SplashState`, dark/light theme, console copy |
 
 ### Bug fix notevoli già risolti
 
@@ -1220,91 +1228,26 @@ Il **parser C++** (`zip-reader.cpp`) gestisce:
 
 ---
 
-## 11. Fasi da implementare
+## 11. Stato attuale e prossime fasi
 
-### Fase 15 — Tauri Integration (IPC completo)
-**Dipende da**: Fase 14 + Fase 18 ✅  
-**Stato**: ⏳ Priorità alta
+Le fasi 15 e 19-23 sono implementate a livello MVP nel repository corrente. La roadmap storica resta utile per capire l'ordine di sviluppo, ma lo stato operativo aggiornato è:
 
-Obiettivo: collegare l'editor React alla shell Tauri per operazioni native.
+### Completato MVP
 
-Checkpoint:
-- [ ] `openProjectDialog()` → file picker nativo → `ProjectDoc` caricato
-- [ ] `saveScript()` → scrive su disco tramite `tauri-plugin-fs`
-- [ ] `BUILD .EXE` → triggera `cmake --build` → log in tempo reale nel Console panel
-- [ ] `▶ PLAY` → carica WASM nel PreviewPanel e avvia il runtime
-- [ ] `PACK .ARTCADE` → invoca `pack-artcade.py` → file chooser per output
+- **Tauri Integration**: open/save project, save script, import asset, `BUILD .EXE`, `PACK .ARTCADE`, log streaming `build-log`.
+- **React-WASM decoupling**: PreviewPanel black-box, callback C++ buffered/polling, sync imperativo `editor_load_project`, `editor_set_transform`, selezione e mode switch.
+- **Logic Board**: entity-first, schema-driven UI, Ajv build-time CSP-safe, wait/timer, spawn, sensor trigger, lifecycle hook, shaders, grid helpers.
+- **Scene Editor**: inspector a componenti, hierarchy funzionale, tilemap authoring, tileset da immagine, rendering tilemap runtime, collisioni tile solide, gizmo/sensori viewport, dark/light theme.
+- **Build/export MVP**: packer `.artcade` deterministico, `manifest.json`, `licenseTier`, output runnable `runtime-cpp/build-msvc/src/app/game.exe` + `game.artcade`.
+- **Release polish MVP**: console copiabile, splash/watermark Free/Pro, CodeMirror iframe zero-flicker.
 
-### Fase 19 — Hot-reload Lua in editor + React-WASM Decoupling
-**Dipende da**: Fase 15 + CRITICO Pattern 5.5  
-**Stato**: ⏳ **IN PROGRESS**
+### Aperto / prossimo lavoro
 
-Obiettivo: modificare lo script Lua nell’editor (CodeMirror) o dalla Logic Board e vedere il risultato nel PreviewPanel senza riavviare il runtime. **IMPLEMENTARE BUFFERING PATTERN PER ELIMINARE FLASH**. Sync board→script e Apply hot-reload già operativi in editor.
-
-Checkpoint:
-- [ ] PreviewPanel **NON si re-renderizza mai** durante gameplay (zero useContext per volatile state)
-- [ ] C++ callbacks (onConsoleLine, onEntitySelected, onEntityTransformChanged) scrivono in buffer globale (`window._*`), mai dispatch diretti
-- [ ] ConsolePanel drena `window._consoleLogs` ogni 100ms (polling asincrono)
-- [ ] InspectorPanel legge `window._selectedEntity` ogni 200ms (polling asincrono)
-- [ ] `editorLoadProject(json)` hot-ricarica scene e entity nel C++ runtime (imperative command, OK)
-- [ ] Lua script ricaricato via `loadBytecodeBuffer` con nuovo sorgente compilato in WASM
-- [ ] **VERIFICA**: Coin pickup non causa flash (bordo scompare) — se presente, pattern non applicato correttamente
-- [ ] Stato di gioco (score, posizioni) preservato o resettato controllabilmente via state buffer
-
-### Fase 20 — Sprite e texture reali
-**Dipende da**: Fase 15  
-**Stato**: ⏳
-
-Obiettivo: caricare PNG reali e renderizzarli invece dei rettangoli placeholder.
-
-Checkpoint:
-- [ ] `AssetLoader` risolve path sprite da `EntityDef.sprite.spriteAssetId`
-- [ ] `TextureManager::load()` carica PNG nella GPU texture cache
-- [ ] `Renderer::drawSprite()` usa `DrawTexturePro` con texture reale
-- [ ] Asset browser mostra anteprima delle immagini
-
-### Fase 21 — Gizmo editor in-canvas
-**Dipende da**: Fase 15 + Fase 20  
-**Stato**: ⏳
-
-Obiettivo: selezionare e spostare entity direttamente nel PreviewPanel con mouse drag.
-
-Checkpoint:
-- [ ] Click su canvas → ray-cast → seleziona entity più vicina → `onEntitySelected` callback
-- [ ] Drag con gizmo → `editorSetTransform()` → Inspector si aggiorna in sync
-- [ ] Multi-select (Shift+click), delete (Canc)
-- [ ] Undo/redo (Ctrl+Z / Ctrl+Y)
-
-### Fase 22 — Scene editor (tilemap + layer)
-**Dipende da**: Fase 21  
-**Stato**: ⏳
-
-Obiettivo: costruire scene visivamente con tile painting e layer management.
-
-Checkpoint:
-- [ ] TilesetEditorPanel funzionale (seleziona tile, dipinge su griglia)
-- [ ] LayerManager UI (visibilità, opacity, z-order drag)
-- [ ] SpriteAnimator UI (definisci clip, preview frame-by-frame)
-
-### Fase 23 — Build pipeline completa
-**Dipende da**: Fase 15  
-**Stato**: ⏳
-
-Obiettivo: produrre artefatti distribuibili dall'editor senza uscire dall'app.
-
-Checkpoint:
-- [ ] `BUILD .EXE` → `cmake --build` nativo → `game.exe` + `game.artcade`
-- [ ] `BUILD .WASM` → `emcmake cmake + emmake cmake --build` → `game.wasm` + `game.js`
-- [ ] Firma e checksum `manifest.json` aggiornato automaticamente
-- [ ] Export ZIP pronto per upload web o distribuzione su store
-
-### Fase 24 — Steamworks SDK (opzionale)
-**Dipende da**: Fase 23  
-**Stato**: ⏳ (futuro)
-
-Checkpoint:
-- [ ] `steam/` stub funziona (no-op su WASM e non-Steam build)
-- [ ] Achievements, leaderboard, overlay in-game
+- **Asset pipeline completa**: import immagini arbitrarie editor → VFS WASM/runtime packaged senza workaround manuali.
+- **Build WASM da UI**: esporre il flusso `runtime-cpp/build_wasm.bat` o equivalente direttamente nell'editor.
+- **LSP/diagnostica Lua**: markers errori nel CodeMirror iframe.
+- **Undo/redo strutturato**: trasformazioni, tile paint, hierarchy actions e Logic Board.
+- **Steamworks SDK**: futuro, no-op fuori build Steam.
 
 ---
 

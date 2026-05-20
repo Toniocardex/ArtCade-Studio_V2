@@ -415,26 +415,28 @@ Criteri verificati:
 
 ## FASE 15 — Tauri Integration (Editor nativo)
 
-**Stato**: ⏳ 🔗 FASE 14 + FASE 18
+**Stato**: ✅ Completata — editor Tauri operativo con IPC file/build/pack e preview WASM
 
-### Obiettivo
-Shell Tauri (Rust) attorno all'editor React. IPC per aprire/salvare progetti,
-triggare build WASM e caricare il preview in WebView.
+### Cosa è stato fatto
+Shell Tauri (Rust) attorno all'editor React con IPC per aprire/salvare progetti,
+salvare script, importare asset, avviare build native e pack `.artcade`,
+streammando i log nel `ConsolePanel` via evento `build-log`.
 
-### Checkpoint (futuro)
+### Checkpoint ✅
 ```bash
 cd editor
 npm run tauri:dev
-# File → Open Project → carica .artcade
-# Clicca "▶ PLAY" → WASM si avvia nel Preview panel
+# File → Open Project → carica project.json
+# PLAY → PreviewPanel usa il runtime WASM in editor/public/runtime
+# BUILD .EXE → runtime-cpp/build-msvc/src/app/game.exe + game.artcade
 ```
 
 Criteri:
-- [ ] `openProjectDialog()` apre file picker nativo → carica ProjectDoc
-- [ ] `saveScript()` scrive su disco (Tauri fs plugin)
-- [ ] `BUILD .EXE` triggera `cmake --build` → log in Console panel
-- [ ] Preview panel mostra WASM (`game.html`) in `<webview>`
-- [ ] Nessuna differenza visiva tra preview Tauri e browser standalone
+- [x] `openProjectDialog()` apre file picker nativo → carica ProjectDoc
+- [x] `saveProjectFile()` / `saveScript()` scrivono su disco tramite Tauri fs
+- [x] `BUILD .EXE` triggera configure/build/package → log in Console panel
+- [x] Preview panel mostra WASM su canvas dedicato senza re-render React ad alta frequenza
+- [x] ConsolePanel riceve `build-log` e permette copia errori/log
 
 ---
 
@@ -500,7 +502,7 @@ python tools/pack-artcade.py test-project output.artcade
   - `ConsolePanel` — log entries colorati per livello + input bar
   - `StatusBar` — Runtime / Grid / X,Y / Selection
 - **State**: `EditorProvider` (React Context + useReducer, zero Redux)
-- **API stubs**: `utils/api.ts` — Tauri IPC placeholder per Phase 19
+- **API Tauri**: `utils/api.ts` — open/save project, save script, import asset, build e pack
 
 ### Checkpoint ✅
 ```
@@ -531,10 +533,15 @@ editor/
 | 12 | Physics (Box2D 2.4) | 9 | ✅ |
 | 13 | First Playable native .exe | 5–12 | ✅ |
 | 14 | WebAssembly (Emscripten) | 13 | ✅ |
-| 15 | Tauri Integration (editor nativo + IPC) | 14, 18 | ⏳ |
+| 15 | Tauri Integration (editor nativo + IPC) | 14, 18 | ✅ |
 | 16 | Logic Components Lua (5 componenti) | 11 | ✅ |
 | 17 | Packaging .artcade ZIP | 13–14 | ✅ |
 | 18 | Editor React scaffold (neon UI + script editor) | — | ✅ |
+| 19 | React-WASM decoupling + hot sync progetto | 15 | ✅ |
+| 20 | Logic Board runtime/editor polish | 15, 19 | ✅ |
+| 21 | Scene editor runtime/editor | 15, 19 | ✅ |
+| 22 | Build/export pipeline MVP | 15, 17 | ✅ |
+| 23 | Release polish Free/Pro splash + theme | 22 | ✅ |
 
 ---
 
@@ -556,8 +563,8 @@ editor/
 |---|------|----------|----------|-------|
 | KI-1 | Editor Script (CodeMirror) | **CodeMirror 6 in iframe MPA** (`codemirror-frame.html`): Lua `legacy-modes`, temi ArtCade, autocomplete; sync Logic Board → `UPDATE_SCRIPT` / `update-from-logic`; Tauri release OK. Doc: `docs/CODEMIRROR_EDITOR.md`. Resta: markers errori Lua, LSP opzionale. | Media | ✅ Risolto |
 
-| KI-2 | Logic Components — hook engine | `onAnimationEnd` e `onDestroy` aggiunti a tipi/UI ma compilano a **no-op sicuro** (commento) perché il runtime non espone ancora un hook "animazione finita" / "pre-distruzione". `onTriggerEnter/Exit` invece funzionano (edge compiler-only su `collision.touchingClass`). Da completare con hook engine C++ (spriteAnimator → callback fine clip; entityManager → callback pre-destroy che invoca Lua). | Bassa | ⏳ Aperto |
+| KI-2 | Logic Components — hook engine | `onAnimationEnd` e `onDestroy` sono collegati a `animation.pollFinished()` e `lifecycle.pollDestroyed()`. Rimane da ampliare la copertura su casi complessi di animazioni multiple e destroy massivi. | Bassa | ✅ Risolto MVP |
 
 ---
 
-*Ultimo aggiornamento: 2026-05-20 — KI-1: Editor Script CodeMirror 6 in iframe (`docs/CODEMIRROR_EDITOR.md`). Logic Board → script store + Apply hot-reload validati. KI-2: onAnimationEnd/onDestroy stub engine.*
+*Ultimo aggiornamento: 2026-05-20 — roadmap riallineata allo stato repo: Tauri IPC, preview WASM, pack/build MVP, Logic Board entity-first, Scene Editor, hook runtime e Free/Pro splash risultano implementati a livello MVP.*

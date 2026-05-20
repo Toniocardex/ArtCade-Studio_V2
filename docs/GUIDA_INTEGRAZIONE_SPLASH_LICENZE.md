@@ -2,7 +2,7 @@
 
 > **Versione:** 1.0  
 > **Data:** 2026-05-11  
-> **Stato:** Specifica di integrazione (editor + packaging + runtime)  
+> **Stato:** Implementazione MVP allineata al codice (editor + packaging + runtime)  
 > **Audience:** React/Tauri, tooling Python, runtime C++
 
 In ArtCade V2, la **Splash Screen** ha due ruoli fondamentali che richiedono **due implementazioni parallele** ma concettualmente allineate, rispettando la natura **dual-runtime** dell’engine.
@@ -12,19 +12,19 @@ In ArtCade V2, la **Splash Screen** ha due ruoli fondamentali che richiedono **d
 | **Editor (React/Tauri)** | Mascherare il caricamento del **WASM** e l’inizializzazione del **backend Tauri**. |
 | **Runtime esportato (C++)** | **Watermark obbligatorio** (“tassa visiva”) per gli utenti che esportano con la **Free Edition**; assente o ridotto con **Pro**. |
 
-> **Nota:** i frammenti C++ sotto usano nomi tipo `GameStateManager`, `TextureManager`, `AssetSystem` come **riferimento architetturale**. Allineare include e API alla struttura reale in `runtime-cpp/src/` (es. `Application`, `World`, loader `.artcade` già esistenti).
+> **Nota stato repo (2026-05-20):** `licenseTier` è parte di `ProjectDoc`, `pack-artcade.py` lo copia nel manifest con default `"free"`, e il runtime legge il tier in `Application::loadProject()` per attivare `SplashState` nel caso Free. I frammenti sotto restano riferimento architetturale; il codice reale vive in `runtime-cpp/src/app/`, `runtime-cpp/src/modules/game-state/` e `runtime-cpp/tools/pack-artcade.py`.
 
 ---
 
 ## 1. Integrazione nell’Editor (React/Tauri)
 
-Il file `SplashScreen.tsx` è previsto in `editor/src/components/SplashScreen.tsx`. Va agganciato al **ciclo di vita** dell’app React e, in parallelo, si può avviare il **controllo licenza** (Tauri / store).
+Il file `SplashScreen.tsx` esiste in `editor/src/components/SplashScreen.tsx`. Nell'MVP resta splash editor separata dal runtime; il controllo licenza completo non è ancora un servizio remoto, ma il tier `free | pro` è già rappresentato nel `ProjectDoc`.
 
 ### Directory coinvolte
 
 - `editor/src/components/SplashScreen.tsx` (componente splash)
 - `editor/src/App.tsx` (entry: boot vs UI principale)
-- `editor/src/store/editor-store.tsx` (espansione: `checkLicense`, stato tier)
+- `editor/src/store/editor-store.tsx` (`project.licenseTier`, default `free`)
 
 ### A. Entry point — `editor/src/App.tsx`
 
@@ -70,15 +70,15 @@ export default App;
 
 ## 2. Iniezione del flag di licenza in fase di esportazione
 
-All’azione **Esporta**, la pipeline deve marcare il pacchetto come **Free** o **Pro** dentro `project.json` (o in un manifest dedicato coerente con il loader), così il runtime C++ sa come comportarsi all’avvio.
+All’azione **Esporta**, la pipeline usa `licenseTier` dal `project.json`/`ProjectDoc` e lo inserisce nel `manifest.json` del pacchetto `.artcade`. Se manca, il default è `free`.
 
 ### Directory coinvolte
 
-- `runtime-cpp/tools/pack-artcade.py` — script di packaging verso `.artcade` (già presente nel repo; va esteso).
+- `runtime-cpp/tools/pack-artcade.py` — script di packaging verso `.artcade` (implementato).
 
 ### A. Estensione dello script di packaging
 
-**Attenzione:** evitare di **sovrascrivere** in modo distruttivo il `project.json` sorgente dell’utente sul disco; preferibile **leggere JSON → merge in memoria → scrivere solo nella copia temporanea** inclusa nello ZIP. L’esempio sotto è semplificato.
+**Stato attuale:** il packer non sovrascrive il `project.json` sorgente dell’utente. Legge `licenseTier` / `license_tier`, defaulta a `"free"` e lo scrive nel manifest del pacchetto.
 
 ```python
 # Percorso: runtime-cpp/tools/pack-artcade.py (estensione concettuale)
@@ -109,13 +109,13 @@ Parametro `license_type`: l’editor (via **Tauri command** o IPC) lo passa allo
 
 ## 3. Integrazione nel runtime nativo (C++)
 
-Il gioco esportato contiene `build_info.license_tier`. Il motore, all’avvio dopo aver letto `project.json` dal pacchetto `.artcade`, decide se inserire **`SplashState`** prima del gioco utente.
+Il gioco esportato contiene `licenseTier` nel `ProjectDoc` e nel `manifest.json`. Il motore, all’avvio dopo aver letto `project.json` dal pacchetto `.artcade`, decide se inserire **`SplashState`** prima/durante l’avvio del gioco.
 
 ### Directory coinvolte (target)
 
-- `runtime-cpp/src/modules/game-state/include/splash-state.h` *(nuovo)*  
-- `runtime-cpp/src/modules/game-state/src/splash-state.cpp` *(nuovo)*  
-- `runtime-cpp/src/app/src/app.cpp` *(o equivalente `Application::init` — da allineare al bootstrap reale)*  
+- `runtime-cpp/src/modules/game-state/include/splash-state.h`
+- `runtime-cpp/src/modules/game-state/src/splash-state.cpp`
+- `runtime-cpp/src/app/src/app.cpp` (`Application::loadProject`)
 
 ### A. Classe `SplashState` (Raylib)
 
@@ -182,8 +182,8 @@ bool App::Init() {
 
 1. **Apertura ArtCade Studio:** `App.tsx` mostra `SplashScreen.tsx` e lancia `checkLicense()` in background.  
 2. **Esporta:** React invia **Free/Pro** a Tauri → argomento allo **`pack-artcade.py`** (o pipeline equivalente).  
-3. **Packaging:** `project.json` nel `.artcade` include `build_info.license_tier`.  
-4. **Gioco esportato:** il runtime C++ legge il JSON; se `free`, **SplashState** Raylib; se `pro`, ingresso diretto alla logica di gioco (o splash ridotta, secondo policy prodotto).
+3. **Packaging:** `manifest.json` nel `.artcade` include `licenseTier`, e `project.json` conserva il campo quando presente.  
+4. **Gioco esportato:** il runtime C++ legge il JSON; se `free`, abilita **SplashState** / watermark; se `pro`, niente watermark Free.
 
 ---
 
@@ -195,4 +195,4 @@ bool App::Init() {
 
 ---
 
-*Documento di integrazione: aggiornare quando `SplashState` e il flag `license_tier` saranno implementati nel codice.*
+*Ultimo aggiornamento: 2026-05-20 — MVP implementato con `licenseTier`, manifest `.artcade` e `SplashState`; controllo licenza commerciale completo resta fuori scope.*
