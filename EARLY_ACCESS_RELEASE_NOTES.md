@@ -17,7 +17,7 @@
 
 ✅ **React TypeScript Editor (Tauri)**
 - Scene hierarchy + entity inspector
-- Lua script editor with syntax highlighting (Monaco)
+- Lua script editor with syntax highlighting (CodeMirror 6, isolated iframe for Tauri)
 - Asset browser (sprites, audio, fonts)
 - Live WASM preview with real-time sync
 - Console panel with game logs + editor output

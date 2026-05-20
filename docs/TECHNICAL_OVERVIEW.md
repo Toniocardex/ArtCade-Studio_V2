@@ -639,7 +639,7 @@ game-api/src/
 
 ## 5. Editor React — pannelli e utility
 
-Stack: **React 19 + Vite 6 + TailwindCSS 3 + Monaco Editor + Tauri 2**  
+Stack: **React 19 + Vite 6 + TailwindCSS 3 + CodeMirror 6 (iframe MPA) + Tauri 2**  
 Design: Slate Night `#0B1121` / Neon Cyan `#00FFFF` / Neon Magenta `#FF00FF`
 
 ### Layout
@@ -654,7 +654,7 @@ Design: Slate Night `#0B1121` / Neon Cyan `#00FFFF` / Neon Magenta `#FF00FF`
 │  scene      │   select/pan/paint/erase │                   │
 │  selector)  │                          │                   │
 ├─────────────┴─────────────────────────┴───────────────────┤
-│ AssetBrowser │  ScriptEditor (Monaco)  │  TilesetEditor    │
+│ AssetBrowser │  ScriptEditor (CodeMirror) │  TilesetEditor  │
 ├──────────────┴─────────────────────────┴──────────────────┤
 │ ConsolePanel + StatusBar                                   │
 └────────────────────────────────────────────────────────────┘
@@ -675,7 +675,8 @@ Design: Slate Night `#0B1121` / Neon Cyan `#00FFFF` / Neon Magenta `#FF00FF`
 | `HierarchyPanel` | Lista entity per scena con color badge per className. Click → imperative `editorSelectEntity()` al C++ |
 | `PreviewPanel` | **BLACK BOX**: Canvas WASM puro. Carica `game.js` una sola volta. **NEVER re-renders** durante gameplay. Input/selection/console via buffer globale |
 | `InspectorPanel` | Legge `window._selectedEntity` ogni 200ms (non real-time). Invia comandi `editorSetTransform()` al C++ su change |
-| `ScriptEditorPanel` | Monaco Editor per Lua. Salva bytecode via `editorLoadProject()` |
+| `ScriptEditorPanel` | `EngineScriptEditor` (iframe CodeMirror) per Lua; sync da Logic Board via `update-from-logic`. Apply → `editorReloadScript()` |
+| `LogicBoardPanel` | Editor visuale eventi + anteprima Lua; `syncLogicBoardToScript()` → store + iframe |
 | `AssetBrowserPanel` | Asset del progetto raggruppati per categoria (Images / Audio / Scripts) |
 | `TilesetEditorPanel` | Grid tile 8×4 con flag collision e brush tool |
 | `ConsolePanel` | Drena `window._consoleLogs` ogni 100ms (non real-time). Invia comandi Lua via input al C++ |
@@ -1204,7 +1205,7 @@ Il **parser C++** (`zip-reader.cpp`) gestisce:
 | 14 | WebAssembly (Emscripten) | ✅ | game.html + game.js + game.wasm, VFS preload |
 | 16 | Logic Components Lua | ✅ | PauseManager, PathFollower, PlatformerController, ParticleEmitter, DialogueSystem — 13 test |
 | 17 | Packaging .artcade ZIP | ✅ | zip-reader.cpp (STORE+DEFLATE), pack-artcade.py, 4 test |
-| 18 | Editor React scaffold | ✅ | 7 pannelli, Monaco Lua, wasm-bridge.ts, Tauri IPC stub |
+| 18 | Editor React scaffold | ✅ | 7 pannelli, CodeMirror Lua (iframe), wasm-bridge.ts, Tauri IPC stub |
 
 ### Bug fix notevoli già risolti
 
@@ -1239,7 +1240,7 @@ Checkpoint:
 **Dipende da**: Fase 15 + CRITICO Pattern 5.5  
 **Stato**: ⏳ **IN PROGRESS**
 
-Obiettivo: modificare lo script Lua nel Monaco Editor e vedere il risultato nel PreviewPanel senza riavviare il runtime. **IMPLEMENTARE BUFFERING PATTERN PER ELIMINARE FLASH**.
+Obiettivo: modificare lo script Lua nell’editor (CodeMirror) o dalla Logic Board e vedere il risultato nel PreviewPanel senza riavviare il runtime. **IMPLEMENTARE BUFFERING PATTERN PER ELIMINARE FLASH**. Sync board→script e Apply hot-reload già operativi in editor.
 
 Checkpoint:
 - [ ] PreviewPanel **NON si re-renderizza mai** durante gameplay (zero useContext per volatile state)

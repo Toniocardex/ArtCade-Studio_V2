@@ -34,7 +34,7 @@ Logic Board              (il luogo di lavoro)
        └─ Logic Component (il mattone: trigger, condizione o azione)
 ```
 
-**Implementazione editor (oggi):** la vista «Logic Board» nell’editor include principalmente l’**editor testuale Lua** (Monaco). La rappresentazione completa a **blocchi** (Logic Event / Logic Component) è **in roadmap** e va tenuta allineata a questa terminologia in UI e doc.
+**Implementazione editor (oggi):** modalità **Visual** (Logic Event / Logic Component) + anteprima Lua live; toggle **Lua** apre lo stesso editor script (**CodeMirror 6 in iframe**, vedi `CODEMIRROR_EDITOR.md`). Le modifiche ai board compilano Lua e sincronizzano lo script aperto (`UPDATE_SCRIPT` → `update-from-logic`); **Apply & hot-reload** invia il sorgente al runtime WASM.
 
 ### Logic Event
 
@@ -178,7 +178,7 @@ Il nome **Logic Sheet** resta nel glossario (**Parte I**) per indicare il **form
 
 ### Non-obiettivi (v0.1)
 
-- Non sostituisce la **Logic Board** (né l’editor Lua Monaco) per script liberi.
+- Non sostituisce la **Logic Board** (né l’editor Lua in tab Script) per script liberi non legati al compilatore.
 - Non è un **node graph** completo (React Flow può arrivare in fasi successive).
 - Non definisce ancora l’**UI pixel-perfect** del pannello Sheet; solo modello dati, flussi e contratti.
 
@@ -553,7 +553,7 @@ Lo script testuale può: chiamare funzioni del blocco generato; **ridefinire** f
 - **Riordina:** drag & drop (opzionale).  
 - **Elimina:** icona cestino.  
 - **Visualizza Lua:** pannello read-only del sorgente generato.  
-- **Passa a Monaco:** percorso verso editor testuale dal menu contestuale.
+- **Passa a Lua / Script:** toggle Visual ↔ Lua nel pannello Logic Board, oppure tab **Editor Script** globale (stesso `EngineScriptEditor`).
 
 #### 7.3 Parametri per tipo (form / modali)
 

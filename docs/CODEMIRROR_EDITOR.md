@@ -26,6 +26,23 @@ Comunicazione: `postMessage` (`src/codemirror-frame/protocol.ts`).
 | `ready` | Frame pronto, parent invia `init` |
 | `change` | Testo modificato → store |
 
+## Sync Logic Board → script (non toccare senza test)
+
+Flusso **unidirezionale** (board → Lua testo; parsing Lua → board non è v1):
+
+```
+LogicBoardPanel (store LOGIC_*)
+  → compileLogicBoard(project.logicBoards)
+  → syncLogicBoardToScript()  (utils/sync-logic-board-script.ts)
+       → UPDATE_SCRIPT nello store
+       → EngineScriptEditor: postMessage update-from-logic
+  → Apply: editorReloadScript(lua) sul WASM
+```
+
+- `LogicBoardPanel`: `useEffect` su revisione `logicBoards` + `handleApply` chiama sync prima del reload.
+- `lastSyncedRef` in `EngineScriptEditor` evita loop quando l’iframe emette `change` dopo un push esterno.
+- **Non implementato:** Lua digitato a mano → ricostruzione blocchi (`useCodeParser` è placeholder).
+
 ## File
 
 | File | Ruolo |
@@ -35,6 +52,7 @@ Comunicazione: `postMessage` (`src/codemirror-frame/protocol.ts`).
 | `editor/src/codemirror-frame/frame.css` | Solo reset minimale (no Tailwind) |
 | `editor/src/codemirror-frame/protocol.ts` | Tipi postMessage |
 | `editor/src/components/EngineScriptEditor.tsx` | Host iframe |
+| `editor/src/utils/sync-logic-board-script.ts` | Compila board → `UPDATE_SCRIPT` |
 | `editor/src/codemirror/*.ts` | Lua, tema, autocomplete (condivisi col frame) |
 
 ## Build
@@ -51,8 +69,10 @@ Output: `dist/index.html` + `dist/codemirror-frame.html` (+ chunk JS dedicati).
 
 1. `tauri:build` → Editor Script: righe allineate, syntax highlight Lua, tema dark/light.
 2. Cambio tab script / tema app → iframe riceve `set-theme` o remount con `key={path}`.
-3. `UPDATE_SCRIPT` da sorgente esterna (non digitazione iframe) → `update-from-logic` (anti-loop via `lastSyncedRef`).
+3. Logic Board: modifica evento → tab Lua o Script aperto si aggiorna; **Apply & hot-reload** aggiorna il runtime.
+4. `UPDATE_SCRIPT` da sorgente esterna (non digitazione iframe) → `update-from-logic` (anti-loop via `lastSyncedRef`).
 
 ## Riferimenti
 
+- [`LOGIC_BOARD_SPEC.md`](LOGIC_BOARD_SPEC.md) — terminologia e UI target
 - [`REACT_WASM_PATTERN.md`](REACT_WASM_PATTERN.md)

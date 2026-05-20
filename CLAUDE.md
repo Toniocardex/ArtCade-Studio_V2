@@ -86,13 +86,13 @@ editor/
 │   ├── main.tsx                    # Entry
 │   ├── App.tsx                     # Root layout
 │   ├── components/
-│   │   ├── LogicBoardEditor.tsx    # Lua script editor with syntax highlight
-│   │   ├── Inspector.tsx            # Entity/scene properties
-│   │   ├── Timeline.tsx             # Sequence timeline
+│   │   ├── EngineScriptEditor.tsx  # CodeMirror host (iframe MPA)
 │   │   └── ...
+│   ├── codemirror-frame/           # Isolated editor document (postMessage)
+│   ├── codemirror/                 # Lua mode, theme, completions
 │   ├── panels/
-│   │   ├── ScenePanel.tsx
-│   │   ├── AssetBrowser.tsx
+│   │   ├── ScriptEditorPanel.tsx
+│   │   ├── LogicBoardPanel.tsx     # Visual board + Lua sync → script store
 │   │   └── ...
 │   ├── utils/
 │   │   ├── api.ts                  # IPC to Tauri

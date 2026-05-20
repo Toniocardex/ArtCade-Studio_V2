@@ -67,7 +67,7 @@ L’interscambio di dati tra il cuore C++ e l’interfaccia React avviene tramit
 
 L’engine implementa un sistema di scripting e authoring a **più livelli** (testuale, tabellare, visuale → Lua). La terminologia **Logic Board / Logic Event / Logic Component** è nella [**Parte I** di `LOGIC_BOARD_SPEC.md`](LOGIC_BOARD_SPEC.md).
 
-1. **Logic Board:** scheda di lavoro dove si assemblano **Logic Event** e **Logic Component** — vocabolario [**Parte I**](LOGIC_BOARD_SPEC.md), specifica implementativa [**Parte III**](LOGIC_BOARD_SPEC.md). *Editor attuale:* prevalentemente Lua in Monaco; *blocchi visivi:* roadmap (coerente con Parte III).
+1. **Logic Board:** scheda di lavoro dove si assemblano **Logic Event** e **Logic Component** — vocabolario [**Parte I**](LOGIC_BOARD_SPEC.md), specifica implementativa [**Parte III**](LOGIC_BOARD_SPEC.md). *Editor attuale:* modalità Visual (eventi) + Lua generato/sync; editor script = CodeMirror in iframe ([`CODEMIRROR_EDITOR.md`](CODEMIRROR_EDITOR.md)).
 2. **Visual nodes (React):** interfaccia a nodi (es. React Flow), quando integrata, sotto o accanto alla Logic Board.
 3. **Logic Sheet:** formato tabellare riga → condizioni/azioni — [`LOGIC_BOARD_SPEC.md`](LOGIC_BOARD_SPEC.md) **Parte II** (bozza v0.1); complementare alla Logic Board.
 4. **Code generation:** nodi o sheet → Lua.

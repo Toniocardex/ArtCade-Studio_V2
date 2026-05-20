@@ -487,14 +487,14 @@ python tools/pack-artcade.py test-project output.artcade
 **Stato**: ✅ Completata — `npm install && npm run dev` → http://localhost:5173
 
 ### Cosa è stato fatto
-- **Stack**: React 19 + Vite 6 + TailwindCSS 3 + Monaco Editor + lucide-react
+- **Stack**: React 19 + Vite 6 + TailwindCSS 3 + CodeMirror 6 (`@uiw/react-codemirror`) + lucide-react
 - **Design system**: Slate Night `#0B1121` / Neon Cyan `#00FFFF` / Neon Magenta `#FF00FF` (da mockup)
-- **Layout**: SCENE_VIEW (3 colonne) ↔ LOGIC_BOARD (Monaco full-screen)
+- **Layout**: SCENE_VIEW (3 colonne) ↔ LOGIC_BOARD / EDITOR_SCRIPT (pannelli dedicati)
 - **Pannelli**:
   - `HierarchyPanel` — scene selector + entity list con color badge
   - `PreviewPanel` — viewport con grid CSS + tool palette (select/pan/paint/erase)
   - `InspectorPanel` — transform/sprite/script fields, "OPEN IN LOGIC_BOARD →"
-  - `ScriptEditorPanel` — Monaco Lua + 25 snippet ArtCade API
+  - `ScriptEditorPanel` — Lua via iframe CodeMirror + snippet API ArtCade (`EngineScriptEditor`)
   - `AssetBrowserPanel` — asset grid per categoria
   - `TilesetEditorPanel` — tile grid 8×4, collision toggle, brush tool
   - `ConsolePanel` — log entries colorati per livello + input bar
@@ -534,7 +534,7 @@ editor/
 | 15 | Tauri Integration (editor nativo + IPC) | 14, 18 | ⏳ |
 | 16 | Logic Components Lua (5 componenti) | 11 | ✅ |
 | 17 | Packaging .artcade ZIP | 13–14 | ✅ |
-| 18 | Editor React scaffold (neon UI + Monaco) | — | ✅ |
+| 18 | Editor React scaffold (neon UI + script editor) | — | ✅ |
 
 ---
 
@@ -554,16 +554,10 @@ editor/
 
 | # | Area | Problema | Priorità | Stato |
 |---|------|----------|----------|-------|
-| KI-1 | Editor Script (CodeMirror) | **CodeMirror 6** (2026-05-20): `@uiw/react-codemirror`, Lua `legacy-modes`, temi + autocomplete ArtCade, niente worker/CSP Monaco. `CodeEditor` Measure-First + uncontrolled. Doc: `docs/CODEMIRROR_EDITOR.md`. Resta: markers errori Lua, LSP opzionale. | Media | ✅ Risolto |
+| KI-1 | Editor Script (CodeMirror) | **CodeMirror 6 in iframe MPA** (`codemirror-frame.html`): Lua `legacy-modes`, temi ArtCade, autocomplete; sync Logic Board → `UPDATE_SCRIPT` / `update-from-logic`; Tauri release OK. Doc: `docs/CODEMIRROR_EDITOR.md`. Resta: markers errori Lua, LSP opzionale. | Media | ✅ Risolto |
 
 | KI-2 | Logic Components — hook engine | `onAnimationEnd` e `onDestroy` aggiunti a tipi/UI ma compilano a **no-op sicuro** (commento) perché il runtime non espone ancora un hook "animazione finita" / "pre-distruzione". `onTriggerEnter/Exit` invece funzionano (edge compiler-only su `collision.touchingClass`). Da completare con hook engine C++ (spriteAnimator → callback fine clip; entityManager → callback pre-destroy che invoca Lua). | Bassa | ⏳ Aperto |
 
 ---
 
-*Ultimo aggiornamento: 2026-05-20 — KI-1: migrazione Editor Script a CodeMirror 6. Vedi `docs/CODEMIRROR_EDITOR.md`.*
-
-*Ultimo aggiornamento: 2026-05-19 — Logic Components A/B/C: A+B funzionali; C: onTriggerEnter/Exit ok, onAnimationEnd/onDestroy stub (KI-2). Monaco KI-1 risolto (overflow geo).*
-
-*Ultimo aggiornamento: 2026-05-18 — KI-1 (Editor Script Monaco) registrato; focus su workflow entità/asset.*
-
-*Ultimo aggiornamento: 2026-05-09 — Fasi 0–18 completate (14/14 test C++ + WASM + editor React)*
+*Ultimo aggiornamento: 2026-05-20 — KI-1: Editor Script CodeMirror 6 in iframe (`docs/CODEMIRROR_EDITOR.md`). Logic Board → script store + Apply hot-reload validati. KI-2: onAnimationEnd/onDestroy stub engine.*
