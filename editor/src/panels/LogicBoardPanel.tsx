@@ -1,7 +1,7 @@
 // ---------------------------------------------------------------------------
 // Logic Board panel — visual event-list editor.
 //
-// Visual: LogicEvent cards only (full width).
+// Entity-first: rulesheets bind to entityId by default; class boards in Advanced.
 // Script tab: read-only Lua preview + Apri in Editor Script.
 //
 // All mutations go through LOGIC_*; compiled Lua syncs to mainScriptPath in store.
@@ -9,12 +9,23 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useEditor } from '../store/editor-store'
-import { allClassNames } from '../utils/project'
+import {
+  allClassNames,
+  classDisplayLabel,
+  findLogicBoardForEntity,
+  getEntitiesInScene,
+  logicBoardLabel,
+} from '../utils/project'
 import { compileLogicBoard } from '../utils/logic-board/compiler'
 import { editorReloadScript } from '../utils/wasm-bridge'
-import { createLogicBoard, createLogicEvent } from '../utils/logic-board/factory'
+import {
+  createLogicBoard,
+  createLogicBoardForEntity,
+  createLogicEvent,
+} from '../utils/logic-board/factory'
 import { TRIGGER_TYPES, defaultTrigger } from './logic-board/options'
 import { boardDisplayName } from './logic-board/friendly-labels'
+import type { ProjectDoc } from '../types'
 import type { LogicBoard, LogicTriggerType } from '../types/logic-board'
 import { TypePicker } from '../components/logic-board/TypePicker'
 import EventCard from './logic-board/EventCard'
@@ -28,30 +39,45 @@ import {
 export default function LogicBoardPanel() {
   const { state, dispatch } = useEditor()
   const project = state.project
+  const { selection } = state
 
   const boards = project?.logicBoards ?? []
   const [selectedBoardId, setSelectedBoardId] = useState<string | null>(
     boards[0]?.boardId ?? null,
   )
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [mode, setMode] = useState<'visual' | 'lua'>('visual')
+  const [panelMode, setPanelMode] = useState<'visual' | 'lua'>('visual')
+  const [advancedOpen, setAdvancedOpen] = useState(false)
   const [newClass, setNewClass] = useState('')
   const [newTrigger, setNewTrigger] = useState<LogicTriggerType>('onUpdate')
   const [applyMsg, setApplyMsg] = useState<string | null>(null)
 
+  const sceneId = selection.sceneId ?? project?.activeSceneId ?? ''
+  const sceneEntities = project ? getEntitiesInScene(project, sceneId) : []
+
   const board =
     boards.find((b) => b.boardId === selectedBoardId) ?? boards[0] ?? null
 
-  // Live Lua — recompiles whenever any board/event changes.
-  const lua = useMemo(
-    () => compileLogicBoard(boards),
-    [boards],
-  )
+  const selectedEntityId = selection.entityId
+  const boardForSelection =
+    project && selectedEntityId != null
+      ? findLogicBoardForEntity(project, selectedEntityId)
+      : undefined
+
+  // Sync Hierarchy selection → rulesheet when in Logic mode.
+  useEffect(() => {
+    if (state.mode !== 'logic' || !project) return
+    const eid = selection.entityId
+    if (eid == null) return
+    const existing = findLogicBoardForEntity(project, eid)
+    if (existing) setSelectedBoardId(existing.boardId)
+  }, [state.mode, selection.entityId, project])
+
+  const lua = useMemo(() => compileLogicBoard(boards), [boards])
 
   const boardsRevision = logicBoardsRevision(project)
   const prevBoardsRevision = useRef(boardsRevision)
 
-  // Visual edits → sync compiled Lua into main script buffer (Editor Script / hot-reload).
   useEffect(() => {
     if (prevBoardsRevision.current === boardsRevision) return
     prevBoardsRevision.current = boardsRevision
@@ -71,6 +97,24 @@ export default function LogicBoardPanel() {
 
   const classes = project ? allClassNames(project) : []
 
+  const selectEntityForRules = (entityId: number) => {
+    dispatch({ type: 'SELECT_ENTITY', entityId })
+    const existing = project && findLogicBoardForEntity(project, entityId)
+    if (existing) setSelectedBoardId(existing.boardId)
+  }
+
+  const createBoardForEntity = (entityId: number) => {
+    if (!project) return
+    const existing = findLogicBoardForEntity(project, entityId)
+    if (existing) {
+      setSelectedBoardId(existing.boardId)
+      return
+    }
+    const b = createLogicBoardForEntity(entityId)
+    dispatch({ type: 'LOGIC_ADD_BOARD', board: b })
+    setSelectedBoardId(b.boardId)
+  }
+
   if (!project) {
     return (
       <div className="flex-1 flex items-center justify-center text-[var(--muted)] text-sm">
@@ -79,18 +123,19 @@ export default function LogicBoardPanel() {
     )
   }
 
-  if (mode === 'lua') {
+  if (panelMode === 'lua') {
     const mainLabel = project.mainScriptPath.split('/').pop() ?? project.mainScriptPath
     return (
       <div className="flex-1 flex flex-col min-h-0 bg-[var(--bg)]">
         <Header
-          mode={mode}
-          setMode={setMode}
+          mode={panelMode}
+          setMode={setPanelMode}
           boards={boards}
           board={board}
           onSelectBoard={setSelectedBoardId}
           onApply={handleApply}
           applyMsg={applyMsg}
+          project={project}
         />
         <LogicBoardLuaPreview
           lua={lua}
@@ -110,129 +155,189 @@ export default function LogicBoardPanel() {
     )
   }
 
+  const canCreateForSelection =
+    selectedEntityId != null && boardForSelection == null
+
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-[var(--bg)]">
       <Header
-        mode={mode}
-        setMode={setMode}
+        mode={panelMode}
+        setMode={setPanelMode}
         boards={boards}
         board={board}
         onSelectBoard={setSelectedBoardId}
         onApply={handleApply}
         applyMsg={applyMsg}
+        project={project}
       />
 
-      {/* board management bar */}
-      <div className="flex items-center gap-3 px-4 py-2 border-b border-[var(--border)] bg-[var(--panel)]">
-        <span className="text-[11px] text-[var(--muted)]">New rulesheet · character class</span>
-        <select
-          className="bg-[var(--bg)] border border-[var(--border-2)] text-[var(--accent)] px-2 py-1 rounded text-xs"
-          value={newClass}
-          onChange={(e) => setNewClass(e.target.value)}
-        >
-          <option value="">Choose a class…</option>
-          {classes.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-        <button
-          disabled={!newClass}
-          onClick={() => {
-            const b = createLogicBoard(newClass)
-            dispatch({ type: 'LOGIC_ADD_BOARD', board: b })
-            setSelectedBoardId(b.boardId)
-            setNewClass('')
-          }}
-          className="px-3 py-1 rounded text-xs font-semibold border border-[var(--border-2)] bg-[var(--border)] text-[var(--text)] disabled:opacity-40"
-        >
-          New rulesheet
-        </button>
-        {board && (
-          <button
-            onClick={() => {
-              dispatch({ type: 'LOGIC_DELETE_BOARD', boardId: board.boardId })
-              setSelectedBoardId(null)
+      <div className="flex flex-col gap-2 px-4 py-2 border-b border-[var(--border)] bg-[var(--panel)]">
+        <div className="flex items-center gap-3 flex-wrap">
+          <span className="text-[11px] text-[var(--muted)]">Rules for entity</span>
+          <select
+            className="bg-[var(--bg)] border border-[var(--border-2)] text-[var(--accent)] px-2 py-1 rounded text-xs min-w-[140px]"
+            value={selectedEntityId ?? ''}
+            onChange={(e) => {
+              const id = Number(e.target.value)
+              if (!Number.isNaN(id)) selectEntityForRules(id)
             }}
-            className="px-3 py-1 rounded text-xs text-[var(--muted)] hover:text-[var(--danger)]"
           >
-            Delete rulesheet
+            <option value="">Choose entity…</option>
+            {sceneEntities.map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.name}
+                {findLogicBoardForEntity(project, e.id) ? ' · rules' : ''}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            disabled={!canCreateForSelection}
+            title={
+              selectedEntityId == null
+                ? 'Select an entity in Hierarchy first'
+                : boardForSelection
+                  ? 'This entity already has a rulesheet'
+                  : 'Create rulesheet for selected entity'
+            }
+            onClick={() => {
+              if (selectedEntityId != null) createBoardForEntity(selectedEntityId)
+            }}
+            className="px-3 py-1 rounded text-xs font-semibold border border-[var(--border-2)] bg-[var(--border)] text-[var(--text)] disabled:opacity-40"
+          >
+            New rulesheet for selection
           </button>
-        )}
+          {board && (
+            <button
+              type="button"
+              onClick={() => {
+                dispatch({ type: 'LOGIC_DELETE_BOARD', boardId: board.boardId })
+                setSelectedBoardId(null)
+              }}
+              className="px-3 py-1 rounded text-xs text-[var(--muted)] hover:text-[var(--danger)]"
+            >
+              Delete rulesheet
+            </button>
+          )}
+        </div>
+
+        <details
+          open={advancedOpen}
+          onToggle={(e) => setAdvancedOpen((e.target as HTMLDetailsElement).open)}
+          className="text-xs"
+        >
+          <summary className="cursor-pointer text-[var(--muted)] hover:text-[var(--text)] select-none">
+            Advanced — shared rulesheet (class)
+          </summary>
+          <p className="text-[10px] text-[var(--muted)] mt-1 mb-2 max-w-xl">
+            Use only when many identical objects share one behavior. Default workflow is one rulesheet per entity in Hierarchy.
+          </p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <select
+              className="bg-[var(--bg)] border border-[var(--border-2)] text-[var(--accent)] px-2 py-1 rounded text-xs"
+              value={newClass}
+              onChange={(e) => setNewClass(e.target.value)}
+            >
+              <option value="">Choose class…</option>
+              {classes.map((c) => (
+                <option key={c} value={c}>
+                  {classDisplayLabel(project, c)}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              disabled={!newClass}
+              onClick={() => {
+                const b = createLogicBoard(newClass)
+                dispatch({ type: 'LOGIC_ADD_BOARD', board: b })
+                setSelectedBoardId(b.boardId)
+                setNewClass('')
+              }}
+              className="px-3 py-1 rounded text-xs font-semibold border border-[var(--border-2)] bg-[var(--border)] text-[var(--text)] disabled:opacity-40"
+            >
+              New class rulesheet
+            </button>
+          </div>
+        </details>
       </div>
 
       <div className="flex-1 min-h-0 overflow-auto p-4">
-          {!board ? (
-            <div className="text-[var(--muted)] text-sm mt-8 text-center max-w-md mx-auto">
-              Choose a character class above, then add your first rule.
+        {!board ? (
+          <div className="text-[var(--muted)] text-sm mt-8 text-center max-w-md mx-auto leading-relaxed">
+            Select an entity in Hierarchy, then create a rulesheet with{' '}
+            <span className="text-[var(--text)]">New rulesheet for selection</span>.
+          </div>
+        ) : (
+          <>
+            <div className="text-xs text-[var(--muted)] mb-3">
+              Rules for{' '}
+              <span className="text-[var(--text)] font-medium">
+                {logicBoardLabel(project, board)}
+              </span>{' '}
+              ({board.events.length})
             </div>
-          ) : (
-            <>
-              <div className="text-xs text-[var(--muted)] mb-3">
-                Rules ({board.events.length})
-              </div>
 
-              {board.events.map((ev) => (
-                <EventCard
-                  key={ev.id}
-                  event={ev}
-                  editing={editingId === ev.id}
-                  onToggleEnabled={() =>
-                    dispatch({
-                      type: 'LOGIC_UPDATE_EVENT',
-                      boardId: board.boardId,
-                      event: { ...ev, enabled: !ev.enabled },
-                    })
-                  }
-                  onEdit={() =>
-                    setEditingId(editingId === ev.id ? null : ev.id)
-                  }
-                  onDelete={() => {
-                    dispatch({
-                      type: 'LOGIC_DELETE_EVENT',
-                      boardId: board.boardId,
-                      eventId: ev.id,
-                    })
-                    if (editingId === ev.id) setEditingId(null)
-                  }}
-                  onChange={(next) =>
-                    dispatch({
-                      type: 'LOGIC_UPDATE_EVENT',
-                      boardId: board.boardId,
-                      event: next,
-                    })
-                  }
-                  onDoneEditing={() => setEditingId(null)}
-                />
-              ))}
+            {board.events.map((ev) => (
+              <EventCard
+                key={ev.id}
+                event={ev}
+                editing={editingId === ev.id}
+                onToggleEnabled={() =>
+                  dispatch({
+                    type: 'LOGIC_UPDATE_EVENT',
+                    boardId: board.boardId,
+                    event: { ...ev, enabled: !ev.enabled },
+                  })
+                }
+                onEdit={() =>
+                  setEditingId(editingId === ev.id ? null : ev.id)
+                }
+                onDelete={() => {
+                  dispatch({
+                    type: 'LOGIC_DELETE_EVENT',
+                    boardId: board.boardId,
+                    eventId: ev.id,
+                  })
+                  if (editingId === ev.id) setEditingId(null)
+                }}
+                onChange={(next) =>
+                  dispatch({
+                    type: 'LOGIC_UPDATE_EVENT',
+                    boardId: board.boardId,
+                    event: next,
+                  })
+                }
+                onDoneEditing={() => setEditingId(null)}
+              />
+            ))}
 
-              <div className="flex items-center gap-2 mt-2 flex-wrap">
-                <TypePicker
-                  kind="trigger"
-                  types={TRIGGER_TYPES}
-                  value={newTrigger}
-                  onChange={(t) => setNewTrigger(t as LogicTriggerType)}
-                  className="max-w-[240px]"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    const ev = createLogicEvent(defaultTrigger(newTrigger))
-                    dispatch({
-                      type: 'LOGIC_ADD_EVENT',
-                      boardId: board.boardId,
-                      event: ev,
-                    })
-                    setEditingId(ev.id)
-                  }}
-                  className="flex-1 min-w-[140px] px-3 py-2 rounded border border-dashed border-[var(--border-2)] text-[var(--muted)] text-xs hover:text-[var(--accent)] hover:border-[var(--accent-bd)]"
-                >
-                  Add rule
-                </button>
-              </div>
-            </>
-          )}
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
+              <TypePicker
+                kind="trigger"
+                types={TRIGGER_TYPES}
+                value={newTrigger}
+                onChange={(t) => setNewTrigger(t as LogicTriggerType)}
+                className="max-w-[240px]"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const ev = createLogicEvent(defaultTrigger(newTrigger))
+                  dispatch({
+                    type: 'LOGIC_ADD_EVENT',
+                    boardId: board.boardId,
+                    event: ev,
+                  })
+                  setEditingId(ev.id)
+                }}
+                className="flex-1 min-w-[140px] px-3 py-2 rounded border border-dashed border-[var(--border-2)] text-[var(--muted)] text-xs hover:text-[var(--accent)] hover:border-[var(--accent-bd)]"
+              >
+                Add rule
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   )
@@ -248,6 +353,7 @@ function Header({
   onSelectBoard,
   onApply,
   applyMsg,
+  project,
 }: {
   mode: 'visual' | 'lua'
   setMode: (m: 'visual' | 'lua') => void
@@ -256,13 +362,9 @@ function Header({
   onSelectBoard: (id: string) => void
   onApply: () => void
   applyMsg: string | null
+  project: ProjectDoc
 }) {
-  const rulesFor =
-    board?.target.type === 'entity_class' && board.target.className
-      ? board.target.className
-      : board
-        ? boardDisplayName(board)
-        : null
+  const rulesFor = board ? boardDisplayName(board, project) : null
 
   return (
     <div className="h-[52px] flex items-center gap-3.5 px-4 bg-[var(--panel)] border-b border-[var(--border)]">
@@ -282,7 +384,7 @@ function Header({
         >
           {boards.map((b) => (
             <option key={b.boardId} value={b.boardId}>
-              {boardDisplayName(b)}
+              {boardDisplayName(b, project)}
             </option>
           ))}
         </select>

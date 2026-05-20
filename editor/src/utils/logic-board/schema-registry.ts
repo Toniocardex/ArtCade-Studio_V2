@@ -2,15 +2,15 @@
 // Logic Board JSON Schema registry — validation (Ajv) + UI metadata (x-artcade)
 // ---------------------------------------------------------------------------
 
-import Ajv, { type ErrorObject, type ValidateFunction } from 'ajv'
-import addFormats from 'ajv-formats'
-
+import type { ErrorObject } from 'ajv'
 import indexJson from '../../schemas/logic-board/index.json'
-import boardSchema from '../../schemas/logic-board/board.schema.json'
 import triggersJson from '../../schemas/logic-board/triggers.json'
 import actionsJson from '../../schemas/logic-board/actions.json'
 import conditionsJson from '../../schemas/logic-board/conditions.json'
-import targetSelectorSchema from '../../schemas/logic-board/target-selector.schema.json'
+import {
+  componentValidators as componentValidatorsRaw,
+  validateBoard as validateBoardCompiled,
+} from './validators.generated'
 import type {
   LogicAction,
   LogicBoard,
@@ -19,6 +19,15 @@ import type {
   LogicConditionNode,
   LogicTrigger,
 } from '../../types/logic-board'
+
+/** Pre-compiled Ajv validator (build-time standalone code). */
+type LogicValidator = {
+  (data: unknown): boolean
+  errors?: ErrorObject[] | null
+}
+
+const componentValidators = componentValidatorsRaw as Record<string, LogicValidator>
+const boardValidator = validateBoardCompiled as LogicValidator
 
 export type ComponentKind = 'trigger' | 'action' | 'condition'
 
@@ -73,26 +82,6 @@ const index = indexJson as {
   conditions: string[]
 }
 
-function deepClone<T>(v: T): T {
-  return JSON.parse(JSON.stringify(v)) as T
-}
-
-function resolveRefs(schema: Record<string, unknown>): Record<string, unknown> {
-  const s = deepClone(schema)
-  const walk = (node: unknown): void => {
-    if (!node || typeof node !== 'object') return
-    const o = node as Record<string, unknown>
-    if (o.$ref === './target-selector.schema.json') {
-      Object.keys(o).forEach((k) => delete o[k])
-      Object.assign(o, deepClone(targetSelectorSchema))
-      return
-    }
-    for (const v of Object.values(o)) walk(v)
-  }
-  walk(s)
-  return s
-}
-
 function getArtcade(schema: Record<string, unknown>): ArtCadeExt {
   return (schema['x-artcade'] as ArtCadeExt | undefined) ?? {}
 }
@@ -105,35 +94,15 @@ function ajvErrorToIssues(errors: ErrorObject[] | null | undefined, prefix: stri
   }))
 }
 
-const ajv = new Ajv({ allErrors: true, strict: false })
-addFormats(ajv)
-
-const validators = new Map<string, ValidateFunction>()
-
-function validatorKey(kind: ComponentKind, type: string): string {
-  return `${kind}:${type}`
-}
-
 function getRawSchema(kind: ComponentKind, type: string): Record<string, unknown> | undefined {
   const table =
     kind === 'trigger' ? triggers : kind === 'action' ? actions : conditions
   return table[type] as Record<string, unknown> | undefined
 }
 
-function getValidator(kind: ComponentKind, type: string): ValidateFunction | undefined {
-  const key = validatorKey(kind, type)
-  let fn = validators.get(key)
-  if (fn) return fn
-
-  const raw = getRawSchema(kind, type)
-  if (!raw) return undefined
-
-  fn = ajv.compile(resolveRefs(raw))
-  validators.set(key, fn)
-  return fn
+function getValidator(kind: ComponentKind, type: string): LogicValidator | undefined {
+  return componentValidators[`${kind}:${type}`]
 }
-
-const boardValidator = ajv.compile(boardSchema as Record<string, unknown>)
 
 export function listTriggerTypes(): string[] {
   return [...index.triggers]

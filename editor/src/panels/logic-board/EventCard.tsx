@@ -2,6 +2,7 @@
 // One game rule: collapsed plain-English summary or expanded editor
 // ---------------------------------------------------------------------------
 
+import { useEditor } from '../../store/editor-store'
 import type { LogicEvent } from '../../types/logic-board'
 import {
   actionSummaryPlain,
@@ -34,7 +35,9 @@ export default function EventCard({
   onChange: (e: LogicEvent) => void
   onDoneEditing: () => void
 }) {
-  const ifLines = conditionsPlainList(event)
+  const { state } = useEditor()
+  const project = state.project
+  const ifLines = conditionsPlainList(event, project)
   const dim = event.enabled ? '' : 'opacity-50'
 
   return (
@@ -45,7 +48,7 @@ export default function EventCard({
     >
       <div className="flex items-start gap-2.5 px-3 py-2.5 bg-[var(--panel-3)] border-b border-[var(--border)]">
         <span className={`${pill} ${pWhen}`}>When</span>
-        <RuleSentence text={triggerSummaryPlain(event.trigger)} dimmed={!event.enabled} />
+        <RuleSentence text={triggerSummaryPlain(event.trigger, project)} dimmed={!event.enabled} />
         <div className="flex-1" />
         <button
           type="button"
@@ -112,7 +115,7 @@ export default function EventCard({
             ) : (
               <ol className="flex flex-col gap-1 list-decimal list-inside m-0 p-0 text-xs text-[var(--text)]">
                 {event.actions.map((a, i) => (
-                  <li key={i}>{actionSummaryPlain(a)}</li>
+                  <li key={i}>{actionSummaryPlain(a, project)}</li>
                 ))}
               </ol>
             )}

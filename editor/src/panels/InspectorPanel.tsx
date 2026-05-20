@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Settings, ChevronRight, Trash2 } from 'lucide-react'
 import { useEditor } from '../store/editor-store'
 import type { EntityDef, ComponentKey } from '../types'
@@ -7,6 +7,7 @@ import {
   COMPONENT_REGISTRY,
   type ComponentDescriptor,
 } from './inspector/component-registry'
+import { applyInputBackspace, isBackspaceKey } from '../utils/keyboard'
 
 // ---- helpers ---------------------------------------------------------------
 
@@ -28,28 +29,50 @@ function Field({
   onCommit?: (value: string) => void
   cyan?: boolean
 }) {
-  const [draft, setDraft] = useState(String(value))
-  useEffect(() => { setDraft(String(value)) }, [value])
+  const inputRef = useRef<HTMLInputElement>(null)
+  const lastCommitted = useRef(String(value))
 
-  function commit() {
-    if (onCommit && draft !== String(value)) onCommit(draft)
+  useEffect(() => {
+    const el = inputRef.current
+    if (!el || document.activeElement === el) return
+    el.value = String(value)
+    lastCommitted.current = String(value)
+  }, [value])
+
+  function commitFromInput() {
+    const v = inputRef.current?.value ?? ''
+    if (onCommit && v !== lastCommitted.current) {
+      onCommit(v)
+      lastCommitted.current = v
+    }
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    e.stopPropagation()
+    const input = e.currentTarget
+
+    if (isBackspaceKey(e)) {
+      e.preventDefault()
+      applyInputBackspace(input)
+      return
+    }
+
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      commitFromInput()
+      input.blur()
+    }
   }
 
   return (
     <div className="space-y-0.5 mb-2">
       <label className="text-[9px] text-[var(--muted)] uppercase">{label}</label>
       <input
+        ref={inputRef}
         type="text"
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          e.stopPropagation()
-          if (e.key === 'Enter') {
-            commit()
-            ;(e.target as HTMLInputElement).blur()
-          }
-        }}
+        defaultValue={String(value)}
+        onBlur={commitFromInput}
+        onKeyDown={handleKeyDown}
         className={`w-full bg-[var(--border)] border border-[var(--border-2)] rounded px-2 py-1
                     text-xs focus:outline-none focus:border-[var(--accent)] transition-colors ${
                       cyan ? 'text-[var(--accent)]' : 'text-[var(--text)]'
@@ -73,7 +96,13 @@ function NumberField({
         type="number"
         value={Number.isFinite(value) ? value : 0}
         onChange={e => onCommit(Number(e.target.value))}
-        onKeyDown={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          e.stopPropagation()
+          if (isBackspaceKey(e)) {
+            e.preventDefault()
+            applyInputBackspace(e.currentTarget)
+          }
+        }}
         className="w-full bg-[var(--border)] border border-[var(--border-2)] rounded px-2 py-1
                    text-xs text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
       />
@@ -173,7 +202,13 @@ function ComponentSection({
                 onChange={(e) =>
                   commit(f.key, isNum ? Number(e.target.value) : e.target.value)
                 }
-                onKeyDown={(e) => e.stopPropagation()}
+                onKeyDown={(e) => {
+                  e.stopPropagation()
+                  if (!isNum && isBackspaceKey(e)) {
+                    e.preventDefault()
+                    applyInputBackspace(e.currentTarget)
+                  }
+                }}
                 className="w-full bg-[var(--border)] border border-[var(--border-2)] rounded px-2 py-1
                            text-xs text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
               />
@@ -220,7 +255,13 @@ function AddComponentBar({ entity }: { entity: EntityDef }) {
 
 function EntityInspector({ entity }: { entity: EntityDef }) {
   const { state, dispatch } = useEditor()
+  const [advancedOpen, setAdvancedOpen] = useState(false)
   const images = Object.values(state.project?.assets ?? {})
+
+  function openLogicBoard() {
+    dispatch({ type: 'SELECT_ENTITY', entityId: entity.id })
+    dispatch({ type: 'SET_MODE', mode: 'logic' })
+  }
 
   function commitSprite(patch: Partial<EntityDef['sprite']>) {
     dispatch({
@@ -254,6 +295,40 @@ function EntityInspector({ entity }: { entity: EntityDef }) {
           dispatch({ type: 'ENTITY_SET_NAME', entityId: entity.id, name })
         }
       />
+      <p className="text-[9px] text-[var(--muted)] -mt-1 mb-2 leading-snug">
+        Shown in Hierarchy and Logic Board. Rules are per entity, not per name.
+      </p>
+
+      <button
+        type="button"
+        onClick={openLogicBoard}
+        className="w-full mb-3 px-3 py-1.5 rounded text-xs font-semibold border border-[var(--accent-bd)]
+                   bg-[var(--accent-bg)] text-[var(--accent)] hover:bg-[var(--accent-bg-h)]"
+      >
+        Open Logic Board
+      </button>
+
+      <details
+        open={advancedOpen}
+        onToggle={(e) => setAdvancedOpen((e.target as HTMLDetailsElement).open)}
+        className="mb-3 text-xs border border-[var(--border)] rounded-lg px-3 py-2"
+      >
+        <summary className="cursor-pointer text-[var(--muted)] hover:text-[var(--text)] select-none font-bold uppercase text-[9px] tracking-widest">
+          Advanced
+        </summary>
+        <div className="mt-2">
+          <Field
+            label="Spawn group (className)"
+            value={entity.className}
+            onCommit={(className) =>
+              dispatch({ type: 'ENTITY_SET_CLASSNAME', entityId: entity.id, className })
+            }
+          />
+          <p className="text-[9px] text-[var(--muted)] leading-snug">
+            Runtime pools, spawn, and collision widgets use this. Logic Board rules do not.
+          </p>
+        </div>
+      </details>
 
       {/* Tags */}
       <div className="flex flex-wrap gap-1 mb-3">

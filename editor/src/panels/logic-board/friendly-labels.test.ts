@@ -6,7 +6,32 @@ import {
   triggerDisplayName,
   triggerSummaryPlain,
 } from './friendly-labels'
+import type { ProjectDoc } from '../../types'
 import type { LogicBoard } from '../../types/logic-board'
+
+function miniProject(): ProjectDoc {
+  return {
+    projectName: 'T',
+    version: '2.0.0',
+    gameResolution: { x: 1280, y: 720 },
+    targetFPS: 60,
+    activeSceneId: 's',
+    mainScriptPath: 'scripts/main.lua',
+    entities: {
+      1: {
+        id: 1, name: 'Hero', className: 'Player', tags: [],
+        transform: { position: { x: 0, y: 0 }, scale: { x: 1, y: 1 }, rotation: 0 },
+        sprite: { spriteAssetId: '', tint: { x: 1, y: 1, z: 1, w: 1 }, alpha: 1, pivot: { x: 0.5, y: 0.5 }, renderOrder: 0 },
+      },
+    },
+    scenes: {
+      s: {
+        id: 's', name: 'S', worldSize: { x: 1280, y: 720 }, viewportSize: { x: 1280, y: 720 },
+        backgroundColor: { x: 0, y: 0, z: 0, w: 1 }, entityIds: [1],
+      },
+    },
+  }
+}
 
 describe('friendly-labels', () => {
   it('uses plain trigger names', () => {
@@ -48,12 +73,22 @@ describe('friendly-labels', () => {
     expect(s).not.toContain('?')
   })
 
-  it('board display uses class name', () => {
+  it('board display shows class label for shared class boards', () => {
     const board: LogicBoard = {
       boardId: 'board_mpe2dp1j_1',
       target: { type: 'entity_class', className: 'Player' },
       events: [],
     }
-    expect(boardDisplayName(board)).toBe('Player')
+    expect(boardDisplayName(board, miniProject())).toContain('[class]')
+    expect(boardDisplayName(board, miniProject())).toContain('Hero')
+  })
+
+  it('board display shows entity name for entity_id boards', () => {
+    const board: LogicBoard = {
+      boardId: 'board_hero',
+      target: { type: 'entity_id', entityId: 1 },
+      events: [],
+    }
+    expect(boardDisplayName(board, miniProject())).toBe('Hero')
   })
 })

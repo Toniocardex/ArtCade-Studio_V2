@@ -4,7 +4,7 @@
 
 import { useMemo } from 'react'
 import { useEditor } from '../../store/editor-store'
-import { allClassNames } from '../../utils/project'
+import { allClassNames, classDisplayLabel } from '../../utils/project'
 
 const sel =
   'bg-[var(--bg)] border border-[var(--border-2)] text-[var(--accent)] px-2 py-1 rounded text-xs'
@@ -89,7 +89,7 @@ export function ClassNamePicker({
         )}
         {classNames.map((c) => (
           <option key={c} value={c}>
-            {c}
+            {classDisplayLabel(state.project, c)}
           </option>
         ))}
         <option value={CLASS_PICKER_OTHER}>Other…</option>

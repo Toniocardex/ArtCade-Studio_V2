@@ -2,6 +2,7 @@
 // Plain-English UI copy for Logic Board (display only — types/compiler unchanged)
 // ---------------------------------------------------------------------------
 
+import type { ProjectDoc } from '../../types'
 import type {
   LogicAction,
   LogicActionType,
@@ -12,6 +13,11 @@ import type {
   LogicTriggerType,
   TargetSelector,
 } from '../../types/logic-board'
+import {
+  classDisplayLabel,
+  entityIdDisplayLabel,
+  logicBoardLabel,
+} from '../../utils/project'
 import { formatKeyLabel } from '../../components/logic-board/KeyCapture'
 import { getComponentMeta, type ComponentKind } from '../../utils/logic-board/schema-registry'
 
@@ -178,30 +184,35 @@ export function enumDisplayLabel(context: string, value: string): string {
   return map[value] ?? value.replace(/_/g, ' ')
 }
 
-export function targetDisplayLabel(t: TargetSelector): string {
+function fmtClass(className: string, project?: ProjectDoc | null): string {
+  return classDisplayLabel(project, className)
+}
+
+export function targetDisplayLabel(
+  t: TargetSelector,
+  project?: ProjectDoc | null,
+): string {
   if (t === 'self') return 'This object'
   if (t === 'other') return 'Other object'
-  if ('entityId' in t) return `Object #${t.entityId}`
+  if ('entityId' in t) return entityIdDisplayLabel(project, t.entityId)
   if ('className' in t) {
-    const name = t.className || '…'
+    const name = fmtClass(t.className, project)
     return t.first ? `First ${name}` : `Any ${name}`
   }
   return 'Target'
 }
 
-export function boardDisplayName(board: LogicBoard): string {
-  if (board.target.type === 'entity_class' && board.target.className) {
-    return board.target.className
-  }
-  if (board.target.type === 'entity_id' && board.target.entityId != null) {
-    return `Object #${board.target.entityId}`
-  }
-  if (board.target.type === 'scene') return 'Scene'
-  const short = board.boardId.replace(/^board_/, '').slice(0, 12)
-  return short || 'Rules'
+export function boardDisplayName(
+  board: LogicBoard,
+  project?: ProjectDoc | null,
+): string {
+  return logicBoardLabel(project, board)
 }
 
-export function triggerSummaryPlain(t: LogicTrigger): string {
+export function triggerSummaryPlain(
+  t: LogicTrigger,
+  project?: ProjectDoc | null,
+): string {
   switch (t.type) {
     case 'onStart':
       return 'When the game starts'
@@ -209,15 +220,15 @@ export function triggerSummaryPlain(t: LogicTrigger): string {
       return 'Every frame while playing'
     case 'onCollision':
       return t.withClass
-        ? `When touching "${t.withClass}"`
+        ? `When touching "${fmtClass(t.withClass, project)}"`
         : 'When touching something'
     case 'onTriggerEnter':
       return t.withClass
-        ? `When entering zone "${t.withClass}"`
+        ? `When entering zone "${fmtClass(t.withClass, project)}"`
         : 'When entering a zone'
     case 'onTriggerExit':
       return t.withClass
-        ? `When leaving zone "${t.withClass}"`
+        ? `When leaving zone "${fmtClass(t.withClass, project)}"`
         : 'When leaving a zone'
     case 'onAnimationEnd':
       return t.clipName
@@ -254,23 +265,26 @@ export function triggerSummaryPlain(t: LogicTrigger): string {
   }
 }
 
-export function conditionSummaryPlain(c: LogicCondition): string {
+export function conditionSummaryPlain(
+  c: LogicCondition,
+  project?: ProjectDoc | null,
+): string {
   switch (c.type) {
     case 'compareVariable':
       return `Score ${c.key} ${c.operator} ${c.value}`
     case 'compareClass':
-      return `Touching "${c.className || '?'}"`
+      return `Touching "${fmtClass(c.className || '?', project)}"`
     case 'isKeyDown':
       return `${formatKeyLabel(c.keyCode)} is held`
     case 'hasTag':
       return `Has tag "${c.tag || '?'}"`
     case 'compareDistance':
-      return `Distance to ${targetDisplayLabel(c.target)} ${c.operator} ${c.value}`
+      return `Distance to ${targetDisplayLabel(c.target, project)} ${c.operator} ${c.value}`
     case 'isMouseOver':
       return `Mouse is within ${c.radius ?? 32}px`
     case 'raycastHit':
       return c.className
-        ? `Can see "${c.className}" ahead`
+        ? `Can see "${fmtClass(c.className, project)}" ahead`
         : 'Something ahead in line of sight'
     case 'chance':
       return `${c.percent}% chance`
@@ -279,8 +293,11 @@ export function conditionSummaryPlain(c: LogicCondition): string {
   }
 }
 
-export function actionSummaryPlain(a: LogicAction): string {
-  const who = (t: TargetSelector) => targetDisplayLabel(t)
+export function actionSummaryPlain(
+  a: LogicAction,
+  project?: ProjectDoc | null,
+): string {
+  const who = (t: TargetSelector) => targetDisplayLabel(t, project)
   switch (a.type) {
     case 'setVariable':
       return `Set ${a.key} to ${a.value}`
@@ -304,7 +321,7 @@ export function actionSummaryPlain(a: LogicAction): string {
         ? `at point "${a.imagePoint}"`
         : `at (${a.x}, ${a.y})`
       const flip = a.inheritFlip ? ', same facing' : ''
-      return `Create "${a.className}" ${where}${flip}`
+      return `Create "${fmtClass(a.className, project)}" ${where}${flip}`
     }
     case 'moveInDirection': {
       const dir =
@@ -359,17 +376,23 @@ export function actionSummaryPlain(a: LogicAction): string {
 }
 
 /** Flatten condition tree to plain chips for collapsed card. */
-export function conditionsPlainList(event: {
-  conditions?: LogicCondition[]
-  conditionRoot?: LogicConditionNode
-}): string[] {
+export function conditionsPlainList(
+  event: {
+    conditions?: LogicCondition[]
+    conditionRoot?: LogicConditionNode
+  },
+  project?: ProjectDoc | null,
+): string[] {
   if (event.conditionRoot) {
-    return flattenConditionNode(event.conditionRoot)
+    return flattenConditionNode(event.conditionRoot, project)
   }
-  return (event.conditions ?? []).map(conditionSummaryPlain)
+  return (event.conditions ?? []).map((c) => conditionSummaryPlain(c, project))
 }
 
-function flattenConditionNode(node: LogicConditionNode): string[] {
-  if (node.kind === 'leaf') return [conditionSummaryPlain(node.condition)]
-  return node.statements.flatMap(flattenConditionNode)
+function flattenConditionNode(
+  node: LogicConditionNode,
+  project?: ProjectDoc | null,
+): string[] {
+  if (node.kind === 'leaf') return [conditionSummaryPlain(node.condition, project)]
+  return node.statements.flatMap((n) => flattenConditionNode(n, project))
 }

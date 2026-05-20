@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import { coreReducer, type CoreState } from './editor-store'
-import { createLogicBoard, createLogicEvent } from '../utils/logic-board/factory'
+import {
+  createLogicBoard,
+  createLogicBoardForEntity,
+  createLogicEvent,
+} from '../utils/logic-board/factory'
 import type { ProjectDoc } from '../types'
 
 function emptyProject(): ProjectDoc {
@@ -79,6 +83,41 @@ describe('coreReducer — Logic Board CRUD', () => {
     })
     expect(s.project).toBeNull()
     expect(s.projectDirty).toBe(false)
+  })
+
+  it('LOGIC_ADD_BOARD supports entity_id targets', () => {
+    const board = createLogicBoardForEntity(7, 'ent7')
+    const s = coreReducer(baseState(), { type: 'LOGIC_ADD_BOARD', board })
+    expect(s.project?.logicBoards?.[0].target).toEqual({
+      type: 'entity_id',
+      entityId: 7,
+    })
+  })
+
+  it('ENTITY_DELETE removes entity_id logic boards for that entity', () => {
+    const project: ProjectDoc = {
+      ...emptyProject(),
+      entities: {
+        1: {
+          id: 1, name: 'A', className: 'Player', tags: [],
+          transform: { position: { x: 0, y: 0 }, scale: { x: 1, y: 1 }, rotation: 0 },
+          sprite: { spriteAssetId: '', tint: { x: 1, y: 1, z: 1, w: 1 }, alpha: 1, pivot: { x: 0.5, y: 0.5 }, renderOrder: 0 },
+        },
+      },
+      scenes: {
+        s: {
+          id: 's', name: 'S', worldSize: { x: 1280, y: 720 }, viewportSize: { x: 1280, y: 720 },
+          backgroundColor: { x: 0, y: 0, z: 0, w: 1 }, entityIds: [1],
+        },
+      },
+      logicBoards: [
+        createLogicBoardForEntity(1, 'b1'),
+        createLogicBoard('Player', 'class'),
+      ],
+    }
+    let s = coreReducer(baseState(project), { type: 'ENTITY_DELETE', entityId: 1 })
+    expect(s.project?.logicBoards?.map((b) => b.boardId)).toEqual(['class'])
+    expect(s.project?.entities[1]).toBeUndefined()
   })
 
   it('does not mutate the previous state (immutability)', () => {

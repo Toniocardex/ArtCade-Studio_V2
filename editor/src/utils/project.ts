@@ -6,6 +6,7 @@ import type {
 import { DEFAULT_WORLD } from '../types'
 import { parseLogicBoards } from './logic-board/factory'
 import { COMPONENT_KEYS } from '../types/components'
+import type { LogicBoard } from '../types/logic-board'
 
 /** Pass through known ECS component objects defensively (only if object). */
 function parseComponents(r: Record<string, unknown>): Record<string, object> {
@@ -473,6 +474,72 @@ export function entityLabel(entity: EntityDef): string {
   return entity.name === entity.className
     ? entity.name
     : `${entity.name} (${entity.className})`
+}
+
+/** Entities that share a class (runtime pool / logic board target). */
+export function entitiesByClass(project: ProjectDoc, className: string): EntityDef[] {
+  return Object.values(project.entities)
+    .filter((e) => e.className === className)
+    .sort((a, b) => a.name.localeCompare(b.name))
+}
+
+const CLASS_LABEL_MAX = 56
+
+/**
+ * Logic Board / picker label: shows scene entity names for a class.
+ * e.g. "Enemy — Patrol_A, Patrol_B" or "Hero (Player)" when alone.
+ */
+export function classDisplayLabel(
+  project: ProjectDoc | null | undefined,
+  className: string,
+): string {
+  if (!className) return '…'
+  if (!project) return className
+  const ents = entitiesByClass(project, className)
+  if (ents.length === 0) return className
+  if (ents.length === 1) return entityLabel(ents[0])
+  const names = ents.map((e) => e.name).join(', ')
+  const suffix = names.length <= CLASS_LABEL_MAX - className.length - 3
+    ? names
+    : `${names.slice(0, CLASS_LABEL_MAX - className.length - 6)}…`
+  return `${className} — ${suffix}`
+}
+
+/** Label for a specific entity id (logic board target entity_id). */
+export function entityIdDisplayLabel(
+  project: ProjectDoc | null | undefined,
+  entityId: number,
+): string {
+  if (!project) return `Object #${entityId}`
+  const e = project.entities[entityId]
+  return e?.name ?? `Object #${entityId}`
+}
+
+/** Rulesheet bound to one entity instance. */
+export function findLogicBoardForEntity(
+  project: ProjectDoc | null | undefined,
+  entityId: number,
+): LogicBoard | undefined {
+  if (!project?.logicBoards) return undefined
+  return project.logicBoards.find(
+    (b) => b.target.type === 'entity_id' && b.target.entityId === entityId,
+  )
+}
+
+/** Display name for a rulesheet in dropdowns and headers. */
+export function logicBoardLabel(
+  project: ProjectDoc | null | undefined,
+  board: LogicBoard,
+): string {
+  if (board.target.type === 'entity_id' && board.target.entityId != null) {
+    return entityIdDisplayLabel(project, board.target.entityId)
+  }
+  if (board.target.type === 'entity_class' && board.target.className) {
+    return `[class] ${classDisplayLabel(project, board.target.className)}`
+  }
+  if (board.target.type === 'scene') return 'Scene'
+  const short = board.boardId.replace(/^board_/, '').slice(0, 12)
+  return short || 'Rules'
 }
 
 /** All unique class names across all entities in the project. */

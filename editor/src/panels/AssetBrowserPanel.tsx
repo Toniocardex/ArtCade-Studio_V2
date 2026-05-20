@@ -5,7 +5,12 @@ import { useEditor } from '../store/editor-store'
 import { importImageIntoProject } from '../utils/api'
 import { dirName } from '../utils/project'
 import type { ImageAsset, ImagePointDef } from '../types'
-import { shouldIgnoreEditorShortcut } from '../utils/keyboard'
+import {
+  isBackspaceKey,
+  isInsidePanel,
+  keyboardFocusElement,
+  shouldIgnoreEditorShortcut,
+} from '../utils/keyboard'
 
 /** Starter content used the first time a script asset is opened. */
 function scriptStub(name: string): string {
@@ -86,7 +91,10 @@ export default function AssetBrowserPanel() {
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key !== 'Delete' && e.key !== 'Backspace') return
+      if (e.key !== 'Delete' && !isBackspaceKey(e)) return
+      const focus = keyboardFocusElement(e)
+      // Only remove assets via keyboard while the Assets panel has focus.
+      if (!focus || !isInsidePanel(focus, 'assets')) return
       if (shouldIgnoreEditorShortcut(e)) return
       if (!selAssetId || !project?.assets?.[selAssetId]) return
       e.preventDefault()
@@ -151,7 +159,7 @@ export default function AssetBrowserPanel() {
   const showImages = cat === 'ALL' || cat === 'IMAGES'
 
   return (
-    <div className="h-full flex flex-col bg-[var(--bg)]">
+    <div className="h-full flex flex-col bg-[var(--bg)]" data-panel="assets">
       <input
         ref={fileRef}
         type="file"

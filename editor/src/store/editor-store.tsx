@@ -189,6 +189,7 @@ export type Action =
   | { type: 'ENTITY_DELETE';     entityId: number }
   | { type: 'ENTITY_SET_VISIBLE'; entityId: number; visible: boolean }
   | { type: 'ENTITY_SET_NAME';    entityId: number; name: string }
+  | { type: 'ENTITY_SET_CLASSNAME'; entityId: number; className: string }
   | { type: 'WORLD_SET';         patch: Partial<WorldSettings> }
   | { type: 'TILEMAP_INIT';  sceneId: string }
   | { type: 'TILEMAP_PAINT'; sceneId: string; index: number; tileId: number }
@@ -462,9 +463,23 @@ export function coreReducer(state: CoreState, action: Action): CoreState {
           { ...sc, entityIds: sc.entityIds.filter((i) => i !== action.entityId) },
         ]),
       )
+      const logicBoards = (state.project.logicBoards ?? []).filter(
+        (b) =>
+          !(
+            b.target.type === 'entity_id' &&
+            b.target.entityId === action.entityId
+          ),
+      )
       return {
         ...state,
-        project: { ...state.project, entities, scenes },
+        project: {
+          ...state.project,
+          entities,
+          scenes,
+          ...(state.project.logicBoards != null
+            ? { logicBoards: logicBoards.length > 0 ? logicBoards : undefined }
+            : {}),
+        },
         selection: {
           ...state.selection,
           entityId:
@@ -502,6 +517,23 @@ export function coreReducer(state: CoreState, action: Action): CoreState {
           entities: {
             ...state.project.entities,
             [action.entityId]: { ...e, name },
+          },
+        },
+        projectDirty: true,
+      }
+    }
+    case 'ENTITY_SET_CLASSNAME': {
+      if (!state.project || !state.project.entities[action.entityId]) return state
+      const e = state.project.entities[action.entityId]
+      const className = action.className.trim()
+      if (!className || className === e.className) return state
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          entities: {
+            ...state.project.entities,
+            [action.entityId]: { ...e, className },
           },
         },
         projectDirty: true,

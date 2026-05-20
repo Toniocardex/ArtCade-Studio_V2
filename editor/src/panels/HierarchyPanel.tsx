@@ -1,11 +1,11 @@
 import { useCallback, useEffect } from 'react'
-import { Box, Copy, Eye, EyeOff, Plus, Trash2 } from 'lucide-react'
+import { Box, Copy, Eye, EyeOff, Plus, Trash2, Workflow } from 'lucide-react'
 import PanelHeader from '../components/PanelHeader'
 import { useEditor } from '../store/editor-store'
 import type { ConsoleEntry, EntityDef } from '../types'
 import { DEFAULT_WORLD } from '../types'
 import { shouldIgnoreEditorShortcut } from '../utils/keyboard'
-import { createEntityDef, nextEntityId } from '../utils/project'
+import { createEntityDef, findLogicBoardForEntity, nextEntityId } from '../utils/project'
 
 const CLASS_COLOR: Record<string, string> = {
   Player:  'var(--accent)',
@@ -56,10 +56,12 @@ function AddEntityButton({
   )
 }
 
-function EntityRow({ entity, selected, onClick, onToggleVisible, onDuplicate, onDelete }: {
+function EntityRow({ entity, selected, hasLogic, onClick, onEditLogic, onToggleVisible, onDuplicate, onDelete }: {
   entity:  EntityDef
   selected: boolean
+  hasLogic: boolean
   onClick:  () => void
+  onEditLogic: () => void
   onToggleVisible: () => void
   onDuplicate: () => void
   onDelete: () => void
@@ -79,8 +81,25 @@ function EntityRow({ entity, selected, onClick, onToggleVisible, onDuplicate, on
       <button onClick={onClick} className="flex items-center gap-2 min-w-0 flex-1 text-left">
         <Box size={12} style={{ color: selected ? 'var(--bg)' : color, flexShrink: 0 }} />
         <span className="truncate">{entity.name}</span>
+        {hasLogic && (
+          <span
+            title="Has Logic Board rulesheet"
+            className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+              selected ? 'bg-[var(--bg)]' : 'bg-[var(--accent)]'
+            }`}
+          />
+        )}
       </button>
       <div className="flex items-center gap-1.5 flex-shrink-0">
+        <button
+          onClick={(e) => { e.stopPropagation(); onEditLogic() }}
+          title="Edit logic for this entity"
+          className={`${showRowActions} ${
+            selected ? 'text-[var(--bg)]' : 'text-[var(--muted)] hover:text-[var(--accent)]'
+          }`}
+        >
+          <Workflow size={11} />
+        </button>
         <button
           onClick={(e) => { e.stopPropagation(); onToggleVisible() }}
           title={visible ? 'Hide' : 'Show'}
@@ -200,7 +219,7 @@ export default function HierarchyPanel() {
   }, [mode, scene, addEntity])
 
   return (
-    <div className="h-full flex flex-col bg-[var(--panel)]">
+    <div className="h-full flex flex-col bg-[var(--panel)]" data-panel="hierarchy">
       <PanelHeader title="Hierarchy">
         <AddEntityButton
           onClick={addEntity}
@@ -245,9 +264,14 @@ export default function HierarchyPanel() {
               key={e.id}
               entity={e}
               selected={selection.entityId === e.id}
+              hasLogic={Boolean(findLogicBoardForEntity(project, e.id))}
               onClick={() =>
                 dispatch({ type: 'SELECT_ENTITY', entityId: selection.entityId === e.id ? null : e.id })
               }
+              onEditLogic={() => {
+                dispatch({ type: 'SELECT_ENTITY', entityId: e.id })
+                dispatch({ type: 'SET_MODE', mode: 'logic' })
+              }}
               onToggleVisible={() =>
                 dispatch({ type: 'ENTITY_SET_VISIBLE', entityId: e.id, visible: e.visible === false })
               }

@@ -8,6 +8,7 @@
 
 - [x] Schemi draft-07 per tutti i trigger / action / condition MVP
 - [x] `schema-registry.ts` (Ajv) + test Vitest anti-drift
+- [x] **Build-time Ajv (Tauri CSP-safe)** — `npm run compile-schemas` → `validators.generated.ts`; runtime uses pre-compiled validators only (no `new Function()` / no `'unsafe-eval'` in release CSP) — 2026-05
 - [x] Validazione load (skip eventi invalidi) + save (blocco)
 - [x] `SchemaParamForm` — tutti i trigger + azioni/condizioni (schema-driven)
 - [x] Sprint 2: `condition-node.schema.json`, `ConditionTreeEditor`, validazione albero OR/AND
@@ -25,6 +26,7 @@
 ### 3. UX «Zero Matematica»
 
 - [x] **Logic Board UX refresh (English)** — `friendly-labels.ts`, When / Only if / Then blocks, grouped pickers, advanced condition tree + Script tab tucked away — 2026-05
+- [x] **Entity-first authoring** — rulesheets default to `entity_id`, Hierarchy/Inspector navigation, class boards under Advanced — 2026-05
 - [x] Modale cattura tasto (`keyCapture` + `KeyCapture.tsx`) — 2026-05
 - [x] `spawnEntity`: `inheritFlip`, `imagePoint` + editor image points — 2026-05
 - [x] `moveInDirection` / bussola Forward-Backward — 2026-05

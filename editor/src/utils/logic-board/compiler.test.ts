@@ -129,6 +129,20 @@ describe('compileLogicBoard — structure', () => {
     ])
     expect(lua).toContain('for _, self in ipairs(pool.getAll("Enemy")) do')
   })
+
+  it('iterates a single-id pool for entity_id boards', () => {
+    const lua = compileLogicBoard([
+      {
+        boardId: 'board_guardia',
+        target: { type: 'entity_id', entityId: 7 },
+        events: [
+          ev({ trigger: { type: 'onUpdate' }, actions: [{ type: 'stopAllAudio' }] }),
+        ],
+      },
+    ])
+    expect(lua).toContain('for _, self in ipairs({ 7 }) do')
+    expect(lua).not.toContain('pool.getAll')
+  })
 })
 
 describe('compileLogicBoard — triggers', () => {

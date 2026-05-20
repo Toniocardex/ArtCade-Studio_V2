@@ -30,7 +30,19 @@ export function createLogicEvent(
   return { id: logicId('evt'), enabled: true, trigger, actions }
 }
 
-/** A new board targeting an entity class (the common case). */
+/** A new board targeting a single scene entity (primary editor workflow). */
+export function createLogicBoardForEntity(
+  entityId: number,
+  boardId = logicId('board'),
+): LogicBoard {
+  return {
+    boardId,
+    target: { type: 'entity_id', entityId },
+    events: [],
+  }
+}
+
+/** A new board targeting an entity class (advanced / shared behavior). */
 export function createLogicBoard(
   className: string,
   boardId = logicId('board'),
