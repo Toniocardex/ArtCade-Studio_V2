@@ -104,31 +104,13 @@ editor/
 └── package.json
 ```
 
-### `runtime-wasm/` — Emscripten Output
+### WASM preview bundle
 
-Mostly CMake output. Thin TypeScript glue if needed.
-
-```
-runtime-wasm/
-├── src/
-│   ├── index.ts                    # TypeScript entry (if using)
-│   └── index.html                  # HTML template
-├── build/                          # CMake Emscripten output
-│   ├── game.js
-│   ├── game.wasm
-│   └── index.html
-```
+Emscripten output is built under `runtime-cpp/build-wasm/` and copied to `editor/public/runtime/` via `runtime-cpp/build_wasm.bat`. The editor loads `game.js` / `game.wasm` from there (`editor/src/utils/runtime-path.ts`).
 
 ### `docs/` — Design Documentation
 
-```
-docs/
-├── ARCHITECTURE_DUAL_RUNTIME.md    # Complete architecture spec (50 pages)
-├── LUA_GAME_API.md                 # Game API reference (function by function)
-├── ASSET_PIPELINE.md               # .artcade format spec
-├── BUILD_INSTRUCTIONS.md           # CMake, Emscripten setup
-└── DEVELOPER_SETUP.md              # Local dev environment
-```
+Full index: **`docs/README.md`** (architecture, Logic Board, CodeMirror, integration, roadmap links). Do not delete files under `docs/`.
 
 ---
 

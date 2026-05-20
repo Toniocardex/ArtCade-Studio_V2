@@ -25,34 +25,20 @@ Editor (React + Tauri)
 
 ```
 ArtCade V2/
-├── editor/              # React TypeScript editor
-│   ├── src/
-│   │   ├── components/  # UI components
-│   │   ├── panels/      # Inspector, LogicBoard, etc.
-│   │   └── utils/
-│   ├── public/
+├── editor/              # React TypeScript editor + Tauri
+│   ├── src/             # panels, store, wasm-bridge, CodeMirror iframe
+│   ├── public/runtime/  # game.js + game.wasm (preview; .wasm gitignored)
 │   └── package.json
 │
 ├── runtime-cpp/         # C++ game engine (dual-compile)
-│   ├── src/
-│   │   ├── engine/      # Core: renderer, physics, input, audio
-│   │   ├── game/        # Game state, entity manager
-│   │   ├── steam/       # Steam integration (future)
-│   │   └── utils/
-│   ├── libs/            # Third-party (raylib, lua, sol2, …); Box2D via FetchContent nel modulo physics
-│   ├── CMakeLists.txt   # Build config (Win + Emscripten)
-│   └── build/
+│   ├── src/modules/     # renderer, physics, lua-runtime, editor-api, …
+│   ├── test-project/    # Demo project (project.json, scripts)
+│   ├── build_wasm.bat   # WASM → editor/public/runtime/
+│   ├── CMakeLists.txt
+│   └── build-*/         # CMake output (gitignored)
 │
-├── runtime-wasm/        # WASM build target (Emscripten output)
-│   ├── src/             # TypeScript glue layer (minimal)
-│   └── build/
-│
-├── docs/                # Architecture, design docs
-│   └── ARCHITECTURE_DUAL_RUNTIME.md
-│
-├── scripts/             # Build, asset packing scripts
-├── tools/               # Asset tools, validators
-├── .github/workflows/   # CI/CD
+├── docs/                # Architecture & design (see docs/README.md)
+├── UI/                  # Design mockups (reference PNGs)
 ├── CLAUDE.md            # Development guidelines
 ├── .gitignore
 └── CMakeLists.txt       # Root build config

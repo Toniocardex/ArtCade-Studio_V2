@@ -1,7 +1,7 @@
 {
   "name": "artcade-editor",
   "version": "2.0.0",
-  "description": "ArtCade V2 Editor — React 19 + Vite + TailwindCSS + CodeMirror + Tauri",
+  "description": "ArtCade V2 Editor - React 19 + Vite + TailwindCSS + CodeMirror + Tauri",
   "type": "module",
   "scripts": {
     "dev": "vite",

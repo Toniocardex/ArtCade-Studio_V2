@@ -280,7 +280,7 @@ game.exe test-project/ → "[App] Project loaded: ArtCade Test"
 - `raycast` — `b2RayCastCallback` closest-hit con restituzione handle + punto
 - `getContactingBodies` — `b2QueryAABB` con epsilon 0.5
 - `physics` spostato fuori dalla guardia `HAS_RAYLIB && HAS_LUA` (puro C++)
-- `build.ps1` / `build_phase12.bat` — aggiunto `-DCMAKE_POLICY_VERSION_MINIMUM=3.5`
+- `build.ps1` / `build_wasm.bat` — aggiunto `-DCMAKE_POLICY_VERSION_MINIMUM=3.5`
 
 ### Checkpoint ✅
 ```

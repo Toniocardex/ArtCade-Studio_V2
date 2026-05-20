@@ -1,6 +1,8 @@
 # Build artifacts
 build/
 build-*/
+runtime-cpp/build/
+runtime-cpp/build-*/
 dist/
 
 # Third-party libraries (large binaries, fetched at configure time)
@@ -33,6 +35,15 @@ node_modules/
 package-lock.json
 yarn.lock
 *.log
+artcade-vite*.log
+editor/tauri-build*.log
+runtime-cpp/build-wasm*.log
+runtime-cpp/test-project/logs/*.txt
+!runtime-cpp/test-project/logs/.gitkeep
+
+# Claude / Cursor (machine-local)
+.claude/settings.local.json
+.cursor/
 
 # IDE
 .vscode/

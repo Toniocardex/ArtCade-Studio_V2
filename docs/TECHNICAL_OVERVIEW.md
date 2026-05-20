@@ -122,8 +122,7 @@ ArtCade V2/
 │   ├── test-project/            Progetto demo (project.json + main.lua)
 │   ├── build-wasm/              Output Emscripten (gitignored)
 │   ├── CMakeLists.txt           Build root
-│   ├── build_wasm.bat           Compila → .wasm (Windows)
-│   └── build-wasm.bat           Variante alternativa
+│   └── build_wasm.bat           Compila WASM → editor/public/runtime/
 │
 ├── editor/                      React 19 + Vite + Tauri
 │   ├── src/
