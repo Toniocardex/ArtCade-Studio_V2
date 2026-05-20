@@ -12,7 +12,7 @@ import { runtimeAssetPath } from './runtime-path'
 //                 Calls EMSCRIPTEN_KEEPALIVE exported C functions.
 //
 // WASM singleton: game.js (Emscripten) must be injected ONCE per window.
-// React StrictMode / HMR remounts must not re-append the script (EmscriptenEH
+// React StrictMode / HMR remounts must not re-append the script (game.js
 // redeclaration crash + audio buffer loop).
 // ---------------------------------------------------------------------------
 
@@ -43,7 +43,6 @@ export interface ArtCadeModule {
 declare global {
   interface Window {
     Module: Partial<ArtCadeModule>
-    EmscriptenEH?: unknown
 
     onObjectUpdated?:             (x: number, y: number) => void
     onEntitySelected?:            (entityId: number) => void
@@ -64,9 +63,18 @@ let _module: ArtCadeModule | null = null
 let _ready  = false
 let wasmInitPromise: Promise<ArtCadeModule> | null = null
 
+/**
+ * True only after Emscripten finished startup (onRuntimeInitialized + main).
+ * `ccall` exists earlier — calling exports before `calledRun` throws "func is not a function".
+ */
+function isWasmModuleReady(): boolean {
+  const mod = window.Module as Partial<ArtCadeModule> | undefined
+  return typeof mod?.ccall === 'function' && mod.calledRun === true
+}
+
 /** After Vite HMR replaces this module, re-link to an already-running Emscripten instance. */
 function rehydrateFromWindow(): void {
-  if (typeof window.EmscriptenEH !== 'undefined' && typeof window.Module?.ccall === 'function') {
+  if (isWasmModuleReady()) {
     _module = window.Module as ArtCadeModule
     _ready  = true
   }
@@ -82,13 +90,6 @@ if (import.meta.hot) {
 
 export function getModule(): ArtCadeModule | null { return _module }
 export function isReady():   boolean              { return _ready  }
-
-function isEmscriptenAlreadyInMemory(): boolean {
-  return (
-    typeof window.EmscriptenEH !== 'undefined' &&
-    typeof window.Module?.ccall === 'function'
-  )
-}
 
 function wasmScriptInDom(): boolean {
   return document.getElementById(WASM_SCRIPT_ID) != null
@@ -113,6 +114,7 @@ function attachModuleHooks(
 ): void {
   const cacheBust = cacheQuery()
   const existing = window.Module ?? {}
+  const prevOnRuntimeInitialized = existing.onRuntimeInitialized
 
   window.Module = {
     ...existing,
@@ -120,6 +122,9 @@ function attachModuleHooks(
     locateFile: (path: string, _prefix: string) => `${runtimeAssetPath(path)}${cacheBust}`,
 
     onRuntimeInitialized() {
+      if (typeof prevOnRuntimeInitialized === 'function') {
+        prevOnRuntimeInitialized.call(window.Module)
+      }
       _module = window.Module as ArtCadeModule
       _ready  = true
 
@@ -131,13 +136,14 @@ function attachModuleHooks(
     },
   }
 
-  // Runtime may already be up (HMR / StrictMode remount after first load).
-  if (isEmscriptenAlreadyInMemory() && typeof window.Module.ccall === 'function') {
+  // Runtime may already be up (HMR / StrictMode remount / script tag left in DOM).
+  if (isWasmModuleReady()) {
     _module = window.Module as ArtCadeModule
     _ready  = true
     _module.canvas = canvas
     _module.print    = (t) => cbs.onConsoleLine(t, 'info')
     _module.printErr = (t) => cbs.onConsoleLine(t, 'error')
+    safeCall('editor_set_mode', null, ['number'], [0])
     queueMicrotask(() => cbs.onReady())
   }
 }
@@ -198,14 +204,14 @@ export function loadWasmRuntime(
     return Promise.resolve(_module)
   }
 
-  if (isEmscriptenAlreadyInMemory()) {
+  if (isWasmModuleReady()) {
     console.log('[wasm-bridge] Engine already in memory — skip script inject.')
     return Promise.resolve(adoptExistingRuntime(canvas, cbs))
   }
 
   if (wasmScriptInDom()) {
     console.log('[wasm-bridge] Script tag present — waiting for / reusing Module.')
-    if (isEmscriptenAlreadyInMemory()) {
+    if (isWasmModuleReady()) {
       return Promise.resolve(adoptExistingRuntime(canvas, cbs))
     }
     if (wasmInitPromise) {
@@ -219,11 +225,12 @@ export function loadWasmRuntime(
     wasmInitPromise = new Promise((resolve, reject) => {
       const deadline = Date.now() + 30_000
       const tick = () => {
-        if (isEmscriptenAlreadyInMemory()) {
+        if (isWasmModuleReady()) {
           resolve(adoptExistingRuntime(canvas, cbs))
           return
         }
         if (Date.now() > deadline) {
+          wasmInitPromise = null
           reject(new Error('[wasm-bridge] Timeout waiting for existing game.js'))
           return
         }
@@ -253,24 +260,20 @@ export function loadWasmRuntime(
 
     script.onload = () => {
       console.log('[wasm-bridge] game.js loaded.')
-      if (isEmscriptenAlreadyInMemory()) {
-        resolve(adoptExistingRuntime(canvas, cbs))
-      } else {
-        const deadline = Date.now() + 30_000
-        const tick = () => {
-          if (isEmscriptenAlreadyInMemory() && _module) {
-            resolve(_module)
-            return
-          }
-          if (Date.now() > deadline) {
-            wasmInitPromise = null
-            reject(new Error('[wasm-bridge] Module not ready after game.js onload'))
-            return
-          }
-          requestAnimationFrame(tick)
+      const deadline = Date.now() + 30_000
+      const tick = () => {
+        if (isWasmModuleReady()) {
+          resolve(adoptExistingRuntime(canvas, cbs))
+          return
         }
-        tick()
+        if (Date.now() > deadline) {
+          wasmInitPromise = null
+          reject(new Error('[wasm-bridge] Module not ready after game.js onload'))
+          return
+        }
+        requestAnimationFrame(tick)
       }
+      tick()
     }
 
     script.onerror = (err) => {
@@ -305,8 +308,12 @@ function safeCall(
   argTypes:   string[],
   args:       unknown[],
 ): void {
-  if (!_module?.ccall) return
-  _module.ccall(name, returnType, argTypes, args)
+  if (!_module?.ccall || !_module.calledRun) return
+  try {
+    _module.ccall(name, returnType, argTypes, args)
+  } catch (err) {
+    console.warn(`[wasm-bridge] ccall('${name}') failed:`, err)
+  }
 }
 
 // ---------------------------------------------------------------------------
