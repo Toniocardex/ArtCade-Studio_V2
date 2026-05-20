@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react'
+import { useRef, useEffect, useLayoutEffect, useState } from 'react'
 import { MousePointer2, Hand, Paintbrush, Eraser, Wifi, WifiOff, Grid3x3 } from 'lucide-react'
 import { useEditor } from '../store/editor-store'
 import type { ConsoleEntry } from '../types'
@@ -27,7 +27,7 @@ export default function PreviewPanel() {
   // content briefly disappearing.  The context split in editor-store.tsx
   // prevents this entirely.
   const { state, dispatch } = useEditor()
-  const { project, projectPath, isPlaying, selection, selectedTileCell } = state
+  const { project, projectPath, isPlaying, selection, selectedTileCell, mode } = state
 
   const canvasRef    = useRef<HTMLCanvasElement>(null)
   const lastProjectLoadKeyRef = useRef<string | null>(null)
@@ -36,8 +36,19 @@ export default function PreviewPanel() {
   const sceneIdRef = useRef<string>('')
   sceneIdRef.current = selection.sceneId ?? project?.activeSceneId ?? ''
   const [wasmReady,  setWasmReady]  = useState(() => isReady())
-  const [engineReady, setEngineReady] = useState(false)
+  const [engineReady, setEngineReady] = useState(() => isReady())
   const [activeTool, setActiveTool] = useState<Tool>('select')
+
+  /** UI must reflect the window singleton (StrictMode/HMR can skip onReady). */
+  const syncRuntimeUiFlags = () => {
+    if (!isReady()) return
+    setWasmReady(true)
+    setEngineReady(true)
+  }
+
+  useLayoutEffect(() => {
+    syncRuntimeUiFlags()
+  })
 
   // ── Load WASM runtime once (singleton — safe under StrictMode / HMR) ─────
   useEffect(() => {
@@ -48,8 +59,8 @@ export default function PreviewPanel() {
 
     const callbacks = {
       onReady: () => {
+        syncRuntimeUiFlags()
         if (cancelled) return
-        setWasmReady(true)
         setTimeout(() => dispatch({
           type: 'LOG',
           entry: makeLogEntry('[WASM] Runtime initialised — editor mode active.', 'info'),
@@ -109,6 +120,24 @@ export default function PreviewPanel() {
 
     return () => { cancelled = true }
   }, [dispatch])
+
+  // Re-bind canvas when returning to Canvas view (viewport was display:none).
+  useEffect(() => {
+    if (mode !== 'canvas') return
+    const canvas = canvasRef.current
+    if (!canvas || !isReady()) return
+    syncRuntimeUiFlags()
+    void loadWasmRuntime(canvas, WASM_RUNTIME_SRC, {
+      onReady: syncRuntimeUiFlags,
+      onEntitySelected:         (id) => dispatch({ type: 'SELECT_ENTITY', entityId: id }),
+      onEntityTransformChanged: (entityId, x, y, rotation, scaleX, scaleY) =>
+        dispatch({ type: 'UPDATE_ENTITY_TRANSFORM', entityId, x, y, rotation, scaleX, scaleY }),
+      onConsoleLine: (message, level) => {
+        if (message.includes('[EditorAPI] Bridge initialised')) setEngineReady(true)
+        dispatch({ type: 'LOG', entry: makeLogEntry(message, level) })
+      },
+    })
+  }, [mode, dispatch])
 
   // ── Re-sync project into C++ whenever the user opens a new project ────────
   useEffect(() => {

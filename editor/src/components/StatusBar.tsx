@@ -1,4 +1,5 @@
 import { useEditor, useConsoleLogs } from '../store/editor-store'
+import { isReady as isWasmReady } from '../utils/wasm-bridge'
 
 export default function StatusBar() {
   const { state }         = useEditor()
@@ -11,12 +12,17 @@ export default function StatusBar() {
     : 'None'
 
   return (
-    <footer className="h-6 bg-[var(--panel)] border-t border-[var(--border)]
-                       flex items-center justify-between px-3 text-[9px]
-                       text-[var(--muted)] flex-shrink-0 select-none">
+    <footer
+      className="editor-statusbar flex items-center justify-between text-[9px]
+                 text-[var(--muted)] flex-shrink-0 select-none"
+    >
       <div className="flex items-center gap-4">
-        <span className={isPlaying ? 'text-[var(--danger)]' : 'text-[var(--accent)]'}>
-          Runtime: {isPlaying ? 'PLAYING' : 'READY'}
+        <span className={
+          isPlaying ? 'text-[var(--danger)]'
+          : isWasmReady() ? 'text-[var(--accent)]'
+          : 'text-[var(--muted)]'
+        }>
+          Runtime: {isPlaying ? 'PLAYING' : isWasmReady() ? 'READY' : 'LOADING'}
         </span>
         <span>Grid: 32px</span>
         <span>Lua: 5.4</span>

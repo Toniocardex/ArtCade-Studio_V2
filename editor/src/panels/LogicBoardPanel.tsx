@@ -1,12 +1,10 @@
 // ---------------------------------------------------------------------------
-// Logic Board panel — visual event-list editor (iteration 3).
+// Logic Board panel — visual event-list editor.
 //
-// Left: list of LogicEvent cards (collapsed summary / inline editor).
-// Right: live read-only Lua preview (recompiled on every store change).
-// Visual / Script toggle: Script tab shows live Lua preview + opens full Editor Script.
+// Visual: LogicEvent cards only (full width).
+// Script tab: read-only Lua preview + Apri in Editor Script.
 //
-// All mutations go through the store's LOGIC_* actions; the preview derives
-// from project.logicBoards via useMemo, so it is always in sync.
+// All mutations go through LOGIC_*; compiled Lua syncs to mainScriptPath in store.
 // ---------------------------------------------------------------------------
 
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -164,9 +162,7 @@ export default function LogicBoardPanel() {
         )}
       </div>
 
-      <div className="flex flex-1 min-h-0">
-        {/* LEFT — events */}
-        <div className="flex-[1.55] border-r border-[var(--border)] overflow-auto p-4">
+      <div className="flex-1 min-h-0 overflow-auto p-4">
           {!board ? (
             <div className="text-[var(--muted)] text-sm mt-8 text-center">
               No Logic Board yet. Pick a target class above and create one.
@@ -242,13 +238,6 @@ export default function LogicBoardPanel() {
               </div>
             </>
           )}
-        </div>
-
-        <LogicBoardLuaPreview
-          lua={lua}
-          title="Generated Lua · read-only · live"
-          liveDot
-        />
       </div>
     </div>
   )

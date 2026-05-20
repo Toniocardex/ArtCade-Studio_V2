@@ -64,6 +64,22 @@ let _module: ArtCadeModule | null = null
 let _ready  = false
 let wasmInitPromise: Promise<ArtCadeModule> | null = null
 
+/** After Vite HMR replaces this module, re-link to an already-running Emscripten instance. */
+function rehydrateFromWindow(): void {
+  if (typeof window.EmscriptenEH !== 'undefined' && typeof window.Module?.ccall === 'function') {
+    _module = window.Module as ArtCadeModule
+    _ready  = true
+  }
+}
+
+rehydrateFromWindow()
+
+if (import.meta.hot) {
+  import.meta.hot.accept(() => {
+    rehydrateFromWindow()
+  })
+}
+
 export function getModule(): ArtCadeModule | null { return _module }
 export function isReady():   boolean              { return _ready  }
 

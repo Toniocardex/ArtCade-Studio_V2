@@ -1,7 +1,7 @@
 import { useEffect }       from 'react'
 import { EditorProvider, useEditor } from './store/editor-store'
 import MenuBar            from './components/MenuBar'
-import ModuleRail         from './components/ModuleRail'
+import ModuleRail from './components/ModuleRail'
 import StatusBar          from './components/StatusBar'
 import HierarchyPanel     from './panels/HierarchyPanel'
 import PreviewPanel       from './panels/PreviewPanel'
@@ -200,12 +200,13 @@ function EditorLayout() {
   }, [state.mode])
 
   return (
-    <div className="flex w-full h-full bg-[var(--bg)] text-[var(--text)] overflow-hidden select-none">
-      <ModuleRail />
+    <div className="editor-shell flex flex-col w-full h-full bg-[var(--bg)] text-[var(--text)] overflow-hidden select-none">
+      <MenuBar />
 
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <MenuBar />
+      <div className="flex flex-1 min-w-0 min-h-0 overflow-hidden">
+        <ModuleRail />
 
+        <div className="flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden">
         {/* Only CanvasView must stay MOUNTED: unmounting it would detach the
             WASM canvas while Emscripten keeps rendering into the removed node
             → empty viewport on return. It is kept alive via display toggling
@@ -221,6 +222,7 @@ function EditorLayout() {
         {state.mode === 'script' && <ScriptEditorView />}
 
         <StatusBar />
+        </div>
       </div>
     </div>
   )

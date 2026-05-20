@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "ArtCade V2 Editor",
+        "title": "ArtCade Editor",
         "width": 1440,
         "height": 900,
         "minWidth": 1024,

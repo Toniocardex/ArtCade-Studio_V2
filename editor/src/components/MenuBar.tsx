@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from 'react'
 import type { ReactNode } from 'react'
-import { Cpu, Play, Square, FolderOpen, Save, Package, Hammer, ChevronDown } from 'lucide-react'
+import { Play, Square, FolderOpen, Save, Package, Hammer, ChevronDown } from 'lucide-react'
 import { useEditor } from '../store/editor-store'
 import {
   openProjectDialog, loadProjectFile,
@@ -209,64 +209,49 @@ export default function MenuBar() {
   // ---- render ------------------------------------------------------------
 
   return (
-    <header className="h-12 border-b border-[var(--border)] bg-[var(--panel)]
-                       flex items-center justify-between px-4 flex-shrink-0 z-50 select-none">
-
-      {/* ── Left: logo + mode tabs + file menu ── */}
-      <div className="flex items-center gap-4">
-
-        {/* Logo */}
-        <div className="flex items-center gap-2 text-[var(--accent)] font-bold text-lg tracking-tighter">
-          <Cpu size={20} />
-          <span>Artcade</span>
-          <span className="text-xs text-[var(--muted)] font-normal tracking-normal ml-1">
-            v2.0 — {project?.projectName ?? 'No Project'}
-          </span>
-        </div>
-
-        {/* File dropdown */}
-        <div ref={fileMenuRef} className="relative">
-          <button
-            onClick={() => setFileMenuOpen(v => !v)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-[11px] font-bold
-                        transition-colors ${
-              fileMenuOpen
-                ? 'bg-[var(--border)] text-[var(--text)]'
-                : 'text-[var(--muted)] hover:bg-[var(--border)] hover:text-[var(--text)]'
-            }`}
-          >
-            FILE
-            <ChevronDown size={10} className={`transition-transform ${fileMenuOpen ? 'rotate-180' : ''}`} />
-          </button>
-          {fileMenuOpen && <FileMenu items={fileItems} />}
-        </div>
-
+    <header
+      className="editor-toolbar flex items-center justify-between flex-shrink-0 z-50 select-none"
+    >
+      <div ref={fileMenuRef} className="relative flex items-center editor-toolbar-workspace-start">
+        <button
+          type="button"
+          onClick={() => setFileMenuOpen(v => !v)}
+          className={`editor-toolbar-btn border ${
+            fileMenuOpen
+              ? 'border-[var(--border-2)] bg-[var(--border)] text-[var(--text)]'
+              : 'border-[var(--border)] bg-[var(--panel-3)] text-[var(--muted)] hover:text-[var(--text)] hover:border-[var(--border-2)]'
+          }`}
+        >
+          FILE
+          <ChevronDown size={10} className={`transition-transform ${fileMenuOpen ? 'rotate-180' : ''}`} />
+        </button>
+        {fileMenuOpen && <FileMenu items={fileItems} />}
       </div>
 
-      {/* ── Right: play + build ── */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2.5 editor-toolbar-workspace-end">
         <button
+          type="button"
           onClick={() => dispatch({ type: 'SET_PLAYING', playing: !isPlaying })}
-          className={`flex items-center gap-2 px-4 py-1 rounded border text-xs font-bold transition-all ${
+          className={`editor-toolbar-btn border ${
             isPlaying
-              ? 'bg-[rgb(var(--danger-rgb)/0.15)] border-[var(--danger)] text-[var(--danger)] hover:bg-[rgb(var(--danger-rgb)/0.25)]'
-              : 'bg-[rgb(var(--accent-rgb)/0.1)] border-[var(--accent)] text-[var(--accent)] hover:bg-[rgb(var(--accent-rgb)/0.2)]'
+              ? 'border-[var(--danger)] bg-[rgb(var(--danger-rgb)/0.12)] text-[var(--danger)] hover:bg-[rgb(var(--danger-rgb)/0.2)]'
+              : 'border-[var(--accent-bd)] bg-[var(--accent-bg)] text-[var(--accent)] hover:bg-[var(--accent-bg-h)]'
           }`}
         >
           {isPlaying
             ? <Square size={12} fill="currentColor" />
-            : <Play   size={12} fill="currentColor" />}
+            : <Play size={12} fill="currentColor" />}
           {isPlaying ? 'STOP' : 'PLAY'}
         </button>
 
         <button
+          type="button"
           onClick={handleBuildExe}
           disabled={isBuilding}
-          className={`flex items-center gap-2 px-3 py-1 text-[var(--bg)] text-xs font-bold
-                      rounded transition-all ${
+          className={`editor-toolbar-btn text-[var(--bg)] ${
             isBuilding
-              ? 'bg-[rgb(var(--accent-2-rgb)/0.5)] cursor-not-allowed'
-              : 'bg-[var(--accent-2)] hover:opacity-90'
+              ? 'bg-[rgb(var(--accent-2-rgb)/0.45)] cursor-not-allowed'
+              : 'bg-[var(--accent-2)] hover:brightness-110 shadow-sm'
           }`}
         >
           <Hammer size={12} className={isBuilding ? 'animate-bounce' : ''} />
