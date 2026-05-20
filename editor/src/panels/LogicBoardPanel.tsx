@@ -3,13 +3,13 @@
 //
 // Left: list of LogicEvent cards (collapsed summary / inline editor).
 // Right: live read-only Lua preview (recompiled on every store change).
-// A Visual/Lua toggle preserves access to the raw Monaco script editor.
+// A Visual/Lua toggle preserves access to the raw script editor (CodeMirror).
 //
 // All mutations go through the store's LOGIC_* actions; the preview derives
 // from project.logicBoards via useMemo, so it is always in sync.
 // ---------------------------------------------------------------------------
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useEditor } from '../store/editor-store'
 import { allClassNames } from '../utils/project'
 import { compileLogicBoard } from '../utils/logic-board/compiler'
@@ -19,6 +19,10 @@ import { TRIGGER_TYPES, defaultTrigger } from './logic-board/options'
 import type { LogicTriggerType } from '../types/logic-board'
 import EventCard from './logic-board/EventCard'
 import ScriptEditorPanel from './ScriptEditorPanel'
+import {
+  logicBoardsRevision,
+  syncLogicBoardToScript,
+} from '../utils/sync-logic-board-script'
 
 export default function LogicBoardPanel() {
   const { state, dispatch } = useEditor()
@@ -43,7 +47,18 @@ export default function LogicBoardPanel() {
     [boards],
   )
 
+  const boardsRevision = logicBoardsRevision(project)
+  const prevBoardsRevision = useRef(boardsRevision)
+
+  // Visual Logic Board edits → store → Script editor iframe (update-from-logic).
+  useEffect(() => {
+    if (prevBoardsRevision.current === boardsRevision) return
+    prevBoardsRevision.current = boardsRevision
+    syncLogicBoardToScript(dispatch, state, lua)
+  }, [boardsRevision, lua, dispatch, state.openScripts, state.activeScriptPath, state.project])
+
   const handleApply = () => {
+    syncLogicBoardToScript(dispatch, state, lua)
     const ok = editorReloadScript(lua)
     setApplyMsg(
       ok

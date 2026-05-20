@@ -1,3 +1,5 @@
+import { runtimeAssetPath } from './runtime-path'
+
 // ---------------------------------------------------------------------------
 // wasm-bridge.ts — React ↔ C++ WASM bridge
 //
@@ -9,7 +11,9 @@
 //   React → C++ : Module.ccall('function_name', returnType, argTypes, args)
 //                 Calls EMSCRIPTEN_KEEPALIVE exported C functions.
 //
-// The functions below match the editor-api.h / smoke test implementations.
+// WASM singleton: game.js (Emscripten) must be injected ONCE per window.
+// React StrictMode / HMR remounts must not re-append the script (EmscriptenEH
+// redeclaration crash + audio buffer loop).
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
@@ -17,17 +21,12 @@
 // ---------------------------------------------------------------------------
 
 export interface ArtCadeModule {
-  // Called once when the WASM binary is fully initialised
   onRuntimeInitialized?: () => void
   calledRun: boolean
   canvas: HTMLCanvasElement
 
-  // Resolves asset paths (game.data, game.wasm) — called by Emscripten before
-  // the runtime starts.  We override it in window.Module to force /runtime/<path>
-  // regardless of the scriptDirectory (which is "" when game.js is async).
   locateFile?: (path: string, prefix: string) => string
 
-  // Emscripten runtime methods (exported via EXPORTED_RUNTIME_METHODS)
   ccall(name: string, returnType: string | null, argTypes: string[], args: unknown[]): unknown
   cwrap(name: string, returnType: string | null, argTypes: string[]): (...args: unknown[]) => unknown
   UTF8ToString(ptr: number): string
@@ -37,18 +36,16 @@ export interface ArtCadeModule {
   _free(ptr: number): void
   HEAPU8: Uint8Array
 
-  // Console passthrough
   print?:    (text: string) => void
   printErr?: (text: string) => void
 }
 
-// Extend Window with the globals the C++ bridge sets via EM_ASM
 declare global {
   interface Window {
     Module: Partial<ArtCadeModule>
+    EmscriptenEH?: unknown
 
-    // C++ → React callbacks — set BEFORE game.js loads
-    onObjectUpdated?:             (x: number, y: number) => void          // ST-3
+    onObjectUpdated?:             (x: number, y: number) => void
     onEntitySelected?:            (entityId: number) => void
     onEntityTransformChanged?:    (entityId: number, x: number, y: number,
                                    rot: number, sx: number, sy: number) => void
@@ -58,17 +55,94 @@ declare global {
 }
 
 // ---------------------------------------------------------------------------
-// Internal state
+// Internal state — WASM singleton
 // ---------------------------------------------------------------------------
 
-let _module:  ArtCadeModule | null = null
+const WASM_SCRIPT_ID = 'artcade-raylib-wasm-script'
+
+let _module: ArtCadeModule | null = null
 let _ready  = false
+let wasmInitPromise: Promise<ArtCadeModule> | null = null
 
 export function getModule(): ArtCadeModule | null { return _module }
 export function isReady():   boolean              { return _ready  }
 
+function isEmscriptenAlreadyInMemory(): boolean {
+  return (
+    typeof window.EmscriptenEH !== 'undefined' &&
+    typeof window.Module?.ccall === 'function'
+  )
+}
+
+function wasmScriptInDom(): boolean {
+  return document.getElementById(WASM_SCRIPT_ID) != null
+}
+
+function cacheQuery(): string {
+  return import.meta.env.DEV ? `?v=${Date.now()}` : ''
+}
+
+function bindWindowCallbacks(cbs: WasmCallbacks): void {
+  window.onEntitySelected         = cbs.onEntitySelected
+  window.onEntityTransformChanged = cbs.onEntityTransformChanged
+  window.onConsoleLine            = cbs.onConsoleLine
+  window.onTilemapPainted         = cbs.onTilemapPainted
+  window.onObjectUpdated = (x, y) =>
+    cbs.onEntityTransformChanged(0, x, y, 0, 1, 1)
+}
+
+function attachModuleHooks(
+  canvas: HTMLCanvasElement,
+  cbs: WasmCallbacks,
+): void {
+  const cacheBust = cacheQuery()
+  const existing = window.Module ?? {}
+
+  window.Module = {
+    ...existing,
+    canvas,
+    locateFile: (path: string, _prefix: string) => `${runtimeAssetPath(path)}${cacheBust}`,
+
+    onRuntimeInitialized() {
+      _module = window.Module as ArtCadeModule
+      _ready  = true
+
+      _module.print    = (t) => cbs.onConsoleLine(t, 'info')
+      _module.printErr = (t) => cbs.onConsoleLine(t, 'error')
+
+      safeCall('editor_set_mode', null, ['number'], [0])
+      cbs.onReady()
+    },
+  }
+
+  // Runtime may already be up (HMR / StrictMode remount after first load).
+  if (isEmscriptenAlreadyInMemory() && typeof window.Module.ccall === 'function') {
+    _module = window.Module as ArtCadeModule
+    _ready  = true
+    _module.canvas = canvas
+    _module.print    = (t) => cbs.onConsoleLine(t, 'info')
+    _module.printErr = (t) => cbs.onConsoleLine(t, 'error')
+    queueMicrotask(() => cbs.onReady())
+  }
+}
+
+function adoptExistingRuntime(
+  canvas: HTMLCanvasElement,
+  cbs: WasmCallbacks,
+): ArtCadeModule {
+  const mod = window.Module as ArtCadeModule
+  _module = mod
+  _ready  = true
+  mod.canvas = canvas
+  mod.print    = (t) => cbs.onConsoleLine(t, 'info')
+  mod.printErr = (t) => cbs.onConsoleLine(t, 'error')
+  safeCall('editor_set_mode', null, ['number'], [0])
+  queueMicrotask(() => cbs.onReady())
+  return mod
+}
+
 // ---------------------------------------------------------------------------
-// String marshalling (for editor_load_project)
+// String marshalling
 // ---------------------------------------------------------------------------
 
 export function marshalString(str: string): number {
@@ -80,7 +154,7 @@ export function marshalString(str: string): number {
 }
 
 // ---------------------------------------------------------------------------
-// loadWasmRuntime
+// loadWasmRuntime — singleton entry (returns shared promise)
 // ---------------------------------------------------------------------------
 
 export interface WasmCallbacks {
@@ -93,67 +167,116 @@ export interface WasmCallbacks {
 }
 
 /**
- * Dynamically load game.js (Emscripten entry point) into this page.
- *
- * Key ordering requirement (architecture doc):
- *   1. Set window.on* globals FIRST  ← C++ EM_ASM will call these
- *   2. Configure window.Module with canvas
- *   3. Inject game.js script tag     ← reads window.Module, starts WASM
- *
- * @param canvas   The <canvas> element Emscripten renders into.
- * @param gameSrc  Path/URL to game.js (e.g. "/runtime/game.js").
- * @param cbs      React callbacks for C++→React events.
+ * Load game.js once per window. Safe under React StrictMode and Vite HMR.
  */
 export function loadWasmRuntime(
   canvas:  HTMLCanvasElement,
   gameSrc: string,
   cbs:     WasmCallbacks,
-): void {
-  if (_module) return  // already loaded
+): Promise<ArtCadeModule> {
+  bindWindowCallbacks(cbs)
 
-  // Step 1 ── Set window.on* globals so EM_ASM can find them immediately
-  window.onEntitySelected         = cbs.onEntitySelected
-  window.onEntityTransformChanged = cbs.onEntityTransformChanged
-  window.onConsoleLine            = cbs.onConsoleLine
-  window.onTilemapPainted         = cbs.onTilemapPainted
-  // onObjectUpdated used by smoke tests (ST-3/ST-4)
-  window.onObjectUpdated = (x, y) =>
-    cbs.onEntityTransformChanged(0, x, y, 0, 1, 1)
-
-  // Step 2 ── Configure Module with canvas and lifecycle hook
-  const _cacheBust = Date.now()
-  window.Module = {
-    canvas,
-
-    // Force fresh fetch of game.wasm and game.data every time (no browser cache).
-    // We ALWAYS use /runtime/<path> regardless of `prefix` because:
-    //   1. game.js is an async script → document.currentScript is null → scriptDirectory=""
-    //   2. Emscripten passes "" as prefix for game.data (from the preload IIFE)
-    // Both cases would produce a path-relative URL that resolves to the wrong location.
-    locateFile: (path: string, _prefix: string) => `/runtime/${path}?v=${_cacheBust}`,
-
-    onRuntimeInitialized() {
-      _module = window.Module as ArtCadeModule
-      _ready  = true
-
-      // Forward engine stdout → React Console
-      _module.print    = (t) => cbs.onConsoleLine(t, 'info')
-      _module.printErr = (t) => cbs.onConsoleLine(t, 'error')
-
-      // Enter editor mode by default
-      safeCall('editor_set_mode', null, ['number'], [0])
-      cbs.onReady()
-    },
+  if (_ready && _module) {
+    _module.canvas = canvas
+    queueMicrotask(() => cbs.onReady())
+    return Promise.resolve(_module)
   }
 
-  // Step 3 ── Inject game.js (reads window.Module above)
-  // Cache-bust so the browser always fetches the latest build
-  const script   = document.createElement('script')
-  script.src     = `${gameSrc}?v=${Date.now()}`
-  script.async   = true
-  script.onerror = () =>
-    console.error(`[wasm-bridge] Failed to load WASM runtime from "${gameSrc}"`)
-  document.body.appendChild(script)
+  if (isEmscriptenAlreadyInMemory()) {
+    console.log('[wasm-bridge] Engine already in memory — skip script inject.')
+    return Promise.resolve(adoptExistingRuntime(canvas, cbs))
+  }
+
+  if (wasmScriptInDom()) {
+    console.log('[wasm-bridge] Script tag present — waiting for / reusing Module.')
+    if (isEmscriptenAlreadyInMemory()) {
+      return Promise.resolve(adoptExistingRuntime(canvas, cbs))
+    }
+    if (wasmInitPromise) {
+      return wasmInitPromise.then((mod) => {
+        mod.canvas = canvas
+        queueMicrotask(() => cbs.onReady())
+        return mod
+      })
+    }
+    attachModuleHooks(canvas, cbs)
+    wasmInitPromise = new Promise((resolve, reject) => {
+      const deadline = Date.now() + 30_000
+      const tick = () => {
+        if (isEmscriptenAlreadyInMemory()) {
+          resolve(adoptExistingRuntime(canvas, cbs))
+          return
+        }
+        if (Date.now() > deadline) {
+          reject(new Error('[wasm-bridge] Timeout waiting for existing game.js'))
+          return
+        }
+        requestAnimationFrame(tick)
+      }
+      tick()
+    })
+    return wasmInitPromise
+  }
+
+  if (wasmInitPromise) {
+    return wasmInitPromise.then((mod) => {
+      mod.canvas = canvas
+      bindWindowCallbacks(cbs)
+      queueMicrotask(() => cbs.onReady())
+      return mod
+    })
+  }
+
+  attachModuleHooks(canvas, cbs)
+
+  wasmInitPromise = new Promise<ArtCadeModule>((resolve, reject) => {
+    const script   = document.createElement('script')
+    script.id      = WASM_SCRIPT_ID
+    script.src     = `${gameSrc}${cacheQuery()}`
+    script.async   = true
+
+    script.onload = () => {
+      console.log('[wasm-bridge] game.js loaded.')
+      if (isEmscriptenAlreadyInMemory()) {
+        resolve(adoptExistingRuntime(canvas, cbs))
+      } else {
+        const deadline = Date.now() + 30_000
+        const tick = () => {
+          if (isEmscriptenAlreadyInMemory() && _module) {
+            resolve(_module)
+            return
+          }
+          if (Date.now() > deadline) {
+            wasmInitPromise = null
+            reject(new Error('[wasm-bridge] Module not ready after game.js onload'))
+            return
+          }
+          requestAnimationFrame(tick)
+        }
+        tick()
+      }
+    }
+
+    script.onerror = (err) => {
+      wasmInitPromise = null
+      script.remove()
+      console.error(`[wasm-bridge] Failed to load WASM runtime from "${gameSrc}"`, err)
+      reject(err)
+    }
+
+    document.body.appendChild(script)
+  })
+
+  return wasmInitPromise
+}
+
+/** Alias for docs / callers that prefer the singleton name. */
+export function initWasmEngine(
+  scriptUrl: string,
+  canvas: HTMLCanvasElement,
+  cbs: WasmCallbacks,
+): Promise<ArtCadeModule> {
+  return loadWasmRuntime(canvas, scriptUrl, cbs)
 }
 
 // ---------------------------------------------------------------------------
@@ -172,28 +295,20 @@ function safeCall(
 
 // ---------------------------------------------------------------------------
 // React → C++ command wrappers
-// (use Module.ccall — the pattern documented in Smoke Test 4)
 // ---------------------------------------------------------------------------
 
-/** Switch between editor mode (0) and play/game mode (1). */
 export function editorSetMode(mode: 0 | 1): void {
   safeCall('editor_set_mode', null, ['number'], [mode])
 }
 
-/** Highlight an entity in the viewport (shows gizmo). */
 export function editorSelectEntity(entityId: number): void {
   safeCall('editor_select_entity', null, ['number'], [entityId])
 }
 
-/** Clear viewport selection. */
 export function editorDeselect(): void {
   safeCall('editor_deselect', null, [], [])
 }
 
-/**
- * Hot-reload the full project JSON into the C++ runtime.
- * Marshals the string through the Emscripten heap.
- */
 export function editorLoadProject(projectJson: string): void {
   if (!_module) return
   const ptr = marshalString(projectJson)
@@ -204,12 +319,6 @@ export function editorLoadProject(projectJson: string): void {
   }
 }
 
-/**
- * Hot-reload compiled Logic Board Lua into the running C++ VM.
- * Marshals the source through the Emscripten heap; the runtime executes it
- * via LuaHost::loadLuaSource(), redefining the global tick().
- * Returns false if the WASM module is not loaded yet.
- */
 export function editorReloadScript(luaSource: string): boolean {
   if (!_module) return false
   const ptr = marshalString(luaSource)
@@ -221,13 +330,6 @@ export function editorReloadScript(luaSource: string): boolean {
   }
 }
 
-/**
- * Phase F3: upload an editor-loaded image (tileset spritesheet) into the C++
- * renderer's texture cache, keyed by `path` (must equal the
- * TilesetAsset.spriteImagePath the runtime renders with). Returns false if
- * the runtime is not loaded yet. Copies the raw encoded bytes through the
- * Emscripten heap (HEAPU8); too large for ccall's stack-based 'array').
- */
 export function editorRegisterImage(
   path: string,
   bytes: Uint8Array,
@@ -253,17 +355,14 @@ export function editorRegisterImage(
   }
 }
 
-/** Phase F2: toggle in-scene tile painting in the C++ runtime. */
 export function editorSetTilePaintMode(enabled: boolean): void {
   safeCall('editor_set_tile_paint_mode', null, ['number'], [enabled ? 1 : 0])
 }
 
-/** Phase F2: set the brush tile id (0 = eraser). */
 export function editorSetSelectedTile(tileId: number): void {
   safeCall('editor_set_selected_tile', null, ['number'], [tileId])
 }
 
-/** Push an Inspector transform change into the C++ scene. */
 export function editorSetTransform(
   entityId: number,
   x: number, y: number,
@@ -281,7 +380,6 @@ export interface RuntimeSyncState {
   selectedEntityId?: number | null
 }
 
-/** Push editor state changes into the C++ runtime through the stable bridge API. */
 export function syncEditorRuntimeState(state: RuntimeSyncState): void {
   if (state.projectJson != null) editorLoadProject(state.projectJson)
   if (state.mode != null) editorSetMode(state.mode)

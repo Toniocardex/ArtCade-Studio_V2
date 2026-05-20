@@ -12,6 +12,7 @@ import AssetBrowserPanel  from './panels/AssetBrowserPanel'
 import TilesetEditorPanel from './panels/TilesetEditorPanel'
 import ConsolePanel       from './panels/ConsolePanel'
 import { openProjectDialog, loadProjectFile, saveProjectFile, saveScript } from './utils/api'
+import { triggerLayoutReflow } from './utils/layout-reflow'
 import type { BottomTab, ConsoleEntry } from './types'
 
 let _kbdLogId = 500
@@ -193,6 +194,11 @@ function EditorLayout() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [state.openScripts, state.activeScriptPath, state.project, state.projectPath, state.mode, dispatch])
 
+  // Script editor mounts only in script mode — reflow after Tauri show / tab switch.
+  useEffect(() => {
+    if (state.mode === 'script') triggerLayoutReflow()
+  }, [state.mode])
+
   return (
     <div className="flex w-full h-full bg-[var(--bg)] text-[var(--text)] overflow-hidden select-none">
       <ModuleRail />
@@ -206,11 +212,8 @@ function EditorLayout() {
             (`contents` when active, `none` when hidden).
 
             LogicBoardView / ScriptEditorView have NO WASM canvas, so they are
-            mounted CONDITIONALLY. This is required for Monaco: a permanently
-            mounted editor inside a `display:contents` (boxless) ancestor has
-            no containing block for its `height:100%`, so it laid out at ~0px
-            and stayed compact (text rendered at the top until a relayout).
-            Mounting only when active gives Monaco a real, sized box. */}
+            mounted CONDITIONALLY. Script editor needs a real sized flex box
+            (not `display:contents`), so it mounts only when active. */}
         <div style={{ display: state.mode === 'canvas' ? 'contents' : 'none' }}>
           <CanvasView />
         </div>

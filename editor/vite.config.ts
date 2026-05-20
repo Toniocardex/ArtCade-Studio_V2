@@ -1,28 +1,27 @@
+import { resolve } from 'node:path'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 export default defineConfig({
+  base: './', // Fondamentale per Tauri
   plugins: [react()],
-
   server: {
     port: 5173,
     strictPort: true,
     headers: {
       'Cross-Origin-Opener-Policy':   'same-origin',
       'Cross-Origin-Embedder-Policy': 'require-corp',
-      // Prevent the WebView from caching WASM/JS builds during development
-      'Cache-Control': 'no-store',
     },
   },
-
-  // Vite strips unknown assets by default — tell it to pass .wasm through.
-  assetsInclude: ['**/*.wasm'],
-
   build: {
-    outDir:    'dist',
+    outDir: 'dist',
     sourcemap: true,
-    // Don't try to bundle game.js — it's an Emscripten output loaded at runtime.
+    cssCodeSplit: true,
     rollupOptions: {
+      input: {
+        main:            resolve(__dirname, 'index.html'),
+        codemirrorFrame: resolve(__dirname, 'codemirror-frame.html'),
+      },
       external: [/\/runtime\/game\.js$/],
     },
   },

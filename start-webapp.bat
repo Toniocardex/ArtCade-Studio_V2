@@ -5,13 +5,16 @@ if not "%~1"=="_run" (
   exit /b
 )
 setlocal EnableExtensions
-cd /d "%~dp0editor"
-if errorlevel 1 ( echo [ArtCade] editor folder not found next to this script. & goto :done )
+set "ROOT=%~dp0"
+cd /d "%ROOT%"
+if errorlevel 1 ( echo [ArtCade] project root not found. & goto :done )
 set "NPMC="
 where npm >nul 2>&1 && set "NPMC=npm"
 if not defined NPMC if exist "%ProgramFiles%\nodejs\npm.cmd" set "NPMC=%ProgramFiles%\nodejs\npm.cmd"
 if not defined NPMC ( echo [ArtCade] Node.js/npm not found. Install Node LTS from https://nodejs.org & goto :done )
-if not exist "node_modules" ( echo [ArtCade] Installing dependencies, first run... & call "%NPMC%" install )
+rem npm workspace: deps hoist to the ROOT node_modules, not editor\node_modules.
+if not exist "%ROOT%node_modules\vite" ( echo [ArtCade] Installing dependencies, first run... & call "%NPMC%" install )
+cd /d "%ROOT%editor"
 echo [ArtCade] Starting Vite dev server, the browser will open...
 call "%NPMC%" run dev -- --open
 :done

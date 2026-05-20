@@ -102,6 +102,7 @@ Guida specializzata         (REACT_WASM_PATTERN.md o ECS_IMPLEMENTATION_GUIDE.md
 | **TECHNICAL_OVERVIEW.md** (v2.2) | Architettura completa | 45–60min | Engineers | ⭐⭐⭐ |
 | **ARCHITECTURE_INTEGRATION.md** | End-to-end flows | 15–20min | Tech leads | ⭐⭐ |
 | **REACT_WASM_PATTERN.md** | Buffering implementazione | 15–20min | React dev | ⭐⭐ |
+| **CODEMIRROR_EDITOR.md** | Editor Script CodeMirror 6 + Lua, Tauri dev/build | ~3min | React dev | ⭐ |
 | **ECS_IMPLEMENTATION_GUIDE.md** | EnTT pratica | 30–45min | C++ dev | ⭐⭐ |
 | **ARCHITETTURA_TECNICA_ENGINE_2D.md** | Stack collab, §8–10, §11 stato vs target + roadmap | 30–40min | C++ / Tech lead | ⭐⭐ |
 | **LOGIC_BOARD_SPEC.md** | **I** glossario · **II** Sheet tabellare · **III** Logic Board (TS→Lua, UI, MVP) · **IV** link linee guida | 25–35min | Everyone / Editor | ⭐⭐⭐ |

@@ -554,11 +554,13 @@ editor/
 
 | # | Area | Problema | Priorità | Stato |
 |---|------|----------|----------|-------|
-| KI-1 | Editor Script (Monaco) | **Desktop (Tauri): Monaco DISABILITATO** — sostituito da un editor textarea robusto (stesso flusso store/Ctrl+S) perché nella WebView embed restano flicker, niente syntax-highlight/IntelliSense. Monaco resta attivo e funzionante nel build **web/dev**. Reintegrazione pianificata (loader.config paths locali `public/monaco-editor/min/vs`, CompletionItemProvider API engine, esecuzione Lua via WASM, markers errori). Dettaglio storico fix tentate sotto. ~~Glitch di rendering. RISOLTO~~ implementando le specifiche `specifica_bidirezionale_monaco_react.pdf` + `docs/technical_specification_monaco_flicker.pdf`: componente `CodeEditor` con pattern **Measure-First** (ResizeObserver in `useLayoutEffect`, mount solo a geometria reale, `width/height` espliciti, `automaticLayout:false`, `lineHeight:22`, `fixedOverflowWidgets:true`) + modello **Uncontrolled** (`defaultValue` da ref, nessun feedback di `value`, key per file); bootstrap coordinato in `main.tsx` (`loader.init()` + `document.fonts.ready` prima del render); finestra Tauri `visible:false` → `getCurrentWindow().show()` dopo il render; CSP `worker-src 'self' blob:`; `box-sizing: content-box` scoped su `.monaco-editor`. | Media | ✅ Risolto |
+| KI-1 | Editor Script (CodeMirror) | **CodeMirror 6** (2026-05-20): `@uiw/react-codemirror`, Lua `legacy-modes`, temi + autocomplete ArtCade, niente worker/CSP Monaco. `CodeEditor` Measure-First + uncontrolled. Doc: `docs/CODEMIRROR_EDITOR.md`. Resta: markers errori Lua, LSP opzionale. | Media | ✅ Risolto |
 
 | KI-2 | Logic Components — hook engine | `onAnimationEnd` e `onDestroy` aggiunti a tipi/UI ma compilano a **no-op sicuro** (commento) perché il runtime non espone ancora un hook "animazione finita" / "pre-distruzione". `onTriggerEnter/Exit` invece funzionano (edge compiler-only su `collision.touchingClass`). Da completare con hook engine C++ (spriteAnimator → callback fine clip; entityManager → callback pre-destroy che invoca Lua). | Bassa | ⏳ Aperto |
 
 ---
+
+*Ultimo aggiornamento: 2026-05-20 — KI-1: migrazione Editor Script a CodeMirror 6. Vedi `docs/CODEMIRROR_EDITOR.md`.*
 
 *Ultimo aggiornamento: 2026-05-19 — Logic Components A/B/C: A+B funzionali; C: onTriggerEnter/Exit ok, onAnimationEnd/onDestroy stub (KI-2). Monaco KI-1 risolto (overflow geo).*
 

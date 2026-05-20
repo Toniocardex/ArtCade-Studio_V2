@@ -10,6 +10,8 @@
   "scripts": {
     "dev": "cd editor && npm run dev",
     "build": "cd editor && npm run build",
+    "tauri:dev": "cd editor && npm run tauri:dev",
+    "tauri:build": "cd editor && npm run tauri:build",
     "build:cpp": "cd runtime-cpp && mkdir -p build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release && cmake --build . --config Release",
     "build:wasm": "cd runtime-cpp && mkdir -p build && cd build && emcmake cmake .. -DCMAKE_BUILD_TYPE=Release && cmake --build .",
     "clean": "rm -rf runtime-cpp/build && rm -rf editor/dist && rm -rf runtime-wasm/build"

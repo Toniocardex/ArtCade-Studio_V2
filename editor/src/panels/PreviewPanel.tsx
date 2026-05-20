@@ -11,12 +11,7 @@ import {
 import { readProjectImageBytes } from '../utils/api'
 import { dirName } from '../utils/project'
 
-// ---------------------------------------------------------------------------
-// Where the WASM runtime lives (relative to the Tauri app root).
-// In dev  → Vite serves from /public, so /runtime/game.js
-// In prod → bundled as a Tauri asset at the same relative path
-// ---------------------------------------------------------------------------
-const WASM_RUNTIME_SRC = '/runtime/game.js'
+import { WASM_RUNTIME_SRC } from '../utils/runtime-path'
 
 type Tool = 'select' | 'pan' | 'paint' | 'erase' | 'tile'
 
@@ -44,71 +39,76 @@ export default function PreviewPanel() {
   const [engineReady, setEngineReady] = useState(false)
   const [activeTool, setActiveTool] = useState<Tool>('select')
 
-  // ── Load WASM runtime once the canvas is mounted ─────────────────────────
+  // ── Load WASM runtime once (singleton — safe under StrictMode / HMR) ─────
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    if (isReady()) { setWasmReady(true); return }
 
-    loadWasmRuntime(canvas, WASM_RUNTIME_SRC, {
+    let cancelled = false
+
+    const callbacks = {
       onReady: () => {
+        if (cancelled) return
         setWasmReady(true)
-
-        // Defer LOG dispatch out of the onRuntimeInitialized callback so that
-        // React reconciliation does not run synchronously inside the WASM
-        // initialisation sequence.
         setTimeout(() => dispatch({
           type: 'LOG',
           entry: makeLogEntry('[WASM] Runtime initialised — editor mode active.', 'info'),
         }), 0)
       },
 
-      onEntitySelected: (entityId) => {
+      onEntitySelected: (entityId: number) => {
+        if (cancelled) return
         dispatch({ type: 'SELECT_ENTITY', entityId })
       },
 
-      onEntityTransformChanged: (entityId, x, y, rotation, scaleX, scaleY) => {
+      onEntityTransformChanged: (
+        entityId: number, x: number, y: number,
+        rotation: number, scaleX: number, scaleY: number,
+      ) => {
+        if (cancelled) return
         setTimeout(() => dispatch({
           type: 'UPDATE_ENTITY_TRANSFORM',
-          entityId,
-          x,
-          y,
-          rotation,
-          scaleX,
-          scaleY,
+          entityId, x, y, rotation, scaleX, scaleY,
         }), 0)
       },
 
-      // debug.log() / engine logs → Console panel.
-      //
-      // CRITICAL: use setTimeout(0) to defer the React state update out of
-      // Emscripten's requestAnimationFrame callback.  Without the deferral:
-      //   rAF → emscripten main-loop → C++ luaHost.tick → debug.log →
-      //   EM_ASM → window.onConsoleLine → dispatch(LOG) →
-      //   React reconciliation ← happens DURING WebGL frame composition
-      //   → browser compositor shows blank/partial frame = "coin pickup flash"
-      //
-      // With setTimeout(0) the dispatch is queued as a separate task that
-      // runs AFTER the current rAF + browser paint completes, fully
-      // decoupling React DOM updates from WebGL rendering.
-      onConsoleLine: (message, level) => {
+      onConsoleLine: (message: string, level: string) => {
+        if (cancelled) return
         const entry = makeLogEntry(message, level)
         if (message.includes('[EditorAPI] Bridge initialised')) {
-          setTimeout(() => setEngineReady(true), 0)
+          setTimeout(() => { if (!cancelled) setEngineReady(true) }, 0)
         }
         setTimeout(() => dispatch({ type: 'LOG', entry }), 0)
       },
 
-      // Phase F2: C++ painted a tile in the scene → persist in the store.
-      onTilemapPainted: (col, row, tileId) => {
+      onTilemapPainted: (col: number, row: number, tileId: number) => {
+        if (cancelled) return
         const sceneId = sceneIdRef.current
         if (!sceneId) return
         setTimeout(() => dispatch({
           type: 'TILEMAP_PAINT_CELL', sceneId, col, row, tileId,
         }), 0)
       },
+    }
+
+    if (isReady()) {
+      callbacks.onReady()
+      void loadWasmRuntime(canvas, WASM_RUNTIME_SRC, callbacks)
+      return () => { cancelled = true }
+    }
+
+    void loadWasmRuntime(canvas, WASM_RUNTIME_SRC, callbacks).catch((err) => {
+      if (!cancelled) {
+        console.error('[PreviewPanel] WASM init failed:', err)
+        dispatch({
+          type: 'LOG',
+          entry: makeLogEntry(`[WASM] Init failed: ${String(err)}`, 'error'),
+        })
+      }
     })
-  }, [dispatch])   // run once on mount
+
+    return () => { cancelled = true }
+  }, [dispatch])
 
   // ── Re-sync project into C++ whenever the user opens a new project ────────
   useEffect(() => {
