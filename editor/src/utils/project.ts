@@ -600,8 +600,8 @@ export function dirName(filePath: string): string {
 // Blank project template (File → New Project)
 // ---------------------------------------------------------------------------
 //
-// SAMPLE_PROJECT in editor-store-state.ts is the *demo* shown on first boot
-// (7 entities, 2 scenes). A real "New Project" should start from a minimal
+// The editor boots with no project loaded; File → New Project uses this
+// template. A real "New Project" should start from a minimal
 // but RUNNABLE skeleton, so the user can immediately:
 //   - press PLAY without errors,
 //   - save to disk (the file passes parseProjectDoc round-trip),

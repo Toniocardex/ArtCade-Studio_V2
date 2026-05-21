@@ -340,7 +340,7 @@ Standardizzare:
 
 **Stato attuale:**
 
-`editor-store.tsx` contiene stato, azioni, reducer core, reducer volatile, sample project, helper e context provider.
+`editor-store.tsx` contiene stato, azioni, reducer core, reducer volatile, stato iniziale vuoto (nessun progetto demo), helper e context provider.
 
 **Debito:**
 

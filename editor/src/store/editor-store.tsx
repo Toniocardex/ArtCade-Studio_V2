@@ -12,8 +12,8 @@ import type { ReactNode, Dispatch } from 'react'
 // compositing glitch visible as a one-frame flash when entities are
 // destroyed.
 //
-// State shape, actions, sample project and initial values live in
-// editor-store-state.ts; per-domain reducers under store/reducers/.  This
+// State shape, actions, and initial values live in editor-store-state.ts;
+// per-domain reducers under store/reducers/.  This
 // file is just the React glue.
 // ---------------------------------------------------------------------------
 
