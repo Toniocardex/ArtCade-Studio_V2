@@ -27,7 +27,6 @@ target_link_libraries(artcade-game-api
         artcade-physics
         artcade-input
         artcade-audio
-        artcade-entity-system
         artcade-scene-system
         artcade-runtime-entity-gateway
         artcade-save-load

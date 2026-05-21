@@ -1,6 +1,5 @@
 #include "../include/runtime-entity-gateway.h"
 #include "entity-registry.h"
-#include "../../entity-system/include/entity-manager.h"
 #include "../../scene-system/include/scene-manager.h"
 #include "../../physics/include/physics.h"
 
@@ -37,9 +36,8 @@ EntityDef minimalSpawnDef(const std::string& cls, float x, float y) {
 
 } // namespace
 
-RuntimeEntityGateway::RuntimeEntityGateway(EntityManager& em, SceneManager& sm)
-    : entityManager_(em),
-      sceneManager_(sm),
+RuntimeEntityGateway::RuntimeEntityGateway(SceneManager& sm)
+    : sceneManager_(sm),
       registry_(std::make_unique<EntityRegistry>()) {}
 
 RuntimeEntityGateway::~RuntimeEntityGateway() = default;

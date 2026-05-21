@@ -1,6 +1,5 @@
 // scene-gateway-test.cpp — RuntimeEntityGateway scene activation + global state
 
-#include "modules/entity-system/include/entity-manager.h"
 #include "modules/scene-system/include/scene-manager.h"
 #include "modules/runtime-entity-gateway/include/runtime-entity-gateway.h"
 #include "modules/physics/include/physics.h"
@@ -21,13 +20,11 @@ static int g_failed = 0;
     } while (0)
 
 int main() {
-    EntityManager em;
     SceneManager  sm;
-    RuntimeEntityGateway gw(em, sm);
+    RuntimeEntityGateway gw(sm);
     VariableManager vm;
     Physics physics;
 
-    em.init();
     sm.init();
     gw.init();
     vm.init();
@@ -156,7 +153,6 @@ int main() {
               == sceneAfterDestroy->entityIds.end());
 
     gw.shutdown();
-    em.shutdown();
     sm.shutdown();
     vm.shutdown();
     physics.shutdown();

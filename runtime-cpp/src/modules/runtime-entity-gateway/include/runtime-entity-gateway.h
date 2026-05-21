@@ -12,18 +12,20 @@ namespace ArtCade::Modules {
 
 using SpawnLogCallback = std::function<void(const std::string&)>;
 
-class EntityManager;
 class SceneManager;
 class Physics;
 class EntityRegistry;
 
 /**
- * RuntimeEntityGateway is the migration point between the current
- * EntityManager/SceneManager storage and the future EnTT registry.
+ * RuntimeEntityGateway — single owner of runtime entity state.
+ *
+ * Entity records and component data live inside EntityRegistry (private to
+ * this module); scene metadata lives in SceneManager. EnTT will land
+ * behind the EntityRegistry seam without moving any public method here.
  */
 class RuntimeEntityGateway final : public IModule {
 public:
-    RuntimeEntityGateway(EntityManager& entityManager, SceneManager& sceneManager);
+    explicit RuntimeEntityGateway(SceneManager& sceneManager);
     ~RuntimeEntityGateway() override; // unique_ptr<EntityRegistry> needs complete type at destruction.
 
     bool init() override;
@@ -96,7 +98,6 @@ public:
     bool isEntityActiveInScene(EntityId id) const;
 
 private:
-    EntityManager& entityManager_;
     SceneManager&  sceneManager_;
     Physics*       physics_ = nullptr;
 

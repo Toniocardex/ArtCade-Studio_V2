@@ -14,7 +14,6 @@ target_link_libraries(game PRIVATE
     artcade-physics
     artcade-input
     artcade-audio
-    artcade-entity-system
     artcade-scene-system
     artcade-runtime-entity-gateway
     artcade-editor-api          # WASM bridge (no-op stubs on native)

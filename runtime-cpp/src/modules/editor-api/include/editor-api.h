@@ -181,7 +181,7 @@ EMSCRIPTEN_KEEPALIVE void editor_load_project(const char* json_utf8);
 
 /**
  * Push a transform change from the React Inspector into the C++ scene.
- * Updates the EntityDef in EntityManager directly.
+ * Routes the update through RuntimeEntityGateway::setTransform().
  */
 EMSCRIPTEN_KEEPALIVE void editor_set_transform(
     uint32_t entityId,

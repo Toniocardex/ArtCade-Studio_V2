@@ -13,7 +13,6 @@
 #include "../../modules/input/include/input.h"
 #include "../../modules/audio/include/audio.h"
 #include "../../modules/lua-runtime/include/lua-host.h"
-#include "../../modules/entity-system/include/entity-manager.h"
 #include "../../modules/scene-system/include/scene-manager.h"
 #include "../../modules/runtime-entity-gateway/include/runtime-entity-gateway.h"
 #include "../../modules/asset-system/include/asset-loader.h"
@@ -57,7 +56,6 @@ struct Application::Modules {
     std::unique_ptr<ArtCade::Modules::Input>         input;
     std::unique_ptr<ArtCade::Modules::Audio>         audio;
     std::unique_ptr<ArtCade::Modules::LuaHost>       luaHost;
-    std::unique_ptr<ArtCade::Modules::EntityManager> entityManager;
     std::unique_ptr<ArtCade::Modules::SceneManager>  sceneManager;
     std::unique_ptr<ArtCade::Modules::RuntimeEntityGateway> entityGateway;
     std::unique_ptr<ArtCade::Modules::AssetLoader>   assetLoader;
@@ -172,7 +170,6 @@ bool Application::initSubsystems() {
     mod_->physics       = std::make_unique<ArtCade::Modules::Physics>();
     mod_->input         = std::make_unique<ArtCade::Modules::Input>();
     mod_->audio         = std::make_unique<ArtCade::Modules::Audio>();
-    mod_->entityManager = std::make_unique<ArtCade::Modules::EntityManager>();
     mod_->assetLoader   = std::make_unique<ArtCade::Modules::AssetLoader>();
 
     mod_->renderer->setWindowSize(1280, 720, "ArtCade V2");
@@ -181,7 +178,6 @@ bool Application::initSubsystems() {
         !mod_->physics->init()       ||
         !mod_->input->init()         ||
         !mod_->audio->init()         ||
-        !mod_->entityManager->init() ||
         !mod_->assetLoader->init())
         return false;
 
@@ -194,7 +190,7 @@ bool Application::initSubsystems() {
     if (!mod_->sceneManager->init()) return false;
 
     mod_->entityGateway = std::make_unique<ArtCade::Modules::RuntimeEntityGateway>(
-        *mod_->entityManager, *mod_->sceneManager);
+        *mod_->sceneManager);
     if (!mod_->entityGateway->init()) return false;
 
     mod_->world = std::make_unique<World>(
@@ -538,7 +534,6 @@ void Application::shutdownModules() {
     if (mod_->entityGateway)    { mod_->entityGateway->shutdown();    mod_->entityGateway.reset();    }
     if (mod_->sceneManager)     { mod_->sceneManager->shutdown();     mod_->sceneManager.reset();     }
     if (mod_->assetLoader)      { mod_->assetLoader->shutdown();      mod_->assetLoader.reset();      }
-    if (mod_->entityManager)    { mod_->entityManager->shutdown();    mod_->entityManager.reset();    }
     if (mod_->audio)            { mod_->audio->shutdown();            mod_->audio.reset();            }
     if (mod_->input)            { mod_->input->shutdown();            mod_->input.reset();            }
     if (mod_->physics)          { mod_->physics->shutdown();          mod_->physics.reset();          }

@@ -103,7 +103,6 @@ endif()
 # Moduli che richiedono sia Raylib sia Lua (Fase 9+)
 # ============================================================================
 if(ARTCADE_HAS_RAYLIB AND ARTCADE_HAS_LUA)
-    add_subdirectory(src/modules/entity-system)
     add_subdirectory(src/modules/scene-system)
     add_subdirectory(src/modules/runtime-entity-gateway)
     add_subdirectory(src/modules/asset-system)
