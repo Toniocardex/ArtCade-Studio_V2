@@ -13,8 +13,16 @@ export const EDITOR_ZOOM_MIN = 0.1
 /** Highest zoom factor. 400% is the industry-standard upper bound for 2D editors. */
 export const EDITOR_ZOOM_MAX = 4.0
 
-/** Identity zoom (Ctrl+0). */
+/** Identity zoom (Ctrl+0). Industry-standard meaning of "100%": 1 scene px = 1 device px. */
 export const EDITOR_ZOOM_DEFAULT = 1.0
+
+/**
+ * Zoom level applied when the editor boots a blank project and on every
+ * subsequent LOAD_PROJECT. Kept separate from EDITOR_ZOOM_DEFAULT because
+ * Ctrl+0 must remain 100% (universal convention) — only the "fresh project"
+ * starting view uses this softer 75% framing.
+ */
+export const EDITOR_BOOT_ZOOM = 0.75
 
 /** Keyboard step (Ctrl+/-). 25% per press feels like Photoshop. */
 export const EDITOR_ZOOM_KEYBOARD_STEP = 1.25

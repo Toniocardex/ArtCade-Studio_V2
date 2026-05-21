@@ -13,7 +13,7 @@ import type {
   SpriteComponent,
 } from '../types'
 import {
-  EDITOR_ZOOM_DEFAULT, DEFAULT_EDITOR_GRID_SIZE,
+  EDITOR_BOOT_ZOOM, DEFAULT_EDITOR_GRID_SIZE,
 } from '../constants/editor-viewport'
 
 // ---- Core state (stable) ---------------------------------------------------
@@ -51,10 +51,12 @@ export interface CoreState {
   editorZoomMode:   'fit' | 'manual'
   cameraPreview:    boolean  // when true the canvas is clipped to viewportSize (no PLAY needed)
   /**
-   * Bumped every time LOAD_PROJECT fires. PreviewPanel watches this to
-   * auto-fit the canvas after a fresh load (the project reference alone is
-   * not enough — entity edits also create a new project reference, so we
-   * need an explicit "load just happened" signal).
+   * Bumped every time LOAD_PROJECT fires. Reserved for "fresh load" signals
+   * that pure project-reference comparisons can't express (entity edits
+   * mutate the project reference too). No active consumers right now — the
+   * previous auto-fit hook was retired when fit-mode + ResizeObserver took
+   * over — but the counter is cheap and useful for future hooks (telemetry,
+   * runtime reset, etc.).
    */
   projectLoadEpoch: number
 }
@@ -141,8 +143,8 @@ export const initialCoreState: CoreState = {
   selectedTileCell: 1,
   editorGridSize:   DEFAULT_EDITOR_GRID_SIZE,
   snapToGrid:       false,
-  editorZoom:       EDITOR_ZOOM_DEFAULT,
-  editorZoomMode:   'fit',
+  editorZoom:       EDITOR_BOOT_ZOOM,
+  editorZoomMode:   'manual',
   cameraPreview:    false,
   projectLoadEpoch: 0,
 }

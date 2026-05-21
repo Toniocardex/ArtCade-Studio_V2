@@ -11,16 +11,17 @@
 // LOAD_PROJECT (which resets the same fields) avoids a third file.
 
 import type { CoreState, Action, DomainReducer } from '../editor-store-state'
-import { EDITOR_ZOOM_DEFAULT } from '../../constants/editor-viewport'
+import { EDITOR_BOOT_ZOOM } from '../../constants/editor-viewport'
 
 export const projectReducer: DomainReducer = (state: CoreState, action: Action) => {
   switch (action.type) {
     case 'LOAD_PROJECT': {
       const firstSceneId = Object.keys(action.project.scenes)[0] ?? null
-      // Reset editor "view" chrome so a 400% zoom or an active camera preview
-      // from the previous project does not bleed into the freshly loaded one
-      // (TECHNICAL_DEBT_REVIEW §7 — LOAD_PROJECT preserved zoom/preview).
-      // projectLoadEpoch bump signals PreviewPanel to auto-fit the canvas.
+      // Reset editor "view" chrome so a 400% zoom, a stuck fit-mode tracking
+      // or an active camera preview from the previous project don't bleed
+      // into the freshly loaded one. Every load starts at the standard
+      // EDITOR_BOOT_ZOOM (75%) in manual mode — predictable framing and
+      // Ctrl+9 / the dropdown "Fit" entry are one click away.
       return {
         ...state,
         project:     action.project,
@@ -31,8 +32,8 @@ export const projectReducer: DomainReducer = (state: CoreState, action: Action) 
         activeScriptPath: null,
         isPlaying:   false,
         bottomTab:   'console',
-        editorZoom:       EDITOR_ZOOM_DEFAULT,
-        editorZoomMode:   'fit', // PreviewPanel re-fits on projectLoadEpoch bump
+        editorZoom:       EDITOR_BOOT_ZOOM,
+        editorZoomMode:   'manual',
         cameraPreview:    false,
         projectLoadEpoch: state.projectLoadEpoch + 1,
       }

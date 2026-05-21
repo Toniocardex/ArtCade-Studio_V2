@@ -51,7 +51,6 @@ export default function PreviewPanel() {
   const {
     project, projectPath, isPlaying, selection, selectedTileCell, mode,
     editorGridSize, snapToGrid, editorZoom, editorZoomMode, cameraPreview,
-    projectLoadEpoch,
   } = state
 
   const canvasRef           = useRef<HTMLCanvasElement>(null)
@@ -192,16 +191,6 @@ export default function PreviewPanel() {
   // before paint so the handler is in place by the time the user can press
   // a key in the freshly mounted editor.
   useLayoutEffect(() => zoomFitRegistry.register(fitZoom), [preview, res.x, res.y, vp.x, vp.y])
-
-  // Auto-fit the canvas every time a project is (re)loaded so the default
-  // scene is centred and fully visible in the panel. rAF waits one paint
-  // so scrollRef already has its measured clientWidth/Height.
-  useLayoutEffect(() => {
-    if (projectLoadEpoch === 0) return
-    const raf = requestAnimationFrame(() => fitZoom())
-    return () => cancelAnimationFrame(raf)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectLoadEpoch])
 
   // Track-on-resize: when the user is in 'fit' mode, any panel size change
   // (window resize, side-panel toggle, bottom-tab open/close) recomputes the
