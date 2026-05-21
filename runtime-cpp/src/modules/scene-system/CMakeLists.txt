@@ -6,5 +6,5 @@ target_include_directories(artcade-scene-system
     PRIVATE src
 )
 target_link_libraries(artcade-scene-system
-    PUBLIC  artcade-core artcade-entity-system
+    PUBLIC  artcade-core
 )

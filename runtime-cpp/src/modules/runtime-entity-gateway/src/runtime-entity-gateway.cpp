@@ -72,22 +72,21 @@ bool RuntimeEntityGateway::entityListedInActiveScene(EntityId id) const {
 }
 
 bool RuntimeEntityGateway::isEntityActiveInScene(EntityId id) const {
-    if (!entityManager_.exists(id)) return false;
-    return registry_->sceneActive(id);
+    return registry_->contains(id) && registry_->sceneActive(id);
 }
 
-void RuntimeEntityGateway::ensurePhysicsBody(EntityDef& def) {
+void RuntimeEntityGateway::ensurePhysicsBody(EntityId id) {
     if (!physics_) return;
-    if (physicsHandle(def.id) != 0) return;
+    if (physicsHandle(id) != 0) return;
 
     PhysicsComponent comp{};
-    if (!getPhysicsComponent(def.id, comp))
-        comp = def.physics;
+    if (!getPhysicsComponent(id, comp))
+        return;
 
     const bool hasCollider =
         comp.collider.size.x > 2.f && comp.collider.size.y > 2.f;
     PlatformerControllerComponent platformer{};
-    const bool hasPlatformer = getPlatformerController(def.id, platformer);
+    const bool hasPlatformer = getPlatformerController(id, platformer);
     if (!hasCollider && !hasPlatformer) return;
 
     if (!hasCollider) {
@@ -95,54 +94,47 @@ void RuntimeEntityGateway::ensurePhysicsBody(EntityDef& def) {
         comp.bodyType = BodyType::Dynamic;
     }
 
-    const uint32_t handle = physics_->createBody(def.id, comp);
+    const uint32_t handle = physics_->createBody(id, comp);
     if (handle == 0) return;
 
-    setPhysicsComponent(def.id, comp);
-    setPhysicsHandle(def.id, handle);
+    setPhysicsComponent(id, comp);
+    setPhysicsHandle(id, handle);
     Transform transform{};
-    if (!getTransform(def.id, transform))
-        transform = def.transform;
-    physics_->setPosition(handle, transform.position);
+    if (getTransform(id, transform))
+        physics_->setPosition(handle, transform.position);
 
     SensorComponent sensor{};
-    if (getSensor(def.id, sensor))
+    if (getSensor(id, sensor))
         physics_->addSensorFixture(handle, sensor);
 }
 
-void RuntimeEntityGateway::teardownPhysicsBody(EntityDef& def) {
-    const uint32_t handle = physicsHandle(def.id);
+void RuntimeEntityGateway::teardownPhysicsBody(EntityId id) {
+    const uint32_t handle = physicsHandle(id);
     if (!physics_ || handle == 0) return;
     physics_->destroyBody(handle);
-    setPhysicsHandle(def.id, 0);
+    setPhysicsHandle(id, 0);
 }
 
 void RuntimeEntityGateway::deactivateEntity(EntityId id) {
-    EntityDef* e = entityManager_.get(id);
-    if (!e) return;
+    if (!registry_->contains(id)) return;
     registry_->setSceneActive(id, false);
-    // Compatibility mirror until EntityDef stops carrying runtime flags.
-    e->runtime.sceneActive = false;
     SpriteComponent sprite{};
     if (getSprite(id, sprite)) {
         sprite.alpha = 0.f;
         setSprite(id, sprite);
     }
-    teardownPhysicsBody(*e);
+    teardownPhysicsBody(id);
 }
 
 void RuntimeEntityGateway::activateEntity(EntityId id) {
-    EntityDef* e = entityManager_.get(id);
-    if (!e) return;
+    if (!registry_->contains(id)) return;
     registry_->setSceneActive(id, true);
-    // Compatibility mirror until EntityDef stops carrying runtime flags.
-    e->runtime.sceneActive = true;
     SpriteComponent sprite{};
     if (getSprite(id, sprite)) {
         sprite.alpha = 1.f;
         setSprite(id, sprite);
     }
-    ensurePhysicsBody(*e);
+    ensurePhysicsBody(id);
 }
 
 void RuntimeEntityGateway::syncSceneActivation() {
@@ -170,18 +162,8 @@ EntityId RuntimeEntityGateway::create(const EntityDef& def) {
     registry_->setAutoDestroy(id, copy.autoDestroy);
     registry_->setIdentity(id, copy.className, copy.tags);
 
-    EntityDef* e = entityManager_.get(id);
-    if (e) {
-        e->runtime.sceneActive   = registry_->sceneActive(id);
-        e->transform             = copy.transform;
-        e->sprite                = copy.sprite;
-        e->physics               = copy.physics;
-        e->sensor                = copy.sensor;
-        e->platformerController  = copy.platformerController;
-        e->autoDestroy           = copy.autoDestroy;
-    }
-    if (e && registry_->sceneActive(id))
-        ensurePhysicsBody(*e);
+    if (registry_->sceneActive(id))
+        ensurePhysicsBody(id);
     return id;
 }
 
@@ -203,15 +185,7 @@ EntityId RuntimeEntityGateway::spawnFromClass(const std::string& className, floa
     if (protoIt != classPrototypes_.end()) {
         copy = cloneForSpawn(protoIt->second, x, y);
     } else {
-        const std::vector<EntityId> pool = poolByClass(className);
-        const EntityDef* live = nullptr;
-        for (EntityId eid : pool) {
-            if ((live = entityManager_.get(eid))) break;
-        }
-        if (live)
-            copy = cloneForSpawn(*live, x, y);
-        else
-            copy = minimalSpawnDef(className, x, y);
+        copy = minimalSpawnDef(className, x, y);
     }
 
     const EntityId id = entityManager_.createEntity(copy);
@@ -246,8 +220,7 @@ EntityId RuntimeEntityGateway::spawnFromClass(const std::string& className, floa
 
 void RuntimeEntityGateway::destroy(EntityId id) {
     sceneManager_.removeEntityFromAllScenes(id);
-    EntityDef* e = entityManager_.get(id);
-    if (e) teardownPhysicsBody(*e);
+    teardownPhysicsBody(id);
     registry_->erase(id);
     entityManager_.destroyEntity(id);
 }
@@ -288,21 +261,12 @@ const EntityDef* RuntimeEntityGateway::get(EntityId id) const {
 }
 
 bool RuntimeEntityGateway::getTransform(EntityId id, Transform& out) const {
-    if (!entityManager_.exists(id)) return false;
-    if (registry_->getTransform(id, out)) return true;
-    // Compatibility fallback for legacy setup paths that bypass the registry.
-    const auto* entity = entityManager_.get(id);
-    if (!entity) return false;
-    out = entity->transform;
-    return true;
+    return registry_->getTransform(id, out);
 }
 
 bool RuntimeEntityGateway::setTransform(EntityId id, const Transform& transform) {
-    auto* entity = entityManager_.get(id);
-    if (!entity) return false;
+    if (!registry_->contains(id)) return false;
     registry_->setTransform(id, transform);
-    // Compatibility mirror until EntityDef stops carrying authored/runtime transforms.
-    entity->transform = transform;
     return true;
 }
 
@@ -316,95 +280,58 @@ bool RuntimeEntityGateway::setTransform(EntityId id, Vec2 position, float rotati
 }
 
 bool RuntimeEntityGateway::getSprite(EntityId id, SpriteComponent& out) const {
-    if (!entityManager_.exists(id)) return false;
-    if (registry_->getSprite(id, out)) return true;
-    const auto* entity = entityManager_.get(id);
-    if (!entity) return false;
-    out = entity->sprite;
-    return true;
+    return registry_->getSprite(id, out);
 }
 
 bool RuntimeEntityGateway::setSprite(EntityId id, const SpriteComponent& sprite) {
-    auto* entity = entityManager_.get(id);
-    if (!entity) return false;
+    if (!registry_->contains(id)) return false;
     registry_->setSprite(id, sprite);
-    // Compatibility mirror until EntityDef stops carrying authored/runtime sprites.
-    entity->sprite = sprite;
     return true;
 }
 
 bool RuntimeEntityGateway::getPhysicsComponent(EntityId id, PhysicsComponent& out) const {
-    if (!entityManager_.exists(id)) return false;
-    if (registry_->getPhysics(id, out)) return true;
-    const auto* entity = entityManager_.get(id);
-    if (!entity) return false;
-    out = entity->physics;
-    return true;
+    return registry_->getPhysics(id, out);
 }
 
 bool RuntimeEntityGateway::setPhysicsComponent(EntityId id, const PhysicsComponent& physics) {
-    auto* entity = entityManager_.get(id);
-    if (!entity) return false;
+    if (!registry_->contains(id)) return false;
     registry_->setPhysics(id, physics);
-    // Compatibility mirror until EntityDef stops carrying authored/runtime physics.
-    entity->physics = physics;
     return true;
 }
 
 bool RuntimeEntityGateway::getSensor(EntityId id, SensorComponent& out) const {
-    if (!entityManager_.exists(id)) return false;
-    if (registry_->getSensor(id, out)) return true;
-    const auto* entity = entityManager_.get(id);
-    if (!entity || !entity->sensor) return false;
-    out = *entity->sensor;
-    return true;
+    return registry_->getSensor(id, out);
 }
 
 bool RuntimeEntityGateway::setSensor(EntityId id, const std::optional<SensorComponent>& sensor) {
-    auto* entity = entityManager_.get(id);
-    if (!entity) return false;
+    if (!registry_->contains(id)) return false;
     registry_->setSensor(id, sensor);
-    entity->sensor = sensor;
     return true;
 }
 
 bool RuntimeEntityGateway::getPlatformerController(
     EntityId id, PlatformerControllerComponent& out) const
 {
-    if (!entityManager_.exists(id)) return false;
-    if (registry_->getPlatformer(id, out)) return true;
-    const auto* entity = entityManager_.get(id);
-    if (!entity || !entity->platformerController) return false;
-    out = *entity->platformerController;
-    return true;
+    return registry_->getPlatformer(id, out);
 }
 
 bool RuntimeEntityGateway::setPlatformerController(
     EntityId id, const std::optional<PlatformerControllerComponent>& controller)
 {
-    auto* entity = entityManager_.get(id);
-    if (!entity) return false;
+    if (!registry_->contains(id)) return false;
     registry_->setPlatformer(id, controller);
-    entity->platformerController = controller;
     return true;
 }
 
 bool RuntimeEntityGateway::getAutoDestroy(EntityId id, AutoDestroyComponent& out) const {
-    if (!entityManager_.exists(id)) return false;
-    if (registry_->getAutoDestroy(id, out)) return true;
-    const auto* entity = entityManager_.get(id);
-    if (!entity || !entity->autoDestroy) return false;
-    out = *entity->autoDestroy;
-    return true;
+    return registry_->getAutoDestroy(id, out);
 }
 
 bool RuntimeEntityGateway::setAutoDestroy(
     EntityId id, const std::optional<AutoDestroyComponent>& autoDestroy)
 {
-    auto* entity = entityManager_.get(id);
-    if (!entity) return false;
+    if (!registry_->contains(id)) return false;
     registry_->setAutoDestroy(id, autoDestroy);
-    entity->autoDestroy = autoDestroy;
     return true;
 }
 
@@ -417,11 +344,8 @@ bool RuntimeEntityGateway::hasPhysicsBody(EntityId id) const {
 }
 
 void RuntimeEntityGateway::setPhysicsHandle(EntityId id, uint32_t handle) {
-    if (!entityManager_.exists(id)) return;
+    if (!registry_->contains(id)) return;
     registry_->setPhysicsHandle(id, handle);
-    // Compatibility mirror until PhysicsComponent stops carrying runtime handles.
-    if (EntityDef* e = entityManager_.get(id))
-        e->physics.physicsHandle = handle;
 }
 
 std::vector<EntityId> RuntimeEntityGateway::poolByClass(const std::string& className) const {
@@ -574,16 +498,6 @@ const SceneDef* RuntimeEntityGateway::activeScene() const {
 
 SceneDef* RuntimeEntityGateway::activeSceneMutable() {
     return sceneManager_.activeSceneMutable();
-}
-
-void RuntimeEntityGateway::forEachInPool(
-    const std::string& className,
-    const std::function<void(EntityId, EntityDef&)>& fn)
-{
-    for (EntityId id : poolByClass(className)) {
-        EntityDef* e = entityManager_.get(id);
-        if (e) fn(id, *e);
-    }
 }
 
 } // namespace ArtCade::Modules

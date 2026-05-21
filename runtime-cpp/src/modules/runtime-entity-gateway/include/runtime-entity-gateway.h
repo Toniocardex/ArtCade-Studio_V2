@@ -93,9 +93,6 @@ public:
     const SceneDef* activeScene() const;
     SceneDef*       activeSceneMutable();
 
-    void forEachInPool(const std::string& className,
-                       const std::function<void(EntityId, EntityDef&)>& fn);
-
     bool isEntityActiveInScene(EntityId id) const;
 
 private:
@@ -128,8 +125,8 @@ private:
     bool entityListedInActiveScene(EntityId id) const;
     void deactivateEntity(EntityId id);
     void activateEntity(EntityId id);
-    void ensurePhysicsBody(EntityDef& def);
-    void teardownPhysicsBody(EntityDef& def);
+    void ensurePhysicsBody(EntityId id);
+    void teardownPhysicsBody(EntityId id);
 };
 
 } // namespace ArtCade::Modules

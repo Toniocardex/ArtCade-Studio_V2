@@ -190,7 +190,7 @@ bool Application::initSubsystems() {
     if (!mod_->textureManager->init()) return false;
     ctx_.textureManager = mod_->textureManager.get();
 
-    mod_->sceneManager = std::make_unique<ArtCade::Modules::SceneManager>(*mod_->entityManager);
+    mod_->sceneManager = std::make_unique<ArtCade::Modules::SceneManager>();
     if (!mod_->sceneManager->init()) return false;
 
     mod_->entityGateway = std::make_unique<ArtCade::Modules::RuntimeEntityGateway>(
@@ -207,7 +207,6 @@ bool Application::initSubsystems() {
     ctx_.physics       = mod_->physics.get();
     ctx_.input         = mod_->input.get();
     ctx_.audio         = mod_->audio.get();
-    ctx_.entityManager = mod_->entityManager.get();
     ctx_.sceneManager  = mod_->sceneManager.get();
     ctx_.entityGateway = mod_->entityGateway.get();
     ctx_.assetLoader   = mod_->assetLoader.get();

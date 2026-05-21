@@ -1,12 +1,9 @@
 // scene-manager.cpp - scene registry + active-scene selection
 #include "../include/scene-manager.h"
-#include "../../entity-system/include/entity-manager.h"
 
 #include <algorithm>
 
 namespace ArtCade::Modules {
-
-SceneManager::SceneManager(EntityManager& em) : entityManager_(em) {}
 
 bool SceneManager::init()     { return true; }
 void SceneManager::shutdown() { scenes_.clear(); entityDefs_.clear(); }

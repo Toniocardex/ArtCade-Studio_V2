@@ -22,7 +22,7 @@ static int g_failed = 0;
 
 int main() {
     EntityManager em;
-    SceneManager  sm(em);
+    SceneManager  sm;
     RuntimeEntityGateway gw(em, sm);
     VariableManager vm;
     Physics physics;
@@ -95,7 +95,6 @@ int main() {
     SpriteComponent updatedSprite{};
     CHECK(gw.getSprite(spawned, updatedSprite));
     CHECK(updatedSprite.alpha == 0.5f);
-    CHECK(spawnedDef->sprite.alpha == 0.5f);
     Transform spawnedTransform{};
     CHECK(gw.getTransform(spawned, spawnedTransform));
     CHECK(spawnedTransform.position.x == 50.f);
@@ -106,8 +105,6 @@ int main() {
     CHECK(gw.getTransform(spawned, movedTransform));
     CHECK(movedTransform.position.x == 70.f);
     CHECK(movedTransform.position.y == 80.f);
-    CHECK(spawnedDef->transform.position.x == 70.f);
-    CHECK(spawnedDef->transform.position.y == 80.f);
     PhysicsComponent spawnedPhysics{};
     spawnedPhysics.collider.size = { 24.f, 28.f };
     CHECK(gw.setPhysicsComponent(spawned, spawnedPhysics));
@@ -115,8 +112,6 @@ int main() {
     CHECK(gw.getPhysicsComponent(spawned, updatedPhysics));
     CHECK(updatedPhysics.collider.size.x == 24.f);
     CHECK(updatedPhysics.collider.size.y == 28.f);
-    CHECK(spawnedDef->physics.collider.size.x == 24.f);
-    CHECK(spawnedDef->physics.collider.size.y == 28.f);
     SensorComponent spawnedSensor{};
     CHECK(gw.getSensor(spawned, spawnedSensor));
     CHECK(spawnedSensor.targetTag == "player");
@@ -128,7 +123,6 @@ int main() {
     AutoDestroyComponent updatedAutoDestroy{};
     CHECK(gw.getAutoDestroy(spawned, updatedAutoDestroy));
     CHECK(updatedAutoDestroy._timeAlive == 1.f);
-    CHECK(spawnedDef->autoDestroy && spawnedDef->autoDestroy->_timeAlive == 1.f);
     const SceneDef* sceneAfter = gw.activeScene();
     CHECK(sceneAfter && std::find(sceneAfter->entityIds.begin(),
                                 sceneAfter->entityIds.end(), spawned)

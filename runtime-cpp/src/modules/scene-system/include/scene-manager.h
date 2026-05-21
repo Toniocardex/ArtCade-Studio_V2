@@ -7,17 +7,16 @@
 
 namespace ArtCade::Modules {
 
-class EntityManager;
-
 /**
  * SceneManager - scene registry and active-scene selection.
  *
- * Entity storage lives in EntityManager. Loading a scene only changes the
- * active scene id; RuntimeEntityGateway applies activation/deactivation.
+ * Entity storage lives in RuntimeEntityGateway / EntityRegistry. Loading a
+ * scene only changes the active scene id; RuntimeEntityGateway applies
+ * activation/deactivation by walking the active scene's entityIds.
  */
 class SceneManager final : public IModule {
 public:
-    explicit SceneManager(EntityManager& entityManager);
+    SceneManager() = default;
 
     bool init() override;
     void shutdown() override;
@@ -42,7 +41,6 @@ public:
     const std::vector<TilesetAsset>& tilesets() const { return tilesets_; }
 
 private:
-    EntityManager&                               entityManager_;
     std::unordered_map<SceneId, SceneDef>        scenes_;
     std::unordered_map<EntityId, EntityDef>      entityDefs_;
     SceneId                                      activeId_;

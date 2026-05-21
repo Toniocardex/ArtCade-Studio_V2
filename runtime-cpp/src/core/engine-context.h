@@ -21,7 +21,6 @@ namespace Modules {
     class Input;
     class Audio;
     class LuaHost;
-    class EntityManager;
     class SceneManager;
     class RuntimeEntityGateway;
     class AssetLoader;
@@ -46,7 +45,6 @@ struct EngineContext {
     Modules::Input*         input         = nullptr;
     Modules::Audio*         audio         = nullptr;
     Modules::LuaHost*       luaHost       = nullptr;
-    Modules::EntityManager* entityManager = nullptr;
     Modules::SceneManager*  sceneManager  = nullptr;
     Modules::RuntimeEntityGateway* entityGateway = nullptr;
     Modules::AssetLoader*   assetLoader   = nullptr;
