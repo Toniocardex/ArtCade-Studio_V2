@@ -18,6 +18,20 @@ EntityRegistry::~EntityRegistry() = default;
 
 // ---- Records ---------------------------------------------------------------
 
+EntityId EntityRegistry::allocate(EntityId hint) {
+    EntityId id;
+    if (hint != 0 && records_.find(hint) == records_.end()) {
+        id = hint;
+    } else {
+        // Skip ids already taken by previous hint-based allocations.
+        while (records_.find(nextId_) != records_.end()) ++nextId_;
+        id = nextId_++;
+    }
+    if (id >= nextId_) nextId_ = id + 1;
+    records_.try_emplace(id);
+    return id;
+}
+
 bool EntityRegistry::touch(EntityId id) {
     return records_.try_emplace(id).second;
 }
@@ -35,6 +49,7 @@ void EntityRegistry::clear() {
     records_.clear();
     classIndex_.clear();
     tagIndex_.clear();
+    nextId_ = 1;
 }
 
 std::vector<EntityId> EntityRegistry::allIds() const {

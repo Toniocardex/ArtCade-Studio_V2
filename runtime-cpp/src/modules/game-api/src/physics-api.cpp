@@ -12,9 +12,7 @@ void GameAPI::bindPhysicsAPI(sol::state& lua) {
 
     // collision.overlap(id1, id2) → bool
     lua.set_function("collision_overlap", [entities, physics](EntityId id1, EntityId id2) -> bool {
-        auto* e1 = entities->get(id1);
-        auto* e2 = entities->get(id2);
-        if (!e1 || !e2) return false;
+        if (!entities->exists(id1) || !entities->exists(id2)) return false;
         const uint32_t h1 = entities->physicsHandle(id1);
         const uint32_t h2 = entities->physicsHandle(id2);
         if (h1 == 0 || h2 == 0) return false;
@@ -24,14 +22,12 @@ void GameAPI::bindPhysicsAPI(sol::state& lua) {
     // collision.touchingClass(entityId, className) → bool
     lua.set_function("collision_touchingClass",
         [entities, physics](EntityId id, const std::string& cls) -> bool {
-            auto* self = entities->get(id);
-            if (!self) return false;
+            if (!entities->exists(id)) return false;
             const uint32_t selfHandle = entities->physicsHandle(id);
             if (selfHandle == 0) return false;
             for (EntityId otherId : entities->poolByClass(cls)) {
                 if (otherId == id) continue;
-                auto* other = entities->get(otherId);
-                if (!other) continue;
+                if (!entities->exists(otherId)) continue;
                 const uint32_t otherHandle = entities->physicsHandle(otherId);
                 if (otherHandle != 0 && physics->areOverlapping(selfHandle, otherHandle))
                     return true;
@@ -84,9 +80,8 @@ void GameAPI::bindPhysicsAPI(sol::state& lua) {
                       const std::string& st,
                       float w, float h) -> uint32_t
         {
-            auto* e = entities->get(id);
             Transform transform{};
-            if (!e || !entities->getTransform(id, transform)) return 0;
+            if (!entities->exists(id) || !entities->getTransform(id, transform)) return 0;
 
             PhysicsComponent comp;
             comp.bodyType =
@@ -121,9 +116,8 @@ void GameAPI::bindPhysicsAPI(sol::state& lua) {
     // physics.bodyPosition(entityId) → x, y  (direct from Box2D, not transform)
     lua.set_function("physics_bodyPosition",
         [entities, physics](EntityId id) -> std::tuple<float,float> {
-            auto* e = entities->get(id);
             const uint32_t handle = entities->physicsHandle(id);
-            if (!e || handle == 0) return {0.f,0.f};
+            if (!entities->exists(id) || handle == 0) return {0.f,0.f};
             auto p = physics->getPosition(handle);
             return {p.x, p.y};
         });
@@ -131,18 +125,16 @@ void GameAPI::bindPhysicsAPI(sol::state& lua) {
     // physics.applyImpulse(id, ix, iy) — velocity-space impulse (mass≈1)
     lua.set_function("physics_applyImpulse",
         [entities, physics](EntityId id, float ix, float iy) {
-            auto* e = entities->get(id);
             const uint32_t handle = entities->physicsHandle(id);
-            if (!e || handle == 0) return;
+            if (!entities->exists(id) || handle == 0) return;
             auto v = physics->getLinearVelocity(handle);
             physics->setLinearVelocity(handle, { v.x + ix, v.y + iy });
         });
     // physics.applyForce(id, fx, fy) — same velocity-space approximation
     lua.set_function("physics_applyForce",
         [entities, physics](EntityId id, float fx, float fy) {
-            auto* e = entities->get(id);
             const uint32_t handle = entities->physicsHandle(id);
-            if (!e || handle == 0) return;
+            if (!entities->exists(id) || handle == 0) return;
             auto v = physics->getLinearVelocity(handle);
             physics->setLinearVelocity(handle, { v.x + fx, v.y + fy });
         });

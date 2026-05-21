@@ -32,7 +32,7 @@ void GameAPI::bindEntityAPI(sol::state& lua) {
 
     // entity.velocity(id) → vx, vy
     lua.set_function("entity_velocity", [entities, physics](EntityId id) -> std::tuple<float, float> {
-        if (entities->get(id)) {
+        if (entities->exists(id)) {
             const uint32_t handle = entities->physicsHandle(id);
             if (handle == 0) return { 0.f, 0.f };
             auto vel = physics->getLinearVelocity(handle);
@@ -43,7 +43,7 @@ void GameAPI::bindEntityAPI(sol::state& lua) {
 
     // entity.setVelocity(id, vx, vy)
     lua.set_function("entity_setVelocity", [entities, physics](EntityId id, float vx, float vy) {
-        if (entities->get(id)) {
+        if (entities->exists(id)) {
             const uint32_t handle = entities->physicsHandle(id);
             if (handle != 0)
                 physics->setLinearVelocity(handle, { vx, vy });
@@ -81,9 +81,7 @@ void GameAPI::bindEntityAPI(sol::state& lua) {
 
     lua.set_function("entity_imagePoint",
         [entities, assets](EntityId id, const std::string& pointId) -> std::tuple<float, float> {
-            if (!entities) return { 0.f, 0.f };
-            auto* e = entities->get(id);
-            if (!e) return { 0.f, 0.f };
+            if (!entities || !entities->exists(id)) return { 0.f, 0.f };
             Transform transform{};
             if (!entities->getTransform(id, transform)) return { 0.f, 0.f };
             SpriteComponent sprite{};

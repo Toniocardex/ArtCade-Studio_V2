@@ -45,6 +45,12 @@ public:
 
     // ---- Records --------------------------------------------------------
 
+    /** Allocate a fresh EntityId or honour `hint` if non-zero (and not already
+     *  present). Returns the id assigned, and ensures a record exists for it.
+     *  The next free id is always bumped past any allocated/hinted id so we
+     *  never alias an existing one in a later allocate(0) call.
+     *  After step 2 this is the only entity creation path used by the gateway. */
+    EntityId allocate(EntityId hint = 0);
     /** Ensure a record exists for `id` (idempotent). Returns true if a new
      *  record was inserted, false if one was already there. */
     bool touch(EntityId id);
@@ -118,6 +124,7 @@ private:
     std::unordered_map<EntityId, Record>                       records_;
     std::unordered_map<std::string, std::vector<EntityId>>     classIndex_;
     std::unordered_map<std::string, std::vector<EntityId>>     tagIndex_;
+    EntityId                                                   nextId_ = 1;
 
     Record*       find(EntityId id);
     const Record* find(EntityId id) const;

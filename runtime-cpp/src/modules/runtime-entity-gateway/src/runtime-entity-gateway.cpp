@@ -149,9 +149,9 @@ void RuntimeEntityGateway::syncSceneActivation() {
 EntityId RuntimeEntityGateway::create(const EntityDef& def) {
     EntityDef copy = def;
     copy.physics.physicsHandle = 0;
-    const EntityId id = entityManager_.createEntity(copy);
+    const EntityId id = registry_->allocate(copy.id);
+    copy.id = id;
 
-    registry_->touch(id);
     registry_->setSceneActive(id, entityListedInActiveScene(id));
     registry_->setPhysicsHandle(id, 0);
     registry_->setTransform(id, copy.transform);
@@ -188,8 +188,8 @@ EntityId RuntimeEntityGateway::spawnFromClass(const std::string& className, floa
         copy = minimalSpawnDef(className, x, y);
     }
 
-    const EntityId id = entityManager_.createEntity(copy);
-    registry_->touch(id);
+    const EntityId id = registry_->allocate(copy.id);
+    copy.id = id;
     registry_->setPhysicsHandle(id, 0);
     registry_->setTransform(id, copy.transform);
     registry_->setSprite(id, copy.sprite);
@@ -222,7 +222,6 @@ void RuntimeEntityGateway::destroy(EntityId id) {
     sceneManager_.removeEntityFromAllScenes(id);
     teardownPhysicsBody(id);
     registry_->erase(id);
-    entityManager_.destroyEntity(id);
 }
 
 void RuntimeEntityGateway::queueDestroy(EntityId id) {
@@ -249,15 +248,17 @@ void RuntimeEntityGateway::flushPendingOperations() {
 }
 
 bool RuntimeEntityGateway::exists(EntityId id) const {
-    return entityManager_.exists(id);
+    return registry_->contains(id);
 }
 
-EntityDef* RuntimeEntityGateway::get(EntityId id) {
-    return entityManager_.get(id);
+EntityDef* RuntimeEntityGateway::get(EntityId /*id*/) {
+    // EntityDef is no longer kept after EnTT step 2 (the registry is the
+    // source of truth). Remaining usages are null-checks, see step 2 plan.
+    return nullptr;
 }
 
-const EntityDef* RuntimeEntityGateway::get(EntityId id) const {
-    return entityManager_.get(id);
+const EntityDef* RuntimeEntityGateway::get(EntityId /*id*/) const {
+    return nullptr;
 }
 
 bool RuntimeEntityGateway::getTransform(EntityId id, Transform& out) const {
@@ -401,7 +402,6 @@ bool RuntimeEntityGateway::replaceProject(
     if (physics_)
         physics_->destroyAllBodies();
 
-    entityManager_.clear();
     registry_->clear();
     rebuildClassPrototypes(entityDefs);
     sceneManager_.registerScenes(scenes, entityDefs);
@@ -409,9 +409,9 @@ bool RuntimeEntityGateway::replaceProject(
         EntityDef copy = def;
         copy.runtime.sceneActive = false;
         copy.physics.physicsHandle = 0;
-        const EntityId runtimeId = entityManager_.createEntity(copy);
+        const EntityId runtimeId = registry_->allocate(copy.id);
+        copy.id = runtimeId;
 
-        registry_->touch(runtimeId);
         registry_->setSceneActive(runtimeId, false);
         registry_->setPhysicsHandle(runtimeId, 0);
         registry_->setTransform(runtimeId, copy.transform);

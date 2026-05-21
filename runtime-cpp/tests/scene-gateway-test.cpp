@@ -85,8 +85,7 @@ int main() {
     const EntityId spawned = gw.spawnFromClass("Coin", 50.f, 60.f);
     CHECK(spawned != 0);
     CHECK(gw.poolCount("Coin") == 2);
-    const EntityDef* spawnedDef = gw.get(spawned);
-    CHECK(spawnedDef && gw.isEntityActiveInScene(spawned));
+    CHECK(gw.exists(spawned) && gw.isEntityActiveInScene(spawned));
     SpriteComponent spawnedSprite{};
     CHECK(gw.getSprite(spawned, spawnedSprite));
     CHECK(spawnedSprite.spriteAssetId == "sprites/coin.png");
@@ -137,10 +136,8 @@ int main() {
     CHECK(vm.getInt("score") == 42);
     CHECK(vm.getInt("lives") == 3);
 
-    const EntityDef* c = gw.get(2);
-    CHECK(c && gw.isEntityActiveInScene(2));
-    const EntityDef* p = gw.get(1);
-    CHECK(p && !gw.isEntityActiveInScene(1));
+    CHECK(gw.exists(2) && gw.isEntityActiveInScene(2));
+    CHECK(gw.exists(1) && !gw.isEntityActiveInScene(1));
 
     // Kill queue: destroy deferred until flush
     CHECK(gw.exists(2));
