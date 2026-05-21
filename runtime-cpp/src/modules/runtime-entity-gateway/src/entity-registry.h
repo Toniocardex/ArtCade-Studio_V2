@@ -2,9 +2,9 @@
 
 #include "../../../core/types.h"
 
+#include <memory>
 #include <optional>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 namespace ArtCade::Modules {
@@ -12,28 +12,22 @@ namespace ArtCade::Modules {
 /**
  * EntityRegistry — internal storage abstraction for RuntimeEntityGateway.
  *
- * Owns the runtime component bag (transform / sprite / physics / sensor /
- * platformer / autoDestroy / physicsHandle / sceneActive) plus the
- * className and tag indexes that back pool / by-tag queries.
+ * Backed by an `entt::registry` (PIMPL — the EnTT header stays out of this
+ * include surface). Owns the runtime component bag (transform / sprite /
+ * physics / sensor / platformer / autoDestroy / physicsHandle), the scene
+ * activation tag, and the className / tag indexes that back the pool /
+ * by-tag queries.
  *
- * The gateway is the ONLY consumer — this header lives under src/ so it is
- * not part of the module's public include surface. The gateway exposes
- * its existing API (get/setTransform, poolByClass, ...) on top; this class
- * is the seam where entt::registry will land later. When that swap
- * happens the gateway public API does not move, only this implementation.
+ * The gateway is the ONLY consumer — this header lives under `src/` so it
+ * is not part of the module's public include surface.
  *
- * Design choices:
- *   • One record per EntityId. Empty for ids that were touched without
- *     ever receiving an identity (matches the previous "default record on
- *     first write" semantics of `runtimeState_[id]`).
- *   • Indexes are rebuilt on identity change (setIdentity removes the
- *     previous className / tags from the indexes before re-inserting).
- *   • Queries return `std::vector<EntityId>` by value: callers iterate
- *     while ids may be erased (queueDestroy → flushPendingOperations →
- *     erase()), and the previous gateway code already paid that cost.
- *   • No id allocation. EntityId still comes from EntityManager during the
- *     transition; once EntityManager is retired this class will absorb
- *     allocation too.
+ * Determinism: className / tag indexes are maintained manually (push_back
+ * in insertion order) because `entt::registry`'s views do not guarantee a
+ * stable order across runs and ArtCade games are deterministic via Lua.
+ *
+ * EntityId ↔ entt::entity mapping is kept in the impl (the loader can
+ * request "preserve this id" via allocate(hint) for ids coming from the
+ * project JSON, which entt would assign differently on its own).
  */
 class EntityRegistry final {
 public:
@@ -45,11 +39,9 @@ public:
 
     // ---- Records --------------------------------------------------------
 
-    /** Allocate a fresh EntityId or honour `hint` if non-zero (and not already
-     *  present). Returns the id assigned, and ensures a record exists for it.
-     *  The next free id is always bumped past any allocated/hinted id so we
-     *  never alias an existing one in a later allocate(0) call.
-     *  After step 2 this is the only entity creation path used by the gateway. */
+    /** Allocate a fresh EntityId or honour `hint` if non-zero and not yet
+     *  in use. The next free id is always bumped past any allocated/hinted
+     *  id so subsequent allocate(0) calls never alias an existing one. */
     EntityId allocate(EntityId hint = 0);
     /** Ensure a record exists for `id` (idempotent). Returns true if a new
      *  record was inserted, false if one was already there. */
@@ -108,27 +100,8 @@ public:
     void     setPhysicsHandle(EntityId id, uint32_t handle);
 
 private:
-    struct Record {
-        bool                                           sceneActive   = false;
-        uint32_t                                       physicsHandle = 0;
-        Transform                                      transform;
-        SpriteComponent                                sprite;
-        PhysicsComponent                               physics;
-        std::optional<SensorComponent>                 sensor;
-        std::optional<PlatformerControllerComponent>   platformer;
-        std::optional<AutoDestroyComponent>            autoDestroy;
-        std::string                                    className;
-        std::vector<std::string>                       tags;
-    };
-
-    std::unordered_map<EntityId, Record>                       records_;
-    std::unordered_map<std::string, std::vector<EntityId>>     classIndex_;
-    std::unordered_map<std::string, std::vector<EntityId>>     tagIndex_;
-    EntityId                                                   nextId_ = 1;
-
-    Record*       find(EntityId id);
-    const Record* find(EntityId id) const;
-    void          removeFromIndexes(EntityId id);
+    struct Impl;
+    std::unique_ptr<Impl> impl_;
 };
 
 } // namespace ArtCade::Modules
