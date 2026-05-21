@@ -69,7 +69,7 @@ Nome del **documento dati** (JSON) che contiene la logica generata dalla Logic B
 
 Paradigma: **Entity** (identificatore), **Component** (dati), **System** (logica che itera su pattern di componenti).
 
-La guida `ECS_IMPLEMENTATION_GUIDE.md` e l’architettura tecnica descrivono anche **EnTT** come obiettivo/evoluzione; **nel codice runtime attuale** le entità sono gestite tramite **`EntityManager`** e **`EntityDef`** (vedi `ARCHITETTURA_TECNICA_ENGINE_2D.md` §11).
+Storage runtime su **EnTT** (`EntityRegistry` in `runtime-entity-gateway`). Lua e editor usano **`RuntimeEntityGateway`** (get/set componenti); **`EntityDef`** è solo DTO al load del progetto (vedi `ARCHITETTURA_TECNICA_ENGINE_2D.md` §11).
 
 ### ECS Component
 
@@ -81,7 +81,7 @@ Libreria C++ header-only per registry ECS; riferimenti e migrazione in `ECS_IMPL
 
 ### World
 
-Orchestratore di **stato di gioco** (Layer 3): scena attiva, sync fisica → entità, stato globale. In `world.h` usa `EntityManager`, `SceneManager`, `Physics` — **non** è sinonimo di «registry EnTT» finché la migrazione ECS non sarà completata.
+Orchestratore di **stato di gioco** (Layer 3): scena attiva, sync fisica → entità, stato globale. In `world.h` usa `RuntimeEntityGateway`, `SceneManager`, `Physics` (EnTT è interno al gateway, non esposto a `World`).
 
 ### EngineContext
 

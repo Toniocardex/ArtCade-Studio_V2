@@ -23,7 +23,7 @@ ArtCade V2 è costruito su **3 pilastri architetturali**:
 │                                                                     │
 │  World = Wrapper intelligente                                      │
 │  ├─ Espone: view<Cs...>(), emplace<C>(), destroy()               │
-│  └─ Usa: EntityManager, SceneManager, Physics per coerenza         │
+│  └─ Usa: RuntimeEntityGateway, SceneManager, Physics               │
 └────────────────────────────────────────────────────────────────────┘
 
 ┌────────────────────────────────────────────────────────────────────┐
@@ -38,7 +38,7 @@ ArtCade V2 è costruito su **3 pilastri architetturali**:
 │  ├─ Renderer (drawQueue pattern), TextureManager, Input, Audio     │
 │                                                                     │
 │  Layer 2: Game Data                                                │
-│  ├─ EntityManager, SceneManager, AssetLoader, World (ECS)          │
+│  ├─ RuntimeEntityGateway, SceneManager, AssetLoader, World         │
 │                                                                     │
 │  Layer 3: Physics                                                  │
 │  ├─ Physics (Box2D 2.4 wrapper)                                    │
@@ -290,7 +290,7 @@ setInterval(() => {
 
 - [x] **RuntimeEntityGateway**
   - [x] Espone `create`, `destroy`, `getTransform`, `setTransform`, `poolByClass`, `activeSceneIds`.
-  - [x] Implementato sopra `EntityManager` / `SceneManager`.
+  - [x] Implementato sopra `RuntimeEntityGateway` / `SceneManager` (EnTT in `EntityRegistry`).
   - [x] Usato da `EditorAPI`, `GameAPI` e `World` dove serve.
 
 - [x] **Game Loop Integration**

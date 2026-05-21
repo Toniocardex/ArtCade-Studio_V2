@@ -128,7 +128,7 @@ static EngineContext* g_Context = nullptr;
 
 Il puntatore globale **non elimina** il globale: **concentra** lo stato e rende prevedibile il ciclo di vita. L’alternativa a medio termine è possedere `EngineContext` dal `main` (o modulo lifecycle) e passare il puntatore solo ai layer che ne hanno bisogno.
 
-**Nota (repository ArtCade oggi):** `EngineContext` è implementato in `runtime-cpp/src/core/engine-context.h` come **contenitore di dipendenze** (puntatori non-owning a `Renderer`, `Physics`, `LuaHost`, `World`, `EntityManager`, …). `Application` (`app/include/app.h`, `app/src/app.cpp`) **possiede** i moduli e popola `ctx_`. L’esempio struct in cima a questa sezione è il **modello logico** (reset unificato, embind) da avvicinare incrementalmente; il dettaglio «cosa c’è già / cosa manca» è in **§11**.
+**Nota (repository ArtCade oggi):** `EngineContext` è implementato in `runtime-cpp/src/core/engine-context.h` come **contenitore di dipendenze** (puntatori non-owning a `Renderer`, `Physics`, `LuaHost`, `World`, `RuntimeEntityGateway`, `SceneManager`, …). `Application` (`app/include/app.h`, `app/src/app.cpp`) **possiede** i moduli e popola `ctx_`. L’esempio struct in cima a questa sezione è il **modello logico** (reset unificato, embind) da avvicinare incrementalmente; il dettaglio «cosa c’è già / cosa manca» è in **§11**.
 
 ---
 
@@ -180,8 +180,8 @@ Questa sezione allinea **ciò che il codice fa oggi** con gli obiettivi delle se
 | **Input nel frame** | `input->poll()` all’inizio dell’iterazione; `resetFrameState()` dopo il render. |
 | **Fisica e sync** | Nel passo fisso: `physics->step(targetDt_)` poi `world->syncPhysicsToEntities()` — allineato al **sync post-step** descritto in §9 e nell’appendice. |
 | **Lua nel frame** | `luaHost->tick(targetDt_)` **prima** di `physics->step` nello stesso passo fisso (ordine reale oggi). |
-| **Stato entità** | `EntityManager` + `EntityDef` / mappe e indici (`entity-system/`) — **non** è ancora un `entt::registry` nel runtime C++ attuale. |
-| **World** | `World` orchestra scena, stato globale, `syncPhysicsToEntities` delegando a `EntityManager` + `Physics`. |
+| **Stato entità** | `EntityRegistry` (`entt::registry` interno) + `RuntimeEntityGateway`; `EntityDef` solo DTO al load. Modulo `entity-system` rimosso (2026-05). |
+| **World** | `World` orchestra scena, stato globale, `syncPhysicsToEntities` delegando a `RuntimeEntityGateway` + `Physics`. |
 | **Asset / progetto** | `AssetLoader`, `TextureManager`, lettura `project.json` / ZIP (es. `asset-system/`) — base per path e pacchetti; alias virtuali §10 da estendere in modo esplicito dove servono. |
 | **Editor** | `editor/` (React + Vite), shell **Tauri** in `editor/src-tauri/`. |
 
@@ -189,7 +189,7 @@ Questa sezione allinea **ciò che il codice fa oggi** con gli obiettivi delle se
 
 - **§8 — struct con `registry` / `AssetManager` / `b2World` / `lua`:** nel repo oggi il mondo è **modulare** (`World`, `Physics`, `LuaHost`, …) e `EngineContext` è solo **wiring**. La struct dell’§8 resta **obiettivo di consolidamento** (reset scena, embind) non la copia byte-per-byte del tree attuale.
 - **§9 — due fasi Lua (pre/post fisica):** oggi c’è **una** `luaHost->tick` prima della fisica. La tabella dell’§9 è il **modello di riferimento anti-jitter**; allineamento possibile in due modi indolenti: (A) **documentare** che in questo tick Lua non vede ancora le pose post–fisica e che la logica che legge posizioni deve stare dopo sync (es. hook o tick diviso in futuro); (B) **evolvere** il runtime con `tickPrePhysics` / `tickPostPhysics` quando servirà.
-- **Appendice — `entt::registry`, `SerializeScene(registry)`:** gli snippet assumono una **pipeline ECS EnTT** (coerente con `ECS_IMPLEMENTATION_GUIDE.md` / roadmap). Oggi la serializzazione scena verso React dovrà mappare **`EntityManager` / `EntityDef`** (o JSON già prodotto dal loader) fino a una eventuale migrazione EnTT.
+- **Appendice — `entt::registry`, `SerializeScene(registry)`:** storage runtime già su EnTT dietro `EntityRegistry`; la serializzazione editor/React continua a passare da JSON/`EntityDef` e gateway getter, non da `registry` esposto a JS.
 - **`g_Context` nell’appendice:** pattern pedagogico; in WASM l’istanza reale è **`Application`** (o un handle esposto). I wrapper embind dovranno delegare a `Application*` o a funzioni che ricevono il contesto già inizializzato.
 
 ### 11.3 Roadmap incrementale (indolore)
@@ -198,10 +198,10 @@ Ordine consigliato: **nessun passo richiede di rompere il build**; ogni fase è 
 
 1. **Contratti e doc (fatto / in corso)** — Tenere §8–11 e `TECHNICAL_OVERVIEW.md` allineati sull’ordine reale del loop e su cosa è ancora «target».
 2. **Bridge Embind / JS (basso rischio)** — Introdurre funzioni C esposte che delegano a `Application` o a `EngineContext` (es. `getSceneJson()` che serializza lo stato attuale senza passare `registry` da JS). Nessun cambio al modello dati obbligatorio.
-3. **`Reset` scena / editor (medio-basso)** — Centralizzare in `Application` (o `World`) una sequenza **documentata**: stop audio, clear draw queue, reset `EntityManager` / scene attiva, `Physics` shutdown/reinit, policy Lua (clear env vs VM). Riutilizza i puntatori già in `EngineContext` invece di introdurre nuovi globali.
+3. **`Reset` scena / editor (medio-basso)** — Centralizzare in `Application` (o `World`) una sequenza **documentata**: stop audio, clear draw queue, reset gateway/registry + scene attiva, `Physics` shutdown/reinit, policy Lua (clear env vs VM). Riutilizza i puntatori già in `EngineContext` invece di introdurre nuovi globali.
 4. **Path virtuali e alias (incrementale)** — Un livello di risoluzione sopra `AssetLoader` / `TextureManager`: chiavi stabili nel JSON progetto → path file o entry ZIP; stesso codice su native e WASM.
 5. **Pipeline Lua pre/post (opzionale, quando serve)** — Solo se emergono jitter o dipendenze ordinate; altrimenti resta la convenzione «tick Lua prima della fisica» ben documentata in §11.2.
-6. **Migrazione ECS EnTT (fase grande, quando in roadmap)** — Spostare storage entità verso `entt::registry`; a quel punto appendice e `SerializeScene(registry)` diventano implementazione diretta. Fino ad allora gli esempi restano **riferimento** per i collaboratori.
+6. **Evoluzione ECS (opzionale)** — View-based systems nel `World` / render loop che iterano componenti EnTT direttamente (oggi si usa `gateway->activeSceneIds()` + getter). Appendice e `SerializeScene(registry)` restano riferimento per API embind future.
 
 ### 11.4 Criterio di «completamento»
 
@@ -213,7 +213,7 @@ L’architettura del documento si considera **integralmente adottata** quando: (
 
 Ecco il codice completo e strutturato per i punti cardine della tua architettura. Ho unito le best practice di C++17, EnTT, Sol2 e Raylib per creare un sistema che sia performante ma anche "resiliente" ai crash, specialmente nella comunicazione tra i vari moduli.
 
-> **§11:** nel repository attuale le entità runtime sono gestite tramite `EntityManager` / `EntityDef`, non ancora tramite `entt::registry` come negli snippet sotto. Gli esempi sono **target di riferimento**; vedi **§11.2–11.3** per la mappatura e la migrazione indolore.
+> **§11:** storage runtime su `entt::registry` (modulo `runtime-entity-gateway`). Gli snippet sotto che mostrano `registry` nel `World` o in embind sono ancora **target di consolidamento**; vedi **§11.2–11.3** per cosa è già in produzione vs cosa resta da avvicinare.
 
 ### Da esempio dimostrativo a produzione (WASM / Emscripten)
 

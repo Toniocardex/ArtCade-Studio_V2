@@ -249,16 +249,6 @@ bool RuntimeEntityGateway::exists(EntityId id) const {
     return registry_->contains(id);
 }
 
-EntityDef* RuntimeEntityGateway::get(EntityId /*id*/) {
-    // EntityDef is no longer kept after EnTT step 2 (the registry is the
-    // source of truth). Remaining usages are null-checks, see step 2 plan.
-    return nullptr;
-}
-
-const EntityDef* RuntimeEntityGateway::get(EntityId /*id*/) const {
-    return nullptr;
-}
-
 bool RuntimeEntityGateway::getTransform(EntityId id, Transform& out) const {
     return registry_->getTransform(id, out);
 }

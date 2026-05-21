@@ -19,9 +19,11 @@ class EntityRegistry;
 /**
  * RuntimeEntityGateway — single owner of runtime entity state.
  *
- * Entity records and component data live inside EntityRegistry (private to
- * this module); scene metadata lives in SceneManager. EnTT will land
- * behind the EntityRegistry seam without moving any public method here.
+ * Component data and entity ids live in EntityRegistry (private to this
+ * module, backed by entt::registry). Scene metadata (entityIds per scene,
+ * tilesets) lives in SceneManager. Authoring still uses EntityDef as a DTO
+ * when loading project JSON; runtime queries use the typed get/set* API
+ * below, not raw EntityDef pointers.
  */
 class RuntimeEntityGateway final : public IModule {
 public:
@@ -45,9 +47,6 @@ public:
     void flushPendingOperations();
 
     bool exists(EntityId id) const;
-
-    EntityDef* get(EntityId id);
-    const EntityDef* get(EntityId id) const;
 
     bool getTransform(EntityId id, Transform& out) const;
     bool setTransform(EntityId id, const Transform& transform);
@@ -101,10 +100,8 @@ private:
     SceneManager&  sceneManager_;
     Physics*       physics_ = nullptr;
 
-    /** Runtime component bag + className/tag indexes. PIMPL so the
-     *  registry header (which is implementation detail of this module)
-     *  stays out of the public include surface. Future EnTT swap lands
-     *  here without moving any gateway method. */
+    /** EnTT-backed storage (entity-registry.cpp). PIMPL keeps entt headers
+     *  out of this public include; gateway methods delegate here. */
     std::unique_ptr<EntityRegistry> registry_;
 
     std::vector<EntityId>       pendingDestroy_;

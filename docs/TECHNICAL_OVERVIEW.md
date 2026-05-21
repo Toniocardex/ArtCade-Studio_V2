@@ -112,7 +112,7 @@ ArtCade V2/
 │   │   ├── modules/             20 moduli (vedi §4)
 │   │   ├── world/
 │   │   │   ├── include/world.h
-│   │   │   └── src/world.cpp    Orchestratore EntityManager+Scene+Physics
+│   │   │   └── src/world.cpp    Orchestratore RuntimeEntityGateway+Scene+Physics
 │   │   └── tests/               Unit test C++ (ctest)
 │   ├── libs/                    Terze parti
 │   │   ├── raylib/              Raylib 5.0 (source)
@@ -161,7 +161,7 @@ ArtCade V2/
 
 ArtCade V2 abbandona l'OOP classico (inheritance, virtual methods) in favore di **Entity Component System (EnTT)** per due motivi critici:
 
-> **Stato repo (2026-05-20):** EnTT resta la direzione architetturale target. Il runtime corrente usa ancora `EntityManager` / `SceneManager`, mediati da `RuntimeEntityGateway`, per evitare un refactor big-bang. Le API editor/Lua devono passare dal gateway così la futura migrazione EnTT non cambia i contratti pubblici.
+> **Stato repo (2026-05-21):** Storage runtime su EnTT v3.13 dietro `EntityRegistry` (modulo `runtime-entity-gateway`). `RuntimeEntityGateway` espone l’API stabile verso Lua, world e editor; `SceneManager` tiene metadati scena. Il modulo legacy `entity-system` / `EntityManager` è stato rimosso. Iterazione pool/tag resta deterministica via indici manuali, non via view EnTT.
 
 1. **Cache Locality**: Array-of-Structs (SoA) vs Object-Oriented (OOP Object Layout)
    - OOP: Entity è un grande oggetto con tutti i dati mescolati → CPU cache miss
@@ -468,17 +468,19 @@ audio->update();                         // obbligatorio ogni frame (UpdateMusic
 
 ### 4.3 Layer 2 — Game Data
 
-#### `EntityManager`
-Pool di entity con doppio indice (className + tag). O(1) per lookup.
+#### `EntityRegistry` + `RuntimeEntityGateway`
+Storage runtime EnTT-backed (modulo `runtime-entity-gateway`). Il gateway espone create/destroy, get/set componenti tipati, pool/tag con ordine deterministico.
 
 ```cpp
-EntityId id = em->createEntity(def);
-em->destroyEntity(id);
-const EntityDef* e = em->get(id);
-auto pool = em->getPool("Enemy");        // tutti gli Enemy
-auto tagged = em->getByTag("collectible");
-em->forEachInPool("Coin", [](EntityDef& e) { ... });
+EntityId id = gw->create(def);
+gw->destroy(id);
+gw->exists(id);
+Transform t{}; gw->getTransform(id, t);
+auto pool = gw->poolByClass("Enemy");
+auto tagged = gw->byTag("collectible");
 ```
+
+`EntityDef` resta DTO di authoring al load; non esiste più `EntityManager` / `entity-system`.
 
 #### `SceneManager`
 Carica scena da `ProjectDoc`, tiene traccia della scena attiva.
@@ -501,80 +503,34 @@ assetLoader->loadLuaBytecode(doc.mainScriptPath, bytes);
 
 #### `World` — Orchestratore ECS
 
-**Responsabilità**: Wrapper attorno a EnTT registry. Coordina EntityManager, SceneManager, Physics per mantenere stato coerente.
+**Responsabilità**: Orchestratore di scena, stato globale e sync fisica → transform. Delega entità a `RuntimeEntityGateway` (EnTT dietro `EntityRegistry`), scene a `SceneManager`, corpi a `Physics`.
 
 ```cpp
 class World {
-    entt::registry registry;              // ← Core ECS
-    EntityManager entityManager;          // Gestisce lifecycle entity
-    SceneManager sceneManager;            // Gestisce scene loading
-    std::map<std::string, StateValue> globalState;  // Global Lua variables
-    
+    RuntimeEntityGateway& entityGateway;  // storage runtime (EnTT in EntityRegistry)
+    Physics&              physics;
+    VariableManager&      variables;
+    // ...
+
 public:
-    // Entity lifecycle
-    EntityId createEntity(const EntityDef& def) {
-        auto e = registry.create();
-        registry.emplace<Transform>(e, def.transform);
-        registry.emplace<Sprite>(e, def.sprite);
-        // ... altri componenti
-        return e;
-    }
-    
-    void destroyEntity(EntityId e) {
-        registry.destroy(e);  // Tutti i componenti rimossi automaticamente
-    }
-    
-    // Scene management
-    void init(const ProjectDoc& doc) {
-        entityManager->createPool(doc.entities);  // Pre-crea entity pool
-        sceneManager->registerScenes(doc.scenes, doc.entities);
-        loadScene(doc.activeSceneId);
-    }
-    
-    void loadScene(const std::string& sceneId) {
-        sceneManager->load(sceneId);  // Popola registry con entity della scena
-    }
-    
-    // Component access (usato dai Systems)
-    template<typename C>
-    C& get(EntityId e) { return registry.get<C>(e); }
-    
-    template<typename... Cs>
-    auto view() { return registry.view<Cs...>(); }
-    
-    // Physics sync
     void syncPhysicsToEntities() {
-        auto view = registry.view<RigidBody, Transform>();
-        for (auto e : view) {
-            auto& rb = view.get<RigidBody>(e);
-            auto& trans = view.get<Transform>(e);
-            trans.position = physics->getPosition(rb.handle);
+        for (EntityId id : entityGateway.activeSceneIds()) {
+            // physics handle → setTransform via gateway
         }
     }
-    
-    // Global state (Lua)
-    void setGlobalState(const std::string& key, const StateValue& val) {
-        globalState[key] = val;
-    }
-    StateValue getGlobalState(const std::string& key) {
-        return globalState.count(key) ? globalState[key] : StateValue{};
-    }
+    // Scene load: entityGateway.replaceProject / loadScene
 };
 ```
 
-**Flusso di usage**:
+**Flusso di usage** (semplificato):
 ```
-Application::init(ProjectDoc doc)
-  ├─ world->init(doc)
-  │  ├─ EntityManager crea entity pool
-  │  ├─ SceneManager registra scene
-  │  └─ loadScene() popola registry
+Application::initSubsystems()
+  ├─ entityGateway.replaceProject(scenes, entityDefs, activeSceneId)
   │
 Game Loop
-  ├─ Systems accedono: world->view<Transform, Sprite>()
-  ├─ Lua modifica: entity.setPosition() → registry Transform
-  ├─ Physics simula: registry RigidBody
-  └─ Render itera: world->view<Transform, Sprite>()
+  ├─ Lua: entity.setPosition() → gateway setTransform
+  ├─ physics->step(); world->syncPhysicsToEntities()
+  └─ Render: entityGateway.activeSceneIds() + getTransform / getSprite
 ```
 
 ---
@@ -1198,7 +1154,7 @@ Il **parser C++** (`zip-reader.cpp`) gestisce:
 | 6 | TextureManager | ✅ | Cache GPU ref-counted, placeholder magenta |
 | 7 | Input | ✅ | Keymap JS-style (70+ tasti), edge detection |
 | 8 | Audio | ✅ | Sound cache, Music streaming, volume gerarchico |
-| 9 | EntityManager + SceneManager + World | ✅ | Doppio indice class+tag, syncPhysics |
+| 9 | RuntimeEntityGateway + SceneManager + World | ✅ | EnTT storage, indici class/tag deterministici, syncPhysics |
 | 10 | AssetLoader + project.json | ✅ | Parser nlohmann/json, dev mode |
 | 11 | LuaHost + GameAPI | ✅ | Sol2, tick(), registerBindings() |
 | 12 | Physics (Box2D 2.4) | ✅ | Dynamic/Static/Kinematic, raycast, overlap — 11 test |

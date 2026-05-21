@@ -98,8 +98,7 @@ The package contains `manifest.json`, `project.json`, scripts/assets when presen
 
 - The editor and runtime share `ProjectDoc`.
 - The preview canvas is a black box; React talks to WASM through imperative bridge calls and buffered callbacks.
-- Runtime entity access goes through `RuntimeEntityGateway`, currently backed by `EntityManager` / `SceneManager`.
-- EnTT remains a future storage target, not the current runtime storage.
+- Runtime entity access goes through `RuntimeEntityGateway` → `EntityRegistry` (EnTT-backed). Scene lists live in `SceneManager`.
 - CodeMirror runs in an iframe to avoid editor flicker and keep the Tauri CSP safe.
 
 ## Next Work

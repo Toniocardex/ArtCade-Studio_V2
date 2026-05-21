@@ -219,8 +219,8 @@ bool Application::initSubsystems() {
     if (!mod_->luaHost->init()) return false;
     ctx_.luaHost = mod_->luaHost.get();
 
-    // Wire EditorAPI to EntityManager + SceneManager so editor commands
-    // (editor_load_project, editor_set_transform) can reach engine state.
+    // Wire EditorAPI to RuntimeEntityGateway (+ Lua, Renderer) so editor
+    // commands (editor_load_project, editor_set_transform, …) reach state.
     EditorAPI::wireEngine(mod_->entityGateway.get());
     EditorAPI::wireLua(mod_->luaHost.get());   // hot-reload from Logic Board
     EditorAPI::wireRenderer(mod_->renderer.get()); // tileset image upload (F3)

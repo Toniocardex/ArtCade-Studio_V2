@@ -873,7 +873,7 @@ while (!renderer.shouldClose()) {
 This document is now the baseline architecture reference. The implementation has advanced past the original "ready for implementation" state:
 
 1. Native runtime, WASM runtime, Lua host, physics, packaging and Tauri editor are implemented at MVP level.
-2. `RuntimeEntityGateway` is the current migration layer over `EntityManager` / `SceneManager`; EnTT remains a future storage target.
+2. `RuntimeEntityGateway` owns runtime entities via `EntityRegistry` (`entt::registry` internally); `SceneManager` holds scene metadata. `EntityDef` is authoring-only at load time.
 3. Preview uses the documented black-box canvas pattern with buffered C++ -> React callbacks.
 4. `.artcade` packaging is implemented with `manifest.json`, `project.json`, scripts/assets and `licenseTier`.
 5. Remaining work is tracked in `ROADMAP_INTEGRATIVA.md` and `docs/TECHNICAL_OVERVIEW.md`: asset pipeline hardening, WASM build from UI, Lua diagnostics, undo/redo and future Steam support.
