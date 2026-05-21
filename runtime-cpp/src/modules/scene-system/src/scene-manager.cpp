@@ -1,6 +1,8 @@
-// scene-manager.cpp — stub (Phase 9 implements scene loading)
+// scene-manager.cpp - scene registry + active-scene selection
 #include "../include/scene-manager.h"
 #include "../../entity-system/include/entity-manager.h"
+
+#include <algorithm>
 
 namespace ArtCade::Modules {
 
@@ -36,6 +38,14 @@ const SceneDef* SceneManager::getScene(const SceneId& id) const {
 SceneDef* SceneManager::activeSceneMutable() {
     auto it = scenes_.find(activeId_);
     return (it != scenes_.end()) ? &it->second : nullptr;
+}
+
+void SceneManager::removeEntityFromAllScenes(EntityId id) {
+    for (auto& [sceneId, scene] : scenes_) {
+        (void)sceneId;
+        auto& ids = scene.entityIds;
+        ids.erase(std::remove(ids.begin(), ids.end(), id), ids.end());
+    }
 }
 
 } // namespace ArtCade::Modules

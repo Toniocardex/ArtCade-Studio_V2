@@ -7,13 +7,13 @@
 
 namespace ArtCade::Modules {
 
-class EntityManager;   // forward — SceneManager uses it to populate entities
+class EntityManager;
 
 /**
- * SceneManager — scene switching and entity population.
+ * SceneManager - scene registry and active-scene selection.
  *
- * On loadScene() it reads the SceneDef from the ProjectDoc,
- * clears the EntityManager, and spawns the scene's entity list.
+ * Entity storage lives in EntityManager. Loading a scene only changes the
+ * active scene id; RuntimeEntityGateway applies activation/deactivation.
  */
 class SceneManager final : public IModule {
 public:
@@ -22,18 +22,16 @@ public:
     bool init() override;
     void shutdown() override;
 
-    // Register all scenes from the ProjectDoc
     void registerScenes(const std::unordered_map<SceneId, SceneDef>& scenes,
                         const std::unordered_map<EntityId, EntityDef>& entityDefs);
 
-    // Activate a scene (clears entities, spawns scene's entity list)
     bool loadScene(const SceneId& id);
 
     SceneId           activeSceneId()     const { return activeId_; }
     const SceneDef*   activeScene()       const;
     const SceneDef*   getScene(const SceneId& id) const;
-    // Phase F2: mutable access for in-scene tile painting.
     SceneDef*         activeSceneMutable();
+    void              removeEntityFromAllScenes(EntityId id);
 
     // Phase F3: project-level tileset assets (spritesheets). Set at startup
     // from the ProjectDoc and refreshed on editor hot-reload so the render

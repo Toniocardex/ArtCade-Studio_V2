@@ -117,10 +117,11 @@ SceneId World::activeSceneId() const {
 void World::syncPhysicsToEntities() {
     for (EntityId id : entityGateway_.activeSceneIds()) {
         auto* e = entityGateway_.get(id);
-        if (!e || e->physics.physicsHandle == 0) continue;
+        const uint32_t handle = entityGateway_.physicsHandle(id);
+        if (!e || handle == 0) continue;
 
-        e->transform.position = physics_.getPosition(e->physics.physicsHandle);
-        auto vel = physics_.getLinearVelocity(e->physics.physicsHandle);
+        e->transform.position = physics_.getPosition(handle);
+        auto vel = physics_.getLinearVelocity(handle);
         e->transform.velocity = vel;
     }
 }
@@ -152,14 +153,15 @@ std::vector<EntityId> World::activeEntityIds() const {
 
 bool World::isGrounded(EntityId id, const std::string& groundClass) const {
     auto* self = entityGateway_.get(id);
-    if (!self || self->physics.physicsHandle == 0) return false;
+    const uint32_t selfHandle = entityGateway_.physicsHandle(id);
+    if (!self || selfHandle == 0) return false;
 
     for (EntityId otherId : entityGateway_.poolByClass(groundClass)) {
         if (otherId == id) continue;
         auto* other = entityGateway_.get(otherId);
-        if (!other || other->physics.physicsHandle == 0) continue;
-        if (physics_.areOverlapping(self->physics.physicsHandle,
-                                  other->physics.physicsHandle))
+        const uint32_t otherHandle = entityGateway_.physicsHandle(otherId);
+        if (!other || otherHandle == 0) continue;
+        if (physics_.areOverlapping(selfHandle, otherHandle))
             return true;
     }
     return false;
@@ -191,10 +193,11 @@ void World::tickPlatformerControllers(float dt) {
         else
             rt.jumpBufferTimer = std::max(0.f, rt.jumpBufferTimer - dt);
 
-        if (e->physics.physicsHandle == 0) continue;
+        const uint32_t handle = entityGateway_.physicsHandle(id);
+        if (handle == 0) continue;
 
         float vx = 0.f;
-        float vy = physics_.getLinearVelocity(e->physics.physicsHandle).y;
+        float vy = physics_.getLinearVelocity(handle).y;
 
         if (input_->isKeyDown("KeyA") || input_->isKeyDown("ArrowLeft"))  vx -= pc.maxSpeed;
         if (input_->isKeyDown("KeyD") || input_->isKeyDown("ArrowRight")) vx += pc.maxSpeed;
@@ -207,7 +210,7 @@ void World::tickPlatformerControllers(float dt) {
             vy += pc.customGravity * dt;
         }
 
-        physics_.setLinearVelocity(e->physics.physicsHandle, { vx, vy });
+        physics_.setLinearVelocity(handle, { vx, vy });
     }
 }
 
@@ -215,7 +218,8 @@ void World::tickSensorOverlapEdges() {
     for (EntityId id : entityGateway_.activeSceneIds()) {
         EntityDef* e = entityGateway_.get(id);
         if (!e || !e->sensor) continue;
-        if (e->physics.physicsHandle == 0) continue;
+        const uint32_t handle = entityGateway_.physicsHandle(id);
+        if (handle == 0) continue;
 
         bool overlapping = false;
         EntityId otherHit = INVALID_ENTITY;
@@ -224,9 +228,9 @@ void World::tickSensorOverlapEdges() {
         for (EntityId otherId : entityGateway_.byTag(target)) {
             if (otherId == id) continue;
             auto* other = entityGateway_.get(otherId);
-            if (!other || other->physics.physicsHandle == 0) continue;
-            if (physics_.areOverlapping(e->physics.physicsHandle,
-                                        other->physics.physicsHandle)) {
+            const uint32_t otherHandle = entityGateway_.physicsHandle(otherId);
+            if (!other || otherHandle == 0) continue;
+            if (physics_.areOverlapping(handle, otherHandle)) {
                 overlapping = true;
                 otherHit = otherId;
                 break;
@@ -262,8 +266,8 @@ void World::snapEntityToGrid(EntityId id, float cellSize) {
     const float cs = cellSize;
     e->transform.position.x = std::round(e->transform.position.x / cs) * cs;
     e->transform.position.y = std::round(e->transform.position.y / cs) * cs;
-    if (e->physics.physicsHandle != 0)
-        physics_.setPosition(e->physics.physicsHandle, e->transform.position);
+    if (const uint32_t handle = entityGateway_.physicsHandle(id); handle != 0)
+        physics_.setPosition(handle, e->transform.position);
 }
 
 void World::moveEntityByOffset(EntityId id, float dx, float dy) {
@@ -271,8 +275,8 @@ void World::moveEntityByOffset(EntityId id, float dx, float dy) {
     if (!e) return;
     e->transform.position.x += dx;
     e->transform.position.y += dy;
-    if (e->physics.physicsHandle != 0)
-        physics_.setPosition(e->physics.physicsHandle, e->transform.position);
+    if (const uint32_t handle = entityGateway_.physicsHandle(id); handle != 0)
+        physics_.setPosition(handle, e->transform.position);
 }
 
 bool World::isSpaceFree(float x, float y, float w, float h) const {

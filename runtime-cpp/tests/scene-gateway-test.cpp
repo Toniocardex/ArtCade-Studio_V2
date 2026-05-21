@@ -74,7 +74,7 @@ int main() {
     CHECK(spawned != 0);
     CHECK(gw.poolCount("Coin") == 2);
     const EntityDef* spawnedDef = gw.get(spawned);
-    CHECK(spawnedDef && spawnedDef->runtime.sceneActive);
+    CHECK(spawnedDef && gw.isEntityActiveInScene(spawned));
     CHECK(spawnedDef->sprite.spriteAssetId == "sprites/coin.png");
     CHECK(spawnedDef->transform.position.x == 50.f);
     CHECK(spawnedDef->transform.position.y == 60.f);
@@ -93,9 +93,9 @@ int main() {
     CHECK(vm.getInt("lives") == 3);
 
     const EntityDef* c = gw.get(2);
-    CHECK(c && c->runtime.sceneActive);
+    CHECK(c && gw.isEntityActiveInScene(2));
     const EntityDef* p = gw.get(1);
-    CHECK(p && !p->runtime.sceneActive);
+    CHECK(p && !gw.isEntityActiveInScene(1));
 
     // Kill queue: destroy deferred until flush
     CHECK(gw.exists(2));
@@ -103,6 +103,15 @@ int main() {
     CHECK(gw.exists(2));
     gw.flushPendingOperations();
     CHECK(!gw.exists(2));
+
+    CHECK(gw.loadScene("scene_a"));
+    CHECK(gw.poolCount("Player") == 1);
+    CHECK(gw.poolCount("Coin") == 1);
+    const SceneDef* sceneAfterDestroy = gw.activeScene();
+    CHECK(sceneAfterDestroy &&
+          std::find(sceneAfterDestroy->entityIds.begin(),
+                    sceneAfterDestroy->entityIds.end(), 2)
+              == sceneAfterDestroy->entityIds.end());
 
     gw.shutdown();
     em.shutdown();

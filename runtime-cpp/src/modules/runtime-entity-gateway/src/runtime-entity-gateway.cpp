@@ -44,6 +44,7 @@ void RuntimeEntityGateway::shutdown() {
     pendingDestroy_.clear();
     pendingSpawn_.clear();
     destroyBuffer_.clear();
+    runtimeState_.clear();
     classPrototypes_.clear();
     spawnLogCallback_ = nullptr;
     fadePhase_ = FadePhase::None;
@@ -65,13 +66,14 @@ bool RuntimeEntityGateway::entityListedInActiveScene(EntityId id) const {
 }
 
 bool RuntimeEntityGateway::isEntityActiveInScene(EntityId id) const {
-    const EntityDef* e = entityManager_.get(id);
-    return e && e->runtime.sceneActive;
+    if (!entityManager_.exists(id)) return false;
+    auto it = runtimeState_.find(id);
+    return it != runtimeState_.end() && it->second.sceneActive;
 }
 
 void RuntimeEntityGateway::ensurePhysicsBody(EntityDef& def) {
     if (!physics_) return;
-    if (def.physics.physicsHandle != 0) return;
+    if (physicsHandle(def.id) != 0) return;
 
     const bool hasCollider =
         def.physics.collider.size.x > 2.f && def.physics.collider.size.y > 2.f;
@@ -87,7 +89,7 @@ void RuntimeEntityGateway::ensurePhysicsBody(EntityDef& def) {
     if (handle == 0) return;
 
     def.physics = comp;
-    def.physics.physicsHandle = handle;
+    setPhysicsHandle(def.id, handle);
     physics_->setPosition(handle, def.transform.position);
 
     if (def.sensor)
@@ -95,14 +97,17 @@ void RuntimeEntityGateway::ensurePhysicsBody(EntityDef& def) {
 }
 
 void RuntimeEntityGateway::teardownPhysicsBody(EntityDef& def) {
-    if (!physics_ || def.physics.physicsHandle == 0) return;
-    physics_->destroyBody(def.physics.physicsHandle);
-    def.physics.physicsHandle = 0;
+    const uint32_t handle = physicsHandle(def.id);
+    if (!physics_ || handle == 0) return;
+    physics_->destroyBody(handle);
+    setPhysicsHandle(def.id, 0);
 }
 
 void RuntimeEntityGateway::deactivateEntity(EntityId id) {
     EntityDef* e = entityManager_.get(id);
     if (!e) return;
+    runtimeState_[id].sceneActive = false;
+    // Compatibility mirror until EntityDef stops carrying runtime flags.
     e->runtime.sceneActive = false;
     e->sprite.alpha = 0.f;
     teardownPhysicsBody(*e);
@@ -111,6 +116,8 @@ void RuntimeEntityGateway::deactivateEntity(EntityId id) {
 void RuntimeEntityGateway::activateEntity(EntityId id) {
     EntityDef* e = entityManager_.get(id);
     if (!e) return;
+    runtimeState_[id].sceneActive = true;
+    // Compatibility mirror until EntityDef stops carrying runtime flags.
     e->runtime.sceneActive = true;
     e->sprite.alpha = 1.f;
     ensurePhysicsBody(*e);
@@ -127,10 +134,14 @@ void RuntimeEntityGateway::syncSceneActivation() {
 
 EntityId RuntimeEntityGateway::create(const EntityDef& def) {
     EntityDef copy = def;
-    copy.runtime.sceneActive = entityListedInActiveScene(copy.id);
+    copy.physics.physicsHandle = 0;
     const EntityId id = entityManager_.createEntity(copy);
+    runtimeState_[id].sceneActive = entityListedInActiveScene(id);
+    runtimeState_[id].physicsHandle = 0;
     EntityDef* e = entityManager_.get(id);
-    if (e && e->runtime.sceneActive)
+    if (e)
+        e->runtime.sceneActive = runtimeState_[id].sceneActive;
+    if (e && runtimeState_[id].sceneActive)
         ensurePhysicsBody(*e);
     return id;
 }
@@ -165,6 +176,7 @@ EntityId RuntimeEntityGateway::spawnFromClass(const std::string& className, floa
     }
 
     const EntityId id = entityManager_.createEntity(copy);
+    runtimeState_[id].physicsHandle = 0;
     if (SceneDef* scene = sceneManager_.activeSceneMutable()) {
         if (std::find(scene->entityIds.begin(), scene->entityIds.end(), id)
             == scene->entityIds.end())
@@ -185,13 +197,11 @@ EntityId RuntimeEntityGateway::spawnFromClass(const std::string& className, floa
 }
 
 void RuntimeEntityGateway::destroy(EntityId id) {
-    if (SceneDef* scene = sceneManager_.activeSceneMutable()) {
-        auto& ids = scene->entityIds;
-        ids.erase(std::remove(ids.begin(), ids.end(), id), ids.end());
-    }
+    sceneManager_.removeEntityFromAllScenes(id);
     EntityDef* e = entityManager_.get(id);
     if (e) teardownPhysicsBody(*e);
     entityManager_.destroyEntity(id);
+    runtimeState_.erase(id);
 }
 
 void RuntimeEntityGateway::queueDestroy(EntityId id) {
@@ -252,6 +262,23 @@ bool RuntimeEntityGateway::setTransform(EntityId id, Vec2 position, float rotati
     return true;
 }
 
+uint32_t RuntimeEntityGateway::physicsHandle(EntityId id) const {
+    auto it = runtimeState_.find(id);
+    return it != runtimeState_.end() ? it->second.physicsHandle : 0;
+}
+
+bool RuntimeEntityGateway::hasPhysicsBody(EntityId id) const {
+    return physicsHandle(id) != 0;
+}
+
+void RuntimeEntityGateway::setPhysicsHandle(EntityId id, uint32_t handle) {
+    if (!entityManager_.exists(id)) return;
+    runtimeState_[id].physicsHandle = handle;
+    // Compatibility mirror until PhysicsComponent stops carrying runtime handles.
+    if (EntityDef* e = entityManager_.get(id))
+        e->physics.physicsHandle = handle;
+}
+
 std::vector<EntityId> RuntimeEntityGateway::poolByClass(const std::string& className) const {
     std::vector<EntityId> out;
     for (EntityId id : entityManager_.getPool(className)) {
@@ -306,12 +333,15 @@ bool RuntimeEntityGateway::replaceProject(
         physics_->destroyAllBodies();
 
     entityManager_.clear();
+    runtimeState_.clear();
     rebuildClassPrototypes(entityDefs);
     sceneManager_.registerScenes(scenes, entityDefs);
     for (const auto& [id, def] : entityDefs) {
         EntityDef copy = def;
         copy.runtime.sceneActive = false;
-        entityManager_.createEntity(copy);
+        copy.physics.physicsHandle = 0;
+        const EntityId runtimeId = entityManager_.createEntity(copy);
+        runtimeState_[runtimeId].sceneActive = false;
     }
 
     if (!activeSceneId.empty())

@@ -3,6 +3,7 @@
 #include "../../../core/module.h"
 #include "../../../core/types.h"
 #include <functional>
+#include <unordered_map>
 #include <vector>
 
 namespace ArtCade::Modules {
@@ -46,6 +47,10 @@ public:
     bool setTransform(EntityId id, const Transform& transform);
     bool setTransform(EntityId id, Vec2 position, float rotation, Vec2 scale);
 
+    uint32_t physicsHandle(EntityId id) const;
+    bool hasPhysicsBody(EntityId id) const;
+    void setPhysicsHandle(EntityId id, uint32_t handle);
+
     std::vector<EntityId> poolByClass(const std::string& className) const;
     size_t poolCount(const std::string& className) const;
     std::vector<EntityId> byTag(const std::string& tag) const;
@@ -84,6 +89,12 @@ private:
     SceneManager& sceneManager_;
     Physics*       physics_ = nullptr;
 
+    struct RuntimeEntityState {
+        bool sceneActive = false;
+        uint32_t physicsHandle = 0;
+    };
+
+    std::unordered_map<EntityId, RuntimeEntityState> runtimeState_;
     std::vector<EntityId> pendingDestroy_;
     std::vector<EntityDef> pendingSpawn_;
     std::vector<DestroyedEvent> destroyBuffer_;

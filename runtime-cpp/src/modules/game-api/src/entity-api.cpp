@@ -29,8 +29,10 @@ void GameAPI::bindEntityAPI(sol::state& lua) {
 
     // entity.velocity(id) → vx, vy
     lua.set_function("entity_velocity", [entities, physics](EntityId id) -> std::tuple<float, float> {
-        if (auto* e = entities->get(id)) {
-            auto vel = physics->getLinearVelocity(e->physics.physicsHandle);
+        if (entities->get(id)) {
+            const uint32_t handle = entities->physicsHandle(id);
+            if (handle == 0) return { 0.f, 0.f };
+            auto vel = physics->getLinearVelocity(handle);
             return { vel.x, vel.y };
         }
         return { 0.f, 0.f };
@@ -38,8 +40,11 @@ void GameAPI::bindEntityAPI(sol::state& lua) {
 
     // entity.setVelocity(id, vx, vy)
     lua.set_function("entity_setVelocity", [entities, physics](EntityId id, float vx, float vy) {
-        if (auto* e = entities->get(id))
-            physics->setLinearVelocity(e->physics.physicsHandle, { vx, vy });
+        if (entities->get(id)) {
+            const uint32_t handle = entities->physicsHandle(id);
+            if (handle != 0)
+                physics->setLinearVelocity(handle, { vx, vy });
+        }
     });
 
     // entity.destroy(id)

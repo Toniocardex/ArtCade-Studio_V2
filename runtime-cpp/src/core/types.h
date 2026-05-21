@@ -56,7 +56,8 @@ struct Collider {
 struct PhysicsComponent {
     BodyType bodyType     = BodyType::Dynamic;
     Collider collider;
-    uint32_t physicsHandle = 0;  // Opaque Box2D body id (internal pool index)
+    // Runtime compatibility mirror. Source of truth lives in RuntimeEntityGateway.
+    uint32_t physicsHandle = 0;
 };
 
 // ============================================================================

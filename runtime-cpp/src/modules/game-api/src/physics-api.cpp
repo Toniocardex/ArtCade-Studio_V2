@@ -15,8 +15,10 @@ void GameAPI::bindPhysicsAPI(sol::state& lua) {
         auto* e1 = entities->get(id1);
         auto* e2 = entities->get(id2);
         if (!e1 || !e2) return false;
-        return physics->areOverlapping(e1->physics.physicsHandle,
-                                       e2->physics.physicsHandle);
+        const uint32_t h1 = entities->physicsHandle(id1);
+        const uint32_t h2 = entities->physicsHandle(id2);
+        if (h1 == 0 || h2 == 0) return false;
+        return physics->areOverlapping(h1, h2);
     });
 
     // collision.touchingClass(entityId, className) → bool
@@ -24,12 +26,14 @@ void GameAPI::bindPhysicsAPI(sol::state& lua) {
         [entities, physics](EntityId id, const std::string& cls) -> bool {
             auto* self = entities->get(id);
             if (!self) return false;
+            const uint32_t selfHandle = entities->physicsHandle(id);
+            if (selfHandle == 0) return false;
             for (EntityId otherId : entities->poolByClass(cls)) {
                 if (otherId == id) continue;
                 auto* other = entities->get(otherId);
                 if (!other) continue;
-                if (physics->areOverlapping(self->physics.physicsHandle,
-                                            other->physics.physicsHandle))
+                const uint32_t otherHandle = entities->physicsHandle(otherId);
+                if (otherHandle != 0 && physics->areOverlapping(selfHandle, otherHandle))
                     return true;
             }
             return false;
@@ -70,7 +74,7 @@ void GameAPI::bindPhysicsAPI(sol::state& lua) {
     //   w, h      : collider half-size in pixels          (default 32, 32)
     //
     // Creates a Box2D body positioned at the entity's current transform and
-    // stores the handle in e->physics.physicsHandle so entity.velocity /
+    // stores the runtime handle in RuntimeEntityGateway so entity.velocity /
     // entity.setVelocity and syncPhysicsToEntities all work automatically.
     // Returns the opaque uint32_t handle, or 0 on failure.
     // -------------------------------------------------------------------------
@@ -101,10 +105,9 @@ void GameAPI::bindPhysicsAPI(sol::state& lua) {
             // Place body at entity's JSON spawn position
             physics->setPosition(handle, e->transform.position);
 
-            // Back-write into the EntityDef so entity.velocity etc. work
-            e->physics.physicsHandle = handle;
             e->physics.bodyType      = comp.bodyType;
             e->physics.collider      = comp.collider;
+            entities->setPhysicsHandle(id, handle);
 
             return handle;
         });
@@ -118,8 +121,9 @@ void GameAPI::bindPhysicsAPI(sol::state& lua) {
     lua.set_function("physics_bodyPosition",
         [entities, physics](EntityId id) -> std::tuple<float,float> {
             auto* e = entities->get(id);
-            if (!e || e->physics.physicsHandle == 0) return {0.f,0.f};
-            auto p = physics->getPosition(e->physics.physicsHandle);
+            const uint32_t handle = entities->physicsHandle(id);
+            if (!e || handle == 0) return {0.f,0.f};
+            auto p = physics->getPosition(handle);
             return {p.x, p.y};
         });
 
@@ -127,19 +131,19 @@ void GameAPI::bindPhysicsAPI(sol::state& lua) {
     lua.set_function("physics_applyImpulse",
         [entities, physics](EntityId id, float ix, float iy) {
             auto* e = entities->get(id);
-            if (!e || e->physics.physicsHandle == 0) return;
-            auto v = physics->getLinearVelocity(e->physics.physicsHandle);
-            physics->setLinearVelocity(e->physics.physicsHandle,
-                                       { v.x + ix, v.y + iy });
+            const uint32_t handle = entities->physicsHandle(id);
+            if (!e || handle == 0) return;
+            auto v = physics->getLinearVelocity(handle);
+            physics->setLinearVelocity(handle, { v.x + ix, v.y + iy });
         });
     // physics.applyForce(id, fx, fy) — same velocity-space approximation
     lua.set_function("physics_applyForce",
         [entities, physics](EntityId id, float fx, float fy) {
             auto* e = entities->get(id);
-            if (!e || e->physics.physicsHandle == 0) return;
-            auto v = physics->getLinearVelocity(e->physics.physicsHandle);
-            physics->setLinearVelocity(e->physics.physicsHandle,
-                                       { v.x + fx, v.y + fy });
+            const uint32_t handle = entities->physicsHandle(id);
+            if (!e || handle == 0) return;
+            auto v = physics->getLinearVelocity(handle);
+            physics->setLinearVelocity(handle, { v.x + fx, v.y + fy });
         });
 
     lua.script(R"(
