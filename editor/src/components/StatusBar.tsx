@@ -12,7 +12,15 @@ export default function StatusBar() {
     : 'None'
   const sceneId = selection.sceneId ?? project?.activeSceneId
   const scene = project && sceneId ? project.scenes[sceneId] : undefined
-  const gridSize = editorGridSize ?? 32
+
+  // The cameraPreview flag in the store is the user intent. Its visual effect
+  // is only present when viewport actually differs from world (otherwise the
+  // clip is a no-op). Mirror that here so the pill matches reality.
+  const cameraPreviewActive = !!(
+    cameraPreview && scene &&
+    (scene.viewportSize.x !== scene.worldSize.x ||
+     scene.viewportSize.y !== scene.worldSize.y)
+  )
 
   return (
     <footer
@@ -33,10 +41,10 @@ export default function StatusBar() {
             <span>Viewport: {scene.viewportSize.x}x{scene.viewportSize.y}</span>
           </>
         )}
-        <span>Grid: {gridSize}px</span>
+        <span>Grid: {editorGridSize}px</span>
         {snapToGrid && <span>Snap: ON</span>}
-        <span>Zoom: {Math.round((editorZoom ?? 1.0) * 100)}%</span>
-        {cameraPreview && <span className="text-[var(--accent-2)]">Camera: PREVIEW</span>}
+        <span>Zoom: {Math.round(editorZoom * 100)}%</span>
+        {cameraPreviewActive && <span className="text-[var(--accent-2)]">Camera: PREVIEW</span>}
         <span>Lua: 5.4</span>
         <span>Raylib: 5.0</span>
         {projectDirty && <span className="text-[var(--warn)]">Project: UNSAVED</span>}

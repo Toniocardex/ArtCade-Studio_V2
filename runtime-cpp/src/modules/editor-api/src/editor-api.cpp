@@ -19,9 +19,8 @@ float    EditorAPI::s_editorGridSize   = 32.f;
 Modules::RuntimeEntityGateway* EditorAPI::s_entityGateway = nullptr;
 Modules::LuaHost*              EditorAPI::s_luaHost       = nullptr;
 Modules::Renderer*             EditorAPI::s_renderer      = nullptr;
-Application*                   EditorAPI::s_application   = nullptr;
-
-void EditorAPI::wireApplication(Application*) {}
+EditorProjectLoadedHandler     EditorAPI::s_onProjectLoaded{};
+std::vector<std::pair<std::string, std::string>> EditorAPI::s_consoleQueue;
 
 } // namespace ArtCade
 
@@ -40,7 +39,10 @@ void EditorAPI::wireApplication(Application*) {}
 //    into EntityDef / SceneDef / TilesetAsset.
 // =============================================================================
 
-#include "../../../app/include/app.h"
+// editor-api intentionally does NOT include app.h. Project-loaded behaviour
+// is delivered through a callback registered by Application via
+// setProjectLoadedHandler(). Keeping this TU free of app.h removes a major
+// circular dependency hazard and unblocks future module splits.
 #include "../../../modules/runtime-entity-gateway/include/runtime-entity-gateway.h"
 #include "../../../modules/lua-runtime/include/lua-host.h"
 #include "../../../modules/renderer/include/renderer.h"
@@ -76,7 +78,7 @@ float    EditorAPI::s_editorGridSize   = 32.f;
 Modules::RuntimeEntityGateway* EditorAPI::s_entityGateway = nullptr;
 Modules::LuaHost*              EditorAPI::s_luaHost       = nullptr;
 Modules::Renderer*             EditorAPI::s_renderer      = nullptr;
-Application*                   EditorAPI::s_application   = nullptr;
+EditorProjectLoadedHandler     EditorAPI::s_onProjectLoaded{};
 std::vector<std::pair<std::string, std::string>> EditorAPI::s_consoleQueue;
 
 namespace {
@@ -111,8 +113,8 @@ void EditorAPI::wireRenderer(Modules::Renderer* renderer) {
     notifyConsoleLine("[EditorAPI] Engine wired to Renderer (image upload ready).", "info");
 }
 
-void EditorAPI::wireApplication(Application* app) {
-    s_application = app;
+void EditorAPI::setProjectLoadedHandler(EditorProjectLoadedHandler handler) {
+    s_onProjectLoaded = std::move(handler);
 }
 
 // ── Init / Shutdown ───────────────────────────────────────────────────────────
@@ -272,8 +274,8 @@ EMSCRIPTEN_KEEPALIVE void editor_load_project(const char* json_utf8) {
         gateway->replaceProject(sceneDefs, entityDefs, activeId);
         gateway->setTilesets(tilesets);
 
-        if (auto* app = ArtCade::EditorAPI::s_application)
-            app->applyEditorProjectLoaded(tilePalette, tilesets);
+        if (ArtCade::EditorAPI::s_onProjectLoaded)
+            ArtCade::EditorAPI::s_onProjectLoaded(tilePalette, tilesets);
 
         char buf[128];
         std::snprintf(buf, sizeof(buf),

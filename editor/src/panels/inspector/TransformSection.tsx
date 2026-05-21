@@ -13,7 +13,7 @@ export function TransformSection({ entity }: { entity: EntityDef }) {
   function commitTransform(next: TransformPatch) {
     const sceneId = state.selection.sceneId ?? state.project?.activeSceneId
     const activeScene = sceneId ? state.project?.scenes[sceneId] : undefined
-    const gridSize = state.editorGridSize ?? activeScene?.tilemap?.tileSize ?? 32
+    const gridSize = state.editorGridSize || activeScene?.tilemap?.tileSize || 32
     const rawX = next.x ?? entity.transform.position.x
     const rawY = next.y ?? entity.transform.position.y
     const x = state.snapToGrid ? snapToGridValue(rawX, gridSize) : rawX

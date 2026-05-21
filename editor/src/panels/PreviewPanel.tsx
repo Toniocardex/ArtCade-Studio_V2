@@ -1,8 +1,13 @@
-import { useEffect, useRef, useLayoutEffect, useState } from 'react'
+import { useRef, useLayoutEffect, useState } from 'react'
 import { useEditor } from '../store/editor-store'
 import type { ConsoleEntry } from '../types'
 import { isReady } from '../utils/wasm-bridge'
 import { runtimeSync, type EditorTool } from '../utils/runtime-sync-service'
+import { clampEditorZoom, computeFitZoom } from '../utils/editor-zoom'
+import { zoomFitRegistry } from '../utils/zoom-fit-registry'
+import {
+  EDITOR_ZOOM_WHEEL_FACTOR, DEFAULT_SCENE_SIZE,
+} from '../constants/editor-viewport'
 import {
   useWasmRuntimeLifecycle,
   useRuntimeProjectSync,
@@ -57,8 +62,8 @@ export default function PreviewPanel() {
   const ignoredTransformEchoRef = useRef<TransformSnapshot | null>(null)
 
   sceneIdRef.current    = selection.sceneId ?? project?.activeSceneId ?? ''
-  snapToGridRef.current = snapToGrid ?? false
-  gridSizeRef.current   = editorGridSize ?? 32
+  snapToGridRef.current = snapToGrid
+  gridSizeRef.current   = editorGridSize
 
   const [wasmReady,   setWasmReady]        = useState(() => isReady())
   const [engineReady, setEngineReady]      = useState(() => isReady())
@@ -129,7 +134,7 @@ export default function PreviewPanel() {
     tool: activeTool,
     selectedTileCell,
     guides: showEditorGuides,
-    gridSize: editorGridSize ?? 32,
+    gridSize: editorGridSize,
   })
 
   const selectedSceneId = selection.sceneId ?? project?.activeSceneId
@@ -139,8 +144,9 @@ export default function PreviewPanel() {
   // overflow:auto so scrollbars appear; the pan tool still works for camera
   // dragging. viewportSize is drawn as an amber overlay by the C++
   // editor-overlay-renderer.
-  const res = selectedScene?.worldSize ?? { x: 1280, y: 720 }
-  const zoom = editorZoom ?? 1.0
+  const res = selectedScene?.worldSize ?? DEFAULT_SCENE_SIZE
+  const vp  = selectedScene?.viewportSize ?? res
+  const zoom = editorZoom
   const scaledW = Math.round(res.x * zoom)
   const scaledH = Math.round(res.y * zoom)
 
@@ -149,41 +155,39 @@ export default function PreviewPanel() {
   // negative offset so the centred viewport region aligns with the wrapper's
   // origin; the wrapper's overflow:hidden clips the rest. We never unmount
   // the canvas — toggling preview must not reset the WebGL context.
-  const vp = selectedScene?.viewportSize ?? res
-  const preview = !!cameraPreview && (vp.x !== res.x || vp.y !== res.y)
+  //
+  // `preview` is the *effective* state: user intent (`cameraPreview`) AND a
+  // viewport that actually differs from the world. StatusBar mirrors this
+  // derivation so the pill never lies.
+  const preview = cameraPreview && (vp.x !== res.x || vp.y !== res.y)
   const frameW   = preview ? Math.round(vp.x * zoom) : scaledW
   const frameH   = preview ? Math.round(vp.y * zoom) : scaledH
   const canvasDX = preview ? -Math.round(((res.x - vp.x) / 2) * zoom) : 0
   const canvasDY = preview ? -Math.round(((res.y - vp.y) / 2) * zoom) : 0
 
-  // Compute fit-to-panel zoom: largest scale where the world fits inside the
-  // visible scroll container, clamped to the EDITOR_SET_ZOOM reducer range.
-  function computeFitZoom(): number {
-    const el = scrollRef.current
-    if (!el) return 1.0
-    const padding = 48 // matches the p-6 wrapper on each side
-    const availW = Math.max(1, el.clientWidth  - padding)
-    const availH = Math.max(1, el.clientHeight - padding)
-    return Math.min(availW / res.x, availH / res.y)
-  }
-
   function setZoom(next: number) {
     dispatch({ type: 'EDITOR_SET_ZOOM', zoom: next })
   }
 
+  /**
+   * Fit zoom honours the current view mode: when camera-preview clips the
+   * canvas to viewportSize, fitting computes against `vp`, not `res` — so
+   * Ctrl+9 actually makes the viewport rectangle fit the panel, instead of
+   * fitting the wider world that the user isn't even looking at.
+   */
   function fitZoom() {
-    setZoom(computeFitZoom())
+    const el = scrollRef.current
+    if (!el) return
+    const sceneW = preview ? vp.x : res.x
+    const sceneH = preview ? vp.y : res.y
+    setZoom(computeFitZoom(el.clientWidth, el.clientHeight, sceneW, sceneH))
   }
 
-  // Bridge for the Ctrl+9 keyboard shortcut owned by App.tsx — keeping the
-  // fit math here means we have one source of truth for "what fits" without
-  // hoisting scrollRef into App.tsx.
-  useEffect(() => {
-    function onFitEvent() { fitZoom() }
-    window.addEventListener('artcade:zoom-fit', onFitEvent)
-    return () => window.removeEventListener('artcade:zoom-fit', onFitEvent)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [res.x, res.y])
+  // Expose fitZoom to App.tsx's Ctrl+9 shortcut via a typed registry instead
+  // of a window CustomEvent (TECHNICAL_DEBT_REVIEW §3). useLayoutEffect runs
+  // before paint so the handler is in place by the time the user can press
+  // a key in the freshly mounted editor.
+  useLayoutEffect(() => zoomFitRegistry.register(fitZoom), [preview, res.x, res.y, vp.x, vp.y])
 
   // Ctrl + wheel: zoom anchored at the cursor (Figma/Photoshop behaviour).
   // Without anchoring, zooming "in" always re-centres on the world origin and
@@ -204,8 +208,8 @@ export default function PreviewPanel() {
     const worldY = (el.scrollTop  + cursorY) / zoom
 
     // Exponential step keeps the "feel" linear regardless of current zoom.
-    const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1
-    const nextZoom = Math.min(4.0, Math.max(0.1, zoom * factor))
+    const factor = e.deltaY < 0 ? EDITOR_ZOOM_WHEEL_FACTOR : 1 / EDITOR_ZOOM_WHEEL_FACTOR
+    const nextZoom = clampEditorZoom(zoom * factor)
     dispatch({ type: 'EDITOR_SET_ZOOM', zoom: nextZoom })
 
     // After React applies the new wrapper width, scroll so the cursor still
@@ -234,13 +238,6 @@ export default function PreviewPanel() {
         selectedTileCell={selectedTileCell}
         showGuides={showEditorGuides}
         onToggleGuides={() => setShowEditorGuides(v => !v)}
-        zoom={zoom}
-        onSetZoom={setZoom}
-        onFitZoom={fitZoom}
-        cameraPreview={!!cameraPreview}
-        onToggleCameraPreview={() =>
-          dispatch({ type: 'EDITOR_SET_CAMERA_PREVIEW', enabled: !cameraPreview })
-        }
         rightSlot={<RuntimeStatusBadge wasmReady={wasmReady} hasProject={!!project} />}
       />
 

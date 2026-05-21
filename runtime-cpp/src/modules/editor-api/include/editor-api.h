@@ -18,26 +18,42 @@
 // =============================================================================
 
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <utility>
 #include <vector>
+
+// Forward declarations shared by both the WASM build and the native stub.
+// Keeping them outside the #ifdef avoids a class of "undeclared identifier"
+// errors when the native build of editor-api.h is included from a TU that
+// doesn't bring in app.h (TECHNICAL_DEBT_REVIEW §22).
+namespace ArtCade {
+namespace Modules {
+class RuntimeEntityGateway;
+class LuaHost;
+class Renderer;
+}
+struct TilePaletteEntry;
+struct TilesetAsset;
+
+/**
+ * Callback invoked by editor_load_project AFTER the gateway has been
+ * populated from the JSON blob. Application registers its
+ * applyEditorProjectLoaded() through EditorAPI::setProjectLoadedHandler()
+ * so editor-api never has to depend on app.h
+ * (TECHNICAL_DEBT_REVIEW §8 — replaced static `s_application` pointer).
+ */
+using EditorProjectLoadedHandler = std::function<void(
+    const std::vector<TilePaletteEntry>&,
+    const std::vector<TilesetAsset>&)>;
+} // namespace ArtCade
 
 #ifdef __EMSCRIPTEN__
 
 #include <emscripten.h>
 #include <emscripten/html5.h>
-#include <functional>
-
-// Forward declarations -- defined in the engine modules
-namespace ArtCade::Modules {
-class RuntimeEntityGateway;
-class LuaHost;
-class Renderer;
-}
 
 namespace ArtCade {
-
-class Application;
 
 class EditorAPI {
 public:
@@ -74,8 +90,13 @@ public:
      */
     static void wireRenderer(Modules::Renderer* renderer);
 
-    /** Wire Application so editor_load_project can reset Lua, textures, tile caches. */
-    static void wireApplication(Application* app);
+    /**
+     * Register the callback invoked after editor_load_project finishes
+     * populating the gateway. Replaces the previous direct
+     * `s_application->applyEditorProjectLoaded(...)` coupling.
+     * Pass an empty handler (`{}`) to unregister.
+     */
+    static void setProjectLoadedHandler(EditorProjectLoadedHandler handler);
 
     // -------------------------------------------------------------------------
     // C++ -> React notifications (Smoke Test 3)
@@ -122,7 +143,7 @@ public:
     static Modules::RuntimeEntityGateway* s_entityGateway;
     static Modules::LuaHost*              s_luaHost;
     static Modules::Renderer*             s_renderer;
-    static Application*                   s_application;
+    static EditorProjectLoadedHandler     s_onProjectLoaded;
     static std::vector<std::pair<std::string, std::string>> s_consoleQueue;
 
     // Native input callbacks -- bypass the JS thread entirely (Smoke Test 2)
@@ -209,7 +230,6 @@ EMSCRIPTEN_KEEPALIVE void editor_register_image(
 #else // !__EMSCRIPTEN__
 
 namespace ArtCade {
-namespace Modules { class RuntimeEntityGateway; class LuaHost; class Renderer; }
 
 struct EditorAPI {
     static void init(const char* = nullptr) {}
@@ -217,6 +237,7 @@ struct EditorAPI {
     static void wireEngine(Modules::RuntimeEntityGateway*) {}
     static void wireLua(Modules::LuaHost*) {}
     static void wireRenderer(Modules::Renderer*) {}
+    static void setProjectLoadedHandler(EditorProjectLoadedHandler) {}
     static void notifyEntitySelected(uint32_t) {}
     static void notifyTransformChanged(uint32_t, float, float, float, float, float) {}
     static void notifyConsoleLine(const char*, const char* = nullptr) {}
@@ -238,7 +259,7 @@ struct EditorAPI {
     static Modules::RuntimeEntityGateway* s_entityGateway;
     static Modules::LuaHost*              s_luaHost;
     static Modules::Renderer*             s_renderer;
-    static Application*                   s_application;
+    static EditorProjectLoadedHandler     s_onProjectLoaded;
     static std::vector<std::pair<std::string, std::string>> s_consoleQueue;
 };
 } // namespace ArtCade

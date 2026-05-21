@@ -7,6 +7,10 @@
 // dirty.
 
 import type { CoreState, Action, DomainReducer } from '../editor-store-state'
+import {
+  DEFAULT_EDITOR_GRID_SIZE, EDITOR_GRID_SIZE_MAX, EDITOR_GRID_SIZE_MIN,
+} from '../../constants/editor-viewport'
+import { clampEditorZoom } from '../../utils/editor-zoom'
 
 export const uiReducer: DomainReducer = (state: CoreState, action: Action) => {
   switch (action.type) {
@@ -25,7 +29,9 @@ export const uiReducer: DomainReducer = (state: CoreState, action: Action) => {
       return { ...state, isPlaying: action.playing }
     case 'EDITOR_SET_GRID_SIZE': {
       const rounded = Math.round(action.tileSize)
-      const tileSize = Number.isFinite(rounded) ? Math.min(512, Math.max(4, rounded)) : 32
+      const tileSize = Number.isFinite(rounded)
+        ? Math.min(EDITOR_GRID_SIZE_MAX, Math.max(EDITOR_GRID_SIZE_MIN, rounded))
+        : DEFAULT_EDITOR_GRID_SIZE
       return state.editorGridSize === tileSize ? state : { ...state, editorGridSize: tileSize }
     }
     case 'SET_SNAP_TO_GRID':
@@ -33,12 +39,7 @@ export const uiReducer: DomainReducer = (state: CoreState, action: Action) => {
         ? state
         : { ...state, snapToGrid: action.enabled }
     case 'EDITOR_SET_ZOOM': {
-      // Clamp to a sensible range. 10% is the lowest readable; 400% is the
-      // industry-standard upper bound for 2D editors (Photoshop, Aseprite).
-      const clamped = Math.min(4.0, Math.max(0.1, action.zoom))
-      // Snap to 3 decimals so floating-point drift from wheel-zoom never
-      // produces "99.9999%" labels in the toolbar.
-      const next = Math.round(clamped * 1000) / 1000
+      const next = clampEditorZoom(action.zoom)
       return state.editorZoom === next ? state : { ...state, editorZoom: next }
     }
     case 'EDITOR_SET_CAMERA_PREVIEW':

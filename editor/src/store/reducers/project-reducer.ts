@@ -11,11 +11,15 @@
 // LOAD_PROJECT (which resets the same fields) avoids a third file.
 
 import type { CoreState, Action, DomainReducer } from '../editor-store-state'
+import { EDITOR_ZOOM_DEFAULT } from '../../constants/editor-viewport'
 
 export const projectReducer: DomainReducer = (state: CoreState, action: Action) => {
   switch (action.type) {
     case 'LOAD_PROJECT': {
       const firstSceneId = Object.keys(action.project.scenes)[0] ?? null
+      // Reset editor "view" chrome so a 400% zoom or an active camera preview
+      // from the previous project does not bleed into the freshly loaded one
+      // (TECHNICAL_DEBT_REVIEW §7 — LOAD_PROJECT preserved zoom/preview).
       return {
         ...state,
         project:     action.project,
@@ -26,6 +30,8 @@ export const projectReducer: DomainReducer = (state: CoreState, action: Action) 
         activeScriptPath: null,
         isPlaying:   false,
         bottomTab:   'console',
+        editorZoom:    EDITOR_ZOOM_DEFAULT,
+        cameraPreview: false,
       }
     }
     case 'MARK_PROJECT_SAVED':

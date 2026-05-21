@@ -13,20 +13,20 @@
 
 import { Camera, Eraser, Grid3x3, Hand, ImageIcon, MousePointer2, Pencil } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { useEditor } from '../../store/editor-store'
 import type { EditorTool } from '../../utils/runtime-sync-service'
 import { ZoomControls } from './ZoomControls'
 
+// The toolbar owns tool / guides state (local to PreviewPanel) and a free
+// right slot. Everything else (zoom, camera preview) is store-driven and
+// rendered by the dedicated child components below so we don't drill 11 props
+// through this file (TECHNICAL_DEBT_REVIEW §13).
 interface CanvasToolbarProps {
   activeTool:       EditorTool
   onSelectTool:     (tool: EditorTool) => void
   selectedTileCell: number
   showGuides:       boolean
   onToggleGuides:   () => void
-  zoom:             number
-  onSetZoom:        (zoom: number) => void
-  onFitZoom:        () => void
-  cameraPreview:    boolean
-  onToggleCameraPreview: () => void
   rightSlot?:       ReactNode
 }
 
@@ -34,10 +34,29 @@ function Divider() {
   return <div className="w-px h-5 bg-[var(--border)]" />
 }
 
+/**
+ * Self-contained toggle that mirrors the store's `cameraPreview` flag.
+ * Kept inline in CanvasToolbar because it has no other call sites — moving
+ * it into its own file would add fragmentation without any reuse benefit.
+ */
+function CameraPreviewToggle() {
+  const { state, dispatch } = useEditor()
+  const enabled = state.cameraPreview
+  return (
+    <button
+      onClick={() => dispatch({ type: 'EDITOR_SET_CAMERA_PREVIEW', enabled: !enabled })}
+      title="Camera preview — clip canvas to scene viewportSize (Ctrl+8)"
+      className={`p-1.5 rounded transition-colors ${
+        enabled ? 'bg-[rgb(var(--accent-2-rgb)/0.2)]' : 'hover:bg-[var(--panel-3)]'
+      }`}
+    >
+      <Camera size={15} color={enabled ? 'var(--accent-2)' : 'var(--muted)'} />
+    </button>
+  )
+}
+
 export function CanvasToolbar({
   activeTool, onSelectTool, selectedTileCell, showGuides, onToggleGuides,
-  zoom, onSetZoom, onFitZoom,
-  cameraPreview, onToggleCameraPreview,
   rightSlot,
 }: CanvasToolbarProps) {
   return (
@@ -101,21 +120,11 @@ export function CanvasToolbar({
         <Grid3x3 size={15} color={showGuides ? 'var(--accent)' : 'var(--muted)'} />
       </button>
 
-      <button
-        onClick={onToggleCameraPreview}
-        title="Camera preview — clip canvas to scene viewportSize (Ctrl+8)"
-        className={`p-1.5 rounded transition-colors ${
-          cameraPreview
-            ? 'bg-[rgb(var(--accent-2-rgb)/0.2)]'
-            : 'hover:bg-[var(--panel-3)]'
-        }`}
-      >
-        <Camera size={15} color={cameraPreview ? 'var(--accent-2)' : 'var(--muted)'} />
-      </button>
+      <CameraPreviewToggle />
 
       <Divider />
 
-      <ZoomControls zoom={zoom} onSet={onSetZoom} onFit={onFitZoom} />
+      <ZoomControls />
 
       {/* Right-aligned slot: runtime status badge, future view-mode toggles, etc. */}
       <div className="ml-auto flex items-center gap-2">

@@ -12,6 +12,9 @@ import type {
   LogicBoard, LogicEvent, ComponentKey, WorldSettings, TilesetAsset, ImageAsset,
   SpriteComponent,
 } from '../types'
+import {
+  EDITOR_ZOOM_DEFAULT, DEFAULT_EDITOR_GRID_SIZE,
+} from '../constants/editor-viewport'
 
 // ---- Core state (stable) ---------------------------------------------------
 
@@ -26,10 +29,13 @@ export interface CoreState {
   activeScriptPath: string | null
   isPlaying:        boolean
   selectedTileCell: number   // Phase F: brush cell id (1-based, 0 = eraser)
-  editorGridSize?:  number   // editor-only guide/snap grid, not ProjectDoc tilemap
-  snapToGrid?:      boolean  // editor-only; not persisted in ProjectDoc
-  editorZoom?:      number   // editor-only visual zoom (CSS transform), 0.1-4.0; default 1.0
-  cameraPreview?:   boolean  // editor-only; when true the canvas is clipped to viewportSize (no PLAY needed)
+  // Editor-only chrome (not persisted in ProjectDoc). These are REQUIRED so
+  // consumers don't need `?? default` everywhere — the reducer / project
+  // loader is responsible for keeping them populated.
+  editorGridSize:   number
+  snapToGrid:       boolean
+  editorZoom:       number   // visual zoom (CSS transform), see constants/editor-viewport
+  cameraPreview:    boolean  // when true the canvas is clipped to viewportSize (no PLAY needed)
 }
 
 // ---- Volatile state (high-frequency) ---------------------------------------
@@ -110,9 +116,9 @@ export const initialCoreState: CoreState = {
   activeScriptPath: null,
   isPlaying:        false,
   selectedTileCell: 1,
-  editorGridSize:   32,
+  editorGridSize:   DEFAULT_EDITOR_GRID_SIZE,
   snapToGrid:       false,
-  editorZoom:       1.0,
+  editorZoom:       EDITOR_ZOOM_DEFAULT,
   cameraPreview:    false,
 }
 

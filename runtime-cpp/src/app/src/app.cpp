@@ -230,7 +230,15 @@ bool Application::initSubsystems() {
     EditorAPI::init("#artcade-canvas");
 
 #ifdef ARTCADE_WASM
-    EditorAPI::wireApplication(this);
+    // Replace the previous Application* static (TECHNICAL_DEBT_REVIEW §8) with
+    // a callback. editor_load_project invokes this lambda after the gateway
+    // is repopulated, so cache cleanup / Lua reset / texture rebind all run
+    // in the right order without editor-api needing to depend on app.h.
+    EditorAPI::setProjectLoadedHandler(
+        [this](const std::vector<TilePaletteEntry>& palette,
+               const std::vector<TilesetAsset>&     tilesets) {
+            applyEditorProjectLoaded(palette, tilesets);
+        });
 #endif
 
     return true;

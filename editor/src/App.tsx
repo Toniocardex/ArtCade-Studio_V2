@@ -11,20 +11,18 @@ import ScriptEditorPanel  from './panels/ScriptEditorPanel'
 import AssetBrowserPanel  from './panels/AssetBrowserPanel'
 import TilesetEditorPanel from './panels/TilesetEditorPanel'
 import ConsolePanel       from './panels/ConsolePanel'
-import {
-  openProjectDialog, loadProjectFile, saveProjectFile, saveScript,
-  saveProjectAsDialog, scaffoldNewProjectOnDisk,
-} from './utils/api'
-import { createBlankProject, BLANK_MAIN_LUA } from './utils/project'
+import { createBlankProject } from './utils/project'
 import { runtimeSync } from './utils/runtime-sync-service'
 import { triggerLayoutReflow } from './utils/layout-reflow'
+import { useProjectShortcuts } from './hooks/useProjectShortcuts'
+import { useViewportShortcuts } from './hooks/useViewportShortcuts'
 import type { BottomTab, ConsoleEntry } from './types'
 
-let _kbdLogId = 500
-function kbdLog(message: string, level: ConsoleEntry['level']): ConsoleEntry {
+let _bootLogId = 500
+function bootLog(message: string, level: ConsoleEntry['level']): ConsoleEntry {
   const now = new Date()
   return {
-    id:      ++_kbdLogId,
+    id:      ++_bootLogId,
     time:    now.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
     message,
     level,
@@ -152,149 +150,15 @@ function EditorLayout() {
     const blank = createBlankProject('Untitled')
     runtimeSync.reset()
     dispatch({ type: 'LOAD_PROJECT', project: blank, path: '' })
-    dispatch({ type: 'LOG', entry: kbdLog('OK new blank project (unsaved – use Save Project As to persist).', 'info') })
+    dispatch({ type: 'LOG', entry: bootLog('OK new blank project (unsaved – use Save Project As to persist).', 'info') })
     // Run once at mount; further "new project" actions go through the menu/shortcut.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // ── Global keyboard shortcuts ──────────────────────────────────────────────
-  useEffect(() => {
-    function confirmDirty(actionLabel: string): boolean {
-      if (!state.projectDirty) return true
-      return window.confirm(
-        `You have unsaved changes in "${state.project?.projectName ?? 'this project'}".\n` +
-        `${actionLabel} will discard them. Continue?`
-      )
-    }
-
-    async function saveProjectAsFlow(): Promise<void> {
-      if (!state.project) return
-      const target = await saveProjectAsDialog()
-      if (!target) return
-      try {
-        await scaffoldNewProjectOnDisk(target, state.project, BLANK_MAIN_LUA)
-        dispatch({ type: 'LOAD_PROJECT', project: state.project, path: target })
-        dispatch({ type: 'MARK_PROJECT_SAVED' })
-        dispatch({ type: 'LOG', entry: kbdLog(`OK saved project to ${target}`, 'info') })
-      } catch (err) {
-        dispatch({ type: 'LOG', entry: kbdLog(`Save As failed: ${err}`, 'error') })
-      }
-    }
-
-    async function handleKeyDown(e: KeyboardEvent) {
-      if (!e.ctrlKey) return
-
-      // Ctrl+Shift+S — Save Project As… (checked before Ctrl+S so the
-      // shift modifier is not consumed by the plain Save handler below).
-      if (e.shiftKey && (e.key === 's' || e.key === 'S')) {
-        e.preventDefault()
-        await saveProjectAsFlow()
-        return
-      }
-
-      // Ctrl+S — save active script (script mode) or project (canvas mode)
-      if (!e.shiftKey && (e.key === 's' || e.key === 'S')) {
-        e.preventDefault()
-        if (state.mode === 'canvas') {
-          if (!state.project) return
-          if (!state.projectPath) {
-            await saveProjectAsFlow()
-            return
-          }
-          try {
-            await saveProjectFile(state.projectPath, state.project)
-            dispatch({ type: 'MARK_PROJECT_SAVED' })
-            dispatch({ type: 'LOG', entry: kbdLog(`Saved project "${state.project.projectName}"`, 'info') })
-          } catch (err) {
-            dispatch({ type: 'LOG', entry: kbdLog(`Save project failed: ${err}`, 'error') })
-          }
-          return
-        }
-
-        const script = state.openScripts.find(s => s.path === state.activeScriptPath)
-        if (!script) return
-        if (!script.isDirty) {
-          dispatch({ type: 'LOG', entry: kbdLog(`"${script.path}" already saved.`, 'info') })
-          return
-        }
-        try {
-          await saveScript(script.path, script.content)
-          dispatch({ type: 'MARK_SCRIPT_SAVED', path: script.path })
-          dispatch({ type: 'LOG', entry: kbdLog(`OK saved "${script.path}"`, 'info') })
-        } catch (err) {
-          dispatch({ type: 'LOG', entry: kbdLog(`Save failed: ${err}`, 'error') })
-        }
-        return
-      }
-
-      // Ctrl+N — new blank project (in-memory only).
-      if (!e.shiftKey && (e.key === 'n' || e.key === 'N')) {
-        e.preventDefault()
-        if (!confirmDirty('Creating a new project')) return
-        const blank = createBlankProject('Untitled')
-        runtimeSync.reset()
-        dispatch({ type: 'LOAD_PROJECT', project: blank, path: '' })
-        dispatch({ type: 'LOG', entry: kbdLog('OK new blank project (unsaved - use Ctrl+Shift+S).', 'info') })
-        return
-      }
-
-      // Ctrl+O — open project from disk
-      if (e.key === 'o' || e.key === 'O') {
-        e.preventDefault()
-        if (!confirmDirty('Opening a different project')) return
-        const path = await openProjectDialog()
-        if (!path) return
-        dispatch({ type: 'LOG', entry: kbdLog(`Opening ${path}…`, 'info') })
-        const proj = await loadProjectFile(path)
-        if (!proj) {
-          dispatch({ type: 'LOG', entry: kbdLog('Failed to parse project.json', 'error') })
-          return
-        }
-        runtimeSync.reset()
-        dispatch({ type: 'LOAD_PROJECT', project: proj, path })
-        dispatch({ type: 'LOG', entry: kbdLog(`OK loaded "${proj.projectName}" v${proj.version}`, 'info') })
-        return
-      }
-
-      // Editor zoom shortcuts (canvas mode only — script mode has its own
-      // CodeMirror Ctrl+= bindings we must not steal).
-      if (state.mode !== 'canvas') return
-      const z = state.editorZoom ?? 1.0
-      // Ctrl+0 — reset 100%
-      if (e.key === '0') {
-        e.preventDefault()
-        dispatch({ type: 'EDITOR_SET_ZOOM', zoom: 1.0 })
-        return
-      }
-      // Ctrl+9 — fit to panel (event dispatched, PreviewPanel computes)
-      if (e.key === '9') {
-        e.preventDefault()
-        window.dispatchEvent(new CustomEvent('artcade:zoom-fit'))
-        return
-      }
-      // Ctrl+= / Ctrl++ — zoom in
-      if (e.key === '+' || e.key === '=') {
-        e.preventDefault()
-        dispatch({ type: 'EDITOR_SET_ZOOM', zoom: Math.min(4.0, z * 1.25) })
-        return
-      }
-      // Ctrl+- — zoom out
-      if (e.key === '-' || e.key === '_') {
-        e.preventDefault()
-        dispatch({ type: 'EDITOR_SET_ZOOM', zoom: Math.max(0.1, z / 1.25) })
-        return
-      }
-      // Ctrl+8 — toggle camera preview (clip canvas to scene viewportSize).
-      if (e.key === '8') {
-        e.preventDefault()
-        dispatch({ type: 'EDITOR_SET_CAMERA_PREVIEW', enabled: !state.cameraPreview })
-        return
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [state.openScripts, state.activeScriptPath, state.project, state.projectPath, state.projectDirty, state.mode, state.editorZoom, state.cameraPreview, dispatch])
+  // Global shortcuts are split by concern so each hook only re-binds when its
+  // own state changes (TECHNICAL_DEBT_REVIEW §16).
+  useProjectShortcuts()
+  useViewportShortcuts()
 
   // Script editor mounts only in script mode — reflow after Tauri show / tab switch.
   useEffect(() => {

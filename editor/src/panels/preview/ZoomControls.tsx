@@ -4,53 +4,36 @@
 //
 // Layout:  [ − ]  [ 100% ▾ ]  [ + ]
 //
-//   • [−] / [+]  → step through preset zooms (25/50/75/100/125/150/200/400)
+//   • [−] / [+]  → step through preset zooms (see ZOOM_PRESETS)
 //   • [100% ▾]   → single click opens a preset dropdown
 //                  double click enables manual percentage entry (Enter to apply,
 //                  Esc to cancel)
 //
-// Keyboard shortcuts live in App.tsx so they work even when the zoom widget
-// has no focus (Ctrl+/-, Ctrl+0, Ctrl+9). The widget is purely declarative:
-// it reads `editorZoom` from the store and dispatches `EDITOR_SET_ZOOM`.
+// Keyboard shortcuts live in App.tsx so they work even when this widget has
+// no focus (Ctrl+/-, Ctrl+0, Ctrl+9). The component is self-contained: it
+// reads `editorZoom` from the store, dispatches `EDITOR_SET_ZOOM`, and asks
+// PreviewPanel to fit through `zoomFitRegistry`.
 
 import { useEffect, useRef, useState } from 'react'
 import { Minus, Plus, ChevronDown } from 'lucide-react'
+import { useEditor } from '../../store/editor-store'
+import { formatZoomPercent, nextZoomStep } from '../../utils/editor-zoom'
+import { zoomFitRegistry } from '../../utils/zoom-fit-registry'
+import { ZOOM_PRESETS, ZOOM_PRESET_EPSILON } from '../../constants/editor-viewport'
 
-interface ZoomControlsProps {
-  zoom:    number               // 1.0 = 100%
-  onSet:   (zoom: number) => void
-  onFit:   () => void           // Ctrl+9 / dropdown "Fit"
-}
+export function ZoomControls() {
+  const { state, dispatch } = useEditor()
+  const zoom = state.editorZoom
 
-/**
- * Industry-standard step sequence (Photoshop / Aseprite / Affinity Designer).
- * Tight steps near 100% (the value most editors use most of the time) and
- * wider steps at the extremes.
- */
-const ZOOM_PRESETS = [0.10, 0.25, 0.50, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0, 4.0]
+  const [open, setOpen]       = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft]     = useState('')
+  const inputRef              = useRef<HTMLInputElement>(null)
+  const popoverRef            = useRef<HTMLDivElement>(null)
 
-function nextStep(current: number, dir: 1 | -1): number {
-  if (dir > 0) {
-    const next = ZOOM_PRESETS.find(z => z > current + 0.001)
-    return next ?? ZOOM_PRESETS[ZOOM_PRESETS.length - 1]
+  function setZoom(z: number) {
+    dispatch({ type: 'EDITOR_SET_ZOOM', zoom: z })
   }
-  // Walk presets in reverse to find the first one strictly below current.
-  for (let i = ZOOM_PRESETS.length - 1; i >= 0; i--) {
-    if (ZOOM_PRESETS[i] < current - 0.001) return ZOOM_PRESETS[i]
-  }
-  return ZOOM_PRESETS[0]
-}
-
-function formatPercent(zoom: number): string {
-  return `${Math.round(zoom * 100)}%`
-}
-
-export function ZoomControls({ zoom, onSet, onFit }: ZoomControlsProps) {
-  const [open, setOpen]         = useState(false)
-  const [editing, setEditing]   = useState(false)
-  const [draft, setDraft]       = useState('')
-  const inputRef                = useRef<HTMLInputElement>(null)
-  const popoverRef              = useRef<HTMLDivElement>(null)
 
   // Close the dropdown when clicking elsewhere; standard combobox behaviour.
   useEffect(() => {
@@ -74,7 +57,7 @@ export function ZoomControls({ zoom, onSet, onFit }: ZoomControlsProps) {
 
   function commitDraft() {
     const n = parseFloat(draft.replace(',', '.').replace('%', ''))
-    if (Number.isFinite(n) && n > 0) onSet(n / 100)
+    if (Number.isFinite(n) && n > 0) setZoom(n / 100)
     setEditing(false)
     setDraft('')
   }
@@ -86,17 +69,15 @@ export function ZoomControls({ zoom, onSet, onFit }: ZoomControlsProps) {
 
   return (
     <div className="relative flex items-center gap-0.5" ref={popoverRef}>
-      {/* Minus */}
       <button
         type="button"
-        onClick={() => onSet(nextStep(zoom, -1))}
+        onClick={() => setZoom(nextZoomStep(zoom, -1))}
         title="Zoom out (Ctrl+-)"
         className="p-1 rounded text-[var(--muted)] hover:bg-[var(--panel-3)] hover:text-[var(--text)] transition-colors"
       >
         <Minus size={13} />
       </button>
 
-      {/* Combobox label */}
       {editing
         ? (
           <input
@@ -119,28 +100,26 @@ export function ZoomControls({ zoom, onSet, onFit }: ZoomControlsProps) {
             type="button"
             onClick={() => setOpen(v => !v)}
             onDoubleClick={() => { setDraft(String(Math.round(zoom * 100))); setEditing(true) }}
-            title={`Zoom: ${formatPercent(zoom)} — click for presets, double-click to type`}
+            title={`Zoom: ${formatZoomPercent(zoom)} — click for presets, double-click to type`}
             className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold
                        text-[var(--text)] bg-[var(--bg)]
                        hover:bg-[var(--panel-3)] border border-[var(--border)]
                        min-w-[3.5rem] justify-center transition-colors"
           >
-            {formatPercent(zoom)}
+            {formatZoomPercent(zoom)}
             <ChevronDown size={10} className="text-[var(--muted)]" />
           </button>
         )}
 
-      {/* Plus */}
       <button
         type="button"
-        onClick={() => onSet(nextStep(zoom, +1))}
+        onClick={() => setZoom(nextZoomStep(zoom, +1))}
         title="Zoom in (Ctrl++)"
         className="p-1 rounded text-[var(--muted)] hover:bg-[var(--panel-3)] hover:text-[var(--text)] transition-colors"
       >
         <Plus size={13} />
       </button>
 
-      {/* Dropdown */}
       {open && !editing && (
         <div className="absolute top-full right-0 mt-1 z-50
                         bg-[var(--panel)] border border-[var(--border)] rounded-lg shadow-xl
@@ -149,18 +128,18 @@ export function ZoomControls({ zoom, onSet, onFit }: ZoomControlsProps) {
             <button
               key={p}
               type="button"
-              onClick={() => { onSet(p); setOpen(false) }}
+              onClick={() => { setZoom(p); setOpen(false) }}
               className={`block w-full text-left px-3 py-1 text-[10px] font-mono
                           hover:bg-[var(--panel-3)] transition-colors
-                          ${Math.abs(p - zoom) < 0.001 ? 'text-[var(--accent)] font-bold' : 'text-[var(--text)]'}`}
+                          ${Math.abs(p - zoom) < ZOOM_PRESET_EPSILON ? 'text-[var(--accent)] font-bold' : 'text-[var(--text)]'}`}
             >
-              {formatPercent(p)}
+              {formatZoomPercent(p)}
             </button>
           ))}
           <div className="my-1 h-px bg-[var(--border)]" />
           <button
             type="button"
-            onClick={() => { onFit(); setOpen(false) }}
+            onClick={() => { zoomFitRegistry.invoke(); setOpen(false) }}
             className="block w-full text-left px-3 py-1 text-[10px] font-bold
                        text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--panel-3)] transition-colors"
             title="Ctrl+9"
