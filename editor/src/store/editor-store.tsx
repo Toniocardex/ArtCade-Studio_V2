@@ -296,6 +296,19 @@ export function coreReducer(state: CoreState, action: Action): CoreState {
     case 'UPDATE_ENTITY_TRANSFORM': {
       if (!state.project || !state.project.entities[action.entityId]) return state
       const entity = state.project.entities[action.entityId]
+      const t = entity.transform
+      // Equality guard: the C++ runtime echoes a transform on every mouse-up,
+      // even when the user clicked without moving. Treating those echoes as
+      // mutations marks the project dirty for nothing (P2 in
+      // TECHNICAL_DEBT_REVIEW.md). 1e-4 world units ≈ sub-pixel.
+      const EPS = 1e-4
+      const unchanged =
+        Math.abs(t.position.x - action.x) < EPS &&
+        Math.abs(t.position.y - action.y) < EPS &&
+        Math.abs(t.rotation   - action.rotation) < EPS &&
+        Math.abs(t.scale.x    - action.scaleX) < EPS &&
+        Math.abs(t.scale.y    - action.scaleY) < EPS
+      if (unchanged) return state
       return {
         ...state,
         project: {

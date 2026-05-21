@@ -12,6 +12,7 @@ import {
 } from '../utils/wasm-bridge'
 import { readProjectImageBytes } from '../utils/api'
 import { dirName } from '../utils/project'
+import { runtimeProjectFingerprint } from '../utils/runtime-fingerprint'
 
 import { WASM_RUNTIME_SRC } from '../utils/runtime-path'
 
@@ -252,37 +253,17 @@ export default function PreviewPanel() {
     }))
   }, [mode, dispatch])
 
-  // ── Re-sync project into C++ whenever the user opens a new project ────────
+  // ── Re-sync project into C++ when runtime-affecting fields change ─────────
+  // The fingerprint captures every ProjectDoc field the C++ runtime actually
+  // reads (entities, components, sprite tint, tilemap structure, scene
+  // settings, ...). tilemap.data is intentionally excluded — during paint the
+  // runtime echoes cells back through `onTilemapPainted`, so resyncing on
+  // every cell would flood `editor_load_project` (P2 — TECHNICAL_DEBT_REVIEW).
   useEffect(() => {
     if (!wasmReady || !engineReady || !project) return
     const runtimeSceneId = selection.sceneId ?? project.activeSceneId
-    // NOTE: tilemap.data is intentionally NOT in the key — during in-scene
-    // painting the C++ runtime is the source of truth and notifies React;
-    // re-syncing the whole project on every cell would flood editor_load_project.
-    // The tilemap STRUCTURE (cols/rows/tilesetAssetId) IS included so that
-    // creating/attaching a tileset re-syncs once and the runtime gets the layer.
-    const activeScene = project.scenes[runtimeSceneId]
-    const at = activeScene?.tilemap
-    // Sprite-assignment fingerprint: assigning a sprite to an entity mutates
-    // only entity.sprite.spriteAssetId — without this the loadKey wouldn't
-    // change and the runtime would never receive the new sprite (assets
-    // loaded but "not assigned"). Small (one short string per entity).
-    const spriteFp = Object.values(project.entities)
-      .map((e) => e.sprite?.spriteAssetId ?? '')
-      .join(',')
-    const sceneSizeFp = Object.values(project.scenes)
-      .map((s) => `${s.id}:${s.worldSize.x}x${s.worldSize.y}:${s.viewportSize.x}x${s.viewportSize.y}`)
-      .join(',')
-    const loadKey = [
-      projectPath ?? project.projectName,
-      project.version,
-      runtimeSceneId,
-      Object.keys(project.entities).length,
-      Object.keys(project.scenes).length,
-      sceneSizeFp,
-      at ? `${at.tileSize}:${at.cols}x${at.rows}:${at.tilesetAssetId ?? ''}` : 'no-tm',
-      spriteFp,
-    ].join('|')
+    const fp = runtimeProjectFingerprint(project, runtimeSceneId)
+    const loadKey = `${projectPath ?? ''}|${fp}`
     if (lastProjectLoadKeyRef.current === loadKey) return
     lastProjectLoadKeyRef.current = loadKey
     syncEditorRuntimeState({
