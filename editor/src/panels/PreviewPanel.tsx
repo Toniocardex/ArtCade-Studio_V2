@@ -1,4 +1,4 @@
-import { useRef, useLayoutEffect, useState } from 'react'
+import { useEffect, useRef, useLayoutEffect, useState } from 'react'
 import { useEditor } from '../store/editor-store'
 import type { ConsoleEntry } from '../types'
 import { isReady } from '../utils/wasm-bridge'
@@ -45,10 +45,11 @@ export default function PreviewPanel() {
   const { state, dispatch } = useEditor()
   const {
     project, projectPath, isPlaying, selection, selectedTileCell, mode,
-    editorGridSize, snapToGrid,
+    editorGridSize, snapToGrid, editorZoom,
   } = state
 
   const canvasRef           = useRef<HTMLCanvasElement>(null)
+  const scrollRef           = useRef<HTMLDivElement>(null)
   const registeredAssetsRef = useRef<Set<string>>(new Set())
   const sceneIdRef          = useRef<string>('')
   const snapToGridRef       = useRef(false)
@@ -136,9 +137,74 @@ export default function PreviewPanel() {
   // The editor canvas matches the SCENE worldSize (the playable level).
   // Long levels (e.g. 4096x640 platformer) → the surrounding container has
   // overflow:auto so scrollbars appear; the pan tool still works for camera
-  // dragging. viewportSize stays as the runtime camera lens and will be drawn
-  // as an overlay rectangle in a follow-up.
+  // dragging. viewportSize is drawn as an amber overlay by the C++
+  // editor-overlay-renderer.
   const res = selectedScene?.worldSize ?? { x: 1280, y: 720 }
+  const zoom = editorZoom ?? 1.0
+  const scaledW = Math.round(res.x * zoom)
+  const scaledH = Math.round(res.y * zoom)
+
+  // Compute fit-to-panel zoom: largest scale where the world fits inside the
+  // visible scroll container, clamped to the EDITOR_SET_ZOOM reducer range.
+  function computeFitZoom(): number {
+    const el = scrollRef.current
+    if (!el) return 1.0
+    const padding = 48 // matches the p-6 wrapper on each side
+    const availW = Math.max(1, el.clientWidth  - padding)
+    const availH = Math.max(1, el.clientHeight - padding)
+    return Math.min(availW / res.x, availH / res.y)
+  }
+
+  function setZoom(next: number) {
+    dispatch({ type: 'EDITOR_SET_ZOOM', zoom: next })
+  }
+
+  function fitZoom() {
+    setZoom(computeFitZoom())
+  }
+
+  // Bridge for the Ctrl+9 keyboard shortcut owned by App.tsx — keeping the
+  // fit math here means we have one source of truth for "what fits" without
+  // hoisting scrollRef into App.tsx.
+  useEffect(() => {
+    function onFitEvent() { fitZoom() }
+    window.addEventListener('artcade:zoom-fit', onFitEvent)
+    return () => window.removeEventListener('artcade:zoom-fit', onFitEvent)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [res.x, res.y])
+
+  // Ctrl + wheel: zoom anchored at the cursor (Figma/Photoshop behaviour).
+  // Without anchoring, zooming "in" always re-centres on the world origin and
+  // the user loses the point they were inspecting.
+  function handleWheel(e: React.WheelEvent<HTMLDivElement>) {
+    if (!e.ctrlKey) return
+    e.preventDefault()
+    const el = scrollRef.current
+    if (!el) return
+
+    // Cursor position relative to the scroll container's viewport.
+    const rect    = el.getBoundingClientRect()
+    const cursorX = e.clientX - rect.left
+    const cursorY = e.clientY - rect.top
+
+    // World point currently under the cursor (independent of zoom).
+    const worldX = (el.scrollLeft + cursorX) / zoom
+    const worldY = (el.scrollTop  + cursorY) / zoom
+
+    // Exponential step keeps the "feel" linear regardless of current zoom.
+    const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1
+    const nextZoom = Math.min(4.0, Math.max(0.1, zoom * factor))
+    dispatch({ type: 'EDITOR_SET_ZOOM', zoom: nextZoom })
+
+    // After React applies the new wrapper width, scroll so the cursor still
+    // sits on the same world point. requestAnimationFrame waits for the
+    // re-render so scrollWidth/scrollHeight reflect the new size.
+    requestAnimationFrame(() => {
+      if (!scrollRef.current) return
+      scrollRef.current.scrollLeft = worldX * nextZoom - cursorX
+      scrollRef.current.scrollTop  = worldY * nextZoom - cursorY
+    })
+  }
 
   // Background colour while WASM has not yet painted (prevents white flash).
   const bgColor = (() => {
@@ -156,40 +222,54 @@ export default function PreviewPanel() {
         selectedTileCell={selectedTileCell}
         showGuides={showEditorGuides}
         onToggleGuides={() => setShowEditorGuides(v => !v)}
+        zoom={zoom}
+        onSetZoom={setZoom}
+        onFitZoom={fitZoom}
         rightSlot={<RuntimeStatusBadge wasmReady={wasmReady} hasProject={!!project} />}
       />
 
       {/* Viewport area.
-          Scrollable wrapper: when the scene worldSize exceeds the panel size
-          (e.g. a 4096x640 platformer) the browser shows native scrollbars; the
-          inner flex centring keeps small scenes vertically + horizontally
-          aligned inside the available space. */}
-      <div className="flex-1 overflow-auto p-6">
+          Scrollable wrapper: native scrollbars appear when the (zoomed) scene
+          exceeds the panel; the inner flex centring keeps small scenes aligned
+          when they fit. Ctrl+wheel zooms anchored at the cursor. */}
+      <div
+        ref={scrollRef}
+        onWheel={handleWheel}
+        className="flex-1 overflow-auto p-6"
+      >
         <div className="min-w-full min-h-full flex items-center justify-center">
-          {/* The C++ WASM runtime renders directly into this canvas. Emscripten
-              targets it via window.Module.canvas (see wasm-bridge.ts).
-
-              Sizing strategy:
-                - width/height HTML attrs set the WebGL pixel resolution
-                  (= scene worldSize, the playable level dimensions).
-                - We render at NATIVE pixel size: a 4096x640 level is a
-                  4096x640 canvas. The parent has overflow:auto so the user
-                  scrolls/pans through it. No CSS scaling = pixel-perfect
-                  level design. A future zoom slider can override this via
-                  CSS transform without touching the WebGL framebuffer. */}
-          <canvas
-            ref={canvasRef}
-            id="artcade-canvas"
-            width={res.x}
-            height={res.y}
-            className="border border-[var(--border)] shadow-2xl"
+          {/* Sized wrapper = the visual footprint of the canvas at the current
+              zoom. Layout uses this size for scrolling; the canvas inside is
+              still at native worldSize and is visually scaled via CSS
+              transform. The C++ input controller picks the correct mouse
+              coords because it reads CSS-vs-internal canvas size at runtime. */}
+          <div
             style={{
-              display:     'block',
-              width:       `${res.x}px`,
-              height:      `${res.y}px`,
-              background:  bgColor,
+              width:    `${scaledW}px`,
+              height:   `${scaledH}px`,
+              position: 'relative',
+              flexShrink: 0,
             }}
-          />
+          >
+            <canvas
+              ref={canvasRef}
+              id="artcade-canvas"
+              width={res.x}
+              height={res.y}
+              className="border border-[var(--border)] shadow-2xl"
+              style={{
+                display:         'block',
+                position:        'absolute',
+                top:             0,
+                left:            0,
+                width:           `${res.x}px`,
+                height:          `${res.y}px`,
+                transform:       `scale(${zoom})`,
+                transformOrigin: '0 0',
+                background:      bgColor,
+              }}
+            />
+          </div>
         </div>
       </div>
     </div>

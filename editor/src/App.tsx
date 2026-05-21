@@ -253,12 +253,42 @@ function EditorLayout() {
         runtimeSync.reset()
         dispatch({ type: 'LOAD_PROJECT', project: proj, path })
         dispatch({ type: 'LOG', entry: kbdLog(`OK loaded "${proj.projectName}" v${proj.version}`, 'info') })
+        return
+      }
+
+      // Editor zoom shortcuts (canvas mode only — script mode has its own
+      // CodeMirror Ctrl+= bindings we must not steal).
+      if (state.mode !== 'canvas') return
+      const z = state.editorZoom ?? 1.0
+      // Ctrl+0 — reset 100%
+      if (e.key === '0') {
+        e.preventDefault()
+        dispatch({ type: 'EDITOR_SET_ZOOM', zoom: 1.0 })
+        return
+      }
+      // Ctrl+9 — fit to panel (event dispatched, PreviewPanel computes)
+      if (e.key === '9') {
+        e.preventDefault()
+        window.dispatchEvent(new CustomEvent('artcade:zoom-fit'))
+        return
+      }
+      // Ctrl+= / Ctrl++ — zoom in
+      if (e.key === '+' || e.key === '=') {
+        e.preventDefault()
+        dispatch({ type: 'EDITOR_SET_ZOOM', zoom: Math.min(4.0, z * 1.25) })
+        return
+      }
+      // Ctrl+- — zoom out
+      if (e.key === '-' || e.key === '_') {
+        e.preventDefault()
+        dispatch({ type: 'EDITOR_SET_ZOOM', zoom: Math.max(0.1, z / 1.25) })
+        return
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [state.openScripts, state.activeScriptPath, state.project, state.projectPath, state.projectDirty, state.mode, dispatch])
+  }, [state.openScripts, state.activeScriptPath, state.project, state.projectPath, state.projectDirty, state.mode, state.editorZoom, dispatch])
 
   // Script editor mounts only in script mode — reflow after Tauri show / tab switch.
   useEffect(() => {

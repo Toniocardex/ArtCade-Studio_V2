@@ -14,6 +14,7 @@
 import { Eraser, Grid3x3, Hand, ImageIcon, MousePointer2, Pencil } from 'lucide-react'
 import type { ReactNode } from 'react'
 import type { EditorTool } from '../../utils/runtime-sync-service'
+import { ZoomControls } from './ZoomControls'
 
 interface CanvasToolbarProps {
   activeTool:       EditorTool
@@ -21,6 +22,9 @@ interface CanvasToolbarProps {
   selectedTileCell: number
   showGuides:       boolean
   onToggleGuides:   () => void
+  zoom:             number
+  onSetZoom:        (zoom: number) => void
+  onFitZoom:        () => void
   rightSlot?:       ReactNode
 }
 
@@ -30,6 +34,7 @@ function Divider() {
 
 export function CanvasToolbar({
   activeTool, onSelectTool, selectedTileCell, showGuides, onToggleGuides,
+  zoom, onSetZoom, onFitZoom,
   rightSlot,
 }: CanvasToolbarProps) {
   return (
@@ -93,7 +98,11 @@ export function CanvasToolbar({
         <Grid3x3 size={15} color={showGuides ? 'var(--accent)' : 'var(--muted)'} />
       </button>
 
-      {/* Right-aligned slot: runtime status badge, future zoom controls, etc. */}
+      <Divider />
+
+      <ZoomControls zoom={zoom} onSet={onSetZoom} onFit={onFitZoom} />
+
+      {/* Right-aligned slot: runtime status badge, future view-mode toggles, etc. */}
       <div className="ml-auto flex items-center gap-2">
         {rightSlot}
       </div>

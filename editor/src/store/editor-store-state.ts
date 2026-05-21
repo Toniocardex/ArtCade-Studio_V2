@@ -28,6 +28,7 @@ export interface CoreState {
   selectedTileCell: number   // Phase F: brush cell id (1-based, 0 = eraser)
   editorGridSize?:  number   // editor-only guide/snap grid, not ProjectDoc tilemap
   snapToGrid?:      boolean  // editor-only; not persisted in ProjectDoc
+  editorZoom?:      number   // editor-only visual zoom (CSS transform), 0.1-4.0; default 1.0
 }
 
 // ---- Volatile state (high-frequency) ---------------------------------------
@@ -74,6 +75,7 @@ export type Action =
   | { type: 'SCENE_SET_VIEWPORT_SIZE'; sceneId: string; x: number; y: number }
   | { type: 'EDITOR_SET_GRID_SIZE'; tileSize: number }
   | { type: 'SET_SNAP_TO_GRID'; enabled: boolean }
+  | { type: 'EDITOR_SET_ZOOM'; zoom: number }
   | { type: 'TILEMAP_INIT';  sceneId: string }
   | { type: 'TILEMAP_PAINT'; sceneId: string; index: number; tileId: number }
   | { type: 'TILEMAP_PAINT_CELL'; sceneId: string; col: number; row: number; tileId: number }
@@ -108,6 +110,7 @@ export const initialCoreState: CoreState = {
   selectedTileCell: 1,
   editorGridSize:   32,
   snapToGrid:       false,
+  editorZoom:       1.0,
 }
 
 export const initialVolatileState: VolatileState = {

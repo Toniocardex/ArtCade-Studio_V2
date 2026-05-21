@@ -32,6 +32,15 @@ export const uiReducer: DomainReducer = (state: CoreState, action: Action) => {
       return state.snapToGrid === action.enabled
         ? state
         : { ...state, snapToGrid: action.enabled }
+    case 'EDITOR_SET_ZOOM': {
+      // Clamp to a sensible range. 10% is the lowest readable; 400% is the
+      // industry-standard upper bound for 2D editors (Photoshop, Aseprite).
+      const clamped = Math.min(4.0, Math.max(0.1, action.zoom))
+      // Snap to 3 decimals so floating-point drift from wheel-zoom never
+      // produces "99.9999%" labels in the toolbar.
+      const next = Math.round(clamped * 1000) / 1000
+      return state.editorZoom === next ? state : { ...state, editorZoom: next }
+    }
     case 'TILESET_SELECT_CELL':
       return { ...state, selectedTileCell: Math.max(0, action.cellIndex) }
     default:
