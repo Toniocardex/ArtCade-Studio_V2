@@ -67,9 +67,20 @@ void drawGuides(Modules::Renderer& renderer,
             renderer.drawLine(0.f, y, w, y, grid);
     }
 
-    // World bounds (cyan) — the playable level outline.
-    drawRectOutline(renderer, 0.f, 0.f, w, h, Vec4{0.f, 0.95f, 1.f, 0.9f});
-
+    // World bounds outline is no longer drawn inside the canvas.
+    //
+    // It used to be `drawRectOutline(0, 0, w, h, cyan)` here, but inside the
+    // WebGL framebuffer a 2-world-pixel border becomes < 1 device pixel at
+    // low CSS zoom (e.g. 25% on a 4096-wide platformer level). Sub-pixel
+    // antialiasing + alpha 0.9 made the line look grey and incomplete on
+    // the bottom / right edges, regardless of how we authored it. The fix
+    // is structural: the world-bounds outline is an EDITOR UI concern, not
+    // a rendering concern — PreviewPanel now draws a CSS border on the
+    // canvas wrapper (sized to worldSize * zoom), which the browser renders
+    // pixel-perfect on all four sides at any zoom level. The grid below and
+    // the viewport overlay further down stay world-space because they ARE
+    // world data that must stay aligned to the scene coordinates.
+    //
     // Camera viewport preview (amber) — the rectangle the player will see
     // in PLAY mode. Centred inside the world so the designer immediately
     // grasps the "camera lens" relative to the level. Drawn only when the

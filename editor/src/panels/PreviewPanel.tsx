@@ -340,6 +340,16 @@ export default function PreviewPanel() {
               still at native worldSize and is visually scaled via CSS
               transform. The C++ input controller picks the correct mouse
               coords because it reads CSS-vs-internal canvas size at runtime. */}
+          {/* The cyan world-bounds outline used to live inside the canvas
+              (rendered by C++ editor-overlay). At low CSS zoom (25% on a
+              4096-wide level) a 2-world-pixel line becomes < 1 device pixel
+              after CSS scaling — sub-pixel antialiasing + edge alpha made
+              it look incomplete on the bottom / right sides. The wrapper
+              below is exactly sized to worldSize * zoom, so its CSS border
+              IS the world-bounds outline, and the browser renders it
+              pixel-perfect on all four sides at any zoom. The runtime no
+              longer draws the rect; only grid + amber viewport stay
+              world-space (those are world-aligned data, not chrome). */}
           <div
             style={{
               width:      `${frameW}px`,
@@ -350,7 +360,11 @@ export default function PreviewPanel() {
               boxShadow:  preview
                 ? '0 0 0 2px var(--accent-2), 0 25px 50px -12px rgb(0 0 0 / 0.5)'
                 : '0 25px 50px -12px rgb(0 0 0 / 0.5)',
-              border:     preview ? 'none' : '1px solid var(--border)',
+              border:     preview
+                ? 'none'
+                : showEditorGuides
+                  ? '2px solid #00F2FFE6' // cyan world-bounds (matches old C++ outline)
+                  : '1px solid var(--border)',
             }}
           >
             <canvas
