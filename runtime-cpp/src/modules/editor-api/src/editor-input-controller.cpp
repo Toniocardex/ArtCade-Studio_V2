@@ -85,14 +85,14 @@ uint32_t pickEntityAt(float x, float y) {
     if (!gw) return 0u;
     uint32_t hit = 0u;
     for (EntityId id : gw->activeSceneIds()) {
-        const EntityDef* e = gw->get(id);
-        if (!e) continue;
-        float sx = e->transform.scale.x; if (sx < 0.f) sx = -sx;
-        float sy = e->transform.scale.y; if (sy < 0.f) sy = -sy;
+        Transform transform{};
+        if (!gw->getTransform(id, transform)) continue;
+        float sx = transform.scale.x; if (sx < 0.f) sx = -sx;
+        float sy = transform.scale.y; if (sy < 0.f) sy = -sy;
         const float hw = 32.f * (sx > 0.f ? sx : 1.f);
         const float hh = 32.f * (sy > 0.f ? sy : 1.f);
-        const float cx = e->transform.position.x;
-        const float cy = e->transform.position.y;
+        const float cx = transform.position.x;
+        const float cy = transform.position.y;
         if (x >= cx - hw && x <= cx + hw && y >= cy - hh && y <= cy + hh)
             hit = id; // later in the list = drawn on top -> wins
     }
@@ -123,10 +123,11 @@ EM_BOOL EditorAPI::onMouseMove(int, const EmscriptenMouseEvent* e, void*) {
     }
     if (s_isDragging && s_selectedEntityId != 0u) {
         if (s_entityGateway) {
-            EntityDef* ent = s_entityGateway->get(s_selectedEntityId);
-            if (ent) {
-                ent->transform.position.x = wx;
-                ent->transform.position.y = wy;
+            Transform transform{};
+            if (s_entityGateway->getTransform(s_selectedEntityId, transform)) {
+                transform.position.x = wx;
+                transform.position.y = wy;
+                s_entityGateway->setTransform(s_selectedEntityId, transform);
             }
         }
     }
@@ -172,12 +173,13 @@ EM_BOOL EditorAPI::onMouseUp(int, const EmscriptenMouseEvent* e, void*) {
         toWorld(e, finalX, finalY);
         float rot = 0.f, sx = 1.f, sy = 1.f;
         if (s_entityGateway) {
-            if (const EntityDef* ent = s_entityGateway->get(s_selectedEntityId)) {
-                finalX = ent->transform.position.x;
-                finalY = ent->transform.position.y;
-                rot    = ent->transform.rotation;
-                sx     = ent->transform.scale.x;
-                sy     = ent->transform.scale.y;
+            Transform transform{};
+            if (s_entityGateway->getTransform(s_selectedEntityId, transform)) {
+                finalX = transform.position.x;
+                finalY = transform.position.y;
+                rot    = transform.rotation;
+                sx     = transform.scale.x;
+                sy     = transform.scale.y;
             }
         }
         notifyTransformChanged(s_selectedEntityId, finalX, finalY, rot, sx, sy);

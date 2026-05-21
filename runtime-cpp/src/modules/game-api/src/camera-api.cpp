@@ -13,7 +13,7 @@
 // Renderer::setCameraPosition / setCameraZoom / getCameraPosition / getCameraZoom.
 
 #include "../include/game-api.h"
-#include "../../entity-system/include/entity-manager.h"
+#include "../../runtime-entity-gateway/include/runtime-entity-gateway.h"
 #include "../../renderer/include/renderer.h"
 
 #include <sol/sol.hpp>
@@ -22,7 +22,7 @@ namespace ArtCade::Modules {
 
 void GameAPI::bindCameraAPI(sol::state& lua) {
     auto* renderer = ctx_.renderer;
-    auto* em       = ctx_.entityManager;
+    auto* entities = ctx_.entityGateway;
 
     // camera.setPosition(x, y)
     lua.set_function("camera_setPosition", [renderer](float x, float y) {
@@ -48,11 +48,11 @@ void GameAPI::bindCameraAPI(sol::state& lua) {
     });
 
     // camera.centerOn(entityId) — set camera target to entity position
-    lua.set_function("camera_centerOn", [renderer, em](EntityId id) {
-        if (!renderer || !em) return;
-        auto* e = em->get(id);
-        if (!e) return;
-        renderer->setCameraPosition(e->transform.position);
+    lua.set_function("camera_centerOn", [renderer, entities](EntityId id) {
+        if (!renderer || !entities) return;
+        Transform transform{};
+        if (!entities->getTransform(id, transform)) return;
+        renderer->setCameraPosition(transform.position);
     });
 
     // camera.x() / camera.y() — read back camera target

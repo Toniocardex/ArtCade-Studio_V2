@@ -92,6 +92,7 @@ private:
     struct RuntimeEntityState {
         bool sceneActive = false;
         uint32_t physicsHandle = 0;
+        Transform transform;
     };
 
     std::unordered_map<EntityId, RuntimeEntityState> runtimeState_;

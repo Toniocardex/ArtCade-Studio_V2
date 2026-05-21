@@ -85,7 +85,8 @@ void GameAPI::bindPhysicsAPI(sol::state& lua) {
                       float w, float h) -> uint32_t
         {
             auto* e = entities->get(id);
-            if (!e) return 0;
+            Transform transform{};
+            if (!e || !entities->getTransform(id, transform)) return 0;
 
             PhysicsComponent comp;
             comp.bodyType =
@@ -103,7 +104,7 @@ void GameAPI::bindPhysicsAPI(sol::state& lua) {
             if (handle == 0) return 0;
 
             // Place body at entity's JSON spawn position
-            physics->setPosition(handle, e->transform.position);
+            physics->setPosition(handle, transform.position);
 
             e->physics.bodyType      = comp.bodyType;
             e->physics.collider      = comp.collider;

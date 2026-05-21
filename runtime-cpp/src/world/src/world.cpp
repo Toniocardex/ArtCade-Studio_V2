@@ -116,13 +116,14 @@ SceneId World::activeSceneId() const {
 
 void World::syncPhysicsToEntities() {
     for (EntityId id : entityGateway_.activeSceneIds()) {
-        auto* e = entityGateway_.get(id);
         const uint32_t handle = entityGateway_.physicsHandle(id);
-        if (!e || handle == 0) continue;
+        if (handle == 0) continue;
 
-        e->transform.position = physics_.getPosition(handle);
-        auto vel = physics_.getLinearVelocity(handle);
-        e->transform.velocity = vel;
+        Transform transform{};
+        if (!entityGateway_.getTransform(id, transform)) continue;
+        transform.position = physics_.getPosition(handle);
+        transform.velocity = physics_.getLinearVelocity(handle);
+        entityGateway_.setTransform(id, transform);
     }
 }
 
@@ -261,22 +262,24 @@ void World::flushEntityQueues() {
 
 void World::snapEntityToGrid(EntityId id, float cellSize) {
     if (cellSize <= 0.f) return;
-    auto* e = entityGateway_.get(id);
-    if (!e) return;
+    Transform transform{};
+    if (!entityGateway_.getTransform(id, transform)) return;
     const float cs = cellSize;
-    e->transform.position.x = std::round(e->transform.position.x / cs) * cs;
-    e->transform.position.y = std::round(e->transform.position.y / cs) * cs;
+    transform.position.x = std::round(transform.position.x / cs) * cs;
+    transform.position.y = std::round(transform.position.y / cs) * cs;
+    entityGateway_.setTransform(id, transform);
     if (const uint32_t handle = entityGateway_.physicsHandle(id); handle != 0)
-        physics_.setPosition(handle, e->transform.position);
+        physics_.setPosition(handle, transform.position);
 }
 
 void World::moveEntityByOffset(EntityId id, float dx, float dy) {
-    auto* e = entityGateway_.get(id);
-    if (!e) return;
-    e->transform.position.x += dx;
-    e->transform.position.y += dy;
+    Transform transform{};
+    if (!entityGateway_.getTransform(id, transform)) return;
+    transform.position.x += dx;
+    transform.position.y += dy;
+    entityGateway_.setTransform(id, transform);
     if (const uint32_t handle = entityGateway_.physicsHandle(id); handle != 0)
-        physics_.setPosition(handle, e->transform.position);
+        physics_.setPosition(handle, transform.position);
 }
 
 bool World::isSpaceFree(float x, float y, float w, float h) const {

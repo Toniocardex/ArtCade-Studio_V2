@@ -90,7 +90,10 @@ void RuntimeEntityGateway::ensurePhysicsBody(EntityDef& def) {
 
     def.physics = comp;
     setPhysicsHandle(def.id, handle);
-    physics_->setPosition(handle, def.transform.position);
+    Transform transform{};
+    if (!getTransform(def.id, transform))
+        transform = def.transform;
+    physics_->setPosition(handle, transform.position);
 
     if (def.sensor)
         physics_->addSensorFixture(handle, *def.sensor);
@@ -138,9 +141,12 @@ EntityId RuntimeEntityGateway::create(const EntityDef& def) {
     const EntityId id = entityManager_.createEntity(copy);
     runtimeState_[id].sceneActive = entityListedInActiveScene(id);
     runtimeState_[id].physicsHandle = 0;
+    runtimeState_[id].transform = copy.transform;
     EntityDef* e = entityManager_.get(id);
-    if (e)
+    if (e) {
         e->runtime.sceneActive = runtimeState_[id].sceneActive;
+        e->transform = runtimeState_[id].transform;
+    }
     if (e && runtimeState_[id].sceneActive)
         ensurePhysicsBody(*e);
     return id;
@@ -177,6 +183,7 @@ EntityId RuntimeEntityGateway::spawnFromClass(const std::string& className, floa
 
     const EntityId id = entityManager_.createEntity(copy);
     runtimeState_[id].physicsHandle = 0;
+    runtimeState_[id].transform = copy.transform;
     if (SceneDef* scene = sceneManager_.activeSceneMutable()) {
         if (std::find(scene->entityIds.begin(), scene->entityIds.end(), id)
             == scene->entityIds.end())
@@ -240,26 +247,34 @@ const EntityDef* RuntimeEntityGateway::get(EntityId id) const {
 }
 
 bool RuntimeEntityGateway::getTransform(EntityId id, Transform& out) const {
+    if (!entityManager_.exists(id)) return false;
+    auto it = runtimeState_.find(id);
+    if (it != runtimeState_.end()) {
+        out = it->second.transform;
+        return true;
+    }
     const auto* entity = entityManager_.get(id);
     if (!entity) return false;
-    out = entity->transform;
+    out = entity->transform; // Compatibility fallback for legacy setup paths.
     return true;
 }
 
 bool RuntimeEntityGateway::setTransform(EntityId id, const Transform& transform) {
     auto* entity = entityManager_.get(id);
     if (!entity) return false;
+    runtimeState_[id].transform = transform;
+    // Compatibility mirror until EntityDef stops carrying authored/runtime transforms.
     entity->transform = transform;
     return true;
 }
 
 bool RuntimeEntityGateway::setTransform(EntityId id, Vec2 position, float rotation, Vec2 scale) {
-    auto* entity = entityManager_.get(id);
-    if (!entity) return false;
-    entity->transform.position = position;
-    entity->transform.rotation = rotation;
-    entity->transform.scale    = scale;
-    return true;
+    Transform transform{};
+    if (!getTransform(id, transform)) return false;
+    transform.position = position;
+    transform.rotation = rotation;
+    transform.scale    = scale;
+    return setTransform(id, transform);
 }
 
 uint32_t RuntimeEntityGateway::physicsHandle(EntityId id) const {
@@ -342,6 +357,8 @@ bool RuntimeEntityGateway::replaceProject(
         copy.physics.physicsHandle = 0;
         const EntityId runtimeId = entityManager_.createEntity(copy);
         runtimeState_[runtimeId].sceneActive = false;
+        runtimeState_[runtimeId].physicsHandle = 0;
+        runtimeState_[runtimeId].transform = copy.transform;
     }
 
     if (!activeSceneId.empty())

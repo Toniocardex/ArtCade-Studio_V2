@@ -16,15 +16,18 @@ void GameAPI::bindEntityAPI(sol::state& lua) {
 
     // entity.position(id) → x, y
     lua.set_function("entity_position", [entities](EntityId id) -> std::tuple<float, float> {
-        if (auto* e = entities->get(id))
-            return { e->transform.position.x, e->transform.position.y };
+        Transform transform{};
+        if (entities->getTransform(id, transform))
+            return { transform.position.x, transform.position.y };
         return { 0.f, 0.f };
     });
 
     // entity.setPosition(id, x, y)
     lua.set_function("entity_setPosition", [entities](EntityId id, float x, float y) {
-        if (auto* e = entities->get(id))
-            e->transform.position = { x, y };
+        Transform transform{};
+        if (!entities->getTransform(id, transform)) return;
+        transform.position = { x, y };
+        entities->setTransform(id, transform);
     });
 
     // entity.velocity(id) → vx, vy
@@ -55,17 +58,24 @@ void GameAPI::bindEntityAPI(sol::state& lua) {
 
     // entity.setRotation(id, radians)
     lua.set_function("entity_setRotation", [entities](EntityId id, float a) {
-        if (auto* e = entities->get(id)) e->transform.rotation = a;
+        Transform transform{};
+        if (!entities->getTransform(id, transform)) return;
+        transform.rotation = a;
+        entities->setTransform(id, transform);
     });
     // entity.setScale(id, sx, sy)
     lua.set_function("entity_setScale", [entities](EntityId id, float sx, float sy) {
-        if (auto* e = entities->get(id)) e->transform.scale = { sx, sy };
+        Transform transform{};
+        if (!entities->getTransform(id, transform)) return;
+        transform.scale = { sx, sy };
+        entities->setTransform(id, transform);
     });
 
     // entity.scale(id) → sx, sy
     lua.set_function("entity_scale", [entities](EntityId id) -> std::tuple<float, float> {
-        if (auto* e = entities->get(id))
-            return { e->transform.scale.x, e->transform.scale.y };
+        Transform transform{};
+        if (entities->getTransform(id, transform))
+            return { transform.scale.x, transform.scale.y };
         return { 1.f, 1.f };
     });
 
@@ -74,6 +84,8 @@ void GameAPI::bindEntityAPI(sol::state& lua) {
             if (!entities) return { 0.f, 0.f };
             auto* e = entities->get(id);
             if (!e) return { 0.f, 0.f };
+            Transform transform{};
+            if (!entities->getTransform(id, transform)) return { 0.f, 0.f };
             float px = 0.5f, py = 0.5f;
             if (assets) {
                 if (auto pt = assets->getImagePoint(e->sprite.spriteAssetId, pointId)) {
@@ -88,11 +100,11 @@ void GameAPI::bindEntityAPI(sol::state& lua) {
             } else {
                 w = h = e->physics.collider.size.x * 2.f;
             }
-            const float sx = std::abs(e->transform.scale.x);
-            const float sy = std::abs(e->transform.scale.y);
+            const float sx = std::abs(transform.scale.x);
+            const float sy = std::abs(transform.scale.y);
             const float lx = (px - e->sprite.pivot.x) * w * sx;
             const float ly = (py - e->sprite.pivot.y) * h * sy;
-            return { e->transform.position.x + lx, e->transform.position.y + ly };
+            return { transform.position.x + lx, transform.position.y + ly };
         });
     // entity.setVisible(id, bool) — implemented via sprite alpha (no struct change)
     lua.set_function("entity_setVisible", [entities](EntityId id, bool v) {
@@ -160,10 +172,10 @@ void GameAPI::bindEntityAPI(sol::state& lua) {
             int idx = 1;
             float r2 = radius * radius;
             for (EntityId eid : candidates) {
-                auto* e = entities->get(eid);
-                if (!e) continue;
-                float dx = e->transform.position.x - x;
-                float dy = e->transform.position.y - y;
+                Transform transform{};
+                if (!entities->getTransform(eid, transform)) continue;
+                float dx = transform.position.x - x;
+                float dy = transform.position.y - y;
                 if (dx*dx + dy*dy <= r2)
                     result[idx++] = eid;
             }
@@ -178,11 +190,12 @@ void GameAPI::bindEntityAPI(sol::state& lua) {
     // Object.distance(id1, id2) → float
     lua.set_function("object_distance",
         [entities](EntityId id1, EntityId id2) -> float {
-            auto* e1 = entities->get(id1);
-            auto* e2 = entities->get(id2);
-            if (!e1 || !e2) return -1.f;
-            float dx = e1->transform.position.x - e2->transform.position.x;
-            float dy = e1->transform.position.y - e2->transform.position.y;
+            Transform t1{};
+            Transform t2{};
+            if (!entities->getTransform(id1, t1) || !entities->getTransform(id2, t2))
+                return -1.f;
+            float dx = t1.position.x - t2.position.x;
+            float dy = t1.position.y - t2.position.y;
             return std::sqrt(dx*dx + dy*dy);
         });
 

@@ -483,11 +483,13 @@ void Application::renderActiveScene() {
     for (EntityId id : mod_->world->activeEntityIds()) {
         const auto* e = mod_->entityManager->get(id);
         if (!e) continue;
+        Transform transform{};
+        if (!mod_->entityGateway->getTransform(id, transform)) continue;
         mod_->renderer->drawSprite(
             e->sprite.spriteAssetId,
-            e->transform.position,
-            e->transform.rotation,
-            e->transform.scale,
+            transform.position,
+            transform.rotation,
+            transform.scale,
             e->sprite.tint,
             e->sprite.alpha,
             e->sprite.shaderEffect);
@@ -505,7 +507,10 @@ void Application::renderActiveScene() {
         EditorOverlayRenderer::drawGuides(*mod_->renderer, *activeScene, overlay);
     if (overlay.selectedId != 0u) {
         const EntityDef* selected = mod_->entityManager->get(overlay.selectedId);
-        EditorOverlayRenderer::drawSelection(*mod_->renderer, selected, overlay);
+        Transform selectedTransform{};
+        if (mod_->entityGateway->getTransform(overlay.selectedId, selectedTransform))
+            EditorOverlayRenderer::drawSelection(
+                *mod_->renderer, selected, selectedTransform, overlay);
     }
 
     // FREE-tier splash overlay drawn on top of the game frame.

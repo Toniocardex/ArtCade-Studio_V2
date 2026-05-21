@@ -76,8 +76,18 @@ int main() {
     const EntityDef* spawnedDef = gw.get(spawned);
     CHECK(spawnedDef && gw.isEntityActiveInScene(spawned));
     CHECK(spawnedDef->sprite.spriteAssetId == "sprites/coin.png");
-    CHECK(spawnedDef->transform.position.x == 50.f);
-    CHECK(spawnedDef->transform.position.y == 60.f);
+    Transform spawnedTransform{};
+    CHECK(gw.getTransform(spawned, spawnedTransform));
+    CHECK(spawnedTransform.position.x == 50.f);
+    CHECK(spawnedTransform.position.y == 60.f);
+    spawnedTransform.position = { 70.f, 80.f };
+    CHECK(gw.setTransform(spawned, spawnedTransform));
+    Transform movedTransform{};
+    CHECK(gw.getTransform(spawned, movedTransform));
+    CHECK(movedTransform.position.x == 70.f);
+    CHECK(movedTransform.position.y == 80.f);
+    CHECK(spawnedDef->transform.position.x == 70.f);
+    CHECK(spawnedDef->transform.position.y == 80.f);
     const SceneDef* sceneAfter = gw.activeScene();
     CHECK(sceneAfter && std::find(sceneAfter->entityIds.begin(),
                                 sceneAfter->entityIds.end(), spawned)

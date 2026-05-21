@@ -97,10 +97,11 @@ void drawGuides(Modules::Renderer& renderer,
 
 void drawSelection(Modules::Renderer& renderer,
                    const EntityDef* selected,
+                   const Transform& transform,
                    const EditorOverlayState& state) {
     if (!state.inEditMode || state.selectedId == 0u || selected == nullptr) return;
 
-    const Vec2 p = selected->transform.position;
+    const Vec2 p = transform.position;
 
     // Sensor area first (under the box), shape-aware, translucent cyan.
     if (selected->sensor) {
@@ -117,10 +118,10 @@ void drawSelection(Modules::Renderer& renderer,
     // Selection box — collider size when available, fall back to 40px scaled.
     float w = selected->physics.collider.size.x > 2.f
         ? selected->physics.collider.size.x
-        : 40.f * selected->transform.scale.x;
+        : 40.f * transform.scale.x;
     float h = selected->physics.collider.size.y > 2.f
         ? selected->physics.collider.size.y
-        : 40.f * selected->transform.scale.y;
+        : 40.f * transform.scale.y;
 
     const float x = p.x - w * 0.5f;
     const float y = p.y - h * 0.5f;

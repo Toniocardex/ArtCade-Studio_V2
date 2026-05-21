@@ -59,6 +59,7 @@ void drawGuides(Modules::Renderer& renderer,
  */
 void drawSelection(Modules::Renderer& renderer,
                    const EntityDef* selected,
+                   const Transform& transform,
                    const EditorOverlayState& state);
 
 } // namespace EditorOverlayRenderer
