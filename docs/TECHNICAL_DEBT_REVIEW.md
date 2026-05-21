@@ -1,6 +1,43 @@
 # Technical Debt Review - ArtCade V2
 
 Data review: 2026-05-21
+Ultimo aggiornamento: 2026-05-21 (post-Fase 1-6 del piano `debito_tecnico_sync`)
+
+## Stato implementazione (2026-05-21)
+
+Tutte le fasi del piano `Debito tecnico sync` sono in `main`:
+
+| Fase | Cosa | Stato |
+|------|------|-------|
+| 1 | `RuntimeSyncService` + `useRuntimeEditorSync` | Done |
+| 2 | `build_log_filter.rs` con unit test + log ASCII | Done |
+| 3 | Split `InspectorPanel` in `editor/src/panels/inspector/` | Done |
+| 4 | Split `coreReducer` in `editor/src/store/reducers/` | Done |
+| 5 | Split `editor-api.cpp` in input controller + parser | Done |
+| 6 | Estrarre `CanvasToolbar` + badges da `PreviewPanel` | Done |
+
+Findings risolti rispetto a questa review:
+
+- **P1** (drag entita resetta rotation/scale) - risolto in `editor-api.cpp`: il mouse-up legge il transform reale dal gateway prima di notificare React.
+- **P1** (tile painting puo perdere `onTilemapPainted` dopo rebind) - risolto rendendo merge-safe `bindWindowCallbacks` ed estraendo `buildRuntimeCallbacks` come unica fonte di verita.
+- **P2** (sync preview incompleto per modifiche Inspector) - risolto con `runtime-fingerprint.ts`, che ora copre tint/alpha/pivot/renderOrder, className, tags, componenti ECS, viewport e tilemap meta. La canalizzazione `editor_load_project` passa per `RuntimeSyncService.syncProject()`.
+- **P2** (click/drag puo marcare dirty senza cambio reale) - equality guard a `1e-4` nel reducer `UPDATE_ENTITY_TRANSFORM`.
+- **P3** (mojibake nei log) - sostituiti i glifi Unicode visibili all'utente con ASCII (`FAIL`, `OK`, `->`); commenti UTF-8 interni lasciati intatti.
+
+Findings architetturali ridotti:
+
+- **Sync React->WASM**: ora c'e un singolo `RuntimeSyncService` (`editor/src/utils/runtime-sync-service.ts`) che dedupla per fingerprint/last-value e da cui passa ogni `editor_*` chiamato dai pannelli. Test Vitest dedicati.
+- **PreviewPanel troppo responsabile**: scende a ~190 righe (da ~500). Lifecycle/asset/project sync in `preview/runtime-hooks.ts`; toolbar e badge in componenti dedicati.
+- **InspectorPanel in crescita**: orchestratore di ~65 righe, sezioni sotto `panels/inspector/` (`SceneSettingsSection`, `EntitySettingsSection`, `TransformSection`, `SpriteSection`, `ComponentsSection`, `ScriptSection`).
+- **Editor store monolitico**: `editor-store.tsx` riduce a ~150 righe; ogni dominio ha un reducer (`reducers/{ui,project,entity,scene,logic-board}-reducer.ts`); `coreReducer` e una pipe.
+- **EditorAPI C++ monolitico**: `editor-api.cpp` ora contiene solo wiring + `EMSCRIPTEN_KEEPALIVE` exports. Input + tile painting in `editor-input-controller.cpp`; JSON parsing in `project-doc-parser.cpp`.
+- **Tauri build pipeline**: `BuildLogFilter` ora ha unit test (`editor/src-tauri/src/build_log_filter.rs`); path Visual Studio e fallback Ninja sono ancora aperti.
+
+Aperto (priorita media per Phase successive):
+
+- Renderer/camera policy (Output `fit/fill/letterbox/stretch` in Project Settings).
+- API incrementali C++ (`editor_update_entity`, `editor_set_sprite`, ...) se il full load diventa lento.
+- Asset pipeline texture upload con fingerprint mtime/hash.
 
 ## Summary
 
