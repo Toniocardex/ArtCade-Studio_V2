@@ -256,9 +256,23 @@ EM_BOOL EditorAPI::onMouseUp(int, const EmscriptenMouseEvent* e, void*) {
     if (s_tilePaintMode) return EM_TRUE;   // painting: no transform notify
 
     if (s_selectedEntityId != 0u) {
+        // Preserve rotation/scale: the live drag in onMouseMove only updates
+        // position. Hard-coding {0, 1, 1} silently reverted a rotated or
+        // scaled entity on every canvas drag (P1 — TECHNICAL_DEBT_REVIEW).
+        // Read the real transform from the gateway so React stays in sync.
         float finalX, finalY;
         toWorld(e, finalX, finalY);
-        notifyTransformChanged(s_selectedEntityId, finalX, finalY, 0.f, 1.f, 1.f);
+        float rot = 0.f, sx = 1.f, sy = 1.f;
+        if (s_entityGateway) {
+            if (const EntityDef* ent = s_entityGateway->get(s_selectedEntityId)) {
+                finalX = ent->transform.position.x;
+                finalY = ent->transform.position.y;
+                rot    = ent->transform.rotation;
+                sx     = ent->transform.scale.x;
+                sy     = ent->transform.scale.y;
+            }
+        }
+        notifyTransformChanged(s_selectedEntityId, finalX, finalY, rot, sx, sy);
     }
     return EM_TRUE;
 }
