@@ -8,18 +8,25 @@ namespace ArtCade::EditorOverlayRenderer {
 
 namespace {
 
-// Rectangle outline drawn as four 1-world-pixel-thick filled rects, fully
-// contained inside [x,y]-[x+w,y+h]. drawLine() in raylib renders 1px lines
-// at exactly y=h / x=w, which sits on the last column / row of the framebuffer
-// and gets clipped by the WebGL viewport — the user saw this as a "missing"
-// bottom + right cyan border around the default 1280x640 scene. Filled rects
-// inset by `t` on the far sides avoid the clip entirely (same pattern as
-// drawSelection below, which has carried the cross-platform-safe comment
-// since the renderer was written).
+// Rectangle outline drawn as four 2-world-pixel-thick filled rects, fully
+// contained inside [x,y]-[x+w,y+h]. Rationale:
+//
+//   • drawLine() in raylib renders 1px lines that sit on the framebuffer
+//     boundary when called at y=h / x=w — they get clipped by the WebGL
+//     viewport on Emscripten. Same quirk that drawSelection() documents.
+//
+//   • A 1px-thick drawRect inset by 1 covers row h-1, but at low CSS zoom
+//     (canvas internal 1280x640 displayed e.g. at 80% = 0.8 CSS px / world
+//     px) a single-pixel line becomes sub-pixel and can blend with the
+//     surrounding container border, looking "missing" on the bottom/right.
+//
+//   • 2 world-pixels thick is the same value drawSelection uses; renders
+//     reliably from 25% to 400% zoom and on both native + WASM, with no
+//     framebuffer edge clip and no sub-pixel disappearance.
 void drawRectOutline(Modules::Renderer& renderer,
                      float x, float y, float w, float h,
                      const Vec4& color) {
-    const float t = 1.f;
+    const float t = 2.f;
     renderer.drawRect(x,         y,         w, t, color); // top
     renderer.drawRect(x,         y + h - t, w, t, color); // bottom
     renderer.drawRect(x,         y,         t, h, color); // left
