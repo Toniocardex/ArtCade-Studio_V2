@@ -111,6 +111,7 @@ public:
     static int      s_selectedTileId;  // Phase F2 (0 = eraser)
     static int      s_editorTool;      // 0 select, 1 pan, 2 paint, 3 erase/tile
     static bool     s_editorGuidesEnabled;
+    static float    s_editorGridSize;
 
     // Engine pointers wired in wireEngine() / wireLua()
     static Modules::RuntimeEntityGateway* s_entityGateway;
@@ -181,6 +182,9 @@ EMSCRIPTEN_KEEPALIVE void editor_set_tool(int toolId);
 /** Toggle runtime-side editor guides (world bounds / viewport / grid). */
 EMSCRIPTEN_KEEPALIVE void editor_set_guides_enabled(int enabled);
 
+/** Editor-only guide/snap grid size in world pixels. Does not affect tilemap. */
+EMSCRIPTEN_KEEPALIVE void editor_set_grid_size(float tileSize);
+
 /**
  * Phase F3: upload an editor-loaded image (e.g. a tileset spritesheet not
  * present in the WASM VFS) into the renderer's texture cache under `path`
@@ -223,6 +227,7 @@ struct EditorAPI {
     static int      s_selectedTileId;
     static int      s_editorTool;
     static bool     s_editorGuidesEnabled;
+    static float    s_editorGridSize;
     static Modules::RuntimeEntityGateway* s_entityGateway;
     static Modules::LuaHost*              s_luaHost;
     static Modules::Renderer*             s_renderer;

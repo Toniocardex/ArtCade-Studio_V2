@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Settings, ChevronRight, Trash2 } from 'lucide-react'
 import { useEditor } from '../store/editor-store'
 import type { EntityDef, ComponentKey, SceneDef } from '../types'
@@ -11,12 +11,31 @@ import { applyInputBackspace, isBackspaceKey } from '../utils/keyboard'
 
 // ---- helpers ---------------------------------------------------------------
 
-function SectionRow({ label }: { label: string }) {
+function InspectorSection({
+  label,
+  defaultOpen = false,
+  children,
+}: {
+  label: string
+  defaultOpen?: boolean
+  children: ReactNode
+}) {
+  const [open, setOpen] = useState(defaultOpen)
+
   return (
-    <div className="flex items-center justify-between text-[10px] text-[var(--muted)]
-                    font-bold border-b border-[var(--border)] pb-1 mt-4 mb-2 uppercase tracking-widest">
-      {label}
-      <ChevronRight size={11} />
+    <div className="mt-4">
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        aria-expanded={open}
+        className="w-full flex items-center justify-between text-[10px] text-[var(--muted)]
+                   hover:text-[var(--text)] font-bold border-b border-[var(--border)] pb-1 mb-2
+                   uppercase tracking-widest transition-colors"
+      >
+        <span>{label}</span>
+        <ChevronRight size={11} className={`transition-transform ${open ? 'rotate-90' : ''}`} />
+      </button>
+      {open && <div>{children}</div>}
     </div>
   )
 }
@@ -115,8 +134,18 @@ function parseSceneDimension(value: string, fallback: number): number {
   return Number.isFinite(n) ? Math.min(8192, Math.max(64, n)) : fallback
 }
 
+function parseGridSize(value: string, fallback: number): number {
+  const n = Math.round(Number(value))
+  return Number.isFinite(n) ? Math.min(512, Math.max(4, n)) : fallback
+}
+
+function snapToGridValue(value: number, gridSize: number): number {
+  return gridSize > 0 ? Math.round(value / gridSize) * gridSize : value
+}
+
 function SceneSettings({ scene }: { scene: SceneDef }) {
-  const { dispatch } = useEditor()
+  const { state, dispatch } = useEditor()
+  const gridSize = state.editorGridSize ?? 32
 
   function commitWorld(patch: Partial<{ x: number; y: number }>) {
     dispatch({
@@ -136,9 +165,15 @@ function SceneSettings({ scene }: { scene: SceneDef }) {
     })
   }
 
+  function commitGridSize(value: string) {
+    dispatch({
+      type: 'EDITOR_SET_GRID_SIZE',
+      tileSize: parseGridSize(value, gridSize),
+    })
+  }
+
   return (
-    <div>
-      <SectionRow label="Scene Settings" />
+    <InspectorSection label="Scene Settings" defaultOpen>
       <div className="mb-3">
         <label className="text-[9px] text-[var(--muted)] uppercase block mb-0.5">Scene Size</label>
         <div className="grid grid-cols-2 gap-2">
@@ -177,12 +212,31 @@ function SceneSettings({ scene }: { scene: SceneDef }) {
           />
         </div>
       </div>
+      <div className="mb-3">
+        <label className="text-[9px] text-[var(--muted)] uppercase block mb-0.5">Editor Grid</label>
+        <div className="grid grid-cols-2 gap-2 items-end">
+          <Field
+            label="Size (px)"
+            value={gridSize}
+            onCommit={commitGridSize}
+          />
+          <label className="flex items-center gap-2 mb-2 text-[9px] text-[var(--muted)] uppercase select-none">
+            <input
+              type="checkbox"
+              checked={state.snapToGrid ?? false}
+              onChange={(e) => dispatch({ type: 'SET_SNAP_TO_GRID', enabled: e.target.checked })}
+              className="accent-[var(--accent)]"
+            />
+            Snap to grid
+          </label>
+        </div>
+      </div>
       {scene.tilemap && (
         <p className="text-[9px] text-[var(--muted)] leading-snug mb-3">
           Tilemap: {scene.tilemap.cols} x {scene.tilemap.rows} cells at {scene.tilemap.tileSize}px.
         </p>
       )}
-    </div>
+    </InspectorSection>
   )
 }
 
@@ -350,8 +404,13 @@ function EntityInspector({ entity }: { entity: EntityDef }) {
   function commitTransform(next: Partial<{
     x: number; y: number; rotation: number; scaleX: number; scaleY: number
   }>) {
-    const x = next.x ?? entity.transform.position.x
-    const y = next.y ?? entity.transform.position.y
+    const sceneId = state.selection.sceneId ?? state.project?.activeSceneId
+    const activeScene = sceneId ? state.project?.scenes[sceneId] : undefined
+    const gridSize = state.editorGridSize ?? activeScene?.tilemap?.tileSize ?? 32
+    const rawX = next.x ?? entity.transform.position.x
+    const rawY = next.y ?? entity.transform.position.y
+    const x = state.snapToGrid ? snapToGridValue(rawX, gridSize) : rawX
+    const y = state.snapToGrid ? snapToGridValue(rawY, gridSize) : rawY
     const rotation = next.rotation ?? entity.transform.rotation
     const scaleX = next.scaleX ?? entity.transform.scale.x
     const scaleY = next.scaleY ?? entity.transform.scale.y
@@ -362,133 +421,132 @@ function EntityInspector({ entity }: { entity: EntityDef }) {
 
   return (
     <>
-      {/* Name */}
-      <Field
-        label="Entity Name"
-        value={entity.name}
-        cyan
-        onCommit={(name) =>
-          dispatch({ type: 'ENTITY_SET_NAME', entityId: entity.id, name })
-        }
-      />
-      <p className="text-[9px] text-[var(--muted)] -mt-1 mb-2 leading-snug">
-        Shown in Hierarchy and Logic Board. Rules are per entity, not per name.
-      </p>
+      <InspectorSection label="Entity Settings" defaultOpen>
+        <Field
+          label="Entity Name"
+          value={entity.name}
+          cyan
+          onCommit={(name) =>
+            dispatch({ type: 'ENTITY_SET_NAME', entityId: entity.id, name })
+          }
+        />
+        <p className="text-[9px] text-[var(--muted)] -mt-1 mb-2 leading-snug">
+          Shown in Hierarchy and Logic Board. Rules are per entity, not per name.
+        </p>
 
-      <button
-        type="button"
-        onClick={openLogicBoard}
-        className="w-full mb-3 px-3 py-1.5 rounded text-xs font-semibold border border-[var(--accent-bd)]
-                   bg-[var(--accent-bg)] text-[var(--accent)] hover:bg-[var(--accent-bg-h)]"
-      >
-        Open Logic Board
-      </button>
-
-      <details
-        open={advancedOpen}
-        onToggle={(e) => setAdvancedOpen((e.target as HTMLDetailsElement).open)}
-        className="mb-3 text-xs border border-[var(--border)] rounded-lg px-3 py-2"
-      >
-        <summary className="cursor-pointer text-[var(--muted)] hover:text-[var(--text)] select-none font-bold uppercase text-[9px] tracking-widest">
-          Advanced
-        </summary>
-        <div className="mt-2">
-          <Field
-            label="Spawn group (className)"
-            value={entity.className}
-            onCommit={(className) =>
-              dispatch({ type: 'ENTITY_SET_CLASSNAME', entityId: entity.id, className })
-            }
-          />
-          <p className="text-[9px] text-[var(--muted)] leading-snug">
-            Runtime pools, spawn, and collision widgets use this. Logic Board rules do not.
-          </p>
-        </div>
-      </details>
-
-      {/* Tags */}
-      <div className="flex flex-wrap gap-1 mb-3">
-        {entity.tags.map(t => (
-          <span key={t} className="bg-[var(--border)] border border-[var(--border-2)] text-[var(--muted)]
-                                   text-[9px] px-2 py-0.5 rounded">
-            #{t}
-          </span>
-        ))}
-      </div>
-
-      {/* Transform */}
-      <SectionRow label="Transform" />
-      <div className="mb-2">
-        <label className="text-[9px] text-[var(--muted)] uppercase block mb-0.5">Position</label>
-        <div className="grid grid-cols-2 gap-2">
-          <NumberField label="X" value={entity.transform.position.x} onCommit={x => commitTransform({ x })} />
-          <NumberField label="Y" value={entity.transform.position.y} onCommit={y => commitTransform({ y })} />
-        </div>
-      </div>
-      <div className="mb-2">
-        <label className="text-[9px] text-[var(--muted)] uppercase block mb-0.5">Scale</label>
-        <div className="grid grid-cols-2 gap-2">
-          <NumberField label="X" value={entity.transform.scale.x} onCommit={scaleX => commitTransform({ scaleX })} />
-          <NumberField label="Y" value={entity.transform.scale.y} onCommit={scaleY => commitTransform({ scaleY })} />
-        </div>
-      </div>
-      <div className="mb-2">
-        <label className="text-[9px] text-[var(--muted)] uppercase block mb-0.5">Rotation</label>
-        <NumberField label="Radians" value={entity.transform.rotation} onCommit={rotation => commitTransform({ rotation })} />
-      </div>
-
-      {/* Sprite */}
-      <SectionRow label="Sprite" />
-      <div className="mb-2">
-        <label className="text-[9px] text-[var(--muted)] uppercase">Asset</label>
-        <select
-          value={entity.sprite.spriteAssetId}
-          onChange={(e) => commitSprite({ spriteAssetId: e.target.value })}
-          className="w-full bg-[var(--border)] border border-[var(--border-2)] rounded px-2 py-1
-                     text-xs text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
+        <button
+          type="button"
+          onClick={openLogicBoard}
+          className="w-full mb-3 px-3 py-1.5 rounded text-xs font-semibold border border-[var(--accent-bd)]
+                     bg-[var(--accent-bg)] text-[var(--accent)] hover:bg-[var(--accent-bg-h)]"
         >
-          <option value="">(none)</option>
-          {/* keep an unknown/legacy value selectable */}
-          {entity.sprite.spriteAssetId &&
-            !images.some((a) => a.path === entity.sprite.spriteAssetId) && (
-              <option value={entity.sprite.spriteAssetId}>
-                {entity.sprite.spriteAssetId}
-              </option>
-            )}
-          {images.map((a) => (
-            <option key={a.id} value={a.path}>{a.name}</option>
-          ))}
-        </select>
-        {images.length === 0 && (
-          <p className="text-[8px] text-[rgb(var(--muted-rgb)/0.6)] mt-0.5">
-            Import images in the ASSETS panel, then pick one here.
-          </p>
-        )}
-      </div>
-      <div className="grid grid-cols-2 gap-2 mb-2">
-        <NumberField
-          label="Alpha"
-          value={entity.sprite.alpha}
-          onCommit={(v) => commitSprite({ alpha: Math.min(1, Math.max(0, v)) })}
-        />
-        <NumberField
-          label="Render Order"
-          value={entity.sprite.renderOrder}
-          onCommit={(v) => commitSprite({ renderOrder: Math.round(v) })}
-        />
-      </div>
+          Open Logic Board
+        </button>
 
-      {/* ECS Components (data-driven) */}
-      <SectionRow label="Components" />
-      {COMPONENT_REGISTRY.map((desc) => (
-        <ComponentSection key={desc.key} entity={entity} desc={desc} />
-      ))}
-      <AddComponentBar entity={entity} />
+        <details
+          open={advancedOpen}
+          onToggle={(e) => setAdvancedOpen((e.target as HTMLDetailsElement).open)}
+          className="mb-3 text-xs border border-[var(--border)] rounded-lg px-3 py-2"
+        >
+          <summary className="cursor-pointer text-[var(--muted)] hover:text-[var(--text)] select-none font-bold uppercase text-[9px] tracking-widest">
+            Advanced
+          </summary>
+          <div className="mt-2">
+            <Field
+              label="Spawn group (className)"
+              value={entity.className}
+              onCommit={(className) =>
+                dispatch({ type: 'ENTITY_SET_CLASSNAME', entityId: entity.id, className })
+              }
+            />
+            <p className="text-[9px] text-[var(--muted)] leading-snug">
+              Runtime pools, spawn, and collision widgets use this. Logic Board rules do not.
+            </p>
+          </div>
+        </details>
+
+        <div className="flex flex-wrap gap-1 mb-3">
+          {entity.tags.map(t => (
+            <span key={t} className="bg-[var(--border)] border border-[var(--border-2)] text-[var(--muted)]
+                                     text-[9px] px-2 py-0.5 rounded">
+              #{t}
+            </span>
+          ))}
+        </div>
+      </InspectorSection>
+
+      <InspectorSection label="Transform" defaultOpen>
+        <div className="mb-2">
+          <label className="text-[9px] text-[var(--muted)] uppercase block mb-0.5">Position</label>
+          <div className="grid grid-cols-2 gap-2">
+            <NumberField label="X" value={entity.transform.position.x} onCommit={x => commitTransform({ x })} />
+            <NumberField label="Y" value={entity.transform.position.y} onCommit={y => commitTransform({ y })} />
+          </div>
+        </div>
+        <div className="mb-2">
+          <label className="text-[9px] text-[var(--muted)] uppercase block mb-0.5">Scale</label>
+          <div className="grid grid-cols-2 gap-2">
+            <NumberField label="X" value={entity.transform.scale.x} onCommit={scaleX => commitTransform({ scaleX })} />
+            <NumberField label="Y" value={entity.transform.scale.y} onCommit={scaleY => commitTransform({ scaleY })} />
+          </div>
+        </div>
+        <div className="mb-2">
+          <label className="text-[9px] text-[var(--muted)] uppercase block mb-0.5">Rotation</label>
+          <NumberField label="Radians" value={entity.transform.rotation} onCommit={rotation => commitTransform({ rotation })} />
+        </div>
+      </InspectorSection>
+
+      <InspectorSection label="Sprite">
+        <div className="mb-2">
+          <label className="text-[9px] text-[var(--muted)] uppercase">Asset</label>
+          <select
+            value={entity.sprite.spriteAssetId}
+            onChange={(e) => commitSprite({ spriteAssetId: e.target.value })}
+            className="w-full bg-[var(--border)] border border-[var(--border-2)] rounded px-2 py-1
+                       text-xs text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
+          >
+            <option value="">(none)</option>
+            {/* keep an unknown/legacy value selectable */}
+            {entity.sprite.spriteAssetId &&
+              !images.some((a) => a.path === entity.sprite.spriteAssetId) && (
+                <option value={entity.sprite.spriteAssetId}>
+                  {entity.sprite.spriteAssetId}
+                </option>
+              )}
+            {images.map((a) => (
+              <option key={a.id} value={a.path}>{a.name}</option>
+            ))}
+          </select>
+          {images.length === 0 && (
+            <p className="text-[8px] text-[rgb(var(--muted-rgb)/0.6)] mt-0.5">
+              Import images in the ASSETS panel, then pick one here.
+            </p>
+          )}
+        </div>
+        <div className="grid grid-cols-2 gap-2 mb-2">
+          <NumberField
+            label="Alpha"
+            value={entity.sprite.alpha}
+            onCommit={(v) => commitSprite({ alpha: Math.min(1, Math.max(0, v)) })}
+          />
+          <NumberField
+            label="Render Order"
+            value={entity.sprite.renderOrder}
+            onCommit={(v) => commitSprite({ renderOrder: Math.round(v) })}
+          />
+        </div>
+      </InspectorSection>
+
+      <InspectorSection label="Components">
+        {COMPONENT_REGISTRY.map((desc) => (
+          <ComponentSection key={desc.key} entity={entity} desc={desc} />
+        ))}
+        <AddComponentBar entity={entity} />
+      </InspectorSection>
 
       {/* Script */}
       {entity.scriptPath && (
-        <>
-          <SectionRow label="Script" />
+        <InspectorSection label="Script">
           <Field label="Path" value={entity.scriptPath} />
           <button
             onClick={() => dispatch({
@@ -501,7 +559,7 @@ function EntityInspector({ entity }: { entity: EntityDef }) {
           >
             OPEN IN LOGIC_BOARD →
           </button>
-        </>
+        </InspectorSection>
       )}
     </>
   )

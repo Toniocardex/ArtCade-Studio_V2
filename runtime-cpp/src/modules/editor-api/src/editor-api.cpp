@@ -15,6 +15,7 @@ bool     EditorAPI::s_tilePaintMode    = false;
 int      EditorAPI::s_selectedTileId   = 1;
 int      EditorAPI::s_editorTool       = 0;
 bool     EditorAPI::s_editorGuidesEnabled = true;
+float    EditorAPI::s_editorGridSize   = 32.f;
 Modules::RuntimeEntityGateway* EditorAPI::s_entityGateway = nullptr;
 Modules::LuaHost*              EditorAPI::s_luaHost       = nullptr;
 Modules::Renderer*             EditorAPI::s_renderer      = nullptr;
@@ -65,6 +66,7 @@ bool     EditorAPI::s_tilePaintMode    = false;
 int      EditorAPI::s_selectedTileId   = 1;
 int      EditorAPI::s_editorTool       = 0;
 bool     EditorAPI::s_editorGuidesEnabled = true;
+float    EditorAPI::s_editorGridSize   = 32.f;
 
 Modules::RuntimeEntityGateway* EditorAPI::s_entityGateway = nullptr;
 Modules::LuaHost*              EditorAPI::s_luaHost       = nullptr;
@@ -490,6 +492,10 @@ EMSCRIPTEN_KEEPALIVE void editor_set_tool(int toolId) {
 
 EMSCRIPTEN_KEEPALIVE void editor_set_guides_enabled(int enabled) {
     ArtCade::EditorAPI::s_editorGuidesEnabled = (enabled != 0);
+}
+
+EMSCRIPTEN_KEEPALIVE void editor_set_grid_size(float tileSize) {
+    ArtCade::EditorAPI::s_editorGridSize = tileSize >= 4.f ? tileSize : 32.f;
 }
 
 EMSCRIPTEN_KEEPALIVE void editor_register_image(

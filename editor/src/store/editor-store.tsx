@@ -33,6 +33,8 @@ export interface CoreState {
   activeScriptPath: string | null
   isPlaying:        boolean
   selectedTileCell: number   // Phase F: brush cell id (1-based, 0 = eraser)
+  editorGridSize?:  number   // editor-only guide/snap grid, not ProjectDoc tilemap
+  snapToGrid?:      boolean  // editor-only; not persisted in ProjectDoc
 }
 
 // ---- Volatile state (high-frequency) ---------------------------------------
@@ -153,6 +155,8 @@ const initialCoreState: CoreState = {
   activeScriptPath: 'scripts/player_controller.lua',
   isPlaying:        false,
   selectedTileCell: 1,
+  editorGridSize:   32,
+  snapToGrid:       false,
 }
 
 const initialVolatileState: VolatileState = {
@@ -193,6 +197,8 @@ export type Action =
   | { type: 'WORLD_SET';         patch: Partial<WorldSettings> }
   | { type: 'SCENE_SET_WORLD_SIZE'; sceneId: string; x: number; y: number }
   | { type: 'SCENE_SET_VIEWPORT_SIZE'; sceneId: string; x: number; y: number }
+  | { type: 'EDITOR_SET_GRID_SIZE'; tileSize: number }
+  | { type: 'SET_SNAP_TO_GRID'; enabled: boolean }
   | { type: 'TILEMAP_INIT';  sceneId: string }
   | { type: 'TILEMAP_PAINT'; sceneId: string; index: number; tileId: number }
   | { type: 'TILEMAP_PAINT_CELL'; sceneId: string; col: number; row: number; tileId: number }
@@ -588,6 +594,13 @@ export function coreReducer(state: CoreState, action: Action): CoreState {
         projectDirty: true,
       }
     }
+    case 'EDITOR_SET_GRID_SIZE': {
+      const rounded = Math.round(action.tileSize)
+      const tileSize = Number.isFinite(rounded) ? Math.min(512, Math.max(4, rounded)) : 32
+      return state.editorGridSize === tileSize ? state : { ...state, editorGridSize: tileSize }
+    }
+    case 'SET_SNAP_TO_GRID':
+      return state.snapToGrid === action.enabled ? state : { ...state, snapToGrid: action.enabled }
     case 'TILEMAP_INIT': {
       const sc = state.project?.scenes[action.sceneId]
       if (!state.project || !sc) return state

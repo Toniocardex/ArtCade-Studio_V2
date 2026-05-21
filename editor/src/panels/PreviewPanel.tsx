@@ -1,12 +1,12 @@
 import { useRef, useEffect, useLayoutEffect, useState } from 'react'
-import { MousePointer2, Hand, Paintbrush, Eraser, Wifi, WifiOff, Grid3x3, Ruler } from 'lucide-react'
+import { MousePointer2, Hand, Pencil, Eraser, Wifi, WifiOff, Grid3x3, ImageIcon } from 'lucide-react'
 import { useEditor } from '../store/editor-store'
 import type { ConsoleEntry } from '../types'
 import {
   loadWasmRuntime, isReady,
   syncEditorRuntimeState,
   editorSetSelectedTile,
-  editorRegisterImage, editorSetTool, editorSetGuidesEnabled,
+  editorRegisterImage, editorSetTool, editorSetGuidesEnabled, editorSetGridSize, editorSetTransform,
 } from '../utils/wasm-bridge'
 import { readProjectImageBytes } from '../utils/api'
 import { dirName } from '../utils/project'
@@ -24,6 +24,23 @@ const RUNTIME_TOOL: Record<Tool, RuntimeToolId> = {
   tile:   2,
 }
 
+function snapToGridValue(value: number, gridSize: number): number {
+  return gridSize > 0 ? Math.round(value / gridSize) * gridSize : value
+}
+
+function sameTransform(
+  a: { entityId: number; x: number; y: number; rotation: number; scaleX: number; scaleY: number },
+  b: { entityId: number; x: number; y: number; rotation: number; scaleX: number; scaleY: number },
+): boolean {
+  const epsilon = 0.0001
+  return a.entityId === b.entityId &&
+    Math.abs(a.x - b.x) < epsilon &&
+    Math.abs(a.y - b.y) < epsilon &&
+    Math.abs(a.rotation - b.rotation) < epsilon &&
+    Math.abs(a.scaleX - b.scaleX) < epsilon &&
+    Math.abs(a.scaleY - b.scaleY) < epsilon
+}
+
 export default function PreviewPanel() {
   // ── IMPORTANT: useEditor() subscribes ONLY to CoreContext (project,
   // selection, isPlaying).  It does NOT subscribe to VolatileContext
@@ -36,14 +53,29 @@ export default function PreviewPanel() {
   // content briefly disappearing.  The context split in editor-store.tsx
   // prevents this entirely.
   const { state, dispatch } = useEditor()
-  const { project, projectPath, isPlaying, selection, selectedTileCell, mode } = state
+  const {
+    project, projectPath, isPlaying, selection, selectedTileCell, mode,
+    editorGridSize, snapToGrid,
+  } = state
 
   const canvasRef    = useRef<HTMLCanvasElement>(null)
   const lastProjectLoadKeyRef = useRef<string | null>(null)
   const registeredAssetsRef   = useRef<Set<string>>(new Set())
   // current scene id for the (mount-time) onTilemapPainted callback
   const sceneIdRef = useRef<string>('')
+  const snapToGridRef = useRef(false)
+  const gridSizeRef = useRef(32)
+  const ignoredTransformEchoRef = useRef<{
+    entityId: number
+    x: number
+    y: number
+    rotation: number
+    scaleX: number
+    scaleY: number
+  } | null>(null)
   sceneIdRef.current = selection.sceneId ?? project?.activeSceneId ?? ''
+  snapToGridRef.current = snapToGrid ?? false
+  gridSizeRef.current = editorGridSize ?? 32
   const [wasmReady,  setWasmReady]  = useState(() => isReady())
   const [engineReady, setEngineReady] = useState(() => isReady())
   const [activeTool, setActiveTool] = useState<Tool>('select')
@@ -54,6 +86,44 @@ export default function PreviewPanel() {
     if (!isReady()) return
     setWasmReady(true)
     setEngineReady(true)
+  }
+
+  function handleRuntimeTransform(
+    entityId: number,
+    x: number,
+    y: number,
+    rotation: number,
+    scaleX: number,
+    scaleY: number,
+  ) {
+    const incoming = { entityId, x, y, rotation, scaleX, scaleY }
+    if (ignoredTransformEchoRef.current && sameTransform(ignoredTransformEchoRef.current, incoming)) {
+      ignoredTransformEchoRef.current = null
+      return
+    }
+
+    const nextX = snapToGridRef.current ? snapToGridValue(x, gridSizeRef.current) : x
+    const nextY = snapToGridRef.current ? snapToGridValue(y, gridSizeRef.current) : y
+    if (snapToGridRef.current && (nextX !== x || nextY !== y)) {
+      ignoredTransformEchoRef.current = {
+        entityId,
+        x: nextX,
+        y: nextY,
+        rotation,
+        scaleX,
+        scaleY,
+      }
+      editorSetTransform(entityId, nextX, nextY, rotation, scaleX, scaleY)
+    }
+    dispatch({
+      type: 'UPDATE_ENTITY_TRANSFORM',
+      entityId,
+      x: nextX,
+      y: nextY,
+      rotation,
+      scaleX,
+      scaleY,
+    })
   }
 
   useLayoutEffect(() => {
@@ -87,10 +157,9 @@ export default function PreviewPanel() {
         rotation: number, scaleX: number, scaleY: number,
       ) => {
         if (cancelled) return
-        setTimeout(() => dispatch({
-          type: 'UPDATE_ENTITY_TRANSFORM',
-          entityId, x, y, rotation, scaleX, scaleY,
-        }), 0)
+        setTimeout(() => {
+          if (!cancelled) handleRuntimeTransform(entityId, x, y, rotation, scaleX, scaleY)
+        }, 0)
       },
 
       onConsoleLine: (message: string, level: string) => {
@@ -141,7 +210,7 @@ export default function PreviewPanel() {
       onReady: syncRuntimeUiFlags,
       onEntitySelected:         (id) => dispatch({ type: 'SELECT_ENTITY', entityId: id }),
       onEntityTransformChanged: (entityId, x, y, rotation, scaleX, scaleY) =>
-        dispatch({ type: 'UPDATE_ENTITY_TRANSFORM', entityId, x, y, rotation, scaleX, scaleY }),
+        handleRuntimeTransform(entityId, x, y, rotation, scaleX, scaleY),
       onConsoleLine: (message, level) => {
         if (message.includes('[EditorAPI] Bridge initialised')) setEngineReady(true)
         dispatch({ type: 'LOG', entry: makeLogEntry(message, level) })
@@ -152,12 +221,13 @@ export default function PreviewPanel() {
   // ── Re-sync project into C++ whenever the user opens a new project ────────
   useEffect(() => {
     if (!wasmReady || !engineReady || !project) return
+    const runtimeSceneId = selection.sceneId ?? project.activeSceneId
     // NOTE: tilemap.data is intentionally NOT in the key — during in-scene
     // painting the C++ runtime is the source of truth and notifies React;
     // re-syncing the whole project on every cell would flood editor_load_project.
     // The tilemap STRUCTURE (cols/rows/tilesetAssetId) IS included so that
     // creating/attaching a tileset re-syncs once and the runtime gets the layer.
-    const activeScene = project.scenes[project.activeSceneId]
+    const activeScene = project.scenes[runtimeSceneId]
     const at = activeScene?.tilemap
     // Sprite-assignment fingerprint: assigning a sprite to an entity mutates
     // only entity.sprite.spriteAssetId — without this the loadKey wouldn't
@@ -172,17 +242,19 @@ export default function PreviewPanel() {
     const loadKey = [
       projectPath ?? project.projectName,
       project.version,
-      project.activeSceneId,
+      runtimeSceneId,
       Object.keys(project.entities).length,
       Object.keys(project.scenes).length,
       sceneSizeFp,
-      at ? `${at.cols}x${at.rows}:${at.tilesetAssetId ?? ''}` : 'no-tm',
+      at ? `${at.tileSize}:${at.cols}x${at.rows}:${at.tilesetAssetId ?? ''}` : 'no-tm',
       spriteFp,
     ].join('|')
     if (lastProjectLoadKeyRef.current === loadKey) return
     lastProjectLoadKeyRef.current = loadKey
-    syncEditorRuntimeState({ projectJson: JSON.stringify(project) })
-  }, [project, projectPath, wasmReady, engineReady])
+    syncEditorRuntimeState({
+      projectJson: JSON.stringify({ ...project, activeSceneId: runtimeSceneId }),
+    })
+  }, [project, projectPath, selection.sceneId, wasmReady, engineReady])
 
   // ── Deliver the persistent image library to the C++ renderer ─────────────
   // On project open (and after an import) every ProjectDoc.assets entry is
@@ -248,8 +320,15 @@ export default function PreviewPanel() {
     editorSetGuidesEnabled(showEditorGuides && !isPlaying)
   }, [showEditorGuides, isPlaying, wasmReady, engineReady])
 
+  useEffect(() => {
+    if (!wasmReady || !engineReady) return
+    editorSetGridSize(editorGridSize ?? 32)
+  }, [editorGridSize, wasmReady, engineReady])
+
   // ── Canvas resolution matches game resolution ─────────────────────────────
   const res = project?.gameResolution ?? { x: 1280, y: 720 }
+  const selectedSceneId = selection.sceneId ?? project?.activeSceneId
+  const selectedScene = project && selectedSceneId ? project.scenes[selectedSceneId] : undefined
 
   // Background colour while WASM has not yet painted (prevents white flash).
   const bgColor = (() => {
@@ -268,7 +347,7 @@ export default function PreviewPanel() {
                       bg-[var(--panel)] p-2 border border-[var(--border)] rounded-lg shadow-lg">
         {([
           { id: 'select', Icon: MousePointer2, color: 'var(--accent)', title: 'Select / move entities' },
-          { id: 'pan',    Icon: Hand,           color: 'var(--muted)',  title: 'Pan the view' },
+          { id: 'pan',    Icon: Hand,           color: 'var(--muted)',  title: 'Pan camera' },
         ] as const).map(({ id, Icon, color, title }) => (
           <button
             key={id}
@@ -285,8 +364,8 @@ export default function PreviewPanel() {
         <div className="h-px w-full bg-[var(--border)]" />
 
         {([
-          { id: 'paint', Icon: Paintbrush, title: 'Paint tiles with the selected TILESET_EDITOR cell' },
-          { id: 'erase', Icon: Eraser,     title: 'Erase tiles (clears the cell under the cursor)' },
+          { id: 'paint', Icon: Pencil, title: 'Paint tiles' },
+          { id: 'erase', Icon: Eraser, title: 'Erase tiles' },
         ] as const).map(({ id, Icon, title }) => (
           <button
             key={id}
@@ -305,12 +384,12 @@ export default function PreviewPanel() {
         {/* Phase F2: in-scene tile painting */}
         <button
           onClick={() => setActiveTool('tile')}
-          title={`Tile paint (brush ${selectedTileCell === 0 ? 'eraser' : '#' + selectedTileCell})`}
+          title={`Paint selected tileset cell ${selectedTileCell === 0 ? '(empty)' : '#' + selectedTileCell}`}
           className={`p-1.5 rounded transition-colors ${
             activeTool === 'tile' ? 'bg-[rgb(var(--accent-2-rgb)/0.2)]' : 'hover:bg-[var(--panel-3)]'
           }`}
         >
-          <Grid3x3 size={15} color={activeTool === 'tile' ? 'var(--accent-2)' : 'var(--muted)'} />
+          <ImageIcon size={15} color={activeTool === 'tile' ? 'var(--accent-2)' : 'var(--muted)'} />
         </button>
 
         <div className="h-px w-full bg-[var(--border)]" />
@@ -322,7 +401,7 @@ export default function PreviewPanel() {
             showEditorGuides ? 'bg-[rgb(var(--accent-rgb)/0.2)]' : 'hover:bg-[var(--panel-3)]'
           }`}
         >
-          <Ruler size={15} color={showEditorGuides ? 'var(--accent)' : 'var(--muted)'} />
+          <Grid3x3 size={15} color={showEditorGuides ? 'var(--accent)' : 'var(--muted)'} />
         </button>
       </div>
 
@@ -373,11 +452,17 @@ export default function PreviewPanel() {
           }}
         />
 
-        {/* Resolution badge */}
+        {/* Preview metrics badge */}
         <div className="absolute bottom-8 right-8 text-[9px] text-[var(--muted)]
                         bg-[var(--panel)] border border-[var(--border)] rounded px-1.5 py-0.5
-                        select-none pointer-events-none">
-          {res.x}×{res.y}
+                        select-none pointer-events-none text-right leading-tight">
+          <div>Output {res.x}x{res.y}</div>
+          {selectedScene && (
+            <>
+              <div>Scene {selectedScene.worldSize.x}x{selectedScene.worldSize.y}</div>
+              <div>Viewport {selectedScene.viewportSize.x}x{selectedScene.viewportSize.y}</div>
+            </>
+          )}
         </div>
       </div>
     </div>

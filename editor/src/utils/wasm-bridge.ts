@@ -394,6 +394,10 @@ export function editorSetGuidesEnabled(enabled: boolean): void {
   safeCall('editor_set_guides_enabled', null, ['number'], [enabled ? 1 : 0])
 }
 
+export function editorSetGridSize(tileSize: number): void {
+  safeCall('editor_set_grid_size', null, ['number'], [tileSize])
+}
+
 export function editorSetTransform(
   entityId: number,
   x: number, y: number,

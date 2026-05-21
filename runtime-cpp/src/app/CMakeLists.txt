@@ -58,6 +58,7 @@ if(EMSCRIPTEN)
         "_editor_set_selected_tile"
         "_editor_set_tool"
         "_editor_set_guides_enabled"
+        "_editor_set_grid_size"
         "_editor_register_image"
         "_malloc"
         "_free"

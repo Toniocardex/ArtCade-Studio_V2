@@ -4,12 +4,15 @@ import { isReady as isWasmReady } from '../utils/wasm-bridge'
 export default function StatusBar() {
   const { state }         = useEditor()
   const { state: volatile } = useConsoleLogs()
-  const { project, selection, isPlaying, projectDirty } = state
+  const { project, selection, isPlaying, projectDirty, editorGridSize, snapToGrid } = state
   const { cursorPos } = volatile
 
   const selectedName = (selection.entityId != null && project)
     ? (project.entities[selection.entityId]?.name ?? 'Unknown')
     : 'None'
+  const sceneId = selection.sceneId ?? project?.activeSceneId
+  const scene = project && sceneId ? project.scenes[sceneId] : undefined
+  const gridSize = editorGridSize ?? 32
 
   return (
     <footer
@@ -24,7 +27,14 @@ export default function StatusBar() {
         }>
           Runtime: {isPlaying ? 'PLAYING' : isWasmReady() ? 'READY' : 'LOADING'}
         </span>
-        <span>Grid: 32px</span>
+        {scene && (
+          <>
+            <span>Scene: {scene.worldSize.x}x{scene.worldSize.y}</span>
+            <span>Viewport: {scene.viewportSize.x}x{scene.viewportSize.y}</span>
+          </>
+        )}
+        <span>Grid: {gridSize}px</span>
+        {snapToGrid && <span>Snap: ON</span>}
         <span>Lua: 5.4</span>
         <span>Raylib: 5.0</span>
         {projectDirty && <span className="text-[var(--warn)]">Project: UNSAVED</span>}

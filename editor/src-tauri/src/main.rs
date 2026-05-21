@@ -26,14 +26,59 @@ use tauri::Emitter;
 #[derive(serde::Serialize, Clone)]
 struct BuildLogEntry {
     message: String,
-    level:   String,   // "info" | "warn" | "error"
+    level: String, // "info" | "warn" | "error"
 }
 
 fn emit_log(app: &tauri::AppHandle, msg: &str, level: &str) {
-    let _ = app.emit("build-log", BuildLogEntry {
-        message: msg.to_string(),
-        level:   level.to_string(),
-    });
+    let _ = app.emit(
+        "build-log",
+        BuildLogEntry {
+            message: msg.to_string(),
+            level: level.to_string(),
+        },
+    );
+}
+
+struct BuildLogFilter {
+    suppressing_third_party_cmake_warning: bool,
+}
+
+impl BuildLogFilter {
+    fn new() -> Self {
+        Self {
+            suppressing_third_party_cmake_warning: false,
+        }
+    }
+
+    fn should_emit(&mut self, line: &str) -> bool {
+        if is_third_party_cmake_deprecation_start(line) {
+            self.suppressing_third_party_cmake_warning = true;
+            return false;
+        }
+
+        if self.suppressing_third_party_cmake_warning {
+            if starts_new_build_log_record(line) {
+                self.suppressing_third_party_cmake_warning = false;
+                return self.should_emit(line);
+            }
+            return false;
+        }
+
+        true
+    }
+}
+
+fn is_third_party_cmake_deprecation_start(line: &str) -> bool {
+    line.starts_with("CMake Deprecation Warning at ")
+        && (line.contains("libs/raylib/CMakeLists.txt")
+            || line.contains("_deps/box2d-src/CMakeLists.txt"))
+}
+
+fn starts_new_build_log_record(line: &str) -> bool {
+    line.starts_with("CMake ")
+        || line.starts_with("-- ")
+        || line.starts_with("[")
+        || line.starts_with("Built target")
 }
 
 fn repo_root() -> Result<PathBuf, String> {
@@ -57,8 +102,7 @@ fn write_file(path: String, content: String) -> Result<(), String> {
         std::fs::create_dir_all(parent)
             .map_err(|e| format!("mkdir '{}': {e}", parent.display()))?;
     }
-    std::fs::write(&p, content)
-        .map_err(|e| format!("write '{}': {e}", path))
+    std::fs::write(&p, content).map_err(|e| format!("write '{}': {e}", path))
 }
 
 /// mkdir -p wrapper.
@@ -95,12 +139,18 @@ async fn run_build(app: tauri::AppHandle, project_root: String) -> Result<(), St
     );
 
     if !vsdev_cmd.exists() {
-        let msg = format!("[Build] Visual Studio DevCmd not found: {}", vsdev_cmd.display());
+        let msg = format!(
+            "[Build] Visual Studio DevCmd not found: {}",
+            vsdev_cmd.display()
+        );
         emit_log(&app, &msg, "error");
         return Err(msg);
     }
     if !project_root.join("project.json").exists() {
-        let msg = format!("[Build] project.json not found in {}", project_root.display());
+        let msg = format!(
+            "[Build] project.json not found in {}",
+            project_root.display()
+        );
         emit_log(&app, &msg, "error");
         return Err(msg);
     }
@@ -112,7 +162,10 @@ async fn run_build(app: tauri::AppHandle, project_root: String) -> Result<(), St
 
     emit_log(
         &app,
-        &format!("[Build] Configuring/building native runtime in {}", build_dir.display()),
+        &format!(
+            "[Build] Configuring/building native runtime in {}",
+            build_dir.display()
+        ),
         "info",
     );
 
@@ -156,9 +209,13 @@ async fn run_build(app: tauri::AppHandle, project_root: String) -> Result<(), St
         let app_c = app.clone();
         std::thread::spawn(move || {
             for line in BufReader::new(stdout).lines().flatten() {
-                let _ = app_c.emit("build-log", BuildLogEntry {
-                    message: line, level: "info".into(),
-                });
+                let _ = app_c.emit(
+                    "build-log",
+                    BuildLogEntry {
+                        message: line,
+                        level: "info".into(),
+                    },
+                );
             }
         });
     }
@@ -167,10 +224,18 @@ async fn run_build(app: tauri::AppHandle, project_root: String) -> Result<(), St
     if let Some(stderr) = child.stderr.take() {
         let app_c = app.clone();
         std::thread::spawn(move || {
+            let mut filter = BuildLogFilter::new();
             for line in BufReader::new(stderr).lines().flatten() {
-                let _ = app_c.emit("build-log", BuildLogEntry {
-                    message: line, level: "warn".into(),
-                });
+                if !filter.should_emit(&line) {
+                    continue;
+                }
+                let _ = app_c.emit(
+                    "build-log",
+                    BuildLogEntry {
+                        message: line,
+                        level: "warn".into(),
+                    },
+                );
             }
         });
     }
@@ -178,7 +243,11 @@ async fn run_build(app: tauri::AppHandle, project_root: String) -> Result<(), St
     match child.wait() {
         Ok(status) if status.success() => {
             emit_log(&app, "[Build] Build succeeded.", "info");
-            emit_log(&app, &format!("[Build] Runnable output: {}", app_dir.display()), "info");
+            emit_log(
+                &app,
+                &format!("[Build] Runnable output: {}", app_dir.display()),
+                "info",
+            );
             Ok(())
         }
         Ok(status) => {
@@ -193,12 +262,19 @@ async fn run_build(app: tauri::AppHandle, project_root: String) -> Result<(), St
 /// Run `python tools/pack-artcade.py <project_root> <output_path>`.
 #[tauri::command]
 async fn pack_project(
-    app:          tauri::AppHandle,
+    app: tauri::AppHandle,
     project_root: String,
-    output_path:  String,
+    output_path: String,
 ) -> Result<(), String> {
-    let script = repo_root()?.join("runtime-cpp").join("tools").join("pack-artcade.py");
-    emit_log(&app, &format!("[Pack] python {} -> {output_path}", script.display()), "info");
+    let script = repo_root()?
+        .join("runtime-cpp")
+        .join("tools")
+        .join("pack-artcade.py");
+    emit_log(
+        &app,
+        &format!("[Pack] python {} -> {output_path}", script.display()),
+        "info",
+    );
 
     let mut child = Cmd::new("python")
         .arg(&script)
@@ -213,9 +289,13 @@ async fn pack_project(
         let app_c = app.clone();
         std::thread::spawn(move || {
             for line in BufReader::new(stdout).lines().flatten() {
-                let _ = app_c.emit("build-log", BuildLogEntry {
-                    message: line, level: "info".into(),
-                });
+                let _ = app_c.emit(
+                    "build-log",
+                    BuildLogEntry {
+                        message: line,
+                        level: "info".into(),
+                    },
+                );
             }
         });
     }
@@ -224,9 +304,13 @@ async fn pack_project(
         let app_c = app.clone();
         std::thread::spawn(move || {
             for line in BufReader::new(stderr).lines().flatten() {
-                let _ = app_c.emit("build-log", BuildLogEntry {
-                    message: line, level: "error".into(),
-                });
+                let _ = app_c.emit(
+                    "build-log",
+                    BuildLogEntry {
+                        message: line,
+                        level: "error".into(),
+                    },
+                );
             }
         });
     }

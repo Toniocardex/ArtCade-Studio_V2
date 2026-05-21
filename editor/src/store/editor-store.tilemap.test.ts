@@ -21,6 +21,7 @@ function st(p: ProjectDoc): CoreState {
     selection: { entityId: null, sceneId: 's' },
     mode: 'canvas', bottomTab: 'tileset',
     openScripts: [], activeScriptPath: null, isPlaying: false, selectedTileCell: 1,
+    editorGridSize: 32, snapToGrid: false,
   }
 }
 
@@ -118,6 +119,22 @@ describe('coreReducer — tilemap', () => {
     expect(tm.cols).toBeGreaterThan(prevCols)
     expect(tm.data[2 * tm.cols + 3]).toBe(4)
     expect(resized.projectDirty).toBe(true)
+  })
+
+  it('EDITOR_SET_GRID_SIZE updates editor-only state without creating tilemap', () => {
+    const s = coreReducer(st(project()), {
+      type: 'EDITOR_SET_GRID_SIZE',
+      tileSize: 64,
+    })
+    expect(s.editorGridSize).toBe(64)
+    expect(s.project!.scenes.s.tilemap).toBeUndefined()
+    expect(s.projectDirty).toBe(false)
+  })
+
+  it('SET_SNAP_TO_GRID updates editor-only state without dirtying project', () => {
+    const s = coreReducer(st(project()), { type: 'SET_SNAP_TO_GRID', enabled: true })
+    expect(s.snapToGrid).toBe(true)
+    expect(s.projectDirty).toBe(false)
   })
 })
 

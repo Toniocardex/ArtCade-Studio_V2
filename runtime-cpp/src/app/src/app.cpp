@@ -53,7 +53,7 @@ static void drawEditorGuides(ArtCade::Modules::Renderer& renderer,
     const float w = std::max(1.f, scene.worldSize.x);
     const float h = std::max(1.f, scene.worldSize.y);
     const Vec4 grid{0.f, 0.85f, 1.f, 0.16f};
-    const float step = scene.tilemap.tileSize > 0.f ? scene.tilemap.tileSize : 32.f;
+    const float step = EditorAPI::s_editorGridSize > 0.f ? EditorAPI::s_editorGridSize : 32.f;
     if (step >= 4.f) {
         for (float x = step; x < w; x += step)
             renderer.drawLine(x, 0.f, x, h, grid);
@@ -70,6 +70,17 @@ static void drawEditorGuides(ArtCade::Modules::Renderer& renderer,
         std::max(1.f, visible.x),
         std::max(1.f, visible.y),
         Vec4{1.f, 0.8f, 0.1f, 0.9f});
+}
+
+static void drawEditorBackdrop(ArtCade::Modules::Renderer& renderer,
+                               const SceneDef& scene) {
+    const Vec2 cam = renderer.getCameraPosition();
+    const Vec2 visible = renderer.visibleWorldSize();
+    renderer.drawRectImmediate(
+        cam.x, cam.y,
+        std::max(1.f, visible.x),
+        std::max(1.f, visible.y),
+        scene.backgroundColor);
 }
 
 // ---- Pimpl for module storage -------------------------------------------
@@ -412,6 +423,9 @@ void Application::renderActiveScene() {
 
     mod_->renderer->beginFrame(clearColor);
     if (activeScene) {
+        if (EditorAPI::s_mode == 0)
+            drawEditorBackdrop(*mod_->renderer, *activeScene);
+
         mod_->renderer->drawRectImmediate(
             0.f, 0.f,
             std::max(1.f, activeScene->worldSize.x),

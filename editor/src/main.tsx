@@ -1,5 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { isTauri } from '@tauri-apps/api/core'
 import './index.css'
 import App from './App'
 import { BootErrorBoundary } from './components/BootErrorBoundary'
@@ -34,7 +35,6 @@ async function bootstrap() {
   )
 
   try {
-    const { isTauri } = await import('@tauri-apps/api/core')
     if (isTauri()) triggerLayoutReflow()
   } catch {
     /* browser dev */
