@@ -21,6 +21,7 @@
 //                      because EnTT views don't guarantee stable order).
 
 #include "entity-registry.h"
+#include "../../physics/include/physics.h"
 
 #include <entt/entt.hpp>
 
@@ -50,6 +51,10 @@ struct EntityRegistry::Impl {
 
     // EntityId (project-stable uint32) → entt::entity (entt's compact id).
     std::unordered_map<EntityId, entt::entity> ids;
+    // Reverse lookup used inside signal callbacks where we only have an
+    // entt::entity (passed by EnTT) and need the project-stable EntityId
+    // to update the manual indices and emit lifecycle events.
+    std::unordered_map<entt::entity, EntityId> reverseIds;
 
     // Insertion-order list of *all* ids. Mirrors the order in which entities
     // were allocated/touched, with erase O(N) — the ArtCade workload is
@@ -60,9 +65,18 @@ struct EntityRegistry::Impl {
 
     // Insertion-order indexes for deterministic iteration. EnTT views do
     // not guarantee a stable ordering across runs, so we maintain these
-    // by hand on setIdentity / erase.
+    // through on_construct/on_destroy<Identity> signals (see below).
     std::unordered_map<std::string, std::vector<EntityId>> classIndex;
     std::unordered_map<std::string, std::vector<EntityId>> tagIndex;
+
+    // Lifecycle events queued by Identity signals; drained by the gateway
+    // once per frame.
+    std::vector<LifecycleEvent> lifecycleQueue;
+
+    // External resources reachable from signal callbacks. nullptr disables
+    // the corresponding signal-driven cleanup (used during shutdown to
+    // avoid touching modules that were already torn down).
+    Physics* physics = nullptr;
 
     EntityId nextId = 1;
 
@@ -71,37 +85,80 @@ struct EntityRegistry::Impl {
         return (it != ids.end()) ? it->second : entt::null;
     }
 
+    EntityId toEntityId(entt::entity e) const {
+        auto it = reverseIds.find(e);
+        return (it != reverseIds.end()) ? it->second : EntityId{0};
+    }
+
     entt::entity ensure(EntityId id) {
         auto it = ids.find(id);
         if (it != ids.end()) return it->second;
         const entt::entity e = reg.create();
         ids.emplace(id, e);
+        reverseIds.emplace(e, id);
         insertionOrder.push_back(id);
         // Default-initialize the "always present" components, matching
         // the previous "value-initialized record fields" contract.
+        // Identity is *not* default-emplaced: it's added by setIdentity
+        // so that on_construct<Identity> fires exactly once per entity
+        // with the real className/tags (and emits the Spawned event).
         reg.emplace<Transform>(e);
         reg.emplace<SpriteComponent>(e);
         reg.emplace<PhysicsComponent>(e);
         reg.emplace<PhysicsHandleComp>(e);
-        reg.emplace<Identity>(e);
         return e;
     }
 
-    void removeFromIndexes(EntityId id) {
-        const entt::entity e = toEntt(id);
-        if (e == entt::null) return;
-        if (auto* ident = reg.try_get<Identity>(e)) {
-            auto cit = classIndex.find(ident->className);
+    // ---- Signal handlers --------------------------------------------------
+
+    void onIdentityConstructed(entt::registry& r, entt::entity e) {
+        const EntityId id = toEntityId(e);
+        if (id == 0) return;
+        const auto& ident = r.get<Identity>(e);
+        if (!ident.className.empty())
+            classIndex[ident.className].push_back(id);
+        for (const std::string& tag : ident.tags)
+            tagIndex[tag].push_back(id);
+        lifecycleQueue.push_back(LifecycleEvent{
+            LifecycleEvent::Kind::Spawned, id, ident.className, ident.tags });
+    }
+
+    void onIdentityDestroyed(entt::registry& r, entt::entity e) {
+        const EntityId id = toEntityId(e);
+        if (id == 0) return;
+        const auto& ident = r.get<Identity>(e);
+        if (!ident.className.empty()) {
+            auto cit = classIndex.find(ident.className);
             if (cit != classIndex.end()) eraseId(cit->second, id);
-            for (const std::string& t : ident->tags) {
-                auto tit = tagIndex.find(t);
-                if (tit != tagIndex.end()) eraseId(tit->second, id);
-            }
         }
+        for (const std::string& tag : ident.tags) {
+            auto tit = tagIndex.find(tag);
+            if (tit != tagIndex.end()) eraseId(tit->second, id);
+        }
+        lifecycleQueue.push_back(LifecycleEvent{
+            LifecycleEvent::Kind::Destroyed, id, ident.className, ident.tags });
+    }
+
+    void onPhysicsHandleDestroyed(entt::registry& r, entt::entity e) {
+        if (!physics) return;
+        const auto* h = r.try_get<PhysicsHandleComp>(e);
+        if (!h || h->value == 0) return;
+        physics->destroyBody(h->value);
     }
 };
 
-EntityRegistry::EntityRegistry()  : impl_(std::make_unique<Impl>()) {}
+EntityRegistry::EntityRegistry() : impl_(std::make_unique<Impl>()) {
+    // Wire the signals once. Lifetimes: Impl owns the registry and outlives
+    // the connections; the connect-by-member-pointer pattern below stores
+    // a pointer to *impl_ which is stable for the registry's lifetime.
+    impl_->reg.on_construct<Identity>()
+        .connect<&Impl::onIdentityConstructed>(*impl_);
+    impl_->reg.on_destroy<Identity>()
+        .connect<&Impl::onIdentityDestroyed>(*impl_);
+    impl_->reg.on_destroy<PhysicsHandleComp>()
+        .connect<&Impl::onPhysicsHandleDestroyed>(*impl_);
+}
+
 EntityRegistry::~EntityRegistry() = default;
 
 // ---- Records ---------------------------------------------------------------
@@ -127,13 +184,17 @@ bool EntityRegistry::touch(EntityId id) {
 }
 
 void EntityRegistry::erase(EntityId id) {
-    impl_->removeFromIndexes(id);
     const entt::entity e = impl_->toEntt(id);
-    if (e != entt::null) {
-        impl_->reg.destroy(e);
-        impl_->ids.erase(id);
-        eraseId(impl_->insertionOrder, id);
-    }
+    if (e == entt::null) return;
+    // reg.destroy fires on_destroy signals for every component the entity
+    // holds; the Identity and PhysicsHandle handlers do their own cleanup
+    // (indices, lifecycle event, Box2D body). After this call the slot is
+    // gone from the EnTT registry — we only need to mop up the manual
+    // EntityId→entt::entity bookkeeping.
+    impl_->reg.destroy(e);
+    impl_->ids.erase(id);
+    impl_->reverseIds.erase(e);
+    eraseId(impl_->insertionOrder, id);
 }
 
 bool EntityRegistry::contains(EntityId id) const {
@@ -141,12 +202,29 @@ bool EntityRegistry::contains(EntityId id) const {
 }
 
 void EntityRegistry::clear() {
+    // reg.clear() fires on_destroy for every component of every entity —
+    // class/tag indexes drain themselves and physics bodies are freed via
+    // the PhysicsHandleComp signal. We just reset the manual bookkeeping.
     impl_->reg.clear();
     impl_->ids.clear();
+    impl_->reverseIds.clear();
     impl_->insertionOrder.clear();
     impl_->classIndex.clear();
     impl_->tagIndex.clear();
+    impl_->lifecycleQueue.clear();
     impl_->nextId = 1;
+}
+
+void EntityRegistry::setPhysics(Physics* physics) {
+    impl_->physics = physics;
+}
+
+void EntityRegistry::drainLifecycleEvents(std::vector<LifecycleEvent>& out) {
+    if (impl_->lifecycleQueue.empty()) return;
+    out.insert(out.end(),
+               std::make_move_iterator(impl_->lifecycleQueue.begin()),
+               std::make_move_iterator(impl_->lifecycleQueue.end()));
+    impl_->lifecycleQueue.clear();
 }
 
 std::vector<EntityId> EntityRegistry::allIds() const {
@@ -158,16 +236,15 @@ std::vector<EntityId> EntityRegistry::allIds() const {
 void EntityRegistry::setIdentity(EntityId id,
                                  std::string className,
                                  std::vector<std::string> tags) {
-    impl_->removeFromIndexes(id);
-
     const entt::entity e = impl_->ensure(id);
-    Identity& ident = impl_->reg.get<Identity>(e);
-    ident.className = std::move(className);
-    ident.tags      = std::move(tags);
-
-    impl_->classIndex[ident.className].push_back(id);
-    for (const std::string& tag : ident.tags)
-        impl_->tagIndex[tag].push_back(id);
+    // Remove first so on_destroy<Identity> fires with the *old* className
+    // and tags — that's what the signal handler reads to scrub the manual
+    // indices and emit the Destroyed lifecycle event (no-op if Identity
+    // wasn't present yet). The subsequent emplace fires on_construct
+    // with the new data, which repopulates the indices and emits Spawned.
+    impl_->reg.remove<Identity>(e);
+    impl_->reg.emplace<Identity>(e,
+        Identity{ std::move(className), std::move(tags) });
 }
 
 const std::string& EntityRegistry::className(EntityId id) const {

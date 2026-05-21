@@ -48,7 +48,13 @@ void RuntimeEntityGateway::shutdown() {
     pendingDestroy_.clear();
     pendingSpawn_.clear();
     destroyBuffer_.clear();
+    // Clear while physics is still alive: registry.clear() fires
+    // on_destroy<PhysicsHandleComp> for every entity, which frees the
+    // matching Box2D bodies. Detach physics afterwards so any stray
+    // signal during ~EntityRegistry can't reach a torn-down module.
     registry_->clear();
+    registry_->setPhysics(nullptr);
+    lifecycleQueue_.clear();
     classPrototypes_.clear();
     spawnLogCallback_ = nullptr;
     fadePhase_ = FadePhase::None;
@@ -56,6 +62,7 @@ void RuntimeEntityGateway::shutdown() {
 
 void RuntimeEntityGateway::setPhysics(Physics* physics) {
     physics_ = physics;
+    registry_->setPhysics(physics);
 }
 
 void RuntimeEntityGateway::setSpawnLogCallback(SpawnLogCallback cb) {
@@ -218,8 +225,28 @@ EntityId RuntimeEntityGateway::spawnFromClass(const std::string& className, floa
 
 void RuntimeEntityGateway::destroy(EntityId id) {
     sceneManager_.removeEntityFromAllScenes(id);
-    teardownPhysicsBody(id);
+    // No explicit teardownPhysicsBody: registry_->erase fires the
+    // on_destroy<PhysicsHandleComp> signal which frees the Box2D body
+    // (see EntityRegistry::Impl::onPhysicsHandleDestroyed). It also
+    // fires on_destroy<Identity>, draining class/tag indices and
+    // queueing a LifecycleEvent::Destroyed for Lua.
     registry_->erase(id);
+}
+
+void RuntimeEntityGateway::drainLifecycleEvents(
+    std::vector<LifecycleEvent>& out)
+{
+    // First make sure local + registry queues are merged: gateway-level
+    // operations (queueDestroy → flushPendingOperations → destroy) already
+    // route through the registry signals, so the registry queue is the
+    // single source of truth. We keep the gateway-level vector member
+    // around for future extension (e.g. non-component lifecycle hooks).
+    registry_->drainLifecycleEvents(lifecycleQueue_);
+    if (lifecycleQueue_.empty()) return;
+    out.insert(out.end(),
+               std::make_move_iterator(lifecycleQueue_.begin()),
+               std::make_move_iterator(lifecycleQueue_.end()));
+    lifecycleQueue_.clear();
 }
 
 void RuntimeEntityGateway::queueDestroy(EntityId id) {

@@ -2,7 +2,7 @@
 
 > **Audience**: Sviluppatori C++ del runtime  
 > **Libreria**: EnTT 3.13.2 (header-only, vendored via CMake `FetchContent`)  
-> **Versione**: 2.0 (post-migrazione EnTT)
+> **Versione**: 2.1 (signal/observer + lifecycle events)
 > **Data**: 2026-05-21
 
 ---
@@ -43,6 +43,11 @@ site non cambino quando l'implementazione interna evolve.
 3. **Authoring vs runtime**: `EntityDef` (in `core/types.h`) è un DTO
    usato solo per caricare il `ProjectDoc` JSON. Una volta caricata la
    scena, i dati vivono nei componenti EnTT, non in `EntityDef`.
+4. **Signal-driven side effects**: gli indici `classIndex`/`tagIndex` e
+   il teardown dei body Box2D sono mantenuti automaticamente da
+   `on_construct/on_destroy` (vedi §9). Non duplicare la logica nei
+   chiamanti — affidati al fatto che `setIdentity` e `erase` *fanno la
+   cosa giusta da soli*.
 
 ---
 
@@ -365,7 +370,122 @@ deterministici.
 
 ---
 
-## 9. Testing
+## 9. Signal & lifecycle events (EnTT `on_construct` / `on_destroy`)
+
+EnTT espone signal *sincroni* per ciclo di vita dei componenti. ArtCade ne usa
+tre, sempre dietro la facciata del gateway — Lua e moduli esterni non vedono
+mai un `entt::sigh_helper`.
+
+### Cosa è cablato oggi
+
+| Signal                            | Dove vive                        | Cosa fa                                                                                                                                                                                  |
+| --------------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `on_construct<Identity>`          | `EntityRegistry::Impl`           | Aggiunge `id` a `classIndex[className]` e `tagIndex[tag]`; accoda un `LifecycleEvent::Spawned`.                                                                                          |
+| `on_destroy<Identity>`            | `EntityRegistry::Impl`           | Rimuove `id` dagli stessi indici e accoda un `LifecycleEvent::Destroyed`. Fired *prima* della rimozione effettiva, quindi `Identity` è ancora leggibile dalla callback.                  |
+| `on_destroy<PhysicsHandleComp>`   | `EntityRegistry::Impl`           | Se `value != 0` e `Physics*` è iniettato, chiama `Physics::destroyBody(value)`. Risolve la fuga di body Box2D che avveniva su `replaceProject` / `clear()`.                              |
+
+Cablaggio (una volta sola in `EntityRegistry()` costruttore):
+
+```cpp
+impl_->reg.on_construct<Identity>()
+    .connect<&Impl::onIdentityConstructed>(*impl_);
+impl_->reg.on_destroy<Identity>()
+    .connect<&Impl::onIdentityDestroyed>(*impl_);
+impl_->reg.on_destroy<PhysicsHandleComp>()
+    .connect<&Impl::onPhysicsHandleDestroyed>(*impl_);
+```
+
+### Perché `Identity` *non* è più in `ensure()`
+
+`Identity` viene emplace-ato **solo** da `setIdentity()`. Se fosse
+default-emplaced in `ensure()` come gli altri componenti, `on_construct<Identity>`
+fornirebbe `className=""` (rumore) e poi un secondo evento al vero set —
+due signal per una sola "spawn" osservabile da gioco. Tenerla fuori da
+`ensure` rende ogni evento corrispondente a un singolo `setIdentity`.
+
+`setIdentity` segue il pattern *remove + emplace*:
+
+```cpp
+impl_->reg.remove<Identity>(e);                 // fires on_destroy → drena indici/eventi
+impl_->reg.emplace<Identity>(e, { cls, tags }); // fires on_construct → ripopola
+```
+
+Sul primo set la `remove` è no-op, sul rename pulisce gli indici della
+vecchia classe/tag prima di indicizzare quella nuova.
+
+### Lifecycle events → Lua
+
+I `LifecycleEvent` accodati dai signal sono drenati dal main loop e
+inoltrati ai callback Lua. L'API:
+
+```lua
+lifecycle.onSpawn("Enemy", function(id, tags)
+    audio.playSound("enemy_appear.ogg", 1.0, 1.0)
+end)
+
+lifecycle.onDestroy("Enemy", function(id, tags)
+    pool.spawn("Explosion", entity.position(id).x, entity.position(id).y)
+    state.add("score", 100)
+end)
+
+lifecycle.clearHandlers()   -- es. su cambio scena/hot reload
+```
+
+Pattern del main loop (in `app.cpp::loopIteration`):
+
+```cpp
+mod_->world->flushEntityQueues();        // applica spawn/destroy queueati
+mod_->gameAPI->dispatchLifecycleEvents();// drena registry → invoca handler Lua
+```
+
+`dispatchLifecycleEvents` viene chiamato due volte per step (una volta
+dopo `flushEntityQueues`, una dopo l'auto-destroy) in modo che gli
+handler vedano gli eventi nello *stesso* frame in cui sono stati
+generati, non nel successivo.
+
+### Cosa **non** fare nei signal handler
+
+- **Niente mutazioni di registry profonde**: `destroy()` o `create()` da
+  dentro un handler funzionano (sono solo coda + signal), ma `emplace_or_replace`
+  di un componente già in iterazione può invalidare lo storage. Accumula in
+  un vettore locale e applica fuori.
+- **Niente assunzioni sull'ordine dei componenti**: `on_destroy<Identity>`
+  potrebbe firare prima o dopo `on_destroy<PhysicsHandleComp>` sulla stessa
+  entità. Usa `try_get` se hai bisogno di un altro componente dentro il
+  callback, e accetta che possa non esserci più.
+- **Niente capture per riferimento di stato runtime**: l'`Impl` è
+  PIMPL stabile per la vita del registry, quindi `connect<&Impl::method>(*impl_)`
+  è sicuro. Lambda con cattura per `&` di puntatori a moduli esterni
+  sopravvivono solo se sei tu a garantire l'ordine di shutdown — preferisci
+  un *getter* esplicito (vedi `setPhysics`).
+
+### Aggiungere un nuovo signal
+
+Esempio: aggiungere VFX automatico quando viene aggiunto un `HealthComponent`.
+
+1. Definisci/usa il componente (`core/types.h` o modulo).
+2. In `EntityRegistry::Impl` aggiungi una callback:
+   ```cpp
+   void onHealthAdded(entt::registry& r, entt::entity e) {
+       lifecycleQueue.push_back(/* evento custom */);
+   }
+   ```
+3. Connetti nel costruttore di `EntityRegistry`:
+   ```cpp
+   impl_->reg.on_construct<HealthComponent>()
+       .connect<&Impl::onHealthAdded>(*impl_);
+   ```
+4. (Opzionale) Estendi `LifecycleEvent` o aggiungi una nuova coda, e
+   crea un `GameAPI::dispatch...` chiamato dal main loop come per gli
+   eventi standard.
+
+**Regola**: ogni signal che pubblica verso l'esterno passa per una coda
+drenata sul main loop, non chiama Lua sincrono. Tiene il dispatch
+osservabile, debuggabile e deterministico.
+
+---
+
+## 10. Testing
 
 I test runtime stanno in `runtime-cpp/tests/`. Pattern tipico per
 testare un sistema nuovo (vedi `scene-gateway-test.cpp`):
@@ -407,4 +527,6 @@ I test runnano via `ctest -C Release --output-on-failure` da
 
 *Questa guida riflette l'integrazione EnTT completata a 2026-05-21
 (rimozione `EntityManager`, registry PIMPL, visitor view-based,
-determinismo enforced). Per estensioni vedi §6.*
+determinismo enforced, signal/observer per indici automatici, teardown
+Box2D automatico, lifecycle events verso Lua). Per estensioni vedi §6
+(nuovi componenti) e §9 (nuovi signal).*

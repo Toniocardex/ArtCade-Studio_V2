@@ -10,6 +10,8 @@
 
 namespace ArtCade::Modules {
 
+class Physics;
+
 /**
  * EntityRegistry — internal storage abstraction for RuntimeEntityGateway.
  *
@@ -99,6 +101,28 @@ public:
 
     uint32_t physicsHandle(EntityId id) const;
     void     setPhysicsHandle(EntityId id, uint32_t handle);
+
+    // ---- Signal-driven external resource cleanup -----------------------
+    //
+    // The registry owns Box2D body teardown via on_destroy<PhysicsHandleComp>.
+    // When an entity is destroyed (entity-wide destroy or registry.clear),
+    // the signal fires with the still-set handle, and the registry calls
+    // physics_->destroyBody(handle) automatically. This closes the leak
+    // path where `replaceProject` / shutdown cleared entities without
+    // calling teardownPhysicsBody first.
+    //
+    // The pointer is owned by the application; the registry never deletes
+    // it. Set to nullptr before tearing down the physics module to disable
+    // the signal callback.
+    void setPhysics(Physics* physics);
+
+    // ---- Lifecycle events ----------------------------------------------
+    //
+    // Filled by on_construct<Identity> (Spawned) and on_destroy<Identity>
+    // (Destroyed). The gateway drains once per frame and feeds Lua-side
+    // lifecycle.onSpawn/onDestroy handlers. See LifecycleEvent in
+    // core/types.h.
+    void drainLifecycleEvents(std::vector<LifecycleEvent>& out);
 
     // ---- System visitors (entt-backed, deterministic order) ------------
     //

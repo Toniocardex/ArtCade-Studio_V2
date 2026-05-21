@@ -127,6 +127,21 @@ struct AutoDestroyComponent {
     float _timeAlive = 0.f;  // runtime accumulator (not serialised)
 };
 
+// LifecycleEvent — emitted by EntityRegistry signals (on_construct/on_destroy
+// of Identity) when an entity gains its className/tags (Spawned) or is being
+// destroyed (Destroyed). Drained once per frame by the gateway and routed to
+// Lua handlers registered via `lifecycle.onSpawn(class, fn)` /
+// `lifecycle.onDestroy(class, fn)`. Order matches registry insertion order
+// for Spawned events and reverse-insertion for Destroyed (signal fires
+// before the entity is physically removed). See ECS_IMPLEMENTATION_GUIDE.md §10.
+struct LifecycleEvent {
+    enum class Kind { Spawned, Destroyed };
+    Kind                     kind      = Kind::Spawned;
+    EntityId                 id        = 0;
+    std::string              className;
+    std::vector<std::string> tags;
+};
+
 // ============================================================================
 // Entity / Scene definitions
 // ============================================================================

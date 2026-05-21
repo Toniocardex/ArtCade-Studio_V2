@@ -116,6 +116,14 @@ public:
     struct DestroyedEvent { EntityId entityId = 0; };
     std::vector<DestroyedEvent> pollDestroyed();
 
+    // Drain entity lifecycle events (Spawned / Destroyed) queued by the
+    // registry signals. Called once per frame by the main loop, then
+    // routed to Lua handlers registered via lifecycle.onSpawn/onDestroy.
+    // Order: stable within a frame, matches the order signals fired
+    // (i.e. insertion order for Spawned, deterministic for Destroyed
+    // when called through flushPendingOperations).
+    void drainLifecycleEvents(std::vector<LifecycleEvent>& out);
+
     void syncSceneActivation();
     SceneId activeSceneId() const;
     const SceneDef* activeScene() const;
@@ -131,9 +139,10 @@ private:
      *  out of this public include; gateway methods delegate here. */
     std::unique_ptr<EntityRegistry> registry_;
 
-    std::vector<EntityId>       pendingDestroy_;
-    std::vector<EntityDef>      pendingSpawn_;
-    std::vector<DestroyedEvent> destroyBuffer_;
+    std::vector<EntityId>        pendingDestroy_;
+    std::vector<EntityDef>       pendingSpawn_;
+    std::vector<DestroyedEvent>  destroyBuffer_;
+    std::vector<LifecycleEvent>  lifecycleQueue_;
 
     SceneId  pendingSceneId_;
     float    fadeDuration_  = 0.f;

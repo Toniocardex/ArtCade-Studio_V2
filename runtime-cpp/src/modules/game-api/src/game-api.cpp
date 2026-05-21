@@ -8,6 +8,7 @@ bool GameAPI::init()     { return true; }
 void GameAPI::shutdown() {}
 
 void GameAPI::registerAll(sol::state& lua) {
+    luaState_ = &lua;      // cached for per-frame dispatch (lifecycle events)
     bindDebugAPI  (lua);   // first: debug.log available for others
     bindEventAPI  (lua);   // event bus (no deps)
     bindTimeAPI   (lua);   // timer system (no deps)

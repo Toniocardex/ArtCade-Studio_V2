@@ -41,8 +41,16 @@ public:
     // Register every category into the provided Lua state
     void registerAll(sol::state& lua);
 
+    /** Drain entity lifecycle events from the gateway and route them to
+     *  Lua handlers registered via lifecycle.onSpawn / lifecycle.onDestroy.
+     *  Called once per fixed step from the main loop, after
+     *  flushEntityQueues so spawn → destroy in the same frame are visible
+     *  in arrival order. No-op when the Lua state has not been bound yet. */
+    void dispatchLifecycleEvents();
+
 private:
     const EngineContext& ctx_;
+    sol::state*          luaState_ = nullptr; // cached in registerAll()
 
     void bindEntityAPI (sol::state& lua);
     void bindPhysicsAPI(sol::state& lua);

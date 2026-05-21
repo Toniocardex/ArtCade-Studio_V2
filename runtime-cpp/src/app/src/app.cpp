@@ -394,6 +394,12 @@ void Application::loopIteration() {
         mod_->world->syncPhysicsToEntities();
         mod_->world->flushEntityQueues();
 
+        // Dispatch lifecycle events (Spawned / Destroyed) from EnTT
+        // signals to Lua handlers registered via lifecycle.onSpawn /
+        // lifecycle.onDestroy. Runs *after* flushEntityQueues so all
+        // queued spawn+destroy of this step are visible in order.
+        mod_->gameAPI->dispatchLifecycleEvents();
+
         // AutoDestroy system (Phase D1): lifespan>0 → destroy after N seconds.
         // EnTT visitor: mutable AutoDestroyComponent& so the countdown is
         // written back in-place; queueDestroy in insertion order keeps the
@@ -410,6 +416,9 @@ void Application::loopIteration() {
                         gateway->queueDestroy(id);
                 });
             mod_->world->flushEntityQueues();
+            // Drain the lifecycle events queued by the auto-destroy
+            // flush so onDestroy handlers see them this frame, not the next.
+            mod_->gameAPI->dispatchLifecycleEvents();
         }
 
         mod_->audio->update();
