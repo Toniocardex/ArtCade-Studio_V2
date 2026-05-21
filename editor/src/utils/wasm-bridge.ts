@@ -99,13 +99,26 @@ function cacheQuery(): string {
   return import.meta.env.DEV ? `?v=${Date.now()}` : ''
 }
 
-function bindWindowCallbacks(cbs: WasmCallbacks): void {
-  window.onEntitySelected         = cbs.onEntitySelected
-  window.onEntityTransformChanged = cbs.onEntityTransformChanged
-  window.onConsoleLine            = cbs.onConsoleLine
-  window.onTilemapPainted         = cbs.onTilemapPainted
-  window.onObjectUpdated = (x, y) =>
-    cbs.onEntityTransformChanged(0, x, y, 0, 1, 1)
+/**
+ * Bind C++→JS callbacks onto `window`. Required callbacks are always
+ * (re)assigned; OPTIONAL callbacks (e.g. `onTilemapPainted`) are only
+ * overwritten when explicitly provided.
+ *
+ * Why: callers like `PreviewPanel` invoke `loadWasmRuntime` again on canvas
+ * rebind. If that rebind happens with a partial callback set, naively
+ * assigning `window.onTilemapPainted = cbs.onTilemapPainted` would
+ * silently set it to `undefined`, breaking tilemap-paint persistence into
+ * React (P1 in TECHNICAL_DEBT_REVIEW.md).
+ */
+export function bindWindowCallbacks(cbs: Partial<WasmCallbacks>): void {
+  if (cbs.onEntitySelected)         window.onEntitySelected         = cbs.onEntitySelected
+  if (cbs.onEntityTransformChanged) window.onEntityTransformChanged = cbs.onEntityTransformChanged
+  if (cbs.onConsoleLine)            window.onConsoleLine            = cbs.onConsoleLine
+  if (cbs.onTilemapPainted)         window.onTilemapPainted         = cbs.onTilemapPainted
+  if (cbs.onEntityTransformChanged) {
+    const fwd = cbs.onEntityTransformChanged
+    window.onObjectUpdated = (x, y) => fwd(0, x, y, 0, 1, 1)
+  }
 }
 
 function attachModuleHooks(

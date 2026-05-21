@@ -1,12 +1,14 @@
-import { useRef, useEffect, useLayoutEffect, useState } from 'react'
+import { useRef, useEffect, useLayoutEffect, useState, type Dispatch, type MutableRefObject } from 'react'
 import { MousePointer2, Hand, Pencil, Eraser, Wifi, WifiOff, Grid3x3, ImageIcon } from 'lucide-react'
 import { useEditor } from '../store/editor-store'
 import type { ConsoleEntry } from '../types'
+import type { Action as EditorAction } from '../store/editor-store'
 import {
   loadWasmRuntime, isReady,
   syncEditorRuntimeState,
   editorSetSelectedTile,
   editorRegisterImage, editorSetTool, editorSetGuidesEnabled, editorSetGridSize, editorSetTransform,
+  type WasmCallbacks,
 } from '../utils/wasm-bridge'
 import { readProjectImageBytes } from '../utils/api'
 import { dirName } from '../utils/project'
@@ -39,6 +41,69 @@ function sameTransform(
     Math.abs(a.rotation - b.rotation) < epsilon &&
     Math.abs(a.scaleX - b.scaleX) < epsilon &&
     Math.abs(a.scaleY - b.scaleY) < epsilon
+}
+
+interface RuntimeCallbackDeps {
+  cancelled: () => boolean
+  dispatch: Dispatch<EditorAction>
+  setEngineReady: (ready: boolean) => void
+  handleRuntimeTransform: (
+    entityId: number, x: number, y: number,
+    rotation: number, scaleX: number, scaleY: number,
+  ) => void
+  sceneIdRef: MutableRefObject<string>
+  syncRuntimeUiFlags: () => void
+}
+
+/**
+ * Build the complete set of runtime→React callbacks for `loadWasmRuntime`.
+ * Reused on canvas rebind so optional callbacks (e.g. `onTilemapPainted`)
+ * cannot be silently lost (P1 fix — TECHNICAL_DEBT_REVIEW.md).
+ */
+function buildRuntimeCallbacks(deps: RuntimeCallbackDeps): WasmCallbacks {
+  const {
+    cancelled, dispatch, setEngineReady,
+    handleRuntimeTransform, sceneIdRef, syncRuntimeUiFlags,
+  } = deps
+  return {
+    onReady: () => {
+      syncRuntimeUiFlags()
+      if (cancelled()) return
+      setTimeout(() => dispatch({
+        type: 'LOG',
+        entry: makeLogEntry('[WASM] Runtime initialised — editor mode active.', 'info'),
+      }), 0)
+    },
+    onEntitySelected: (entityId: number) => {
+      if (cancelled()) return
+      dispatch({ type: 'SELECT_ENTITY', entityId })
+    },
+    onEntityTransformChanged: (
+      entityId: number, x: number, y: number,
+      rotation: number, scaleX: number, scaleY: number,
+    ) => {
+      if (cancelled()) return
+      setTimeout(() => {
+        if (!cancelled()) handleRuntimeTransform(entityId, x, y, rotation, scaleX, scaleY)
+      }, 0)
+    },
+    onConsoleLine: (message: string, level: string) => {
+      if (cancelled()) return
+      const entry = makeLogEntry(message, level)
+      if (message.includes('[EditorAPI] Bridge initialised')) {
+        setTimeout(() => { if (!cancelled()) setEngineReady(true) }, 0)
+      }
+      setTimeout(() => dispatch({ type: 'LOG', entry }), 0)
+    },
+    onTilemapPainted: (col: number, row: number, tileId: number) => {
+      if (cancelled()) return
+      const sceneId = sceneIdRef.current
+      if (!sceneId) return
+      setTimeout(() => dispatch({
+        type: 'TILEMAP_PAINT_CELL', sceneId, col, row, tileId,
+      }), 0)
+    },
+  }
 }
 
 export default function PreviewPanel() {
@@ -137,49 +202,18 @@ export default function PreviewPanel() {
 
     let cancelled = false
 
-    const callbacks = {
-      onReady: () => {
-        syncRuntimeUiFlags()
-        if (cancelled) return
-        setTimeout(() => dispatch({
-          type: 'LOG',
-          entry: makeLogEntry('[WASM] Runtime initialised — editor mode active.', 'info'),
-        }), 0)
-      },
-
-      onEntitySelected: (entityId: number) => {
-        if (cancelled) return
-        dispatch({ type: 'SELECT_ENTITY', entityId })
-      },
-
-      onEntityTransformChanged: (
-        entityId: number, x: number, y: number,
-        rotation: number, scaleX: number, scaleY: number,
-      ) => {
-        if (cancelled) return
-        setTimeout(() => {
-          if (!cancelled) handleRuntimeTransform(entityId, x, y, rotation, scaleX, scaleY)
-        }, 0)
-      },
-
-      onConsoleLine: (message: string, level: string) => {
-        if (cancelled) return
-        const entry = makeLogEntry(message, level)
-        if (message.includes('[EditorAPI] Bridge initialised')) {
-          setTimeout(() => { if (!cancelled) setEngineReady(true) }, 0)
-        }
-        setTimeout(() => dispatch({ type: 'LOG', entry }), 0)
-      },
-
-      onTilemapPainted: (col: number, row: number, tileId: number) => {
-        if (cancelled) return
-        const sceneId = sceneIdRef.current
-        if (!sceneId) return
-        setTimeout(() => dispatch({
-          type: 'TILEMAP_PAINT_CELL', sceneId, col, row, tileId,
-        }), 0)
-      },
-    }
+    // A single source of truth for runtime→React callbacks. Reused on canvas
+    // rebind below so optional callbacks (e.g. onTilemapPainted) cannot be
+    // silently dropped when the user toggles canvas view (P1 fix —
+    // TECHNICAL_DEBT_REVIEW.md).
+    const callbacks = buildRuntimeCallbacks({
+      cancelled: () => cancelled,
+      dispatch,
+      setEngineReady,
+      handleRuntimeTransform,
+      sceneIdRef,
+      syncRuntimeUiFlags,
+    })
 
     if (isReady()) {
       callbacks.onReady()
@@ -206,16 +240,16 @@ export default function PreviewPanel() {
     const canvas = canvasRef.current
     if (!canvas || !isReady()) return
     syncRuntimeUiFlags()
-    void loadWasmRuntime(canvas, WASM_RUNTIME_SRC, {
-      onReady: syncRuntimeUiFlags,
-      onEntitySelected:         (id) => dispatch({ type: 'SELECT_ENTITY', entityId: id }),
-      onEntityTransformChanged: (entityId, x, y, rotation, scaleX, scaleY) =>
-        handleRuntimeTransform(entityId, x, y, rotation, scaleX, scaleY),
-      onConsoleLine: (message, level) => {
-        if (message.includes('[EditorAPI] Bridge initialised')) setEngineReady(true)
-        dispatch({ type: 'LOG', entry: makeLogEntry(message, level) })
-      },
-    })
+    // Reuse the full callback set: bindWindowCallbacks is merge-safe, so any
+    // optional callback we omit here keeps the binding established on mount.
+    void loadWasmRuntime(canvas, WASM_RUNTIME_SRC, buildRuntimeCallbacks({
+      cancelled: () => false,
+      dispatch,
+      setEngineReady,
+      handleRuntimeTransform,
+      sceneIdRef,
+      syncRuntimeUiFlags,
+    }))
   }, [mode, dispatch])
 
   // ── Re-sync project into C++ whenever the user opens a new project ────────
