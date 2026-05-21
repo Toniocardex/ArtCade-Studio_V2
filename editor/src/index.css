@@ -112,6 +112,21 @@ html, body, #root {
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--border-2); }
 
+/* Canvas preview viewport has its own scroll affordance: large levels
+   (e.g. 4096x640 platformers) demand reliably-grabbable scrollbars, so we
+   override the 5px global rule with a 12px thumb only inside the preview
+   scroll area. Other panels (asset browser, code editor, console) keep
+   the thin design-language scrollbar. */
+.canvas-scrollarea::-webkit-scrollbar       { width: 12px; height: 12px; }
+.canvas-scrollarea::-webkit-scrollbar-track { background: var(--panel); }
+.canvas-scrollarea::-webkit-scrollbar-thumb {
+  background:    var(--border-2);
+  border-radius: 6px;
+  border:        2px solid var(--panel);
+}
+.canvas-scrollarea::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+.canvas-scrollarea::-webkit-scrollbar-corner     { background: var(--panel); }
+
 /* Neon glow helpers (used via inline style when needed) */
 .glow-cyan  { text-shadow: 0 0 8px var(--accent); }
 .glow-mag   { text-shadow: 0 0 8px var(--accent-2); }

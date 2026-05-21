@@ -201,6 +201,73 @@ export default function PreviewPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectLoadEpoch])
 
+  // -------------------------------------------------------------- pan tool
+  //
+  // In editor mode the C++ camera is locked (worldSize == viewportSize,
+  // zoom 1, no offset) — there is nothing to pan inside the runtime. What
+  // "Pan" means here is: drag the OUTER scroll container so the user can
+  // navigate a large level (e.g. 4096x640 platformer). The native scrollbars
+  // already do this, but click-drag is the universal expectation (Figma,
+  // Aseprite, Photoshop) and it's what the toolbar button promises.
+  //
+  // Design:
+  //   • activeTool === 'pan'  → wrapper catches pointerdown, sets the canvas
+  //     to pointer-events:none so the runtime's native click-to-select stays
+  //     out of the way, and translates pointer delta into scrollLeft/Top.
+  //   • Middle mouse button   → always pans, regardless of the active tool
+  //     (industry-standard ergonomic; the canvas keeps pointer-events:auto
+  //     but middle-button is unused by C++ so the native listener is a no-op).
+  //   • isPanning state drives the cursor (grab/grabbing) and forces a single
+  //     re-render at start + end; the per-frame delta uses panStartRef only
+  //     so the drag loop doesn't go through React reconciliation.
+  const [isPanning, setIsPanning] = useState(false)
+  const panStartRef = useRef<{
+    pointerId: number
+    clientX: number; clientY: number
+    scrollX: number; scrollY: number
+  } | null>(null)
+
+  function onCanvasAreaPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    const el = scrollRef.current
+    if (!el) return
+    const wantsPan = e.button === 1 || (e.button === 0 && activeTool === 'pan')
+    if (!wantsPan) return
+
+    e.preventDefault()
+    el.setPointerCapture(e.pointerId)
+    panStartRef.current = {
+      pointerId: e.pointerId,
+      clientX:   e.clientX,
+      clientY:   e.clientY,
+      scrollX:   el.scrollLeft,
+      scrollY:   el.scrollTop,
+    }
+    setIsPanning(true)
+  }
+
+  function onCanvasAreaPointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    const pan = panStartRef.current
+    const el  = scrollRef.current
+    if (!pan || !el) return
+    el.scrollLeft = pan.scrollX - (e.clientX - pan.clientX)
+    el.scrollTop  = pan.scrollY - (e.clientY - pan.clientY)
+  }
+
+  function onCanvasAreaPointerUp() {
+    const pan = panStartRef.current
+    const el  = scrollRef.current
+    if (!pan || !el) return
+    if (el.hasPointerCapture(pan.pointerId)) el.releasePointerCapture(pan.pointerId)
+    panStartRef.current = null
+    setIsPanning(false)
+  }
+
+  // Effective cursor over the canvas scroll area.
+  const panActive   = activeTool === 'pan' || isPanning
+  const panCursor   = isPanning ? 'grabbing'
+                    : activeTool === 'pan' ? 'grab'
+                    : 'default'
+
   // Ctrl + wheel: zoom anchored at the cursor (Figma/Photoshop behaviour).
   // Without anchoring, zooming "in" always re-centres on the world origin and
   // the user loses the point they were inspecting.
@@ -260,7 +327,12 @@ export default function PreviewPanel() {
       <div
         ref={scrollRef}
         onWheel={handleWheel}
-        className="flex-1 overflow-auto p-6"
+        onPointerDown={onCanvasAreaPointerDown}
+        onPointerMove={onCanvasAreaPointerMove}
+        onPointerUp={onCanvasAreaPointerUp}
+        onPointerCancel={onCanvasAreaPointerUp}
+        className="flex-1 overflow-auto p-6 canvas-scrollarea"
+        style={{ cursor: panCursor }}
       >
         <div className="min-w-full min-h-full flex items-center justify-center">
           {/* Sized wrapper = the visual footprint of the canvas at the current
@@ -296,6 +368,11 @@ export default function PreviewPanel() {
                 transform:       `scale(${zoom})`,
                 transformOrigin: '0 0',
                 background:      bgColor,
+                // Let pan-drag pass through to the scroll wrapper while the
+                // pan tool (or a live middle-button pan) is active. Otherwise
+                // the runtime's native canvas listeners would swallow the
+                // mousedown and the scrollLeft/Top handler never fires.
+                pointerEvents:   panActive ? 'none' : 'auto',
               }}
             />
           </div>
