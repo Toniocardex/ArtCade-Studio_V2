@@ -1,8 +1,10 @@
 add_executable(game
     src/main.cpp
     src/app.cpp
+    render/editor-overlay-renderer.cpp
+    render/tilemap-renderer.cpp
 )
-target_include_directories(game PRIVATE include)
+target_include_directories(game PRIVATE include render)
 target_link_libraries(game PRIVATE
     artcade-world
     artcade-game-api

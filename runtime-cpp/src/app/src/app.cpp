@@ -31,6 +31,9 @@
 #include "../../modules/editor-api/include/editor-api.h"
 #include "../../modules/game-state/include/splash-state.h"
 
+#include "../render/editor-overlay-renderer.h"
+#include "../render/tilemap-renderer.h"
+
 #include <cstring>
 #include <algorithm>
 #include <iostream>
@@ -39,49 +42,10 @@
 
 namespace ArtCade {
 
-static void drawRectOutline(ArtCade::Modules::Renderer& renderer,
-                            float x, float y, float w, float h,
-                            const Vec4& color) {
-    renderer.drawLine(x,     y,     x + w, y,     color);
-    renderer.drawLine(x + w, y,     x + w, y + h, color);
-    renderer.drawLine(x + w, y + h, x,     y + h, color);
-    renderer.drawLine(x,     y + h, x,     y,     color);
-}
-
-static void drawEditorGuides(ArtCade::Modules::Renderer& renderer,
-                             const SceneDef& scene) {
-    const float w = std::max(1.f, scene.worldSize.x);
-    const float h = std::max(1.f, scene.worldSize.y);
-    const Vec4 grid{0.f, 0.85f, 1.f, 0.16f};
-    const float step = EditorAPI::s_editorGridSize > 0.f ? EditorAPI::s_editorGridSize : 32.f;
-    if (step >= 4.f) {
-        for (float x = step; x < w; x += step)
-            renderer.drawLine(x, 0.f, x, h, grid);
-        for (float y = step; y < h; y += step)
-            renderer.drawLine(0.f, y, w, y, grid);
-    }
-
-    drawRectOutline(renderer, 0.f, 0.f, w, h, Vec4{0.f, 0.95f, 1.f, 0.9f});
-
-    const Vec2 cam = renderer.getCameraPosition();
-    const Vec2 visible = renderer.visibleWorldSize();
-    drawRectOutline(renderer,
-        cam.x, cam.y,
-        std::max(1.f, visible.x),
-        std::max(1.f, visible.y),
-        Vec4{1.f, 0.8f, 0.1f, 0.9f});
-}
-
-static void drawEditorBackdrop(ArtCade::Modules::Renderer& renderer,
-                               const SceneDef& scene) {
-    const Vec2 cam = renderer.getCameraPosition();
-    const Vec2 visible = renderer.visibleWorldSize();
-    renderer.drawRectImmediate(
-        cam.x, cam.y,
-        std::max(1.f, visible.x),
-        std::max(1.f, visible.y),
-        scene.backgroundColor);
-}
+// drawEditorBackdrop / drawEditorGuides / selection gizmo live in
+// render/editor-overlay-renderer.cpp; tilemap rendering lives in
+// render/tilemap-renderer.cpp. This translation unit only orchestrates
+// the render order and owns the per-project tileset/palette caches.
 
 // ---- Pimpl for module storage -------------------------------------------
 struct Application::Modules {
@@ -417,75 +381,44 @@ void Application::mainLoop() {
 // ---- Render -------------------------------------------------------------
 
 void Application::renderActiveScene() {
-    // Use scene background colour (or neutral dark if no active scene)
     const SceneDef* activeScene = mod_->sceneManager->activeScene();
     const Vec4 clearColor = {0.015f, 0.018f, 0.025f, 1.f};
 
-    mod_->renderer->beginFrame(clearColor);
-    if (activeScene) {
-        if (EditorAPI::s_mode == 0)
-            drawEditorBackdrop(*mod_->renderer, *activeScene);
+    // Snapshot the editor flags ONCE per frame. Reading EditorAPI::s_*
+    // statics inside the renderers would leak runtime-bridge state into
+    // every render layer; keeping it here mirrors RuntimeSyncService on
+    // the editor side (one place owns the editor↔runtime contract).
+    const EditorOverlayState overlay{
+        /* inEditMode    */ EditorAPI::s_mode == 0,
+        /* guidesEnabled */ EditorAPI::s_editorGuidesEnabled,
+        /* gridSize      */ EditorAPI::s_editorGridSize,
+        /* selectedId    */ EditorAPI::s_selectedEntityId,
+    };
 
+    mod_->renderer->beginFrame(clearColor);
+
+    if (activeScene) {
+        EditorOverlayRenderer::drawBackdrop(*mod_->renderer, *activeScene, overlay);
+
+        // World background rect (game layer, always drawn).
         mod_->renderer->drawRectImmediate(
             0.f, 0.f,
             std::max(1.f, activeScene->worldSize.x),
             std::max(1.f, activeScene->worldSize.y),
             activeScene->backgroundColor);
+
+        // Tilemap layer (drawn under entities). Live tilesets come from
+        // SceneManager (refreshed on editor hot-reload); tilesets_ /
+        // tileColors_ are the startup caches populated by loadProject().
+        TilemapRenderer::draw(*mod_->renderer, *activeScene,
+                              mod_->sceneManager->tilesets(),
+                              tilesets_, tileColors_);
     }
 
-    // Phase D2/F3: tilemap layer (drawn under entities). When the layer
-    // references a tileset (F3) tiles are drawn as spritesheet cells;
-    // otherwise the D2 colour fallback (palette / grey) is used.
-    if (const SceneDef* sc = activeScene) {
-        const auto& tm = sc->tilemap;
-        if (tm.cols > 0 && tm.rows > 0) {
-            const int n = static_cast<int>(tm.data.size());
-            const ArtCade::TilesetAsset* ts = nullptr;
-            if (!tm.tilesetAssetId.empty()) {
-                // Live source: SceneManager tilesets (refreshed on editor
-                // hot-reload), with the startup cache as fallback.
-                for (const auto& t : mod_->sceneManager->tilesets()) {
-                    if (t.assetId == tm.tilesetAssetId) { ts = &t; break; }
-                }
-                if (!ts) {
-                    auto tsi = tilesets_.find(tm.tilesetAssetId);
-                    if (tsi != tilesets_.end()) ts = &tsi->second;
-                }
-            }
-            for (int r = 0; r < tm.rows; ++r) {
-                for (int c = 0; c < tm.cols; ++c) {
-                    const int idx = r * tm.cols + c;
-                    if (idx >= n) continue;
-                    const int id = tm.data[idx];
-                    if (id <= 0) continue;
-                    const float dx = c * tm.tileSize;
-                    const float dy = r * tm.tileSize;
-                    bool drawn = false;
-                    if (ts && ts->cols > 0) {
-                        const int sCol = (id - 1) % ts->cols;
-                        const int sRow = (id - 1) / ts->cols;
-                        const float step = ts->tileSize + ts->margin;
-                        drawn = mod_->renderer->drawSpriteRegion(
-                            ts->spriteImagePath,
-                            sCol * step, sRow * step, ts->tileSize, ts->tileSize,
-                            dx, dy, tm.tileSize, tm.tileSize);
-                    }
-                    if (!drawn) {
-                        auto it = tileColors_.find(id);
-                        const Vec4 col = (it != tileColors_.end())
-                            ? it->second : Vec4{0.5f, 0.5f, 0.5f, 1.f};
-                        mod_->renderer->drawRect(dx, dy,
-                            tm.tileSize, tm.tileSize, col);
-                    }
-                }
-            }
-        }
-    }
-
+    // Entity sprites.
     for (EntityId id : mod_->world->activeEntityIds()) {
         const auto* e = mod_->entityManager->get(id);
         if (!e) continue;
-
         mod_->renderer->drawSprite(
             e->sprite.spriteAssetId,
             e->transform.position,
@@ -496,48 +429,22 @@ void Application::renderActiveScene() {
             e->sprite.shaderEffect);
     }
 
+    // Scene fade (game layer, drawn over entities, under editor chrome).
     const float fade = mod_->entityGateway->sceneFadeAlpha();
     if (fade > 0.f)
         mod_->renderer->drawFadeOverlay(fade);
 
-    if (activeScene && EditorAPI::s_mode == 0 && EditorAPI::s_editorGuidesEnabled)
-        drawEditorGuides(*mod_->renderer, *activeScene);
-
-    // Phase D3: editor-only viewport feedback (gizmo + sensor area).
-    // Hidden in play mode (s_mode == 1) so it never shows in the game.
-    if (EditorAPI::s_mode == 0 && EditorAPI::s_selectedEntityId != 0) {
-        const auto* e = mod_->entityManager->get(EditorAPI::s_selectedEntityId);
-        if (e) {
-            const Vec2 p = e->transform.position;
-
-            // Sensor area first (under the box), shape-aware, translucent cyan
-            if (e->sensor) {
-                const Vec4 sc{0.f, 1.f, 1.f, 0.35f};
-                if (e->sensor->shape == "Rectangle") {
-                    const float sw = e->sensor->width, sh = e->sensor->height;
-                    mod_->renderer->drawRect(p.x - sw * 0.5f, p.y - sh * 0.5f,
-                                             sw, sh, sc);
-                } else {
-                    mod_->renderer->drawCircle(p.x, p.y, e->sensor->radius, sc);
-                }
-            }
-
-            // Selection box (yellow outline = 4 thin filled rects)
-            float w = e->physics.collider.size.x > 2.f
-                ? e->physics.collider.size.x : 40.f * e->transform.scale.x;
-            float h = e->physics.collider.size.y > 2.f
-                ? e->physics.collider.size.y : 40.f * e->transform.scale.y;
-            const float x = p.x - w * 0.5f, y = p.y - h * 0.5f;
-            const float t = 2.f;
-            const Vec4 g{1.f, 1.f, 0.f, 1.f};
-            mod_->renderer->drawRect(x,         y,         w, t, g); // top
-            mod_->renderer->drawRect(x,         y + h - t, w, t, g); // bottom
-            mod_->renderer->drawRect(x,         y,         t, h, g); // left
-            mod_->renderer->drawRect(x + w - t, y,         t, h, g); // right
-        }
+    // Editor chrome: guides + selection gizmo. Both no-op when not in edit
+    // mode or when there is no selection, so the play frame is identical
+    // to the published build.
+    if (activeScene)
+        EditorOverlayRenderer::drawGuides(*mod_->renderer, *activeScene, overlay);
+    if (overlay.selectedId != 0u) {
+        const EntityDef* selected = mod_->entityManager->get(overlay.selectedId);
+        EditorOverlayRenderer::drawSelection(*mod_->renderer, selected, overlay);
     }
 
-    // FREE-tier splash overlay drawn on top of the game frame
+    // FREE-tier splash overlay drawn on top of the game frame.
     if (splash_)
         splash_->render(GetScreenWidth(), GetScreenHeight());
 
