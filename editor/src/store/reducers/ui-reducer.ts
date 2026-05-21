@@ -39,8 +39,18 @@ export const uiReducer: DomainReducer = (state: CoreState, action: Action) => {
         ? state
         : { ...state, snapToGrid: action.enabled }
     case 'EDITOR_SET_ZOOM': {
+      // Any explicit user zoom action releases fit-tracking: the user is
+      // saying "I want THIS percentage", not "follow the panel".
       const next = clampEditorZoom(action.zoom)
-      return state.editorZoom === next ? state : { ...state, editorZoom: next }
+      if (state.editorZoom === next && state.editorZoomMode === 'manual') return state
+      return { ...state, editorZoom: next, editorZoomMode: 'manual' }
+    }
+    case 'EDITOR_SET_FIT_ZOOM': {
+      // The fit-to-panel computation dispatches this so panel resizes can
+      // re-fit later. Mode stays 'fit'; only the percentage moves.
+      const next = clampEditorZoom(action.zoom)
+      if (state.editorZoom === next && state.editorZoomMode === 'fit') return state
+      return { ...state, editorZoom: next, editorZoomMode: 'fit' }
     }
     case 'EDITOR_SET_CAMERA_PREVIEW':
       return state.cameraPreview === action.enabled

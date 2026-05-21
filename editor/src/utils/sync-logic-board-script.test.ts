@@ -29,7 +29,7 @@ function minimalState(overrides: Partial<CoreState> = {}): CoreState {
     activeScriptPath: 'scripts/entity.lua',
     isPlaying: false,
     selectedTileCell: 1,
-    editorGridSize: 32, snapToGrid: false, editorZoom: 1.0, cameraPreview: false,
+    editorGridSize: 32, snapToGrid: false, editorZoom: 1.0, editorZoomMode: 'manual', cameraPreview: false,
     projectLoadEpoch: 0,
     ...overrides,
   } as CoreState

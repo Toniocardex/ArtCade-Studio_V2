@@ -35,6 +35,20 @@ export interface CoreState {
   editorGridSize:   number
   snapToGrid:       boolean
   editorZoom:       number   // visual zoom (CSS transform), see constants/editor-viewport
+  /**
+   * 'fit'    → zoom auto-tracks the panel size: any panel resize / scene
+   *            size change recomputes editorZoom so the whole scene stays
+   *            centred and fully visible. This is the default after every
+   *            project load (and on initial boot) — it solves the "100%
+   *            doesn't fit the panel" UX issue exactly the way Figma /
+   *            Aseprite / Affinity Designer do.
+   * 'manual' → zoom is whatever the user picked (preset, +/-, wheel, typed
+   *            number, Ctrl+0). Panel resizes no longer move it.
+   *
+   * Any explicit zoom dispatch flips this back to 'manual'. The dedicated
+   * EDITOR_SET_FIT_ZOOM action is the only one that keeps the mode in 'fit'.
+   */
+  editorZoomMode:   'fit' | 'manual'
   cameraPreview:    boolean  // when true the canvas is clipped to viewportSize (no PLAY needed)
   /**
    * Bumped every time LOAD_PROJECT fires. PreviewPanel watches this to
@@ -90,6 +104,8 @@ export type Action =
   | { type: 'EDITOR_SET_GRID_SIZE'; tileSize: number }
   | { type: 'SET_SNAP_TO_GRID'; enabled: boolean }
   | { type: 'EDITOR_SET_ZOOM'; zoom: number }
+  /** Used by fit-to-panel: applies the zoom AND keeps editorZoomMode = 'fit'. */
+  | { type: 'EDITOR_SET_FIT_ZOOM'; zoom: number }
   | { type: 'EDITOR_SET_CAMERA_PREVIEW'; enabled: boolean }
   | { type: 'TILEMAP_INIT';  sceneId: string }
   | { type: 'TILEMAP_PAINT'; sceneId: string; index: number; tileId: number }
@@ -126,6 +142,7 @@ export const initialCoreState: CoreState = {
   editorGridSize:   DEFAULT_EDITOR_GRID_SIZE,
   snapToGrid:       false,
   editorZoom:       EDITOR_ZOOM_DEFAULT,
+  editorZoomMode:   'fit',
   cameraPreview:    false,
   projectLoadEpoch: 0,
 }

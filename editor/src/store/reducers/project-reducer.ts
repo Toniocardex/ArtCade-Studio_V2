@@ -31,8 +31,9 @@ export const projectReducer: DomainReducer = (state: CoreState, action: Action) 
         activeScriptPath: null,
         isPlaying:   false,
         bottomTab:   'console',
-        editorZoom:    EDITOR_ZOOM_DEFAULT,
-        cameraPreview: false,
+        editorZoom:       EDITOR_ZOOM_DEFAULT,
+        editorZoomMode:   'fit', // PreviewPanel re-fits on projectLoadEpoch bump
+        cameraPreview:    false,
         projectLoadEpoch: state.projectLoadEpoch + 1,
       }
     }

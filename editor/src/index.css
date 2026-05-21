@@ -127,6 +127,23 @@ html, body, #root {
 .canvas-scrollarea::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 .canvas-scrollarea::-webkit-scrollbar-corner     { background: var(--panel); }
 
+/* Scene footprint in the preview panel: separates the playable area from the
+   black workspace. An inset ring (not border on the wrapper) stays complete
+   on all four sides at any zoom — a CSS border on the wrapper was clipped when
+   the <canvas> layout box (full worldSize before transform) overflowed it. */
+.canvas-scene-frame {
+  position: relative;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.canvas-scene-frame__edge {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  box-shadow: inset 0 0 0 1px var(--border-2);
+}
+
 /* Neon glow helpers (used via inline style when needed) */
 .glow-cyan  { text-shadow: 0 0 8px var(--accent); }
 .glow-mag   { text-shadow: 0 0 8px var(--accent-2); }

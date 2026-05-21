@@ -23,7 +23,8 @@ import { ZOOM_PRESETS, ZOOM_PRESET_EPSILON } from '../../constants/editor-viewpo
 
 export function ZoomControls() {
   const { state, dispatch } = useEditor()
-  const zoom = state.editorZoom
+  const zoom     = state.editorZoom
+  const fitMode  = state.editorZoomMode === 'fit'
 
   const [open, setOpen]       = useState(false)
   const [editing, setEditing] = useState(false)
@@ -100,13 +101,17 @@ export function ZoomControls() {
             type="button"
             onClick={() => setOpen(v => !v)}
             onDoubleClick={() => { setDraft(String(Math.round(zoom * 100))); setEditing(true) }}
-            title={`Zoom: ${formatZoomPercent(zoom)} — click for presets, double-click to type`}
-            className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold
-                       text-[var(--text)] bg-[var(--bg)]
-                       hover:bg-[var(--panel-3)] border border-[var(--border)]
-                       min-w-[3.5rem] justify-center transition-colors"
+            title={fitMode
+              ? `Fit to panel (${formatZoomPercent(zoom)}) — click for presets, double-click to type`
+              : `Zoom: ${formatZoomPercent(zoom)} — click for presets, double-click to type`}
+            className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold
+                       bg-[var(--bg)]
+                       hover:bg-[var(--panel-3)] border min-w-[3.5rem] justify-center transition-colors
+                       ${fitMode
+                         ? 'text-[var(--accent)] border-[var(--accent)]'
+                         : 'text-[var(--text)] border-[var(--border)]'}`}
           >
-            {formatZoomPercent(zoom)}
+            {fitMode ? `FIT ${formatZoomPercent(zoom)}` : formatZoomPercent(zoom)}
             <ChevronDown size={10} className="text-[var(--muted)]" />
           </button>
         )}
@@ -140,11 +145,14 @@ export function ZoomControls() {
           <button
             type="button"
             onClick={() => { zoomFitRegistry.invoke(); setOpen(false) }}
-            className="block w-full text-left px-3 py-1 text-[10px] font-bold
-                       text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--panel-3)] transition-colors"
-            title="Ctrl+9"
+            className={`block w-full text-left px-3 py-1 text-[10px] font-bold
+                       hover:bg-[var(--panel-3)] transition-colors
+                       ${fitMode
+                         ? 'text-[var(--accent)]'
+                         : 'text-[var(--muted)] hover:text-[var(--text)]'}`}
+            title="Ctrl+9 — keeps the scene fully visible when the panel is resized"
           >
-            Fit to panel
+            Fit to panel{fitMode ? ' ✓' : ''}
           </button>
         </div>
       )}

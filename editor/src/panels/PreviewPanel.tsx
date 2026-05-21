@@ -50,7 +50,8 @@ export default function PreviewPanel() {
   const { state, dispatch } = useEditor()
   const {
     project, projectPath, isPlaying, selection, selectedTileCell, mode,
-    editorGridSize, snapToGrid, editorZoom, cameraPreview, projectLoadEpoch,
+    editorGridSize, snapToGrid, editorZoom, editorZoomMode, cameraPreview,
+    projectLoadEpoch,
   } = state
 
   const canvasRef           = useRef<HTMLCanvasElement>(null)
@@ -165,22 +166,25 @@ export default function PreviewPanel() {
   const canvasDX = preview ? -Math.round(((res.x - vp.x) / 2) * zoom) : 0
   const canvasDY = preview ? -Math.round(((res.y - vp.y) / 2) * zoom) : 0
 
-  function setZoom(next: number) {
-    dispatch({ type: 'EDITOR_SET_ZOOM', zoom: next })
-  }
-
   /**
    * Fit zoom honours the current view mode: when camera-preview clips the
    * canvas to viewportSize, fitting computes against `vp`, not `res` — so
    * Ctrl+9 actually makes the viewport rectangle fit the panel, instead of
    * fitting the wider world that the user isn't even looking at.
+   *
+   * Dispatches EDITOR_SET_FIT_ZOOM (not _SET_ZOOM) so editorZoomMode stays
+   * 'fit'. The ResizeObserver below relies on that to re-fit on any panel
+   * size change.
    */
   function fitZoom() {
     const el = scrollRef.current
     if (!el) return
     const sceneW = preview ? vp.x : res.x
     const sceneH = preview ? vp.y : res.y
-    setZoom(computeFitZoom(el.clientWidth, el.clientHeight, sceneW, sceneH))
+    dispatch({
+      type: 'EDITOR_SET_FIT_ZOOM',
+      zoom: computeFitZoom(el.clientWidth, el.clientHeight, sceneW, sceneH),
+    })
   }
 
   // Expose fitZoom to App.tsx's Ctrl+9 shortcut via a typed registry instead
@@ -190,16 +194,38 @@ export default function PreviewPanel() {
   useLayoutEffect(() => zoomFitRegistry.register(fitZoom), [preview, res.x, res.y, vp.x, vp.y])
 
   // Auto-fit the canvas every time a project is (re)loaded so the default
-  // 1280x720 scene is centred and fully visible in the panel — without this
-  // the bottom + right edges (and the cyan world-bounds rect drawn by C++)
-  // sit outside the visible scroll area. rAF waits one paint so scrollRef
-  // already has its measured clientWidth/Height.
+  // scene is centred and fully visible in the panel. rAF waits one paint
+  // so scrollRef already has its measured clientWidth/Height.
   useLayoutEffect(() => {
     if (projectLoadEpoch === 0) return
     const raf = requestAnimationFrame(() => fitZoom())
     return () => cancelAnimationFrame(raf)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectLoadEpoch])
+
+  // Track-on-resize: when the user is in 'fit' mode, any panel size change
+  // (window resize, side-panel toggle, bottom-tab open/close) recomputes the
+  // fit zoom so the scene stays fully visible and centred. The moment the
+  // user picks any other zoom (preset, +/-, wheel, Ctrl+0, manual entry) the
+  // reducer flips mode to 'manual' and this observer becomes a no-op.
+  //
+  // Why ResizeObserver and not window resize? The scroll area shrinks and
+  // grows without the window resizing — toggling the asset browser tab is
+  // the obvious case, and a window-only listener would miss it.
+  useLayoutEffect(() => {
+    if (editorZoomMode !== 'fit') return
+    const el = scrollRef.current
+    if (!el) return
+    const ro = new ResizeObserver(() => {
+      // requestAnimationFrame avoids running fit logic during layout.
+      requestAnimationFrame(() => fitZoom())
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+    // We want the observer up whenever fit-mode is on; recreate it if scene
+    // dimensions change so the latest sceneW/sceneH go into computeFitZoom.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editorZoomMode, res.x, res.y, vp.x, vp.y, preview])
 
   // -------------------------------------------------------------- pan tool
   //
@@ -340,31 +366,14 @@ export default function PreviewPanel() {
               still at native worldSize and is visually scaled via CSS
               transform. The C++ input controller picks the correct mouse
               coords because it reads CSS-vs-internal canvas size at runtime. */}
-          {/* The cyan world-bounds outline used to live inside the canvas
-              (rendered by C++ editor-overlay). At low CSS zoom (25% on a
-              4096-wide level) a 2-world-pixel line becomes < 1 device pixel
-              after CSS scaling — sub-pixel antialiasing + edge alpha made
-              it look incomplete on the bottom / right sides. The wrapper
-              below is exactly sized to worldSize * zoom, so its CSS border
-              IS the world-bounds outline, and the browser renders it
-              pixel-perfect on all four sides at any zoom. The runtime no
-              longer draws the rect; only grid + amber viewport stay
-              world-space (those are world-aligned data, not chrome). */}
           <div
+            className="canvas-scene-frame"
             style={{
-              width:      `${frameW}px`,
-              height:     `${frameH}px`,
-              position:   'relative',
-              flexShrink: 0,
-              overflow:   preview ? 'hidden' : 'visible',
-              boxShadow:  preview
+              width:     `${frameW}px`,
+              height:    `${frameH}px`,
+              boxShadow: preview
                 ? '0 0 0 2px var(--accent-2), 0 25px 50px -12px rgb(0 0 0 / 0.5)'
                 : '0 25px 50px -12px rgb(0 0 0 / 0.5)',
-              border:     preview
-                ? 'none'
-                : showEditorGuides
-                  ? '2px solid #00F2FFE6' // cyan world-bounds (matches old C++ outline)
-                  : '1px solid var(--border)',
             }}
           >
             <canvas
@@ -389,6 +398,8 @@ export default function PreviewPanel() {
                 pointerEvents:   panActive ? 'none' : 'auto',
               }}
             />
+            {/* Scene edge — always on, independent of grid guides. */}
+            <div className="canvas-scene-frame__edge" aria-hidden />
           </div>
         </div>
       </div>

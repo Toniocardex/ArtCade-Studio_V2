@@ -21,7 +21,7 @@ function st(p: ProjectDoc): CoreState {
     selection: { entityId: null, sceneId: 's' },
     mode: 'canvas', bottomTab: 'tileset',
     openScripts: [], activeScriptPath: null, isPlaying: false, selectedTileCell: 1,
-    editorGridSize: 32, snapToGrid: false, editorZoom: 1.0, cameraPreview: false,
+    editorGridSize: 32, snapToGrid: false, editorZoom: 1.0, editorZoomMode: 'manual', cameraPreview: false,
     projectLoadEpoch: 0,
   }
 }
