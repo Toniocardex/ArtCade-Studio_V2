@@ -16,7 +16,7 @@
 - Raylib 2D renderer, Lua 5.4 + Sol2 bindings, Box2D 2.4 physics
 
 ✅ **React TypeScript Editor (Tauri)**
-- Scene hierarchy + entity inspector
+- Scenes panel (scenes + objects) + entity inspector
 - Lua script editor with syntax highlighting (CodeMirror 6, isolated iframe for Tauri)
 - Asset browser (sprites, audio, fonts)
 - Live WASM preview with real-time sync

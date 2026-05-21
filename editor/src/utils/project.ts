@@ -618,7 +618,7 @@ export function dirName(filePath: string): string {
  * Build a minimal valid ProjectDoc the editor can open immediately.
  *
  * The template ships a single scene with NO entities so the canvas opens
- * to a clean state. Adding the first entity is one click in Hierarchy.
+ * to a clean state. Adding the first entity is one click in the Scenes panel.
  *
  * @param projectName  Display name (defaults to "Untitled").
  */

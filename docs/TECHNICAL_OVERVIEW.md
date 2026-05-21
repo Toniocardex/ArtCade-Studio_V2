@@ -46,7 +46,7 @@ Il motore espone una **GameAPI** uniforme (entity, physics, input, audio, state,
 ┌──────────────────────────────────────────────────────────┐
 │             EDITOR (React + Tauri) — Thin Shell          │
 │                                                           │
-│  Hierarchy  Inspector  ScriptEditor  AssetBrowser  …     │
+│  SceneObjects  Inspector  ScriptEditor  AssetBrowser  …  │
 │       │          │           │              │             │
 │       └──────────┴───────────┴──────────────┘            │
 │                         │                                │
@@ -649,11 +649,11 @@ Design: Slate Night `#0B1121` / Neon Cyan `#00FFFF` / Neon Magenta `#FF00FF`
 ┌─ MenuBar ─────────────────────────────────────────────────┐
 │ File | Build | ▶ PLAY | BUILD .EXE                        │
 ├─────────────┬─────────────────────────┬───────────────────┤
-│ Hierarchy   │      PreviewPanel        │    Inspector      │
-│ (entity     │   (WebAssembly canvas)   │  (transform,      │
-│  list +     │   tool palette:          │   sprite, script) │
-│  scene      │   select/pan/paint/erase │                   │
-│  selector)  │                          │                   │
+│ SceneObjects│      PreviewPanel        │    Inspector      │
+│ (scenes:    │   (WebAssembly canvas)   │  (transform,      │
+│  CRUD +     │   tool palette:          │   sprite, script) │
+│  start +    │   select/pan/paint/erase │                   │
+│  objects)   │                          │                   │
 ├─────────────┴─────────────────────────┴───────────────────┤
 │ AssetBrowser │  ScriptEditor (CodeMirror) │  TilesetEditor  │
 ├──────────────┴─────────────────────────┴──────────────────┤
@@ -673,7 +673,7 @@ Design: Slate Night `#0B1121` / Neon Cyan `#00FFFF` / Neon Magenta `#FF00FF`
 
 | Pannello | Ruolo |
 |----------|-------|
-| `HierarchyPanel` | Lista entity per scena con color badge per className. Click → imperative `editorSelectEntity()` al C++ |
+| `SceneObjectsPanel` | Gestione scene del progetto (create / select / rename / set-start / delete) + lista entity della scena attiva con color badge per className. Selezione entity → imperative `editorSelectEntity()` al C++ |
 | `PreviewPanel` | **BLACK BOX**: Canvas WASM puro. Carica `game.js` una sola volta. **NEVER re-renders** durante gameplay. Input/selection/console via buffer globale |
 | `InspectorPanel` | Legge `window._selectedEntity` ogni 200ms (non real-time). Invia comandi `editorSetTransform()` al C++ su change |
 | `ScriptEditorPanel` | `EngineScriptEditor` (iframe CodeMirror) per Lua; sync da Logic Board via `update-from-logic`. Apply → `editorReloadScript()` |
@@ -1210,7 +1210,7 @@ Il **parser C++** (`zip-reader.cpp`) gestisce:
 | 15 | Tauri Integration | ✅ | open/save project, save script, import asset, build-log, build native, pack `.artcade` |
 | 19 | React-WASM decoupling + hot sync | ✅ | PreviewPanel black-box, buffered callbacks, `editor_load_project`, transform sync |
 | 20 | Logic Board runtime/editor polish | ✅ | entity-first authoring, schema Ajv build-time, wait, sensors, lifecycle, shaders, spawn |
-| 21 | Scene editor MVP | ✅ | component inspector, hierarchy actions, tilemap authoring/render/collision, gizmo/sensors |
+| 21 | Scene editor MVP | ✅ | component inspector, scene/objects panel CRUD, tilemap authoring/render/collision, gizmo/sensors |
 | 22 | Build/export MVP | ✅ | `BUILD .EXE` produces runnable `game.exe` + `game.artcade`, packer deterministic |
 | 23 | Release polish MVP | ✅ | Free/Pro `licenseTier`, runtime `SplashState`, dark/light theme, console copy |
 
@@ -1237,7 +1237,7 @@ Le fasi 15 e 19-23 sono implementate a livello MVP nel repository corrente. La r
 - **Tauri Integration**: open/save project, save script, import asset, `BUILD .EXE`, `PACK .ARTCADE`, log streaming `build-log`.
 - **React-WASM decoupling**: PreviewPanel black-box, callback C++ buffered/polling, sync imperativo `editor_load_project`, `editor_set_transform`, selezione e mode switch.
 - **Logic Board**: entity-first, schema-driven UI, Ajv build-time CSP-safe, wait/timer, spawn, sensor trigger, lifecycle hook, shaders, grid helpers.
-- **Scene Editor**: inspector a componenti, hierarchy funzionale, tilemap authoring, tileset da immagine, rendering tilemap runtime, collisioni tile solide, gizmo/sensori viewport, dark/light theme.
+- **Scene Editor**: inspector a componenti, Scenes panel (CRUD scene + lista oggetti) funzionale, tilemap authoring, tileset da immagine, rendering tilemap runtime, collisioni tile solide, gizmo/sensori viewport, dark/light theme.
 - **Build/export MVP**: packer `.artcade` deterministico, `manifest.json`, `licenseTier`, output runnable `runtime-cpp/build-msvc/src/app/game.exe` + `game.artcade`.
 - **Release polish MVP**: console copiabile, splash/watermark Free/Pro, CodeMirror iframe zero-flicker.
 
@@ -1246,7 +1246,7 @@ Le fasi 15 e 19-23 sono implementate a livello MVP nel repository corrente. La r
 - **Asset pipeline completa**: import immagini arbitrarie editor → VFS WASM/runtime packaged senza workaround manuali.
 - **Build WASM da UI**: esporre il flusso `runtime-cpp/build_wasm.bat` o equivalente direttamente nell'editor.
 - **LSP/diagnostica Lua**: markers errori nel CodeMirror iframe.
-- **Undo/redo strutturato**: trasformazioni, tile paint, hierarchy actions e Logic Board.
+- **Undo/redo strutturato**: trasformazioni, tile paint, scene/objects actions e Logic Board.
 - **Steamworks SDK**: futuro, no-op fuori build Steam.
 
 ---

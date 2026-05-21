@@ -30,7 +30,7 @@ function st(p: ProjectDoc): CoreState {
   }
 }
 
-describe('coreReducer — hierarchy', () => {
+describe('coreReducer — scenes & objects', () => {
   it('ENTITY_ADD creates an entity, adds to scene, selects it', () => {
     const s = coreReducer(st(project()), { type: 'ENTITY_ADD', sceneId: 's' })
     expect(Object.keys(s.project!.entities)).toHaveLength(2)

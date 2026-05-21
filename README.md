@@ -109,7 +109,7 @@ Historical roadmap is tracked in [ROADMAP_INTEGRATIVA.md](ROADMAP_INTEGRATIVA.md
 - Asset pipeline hardening for arbitrary imported images in packaged/WASM runtime.
 - Build WASM action exposed directly from the editor UI.
 - Lua diagnostics/markers inside the CodeMirror iframe.
-- Structured undo/redo for transform, tile painting, hierarchy and Logic Board edits.
+- Structured undo/redo for transform, tile painting, scene/objects panel and Logic Board edits.
 - Steamworks/no-op integration in a later release phase.
 
 ## License

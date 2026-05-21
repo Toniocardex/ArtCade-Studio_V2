@@ -28,7 +28,7 @@ Il file `SplashScreen.tsx` esiste in `editor/src/components/SplashScreen.tsx`. N
 
 ### A. Entry point — `editor/src/App.tsx`
 
-Ritardare il rendering della UI principale (`MenuBar`, `HierarchyPanel`, ecc.) finché l’animazione della splash non è terminata; in background, verifica licenza.
+Ritardare il rendering della UI principale (`MenuBar`, `SceneObjectsPanel`, ecc.) finché l’animazione della splash non è terminata; in background, verifica licenza.
 
 ```tsx
 // Percorso: editor/src/App.tsx
@@ -36,7 +36,7 @@ import React, { useState, useEffect } from 'react';
 import SplashScreen from './components/SplashScreen';
 // Importa i tuoi pannelli...
 import MenuBar from './components/MenuBar';
-import HierarchyPanel from './panels/HierarchyPanel';
+import SceneObjectsPanel from './panels/SceneObjectsPanel';
 import { useEditorStore } from './store/editor-store';
 
 const App: React.FC = () => {
@@ -56,7 +56,7 @@ const App: React.FC = () => {
     <div className="flex h-screen w-full flex-col overflow-hidden bg-[#0B1121] text-white">
       <MenuBar />
       <div className="flex flex-1 overflow-hidden">
-        <HierarchyPanel />
+        <SceneObjectsPanel />
         {/* Altri pannelli dell&apos;editor */}
       </div>
     </div>

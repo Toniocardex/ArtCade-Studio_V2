@@ -3,7 +3,7 @@ import { EditorProvider, useEditor } from './store/editor-store'
 import MenuBar            from './components/MenuBar'
 import ModuleRail from './components/ModuleRail'
 import StatusBar          from './components/StatusBar'
-import HierarchyPanel     from './panels/HierarchyPanel'
+import SceneObjectsPanel from './panels/SceneObjectsPanel'
 import PreviewPanel       from './panels/PreviewPanel'
 import InspectorPanel     from './panels/InspectorPanel'
 import LogicBoardPanel    from './panels/LogicBoardPanel'
@@ -85,16 +85,16 @@ function BottomPanel() {
 }
 
 // ---------------------------------------------------------------------------
-// CANVAS mode layout: hierarchy | viewport+bottom | inspector
+// CANVAS mode layout: scene objects | viewport+bottom | inspector
 // ---------------------------------------------------------------------------
 
 function CanvasView() {
   return (
     <div className="flex flex-1 min-h-0 overflow-hidden">
 
-      {/* Left sidebar — Hierarchy */}
+      {/* Left sidebar — Scenes + Objects */}
       <aside className="w-64 border-r border-[var(--border)] flex-shrink-0 overflow-hidden bg-[var(--panel)]">
-        <HierarchyPanel />
+        <SceneObjectsPanel />
       </aside>
 
       {/* Center — Viewport + bottom panel stacked */}

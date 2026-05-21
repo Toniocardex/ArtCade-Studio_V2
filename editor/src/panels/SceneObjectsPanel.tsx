@@ -1,3 +1,23 @@
+// ---------------------------------------------------------------------------
+// SceneObjectsPanel — left sidebar in canvas mode
+// ---------------------------------------------------------------------------
+//
+// Two stacked sections plus a small World Settings block at the bottom:
+//
+//   1. Scenes ........ create / select / rename / set-start / delete the
+//                      scenes that make up the project. Start scene is
+//                      ProjectDoc.activeSceneId. Delete is blocked for the
+//                      only remaining scene and for the start scene; the
+//                      reducer also cleans orphan entities, thumbnails and
+//                      logic boards.
+//   2. Objects ....... entities of the currently selected scene; add /
+//                      duplicate / visibility / delete / open Logic Board.
+//
+// Previously this file was called HierarchyPanel — renamed when scene
+// management moved in. "Hierarchy" implied a parent/child tree, which is
+// not what this UI is.
+// ---------------------------------------------------------------------------
+
 import { useCallback, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Box, Copy, Eye, EyeOff, Plus, Star, Trash2, Workflow } from 'lucide-react'
@@ -15,11 +35,11 @@ const CLASS_COLOR: Record<string, string> = {
   Enemy:   'var(--danger)',
 }
 
-let _hierarchyLogId = 800
+let _sceneObjectsLogId = 800
 function panelLog(message: string, level: ConsoleEntry['level']): ConsoleEntry {
   const now = new Date()
   return {
-    id: ++_hierarchyLogId,
+    id: ++_sceneObjectsLogId,
     time: now.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
     message,
     level,
@@ -202,7 +222,7 @@ function WorldSettingsSection() {
   )
 }
 
-export default function HierarchyPanel() {
+export default function SceneObjectsPanel() {
   const { state, dispatch } = useEditor()
   const { project, selection, mode } = state
   const [sceneNameDraft, setSceneNameDraft] = useState('')
@@ -278,7 +298,7 @@ export default function HierarchyPanel() {
   }
 
   return (
-    <div className="h-full flex flex-col bg-[var(--panel)]" data-panel="hierarchy">
+    <div className="h-full flex flex-col bg-[var(--panel)]" data-panel="scene-objects">
       <PanelHeader title="Scenes">
         <AddSceneButton onClick={addScene} />
       </PanelHeader>

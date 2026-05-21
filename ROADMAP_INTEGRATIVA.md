@@ -493,7 +493,7 @@ python tools/pack-artcade.py test-project output.artcade
 - **Design system**: Slate Night `#0B1121` / Neon Cyan `#00FFFF` / Neon Magenta `#FF00FF` (da mockup)
 - **Layout**: SCENE_VIEW (3 colonne) ↔ LOGIC_BOARD / EDITOR_SCRIPT (pannelli dedicati)
 - **Pannelli**:
-  - `HierarchyPanel` — scene selector + entity list con color badge
+  - `SceneObjectsPanel` — scenes CRUD (select / rename / start / delete) + entity list con color badge
   - `PreviewPanel` — viewport con grid CSS + tool palette (select/pan/paint/erase)
   - `InspectorPanel` — transform/sprite/script fields, "OPEN IN LOGIC_BOARD →"
   - `ScriptEditorPanel` — Lua via iframe CodeMirror + snippet API ArtCade (`EngineScriptEditor`)

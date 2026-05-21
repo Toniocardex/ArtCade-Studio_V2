@@ -25,7 +25,7 @@ function modeBtnClass(active: boolean) {
   ].join(' ')
 }
 
-/** Vertical module rail — sits beside Hierarchy / workspace (not in the top menubar). */
+/** Vertical module rail — sits beside the Scenes panel / workspace (not in the top menubar). */
 export default function ModuleRail() {
   const { state, dispatch } = useEditor()
   const [theme, setTheme] = useState<Theme>(

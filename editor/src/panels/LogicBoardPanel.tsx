@@ -64,7 +64,7 @@ export default function LogicBoardPanel() {
       ? findLogicBoardForEntity(project, selectedEntityId)
       : undefined
 
-  // Sync Hierarchy selection → rulesheet when in Logic mode.
+  // Sync Scenes-panel selection → rulesheet when in Logic mode.
   useEffect(() => {
     if (state.mode !== 'logic' || !project) return
     const eid = selection.entityId
@@ -195,7 +195,7 @@ export default function LogicBoardPanel() {
             disabled={!canCreateForSelection}
             title={
               selectedEntityId == null
-                ? 'Select an entity in Hierarchy first'
+                ? 'Select an entity in the Scenes panel first'
                 : boardForSelection
                   ? 'This entity already has a rulesheet'
                   : 'Create rulesheet for selected entity'
@@ -230,7 +230,7 @@ export default function LogicBoardPanel() {
             Advanced — shared rulesheet (class)
           </summary>
           <p className="text-[10px] text-[var(--muted)] mt-1 mb-2 max-w-xl">
-            Use only when many identical objects share one behavior. Default workflow is one rulesheet per entity in Hierarchy.
+            Use only when many identical objects share one behavior. Default workflow is one rulesheet per entity in the Scenes panel.
           </p>
           <div className="flex items-center gap-2 flex-wrap">
             <select
@@ -265,7 +265,7 @@ export default function LogicBoardPanel() {
       <div className="flex-1 min-h-0 overflow-auto p-4">
         {!board ? (
           <div className="text-[var(--muted)] text-sm mt-8 text-center max-w-md mx-auto leading-relaxed">
-            Select an entity in Hierarchy, then create a rulesheet with{' '}
+            Select an entity in the Scenes panel, then create a rulesheet with{' '}
             <span className="text-[var(--text)]">New rulesheet for selection</span>.
           </div>
         ) : (

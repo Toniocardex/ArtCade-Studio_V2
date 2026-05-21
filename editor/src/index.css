@@ -116,7 +116,7 @@ html, body, #root {
 .glow-cyan  { text-shadow: 0 0 8px var(--accent); }
 .glow-mag   { text-shadow: 0 0 8px var(--accent-2); }
 
-/* Top menubar only (module rail lives beside Hierarchy) */
+/* Top menubar only (module rail lives beside the Scenes panel) */
 .editor-toolbar {
   display: flex;
   align-items: center;
@@ -129,7 +129,7 @@ html, body, #root {
   box-shadow: 0 1px 0 rgb(var(--bg-rgb) / 0.6);
 }
 
-/* FILE aligns with panel headers (rail + workspace inset), separate from Hierarchy */
+/* FILE aligns with panel headers (rail + workspace inset), separate from the Scenes panel */
 .editor-toolbar-workspace-start {
   margin-left: calc(var(--editor-rail-width) + var(--editor-workspace-inset));
 }

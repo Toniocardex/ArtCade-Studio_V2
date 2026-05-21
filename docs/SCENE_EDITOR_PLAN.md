@@ -9,10 +9,17 @@
 ## Context
 
 Lo Scene Editor attuale di ArtCade V2 è passato dal layout basilare iniziale a un
-MVP utilizzabile: Hierarchy funzionale, Inspector a componenti, tile painting,
-tileset da immagine, sync entity/transform con runtime C++, render tilemap,
-collisioni tile solide e feedback viewport per gizmo/sensori. Questo documento
-rimane come piano storico e come checklist dei criteri che sono stati chiusi.
+MVP utilizzabile: pannello scene + oggetti funzionale, Inspector a componenti,
+tile painting, tileset da immagine, sync entity/transform con runtime C++,
+render tilemap, collisioni tile solide e feedback viewport per gizmo/sensori.
+Questo documento rimane come piano storico e come checklist dei criteri che
+sono stati chiusi.
+
+> Nota nomenclatura: questo piano usa il termine storico "Hierarchy" per il
+> pannello di sinistra. Il componente reale è oggi `SceneObjectsPanel` —
+> gestisce sia la lista delle scene (create / select / rename / set-start /
+> delete) sia gli oggetti della scena attiva. Le azioni store citate sotto
+> (`SCENE_*`, `ENTITY_*`) non sono state rinominate.
 
 Il mockup di riferimento mostra la versione "production": inspector a componenti
 con campi condizionali, tile painter interattivo, world settings, visualizzazione

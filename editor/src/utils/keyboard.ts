@@ -25,7 +25,7 @@ export function shouldIgnoreEditorShortcut(e: KeyboardEvent): boolean {
   if (!el) return false
   if (isEditableTarget(el)) return true
   if (isInsidePanel(el, 'inspector')) return true
-  if (isInsidePanel(el, 'hierarchy')) return true
+  if (isInsidePanel(el, 'scene-objects')) return true
   return false
 }
 

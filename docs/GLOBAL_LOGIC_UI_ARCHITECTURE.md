@@ -88,7 +88,7 @@ Effetti nativi per aumentare la **qualita percepita** del gioco.
 
 ## Logic Board editor (entity-first)
 
-- **Default workflow:** one rulesheet per **Hierarchy entity** (`target.type: entity_id`). Labels use `entity.name`; renaming in Inspector updates dropdowns automatically.
+- **Default workflow:** one rulesheet per **entity in the Scenes panel** (`target.type: entity_id`). Labels use `entity.name`; renaming in Inspector updates dropdowns automatically.
 - **On demand:** new rulesheets are created only when the user clicks **New rulesheet for selection** (no auto-board on entity add).
 - **Advanced:** class-based shared rulesheets (`entity_class`) remain supported for spawn pools and identical mass behavior; `className` on `EntityDef` is for runtime spawn/collision widgets, not board ownership.
 - **Lifecycle:** deleting an entity removes its `entity_id` rulesheet; class boards are kept.

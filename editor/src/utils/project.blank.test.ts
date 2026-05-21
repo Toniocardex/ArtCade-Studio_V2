@@ -28,7 +28,7 @@ describe('createBlankProject', () => {
     expect(p.gameResolution).toEqual({ x: 1280, y: 720 })
     expect(p.mainScriptPath).toBe('scripts/main.lua')
 
-    // No entities by default — Hierarchy starts empty.
+    // No entities by default — the Scenes panel starts empty.
     expect(Object.keys(p.entities)).toHaveLength(0)
 
     // Exactly one scene that matches activeSceneId.

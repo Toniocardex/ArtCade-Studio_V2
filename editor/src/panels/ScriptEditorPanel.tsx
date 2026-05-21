@@ -119,7 +119,7 @@ export default function ScriptEditorPanel() {
               No script open
             </span>
             <span className="text-[10px] mt-1 text-[rgb(var(--muted-rgb)/0.5)]">
-              Select an entity with a script in the Hierarchy panel
+              Select an entity with a script in the Scenes panel
             </span>
           </div>
         )}

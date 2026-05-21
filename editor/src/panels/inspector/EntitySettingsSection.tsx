@@ -23,7 +23,7 @@ export function EntitySettingsSection({ entity }: { entity: EntityDef }) {
         }
       />
       <p className="text-[9px] text-[var(--muted)] -mt-1 mb-2 leading-snug">
-        Shown in Hierarchy and Logic Board. Rules are per entity, not per name.
+        Shown in the Scenes panel and Logic Board. Rules are per entity, not per name.
       </p>
 
       <button

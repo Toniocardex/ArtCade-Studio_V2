@@ -121,7 +121,7 @@ export function EditorProvider({ children }: { children: ReactNode }) {
 /**
  * useEditor() — subscribes to CoreContext (project, selection, mode, scripts).
  * Does NOT re-render when consoleLogs or cursorPos change.
- * Use for: PreviewPanel, HierarchyPanel, InspectorPanel, ScriptEditor,
+ * Use for: PreviewPanel, SceneObjectsPanel, InspectorPanel, ScriptEditor,
  * MenuBar, etc.
  */
 export function useEditor(): CoreContextValue {
