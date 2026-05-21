@@ -17,6 +17,7 @@ if(TARGET artcade-lua-runtime)
 endif()
 
 if(EMSCRIPTEN)
+    target_compile_definitions(artcade-editor-api PRIVATE ARTCADE_WASM)
     message(STATUS "[ArtCade] editor-api  : WASM — full bridge (EMSCRIPTEN_KEEPALIVE + EM_ASM)")
 else()
     message(STATUS "[ArtCade] editor-api  : Native — no-op stubs only")

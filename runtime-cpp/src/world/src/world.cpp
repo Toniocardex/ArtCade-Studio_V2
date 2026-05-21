@@ -18,6 +18,65 @@ void World::setGameplayDeps(Modules::Input* input) {
     input_ = input;
 }
 
+void World::clearTilemapPhysics() {
+    for (uint32_t h : tilePhysicsHandles_)
+        physics_.destroyBody(h);
+    tilePhysicsHandles_.clear();
+}
+
+void World::rebuildTilemapPhysics() {
+    clearTilemapPhysics();
+
+    const SceneId sid = entityGateway_.activeSceneId();
+    const SceneDef* scene = entityGateway_.activeScene();
+    if (!scene) {
+        activeTilemap_ = TilemapData{};
+        return;
+    }
+
+    activeTilemap_ = scene->tilemap;
+    const TilemapData& tm = activeTilemap_;
+    if (tm.cols <= 0 || tm.rows <= 0) return;
+
+    int created = 0;
+    const int n = static_cast<int>(tm.data.size());
+    for (int r = 0; r < tm.rows; ++r) {
+        for (int c = 0; c < tm.cols; ++c) {
+            const int idx = r * tm.cols + c;
+            if (idx >= n) continue;
+            const int id = tm.data[idx];
+            if (id <= 0) continue;
+            auto si = tileSolid_.find(id);
+            if (si == tileSolid_.end() || !si->second) continue;
+
+            PhysicsComponent pc;
+            pc.bodyType       = BodyType::Static;
+            pc.collider.shape = ColliderShape::Rectangle;
+            pc.collider.size  = { tm.tileSize, tm.tileSize };
+            const uint32_t h = physics_.createBody(INVALID_ENTITY, pc);
+            physics_.setPosition(h, {
+                c * tm.tileSize + tm.tileSize * 0.5f,
+                r * tm.tileSize + tm.tileSize * 0.5f });
+            tilePhysicsHandles_.push_back(h);
+            ++created;
+        }
+    }
+    std::cout << "[Tilemap] " << created << " solid collision bodies created\n";
+}
+
+void World::clearGameplayRuntimeState() {
+    platformerRt_.clear();
+    sensorWasOverlapping_.clear();
+    sensorEdgeBuffer_.clear();
+}
+
+void World::syncAfterEditorProject(const std::vector<TilePaletteEntry>& tilePalette) {
+    tileSolid_.clear();
+    for (const auto& e : tilePalette) tileSolid_[e.id] = e.solid;
+    clearGameplayRuntimeState();
+    rebuildTilemapPhysics();
+}
+
 void World::init(const ProjectDoc& doc) {
     entityGateway_.setPhysics(&physics_);
     entityGateway_.replaceProject(doc.scenes, doc.entities, doc.activeSceneId);
@@ -26,39 +85,7 @@ void World::init(const ProjectDoc& doc) {
     activeTilemap_ = TilemapData{};
     for (const auto& e : doc.tilePalette) tileSolid_[e.id] = e.solid;
 
-    int created = 0;
-    const SceneId sid = entityGateway_.activeSceneId();
-    auto sceneIt = doc.scenes.find(sid);
-    if (sceneIt == doc.scenes.end()) return;
-    activeTilemap_ = sceneIt->second.tilemap;
-    const TilemapData& tm = activeTilemap_;
-    if (tm.cols <= 0 || tm.rows <= 0) return;
-
-    std::unordered_map<int, bool> solid;
-    for (const auto& e : doc.tilePalette) solid[e.id] = e.solid;
-
-    const int n = static_cast<int>(tm.data.size());
-    for (int r = 0; r < tm.rows; ++r) {
-        for (int c = 0; c < tm.cols; ++c) {
-            const int idx = r * tm.cols + c;
-            if (idx >= n) continue;
-            const int id = tm.data[idx];
-            if (id <= 0) continue;
-            auto si = solid.find(id);
-            if (si == solid.end() || !si->second) continue;
-
-            PhysicsComponent pc;
-            pc.bodyType         = BodyType::Static;
-            pc.collider.shape   = ColliderShape::Rectangle;
-            pc.collider.size    = { tm.tileSize, tm.tileSize };
-            const uint32_t h = physics_.createBody(INVALID_ENTITY, pc);
-            physics_.setPosition(h, {
-                c * tm.tileSize + tm.tileSize * 0.5f,
-                r * tm.tileSize + tm.tileSize * 0.5f });
-            ++created;
-        }
-    }
-    std::cout << "[Tilemap] " << created << " solid collision bodies created\n";
+    rebuildTilemapPhysics();
 }
 
 void World::shutdown() {

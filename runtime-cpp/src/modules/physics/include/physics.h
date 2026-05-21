@@ -33,6 +33,8 @@ public:
     // ---- Body lifecycle -----------------------------------------------------
     uint32_t createBody(EntityId entityId, const PhysicsComponent& comp);
     void     destroyBody(uint32_t handle);
+    /** Destroy every body in the world (editor project swap / hot-reload). */
+    void     destroyAllBodies();
     /** Second fixture on an existing body (sensor / trigger volume). */
     bool     addSensorFixture(uint32_t bodyHandle, const SensorComponent& sensor);
     void     setBodyActive(uint32_t handle, bool active);

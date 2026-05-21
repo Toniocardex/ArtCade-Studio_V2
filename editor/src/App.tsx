@@ -144,6 +144,19 @@ function ScriptEditorView() {
 function EditorLayout() {
   const { state, dispatch } = useEditor()
 
+  // ── First boot: load an in-memory blank project so the editor opens to the
+  // same clean state produced by File → New Project (1 empty Main Scene, no
+  // entities, no scripts). path='' marks it as unsaved.
+  useEffect(() => {
+    if (state.project || state.projectPath) return
+    const blank = createBlankProject('Untitled')
+    runtimeSync.reset()
+    dispatch({ type: 'LOAD_PROJECT', project: blank, path: '' })
+    dispatch({ type: 'LOG', entry: kbdLog('OK new blank project (unsaved – use Save Project As to persist).', 'info') })
+    // Run once at mount; further "new project" actions go through the menu/shortcut.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // ── Global keyboard shortcuts ──────────────────────────────────────────────
   useEffect(() => {
     function confirmDirty(actionLabel: string): boolean {

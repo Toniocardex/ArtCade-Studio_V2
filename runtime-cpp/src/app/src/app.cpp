@@ -94,17 +94,20 @@ void Application::webLoopCallback() {
 
 int Application::run(int argc, char* argv[]) {
 #ifdef ARTCADE_WASM
-    // Su WASM non ci sono argomenti runtime; il progetto è preloadato nel VFS
-    std::string projectPath = "test-project";
+    // Editor preview: no disk project at boot — React pushes JSON via editor_load_project.
     (void)argc; (void)argv;
+    if (!initUtilities() || !initSubsystems()) {
+        std::cerr << "[App] Initialization failed.\n";
+        return 1;
+    }
+    targetDt_ = 1.f / 60.f;
 #else
     std::string projectPath = (argc > 1) ? argv[1] : "game.artcade";
-#endif
-
     if (!initModules(projectPath)) {
         std::cerr << "[App] Initialization failed.\n";
         return 1;
     }
+#endif
 
     running_ = true;
     mainLoop();
@@ -226,8 +229,53 @@ bool Application::initSubsystems() {
     EditorAPI::wireRenderer(mod_->renderer.get()); // tileset image upload (F3)
     EditorAPI::init("#artcade-canvas");
 
+#ifdef ARTCADE_WASM
+    EditorAPI::wireApplication(this);
+#endif
+
     return true;
 }
+
+#ifdef ARTCADE_WASM
+namespace {
+const char kEmptyEditorLua[] =
+    "function tick(dt)\n"
+    "end\n";
+}
+
+void Application::applyEditorProjectLoaded(
+    const std::vector<TilePaletteEntry>& tilePalette,
+    const std::vector<TilesetAsset>&     tilesets,
+    const Vec2&                          gameResolution)
+{
+    tileColors_.clear();
+    for (const auto& t : tilePalette)
+        tileColors_[t.id] = t.color;
+
+    tilesets_.clear();
+    for (const auto& ts : tilesets)
+        tilesets_[ts.assetId] = ts;
+    mod_->sceneManager->setTilesets(tilesets);
+
+    if (gameResolution.x > 0.f && gameResolution.y > 0.f) {
+        mod_->renderer->setWindowSize(
+            static_cast<uint32_t>(gameResolution.x),
+            static_cast<uint32_t>(gameResolution.y),
+            "ArtCade V2");
+    }
+    if (const SceneDef* sc = mod_->sceneManager->activeScene())
+        mod_->renderer->setSceneViewport(sc->worldSize, sc->viewportSize);
+
+    if (mod_->textureManager)
+        mod_->textureManager->unloadAll();
+
+    if (mod_->luaHost)
+        mod_->luaHost->loadLuaSource(kEmptyEditorLua);
+
+    if (mod_->world)
+        mod_->world->syncAfterEditorProject(tilePalette);
+}
+#endif
 
 // Layer 5 — carica il progetto (directory dev o .artcade), inizializza il
 // world con le entità/scene e inietta lo script Lua principale.

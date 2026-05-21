@@ -44,8 +44,9 @@ if(EMSCRIPTEN)
     # Output: game.html + game.js + game.wasm
     set_target_properties(game PROPERTIES SUFFIX ".html")
 
-    # Preload test-project into the WASM virtual filesystem
-    set(PRELOAD_PATH "${CMAKE_SOURCE_DIR}/test-project")
+    # Editor WASM preview: no test-project preload — projects come from the
+    # React shell via editor_load_project. (runtime-cpp/test-project remains
+    # for native runs and smoke tests.)
 
     # EXPORTED_FUNCTIONS: main + all editor-api commands callable from ccall()
     set(GAME_EXPORTED_FUNCTIONS
@@ -76,7 +77,6 @@ if(EMSCRIPTEN)
         "-sEXPORTED_RUNTIME_METHODS=[\"ccall\",\"cwrap\",\"UTF8ToString\",\"lengthBytesUTF8\",\"stringToUTF8\",\"HEAPU8\"]"
         "-sEXPORTED_FUNCTIONS=[${_FUNS_STR}]"
         -sASYNCIFY=0
-        "--preload-file=${PRELOAD_PATH}@test-project"
         -O2
     )
 else()

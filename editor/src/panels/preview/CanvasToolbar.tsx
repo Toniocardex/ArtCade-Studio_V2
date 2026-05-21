@@ -1,13 +1,18 @@
 // ---------------------------------------------------------------------------
-// CanvasToolbar — left-side tool palette overlaid on the preview canvas
+// CanvasToolbar — horizontal tool palette above the preview canvas
 // ---------------------------------------------------------------------------
 //
-// Extracted from PreviewPanel.tsx during Phase 6 of the technical-debt
-// split. The palette is purely presentational + a tool-id callback; the
-// runtime synchronisation still happens in PreviewPanel via
-// useRuntimeEditorSync, so this component owns no side effects.
+// Sits as a normal flex item at the top of PreviewPanel (no absolute
+// positioning), so it never overlaps the canvas. Layout:
+//
+//   [ select | pan ] · [ paint | erase | tile ] · [ guides ]        [ status ]
+//
+// Tools are grouped by purpose (navigation · painting · view options), each
+// group separated by a thin vertical divider. Order matches the original
+// vertical palette so muscle memory is preserved.
 
 import { Eraser, Grid3x3, Hand, ImageIcon, MousePointer2, Pencil } from 'lucide-react'
+import type { ReactNode } from 'react'
 import type { EditorTool } from '../../utils/runtime-sync-service'
 
 interface CanvasToolbarProps {
@@ -16,14 +21,21 @@ interface CanvasToolbarProps {
   selectedTileCell: number
   showGuides:       boolean
   onToggleGuides:   () => void
+  rightSlot?:       ReactNode
+}
+
+function Divider() {
+  return <div className="w-px h-5 bg-[var(--border)]" />
 }
 
 export function CanvasToolbar({
   activeTool, onSelectTool, selectedTileCell, showGuides, onToggleGuides,
+  rightSlot,
 }: CanvasToolbarProps) {
   return (
-    <div className="absolute top-4 left-4 flex flex-col gap-2 z-40
-                    bg-[var(--panel)] p-2 border border-[var(--border)] rounded-lg shadow-lg">
+    <div className="flex items-center gap-1 px-2 py-1.5
+                    border-b border-[var(--border)] bg-[var(--panel)]
+                    flex-shrink-0">
       {([
         { id: 'select', Icon: MousePointer2, color: 'var(--accent)', title: 'Select / move entities' },
         { id: 'pan',    Icon: Hand,           color: 'var(--muted)',  title: 'Pan camera' },
@@ -40,7 +52,7 @@ export function CanvasToolbar({
         </button>
       ))}
 
-      <div className="h-px w-full bg-[var(--border)]" />
+      <Divider />
 
       {([
         { id: 'paint', Icon: Pencil, title: 'Paint tiles' },
@@ -58,9 +70,7 @@ export function CanvasToolbar({
         </button>
       ))}
 
-      <div className="h-px w-full bg-[var(--border)]" />
-
-      {/* Phase F2: in-scene tile painting */}
+      {/* Phase F2: in-scene tile painting (uses the currently selected tileset cell) */}
       <button
         onClick={() => onSelectTool('tile')}
         title={`Paint selected tileset cell ${selectedTileCell === 0 ? '(empty)' : '#' + selectedTileCell}`}
@@ -71,7 +81,7 @@ export function CanvasToolbar({
         <ImageIcon size={15} color={activeTool === 'tile' ? 'var(--accent-2)' : 'var(--muted)'} />
       </button>
 
-      <div className="h-px w-full bg-[var(--border)]" />
+      <Divider />
 
       <button
         onClick={onToggleGuides}
@@ -82,6 +92,11 @@ export function CanvasToolbar({
       >
         <Grid3x3 size={15} color={showGuides ? 'var(--accent)' : 'var(--muted)'} />
       </button>
+
+      {/* Right-aligned slot: runtime status badge, future zoom controls, etc. */}
+      <div className="ml-auto flex items-center gap-2">
+        {rightSlot}
+      </div>
     </div>
   )
 }

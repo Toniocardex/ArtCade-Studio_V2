@@ -19,6 +19,10 @@ float    EditorAPI::s_editorGridSize   = 32.f;
 Modules::RuntimeEntityGateway* EditorAPI::s_entityGateway = nullptr;
 Modules::LuaHost*              EditorAPI::s_luaHost       = nullptr;
 Modules::Renderer*             EditorAPI::s_renderer      = nullptr;
+Application*                   EditorAPI::s_application   = nullptr;
+
+void EditorAPI::wireApplication(Application*) {}
+
 } // namespace ArtCade
 
 #else // __EMSCRIPTEN__ ─────────────────────────────────────────────────────────
@@ -36,6 +40,7 @@ Modules::Renderer*             EditorAPI::s_renderer      = nullptr;
 //    into EntityDef / SceneDef / TilesetAsset.
 // =============================================================================
 
+#include "../../../app/include/app.h"
 #include "../../../modules/runtime-entity-gateway/include/runtime-entity-gateway.h"
 #include "../../../modules/lua-runtime/include/lua-host.h"
 #include "../../../modules/renderer/include/renderer.h"
@@ -71,6 +76,7 @@ float    EditorAPI::s_editorGridSize   = 32.f;
 Modules::RuntimeEntityGateway* EditorAPI::s_entityGateway = nullptr;
 Modules::LuaHost*              EditorAPI::s_luaHost       = nullptr;
 Modules::Renderer*             EditorAPI::s_renderer      = nullptr;
+Application*                   EditorAPI::s_application   = nullptr;
 std::vector<std::pair<std::string, std::string>> EditorAPI::s_consoleQueue;
 
 namespace {
@@ -103,6 +109,10 @@ void EditorAPI::wireLua(Modules::LuaHost* luaHost) {
 void EditorAPI::wireRenderer(Modules::Renderer* renderer) {
     s_renderer = renderer;
     notifyConsoleLine("[EditorAPI] Engine wired to Renderer (image upload ready).", "info");
+}
+
+void EditorAPI::wireApplication(Application* app) {
+    s_application = app;
 }
 
 // ── Init / Shutdown ───────────────────────────────────────────────────────────
@@ -253,9 +263,10 @@ EMSCRIPTEN_KEEPALIVE void editor_load_project(const char* json_utf8) {
         if (doc.contains("gameResolution"))  gameResolution = Parser::parseVec2(doc["gameResolution"]);
         if (doc.contains("game_resolution")) gameResolution = Parser::parseVec2(doc["game_resolution"]);
 
-        auto entityDefs = Parser::parseEntities(doc);
-        auto sceneDefs  = Parser::parseScenes (doc);
-        auto tilesets   = Parser::parseTilesets(doc);
+        auto entityDefs  = Parser::parseEntities(doc);
+        auto sceneDefs   = Parser::parseScenes(doc);
+        auto tilesets    = Parser::parseTilesets(doc);
+        auto tilePalette = Parser::parseTilePalette(doc);
 
         std::string activeId = doc.value("activeSceneId",
                                doc.value("active_scene_id", std::string{}));
@@ -263,19 +274,10 @@ EMSCRIPTEN_KEEPALIVE void editor_load_project(const char* json_utf8) {
             activeId = sceneDefs.begin()->first;
 
         gateway->replaceProject(sceneDefs, entityDefs, activeId);
-        gateway->setTilesets(std::move(tilesets));
+        gateway->setTilesets(tilesets);
 
-        if (auto* renderer = ArtCade::EditorAPI::s_renderer) {
-            if (gameResolution.x > 0.f && gameResolution.y > 0.f) {
-                renderer->setWindowSize(
-                    static_cast<uint32_t>(gameResolution.x),
-                    static_cast<uint32_t>(gameResolution.y),
-                    "ArtCade V2");
-            }
-            if (const ArtCade::SceneDef* sc = gateway->activeScene()) {
-                renderer->setSceneViewport(sc->worldSize, sc->viewportSize);
-            }
-        }
+        if (auto* app = ArtCade::EditorAPI::s_application)
+            app->applyEditorProjectLoaded(tilePalette, tilesets, gameResolution);
 
         char buf[128];
         std::snprintf(buf, sizeof(buf),

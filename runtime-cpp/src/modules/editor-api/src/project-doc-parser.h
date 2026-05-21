@@ -52,6 +52,9 @@ parseScenes(const nlohmann::json& doc);
 std::vector<ArtCade::TilesetAsset>
 parseTilesets(const nlohmann::json& doc);
 
+std::vector<ArtCade::TilePaletteEntry>
+parseTilePalette(const nlohmann::json& doc);
+
 } // namespace ArtCade::ProjectDocParser
 
 #endif // __EMSCRIPTEN__

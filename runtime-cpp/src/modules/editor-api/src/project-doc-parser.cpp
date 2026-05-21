@@ -199,6 +199,32 @@ parseTilesets(const json& doc) {
     return tilesets;
 }
 
+std::vector<TilePaletteEntry>
+parseTilePalette(const json& doc) {
+    std::vector<TilePaletteEntry> out;
+    if (!doc.contains("tilePalette") && !doc.contains("tile_palette"))
+        return out;
+    const auto& raw = doc.contains("tilePalette") ? doc["tilePalette"] : doc["tile_palette"];
+    if (!raw.is_array()) return out;
+    for (const auto& item : raw) {
+        if (!item.is_object()) continue;
+        TilePaletteEntry e;
+        e.id    = item.value("id", 0);
+        e.name  = item.value("name", std::string{});
+        e.solid = item.value("solid", false);
+        if (item.contains("color")) {
+            if (item["color"].is_string()) {
+                // Hex colours from the editor are display-only; use neutral grey.
+                e.color = Vec4{0.5f, 0.5f, 0.5f, 1.f};
+            } else {
+                e.color = parseVec4(item["color"]);
+            }
+        }
+        if (e.id > 0) out.push_back(std::move(e));
+    }
+    return out;
+}
+
 } // namespace ArtCade::ProjectDocParser
 
 #endif // __EMSCRIPTEN__

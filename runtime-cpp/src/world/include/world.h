@@ -37,6 +37,8 @@ public:
     void setGameplayDeps(Modules::Input* input);
 
     void init(const ProjectDoc& doc);
+    /** After editor_load_project: refresh tile collisions + gameplay runtime maps. */
+    void syncAfterEditorProject(const std::vector<TilePaletteEntry>& tilePalette);
     void shutdown();
 
     bool    loadScene(const SceneId& id);
@@ -77,6 +79,11 @@ private:
 
     TilemapData  activeTilemap_;
     std::unordered_map<int, bool> tileSolid_;
+    std::vector<uint32_t>         tilePhysicsHandles_;
+
+    void clearTilemapPhysics();
+    void rebuildTilemapPhysics();
+    void clearGameplayRuntimeState();
 
     bool isGrounded(EntityId id, const std::string& groundClass) const;
     void tickPlatformerControllers(float dt);

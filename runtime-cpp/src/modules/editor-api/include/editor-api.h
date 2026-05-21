@@ -37,6 +37,8 @@ class Renderer;
 
 namespace ArtCade {
 
+class Application;
+
 class EditorAPI {
 public:
     // -------------------------------------------------------------------------
@@ -71,6 +73,9 @@ public:
      * cache. Called by Application after the Renderer is initialised.
      */
     static void wireRenderer(Modules::Renderer* renderer);
+
+    /** Wire Application so editor_load_project can reset Lua, textures, tile caches. */
+    static void wireApplication(Application* app);
 
     // -------------------------------------------------------------------------
     // C++ -> React notifications (Smoke Test 3)
@@ -117,6 +122,7 @@ public:
     static Modules::RuntimeEntityGateway* s_entityGateway;
     static Modules::LuaHost*              s_luaHost;
     static Modules::Renderer*             s_renderer;
+    static Application*                   s_application;
     static std::vector<std::pair<std::string, std::string>> s_consoleQueue;
 
     // Native input callbacks -- bypass the JS thread entirely (Smoke Test 2)
@@ -232,6 +238,7 @@ struct EditorAPI {
     static Modules::RuntimeEntityGateway* s_entityGateway;
     static Modules::LuaHost*              s_luaHost;
     static Modules::Renderer*             s_renderer;
+    static Application*                   s_application;
     static std::vector<std::pair<std::string, std::string>> s_consoleQueue;
 };
 } // namespace ArtCade

@@ -12,32 +12,9 @@ import {
   shouldIgnoreEditorShortcut,
 } from '../utils/keyboard'
 
-/** Starter content used the first time a script asset is opened. */
-function scriptStub(name: string): string {
-  return [
-    `-- ${name}`,
-    '-- Opened from Assets. Edit and Ctrl+S to save.',
-    '',
-    'function tick(dt)',
-    '  -- your game logic here',
-    'end',
-    '',
-  ].join('\n')
-}
-
 type Category = 'ALL' | 'IMAGES' | 'AUDIO' | 'SCRIPTS'
 
 const CATEGORIES: Category[] = ['ALL', 'IMAGES', 'AUDIO', 'SCRIPTS']
-
-// Audio/scripts stay sample-only for now; IMAGES come from project.assets.
-const SAMPLE_ASSETS = [
-  { name: 'bgm_main.ogg',          type: 'AUDIO',   size: '1.4 MB' },
-  { name: 'sfx_hurt.ogg',          type: 'AUDIO',   size: '22 KB'  },
-  { name: 'sfx_jump.ogg',          type: 'AUDIO',   size: '18 KB'  },
-  { name: 'player_controller.lua', type: 'SCRIPTS', size: '1.1 KB' },
-  { name: 'enemy_ai.lua',          type: 'SCRIPTS', size: '840 B'  },
-  { name: 'platformer.lua',        type: 'SCRIPTS', size: '2.2 KB' },
-]
 
 const ICON_MAP: Record<string, ElementType> = {
   IMAGES:  Image,
@@ -146,17 +123,9 @@ export default function AssetBrowserPanel() {
     flash(`Sprite "${asset.name}" → ${selEntity.name}`)
   }
 
-  function openScript(name: string) {
-    const path = `scripts/${name}`
-    const already = state.openScripts.find(s => s.path === path)
-    dispatch({
-      type: 'OPEN_SCRIPT',
-      file: already ?? { path, content: scriptStub(name), isDirty: false },
-    })
-  }
-
-  const samples = SAMPLE_ASSETS.filter(a => cat === 'ALL' || a.type === cat)
   const showImages = cat === 'ALL' || cat === 'IMAGES'
+  const hasImages = images.length > 0
+  const showEmpty = !project || (!hasImages && cat !== 'ALL')
 
   return (
     <div className="h-full flex flex-col bg-[var(--bg)]" data-panel="assets">
@@ -209,10 +178,13 @@ export default function AssetBrowserPanel() {
 
       {/* Asset grid */}
       <div className="flex-1 overflow-y-auto p-4">
-        {showImages && images.length === 0 && cat === 'IMAGES' && (
-          <p className="text-[var(--muted)] text-[10px] mb-3">
-            No images yet — use “Import image”. Click to select; Delete or Remove
-            to discard. Double-click (with an entity selected) to assign sprite.
+        {showEmpty && (
+          <p className="text-[var(--muted)] text-[10px] mb-3 leading-relaxed">
+            {!project
+              ? 'No project loaded — use File → New Project or Open Project.'
+              : cat === 'IMAGES'
+                ? 'No images yet — use Import image. Double-click (with an entity selected) to assign a sprite.'
+                : 'No assets in this category yet.'}
           </p>
         )}
         <div className="grid grid-cols-6 gap-3">
@@ -246,27 +218,6 @@ export default function AssetBrowserPanel() {
             </div>
             )
           })}
-
-          {samples.map((asset, i) => (
-            <div
-              key={`s${i}`}
-              onDoubleClick={() => {
-                if (asset.type === 'SCRIPTS') openScript(asset.name)
-              }}
-              title={asset.type === 'SCRIPTS' ? 'Double-click to open in Editor Script' : asset.name}
-              className="flex flex-col items-center gap-2 p-2 rounded
-                         border border-[var(--border)] hover:border-[rgb(var(--accent-rgb)/0.5)]
-                         bg-[var(--bg)] cursor-pointer transition-colors group"
-            >
-              <div className="text-[var(--muted)] group-hover:scale-110 transition-transform">
-                <AssetIcon type={asset.type} />
-              </div>
-              <span className="text-[9px] truncate w-full text-center text-[var(--muted)]">
-                {asset.name}
-              </span>
-              <span className="text-[8px] text-[rgb(var(--muted-rgb)/0.5)]">{asset.size}</span>
-            </div>
-          ))}
         </div>
 
         {selAsset && (

@@ -10,7 +10,6 @@ import {
   useRuntimeEditorSync,
 } from './preview/runtime-hooks'
 import { CanvasToolbar } from './preview/CanvasToolbar'
-import { PreviewMetricsBadge } from './preview/PreviewMetricsBadge'
 import { RuntimeStatusBadge } from './preview/RuntimeStatusBadge'
 
 type TransformSnapshot = {
@@ -145,16 +144,15 @@ export default function PreviewPanel() {
   })()
 
   return (
-    <div className="h-full flex flex-col bg-[var(--bg)] relative">
+    <div className="h-full flex flex-col bg-[var(--bg)]">
       <CanvasToolbar
         activeTool={activeTool}
         onSelectTool={setActiveTool}
         selectedTileCell={selectedTileCell}
         showGuides={showEditorGuides}
         onToggleGuides={() => setShowEditorGuides(v => !v)}
+        rightSlot={<RuntimeStatusBadge wasmReady={wasmReady} hasProject={!!project} />}
       />
-
-      <RuntimeStatusBadge wasmReady={wasmReady} hasProject={!!project} />
 
       {/* Viewport area:
         flex-1 + items-center + justify-center centres the canvas both
@@ -187,8 +185,6 @@ export default function PreviewPanel() {
             background:  bgColor,
           }}
         />
-
-        <PreviewMetricsBadge outputSize={res} scene={selectedScene} />
       </div>
     </div>
   )

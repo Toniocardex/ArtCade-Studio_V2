@@ -78,11 +78,15 @@ Physics::~Physics() = default;
 bool Physics::init()     { return true; }
 
 void Physics::shutdown() {
-    // Distruggi tutti i corpi prima che il world venga distrutto
+    destroyAllBodies();
+}
+
+void Physics::destroyAllBodies() {
     for (auto& [handle, entry] : impl_->bodies)
         impl_->world.DestroyBody(entry.body);
     impl_->bodies.clear();
     impl_->bodyToHandle.clear();
+    impl_->nextHandle = 1;
 }
 
 // ============================================================================

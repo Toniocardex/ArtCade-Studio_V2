@@ -1,6 +1,9 @@
 // ---------------------------------------------------------------------------
-// RuntimeStatusBadge — top-right "RUNTIME READY / LOADING / NO PROJECT"
+// RuntimeStatusBadge — "RUNTIME READY / LOADING / NO PROJECT" pill
 // ---------------------------------------------------------------------------
+//
+// Rendered inside the CanvasToolbar's right slot, so it sits in the header
+// strip above the canvas (never overlapping it).
 
 import { Wifi, WifiOff } from 'lucide-react'
 
@@ -11,8 +14,8 @@ interface RuntimeStatusBadgeProps {
 
 export function RuntimeStatusBadge({ wasmReady, hasProject }: RuntimeStatusBadgeProps) {
   return (
-    <div className="absolute top-4 right-4 z-40 flex items-center gap-1.5
-                    bg-[var(--panel)] px-2 py-1 rounded-lg border border-[var(--border)] shadow-lg text-[9px]">
+    <div className="flex items-center gap-1.5
+                    bg-[var(--bg)] px-2 py-1 rounded border border-[var(--border)] text-[9px]">
       {wasmReady
         ? (
           <>

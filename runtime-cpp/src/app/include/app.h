@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace ArtCade {
 
@@ -28,6 +29,13 @@ public:
     ~Application();
 
     int run(int argc, char* argv[]);
+
+#ifdef ARTCADE_WASM
+    /** Called from editor_load_project after the gateway swap. */
+    void applyEditorProjectLoaded(const std::vector<TilePaletteEntry>& tilePalette,
+                                  const std::vector<TilesetAsset>&     tilesets,
+                                  const Vec2&                          gameResolution);
+#endif
 
 private:
     struct Modules;

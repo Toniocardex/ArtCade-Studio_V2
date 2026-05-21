@@ -103,16 +103,14 @@ if not exist "%OUTDIR%\game.wasm" (
     echo [FAIL] Missing output: !OUTDIR!\game.wasm
     exit /b 1
 )
-if not exist "%OUTDIR%\game.data" (
-    popd >nul
-    echo [FAIL] Missing output: !OUTDIR!\game.data
-    exit /b 1
-)
-
 if not exist "%EDITOR_RUNTIME%" mkdir "%EDITOR_RUNTIME%"
 copy /y "%OUTDIR%\game.js" "%EDITOR_RUNTIME%\game.js" >nul
 copy /y "%OUTDIR%\game.wasm" "%EDITOR_RUNTIME%\game.wasm" >nul
-copy /y "%OUTDIR%\game.data" "%EDITOR_RUNTIME%\game.data" >nul
+if exist "%OUTDIR%\game.data" (
+    copy /y "%OUTDIR%\game.data" "%EDITOR_RUNTIME%\game.data" >nul
+) else if exist "%EDITOR_RUNTIME%\game.data" (
+    del /q "%EDITOR_RUNTIME%\game.data"
+)
 if errorlevel 1 (
     popd >nul
     echo [FAIL] Failed to copy runtime assets to:
@@ -122,8 +120,13 @@ if errorlevel 1 (
 
 echo.
 echo [OK] WASM runtime updated:
-for %%F in ("%EDITOR_RUNTIME%\game.js" "%EDITOR_RUNTIME%\game.wasm" "%EDITOR_RUNTIME%\game.data") do (
+for %%F in ("%EDITOR_RUNTIME%\game.js" "%EDITOR_RUNTIME%\game.wasm") do (
     echo        %%~nxF  %%~zF bytes
+)
+if exist "%EDITOR_RUNTIME%\game.data" (
+    for %%F in ("%EDITOR_RUNTIME%\game.data") do echo        %%~nxF  %%~zF bytes
+) else (
+    echo        game.data  (none — no preload bundle)
 )
 
 popd >nul

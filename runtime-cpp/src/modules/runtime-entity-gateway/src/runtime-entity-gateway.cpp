@@ -302,6 +302,9 @@ bool RuntimeEntityGateway::replaceProject(
     const std::unordered_map<EntityId, EntityDef>& entityDefs,
     const SceneId& activeSceneId)
 {
+    if (physics_)
+        physics_->destroyAllBodies();
+
     entityManager_.clear();
     rebuildClassPrototypes(entityDefs);
     sceneManager_.registerScenes(scenes, entityDefs);
