@@ -14,10 +14,14 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod build_log_filter;
+
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 use std::process::{Command as Cmd, Stdio};
 use tauri::Emitter;
+
+use build_log_filter::BuildLogFilter;
 
 // ---------------------------------------------------------------------------
 // Payload type for build log events
@@ -37,48 +41,6 @@ fn emit_log(app: &tauri::AppHandle, msg: &str, level: &str) {
             level: level.to_string(),
         },
     );
-}
-
-struct BuildLogFilter {
-    suppressing_third_party_cmake_warning: bool,
-}
-
-impl BuildLogFilter {
-    fn new() -> Self {
-        Self {
-            suppressing_third_party_cmake_warning: false,
-        }
-    }
-
-    fn should_emit(&mut self, line: &str) -> bool {
-        if is_third_party_cmake_deprecation_start(line) {
-            self.suppressing_third_party_cmake_warning = true;
-            return false;
-        }
-
-        if self.suppressing_third_party_cmake_warning {
-            if starts_new_build_log_record(line) {
-                self.suppressing_third_party_cmake_warning = false;
-                return self.should_emit(line);
-            }
-            return false;
-        }
-
-        true
-    }
-}
-
-fn is_third_party_cmake_deprecation_start(line: &str) -> bool {
-    line.starts_with("CMake Deprecation Warning at ")
-        && (line.contains("libs/raylib/CMakeLists.txt")
-            || line.contains("_deps/box2d-src/CMakeLists.txt"))
-}
-
-fn starts_new_build_log_record(line: &str) -> bool {
-    line.starts_with("CMake ")
-        || line.starts_with("-- ")
-        || line.starts_with("[")
-        || line.starts_with("Built target")
 }
 
 fn repo_root() -> Result<PathBuf, String> {
@@ -251,7 +213,7 @@ async fn run_build(app: tauri::AppHandle, project_root: String) -> Result<(), St
             Ok(())
         }
         Ok(status) => {
-            let msg = format!("[Build] ✗ Failed (exit {:?})", status.code());
+            let msg = format!("[Build] FAIL (exit {:?})", status.code());
             emit_log(&app, &msg, "error");
             Err(msg)
         }
@@ -317,10 +279,10 @@ async fn pack_project(
 
     match child.wait() {
         Ok(s) if s.success() => {
-            emit_log(&app, "[Pack] ✓ .artcade created.", "info");
+            emit_log(&app, "[Pack] OK .artcade created.", "info");
             Ok(())
         }
-        Ok(s) => Err(format!("[Pack] ✗ exit {:?}", s.code())),
+        Ok(s) => Err(format!("[Pack] FAIL exit {:?}", s.code())),
         Err(e) => Err(e.to_string()),
     }
 }

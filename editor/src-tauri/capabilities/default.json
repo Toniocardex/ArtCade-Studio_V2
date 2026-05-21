@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2/capability.json",
   "identifier": "default",
-  "description": "ArtCade Editor — default capabilities",
+  "description": "ArtCade Editor - default capabilities",
   "windows": ["main"],
   "permissions": [
     "core:default",
