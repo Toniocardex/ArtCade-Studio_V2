@@ -2,6 +2,8 @@
 
 #include <raylib.h>   // GetScreenWidth/Height for splash overlay
 
+#include <optional>
+
 #ifdef ARTCADE_WASM
 #include <emscripten/emscripten.h>
 #endif
@@ -401,11 +403,13 @@ void Application::loopIteration() {
         {
             std::vector<ArtCade::EntityId> toKill;
             for (ArtCade::EntityId id : mod_->entityGateway->activeSceneIds()) {
-                ArtCade::EntityDef* e = mod_->entityManager->get(id);
-                if (!e || !e->autoDestroy || e->autoDestroy->lifespan <= 0.f)
+                ArtCade::AutoDestroyComponent autoDestroy{};
+                if (!mod_->entityGateway->getAutoDestroy(id, autoDestroy) ||
+                    autoDestroy.lifespan <= 0.f)
                     continue;
-                e->autoDestroy->_timeAlive += targetDt_;
-                if (e->autoDestroy->_timeAlive >= e->autoDestroy->lifespan)
+                autoDestroy._timeAlive += targetDt_;
+                mod_->entityGateway->setAutoDestroy(id, autoDestroy);
+                if (autoDestroy._timeAlive >= autoDestroy.lifespan)
                     toKill.push_back(id);
             }
             for (ArtCade::EntityId id : toKill)
@@ -481,8 +485,6 @@ void Application::renderActiveScene() {
 
     // Entity sprites.
     for (EntityId id : mod_->world->activeEntityIds()) {
-        const auto* e = mod_->entityManager->get(id);
-        if (!e) continue;
         Transform transform{};
         if (!mod_->entityGateway->getTransform(id, transform)) continue;
         SpriteComponent sprite{};
@@ -508,13 +510,16 @@ void Application::renderActiveScene() {
     if (activeScene)
         EditorOverlayRenderer::drawGuides(*mod_->renderer, *activeScene, overlay);
     if (overlay.selectedId != 0u) {
-        const EntityDef* selected = mod_->entityManager->get(overlay.selectedId);
         Transform selectedTransform{};
         PhysicsComponent selectedPhysics{};
+        SensorComponent selectedSensor{};
+        std::optional<SensorComponent> sensor;
+        if (mod_->entityGateway->getSensor(overlay.selectedId, selectedSensor))
+            sensor = selectedSensor;
         if (mod_->entityGateway->getTransform(overlay.selectedId, selectedTransform) &&
             mod_->entityGateway->getPhysicsComponent(overlay.selectedId, selectedPhysics))
             EditorOverlayRenderer::drawSelection(
-                *mod_->renderer, selected, selectedTransform, selectedPhysics, overlay);
+                *mod_->renderer, selectedTransform, selectedPhysics, sensor, overlay);
     }
 
     // FREE-tier splash overlay drawn on top of the game frame.

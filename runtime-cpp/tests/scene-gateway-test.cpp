@@ -38,6 +38,9 @@ int main() {
     player.id = 1;
     player.className = "Player";
     player.name = "Player";
+    PlatformerControllerComponent playerController;
+    playerController.groundClass = "Ground";
+    player.platformerController = playerController;
 
     EntityDef coin;
     coin.id = 2;
@@ -46,6 +49,12 @@ int main() {
     coin.sprite.spriteAssetId = "sprites/coin.png";
     coin.sprite.alpha = 1.f;
     coin.tags = { "pickup" };
+    SensorComponent coinSensor;
+    coinSensor.targetTag = "player";
+    coin.sensor = coinSensor;
+    AutoDestroyComponent coinAutoDestroy;
+    coinAutoDestroy.lifespan = 2.f;
+    coin.autoDestroy = coinAutoDestroy;
 
     SceneDef sceneA;
     sceneA.id = "scene_a";
@@ -69,6 +78,9 @@ int main() {
     CHECK(gw.replaceProject(scenes, entities, "scene_a"));
     CHECK(gw.poolCount("Player") == 1);
     CHECK(gw.poolCount("Coin") == 1);
+    PlatformerControllerComponent loadedController{};
+    CHECK(gw.getPlatformerController(1, loadedController));
+    CHECK(loadedController.groundClass == "Ground");
 
     const EntityId spawned = gw.spawnFromClass("Coin", 50.f, 60.f);
     CHECK(spawned != 0);
@@ -105,6 +117,18 @@ int main() {
     CHECK(updatedPhysics.collider.size.y == 28.f);
     CHECK(spawnedDef->physics.collider.size.x == 24.f);
     CHECK(spawnedDef->physics.collider.size.y == 28.f);
+    SensorComponent spawnedSensor{};
+    CHECK(gw.getSensor(spawned, spawnedSensor));
+    CHECK(spawnedSensor.targetTag == "player");
+    AutoDestroyComponent spawnedAutoDestroy{};
+    CHECK(gw.getAutoDestroy(spawned, spawnedAutoDestroy));
+    CHECK(spawnedAutoDestroy.lifespan == 2.f);
+    spawnedAutoDestroy._timeAlive = 1.f;
+    CHECK(gw.setAutoDestroy(spawned, spawnedAutoDestroy));
+    AutoDestroyComponent updatedAutoDestroy{};
+    CHECK(gw.getAutoDestroy(spawned, updatedAutoDestroy));
+    CHECK(updatedAutoDestroy._timeAlive == 1.f);
+    CHECK(spawnedDef->autoDestroy && spawnedDef->autoDestroy->_timeAlive == 1.f);
     const SceneDef* sceneAfter = gw.activeScene();
     CHECK(sceneAfter && std::find(sceneAfter->entityIds.begin(),
                                 sceneAfter->entityIds.end(), spawned)

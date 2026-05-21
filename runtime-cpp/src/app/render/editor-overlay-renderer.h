@@ -22,9 +22,10 @@
 
 #include "../../core/types.h"
 
+#include <optional>
+
 namespace ArtCade {
 
-struct EntityDef;
 namespace Modules { class Renderer; }
 
 struct EditorOverlayState {
@@ -54,13 +55,13 @@ void drawGuides(Modules::Renderer& renderer,
  * The selection box uses the collider size when available; otherwise it
  * falls back to a 40px square scaled by transform.scale.
  *
- * `selected` may be null even if `state.selectedId != 0` (entity was
- * destroyed between pick and render); in that case the call is a no-op.
+ * Missing component data is resolved before calling this function; if the
+ * entity was destroyed between pick and render, the caller skips the call.
  */
 void drawSelection(Modules::Renderer& renderer,
-                   const EntityDef* selected,
                    const Transform& transform,
                    const PhysicsComponent& physics,
+                   const std::optional<SensorComponent>& sensor,
                    const EditorOverlayState& state);
 
 } // namespace EditorOverlayRenderer

@@ -81,7 +81,9 @@ void RuntimeEntityGateway::ensurePhysicsBody(EntityDef& def) {
 
     const bool hasCollider =
         comp.collider.size.x > 2.f && comp.collider.size.y > 2.f;
-    if (!hasCollider && !def.platformerController) return;
+    PlatformerControllerComponent platformer{};
+    const bool hasPlatformer = getPlatformerController(def.id, platformer);
+    if (!hasCollider && !hasPlatformer) return;
 
     if (!hasCollider) {
         comp.collider.size = { 32.f, 32.f };
@@ -98,8 +100,9 @@ void RuntimeEntityGateway::ensurePhysicsBody(EntityDef& def) {
         transform = def.transform;
     physics_->setPosition(handle, transform.position);
 
-    if (def.sensor)
-        physics_->addSensorFixture(handle, *def.sensor);
+    SensorComponent sensor{};
+    if (getSensor(def.id, sensor))
+        physics_->addSensorFixture(handle, sensor);
 }
 
 void RuntimeEntityGateway::teardownPhysicsBody(EntityDef& def) {
@@ -155,12 +158,18 @@ EntityId RuntimeEntityGateway::create(const EntityDef& def) {
     runtimeState_[id].transform = copy.transform;
     runtimeState_[id].sprite = copy.sprite;
     runtimeState_[id].physics = copy.physics;
+    runtimeState_[id].sensor = copy.sensor;
+    runtimeState_[id].platformerController = copy.platformerController;
+    runtimeState_[id].autoDestroy = copy.autoDestroy;
     EntityDef* e = entityManager_.get(id);
     if (e) {
         e->runtime.sceneActive = runtimeState_[id].sceneActive;
         e->transform = runtimeState_[id].transform;
         e->sprite = runtimeState_[id].sprite;
         e->physics = runtimeState_[id].physics;
+        e->sensor = runtimeState_[id].sensor;
+        e->platformerController = runtimeState_[id].platformerController;
+        e->autoDestroy = runtimeState_[id].autoDestroy;
     }
     if (e && runtimeState_[id].sceneActive)
         ensurePhysicsBody(*e);
@@ -201,6 +210,9 @@ EntityId RuntimeEntityGateway::spawnFromClass(const std::string& className, floa
     runtimeState_[id].transform = copy.transform;
     runtimeState_[id].sprite = copy.sprite;
     runtimeState_[id].physics = copy.physics;
+    runtimeState_[id].sensor = copy.sensor;
+    runtimeState_[id].platformerController = copy.platformerController;
+    runtimeState_[id].autoDestroy = copy.autoDestroy;
     if (SceneDef* scene = sceneManager_.activeSceneMutable()) {
         if (std::find(scene->entityIds.begin(), scene->entityIds.end(), id)
             == scene->entityIds.end())
@@ -341,6 +353,78 @@ bool RuntimeEntityGateway::setPhysicsComponent(EntityId id, const PhysicsCompone
     return true;
 }
 
+bool RuntimeEntityGateway::getSensor(EntityId id, SensorComponent& out) const {
+    if (!entityManager_.exists(id)) return false;
+    auto it = runtimeState_.find(id);
+    if (it != runtimeState_.end()) {
+        if (!it->second.sensor) return false;
+        out = *it->second.sensor;
+        return true;
+    }
+    const auto* entity = entityManager_.get(id);
+    if (!entity || !entity->sensor) return false;
+    out = *entity->sensor;
+    return true;
+}
+
+bool RuntimeEntityGateway::setSensor(EntityId id, const std::optional<SensorComponent>& sensor) {
+    auto* entity = entityManager_.get(id);
+    if (!entity) return false;
+    runtimeState_[id].sensor = sensor;
+    entity->sensor = sensor;
+    return true;
+}
+
+bool RuntimeEntityGateway::getPlatformerController(
+    EntityId id, PlatformerControllerComponent& out) const
+{
+    if (!entityManager_.exists(id)) return false;
+    auto it = runtimeState_.find(id);
+    if (it != runtimeState_.end()) {
+        if (!it->second.platformerController) return false;
+        out = *it->second.platformerController;
+        return true;
+    }
+    const auto* entity = entityManager_.get(id);
+    if (!entity || !entity->platformerController) return false;
+    out = *entity->platformerController;
+    return true;
+}
+
+bool RuntimeEntityGateway::setPlatformerController(
+    EntityId id, const std::optional<PlatformerControllerComponent>& controller)
+{
+    auto* entity = entityManager_.get(id);
+    if (!entity) return false;
+    runtimeState_[id].platformerController = controller;
+    entity->platformerController = controller;
+    return true;
+}
+
+bool RuntimeEntityGateway::getAutoDestroy(EntityId id, AutoDestroyComponent& out) const {
+    if (!entityManager_.exists(id)) return false;
+    auto it = runtimeState_.find(id);
+    if (it != runtimeState_.end()) {
+        if (!it->second.autoDestroy) return false;
+        out = *it->second.autoDestroy;
+        return true;
+    }
+    const auto* entity = entityManager_.get(id);
+    if (!entity || !entity->autoDestroy) return false;
+    out = *entity->autoDestroy;
+    return true;
+}
+
+bool RuntimeEntityGateway::setAutoDestroy(
+    EntityId id, const std::optional<AutoDestroyComponent>& autoDestroy)
+{
+    auto* entity = entityManager_.get(id);
+    if (!entity) return false;
+    runtimeState_[id].autoDestroy = autoDestroy;
+    entity->autoDestroy = autoDestroy;
+    return true;
+}
+
 uint32_t RuntimeEntityGateway::physicsHandle(EntityId id) const {
     auto it = runtimeState_.find(id);
     return it != runtimeState_.end() ? it->second.physicsHandle : 0;
@@ -426,6 +510,9 @@ bool RuntimeEntityGateway::replaceProject(
         runtimeState_[runtimeId].transform = copy.transform;
         runtimeState_[runtimeId].sprite = copy.sprite;
         runtimeState_[runtimeId].physics = copy.physics;
+        runtimeState_[runtimeId].sensor = copy.sensor;
+        runtimeState_[runtimeId].platformerController = copy.platformerController;
+        runtimeState_[runtimeId].autoDestroy = copy.autoDestroy;
     }
 
     if (!activeSceneId.empty())

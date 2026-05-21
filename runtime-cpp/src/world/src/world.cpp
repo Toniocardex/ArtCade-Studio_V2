@@ -153,15 +153,13 @@ std::vector<EntityId> World::activeEntityIds() const {
 }
 
 bool World::isGrounded(EntityId id, const std::string& groundClass) const {
-    auto* self = entityGateway_.get(id);
     const uint32_t selfHandle = entityGateway_.physicsHandle(id);
-    if (!self || selfHandle == 0) return false;
+    if (selfHandle == 0) return false;
 
     for (EntityId otherId : entityGateway_.poolByClass(groundClass)) {
         if (otherId == id) continue;
-        auto* other = entityGateway_.get(otherId);
         const uint32_t otherHandle = entityGateway_.physicsHandle(otherId);
-        if (!other || otherHandle == 0) continue;
+        if (otherHandle == 0) continue;
         if (physics_.areOverlapping(selfHandle, otherHandle))
             return true;
     }
@@ -172,10 +170,8 @@ void World::tickPlatformerControllers(float dt) {
     if (!input_) return;
 
     for (EntityId id : entityGateway_.activeSceneIds()) {
-        EntityDef* e = entityGateway_.get(id);
-        if (!e || !e->platformerController) continue;
-
-        const auto& pc = *e->platformerController;
+        PlatformerControllerComponent pc{};
+        if (!entityGateway_.getPlatformerController(id, pc)) continue;
         auto& rt = platformerRt_[id];
 
         const bool grounded = isGrounded(id, pc.groundClass);
@@ -217,20 +213,19 @@ void World::tickPlatformerControllers(float dt) {
 
 void World::tickSensorOverlapEdges() {
     for (EntityId id : entityGateway_.activeSceneIds()) {
-        EntityDef* e = entityGateway_.get(id);
-        if (!e || !e->sensor) continue;
+        SensorComponent sensor{};
+        if (!entityGateway_.getSensor(id, sensor)) continue;
         const uint32_t handle = entityGateway_.physicsHandle(id);
         if (handle == 0) continue;
 
         bool overlapping = false;
         EntityId otherHit = INVALID_ENTITY;
-        const std::string& target = e->sensor->targetTag;
+        const std::string& target = sensor.targetTag;
 
         for (EntityId otherId : entityGateway_.byTag(target)) {
             if (otherId == id) continue;
-            auto* other = entityGateway_.get(otherId);
             const uint32_t otherHandle = entityGateway_.physicsHandle(otherId);
-            if (!other || otherHandle == 0) continue;
+            if (otherHandle == 0) continue;
             if (physics_.areOverlapping(handle, otherHandle)) {
                 overlapping = true;
                 otherHit = otherId;

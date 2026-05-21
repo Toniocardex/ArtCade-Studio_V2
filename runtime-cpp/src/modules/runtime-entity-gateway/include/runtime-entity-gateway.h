@@ -3,6 +3,7 @@
 #include "../../../core/module.h"
 #include "../../../core/types.h"
 #include <functional>
+#include <optional>
 #include <unordered_map>
 #include <vector>
 
@@ -50,6 +51,12 @@ public:
     bool setSprite(EntityId id, const SpriteComponent& sprite);
     bool getPhysicsComponent(EntityId id, PhysicsComponent& out) const;
     bool setPhysicsComponent(EntityId id, const PhysicsComponent& physics);
+    bool getSensor(EntityId id, SensorComponent& out) const;
+    bool setSensor(EntityId id, const std::optional<SensorComponent>& sensor);
+    bool getPlatformerController(EntityId id, PlatformerControllerComponent& out) const;
+    bool setPlatformerController(EntityId id, const std::optional<PlatformerControllerComponent>& controller);
+    bool getAutoDestroy(EntityId id, AutoDestroyComponent& out) const;
+    bool setAutoDestroy(EntityId id, const std::optional<AutoDestroyComponent>& autoDestroy);
 
     uint32_t physicsHandle(EntityId id) const;
     bool hasPhysicsBody(EntityId id) const;
@@ -99,6 +106,9 @@ private:
         Transform transform;
         SpriteComponent sprite;
         PhysicsComponent physics;
+        std::optional<SensorComponent> sensor;
+        std::optional<PlatformerControllerComponent> platformerController;
+        std::optional<AutoDestroyComponent> autoDestroy;
     };
 
     std::unordered_map<EntityId, RuntimeEntityState> runtimeState_;

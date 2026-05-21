@@ -96,23 +96,23 @@ void drawGuides(Modules::Renderer& renderer,
 }
 
 void drawSelection(Modules::Renderer& renderer,
-                   const EntityDef* selected,
                    const Transform& transform,
                    const PhysicsComponent& physics,
+                   const std::optional<SensorComponent>& sensor,
                    const EditorOverlayState& state) {
-    if (!state.inEditMode || state.selectedId == 0u || selected == nullptr) return;
+    if (!state.inEditMode || state.selectedId == 0u) return;
 
     const Vec2 p = transform.position;
 
     // Sensor area first (under the box), shape-aware, translucent cyan.
-    if (selected->sensor) {
+    if (sensor) {
         const Vec4 sc{0.f, 1.f, 1.f, 0.35f};
-        if (selected->sensor->shape == "Rectangle") {
-            const float sw = selected->sensor->width;
-            const float sh = selected->sensor->height;
+        if (sensor->shape == "Rectangle") {
+            const float sw = sensor->width;
+            const float sh = sensor->height;
             renderer.drawRect(p.x - sw * 0.5f, p.y - sh * 0.5f, sw, sh, sc);
         } else {
-            renderer.drawCircle(p.x, p.y, selected->sensor->radius, sc);
+            renderer.drawCircle(p.x, p.y, sensor->radius, sc);
         }
     }
 
