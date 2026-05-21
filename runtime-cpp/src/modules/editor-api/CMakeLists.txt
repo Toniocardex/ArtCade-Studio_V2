@@ -1,5 +1,7 @@
 add_library(artcade-editor-api STATIC
     src/editor-api.cpp
+    src/editor-input-controller.cpp
+    src/project-doc-parser.cpp
 )
 
 target_include_directories(artcade-editor-api PUBLIC include)

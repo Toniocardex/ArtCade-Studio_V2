@@ -119,8 +119,9 @@ public:
     static Modules::Renderer*             s_renderer;
     static std::vector<std::pair<std::string, std::string>> s_consoleQueue;
 
-private:
     // Native input callbacks -- bypass the JS thread entirely (Smoke Test 2)
+    // Public because editor-input-controller.cpp registers them with the
+    // emscripten event API; nobody else should be calling them directly.
     static EM_BOOL onMouseMove (int, const EmscriptenMouseEvent*,    void*);
     static EM_BOOL onMouseDown (int, const EmscriptenMouseEvent*,    void*);
     static EM_BOOL onMouseUp   (int, const EmscriptenMouseEvent*,    void*);
