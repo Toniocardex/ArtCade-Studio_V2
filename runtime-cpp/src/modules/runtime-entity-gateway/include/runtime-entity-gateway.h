@@ -72,6 +72,33 @@ public:
     std::vector<EntityId> allIds() const;
     std::vector<EntityId> activeSceneIds() const;
 
+    // ---- System visitors (EnTT-backed, deterministic insertion order) ----
+    //
+    // Prefer these over `for (id : activeSceneIds()) { getX(id); getY(id); }`:
+    // one pass through the registry, typed try_get for the required
+    // components, callback only fires when all components are present.
+    // Order is stable across runs (Lua reproducibility).
+
+    using ActiveRenderableFn = std::function<void(
+        EntityId, const Transform&, const SpriteComponent&)>;
+    void forEachActiveRenderable(const ActiveRenderableFn& fn) const;
+
+    using ActivePhysicsBodyFn = std::function<void(
+        EntityId, uint32_t handle, Transform&)>;
+    void forEachActivePhysicsBody(const ActivePhysicsBodyFn& fn);
+
+    using ActivePlatformerFn = std::function<void(
+        EntityId, const PlatformerControllerComponent&)>;
+    void forEachActivePlatformer(const ActivePlatformerFn& fn) const;
+
+    using ActiveSensorFn = std::function<void(
+        EntityId, const SensorComponent&)>;
+    void forEachActiveSensor(const ActiveSensorFn& fn) const;
+
+    using ActiveAutoDestroyFn = std::function<void(
+        EntityId, AutoDestroyComponent&)>;
+    void forEachActiveAutoDestroy(const ActiveAutoDestroyFn& fn);
+
     void registerScenes(const std::unordered_map<SceneId, SceneDef>& scenes,
                         const std::unordered_map<EntityId, EntityDef>& entityDefs);
     bool replaceProject(const std::unordered_map<SceneId, SceneDef>& scenes,

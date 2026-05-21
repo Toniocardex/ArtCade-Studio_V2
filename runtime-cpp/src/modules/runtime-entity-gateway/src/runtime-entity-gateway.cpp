@@ -363,6 +363,36 @@ std::vector<EntityId> RuntimeEntityGateway::allIds() const {
     return registry_->allIds();
 }
 
+void RuntimeEntityGateway::forEachActiveRenderable(
+    const ActiveRenderableFn& fn) const
+{
+    registry_->forEachActiveRenderable(fn);
+}
+
+void RuntimeEntityGateway::forEachActivePhysicsBody(
+    const ActivePhysicsBodyFn& fn)
+{
+    registry_->forEachActivePhysicsBody(fn);
+}
+
+void RuntimeEntityGateway::forEachActivePlatformer(
+    const ActivePlatformerFn& fn) const
+{
+    registry_->forEachActivePlatformer(fn);
+}
+
+void RuntimeEntityGateway::forEachActiveSensor(
+    const ActiveSensorFn& fn) const
+{
+    registry_->forEachActiveSensor(fn);
+}
+
+void RuntimeEntityGateway::forEachActiveAutoDestroy(
+    const ActiveAutoDestroyFn& fn)
+{
+    registry_->forEachActiveAutoDestroy(fn);
+}
+
 std::vector<EntityId> RuntimeEntityGateway::activeSceneIds() const {
     const SceneDef* scene = sceneManager_.activeScene();
     if (!scene) return {};

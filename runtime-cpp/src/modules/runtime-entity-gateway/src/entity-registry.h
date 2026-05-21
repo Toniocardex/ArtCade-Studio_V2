@@ -2,6 +2,7 @@
 
 #include "../../../core/types.h"
 
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -98,6 +99,36 @@ public:
 
     uint32_t physicsHandle(EntityId id) const;
     void     setPhysicsHandle(EntityId id, uint32_t handle);
+
+    // ---- System visitors (entt-backed, deterministic order) ------------
+    //
+    // Each visitor walks insertion-order ids, filters via entt::registry
+    // try_get<...> for the required components, and invokes the callback.
+    // EnTT does the typed component access; the gateway owns the ordering
+    // policy (Lua reproducibility — see docs/ECS_IMPLEMENTATION_GUIDE.md).
+    //
+    // "ActiveScene" variants additionally require SceneActiveTag presence,
+    // i.e. the entity is currently live in the active scene.
+
+    using ActiveRenderableFn = std::function<void(
+        EntityId, const Transform&, const SpriteComponent&)>;
+    void forEachActiveRenderable(const ActiveRenderableFn& fn) const;
+
+    using ActivePhysicsBodyFn = std::function<void(
+        EntityId, uint32_t handle, Transform&)>;
+    void forEachActivePhysicsBody(const ActivePhysicsBodyFn& fn);
+
+    using ActivePlatformerFn = std::function<void(
+        EntityId, const PlatformerControllerComponent&)>;
+    void forEachActivePlatformer(const ActivePlatformerFn& fn) const;
+
+    using ActiveSensorFn = std::function<void(
+        EntityId, const SensorComponent&)>;
+    void forEachActiveSensor(const ActiveSensorFn& fn) const;
+
+    using ActiveAutoDestroyFn = std::function<void(
+        EntityId, AutoDestroyComponent&)>;
+    void forEachActiveAutoDestroy(const ActiveAutoDestroyFn& fn);
 
 private:
     struct Impl;

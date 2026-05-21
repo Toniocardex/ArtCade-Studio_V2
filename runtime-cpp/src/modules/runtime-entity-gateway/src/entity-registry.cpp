@@ -51,6 +51,13 @@ struct EntityRegistry::Impl {
     // EntityId (project-stable uint32) → entt::entity (entt's compact id).
     std::unordered_map<EntityId, entt::entity> ids;
 
+    // Insertion-order list of *all* ids. Mirrors the order in which entities
+    // were allocated/touched, with erase O(N) — the ArtCade workload is
+    // hundreds/few-thousand entities so the linear scan is cheaper than
+    // dragging a second index. Lua determinism requires this stable order:
+    // entt views and the `ids` hashmap give no portable iteration order.
+    std::vector<EntityId> insertionOrder;
+
     // Insertion-order indexes for deterministic iteration. EnTT views do
     // not guarantee a stable ordering across runs, so we maintain these
     // by hand on setIdentity / erase.
@@ -69,6 +76,7 @@ struct EntityRegistry::Impl {
         if (it != ids.end()) return it->second;
         const entt::entity e = reg.create();
         ids.emplace(id, e);
+        insertionOrder.push_back(id);
         // Default-initialize the "always present" components, matching
         // the previous "value-initialized record fields" contract.
         reg.emplace<Transform>(e);
@@ -124,6 +132,7 @@ void EntityRegistry::erase(EntityId id) {
     if (e != entt::null) {
         impl_->reg.destroy(e);
         impl_->ids.erase(id);
+        eraseId(impl_->insertionOrder, id);
     }
 }
 
@@ -134,17 +143,14 @@ bool EntityRegistry::contains(EntityId id) const {
 void EntityRegistry::clear() {
     impl_->reg.clear();
     impl_->ids.clear();
+    impl_->insertionOrder.clear();
     impl_->classIndex.clear();
     impl_->tagIndex.clear();
     impl_->nextId = 1;
 }
 
 std::vector<EntityId> EntityRegistry::allIds() const {
-    std::vector<EntityId> out;
-    out.reserve(impl_->ids.size());
-    for (const auto& [id, _] : impl_->ids)
-        out.push_back(id);
-    return out;
+    return impl_->insertionOrder;
 }
 
 // ---- Identity + indexes ---------------------------------------------------
@@ -326,6 +332,91 @@ void EntityRegistry::setPhysicsHandle(EntityId id, uint32_t handle) {
     impl_->reg.emplace_or_replace<PhysicsHandleComp>(e, PhysicsHandleComp{ handle });
     if (auto* p = impl_->reg.try_get<PhysicsComponent>(e))
         p->physicsHandle = handle;
+}
+
+// ---- System visitors -------------------------------------------------------
+//
+// Common loop pattern:
+//   for (id in insertionOrder)
+//     e = toEntt(id);  if (e == null) continue;
+//     if (!reg.all_of<SceneActiveTag>(e)) continue;
+//     try_get<...> required components → invoke callback if all present
+//
+// Insertion order keeps Lua-observable outcomes (sensor edges, queued
+// destroys, gameplay velocities) reproducible across runs. EnTT's
+// archetype storage gives O(1) typed access inside the loop.
+
+void EntityRegistry::forEachActiveRenderable(
+    const ActiveRenderableFn& fn) const
+{
+    auto& reg = impl_->reg;
+    for (EntityId id : impl_->insertionOrder) {
+        const entt::entity e = impl_->toEntt(id);
+        if (e == entt::null) continue;
+        if (!reg.all_of<SceneActiveTag>(e)) continue;
+        const auto* t = reg.try_get<Transform>(e);
+        const auto* s = reg.try_get<SpriteComponent>(e);
+        if (!t || !s) continue;
+        fn(id, *t, *s);
+    }
+}
+
+void EntityRegistry::forEachActivePhysicsBody(
+    const ActivePhysicsBodyFn& fn)
+{
+    auto& reg = impl_->reg;
+    for (EntityId id : impl_->insertionOrder) {
+        const entt::entity e = impl_->toEntt(id);
+        if (e == entt::null) continue;
+        if (!reg.all_of<SceneActiveTag>(e)) continue;
+        const auto* h = reg.try_get<PhysicsHandleComp>(e);
+        if (!h || h->value == 0) continue;
+        auto* t = reg.try_get<Transform>(e);
+        if (!t) continue;
+        fn(id, h->value, *t);
+    }
+}
+
+void EntityRegistry::forEachActivePlatformer(
+    const ActivePlatformerFn& fn) const
+{
+    auto& reg = impl_->reg;
+    for (EntityId id : impl_->insertionOrder) {
+        const entt::entity e = impl_->toEntt(id);
+        if (e == entt::null) continue;
+        if (!reg.all_of<SceneActiveTag>(e)) continue;
+        const auto* p = reg.try_get<PlatformerControllerComponent>(e);
+        if (!p) continue;
+        fn(id, *p);
+    }
+}
+
+void EntityRegistry::forEachActiveSensor(
+    const ActiveSensorFn& fn) const
+{
+    auto& reg = impl_->reg;
+    for (EntityId id : impl_->insertionOrder) {
+        const entt::entity e = impl_->toEntt(id);
+        if (e == entt::null) continue;
+        if (!reg.all_of<SceneActiveTag>(e)) continue;
+        const auto* s = reg.try_get<SensorComponent>(e);
+        if (!s) continue;
+        fn(id, *s);
+    }
+}
+
+void EntityRegistry::forEachActiveAutoDestroy(
+    const ActiveAutoDestroyFn& fn)
+{
+    auto& reg = impl_->reg;
+    for (EntityId id : impl_->insertionOrder) {
+        const entt::entity e = impl_->toEntt(id);
+        if (e == entt::null) continue;
+        if (!reg.all_of<SceneActiveTag>(e)) continue;
+        auto* a = reg.try_get<AutoDestroyComponent>(e);
+        if (!a) continue;
+        fn(id, *a);
+    }
 }
 
 } // namespace ArtCade::Modules

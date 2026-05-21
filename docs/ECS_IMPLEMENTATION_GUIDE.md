@@ -1,643 +1,410 @@
 # ArtCade V2 — ECS Implementation Guide (EnTT)
 
-> **Audience**: Sviluppatori C++  
-> **Libreria**: EnTT 3.13.0 (header-only)  
-> **Versione**: 1.0  
-> **Data**: 2026-05-10
+> **Audience**: Sviluppatori C++ del runtime  
+> **Libreria**: EnTT 3.13.2 (header-only, vendored via CMake `FetchContent`)  
+> **Versione**: 2.0 (post-migrazione EnTT)
+> **Data**: 2026-05-21
 
 ---
 
-## TL;DR — ECS in ArtCade
+## TL;DR — Architettura ECS in ArtCade
 
-**Entity**: Numero intero (ID)  
-**Component**: Struct C++ con dati (Transform, Sprite, RigidBody, etc.)  
-**System**: Funzione che itera entity con specifici componenti e li aggiorna  
-**Registry**: Contenitore centrale (EnTT::registry)
+ArtCade *non* espone `entt::registry` direttamente al resto del runtime.
+La storia componenti è dietro una facciata stabile (`RuntimeEntityGateway`)
+così che Lua, editor e sistemi di gioco vedano un'API uniforme e i call
+site non cambino quando l'implementazione interna evolve.
 
-```cpp
-// Create entity con componenti
-EntityId player = registry.create();
-registry.emplace<Transform>(player, pos, rot, scale);
-registry.emplace<Sprite>(player, assetId, tint, alpha);
-registry.emplace<RigidBody>(player, handle);
-
-// Query: tutte le entity con Transform + Sprite
-auto view = registry.view<Transform, Sprite>();
-for (auto entity : view) {
-    auto& trans = view.get<Transform>(entity);
-    auto& spr = view.get<Sprite>(entity);
-    renderer->drawSprite(spr, trans);
-}
-
-// Destroy
-registry.destroy(player);
 ```
++----------------------------------+
+| Lua scripts (entity.*, pool.*)   |
+| Editor API (editor_set_transform)|
+| Game systems (World, render, …)  |
++----------------┬-----------------+
+                 │   typed get/set + visitors
+                 ▼
++----------------------------------+
+| RuntimeEntityGateway             |  ← API pubblica (header)
++----------------┬-----------------+
+                 │   delega
+                 ▼
++----------------------------------+
+| EntityRegistry  (PIMPL)          |  ← implementazione privata
+|   struct Impl { entt::registry } |     (entt headers NON nel public API)
++----------------------------------+
+```
+
+**Regole d'oro**:
+
+1. **Nessun nuovo sistema deve includere `<entt/entt.hpp>` fuori da
+   `entity-registry.cpp`.** Tutti gli accessi passano per il gateway.
+2. **Ordine di iterazione deterministico**: il gateway garantisce
+   insertion-order su `allIds()`, sui visitor (`forEachActive*`) e sugli
+   indici `byTag` / `poolByClass`. EnTT da solo non lo garantisce — vedi §4.
+3. **Authoring vs runtime**: `EntityDef` (in `core/types.h`) è un DTO
+   usato solo per caricare il `ProjectDoc` JSON. Una volta caricata la
+   scena, i dati vivono nei componenti EnTT, non in `EntityDef`.
 
 ---
 
-## 1. Struttura Componenti
+## 1. Componenti
 
-### Definizione
+I componenti sono struct pure definite in `runtime-cpp/src/core/types.h`
+(o in moduli specifici per quelli più contestuali, p.es. logic-system).
 
-Un **Component** è un semplice struct C++, zero logica:
+Tipi che il registry istanzia automaticamente alla creazione di una
+entità (vedi `EntityRegistry::Impl::ensure`):
 
-```cpp
-// core/components.h (o components/<nome>.h)
+- `Transform`           — posizione, rotazione, scala, velocity
+- `SpriteComponent`     — asset sprite, tint, alpha, shader effect
+- `PhysicsComponent`    — body type, shape, friction, restituzione
+- `PhysicsHandleComp`   — `uint32_t value` (handle Box2D, 0 se assente)
+- `Identity`            — className + tags (usati anche per gli indici)
 
-struct Transform {
-    Vec2 position;
-    float rotation;      // radianti
-    Vec2 scale;
-    // Zero methods — solo dati
-};
+Tipi opzionali (emplace on demand via `EntityRegistry::set*`):
 
-struct Sprite {
-    std::string spriteAssetId;   // "hero_idle.png"
-    Color tint;                  // {r, g, b, a}
-    float alpha;
-    Vec2 pivot;                  // {0.5, 1.0} = center-bottom
-    int renderOrder;             // z-depth
-};
+- `SensorComponent`              — sensori overlap (targetTag, eventType)
+- `PlatformerControllerComponent`— config controller jump/run
+- `AutoDestroyComponent`         — `lifespan` + `_timeAlive`
+- `AnimationComponent`           — sprite animator
+- `Sprite4DirComponent`          — 4-direction sprite
+- *(estendibili — vedi §6)*
 
-struct RigidBody {
-    uint32_t handle;             // Box2D body handle
-    Vec2 velocity;
-    Vec2 force;
-};
+Tag interni:
 
-struct Script {
-    std::string scriptPath;      // "scripts/player.lua"
-    sol::object luaRef;          // Lua reference (se caricato)
-};
+- `SceneActiveTag`               — entità live nella scena corrente
 
-struct Health {
-    int maxHp;
-    int currentHp;
-};
+**Regole sui componenti**:
 
-struct Collectible {
-    int value;                   // score points
-    bool collected;
-};
-```
-
-**Regole**:
-- Struct pure — zero virtual methods
-- Zero inheritance
-- Dati pubblici OK
-- No smart pointers (store copyable data solo)
-- Se serve logica → usa System (non Component)
-
-### Component Registry
-
-Nel `types.h` registra tutti i componenti disponibili:
-
-```cpp
-// core/types.h
-using ComponentList = std::tuple<
-    Transform, Sprite, RigidBody, Script, Health, Collectible,
-    // aggiungi qui...
->;
-
-// Helper per iterazione componenti
-template<typename F>
-void forEachComponentType(F&& f) {
-    std::apply([&](auto&&... component) {
-        (..., f(component));
-    }, ComponentList{});
-}
-```
+- Struct semplici, niente metodi virtuali, niente eredità.
+- Solo dati copiabili (no smart pointer owning).
+- Logica → un sistema (visitor sul gateway o module dedicato), mai nel
+  componente.
 
 ---
 
-## 2. Registry (il World)
+## 2. RuntimeEntityGateway — facciata pubblica
 
-### Dichiarazione
-
-```cpp
-// world/world.h
-class World {
-    entt::registry registry;
-    
-public:
-    EntityId createEntity() {
-        return registry.create();
-    }
-    
-    void destroyEntity(EntityId id) {
-        registry.destroy(id);
-    }
-    
-    template<typename C>
-    void emplace(EntityId entity, C&& component) {
-        registry.emplace<C>(entity, std::forward<C>(component));
-    }
-    
-    template<typename C>
-    C& get(EntityId entity) {
-        return registry.get<C>(entity);
-    }
-    
-    template<typename C>
-    bool has(EntityId entity) {
-        return registry.any_of<C>(entity);
-    }
-    
-    template<typename... Cs>
-    auto view() {
-        return registry.view<Cs...>();
-    }
-};
-```
-
-### Uso
+Il gateway è il punto di contatto unico per leggere/scrivere componenti
+runtime. La sua API include:
 
 ```cpp
-// app.cpp
-World world;
+// Ciclo di vita
+EntityId create();                              // alloca id + componenti default
+EntityId spawnFromClass(const std::string&);    // alloca + copia da EntityDef di classe
+void     queueDestroy(EntityId);
+bool     exists(EntityId) const;
 
-// Crea giocatore
-EntityId player = world.createEntity();
-world.emplace<Transform>(player, Vec2{640, 360}, 0.f, Vec2{1, 1});
-world.emplace<Sprite>(player, "hero.png", Color{1,1,1,1}, 1.f);
-world.emplace<RigidBody>(player, physics->createBody(...));
+// Component accessors (typed, value-based)
+bool getTransform(EntityId, Transform&) const;
+void setTransform(EntityId, const Transform&);
+bool getSprite(EntityId, SpriteComponent&) const;
+void setSprite(EntityId, const SpriteComponent&);
+// ... idem per Physics, Sensor, Platformer, AutoDestroy, ...
 
-// Query
-auto view = world.view<Transform, Sprite>();
-for (auto e : view) {
-    auto& t = view.get<Transform>(e);
-    auto& s = view.get<Sprite>(e);
-    // render...
-}
-
-// Has component?
-if (world.has<Health>(player)) {
-    auto& hp = world.get<Health>(player);
-    hp.currentHp--;
-}
-
-// Destroy
-world.destroyEntity(player);
+// Pool/tag query (deterministici, insertion order)
+std::vector<EntityId> poolByClass(const std::string&) const;
+std::vector<EntityId> byTag(const std::string&) const;
+std::vector<EntityId> allIds() const;
+std::vector<EntityId> activeSceneIds() const;
 ```
+
+`get*` ritorna `bool` (`true` se il componente è presente *e* l'entità
+esiste); `set*` fa `emplace_or_replace` sotto il cofano.
 
 ---
 
-## 3. Systems
+## 3. Visitor system (pattern moderno per i sistemi)
 
-### Pattern System
-
-Un **System** è una funzione che:
-1. Crea una view con componenti specifici
-2. Itera entity in quella view
-3. Aggiorna i componenti
+Per i sistemi che girano ogni frame su gruppi di entità è disponibile
+una famiglia di visitor sul gateway. Ogni visitor fa una sola
+iterazione del registry, filtra per `SceneActiveTag`, fa `try_get` dei
+componenti richiesti e invoca la callback solo se tutti sono presenti.
 
 ```cpp
-// systems/physics_system.h
-class PhysicsSystem {
-    Physics* physics_;
-    World* world_;
-    
-public:
-    PhysicsSystem(Physics* p, World* w) : physics_(p), world_(w) {}
-    
-    void update(float dt) {
-        // Query entity con RigidBody + Transform
-        auto view = world_->view<RigidBody, Transform>();
-        
-        for (auto entity : view) {
-            auto& rb = view.get<RigidBody>(entity);
-            auto& trans = view.get<Transform>(entity);
-            
-            // Aggiorna Box2D
-            physics_->setLinearVelocity(rb.handle, rb.velocity);
-            
-            // Sync posizione
-            auto pos = physics_->getPosition(rb.handle);
-            trans.position = pos;
-        }
-    }
-};
-
-// systems/render_system.h
-class RenderSystem {
-    Renderer* renderer_;
-    World* world_;
-    
-public:
-    RenderSystem(Renderer* r, World* w) : renderer_(r), world_(w) {}
-    
-    void draw() {
-        auto view = world_->view<Transform, Sprite>();
-        
-        for (auto entity : view) {
-            auto& trans = view.get<Transform>(entity);
-            auto& spr = view.get<Sprite>(entity);
-            
-            renderer_->drawSprite(spr, trans.position, trans.rotation, trans.scale);
-        }
-    }
-};
-
-// systems/lua_system.h
-class LuaSystem {
-    LuaHost* lua_;
-    World* world_;
-    
-public:
-    LuaSystem(LuaHost* l, World* w) : lua_(l), world_(w) {}
-    
-    void tick(float dt) {
-        auto view = world_->view<Script, Transform>();
-        
-        for (auto entity : view) {
-            auto& script = view.get<Script>(entity);
-            auto& trans = view.get<Transform>(entity);
-            
-            // Chiama tick(dt) per questo entity in Lua
-            if (script.luaRef.valid()) {
-                lua_->callEntityTick(script.luaRef, entity, dt);
-            }
-        }
-    }
-};
+// Visitor disponibili (RuntimeEntityGateway):
+forEachActiveRenderable(fn)   // (id, const Transform&, const SpriteComponent&)
+forEachActivePhysicsBody(fn)  // (id, uint32_t handle, Transform&)        ← Transform mutabile
+forEachActivePlatformer(fn)   // (id, const PlatformerControllerComponent&)
+forEachActiveSensor(fn)       // (id, const SensorComponent&)
+forEachActiveAutoDestroy(fn)  // (id, AutoDestroyComponent&)              ← componente mutabile
 ```
 
-### Integration nel Game Loop
+### Esempio: rendering sprite (app.cpp)
 
 ```cpp
-// app.cpp::loopIteration()
-void Application::loopIteration() {
-    // ...
-    
-    while (accumulator >= targetDt) {
-        renderer->clearDrawQueue();
-        
-        timeManager->tick(targetDt);
-        tweenManager->update(targetDt);
-        spriteAnimator->update(targetDt);
-        
-        // ⚠️ IMPORTANTE: Svuota draw queue prima di Lua
-        // così che il tick() di questo frame non accumuli disegni del precedente
-        
-        luaSystem->tick(targetDt);      // Lua modifica Transform, Sprite, etc.
-        physics->step(targetDt);        // Physics engine aggiorna RigidBody
-        physicsSystem->update(targetDt);  // Sync Box2D → Transform
-        
-        eventBus->flushDeferred();
-        audio->update();
-        
-        accumulator -= targetDt;
-    }
-    
-    renderer->beginFrame(bgColor);
-    renderSystem->draw();              // Query Transform + Sprite
-    renderer->endFrame();
-    
-    input->resetFrameState();
+mod_->entityGateway->forEachActiveRenderable(
+    [renderer = mod_->renderer.get()]
+    (EntityId, const Transform& t, const SpriteComponent& s) {
+        renderer->drawSprite(
+            s.spriteAssetId,
+            t.position, t.rotation, t.scale,
+            s.tint, s.alpha, s.shaderEffect);
+    });
+```
+
+### Esempio: sync fisica → entità (World)
+
+```cpp
+void World::syncPhysicsToEntities() {
+    entityGateway_.forEachActivePhysicsBody(
+        [this](EntityId, uint32_t handle, Transform& t) {
+            t.position = physics_.getPosition(handle);
+            t.velocity = physics_.getLinearVelocity(handle);
+        });
 }
+```
+
+### Esempio: countdown autoDestroy (mutazione in-place)
+
+```cpp
+auto* gateway = mod_->entityGateway.get();
+gateway->forEachActiveAutoDestroy(
+    [gateway, dt](EntityId id, AutoDestroyComponent& a) {
+        if (a.lifespan <= 0.f) return;
+        a._timeAlive += dt;
+        if (a._timeAlive >= a.lifespan)
+            gateway->queueDestroy(id);
+    });
+gateway->flushPendingOperations();
+```
+
+**Quando usare un visitor** vs `for (id : activeSceneIds())`:
+
+- Sempre, se accedi a uno o più componenti per entità.
+- Il visitor evita la doppia lookup (`activeSceneIds()` poi `getX(id)`)
+  e usa direttamente `entt::registry::try_get` interno.
+
+**Quando ricadere sui pool**:
+
+- `pool.getAll(class)` o `byTag(tag)` quando vuoi un sottoinsieme già
+  indicizzato per className/tag (es. proiettili di una classe).
+
+---
+
+## 4. Determinismo
+
+ArtCade è single-threaded, fixed-timestep e Lua-driven: per essere
+riproducibile (replay, network sync futuro) l'iterazione lato C++ deve
+essere stabile run su run.
+
+**Politiche enforced da `EntityRegistry`**:
+
+| API                              | Ordine                                      |
+| -------------------------------- | ------------------------------------------- |
+| `allIds()`                       | insertion order (vettore `insertionOrder`)  |
+| `forEachActive*()` visitor       | insertion order + filtro `try_get`          |
+| `poolByClass(className)`         | insertion order, filtrato per classe        |
+| `byTag(tag)`                     | insertion order, filtrato per tag           |
+| `activeSceneIds()`               | ordine `scene->entityIds` (autoring order)  |
+
+EnTT *non* garantisce nulla sull'ordine di `view::each` cross-run, perciò
+il registry non lo espone mai direttamente. Gli indici `classIndex` /
+`tagIndex` sono mantenuti a mano su `setIdentity` / `erase`.
+
+Se in futuro vorrai esporre una variante "fast path" non deterministica
+(es. rendering massive), aggiungi un metodo separato e marca il
+`SceneActiveTag` come ordering, **senza** rimuovere i visitor attuali.
+
+---
+
+## 5. Ciclo di vita di un'entità
+
+```text
+[carica progetto]
+  ProjectDoc JSON → EntityDef[] (DTO authoring)
+       │
+       ▼
+  RuntimeEntityGateway::replaceProject(doc)
+       │  per ogni EntityDef:
+       │   1. registry.allocate(hint = def.id)
+       │   2. setTransform/Sprite/Physics/Identity da def
+       ▼
+  Scene caricata: SceneManager::activate(scene) +
+                  registry.set(SceneActiveTag) sui suoi entityIds
+
+[runtime]
+  Lua/system chiamano set*(id, …) → entt::emplace_or_replace
+  Lua/system chiamano get*(id, …) → entt::try_get
+  Lua/system iterano  forEachActive*() → 1 pass, deterministico
+
+[spawn dinamico]
+  gateway.spawnFromClass("Bullet") → alloca id, copia componenti dalla
+  classe-EntityDef cached, marca scene-active, appende a
+  scene->entityIds (ordine deterministico)
+
+[destroy]
+  gateway.queueDestroy(id) → entrata in pendingDestroy_
+  fine frame: flushPendingOperations() → registry.erase(id) →
+              entt::registry::destroy + cleanup indici
 ```
 
 ---
 
-## 4. Common Patterns
+## 6. Aggiungere un nuovo componente
 
-### 4.1 Query with Multiple Components
+Esempio: aggiungere `HealthComponent`.
 
-```cpp
-// Entity con sia Transform che Sprite
-auto view = world.view<Transform, Sprite>();
+1. **Definisci lo struct** in `core/types.h`:
 
-for (auto entity : view) {
-    auto [trans, sprite] = view.get<Transform, Sprite>(entity);
-    // Structured binding (C++17)
-}
+   ```cpp
+   struct HealthComponent {
+       int currentHp = 0;
+       int maxHp     = 0;
+   };
+   ```
 
-// Equivalente (C++11):
-for (auto entity : view) {
-    auto& trans = view.get<Transform>(entity);
-    auto& sprite = view.get<Sprite>(entity);
-    // ...
-}
-```
+2. **Aggiungi accessor sul registry** (`entity-registry.h/.cpp`):
 
-### 4.2 Query with Exclude
+   ```cpp
+   bool getHealth(EntityId id, HealthComponent& out) const;
+   void setHealth(EntityId id, const HealthComponent& comp);
+   void removeHealth(EntityId id);
+   ```
 
-```cpp
-// Tutte le entity con Sprite che NON sono Collectible
-auto view = world.view<Sprite>(entt::exclude<Collectible>);
+   Implementazione tipica nel `.cpp`:
 
-for (auto entity : view) {
-    // Questo non ha Collectible
-}
-```
+   ```cpp
+   bool EntityRegistry::getHealth(EntityId id, HealthComponent& out) const {
+       const entt::entity e = impl_->toEntt(id);
+       if (e == entt::null) return false;
+       if (const auto* c = impl_->reg.try_get<HealthComponent>(e)) {
+           out = *c;
+           return true;
+       }
+       return false;
+   }
 
-### 4.3 Query All (any component)
+   void EntityRegistry::setHealth(EntityId id, const HealthComponent& comp) {
+       const entt::entity e = impl_->ensure(id);
+       impl_->reg.emplace_or_replace<HealthComponent>(e, comp);
+   }
+   ```
 
-```cpp
-// Tutte le entity che hanno Transform (indipendentemente da altri)
-auto view = world.view<Transform>();
+3. **Esponilo sul gateway** con la stessa firma: il gateway delega a
+   `registry_->get/setHealth(...)`.
 
-for (auto entity : view) {
-    auto& trans = view.get<Transform>(entity);
-}
-```
+4. **(Opzionale) Visitor** se userai il componente in un sistema per
+   frame:
 
-### 4.4 Add/Remove Component Runtime
+   ```cpp
+   using ActiveHealthFn = std::function<void(EntityId, HealthComponent&)>;
+   void forEachActiveHealth(const ActiveHealthFn& fn);
+   ```
 
-```cpp
-// Add dopo creation
-EntityId coin = world.createEntity();
-world.emplace<Sprite>(coin, "coin.png", ...);
-// ... più tardi ...
-world.emplace<Collectible>(coin, 10, false);  // Add
+   Implementa la callback iterando `insertionOrder`, filtrando per
+   `SceneActiveTag`, `try_get<HealthComponent>`.
 
-// Remove
-world.remove<Collectible>(coin);  // ora coin non appare in view<Collectible>
-
-// Replace
-auto& hp = world.get<Health>(entity);
-hp.currentHp = 0;
-// oppure
-world.replace<Health>(entity, 0, 100);  // {currentHp, maxHp}
-```
-
-### 4.5 Get with Default / Optional
-
-```cpp
-// Check prima di get
-if (world.has<Health>(entity)) {
-    auto& hp = world.get<Health>(entity);
-    // ...
-}
-
-// Oppure usa try_get (ritorna pointer, nullptr se non esiste)
-if (auto* hp = world.try_get<Health>(entity)) {
-    hp->currentHp--;
-}
-```
-
-### 4.6 Iterate Over View with Payload
-
-```cpp
-// Vuoi passare dati extra dentro il loop
-auto view = world.view<Transform, Sprite>();
-view.each([&](auto entity, auto& trans, auto& spr) {
-    renderer->drawSprite(spr, trans);
-});
-```
+5. **Lua binding** (se l'API è esposta): aggiungi in
+   `entity-api.cpp` o un nuovo `health-api.cpp`, usando il gateway
+   pubblico — niente `entt` nel binding.
 
 ---
 
-## 5. Performance Tips
+## 7. EntityId mapping
 
-### 1. Cache Locality
+`EntityId` (alias di `uint32_t` in `core/types.h`) è l'identificativo
+*stabile per progetto* usato da JSON, save file, editor e Lua.
 
-ECS è veloce **perché** i componenti dello stesso tipo sono in array densi:
-
-```
-❌ Bad (OOP):
-Entity { Transform*, Sprite*, RigidBody*, ... }  // Pointer jumps
-Entity { Transform*, Sprite*, RigidBody*, ... }
-Entity { Transform*, Sprite*, RigidBody*, ... }
-CPU cache miss ogni access
-
-✅ Good (ECS):
-Transform[] { pos, pos, pos, ... }               // Linear array
-Sprite[] { asset, asset, asset, ... }            // Linear array
-RigidBody[] { handle, handle, handle, ... }
-CPU cache hit = 10× faster
-```
-
-**Lezione**: Iteru sugli array densi (view), non salta tra entity sparse.
-
-### 2. View Caching
+`entt::entity` è un id compatto interno a EnTT che cambia ad ogni run
+(non è persistente). Il mapping vive in `EntityRegistry::Impl::ids`:
 
 ```cpp
-// ❌ Slow: Crea view ogni frame
-for (int frame = 0; frame < 1000; frame++) {
-    auto view = world.view<Transform, Sprite>();  // Allocazione ogni volta
-    for (auto e : view) { ... }
-}
-
-// ✅ Fast: Salva view
-auto view = world.view<Transform, Sprite>();
-for (int frame = 0; frame < 1000; frame++) {
-    for (auto e : view) { ... }
-}
+std::unordered_map<EntityId, entt::entity> ids;
 ```
 
-View di EnTT sono **lazy** — non allocano, cachano solo il filtro internamente.
+`EntityRegistry::Impl::ensure(id)` crea il record EnTT, applica i
+componenti default e registra la mappa. `erase(id)` rimuove anche
+dalla mappa.
 
-### 3. Batch Operations
-
-```cpp
-// ❌ Slow: Destroy uno per uno
-for (auto entity : entities_to_delete) {
-    world.destroyEntity(entity);
-}
-
-// ✅ Fast: Batch destroy
-world.destroyEntity(entities_to_delete.begin(), entities_to_delete.end());
-```
-
-### 4. No Virtual Methods in Components
-
-```cpp
-// ❌ No
-struct Entity {
-    virtual void update(float dt) = 0;
-};
-
-// ✅ Yes: Logica in System
-struct Transform { Vec2 pos; };
-class TransformSystem {
-    void update(float dt) {
-        auto view = world.view<Transform>();
-        for (auto e : view) { ... }
-    }
-};
-```
+*Nota futura*: si potrebbe sfruttare `entt::entity_traits` per usare
+direttamente `EntityId` come tipo entità, eliminando l'unordered_map.
+Per ora il mapping a parte tiene il public type indipendente dalla
+versione di EnTT.
 
 ---
 
-## 6. Hot-Reload (Lua Integration)
+## 8. Errori comuni
 
-### Pattern: Script Component
+❌ **Includere `entt/entt.hpp` fuori da `entity-registry.cpp`**
 
-```cpp
-struct Script {
-    std::string scriptPath;
-    sol::object luaRef;  // Reference Lua per this entity
-};
-```
+Rompe la separazione PIMPL e fa esplodere i tempi di compilazione del
+codice consumer.
 
-### Reload on Save (from Editor)
-
-```cpp
-// Dalla editor React via WASM interop
-void editorReloadScript(EntityId entity, const std::string& scriptCode) {
-    // 1. Ricompila bytecode
-    auto bytes = luaHost->compile(scriptCode);
-    
-    // 2. Riacaricar in VM
-    luaHost->loadBytecodeBuffer(bytes.data(), bytes.size());
-    
-    // 3. Aggiorna reference
-    auto& script = world.get<Script>(entity);
-    script.luaRef = luaHost->getGlobal("onTick");
-}
-```
-
-### Tick Entity's Lua
-
-```cpp
-void LuaSystem::tick(float dt) {
-    auto view = world.view<Script>();
-    for (auto entity : view) {
-        auto& script = view.get<Script>(entity);
-        if (script.luaRef.valid()) {
-            // Chiama tick(entityId, dt) in Lua
-            auto result = script.luaRef(entity, dt);
-            // Opzionale: gestisci errori
-        }
-    }
-}
-```
+✅ Usa solo l'API del gateway. Se ti serve nuovo accesso, aggiungilo al
+registry e al gateway (vedi §6).
 
 ---
 
-## 7. Common Mistakes
+❌ **Iterare con `for (id : allIds())` e poi `getX(id)` ripetutamente**
 
-❌ **Mistake 1**: Modificare component durante view iteration
+Funziona ma fa due lookup per componente (mappa id→entt + entt try_get).
+Su scene con migliaia di entità si sente.
 
-```cpp
-// Sbagliato — invalidate iterator
-auto view = world.view<Transform>();
-for (auto e : view) {
-    if (some_condition) {
-        world.emplace<Health>(e, 100, 100);  // Modifica durante iterazione!
-    }
-}
-```
-
-✅ **Fix**: Accumula modifiche, applica dopo
-
-```cpp
-std::vector<EntityId> toModify;
-auto view = world.view<Transform>();
-for (auto e : view) {
-    if (some_condition) {
-        toModify.push_back(e);
-    }
-}
-for (auto e : toModify) {
-    world.emplace<Health>(e, 100, 100);
-}
-```
-
-❌ **Mistake 2**: View non è "sorted" — iterazione order è non-deterministica
-
-```cpp
-auto view = world.view<Transform>();
-// Ordine non garantito tra frame — hazard Lua determinismo
-```
-
-✅ **Fix**: Se determinismo crittico, sort view
-
-```cpp
-auto view = world.view<Transform>();
-std::vector<EntityId> sorted(view.begin(), view.end());
-std::sort(sorted.begin(), sorted.end());
-for (auto e : sorted) { ... }
-```
-
-❌ **Mistake 3**: Tenere pointer/reference a component tra frame
-
-```cpp
-auto& sprite = world.get<Sprite>(entity);
-// Use sprite...
-// Fine frame, altri system potrebbe aver modified registry
-// sprite reference è INVALIDO
-```
-
-✅ **Fix**: Get inside loop, non cache
-
-```cpp
-for (auto e : view) {
-    auto& sprite = view.get<Sprite>(e);  // Fresh ogni iterazione
-}
-```
+✅ Usa un visitor (`forEachActive*`): un solo pass, `try_get` direttamente
+sui pool EnTT.
 
 ---
 
-## 8. Integration con EngineContext
+❌ **Mutare il registry dentro un visitor (create / destroy / setIdentity)**
 
-```cpp
-// core/engine-context.h
-struct EngineContext {
-    World* world;
-    Physics* physics;
-    Renderer* renderer;
-    LuaHost* lua;
-    // ...
-};
+I visitor non sono rientranti: emplace/erase durante l'iterazione può
+invalidare gli iteratori interni di EnTT.
 
-// app/app.cpp
-World world;
-PhysicsSystem physicsSystem(&physics, &world);
-RenderSystem renderSystem(&renderer, &world);
-LuaSystem luaSystem(&luaHost, &world);
+✅ Accumula gli `EntityId` da modificare in un vettore locale; applica
+fuori dal visitor, o usa `queueDestroy` + `flushPendingOperations`
+(già reentrant-safe).
 
-EngineContext ctx{&world, &physics, &renderer, &luaHost};
-```
+---
+
+❌ **Affidarsi a `entt::view::each` per ordering Lua-osservabile**
+
+EnTT non garantisce ordering stabile cross-run.
+
+✅ Usa i visitor del gateway o `pool.getAll` / `byTag` — sono
+deterministici.
 
 ---
 
 ## 9. Testing
 
-```cpp
-// tests/ecs_test.cpp
-TEST(ECS, CreateAndQuery) {
-    World world;
-    
-    auto e1 = world.createEntity();
-    world.emplace<Transform>(e1, Vec2{0, 0}, 0.f, Vec2{1, 1});
-    world.emplace<Sprite>(e1, "test.png", Color{1,1,1,1}, 1.f);
-    
-    auto e2 = world.createEntity();
-    world.emplace<Transform>(e2, Vec2{10, 10}, 0.f, Vec2{1, 1});
-    // e2 NO Sprite
-    
-    auto view = world.view<Transform, Sprite>();
-    int count = 0;
-    for (auto e : view) {
-        ASSERT_EQ(e, e1);  // Solo e1
-        count++;
-    }
-    ASSERT_EQ(count, 1);
-}
+I test runtime stanno in `runtime-cpp/tests/`. Pattern tipico per
+testare un sistema nuovo (vedi `scene-gateway-test.cpp`):
 
-TEST(ECS, Destroy) {
-    World world;
-    auto e = world.createEntity();
-    world.emplace<Transform>(e, {}, 0.f, {1,1});
-    
-    world.destroyEntity(e);
-    
-    auto view = world.view<Transform>();
-    ASSERT_EQ(0, std::distance(view.begin(), view.end()));
-}
+```cpp
+SceneManager sm;
+RuntimeEntityGateway gw(sm);
+gw.init();
+
+EntityId id = gw.create();
+gw.setIdentity(id, "Enemy", {"hostile"});
+gw.setTransform(id, { /* pos */ });
+
+// Sistema sotto test (esempio fittizio):
+int visited = 0;
+gw.forEachActiveRenderable(
+    [&](EntityId, const Transform&, const SpriteComponent&) { ++visited; });
+ASSERT_EQ(visited, /* atteso */);
+
+gw.shutdown();
 ```
+
+I test runnano via `ctest -C Release --output-on-failure` da
+`runtime-cpp/build-msvc`.
 
 ---
 
 ## Riferimenti
 
-- **TECHNICAL_OVERVIEW.md** — §3.5 ECS Architecture
-- **EnTT Docs**: https://github.com/skypjack/entt
-- **ArtCade Components**: `runtime-cpp/src/core/components.h` (future)
-- **World Class**: `runtime-cpp/src/world/world.h` (future)
+- **TECHNICAL_OVERVIEW.md** — §3.5 ECS Architecture (snapshot moduli).
+- **ARCHITECTURE_DUAL_RUNTIME.md** — runtime nativo + WASM, hot-paths.
+- **EnTT docs**: <https://github.com/skypjack/entt>.
+- **Sorgenti**:
+  - `runtime-cpp/src/modules/runtime-entity-gateway/include/runtime-entity-gateway.h`
+  - `runtime-cpp/src/modules/runtime-entity-gateway/src/entity-registry.{h,cpp}`
+  - `runtime-cpp/src/core/types.h` (definizioni componenti)
 
 ---
 
-*Questa guida è per sviluppatori C++ che implementano moduli ECS. Domande? Vedi TECHNICAL_OVERVIEW.md o wiki interno.*
+*Questa guida riflette l'integrazione EnTT completata a 2026-05-21
+(rimozione `EntityManager`, registry PIMPL, visitor view-based,
+determinismo enforced). Per estensioni vedi §6.*

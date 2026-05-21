@@ -395,20 +395,20 @@ void Application::loopIteration() {
         mod_->world->flushEntityQueues();
 
         // AutoDestroy system (Phase D1): lifespan>0 → destroy after N seconds.
+        // EnTT visitor: mutable AutoDestroyComponent& so the countdown is
+        // written back in-place; queueDestroy in insertion order keeps the
+        // pending destroy queue deterministic.
         {
-            std::vector<ArtCade::EntityId> toKill;
-            for (ArtCade::EntityId id : mod_->entityGateway->activeSceneIds()) {
-                ArtCade::AutoDestroyComponent autoDestroy{};
-                if (!mod_->entityGateway->getAutoDestroy(id, autoDestroy) ||
-                    autoDestroy.lifespan <= 0.f)
-                    continue;
-                autoDestroy._timeAlive += targetDt_;
-                mod_->entityGateway->setAutoDestroy(id, autoDestroy);
-                if (autoDestroy._timeAlive >= autoDestroy.lifespan)
-                    toKill.push_back(id);
-            }
-            for (ArtCade::EntityId id : toKill)
-                mod_->entityGateway->queueDestroy(id);
+            auto* gateway = mod_->entityGateway.get();
+            const float dt = targetDt_;
+            gateway->forEachActiveAutoDestroy(
+                [gateway, dt](ArtCade::EntityId id,
+                              ArtCade::AutoDestroyComponent& a) {
+                    if (a.lifespan <= 0.f) return;
+                    a._timeAlive += dt;
+                    if (a._timeAlive >= a.lifespan)
+                        gateway->queueDestroy(id);
+                });
             mod_->world->flushEntityQueues();
         }
 
@@ -478,21 +478,17 @@ void Application::renderActiveScene() {
                               tilesets_, tileColors_);
     }
 
-    // Entity sprites.
-    for (EntityId id : mod_->world->activeEntityIds()) {
-        Transform transform{};
-        if (!mod_->entityGateway->getTransform(id, transform)) continue;
-        SpriteComponent sprite{};
-        if (!mod_->entityGateway->getSprite(id, sprite)) continue;
-        mod_->renderer->drawSprite(
-            sprite.spriteAssetId,
-            transform.position,
-            transform.rotation,
-            transform.scale,
-            sprite.tint,
-            sprite.alpha,
-            sprite.shaderEffect);
-    }
+    // Entity sprites. EnTT-backed visitor: one registry pass, typed
+    // access to Transform + SpriteComponent, only active-scene entities
+    // (SceneActiveTag) are visited.
+    mod_->entityGateway->forEachActiveRenderable(
+        [renderer = mod_->renderer.get()]
+        (EntityId, const Transform& t, const SpriteComponent& s) {
+            renderer->drawSprite(
+                s.spriteAssetId,
+                t.position, t.rotation, t.scale,
+                s.tint, s.alpha, s.shaderEffect);
+        });
 
     // Scene fade (game layer, drawn over entities, under editor chrome).
     const float fade = mod_->entityGateway->sceneFadeAlpha();

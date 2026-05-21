@@ -286,16 +286,42 @@ api.debug.drawLine(x1, y1, x2, y2, color)
 
 ### 7. Entity & World Management
 
-**EntityManager**:
+Lo storage runtime delle entità vive in **`RuntimeEntityGateway`** (modulo
+`runtime-entity-gateway`), che internamente delega a `EntityRegistry`
+(PIMPL su `entt::registry`, EnTT 3.13). Vedi
+[ECS_IMPLEMENTATION_GUIDE.md](./ECS_IMPLEMENTATION_GUIDE.md) per il
+pattern completo.
+
+**RuntimeEntityGateway** (facciata stabile per Lua/editor/sistemi):
 ```cpp
-class EntityManager {
-    EntityId createEntity(const EntityDef& def);
-    void destroyEntity(EntityId id);
-    EntityDef* getEntity(EntityId id);
-    std::vector<EntityId> getPool(const std::string& className) const;
-    std::vector<EntityId> getEntitiesByTag(const std::string& tag) const;
+class RuntimeEntityGateway {
+    EntityId create();
+    EntityId spawnFromClass(const std::string& className);
+    void     queueDestroy(EntityId);
+    bool     exists(EntityId) const;
+
+    // Typed component get/set (value-based, ritorno bool su get)
+    bool getTransform(EntityId, Transform&) const;
+    void setTransform(EntityId, const Transform&);
+    // ... idem per Sprite, Physics, Sensor, Platformer, AutoDestroy, …
+
+    // Indici deterministici (insertion-order)
+    std::vector<EntityId> poolByClass(const std::string&) const;
+    std::vector<EntityId> byTag(const std::string&) const;
+    std::vector<EntityId> activeSceneIds() const;
+
+    // Visitor view-based (sistemi per frame)
+    void forEachActiveRenderable(const ActiveRenderableFn&) const;
+    void forEachActivePhysicsBody(const ActivePhysicsBodyFn&);
+    void forEachActivePlatformer(const ActivePlatformerFn&) const;
+    void forEachActiveSensor(const ActiveSensorFn&) const;
+    void forEachActiveAutoDestroy(const ActiveAutoDestroyFn&);
 };
 ```
+
+`EntityDef` (in `core/types.h`) sopravvive **solo** come DTO authoring:
+lo si usa per caricare il JSON di progetto, poi i dati vivono nei
+componenti EnTT.
 
 **SceneManager**:
 ```cpp
@@ -306,12 +332,13 @@ class SceneManager {
 };
 ```
 
-**World**:
+**World** (orchestra sistemi di gioco; non possiede più storage):
 ```cpp
 class World {
     void init(const ProjectDoc& doc);
     bool loadScene(const SceneId& id);
-    EntityManager& getEntityManager();
+    void syncPhysicsToEntities();      // visitor sul gateway
+    void tickGameplaySystems(float dt); // platformer + sensor edges
     GlobalStateValue getGlobalState(const std::string& key);
     void setGlobalState(const std::string& key, const GlobalStateValue& val);
 };

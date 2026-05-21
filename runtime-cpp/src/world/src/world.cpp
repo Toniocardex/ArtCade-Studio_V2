@@ -115,16 +115,13 @@ SceneId World::activeSceneId() const {
 }
 
 void World::syncPhysicsToEntities() {
-    for (EntityId id : entityGateway_.activeSceneIds()) {
-        const uint32_t handle = entityGateway_.physicsHandle(id);
-        if (handle == 0) continue;
-
-        Transform transform{};
-        if (!entityGateway_.getTransform(id, transform)) continue;
-        transform.position = physics_.getPosition(handle);
-        transform.velocity = physics_.getLinearVelocity(handle);
-        entityGateway_.setTransform(id, transform);
-    }
+    // EnTT visitor: in-place Transform update for every active entity that
+    // has a live physics handle. One registry pass, no double lookup.
+    entityGateway_.forEachActivePhysicsBody(
+        [this](EntityId, uint32_t handle, Transform& t) {
+            t.position = physics_.getPosition(handle);
+            t.velocity = physics_.getLinearVelocity(handle);
+        });
 }
 
 bool World::hasGlobalState(const std::string& key) const {
@@ -169,79 +166,81 @@ bool World::isGrounded(EntityId id, const std::string& groundClass) const {
 void World::tickPlatformerControllers(float dt) {
     if (!input_) return;
 
-    for (EntityId id : entityGateway_.activeSceneIds()) {
-        PlatformerControllerComponent pc{};
-        if (!entityGateway_.getPlatformerController(id, pc)) continue;
-        auto& rt = platformerRt_[id];
+    // EnTT visitor: const PlatformerControllerComponent& (authored config);
+    // per-entity runtime state lives in platformerRt_ keyed by EntityId.
+    entityGateway_.forEachActivePlatformer(
+        [this, dt](EntityId id, const PlatformerControllerComponent& pc) {
+            auto& rt = platformerRt_[id];
 
-        const bool grounded = isGrounded(id, pc.groundClass);
-        if (grounded)
-            rt.coyoteTimer = pc.coyoteTime;
-        else
-            rt.coyoteTimer = std::max(0.f, rt.coyoteTimer - dt);
+            const bool grounded = isGrounded(id, pc.groundClass);
+            if (grounded)
+                rt.coyoteTimer = pc.coyoteTime;
+            else
+                rt.coyoteTimer = std::max(0.f, rt.coyoteTimer - dt);
 
-        const bool jumpPressed =
-            input_->wasKeyPressed("Space") ||
-            input_->wasKeyPressed("KeyW") ||
-            input_->wasKeyPressed("ArrowUp");
+            const bool jumpPressed =
+                input_->wasKeyPressed("Space") ||
+                input_->wasKeyPressed("KeyW") ||
+                input_->wasKeyPressed("ArrowUp");
 
-        if (jumpPressed)
-            rt.jumpBufferTimer = pc.jumpBuffer;
-        else
-            rt.jumpBufferTimer = std::max(0.f, rt.jumpBufferTimer - dt);
+            if (jumpPressed)
+                rt.jumpBufferTimer = pc.jumpBuffer;
+            else
+                rt.jumpBufferTimer = std::max(0.f, rt.jumpBufferTimer - dt);
 
-        const uint32_t handle = entityGateway_.physicsHandle(id);
-        if (handle == 0) continue;
+            const uint32_t handle = entityGateway_.physicsHandle(id);
+            if (handle == 0) return;
 
-        float vx = 0.f;
-        float vy = physics_.getLinearVelocity(handle).y;
+            float vx = 0.f;
+            float vy = physics_.getLinearVelocity(handle).y;
 
-        if (input_->isKeyDown("KeyA") || input_->isKeyDown("ArrowLeft"))  vx -= pc.maxSpeed;
-        if (input_->isKeyDown("KeyD") || input_->isKeyDown("ArrowRight")) vx += pc.maxSpeed;
+            if (input_->isKeyDown("KeyA") || input_->isKeyDown("ArrowLeft"))  vx -= pc.maxSpeed;
+            if (input_->isKeyDown("KeyD") || input_->isKeyDown("ArrowRight")) vx += pc.maxSpeed;
 
-        if (rt.jumpBufferTimer > 0.f && rt.coyoteTimer > 0.f) {
-            vy = -pc.jumpForce;
-            rt.coyoteTimer     = 0.f;
-            rt.jumpBufferTimer = 0.f;
-        } else if (!grounded) {
-            vy += pc.customGravity * dt;
-        }
+            if (rt.jumpBufferTimer > 0.f && rt.coyoteTimer > 0.f) {
+                vy = -pc.jumpForce;
+                rt.coyoteTimer     = 0.f;
+                rt.jumpBufferTimer = 0.f;
+            } else if (!grounded) {
+                vy += pc.customGravity * dt;
+            }
 
-        physics_.setLinearVelocity(handle, { vx, vy });
-    }
+            physics_.setLinearVelocity(handle, { vx, vy });
+        });
 }
 
 void World::tickSensorOverlapEdges() {
-    for (EntityId id : entityGateway_.activeSceneIds()) {
-        SensorComponent sensor{};
-        if (!entityGateway_.getSensor(id, sensor)) continue;
-        const uint32_t handle = entityGateway_.physicsHandle(id);
-        if (handle == 0) continue;
+    // EnTT visitor: deterministic insertion order so sensorEdgeBuffer_
+    // (drained by Lua via pollSensorEdges) is reproducible across runs.
+    entityGateway_.forEachActiveSensor(
+        [this](EntityId id, const SensorComponent& sensor) {
+            const uint32_t handle = entityGateway_.physicsHandle(id);
+            if (handle == 0) return;
 
-        bool overlapping = false;
-        EntityId otherHit = INVALID_ENTITY;
-        const std::string& target = sensor.targetTag;
+            bool overlapping = false;
+            EntityId otherHit = INVALID_ENTITY;
+            const std::string& target = sensor.targetTag;
 
-        for (EntityId otherId : entityGateway_.byTag(target)) {
-            if (otherId == id) continue;
-            const uint32_t otherHandle = entityGateway_.physicsHandle(otherId);
-            if (otherHandle == 0) continue;
-            if (physics_.areOverlapping(handle, otherHandle)) {
-                overlapping = true;
-                otherHit = otherId;
-                break;
+            for (EntityId otherId : entityGateway_.byTag(target)) {
+                if (otherId == id) continue;
+                const uint32_t otherHandle = entityGateway_.physicsHandle(otherId);
+                if (otherHandle == 0) continue;
+                if (physics_.areOverlapping(handle, otherHandle)) {
+                    overlapping = true;
+                    otherHit = otherId;
+                    break;
+                }
             }
-        }
 
-        const bool was = sensorWasOverlapping_[id];
-        if (overlapping && !was) {
-            sensorEdgeBuffer_.push_back({ id, otherHit, target, true });
-        } else if (!overlapping && was) {
-            sensorEdgeBuffer_.push_back({ id, INVALID_ENTITY, target, false });
-        }
+            const bool was = sensorWasOverlapping_[id];
+            if (overlapping && !was) {
+                sensorEdgeBuffer_.push_back({ id, otherHit, target, true });
+            } else if (!overlapping && was) {
+                sensorEdgeBuffer_.push_back({ id, INVALID_ENTITY, target, false });
+            }
 
-        sensorWasOverlapping_[id] = overlapping;
-    }
+            sensorWasOverlapping_[id] = overlapping;
+        });
 }
 
 void World::tickGameplaySystems(float dt) {
