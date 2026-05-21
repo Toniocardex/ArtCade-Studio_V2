@@ -1,12 +1,14 @@
 import { useRef, useState, useEffect } from 'react'
 import type { ReactNode } from 'react'
-import { Play, Square, FolderOpen, Save, Package, Hammer, ChevronDown } from 'lucide-react'
+import { Play, Square, FolderOpen, Save, Package, Hammer, ChevronDown, FilePlus } from 'lucide-react'
 import { useEditor } from '../store/editor-store'
 import {
   openProjectDialog, loadProjectFile,
   saveScript, saveProjectFile, savePackDialog, packProject, runBuild,
+  saveProjectAsDialog, scaffoldNewProjectOnDisk,
 } from '../utils/api'
-import { dirName } from '../utils/project'
+import { dirName, createBlankProject, BLANK_MAIN_LUA } from '../utils/project'
+import { runtimeSync } from '../utils/runtime-sync-service'
 import type { ConsoleEntry } from '../types'
 
 // ---------------------------------------------------------------------------
@@ -88,8 +90,20 @@ export default function MenuBar() {
 
   // ---- actions -----------------------------------------------------------
 
+  /** Confirm-then-discard guard before replacing the in-memory project. */
+  function confirmDiscardIfDirty(actionLabel: string): boolean {
+    if (!projectDirty) return true
+    // Browser-mode fallback uses window.confirm; in Tauri the bundled
+    // WebView shows the standard OS confirm dialog.
+    return window.confirm(
+      `You have unsaved changes in "${project?.projectName ?? 'this project'}".\n` +
+      `${actionLabel} will discard them. Continue?`
+    )
+  }
+
   async function handleOpenProject() {
     setFileMenuOpen(false)
+    if (!confirmDiscardIfDirty('Opening a different project')) return
     const path = await openProjectDialog()
     if (!path) return
     dispatch({ type: 'LOG', entry: makeLog(`[File] Opening ${path}…`, 'info') })
@@ -98,8 +112,49 @@ export default function MenuBar() {
       dispatch({ type: 'LOG', entry: makeLog('[File] ✗ Failed to parse project.json', 'error') })
       return
     }
+    runtimeSync.reset()
     dispatch({ type: 'LOAD_PROJECT', project: proj, path })
     dispatch({ type: 'LOG', entry: makeLog(`[File] ✓ Loaded "${proj.projectName}" v${proj.version}`, 'info') })
+  }
+
+  /**
+   * File → New Project: replace the editor state with a blank, runnable
+   * ProjectDoc *in memory*. projectPath stays null until the user runs
+   * Save Project As… (the next menu entry).
+   */
+  async function handleNewProject() {
+    setFileMenuOpen(false)
+    if (!confirmDiscardIfDirty('Creating a new project')) return
+    const blank = createBlankProject('Untitled')
+    runtimeSync.reset()
+    // LOAD_PROJECT resets script buffers, selection, isPlaying, ecc.
+    // path='' marks the project as in-memory only — Ctrl+S will route to
+    // Save Project As… (see handleSaveProject below).
+    dispatch({ type: 'LOAD_PROJECT', project: blank, path: '' })
+    dispatch({ type: 'LOG', entry: makeLog('[File] OK new blank project (unsaved – use Save Project As to persist).', 'info') })
+  }
+
+  /**
+   * File → Save Project As…: ask for a destination, write project.json plus
+   * scripts/main.lua, then promote the in-memory state to "saved on disk".
+   */
+  async function handleSaveProjectAs() {
+    setFileMenuOpen(false)
+    if (!project) {
+      dispatch({ type: 'LOG', entry: makeLog('[File] No project to save.', 'warn') })
+      return
+    }
+    const target = await saveProjectAsDialog()
+    if (!target) return
+    try {
+      await scaffoldNewProjectOnDisk(target, project, BLANK_MAIN_LUA)
+      // Promote in-memory state to the new path.
+      dispatch({ type: 'LOAD_PROJECT', project, path: target })
+      dispatch({ type: 'MARK_PROJECT_SAVED' })
+      dispatch({ type: 'LOG', entry: makeLog(`[File] ✓ Saved project to ${target}`, 'info') })
+    } catch (err) {
+      dispatch({ type: 'LOG', entry: makeLog(`[File] ✗ Save As failed: ${err}`, 'error') })
+    }
   }
 
   async function handleSaveScript() {
@@ -124,8 +179,13 @@ export default function MenuBar() {
 
   async function handleSaveProject() {
     setFileMenuOpen(false)
-    if (!project || !projectPath) {
+    if (!project) {
       dispatch({ type: 'LOG', entry: makeLog('[File] No project loaded.', 'warn') })
+      return
+    }
+    // In-memory only (path='' after New Project) → fall through to Save As.
+    if (!projectPath) {
+      await handleSaveProjectAs()
       return
     }
     try {
@@ -179,6 +239,12 @@ export default function MenuBar() {
 
   const fileItems: FileMenuItem[] = [
     {
+      label:    'New Project',
+      icon:     <FilePlus size={12} />,
+      shortcut: 'Ctrl+N',
+      action:   handleNewProject,
+    },
+    {
       label:    'Open Project…',
       icon:     <FolderOpen size={12} />,
       shortcut: 'Ctrl+O',
@@ -192,10 +258,17 @@ export default function MenuBar() {
       divider:  true,
     },
     {
+      label:    'Save Project As…',
+      icon:     <Save size={12} />,
+      shortcut: 'Ctrl+Shift+S',
+      action:   handleSaveProjectAs,
+    },
+    {
       label:    'Save Script',
       icon:     <Save size={12} />,
       shortcut: '',
       action:   handleSaveScript,
+      divider:  true,
     },
     {
       label:    'Pack .artcade…',

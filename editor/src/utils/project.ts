@@ -552,3 +552,66 @@ export function dirName(filePath: string): string {
   const idx = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'))
   return idx >= 0 ? filePath.slice(0, idx) : filePath
 }
+
+// ---------------------------------------------------------------------------
+// Blank project template (File → New Project)
+// ---------------------------------------------------------------------------
+//
+// SAMPLE_PROJECT in editor-store-state.ts is the *demo* shown on first boot
+// (7 entities, 2 scenes). A real "New Project" should start from a minimal
+// but RUNNABLE skeleton, so the user can immediately:
+//   - press PLAY without errors,
+//   - save to disk (the file passes parseProjectDoc round-trip),
+//   - pack to .artcade,
+//   - add entities/scenes from the UI.
+//
+// Invariants (also enforced by serializeProjectDoc + the runtime loader):
+//   • at least one scene exists and equals activeSceneId;
+//   • scenes have non-zero worldSize/viewportSize;
+//   • entities map is well-formed (numeric keys, ids match);
+//   • licenseTier defaults to 'free'.
+
+/**
+ * Build a minimal valid ProjectDoc the editor can open immediately.
+ *
+ * The template ships a single scene with NO entities so the canvas opens
+ * to a clean state. Adding the first entity is one click in Hierarchy.
+ *
+ * @param projectName  Display name (defaults to "Untitled").
+ */
+export function createBlankProject(projectName = 'Untitled'): ProjectDoc {
+  return {
+    projectName,
+    version:        '1.0.0',
+    licenseTier:    'free',
+    gameResolution: { x: 1280, y: 720 },
+    targetFPS:      60,
+    activeSceneId:  'scene_main',
+    mainScriptPath: 'scripts/main.lua',
+    entities:       {},
+    scenes: {
+      scene_main: {
+        id:              'scene_main',
+        name:            'Main Scene',
+        worldSize:       { x: 1280, y: 720 },
+        viewportSize:    { x: 1280, y: 720 },
+        backgroundColor: { x: 0.04, y: 0.05, z: 0.12, w: 1 },
+        entityIds:       [],
+      },
+    },
+    world:       { ...DEFAULT_WORLD },
+    logicBoards: [],
+  }
+}
+
+/**
+ * Default main.lua content shipped alongside a fresh project on disk.
+ * Kept here (not in api.ts) so unit tests don't need Tauri to verify it.
+ */
+export const BLANK_MAIN_LUA = `-- main.lua  (ArtCade V2)
+-- Called every fixed-step (~60 fps). 'dt' is the delta time in seconds.
+
+function tick(dt)
+    -- TODO: add your game logic here.
+end
+`

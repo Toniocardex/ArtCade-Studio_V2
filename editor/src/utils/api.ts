@@ -160,6 +160,67 @@ export async function saveProjectFile(path: string, project: ProjectDoc): Promis
   await invoke('write_file', { path, content: serializeProjectDoc(project) })
 }
 
+/**
+ * Open a native "Save As" dialog filtered for project.json.
+ *
+ * The dialog defaults to the file name "project.json"; the user may pick any
+ * directory. We do NOT force the filename so the user can also save next to
+ * a renamed copy, but we always ensure a `.json` extension on the result.
+ *
+ * @returns the chosen absolute path, or null if the dialog was cancelled.
+ */
+export async function saveProjectAsDialog(): Promise<string | null> {
+  if (!isTauri()) { notAvailable('saveProjectAsDialog'); return null }
+
+  const chosen = await dialogSave({
+    title:       'Save ArtCade Project As',
+    defaultPath: 'project.json',
+    filters:     [{ name: 'ArtCade Project', extensions: ['json'] }],
+  })
+  if (!chosen) return null
+  return /\.json$/i.test(chosen) ? chosen : `${chosen}.json`
+}
+
+/**
+ * Scaffold a brand-new project on disk: writes both project.json and a
+ * starter script at `<projectDir>/<mainScriptPath>`. Parent directories
+ * are created on demand (write_file does `mkdir -p` internally).
+ *
+ * Returns the absolute path of the saved project.json so the caller can
+ * update editor state (projectPath + MARK_PROJECT_SAVED) atomically.
+ *
+ * @param projectJsonPath  Target project.json absolute path.
+ * @param project          ProjectDoc to serialise.
+ * @param mainScriptBody   Initial content for project.mainScriptPath.
+ */
+export async function scaffoldNewProjectOnDisk(
+  projectJsonPath: string,
+  project: ProjectDoc,
+  mainScriptBody: string,
+): Promise<string> {
+  if (!isTauri()) {
+    notAvailable('scaffoldNewProjectOnDisk')
+    return projectJsonPath
+  }
+
+  validateProjectBeforeSave(project)
+
+  await invoke('write_file', {
+    path:    projectJsonPath,
+    content: serializeProjectDoc(project),
+  })
+
+  const projectRoot = projectJsonPath.replace(/[/\\][^/\\]+$/, '')
+  const scriptPath  = `${projectRoot}/${project.mainScriptPath}`.replace(/\\/g, '/')
+
+  await invoke('write_file', {
+    path:    scriptPath,
+    content: mainScriptBody,
+  })
+
+  return projectJsonPath
+}
+
 // ---------------------------------------------------------------------------
 // Pack dialog
 // ---------------------------------------------------------------------------
