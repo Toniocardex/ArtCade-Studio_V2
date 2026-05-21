@@ -38,8 +38,24 @@ export const DEFAULT_EDITOR_GRID_SIZE = 32
 export const EDITOR_GRID_SIZE_MIN = 4
 export const EDITOR_GRID_SIZE_MAX = 512
 
-/** Fallback scene worldSize used when no scene is selected. */
-export const DEFAULT_SCENE_SIZE = { x: 1280, y: 720 } as const
+/**
+ * Default scene size used for new blank projects and as fallback when no
+ * scene is selected.
+ *
+ * 1280x640 is intentional, NOT 1280x720:
+ *   • Both dimensions are exact multiples of every standard pixel-art tile
+ *     size (8, 16, 32, 64, 128) — the default 32 px grid lays down 40×20
+ *     perfect cells with no half-row at the bottom of the scene.
+ *   • 2:1 aspect is the natural fit for platformers, top-down arcade games
+ *     and side-scrollers (the genres ArtCade targets).
+ *   • Width 1280 keeps HD-level horizontal resolution; height 640 trades the
+ *     standard 720p vertical for grid alignment.
+ *
+ * If you change this, also re-check DEFAULT_EDITOR_GRID_SIZE: the invariant
+ * "scene size MUST be a multiple of the default grid" is what makes the
+ * editor look polished out of the box.
+ */
+export const DEFAULT_SCENE_SIZE = { x: 1280, y: 640 } as const
 
 /**
  * Industry-standard zoom ladder (Photoshop / Aseprite / Affinity Designer).

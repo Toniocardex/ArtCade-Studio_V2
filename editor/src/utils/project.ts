@@ -7,6 +7,12 @@ import { DEFAULT_WORLD } from '../types'
 import { parseLogicBoards } from './logic-board/factory'
 import { COMPONENT_KEYS } from '../types/components'
 import type { LogicBoard } from '../types/logic-board'
+import { DEFAULT_SCENE_SIZE } from '../constants/editor-viewport'
+
+// Plain mutable Vec2 helpers — DEFAULT_SCENE_SIZE is `as const`, so we wrap it
+// to hand out fresh `{x,y}` literals (callers mutate worldSize/viewportSize).
+const sceneSize = (): Vec2 => ({ x: DEFAULT_SCENE_SIZE.x, y: DEFAULT_SCENE_SIZE.y })
+const sceneSizeArray = (): [number, number] => [DEFAULT_SCENE_SIZE.x, DEFAULT_SCENE_SIZE.y]
 
 /** Pass through known ECS component objects defensively (only if object). */
 function parseComponents(r: Record<string, unknown>): Record<string, object> {
@@ -145,8 +151,8 @@ function parseScene(raw: unknown, fallbackId: string): SceneDef {
   if (!raw || typeof raw !== 'object') {
     return {
       id: fallbackId, name: fallbackId,
-      worldSize:       { x: 1280, y: 720 },
-      viewportSize:    { x: 1280, y: 720 },
+      worldSize:       sceneSize(),
+      viewportSize:    sceneSize(),
       backgroundColor: { x: 0.04, y: 0.07, z: 0.13, w: 1 },
       entityIds: [],
     }
@@ -155,8 +161,8 @@ function parseScene(raw: unknown, fallbackId: string): SceneDef {
   return {
     id:              String(r.id ?? fallbackId),
     name:            String(r.name ?? fallbackId),
-    worldSize:       toVec2(r.worldSize ?? r.world_size ?? [1280, 720]),
-    viewportSize:    toVec2(r.viewportSize ?? r.viewport_size ?? [1280, 720]),
+    worldSize:       toVec2(r.worldSize ?? r.world_size ?? sceneSizeArray()),
+    viewportSize:    toVec2(r.viewportSize ?? r.viewport_size ?? sceneSizeArray()),
     backgroundColor: toVec4(r.backgroundColor ?? r.background_color ?? [0.04, 0.07, 0.13, 1]),
     entityIds:       (() => {
                        const raw = r.entityIds ?? r.entity_ids
@@ -471,8 +477,8 @@ export function createSceneDef(
   return {
     id,
     name: uniqueSceneName(project, name ?? `Scene ${numericSuffix}`, id),
-    worldSize: sourceScene?.worldSize ?? { x: 1280, y: 720 },
-    viewportSize: sourceScene?.viewportSize ?? { x: 1280, y: 720 },
+    worldSize: sourceScene?.worldSize ?? sceneSize(),
+    viewportSize: sourceScene?.viewportSize ?? sceneSize(),
     backgroundColor: sourceScene?.backgroundColor ?? { x: 0.04, y: 0.05, z: 0.12, w: 1 },
     entityIds: [],
   }
@@ -633,8 +639,8 @@ export function createBlankProject(projectName = 'Untitled'): ProjectDoc {
       scene_main: {
         id:              'scene_main',
         name:            'Main Scene',
-        worldSize:       { x: 1280, y: 720 },
-        viewportSize:    { x: 1280, y: 720 },
+        worldSize:       sceneSize(),
+        viewportSize:    sceneSize(),
         backgroundColor: { x: 0.04, y: 0.05, z: 0.12, w: 1 },
         entityIds:       [],
       },

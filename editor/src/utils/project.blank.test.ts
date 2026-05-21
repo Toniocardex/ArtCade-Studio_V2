@@ -17,6 +17,7 @@ import {
   parseProjectDoc,
   serializeProjectDoc,
 } from './project'
+import { DEFAULT_SCENE_SIZE } from '../constants/editor-viewport'
 
 describe('createBlankProject', () => {
   it('returns a minimal but valid ProjectDoc', () => {
@@ -75,7 +76,8 @@ describe('createBlankProject', () => {
     expect(b.scenes.scene_main.entityIds).toEqual([])
 
     a.scenes.scene_main.worldSize.x = 100
-    expect(b.scenes.scene_main.worldSize.x).toBe(1280)
+    expect(b.scenes.scene_main.worldSize.x).toBe(DEFAULT_SCENE_SIZE.x)
+    expect(b.scenes.scene_main.worldSize.y).toBe(DEFAULT_SCENE_SIZE.y)
   })
 })
 
