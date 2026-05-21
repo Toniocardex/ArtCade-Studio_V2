@@ -7,6 +7,7 @@
 
 import type { CoreState, Action, DomainReducer } from '../editor-store-state'
 import { DEFAULT_WORLD, createTilemap, resizeTilemap } from '../../types'
+import { createSceneDef, uniqueSceneName } from '../../utils/project'
 
 export const sceneReducer: DomainReducer = (state: CoreState, action: Action) => {
   switch (action.type) {
@@ -16,6 +17,110 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
       return {
         ...state,
         project: { ...state.project, world },
+        projectDirty: true,
+      }
+    }
+    case 'SCENE_ADD_EMPTY': {
+      if (!state.project) return state
+      const sourceSceneId = action.sourceSceneId ?? state.selection.sceneId ?? state.project.activeSceneId
+      const sourceScene = state.project.scenes[sourceSceneId]
+      const scene = createSceneDef(state.project, sourceScene, action.name)
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          scenes: {
+            ...state.project.scenes,
+            [scene.id]: scene,
+          },
+        },
+        selection: { sceneId: scene.id, entityId: null },
+        projectDirty: true,
+      }
+    }
+    case 'SCENE_RENAME': {
+      const scene = state.project?.scenes[action.sceneId]
+      if (!state.project || !scene) return state
+      const name = uniqueSceneName(state.project, action.name, action.sceneId)
+      if (!name || name === scene.name) return state
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          scenes: {
+            ...state.project.scenes,
+            [action.sceneId]: { ...scene, name },
+          },
+        },
+        projectDirty: true,
+      }
+    }
+    case 'SCENE_SET_START': {
+      if (!state.project || !state.project.scenes[action.sceneId]) return state
+      if (state.project.activeSceneId === action.sceneId) return state
+      return {
+        ...state,
+        project: { ...state.project, activeSceneId: action.sceneId },
+        projectDirty: true,
+      }
+    }
+    case 'SCENE_DELETE': {
+      const project = state.project
+      const scene = project?.scenes[action.sceneId]
+      if (!project || !scene) return state
+      if (Object.keys(project.scenes).length <= 1) return state
+      if (project.activeSceneId === action.sceneId) return state
+
+      const remainingScenes = Object.fromEntries(
+        Object.entries(project.scenes).filter(([sid]) => sid !== action.sceneId),
+      )
+      const remainingReferencedEntityIds = new Set(
+        Object.values(remainingScenes).flatMap((sc) => sc.entityIds),
+      )
+      const removedEntityIds = new Set(
+        scene.entityIds.filter((id) => !remainingReferencedEntityIds.has(id)),
+      )
+      const entities = Object.fromEntries(
+        Object.entries(project.entities).filter(([id]) => !removedEntityIds.has(Number(id))),
+      )
+      const logicBoards = (project.logicBoards ?? []).filter(
+        (b) =>
+          !(
+            b.target.type === 'entity_id' &&
+            b.target.entityId != null &&
+            removedEntityIds.has(b.target.entityId)
+          ),
+      )
+      const thumbnails = project.thumbnails
+        ? Object.fromEntries(
+            Object.entries(project.thumbnails).filter(([sid]) => sid !== action.sceneId),
+          )
+        : undefined
+      const nextSceneId =
+        state.selection.sceneId === action.sceneId
+          ? Object.keys(remainingScenes)[0] ?? project.activeSceneId
+          : state.selection.sceneId
+
+      return {
+        ...state,
+        project: {
+          ...project,
+          entities,
+          scenes: remainingScenes,
+          ...(project.logicBoards != null
+            ? { logicBoards: logicBoards.length > 0 ? logicBoards : undefined }
+            : {}),
+          ...(project.thumbnails != null
+            ? { thumbnails: Object.keys(thumbnails ?? {}).length > 0 ? thumbnails : undefined }
+            : {}),
+        },
+        selection: {
+          sceneId: nextSceneId,
+          entityId:
+            state.selection.entityId != null && removedEntityIds.has(state.selection.entityId)
+              ? null
+              : state.selection.entityId,
+        },
         projectDirty: true,
       }
     }

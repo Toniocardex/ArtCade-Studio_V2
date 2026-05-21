@@ -1,5 +1,6 @@
-import { useCallback, useEffect } from 'react'
-import { Box, Copy, Eye, EyeOff, Plus, Trash2, Workflow } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
+import { Box, Copy, Eye, EyeOff, Plus, Star, Trash2, Workflow } from 'lucide-react'
 import PanelHeader from '../components/PanelHeader'
 import { useEditor } from '../store/editor-store'
 import type { ConsoleEntry, EntityDef } from '../types'
@@ -53,6 +54,33 @@ function AddEntityButton({
     >
       <Plus size={12} /> Add entity
     </button>
+  )
+}
+
+function AddSceneButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Create scene"
+      title="Create a new empty scene"
+      className="flex items-center justify-center gap-1.5 rounded px-2.5 py-1 text-[10px] font-semibold
+                 border border-[var(--accent-bd)] bg-[var(--accent-bg)] text-[var(--accent)]
+                 hover:bg-[var(--accent-bg-h)] cursor-pointer"
+    >
+      <Plus size={12} /> Scene
+    </button>
+  )
+}
+
+function SectionLabel({ title, children }: { title: string; children?: ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-2 px-2 py-1.5">
+      <div className="text-[9px] text-[var(--muted)] uppercase font-bold tracking-widest">
+        {title}
+      </div>
+      {children}
+    </div>
   )
 }
 
@@ -177,23 +205,46 @@ function WorldSettingsSection() {
 export default function HierarchyPanel() {
   const { state, dispatch } = useEditor()
   const { project, selection, mode } = state
+  const [sceneNameDraft, setSceneNameDraft] = useState('')
 
-  if (!project) {
-    return (
-      <div className="h-full bg-[var(--panel)] flex items-center justify-center">
-        <span className="text-[var(--muted)] text-xs">No project</span>
-      </div>
-    )
-  }
-
-  const sceneId   = selection.sceneId ?? project.activeSceneId
-  const scene     = project.scenes[sceneId]
-  const entities  = (scene?.entityIds ?? [])
+  const sceneId   = project ? selection.sceneId ?? project.activeSceneId : ''
+  const scene     = project?.scenes[sceneId]
+  const sceneCount = project ? Object.keys(project.scenes).length : 0
+  const isStartScene = Boolean(project && sceneId === project.activeSceneId)
+  const canDeleteScene = Boolean(scene && sceneCount > 1 && !isStartScene)
+  const entities  = project ? (scene?.entityIds ?? [])
     .map(id => project.entities[id])
     .filter((e): e is EntityDef => Boolean(e))
+    : []
+
+  useEffect(() => {
+    setSceneNameDraft(scene?.name ?? '')
+  }, [scene?.id, scene?.name])
+
+  const addScene = useCallback(() => {
+    if (!project) return
+    dispatch({ type: 'SCENE_ADD_EMPTY', sourceSceneId: sceneId })
+  }, [dispatch, project, sceneId])
+
+  const commitSceneName = useCallback(() => {
+    if (!scene) return
+    const name = sceneNameDraft.trim()
+    if (!name || name === scene.name) {
+      setSceneNameDraft(scene.name)
+      return
+    }
+    dispatch({ type: 'SCENE_RENAME', sceneId: scene.id, name })
+  }, [dispatch, scene, sceneNameDraft])
+
+  const deleteScene = useCallback(() => {
+    if (!scene || !canDeleteScene) return
+    const ok = window.confirm(`Delete scene "${scene.name}" and its objects?`)
+    if (!ok) return
+    dispatch({ type: 'SCENE_DELETE', sceneId: scene.id })
+  }, [canDeleteScene, dispatch, scene])
 
   const addEntity = useCallback(() => {
-    if (!scene) return
+    if (!project || !scene) return
     const id = nextEntityId(project)
     const preview = createEntityDef(id)
     dispatch({ type: 'ENTITY_ADD', sceneId })
@@ -218,18 +269,22 @@ export default function HierarchyPanel() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [mode, scene, addEntity])
 
+  if (!project) {
+    return (
+      <div className="h-full bg-[var(--panel)] flex items-center justify-center">
+        <span className="text-[var(--muted)] text-xs">No project</span>
+      </div>
+    )
+  }
+
   return (
     <div className="h-full flex flex-col bg-[var(--panel)]" data-panel="hierarchy">
-      <PanelHeader title="Hierarchy">
-        <AddEntityButton
-          onClick={addEntity}
-          disabled={!scene}
-          className="px-2.5 py-1"
-        />
+      <PanelHeader title="Scenes">
+        <AddSceneButton onClick={addScene} />
       </PanelHeader>
 
-      {/* Scene selector */}
-      <div className="px-2 py-1.5 border-b border-[var(--border)]">
+      {/* Scene management */}
+      <div className="px-2 py-2 border-b border-[var(--border)] space-y-2">
         <select
           value={sceneId}
           onChange={e => dispatch({ type: 'SELECT_SCENE', sceneId: e.target.value })}
@@ -241,7 +296,76 @@ export default function HierarchyPanel() {
             <option key={s.id} value={s.id}>{s.name}</option>
           ))}
         </select>
+        <div className="flex items-center gap-1.5">
+          <input
+            type="text"
+            value={sceneNameDraft}
+            disabled={!scene}
+            aria-label="Scene name"
+            title="Scene name"
+            onChange={e => setSceneNameDraft(e.target.value)}
+            onBlur={commitSceneName}
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                e.currentTarget.blur()
+              } else if (e.key === 'Escape') {
+                setSceneNameDraft(scene?.name ?? '')
+                e.currentTarget.blur()
+              }
+            }}
+            className="min-w-0 flex-1 bg-[var(--border)] border border-[var(--border-2)] text-[var(--accent)]
+                       text-[11px] rounded px-2 py-1 focus:outline-none focus:border-[var(--accent)]"
+          />
+          <span
+            title={isStartScene ? 'Start scene' : 'Not the start scene'}
+            className={`flex items-center justify-center w-7 h-7 rounded border ${
+              isStartScene
+                ? 'border-[var(--accent-bd)] text-[var(--accent)] bg-[var(--accent-bg)]'
+                : 'border-[var(--border-2)] text-[var(--muted)]'
+            }`}
+          >
+            <Star size={12} fill={isStartScene ? 'currentColor' : 'none'} />
+          </span>
+        </div>
+        <div className="grid grid-cols-2 gap-1.5">
+          <button
+            type="button"
+            disabled={!scene || isStartScene}
+            onClick={() => scene && dispatch({ type: 'SCENE_SET_START', sceneId: scene.id })}
+            title={isStartScene ? 'This is already the start scene' : 'Use this scene when the game starts'}
+            className="rounded border border-[var(--border-2)] px-2 py-1 text-[10px] font-semibold
+                       text-[var(--text)] hover:border-[var(--accent-bd)] hover:text-[var(--accent)]
+                       disabled:opacity-40 disabled:hover:text-[var(--text)] disabled:hover:border-[var(--border-2)]"
+          >
+            Set Start
+          </button>
+          <button
+            type="button"
+            disabled={!canDeleteScene}
+            onClick={deleteScene}
+            title={
+              isStartScene
+                ? 'Start scene cannot be deleted'
+                : sceneCount <= 1
+                  ? 'Project must keep at least one scene'
+                  : 'Delete this scene'
+            }
+            className="rounded border border-[var(--border-2)] px-2 py-1 text-[10px] font-semibold
+                       text-[var(--muted)] hover:border-[var(--danger)] hover:text-[var(--danger)]
+                       disabled:opacity-40 disabled:hover:text-[var(--muted)] disabled:hover:border-[var(--border-2)]"
+          >
+            Delete
+          </button>
+        </div>
       </div>
+
+      <SectionLabel title="Objects">
+        <AddEntityButton
+          onClick={addEntity}
+          disabled={!scene}
+          className="px-2 py-0.5"
+        />
+      </SectionLabel>
 
       {/* Entity list */}
       <div className="flex-1 overflow-y-auto p-1 space-y-0.5">
@@ -285,7 +409,7 @@ export default function HierarchyPanel() {
       <WorldSettingsSection />
 
       <div className="px-2 py-1 border-t border-[var(--border)] text-[9px] text-[var(--muted)]">
-        {entities.length} entities · {scene?.name ?? '—'} · Insert to add
+        {sceneCount} scenes · {entities.length} objects · {scene?.name ?? '-'}
       </div>
     </div>
   )

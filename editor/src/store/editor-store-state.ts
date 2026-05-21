@@ -66,6 +66,10 @@ export type Action =
   | { type: 'ENTITY_SET_NAME';    entityId: number; name: string }
   | { type: 'ENTITY_SET_CLASSNAME'; entityId: number; className: string }
   | { type: 'WORLD_SET';         patch: Partial<WorldSettings> }
+  | { type: 'SCENE_ADD_EMPTY'; sourceSceneId?: string; name?: string }
+  | { type: 'SCENE_RENAME';    sceneId: string; name: string }
+  | { type: 'SCENE_SET_START'; sceneId: string }
+  | { type: 'SCENE_DELETE';    sceneId: string }
   | { type: 'SCENE_SET_WORLD_SIZE'; sceneId: string; x: number; y: number }
   | { type: 'SCENE_SET_VIEWPORT_SIZE'; sceneId: string; x: number; y: number }
   | { type: 'EDITOR_SET_GRID_SIZE'; tileSize: number }

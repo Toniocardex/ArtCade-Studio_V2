@@ -101,6 +101,93 @@ describe('coreReducer — hierarchy', () => {
     expect(s.projectDirty).toBe(true)
   })
 
+  it('SCENE_ADD_EMPTY creates an inherited empty scene and selects it', () => {
+    const s = coreReducer(st(project()), { type: 'SCENE_ADD_EMPTY', sourceSceneId: 's' })
+    expect(s.project!.scenes.scene_2).toBeDefined()
+    expect(s.project!.scenes.scene_2.name).toBe('Scene 2')
+    expect(s.project!.scenes.scene_2.entityIds).toEqual([])
+    expect(s.project!.scenes.scene_2.worldSize).toEqual({ x: 1280, y: 720 })
+    expect(s.project!.activeSceneId).toBe('s')
+    expect(s.selection).toEqual({ sceneId: 'scene_2', entityId: null })
+    expect(s.projectDirty).toBe(true)
+  })
+
+  it('SCENE_RENAME keeps visible scene names unique', () => {
+    const p = {
+      ...project(),
+      scenes: {
+        ...project().scenes,
+        scene_2: {
+          id: 'scene_2', name: 'Menu',
+          worldSize: { x: 1280, y: 720 },
+          viewportSize: { x: 1280, y: 720 },
+          backgroundColor: { x: 0, y: 0, z: 0, w: 1 },
+          entityIds: [],
+        },
+      },
+    }
+    const s = coreReducer(st(p), { type: 'SCENE_RENAME', sceneId: 'scene_2', name: 'S' })
+    expect(s.project!.scenes.scene_2.name).toBe('S 2')
+    expect(s.projectDirty).toBe(true)
+  })
+
+  it('SCENE_SET_START changes the start scene without changing editor selection', () => {
+    const added = coreReducer(st(project()), { type: 'SCENE_ADD_EMPTY', sourceSceneId: 's' })
+    const selectedOriginal = { ...added, selection: { sceneId: 's', entityId: null } }
+    const s = coreReducer(selectedOriginal, { type: 'SCENE_SET_START', sceneId: 'scene_2' })
+    expect(s.project!.activeSceneId).toBe('scene_2')
+    expect(s.selection.sceneId).toBe('s')
+    expect(s.projectDirty).toBe(true)
+  })
+
+  it('SCENE_DELETE blocks the only scene and the start scene', () => {
+    const base = st(project())
+    expect(coreReducer(base, { type: 'SCENE_DELETE', sceneId: 's' })).toBe(base)
+
+    const added = coreReducer(base, { type: 'SCENE_ADD_EMPTY', sourceSceneId: 's' })
+    const deletedStart = coreReducer(added, { type: 'SCENE_DELETE', sceneId: 's' })
+    expect(deletedStart.project!.scenes.s).toBeDefined()
+  })
+
+  it('SCENE_DELETE removes orphan scene entities, thumbnails and entity logic boards', () => {
+    const p: ProjectDoc = {
+      ...project(),
+      entities: {
+        ...project().entities,
+        2: {
+          id: 2, name: 'B', className: 'Enemy', tags: [],
+          transform: { position: { x: 1, y: 1 }, scale: { x: 1, y: 1 }, rotation: 0 },
+          sprite: { spriteAssetId: '', tint: { x: 1, y: 1, z: 1, w: 1 }, alpha: 1, pivot: { x: 0.5, y: 0.5 }, renderOrder: 0 },
+        },
+      },
+      scenes: {
+        ...project().scenes,
+        scene_2: {
+          id: 'scene_2', name: 'Scene 2',
+          worldSize: { x: 1280, y: 720 },
+          viewportSize: { x: 1280, y: 720 },
+          backgroundColor: { x: 0, y: 0, z: 0, w: 1 },
+          entityIds: [2],
+        },
+      },
+      thumbnails: { scene_2: 'data:image/png;base64,x' },
+      logicBoards: [{
+        boardId: 'b2',
+        target: { type: 'entity_id', entityId: 2 },
+        events: [],
+      }],
+    }
+    const s = coreReducer({ ...st(p), selection: { sceneId: 'scene_2', entityId: 2 } }, {
+      type: 'SCENE_DELETE', sceneId: 'scene_2',
+    })
+    expect(s.project!.scenes.scene_2).toBeUndefined()
+    expect(s.project!.entities[2]).toBeUndefined()
+    expect(s.project!.thumbnails).toBeUndefined()
+    expect(s.project!.logicBoards).toBeUndefined()
+    expect(s.selection).toEqual({ sceneId: 's', entityId: null })
+    expect(s.projectDirty).toBe(true)
+  })
+
   it('actions are no-ops without project / unknown entity', () => {
     const noProj = { ...st(project()), project: null }
     expect(coreReducer(noProj, { type: 'ENTITY_ADD', sceneId: 's' }).projectDirty).toBe(false)

@@ -437,6 +437,49 @@ export function nextEntityId(project: ProjectDoc): number {
   return (ids.length ? Math.max(...ids) : 0) + 1
 }
 
+/** Next stable scene id. Keeps legacy ids such as scene_main untouched. */
+export function nextSceneId(project: ProjectDoc): string {
+  let i = 2
+  while (project.scenes[`scene_${i}`]) i += 1
+  return `scene_${i}`
+}
+
+/** Unique display name for a scene, preserving stable technical ids. */
+export function uniqueSceneName(
+  project: ProjectDoc,
+  baseName: string,
+  excludingSceneId?: string,
+): string {
+  const base = baseName.trim() || 'Scene'
+  const taken = new Set(
+    Object.values(project.scenes)
+      .filter((s) => s.id !== excludingSceneId)
+      .map((s) => s.name),
+  )
+  if (!taken.has(base)) return base
+  let i = 2
+  while (taken.has(`${base} ${i}`)) i += 1
+  return `${base} ${i}`
+}
+
+/** Create an empty scene, inheriting viewport/world defaults from a source scene. */
+export function createSceneDef(
+  project: ProjectDoc,
+  sourceScene?: SceneDef,
+  name?: string,
+): SceneDef {
+  const id = nextSceneId(project)
+  const numericSuffix = id.match(/(\d+)$/)?.[1] ?? String(Object.keys(project.scenes).length + 1)
+  return {
+    id,
+    name: uniqueSceneName(project, name ?? `Scene ${numericSuffix}`, id),
+    worldSize: sourceScene?.worldSize ?? { x: 1280, y: 720 },
+    viewportSize: sourceScene?.viewportSize ?? { x: 1280, y: 720 },
+    backgroundColor: sourceScene?.backgroundColor ?? { x: 0.04, y: 0.05, z: 0.12, w: 1 },
+    entityIds: [],
+  }
+}
+
 /** A new EntityDef with sane defaults (Phase B — add entity). */
 export function createEntityDef(
   id: number,
