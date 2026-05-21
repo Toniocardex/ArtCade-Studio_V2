@@ -15,10 +15,14 @@
 //   - SceneActiveTag : empty tag, presence == active in current scene.
 //   - PhysicsHandle  : small uint32 wrapper, separate from PhysicsComponent
 //     because the handle changes for body lifetime independently of the
-//     authored physics data.
-//   - Identity       : className + tags metadata (kept in EnTT for symmetry,
-//                      but className/tag *indexes* are still manual vectors
-//                      because EnTT views don't guarantee stable order).
+//     authored physics data. on_destroy<PhysicsHandleComp> frees the Box2D
+//     body automatically when the entity is destroyed or registry.clear()
+//     runs (signal-driven cleanup; see Impl::onPhysicsHandleDestroyed).
+//   - Identity       : className + tags metadata, deliberately NOT default-
+//                      emplaced (only added by setIdentity) so that
+//                      on_construct/on_destroy<Identity> fire exactly once
+//                      per spawn/destroy and drive both manual indices
+//                      (classIndex / tagIndex) and lifecycle events.
 
 #include "entity-registry.h"
 #include "../../physics/include/physics.h"
@@ -211,11 +215,16 @@ void EntityRegistry::clear() {
     impl_->insertionOrder.clear();
     impl_->classIndex.clear();
     impl_->tagIndex.clear();
+    // Discard lifecycle events emitted during clear(): on shutdown/project
+    // reload Lua handlers either don't exist yet or refer to a stale state
+    // and would receive ghost Destroyed events for entities they never saw
+    // spawn. Callers that need to observe a full teardown should drain
+    // *before* invoking clear().
     impl_->lifecycleQueue.clear();
     impl_->nextId = 1;
 }
 
-void EntityRegistry::setPhysics(Physics* physics) {
+void EntityRegistry::attachPhysicsModule(Physics* physics) {
     impl_->physics = physics;
 }
 
@@ -237,11 +246,24 @@ void EntityRegistry::setIdentity(EntityId id,
                                  std::string className,
                                  std::vector<std::string> tags) {
     const entt::entity e = impl_->ensure(id);
+    // Idempotency guard: setting the same identity twice (e.g. during a
+    // re-bind / hot reload that walks the project defs again) must not
+    // fire spurious Destroyed+Spawned lifecycle events. If the existing
+    // Identity matches exactly, no-op.
+    if (const auto* existing = impl_->reg.try_get<Identity>(e)) {
+        if (existing->className == className && existing->tags == tags)
+            return;
+    }
     // Remove first so on_destroy<Identity> fires with the *old* className
     // and tags — that's what the signal handler reads to scrub the manual
     // indices and emit the Destroyed lifecycle event (no-op if Identity
     // wasn't present yet). The subsequent emplace fires on_construct
     // with the new data, which repopulates the indices and emits Spawned.
+    // NOTE: a true *rename* still produces Destroyed→Spawned, which is
+    // semantically a re-identification rather than a respawn. Callers
+    // that care should expose their own "rename" pathway; today the
+    // gateway only calls setIdentity at entity creation so this is
+    // dead-code in practice.
     impl_->reg.remove<Identity>(e);
     impl_->reg.emplace<Identity>(e,
         Identity{ std::move(className), std::move(tags) });
@@ -414,10 +436,14 @@ void EntityRegistry::setPhysicsHandle(EntityId id, uint32_t handle) {
 // ---- System visitors -------------------------------------------------------
 //
 // Common loop pattern:
-//   for (id in insertionOrder)
-//     e = toEntt(id);  if (e == null) continue;
+//   capture insertionOrder.size() ONCE up front (re-entry safety: callback
+//     might queue spawns that push into insertionOrder; those are visited
+//     next frame, never re-entered in this pass).
+//   for i in [0, n):
+//     id = insertionOrder[i];
+//     e  = toEntt(id);  if (e == null) continue;  // destroyed mid-iter
 //     if (!reg.all_of<SceneActiveTag>(e)) continue;
-//     try_get<...> required components → invoke callback if all present
+//     try_get<...> required components → invoke callback if all present.
 //
 // Insertion order keeps Lua-observable outcomes (sensor edges, queued
 // destroys, gameplay velocities) reproducible across runs. EnTT's
@@ -427,7 +453,9 @@ void EntityRegistry::forEachActiveRenderable(
     const ActiveRenderableFn& fn) const
 {
     auto& reg = impl_->reg;
-    for (EntityId id : impl_->insertionOrder) {
+    const size_t n = impl_->insertionOrder.size();
+    for (size_t i = 0; i < n; ++i) {
+        const EntityId id = impl_->insertionOrder[i];
         const entt::entity e = impl_->toEntt(id);
         if (e == entt::null) continue;
         if (!reg.all_of<SceneActiveTag>(e)) continue;
@@ -442,7 +470,9 @@ void EntityRegistry::forEachActivePhysicsBody(
     const ActivePhysicsBodyFn& fn)
 {
     auto& reg = impl_->reg;
-    for (EntityId id : impl_->insertionOrder) {
+    const size_t n = impl_->insertionOrder.size();
+    for (size_t i = 0; i < n; ++i) {
+        const EntityId id = impl_->insertionOrder[i];
         const entt::entity e = impl_->toEntt(id);
         if (e == entt::null) continue;
         if (!reg.all_of<SceneActiveTag>(e)) continue;
@@ -458,7 +488,9 @@ void EntityRegistry::forEachActivePlatformer(
     const ActivePlatformerFn& fn) const
 {
     auto& reg = impl_->reg;
-    for (EntityId id : impl_->insertionOrder) {
+    const size_t n = impl_->insertionOrder.size();
+    for (size_t i = 0; i < n; ++i) {
+        const EntityId id = impl_->insertionOrder[i];
         const entt::entity e = impl_->toEntt(id);
         if (e == entt::null) continue;
         if (!reg.all_of<SceneActiveTag>(e)) continue;
@@ -472,7 +504,9 @@ void EntityRegistry::forEachActiveSensor(
     const ActiveSensorFn& fn) const
 {
     auto& reg = impl_->reg;
-    for (EntityId id : impl_->insertionOrder) {
+    const size_t n = impl_->insertionOrder.size();
+    for (size_t i = 0; i < n; ++i) {
+        const EntityId id = impl_->insertionOrder[i];
         const entt::entity e = impl_->toEntt(id);
         if (e == entt::null) continue;
         if (!reg.all_of<SceneActiveTag>(e)) continue;
@@ -486,7 +520,9 @@ void EntityRegistry::forEachActiveAutoDestroy(
     const ActiveAutoDestroyFn& fn)
 {
     auto& reg = impl_->reg;
-    for (EntityId id : impl_->insertionOrder) {
+    const size_t n = impl_->insertionOrder.size();
+    for (size_t i = 0; i < n; ++i) {
+        const EntityId id = impl_->insertionOrder[i];
         const entt::entity e = impl_->toEntt(id);
         if (e == entt::null) continue;
         if (!reg.all_of<SceneActiveTag>(e)) continue;

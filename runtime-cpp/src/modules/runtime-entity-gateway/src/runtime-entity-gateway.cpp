@@ -53,7 +53,7 @@ void RuntimeEntityGateway::shutdown() {
     // matching Box2D bodies. Detach physics afterwards so any stray
     // signal during ~EntityRegistry can't reach a torn-down module.
     registry_->clear();
-    registry_->setPhysics(nullptr);
+    registry_->attachPhysicsModule(nullptr);
     lifecycleQueue_.clear();
     classPrototypes_.clear();
     spawnLogCallback_ = nullptr;
@@ -62,7 +62,7 @@ void RuntimeEntityGateway::shutdown() {
 
 void RuntimeEntityGateway::setPhysics(Physics* physics) {
     physics_ = physics;
-    registry_->setPhysics(physics);
+    registry_->attachPhysicsModule(physics);
 }
 
 void RuntimeEntityGateway::setSpawnLogCallback(SpawnLogCallback cb) {
@@ -151,6 +151,23 @@ void RuntimeEntityGateway::syncSceneActivation() {
     }
 }
 
+void RuntimeEntityGateway::applyEntityDefToRegistry(
+    EntityId id, const EntityDef& def)
+{
+    // Order matters: setIdentity is LAST so that the on_construct<Identity>
+    // signal observes the fully-populated entity (Transform, Sprite, …)
+    // when emitting LifecycleEvent::Spawned. This lets future signal
+    // handlers read sibling components without races.
+    registry_->setPhysicsHandle(id, 0);
+    registry_->setTransform(id, def.transform);
+    registry_->setSprite(id, def.sprite);
+    registry_->setPhysics(id, def.physics);
+    registry_->setSensor(id, def.sensor);
+    registry_->setPlatformer(id, def.platformerController);
+    registry_->setAutoDestroy(id, def.autoDestroy);
+    registry_->setIdentity(id, def.className, def.tags);
+}
+
 EntityId RuntimeEntityGateway::create(const EntityDef& def) {
     EntityDef copy = def;
     copy.physics.physicsHandle = 0;
@@ -158,14 +175,7 @@ EntityId RuntimeEntityGateway::create(const EntityDef& def) {
     copy.id = id;
 
     registry_->setSceneActive(id, entityListedInActiveScene(id));
-    registry_->setPhysicsHandle(id, 0);
-    registry_->setTransform(id, copy.transform);
-    registry_->setSprite(id, copy.sprite);
-    registry_->setPhysics(id, copy.physics);
-    registry_->setSensor(id, copy.sensor);
-    registry_->setPlatformer(id, copy.platformerController);
-    registry_->setAutoDestroy(id, copy.autoDestroy);
-    registry_->setIdentity(id, copy.className, copy.tags);
+    applyEntityDefToRegistry(id, copy);
 
     if (registry_->sceneActive(id))
         ensurePhysicsBody(id);
@@ -195,14 +205,7 @@ EntityId RuntimeEntityGateway::spawnFromClass(const std::string& className, floa
 
     const EntityId id = registry_->allocate(copy.id);
     copy.id = id;
-    registry_->setPhysicsHandle(id, 0);
-    registry_->setTransform(id, copy.transform);
-    registry_->setSprite(id, copy.sprite);
-    registry_->setPhysics(id, copy.physics);
-    registry_->setSensor(id, copy.sensor);
-    registry_->setPlatformer(id, copy.platformerController);
-    registry_->setAutoDestroy(id, copy.autoDestroy);
-    registry_->setIdentity(id, copy.className, copy.tags);
+    applyEntityDefToRegistry(id, copy);
 
     if (SceneDef* scene = sceneManager_.activeSceneMutable()) {
         if (std::find(scene->entityIds.begin(), scene->entityIds.end(), id)
@@ -444,9 +447,12 @@ bool RuntimeEntityGateway::replaceProject(
     const std::unordered_map<EntityId, EntityDef>& entityDefs,
     const SceneId& activeSceneId)
 {
-    if (physics_)
-        physics_->destroyAllBodies();
-
+    // registry_->clear() fires on_destroy<PhysicsHandleComp> for every
+    // entity, which calls physics_->destroyBody on each live handle.
+    // No explicit destroyAllBodies() is needed — the signal is the
+    // single source of truth for Box2D teardown. Keeping a parallel
+    // batch call would risk double-free if the wrapper's destroyAll
+    // and per-handle destroy interact.
     registry_->clear();
     rebuildClassPrototypes(entityDefs);
     sceneManager_.registerScenes(scenes, entityDefs);
@@ -458,14 +464,7 @@ bool RuntimeEntityGateway::replaceProject(
         copy.id = runtimeId;
 
         registry_->setSceneActive(runtimeId, false);
-        registry_->setPhysicsHandle(runtimeId, 0);
-        registry_->setTransform(runtimeId, copy.transform);
-        registry_->setSprite(runtimeId, copy.sprite);
-        registry_->setPhysics(runtimeId, copy.physics);
-        registry_->setSensor(runtimeId, copy.sensor);
-        registry_->setPlatformer(runtimeId, copy.platformerController);
-        registry_->setAutoDestroy(runtimeId, copy.autoDestroy);
-        registry_->setIdentity(runtimeId, copy.className, copy.tags);
+        applyEntityDefToRegistry(runtimeId, copy);
     }
 
     if (!activeSceneId.empty())

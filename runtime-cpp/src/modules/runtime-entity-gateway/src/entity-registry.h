@@ -107,14 +107,15 @@ public:
     // The registry owns Box2D body teardown via on_destroy<PhysicsHandleComp>.
     // When an entity is destroyed (entity-wide destroy or registry.clear),
     // the signal fires with the still-set handle, and the registry calls
-    // physics_->destroyBody(handle) automatically. This closes the leak
+    // physics->destroyBody(handle) automatically. This closes the leak
     // path where `replaceProject` / shutdown cleared entities without
     // calling teardownPhysicsBody first.
     //
     // The pointer is owned by the application; the registry never deletes
-    // it. Set to nullptr before tearing down the physics module to disable
-    // the signal callback.
-    void setPhysics(Physics* physics);
+    // it. Pass nullptr before tearing down the physics module to disable
+    // the signal callback. Named "attach*" rather than setPhysics() to
+    // avoid overload ambiguity with setPhysics(EntityId, PhysicsComponent).
+    void attachPhysicsModule(Physics* physics);
 
     // ---- Lifecycle events ----------------------------------------------
     //

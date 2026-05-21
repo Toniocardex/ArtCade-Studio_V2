@@ -395,6 +395,13 @@ impl_->reg.on_destroy<PhysicsHandleComp>()
     .connect<&Impl::onPhysicsHandleDestroyed>(*impl_);
 ```
 
+L'iniezione del modulo Physics avviene via
+`EntityRegistry::attachPhysicsModule(Physics*)` (chiamata dal gateway
+in `setPhysics`). Il nome è separato da `setPhysics(EntityId, …)` per
+evitare ambiguità di overload sulla stessa classe — vale la pena
+applicare lo stesso pattern per ogni futuro modulo iniettato via
+signal (es. Audio).
+
 ### Perché `Identity` *non* è più in `ensure()`
 
 `Identity` viene emplace-ato **solo** da `setIdentity()`. Se fosse
@@ -403,15 +410,19 @@ fornirebbe `className=""` (rumore) e poi un secondo evento al vero set —
 due signal per una sola "spawn" osservabile da gioco. Tenerla fuori da
 `ensure` rende ogni evento corrispondente a un singolo `setIdentity`.
 
-`setIdentity` segue il pattern *remove + emplace*:
+`setIdentity` segue il pattern *guard + remove + emplace*:
 
 ```cpp
+if (existing && existing->className == cls && existing->tags == tags)
+    return;                                     // idempotency guard
 impl_->reg.remove<Identity>(e);                 // fires on_destroy → drena indici/eventi
 impl_->reg.emplace<Identity>(e, { cls, tags }); // fires on_construct → ripopola
 ```
 
-Sul primo set la `remove` è no-op, sul rename pulisce gli indici della
-vecchia classe/tag prima di indicizzare quella nuova.
+Sul primo set la `remove` è no-op. Su rebind con lo stesso valore
+(p.es. editor hot-reload che riscorre i def) il guard evita Destroyed+
+Spawned spuri. Solo un vero rename produce la coppia di eventi —
+oggi nessun chiamante fa rename, ma il path è coperto.
 
 ### Lifecycle events → Lua
 

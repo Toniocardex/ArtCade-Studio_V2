@@ -97,6 +97,13 @@ if(ARTCADE_HAS_RAYLIB AND ARTCADE_HAS_LUA)
         scene-gateway-test.cpp
         "artcade-runtime-entity-gateway;artcade-physics;artcade-variable-manager")
 
+    # Signal/observer contracts of the EnTT-backed gateway: auto indices,
+    # lifecycle events, idempotent setIdentity, physics auto-teardown,
+    # insertion-order determinism (post-EnTT migration).
+    artcade_test(entity_signals_test
+        entity-signals-test.cpp
+        "artcade-runtime-entity-gateway;artcade-physics")
+
     artcade_test(artcade_package_test
         artcade-package-test.cpp
         artcade-asset-system)

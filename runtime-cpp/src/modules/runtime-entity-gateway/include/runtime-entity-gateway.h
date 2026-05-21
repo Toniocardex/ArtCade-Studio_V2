@@ -161,6 +161,11 @@ private:
     void activateEntity(EntityId id);
     void ensurePhysicsBody(EntityId id);
     void teardownPhysicsBody(EntityId id);
+    /** Copy every EntityDef field into the registry under `id`. Single
+     *  place that defines the EntityDef → component mapping; used by
+     *  create(), spawnFromClass() and replaceProject() to keep them
+     *  in lockstep when new components are added. */
+    void applyEntityDefToRegistry(EntityId id, const EntityDef& def);
 };
 
 } // namespace ArtCade::Modules
