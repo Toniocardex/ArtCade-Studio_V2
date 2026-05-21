@@ -60,6 +60,7 @@ void drawGuides(Modules::Renderer& renderer,
 void drawSelection(Modules::Renderer& renderer,
                    const EntityDef* selected,
                    const Transform& transform,
+                   const PhysicsComponent& physics,
                    const EditorOverlayState& state);
 
 } // namespace EditorOverlayRenderer

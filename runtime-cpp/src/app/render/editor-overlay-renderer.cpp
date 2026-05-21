@@ -98,6 +98,7 @@ void drawGuides(Modules::Renderer& renderer,
 void drawSelection(Modules::Renderer& renderer,
                    const EntityDef* selected,
                    const Transform& transform,
+                   const PhysicsComponent& physics,
                    const EditorOverlayState& state) {
     if (!state.inEditMode || state.selectedId == 0u || selected == nullptr) return;
 
@@ -116,11 +117,11 @@ void drawSelection(Modules::Renderer& renderer,
     }
 
     // Selection box — collider size when available, fall back to 40px scaled.
-    float w = selected->physics.collider.size.x > 2.f
-        ? selected->physics.collider.size.x
+    float w = physics.collider.size.x > 2.f
+        ? physics.collider.size.x
         : 40.f * transform.scale.x;
-    float h = selected->physics.collider.size.y > 2.f
-        ? selected->physics.collider.size.y
+    float h = physics.collider.size.y > 2.f
+        ? physics.collider.size.y
         : 40.f * transform.scale.y;
 
     const float x = p.x - w * 0.5f;

@@ -485,14 +485,16 @@ void Application::renderActiveScene() {
         if (!e) continue;
         Transform transform{};
         if (!mod_->entityGateway->getTransform(id, transform)) continue;
+        SpriteComponent sprite{};
+        if (!mod_->entityGateway->getSprite(id, sprite)) continue;
         mod_->renderer->drawSprite(
-            e->sprite.spriteAssetId,
+            sprite.spriteAssetId,
             transform.position,
             transform.rotation,
             transform.scale,
-            e->sprite.tint,
-            e->sprite.alpha,
-            e->sprite.shaderEffect);
+            sprite.tint,
+            sprite.alpha,
+            sprite.shaderEffect);
     }
 
     // Scene fade (game layer, drawn over entities, under editor chrome).
@@ -508,9 +510,11 @@ void Application::renderActiveScene() {
     if (overlay.selectedId != 0u) {
         const EntityDef* selected = mod_->entityManager->get(overlay.selectedId);
         Transform selectedTransform{};
-        if (mod_->entityGateway->getTransform(overlay.selectedId, selectedTransform))
+        PhysicsComponent selectedPhysics{};
+        if (mod_->entityGateway->getTransform(overlay.selectedId, selectedTransform) &&
+            mod_->entityGateway->getPhysicsComponent(overlay.selectedId, selectedPhysics))
             EditorOverlayRenderer::drawSelection(
-                *mod_->renderer, selected, selectedTransform, overlay);
+                *mod_->renderer, selected, selectedTransform, selectedPhysics, overlay);
     }
 
     // FREE-tier splash overlay drawn on top of the game frame.

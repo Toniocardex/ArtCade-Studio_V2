@@ -75,11 +75,14 @@ void RuntimeEntityGateway::ensurePhysicsBody(EntityDef& def) {
     if (!physics_) return;
     if (physicsHandle(def.id) != 0) return;
 
+    PhysicsComponent comp{};
+    if (!getPhysicsComponent(def.id, comp))
+        comp = def.physics;
+
     const bool hasCollider =
-        def.physics.collider.size.x > 2.f && def.physics.collider.size.y > 2.f;
+        comp.collider.size.x > 2.f && comp.collider.size.y > 2.f;
     if (!hasCollider && !def.platformerController) return;
 
-    PhysicsComponent comp = def.physics;
     if (!hasCollider) {
         comp.collider.size = { 32.f, 32.f };
         comp.bodyType = BodyType::Dynamic;
@@ -88,7 +91,7 @@ void RuntimeEntityGateway::ensurePhysicsBody(EntityDef& def) {
     const uint32_t handle = physics_->createBody(def.id, comp);
     if (handle == 0) return;
 
-    def.physics = comp;
+    setPhysicsComponent(def.id, comp);
     setPhysicsHandle(def.id, handle);
     Transform transform{};
     if (!getTransform(def.id, transform))
@@ -112,7 +115,11 @@ void RuntimeEntityGateway::deactivateEntity(EntityId id) {
     runtimeState_[id].sceneActive = false;
     // Compatibility mirror until EntityDef stops carrying runtime flags.
     e->runtime.sceneActive = false;
-    e->sprite.alpha = 0.f;
+    SpriteComponent sprite{};
+    if (getSprite(id, sprite)) {
+        sprite.alpha = 0.f;
+        setSprite(id, sprite);
+    }
     teardownPhysicsBody(*e);
 }
 
@@ -122,7 +129,11 @@ void RuntimeEntityGateway::activateEntity(EntityId id) {
     runtimeState_[id].sceneActive = true;
     // Compatibility mirror until EntityDef stops carrying runtime flags.
     e->runtime.sceneActive = true;
-    e->sprite.alpha = 1.f;
+    SpriteComponent sprite{};
+    if (getSprite(id, sprite)) {
+        sprite.alpha = 1.f;
+        setSprite(id, sprite);
+    }
     ensurePhysicsBody(*e);
 }
 
@@ -142,10 +153,14 @@ EntityId RuntimeEntityGateway::create(const EntityDef& def) {
     runtimeState_[id].sceneActive = entityListedInActiveScene(id);
     runtimeState_[id].physicsHandle = 0;
     runtimeState_[id].transform = copy.transform;
+    runtimeState_[id].sprite = copy.sprite;
+    runtimeState_[id].physics = copy.physics;
     EntityDef* e = entityManager_.get(id);
     if (e) {
         e->runtime.sceneActive = runtimeState_[id].sceneActive;
         e->transform = runtimeState_[id].transform;
+        e->sprite = runtimeState_[id].sprite;
+        e->physics = runtimeState_[id].physics;
     }
     if (e && runtimeState_[id].sceneActive)
         ensurePhysicsBody(*e);
@@ -184,6 +199,8 @@ EntityId RuntimeEntityGateway::spawnFromClass(const std::string& className, floa
     const EntityId id = entityManager_.createEntity(copy);
     runtimeState_[id].physicsHandle = 0;
     runtimeState_[id].transform = copy.transform;
+    runtimeState_[id].sprite = copy.sprite;
+    runtimeState_[id].physics = copy.physics;
     if (SceneDef* scene = sceneManager_.activeSceneMutable()) {
         if (std::find(scene->entityIds.begin(), scene->entityIds.end(), id)
             == scene->entityIds.end())
@@ -277,6 +294,53 @@ bool RuntimeEntityGateway::setTransform(EntityId id, Vec2 position, float rotati
     return setTransform(id, transform);
 }
 
+bool RuntimeEntityGateway::getSprite(EntityId id, SpriteComponent& out) const {
+    if (!entityManager_.exists(id)) return false;
+    auto it = runtimeState_.find(id);
+    if (it != runtimeState_.end()) {
+        out = it->second.sprite;
+        return true;
+    }
+    const auto* entity = entityManager_.get(id);
+    if (!entity) return false;
+    out = entity->sprite; // Compatibility fallback for legacy setup paths.
+    return true;
+}
+
+bool RuntimeEntityGateway::setSprite(EntityId id, const SpriteComponent& sprite) {
+    auto* entity = entityManager_.get(id);
+    if (!entity) return false;
+    runtimeState_[id].sprite = sprite;
+    // Compatibility mirror until EntityDef stops carrying authored/runtime sprites.
+    entity->sprite = sprite;
+    return true;
+}
+
+bool RuntimeEntityGateway::getPhysicsComponent(EntityId id, PhysicsComponent& out) const {
+    if (!entityManager_.exists(id)) return false;
+    auto it = runtimeState_.find(id);
+    if (it != runtimeState_.end()) {
+        out = it->second.physics;
+        out.physicsHandle = it->second.physicsHandle;
+        return true;
+    }
+    const auto* entity = entityManager_.get(id);
+    if (!entity) return false;
+    out = entity->physics; // Compatibility fallback for legacy setup paths.
+    return true;
+}
+
+bool RuntimeEntityGateway::setPhysicsComponent(EntityId id, const PhysicsComponent& physics) {
+    auto* entity = entityManager_.get(id);
+    if (!entity) return false;
+    PhysicsComponent copy = physics;
+    runtimeState_[id].physics = copy;
+    runtimeState_[id].physicsHandle = copy.physicsHandle;
+    // Compatibility mirror until EntityDef stops carrying authored/runtime physics.
+    entity->physics = copy;
+    return true;
+}
+
 uint32_t RuntimeEntityGateway::physicsHandle(EntityId id) const {
     auto it = runtimeState_.find(id);
     return it != runtimeState_.end() ? it->second.physicsHandle : 0;
@@ -289,6 +353,7 @@ bool RuntimeEntityGateway::hasPhysicsBody(EntityId id) const {
 void RuntimeEntityGateway::setPhysicsHandle(EntityId id, uint32_t handle) {
     if (!entityManager_.exists(id)) return;
     runtimeState_[id].physicsHandle = handle;
+    runtimeState_[id].physics.physicsHandle = handle;
     // Compatibility mirror until PhysicsComponent stops carrying runtime handles.
     if (EntityDef* e = entityManager_.get(id))
         e->physics.physicsHandle = handle;
@@ -359,6 +424,8 @@ bool RuntimeEntityGateway::replaceProject(
         runtimeState_[runtimeId].sceneActive = false;
         runtimeState_[runtimeId].physicsHandle = 0;
         runtimeState_[runtimeId].transform = copy.transform;
+        runtimeState_[runtimeId].sprite = copy.sprite;
+        runtimeState_[runtimeId].physics = copy.physics;
     }
 
     if (!activeSceneId.empty())

@@ -86,34 +86,44 @@ void GameAPI::bindEntityAPI(sol::state& lua) {
             if (!e) return { 0.f, 0.f };
             Transform transform{};
             if (!entities->getTransform(id, transform)) return { 0.f, 0.f };
+            SpriteComponent sprite{};
+            if (!entities->getSprite(id, sprite)) return { 0.f, 0.f };
+            PhysicsComponent physicsComponent{};
+            if (!entities->getPhysicsComponent(id, physicsComponent)) return { 0.f, 0.f };
             float px = 0.5f, py = 0.5f;
             if (assets) {
-                if (auto pt = assets->getImagePoint(e->sprite.spriteAssetId, pointId)) {
+                if (auto pt = assets->getImagePoint(sprite.spriteAssetId, pointId)) {
                     px = pt->x;
                     py = pt->y;
                 }
             }
             float w = 32.f, h = 32.f;
-            if (e->physics.collider.shape == ColliderShape::Rectangle) {
-                w = e->physics.collider.size.x;
-                h = e->physics.collider.size.y;
+            if (physicsComponent.collider.shape == ColliderShape::Rectangle) {
+                w = physicsComponent.collider.size.x;
+                h = physicsComponent.collider.size.y;
             } else {
-                w = h = e->physics.collider.size.x * 2.f;
+                w = h = physicsComponent.collider.size.x * 2.f;
             }
             const float sx = std::abs(transform.scale.x);
             const float sy = std::abs(transform.scale.y);
-            const float lx = (px - e->sprite.pivot.x) * w * sx;
-            const float ly = (py - e->sprite.pivot.y) * h * sy;
+            const float lx = (px - sprite.pivot.x) * w * sx;
+            const float ly = (py - sprite.pivot.y) * h * sy;
             return { transform.position.x + lx, transform.position.y + ly };
         });
     // entity.setVisible(id, bool) — implemented via sprite alpha (no struct change)
     lua.set_function("entity_setVisible", [entities](EntityId id, bool v) {
-        if (auto* e = entities->get(id)) e->sprite.alpha = v ? 1.f : 0.f;
+        SpriteComponent sprite{};
+        if (!entities->getSprite(id, sprite)) return;
+        sprite.alpha = v ? 1.f : 0.f;
+        entities->setSprite(id, sprite);
     });
     // entity.setTint(id, r, g, b, a)  — components in 0..1
     lua.set_function("entity_setTint",
         [entities](EntityId id, float r, float g, float b, float a) {
-            if (auto* e = entities->get(id)) e->sprite.tint = { r, g, b, a };
+            SpriteComponent sprite{};
+            if (!entities->getSprite(id, sprite)) return;
+            sprite.tint = { r, g, b, a };
+            entities->setSprite(id, sprite);
         });
 
     // scene.load(name) / scene.restart()  — flow control via the gateway

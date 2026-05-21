@@ -106,8 +106,8 @@ void GameAPI::bindPhysicsAPI(sol::state& lua) {
             // Place body at entity's JSON spawn position
             physics->setPosition(handle, transform.position);
 
-            e->physics.bodyType      = comp.bodyType;
-            e->physics.collider      = comp.collider;
+            comp.physicsHandle = handle;
+            entities->setPhysicsComponent(id, comp);
             entities->setPhysicsHandle(id, handle);
 
             return handle;

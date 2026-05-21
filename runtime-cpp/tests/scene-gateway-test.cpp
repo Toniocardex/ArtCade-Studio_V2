@@ -75,7 +75,15 @@ int main() {
     CHECK(gw.poolCount("Coin") == 2);
     const EntityDef* spawnedDef = gw.get(spawned);
     CHECK(spawnedDef && gw.isEntityActiveInScene(spawned));
-    CHECK(spawnedDef->sprite.spriteAssetId == "sprites/coin.png");
+    SpriteComponent spawnedSprite{};
+    CHECK(gw.getSprite(spawned, spawnedSprite));
+    CHECK(spawnedSprite.spriteAssetId == "sprites/coin.png");
+    spawnedSprite.alpha = 0.5f;
+    CHECK(gw.setSprite(spawned, spawnedSprite));
+    SpriteComponent updatedSprite{};
+    CHECK(gw.getSprite(spawned, updatedSprite));
+    CHECK(updatedSprite.alpha == 0.5f);
+    CHECK(spawnedDef->sprite.alpha == 0.5f);
     Transform spawnedTransform{};
     CHECK(gw.getTransform(spawned, spawnedTransform));
     CHECK(spawnedTransform.position.x == 50.f);
@@ -88,6 +96,15 @@ int main() {
     CHECK(movedTransform.position.y == 80.f);
     CHECK(spawnedDef->transform.position.x == 70.f);
     CHECK(spawnedDef->transform.position.y == 80.f);
+    PhysicsComponent spawnedPhysics{};
+    spawnedPhysics.collider.size = { 24.f, 28.f };
+    CHECK(gw.setPhysicsComponent(spawned, spawnedPhysics));
+    PhysicsComponent updatedPhysics{};
+    CHECK(gw.getPhysicsComponent(spawned, updatedPhysics));
+    CHECK(updatedPhysics.collider.size.x == 24.f);
+    CHECK(updatedPhysics.collider.size.y == 28.f);
+    CHECK(spawnedDef->physics.collider.size.x == 24.f);
+    CHECK(spawnedDef->physics.collider.size.y == 28.f);
     const SceneDef* sceneAfter = gw.activeScene();
     CHECK(sceneAfter && std::find(sceneAfter->entityIds.begin(),
                                 sceneAfter->entityIds.end(), spawned)

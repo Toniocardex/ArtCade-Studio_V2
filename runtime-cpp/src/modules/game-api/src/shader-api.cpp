@@ -13,8 +13,10 @@ void GameAPI::bindShaderAPI(sol::state& lua) {
     lua.set_function("entity_setShader",
         [gw](EntityId id, const std::string& name) {
             if (!gw) return;
-            if (auto* e = gw->get(id))
-                e->sprite.shaderEffect = name;
+            SpriteComponent sprite{};
+            if (!gw->getSprite(id, sprite)) return;
+            sprite.shaderEffect = name;
+            gw->setSprite(id, sprite);
         });
 
     lua.set_function("renderer_setScreenShader",

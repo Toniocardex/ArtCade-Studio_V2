@@ -46,6 +46,10 @@ public:
     bool getTransform(EntityId id, Transform& out) const;
     bool setTransform(EntityId id, const Transform& transform);
     bool setTransform(EntityId id, Vec2 position, float rotation, Vec2 scale);
+    bool getSprite(EntityId id, SpriteComponent& out) const;
+    bool setSprite(EntityId id, const SpriteComponent& sprite);
+    bool getPhysicsComponent(EntityId id, PhysicsComponent& out) const;
+    bool setPhysicsComponent(EntityId id, const PhysicsComponent& physics);
 
     uint32_t physicsHandle(EntityId id) const;
     bool hasPhysicsBody(EntityId id) const;
@@ -93,6 +97,8 @@ private:
         bool sceneActive = false;
         uint32_t physicsHandle = 0;
         Transform transform;
+        SpriteComponent sprite;
+        PhysicsComponent physics;
     };
 
     std::unordered_map<EntityId, RuntimeEntityState> runtimeState_;
