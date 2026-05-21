@@ -51,17 +51,21 @@ void drawGuides(Modules::Renderer& renderer,
             renderer.drawLine(0.f, y, w, y, grid);
     }
 
-    // World bounds (cyan)
+    // World bounds (cyan) — the playable level outline.
     drawRectOutline(renderer, 0.f, 0.f, w, h, Vec4{0.f, 0.95f, 1.f, 0.9f});
 
-    // Camera viewport bounds (amber)
-    const Vec2 cam     = renderer.getCameraPosition();
-    const Vec2 visible = renderer.visibleWorldSize();
-    drawRectOutline(renderer,
-        cam.x, cam.y,
-        std::max(1.f, visible.x),
-        std::max(1.f, visible.y),
-        Vec4{1.f, 0.8f, 0.1f, 0.9f});
+    // Camera viewport preview (amber) — the rectangle the player will see
+    // in PLAY mode. Centred inside the world so the designer immediately
+    // grasps the "camera lens" relative to the level. Drawn only when the
+    // viewport differs from the world (otherwise it would double the cyan
+    // outline above).
+    const float vw = std::max(1.f, scene.viewportSize.x);
+    const float vh = std::max(1.f, scene.viewportSize.y);
+    if (vw < w - 0.5f || vh < h - 0.5f) {
+        const float vx = (w - vw) * 0.5f;
+        const float vy = (h - vh) * 0.5f;
+        drawRectOutline(renderer, vx, vy, vw, vh, Vec4{1.f, 0.8f, 0.1f, 0.9f});
+    }
 }
 
 void drawSelection(Modules::Renderer& renderer,
