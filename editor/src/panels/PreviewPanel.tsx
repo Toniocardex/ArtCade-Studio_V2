@@ -131,9 +131,14 @@ export default function PreviewPanel() {
     gridSize: editorGridSize ?? 32,
   })
 
-  const res = project?.gameResolution ?? { x: 1280, y: 720 }
   const selectedSceneId = selection.sceneId ?? project?.activeSceneId
   const selectedScene = project && selectedSceneId ? project.scenes[selectedSceneId] : undefined
+  // The editor canvas matches the SCENE worldSize (the playable level).
+  // Long levels (e.g. 4096x640 platformer) → the surrounding container has
+  // overflow:auto so scrollbars appear; the pan tool still works for camera
+  // dragging. viewportSize stays as the runtime camera lens and will be drawn
+  // as an overlay rectangle in a follow-up.
+  const res = selectedScene?.worldSize ?? { x: 1280, y: 720 }
 
   // Background colour while WASM has not yet painted (prevents white flash).
   const bgColor = (() => {
@@ -154,37 +159,38 @@ export default function PreviewPanel() {
         rightSlot={<RuntimeStatusBadge wasmReady={wasmReady} hasProject={!!project} />}
       />
 
-      {/* Viewport area:
-        flex-1 + items-center + justify-center centres the canvas both
-        horizontally and vertically. overflow-hidden clips any edge case
-        where the canvas calculation is slightly off due to browser
-        rounding. */}
-      <div className="flex-1 overflow-hidden flex items-center justify-center p-6">
-        {/* The C++ WASM runtime renders directly into this canvas. Emscripten
-            targets it via window.Module.canvas (see wasm-bridge.ts).
+      {/* Viewport area.
+          Scrollable wrapper: when the scene worldSize exceeds the panel size
+          (e.g. a 4096x640 platformer) the browser shows native scrollbars; the
+          inner flex centring keeps small scenes vertically + horizontally
+          aligned inside the available space. */}
+      <div className="flex-1 overflow-auto p-6">
+        <div className="min-w-full min-h-full flex items-center justify-center">
+          {/* The C++ WASM runtime renders directly into this canvas. Emscripten
+              targets it via window.Module.canvas (see wasm-bridge.ts).
 
-            Sizing strategy:
-              - width/height HTML attrs set the WebGL pixel resolution.
-              - CSS maxWidth + maxHeight + aspectRatio let the browser scale
-                the canvas DOWN while preserving the source ratio. Without
-                aspectRatio, maxWidth alone constrains the CSS width but
-                leaves the height at its intrinsic 720px, the canvas
-                overflows the container, overflow-hidden clips it from the
-                top, and the viewport appears off-centre. */}
-        <canvas
-          ref={canvasRef}
-          id="artcade-canvas"
-          width={res.x}
-          height={res.y}
-          className="border border-[var(--border)] shadow-2xl"
-          style={{
-            display:     'block',
-            maxWidth:    '100%',
-            maxHeight:   '100%',
-            aspectRatio: `${res.x} / ${res.y}`,
-            background:  bgColor,
-          }}
-        />
+              Sizing strategy:
+                - width/height HTML attrs set the WebGL pixel resolution
+                  (= scene worldSize, the playable level dimensions).
+                - We render at NATIVE pixel size: a 4096x640 level is a
+                  4096x640 canvas. The parent has overflow:auto so the user
+                  scrolls/pans through it. No CSS scaling = pixel-perfect
+                  level design. A future zoom slider can override this via
+                  CSS transform without touching the WebGL framebuffer. */}
+          <canvas
+            ref={canvasRef}
+            id="artcade-canvas"
+            width={res.x}
+            height={res.y}
+            className="border border-[var(--border)] shadow-2xl"
+            style={{
+              display:     'block',
+              width:       `${res.x}px`,
+              height:      `${res.y}px`,
+              background:  bgColor,
+            }}
+          />
+        </div>
       </div>
     </div>
   )

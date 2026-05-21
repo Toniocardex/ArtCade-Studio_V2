@@ -11,7 +11,7 @@ const IMG: ImageAsset = {
 function project(): ProjectDoc {
   return {
     projectName: 'T', version: '2.0.0',
-    gameResolution: { x: 1280, y: 720 }, targetFPS: 60,
+    targetFPS: 60,
     activeSceneId: 's', mainScriptPath: 'scripts/main.lua',
     entities: {
       1: {
@@ -85,7 +85,7 @@ describe('project.json roundtrip — assets', () => {
 
   it('parseAssets is defensive (skips entries without a path)', () => {
     const raw = JSON.stringify({
-      projectName: 'D', version: '2.0.0', gameResolution: [1280, 720],
+      projectName: 'D', version: '2.0.0',
       targetFPS: 60, activeSceneId: 's', mainScriptPath: 'scripts/main.lua',
       entities: {}, scenes: { s: { id: 's', name: 'S', entityIds: [] } },
       assets: { bad: { id: 'bad', name: 'x' }, ok: { id: 'ok', name: 'OK', path: 'assets/images/o.png' } },

@@ -13,7 +13,7 @@ function entity(): EntityDef {
 function project(): ProjectDoc {
   return {
     projectName: 'T', version: '2.0.0',
-    gameResolution: { x: 1280, y: 720 }, targetFPS: 60,
+    targetFPS: 60,
     activeSceneId: 's', mainScriptPath: 'scripts/main.lua',
     entities: { 1: entity() },
     scenes: { s: { id: 's', name: 'S', worldSize: { x: 1280, y: 720 }, viewportSize: { x: 1280, y: 720 }, backgroundColor: { x: 0, y: 0, z: 0, w: 1 }, entityIds: [1] } },
@@ -87,7 +87,7 @@ describe('project.json roundtrip with components', () => {
 
   it('parse drops a component that is not an object (defensive)', () => {
     const raw = JSON.stringify({
-      projectName: 'D', version: '2.0.0', gameResolution: [1280, 720],
+      projectName: 'D', version: '2.0.0',
       targetFPS: 60, activeSceneId: 's', mainScriptPath: 'scripts/main.lua',
       entities: { 1: { id: 1, name: 'E', className: 'C', tags: [], health: 'bogus', sensor: { shape: 'Circle', radius: 10, width: 1, height: 1, targetTag: 't' } } },
       scenes: { s: { id: 's', name: 'S', entityIds: [1] } },

@@ -259,10 +259,6 @@ EMSCRIPTEN_KEEPALIVE void editor_load_project(const char* json_utf8) {
     try {
         const json doc = json::parse(json_utf8);
 
-        ArtCade::Vec2 gameResolution{1280.f, 720.f};
-        if (doc.contains("gameResolution"))  gameResolution = Parser::parseVec2(doc["gameResolution"]);
-        if (doc.contains("game_resolution")) gameResolution = Parser::parseVec2(doc["game_resolution"]);
-
         auto entityDefs  = Parser::parseEntities(doc);
         auto sceneDefs   = Parser::parseScenes(doc);
         auto tilesets    = Parser::parseTilesets(doc);
@@ -277,7 +273,7 @@ EMSCRIPTEN_KEEPALIVE void editor_load_project(const char* json_utf8) {
         gateway->setTilesets(tilesets);
 
         if (auto* app = ArtCade::EditorAPI::s_application)
-            app->applyEditorProjectLoaded(tilePalette, tilesets, gameResolution);
+            app->applyEditorProjectLoaded(tilePalette, tilesets);
 
         char buf[128];
         std::snprintf(buf, sizeof(buf),

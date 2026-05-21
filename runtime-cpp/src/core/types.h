@@ -196,7 +196,6 @@ struct ProjectDoc {
     std::string  projectName;
     std::string  version         = "2.0.0";
     std::string  licenseTier     = "free";
-    Vec2         gameResolution  = {1280.f, 720.f};
     float        targetFPS       = 60.f;
     SceneId      activeSceneId;
     std::string  mainScriptPath  = "scripts/main.luac";

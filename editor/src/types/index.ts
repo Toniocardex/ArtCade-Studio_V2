@@ -122,7 +122,6 @@ export interface ProjectDoc {
   version:        string
   licenseTier?:   'free' | 'pro'
   world?:         WorldSettings
-  gameResolution: Vec2
   targetFPS:      number
   activeSceneId:  string
   mainScriptPath: string

@@ -11,7 +11,7 @@ const TS: TilesetAsset = {
 function project(): ProjectDoc {
   return {
     projectName: 'T', version: '2.0.0',
-    gameResolution: { x: 1280, y: 720 }, targetFPS: 60,
+    targetFPS: 60,
     activeSceneId: 's', mainScriptPath: 'scripts/main.lua',
     entities: {},
     scenes: {
@@ -97,7 +97,7 @@ describe('project.json roundtrip — tilesets (Phase F1)', () => {
 
   it('parseTilesets is defensive (skips non-objects, keeps valid)', () => {
     const raw = JSON.stringify({
-      projectName: 'D', version: '2.0.0', gameResolution: [1280, 720],
+      projectName: 'D', version: '2.0.0',
       targetFPS: 60, activeSceneId: 's', mainScriptPath: 'scripts/main.lua',
       entities: {}, scenes: { s: { id: 's', name: 'S', entityIds: [] } },
       tilesets: { bad: 'nope', ok: { assetId: 'ok', name: 'OK', spriteImagePath: 'a.png', tileSize: 16, margin: 1, cols: 4, rows: 2 } },

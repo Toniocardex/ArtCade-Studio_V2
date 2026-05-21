@@ -29,7 +29,6 @@ const SAMPLE_BOARD: LogicBoard = {
 const BASE_JSON = JSON.stringify({
   projectName: 'RT',
   version: '2.0.0',
-  gameResolution: [1280, 720],
   targetFPS: 60,
   activeSceneId: 'scene_main',
   mainScriptPath: 'scripts/main.lua',
@@ -94,7 +93,6 @@ describe('project.json roundtrip with logicBoards', () => {
       JSON.stringify({
         projectName: 'NB',
         version: '2.0.0',
-        gameResolution: [1280, 720],
         targetFPS: 60,
         activeSceneId: 's',
         mainScriptPath: 'scripts/main.lua',

@@ -245,8 +245,7 @@ const char kEmptyEditorLua[] =
 
 void Application::applyEditorProjectLoaded(
     const std::vector<TilePaletteEntry>& tilePalette,
-    const std::vector<TilesetAsset>&     tilesets,
-    const Vec2&                          gameResolution)
+    const std::vector<TilesetAsset>&     tilesets)
 {
     tileColors_.clear();
     for (const auto& t : tilePalette)
@@ -257,14 +256,21 @@ void Application::applyEditorProjectLoaded(
         tilesets_[ts.assetId] = ts;
     mod_->sceneManager->setTilesets(tilesets);
 
-    if (gameResolution.x > 0.f && gameResolution.y > 0.f) {
-        mod_->renderer->setWindowSize(
-            static_cast<uint32_t>(gameResolution.x),
-            static_cast<uint32_t>(gameResolution.y),
-            "ArtCade V2");
+    // Editor preview semantics:
+    //   • The HTML canvas is sized to the scene worldSize (= playable level).
+    //   • The WebGL framebuffer matches, so we render world-space 1:1.
+    //   • Camera zoom must be 1 (no scaling): we pass viewportSize = worldSize
+    //     to setSceneViewport. The user's real viewportSize is reserved for
+    //     PLAY mode (future overlay rectangle).
+    if (const SceneDef* sc = mod_->sceneManager->activeScene()) {
+        if (sc->worldSize.x > 0.f && sc->worldSize.y > 0.f) {
+            mod_->renderer->setWindowSize(
+                static_cast<uint32_t>(sc->worldSize.x),
+                static_cast<uint32_t>(sc->worldSize.y),
+                "ArtCade V2");
+        }
+        mod_->renderer->setSceneViewport(sc->worldSize, sc->worldSize);
     }
-    if (const SceneDef* sc = mod_->sceneManager->activeScene())
-        mod_->renderer->setSceneViewport(sc->worldSize, sc->viewportSize);
 
     if (mod_->textureManager)
         mod_->textureManager->unloadAll();
@@ -295,16 +301,18 @@ bool Application::loadProject(const std::string& projectPath) {
         return false;
     }
 
-    if (doc.gameResolution.x > 0.f && doc.gameResolution.y > 0.f) {
-        mod_->renderer->setWindowSize(
-            static_cast<uint32_t>(doc.gameResolution.x),
-            static_cast<uint32_t>(doc.gameResolution.y),
-            "ArtCade V2");
-    }
-
     mod_->world->init(doc);
-    if (const SceneDef* sc = mod_->sceneManager->activeScene())
+    // Native runtime semantics: the game window opens at the active scene's
+    // viewportSize (the camera lens = what the player sees).
+    if (const SceneDef* sc = mod_->sceneManager->activeScene()) {
+        if (sc->viewportSize.x > 0.f && sc->viewportSize.y > 0.f) {
+            mod_->renderer->setWindowSize(
+                static_cast<uint32_t>(sc->viewportSize.x),
+                static_cast<uint32_t>(sc->viewportSize.y),
+                "ArtCade V2");
+        }
         mod_->renderer->setSceneViewport(sc->worldSize, sc->viewportSize);
+    }
 
     // Phase D2: cache tile id → render colour for renderActiveScene()
     tileColors_.clear();

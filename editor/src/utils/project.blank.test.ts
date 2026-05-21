@@ -25,7 +25,6 @@ describe('createBlankProject', () => {
     expect(p.projectName).toBe('Test Game')
     expect(p.licenseTier).toBe('free')
     expect(p.targetFPS).toBe(60)
-    expect(p.gameResolution).toEqual({ x: 1280, y: 720 })
     expect(p.mainScriptPath).toBe('scripts/main.lua')
 
     // No entities by default — the Scenes panel starts empty.
@@ -63,7 +62,6 @@ describe('createBlankProject', () => {
     expect(after!.projectName).toBe(before.projectName)
     expect(after!.activeSceneId).toBe(before.activeSceneId)
     expect(after!.mainScriptPath).toBe(before.mainScriptPath)
-    expect(after!.gameResolution).toEqual(before.gameResolution)
     expect(after!.targetFPS).toBe(before.targetFPS)
     expect(Object.keys(after!.scenes)).toEqual(Object.keys(before.scenes))
     expect(Object.keys(after!.entities)).toHaveLength(0)
@@ -76,8 +74,8 @@ describe('createBlankProject', () => {
     a.scenes.scene_main.entityIds.push(42)
     expect(b.scenes.scene_main.entityIds).toEqual([])
 
-    a.gameResolution.x = 100
-    expect(b.gameResolution.x).toBe(1280)
+    a.scenes.scene_main.worldSize.x = 100
+    expect(b.scenes.scene_main.worldSize.x).toBe(1280)
   })
 })
 

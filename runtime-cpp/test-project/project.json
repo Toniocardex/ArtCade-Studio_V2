@@ -2,10 +2,6 @@
   "projectName": "ArtCade Phase 13 Demo",
   "version": "2.0.0",
   "licenseTier": "free",
-  "gameResolution": [
-    1280,
-    720
-  ],
   "targetFPS": 60,
   "activeSceneId": "scene_main",
   "mainScriptPath": "scripts/main.lua",

@@ -7,7 +7,7 @@ import type { ProjectDoc } from '../types'
 function project(): ProjectDoc {
   return {
     projectName: 'T', version: '2.0.0',
-    gameResolution: { x: 1280, y: 720 }, targetFPS: 60,
+    targetFPS: 60,
     activeSceneId: 's', mainScriptPath: 'scripts/main.lua',
     entities: {},
     scenes: {
@@ -157,7 +157,7 @@ describe('project.json roundtrip — tilemap + palette', () => {
 
   it('parseTilemap repairs a wrong-length data array defensively', () => {
     const raw = JSON.stringify({
-      projectName: 'D', version: '2.0.0', gameResolution: [1280, 720],
+      projectName: 'D', version: '2.0.0',
       targetFPS: 60, activeSceneId: 's', mainScriptPath: 'scripts/main.lua',
       entities: {},
       scenes: { s: { id: 's', name: 'S', worldSize: [320, 320], entityIds: [],

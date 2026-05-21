@@ -299,7 +299,6 @@ export function parseProjectDoc(jsonStr: string): ProjectDoc | null {
                        const tier = String(raw.licenseTier ?? raw.license_tier ?? 'free')
                        return tier === 'pro' ? 'pro' : 'free'
                      })(),
-      gameResolution: toVec2(raw.gameResolution ?? raw.game_resolution ?? [1280, 720]),
       targetFPS:      Number(raw.targetFPS ?? raw.target_fps ?? 60),
       activeSceneId:  String(raw.activeSceneId ?? raw.active_scene_id ?? firstSceneId),
       mainScriptPath: String(raw.mainScriptPath ?? raw.main_script_path ?? 'scripts/main.lua'),
@@ -412,7 +411,6 @@ export function serializeProjectDoc(project: ProjectDoc): string {
           ),
         }
       : {}),
-    gameResolution: vec2Array(project.gameResolution),
     targetFPS:      project.targetFPS,
     activeSceneId:  project.activeSceneId,
     mainScriptPath: project.mainScriptPath,
@@ -627,7 +625,6 @@ export function createBlankProject(projectName = 'Untitled'): ProjectDoc {
     projectName,
     version:        '1.0.0',
     licenseTier:    'free',
-    gameResolution: { x: 1280, y: 720 },
     targetFPS:      60,
     activeSceneId:  'scene_main',
     mainScriptPath: 'scripts/main.lua',

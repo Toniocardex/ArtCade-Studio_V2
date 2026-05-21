@@ -179,7 +179,6 @@ static void test_minimal_zip_load() {
     const std::string projJson = R"({
   "projectName":   "TestProject",
   "version":       "2.0.0",
-  "gameResolution": [1280, 720],
   "targetFPS":     60,
   "activeSceneId": "scene_main",
   "mainScriptPath": "scripts/main.lua",
@@ -231,8 +230,6 @@ static void test_minimal_zip_load() {
         CHECK(doc.projectName   == "TestProject");
         CHECK(doc.version       == "2.0.0");
         CHECK(doc.activeSceneId == "scene_main");
-        CHECK(doc.gameResolution.x == 1280.f);
-        CHECK(doc.gameResolution.y == 720.f);
         CHECK(doc.targetFPS        == 60.f);
 
         // Entity checks

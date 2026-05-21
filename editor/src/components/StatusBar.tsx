@@ -27,9 +27,6 @@ export default function StatusBar() {
         }>
           Runtime: {isPlaying ? 'PLAYING' : isWasmReady() ? 'READY' : 'LOADING'}
         </span>
-        {project && (
-          <span>Output: {project.gameResolution.x}x{project.gameResolution.y}</span>
-        )}
         {scene && (
           <>
             <span>Scene: {scene.worldSize.x}x{scene.worldSize.y}</span>

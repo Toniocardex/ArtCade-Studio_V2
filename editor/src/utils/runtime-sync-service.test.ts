@@ -31,7 +31,7 @@ function makeProject() {
   const project = {
     projectName: 'T', version: '1', activeSceneId: 'a',
     mainScriptPath: 'm.lua',
-    gameResolution: { x: 800, y: 600 }, targetFPS: 60,
+    targetFPS: 60,
     entities: {
       1: {
         id: 1, name: 'P', className: 'Player', tags: [],

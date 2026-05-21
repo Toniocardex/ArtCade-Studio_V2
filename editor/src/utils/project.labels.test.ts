@@ -12,7 +12,6 @@ function miniProject(): ProjectDoc {
   return {
     projectName: 'T',
     version: '2.0.0',
-    gameResolution: { x: 1280, y: 720 },
     targetFPS: 60,
     activeSceneId: 's',
     mainScriptPath: 'scripts/main.lua',

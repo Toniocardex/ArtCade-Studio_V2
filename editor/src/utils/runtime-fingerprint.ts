@@ -75,7 +75,6 @@ interface RuntimeProjection {
   pn: string                 // projectName
   pv: string                 // version
   as: string                 // activeSceneId
-  res: FpVec2                // gameResolution
   fps: number                // targetFPS
   msp: string                // mainScriptPath
   entities: FpEntity[]
@@ -132,7 +131,6 @@ export function runtimeProjectProjection(
     pn:  project.projectName,
     pv:  project.version,
     as:  activeSceneId,
-    res: v2(project.gameResolution),
     fps: project.targetFPS,
     msp: project.mainScriptPath,
     entities: entityIds.map((id) => projectEntity(project.entities[id])),

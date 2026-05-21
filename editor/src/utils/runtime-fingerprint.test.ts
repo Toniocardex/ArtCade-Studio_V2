@@ -45,7 +45,6 @@ function makeProject(overrides: Partial<ProjectDoc> = {}): ProjectDoc {
     version: '1',
     activeSceneId: 'scene_a',
     mainScriptPath: 'main.lua',
-    gameResolution: vec(800, 600),
     targetFPS: 60,
     entities: { 1: makeEntity() },
     scenes:   { scene_a: makeScene() },

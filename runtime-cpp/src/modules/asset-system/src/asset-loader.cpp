@@ -130,11 +130,6 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
     out.activeSceneId  = readStringAny(j, "activeSceneId", "active_scene_id");
     out.mainScriptPath = readStringAny(j, "mainScriptPath", "main_script_path", "scripts/main.luac");
 
-    if (j.contains("gameResolution"))
-        out.gameResolution = readVec2(j["gameResolution"]);
-    if (j.contains("game_resolution"))
-        out.gameResolution = readVec2(j["game_resolution"]);
-
     // Entities
     if (j.contains("entities") && j["entities"].is_object()) {
         for (auto& [key, ev] : j["entities"].items()) {
@@ -319,10 +314,6 @@ bool AssetLoader::parseGameJson(const std::string& path, ProjectDoc& out) {
     try { j = json::parse(f); }
     catch (...) { return false; }
 
-    if (j.contains("gameResolution"))
-        out.gameResolution = readVec2(j["gameResolution"], out.gameResolution);
-    if (j.contains("game_resolution"))
-        out.gameResolution = readVec2(j["game_resolution"], out.gameResolution);
     out.targetFPS = readFloatAny(j, "targetFPS", "target_fps", out.targetFPS);
     out.licenseTier = readStringAny(j, "licenseTier", "license_tier", out.licenseTier);
     return true;

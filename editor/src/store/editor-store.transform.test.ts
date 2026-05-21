@@ -7,7 +7,7 @@ function vec(x: number, y: number) { return { x, y } }
 function makeState(): CoreState {
   const project: ProjectDoc = {
     projectName: 'T', version: '1', activeSceneId: 'scene_a',
-    mainScriptPath: 'm.lua', gameResolution: vec(800, 600), targetFPS: 60,
+    mainScriptPath: 'm.lua', targetFPS: 60,
     entities: {
       1: {
         id: 1, name: 'P', className: 'Player', tags: [],
