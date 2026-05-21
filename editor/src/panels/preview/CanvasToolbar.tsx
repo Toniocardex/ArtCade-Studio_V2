@@ -11,7 +11,7 @@
 // group separated by a thin vertical divider. Order matches the original
 // vertical palette so muscle memory is preserved.
 
-import { Eraser, Grid3x3, Hand, ImageIcon, MousePointer2, Pencil } from 'lucide-react'
+import { Camera, Eraser, Grid3x3, Hand, ImageIcon, MousePointer2, Pencil } from 'lucide-react'
 import type { ReactNode } from 'react'
 import type { EditorTool } from '../../utils/runtime-sync-service'
 import { ZoomControls } from './ZoomControls'
@@ -25,6 +25,8 @@ interface CanvasToolbarProps {
   zoom:             number
   onSetZoom:        (zoom: number) => void
   onFitZoom:        () => void
+  cameraPreview:    boolean
+  onToggleCameraPreview: () => void
   rightSlot?:       ReactNode
 }
 
@@ -35,6 +37,7 @@ function Divider() {
 export function CanvasToolbar({
   activeTool, onSelectTool, selectedTileCell, showGuides, onToggleGuides,
   zoom, onSetZoom, onFitZoom,
+  cameraPreview, onToggleCameraPreview,
   rightSlot,
 }: CanvasToolbarProps) {
   return (
@@ -96,6 +99,18 @@ export function CanvasToolbar({
         }`}
       >
         <Grid3x3 size={15} color={showGuides ? 'var(--accent)' : 'var(--muted)'} />
+      </button>
+
+      <button
+        onClick={onToggleCameraPreview}
+        title="Camera preview — clip canvas to scene viewportSize (Ctrl+8)"
+        className={`p-1.5 rounded transition-colors ${
+          cameraPreview
+            ? 'bg-[rgb(var(--accent-2-rgb)/0.2)]'
+            : 'hover:bg-[var(--panel-3)]'
+        }`}
+      >
+        <Camera size={15} color={cameraPreview ? 'var(--accent-2)' : 'var(--muted)'} />
       </button>
 
       <Divider />

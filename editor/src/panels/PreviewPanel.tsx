@@ -45,7 +45,7 @@ export default function PreviewPanel() {
   const { state, dispatch } = useEditor()
   const {
     project, projectPath, isPlaying, selection, selectedTileCell, mode,
-    editorGridSize, snapToGrid, editorZoom,
+    editorGridSize, snapToGrid, editorZoom, cameraPreview,
   } = state
 
   const canvasRef           = useRef<HTMLCanvasElement>(null)
@@ -144,6 +144,18 @@ export default function PreviewPanel() {
   const scaledW = Math.round(res.x * zoom)
   const scaledH = Math.round(res.y * zoom)
 
+  // Camera preview: clip the visual footprint to viewportSize while keeping
+  // the canvas mounted at its full worldSize. The canvas is positioned with a
+  // negative offset so the centred viewport region aligns with the wrapper's
+  // origin; the wrapper's overflow:hidden clips the rest. We never unmount
+  // the canvas — toggling preview must not reset the WebGL context.
+  const vp = selectedScene?.viewportSize ?? res
+  const preview = !!cameraPreview && (vp.x !== res.x || vp.y !== res.y)
+  const frameW   = preview ? Math.round(vp.x * zoom) : scaledW
+  const frameH   = preview ? Math.round(vp.y * zoom) : scaledH
+  const canvasDX = preview ? -Math.round(((res.x - vp.x) / 2) * zoom) : 0
+  const canvasDY = preview ? -Math.round(((res.y - vp.y) / 2) * zoom) : 0
+
   // Compute fit-to-panel zoom: largest scale where the world fits inside the
   // visible scroll container, clamped to the EDITOR_SET_ZOOM reducer range.
   function computeFitZoom(): number {
@@ -225,6 +237,10 @@ export default function PreviewPanel() {
         zoom={zoom}
         onSetZoom={setZoom}
         onFitZoom={fitZoom}
+        cameraPreview={!!cameraPreview}
+        onToggleCameraPreview={() =>
+          dispatch({ type: 'EDITOR_SET_CAMERA_PREVIEW', enabled: !cameraPreview })
+        }
         rightSlot={<RuntimeStatusBadge wasmReady={wasmReady} hasProject={!!project} />}
       />
 
@@ -245,10 +261,15 @@ export default function PreviewPanel() {
               coords because it reads CSS-vs-internal canvas size at runtime. */}
           <div
             style={{
-              width:    `${scaledW}px`,
-              height:   `${scaledH}px`,
-              position: 'relative',
+              width:      `${frameW}px`,
+              height:     `${frameH}px`,
+              position:   'relative',
               flexShrink: 0,
+              overflow:   preview ? 'hidden' : 'visible',
+              boxShadow:  preview
+                ? '0 0 0 2px var(--accent-2), 0 25px 50px -12px rgb(0 0 0 / 0.5)'
+                : '0 25px 50px -12px rgb(0 0 0 / 0.5)',
+              border:     preview ? 'none' : '1px solid var(--border)',
             }}
           >
             <canvas
@@ -256,12 +277,11 @@ export default function PreviewPanel() {
               id="artcade-canvas"
               width={res.x}
               height={res.y}
-              className="border border-[var(--border)] shadow-2xl"
               style={{
                 display:         'block',
                 position:        'absolute',
-                top:             0,
-                left:            0,
+                top:             `${canvasDY}px`,
+                left:            `${canvasDX}px`,
                 width:           `${res.x}px`,
                 height:          `${res.y}px`,
                 transform:       `scale(${zoom})`,

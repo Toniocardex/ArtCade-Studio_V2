@@ -4,7 +4,7 @@ import { isReady as isWasmReady } from '../utils/wasm-bridge'
 export default function StatusBar() {
   const { state }         = useEditor()
   const { state: volatile } = useConsoleLogs()
-  const { project, selection, isPlaying, projectDirty, editorGridSize, snapToGrid, editorZoom } = state
+  const { project, selection, isPlaying, projectDirty, editorGridSize, snapToGrid, editorZoom, cameraPreview } = state
   const { cursorPos } = volatile
 
   const selectedName = (selection.entityId != null && project)
@@ -36,6 +36,7 @@ export default function StatusBar() {
         <span>Grid: {gridSize}px</span>
         {snapToGrid && <span>Snap: ON</span>}
         <span>Zoom: {Math.round((editorZoom ?? 1.0) * 100)}%</span>
+        {cameraPreview && <span className="text-[var(--accent-2)]">Camera: PREVIEW</span>}
         <span>Lua: 5.4</span>
         <span>Raylib: 5.0</span>
         {projectDirty && <span className="text-[var(--warn)]">Project: UNSAVED</span>}

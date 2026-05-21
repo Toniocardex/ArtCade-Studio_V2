@@ -41,6 +41,10 @@ export const uiReducer: DomainReducer = (state: CoreState, action: Action) => {
       const next = Math.round(clamped * 1000) / 1000
       return state.editorZoom === next ? state : { ...state, editorZoom: next }
     }
+    case 'EDITOR_SET_CAMERA_PREVIEW':
+      return state.cameraPreview === action.enabled
+        ? state
+        : { ...state, cameraPreview: action.enabled }
     case 'TILESET_SELECT_CELL':
       return { ...state, selectedTileCell: Math.max(0, action.cellIndex) }
     default:

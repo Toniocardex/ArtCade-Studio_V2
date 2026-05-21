@@ -284,11 +284,17 @@ function EditorLayout() {
         dispatch({ type: 'EDITOR_SET_ZOOM', zoom: Math.max(0.1, z / 1.25) })
         return
       }
+      // Ctrl+8 — toggle camera preview (clip canvas to scene viewportSize).
+      if (e.key === '8') {
+        e.preventDefault()
+        dispatch({ type: 'EDITOR_SET_CAMERA_PREVIEW', enabled: !state.cameraPreview })
+        return
+      }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [state.openScripts, state.activeScriptPath, state.project, state.projectPath, state.projectDirty, state.mode, state.editorZoom, dispatch])
+  }, [state.openScripts, state.activeScriptPath, state.project, state.projectPath, state.projectDirty, state.mode, state.editorZoom, state.cameraPreview, dispatch])
 
   // Script editor mounts only in script mode — reflow after Tauri show / tab switch.
   useEffect(() => {
