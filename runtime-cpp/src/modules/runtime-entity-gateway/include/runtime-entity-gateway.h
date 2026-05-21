@@ -3,6 +3,7 @@
 #include "../../../core/module.h"
 #include "../../../core/types.h"
 #include <functional>
+#include <memory>
 #include <optional>
 #include <unordered_map>
 #include <vector>
@@ -14,6 +15,7 @@ using SpawnLogCallback = std::function<void(const std::string&)>;
 class EntityManager;
 class SceneManager;
 class Physics;
+class EntityRegistry;
 
 /**
  * RuntimeEntityGateway is the migration point between the current
@@ -22,6 +24,7 @@ class Physics;
 class RuntimeEntityGateway final : public IModule {
 public:
     RuntimeEntityGateway(EntityManager& entityManager, SceneManager& sceneManager);
+    ~RuntimeEntityGateway() override; // unique_ptr<EntityRegistry> needs complete type at destruction.
 
     bool init() override;
     void shutdown() override;
@@ -97,23 +100,17 @@ public:
 
 private:
     EntityManager& entityManager_;
-    SceneManager& sceneManager_;
+    SceneManager&  sceneManager_;
     Physics*       physics_ = nullptr;
 
-    struct RuntimeEntityState {
-        bool sceneActive = false;
-        uint32_t physicsHandle = 0;
-        Transform transform;
-        SpriteComponent sprite;
-        PhysicsComponent physics;
-        std::optional<SensorComponent> sensor;
-        std::optional<PlatformerControllerComponent> platformerController;
-        std::optional<AutoDestroyComponent> autoDestroy;
-    };
+    /** Runtime component bag + className/tag indexes. PIMPL so the
+     *  registry header (which is implementation detail of this module)
+     *  stays out of the public include surface. Future EnTT swap lands
+     *  here without moving any gateway method. */
+    std::unique_ptr<EntityRegistry> registry_;
 
-    std::unordered_map<EntityId, RuntimeEntityState> runtimeState_;
-    std::vector<EntityId> pendingDestroy_;
-    std::vector<EntityDef> pendingSpawn_;
+    std::vector<EntityId>       pendingDestroy_;
+    std::vector<EntityDef>      pendingSpawn_;
     std::vector<DestroyedEvent> destroyBuffer_;
 
     SceneId  pendingSceneId_;
