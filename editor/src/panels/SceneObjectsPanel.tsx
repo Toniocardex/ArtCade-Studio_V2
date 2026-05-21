@@ -25,7 +25,11 @@ import PanelHeader from '../components/PanelHeader'
 import { useEditor } from '../store/editor-store'
 import type { ConsoleEntry, EntityDef } from '../types'
 import { DEFAULT_WORLD } from '../types'
-import { shouldIgnoreEditorShortcut } from '../utils/keyboard'
+import {
+  applyInputBackspace,
+  isBackspaceKey,
+  shouldIgnoreEditorShortcut,
+} from '../utils/keyboard'
 import { createEntityDef, findLogicBoardForEntity, nextEntityId } from '../utils/project'
 
 const CLASS_COLOR: Record<string, string> = {
@@ -326,9 +330,18 @@ export default function SceneObjectsPanel() {
             onChange={e => setSceneNameDraft(e.target.value)}
             onBlur={commitSceneName}
             onKeyDown={e => {
+              e.stopPropagation()
+              // WebView2 often swallows native Backspace in <input>; mirror Inspector.
+              if (isBackspaceKey(e)) {
+                e.preventDefault()
+                applyInputBackspace(e.currentTarget)
+                return
+              }
               if (e.key === 'Enter') {
+                e.preventDefault()
                 e.currentTarget.blur()
               } else if (e.key === 'Escape') {
+                e.preventDefault()
                 setSceneNameDraft(scene?.name ?? '')
                 e.currentTarget.blur()
               }
