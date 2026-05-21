@@ -422,17 +422,6 @@ export function editorSetTransform(
     [entityId, x, y, rotation, scaleX, scaleY])
 }
 
-export interface RuntimeSyncState {
-  projectJson?: string
-  mode?: 0 | 1
-  selectedEntityId?: number | null
-}
-
-export function syncEditorRuntimeState(state: RuntimeSyncState): void {
-  if (state.projectJson != null) editorLoadProject(state.projectJson)
-  if (state.mode != null) editorSetMode(state.mode)
-  if (state.selectedEntityId !== undefined) {
-    if (state.selectedEntityId == null) editorDeselect()
-    else editorSelectEntity(state.selectedEntityId)
-  }
-}
+// All cross-channel sync orchestration now lives in
+// `utils/runtime-sync-service.ts`. The thin per-channel wrappers above remain
+// here as the low-level bridge to the WASM exports.

@@ -1,29 +1,17 @@
-import { useRef, useEffect, useLayoutEffect, useState } from 'react'
+import { useRef, useLayoutEffect, useState } from 'react'
 import { MousePointer2, Hand, Pencil, Eraser, Wifi, WifiOff, Grid3x3, ImageIcon } from 'lucide-react'
 import { useEditor } from '../store/editor-store'
 import type { ConsoleEntry } from '../types'
-import {
-  isReady,
-  syncEditorRuntimeState,
-  editorSetSelectedTile,
-  editorSetTool, editorSetGuidesEnabled, editorSetGridSize, editorSetTransform,
-} from '../utils/wasm-bridge'
+import { isReady } from '../utils/wasm-bridge'
+import { runtimeSync, type EditorTool } from '../utils/runtime-sync-service'
 import {
   useWasmRuntimeLifecycle,
   useRuntimeProjectSync,
   useRuntimeAssetUpload,
+  useRuntimeEditorSync,
 } from './preview/runtime-hooks'
 
-type Tool = 'select' | 'pan' | 'paint' | 'erase' | 'tile'
-type RuntimeToolId = 0 | 1 | 2 | 3
-
-const RUNTIME_TOOL: Record<Tool, RuntimeToolId> = {
-  select: 0,
-  pan:    1,
-  paint:  2,
-  erase:  3,
-  tile:   2,
-}
+type Tool = EditorTool
 
 function snapToGridValue(value: number, gridSize: number): number {
   return gridSize > 0 ? Math.round(value / gridSize) * gridSize : value
@@ -60,7 +48,6 @@ export default function PreviewPanel() {
   } = state
 
   const canvasRef    = useRef<HTMLCanvasElement>(null)
-  const lastProjectLoadKeyRef = useRef<string | null>(null)
   const registeredAssetsRef   = useRef<Set<string>>(new Set())
   // current scene id for the (mount-time) onTilemapPainted callback
   const sceneIdRef = useRef<string>('')
@@ -105,16 +92,15 @@ export default function PreviewPanel() {
 
     const nextX = snapToGridRef.current ? snapToGridValue(x, gridSizeRef.current) : x
     const nextY = snapToGridRef.current ? snapToGridValue(y, gridSizeRef.current) : y
+    const snapped = { entityId, x: nextX, y: nextY, rotation, scaleX, scaleY }
+
     if (snapToGridRef.current && (nextX !== x || nextY !== y)) {
-      ignoredTransformEchoRef.current = {
-        entityId,
-        x: nextX,
-        y: nextY,
-        rotation,
-        scaleX,
-        scaleY,
-      }
-      editorSetTransform(entityId, nextX, nextY, rotation, scaleX, scaleY)
+      ignoredTransformEchoRef.current = snapped
+      runtimeSync.syncEntityTransform(snapped)
+    } else {
+      // Mark this value as already in sync so a later React-side edit at the
+      // same position doesn't bounce back to the runtime unnecessarily.
+      runtimeSync.noteTransform(snapped)
     }
     dispatch({
       type: 'UPDATE_ENTITY_TRANSFORM',
@@ -143,7 +129,6 @@ export default function PreviewPanel() {
     project, projectPath,
     selectionSceneId: selection.sceneId,
     wasmReady, engineReady,
-    lastLoadKeyRef: lastProjectLoadKeyRef,
   })
 
   // Push the persistent image library into the C++ texture cache.
@@ -152,41 +137,18 @@ export default function PreviewPanel() {
     registeredAssetsRef,
   })
 
-  // ── Sync play/edit mode to C++ ────────────────────────────────────────────
-  useEffect(() => {
-    if (!wasmReady || !engineReady) return
-    syncEditorRuntimeState({ mode: isPlaying ? 1 : 0 })
-  }, [isPlaying, wasmReady, engineReady])
-
-  // ── Sync selected entity to C++ ──────────────────────────────────────────
-  useEffect(() => {
-    if (!wasmReady || !engineReady) return
-    syncEditorRuntimeState({ selectedEntityId: selection.entityId })
-  }, [selection.entityId, wasmReady, engineReady])
-
-  // ── Phase F2: sync tile-paint mode + brush tile to C++ ───────────────────
-  // Three tools drive tilemap painting:
-  //   • tile / paint → paint the brush cell selected in TILESET_EDITOR
-  //   • erase        → paint cell 0 (clears the tile) without touching the
-  //                     user's picked brush in the store
-  useEffect(() => {
-    if (!wasmReady || !engineReady) return
-    const painting =
-      activeTool === 'tile' || activeTool === 'paint' || activeTool === 'erase'
-    editorSetTool(RUNTIME_TOOL[activeTool])
-    if (painting)
-      editorSetSelectedTile(activeTool === 'erase' ? 0 : selectedTileCell)
-  }, [activeTool, selectedTileCell, wasmReady, engineReady])
-
-  useEffect(() => {
-    if (!wasmReady || !engineReady) return
-    editorSetGuidesEnabled(showEditorGuides && !isPlaying)
-  }, [showEditorGuides, isPlaying, wasmReady, engineReady])
-
-  useEffect(() => {
-    if (!wasmReady || !engineReady) return
-    editorSetGridSize(editorGridSize ?? 32)
-  }, [editorGridSize, wasmReady, engineReady])
+  // Drive every per-frame editor channel (mode, selection, tool, chrome).
+  // All these calls funnel through RuntimeSyncService so there is exactly one
+  // place that owns the "what reaches the runtime, when?" contract.
+  useRuntimeEditorSync({
+    wasmReady, engineReady,
+    isPlaying,
+    selectedEntityId: selection.entityId,
+    tool: activeTool,
+    selectedTileCell,
+    guides: showEditorGuides,
+    gridSize: editorGridSize ?? 32,
+  })
 
   // ── Canvas resolution matches game resolution ─────────────────────────────
   const res = project?.gameResolution ?? { x: 1280, y: 720 }

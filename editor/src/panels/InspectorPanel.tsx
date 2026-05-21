@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Settings, ChevronRight, Trash2 } from 'lucide-react'
 import { useEditor } from '../store/editor-store'
 import type { EntityDef, ComponentKey, SceneDef } from '../types'
-import { editorSetTransform, isReady } from '../utils/wasm-bridge'
+import { runtimeSync } from '../utils/runtime-sync-service'
 import {
   COMPONENT_REGISTRY,
   type ComponentDescriptor,
@@ -416,7 +416,7 @@ function EntityInspector({ entity }: { entity: EntityDef }) {
     const scaleY = next.scaleY ?? entity.transform.scale.y
 
     dispatch({ type: 'UPDATE_ENTITY_TRANSFORM', entityId: entity.id, x, y, rotation, scaleX, scaleY })
-    if (isReady()) editorSetTransform(entity.id, x, y, rotation, scaleX, scaleY)
+    runtimeSync.syncEntityTransform({ entityId: entity.id, x, y, rotation, scaleX, scaleY })
   }
 
   return (

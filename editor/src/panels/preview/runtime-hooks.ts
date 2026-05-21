@@ -14,12 +14,11 @@
 import { useEffect, type Dispatch, type MutableRefObject, type RefObject } from 'react'
 import {
   loadWasmRuntime, isReady,
-  syncEditorRuntimeState,
   editorRegisterImage,
   type WasmCallbacks,
 } from '../../utils/wasm-bridge'
 import { WASM_RUNTIME_SRC } from '../../utils/runtime-path'
-import { runtimeProjectFingerprint } from '../../utils/runtime-fingerprint'
+import { runtimeSync, type EditorTool } from '../../utils/runtime-sync-service'
 import { readProjectImageBytes } from '../../utils/api'
 import { dirName } from '../../utils/project'
 import type { ConsoleEntry, ProjectDoc } from '../../types'
@@ -175,23 +174,58 @@ interface ProjectSyncOptions {
   selectionSceneId: string | null
   wasmReady: boolean
   engineReady: boolean
-  /** Refs into PreviewPanel so the panel can also track the last load key. */
-  lastLoadKeyRef: MutableRefObject<string | null>
 }
 
 export function useRuntimeProjectSync(opts: ProjectSyncOptions): void {
-  const { project, projectPath, selectionSceneId, wasmReady, engineReady, lastLoadKeyRef } = opts
+  const { project, projectPath, selectionSceneId, wasmReady, engineReady } = opts
   useEffect(() => {
     if (!wasmReady || !engineReady || !project) return
     const runtimeSceneId = selectionSceneId ?? project.activeSceneId
-    const fp = runtimeProjectFingerprint(project, runtimeSceneId)
-    const loadKey = `${projectPath ?? ''}|${fp}`
-    if (lastLoadKeyRef.current === loadKey) return
-    lastLoadKeyRef.current = loadKey
-    syncEditorRuntimeState({
-      projectJson: JSON.stringify({ ...project, activeSceneId: runtimeSceneId }),
-    })
-  }, [project, projectPath, selectionSceneId, wasmReady, engineReady, lastLoadKeyRef])
+    runtimeSync.syncProject(project, runtimeSceneId, projectPath)
+  }, [project, projectPath, selectionSceneId, wasmReady, engineReady])
+}
+
+// ---------------------------------------------------------------------------
+// useRuntimeEditorSync — drive every per-frame editor channel via the service
+// ---------------------------------------------------------------------------
+
+interface EditorSyncOptions {
+  wasmReady: boolean
+  engineReady: boolean
+  isPlaying: boolean
+  selectedEntityId: number | null
+  tool: EditorTool
+  selectedTileCell: number
+  guides: boolean
+  gridSize: number
+}
+
+export function useRuntimeEditorSync(opts: EditorSyncOptions): void {
+  const {
+    wasmReady, engineReady,
+    isPlaying, selectedEntityId, tool, selectedTileCell,
+    guides, gridSize,
+  } = opts
+
+  useEffect(() => {
+    if (!wasmReady || !engineReady) return
+    runtimeSync.syncPlayMode(isPlaying)
+  }, [isPlaying, wasmReady, engineReady])
+
+  useEffect(() => {
+    if (!wasmReady || !engineReady) return
+    runtimeSync.syncSelection(selectedEntityId)
+  }, [selectedEntityId, wasmReady, engineReady])
+
+  useEffect(() => {
+    if (!wasmReady || !engineReady) return
+    runtimeSync.syncEditorTool(tool, selectedTileCell)
+  }, [tool, selectedTileCell, wasmReady, engineReady])
+
+  useEffect(() => {
+    if (!wasmReady || !engineReady) return
+    runtimeSync.syncEditorChrome({ guides, gridSize, isPlaying })
+  }, [guides, gridSize, isPlaying, wasmReady, engineReady])
 }
 
 // ---------------------------------------------------------------------------
