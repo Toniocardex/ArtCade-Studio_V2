@@ -50,7 +50,7 @@ export default function PreviewPanel() {
   const { state, dispatch } = useEditor()
   const {
     project, projectPath, isPlaying, selection, selectedTileCell, mode,
-    editorGridSize, snapToGrid, editorZoom, cameraPreview,
+    editorGridSize, snapToGrid, editorZoom, cameraPreview, projectLoadEpoch,
   } = state
 
   const canvasRef           = useRef<HTMLCanvasElement>(null)
@@ -188,6 +188,18 @@ export default function PreviewPanel() {
   // before paint so the handler is in place by the time the user can press
   // a key in the freshly mounted editor.
   useLayoutEffect(() => zoomFitRegistry.register(fitZoom), [preview, res.x, res.y, vp.x, vp.y])
+
+  // Auto-fit the canvas every time a project is (re)loaded so the default
+  // 1280x720 scene is centred and fully visible in the panel — without this
+  // the bottom + right edges (and the cyan world-bounds rect drawn by C++)
+  // sit outside the visible scroll area. rAF waits one paint so scrollRef
+  // already has its measured clientWidth/Height.
+  useLayoutEffect(() => {
+    if (projectLoadEpoch === 0) return
+    const raf = requestAnimationFrame(() => fitZoom())
+    return () => cancelAnimationFrame(raf)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectLoadEpoch])
 
   // Ctrl + wheel: zoom anchored at the cursor (Figma/Photoshop behaviour).
   // Without anchoring, zooming "in" always re-centres on the world origin and

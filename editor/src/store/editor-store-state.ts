@@ -36,6 +36,13 @@ export interface CoreState {
   snapToGrid:       boolean
   editorZoom:       number   // visual zoom (CSS transform), see constants/editor-viewport
   cameraPreview:    boolean  // when true the canvas is clipped to viewportSize (no PLAY needed)
+  /**
+   * Bumped every time LOAD_PROJECT fires. PreviewPanel watches this to
+   * auto-fit the canvas after a fresh load (the project reference alone is
+   * not enough — entity edits also create a new project reference, so we
+   * need an explicit "load just happened" signal).
+   */
+  projectLoadEpoch: number
 }
 
 // ---- Volatile state (high-frequency) ---------------------------------------
@@ -120,6 +127,7 @@ export const initialCoreState: CoreState = {
   snapToGrid:       false,
   editorZoom:       EDITOR_ZOOM_DEFAULT,
   cameraPreview:    false,
+  projectLoadEpoch: 0,
 }
 
 export const initialVolatileState: VolatileState = {

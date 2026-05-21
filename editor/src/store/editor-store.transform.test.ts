@@ -38,7 +38,7 @@ function makeState(): CoreState {
     isPlaying: false,
     selectedTileCell: 0,
     editorGridSize: 32, snapToGrid: false,
-    editorZoom: 1.0, cameraPreview: false,
+    editorZoom: 1.0, cameraPreview: false, projectLoadEpoch: 0,
   } as CoreState
 }
 

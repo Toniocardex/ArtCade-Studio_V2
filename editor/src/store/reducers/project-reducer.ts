@@ -20,6 +20,7 @@ export const projectReducer: DomainReducer = (state: CoreState, action: Action) 
       // Reset editor "view" chrome so a 400% zoom or an active camera preview
       // from the previous project does not bleed into the freshly loaded one
       // (TECHNICAL_DEBT_REVIEW §7 — LOAD_PROJECT preserved zoom/preview).
+      // projectLoadEpoch bump signals PreviewPanel to auto-fit the canvas.
       return {
         ...state,
         project:     action.project,
@@ -32,6 +33,7 @@ export const projectReducer: DomainReducer = (state: CoreState, action: Action) 
         bottomTab:   'console',
         editorZoom:    EDITOR_ZOOM_DEFAULT,
         cameraPreview: false,
+        projectLoadEpoch: state.projectLoadEpoch + 1,
       }
     }
     case 'MARK_PROJECT_SAVED':
