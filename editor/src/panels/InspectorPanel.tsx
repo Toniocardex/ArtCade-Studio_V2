@@ -60,8 +60,8 @@ function InspectorTabBar({
       role="tablist"
       aria-label="Inspector sections"
     >
-      {btn('entity', 'Entity')}
       {btn('scene', 'Scene')}
+      {btn('entity', 'Entity')}
     </div>
   )
 }
