@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../../core/engine-context.h"
+#include "../../core/runtime-profiler.h"
 #include "../../core/types.h"
 #include <memory>
 #include <string>
@@ -41,6 +42,7 @@ private:
     std::unique_ptr<Modules> mod_;
 
     EngineContext ctx_;
+    RuntimeProfiler profiler_;
 
     // Top-level init — chiama i tre helper in ordine
     bool initModules(const std::string& projectPath);

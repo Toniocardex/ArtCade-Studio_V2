@@ -37,6 +37,7 @@
 
 #include <cstring>
 #include <algorithm>
+#include <chrono>
 #include <iostream>
 #include <memory>
 #include <vector>
@@ -154,6 +155,7 @@ bool Application::initUtilities() {
     ctx_.layerManager    = mod_->layerManager.get();
     ctx_.cameraManager   = mod_->cameraManager.get();
     ctx_.saveLoadManager = mod_->saveLoadManager.get();
+    ctx_.profiler        = &profiler_;
 
     mod_->gameStateManager = std::make_unique<ArtCade::Modules::GameStateManager>();
     mod_->gameStateManager->setEventBus(mod_->eventBus.get());
@@ -351,6 +353,12 @@ bool Application::loadProject(const std::string& projectPath) {
 // ---- Single frame -------------------------------------------------------
 
 void Application::loopIteration() {
+    using Clock = std::chrono::steady_clock;
+    auto elapsedMs = [](Clock::time_point start) {
+        return std::chrono::duration<double, std::milli>(
+            Clock::now() - start).count();
+    };
+    profiler_.beginFrame();
     // Su WASM non c'è "shouldClose" (il browser gestisce la chiusura)
 #ifndef ARTCADE_WASM
     if (!running_ || mod_->renderer->shouldClose()) {
@@ -370,7 +378,12 @@ void Application::loopIteration() {
         accumulator_ = targetDt_ * 4.f;
 
     mod_->input->poll();
-    mod_->gameAPI->dispatchInputEvents();
+    {
+        const auto start = Clock::now();
+        const uint32_t events = mod_->gameAPI->dispatchInputEvents();
+        profiler_.addLuaMs(elapsedMs(start));
+        profiler_.addLuaEvents(events);
+    }
 
     // Fixed timestep
     while (accumulator_ >= targetDt_) {
@@ -381,18 +394,36 @@ void Application::loopIteration() {
         // still appear as ghosts from tick N-1 (the coin-pickup flash).
         mod_->renderer->clearDrawQueue();
 
-        mod_->timeManager->tick(targetDt_);
-        mod_->tweenManager->update(targetDt_);
-        mod_->spriteAnimator->update(targetDt_);
-        mod_->layerManager->update(targetDt_);
-        mod_->cameraManager->update(targetDt_);
-        mod_->gameStateManager->update(targetDt_);
-        mod_->eventBus->flushDeferred();
-        mod_->world->tickGameplaySystems(targetDt_);
-        mod_->gameAPI->dispatchSensorEvents();
-        mod_->entityGateway->tickSceneTransition(targetDt_);
-        mod_->luaHost->tick(targetDt_);
-        mod_->physics->step(targetDt_);
+        {
+            const auto start = Clock::now();
+            mod_->timeManager->tick(targetDt_);
+            mod_->tweenManager->update(targetDt_);
+            mod_->spriteAnimator->update(targetDt_);
+            mod_->layerManager->update(targetDt_);
+            mod_->cameraManager->update(targetDt_);
+            mod_->gameStateManager->update(targetDt_);
+            mod_->eventBus->flushDeferred();
+            mod_->world->tickGameplaySystems(targetDt_);
+            mod_->entityGateway->tickSceneTransition(targetDt_);
+            profiler_.addGameplayMs(elapsedMs(start));
+        }
+        {
+            const auto start = Clock::now();
+            const uint32_t events = mod_->gameAPI->dispatchSensorEvents();
+            profiler_.addLuaMs(elapsedMs(start));
+            profiler_.addLuaEvents(events);
+        }
+        {
+            const auto start = Clock::now();
+            mod_->luaHost->tick(targetDt_);
+            profiler_.addLuaMs(elapsedMs(start));
+            profiler_.setLuaTickEnabled(mod_->luaHost->isScriptTickRequired());
+        }
+        {
+            const auto start = Clock::now();
+            mod_->physics->step(targetDt_);
+            profiler_.addPhysicsMs(elapsedMs(start));
+        }
         mod_->world->syncPhysicsToEntities();
         mod_->world->flushEntityQueues();
 
@@ -400,7 +431,12 @@ void Application::loopIteration() {
         // signals to Lua handlers registered via lifecycle.onSpawn /
         // lifecycle.onDestroy. Runs *after* flushEntityQueues so all
         // queued spawn+destroy of this step are visible in order.
-        mod_->gameAPI->dispatchLifecycleEvents();
+        {
+            const auto start = Clock::now();
+            const uint32_t events = mod_->gameAPI->dispatchLifecycleEvents();
+            profiler_.addLuaMs(elapsedMs(start));
+            profiler_.addLuaEvents(events);
+        }
 
         // AutoDestroy system (Phase D1): lifespan>0 → destroy after N seconds.
         // EnTT visitor: mutable AutoDestroyComponent& so the countdown is
@@ -417,10 +453,19 @@ void Application::loopIteration() {
                     if (a._timeAlive >= a.lifespan)
                         gateway->queueDestroy(id);
                 });
-            mod_->world->flushEntityQueues();
+            {
+                const auto start = Clock::now();
+                mod_->world->flushEntityQueues();
+                profiler_.addGameplayMs(elapsedMs(start));
+            }
             // Drain the lifecycle events queued by the auto-destroy
             // flush so onDestroy handlers see them this frame, not the next.
-            mod_->gameAPI->dispatchLifecycleEvents();
+            {
+                const auto start = Clock::now();
+                const uint32_t events = mod_->gameAPI->dispatchLifecycleEvents();
+                profiler_.addLuaMs(elapsedMs(start));
+                profiler_.addLuaEvents(events);
+            }
         }
 
         mod_->audio->update();
@@ -433,9 +478,24 @@ void Application::loopIteration() {
         accumulator_ -= targetDt_;
     }
 
-    renderActiveScene();
+    {
+        uint32_t physicsBodies = 0;
+        const auto activeIds = mod_->entityGateway->activeSceneIds();
+        for (EntityId id : activeIds) {
+            if (mod_->entityGateway->physicsHandle(id) != 0)
+                ++physicsBodies;
+        }
+        profiler_.setCounts(
+            static_cast<uint32_t>(activeIds.size()), physicsBodies);
+    }
+    {
+        const auto start = Clock::now();
+        renderActiveScene();
+        profiler_.setRenderMs(elapsedMs(start));
+    }
     EditorAPI::flushConsoleLines();
     mod_->input->resetFrameState();
+    profiler_.endFrame();
 }
 
 // ---- Main loop ----------------------------------------------------------

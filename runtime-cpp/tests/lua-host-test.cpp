@@ -124,6 +124,22 @@ static void test_repeated_errors() {
     host.shutdown();
 }
 
+static void test_tick_can_be_disabled() {
+    std::cout << "Test 8: event-only script can disable tick()\n";
+    LuaHost host;
+    host.init();
+    load(host,
+        "__artcade_requires_tick = false\n"
+        "function tick(dt)\n"
+        "    error('tick should be skipped')\n"
+        "end");
+    CHECK(!host.hasError());
+    CHECK(!host.isScriptTickRequired());
+    host.tick(0.016f);
+    CHECK(!host.hasError());
+    host.shutdown();
+}
+
 // -------------------------------------------------------------------------
 
 int main() {
@@ -136,6 +152,7 @@ int main() {
     test_syntax_error();
     test_missing_tick();
     test_repeated_errors();
+    test_tick_can_be_disabled();
 
     std::cout << "\nResults: " << g_passed << " passed, "
               << g_failed  << " failed\n";

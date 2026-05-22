@@ -503,6 +503,16 @@ function docUsesTriggerType(doc: LogicBoardDoc, types: Set<string>): boolean {
   return false
 }
 
+function docUsesTickFallback(doc: LogicBoardDoc, type: string): boolean {
+  for (const board of doc) {
+    for (const ev of board.events) {
+      if (!ev.enabled) continue
+      if (ev.trigger.type === type && usesTickFallback(ev, board)) return true
+    }
+  }
+  return false
+}
+
 const SENSOR_POLL_PREAMBLE = [
   `${INDENT}local _sensor_by_ent = {}`,
   `${INDENT}for _, se in ipairs(sensor.poll()) do`,
@@ -608,13 +618,6 @@ export function compileLogicBoard(doc: LogicBoardDoc): string {
 
   const initBlocks: string[] = []
   const tickBlocks: string[] = []
-  const useSensor = docUsesTriggerType(
-    doc,
-    new Set(['onTriggerEnter', 'onTriggerExit']),
-  )
-  const useAnim = docUsesTriggerType(doc, new Set(['onAnimationEnd']))
-  const useDestroy = docUsesTriggerType(doc, new Set(['onDestroy']))
-
   for (const board of doc) {
     const { init, tick } = emitBoard(board)
     if (init.length) {
@@ -624,10 +627,22 @@ export function compileLogicBoard(doc: LogicBoardDoc): string {
       tickBlocks.push(`${INDENT}-- board: ${board.boardId}`, ...tick)
     }
   }
+  const useSensor = docUsesTickFallback(doc, 'onTriggerEnter') ||
+    docUsesTickFallback(doc, 'onTriggerExit')
+  const useAnim = docUsesTriggerType(doc, new Set(['onAnimationEnd']))
+  const useDestroy = docUsesTickFallback(doc, 'onDestroy')
+  const hasPollingLogic =
+    tickBlocks.length > 0 || useSensor || useAnim || useDestroy
 
   const body = [
     'local function _logic_init()',
     ...initBlocks,
+    'end',
+    '',
+    `__artcade_requires_tick = ${hasPollingLogic ? 'true' : 'false'} or (__artcade_project_tick ~= nil)`,
+    'if not __artcade_requires_tick and not _init_done then',
+    `${INDENT}_logic_init()`,
+    `${INDENT}_init_done = true`,
     'end',
     '',
     'function tick(dt)',

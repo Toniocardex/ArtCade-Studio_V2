@@ -59,6 +59,16 @@ Direzione scelta:
   - heartbeat demo basato su `time.every`;
   - componente Lua `Platformer` legacy usa input events, `movement.setIntent`
     e `platformer.requestJump`.
+- Profiler runtime leggero aggiunto:
+  - `RuntimeProfiler` interno;
+  - metriche frame per Lua, physics, gameplay, render, entity count,
+    active physics bodies, event count e stato tick Lua;
+  - accesso Lua opzionale via `debug.profile()`.
+- Riduzione tick Lua aggiunta:
+  - `LuaHost` legge `__artcade_requires_tick`;
+  - il compiler Logic Board marca graph event-only come tick-free quando non
+    esiste un project tick da preservare;
+  - `_time_update(dt)` continua a girare anche quando il tick script e' saltato.
 
 ### Verifiche Ultima Tranche
 
@@ -68,6 +78,12 @@ Direzione scelta:
 - `npm.cmd run build`: passato.
 - `runtime-cpp/build_wasm.bat`: passato.
 - Tranche 4: sintassi Lua demo verificata con `wasmoon`.
+- Tranche 5/6:
+  - `npm.cmd test`: 188/188 passati.
+  - `npm.cmd run build`: passato.
+  - Build C++ Release: passata.
+  - `ctest --test-dir runtime-cpp/build-msvc --output-on-failure`: 17/17 passati.
+  - `runtime-cpp/build_wasm.bat`: passato.
 
 Warning residui noti:
 
@@ -198,7 +214,7 @@ Nota tecnica:
 
 ## Tranche 5 - Profiling Runtime
 
-Stato: pianificata.
+Stato: completata.
 
 Metriche target:
 
@@ -211,34 +227,72 @@ Metriche target:
 - Lua event count.
 - Lua tick enabled/disabled.
 
-Obiettivi:
+Completato:
 
-- Profiler leggero C++.
-- Snapshot per frame o media mobile.
-- Esposizione a ConsolePanel o pannello debug opzionale.
-- Nessun logging rumoroso per default.
+- Aggiunto `runtime-cpp/src/core/runtime-profiler.h`.
+- `Application` misura:
+  - Lua/event dispatch;
+  - gameplay systems;
+  - physics step;
+  - render frame;
+  - entity count;
+  - active physics body count;
+  - Lua event handler count;
+  - stato `luaTickEnabled`.
+- `debug.profile()` restituisce uno snapshot Lua senza loggare nulla.
 
 Exit criteria:
 
-- Profiling disattivabile.
-- Nessun impatto visibile in gameplay normale.
-- Metriche utili per decidere quando ridurre `luaHost->tick`.
+- Nessun logging rumoroso per default.
+- Metriche disponibili on-demand.
+- Test/build verdi.
 
 ## Tranche 6 - Riduzione Graduale Tick Lua
 
-Stato: pianificata.
+Stato: completata.
 
-Obiettivi:
+Completato:
 
-- Introdurre flag/runtime mode per sapere se `tick(dt)` e' richiesto.
-- Disabilitare tick Lua per script completamente event-driven.
-- Mantenere compatibilita per progetti legacy.
+- `LuaHost` mantiene `scriptTickRequired`.
+- `LuaHost::tick(dt)` esegue sempre `_time_update(dt)`, ma salta `tick(dt)`
+  quando `__artcade_requires_tick == false`.
+- Il compiler Logic Board:
+  - esegue `_logic_init()` subito per graph event-only senza project tick;
+  - imposta `__artcade_requires_tick = false` per graph event-only;
+  - imposta `true` quando servono fallback polling o un project tick da
+    preservare.
+- Aggiunto test `lua_host_test` per tick disabilitato.
 
 Exit criteria:
 
-- Progetti legacy continuano a funzionare.
-- Progetti event-driven possono girare senza tick polling continuo.
-- Profiler mostra riduzione tempo Lua quando tick e' disabilitato.
+- Progetti legacy continuano a funzionare: fallback default `true`.
+- Graph event-driven possono girare senza polling continuo.
+- Profiler espone `luaTickEnabled`.
+- Test/build verdi.
+
+## Tranche 7 - UI Logic Board Event-First
+
+Stato: prossimo step.
+
+Obiettivi:
+
+- Rendere visibile in UI quali trigger/blocchi sono event-driven e quali sono
+  fallback polling.
+- Promuovere trigger event-first come default:
+  - `On Spawn`;
+  - `Input Pressed/Released`;
+  - `Sensor Enter/Exit`;
+  - `Timer`.
+- Marcare `Every frame`, `Input Down`, collision polling, mouse polling e
+  animation polling come Advanced/Polling.
+- Aggiungere copy/tooltip chiari senza introdurre testo didascalico invasivo.
+- Preparare il futuro picker per sensori reali nel demo e nella Logic Board.
+
+Exit criteria:
+
+- UI coerente con compiler event-first.
+- Nessuna modifica runtime obbligatoria.
+- `npm.cmd test` e `npm.cmd run build` verdi.
 
 ## Checklist Da Eseguire A Ogni Tranche
 

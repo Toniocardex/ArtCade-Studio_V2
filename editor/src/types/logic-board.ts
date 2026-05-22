@@ -7,8 +7,8 @@
 //   • Logic Component — an atomic brick (a Trigger, a Condition or an Action)
 //                        NOT to be confused with an ECS Component (data).
 //
-// The runtime never parses this JSON: the editor compiles it to a single
-// Lua `tick(dt)` entry point (see utils/logic-board/compiler.ts). The API
+// The runtime never parses this JSON: the editor compiles it to Lua event
+// handlers plus a compatibility `tick(dt)` when polling is required. The API
 // surface used by the generated Lua is the real dot-notation prelude exposed
 // by runtime-cpp/src/modules/game-api/src/*.cpp.
 //

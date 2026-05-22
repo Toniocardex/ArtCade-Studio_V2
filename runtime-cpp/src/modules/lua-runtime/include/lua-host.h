@@ -44,6 +44,7 @@ public:
 
     // Execute the global "tick" function (called every fixed step)
     void tick(float dt);
+    bool isScriptTickRequired() const;
 
     // Execute an arbitrary named global function
     void callFunction(const std::string& name);

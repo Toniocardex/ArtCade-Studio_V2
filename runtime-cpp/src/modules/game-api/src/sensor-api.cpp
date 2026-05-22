@@ -52,17 +52,19 @@ void appendPendingSensorEvent(sol::state& lua,
     sensor["_pending"] = pending;
 }
 
-void dispatchSensorList(sol::state& lua,
+uint32_t dispatchSensorList(sol::state& lua,
                         sol::table list,
                         const SensorEdgeEvent& ev)
 {
-    if (!list.valid()) return;
+    if (!list.valid()) return 0;
+    uint32_t dispatched = 0;
     for (size_t i = 1; ; ++i) {
         sol::object slot = list[i];
         if (!slot.valid() || slot == sol::nil) break;
         sol::protected_function fn = slot.as<sol::protected_function>();
         if (!fn.valid()) continue;
         auto result = fn(ev.entityId, ev.otherId, ev.targetTag);
+        ++dispatched;
         if (!result.valid()) {
             sol::error err = result;
             sol::protected_function debugLog = lua["debug"]["log"];
@@ -70,19 +72,22 @@ void dispatchSensorList(sol::state& lua,
                 debugLog(std::string("[sensor handler error] ") + err.what());
         }
     }
+    return dispatched;
 }
 
-void dispatchSensorHandlers(sol::state& lua,
+uint32_t dispatchSensorHandlers(sol::state& lua,
                             sol::table bag,
                             const std::vector<std::string>& keys,
                             const SensorEdgeEvent& ev)
 {
-    if (!bag.valid()) return;
+    if (!bag.valid()) return 0;
+    uint32_t dispatched = 0;
     for (const std::string& key : keys) {
         sol::object listObj = bag[key];
         if (!listObj.is<sol::table>()) continue;
-        dispatchSensorList(lua, listObj.as<sol::table>(), ev);
+        dispatched += dispatchSensorList(lua, listObj.as<sol::table>(), ev);
     }
+    return dispatched;
 }
 
 std::vector<std::string> sensorDispatchKeys(EntityId entityId,
@@ -176,27 +181,29 @@ void GameAPI::bindSensorAPI(sol::state& lua) {
     )");
 }
 
-void GameAPI::dispatchSensorEvents() {
-    if (!luaState_ || !ctx_.world) return;
+uint32_t GameAPI::dispatchSensorEvents() {
+    if (!luaState_ || !ctx_.world) return 0;
 
     const auto events = ctx_.world->pollSensorEdges();
-    if (events.empty()) return;
+    if (events.empty()) return 0;
 
     sol::state& lua = *luaState_;
     sol::table sensor = lua["sensor"];
-    if (!sensor.valid()) return;
+    if (!sensor.valid()) return 0;
 
     sol::table enterBag = sensor["_onEnter"];
     sol::table exitBag  = sensor["_onExit"];
 
+    uint32_t dispatched = 0;
     for (const SensorEdgeEvent& ev : events) {
         appendPendingSensorEvent(lua, sensor, ev);
         const std::string cls = ctx_.entityGateway
             ? ctx_.entityGateway->className(ev.entityId)
             : std::string{};
         const auto keys = sensorDispatchKeys(ev.entityId, cls, ev.targetTag);
-        dispatchSensorHandlers(lua, ev.enter ? enterBag : exitBag, keys, ev);
+        dispatched += dispatchSensorHandlers(lua, ev.enter ? enterBag : exitBag, keys, ev);
     }
+    return dispatched;
 }
 
 } // namespace ArtCade::Modules

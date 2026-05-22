@@ -89,6 +89,31 @@ describe('compileLogicBoard — structure', () => {
     expect(lua).toContain('local _logic_timers = {}')
   })
 
+  it('marks event-only boards as not requiring Lua tick when no project tick exists', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({
+          trigger: { type: 'onInput', keyCode: 'Space', eventType: 'pressed' },
+          actions: [{ type: 'debugLog', message: 'jump' }],
+        }),
+      ]),
+    ])
+    expect(lua).toContain('__artcade_requires_tick = false or (__artcade_project_tick ~= nil)')
+    expect(lua).toContain('if not __artcade_requires_tick and not _init_done then')
+  })
+
+  it('marks polling boards as requiring Lua tick', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({
+          trigger: { type: 'onUpdate' },
+          actions: [{ type: 'debugLog', message: 'frame' }],
+        }),
+      ]),
+    ])
+    expect(lua).toContain('__artcade_requires_tick = true or (__artcade_project_tick ~= nil)')
+  })
+
   it('onStart goes into init block, not tick body', () => {
     const lua = compileLogicBoard([
       board([

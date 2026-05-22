@@ -37,6 +37,7 @@ namespace Modules {
     class SaveLoadManager;
 }
 class World;
+class RuntimeProfiler;
 
 struct EngineContext {
     // ---- core systems (existed before) ----
@@ -50,6 +51,7 @@ struct EngineContext {
     Modules::AssetLoader*   assetLoader   = nullptr;
     Modules::GameAPI*       gameAPI       = nullptr;
     World*                  world         = nullptr;
+    RuntimeProfiler*        profiler      = nullptr;
 
     // ---- new modules ----
     Modules::TimeManager*      timeManager      = nullptr;

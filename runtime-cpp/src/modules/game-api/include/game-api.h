@@ -2,6 +2,7 @@
 
 #include "../../../core/module.h"
 #include "../../../core/engine-context.h"
+#include <cstdint>
 
 // Forward-declare sol::state — avoids pulling sol2 into every includer
 namespace sol { class state; }
@@ -46,9 +47,9 @@ public:
      *  Called once per fixed step from the main loop, after
      *  flushEntityQueues so spawn → destroy in the same frame are visible
      *  in arrival order. No-op when the Lua state has not been bound yet. */
-    void dispatchLifecycleEvents();
-    void dispatchInputEvents();
-    void dispatchSensorEvents();
+    uint32_t dispatchLifecycleEvents();
+    uint32_t dispatchInputEvents();
+    uint32_t dispatchSensorEvents();
 
 private:
     const EngineContext& ctx_;

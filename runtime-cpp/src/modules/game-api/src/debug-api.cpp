@@ -1,4 +1,5 @@
 #include "../include/game-api.h"
+#include "../../../core/runtime-profiler.h"
 #include "../../renderer/include/renderer.h"
 #include "../../editor-api/include/editor-api.h"
 
@@ -9,6 +10,7 @@ namespace ArtCade::Modules {
 
 void GameAPI::bindDebugAPI(sol::state& lua) {
     auto* renderer = ctx_.renderer;
+    auto* profiler = ctx_.profiler;
 
     lua.set_function("debug_log", [](const std::string& msg) {
         std::cout << "[Lua] " << msg << std::endl;  // endl flushes, ensuring capture in redirected stdout
@@ -68,6 +70,22 @@ void GameAPI::bindDebugAPI(sol::state& lua) {
                                int fontSize, const std::string& color) {
             renderer->drawText(text, x, y, fontSize, parseColor(color));
         });
+    lua.set_function("debug_profile",
+        [profiler](sol::this_state ts) -> sol::table {
+            sol::state_view lua(ts);
+            sol::table out = lua.create_table();
+            if (!profiler) return out;
+            const auto s = profiler->snapshot();
+            out["luaMs"] = s.luaMs;
+            out["physicsMs"] = s.physicsMs;
+            out["gameplayMs"] = s.gameplayMs;
+            out["renderMs"] = s.renderMs;
+            out["entityCount"] = s.entityCount;
+            out["activePhysicsBodies"] = s.activePhysicsBodies;
+            out["luaEventCount"] = s.luaEventCount;
+            out["luaTickEnabled"] = s.luaTickEnabled;
+            return out;
+        });
 
     lua.script(R"(
         debug = {}
@@ -76,6 +94,7 @@ void GameAPI::bindDebugAPI(sol::state& lua) {
         debug.drawRect   = function(x,y,w,h,color)            return debug_drawRect(x,y,w,h,color or "yellow")    end
         debug.drawCircle = function(x,y,r,color)              return debug_drawCircle(x,y,r,color or "white")     end
         debug.drawText   = function(text,x,y,fontSize,color)  return debug_drawText(text,x,y,fontSize or 20,color or "white") end
+        debug.profile    = function()                         return debug_profile()                              end
     )");
 }
 

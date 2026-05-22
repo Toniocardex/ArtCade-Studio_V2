@@ -56,12 +56,13 @@ void GameAPI::bindInputAPI(sol::state& lua) {
 
 namespace {
 
-void dispatchInputBag(sol::state& lua,
+uint32_t dispatchInputBag(sol::state& lua,
                       sol::table bag,
                       const std::function<bool(const std::string&)>& isActive)
 {
-    if (!bag.valid()) return;
+    if (!bag.valid()) return 0;
 
+    uint32_t dispatched = 0;
     for (auto&& kv : bag) {
         sol::object keyObj = kv.first;
         sol::object listObj = kv.second;
@@ -78,6 +79,7 @@ void dispatchInputBag(sol::state& lua,
             sol::protected_function fn = slot.as<sol::protected_function>();
             if (!fn.valid()) continue;
             auto result = fn(code);
+            ++dispatched;
             if (!result.valid()) {
                 sol::error err = result;
                 sol::protected_function debugLog = lua["debug"]["log"];
@@ -86,28 +88,31 @@ void dispatchInputBag(sol::state& lua,
             }
         }
     }
+    return dispatched;
 }
 
 } // namespace
 
-void GameAPI::dispatchInputEvents() {
-    if (!luaState_ || !ctx_.input) return;
+uint32_t GameAPI::dispatchInputEvents() {
+    if (!luaState_ || !ctx_.input) return 0;
 
     sol::state& lua = *luaState_;
     sol::table input = lua["input"];
-    if (!input.valid()) return;
+    if (!input.valid()) return 0;
 
     sol::table pressedBag  = input["_onPressed"];
     sol::table releasedBag = input["_onReleased"];
 
-    dispatchInputBag(lua, pressedBag,
+    uint32_t dispatched = 0;
+    dispatched += dispatchInputBag(lua, pressedBag,
         [input = ctx_.input](const std::string& code) {
             return input->wasKeyPressed(code);
         });
-    dispatchInputBag(lua, releasedBag,
+    dispatched += dispatchInputBag(lua, releasedBag,
         [input = ctx_.input](const std::string& code) {
             return input->wasKeyReleased(code);
         });
+    return dispatched;
 }
 
 } // namespace ArtCade::Modules

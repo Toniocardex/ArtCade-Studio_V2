@@ -12,7 +12,17 @@ namespace ArtCade::Modules {
 struct LuaHost::Impl {
     sol::state lua;
     bool       scriptLoaded = false;
+    bool       scriptTickRequired = true;
 };
+
+namespace {
+bool readTickRequirement(sol::state& lua) {
+    sol::object flag = lua["__artcade_requires_tick"];
+    if (flag.is<bool>())
+        return flag.as<bool>();
+    return true;
+}
+}
 
 // ------------------------------------------------------------------ lifecycle
 
@@ -81,6 +91,7 @@ bool LuaHost::loadBytecodeBuffer(const uint8_t* data, size_t size) {
     }
 
     impl_->scriptLoaded = true;
+    impl_->scriptTickRequired = readTickRequirement(impl_->lua);
     lastError_.clear();
     return true;
 }
@@ -103,6 +114,7 @@ bool LuaHost::loadBytecodeFile(const std::string& path) {
     }
 
     impl_->scriptLoaded = true;
+    impl_->scriptTickRequired = readTickRequirement(impl_->lua);
     lastError_.clear();
     return true;
 }
@@ -120,6 +132,7 @@ bool LuaHost::loadLuaSource(const std::string& sourceCode) {
     }
 
     impl_->scriptLoaded = true;
+    impl_->scriptTickRequired = readTickRequirement(impl_->lua);
     lastError_.clear();
     return true;
 }
@@ -141,6 +154,11 @@ void LuaHost::tick(float dt) {
         }
     }
 
+    if (!impl_->scriptTickRequired) {
+        lua_gc(impl_->lua.lua_state(), LUA_GCSTEP, 5);
+        return;
+    }
+
     sol::protected_function fn = impl_->lua["tick"];
     if (!fn.valid()) return;
 
@@ -154,6 +172,10 @@ void LuaHost::tick(float dt) {
     // This spreads collection across frames so no single frame pays the full
     // GC cost when a burst of objects (coin, particles, callbacks) is freed.
     lua_gc(impl_->lua.lua_state(), LUA_GCSTEP, 5);
+}
+
+bool LuaHost::isScriptTickRequired() const {
+    return impl_->scriptTickRequired;
 }
 
 void LuaHost::callFunction(const std::string& name) {

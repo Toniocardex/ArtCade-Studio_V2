@@ -82,20 +82,21 @@ void GameAPI::bindLifecycleAPI(sol::state& lua) {
 // handler are logged via debug.log but don't abort the dispatch (one bad
 // script shouldn't take down the rest of the game's reactive logic).
 // ---------------------------------------------------------------------------
-void GameAPI::dispatchLifecycleEvents() {
-    if (!luaState_ || !ctx_.entityGateway) return;
+uint32_t GameAPI::dispatchLifecycleEvents() {
+    if (!luaState_ || !ctx_.entityGateway) return 0;
 
     std::vector<LifecycleEvent> events;
     ctx_.entityGateway->drainLifecycleEvents(events);
-    if (events.empty()) return;
+    if (events.empty()) return 0;
 
     sol::state& lua = *luaState_;
     sol::table lifecycle = lua["lifecycle"];
-    if (!lifecycle.valid()) return;
+    if (!lifecycle.valid()) return 0;
 
     sol::table spawnBag   = lifecycle["_onSpawn"];
     sol::table destroyBag = lifecycle["_onDestroy"];
 
+    uint32_t dispatched = 0;
     for (const LifecycleEvent& ev : events) {
         sol::object listObj = (ev.kind == LifecycleEvent::Kind::Spawned
                                ? spawnBag : destroyBag)[ev.className];
@@ -114,6 +115,7 @@ void GameAPI::dispatchLifecycleEvents() {
             sol::protected_function fn = slot.as<sol::protected_function>();
             if (!fn.valid()) continue;
             auto result = fn(ev.id, tagsTbl);
+            ++dispatched;
             if (!result.valid()) {
                 sol::error err = result;
                 sol::protected_function debugLog = lua["debug"]["log"];
@@ -123,6 +125,7 @@ void GameAPI::dispatchLifecycleEvents() {
             }
         }
     }
+    return dispatched;
 }
 
 } // namespace ArtCade::Modules
