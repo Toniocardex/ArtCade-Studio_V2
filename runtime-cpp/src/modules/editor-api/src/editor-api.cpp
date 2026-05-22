@@ -372,7 +372,7 @@ EMSCRIPTEN_KEEPALIVE void editor_set_scene_settings(
 
         if (gateway->activeSceneId() == sceneId) {
             if (auto* r = ArtCade::EditorAPI::s_renderer) {
-                if (const SceneDef* sc = gateway->activeScene()) {
+                if (const ArtCade::SceneDef* sc = gateway->activeScene()) {
                     if (sc->worldSize.x > 0.f && sc->worldSize.y > 0.f) {
                         r->setWindowSize(
                             static_cast<uint32_t>(sc->worldSize.x),

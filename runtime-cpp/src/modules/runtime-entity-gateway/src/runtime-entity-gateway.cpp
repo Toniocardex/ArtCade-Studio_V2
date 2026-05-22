@@ -397,7 +397,9 @@ size_t RuntimeEntityGateway::activeSceneEntityCount() const {
 
 size_t RuntimeEntityGateway::activePhysicsBodyCount() const {
     size_t n = 0;
-    forEachActivePhysicsBody([&n](EntityId, uint32_t, Transform&) { ++n; });
+    for (EntityId id : registry_->allIds()) {
+        if (isEntityActiveInScene(id) && physicsHandle(id) != 0) ++n;
+    }
     return n;
 }
 

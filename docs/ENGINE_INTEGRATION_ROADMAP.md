@@ -90,7 +90,7 @@ Integrazione roadmap Tranche 1–10 completata. Follow-up opzionali:
   (inclusi `asset_loader_test`, health/sensor debt-fix tests).
 - `npm.cmd test` in `editor`: 200/200 passati.
 - `npm.cmd run build`: passato.
-- `runtime-cpp/build_wasm.bat`: da rieseguire dopo fix runtime.
+- `runtime-cpp/build_wasm.bat`: passato dopo fix runtime.
 
 Warning residui noti:
 
