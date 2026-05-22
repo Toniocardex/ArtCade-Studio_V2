@@ -43,7 +43,7 @@ export default function EventCard({
   const project = state.project
   const ifLines = conditionsPlainList(event, project)
   const dim = event.enabled ? '' : 'opacity-50'
-  const execBadge = triggerExecutionBadge(event, board)
+  const execBadge = triggerExecutionBadge(event, board, project)
 
   return (
     <div

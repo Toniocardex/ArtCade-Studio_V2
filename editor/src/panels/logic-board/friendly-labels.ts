@@ -133,13 +133,17 @@ export function triggerCategory(type: LogicTriggerType): string {
 export function triggerExecutionBadge(
   event: LogicEvent,
   board?: LogicBoard | null,
+  project?: ProjectDoc | null,
 ): { label: string; title: string } {
   const mode = getTriggerExecutionMode(
     event.trigger,
     board ?? undefined,
     event,
+    project,
   )
-  const polling = board ? usesTickFallback(event, board) : mode === 'polling'
+  const polling = board
+    ? usesTickFallback(event, board, project)
+    : mode === 'polling'
   const label = polling ? 'Polling' : mode === 'hybrid' ? 'Event*' : 'Event'
   const title = polling
     ? 'This rule runs inside tick(dt) each frame or polls state.'

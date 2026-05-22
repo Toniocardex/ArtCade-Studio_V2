@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { LogicBoard, LogicEvent } from '../../types/logic-board'
+import type { ProjectDoc } from '../../types'
 import {
   canRegisterLifecycleDestroy,
   canRegisterLifecycleSpawn,
@@ -58,6 +59,28 @@ describe('trigger-execution', () => {
     const event = ev({ type: 'onSpawn', className: 'Bullet' })
     expect(canRegisterLifecycleSpawn(event, b)).toBe(true)
     expect(usesTickFallback(event, b)).toBe(false)
+  })
+
+  it('onDestroy on entity_id board resolves class from project', () => {
+    const b = board({ type: 'entity_id', entityId: 1 })
+    const event = ev({ type: 'onDestroy' })
+    const project = {
+      projectName: 'T',
+      version: '2.0.0',
+      targetFPS: 60,
+      activeSceneId: 's',
+      mainScriptPath: 'scripts/main.lua',
+      entities: {
+        1: {
+          id: 1, name: 'H', className: 'Player', tags: [],
+          transform: { position: { x: 0, y: 0 }, scale: { x: 1, y: 1 }, rotation: 0 },
+          sprite: { spriteAssetId: '', tint: { x: 1, y: 1, z: 1, w: 1 }, alpha: 1, pivot: { x: 0.5, y: 0.5 }, renderOrder: 0 },
+        },
+      },
+      scenes: {},
+    } satisfies ProjectDoc
+    expect(canRegisterLifecycleDestroy(event, b, project)).toBe(true)
+    expect(usesTickFallback(event, b, project)).toBe(false)
   })
 
   it('onMouseInput is always polling', () => {

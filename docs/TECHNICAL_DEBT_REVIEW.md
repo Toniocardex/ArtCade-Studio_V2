@@ -41,8 +41,8 @@ Aperto (priorita media per Phase successive):
 
 Aperto (engine integration — post Tranche 10):
 
-- Fallback `lifecycle.pollDestroyed` nel compiler Logic Board (solo board senza classe lifecycle).
 - `AnimationState` non promosso a componente EnTT (by design finche' non serve cross-system).
+- `lifecycle.pollDestroyed` solo per board orfane senza classe risolvibile nel project.
 
 Risolto (engine integration follow-up):
 

@@ -65,8 +65,8 @@ export default function ScriptEditorPanel() {
 
   const compiledLua = useMemo(() => {
     if (!project?.logicBoards?.length) return null
-    return compileLogicBoard(project.logicBoards)
-  }, [project?.logicBoards])
+    return compileLogicBoard(project.logicBoards, project)
+  }, [project?.logicBoards, project])
 
   const mainPath = project?.mainScriptPath ?? null
   const showConflict =

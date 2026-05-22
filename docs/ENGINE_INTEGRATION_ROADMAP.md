@@ -88,7 +88,7 @@ Integrazione roadmap Tranche 1–10 completata. Follow-up opzionali:
 - Build C++ Release: passata (locale).
 - `ctest --test-dir runtime-cpp/build-msvc --output-on-failure`: atteso 18/18
   (inclusi `asset_loader_test`, health/sensor debt-fix tests).
-- `npm.cmd test` in `editor`: 198/198 passati.
+- `npm.cmd test` in `editor`: 200/200 passati.
 - `npm.cmd run build`: passato.
 - `runtime-cpp/build_wasm.bat`: da rieseguire dopo fix runtime.
 

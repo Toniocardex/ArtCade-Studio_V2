@@ -7,6 +7,7 @@ import {
   conditionExpr,
 } from './compiler'
 import type { LogicBoard, LogicEvent } from '../../types/logic-board'
+import type { ProjectDoc } from '../../types'
 
 // Small helpers to build boards tersely.
 function board(events: LogicEvent[], className = 'Player'): LogicBoard {
@@ -14,6 +15,29 @@ function board(events: LogicEvent[], className = 'Player'): LogicBoard {
 }
 function ev(partial: Partial<LogicEvent> & Pick<LogicEvent, 'trigger' | 'actions'>): LogicEvent {
   return { id: 'e1', enabled: true, ...partial }
+}
+
+function miniProject(): ProjectDoc {
+  return {
+    projectName: 'T',
+    version: '2.0.0',
+    targetFPS: 60,
+    activeSceneId: 's',
+    mainScriptPath: 'scripts/main.lua',
+    entities: {
+      1: {
+        id: 1, name: 'Hero', className: 'Player', tags: [],
+        transform: { position: { x: 0, y: 0 }, scale: { x: 1, y: 1 }, rotation: 0 },
+        sprite: { spriteAssetId: '', tint: { x: 1, y: 1, z: 1, w: 1 }, alpha: 1, pivot: { x: 0.5, y: 0.5 }, renderOrder: 0 },
+      },
+    },
+    scenes: {
+      s: {
+        id: 's', name: 'S', worldSize: { x: 1280, y: 720 }, viewportSize: { x: 1280, y: 720 },
+        backgroundColor: { x: 0, y: 0, z: 0, w: 1 }, entityIds: [1],
+      },
+    },
+  }
 }
 
 describe('literal helpers', () => {
@@ -407,6 +431,25 @@ describe('Logic Components — Phase C (engine-hook triggers)', () => {
     ])
     expect(lua).toContain('lifecycle.onSpawn("Player", function(entityId, tags)')
     expect(lua).toContain('debug.log("spawned")')
+  })
+
+  it('onDestroy on entity_id board registers lifecycle.onDestroy via project class', () => {
+    const project = miniProject()
+    const lua = compileLogicBoard([
+      {
+        boardId: 'hero',
+        target: { type: 'entity_id', entityId: 1 },
+        events: [
+          ev({
+            trigger: { type: 'onDestroy' },
+            actions: [{ type: 'debugLog', message: 'gone' }],
+          }),
+        ],
+      },
+    ], project)
+    expect(lua).toContain('lifecycle.onDestroy("Player", function(entityId, tags)')
+    expect(lua).not.toContain('lifecycle.pollDestroyed()')
+    expect(lua).toContain('debug.log("gone")')
   })
 
   it('onTriggerEnter registers a sensor enter handler', () => {

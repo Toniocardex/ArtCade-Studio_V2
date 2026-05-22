@@ -73,7 +73,10 @@ export default function LogicBoardPanel() {
     if (existing) setSelectedBoardId(existing.boardId)
   }, [state.mode, selection.entityId, project])
 
-  const lua = useMemo(() => compileLogicBoard(boards), [boards])
+  const lua = useMemo(
+    () => compileLogicBoard(boards, state.project),
+    [boards, state.project],
+  )
 
   const boardsRevision = logicBoardsRevision(project)
   const prevBoardsRevision = useRef(boardsRevision)
