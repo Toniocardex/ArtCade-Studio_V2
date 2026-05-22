@@ -41,6 +41,8 @@ public:
     void init(const ProjectDoc& doc);
     /** After editor_load_project: refresh tile collisions + gameplay runtime maps. */
     void syncAfterEditorProject(const std::vector<TilePaletteEntry>& tilePalette);
+    /** Preview STOP: reset global state + gameplay maps without reloading Lua. */
+    void restoreDesignState(const std::vector<TilePaletteEntry>& tilePalette);
     void shutdown();
 
     bool    loadScene(const SceneId& id);

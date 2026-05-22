@@ -1,4 +1,4 @@
-import { useRef, useLayoutEffect, useState } from 'react'
+import { useRef, useLayoutEffect, useEffect, useState } from 'react'
 import { useEditor } from '../store/editor-store'
 import type { ConsoleEntry } from '../types'
 import { isReady } from '../utils/wasm-bridge'
@@ -117,12 +117,18 @@ export default function PreviewPanel() {
     project, projectPath,
     selectionSceneId: selection.sceneId,
     wasmReady, engineReady,
+    isPlaying,
   })
 
   useRuntimeAssetUpload({
     project, projectPath, wasmReady, engineReady,
     registeredAssetsRef,
   })
+
+  useEffect(() => {
+    runtimeSync.setAssetCacheInvalidator(() => registeredAssetsRef.current.clear())
+    return () => runtimeSync.setAssetCacheInvalidator(null)
+  }, [])
 
   // All per-frame editor channels (mode, selection, tool, chrome) go
   // through RuntimeSyncService — there is exactly one place that owns the

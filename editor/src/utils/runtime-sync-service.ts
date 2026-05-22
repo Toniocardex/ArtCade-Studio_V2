@@ -19,6 +19,8 @@
 import {
   editorDeselect,
   editorLoadProject,
+  editorRestoreFromProject,
+  editorReloadScript,
   editorSelectEntity,
   editorSetGridSize,
   editorSetGuidesEnabled,
@@ -84,6 +86,7 @@ class RuntimeSyncServiceImpl {
   private lastGuides:         boolean | null = null
   private lastGridSize:       number | null = null
   private lastTransform:      Map<number, EntityTransformSnapshot> = new Map()
+  private assetCacheInvalidator: (() => void) | null = null
 
   /** Forget every cached "last sent" value. Use on project open / runtime reload. */
   reset(): void {
@@ -96,6 +99,29 @@ class RuntimeSyncServiceImpl {
     this.lastGuides    = null
     this.lastGridSize  = null
     this.lastTransform.clear()
+  }
+
+  /** PreviewPanel registers this so texture re-upload runs after STOP restore. */
+  setAssetCacheInvalidator(fn: (() => void) | null): void {
+    this.assetCacheInvalidator = fn
+  }
+
+  /**
+   * STOP / Logic Board Apply: reload design-time ProjectDoc into C++, reset
+   * gameplay modules, then hot-reload the main Lua script.
+   */
+  restorePreviewFromProject(
+    project: ProjectDoc,
+    activeSceneId: string,
+    mainLua: string,
+  ): void {
+    if (!isReady()) return
+    editorSetMode(0)
+    this.reset()
+    this.lastMode = 0
+    editorRestoreFromProject(JSON.stringify({ ...project, activeSceneId }))
+    editorReloadScript(mainLua)
+    this.assetCacheInvalidator?.()
   }
 
   /** True if the runtime is ready to accept commands. */

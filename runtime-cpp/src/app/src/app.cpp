@@ -239,6 +239,11 @@ bool Application::initSubsystems() {
                const std::vector<TilesetAsset>&     tilesets) {
             applyEditorProjectLoaded(palette, tilesets);
         });
+    EditorAPI::setPreviewRestoreHandler(
+        [this](const std::vector<TilePaletteEntry>& palette,
+               const std::vector<TilesetAsset>&     tilesets) {
+            applyEditorPreviewRestore(palette, tilesets);
+        });
 #endif
 
     return true;
@@ -288,6 +293,58 @@ void Application::applyEditorProjectLoaded(
 
     if (mod_->world)
         mod_->world->syncAfterEditorProject(tilePalette);
+}
+
+void Application::applyEditorPreviewRestore(
+    const std::vector<TilePaletteEntry>& tilePalette,
+    const std::vector<TilesetAsset>&     tilesets)
+{
+    tileColors_.clear();
+    for (const auto& t : tilePalette)
+        tileColors_[t.id] = t.color;
+
+    tilesets_.clear();
+    for (const auto& ts : tilesets)
+        tilesets_[ts.assetId] = ts;
+    mod_->sceneManager->setTilesets(tilesets);
+
+    if (const SceneDef* sc = mod_->sceneManager->activeScene()) {
+        if (sc->worldSize.x > 0.f && sc->worldSize.y > 0.f) {
+            mod_->renderer->setWindowSize(
+                static_cast<uint32_t>(sc->worldSize.x),
+                static_cast<uint32_t>(sc->worldSize.y),
+                "ArtCade V2");
+        }
+        mod_->renderer->setSceneViewport(sc->worldSize, sc->worldSize);
+    }
+
+    if (mod_->textureManager)
+        mod_->textureManager->unloadAll();
+
+    if (mod_->tweenManager)
+        mod_->tweenManager->cancelAll();
+    if (mod_->spriteAnimator)
+        mod_->spriteAnimator->clearInstances();
+    if (mod_->audio)
+        mod_->audio->stopAll();
+    if (mod_->eventBus)
+        mod_->eventBus->flushDeferred();
+
+    if (mod_->timeManager) {
+        mod_->timeManager->shutdown();
+        mod_->timeManager->init();
+    }
+    if (mod_->gameStateManager) {
+        mod_->gameStateManager->shutdown();
+        mod_->gameStateManager->init();
+    }
+    if (mod_->cameraManager)
+        mod_->cameraManager->init();
+
+    accumulator_ = 0.f;
+
+    if (mod_->world)
+        mod_->world->restoreDesignState(tilePalette);
 }
 #endif
 
@@ -491,16 +548,28 @@ void Application::loopIteration() {
         accumulator_ = targetDt_ * 4.f;
 
     mod_->input->poll();
-    {
-        const auto start = Clock::now();
-        const uint32_t events = mod_->gameAPI->dispatchInputEvents();
-        profiler_.addLuaMs(elapsedMs(start));
-        profiler_.addLuaEvents(events);
-    }
 
-    while (accumulator_ >= targetDt_) {
-        tickFixedStep(targetDt_);
-        accumulator_ -= targetDt_;
+#ifdef ARTCADE_WASM
+    const bool simulating = EditorAPI::s_mode == 1;
+#else
+    const bool simulating = true;
+#endif
+
+    if (simulating) {
+        {
+            const auto start = Clock::now();
+            const uint32_t events = mod_->gameAPI->dispatchInputEvents();
+            profiler_.addLuaMs(elapsedMs(start));
+            profiler_.addLuaEvents(events);
+        }
+
+        while (accumulator_ >= targetDt_) {
+            tickFixedStep(targetDt_);
+            accumulator_ -= targetDt_;
+        }
+    } else {
+        // EDIT mode: discard accumulated time so PLAY does not burst-catch-up.
+        accumulator_ = 0.f;
     }
 
     tickFrameEnd();

@@ -15,6 +15,7 @@ const TRANSFORM_EPS = 1e-4
 export const entityReducer: DomainReducer = (state: CoreState, action: Action) => {
   switch (action.type) {
     case 'UPDATE_ENTITY_TRANSFORM': {
+      if (state.isPlaying) return state
       if (!state.project || !state.project.entities[action.entityId]) return state
       const entity = state.project.entities[action.entityId]
       const t = entity.transform

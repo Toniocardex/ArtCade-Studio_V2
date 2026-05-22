@@ -149,4 +149,9 @@ void SpriteAnimator::removeEntity(EntityId entity) {
     instances_.erase(entity);
 }
 
+void SpriteAnimator::clearInstances() {
+    instances_.clear();
+    finishBuffer_.clear();
+}
+
 } // namespace ArtCade::Modules

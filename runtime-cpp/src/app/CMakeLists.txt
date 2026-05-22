@@ -54,6 +54,7 @@ if(EMSCRIPTEN)
         "_editor_select_entity"
         "_editor_deselect"
         "_editor_load_project"
+        "_editor_restore_from_project"
         "_editor_set_transform"
         "_editor_update_entity"
         "_editor_set_scene_settings"

@@ -35,6 +35,9 @@ public:
     /** Called from editor_load_project after the gateway swap. */
     void applyEditorProjectLoaded(const std::vector<TilePaletteEntry>& tilePalette,
                                   const std::vector<TilesetAsset>&     tilesets);
+    /** Called from editor_restore_from_project — reset runtime, keep Lua. */
+    void applyEditorPreviewRestore(const std::vector<TilePaletteEntry>& tilePalette,
+                                   const std::vector<TilesetAsset>&     tilesets);
 #endif
 
 private:

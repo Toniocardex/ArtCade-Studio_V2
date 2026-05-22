@@ -46,6 +46,9 @@ struct TilesetAsset;
 using EditorProjectLoadedHandler = std::function<void(
     const std::vector<TilePaletteEntry>&,
     const std::vector<TilesetAsset>&)>;
+
+/** Same payload as EditorProjectLoadedHandler; used by editor_restore_from_project. */
+using EditorPreviewRestoreHandler = EditorProjectLoadedHandler;
 } // namespace ArtCade
 
 #ifdef __EMSCRIPTEN__
@@ -98,6 +101,12 @@ public:
      */
     static void setProjectLoadedHandler(EditorProjectLoadedHandler handler);
 
+    /**
+     * Register the callback invoked after editor_restore_from_project finishes
+     * repopulating the gateway. Resets gameplay modules without clearing Lua.
+     */
+    static void setPreviewRestoreHandler(EditorPreviewRestoreHandler handler);
+
     // -------------------------------------------------------------------------
     // C++ -> React notifications (Smoke Test 3)
     // -------------------------------------------------------------------------
@@ -144,6 +153,7 @@ public:
     static Modules::LuaHost*              s_luaHost;
     static Modules::Renderer*             s_renderer;
     static EditorProjectLoadedHandler     s_onProjectLoaded;
+    static EditorPreviewRestoreHandler    s_onPreviewRestore;
     static std::vector<std::pair<std::string, std::string>> s_consoleQueue;
 
     // Native input callbacks -- bypass the JS thread entirely (Smoke Test 2)
@@ -178,6 +188,12 @@ EMSCRIPTEN_KEEPALIVE void editor_deselect();
  * Parses with nlohmann/json and calls SceneManager::registerScenes().
  */
 EMSCRIPTEN_KEEPALIVE void editor_load_project(const char* json_utf8);
+
+/**
+ * Preview STOP: reload ProjectDoc from React design state and reset gameplay
+ * modules without clearing the active Lua script (React calls editor_reload_script next).
+ */
+EMSCRIPTEN_KEEPALIVE void editor_restore_from_project(const char* json_utf8);
 
 /**
  * Push a transform change from the React Inspector into the C++ scene.
@@ -252,6 +268,7 @@ struct EditorAPI {
     static void wireLua(Modules::LuaHost*) {}
     static void wireRenderer(Modules::Renderer*) {}
     static void setProjectLoadedHandler(EditorProjectLoadedHandler) {}
+    static void setPreviewRestoreHandler(EditorPreviewRestoreHandler) {}
     static void notifyEntitySelected(uint32_t) {}
     static void notifyTransformChanged(uint32_t, float, float, float, float, float) {}
     static void notifyConsoleLine(const char*, const char* = nullptr) {}
@@ -274,6 +291,7 @@ struct EditorAPI {
     static Modules::LuaHost*              s_luaHost;
     static Modules::Renderer*             s_renderer;
     static EditorProjectLoadedHandler     s_onProjectLoaded;
+    static EditorPreviewRestoreHandler    s_onPreviewRestore;
     static std::vector<std::pair<std::string, std::string>> s_consoleQueue;
 };
 } // namespace ArtCade

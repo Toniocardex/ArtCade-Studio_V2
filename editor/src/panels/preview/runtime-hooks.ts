@@ -168,21 +168,31 @@ export function useWasmRuntimeLifecycle(opts: LifecycleOptions): void {
 // useRuntimeProjectSync — push ProjectDoc into C++ on runtime-affecting change
 // ---------------------------------------------------------------------------
 
+export function shouldSyncProjectToRuntime(opts: {
+  wasmReady: boolean
+  engineReady: boolean
+  project: ProjectDoc | null
+  isPlaying: boolean
+}): boolean {
+  return opts.wasmReady && opts.engineReady && opts.project != null && !opts.isPlaying
+}
+
 interface ProjectSyncOptions {
   project: ProjectDoc | null
   projectPath: string | null
   selectionSceneId: string | null
   wasmReady: boolean
   engineReady: boolean
+  isPlaying: boolean
 }
 
 export function useRuntimeProjectSync(opts: ProjectSyncOptions): void {
-  const { project, projectPath, selectionSceneId, wasmReady, engineReady } = opts
+  const { project, projectPath, selectionSceneId, wasmReady, engineReady, isPlaying } = opts
   useEffect(() => {
-    if (!wasmReady || !engineReady || !project) return
-    const runtimeSceneId = selectionSceneId ?? project.activeSceneId
-    runtimeSync.syncProject(project, runtimeSceneId, projectPath)
-  }, [project, projectPath, selectionSceneId, wasmReady, engineReady])
+    if (!shouldSyncProjectToRuntime({ wasmReady, engineReady, project, isPlaying })) return
+    const runtimeSceneId = selectionSceneId ?? project!.activeSceneId
+    runtimeSync.syncProject(project!, runtimeSceneId, projectPath)
+  }, [project, projectPath, selectionSceneId, wasmReady, engineReady, isPlaying])
 }
 
 // ---------------------------------------------------------------------------

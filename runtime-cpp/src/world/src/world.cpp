@@ -30,6 +30,11 @@ void World::syncAfterEditorProject(const std::vector<TilePaletteEntry>& tilePale
     rebuildTilemapPhysics();
 }
 
+void World::restoreDesignState(const std::vector<TilePaletteEntry>& tilePalette) {
+    variables_.clear();
+    syncAfterEditorProject(tilePalette);
+}
+
 void World::init(const ProjectDoc& doc) {
     entityGateway_.setPhysics(&physics_);
     entityGateway_.replaceProject(doc.scenes, doc.entities, doc.activeSceneId);

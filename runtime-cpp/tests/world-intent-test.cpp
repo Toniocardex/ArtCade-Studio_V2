@@ -903,6 +903,36 @@ static void test_shutdown_clears_tilemap_physics() {
     CHECK(f.physics.getContactingBodies({ 48.f, 16.f }).empty());
 }
 
+static void test_restore_design_state_resets_runtime_from_doc() {
+    Fixture f;
+
+    EntityDef player = makeEntity(1, "Player");
+    player.transform.position = { 50.f, 80.f };
+
+    ProjectDoc doc;
+    doc.activeSceneId = "s";
+    doc.entities[1] = player;
+    SceneDef scene;
+    scene.id = "s";
+    scene.entityIds = { 1 };
+    doc.scenes["s"] = scene;
+
+    f.world.init(doc);
+
+    f.gw.setTransform(1, { 200.f, 300.f }, 0.f, { 1.f, 1.f });
+    f.vars.setInt("score", 42);
+    f.world.setMovementIntent(1, 1.f, 0.f);
+
+    f.gw.replaceProject(doc.scenes, doc.entities, doc.activeSceneId);
+    f.world.restoreDesignState(doc.tilePalette);
+
+    Transform t{};
+    CHECK(f.gw.getTransform(1, t));
+    CHECK(std::abs(t.position.x - 50.f) < 0.01f);
+    CHECK(std::abs(t.position.y - 80.f) < 0.01f);
+    CHECK(!f.vars.exists("score"));
+}
+
 int main() {
     test_platformer_movement_intent_without_input();
     test_platformer_jump_intent_without_input();
@@ -929,6 +959,7 @@ int main() {
     test_load_scene_rebuilds_tilemap_physics();
     test_load_scene_resets_runtime_state();
     test_shutdown_clears_tilemap_physics();
+    test_restore_design_state_resets_runtime_from_doc();
 
     std::cout << "world-intent-test: " << g_passed << " passed, "
               << g_failed << " failed\n";

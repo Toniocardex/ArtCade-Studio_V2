@@ -12,6 +12,8 @@ vi.mock('./wasm-bridge', () => {
   return {
     isReady: vi.fn(() => true),
     editorLoadProject:        vi.fn(),
+    editorRestoreFromProject: vi.fn(),
+    editorReloadScript:       vi.fn(),
     editorSetMode:            vi.fn(),
     editorSelectEntity:       vi.fn(),
     editorDeselect:           vi.fn(),
@@ -60,6 +62,8 @@ describe('RuntimeSyncService', () => {
     runtimeSync.reset()
     vi.mocked(bridge.isReady).mockReturnValue(true)
     vi.mocked(bridge.editorLoadProject).mockReset()
+    vi.mocked(bridge.editorRestoreFromProject).mockReset()
+    vi.mocked(bridge.editorReloadScript).mockReset()
     vi.mocked(bridge.editorSetMode).mockReset()
     vi.mocked(bridge.editorSelectEntity).mockReset()
     vi.mocked(bridge.editorDeselect).mockReset()
@@ -193,5 +197,28 @@ describe('RuntimeSyncService', () => {
     runtimeSync.reset()
     runtimeSync.syncPlayMode(true)
     expect(bridge.editorSetMode).toHaveBeenCalledTimes(2)
+  })
+
+  it('restorePreviewFromProject sets EDIT mode before restore and reload', () => {
+    const p = makeProject()
+    const invalidator = vi.fn()
+    runtimeSync.setAssetCacheInvalidator(invalidator)
+    runtimeSync.syncProject(p as never, 'a', '/tmp/x')
+    vi.mocked(bridge.editorSetMode).mockClear()
+    vi.mocked(bridge.editorRestoreFromProject).mockClear()
+    vi.mocked(bridge.editorReloadScript).mockClear()
+    runtimeSync.restorePreviewFromProject(p as never, 'a', 'function tick(dt) end')
+    expect(bridge.editorSetMode).toHaveBeenCalledWith(0)
+    expect(bridge.editorRestoreFromProject).toHaveBeenCalledTimes(1)
+    expect(bridge.editorReloadScript).toHaveBeenCalledWith('function tick(dt) end')
+    expect(invalidator).toHaveBeenCalledTimes(1)
+    const setModeOrder = vi.mocked(bridge.editorSetMode).mock.invocationCallOrder[0]
+    const restoreOrder = vi.mocked(bridge.editorRestoreFromProject).mock.invocationCallOrder[0]
+    const reloadOrder = vi.mocked(bridge.editorReloadScript).mock.invocationCallOrder[0]
+    expect(setModeOrder).toBeLessThan(restoreOrder)
+    expect(restoreOrder).toBeLessThan(reloadOrder)
+    // After reset(), a repeat sync should load again.
+    expect(runtimeSync.syncProject(p as never, 'a', '/tmp/x')).toBe(true)
+    expect(bridge.editorLoadProject).toHaveBeenCalledTimes(2)
   })
 })

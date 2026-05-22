@@ -20,6 +20,7 @@ Modules::RuntimeEntityGateway* EditorAPI::s_entityGateway = nullptr;
 Modules::LuaHost*              EditorAPI::s_luaHost       = nullptr;
 Modules::Renderer*             EditorAPI::s_renderer      = nullptr;
 EditorProjectLoadedHandler     EditorAPI::s_onProjectLoaded{};
+EditorPreviewRestoreHandler    EditorAPI::s_onPreviewRestore{};
 std::vector<std::pair<std::string, std::string>> EditorAPI::s_consoleQueue;
 
 } // namespace ArtCade
@@ -79,6 +80,7 @@ Modules::RuntimeEntityGateway* EditorAPI::s_entityGateway = nullptr;
 Modules::LuaHost*              EditorAPI::s_luaHost       = nullptr;
 Modules::Renderer*             EditorAPI::s_renderer      = nullptr;
 EditorProjectLoadedHandler     EditorAPI::s_onProjectLoaded{};
+EditorPreviewRestoreHandler    EditorAPI::s_onPreviewRestore{};
 std::vector<std::pair<std::string, std::string>> EditorAPI::s_consoleQueue;
 
 namespace {
@@ -115,6 +117,10 @@ void EditorAPI::wireRenderer(Modules::Renderer* renderer) {
 
 void EditorAPI::setProjectLoadedHandler(EditorProjectLoadedHandler handler) {
     s_onProjectLoaded = std::move(handler);
+}
+
+void EditorAPI::setPreviewRestoreHandler(EditorPreviewRestoreHandler handler) {
+    s_onPreviewRestore = std::move(handler);
 }
 
 // ── Init / Shutdown ───────────────────────────────────────────────────────────
@@ -244,15 +250,24 @@ EMSCRIPTEN_KEEPALIVE void editor_deselect() {
     ArtCade::EditorAPI::s_selectedEntityId = 0u;
 }
 
-EMSCRIPTEN_KEEPALIVE void editor_load_project(const char* json_utf8) {
+namespace {
+
+enum class ProjectLoadKind { HotSync, PreviewRestore };
+
+void loadProjectFromJson(const char* json_utf8, ProjectLoadKind kind) {
+    const char* apiName = kind == ProjectLoadKind::HotSync
+        ? "editor_load_project"
+        : "editor_restore_from_project";
+
     if (!json_utf8 || !*json_utf8) {
-        ArtCade::EditorAPI::notifyConsoleLine("[EditorAPI] editor_load_project: empty JSON.", "warn");
+        std::string msg = std::string("[EditorAPI] ") + apiName + ": empty JSON.";
+        ArtCade::EditorAPI::notifyConsoleLine(msg.c_str(), "warn");
         return;
     }
     auto* gateway = ArtCade::EditorAPI::s_entityGateway;
     if (!gateway) {
-        ArtCade::EditorAPI::notifyConsoleLine(
-            "[EditorAPI] editor_load_project: engine not wired yet.", "warn");
+        std::string msg = std::string("[EditorAPI] ") + apiName + ": engine not wired yet.";
+        ArtCade::EditorAPI::notifyConsoleLine(msg.c_str(), "warn");
         return;
     }
 
@@ -274,13 +289,23 @@ EMSCRIPTEN_KEEPALIVE void editor_load_project(const char* json_utf8) {
         gateway->replaceProject(sceneDefs, entityDefs, activeId);
         gateway->setTilesets(tilesets);
 
-        if (ArtCade::EditorAPI::s_onProjectLoaded)
-            ArtCade::EditorAPI::s_onProjectLoaded(tilePalette, tilesets);
+        if (kind == ProjectLoadKind::HotSync) {
+            if (ArtCade::EditorAPI::s_onProjectLoaded)
+                ArtCade::EditorAPI::s_onProjectLoaded(tilePalette, tilesets);
+        } else if (ArtCade::EditorAPI::s_onPreviewRestore) {
+            ArtCade::EditorAPI::s_onPreviewRestore(tilePalette, tilesets);
+        }
 
         char buf[128];
-        std::snprintf(buf, sizeof(buf),
-            "[EditorAPI] Project loaded: %zu entities, %zu scenes.",
-            entityDefs.size(), sceneDefs.size());
+        if (kind == ProjectLoadKind::HotSync) {
+            std::snprintf(buf, sizeof(buf),
+                "[EditorAPI] Project loaded: %zu entities, %zu scenes.",
+                entityDefs.size(), sceneDefs.size());
+        } else {
+            std::snprintf(buf, sizeof(buf),
+                "[EditorAPI] Preview restored: %zu entities, %zu scenes.",
+                entityDefs.size(), sceneDefs.size());
+        }
         ArtCade::EditorAPI::notifyConsoleLine(buf, "info");
 
     } catch (const std::exception& ex) {
@@ -288,6 +313,16 @@ EMSCRIPTEN_KEEPALIVE void editor_load_project(const char* json_utf8) {
         std::snprintf(buf, sizeof(buf), "[EditorAPI] JSON parse error: %s", ex.what());
         ArtCade::EditorAPI::notifyConsoleLine(buf, "error");
     }
+}
+
+} // namespace
+
+EMSCRIPTEN_KEEPALIVE void editor_load_project(const char* json_utf8) {
+    loadProjectFromJson(json_utf8, ProjectLoadKind::HotSync);
+}
+
+EMSCRIPTEN_KEEPALIVE void editor_restore_from_project(const char* json_utf8) {
+    loadProjectFromJson(json_utf8, ProjectLoadKind::PreviewRestore);
 }
 
 EMSCRIPTEN_KEEPALIVE void editor_set_transform(

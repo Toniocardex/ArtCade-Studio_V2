@@ -18,6 +18,7 @@ import {
 } from '../utils/project'
 import { compileLogicBoard } from '../utils/logic-board/compiler'
 import { editorReloadScript } from '../utils/wasm-bridge'
+import { runtimeSync } from '../utils/runtime-sync-service'
 import {
   createLogicBoard,
   createLogicBoardForEntity,
@@ -108,12 +109,21 @@ export default function LogicBoardPanel() {
 
   const handleApply = () => {
     syncLogicBoardToScript(dispatch, state, lua)
-    const ok = editorReloadScript(lua)
-    setApplyMsg(
-      ok
-        ? 'Sent to runtime — see Console for result'
-        : 'Runtime not loaded — press PLAY first',
-    )
+    if (state.isPlaying && project) {
+      dispatch({ type: 'SET_PLAYING', playing: false })
+      const activeSceneId = selection.sceneId ?? project.activeSceneId
+      runtimeSync.restorePreviewFromProject(project, activeSceneId, lua)
+    } else {
+      const ok = editorReloadScript(lua)
+      setApplyMsg(
+        ok
+          ? 'Logic applied — script hot-reloaded (press PLAY to test)'
+          : 'Runtime not loaded — open Canvas preview first',
+      )
+      window.setTimeout(() => setApplyMsg(null), 4000)
+      return
+    }
+    setApplyMsg('Logic applied — preview reset to design state')
     window.setTimeout(() => setApplyMsg(null), 4000)
   }
 

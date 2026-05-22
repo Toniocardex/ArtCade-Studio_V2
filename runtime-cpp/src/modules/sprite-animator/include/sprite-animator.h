@@ -91,6 +91,9 @@ public:
     // Remove instance data for an entity (e.g. on entity destroy)
     void removeEntity(EntityId entity);
 
+    /** Drop all per-entity playback state; clip definitions are kept. */
+    void clearInstances();
+
 private:
     enum class PlayState { Stopped, Playing, Paused };
 

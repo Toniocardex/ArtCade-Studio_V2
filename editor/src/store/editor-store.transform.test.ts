@@ -94,4 +94,17 @@ describe('UPDATE_ENTITY_TRANSFORM equality guard', () => {
     expect(next.projectDirty).toBe(true)
     expect(next.project?.entities[1].transform.scale.x).toBe(3)
   })
+
+  it('ignores UPDATE_ENTITY_TRANSFORM while isPlaying', () => {
+    const s = { ...makeState(), isPlaying: true }
+    const next = coreReducer(s, {
+      type: 'UPDATE_ENTITY_TRANSFORM',
+      entityId: 1,
+      x: 999, y: 888,
+      rotation: 0,
+      scaleX: 1, scaleY: 1,
+    })
+    expect(next).toBe(s)
+    expect(next.project?.entities[1].transform.position.x).toBe(100)
+  })
 })

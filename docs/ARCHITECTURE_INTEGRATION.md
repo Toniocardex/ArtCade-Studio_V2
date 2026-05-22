@@ -139,6 +139,23 @@ ArtCade V2 è costruito su **3 pilastri architetturali**:
 └─────────────────────────────────────────────────────────────┘
 ```
 
+### Preview EDIT vs PLAY vs STOP (ProjectDoc = design source of truth)
+
+| Mode | `EditorAPI::s_mode` | Simulation | ProjectDoc in React |
+|------|---------------------|------------|---------------------|
+| **EDIT** | `0` | Frozen: render + gizmo/tile paint only; no `tickFixedStep` | Authoritative design state |
+| **PLAY** | `1` | Full fixed-step loop (Lua, physics, gameplay systems) | Immutable during play (incremental sync blocked) |
+| **STOP** | back to `0` | `editor_restore_from_project` + `editor_reload_script` | Reloaded into C++ from React store |
+| **Logic Board Apply** | implicit STOP if playing | Same restore sequence, then script hot-reload | Unchanged in Inspector |
+
+**STOP sequence** (`MenuBar` → `runtimeSync.restorePreviewFromProject`):
+
+1. `editor_restore_from_project(JSON)` — `replaceProject` from ProjectDoc + reset tweens/audio/variables (Lua kept).
+2. `editor_reload_script(mainLua)` — compiled Logic Board / main script from editor buffers.
+3. Asset cache bust on React side so textures re-upload after C++ `unloadAll`.
+
+**C++ gate:** `app.cpp::loopIteration()` runs `dispatchInputEvents` and `tickFixedStep` only when `s_mode == 1` (WASM editor). Native game builds always simulate.
+
 ---
 
 ## 🔄 Componenti e Loro Ruoli

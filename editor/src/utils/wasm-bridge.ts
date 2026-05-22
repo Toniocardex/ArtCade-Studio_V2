@@ -355,6 +355,16 @@ export function editorLoadProject(projectJson: string): void {
   }
 }
 
+export function editorRestoreFromProject(projectJson: string): void {
+  if (!_module) return
+  const ptr = marshalString(projectJson)
+  try {
+    safeCall('editor_restore_from_project', null, ['number'], [ptr])
+  } finally {
+    _module._free(ptr)
+  }
+}
+
 export function editorReloadScript(luaSource: string): boolean {
   if (!_module) return false
   const ptr = marshalString(luaSource)

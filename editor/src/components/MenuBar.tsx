@@ -9,6 +9,7 @@ import {
 } from '../utils/api'
 import { dirName, createBlankProject, BLANK_MAIN_LUA } from '../utils/project'
 import { runtimeSync } from '../utils/runtime-sync-service'
+import { resolvePreviewMainLua } from '../utils/preview-restore'
 import type { ConsoleEntry } from '../types'
 
 // ---------------------------------------------------------------------------
@@ -70,7 +71,7 @@ function FileMenu({ items }: { items: FileMenuItem[] }) {
 
 export default function MenuBar() {
   const { state, dispatch } = useEditor()
-  const { isPlaying, project, projectPath, projectDirty, openScripts, activeScriptPath } = state
+  const { isPlaying, project, projectPath, projectDirty, openScripts, activeScriptPath, selection } = state
 
   const [fileMenuOpen, setFileMenuOpen] = useState(false)
   const [isBuilding,   setIsBuilding]   = useState(false)
@@ -216,6 +217,19 @@ export default function MenuBar() {
     }
   }
 
+  function handlePlayStop() {
+    if (isPlaying) {
+      dispatch({ type: 'SET_PLAYING', playing: false })
+      if (project) {
+        const activeSceneId = selection.sceneId ?? project.activeSceneId
+        const mainLua = resolvePreviewMainLua({ project, openScripts })
+        runtimeSync.restorePreviewFromProject(project, activeSceneId, mainLua)
+      }
+    } else {
+      dispatch({ type: 'SET_PLAYING', playing: true })
+    }
+  }
+
   async function handleBuildExe() {
     if (!projectPath) {
       dispatch({ type: 'LOG', entry: makeLog('[Build] No project loaded.', 'warn') })
@@ -304,7 +318,7 @@ export default function MenuBar() {
       <div className="flex items-center gap-2.5 editor-toolbar-workspace-end">
         <button
           type="button"
-          onClick={() => dispatch({ type: 'SET_PLAYING', playing: !isPlaying })}
+          onClick={handlePlayStop}
           className={`editor-toolbar-btn border ${
             isPlaying
               ? 'border-[var(--danger)] bg-[rgb(var(--danger-rgb)/0.12)] text-[var(--danger)] hover:bg-[rgb(var(--danger-rgb)/0.2)]'
