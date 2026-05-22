@@ -154,6 +154,9 @@ int main() {
     CHECK(gw.loadScene("scene_a"));
     CHECK(gw.poolCount("Player") == 1);
     CHECK(gw.poolCount("Coin") == 1);
+    SpriteComponent reactivatedSpawnedSprite{};
+    CHECK(gw.getSprite(spawned, reactivatedSpawnedSprite));
+    CHECK(reactivatedSpawnedSprite.alpha == 0.5f);
     const SceneDef* sceneAfterDestroy = gw.activeScene();
     CHECK(sceneAfterDestroy &&
           std::find(sceneAfterDestroy->entityIds.begin(),

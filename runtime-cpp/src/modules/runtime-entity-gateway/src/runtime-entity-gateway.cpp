@@ -136,22 +136,12 @@ void RuntimeEntityGateway::teardownPhysicsBody(EntityId id) {
 void RuntimeEntityGateway::deactivateEntity(EntityId id) {
     if (!registry_->contains(id)) return;
     registry_->setSceneActive(id, false);
-    SpriteComponent sprite{};
-    if (getSprite(id, sprite)) {
-        sprite.alpha = 0.f;
-        setSprite(id, sprite);
-    }
     teardownPhysicsBody(id);
 }
 
 void RuntimeEntityGateway::activateEntity(EntityId id) {
     if (!registry_->contains(id)) return;
     registry_->setSceneActive(id, true);
-    SpriteComponent sprite{};
-    if (getSprite(id, sprite)) {
-        sprite.alpha = 1.f;
-        setSprite(id, sprite);
-    }
     ensurePhysicsBody(id);
 }
 
