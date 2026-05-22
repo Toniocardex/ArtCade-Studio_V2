@@ -269,6 +269,13 @@
           0.5,
           0.5
         ]
+      },
+      "physics": {
+        "bodyType": "Dynamic",
+        "collider": {
+          "shape": "Rectangle",
+          "size": [88, 88]
+        }
       }
     },
     "7": {
@@ -304,6 +311,13 @@
           0.5,
           0.5
         ]
+      },
+      "physics": {
+        "bodyType": "Static",
+        "collider": {
+          "shape": "Rectangle",
+          "size": [1280, 40]
+        }
       }
     }
   },

@@ -376,6 +376,40 @@ static void test_health_component() {
     gw.shutdown(); sm.shutdown();
 }
 
+static void test_set_transform_syncs_physics_position() {
+    SceneManager sm;
+    RuntimeEntityGateway gw(sm);
+    Physics physics;
+    sm.init(); gw.init(); physics.init();
+    gw.setPhysics(&physics);
+
+    EntityDef e = makeDef(1, "Player");
+    e.physics.bodyType = BodyType::Dynamic;
+    e.physics.collider.size = { 32.f, 32.f };
+
+    SceneDef scene;
+    scene.id = "s";
+    scene.entityIds = { 1 };
+    std::unordered_map<SceneId, SceneDef> scenes{{ scene.id, scene }};
+    std::unordered_map<EntityId, EntityDef> defs{{ 1, e }};
+    CHECK(gw.replaceProject(scenes, defs, "s"));
+
+    const uint32_t handle = gw.physicsHandle(1);
+    CHECK(handle != 0);
+
+    Transform t{};
+    CHECK(gw.getTransform(1, t));
+    t.position = { 120.f, 340.f };
+    CHECK(gw.setTransform(1, t));
+    const Vec2 pos = physics.getPosition(handle);
+    CHECK(std::abs(pos.x - 120.f) < 0.01f);
+    CHECK(std::abs(pos.y - 340.f) < 0.01f);
+
+    gw.shutdown();
+    physics.shutdown();
+    sm.shutdown();
+}
+
 int main() {
     test_signal_indices();
     test_lifecycle_queue_order();
@@ -385,6 +419,7 @@ int main() {
     test_replace_project_teardown();
     test_insertion_order_stable();
     test_health_component();
+    test_set_transform_syncs_physics_position();
 
     std::cout << "entity-signals-test: " << g_passed << " passed, "
               << g_failed << " failed\n";

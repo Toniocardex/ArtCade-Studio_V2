@@ -149,7 +149,24 @@ int main() {
     phys.destroyBody(hTarget);
     printf("[PASS] 13. addSensorFixture + overlap\n");
 
+    // ---- Test 14: setSensorFixture replaces prior sensor (no duplicate fixtures) ----
+    hSensorHost = phys.createBody(22, makeRect(BodyType::Dynamic, 2.f, 2.f));
+    sensor.radius = 4.f;
+    assert(phys.setSensorFixture(hSensorHost, sensor));
+    SensorComponent smaller = sensor;
+    smaller.radius = 2.f;
+    assert(phys.setSensorFixture(hSensorHost, smaller));
+    hTarget = phys.createBody(23, makeRect(BodyType::Static, 1.f, 1.f));
+    phys.setPosition(hTarget, { 3.f, 0.f });  // outside smaller radius, inside old
+    for (int i = 0; i < 5; ++i)
+        phys.step(1.f / 60.f);
+    assert(!phys.areOverlapping(hSensorHost, hTarget));
+    phys.clearSensorFixture(hSensorHost);
+    phys.destroyBody(hSensorHost);
+    phys.destroyBody(hTarget);
+    printf("[PASS] 14. setSensorFixture replace + clearSensorFixture\n");
+
     phys.shutdown();
-    printf("\n[physics-test] 13/13 PASSED\n");
+    printf("\n[physics-test] 14/14 PASSED\n");
     return 0;
 }

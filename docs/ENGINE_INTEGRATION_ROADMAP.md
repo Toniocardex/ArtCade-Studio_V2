@@ -85,18 +85,12 @@ Integrazione roadmap Tranche 1–10 completata. Follow-up opzionali:
 
 ### Verifiche Ultima Tranche
 
-- Build C++ Release: passata.
-- `ctest --test-dir runtime-cpp/build-msvc --output-on-failure`: 17/17 passati.
-- `npm.cmd test` in `editor`: 186/186 passati.
+- Build C++ Release: passata (locale).
+- `ctest --test-dir runtime-cpp/build-msvc --output-on-failure`: atteso 18/18
+  (inclusi `asset_loader_test`, health/sensor debt-fix tests).
+- `npm.cmd test` in `editor`: 194/194 passati.
 - `npm.cmd run build`: passato.
-- `runtime-cpp/build_wasm.bat`: passato.
-- Tranche 4: sintassi Lua demo verificata con `wasmoon`.
-- Tranche 5/6:
-  - `npm.cmd test`: 188/188 passati.
-  - `npm.cmd run build`: passato.
-  - Build C++ Release: passata.
-  - `ctest --test-dir runtime-cpp/build-msvc --output-on-failure`: 17/17 passati.
-  - `runtime-cpp/build_wasm.bat`: passato.
+- `runtime-cpp/build_wasm.bat`: da rieseguire dopo fix runtime.
 
 Warning residui noti:
 
@@ -200,9 +194,9 @@ Completato:
 - `runtime-cpp/test-project/scripts/main.lua`:
   - input continuo derivato da handler `input.onPressed/onReleased`;
   - nessun polling `input.isKeyDown` nel loop movimento;
-  - heartbeat periodico registrato con `time.every(LOG_INTERVAL, ...)`;
-  - coin/enemy restano distance-based perche' il progetto demo non ha ancora
-    componenti `sensor` dedicati.
+  - heartbeat periodico registrato con `time.every(LOG_INTERVAL, ...)`.
+  - *(Follow-up Tranche 9)* coin/enemy via `sensor.onEnter/onExit`; ball/floor
+    physics da ProjectDoc (non più `physics.createBody` in Lua).
 - `runtime-cpp/test-project/scripts/components/platformer.lua`:
   - jump edge via `input.onPressed`;
   - stato tasti orizzontale via `input.onPressed/onReleased`;
@@ -221,9 +215,7 @@ Exit criteria:
 
 Nota tecnica:
 
-- La migrazione completa di coin/hit a `sensor.onEnter/onExit` richiede prima
-  componenti `sensor` reali sul demo ProjectDoc. Evitato in questa tranche per
-  non cambiare gameplay e contenuto demo insieme.
+- La migrazione coin/hit a sensor e' completata in Tranche 9 (vedi sotto).
 
 ## Tranche 5 - Profiling Runtime
 
@@ -361,6 +353,17 @@ Non in scope (follow-up):
 
 - Rimozione fallback `input_->isKeyDown` in World platformer (quando demo usa solo intent).
 - Promozione `AnimationState` a componente EnTT (solo se serve condivisione cross-system).
+- Sensor picker dedicato in Logic Board UI.
+
+## Debito tecnico — fix post Tranche 10
+
+Completato:
+
+- `Physics::setSensorFixture` / `clearSensorFixture` — replace idempotente (no fixture duplicate).
+- `RuntimeEntityGateway::setTransform` sincronizza posizione body Box2D.
+- Test: `physics-test` #14, `world_intent_test` replace sensor, `entity_signals_test`
+  transform sync, `asset_loader_test` parsing physics/health/sensor JSON.
+- Demo: ball/floor physics in ProjectDoc; danno nemico via `entity.health`.
 
 ## Checklist Da Eseguire A Ogni Tranche
 

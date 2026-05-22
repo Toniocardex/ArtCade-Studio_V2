@@ -86,7 +86,9 @@ void RuntimeEntityGateway::syncSensorFixture(EntityId id) {
     if (handle == 0) return;
     SensorComponent sensor{};
     if (getSensor(id, sensor))
-        physics_->addSensorFixture(handle, sensor);
+        physics_->setSensorFixture(handle, sensor);
+    else
+        physics_->clearSensorFixture(handle);
 }
 
 void RuntimeEntityGateway::ensurePhysicsBody(EntityId id) {
@@ -299,6 +301,11 @@ bool RuntimeEntityGateway::getTransform(EntityId id, Transform& out) const {
 bool RuntimeEntityGateway::setTransform(EntityId id, const Transform& transform) {
     if (!registry_->contains(id)) return false;
     registry_->setTransform(id, transform);
+    if (physics_) {
+        const uint32_t handle = physicsHandle(id);
+        if (handle != 0)
+            physics_->setPosition(handle, transform.position);
+    }
     return true;
 }
 

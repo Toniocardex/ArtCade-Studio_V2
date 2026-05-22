@@ -223,11 +223,58 @@ static void test_set_sensor_syncs_fixture_after_body() {
     CHECK(events[0].enter);
 }
 
+static void test_set_sensor_replaces_fixture_without_duplicates() {
+    Fixture f;
+
+    EntityDef coin = makeEntity(1, "Coin");
+    coin.physics.bodyType = BodyType::Static;
+    coin.physics.collider.size = { 32.f, 32.f };
+
+    EntityDef player = makeEntity(2, "Player", {"player"});
+    player.physics.bodyType = BodyType::Static;
+    player.physics.collider.size = { 32.f, 32.f };
+    player.transform.position = { 40.f, 0.f };
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1, 2 };
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.scenes = {{ scene.id, scene }};
+    doc.entities = {{ 1, coin }, { 2, player }};
+    f.world.init(doc);
+
+    f.world.tickGameplaySystems(1.f / 60.f);
+    f.world.pollSensorEdges();
+
+    SensorComponent narrow;
+    narrow.shape = "Circle";
+    narrow.radius = 8.f;
+    narrow.targetTag = "player";
+    CHECK(f.gw.setSensor(1, narrow));
+    CHECK(f.gw.setSensor(1, narrow));
+
+    f.world.tickGameplaySystems(1.f / 60.f);
+    CHECK(f.world.pollSensorEdges().empty());
+
+    f.physics.setPosition(f.gw.physicsHandle(2), { 0.f, 0.f });
+    f.world.tickGameplaySystems(1.f / 60.f);
+    CHECK(f.world.pollSensorEdges().empty());
+
+    f.physics.setPosition(f.gw.physicsHandle(2), { 0.f, 0.f });
+    f.world.tickGameplaySystems(1.f / 60.f);
+    auto events = f.world.pollSensorEdges();
+    CHECK(events.size() == 1);
+    CHECK(events[0].enter);
+}
+
 int main() {
     test_platformer_movement_intent_without_input();
     test_platformer_jump_intent_without_input();
     test_sensor_edges_are_drained_deterministically();
     test_set_sensor_syncs_fixture_after_body();
+    test_set_sensor_replaces_fixture_without_duplicates();
 
     std::cout << "world-intent-test: " << g_passed << " passed, "
               << g_failed << " failed\n";

@@ -111,6 +111,12 @@ if(ARTCADE_HAS_RAYLIB AND ARTCADE_HAS_LUA)
     artcade_test(artcade_package_test
         artcade-package-test.cpp
         artcade-asset-system)
+
+    artcade_test(asset_loader_test
+        asset-loader-test.cpp
+        artcade-asset-system)
+    target_compile_definitions(asset_loader_test
+        PRIVATE ARTCADE_SOURCE_ROOT="${CMAKE_SOURCE_DIR}")
 endif()
 
 # ============================================================================

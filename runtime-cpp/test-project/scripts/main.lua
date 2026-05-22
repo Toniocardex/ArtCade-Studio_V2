@@ -76,16 +76,34 @@ local function bindSensorHandlers()
 
     sensor.onEnter("Enemy", "player", function(enemyId, otherId, tag)
         if otherId ~= playerId or not alive then return end
-        alive = false
-        state.set("alive", 0)
-        log("PLAYER HIT by enemy " .. tostring(enemyId)
-            .. "  score=" .. tostring(score))
+        local cur, maxHp = entity.health(playerId)
+        if not cur then
+            alive = false
+            state.set("alive", 0)
+            log("PLAYER HIT by enemy " .. tostring(enemyId)
+                .. "  score=" .. tostring(score))
+            return
+        end
+        local damage = 34
+        local nextHp = math.max(0, cur - damage)
+        entity.setHealth(playerId, nextHp, maxHp)
+        if nextHp <= 0 then
+            alive = false
+            state.set("alive", 0)
+            log("PLAYER KO by enemy " .. tostring(enemyId)
+                .. "  score=" .. tostring(score))
+        else
+            log(string.format("PLAYER HIT hp=%.0f/%.0f", nextHp, maxHp))
+        end
     end)
 
     sensor.onExit("Enemy", "player", function(enemyId, otherId, tag)
         if otherId ~= playerId then return end
-        alive = true
-        state.set("alive", 1)
+        local cur = entity.health(playerId)
+        if cur and cur > 0 then
+            alive = true
+            state.set("alive", 1)
+        end
     end)
 end
 
@@ -171,6 +189,13 @@ local function init()
     bindMovementInput()
     bindSensorHandlers()
 
+    if playerId then
+        local cur, maxHp = entity.health(playerId)
+        if cur then
+            log(string.format("Player health: %.0f/%.0f", cur, maxHp))
+        end
+    end
+
     -- Verify state.get() round-trip (was broken: always returned nil)
     local sc = state.get("score")
     local lv = state.get("level")
@@ -213,29 +238,22 @@ local function init()
     physics.setGravity(0, GRAVITY_Y)
     log("Gravity  (0, " .. tostring(GRAVITY_Y) .. ") px/s^2")
 
-    -- Floor — static 1280x40 box
     local floors = pool.getAll("PhysicsFloor")
     if #floors > 0 then
         floorId = floors[1]
         local fx, fy = entity.position(floorId)
-        local h = physics.createBody(floorId, "static", "rect",
-                                     FLOOR_W * 2, FLOOR_H * 2)
-        log(string.format("Floor body  handle=%d  spawn=(%.0f,%.0f)  size=%dx%d",
-            h, fx, fy, FLOOR_W*2, FLOOR_H*2))
+        log(string.format("Floor body from ProjectDoc  pos=(%.0f,%.0f)  size=%dx%d",
+            fx, fy, FLOOR_W*2, FLOOR_H*2))
     else
         log("WARNING: no PhysicsFloor entity!")
     end
 
-    -- Ball — dynamic 44x44 box
     local balls = pool.getAll("PhysicsBall")
     if #balls > 0 then
         ballId = balls[1]
         local bx, by = entity.position(ballId)
-        local h = physics.createBody(ballId, "dynamic", "rect",
-                                     BALL_SIZE * 2, BALL_SIZE * 2)
-        log(string.format("Ball  body  handle=%d  spawn=(%.0f,%.0f)  size=%dx%d",
-            h, bx, by, BALL_SIZE*2, BALL_SIZE*2))
-        -- Expected landing: floor_top - ball_half = (640-20) - 22 = 598
+        log(string.format("Ball body from ProjectDoc  pos=(%.0f,%.0f)  size=%dx%d",
+            bx, by, BALL_SIZE*2, BALL_SIZE*2))
         log("Expected rest y = " .. tostring((640 - FLOOR_H) - BALL_SIZE))
     else
         log("WARNING: no PhysicsBall entity!")

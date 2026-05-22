@@ -59,8 +59,9 @@ struct Physics::Impl {
     b2World world{ b2Vec2{ 0.f, 10.f } };
 
     struct BodyEntry {
-        b2Body*  body;
-        EntityId entityId;
+        b2Body*    body;
+        EntityId   entityId;
+        b2Fixture* sensorFixture = nullptr;
     };
 
     std::unordered_map<uint32_t, BodyEntry> bodies;
@@ -161,11 +162,21 @@ void Physics::destroyBody(uint32_t handle) {
     impl_->bodies.erase(it);
 }
 
-bool Physics::addSensorFixture(uint32_t bodyHandle, const SensorComponent& sensor) {
+void Physics::clearSensorFixture(uint32_t bodyHandle) {
+    auto it = impl_->bodies.find(bodyHandle);
+    if (it == impl_->bodies.end()) return;
+    if (it->second.sensorFixture) {
+        it->second.body->DestroyFixture(it->second.sensorFixture);
+        it->second.sensorFixture = nullptr;
+    }
+}
+
+bool Physics::setSensorFixture(uint32_t bodyHandle, const SensorComponent& sensor) {
     auto it = impl_->bodies.find(bodyHandle);
     if (it == impl_->bodies.end()) return false;
-    b2Body* body = it->second.body;
+    clearSensorFixture(bodyHandle);
 
+    b2Body* body = it->second.body;
     b2FixtureDef fixDef;
     fixDef.isSensor = true;
     fixDef.density  = 0.f;
@@ -182,8 +193,12 @@ bool Physics::addSensorFixture(uint32_t bodyHandle, const SensorComponent& senso
         fixDef.shape = &circleShape;
     }
 
-    body->CreateFixture(&fixDef);
-    return true;
+    it->second.sensorFixture = body->CreateFixture(&fixDef);
+    return it->second.sensorFixture != nullptr;
+}
+
+bool Physics::addSensorFixture(uint32_t bodyHandle, const SensorComponent& sensor) {
+    return setSensorFixture(bodyHandle, sensor);
 }
 
 void Physics::setBodyActive(uint32_t handle, bool active) {
