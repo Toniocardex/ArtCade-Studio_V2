@@ -12,7 +12,6 @@ import type {
   LogicEvent,
   LogicTrigger,
   LogicTriggerType,
-  TargetSelector,
 } from '../../types/logic-board'
 import {
   listActionTypes,
@@ -152,7 +151,6 @@ export function defaultAction(type: LogicActionType): LogicAction {
 import {
   actionSummaryPlain,
   conditionSummaryPlain,
-  targetDisplayLabel,
   triggerSummaryPlain,
 } from './friendly-labels'
 
@@ -166,11 +164,6 @@ export function conditionSummary(c: LogicCondition): string {
 
 export function actionSummary(a: LogicAction): string {
   return actionSummaryPlain(a)
-}
-
-/** @deprecated Use targetDisplayLabel from friendly-labels in UI */
-export function targetLabel(t: TargetSelector): string {
-  return targetDisplayLabel(t)
 }
 
 export function eventTitle(e: LogicEvent): string {

@@ -30,13 +30,24 @@ function TriggerFields({
   trigger: LogicTrigger
   onChange: (t: LogicTrigger) => void
 }) {
+  const isSensorTrigger =
+    trigger.type === 'onTriggerEnter' || trigger.type === 'onTriggerExit'
+
   return (
-    <SchemaParamForm
-      kind="trigger"
-      type={trigger.type}
-      value={trigger as unknown as Record<string, unknown>}
-      onChange={(next) => onChange(next as LogicTrigger)}
-    />
+    <>
+      <SchemaParamForm
+        kind="trigger"
+        type={trigger.type}
+        value={trigger as unknown as Record<string, unknown>}
+        onChange={(next) => onChange(next as LogicTrigger)}
+      />
+      {isSensorTrigger && (
+        <p className="text-[10px] text-[var(--muted)] leading-snug">
+          Target tag must match <code className="text-[var(--text)]">SensorComponent.targetTag</code>{' '}
+          on the zone entity (Inspector → Sensor). Leave empty to accept any tag.
+        </p>
+      )}
+    </>
   )
 }
 

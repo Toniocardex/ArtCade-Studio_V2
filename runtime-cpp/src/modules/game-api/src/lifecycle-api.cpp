@@ -47,6 +47,7 @@ void GameAPI::bindLifecycleAPI(sol::state& lua) {
         lifecycle._onDestroy = {}
 
         lifecycle.pollDestroyed = function()
+            -- Deprecated: prefer lifecycle.onDestroy(className, fn) for event-first rules.
             return lifecycle_pollDestroyed()
         end
 

@@ -518,6 +518,7 @@ const ANIM_POLL_PREAMBLE = [
 ]
 
 const DESTROY_POLL_PREAMBLE = [
+  `-- Fallback when onDestroy has no board class (prefer lifecycle.onDestroy in init)`,
   `${INDENT}local _destroy_events = lifecycle.pollDestroyed()`,
 ]
 

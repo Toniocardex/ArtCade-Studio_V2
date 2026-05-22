@@ -1,7 +1,7 @@
 # Technical Debt Review - ArtCade V2
 
 Data review: 2026-05-21
-Ultimo aggiornamento: 2026-05-21 (post-Fase 1-6 del piano `debito_tecnico_sync`)
+Ultimo aggiornamento: 2026-05-21 (post engine integration Tranche 7–10 + debt-fix)
 
 ## Stato implementazione (2026-05-21)
 
@@ -39,13 +39,19 @@ Aperto (priorita media per Phase successive):
 - API incrementali C++ (`editor_update_entity`, `editor_set_sprite`, ...) se il full load diventa lento.
 - Asset pipeline texture upload con fingerprint mtime/hash.
 
+Aperto (engine integration — post Tranche 10):
+
+- Sensor picker dedicato in Logic Board (oggi: campo testo `target tag`).
+- Fallback `lifecycle.pollDestroyed` nel compiler Logic Board (solo board senza classe lifecycle).
+- `AnimationState` non promosso a componente EnTT (by design finche' non serve cross-system).
+
 ## Summary
 
 Questa review fotografa il debito tecnico emerso durante l'integrazione recente di Scene Settings, viewport runtime, editor guides, toolbar, grid editor-only, fix bordo nero in edit mode e pulizia warning build.
 
 Lo stato generale e buono: React GUI e runtime WASM sono rimasti separati, il canvas continua a essere una black box del runtime, il packaging/build e piu stabile, e la preview ora usa `worldSize`, `viewportSize`, pan e grid editor in modo piu reale.
 
-Il debito piu importante non e grafico. Sta nel contratto di sincronizzazione editor-runtime: alcune modifiche passano da `editor_load_project`, altre da wrapper incrementali, e alcune modifiche dell'Inspector non arrivano ancora in preview finche non avviene un reload piu ampio.
+Il sync Inspector→preview e stato consolidato con `RuntimeSyncService` + `runtime-fingerprint` (vedi findings risolti sopra). Il debito residuo principale e su **API incrementali editor-runtime** (evitare full reload) e su **policy camera/output**, non piu sulla perdita sistematica di transform in drag.
 
 ## Findings Prioritari
 

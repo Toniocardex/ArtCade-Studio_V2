@@ -70,7 +70,11 @@
       "category": "Physics",
       "executionMode": "event",
       "params": {
-        "withClass": { "widget": "className", "label": "With class" }
+        "withClass": {
+          "widget": "className",
+          "label": "Target tag",
+          "placeholder": "player"
+        }
       }
     }
   },
@@ -87,7 +91,11 @@
       "category": "Physics",
       "executionMode": "event",
       "params": {
-        "withClass": { "widget": "className", "label": "With class" }
+        "withClass": {
+          "widget": "className",
+          "label": "Target tag",
+          "placeholder": "player"
+        }
       }
     }
   },
