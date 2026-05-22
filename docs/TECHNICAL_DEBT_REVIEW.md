@@ -49,6 +49,19 @@ Risolto (engine integration follow-up):
 - World platformer C++ non fa piu' polling `Input` — solo movement/jump intent da Lua.
 - Logic Board sensor picker: `TagPicker` con tag da entita' + `SensorComponent.targetTag`.
 
+Aperto (runtime components — LinearMover / CameraTarget / MagneticItem, 2026-05-21):
+
+- Nessuna matrice documentata di **priorita' tra componenti di movimento** sulla stessa entita' (solo skip-list ad hoc in `World::tick*`).
+- `CameraTargetComponent`: piu' target attivi → l'ultimo in ordine EnTT vince senza warning editor.
+- `camera.centerOn` (Logic Board) e `CameraTargetComponent` (Inspector) sono due percorsi paralleli.
+- `MagneticItemComponent`: costo `O(magneti × entita' con tag)`; nessun cap sul numero di magnet.
+- `CameraManager` (modulo) aggiornato ma non usato per follow — follow reale passa da `Renderer`.
+- Demo `test-project` non ancora aggiornato con i nuovi component (solo test C++).
+
+Risolto (HordeMember follow-up `bc37d57`):
+
+- Helper condiviso `applySteeringVelocity` in `world.cpp` per LinearMover / Magnetic / Horde.
+
 ## Summary
 
 Questa review fotografa il debito tecnico emerso durante l'integrazione recente di Scene Settings, viewport runtime, editor guides, toolbar, grid editor-only, fix bordo nero in edit mode e pulizia warning build.
