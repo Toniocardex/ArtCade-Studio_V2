@@ -34,7 +34,7 @@ function miniProject(): ProjectDoc {
 
 describe('friendly-labels', () => {
   it('uses plain trigger names', () => {
-    expect(triggerDisplayName('onInput')).toBe('Key pressed')
+    expect(triggerDisplayName('onInput')).toBe('Keyboard input')
     expect(actionDisplayName('spawnEntity')).toBe('Create object')
   })
 

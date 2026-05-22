@@ -64,6 +64,14 @@ public:
     bool getAutoDestroy(EntityId id, AutoDestroyComponent& out) const;
     bool setAutoDestroy(EntityId id, const std::optional<AutoDestroyComponent>& autoDestroy);
 
+    bool getHealth(EntityId id, HealthComponent& out) const;
+    bool setHealth(EntityId id, const std::optional<HealthComponent>& health);
+
+    /** Count entities with SceneActiveTag (profiler / diagnostics). */
+    size_t activeSceneEntityCount() const;
+    /** Count active-scene entities with a live physics handle. */
+    size_t activePhysicsBodyCount() const;
+
     uint32_t physicsHandle(EntityId id) const;
     bool hasPhysicsBody(EntityId id) const;
     void setPhysicsHandle(EntityId id, uint32_t handle);
@@ -163,6 +171,7 @@ private:
     void activateEntity(EntityId id);
     void ensurePhysicsBody(EntityId id);
     void teardownPhysicsBody(EntityId id);
+    void syncSensorFixture(EntityId id);
     /** Copy every EntityDef field into the registry under `id`. Single
      *  place that defines the EntityDef → component mapping; used by
      *  create(), spawnFromClass() and replaceProject() to keep them

@@ -9,6 +9,7 @@ import type {
   LogicBoard,
   LogicCondition,
   LogicConditionNode,
+  LogicEvent,
   LogicTrigger,
   LogicTriggerType,
   TargetSelector,
@@ -20,18 +21,22 @@ import {
 } from '../../utils/project'
 import { formatKeyLabel } from '../../components/logic-board/KeyCapture'
 import { getComponentMeta, type ComponentKind } from '../../utils/logic-board/schema-registry'
+import {
+  getTriggerExecutionMode,
+  usesTickFallback,
+} from '../../utils/logic-board/trigger-execution'
 
 const TRIGGER_NAMES: Record<LogicTriggerType, string> = {
   onStart: 'Game starts',
   onSpawn: 'Object spawns',
-  onUpdate: 'Every frame',
-  onCollision: 'Touches something',
+  onUpdate: 'Every frame (polling)',
+  onCollision: 'Touches something (polling)',
   onTriggerEnter: 'Enters a zone',
   onTriggerExit: 'Leaves a zone',
-  onAnimationEnd: 'Animation finishes',
+  onAnimationEnd: 'Animation finishes (polling)',
   onDestroy: 'Is destroyed',
-  onInput: 'Key pressed',
-  onMouseInput: 'Mouse on object',
+  onInput: 'Keyboard input',
+  onMouseInput: 'Mouse on object (polling)',
   onMessage: 'Message received',
   onTimer: 'Timer',
 }
@@ -122,6 +127,26 @@ export function conditionDisplayName(type: LogicCondition['type']): string {
 
 export function triggerCategory(type: LogicTriggerType): string {
   return getComponentMeta('trigger', type)?.category ?? 'Other'
+}
+
+/** Compact badge label for collapsed rule cards (Event vs Polling). */
+export function triggerExecutionBadge(
+  event: LogicEvent,
+  board?: LogicBoard | null,
+): { label: string; title: string } {
+  const mode = getTriggerExecutionMode(
+    event.trigger,
+    board ?? undefined,
+    event,
+  )
+  const polling = board ? usesTickFallback(event, board) : mode === 'polling'
+  const label = polling ? 'Polling' : mode === 'hybrid' ? 'Event*' : 'Event'
+  const title = polling
+    ? 'This rule runs inside tick(dt) each frame or polls state.'
+    : mode === 'hybrid'
+      ? 'Event handler when configured; may fall back to polling.'
+      : 'Registered once as an event handler (_logic_init).'
+  return { label, title }
 }
 
 export function actionCategory(type: LogicActionType): string {

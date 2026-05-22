@@ -9,11 +9,14 @@ import {
   actionDisplayName,
   conditionCategory,
   conditionDisplayName,
-  triggerCategory,
   triggerDisplayName,
 } from '../../panels/logic-board/friendly-labels'
 import type { LogicActionType, LogicTriggerType } from '../../types/logic-board'
 import type { LogicCondition } from '../../types/logic-board'
+import {
+  triggerExecutionTooltip,
+  triggerPickerGroup,
+} from '../../utils/logic-board/trigger-execution'
 
 const sel =
   'w-full bg-[var(--bg)] border border-[var(--border-2)] text-[var(--text)] px-2 py-1.5 rounded text-xs'
@@ -25,7 +28,7 @@ function displayName(kind: ComponentKind, type: string): string {
 }
 
 function category(kind: ComponentKind, type: string): string {
-  if (kind === 'trigger') return triggerCategory(type as LogicTriggerType)
+  if (kind === 'trigger') return triggerPickerGroup(type as LogicTriggerType)
   if (kind === 'action') return actionCategory(type as LogicActionType)
   return conditionCategory(type as LogicCondition['type'])
 }
@@ -51,7 +54,16 @@ export function TypePicker({
       list.push(t)
       map.set(cat, list)
     }
-    return [...map.entries()].sort(([a], [b]) => a.localeCompare(b))
+    // Event-first triggers: Recommended before Advanced / Polling.
+    const order = ['Recommended', 'Advanced / Polling']
+    return [...map.entries()].sort(([a], [b]) => {
+      const ia = order.indexOf(a)
+      const ib = order.indexOf(b)
+      if (ia >= 0 && ib >= 0) return ia - ib
+      if (ia >= 0) return -1
+      if (ib >= 0) return 1
+      return a.localeCompare(b)
+    })
   }, [kind, types])
 
   return (
@@ -62,11 +74,17 @@ export function TypePicker({
     >
       {groups.map(([cat, items]) => (
         <optgroup key={cat} label={cat}>
-          {items.map((t) => (
-            <option key={t} value={t}>
-              {displayName(kind, t)}
-            </option>
-          ))}
+          {items.map((t) => {
+            const tip =
+              kind === 'trigger'
+                ? triggerExecutionTooltip(t as LogicTriggerType)
+                : undefined
+            return (
+              <option key={t} value={t} title={tip}>
+                {displayName(kind, t)}
+              </option>
+            )
+          })}
         </optgroup>
       ))}
     </select>

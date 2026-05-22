@@ -479,14 +479,9 @@ void Application::loopIteration() {
     }
 
     {
-        uint32_t physicsBodies = 0;
-        const auto activeIds = mod_->entityGateway->activeSceneIds();
-        for (EntityId id : activeIds) {
-            if (mod_->entityGateway->physicsHandle(id) != 0)
-                ++physicsBodies;
-        }
         profiler_.setCounts(
-            static_cast<uint32_t>(activeIds.size()), physicsBodies);
+            static_cast<uint32_t>(mod_->entityGateway->activeSceneEntityCount()),
+            static_cast<uint32_t>(mod_->entityGateway->activePhysicsBodyCount()));
     }
     {
         const auto start = Clock::now();

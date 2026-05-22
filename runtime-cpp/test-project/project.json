@@ -39,6 +39,18 @@
           0.5,
           0.5
         ]
+      },
+      "physics": {
+        "bodyType": "Static",
+        "collider": {
+          "shape": "Rectangle",
+          "size": [52, 52]
+        }
+      },
+      "health": {
+        "maxHp": 100,
+        "currentHp": 100,
+        "iFrames": 0.2
       }
     },
     "2": {
@@ -73,6 +85,18 @@
           0.5,
           0.5
         ]
+      },
+      "physics": {
+        "bodyType": "Kinematic",
+        "collider": {
+          "shape": "Rectangle",
+          "size": [40, 40]
+        }
+      },
+      "sensor": {
+        "shape": "Circle",
+        "radius": 50,
+        "targetTag": "player"
       }
     },
     "3": {
@@ -107,6 +131,18 @@
           0.5,
           0.5
         ]
+      },
+      "physics": {
+        "bodyType": "Kinematic",
+        "collider": {
+          "shape": "Rectangle",
+          "size": [40, 40]
+        }
+      },
+      "sensor": {
+        "shape": "Circle",
+        "radius": 50,
+        "targetTag": "player"
       }
     },
     "4": {
@@ -141,6 +177,18 @@
           0.5,
           0.5
         ]
+      },
+      "physics": {
+        "bodyType": "Static",
+        "collider": {
+          "shape": "Rectangle",
+          "size": [24, 24]
+        }
+      },
+      "sensor": {
+        "shape": "Circle",
+        "radius": 30,
+        "targetTag": "player"
       }
     },
     "5": {
@@ -175,6 +223,18 @@
           0.5,
           0.5
         ]
+      },
+      "physics": {
+        "bodyType": "Static",
+        "collider": {
+          "shape": "Rectangle",
+          "size": [24, 24]
+        }
+      },
+      "sensor": {
+        "shape": "Circle",
+        "radius": 30,
+        "targetTag": "player"
       }
     },
     "6": {

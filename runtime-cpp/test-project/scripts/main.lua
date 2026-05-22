@@ -51,13 +51,42 @@ local logPath    = "test-project/logs/physics_test.log"
 -- ---------------------------------------------------------------------------
 -- Helpers
 -- ---------------------------------------------------------------------------
-local function dist(ax, ay, bx, by)
-    local dx, dy = ax - bx, ay - by
-    return math.sqrt(dx*dx + dy*dy)
-end
-
 local function clamp(v, lo, hi)
     return math.max(lo, math.min(hi, v))
+end
+
+local function removeCoinId(cid)
+    for i, id in ipairs(coinIds) do
+        if id == cid then
+            table.remove(coinIds, i)
+            break
+        end
+    end
+end
+
+local function bindSensorHandlers()
+    sensor.onEnter("Coin", "player", function(coinId, otherId, tag)
+        if otherId ~= playerId then return end
+        score = score + 10
+        state.set("score", score)
+        log("Coin collected! score=" .. tostring(score))
+        entity.destroy(coinId)
+        removeCoinId(coinId)
+    end)
+
+    sensor.onEnter("Enemy", "player", function(enemyId, otherId, tag)
+        if otherId ~= playerId or not alive then return end
+        alive = false
+        state.set("alive", 0)
+        log("PLAYER HIT by enemy " .. tostring(enemyId)
+            .. "  score=" .. tostring(score))
+    end)
+
+    sensor.onExit("Enemy", "player", function(enemyId, otherId, tag)
+        if otherId ~= playerId then return end
+        alive = true
+        state.set("alive", 1)
+    end)
 end
 
 local function bindMovementInput()
@@ -140,6 +169,7 @@ local function init()
     state.set("playerName", "Hero")
     state.set("hardMode", false)
     bindMovementInput()
+    bindSensorHandlers()
 
     -- Verify state.get() round-trip (was broken: always returned nil)
     local sc = state.get("score")
@@ -230,43 +260,6 @@ local function updateEnemies(dt)
             entity.setPosition(eid, ex, ey)
         end
     end
-end
-
--- ---------------------------------------------------------------------------
--- Coin collection
--- ---------------------------------------------------------------------------
-local function checkCoins(px, py)
-    local toRemove = {}
-    for i, cid in ipairs(coinIds) do
-        local cx, cy = entity.position(cid)
-        if dist(px, py, cx, cy) < COIN_RANGE then
-            score = score + 10
-            state.set("score", score)
-            log("Coin collected! score=" .. tostring(score))
-            entity.destroy(cid)
-            table.insert(toRemove, i)
-        end
-    end
-    for i = #toRemove, 1, -1 do table.remove(coinIds, toRemove[i]) end
-end
-
--- ---------------------------------------------------------------------------
--- Enemy contact
--- ---------------------------------------------------------------------------
-local function checkEnemies(px, py)
-    for _, eid in ipairs(enemyIds) do
-        local ex, ey = entity.position(eid)
-        if dist(px, py, ex, ey) < ENEMY_RANGE then
-            if alive then
-                alive = false
-                state.set("alive", 0)
-                log("PLAYER HIT by enemy " .. tostring(eid)
-                    .. "  score=" .. tostring(score))
-            end
-            return
-        end
-    end
-    alive = true
 end
 
 -- ---------------------------------------------------------------------------
@@ -378,8 +371,6 @@ function tick(dt)
         px = clamp(px + dx*SPEED*dt, PLAYER_SIZE, SCREEN_W-PLAYER_SIZE)
         py = clamp(py + dy*SPEED*dt, PLAYER_SIZE, SCREEN_H-PLAYER_SIZE)
         entity.setPosition(playerId, px, py)
-        checkCoins(px, py)
-        checkEnemies(px, py)
     end
 
     drawScene()

@@ -185,10 +185,49 @@ static void test_sensor_edges_are_drained_deterministically() {
     CHECK(!events[0].enter);
 }
 
+static void test_set_sensor_syncs_fixture_after_body() {
+    Fixture f;
+
+    EntityDef coin = makeEntity(1, "Coin");
+    coin.physics.bodyType = BodyType::Static;
+    coin.physics.collider.size = { 32.f, 32.f };
+
+    EntityDef player = makeEntity(2, "Player", {"player"});
+    player.physics.bodyType = BodyType::Static;
+    player.physics.collider.size = { 32.f, 32.f };
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1, 2 };
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.scenes = {{ scene.id, scene }};
+    doc.entities = {{ 1, coin }, { 2, player }};
+    f.world.init(doc);
+
+    CHECK(f.gw.physicsHandle(1) != 0);
+    CHECK(f.world.pollSensorEdges().empty());
+
+    SensorComponent sensor;
+    sensor.shape = "Circle";
+    sensor.radius = 64.f;
+    sensor.targetTag = "player";
+    CHECK(f.gw.setSensor(1, sensor));
+
+    f.world.tickGameplaySystems(1.f / 60.f);
+    auto events = f.world.pollSensorEdges();
+    CHECK(events.size() == 1);
+    CHECK(events[0].entityId == 1);
+    CHECK(events[0].otherId == 2);
+    CHECK(events[0].enter);
+}
+
 int main() {
     test_platformer_movement_intent_without_input();
     test_platformer_jump_intent_without_input();
     test_sensor_edges_are_drained_deterministically();
+    test_set_sensor_syncs_fixture_after_body();
 
     std::cout << "world-intent-test: " << g_passed << " passed, "
               << g_failed << " failed\n";

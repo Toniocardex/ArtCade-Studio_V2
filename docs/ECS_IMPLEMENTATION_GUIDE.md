@@ -198,8 +198,8 @@ essere stabile run su run.
 | -------------------------------- | ------------------------------------------- |
 | `allIds()`                       | insertion order (vettore `insertionOrder`)  |
 | `forEachActive*()` visitor       | insertion order + filtro `try_get`          |
-| `poolByClass(className)`         | insertion order, filtrato per classe        |
-| `byTag(tag)`                     | insertion order, filtrato per tag           |
+| `poolByClass(className)`         | insertion order, filtrato per classe **e** `SceneActiveTag` (gateway) |
+| `byTag(tag)`                     | insertion order, filtrato per tag **e** `SceneActiveTag` (gateway)    |
 | `activeSceneIds()`               | ordine `scene->entityIds` (autoring order)  |
 
 EnTT *non* garantisce nulla sull'ordine di `view::each` cross-run, perciò
@@ -533,6 +533,16 @@ I test runnano via `ctest -C Release --output-on-failure` da
   - `runtime-cpp/src/modules/runtime-entity-gateway/include/runtime-entity-gateway.h`
   - `runtime-cpp/src/modules/runtime-entity-gateway/src/entity-registry.{h,cpp}`
   - `runtime-cpp/src/core/types.h` (definizioni componenti)
+
+---
+
+## 10. API legacy e deprecazioni
+
+- **`lifecycle.pollDestroyed`**: deprecato per nuovo codice Logic Board / Lua.
+  Preferire `lifecycle.onDestroy(className, fn)` (event-first, Tranche 1).
+- **`AnimationState`**: vive in `SpriteAnimator` (modulo animazione), **non**
+  e' un componente EnTT. Non aggiungerlo al registry finche' un sistema
+  cross-cutting (es. AI che legge frame corrente) non lo richiede esplicitamente.
 
 ---
 

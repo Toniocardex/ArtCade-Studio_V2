@@ -49,7 +49,7 @@ export default function LogicBoardPanel() {
   const [panelMode, setPanelMode] = useState<'visual' | 'lua'>('visual')
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const [newClass, setNewClass] = useState('')
-  const [newTrigger, setNewTrigger] = useState<LogicTriggerType>('onUpdate')
+  const [newTrigger, setNewTrigger] = useState<LogicTriggerType>('onSpawn')
   const [applyMsg, setApplyMsg] = useState<string | null>(null)
 
   const sceneId = selection.sceneId ?? project?.activeSceneId ?? ''
@@ -282,6 +282,7 @@ export default function LogicBoardPanel() {
               <EventCard
                 key={ev.id}
                 event={ev}
+                board={board}
                 editing={editingId === ev.id}
                 onToggleEnabled={() =>
                   dispatch({

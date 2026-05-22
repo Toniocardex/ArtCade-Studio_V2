@@ -69,6 +69,19 @@ Direzione scelta:
   - il compiler Logic Board marca graph event-only come tick-free quando non
     esiste un project tick da preservare;
   - `_time_update(dt)` continua a girare anche quando il tick script e' saltato.
+- Tranche 7–10 (post-EnTT integration plan):
+  - UI Logic Board event-first (`trigger-execution.ts`, badge Event/Polling);
+  - `HealthComponent` end-to-end (registry → gateway → `entity.health`);
+  - sensor fixture sync su `setSensor` + demo `sensor.onEnter/onExit`;
+  - profiler/pick visitor + note deprecazioni in ECS guide.
+
+### Prossimo step consigliato
+
+Integrazione roadmap Tranche 1–10 completata. Follow-up opzionali:
+
+- sensor picker in Logic Board UI;
+- rimozione fallback input C++ in World platformer;
+- nuovi componenti gameplay via pattern §6 ECS guide.
 
 ### Verifiche Ultima Tranche
 
@@ -272,27 +285,82 @@ Exit criteria:
 
 ## Tranche 7 - UI Logic Board Event-First
 
-Stato: prossimo step.
+Stato: completata.
 
-Obiettivi:
+Completato:
 
-- Rendere visibile in UI quali trigger/blocchi sono event-driven e quali sono
-  fallback polling.
-- Promuovere trigger event-first come default:
-  - `On Spawn`;
-  - `Input Pressed/Released`;
-  - `Sensor Enter/Exit`;
-  - `Timer`.
-- Marcare `Every frame`, `Input Down`, collision polling, mouse polling e
-  animation polling come Advanced/Polling.
-- Aggiungere copy/tooltip chiari senza introdurre testo didascalico invasivo.
-- Preparare il futuro picker per sensori reali nel demo e nella Logic Board.
+- Modulo condiviso `editor/src/utils/logic-board/trigger-execution.ts`:
+  `getTriggerExecutionMode`, `usesTickFallback`, `triggerPickerGroup`, tooltip polling.
+- `triggers.json`: campo `x-artcade.executionMode` per ogni trigger.
+- `compiler.ts`: refactor — importa da `trigger-execution` (no drift).
+- UI Logic Board:
+  - `TypePicker`: optgroup **Recommended** vs **Advanced / Polling** + `title` su polling;
+  - `EventCard`: badge `Event` / `Polling` / `Event*`;
+  - `friendly-labels`: distinzione onInput pressed vs down;
+  - default nuova regola: `onSpawn` (`factory.ts`, `LogicBoardPanel.tsx`).
+- Test: `trigger-execution.test.ts` + aggiornamenti `compiler.test.ts`.
 
 Exit criteria:
 
 - UI coerente con compiler event-first.
 - Nessuna modifica runtime obbligatoria.
-- `npm.cmd test` e `npm.cmd run build` verdi.
+- `npm.cmd test`: 194/194 passati.
+- `npm.cmd run build`: passato.
+
+## Tranche 8 - HealthComponent end-to-end
+
+Stato: completata.
+
+Completato:
+
+- `EntityRegistry`: `getHealth` / `setHealth` (optional component).
+- `RuntimeEntityGateway`: delega + `applyEntityDefToRegistry` applica `def.health`.
+- Lua: `entity.health(id)` → `currentHp, maxHp`; `entity.setHealth(id, current, max?)`.
+- Test: `test_health_component` in `entity-signals-test.cpp`.
+
+Exit criteria:
+
+- Health da ProjectDoc → registry → gateway → Lua.
+- `ctest`: `entity_signals_test` verde.
+
+## Tranche 9 - Sensor fixtures + demo gameplay
+
+Stato: completata.
+
+Completato:
+
+- `RuntimeEntityGateway::setSensor` chiama `syncSensorFixture` quando il body esiste già.
+- `syncSensorFixture` condiviso con `ensurePhysicsBody`.
+- `entity.setPosition` sincronizza il body Box2D (sensor overlap con player script-driven).
+- Test: `test_set_sensor_syncs_fixture_after_body` in `world-intent-test.cpp`.
+- Demo `test-project`:
+  - `SensorComponent` su Coin/Enemy + physics static su Player/Coin/Enemy;
+  - `main.lua`: raccolta coin e danno nemico via `sensor.onEnter/onExit` (no distance polling).
+- `AssetLoader`: parsing JSON `physics` (bodyType + collider) da ProjectDoc.
+
+Exit criteria:
+
+- Sensor aggiunto post-create produce overlap reale.
+- Demo allineato al modello event-first.
+- `ctest`: `world_intent_test` verde.
+
+## Tranche 10 - Consolidamento runtime
+
+Stato: completata (incrementale).
+
+Completato:
+
+- Profiler (`app.cpp`): `activeSceneEntityCount()` / `activePhysicsBodyCount()` al posto del loop su `activeSceneIds()`.
+- Editor pick (`editor-input-controller.cpp`): `forEachActiveRenderable` per hit test.
+- Documentazione:
+  - `poolByClass` / `byTag` filtrano gia' per `SceneActiveTag` (gateway);
+  - `lifecycle.pollDestroyed` deprecato — preferire `lifecycle.onDestroy`;
+  - `AnimationState` resta in `SpriteAnimator`, non e' componente EnTT.
+
+Non in scope (follow-up):
+
+- Rimozione fallback `input_->isKeyDown` in World platformer (quando demo usa solo intent).
+- Promozione `AnimationState` a componente EnTT (solo se serve condivisione cross-system).
 
 ## Checklist Da Eseguire A Ogni Tranche
 

@@ -4,7 +4,12 @@
     "required": ["type"],
     "properties": { "type": { "const": "onStart" } },
     "additionalProperties": false,
-    "x-artcade": { "label": "On Start", "category": "System", "params": {} }
+    "x-artcade": {
+      "label": "On Start",
+      "category": "System",
+      "executionMode": "event",
+      "params": {}
+    }
   },
   "onSpawn": {
     "type": "object",
@@ -17,6 +22,7 @@
     "x-artcade": {
       "label": "On Spawn",
       "category": "System",
+      "executionMode": "event",
       "params": {
         "className": { "widget": "className", "label": "Class (optional)" }
       }
@@ -27,7 +33,12 @@
     "required": ["type"],
     "properties": { "type": { "const": "onUpdate" } },
     "additionalProperties": false,
-    "x-artcade": { "label": "On Update", "category": "System", "params": {} }
+    "x-artcade": {
+      "label": "On Update",
+      "category": "System",
+      "executionMode": "polling",
+      "params": {}
+    }
   },
   "onCollision": {
     "type": "object",
@@ -40,6 +51,7 @@
     "x-artcade": {
       "label": "On Collision",
       "category": "Physics",
+      "executionMode": "polling",
       "params": {
         "withClass": { "widget": "className", "label": "With class" }
       }
@@ -56,6 +68,7 @@
     "x-artcade": {
       "label": "On Trigger Enter",
       "category": "Physics",
+      "executionMode": "event",
       "params": {
         "withClass": { "widget": "className", "label": "With class" }
       }
@@ -72,6 +85,7 @@
     "x-artcade": {
       "label": "On Trigger Exit",
       "category": "Physics",
+      "executionMode": "event",
       "params": {
         "withClass": { "widget": "className", "label": "With class" }
       }
@@ -88,6 +102,7 @@
     "x-artcade": {
       "label": "On Animation End",
       "category": "Graphics",
+      "executionMode": "polling",
       "params": {
         "clipName": { "widget": "string", "label": "Clip", "placeholder": "death" }
       }
@@ -98,7 +113,12 @@
     "required": ["type"],
     "properties": { "type": { "const": "onDestroy" } },
     "additionalProperties": false,
-    "x-artcade": { "label": "On Destroy", "category": "System", "params": {} }
+    "x-artcade": {
+      "label": "On Destroy",
+      "category": "System",
+      "executionMode": "hybrid",
+      "params": {}
+    }
   },
   "onInput": {
     "type": "object",
@@ -112,6 +132,7 @@
     "x-artcade": {
       "label": "On Input",
       "category": "Input",
+      "executionMode": "hybrid",
       "params": {
         "keyCode": { "widget": "keyCapture", "label": "Key", "placeholder": "Press key…" },
         "eventType": { "widget": "enum", "label": "Event", "options": ["pressed", "down", "released"] }
@@ -130,6 +151,7 @@
     "x-artcade": {
       "label": "On Mouse Input",
       "category": "Input",
+      "executionMode": "polling",
       "params": {
         "button": { "widget": "enum", "label": "Button", "options": ["left", "right"] },
         "eventType": { "widget": "enum", "label": "Event", "options": ["pressed", "down", "released"] }
@@ -147,6 +169,7 @@
     "x-artcade": {
       "label": "On Message",
       "category": "Messaging",
+      "executionMode": "event",
       "params": {
         "messageName": { "widget": "string", "label": "Message", "placeholder": "player_hit" }
       }
@@ -164,6 +187,7 @@
     "x-artcade": {
       "label": "On Timer",
       "category": "System",
+      "executionMode": "event",
       "params": {
         "seconds": { "widget": "number", "label": "Every (s)" },
         "repeat": { "widget": "boolean", "label": "Repeat" }

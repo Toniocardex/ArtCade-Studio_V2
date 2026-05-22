@@ -80,6 +80,15 @@ bool RuntimeEntityGateway::isEntityActiveInScene(EntityId id) const {
     return registry_->contains(id) && registry_->sceneActive(id);
 }
 
+void RuntimeEntityGateway::syncSensorFixture(EntityId id) {
+    if (!physics_) return;
+    const uint32_t handle = physicsHandle(id);
+    if (handle == 0) return;
+    SensorComponent sensor{};
+    if (getSensor(id, sensor))
+        physics_->addSensorFixture(handle, sensor);
+}
+
 void RuntimeEntityGateway::ensurePhysicsBody(EntityId id) {
     if (!physics_) return;
     if (physicsHandle(id) != 0) return;
@@ -108,9 +117,7 @@ void RuntimeEntityGateway::ensurePhysicsBody(EntityId id) {
     if (getTransform(id, transform))
         physics_->setPosition(handle, transform.position);
 
-    SensorComponent sensor{};
-    if (getSensor(id, sensor))
-        physics_->addSensorFixture(handle, sensor);
+    syncSensorFixture(id);
 }
 
 void RuntimeEntityGateway::teardownPhysicsBody(EntityId id) {
@@ -165,6 +172,7 @@ void RuntimeEntityGateway::applyEntityDefToRegistry(
     registry_->setSensor(id, def.sensor);
     registry_->setPlatformer(id, def.platformerController);
     registry_->setAutoDestroy(id, def.autoDestroy);
+    registry_->setHealth(id, def.health);
     registry_->setIdentity(id, def.className, def.tags);
 }
 
@@ -330,6 +338,7 @@ bool RuntimeEntityGateway::getSensor(EntityId id, SensorComponent& out) const {
 bool RuntimeEntityGateway::setSensor(EntityId id, const std::optional<SensorComponent>& sensor) {
     if (!registry_->contains(id)) return false;
     registry_->setSensor(id, sensor);
+    syncSensorFixture(id);
     return true;
 }
 
@@ -357,6 +366,32 @@ bool RuntimeEntityGateway::setAutoDestroy(
     if (!registry_->contains(id)) return false;
     registry_->setAutoDestroy(id, autoDestroy);
     return true;
+}
+
+bool RuntimeEntityGateway::getHealth(EntityId id, HealthComponent& out) const {
+    return registry_->getHealth(id, out);
+}
+
+bool RuntimeEntityGateway::setHealth(EntityId id,
+                                     const std::optional<HealthComponent>& health)
+{
+    if (!registry_->contains(id)) return false;
+    registry_->setHealth(id, health);
+    return true;
+}
+
+size_t RuntimeEntityGateway::activeSceneEntityCount() const {
+    size_t n = 0;
+    for (EntityId id : registry_->allIds()) {
+        if (isEntityActiveInScene(id)) ++n;
+    }
+    return n;
+}
+
+size_t RuntimeEntityGateway::activePhysicsBodyCount() const {
+    size_t n = 0;
+    forEachActivePhysicsBody([&n](EntityId, uint32_t, Transform&) { ++n; });
+    return n;
 }
 
 uint32_t RuntimeEntityGateway::physicsHandle(EntityId id) const {

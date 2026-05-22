@@ -97,6 +97,9 @@ public:
     void setAutoDestroy(EntityId id,
                         const std::optional<AutoDestroyComponent>& ad);
 
+    bool getHealth(EntityId id, HealthComponent& out) const;
+    void setHealth(EntityId id, const std::optional<HealthComponent>& h);
+
     // ---- Physics handle ------------------------------------------------
 
     uint32_t physicsHandle(EntityId id) const;

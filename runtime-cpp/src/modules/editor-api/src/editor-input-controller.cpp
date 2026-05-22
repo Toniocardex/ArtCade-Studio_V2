@@ -84,9 +84,7 @@ uint32_t pickEntityAt(float x, float y) {
     auto* gw = EditorAPI::s_entityGateway;
     if (!gw) return 0u;
     uint32_t hit = 0u;
-    for (EntityId id : gw->activeSceneIds()) {
-        Transform transform{};
-        if (!gw->getTransform(id, transform)) continue;
+    gw->forEachActiveRenderable([&](EntityId id, const Transform& transform, const SpriteComponent&) {
         float sx = transform.scale.x; if (sx < 0.f) sx = -sx;
         float sy = transform.scale.y; if (sy < 0.f) sy = -sy;
         const float hw = 32.f * (sx > 0.f ? sx : 1.f);
@@ -94,8 +92,8 @@ uint32_t pickEntityAt(float x, float y) {
         const float cx = transform.position.x;
         const float cy = transform.position.y;
         if (x >= cx - hw && x <= cx + hw && y >= cy - hh && y <= cy + hh)
-            hit = id; // later in the list = drawn on top -> wins
-    }
+            hit = id;
+    });
     return hit;
 }
 } // namespace

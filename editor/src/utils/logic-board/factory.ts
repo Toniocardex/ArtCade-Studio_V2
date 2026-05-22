@@ -22,9 +22,9 @@ export function logicId(prefix: string): string {
   return `${prefix}_${Date.now().toString(36)}_${_seq.toString(36)}`
 }
 
-/** A new empty event defaulting to an onUpdate trigger with no actions. */
+/** A new empty event defaulting to an onSpawn trigger with no actions. */
 export function createLogicEvent(
-  trigger: LogicTrigger = { type: 'onUpdate' },
+  trigger: LogicTrigger = { type: 'onSpawn', className: '' },
   actions: LogicAction[] = [],
 ): LogicEvent {
   return { id: logicId('evt'), enabled: true, trigger, actions }

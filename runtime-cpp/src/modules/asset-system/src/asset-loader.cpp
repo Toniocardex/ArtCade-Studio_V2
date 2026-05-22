@@ -161,6 +161,33 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
                     : s.value("render_order", 0);
             }
 
+            if (ev.contains("physics") && ev["physics"].is_object()) {
+                auto& p = ev["physics"];
+                PhysicsComponent pc;
+                const std::string bt = p.value("bodyType", std::string("Dynamic"));
+                if (bt == "Static")
+                    pc.bodyType = BodyType::Static;
+                else if (bt == "Kinematic")
+                    pc.bodyType = BodyType::Kinematic;
+                else
+                    pc.bodyType = BodyType::Dynamic;
+                if (p.contains("collider") && p["collider"].is_object()) {
+                    auto& c = p["collider"];
+                    const std::string shape = c.value("shape", std::string("Rectangle"));
+                    pc.collider.shape = (shape == "Circle")
+                        ? ColliderShape::Circle
+                        : ColliderShape::Rectangle;
+                    if (c.contains("size"))
+                        pc.collider.size = readVec2(c["size"]);
+                    if (c.contains("offset"))
+                        pc.collider.offset = readVec2(c["offset"]);
+                    pc.collider.density  = c.value("density", 1.f);
+                    pc.collider.friction = c.value("friction", 0.3f);
+                    pc.collider.isSensor = c.value("isSensor", false);
+                }
+                e.physics = pc;
+            }
+
             // Optional gameplay components (Phase D1) — names mirror editor TS
             if (ev.contains("sensor") && ev["sensor"].is_object()) {
                 auto& s = ev["sensor"];

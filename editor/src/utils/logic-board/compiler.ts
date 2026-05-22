@@ -27,6 +27,10 @@ import type {
   LogicEvent,
   TargetSelector,
 } from '../../types/logic-board'
+import {
+  boardLifecycleClass,
+  usesTickFallback,
+} from './trigger-execution'
 
 // ---- literal helpers ------------------------------------------------------
 
@@ -388,14 +392,6 @@ function emitEventBody(ev: LogicEvent, board: LogicBoard, baseIndent: string): s
   return lines
 }
 
-function boardLifecycleClass(board: LogicBoard, ev: LogicEvent): string | null {
-  if (ev.trigger.type === 'onSpawn' && ev.trigger.className)
-    return ev.trigger.className
-  if (board.target.type === 'entity_class' && board.target.className)
-    return board.target.className
-  return null
-}
-
 function sensorSourceExpr(board: LogicBoard): string {
   if (board.target.type === 'entity_class' && board.target.className)
     return luaString(board.target.className)
@@ -471,16 +467,6 @@ function emitEventRegistration(ev: LogicEvent, board: LogicBoard): string[] | nu
   }
 
   return null
-}
-
-function usesTickFallback(ev: LogicEvent, board: LogicBoard): boolean {
-  if (ev.trigger.type === 'onStart' || ev.trigger.type === 'onMessage') return false
-  if (ev.trigger.type === 'onInput') return ev.trigger.eventType === 'down'
-  if (ev.trigger.type === 'onTimer') return false
-  if (ev.trigger.type === 'onTriggerEnter' || ev.trigger.type === 'onTriggerExit') return false
-  if (ev.trigger.type === 'onSpawn') return false
-  if (ev.trigger.type === 'onDestroy') return emitEventRegistration(ev, board) === null
-  return true
 }
 
 function poolExpr(board: LogicBoard): string {

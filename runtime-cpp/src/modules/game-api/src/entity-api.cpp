@@ -23,11 +23,16 @@ void GameAPI::bindEntityAPI(sol::state& lua) {
     });
 
     // entity.setPosition(id, x, y)
-    lua.set_function("entity_setPosition", [entities](EntityId id, float x, float y) {
+    lua.set_function("entity_setPosition", [entities, physics](EntityId id, float x, float y) {
         Transform transform{};
         if (!entities->getTransform(id, transform)) return;
         transform.position = { x, y };
         entities->setTransform(id, transform);
+        if (physics) {
+            const uint32_t handle = entities->physicsHandle(id);
+            if (handle != 0)
+                physics->setPosition(handle, transform.position);
+        }
     });
 
     // entity.velocity(id) → vx, vy
@@ -122,6 +127,32 @@ void GameAPI::bindEntityAPI(sol::state& lua) {
             if (!entities->getSprite(id, sprite)) return;
             sprite.tint = { r, g, b, a };
             entities->setSprite(id, sprite);
+        });
+
+    // entity.health(id) → currentHp, maxHp (nil if entity has no HealthComponent)
+    lua.set_function("entity_health", [entities](EntityId id, sol::this_state ts) -> sol::object {
+        sol::state_view lua(ts);
+        HealthComponent health{};
+        if (!entities->getHealth(id, health))
+            return sol::make_object(lua, sol::lua_nil);
+        sol::table out = lua.create_table();
+        out[1] = health.currentHp;
+        out[2] = health.maxHp;
+        return sol::make_object(lua, out);
+    });
+
+    // entity.setHealth(id, currentHp, maxHp?)
+    lua.set_function("entity_setHealth",
+        [entities](EntityId id, float currentHp, sol::optional<float> maxHp) {
+            HealthComponent health{};
+            if (entities->getHealth(id, health) && maxHp)
+                health.maxHp = *maxHp;
+            else if (maxHp)
+                health.maxHp = *maxHp;
+            else if (!entities->getHealth(id, health))
+                health.maxHp = currentHp;
+            health.currentHp = currentHp;
+            entities->setHealth(id, health);
         });
 
     // scene.load(name) / scene.restart()  — flow control via the gateway
@@ -221,6 +252,12 @@ void GameAPI::bindEntityAPI(sol::state& lua) {
         entity.imagePoint  = function(id, pt)   return entity_imagePoint(id, pt)  end
         entity.setVisible  = function(id,v)     return entity_setVisible(id,v)   end
         entity.setTint     = function(id,r,g,b,a) return entity_setTint(id,r,g,b,a) end
+        entity.health      = function(id)
+            local h = entity_health(id)
+            if h == nil then return nil end
+            return h[1], h[2]
+        end
+        entity.setHealth   = function(id,c,m)   return entity_setHealth(id,c,m)  end
 
         scene = {}
         scene.load    = function(name, fade) return scene_load(name, fade) end

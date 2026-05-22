@@ -7,8 +7,10 @@ import type { LogicEvent } from '../../types/logic-board'
 import {
   actionSummaryPlain,
   conditionsPlainList,
+  triggerExecutionBadge,
   triggerSummaryPlain,
 } from './friendly-labels'
+import type { LogicBoard } from '../../types/logic-board'
 import { RuleSentence } from '../../components/logic-board/RuleSentence'
 import EventEditor from './EventEditor'
 
@@ -20,6 +22,7 @@ const pThen = 'text-[var(--warn)] border-[var(--pill-then-bd)] bg-[var(--pill-th
 
 export default function EventCard({
   event,
+  board,
   editing,
   onToggleEnabled,
   onEdit,
@@ -28,6 +31,7 @@ export default function EventCard({
   onDoneEditing,
 }: {
   event: LogicEvent
+  board?: LogicBoard | null
   editing: boolean
   onToggleEnabled: () => void
   onEdit: () => void
@@ -39,6 +43,7 @@ export default function EventCard({
   const project = state.project
   const ifLines = conditionsPlainList(event, project)
   const dim = event.enabled ? '' : 'opacity-50'
+  const execBadge = triggerExecutionBadge(event, board)
 
   return (
     <div
@@ -48,6 +53,16 @@ export default function EventCard({
     >
       <div className="flex items-start gap-2.5 px-3 py-2.5 bg-[var(--panel-3)] border-b border-[var(--border)]">
         <span className={`${pill} ${pWhen}`}>When</span>
+        <span
+          className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border shrink-0 ${
+            execBadge.label === 'Polling'
+              ? 'text-[var(--muted)] border-[var(--border-2)] bg-[var(--panel-2)]'
+              : 'text-[var(--accent)] border-[var(--accent-bd)] bg-[var(--accent-bg)]'
+          }`}
+          title={execBadge.title}
+        >
+          {execBadge.label}
+        </span>
         <RuleSentence text={triggerSummaryPlain(event.trigger, project)} dimmed={!event.enabled} />
         <div className="flex-1" />
         <button
