@@ -371,6 +371,104 @@ static void test_set_sensor_replaces_fixture_without_duplicates() {
     CHECK(f.world.pollSensorEdges().empty());
 }
 
+static void test_set_sensor_creates_body_for_sensor_only_entity() {
+    Fixture f;
+
+    EntityDef coin = makeEntity(1, "Coin");
+
+    EntityDef player = makeEntity(2, "Player", {"player"});
+    player.physics.bodyType = BodyType::Static;
+    player.physics.collider.size = { 32.f, 32.f };
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1, 2 };
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.scenes = {{ scene.id, scene }};
+    doc.entities = {{ 1, coin }, { 2, player }};
+    f.world.init(doc);
+
+    CHECK(f.gw.physicsHandle(1) == 0);
+
+    SensorComponent sensor;
+    sensor.shape = "Circle";
+    sensor.radius = 64.f;
+    sensor.targetTag = "player";
+    CHECK(f.gw.setSensor(1, sensor));
+    CHECK(f.gw.physicsHandle(1) != 0);
+
+    f.world.tickGameplaySystems(1.f / 60.f);
+    auto events = f.world.pollSensorEdges();
+    CHECK(events.size() == 1);
+    if (events.size() == 1) CHECK(events[0].enter);
+
+    CHECK(f.gw.setSensor(1, std::nullopt));
+    CHECK(f.gw.physicsHandle(1) == 0);
+}
+
+static void test_set_solid_creates_and_removes_static_body() {
+    Fixture f;
+
+    EntityDef platform = makeEntity(1, "Platform");
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1 };
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.scenes = {{ scene.id, scene }};
+    doc.entities = {{ 1, platform }};
+    f.world.init(doc);
+
+    CHECK(f.gw.physicsHandle(1) == 0);
+
+    SolidComponent solid;
+    solid.groundClass = "Ground";
+    CHECK(f.gw.setSolid(1, solid));
+    CHECK(f.gw.physicsHandle(1) != 0);
+
+    TopDownControllerComponent topDown;
+    CHECK(f.gw.setTopDownController(1, topDown));
+
+    CHECK(f.gw.setSolid(1, std::nullopt));
+    CHECK(f.gw.physicsHandle(1) != 0);
+    PhysicsComponent physics{};
+    CHECK(f.gw.getPhysicsComponent(1, physics));
+    CHECK(physics.physicsHandle == f.gw.physicsHandle(1));
+
+    CHECK(f.gw.setTopDownController(1, std::nullopt));
+    CHECK(f.gw.physicsHandle(1) == 0);
+}
+
+static void test_set_physics_component_replaces_body_without_leak() {
+    Fixture f;
+
+    EntityDef block = makeEntity(1, "Block");
+    block.physics.bodyType = BodyType::Static;
+    block.physics.collider.size = { 32.f, 32.f };
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1 };
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.scenes = {{ scene.id, scene }};
+    doc.entities = {{ 1, block }};
+    f.world.init(doc);
+
+    CHECK(f.gw.physicsHandle(1) != 0);
+    CHECK(!f.physics.getContactingBodies({ 0.f, 0.f }).empty());
+
+    PhysicsComponent noBody;
+    CHECK(f.gw.setPhysicsComponent(1, noBody));
+    CHECK(f.gw.physicsHandle(1) == 0);
+    CHECK(f.physics.getContactingBodies({ 0.f, 0.f }).empty());
+}
+
 static void test_linear_mover_moves_transform_without_physics() {
     Fixture f;
 
@@ -629,6 +727,86 @@ static void test_health_damage_respects_iframes() {
     CHECK(h.currentHp == 80.f);
 }
 
+static ProjectDoc makeTileSceneDoc() {
+    EntityDef player = makeEntity(1, "Player", {"player"});
+    player.physics.bodyType = BodyType::Dynamic;
+    player.physics.collider.size = { 16.f, 16.f };
+    TopDownControllerComponent topDown;
+    topDown.maxSpeed = 100.f;
+    topDown.acceleration = 1000.f;
+    topDown.friction = 1000.f;
+    player.topDownController = topDown;
+
+    EntityDef sensorHost = makeEntity(2, "Coin");
+    sensorHost.physics.bodyType = BodyType::Static;
+    sensorHost.physics.collider.size = { 16.f, 16.f };
+    SensorComponent sensor;
+    sensor.shape = "Circle";
+    sensor.radius = 32.f;
+    sensor.targetTag = "player";
+    sensorHost.sensor = sensor;
+
+    SceneDef sceneA;
+    sceneA.id = "scene_a";
+    sceneA.entityIds = { 1, 2 };
+    sceneA.tilemap.tileSize = 32.f;
+    sceneA.tilemap.cols = 2;
+    sceneA.tilemap.rows = 1;
+    sceneA.tilemap.data = { 0, 1 };
+
+    SceneDef sceneB;
+    sceneB.id = "scene_b";
+    sceneB.entityIds = { 1, 2 };
+
+    TilePaletteEntry solidTile;
+    solidTile.id = 1;
+    solidTile.solid = true;
+
+    ProjectDoc doc;
+    doc.activeSceneId = "scene_a";
+    doc.tilePalette = { solidTile };
+    doc.scenes = {{ sceneA.id, sceneA }, { sceneB.id, sceneB }};
+    doc.entities = {{ 1, player }, { 2, sensorHost }};
+    return doc;
+}
+
+static void test_load_scene_rebuilds_tilemap_physics() {
+    Fixture f;
+    f.world.init(makeTileSceneDoc());
+
+    CHECK(!f.physics.getContactingBodies({ 48.f, 16.f }).empty());
+    CHECK(f.world.loadScene("scene_b"));
+    CHECK(f.physics.getContactingBodies({ 48.f, 16.f }).empty());
+}
+
+static void test_load_scene_resets_runtime_state() {
+    Fixture f;
+    f.world.init(makeTileSceneDoc());
+
+    f.world.setMovementIntent(1, 1.f, 0.f);
+    f.world.tickGameplaySystems(1.f / 60.f);
+    CHECK(!f.world.pollSensorEdges().empty());
+
+    CHECK(f.world.loadScene("scene_b"));
+    f.world.tickGameplaySystems(1.f / 60.f);
+
+    const Vec2 velocity = f.physics.getLinearVelocity(f.gw.physicsHandle(1));
+    CHECK(std::abs(velocity.x) < 0.01f);
+
+    auto events = f.world.pollSensorEdges();
+    CHECK(events.size() == 1);
+    if (events.size() == 1) CHECK(events[0].enter);
+}
+
+static void test_shutdown_clears_tilemap_physics() {
+    Fixture f;
+    f.world.init(makeTileSceneDoc());
+
+    CHECK(!f.physics.getContactingBodies({ 48.f, 16.f }).empty());
+    f.world.shutdown();
+    CHECK(f.physics.getContactingBodies({ 48.f, 16.f }).empty());
+}
+
 int main() {
     test_platformer_movement_intent_without_input();
     test_platformer_jump_intent_without_input();
@@ -638,6 +816,9 @@ int main() {
     test_sensor_edges_are_drained_deterministically();
     test_set_sensor_syncs_fixture_after_body();
     test_set_sensor_replaces_fixture_without_duplicates();
+    test_set_sensor_creates_body_for_sensor_only_entity();
+    test_set_solid_creates_and_removes_static_body();
+    test_set_physics_component_replaces_body_without_leak();
     test_linear_mover_moves_transform_without_physics();
     test_linear_mover_sets_physics_velocity();
     test_magnetic_item_pulls_tagged_entity();
@@ -646,6 +827,9 @@ int main() {
     test_auto_destroy_after_lifespan();
     test_update_entity_preserves_auto_destroy_timer();
     test_health_damage_respects_iframes();
+    test_load_scene_rebuilds_tilemap_physics();
+    test_load_scene_resets_runtime_state();
+    test_shutdown_clears_tilemap_physics();
 
     std::cout << "world-intent-test: " << g_passed << " passed, "
               << g_failed << " failed\n";

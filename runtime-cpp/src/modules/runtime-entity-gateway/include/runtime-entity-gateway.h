@@ -216,6 +216,7 @@ private:
     void activateEntity(EntityId id);
     void ensurePhysicsBody(EntityId id);
     void teardownPhysicsBody(EntityId id);
+    void rebuildPhysicsBodyIfActive(EntityId id);
     void syncSensorFixture(EntityId id);
     /** Copy every EntityDef field into the registry under `id`. Single
      *  place that defines the EntityDef → component mapping; used by

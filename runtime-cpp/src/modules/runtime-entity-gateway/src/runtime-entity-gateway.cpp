@@ -107,11 +107,25 @@ void RuntimeEntityGateway::ensurePhysicsBody(EntityId id) {
     const bool hasTopDown = getTopDownController(id, topDown);
     SolidComponent solid{};
     const bool hasSolid = getSolid(id, solid);
-    if (!hasCollider && !hasPlatformer && !hasTopDown && !hasSolid) return;
+    SensorComponent sensor{};
+    const bool hasSensor = getSensor(id, sensor);
+    if (!hasCollider && !hasPlatformer && !hasTopDown && !hasSolid && !hasSensor) return;
 
     if (!hasCollider) {
-        comp.collider.size = { 32.f, 32.f };
-        comp.bodyType = BodyType::Dynamic;
+        if (hasSensor) {
+            comp.bodyType = BodyType::Static;
+            comp.collider.isSensor = true;
+            if (sensor.shape == "Circle") {
+                comp.collider.shape = ColliderShape::Circle;
+                comp.collider.size = { std::max(1.f, sensor.radius), std::max(1.f, sensor.radius) };
+            } else {
+                comp.collider.shape = ColliderShape::Rectangle;
+                comp.collider.size = { std::max(1.f, sensor.width), std::max(1.f, sensor.height) };
+            }
+        } else {
+            comp.collider.size = { 32.f, 32.f };
+            comp.bodyType = BodyType::Dynamic;
+        }
     }
     if (hasTopDown && !hasPlatformer && !hasSolid)
         comp.bodyType = BodyType::Kinematic;
@@ -121,13 +135,18 @@ void RuntimeEntityGateway::ensurePhysicsBody(EntityId id) {
     const uint32_t handle = physics_->createBody(id, comp);
     if (handle == 0) return;
 
-    setPhysicsComponent(id, comp);
     setPhysicsHandle(id, handle);
     Transform transform{};
     if (getTransform(id, transform))
         physics_->setPosition(handle, transform.position);
 
     syncSensorFixture(id);
+}
+
+void RuntimeEntityGateway::rebuildPhysicsBodyIfActive(EntityId id) {
+    if (!physics_ || !isEntityActiveInScene(id)) return;
+    teardownPhysicsBody(id);
+    ensurePhysicsBody(id);
 }
 
 void RuntimeEntityGateway::teardownPhysicsBody(EntityId id) {
@@ -354,7 +373,12 @@ bool RuntimeEntityGateway::getPhysicsComponent(EntityId id, PhysicsComponent& ou
 
 bool RuntimeEntityGateway::setPhysicsComponent(EntityId id, const PhysicsComponent& physics) {
     if (!registry_->contains(id)) return false;
+    const bool active = isEntityActiveInScene(id);
+    if (active)
+        teardownPhysicsBody(id);
     registry_->setPhysics(id, physics);
+    if (active)
+        ensurePhysicsBody(id);
     return true;
 }
 
@@ -365,7 +389,7 @@ bool RuntimeEntityGateway::getSensor(EntityId id, SensorComponent& out) const {
 bool RuntimeEntityGateway::setSensor(EntityId id, const std::optional<SensorComponent>& sensor) {
     if (!registry_->contains(id)) return false;
     registry_->setSensor(id, sensor);
-    syncSensorFixture(id);
+    rebuildPhysicsBodyIfActive(id);
     return true;
 }
 
@@ -376,6 +400,7 @@ bool RuntimeEntityGateway::getSolid(EntityId id, SolidComponent& out) const {
 bool RuntimeEntityGateway::setSolid(EntityId id, const std::optional<SolidComponent>& solid) {
     if (!registry_->contains(id)) return false;
     registry_->setSolid(id, solid);
+    rebuildPhysicsBodyIfActive(id);
     return true;
 }
 
@@ -390,6 +415,7 @@ bool RuntimeEntityGateway::setPlatformerController(
 {
     if (!registry_->contains(id)) return false;
     registry_->setPlatformer(id, controller);
+    rebuildPhysicsBodyIfActive(id);
     return true;
 }
 
@@ -404,6 +430,7 @@ bool RuntimeEntityGateway::setTopDownController(
 {
     if (!registry_->contains(id)) return false;
     registry_->setTopDown(id, controller);
+    rebuildPhysicsBodyIfActive(id);
     return true;
 }
 

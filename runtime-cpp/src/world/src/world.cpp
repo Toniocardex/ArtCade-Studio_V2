@@ -4,76 +4,9 @@
 #include "../../modules/variable-manager/include/variable-manager.h"
 #include "../../modules/renderer/include/renderer.h"
 
-#include <algorithm>
 #include <cmath>
-#include <iostream>
-#include <vector>
 
 namespace ArtCade {
-
-namespace {
-
-float lengthSq(Vec2 v) {
-    return v.x * v.x + v.y * v.y;
-}
-
-Vec2 normalizeOrZero(Vec2 v) {
-    const float len2 = lengthSq(v);
-    if (len2 <= 0.000001f) return {};
-    const float inv = 1.f / std::sqrt(len2);
-    return { v.x * inv, v.y * inv };
-}
-
-Vec2 approach(Vec2 current, Vec2 target, float maxDelta) {
-    const Vec2 delta{ target.x - current.x, target.y - current.y };
-    const float dist2 = lengthSq(delta);
-    if (dist2 <= maxDelta * maxDelta || dist2 <= 0.000001f)
-        return target;
-    const float inv = 1.f / std::sqrt(dist2);
-    return {
-        current.x + delta.x * inv * maxDelta,
-        current.y + delta.y * inv * maxDelta,
-    };
-}
-
-Vec2 constrainTopDownDirection(Vec2 direction, bool fourDirections) {
-    direction.x = std::clamp(direction.x, -1.f, 1.f);
-    direction.y = std::clamp(direction.y, -1.f, 1.f);
-    if (fourDirections && direction.x != 0.f && direction.y != 0.f) {
-        if (std::abs(direction.x) >= std::abs(direction.y))
-            direction.y = 0.f;
-        else
-            direction.x = 0.f;
-    }
-    return normalizeOrZero(direction);
-}
-
-void applySteeringVelocity(Modules::Physics& physics,
-                           Modules::RuntimeEntityGateway& gateway,
-                           EntityId id,
-                           const Vec2& velocity,
-                           float dt)
-{
-    const uint32_t handle = gateway.physicsHandle(id);
-    if (handle != 0) {
-        PhysicsComponent physicsComp{};
-        if (gateway.getPhysicsComponent(id, physicsComp) &&
-            physicsComp.bodyType != BodyType::Static)
-        {
-            physics.setLinearVelocity(handle, velocity);
-            return;
-        }
-    }
-
-    Transform transform{};
-    if (!gateway.getTransform(id, transform)) return;
-    transform.velocity = velocity;
-    transform.position.x += velocity.x * dt;
-    transform.position.y += velocity.y * dt;
-    gateway.setTransform(id, transform);
-}
-
-} // namespace
 
 World::World(Modules::RuntimeEntityGateway& gateway,
              Modules::Physics&              ph,
@@ -81,52 +14,6 @@ World::World(Modules::RuntimeEntityGateway& gateway,
     : entityGateway_(gateway), physics_(ph), variables_(variables) {}
 
 void World::setGameplayDeps(Modules::Input* /*input*/) {}
-
-void World::clearTilemapPhysics() {
-    for (uint32_t h : tilePhysicsHandles_)
-        physics_.destroyBody(h);
-    tilePhysicsHandles_.clear();
-}
-
-void World::rebuildTilemapPhysics() {
-    clearTilemapPhysics();
-
-    const SceneId sid = entityGateway_.activeSceneId();
-    const SceneDef* scene = entityGateway_.activeScene();
-    if (!scene) {
-        activeTilemap_ = TilemapData{};
-        return;
-    }
-
-    activeTilemap_ = scene->tilemap;
-    const TilemapData& tm = activeTilemap_;
-    if (tm.cols <= 0 || tm.rows <= 0) return;
-
-    int created = 0;
-    const int n = static_cast<int>(tm.data.size());
-    for (int r = 0; r < tm.rows; ++r) {
-        for (int c = 0; c < tm.cols; ++c) {
-            const int idx = r * tm.cols + c;
-            if (idx >= n) continue;
-            const int id = tm.data[idx];
-            if (id <= 0) continue;
-            auto si = tileSolid_.find(id);
-            if (si == tileSolid_.end() || !si->second) continue;
-
-            PhysicsComponent pc;
-            pc.bodyType       = BodyType::Static;
-            pc.collider.shape = ColliderShape::Rectangle;
-            pc.collider.size  = { tm.tileSize, tm.tileSize };
-            const uint32_t h = physics_.createBody(INVALID_ENTITY, pc);
-            physics_.setPosition(h, {
-                c * tm.tileSize + tm.tileSize * 0.5f,
-                r * tm.tileSize + tm.tileSize * 0.5f });
-            tilePhysicsHandles_.push_back(h);
-            ++created;
-        }
-    }
-    std::cout << "[Tilemap] " << created << " solid collision bodies created\n";
-}
 
 void World::clearGameplayRuntimeState() {
     platformerRt_.clear();
@@ -155,12 +42,15 @@ void World::init(const ProjectDoc& doc) {
 }
 
 void World::shutdown() {
+    clearTilemapPhysics();
     variables_.clear();
     platformerRt_.clear();
     topDownRt_.clear();
     controlIntents_.clear();
     sensorWasOverlapping_.clear();
     sensorEdgeBuffer_.clear();
+    activeTilemap_ = TilemapData{};
+    tileSolid_.clear();
 }
 
 std::vector<SensorEdgeEvent> World::pollSensorEdges() {
@@ -171,10 +61,8 @@ std::vector<SensorEdgeEvent> World::pollSensorEdges() {
 
 bool World::loadScene(const SceneId& id) {
     if (!entityGateway_.loadScene(id)) return false;
-    if (const SceneDef* sc = entityGateway_.activeScene())
-        activeTilemap_ = sc->tilemap;
-    else
-        activeTilemap_ = TilemapData{};
+    clearGameplayRuntimeState();
+    rebuildTilemapPhysics();
     return true;
 }
 
@@ -217,315 +105,8 @@ std::vector<EntityId> World::activeEntityIds() const {
     return entityGateway_.activeSceneIds();
 }
 
-bool World::isGrounded(EntityId id, const std::string& groundClass) const {
-    const uint32_t selfHandle = entityGateway_.physicsHandle(id);
-    if (selfHandle == 0) return false;
-
-    bool grounded = false;
-    entityGateway_.forEachActiveSolid(
-        [this, id, selfHandle, &groundClass, &grounded]
-        (EntityId otherId, const SolidComponent& solid) {
-            if (grounded || otherId == id) return;
-            if (solid.groundClass != groundClass) return;
-            const uint32_t otherHandle = entityGateway_.physicsHandle(otherId);
-            if (otherHandle == 0) return;
-            if (physics_.areOverlapping(selfHandle, otherHandle))
-                grounded = true;
-        });
-    if (grounded) return true;
-
-    for (EntityId otherId : entityGateway_.poolByClass(groundClass)) {
-        if (otherId == id) continue;
-        const uint32_t otherHandle = entityGateway_.physicsHandle(otherId);
-        if (otherHandle == 0) continue;
-        if (physics_.areOverlapping(selfHandle, otherHandle))
-            return true;
-    }
-    return false;
-}
-
-void World::tickPlatformerControllers(float dt) {
-    // EnTT visitor: const PlatformerControllerComponent& (authored config);
-    // per-entity runtime state lives in platformerRt_ keyed by EntityId.
-    entityGateway_.forEachActivePlatformer(
-        [this, dt](EntityId id, const PlatformerControllerComponent& pc) {
-            auto& rt = platformerRt_[id];
-
-            const bool grounded = isGrounded(id, pc.groundClass);
-            if (grounded)
-                rt.coyoteTimer = pc.coyoteTime;
-            else
-                rt.coyoteTimer = std::max(0.f, rt.coyoteTimer - dt);
-
-            auto intentIt = controlIntents_.find(id);
-            ControlIntent* intent = intentIt != controlIntents_.end()
-                ? &intentIt->second
-                : nullptr;
-
-            // Movement and jump are intent-only (movement.setIntent /
-            // platformer.requestJump from Lua). No direct Input polling here.
-            if (intent && intent->jumpRequested)
-                rt.jumpBufferTimer = pc.jumpBuffer;
-            else
-                rt.jumpBufferTimer = std::max(0.f, rt.jumpBufferTimer - dt);
-
-            const uint32_t handle = entityGateway_.physicsHandle(id);
-            if (handle == 0) return;
-
-            float vx = 0.f;
-            float vy = physics_.getLinearVelocity(handle).y;
-
-            if (intent && intent->hasMovement) {
-                const float axis = std::clamp(intent->movement.x, -1.f, 1.f);
-                vx = axis * pc.maxSpeed;
-            }
-
-            if (rt.jumpBufferTimer > 0.f && rt.coyoteTimer > 0.f) {
-                vy = -pc.jumpForce;
-                rt.coyoteTimer     = 0.f;
-                rt.jumpBufferTimer = 0.f;
-            } else if (!grounded) {
-                vy += pc.customGravity * dt;
-            }
-
-            physics_.setLinearVelocity(handle, { vx, vy });
-            if (intent)
-                intent->jumpRequested = false;
-        });
-}
-
-void World::tickTopDownControllers(float dt) {
-    entityGateway_.forEachActiveTopDown(
-        [this, dt](EntityId id, const TopDownControllerComponent& tc) {
-            PlatformerControllerComponent platformer{};
-            if (entityGateway_.getPlatformerController(id, platformer))
-                return;
-
-            auto& rt = topDownRt_[id];
-            auto intentIt = controlIntents_.find(id);
-            ControlIntent* intent = intentIt != controlIntents_.end()
-                ? &intentIt->second
-                : nullptr;
-
-            Vec2 targetVelocity{};
-            if (intent && intent->hasMovement) {
-                const Vec2 direction = constrainTopDownDirection(
-                    intent->movement, tc.fourDirections);
-                targetVelocity = {
-                    direction.x * tc.maxSpeed,
-                    direction.y * tc.maxSpeed,
-                };
-                rt.velocity = approach(
-                    rt.velocity, targetVelocity, std::max(0.f, tc.acceleration) * dt);
-            } else {
-                rt.velocity = approach(
-                    rt.velocity, {}, std::max(0.f, tc.friction) * dt);
-            }
-
-            const uint32_t handle = entityGateway_.physicsHandle(id);
-            if (handle != 0) {
-                physics_.setLinearVelocity(handle, rt.velocity);
-                return;
-            }
-
-            Transform transform{};
-            if (!entityGateway_.getTransform(id, transform)) return;
-            transform.velocity = rt.velocity;
-            transform.position.x += rt.velocity.x * dt;
-            transform.position.y += rt.velocity.y * dt;
-            entityGateway_.setTransform(id, transform);
-        });
-}
-
 void World::setRenderer(Modules::Renderer* renderer) {
     renderer_ = renderer;
-}
-
-void World::tickCameraTargets(float dt) {
-    if (!renderer_) return;
-
-    entityGateway_.forEachActiveCameraTarget(
-        [this, dt](EntityId id, const CameraTargetComponent& ct) {
-            Transform transform{};
-            if (!entityGateway_.getTransform(id, transform)) return;
-
-            const Vec2 desired = {
-                transform.position.x + ct.offsetX,
-                transform.position.y + ct.offsetY,
-            };
-            const Vec2 current = renderer_->getCameraPosition();
-            Vec2 next = desired;
-            if (ct.followSpeed > 0.f && dt > 0.f) {
-                const float t = 1.f - std::exp(-ct.followSpeed * dt);
-                next = {
-                    current.x + (desired.x - current.x) * t,
-                    current.y + (desired.y - current.y) * t,
-                };
-            }
-            renderer_->setCameraPosition(next);
-        });
-}
-
-void World::tickLinearMovers(float dt) {
-    entityGateway_.forEachActiveLinearMover(
-        [this, dt](EntityId id, const LinearMoverComponent& lm) {
-            PlatformerControllerComponent platformer{};
-            if (entityGateway_.getPlatformerController(id, platformer))
-                return;
-            TopDownControllerComponent topDown{};
-            if (entityGateway_.getTopDownController(id, topDown))
-                return;
-
-            const Vec2 direction = normalizeOrZero({ lm.directionX, lm.directionY });
-            const Vec2 velocity = {
-                direction.x * std::max(0.f, lm.speed),
-                direction.y * std::max(0.f, lm.speed),
-            };
-
-            applySteeringVelocity(physics_, entityGateway_, id, velocity, dt);
-        });
-}
-
-void World::tickSensorOverlapEdges() {
-    // EnTT visitor: deterministic insertion order so sensorEdgeBuffer_
-    // (drained by Lua via pollSensorEdges) is reproducible across runs.
-    entityGateway_.forEachActiveSensor(
-        [this](EntityId id, const SensorComponent& sensor) {
-            const uint32_t handle = entityGateway_.physicsHandle(id);
-            if (handle == 0) return;
-
-            bool overlapping = false;
-            EntityId otherHit = INVALID_ENTITY;
-            const std::string& target = sensor.targetTag;
-
-            for (EntityId otherId : entityGateway_.byTag(target)) {
-                if (otherId == id) continue;
-                const uint32_t otherHandle = entityGateway_.physicsHandle(otherId);
-                if (otherHandle == 0) continue;
-                if (physics_.areOverlapping(handle, otherHandle)) {
-                    overlapping = true;
-                    otherHit = otherId;
-                    break;
-                }
-            }
-
-            const bool was = sensorWasOverlapping_[id];
-            if (overlapping && !was) {
-                sensorEdgeBuffer_.push_back({ id, otherHit, target, true });
-            } else if (!overlapping && was) {
-                sensorEdgeBuffer_.push_back({ id, INVALID_ENTITY, target, false });
-            }
-
-            sensorWasOverlapping_[id] = overlapping;
-        });
-}
-
-void World::tickHordeMembers(float dt) {
-    struct HordeSnap {
-        EntityId              id = 0;
-        Vec2                  pos;
-        HordeMemberComponent  cfg;
-    };
-    std::vector<HordeSnap> members;
-    members.reserve(32);
-
-    entityGateway_.forEachActiveHordeMember(
-        [&](EntityId id, const HordeMemberComponent& horde) {
-            PlatformerControllerComponent platformer{};
-            if (entityGateway_.getPlatformerController(id, platformer))
-                return;
-            TopDownControllerComponent topDown{};
-            if (entityGateway_.getTopDownController(id, topDown))
-                return;
-            LinearMoverComponent linear{};
-            if (entityGateway_.getLinearMover(id, linear))
-                return;
-
-            Transform transform{};
-            if (!entityGateway_.getTransform(id, transform)) return;
-            members.push_back({ id, transform.position, horde });
-        });
-
-    for (const HordeSnap& self : members) {
-        Vec2 steer{};
-
-        float bestDist2 = 1e30f;
-        Vec2 chaseDir{};
-        for (EntityId targetId : entityGateway_.poolByClass(self.cfg.targetClass)) {
-            if (targetId == self.id) continue;
-            Transform targetTransform{};
-            if (!entityGateway_.getTransform(targetId, targetTransform)) continue;
-            const Vec2 toTarget = {
-                targetTransform.position.x - self.pos.x,
-                targetTransform.position.y - self.pos.y,
-            };
-            const float dist2 = lengthSq(toTarget);
-            if (dist2 < bestDist2) {
-                bestDist2 = dist2;
-                chaseDir = normalizeOrZero(toTarget);
-            }
-        }
-        steer.x += chaseDir.x * self.cfg.chaseWeight;
-        steer.y += chaseDir.y * self.cfg.chaseWeight;
-
-        const float sepR = self.cfg.separationRadius;
-        if (sepR > 0.f) {
-            for (const HordeSnap& other : members) {
-                if (other.id == self.id) continue;
-                Vec2 away = { self.pos.x - other.pos.x, self.pos.y - other.pos.y };
-                float dist2 = lengthSq(away);
-                if (dist2 >= sepR * sepR) continue;
-                float dist;
-                if (dist2 < 1e-6f) {
-                    away = (self.id < other.id) ? Vec2{ 1.f, 0.f } : Vec2{ -1.f, 0.f };
-                    dist = 1.f;
-                } else {
-                    dist = std::sqrt(dist2);
-                }
-                const float strength = (sepR - dist) / sepR;
-                steer.x += (away.x / dist) * strength * self.cfg.separationWeight;
-                steer.y += (away.y / dist) * strength * self.cfg.separationWeight;
-            }
-        }
-
-        const Vec2 dir = normalizeOrZero(steer);
-        const Vec2 velocity = {
-            dir.x * std::max(0.f, self.cfg.maxSpeed),
-            dir.y * std::max(0.f, self.cfg.maxSpeed),
-        };
-        applySteeringVelocity(physics_, entityGateway_, self.id, velocity, dt);
-    }
-}
-
-void World::tickMagneticItems(float dt) {
-    entityGateway_.forEachActiveMagneticItem(
-        [this, dt](EntityId magnetId, const MagneticItemComponent& mag) {
-            Transform magnetTransform{};
-            if (!entityGateway_.getTransform(magnetId, magnetTransform)) return;
-
-            const Vec2 magnetPos = magnetTransform.position;
-            const float maxDist = mag.radius;
-            const float speed = std::max(0.f, mag.pullSpeed);
-
-            for (EntityId itemId : entityGateway_.byTag(mag.attractTag)) {
-                if (itemId == magnetId) continue;
-
-                Transform itemTransform{};
-                if (!entityGateway_.getTransform(itemId, itemTransform)) continue;
-
-                const Vec2 toMagnet = {
-                    magnetPos.x - itemTransform.position.x,
-                    magnetPos.y - itemTransform.position.y,
-                };
-                const float dist2 = lengthSq(toMagnet);
-                if (maxDist > 0.f && dist2 > maxDist * maxDist) continue;
-
-                const Vec2 dir = normalizeOrZero(toMagnet);
-                const Vec2 velocity = { dir.x * speed, dir.y * speed };
-
-                applySteeringVelocity(physics_, entityGateway_, itemId, velocity, dt);
-            }
-        });
 }
 
 void World::tickGameplaySystems(float dt) {
@@ -538,24 +119,6 @@ void World::tickGameplaySystems(float dt) {
     tickHordeMembers(dt);
     tickHealthCooldowns(dt);
     tickSensorOverlapEdges();
-}
-
-void World::tickHealthCooldowns(float dt) {
-    entityGateway_.forEachActiveHealth(
-        [dt](EntityId, HealthComponent& h) {
-            if (h._iFramesRemaining <= 0.f) return;
-            h._iFramesRemaining = std::max(0.f, h._iFramesRemaining - dt);
-        });
-}
-
-void World::tickAutoDestroy(float dt) {
-    entityGateway_.forEachActiveAutoDestroy(
-        [this, dt](EntityId id, AutoDestroyComponent& a) {
-            if (a.lifespan <= 0.f) return;
-            a._timeAlive += dt;
-            if (a._timeAlive >= a.lifespan)
-                entityGateway_.queueDestroy(id);
-        });
 }
 
 void World::flushEntityQueues() {
@@ -582,53 +145,6 @@ void World::moveEntityByOffset(EntityId id, float dx, float dy) {
     entityGateway_.setTransform(id, transform);
     if (const uint32_t handle = entityGateway_.physicsHandle(id); handle != 0)
         physics_.setPosition(handle, transform.position);
-}
-
-bool World::isSpaceFree(float x, float y, float w, float h) const {
-    const auto& tm = activeTilemap_;
-    if (tm.cols <= 0 || tm.rows <= 0 || tm.tileSize <= 0.f) return true;
-
-    const float ts = tm.tileSize;
-    const int c0 = static_cast<int>(std::floor(x / ts));
-    const int r0 = static_cast<int>(std::floor(y / ts));
-    const int c1 = static_cast<int>(std::floor((x + w) / ts));
-    const int r1 = static_cast<int>(std::floor((y + h) / ts));
-
-    for (int r = r0; r <= r1; ++r) {
-        for (int c = c0; c <= c1; ++c) {
-            if (c < 0 || r < 0 || c >= tm.cols || r >= tm.rows) return false;
-            const int idx = r * tm.cols + c;
-            if (idx >= static_cast<int>(tm.data.size())) continue;
-            const int tid = tm.data[idx];
-            if (tid <= 0) continue;
-            auto it = tileSolid_.find(tid);
-            if (it != tileSolid_.end() && it->second) return false;
-        }
-    }
-    return true;
-}
-
-void World::setMovementIntent(EntityId id, float directionX, float directionY) {
-    if (id == INVALID_ENTITY) return;
-    auto& intent = controlIntents_[id];
-    intent.movement = {
-        std::clamp(directionX, -1.f, 1.f),
-        std::clamp(directionY, -1.f, 1.f)
-    };
-    intent.hasMovement = true;
-}
-
-void World::clearMovementIntent(EntityId id) {
-    if (id == INVALID_ENTITY) return;
-    auto it = controlIntents_.find(id);
-    if (it == controlIntents_.end()) return;
-    it->second.hasMovement = false;
-    it->second.movement = {};
-}
-
-void World::requestJump(EntityId id) {
-    if (id == INVALID_ENTITY) return;
-    controlIntents_[id].jumpRequested = true;
 }
 
 } // namespace ArtCade

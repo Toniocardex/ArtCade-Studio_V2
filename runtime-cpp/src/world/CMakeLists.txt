@@ -1,5 +1,8 @@
 add_library(artcade-world
     src/world.cpp
+    src/world_movement.cpp
+    src/world_systems.cpp
+    src/world_tilemap.cpp
 )
 target_include_directories(artcade-world
     PUBLIC  include
