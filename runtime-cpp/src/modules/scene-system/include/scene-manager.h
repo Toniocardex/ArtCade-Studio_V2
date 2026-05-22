@@ -34,6 +34,7 @@ public:
     void              removeEntityFromAllScenes(EntityId id);
     /** Merge an entity def into the project snapshot (editor incremental sync). */
     void              upsertEntityDef(EntityId id, const EntityDef& def);
+    const EntityDef*  getEntityDef(EntityId id) const;
     /** Patch scene metadata without replacing entityIds or tilemap.data. */
     void              patchSceneSettings(const SceneId& id, const SceneDef& patch);
 

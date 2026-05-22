@@ -626,9 +626,12 @@ void Application::renderActiveScene() {
     // Entity sprites. EnTT-backed visitor: one registry pass, typed
     // access to Transform + SpriteComponent, only active-scene entities
     // (SceneActiveTag) are visited.
+    const bool inEditMode = overlay.inEditMode;
     mod_->entityGateway->forEachActiveRenderable(
-        [renderer = mod_->renderer.get()]
+        [renderer = mod_->renderer.get(), inEditMode]
         (EntityId, const Transform& t, const SpriteComponent& s) {
+            if (!inEditMode && s.alpha <= 0.001f)
+                return;
             renderer->drawSprite(
                 s.spriteAssetId,
                 t.position, t.rotation, t.scale,
@@ -645,6 +648,16 @@ void Application::renderActiveScene() {
     // to the published build.
     if (activeScene)
         EditorOverlayRenderer::drawGuides(*mod_->renderer, *activeScene, overlay);
+
+    if (overlay.inEditMode) {
+        mod_->entityGateway->forEachActiveHiddenInGame(
+            [renderer = mod_->renderer.get()]
+            (EntityId, const Transform& t, const PhysicsComponent& p) {
+                EditorOverlayRenderer::drawHiddenInGameIndicator(
+                    *renderer, t, p);
+            });
+    }
+
     if (overlay.selectedId != 0u) {
         Transform selectedTransform{};
         PhysicsComponent selectedPhysics{};

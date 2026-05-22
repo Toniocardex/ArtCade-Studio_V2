@@ -3,6 +3,7 @@
 #include "../../modules/renderer/include/renderer.h"
 
 #include <algorithm>
+#include <cmath>
 
 namespace ArtCade::EditorOverlayRenderer {
 
@@ -31,6 +32,39 @@ void drawRectOutline(Modules::Renderer& renderer,
     renderer.drawRect(x,         y + h - t, w, t, color); // bottom
     renderer.drawRect(x,         y,         t, h, color); // left
     renderer.drawRect(x + w - t, y,         t, h, color); // right
+}
+
+void drawDashedLine(Modules::Renderer& renderer,
+                    float x1, float y1, float x2, float y2,
+                    const Vec4& color,
+                    float dashLen = 8.f,
+                    float gapLen  = 4.f) {
+    const float dx = x2 - x1;
+    const float dy = y2 - y1;
+    const float len = std::sqrt(dx * dx + dy * dy);
+    if (len < 0.001f) return;
+    const float ux = dx / len;
+    const float uy = dy / len;
+    float t = 0.f;
+    bool drawing = true;
+    while (t < len) {
+        const float seg = drawing ? dashLen : gapLen;
+        const float t2  = std::min(t + seg, len);
+        if (drawing)
+            renderer.drawLine(x1 + ux * t, y1 + uy * t,
+                              x1 + ux * t2, y1 + uy * t2, color);
+        t = t2;
+        drawing = !drawing;
+    }
+}
+
+void drawDashedRectOutline(Modules::Renderer& renderer,
+                           float x, float y, float w, float h,
+                           const Vec4& color) {
+    drawDashedLine(renderer, x,     y,     x + w, y,     color);
+    drawDashedLine(renderer, x + w, y,     x + w, y + h, color);
+    drawDashedLine(renderer, x + w, y + h, x,     y + h, color);
+    drawDashedLine(renderer, x,     y + h, x,     y,     color);
 }
 
 } // namespace
@@ -135,6 +169,22 @@ void drawSelection(Modules::Renderer& renderer,
     renderer.drawRect(x,         y + h - t, w, t, g); // bottom
     renderer.drawRect(x,         y,         t, h, g); // left
     renderer.drawRect(x + w - t, y,         t, h, g); // right
+}
+
+void drawHiddenInGameIndicator(Modules::Renderer& renderer,
+                               const Transform& transform,
+                               const PhysicsComponent& physics) {
+    const Vec2 p = transform.position;
+    float w = physics.collider.size.x > 2.f
+        ? physics.collider.size.x
+        : 40.f * transform.scale.x;
+    float h = physics.collider.size.y > 2.f
+        ? physics.collider.size.y
+        : 40.f * transform.scale.y;
+    const float x = p.x - w * 0.5f;
+    const float y = p.y - h * 0.5f;
+    const Vec4 color{1.f, 0.55f, 0.1f, 0.85f};
+    drawDashedRectOutline(renderer, x, y, w, h, color);
 }
 
 } // namespace ArtCade::EditorOverlayRenderer

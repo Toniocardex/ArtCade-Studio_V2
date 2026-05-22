@@ -64,5 +64,13 @@ void drawSelection(Modules::Renderer& renderer,
                    const std::optional<SensorComponent>& sensor,
                    const EditorOverlayState& state);
 
+/**
+ * Dashed outline for entities marked hidden in play (edit-mode only).
+ * Uses collider bounds when available, otherwise a 40px square scaled.
+ */
+void drawHiddenInGameIndicator(Modules::Renderer& renderer,
+                               const Transform& transform,
+                               const PhysicsComponent& physics);
+
 } // namespace EditorOverlayRenderer
 } // namespace ArtCade

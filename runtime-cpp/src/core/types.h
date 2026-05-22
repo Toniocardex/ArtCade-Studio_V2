@@ -212,6 +212,10 @@ struct EntityDef {
     std::optional<HordeMemberComponent>          hordeMember;
     std::optional<HealthComponent>               health;
     std::optional<AutoDestroyComponent>          autoDestroy;
+    /** Design-time flag: when false the sprite is hidden in play / shipped
+     *  builds. The editor preview always draws the sprite (with a dashed
+     *  outline). Runtime Logic Board setVisible() toggles sprite alpha. */
+    bool                                         visible = true;
     EntityRuntimeFlags                           runtime;
 };
 

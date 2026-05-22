@@ -45,6 +45,11 @@ void SceneManager::upsertEntityDef(EntityId id, const EntityDef& def) {
     entityDefs_[id] = def;
 }
 
+const EntityDef* SceneManager::getEntityDef(EntityId id) const {
+    auto it = entityDefs_.find(id);
+    return (it != entityDefs_.end()) ? &it->second : nullptr;
+}
+
 void SceneManager::patchSceneSettings(const SceneId& id, const SceneDef& patch) {
     auto it = scenes_.find(id);
     if (it == scenes_.end()) return;

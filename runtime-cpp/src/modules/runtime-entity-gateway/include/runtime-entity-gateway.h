@@ -150,6 +150,17 @@ public:
     using ActiveHealthFn = std::function<void(EntityId, HealthComponent&)>;
     void forEachActiveHealth(const ActiveHealthFn& fn);
 
+    /** Design-time "visible in game" flag (editor may still draw the sprite). */
+    bool visibleInGame(EntityId id) const;
+    /** Enter PLAY: hide sprites for entities marked invisible in the project. */
+    void applyDesignVisibilityForPlay();
+    /** Return to EDIT: restore sprite alpha from the project snapshot. */
+    void restoreDesignVisibilityForEdit();
+
+    using ActiveHiddenInGameFn = std::function<void(
+        EntityId, const Transform&, const PhysicsComponent&)>;
+    void forEachActiveHiddenInGame(const ActiveHiddenInGameFn& fn) const;
+
     void registerScenes(const std::unordered_map<SceneId, SceneDef>& scenes,
                         const std::unordered_map<EntityId, EntityDef>& entityDefs);
     bool replaceProject(const std::unordered_map<SceneId, SceneDef>& scenes,

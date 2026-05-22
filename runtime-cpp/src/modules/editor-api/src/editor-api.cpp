@@ -188,6 +188,10 @@ extern "C" {
 
 EMSCRIPTEN_KEEPALIVE void editor_set_mode(int mode) {
     ArtCade::EditorAPI::s_mode = mode;
+    if (auto* gw = ArtCade::EditorAPI::s_entityGateway) {
+        if (mode == 1) gw->applyDesignVisibilityForPlay();
+        else           gw->restoreDesignVisibilityForEdit();
+    }
     ArtCade::EditorAPI::notifyConsoleLine(
         mode == 0 ? "[EditorAPI] Mode: EDIT" : "[EditorAPI] Mode: PLAY", "info");
 }

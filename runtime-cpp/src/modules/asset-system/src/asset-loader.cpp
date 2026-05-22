@@ -272,6 +272,8 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
                 ac.lifespan = ev["autoDestroy"].value("lifespan", 0.f);
                 e.autoDestroy = ac;
             }
+            if (ev.contains("visible") && ev["visible"].is_boolean())
+                e.visible = ev["visible"].get<bool>();
 
             if (e.id != 0)
                 out.entities[e.id] = std::move(e);

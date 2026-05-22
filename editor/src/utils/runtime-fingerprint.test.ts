@@ -84,10 +84,13 @@ describe('runtimeProjectFingerprint', () => {
     const base = makeProject()
     const renamed = makeProject({ entities: { 1: makeEntity({ className: 'Enemy' }) } })
     const tagged  = makeProject({ entities: { 1: makeEntity({ tags: ['boss'] }) } })
+    const hidden  = makeProject({ entities: { 1: makeEntity({ visible: false }) } })
     expect(runtimeProjectFingerprint(base,    'scene_a'))
       .not.toBe(runtimeProjectFingerprint(renamed, 'scene_a'))
     expect(runtimeProjectFingerprint(base,   'scene_a'))
       .not.toBe(runtimeProjectFingerprint(tagged, 'scene_a'))
+    expect(runtimeProjectFingerprint(base,   'scene_a'))
+      .not.toBe(runtimeProjectFingerprint(hidden, 'scene_a'))
   })
 
   it('changes when an ECS component is attached', () => {

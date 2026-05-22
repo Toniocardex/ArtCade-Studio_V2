@@ -185,8 +185,14 @@ void RuntimeEntityGateway::applyEntityDefToRegistry(
     // when emitting LifecycleEvent::Spawned. This lets future signal
     // handlers read sibling components without races.
     registry_->setPhysicsHandle(id, 0);
+    registry_->setVisibleInGame(id, def.visible);
     registry_->setTransform(id, def.transform);
-    registry_->setSprite(id, def.sprite);
+    SpriteComponent sprite = def.sprite;
+#ifndef __EMSCRIPTEN__
+    if (!def.visible)
+        sprite.alpha = 0.f;
+#endif
+    registry_->setSprite(id, sprite);
     registry_->setPhysics(id, def.physics);
     registry_->setSensor(id, def.sensor);
     registry_->setSolid(id, def.solid);
@@ -820,6 +826,37 @@ const SceneDef* RuntimeEntityGateway::activeScene() const {
 
 SceneDef* RuntimeEntityGateway::activeSceneMutable() {
     return sceneManager_.activeSceneMutable();
+}
+
+bool RuntimeEntityGateway::visibleInGame(EntityId id) const {
+    return registry_->visibleInGame(id);
+}
+
+void RuntimeEntityGateway::applyDesignVisibilityForPlay() {
+    for (const EntityId id : activeSceneIds()) {
+        SpriteComponent sprite{};
+        if (!registry_->getSprite(id, sprite)) continue;
+        if (!registry_->visibleInGame(id)) {
+            sprite.alpha = 0.f;
+        } else if (const EntityDef* def = sceneManager_.getEntityDef(id)) {
+            sprite.alpha = def->sprite.alpha;
+        }
+        registry_->setSprite(id, sprite);
+    }
+}
+
+void RuntimeEntityGateway::restoreDesignVisibilityForEdit() {
+    for (const EntityId id : activeSceneIds()) {
+        const EntityDef* def = sceneManager_.getEntityDef(id);
+        if (!def) continue;
+        registry_->setSprite(id, def->sprite);
+    }
+}
+
+void RuntimeEntityGateway::forEachActiveHiddenInGame(
+    const ActiveHiddenInGameFn& fn) const
+{
+    registry_->forEachActiveHiddenInGame(fn);
 }
 
 } // namespace ArtCade::Modules

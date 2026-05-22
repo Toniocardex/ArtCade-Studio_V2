@@ -39,6 +39,7 @@ namespace {
 
 struct PhysicsHandleComp { uint32_t value = 0; };
 struct SceneActiveTag    {};
+struct VisibleInGameComp { bool value = true; };
 struct Identity {
     std::string              className;
     std::vector<std::string> tags;
@@ -110,6 +111,7 @@ struct EntityRegistry::Impl {
         reg.emplace<SpriteComponent>(e);
         reg.emplace<PhysicsComponent>(e);
         reg.emplace<PhysicsHandleComp>(e);
+        reg.emplace<VisibleInGameComp>(e);
         return e;
     }
 
@@ -313,6 +315,20 @@ void EntityRegistry::setSceneActive(EntityId id, bool active) {
     if (e == entt::null) return;
     if (active) impl_->reg.emplace_or_replace<SceneActiveTag>(e);
     else        impl_->reg.remove<SceneActiveTag>(e);
+}
+
+bool EntityRegistry::visibleInGame(EntityId id) const {
+    const entt::entity e = impl_->toEntt(id);
+    if (e == entt::null) return true;
+    if (const auto* v = impl_->reg.try_get<VisibleInGameComp>(e))
+        return v->value;
+    return true;
+}
+
+void EntityRegistry::setVisibleInGame(EntityId id, bool visible) {
+    const entt::entity e = impl_->toEntt(id);
+    if (e == entt::null) return;
+    impl_->reg.emplace_or_replace<VisibleInGameComp>(e, VisibleInGameComp{ visible });
 }
 
 // ---- Components -----------------------------------------------------------
@@ -594,6 +610,26 @@ void EntityRegistry::forEachActiveRenderable(
         const auto* s = reg.try_get<SpriteComponent>(e);
         if (!t || !s) continue;
         fn(id, *t, *s);
+    }
+}
+
+void EntityRegistry::forEachActiveHiddenInGame(
+    const ActiveHiddenInGameFn& fn) const
+{
+    auto& reg = impl_->reg;
+    const size_t n = impl_->insertionOrder.size();
+    for (size_t i = 0; i < n; ++i) {
+        const EntityId id = impl_->insertionOrder[i];
+        const entt::entity e = impl_->toEntt(id);
+        if (e == entt::null) continue;
+        if (!reg.all_of<SceneActiveTag>(e)) continue;
+        const auto* v = reg.try_get<VisibleInGameComp>(e);
+        if (!v || v->value) continue;
+        const auto* t = reg.try_get<Transform>(e);
+        if (!t) continue;
+        const auto* p = reg.try_get<PhysicsComponent>(e);
+        PhysicsComponent fallback{};
+        fn(id, *t, p ? *p : fallback);
     }
 }
 

@@ -75,6 +75,9 @@ public:
     bool sceneActive(EntityId id) const;
     void setSceneActive(EntityId id, bool active);
 
+    bool visibleInGame(EntityId id) const;
+    void setVisibleInGame(EntityId id, bool visible);
+
     // ---- Components ----------------------------------------------------
 
     bool getTransform(EntityId id, Transform& out) const;
@@ -164,6 +167,10 @@ public:
     using ActiveRenderableFn = std::function<void(
         EntityId, const Transform&, const SpriteComponent&)>;
     void forEachActiveRenderable(const ActiveRenderableFn& fn) const;
+
+    using ActiveHiddenInGameFn = std::function<void(
+        EntityId, const Transform&, const PhysicsComponent&)>;
+    void forEachActiveHiddenInGame(const ActiveHiddenInGameFn& fn) const;
 
     using ActivePhysicsBodyFn = std::function<void(
         EntityId, uint32_t handle, Transform&)>;

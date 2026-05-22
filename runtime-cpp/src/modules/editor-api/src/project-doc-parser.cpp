@@ -152,6 +152,8 @@ EntityDef parseEntityDef(const json& j, EntityId fallbackId) {
         ac.lifespan = j["autoDestroy"].value("lifespan", 0.f);
         e.autoDestroy = ac;
     }
+    if (j.contains("visible") && j["visible"].is_boolean())
+        e.visible = j["visible"].get<bool>();
     return e;
 }
 

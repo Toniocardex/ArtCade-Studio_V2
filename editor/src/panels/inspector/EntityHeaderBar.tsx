@@ -68,6 +68,25 @@ export function EntityHeaderBar({
 
       <EntityTagsSection entity={entity} />
 
+      <label className="flex items-center gap-2 mb-2 cursor-pointer select-none">
+        <input
+          type="checkbox"
+          checked={entity.visible !== false}
+          onChange={(e) =>
+            dispatch({
+              type: 'ENTITY_SET_VISIBLE',
+              entityId: entity.id,
+              visible: e.target.checked,
+            })
+          }
+          className="accent-[var(--accent)]"
+        />
+        <span className="text-xs text-[var(--text)]">Visible in game</span>
+      </label>
+      <p className="text-[9px] text-[var(--muted)] -mt-1 mb-2 leading-snug">
+        Hidden entities stay visible in the editor preview (dashed outline). Use Logic Board Set Visible for runtime effects.
+      </p>
+
       <details
         open={advancedOpen}
         onToggle={(e) => setAdvancedOpen((e.target as HTMLDetailsElement).open)}

@@ -69,7 +69,7 @@ export interface EntityDef {
   animation?:  AnimationState
   physics?:    PhysicsComponent
   scriptPath?: string
-  visible?:    boolean   // editor visibility (undefined = visible). Phase B.
+  visible?:    boolean   // hidden in play when false; always drawn in editor preview
   // ECS gameplay components (Scene Editor Phase A) — optional, strongly typed
   sensor?:               SensorComponent
   solid?:                SolidComponent
