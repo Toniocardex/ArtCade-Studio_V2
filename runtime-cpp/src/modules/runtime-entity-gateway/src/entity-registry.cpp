@@ -453,6 +453,25 @@ void EntityRegistry::setCameraTarget(
     else   impl_->reg.remove<CameraTargetComponent>(e);
 }
 
+bool EntityRegistry::getMagneticItem(EntityId id,
+                                     MagneticItemComponent& out) const {
+    const entt::entity e = impl_->toEntt(id);
+    if (e == entt::null) return false;
+    if (const auto* c = impl_->reg.try_get<MagneticItemComponent>(e)) {
+        out = *c;
+        return true;
+    }
+    return false;
+}
+
+void EntityRegistry::setMagneticItem(
+    EntityId id, const std::optional<MagneticItemComponent>& m) {
+    const entt::entity e = impl_->toEntt(id);
+    if (e == entt::null) return;
+    if (m) impl_->reg.emplace_or_replace<MagneticItemComponent>(e, *m);
+    else   impl_->reg.remove<MagneticItemComponent>(e);
+}
+
 bool EntityRegistry::getAutoDestroy(EntityId id,
                                     AutoDestroyComponent& out) const {
     const entt::entity e = impl_->toEntt(id);
@@ -620,6 +639,22 @@ void EntityRegistry::forEachActiveCameraTarget(
         const auto* c = reg.try_get<CameraTargetComponent>(e);
         if (!c) continue;
         fn(id, *c);
+    }
+}
+
+void EntityRegistry::forEachActiveMagneticItem(
+    const ActiveMagneticItemFn& fn) const
+{
+    auto& reg = impl_->reg;
+    const size_t n = impl_->insertionOrder.size();
+    for (size_t i = 0; i < n; ++i) {
+        const EntityId id = impl_->insertionOrder[i];
+        const entt::entity e = impl_->toEntt(id);
+        if (e == entt::null) continue;
+        if (!reg.all_of<SceneActiveTag>(e)) continue;
+        const auto* m = reg.try_get<MagneticItemComponent>(e);
+        if (!m) continue;
+        fn(id, *m);
     }
 }
 

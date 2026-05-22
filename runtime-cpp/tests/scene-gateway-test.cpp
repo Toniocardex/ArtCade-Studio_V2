@@ -52,6 +52,11 @@ int main() {
     cameraTarget.offsetY = -20.f;
     cameraTarget.followSpeed = 12.f;
     player.cameraTarget = cameraTarget;
+    MagneticItemComponent magneticItem;
+    magneticItem.attractTag = "pickup";
+    magneticItem.radius = 180.f;
+    magneticItem.pullSpeed = 350.f;
+    player.magneticItem = magneticItem;
 
     EntityDef coin;
     coin.id = 2;
@@ -105,6 +110,11 @@ int main() {
     CHECK(std::abs(loadedCamera.offsetX - 10.f) < 0.01f);
     CHECK(std::abs(loadedCamera.offsetY + 20.f) < 0.01f);
     CHECK(std::abs(loadedCamera.followSpeed - 12.f) < 0.01f);
+    MagneticItemComponent loadedMagnet{};
+    CHECK(gw.getMagneticItem(1, loadedMagnet));
+    CHECK(loadedMagnet.attractTag == "pickup");
+    CHECK(std::abs(loadedMagnet.radius - 180.f) < 0.01f);
+    CHECK(std::abs(loadedMagnet.pullSpeed - 350.f) < 0.01f);
 
     const EntityId spawned = gw.spawnFromClass("Coin", 50.f, 60.f);
     CHECK(spawned != 0);

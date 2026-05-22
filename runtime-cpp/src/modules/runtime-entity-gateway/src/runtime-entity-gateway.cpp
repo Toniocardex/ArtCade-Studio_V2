@@ -170,6 +170,7 @@ void RuntimeEntityGateway::applyEntityDefToRegistry(
     registry_->setTopDown(id, def.topDownController);
     registry_->setLinearMover(id, def.linearMover);
     registry_->setCameraTarget(id, def.cameraTarget);
+    registry_->setMagneticItem(id, def.magneticItem);
     registry_->setAutoDestroy(id, def.autoDestroy);
     registry_->setHealth(id, def.health);
     registry_->setIdentity(id, def.className, def.tags);
@@ -400,6 +401,20 @@ bool RuntimeEntityGateway::setCameraTarget(
     return true;
 }
 
+bool RuntimeEntityGateway::getMagneticItem(
+    EntityId id, MagneticItemComponent& out) const
+{
+    return registry_->getMagneticItem(id, out);
+}
+
+bool RuntimeEntityGateway::setMagneticItem(
+    EntityId id, const std::optional<MagneticItemComponent>& item)
+{
+    if (!registry_->contains(id)) return false;
+    registry_->setMagneticItem(id, item);
+    return true;
+}
+
 bool RuntimeEntityGateway::getAutoDestroy(EntityId id, AutoDestroyComponent& out) const {
     return registry_->getAutoDestroy(id, out);
 }
@@ -513,6 +528,12 @@ void RuntimeEntityGateway::forEachActiveCameraTarget(
     const ActiveCameraTargetFn& fn) const
 {
     registry_->forEachActiveCameraTarget(fn);
+}
+
+void RuntimeEntityGateway::forEachActiveMagneticItem(
+    const ActiveMagneticItemFn& fn) const
+{
+    registry_->forEachActiveMagneticItem(fn);
 }
 
 void RuntimeEntityGateway::forEachActiveSensor(

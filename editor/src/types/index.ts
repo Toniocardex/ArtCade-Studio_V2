@@ -11,6 +11,7 @@ import type {
   SensorComponent, PlatformerControllerComponent,
   TopDownControllerComponent, LinearMoverComponent,
   CameraTargetComponent,
+  MagneticItemComponent,
   HealthComponent, AutoDestroyComponent,
 } from './components'
 
@@ -74,6 +75,7 @@ export interface EntityDef {
   topDownController?:    TopDownControllerComponent
   linearMover?:          LinearMoverComponent
   cameraTarget?:         CameraTargetComponent
+  magneticItem?:         MagneticItemComponent
   health?:               HealthComponent
   autoDestroy?:          AutoDestroyComponent
 }

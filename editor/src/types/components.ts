@@ -51,6 +51,13 @@ export interface CameraTargetComponent {
   followSpeed: number          // exponential lerp rate (1/s); 0 = snap
 }
 
+/** Pulls tagged entities toward this entity (loot magnet on player). */
+export interface MagneticItemComponent {
+  attractTag: string           // tag on entities to pull (e.g. pickup)
+  radius:     number           // max distance px; 0 = unlimited
+  pullSpeed:  number           // px/s toward holder
+}
+
 /** Hit points + invulnerability window. */
 export interface HealthComponent {
   maxHp:     number
@@ -74,6 +81,7 @@ export interface EntityComponents {
   topDownController?:    TopDownControllerComponent
   linearMover?:          LinearMoverComponent
   cameraTarget?:         CameraTargetComponent
+  magneticItem?:         MagneticItemComponent
   health?:               HealthComponent
   autoDestroy?:          AutoDestroyComponent
 }
@@ -83,5 +91,5 @@ export type ComponentKey = keyof EntityComponents
 /** Runtime list of optional component field names (parse/serialize). */
 export const COMPONENT_KEYS: ComponentKey[] = [
   'sensor', 'platformerController', 'topDownController', 'linearMover',
-  'cameraTarget', 'health', 'autoDestroy',
+  'cameraTarget', 'magneticItem', 'health', 'autoDestroy',
 ]

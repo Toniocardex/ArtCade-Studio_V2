@@ -115,6 +115,14 @@ EntityDef parseEntityDef(const json& j, EntityId fallbackId) {
         ct.followSpeed = c.value("followSpeed", 8.f);
         e.cameraTarget = ct;
     }
+    if (j.contains("magneticItem") && j["magneticItem"].is_object()) {
+        const auto& m = j["magneticItem"];
+        MagneticItemComponent mi;
+        mi.attractTag = m.value("attractTag", std::string("pickup"));
+        mi.radius     = m.value("radius", 200.f);
+        mi.pullSpeed  = m.value("pullSpeed", 400.f);
+        e.magneticItem = mi;
+    }
     if (j.contains("health") && j["health"].is_object()) {
         const auto& h = j["health"];
         HealthComponent hc;

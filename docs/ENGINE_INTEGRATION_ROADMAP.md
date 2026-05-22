@@ -114,6 +114,8 @@ Core MVP target:
 Advanced target:
 
 - `MagneticItemComponent`: loot/drop attratti verso un target.
+  **Integrato end-to-end**: Inspector, ProjectDoc, parser, gateway,
+  `World::tickMagneticItems`, test `world_intent_test` + gateway.
 - `HordeMemberComponent`: steering/swarm AI con separazione tra simili.
 - `ProceduralJuiceComponent`: deformazioni visive procedurali senza cambiare
   hitbox fisiche.
@@ -121,8 +123,9 @@ Advanced target:
 
 Ordine consigliato: completare i Core mancanti prima degli Advanced, salvo
 necessita demo specifiche. Core MVP catalogo completato (Platformer, TopDown,
-LinearMover, CameraTarget). Primo Advanced utile: `MagneticItemComponent`
-perche valida Component nativo, eventi sensore e raccolta coin.
+LinearMover, CameraTarget). Advanced: `MagneticItemComponent` integrato;
+prossimi candidati: `HordeMemberComponent`, `ProceduralJuiceComponent`,
+`GrapplingHookComponent`.
 
 ### Verifiche Ultima Tranche
 

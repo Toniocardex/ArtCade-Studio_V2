@@ -54,6 +54,7 @@ interface FpEntity {
   td?: unknown               // topDownController
   lm?: unknown               // linearMover
   ct?: unknown               // cameraTarget
+  mi?: unknown               // magneticItem
   he?: unknown               // health
   ad?: unknown               // autoDestroy
 }
@@ -105,6 +106,7 @@ function projectEntity(e: EntityDef): FpEntity {
     td: e.topDownController,
     lm: e.linearMover,
     ct: e.cameraTarget,
+    mi: e.magneticItem,
     he: e.health,
     ad: e.autoDestroy,
   }

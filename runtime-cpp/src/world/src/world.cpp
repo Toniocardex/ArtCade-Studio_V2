@@ -397,12 +397,58 @@ void World::tickSensorOverlapEdges() {
         });
 }
 
+void World::tickMagneticItems(float dt) {
+    entityGateway_.forEachActiveMagneticItem(
+        [this, dt](EntityId magnetId, const MagneticItemComponent& mag) {
+            Transform magnetTransform{};
+            if (!entityGateway_.getTransform(magnetId, magnetTransform)) return;
+
+            const Vec2 magnetPos = magnetTransform.position;
+            const float maxDist = mag.radius;
+            const float speed = std::max(0.f, mag.pullSpeed);
+
+            for (EntityId itemId : entityGateway_.byTag(mag.attractTag)) {
+                if (itemId == magnetId) continue;
+
+                Transform itemTransform{};
+                if (!entityGateway_.getTransform(itemId, itemTransform)) continue;
+
+                const Vec2 toMagnet = {
+                    magnetPos.x - itemTransform.position.x,
+                    magnetPos.y - itemTransform.position.y,
+                };
+                const float dist2 = lengthSq(toMagnet);
+                if (maxDist > 0.f && dist2 > maxDist * maxDist) continue;
+
+                const Vec2 dir = normalizeOrZero(toMagnet);
+                const Vec2 velocity = { dir.x * speed, dir.y * speed };
+
+                const uint32_t handle = entityGateway_.physicsHandle(itemId);
+                if (handle != 0) {
+                    PhysicsComponent physics{};
+                    if (entityGateway_.getPhysicsComponent(itemId, physics) &&
+                        physics.bodyType != BodyType::Static)
+                    {
+                        physics_.setLinearVelocity(handle, velocity);
+                        continue;
+                    }
+                }
+
+                itemTransform.velocity = velocity;
+                itemTransform.position.x += velocity.x * dt;
+                itemTransform.position.y += velocity.y * dt;
+                entityGateway_.setTransform(itemId, itemTransform);
+            }
+        });
+}
+
 void World::tickGameplaySystems(float dt) {
     if (const SceneDef* sc = entityGateway_.activeScene())
         activeTilemap_ = sc->tilemap;
     tickPlatformerControllers(dt);
     tickTopDownControllers(dt);
     tickLinearMovers(dt);
+    tickMagneticItems(dt);
     tickSensorOverlapEdges();
 }
 

@@ -105,6 +105,10 @@ public:
     void setCameraTarget(EntityId id,
                          const std::optional<CameraTargetComponent>& c);
 
+    bool getMagneticItem(EntityId id, MagneticItemComponent& out) const;
+    void setMagneticItem(EntityId id,
+                         const std::optional<MagneticItemComponent>& m);
+
     bool getAutoDestroy(EntityId id, AutoDestroyComponent& out) const;
     void setAutoDestroy(EntityId id,
                         const std::optional<AutoDestroyComponent>& ad);
@@ -173,6 +177,10 @@ public:
     using ActiveCameraTargetFn = std::function<void(
         EntityId, const CameraTargetComponent&)>;
     void forEachActiveCameraTarget(const ActiveCameraTargetFn& fn) const;
+
+    using ActiveMagneticItemFn = std::function<void(
+        EntityId, const MagneticItemComponent&)>;
+    void forEachActiveMagneticItem(const ActiveMagneticItemFn& fn) const;
 
     using ActiveSensorFn = std::function<void(
         EntityId, const SensorComponent&)>;

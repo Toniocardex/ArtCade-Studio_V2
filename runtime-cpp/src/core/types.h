@@ -131,6 +131,13 @@ struct CameraTargetComponent {
     float followSpeed = 8.f;   // exponential lerp rate (1/s); 0 = snap
 };
 
+/** Pulls tagged entities toward this entity (loot magnet). */
+struct MagneticItemComponent {
+    std::string attractTag = "pickup";
+    float       radius     = 200.f;   // px; 0 = unlimited range
+    float       pullSpeed  = 400.f;   // px/s toward holder
+};
+
 /** Runtime-only: not serialized from project JSON. */
 struct EntityRuntimeFlags {
     bool sceneActive = true;
@@ -181,6 +188,7 @@ struct EntityDef {
     std::optional<TopDownControllerComponent>    topDownController;
     std::optional<LinearMoverComponent>          linearMover;
     std::optional<CameraTargetComponent>         cameraTarget;
+    std::optional<MagneticItemComponent>         magneticItem;
     std::optional<HealthComponent>               health;
     std::optional<AutoDestroyComponent>          autoDestroy;
     EntityRuntimeFlags                           runtime;

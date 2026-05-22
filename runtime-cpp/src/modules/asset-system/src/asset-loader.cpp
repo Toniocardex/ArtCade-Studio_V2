@@ -235,6 +235,14 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
                 ct.followSpeed = c.value("followSpeed", 8.f);
                 e.cameraTarget = ct;
             }
+            if (ev.contains("magneticItem") && ev["magneticItem"].is_object()) {
+                auto& m = ev["magneticItem"];
+                MagneticItemComponent mi;
+                mi.attractTag = m.value("attractTag", std::string("pickup"));
+                mi.radius     = m.value("radius", 200.f);
+                mi.pullSpeed  = m.value("pullSpeed", 400.f);
+                e.magneticItem = mi;
+            }
             if (ev.contains("health") && ev["health"].is_object()) {
                 auto& h = ev["health"];
                 HealthComponent hc;

@@ -67,6 +67,8 @@ public:
     bool setLinearMover(EntityId id, const std::optional<LinearMoverComponent>& mover);
     bool getCameraTarget(EntityId id, CameraTargetComponent& out) const;
     bool setCameraTarget(EntityId id, const std::optional<CameraTargetComponent>& target);
+    bool getMagneticItem(EntityId id, MagneticItemComponent& out) const;
+    bool setMagneticItem(EntityId id, const std::optional<MagneticItemComponent>& item);
     bool getAutoDestroy(EntityId id, AutoDestroyComponent& out) const;
     bool setAutoDestroy(EntityId id, const std::optional<AutoDestroyComponent>& autoDestroy);
 
@@ -118,6 +120,10 @@ public:
     using ActiveCameraTargetFn = std::function<void(
         EntityId, const CameraTargetComponent&)>;
     void forEachActiveCameraTarget(const ActiveCameraTargetFn& fn) const;
+
+    using ActiveMagneticItemFn = std::function<void(
+        EntityId, const MagneticItemComponent&)>;
+    void forEachActiveMagneticItem(const ActiveMagneticItemFn& fn) const;
 
     using ActiveSensorFn = std::function<void(
         EntityId, const SensorComponent&)>;

@@ -108,6 +108,7 @@ private:
     void tickPlatformerControllers(float dt);
     void tickTopDownControllers(float dt);
     void tickLinearMovers(float dt);
+    void tickMagneticItems(float dt);
     void tickSensorOverlapEdges();
 
     Modules::Renderer* renderer_ = nullptr;

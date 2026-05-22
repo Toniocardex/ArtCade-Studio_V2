@@ -13,6 +13,7 @@ import type {
   HealthComponent,
   LinearMoverComponent,
   CameraTargetComponent,
+  MagneticItemComponent,
   PlatformerControllerComponent,
   SensorComponent,
   TopDownControllerComponent,
@@ -58,6 +59,9 @@ const LINEAR_MOVER: LinearMoverComponent = {
 }
 const CAMERA_TARGET: CameraTargetComponent = {
   offsetX: 0, offsetY: 0, followSpeed: 8,
+}
+const MAGNETIC_ITEM: MagneticItemComponent = {
+  attractTag: 'pickup', radius: 200, pullSpeed: 400,
 }
 const HEALTH: HealthComponent = { maxHp: 100, currentHp: 100, iFrames: 0.2 }
 const AUTODESTROY: AutoDestroyComponent = { lifespan: 0 }
@@ -130,6 +134,17 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
       { key: 'offsetX', label: 'Offset X (px)', kind: 'number', step: 1 },
       { key: 'offsetY', label: 'Offset Y (px)', kind: 'number', step: 1 },
       { key: 'followSpeed', label: 'Follow speed (1/s)', kind: 'number', min: 0, step: 0.5 },
+    ],
+  },
+  {
+    key: 'magneticItem',
+    label: 'Magnetic Item',
+    color: 'var(--accent)',
+    create: () => ({ ...MAGNETIC_ITEM }),
+    fields: [
+      { key: 'attractTag', label: 'Attract tag', kind: 'text' },
+      { key: 'radius', label: 'Radius (px, 0=any)', kind: 'number', min: 0, step: 10 },
+      { key: 'pullSpeed', label: 'Pull speed (px/s)', kind: 'number', min: 0, step: 10 },
     ],
   },
   {

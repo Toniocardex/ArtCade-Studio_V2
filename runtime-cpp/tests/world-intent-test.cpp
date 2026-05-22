@@ -398,6 +398,38 @@ static void test_linear_mover_sets_physics_velocity() {
     CHECK(std::abs(velocity.y + 75.f) < 0.01f);
 }
 
+static void test_magnetic_item_pulls_tagged_entity() {
+    Fixture f;
+
+    EntityDef player = makeEntity(1, "Player", {"player"});
+    player.transform.position = { 100.f, 100.f };
+    MagneticItemComponent mag;
+    mag.attractTag = "pickup";
+    mag.radius     = 500.f;
+    mag.pullSpeed  = 100.f;
+    player.magneticItem = mag;
+
+    EntityDef coin = makeEntity(2, "Coin", {"pickup"});
+    coin.transform.position = { 200.f, 100.f };
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1, 2 };
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.scenes = {{ scene.id, scene }};
+    doc.entities = {{ 1, player }, { 2, coin }};
+    f.world.init(doc);
+
+    f.world.tickGameplaySystems(1.f);
+
+    Transform coinTransform{};
+    CHECK(f.gw.getTransform(2, coinTransform));
+    CHECK(coinTransform.position.x < 200.f);
+    CHECK(std::abs(coinTransform.position.y - 100.f) < 0.01f);
+}
+
 int main() {
     test_platformer_movement_intent_without_input();
     test_platformer_jump_intent_without_input();
@@ -408,6 +440,7 @@ int main() {
     test_set_sensor_replaces_fixture_without_duplicates();
     test_linear_mover_moves_transform_without_physics();
     test_linear_mover_sets_physics_velocity();
+    test_magnetic_item_pulls_tagged_entity();
 
     std::cout << "world-intent-test: " << g_passed << " passed, "
               << g_failed << " failed\n";
