@@ -65,12 +65,13 @@ void drawSelection(Modules::Renderer& renderer,
                    const EditorOverlayState& state);
 
 /**
- * Dashed outline for entities marked hidden in play (edit-mode only).
+ * Eye-off badge for entities marked hidden in play (edit-mode only).
+ * Drawn after the selection gizmo so it stays readable on selected entities.
  * Uses collider bounds when available, otherwise a 40px square scaled.
  */
-void drawHiddenInGameIndicator(Modules::Renderer& renderer,
-                               const Transform& transform,
-                               const PhysicsComponent& physics);
+void drawHiddenInGameBadge(Modules::Renderer& renderer,
+                           const Transform& transform,
+                           const PhysicsComponent& physics);
 
 } // namespace EditorOverlayRenderer
 } // namespace ArtCade

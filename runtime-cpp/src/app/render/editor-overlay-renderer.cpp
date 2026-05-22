@@ -9,6 +9,29 @@ namespace ArtCade::EditorOverlayRenderer {
 
 namespace {
 
+struct EntityOutlineBounds {
+    float x = 0.f;
+    float y = 0.f;
+    float w = 0.f;
+    float h = 0.f;
+};
+
+EntityOutlineBounds entityOutlineBounds(const Transform& transform,
+                                        const PhysicsComponent& physics) {
+    const float w = physics.collider.size.x > 2.f
+        ? physics.collider.size.x
+        : 40.f * transform.scale.x;
+    const float h = physics.collider.size.y > 2.f
+        ? physics.collider.size.y
+        : 40.f * transform.scale.y;
+    return {
+        transform.position.x - w * 0.5f,
+        transform.position.y - h * 0.5f,
+        w,
+        h,
+    };
+}
+
 // Rectangle outline drawn as four 2-world-pixel-thick filled rects, fully
 // contained inside [x,y]-[x+w,y+h]. Rationale:
 //
@@ -34,37 +57,21 @@ void drawRectOutline(Modules::Renderer& renderer,
     renderer.drawRect(x + w - t, y,         t, h, color); // right
 }
 
-void drawDashedLine(Modules::Renderer& renderer,
-                    float x1, float y1, float x2, float y2,
-                    const Vec4& color,
-                    float dashLen = 8.f,
-                    float gapLen  = 4.f) {
+void drawThickLine(Modules::Renderer& renderer,
+                   float x1, float y1, float x2, float y2,
+                   const Vec4& color,
+                   float halfWidth = 1.25f) {
     const float dx = x2 - x1;
     const float dy = y2 - y1;
     const float len = std::sqrt(dx * dx + dy * dy);
     if (len < 0.001f) return;
-    const float ux = dx / len;
-    const float uy = dy / len;
-    float t = 0.f;
-    bool drawing = true;
-    while (t < len) {
-        const float seg = drawing ? dashLen : gapLen;
-        const float t2  = std::min(t + seg, len);
-        if (drawing)
-            renderer.drawLine(x1 + ux * t, y1 + uy * t,
-                              x1 + ux * t2, y1 + uy * t2, color);
-        t = t2;
-        drawing = !drawing;
+    const float nx = -dy / len * halfWidth;
+    const float ny =  dx / len * halfWidth;
+    for (int i = -1; i <= 1; ++i) {
+        const float ox = nx * static_cast<float>(i);
+        const float oy = ny * static_cast<float>(i);
+        renderer.drawLine(x1 + ox, y1 + oy, x2 + ox, y2 + oy, color);
     }
-}
-
-void drawDashedRectOutline(Modules::Renderer& renderer,
-                           float x, float y, float w, float h,
-                           const Vec4& color) {
-    drawDashedLine(renderer, x,     y,     x + w, y,     color);
-    drawDashedLine(renderer, x + w, y,     x + w, y + h, color);
-    drawDashedLine(renderer, x + w, y + h, x,     y + h, color);
-    drawDashedLine(renderer, x,     y + h, x,     y,     color);
 }
 
 } // namespace
@@ -150,41 +157,47 @@ void drawSelection(Modules::Renderer& renderer,
         }
     }
 
-    // Selection box — collider size when available, fall back to 40px scaled.
-    float w = physics.collider.size.x > 2.f
-        ? physics.collider.size.x
-        : 40.f * transform.scale.x;
-    float h = physics.collider.size.y > 2.f
-        ? physics.collider.size.y
-        : 40.f * transform.scale.y;
-
-    const float x = p.x - w * 0.5f;
-    const float y = p.y - h * 0.5f;
+    const EntityOutlineBounds bounds = entityOutlineBounds(transform, physics);
     const float t = 2.f;
     const Vec4  g{1.f, 1.f, 0.f, 1.f};
 
     // Four thin filled rects = outline. drawLine in raylib does not honour
     // line width consistently across native/WASM, drawRect does.
-    renderer.drawRect(x,         y,         w, t, g); // top
-    renderer.drawRect(x,         y + h - t, w, t, g); // bottom
-    renderer.drawRect(x,         y,         t, h, g); // left
-    renderer.drawRect(x + w - t, y,         t, h, g); // right
+    renderer.drawRect(bounds.x,              bounds.y,              bounds.w, t, g);
+    renderer.drawRect(bounds.x,              bounds.y + bounds.h - t, bounds.w, t, g);
+    renderer.drawRect(bounds.x,              bounds.y,              t, bounds.h, g);
+    renderer.drawRect(bounds.x + bounds.w - t, bounds.y,            t, bounds.h, g);
 }
 
-void drawHiddenInGameIndicator(Modules::Renderer& renderer,
-                               const Transform& transform,
-                               const PhysicsComponent& physics) {
-    const Vec2 p = transform.position;
-    float w = physics.collider.size.x > 2.f
-        ? physics.collider.size.x
-        : 40.f * transform.scale.x;
-    float h = physics.collider.size.y > 2.f
-        ? physics.collider.size.y
-        : 40.f * transform.scale.y;
-    const float x = p.x - w * 0.5f;
-    const float y = p.y - h * 0.5f;
-    const Vec4 color{1.f, 0.55f, 0.1f, 0.85f};
-    drawDashedRectOutline(renderer, x, y, w, h, color);
+void drawHiddenInGameBadge(Modules::Renderer& renderer,
+                           const Transform& transform,
+                           const PhysicsComponent& physics) {
+    const EntityOutlineBounds bounds = entityOutlineBounds(transform, physics);
+
+    // Badge sits just above the entity outline top-left corner.
+    const float badge = 24.f;
+    const float bx = bounds.x;
+    const float by = bounds.y - badge - 4.f;
+
+    const Vec4 bg{0.06f, 0.07f, 0.09f, 0.92f};
+    const Vec4 border{1.f, 0.55f, 0.1f, 1.f};
+    const Vec4 eyeWhite{0.95f, 0.95f, 0.95f, 1.f};
+    const Vec4 eyePupil{0.06f, 0.07f, 0.09f, 1.f};
+    const Vec4 slash{1.f, 0.4f, 0.12f, 1.f};
+
+    renderer.drawRect(bx, by, badge, badge, bg);
+    drawRectOutline(renderer, bx, by, badge, badge, border);
+
+    const float cx = bx + badge * 0.5f;
+    const float cy = by + badge * 0.54f;
+    renderer.drawCircle(cx, cy, 5.f, eyeWhite);
+    renderer.drawCircle(cx, cy, 2.2f, eyePupil);
+
+    // Eye-off slash — thick enough to read at editor zoom levels.
+    drawThickLine(renderer,
+                  bx + 4.f, by + 4.f,
+                  bx + badge - 4.f, by + badge - 4.f,
+                  slash, 1.4f);
 }
 
 } // namespace ArtCade::EditorOverlayRenderer

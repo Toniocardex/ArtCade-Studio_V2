@@ -649,15 +649,6 @@ void Application::renderActiveScene() {
     if (activeScene)
         EditorOverlayRenderer::drawGuides(*mod_->renderer, *activeScene, overlay);
 
-    if (overlay.inEditMode) {
-        mod_->entityGateway->forEachActiveHiddenInGame(
-            [renderer = mod_->renderer.get()]
-            (EntityId, const Transform& t, const PhysicsComponent& p) {
-                EditorOverlayRenderer::drawHiddenInGameIndicator(
-                    *renderer, t, p);
-            });
-    }
-
     if (overlay.selectedId != 0u) {
         Transform selectedTransform{};
         PhysicsComponent selectedPhysics{};
@@ -669,6 +660,15 @@ void Application::renderActiveScene() {
             mod_->entityGateway->getPhysicsComponent(overlay.selectedId, selectedPhysics))
             EditorOverlayRenderer::drawSelection(
                 *mod_->renderer, selectedTransform, selectedPhysics, sensor, overlay);
+    }
+
+    // Hidden-in-game badges on top of selection so they stay visible when picked.
+    if (overlay.inEditMode) {
+        mod_->entityGateway->forEachActiveHiddenInGame(
+            [renderer = mod_->renderer.get()]
+            (EntityId, const Transform& t, const PhysicsComponent& p) {
+                EditorOverlayRenderer::drawHiddenInGameBadge(*renderer, t, p);
+            });
     }
 
     // FREE-tier splash overlay drawn on top of the game frame.
