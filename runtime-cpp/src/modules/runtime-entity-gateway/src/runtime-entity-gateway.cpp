@@ -168,6 +168,7 @@ void RuntimeEntityGateway::applyEntityDefToRegistry(
     registry_->setSensor(id, def.sensor);
     registry_->setPlatformer(id, def.platformerController);
     registry_->setTopDown(id, def.topDownController);
+    registry_->setLinearMover(id, def.linearMover);
     registry_->setAutoDestroy(id, def.autoDestroy);
     registry_->setHealth(id, def.health);
     registry_->setIdentity(id, def.className, def.tags);
@@ -372,6 +373,18 @@ bool RuntimeEntityGateway::setTopDownController(
     return true;
 }
 
+bool RuntimeEntityGateway::getLinearMover(EntityId id, LinearMoverComponent& out) const {
+    return registry_->getLinearMover(id, out);
+}
+
+bool RuntimeEntityGateway::setLinearMover(
+    EntityId id, const std::optional<LinearMoverComponent>& mover)
+{
+    if (!registry_->contains(id)) return false;
+    registry_->setLinearMover(id, mover);
+    return true;
+}
+
 bool RuntimeEntityGateway::getAutoDestroy(EntityId id, AutoDestroyComponent& out) const {
     return registry_->getAutoDestroy(id, out);
 }
@@ -473,6 +486,12 @@ void RuntimeEntityGateway::forEachActiveTopDown(
     const ActiveTopDownFn& fn) const
 {
     registry_->forEachActiveTopDown(fn);
+}
+
+void RuntimeEntityGateway::forEachActiveLinearMover(
+    const ActiveLinearMoverFn& fn) const
+{
+    registry_->forEachActiveLinearMover(fn);
 }
 
 void RuntimeEntityGateway::forEachActiveSensor(

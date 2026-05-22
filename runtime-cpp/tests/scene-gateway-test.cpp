@@ -42,6 +42,11 @@ int main() {
     topDownController.maxSpeed = 180.f;
     topDownController.fourDirections = true;
     player.topDownController = topDownController;
+    LinearMoverComponent linearMover;
+    linearMover.directionX = 0.f;
+    linearMover.directionY = -1.f;
+    linearMover.speed = 120.f;
+    player.linearMover = linearMover;
 
     EntityDef coin;
     coin.id = 2;
@@ -86,6 +91,10 @@ int main() {
     CHECK(gw.getTopDownController(1, loadedTopDown));
     CHECK(loadedTopDown.maxSpeed == 180.f);
     CHECK(loadedTopDown.fourDirections);
+    LinearMoverComponent loadedMover{};
+    CHECK(gw.getLinearMover(1, loadedMover));
+    CHECK(loadedMover.directionY == -1.f);
+    CHECK(loadedMover.speed == 120.f);
 
     const EntityId spawned = gw.spawnFromClass("Coin", 50.f, 60.f);
     CHECK(spawned != 0);

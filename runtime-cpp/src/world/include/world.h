@@ -103,6 +103,7 @@ private:
     bool isGrounded(EntityId id, const std::string& groundClass) const;
     void tickPlatformerControllers(float dt);
     void tickTopDownControllers(float dt);
+    void tickLinearMovers(float dt);
     void tickSensorOverlapEdges();
 };
 

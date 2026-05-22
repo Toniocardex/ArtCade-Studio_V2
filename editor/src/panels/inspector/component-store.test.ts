@@ -70,20 +70,21 @@ describe('coreReducer — ECS components', () => {
 describe('project.json roundtrip with components', () => {
   it('serialize → parse preserves components, omits when absent', () => {
     const withComp = coreReducer(baseState(project()), {
-      type: 'ENTITY_SET_COMPONENT', entityId: 1, key: 'platformerController',
-      value: { maxSpeed: 300, jumpForce: 600, customGravity: 1500, coyoteTime: 0.15, jumpBuffer: 0.1 },
+      type: 'ENTITY_SET_COMPONENT', entityId: 1, key: 'linearMover',
+      value: { directionX: 1, directionY: 0, speed: 300 },
     }).project!
 
     const json = serializeProjectDoc(withComp)
-    expect(json).toContain('platformerController')
+    expect(json).toContain('linearMover')
     const again = parseProjectDoc(json)!
-    expect(again.entities[1].platformerController).toEqual(
-      withComp.entities[1].platformerController,
+    expect(again.entities[1].linearMover).toEqual(
+      withComp.entities[1].linearMover,
     )
 
     // entity without components → no component keys leak into JSON
     const plain = serializeProjectDoc(project())
     expect(plain).not.toContain('platformerController')
+    expect(plain).not.toContain('linearMover')
     expect(plain).not.toContain('"sensor"')
   })
 

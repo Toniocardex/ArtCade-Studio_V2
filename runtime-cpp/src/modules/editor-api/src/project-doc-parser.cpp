@@ -99,6 +99,14 @@ EntityDef parseEntityDef(const json& j, EntityId fallbackId) {
         tc.fourDirections = t.value("fourDirections", false);
         e.topDownController = tc;
     }
+    if (j.contains("linearMover") && j["linearMover"].is_object()) {
+        const auto& m = j["linearMover"];
+        LinearMoverComponent lm;
+        lm.directionX = m.value("directionX", 1.f);
+        lm.directionY = m.value("directionY", 0.f);
+        lm.speed      = m.value("speed", 300.f);
+        e.linearMover = lm;
+    }
     if (j.contains("health") && j["health"].is_object()) {
         const auto& h = j["health"];
         HealthComponent hc;

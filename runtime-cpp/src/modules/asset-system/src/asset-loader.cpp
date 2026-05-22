@@ -219,6 +219,14 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
                 tc.fourDirections = t.value("fourDirections", false);
                 e.topDownController = tc;
             }
+            if (ev.contains("linearMover") && ev["linearMover"].is_object()) {
+                auto& m = ev["linearMover"];
+                LinearMoverComponent lm;
+                lm.directionX = m.value("directionX", 1.f);
+                lm.directionY = m.value("directionY", 0.f);
+                lm.speed      = m.value("speed", 300.f);
+                e.linearMover = lm;
+            }
             if (ev.contains("health") && ev["health"].is_object()) {
                 auto& h = ev["health"];
                 HealthComponent hc;

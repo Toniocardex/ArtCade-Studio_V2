@@ -415,6 +415,25 @@ void EntityRegistry::setTopDown(
     else   impl_->reg.remove<TopDownControllerComponent>(e);
 }
 
+bool EntityRegistry::getLinearMover(EntityId id,
+                                    LinearMoverComponent& out) const {
+    const entt::entity e = impl_->toEntt(id);
+    if (e == entt::null) return false;
+    if (const auto* c = impl_->reg.try_get<LinearMoverComponent>(e)) {
+        out = *c;
+        return true;
+    }
+    return false;
+}
+
+void EntityRegistry::setLinearMover(
+    EntityId id, const std::optional<LinearMoverComponent>& m) {
+    const entt::entity e = impl_->toEntt(id);
+    if (e == entt::null) return;
+    if (m) impl_->reg.emplace_or_replace<LinearMoverComponent>(e, *m);
+    else   impl_->reg.remove<LinearMoverComponent>(e);
+}
+
 bool EntityRegistry::getAutoDestroy(EntityId id,
                                     AutoDestroyComponent& out) const {
     const entt::entity e = impl_->toEntt(id);
@@ -550,6 +569,22 @@ void EntityRegistry::forEachActiveTopDown(
         const auto* t = reg.try_get<TopDownControllerComponent>(e);
         if (!t) continue;
         fn(id, *t);
+    }
+}
+
+void EntityRegistry::forEachActiveLinearMover(
+    const ActiveLinearMoverFn& fn) const
+{
+    auto& reg = impl_->reg;
+    const size_t n = impl_->insertionOrder.size();
+    for (size_t i = 0; i < n; ++i) {
+        const EntityId id = impl_->insertionOrder[i];
+        const entt::entity e = impl_->toEntt(id);
+        if (e == entt::null) continue;
+        if (!reg.all_of<SceneActiveTag>(e)) continue;
+        const auto* m = reg.try_get<LinearMoverComponent>(e);
+        if (!m) continue;
+        fn(id, *m);
     }
 }
 

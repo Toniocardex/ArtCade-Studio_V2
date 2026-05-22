@@ -118,6 +118,12 @@ struct TopDownControllerComponent {
     bool  fourDirections = false;
 };
 
+struct LinearMoverComponent {
+    float directionX = 1.f;
+    float directionY = 0.f;
+    float speed      = 300.f;
+};
+
 /** Runtime-only: not serialized from project JSON. */
 struct EntityRuntimeFlags {
     bool sceneActive = true;
@@ -166,6 +172,7 @@ struct EntityDef {
     std::optional<SensorComponent>               sensor;
     std::optional<PlatformerControllerComponent> platformerController;
     std::optional<TopDownControllerComponent>    topDownController;
+    std::optional<LinearMoverComponent>          linearMover;
     std::optional<HealthComponent>               health;
     std::optional<AutoDestroyComponent>          autoDestroy;
     EntityRuntimeFlags                           runtime;

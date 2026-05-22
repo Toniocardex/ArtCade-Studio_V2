@@ -104,8 +104,9 @@ Core MVP target:
   intent e test.
 - `SolidComponent` / `PhysicsComponent` statico: ostacoli statici, inclusa
   futura opzione one-way platform.
-- `LinearMoverComponent` / Bullet: moto lineare continuo, direzione/velocita,
-  distruzione opzionale all'impatto.
+- `LinearMoverComponent` / Bullet: moto lineare continuo, direzione/velocita.
+  **Integrato end-to-end**: Inspector, ProjectDoc, parser native/WASM,
+  registry/gateway, sistema World con movimento transform/physics e test.
 - `CameraTargetComponent`: target camera 2D con offset, smoothing e bounds.
 
 Advanced target:
@@ -117,10 +118,10 @@ Advanced target:
 - `GrapplingHookComponent`: rope/joint Box2D e azioni Logic Board dedicate.
 
 Ordine consigliato: completare i Core mancanti prima degli Advanced, salvo
-necessita demo specifiche. Prossimi Core candidati: `LinearMoverComponent`
-per proiettili/barriere e `CameraTargetComponent` per camera runtime
-data-driven. Primo Advanced utile resta `MagneticItemComponent` perche valida
-Component nativo, eventi sensore e raccolta coin.
+necessita demo specifiche. Prossimo Core candidato: `CameraTargetComponent`
+per camera runtime data-driven. Primo Advanced utile resta
+`MagneticItemComponent` perche valida Component nativo, eventi sensore e
+raccolta coin.
 
 ### Verifiche Ultima Tranche
 

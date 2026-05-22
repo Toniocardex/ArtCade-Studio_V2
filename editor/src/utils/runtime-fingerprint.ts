@@ -52,6 +52,7 @@ interface FpEntity {
   se?: unknown               // sensor
   pc?: unknown               // platformerController
   td?: unknown               // topDownController
+  lm?: unknown               // linearMover
   he?: unknown               // health
   ad?: unknown               // autoDestroy
 }
@@ -101,6 +102,7 @@ function projectEntity(e: EntityDef): FpEntity {
     se: e.sensor,
     pc: e.platformerController,
     td: e.topDownController,
+    lm: e.linearMover,
     he: e.health,
     ad: e.autoDestroy,
   }

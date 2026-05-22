@@ -63,6 +63,8 @@ public:
     bool setPlatformerController(EntityId id, const std::optional<PlatformerControllerComponent>& controller);
     bool getTopDownController(EntityId id, TopDownControllerComponent& out) const;
     bool setTopDownController(EntityId id, const std::optional<TopDownControllerComponent>& controller);
+    bool getLinearMover(EntityId id, LinearMoverComponent& out) const;
+    bool setLinearMover(EntityId id, const std::optional<LinearMoverComponent>& mover);
     bool getAutoDestroy(EntityId id, AutoDestroyComponent& out) const;
     bool setAutoDestroy(EntityId id, const std::optional<AutoDestroyComponent>& autoDestroy);
 
@@ -106,6 +108,10 @@ public:
     using ActiveTopDownFn = std::function<void(
         EntityId, const TopDownControllerComponent&)>;
     void forEachActiveTopDown(const ActiveTopDownFn& fn) const;
+
+    using ActiveLinearMoverFn = std::function<void(
+        EntityId, const LinearMoverComponent&)>;
+    void forEachActiveLinearMover(const ActiveLinearMoverFn& fn) const;
 
     using ActiveSensorFn = std::function<void(
         EntityId, const SensorComponent&)>;

@@ -338,6 +338,66 @@ static void test_set_sensor_replaces_fixture_without_duplicates() {
     CHECK(f.world.pollSensorEdges().empty());
 }
 
+static void test_linear_mover_moves_transform_without_physics() {
+    Fixture f;
+
+    EntityDef bullet = makeEntity(1, "Bullet");
+    LinearMoverComponent mover;
+    mover.directionX = 3.f;
+    mover.directionY = 4.f;
+    mover.speed = 100.f;
+    bullet.linearMover = mover;
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1 };
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.scenes = {{ scene.id, scene }};
+    doc.entities = {{ 1, bullet }};
+    f.world.init(doc);
+
+    f.world.tickGameplaySystems(1.f);
+
+    Transform transform{};
+    CHECK(f.gw.getTransform(1, transform));
+    CHECK(std::abs(transform.position.x - 60.f) < 0.01f);
+    CHECK(std::abs(transform.position.y - 80.f) < 0.01f);
+    CHECK(std::abs(transform.velocity.x - 60.f) < 0.01f);
+    CHECK(std::abs(transform.velocity.y - 80.f) < 0.01f);
+}
+
+static void test_linear_mover_sets_physics_velocity() {
+    Fixture f;
+
+    EntityDef hazard = makeEntity(1, "Hazard");
+    hazard.physics.bodyType = BodyType::Kinematic;
+    hazard.physics.collider.size = { 16.f, 16.f };
+    LinearMoverComponent mover;
+    mover.directionX = 0.f;
+    mover.directionY = -1.f;
+    mover.speed = 75.f;
+    hazard.linearMover = mover;
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1 };
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.scenes = {{ scene.id, scene }};
+    doc.entities = {{ 1, hazard }};
+    f.world.init(doc);
+
+    CHECK(f.gw.physicsHandle(1) != 0);
+    f.world.tickGameplaySystems(1.f / 60.f);
+
+    const Vec2 velocity = f.physics.getLinearVelocity(f.gw.physicsHandle(1));
+    CHECK(std::abs(velocity.x) < 0.01f);
+    CHECK(std::abs(velocity.y + 75.f) < 0.01f);
+}
+
 int main() {
     test_platformer_movement_intent_without_input();
     test_platformer_jump_intent_without_input();
@@ -346,6 +406,8 @@ int main() {
     test_sensor_edges_are_drained_deterministically();
     test_set_sensor_syncs_fixture_after_body();
     test_set_sensor_replaces_fixture_without_duplicates();
+    test_linear_mover_moves_transform_without_physics();
+    test_linear_mover_sets_physics_velocity();
 
     std::cout << "world-intent-test: " << g_passed << " passed, "
               << g_failed << " failed\n";

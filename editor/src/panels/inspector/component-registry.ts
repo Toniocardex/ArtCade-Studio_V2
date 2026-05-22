@@ -11,6 +11,7 @@ import type {
   AutoDestroyComponent,
   ComponentKey,
   HealthComponent,
+  LinearMoverComponent,
   PlatformerControllerComponent,
   SensorComponent,
   TopDownControllerComponent,
@@ -50,6 +51,9 @@ const PLATFORMER: PlatformerControllerComponent = {
 }
 const TOP_DOWN: TopDownControllerComponent = {
   maxSpeed: 260, acceleration: 1600, friction: 2200, fourDirections: false,
+}
+const LINEAR_MOVER: LinearMoverComponent = {
+  directionX: 1, directionY: 0, speed: 300,
 }
 const HEALTH: HealthComponent = { maxHp: 100, currentHp: 100, iFrames: 0.2 }
 const AUTODESTROY: AutoDestroyComponent = { lifespan: 0 }
@@ -100,6 +104,17 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
       { key: 'acceleration', label: 'Acceleration (px/s^2)', kind: 'number', min: 0, step: 50 },
       { key: 'friction', label: 'Friction (px/s^2)', kind: 'number', min: 0, step: 50 },
       { key: 'fourDirections', label: 'Limit to 4 directions', kind: 'checkbox' },
+    ],
+  },
+  {
+    key: 'linearMover',
+    label: 'Linear Mover',
+    color: 'var(--blue)',
+    create: () => ({ ...LINEAR_MOVER }),
+    fields: [
+      { key: 'directionX', label: 'Direction X', kind: 'number', step: 0.1 },
+      { key: 'directionY', label: 'Direction Y', kind: 'number', step: 0.1 },
+      { key: 'speed', label: 'Speed (px/s)', kind: 'number', min: 0, step: 10 },
     ],
   },
   {

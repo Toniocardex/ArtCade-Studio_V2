@@ -9,7 +9,8 @@ import type { LogicBoardDoc } from './logic-board'
 import type { TileDef, TilemapLayer, TilesetAsset } from './tilemap'
 import type {
   SensorComponent, PlatformerControllerComponent,
-  TopDownControllerComponent, HealthComponent, AutoDestroyComponent,
+  TopDownControllerComponent, LinearMoverComponent,
+  HealthComponent, AutoDestroyComponent,
 } from './components'
 
 export interface Vec2 { x: number; y: number }
@@ -70,6 +71,7 @@ export interface EntityDef {
   sensor?:               SensorComponent
   platformerController?: PlatformerControllerComponent
   topDownController?:    TopDownControllerComponent
+  linearMover?:          LinearMoverComponent
   health?:               HealthComponent
   autoDestroy?:          AutoDestroyComponent
 }

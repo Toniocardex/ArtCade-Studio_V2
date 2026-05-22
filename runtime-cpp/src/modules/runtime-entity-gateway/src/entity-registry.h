@@ -97,6 +97,10 @@ public:
     void setTopDown(EntityId id,
                     const std::optional<TopDownControllerComponent>& t);
 
+    bool getLinearMover(EntityId id, LinearMoverComponent& out) const;
+    void setLinearMover(EntityId id,
+                        const std::optional<LinearMoverComponent>& m);
+
     bool getAutoDestroy(EntityId id, AutoDestroyComponent& out) const;
     void setAutoDestroy(EntityId id,
                         const std::optional<AutoDestroyComponent>& ad);
@@ -157,6 +161,10 @@ public:
     using ActiveTopDownFn = std::function<void(
         EntityId, const TopDownControllerComponent&)>;
     void forEachActiveTopDown(const ActiveTopDownFn& fn) const;
+
+    using ActiveLinearMoverFn = std::function<void(
+        EntityId, const LinearMoverComponent&)>;
+    void forEachActiveLinearMover(const ActiveLinearMoverFn& fn) const;
 
     using ActiveSensorFn = std::function<void(
         EntityId, const SensorComponent&)>;

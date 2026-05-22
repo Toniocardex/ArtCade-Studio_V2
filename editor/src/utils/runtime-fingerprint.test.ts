@@ -95,8 +95,13 @@ describe('runtimeProjectFingerprint', () => {
     const withHealth = makeProject({
       entities: { 1: makeEntity({ health: { maxHp: 10, currentHp: 10 } as never }) },
     })
+    const withMover = makeProject({
+      entities: { 1: makeEntity({ linearMover: { directionX: 1, directionY: 0, speed: 300 } as never }) },
+    })
     expect(runtimeProjectFingerprint(base,       'scene_a'))
       .not.toBe(runtimeProjectFingerprint(withHealth, 'scene_a'))
+    expect(runtimeProjectFingerprint(base,      'scene_a'))
+      .not.toBe(runtimeProjectFingerprint(withMover, 'scene_a'))
   })
 
   it('changes when active scene changes', () => {

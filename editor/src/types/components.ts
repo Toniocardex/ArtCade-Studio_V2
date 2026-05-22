@@ -37,6 +37,13 @@ export interface TopDownControllerComponent {
   fourDirections: boolean     // constrain movement to one axis
 }
 
+/** Constant linear motion for bullets, moving hazards, and simple movers. */
+export interface LinearMoverComponent {
+  directionX: number          // normalized by runtime
+  directionY: number          // normalized by runtime
+  speed:      number          // px/s
+}
+
 /** Hit points + invulnerability window. */
 export interface HealthComponent {
   maxHp:     number
@@ -58,6 +65,7 @@ export interface EntityComponents {
   sensor?:               SensorComponent
   platformerController?: PlatformerControllerComponent
   topDownController?:    TopDownControllerComponent
+  linearMover?:          LinearMoverComponent
   health?:               HealthComponent
   autoDestroy?:          AutoDestroyComponent
 }
@@ -66,5 +74,6 @@ export type ComponentKey = keyof EntityComponents
 
 /** Runtime list of optional component field names (parse/serialize). */
 export const COMPONENT_KEYS: ComponentKey[] = [
-  'sensor', 'platformerController', 'topDownController', 'health', 'autoDestroy',
+  'sensor', 'platformerController', 'topDownController', 'linearMover',
+  'health', 'autoDestroy',
 ]

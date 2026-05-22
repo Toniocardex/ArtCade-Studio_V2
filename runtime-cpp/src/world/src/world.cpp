@@ -297,6 +297,42 @@ void World::tickTopDownControllers(float dt) {
         });
 }
 
+void World::tickLinearMovers(float dt) {
+    entityGateway_.forEachActiveLinearMover(
+        [this, dt](EntityId id, const LinearMoverComponent& lm) {
+            PlatformerControllerComponent platformer{};
+            if (entityGateway_.getPlatformerController(id, platformer))
+                return;
+            TopDownControllerComponent topDown{};
+            if (entityGateway_.getTopDownController(id, topDown))
+                return;
+
+            const Vec2 direction = normalizeOrZero({ lm.directionX, lm.directionY });
+            const Vec2 velocity = {
+                direction.x * std::max(0.f, lm.speed),
+                direction.y * std::max(0.f, lm.speed),
+            };
+
+            const uint32_t handle = entityGateway_.physicsHandle(id);
+            if (handle != 0) {
+                PhysicsComponent physics{};
+                if (entityGateway_.getPhysicsComponent(id, physics) &&
+                    physics.bodyType != BodyType::Static)
+                {
+                    physics_.setLinearVelocity(handle, velocity);
+                    return;
+                }
+            }
+
+            Transform transform{};
+            if (!entityGateway_.getTransform(id, transform)) return;
+            transform.velocity = velocity;
+            transform.position.x += velocity.x * dt;
+            transform.position.y += velocity.y * dt;
+            entityGateway_.setTransform(id, transform);
+        });
+}
+
 void World::tickSensorOverlapEdges() {
     // EnTT visitor: deterministic insertion order so sensorEdgeBuffer_
     // (drained by Lua via pollSensorEdges) is reproducible across runs.
@@ -336,6 +372,7 @@ void World::tickGameplaySystems(float dt) {
         activeTilemap_ = sc->tilemap;
     tickPlatformerControllers(dt);
     tickTopDownControllers(dt);
+    tickLinearMovers(dt);
     tickSensorOverlapEdges();
 }
 
