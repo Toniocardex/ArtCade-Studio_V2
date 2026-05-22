@@ -85,8 +85,10 @@ local function bindSensorHandlers()
             return
         end
         local damage = 34
-        local nextHp = math.max(0, cur - damage)
-        entity.setHealth(playerId, nextHp, maxHp)
+        if not entity.damage(playerId, damage) then
+            return
+        end
+        local nextHp = select(1, entity.health(playerId)) or 0
         if nextHp <= 0 then
             alive = false
             state.set("alive", 0)

@@ -198,6 +198,9 @@ public:
         EntityId, AutoDestroyComponent&)>;
     void forEachActiveAutoDestroy(const ActiveAutoDestroyFn& fn);
 
+    using ActiveHealthFn = std::function<void(EntityId, HealthComponent&)>;
+    void forEachActiveHealth(const ActiveHealthFn& fn);
+
 private:
     struct Impl;
     std::unique_ptr<Impl> impl_;

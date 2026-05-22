@@ -521,7 +521,26 @@ void World::tickGameplaySystems(float dt) {
     tickLinearMovers(dt);
     tickMagneticItems(dt);
     tickHordeMembers(dt);
+    tickHealthCooldowns(dt);
     tickSensorOverlapEdges();
+}
+
+void World::tickHealthCooldowns(float dt) {
+    entityGateway_.forEachActiveHealth(
+        [dt](EntityId, HealthComponent& h) {
+            if (h._iFramesRemaining <= 0.f) return;
+            h._iFramesRemaining = std::max(0.f, h._iFramesRemaining - dt);
+        });
+}
+
+void World::tickAutoDestroy(float dt) {
+    entityGateway_.forEachActiveAutoDestroy(
+        [this, dt](EntityId id, AutoDestroyComponent& a) {
+            if (a.lifespan <= 0.f) return;
+            a._timeAlive += dt;
+            if (a._timeAlive >= a.lifespan)
+                entityGateway_.queueDestroy(id);
+        });
 }
 
 void World::flushEntityQueues() {

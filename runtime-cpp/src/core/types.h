@@ -156,6 +156,8 @@ struct HealthComponent {
     float maxHp     = 100.f;
     float currentHp = 100.f;
     float iFrames   = 0.2f;
+    /** Runtime invulnerability countdown (not serialised). */
+    float _iFramesRemaining = 0.f;
 };
 
 struct AutoDestroyComponent {

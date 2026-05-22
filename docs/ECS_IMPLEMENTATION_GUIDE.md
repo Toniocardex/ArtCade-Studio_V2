@@ -69,6 +69,7 @@ Tipi opzionali (emplace on demand via `EntityRegistry::set*`):
 
 - `SensorComponent`              — sensori overlap (targetTag, eventType)
 - `PlatformerControllerComponent`— config controller jump/run
+- `HealthComponent`              — `maxHp`, `currentHp`, `iFrames`, `_iFramesRemaining`
 - `AutoDestroyComponent`         — `lifespan` + `_timeAlive`
 - `AnimationComponent`           — sprite animator
 - `Sprite4DirComponent`          — 4-direction sprite
@@ -132,6 +133,7 @@ forEachActivePhysicsBody(fn)  // (id, uint32_t handle, Transform&)        ← Tr
 forEachActivePlatformer(fn)   // (id, const PlatformerControllerComponent&)
 forEachActiveSensor(fn)       // (id, const SensorComponent&)
 forEachActiveAutoDestroy(fn)  // (id, AutoDestroyComponent&)              ← componente mutabile
+forEachActiveHealth(fn)       // (id, HealthComponent&)                    ← componente mutabile
 ```
 
 ### Esempio: rendering sprite (app.cpp)
@@ -159,19 +161,31 @@ void World::syncPhysicsToEntities() {
 }
 ```
 
-### Esempio: countdown autoDestroy (mutazione in-place)
+### Esempio: countdown autoDestroy (`World::tickAutoDestroy`)
 
 ```cpp
-auto* gateway = mod_->entityGateway.get();
-gateway->forEachActiveAutoDestroy(
-    [gateway, dt](EntityId id, AutoDestroyComponent& a) {
-        if (a.lifespan <= 0.f) return;
-        a._timeAlive += dt;
-        if (a._timeAlive >= a.lifespan)
-            gateway->queueDestroy(id);
-    });
-gateway->flushPendingOperations();
+// app.cpp — dopo sync fisica e primo drain lifecycle
+mod_->world->tickAutoDestroy(dt);
+mod_->world->flushEntityQueues();
+mod_->gameAPI->dispatchLifecycleEvents();  // onDestroy per auto-destroy
 ```
+
+`applyEntityDefToRegistry` / `updateEntity` preservano `_timeAlive` quando
+il ProjectDoc invia solo `lifespan` (sync incrementale editor).
+
+### Esempio: health i-frames (`World::tickHealthCooldowns`)
+
+```cpp
+void World::tickHealthCooldowns(float dt) {
+    entityGateway_.forEachActiveHealth(
+        [dt](EntityId, HealthComponent& h) {
+            if (h._iFramesRemaining > 0.f)
+                h._iFramesRemaining = std::max(0.f, h._iFramesRemaining - dt);
+        });
+}
+```
+
+Danno gameplay: `RuntimeEntityGateway::applyDamage` + Lua `entity.damage`.
 
 **Quando usare un visitor** vs `for (id : activeSceneIds())`:
 

@@ -110,6 +110,14 @@ Core MVP target:
 - `CameraTargetComponent`: target camera 2D con offset, smoothing e bounds.
   **Integrato end-to-end**: Inspector, ProjectDoc, parser native/WASM,
   registry/gateway, `World::tickCameraTargets` → Renderer, test gateway.
+- `HealthComponent`: HP + i-frames (storage EnTT + cooldown in World).
+  **Integrato end-to-end**: Inspector, parser, gateway, `entity.health` /
+  `entity.setHealth` / `entity.damage`, `World::tickHealthCooldowns`,
+  test `world_intent_test` (damage + i-frames).
+- `AutoDestroyComponent`: countdown lifespan → destroy.
+  **Integrato end-to-end**: Inspector, parser, gateway,
+  `World::tickAutoDestroy` (da `app.cpp`), preservazione `_timeAlive` su
+  `updateEntity`, test intent + demo coin con `lifespan`.
 
 Advanced target:
 
@@ -359,19 +367,23 @@ Exit criteria:
 
 ## Tranche 8 - HealthComponent end-to-end
 
-Stato: completata.
+Stato: completata (allineamento 2026-05-21).
 
 Completato:
 
-- `EntityRegistry`: `getHealth` / `setHealth` (optional component).
-- `RuntimeEntityGateway`: delega + `applyEntityDefToRegistry` applica `def.health`.
-- Lua: `entity.health(id)` → `currentHp, maxHp`; `entity.setHealth(id, current, max?)`.
-- Test: `test_health_component` in `entity-signals-test.cpp`.
+- `EntityRegistry`: `getHealth` / `setHealth` + `forEachActiveHealth`.
+- `RuntimeEntityGateway`: delega + `applyEntityDefToRegistry` (preserva
+  `_iFramesRemaining` su patch); `applyDamage(id, amount)`.
+- `World::tickHealthCooldowns` in `tickGameplaySystems`.
+- Lua: `entity.health`, `entity.setHealth`, `entity.damage` (rispetta i-frames).
+- Test: `test_health_component` (`entity-signals-test`);
+  `test_health_damage_respects_iframes` (`world_intent_test`).
+- Demo: danno nemico via `entity.damage` in `test-project/scripts/main.lua`.
 
 Exit criteria:
 
-- Health da ProjectDoc → registry → gateway → Lua.
-- `ctest`: `entity_signals_test` verde.
+- Health da ProjectDoc → registry → gateway → Lua + danno con i-frames in core.
+- `ctest`: `entity_signals_test` + `world_intent_test` verdi.
 
 ## Tranche 9 - Sensor fixtures + demo gameplay
 

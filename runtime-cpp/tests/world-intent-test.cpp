@@ -501,6 +501,101 @@ static void test_horde_member_separates_from_peer() {
           std::abs(ta.position.y - tb.position.y) > 0.5f);
 }
 
+static void test_auto_destroy_after_lifespan() {
+    Fixture f;
+
+    EntityDef timed = makeEntity(1, "TimedPickup", {"pickup"});
+    AutoDestroyComponent ad;
+    ad.lifespan = 0.5f;
+    timed.autoDestroy = ad;
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1 };
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.scenes = {{ scene.id, scene }};
+    doc.entities = {{ 1, timed }};
+    f.world.init(doc);
+
+    CHECK(f.gw.exists(1));
+    f.world.tickAutoDestroy(0.3f);
+    CHECK(f.gw.exists(1));
+    f.world.tickAutoDestroy(0.3f);
+    f.world.flushEntityQueues();
+    CHECK(!f.gw.exists(1));
+}
+
+static void test_update_entity_preserves_auto_destroy_timer() {
+    Fixture f;
+
+    EntityDef coin = makeEntity(1, "Coin", {"pickup"});
+    AutoDestroyComponent ad;
+    ad.lifespan = 10.f;
+    coin.autoDestroy = ad;
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1 };
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.scenes = {{ scene.id, scene }};
+    doc.entities = {{ 1, coin }};
+    f.world.init(doc);
+
+    f.world.tickAutoDestroy(2.f);
+    AutoDestroyComponent running{};
+    CHECK(f.gw.getAutoDestroy(1, running));
+    CHECK(running._timeAlive >= 1.99f);
+
+    EntityDef patch = coin;
+    patch.transform.position = { 50.f, 50.f };
+    CHECK(f.gw.updateEntity(1, patch));
+
+    AutoDestroyComponent after{};
+    CHECK(f.gw.getAutoDestroy(1, after));
+    CHECK(after._timeAlive >= 1.99f);
+    CHECK(after.lifespan == 10.f);
+}
+
+static void test_health_damage_respects_iframes() {
+    Fixture f;
+
+    EntityDef player = makeEntity(1, "Player", {"player"});
+    HealthComponent hc;
+    hc.maxHp = 100.f;
+    hc.currentHp = 100.f;
+    hc.iFrames = 0.2f;
+    player.health = hc;
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1 };
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.scenes = {{ scene.id, scene }};
+    doc.entities = {{ 1, player }};
+    f.world.init(doc);
+
+    CHECK(f.gw.applyDamage(1, 10.f));
+    HealthComponent h{};
+    CHECK(f.gw.getHealth(1, h));
+    CHECK(h.currentHp == 90.f);
+    CHECK(h._iFramesRemaining > 0.f);
+
+    CHECK(!f.gw.applyDamage(1, 10.f));
+    CHECK(f.gw.getHealth(1, h));
+    CHECK(h.currentHp == 90.f);
+
+    f.world.tickGameplaySystems(0.25f);
+    CHECK(f.gw.applyDamage(1, 10.f));
+    CHECK(f.gw.getHealth(1, h));
+    CHECK(h.currentHp == 80.f);
+}
+
 int main() {
     test_platformer_movement_intent_without_input();
     test_platformer_jump_intent_without_input();
@@ -514,6 +609,9 @@ int main() {
     test_magnetic_item_pulls_tagged_entity();
     test_horde_member_chases_target_class();
     test_horde_member_separates_from_peer();
+    test_auto_destroy_after_lifespan();
+    test_update_entity_preserves_auto_destroy_timer();
+    test_health_damage_respects_iframes();
 
     std::cout << "world-intent-test: " << g_passed << " passed, "
               << g_failed << " failed\n";

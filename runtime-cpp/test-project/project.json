@@ -189,6 +189,9 @@
         "shape": "Circle",
         "radius": 30,
         "targetTag": "player"
+      },
+      "autoDestroy": {
+        "lifespan": 20
       }
     },
     "5": {
@@ -235,6 +238,9 @@
         "shape": "Circle",
         "radius": 30,
         "targetTag": "player"
+      },
+      "autoDestroy": {
+        "lifespan": 20
       }
     },
     "6": {

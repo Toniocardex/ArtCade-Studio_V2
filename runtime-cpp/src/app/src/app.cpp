@@ -446,21 +446,10 @@ void Application::loopIteration() {
             profiler_.addLuaEvents(events);
         }
 
-        // AutoDestroy system (Phase D1): lifespan>0 → destroy after N seconds.
-        // EnTT visitor: mutable AutoDestroyComponent& so the countdown is
-        // written back in-place; queueDestroy in insertion order keeps the
-        // pending destroy queue deterministic.
+        // AutoDestroy: World ticks lifespans after physics sync; flush + lifecycle
+        // drain so onDestroy handlers see destroys this frame.
         {
-            auto* gateway = mod_->entityGateway.get();
-            const float dt = targetDt_;
-            gateway->forEachActiveAutoDestroy(
-                [gateway, dt](ArtCade::EntityId id,
-                              ArtCade::AutoDestroyComponent& a) {
-                    if (a.lifespan <= 0.f) return;
-                    a._timeAlive += dt;
-                    if (a._timeAlive >= a.lifespan)
-                        gateway->queueDestroy(id);
-                });
+            mod_->world->tickAutoDestroy(targetDt_);
             {
                 const auto start = Clock::now();
                 mod_->world->flushEntityQueues();

@@ -172,8 +172,24 @@ void RuntimeEntityGateway::applyEntityDefToRegistry(
     registry_->setCameraTarget(id, def.cameraTarget);
     registry_->setMagneticItem(id, def.magneticItem);
     registry_->setHordeMember(id, def.hordeMember);
-    registry_->setAutoDestroy(id, def.autoDestroy);
-    registry_->setHealth(id, def.health);
+    if (def.autoDestroy) {
+        AutoDestroyComponent ad = *def.autoDestroy;
+        AutoDestroyComponent prev{};
+        if (registry_->getAutoDestroy(id, prev))
+            ad._timeAlive = prev._timeAlive;
+        registry_->setAutoDestroy(id, ad);
+    } else {
+        registry_->setAutoDestroy(id, std::nullopt);
+    }
+    if (def.health) {
+        HealthComponent hc = *def.health;
+        HealthComponent prev{};
+        if (registry_->getHealth(id, prev))
+            hc._iFramesRemaining = prev._iFramesRemaining;
+        registry_->setHealth(id, hc);
+    } else {
+        registry_->setHealth(id, std::nullopt);
+    }
     registry_->setIdentity(id, def.className, def.tags);
 }
 
@@ -438,7 +454,15 @@ bool RuntimeEntityGateway::setAutoDestroy(
     EntityId id, const std::optional<AutoDestroyComponent>& autoDestroy)
 {
     if (!registry_->contains(id)) return false;
-    registry_->setAutoDestroy(id, autoDestroy);
+    if (!autoDestroy) {
+        registry_->setAutoDestroy(id, std::nullopt);
+        return true;
+    }
+    AutoDestroyComponent merged = *autoDestroy;
+    AutoDestroyComponent prev{};
+    if (registry_->getAutoDestroy(id, prev))
+        merged._timeAlive = prev._timeAlive;
+    registry_->setAutoDestroy(id, merged);
     return true;
 }
 
@@ -450,7 +474,27 @@ bool RuntimeEntityGateway::setHealth(EntityId id,
                                      const std::optional<HealthComponent>& health)
 {
     if (!registry_->contains(id)) return false;
-    registry_->setHealth(id, health);
+    if (!health) {
+        registry_->setHealth(id, std::nullopt);
+        return true;
+    }
+    HealthComponent merged = *health;
+    HealthComponent prev{};
+    if (registry_->getHealth(id, prev))
+        merged._iFramesRemaining = prev._iFramesRemaining;
+    registry_->setHealth(id, merged);
+    return true;
+}
+
+bool RuntimeEntityGateway::applyDamage(EntityId id, float amount) {
+    if (!registry_->contains(id) || amount <= 0.f) return false;
+    HealthComponent health{};
+    if (!registry_->getHealth(id, health)) return false;
+    if (health._iFramesRemaining > 0.f) return false;
+    health.currentHp = std::max(0.f, health.currentHp - amount);
+    health._iFramesRemaining = health.iFrames;
+    // Write directly — gateway setHealth() would re-merge the previous i-frame timer.
+    registry_->setHealth(id, std::optional<HealthComponent>{health});
     return true;
 }
 
@@ -567,6 +611,10 @@ void RuntimeEntityGateway::forEachActiveAutoDestroy(
     const ActiveAutoDestroyFn& fn)
 {
     registry_->forEachActiveAutoDestroy(fn);
+}
+
+void RuntimeEntityGateway::forEachActiveHealth(const ActiveHealthFn& fn) {
+    registry_->forEachActiveHealth(fn);
 }
 
 std::vector<EntityId> RuntimeEntityGateway::activeSceneIds() const {

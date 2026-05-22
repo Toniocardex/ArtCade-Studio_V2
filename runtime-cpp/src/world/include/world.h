@@ -50,6 +50,8 @@ public:
     void tickGameplaySystems(float dt);
     /** Smooth-follow active CameraTargetComponent entities on the Renderer. */
     void tickCameraTargets(float dt);
+    /** Count down AutoDestroy lifespans and queue destroys (call before flush). */
+    void tickAutoDestroy(float dt);
     void flushEntityQueues();
 
     bool       hasGlobalState(const std::string& key) const;
@@ -110,6 +112,7 @@ private:
     void tickLinearMovers(float dt);
     void tickMagneticItems(float dt);
     void tickHordeMembers(float dt);
+    void tickHealthCooldowns(float dt);
     void tickSensorOverlapEdges();
 
     Modules::Renderer* renderer_ = nullptr;

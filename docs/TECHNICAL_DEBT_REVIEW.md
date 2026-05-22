@@ -62,6 +62,12 @@ Risolto (HordeMember follow-up `bc37d57`):
 
 - Helper condiviso `applySteeringVelocity` in `world.cpp` per LinearMover / Magnetic / Horde.
 
+Risolto (Health / AutoDestroy allineamento 2026-05-21):
+
+- `World::tickAutoDestroy` (prima inline in `app.cpp`); test intent destroy + preservazione timer su `updateEntity`.
+- `entity.damage` + `applyDamage` con i-frames; `World::tickHealthCooldowns`.
+- Demo `test-project`: coin con `autoDestroy.lifespan`, player damage via `entity.damage`.
+
 ## Summary
 
 Questa review fotografa il debito tecnico emerso durante l'integrazione recente di Scene Settings, viewport runtime, editor guides, toolbar, grid editor-only, fix bordo nero in edit mode e pulizia warning build.

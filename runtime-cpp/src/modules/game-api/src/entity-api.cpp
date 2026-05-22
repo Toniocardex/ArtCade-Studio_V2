@@ -155,6 +155,12 @@ void GameAPI::bindEntityAPI(sol::state& lua) {
             entities->setHealth(id, health);
         });
 
+    // entity.damage(id, amount) → true if damage applied (respects i-frames)
+    lua.set_function("entity_damage",
+        [entities](EntityId id, float amount) -> bool {
+            return entities && entities->applyDamage(id, amount);
+        });
+
     // scene.load(name) / scene.restart()  — flow control via the gateway
     lua.set_function("scene_load",
         [entities](const std::string& name, sol::optional<float> fadeSec) {
@@ -258,6 +264,7 @@ void GameAPI::bindEntityAPI(sol::state& lua) {
             return h[1], h[2]
         end
         entity.setHealth   = function(id,c,m)   return entity_setHealth(id,c,m)  end
+        entity.damage      = function(id,amt)    return entity_damage(id,amt)     end
 
         scene = {}
         scene.load    = function(name, fade) return scene_load(name, fade) end

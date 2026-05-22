@@ -725,4 +725,18 @@ void EntityRegistry::forEachActiveAutoDestroy(
     }
 }
 
+void EntityRegistry::forEachActiveHealth(const ActiveHealthFn& fn) {
+    auto& reg = impl_->reg;
+    const size_t n = impl_->insertionOrder.size();
+    for (size_t i = 0; i < n; ++i) {
+        const EntityId id = impl_->insertionOrder[i];
+        const entt::entity e = impl_->toEntt(id);
+        if (e == entt::null) continue;
+        if (!reg.all_of<SceneActiveTag>(e)) continue;
+        auto* h = reg.try_get<HealthComponent>(e);
+        if (!h) continue;
+        fn(id, *h);
+    }
+}
+
 } // namespace ArtCade::Modules

@@ -76,6 +76,8 @@ public:
 
     bool getHealth(EntityId id, HealthComponent& out) const;
     bool setHealth(EntityId id, const std::optional<HealthComponent>& health);
+    /** Apply damage when not in i-frames; returns false if blocked or no health. */
+    bool applyDamage(EntityId id, float amount);
 
     /** Count entities with SceneActiveTag (profiler / diagnostics). */
     size_t activeSceneEntityCount() const;
@@ -138,6 +140,9 @@ public:
     using ActiveAutoDestroyFn = std::function<void(
         EntityId, AutoDestroyComponent&)>;
     void forEachActiveAutoDestroy(const ActiveAutoDestroyFn& fn);
+
+    using ActiveHealthFn = std::function<void(EntityId, HealthComponent&)>;
+    void forEachActiveHealth(const ActiveHealthFn& fn);
 
     void registerScenes(const std::unordered_map<SceneId, SceneDef>& scenes,
                         const std::unordered_map<EntityId, EntityDef>& entityDefs);
