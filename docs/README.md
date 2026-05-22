@@ -104,6 +104,7 @@ Guida specializzata         (REACT_WASM_PATTERN.md o ECS_IMPLEMENTATION_GUIDE.md
 | **REACT_WASM_PATTERN.md** | Buffering implementazione | 15–20min | React dev | ⭐⭐ |
 | **CODEMIRROR_EDITOR.md** | Editor Script CodeMirror 6 (iframe), sync Logic Board→Lua, Tauri dev/build | ~5min | React dev | ⭐ |
 | **ECS_IMPLEMENTATION_GUIDE.md** | EnTT pratica | 30–45min | C++ dev | ⭐⭐ |
+| **ENGINE_INTEGRATION_ROADMAP.md** | Tracker operativo Thick Core / Thin Script / Gateway / EnTT | ~5min | C++ / Tech lead | ⭐⭐⭐ |
 | **ARCHITETTURA_TECNICA_ENGINE_2D.md** | Stack collab, §8–10, §11 stato vs target + roadmap | 30–40min | C++ / Tech lead | ⭐⭐ |
 | **LOGIC_BOARD_SPEC.md** | **I** glossario · **II** Sheet tabellare · **III** Logic Board (TS→Lua, UI, MVP) · **IV** link linee guida | 25–35min | Everyone / Editor | ⭐⭐⭐ |
 | **LOGIC_BOARD_DESIGN_GUIDELINES.md** | Best practice Logic Board (blackboard, segnali, data-driven, UX, bridge numerico) | ~5min | Editor / C++ bridge | ⭐ |

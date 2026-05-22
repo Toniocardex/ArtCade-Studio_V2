@@ -157,8 +157,8 @@ describe('compileLogicBoard — triggers', () => {
         ]),
       ])
     expect(mk('down')).toContain('input.isKeyDown("KeyW")')
-    expect(mk('pressed')).toContain('input.wasKeyPressed("KeyW")')
-    expect(mk('released')).toContain('input.wasKeyReleased("KeyW")')
+    expect(mk('pressed')).toContain('input.onPressed("KeyW", function()')
+    expect(mk('released')).toContain('input.onReleased("KeyW", function()')
   })
 
   it('onCollision withClass gates on collision.touchingClass', () => {
@@ -175,7 +175,7 @@ describe('compileLogicBoard — triggers', () => {
     expect(lua).toContain('state.add("score", 1)')
   })
 
-  it('onTimer non-repeat accumulates dt without reset', () => {
+  it('onTimer non-repeat registers a one-shot timer', () => {
     const lua = compileLogicBoard([
       board([
         ev({
@@ -184,12 +184,11 @@ describe('compileLogicBoard — triggers', () => {
         }),
       ]),
     ])
-    expect(lua).toContain('_logic_timers["b1:e1"] = (_logic_timers["b1:e1"] or 0) + dt')
-    expect(lua).toContain('if _logic_timers["b1:e1"] >= 2 then')
-    expect(lua).not.toContain('_logic_timers["b1:e1"] = 0')
+    expect(lua).toContain('time.after(2, function()')
+    expect(lua).toContain('debug.log("tick")')
   })
 
-  it('onTimer repeat resets the accumulator', () => {
+  it('onTimer repeat registers an interval timer', () => {
     const lua = compileLogicBoard([
       board([
         ev({
@@ -198,8 +197,8 @@ describe('compileLogicBoard — triggers', () => {
         }),
       ]),
     ])
-    expect(lua).toContain('_logic_timers["b1:e1"] = 0')
-    expect(lua).toContain('if _logic_timers["b1:e1"] >= 1.5 then')
+    expect(lua).toContain('time.every(1.5, function()')
+    expect(lua).toContain('debug.log("tick")')
   })
 })
 
@@ -279,7 +278,7 @@ describe('compileLogicBoard — realistic example', () => {
       },
     ])
     expect(lua).toContain('-- board: player_controller')
-    expect(lua).toContain('input.wasKeyPressed("Space")')
+    expect(lua).toContain('input.onPressed("Space", function()')
     expect(lua).toContain('entity.setVelocity(self, 0, -400)')
     expect(lua).toContain('collision.touchingClass(self, "Coin")')
     expect(lua).toContain('state.add("coins", 1)')
@@ -374,30 +373,39 @@ describe('Logic Components — Phase B (new runtime-backed actions)', () => {
 })
 
 describe('Logic Components — Phase C (engine-hook triggers)', () => {
-  it('onTriggerEnter compiles sensor.poll edges per entity', () => {
+  it('onSpawn registers a lifecycle handler', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({ trigger: { type: 'onSpawn', className: 'Player' },
+             actions: [{ type: 'debugLog', message: 'spawned' }] }),
+      ]),
+    ])
+    expect(lua).toContain('lifecycle.onSpawn("Player", function(entityId, tags)')
+    expect(lua).toContain('debug.log("spawned")')
+  })
+
+  it('onTriggerEnter registers a sensor enter handler', () => {
     const lua = compileLogicBoard([
       board([
         ev({ trigger: { type: 'onTriggerEnter', withClass: 'Zone' },
              actions: [{ type: 'debugLog', message: 'in' }] }),
       ]),
     ])
-    expect(lua).toContain('sensor.poll()')
-    expect(lua).toContain('_sensor_by_ent')
-    expect(lua).toContain('se.tag == "Zone"')
-    expect(lua).toContain('se.enter')
-    expect(lua).toContain('other = se.otherId')
+    expect(lua).toContain('sensor.onEnter("Player", "Zone", function(entityId, otherId, tag)')
+    expect(lua).toContain('local self = entityId')
+    expect(lua).toContain('local other = otherId')
     expect(lua).not.toContain('_trig')
     expect(lua).toContain('debug.log("in")')
   })
 
-  it('onTriggerExit fires when se.enter is false', () => {
+  it('onTriggerExit registers a sensor exit handler', () => {
     const lua = compileLogicBoard([
       board([
         ev({ trigger: { type: 'onTriggerExit', withClass: 'Zone' },
              actions: [{ type: 'debugLog', message: 'out' }] }),
       ]),
     ])
-    expect(lua).toContain('(not se.enter)')
+    expect(lua).toContain('sensor.onExit("Player", "Zone", function(entityId, otherId, tag)')
     expect(lua).toContain('debug.log("out")')
   })
 
@@ -431,7 +439,7 @@ describe('Logic Components — Phase C (engine-hook triggers)', () => {
     expect(lua).toContain('entity.setScale(_nid')
   })
 
-  it('wait splits actions with time.delay', () => {
+  it('wait splits actions with time.after', () => {
     const lua = compileLogicBoard([
       board([
         ev({
@@ -445,11 +453,11 @@ describe('Logic Components — Phase C (engine-hook triggers)', () => {
       ]),
     ])
     expect(lua).toContain('debug.log("before")')
-    expect(lua).toContain('time.delay(1.5, function()')
+    expect(lua).toContain('time.after(1.5, function()')
     expect(lua).toContain('debug.log("after")')
   })
 
-  it('onAnimationEnd / onDestroy poll engine buffers', () => {
+  it('onAnimationEnd polls while onDestroy registers lifecycle handler', () => {
     const lua = compileLogicBoard([
       board([
         ev({ id: 'ae', trigger: { type: 'onAnimationEnd', clipName: 'die' },
@@ -459,7 +467,7 @@ describe('Logic Components — Phase C (engine-hook triggers)', () => {
       ]),
     ])
     expect(lua).toContain('animation.pollFinished()')
-    expect(lua).toContain('lifecycle.pollDestroyed()')
+    expect(lua).toContain('lifecycle.onDestroy("Player", function(entityId, tags)')
     expect(lua).toContain('af.clip == "die"')
     expect(lua).toContain('debug.log("done")')
     expect(lua).toContain('debug.log("bye")')

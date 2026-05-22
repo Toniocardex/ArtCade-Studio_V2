@@ -279,6 +279,11 @@ bool RuntimeEntityGateway::exists(EntityId id) const {
     return registry_->contains(id);
 }
 
+std::string RuntimeEntityGateway::className(EntityId id) const {
+    if (!registry_->contains(id)) return {};
+    return registry_->className(id);
+}
+
 bool RuntimeEntityGateway::getTransform(EntityId id, Transform& out) const {
     return registry_->getTransform(id, out);
 }

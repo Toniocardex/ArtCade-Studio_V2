@@ -104,6 +104,10 @@ if(ARTCADE_HAS_RAYLIB AND ARTCADE_HAS_LUA)
         entity-signals-test.cpp
         "artcade-runtime-entity-gateway;artcade-physics")
 
+    artcade_test(world_intent_test
+        world-intent-test.cpp
+        "artcade-world;artcade-runtime-entity-gateway;artcade-physics;artcade-variable-manager")
+
     artcade_test(artcade_package_test
         artcade-package-test.cpp
         artcade-asset-system)

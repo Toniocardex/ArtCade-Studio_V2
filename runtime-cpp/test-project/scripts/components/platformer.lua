@@ -11,7 +11,7 @@
 --       coyoteTime  = 0.1,    -- seconds after leaving ground where jump still works
 --       jumpBuffer  = 0.1,    -- seconds before landing where jump input is buffered
 --   })
---   ctrl:update(dt)     -- call every tick
+--   ctrl:update(dt)     -- call every tick for physics integration
 --   ctrl:isGrounded()   -- bool
 --   ctrl:setEnabled(bool)
 -- =============================================================================
@@ -33,6 +33,24 @@ function Platformer.new(entityId, cfg)
     self._coyoteTimer     = 0
     self._jumpBufferTimer = 0
     self._enabled         = true
+    self._jumpRequested   = false
+    self._moveKeys        = {}
+
+    local jumpCodes = { "Space", "KeyW", "ArrowUp" }
+    for _, code in ipairs(jumpCodes) do
+        input.onPressed(code, function()
+            self._jumpRequested = true
+            platformer.requestJump(self.id)
+        end)
+    end
+
+    local moveCodes = { "KeyA", "ArrowLeft", "KeyD", "ArrowRight" }
+    for _, code in ipairs(moveCodes) do
+        self._moveKeys[code] = input.isKeyDown(code)
+        input.onPressed(code, function() self._moveKeys[code] = true end)
+        input.onReleased(code, function() self._moveKeys[code] = false end)
+    end
+
     return self
 end
 
@@ -49,9 +67,8 @@ function Platformer:update(dt)
     end
 
     -- ---- Jump input buffering ----
-    local jumpPressed = input.wasKeyPressed("Space")
-                     or input.wasKeyPressed("KeyW")
-                     or input.wasKeyPressed("ArrowUp")
+    local jumpPressed = self._jumpRequested
+    self._jumpRequested = false
     if jumpPressed then
         self._jumpBufferTimer = self.jumpBuffer
     else
@@ -63,9 +80,10 @@ function Platformer:update(dt)
 
     -- ---- Horizontal ----
     local dx = 0
-    if input.isKeyDown("KeyA") or input.isKeyDown("ArrowLeft")  then dx = dx - 1 end
-    if input.isKeyDown("KeyD") or input.isKeyDown("ArrowRight") then dx = dx + 1 end
+    if self._moveKeys["KeyA"] or self._moveKeys["ArrowLeft"]  then dx = dx - 1 end
+    if self._moveKeys["KeyD"] or self._moveKeys["ArrowRight"] then dx = dx + 1 end
     vx = dx * self.speed
+    movement.setIntent(self.id, dx, 0)
 
     -- ---- Jump ----
     if self._jumpBufferTimer > 0 and self._coyoteTimer > 0 then
@@ -90,5 +108,6 @@ function Platformer:setEnabled(flag)
     self._enabled = flag
     if not flag then
         entity.setVelocity(self.id, 0, 0)
+        movement.clearIntent(self.id)
     end
 end

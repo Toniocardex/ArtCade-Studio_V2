@@ -30,6 +30,7 @@ export type TargetSelector =
 
 export type LogicTrigger =
   | { type: 'onStart' }                                             // once, in init()
+  | { type: 'onSpawn'; className?: string }                         // lifecycle.onSpawn
   | { type: 'onUpdate' }                                            // every tick(dt)
   | { type: 'onCollision'; withClass?: string }                     // self touches a class
   | { type: 'onTriggerEnter'; withClass?: string }                  // edge: started touching

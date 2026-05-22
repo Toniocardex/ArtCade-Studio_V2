@@ -6,6 +6,22 @@
     "additionalProperties": false,
     "x-artcade": { "label": "On Start", "category": "System", "params": {} }
   },
+  "onSpawn": {
+    "type": "object",
+    "required": ["type"],
+    "properties": {
+      "type": { "const": "onSpawn" },
+      "className": { "type": "string" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "On Spawn",
+      "category": "System",
+      "params": {
+        "className": { "widget": "className", "label": "Class (optional)" }
+      }
+    }
+  },
   "onUpdate": {
     "type": "object",
     "required": ["type"],

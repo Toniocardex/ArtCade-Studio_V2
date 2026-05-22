@@ -3,6 +3,7 @@ add_library(artcade-game-api
     src/entity-api.cpp
     src/physics-api.cpp
     src/input-api.cpp
+    src/intent-api.cpp
     src/audio-api.cpp
     src/state-api.cpp
     src/debug-api.cpp

@@ -5,6 +5,7 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
@@ -47,6 +48,7 @@ public:
     void flushPendingOperations();
 
     bool exists(EntityId id) const;
+    std::string className(EntityId id) const;
 
     bool getTransform(EntityId id, Transform& out) const;
     bool setTransform(EntityId id, const Transform& transform);

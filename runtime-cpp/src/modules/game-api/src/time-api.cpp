@@ -40,6 +40,11 @@ void GameAPI::bindTimeAPI(sol::state& lua) {
             })
         end
 
+        -- Event-driven alias used by Logic Board intent scripts.
+        function time.after(seconds, cb)
+            return time.delay(seconds, cb)
+        end
+
         -- Fire cb every 'interval' seconds. Returns a cancel function.
         function time.every(interval, cb)
             local entry = {

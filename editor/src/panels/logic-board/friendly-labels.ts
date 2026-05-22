@@ -23,6 +23,7 @@ import { getComponentMeta, type ComponentKind } from '../../utils/logic-board/sc
 
 const TRIGGER_NAMES: Record<LogicTriggerType, string> = {
   onStart: 'Game starts',
+  onSpawn: 'Object spawns',
   onUpdate: 'Every frame',
   onCollision: 'Touches something',
   onTriggerEnter: 'Enters a zone',
@@ -216,6 +217,10 @@ export function triggerSummaryPlain(
   switch (t.type) {
     case 'onStart':
       return 'When the game starts'
+    case 'onSpawn':
+      return t.className
+        ? `When "${fmtClass(t.className, project)}" spawns`
+        : 'When this object spawns'
     case 'onUpdate':
       return 'Every frame while playing'
     case 'onCollision':

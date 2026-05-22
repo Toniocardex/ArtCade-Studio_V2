@@ -61,6 +61,10 @@ public:
     void moveEntityByOffset(EntityId id, float dx, float dy);
     bool isSpaceFree(float x, float y, float w, float h) const;
 
+    void setMovementIntent(EntityId id, float directionX, float directionY);
+    void clearMovementIntent(EntityId id);
+    void requestJump(EntityId id);
+
 private:
     Modules::RuntimeEntityGateway& entityGateway_;
     Modules::Physics&              physics_;
@@ -72,6 +76,13 @@ private:
         float jumpBufferTimer = 0.f;
     };
     std::unordered_map<EntityId, PlatformerRt> platformerRt_;
+
+    struct ControlIntent {
+        Vec2 movement;
+        bool hasMovement   = false;
+        bool jumpRequested = false;
+    };
+    std::unordered_map<EntityId, ControlIntent> controlIntents_;
 
     /** Sensor overlap memory: entityId -> was overlapping target last frame. */
     std::unordered_map<EntityId, bool> sensorWasOverlapping_;

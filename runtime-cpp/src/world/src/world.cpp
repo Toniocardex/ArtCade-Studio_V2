@@ -4,6 +4,7 @@
 #include "../../modules/input/include/input.h"
 #include "../../modules/variable-manager/include/variable-manager.h"
 
+#include <algorithm>
 #include <cmath>
 #include <iostream>
 
@@ -66,6 +67,7 @@ void World::rebuildTilemapPhysics() {
 
 void World::clearGameplayRuntimeState() {
     platformerRt_.clear();
+    controlIntents_.clear();
     sensorWasOverlapping_.clear();
     sensorEdgeBuffer_.clear();
 }
@@ -91,6 +93,7 @@ void World::init(const ProjectDoc& doc) {
 void World::shutdown() {
     variables_.clear();
     platformerRt_.clear();
+    controlIntents_.clear();
     sensorWasOverlapping_.clear();
     sensorEdgeBuffer_.clear();
 }
@@ -164,8 +167,6 @@ bool World::isGrounded(EntityId id, const std::string& groundClass) const {
 }
 
 void World::tickPlatformerControllers(float dt) {
-    if (!input_) return;
-
     // EnTT visitor: const PlatformerControllerComponent& (authored config);
     // per-entity runtime state lives in platformerRt_ keyed by EntityId.
     entityGateway_.forEachActivePlatformer(
@@ -178,10 +179,17 @@ void World::tickPlatformerControllers(float dt) {
             else
                 rt.coyoteTimer = std::max(0.f, rt.coyoteTimer - dt);
 
-            const bool jumpPressed =
+            auto intentIt = controlIntents_.find(id);
+            ControlIntent* intent = intentIt != controlIntents_.end()
+                ? &intentIt->second
+                : nullptr;
+
+            const bool inputJumpPressed = input_ && (
                 input_->wasKeyPressed("Space") ||
                 input_->wasKeyPressed("KeyW") ||
-                input_->wasKeyPressed("ArrowUp");
+                input_->wasKeyPressed("ArrowUp"));
+            const bool jumpPressed =
+                (intent && intent->jumpRequested) || inputJumpPressed;
 
             if (jumpPressed)
                 rt.jumpBufferTimer = pc.jumpBuffer;
@@ -194,8 +202,13 @@ void World::tickPlatformerControllers(float dt) {
             float vx = 0.f;
             float vy = physics_.getLinearVelocity(handle).y;
 
-            if (input_->isKeyDown("KeyA") || input_->isKeyDown("ArrowLeft"))  vx -= pc.maxSpeed;
-            if (input_->isKeyDown("KeyD") || input_->isKeyDown("ArrowRight")) vx += pc.maxSpeed;
+            if (intent && intent->hasMovement) {
+                const float axis = std::clamp(intent->movement.x, -1.f, 1.f);
+                vx = axis * pc.maxSpeed;
+            } else if (input_) {
+                if (input_->isKeyDown("KeyA") || input_->isKeyDown("ArrowLeft"))  vx -= pc.maxSpeed;
+                if (input_->isKeyDown("KeyD") || input_->isKeyDown("ArrowRight")) vx += pc.maxSpeed;
+            }
 
             if (rt.jumpBufferTimer > 0.f && rt.coyoteTimer > 0.f) {
                 vy = -pc.jumpForce;
@@ -206,6 +219,8 @@ void World::tickPlatformerControllers(float dt) {
             }
 
             physics_.setLinearVelocity(handle, { vx, vy });
+            if (intent)
+                intent->jumpRequested = false;
         });
 }
 
@@ -298,6 +313,29 @@ bool World::isSpaceFree(float x, float y, float w, float h) const {
         }
     }
     return true;
+}
+
+void World::setMovementIntent(EntityId id, float directionX, float directionY) {
+    if (id == INVALID_ENTITY) return;
+    auto& intent = controlIntents_[id];
+    intent.movement = {
+        std::clamp(directionX, -1.f, 1.f),
+        std::clamp(directionY, -1.f, 1.f)
+    };
+    intent.hasMovement = true;
+}
+
+void World::clearMovementIntent(EntityId id) {
+    if (id == INVALID_ENTITY) return;
+    auto it = controlIntents_.find(id);
+    if (it == controlIntents_.end()) return;
+    it->second.hasMovement = false;
+    it->second.movement = {};
+}
+
+void World::requestJump(EntityId id) {
+    if (id == INVALID_ENTITY) return;
+    controlIntents_[id].jumpRequested = true;
 }
 
 } // namespace ArtCade

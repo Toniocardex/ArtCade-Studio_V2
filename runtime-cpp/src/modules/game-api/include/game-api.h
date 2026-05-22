@@ -47,6 +47,8 @@ public:
      *  flushEntityQueues so spawn → destroy in the same frame are visible
      *  in arrival order. No-op when the Lua state has not been bound yet. */
     void dispatchLifecycleEvents();
+    void dispatchInputEvents();
+    void dispatchSensorEvents();
 
 private:
     const EngineContext& ctx_;
@@ -55,6 +57,7 @@ private:
     void bindEntityAPI (sol::state& lua);
     void bindPhysicsAPI(sol::state& lua);
     void bindInputAPI  (sol::state& lua);
+    void bindIntentAPI (sol::state& lua);
     void bindAudioAPI  (sol::state& lua);
     void bindStateAPI  (sol::state& lua);
     void bindDebugAPI  (sol::state& lua);

@@ -126,7 +126,7 @@ for %%F in ("%EDITOR_RUNTIME%\game.js" "%EDITOR_RUNTIME%\game.wasm") do (
 if exist "%EDITOR_RUNTIME%\game.data" (
     for %%F in ("%EDITOR_RUNTIME%\game.data") do echo        %%~nxF  %%~zF bytes
 ) else (
-    echo        game.data  (none — no preload bundle)
+    echo        game.data  ^(none - no preload bundle^)
 )
 
 popd >nul

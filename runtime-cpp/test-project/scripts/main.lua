@@ -32,7 +32,6 @@ local HEARTBEAT_TO_CONSOLE = false
 -- ---------------------------------------------------------------------------
 local t          = 0
 local frameCount = 0
-local lastLog    = 0
 local score      = 0
 local alive      = true
 
@@ -42,6 +41,8 @@ local coinIds    = {}
 local ballId     = nil
 local floorId    = nil
 local enemyData  = {}
+local moveKeys   = {}
+local writeHeartbeat
 
 -- Log file handle (opened in init, closed on last frame)
 local logFile    = nil
@@ -57,6 +58,31 @@ end
 
 local function clamp(v, lo, hi)
     return math.max(lo, math.min(hi, v))
+end
+
+local function bindMovementInput()
+    local codes = {
+        "KeyW", "ArrowUp",
+        "KeyS", "ArrowDown",
+        "KeyA", "ArrowLeft",
+        "KeyD", "ArrowRight"
+    }
+
+    for _, code in ipairs(codes) do
+        moveKeys[code] = input.isKeyDown(code)
+        input.onPressed(code, function() moveKeys[code] = true end)
+        input.onReleased(code, function() moveKeys[code] = false end)
+    end
+end
+
+local function movementAxis()
+    local dx, dy = 0, 0
+    if moveKeys["KeyW"] or moveKeys["ArrowUp"]    then dy = dy - 1 end
+    if moveKeys["KeyS"] or moveKeys["ArrowDown"]  then dy = dy + 1 end
+    if moveKeys["KeyA"] or moveKeys["ArrowLeft"]  then dx = dx - 1 end
+    if moveKeys["KeyD"] or moveKeys["ArrowRight"] then dx = dx + 1 end
+    if dx ~= 0 and dy ~= 0 then dx = dx*0.7071; dy = dy*0.7071 end
+    return dx, dy
 end
 
 -- Write a line to the editor console and log file.
@@ -113,6 +139,7 @@ local function init()
     state.set("level", 1)
     state.set("playerName", "Hero")
     state.set("hardMode", false)
+    bindMovementInput()
 
     -- Verify state.get() round-trip (was broken: always returned nil)
     local sc = state.get("score")
@@ -185,6 +212,7 @@ local function init()
     end
 
     log("Init OK - WASD to move player, watch ball fall")
+    time.every(LOG_INTERVAL, writeHeartbeat)
 end
 
 -- ---------------------------------------------------------------------------
@@ -299,7 +327,7 @@ end
 -- ---------------------------------------------------------------------------
 -- Heartbeat log row (stdout + file)
 -- ---------------------------------------------------------------------------
-local function writeHeartbeat()
+function writeHeartbeat()
     local px, py = 0, 0
     if playerId then px, py = entity.position(playerId) end
 
@@ -346,12 +374,7 @@ function tick(dt)
     -- Player movement
     if playerId and alive then
         local px, py = entity.position(playerId)
-        local dx, dy = 0, 0
-        if input.isKeyDown("KeyW") or input.isKeyDown("ArrowUp")    then dy = dy - 1 end
-        if input.isKeyDown("KeyS") or input.isKeyDown("ArrowDown")  then dy = dy + 1 end
-        if input.isKeyDown("KeyA") or input.isKeyDown("ArrowLeft")  then dx = dx - 1 end
-        if input.isKeyDown("KeyD") or input.isKeyDown("ArrowRight") then dx = dx + 1 end
-        if dx ~= 0 and dy ~= 0 then dx = dx*0.7071; dy = dy*0.7071 end
+        local dx, dy = movementAxis()
         px = clamp(px + dx*SPEED*dt, PLAYER_SIZE, SCREEN_W-PLAYER_SIZE)
         py = clamp(py + dy*SPEED*dt, PLAYER_SIZE, SCREEN_H-PLAYER_SIZE)
         entity.setPosition(playerId, px, py)
@@ -360,10 +383,4 @@ function tick(dt)
     end
 
     drawScene()
-
-    -- Heartbeat every LOG_INTERVAL seconds
-    if t - lastLog >= LOG_INTERVAL then
-        lastLog = t
-        writeHeartbeat()
-    end
 end

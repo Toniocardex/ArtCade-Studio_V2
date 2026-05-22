@@ -370,6 +370,7 @@ void Application::loopIteration() {
         accumulator_ = targetDt_ * 4.f;
 
     mod_->input->poll();
+    mod_->gameAPI->dispatchInputEvents();
 
     // Fixed timestep
     while (accumulator_ >= targetDt_) {
@@ -388,6 +389,7 @@ void Application::loopIteration() {
         mod_->gameStateManager->update(targetDt_);
         mod_->eventBus->flushDeferred();
         mod_->world->tickGameplaySystems(targetDt_);
+        mod_->gameAPI->dispatchSensorEvents();
         mod_->entityGateway->tickSceneTransition(targetDt_);
         mod_->luaHost->tick(targetDt_);
         mod_->physics->step(targetDt_);

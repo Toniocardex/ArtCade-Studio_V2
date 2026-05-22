@@ -39,6 +39,8 @@ interface Harness {
     stopAll: number
     log: string[]
   }
+  inputPressedHandlers: Record<string, Array<() => void>>
+  inputReleasedHandlers: Record<string, Array<() => void>>
 }
 
 function newHarness(pools: Record<string, number[]> = { Player: [1] }): Harness {
@@ -59,6 +61,8 @@ function newHarness(pools: Record<string, number[]> = { Player: [1] }): Harness 
       stopAll: 0,
       log: [],
     },
+    inputPressedHandlers: {},
+    inputReleasedHandlers: {},
   }
 }
 
@@ -116,6 +120,12 @@ async function makeRunner(boards: LogicBoard[]) {
     isKeyDown: (k: string) => h.keysDown.has(k),
     wasKeyPressed: (k: string) => h.keysPressed.has(k),
     wasKeyReleased: (k: string) => h.keysReleased.has(k),
+    onPressed: (k: string, fn: () => void) => {
+      ;(h.inputPressedHandlers[k] ??= []).push(fn)
+    },
+    onReleased: (k: string, fn: () => void) => {
+      ;(h.inputReleasedHandlers[k] ??= []).push(fn)
+    },
   })
   lua.global.set('pool', {
     getAll: (cls: string) => h.pools[cls] ?? [],
@@ -124,14 +134,64 @@ async function makeRunner(boards: LogicBoard[]) {
     log: (m: string) => h.calls.log.push(m),
   })
 
+  lua.global.set('sensor', {
+    poll: () => [],
+    onEnter: () => {},
+    onExit: () => {},
+  })
+  lua.global.set('lifecycle', {
+    pollDestroyed: () => [],
+    onSpawn: () => {},
+    onDestroy: () => {},
+  })
+  lua.global.set('animation', {
+    pollFinished: () => [],
+  })
+  await lua.doString(`
+    time = {}
+    local _timers = {}
+    function time.after(seconds, cb)
+      table.insert(_timers, { remaining = seconds, interval = nil, cb = cb, once = true })
+    end
+    function time.every(seconds, cb)
+      table.insert(_timers, { remaining = seconds, interval = seconds, cb = cb, once = false })
+    end
+    function __test_time_update(dt)
+      local i = 1
+      while i <= #_timers do
+        local timer = _timers[i]
+        timer.remaining = timer.remaining - dt
+        if timer.remaining <= 0 then
+          timer.cb()
+          if timer.once then
+            table.remove(_timers, i)
+          else
+            timer.remaining = timer.remaining + timer.interval
+            i = i + 1
+          end
+        else
+          i = i + 1
+        end
+      end
+    end
+  `)
+
   const code = compileLogicBoard(boards)
   await lua.doString(code) // throws on Lua syntax error → validates syntax
   const tick = lua.global.get('tick') as (dt: number) => void
+  const timeUpdate = lua.global.get('__test_time_update') as (dt: number) => void
 
   return {
     h,
     code,
     tick: (dt = 1 / 60) => {
+      for (const key of h.keysPressed) {
+        for (const fn of h.inputPressedHandlers[key] ?? []) fn()
+      }
+      for (const key of h.keysReleased) {
+        for (const fn of h.inputReleasedHandlers[key] ?? []) fn()
+      }
+      timeUpdate(dt)
       tick(dt)
       // edge-state (pressed/released) lasts one frame, like the real runtime
       h.keysPressed.clear()
@@ -270,8 +330,8 @@ describe('runtime: onTimer repeat', () => {
         ],
       },
     ])
-    // dt = 0.25 → fires at 0.5s (tick 2) and 1.0s (tick 4)
-    for (let i = 0; i < 4; i++) r.tick(0.25)
+    // First tick registers the event timer; after that it fires at 0.5s and 1.0s.
+    for (let i = 0; i < 5; i++) r.tick(0.25)
     expect(r.h.vars.ticks).toBe(2)
     r.close()
   })
@@ -290,9 +350,7 @@ describe('runtime: onTimer repeat', () => {
       },
     ])
     for (let i = 0; i < 10; i++) r.tick(0.1)
-    // never resets → keeps firing each tick after threshold; ensure it at
-    // least fired and is monotonic (latched behaviour is expected for MVP)
-    expect((r.h.vars.n as number) >= 1).toBe(true)
+    expect(r.h.vars.n).toBe(1)
     r.close()
   })
 })

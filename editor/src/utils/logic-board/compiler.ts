@@ -2,15 +2,15 @@
 // Logic Board compiler — turns a LogicBoardDoc into a single Lua source string.
 //
 // Design constraints (verified against the real runtime):
-//   • The C++ runtime only ever calls the global `tick(dt)` (lua-host.cpp).
-//     There is NO push-based onCollision/onInput callback — everything is
-//     polled inside tick(). onStart runs once via an init guard.
+//   • The C++ runtime calls `tick(dt)` for compatible polling blocks, while
+//     event-first triggers register handlers during `_logic_init()`.
 //   • The generated Lua uses the real dot-notation API prelude exposed by
 //     runtime-cpp/src/modules/game-api/src/*.cpp:
 //       state.get/set/add, entity.setPosition/setVelocity/destroy,
 //       audio.playSound/playMusic/stopAll, object.spawn,
-//       collision.touchingClass, input.isKeyDown/wasKeyPressed/wasKeyReleased,
-//       pool.getAll, debug.log
+//       collision.touchingClass, input.isKeyDown/onPressed/onReleased,
+//       sensor.onEnter/onExit, lifecycle.onSpawn/onDestroy, pool.getAll,
+//       debug.log
 //   • Entities are addressed via the board target's class pool; `self` is the
 //     current entity in that pool's iteration.
 //
@@ -217,7 +217,7 @@ const INDENT = '  '
 
 /**
  * Emit actions in order; a `wait` splits the sequence — following actions (or
- * `wait.then`) run inside time.delay so the game loop is not blocked.
+ * `wait.then`) run inside time.after so the game loop is not blocked.
  */
 function emitActionSequence(actions: LogicAction[], indent: string): string[] {
   if (actions.length === 0) return []
@@ -242,10 +242,26 @@ function emitActionSequence(actions: LogicAction[], indent: string): string[] {
   const deferred = w.then?.length ? w.then : actions.slice(i + 1)
   const inner = emitActionSequence(deferred, indent + INDENT)
 
-  lines.push(`${indent}time.delay(${secs}, function()`)
+  lines.push(`${indent}time.after(${secs}, function()`)
   lines.push(...inner)
   lines.push(`${indent}end)`)
   return lines
+}
+
+function emitGuardedActions(ev: LogicEvent, baseIndent: string): string[] {
+  const enableGuard = `_logic_on[${luaString(ev.id)}] ~= false`
+  const condGuard = conditionExpr(ev)
+  const guard =
+    condGuard === 'true' ? enableGuard : `${enableGuard} and (${condGuard})`
+
+  if (guard === 'true')
+    return emitActionSequence(ev.actions, baseIndent)
+
+  return [
+    `${baseIndent}if ${guard} then`,
+    ...emitActionSequence(ev.actions, baseIndent + INDENT),
+    `${baseIndent}end`,
+  ]
 }
 
 /**
@@ -372,6 +388,101 @@ function emitEventBody(ev: LogicEvent, board: LogicBoard, baseIndent: string): s
   return lines
 }
 
+function boardLifecycleClass(board: LogicBoard, ev: LogicEvent): string | null {
+  if (ev.trigger.type === 'onSpawn' && ev.trigger.className)
+    return ev.trigger.className
+  if (board.target.type === 'entity_class' && board.target.className)
+    return board.target.className
+  return null
+}
+
+function sensorSourceExpr(board: LogicBoard): string {
+  if (board.target.type === 'entity_class' && board.target.className)
+    return luaString(board.target.className)
+  if (board.target.type === 'entity_id' && board.target.entityId != null)
+    return String(board.target.entityId)
+  return luaString('*')
+}
+
+function emitEventRegistration(ev: LogicEvent, board: LogicBoard): string[] | null {
+  const trig = ev.trigger
+  const I = INDENT
+  const pool = poolExpr(board)
+
+  if (trig.type === 'onSpawn') {
+    const cls = boardLifecycleClass(board, ev)
+    if (!cls) return null
+    return [
+      `${I}lifecycle.onSpawn(${luaString(cls)}, function(entityId, tags)`,
+      `${I}${I}local self = entityId`,
+      `${I}${I}local other = nil`,
+      ...emitGuardedActions(ev, I + I),
+      `${I}end)`,
+    ]
+  }
+
+  if (trig.type === 'onDestroy') {
+    const cls = boardLifecycleClass(board, ev)
+    if (!cls) return null
+    return [
+      `${I}lifecycle.onDestroy(${luaString(cls)}, function(entityId, tags)`,
+      `${I}${I}local self = entityId`,
+      `${I}${I}local other = nil`,
+      ...emitGuardedActions(ev, I + I),
+      `${I}end)`,
+    ]
+  }
+
+  if (trig.type === 'onInput' && trig.eventType !== 'down') {
+    const hook = trig.eventType === 'pressed' ? 'onPressed' : 'onReleased'
+    return [
+      `${I}input.${hook}(${luaString(trig.keyCode)}, function()`,
+      `${I}${I}for _, self in ipairs(${pool}) do`,
+      `${I}${I}${I}local other = nil`,
+      ...emitGuardedActions(ev, I + I + I),
+      `${I}${I}end`,
+      `${I}end)`,
+    ]
+  }
+
+  if (trig.type === 'onTriggerEnter' || trig.type === 'onTriggerExit') {
+    const hook = trig.type === 'onTriggerEnter' ? 'onEnter' : 'onExit'
+    const source = sensorSourceExpr(board)
+    const target = trig.withClass ? luaString(trig.withClass) : luaString('*')
+    return [
+      `${I}sensor.${hook}(${source}, ${target}, function(entityId, otherId, tag)`,
+      `${I}${I}local self = entityId`,
+      `${I}${I}local other = otherId`,
+      ...emitGuardedActions(ev, I + I),
+      `${I}end)`,
+    ]
+  }
+
+  if (trig.type === 'onTimer') {
+    const fn = trig.repeat ? 'every' : 'after'
+    return [
+      `${I}time.${fn}(${Number(trig.seconds) || 0}, function()`,
+      `${I}${I}for _, self in ipairs(${pool}) do`,
+      `${I}${I}${I}local other = nil`,
+      ...emitGuardedActions(ev, I + I + I),
+      `${I}${I}end`,
+      `${I}end)`,
+    ]
+  }
+
+  return null
+}
+
+function usesTickFallback(ev: LogicEvent, board: LogicBoard): boolean {
+  if (ev.trigger.type === 'onStart' || ev.trigger.type === 'onMessage') return false
+  if (ev.trigger.type === 'onInput') return ev.trigger.eventType === 'down'
+  if (ev.trigger.type === 'onTimer') return false
+  if (ev.trigger.type === 'onTriggerEnter' || ev.trigger.type === 'onTriggerExit') return false
+  if (ev.trigger.type === 'onSpawn') return false
+  if (ev.trigger.type === 'onDestroy') return emitEventRegistration(ev, board) === null
+  return true
+}
+
 function poolExpr(board: LogicBoard): string {
   if (board.target.type === 'entity_class' && board.target.className) {
     return `pool.getAll(${luaString(board.target.className)})`
@@ -418,8 +529,12 @@ function emitBoard(board: LogicBoard): { init: string[]; tick: string[] } {
   const enabled = board.events.filter((e) => e.enabled)
   const startEvents = enabled.filter((e) => e.trigger.type === 'onStart')
   const messageEvents = enabled.filter((e) => e.trigger.type === 'onMessage')
+  const registeredEvents = enabled.filter((e) => {
+    if (e.trigger.type === 'onStart' || e.trigger.type === 'onMessage') return false
+    return emitEventRegistration(e, board) !== null
+  })
   const tickEvents = enabled.filter(
-    (e) => e.trigger.type !== 'onStart' && e.trigger.type !== 'onMessage',
+    (e) => usesTickFallback(e, board),
   )
 
   const pool = poolExpr(board)
@@ -446,6 +561,11 @@ function emitBoard(board: LogicBoard): { init: string[]; tick: string[] } {
     init.push(`${I}end)`)
   }
 
+  for (const ev of registeredEvents) {
+    const registration = emitEventRegistration(ev, board)
+    if (registration) init.push(...registration)
+  }
+
   if (tickEvents.length > 0) {
     tick.push(`${INDENT}for _, self in ipairs(${pool}) do`)
     tick.push(`${INDENT}${INDENT}local other = nil`)
@@ -470,7 +590,7 @@ export function compileLogicBoard(doc: LogicBoardDoc): string {
     '-- Do not edit by hand: changes will be overwritten on next save.',
     '',
     'local _init_done = false',
-    'local _logic_timers = {}   -- onTimer accumulators (not time.delay timers)',
+    'local _logic_timers = {}   -- legacy polling accumulators',
     'local _logic_on = {}   -- toggleLogicEvent: false = disabled',
     'local _mb = {}         -- onMouseInput edge memory',
     '',

@@ -15,6 +15,7 @@ void GameAPI::registerAll(sol::state& lua) {
     bindEntityAPI (lua);   // entity / object / pool
     bindPhysicsAPI(lua);   // collision / physics
     bindInputAPI  (lua);   // input
+    bindIntentAPI (lua);   // movement/platformer intents
     bindAudioAPI  (lua);   // audio
     bindStateAPI  (lua);   // state
     bindSaveAPI   (lua);   // save
