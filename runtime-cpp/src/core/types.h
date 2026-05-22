@@ -124,6 +124,13 @@ struct LinearMoverComponent {
     float speed      = 300.f;
 };
 
+/** Marks an entity as the 2D camera follow target (offset + smoothing). */
+struct CameraTargetComponent {
+    float offsetX     = 0.f;
+    float offsetY     = 0.f;
+    float followSpeed = 8.f;   // exponential lerp rate (1/s); 0 = snap
+};
+
 /** Runtime-only: not serialized from project JSON. */
 struct EntityRuntimeFlags {
     bool sceneActive = true;
@@ -173,6 +180,7 @@ struct EntityDef {
     std::optional<PlatformerControllerComponent> platformerController;
     std::optional<TopDownControllerComponent>    topDownController;
     std::optional<LinearMoverComponent>          linearMover;
+    std::optional<CameraTargetComponent>         cameraTarget;
     std::optional<HealthComponent>               health;
     std::optional<AutoDestroyComponent>          autoDestroy;
     EntityRuntimeFlags                           runtime;

@@ -65,6 +65,8 @@ public:
     bool setTopDownController(EntityId id, const std::optional<TopDownControllerComponent>& controller);
     bool getLinearMover(EntityId id, LinearMoverComponent& out) const;
     bool setLinearMover(EntityId id, const std::optional<LinearMoverComponent>& mover);
+    bool getCameraTarget(EntityId id, CameraTargetComponent& out) const;
+    bool setCameraTarget(EntityId id, const std::optional<CameraTargetComponent>& target);
     bool getAutoDestroy(EntityId id, AutoDestroyComponent& out) const;
     bool setAutoDestroy(EntityId id, const std::optional<AutoDestroyComponent>& autoDestroy);
 
@@ -112,6 +114,10 @@ public:
     using ActiveLinearMoverFn = std::function<void(
         EntityId, const LinearMoverComponent&)>;
     void forEachActiveLinearMover(const ActiveLinearMoverFn& fn) const;
+
+    using ActiveCameraTargetFn = std::function<void(
+        EntityId, const CameraTargetComponent&)>;
+    void forEachActiveCameraTarget(const ActiveCameraTargetFn& fn) const;
 
     using ActiveSensorFn = std::function<void(
         EntityId, const SensorComponent&)>;

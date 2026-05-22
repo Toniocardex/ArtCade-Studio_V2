@@ -169,6 +169,7 @@ void RuntimeEntityGateway::applyEntityDefToRegistry(
     registry_->setPlatformer(id, def.platformerController);
     registry_->setTopDown(id, def.topDownController);
     registry_->setLinearMover(id, def.linearMover);
+    registry_->setCameraTarget(id, def.cameraTarget);
     registry_->setAutoDestroy(id, def.autoDestroy);
     registry_->setHealth(id, def.health);
     registry_->setIdentity(id, def.className, def.tags);
@@ -385,6 +386,20 @@ bool RuntimeEntityGateway::setLinearMover(
     return true;
 }
 
+bool RuntimeEntityGateway::getCameraTarget(
+    EntityId id, CameraTargetComponent& out) const
+{
+    return registry_->getCameraTarget(id, out);
+}
+
+bool RuntimeEntityGateway::setCameraTarget(
+    EntityId id, const std::optional<CameraTargetComponent>& target)
+{
+    if (!registry_->contains(id)) return false;
+    registry_->setCameraTarget(id, target);
+    return true;
+}
+
 bool RuntimeEntityGateway::getAutoDestroy(EntityId id, AutoDestroyComponent& out) const {
     return registry_->getAutoDestroy(id, out);
 }
@@ -492,6 +507,12 @@ void RuntimeEntityGateway::forEachActiveLinearMover(
     const ActiveLinearMoverFn& fn) const
 {
     registry_->forEachActiveLinearMover(fn);
+}
+
+void RuntimeEntityGateway::forEachActiveCameraTarget(
+    const ActiveCameraTargetFn& fn) const
+{
+    registry_->forEachActiveCameraTarget(fn);
 }
 
 void RuntimeEntityGateway::forEachActiveSensor(

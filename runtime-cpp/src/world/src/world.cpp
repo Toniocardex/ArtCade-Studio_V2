@@ -2,6 +2,7 @@
 #include "../../modules/runtime-entity-gateway/include/runtime-entity-gateway.h"
 #include "../../modules/physics/include/physics.h"
 #include "../../modules/variable-manager/include/variable-manager.h"
+#include "../../modules/renderer/include/renderer.h"
 
 #include <algorithm>
 #include <cmath>
@@ -294,6 +295,35 @@ void World::tickTopDownControllers(float dt) {
             transform.position.x += rt.velocity.x * dt;
             transform.position.y += rt.velocity.y * dt;
             entityGateway_.setTransform(id, transform);
+        });
+}
+
+void World::setRenderer(Modules::Renderer* renderer) {
+    renderer_ = renderer;
+}
+
+void World::tickCameraTargets(float dt) {
+    if (!renderer_) return;
+
+    entityGateway_.forEachActiveCameraTarget(
+        [this, dt](EntityId id, const CameraTargetComponent& ct) {
+            Transform transform{};
+            if (!entityGateway_.getTransform(id, transform)) return;
+
+            const Vec2 desired = {
+                transform.position.x + ct.offsetX,
+                transform.position.y + ct.offsetY,
+            };
+            const Vec2 current = renderer_->getCameraPosition();
+            Vec2 next = desired;
+            if (ct.followSpeed > 0.f && dt > 0.f) {
+                const float t = 1.f - std::exp(-ct.followSpeed * dt);
+                next = {
+                    current.x + (desired.x - current.x) * t,
+                    current.y + (desired.y - current.y) * t,
+                };
+            }
+            renderer_->setCameraPosition(next);
         });
 }
 

@@ -101,6 +101,10 @@ public:
     void setLinearMover(EntityId id,
                         const std::optional<LinearMoverComponent>& m);
 
+    bool getCameraTarget(EntityId id, CameraTargetComponent& out) const;
+    void setCameraTarget(EntityId id,
+                         const std::optional<CameraTargetComponent>& c);
+
     bool getAutoDestroy(EntityId id, AutoDestroyComponent& out) const;
     void setAutoDestroy(EntityId id,
                         const std::optional<AutoDestroyComponent>& ad);
@@ -165,6 +169,10 @@ public:
     using ActiveLinearMoverFn = std::function<void(
         EntityId, const LinearMoverComponent&)>;
     void forEachActiveLinearMover(const ActiveLinearMoverFn& fn) const;
+
+    using ActiveCameraTargetFn = std::function<void(
+        EntityId, const CameraTargetComponent&)>;
+    void forEachActiveCameraTarget(const ActiveCameraTargetFn& fn) const;
 
     using ActiveSensorFn = std::function<void(
         EntityId, const SensorComponent&)>;

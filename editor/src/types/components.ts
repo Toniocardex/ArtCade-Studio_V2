@@ -44,6 +44,13 @@ export interface LinearMoverComponent {
   speed:      number          // px/s
 }
 
+/** 2D camera follow target with offset and smoothing (Renderer). */
+export interface CameraTargetComponent {
+  offsetX:     number          // world px added to entity position
+  offsetY:     number
+  followSpeed: number          // exponential lerp rate (1/s); 0 = snap
+}
+
 /** Hit points + invulnerability window. */
 export interface HealthComponent {
   maxHp:     number
@@ -66,6 +73,7 @@ export interface EntityComponents {
   platformerController?: PlatformerControllerComponent
   topDownController?:    TopDownControllerComponent
   linearMover?:          LinearMoverComponent
+  cameraTarget?:         CameraTargetComponent
   health?:               HealthComponent
   autoDestroy?:          AutoDestroyComponent
 }
@@ -75,5 +83,5 @@ export type ComponentKey = keyof EntityComponents
 /** Runtime list of optional component field names (parse/serialize). */
 export const COMPONENT_KEYS: ComponentKey[] = [
   'sensor', 'platformerController', 'topDownController', 'linearMover',
-  'health', 'autoDestroy',
+  'cameraTarget', 'health', 'autoDestroy',
 ]

@@ -10,6 +10,7 @@ namespace ArtCade::Modules {
     class Physics;
     class Input;
     class VariableManager;
+    class Renderer;
 }
 
 namespace ArtCade {
@@ -35,6 +36,7 @@ public:
           Modules::VariableManager&      variables);
 
     void setGameplayDeps(Modules::Input* input);  // legacy hook; platformer uses intents
+    void setRenderer(Modules::Renderer* renderer);
 
     void init(const ProjectDoc& doc);
     /** After editor_load_project: refresh tile collisions + gameplay runtime maps. */
@@ -46,6 +48,8 @@ public:
 
     void syncPhysicsToEntities();
     void tickGameplaySystems(float dt);
+    /** Smooth-follow active CameraTargetComponent entities on the Renderer. */
+    void tickCameraTargets(float dt);
     void flushEntityQueues();
 
     bool       hasGlobalState(const std::string& key) const;
@@ -105,6 +109,8 @@ private:
     void tickTopDownControllers(float dt);
     void tickLinearMovers(float dt);
     void tickSensorOverlapEdges();
+
+    Modules::Renderer* renderer_ = nullptr;
 };
 
 } // namespace ArtCade

@@ -12,6 +12,7 @@ import type {
   ComponentKey,
   HealthComponent,
   LinearMoverComponent,
+  CameraTargetComponent,
   PlatformerControllerComponent,
   SensorComponent,
   TopDownControllerComponent,
@@ -54,6 +55,9 @@ const TOP_DOWN: TopDownControllerComponent = {
 }
 const LINEAR_MOVER: LinearMoverComponent = {
   directionX: 1, directionY: 0, speed: 300,
+}
+const CAMERA_TARGET: CameraTargetComponent = {
+  offsetX: 0, offsetY: 0, followSpeed: 8,
 }
 const HEALTH: HealthComponent = { maxHp: 100, currentHp: 100, iFrames: 0.2 }
 const AUTODESTROY: AutoDestroyComponent = { lifespan: 0 }
@@ -115,6 +119,17 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
       { key: 'directionX', label: 'Direction X', kind: 'number', step: 0.1 },
       { key: 'directionY', label: 'Direction Y', kind: 'number', step: 0.1 },
       { key: 'speed', label: 'Speed (px/s)', kind: 'number', min: 0, step: 10 },
+    ],
+  },
+  {
+    key: 'cameraTarget',
+    label: 'Camera Target',
+    color: 'var(--purple)',
+    create: () => ({ ...CAMERA_TARGET }),
+    fields: [
+      { key: 'offsetX', label: 'Offset X (px)', kind: 'number', step: 1 },
+      { key: 'offsetY', label: 'Offset Y (px)', kind: 'number', step: 1 },
+      { key: 'followSpeed', label: 'Follow speed (1/s)', kind: 'number', min: 0, step: 0.5 },
     ],
   },
   {

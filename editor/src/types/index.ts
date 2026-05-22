@@ -10,6 +10,7 @@ import type { TileDef, TilemapLayer, TilesetAsset } from './tilemap'
 import type {
   SensorComponent, PlatformerControllerComponent,
   TopDownControllerComponent, LinearMoverComponent,
+  CameraTargetComponent,
   HealthComponent, AutoDestroyComponent,
 } from './components'
 
@@ -72,6 +73,7 @@ export interface EntityDef {
   platformerController?: PlatformerControllerComponent
   topDownController?:    TopDownControllerComponent
   linearMover?:          LinearMoverComponent
+  cameraTarget?:         CameraTargetComponent
   health?:               HealthComponent
   autoDestroy?:          AutoDestroyComponent
 }

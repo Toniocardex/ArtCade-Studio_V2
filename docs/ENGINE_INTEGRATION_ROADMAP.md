@@ -108,6 +108,8 @@ Core MVP target:
   **Integrato end-to-end**: Inspector, ProjectDoc, parser native/WASM,
   registry/gateway, sistema World con movimento transform/physics e test.
 - `CameraTargetComponent`: target camera 2D con offset, smoothing e bounds.
+  **Integrato end-to-end**: Inspector, ProjectDoc, parser native/WASM,
+  registry/gateway, `World::tickCameraTargets` → Renderer, test gateway.
 
 Advanced target:
 
@@ -118,10 +120,9 @@ Advanced target:
 - `GrapplingHookComponent`: rope/joint Box2D e azioni Logic Board dedicate.
 
 Ordine consigliato: completare i Core mancanti prima degli Advanced, salvo
-necessita demo specifiche. Prossimo Core candidato: `CameraTargetComponent`
-per camera runtime data-driven. Primo Advanced utile resta
-`MagneticItemComponent` perche valida Component nativo, eventi sensore e
-raccolta coin.
+necessita demo specifiche. Core MVP catalogo completato (Platformer, TopDown,
+LinearMover, CameraTarget). Primo Advanced utile: `MagneticItemComponent`
+perche valida Component nativo, eventi sensore e raccolta coin.
 
 ### Verifiche Ultima Tranche
 

@@ -434,6 +434,25 @@ void EntityRegistry::setLinearMover(
     else   impl_->reg.remove<LinearMoverComponent>(e);
 }
 
+bool EntityRegistry::getCameraTarget(EntityId id,
+                                     CameraTargetComponent& out) const {
+    const entt::entity e = impl_->toEntt(id);
+    if (e == entt::null) return false;
+    if (const auto* c = impl_->reg.try_get<CameraTargetComponent>(e)) {
+        out = *c;
+        return true;
+    }
+    return false;
+}
+
+void EntityRegistry::setCameraTarget(
+    EntityId id, const std::optional<CameraTargetComponent>& c) {
+    const entt::entity e = impl_->toEntt(id);
+    if (e == entt::null) return;
+    if (c) impl_->reg.emplace_or_replace<CameraTargetComponent>(e, *c);
+    else   impl_->reg.remove<CameraTargetComponent>(e);
+}
+
 bool EntityRegistry::getAutoDestroy(EntityId id,
                                     AutoDestroyComponent& out) const {
     const entt::entity e = impl_->toEntt(id);
@@ -585,6 +604,22 @@ void EntityRegistry::forEachActiveLinearMover(
         const auto* m = reg.try_get<LinearMoverComponent>(e);
         if (!m) continue;
         fn(id, *m);
+    }
+}
+
+void EntityRegistry::forEachActiveCameraTarget(
+    const ActiveCameraTargetFn& fn) const
+{
+    auto& reg = impl_->reg;
+    const size_t n = impl_->insertionOrder.size();
+    for (size_t i = 0; i < n; ++i) {
+        const EntityId id = impl_->insertionOrder[i];
+        const entt::entity e = impl_->toEntt(id);
+        if (e == entt::null) continue;
+        if (!reg.all_of<SceneActiveTag>(e)) continue;
+        const auto* c = reg.try_get<CameraTargetComponent>(e);
+        if (!c) continue;
+        fn(id, *c);
     }
 }
 

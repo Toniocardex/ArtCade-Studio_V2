@@ -12,4 +12,5 @@ target_link_libraries(artcade-world
         artcade-physics
         artcade-variable-manager
         artcade-input
+        artcade-renderer
 )

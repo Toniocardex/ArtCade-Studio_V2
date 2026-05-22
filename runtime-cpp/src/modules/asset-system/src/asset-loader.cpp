@@ -227,6 +227,14 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
                 lm.speed      = m.value("speed", 300.f);
                 e.linearMover = lm;
             }
+            if (ev.contains("cameraTarget") && ev["cameraTarget"].is_object()) {
+                auto& c = ev["cameraTarget"];
+                CameraTargetComponent ct;
+                ct.offsetX     = c.value("offsetX", 0.f);
+                ct.offsetY     = c.value("offsetY", 0.f);
+                ct.followSpeed = c.value("followSpeed", 8.f);
+                e.cameraTarget = ct;
+            }
             if (ev.contains("health") && ev["health"].is_object()) {
                 auto& h = ev["health"];
                 HealthComponent hc;

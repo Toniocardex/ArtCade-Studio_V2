@@ -47,6 +47,11 @@ int main() {
     linearMover.directionY = -1.f;
     linearMover.speed = 120.f;
     player.linearMover = linearMover;
+    CameraTargetComponent cameraTarget;
+    cameraTarget.offsetX = 10.f;
+    cameraTarget.offsetY = -20.f;
+    cameraTarget.followSpeed = 12.f;
+    player.cameraTarget = cameraTarget;
 
     EntityDef coin;
     coin.id = 2;
@@ -95,6 +100,11 @@ int main() {
     CHECK(gw.getLinearMover(1, loadedMover));
     CHECK(loadedMover.directionY == -1.f);
     CHECK(loadedMover.speed == 120.f);
+    CameraTargetComponent loadedCamera{};
+    CHECK(gw.getCameraTarget(1, loadedCamera));
+    CHECK(std::abs(loadedCamera.offsetX - 10.f) < 0.01f);
+    CHECK(std::abs(loadedCamera.offsetY + 20.f) < 0.01f);
+    CHECK(std::abs(loadedCamera.followSpeed - 12.f) < 0.01f);
 
     const EntityId spawned = gw.spawnFromClass("Coin", 50.f, 60.f);
     CHECK(spawned != 0);

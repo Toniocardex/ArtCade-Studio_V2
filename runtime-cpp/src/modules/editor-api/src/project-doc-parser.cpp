@@ -107,6 +107,14 @@ EntityDef parseEntityDef(const json& j, EntityId fallbackId) {
         lm.speed      = m.value("speed", 300.f);
         e.linearMover = lm;
     }
+    if (j.contains("cameraTarget") && j["cameraTarget"].is_object()) {
+        const auto& c = j["cameraTarget"];
+        CameraTargetComponent ct;
+        ct.offsetX     = c.value("offsetX", 0.f);
+        ct.offsetY     = c.value("offsetY", 0.f);
+        ct.followSpeed = c.value("followSpeed", 8.f);
+        e.cameraTarget = ct;
+    }
     if (j.contains("health") && j["health"].is_object()) {
         const auto& h = j["health"];
         HealthComponent hc;
