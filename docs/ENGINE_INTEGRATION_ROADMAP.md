@@ -88,7 +88,7 @@ Integrazione roadmap Tranche 1–10 completata. Follow-up opzionali:
 - Build C++ Release: passata (locale).
 - `ctest --test-dir runtime-cpp/build-msvc --output-on-failure`: atteso 18/18
   (inclusi `asset_loader_test`, health/sensor debt-fix tests).
-- `npm.cmd test` in `editor`: 194/194 passati.
+- `npm.cmd test` in `editor`: 198/198 passati.
 - `npm.cmd run build`: passato.
 - `runtime-cpp/build_wasm.bat`: da rieseguire dopo fix runtime.
 
@@ -352,11 +352,11 @@ Completato:
 Non in scope (follow-up):
 
 - Promozione `AnimationState` a componente EnTT (solo se serve condivisione cross-system).
-- Sensor picker dedicato in Logic Board UI.
 
 Completato (follow-up):
 
 - World platformer: rimosso fallback `input_->isKeyDown` / `wasKeyPressed` — solo intent Lua.
+- Sensor picker Logic Board: `TagPicker` + widget `entityTag` su trigger enter/exit.
 
 ## Debito tecnico — fix post Tranche 10
 

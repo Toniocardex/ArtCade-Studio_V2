@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  allEntityTags,
   classDisplayLabel,
   entityIdDisplayLabel,
   findLogicBoardForEntity,
@@ -84,5 +85,21 @@ describe('logicBoardLabel', () => {
     const board = createLogicBoard('Enemy')
     expect(logicBoardLabel(miniProject(), board)).toContain('[class]')
     expect(logicBoardLabel(miniProject(), board)).toContain('Enemy')
+  })
+})
+
+describe('allEntityTags', () => {
+  it('collects entity tags and sensor targetTag values', () => {
+    const project = miniProject()
+    project.entities[1].tags = ['player', 'controllable']
+    project.entities[4] = {
+      ...project.entities[1],
+      id: 4,
+      name: 'Coin',
+      className: 'Coin',
+      tags: ['pickup'],
+      sensor: { shape: 'Circle', radius: 30, width: 64, height: 64, targetTag: 'player' },
+    }
+    expect(allEntityTags(project)).toEqual(['controllable', 'pickup', 'player'])
   })
 })

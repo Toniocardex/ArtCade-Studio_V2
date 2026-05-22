@@ -457,7 +457,7 @@ function onInput(keyCode, eventType)
 end
 ```
 
-**Implementazione runtime attuale (2026-05):** il compilatore in [`editor/src/utils/logic-board/compiler.ts`](../editor/src/utils/logic-board/compiler.ts) emette **solo** `init()` + `tick(dt)` con **polling** (`collision.touchingClass`, `input.isKeyDown`, …). Gli esempi con `function onCollision` sopra sono **target illustrativo**, non l'output generato oggi.
+**Implementazione runtime attuale (2026-05, aggiornato post Tranche 7):** il compilatore in [`editor/src/utils/logic-board/compiler.ts`](../editor/src/utils/logic-board/compiler.ts) emette **`_logic_init()`** con handler event-first dove possibile (`lifecycle.onSpawn/onDestroy`, `input.onPressed/onReleased`, `sensor.onEnter/onExit`, `time.after/every`) e **`tick(dt)`** solo come fallback polling (`onUpdate`, `onInput down`, `collision.touchingClass`, `sensor.poll`, …). Vedi [`trigger-execution.ts`](../editor/src/utils/logic-board/trigger-execution.ts) e [`ENGINE_INTEGRATION_ROADMAP.md`](ENGINE_INTEGRATION_ROADMAP.md). Gli esempi con `function onCollision` sopra restano **target illustrativo** del modello a callback, non l'output letterale.
 
 **`scene.load` / `restartScene`:** `scene.load(name)` imposta la scena attiva in `RuntimeEntityGateway`, attiva solo le entità listate in `SceneDef.entityIds` (alpha + physics), **senza** cancellare `state.*` (blackboard = `VariableManager`). Vedi [`GLOBAL_LOGIC_UI_ARCHITECTURE.md`](GLOBAL_LOGIC_UI_ARCHITECTURE.md).
 

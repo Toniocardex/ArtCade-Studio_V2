@@ -12,6 +12,7 @@ import { enumDisplayLabel, fieldDisplayLabel } from '../../panels/logic-board/fr
 import { TargetPicker } from './TargetPicker'
 import { KeyCapture } from './KeyCapture'
 import { ClassNamePicker } from './ClassNamePicker'
+import { TagPicker } from './TagPicker'
 
 const sel =
   'bg-[var(--bg)] border border-[var(--border-2)] text-[var(--accent)] px-2 py-1 rounded text-xs'
@@ -162,6 +163,17 @@ function Field({
               (kind === 'trigger' && name === 'withClass') ||
               (kind === 'condition' && type === 'raycastHit' && name === 'className')
             }
+          />
+        </span>
+      )
+    case 'entityTag':
+      return (
+        <span key={name} className="flex items-center gap-2">
+          {label}
+          <TagPicker
+            value={value != null ? String(value) : ''}
+            onChange={(s) => onPatch(name, s)}
+            allowEmpty={kind === 'trigger' && name === 'withClass'}
           />
         </span>
       )

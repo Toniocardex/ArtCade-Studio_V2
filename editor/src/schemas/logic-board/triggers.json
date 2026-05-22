@@ -71,7 +71,7 @@
       "executionMode": "event",
       "params": {
         "withClass": {
-          "widget": "className",
+          "widget": "entityTag",
           "label": "Target tag",
           "placeholder": "player"
         }
@@ -92,7 +92,7 @@
       "executionMode": "event",
       "params": {
         "withClass": {
-          "widget": "className",
+          "widget": "entityTag",
           "label": "Target tag",
           "placeholder": "player"
         }

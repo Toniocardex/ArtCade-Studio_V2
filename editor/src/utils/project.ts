@@ -594,6 +594,19 @@ export function allClassNames(project: ProjectDoc): string[] {
   return [...new Set(Object.values(project.entities).map(e => e.className))].sort()
 }
 
+/** Tags used in the project: entity.tags plus SensorComponent.targetTag values. */
+export function allEntityTags(project: ProjectDoc): string[] {
+  const set = new Set<string>()
+  for (const e of Object.values(project.entities)) {
+    for (const t of e.tags ?? []) {
+      if (t) set.add(t)
+    }
+    const sensor = e.sensor as { targetTag?: string } | undefined
+    if (sensor?.targetTag) set.add(sensor.targetTag)
+  }
+  return [...set].sort()
+}
+
 /** Extract directory from an absolute file path (works for / and \ separators). */
 export function dirName(filePath: string): string {
   const idx = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'))

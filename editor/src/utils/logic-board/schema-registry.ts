@@ -40,6 +40,7 @@ export type ParamWidget =
   | 'color'
   | 'keyCapture'
   | 'className'
+  | 'entityTag'
 
 export interface ParamFieldMeta {
   widget: ParamWidget
