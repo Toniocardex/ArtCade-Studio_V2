@@ -110,7 +110,7 @@
     "x-artcade": {
       "label": "On Animation End",
       "category": "Graphics",
-      "executionMode": "polling",
+      "executionMode": "event",
       "params": {
         "clipName": { "widget": "string", "label": "Clip", "placeholder": "death" }
       }

@@ -525,7 +525,7 @@ describe('Logic Components — Phase C (engine-hook triggers)', () => {
     expect(lua).toContain('debug.log("after")')
   })
 
-  it('onAnimationEnd polls while onDestroy registers lifecycle handler', () => {
+  it('onAnimationEnd registers animation.onFinished while onDestroy uses lifecycle', () => {
     const lua = compileLogicBoard([
       board([
         ev({ id: 'ae', trigger: { type: 'onAnimationEnd', clipName: 'die' },
@@ -534,9 +534,9 @@ describe('Logic Components — Phase C (engine-hook triggers)', () => {
              actions: [{ type: 'debugLog', message: 'bye' }] }),
       ]),
     ])
-    expect(lua).toContain('animation.pollFinished()')
+    expect(lua).toContain('animation.onFinished("Player", "die", function(entityId, clip)')
+    expect(lua).not.toContain('animation.pollFinished()')
     expect(lua).toContain('lifecycle.onDestroy("Player", function(entityId, tags)')
-    expect(lua).toContain('af.clip == "die"')
     expect(lua).toContain('debug.log("done")')
     expect(lua).toContain('debug.log("bye")')
   })

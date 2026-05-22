@@ -302,6 +302,99 @@ EMSCRIPTEN_KEEPALIVE void editor_set_transform(
     ArtCade::EditorAPI::notifyTransformChanged(entityId, x, y, rotation, scaleX, scaleY);
 }
 
+EMSCRIPTEN_KEEPALIVE void editor_update_entity(
+    uint32_t entityId, const char* json_utf8)
+{
+    if (!json_utf8 || !*json_utf8) {
+        ArtCade::EditorAPI::notifyConsoleLine(
+            "[EditorAPI] editor_update_entity: empty JSON.", "warn");
+        return;
+    }
+    auto* gateway = ArtCade::EditorAPI::s_entityGateway;
+    if (!gateway) {
+        ArtCade::EditorAPI::notifyConsoleLine(
+            "[EditorAPI] editor_update_entity: engine not wired yet.", "warn");
+        return;
+    }
+
+    try {
+        const json doc = json::parse(json_utf8);
+        namespace Parser = ArtCade::ProjectDocParser;
+        auto def = Parser::parseEntityDef(doc, entityId);
+        def.id = entityId;
+
+        if (!gateway->updateEntity(entityId, def)) {
+            char buf[96];
+            std::snprintf(buf, sizeof(buf),
+                "[EditorAPI] editor_update_entity: unknown entity #%u.", entityId);
+            ArtCade::EditorAPI::notifyConsoleLine(buf, "warn");
+            return;
+        }
+
+        char buf[96];
+        std::snprintf(buf, sizeof(buf),
+            "[EditorAPI] Entity #%u updated incrementally.", entityId);
+        ArtCade::EditorAPI::notifyConsoleLine(buf, "info");
+    } catch (const std::exception& ex) {
+        char buf[256];
+        std::snprintf(buf, sizeof(buf),
+            "[EditorAPI] editor_update_entity parse error: %s", ex.what());
+        ArtCade::EditorAPI::notifyConsoleLine(buf, "error");
+    }
+}
+
+EMSCRIPTEN_KEEPALIVE void editor_set_scene_settings(
+    const char* sceneId, const char* json_utf8)
+{
+    if (!sceneId || !*sceneId || !json_utf8 || !*json_utf8) {
+        ArtCade::EditorAPI::notifyConsoleLine(
+            "[EditorAPI] editor_set_scene_settings: invalid arguments.", "warn");
+        return;
+    }
+    auto* gateway = ArtCade::EditorAPI::s_entityGateway;
+    if (!gateway) {
+        ArtCade::EditorAPI::notifyConsoleLine(
+            "[EditorAPI] editor_set_scene_settings: engine not wired yet.", "warn");
+        return;
+    }
+
+    try {
+        const json doc = json::parse(json_utf8);
+        namespace Parser = ArtCade::ProjectDocParser;
+        auto patch = Parser::parseSceneDef(doc, sceneId);
+
+        if (!gateway->updateSceneSettings(sceneId, patch)) {
+            std::string msg = "[EditorAPI] editor_set_scene_settings: unknown scene ";
+            msg += sceneId;
+            ArtCade::EditorAPI::notifyConsoleLine(msg.c_str(), "warn");
+            return;
+        }
+
+        if (gateway->activeSceneId() == sceneId) {
+            if (auto* r = ArtCade::EditorAPI::s_renderer) {
+                if (const SceneDef* sc = gateway->activeScene()) {
+                    if (sc->worldSize.x > 0.f && sc->worldSize.y > 0.f) {
+                        r->setWindowSize(
+                            static_cast<uint32_t>(sc->worldSize.x),
+                            static_cast<uint32_t>(sc->worldSize.y),
+                            "ArtCade V2");
+                    }
+                    r->setSceneViewport(sc->worldSize, sc->worldSize);
+                }
+            }
+        }
+
+        std::string msg = "[EditorAPI] Scene settings patched: ";
+        msg += sceneId;
+        ArtCade::EditorAPI::notifyConsoleLine(msg.c_str(), "info");
+    } catch (const std::exception& ex) {
+        char buf[256];
+        std::snprintf(buf, sizeof(buf),
+            "[EditorAPI] editor_set_scene_settings parse error: %s", ex.what());
+        ArtCade::EditorAPI::notifyConsoleLine(buf, "error");
+    }
+}
+
 EMSCRIPTEN_KEEPALIVE void editor_reload_script(const char* lua_utf8) {
     if (!lua_utf8 || !*lua_utf8) {
         ArtCade::EditorAPI::notifyConsoleLine(

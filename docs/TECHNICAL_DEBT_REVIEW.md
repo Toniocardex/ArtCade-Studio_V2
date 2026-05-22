@@ -36,7 +36,7 @@ Findings architetturali ridotti:
 Aperto (priorita media per Phase successive):
 
 - Renderer/camera policy (Output `fit/fill/letterbox/stretch` in Project Settings).
-- API incrementali C++ (`editor_update_entity`, `editor_set_sprite`, ...) se il full load diventa lento.
+- API incrementali C++ (`editor_update_entity`, `editor_set_scene_settings`) — **implementate** (2026-05-21). `RuntimeSyncService` instrada full load vs patch incrementale via `runtime-sync-diff.ts`.
 - Asset pipeline texture upload con fingerprint mtime/hash.
 
 Aperto (engine integration — post Tranche 10):

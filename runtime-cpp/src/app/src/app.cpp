@@ -415,6 +415,12 @@ void Application::loopIteration() {
         }
         {
             const auto start = Clock::now();
+            const uint32_t events = mod_->gameAPI->dispatchAnimationEvents();
+            profiler_.addLuaMs(elapsedMs(start));
+            profiler_.addLuaEvents(events);
+        }
+        {
+            const auto start = Clock::now();
             mod_->luaHost->tick(targetDt_);
             profiler_.addLuaMs(elapsedMs(start));
             profiler_.setLuaTickEnabled(mod_->luaHost->isScriptTickRequired());

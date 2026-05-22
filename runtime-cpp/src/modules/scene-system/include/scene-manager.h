@@ -29,8 +29,13 @@ public:
     SceneId           activeSceneId()     const { return activeId_; }
     const SceneDef*   activeScene()       const;
     const SceneDef*   getScene(const SceneId& id) const;
+    SceneDef*         getSceneMutable(const SceneId& id);
     SceneDef*         activeSceneMutable();
     void              removeEntityFromAllScenes(EntityId id);
+    /** Merge an entity def into the project snapshot (editor incremental sync). */
+    void              upsertEntityDef(EntityId id, const EntityDef& def);
+    /** Patch scene metadata without replacing entityIds or tilemap.data. */
+    void              patchSceneSettings(const SceneId& id, const SceneDef& patch);
 
     // Phase F3: project-level tileset assets (spritesheets). Set at startup
     // from the ProjectDoc and refreshed on editor hot-reload so the render

@@ -523,6 +523,42 @@ bool RuntimeEntityGateway::replaceProject(
     return true;
 }
 
+bool RuntimeEntityGateway::updateEntity(EntityId id, const EntityDef& def) {
+    if (!exists(id)) return false;
+
+    const bool wasActive = registry_->sceneActive(id);
+    const uint32_t oldHandle = physicsHandle(id);
+    if (oldHandle != 0)
+        teardownPhysicsBody(id);
+
+    EntityDef copy = def;
+    copy.id = id;
+    copy.physics.physicsHandle = 0;
+
+    applyEntityDefToRegistry(id, copy);
+    sceneManager_.upsertEntityDef(id, copy);
+
+    if (!copy.className.empty()) {
+        auto it = classPrototypes_.find(copy.className);
+        if (it == classPrototypes_.end())
+            classPrototypes_[copy.className] = copy;
+    }
+
+    if (wasActive) {
+        ensurePhysicsBody(id);
+        syncSensorFixture(id);
+    }
+    return true;
+}
+
+bool RuntimeEntityGateway::updateSceneSettings(
+    const SceneId& sceneId, const SceneDef& patch)
+{
+    if (!sceneManager_.getScene(sceneId)) return false;
+    sceneManager_.patchSceneSettings(sceneId, patch);
+    return true;
+}
+
 void RuntimeEntityGateway::setTilesets(std::vector<TilesetAsset> tilesets) {
     sceneManager_.setTilesets(std::move(tilesets));
 }

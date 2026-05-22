@@ -284,16 +284,7 @@ function emitEventBody(ev: LogicEvent, board: LogicBoard, baseIndent: string): s
     condGuard === 'true' ? enableGuard : `${enableGuard} and (${condGuard})`
 
   if (trig.type === 'onAnimationEnd') {
-    const inner = baseIndent + INDENT
-    const clipGuard =
-      trig.clipName && trig.clipName.length > 0
-        ? `af.clip == ${luaString(trig.clipName)}`
-        : 'true'
-    lines.push(`${baseIndent}for _, af in ipairs(_anim_finished[self] or {}) do`)
-    lines.push(`${baseIndent}${INDENT}if ${clipGuard} and ${guard} then`)
-    lines.push(...emitActionSequence(ev.actions, inner + INDENT))
-    lines.push(`${baseIndent}${INDENT}end`)
-    lines.push(`${baseIndent}end`)
+    // Registered in init via animation.onFinished — no tick body.
     return lines
   }
 
@@ -434,6 +425,21 @@ function emitEventRegistration(
     ]
   }
 
+  if (trig.type === 'onAnimationEnd') {
+    const source = sensorSourceExpr(board)
+    const clip =
+      trig.clipName && trig.clipName.length > 0
+        ? luaString(trig.clipName)
+        : luaString('*')
+    return [
+      `${I}animation.onFinished(${source}, ${clip}, function(entityId, clip)`,
+      `${I}${I}local self = entityId`,
+      `${I}${I}local other = nil`,
+      ...emitGuardedActions(ev, I + I),
+      `${I}end)`,
+    ]
+  }
+
   if (trig.type === 'onInput' && trig.eventType !== 'down') {
     const hook = trig.eventType === 'pressed' ? 'onPressed' : 'onReleased'
     return [
@@ -484,16 +490,6 @@ function poolExpr(board: LogicBoard): string {
   return `{}`
 }
 
-function docUsesTriggerType(doc: LogicBoardDoc, types: Set<string>): boolean {
-  for (const board of doc) {
-    for (const ev of board.events) {
-      if (!ev.enabled) continue
-      if (types.has(ev.trigger.type)) return true
-    }
-  }
-  return false
-}
-
 function docUsesTickFallback(
   doc: LogicBoardDoc,
   type: string,
@@ -515,15 +511,6 @@ const SENSOR_POLL_PREAMBLE = [
   `${INDENT}${INDENT}local eid = se.entityId`,
   `${INDENT}${INDENT}if not _sensor_by_ent[eid] then _sensor_by_ent[eid] = {} end`,
   `${INDENT}${INDENT}table.insert(_sensor_by_ent[eid], se)`,
-  `${INDENT}end`,
-]
-
-const ANIM_POLL_PREAMBLE = [
-  `${INDENT}local _anim_finished = {}`,
-  `${INDENT}for _, af in ipairs(animation.pollFinished()) do`,
-  `${INDENT}${INDENT}local eid = af.entityId`,
-  `${INDENT}${INDENT}if not _anim_finished[eid] then _anim_finished[eid] = {} end`,
-  `${INDENT}${INDENT}table.insert(_anim_finished[eid], af)`,
   `${INDENT}end`,
 ]
 
@@ -630,10 +617,9 @@ export function compileLogicBoard(
   }
   const useSensor = docUsesTickFallback(doc, 'onTriggerEnter', project) ||
     docUsesTickFallback(doc, 'onTriggerExit', project)
-  const useAnim = docUsesTriggerType(doc, new Set(['onAnimationEnd']))
   const useDestroy = docUsesTickFallback(doc, 'onDestroy', project)
   const hasPollingLogic =
-    tickBlocks.length > 0 || useSensor || useAnim || useDestroy
+    tickBlocks.length > 0 || useSensor || useDestroy
 
   const body = [
     'local function _logic_init()',
@@ -654,7 +640,6 @@ export function compileLogicBoard(
     `${INDENT}${INDENT}_init_done = true`,
     `${INDENT}end`,
     ...(useSensor ? SENSOR_POLL_PREAMBLE : []),
-    ...(useAnim ? ANIM_POLL_PREAMBLE : []),
     ...(useDestroy ? DESTROY_POLL_PREAMBLE : []),
     ...tickBlocks,
     'end',

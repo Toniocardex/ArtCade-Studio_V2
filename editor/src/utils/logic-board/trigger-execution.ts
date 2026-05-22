@@ -23,6 +23,7 @@ export const RECOMMENDED_TRIGGER_TYPES: readonly LogicTriggerType[] = [
   'onStart',
   'onDestroy',
   'onMessage',
+  'onAnimationEnd',
 ] as const
 
 /** Triggers that always (or usually) run inside tick(dt) polling. */
@@ -30,7 +31,6 @@ export const POLLING_TRIGGER_TYPES: readonly LogicTriggerType[] = [
   'onUpdate',
   'onCollision',
   'onMouseInput',
-  'onAnimationEnd',
 ] as const
 
 export function boardLifecycleClass(
@@ -85,6 +85,7 @@ export function usesTickFallback(
   if (trig.type === 'onTimer') return false
   if (trig.type === 'onTriggerEnter' || trig.type === 'onTriggerExit')
     return false
+  if (trig.type === 'onAnimationEnd') return false
   if (trig.type === 'onSpawn') return !canRegisterLifecycleSpawn(ev, board, project)
   if (trig.type === 'onDestroy') return !canRegisterLifecycleDestroy(ev, board, project)
   return true
@@ -125,8 +126,6 @@ const POLLING_TOOLTIPS: Partial<Record<LogicTriggerType, string>> = {
   onCollision:
     'Polls collision.touchingClass each frame. Prefer sensor enter/exit.',
   onMouseInput: 'Polls mouse state each frame inside tick(dt).',
-  onAnimationEnd:
-    'Polls animation.pollFinished each frame. Event hook planned.',
 }
 
 export function triggerExecutionTooltip(type: LogicTriggerType): string | undefined {

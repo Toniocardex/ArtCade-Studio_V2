@@ -23,12 +23,18 @@ import {
   editorSetGridSize,
   editorSetGuidesEnabled,
   editorSetMode,
+  editorSetSceneSettings,
   editorSetSelectedTile,
   editorSetTool,
   editorSetTransform,
+  editorUpdateEntity,
   isReady,
 } from './wasm-bridge'
-import { runtimeProjectFingerprint } from './runtime-fingerprint'
+import {
+  runtimeProjectProjection,
+  type RuntimeProjection,
+} from './runtime-fingerprint'
+import { planProjectSync } from './runtime-sync-diff'
 import type { ProjectDoc } from '../types'
 
 // ---------------------------------------------------------------------------
@@ -70,6 +76,7 @@ const TRANSFORM_EPSILON = 1e-4
 
 class RuntimeSyncServiceImpl {
   private lastLoadKey:        string | null = null
+  private lastProjection:     RuntimeProjection | null = null
   private lastMode:           0 | 1 | null = null
   private lastSelection:      number | null | undefined = undefined
   private lastTool:           EditorTool | null = null
@@ -81,6 +88,7 @@ class RuntimeSyncServiceImpl {
   /** Forget every cached "last sent" value. Use on project open / runtime reload. */
   reset(): void {
     this.lastLoadKey   = null
+    this.lastProjection = null
     this.lastMode      = null
     this.lastSelection = undefined
     this.lastTool      = null
@@ -98,10 +106,12 @@ class RuntimeSyncServiceImpl {
   // ── Project ────────────────────────────────────────────────────────────────
 
   /**
-   * Push the project into C++ via `editor_load_project` IFF the
-   * runtime-affecting subset (see runtime-fingerprint.ts) actually changed.
+   * Push project changes into C++. Uses incremental `editor_update_entity` /
+   * `editor_set_scene_settings` when only Inspector-level fields changed;
+   * falls back to `editor_load_project` for structural edits (entity add/remove,
+   * scene membership, tilemap meta, active scene switch).
    *
-   * Returns true when a sync was performed.
+   * Returns true when any sync was performed.
    */
   syncProject(
     project: ProjectDoc,
@@ -109,11 +119,54 @@ class RuntimeSyncServiceImpl {
     projectPath: string | null,
   ): boolean {
     if (!isReady()) return false
-    const fp = runtimeProjectFingerprint(project, activeSceneId)
+    const projection = runtimeProjectProjection(project, activeSceneId)
+    const fp = JSON.stringify(projection)
     const loadKey = `${projectPath ?? ''}|${fp}`
     if (this.lastLoadKey === loadKey) return false
+
+    const plan = planProjectSync(this.lastProjection, project, activeSceneId)
+
+    if (plan.kind === 'full') {
+      this.lastLoadKey = loadKey
+      this.lastProjection = projection
+      editorLoadProject(JSON.stringify({ ...project, activeSceneId }))
+      return true
+    }
+
+    if (plan.kind === 'none') {
+      this.lastLoadKey = loadKey
+      this.lastProjection = projection
+      return false
+    }
+
+    for (const entityId of plan.entityIds) {
+      const def = project.entities[entityId]
+      if (!def) continue
+      editorUpdateEntity(entityId, JSON.stringify(def))
+      const t = def.transform
+      this.lastTransform.set(entityId, {
+        entityId,
+        x: t.position.x,
+        y: t.position.y,
+        rotation: t.rotation,
+        scaleX: t.scale.x,
+        scaleY: t.scale.y,
+      })
+    }
+
+    for (const sceneId of plan.sceneIds) {
+      const scene = project.scenes[sceneId]
+      if (!scene) continue
+      editorSetSceneSettings(sceneId, JSON.stringify({
+        id: scene.id,
+        worldSize: scene.worldSize,
+        viewportSize: scene.viewportSize,
+        backgroundColor: scene.backgroundColor,
+      }))
+    }
+
     this.lastLoadKey = loadKey
-    editorLoadProject(JSON.stringify({ ...project, activeSceneId }))
+    this.lastProjection = projection
     return true
   }
 

@@ -190,6 +190,20 @@ EMSCRIPTEN_KEEPALIVE void editor_set_transform(
     float scaleX, float scaleY);
 
 /**
+ * Incrementally update one entity from a JSON EntityDef blob (Inspector edits).
+ * Does not clear the registry, unload textures, or reset Lua.
+ */
+EMSCRIPTEN_KEEPALIVE void editor_update_entity(
+    uint32_t entityId, const char* json_utf8);
+
+/**
+ * Patch scene viewport/world/background for one scene without a full reload.
+ * json_utf8: SceneDef subset (id, worldSize, viewportSize, backgroundColor).
+ */
+EMSCRIPTEN_KEEPALIVE void editor_set_scene_settings(
+    const char* sceneId, const char* json_utf8);
+
+/**
  * Hot-reload game logic from the Logic Board editor.
  * lua_utf8: null-terminated UTF-8 Lua SOURCE (compiled by the editor's
  * compileLogicBoard()). Executed via LuaHost::loadLuaSource(), which

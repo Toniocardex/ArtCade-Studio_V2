@@ -71,7 +71,7 @@ interface FpScene {
   tm?: FpTilemap
 }
 
-interface RuntimeProjection {
+export interface RuntimeProjection {
   pn: string                 // projectName
   pv: string                 // version
   as: string                 // activeSceneId

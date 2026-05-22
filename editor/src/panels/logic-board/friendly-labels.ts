@@ -33,7 +33,7 @@ const TRIGGER_NAMES: Record<LogicTriggerType, string> = {
   onCollision: 'Touches something (polling)',
   onTriggerEnter: 'Enters a zone',
   onTriggerExit: 'Leaves a zone',
-  onAnimationEnd: 'Animation finishes (polling)',
+  onAnimationEnd: 'Animation finishes',
   onDestroy: 'Is destroyed',
   onInput: 'Keyboard input',
   onMouseInput: 'Mouse on object (polling)',

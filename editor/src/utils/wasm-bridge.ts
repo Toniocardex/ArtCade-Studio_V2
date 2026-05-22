@@ -422,6 +422,28 @@ export function editorSetTransform(
     [entityId, x, y, rotation, scaleX, scaleY])
 }
 
+export function editorUpdateEntity(entityId: number, entityJson: string): void {
+  if (!_module) return
+  const ptr = marshalString(entityJson)
+  try {
+    safeCall('editor_update_entity', null, ['number', 'number'], [entityId, ptr])
+  } finally {
+    _module._free(ptr)
+  }
+}
+
+export function editorSetSceneSettings(sceneId: string, sceneJson: string): void {
+  if (!_module) return
+  const idPtr = marshalString(sceneId)
+  const jsonPtr = marshalString(sceneJson)
+  try {
+    safeCall('editor_set_scene_settings', null, ['number', 'number'], [idPtr, jsonPtr])
+  } finally {
+    _module._free(jsonPtr)
+    _module._free(idPtr)
+  }
+}
+
 // All cross-channel sync orchestration now lives in
 // `utils/runtime-sync-service.ts`. The thin per-channel wrappers above remain
 // here as the low-level bridge to the WASM exports.

@@ -55,6 +55,8 @@ if(EMSCRIPTEN)
         "_editor_deselect"
         "_editor_load_project"
         "_editor_set_transform"
+        "_editor_update_entity"
+        "_editor_set_scene_settings"
         "_editor_reload_script"
         "_editor_set_tile_paint_mode"
         "_editor_set_selected_tile"

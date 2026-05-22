@@ -26,7 +26,7 @@ namespace ArtCade::Modules {
  *   time-api.cpp     — time.*   (pure-Lua timer system)
  *   camera-api.cpp   — camera.* (via Renderer)
  *   sensor-api.cpp     — sensor.* (World overlap edges)
- *   animation-api.cpp  — animation.pollFinished
+ *   animation-api.cpp  — animation.onFinished / animation.pollFinished
  *   lifecycle-api.cpp — lifecycle.pollDestroyed
  *   grid-api.cpp       — grid.* (snap, offset, space check)
  *
@@ -50,6 +50,7 @@ public:
     uint32_t dispatchLifecycleEvents();
     uint32_t dispatchInputEvents();
     uint32_t dispatchSensorEvents();
+    uint32_t dispatchAnimationEvents();
 
 private:
     const EngineContext& ctx_;

@@ -32,9 +32,30 @@ const SceneDef* SceneManager::getScene(const SceneId& id) const {
     return (it != scenes_.end()) ? &it->second : nullptr;
 }
 
-SceneDef* SceneManager::activeSceneMutable() {
-    auto it = scenes_.find(activeId_);
+SceneDef* SceneManager::getSceneMutable(const SceneId& id) {
+    auto it = scenes_.find(id);
     return (it != scenes_.end()) ? &it->second : nullptr;
+}
+
+SceneDef* SceneManager::activeSceneMutable() {
+    return getSceneMutable(activeId_);
+}
+
+void SceneManager::upsertEntityDef(EntityId id, const EntityDef& def) {
+    entityDefs_[id] = def;
+}
+
+void SceneManager::patchSceneSettings(const SceneId& id, const SceneDef& patch) {
+    auto it = scenes_.find(id);
+    if (it == scenes_.end()) return;
+    SceneDef& scene = it->second;
+    if (patch.worldSize.x > 0.f && patch.worldSize.y > 0.f)
+        scene.worldSize = patch.worldSize;
+    if (patch.viewportSize.x > 0.f && patch.viewportSize.y > 0.f)
+        scene.viewportSize = patch.viewportSize;
+    scene.backgroundColor = patch.backgroundColor;
+    if (!patch.name.empty())
+        scene.name = patch.name;
 }
 
 void SceneManager::removeEntityFromAllScenes(EntityId id) {

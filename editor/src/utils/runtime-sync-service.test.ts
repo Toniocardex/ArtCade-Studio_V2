@@ -20,12 +20,13 @@ vi.mock('./wasm-bridge', () => {
     editorSetGuidesEnabled:   vi.fn(),
     editorSetGridSize:        vi.fn(),
     editorSetTransform:       vi.fn(),
+    editorUpdateEntity:       vi.fn(),
+    editorSetSceneSettings:   vi.fn(),
   }
 })
 
 const bridge = await import('./wasm-bridge')
 const { runtimeSync } = await import('./runtime-sync-service')
-const { runtimeProjectFingerprint } = await import('./runtime-fingerprint')
 
 function makeProject() {
   const project = {
@@ -67,6 +68,8 @@ describe('RuntimeSyncService', () => {
     vi.mocked(bridge.editorSetGuidesEnabled).mockReset()
     vi.mocked(bridge.editorSetGridSize).mockReset()
     vi.mocked(bridge.editorSetTransform).mockReset()
+    vi.mocked(bridge.editorUpdateEntity).mockReset()
+    vi.mocked(bridge.editorSetSceneSettings).mockReset()
   })
 
   it('skips every call until the runtime is ready', () => {
@@ -93,9 +96,34 @@ describe('RuntimeSyncService', () => {
     const p: Project = makeProject()
     runtimeSync.syncProject(p as never, 'a', '/tmp/x')
     p.entities[1].sprite.tint = { x: 1, y: 0, z: 0, w: 1 }
-    expect(runtimeProjectFingerprint(p as never, 'a')).not.toBe('')
+    expect(runtimeSync.syncProject(p as never, 'a', '/tmp/x')).toBe(true)
+    expect(bridge.editorUpdateEntity).toHaveBeenCalledTimes(1)
+    expect(bridge.editorUpdateEntity).toHaveBeenCalledWith(1, expect.any(String))
+    expect(bridge.editorLoadProject).toHaveBeenCalledTimes(1)
+  })
+
+  it('syncProject uses editor_set_scene_settings for viewport-only edits', () => {
+    const p: Project = makeProject()
+    runtimeSync.syncProject(p as never, 'a', '/tmp/x')
+    p.scenes.a.viewportSize = { x: 1024, y: 768 }
+    expect(runtimeSync.syncProject(p as never, 'a', '/tmp/x')).toBe(true)
+    expect(bridge.editorSetSceneSettings).toHaveBeenCalledTimes(1)
+    expect(bridge.editorSetSceneSettings).toHaveBeenCalledWith('a', expect.any(String))
+    expect(bridge.editorLoadProject).toHaveBeenCalledTimes(1)
+  })
+
+  it('syncProject full-reloads when entity membership changes', () => {
+    const p: Project = makeProject()
+    runtimeSync.syncProject(p as never, 'a', '/tmp/x')
+    ;(p.entities as Record<number, (typeof p.entities)[1]>)[2] = {
+      ...p.entities[1],
+      id: 2,
+      name: 'E2',
+    }
+    p.scenes.a.entityIds = [1, 2]
     expect(runtimeSync.syncProject(p as never, 'a', '/tmp/x')).toBe(true)
     expect(bridge.editorLoadProject).toHaveBeenCalledTimes(2)
+    expect(bridge.editorUpdateEntity).not.toHaveBeenCalled()
   })
 
   it('syncPlayMode dedupes by latched value', () => {

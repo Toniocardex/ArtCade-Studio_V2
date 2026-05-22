@@ -114,6 +114,10 @@ public:
     bool replaceProject(const std::unordered_map<SceneId, SceneDef>& scenes,
                         const std::unordered_map<EntityId, EntityDef>& entityDefs,
                         const SceneId& activeSceneId);
+    /** Apply a single EntityDef without clearing the registry (editor sync). */
+    bool updateEntity(EntityId id, const EntityDef& def);
+    /** Patch scene viewport/world/background on the active project snapshot. */
+    bool updateSceneSettings(const SceneId& sceneId, const SceneDef& patch);
     void setTilesets(std::vector<TilesetAsset> tilesets);
 
     bool loadScene(const SceneId& id);
