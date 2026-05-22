@@ -34,6 +34,30 @@ EntityDef minimalSpawnDef(const std::string& cls, float x, float y) {
     return def;
 }
 
+constexpr float kDefaultColliderSize = 32.f;
+
+bool hasExplicitColliderSize(const PhysicsComponent& comp) {
+    return comp.collider.size.x > 2.f || comp.collider.size.y > 2.f;
+}
+
+Vec2 resolveWorldColliderSize(const Transform& transform,
+                              const PhysicsComponent& comp,
+                              bool hasExplicitCollider) {
+    const Vec2 base = hasExplicitCollider
+        ? comp.collider.size
+        : Vec2{ kDefaultColliderSize, kDefaultColliderSize };
+    if (hasExplicitCollider) {
+        return {
+            std::max(1.f, base.x),
+            std::max(1.f, base.y),
+        };
+    }
+    return {
+        std::max(1.f, base.x * std::abs(transform.scale.x)),
+        std::max(1.f, base.y * std::abs(transform.scale.y)),
+    };
+}
+
 } // namespace
 
 RuntimeEntityGateway::RuntimeEntityGateway(SceneManager& sm)
@@ -99,8 +123,10 @@ void RuntimeEntityGateway::ensurePhysicsBody(EntityId id) {
     if (!getPhysicsComponent(id, comp))
         return;
 
-    const bool hasCollider =
-        comp.collider.size.x > 2.f && comp.collider.size.y > 2.f;
+    Transform transform{};
+    getTransform(id, transform);
+
+    const bool hasExplicitCollider = hasExplicitColliderSize(comp);
     PlatformerControllerComponent platformer{};
     const bool hasPlatformer = getPlatformerController(id, platformer);
     TopDownControllerComponent topDown{};
@@ -109,21 +135,25 @@ void RuntimeEntityGateway::ensurePhysicsBody(EntityId id) {
     const bool hasSolid = getSolid(id, solid);
     SensorComponent sensor{};
     const bool hasSensor = getSensor(id, sensor);
-    if (!hasCollider && !hasPlatformer && !hasTopDown && !hasSolid && !hasSensor) return;
+    if (!hasExplicitCollider && !hasPlatformer && !hasTopDown && !hasSolid && !hasSensor)
+        return;
 
-    if (!hasCollider) {
+    if (!hasExplicitCollider) {
         if (hasSensor) {
             comp.bodyType = BodyType::Static;
             comp.collider.isSensor = true;
             if (sensor.shape == "Circle") {
                 comp.collider.shape = ColliderShape::Circle;
-                comp.collider.size = { std::max(1.f, sensor.radius), std::max(1.f, sensor.radius) };
+                const float r = std::max(1.f, sensor.radius);
+                comp.collider.size = { r, r };
             } else {
                 comp.collider.shape = ColliderShape::Rectangle;
-                comp.collider.size = { std::max(1.f, sensor.width), std::max(1.f, sensor.height) };
+                comp.collider.size = {
+                    std::max(1.f, sensor.width),
+                    std::max(1.f, sensor.height),
+                };
             }
         } else {
-            comp.collider.size = { 32.f, 32.f };
             comp.bodyType = BodyType::Dynamic;
         }
     }
@@ -132,13 +162,13 @@ void RuntimeEntityGateway::ensurePhysicsBody(EntityId id) {
     if (hasSolid)
         comp.bodyType = BodyType::Static;
 
+    comp.collider.size = resolveWorldColliderSize(transform, comp, hasExplicitCollider);
+
     const uint32_t handle = physics_->createBody(id, comp);
     if (handle == 0) return;
 
     setPhysicsHandle(id, handle);
-    Transform transform{};
-    if (getTransform(id, transform))
-        physics_->setPosition(handle, transform.position);
+    physics_->setPosition(handle, transform.position);
 
     syncSensorFixture(id);
 }
@@ -361,11 +391,20 @@ bool RuntimeEntityGateway::getTransform(EntityId id, Transform& out) const {
 
 bool RuntimeEntityGateway::setTransform(EntityId id, const Transform& transform) {
     if (!registry_->contains(id)) return false;
+    Transform previous{};
+    const bool hadPrevious = getTransform(id, previous);
     registry_->setTransform(id, transform);
     if (physics_) {
         const uint32_t handle = physicsHandle(id);
-        if (handle != 0)
-            physics_->setPosition(handle, transform.position);
+        if (handle != 0) {
+            const bool scaleChanged = hadPrevious &&
+                (previous.scale.x != transform.scale.x ||
+                 previous.scale.y != transform.scale.y);
+            if (scaleChanged)
+                rebuildPhysicsBodyIfActive(id);
+            else
+                physics_->setPosition(handle, transform.position);
+        }
     }
     return true;
 }

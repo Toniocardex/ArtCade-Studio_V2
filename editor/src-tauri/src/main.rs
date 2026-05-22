@@ -91,19 +91,17 @@ fn resolve_path(path: String) -> Result<String, String> {
 async fn run_build(app: tauri::AppHandle, project_root: String) -> Result<(), String> {
     let repo = repo_root()?;
     let runtime_dir = repo.join("runtime-cpp");
-    let build_dir = runtime_dir.join("build-msvc");
+    let build_dir = runtime_dir.join("build-native");
     let app_dir = build_dir.join("src").join("app");
     let output_package = app_dir.join("game.artcade");
     let pack_script = runtime_dir.join("tools").join("pack-artcade.py");
+    let build_native = runtime_dir.join("build_native.bat");
     let project_root = PathBuf::from(project_root);
-    let vsdev_cmd = PathBuf::from(
-        r"C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\Common7\Tools\VsDevCmd.bat",
-    );
 
-    if !vsdev_cmd.exists() {
+    if !build_native.exists() {
         let msg = format!(
-            "[Build] Visual Studio DevCmd not found: {}",
-            vsdev_cmd.display()
+            "[Build] Native build script not found: {}",
+            build_native.display()
         );
         emit_log(&app, &msg, "error");
         return Err(msg);
@@ -137,18 +135,11 @@ async fn run_build(app: tauri::AppHandle, project_root: String) -> Result<(), St
     let script_path = build_dir.join("artcade-tauri-build.cmd");
     let script = format!(
         "@echo off\r\n\
-         call \"{}\" -arch=x64\r\n\
-         if errorlevel 1 exit /b %errorlevel%\r\n\
-         cmake -S \"{}\" -B \"{}\" -G \"NMake Makefiles\" -Wno-dev -DARTCADE_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5\r\n\
-         if errorlevel 1 exit /b %errorlevel%\r\n\
-         cmake --build \"{}\" --config Release\r\n\
+         call \"{}\" --config Release --no-test\r\n\
          if errorlevel 1 exit /b %errorlevel%\r\n\
          python \"{}\" \"{}\" \"{}\"\r\n\
          exit /b %errorlevel%\r\n",
-        vsdev_cmd.display(),
-        runtime_dir.display(),
-        build_dir.display(),
-        build_dir.display(),
+        build_native.display(),
         pack_script.display(),
         project_root.display(),
         output_package.display(),

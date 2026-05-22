@@ -172,6 +172,80 @@ static void test_platformer_grounded_by_solid_component() {
     CHECK(velocity.y < -419.f);
 }
 
+static void test_platformer_grounded_on_scaled_solid_platform() {
+    Fixture f;
+
+    EntityDef player = makeEntity(1, "Player", {"player"});
+    player.transform.position = { 160.f, 179.f };
+    player.physics.bodyType = BodyType::Dynamic;
+    player.physics.collider.size = { 32.f, 32.f };
+    PlatformerControllerComponent pc;
+    pc.jumpForce = 420.f;
+    pc.groundClass = "Ground";
+    player.platformerController = pc;
+
+    EntityDef platform = makeEntity(2, "Platform");
+    platform.transform.position = { 160.f, 200.f };
+    platform.transform.scale = { 10.f, 0.3125f };
+    SolidComponent solid;
+    solid.groundClass = "Ground";
+    platform.solid = solid;
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1, 2 };
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.scenes = {{ scene.id, scene }};
+    doc.entities = {{ 1, player }, { 2, platform }};
+    f.world.init(doc);
+
+    CHECK(f.gw.physicsHandle(2) != 0);
+    CHECK(f.physics.areOverlapping(f.gw.physicsHandle(1), f.gw.physicsHandle(2)));
+
+    for (int i = 0; i < 30; ++i)
+        f.world.tickGameplaySystems(1.f / 60.f);
+
+    CHECK(f.world.isPlatformerGrounded(1));
+}
+
+static void test_scaled_solid_rebuilds_physics_on_transform() {
+    Fixture f;
+
+    EntityDef platform = makeEntity(2, "Platform");
+    platform.transform.position = { 160.f, 200.f };
+    platform.transform.scale = { 1.f, 1.f };
+    SolidComponent solid;
+    solid.groundClass = "Ground";
+    platform.solid = solid;
+
+    EntityDef player = makeEntity(1, "Player");
+    player.transform.position = { 160.f, 163.f };
+    player.physics.bodyType = BodyType::Dynamic;
+    player.physics.collider.size = { 32.f, 32.f };
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1, 2 };
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.scenes = {{ scene.id, scene }};
+    doc.entities = {{ 1, player }, { 2, platform }};
+    f.world.init(doc);
+
+    const uint32_t platformHandleBefore = f.gw.physicsHandle(2);
+    CHECK(platformHandleBefore != 0);
+    CHECK(!f.physics.areOverlapping(f.gw.physicsHandle(1), platformHandleBefore));
+
+    CHECK(f.gw.setTransform(2, { 160.f, 200.f }, 0.f, { 10.f, 0.3125f }));
+    const uint32_t platformHandleAfter = f.gw.physicsHandle(2);
+    CHECK(platformHandleAfter != 0);
+    CHECK(f.gw.setTransform(1, { 160.f, 179.f }, 0.f, { 1.f, 1.f }));
+    CHECK(f.physics.areOverlapping(f.gw.physicsHandle(1), platformHandleAfter));
+}
+
 static void test_top_down_movement_intent_without_input() {
     Fixture f;
 
@@ -937,6 +1011,8 @@ int main() {
     test_platformer_movement_intent_without_input();
     test_platformer_jump_intent_without_input();
     test_platformer_grounded_by_solid_component();
+    test_platformer_grounded_on_scaled_solid_platform();
+    test_scaled_solid_rebuilds_physics_on_transform();
     test_top_down_movement_intent_without_input();
     test_top_down_four_direction_constraint();
     test_sensor_edges_are_drained_deterministically();
