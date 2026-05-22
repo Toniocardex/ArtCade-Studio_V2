@@ -104,7 +104,7 @@ function CanvasView() {
       </section>
 
       {/* Right sidebar — Inspector */}
-      <aside className="w-72 border-l border-[var(--border)] flex-shrink-0 overflow-hidden bg-[var(--panel)]">
+      <aside className="w-80 border-l border-[var(--border)] flex-shrink-0 overflow-hidden bg-[var(--panel)]">
         <InspectorPanel />
       </aside>
     </div>

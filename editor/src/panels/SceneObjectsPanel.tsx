@@ -2,7 +2,7 @@
 // SceneObjectsPanel — left sidebar in canvas mode
 // ---------------------------------------------------------------------------
 //
-// Two stacked sections plus a small World Settings block at the bottom:
+// Two stacked sections:
 //
 //   1. Scenes ........ create / select / rename / set-start / delete the
 //                      scenes that make up the project. Start scene is
@@ -13,9 +13,7 @@
 //   2. Objects ....... entities of the currently selected scene; add /
 //                      duplicate / visibility / delete / open Logic Board.
 //
-// Previously this file was called HierarchyPanel — renamed when scene
-// management moved in. "Hierarchy" implied a parent/child tree, which is
-// not what this UI is.
+// Global world/physics settings live in Inspector → Scene tab.
 // ---------------------------------------------------------------------------
 
 import { useCallback, useEffect, useState } from 'react'
@@ -24,7 +22,6 @@ import { Box, Copy, Eye, EyeOff, Plus, Star, Trash2, Workflow } from 'lucide-rea
 import PanelHeader from '../components/PanelHeader'
 import { useEditor } from '../store/editor-store'
 import type { ConsoleEntry, EntityDef } from '../types'
-import { DEFAULT_WORLD } from '../types'
 import {
   applyInputBackspace,
   isBackspaceKey,
@@ -175,52 +172,6 @@ function EntityRow({ entity, selected, hasLogic, onClick, onEditLogic, onToggleV
         >
           <Trash2 size={11} />
         </button>
-      </div>
-    </div>
-  )
-}
-
-function WorldSettingsSection() {
-  const { state, dispatch } = useEditor()
-  const w = { ...DEFAULT_WORLD, ...state.project?.world }
-
-  const num = (label: string, key: keyof typeof w, step: number) => (
-    <div className="flex items-center justify-between gap-2">
-      <span className="text-[9px] text-[var(--muted)] uppercase">{label}</span>
-      <input
-        type="number"
-        step={step}
-        value={w[key]}
-        onChange={(e) =>
-          dispatch({ type: 'WORLD_SET', patch: { [key]: Number(e.target.value) } })
-        }
-        className="w-20 bg-[var(--border)] border border-[var(--border-2)] text-[var(--accent)]
-                   text-[11px] rounded px-2 py-0.5 text-right focus:outline-none
-                   focus:border-[var(--accent)]"
-      />
-    </div>
-  )
-
-  return (
-    <div className="px-3 py-3 border-t border-[var(--border)] space-y-2">
-      <div className="text-[9px] text-[var(--muted)] uppercase font-bold tracking-widest">
-        World Settings
-      </div>
-      {num('Gravity (m/s²)', 'gravity', 0.1)}
-      {num('Px / Meter', 'pixelsPerMeter', 1)}
-      <div>
-        <div className="flex justify-between items-center mb-1">
-          <span className="text-[9px] text-[var(--muted)] uppercase">Time Scale</span>
-          <span className="text-[11px] text-[var(--accent-2)]">{w.timeScale.toFixed(1)}x</span>
-        </div>
-        <input
-          type="range" min={0} max={2} step={0.1}
-          value={w.timeScale}
-          onChange={(e) =>
-            dispatch({ type: 'WORLD_SET', patch: { timeScale: Number(e.target.value) } })
-          }
-          className="w-full accent-[var(--accent-2)]"
-        />
       </div>
     </div>
   )
@@ -438,8 +389,6 @@ export default function SceneObjectsPanel() {
           ))
         )}
       </div>
-
-      <WorldSettingsSection />
 
       <div className="px-2 py-1 border-t border-[var(--border)] text-[9px] text-[var(--muted)]">
         {sceneCount} scenes · {entities.length} objects · {scene?.name ?? '-'}

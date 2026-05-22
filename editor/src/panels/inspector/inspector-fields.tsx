@@ -14,19 +14,30 @@ import { applyInputBackspace, isBackspaceKey } from '../../utils/keyboard'
 export function InspectorSection({
   label,
   defaultOpen = false,
+  open: controlledOpen,
+  onOpenChange,
   children,
 }: {
   label: string
   defaultOpen?: boolean
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
   children: ReactNode
 }) {
-  const [open, setOpen] = useState(defaultOpen)
+  const [internalOpen, setInternalOpen] = useState(defaultOpen)
+  const isControlled = controlledOpen !== undefined
+  const open = isControlled ? controlledOpen : internalOpen
+
+  function setOpen(next: boolean) {
+    if (!isControlled) setInternalOpen(next)
+    onOpenChange?.(next)
+  }
 
   return (
     <div className="mt-4">
       <button
         type="button"
-        onClick={() => setOpen(v => !v)}
+        onClick={() => setOpen(!open)}
         aria-expanded={open}
         className="w-full flex items-center justify-between text-[10px] text-[var(--muted)]
                    hover:text-[var(--text)] font-bold border-b border-[var(--border)] pb-1 mb-2

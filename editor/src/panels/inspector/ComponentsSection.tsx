@@ -7,6 +7,9 @@ import {
   type ComponentDescriptor,
 } from './component-registry'
 import { InspectorSection } from './inspector-fields'
+import {
+  componentBlockId,
+} from './entity-component-utils'
 
 function ComponentSection({
   entity, desc,
@@ -30,7 +33,10 @@ function ComponentSection({
   }
 
   return (
-    <div className="border border-[var(--border)] rounded-lg p-3 bg-[rgb(var(--border-rgb)/0.1)] mb-2">
+    <div
+      id={componentBlockId(desc.key)}
+      className="border border-[var(--border)] rounded-lg p-3 bg-[rgb(var(--border-rgb)/0.1)] mb-2 scroll-mt-24"
+    >
       <div
         className="flex items-center justify-between text-[10px] font-bold
                    border-b border-[var(--border)] pb-1 mb-2 uppercase tracking-widest"
@@ -135,7 +141,7 @@ function AddComponentBar({ entity }: { entity: EntityDef }) {
             value: desc.create(),
           })
       }}
-      className="w-full mt-1 bg-[var(--border)] border border-dashed border-[var(--border-2)]
+      className="w-full mb-2 bg-[var(--border)] border border-dashed border-[var(--border-2)]
                  rounded px-2 py-1.5 text-xs text-[var(--muted)]
                  focus:outline-none focus:border-[var(--accent)]"
     >
@@ -147,13 +153,26 @@ function AddComponentBar({ entity }: { entity: EntityDef }) {
   )
 }
 
-export function ComponentsSection({ entity }: { entity: EntityDef }) {
+export function ComponentsSection({
+  entity,
+  open,
+  onOpenChange,
+}: {
+  entity: EntityDef
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+}) {
   return (
-    <InspectorSection label="Components">
+    <InspectorSection
+      label="Components"
+      defaultOpen
+      open={open}
+      onOpenChange={onOpenChange}
+    >
+      <AddComponentBar entity={entity} />
       {COMPONENT_REGISTRY.map((desc) => (
         <ComponentSection key={desc.key} entity={entity} desc={desc} />
       ))}
-      <AddComponentBar entity={entity} />
     </InspectorSection>
   )
 }
