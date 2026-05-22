@@ -145,7 +145,7 @@ describe('RuntimeSyncService', () => {
 
   it('syncProject omits logicBoards from runtime JSON payload', () => {
     const p = makeProject()
-    p.logicBoards = [{ id: 'lb', name: 'Main', rules: [] }] as never
+    Object.assign(p, { logicBoards: [{ id: 'lb', name: 'Main', rules: [] }] })
     runtimeSync.syncProject(p as never, 'a', '/tmp/x')
     const json = vi.mocked(bridge.editorLoadProject).mock.calls[0][0]
     const parsed = JSON.parse(json) as Record<string, unknown>
