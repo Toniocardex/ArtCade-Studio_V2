@@ -34,7 +34,7 @@ public:
           Modules::Physics&              physics,
           Modules::VariableManager&      variables);
 
-    void setGameplayDeps(Modules::Input* input);
+    void setGameplayDeps(Modules::Input* input);  // legacy hook; platformer uses intents
 
     void init(const ProjectDoc& doc);
     /** After editor_load_project: refresh tile collisions + gameplay runtime maps. */
@@ -69,7 +69,6 @@ private:
     Modules::RuntimeEntityGateway& entityGateway_;
     Modules::Physics&              physics_;
     Modules::VariableManager&      variables_;
-    Modules::Input*                input_ = nullptr;
 
     struct PlatformerRt {
         float coyoteTimer     = 0.f;

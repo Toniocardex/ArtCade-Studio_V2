@@ -1,7 +1,6 @@
 #include "../include/world.h"
 #include "../../modules/runtime-entity-gateway/include/runtime-entity-gateway.h"
 #include "../../modules/physics/include/physics.h"
-#include "../../modules/input/include/input.h"
 #include "../../modules/variable-manager/include/variable-manager.h"
 
 #include <algorithm>
@@ -15,9 +14,7 @@ World::World(Modules::RuntimeEntityGateway& gateway,
              Modules::VariableManager&      variables)
     : entityGateway_(gateway), physics_(ph), variables_(variables) {}
 
-void World::setGameplayDeps(Modules::Input* input) {
-    input_ = input;
-}
+void World::setGameplayDeps(Modules::Input* /*input*/) {}
 
 void World::clearTilemapPhysics() {
     for (uint32_t h : tilePhysicsHandles_)
