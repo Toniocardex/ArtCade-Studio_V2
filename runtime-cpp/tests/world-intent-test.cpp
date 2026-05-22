@@ -430,6 +430,77 @@ static void test_magnetic_item_pulls_tagged_entity() {
     CHECK(std::abs(coinTransform.position.y - 100.f) < 0.01f);
 }
 
+static void test_horde_member_chases_target_class() {
+    Fixture f;
+
+    EntityDef player = makeEntity(1, "Player");
+    player.transform.position = { 300.f, 100.f };
+
+    EntityDef enemy = makeEntity(2, "Enemy");
+    enemy.transform.position = { 100.f, 100.f };
+    HordeMemberComponent horde;
+    horde.targetClass = "Player";
+    horde.maxSpeed = 100.f;
+    horde.separationRadius = 0.f;
+    enemy.hordeMember = horde;
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1, 2 };
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.scenes = {{ scene.id, scene }};
+    doc.entities = {{ 1, player }, { 2, enemy }};
+    f.world.init(doc);
+
+    f.world.tickGameplaySystems(1.f);
+
+    Transform enemyTransform{};
+    CHECK(f.gw.getTransform(2, enemyTransform));
+    CHECK(enemyTransform.position.x > 100.f);
+}
+
+static void test_horde_member_separates_from_peer() {
+    Fixture f;
+
+    EntityDef player = makeEntity(1, "Player");
+    player.transform.position = { 500.f, 100.f };
+
+    HordeMemberComponent horde;
+    horde.targetClass = "Player";
+    horde.maxSpeed = 80.f;
+    horde.separationRadius = 64.f;
+    horde.separationWeight = 2.f;
+    horde.chaseWeight = 0.f;
+
+    EntityDef a = makeEntity(2, "Enemy");
+    a.transform.position = { 100.f, 100.f };
+    a.hordeMember = horde;
+
+    EntityDef b = makeEntity(3, "Enemy");
+    b.transform.position = { 100.f, 100.f };
+    b.hordeMember = horde;
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1, 2, 3 };
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.scenes = {{ scene.id, scene }};
+    doc.entities = {{ 1, player }, { 2, a }, { 3, b }};
+    f.world.init(doc);
+
+    f.world.tickGameplaySystems(0.5f);
+
+    Transform ta{}, tb{};
+    CHECK(f.gw.getTransform(2, ta));
+    CHECK(f.gw.getTransform(3, tb));
+    CHECK(std::abs(ta.position.x - tb.position.x) > 0.5f ||
+          std::abs(ta.position.y - tb.position.y) > 0.5f);
+}
+
 int main() {
     test_platformer_movement_intent_without_input();
     test_platformer_jump_intent_without_input();
@@ -441,6 +512,8 @@ int main() {
     test_linear_mover_moves_transform_without_physics();
     test_linear_mover_sets_physics_velocity();
     test_magnetic_item_pulls_tagged_entity();
+    test_horde_member_chases_target_class();
+    test_horde_member_separates_from_peer();
 
     std::cout << "world-intent-test: " << g_passed << " passed, "
               << g_failed << " failed\n";

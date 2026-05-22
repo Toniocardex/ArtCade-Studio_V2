@@ -12,6 +12,7 @@ import type {
   TopDownControllerComponent, LinearMoverComponent,
   CameraTargetComponent,
   MagneticItemComponent,
+  HordeMemberComponent,
   HealthComponent, AutoDestroyComponent,
 } from './components'
 
@@ -76,6 +77,7 @@ export interface EntityDef {
   linearMover?:          LinearMoverComponent
   cameraTarget?:         CameraTargetComponent
   magneticItem?:         MagneticItemComponent
+  hordeMember?:          HordeMemberComponent
   health?:               HealthComponent
   autoDestroy?:          AutoDestroyComponent
 }

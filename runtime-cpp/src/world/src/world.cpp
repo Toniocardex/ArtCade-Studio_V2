@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <vector>
 
 namespace ArtCade {
 
@@ -343,23 +344,7 @@ void World::tickLinearMovers(float dt) {
                 direction.y * std::max(0.f, lm.speed),
             };
 
-            const uint32_t handle = entityGateway_.physicsHandle(id);
-            if (handle != 0) {
-                PhysicsComponent physics{};
-                if (entityGateway_.getPhysicsComponent(id, physics) &&
-                    physics.bodyType != BodyType::Static)
-                {
-                    physics_.setLinearVelocity(handle, velocity);
-                    return;
-                }
-            }
-
-            Transform transform{};
-            if (!entityGateway_.getTransform(id, transform)) return;
-            transform.velocity = velocity;
-            transform.position.x += velocity.x * dt;
-            transform.position.y += velocity.y * dt;
-            entityGateway_.setTransform(id, transform);
+            applySteeringVelocity(physics_, entityGateway_, id, velocity, dt);
         });
 }
 
@@ -397,6 +382,106 @@ void World::tickSensorOverlapEdges() {
         });
 }
 
+namespace {
+
+void applySteeringVelocity(Modules::Physics& physics,
+                           Modules::RuntimeEntityGateway& gateway,
+                           EntityId id,
+                           const Vec2& velocity,
+                           float dt)
+{
+    const uint32_t handle = gateway.physicsHandle(id);
+    if (handle != 0) {
+        PhysicsComponent physicsComp{};
+        if (gateway.getPhysicsComponent(id, physicsComp) &&
+            physicsComp.bodyType != BodyType::Static)
+        {
+            physics.setLinearVelocity(handle, velocity);
+            return;
+        }
+    }
+
+    Transform transform{};
+    if (!gateway.getTransform(id, transform)) return;
+    transform.velocity = velocity;
+    transform.position.x += velocity.x * dt;
+    transform.position.y += velocity.y * dt;
+    gateway.setTransform(id, transform);
+}
+
+} // namespace
+
+void World::tickHordeMembers(float dt) {
+    struct HordeSnap {
+        EntityId              id = 0;
+        Vec2                  pos;
+        HordeMemberComponent  cfg;
+    };
+    std::vector<HordeSnap> members;
+    members.reserve(32);
+
+    entityGateway_.forEachActiveHordeMember(
+        [&](EntityId id, const HordeMemberComponent& horde) {
+            PlatformerControllerComponent platformer{};
+            if (entityGateway_.getPlatformerController(id, platformer))
+                return;
+            TopDownControllerComponent topDown{};
+            if (entityGateway_.getTopDownController(id, topDown))
+                return;
+            LinearMoverComponent linear{};
+            if (entityGateway_.getLinearMover(id, linear))
+                return;
+
+            Transform transform{};
+            if (!entityGateway_.getTransform(id, transform)) return;
+            members.push_back({ id, transform.position, horde });
+        });
+
+    for (const HordeSnap& self : members) {
+        Vec2 steer{};
+
+        float bestDist2 = 1e30f;
+        Vec2 chaseDir{};
+        for (EntityId targetId : entityGateway_.poolByClass(self.cfg.targetClass)) {
+            if (targetId == self.id) continue;
+            Transform targetTransform{};
+            if (!entityGateway_.getTransform(targetId, targetTransform)) continue;
+            const Vec2 toTarget = {
+                targetTransform.position.x - self.pos.x,
+                targetTransform.position.y - self.pos.y,
+            };
+            const float dist2 = lengthSq(toTarget);
+            if (dist2 < bestDist2) {
+                bestDist2 = dist2;
+                chaseDir = normalizeOrZero(toTarget);
+            }
+        }
+        steer.x += chaseDir.x * self.cfg.chaseWeight;
+        steer.y += chaseDir.y * self.cfg.chaseWeight;
+
+        const float sepR = self.cfg.separationRadius;
+        if (sepR > 0.f) {
+            for (const HordeSnap& other : members) {
+                if (other.id == self.id) continue;
+                Vec2 away = { self.pos.x - other.pos.x, self.pos.y - other.pos.y };
+                const float dist2 = lengthSq(away);
+                if (dist2 < 1e-6f || dist2 >= sepR * sepR) continue;
+                const float dist = std::sqrt(dist2);
+                const float strength = (sepR - dist) / sepR;
+                steer.x += (away.x / dist) * strength * self.cfg.separationWeight;
+                steer.y += (away.y / dist) * strength * self.cfg.separationWeight;
+            }
+        }
+
+        const Vec2 dir = normalizeOrZero(steer);
+        const Vec2 velocity = {
+            dir.x * std::max(0.f, self.cfg.maxSpeed),
+            dir.y * std::max(0.f, self.cfg.maxSpeed),
+        };
+        applySteeringVelocity(physics_, entityGateway_, self.id, velocity, dt);
+    }
+}
+
 void World::tickMagneticItems(float dt) {
     entityGateway_.forEachActiveMagneticItem(
         [this, dt](EntityId magnetId, const MagneticItemComponent& mag) {
@@ -423,21 +508,7 @@ void World::tickMagneticItems(float dt) {
                 const Vec2 dir = normalizeOrZero(toMagnet);
                 const Vec2 velocity = { dir.x * speed, dir.y * speed };
 
-                const uint32_t handle = entityGateway_.physicsHandle(itemId);
-                if (handle != 0) {
-                    PhysicsComponent physics{};
-                    if (entityGateway_.getPhysicsComponent(itemId, physics) &&
-                        physics.bodyType != BodyType::Static)
-                    {
-                        physics_.setLinearVelocity(handle, velocity);
-                        continue;
-                    }
-                }
-
-                itemTransform.velocity = velocity;
-                itemTransform.position.x += velocity.x * dt;
-                itemTransform.position.y += velocity.y * dt;
-                entityGateway_.setTransform(itemId, itemTransform);
+                applySteeringVelocity(physics_, entityGateway_, itemId, velocity, dt);
             }
         });
 }
@@ -449,6 +520,7 @@ void World::tickGameplaySystems(float dt) {
     tickTopDownControllers(dt);
     tickLinearMovers(dt);
     tickMagneticItems(dt);
+    tickHordeMembers(dt);
     tickSensorOverlapEdges();
 }
 

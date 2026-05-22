@@ -123,6 +123,16 @@ EntityDef parseEntityDef(const json& j, EntityId fallbackId) {
         mi.pullSpeed  = m.value("pullSpeed", 400.f);
         e.magneticItem = mi;
     }
+    if (j.contains("hordeMember") && j["hordeMember"].is_object()) {
+        const auto& h = j["hordeMember"];
+        HordeMemberComponent hm;
+        hm.targetClass      = h.value("targetClass", std::string("Player"));
+        hm.maxSpeed         = h.value("maxSpeed", 120.f);
+        hm.separationRadius = h.value("separationRadius", 48.f);
+        hm.separationWeight = h.value("separationWeight", 1.5f);
+        hm.chaseWeight      = h.value("chaseWeight", 1.f);
+        e.hordeMember = hm;
+    }
     if (j.contains("health") && j["health"].is_object()) {
         const auto& h = j["health"];
         HealthComponent hc;

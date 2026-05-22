@@ -57,6 +57,11 @@ int main() {
     magneticItem.radius = 180.f;
     magneticItem.pullSpeed = 350.f;
     player.magneticItem = magneticItem;
+    HordeMemberComponent hordeMember;
+    hordeMember.targetClass = "Player";
+    hordeMember.maxSpeed = 90.f;
+    hordeMember.separationRadius = 40.f;
+    player.hordeMember = hordeMember;
 
     EntityDef coin;
     coin.id = 2;
@@ -115,6 +120,11 @@ int main() {
     CHECK(loadedMagnet.attractTag == "pickup");
     CHECK(std::abs(loadedMagnet.radius - 180.f) < 0.01f);
     CHECK(std::abs(loadedMagnet.pullSpeed - 350.f) < 0.01f);
+    HordeMemberComponent loadedHorde{};
+    CHECK(gw.getHordeMember(1, loadedHorde));
+    CHECK(loadedHorde.targetClass == "Player");
+    CHECK(std::abs(loadedHorde.maxSpeed - 90.f) < 0.01f);
+    CHECK(std::abs(loadedHorde.separationRadius - 40.f) < 0.01f);
 
     const EntityId spawned = gw.spawnFromClass("Coin", 50.f, 60.f);
     CHECK(spawned != 0);

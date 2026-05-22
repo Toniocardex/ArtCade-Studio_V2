@@ -58,6 +58,15 @@ export interface MagneticItemComponent {
   pullSpeed:  number           // px/s toward holder
 }
 
+/** Swarm AI: chase nearest target class + separate from peers. */
+export interface HordeMemberComponent {
+  targetClass:      string
+  maxSpeed:         number
+  separationRadius: number
+  separationWeight: number
+  chaseWeight:      number
+}
+
 /** Hit points + invulnerability window. */
 export interface HealthComponent {
   maxHp:     number
@@ -82,6 +91,7 @@ export interface EntityComponents {
   linearMover?:          LinearMoverComponent
   cameraTarget?:         CameraTargetComponent
   magneticItem?:         MagneticItemComponent
+  hordeMember?:          HordeMemberComponent
   health?:               HealthComponent
   autoDestroy?:          AutoDestroyComponent
 }
@@ -91,5 +101,5 @@ export type ComponentKey = keyof EntityComponents
 /** Runtime list of optional component field names (parse/serialize). */
 export const COMPONENT_KEYS: ComponentKey[] = [
   'sensor', 'platformerController', 'topDownController', 'linearMover',
-  'cameraTarget', 'magneticItem', 'health', 'autoDestroy',
+  'cameraTarget', 'magneticItem', 'hordeMember', 'health', 'autoDestroy',
 ]

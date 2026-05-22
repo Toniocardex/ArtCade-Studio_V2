@@ -14,6 +14,7 @@ import type {
   LinearMoverComponent,
   CameraTargetComponent,
   MagneticItemComponent,
+  HordeMemberComponent,
   PlatformerControllerComponent,
   SensorComponent,
   TopDownControllerComponent,
@@ -62,6 +63,10 @@ const CAMERA_TARGET: CameraTargetComponent = {
 }
 const MAGNETIC_ITEM: MagneticItemComponent = {
   attractTag: 'pickup', radius: 200, pullSpeed: 400,
+}
+const HORDE_MEMBER: HordeMemberComponent = {
+  targetClass: 'Player', maxSpeed: 120,
+  separationRadius: 48, separationWeight: 1.5, chaseWeight: 1,
 }
 const HEALTH: HealthComponent = { maxHp: 100, currentHp: 100, iFrames: 0.2 }
 const AUTODESTROY: AutoDestroyComponent = { lifespan: 0 }
@@ -145,6 +150,19 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
       { key: 'attractTag', label: 'Attract tag', kind: 'text' },
       { key: 'radius', label: 'Radius (px, 0=any)', kind: 'number', min: 0, step: 10 },
       { key: 'pullSpeed', label: 'Pull speed (px/s)', kind: 'number', min: 0, step: 10 },
+    ],
+  },
+  {
+    key: 'hordeMember',
+    label: 'Horde Member',
+    color: 'var(--warn)',
+    create: () => ({ ...HORDE_MEMBER }),
+    fields: [
+      { key: 'targetClass', label: 'Chase class', kind: 'text' },
+      { key: 'maxSpeed', label: 'Max speed (px/s)', kind: 'number', min: 0, step: 10 },
+      { key: 'separationRadius', label: 'Separation radius (px)', kind: 'number', min: 0, step: 4 },
+      { key: 'separationWeight', label: 'Separation weight', kind: 'number', min: 0, step: 0.1 },
+      { key: 'chaseWeight', label: 'Chase weight', kind: 'number', min: 0, step: 0.1 },
     ],
   },
   {

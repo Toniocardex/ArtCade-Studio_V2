@@ -55,6 +55,7 @@ interface FpEntity {
   lm?: unknown               // linearMover
   ct?: unknown               // cameraTarget
   mi?: unknown               // magneticItem
+  hm?: unknown               // hordeMember
   he?: unknown               // health
   ad?: unknown               // autoDestroy
 }
@@ -107,6 +108,7 @@ function projectEntity(e: EntityDef): FpEntity {
     lm: e.linearMover,
     ct: e.cameraTarget,
     mi: e.magneticItem,
+    hm: e.hordeMember,
     he: e.health,
     ad: e.autoDestroy,
   }

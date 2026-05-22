@@ -138,6 +138,15 @@ struct MagneticItemComponent {
     float       pullSpeed  = 400.f;   // px/s toward holder
 };
 
+/** Swarm steering: chase a class + separate from other horde members. */
+struct HordeMemberComponent {
+    std::string targetClass      = "Player";
+    float       maxSpeed         = 120.f;
+    float       separationRadius = 48.f;
+    float       separationWeight = 1.5f;
+    float       chaseWeight      = 1.f;
+};
+
 /** Runtime-only: not serialized from project JSON. */
 struct EntityRuntimeFlags {
     bool sceneActive = true;
@@ -189,6 +198,7 @@ struct EntityDef {
     std::optional<LinearMoverComponent>          linearMover;
     std::optional<CameraTargetComponent>         cameraTarget;
     std::optional<MagneticItemComponent>         magneticItem;
+    std::optional<HordeMemberComponent>          hordeMember;
     std::optional<HealthComponent>               health;
     std::optional<AutoDestroyComponent>          autoDestroy;
     EntityRuntimeFlags                           runtime;

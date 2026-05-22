@@ -109,6 +109,10 @@ public:
     void setMagneticItem(EntityId id,
                          const std::optional<MagneticItemComponent>& m);
 
+    bool getHordeMember(EntityId id, HordeMemberComponent& out) const;
+    void setHordeMember(EntityId id,
+                        const std::optional<HordeMemberComponent>& h);
+
     bool getAutoDestroy(EntityId id, AutoDestroyComponent& out) const;
     void setAutoDestroy(EntityId id,
                         const std::optional<AutoDestroyComponent>& ad);
@@ -181,6 +185,10 @@ public:
     using ActiveMagneticItemFn = std::function<void(
         EntityId, const MagneticItemComponent&)>;
     void forEachActiveMagneticItem(const ActiveMagneticItemFn& fn) const;
+
+    using ActiveHordeMemberFn = std::function<void(
+        EntityId, const HordeMemberComponent&)>;
+    void forEachActiveHordeMember(const ActiveHordeMemberFn& fn) const;
 
     using ActiveSensorFn = std::function<void(
         EntityId, const SensorComponent&)>;

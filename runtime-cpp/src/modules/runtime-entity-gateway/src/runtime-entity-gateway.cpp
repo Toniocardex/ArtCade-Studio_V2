@@ -171,6 +171,7 @@ void RuntimeEntityGateway::applyEntityDefToRegistry(
     registry_->setLinearMover(id, def.linearMover);
     registry_->setCameraTarget(id, def.cameraTarget);
     registry_->setMagneticItem(id, def.magneticItem);
+    registry_->setHordeMember(id, def.hordeMember);
     registry_->setAutoDestroy(id, def.autoDestroy);
     registry_->setHealth(id, def.health);
     registry_->setIdentity(id, def.className, def.tags);
@@ -415,6 +416,20 @@ bool RuntimeEntityGateway::setMagneticItem(
     return true;
 }
 
+bool RuntimeEntityGateway::getHordeMember(
+    EntityId id, HordeMemberComponent& out) const
+{
+    return registry_->getHordeMember(id, out);
+}
+
+bool RuntimeEntityGateway::setHordeMember(
+    EntityId id, const std::optional<HordeMemberComponent>& horde)
+{
+    if (!registry_->contains(id)) return false;
+    registry_->setHordeMember(id, horde);
+    return true;
+}
+
 bool RuntimeEntityGateway::getAutoDestroy(EntityId id, AutoDestroyComponent& out) const {
     return registry_->getAutoDestroy(id, out);
 }
@@ -534,6 +549,12 @@ void RuntimeEntityGateway::forEachActiveMagneticItem(
     const ActiveMagneticItemFn& fn) const
 {
     registry_->forEachActiveMagneticItem(fn);
+}
+
+void RuntimeEntityGateway::forEachActiveHordeMember(
+    const ActiveHordeMemberFn& fn) const
+{
+    registry_->forEachActiveHordeMember(fn);
 }
 
 void RuntimeEntityGateway::forEachActiveSensor(

@@ -69,6 +69,8 @@ public:
     bool setCameraTarget(EntityId id, const std::optional<CameraTargetComponent>& target);
     bool getMagneticItem(EntityId id, MagneticItemComponent& out) const;
     bool setMagneticItem(EntityId id, const std::optional<MagneticItemComponent>& item);
+    bool getHordeMember(EntityId id, HordeMemberComponent& out) const;
+    bool setHordeMember(EntityId id, const std::optional<HordeMemberComponent>& horde);
     bool getAutoDestroy(EntityId id, AutoDestroyComponent& out) const;
     bool setAutoDestroy(EntityId id, const std::optional<AutoDestroyComponent>& autoDestroy);
 
@@ -124,6 +126,10 @@ public:
     using ActiveMagneticItemFn = std::function<void(
         EntityId, const MagneticItemComponent&)>;
     void forEachActiveMagneticItem(const ActiveMagneticItemFn& fn) const;
+
+    using ActiveHordeMemberFn = std::function<void(
+        EntityId, const HordeMemberComponent&)>;
+    void forEachActiveHordeMember(const ActiveHordeMemberFn& fn) const;
 
     using ActiveSensorFn = std::function<void(
         EntityId, const SensorComponent&)>;

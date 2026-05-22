@@ -472,6 +472,25 @@ void EntityRegistry::setMagneticItem(
     else   impl_->reg.remove<MagneticItemComponent>(e);
 }
 
+bool EntityRegistry::getHordeMember(EntityId id,
+                                    HordeMemberComponent& out) const {
+    const entt::entity e = impl_->toEntt(id);
+    if (e == entt::null) return false;
+    if (const auto* c = impl_->reg.try_get<HordeMemberComponent>(e)) {
+        out = *c;
+        return true;
+    }
+    return false;
+}
+
+void EntityRegistry::setHordeMember(
+    EntityId id, const std::optional<HordeMemberComponent>& h) {
+    const entt::entity e = impl_->toEntt(id);
+    if (e == entt::null) return;
+    if (h) impl_->reg.emplace_or_replace<HordeMemberComponent>(e, *h);
+    else   impl_->reg.remove<HordeMemberComponent>(e);
+}
+
 bool EntityRegistry::getAutoDestroy(EntityId id,
                                     AutoDestroyComponent& out) const {
     const entt::entity e = impl_->toEntt(id);
@@ -655,6 +674,22 @@ void EntityRegistry::forEachActiveMagneticItem(
         const auto* m = reg.try_get<MagneticItemComponent>(e);
         if (!m) continue;
         fn(id, *m);
+    }
+}
+
+void EntityRegistry::forEachActiveHordeMember(
+    const ActiveHordeMemberFn& fn) const
+{
+    auto& reg = impl_->reg;
+    const size_t n = impl_->insertionOrder.size();
+    for (size_t i = 0; i < n; ++i) {
+        const EntityId id = impl_->insertionOrder[i];
+        const entt::entity e = impl_->toEntt(id);
+        if (e == entt::null) continue;
+        if (!reg.all_of<SceneActiveTag>(e)) continue;
+        const auto* h = reg.try_get<HordeMemberComponent>(e);
+        if (!h) continue;
+        fn(id, *h);
     }
 }
 

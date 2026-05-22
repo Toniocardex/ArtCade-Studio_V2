@@ -117,14 +117,16 @@ Advanced target:
   **Integrato end-to-end**: Inspector, ProjectDoc, parser, gateway,
   `World::tickMagneticItems`, test `world_intent_test` + gateway.
 - `HordeMemberComponent`: steering/swarm AI con separazione tra simili.
+  **Integrato end-to-end**: chase `targetClass`, separation tra peers,
+  `World::tickHordeMembers`, test intent + gateway.
 - `ProceduralJuiceComponent`: deformazioni visive procedurali senza cambiare
   hitbox fisiche.
 - `GrapplingHookComponent`: rope/joint Box2D e azioni Logic Board dedicate.
 
 Ordine consigliato: completare i Core mancanti prima degli Advanced, salvo
 necessita demo specifiche. Core MVP catalogo completato (Platformer, TopDown,
-LinearMover, CameraTarget). Advanced: `MagneticItemComponent` integrato;
-prossimi candidati: `HordeMemberComponent`, `ProceduralJuiceComponent`,
+LinearMover, CameraTarget). Advanced: `MagneticItemComponent`,
+`HordeMemberComponent` integrati; prossimi: `ProceduralJuiceComponent`,
 `GrapplingHookComponent`.
 
 ### Verifiche Ultima Tranche

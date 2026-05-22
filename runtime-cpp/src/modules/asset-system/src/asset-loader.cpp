@@ -243,6 +243,16 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
                 mi.pullSpeed  = m.value("pullSpeed", 400.f);
                 e.magneticItem = mi;
             }
+            if (ev.contains("hordeMember") && ev["hordeMember"].is_object()) {
+                auto& h = ev["hordeMember"];
+                HordeMemberComponent hm;
+                hm.targetClass      = h.value("targetClass", std::string("Player"));
+                hm.maxSpeed         = h.value("maxSpeed", 120.f);
+                hm.separationRadius = h.value("separationRadius", 48.f);
+                hm.separationWeight = h.value("separationWeight", 1.5f);
+                hm.chaseWeight      = h.value("chaseWeight", 1.f);
+                e.hordeMember = hm;
+            }
             if (ev.contains("health") && ev["health"].is_object()) {
                 auto& h = ev["health"];
                 HealthComponent hc;
