@@ -111,6 +111,13 @@ struct PlatformerControllerComponent {
     std::string groundClass = "Ground";
 };
 
+struct TopDownControllerComponent {
+    float maxSpeed       = 260.f;
+    float acceleration   = 1600.f;
+    float friction       = 2200.f;
+    bool  fourDirections = false;
+};
+
 /** Runtime-only: not serialized from project JSON. */
 struct EntityRuntimeFlags {
     bool sceneActive = true;
@@ -158,6 +165,7 @@ struct EntityDef {
     // Optional gameplay components (Phase D1)
     std::optional<SensorComponent>               sensor;
     std::optional<PlatformerControllerComponent> platformerController;
+    std::optional<TopDownControllerComponent>    topDownController;
     std::optional<HealthComponent>               health;
     std::optional<AutoDestroyComponent>          autoDestroy;
     EntityRuntimeFlags                           runtime;

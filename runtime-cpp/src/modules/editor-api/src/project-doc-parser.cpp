@@ -90,6 +90,15 @@ EntityDef parseEntityDef(const json& j, EntityId fallbackId) {
         pc.groundClass   = p.value("groundClass", std::string("Ground"));
         e.platformerController = pc;
     }
+    if (j.contains("topDownController") && j["topDownController"].is_object()) {
+        const auto& t = j["topDownController"];
+        TopDownControllerComponent tc;
+        tc.maxSpeed       = t.value("maxSpeed", 260.f);
+        tc.acceleration   = t.value("acceleration", 1600.f);
+        tc.friction       = t.value("friction", 2200.f);
+        tc.fourDirections = t.value("fourDirections", false);
+        e.topDownController = tc;
+    }
     if (j.contains("health") && j["health"].is_object()) {
         const auto& h = j["health"];
         HealthComponent hc;

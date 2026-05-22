@@ -103,12 +103,16 @@ void RuntimeEntityGateway::ensurePhysicsBody(EntityId id) {
         comp.collider.size.x > 2.f && comp.collider.size.y > 2.f;
     PlatformerControllerComponent platformer{};
     const bool hasPlatformer = getPlatformerController(id, platformer);
-    if (!hasCollider && !hasPlatformer) return;
+    TopDownControllerComponent topDown{};
+    const bool hasTopDown = getTopDownController(id, topDown);
+    if (!hasCollider && !hasPlatformer && !hasTopDown) return;
 
     if (!hasCollider) {
         comp.collider.size = { 32.f, 32.f };
         comp.bodyType = BodyType::Dynamic;
     }
+    if (hasTopDown && !hasPlatformer)
+        comp.bodyType = BodyType::Kinematic;
 
     const uint32_t handle = physics_->createBody(id, comp);
     if (handle == 0) return;
@@ -173,6 +177,7 @@ void RuntimeEntityGateway::applyEntityDefToRegistry(
     registry_->setPhysics(id, def.physics);
     registry_->setSensor(id, def.sensor);
     registry_->setPlatformer(id, def.platformerController);
+    registry_->setTopDown(id, def.topDownController);
     registry_->setAutoDestroy(id, def.autoDestroy);
     registry_->setHealth(id, def.health);
     registry_->setIdentity(id, def.className, def.tags);
@@ -363,6 +368,20 @@ bool RuntimeEntityGateway::setPlatformerController(
     return true;
 }
 
+bool RuntimeEntityGateway::getTopDownController(
+    EntityId id, TopDownControllerComponent& out) const
+{
+    return registry_->getTopDown(id, out);
+}
+
+bool RuntimeEntityGateway::setTopDownController(
+    EntityId id, const std::optional<TopDownControllerComponent>& controller)
+{
+    if (!registry_->contains(id)) return false;
+    registry_->setTopDown(id, controller);
+    return true;
+}
+
 bool RuntimeEntityGateway::getAutoDestroy(EntityId id, AutoDestroyComponent& out) const {
     return registry_->getAutoDestroy(id, out);
 }
@@ -458,6 +477,12 @@ void RuntimeEntityGateway::forEachActivePlatformer(
     const ActivePlatformerFn& fn) const
 {
     registry_->forEachActivePlatformer(fn);
+}
+
+void RuntimeEntityGateway::forEachActiveTopDown(
+    const ActiveTopDownFn& fn) const
+{
+    registry_->forEachActiveTopDown(fn);
 }
 
 void RuntimeEntityGateway::forEachActiveSensor(

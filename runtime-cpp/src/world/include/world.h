@@ -76,6 +76,11 @@ private:
     };
     std::unordered_map<EntityId, PlatformerRt> platformerRt_;
 
+    struct TopDownRt {
+        Vec2 velocity;
+    };
+    std::unordered_map<EntityId, TopDownRt> topDownRt_;
+
     struct ControlIntent {
         Vec2 movement;
         bool hasMovement   = false;
@@ -97,6 +102,7 @@ private:
 
     bool isGrounded(EntityId id, const std::string& groundClass) const;
     void tickPlatformerControllers(float dt);
+    void tickTopDownControllers(float dt);
     void tickSensorOverlapEdges();
 };
 

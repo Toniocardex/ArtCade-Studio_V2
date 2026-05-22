@@ -93,6 +93,10 @@ public:
     void setPlatformer(EntityId id,
                        const std::optional<PlatformerControllerComponent>& p);
 
+    bool getTopDown(EntityId id, TopDownControllerComponent& out) const;
+    void setTopDown(EntityId id,
+                    const std::optional<TopDownControllerComponent>& t);
+
     bool getAutoDestroy(EntityId id, AutoDestroyComponent& out) const;
     void setAutoDestroy(EntityId id,
                         const std::optional<AutoDestroyComponent>& ad);
@@ -149,6 +153,10 @@ public:
     using ActivePlatformerFn = std::function<void(
         EntityId, const PlatformerControllerComponent&)>;
     void forEachActivePlatformer(const ActivePlatformerFn& fn) const;
+
+    using ActiveTopDownFn = std::function<void(
+        EntityId, const TopDownControllerComponent&)>;
+    void forEachActiveTopDown(const ActiveTopDownFn& fn) const;
 
     using ActiveSensorFn = std::function<void(
         EntityId, const SensorComponent&)>;

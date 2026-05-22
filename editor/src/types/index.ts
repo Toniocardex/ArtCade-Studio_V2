@@ -9,7 +9,7 @@ import type { LogicBoardDoc } from './logic-board'
 import type { TileDef, TilemapLayer, TilesetAsset } from './tilemap'
 import type {
   SensorComponent, PlatformerControllerComponent,
-  HealthComponent, AutoDestroyComponent,
+  TopDownControllerComponent, HealthComponent, AutoDestroyComponent,
 } from './components'
 
 export interface Vec2 { x: number; y: number }
@@ -69,6 +69,7 @@ export interface EntityDef {
   // ECS gameplay components (Scene Editor Phase A) — optional, strongly typed
   sensor?:               SensorComponent
   platformerController?: PlatformerControllerComponent
+  topDownController?:    TopDownControllerComponent
   health?:               HealthComponent
   autoDestroy?:          AutoDestroyComponent
 }

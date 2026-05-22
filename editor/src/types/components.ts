@@ -29,6 +29,14 @@ export interface PlatformerControllerComponent {
   jumpBuffer:    number      // s — early jump-press tolerance
 }
 
+/** Arcade top-down movement driven by movement intents. */
+export interface TopDownControllerComponent {
+  maxSpeed:       number      // px/s
+  acceleration:   number      // px/s^2
+  friction:       number      // px/s^2 applied when no movement intent
+  fourDirections: boolean     // constrain movement to one axis
+}
+
 /** Hit points + invulnerability window. */
 export interface HealthComponent {
   maxHp:     number
@@ -49,6 +57,7 @@ export interface AutoDestroyComponent {
 export interface EntityComponents {
   sensor?:               SensorComponent
   platformerController?: PlatformerControllerComponent
+  topDownController?:    TopDownControllerComponent
   health?:               HealthComponent
   autoDestroy?:          AutoDestroyComponent
 }
@@ -57,5 +66,5 @@ export type ComponentKey = keyof EntityComponents
 
 /** Runtime list of optional component field names (parse/serialize). */
 export const COMPONENT_KEYS: ComponentKey[] = [
-  'sensor', 'platformerController', 'health', 'autoDestroy',
+  'sensor', 'platformerController', 'topDownController', 'health', 'autoDestroy',
 ]

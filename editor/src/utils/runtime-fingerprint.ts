@@ -51,6 +51,7 @@ interface FpEntity {
   ph?: unknown               // physics — opaque, full snapshot
   se?: unknown               // sensor
   pc?: unknown               // platformerController
+  td?: unknown               // topDownController
   he?: unknown               // health
   ad?: unknown               // autoDestroy
 }
@@ -99,6 +100,7 @@ function projectEntity(e: EntityDef): FpEntity {
     ph: e.physics,
     se: e.sensor,
     pc: e.platformerController,
+    td: e.topDownController,
     he: e.health,
     ad: e.autoDestroy,
   }

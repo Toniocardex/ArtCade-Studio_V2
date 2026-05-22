@@ -38,6 +38,10 @@ int main() {
     PlatformerControllerComponent playerController;
     playerController.groundClass = "Ground";
     player.platformerController = playerController;
+    TopDownControllerComponent topDownController;
+    topDownController.maxSpeed = 180.f;
+    topDownController.fourDirections = true;
+    player.topDownController = topDownController;
 
     EntityDef coin;
     coin.id = 2;
@@ -78,6 +82,10 @@ int main() {
     PlatformerControllerComponent loadedController{};
     CHECK(gw.getPlatformerController(1, loadedController));
     CHECK(loadedController.groundClass == "Ground");
+    TopDownControllerComponent loadedTopDown{};
+    CHECK(gw.getTopDownController(1, loadedTopDown));
+    CHECK(loadedTopDown.maxSpeed == 180.f);
+    CHECK(loadedTopDown.fourDirections);
 
     const EntityId spawned = gw.spawnFromClass("Coin", 50.f, 60.f);
     CHECK(spawned != 0);

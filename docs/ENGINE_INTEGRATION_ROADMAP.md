@@ -99,7 +99,9 @@ Core MVP target:
 - `PlatformerControllerComponent`: movimento side-scroller con velocita max,
   accelerazione, salto e moltiplicatore gravita.
 - `TopDownControllerComponent`: movimento libero X/Y, accelerazione, attrito
-  e opzione 4-direzioni.
+  e opzione 4-direzioni. **Integrato end-to-end**: Inspector, ProjectDoc,
+  parser native/WASM, registry/gateway, sistema World basato su movement
+  intent e test.
 - `SolidComponent` / `PhysicsComponent` statico: ostacoli statici, inclusa
   futura opzione one-way platform.
 - `LinearMoverComponent` / Bullet: moto lineare continuo, direzione/velocita,
@@ -114,18 +116,21 @@ Advanced target:
   hitbox fisiche.
 - `GrapplingHookComponent`: rope/joint Box2D e azioni Logic Board dedicate.
 
-Ordine consigliato: consolidare i Core mancanti prima degli Advanced, salvo
-necessita demo specifiche. Primo candidato utile resta `MagneticItemComponent`
-perche valida Component nativo, eventi sensore e raccolta coin.
+Ordine consigliato: completare i Core mancanti prima degli Advanced, salvo
+necessita demo specifiche. Prossimi Core candidati: `LinearMoverComponent`
+per proiettili/barriere e `CameraTargetComponent` per camera runtime
+data-driven. Primo Advanced utile resta `MagneticItemComponent` perche valida
+Component nativo, eventi sensore e raccolta coin.
 
 ### Verifiche Ultima Tranche
 
-- Build C++ Release: passata (locale).
-- `ctest --test-dir runtime-cpp/build-msvc --output-on-failure`: atteso 18/18
-  (inclusi `asset_loader_test`, health/sensor debt-fix tests).
-- `npm.cmd test` in `editor`: 200/200 passati.
+- Build C++ Release: passata in `runtime-cpp/build-nmake`.
+- `ctest --test-dir runtime-cpp/build-nmake --output-on-failure`: 18/18
+  passati.
+- `npm.cmd test` in `editor`: 206/206 passati.
 - `npm.cmd run build`: passato.
-- `runtime-cpp/build_wasm.bat`: passato dopo fix runtime.
+- `runtime-cpp/build_wasm.bat`: passato; preview runtime copiato in
+  `editor/public/runtime`.
 
 Warning residui noti:
 

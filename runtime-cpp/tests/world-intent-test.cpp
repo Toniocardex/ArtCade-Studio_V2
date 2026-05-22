@@ -139,6 +139,76 @@ static void test_platformer_jump_intent_without_input() {
     CHECK(velocity.y < -499.f);
 }
 
+static void test_top_down_movement_intent_without_input() {
+    Fixture f;
+
+    EntityDef player = makeEntity(1, "Player", {"player"});
+    player.physics.bodyType = BodyType::Dynamic;
+    player.physics.collider.size = { 32.f, 32.f };
+    TopDownControllerComponent tc;
+    tc.maxSpeed = 120.f;
+    tc.acceleration = 1000.f;
+    tc.friction = 1000.f;
+    player.topDownController = tc;
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1 };
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.scenes = {{ scene.id, scene }};
+    doc.entities = {{ 1, player }};
+    f.world.init(doc);
+
+    f.world.setMovementIntent(1, 1.f, 1.f);
+    f.world.tickGameplaySystems(1.f);
+    f.physics.step(1.f / 60.f);
+    f.world.syncPhysicsToEntities();
+    Vec2 velocity = f.physics.getLinearVelocity(f.gw.physicsHandle(1));
+    CHECK(std::abs(velocity.x - 84.8528f) < 0.1f);
+    CHECK(std::abs(velocity.y - 84.8528f) < 0.1f);
+
+    f.world.clearMovementIntent(1);
+    f.world.tickGameplaySystems(1.f);
+    f.physics.step(1.f / 60.f);
+    f.world.syncPhysicsToEntities();
+    velocity = f.physics.getLinearVelocity(f.gw.physicsHandle(1));
+    CHECK(std::abs(velocity.x) < 0.01f);
+    CHECK(std::abs(velocity.y) < 0.01f);
+}
+
+static void test_top_down_four_direction_constraint() {
+    Fixture f;
+
+    EntityDef player = makeEntity(1, "Player", {"player"});
+    player.physics.bodyType = BodyType::Dynamic;
+    player.physics.collider.size = { 32.f, 32.f };
+    TopDownControllerComponent tc;
+    tc.maxSpeed = 100.f;
+    tc.acceleration = 1000.f;
+    tc.fourDirections = true;
+    player.topDownController = tc;
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1 };
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.scenes = {{ scene.id, scene }};
+    doc.entities = {{ 1, player }};
+    f.world.init(doc);
+
+    f.world.setMovementIntent(1, 0.25f, 1.f);
+    f.world.tickGameplaySystems(1.f);
+    f.physics.step(1.f / 60.f);
+    f.world.syncPhysicsToEntities();
+    const Vec2 velocity = f.physics.getLinearVelocity(f.gw.physicsHandle(1));
+    CHECK(std::abs(velocity.x) < 0.01f);
+    CHECK(std::abs(velocity.y - 100.f) < 0.01f);
+}
+
 static void test_sensor_edges_are_drained_deterministically() {
     Fixture f;
 
@@ -260,18 +330,19 @@ static void test_set_sensor_replaces_fixture_without_duplicates() {
 
     f.physics.setPosition(f.gw.physicsHandle(2), { 0.f, 0.f });
     f.world.tickGameplaySystems(1.f / 60.f);
-    CHECK(f.world.pollSensorEdges().empty());
-
-    f.physics.setPosition(f.gw.physicsHandle(2), { 0.f, 0.f });
-    f.world.tickGameplaySystems(1.f / 60.f);
     auto events = f.world.pollSensorEdges();
     CHECK(events.size() == 1);
-    CHECK(events[0].enter);
+    if (events.size() == 1) CHECK(events[0].enter);
+
+    f.world.tickGameplaySystems(1.f / 60.f);
+    CHECK(f.world.pollSensorEdges().empty());
 }
 
 int main() {
     test_platformer_movement_intent_without_input();
     test_platformer_jump_intent_without_input();
+    test_top_down_movement_intent_without_input();
+    test_top_down_four_direction_constraint();
     test_sensor_edges_are_drained_deterministically();
     test_set_sensor_syncs_fixture_after_body();
     test_set_sensor_replaces_fixture_without_duplicates();
@@ -280,4 +351,3 @@ int main() {
               << g_failed << " failed\n";
     return g_failed == 0 ? 0 : 1;
 }
-

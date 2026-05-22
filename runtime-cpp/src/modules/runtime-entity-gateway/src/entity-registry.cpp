@@ -396,6 +396,25 @@ void EntityRegistry::setPlatformer(
     else   impl_->reg.remove<PlatformerControllerComponent>(e);
 }
 
+bool EntityRegistry::getTopDown(EntityId id,
+                                TopDownControllerComponent& out) const {
+    const entt::entity e = impl_->toEntt(id);
+    if (e == entt::null) return false;
+    if (const auto* c = impl_->reg.try_get<TopDownControllerComponent>(e)) {
+        out = *c;
+        return true;
+    }
+    return false;
+}
+
+void EntityRegistry::setTopDown(
+    EntityId id, const std::optional<TopDownControllerComponent>& t) {
+    const entt::entity e = impl_->toEntt(id);
+    if (e == entt::null) return;
+    if (t) impl_->reg.emplace_or_replace<TopDownControllerComponent>(e, *t);
+    else   impl_->reg.remove<TopDownControllerComponent>(e);
+}
+
 bool EntityRegistry::getAutoDestroy(EntityId id,
                                     AutoDestroyComponent& out) const {
     const entt::entity e = impl_->toEntt(id);
@@ -515,6 +534,22 @@ void EntityRegistry::forEachActivePlatformer(
         const auto* p = reg.try_get<PlatformerControllerComponent>(e);
         if (!p) continue;
         fn(id, *p);
+    }
+}
+
+void EntityRegistry::forEachActiveTopDown(
+    const ActiveTopDownFn& fn) const
+{
+    auto& reg = impl_->reg;
+    const size_t n = impl_->insertionOrder.size();
+    for (size_t i = 0; i < n; ++i) {
+        const EntityId id = impl_->insertionOrder[i];
+        const entt::entity e = impl_->toEntt(id);
+        if (e == entt::null) continue;
+        if (!reg.all_of<SceneActiveTag>(e)) continue;
+        const auto* t = reg.try_get<TopDownControllerComponent>(e);
+        if (!t) continue;
+        fn(id, *t);
     }
 }
 

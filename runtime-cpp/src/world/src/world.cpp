@@ -9,6 +9,45 @@
 
 namespace ArtCade {
 
+namespace {
+
+float lengthSq(Vec2 v) {
+    return v.x * v.x + v.y * v.y;
+}
+
+Vec2 normalizeOrZero(Vec2 v) {
+    const float len2 = lengthSq(v);
+    if (len2 <= 0.000001f) return {};
+    const float inv = 1.f / std::sqrt(len2);
+    return { v.x * inv, v.y * inv };
+}
+
+Vec2 approach(Vec2 current, Vec2 target, float maxDelta) {
+    const Vec2 delta{ target.x - current.x, target.y - current.y };
+    const float dist2 = lengthSq(delta);
+    if (dist2 <= maxDelta * maxDelta || dist2 <= 0.000001f)
+        return target;
+    const float inv = 1.f / std::sqrt(dist2);
+    return {
+        current.x + delta.x * inv * maxDelta,
+        current.y + delta.y * inv * maxDelta,
+    };
+}
+
+Vec2 constrainTopDownDirection(Vec2 direction, bool fourDirections) {
+    direction.x = std::clamp(direction.x, -1.f, 1.f);
+    direction.y = std::clamp(direction.y, -1.f, 1.f);
+    if (fourDirections && direction.x != 0.f && direction.y != 0.f) {
+        if (std::abs(direction.x) >= std::abs(direction.y))
+            direction.y = 0.f;
+        else
+            direction.x = 0.f;
+    }
+    return normalizeOrZero(direction);
+}
+
+} // namespace
+
 World::World(Modules::RuntimeEntityGateway& gateway,
              Modules::Physics&              ph,
              Modules::VariableManager&      variables)
@@ -64,6 +103,7 @@ void World::rebuildTilemapPhysics() {
 
 void World::clearGameplayRuntimeState() {
     platformerRt_.clear();
+    topDownRt_.clear();
     controlIntents_.clear();
     sensorWasOverlapping_.clear();
     sensorEdgeBuffer_.clear();
@@ -90,6 +130,7 @@ void World::init(const ProjectDoc& doc) {
 void World::shutdown() {
     variables_.clear();
     platformerRt_.clear();
+    topDownRt_.clear();
     controlIntents_.clear();
     sensorWasOverlapping_.clear();
     sensorEdgeBuffer_.clear();
@@ -213,6 +254,49 @@ void World::tickPlatformerControllers(float dt) {
         });
 }
 
+void World::tickTopDownControllers(float dt) {
+    entityGateway_.forEachActiveTopDown(
+        [this, dt](EntityId id, const TopDownControllerComponent& tc) {
+            PlatformerControllerComponent platformer{};
+            if (entityGateway_.getPlatformerController(id, platformer))
+                return;
+
+            auto& rt = topDownRt_[id];
+            auto intentIt = controlIntents_.find(id);
+            ControlIntent* intent = intentIt != controlIntents_.end()
+                ? &intentIt->second
+                : nullptr;
+
+            Vec2 targetVelocity{};
+            if (intent && intent->hasMovement) {
+                const Vec2 direction = constrainTopDownDirection(
+                    intent->movement, tc.fourDirections);
+                targetVelocity = {
+                    direction.x * tc.maxSpeed,
+                    direction.y * tc.maxSpeed,
+                };
+                rt.velocity = approach(
+                    rt.velocity, targetVelocity, std::max(0.f, tc.acceleration) * dt);
+            } else {
+                rt.velocity = approach(
+                    rt.velocity, {}, std::max(0.f, tc.friction) * dt);
+            }
+
+            const uint32_t handle = entityGateway_.physicsHandle(id);
+            if (handle != 0) {
+                physics_.setLinearVelocity(handle, rt.velocity);
+                return;
+            }
+
+            Transform transform{};
+            if (!entityGateway_.getTransform(id, transform)) return;
+            transform.velocity = rt.velocity;
+            transform.position.x += rt.velocity.x * dt;
+            transform.position.y += rt.velocity.y * dt;
+            entityGateway_.setTransform(id, transform);
+        });
+}
+
 void World::tickSensorOverlapEdges() {
     // EnTT visitor: deterministic insertion order so sensorEdgeBuffer_
     // (drained by Lua via pollSensorEdges) is reproducible across runs.
@@ -251,6 +335,7 @@ void World::tickGameplaySystems(float dt) {
     if (const SceneDef* sc = entityGateway_.activeScene())
         activeTilemap_ = sc->tilemap;
     tickPlatformerControllers(dt);
+    tickTopDownControllers(dt);
     tickSensorOverlapEdges();
 }
 

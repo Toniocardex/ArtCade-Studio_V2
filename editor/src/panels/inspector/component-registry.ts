@@ -13,6 +13,7 @@ import type {
   HealthComponent,
   PlatformerControllerComponent,
   SensorComponent,
+  TopDownControllerComponent,
 } from '../../types/components'
 
 export type FieldKind = 'number' | 'text' | 'select' | 'checkbox'
@@ -46,6 +47,9 @@ const SENSOR: SensorComponent = {
 const PLATFORMER: PlatformerControllerComponent = {
   maxSpeed: 300, jumpForce: 600, customGravity: 1500,
   coyoteTime: 0.15, jumpBuffer: 0.1,
+}
+const TOP_DOWN: TopDownControllerComponent = {
+  maxSpeed: 260, acceleration: 1600, friction: 2200, fourDirections: false,
 }
 const HEALTH: HealthComponent = { maxHp: 100, currentHp: 100, iFrames: 0.2 }
 const AUTODESTROY: AutoDestroyComponent = { lifespan: 0 }
@@ -84,6 +88,18 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
       { key: 'customGravity', label: 'Custom Gravity', kind: 'number', min: 0, step: 50 },
       { key: 'coyoteTime', label: 'Coyote Time (s)', kind: 'number', min: 0, step: 0.05 },
       { key: 'jumpBuffer', label: 'Jump Buffer (s)', kind: 'number', min: 0, step: 0.05 },
+    ],
+  },
+  {
+    key: 'topDownController',
+    label: 'Top-Down Controller',
+    color: 'var(--accent-2)',
+    create: () => ({ ...TOP_DOWN }),
+    fields: [
+      { key: 'maxSpeed', label: 'Max Speed (px/s)', kind: 'number', min: 0, step: 10 },
+      { key: 'acceleration', label: 'Acceleration (px/s^2)', kind: 'number', min: 0, step: 50 },
+      { key: 'friction', label: 'Friction (px/s^2)', kind: 'number', min: 0, step: 50 },
+      { key: 'fourDirections', label: 'Limit to 4 directions', kind: 'checkbox' },
     ],
   },
   {

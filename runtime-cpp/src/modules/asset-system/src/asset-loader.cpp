@@ -210,6 +210,15 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
                 pc.groundClass   = p.value("groundClass", std::string("Ground"));
                 e.platformerController = pc;
             }
+            if (ev.contains("topDownController") && ev["topDownController"].is_object()) {
+                auto& t = ev["topDownController"];
+                TopDownControllerComponent tc;
+                tc.maxSpeed       = t.value("maxSpeed", 260.f);
+                tc.acceleration   = t.value("acceleration", 1600.f);
+                tc.friction       = t.value("friction", 2200.f);
+                tc.fourDirections = t.value("fourDirections", false);
+                e.topDownController = tc;
+            }
             if (ev.contains("health") && ev["health"].is_object()) {
                 auto& h = ev["health"];
                 HealthComponent hc;
