@@ -37,6 +37,7 @@ describe('coreReducer — scenes & objects', () => {
     const s = coreReducer(st(project()), { type: 'ENTITY_ADD', sceneId: 's' })
     expect(Object.keys(s.project!.entities)).toHaveLength(2)
     expect(s.project!.entities[2]).toBeDefined()
+    expect(s.project!.entities[2].transform.position).toEqual({ x: 640, y: 360 })
     expect(s.project!.scenes.s.entityIds).toContain(2)
     expect(s.selection.entityId).toBe(2)
     expect(s.projectDirty).toBe(true)

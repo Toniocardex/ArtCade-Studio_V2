@@ -130,6 +130,30 @@ describe('RuntimeSyncService', () => {
     expect(bridge.editorUpdateEntity).not.toHaveBeenCalled()
   })
 
+  it('syncProject full-reload hot-reloads main Lua when provided', () => {
+    const p = makeProject()
+    ;(p.entities as Record<number, (typeof p.entities)[1]>)[2] = {
+      ...p.entities[1],
+      id: 2,
+      name: 'E2',
+    }
+    p.scenes.a.entityIds = [1, 2]
+    runtimeSync.syncProject(p as never, 'a', '/tmp/x', { mainLua: 'function tick(dt) end' })
+    expect(bridge.editorLoadProject).toHaveBeenCalledTimes(1)
+    expect(bridge.editorReloadScript).toHaveBeenCalledWith('function tick(dt) end')
+  })
+
+  it('syncProject omits logicBoards from runtime JSON payload', () => {
+    const p = makeProject()
+    p.logicBoards = [{ id: 'lb', name: 'Main', rules: [] }] as never
+    runtimeSync.syncProject(p as never, 'a', '/tmp/x')
+    const json = vi.mocked(bridge.editorLoadProject).mock.calls[0][0]
+    const parsed = JSON.parse(json) as Record<string, unknown>
+    expect(parsed.logicBoards).toBeUndefined()
+    expect(parsed.entities).toBeDefined()
+    expect(parsed.activeSceneId).toBe('a')
+  })
+
   it('syncPlayMode dedupes by latched value', () => {
     runtimeSync.syncPlayMode(true)
     runtimeSync.syncPlayMode(true)
@@ -207,7 +231,7 @@ describe('RuntimeSyncService', () => {
     vi.mocked(bridge.editorSetMode).mockClear()
     vi.mocked(bridge.editorRestoreFromProject).mockClear()
     vi.mocked(bridge.editorReloadScript).mockClear()
-    runtimeSync.restorePreviewFromProject(p as never, 'a', 'function tick(dt) end')
+    expect(runtimeSync.restorePreviewFromProject(p as never, 'a', 'function tick(dt) end')).toBe(true)
     expect(bridge.editorSetMode).toHaveBeenCalledWith(0)
     expect(bridge.editorRestoreFromProject).toHaveBeenCalledTimes(1)
     expect(bridge.editorReloadScript).toHaveBeenCalledWith('function tick(dt) end')
@@ -220,5 +244,11 @@ describe('RuntimeSyncService', () => {
     // After reset(), a repeat sync should load again.
     expect(runtimeSync.syncProject(p as never, 'a', '/tmp/x')).toBe(true)
     expect(bridge.editorLoadProject).toHaveBeenCalledTimes(2)
+  })
+
+  it('restorePreviewFromProject returns false when runtime is not ready', () => {
+    vi.mocked(bridge.isReady).mockReturnValue(false)
+    expect(runtimeSync.restorePreviewFromProject(makeProject() as never, 'a', 'x')).toBe(false)
+    expect(bridge.editorRestoreFromProject).not.toHaveBeenCalled()
   })
 })

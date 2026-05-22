@@ -14,6 +14,10 @@ import {
   useRuntimeAssetUpload,
   useRuntimeEditorSync,
 } from './preview/runtime-hooks'
+import {
+  computeVisibleWorldCenter,
+  setEditorVisibleWorldCenter,
+} from '../utils/editor-viewport-center'
 import { CanvasToolbar } from './preview/CanvasToolbar'
 import { RuntimeStatusBadge } from './preview/RuntimeStatusBadge'
 
@@ -51,6 +55,7 @@ export default function PreviewPanel() {
   const {
     project, projectPath, isPlaying, selection, selectedTileCell, mode,
     editorGridSize, snapToGrid, editorZoom, editorZoomMode, cameraPreview,
+    openScripts,
   } = state
 
   const canvasRef           = useRef<HTMLCanvasElement>(null)
@@ -114,7 +119,7 @@ export default function PreviewPanel() {
   })
 
   useRuntimeProjectSync({
-    project, projectPath,
+    project, projectPath, openScripts,
     selectionSceneId: selection.sceneId,
     wasmReady, engineReady,
     isPlaying,
@@ -221,6 +226,51 @@ export default function PreviewPanel() {
     // dimensions change so the latest sceneW/sceneH go into computeFitZoom.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editorZoomMode, res.x, res.y, vp.x, vp.y, preview])
+
+  // Publish visible world centre for default entity spawn (scroll + zoom aware).
+  useLayoutEffect(() => {
+    const el = scrollRef.current
+    if (!el) {
+      setEditorVisibleWorldCenter(null)
+      return undefined
+    }
+    const publish = () => {
+      setEditorVisibleWorldCenter(
+        computeVisibleWorldCenter(
+          el.scrollLeft, el.scrollTop, el.clientWidth, el.clientHeight, editorZoom,
+        ),
+      )
+    }
+    publish()
+    el.addEventListener('scroll', publish, { passive: true })
+    const ro = new ResizeObserver(() => publish())
+    ro.observe(el)
+    return () => {
+      el.removeEventListener('scroll', publish)
+      ro.disconnect()
+      setEditorVisibleWorldCenter(null)
+    }
+  }, [editorZoom, res.x, res.y, selectedSceneId])
+
+  const prevSelectedEntityRef = useRef<number | null>(null)
+  useEffect(() => {
+    const entityId = selection.entityId
+    if (entityId == null || !project) return
+    if (prevSelectedEntityRef.current === entityId) return
+    prevSelectedEntityRef.current = entityId
+    const def = project.entities[entityId]
+    if (!def) return
+    const el = scrollRef.current
+    if (!el) return
+    const z = editorZoom > 0 ? editorZoom : 1
+    const { x, y } = def.transform.position
+    const targetX = x * z - el.clientWidth * 0.5
+    const targetY = y * z - el.clientHeight * 0.5
+    const maxX = Math.max(0, el.scrollWidth - el.clientWidth)
+    const maxY = Math.max(0, el.scrollHeight - el.clientHeight)
+    el.scrollLeft = Math.min(maxX, Math.max(0, targetX))
+    el.scrollTop  = Math.min(maxY, Math.max(0, targetY))
+  }, [selection.entityId, project, editorZoom])
 
   // -------------------------------------------------------------- pan tool
   //

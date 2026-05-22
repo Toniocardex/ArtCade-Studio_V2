@@ -166,3 +166,48 @@ export function runtimeProjectFingerprint(
 ): string {
   return JSON.stringify(runtimeProjectProjection(project, activeSceneId))
 }
+
+/** Fields the C++ editor bridge reads from `editor_load_project` / restore. */
+export interface RuntimeProjectPayload {
+  projectName:    string
+  version:        string
+  targetFPS:      number
+  mainScriptPath: string
+  licenseTier?:   string
+  world?:         ProjectDoc['world']
+  entities:       ProjectDoc['entities']
+  scenes:         ProjectDoc['scenes']
+  tilePalette?:   ProjectDoc['tilePalette']
+  tilesets?:      ProjectDoc['tilesets']
+  activeSceneId:  string
+}
+
+/**
+ * JSON blob for the WASM bridge — runtime-affecting ProjectDoc fields only.
+ * Omits editor-only data (`logicBoards`, `assets`, thumbnails, …).
+ */
+export function runtimeProjectPayload(
+  project: ProjectDoc,
+  activeSceneId: string,
+): RuntimeProjectPayload {
+  return {
+    projectName:    project.projectName,
+    version:        project.version,
+    targetFPS:      project.targetFPS,
+    mainScriptPath: project.mainScriptPath,
+    licenseTier:    project.licenseTier,
+    world:          project.world,
+    entities:       project.entities,
+    scenes:         project.scenes,
+    tilePalette:    project.tilePalette,
+    tilesets:       project.tilesets,
+    activeSceneId,
+  }
+}
+
+export function projectJsonForRuntime(
+  project: ProjectDoc,
+  activeSceneId: string,
+): string {
+  return JSON.stringify(runtimeProjectPayload(project, activeSceneId))
+}

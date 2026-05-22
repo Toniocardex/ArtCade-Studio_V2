@@ -7,7 +7,8 @@ import { DEFAULT_WORLD } from '../types'
 import { parseLogicBoards } from './logic-board/factory'
 import { COMPONENT_KEYS } from '../types/components'
 import type { LogicBoard } from '../types/logic-board'
-import { DEFAULT_SCENE_SIZE } from '../constants/editor-viewport'
+import { DEFAULT_SCENE_SIZE, DEFAULT_EDITOR_GRID_SIZE } from '../constants/editor-viewport'
+import { getEditorVisibleWorldCenter } from './editor-viewport-center'
 
 // Plain mutable Vec2 helpers — DEFAULT_SCENE_SIZE is `as const`, so we wrap it
 // to hand out fresh `{x,y}` literals (callers mutate worldSize/viewportSize).
@@ -484,15 +485,39 @@ export function createSceneDef(
   }
 }
 
+/** World position for a newly added entity — centre of visible canvas or viewport. */
+export function defaultEntitySpawnPosition(
+  scene: SceneDef,
+  gridSize = DEFAULT_EDITOR_GRID_SIZE,
+  snapToGrid = false,
+): Vec2 {
+  const vp = scene.viewportSize ?? scene.worldSize ?? sceneSize()
+  const ws = scene.worldSize ?? vp
+  const snap = (v: number) =>
+    snapToGrid && gridSize > 0 ? Math.round(v / gridSize) * gridSize : v
+  const clamp = (v: number, max: number) => Math.max(0, Math.min(max, v))
+  const visible = getEditorVisibleWorldCenter()
+  const raw = visible ?? { x: vp.x * 0.5, y: vp.y * 0.5 }
+  return {
+    x: snap(clamp(raw.x, ws.x)),
+    y: snap(clamp(raw.y, ws.y)),
+  }
+}
+
 /** A new EntityDef with sane defaults (Phase B — add entity). */
 export function createEntityDef(
   id: number,
   name = `Entity_${id}`,
   className = 'Entity',
+  position?: Vec2,
 ): EntityDef {
   return {
     id, name, className, tags: [],
-    transform: { position: { x: 0, y: 0 }, scale: { x: 1, y: 1 }, rotation: 0 },
+    transform: {
+      position: position ?? { x: 0, y: 0 },
+      scale: { x: 1, y: 1 },
+      rotation: 0,
+    },
     sprite: {
       spriteAssetId: '', tint: { x: 1, y: 1, z: 1, w: 1 },
       alpha: 1, pivot: { x: 0.5, y: 0.5 }, renderOrder: 0,

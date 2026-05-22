@@ -112,7 +112,12 @@ export default function LogicBoardPanel() {
     if (state.isPlaying && project) {
       dispatch({ type: 'SET_PLAYING', playing: false })
       const activeSceneId = selection.sceneId ?? project.activeSceneId
-      runtimeSync.restorePreviewFromProject(project, activeSceneId, lua)
+      const ok = runtimeSync.restorePreviewFromProject(project, activeSceneId, lua)
+      if (!ok) {
+        setApplyMsg('Runtime not loaded — open Canvas preview first')
+        window.setTimeout(() => setApplyMsg(null), 4000)
+        return
+      }
     } else {
       const ok = editorReloadScript(lua)
       setApplyMsg(

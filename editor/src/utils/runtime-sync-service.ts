@@ -33,6 +33,7 @@ import {
   isReady,
 } from './wasm-bridge'
 import {
+  projectJsonForRuntime,
   runtimeProjectProjection,
   type RuntimeProjection,
 } from './runtime-fingerprint'
@@ -68,6 +69,11 @@ export interface EntityTransformSnapshot {
   rotation: number
   scaleX: number
   scaleY: number
+}
+
+export interface SyncProjectOptions {
+  /** After a structural full reload in EDIT, hot-reload main Lua (avoids empty tick stub). */
+  mainLua?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -114,14 +120,15 @@ class RuntimeSyncServiceImpl {
     project: ProjectDoc,
     activeSceneId: string,
     mainLua: string,
-  ): void {
-    if (!isReady()) return
+  ): boolean {
+    if (!isReady()) return false
     editorSetMode(0)
     this.reset()
     this.lastMode = 0
-    editorRestoreFromProject(JSON.stringify({ ...project, activeSceneId }))
+    editorRestoreFromProject(projectJsonForRuntime(project, activeSceneId))
     editorReloadScript(mainLua)
     this.assetCacheInvalidator?.()
+    return true
   }
 
   /** True if the runtime is ready to accept commands. */
@@ -143,6 +150,7 @@ class RuntimeSyncServiceImpl {
     project: ProjectDoc,
     activeSceneId: string,
     projectPath: string | null,
+    options?: SyncProjectOptions,
   ): boolean {
     if (!isReady()) return false
     const projection = runtimeProjectProjection(project, activeSceneId)
@@ -155,7 +163,8 @@ class RuntimeSyncServiceImpl {
     if (plan.kind === 'full') {
       this.lastLoadKey = loadKey
       this.lastProjection = projection
-      editorLoadProject(JSON.stringify({ ...project, activeSceneId }))
+      editorLoadProject(projectJsonForRuntime(project, activeSceneId))
+      if (options?.mainLua) editorReloadScript(options.mainLua)
       return true
     }
 

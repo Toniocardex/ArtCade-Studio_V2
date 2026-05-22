@@ -256,7 +256,7 @@ const char kEmptyEditorLua[] =
     "end\n";
 }
 
-void Application::applyEditorProjectLoaded(
+void Application::applyEditorProjectCommon(
     const std::vector<TilePaletteEntry>& tilePalette,
     const std::vector<TilesetAsset>&     tilesets)
 {
@@ -287,6 +287,13 @@ void Application::applyEditorProjectLoaded(
 
     if (mod_->textureManager)
         mod_->textureManager->unloadAll();
+}
+
+void Application::applyEditorProjectLoaded(
+    const std::vector<TilePaletteEntry>& tilePalette,
+    const std::vector<TilesetAsset>&     tilesets)
+{
+    applyEditorProjectCommon(tilePalette, tilesets);
 
     if (mod_->luaHost)
         mod_->luaHost->loadLuaSource(kEmptyEditorLua);
@@ -299,27 +306,7 @@ void Application::applyEditorPreviewRestore(
     const std::vector<TilePaletteEntry>& tilePalette,
     const std::vector<TilesetAsset>&     tilesets)
 {
-    tileColors_.clear();
-    for (const auto& t : tilePalette)
-        tileColors_[t.id] = t.color;
-
-    tilesets_.clear();
-    for (const auto& ts : tilesets)
-        tilesets_[ts.assetId] = ts;
-    mod_->sceneManager->setTilesets(tilesets);
-
-    if (const SceneDef* sc = mod_->sceneManager->activeScene()) {
-        if (sc->worldSize.x > 0.f && sc->worldSize.y > 0.f) {
-            mod_->renderer->setWindowSize(
-                static_cast<uint32_t>(sc->worldSize.x),
-                static_cast<uint32_t>(sc->worldSize.y),
-                "ArtCade V2");
-        }
-        mod_->renderer->setSceneViewport(sc->worldSize, sc->worldSize);
-    }
-
-    if (mod_->textureManager)
-        mod_->textureManager->unloadAll();
+    applyEditorProjectCommon(tilePalette, tilesets);
 
     if (mod_->tweenManager)
         mod_->tweenManager->cancelAll();
@@ -327,8 +314,18 @@ void Application::applyEditorPreviewRestore(
         mod_->spriteAnimator->clearInstances();
     if (mod_->audio)
         mod_->audio->stopAll();
-    if (mod_->eventBus)
-        mod_->eventBus->flushDeferred();
+    if (mod_->eventBus) {
+        mod_->eventBus->shutdown();
+        mod_->eventBus->init();
+    }
+    if (mod_->layerManager) {
+        mod_->layerManager->shutdown();
+        mod_->layerManager->init();
+    }
+    if (mod_->saveLoadManager) {
+        mod_->saveLoadManager->shutdown();
+        mod_->saveLoadManager->init();
+    }
 
     if (mod_->timeManager) {
         mod_->timeManager->shutdown();

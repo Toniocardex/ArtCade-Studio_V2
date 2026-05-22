@@ -8,7 +8,7 @@
 // nothing (P2 in docs/TECHNICAL_DEBT_REVIEW.md).
 
 import type { CoreState, Action, DomainReducer } from '../editor-store-state'
-import { createEntityDef, nextEntityId } from '../../utils/project'
+import { createEntityDef, nextEntityId, defaultEntitySpawnPosition } from '../../utils/project'
 
 const TRANSFORM_EPS = 1e-4
 
@@ -94,8 +94,9 @@ export const entityReducer: DomainReducer = (state: CoreState, action: Action) =
     case 'ENTITY_ADD': {
       if (!state.project || !state.project.scenes[action.sceneId]) return state
       const id = nextEntityId(state.project)
-      const ent = createEntityDef(id)
       const scene = state.project.scenes[action.sceneId]
+      const spawn = defaultEntitySpawnPosition(scene, state.editorGridSize, state.snapToGrid)
+      const ent = createEntityDef(id, undefined, undefined, spawn)
       return {
         ...state,
         project: {

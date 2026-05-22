@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { runtimeProjectFingerprint } from './runtime-fingerprint'
+import { runtimeProjectFingerprint, projectJsonForRuntime } from './runtime-fingerprint'
 import type { EntityDef, ProjectDoc, SceneDef, Vec4 } from '../types'
 
 function vec(x: number, y: number) { return { x, y } }
@@ -133,5 +133,20 @@ describe('runtimeProjectFingerprint', () => {
     })
     expect(runtimeProjectFingerprint(a, 'scene_a'))
       .not.toBe(runtimeProjectFingerprint(c, 'scene_a'))
+  })
+})
+
+describe('projectJsonForRuntime', () => {
+  it('includes runtime fields and omits editor-only data', () => {
+    const proj = makeProject({
+      logicBoards: [{ id: 'lb', name: 'Main', rules: [] }] as never,
+      assets: { img: { path: 'a.png', type: 'image' } as never },
+    })
+    const parsed = JSON.parse(projectJsonForRuntime(proj, 'scene_a')) as Record<string, unknown>
+    expect(parsed.entities).toBeDefined()
+    expect(parsed.scenes).toBeDefined()
+    expect(parsed.activeSceneId).toBe('scene_a')
+    expect(parsed.logicBoards).toBeUndefined()
+    expect(parsed.assets).toBeUndefined()
   })
 })

@@ -223,7 +223,13 @@ export default function MenuBar() {
       if (project) {
         const activeSceneId = selection.sceneId ?? project.activeSceneId
         const mainLua = resolvePreviewMainLua({ project, openScripts })
-        runtimeSync.restorePreviewFromProject(project, activeSceneId, mainLua)
+        const ok = runtimeSync.restorePreviewFromProject(project, activeSceneId, mainLua)
+        if (!ok) {
+          dispatch({
+            type: 'LOG',
+            entry: makeLog('[Preview] Runtime not ready — open Canvas preview first.', 'warn'),
+          })
+        }
       }
     } else {
       dispatch({ type: 'SET_PLAYING', playing: true })

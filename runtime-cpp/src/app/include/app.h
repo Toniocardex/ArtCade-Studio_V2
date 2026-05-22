@@ -32,6 +32,9 @@ public:
     int run(int argc, char* argv[]);
 
 #ifdef ARTCADE_WASM
+    /** Shared tile/viewport setup after editor project JSON is applied. */
+    void applyEditorProjectCommon(const std::vector<TilePaletteEntry>& tilePalette,
+                                  const std::vector<TilesetAsset>&     tilesets);
     /** Called from editor_load_project after the gateway swap. */
     void applyEditorProjectLoaded(const std::vector<TilePaletteEntry>& tilePalette,
                                   const std::vector<TilesetAsset>&     tilesets);
