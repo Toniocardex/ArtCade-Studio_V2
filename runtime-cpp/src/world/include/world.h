@@ -66,6 +66,8 @@ public:
     void snapEntityToGrid(EntityId id, float cellSize);
     void moveEntityByOffset(EntityId id, float dx, float dy);
     bool isSpaceFree(float x, float y, float w, float h) const;
+    /** True when entity has PlatformerController and overlaps its groundClass. */
+    bool isPlatformerGrounded(EntityId id) const;
 
     void setMovementIntent(EntityId id, float directionX, float directionY);
     void clearMovementIntent(EntityId id);

@@ -29,6 +29,8 @@ namespace ArtCade::Modules {
  *   animation-api.cpp  — animation.onFinished / animation.pollFinished
  *   lifecycle-api.cpp — lifecycle.pollDestroyed
  *   grid-api.cpp       — grid.* (snap, offset, space check)
+ *   component-api.cpp  — linearMover.* / magnet.* / horde.* / autoDestroy.*
+ *                        / platformer.isGrounded
  *
  * game-api.cpp calls each sub-binder in sequence — it stays < 50 lines.
  */
@@ -72,6 +74,7 @@ private:
     void bindLifecycleAPI  (sol::state& lua);
     void bindGridAPI       (sol::state& lua);
     void bindShaderAPI     (sol::state& lua);
+    void bindComponentAPI  (sol::state& lua);
 };
 
 } // namespace ArtCade::Modules

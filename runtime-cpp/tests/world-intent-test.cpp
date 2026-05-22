@@ -727,6 +727,102 @@ static void test_health_damage_respects_iframes() {
     CHECK(h.currentHp == 80.f);
 }
 
+static void test_linear_mover_pause_stops_movement() {
+    Fixture f;
+
+    EntityDef bullet = makeEntity(1, "Bullet");
+    LinearMoverComponent mover;
+    mover.directionX = 1.f;
+    mover.directionY = 0.f;
+    mover.speed = 100.f;
+    bullet.linearMover = mover;
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1 };
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.scenes = {{ scene.id, scene }};
+    doc.entities = {{ 1, bullet }};
+    f.world.init(doc);
+
+    f.world.tickGameplaySystems(1.f);
+
+    Transform moved{};
+    CHECK(f.gw.getTransform(1, moved));
+    CHECK(std::abs(moved.position.x - 100.f) < 0.01f);
+
+    LinearMoverComponent paused = mover;
+    paused._paused = true;
+    CHECK(f.gw.setLinearMover(1, paused));
+
+    f.world.tickGameplaySystems(1.f);
+
+    Transform afterPause{};
+    CHECK(f.gw.getTransform(1, afterPause));
+    CHECK(std::abs(afterPause.position.x - 100.f) < 0.01f);
+}
+
+static void test_magnetic_item_disabled_stops_pull() {
+    Fixture f;
+
+    EntityDef player = makeEntity(1, "Player", {"player"});
+    player.transform.position = { 100.f, 100.f };
+    MagneticItemComponent mag;
+    mag.attractTag = "pickup";
+    mag.radius     = 500.f;
+    mag.pullSpeed  = 100.f;
+    mag._enabled   = false;
+    player.magneticItem = mag;
+
+    EntityDef coin = makeEntity(2, "Coin", {"pickup"});
+    coin.transform.position = { 200.f, 100.f };
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1, 2 };
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.scenes = {{ scene.id, scene }};
+    doc.entities = {{ 1, player }, { 2, coin }};
+    f.world.init(doc);
+
+    f.world.tickGameplaySystems(1.f);
+
+    Transform coinTransform{};
+    CHECK(f.gw.getTransform(2, coinTransform));
+    CHECK(std::abs(coinTransform.position.x - 200.f) < 0.01f);
+}
+
+static void test_auto_destroy_cancel_disables_timer() {
+    Fixture f;
+
+    EntityDef coin = makeEntity(1, "Coin");
+    AutoDestroyComponent ad;
+    ad.lifespan = 0.5f;
+    coin.autoDestroy = ad;
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1 };
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.scenes = {{ scene.id, scene }};
+    doc.entities = {{ 1, coin }};
+    f.world.init(doc);
+
+    AutoDestroyComponent cancelled = ad;
+    cancelled.lifespan = 0.f;
+    cancelled._timeAlive = 0.f;
+    CHECK(f.gw.setAutoDestroy(1, cancelled));
+
+    f.world.tickAutoDestroy(1.f);
+    CHECK(f.gw.exists(1));
+}
+
 static ProjectDoc makeTileSceneDoc() {
     EntityDef player = makeEntity(1, "Player", {"player"});
     player.physics.bodyType = BodyType::Dynamic;
@@ -821,10 +917,13 @@ int main() {
     test_set_physics_component_replaces_body_without_leak();
     test_linear_mover_moves_transform_without_physics();
     test_linear_mover_sets_physics_velocity();
+    test_linear_mover_pause_stops_movement();
     test_magnetic_item_pulls_tagged_entity();
+    test_magnetic_item_disabled_stops_pull();
     test_horde_member_chases_target_class();
     test_horde_member_separates_from_peer();
     test_auto_destroy_after_lifespan();
+    test_auto_destroy_cancel_disables_timer();
     test_update_entity_preserves_auto_destroy_timer();
     test_health_damage_respects_iframes();
     test_load_scene_rebuilds_tilemap_physics();

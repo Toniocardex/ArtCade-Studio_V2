@@ -96,9 +96,9 @@ Direzione scelta:
 
 Runtime integration Tranche 1–10 + Solid completate.
 
-**Linea attiva:** Logic Board Component API **Tranche 2** (API runtime
-mancanti: `linearMover.*`, `magnet.*`, `horde.*`, `autoDestroy.setLifespan`,
-`platformer.isGrounded` Lua) — vedi `LOGIC_BOARD_COMPONENT_API_ROADMAP.md`.
+**Linea attiva:** Logic Board Component API **Tranche 3** (UI guidata:
+Recommended / Component APIs / Advanced) — vedi
+`LOGIC_BOARD_COMPONENT_API_ROADMAP.md`.
 
 Follow-up opzionali runtime:
 
@@ -521,6 +521,28 @@ Exit criteria:
 
 - `npm.cmd test`: 212/212.
 - Nessun rebuild WASM obbligatorio per questa tranche.
+
+## Tranche 14 - Logic Board Component API (runtime Tranche 2)
+
+Stato: completata (commit Tranche 2).
+
+Completato (runtime C++ + editor):
+
+- `GameAPI::bindComponentAPI`: `linearMover.*`, `magnet.*`, `horde.*`,
+  `autoDestroy.setLifespan` / `cancel`, `platformer.isGrounded`.
+- `_paused` / `_enabled` runtime-only su LinearMover e MagneticItem; merge su
+  patch editor in `applyEntityDefToRegistry`.
+- Logic Board: 10 azioni schema-first + condizione `isPlatformerGrounded`.
+- Test: `world-intent-test` (pause magnet, cancel autoDestroy), compiler e
+  capability resolver.
+
+Riferimento completo: `docs/LOGIC_BOARD_COMPONENT_API_ROADMAP.md` (Tranche 2).
+
+Exit criteria:
+
+- Build C++ native + WASM.
+- `ctest`: tutti i test verdi (inclusi nuovi casi world-intent).
+- `npm.cmd test` e `npm.cmd run build` in `editor`.
 
 ## Checklist Da Eseguire A Ogni Tranche
 

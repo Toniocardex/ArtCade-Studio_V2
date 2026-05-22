@@ -148,6 +148,7 @@ void World::tickHordeMembers(float dt) {
 void World::tickMagneticItems(float dt) {
     entityGateway_.forEachActiveMagneticItem(
         [this, dt](EntityId magnetId, const MagneticItemComponent& mag) {
+            if (!mag._enabled) return;
             Transform magnetTransform{};
             if (!entityGateway_.getTransform(magnetId, magnetTransform)) return;
 

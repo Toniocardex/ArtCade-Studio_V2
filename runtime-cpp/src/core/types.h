@@ -126,6 +126,8 @@ struct LinearMoverComponent {
     float directionX = 1.f;
     float directionY = 0.f;
     float speed      = 300.f;
+    /** Runtime pause flag (not serialised). */
+    bool  _paused    = false;
 };
 
 /** Marks an entity as the 2D camera follow target (offset + smoothing). */
@@ -140,6 +142,8 @@ struct MagneticItemComponent {
     std::string attractTag = "pickup";
     float       radius     = 200.f;   // px; 0 = unlimited range
     float       pullSpeed  = 400.f;   // px/s toward holder
+    /** Runtime enable flag (not serialised). */
+    bool        _enabled   = true;
 };
 
 /** Swarm steering: chase a class + separate from other horde members. */

@@ -84,6 +84,8 @@ export function defaultCondition(
       return { type: 'isSpaceFree', x: 0, y: 0, w: 32, h: 32 }
     case 'compareHealth':
       return { type: 'compareHealth', target: 'self', field: 'current', operator: '>', value: 0 }
+    case 'isPlatformerGrounded':
+      return { type: 'isPlatformerGrounded', target: 'self' }
   }
 }
 
@@ -123,6 +125,26 @@ export function defaultAction(type: LogicActionType): LogicAction {
       return { type: 'healEntity', target: 'self', amount: 10 }
     case 'setEntityHealth':
       return { type: 'setEntityHealth', target: 'self', currentHp: 100 }
+    case 'setLinearMoverDirection':
+      return { type: 'setLinearMoverDirection', target: 'self', directionX: 1, directionY: 0 }
+    case 'setLinearMoverSpeed':
+      return { type: 'setLinearMoverSpeed', target: 'self', speed: 300 }
+    case 'pauseLinearMover':
+      return { type: 'pauseLinearMover', target: 'self' }
+    case 'resumeLinearMover':
+      return { type: 'resumeLinearMover', target: 'self' }
+    case 'setMagnetEnabled':
+      return { type: 'setMagnetEnabled', target: 'self', enabled: true }
+    case 'setMagnetTargetTag':
+      return { type: 'setMagnetTargetTag', target: 'self', tag: 'pickup' }
+    case 'setHordeTargetClass':
+      return { type: 'setHordeTargetClass', target: 'self', className: 'Player' }
+    case 'setHordeWeights':
+      return { type: 'setHordeWeights', target: 'self', chaseWeight: 1, separationWeight: 1 }
+    case 'setAutoDestroyLifespan':
+      return { type: 'setAutoDestroyLifespan', target: 'self', lifespan: 5 }
+    case 'cancelAutoDestroy':
+      return { type: 'cancelAutoDestroy', target: 'self' }
     case 'setGlobalState':
       return { type: 'setGlobalState', key: 'level', value: 1 }
     case 'emitEvent':

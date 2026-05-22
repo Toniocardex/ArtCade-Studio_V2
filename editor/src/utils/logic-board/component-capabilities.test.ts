@@ -96,4 +96,41 @@ describe('component capabilities', () => {
     const board: LogicBoard = { boardId: 'b', target: { type: 'entity_id', entityId: 3 }, events: [] }
     expect(triggerRequirement({ type: 'onTriggerEnter', withClass: 'player' }, project(), board)).toBeNull()
   })
+
+  it('recommends Tranche 2 actions from component fields', () => {
+    const p = project()
+    p.entities[5] = entity(5, 'Bullet', {
+      linearMover: { directionX: 1, directionY: 0, speed: 200 },
+      magneticItem: { attractTag: 'coin', radius: 100, pullSpeed: 50 },
+      hordeMember: { targetClass: 'Player', chaseWeight: 1, separationWeight: 0.5 },
+      autoDestroy: { lifespan: 2 },
+      platformerController: {
+        maxSpeed: 200, jumpForce: 400, gravity: 900, groundClass: 'Ground',
+      },
+    })
+    const board: LogicBoard = { boardId: 'b', target: { type: 'entity_id', entityId: 5 }, events: [] }
+    expect(recommendedActionTypes(p, board)).toEqual([
+      'moveController',
+      'setMovementIntent',
+      'clearMovementIntent',
+      'requestPlatformerJump',
+      'setLinearMoverDirection',
+      'setLinearMoverSpeed',
+      'pauseLinearMover',
+      'resumeLinearMover',
+      'setMagnetEnabled',
+      'setMagnetTargetTag',
+      'setHordeTargetClass',
+      'setHordeWeights',
+      'setAutoDestroyLifespan',
+      'cancelAutoDestroy',
+    ])
+    expect(
+      conditionRequirement(
+        { type: 'isPlatformerGrounded', target: 'self' },
+        p,
+        board,
+      ),
+    ).toBeNull()
+  })
 })

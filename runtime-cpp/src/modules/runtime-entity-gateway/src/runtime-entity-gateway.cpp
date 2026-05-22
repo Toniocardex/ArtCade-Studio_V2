@@ -192,9 +192,25 @@ void RuntimeEntityGateway::applyEntityDefToRegistry(
     registry_->setSolid(id, def.solid);
     registry_->setPlatformer(id, def.platformerController);
     registry_->setTopDown(id, def.topDownController);
-    registry_->setLinearMover(id, def.linearMover);
+    if (def.linearMover) {
+        LinearMoverComponent lm = *def.linearMover;
+        LinearMoverComponent prev{};
+        if (registry_->getLinearMover(id, prev))
+            lm._paused = prev._paused;
+        registry_->setLinearMover(id, lm);
+    } else {
+        registry_->setLinearMover(id, std::nullopt);
+    }
     registry_->setCameraTarget(id, def.cameraTarget);
-    registry_->setMagneticItem(id, def.magneticItem);
+    if (def.magneticItem) {
+        MagneticItemComponent mi = *def.magneticItem;
+        MagneticItemComponent prev{};
+        if (registry_->getMagneticItem(id, prev))
+            mi._enabled = prev._enabled;
+        registry_->setMagneticItem(id, mi);
+    } else {
+        registry_->setMagneticItem(id, std::nullopt);
+    }
     registry_->setHordeMember(id, def.hordeMember);
     if (def.autoDestroy) {
         AutoDestroyComponent ad = *def.autoDestroy;

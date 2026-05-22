@@ -107,6 +107,8 @@ function leafExpr(c: LogicCondition): string {
       const field = c.field === 'max' ? '_m' : '_c'
       return `(function() local _c,_m=entity.health(${target}); if _c == nil then return false end return (${field} ${c.operator} ${value}) end)()`
     }
+    case 'isPlatformerGrounded':
+      return `platformer.isGrounded(${targetExpr(c.target)})`
   }
 }
 
@@ -204,6 +206,26 @@ function actionLua(a: LogicAction): string {
       return a.maxHp != null
         ? `entity.setHealth(${targetExpr(a.target)}, ${Number(a.currentHp) || 0}, ${Number(a.maxHp) || 0})`
         : `entity.setHealth(${targetExpr(a.target)}, ${Number(a.currentHp) || 0})`
+    case 'setLinearMoverDirection':
+      return `linearMover.setDirection(${targetExpr(a.target)}, ${Number(a.directionX) || 0}, ${Number(a.directionY) || 0})`
+    case 'setLinearMoverSpeed':
+      return `linearMover.setSpeed(${targetExpr(a.target)}, ${Number(a.speed) || 0})`
+    case 'pauseLinearMover':
+      return `linearMover.pause(${targetExpr(a.target)})`
+    case 'resumeLinearMover':
+      return `linearMover.resume(${targetExpr(a.target)})`
+    case 'setMagnetEnabled':
+      return `magnet.setEnabled(${targetExpr(a.target)}, ${a.enabled ? 'true' : 'false'})`
+    case 'setMagnetTargetTag':
+      return `magnet.setTargetTag(${targetExpr(a.target)}, ${luaString(a.tag)})`
+    case 'setHordeTargetClass':
+      return `horde.setTargetClass(${targetExpr(a.target)}, ${luaString(a.className)})`
+    case 'setHordeWeights':
+      return `horde.setWeights(${targetExpr(a.target)}, ${Number(a.chaseWeight) || 0}, ${Number(a.separationWeight) || 0})`
+    case 'setAutoDestroyLifespan':
+      return `autoDestroy.setLifespan(${targetExpr(a.target)}, ${Number(a.lifespan) || 0})`
+    case 'cancelAutoDestroy':
+      return `autoDestroy.cancel(${targetExpr(a.target)})`
     case 'setGlobalState':
       return `state.set(${luaString(a.key)}, ${luaValue(a.value)})`
     case 'emitEvent':

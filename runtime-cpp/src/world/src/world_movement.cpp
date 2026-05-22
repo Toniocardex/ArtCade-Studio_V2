@@ -4,6 +4,12 @@
 
 namespace ArtCade {
 
+bool World::isPlatformerGrounded(EntityId id) const {
+    PlatformerControllerComponent pc{};
+    if (!entityGateway_.getPlatformerController(id, pc)) return false;
+    return isGrounded(id, pc.groundClass);
+}
+
 bool World::isGrounded(EntityId id, const std::string& groundClass) const {
     const uint32_t selfHandle = entityGateway_.physicsHandle(id);
     if (selfHandle == 0) return false;
@@ -123,6 +129,7 @@ void World::tickTopDownControllers(float dt) {
 void World::tickLinearMovers(float dt) {
     entityGateway_.forEachActiveLinearMover(
         [this, dt](EntityId id, const LinearMoverComponent& lm) {
+            if (lm._paused) return;
             PlatformerControllerComponent platformer{};
             if (entityGateway_.getPlatformerController(id, platformer))
                 return;

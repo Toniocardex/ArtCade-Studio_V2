@@ -59,6 +59,16 @@ const ACTION_NAMES: Record<LogicActionType, string> = {
   damageEntity: 'Damage',
   healEntity: 'Heal',
   setEntityHealth: 'Set health',
+  setLinearMoverDirection: 'Linear mover direction',
+  setLinearMoverSpeed: 'Linear mover speed',
+  pauseLinearMover: 'Pause linear mover',
+  resumeLinearMover: 'Resume linear mover',
+  setMagnetEnabled: 'Magnet on/off',
+  setMagnetTargetTag: 'Magnet tag',
+  setHordeTargetClass: 'Horde chase class',
+  setHordeWeights: 'Horde weights',
+  setAutoDestroyLifespan: 'Auto destroy timer',
+  cancelAutoDestroy: 'Cancel auto destroy',
   setGlobalState: 'Set global value',
   emitEvent: 'Send message',
   toggleLogicEvent: 'Turn rule on/off',
@@ -90,6 +100,7 @@ const CONDITION_NAMES: Record<LogicCondition['type'], string> = {
   chance: 'Random chance',
   isSpaceFree: 'Area is empty',
   compareHealth: 'Health check',
+  isPlatformerGrounded: 'On ground',
 }
 
 const FIELD_LABELS: Record<string, string> = {
@@ -120,6 +131,15 @@ const FIELD_LABELS: Record<string, string> = {
   'action:healEntity:amount': 'Heal',
   'action:setEntityHealth:currentHp': 'Current HP',
   'action:setEntityHealth:maxHp': 'Max HP',
+  'action:setLinearMoverDirection:directionX': 'Direction X',
+  'action:setLinearMoverDirection:directionY': 'Direction Y',
+  'action:setLinearMoverSpeed:speed': 'Speed',
+  'action:setMagnetEnabled:enabled': 'Enabled',
+  'action:setMagnetTargetTag:tag': 'Attract tag',
+  'action:setHordeTargetClass:className': 'Chase class',
+  'action:setHordeWeights:chaseWeight': 'Chase weight',
+  'action:setHordeWeights:separationWeight': 'Separation weight',
+  'action:setAutoDestroyLifespan:lifespan': 'Lifespan (s)',
   'action:loadScene:sceneName': 'Level name',
   'action:loadScene:fadeSeconds': 'Fade (seconds)',
   'condition:isSpaceFree:x': 'X',
@@ -345,6 +365,8 @@ export function conditionSummaryPlain(
       return `Area (${c.x}, ${c.y}) is free`
     case 'compareHealth':
       return `${targetDisplayLabel(c.target, project)} ${c.field === 'max' ? 'max HP' : 'HP'} ${c.operator} ${c.value}`
+    case 'isPlatformerGrounded':
+      return `${targetDisplayLabel(c.target, project)} is on ground`
   }
 }
 
@@ -405,6 +427,26 @@ export function actionSummaryPlain(
       return a.maxHp != null
         ? `Set ${who} HP to ${a.currentHp}/${a.maxHp}`
         : `Set ${who} HP to ${a.currentHp}`
+    case 'setLinearMoverDirection':
+      return `Set linear mover on ${who} to (${a.directionX}, ${a.directionY})`
+    case 'setLinearMoverSpeed':
+      return `Set linear mover speed on ${who} to ${a.speed}`
+    case 'pauseLinearMover':
+      return `Pause linear mover on ${who}`
+    case 'resumeLinearMover':
+      return `Resume linear mover on ${who}`
+    case 'setMagnetEnabled':
+      return a.enabled ? `Enable magnet on ${who}` : `Disable magnet on ${who}`
+    case 'setMagnetTargetTag':
+      return `Magnet on ${who} attracts tag "${a.tag || '?'}"`
+    case 'setHordeTargetClass':
+      return `Horde ${who} chases ${fmtClass(a.className, project)}`
+    case 'setHordeWeights':
+      return `Horde ${who} chase=${a.chaseWeight} separation=${a.separationWeight}`
+    case 'setAutoDestroyLifespan':
+      return `Auto destroy ${who} in ${a.lifespan}s`
+    case 'cancelAutoDestroy':
+      return `Cancel auto destroy on ${who}`
     case 'setGlobalState':
       return `Set global ${a.key} to ${a.value}`
     case 'emitEvent':

@@ -70,18 +70,25 @@ Obiettivi:
 
 ## Tranche 2 - Component Runtime API Mancanti
 
-Stato: da fare.
+Stato: completata.
 
-Obiettivi:
+Completato (runtime C++ + editor):
 
-- Aggiungere solo API runtime intenzionali, non setter generici improvvisati.
-- Estendere GameAPI/Lua e World quando serve a un blocco reale.
-- Candidati:
-  - `linearMover.setDirection`, `linearMover.setSpeed`, `linearMover.pause`
-  - `magnet.setEnabled`, `magnet.setTargetTag`
-  - `horde.setTargetClass`, `horde.setWeights`
-  - `autoDestroy.setLifespan`, `autoDestroy.cancel`
-  - `platformer.isGrounded`
+- `component-api.cpp`: tabelle Lua `linearMover`, `magnet`, `horde`, `autoDestroy`,
+  `platformer.isGrounded`.
+- Campi runtime-only: `LinearMoverComponent._paused`, `MagneticItemComponent._enabled`;
+  preservati in `applyEntityDefToRegistry` su patch editor.
+- `World::isPlatformerGrounded` (pubblico) + skip tick quando pausa/disabilitato.
+- Logic Board: 10 azioni + condizione `isPlatformerGrounded` (schema, compiler,
+  capabilities, label).
+
+API esposte:
+
+- `linearMover.setDirection`, `linearMover.setSpeed`, `linearMover.pause`, `linearMover.resume`
+- `magnet.setEnabled`, `magnet.setTargetTag`
+- `horde.setTargetClass`, `horde.setWeights`
+- `autoDestroy.setLifespan`, `autoDestroy.cancel`
+- `platformer.isGrounded`
 
 ## Tranche 3 - UI Logic Board Piu Guidata
 
@@ -131,7 +138,7 @@ Obiettivi:
 | Tranche | Stato | Commit di riferimento |
 | --- | --- | --- |
 | 1 — Capability registry + API esistenti | Completata | `20c473d` |
-| 2 — API runtime mancanti | Da fare | — |
+| 2 — API runtime mancanti | Completata | (commit Tranche 2) |
 | 3 — UI guidata | Da fare | — |
 
 Runtime prerequisiti (gia in `main` prima della Tranche 1 editor):

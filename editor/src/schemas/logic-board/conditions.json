@@ -182,5 +182,21 @@
         "value": { "widget": "number", "label": "Value" }
       }
     }
+  },
+  "isPlatformerGrounded": {
+    "type": "object",
+    "required": ["type", "target"],
+    "properties": {
+      "type": { "const": "isPlatformerGrounded" },
+      "target": { "$ref": "./target-selector.schema.json" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Platformer Grounded",
+      "category": "Component APIs",
+      "params": {
+        "target": { "widget": "target", "label": "Target" }
+      }
+    }
   }
 }

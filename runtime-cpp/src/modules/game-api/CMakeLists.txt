@@ -16,6 +16,7 @@ add_library(artcade-game-api
     src/lifecycle-api.cpp
     src/grid-api.cpp
     src/shader-api.cpp
+    src/component-api.cpp
 )
 target_include_directories(artcade-game-api
     PUBLIC  include

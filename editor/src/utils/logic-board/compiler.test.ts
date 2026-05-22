@@ -72,6 +72,42 @@ describe('Component API actions and conditions', () => {
     expect(lua).toContain('movement.clearIntent(self)')
   })
 
+  it('emits component runtime API calls (Tranche 2)', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({
+          trigger: { type: 'onUpdate' },
+          conditions: [
+            { type: 'isPlatformerGrounded', target: 'self' },
+          ],
+          actions: [
+            { type: 'setLinearMoverDirection', target: 'self', directionX: 0, directionY: 1 },
+            { type: 'setLinearMoverSpeed', target: 'self', speed: 120 },
+            { type: 'pauseLinearMover', target: 'self' },
+            { type: 'resumeLinearMover', target: 'self' },
+            { type: 'setMagnetEnabled', target: 'self', enabled: false },
+            { type: 'setMagnetTargetTag', target: 'self', tag: 'coin' },
+            { type: 'setHordeTargetClass', target: 'self', className: 'Player' },
+            { type: 'setHordeWeights', target: 'self', chaseWeight: 2, separationWeight: 0.5 },
+            { type: 'setAutoDestroyLifespan', target: 'self', lifespan: 3 },
+            { type: 'cancelAutoDestroy', target: 'self' },
+          ],
+        }),
+      ]),
+    ])
+    expect(lua).toContain('platformer.isGrounded(self)')
+    expect(lua).toContain('linearMover.setDirection(self, 0, 1)')
+    expect(lua).toContain('linearMover.setSpeed(self, 120)')
+    expect(lua).toContain('linearMover.pause(self)')
+    expect(lua).toContain('linearMover.resume(self)')
+    expect(lua).toContain('magnet.setEnabled(self, false)')
+    expect(lua).toContain('magnet.setTargetTag(self, "coin")')
+    expect(lua).toContain('horde.setTargetClass(self, "Player")')
+    expect(lua).toContain('horde.setWeights(self, 2, 0.5)')
+    expect(lua).toContain('autoDestroy.setLifespan(self, 3)')
+    expect(lua).toContain('autoDestroy.cancel(self)')
+  })
+
   it('emits health API calls and compareHealth conditions', () => {
     const lua = compileLogicBoard([
       board([

@@ -12,10 +12,13 @@
     "setVisible", "setColorTint", "loadScene", "restartScene", "setCameraTarget", "moveInDirection",
     "moveController", "setMovementIntent", "clearMovementIntent", "requestPlatformerJump", "damageEntity", "healEntity",
     "setEntityHealth",
+    "setLinearMoverDirection", "setLinearMoverSpeed", "pauseLinearMover", "resumeLinearMover",
+    "setMagnetEnabled", "setMagnetTargetTag", "setHordeTargetClass", "setHordeWeights",
+    "setAutoDestroyLifespan", "cancelAutoDestroy",
     "moveByOffset", "snapToGrid", "setEntityShader", "setScreenShader", "debugLog", "wait"
   ],
   "conditions": [
     "compareVariable", "compareClass", "isKeyDown", "hasTag", "compareDistance",
-    "isMouseOver", "raycastHit", "chance", "isSpaceFree", "compareHealth"
+    "isMouseOver", "raycastHit", "chance", "isSpaceFree", "compareHealth", "isPlatformerGrounded"
   ]
 }
