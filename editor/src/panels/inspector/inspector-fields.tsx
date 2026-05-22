@@ -10,6 +10,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { ChevronRight } from 'lucide-react'
 import { applyInputBackspace, isBackspaceKey } from '../../utils/keyboard'
+export { snapToGridValue } from '../../utils/entity-position'
 
 export function InspectorSection({
   label,
@@ -113,17 +114,19 @@ export function Field({
 }
 
 export function NumberField({
-  label, value, onCommit,
+  label, value, onCommit, step,
 }: {
   label: string
   value: number
   onCommit: (value: number) => void
+  step?: number
 }) {
   return (
     <div>
       <label className="text-[8px] text-[rgb(var(--muted-rgb)/0.6)]">{label}</label>
       <input
         type="number"
+        step={step}
         value={Number.isFinite(value) ? value : 0}
         onChange={e => onCommit(Number(e.target.value))}
         onKeyDown={(e) => {
@@ -152,8 +155,4 @@ export function parseSceneDimension(value: string, fallback: number): number {
 export function parseGridSize(value: string, fallback: number): number {
   const n = Math.round(Number(value))
   return Number.isFinite(n) ? Math.min(512, Math.max(4, n)) : fallback
-}
-
-export function snapToGridValue(value: number, gridSize: number): number {
-  return gridSize > 0 ? Math.round(value / gridSize) * gridSize : value
 }

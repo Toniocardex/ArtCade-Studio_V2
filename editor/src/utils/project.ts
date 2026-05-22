@@ -9,6 +9,7 @@ import { COMPONENT_KEYS } from '../types/components'
 import type { LogicBoard } from '../types/logic-board'
 import { DEFAULT_SCENE_SIZE, DEFAULT_EDITOR_GRID_SIZE } from '../constants/editor-viewport'
 import { getEditorVisibleWorldCenter } from './editor-viewport-center'
+import { normalizeEntityPosition } from './entity-position'
 
 // Plain mutable Vec2 helpers — DEFAULT_SCENE_SIZE is `as const`, so we wrap it
 // to hand out fresh `{x,y}` literals (callers mutate worldSize/viewportSize).
@@ -493,15 +494,12 @@ export function defaultEntitySpawnPosition(
 ): Vec2 {
   const vp = scene.viewportSize ?? scene.worldSize ?? sceneSize()
   const ws = scene.worldSize ?? vp
-  const snap = (v: number) =>
-    snapToGrid && gridSize > 0 ? Math.round(v / gridSize) * gridSize : v
   const clamp = (v: number, max: number) => Math.max(0, Math.min(max, v))
   const visible = getEditorVisibleWorldCenter()
   const raw = visible ?? { x: vp.x * 0.5, y: vp.y * 0.5 }
-  return {
-    x: snap(clamp(raw.x, ws.x)),
-    y: snap(clamp(raw.y, ws.y)),
-  }
+  const cx = clamp(raw.x, ws.x)
+  const cy = clamp(raw.y, ws.y)
+  return normalizeEntityPosition(cx, cy, snapToGrid, gridSize)
 }
 
 /** A new EntityDef with sane defaults (Phase B — add entity). */

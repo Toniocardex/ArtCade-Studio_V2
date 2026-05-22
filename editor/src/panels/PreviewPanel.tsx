@@ -18,6 +18,7 @@ import {
   computeVisibleWorldCenter,
   setEditorVisibleWorldCenter,
 } from '../utils/editor-viewport-center'
+import { normalizeEntityPosition } from '../utils/entity-position'
 import { CanvasToolbar } from './preview/CanvasToolbar'
 import { RuntimeStatusBadge } from './preview/RuntimeStatusBadge'
 
@@ -28,10 +29,6 @@ type TransformSnapshot = {
   rotation: number
   scaleX: number
   scaleY: number
-}
-
-function snapToGridValue(value: number, gridSize: number): number {
-  return gridSize > 0 ? Math.round(value / gridSize) * gridSize : value
 }
 
 function sameTransform(a: TransformSnapshot, b: TransformSnapshot): boolean {
@@ -92,11 +89,12 @@ export default function PreviewPanel() {
       return
     }
 
-    const nextX = snapToGridRef.current ? snapToGridValue(x, gridSizeRef.current) : x
-    const nextY = snapToGridRef.current ? snapToGridValue(y, gridSizeRef.current) : y
+    const { x: nextX, y: nextY } = normalizeEntityPosition(
+      x, y, snapToGridRef.current, gridSizeRef.current,
+    )
     const snapped: TransformSnapshot = { entityId, x: nextX, y: nextY, rotation, scaleX, scaleY }
 
-    if (snapToGridRef.current && (nextX !== x || nextY !== y)) {
+    if (nextX !== x || nextY !== y) {
       ignoredTransformEchoRef.current = snapped
       runtimeSync.syncEntityTransform(snapped)
     } else {

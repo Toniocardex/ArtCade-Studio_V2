@@ -1,7 +1,8 @@
 import { useEditor } from '../../store/editor-store'
 import type { EntityDef } from '../../types'
 import { runtimeSync } from '../../utils/runtime-sync-service'
-import { InspectorSection, NumberField, snapToGridValue } from './inspector-fields'
+import { normalizeEntityPosition } from '../../utils/entity-position'
+import { InspectorSection, NumberField } from './inspector-fields'
 
 type TransformPatch = Partial<{
   x: number; y: number; rotation: number; scaleX: number; scaleY: number
@@ -16,8 +17,7 @@ export function TransformSection({ entity }: { entity: EntityDef }) {
     const gridSize = state.editorGridSize || activeScene?.tilemap?.tileSize || 32
     const rawX = next.x ?? entity.transform.position.x
     const rawY = next.y ?? entity.transform.position.y
-    const x = state.snapToGrid ? snapToGridValue(rawX, gridSize) : rawX
-    const y = state.snapToGrid ? snapToGridValue(rawY, gridSize) : rawY
+    const { x, y } = normalizeEntityPosition(rawX, rawY, state.snapToGrid, gridSize)
     const rotation = next.rotation ?? entity.transform.rotation
     const scaleX = next.scaleX ?? entity.transform.scale.x
     const scaleY = next.scaleY ?? entity.transform.scale.y
@@ -31,8 +31,8 @@ export function TransformSection({ entity }: { entity: EntityDef }) {
       <div className="mb-2">
         <label className="text-[9px] text-[var(--muted)] uppercase block mb-0.5">Position</label>
         <div className="grid grid-cols-2 gap-2">
-          <NumberField label="X" value={entity.transform.position.x} onCommit={x => commitTransform({ x })} />
-          <NumberField label="Y" value={entity.transform.position.y} onCommit={y => commitTransform({ y })} />
+          <NumberField label="X" step={1} value={entity.transform.position.x} onCommit={x => commitTransform({ x })} />
+          <NumberField label="Y" step={1} value={entity.transform.position.y} onCommit={y => commitTransform({ y })} />
         </div>
       </div>
       <div className="mb-2">
