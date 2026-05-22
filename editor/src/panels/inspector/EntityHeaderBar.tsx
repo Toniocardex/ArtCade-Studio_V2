@@ -3,6 +3,7 @@ import { useEditor } from '../../store/editor-store'
 import type { ComponentKey, EntityDef } from '../../types'
 import { Field } from './inspector-fields'
 import { activeComponentDescriptors } from './entity-component-utils'
+import { EntityTagsSection } from './EntityTagsSection'
 
 export function EntityHeaderBar({
   entity,
@@ -65,19 +66,7 @@ export function EntityHeaderBar({
         Open Logic Board
       </button>
 
-      {entity.tags.length > 0 && (
-        <div className="flex flex-wrap gap-1 mb-2">
-          {entity.tags.map((t) => (
-            <span
-              key={t}
-              className="bg-[var(--border)] border border-[var(--border-2)] text-[var(--muted)]
-                         text-[9px] px-2 py-0.5 rounded"
-            >
-              #{t}
-            </span>
-          ))}
-        </div>
-      )}
+      <EntityTagsSection entity={entity} />
 
       <details
         open={advancedOpen}

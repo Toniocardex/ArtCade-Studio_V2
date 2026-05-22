@@ -96,6 +96,8 @@ export type Action =
   | { type: 'ENTITY_SET_VISIBLE'; entityId: number; visible: boolean }
   | { type: 'ENTITY_SET_NAME';    entityId: number; name: string }
   | { type: 'ENTITY_SET_CLASSNAME'; entityId: number; className: string }
+  | { type: 'ENTITY_ADD_TAG';     entityId: number; tag: string }
+  | { type: 'ENTITY_REMOVE_TAG'; entityId: number; tag: string }
   | { type: 'WORLD_SET';         patch: Partial<WorldSettings> }
   | { type: 'SCENE_ADD_EMPTY'; sourceSceneId?: string; name?: string }
   | { type: 'SCENE_RENAME';    sceneId: string; name: string }

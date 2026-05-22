@@ -18,7 +18,7 @@ export function ScriptSection({ entity }: { entity: EntityDef }) {
                    text-[var(--accent-2)] text-[10px] font-bold rounded hover:bg-[rgb(var(--accent-2-rgb)/0.2)]
                    transition-colors"
       >
-        OPEN IN LOGIC_BOARD →
+        OPEN IN SCRIPT EDITOR →
       </button>
     </InspectorSection>
   )

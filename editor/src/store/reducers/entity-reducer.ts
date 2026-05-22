@@ -235,6 +235,43 @@ export const entityReducer: DomainReducer = (state: CoreState, action: Action) =
         projectDirty: true,
       }
     }
+    case 'ENTITY_ADD_TAG': {
+      if (!state.project || !state.project.entities[action.entityId]) return state
+      const tag = action.tag.trim()
+      if (!tag) return state
+      const e = state.project.entities[action.entityId]
+      if (e.tags.includes(tag)) return state
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          entities: {
+            ...state.project.entities,
+            [action.entityId]: { ...e, tags: [...e.tags, tag] },
+          },
+        },
+        projectDirty: true,
+      }
+    }
+    case 'ENTITY_REMOVE_TAG': {
+      if (!state.project || !state.project.entities[action.entityId]) return state
+      const e = state.project.entities[action.entityId]
+      if (!e.tags.includes(action.tag)) return state
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          entities: {
+            ...state.project.entities,
+            [action.entityId]: {
+              ...e,
+              tags: e.tags.filter((t) => t !== action.tag),
+            },
+          },
+        },
+        projectDirty: true,
+      }
+    }
     default:
       return state
   }
