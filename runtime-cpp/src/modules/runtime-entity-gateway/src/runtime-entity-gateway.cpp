@@ -454,15 +454,7 @@ bool RuntimeEntityGateway::setAutoDestroy(
     EntityId id, const std::optional<AutoDestroyComponent>& autoDestroy)
 {
     if (!registry_->contains(id)) return false;
-    if (!autoDestroy) {
-        registry_->setAutoDestroy(id, std::nullopt);
-        return true;
-    }
-    AutoDestroyComponent merged = *autoDestroy;
-    AutoDestroyComponent prev{};
-    if (registry_->getAutoDestroy(id, prev))
-        merged._timeAlive = prev._timeAlive;
-    registry_->setAutoDestroy(id, merged);
+    registry_->setAutoDestroy(id, autoDestroy);
     return true;
 }
 
@@ -474,15 +466,7 @@ bool RuntimeEntityGateway::setHealth(EntityId id,
                                      const std::optional<HealthComponent>& health)
 {
     if (!registry_->contains(id)) return false;
-    if (!health) {
-        registry_->setHealth(id, std::nullopt);
-        return true;
-    }
-    HealthComponent merged = *health;
-    HealthComponent prev{};
-    if (registry_->getHealth(id, prev))
-        merged._iFramesRemaining = prev._iFramesRemaining;
-    registry_->setHealth(id, merged);
+    registry_->setHealth(id, health);
     return true;
 }
 

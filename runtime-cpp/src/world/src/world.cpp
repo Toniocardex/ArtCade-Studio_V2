@@ -48,6 +48,31 @@ Vec2 constrainTopDownDirection(Vec2 direction, bool fourDirections) {
     return normalizeOrZero(direction);
 }
 
+void applySteeringVelocity(Modules::Physics& physics,
+                           Modules::RuntimeEntityGateway& gateway,
+                           EntityId id,
+                           const Vec2& velocity,
+                           float dt)
+{
+    const uint32_t handle = gateway.physicsHandle(id);
+    if (handle != 0) {
+        PhysicsComponent physicsComp{};
+        if (gateway.getPhysicsComponent(id, physicsComp) &&
+            physicsComp.bodyType != BodyType::Static)
+        {
+            physics.setLinearVelocity(handle, velocity);
+            return;
+        }
+    }
+
+    Transform transform{};
+    if (!gateway.getTransform(id, transform)) return;
+    transform.velocity = velocity;
+    transform.position.x += velocity.x * dt;
+    transform.position.y += velocity.y * dt;
+    gateway.setTransform(id, transform);
+}
+
 } // namespace
 
 World::World(Modules::RuntimeEntityGateway& gateway,
@@ -382,35 +407,6 @@ void World::tickSensorOverlapEdges() {
         });
 }
 
-namespace {
-
-void applySteeringVelocity(Modules::Physics& physics,
-                           Modules::RuntimeEntityGateway& gateway,
-                           EntityId id,
-                           const Vec2& velocity,
-                           float dt)
-{
-    const uint32_t handle = gateway.physicsHandle(id);
-    if (handle != 0) {
-        PhysicsComponent physicsComp{};
-        if (gateway.getPhysicsComponent(id, physicsComp) &&
-            physicsComp.bodyType != BodyType::Static)
-        {
-            physics.setLinearVelocity(handle, velocity);
-            return;
-        }
-    }
-
-    Transform transform{};
-    if (!gateway.getTransform(id, transform)) return;
-    transform.velocity = velocity;
-    transform.position.x += velocity.x * dt;
-    transform.position.y += velocity.y * dt;
-    gateway.setTransform(id, transform);
-}
-
-} // namespace
-
 void World::tickHordeMembers(float dt) {
     struct HordeSnap {
         EntityId              id = 0;
@@ -464,9 +460,15 @@ void World::tickHordeMembers(float dt) {
             for (const HordeSnap& other : members) {
                 if (other.id == self.id) continue;
                 Vec2 away = { self.pos.x - other.pos.x, self.pos.y - other.pos.y };
-                const float dist2 = lengthSq(away);
-                if (dist2 < 1e-6f || dist2 >= sepR * sepR) continue;
-                const float dist = std::sqrt(dist2);
+                float dist2 = lengthSq(away);
+                if (dist2 >= sepR * sepR) continue;
+                float dist;
+                if (dist2 < 1e-6f) {
+                    away = (self.id < other.id) ? Vec2{ 1.f, 0.f } : Vec2{ -1.f, 0.f };
+                    dist = 1.f;
+                } else {
+                    dist = std::sqrt(dist2);
+                }
                 const float strength = (sepR - dist) / sepR;
                 steer.x += (away.x / dist) * strength * self.cfg.separationWeight;
                 steer.y += (away.y / dist) * strength * self.cfg.separationWeight;
