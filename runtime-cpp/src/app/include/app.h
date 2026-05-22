@@ -57,6 +57,10 @@ private:
     void shutdownModules();
     void mainLoop();
     void loopIteration();      // singolo frame — usato sia dal while che dal callback WASM
+    /** One fixed-timestep simulation tick (gameplay, physics, lifecycle). */
+    void tickFixedStep(float dt);
+    /** Per-render-frame tail: profiler counts, draw, console flush, input reset. */
+    void tickFrameEnd();
     void renderActiveScene();
 
     float targetDt_        = 1.f / 60.f;

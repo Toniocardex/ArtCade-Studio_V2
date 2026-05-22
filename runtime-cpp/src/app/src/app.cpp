@@ -353,6 +353,118 @@ bool Application::loadProject(const std::string& projectPath) {
 
 // ---- Single frame -------------------------------------------------------
 
+void Application::tickFixedStep(float dt) {
+    using Clock = std::chrono::steady_clock;
+    auto elapsedMs = [](Clock::time_point start) {
+        return std::chrono::duration<double, std::milli>(
+            Clock::now() - start).count();
+    };
+
+    // Clear Lua draw queue BEFORE this tick so that if multiple ticks
+    // run in one render frame, only the LAST tick's drawScene() commands
+    // survive to endFrame().  Without this, a frame with 2+ ticks
+    // accumulates draw lists from every tick: objects destroyed in tick N
+    // still appear as ghosts from tick N-1 (the coin-pickup flash).
+    mod_->renderer->clearDrawQueue();
+
+    {
+        const auto start = Clock::now();
+        mod_->timeManager->tick(dt);
+        mod_->tweenManager->update(dt);
+        mod_->spriteAnimator->update(dt);
+        mod_->layerManager->update(dt);
+        mod_->cameraManager->update(dt);
+        mod_->gameStateManager->update(dt);
+        mod_->eventBus->flushDeferred();
+        mod_->world->tickGameplaySystems(dt);
+        mod_->entityGateway->tickSceneTransition(dt);
+        profiler_.addGameplayMs(elapsedMs(start));
+    }
+    {
+        const auto start = Clock::now();
+        const uint32_t events = mod_->gameAPI->dispatchSensorEvents();
+        profiler_.addLuaMs(elapsedMs(start));
+        profiler_.addLuaEvents(events);
+    }
+    {
+        const auto start = Clock::now();
+        const uint32_t events = mod_->gameAPI->dispatchAnimationEvents();
+        profiler_.addLuaMs(elapsedMs(start));
+        profiler_.addLuaEvents(events);
+    }
+    {
+        const auto start = Clock::now();
+        mod_->luaHost->tick(dt);
+        profiler_.addLuaMs(elapsedMs(start));
+        profiler_.setLuaTickEnabled(mod_->luaHost->isScriptTickRequired());
+    }
+    {
+        const auto start = Clock::now();
+        mod_->physics->step(dt);
+        profiler_.addPhysicsMs(elapsedMs(start));
+    }
+    mod_->world->syncPhysicsToEntities();
+    mod_->world->tickCameraTargets(dt);
+    mod_->world->flushEntityQueues();
+
+    // Dispatch lifecycle events (Spawned / Destroyed) from EnTT
+    // signals to Lua handlers registered via lifecycle.onSpawn /
+    // lifecycle.onDestroy. Runs *after* flushEntityQueues so all
+    // queued spawn+destroy of this step are visible in order.
+    {
+        const auto start = Clock::now();
+        const uint32_t events = mod_->gameAPI->dispatchLifecycleEvents();
+        profiler_.addLuaMs(elapsedMs(start));
+        profiler_.addLuaEvents(events);
+    }
+
+    // AutoDestroy: World ticks lifespans after physics sync; flush + lifecycle
+    // drain so onDestroy handlers see destroys this frame.
+    {
+        mod_->world->tickAutoDestroy(dt);
+        {
+            const auto start = Clock::now();
+            mod_->world->flushEntityQueues();
+            profiler_.addGameplayMs(elapsedMs(start));
+        }
+        // Drain the lifecycle events queued by the auto-destroy
+        // flush so onDestroy handlers see them this frame, not the next.
+        {
+            const auto start = Clock::now();
+            const uint32_t events = mod_->gameAPI->dispatchLifecycleEvents();
+            profiler_.addLuaMs(elapsedMs(start));
+            profiler_.addLuaEvents(events);
+        }
+    }
+
+    mod_->audio->update();
+
+    if (splash_) {
+        splash_->update(dt);
+        if (splash_->isDone()) splash_.reset();
+    }
+}
+
+void Application::tickFrameEnd() {
+    using Clock = std::chrono::steady_clock;
+    auto elapsedMs = [](Clock::time_point start) {
+        return std::chrono::duration<double, std::milli>(
+            Clock::now() - start).count();
+    };
+
+    profiler_.setCounts(
+        static_cast<uint32_t>(mod_->entityGateway->activeSceneEntityCount()),
+        static_cast<uint32_t>(mod_->entityGateway->activePhysicsBodyCount()));
+    {
+        const auto start = Clock::now();
+        renderActiveScene();
+        profiler_.setRenderMs(elapsedMs(start));
+    }
+    EditorAPI::flushConsoleLines();
+    mod_->input->resetFrameState();
+    profiler_.endFrame();
+}
+
 void Application::loopIteration() {
     using Clock = std::chrono::steady_clock;
     auto elapsedMs = [](Clock::time_point start) {
@@ -386,108 +498,12 @@ void Application::loopIteration() {
         profiler_.addLuaEvents(events);
     }
 
-    // Fixed timestep
     while (accumulator_ >= targetDt_) {
-        // Clear Lua draw queue BEFORE this tick so that if multiple ticks
-        // run in one render frame, only the LAST tick's drawScene() commands
-        // survive to endFrame().  Without this, a frame with 2+ ticks
-        // accumulates draw lists from every tick: objects destroyed in tick N
-        // still appear as ghosts from tick N-1 (the coin-pickup flash).
-        mod_->renderer->clearDrawQueue();
-
-        {
-            const auto start = Clock::now();
-            mod_->timeManager->tick(targetDt_);
-            mod_->tweenManager->update(targetDt_);
-            mod_->spriteAnimator->update(targetDt_);
-            mod_->layerManager->update(targetDt_);
-            mod_->cameraManager->update(targetDt_);
-            mod_->gameStateManager->update(targetDt_);
-            mod_->eventBus->flushDeferred();
-            mod_->world->tickGameplaySystems(targetDt_);
-            mod_->entityGateway->tickSceneTransition(targetDt_);
-            profiler_.addGameplayMs(elapsedMs(start));
-        }
-        {
-            const auto start = Clock::now();
-            const uint32_t events = mod_->gameAPI->dispatchSensorEvents();
-            profiler_.addLuaMs(elapsedMs(start));
-            profiler_.addLuaEvents(events);
-        }
-        {
-            const auto start = Clock::now();
-            const uint32_t events = mod_->gameAPI->dispatchAnimationEvents();
-            profiler_.addLuaMs(elapsedMs(start));
-            profiler_.addLuaEvents(events);
-        }
-        {
-            const auto start = Clock::now();
-            mod_->luaHost->tick(targetDt_);
-            profiler_.addLuaMs(elapsedMs(start));
-            profiler_.setLuaTickEnabled(mod_->luaHost->isScriptTickRequired());
-        }
-        {
-            const auto start = Clock::now();
-            mod_->physics->step(targetDt_);
-            profiler_.addPhysicsMs(elapsedMs(start));
-        }
-        mod_->world->syncPhysicsToEntities();
-        mod_->world->tickCameraTargets(targetDt_);
-        mod_->world->flushEntityQueues();
-
-        // Dispatch lifecycle events (Spawned / Destroyed) from EnTT
-        // signals to Lua handlers registered via lifecycle.onSpawn /
-        // lifecycle.onDestroy. Runs *after* flushEntityQueues so all
-        // queued spawn+destroy of this step are visible in order.
-        {
-            const auto start = Clock::now();
-            const uint32_t events = mod_->gameAPI->dispatchLifecycleEvents();
-            profiler_.addLuaMs(elapsedMs(start));
-            profiler_.addLuaEvents(events);
-        }
-
-        // AutoDestroy: World ticks lifespans after physics sync; flush + lifecycle
-        // drain so onDestroy handlers see destroys this frame.
-        {
-            mod_->world->tickAutoDestroy(targetDt_);
-            {
-                const auto start = Clock::now();
-                mod_->world->flushEntityQueues();
-                profiler_.addGameplayMs(elapsedMs(start));
-            }
-            // Drain the lifecycle events queued by the auto-destroy
-            // flush so onDestroy handlers see them this frame, not the next.
-            {
-                const auto start = Clock::now();
-                const uint32_t events = mod_->gameAPI->dispatchLifecycleEvents();
-                profiler_.addLuaMs(elapsedMs(start));
-                profiler_.addLuaEvents(events);
-            }
-        }
-
-        mod_->audio->update();
-
-        if (splash_) {
-            splash_->update(targetDt_);
-            if (splash_->isDone()) splash_.reset();
-        }
-
+        tickFixedStep(targetDt_);
         accumulator_ -= targetDt_;
     }
 
-    {
-        profiler_.setCounts(
-            static_cast<uint32_t>(mod_->entityGateway->activeSceneEntityCount()),
-            static_cast<uint32_t>(mod_->entityGateway->activePhysicsBodyCount()));
-    }
-    {
-        const auto start = Clock::now();
-        renderActiveScene();
-        profiler_.setRenderMs(elapsedMs(start));
-    }
-    EditorAPI::flushConsoleLines();
-    mod_->input->resetFrameState();
-    profiler_.endFrame();
+    tickFrameEnd();
 }
 
 // ---- Main loop ----------------------------------------------------------
