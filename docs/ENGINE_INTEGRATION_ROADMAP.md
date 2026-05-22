@@ -17,6 +17,8 @@ Direzione scelta:
 - `RuntimeEntityGateway` resta la facciata stabile verso World, GameAPI,
   EditorAPI e renderer.
 - Lua/Logic Board diventano event/intent-first.
+- La Logic Board orchestra condizioni e azioni di gioco; i Component runtime
+  eseguono comportamento e stato ricorrente nel core C++.
 - Le API low-level restano disponibili come livello Advanced/Debug.
 - `luaHost->tick(dt)` resta temporaneamente per compatibilita.
 
@@ -81,7 +83,40 @@ Integrazione roadmap Tranche 1–10 completata. Follow-up opzionali:
 
 - sensor picker in Logic Board UI;
 - rimozione fallback input C++ in World platformer;
-- nuovi componenti gameplay via pattern §6 ECS guide.
+- catalogo Component runtime Core/Advanced via pattern §6 ECS guide.
+
+### Catalogo Component Target
+
+I Component runtime sono divisi in due famiglie:
+
+- **Core MVP**: fondamenta comuni della simulazione, usabili come building
+  block principali nell'Inspector.
+- **Advanced / Next-Gen**: meccaniche ad alto valore, implementate nel core
+  quando servono a un workflow reale.
+
+Core MVP target:
+
+- `PlatformerControllerComponent`: movimento side-scroller con velocita max,
+  accelerazione, salto e moltiplicatore gravita.
+- `TopDownControllerComponent`: movimento libero X/Y, accelerazione, attrito
+  e opzione 4-direzioni.
+- `SolidComponent` / `PhysicsComponent` statico: ostacoli statici, inclusa
+  futura opzione one-way platform.
+- `LinearMoverComponent` / Bullet: moto lineare continuo, direzione/velocita,
+  distruzione opzionale all'impatto.
+- `CameraTargetComponent`: target camera 2D con offset, smoothing e bounds.
+
+Advanced target:
+
+- `MagneticItemComponent`: loot/drop attratti verso un target.
+- `HordeMemberComponent`: steering/swarm AI con separazione tra simili.
+- `ProceduralJuiceComponent`: deformazioni visive procedurali senza cambiare
+  hitbox fisiche.
+- `GrapplingHookComponent`: rope/joint Box2D e azioni Logic Board dedicate.
+
+Ordine consigliato: consolidare i Core mancanti prima degli Advanced, salvo
+necessita demo specifiche. Primo candidato utile resta `MagneticItemComponent`
+perche valida Component nativo, eventi sensore e raccolta coin.
 
 ### Verifiche Ultima Tranche
 
@@ -99,6 +134,17 @@ Warning residui noti:
 
 ## Regole Architetturali
 
+- Separazione normativa: **Logic Board orchestra, Component esegue, Core
+  simula**.
+- La Logic Board deve esprimere condizioni e azioni ad alto livello, per
+  esempio `player enters coin radius`, `fire grappling hook`, `release
+  grappling hook`, `set target`.
+- I Component runtime sono pacchetti di stato/comportamento nativi
+  dell'entita, configurabili dall'Inspector e processati da sistemi C++:
+  esempi target sono `MagneticItemComponent`, `HordeMemberComponent`,
+  `ProceduralJuiceComponent`, `GrapplingHookComponent`.
+- Non implementare nuovi "Behavior" come loop Lua nascosti: il termine
+  prodotto e tecnico per questa famiglia e' **Component**.
 - Non esporre `entt::registry` fuori da `runtime-entity-gateway`.
 - Nuovi sistemi runtime devono passare da `RuntimeEntityGateway` o da metodi
   di `World` intenzionali.

@@ -75,6 +75,38 @@ Storage runtime su **EnTT** (`EntityRegistry` in `runtime-entity-gateway`). Lua 
 
 **Dato** associato a un’entità (trasformazione, sprite, corpo fisico). **Non** è un Logic Component.
 
+### Runtime Component / Native Component
+
+Component nativo dell'entita gestito dal core C++ tramite ECS/EnTT e
+`RuntimeEntityGateway`. E' il nome ArtCade per i pacchetti pronti che altri
+documenti potrebbero chiamare "Behavior".
+
+Famiglie previste:
+
+- **Core MVP**: componenti fondativi e frequenti, come platformer,
+  top-down movement, solid/static body, bullet/linear mover e camera target.
+- **Advanced / Next-Gen**: componenti gameplay specializzati, come magnetic
+  item, horde member, procedural juice e grappling hook.
+
+Esempi Core:
+
+- `PlatformerControllerComponent`: movimento side-scroller con salto.
+- `TopDownControllerComponent`: movimento libero X/Y con attrito e 4-direzioni.
+- `SolidComponent`: ostacolo fisico statico o one-way platform.
+- `LinearMoverComponent`: proiettili/barriere con moto lineare continuo.
+- `CameraTargetComponent`: target camera con offset, smoothing e bounds.
+
+Esempi Advanced:
+
+- `MagneticItemComponent`: attrazione/raccolta oggetti verso un target.
+- `HordeMemberComponent`: steering/swarm AI per nemici numerosi.
+- `ProceduralJuiceComponent`: squash/stretch/tilt visivo senza alterare hitbox.
+- `GrapplingHookComponent`: stato e fisica rope/joint per rampino.
+
+Regola: la **Logic Board** decide quando attivare, configurare o reagire a
+questi componenti; il **Runtime Component** esegue la logica ricorrente nel
+core C++.
+
 ### EnTT
 
 Libreria C++ header-only per registry ECS; riferimenti e migrazione in `ECS_IMPLEMENTATION_GUIDE.md` e §11 di `ARCHITETTURA_TECNICA_ENGINE_2D.md`.
@@ -133,6 +165,7 @@ Formato pacchetto ZIP; JSON progetto; output compilazione Lua. Logic Board e Log
 | **Logic Event** | Blocco evento nella Logic Board | `EventBus` C++, singolo frame |
 | **Logic Component** | Mattone trigger/condizione/azione nella Logic Board | **ECS Component** (dato) |
 | **ECS Component** | Dato su entità (`Transform`, …) | **Logic Component** |
+| **Runtime Component** | Pacchetto nativo C++ di stato/comportamento entity | Logic Component, script Lua |
 | **Logic Sheet** | Formato tabellare (Parte II **qui**) | Logic Board (nome del luogo di lavoro) |
 | **Entity** | Oggetto di gioco (id) | Logic Event |
 | **World** | Orchestratore stato gioco | Logic Board |

@@ -30,6 +30,32 @@ Invece di permettere alle Board di modificare direttamente i componenti di altre
 
 ---
 
+## 2.1 Logic Board vs Component runtime
+
+La Logic Board deve restare uno strumento di orchestrazione: condizioni,
+trigger e azioni leggibili dall'utente. La simulazione frequente e costosa
+deve vivere nei Component runtime nativi e nei sistemi C++.
+
+Formula guida:
+
+```text
+Logic Board orchestra. Component esegue. Core simula.
+```
+
+Esempi corretti:
+
+- `player enters coin radius` -> azione `collect coin`; attrazione gestita da
+  `MagneticItemComponent`.
+- `input pressed` -> azione `fire grappling hook`; rope/joint gestiti da
+  `GrapplingHookComponent`.
+- `enemy sees player` -> azione `set target`; steering gestito da
+  `HordeMemberComponent`.
+
+Non generare loop Lua nascosti per implementare feature che sono Component
+runtime. Lua e Logic Board restano livello thin script/eventi.
+
+---
+
 ## 3. Scalabilità: Architettura Data-Driven dei Nodi
 Per evitare di dover modificare il compilatore TypeScript o il bridge C++ per ogni nuovo nodo, la definizione deve essere esterna (JSON Schema).
 
