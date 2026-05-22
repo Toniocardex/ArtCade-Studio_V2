@@ -34,7 +34,7 @@ Logic Board              (il luogo di lavoro)
        └─ Logic Component (il mattone: trigger, condizione o azione)
 ```
 
-**Implementazione editor (oggi):** tab **Visual** = solo editor eventi (tutta la larghezza); tab **Script** = anteprima Lua read-only + **Apri in Editor Script**. Nessuna anteprima Lua affiancata in Visual. Il main (`mainScriptPath`) si aggiorna in store (`UPSERT_SCRIPT`); edit con tab bar nel modulo **Editor Script** (`CODEMIRROR_EDITOR.md`). **Apply & hot-reload** invia il Lua al runtime WASM.
+**Implementazione editor (oggi):** tab **Visual** = solo editor eventi (tutta la larghezza); tab **Script** = anteprima Lua read-only + **Apri in Editor Script**. Nessuna anteprima Lua affiancata in Visual. Il main (`mainScriptPath`) si aggiorna in store (`UPSERT_SCRIPT`); edit con tab bar nel modulo **Editor Script** (`CODEMIRROR_EDITOR.md`). **Apply & hot-reload** invia il Lua al runtime WASM. Ogni **Logic Event** ha pulsante **Clona** (⧉) nella toolbar; ogni azione in "Then" ha lo stesso controllo. **Ctrl+C / Ctrl+V / Ctrl+D** copiano, incollano o clonano la regola selezionata (clipboard di sessione).
 
 ### Logic Event
 

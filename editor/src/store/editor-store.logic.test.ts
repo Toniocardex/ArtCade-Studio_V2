@@ -59,6 +59,21 @@ describe('coreReducer — Logic Board CRUD', () => {
     expect(s.project?.logicBoards?.map((x) => x.boardId)).toEqual(['b'])
   })
 
+  it('LOGIC_INSERT_EVENT inserts after a given event id', () => {
+    const board = createLogicBoard('Player', 'pc')
+    let s = coreReducer(baseState(), { type: 'LOGIC_ADD_BOARD', board })
+
+    const a = createLogicEvent({ type: 'onUpdate' }, [{ type: 'debugLog', message: 'a' }])
+    const b = createLogicEvent({ type: 'onSpawn' }, [{ type: 'debugLog', message: 'b' }])
+    s = coreReducer(s, { type: 'LOGIC_ADD_EVENT', boardId: 'pc', event: a })
+    s = coreReducer(s, { type: 'LOGIC_INSERT_EVENT', boardId: 'pc', event: b, afterEventId: a.id })
+
+    const events = s.project?.logicBoards?.[0].events ?? []
+    expect(events.map((e) => e.trigger.type)).toEqual(['onUpdate', 'onSpawn'])
+    expect(events[1].id).toBe(b.id)
+    expect(s.projectDirty).toBe(true)
+  })
+
   it('LOGIC_ADD_EVENT / UPDATE_EVENT / DELETE_EVENT operate on the right board', () => {
     const board = createLogicBoard('Player', 'pc')
     let s = coreReducer(baseState(), { type: 'LOGIC_ADD_BOARD', board })

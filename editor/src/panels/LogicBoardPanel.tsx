@@ -7,7 +7,7 @@
 // All mutations go through LOGIC_*; compiled Lua syncs to mainScriptPath in store.
 // ---------------------------------------------------------------------------
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useEditor } from '../store/editor-store'
 import {
   allClassNames,
@@ -23,10 +23,12 @@ import {
   createLogicBoardForEntity,
   createLogicEvent,
 } from '../utils/logic-board/factory'
+import { cloneLogicEvent } from '../utils/logic-board/clone'
+import { shouldIgnoreEditorShortcut } from '../utils/keyboard'
 import { TRIGGER_TYPES, defaultTrigger } from './logic-board/options'
 import { boardDisplayName } from './logic-board/friendly-labels'
 import type { ProjectDoc } from '../types'
-import type { LogicBoard, LogicTriggerType } from '../types/logic-board'
+import type { LogicBoard, LogicEvent, LogicTriggerType } from '../types/logic-board'
 import { TypePicker } from '../components/logic-board/TypePicker'
 import EventCard from './logic-board/EventCard'
 import { LogicBoardLuaPreview } from './logic-board/LogicBoardLuaPreview'
@@ -35,6 +37,13 @@ import {
   openMainScriptInEditor,
   syncLogicBoardToScript,
 } from '../utils/sync-logic-board-script'
+
+type LogicClipboard = { kind: 'event'; event: LogicEvent } | null
+
+function hasNonEmptyTextSelection(): boolean {
+  const sel = window.getSelection()
+  return Boolean(sel && sel.toString().length > 0)
+}
 
 export default function LogicBoardPanel() {
   const { state, dispatch } = useEditor()
@@ -51,6 +60,16 @@ export default function LogicBoardPanel() {
   const [newClass, setNewClass] = useState('')
   const [newTrigger, setNewTrigger] = useState<LogicTriggerType>('onSpawn')
   const [applyMsg, setApplyMsg] = useState<string | null>(null)
+  const [focusedEventId, setFocusedEventId] = useState<string | null>(null)
+  const [clipboardHint, setClipboardHint] = useState<string | null>(null)
+  const clipboardRef = useRef<LogicClipboard>(null)
+  const hintTimerRef = useRef<number | null>(null)
+
+  const showClipboardHint = useCallback((msg: string) => {
+    setClipboardHint(msg)
+    if (hintTimerRef.current != null) window.clearTimeout(hintTimerRef.current)
+    hintTimerRef.current = window.setTimeout(() => setClipboardHint(null), 2000)
+  }, [])
 
   const sceneId = selection.sceneId ?? project?.activeSceneId ?? ''
   const sceneEntities = project ? getEntitiesInScene(project, sceneId) : []
@@ -118,6 +137,81 @@ export default function LogicBoardPanel() {
     setSelectedBoardId(b.boardId)
   }
 
+  const insertClonedEvent = useCallback(
+    (source: LogicEvent, afterEventId?: string) => {
+      if (!board) return null
+      const copy = cloneLogicEvent(source)
+      dispatch({
+        type: 'LOGIC_INSERT_EVENT',
+        boardId: board.boardId,
+        event: copy,
+        afterEventId,
+      })
+      setFocusedEventId(copy.id)
+      setEditingId(copy.id)
+      return copy
+    },
+    [board, dispatch],
+  )
+
+  const cloneEvent = useCallback(
+    (ev: LogicEvent) => {
+      insertClonedEvent(ev, ev.id)
+    },
+    [insertClonedEvent],
+  )
+
+  const copyEvent = useCallback(
+    (ev: LogicEvent) => {
+      clipboardRef.current = { kind: 'event', event: structuredClone(ev) }
+      showClipboardHint('Regola copiata')
+    },
+    [showClipboardHint],
+  )
+
+  const pasteEvent = useCallback(
+    (afterEventId?: string) => {
+      const clip = clipboardRef.current
+      if (!clip || clip.kind !== 'event') return
+      insertClonedEvent(clip.event, afterEventId ?? focusedEventId ?? undefined)
+      showClipboardHint('Regola incollata in questo rulesheet')
+    },
+    [focusedEventId, insertClonedEvent, showClipboardHint],
+  )
+
+  useEffect(() => {
+    if (state.mode !== 'logic' || panelMode !== 'visual') return
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (shouldIgnoreEditorShortcut(e)) return
+      if (!e.ctrlKey && !e.metaKey) return
+      if (!board) return
+
+      const focused =
+        focusedEventId != null
+          ? board.events.find((ev) => ev.id === focusedEventId)
+          : undefined
+
+      if (e.key === 'c' || e.key === 'C') {
+        if (!focused) return
+        if (hasNonEmptyTextSelection()) return
+        e.preventDefault()
+        copyEvent(focused)
+      } else if (e.key === 'v' || e.key === 'V') {
+        if (clipboardRef.current?.kind !== 'event') return
+        e.preventDefault()
+        pasteEvent(focused?.id)
+      } else if (e.key === 'd' || e.key === 'D') {
+        if (!focused) return
+        e.preventDefault()
+        cloneEvent(focused)
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [state.mode, panelMode, board, focusedEventId, copyEvent, pasteEvent, cloneEvent])
+
   if (!project) {
     return (
       <div className="flex-1 flex items-center justify-center text-[var(--muted)] text-sm">
@@ -162,7 +256,10 @@ export default function LogicBoardPanel() {
     selectedEntityId != null && boardForSelection == null
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-[var(--bg)]">
+    <div
+      className="flex-1 flex flex-col min-h-0 bg-[var(--bg)]"
+      data-panel="logic-board"
+    >
       <Header
         mode={panelMode}
         setMode={setPanelMode}
@@ -273,12 +370,20 @@ export default function LogicBoardPanel() {
           </div>
         ) : (
           <>
-            <div className="text-xs text-[var(--muted)] mb-3">
-              Rules for{' '}
-              <span className="text-[var(--text)] font-medium">
-                {logicBoardLabel(project, board)}
-              </span>{' '}
-              ({board.events.length})
+            <div className="text-xs text-[var(--muted)] mb-3 flex items-center gap-2 flex-wrap">
+              <span>
+                Rules for{' '}
+                <span className="text-[var(--text)] font-medium">
+                  {logicBoardLabel(project, board)}
+                </span>{' '}
+                ({board.events.length})
+              </span>
+              {clipboardHint && (
+                <span className="text-[10px] text-[var(--accent)]">{clipboardHint}</span>
+              )}
+              <span className="text-[10px] text-[var(--muted-2)]">
+                Ctrl+C copia · Ctrl+V incolla · Ctrl+D clona
+              </span>
             </div>
 
             {board.events.map((ev) => (
@@ -287,6 +392,8 @@ export default function LogicBoardPanel() {
                 event={ev}
                 board={board}
                 editing={editingId === ev.id}
+                selected={focusedEventId === ev.id}
+                onSelect={() => setFocusedEventId(ev.id)}
                 onToggleEnabled={() =>
                   dispatch({
                     type: 'LOGIC_UPDATE_EVENT',
@@ -294,9 +401,11 @@ export default function LogicBoardPanel() {
                     event: { ...ev, enabled: !ev.enabled },
                   })
                 }
-                onEdit={() =>
+                onEdit={() => {
+                  setFocusedEventId(ev.id)
                   setEditingId(editingId === ev.id ? null : ev.id)
-                }
+                }}
+                onClone={() => cloneEvent(ev)}
                 onDelete={() => {
                   dispatch({
                     type: 'LOGIC_DELETE_EVENT',
@@ -304,6 +413,7 @@ export default function LogicBoardPanel() {
                     eventId: ev.id,
                   })
                   if (editingId === ev.id) setEditingId(null)
+                  if (focusedEventId === ev.id) setFocusedEventId(null)
                 }}
                 onChange={(next) =>
                   dispatch({
@@ -333,6 +443,7 @@ export default function LogicBoardPanel() {
                     boardId: board.boardId,
                     event: ev,
                   })
+                  setFocusedEventId(ev.id)
                   setEditingId(ev.id)
                 }}
                 className="flex-1 min-w-[140px] px-3 py-2 rounded border border-dashed border-[var(--border-2)] text-[var(--muted)] text-xs hover:text-[var(--accent)] hover:border-[var(--accent-bd)]"

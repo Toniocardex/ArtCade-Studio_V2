@@ -42,6 +42,24 @@ export const logicBoardReducer: DomainReducer = (state: CoreState, action: Actio
             : board,
         ),
       )
+    case 'LOGIC_INSERT_EVENT': {
+      const { boardId, event, afterEventId } = action
+      return withBoards(state, (b) =>
+        b.map((board) => {
+          if (board.boardId !== boardId) return board
+          if (!afterEventId) {
+            return { ...board, events: [...board.events, event] }
+          }
+          const idx = board.events.findIndex((e) => e.id === afterEventId)
+          if (idx < 0) {
+            return { ...board, events: [...board.events, event] }
+          }
+          const events = board.events.slice()
+          events.splice(idx + 1, 0, event)
+          return { ...board, events }
+        }),
+      )
+    }
     case 'LOGIC_UPDATE_EVENT':
       return withBoards(state, (b) =>
         b.map((board) =>

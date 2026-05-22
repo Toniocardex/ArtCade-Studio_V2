@@ -12,6 +12,7 @@ import {
 } from './friendly-labels'
 import type { LogicBoard } from '../../types/logic-board'
 import { RuleSentence } from '../../components/logic-board/RuleSentence'
+import LogicIconButton from '../../components/logic-board/LogicIconButton'
 import EventEditor from './EventEditor'
 
 const pill =
@@ -24,8 +25,11 @@ export default function EventCard({
   event,
   board,
   editing,
+  selected,
+  onSelect,
   onToggleEnabled,
   onEdit,
+  onClone,
   onDelete,
   onChange,
   onDoneEditing,
@@ -33,8 +37,11 @@ export default function EventCard({
   event: LogicEvent
   board?: LogicBoard | null
   editing: boolean
+  selected?: boolean
+  onSelect?: () => void
   onToggleEnabled: () => void
   onEdit: () => void
+  onClone: () => void
   onDelete: () => void
   onChange: (e: LogicEvent) => void
   onDoneEditing: () => void
@@ -48,10 +55,13 @@ export default function EventCard({
   return (
     <div
       className={`bg-[var(--panel)] border rounded-lg mb-3 overflow-hidden ${
-        editing ? 'border-[var(--accent)]' : 'border-[var(--border)]'
+        editing || selected ? 'border-[var(--accent)]' : 'border-[var(--border)]'
       }`}
     >
-      <div className="flex items-start gap-2.5 px-3 py-2.5 bg-[var(--panel-3)] border-b border-[var(--border)]">
+      <div
+        className="flex items-start gap-2.5 px-3 py-2.5 bg-[var(--panel-3)] border-b border-[var(--border)] cursor-pointer"
+        onClick={() => onSelect?.()}
+      >
         <span className={`${pill} ${pWhen}`}>When</span>
         <span
           className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border shrink-0 ${
@@ -67,9 +77,12 @@ export default function EventCard({
         <div className="flex-1" />
         <button
           type="button"
-          onClick={onToggleEnabled}
-          title={event.enabled ? 'Rule on' : 'Rule off'}
-          aria-label={event.enabled ? 'Rule on' : 'Rule off'}
+          onClick={(e) => {
+            e.stopPropagation()
+            onToggleEnabled()
+          }}
+          title={event.enabled ? 'Regola attiva' : 'Regola disattivata'}
+          aria-label={event.enabled ? 'Regola attiva' : 'Regola disattivata'}
           className={`w-9 h-[18px] rounded-full relative transition-colors shrink-0 ${
             event.enabled ? 'bg-[var(--accent-bd)]' : 'bg-[var(--border-2)]'
           }`}
@@ -82,26 +95,31 @@ export default function EventCard({
             }`}
           />
         </button>
-        <button
-          type="button"
-          onClick={onEdit}
-          className={`w-7 h-7 rounded border flex items-center justify-center text-xs shrink-0 ${
-            editing
-              ? 'border-[var(--accent)] text-[var(--accent)]'
-              : 'border-[var(--border-2)] text-[var(--muted)] hover:text-[var(--text)]'
-          }`}
-          title="Edit rule"
-        >
-          ✎
-        </button>
-        <button
-          type="button"
-          onClick={onDelete}
-          className="w-7 h-7 rounded border border-[var(--border-2)] text-[var(--muted)] hover:text-[var(--danger)] flex items-center justify-center text-xs shrink-0"
-          title="Delete rule"
-        >
-          ⌦
-        </button>
+        <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+          <LogicIconButton
+            title="Modifica regola"
+            ariaLabel="Modifica regola"
+            active={editing}
+            onClick={onEdit}
+          >
+            ✎
+          </LogicIconButton>
+          <LogicIconButton
+            title="Clona regola"
+            ariaLabel="Clona regola"
+            onClick={onClone}
+          >
+            ⧉
+          </LogicIconButton>
+          <LogicIconButton
+            title="Elimina regola"
+            ariaLabel="Elimina regola"
+            danger
+            onClick={onDelete}
+          >
+            ⌦
+          </LogicIconButton>
+        </div>
       </div>
 
       {editing ? (
@@ -113,7 +131,10 @@ export default function EventCard({
           onDone={onDoneEditing}
         />
       ) : (
-        <div className={`px-3 py-2.5 space-y-2 ${dim}`}>
+        <div
+          className={`px-3 py-2.5 space-y-2 cursor-pointer ${dim}`}
+          onClick={() => onSelect?.()}
+        >
           {ifLines.length > 0 && (
             <div className="flex items-start gap-2">
               <span className={`${pill} ${pIf}`}>Only if</span>

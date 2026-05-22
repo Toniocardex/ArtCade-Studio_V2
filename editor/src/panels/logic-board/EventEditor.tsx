@@ -19,6 +19,8 @@ import {
   triggerRequirement,
   type CapabilityRequirement,
 } from '../../utils/logic-board/component-capabilities'
+import LogicIconButton from '../../components/logic-board/LogicIconButton'
+import { cloneLogicAction } from '../../utils/logic-board/clone'
 import {
   ACTION_TYPES,
   TRIGGER_TYPES,
@@ -84,6 +86,7 @@ function ActionCard({
   project,
   recommendedTypes,
   onChange,
+  onClone,
   onRemove,
 }: {
   act: LogicAction
@@ -91,6 +94,7 @@ function ActionCard({
   project?: ProjectDoc | null
   recommendedTypes: readonly string[]
   onChange: (a: LogicAction) => void
+  onClone: () => void
   onRemove: () => void
 }) {
   return (
@@ -108,8 +112,15 @@ function ActionCard({
           {actionDisplayName(act.type)}
         </span>
         <div className="flex-1" />
-        <button type="button" className={link} onClick={onRemove} title="Remove action">
-          Remove
+        <LogicIconButton
+          title="Clona azione"
+          ariaLabel="Clona azione"
+          onClick={onClone}
+        >
+          ⧉
+        </LogicIconButton>
+        <button type="button" className={link} onClick={onRemove} title="Rimuovi azione">
+          Rimuovi
         </button>
       </div>
       <SchemaParamForm
@@ -316,6 +327,11 @@ export default function EventEditor({
                 actions: event.actions.filter((_, j) => j !== i),
               })
             }
+            onClone={() => {
+              const next = event.actions.slice()
+              next.splice(i + 1, 0, cloneLogicAction(a))
+              onChange({ ...event, actions: next })
+            }}
           />
         ))}
         <div className="flex items-center gap-2 flex-wrap pt-1">

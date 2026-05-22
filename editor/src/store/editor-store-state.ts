@@ -122,6 +122,7 @@ export type Action =
   | { type: 'LOGIC_ADD_BOARD';    board: LogicBoard }
   | { type: 'LOGIC_DELETE_BOARD'; boardId: string }
   | { type: 'LOGIC_ADD_EVENT';    boardId: string; event: LogicEvent }
+  | { type: 'LOGIC_INSERT_EVENT'; boardId: string; event: LogicEvent; afterEventId?: string }
   | { type: 'LOGIC_UPDATE_EVENT'; boardId: string; event: LogicEvent }
   | { type: 'LOGIC_DELETE_EVENT'; boardId: string; eventId: string }
 
