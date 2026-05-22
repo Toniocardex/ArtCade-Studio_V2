@@ -84,7 +84,7 @@ export function EntityHeaderBar({
         <span className="text-xs text-[var(--text)]">Visible in game</span>
       </label>
       <p className="text-[9px] text-[var(--muted)] -mt-1 mb-2 leading-snug">
-        Hidden entities stay visible in the editor preview (eye-off badge). Use Logic Board Set Visible for runtime effects.
+        Hidden entities appear dimmed in the editor preview with an amber outline. Use Logic Board Set Visible for runtime effects.
       </p>
 
       <details

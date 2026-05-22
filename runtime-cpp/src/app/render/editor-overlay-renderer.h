@@ -52,26 +52,21 @@ void drawGuides(Modules::Renderer& renderer,
 
 /**
  * Selection box + optional sensor preview for the currently picked entity.
- * The selection box uses the collider size when available; otherwise it
- * falls back to a 40px square scaled by transform.scale.
- *
- * Missing component data is resolved before calling this function; if the
- * entity was destroyed between pick and render, the caller skips the call.
+ * Uses amber when `hiddenInGame` (visible in editor, hidden in play).
  */
 void drawSelection(Modules::Renderer& renderer,
                    const Transform& transform,
                    const PhysicsComponent& physics,
                    const std::optional<SensorComponent>& sensor,
-                   const EditorOverlayState& state);
+                   const EditorOverlayState& state,
+                   bool hiddenInGame = false);
 
 /**
- * Eye-off badge for entities marked hidden in play (edit-mode only).
- * Drawn after the selection gizmo so it stays readable on selected entities.
- * Uses collider bounds when available, otherwise a 40px square scaled.
+ * Amber outline for hidden-in-game entities that are not selected (edit-mode).
  */
-void drawHiddenInGameBadge(Modules::Renderer& renderer,
-                           const Transform& transform,
-                           const PhysicsComponent& physics);
+void drawHiddenInGameOutline(Modules::Renderer& renderer,
+                             const Transform& transform,
+                             const PhysicsComponent& physics);
 
 } // namespace EditorOverlayRenderer
 } // namespace ArtCade

@@ -3,7 +3,6 @@
 #include "../../modules/renderer/include/renderer.h"
 
 #include <algorithm>
-#include <cmath>
 
 namespace ArtCade::EditorOverlayRenderer {
 
@@ -57,21 +56,10 @@ void drawRectOutline(Modules::Renderer& renderer,
     renderer.drawRect(x + w - t, y,         t, h, color); // right
 }
 
-void drawThickLine(Modules::Renderer& renderer,
-                   float x1, float y1, float x2, float y2,
-                   const Vec4& color,
-                   float halfWidth = 1.25f) {
-    const float dx = x2 - x1;
-    const float dy = y2 - y1;
-    const float len = std::sqrt(dx * dx + dy * dy);
-    if (len < 0.001f) return;
-    const float nx = -dy / len * halfWidth;
-    const float ny =  dx / len * halfWidth;
-    for (int i = -1; i <= 1; ++i) {
-        const float ox = nx * static_cast<float>(i);
-        const float oy = ny * static_cast<float>(i);
-        renderer.drawLine(x1 + ox, y1 + oy, x2 + ox, y2 + oy, color);
-    }
+void drawEntityOutline(Modules::Renderer& renderer,
+                       const EntityOutlineBounds& bounds,
+                       const Vec4& color) {
+    drawRectOutline(renderer, bounds.x, bounds.y, bounds.w, bounds.h, color);
 }
 
 } // namespace
@@ -97,8 +85,6 @@ void drawGuides(Modules::Renderer& renderer,
     const float w = std::max(1.f, scene.worldSize.x);
     const float h = std::max(1.f, scene.worldSize.y);
 
-    // Grid — only when the user picked a reasonable cell size. Very small
-    // values would produce a flood of drawLine calls.
     const Vec4  grid{0.f, 0.85f, 1.f, 0.16f};
     const float step = state.gridSize > 0.f ? state.gridSize : 32.f;
     if (step >= 4.f) {
@@ -108,25 +94,6 @@ void drawGuides(Modules::Renderer& renderer,
             renderer.drawLine(0.f, y, w, y, grid);
     }
 
-    // World bounds outline is no longer drawn inside the canvas.
-    //
-    // It used to be `drawRectOutline(0, 0, w, h, cyan)` here, but inside the
-    // WebGL framebuffer a 2-world-pixel border becomes < 1 device pixel at
-    // low CSS zoom (e.g. 25% on a 4096-wide platformer level). Sub-pixel
-    // antialiasing + alpha 0.9 made the line look grey and incomplete on
-    // the bottom / right edges, regardless of how we authored it. The fix
-    // is structural: the world-bounds outline is an EDITOR UI concern, not
-    // a rendering concern — PreviewPanel now draws a CSS border on the
-    // canvas wrapper (sized to worldSize * zoom), which the browser renders
-    // pixel-perfect on all four sides at any zoom level. The grid below and
-    // the viewport overlay further down stay world-space because they ARE
-    // world data that must stay aligned to the scene coordinates.
-    //
-    // Camera viewport preview (amber) — the rectangle the player will see
-    // in PLAY mode. Centred inside the world so the designer immediately
-    // grasps the "camera lens" relative to the level. Drawn only when the
-    // viewport differs from the world (otherwise it would double the cyan
-    // outline above).
     const float vw = std::max(1.f, scene.viewportSize.x);
     const float vh = std::max(1.f, scene.viewportSize.y);
     if (vw < w - 0.5f || vh < h - 0.5f) {
@@ -140,12 +107,12 @@ void drawSelection(Modules::Renderer& renderer,
                    const Transform& transform,
                    const PhysicsComponent& physics,
                    const std::optional<SensorComponent>& sensor,
-                   const EditorOverlayState& state) {
+                   const EditorOverlayState& state,
+                   bool hiddenInGame) {
     if (!state.inEditMode || state.selectedId == 0u) return;
 
     const Vec2 p = transform.position;
 
-    // Sensor area first (under the box), shape-aware, translucent cyan.
     if (sensor) {
         const Vec4 sc{0.f, 1.f, 1.f, 0.35f};
         if (sensor->shape == "Rectangle") {
@@ -158,46 +125,18 @@ void drawSelection(Modules::Renderer& renderer,
     }
 
     const EntityOutlineBounds bounds = entityOutlineBounds(transform, physics);
-    const float t = 2.f;
-    const Vec4  g{1.f, 1.f, 0.f, 1.f};
-
-    // Four thin filled rects = outline. drawLine in raylib does not honour
-    // line width consistently across native/WASM, drawRect does.
-    renderer.drawRect(bounds.x,              bounds.y,              bounds.w, t, g);
-    renderer.drawRect(bounds.x,              bounds.y + bounds.h - t, bounds.w, t, g);
-    renderer.drawRect(bounds.x,              bounds.y,              t, bounds.h, g);
-    renderer.drawRect(bounds.x + bounds.w - t, bounds.y,            t, bounds.h, g);
+    const Vec4 sel = hiddenInGame
+        ? Vec4{1.f, 0.55f, 0.1f, 1.f}
+        : Vec4{1.f, 1.f, 0.f, 1.f};
+    drawEntityOutline(renderer, bounds, sel);
 }
 
-void drawHiddenInGameBadge(Modules::Renderer& renderer,
-                           const Transform& transform,
-                           const PhysicsComponent& physics) {
+void drawHiddenInGameOutline(Modules::Renderer& renderer,
+                             const Transform& transform,
+                             const PhysicsComponent& physics) {
     const EntityOutlineBounds bounds = entityOutlineBounds(transform, physics);
-
-    // Badge sits just above the entity outline top-left corner.
-    const float badge = 24.f;
-    const float bx = bounds.x;
-    const float by = bounds.y - badge - 4.f;
-
-    const Vec4 bg{0.06f, 0.07f, 0.09f, 0.92f};
-    const Vec4 border{1.f, 0.55f, 0.1f, 1.f};
-    const Vec4 eyeWhite{0.95f, 0.95f, 0.95f, 1.f};
-    const Vec4 eyePupil{0.06f, 0.07f, 0.09f, 1.f};
-    const Vec4 slash{1.f, 0.4f, 0.12f, 1.f};
-
-    renderer.drawRect(bx, by, badge, badge, bg);
-    drawRectOutline(renderer, bx, by, badge, badge, border);
-
-    const float cx = bx + badge * 0.5f;
-    const float cy = by + badge * 0.54f;
-    renderer.drawCircle(cx, cy, 5.f, eyeWhite);
-    renderer.drawCircle(cx, cy, 2.2f, eyePupil);
-
-    // Eye-off slash — thick enough to read at editor zoom levels.
-    drawThickLine(renderer,
-                  bx + 4.f, by + 4.f,
-                  bx + badge - 4.f, by + badge - 4.f,
-                  slash, 1.4f);
+    const Vec4 amber{1.f, 0.55f, 0.1f, 0.75f};
+    drawEntityOutline(renderer, bounds, amber);
 }
 
 } // namespace ArtCade::EditorOverlayRenderer

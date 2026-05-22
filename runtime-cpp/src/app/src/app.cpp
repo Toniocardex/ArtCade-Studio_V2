@@ -628,14 +628,17 @@ void Application::renderActiveScene() {
     // (SceneActiveTag) are visited.
     const bool inEditMode = overlay.inEditMode;
     mod_->entityGateway->forEachActiveRenderable(
-        [renderer = mod_->renderer.get(), inEditMode]
-        (EntityId, const Transform& t, const SpriteComponent& s) {
+        [renderer = mod_->renderer.get(), inEditMode, gw = mod_->entityGateway.get()]
+        (EntityId id, const Transform& t, const SpriteComponent& s) {
             if (!inEditMode && s.alpha <= 0.001f)
                 return;
+            float alpha = s.alpha;
+            if (inEditMode && !gw->visibleInGame(id))
+                alpha *= 0.45f;
             renderer->drawSprite(
                 s.spriteAssetId,
                 t.position, t.rotation, t.scale,
-                s.tint, s.alpha, s.shaderEffect);
+                s.tint, alpha, s.shaderEffect);
         });
 
     // Scene fade (game layer, drawn over entities, under editor chrome).
@@ -649,6 +652,15 @@ void Application::renderActiveScene() {
     if (activeScene)
         EditorOverlayRenderer::drawGuides(*mod_->renderer, *activeScene, overlay);
 
+    if (overlay.inEditMode) {
+        mod_->entityGateway->forEachActiveHiddenInGame(
+            [renderer = mod_->renderer.get(), selectedId = overlay.selectedId]
+            (EntityId id, const Transform& t, const PhysicsComponent& p) {
+                if (id == selectedId) return;
+                EditorOverlayRenderer::drawHiddenInGameOutline(*renderer, t, p);
+            });
+    }
+
     if (overlay.selectedId != 0u) {
         Transform selectedTransform{};
         PhysicsComponent selectedPhysics{};
@@ -657,18 +669,13 @@ void Application::renderActiveScene() {
         if (mod_->entityGateway->getSensor(overlay.selectedId, selectedSensor))
             sensor = selectedSensor;
         if (mod_->entityGateway->getTransform(overlay.selectedId, selectedTransform) &&
-            mod_->entityGateway->getPhysicsComponent(overlay.selectedId, selectedPhysics))
+            mod_->entityGateway->getPhysicsComponent(overlay.selectedId, selectedPhysics)) {
+            const bool hiddenInGame =
+                !mod_->entityGateway->visibleInGame(overlay.selectedId);
             EditorOverlayRenderer::drawSelection(
-                *mod_->renderer, selectedTransform, selectedPhysics, sensor, overlay);
-    }
-
-    // Hidden-in-game badges on top of selection so they stay visible when picked.
-    if (overlay.inEditMode) {
-        mod_->entityGateway->forEachActiveHiddenInGame(
-            [renderer = mod_->renderer.get()]
-            (EntityId, const Transform& t, const PhysicsComponent& p) {
-                EditorOverlayRenderer::drawHiddenInGameBadge(*renderer, t, p);
-            });
+                *mod_->renderer, selectedTransform, selectedPhysics, sensor,
+                overlay, hiddenInGame);
+        }
     }
 
     // FREE-tier splash overlay drawn on top of the game frame.
