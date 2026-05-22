@@ -39,23 +39,26 @@ export function TypePicker({
   value,
   onChange,
   className,
+  recommendedTypes,
 }: {
   kind: ComponentKind
   types: readonly string[]
   value: string
   onChange: (type: string) => void
   className?: string
+  recommendedTypes?: readonly string[]
 }) {
   const groups = useMemo(() => {
     const map = new Map<string, string[]>()
+    const recommended = new Set(recommendedTypes ?? [])
     for (const t of types) {
-      const cat = category(kind, t)
+      const cat = recommended.has(t) ? 'Recommended for this object' : category(kind, t)
       const list = map.get(cat) ?? []
       list.push(t)
       map.set(cat, list)
     }
     // Event-first triggers: Recommended before Advanced / Polling.
-    const order = ['Recommended', 'Advanced / Polling']
+    const order = ['Recommended for this object', 'Recommended', 'Component APIs', 'Advanced / Polling']
     return [...map.entries()].sort(([a], [b]) => {
       const ia = order.indexOf(a)
       const ib = order.indexOf(b)
@@ -64,7 +67,7 @@ export function TypePicker({
       if (ib >= 0) return 1
       return a.localeCompare(b)
     })
-  }, [kind, types])
+  }, [kind, recommendedTypes, types])
 
   return (
     <select

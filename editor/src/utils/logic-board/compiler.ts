@@ -101,6 +101,12 @@ function leafExpr(c: LogicCondition): string {
       return `(math.random(100) <= ${Number(c.percent) || 0})`
     case 'isSpaceFree':
       return `grid.isSpaceFree(${Number(c.x) || 0}, ${Number(c.y) || 0}, ${Number(c.w) || 32}, ${Number(c.h) || 32})`
+    case 'compareHealth': {
+      const target = targetExpr(c.target)
+      const value = Number(c.value) || 0
+      const field = c.field === 'max' ? '_m' : '_c'
+      return `(function() local _c,_m=entity.health(${target}); if _c == nil then return false end return (${field} ${c.operator} ${value}) end)()`
+    }
   }
 }
 
@@ -166,6 +172,38 @@ function actionLua(a: LogicAction): string {
           return `(function() local _sx, _ = entity.scale(${t}); local _d = (_sx < 0) and -1 or 1; entity.setVelocity(${t}, -_d * ${s}, 0) end)()`
       }
     }
+    case 'moveController': {
+      const t = targetExpr(a.target)
+      switch (a.direction) {
+        case 'left':
+          return `movement.setIntent(${t}, -1, 0)`
+        case 'right':
+          return `movement.setIntent(${t}, 1, 0)`
+        case 'up':
+          return `movement.setIntent(${t}, 0, -1)`
+        case 'down':
+          return `movement.setIntent(${t}, 0, 1)`
+        case 'stop':
+          return `movement.clearIntent(${t})`
+      }
+    }
+    case 'setMovementIntent':
+      return `movement.setIntent(${targetExpr(a.target)}, ${Number(a.directionX) || 0}, ${Number(a.directionY) || 0})`
+    case 'clearMovementIntent':
+      return `movement.clearIntent(${targetExpr(a.target)})`
+    case 'requestPlatformerJump':
+      return `platformer.requestJump(${targetExpr(a.target)})`
+    case 'damageEntity':
+      return `entity.damage(${targetExpr(a.target)}, ${Number(a.amount) || 0})`
+    case 'healEntity': {
+      const t = targetExpr(a.target)
+      const amount = Number(a.amount) || 0
+      return `(function() local _c,_m=entity.health(${t}); if _c ~= nil then entity.setHealth(${t}, math.min(_m, _c + ${amount}), _m) end end)()`
+    }
+    case 'setEntityHealth':
+      return a.maxHp != null
+        ? `entity.setHealth(${targetExpr(a.target)}, ${Number(a.currentHp) || 0}, ${Number(a.maxHp) || 0})`
+        : `entity.setHealth(${targetExpr(a.target)}, ${Number(a.currentHp) || 0})`
     case 'setGlobalState':
       return `state.set(${luaString(a.key)}, ${luaValue(a.value)})`
     case 'emitEvent':

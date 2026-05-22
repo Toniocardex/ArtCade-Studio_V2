@@ -10,10 +10,12 @@
     "stopAllAudio", "destroyEntity", "spawnEntity", "setGlobalState", "emitEvent",
     "toggleLogicEvent", "applyImpulse", "applyForce", "setRotation", "setScale",
     "setVisible", "setColorTint", "loadScene", "restartScene", "setCameraTarget", "moveInDirection",
+    "moveController", "setMovementIntent", "clearMovementIntent", "requestPlatformerJump", "damageEntity", "healEntity",
+    "setEntityHealth",
     "moveByOffset", "snapToGrid", "setEntityShader", "setScreenShader", "debugLog", "wait"
   ],
   "conditions": [
     "compareVariable", "compareClass", "isKeyDown", "hasTag", "compareDistance",
-    "isMouseOver", "raycastHit", "chance", "isSpaceFree"
+    "isMouseOver", "raycastHit", "chance", "isSpaceFree", "compareHealth"
   ]
 }

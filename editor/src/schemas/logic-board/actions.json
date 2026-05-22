@@ -184,6 +184,136 @@
       }
     }
   },
+  "moveController": {
+    "type": "object",
+    "required": ["type", "target", "direction"],
+    "properties": {
+      "type": { "const": "moveController" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "direction": { "enum": ["left", "right", "up", "down", "stop"] }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Move Controller",
+      "category": "Component APIs",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "direction": {
+          "widget": "enum",
+          "label": "Direction",
+          "options": ["left", "right", "up", "down", "stop"]
+        }
+      }
+    }
+  },
+  "setMovementIntent": {
+    "type": "object",
+    "required": ["type", "target", "directionX", "directionY"],
+    "properties": {
+      "type": { "const": "setMovementIntent" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "directionX": { "type": "number" },
+      "directionY": { "type": "number" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Set Movement Intent",
+      "category": "Component APIs",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "directionX": { "widget": "number", "label": "Direction X" },
+        "directionY": { "widget": "number", "label": "Direction Y" }
+      }
+    }
+  },
+  "clearMovementIntent": {
+    "type": "object",
+    "required": ["type", "target"],
+    "properties": {
+      "type": { "const": "clearMovementIntent" },
+      "target": { "$ref": "./target-selector.schema.json" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Stop Movement",
+      "category": "Component APIs",
+      "params": {
+        "target": { "widget": "target", "label": "Target" }
+      }
+    }
+  },
+  "requestPlatformerJump": {
+    "type": "object",
+    "required": ["type", "target"],
+    "properties": {
+      "type": { "const": "requestPlatformerJump" },
+      "target": { "$ref": "./target-selector.schema.json" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Platformer Jump",
+      "category": "Component APIs",
+      "params": {
+        "target": { "widget": "target", "label": "Target" }
+      }
+    }
+  },
+  "damageEntity": {
+    "type": "object",
+    "required": ["type", "target", "amount"],
+    "properties": {
+      "type": { "const": "damageEntity" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "amount": { "type": "number" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Damage Entity",
+      "category": "Component APIs",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "amount": { "widget": "number", "label": "Amount" }
+      }
+    }
+  },
+  "healEntity": {
+    "type": "object",
+    "required": ["type", "target", "amount"],
+    "properties": {
+      "type": { "const": "healEntity" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "amount": { "type": "number" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Heal Entity",
+      "category": "Component APIs",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "amount": { "widget": "number", "label": "Amount" }
+      }
+    }
+  },
+  "setEntityHealth": {
+    "type": "object",
+    "required": ["type", "target", "currentHp"],
+    "properties": {
+      "type": { "const": "setEntityHealth" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "currentHp": { "type": "number" },
+      "maxHp": { "type": "number" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Set Health",
+      "category": "Component APIs",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "currentHp": { "widget": "number", "label": "Current HP" },
+        "maxHp": { "widget": "number", "label": "Max HP" }
+      }
+    }
+  },
   "setGlobalState": {
     "type": "object",
     "required": ["type", "key", "value"],

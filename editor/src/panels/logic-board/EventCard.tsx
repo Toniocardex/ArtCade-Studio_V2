@@ -105,7 +105,13 @@ export default function EventCard({
       </div>
 
       {editing ? (
-        <EventEditor event={event} onChange={onChange} onDone={onDoneEditing} />
+        <EventEditor
+          event={event}
+          board={board}
+          project={project}
+          onChange={onChange}
+          onDone={onDoneEditing}
+        />
       ) : (
         <div className={`px-3 py-2.5 space-y-2 ${dim}`}>
           {ifLines.length > 0 && (

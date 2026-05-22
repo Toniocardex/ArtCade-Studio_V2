@@ -10,6 +10,15 @@ import { SchemaParamForm } from '../../components/logic-board/SchemaParamForm'
 import { ConditionTreeEditor } from '../../components/logic-board/ConditionTreeEditor'
 import { defaultConditionRoot } from '../../utils/logic-board/schema-registry'
 import { actionDisplayName } from './friendly-labels'
+import type { ProjectDoc } from '../../types'
+import type { LogicBoard } from '../../types/logic-board'
+import {
+  actionRequirement,
+  conditionRequirement,
+  recommendedActionTypes,
+  triggerRequirement,
+  type CapabilityRequirement,
+} from '../../utils/logic-board/component-capabilities'
 import {
   ACTION_TYPES,
   TRIGGER_TYPES,
@@ -25,9 +34,13 @@ const btn =
 
 function TriggerFields({
   trigger,
+  board,
+  project,
   onChange,
 }: {
   trigger: LogicTrigger
+  board?: LogicBoard | null
+  project?: ProjectDoc | null
   onChange: (t: LogicTrigger) => void
 }) {
   const isSensorTrigger =
@@ -47,16 +60,36 @@ function TriggerFields({
           on the zone entity (Inspector → Sensor). Leave empty to accept any tag.
         </p>
       )}
+      <ComponentRequirementWarning requirement={triggerRequirement(trigger, project, board)} />
     </>
+  )
+}
+
+function ComponentRequirementWarning({
+  requirement,
+}: {
+  requirement: CapabilityRequirement | null
+}) {
+  if (!requirement) return null
+  return (
+    <p className="w-full text-[10px] leading-snug text-[var(--warn)]">
+      {requirement.message}
+    </p>
   )
 }
 
 function ActionCard({
   act,
+  board,
+  project,
+  recommendedTypes,
   onChange,
   onRemove,
 }: {
   act: LogicAction
+  board?: LogicBoard | null
+  project?: ProjectDoc | null
+  recommendedTypes: readonly string[]
   onChange: (a: LogicAction) => void
   onRemove: () => void
 }) {
@@ -69,6 +102,7 @@ function ActionCard({
           value={act.type}
           onChange={(t) => onChange(defaultAction(t as LogicAction['type']))}
           className="max-w-[220px]"
+          recommendedTypes={recommendedTypes}
         />
         <span className="text-[10px] text-[var(--muted)]">
           {actionDisplayName(act.type)}
@@ -84,6 +118,7 @@ function ActionCard({
         value={act as unknown as Record<string, unknown>}
         onChange={(next) => onChange(next as LogicAction)}
       />
+      <ComponentRequirementWarning requirement={actionRequirement(act, project, board)} />
       {act.type === 'spawnEntity' && (
         <p className="text-[10px] text-[var(--muted)]">
           Creates a new copy of that object in the level.
@@ -95,9 +130,13 @@ function ActionCard({
 
 function SimpleConditions({
   event,
+  board,
+  project,
   onChange,
 }: {
   event: LogicEvent
+  board?: LogicBoard | null
+  project?: ProjectDoc | null
   onChange: (e: LogicEvent) => void
 }) {
   const conditions = event.conditions ?? []
@@ -135,6 +174,7 @@ function SimpleConditions({
               onChange({ ...event, conditions: conds })
             }}
           />
+          <ComponentRequirementWarning requirement={conditionRequirement(c, project, board)} />
           <button
             type="button"
             className={link}
@@ -168,10 +208,14 @@ function SimpleConditions({
 
 export default function EventEditor({
   event,
+  board,
+  project,
   onChange,
   onDone,
 }: {
   event: LogicEvent
+  board?: LogicBoard | null
+  project?: ProjectDoc | null
   onChange: (e: LogicEvent) => void
   onDone: () => void
 }) {
@@ -179,6 +223,7 @@ export default function EventEditor({
     () => event.conditionRoot != null,
   )
   const [newActionType, setNewActionType] = useState<LogicAction['type']>('spawnEntity')
+  const recommendedTypes = recommendedActionTypes(project, board)
 
   return (
     <div className="p-3 bg-[var(--panel-3)] border-t border-[var(--border)] space-y-3">
@@ -196,6 +241,8 @@ export default function EventEditor({
         />
         <TriggerFields
           trigger={event.trigger}
+          board={board}
+          project={project}
           onChange={(t) => onChange({ ...event, trigger: t })}
         />
       </LogicBlock>
@@ -207,7 +254,12 @@ export default function EventEditor({
       >
         {!advancedConditions ? (
           <>
-            <SimpleConditions event={event} onChange={onChange} />
+            <SimpleConditions
+              event={event}
+              board={board}
+              project={project}
+              onChange={onChange}
+            />
             <button
               type="button"
               className={link}
@@ -250,6 +302,9 @@ export default function EventEditor({
           <ActionCard
             key={i}
             act={a}
+            board={board}
+            project={project}
+            recommendedTypes={recommendedTypes}
             onChange={(na) => {
               const next = event.actions.slice()
               next[i] = na
@@ -270,6 +325,7 @@ export default function EventEditor({
             value={newActionType}
             onChange={(t) => setNewActionType(t as LogicAction['type'])}
             className="max-w-[240px]"
+            recommendedTypes={recommendedTypes}
           />
           <button
             type="button"

@@ -52,6 +52,13 @@ const ACTION_NAMES: Record<LogicActionType, string> = {
   destroyEntity: 'Destroy',
   spawnEntity: 'Create object',
   moveInDirection: 'Move in direction',
+  moveController: 'Move controller',
+  setMovementIntent: 'Move with controller',
+  clearMovementIntent: 'Stop controller movement',
+  requestPlatformerJump: 'Platformer jump',
+  damageEntity: 'Damage',
+  healEntity: 'Heal',
+  setEntityHealth: 'Set health',
   setGlobalState: 'Set global value',
   emitEvent: 'Send message',
   toggleLogicEvent: 'Turn rule on/off',
@@ -82,6 +89,7 @@ const CONDITION_NAMES: Record<LogicCondition['type'], string> = {
   raycastHit: 'Line of sight',
   chance: 'Random chance',
   isSpaceFree: 'Area is empty',
+  compareHealth: 'Health check',
 }
 
 const FIELD_LABELS: Record<string, string> = {
@@ -105,12 +113,20 @@ const FIELD_LABELS: Record<string, string> = {
   'condition:raycastHit:className': 'Object type (optional)',
   'action:moveInDirection:direction': 'Direction',
   'action:moveInDirection:speed': 'Speed',
+  'action:moveController:direction': 'Direction',
+  'action:setMovementIntent:directionX': 'Direction X',
+  'action:setMovementIntent:directionY': 'Direction Y',
+  'action:damageEntity:amount': 'Damage',
+  'action:healEntity:amount': 'Heal',
+  'action:setEntityHealth:currentHp': 'Current HP',
+  'action:setEntityHealth:maxHp': 'Max HP',
   'action:loadScene:sceneName': 'Level name',
   'action:loadScene:fadeSeconds': 'Fade (seconds)',
   'condition:isSpaceFree:x': 'X',
   'condition:isSpaceFree:y': 'Y',
   'condition:isSpaceFree:w': 'Width',
   'condition:isSpaceFree:h': 'Height',
+  'condition:compareHealth:field': 'Health value',
 }
 
 export function triggerDisplayName(type: LogicTriggerType): string {
@@ -187,6 +203,9 @@ export function enumDisplayLabel(context: string, value: string): string {
     }
     if (dir[value]) return dir[value]
   }
+
+  if (context.includes('compareHealth') && value === 'current') return 'Current HP'
+  if (context.includes('compareHealth') && value === 'max') return 'Max HP'
 
   if (isInputEvent && !isMouseButton) {
     const input: Record<string, string> = {
@@ -324,6 +343,8 @@ export function conditionSummaryPlain(
       return `${c.percent}% chance`
     case 'isSpaceFree':
       return `Area (${c.x}, ${c.y}) is free`
+    case 'compareHealth':
+      return `${targetDisplayLabel(c.target, project)} ${c.field === 'max' ? 'max HP' : 'HP'} ${c.operator} ${c.value}`
   }
 }
 
@@ -366,6 +387,24 @@ export function actionSummaryPlain(
             : a.direction
       return `Move ${who} ${dir} at speed ${a.speed}`
     }
+    case 'moveController':
+      return a.direction === 'stop'
+        ? `Stop controller movement for ${who}`
+        : `Controller moves ${who} ${a.direction}`
+    case 'setMovementIntent':
+      return `Controller moves ${who} (${a.directionX}, ${a.directionY})`
+    case 'clearMovementIntent':
+      return `Stop controller movement for ${who}`
+    case 'requestPlatformerJump':
+      return `Make ${who} jump`
+    case 'damageEntity':
+      return `Damage ${who} by ${a.amount}`
+    case 'healEntity':
+      return `Heal ${who} by ${a.amount}`
+    case 'setEntityHealth':
+      return a.maxHp != null
+        ? `Set ${who} HP to ${a.currentHp}/${a.maxHp}`
+        : `Set ${who} HP to ${a.currentHp}`
     case 'setGlobalState':
       return `Set global ${a.key} to ${a.value}`
     case 'emitEvent':

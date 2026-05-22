@@ -58,6 +58,7 @@ export type LogicCondition =
   | { type: 'raycastHit'; dirX: number; dirY: number; length: number; className?: string }
   | { type: 'chance'; percent: number }                             // math.random(100) <= n
   | { type: 'isSpaceFree'; x: number; y: number; w: number; h: number }
+  | { type: 'compareHealth'; target: TargetSelector; field: 'current' | 'max'; operator: ComparisonOp; value: number }
 
 /**
  * Boolean tree for AND/OR/nested conditions (docs/LOGIC_BOARD_CONDITIONAL_DESIGN.md).
@@ -95,6 +96,13 @@ export type LogicAction =
       direction: 'up' | 'down' | 'left' | 'right' | 'forward' | 'backward'
       speed: number
     }
+  | { type: 'moveController'; target: TargetSelector; direction: 'left' | 'right' | 'up' | 'down' | 'stop' }
+  | { type: 'setMovementIntent'; target: TargetSelector; directionX: number; directionY: number }
+  | { type: 'clearMovementIntent'; target: TargetSelector }
+  | { type: 'requestPlatformerJump'; target: TargetSelector }
+  | { type: 'damageEntity'; target: TargetSelector; amount: number }
+  | { type: 'healEntity'; target: TargetSelector; amount: number }
+  | { type: 'setEntityHealth'; target: TargetSelector; currentHp: number; maxHp?: number }
   | { type: 'setGlobalState'; key: string; value: number | string | boolean }
   | { type: 'emitEvent'; name: string; payloadKey?: string; payloadValue?: number | string | boolean }
   | { type: 'toggleLogicEvent'; eventId: string; enabled: boolean }

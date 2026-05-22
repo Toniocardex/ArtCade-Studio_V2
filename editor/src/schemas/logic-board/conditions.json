@@ -152,5 +152,35 @@
         "h": { "widget": "number", "label": "H" }
       }
     }
+  },
+  "compareHealth": {
+    "type": "object",
+    "required": ["type", "target", "field", "operator", "value"],
+    "properties": {
+      "type": { "const": "compareHealth" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "field": { "enum": ["current", "max"] },
+      "operator": { "enum": ["==", "!=", "<", "<=", ">", ">="] },
+      "value": { "type": "number" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Compare Health",
+      "category": "Component APIs",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "field": {
+          "widget": "enum",
+          "label": "Field",
+          "options": ["current", "max"]
+        },
+        "operator": {
+          "widget": "enum",
+          "label": "Operator",
+          "options": ["==", "!=", "<", "<=", ">", ">="]
+        },
+        "value": { "widget": "number", "label": "Value" }
+      }
+    }
   }
 }

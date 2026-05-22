@@ -82,6 +82,8 @@ export function defaultCondition(
       return { type: 'chance', percent: 50 }
     case 'isSpaceFree':
       return { type: 'isSpaceFree', x: 0, y: 0, w: 32, h: 32 }
+    case 'compareHealth':
+      return { type: 'compareHealth', target: 'self', field: 'current', operator: '>', value: 0 }
   }
 }
 
@@ -107,6 +109,20 @@ export function defaultAction(type: LogicActionType): LogicAction {
       return { type: 'spawnEntity', className: '', x: 0, y: 0, inheritFlip: false }
     case 'moveInDirection':
       return { type: 'moveInDirection', target: 'self', direction: 'forward', speed: 100 }
+    case 'moveController':
+      return { type: 'moveController', target: 'self', direction: 'right' }
+    case 'setMovementIntent':
+      return { type: 'setMovementIntent', target: 'self', directionX: 1, directionY: 0 }
+    case 'clearMovementIntent':
+      return { type: 'clearMovementIntent', target: 'self' }
+    case 'requestPlatformerJump':
+      return { type: 'requestPlatformerJump', target: 'self' }
+    case 'damageEntity':
+      return { type: 'damageEntity', target: 'self', amount: 10 }
+    case 'healEntity':
+      return { type: 'healEntity', target: 'self', amount: 10 }
+    case 'setEntityHealth':
+      return { type: 'setEntityHealth', target: 'self', currentHp: 100 }
     case 'setGlobalState':
       return { type: 'setGlobalState', key: 'level', value: 1 }
     case 'emitEvent':

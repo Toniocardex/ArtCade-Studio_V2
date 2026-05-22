@@ -52,6 +52,50 @@ describe('literal helpers', () => {
   })
 })
 
+describe('Component API actions and conditions', () => {
+  it('emits movement intent and platformer jump API calls', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({
+          trigger: { type: 'onInput', keyCode: 'KeyA', eventType: 'pressed' },
+          actions: [
+            { type: 'moveController', target: 'self', direction: 'left' },
+            { type: 'setMovementIntent', target: 'self', directionX: -1, directionY: 0 },
+            { type: 'requestPlatformerJump', target: 'self' },
+            { type: 'clearMovementIntent', target: 'self' },
+          ],
+        }),
+      ]),
+    ])
+    expect(lua).toContain('movement.setIntent(self, -1, 0)')
+    expect(lua).toContain('platformer.requestJump(self)')
+    expect(lua).toContain('movement.clearIntent(self)')
+  })
+
+  it('emits health API calls and compareHealth conditions', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({
+          trigger: { type: 'onUpdate' },
+          conditions: [
+            { type: 'compareHealth', target: 'self', field: 'current', operator: '>', value: 0 },
+          ],
+          actions: [
+            { type: 'damageEntity', target: 'self', amount: 5 },
+            { type: 'healEntity', target: 'self', amount: 3 },
+            { type: 'setEntityHealth', target: 'self', currentHp: 10, maxHp: 20 },
+          ],
+        }),
+      ]),
+    ])
+    expect(lua).toContain('local _c,_m=entity.health(self)')
+    expect(lua).toContain('return (_c > 0)')
+    expect(lua).toContain('entity.damage(self, 5)')
+    expect(lua).toContain('entity.setHealth(self, math.min(_m, _c + 3), _m)')
+    expect(lua).toContain('entity.setHealth(self, 10, 20)')
+  })
+})
+
 describe('targetExpr', () => {
   it('maps self/other/id/class', () => {
     expect(targetExpr('self')).toBe('self')

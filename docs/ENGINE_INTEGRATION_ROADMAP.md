@@ -79,7 +79,11 @@ Direzione scelta:
 
 ### Prossimo step consigliato
 
-Integrazione roadmap Tranche 1–10 completata. Follow-up opzionali:
+Integrazione roadmap Tranche 1–10 completata. La linea di lavoro per esporre
+le API dei Component runtime dentro la Logic Board e tracciata in
+`docs/LOGIC_BOARD_COMPONENT_API_ROADMAP.md`.
+
+Follow-up opzionali:
 
 - sensor picker in Logic Board UI;
 - rimozione fallback input C++ in World platformer;
