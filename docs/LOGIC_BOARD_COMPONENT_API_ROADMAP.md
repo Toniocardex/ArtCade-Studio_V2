@@ -9,6 +9,11 @@ i Component runtime eseguono stato e comportamento ricorrente nel core C++.
 Questo documento e il riferimento operativo per integrare nuove API esposte dai
 Component dentro la Logic Board.
 
+**Correlato:** integrazione runtime EnTT/gateway/World →
+`docs/ENGINE_INTEGRATION_ROADMAP.md`.
+
+**Ultimo allineamento:** `main` @ `20c473d` (2026-05-21).
+
 ## Regola Architetturale
 
 - Logic Board orchestra: trigger, condizioni, azioni, intenti.
@@ -34,7 +39,7 @@ Component dentro la Logic Board.
 | MagneticItemComponent | Enable/disable magnet, set target tag/radius/speed | Tranche 2 |
 | HordeMemberComponent | Set target class, set chase/separation weights | Tranche 2 |
 | AutoDestroyComponent | Set/cancel lifespan | Tranche 2 |
-| SolidComponent | Nessuna API diretta MVP; usato da physics/platformer | Nessuna azione prevista |
+| SolidComponent | Ground class per `isGrounded` (runtime); nessun blocco LB MVP | Nessuna azione Tranche 1; `platformer.isGrounded` in Tranche 2 |
 
 ## Tranche 1 - Capability Registry + API Esistenti
 
@@ -123,12 +128,22 @@ Obiettivi:
 
 ## Stato Avanzamento
 
-- Tranche 1: completata.
-- Tranche 2: da fare.
-- Tranche 3: da fare.
+| Tranche | Stato | Commit di riferimento |
+| --- | --- | --- |
+| 1 — Capability registry + API esistenti | Completata | `20c473d` |
+| 2 — API runtime mancanti | Da fare | — |
+| 3 — UI guidata | Da fare | — |
+
+Runtime prerequisiti (gia in `main` prima della Tranche 1 editor):
+
+- `d7ba0ed` — `SolidComponent` + `World::isGrounded`
+- `b707874` — split modulo `World` + lifecycle scena
+- `1d8f78c` — `entity.damage`, `World::tickAutoDestroy`, fix build
 
 Ultima validazione Tranche 1:
 
-- `npm.cmd test`: 212/212 passati.
+- `npm.cmd test`: 212/212 passati (`component-capabilities.test.ts`,
+  `compiler.test.ts` health/controller).
 - `npm.cmd run build`: passato.
-- Nessun rebuild C++/WASM richiesto: la tranche usa solo API Lua gia esistenti.
+- Nessun rebuild C++/WASM obbligatorio: la tranche usa solo API Lua gia esistenti.
+- Build C++/WASM gia verificate su `main` (18/18 `ctest`, `build_wasm.bat` OK).

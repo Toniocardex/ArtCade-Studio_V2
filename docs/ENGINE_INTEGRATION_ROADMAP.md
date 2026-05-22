@@ -6,6 +6,11 @@ Tracker operativo per completare il design:
 Questo file va aggiornato alla fine di ogni tranche di integrazione e va letto
 prima di proseguire, cosi il contesto non dipende dalla chat.
 
+**Correlato:** esposizione API Component nella Logic Board →
+`docs/LOGIC_BOARD_COMPONENT_API_ROADMAP.md`.
+
+**Ultimo allineamento:** `main` @ `20c473d` (2026-05-21).
+
 ## Obiettivo
 
 Portare ArtCade al design target senza rompere editor, preview WASM, demo,
@@ -73,21 +78,34 @@ Direzione scelta:
   - `_time_update(dt)` continua a girare anche quando il tick script e' saltato.
 - Tranche 7–10 (post-EnTT integration plan):
   - UI Logic Board event-first (`trigger-execution.ts`, badge Event/Polling);
-  - `HealthComponent` end-to-end (registry → gateway → `entity.health`);
+  - `HealthComponent` end-to-end (registry → gateway → `entity.health` /
+    `entity.damage`);
   - sensor fixture sync su `setSensor` + demo `sensor.onEnter/onExit`;
   - profiler/pick visitor + note deprecazioni in ECS guide.
+- Post-tranche runtime/editor (2026-05-21):
+  - `SolidComponent` end-to-end + `World::isGrounded` via `forEachActiveSolid`
+    (`d7ba0ed`);
+  - `World` suddiviso in `world.cpp`, `world_movement.cpp`, `world_systems.cpp`,
+    `world_tilemap.cpp`; lifecycle scena sicuro su `loadScene` / editor sync
+    (`b707874`);
+  - Logic Board **Component API Tranche 1**: capability registry, blocchi
+    schema-first per controller/health, compiler verso API Lua esistenti
+    (`20c473d`) — dettaglio in `LOGIC_BOARD_COMPONENT_API_ROADMAP.md`.
 
 ### Prossimo step consigliato
 
-Integrazione roadmap Tranche 1–10 completata. La linea di lavoro per esporre
-le API dei Component runtime dentro la Logic Board e tracciata in
-`docs/LOGIC_BOARD_COMPONENT_API_ROADMAP.md`.
+Runtime integration Tranche 1–10 + Solid completate.
 
-Follow-up opzionali:
+**Linea attiva:** Logic Board Component API **Tranche 2** (API runtime
+mancanti: `linearMover.*`, `magnet.*`, `horde.*`, `autoDestroy.setLifespan`,
+`platformer.isGrounded` Lua) — vedi `LOGIC_BOARD_COMPONENT_API_ROADMAP.md`.
 
-- sensor picker in Logic Board UI;
-- rimozione fallback input C++ in World platformer;
-- catalogo Component runtime Core/Advanced via pattern §6 ECS guide.
+Follow-up opzionali runtime:
+
+- sensor picker Logic Board UI (miglioramenti);
+- catalogo Component Core rimanenti: `OneWayPlatform`, `DamageDealer`,
+  `Collectible`, `Spawner`;
+- Advanced: `ProceduralJuiceComponent`, `GrapplingHookComponent`.
 
 ### Catalogo Component Target
 
@@ -106,10 +124,11 @@ Core MVP target:
   e opzione 4-direzioni. **Integrato end-to-end**: Inspector, ProjectDoc,
   parser native/WASM, registry/gateway, sistema World basato su movement
   intent e test.
-- `SolidComponent` / `PhysicsComponent` statico: ostacoli statici e ground
-  semantico per platformer. **Integrato end-to-end**: Inspector, ProjectDoc,
-  parser native/WASM, registry/gateway, creazione body statico,
-  `World::isGrounded` via visitor e test.
+- `SolidComponent`: ground semantico per platformer (`groundClass`). **Integrato
+  end-to-end**: Inspector, ProjectDoc, parser native/WASM, registry/gateway,
+  `forEachActiveSolid`, `World::isGrounded` (in `world_movement.cpp`), test.
+- `PhysicsComponent` statico/dynamic: collider e body Box2D (non e' un Component
+  Inspector separato; convive con `solid` e controller).
 - `LinearMoverComponent` / Bullet: moto lineare continuo, direzione/velocita.
   **Integrato end-to-end**: Inspector, ProjectDoc, parser native/WASM,
   registry/gateway, sistema World con movimento transform/physics e test.
@@ -122,8 +141,10 @@ Core MVP target:
   test `world_intent_test` (damage + i-frames).
 - `AutoDestroyComponent`: countdown lifespan → destroy.
   **Integrato end-to-end**: Inspector, parser, gateway,
-  `World::tickAutoDestroy` (da `app.cpp`), preservazione `_timeAlive` su
-  `updateEntity`, test intent + demo coin con `lifespan`.
+  `World::tickAutoDestroy` (in `world_systems.cpp`, chiamato da
+  `Application::tickFixedStep`), preservazione `_timeAlive` su
+  `applyEntityDefToRegistry` / `updateEntity`, test intent + demo coin con
+  `lifespan`.
 
 Advanced target:
 
@@ -138,23 +159,22 @@ Advanced target:
 - `GrapplingHookComponent`: rope/joint Box2D e azioni Logic Board dedicate.
 
 Ordine consigliato: completare i Core mancanti prima degli Advanced, salvo
-necessita demo specifiche. Core MVP quasi completato (Platformer, TopDown,
-Solid, LinearMover, CameraTarget). Restano da chiudere come Core:
+necessita demo specifiche. **Catalogo Core MVP runtime integrato:** Platformer,
+TopDown, Solid, LinearMover, CameraTarget, Health, AutoDestroy. **Advanced
+integrati:** MagneticItem, HordeMember. **Core ancora da progettare:**
 `OneWayPlatformComponent`, `DamageDealerComponent`, `CollectibleComponent`,
-`SpawnerComponent` e l'eventuale promozione Animation a Runtime Component se
-serve condivisione cross-system. Advanced: `MagneticItemComponent`,
-`HordeMemberComponent` integrati; prossimi: `ProceduralJuiceComponent`,
-`GrapplingHookComponent`.
+`SpawnerComponent`. **Advanced prossimi:** ProceduralJuice, GrapplingHook.
 
 ### Verifiche Ultima Tranche
 
-- Build C++ Release: passata in `runtime-cpp/build-nmake`.
+- Build C++ Release: `runtime-cpp/build-nmake` (NMake + vcvars64).
 - `ctest --test-dir runtime-cpp/build-nmake --output-on-failure`: 18/18
   passati.
-- `npm.cmd test` in `editor`: 206/206 passati.
+- `npm.cmd test` in `editor`: 212/212 passati (include Logic Board Component
+  API Tranche 1).
 - `npm.cmd run build`: passato.
-- `runtime-cpp/build_wasm.bat`: passato; preview runtime copiato in
-  `editor/public/runtime`.
+- `runtime-cpp/build_wasm.bat`: passato; `game.js` in repo, `game.wasm` locale
+  (gitignored `*.wasm`).
 
 Warning residui noti:
 
@@ -197,9 +217,12 @@ Deliverable:
 
 File principali:
 
-- `runtime-cpp/src/app/src/app.cpp`
+- `runtime-cpp/src/app/src/app.cpp` (`tickFixedStep` / `tickFrameEnd`)
 - `runtime-cpp/src/world/include/world.h`
-- `runtime-cpp/src/world/src/world.cpp`
+- `runtime-cpp/src/world/src/world.cpp` (lifecycle, state, `tickGameplaySystems`)
+- `runtime-cpp/src/world/src/world_movement.cpp` (controller, mover, horde, magnet)
+- `runtime-cpp/src/world/src/world_systems.cpp` (camera, autoDestroy, health, sensor)
+- `runtime-cpp/src/world/src/world_tilemap.cpp`
 - `runtime-cpp/src/modules/game-api/src/input-api.cpp`
 - `runtime-cpp/src/modules/game-api/src/sensor-api.cpp`
 - `runtime-cpp/src/modules/game-api/src/time-api.cpp`
@@ -445,13 +468,65 @@ Completato:
 - `RuntimeEntityGateway::setTransform` sincronizza posizione body Box2D.
 - Test: `physics-test` #14, `world_intent_test` replace sensor, `entity_signals_test`
   transform sync, `asset_loader_test` parsing physics/health/sensor JSON.
-- Demo: ball/floor physics in ProjectDoc; danno nemico via `entity.health`.
+- Demo: ball/floor physics in ProjectDoc; danno nemico via `entity.damage`.
+
+## Tranche 11 - SolidComponent end-to-end
+
+Stato: completata (`d7ba0ed`).
+
+Completato:
+
+- `SolidComponent` con `groundClass` su `EntityDef` + EnTT.
+- Inspector, parser (`asset-loader`, `project-doc-parser`), fingerprint `so`.
+- `RuntimeEntityGateway::getSolid` / `setSolid` / `forEachActiveSolid`.
+- `World::isGrounded` per platformer (overlap AABB con entita' solid attive).
+- Test gateway + `world_intent_test`.
+
+Exit criteria:
+
+- Platformer puo' saltare solo con ground sotto i piedi (classe configurabile).
+- `ctest` + build native/WASM verdi.
+
+## Tranche 12 - World module split + scene lifecycle
+
+Stato: completata (`b707874`).
+
+Completato:
+
+- Suddivisione `World` in piu' translation unit (CMake `artcade-world`).
+- `clearGameplayRuntimeState` su `loadScene` / `syncAfterEditorProject`.
+- Sistemi gameplay (camera, autoDestroy, health, sensor, movement) nei file
+  dedicati senza cambiare ordine tick in `tickGameplaySystems`.
+
+Exit criteria:
+
+- Nessuna regressione `world_intent_test` / `scene_gateway_test`.
+- Build native + WASM verdi.
+
+## Tranche 13 - Logic Board Component API (editor Tranche 1)
+
+Stato: completata (`20c473d`). Runtime C++ invariato (solo API Lua gia presenti).
+
+Completato (editor):
+
+- `component-capabilities.ts` + test resolver.
+- Azioni/condizioni schema-first: `moveController`, movement intent, jump,
+  `damageEntity`, `healEntity`, `setEntityHealth`, `compareHealth`.
+- Compiler → `movement.*`, `platformer.requestJump`, `entity.damage`, ecc.
+- Warning UI quando un blocco richiede un Component assente.
+
+Riferimento completo: `docs/LOGIC_BOARD_COMPONENT_API_ROADMAP.md` (Tranche 1).
+
+Exit criteria:
+
+- `npm.cmd test`: 212/212.
+- Nessun rebuild WASM obbligatorio per questa tranche.
 
 ## Checklist Da Eseguire A Ogni Tranche
 
 - `git status --short --branch`
-- Build C++ Release.
-- `ctest --test-dir runtime-cpp/build-msvc --output-on-failure`
+- Build C++ Release (`runtime-cpp/build-nmake` + vcvars64, o `build-msvc`).
+- `ctest --test-dir runtime-cpp/build-nmake --output-on-failure`
 - `npm.cmd test` in `editor`
 - `npm.cmd run build`
 - Rebuild WASM se cambia runtime usato dalla preview.
