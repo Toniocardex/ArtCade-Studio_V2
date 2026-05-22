@@ -102,8 +102,10 @@ Core MVP target:
   e opzione 4-direzioni. **Integrato end-to-end**: Inspector, ProjectDoc,
   parser native/WASM, registry/gateway, sistema World basato su movement
   intent e test.
-- `SolidComponent` / `PhysicsComponent` statico: ostacoli statici, inclusa
-  futura opzione one-way platform.
+- `SolidComponent` / `PhysicsComponent` statico: ostacoli statici e ground
+  semantico per platformer. **Integrato end-to-end**: Inspector, ProjectDoc,
+  parser native/WASM, registry/gateway, creazione body statico,
+  `World::isGrounded` via visitor e test.
 - `LinearMoverComponent` / Bullet: moto lineare continuo, direzione/velocita.
   **Integrato end-to-end**: Inspector, ProjectDoc, parser native/WASM,
   registry/gateway, sistema World con movimento transform/physics e test.
@@ -132,8 +134,11 @@ Advanced target:
 - `GrapplingHookComponent`: rope/joint Box2D e azioni Logic Board dedicate.
 
 Ordine consigliato: completare i Core mancanti prima degli Advanced, salvo
-necessita demo specifiche. Core MVP catalogo completato (Platformer, TopDown,
-LinearMover, CameraTarget). Advanced: `MagneticItemComponent`,
+necessita demo specifiche. Core MVP quasi completato (Platformer, TopDown,
+Solid, LinearMover, CameraTarget). Restano da chiudere come Core:
+`OneWayPlatformComponent`, `DamageDealerComponent`, `CollectibleComponent`,
+`SpawnerComponent` e l'eventuale promozione Animation a Runtime Component se
+serve condivisione cross-system. Advanced: `MagneticItemComponent`,
 `HordeMemberComponent` integrati; prossimi: `ProceduralJuiceComponent`,
 `GrapplingHookComponent`.
 

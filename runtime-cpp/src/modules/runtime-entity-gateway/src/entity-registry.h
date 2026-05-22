@@ -89,6 +89,9 @@ public:
     bool getSensor(EntityId id, SensorComponent& out) const;
     void setSensor(EntityId id, const std::optional<SensorComponent>& s);
 
+    bool getSolid(EntityId id, SolidComponent& out) const;
+    void setSolid(EntityId id, const std::optional<SolidComponent>& s);
+
     bool getPlatformer(EntityId id, PlatformerControllerComponent& out) const;
     void setPlatformer(EntityId id,
                        const std::optional<PlatformerControllerComponent>& p);
@@ -193,6 +196,10 @@ public:
     using ActiveSensorFn = std::function<void(
         EntityId, const SensorComponent&)>;
     void forEachActiveSensor(const ActiveSensorFn& fn) const;
+
+    using ActiveSolidFn = std::function<void(
+        EntityId, const SolidComponent&)>;
+    void forEachActiveSolid(const ActiveSolidFn& fn) const;
 
     using ActiveAutoDestroyFn = std::function<void(
         EntityId, AutoDestroyComponent&)>;

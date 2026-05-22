@@ -105,14 +105,18 @@ void RuntimeEntityGateway::ensurePhysicsBody(EntityId id) {
     const bool hasPlatformer = getPlatformerController(id, platformer);
     TopDownControllerComponent topDown{};
     const bool hasTopDown = getTopDownController(id, topDown);
-    if (!hasCollider && !hasPlatformer && !hasTopDown) return;
+    SolidComponent solid{};
+    const bool hasSolid = getSolid(id, solid);
+    if (!hasCollider && !hasPlatformer && !hasTopDown && !hasSolid) return;
 
     if (!hasCollider) {
         comp.collider.size = { 32.f, 32.f };
         comp.bodyType = BodyType::Dynamic;
     }
-    if (hasTopDown && !hasPlatformer)
+    if (hasTopDown && !hasPlatformer && !hasSolid)
         comp.bodyType = BodyType::Kinematic;
+    if (hasSolid)
+        comp.bodyType = BodyType::Static;
 
     const uint32_t handle = physics_->createBody(id, comp);
     if (handle == 0) return;
@@ -166,6 +170,7 @@ void RuntimeEntityGateway::applyEntityDefToRegistry(
     registry_->setSprite(id, def.sprite);
     registry_->setPhysics(id, def.physics);
     registry_->setSensor(id, def.sensor);
+    registry_->setSolid(id, def.solid);
     registry_->setPlatformer(id, def.platformerController);
     registry_->setTopDown(id, def.topDownController);
     registry_->setLinearMover(id, def.linearMover);
@@ -361,6 +366,16 @@ bool RuntimeEntityGateway::setSensor(EntityId id, const std::optional<SensorComp
     if (!registry_->contains(id)) return false;
     registry_->setSensor(id, sensor);
     syncSensorFixture(id);
+    return true;
+}
+
+bool RuntimeEntityGateway::getSolid(EntityId id, SolidComponent& out) const {
+    return registry_->getSolid(id, out);
+}
+
+bool RuntimeEntityGateway::setSolid(EntityId id, const std::optional<SolidComponent>& solid) {
+    if (!registry_->contains(id)) return false;
+    registry_->setSolid(id, solid);
     return true;
 }
 
@@ -589,6 +604,12 @@ void RuntimeEntityGateway::forEachActiveSensor(
     const ActiveSensorFn& fn) const
 {
     registry_->forEachActiveSensor(fn);
+}
+
+void RuntimeEntityGateway::forEachActiveSolid(
+    const ActiveSolidFn& fn) const
+{
+    registry_->forEachActiveSolid(fn);
 }
 
 void RuntimeEntityGateway::forEachActiveAutoDestroy(

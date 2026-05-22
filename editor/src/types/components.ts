@@ -20,6 +20,11 @@ export interface SensorComponent {
   targetTag: string          // only entities with this tag trigger it
 }
 
+/** Static blocking surface used by platformers and level geometry. */
+export interface SolidComponent {
+  groundClass: string          // matched by PlatformerController.groundClass
+}
+
 /** Arcade kinematic platformer movement (coyote time, jump buffer, …). */
 export interface PlatformerControllerComponent {
   maxSpeed:      number      // px/s
@@ -86,6 +91,7 @@ export interface AutoDestroyComponent {
  */
 export interface EntityComponents {
   sensor?:               SensorComponent
+  solid?:                SolidComponent
   platformerController?: PlatformerControllerComponent
   topDownController?:    TopDownControllerComponent
   linearMover?:          LinearMoverComponent
@@ -100,6 +106,6 @@ export type ComponentKey = keyof EntityComponents
 
 /** Runtime list of optional component field names (parse/serialize). */
 export const COMPONENT_KEYS: ComponentKey[] = [
-  'sensor', 'platformerController', 'topDownController', 'linearMover',
+  'sensor', 'solid', 'platformerController', 'topDownController', 'linearMover',
   'cameraTarget', 'magneticItem', 'hordeMember', 'health', 'autoDestroy',
 ]

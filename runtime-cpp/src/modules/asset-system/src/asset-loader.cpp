@@ -199,6 +199,12 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
                 sc.targetTag = s.value("targetTag", std::string("player"));
                 e.sensor = sc;
             }
+            if (ev.contains("solid") && ev["solid"].is_object()) {
+                auto& s = ev["solid"];
+                SolidComponent solid;
+                solid.groundClass = s.value("groundClass", std::string("Ground"));
+                e.solid = solid;
+            }
             if (ev.contains("platformerController") && ev["platformerController"].is_object()) {
                 auto& p = ev["platformerController"];
                 PlatformerControllerComponent pc;

@@ -377,6 +377,24 @@ void EntityRegistry::setSensor(EntityId id,
     else   impl_->reg.remove<SensorComponent>(e);
 }
 
+bool EntityRegistry::getSolid(EntityId id, SolidComponent& out) const {
+    const entt::entity e = impl_->toEntt(id);
+    if (e == entt::null) return false;
+    if (const auto* c = impl_->reg.try_get<SolidComponent>(e)) {
+        out = *c;
+        return true;
+    }
+    return false;
+}
+
+void EntityRegistry::setSolid(EntityId id,
+                              const std::optional<SolidComponent>& s) {
+    const entt::entity e = impl_->toEntt(id);
+    if (e == entt::null) return;
+    if (s) impl_->reg.emplace_or_replace<SolidComponent>(e, *s);
+    else   impl_->reg.remove<SolidComponent>(e);
+}
+
 bool EntityRegistry::getPlatformer(EntityId id,
                                    PlatformerControllerComponent& out) const {
     const entt::entity e = impl_->toEntt(id);
@@ -704,6 +722,22 @@ void EntityRegistry::forEachActiveSensor(
         if (e == entt::null) continue;
         if (!reg.all_of<SceneActiveTag>(e)) continue;
         const auto* s = reg.try_get<SensorComponent>(e);
+        if (!s) continue;
+        fn(id, *s);
+    }
+}
+
+void EntityRegistry::forEachActiveSolid(
+    const ActiveSolidFn& fn) const
+{
+    auto& reg = impl_->reg;
+    const size_t n = impl_->insertionOrder.size();
+    for (size_t i = 0; i < n; ++i) {
+        const EntityId id = impl_->insertionOrder[i];
+        const entt::entity e = impl_->toEntt(id);
+        if (e == entt::null) continue;
+        if (!reg.all_of<SceneActiveTag>(e)) continue;
+        const auto* s = reg.try_get<SolidComponent>(e);
         if (!s) continue;
         fn(id, *s);
     }

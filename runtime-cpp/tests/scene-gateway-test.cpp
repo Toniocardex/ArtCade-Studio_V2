@@ -73,6 +73,9 @@ int main() {
     SensorComponent coinSensor;
     coinSensor.targetTag = "player";
     coin.sensor = coinSensor;
+    SolidComponent coinSolid;
+    coinSolid.groundClass = "PickupFloor";
+    coin.solid = coinSolid;
     AutoDestroyComponent coinAutoDestroy;
     coinAutoDestroy.lifespan = 2.f;
     coin.autoDestroy = coinAutoDestroy;
@@ -158,6 +161,9 @@ int main() {
     SensorComponent spawnedSensor{};
     CHECK(gw.getSensor(spawned, spawnedSensor));
     CHECK(spawnedSensor.targetTag == "player");
+    SolidComponent spawnedSolid{};
+    CHECK(gw.getSolid(spawned, spawnedSolid));
+    CHECK(spawnedSolid.groundClass == "PickupFloor");
     AutoDestroyComponent spawnedAutoDestroy{};
     CHECK(gw.getAutoDestroy(spawned, spawnedAutoDestroy));
     CHECK(spawnedAutoDestroy.lifespan == 2.f);

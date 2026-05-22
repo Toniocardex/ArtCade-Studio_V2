@@ -139,6 +139,39 @@ static void test_platformer_jump_intent_without_input() {
     CHECK(velocity.y < -499.f);
 }
 
+static void test_platformer_grounded_by_solid_component() {
+    Fixture f;
+
+    EntityDef player = makeEntity(1, "Player", {"player"});
+    player.physics.bodyType = BodyType::Dynamic;
+    player.physics.collider.size = { 32.f, 32.f };
+    PlatformerControllerComponent pc;
+    pc.jumpForce = 420.f;
+    pc.groundClass = "Ground";
+    player.platformerController = pc;
+
+    EntityDef platform = makeEntity(2, "Platform");
+    SolidComponent solid;
+    solid.groundClass = "Ground";
+    platform.solid = solid;
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1, 2 };
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.scenes = {{ scene.id, scene }};
+    doc.entities = {{ 1, player }, { 2, platform }};
+    f.world.init(doc);
+
+    CHECK(f.gw.physicsHandle(2) != 0);
+    f.world.requestJump(1);
+    f.world.tickGameplaySystems(1.f / 60.f);
+    const Vec2 velocity = f.physics.getLinearVelocity(f.gw.physicsHandle(1));
+    CHECK(velocity.y < -419.f);
+}
+
 static void test_top_down_movement_intent_without_input() {
     Fixture f;
 
@@ -599,6 +632,7 @@ static void test_health_damage_respects_iframes() {
 int main() {
     test_platformer_movement_intent_without_input();
     test_platformer_jump_intent_without_input();
+    test_platformer_grounded_by_solid_component();
     test_top_down_movement_intent_without_input();
     test_top_down_four_direction_constraint();
     test_sensor_edges_are_drained_deterministically();

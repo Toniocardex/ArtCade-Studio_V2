@@ -50,6 +50,7 @@ interface FpEntity {
   sp?: string                // scriptPath
   ph?: unknown               // physics — opaque, full snapshot
   se?: unknown               // sensor
+  so?: unknown               // solid
   pc?: unknown               // platformerController
   td?: unknown               // topDownController
   lm?: unknown               // linearMover
@@ -103,6 +104,7 @@ function projectEntity(e: EntityDef): FpEntity {
     sp: e.scriptPath,
     ph: e.physics,
     se: e.sensor,
+    so: e.solid,
     pc: e.platformerController,
     td: e.topDownController,
     lm: e.linearMover,

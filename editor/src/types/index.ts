@@ -8,7 +8,7 @@ export * from './tilemap'
 import type { LogicBoardDoc } from './logic-board'
 import type { TileDef, TilemapLayer, TilesetAsset } from './tilemap'
 import type {
-  SensorComponent, PlatformerControllerComponent,
+  SensorComponent, SolidComponent, PlatformerControllerComponent,
   TopDownControllerComponent, LinearMoverComponent,
   CameraTargetComponent,
   MagneticItemComponent,
@@ -72,6 +72,7 @@ export interface EntityDef {
   visible?:    boolean   // editor visibility (undefined = visible). Phase B.
   // ECS gameplay components (Scene Editor Phase A) — optional, strongly typed
   sensor?:               SensorComponent
+  solid?:                SolidComponent
   platformerController?: PlatformerControllerComponent
   topDownController?:    TopDownControllerComponent
   linearMover?:          LinearMoverComponent

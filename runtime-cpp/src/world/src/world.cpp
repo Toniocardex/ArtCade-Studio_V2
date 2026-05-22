@@ -221,6 +221,19 @@ bool World::isGrounded(EntityId id, const std::string& groundClass) const {
     const uint32_t selfHandle = entityGateway_.physicsHandle(id);
     if (selfHandle == 0) return false;
 
+    bool grounded = false;
+    entityGateway_.forEachActiveSolid(
+        [this, id, selfHandle, &groundClass, &grounded]
+        (EntityId otherId, const SolidComponent& solid) {
+            if (grounded || otherId == id) return;
+            if (solid.groundClass != groundClass) return;
+            const uint32_t otherHandle = entityGateway_.physicsHandle(otherId);
+            if (otherHandle == 0) return;
+            if (physics_.areOverlapping(selfHandle, otherHandle))
+                grounded = true;
+        });
+    if (grounded) return true;
+
     for (EntityId otherId : entityGateway_.poolByClass(groundClass)) {
         if (otherId == id) continue;
         const uint32_t otherHandle = entityGateway_.physicsHandle(otherId);

@@ -17,6 +17,7 @@ import type {
   HordeMemberComponent,
   PlatformerControllerComponent,
   SensorComponent,
+  SolidComponent,
   TopDownControllerComponent,
 } from '../../types/components'
 
@@ -47,6 +48,9 @@ export interface ComponentDescriptor {
 
 const SENSOR: SensorComponent = {
   shape: 'Circle', radius: 120, width: 64, height: 64, targetTag: 'player',
+}
+const SOLID: SolidComponent = {
+  groundClass: 'Ground',
 }
 const PLATFORMER: PlatformerControllerComponent = {
   maxSpeed: 300, jumpForce: 600, customGravity: 1500,
@@ -92,6 +96,15 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
         visibleWhen: (c) => c.shape === 'Rectangle',
       },
       { key: 'targetTag', label: 'Target Tag', kind: 'text' },
+    ],
+  },
+  {
+    key: 'solid',
+    label: 'Solid',
+    color: 'var(--yellow)',
+    create: () => ({ ...SOLID }),
+    fields: [
+      { key: 'groundClass', label: 'Ground Class', kind: 'text' },
     ],
   },
   {

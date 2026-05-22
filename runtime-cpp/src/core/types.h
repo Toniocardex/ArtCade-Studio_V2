@@ -102,6 +102,10 @@ struct SensorComponent {
     std::string targetTag = "player";
 };
 
+struct SolidComponent {
+    std::string groundClass = "Ground";
+};
+
 struct PlatformerControllerComponent {
     float maxSpeed      = 300.f;
     float jumpForce     = 600.f;
@@ -195,6 +199,7 @@ struct EntityDef {
     AnimationState   animation;
     // Optional gameplay components (Phase D1)
     std::optional<SensorComponent>               sensor;
+    std::optional<SolidComponent>                solid;
     std::optional<PlatformerControllerComponent> platformerController;
     std::optional<TopDownControllerComponent>    topDownController;
     std::optional<LinearMoverComponent>          linearMover;
