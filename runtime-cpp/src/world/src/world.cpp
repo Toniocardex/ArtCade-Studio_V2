@@ -184,14 +184,9 @@ void World::tickPlatformerControllers(float dt) {
                 ? &intentIt->second
                 : nullptr;
 
-            const bool inputJumpPressed = input_ && (
-                input_->wasKeyPressed("Space") ||
-                input_->wasKeyPressed("KeyW") ||
-                input_->wasKeyPressed("ArrowUp"));
-            const bool jumpPressed =
-                (intent && intent->jumpRequested) || inputJumpPressed;
-
-            if (jumpPressed)
+            // Movement and jump are intent-only (movement.setIntent /
+            // platformer.requestJump from Lua). No direct Input polling here.
+            if (intent && intent->jumpRequested)
                 rt.jumpBufferTimer = pc.jumpBuffer;
             else
                 rt.jumpBufferTimer = std::max(0.f, rt.jumpBufferTimer - dt);
@@ -205,9 +200,6 @@ void World::tickPlatformerControllers(float dt) {
             if (intent && intent->hasMovement) {
                 const float axis = std::clamp(intent->movement.x, -1.f, 1.f);
                 vx = axis * pc.maxSpeed;
-            } else if (input_) {
-                if (input_->isKeyDown("KeyA") || input_->isKeyDown("ArrowLeft"))  vx -= pc.maxSpeed;
-                if (input_->isKeyDown("KeyD") || input_->isKeyDown("ArrowRight")) vx += pc.maxSpeed;
             }
 
             if (rt.jumpBufferTimer > 0.f && rt.coyoteTimer > 0.f) {

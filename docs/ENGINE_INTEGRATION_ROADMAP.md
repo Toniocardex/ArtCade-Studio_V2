@@ -351,9 +351,12 @@ Completato:
 
 Non in scope (follow-up):
 
-- Rimozione fallback `input_->isKeyDown` in World platformer (quando demo usa solo intent).
 - Promozione `AnimationState` a componente EnTT (solo se serve condivisione cross-system).
 - Sensor picker dedicato in Logic Board UI.
+
+Completato (follow-up):
+
+- World platformer: rimosso fallback `input_->isKeyDown` / `wasKeyPressed` — solo intent Lua.
 
 ## Debito tecnico — fix post Tranche 10
 

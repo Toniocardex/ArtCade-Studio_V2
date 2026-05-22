@@ -45,6 +45,10 @@ Aperto (engine integration — post Tranche 10):
 - Fallback `lifecycle.pollDestroyed` nel compiler Logic Board (solo board senza classe lifecycle).
 - `AnimationState` non promosso a componente EnTT (by design finche' non serve cross-system).
 
+Risolto (engine integration follow-up):
+
+- World platformer C++ non fa piu' polling `Input` — solo movement/jump intent da Lua.
+
 ## Summary
 
 Questa review fotografa il debito tecnico emerso durante l'integrazione recente di Scene Settings, viewport runtime, editor guides, toolbar, grid editor-only, fix bordo nero in edit mode e pulizia warning build.
