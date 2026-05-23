@@ -18,10 +18,10 @@ const MODES: {
 function modeBtnClass(active: boolean) {
   return [
     'relative flex flex-col items-center justify-center gap-1.5',
-    'w-full py-2.5 px-1 rounded-lg transition-all',
+    'w-full py-2.5 px-1 rounded transition-colors',
     active
-      ? 'bg-[var(--accent-bg)] text-[var(--accent)] shadow-sm'
-      : 'text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--panel-3)]',
+      ? 'bg-[var(--accent-bg)] text-[var(--accent)] border border-[var(--accent-bd)]'
+      : 'border border-transparent text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--panel-3)]',
   ].join(' ')
 }
 

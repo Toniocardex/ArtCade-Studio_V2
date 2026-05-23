@@ -42,7 +42,7 @@ interface FileMenuItem {
 function FileMenu({ items }: { items: FileMenuItem[] }) {
   return (
     <div className="absolute top-full left-0 mt-1 z-[999]
-                    bg-[var(--panel)] border border-[var(--border)] rounded-lg shadow-2xl
+                    bg-[var(--panel)] border border-[var(--border-2)] rounded
                     min-w-[220px] py-1 select-none">
       {items.map((item, i) => (
         <div key={i}>

@@ -58,7 +58,7 @@ export function KeyCapture({ value, onChange, placeholder }: KeyCaptureProps) {
           role="presentation"
         >
           <div
-            className="bg-[var(--panel)] border border-[var(--border-2)] rounded-lg px-6 py-4 text-center shadow-lg"
+            className="bg-[var(--panel)] border border-[var(--border-2)] rounded px-6 py-4 text-center"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"

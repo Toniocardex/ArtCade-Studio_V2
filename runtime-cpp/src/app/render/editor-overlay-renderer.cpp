@@ -86,7 +86,8 @@ void drawGuides(Modules::Renderer& renderer,
     const float w = std::max(1.f, scene.worldSize.x);
     const float h = std::max(1.f, scene.worldSize.y);
 
-    const Vec4  grid{0.f, 0.85f, 1.f, 0.16f};
+    // Avorio Leggero (#EAEAEA) a low opacity — engineering grid, no neon glow.
+    const Vec4  grid{0.918f, 0.918f, 0.918f, 0.10f};
     const float step = state.gridSize > 0.f ? state.gridSize : 32.f;
     if (step >= 4.f) {
         for (float x = step; x < w; x += step)
@@ -100,7 +101,8 @@ void drawGuides(Modules::Renderer& renderer,
     if (vw < w - 0.5f || vh < h - 0.5f) {
         const float vx = (w - vw) * 0.5f;
         const float vy = (h - vh) * 0.5f;
-        drawRectOutline(renderer, vx, vy, vw, vh, Vec4{1.f, 0.8f, 0.1f, 0.9f});
+        // Bronzo Spazzolato (#A68D59) — camera/viewport preview outline.
+        drawRectOutline(renderer, vx, vy, vw, vh, Vec4{0.651f, 0.553f, 0.349f, 0.9f});
     }
 }
 

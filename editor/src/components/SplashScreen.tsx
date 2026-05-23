@@ -63,15 +63,14 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
             <div className="absolute inset-0 bg-white z-0 animate-pixel-flash rounded-lg"></div>
           )}
           
-          {/* Il bagliore neon Ciano/Magenta combinato */}
-          <div className="absolute -inset-10 z-0 bg-[var(--accent)] blur-[60px] opacity-20 rounded-full animate-synapse-pulse"></div>
-          <div className="absolute -inset-10 z-0 bg-[var(--accent-2)] blur-[80px] opacity-10 rounded-full animate-synapse-pulse delay-500"></div>
+          {/* Subtle bronzo wash behind the logo — no neon glow, per style guide */}
+          <div className="absolute -inset-6 z-0 bg-[rgb(var(--accent-rgb)/0.08)] rounded-full"></div>
 
           {/* L'immagine Caricata */}
-          <img 
-            src="/artcade_logo.png" 
-            alt="ArtCade Logo" 
-            className="w-40 h-40 md:w-56 md:h-56 object-contain relative z-10 mix-blend-screen drop-shadow-[0_0_15px_rgba(0,255,255,0.7)]"
+          <img
+            src="/artcade_logo.png"
+            alt="ArtCade Logo"
+            className="w-40 h-40 md:w-56 md:h-56 object-contain relative z-10"
             onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => { 
                 e.currentTarget.style.display = 'none'; 
                 if (e.currentTarget.nextElementSibling) {
@@ -91,16 +90,12 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
           </div>
           
           <div className={`relative transition-all duration-700 delay-300 ${step >= 4 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-            <h1 className="text-6xl md:text-8xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white via-white to-[var(--accent)] drop-shadow-[0_0_12px_rgba(0,255,255,0.8)]">
-              Artcade
-            </h1>
-            {/* Glitch Overlay Text */}
-            <h1 className="absolute inset-0 text-6xl md:text-8xl font-black tracking-tighter text-[var(--accent-2)] mix-blend-color-dodge opacity-0 hover:opacity-70 animate-text-glitch">
+            <h1 className="text-6xl md:text-8xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-[var(--text)] via-[var(--text)] to-[var(--accent)]">
               Artcade
             </h1>
           </div>
 
-          <div className={`mt-5 px-5 py-1 border border-[var(--accent-2)] text-[var(--accent-2)] font-mono text-[9px] tracking-widest uppercase bg-[rgb(var(--accent-2-rgb)/0.05)] shadow-[0_0_10px_rgba(255,0,255,0.3)] transition-all duration-500 delay-700 ${step >= 4 ? 'opacity-100 scale-100' : 'opacity-0 scale-90'}`}>
+          <div className={`mt-5 px-5 py-1 border border-[var(--accent-2)] text-[var(--accent-2)] font-mono text-[9px] tracking-widest uppercase bg-[rgb(var(--accent-2-rgb)/0.06)] transition-opacity duration-500 delay-700 ${step >= 4 ? 'opacity-100' : 'opacity-0'}`}>
             Free Edition / C++ Core
           </div>
         </div>
@@ -146,22 +141,9 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
         }
         .animate-logo-glitch-in { animation: logo-glitch-in 0.8s ease-out forwards; }
 
-        /* Pulse */
-        @keyframes synapse-pulse { 0%, 100% { opacity: 0.15; transform: scale(0.95); } 50% { opacity: 0.35; transform: scale(1.05); } }
-        .animate-synapse-pulse { animation: synapse-pulse 4s ease-in-out infinite; }
-
         /* Terminal Type */
         @keyframes type-fast { from { width: 0; } to { width: 100%; } }
         .animate-type-fast { overflow: hidden; white-space: nowrap; display: inline-block; animation: type-fast 0.4s steps(20, end) forwards; border-right: 2px solid var(--muted); }
-        
-        /* Text Glitch */
-        @keyframes text-glitch {
-          0%, 100% { opacity: 0; transform: translate(0); }
-          20% { opacity: 0.7; transform: translate(-3px, 2px); }
-          40% { opacity: 0.7; transform: translate(3px, -2px); mix-blend-mode: exclusion; }
-          60% { opacity: 0; transform: translate(0); }
-        }
-        .animate-text-glitch { animation: text-glitch 2s 3s infinite; }
       `}} />
     </div>
   );

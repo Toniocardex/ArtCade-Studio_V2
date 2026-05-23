@@ -36,13 +36,12 @@ function bootLog(message: string, level: ConsoleEntry['level']): ConsoleEntry {
 interface BottomTabConfig {
   id:    BottomTab
   label: string
-  color: string
 }
 
 const BOTTOM_TABS: BottomTabConfig[] = [
-  { id: 'assets',  label: 'ASSETS',        color: 'var(--accent)' },
-  { id: 'tileset', label: 'TILESET_EDITOR', color: 'var(--accent-2)' },
-  { id: 'console', label: 'CONSOLE',       color: 'var(--text)' },
+  { id: 'assets',  label: 'ASSETS'         },
+  { id: 'tileset', label: 'TILESET_EDITOR' },
+  { id: 'console', label: 'CONSOLE'        },
 ]
 
 function BottomPanel() {
@@ -51,7 +50,7 @@ function BottomPanel() {
 
   return (
     <div className="h-64 border-t border-[var(--border)] bg-[var(--panel)] flex flex-col flex-shrink-0">
-      {/* Tab bar */}
+      {/* Tab bar — active state uses navy underline (style guide: secondary accent for selections) */}
       <div className="flex border-b border-[var(--border)] px-2 flex-shrink-0">
         {BOTTOM_TABS.map(tab => {
           const active = bottomTab === tab.id
@@ -59,12 +58,11 @@ function BottomPanel() {
             <button
               key={tab.id}
               onClick={() => dispatch({ type: 'SET_BOTTOM_TAB', tab: tab.id })}
-              className={`px-4 py-2 text-[10px] font-bold transition-all whitespace-nowrap ${
+              className={`px-4 py-2 text-[10px] font-semibold tracking-wider transition-colors whitespace-nowrap border-b-2 ${
                 active
-                  ? 'border-b-2'
-                  : 'text-[var(--muted)] hover:text-[var(--text)]'
+                  ? 'border-[var(--accent-2)] text-[var(--text)]'
+                  : 'border-transparent text-[var(--muted)] hover:text-[var(--text)]'
               }`}
-              style={active ? { color: tab.color, borderColor: tab.color } : {}}
             >
               {tab.label}
             </button>

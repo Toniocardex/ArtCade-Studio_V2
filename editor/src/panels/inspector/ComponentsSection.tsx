@@ -70,7 +70,7 @@ function ComponentSection({
                   value={String(v ?? '')}
                   onChange={(e) => commit(f.key, e.target.value)}
                   className="w-full bg-[var(--border)] border border-[var(--border-2)] rounded px-2 py-1
-                             text-xs text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
+                             text-xs text-[var(--text)] focus:outline-none focus:border-[var(--accent-2)] transition-colors"
                 >
                   {(f.options ?? []).map((o) => (
                     <option key={o} value={o}>{o}</option>
@@ -112,7 +112,7 @@ function ComponentSection({
                   }
                 }}
                 className="w-full bg-[var(--border)] border border-[var(--border-2)] rounded px-2 py-1
-                           text-xs text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
+                           text-xs text-[var(--text)] focus:outline-none focus:border-[var(--accent-2)] transition-colors"
               />
             </div>
           )
@@ -143,7 +143,7 @@ function AddComponentBar({ entity }: { entity: EntityDef }) {
       }}
       className="w-full mb-2 bg-[var(--border)] border border-dashed border-[var(--border-2)]
                  rounded px-2 py-1.5 text-xs text-[var(--muted)]
-                 focus:outline-none focus:border-[var(--accent)]"
+                 focus:outline-none focus:border-[var(--accent-2)] transition-colors"
     >
       <option value="">＋ Add Component…</option>
       {missing.map((d) => (

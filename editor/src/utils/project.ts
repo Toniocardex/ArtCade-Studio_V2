@@ -155,7 +155,7 @@ function parseScene(raw: unknown, fallbackId: string): SceneDef {
       id: fallbackId, name: fallbackId,
       worldSize:       sceneSize(),
       viewportSize:    sceneSize(),
-      backgroundColor: { x: 0.04, y: 0.07, z: 0.13, w: 1 },
+      backgroundColor: { x: 0.082, y: 0.090, z: 0.110, w: 1 },
       entityIds: [],
     }
   }
@@ -165,7 +165,7 @@ function parseScene(raw: unknown, fallbackId: string): SceneDef {
     name:            String(r.name ?? fallbackId),
     worldSize:       toVec2(r.worldSize ?? r.world_size ?? sceneSizeArray()),
     viewportSize:    toVec2(r.viewportSize ?? r.viewport_size ?? sceneSizeArray()),
-    backgroundColor: toVec4(r.backgroundColor ?? r.background_color ?? [0.04, 0.07, 0.13, 1]),
+    backgroundColor: toVec4(r.backgroundColor ?? r.background_color ?? [0.082, 0.090, 0.110, 1]),
     entityIds:       (() => {
                        const raw = r.entityIds ?? r.entity_ids
                        return Array.isArray(raw) ? (raw as unknown[]).map(Number) : []
@@ -481,7 +481,7 @@ export function createSceneDef(
     name: uniqueSceneName(project, name ?? `Scene ${numericSuffix}`, id),
     worldSize: sourceScene?.worldSize ?? sceneSize(),
     viewportSize: sourceScene?.viewportSize ?? sceneSize(),
-    backgroundColor: sourceScene?.backgroundColor ?? { x: 0.04, y: 0.05, z: 0.12, w: 1 },
+    backgroundColor: sourceScene?.backgroundColor ?? { x: 0.082, y: 0.090, z: 0.110, w: 1 },
     entityIds: [],
   }
 }
@@ -677,7 +677,7 @@ export function createBlankProject(projectName = 'Untitled'): ProjectDoc {
         name:            'Main Scene',
         worldSize:       sceneSize(),
         viewportSize:    sceneSize(),
-        backgroundColor: { x: 0.04, y: 0.05, z: 0.12, w: 1 },
+        backgroundColor: { x: 0.082, y: 0.090, z: 0.110, w: 1 },
         entityIds:       [],
       },
     },

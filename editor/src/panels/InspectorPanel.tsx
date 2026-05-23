@@ -45,7 +45,7 @@ function InspectorTabBar({
         onClick={() => onTab(id)}
         className={`flex-1 py-1.5 text-[10px] font-bold uppercase tracking-widest transition-colors
           ${active
-            ? 'text-[var(--accent)] border-b-2 border-[var(--accent)]'
+            ? 'text-[var(--text)] border-b-2 border-[var(--accent-2)]'
             : 'text-[var(--muted)] hover:text-[var(--text)] border-b-2 border-transparent'
           }`}
       >

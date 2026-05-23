@@ -15,12 +15,13 @@ interface RuntimeStatusBadgeProps {
 export function RuntimeStatusBadge({ wasmReady, hasProject }: RuntimeStatusBadgeProps) {
   return (
     <div className="flex items-center gap-1.5
-                    bg-[var(--bg)] px-2 py-1 rounded border border-[var(--border)] text-[9px]">
+                    bg-[var(--bg)] px-2 py-1 rounded border border-[var(--border-2)]
+                    text-[9px] font-semibold tracking-wider uppercase">
       {wasmReady
         ? (
           <>
             <Wifi size={10} className="text-[var(--accent)]" />
-            <span className="text-[var(--accent)]">RUNTIME READY</span>
+            <span className="text-[var(--text)]">RUNTIME READY</span>
           </>
         )
         : (

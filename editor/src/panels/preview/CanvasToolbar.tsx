@@ -114,10 +114,10 @@ export function CanvasToolbar({
         onClick={onToggleGuides}
         title="Toggle editor guides"
         className={`p-1.5 rounded transition-colors ${
-          showGuides ? 'bg-[rgb(var(--accent-rgb)/0.2)]' : 'hover:bg-[var(--panel-3)]'
+          showGuides ? 'bg-[rgb(var(--accent-2-rgb)/0.25)]' : 'hover:bg-[var(--panel-3)]'
         }`}
       >
-        <Grid3x3 size={15} color={showGuides ? 'var(--accent)' : 'var(--muted)'} />
+        <Grid3x3 size={15} color={showGuides ? 'var(--accent-2)' : 'var(--muted)'} />
       </button>
 
       <CameraPreviewToggle />

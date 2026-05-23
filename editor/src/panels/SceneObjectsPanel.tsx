@@ -263,9 +263,9 @@ export default function SceneObjectsPanel() {
         <select
           value={sceneId}
           onChange={e => dispatch({ type: 'SELECT_SCENE', sceneId: e.target.value })}
-          className="w-full bg-[var(--border)] border border-[var(--border-2)] text-[var(--text)]
+          className="w-full bg-[var(--panel-3)] border border-[var(--border-2)] text-[var(--text)]
                      text-[11px] rounded px-2 py-0.5 focus:outline-none
-                     focus:border-[var(--accent)]"
+                     focus:border-[var(--accent-2)] transition-colors"
         >
           {Object.values(project.scenes).map(s => (
             <option key={s.id} value={s.id}>{s.name}</option>
@@ -297,8 +297,8 @@ export default function SceneObjectsPanel() {
                 e.currentTarget.blur()
               }
             }}
-            className="min-w-0 flex-1 bg-[var(--border)] border border-[var(--border-2)] text-[var(--accent)]
-                       text-[11px] rounded px-2 py-1 focus:outline-none focus:border-[var(--accent)]"
+            className="min-w-0 flex-1 bg-[var(--panel-3)] border border-[var(--border-2)] text-[var(--text)]
+                       text-[11px] rounded px-2 py-1 focus:outline-none focus:border-[var(--accent-2)] transition-colors"
           />
           <span
             title={isStartScene ? 'Start scene' : 'Not the start scene'}

@@ -104,9 +104,9 @@ export function Field({
         defaultValue={String(value)}
         onBlur={commitFromInput}
         onKeyDown={handleKeyDown}
-        className={`w-full bg-[var(--border)] border border-[var(--border-2)] rounded px-2 py-1
-                    text-xs focus:outline-none focus:border-[var(--accent)] transition-colors ${
-                      cyan ? 'text-[var(--accent)]' : 'text-[var(--text)]'
+        className={`w-full bg-[var(--panel-3)] border border-[var(--border-2)] rounded px-2 py-1
+                    text-xs focus:outline-none focus:border-[var(--accent-2)] transition-colors ${
+                      cyan ? 'text-[var(--accent)] font-semibold' : 'text-[var(--text)]'
                     }`}
       />
     </div>
@@ -123,7 +123,7 @@ export function NumberField({
 }) {
   return (
     <div>
-      <label className="text-[8px] text-[rgb(var(--muted-rgb)/0.6)]">{label}</label>
+      <label className="text-[9px] text-[var(--muted)] uppercase tracking-wide">{label}</label>
       <input
         type="number"
         step={step}
@@ -136,8 +136,8 @@ export function NumberField({
             applyInputBackspace(e.currentTarget)
           }
         }}
-        className="w-full bg-[var(--border)] border border-[var(--border-2)] rounded px-2 py-1
-                   text-xs text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
+        className="w-full bg-[var(--panel-3)] border border-[var(--border-2)] rounded px-2 py-1
+                   text-xs text-[var(--text)] focus:outline-none focus:border-[var(--accent-2)] transition-colors"
       />
     </div>
   )

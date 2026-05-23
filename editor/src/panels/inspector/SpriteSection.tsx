@@ -21,8 +21,8 @@ export function SpriteSection({ entity }: { entity: EntityDef }) {
         <select
           value={entity.sprite.spriteAssetId}
           onChange={(e) => commitSprite({ spriteAssetId: e.target.value })}
-          className="w-full bg-[var(--border)] border border-[var(--border-2)] rounded px-2 py-1
-                     text-xs text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
+          className="w-full bg-[var(--panel-3)] border border-[var(--border-2)] rounded px-2 py-1
+                     text-xs text-[var(--text)] focus:outline-none focus:border-[var(--accent-2)] transition-colors"
         >
           <option value="">(none)</option>
           {/* keep an unknown/legacy value selectable */}
