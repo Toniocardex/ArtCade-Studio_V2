@@ -80,6 +80,16 @@ if errorlevel 1 (
     exit /b 1
 )
 
+rem ── Workaround: VS BuildTools 14.50 is missing several x64 desktop CRT libs
+rem    (oldnames.lib, vcruntime.lib, msvcprt.lib, legacy_stdio_definitions.lib).
+rem    They exist in onecore\x64 with compatible ABI for standard game-engine code.
+rem    Prepend onecore\x64 to LIB so the linker finds them automatically.
+for /D %%V in ("C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Tools\MSVC\*") do (
+    if exist "%%V\lib\onecore\x64\oldnames.lib" (
+        set "LIB=%%V\lib\onecore\x64;!LIB!"
+    )
+)
+
 pushd "%SCRIPT_DIR%" >nul
 
 if exist "!BUILD_DIR!\CMakeCache.txt" (

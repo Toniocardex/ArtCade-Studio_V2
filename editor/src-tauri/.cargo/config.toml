@@ -1,0 +1,9 @@
+# Workaround: VS BuildTools 14.50 is missing several x64 desktop CRT libs
+# (oldnames.lib, vcruntime.lib, msvcprt.lib, legacy_stdio_definitions.lib).
+# The identical files exist under onecore\x64. Adding that path to the linker
+# search lets Rust/MSVC find them without requiring admin-level VS repair.
+[target.x86_64-pc-windows-msvc]
+rustflags = [
+  "-L",
+  "C:\\Program Files (x86)\\Microsoft Visual Studio\\18\\BuildTools\\VC\\Tools\\MSVC\\14.50.35717\\lib\\onecore\\x64",
+]

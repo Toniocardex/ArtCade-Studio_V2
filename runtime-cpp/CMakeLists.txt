@@ -1,4 +1,20 @@
 cmake_minimum_required(VERSION 3.20)
+
+# ============================================================================
+# MSVC static runtime — MUST be set before project() so the compiler feature
+# tests also use /MT.  Static libcmt/libcpmt/libvcruntime are always present
+# even in minimal BuildTools installs; the DLL import libs (msvcprt.lib etc.)
+# may be absent.  CMP0091 NEW enables the CMAKE_MSVC_RUNTIME_LIBRARY policy.
+# Emscripten is not MSVC, so the guard is safe on all platforms.
+# ============================================================================
+if(NOT EMSCRIPTEN)
+    cmake_policy(SET CMP0091 NEW)
+    if(NOT DEFINED CMAKE_MSVC_RUNTIME_LIBRARY)
+        set(CMAKE_MSVC_RUNTIME_LIBRARY
+            "MultiThreaded$<$<CONFIG:Debug>:Debug>" CACHE STRING "" FORCE)
+    endif()
+endif()
+
 project(ArtCade-Runtime CXX C)
 
 set(CMAKE_CXX_STANDARD 17)

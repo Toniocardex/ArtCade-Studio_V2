@@ -40,8 +40,8 @@ if(EMSCRIPTEN)
     # C++ exceptions required by Sol2
     target_compile_options(game PRIVATE -fexceptions -O2)
 
-    # Output: game.html + game.js + game.wasm
-    set_target_properties(game PROPERTIES SUFFIX ".html")
+    # Output: game.js + game.wasm only (no .html — html-minifier-terser unreliable)
+    set_target_properties(game PROPERTIES SUFFIX ".js")
 
     # Editor WASM preview: no test-project preload — projects come from the
     # React shell via editor_load_project. (runtime-cpp/test-project remains
