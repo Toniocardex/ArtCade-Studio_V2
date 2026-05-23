@@ -54,12 +54,8 @@
   --danger:      #A84343;   /* Rosso Desaturato — errors */
   --danger-2:    #8E3636;   /* deeper error */
   --yellow:      #C49A4A;   /* alias */
-  --green:       #5B8C6E;   /* desaturated success */
-  --green-2:     #6FA083;
-  --green-bd:    #3F6952;
-  --green-bg:    #1E2A22;
-  --blue:        #3F5D7E;   /* alias */
-  --cyan-2:      #4D7BA0;
+  --green-2:     #6FA083;   /* desaturated success */
+  --blue:        #3F5D7E;   /* alias of accent-2, used by component badges */
 
   /* Logic Board pill backgrounds (when/if/then) */
   --pill-if-bg:  #2A3340;   /* navy-tinted */
@@ -114,12 +110,8 @@
   --danger:      #8E3636;
   --danger-2:    #6E2828;
   --yellow:      #9A7A36;
-  --green:       #3F6952;
   --green-2:     #2F5240;
-  --green-bd:    #88A496;
-  --green-bg:    #EFF4F1;
   --blue:        #2F4A66;
-  --cyan-2:      #355A7A;
   --pill-if-bg:  #E8EEF4;
   --pill-if-bd:  #2F4A66;
   --pill-then-bg:#F4EEDC;
@@ -205,15 +197,6 @@ input[data-mono],
   z-index: 1;
   box-shadow: inset 0 0 0 1px var(--border-2);
 }
-
-/* ---------------------------------------------------------------------------
-   Style guide explicitly forbids glow effects. The helpers below are kept as
-   no-ops so existing component classes do not break, but they render plain
-   coloured text only — no text-shadow, no neon halos.
-   --------------------------------------------------------------------------- */
-
-.glow-cyan { color: var(--accent-2); }
-.glow-mag  { color: var(--accent); }
 
 /* ---------------------------------------------------------------------------
    Top menubar

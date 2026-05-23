@@ -341,13 +341,13 @@ export default function MenuBar() {
           type="button"
           onClick={handleBuildExe}
           disabled={isBuilding}
-          className={`editor-toolbar-btn text-[var(--bg)] ${
+          className={`editor-toolbar-btn border ${
             isBuilding
-              ? 'bg-[rgb(var(--accent-2-rgb)/0.45)] cursor-not-allowed'
-              : 'bg-[var(--accent-2)] hover:brightness-110 shadow-sm'
+              ? 'border-[var(--border-2)] bg-[var(--panel)] text-[var(--muted)] cursor-not-allowed'
+              : 'border-[var(--border-2)] bg-transparent text-[var(--text)] hover:border-[var(--accent)] hover:text-[var(--accent)] hover:bg-[var(--accent-bg)]'
           }`}
         >
-          <Hammer size={12} className={isBuilding ? 'animate-bounce' : ''} />
+          <Hammer size={12} className={isBuilding ? 'animate-pulse' : ''} />
           {isBuilding ? 'BUILDING…' : 'BUILD .EXE'}
         </button>
       </div>
