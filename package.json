@@ -12,9 +12,9 @@
     "build": "cd editor && npm run build",
     "tauri:dev": "cd editor && npm run tauri:dev",
     "tauri:build": "cd editor && npm run tauri:build",
-    "build:cpp": "runtime-cpp\\build_native.bat --config Release",
-    "build:wasm": "runtime-cpp\\build_wasm.bat",
-    "clean": "if exist runtime-cpp\\build-native rmdir /s /q runtime-cpp\\build-native & if exist runtime-cpp\\build-wasm rmdir /s /q runtime-cpp\\build-wasm & if exist runtime-cpp\\build-msvc rmdir /s /q runtime-cpp\\build-msvc & if exist runtime-cpp\\build-nmake rmdir /s /q runtime-cpp\\build-nmake & if exist runtime-cpp\\build rmdir /s /q runtime-cpp\\build & if exist build rmdir /s /q build & if exist build-nmake rmdir /s /q build-nmake & if exist editor\\dist rmdir /s /q editor\\dist"
+    "build:cpp": "runtime-cpp/build_native.bat --config Release",
+    "build:wasm": "runtime-cpp/build_wasm.bat",
+    "clean": "scripts/clean-builds.bat"
   },
   "devDependencies": {
     "typescript": "^5.7.2"
