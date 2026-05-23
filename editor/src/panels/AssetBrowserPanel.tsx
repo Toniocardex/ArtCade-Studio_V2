@@ -160,10 +160,10 @@ export default function AssetBrowserPanel() {
           <button
             key={c}
             onClick={() => setCat(c)}
-            className={`px-4 py-2 text-[10px] font-bold transition-all ${
+            className={`px-4 py-2 text-[10px] font-bold tracking-wider transition-colors whitespace-nowrap border-b-2 ${
               cat === c
-                ? 'text-[var(--accent)] border-b-2 border-[var(--accent)]'
-                : 'text-[var(--muted)] hover:text-[var(--text)]'
+                ? 'border-[var(--accent-2)] text-[var(--text)]'
+                : 'border-transparent text-[var(--muted)] hover:text-[var(--text)]'
             }`}
           >
             {c}

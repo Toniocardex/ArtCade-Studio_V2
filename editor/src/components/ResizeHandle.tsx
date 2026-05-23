@@ -1,12 +1,16 @@
 // ---------------------------------------------------------------------------
 // ResizeHandle — 4px vertical drag bar between two flex columns.
 //   - mousedown captures the pointer, mousemove dispatches deltaX,
-//     mouseup releases. Works at the column edge between sidebar/center.
+//     mouseup OR window blur releases. Works at the column edge between
+//     sidebar/center.
 //   - The `side` flag inverts the delta sign so the caller can always feed
 //     "absolute width" into `setWidth(w + delta)` for the adjacent column.
+//   - Listeners are tracked via refs and unconditionally cleaned up on
+//     unmount, so a mid-drag unmount cannot leak window listeners or leave
+//     the cursor stuck on `col-resize`.
 // ---------------------------------------------------------------------------
 
-import { useCallback, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 
 export default function ResizeHandle({
   onResize,
@@ -17,40 +21,58 @@ export default function ResizeHandle({
   /** Which sidebar this handle resizes (controls drag direction sign). */
   side: 'left' | 'right'
 }) {
-  const lastX = useRef<number | null>(null)
+  const lastX     = useRef<number | null>(null)
+  const onResizeR = useRef(onResize)
+  const sideR     = useRef(side)
+  onResizeR.current = onResize
+  sideR.current     = side
 
-  const onMove = useCallback(
-    (ev: MouseEvent) => {
+  // Stable handlers — defined once, read latest props from refs so we can
+  // attach/remove the same identity to window listeners without churn.
+  const moveRef = useRef<((ev: MouseEvent) => void) | null>(null)
+  const upRef   = useRef<(() => void) | null>(null)
+
+  if (moveRef.current === null) {
+    moveRef.current = (ev: MouseEvent) => {
       if (lastX.current == null) return
       const dx = ev.clientX - lastX.current
       lastX.current = ev.clientX
-      // For the LEFT sidebar (handle on its right edge), positive mouseX delta
-      // means the sidebar GROWS. For the RIGHT sidebar (handle on its left
-      // edge), positive mouseX delta means the sidebar SHRINKS.
-      onResize(side === 'left' ? dx : -dx)
-    },
-    [onResize, side],
-  )
+      // LEFT handle (on the left sidebar's right edge): positive mouseX
+      // delta → sidebar grows. RIGHT handle (on right sidebar's left edge):
+      // positive mouseX delta → sidebar shrinks.
+      onResizeR.current(sideR.current === 'left' ? dx : -dx)
+    }
+  }
+  if (upRef.current === null) {
+    upRef.current = () => {
+      lastX.current = null
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+      if (moveRef.current) window.removeEventListener('mousemove', moveRef.current)
+      if (upRef.current)   window.removeEventListener('mouseup',   upRef.current)
+      window.removeEventListener('blur', upRef.current!)
+    }
+  }
 
-  const onUp = useCallback(() => {
-    lastX.current = null
-    document.body.style.cursor = ''
-    document.body.style.userSelect = ''
-    window.removeEventListener('mousemove', onMove)
-    window.removeEventListener('mouseup', onUp)
-  }, [onMove])
+  const onDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    lastX.current = e.clientX
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+    if (moveRef.current) window.addEventListener('mousemove', moveRef.current)
+    if (upRef.current) {
+      window.addEventListener('mouseup', upRef.current)
+      window.addEventListener('blur',    upRef.current)
+    }
+  }, [])
 
-  const onDown = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault()
-      lastX.current = e.clientX
-      document.body.style.cursor = 'col-resize'
-      document.body.style.userSelect = 'none'
-      window.addEventListener('mousemove', onMove)
-      window.addEventListener('mouseup', onUp)
-    },
-    [onMove, onUp],
-  )
+  // Defense in depth: if the component unmounts mid-drag, dispose listeners
+  // and reset cursor / userSelect so the editor stays usable.
+  useEffect(() => {
+    return () => {
+      if (upRef.current) upRef.current()
+    }
+  }, [])
 
   return (
     <div
