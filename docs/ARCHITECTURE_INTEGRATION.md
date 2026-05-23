@@ -344,7 +344,7 @@ La checklist EnTT originale è stata declassata a roadmap futura. Il runtime att
 
 - **ECS_IMPLEMENTATION_GUIDE.md** — Guida pratica EnTT
 - **REACT_WASM_PATTERN.md** — Pattern buffering React
-- **COLLABORATORS_UPDATE.md** — Distribuzione team
+- **README.md** (root) — Setup e build pipeline
 
 ---
 

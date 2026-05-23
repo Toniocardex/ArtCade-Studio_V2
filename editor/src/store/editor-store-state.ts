@@ -24,8 +24,12 @@ export interface CoreState {
   projectDirty:     boolean
   selection:        { entityId: number | null; sceneId: string | null }
   mode:             EditorView
-  /** Console overlay (Ctrl+`) visibility — opens automatically on LOAD_PROJECT. */
-  consoleOpen:      boolean
+  /** True when bottom dock shows the Console tab expanded (derived from tab + collapse). */
+  consoleOpen:           boolean
+  bottomPanelTab:        'assets' | 'console'
+  bottomPanelCollapsed:  boolean
+  /** Last console log id acknowledged while the Console tab was visible. */
+  consoleAckUpToId:      number
   /** When non-null, swap the canvas viewport for the TilesetEditorPanel
    *  (sub-view of mode='canvas'). Set by clicking a tileset in AssetBrowser,
    *  cleared by the "← Canvas" back button or by LOAD_PROJECT. */
@@ -81,6 +85,9 @@ export type Action =
   | { type: 'SET_MODE';          mode: EditorView }
   | { type: 'TOGGLE_CONSOLE' }
   | { type: 'SET_CONSOLE_OPEN';  open: boolean }
+  | { type: 'SET_BOTTOM_PANEL_TAB'; tab: 'assets' | 'console' }
+  | { type: 'SET_BOTTOM_PANEL_COLLAPSED'; collapsed: boolean }
+  | { type: 'ACKNOWLEDGE_CONSOLE_LOGS'; upToId: number }
   | { type: 'TILESET_EDIT_OPEN'; tilesetId: string }
   | { type: 'TILESET_EDIT_CLOSE' }
   | { type: 'SET_PLAYING';       playing: boolean }
@@ -147,7 +154,10 @@ export const initialCoreState: CoreState = {
   projectDirty:     false,
   selection:        { entityId: null, sceneId: null },
   mode:             'canvas',
-  consoleOpen:      true,
+  consoleOpen:           false,
+  bottomPanelTab:        'assets',
+  bottomPanelCollapsed:  false,
+  consoleAckUpToId:      0,
   editingTilesetId: null,
   openScripts:      [],
   activeScriptPath: null,

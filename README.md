@@ -38,7 +38,10 @@ ArtCade V2/
 │   └── build-*/         # CMake output (gitignored)
 │
 ├── docs/                # Architecture & design (see docs/README.md)
+├── scripts/             # Windows helpers (clean, tauri-dev)
 ├── UI/                  # Design mockups (reference PNGs)
+├── start-desktop.ps1    # Launch Tauri dev (alternative entry)
+├── start-webapp.ps1     # Launch Vite dev in browser
 ├── CLAUDE.md            # Development guidelines
 ├── .gitignore
 └── CMakeLists.txt       # Root build config
@@ -69,31 +72,131 @@ ArtCade V2/
 
 ## Getting Started
 
+### Prerequisites (Windows)
+
+| Tool | Purpose | Notes |
+|------|---------|-------|
+| **Node.js LTS** | Editor, Vite, npm scripts | `node`, `npm` on PATH |
+| **Rust (rustup)** | Tauri shell | `%USERPROFILE%\.cargo\bin` on PATH |
+| **VS Build Tools 2026** | MSVC linker (`link.exe`) for Rust + C++ native | Workload: *Desktop development with C++* |
+| **CMake** | C++ configure/build | e.g. `C:\Program Files\CMake\bin` |
+| **Ninja** | CMake generator | Used by both native and WASM scripts |
+| **Emscripten SDK** | C++ → WASM | Set `EMSDK` (default in scripts: `C:\Users\Antonio\emsdk`) |
+
+PowerShell may block `npm.ps1` until you run once:
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+```
+
+First-time dependency install (npm workspace — deps hoist to repo root):
+
 ```powershell
 cd "C:\Users\Antonio\Desktop\ArtCade V2"
+npm install
+```
 
-# Frontend build + schema validators
-npm run build
+---
 
-# Tauri desktop app
-cd editor
+## Build pipeline
+
+All npm scripts below are run from the **repo root**. On Windows they invoke `.bat` helpers via `cmd /c call …` so they work from PowerShell.
+
+### npm scripts (root `package.json`)
+
+| Script | Invokes | Output / effect |
+|--------|---------|-----------------|
+| `npm run dev` | Vite dev server in `editor/` | http://localhost:5173 |
+| `npm run build` | Logic schemas + `tsc` + Vite production build | `editor/dist/` |
+| `npm run tauri:dev` | `scripts\tauri-dev.bat` → MSVC env + `tauri dev` | Desktop editor window (hot reload) |
+| `npm run tauri:build` | `editor` → `tauri build` | `editor\src-tauri\target\release\` + MSI/NSIS under `target\release\bundle\` |
+| `npm run build:cpp` | `runtime-cpp\build_native.bat --config Release` | Native runtime + tests |
+| `npm run build:wasm` | `runtime-cpp\build_wasm.bat` | WASM preview bundle |
+| `npm run clean` | `scripts\clean-builds.bat` | Removes build output dirs (see below) |
+
+### Helper scripts (`scripts/`)
+
+| File | Role |
+|------|------|
+| `scripts/tauri-dev.bat` | Loads `VsDevCmd.bat` (x64), applies MSVC `onecore\x64` CRT workaround, runs `npm run tauri:dev` in `editor/` |
+| `scripts/clean-builds.bat` | Deletes CMake/Vite build folders listed in [Build output paths](#build-output-paths) |
+
+### C++ scripts (`runtime-cpp/`)
+
+| File | Role |
+|------|------|
+| `runtime-cpp/build_native.bat` | Ninja + MSVC via `VsDevCmd`, configures `build-native/`, builds, runs CTest |
+| `runtime-cpp/build_wasm.bat` | Ninja + Emscripten via `emsdk_env.bat`, configures `build-wasm/`, copies artifacts to editor preview |
+
+Optional flags:
+
+```powershell
+runtime-cpp\build_native.bat --clean --config Release   # full reconfigure
+runtime-cpp\build_native.bat --no-test                  # skip CTest
+runtime-cpp\build_wasm.bat --clean                      # wipe WASM build dir
+```
+
+Override paths when needed:
+
+- `ARTCADE_VSDEVCMD` — custom `VsDevCmd.bat` (native build)
+- `EMSDK` — Emscripten root (WASM build)
+
+### Build output paths
+
+| Artifact | Path |
+|----------|------|
+| **Native game.exe** | `runtime-cpp\build-native\src\app\game.exe` |
+| **Native CMake tree** | `runtime-cpp\build-native\` |
+| **WASM game.js** | `editor\public\runtime\game.js` (copied from build) |
+| **WASM game.wasm** | `editor\public\runtime\game.wasm` (gitignored; produced by build) |
+| **WASM build tree** | `runtime-cpp\build-wasm\` |
+| **Editor frontend (prod)** | `editor\dist\` |
+| **Tauri binary (release)** | `editor\src-tauri\target\release\artcade-editor.exe` |
+| **Tauri installer** | `editor\src-tauri\target\release\bundle\` (`.msi`, etc.) |
+| **Rust build cache** | `editor\src-tauri\target\` |
+
+`npm run clean` removes: `runtime-cpp\build-native`, `build-wasm`, `build-msvc`, `build-nmake`, `build`, root `build*`, and `editor\dist`.
+
+### Typical workflows
+
+**Editor dev (recommended — loads MSVC for Rust link):**
+
+```powershell
+cd "C:\Users\Antonio\Desktop\ArtCade V2"
 npm run tauri:dev
 ```
 
-Native runtime and WASM builds require the matching local toolchain:
+Uses Vite on port **5173** and compiles the Tauri shell on first run. If the port is busy: `netstat -ano | findstr ":5173"` then `Stop-Process -Id <PID> -Force`.
+
+**Web-only editor (no Tauri/Rust):**
 
 ```powershell
-# Native runtime: MSVC / CMake environment
-cmake -S runtime-cpp -B runtime-cpp\build-msvc -DARTCADE_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release
-cmake --build runtime-cpp\build-msvc --config Release
-
-# WASM runtime: MSVC + EMSDK environment
-runtime-cpp\build_wasm.bat
+powershell -ExecutionPolicy Bypass -File start-webapp.ps1
+# or: npm run dev
 ```
 
-`BUILD .EXE` in the editor produces the runnable native bundle under:
+**Refresh runtime after C++ changes:**
 
-`runtime-cpp\build-msvc\src\app\game.exe` + `runtime-cpp\build-msvc\src\app\game.artcade`
+```powershell
+npm run build:cpp    # native .exe + unit tests
+npm run build:wasm   # preview game.js + game.wasm → editor/public/runtime/
+```
+
+**Full release-style build:**
+
+```powershell
+npm run build:cpp
+npm run build:wasm
+npm run build
+npm run tauri:build
+```
+
+### MSVC / Rust notes
+
+- Rust on Windows requires `link.exe` from VS Build Tools. `scripts/tauri-dev.bat` and `runtime-cpp/build_native.bat` call `VsDevCmd.bat` automatically.
+- `editor/src-tauri/.cargo/config.toml` adds the `onecore\x64` library path for minimal Build Tools installs (missing desktop CRT import libs). Update the MSVC version folder there if you upgrade Build Tools.
+
+Verified on **VS BuildTools 2026 (18.x)** + **Node 24 LTS** + **Rust 1.95** + **CMake/Ninja/Emscripten** (May 2026).
 
 ## Current Status
 
@@ -121,4 +224,4 @@ GPL-3.0-or-later
 
 **Status**: MVP integration / release polish  
 **Started**: 2026-05-09  
-**Last updated**: 2026-05-20
+**Last updated**: 2026-05-23

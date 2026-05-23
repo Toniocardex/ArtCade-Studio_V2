@@ -22,7 +22,10 @@ function minimalState(overrides: Partial<CoreState> = {}): CoreState {
     projectDirty: false,
     selection: { entityId: null, sceneId: 's1' },
     mode: 'logic',
-    consoleOpen: true,
+    consoleOpen: false,
+    bottomPanelTab: 'console',
+    bottomPanelCollapsed: false,
+    consoleAckUpToId: 0,
     editingTilesetId: null,
     openScripts: [
       { path: 'scripts/entity.lua', content: '-- entity', isDirty: false },

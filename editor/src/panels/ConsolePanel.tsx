@@ -1,6 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { isTauri }         from '@tauri-apps/api/core'
-import { listen }          from '@tauri-apps/api/event'
 import { useConsoleLogs }  from '../store/editor-store'
 import type { ConsoleLevel } from '../types'
 
@@ -19,7 +17,7 @@ const LEVEL_LABEL: Record<ConsoleLevel, string> = {
 }
 
 export default function ConsolePanel() {
-  const { state, dispatch } = useConsoleLogs()
+  const { state } = useConsoleLogs()
   const { consoleLogs } = state
   const bottomRef = useRef<HTMLDivElement>(null)
   const [copyStatus, setCopyStatus] = useState<string | null>(null)
@@ -44,43 +42,6 @@ export default function ConsolePanel() {
       window.setTimeout(() => setCopyStatus(null), 1600)
     }
   }
-
-  // Subscribe to "build-log" events emitted by the Tauri Rust backend
-  // (cmake --build / python pack-artcade.py output streamed line-by-line).
-  useEffect(() => {
-    if (!isTauri()) return
-
-    let cancelled = false
-    let unlisten: (() => void) | null = null
-
-    listen<{ message: string; level: string }>('build-log', event => {
-      if (cancelled) return
-      const raw = event.payload
-      const level = (['info', 'warn', 'error', 'lua'] as ConsoleLevel[]).includes(
-        raw.level as ConsoleLevel
-      ) ? (raw.level as ConsoleLevel) : 'info'
-
-      dispatch({
-        type: 'LOG',
-        entry: {
-          id:      Date.now() + Math.random(),   // unique enough
-          time:    new Date().toLocaleTimeString('it-IT', {
-                     hour: '2-digit', minute: '2-digit', second: '2-digit',
-                   }),
-          message: raw.message,
-          level,
-        },
-      })
-    }).then(fn => {
-      if (cancelled) fn()   // already unmounted — release immediately
-      else unlisten = fn
-    })
-
-    return () => {
-      cancelled = true
-      unlisten?.()
-    }
-  }, [dispatch])
 
   // Auto-scroll to bottom on new logs
   useEffect(() => {

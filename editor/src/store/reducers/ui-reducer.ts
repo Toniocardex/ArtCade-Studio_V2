@@ -12,6 +12,13 @@ import {
 } from '../../constants/editor-viewport'
 import { clampEditorZoom } from '../../utils/editor-zoom'
 
+function syncConsoleOpen(state: CoreState): CoreState {
+  return {
+    ...state,
+    consoleOpen: !state.bottomPanelCollapsed && state.bottomPanelTab === 'console',
+  }
+}
+
 export const uiReducer: DomainReducer = (state: CoreState, action: Action) => {
   switch (action.type) {
     case 'SELECT_ENTITY':
@@ -21,14 +28,52 @@ export const uiReducer: DomainReducer = (state: CoreState, action: Action) => {
         ...state,
         selection: { ...state.selection, sceneId: action.sceneId, entityId: null },
       }
-    case 'SET_MODE':
-      return { ...state, mode: action.mode }
+    case 'SET_MODE': {
+      const next = { ...state, mode: action.mode }
+      if (action.mode !== 'canvas' && next.bottomPanelTab === 'assets') {
+        return syncConsoleOpen({ ...next, bottomPanelTab: 'console' })
+      }
+      return next
+    }
     case 'TOGGLE_CONSOLE':
-      return { ...state, consoleOpen: !state.consoleOpen }
+      if (state.bottomPanelCollapsed || state.bottomPanelTab !== 'console') {
+        return syncConsoleOpen({
+          ...state,
+          bottomPanelTab: 'console',
+          bottomPanelCollapsed: false,
+        })
+      }
+      return syncConsoleOpen({ ...state, bottomPanelCollapsed: true })
     case 'SET_CONSOLE_OPEN':
-      return state.consoleOpen === action.open
+      if (action.open) {
+        return syncConsoleOpen({
+          ...state,
+          bottomPanelTab: 'console',
+          bottomPanelCollapsed: false,
+        })
+      }
+      if (state.mode === 'canvas') {
+        return syncConsoleOpen({
+          ...state,
+          bottomPanelTab: 'assets',
+          bottomPanelCollapsed: false,
+        })
+      }
+      return syncConsoleOpen({ ...state, bottomPanelCollapsed: true })
+    case 'SET_BOTTOM_PANEL_TAB':
+      return syncConsoleOpen({
+        ...state,
+        bottomPanelTab: action.tab,
+        bottomPanelCollapsed: false,
+      })
+    case 'SET_BOTTOM_PANEL_COLLAPSED':
+      return state.bottomPanelCollapsed === action.collapsed
         ? state
-        : { ...state, consoleOpen: action.open }
+        : syncConsoleOpen({ ...state, bottomPanelCollapsed: action.collapsed })
+    case 'ACKNOWLEDGE_CONSOLE_LOGS':
+      return action.upToId <= state.consoleAckUpToId
+        ? state
+        : { ...state, consoleAckUpToId: action.upToId }
     case 'TILESET_EDIT_OPEN':
       return { ...state, editingTilesetId: action.tilesetId }
     case 'TILESET_EDIT_CLOSE':

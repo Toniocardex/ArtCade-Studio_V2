@@ -140,14 +140,17 @@ ArtCade V2/
 │   ├── src-tauri/               Shell Tauri (Rust)
 │   └── package.json
 │
-├── docs/                        Documentazione
+├── docs/                        Documentazione (indice: docs/README.md)
 │   ├── TECHNICAL_OVERVIEW.md    ← questo file
-│   ├── ARCHITECTURE_DUAL_RUNTIME.md
-│   └── QUICK_START.md
+│   ├── ARCHITECTURE_INTEGRATION.md
+│   └── LOGIC_BOARD_SPEC.md
 │
-├── tools/
+├── scripts/                     Helper Windows (tauri-dev, clean-builds)
+│
+├── runtime-cpp/tools/
 │   └── pack-artcade.py          Packer Python per formato .artcade
 │
+├── README.md                    Setup, build pipeline, path di output
 ├── CLAUDE.md                    Decisioni architetturali (per AI)
 ├── ROADMAP_INTEGRATIVA.md       Stato dettagliato fase per fase
 └── build.ps1                    Build script PowerShell (native)

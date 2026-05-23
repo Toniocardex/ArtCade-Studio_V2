@@ -1,7 +1,7 @@
 # 📖 ArtCade V2 — Documentazione Completa
 
 > **Versione**: 2.2  
-> **Data**: 2026-05-10  
+> **Data**: 2026-05-23  
 > **Status**: ✅ MVP integrato, documenti in riallineamento continuo  
 > **Audience**: Team development
 
@@ -29,22 +29,7 @@ Inizia QUI se vuoi capire il **razionale** dietro ogni decisione.
 
 ---
 
-### 2️⃣ **COLLABORATORS_UPDATE.md** — Il COSA (5 min)
-
-Leggi questo SE SEI PARTE DEL TEAM.
-
-**Contenuto**:
-- Riassunto del problema (flash)
-- Soluzione in sintesi
-- Cosa leggere per specializzazione
-- Checklist implementazione
-- Timeline
-
-**Perché**: Allineamento team rapido
-
----
-
-### 3️⃣ Poi, Per Specializzazione:
+### 2️⃣ Poi, Per Specializzazione:
 
 #### Se sei **React Developer**
 ```
@@ -83,8 +68,6 @@ TECHNICAL_OVERVIEW.md       (Referenza, § 2, 4, 6, 12)
 ```
 LOGIC_BOARD_SPEC.md         (Parte I: glossario Logic Board / Event / Component)
     ↓
-COLLABORATORS_UPDATE.md     (Orientamento rapido)
-    ↓
 ARCHITECTURAL_RATIONALE.md  (Capire il contesto)
     ↓
 TECHNICAL_OVERVIEW.md       (Dettagli della tua specializzazione)
@@ -115,7 +98,9 @@ Guida specializzata         (REACT_WASM_PATTERN.md o ECS_IMPLEMENTATION_GUIDE.md
 | **GLOBAL_LOGIC_UI_ARCHITECTURE.md** | Sensori Box2D, platformer feel, azioni world, UI screen-space, text juice | ~8min | C++ / gameplay / UI | ⭐ |
 | **ArtCade_V2_Riepilogo_Suggerimenti.md** | Visione UX Logic Board (8 gruppi), shader, widget zero-matematica | ~10min | Design / product | ⭐ |
 | **LOGIC_BOARD_EDITOR_BACKLOG.md** | Backlog editor (JSON Schema fatto; wait, UX, shader) | ~3min | Editor | ⭐ |
-| **COLLABORATORS_UPDATE.md** | Team alignment | 5–10min | Team | ⭐⭐ |
+| **TECHNICAL_DEBT_REVIEW.md** | Debito tecnico noto (sync WASM, EditorAPI, build Tauri) | ~10min | Engineers | ⭐⭐ |
+
+Setup e build pratici: **[README.md](../README.md)** (root) — pipeline, script npm, path di output.
 
 ---
 
@@ -145,6 +130,7 @@ Guida specializzata         (REACT_WASM_PATTERN.md o ECS_IMPLEMENTATION_GUIDE.md
 | **Audio Sandboxing** | ARCHITECTURAL_RATIONALE | §5 | Data-driven |
 | **Moduli C++** | TECHNICAL_OVERVIEW | §4 | Referenza |
 | **Integration** | ARCHITECTURE_INTEGRATION | Intera | End-to-end |
+| **Build / setup** | README.md (root) | Build pipeline | Operativo |
 
 ---
 
@@ -197,7 +183,7 @@ A: TECHNICAL_OVERVIEW.md (v2.2) — è il documento di "verità" per implementaz
 | Coerenza | ✅ Cross-referenced |
 | Leggibilità | ✅ Diviso per audience |
 | Testabilità | ✅ Checklist verificabili |
-| Up-to-date | ✅ 2026-05-10 |
+| Up-to-date | ✅ 2026-05-23 |
 
 ---
 
@@ -205,8 +191,8 @@ A: TECHNICAL_OVERVIEW.md (v2.2) — è il documento di "verità" per implementaz
 
 ### Manda a TUTTI
 - LOGIC_BOARD_SPEC.md (**Parte I** glossario; **Parte III** per chi implementa la Board)
-- COLLABORATORS_UPDATE.md
 - ARCHITECTURAL_RATIONALE.md
+- README.md (root) — setup e build
 
 ### Poi, per specializzazione
 - React dev → REACT_WASM_PATTERN.md

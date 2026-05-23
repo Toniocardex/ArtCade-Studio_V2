@@ -541,7 +541,7 @@ I test runnano via `ctest -C Release --output-on-failure` da
 ## Riferimenti
 
 - **TECHNICAL_OVERVIEW.md** — §3.5 ECS Architecture (snapshot moduli).
-- **ARCHITECTURE_DUAL_RUNTIME.md** — runtime nativo + WASM, hot-paths.
+- **ARCHITETTURA_TECNICA_ENGINE_2D.md** — stack engine, stato repo vs target.
 - **EnTT docs**: <https://github.com/skypjack/entt>.
 - **Sorgenti**:
   - `runtime-cpp/src/modules/runtime-entity-gateway/include/runtime-entity-gateway.h`

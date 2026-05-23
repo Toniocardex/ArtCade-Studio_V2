@@ -31,7 +31,10 @@ export const projectReducer: DomainReducer = (state: CoreState, action: Action) 
         openScripts: [],
         activeScriptPath: null,
         isPlaying:   false,
-        consoleOpen:      true,    // mostra boot log al caricamento
+        consoleOpen:           false,
+        bottomPanelTab:        'assets',
+        bottomPanelCollapsed:  false,
+        consoleAckUpToId:      0,
         editingTilesetId: null,    // reset tileset sub-view
         editorZoom:       EDITOR_BOOT_ZOOM,
         editorZoomMode:   'manual',

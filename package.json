@@ -10,11 +10,11 @@
   "scripts": {
     "dev": "cd editor && npm run dev",
     "build": "cd editor && npm run build",
-    "tauri:dev": "cd editor && npm run tauri:dev",
+    "tauri:dev": "cmd /c call scripts\\tauri-dev.bat",
     "tauri:build": "cd editor && npm run tauri:build",
-    "build:cpp": "runtime-cpp/build_native.bat --config Release",
-    "build:wasm": "runtime-cpp/build_wasm.bat",
-    "clean": "scripts/clean-builds.bat"
+    "build:cpp": "cmd /c call runtime-cpp\\build_native.bat --config Release",
+    "build:wasm": "cmd /c call runtime-cpp\\build_wasm.bat",
+    "clean": "cmd /c call scripts\\clean-builds.bat"
   },
   "devDependencies": {
     "typescript": "^5.7.2"

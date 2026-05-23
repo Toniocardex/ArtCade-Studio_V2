@@ -330,10 +330,10 @@ cmake --build . --config Release
 ## Immediate Next Steps
 
 1. ✅ Project structure created
-2. ⏳ Design document: `docs/ARCHITECTURE_DUAL_RUNTIME.md` (in progress)
-3. ⏳ CMakeLists.txt template (in progress)
-4. ⏳ C++ code skeletons (in progress)
-5. ⏳ Lua API specification (in progress)
+2. ✅ Architecture docs (`docs/TECHNICAL_OVERVIEW.md`, `docs/README.md`)
+3. ✅ CMakeLists.txt + C++ modules
+4. ✅ Lua API + Logic Board compiler
+5. ✅ Build pipeline (see root `README.md`)
 
 ---
 
