@@ -207,7 +207,7 @@ export default function MenuBar() {
     const output = await savePackDialog()
     if (!output) return
     const root = dirName(projectPath)
-    dispatch({ type: 'SET_BOTTOM_TAB', tab: 'console' })
+    dispatch({ type: 'SET_CONSOLE_OPEN', open: true })
     dispatch({ type: 'LOG', entry: makeLog(`[Pack] Packing → ${output}`, 'info') })
     try {
       await packProject(root, output)
@@ -243,7 +243,7 @@ export default function MenuBar() {
     }
     const root = dirName(projectPath)
     setIsBuilding(true)
-    dispatch({ type: 'SET_BOTTOM_TAB', tab: 'console' })
+    dispatch({ type: 'SET_CONSOLE_OPEN', open: true })
     dispatch({ type: 'LOG', entry: makeLog('[Build] Starting cmake build…', 'info') })
     try {
       await runBuild(root)

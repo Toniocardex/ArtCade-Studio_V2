@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ElementType } from 'react'
-import { Image, Music, Code, FileText, ImagePlus, Trash2 } from 'lucide-react'
+import { Image, Music, Code, FileText, ImagePlus, Trash2, Grid3x3 } from 'lucide-react'
 import { useEditor } from '../store/editor-store'
 import { importImageIntoProject } from '../utils/api'
 import { dirName } from '../utils/project'
-import type { ImageAsset, ImagePointDef } from '../types'
+import type { ImageAsset, ImagePointDef, TilesetAsset } from '../types'
 import {
   isBackspaceKey,
   isInsidePanel,
@@ -12,19 +12,24 @@ import {
   shouldIgnoreEditorShortcut,
 } from '../utils/keyboard'
 
-type Category = 'ALL' | 'IMAGES' | 'AUDIO' | 'SCRIPTS'
+type Category = 'ALL' | 'IMAGES' | 'AUDIO' | 'SCRIPTS' | 'TILESETS'
 
-const CATEGORIES: Category[] = ['ALL', 'IMAGES', 'AUDIO', 'SCRIPTS']
+const CATEGORIES: Category[] = ['ALL', 'IMAGES', 'AUDIO', 'SCRIPTS', 'TILESETS']
 
 const ICON_MAP: Record<string, ElementType> = {
-  IMAGES:  Image,
-  AUDIO:   Music,
-  SCRIPTS: Code,
+  IMAGES:   Image,
+  AUDIO:    Music,
+  SCRIPTS:  Code,
+  TILESETS: Grid3x3,
 }
 
 function AssetIcon({ type }: { type: string }) {
   const Icon = ICON_MAP[type] ?? FileText
-  const color = type === 'IMAGES' ? 'var(--accent)' : type === 'AUDIO' ? 'var(--accent-2)' : 'var(--warn)'
+  const color =
+    type === 'IMAGES'   ? 'var(--accent)'    :
+    type === 'AUDIO'    ? 'var(--accent-2)'  :
+    type === 'TILESETS' ? 'var(--purple)'    :
+                          'var(--warn)'
   return <Icon size={22} color={color} />
 }
 
@@ -37,9 +42,14 @@ export default function AssetBrowserPanel() {
 
   const project   = state.project
   const images    = Object.values(project?.assets ?? {})
+  const tilesets  = Object.values(project?.tilesets ?? {}) as TilesetAsset[]
   const selEntity = (project && state.selection.entityId != null)
     ? project.entities[state.selection.entityId]
     : null
+
+  function openTilesetEditor(t: TilesetAsset) {
+    dispatch({ type: 'TILESET_EDIT_OPEN', tilesetId: t.assetId })
+  }
 
   function flash(t: string) {
     setMsg(t)
@@ -123,9 +133,16 @@ export default function AssetBrowserPanel() {
     flash(`Sprite "${asset.name}" → ${selEntity.name}`)
   }
 
-  const showImages = cat === 'ALL' || cat === 'IMAGES'
-  const hasImages = images.length > 0
-  const showEmpty = !project || (!hasImages && cat !== 'ALL')
+  const showImages   = cat === 'ALL' || cat === 'IMAGES'
+  const showTilesets = cat === 'ALL' || cat === 'TILESETS'
+  const hasImages    = images.length > 0
+  const hasTilesets  = tilesets.length > 0
+  const showEmpty    = !project || (
+    cat === 'ALL'      ? (!hasImages && !hasTilesets) :
+    cat === 'IMAGES'   ? !hasImages :
+    cat === 'TILESETS' ? !hasTilesets :
+                         true   // AUDIO / SCRIPTS: not implemented yet
+  )
 
   return (
     <div className="h-full flex flex-col bg-[var(--bg)]" data-panel="assets">
@@ -184,7 +201,9 @@ export default function AssetBrowserPanel() {
               ? 'No project loaded — use File → New Project or Open Project.'
               : cat === 'IMAGES'
                 ? 'No images yet — use Import image. Double-click (with an entity selected) to assign a sprite.'
-                : 'No assets in this category yet.'}
+                : cat === 'TILESETS'
+                  ? 'No tilesets yet — create one from the scene tilemap settings, then click here to edit.'
+                  : 'No assets in this category yet.'}
           </p>
         )}
         <div className="grid grid-cols-6 gap-3">
@@ -218,6 +237,27 @@ export default function AssetBrowserPanel() {
             </div>
             )
           })}
+
+          {showTilesets && tilesets.map(t => (
+            <div
+              key={t.assetId}
+              onClick={() => openTilesetEditor(t)}
+              title={`Open "${t.name}" in the Tileset Editor`}
+              className="flex flex-col items-center gap-2 p-2 rounded border cursor-pointer transition-colors group
+                         bg-[var(--bg)] border-[var(--border)]
+                         hover:border-[var(--purple)] hover:bg-[var(--panel-3)]"
+            >
+              <div className="w-[22px] h-[22px] flex items-center justify-center group-hover:scale-110 transition-transform">
+                <AssetIcon type="TILESETS" />
+              </div>
+              <span className="text-[9px] truncate w-full text-center text-[var(--muted)]">
+                {t.name}
+              </span>
+              <span className="text-[8px] text-[rgb(var(--muted-rgb)/0.6)] tabular-nums">
+                {t.tileSize}px · {t.cols}×{t.rows}
+              </span>
+            </div>
+          ))}
         </div>
 
         {selAsset && (

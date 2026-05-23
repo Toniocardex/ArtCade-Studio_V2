@@ -23,8 +23,18 @@ export const uiReducer: DomainReducer = (state: CoreState, action: Action) => {
       }
     case 'SET_MODE':
       return { ...state, mode: action.mode }
-    case 'SET_BOTTOM_TAB':
-      return { ...state, bottomTab: action.tab }
+    case 'TOGGLE_CONSOLE':
+      return { ...state, consoleOpen: !state.consoleOpen }
+    case 'SET_CONSOLE_OPEN':
+      return state.consoleOpen === action.open
+        ? state
+        : { ...state, consoleOpen: action.open }
+    case 'TILESET_EDIT_OPEN':
+      return { ...state, editingTilesetId: action.tilesetId }
+    case 'TILESET_EDIT_CLOSE':
+      return state.editingTilesetId === null
+        ? state
+        : { ...state, editingTilesetId: null }
     case 'SET_PLAYING':
       return { ...state, isPlaying: action.playing }
     case 'EDITOR_SET_GRID_SIZE': {

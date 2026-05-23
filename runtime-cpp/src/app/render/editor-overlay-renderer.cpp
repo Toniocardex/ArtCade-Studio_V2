@@ -102,8 +102,8 @@ void drawGuides(Modules::Renderer& renderer,
     if (vw < w - 0.5f || vh < h - 0.5f) {
         const float vx = (w - vw) * 0.5f;
         const float vy = (h - vh) * 0.5f;
-        // Bronzo Spazzolato (#A68D59) — camera/viewport preview outline.
-        drawRectOutline(renderer, vx, vy, vw, vh, Vec4{0.651f, 0.553f, 0.349f, 0.9f});
+        // Sage Green (#7A9C7E) — camera/viewport preview outline.
+        drawRectOutline(renderer, vx, vy, vw, vh, Vec4{0.478f, 0.612f, 0.494f, 0.9f});
     }
 }
 

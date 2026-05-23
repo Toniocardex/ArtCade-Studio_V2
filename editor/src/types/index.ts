@@ -151,9 +151,6 @@ export interface ProjectDoc {
 /** Top-level mode: Canvas/Scene editor · Logic Board · Script editor */
 export type EditorView = 'canvas' | 'logic' | 'script'
 
-/** Bottom panel tab (visible only in scene view) */
-export type BottomTab = 'assets' | 'tileset' | 'console'
-
 export interface EditorSelection {
   entityId: number | null
   sceneId:  string | null
@@ -180,7 +177,8 @@ export interface EditorState {
   projectDirty:     boolean
   selection:        EditorSelection
   mode:             EditorView
-  bottomTab:        BottomTab
+  consoleOpen:      boolean
+  editingTilesetId: string | null
   openScripts:      ScriptFile[]
   activeScriptPath: string | null
   isPlaying:        boolean

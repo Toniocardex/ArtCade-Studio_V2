@@ -29,7 +29,7 @@ function st(p: ProjectDoc): CoreState {
   return {
     project: p, projectPath: null, projectDirty: false,
     selection: { entityId: 1, sceneId: 's' },
-    mode: 'canvas', bottomTab: 'assets',
+    mode: 'canvas', consoleOpen: true, editingTilesetId: null,
     openScripts: [], activeScriptPath: null, isPlaying: false,
     selectedTileCell: 1,
     editorGridSize: 32, snapToGrid: false, editorZoom: 1.0, editorZoomMode: 'manual', cameraPreview: false,

@@ -10,7 +10,7 @@
 // ---------------------------------------------------------------------------
 
 import { useMemo, useRef, useState } from 'react'
-import { ImagePlus, Eraser, Trash2 } from 'lucide-react'
+import { ImagePlus, Eraser, Trash2, ArrowLeft } from 'lucide-react'
 import { useEditor } from '../store/editor-store'
 import { editorRegisterImage } from '../utils/wasm-bridge'
 import { importImageIntoProject } from '../utils/api'
@@ -30,7 +30,9 @@ export default function TilesetEditorPanel() {
 
   const sceneId = selection.sceneId ?? project?.activeSceneId ?? ''
   const scene   = project?.scenes[sceneId]
-  const tilesetId = scene?.tilemap?.tilesetAssetId
+  // editingTilesetId (set by AssetBrowser click) wins; fall back to the
+  // active scene's tilemap binding for legacy/Tilemap-from-scene flows.
+  const tilesetId = state.editingTilesetId ?? scene?.tilemap?.tilesetAssetId
   const tileset: TilesetAsset | undefined =
     tilesetId ? project?.tilesets?.[tilesetId] : undefined
 
@@ -113,10 +115,20 @@ export default function TilesetEditorPanel() {
     })
   }
 
-  if (!project || !scene) {
+  const isStandalone = state.editingTilesetId != null  // opened from AssetBrowser
+  const backToCanvas = () => dispatch({ type: 'TILESET_EDIT_CLOSE' })
+
+  if (!project || (!scene && !isStandalone)) {
     return (
-      <div className="h-full bg-[var(--bg)] flex items-center justify-center">
-        <span className="text-[var(--muted)] text-xs">No scene selected</span>
+      <div className="h-full bg-[var(--bg)] flex flex-col">
+        <TilesetHeader
+          name={tileset?.name}
+          isStandalone={isStandalone}
+          onBack={backToCanvas}
+        />
+        <div className="flex-1 flex items-center justify-center">
+          <span className="text-[var(--muted)] text-xs">No scene selected</span>
+        </div>
       </div>
     )
   }
@@ -125,7 +137,13 @@ export default function TilesetEditorPanel() {
   const { cols, rows } = grid
 
   return (
-    <div className="h-full flex bg-[var(--bg)] select-none">
+    <div className="h-full flex flex-col bg-[var(--bg)] select-none">
+      <TilesetHeader
+        name={tileset?.name}
+        isStandalone={isStandalone}
+        onBack={backToCanvas}
+      />
+      <div className="flex flex-1 min-h-0">
       <input
         ref={fileRef}
         type="file"
@@ -247,6 +265,43 @@ export default function TilesetEditorPanel() {
           </div>
         )}
       </div>
+      </div>
+    </div>
+  )
+}
+
+function TilesetHeader({
+  name,
+  isStandalone,
+  onBack,
+}: {
+  name?: string
+  isStandalone: boolean
+  onBack: () => void
+}) {
+  return (
+    <div className="flex items-center gap-3 px-3 h-9 border-b border-[var(--border)]
+                    bg-[var(--panel-3)] flex-shrink-0">
+      {isStandalone && (
+        <button
+          type="button"
+          onClick={onBack}
+          title="Back to canvas"
+          className="flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold
+                     text-[var(--muted)] hover:text-[var(--text)] border border-[var(--border-2)]
+                     hover:border-[var(--accent-2)] transition-colors"
+        >
+          <ArrowLeft size={11} /> Canvas
+        </button>
+      )}
+      <div className="text-[10px] uppercase tracking-widest text-[var(--muted)]">
+        Tileset Editor
+      </div>
+      {name && (
+        <div className="text-xs text-[var(--text)] font-medium truncate">
+          {name}
+        </div>
+      )}
     </div>
   )
 }

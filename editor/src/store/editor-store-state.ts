@@ -7,7 +7,7 @@
 // cycle with the provider module.
 
 import type {
-  EditorView, BottomTab,
+  EditorView,
   ScriptFile, ProjectDoc, ConsoleEntry,
   LogicBoard, LogicEvent, ComponentKey, WorldSettings, TilesetAsset, ImageAsset,
   SpriteComponent,
@@ -24,7 +24,12 @@ export interface CoreState {
   projectDirty:     boolean
   selection:        { entityId: number | null; sceneId: string | null }
   mode:             EditorView
-  bottomTab:        BottomTab
+  /** Console overlay (Ctrl+`) visibility — opens automatically on LOAD_PROJECT. */
+  consoleOpen:      boolean
+  /** When non-null, swap the canvas viewport for the TilesetEditorPanel
+   *  (sub-view of mode='canvas'). Set by clicking a tileset in AssetBrowser,
+   *  cleared by the "← Canvas" back button or by LOAD_PROJECT. */
+  editingTilesetId: string | null
   openScripts:      ScriptFile[]
   activeScriptPath: string | null
   isPlaying:        boolean
@@ -74,7 +79,10 @@ export type Action =
   | { type: 'SELECT_ENTITY';     entityId: number | null }
   | { type: 'SELECT_SCENE';      sceneId: string }
   | { type: 'SET_MODE';          mode: EditorView }
-  | { type: 'SET_BOTTOM_TAB';    tab: BottomTab }
+  | { type: 'TOGGLE_CONSOLE' }
+  | { type: 'SET_CONSOLE_OPEN';  open: boolean }
+  | { type: 'TILESET_EDIT_OPEN'; tilesetId: string }
+  | { type: 'TILESET_EDIT_CLOSE' }
   | { type: 'SET_PLAYING';       playing: boolean }
   | { type: 'UPDATE_SCRIPT';     path: string; content: string }
   | { type: 'OPEN_SCRIPT';       file: ScriptFile }
@@ -139,7 +147,8 @@ export const initialCoreState: CoreState = {
   projectDirty:     false,
   selection:        { entityId: null, sceneId: null },
   mode:             'canvas',
-  bottomTab:        'assets',
+  consoleOpen:      true,
+  editingTilesetId: null,
   openScripts:      [],
   activeScriptPath: null,
   isPlaying:        false,

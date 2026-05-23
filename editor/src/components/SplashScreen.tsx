@@ -63,7 +63,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
             <div className="absolute inset-0 bg-white z-0 animate-pixel-flash rounded-lg"></div>
           )}
           
-          {/* Subtle bronzo wash behind the logo — no neon glow, per style guide */}
+          {/* Subtle sage wash behind the logo — no neon glow, per style guide */}
           <div className="absolute -inset-6 z-0 bg-[rgb(var(--accent-rgb)/0.08)] rounded-full"></div>
 
           {/* L'immagine Caricata */}
