@@ -134,7 +134,7 @@ function parseEntity(raw: unknown, fallbackId: number): EntityDef {
     animation:  parseAnimation(r.animation),
     physics:    parsePhysics(r.physics),
     scriptPath: r.scriptPath != null ? String(r.scriptPath) : (r.script_path != null ? String(r.script_path) : undefined),
-    ...(typeof r.visible === 'boolean' ? { visible: r.visible } : {}),
+    visible: typeof r.visible === 'boolean' ? r.visible : true,
     ...parseComponents(r),
   }
 }

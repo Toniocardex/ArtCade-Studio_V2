@@ -173,6 +173,7 @@ function actionLua(a: LogicAction): string {
         case 'backward':
           return `(function() local _sx, _ = entity.scale(${t}); local _d = (_sx < 0) and -1 or 1; entity.setVelocity(${t}, -_d * ${s}, 0) end)()`
       }
+      break
     }
     case 'moveController': {
       const t = targetExpr(a.target)
@@ -188,6 +189,7 @@ function actionLua(a: LogicAction): string {
         case 'stop':
           return `movement.clearIntent(${t})`
       }
+      break
     }
     case 'setMovementIntent':
       return `movement.setIntent(${targetExpr(a.target)}, ${Number(a.directionX) || 0}, ${Number(a.directionY) || 0})`

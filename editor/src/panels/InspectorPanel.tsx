@@ -132,18 +132,21 @@ export default function InspectorPanel() {
           <EntityInspector key={entity.id} entity={entity} />
         )}
 
-        {bodyView === 'scene' && scene && (
+        {tab === 'scene' && (
           <>
-            <SceneSettingsSection scene={scene} />
-            <WorldSettingsSection />
+            {scene && <SceneSettingsSection scene={scene} />}
+            {project && <WorldSettingsSection />}
+            {!project && (
+              <div className="py-8 flex items-center justify-center opacity-20">
+                <span className="text-[10px] uppercase tracking-widest">No project</span>
+              </div>
+            )}
           </>
         )}
 
-        {bodyView === 'empty' && (
+        {bodyView === 'entity' && !entity && (
           <div className="py-8 flex items-center justify-center opacity-20">
-            <span className="text-[10px] uppercase tracking-widest">
-              {!project ? 'No project' : 'Nothing to inspect'}
-            </span>
+            <span className="text-[10px] uppercase tracking-widest">Nothing to inspect</span>
           </div>
         )}
       </div>

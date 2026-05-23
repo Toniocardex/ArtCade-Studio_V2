@@ -3,6 +3,7 @@
 #include "../../modules/renderer/include/renderer.h"
 
 #include <algorithm>
+#include <cmath>
 
 namespace ArtCade::EditorOverlayRenderer {
 
@@ -19,10 +20,10 @@ EntityOutlineBounds entityOutlineBounds(const Transform& transform,
                                         const PhysicsComponent& physics) {
     const float w = physics.collider.size.x > 2.f
         ? physics.collider.size.x
-        : 40.f * transform.scale.x;
+        : 40.f * std::abs(transform.scale.x);
     const float h = physics.collider.size.y > 2.f
         ? physics.collider.size.y
-        : 40.f * transform.scale.y;
+        : 40.f * std::abs(transform.scale.y);
     return {
         transform.position.x - w * 0.5f,
         transform.position.y - h * 0.5f,

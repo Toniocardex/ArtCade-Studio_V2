@@ -308,6 +308,12 @@ void Application::applyEditorPreviewRestore(
 {
     applyEditorProjectCommon(tilePalette, tilesets);
 
+    // Load empty stub immediately so the play-mode tick cannot run against the
+    // restored entity pool. JS will hot-reload the real design-time Lua via
+    // editorReloadScript right after this call completes.
+    if (mod_->luaHost)
+        mod_->luaHost->loadLuaSource(kEmptyEditorLua);
+
     if (mod_->tweenManager)
         mod_->tweenManager->cancelAll();
     if (mod_->spriteAnimator)
