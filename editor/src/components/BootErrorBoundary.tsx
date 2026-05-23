@@ -30,14 +30,14 @@ export class BootErrorBoundary extends Component<Props, State> {
           padding: 24,
           height: '100vh',
           boxSizing: 'border-box',
-          background: '#09090b',
-          color: '#e4e4e7',
-          fontFamily: 'ui-monospace, monospace',
+          background: '#1A1A1A',
+          color: '#EAEAEA',
+          fontFamily: "'JetBrains Mono', ui-monospace, monospace",
           fontSize: 12,
           overflow: 'auto',
         }}
       >
-        <h1 style={{ color: '#ef4444', fontSize: 14, margin: '0 0 12px' }}>
+        <h1 style={{ color: '#A84343', fontSize: 14, margin: '0 0 12px' }}>
           ArtCade Editor failed to start
         </h1>
         <pre style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{msg}</pre>

@@ -3,99 +3,140 @@
 @tailwind utilities;
 
 /* ===========================================================================
-   Theme tokens. Every UI colour literal in the components is var(--token);
-   switching data-theme on <html> repaints the editor. Token NAMES are stable
-   across themes — only values change.
-   `:root` / `[data-theme="dark"]`  = Dark (Zinc scale, default).
-   `[data-theme="light"]`           = Light (Slate scale).
-   Official UI reference palette (VS Code / modern dashboard, blue accent).
-   PreviewPanel canvas is C++/WASM-rendered and unaffected.
+   ArtCade Engine — GUI Style Guide tokens.
+
+   Palette ufficiale (vedi docs: artcade_style_guide.pdf §2):
+     #1A1A1A Antracite Opaco        — sfondo app/menubar
+     #2D2D2D Grigio Ardesia Satinato — pannelli interattivi
+     #A68D59 Bronzo Spazzolato      — accento PRIMARIO (Play, header critici)
+     #3F5D7E Blu Navy Desaturato    — accento SECONDARIO (selezioni, hover)
+     #EAEAEA Avorio Leggero         — testo primario
+     #8E8E8E Grigio Medio Tecnico   — testo secondario, scorciatoie, default
+     #A84343 Rosso Desaturato       — errori critici
+
+   Principi:
+     • Geometrie squadrate (border-radius ≤ 2px).
+     • Niente glow / glassmorphism / ombre sfarzose.
+     • Transizioni ≤ 100ms.
+     • Doppio font: IBM Plex Sans (UI) + JetBrains Mono (dati tecnici).
+
+   PreviewPanel canvas è renderizzato da C++/WASM e non è influenzato.
    ========================================================================== */
+
 :root,
 [data-theme="dark"] {
-  /* Zinc scale — VS Code / modern dashboard look */
-  --bg:          #09090B;   /* zinc-950 — deepest app bg */
-  --panel:       #18181B;   /* zinc-900 — sidebar/header/inspector */
-  --panel-3:     #121214;   /* deeper raised/code surface */
-  --border:      #27272A;   /* zinc-800 — 1px dividers */
-  --border-2:    #3F3F46;   /* zinc-700 — stronger borders */
-  --text:        #E4E4E7;   /* zinc-200 — primary text */
-  --text-2:      #D4D4D8;   /* zinc-300 */
-  --muted:       #71717A;   /* zinc-500 — secondary/placeholder */
-  --muted-2:     #52525B;   /* zinc-600 — disabled */
-  --accent:      #3B82F6;   /* blue-500 — primary accent */
-  --accent-2:    #8B5CF6;   /* violet-500 — secondary accent */
-  --accent-bd:   #1D4ED8;   /* blue-700 */
-  --accent-bg:   #172554;   /* blue-950 */
-  --accent-bg-h: #1E3A8A;   /* blue-900 */
-  --warn:        #F59E0B;   /* amber-500 */
-  --danger:      #EF4444;   /* red-500 */
-  --danger-2:    #DC2626;   /* red-600 */
-  --yellow:      #FBBF24;   /* amber-400 */
-  --green:       #10B981;   /* emerald-500 — success */
-  --green-2:     #34D399;   /* emerald-400 */
-  --green-bd:    #065F46;   /* emerald-800 */
-  --green-bg:    #064E3B;   /* emerald-900 */
-  --blue:        #3B82F6;   /* blue-500 */
-  --cyan-2:      #38BDF8;   /* sky-400 */
-  --pill-if-bg:  #1E293B;   /* slate-800 */
-  --pill-if-bd:  #475569;   /* slate-600 */
-  --pill-then-bg:#422006;   /* amber-950 */
-  --pill-then-bd:#92400E;   /* amber-800 */
-  /* RGB triplets for the tokens used with an opacity modifier
-     (Tailwind cannot apply /NN to a var() colour directly). */
-  --accent-rgb:   59 130 246;
-  --accent-2-rgb: 139 92 246;
-  --bg-rgb:       9 9 11;
-  --border-rgb:   39 39 42;
-  --muted-rgb:    113 113 122;
-  --warn-rgb:     245 158 11;
-  --danger-rgb:   239 68 68;
-  /* Layout — shared horizontal inset (menubar FILE ≠ panel headers, same value) */
-  --editor-rail-width: 5rem;
+  /* Surfaces */
+  --bg:          #1A1A1A;   /* Antracite Opaco — app background */
+  --panel:       #2D2D2D;   /* Grigio Ardesia Satinato — interactive panels */
+  --panel-2:     #282828;   /* between panel and panel-3 (event sub-headers) */
+  --panel-3:     #232323;   /* deeper raised/code surface */
+  --border:      #3A3A3A;   /* 1px dividers between panel sections */
+  --border-2:    #4A4A4A;   /* stronger borders, input outlines */
+  /* Extra component-badge accent — desaturated dusky violet, coordinated with
+     bronzo + navy so the inspector pill row keeps semantic differentiation. */
+  --purple:      #7A6C8E;
+
+  /* Text */
+  --text:        #EAEAEA;   /* Avorio Leggero — primary text */
+  --text-2:      #D0D0D0;   /* softer primary variant */
+  --muted:       #8E8E8E;   /* Grigio Medio Tecnico — secondary text, shortcuts */
+  --muted-2:     #666666;   /* disabled */
+
+  /* Accents */
+  --accent:      #A68D59;   /* Bronzo Spazzolato — PLAY, critical headers */
+  --accent-2:    #3F5D7E;   /* Blu Navy Desaturato — selection, hover */
+  --accent-bd:   #7A6840;   /* darker bronzo for button borders */
+  --accent-bg:   #2D2517;   /* near-black bronzo wash */
+  --accent-bg-h: #3D3320;   /* hover wash */
+
+  /* Status */
+  --warn:        #C49A4A;   /* desaturated amber, bronzo-leaning */
+  --danger:      #A84343;   /* Rosso Desaturato — errors */
+  --danger-2:    #8E3636;   /* deeper error */
+  --yellow:      #C49A4A;   /* alias */
+  --green:       #5B8C6E;   /* desaturated success */
+  --green-2:     #6FA083;
+  --green-bd:    #3F6952;
+  --green-bg:    #1E2A22;
+  --blue:        #3F5D7E;   /* alias */
+  --cyan-2:      #4D7BA0;
+
+  /* Logic Board pill backgrounds (when/if/then) */
+  --pill-if-bg:  #2A3340;   /* navy-tinted */
+  --pill-if-bd:  #3F5D7E;
+  --pill-then-bg:#332B1B;   /* bronzo-tinted */
+  --pill-then-bd:#A68D59;
+
+  /* RGB triplets for opacity modifiers */
+  --accent-rgb:   166 141 89;
+  --accent-2-rgb: 63 93 126;
+  --bg-rgb:       26 26 26;
+  --border-rgb:   58 58 58;
+  --muted-rgb:    142 142 142;
+  --warn-rgb:     196 154 74;
+  --danger-rgb:   168 67 67;
+
+  /* Layout */
+  --editor-rail-width:     5rem;
   --editor-workspace-inset: 1rem;
+
+  /* Geometry — ArtCade style guide says "ridotti al minimo o azzerati" */
+  --radius:    2px;
+  --radius-sm: 2px;
+  --radius-lg: 2px;
+
+  /* Fonts */
+  --font-ui:   'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Courier New', Courier, monospace;
 }
 
 [data-theme="light"] {
-  /* Slate scale — clean airy modern look */
-  --bg:          #F8FAFC;   /* slate-50 — base bg, never pure white */
-  --panel:       #FFFFFF;   /* white — raised panels */
-  --panel-3:     #F1F5F9;   /* slate-100 — sunken surface */
-  --border:      #E2E8F0;   /* slate-200 — dividers */
-  --border-2:    #CBD5E1;   /* slate-300 — stronger borders */
-  --text:        #0F172A;   /* slate-900 — primary text */
-  --text-2:      #1E293B;   /* slate-800 */
-  --muted:       #64748B;   /* slate-500 — secondary text */
-  --muted-2:     #94A3B8;   /* slate-400 — disabled */
-  --accent:      #2563EB;   /* blue-600 — primary accent */
-  --accent-2:    #7C3AED;   /* violet-600 — secondary accent */
-  --accent-bd:   #93C5FD;   /* blue-300 */
-  --accent-bg:   #EFF6FF;   /* blue-50 */
-  --accent-bg-h: #DBEAFE;   /* blue-100 */
-  --warn:        #D97706;   /* amber-600 */
-  --danger:      #DC2626;   /* red-600 */
-  --danger-2:    #B91C1C;   /* red-700 */
-  --yellow:      #B45309;   /* amber-700 */
-  --green:       #059669;   /* emerald-600 — success */
-  --green-2:     #047857;   /* emerald-700 */
-  --green-bd:    #6EE7B7;   /* emerald-300 */
-  --green-bg:    #ECFDF5;   /* emerald-50 */
-  --blue:        #2563EB;   /* blue-600 */
-  --cyan-2:      #0284C7;   /* sky-600 */
-  --pill-if-bg:  #F1F5F9;   /* slate-100 */
-  --pill-if-bd:  #CBD5E1;   /* slate-300 */
-  --pill-then-bg:#FFFBEB;   /* amber-50 */
-  --pill-then-bd:#FCD34D;   /* amber-300 */
-  --accent-rgb:   37 99 235;
-  --accent-2-rgb: 124 58 237;
-  --bg-rgb:       248 250 252;
-  --border-rgb:   226 232 240;
-  --muted-rgb:    100 116 139;
-  --warn-rgb:     217 119 6;
-  --danger-rgb:   220 38 38;
+  /* Light variant mantiene la stessa semantica della palette ufficiale,
+     adattata a fondo chiaro. Inverte solo le surfaces; accenti restano
+     bronzo + navy desaturato per coerenza brand. */
+  --bg:          #F2F1ED;   /* avorio caldo */
+  --panel:       #FFFFFF;   /* panel chiari */
+  --panel-2:     #F7F5F0;
+  --panel-3:     #E8E6E1;
+  --purple:      #6B5E80;
+  --border:      #D6D3CC;
+  --border-2:    #BAB6AD;
+  --text:        #1A1A1A;
+  --text-2:      #2D2D2D;
+  --muted:       #6E6E6E;
+  --muted-2:     #9C9C9C;
+  --accent:      #8C7644;   /* bronzo più scuro per contrasto su chiaro */
+  --accent-2:    #2F4A66;   /* navy più scuro */
+  --accent-bd:   #7A6840;
+  --accent-bg:   #F4EFE3;
+  --accent-bg-h: #EAE3CF;
+  --warn:        #9A7A36;
+  --danger:      #8E3636;
+  --danger-2:    #6E2828;
+  --yellow:      #9A7A36;
+  --green:       #3F6952;
+  --green-2:     #2F5240;
+  --green-bd:    #88A496;
+  --green-bg:    #EFF4F1;
+  --blue:        #2F4A66;
+  --cyan-2:      #355A7A;
+  --pill-if-bg:  #E8EEF4;
+  --pill-if-bd:  #2F4A66;
+  --pill-then-bg:#F4EEDC;
+  --pill-then-bd:#8C7644;
+  --accent-rgb:   140 118 68;
+  --accent-2-rgb: 47 74 102;
+  --bg-rgb:       242 241 237;
+  --border-rgb:   214 211 204;
+  --muted-rgb:    110 110 110;
+  --warn-rgb:     154 122 54;
+  --danger-rgb:   142 54 54;
 }
 
-/* ArtCade global styles */
+/* ---------------------------------------------------------------------------
+   Globals
+   --------------------------------------------------------------------------- */
+
 * { box-sizing: border-box; }
 
 html, body, #root {
@@ -104,33 +145,54 @@ html, body, #root {
   overflow: hidden;
   background: var(--bg);
   color: var(--text);
-  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+  /* UI default = IBM Plex Sans. Technical/numeric data opts into JetBrains
+     Mono via the .font-mono utility or the [data-mono] attribute. */
+  font-family: var(--font-ui);
+  font-feature-settings: 'cv02', 'cv03', 'cv11';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-::-webkit-scrollbar       { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-::-webkit-scrollbar-thumb:hover { background: var(--border-2); }
+/* Tech-data font utility. Inputs that hold coordinates, dimensions, FPS,
+   draw calls, console logs, code snippets all use this. */
+.font-mono,
+code, kbd, samp, pre,
+input[type="number"],
+input[data-mono],
+[data-mono] {
+  font-family: var(--font-mono);
+  font-feature-settings: 'zero', 'ss01';
+}
 
-/* Canvas preview viewport has its own scroll affordance: large levels
-   (e.g. 4096x640 platformers) demand reliably-grabbable scrollbars, so we
-   override the 5px global rule with a 12px thumb only inside the preview
-   scroll area. Other panels (asset browser, code editor, console) keep
-   the thin design-language scrollbar. */
+/* IBM Plex Sans utility — explicit opt-in where a parent forced mono. */
+.font-ui {
+  font-family: var(--font-ui);
+}
+
+/* ---------------------------------------------------------------------------
+   Scrollbars — thin, opaque, no rounded corners
+   --------------------------------------------------------------------------- */
+
+::-webkit-scrollbar       { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 0; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+/* Preview canvas affordance — slightly thicker, still squared. */
 .canvas-scrollarea::-webkit-scrollbar       { width: 12px; height: 12px; }
 .canvas-scrollarea::-webkit-scrollbar-track { background: var(--panel); }
 .canvas-scrollarea::-webkit-scrollbar-thumb {
   background:    var(--border-2);
-  border-radius: 6px;
+  border-radius: 0;
   border:        2px solid var(--panel);
 }
 .canvas-scrollarea::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 .canvas-scrollarea::-webkit-scrollbar-corner     { background: var(--panel); }
 
-/* Scene footprint in the preview panel: separates the playable area from the
-   black workspace. An inset ring (not border on the wrapper) stays complete
-   on all four sides at any zoom — a CSS border on the wrapper was clipped when
-   the <canvas> layout box (full worldSize before transform) overflowed it. */
+/* ---------------------------------------------------------------------------
+   Canvas viewport frame — kept as inset ring (renderer-independent)
+   --------------------------------------------------------------------------- */
+
 .canvas-scene-frame {
   position: relative;
   flex-shrink: 0;
@@ -144,11 +206,19 @@ html, body, #root {
   box-shadow: inset 0 0 0 1px var(--border-2);
 }
 
-/* Neon glow helpers (used via inline style when needed) */
-.glow-cyan  { text-shadow: 0 0 8px var(--accent); }
-.glow-mag   { text-shadow: 0 0 8px var(--accent-2); }
+/* ---------------------------------------------------------------------------
+   Style guide explicitly forbids glow effects. The helpers below are kept as
+   no-ops so existing component classes do not break, but they render plain
+   coloured text only — no text-shadow, no neon halos.
+   --------------------------------------------------------------------------- */
 
-/* Top menubar only (module rail lives beside the Scenes panel) */
+.glow-cyan { color: var(--accent-2); }
+.glow-mag  { color: var(--accent); }
+
+/* ---------------------------------------------------------------------------
+   Top menubar
+   --------------------------------------------------------------------------- */
+
 .editor-toolbar {
   display: flex;
   align-items: center;
@@ -157,11 +227,9 @@ html, body, #root {
   min-height: 2.75rem;
   padding: 0.5rem 0;
   border-bottom: 1px solid var(--border);
-  background: var(--panel);
-  box-shadow: 0 1px 0 rgb(var(--bg-rgb) / 0.6);
+  background: var(--bg);
 }
 
-/* FILE aligns with panel headers (rail + workspace inset), separate from the Scenes panel */
 .editor-toolbar-workspace-start {
   margin-left: calc(var(--editor-rail-width) + var(--editor-workspace-inset));
 }
@@ -182,11 +250,13 @@ html, body, #root {
   gap: 0.375rem;
   height: 2rem;
   padding: 0 0.875rem;
-  border-radius: 0.375rem;
+  border-radius: var(--radius);
+  font-family: var(--font-ui);
   font-size: 0.6875rem;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.04em;
-  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+  /* Style guide: "Nessuna animazione di transizione superiore ai 100ms." */
+  transition: background-color 100ms, border-color 100ms, color 100ms;
 }
 
 .editor-statusbar {
@@ -194,4 +264,7 @@ html, body, #root {
   padding: 0.25rem 1.25rem;
   border-top: 1px solid var(--border);
   background: var(--panel);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--muted);
 }

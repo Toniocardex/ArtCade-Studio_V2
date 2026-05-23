@@ -19,5 +19,7 @@ body,
 }
 
 .cm-scroller {
+  /* JetBrains Mono — code/Lua editor surface, per ArtCade style guide. */
   font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+  font-feature-settings: 'zero', 'ss01';
 }
