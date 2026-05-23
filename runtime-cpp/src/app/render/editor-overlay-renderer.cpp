@@ -86,8 +86,9 @@ void drawGuides(Modules::Renderer& renderer,
     const float w = std::max(1.f, scene.worldSize.x);
     const float h = std::max(1.f, scene.worldSize.y);
 
-    // Avorio Leggero (#EAEAEA) a low opacity — engineering grid, no neon glow.
-    const Vec4  grid{0.918f, 0.918f, 0.918f, 0.10f};
+    // Avorio Leggero (#EAEAEA) — engineering grid, no neon glow.
+    // 0.22 alpha: visible on dark bg (0.082) without dominating the scene.
+    const Vec4  grid{0.918f, 0.918f, 0.918f, 0.22f};
     const float step = state.gridSize > 0.f ? state.gridSize : 32.f;
     if (step >= 4.f) {
         for (float x = step; x < w; x += step)
