@@ -77,7 +77,9 @@ ArtCade V2/
 
 | Tool | Purpose | Notes |
 |------|---------|-------|
+| **Git** | Clone/pull/push repository | `git` on PATH |
 | **Node.js LTS** | Editor, Vite, npm scripts | `node`, `npm` on PATH |
+| **Python 3.14+** | Icon tooling, `.artcade` packer, Tauri build commands | `python` on PATH |
 | **Rust (rustup)** | Tauri shell | `%USERPROFILE%\.cargo\bin` on PATH |
 | **VS Build Tools 2026** | MSVC linker (`link.exe`) for Rust + C++ native | Workload: *Desktop development with C++* |
 | **CMake** | C++ configure/build | e.g. `C:\Program Files\CMake\bin` |
@@ -96,6 +98,98 @@ First-time dependency install (npm workspace — deps hoist to repo root):
 cd "C:\Users\Antonio\Desktop\ArtCade V2"
 npm install
 ```
+
+### Clean Windows reinstall checklist
+
+Use this section after a PC format or a fresh Windows install.
+
+1. Install core tools and make sure they are on `PATH`:
+   - Git
+   - Node.js LTS
+   - Python 3.14+
+   - Rust via `rustup`
+   - Visual Studio Build Tools 2026 (or VS 2022 fallback) with **Desktop development with C++**
+   - CMake
+   - Ninja
+   - Emscripten SDK
+
+2. Clone the repository:
+
+```powershell
+cd "$env:USERPROFILE\Desktop"
+git clone https://github.com/Toniocardex/ArtCade-Studio_V2.git "ArtCade V2"
+cd "ArtCade V2"
+```
+
+3. Configure Emscripten. The scripts default to `C:\Users\Antonio\emsdk`;
+   if you install it elsewhere, set `EMSDK`:
+
+```powershell
+[Environment]::SetEnvironmentVariable("EMSDK", "C:\Users\Antonio\emsdk", "User")
+```
+
+Typical fresh emsdk install:
+
+```powershell
+cd "$env:USERPROFILE"
+git clone https://github.com/emscripten-core/emsdk.git emsdk
+cd emsdk
+.\emsdk install latest
+.\emsdk activate latest
+[Environment]::SetEnvironmentVariable("EMSDK", "$env:USERPROFILE\emsdk", "User")
+```
+
+4. If Visual Studio Build Tools is not installed in the default location, set
+   `ARTCADE_VSDEVCMD` to your `VsDevCmd.bat`:
+
+```powershell
+[Environment]::SetEnvironmentVariable(
+  "ARTCADE_VSDEVCMD",
+  "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\Common7\Tools\VsDevCmd.bat",
+  "User"
+)
+```
+
+5. Open a **new** PowerShell and verify the toolchain:
+
+```powershell
+git --version
+node --version
+npm --version
+python --version
+rustc --version
+cargo --version
+cmake --version
+ninja --version
+```
+
+6. Install project dependencies and verify the editor:
+
+```powershell
+cd "C:\Users\Antonio\Desktop\ArtCade V2"
+npm install
+npm run build
+```
+
+7. Verify native and WASM runtime builds:
+
+```powershell
+npm run build:cpp
+npm run build:wasm
+```
+
+8. Start working:
+
+```powershell
+npm run tauri:dev   # desktop editor
+# or
+npm run dev         # web-only editor
+```
+
+Git-tracked source and docs are enough to resume work. Generated outputs such
+as `node_modules`, `editor/dist`, `runtime-cpp/build-*`,
+`editor/src-tauri/target`, and `editor/public/runtime/game.wasm` are intentionally
+not required from backup; rebuild them with the commands above.
 
 ---
 
