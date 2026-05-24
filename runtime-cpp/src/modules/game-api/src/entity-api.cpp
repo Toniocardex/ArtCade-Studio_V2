@@ -255,6 +255,16 @@ void GameAPI::bindEntityAPI(sol::state& lua) {
         entity.setRotation = function(id,a)     return entity_setRotation(id,a)  end
         entity.setScale    = function(id,sx,sy) return entity_setScale(id,sx,sy) end
         entity.scale       = function(id)       return entity_scale(id)           end
+        entity.setFlip     = function(id, fx, fy)
+            local sx, sy = entity_scale(id)
+            local ax = math.abs(sx)
+            local ay = math.abs(sy)
+            if ax == 0 then ax = 1 end
+            if ay == 0 then ay = 1 end
+            entity_setScale(id,
+                fx and -ax or ax,
+                fy ~= nil and (fy and -ay or ay) or sy)
+        end
         entity.imagePoint  = function(id, pt)   return entity_imagePoint(id, pt)  end
         entity.setVisible  = function(id,v)     return entity_setVisible(id,v)   end
         entity.setTint     = function(id,r,g,b,a) return entity_setTint(id,r,g,b,a) end

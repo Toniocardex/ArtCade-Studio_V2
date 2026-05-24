@@ -471,6 +471,26 @@
       }
     }
   },
+  "setFlip": {
+    "type": "object",
+    "required": ["type", "target", "flipX"],
+    "properties": {
+      "type": { "const": "setFlip" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "flipX": { "type": "boolean" },
+      "flipY": { "type": "boolean" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Set Flip",
+      "category": "Graphics",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "flipX": { "widget": "boolean", "label": "Flip horizontal" },
+        "flipY": { "widget": "boolean", "label": "Flip vertical" }
+      }
+    }
+  },
   "setVisible": {
     "type": "object",
     "required": ["type", "target", "visible"],

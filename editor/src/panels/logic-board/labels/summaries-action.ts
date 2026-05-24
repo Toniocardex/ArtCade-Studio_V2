@@ -99,6 +99,11 @@ export function actionSummaryPlain(
       return `Resize ${who} to (${a.scaleX}, ${a.scaleY})`
     case 'playAnimation':
       return a.clipName ? `Play "${a.clipName}" on ${who}` : `Play animation on ${who} — choose clip`
+    case 'setFlip': {
+      const xLabel = a.flipX ? 'X=on' : 'X=off'
+      const yLabel = a.flipY != null ? (a.flipY ? ' Y=on' : ' Y=off') : ''
+      return `Flip ${who}: ${xLabel}${yLabel}`
+    }
     case 'setVisible':
       return a.visible ? `Show ${who}` : `Hide ${who}`
     case 'setColorTint':

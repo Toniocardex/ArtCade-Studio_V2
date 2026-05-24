@@ -41,6 +41,7 @@ interface Harness {
     pauseMusic: number
     resumeMusic: number
     playAnimation: Array<{ id: number; clip: string }>
+    setFlip: Array<{ id: number; fx: boolean; fy: boolean | null }>
     log: string[]
   }
   inputPressedHandlers: Record<string, Array<() => void>>
@@ -67,6 +68,7 @@ function newHarness(pools: Record<string, number[]> = { Player: [1] }): Harness 
       pauseMusic: 0,
       resumeMusic: 0,
       playAnimation: [],
+      setFlip: [],
       log: [],
     },
     inputPressedHandlers: {},
@@ -105,6 +107,8 @@ async function makeRunner(boards: LogicBoard[]) {
     setPosition: (id: number, x: number, y: number) =>
       h.calls.setPosition.push({ id, x, y }),
     destroy: (id: number) => h.calls.destroy.push(id),
+    setFlip: (id: number, fx: boolean, fy: boolean | null) =>
+      h.calls.setFlip.push({ id, fx, fy }),
   })
   lua.global.set('audio', {
     playSound: (path: string, vol: number, pitch: number) =>
@@ -248,6 +252,8 @@ describe('runtime: syntax validity', () => {
               { type: 'stopAllAudio' },
               { type: 'destroyEntity', target: { className: 'X', first: true } },
               { type: 'spawnEntity', className: 'Y', x: 0, y: 0 },
+              { type: 'setFlip', target: 'self', flipX: true },
+              { type: 'playAnimation', target: 'self', clipName: 'run' },
             ],
           }),
           ev({ id: 't', trigger: { type: 'onTimer', seconds: 1, repeat: true }, actions: [{ type: 'debugLog', message: 'tick' }] }),

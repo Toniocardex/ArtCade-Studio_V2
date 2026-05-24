@@ -138,6 +138,12 @@ export function actionLua(a: LogicAction): string {
       return `entity.setScale(${targetExpr(a.target)}, ${Number(a.scaleX) || 0}, ${Number(a.scaleY) || 0})`
     case 'playAnimation':
       return `animation.play(${targetExpr(a.target)}, ${luaString(a.clipName)})`
+    case 'setFlip': {
+      const t = targetExpr(a.target)
+      const fx = a.flipX ? 'true' : 'false'
+      const fy = a.flipY != null ? (a.flipY ? 'true' : 'false') : 'nil'
+      return `entity.setFlip(${t}, ${fx}, ${fy})`
+    }
     case 'setVisible':
       return `entity.setVisible(${targetExpr(a.target)}, ${a.visible ? 'true' : 'false'})`
     case 'setColorTint': {

@@ -124,6 +124,7 @@ export type LogicAction =
   | { type: 'setRotation'; target: TargetSelector; angle: number }
   | { type: 'setScale'; target: TargetSelector; scaleX: number; scaleY: number }
   | { type: 'playAnimation'; target: TargetSelector; clipName: string }
+  | { type: 'setFlip'; target: TargetSelector; flipX: boolean; flipY?: boolean }
   | { type: 'setVisible'; target: TargetSelector; visible: boolean }
   | { type: 'setColorTint'; target: TargetSelector; hexColor: string; alpha?: number }
   | { type: 'loadScene'; sceneName: string; fadeSeconds?: number }

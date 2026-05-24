@@ -57,6 +57,7 @@ const ACTION_NAMES: Record<LogicActionType, string> = {
   setRotation: 'Rotate',
   setScale: 'Resize',
   playAnimation: 'Play animation',
+  setFlip: 'Flip',
   setVisible: 'Show or hide',
   setColorTint: 'Change color',
   loadScene: 'Load level',
