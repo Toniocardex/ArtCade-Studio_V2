@@ -71,6 +71,9 @@ function parseEvent(raw: unknown): LogicEvent | null {
     id: typeof r.id === 'string' && r.id ? r.id : logicId('evt'),
     enabled: r.enabled !== false, // default true
     trigger: trigger as LogicTrigger,
+    ...(typeof r.onlyIfEnabled === 'boolean'
+      ? { onlyIfEnabled: r.onlyIfEnabled }
+      : {}),
     // conditions / conditionRoot are passed through as-is; the compiler has
     // safe fallbacks for missing/empty shapes.
     ...(Array.isArray(r.conditions)

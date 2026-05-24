@@ -122,6 +122,7 @@ function nodeExpr(n: LogicConditionNode): string {
 
 /** Build the boolean guard for an event (flat list = AND; root = tree). */
 export function conditionExpr(ev: LogicEvent): string {
+  if (ev.onlyIfEnabled === false) return 'true'
   if (ev.conditionRoot) return nodeExpr(ev.conditionRoot)
   const list = ev.conditions ?? []
   if (list.length === 0) return 'true'

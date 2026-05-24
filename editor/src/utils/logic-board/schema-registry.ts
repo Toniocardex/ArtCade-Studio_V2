@@ -256,6 +256,9 @@ export function validateLogicEvent(
   if (typeof e.enabled !== 'boolean') {
     errors.push({ path: `${pathPrefix}/enabled`, message: 'enabled must be boolean' })
   }
+  if (e.onlyIfEnabled != null && typeof e.onlyIfEnabled !== 'boolean') {
+    errors.push({ path: `${pathPrefix}/onlyIfEnabled`, message: 'onlyIfEnabled must be boolean' })
+  }
 
   const tr = validateTrigger(e.trigger)
   if (!tr.valid) errors.push(...tr.errors.map((x) => ({ ...x, path: pathPrefix + x.path })))

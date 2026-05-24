@@ -1,8 +1,17 @@
 // ---------------------------------------------------------------------------
-// Expanded rule editor — When / Only if / Then blocks
+// Expanded rule editor - When / Only if / Then blocks
 // ---------------------------------------------------------------------------
 
 import { useState } from 'react'
+import {
+  Check,
+  Copy,
+  GitBranch,
+  ListChecks,
+  Plus,
+  Trash2,
+  Zap,
+} from 'lucide-react'
 import type { LogicAction, LogicEvent, LogicTrigger } from '../../types/logic-board'
 import { LogicBlock } from '../../components/logic-board/LogicBlock'
 import { TypePicker } from '../../components/logic-board/TypePicker'
@@ -23,16 +32,16 @@ import LogicIconButton from '../../components/logic-board/LogicIconButton'
 import { cloneLogicAction } from '../../utils/logic-board/clone'
 import {
   ACTION_TYPES,
-  TRIGGER_TYPES,
   CONDITION_TYPES,
   defaultAction,
-  defaultTrigger,
   defaultCondition,
+  defaultTrigger,
+  TRIGGER_TYPES,
 } from './options'
 
 const link = 'text-[var(--accent)] text-[11px] hover:underline cursor-pointer'
 const btn =
-  'px-3 py-1.5 rounded text-xs font-medium border border-[var(--border-2)] bg-[var(--border)] text-[var(--text)] hover:border-[var(--accent-bd)]'
+  'inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium border border-[var(--border-2)] bg-[var(--border)] text-[var(--text)] hover:border-[var(--accent-bd)]'
 
 function TriggerFields({
   trigger,
@@ -57,9 +66,9 @@ function TriggerFields({
         onChange={(next) => onChange(next as LogicTrigger)}
       />
       {isSensorTrigger && (
-        <p className="text-[10px] text-[var(--muted)] leading-snug">
+        <p className="text-[10px] leading-snug text-[var(--muted)]">
           Target tag must match <code className="text-[var(--text)]">SensorComponent.targetTag</code>{' '}
-          on the zone entity (Inspector → Sensor). Leave empty to accept any tag.
+          on the zone entity (Inspector - Sensor). Leave empty to accept any tag.
         </p>
       )}
       <ComponentRequirementWarning requirement={triggerRequirement(trigger, project, board)} />
@@ -98,8 +107,8 @@ function ActionCard({
   onRemove: () => void
 }) {
   return (
-    <div className="rounded border border-[var(--border)] bg-[var(--bg)] p-2 space-y-2">
-      <div className="flex items-center gap-2 flex-wrap">
+    <div className="space-y-2 rounded border border-[var(--border)] bg-[var(--bg)] p-2.5">
+      <div className="flex flex-wrap items-center gap-2">
         <TypePicker
           kind="action"
           types={ACTION_TYPES}
@@ -117,11 +126,16 @@ function ActionCard({
           ariaLabel="Clona azione"
           onClick={onClone}
         >
-          ⧉
+          <Copy size={13} />
         </LogicIconButton>
-        <button type="button" className={link} onClick={onRemove} title="Rimuovi azione">
-          Rimuovi
-        </button>
+        <LogicIconButton
+          title="Rimuovi azione"
+          ariaLabel="Rimuovi azione"
+          danger
+          onClick={onRemove}
+        >
+          <Trash2 size={13} />
+        </LogicIconButton>
       </div>
       <SchemaParamForm
         kind="action"
@@ -155,14 +169,14 @@ function SimpleConditions({
   return (
     <div className="space-y-2">
       {conditions.length === 0 && (
-        <p className="text-[11px] text-[var(--muted)] italic">
-          No extra checks — actions always run when the trigger fires.
+        <p className="text-[11px] italic text-[var(--muted)]">
+          Only if is on, but no checks have been added yet.
         </p>
       )}
       {conditions.map((c, i) => (
         <div
           key={i}
-          className="flex items-center flex-wrap gap-2 rounded border border-[var(--border)] bg-[var(--bg)] px-2 py-1.5"
+          className="flex flex-wrap items-center gap-2 rounded border border-[var(--border)] bg-[var(--bg)] px-2 py-1.5"
         >
           <TypePicker
             kind="condition"
@@ -192,6 +206,7 @@ function SimpleConditions({
             onClick={() =>
               onChange({
                 ...event,
+                onlyIfEnabled: true,
                 conditions: conditions.filter((_, j) => j !== i),
               })
             }
@@ -206,6 +221,7 @@ function SimpleConditions({
         onClick={() =>
           onChange({
             ...event,
+            onlyIfEnabled: true,
             conditions: [...conditions, defaultCondition('compareVariable')],
             conditionRoot: undefined,
           })
@@ -235,10 +251,26 @@ export default function EventEditor({
   )
   const [newActionType, setNewActionType] = useState<LogicAction['type']>('spawnEntity')
   const recommendedTypes = recommendedActionTypes(project, board)
+  const hasSavedConditions =
+    event.conditionRoot != null || (event.conditions?.length ?? 0) > 0
+  const onlyIfEnabled =
+    event.onlyIfEnabled ?? hasSavedConditions
+
+  const setOnlyIfEnabled = (enabled: boolean) => {
+    onChange({
+      ...event,
+      onlyIfEnabled: enabled,
+    })
+  }
 
   return (
-    <div className="p-3 bg-[var(--panel-3)] border-t border-[var(--border)] space-y-3">
-      <LogicBlock title="When" hint="What should start this rule?">
+    <div className="space-y-3 border-t border-[var(--border)] bg-[var(--panel-3)] p-3">
+      <LogicBlock
+        title="When"
+        hint="What should start this rule?"
+        icon={<Zap size={13} />}
+        tone="when"
+      >
         <TypePicker
           kind="trigger"
           types={TRIGGER_TYPES}
@@ -262,8 +294,33 @@ export default function EventEditor({
         title="Only if"
         optional
         hint="Leave empty to always run the actions below."
+        icon={<ListChecks size={13} />}
+        tone="if"
+        action={
+          <button
+            type="button"
+            onClick={() => setOnlyIfEnabled(!onlyIfEnabled)}
+            title={onlyIfEnabled ? 'Disable Only if checks' : 'Enable Only if checks'}
+            aria-label={onlyIfEnabled ? 'Disable Only if checks' : 'Enable Only if checks'}
+            className={`relative h-[18px] w-9 rounded transition-colors ${
+              onlyIfEnabled ? 'bg-[var(--warn)]' : 'bg-[var(--border-2)]'
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 h-3.5 w-3.5 rounded transition-all ${
+                onlyIfEnabled
+                  ? 'right-0.5 bg-[var(--text)]'
+                  : 'left-0.5 bg-[var(--muted)]'
+              }`}
+            />
+          </button>
+        }
       >
-        {!advancedConditions ? (
+        {!onlyIfEnabled ? (
+            <p className="text-[11px] italic text-[var(--muted)]">
+              Only if is off - saved checks are ignored and actions always run.
+            </p>
+        ) : !advancedConditions ? (
           <>
             <SimpleConditions
               event={event}
@@ -279,13 +336,14 @@ export default function EventEditor({
                 if (!event.conditionRoot) {
                   onChange({
                     ...event,
+                    onlyIfEnabled: true,
                     conditionRoot: defaultConditionRoot(),
                     conditions: undefined,
                   })
                 }
               }}
             >
-              Advanced conditions (combine with AND / OR)…
+              Advanced conditions (combine with AND / OR)...
             </button>
           </>
         ) : (
@@ -295,17 +353,27 @@ export default function EventEditor({
               className={link}
               onClick={() => {
                 setAdvancedConditions(false)
-                onChange({ ...event, conditionRoot: undefined })
+                onChange({
+                  ...event,
+                  onlyIfEnabled: true,
+                  conditions: [],
+                  conditionRoot: undefined,
+                })
               }}
             >
-              ← Back to simple checks
+              Discard advanced checks and use simple checks
             </button>
             <ConditionTreeEditor event={event} onChange={onChange} advanced />
           </>
         )}
       </LogicBlock>
 
-      <LogicBlock title="Then" hint="What happens when this rule runs.">
+      <LogicBlock
+        title="Then"
+        hint="What happens when this rule runs."
+        icon={<GitBranch size={13} />}
+        tone="then"
+      >
         {event.actions.length === 0 && (
           <p className="text-[11px] text-[var(--muted)]">Add at least one action.</p>
         )}
@@ -334,7 +402,7 @@ export default function EventEditor({
             }}
           />
         ))}
-        <div className="flex items-center gap-2 flex-wrap pt-1">
+        <div className="flex flex-wrap items-center gap-2 pt-1">
           <TypePicker
             kind="action"
             types={ACTION_TYPES}
@@ -353,6 +421,7 @@ export default function EventEditor({
               })
             }
           >
+            <Plus size={13} />
             Add action
           </button>
         </div>
@@ -361,9 +430,10 @@ export default function EventEditor({
       <div className="flex gap-2 pt-1">
         <button
           type="button"
-          className="px-4 py-2 rounded text-xs font-semibold bg-[var(--accent-bg)] border border-[var(--accent-bd)] text-[var(--accent)]"
+          className="inline-flex items-center gap-1.5 rounded border border-[var(--accent-bd)] bg-[var(--accent-bg)] px-4 py-2 text-xs font-semibold text-[var(--accent)]"
           onClick={onDone}
         >
+          <Check size={13} />
           Save rule
         </button>
       </div>

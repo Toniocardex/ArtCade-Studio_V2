@@ -493,11 +493,13 @@ export function actionSummaryPlain(
 /** Flatten condition tree to plain chips for collapsed card. */
 export function conditionsPlainList(
   event: {
+    onlyIfEnabled?: boolean
     conditions?: LogicCondition[]
     conditionRoot?: LogicConditionNode
   },
   project?: ProjectDoc | null,
 ): string[] {
+  if (event.onlyIfEnabled === false) return []
   if (event.conditionRoot) {
     return flattenConditionNode(event.conditionRoot, project)
   }

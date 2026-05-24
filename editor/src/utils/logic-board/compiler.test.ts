@@ -182,6 +182,33 @@ describe('conditionExpr', () => {
       '((state.get("hasKey") == 1) or ((state.get("thief") == 1) and (state.get("pick") == 1)))',
     )
   })
+
+  it('onlyIfEnabled=false ignores saved flat conditions', () => {
+    const e = ev({
+      trigger: { type: 'onUpdate' },
+      onlyIfEnabled: false,
+      conditions: [
+        { type: 'compareVariable', key: 'hp', operator: '>', value: 0 },
+      ],
+      actions: [],
+    })
+
+    expect(conditionExpr(e)).toBe('true')
+  })
+
+  it('onlyIfEnabled=false ignores saved advanced conditions', () => {
+    const e = ev({
+      trigger: { type: 'onUpdate' },
+      onlyIfEnabled: false,
+      conditionRoot: {
+        kind: 'leaf',
+        condition: { type: 'compareVariable', key: 'hp', operator: '>', value: 0 },
+      },
+      actions: [],
+    })
+
+    expect(conditionExpr(e)).toBe('true')
+  })
 })
 
 describe('compileLogicBoard — structure', () => {

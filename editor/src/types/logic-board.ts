@@ -144,6 +144,8 @@ export interface LogicEvent {
   id:          string                 // stable id for editor undo/redo
   enabled:     boolean
   trigger:     LogicTrigger
+  /** Explicit UI/runtime gate for the optional condition section. */
+  onlyIfEnabled?: boolean
   /** Flat list = AND of leaves. Use `conditionRoot` for OR/nested trees. */
   conditions?: LogicCondition[]
   conditionRoot?: LogicConditionNode
