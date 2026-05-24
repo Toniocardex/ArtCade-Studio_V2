@@ -63,6 +63,7 @@ const ACTION_NAMES: Record<LogicActionType, string> = {
   loadScene: 'Load level',
   restartScene: 'Restart level',
   setCameraTarget: 'Camera follows',
+  cameraShake: 'Camera shake',
   debugLog: 'Debug message',
   wait: 'Wait',
   moveByOffset: 'Step by pixels',

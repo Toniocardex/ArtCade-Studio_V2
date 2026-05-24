@@ -177,6 +177,8 @@ export function defaultAction(type: LogicActionType): LogicAction {
       return { type: 'restartScene' }
     case 'setCameraTarget':
       return { type: 'setCameraTarget', target: 'self' }
+    case 'cameraShake':
+      return { type: 'cameraShake', trauma: 0.5 }
     case 'debugLog':
       return { type: 'debugLog', message: '' }
     case 'wait':

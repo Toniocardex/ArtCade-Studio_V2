@@ -130,6 +130,7 @@ export type LogicAction =
   | { type: 'loadScene'; sceneName: string; fadeSeconds?: number }
   | { type: 'restartScene' }
   | { type: 'setCameraTarget'; target: TargetSelector }
+  | { type: 'cameraShake'; trauma: number }
   | { type: 'debugLog'; message: string }
   /** Pauses the action sequence; following actions run inside time.delay (or use `then`). */
   | { type: 'wait'; seconds: number; then?: LogicAction[] }

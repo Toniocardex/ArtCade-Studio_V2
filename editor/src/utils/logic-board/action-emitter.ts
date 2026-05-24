@@ -163,6 +163,8 @@ export function actionLua(a: LogicAction): string {
       return `scene.restart()`
     case 'setCameraTarget':
       return `camera.centerOn(${targetExpr(a.target)})`
+    case 'cameraShake':
+      return `camera.shake(${a.trauma})`
     case 'debugLog':
       return `debug.log(${luaString(a.message)})`
     case 'wait':

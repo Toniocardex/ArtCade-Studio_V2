@@ -67,7 +67,7 @@ void CameraManager::clearFollowTarget() {
 // ------------------------------------------------------------------ shake
 
 void CameraManager::addTrauma(float amount) {
-    trauma_ = std::min(trauma_ + amount, 1.f);
+    trauma_ = std::min(trauma_ + std::max(0.f, amount), 1.f);
 }
 
 void CameraManager::setShakeParams(float maxDisplace, float maxRotation) {

@@ -9,7 +9,7 @@
     "setVariable", "addVariable", "setPosition", "setVelocity", "playSound", "playMusic",
     "stopAllAudio", "stopMusic", "pauseMusic", "resumeMusic", "destroyEntity", "spawnEntity", "emitEvent",
     "toggleLogicEvent", "applyImpulse", "applyForce", "setRotation", "setScale",
-    "playAnimation", "setFlip", "setVisible", "setColorTint", "loadScene", "restartScene", "setCameraTarget", "moveInDirection",
+    "playAnimation", "setFlip", "setVisible", "setColorTint", "loadScene", "restartScene", "setCameraTarget", "cameraShake", "moveInDirection",
     "controllerMovement", "moveController", "clearMovementIntent", "requestPlatformerJump", "damageEntity", "healEntity",
     "setEntityHealth",
     "setLinearMoverDirection", "setLinearMoverSpeed", "pauseLinearMover", "resumeLinearMover",

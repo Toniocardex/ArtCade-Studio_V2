@@ -42,6 +42,7 @@ interface Harness {
     resumeMusic: number
     playAnimation: Array<{ id: number; clip: string }>
     setFlip: Array<{ id: number; fx: boolean; fy: boolean | null }>
+    cameraShake: number
     log: string[]
   }
   inputPressedHandlers: Record<string, Array<() => void>>
@@ -69,6 +70,7 @@ function newHarness(pools: Record<string, number[]> = { Player: [1] }): Harness 
       resumeMusic: 0,
       playAnimation: [],
       setFlip: [],
+      cameraShake: 0,
       log: [],
     },
     inputPressedHandlers: {},
@@ -169,6 +171,17 @@ async function makeRunner(boards: LogicBoard[]) {
     pollFinished: () => [],
     play: (id: number, clip: string) => h.calls.playAnimation.push({ id, clip }),
   })
+  lua.global.set('camera', {
+    shake: () => { h.calls.cameraShake++ },
+    centerOn: () => {},
+    setPosition: () => {},
+    move: () => {},
+    setZoom: () => {},
+    zoomBy: () => {},
+    x: () => 0,
+    y: () => 0,
+    zoom: () => 1,
+  })
   await lua.doString(`
     time = {}
     local _timers = {}
@@ -254,6 +267,7 @@ describe('runtime: syntax validity', () => {
               { type: 'spawnEntity', className: 'Y', x: 0, y: 0 },
               { type: 'setFlip', target: 'self', flipX: true },
               { type: 'playAnimation', target: 'self', clipName: 'run' },
+              { type: 'cameraShake', trauma: 0.5 },
             ],
           }),
           ev({ id: 't', trigger: { type: 'onTimer', seconds: 1, repeat: true }, actions: [{ type: 'debugLog', message: 'tick' }] }),

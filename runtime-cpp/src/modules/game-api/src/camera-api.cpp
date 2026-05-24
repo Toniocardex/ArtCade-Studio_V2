@@ -15,6 +15,7 @@
 #include "../include/game-api.h"
 #include "../../runtime-entity-gateway/include/runtime-entity-gateway.h"
 #include "../../renderer/include/renderer.h"
+#include "../../camera-manager/include/camera-manager.h"
 
 #include <sol/sol.hpp>
 
@@ -23,6 +24,7 @@ namespace ArtCade::Modules {
 void GameAPI::bindCameraAPI(sol::state& lua) {
     auto* renderer = ctx_.renderer;
     auto* entities = ctx_.entityGateway;
+    auto* camMgr   = ctx_.cameraManager;
 
     // camera.setPosition(x, y)
     lua.set_function("camera_setPosition", [renderer](float x, float y) {
@@ -66,6 +68,11 @@ void GameAPI::bindCameraAPI(sol::state& lua) {
         return renderer ? renderer->getCameraZoom() : 1.f;
     });
 
+    // camera.shake(trauma) — add screen-shake trauma (0–1, stacks, decays over time)
+    lua.set_function("camera_shake", [camMgr](float trauma) {
+        if (camMgr) camMgr->addTrauma(trauma);
+    });
+
     // Lua-side convenience table
     lua.script(R"(
         camera = {}
@@ -77,6 +84,7 @@ void GameAPI::bindCameraAPI(sol::state& lua) {
         camera.x           = function()  return camera_x()               end
         camera.y           = function()  return camera_y()               end
         camera.zoom        = function()  return camera_getZoom()         end
+        camera.shake       = function(t)       camera_shake(t ~= nil and t or 0.5) end
     )");
 }
 

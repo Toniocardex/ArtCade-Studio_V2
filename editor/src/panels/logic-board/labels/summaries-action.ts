@@ -116,6 +116,8 @@ export function actionSummaryPlain(
       return 'Restart current level'
     case 'setCameraTarget':
       return `Camera follows ${who}`
+    case 'cameraShake':
+      return `Shake camera (intensity ${a.trauma})`
     case 'debugLog':
       return a.message ? `Log: ${a.message}` : 'Log message'
     case 'wait':
