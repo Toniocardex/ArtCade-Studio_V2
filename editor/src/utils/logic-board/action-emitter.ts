@@ -136,6 +136,8 @@ export function actionLua(a: LogicAction): string {
       return `entity.setRotation(${targetExpr(a.target)}, ${Number(a.angle) || 0})`
     case 'setScale':
       return `entity.setScale(${targetExpr(a.target)}, ${Number(a.scaleX) || 0}, ${Number(a.scaleY) || 0})`
+    case 'playAnimation':
+      return `animation.play(${targetExpr(a.target)}, ${luaString(a.clipName)})`
     case 'setVisible':
       return `entity.setVisible(${targetExpr(a.target)}, ${a.visible ? 'true' : 'false'})`
     case 'setColorTint': {

@@ -123,6 +123,7 @@ export type LogicAction =
   | { type: 'applyForce'; target: TargetSelector; fx: number; fy: number }
   | { type: 'setRotation'; target: TargetSelector; angle: number }
   | { type: 'setScale'; target: TargetSelector; scaleX: number; scaleY: number }
+  | { type: 'playAnimation'; target: TargetSelector; clipName: string }
   | { type: 'setVisible'; target: TargetSelector; visible: boolean }
   | { type: 'setColorTint'; target: TargetSelector; hexColor: string; alpha?: number }
   | { type: 'loadScene'; sceneName: string; fadeSeconds?: number }

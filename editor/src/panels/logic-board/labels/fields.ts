@@ -42,6 +42,7 @@ const FIELD_LABELS: Record<string, string> = {
   'condition:isSpaceFree:y': 'Y',
   'condition:isSpaceFree:w': 'Width',
   'condition:isSpaceFree:h': 'Height',
+  'action:playAnimation:clipName': 'Clip name',
   'condition:compareHealth:field': 'Health value',
 }
 

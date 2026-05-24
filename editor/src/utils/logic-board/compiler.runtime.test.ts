@@ -40,6 +40,7 @@ interface Harness {
     stopMusic: number
     pauseMusic: number
     resumeMusic: number
+    playAnimation: Array<{ id: number; clip: string }>
     log: string[]
   }
   inputPressedHandlers: Record<string, Array<() => void>>
@@ -65,6 +66,7 @@ function newHarness(pools: Record<string, number[]> = { Player: [1] }): Harness 
       stopMusic: 0,
       pauseMusic: 0,
       resumeMusic: 0,
+      playAnimation: [],
       log: [],
     },
     inputPressedHandlers: {},
@@ -161,6 +163,7 @@ async function makeRunner(boards: LogicBoard[]) {
   })
   lua.global.set('animation', {
     pollFinished: () => [],
+    play: (id: number, clip: string) => h.calls.playAnimation.push({ id, clip }),
   })
   await lua.doString(`
     time = {}

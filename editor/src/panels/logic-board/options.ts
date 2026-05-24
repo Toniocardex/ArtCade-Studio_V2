@@ -163,6 +163,8 @@ export function defaultAction(type: LogicActionType): LogicAction {
       return { type: 'setRotation', target: 'self', angle: 0 }
     case 'setScale':
       return { type: 'setScale', target: 'self', scaleX: 1, scaleY: 1 }
+    case 'playAnimation':
+      return { type: 'playAnimation', target: 'self', clipName: '' }
     case 'setVisible':
       return { type: 'setVisible', target: 'self', visible: true }
     case 'setColorTint':

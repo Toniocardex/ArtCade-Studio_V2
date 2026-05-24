@@ -141,6 +141,24 @@
     "additionalProperties": false,
     "x-artcade": { "label": "Resume Music", "category": "Audio", "params": {} }
   },
+  "playAnimation": {
+    "type": "object",
+    "required": ["type", "target", "clipName"],
+    "properties": {
+      "type": { "const": "playAnimation" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "clipName": { "type": "string" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Play Animation",
+      "category": "Graphics",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "clipName": { "widget": "string", "label": "Clip name" }
+      }
+    }
+  },
   "destroyEntity": {
     "type": "object",
     "required": ["type", "target"],

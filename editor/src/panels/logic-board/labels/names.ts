@@ -56,6 +56,7 @@ const ACTION_NAMES: Record<LogicActionType, string> = {
   applyForce: 'Push steadily',
   setRotation: 'Rotate',
   setScale: 'Resize',
+  playAnimation: 'Play animation',
   setVisible: 'Show or hide',
   setColorTint: 'Change color',
   loadScene: 'Load level',

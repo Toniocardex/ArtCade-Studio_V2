@@ -97,6 +97,8 @@ export function actionSummaryPlain(
       return `Rotate ${who}`
     case 'setScale':
       return `Resize ${who} to (${a.scaleX}, ${a.scaleY})`
+    case 'playAnimation':
+      return a.clipName ? `Play "${a.clipName}" on ${who}` : `Play animation on ${who} — choose clip`
     case 'setVisible':
       return a.visible ? `Show ${who}` : `Hide ${who}`
     case 'setColorTint':

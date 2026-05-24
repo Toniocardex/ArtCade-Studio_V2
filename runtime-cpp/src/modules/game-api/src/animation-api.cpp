@@ -87,6 +87,10 @@ uint32_t dispatchAnimHandlers(sol::state& lua,
 void GameAPI::bindAnimationAPI(sol::state& lua) {
     auto* anim = ctx_.spriteAnimator;
 
+    lua.set_function("animation_play", [anim](EntityId id, const std::string& clip) {
+        if (anim) anim->play(id, clip);
+    });
+
     lua.set_function("animation_pollFinished", [anim](sol::this_state ts) -> sol::table {
         sol::state_view L(ts);
         sol::table out = L.create_table();
@@ -104,6 +108,7 @@ void GameAPI::bindAnimationAPI(sol::state& lua) {
 
     lua.script(R"(
         animation = animation or {}
+        animation.play = function(id, clip) if id and clip ~= "" then return animation_play(id, clip) end end
         animation._onFinished = {}
 
         animation.pollFinished = function()
