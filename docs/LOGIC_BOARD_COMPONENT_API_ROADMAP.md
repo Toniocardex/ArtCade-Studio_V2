@@ -11,6 +11,8 @@ Component dentro la Logic Board.
 
 **Correlato:** integrazione runtime EnTT/gateway/World →
 `docs/ENGINE_INTEGRATION_ROADMAP.md`.
+Principio UI/prodotto per questi componenti →
+`docs/ARTIST_FRIENDLY_COMPONENTS.md`.
 
 **Ultimo allineamento:** `main` @ `20c473d` (2026-05-21).
 
@@ -23,6 +25,11 @@ Component dentro la Logic Board.
 - Le API low-level restano disponibili come livello Advanced / Generic.
 - Non creare "Behavior" Lua nascosti: il termine e il modello corretto e
   Component runtime.
+- Esporre i numeri di design reali (speed, damage, cooldown, radius, durata)
+  quando servono al bilanciamento; evitare preset opachi se nascondono il
+  valore effettivo.
+- Spostare dettagli engine-only in Advanced: delta time, handle fisici,
+  fixture, registry, sync, callback raw.
 - Ogni nuova API deve essere schema-first: type TS, JSON schema, factory,
   compiler, label e test devono cambiare insieme.
 
@@ -100,6 +107,9 @@ Obiettivi:
   - Recommended for this object
   - Component APIs
   - Advanced / Generic
+- Nei pannelli componenti distinguere Creative vs Advanced: Creative mostra i
+  valori di design e le scelte di comportamento; Advanced mostra override e
+  diagnostica tecnica.
 - Aggiungere hint per spiegare quando un blocco usa un Component runtime.
 - Aggiungere quick-add Component dall'avviso, se utile.
 - Valutare preset di regole comuni:

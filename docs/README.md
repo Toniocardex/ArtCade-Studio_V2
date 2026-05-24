@@ -11,7 +11,7 @@
 
 ### 0️⃣ **LOGIC_BOARD_SPEC.md** — Glossario + Sheet + Logic Board (20–35 min) ⭐
 
-**Parte I:** glossario (Logic Board / Event / Component, ECS, …). **Parte II:** formato tabellare when/then. **Parte III:** specifica tecnica Logic Board (JSON event-centric, compilatore TS→Lua, UI, MVP). **Parte IV:** puntatori a documenti satellite. Contratti nel SPEC; **`LOGIC_BOARD_DESIGN_GUIDELINES.md`** (~5 min); condizionali OR/ELSE e branch flow: **`LOGIC_BOARD_CONDITIONAL_DESIGN.md`** (~10 min).
+**Parte I:** glossario (Logic Board / Event / Component, ECS, …). **Parte II:** formato tabellare when/then. **Parte III:** specifica tecnica Logic Board (JSON event-centric, compilatore TS→Lua, UI, MVP). **Parte IV:** puntatori a documenti satellite. Contratti nel SPEC; principio prodotto **`ARTIST_FRIENDLY_COMPONENTS.md`** (~5 min); **`LOGIC_BOARD_DESIGN_GUIDELINES.md`** (~5 min); condizionali OR/ELSE e branch flow: **`LOGIC_BOARD_CONDITIONAL_DESIGN.md`** (~10 min).
 
 ### 1️⃣ **ARCHITECTURAL_RATIONALE.md** — Il PERCHÉ (20–30 min) ⭐ INIZIO QUI
 
@@ -89,6 +89,7 @@ Guida specializzata         (REACT_WASM_PATTERN.md o ECS_IMPLEMENTATION_GUIDE.md
 | **ECS_IMPLEMENTATION_GUIDE.md** | EnTT pratica | 30–45min | C++ dev | ⭐⭐ |
 | **ENGINE_INTEGRATION_ROADMAP.md** | Tracker operativo Thick Core / Thin Script / Gateway / EnTT | ~5min | C++ / Tech lead | ⭐⭐⭐ |
 | **LOGIC_BOARD_COMPONENT_API_ROADMAP.md** | Component runtime → azioni/condizioni Logic Board (capability registry, tranche) | ~5min | Editor / C++ | ⭐⭐ |
+| **ARTIST_FRIENDLY_COMPONENTS.md** | Principio prodotto: numeri di design visibili, complessità tecnica nascosta | ~5min | Product / Editor / C++ | ⭐⭐⭐ |
 | **ARCHITETTURA_TECNICA_ENGINE_2D.md** | Stack collab, §8–10, §11 stato vs target + roadmap | 30–40min | C++ / Tech lead | ⭐⭐ |
 | **LOGIC_BOARD_SPEC.md** | **I** glossario · **II** Sheet tabellare · **III** Logic Board (TS→Lua, UI, MVP) · **IV** link linee guida | 25–35min | Everyone / Editor | ⭐⭐⭐ |
 | **LOGIC_BOARD_DESIGN_GUIDELINES.md** | Best practice Logic Board (blackboard, segnali, data-driven, UX, bridge numerico) | ~5min | Editor / C++ bridge | ⭐ |
@@ -96,7 +97,7 @@ Guida specializzata         (REACT_WASM_PATTERN.md o ECS_IMPLEMENTATION_GUIDE.md
 | **PIANO_SVILUPPO_COMMERCIALE.md** | Early Access 8 settimane: stabilità editor, demo, export web, vendita | ~15min | Product / founder | ⭐ |
 | **GUIDA_INTEGRAZIONE_SPLASH_LICENZE.md** | Splash editor vs runtime; Free/Pro; `pack-artcade.py`; watermark C++ | ~10min | Editor / tooling / runtime | ⭐ |
 | **GLOBAL_LOGIC_UI_ARCHITECTURE.md** | Sensori Box2D, platformer feel, azioni world, UI screen-space, text juice | ~8min | C++ / gameplay / UI | ⭐ |
-| **ArtCade_V2_Riepilogo_Suggerimenti.md** | Visione UX Logic Board (8 gruppi), shader, widget zero-matematica | ~10min | Design / product | ⭐ |
+| **ArtCade_V2_Riepilogo_Suggerimenti.md** | Visione UX Logic Board (8 gruppi), shader, controlli artist-friendly | ~10min | Design / product | ⭐ |
 | **LOGIC_BOARD_EDITOR_BACKLOG.md** | Backlog editor (JSON Schema fatto; wait, UX, shader) | ~3min | Editor | ⭐ |
 | **TECHNICAL_DEBT_REVIEW.md** | Debito tecnico noto (sync WASM, EditorAPI, build Tauri) | ~10min | Engineers | ⭐⭐ |
 
@@ -117,6 +118,7 @@ Setup e build pratici: **[README.md](../README.md)** (root) — pipeline, script
 | **Asset WASM / alias** | ARCHITETTURA_TECNICA_ENGINE_2D | §4, §10 | Operativo |
 | **Stato repo vs architettura target** | ARCHITETTURA_TECNICA_ENGINE_2D | §11 | Operativo |
 | **Terminologia + Sheet + Logic Board** | LOGIC_BOARD_SPEC.md | Parte I–III (vedi indice nel file) | ⭐⭐⭐ |
+| **Componenti artist-friendly** | ARTIST_FRIENDLY_COMPONENTS.md | Intero | ⭐⭐⭐ |
 | **Logic Board — design & UX** | LOGIC_BOARD_DESIGN_GUIDELINES.md | Intero (supporto a Parte III) | ⭐ |
 | **Logic Board — condizionali & branching** | LOGIC_BOARD_CONDITIONAL_DESIGN.md | Intero (OR/ELSE, grafo, scuole) | ⭐ |
 | **Go-to-market / roadmap commerciale** | PIANO_SVILUPPO_COMMERCIALE.md | Intero (fasi 1–4, rischi) | ⭐ |
@@ -151,6 +153,7 @@ Setup e build pratici: **[README.md](../README.md)** (root) — pipeline, script
 4. **Memory**: 128MB + ALLOW_MEMORY_GROWTH
 5. **Hot-Reload**: 5ms via embind, non 20sec rebuild
 6. **Audio**: Defer a user gesture, non startup
+7. **Artist-friendly**: mostrare i numeri di design, nascondere la complessità engine-only
 
 ---
 

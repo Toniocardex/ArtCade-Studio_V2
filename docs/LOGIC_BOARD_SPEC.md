@@ -7,7 +7,7 @@
 
 Questo file **unifica** tre livelli: (1) **glossario** Logic Board / Logic Event / Logic Component e termini runtime; (2) **formato Logic Sheet tabellare** (righe when/then — authoring alternativo); (3) **specifica tecnica Logic Board** orientata agli eventi (trigger / condizioni / azioni, compilatore TS → Lua, UI, MVP). Un solo punto di riferimento per vocabolario e implementazione.
 
-**Best practice di design** (blackboard, segnali, nodi data-driven, UX debug, bridge numerico): [`LOGIC_BOARD_DESIGN_GUIDELINES.md`](LOGIC_BOARD_DESIGN_GUIDELINES.md). **Condizionali avanzati** (OR/ gruppi booleani, IF/ELSE, branch flow vs compatto, codegen, didattica): [`LOGIC_BOARD_CONDITIONAL_DESIGN.md`](LOGIC_BOARD_CONDITIONAL_DESIGN.md). Entrambi in **Parte IV** in fondo.
+**Principio componenti artist-friendly** (numeri di design visibili, complessità tecnica nascosta): [`ARTIST_FRIENDLY_COMPONENTS.md`](ARTIST_FRIENDLY_COMPONENTS.md). **Best practice di design** (blackboard, segnali, nodi data-driven, UX debug, bridge numerico): [`LOGIC_BOARD_DESIGN_GUIDELINES.md`](LOGIC_BOARD_DESIGN_GUIDELINES.md). **Condizionali avanzati** (OR/ gruppi booleani, IF/ELSE, branch flow vs compatto, codegen, didattica): [`LOGIC_BOARD_CONDITIONAL_DESIGN.md`](LOGIC_BOARD_CONDITIONAL_DESIGN.md). Tutti in **Parte IV** in fondo.
 
 ---
 
@@ -106,6 +106,12 @@ Esempi Advanced:
 Regola: la **Logic Board** decide quando attivare, configurare o reagire a
 questi componenti; il **Runtime Component** esegue la logica ricorrente nel
 core C++.
+
+Regola UI/prodotto: un Runtime Component distingue i **numeri di design**
+(speed, damage, cooldown, radius, durata, salute, volume) dai dettagli
+engine-only (delta time, handle fisici, fixture, registry, sync). I primi
+restano visibili e bilanciabili; i secondi vanno nascosti o spostati in
+Advanced. Vedi [`ARTIST_FRIENDLY_COMPONENTS.md`](ARTIST_FRIENDLY_COMPONENTS.md).
 
 ### EnTT
 
@@ -704,9 +710,10 @@ Questa parte **non** duplica il contenuto: indica dove trovare le raccomandazion
 
 | Documento | Contenuto |
 |-----------|-----------|
+| [`ARTIST_FRIENDLY_COMPONENTS.md`](ARTIST_FRIENDLY_COMPONENTS.md) | Principio prodotto: numeri di design espliciti, scelte di comportamento descrittive, dettagli engine-only in Advanced |
 | [`LOGIC_BOARD_DESIGN_GUIDELINES.md`](LOGIC_BOARD_DESIGN_GUIDELINES.md) | Blackboard locale/globale, Logic Messaging / segnali, nodi data-driven (JSON Schema), visual flow e organizzazione grafo, precisione numerica Lua ↔ C++ |
 | [`LOGIC_BOARD_CONDITIONAL_DESIGN.md`](LOGIC_BOARD_CONDITIONAL_DESIGN.md) | `LogicConditionGroup` (AND/OR ad albero), anti-pattern eventi duplicati, branching IF/ELSE, branch fisico vs blocco compatto, modello grafo, compilazione Lua, React Flow, uso didattico |
-| [`ArtCade_V2_Riepilogo_Suggerimenti.md`](ArtCade_V2_Riepilogo_Suggerimenti.md) | Visione UX «Zero Matematica», 8 gruppi componenti, shader, layout IDE |
+| [`ArtCade_V2_Riepilogo_Suggerimenti.md`](ArtCade_V2_Riepilogo_Suggerimenti.md) | Visione UX aggiornata: numeri di design visibili, complessità matematica/engine nascosta, 8 gruppi componenti, shader, layout IDE |
 | [`LOGIC_BOARD_EDITOR_BACKLOG.md`](LOGIC_BOARD_EDITOR_BACKLOG.md) | Backlog editor post runtime-core (schema, wait, UX modale tasti) |
 
 Mantenere questi documenti in file dedicati evita di gonfiare il presente SPEC e permette aggiornamenti rapidi senza toccare glossario o contratti dati delle Parti I–III. Quando i tipi JSON/TS del condizionale saranno stabili, rispecchiarli in **Parte III**.

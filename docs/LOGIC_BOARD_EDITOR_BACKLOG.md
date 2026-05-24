@@ -1,6 +1,6 @@
 # Logic Board — Backlog editor (post runtime-core)
 
-> Normativa: [`LOGIC_BOARD_SPEC.md`](LOGIC_BOARD_SPEC.md) · Visione UX: [`ArtCade_V2_Riepilogo_Suggerimenti.md`](ArtCade_V2_Riepilogo_Suggerimenti.md).
+> Normativa: [`LOGIC_BOARD_SPEC.md`](LOGIC_BOARD_SPEC.md) · Principio componenti: [`ARTIST_FRIENDLY_COMPONENTS.md`](ARTIST_FRIENDLY_COMPONENTS.md) · Visione UX: [`ArtCade_V2_Riepilogo_Suggerimenti.md`](ArtCade_V2_Riepilogo_Suggerimenti.md).
 
 ## Completato
 
@@ -23,7 +23,10 @@
 
 ## Priorità aperte
 
-### 3. UX «Zero Matematica»
+### 3. UX componenti artist-friendly
+
+Regola: mostrare i numeri di design quando servono al bilanciamento; nascondere
+o spostare in Advanced solo la complessità engine-only.
 
 - [x] **Logic Board UX refresh (English)** — `friendly-labels.ts`, When / Only if / Then blocks, grouped pickers, advanced condition tree + Script tab tucked away — 2026-05
 - [x] **Entity-first authoring** — rulesheets default to `entity_id`, Scenes-panel/Inspector navigation, class boards under Advanced — 2026-05

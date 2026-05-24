@@ -1,13 +1,13 @@
 # ArtCade V2 — Riepilogo di Sviluppo & Suggerimenti UX
 **Stato del Progetto:** MVP Specifiche Logic Board Consolidate  
 **Data:** Maggio 2026  
-**Focus:** Filosofia "Zero Matematica" per Sviluppo Giochi 2D (Platform, Grid-Based, Arcade)
+**Focus:** Componenti artist-friendly: numeri di design visibili, complessità tecnica nascosta
 
 ---
 
 ## 1. Visione del Progetto & Filosofia UX
 ArtCade V2 si propone come un game engine e un editor visuale (React + Tauri v2) accoppiato a un runtime ultra-performante (C++ + Raylib + Box2D + Lua). 
-La **Logic Board** adotta la filosofia **"Zero Matematica per l'Utente"**: l'interfaccia a blocchi nasconde la complessità vettoriale, trigonometrica e di gestione della memoria, offrendo un'esperienza fluida e visiva (stile Construct 3 / Scratch), traducendo tutto sotto il cofano in script Lua ottimizzati.
+La **Logic Board** adotta una filosofia più precisa di "zero-code": **non nasconde i numeri importanti, nasconde la complessità inutile**. Valori come `speed`, `damage`, `cooldown`, `radius`, `duration` e `health` sono numeri di design e devono rimanere visibili e bilanciabili. La complessità da nascondere è quella engine-only: vettori, delta time, handle fisici, fixture, sync ECS, callback e gestione memoria. Vedi [`ARTIST_FRIENDLY_COMPONENTS.md`](ARTIST_FRIENDLY_COMPONENTS.md).
 
 ---
 
@@ -18,7 +18,7 @@ I componenti logici sono stati riorganizzati e potenziati per coprire non solo i
 ### ⚙️ 1. Sistema & Flusso (System & Flow)
 * **Trigger:** `onStart`, `onUpdate`, `onTimer`, `onDestroy`.
 * **Azioni:** * `loadScene`: Cambia livello accettando parametri visivi nativi (es. `transition: "fade" | "none"`, `duration`).
-    * `wait`: Sospende temporaneamente la sequenza logica del blocco per *X* secondi senza bloccare il gioco (compilato in Lua tramite `coroutine.yield`).
+    * `wait`: Sospende temporaneamente la sequenza logica del blocco per *X* secondi senza bloccare il gioco. Nell'MVP compila verso la Time API (`time.after` / `time.delay`); le coroutine Lua restano un'evoluzione possibile per flussi narrativi più lineari.
 
 ### ⌨️ 2. Input (Tastiera & Mouse)
 * **Trigger:** * `onInput`: Intercetta la tastiera con stati `pressed`, `held`, `released`.
@@ -87,15 +87,16 @@ Per elevare l'estetica dei giochi senza richiedere codice GLSL, l'engine include
 L'interfaccia utente è pensata come un ambiente scuro (Dark Mode), pulito ed enterprise-grade basato su pannelli ridimensionabili (layout a 4 colonne):
 * **Colonna 1 (Sinistra):** Esploratore delle Scene e dell'albero degli Asset (Sprite, Audio, Classi). Supporta il drag-and-drop diretto dal sistema operativo.
 * **Colonna 2 (Centro):** Area di lavoro principale divisa in Tab intercambiabili: la *Scena Visiva* (livello su griglia WYSIWYG) e la *Logic Board* (i blocchi logici disposti in verticale con codice colore associato per macro-categoria).
-* **Colonna 3 (Destra):** Pannello delle Proprietà contestuale. Ospita i **Widget Zero Matematica**:
+* **Colonna 3 (Destra):** Pannello delle Proprietà contestuale. Ospita controlli **artist-friendly**:
     * La bussola rotante per definire gli angoli di movimento.
     * Il Color Picker nativo per tinte e shader.
     * Le checkbox per l'ereditarietà delle trasformazioni (`inheritFlip`).
+    * Number input e slider con unità esplicite per valori di design (`px/s`, `s`, `%`, `hp`), evitando preset opachi quando il bilanciamento richiede precisione.
 * **Barra Superiore:** Controlli di esecuzione globale, dominati dal grande tasto **Play (Verde Neon)** per avviare istantaneamente l'anteprima di gioco.
 
 ---
 
 ## 6. Suggerimenti per la Prossima Fase di Sviluppo (Next Steps)
 1.  **Formalizzazione dei JSON Schema:** Il prossimo passo logico è definire i JSON Schema per validare la struttura dati salvata dall'interfaccia React. Ogni Logic Component deve avere uno schema rigido in modo che il frontend possa generare i moduli e le proprietà in modo dinamico e senza bug di compilazione.
-2.  **Architettura del Compilatore (TS ➔ Lua):** Progettare la pipeline che prende il JSON strutturato della Logic Board e scrive il file `.lua` finale. Sfruttare al massimo le *Coroutine di Lua* per implementare l'azione `wait`, garantendo che i flussi temporali complessi scritti dagli utenti rimangano leggibili linearmente a blocchi senza sporcare il ciclo di `update` principale.
+2.  **Architettura del Compilatore (TS ➔ Lua):** La pipeline schema-first prende il JSON strutturato della Logic Board e produce Lua eseguibile. `wait` oggi usa la Time API; un futuro livello coroutine può rendere ancora più naturali sequenze narrative e dialoghi, senza sporcare il ciclo di `update` principale.
 3.  **Blackboard Globale per la Persistenza:** Configurare un sistema di memoria persistente lato C++ ("Blackboard globale") che mantenga variabili critiche come il punteggio o la vita del giocatore durante l'azione `loadScene`, impedendo al motore di svuotare la RAM tra un livello e l'altro.

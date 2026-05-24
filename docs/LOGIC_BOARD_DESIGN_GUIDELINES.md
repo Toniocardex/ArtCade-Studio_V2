@@ -4,6 +4,10 @@
 > **Data**: 2026-05-11
 > **Obiettivo**: Consolidare le best practice per l'implementazione del sistema di logica visiva.
 
+**Principio prodotto correlato:** [`ARTIST_FRIENDLY_COMPONENTS.md`](ARTIST_FRIENDLY_COMPONENTS.md)
+definisce la regola "numeri di design visibili, complessità tecnica nascosta".
+Queste linee guida la applicano alla Logic Board.
+
 ---
 
 ## 1. Gestione Variabili: Il Blackboard Pattern
@@ -53,6 +57,30 @@ Esempi corretti:
 
 Non generare loop Lua nascosti per implementare feature che sono Component
 runtime. Lua e Logic Board restano livello thin script/eventi.
+
+---
+
+## 2.2 Componenti Artist-Friendly
+
+ArtCade non deve sostituire i valori utili con preset opachi. `Speed: 240 px/s`
+e `Cooldown: 0.35 s` sono più chiari di "veloce" o "medio" quando l'autore
+sta bilanciando il gioco.
+
+La UI deve quindi separare:
+
+- **parametri espliciti**: speed, jump force, damage, health, cooldown,
+  duration, radius, range, volume;
+- **scelte di comportamento**: movement style, follow mode, patrol mode,
+  collision response, trigger mode, facing mode;
+- **dettagli Advanced**: delta time, handle fisici, fixture, registry, sync,
+  callback raw, diagnostica runtime.
+
+Regola:
+
+```text
+Se un parametro cambia il feeling del gioco, mostralo.
+Se un parametro serve solo al motore per funzionare, nascondilo o mettilo in Advanced.
+```
 
 ---
 
