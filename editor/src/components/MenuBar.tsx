@@ -237,11 +237,30 @@ export default function MenuBar() {
   }
 
   async function handleBuildExe() {
-    if (!projectPath) {
+    if (!project) {
       dispatch({ type: 'LOG', entry: makeLog('[Build] No project loaded.', 'warn') })
       return
     }
-    const root = dirName(projectPath)
+
+    let buildPath = projectPath
+    if (!buildPath) {
+      const ok = window.confirm('The project has not been saved.\nSave it now before building?')
+      if (!ok) return
+      const target = await saveProjectAsDialog()
+      if (!target) return
+      try {
+        await scaffoldNewProjectOnDisk(target, project, BLANK_MAIN_LUA)
+        dispatch({ type: 'LOAD_PROJECT', project, path: target })
+        dispatch({ type: 'MARK_PROJECT_SAVED' })
+        dispatch({ type: 'LOG', entry: makeLog(`[File] ✓ Saved "${project.projectName}" to ${target}`, 'info') })
+      } catch (err) {
+        dispatch({ type: 'LOG', entry: makeLog(`[File] ✗ Save failed: ${err}`, 'error') })
+        return
+      }
+      buildPath = target
+    }
+
+    const root = dirName(buildPath)
     setIsBuilding(true)
     dispatch({ type: 'SET_CONSOLE_OPEN', open: true })
     dispatch({ type: 'LOG', entry: makeLog('[Build] Starting cmake build…', 'info') })

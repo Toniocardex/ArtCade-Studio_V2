@@ -25,50 +25,17 @@ import type {
   LogicCondition,
   LogicConditionNode,
   LogicEvent,
-  TargetSelector,
 } from '../../types/logic-board'
 import type { ProjectDoc } from '../../types'
 import {
   boardLifecycleClass,
   usesTickFallback,
 } from './trigger-execution'
+import { luaString, luaValue, targetExpr, poolExpr, sensorSourceExpr } from './lua-helpers'
+import { actionLua } from './action-emitter'
 
-// ---- literal helpers ------------------------------------------------------
-
-/** Escape a JS string into a safe double-quoted Lua string literal. */
-export function luaString(s: string): string {
-  return (
-    '"' +
-    s
-      .replace(/\\/g, '\\\\')
-      .replace(/"/g, '\\"')
-      .replace(/\n/g, '\\n')
-      .replace(/\r/g, '\\r')
-      .replace(/\t/g, '\\t') +
-    '"'
-  )
-}
-
-/** Render a JS value (string/number/boolean) as a Lua literal. */
-export function luaValue(v: number | string | boolean): string {
-  if (typeof v === 'number') return Number.isFinite(v) ? String(v) : '0'
-  if (typeof v === 'boolean') return v ? 'true' : 'false'
-  return luaString(v)
-}
-
-// ---- target selectors -----------------------------------------------------
-
-/**
- * Resolve a TargetSelector to a Lua expression yielding an entity id.
- * `self` / `other` are loop-local locals emitted by the trigger scaffolding.
- */
-export function targetExpr(t: TargetSelector): string {
-  if (t === 'self') return 'self'
-  if (t === 'other') return 'other'
-  if ('entityId' in t) return String(t.entityId)
-  // class pool — MVP resolves to the first match (Lua arrays are 1-indexed)
-  return `(pool.getAll(${luaString(t.className)})[1])`
-}
+// Re-export helpers consumed by compiler.test.ts and any future callers.
+export { luaString, luaValue, targetExpr } from './lua-helpers'
 
 // ---- conditions -----------------------------------------------------------
 
@@ -127,170 +94,6 @@ export function conditionExpr(ev: LogicEvent): string {
   const list = ev.conditions ?? []
   if (list.length === 0) return 'true'
   return list.map((c) => leafExpr(c)).join(' and ')
-}
-
-// ---- actions --------------------------------------------------------------
-
-function actionLua(a: LogicAction): string {
-  switch (a.type) {
-    case 'setVariable':
-      return `state.set(${luaString(a.key)}, ${luaValue(a.value)})`
-    case 'addVariable':
-      return `state.add(${luaString(a.key)}, ${Number(a.amount) || 0})`
-    case 'setPosition':
-      return `entity.setPosition(${targetExpr(a.target)}, ${Number(a.x) || 0}, ${Number(a.y) || 0})`
-    case 'setVelocity':
-      return `entity.setVelocity(${targetExpr(a.target)}, ${Number(a.vx) || 0}, ${Number(a.vy) || 0})`
-    case 'playSound':
-      return `audio.playSound(${luaString(a.path)}, ${a.volume ?? 1}, ${a.pitch ?? 1})`
-    case 'playMusic':
-      return `audio.playMusic(${luaString(a.path)}, ${a.loop !== false})`
-    case 'stopAllAudio':
-      return `audio.stopAll()`
-    case 'destroyEntity':
-      return `entity.destroy(${targetExpr(a.target)})`
-    case 'spawnEntity': {
-      const cls = luaString(a.className)
-      const spawn = a.imagePoint
-        ? `(function() local _px, _py = entity.imagePoint(self, ${luaString(a.imagePoint)}); return object.spawn(${cls}, _px, _py) end)()`
-        : `object.spawn(${cls}, ${Number(a.x) || 0}, ${Number(a.y) || 0})`
-      if (!a.inheritFlip) return spawn
-      return `(function() local _nid = ${spawn}; local _sx, _sy = entity.scale(self); local _fx = (_sx < 0) and -1 or 1; entity.setScale(_nid, _fx * math.abs(_sx), math.abs(_sy)); return _nid end)()`
-    }
-    case 'moveInDirection': {
-      const t = targetExpr(a.target)
-      const s = Number(a.speed) || 0
-      switch (a.direction) {
-        case 'up':
-          return `entity.setVelocity(${t}, 0, ${-s})`
-        case 'down':
-          return `entity.setVelocity(${t}, 0, ${s})`
-        case 'left':
-          return `entity.setVelocity(${t}, ${-s}, 0)`
-        case 'right':
-          return `entity.setVelocity(${t}, ${s}, 0)`
-        case 'forward':
-          return `(function() local _sx, _ = entity.scale(${t}); local _d = (_sx < 0) and -1 or 1; entity.setVelocity(${t}, _d * ${s}, 0) end)()`
-        case 'backward':
-          return `(function() local _sx, _ = entity.scale(${t}); local _d = (_sx < 0) and -1 or 1; entity.setVelocity(${t}, -_d * ${s}, 0) end)()`
-      }
-      break
-    }
-    case 'controllerMovement': {
-      const t = targetExpr(a.target)
-      switch (a.direction) {
-        case 'left':
-          return `_logic_add_movement(${t}, -1, 0)`
-        case 'right':
-          return `_logic_add_movement(${t}, 1, 0)`
-        case 'up':
-          return `_logic_add_movement(${t}, 0, -1)`
-        case 'down':
-          return `_logic_add_movement(${t}, 0, 1)`
-      }
-      break
-    }
-    case 'moveController': {
-      const t = targetExpr(a.target)
-      switch (a.direction) {
-        case 'left':
-          return `movement.setIntent(${t}, -1, 0)`
-        case 'right':
-          return `movement.setIntent(${t}, 1, 0)`
-        case 'up':
-          return `movement.setIntent(${t}, 0, -1)`
-        case 'down':
-          return `movement.setIntent(${t}, 0, 1)`
-        case 'stop':
-          return `movement.clearIntent(${t})`
-      }
-      break
-    }
-    case 'setMovementIntent':
-      return `movement.setIntent(${targetExpr(a.target)}, ${Number(a.directionX) || 0}, ${Number(a.directionY) || 0})`
-    case 'clearMovementIntent':
-      return `movement.clearIntent(${targetExpr(a.target)})`
-    case 'requestPlatformerJump':
-      return `platformer.requestJump(${targetExpr(a.target)})`
-    case 'damageEntity':
-      return `entity.damage(${targetExpr(a.target)}, ${Number(a.amount) || 0})`
-    case 'healEntity': {
-      const t = targetExpr(a.target)
-      const amount = Number(a.amount) || 0
-      return `(function() local _c,_m=entity.health(${t}); if _c ~= nil then entity.setHealth(${t}, math.min(_m, _c + ${amount}), _m) end end)()`
-    }
-    case 'setEntityHealth':
-      return a.maxHp != null
-        ? `entity.setHealth(${targetExpr(a.target)}, ${Number(a.currentHp) || 0}, ${Number(a.maxHp) || 0})`
-        : `entity.setHealth(${targetExpr(a.target)}, ${Number(a.currentHp) || 0})`
-    case 'setLinearMoverDirection':
-      return `linearMover.setDirection(${targetExpr(a.target)}, ${Number(a.directionX) || 0}, ${Number(a.directionY) || 0})`
-    case 'setLinearMoverSpeed':
-      return `linearMover.setSpeed(${targetExpr(a.target)}, ${Number(a.speed) || 0})`
-    case 'pauseLinearMover':
-      return `linearMover.pause(${targetExpr(a.target)})`
-    case 'resumeLinearMover':
-      return `linearMover.resume(${targetExpr(a.target)})`
-    case 'setMagnetEnabled':
-      return `magnet.setEnabled(${targetExpr(a.target)}, ${a.enabled ? 'true' : 'false'})`
-    case 'setMagnetTargetTag':
-      return `magnet.setTargetTag(${targetExpr(a.target)}, ${luaString(a.tag)})`
-    case 'setHordeTargetClass':
-      return `horde.setTargetClass(${targetExpr(a.target)}, ${luaString(a.className)})`
-    case 'setHordeWeights':
-      return `horde.setWeights(${targetExpr(a.target)}, ${Number(a.chaseWeight) || 0}, ${Number(a.separationWeight) || 0})`
-    case 'setAutoDestroyLifespan':
-      return `autoDestroy.setLifespan(${targetExpr(a.target)}, ${Number(a.lifespan) || 0})`
-    case 'cancelAutoDestroy':
-      return `autoDestroy.cancel(${targetExpr(a.target)})`
-    case 'setGlobalState':
-      return `state.set(${luaString(a.key)}, ${luaValue(a.value)})`
-    case 'emitEvent':
-      return a.payloadKey
-        ? `event.emit(${luaString(a.name)}, { [${luaString(a.payloadKey)}] = ${luaValue(a.payloadValue ?? '')} })`
-        : `event.emit(${luaString(a.name)})`
-    case 'toggleLogicEvent':
-      return `_logic_on[${luaString(a.eventId)}] = ${a.enabled ? 'true' : 'false'}`
-    case 'applyImpulse':
-      return `physics.applyImpulse(${targetExpr(a.target)}, ${Number(a.ix) || 0}, ${Number(a.iy) || 0})`
-    case 'applyForce':
-      return `physics.applyForce(${targetExpr(a.target)}, ${Number(a.fx) || 0}, ${Number(a.fy) || 0})`
-    case 'setRotation':
-      return `entity.setRotation(${targetExpr(a.target)}, ${Number(a.angle) || 0})`
-    case 'setScale':
-      return `entity.setScale(${targetExpr(a.target)}, ${Number(a.scaleX) || 0}, ${Number(a.scaleY) || 0})`
-    case 'setVisible':
-      return `entity.setVisible(${targetExpr(a.target)}, ${a.visible ? 'true' : 'false'})`
-    case 'setColorTint': {
-      const m = /^#?([0-9a-fA-F]{6})$/.exec(a.hexColor || '')
-      const hex = m ? m[1] : 'ffffff'
-      const r = (parseInt(hex.slice(0, 2), 16) / 255).toFixed(4)
-      const g = (parseInt(hex.slice(2, 4), 16) / 255).toFixed(4)
-      const b = (parseInt(hex.slice(4, 6), 16) / 255).toFixed(4)
-      const al = a.alpha == null ? 1 : Number(a.alpha)
-      return `entity.setTint(${targetExpr(a.target)}, ${r}, ${g}, ${b}, ${al})`
-    }
-    case 'loadScene':
-      return a.fadeSeconds != null && a.fadeSeconds > 0
-        ? `scene.load(${luaString(a.sceneName)}, ${Number(a.fadeSeconds)})`
-        : `scene.load(${luaString(a.sceneName)})`
-    case 'restartScene':
-      return `scene.restart()`
-    case 'setCameraTarget':
-      return `camera.centerOn(${targetExpr(a.target)})`
-    case 'debugLog':
-      return `debug.log(${luaString(a.message)})`
-    case 'wait':
-      return `-- wait handled by emitActionSequence`
-    case 'moveByOffset':
-      return `grid.moveByOffset(${targetExpr(a.target)}, ${Number(a.dx) || 0}, ${Number(a.dy) || 0})`
-    case 'snapToGrid':
-      return `grid.snapToGrid(${targetExpr(a.target)}, ${Number(a.cellSize) || 32})`
-    case 'setEntityShader':
-      return `shaders.setEntity(${targetExpr(a.target)}, ${luaString(a.shader)})`
-    case 'setScreenShader':
-      return `shaders.setScreen(${luaString(a.shader)})`
-  }
 }
 
 // ---- code emission --------------------------------------------------------
@@ -461,14 +264,6 @@ function emitEventBody(ev: LogicEvent, board: LogicBoard, baseIndent: string): s
   return lines
 }
 
-function sensorSourceExpr(board: LogicBoard): string {
-  if (board.target.type === 'entity_class' && board.target.className)
-    return luaString(board.target.className)
-  if (board.target.type === 'entity_id' && board.target.entityId != null)
-    return String(board.target.entityId)
-  return luaString('*')
-}
-
 function emitEventRegistration(
   ev: LogicEvent,
   board: LogicBoard,
@@ -476,7 +271,8 @@ function emitEventRegistration(
 ): string[] | null {
   const trig = ev.trigger
   const I = INDENT
-  const pool = poolExpr(board)
+  const pool = poolExpr(board.target)
+  const source = sensorSourceExpr(board.target)
 
   if (trig.type === 'onSpawn') {
     const cls = boardLifecycleClass(board, ev, project)
@@ -503,7 +299,6 @@ function emitEventRegistration(
   }
 
   if (trig.type === 'onAnimationEnd') {
-    const source = sensorSourceExpr(board)
     const clip =
       trig.clipName && trig.clipName.length > 0
         ? luaString(trig.clipName)
@@ -531,7 +326,6 @@ function emitEventRegistration(
 
   if (trig.type === 'onTriggerEnter' || trig.type === 'onTriggerExit') {
     const hook = trig.type === 'onTriggerEnter' ? 'onEnter' : 'onExit'
-    const source = sensorSourceExpr(board)
     const target = trig.withClass ? luaString(trig.withClass) : luaString('*')
     return [
       `${I}sensor.${hook}(${source}, ${target}, function(entityId, otherId, tag)`,
@@ -555,16 +349,6 @@ function emitEventRegistration(
   }
 
   return null
-}
-
-function poolExpr(board: LogicBoard): string {
-  if (board.target.type === 'entity_class' && board.target.className) {
-    return `pool.getAll(${luaString(board.target.className)})`
-  }
-  if (board.target.type === 'entity_id' && board.target.entityId != null) {
-    return `{ ${board.target.entityId} }`
-  }
-  return `{}`
 }
 
 function docUsesTickFallback(
@@ -610,7 +394,7 @@ function emitBoard(
   })
   const tickEvents = enabled.filter((e) => usesTickFallback(e, board, project))
 
-  const pool = poolExpr(board)
+  const pool = poolExpr(board.target)
   const init: string[] = []
   const tick: string[] = []
 
