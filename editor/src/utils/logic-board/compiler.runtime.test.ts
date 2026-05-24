@@ -37,6 +37,7 @@ interface Harness {
     playSound: Array<{ path: string; vol: number; pitch: number }>
     playMusic: Array<{ path: string; loop: boolean }>
     stopAll: number
+    stopMusic: number
     log: string[]
   }
   inputPressedHandlers: Record<string, Array<() => void>>
@@ -59,6 +60,7 @@ function newHarness(pools: Record<string, number[]> = { Player: [1] }): Harness 
       playSound: [],
       playMusic: [],
       stopAll: 0,
+      stopMusic: 0,
       log: [],
     },
     inputPressedHandlers: {},
@@ -105,6 +107,9 @@ async function makeRunner(boards: LogicBoard[]) {
       h.calls.playMusic.push({ path, loop }),
     stopAll: () => {
       h.calls.stopAll++
+    },
+    stopMusic: () => {
+      h.calls.stopMusic++
     },
   })
   lua.global.set('object', {

@@ -105,6 +105,8 @@ export function defaultAction(type: LogicActionType): LogicAction {
       return { type: 'playMusic', path: '', loop: true }
     case 'stopAllAudio':
       return { type: 'stopAllAudio' }
+    case 'stopMusic':
+      return { type: 'stopMusic' }
     case 'destroyEntity':
       return { type: 'destroyEntity', target: 'self' }
     case 'spawnEntity':

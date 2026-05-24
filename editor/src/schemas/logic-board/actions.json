@@ -120,6 +120,13 @@
     "additionalProperties": false,
     "x-artcade": { "label": "Stop All Audio", "category": "Audio", "params": {} }
   },
+  "stopMusic": {
+    "type": "object",
+    "required": ["type"],
+    "properties": { "type": { "const": "stopMusic" } },
+    "additionalProperties": false,
+    "x-artcade": { "label": "Stop Music", "category": "Audio", "params": {} }
+  },
   "destroyEntity": {
     "type": "object",
     "required": ["type", "target"],

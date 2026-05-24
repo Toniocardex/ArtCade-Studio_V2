@@ -22,6 +22,8 @@ export function actionSummaryPlain(
       return `Play music "${a.path || '...'}"${a.loop ? ' (loop)' : ''}`
     case 'stopAllAudio':
       return 'Stop all sounds'
+    case 'stopMusic':
+      return 'Stop music'
     case 'destroyEntity':
       return `Destroy ${who}`
     case 'spawnEntity': {
