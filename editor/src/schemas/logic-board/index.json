@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "LogicBoardComponentIndex",
+  "triggers": [
+    "onStart", "onSpawn", "onUpdate", "onCollision", "onTriggerEnter", "onTriggerExit",
+    "onAnimationEnd", "onDestroy", "onInput", "onMouseInput", "onMessage", "onTimer"
+  ],
+  "actions": [
+    "setVariable", "addVariable", "setPosition", "setVelocity", "playSound", "playMusic",
+    "stopAllAudio", "destroyEntity", "spawnEntity", "setGlobalState", "emitEvent",
+    "toggleLogicEvent", "applyImpulse", "applyForce", "setRotation", "setScale",
+    "setVisible", "setColorTint", "loadScene", "restartScene", "setCameraTarget", "moveInDirection",
+    "moveController", "setMovementIntent", "clearMovementIntent", "requestPlatformerJump", "damageEntity", "healEntity",
+    "setEntityHealth",
+    "setLinearMoverDirection", "setLinearMoverSpeed", "pauseLinearMover", "resumeLinearMover",
+    "setMagnetEnabled", "setMagnetTargetTag", "setHordeTargetClass", "setHordeWeights",
+    "setAutoDestroyLifespan", "cancelAutoDestroy",
+    "moveByOffset", "snapToGrid", "setEntityShader", "setScreenShader", "debugLog", "wait"
+  ],
+  "conditions": [
+    "compareVariable", "compareClass", "isKeyDown", "hasTag", "compareDistance",
+    "isMouseOver", "raycastHit", "chance", "isSpaceFree", "compareHealth", "isPlatformerGrounded"
+  ]
+}

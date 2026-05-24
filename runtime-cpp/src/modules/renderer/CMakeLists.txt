@@ -1,0 +1,13 @@
+add_library(artcade-renderer
+    src/renderer.cpp
+    src/raylib-backend.cpp
+    src/texture-cache.cpp
+)
+target_include_directories(artcade-renderer
+    PUBLIC  include
+    PRIVATE src
+)
+target_link_libraries(artcade-renderer
+    PUBLIC  artcade-core
+    PRIVATE raylib
+)

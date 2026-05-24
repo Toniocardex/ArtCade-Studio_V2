@@ -1,0 +1,202 @@
+{
+  "compareVariable": {
+    "type": "object",
+    "required": ["type", "key", "operator", "value"],
+    "properties": {
+      "type": { "const": "compareVariable" },
+      "key": { "type": "string" },
+      "operator": { "enum": ["==", "!=", "<", "<=", ">", ">="] },
+      "value": { "oneOf": [{ "type": "number" }, { "type": "string" }] }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Compare Variable",
+      "category": "State",
+      "params": {
+        "key": { "widget": "string", "label": "Key" },
+        "operator": { "widget": "enum", "label": "Op", "options": ["==", "!=", "<", "<=", ">", ">="] },
+        "value": { "widget": "string", "label": "Value" }
+      }
+    }
+  },
+  "compareClass": {
+    "type": "object",
+    "required": ["type", "className"],
+    "properties": {
+      "type": { "const": "compareClass" },
+      "className": { "type": "string" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Compare Class",
+      "category": "Physics",
+      "params": { "className": { "widget": "className", "label": "Object type" } }
+    }
+  },
+  "isKeyDown": {
+    "type": "object",
+    "required": ["type", "keyCode"],
+    "properties": {
+      "type": { "const": "isKeyDown" },
+      "keyCode": { "type": "string" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Is Key Down",
+      "category": "Input",
+      "params": { "keyCode": { "widget": "keyCapture", "label": "Key", "placeholder": "Press key…" } }
+    }
+  },
+  "hasTag": {
+    "type": "object",
+    "required": ["type", "tag"],
+    "properties": {
+      "type": { "const": "hasTag" },
+      "tag": { "type": "string" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Has Tag",
+      "category": "Entities",
+      "params": { "tag": { "widget": "string", "label": "Tag", "placeholder": "enemy" } }
+    }
+  },
+  "compareDistance": {
+    "type": "object",
+    "required": ["type", "target", "operator", "value"],
+    "properties": {
+      "type": { "const": "compareDistance" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "operator": { "enum": ["==", "!=", "<", "<=", ">", ">="] },
+      "value": { "type": "number" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Compare Distance",
+      "category": "Physics",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "operator": { "widget": "enum", "label": "Op", "options": ["==", "!=", "<", "<=", ">", ">="] },
+        "value": { "widget": "number", "label": "Distance" }
+      }
+    }
+  },
+  "isMouseOver": {
+    "type": "object",
+    "required": ["type"],
+    "properties": {
+      "type": { "const": "isMouseOver" },
+      "radius": { "type": "number" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Is Mouse Over",
+      "category": "Input",
+      "params": { "radius": { "widget": "number", "label": "Radius" } }
+    }
+  },
+  "raycastHit": {
+    "type": "object",
+    "required": ["type", "dirX", "dirY", "length"],
+    "properties": {
+      "type": { "const": "raycastHit" },
+      "dirX": { "type": "number" },
+      "dirY": { "type": "number" },
+      "length": { "type": "number" },
+      "className": { "type": "string" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Raycast Hit",
+      "category": "Physics",
+      "params": {
+        "dirX": { "widget": "number", "label": "Dir X" },
+        "dirY": { "widget": "number", "label": "Dir Y" },
+        "length": { "widget": "number", "label": "Length" },
+        "className": { "widget": "className", "label": "Object type (optional)" }
+      }
+    }
+  },
+  "chance": {
+    "type": "object",
+    "required": ["type", "percent"],
+    "properties": {
+      "type": { "const": "chance" },
+      "percent": { "type": "number" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Chance",
+      "category": "State",
+      "params": { "percent": { "widget": "number", "label": "Percent" } }
+    }
+  },
+  "isSpaceFree": {
+    "type": "object",
+    "required": ["type", "x", "y", "w", "h"],
+    "properties": {
+      "type": { "const": "isSpaceFree" },
+      "x": { "type": "number" },
+      "y": { "type": "number" },
+      "w": { "type": "number" },
+      "h": { "type": "number" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Is Space Free",
+      "category": "Physics",
+      "params": {
+        "x": { "widget": "number", "label": "X" },
+        "y": { "widget": "number", "label": "Y" },
+        "w": { "widget": "number", "label": "W" },
+        "h": { "widget": "number", "label": "H" }
+      }
+    }
+  },
+  "compareHealth": {
+    "type": "object",
+    "required": ["type", "target", "field", "operator", "value"],
+    "properties": {
+      "type": { "const": "compareHealth" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "field": { "enum": ["current", "max"] },
+      "operator": { "enum": ["==", "!=", "<", "<=", ">", ">="] },
+      "value": { "type": "number" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Compare Health",
+      "category": "Component APIs",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "field": {
+          "widget": "enum",
+          "label": "Field",
+          "options": ["current", "max"]
+        },
+        "operator": {
+          "widget": "enum",
+          "label": "Operator",
+          "options": ["==", "!=", "<", "<=", ">", ">="]
+        },
+        "value": { "widget": "number", "label": "Value" }
+      }
+    }
+  },
+  "isPlatformerGrounded": {
+    "type": "object",
+    "required": ["type", "target"],
+    "properties": {
+      "type": { "const": "isPlatformerGrounded" },
+      "target": { "$ref": "./target-selector.schema.json" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Platformer Grounded",
+      "category": "Component APIs",
+      "params": {
+        "target": { "widget": "target", "label": "Target" }
+      }
+    }
+  }
+}

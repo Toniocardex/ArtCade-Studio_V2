@@ -1,0 +1,24 @@
+{
+  "name": "artcade-v2",
+  "version": "2.0.0",
+  "description": "ArtCade V2: Dual-runtime 2D game engine (C++ native + WebAssembly)",
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "workspaces": [
+    "editor"
+  ],
+  "scripts": {
+    "setup:runtime-libs": "powershell -ExecutionPolicy Bypass -File scripts\\bootstrap-runtime-libs.ps1",
+    "verify": "npm run build && npm run build:cpp && npm run build:wasm",
+    "dev": "cd editor && npm run dev",
+    "build": "cd editor && npm run build",
+    "tauri:dev": "cmd /c call scripts\\tauri-dev.bat",
+    "tauri:build": "cd editor && npm run tauri:build",
+    "build:cpp": "cmd /c call runtime-cpp\\build_native.bat --config Release",
+    "build:wasm": "cmd /c call runtime-cpp\\build_wasm.bat",
+    "clean": "cmd /c call scripts\\clean-builds.bat"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}

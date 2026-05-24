@@ -1,0 +1,462 @@
+#include "../include/editor-api.h"
+
+// =============================================================================
+// Native build: static member definitions only (all methods are no-ops in .h)
+// =============================================================================
+#ifndef __EMSCRIPTEN__
+
+namespace ArtCade {
+int      EditorAPI::s_mode             = 0;
+uint32_t EditorAPI::s_selectedEntityId = 0u;
+bool     EditorAPI::s_isDragging       = false;
+float    EditorAPI::s_dragStartX       = 0.f;
+float    EditorAPI::s_dragStartY       = 0.f;
+bool     EditorAPI::s_tilePaintMode    = false;
+int      EditorAPI::s_selectedTileId   = 1;
+int      EditorAPI::s_editorTool       = 0;
+bool     EditorAPI::s_editorGuidesEnabled = true;
+float    EditorAPI::s_editorGridSize   = 32.f;
+Modules::RuntimeEntityGateway* EditorAPI::s_entityGateway = nullptr;
+Modules::LuaHost*              EditorAPI::s_luaHost       = nullptr;
+Modules::Renderer*             EditorAPI::s_renderer      = nullptr;
+EditorProjectLoadedHandler     EditorAPI::s_onProjectLoaded{};
+EditorPreviewRestoreHandler    EditorAPI::s_onPreviewRestore{};
+std::vector<std::pair<std::string, std::string>> EditorAPI::s_consoleQueue;
+
+} // namespace ArtCade
+
+#else // __EMSCRIPTEN__ ─────────────────────────────────────────────────────────
+
+// =============================================================================
+// WASM implementation
+//
+// Phase 5 split (docs/TECHNICAL_DEBT_REVIEW.md): this translation unit now
+// only owns the static state, wiring, notifications and the
+// EMSCRIPTEN_KEEPALIVE exports.
+//
+//  • editor-input-controller.cpp owns the native mouse + tile painting code
+//    (paintTileAt / pickEntityAt / on{Mouse,Key}* callbacks).
+//  • project-doc-parser.cpp turns the JSON blob from editor_load_project()
+//    into EntityDef / SceneDef / TilesetAsset.
+// =============================================================================
+
+// editor-api intentionally does NOT include app.h. Project-loaded behaviour
+// is delivered through a callback registered by Application via
+// setProjectLoadedHandler(). Keeping this TU free of app.h removes a major
+// circular dependency hazard and unblocks future module splits.
+#include "../../../modules/runtime-entity-gateway/include/runtime-entity-gateway.h"
+#include "../../../modules/lua-runtime/include/lua-host.h"
+#include "../../../modules/renderer/include/renderer.h"
+#include "../../../core/types.h"
+
+#include "editor-input-controller.h"
+#include "project-doc-parser.h"
+
+#include <nlohmann/json.hpp>
+
+#include <cstdio>
+#include <string>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
+using json = nlohmann::json;
+
+namespace ArtCade {
+
+// ── Static state ──────────────────────────────────────────────────────────────
+int      EditorAPI::s_mode             = 0;
+uint32_t EditorAPI::s_selectedEntityId = 0u;
+bool     EditorAPI::s_isDragging       = false;
+float    EditorAPI::s_dragStartX       = 0.f;
+float    EditorAPI::s_dragStartY       = 0.f;
+bool     EditorAPI::s_tilePaintMode    = false;
+int      EditorAPI::s_selectedTileId   = 1;
+int      EditorAPI::s_editorTool       = 0;
+bool     EditorAPI::s_editorGuidesEnabled = true;
+float    EditorAPI::s_editorGridSize   = 32.f;
+
+Modules::RuntimeEntityGateway* EditorAPI::s_entityGateway = nullptr;
+Modules::LuaHost*              EditorAPI::s_luaHost       = nullptr;
+Modules::Renderer*             EditorAPI::s_renderer      = nullptr;
+EditorProjectLoadedHandler     EditorAPI::s_onProjectLoaded{};
+EditorPreviewRestoreHandler    EditorAPI::s_onPreviewRestore{};
+std::vector<std::pair<std::string, std::string>> EditorAPI::s_consoleQueue;
+
+namespace {
+
+// Tool ids accepted by editor_set_tool(); kept in this TU to validate
+// incoming values without exposing the enum from the input controller.
+constexpr int kToolSelect = 0;
+constexpr int kToolErase  = 3;
+
+bool isPaintTool(int tool) { return tool == 2 /*paint*/ || tool == 3 /*erase*/; }
+
+} // namespace
+
+// ── Engine wiring ─────────────────────────────────────────────────────────────
+void EditorAPI::wireEngine(Modules::RuntimeEntityGateway* gateway) {
+    s_entityGateway = gateway;
+    if (gateway) {
+        gateway->setSpawnLogCallback([](const std::string& msg) {
+            EditorAPI::queueConsoleLine(msg.c_str(), "info");
+        });
+    }
+    notifyConsoleLine("[EditorAPI] Engine wired to RuntimeEntityGateway.", "info");
+}
+
+void EditorAPI::wireLua(Modules::LuaHost* luaHost) {
+    s_luaHost = luaHost;
+    notifyConsoleLine("[EditorAPI] Engine wired to LuaHost (hot-reload ready).", "info");
+}
+
+void EditorAPI::wireRenderer(Modules::Renderer* renderer) {
+    s_renderer = renderer;
+    notifyConsoleLine("[EditorAPI] Engine wired to Renderer (image upload ready).", "info");
+}
+
+void EditorAPI::setProjectLoadedHandler(EditorProjectLoadedHandler handler) {
+    s_onProjectLoaded = std::move(handler);
+}
+
+void EditorAPI::setPreviewRestoreHandler(EditorPreviewRestoreHandler handler) {
+    s_onPreviewRestore = std::move(handler);
+}
+
+// ── Init / Shutdown ───────────────────────────────────────────────────────────
+void EditorAPI::init(const char* canvasSelector) {
+    EditorInputController::initCanvas(canvasSelector);
+    notifyConsoleLine("[EditorAPI] Bridge initialised -- native input active.", "info");
+}
+
+void EditorAPI::shutdown() {
+    EditorInputController::shutdownCanvas();
+}
+
+// ── C++ -> React notifications ────────────────────────────────────────────────
+// EM_ASM calls window.on* globals that wasm-bridge.ts sets BEFORE game.js loads.
+
+void EditorAPI::notifyEntitySelected(uint32_t entityId) {
+    EM_ASM({
+        if (typeof window.onEntitySelected === 'function')
+            window.onEntitySelected($0);
+    }, static_cast<int>(entityId));
+}
+
+void EditorAPI::notifyTransformChanged(uint32_t entityId,
+    float x, float y, float rotation, float scaleX, float scaleY)
+{
+    EM_ASM({
+        if (typeof window.onEntityTransformChanged === 'function')
+            window.onEntityTransformChanged($0, $1, $2, $3, $4, $5);
+    }, static_cast<int>(entityId), x, y, rotation, scaleX, scaleY);
+}
+
+void EditorAPI::notifyConsoleLine(const char* message, const char* level) {
+    EM_ASM({
+        var msg = UTF8ToString($0);
+        var lvl = UTF8ToString($1);
+        if (typeof window.onConsoleLine === 'function')
+            window.onConsoleLine(msg, lvl);
+    }, message, level);
+}
+
+void EditorAPI::notifyTilemapPainted(int col, int row, int tileId) {
+    EM_ASM({
+        if (typeof window.onTilemapPainted === 'function')
+            window.onTilemapPainted($0, $1, $2);
+    }, col, row, tileId);
+}
+
+void EditorAPI::queueConsoleLine(const char* message, const char* level) {
+    s_consoleQueue.emplace_back(message ? message : "", level ? level : "info");
+}
+
+void EditorAPI::flushConsoleLines() {
+    for (const auto& [message, level] : s_consoleQueue)
+        notifyConsoleLine(message.c_str(), level.c_str());
+    s_consoleQueue.clear();
+}
+
+} // namespace ArtCade
+
+// =============================================================================
+// React -> C++ exported commands
+// =============================================================================
+
+extern "C" {
+
+EMSCRIPTEN_KEEPALIVE void editor_set_mode(int mode) {
+    ArtCade::EditorAPI::s_mode = mode;
+    if (auto* gw = ArtCade::EditorAPI::s_entityGateway) {
+        if (mode == 1) gw->applyDesignVisibilityForPlay();
+        else           gw->restoreDesignVisibilityForEdit();
+    }
+    ArtCade::EditorAPI::notifyConsoleLine(
+        mode == 0 ? "[EditorAPI] Mode: EDIT" : "[EditorAPI] Mode: PLAY", "info");
+}
+
+EMSCRIPTEN_KEEPALIVE void editor_select_entity(uint32_t entityId) {
+    ArtCade::EditorAPI::s_selectedEntityId = entityId;
+}
+
+EMSCRIPTEN_KEEPALIVE void editor_set_tile_paint_mode(int enabled) {
+    ArtCade::EditorAPI::s_tilePaintMode = (enabled != 0);
+}
+
+EMSCRIPTEN_KEEPALIVE void editor_set_selected_tile(int tileId) {
+    ArtCade::EditorAPI::s_selectedTileId = tileId;
+}
+
+EMSCRIPTEN_KEEPALIVE void editor_set_tool(int toolId) {
+    if (toolId < ArtCade::kToolSelect || toolId > ArtCade::kToolErase)
+        toolId = ArtCade::kToolSelect;
+    ArtCade::EditorAPI::s_editorTool = toolId;
+    ArtCade::EditorAPI::s_tilePaintMode = ArtCade::isPaintTool(toolId);
+}
+
+EMSCRIPTEN_KEEPALIVE void editor_set_guides_enabled(int enabled) {
+    ArtCade::EditorAPI::s_editorGuidesEnabled = (enabled != 0);
+}
+
+EMSCRIPTEN_KEEPALIVE void editor_set_grid_size(float tileSize) {
+    ArtCade::EditorAPI::s_editorGridSize = tileSize >= 4.f ? tileSize : 32.f;
+}
+
+EMSCRIPTEN_KEEPALIVE void editor_register_image(
+    const char* path, const uint8_t* bytes, int len, const char* ext) {
+    if (!path || !*path || !bytes || len <= 0) {
+        ArtCade::EditorAPI::notifyConsoleLine(
+            "[EditorAPI] editor_register_image: invalid arguments.", "warn");
+        return;
+    }
+    auto* r = ArtCade::EditorAPI::s_renderer;
+    if (!r) {
+        ArtCade::EditorAPI::notifyConsoleLine(
+            "[EditorAPI] editor_register_image: Renderer not wired yet.", "warn");
+        return;
+    }
+    const std::string fileExt = (ext && *ext) ? ext : ".png";
+    const bool ok = r->registerImageFromMemory(
+        path, reinterpret_cast<const unsigned char*>(bytes), len, fileExt);
+    if (ok) {
+        std::string msg = "[EditorAPI] Tileset image uploaded: ";
+        msg += path;
+        ArtCade::EditorAPI::notifyConsoleLine(msg.c_str(), "info");
+    } else {
+        std::string msg = "[EditorAPI] Failed to decode image: ";
+        msg += path;
+        ArtCade::EditorAPI::notifyConsoleLine(msg.c_str(), "error");
+    }
+}
+
+EMSCRIPTEN_KEEPALIVE void editor_deselect() {
+    ArtCade::EditorAPI::s_selectedEntityId = 0u;
+}
+
+namespace {
+
+enum class ProjectLoadKind { HotSync, PreviewRestore };
+
+void loadProjectFromJson(const char* json_utf8, ProjectLoadKind kind) {
+    const char* apiName = kind == ProjectLoadKind::HotSync
+        ? "editor_load_project"
+        : "editor_restore_from_project";
+
+    if (!json_utf8 || !*json_utf8) {
+        std::string msg = std::string("[EditorAPI] ") + apiName + ": empty JSON.";
+        ArtCade::EditorAPI::notifyConsoleLine(msg.c_str(), "warn");
+        return;
+    }
+    auto* gateway = ArtCade::EditorAPI::s_entityGateway;
+    if (!gateway) {
+        std::string msg = std::string("[EditorAPI] ") + apiName + ": engine not wired yet.";
+        ArtCade::EditorAPI::notifyConsoleLine(msg.c_str(), "warn");
+        return;
+    }
+
+    namespace Parser = ArtCade::ProjectDocParser;
+
+    try {
+        const json doc = json::parse(json_utf8);
+
+        auto entityDefs  = Parser::parseEntities(doc);
+        auto sceneDefs   = Parser::parseScenes(doc);
+        auto tilesets    = Parser::parseTilesets(doc);
+        auto tilePalette = Parser::parseTilePalette(doc);
+
+        std::string activeId = doc.value("activeSceneId",
+                               doc.value("active_scene_id", std::string{}));
+        if (activeId.empty() && !sceneDefs.empty())
+            activeId = sceneDefs.begin()->first;
+
+        gateway->replaceProject(sceneDefs, entityDefs, activeId);
+        gateway->setTilesets(tilesets);
+
+        if (kind == ProjectLoadKind::HotSync) {
+            if (ArtCade::EditorAPI::s_onProjectLoaded)
+                ArtCade::EditorAPI::s_onProjectLoaded(tilePalette, tilesets);
+        } else if (ArtCade::EditorAPI::s_onPreviewRestore) {
+            ArtCade::EditorAPI::s_onPreviewRestore(tilePalette, tilesets);
+        }
+
+        char buf[128];
+        if (kind == ProjectLoadKind::HotSync) {
+            std::snprintf(buf, sizeof(buf),
+                "[EditorAPI] Project loaded: %zu entities, %zu scenes.",
+                entityDefs.size(), sceneDefs.size());
+        } else {
+            std::snprintf(buf, sizeof(buf),
+                "[EditorAPI] Preview restored: %zu entities, %zu scenes.",
+                entityDefs.size(), sceneDefs.size());
+        }
+        ArtCade::EditorAPI::notifyConsoleLine(buf, "info");
+
+    } catch (const std::exception& ex) {
+        char buf[256];
+        std::snprintf(buf, sizeof(buf), "[EditorAPI] JSON parse error: %s", ex.what());
+        ArtCade::EditorAPI::notifyConsoleLine(buf, "error");
+    }
+}
+
+} // namespace
+
+EMSCRIPTEN_KEEPALIVE void editor_load_project(const char* json_utf8) {
+    loadProjectFromJson(json_utf8, ProjectLoadKind::HotSync);
+}
+
+EMSCRIPTEN_KEEPALIVE void editor_restore_from_project(const char* json_utf8) {
+    loadProjectFromJson(json_utf8, ProjectLoadKind::PreviewRestore);
+}
+
+EMSCRIPTEN_KEEPALIVE void editor_set_transform(
+    uint32_t entityId,
+    float x,      float y,
+    float rotation,
+    float scaleX, float scaleY)
+{
+    auto* gateway = ArtCade::EditorAPI::s_entityGateway;
+    if (!gateway) return;
+    if (!gateway->setTransform(entityId, {x, y}, rotation, {scaleX, scaleY})) return;
+    ArtCade::EditorAPI::notifyTransformChanged(entityId, x, y, rotation, scaleX, scaleY);
+}
+
+EMSCRIPTEN_KEEPALIVE void editor_update_entity(
+    uint32_t entityId, const char* json_utf8)
+{
+    if (!json_utf8 || !*json_utf8) {
+        ArtCade::EditorAPI::notifyConsoleLine(
+            "[EditorAPI] editor_update_entity: empty JSON.", "warn");
+        return;
+    }
+    auto* gateway = ArtCade::EditorAPI::s_entityGateway;
+    if (!gateway) {
+        ArtCade::EditorAPI::notifyConsoleLine(
+            "[EditorAPI] editor_update_entity: engine not wired yet.", "warn");
+        return;
+    }
+
+    try {
+        const json doc = json::parse(json_utf8);
+        namespace Parser = ArtCade::ProjectDocParser;
+        auto def = Parser::parseEntityDef(doc, entityId);
+        def.id = entityId;
+
+        if (!gateway->updateEntity(entityId, def)) {
+            char buf[96];
+            std::snprintf(buf, sizeof(buf),
+                "[EditorAPI] editor_update_entity: unknown entity #%u.", entityId);
+            ArtCade::EditorAPI::notifyConsoleLine(buf, "warn");
+            return;
+        }
+
+        char buf[96];
+        std::snprintf(buf, sizeof(buf),
+            "[EditorAPI] Entity #%u updated incrementally.", entityId);
+        ArtCade::EditorAPI::notifyConsoleLine(buf, "info");
+    } catch (const std::exception& ex) {
+        char buf[256];
+        std::snprintf(buf, sizeof(buf),
+            "[EditorAPI] editor_update_entity parse error: %s", ex.what());
+        ArtCade::EditorAPI::notifyConsoleLine(buf, "error");
+    }
+}
+
+EMSCRIPTEN_KEEPALIVE void editor_set_scene_settings(
+    const char* sceneId, const char* json_utf8)
+{
+    if (!sceneId || !*sceneId || !json_utf8 || !*json_utf8) {
+        ArtCade::EditorAPI::notifyConsoleLine(
+            "[EditorAPI] editor_set_scene_settings: invalid arguments.", "warn");
+        return;
+    }
+    auto* gateway = ArtCade::EditorAPI::s_entityGateway;
+    if (!gateway) {
+        ArtCade::EditorAPI::notifyConsoleLine(
+            "[EditorAPI] editor_set_scene_settings: engine not wired yet.", "warn");
+        return;
+    }
+
+    try {
+        const json doc = json::parse(json_utf8);
+        namespace Parser = ArtCade::ProjectDocParser;
+        auto patch = Parser::parseSceneDef(doc, sceneId);
+
+        if (!gateway->updateSceneSettings(sceneId, patch)) {
+            std::string msg = "[EditorAPI] editor_set_scene_settings: unknown scene ";
+            msg += sceneId;
+            ArtCade::EditorAPI::notifyConsoleLine(msg.c_str(), "warn");
+            return;
+        }
+
+        if (gateway->activeSceneId() == sceneId) {
+            if (auto* r = ArtCade::EditorAPI::s_renderer) {
+                if (const ArtCade::SceneDef* sc = gateway->activeScene()) {
+                    if (sc->worldSize.x > 0.f && sc->worldSize.y > 0.f) {
+                        r->setWindowSize(
+                            static_cast<uint32_t>(sc->worldSize.x),
+                            static_cast<uint32_t>(sc->worldSize.y),
+                            "ArtCade V2");
+                    }
+                    r->setSceneViewport(sc->worldSize, sc->worldSize);
+                }
+            }
+        }
+
+        std::string msg = "[EditorAPI] Scene settings patched: ";
+        msg += sceneId;
+        ArtCade::EditorAPI::notifyConsoleLine(msg.c_str(), "info");
+    } catch (const std::exception& ex) {
+        char buf[256];
+        std::snprintf(buf, sizeof(buf),
+            "[EditorAPI] editor_set_scene_settings parse error: %s", ex.what());
+        ArtCade::EditorAPI::notifyConsoleLine(buf, "error");
+    }
+}
+
+EMSCRIPTEN_KEEPALIVE void editor_reload_script(const char* lua_utf8) {
+    if (!lua_utf8 || !*lua_utf8) {
+        ArtCade::EditorAPI::notifyConsoleLine(
+            "[EditorAPI] editor_reload_script: empty source.", "warn");
+        return;
+    }
+    auto* host = ArtCade::EditorAPI::s_luaHost;
+    if (!host) {
+        ArtCade::EditorAPI::notifyConsoleLine(
+            "[EditorAPI] editor_reload_script: LuaHost not wired yet.", "warn");
+        return;
+    }
+
+    if (host->loadLuaSource(lua_utf8)) {
+        ArtCade::EditorAPI::notifyConsoleLine(
+            "[EditorAPI] Logic Board hot-reloaded.", "info");
+    } else {
+        std::string msg =
+            "[EditorAPI] Hot-reload failed: " + host->lastError();
+        ArtCade::EditorAPI::notifyConsoleLine(msg.c_str(), "error");
+    }
+}
+
+} // extern "C"
+
+#endif // __EMSCRIPTEN__

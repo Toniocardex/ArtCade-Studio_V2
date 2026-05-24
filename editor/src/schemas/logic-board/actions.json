@@ -1,0 +1,822 @@
+{
+  "setVariable": {
+    "type": "object",
+    "required": ["type", "key", "value"],
+    "properties": {
+      "type": { "const": "setVariable" },
+      "key": { "type": "string" },
+      "value": { "oneOf": [{ "type": "number" }, { "type": "string" }, { "type": "boolean" }] }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Set Variable",
+      "category": "State",
+      "params": {
+        "key": { "widget": "string", "label": "Key" },
+        "value": { "widget": "string", "label": "Value" }
+      }
+    }
+  },
+  "addVariable": {
+    "type": "object",
+    "required": ["type", "key", "amount"],
+    "properties": {
+      "type": { "const": "addVariable" },
+      "key": { "type": "string" },
+      "amount": { "type": "number" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Add Variable",
+      "category": "State",
+      "params": {
+        "key": { "widget": "string", "label": "Key" },
+        "amount": { "widget": "number", "label": "Amount" }
+      }
+    }
+  },
+  "setPosition": {
+    "type": "object",
+    "required": ["type", "target", "x", "y"],
+    "properties": {
+      "type": { "const": "setPosition" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "x": { "type": "number" },
+      "y": { "type": "number" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Set Position",
+      "category": "Physics",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "x": { "widget": "number", "label": "X" },
+        "y": { "widget": "number", "label": "Y" }
+      }
+    }
+  },
+  "setVelocity": {
+    "type": "object",
+    "required": ["type", "target", "vx", "vy"],
+    "properties": {
+      "type": { "const": "setVelocity" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "vx": { "type": "number" },
+      "vy": { "type": "number" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Set Velocity",
+      "category": "Physics",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "vx": { "widget": "number", "label": "VX" },
+        "vy": { "widget": "number", "label": "VY" }
+      }
+    }
+  },
+  "playSound": {
+    "type": "object",
+    "required": ["type", "path"],
+    "properties": {
+      "type": { "const": "playSound" },
+      "path": { "type": "string" },
+      "volume": { "type": "number" },
+      "pitch": { "type": "number" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Play Sound",
+      "category": "Audio",
+      "params": {
+        "path": { "widget": "string", "label": "Path", "placeholder": "sfx/coin.ogg" },
+        "volume": { "widget": "number", "label": "Volume" },
+        "pitch": { "widget": "number", "label": "Pitch" }
+      }
+    }
+  },
+  "playMusic": {
+    "type": "object",
+    "required": ["type", "path"],
+    "properties": {
+      "type": { "const": "playMusic" },
+      "path": { "type": "string" },
+      "loop": { "type": "boolean" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Play Music",
+      "category": "Audio",
+      "params": {
+        "path": { "widget": "string", "label": "Path" },
+        "loop": { "widget": "boolean", "label": "Loop" }
+      }
+    }
+  },
+  "stopAllAudio": {
+    "type": "object",
+    "required": ["type"],
+    "properties": { "type": { "const": "stopAllAudio" } },
+    "additionalProperties": false,
+    "x-artcade": { "label": "Stop All Audio", "category": "Audio", "params": {} }
+  },
+  "destroyEntity": {
+    "type": "object",
+    "required": ["type", "target"],
+    "properties": {
+      "type": { "const": "destroyEntity" },
+      "target": { "$ref": "./target-selector.schema.json" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Destroy Entity",
+      "category": "Entities",
+      "params": { "target": { "widget": "target", "label": "Target" } }
+    }
+  },
+  "spawnEntity": {
+    "type": "object",
+    "required": ["type", "className"],
+    "properties": {
+      "type": { "const": "spawnEntity" },
+      "className": { "type": "string" },
+      "x": { "type": "number" },
+      "y": { "type": "number" },
+      "inheritFlip": { "type": "boolean" },
+      "imagePoint": { "type": "string" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Spawn Entity",
+      "category": "Entities",
+      "params": {
+        "className": { "widget": "className", "label": "What to create" },
+        "x": { "widget": "number", "label": "X" },
+        "y": { "widget": "number", "label": "Y" },
+        "inheritFlip": { "widget": "boolean", "label": "Inherit flip" },
+        "imagePoint": { "widget": "string", "label": "Image point", "placeholder": "Muzzle" }
+      }
+    }
+  },
+  "moveInDirection": {
+    "type": "object",
+    "required": ["type", "target", "direction", "speed"],
+    "properties": {
+      "type": { "const": "moveInDirection" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "direction": {
+        "enum": ["up", "down", "left", "right", "forward", "backward"]
+      },
+      "speed": { "type": "number" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Move In Direction",
+      "category": "Physics",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "direction": {
+          "widget": "enum",
+          "label": "Direction",
+          "options": ["up", "down", "left", "right", "forward", "backward"]
+        },
+        "speed": { "widget": "number", "label": "Speed" }
+      }
+    }
+  },
+  "moveController": {
+    "type": "object",
+    "required": ["type", "target", "direction"],
+    "properties": {
+      "type": { "const": "moveController" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "direction": { "enum": ["left", "right", "up", "down", "stop"] }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Move Controller",
+      "category": "Component APIs",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "direction": {
+          "widget": "enum",
+          "label": "Direction",
+          "options": ["left", "right", "up", "down", "stop"]
+        }
+      }
+    }
+  },
+  "setMovementIntent": {
+    "type": "object",
+    "required": ["type", "target", "directionX", "directionY"],
+    "properties": {
+      "type": { "const": "setMovementIntent" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "directionX": { "type": "number" },
+      "directionY": { "type": "number" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Set Movement Intent",
+      "category": "Component APIs",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "directionX": { "widget": "number", "label": "Direction X" },
+        "directionY": { "widget": "number", "label": "Direction Y" }
+      }
+    }
+  },
+  "clearMovementIntent": {
+    "type": "object",
+    "required": ["type", "target"],
+    "properties": {
+      "type": { "const": "clearMovementIntent" },
+      "target": { "$ref": "./target-selector.schema.json" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Stop Movement",
+      "category": "Component APIs",
+      "params": {
+        "target": { "widget": "target", "label": "Target" }
+      }
+    }
+  },
+  "requestPlatformerJump": {
+    "type": "object",
+    "required": ["type", "target"],
+    "properties": {
+      "type": { "const": "requestPlatformerJump" },
+      "target": { "$ref": "./target-selector.schema.json" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Platformer Jump",
+      "category": "Component APIs",
+      "params": {
+        "target": { "widget": "target", "label": "Target" }
+      }
+    }
+  },
+  "damageEntity": {
+    "type": "object",
+    "required": ["type", "target", "amount"],
+    "properties": {
+      "type": { "const": "damageEntity" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "amount": { "type": "number" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Damage Entity",
+      "category": "Component APIs",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "amount": { "widget": "number", "label": "Amount" }
+      }
+    }
+  },
+  "healEntity": {
+    "type": "object",
+    "required": ["type", "target", "amount"],
+    "properties": {
+      "type": { "const": "healEntity" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "amount": { "type": "number" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Heal Entity",
+      "category": "Component APIs",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "amount": { "widget": "number", "label": "Amount" }
+      }
+    }
+  },
+  "setEntityHealth": {
+    "type": "object",
+    "required": ["type", "target", "currentHp"],
+    "properties": {
+      "type": { "const": "setEntityHealth" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "currentHp": { "type": "number" },
+      "maxHp": { "type": "number" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Set Health",
+      "category": "Component APIs",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "currentHp": { "widget": "number", "label": "Current HP" },
+        "maxHp": { "widget": "number", "label": "Max HP" }
+      }
+    }
+  },
+  "setGlobalState": {
+    "type": "object",
+    "required": ["type", "key", "value"],
+    "properties": {
+      "type": { "const": "setGlobalState" },
+      "key": { "type": "string" },
+      "value": { "oneOf": [{ "type": "number" }, { "type": "string" }, { "type": "boolean" }] }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Set Global State",
+      "category": "State",
+      "params": {
+        "key": { "widget": "string", "label": "Key" },
+        "value": { "widget": "string", "label": "Value" }
+      }
+    }
+  },
+  "emitEvent": {
+    "type": "object",
+    "required": ["type", "name"],
+    "properties": {
+      "type": { "const": "emitEvent" },
+      "name": { "type": "string" },
+      "payloadKey": { "type": "string" },
+      "payloadValue": { "oneOf": [{ "type": "number" }, { "type": "string" }, { "type": "boolean" }] }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Emit Event",
+      "category": "Messaging",
+      "params": {
+        "name": { "widget": "string", "label": "Name" },
+        "payloadKey": { "widget": "string", "label": "Payload key" },
+        "payloadValue": { "widget": "string", "label": "Payload value" }
+      }
+    }
+  },
+  "toggleLogicEvent": {
+    "type": "object",
+    "required": ["type", "eventId", "enabled"],
+    "properties": {
+      "type": { "const": "toggleLogicEvent" },
+      "eventId": { "type": "string" },
+      "enabled": { "type": "boolean" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Toggle Logic Event",
+      "category": "System",
+      "params": {
+        "eventId": { "widget": "string", "label": "Event id" },
+        "enabled": { "widget": "boolean", "label": "Enabled" }
+      }
+    }
+  },
+  "applyImpulse": {
+    "type": "object",
+    "required": ["type", "target", "ix", "iy"],
+    "properties": {
+      "type": { "const": "applyImpulse" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "ix": { "type": "number" },
+      "iy": { "type": "number" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Apply Impulse",
+      "category": "Physics",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "ix": { "widget": "number", "label": "IX" },
+        "iy": { "widget": "number", "label": "IY" }
+      }
+    }
+  },
+  "applyForce": {
+    "type": "object",
+    "required": ["type", "target", "fx", "fy"],
+    "properties": {
+      "type": { "const": "applyForce" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "fx": { "type": "number" },
+      "fy": { "type": "number" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Apply Force",
+      "category": "Physics",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "fx": { "widget": "number", "label": "FX" },
+        "fy": { "widget": "number", "label": "FY" }
+      }
+    }
+  },
+  "setRotation": {
+    "type": "object",
+    "required": ["type", "target", "angle"],
+    "properties": {
+      "type": { "const": "setRotation" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "angle": { "type": "number" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Set Rotation",
+      "category": "Physics",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "angle": { "widget": "number", "label": "Angle" }
+      }
+    }
+  },
+  "setScale": {
+    "type": "object",
+    "required": ["type", "target", "scaleX", "scaleY"],
+    "properties": {
+      "type": { "const": "setScale" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "scaleX": { "type": "number" },
+      "scaleY": { "type": "number" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Set Scale",
+      "category": "Physics",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "scaleX": { "widget": "number", "label": "Scale X" },
+        "scaleY": { "widget": "number", "label": "Scale Y" }
+      }
+    }
+  },
+  "setVisible": {
+    "type": "object",
+    "required": ["type", "target", "visible"],
+    "properties": {
+      "type": { "const": "setVisible" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "visible": { "type": "boolean" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Set Visible",
+      "category": "Graphics",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "visible": { "widget": "boolean", "label": "Visible" }
+      }
+    }
+  },
+  "setColorTint": {
+    "type": "object",
+    "required": ["type", "target", "hexColor"],
+    "properties": {
+      "type": { "const": "setColorTint" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "hexColor": { "type": "string" },
+      "alpha": { "type": "number" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Set Color Tint",
+      "category": "Graphics",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "hexColor": { "widget": "color", "label": "Color" },
+        "alpha": { "widget": "number", "label": "Alpha" }
+      }
+    }
+  },
+  "loadScene": {
+    "type": "object",
+    "required": ["type", "sceneName"],
+    "properties": {
+      "type": { "const": "loadScene" },
+      "sceneName": { "type": "string" },
+      "fadeSeconds": { "type": "number" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Load Scene",
+      "category": "System",
+      "params": {
+        "sceneName": { "widget": "string", "label": "Scene", "placeholder": "Level2" },
+        "fadeSeconds": { "widget": "number", "label": "Fade (s)", "placeholder": "0" }
+      }
+    }
+  },
+  "restartScene": {
+    "type": "object",
+    "required": ["type"],
+    "properties": { "type": { "const": "restartScene" } },
+    "additionalProperties": false,
+    "x-artcade": { "label": "Restart Scene", "category": "System", "params": {} }
+  },
+  "setCameraTarget": {
+    "type": "object",
+    "required": ["type", "target"],
+    "properties": {
+      "type": { "const": "setCameraTarget" },
+      "target": { "$ref": "./target-selector.schema.json" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Set Camera Target",
+      "category": "Camera",
+      "params": { "target": { "widget": "target", "label": "Target" } }
+    }
+  },
+  "moveByOffset": {
+    "type": "object",
+    "required": ["type", "target", "dx", "dy"],
+    "properties": {
+      "type": { "const": "moveByOffset" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "dx": { "type": "number" },
+      "dy": { "type": "number" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Move By Offset",
+      "category": "Physics",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "dx": { "widget": "number", "label": "ΔX" },
+        "dy": { "widget": "number", "label": "ΔY" }
+      }
+    }
+  },
+  "snapToGrid": {
+    "type": "object",
+    "required": ["type", "target", "cellSize"],
+    "properties": {
+      "type": { "const": "snapToGrid" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "cellSize": { "type": "number" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Snap To Grid",
+      "category": "Physics",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "cellSize": { "widget": "number", "label": "Cell size" }
+      }
+    }
+  },
+  "setEntityShader": {
+    "type": "object",
+    "required": ["type", "target", "shader"],
+    "properties": {
+      "type": { "const": "setEntityShader" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "shader": { "enum": ["none", "outline", "hit_flash", "palette_swap", "wave"] }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Set Entity Shader",
+      "category": "Graphics",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "shader": {
+          "widget": "enum",
+          "label": "Shader",
+          "options": ["none", "outline", "hit_flash", "palette_swap", "wave"]
+        }
+      }
+    }
+  },
+  "setScreenShader": {
+    "type": "object",
+    "required": ["type", "shader"],
+    "properties": {
+      "type": { "const": "setScreenShader" },
+      "shader": { "enum": ["none", "crt", "scanlines", "wave"] }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Set Screen Shader",
+      "category": "Graphics",
+      "params": {
+        "shader": {
+          "widget": "enum",
+          "label": "Shader",
+          "options": ["none", "crt", "scanlines", "wave"]
+        }
+      }
+    }
+  },
+  "debugLog": {
+    "type": "object",
+    "required": ["type", "message"],
+    "properties": {
+      "type": { "const": "debugLog" },
+      "message": { "type": "string" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Debug Log",
+      "category": "System",
+      "params": {
+        "message": { "widget": "string", "label": "Message", "placeholder": "Hello" }
+      }
+    }
+  },
+  "wait": {
+    "type": "object",
+    "required": ["type", "seconds"],
+    "properties": {
+      "type": { "const": "wait" },
+      "seconds": { "type": "number", "minimum": 0 },
+      "then": {
+        "type": "array",
+        "items": { "type": "object" }
+      }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Wait",
+      "category": "System",
+      "params": {
+        "seconds": { "widget": "number", "label": "Seconds" }
+      }
+    }
+  },
+  "setLinearMoverDirection": {
+    "type": "object",
+    "required": ["type", "target", "directionX", "directionY"],
+    "properties": {
+      "type": { "const": "setLinearMoverDirection" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "directionX": { "type": "number" },
+      "directionY": { "type": "number" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Linear Mover Direction",
+      "category": "Component APIs",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "directionX": { "widget": "number", "label": "Direction X" },
+        "directionY": { "widget": "number", "label": "Direction Y" }
+      }
+    }
+  },
+  "setLinearMoverSpeed": {
+    "type": "object",
+    "required": ["type", "target", "speed"],
+    "properties": {
+      "type": { "const": "setLinearMoverSpeed" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "speed": { "type": "number" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Linear Mover Speed",
+      "category": "Component APIs",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "speed": { "widget": "number", "label": "Speed (px/s)" }
+      }
+    }
+  },
+  "pauseLinearMover": {
+    "type": "object",
+    "required": ["type", "target"],
+    "properties": {
+      "type": { "const": "pauseLinearMover" },
+      "target": { "$ref": "./target-selector.schema.json" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Pause Linear Mover",
+      "category": "Component APIs",
+      "params": {
+        "target": { "widget": "target", "label": "Target" }
+      }
+    }
+  },
+  "resumeLinearMover": {
+    "type": "object",
+    "required": ["type", "target"],
+    "properties": {
+      "type": { "const": "resumeLinearMover" },
+      "target": { "$ref": "./target-selector.schema.json" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Resume Linear Mover",
+      "category": "Component APIs",
+      "params": {
+        "target": { "widget": "target", "label": "Target" }
+      }
+    }
+  },
+  "setMagnetEnabled": {
+    "type": "object",
+    "required": ["type", "target", "enabled"],
+    "properties": {
+      "type": { "const": "setMagnetEnabled" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "enabled": { "type": "boolean" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Magnet Enabled",
+      "category": "Component APIs",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "enabled": { "widget": "boolean", "label": "Enabled" }
+      }
+    }
+  },
+  "setMagnetTargetTag": {
+    "type": "object",
+    "required": ["type", "target", "tag"],
+    "properties": {
+      "type": { "const": "setMagnetTargetTag" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "tag": { "type": "string" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Magnet Target Tag",
+      "category": "Component APIs",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "tag": { "widget": "string", "label": "Attract tag" }
+      }
+    }
+  },
+  "setHordeTargetClass": {
+    "type": "object",
+    "required": ["type", "target", "className"],
+    "properties": {
+      "type": { "const": "setHordeTargetClass" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "className": { "type": "string" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Horde Chase Class",
+      "category": "Component APIs",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "className": { "widget": "className", "label": "Chase class" }
+      }
+    }
+  },
+  "setHordeWeights": {
+    "type": "object",
+    "required": ["type", "target", "chaseWeight", "separationWeight"],
+    "properties": {
+      "type": { "const": "setHordeWeights" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "chaseWeight": { "type": "number" },
+      "separationWeight": { "type": "number" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Horde Weights",
+      "category": "Component APIs",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "chaseWeight": { "widget": "number", "label": "Chase weight" },
+        "separationWeight": { "widget": "number", "label": "Separation weight" }
+      }
+    }
+  },
+  "setAutoDestroyLifespan": {
+    "type": "object",
+    "required": ["type", "target", "lifespan"],
+    "properties": {
+      "type": { "const": "setAutoDestroyLifespan" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "lifespan": { "type": "number" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Auto Destroy Lifespan",
+      "category": "Component APIs",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "lifespan": { "widget": "number", "label": "Lifespan (s)" }
+      }
+    }
+  },
+  "cancelAutoDestroy": {
+    "type": "object",
+    "required": ["type", "target"],
+    "properties": {
+      "type": { "const": "cancelAutoDestroy" },
+      "target": { "$ref": "./target-selector.schema.json" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Cancel Auto Destroy",
+      "category": "Component APIs",
+      "params": {
+        "target": { "widget": "target", "label": "Target" }
+      }
+    }
+  }
+}

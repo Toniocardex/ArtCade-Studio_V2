@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "LogicBoard",
+  "type": "object",
+  "required": ["boardId", "target", "events"],
+  "properties": {
+    "boardId": { "type": "string", "minLength": 1 },
+    "target": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "enum": ["entity_class", "entity_id", "scene"] },
+        "className": { "type": "string" },
+        "entityId": { "type": "number" }
+      },
+      "additionalProperties": false
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "enabled", "trigger", "actions"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "enabled": { "type": "boolean" },
+          "trigger": { "type": "object" },
+          "conditions": { "type": "array", "items": { "type": "object" } },
+          "conditionRoot": { "type": "object" },
+          "actions": { "type": "array", "items": { "type": "object" } }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,154 @@
+cmake_minimum_required(VERSION 3.20)
+
+# ============================================================================
+# MSVC static runtime — MUST be set before project() so the compiler feature
+# tests also use /MT.  Static libcmt/libcpmt/libvcruntime are always present
+# even in minimal BuildTools installs; the DLL import libs (msvcprt.lib etc.)
+# may be absent.  CMP0091 NEW enables the CMAKE_MSVC_RUNTIME_LIBRARY policy.
+# Emscripten is not MSVC, so the guard is safe on all platforms.
+# ============================================================================
+if(NOT EMSCRIPTEN)
+    cmake_policy(SET CMP0091 NEW)
+    if(NOT DEFINED CMAKE_MSVC_RUNTIME_LIBRARY)
+        set(CMAKE_MSVC_RUNTIME_LIBRARY
+            "MultiThreaded$<$<CONFIG:Debug>:Debug>" CACHE STRING "" FORCE)
+    endif()
+endif()
+
+project(ArtCade-Runtime CXX C)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# ============================================================================
+# Platform detection
+# ============================================================================
+if(EMSCRIPTEN)
+    message(STATUS "[ArtCade] Target: WebAssembly (Emscripten)")
+    set(ARTCADE_PLATFORM_WASM TRUE)
+else()
+    message(STATUS "[ArtCade] Target: Native (${CMAKE_SYSTEM_NAME})")
+    set(ARTCADE_PLATFORM_WASM FALSE)
+endif()
+
+# ============================================================================
+# Third-party libraries — guarded: only added if the directory exists.
+# Fase 3 (test senza Raylib) passa anche senza libs/.
+# ============================================================================
+set(ARTCADE_HAS_RAYLIB FALSE)
+set(ARTCADE_HAS_LUA    FALSE)
+
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/libs/raylib/CMakeLists.txt)
+    set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+    set(BUILD_EXAMPLES    OFF CACHE BOOL "" FORCE)
+    set(BUILD_GAMES       OFF CACHE BOOL "" FORCE)
+    add_subdirectory(libs/raylib EXCLUDE_FROM_ALL)
+    set(ARTCADE_HAS_RAYLIB TRUE)
+    message(STATUS "[ArtCade] Raylib        : FOUND")
+else()
+    message(STATUS "[ArtCade] Raylib        : NOT FOUND — renderer/texture/input/audio skipped")
+endif()
+
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/libs/lua/CMakeLists.txt)
+    add_subdirectory(libs/lua EXCLUDE_FROM_ALL)
+    set(ARTCADE_HAS_LUA TRUE)
+    message(STATUS "[ArtCade] Lua           : FOUND")
+else()
+    message(STATUS "[ArtCade] Lua           : NOT FOUND — lua-runtime/game-api skipped")
+endif()
+
+# Percorsi opzionali (non causano errori CMake se le dir non esistono)
+set(SOL2_INCLUDE_DIR          ${CMAKE_CURRENT_SOURCE_DIR}/libs/sol2/include)
+set(NLOHMANN_JSON_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libs/nlohmann-json/include)
+set(LUA_INCLUDE_DIR           ${CMAKE_CURRENT_SOURCE_DIR}/libs/lua)
+
+# ============================================================================
+# Shared include interface — core headers disponibili a ogni modulo
+# ============================================================================
+add_library(artcade-core INTERFACE)
+target_include_directories(artcade-core INTERFACE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/core
+)
+# Aggiungi include di terze parti solo se le directory esistono
+foreach(_inc IN ITEMS
+        ${SOL2_INCLUDE_DIR}
+        ${NLOHMANN_JSON_INCLUDE_DIR})
+    if(EXISTS ${_inc})
+        target_include_directories(artcade-core INTERFACE ${_inc})
+    endif()
+endforeach()
+
+# ============================================================================
+# Moduli stateless — nessuna dipendenza da Raylib o Lua.
+# Sempre compilati (Fase 3 e oltre).
+# ============================================================================
+add_subdirectory(src/modules/time)
+add_subdirectory(src/modules/event-bus)
+add_subdirectory(src/modules/variable-manager)
+add_subdirectory(src/modules/game-state)
+add_subdirectory(src/modules/sprite-animator)
+add_subdirectory(src/modules/layer-manager)
+add_subdirectory(src/modules/camera-manager)
+add_subdirectory(src/modules/tween-manager)
+add_subdirectory(src/modules/save-load)
+
+# ============================================================================
+# Physics — Box2D puro C++, non dipende da Raylib o Lua (Fase 12)
+# ============================================================================
+add_subdirectory(src/modules/physics)
+
+# ============================================================================
+# Moduli con dipendenza da Raylib (Fase 5+)
+# ============================================================================
+if(ARTCADE_HAS_RAYLIB)
+    add_subdirectory(src/modules/renderer)
+    add_subdirectory(src/modules/texture-manager)
+    add_subdirectory(src/modules/input)
+    add_subdirectory(src/modules/audio)
+endif()
+
+# ============================================================================
+# Moduli con dipendenza da Lua (Fase 11+)
+# ============================================================================
+if(ARTCADE_HAS_LUA)
+    add_subdirectory(src/modules/lua-runtime)
+endif()
+
+# ============================================================================
+# Moduli che richiedono sia Raylib sia Lua (Fase 9+)
+# ============================================================================
+if(ARTCADE_HAS_RAYLIB AND ARTCADE_HAS_LUA)
+    add_subdirectory(src/modules/scene-system)
+    add_subdirectory(src/modules/runtime-entity-gateway)
+    add_subdirectory(src/modules/asset-system)
+    add_subdirectory(src/modules/game-api)
+    add_subdirectory(src/world)
+    add_subdirectory(src/app)
+endif()
+
+# ============================================================================
+# Editor API — WASM bridge (EMSCRIPTEN_KEEPALIVE exports + EM_ASM notifications)
+# Compiles as no-op stubs on native targets so the rest of the engine can
+# include editor-api.h without any Emscripten dependency.
+# ============================================================================
+add_subdirectory(src/modules/editor-api)
+
+# ============================================================================
+# Smoke Tests — validate the full React ↔ WASM bridge architecture.
+# Enable with:  cmake .. -DARTCADE_BUILD_SMOKE_TESTS=ON
+# Best built with emcmake cmake for WASM; also works natively for ST-1/ST-2.
+# ============================================================================
+option(ARTCADE_BUILD_SMOKE_TESTS "Build WASM smoke tests (ST-1 … ST-4)" OFF)
+if(ARTCADE_BUILD_SMOKE_TESTS)
+    add_subdirectory(smoke-tests)
+endif()
+
+# ============================================================================
+# Tests (opzionale — abilita con -DARTCADE_BUILD_TESTS=ON)
+# ============================================================================
+option(ARTCADE_BUILD_TESTS "Build unit tests" OFF)
+if(ARTCADE_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()

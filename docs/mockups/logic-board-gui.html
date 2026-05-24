@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>ArtCade — Logic Board GUI mockup (Iteration 3: event-list editor)</title>
+<style>
+  :root{
+    --bg0:#0B1121; --bg1:#111827; --bg2:#1A253A; --bg3:#0E1626;
+    --bd:#1A253A; --bd2:#2D3748;
+    --tx:#D1D5DB; --mut:#9CA3AF; --cy:#00FFFF; --or:#F97316;
+    --grn:#34D399; --pur:#A78BFA; --yel:#FBBF24; --red:#F87171;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--bg0);color:var(--tx);
+    font:13px/1.45 ui-sans-serif,system-ui,Segoe UI,Roboto,sans-serif}
+  .mono{font-family:ui-monospace,"Cascadia Code",Consolas,monospace}
+  .app{width:1440px;height:1024px;display:flex;flex-direction:column}
+
+  /* ---- top tab strip (mirrors editor scene/logic toggle) ---- */
+  .tabs{height:34px;background:var(--bg1);border-bottom:1px solid var(--bd);
+    display:flex;align-items:center;gap:2px;padding:0 8px}
+  .tab{padding:6px 14px;color:var(--mut);font-size:12px;border-radius:4px 4px 0 0}
+  .tab.on{color:var(--cy);background:var(--bg0);border:1px solid var(--bd);
+    border-bottom:1px solid var(--bg0)}
+
+  /* ---- logic board header bar ---- */
+  .hdr{height:52px;background:var(--bg1);border-bottom:1px solid var(--bd);
+    display:flex;align-items:center;gap:14px;padding:0 16px}
+  .hdr h1{font-size:14px;font-weight:600;color:var(--tx);letter-spacing:.3px}
+  .hdr h1 .k{color:var(--cy)}
+  .sel{background:var(--bg2);border:1px solid var(--bd2);color:var(--tx);
+    padding:6px 10px;border-radius:6px;font-size:12px;display:flex;
+    align-items:center;gap:8px}
+  .sel .cv{color:var(--cy)}
+  .badge{padding:3px 8px;border-radius:10px;font-size:11px;font-weight:600;
+    border:1px solid}
+  .b-target{color:var(--grn);border-color:#1f6b4f;background:#0e2a20}
+  .spacer{flex:1}
+  .btn{padding:6px 12px;border-radius:6px;font-size:12px;font-weight:600;
+    border:1px solid var(--bd2);background:var(--bg2);color:var(--tx);cursor:pointer}
+  .btn.primary{background:#062a2a;border-color:#0a5a5a;color:var(--cy)}
+  .btn.ghost{background:transparent;color:var(--mut)}
+
+  /* ---- main split ---- */
+  .main{flex:1;display:flex;min-height:0}
+  .col{display:flex;flex-direction:column;min-height:0}
+  .events{flex:1.55;border-right:1px solid var(--bd);overflow:auto;padding:14px}
+  .preview{flex:1;background:var(--bg3);overflow:auto}
+
+  .sectlbl{font-size:11px;text-transform:uppercase;letter-spacing:.12em;
+    color:var(--mut);margin:2px 0 10px}
+
+  /* ---- event card ---- */
+  .ev{background:var(--bg1);border:1px solid var(--bd);border-radius:10px;
+    margin-bottom:14px;overflow:hidden}
+  .ev.editing{border-color:var(--cy);box-shadow:0 0 0 1px #0c3b3b}
+  .ev .row{display:flex;align-items:center;gap:10px;padding:10px 12px}
+  .ev .ehead{background:var(--bg2);border-bottom:1px solid var(--bd)}
+  .pill{font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px;
+    border:1px solid;letter-spacing:.04em}
+  .p-when{color:var(--cy);border-color:#0a5a5a;background:#062a2a}
+  .p-if{color:var(--yel);border-color:#7a5a12;background:#2a2008}
+  .p-then{color:var(--or);border-color:#7a3d12;background:#2a1608}
+  .trig{font-weight:600;color:var(--tx)}
+  .trig .arg{color:var(--cy)}
+  .togg{width:34px;height:18px;border-radius:9px;background:#0a5a5a;
+    position:relative;flex:none}
+  .togg::after{content:"";position:absolute;width:14px;height:14px;border-radius:50%;
+    background:var(--cy);top:2px;right:2px}
+  .togg.off{background:var(--bd2)}
+  .togg.off::after{background:var(--mut);left:2px;right:auto}
+  .ico{width:26px;height:26px;border-radius:6px;border:1px solid var(--bd2);
+    color:var(--mut);display:flex;align-items:center;justify-content:center;
+    font-size:13px;flex:none}
+  .body{padding:6px 12px 12px}
+  .grp{display:flex;gap:8px;align-items:flex-start;padding:7px 0;
+    border-top:1px dashed var(--bd)}
+  .grp:first-child{border-top:0}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;flex:1}
+  .chip{font-size:11px;padding:3px 8px;border-radius:6px;background:var(--bg2);
+    border:1px solid var(--bd2);color:var(--tx)}
+  .chip .op{color:var(--yel)}
+  .act{display:flex;align-items:center;gap:8px;font-size:12px;padding:4px 0}
+  .act .fn{color:var(--or);font-weight:600}
+  .act .ar{color:var(--cy)}
+  .lnk{color:var(--cy);font-size:11px;cursor:pointer}
+  .addev{width:100%;padding:11px;border:1px dashed var(--bd2);border-radius:10px;
+    background:transparent;color:var(--mut);font-size:12px;cursor:pointer}
+
+  /* ---- inline editor (one card expanded) ---- */
+  .form{padding:12px;background:var(--bg3);border-top:1px solid var(--bd)}
+  .frow{display:flex;gap:10px;align-items:center;margin-bottom:9px}
+  .frow label{width:92px;color:var(--mut);font-size:11px;text-transform:uppercase;
+    letter-spacing:.08em}
+  .inp{background:var(--bg0);border:1px solid var(--bd2);color:var(--tx);
+    padding:6px 9px;border-radius:6px;font-size:12px}
+  .inp.sm{width:78px}
+  .inp.dd{min-width:150px;color:var(--cy)}
+  .actrow{display:flex;gap:8px;align-items:center;background:var(--bg1);
+    border:1px solid var(--bd);border-radius:7px;padding:7px 9px;margin-bottom:7px}
+  .actrow .fn{color:var(--or);font-weight:600;min-width:120px}
+  .fbtns{display:flex;gap:8px;margin-top:6px}
+
+  /* ---- lua preview ---- */
+  .pvhead{height:38px;display:flex;align-items:center;gap:8px;padding:0 14px;
+    border-bottom:1px solid var(--bd);color:var(--mut);font-size:11px;
+    text-transform:uppercase;letter-spacing:.12em;background:var(--bg1)}
+  .pvhead .dot{width:7px;height:7px;border-radius:50%;background:var(--grn)}
+  pre{padding:14px;font-size:12px;line-height:1.65;color:#c8d2e0;white-space:pre}
+  .kw{color:var(--pur)} .fnname{color:var(--cy)} .str{color:var(--grn)}
+  .num{color:var(--yel)} .cm{color:#5b6b82;font-style:italic}
+  .footnote{padding:8px 14px;color:#5b6b82;font-size:11px;border-top:1px solid var(--bd)}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- editor view tabs (context) -->
+  <div class="tabs">
+    <div class="tab">Scene</div>
+    <div class="tab on">Logic Board</div>
+    <div class="tab">Script (Lua)</div>
+  </div>
+
+  <!-- header bar -->
+  <div class="hdr">
+    <h1>⬡ Logic <span class="k">Board</span></h1>
+    <div class="sel">Board: <span class="cv">player_controller ▾</span></div>
+    <span class="badge b-target">target ▸ class: Player</span>
+    <div class="spacer"></div>
+    <button class="btn ghost">⌦ Delete Board</button>
+    <button class="btn">＋ New Board</button>
+    <button class="btn primary">⟳ Apply &amp; Hot-Reload</button>
+  </div>
+
+  <div class="main">
+
+    <!-- LEFT: event list -->
+    <div class="col events">
+      <div class="sectlbl">Logic Events &nbsp;·&nbsp; 3 events &nbsp;·&nbsp; evaluated every tick(dt)</div>
+
+      <!-- Event 1: jump -->
+      <div class="ev">
+        <div class="row ehead">
+          <span class="pill p-when">WHEN</span>
+          <span class="trig">onInput · key <span class="arg">"Space"</span> · pressed</span>
+          <div class="spacer"></div>
+          <div class="togg" title="enabled"></div>
+          <div class="ico">✎</div>
+          <div class="ico">⌦</div>
+        </div>
+        <div class="body">
+          <div class="grp">
+            <span class="pill p-then">THEN</span>
+            <div class="chips" style="flex-direction:column;align-items:flex-start">
+              <div class="act"><span class="fn">setVelocity</span>
+                <span>( target <span class="ar">self</span>, vx <span class="ar">0</span>, vy <span class="ar">-400</span> )</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Event 2: coin pickup (EXPANDED / editing) -->
+      <div class="ev editing">
+        <div class="row ehead">
+          <span class="pill p-when">WHEN</span>
+          <span class="trig">onCollision · with <span class="arg">"Coin"</span></span>
+          <div class="spacer"></div>
+          <div class="togg" title="enabled"></div>
+          <div class="ico" style="border-color:var(--cy);color:var(--cy)">✎</div>
+          <div class="ico">⌦</div>
+        </div>
+
+        <!-- inline component editor -->
+        <div class="form">
+          <div class="sectlbl" style="color:var(--cy)">Edit Logic Event</div>
+
+          <div class="frow">
+            <label>Trigger</label>
+            <select class="inp dd">onCollision ▾</select>
+            <label style="width:auto">with class</label>
+            <select class="inp dd">Coin ▾</select>
+          </div>
+
+          <div class="frow" style="align-items:flex-start">
+            <label>Conditions</label>
+            <div>
+              <div class="chips" style="margin-bottom:6px">
+                <span class="chip">state.<b>alive</b> <span class="op">==</span> 1 &nbsp;✕</span>
+                <span class="lnk">＋ add condition</span>
+              </div>
+              <div style="color:#5b6b82;font-size:11px">all conditions ANDed &nbsp;·&nbsp; switch to tree for OR/nesting</div>
+            </div>
+          </div>
+
+          <div class="frow" style="align-items:flex-start">
+            <label>Actions</label>
+            <div style="flex:1">
+              <div class="actrow">
+                <span class="fn">addVariable</span>
+                <span style="color:var(--mut)">key</span>
+                <input class="inp sm" value="coins" style="width:90px"/>
+                <span style="color:var(--mut)">amount</span>
+                <input class="inp sm" value="1"/>
+                <div class="spacer"></div><span class="lnk">⌦</span>
+              </div>
+              <div class="actrow">
+                <span class="fn">playSound</span>
+                <span style="color:var(--mut)">path</span>
+                <input class="inp" value="sfx/coin.ogg" style="width:160px"/>
+                <span style="color:var(--mut)">vol</span>
+                <input class="inp sm" value="1"/>
+                <div class="spacer"></div><span class="lnk">⌦</span>
+              </div>
+              <span class="lnk">＋ add action ▾ &nbsp;<span style="color:#5b6b82">(setVariable · setPosition · destroyEntity · spawnEntity · debugLog · …)</span></span>
+            </div>
+          </div>
+
+          <div class="fbtns">
+            <button class="btn primary">✓ Done</button>
+            <button class="btn ghost">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Event 3: respawn timer (collapsed) -->
+      <div class="ev">
+        <div class="row ehead">
+          <span class="pill p-when">WHEN</span>
+          <span class="trig">onTimer · every <span class="arg">5.0s</span> · repeat</span>
+          <div class="spacer"></div>
+          <div class="togg off" title="disabled"></div>
+          <div class="ico">✎</div>
+          <div class="ico">⌦</div>
+        </div>
+        <div class="body">
+          <div class="grp">
+            <span class="pill p-if">IF</span>
+            <div class="chips">
+              <span class="chip">state.<b>enemiesAlive</b> <span class="op">&lt;</span> 3</span>
+            </div>
+          </div>
+          <div class="grp">
+            <span class="pill p-then">THEN</span>
+            <div class="chips" style="flex-direction:column;align-items:flex-start">
+              <div class="act"><span class="fn">spawnEntity</span>
+                <span>( class <span class="ar">"Enemy"</span>, x <span class="ar">960</span>, y <span class="ar">120</span> )</span></div>
+              <div class="act"><span class="fn">debugLog</span>
+                <span>( <span class="ar">"respawned enemy"</span> )</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button class="addev">＋ Add Event &nbsp;·&nbsp; choose a trigger (onStart · onUpdate · onCollision · onInput · onTimer)</button>
+    </div>
+
+    <!-- RIGHT: live Lua preview -->
+    <div class="col preview">
+      <div class="pvhead"><span class="dot"></span> Generated Lua &nbsp;·&nbsp; read-only &nbsp;·&nbsp; sent to runtime on Apply</div>
+      <pre><span class="cm">-- AUTO-GENERATED by ArtCade Logic Board compiler.</span>
+<span class="cm">-- Do not edit by hand: overwritten on next save.</span>
+
+<span class="kw">local</span> _init_done = <span class="kw">false</span>
+<span class="kw">local</span> _timers = {}
+
+<span class="kw">local function</span> <span class="fnname">_logic_init</span>(dt) <span class="kw">end</span>
+
+<span class="kw">function</span> <span class="fnname">tick</span>(dt)
+  <span class="kw">if not</span> _init_done <span class="kw">then</span>
+    <span class="fnname">_logic_init</span>()
+    _init_done = <span class="kw">true</span>
+  <span class="kw">end</span>
+  <span class="cm">-- board: player_controller</span>
+  <span class="kw">for</span> _, self <span class="kw">in</span> <span class="fnname">ipairs</span>(pool.<span class="fnname">getAll</span>(<span class="str">"Player"</span>)) <span class="kw">do</span>
+    <span class="kw">local</span> other = <span class="kw">nil</span>
+    <span class="kw">if</span> input.<span class="fnname">wasKeyPressed</span>(<span class="str">"Space"</span>) <span class="kw">then</span>
+      entity.<span class="fnname">setVelocity</span>(self, <span class="num">0</span>, <span class="num">-400</span>)
+    <span class="kw">end</span>
+    <span class="kw">if</span> collision.<span class="fnname">touchingClass</span>(self, <span class="str">"Coin"</span>)
+       <span class="kw">and</span> (state.<span class="fnname">get</span>(<span class="str">"alive"</span>) == <span class="num">1</span>) <span class="kw">then</span>
+      state.<span class="fnname">add</span>(<span class="str">"coins"</span>, <span class="num">1</span>)
+      audio.<span class="fnname">playSound</span>(<span class="str">"sfx/coin.ogg"</span>, <span class="num">1</span>, <span class="num">1</span>)
+    <span class="kw">end</span>
+  <span class="kw">end</span>
+<span class="kw">end</span></pre>
+      <div class="footnote">25/25 compiler tests green · validated in real Lua 5.4 (wasmoon)</div>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

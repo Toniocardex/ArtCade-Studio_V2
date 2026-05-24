@@ -1,0 +1,95 @@
+# Local toolchain installers (not part of the project)
+.installers/
+
+# Build artifacts
+build/
+build-*/
+runtime-cpp/build/
+runtime-cpp/build-*/
+dist/
+
+# Third-party libraries (large binaries, fetched at configure time)
+runtime-cpp/libs/
+tools/
+*.exe
+*.dll
+*.so
+*.dylib
+*.o
+*.obj
+*.a
+*.lib
+*.zip
+
+# CMake
+CMakeUserPresets.json
+cmake-build-debug/
+cmake-build-release/
+CMakeCache.txt
+CMakeFiles/
+Makefile
+
+# Emscripten
+*.wasm
+*.wasm.map
+*.js.map
+*.js~
+
+# Node/npm
+node_modules/
+package-lock.json
+yarn.lock
+*.log
+artcade-vite*.log
+editor/tauri-build*.log
+runtime-cpp/build-wasm*.log
+runtime-cpp/test-project/logs/*.txt
+!runtime-cpp/test-project/logs/.gitkeep
+
+# Claude / Cursor (machine-local)
+.claude/settings.local.json
+.cursor/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+
+# Tauri
+src-tauri/target/
+editor/src-tauri/target/
+dist/
+.tauri/
+
+# Temp/Dev
+.env
+.env.local
+temp/
+tmp/
+*.tmp
+
+# Asset development (gitignore loose assets, commit only in .artcade)
+assets/dev/
+*.psd
+*.aseprite
+*.ase
+
+# Runtime outputs
+*.artcade.debug
+profile-*.json
+
+# Large optional assets (marketing / exports — keep local, not needed to build)
+ico_1920x1504.png
+ArtCade_ICO.png
+docs/*.pdf
+
+# OS
+Thumbs.db
+.AppleDouble
+.LSOverride
+*.stackdump

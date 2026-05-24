@@ -1,0 +1,205 @@
+{
+  "onStart": {
+    "type": "object",
+    "required": ["type"],
+    "properties": { "type": { "const": "onStart" } },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "On Start",
+      "category": "System",
+      "executionMode": "event",
+      "params": {}
+    }
+  },
+  "onSpawn": {
+    "type": "object",
+    "required": ["type"],
+    "properties": {
+      "type": { "const": "onSpawn" },
+      "className": { "type": "string" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "On Spawn",
+      "category": "System",
+      "executionMode": "event",
+      "params": {
+        "className": { "widget": "className", "label": "Class (optional)" }
+      }
+    }
+  },
+  "onUpdate": {
+    "type": "object",
+    "required": ["type"],
+    "properties": { "type": { "const": "onUpdate" } },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "On Update",
+      "category": "System",
+      "executionMode": "polling",
+      "params": {}
+    }
+  },
+  "onCollision": {
+    "type": "object",
+    "required": ["type"],
+    "properties": {
+      "type": { "const": "onCollision" },
+      "withClass": { "type": "string" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "On Collision",
+      "category": "Physics",
+      "executionMode": "polling",
+      "params": {
+        "withClass": { "widget": "className", "label": "With class" }
+      }
+    }
+  },
+  "onTriggerEnter": {
+    "type": "object",
+    "required": ["type"],
+    "properties": {
+      "type": { "const": "onTriggerEnter" },
+      "withClass": { "type": "string" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "On Trigger Enter",
+      "category": "Physics",
+      "executionMode": "event",
+      "params": {
+        "withClass": {
+          "widget": "entityTag",
+          "label": "Target tag",
+          "placeholder": "player"
+        }
+      }
+    }
+  },
+  "onTriggerExit": {
+    "type": "object",
+    "required": ["type"],
+    "properties": {
+      "type": { "const": "onTriggerExit" },
+      "withClass": { "type": "string" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "On Trigger Exit",
+      "category": "Physics",
+      "executionMode": "event",
+      "params": {
+        "withClass": {
+          "widget": "entityTag",
+          "label": "Target tag",
+          "placeholder": "player"
+        }
+      }
+    }
+  },
+  "onAnimationEnd": {
+    "type": "object",
+    "required": ["type"],
+    "properties": {
+      "type": { "const": "onAnimationEnd" },
+      "clipName": { "type": "string" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "On Animation End",
+      "category": "Graphics",
+      "executionMode": "event",
+      "params": {
+        "clipName": { "widget": "string", "label": "Clip", "placeholder": "death" }
+      }
+    }
+  },
+  "onDestroy": {
+    "type": "object",
+    "required": ["type"],
+    "properties": { "type": { "const": "onDestroy" } },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "On Destroy",
+      "category": "System",
+      "executionMode": "hybrid",
+      "params": {}
+    }
+  },
+  "onInput": {
+    "type": "object",
+    "required": ["type", "keyCode", "eventType"],
+    "properties": {
+      "type": { "const": "onInput" },
+      "keyCode": { "type": "string" },
+      "eventType": { "enum": ["pressed", "down", "released"] }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "On Input",
+      "category": "Input",
+      "executionMode": "hybrid",
+      "params": {
+        "keyCode": { "widget": "keyCapture", "label": "Key", "placeholder": "Press key…" },
+        "eventType": { "widget": "enum", "label": "Event", "options": ["pressed", "down", "released"] }
+      }
+    }
+  },
+  "onMouseInput": {
+    "type": "object",
+    "required": ["type", "button", "eventType"],
+    "properties": {
+      "type": { "const": "onMouseInput" },
+      "button": { "enum": ["left", "right"] },
+      "eventType": { "enum": ["pressed", "down", "released"] }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "On Mouse Input",
+      "category": "Input",
+      "executionMode": "polling",
+      "params": {
+        "button": { "widget": "enum", "label": "Button", "options": ["left", "right"] },
+        "eventType": { "widget": "enum", "label": "Event", "options": ["pressed", "down", "released"] }
+      }
+    }
+  },
+  "onMessage": {
+    "type": "object",
+    "required": ["type", "messageName"],
+    "properties": {
+      "type": { "const": "onMessage" },
+      "messageName": { "type": "string" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "On Message",
+      "category": "Messaging",
+      "executionMode": "event",
+      "params": {
+        "messageName": { "widget": "string", "label": "Message", "placeholder": "player_hit" }
+      }
+    }
+  },
+  "onTimer": {
+    "type": "object",
+    "required": ["type", "seconds", "repeat"],
+    "properties": {
+      "type": { "const": "onTimer" },
+      "seconds": { "type": "number" },
+      "repeat": { "type": "boolean" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "On Timer",
+      "category": "System",
+      "executionMode": "event",
+      "params": {
+        "seconds": { "widget": "number", "label": "Every (s)" },
+        "repeat": { "widget": "boolean", "label": "Repeat" }
+      }
+    }
+  }
+}
