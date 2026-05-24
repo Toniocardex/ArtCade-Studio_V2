@@ -89,7 +89,7 @@ export default function EventCard({
           </div>
         </div>
 
-        {/* Toggle: enabled/disabled (navy when active per palette rules) */}
+        {/* Toggle: enabled/disabled (sage green when active, matches primary accent) */}
         <button
           type="button"
           onClick={(e) => {
@@ -100,7 +100,7 @@ export default function EventCard({
           aria-label={event.enabled ? 'Regola attiva' : 'Regola disattivata'}
           className={`w-9 h-[18px] rounded relative transition-colors shrink-0 mt-0.5 ${
             event.enabled
-              ? 'bg-[var(--accent-2)]'
+              ? 'bg-[var(--accent)]'
               : 'bg-[var(--border-2)]'
           }`}
         >
