@@ -32,7 +32,6 @@ const ACTION_NAMES: Record<LogicActionType, string> = {
   moveInDirection: 'Move in direction',
   controllerMovement: 'Movement',
   moveController: 'Start controller movement',
-  setMovementIntent: 'Move with controller',
   clearMovementIntent: 'Stop controller movement',
   requestPlatformerJump: 'Platformer jump',
   damageEntity: 'Damage',

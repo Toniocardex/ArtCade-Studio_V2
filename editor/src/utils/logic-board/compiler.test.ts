@@ -60,7 +60,6 @@ describe('Component API actions and conditions', () => {
           trigger: { type: 'onInput', keyCode: 'KeyA', eventType: 'pressed' },
           actions: [
             { type: 'moveController', target: 'self', direction: 'left' },
-            { type: 'setMovementIntent', target: 'self', directionX: -1, directionY: 0 },
             { type: 'requestPlatformerJump', target: 'self' },
             { type: 'clearMovementIntent', target: 'self' },
           ],

@@ -81,8 +81,6 @@ export function actionLua(a: LogicAction): string {
       }
       break
     }
-    case 'setMovementIntent':
-      return `movement.setIntent(${targetExpr(a.target)}, ${Number(a.directionX) || 0}, ${Number(a.directionY) || 0})`
     case 'clearMovementIntent':
       return `movement.clearIntent(${targetExpr(a.target)})`
     case 'requestPlatformerJump':

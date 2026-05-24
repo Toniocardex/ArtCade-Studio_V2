@@ -62,7 +62,6 @@ describe('component capabilities', () => {
     expect(recommendedActionTypes(project(), board)).toEqual([
       'controllerMovement',
       'moveController',
-      'setMovementIntent',
       'clearMovementIntent',
       'damageEntity',
       'healEntity',
@@ -113,7 +112,6 @@ describe('component capabilities', () => {
     expect(recommendedActionTypes(p, board)).toEqual([
       'controllerMovement',
       'moveController',
-      'setMovementIntent',
       'clearMovementIntent',
       'requestPlatformerJump',
       'setLinearMoverDirection',

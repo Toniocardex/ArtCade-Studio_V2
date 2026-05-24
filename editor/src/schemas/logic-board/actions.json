@@ -228,26 +228,6 @@
       }
     }
   },
-  "setMovementIntent": {
-    "type": "object",
-    "required": ["type", "target", "directionX", "directionY"],
-    "properties": {
-      "type": { "const": "setMovementIntent" },
-      "target": { "$ref": "./target-selector.schema.json" },
-      "directionX": { "type": "number" },
-      "directionY": { "type": "number" }
-    },
-    "additionalProperties": false,
-    "x-artcade": {
-      "label": "Set Movement Intent",
-      "category": "Movement",
-      "params": {
-        "target": { "widget": "target", "label": "Target" },
-        "directionX": { "widget": "number", "label": "Direction X" },
-        "directionY": { "widget": "number", "label": "Direction Y" }
-      }
-    }
-  },
   "clearMovementIntent": {
     "type": "object",
     "required": ["type", "target"],

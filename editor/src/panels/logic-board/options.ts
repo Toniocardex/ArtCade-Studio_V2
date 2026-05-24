@@ -115,8 +115,6 @@ export function defaultAction(type: LogicActionType): LogicAction {
       return { type: 'controllerMovement', target: 'self', direction: 'right' }
     case 'moveController':
       return { type: 'moveController', target: 'self', direction: 'right' }
-    case 'setMovementIntent':
-      return { type: 'setMovementIntent', target: 'self', directionX: 1, directionY: 0 }
     case 'clearMovementIntent':
       return { type: 'clearMovementIntent', target: 'self' }
     case 'requestPlatformerJump':

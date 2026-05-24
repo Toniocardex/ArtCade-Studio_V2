@@ -47,8 +47,6 @@ export function actionSummaryPlain(
       return a.direction === 'stop'
         ? `Stop controller movement for ${who}`
         : `Start controller movement for ${who} ${a.direction}`
-    case 'setMovementIntent':
-      return `Controller moves ${who} (${a.directionX}, ${a.directionY})`
     case 'clearMovementIntent':
       return `Stop controller movement for ${who}`
     case 'requestPlatformerJump':

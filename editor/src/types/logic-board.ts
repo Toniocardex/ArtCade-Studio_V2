@@ -99,7 +99,6 @@ export type LogicAction =
     }
   | { type: 'controllerMovement'; target: TargetSelector; direction: 'left' | 'right' | 'up' | 'down' }
   | { type: 'moveController'; target: TargetSelector; direction: 'left' | 'right' | 'up' | 'down' | 'stop' }
-  | { type: 'setMovementIntent'; target: TargetSelector; directionX: number; directionY: number }
   | { type: 'clearMovementIntent'; target: TargetSelector }
   | { type: 'requestPlatformerJump'; target: TargetSelector }
   | { type: 'damageEntity'; target: TargetSelector; amount: number }

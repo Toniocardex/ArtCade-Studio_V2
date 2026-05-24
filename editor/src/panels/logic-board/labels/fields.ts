@@ -23,8 +23,6 @@ const FIELD_LABELS: Record<string, string> = {
   'action:moveInDirection:speed': 'Speed',
   'action:controllerMovement:direction': 'Direction',
   'action:moveController:direction': 'Direction',
-  'action:setMovementIntent:directionX': 'Direction X',
-  'action:setMovementIntent:directionY': 'Direction Y',
   'action:damageEntity:amount': 'Damage',
   'action:healEntity:amount': 'Heal',
   'action:setEntityHealth:currentHp': 'Current HP',
