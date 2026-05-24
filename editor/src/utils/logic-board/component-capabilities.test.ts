@@ -60,6 +60,7 @@ describe('component capabilities', () => {
   it('recommends actions from components on an entity board', () => {
     const board: LogicBoard = { boardId: 'b', target: { type: 'entity_id', entityId: 1 }, events: [] }
     expect(recommendedActionTypes(project(), board)).toEqual([
+      'controllerMovement',
       'moveController',
       'setMovementIntent',
       'clearMovementIntent',
@@ -110,6 +111,7 @@ describe('component capabilities', () => {
     })
     const board: LogicBoard = { boardId: 'b', target: { type: 'entity_id', entityId: 5 }, events: [] }
     expect(recommendedActionTypes(p, board)).toEqual([
+      'controllerMovement',
       'moveController',
       'setMovementIntent',
       'clearMovementIntent',

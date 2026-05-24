@@ -111,6 +111,8 @@ export function defaultAction(type: LogicActionType): LogicAction {
       return { type: 'spawnEntity', className: '', x: 0, y: 0, inheritFlip: false }
     case 'moveInDirection':
       return { type: 'moveInDirection', target: 'self', direction: 'forward', speed: 100 }
+    case 'controllerMovement':
+      return { type: 'controllerMovement', target: 'self', direction: 'right' }
     case 'moveController':
       return { type: 'moveController', target: 'self', direction: 'right' }
     case 'setMovementIntent':

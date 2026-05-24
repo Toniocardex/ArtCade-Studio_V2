@@ -28,9 +28,11 @@ interface CapabilityDef {
 }
 
 const CAPABILITIES: CapabilityDef[] = [
+  { kind: 'action', type: 'controllerMovement', component: 'topDownController', label: 'Top-Down Controller' },
   { kind: 'action', type: 'setMovementIntent', component: 'topDownController', label: 'Top-Down Controller' },
   { kind: 'action', type: 'moveController', component: 'topDownController', label: 'Top-Down Controller' },
   { kind: 'action', type: 'clearMovementIntent', component: 'topDownController', label: 'Top-Down Controller' },
+  { kind: 'action', type: 'controllerMovement', component: 'platformerController', label: 'Platformer Controller' },
   { kind: 'action', type: 'setMovementIntent', component: 'platformerController', label: 'Platformer Controller' },
   { kind: 'action', type: 'moveController', component: 'platformerController', label: 'Platformer Controller' },
   { kind: 'action', type: 'clearMovementIntent', component: 'platformerController', label: 'Platformer Controller' },
@@ -55,8 +57,8 @@ const CAPABILITIES: CapabilityDef[] = [
 ]
 
 const ACTION_RECOMMENDATIONS: Record<ComponentKey, LogicActionType[]> = {
-  topDownController: ['moveController', 'setMovementIntent', 'clearMovementIntent'],
-  platformerController: ['moveController', 'setMovementIntent', 'clearMovementIntent', 'requestPlatformerJump'],
+  topDownController: ['controllerMovement', 'moveController', 'setMovementIntent', 'clearMovementIntent'],
+  platformerController: ['controllerMovement', 'moveController', 'setMovementIntent', 'clearMovementIntent', 'requestPlatformerJump'],
   health: ['damageEntity', 'healEntity', 'setEntityHealth'],
   sensor: [],
   solid: [],

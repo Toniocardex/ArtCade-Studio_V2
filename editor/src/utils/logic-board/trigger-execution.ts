@@ -70,6 +70,10 @@ export function canRegisterLifecycleDestroy(
   return boardLifecycleClass(board, ev, project) !== null
 }
 
+function hasFrameMovement(ev: LogicEvent): boolean {
+  return ev.actions.some((action) => action.type === 'controllerMovement')
+}
+
 /**
  * True when the compiler emits this event inside tick(dt) instead of (or in
  * addition to) init-time handler registration.
@@ -81,6 +85,18 @@ export function usesTickFallback(
 ): boolean {
   const trig = ev.trigger
   if (trig.type === 'onStart' || trig.type === 'onMessage') return false
+  if (
+    hasFrameMovement(ev) &&
+    (
+      trig.type === 'onUpdate' ||
+      trig.type === 'onInput' ||
+      trig.type === 'onMouseInput' ||
+      trig.type === 'onCollision' ||
+      trig.type === 'onTriggerEnter' ||
+      trig.type === 'onTriggerExit' ||
+      trig.type === 'onTimer'
+    )
+  ) return true
   if (trig.type === 'onInput') return trig.eventType === 'down'
   if (trig.type === 'onTimer') return false
   if (trig.type === 'onTriggerEnter' || trig.type === 'onTriggerExit')
@@ -97,14 +113,14 @@ export function getTriggerExecutionMode(
   event?: LogicEvent,
   project?: ProjectDoc | null,
 ): TriggerExecutionMode {
+  if (board && event && usesTickFallback(event, board, project)) {
+    return 'polling'
+  }
+
   if (trigger.type === 'onInput') {
     return trigger.eventType === 'down' ? 'polling' : 'event'
   }
   if (trigger.type === 'onMouseInput') return 'polling'
-
-  if (board && event) {
-    return usesTickFallback(event, board, project) ? 'polling' : 'event'
-  }
 
   if ((POLLING_TRIGGER_TYPES as readonly string[]).includes(trigger.type))
     return 'polling'

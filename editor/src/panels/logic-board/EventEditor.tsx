@@ -43,6 +43,35 @@ const link = 'text-[var(--accent)] text-[11px] hover:underline cursor-pointer'
 const btn =
   'inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium border border-[var(--border-2)] bg-[var(--border)] text-[var(--text)] hover:border-[var(--accent-bd)]'
 
+function hasMovementAction(actions: readonly LogicAction[]): boolean {
+  return actions.some((action) => action.type === 'controllerMovement')
+}
+
+function actionFitsTrigger(actionType: LogicAction['type'], trigger: LogicTrigger): boolean {
+  if (actionType !== 'controllerMovement') return true
+  return trigger.type === 'onInput' && trigger.eventType === 'down'
+}
+
+function recommendedTypesForTrigger(
+  types: readonly LogicAction['type'][],
+  trigger: LogicTrigger,
+): LogicAction['type'][] {
+  return types.filter((type) => actionFitsTrigger(type, trigger))
+}
+
+function withContextualInputDefault(
+  event: LogicEvent,
+  actions: LogicAction[],
+): LogicEvent {
+  if (event.trigger.type !== 'onInput') return { ...event, actions }
+  if (!hasMovementAction(actions)) return { ...event, actions }
+  return {
+    ...event,
+    trigger: { ...event.trigger, eventType: 'down' },
+    actions,
+  }
+}
+
 function TriggerFields({
   trigger,
   board,
@@ -250,7 +279,10 @@ export default function EventEditor({
     () => event.conditionRoot != null,
   )
   const [newActionType, setNewActionType] = useState<LogicAction['type']>('spawnEntity')
-  const recommendedTypes = recommendedActionTypes(project, board)
+  const recommendedTypes = recommendedTypesForTrigger(
+    recommendedActionTypes(project, board),
+    event.trigger,
+  )
   const hasSavedConditions =
     event.conditionRoot != null || (event.conditions?.length ?? 0) > 0
   const onlyIfEnabled =
@@ -275,12 +307,16 @@ export default function EventEditor({
           kind="trigger"
           types={TRIGGER_TYPES}
           value={event.trigger.type}
-          onChange={(t) =>
+          onChange={(t) => {
+            const nextTrigger = defaultTrigger(t as LogicTrigger['type'])
             onChange({
               ...event,
-              trigger: defaultTrigger(t as LogicTrigger['type']),
+              trigger:
+                nextTrigger.type === 'onInput' && hasMovementAction(event.actions)
+                  ? { ...nextTrigger, eventType: 'down' }
+                  : nextTrigger,
             })
-          }
+          }}
         />
         <TriggerFields
           trigger={event.trigger}
@@ -387,7 +423,7 @@ export default function EventEditor({
             onChange={(na) => {
               const next = event.actions.slice()
               next[i] = na
-              onChange({ ...event, actions: next })
+              onChange(withContextualInputDefault(event, next))
             }}
             onRemove={() =>
               onChange({
@@ -414,12 +450,10 @@ export default function EventEditor({
           <button
             type="button"
             className={btn}
-            onClick={() =>
-              onChange({
-                ...event,
-                actions: [...event.actions, defaultAction(newActionType)],
-              })
-            }
+            onClick={() => {
+              const next = [...event.actions, defaultAction(newActionType)]
+              onChange(withContextualInputDefault(event, next))
+            }}
           >
             <Plus size={13} />
             Add action

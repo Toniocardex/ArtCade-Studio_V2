@@ -41,10 +41,12 @@ export function actionSummaryPlain(
             : a.direction
       return `Move ${who} ${dir} at speed ${a.speed}`
     }
+    case 'controllerMovement':
+      return `Move ${who} ${a.direction} while active`
     case 'moveController':
       return a.direction === 'stop'
         ? `Stop controller movement for ${who}`
-        : `Controller moves ${who} ${a.direction}`
+        : `Start controller movement for ${who} ${a.direction}`
     case 'setMovementIntent':
       return `Controller moves ${who} (${a.directionX}, ${a.directionY})`
     case 'clearMovementIntent':

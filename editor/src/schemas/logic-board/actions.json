@@ -184,6 +184,28 @@
       }
     }
   },
+  "controllerMovement": {
+    "type": "object",
+    "required": ["type", "target", "direction"],
+    "properties": {
+      "type": { "const": "controllerMovement" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "direction": { "enum": ["left", "right", "up", "down"] }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Movement",
+      "category": "Component APIs",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "direction": {
+          "widget": "enum",
+          "label": "Direction",
+          "options": ["left", "right", "up", "down"]
+        }
+      }
+    }
+  },
   "moveController": {
     "type": "object",
     "required": ["type", "target", "direction"],
@@ -194,7 +216,7 @@
     },
     "additionalProperties": false,
     "x-artcade": {
-      "label": "Move Controller",
+      "label": "Start Controller Movement",
       "category": "Component APIs",
       "params": {
         "target": { "widget": "target", "label": "Target" },

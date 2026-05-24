@@ -21,6 +21,7 @@ const FIELD_LABELS: Record<string, string> = {
   'condition:raycastHit:className': 'Object type (optional)',
   'action:moveInDirection:direction': 'Direction',
   'action:moveInDirection:speed': 'Speed',
+  'action:controllerMovement:direction': 'Direction',
   'action:moveController:direction': 'Direction',
   'action:setMovementIntent:directionX': 'Direction X',
   'action:setMovementIntent:directionY': 'Direction Y',

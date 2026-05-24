@@ -176,6 +176,20 @@ function actionLua(a: LogicAction): string {
       }
       break
     }
+    case 'controllerMovement': {
+      const t = targetExpr(a.target)
+      switch (a.direction) {
+        case 'left':
+          return `_logic_add_movement(${t}, -1, 0)`
+        case 'right':
+          return `_logic_add_movement(${t}, 1, 0)`
+        case 'up':
+          return `_logic_add_movement(${t}, 0, -1)`
+        case 'down':
+          return `_logic_add_movement(${t}, 0, 1)`
+      }
+      break
+    }
     case 'moveController': {
       const t = targetExpr(a.target)
       switch (a.direction) {
@@ -591,6 +605,7 @@ function emitBoard(
   const messageEvents = enabled.filter((e) => e.trigger.type === 'onMessage')
   const registeredEvents = enabled.filter((e) => {
     if (e.trigger.type === 'onStart' || e.trigger.type === 'onMessage') return false
+    if (usesTickFallback(e, board, project)) return false
     return emitEventRegistration(e, board, project) !== null
   })
   const tickEvents = enabled.filter((e) => usesTickFallback(e, board, project))
@@ -654,6 +669,38 @@ export function compileLogicBoard(
     'local _logic_timers = {}   -- polling timers',
     'local _logic_on = {}       -- event enable flags',
     'local _mb = {}             -- mouse button edge state',
+    'local _logic_movement_known = {}',
+    'local _logic_movement_frame = nil',
+    '',
+    'local function _logic_add_movement(entityId, x, y)',
+    `${INDENT}if _logic_movement_frame == nil or entityId == nil then return end`,
+    `${INDENT}local m = _logic_movement_frame[entityId]`,
+    `${INDENT}if not m then`,
+    `${INDENT}${INDENT}m = { x = 0, y = 0 }`,
+    `${INDENT}${INDENT}_logic_movement_frame[entityId] = m`,
+    `${INDENT}end`,
+    `${INDENT}m.x = m.x + x`,
+    `${INDENT}m.y = m.y + y`,
+    'end',
+    '',
+    'local function _logic_flush_movement()',
+    `${INDENT}if _logic_movement_frame == nil then return end`,
+    `${INDENT}for entityId, m in pairs(_logic_movement_frame) do`,
+    `${INDENT}${INDENT}if m.x ~= 0 or m.y ~= 0 then`,
+    `${INDENT}${INDENT}${INDENT}movement.setIntent(entityId, m.x, m.y)`,
+    `${INDENT}${INDENT}else`,
+    `${INDENT}${INDENT}${INDENT}movement.clearIntent(entityId)`,
+    `${INDENT}${INDENT}end`,
+    `${INDENT}${INDENT}_logic_movement_known[entityId] = true`,
+    `${INDENT}end`,
+    `${INDENT}for entityId, _ in pairs(_logic_movement_known) do`,
+    `${INDENT}${INDENT}if _logic_movement_frame[entityId] == nil then`,
+    `${INDENT}${INDENT}${INDENT}movement.clearIntent(entityId)`,
+    `${INDENT}${INDENT}${INDENT}_logic_movement_known[entityId] = nil`,
+    `${INDENT}${INDENT}end`,
+    `${INDENT}end`,
+    `${INDENT}_logic_movement_frame = nil`,
+    'end',
     '',
     "-- Keep the project's own tick(dt) and layer Logic Board behavior on top.",
     '-- Hot reload replaces the global tick(), so the original project tick is',
@@ -700,9 +747,11 @@ export function compileLogicBoard(
     `${INDENT}${INDENT}_logic_init()`,
     `${INDENT}${INDENT}_init_done = true`,
     `${INDENT}end`,
+    `${INDENT}_logic_movement_frame = {}`,
     ...(useSensor ? SENSOR_POLL_PREAMBLE : []),
     ...(useDestroy ? DESTROY_POLL_PREAMBLE : []),
     ...tickBlocks,
+    `${INDENT}_logic_flush_movement()`,
     'end',
     '',
   ]

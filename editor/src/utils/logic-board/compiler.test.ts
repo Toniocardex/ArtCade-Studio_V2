@@ -72,6 +72,26 @@ describe('Component API actions and conditions', () => {
     expect(lua).toContain('movement.clearIntent(self)')
   })
 
+  it('emits frame movement as a held-key controller intent', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({
+          trigger: { type: 'onInput', keyCode: 'KeyA', eventType: 'down' },
+          actions: [
+            { type: 'controllerMovement', target: 'self', direction: 'left' },
+          ],
+        }),
+      ]),
+    ])
+
+    expect(lua).toContain('local _logic_movement_known = {}')
+    expect(lua).toContain('_logic_movement_frame = {}')
+    expect(lua).toContain('if input.isKeyDown("KeyA") and (_logic_on["e1"] ~= false) then')
+    expect(lua).toContain('_logic_add_movement(self, -1, 0)')
+    expect(lua).toContain('_logic_flush_movement()')
+    expect(lua).toContain('movement.clearIntent(entityId)')
+  })
+
   it('emits component runtime API calls (Tranche 2)', () => {
     const lua = compileLogicBoard([
       board([
