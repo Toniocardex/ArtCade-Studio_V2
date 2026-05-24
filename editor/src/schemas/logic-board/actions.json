@@ -195,7 +195,7 @@
     "additionalProperties": false,
     "x-artcade": {
       "label": "Movement",
-      "category": "Component APIs",
+      "category": "Movement",
       "params": {
         "target": { "widget": "target", "label": "Target" },
         "direction": {
@@ -217,7 +217,7 @@
     "additionalProperties": false,
     "x-artcade": {
       "label": "Start Controller Movement",
-      "category": "Component APIs",
+      "category": "Movement",
       "params": {
         "target": { "widget": "target", "label": "Target" },
         "direction": {
@@ -240,7 +240,7 @@
     "additionalProperties": false,
     "x-artcade": {
       "label": "Set Movement Intent",
-      "category": "Component APIs",
+      "category": "Movement",
       "params": {
         "target": { "widget": "target", "label": "Target" },
         "directionX": { "widget": "number", "label": "Direction X" },
@@ -258,7 +258,7 @@
     "additionalProperties": false,
     "x-artcade": {
       "label": "Stop Movement",
-      "category": "Component APIs",
+      "category": "Movement",
       "params": {
         "target": { "widget": "target", "label": "Target" }
       }
@@ -274,7 +274,7 @@
     "additionalProperties": false,
     "x-artcade": {
       "label": "Platformer Jump",
-      "category": "Component APIs",
+      "category": "Movement",
       "params": {
         "target": { "widget": "target", "label": "Target" }
       }
@@ -291,7 +291,7 @@
     "additionalProperties": false,
     "x-artcade": {
       "label": "Damage Entity",
-      "category": "Component APIs",
+      "category": "Health",
       "params": {
         "target": { "widget": "target", "label": "Target" },
         "amount": { "widget": "number", "label": "Amount" }
@@ -309,7 +309,7 @@
     "additionalProperties": false,
     "x-artcade": {
       "label": "Heal Entity",
-      "category": "Component APIs",
+      "category": "Health",
       "params": {
         "target": { "widget": "target", "label": "Target" },
         "amount": { "widget": "number", "label": "Amount" }
@@ -328,29 +328,11 @@
     "additionalProperties": false,
     "x-artcade": {
       "label": "Set Health",
-      "category": "Component APIs",
+      "category": "Health",
       "params": {
         "target": { "widget": "target", "label": "Target" },
         "currentHp": { "widget": "number", "label": "Current HP" },
         "maxHp": { "widget": "number", "label": "Max HP" }
-      }
-    }
-  },
-  "setGlobalState": {
-    "type": "object",
-    "required": ["type", "key", "value"],
-    "properties": {
-      "type": { "const": "setGlobalState" },
-      "key": { "type": "string" },
-      "value": { "oneOf": [{ "type": "number" }, { "type": "string" }, { "type": "boolean" }] }
-    },
-    "additionalProperties": false,
-    "x-artcade": {
-      "label": "Set Global State",
-      "category": "State",
-      "params": {
-        "key": { "widget": "string", "label": "Key" },
-        "value": { "widget": "string", "label": "Value" }
       }
     }
   },
@@ -675,7 +657,7 @@
     "additionalProperties": false,
     "x-artcade": {
       "label": "Linear Mover Direction",
-      "category": "Component APIs",
+      "category": "Movement",
       "params": {
         "target": { "widget": "target", "label": "Target" },
         "directionX": { "widget": "number", "label": "Direction X" },
@@ -694,7 +676,7 @@
     "additionalProperties": false,
     "x-artcade": {
       "label": "Linear Mover Speed",
-      "category": "Component APIs",
+      "category": "Movement",
       "params": {
         "target": { "widget": "target", "label": "Target" },
         "speed": { "widget": "number", "label": "Speed (px/s)" }
@@ -711,7 +693,7 @@
     "additionalProperties": false,
     "x-artcade": {
       "label": "Pause Linear Mover",
-      "category": "Component APIs",
+      "category": "Movement",
       "params": {
         "target": { "widget": "target", "label": "Target" }
       }
@@ -727,7 +709,7 @@
     "additionalProperties": false,
     "x-artcade": {
       "label": "Resume Linear Mover",
-      "category": "Component APIs",
+      "category": "Movement",
       "params": {
         "target": { "widget": "target", "label": "Target" }
       }
@@ -744,7 +726,7 @@
     "additionalProperties": false,
     "x-artcade": {
       "label": "Magnet Enabled",
-      "category": "Component APIs",
+      "category": "AI Logic",
       "params": {
         "target": { "widget": "target", "label": "Target" },
         "enabled": { "widget": "boolean", "label": "Enabled" }
@@ -762,7 +744,7 @@
     "additionalProperties": false,
     "x-artcade": {
       "label": "Magnet Target Tag",
-      "category": "Component APIs",
+      "category": "AI Logic",
       "params": {
         "target": { "widget": "target", "label": "Target" },
         "tag": { "widget": "string", "label": "Attract tag" }
@@ -780,7 +762,7 @@
     "additionalProperties": false,
     "x-artcade": {
       "label": "Horde Chase Class",
-      "category": "Component APIs",
+      "category": "AI Logic",
       "params": {
         "target": { "widget": "target", "label": "Target" },
         "className": { "widget": "className", "label": "Chase class" }
@@ -799,7 +781,7 @@
     "additionalProperties": false,
     "x-artcade": {
       "label": "Horde Weights",
-      "category": "Component APIs",
+      "category": "AI Logic",
       "params": {
         "target": { "widget": "target", "label": "Target" },
         "chaseWeight": { "widget": "number", "label": "Chase weight" },
@@ -818,7 +800,7 @@
     "additionalProperties": false,
     "x-artcade": {
       "label": "Auto Destroy Lifespan",
-      "category": "Component APIs",
+      "category": "Lifecycle",
       "params": {
         "target": { "widget": "target", "label": "Target" },
         "lifespan": { "widget": "number", "label": "Lifespan (s)" }
@@ -835,7 +817,7 @@
     "additionalProperties": false,
     "x-artcade": {
       "label": "Cancel Auto Destroy",
-      "category": "Component APIs",
+      "category": "Lifecycle",
       "params": {
         "target": { "widget": "target", "label": "Target" }
       }

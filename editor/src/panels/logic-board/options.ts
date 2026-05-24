@@ -147,8 +147,6 @@ export function defaultAction(type: LogicActionType): LogicAction {
       return { type: 'setAutoDestroyLifespan', target: 'self', lifespan: 5 }
     case 'cancelAutoDestroy':
       return { type: 'cancelAutoDestroy', target: 'self' }
-    case 'setGlobalState':
-      return { type: 'setGlobalState', key: 'level', value: 1 }
     case 'emitEvent':
       return { type: 'emitEvent', name: 'my_event', payloadKey: '', payloadValue: '' }
     case 'toggleLogicEvent':

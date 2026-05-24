@@ -48,7 +48,6 @@ const ACTION_NAMES: Record<LogicActionType, string> = {
   setHordeWeights: 'Horde weights',
   setAutoDestroyLifespan: 'Auto destroy timer',
   cancelAutoDestroy: 'Cancel auto destroy',
-  setGlobalState: 'Set global value',
   emitEvent: 'Send message',
   toggleLogicEvent: 'Turn rule on/off',
   applyImpulse: 'Jump or push',

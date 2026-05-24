@@ -58,7 +58,7 @@ export function TypePicker({
       map.set(cat, list)
     }
     // Event-first triggers: Recommended before Advanced / Polling.
-    const order = ['Recommended for this object', 'Recommended', 'Component APIs', 'Advanced / Polling']
+    const order = ['Recommended for this object', 'Recommended', 'Movement', 'Health', 'AI Logic', 'Lifecycle', 'Advanced / Polling']
     return [...map.entries()].sort(([a], [b]) => {
       const ia = order.indexOf(a)
       const ib = order.indexOf(b)

@@ -115,7 +115,7 @@ function emitActionSequence(actions: LogicAction[], indent: string): string[] {
   }
   for (const a of batch) {
     const code = actionLua(a)
-    if (!code.startsWith('--')) lines.push(indent + code)
+    if (code && !code.startsWith('--')) lines.push(indent + code)
   }
 
   if (i >= actions.length) return lines

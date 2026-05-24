@@ -166,7 +166,7 @@
     "additionalProperties": false,
     "x-artcade": {
       "label": "Compare Health",
-      "category": "Component APIs",
+      "category": "Health",
       "params": {
         "target": { "widget": "target", "label": "Target" },
         "field": {
@@ -193,7 +193,7 @@
     "additionalProperties": false,
     "x-artcade": {
       "label": "Platformer Grounded",
-      "category": "Component APIs",
+      "category": "Movement",
       "params": {
         "target": { "widget": "target", "label": "Target" }
       }

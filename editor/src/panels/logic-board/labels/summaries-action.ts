@@ -81,8 +81,6 @@ export function actionSummaryPlain(
       return `Auto destroy ${who} in ${a.lifespan}s`
     case 'cancelAutoDestroy':
       return `Cancel auto destroy on ${who}`
-    case 'setGlobalState':
-      return `Set global ${a.key} to ${a.value}`
     case 'emitEvent':
       return `Send message "${a.name || '?'}"`
     case 'toggleLogicEvent':

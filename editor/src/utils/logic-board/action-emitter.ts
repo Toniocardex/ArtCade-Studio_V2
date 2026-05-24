@@ -118,8 +118,6 @@ export function actionLua(a: LogicAction): string {
       return `autoDestroy.setLifespan(${targetExpr(a.target)}, ${Number(a.lifespan) || 0})`
     case 'cancelAutoDestroy':
       return `autoDestroy.cancel(${targetExpr(a.target)})`
-    case 'setGlobalState':
-      return `state.set(${luaString(a.key)}, ${luaValue(a.value)})`
     case 'emitEvent':
       return a.payloadKey
         ? `event.emit(${luaString(a.name)}, { [${luaString(a.payloadKey)}] = ${luaValue(a.payloadValue ?? '')} })`

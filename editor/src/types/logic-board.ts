@@ -115,7 +115,6 @@ export type LogicAction =
   | { type: 'setHordeWeights'; target: TargetSelector; chaseWeight: number; separationWeight: number }
   | { type: 'setAutoDestroyLifespan'; target: TargetSelector; lifespan: number }
   | { type: 'cancelAutoDestroy'; target: TargetSelector }
-  | { type: 'setGlobalState'; key: string; value: number | string | boolean }
   | { type: 'emitEvent'; name: string; payloadKey?: string; payloadValue?: number | string | boolean }
   | { type: 'toggleLogicEvent'; eventId: string; enabled: boolean }
   | { type: 'applyImpulse'; target: TargetSelector; ix: number; iy: number }

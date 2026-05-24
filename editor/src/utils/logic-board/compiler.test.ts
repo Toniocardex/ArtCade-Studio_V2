@@ -394,7 +394,7 @@ describe('compileLogicBoard — actions', () => {
             { type: 'stopAllAudio' },
             { type: 'destroyEntity', target: { className: 'Bullet', first: true } },
             { type: 'spawnEntity', className: 'Enemy', x: 100, y: 0 },
-            { type: 'setGlobalState', key: 'level', value: 2 },
+            { type: 'setVariable', key: 'level', value: 2 },
             { type: 'emitEvent', name: 'wave_cleared' },
             { type: 'emitEvent', name: 'dmg', payloadKey: 'amount', payloadValue: 5 },
             { type: 'debugLog', message: 'done' },
