@@ -24,6 +24,10 @@ export function actionSummaryPlain(
       return 'Stop all sounds'
     case 'stopMusic':
       return 'Stop music'
+    case 'pauseMusic':
+      return 'Pause music'
+    case 'resumeMusic':
+      return 'Resume music'
     case 'destroyEntity':
       return `Destroy ${who}`
     case 'spawnEntity': {

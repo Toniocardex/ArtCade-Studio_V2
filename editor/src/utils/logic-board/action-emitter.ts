@@ -24,6 +24,10 @@ export function actionLua(a: LogicAction): string {
       return `audio.stopAll()`
     case 'stopMusic':
       return `audio.stopMusic()`
+    case 'pauseMusic':
+      return `audio.pauseMusic()`
+    case 'resumeMusic':
+      return `audio.resumeMusic()`
     case 'destroyEntity':
       return `entity.destroy(${targetExpr(a.target)})`
     case 'spawnEntity': {

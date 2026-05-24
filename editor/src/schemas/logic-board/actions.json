@@ -127,6 +127,20 @@
     "additionalProperties": false,
     "x-artcade": { "label": "Stop Music", "category": "Audio", "params": {} }
   },
+  "pauseMusic": {
+    "type": "object",
+    "required": ["type"],
+    "properties": { "type": { "const": "pauseMusic" } },
+    "additionalProperties": false,
+    "x-artcade": { "label": "Pause Music", "category": "Audio", "params": {} }
+  },
+  "resumeMusic": {
+    "type": "object",
+    "required": ["type"],
+    "properties": { "type": { "const": "resumeMusic" } },
+    "additionalProperties": false,
+    "x-artcade": { "label": "Resume Music", "category": "Audio", "params": {} }
+  },
   "destroyEntity": {
     "type": "object",
     "required": ["type", "target"],

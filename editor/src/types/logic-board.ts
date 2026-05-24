@@ -82,6 +82,8 @@ export type LogicAction =
   | { type: 'playMusic'; path: string; loop?: boolean }
   | { type: 'stopAllAudio' }
   | { type: 'stopMusic' }
+  | { type: 'pauseMusic' }
+  | { type: 'resumeMusic' }
   | { type: 'destroyEntity'; target: TargetSelector }
   | {
       type: 'spawnEntity'

@@ -28,6 +28,8 @@ const ACTION_NAMES: Record<LogicActionType, string> = {
   playMusic: 'Play music',
   stopAllAudio: 'Stop all audio',
   stopMusic: 'Stop music',
+  pauseMusic: 'Pause music',
+  resumeMusic: 'Resume music',
   destroyEntity: 'Destroy',
   spawnEntity: 'Create object',
   moveInDirection: 'Move in direction',
