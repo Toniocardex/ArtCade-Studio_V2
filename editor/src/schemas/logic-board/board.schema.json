@@ -5,6 +5,7 @@
   "required": ["boardId", "target", "events"],
   "properties": {
     "boardId": { "type": "string", "minLength": 1 },
+    "name": { "type": "string" },
     "target": {
       "type": "object",
       "required": ["type"],

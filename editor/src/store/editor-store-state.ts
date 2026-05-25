@@ -138,6 +138,7 @@ export type Action =
   | { type: 'TILESET_SELECT_CELL';   cellIndex: number }
   // ---- Logic Board CRUD (all operate on project.logicBoards) ----
   | { type: 'LOGIC_ADD_BOARD';    board: LogicBoard }
+  | { type: 'LOGIC_RENAME_BOARD'; boardId: string; name: string }
   | { type: 'LOGIC_DELETE_BOARD'; boardId: string }
   | { type: 'LOGIC_ADD_EVENT';    boardId: string; event: LogicEvent }
   | { type: 'LOGIC_INSERT_EVENT'; boardId: string; event: LogicEvent; afterEventId?: string }

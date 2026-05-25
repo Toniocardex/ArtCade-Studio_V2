@@ -33,6 +33,7 @@ import {
 } from './trigger-execution'
 import { luaString, luaValue, targetExpr, poolExpr, sensorSourceExpr } from './lua-helpers'
 import { actionLua } from './action-emitter'
+import { logicBoardLuaCommentLabel } from './labels'
 
 // Re-export helpers consumed by compiler.test.ts and any future callers.
 export { luaString, luaValue, targetExpr } from './lua-helpers'
@@ -508,11 +509,12 @@ export function compileLogicBoard(
   const tickBlocks: string[] = []
   for (const board of doc) {
     const { init, tick } = emitBoard(board, project)
+    const label = logicBoardLuaCommentLabel(board)
     if (init.length) {
-      initBlocks.push(`${INDENT}-- board: ${board.boardId}`, ...init)
+      initBlocks.push(`${INDENT}-- board: ${label}`, ...init)
     }
     if (tick.length) {
-      tickBlocks.push(`${INDENT}-- board: ${board.boardId}`, ...tick)
+      tickBlocks.push(`${INDENT}-- board: ${label}`, ...tick)
     }
   }
   const useSensor = docUsesTickFallback(doc, 'onTriggerEnter', project) ||

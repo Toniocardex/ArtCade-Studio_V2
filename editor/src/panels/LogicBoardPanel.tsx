@@ -265,6 +265,9 @@ export default function LogicBoardPanel() {
           boards={boards}
           board={board}
           onSelectBoard={setSelectedBoardId}
+          onRenameBoard={(boardId, name) =>
+            dispatch({ type: 'LOGIC_RENAME_BOARD', boardId, name })
+          }
           onApply={handleApply}
           applyMsg={applyMsg}
           project={project}
@@ -301,6 +304,9 @@ export default function LogicBoardPanel() {
         boards={boards}
         board={board}
         onSelectBoard={setSelectedBoardId}
+        onRenameBoard={(boardId, name) =>
+          dispatch({ type: 'LOGIC_RENAME_BOARD', boardId, name })
+        }
         onApply={handleApply}
         applyMsg={applyMsg}
         project={project}

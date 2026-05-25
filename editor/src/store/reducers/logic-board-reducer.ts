@@ -8,6 +8,7 @@
 
 import type { CoreState, Action, DomainReducer } from '../editor-store-state'
 import type { LogicBoard } from '../../types'
+import { logicBoardGeneratedLabel } from '../../utils/logic-board/labels'
 
 function withBoards(
   state: CoreState,
@@ -29,6 +30,17 @@ export const logicBoardReducer: DomainReducer = (state: CoreState, action: Actio
         b.some((x) => x.boardId === action.board.boardId)
           ? b
           : [...b, action.board],
+      )
+    case 'LOGIC_RENAME_BOARD':
+      return withBoards(state, (b) =>
+        b.map((board) =>
+          board.boardId === action.boardId
+            ? {
+                ...board,
+                name: action.name.trim() || logicBoardGeneratedLabel(board.boardId),
+              }
+            : board,
+        ),
       )
     case 'LOGIC_DELETE_BOARD':
       return withBoards(state, (b) =>

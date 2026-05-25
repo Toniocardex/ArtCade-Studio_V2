@@ -499,6 +499,67 @@ describe('compileLogicBoard — realistic example', () => {
     expect(lua).toContain('state.add("coins", 1)')
     expect(lua).toContain('audio.playSound("sfx/coin.ogg", 1, 1)')
   })
+
+  it('uses custom board names in generated comments while keeping ids internal', () => {
+    const lua = compileLogicBoard([
+      {
+        boardId: 'board_mplxyz_1',
+        name: 'Player movement',
+        target: { type: 'entity_class', className: 'Player' },
+        events: [
+          ev({
+            id: 'jump',
+            trigger: { type: 'onInput', keyCode: 'Space', eventType: 'down' },
+            actions: [{ type: 'debugLog', message: 'jump' }],
+          }),
+        ],
+      },
+    ])
+
+    expect(lua).toContain('-- board: Player movement')
+    expect(lua).toContain('_logic_on["jump"] ~= false')
+    expect(lua).not.toContain('-- board: board_mplxyz_1')
+  })
+
+  it('keeps runtime keys on boardId when the visible compiler label changes', () => {
+    const lua = compileLogicBoard([
+      {
+        boardId: 'board_stable_key',
+        name: 'Player movement',
+        target: { type: 'entity_class', className: 'Player' },
+        events: [
+          ev({
+            id: 'mouse',
+            trigger: { type: 'onMouseInput', button: 'left', eventType: 'pressed' },
+            actions: [{ type: 'debugLog', message: 'click' }],
+          }),
+        ],
+      },
+    ])
+
+    expect(lua).toContain('-- board: Player movement')
+    expect(lua).toContain('"board_stable_key:mouse"')
+    expect(lua).not.toContain('"Player movement:mouse"')
+  })
+
+  it('sanitizes compiler labels only when emitting Lua comments', () => {
+    const lua = compileLogicBoard([
+      {
+        boardId: 'board_multiline',
+        name: 'Player\nmovement',
+        target: { type: 'entity_class', className: 'Player' },
+        events: [
+          ev({
+            trigger: { type: 'onUpdate' },
+            actions: [{ type: 'debugLog', message: 'frame' }],
+          }),
+        ],
+      },
+    ])
+
+    expect(lua).toContain('-- board: Player movement')
+    expect(lua).not.toContain('-- board: Player\nmovement')
+  })
 })
 
 describe('Logic Components — Phase A (new blocks)', () => {

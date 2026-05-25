@@ -1,4 +1,5 @@
 import { PencilLine } from 'lucide-react'
+import { applyInputBackspace, isBackspaceKey } from '../../utils/keyboard'
 
 interface ProjectNameFieldProps {
   value: string
@@ -24,7 +25,10 @@ export function ProjectNameField({
         onChange={(e) => onChange(e.target.value)}
         onBlur={onCommit}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') {
+          if (isBackspaceKey(e)) {
+            e.preventDefault()
+            applyInputBackspace(e.currentTarget)
+          } else if (e.key === 'Enter') {
             e.currentTarget.blur()
           } else if (e.key === 'Escape') {
             onChange(committedName)

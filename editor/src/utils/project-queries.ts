@@ -1,5 +1,6 @@
 import type { ProjectDoc, EntityDef, SceneDef } from '../types'
 import type { LogicBoard } from '../types/logic-board'
+import { logicBoardCompilerLabel } from './logic-board/labels'
 
 /** Entities that belong to a given scene, in entityIds order. */
 export function getEntitiesInScene(project: ProjectDoc, sceneId: string): EntityDef[] {
@@ -78,15 +79,8 @@ export function logicBoardLabel(
   project: ProjectDoc | null | undefined,
   board: LogicBoard,
 ): string {
-  if (board.target.type === 'entity_id' && board.target.entityId != null) {
-    return entityIdDisplayLabel(project, board.target.entityId)
-  }
-  if (board.target.type === 'entity_class' && board.target.className) {
-    return `[class] ${classDisplayLabel(project, board.target.className)}`
-  }
-  if (board.target.type === 'scene') return 'Scene'
-  const short = board.boardId.replace(/^board_/, '').slice(0, 12)
-  return short || 'Rules'
+  void project
+  return logicBoardCompilerLabel(board)
 }
 
 /** All unique class names across all entities in the project. */

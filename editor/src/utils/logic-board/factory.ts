@@ -14,6 +14,7 @@ import type {
   LogicTrigger,
 } from '../../types/logic-board'
 import { validateLogicBoard, validateLogicEvent } from './schema-registry'
+import { logicBoardGeneratedLabel } from './labels'
 
 let _seq = 0
 /** Monotonic, collision-free id (good enough for editor undo/redo). */
@@ -34,9 +35,11 @@ export function createLogicEvent(
 export function createLogicBoardForEntity(
   entityId: number,
   boardId = logicId('board'),
+  name?: string,
 ): LogicBoard {
   return {
     boardId,
+    name: name?.trim() || logicBoardGeneratedLabel(boardId),
     target: { type: 'entity_id', entityId },
     events: [],
   }
@@ -46,9 +49,11 @@ export function createLogicBoardForEntity(
 export function createLogicBoard(
   className: string,
   boardId = logicId('board'),
+  name?: string,
 ): LogicBoard {
   return {
     boardId,
+    name: name?.trim() || logicBoardGeneratedLabel(boardId),
     target: { type: 'entity_class', className },
     events: [],
   }
@@ -115,6 +120,9 @@ function parseBoard(raw: unknown): LogicBoard | null {
 
   const board: LogicBoard = {
     boardId: r.boardId,
+    ...(typeof r.name === 'string' && r.name.trim()
+      ? { name: r.name.trim() }
+      : {}),
     target: {
       type,
       ...(targetRaw.className != null

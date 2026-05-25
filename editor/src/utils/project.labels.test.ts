@@ -6,7 +6,7 @@ import {
   findLogicBoardForEntity,
   logicBoardLabel,
 } from './project'
-import { createLogicBoard, createLogicBoardForEntity } from './logic-board/factory'
+import { createLogicBoardForEntity } from './logic-board/factory'
 import type { ProjectDoc } from '../types'
 
 function miniProject(): ProjectDoc {
@@ -76,15 +76,22 @@ describe('findLogicBoardForEntity', () => {
 })
 
 describe('logicBoardLabel', () => {
-  it('shows entity name for entity_id boards', () => {
-    const board = createLogicBoardForEntity(1)
-    expect(logicBoardLabel(miniProject(), board)).toBe('Hero')
+  it('prefers custom rulesheet names', () => {
+    const board = createLogicBoardForEntity(1, 'b1', 'Player controls')
+    expect(logicBoardLabel(miniProject(), board)).toBe('Player controls')
   })
 
-  it('prefixes class boards for advanced shared rules', () => {
-    const board = createLogicBoard('Enemy')
-    expect(logicBoardLabel(miniProject(), board)).toContain('[class]')
-    expect(logicBoardLabel(miniProject(), board)).toContain('Enemy')
+  it('uses the generated compiler label for new entity_id boards', () => {
+    const board = createLogicBoardForEntity(1, 'board_mplj6t76_1')
+    expect(logicBoardLabel(miniProject(), board)).toBe('board_mplj6t76_1')
+  })
+
+  it('falls back to boardId for existing boards without names', () => {
+    expect(logicBoardLabel(miniProject(), {
+      boardId: 'old_board',
+      target: { type: 'entity_class', className: 'Enemy' },
+      events: [],
+    })).toBe('old_board')
   })
 })
 

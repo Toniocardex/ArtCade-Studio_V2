@@ -159,6 +159,7 @@ export interface LogicEvent {
 
 export interface LogicBoard {
   boardId: string                     // e.g. "player_controller"
+  name?: string                       // human-readable label shown in UI / Lua comments
   target: {
     type:       'entity_class' | 'entity_id' | 'scene'
     className?: string                // when entity_class

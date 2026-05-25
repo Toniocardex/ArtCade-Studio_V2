@@ -72,22 +72,21 @@ describe('friendly-labels', () => {
     expect(s).not.toContain('?')
   })
 
-  it('board display shows class label for shared class boards', () => {
+  it('board display shows the compiler label for shared class boards', () => {
     const board: LogicBoard = {
       boardId: 'board_mpe2dp1j_1',
       target: { type: 'entity_class', className: 'Player' },
       events: [],
     }
-    expect(boardDisplayName(board, miniProject())).toContain('[class]')
-    expect(boardDisplayName(board, miniProject())).toContain('Hero')
+    expect(boardDisplayName(board, miniProject())).toBe('board_mpe2dp1j_1')
   })
 
-  it('board display shows entity name for entity_id boards', () => {
+  it('board display shows the compiler label for entity_id boards', () => {
     const board: LogicBoard = {
       boardId: 'board_hero',
       target: { type: 'entity_id', entityId: 1 },
       events: [],
     }
-    expect(boardDisplayName(board, miniProject())).toBe('Hero')
+    expect(boardDisplayName(board, miniProject())).toBe('board_hero')
   })
 })

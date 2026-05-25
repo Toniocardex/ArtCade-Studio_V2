@@ -44,6 +44,7 @@ describe('coreReducer — Logic Board CRUD', () => {
     const board = createLogicBoard('Player', 'pc')
     const s = coreReducer(baseState(), { type: 'LOGIC_ADD_BOARD', board })
     expect(s.project?.logicBoards).toEqual([board])
+    expect(s.project?.logicBoards?.[0].name).toBe('pc')
     expect(s.projectDirty).toBe(true)
   })
 
@@ -52,6 +53,29 @@ describe('coreReducer — Logic Board CRUD', () => {
     let s = coreReducer(baseState(), { type: 'LOGIC_ADD_BOARD', board })
     s = coreReducer(s, { type: 'LOGIC_ADD_BOARD', board: createLogicBoard('Enemy', 'pc') })
     expect(s.project?.logicBoards).toHaveLength(1)
+  })
+
+  it('LOGIC_RENAME_BOARD stores a readable board name', () => {
+    const board = createLogicBoard('Player', 'pc')
+    let s = coreReducer(baseState(), { type: 'LOGIC_ADD_BOARD', board })
+    s = coreReducer(s, {
+      type: 'LOGIC_RENAME_BOARD',
+      boardId: 'pc',
+      name: 'Player movement',
+    })
+    expect(s.project?.logicBoards?.[0].name).toBe('Player movement')
+    expect(s.projectDirty).toBe(true)
+  })
+
+  it('LOGIC_RENAME_BOARD resets blank names to the generated compiler label', () => {
+    const board = createLogicBoard('Player', 'pc', 'Player movement')
+    let s = coreReducer(baseState(), { type: 'LOGIC_ADD_BOARD', board })
+    s = coreReducer(s, {
+      type: 'LOGIC_RENAME_BOARD',
+      boardId: 'pc',
+      name: '   ',
+    })
+    expect(s.project?.logicBoards?.[0].name).toBe('pc')
   })
 
   it('LOGIC_DELETE_BOARD removes by id', () => {

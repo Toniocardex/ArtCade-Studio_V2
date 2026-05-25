@@ -1,6 +1,7 @@
 import type { ProjectDoc } from '../../types'
 import type { LogicBoard } from '../../types/logic-board'
 import { boardDisplayName } from './friendly-labels'
+import { logicBoardCompilerLabel } from '../../utils/logic-board/labels'
 
 export type LogicBoardPanelMode = 'visual' | 'lua'
 
@@ -10,6 +11,7 @@ interface LogicBoardHeaderProps {
   boards: LogicBoard[]
   board: LogicBoard | null
   onSelectBoard: (id: string) => void
+  onRenameBoard: (id: string, name: string) => void
   onApply: () => void
   applyMsg: string | null
   project: ProjectDoc
@@ -21,11 +23,13 @@ export function LogicBoardHeader({
   boards,
   board,
   onSelectBoard,
+  onRenameBoard,
   onApply,
   applyMsg,
   project,
 }: LogicBoardHeaderProps) {
   const rulesFor = board ? boardDisplayName(board, project) : null
+  const compilerLabel = board ? logicBoardCompilerLabel(board) : ''
 
   return (
     <div className="h-[52px] flex items-center gap-3.5 px-4 bg-[var(--panel)] border-b border-[var(--border)]">
@@ -49,6 +53,16 @@ export function LogicBoardHeader({
             </option>
           ))}
         </select>
+      )}
+      {board && (
+        <input
+          type="text"
+          aria-label="Rulesheet name"
+          title="Rulesheet name used in generated Lua comments"
+          value={compilerLabel}
+          onChange={(e) => onRenameBoard(board.boardId, e.target.value)}
+          className="w-52 bg-[var(--bg)] border border-[var(--border-2)] text-[var(--text)] placeholder:text-[var(--muted)] px-2.5 py-1.5 rounded text-xs"
+        />
       )}
       <div className="flex-1" />
       {applyMsg && (
