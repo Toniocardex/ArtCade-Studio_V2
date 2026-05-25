@@ -362,6 +362,12 @@ export async function runBuildWasm(projectRoot: string): Promise<void> {
   await invoke<void>('run_build_wasm', { projectRoot })
 }
 
+/** Serve `dist/<name>-web/` via localhost and open index.html in the default browser. */
+export async function openWebExportInBrowser(projectRoot: string): Promise<string> {
+  if (!isTauri()) { notAvailable('openWebExportInBrowser'); return '' }
+  return invoke<string>('open_web_export_in_browser', { projectRoot })
+}
+
 /**
  * Run pack-artcade.py. Streams stdout as "build-log" events.
  */

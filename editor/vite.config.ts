@@ -41,6 +41,20 @@ export default defineConfig({
         codemirrorFrame: resolve(__dirname, 'codemirror-frame.html'),
       },
       external: [/\/runtime\/game\.js$/],
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined
+          if (
+            id.includes('@codemirror') ||
+            id.includes('@lezer') ||
+            id.includes('@uiw/react-codemirror')
+          ) return 'vendor-codemirror'
+          if (id.includes('lucide-react')) return 'vendor-icons'
+          if (id.includes('react') || id.includes('scheduler')) return 'vendor-react'
+          if (id.includes('@tauri-apps')) return 'vendor-tauri'
+          return undefined
+        },
+      },
     },
   },
 })

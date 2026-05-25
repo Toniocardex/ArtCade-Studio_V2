@@ -5,12 +5,15 @@
 //   check_dependencies  — runtime / toolchain status
 //   install_sdk         — on-demand SDK bootstrap (PowerShell)
 //   run_build           — native compile + pack
+//   run_build_wasm      — WASM export to dist/<name>-web/
+//   open_web_export_in_browser — local http.server + default browser
 //   pack_project        — python pack-artcade.py
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod build_log_filter;
 mod sdk;
+mod web_preview;
 
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
@@ -164,6 +167,11 @@ fn safe_artifact_name(name: &str) -> String {
     } else {
         trimmed.to_string()
     }
+}
+
+fn web_export_dist_dir(project_root: &Path) -> PathBuf {
+    let game_name = project_display_name(project_root);
+    project_root.join("dist").join(format!("{game_name}-web"))
 }
 
 fn project_display_name(project_root: &Path) -> String {
@@ -570,7 +578,7 @@ async fn run_build_wasm(app: tauri::AppHandle, project_root: String) -> Result<(
         return Err(msg);
     }
     let game_name = project_display_name(&project_root);
-    let dist_dir = project_root.join("dist").join(format!("{game_name}-web"));
+    let dist_dir = web_export_dist_dir(&project_root);
     std::fs::create_dir_all(&dist_dir)
         .map_err(|e| format!("create web dist dir '{}': {e}", dist_dir.display()))?;
 
@@ -619,6 +627,34 @@ async fn run_build_wasm(app: tauri::AppHandle, project_root: String) -> Result<(
         "info",
     );
     Ok(())
+}
+
+#[tauri::command]
+async fn open_web_export_in_browser(
+    app: tauri::AppHandle,
+    project_root: String,
+) -> Result<String, String> {
+    let project_root = PathBuf::from(project_root);
+    if !project_root.join("project.json").exists() {
+        let msg = format!(
+            "[Web] project.json not found in {}",
+            project_root.display()
+        );
+        emit_log(&app, &msg, "error");
+        return Err(msg);
+    }
+
+    let dist_dir = web_export_dist_dir(&project_root);
+    let url = web_preview::serve_web_export(&app, &dist_dir)?;
+    emit_log(
+        &app,
+        &format!(
+            "[Web] Opened browser — {url} (serving {})",
+            dist_dir.display()
+        ),
+        "info",
+    );
+    Ok(url)
 }
 
 #[tauri::command]
@@ -675,6 +711,7 @@ fn main() {
             install_sdk,
             run_build,
             run_build_wasm,
+            open_web_export_in_browser,
             pack_project,
         ])
         .run(tauri::generate_context!())

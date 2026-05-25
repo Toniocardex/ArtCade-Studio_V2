@@ -1,10 +1,11 @@
 import { useRef, useState, useEffect } from 'react'
 import type { ReactNode } from 'react'
-import { Play, Square, FolderOpen, Save, Package, Hammer, ChevronDown, FilePlus, Globe2, PencilLine } from 'lucide-react'
+import { Play, Square, FolderOpen, Save, Package, Hammer, ChevronDown, FilePlus, Globe2, PencilLine, ExternalLink } from 'lucide-react'
 import { useEditor } from '../store/editor-store'
 import {
   openProjectDialog, loadProjectFile,
   saveScript, saveProjectFile, savePackDialog, packProject, runBuild, runBuildWasm,
+  openWebExportInBrowser,
   saveProjectAsDialog, scaffoldNewProjectOnDisk, resolveScriptPath,
   ensureDependencies, checkDependencies,
 } from '../utils/api'
@@ -84,6 +85,7 @@ export default function MenuBar() {
   const [fileMenuOpen, setFileMenuOpen] = useState(false)
   const [isBuilding,   setIsBuilding]   = useState(false)
   const [isBuildingWeb, setIsBuildingWeb] = useState(false)
+  const [isOpeningWeb, setIsOpeningWeb] = useState(false)
   const [projectNameDraft, setProjectNameDraft] = useState(project?.projectName ?? 'Untitled')
   const fileMenuRef = useRef<HTMLDivElement>(null)
 
@@ -296,7 +298,7 @@ export default function MenuBar() {
     }
   }
 
-  async function ensureProjectReadyForBuild(kind: 'Build' | 'WASM'): Promise<string | null> {
+  async function ensureProjectReadyForBuild(kind: 'Build' | 'WASM' | 'Web'): Promise<string | null> {
     if (!project) {
       dispatch({ type: 'LOG', entry: makeLog(`[${kind}] No project loaded.`, 'warn') })
       return null
@@ -387,6 +389,29 @@ export default function MenuBar() {
       dispatch({ type: 'LOG', entry: makeLog(`[WASM] Failed: ${err}`, 'error') })
     } finally {
       setIsBuildingWeb(false)
+    }
+  }
+
+  async function handleOpenWebInBrowser() {
+    if (!project) {
+      dispatch({ type: 'LOG', entry: makeLog('[Web] No project loaded.', 'warn') })
+      return
+    }
+    setIsOpeningWeb(true)
+    dispatch({ type: 'SET_CONSOLE_OPEN', open: true })
+    const root = await ensureProjectReadyForBuild('Web')
+    if (!root) {
+      setIsOpeningWeb(false)
+      return
+    }
+    dispatch({ type: 'LOG', entry: makeLog('[Web] Starting local preview server...', 'info') })
+    try {
+      const url = await openWebExportInBrowser(dirName(root))
+      dispatch({ type: 'LOG', entry: makeLog(`[Web] Browser opened at ${url}`, 'info') })
+    } catch (err) {
+      dispatch({ type: 'LOG', entry: makeLog(`[Web] ${err}`, 'error') })
+    } finally {
+      setIsOpeningWeb(false)
     }
   }
 
@@ -516,7 +541,7 @@ export default function MenuBar() {
         <button
           type="button"
           onClick={handleBuildExe}
-          disabled={isBuilding || isBuildingWeb}
+          disabled={isBuilding || isBuildingWeb || isOpeningWeb}
           className={`editor-toolbar-btn border ${
             isBuilding
               ? 'border-[var(--border-2)] bg-[var(--panel)] text-[var(--muted)] cursor-not-allowed'
@@ -530,7 +555,7 @@ export default function MenuBar() {
         <button
           type="button"
           onClick={handleBuildWeb}
-          disabled={isBuilding || isBuildingWeb}
+          disabled={isBuilding || isBuildingWeb || isOpeningWeb}
           className={`editor-toolbar-btn border ${
             isBuildingWeb
               ? 'border-[var(--border-2)] bg-[var(--panel)] text-[var(--muted)] cursor-not-allowed'
@@ -539,6 +564,23 @@ export default function MenuBar() {
         >
           <Globe2 size={12} className={isBuildingWeb ? 'animate-pulse' : ''} />
           {isBuildingWeb ? 'EXPORTING...' : 'BUILD WEB'}
+        </button>
+
+        <button
+          type="button"
+          onClick={handleOpenWebInBrowser}
+          disabled={!project || isBuilding || isBuildingWeb || isOpeningWeb}
+          title={project ? 'Serve web export on localhost and open in browser' : 'Load a project first'}
+          className={`editor-toolbar-btn border ${
+            isOpeningWeb
+              ? 'border-[var(--border-2)] bg-[var(--panel)] text-[var(--muted)] cursor-not-allowed'
+              : !project
+                ? 'border-[var(--border)] bg-transparent text-[var(--muted)] cursor-not-allowed opacity-60'
+                : 'border-[var(--border-2)] bg-transparent text-[var(--text)] hover:border-[var(--accent)] hover:text-[var(--accent)] hover:bg-[var(--accent-bg)]'
+          }`}
+        >
+          <ExternalLink size={12} className={isOpeningWeb ? 'animate-pulse' : ''} />
+          {isOpeningWeb ? 'OPENING…' : 'OPEN IN BROWSER'}
         </button>
       </div>
     </header>

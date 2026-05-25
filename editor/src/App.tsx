@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { EditorProvider, useEditor } from './store/editor-store'
 import MenuBar            from './components/MenuBar'
 import ModuleRail from './components/ModuleRail'
@@ -8,9 +8,6 @@ import ResizeHandle       from './components/ResizeHandle'
 import SceneObjectsPanel from './panels/SceneObjectsPanel'
 import PreviewPanel       from './panels/PreviewPanel'
 import InspectorPanel     from './panels/InspectorPanel'
-import LogicBoardPanel    from './panels/LogicBoardPanel'
-import ScriptEditorPanel  from './panels/ScriptEditorPanel'
-import TilesetEditorPanel from './panels/TilesetEditorPanel'
 import { createBlankProject } from './utils/project'
 import { runtimeSync } from './utils/runtime-sync-service'
 import { triggerLayoutReflow } from './utils/layout-reflow'
@@ -19,6 +16,10 @@ import { useViewportShortcuts } from './hooks/useViewportShortcuts'
 import { useConsoleShortcut } from './hooks/useConsoleShortcut'
 import { usePersistedWidth } from './hooks/usePersistedWidth'
 import type { ConsoleEntry } from './types'
+
+const LogicBoardPanel = lazy(() => import('./panels/LogicBoardPanel'))
+const ScriptEditorPanel = lazy(() => import('./panels/ScriptEditorPanel'))
+const TilesetEditorPanel = lazy(() => import('./panels/TilesetEditorPanel'))
 
 let _bootLogId = 500
 function bootLog(message: string, level: ConsoleEntry['level']): ConsoleEntry {
@@ -66,7 +67,11 @@ function CanvasView() {
           >
             <PreviewPanel />
           </div>
-          {isEditingTileset && <TilesetEditorPanel />}
+          {isEditingTileset && (
+            <Suspense fallback={null}>
+              <TilesetEditorPanel />
+            </Suspense>
+          )}
         </div>
       </section>
 
@@ -89,7 +94,9 @@ function CanvasView() {
 function LogicBoardView() {
   return (
     <div className="flex flex-1 min-h-0 overflow-hidden">
-      <LogicBoardPanel />
+      <Suspense fallback={null}>
+        <LogicBoardPanel />
+      </Suspense>
     </div>
   )
 }
@@ -101,7 +108,9 @@ function LogicBoardView() {
 function ScriptEditorView() {
   return (
     <div className="flex flex-1 min-h-0 overflow-hidden">
-      <ScriptEditorPanel />
+      <Suspense fallback={null}>
+        <ScriptEditorPanel />
+      </Suspense>
     </div>
   )
 }
