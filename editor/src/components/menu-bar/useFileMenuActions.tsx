@@ -4,7 +4,7 @@ import { FilePlus, FolderOpen, Save, Package, Hammer } from 'lucide-react'
 import type { Action as EditorAction, CoreState } from '../../store/editor-store'
 import {
   openProjectDialog,
-  loadProjectFile,
+  loadProjectFromPath,
   saveScript,
   savePackDialog,
   packProject,
@@ -61,16 +61,16 @@ export function useFileMenuActions({
     const path = await openProjectDialog()
     if (!path) return
     dispatch({ type: 'LOG', entry: makeConsoleEntry(`[File] Opening ${path}…`, 'info') })
-    const proj = await loadProjectFile(path)
-    if (!proj) {
-      dispatch({ type: 'LOG', entry: makeConsoleEntry('[File] ✗ Failed to parse project.json', 'error') })
+    const loaded = await loadProjectFromPath(path)
+    if (!loaded) {
+      dispatch({ type: 'LOG', entry: makeConsoleEntry('[File] ✗ Failed to open project', 'error') })
       return
     }
     runtimeSync.reset()
-    dispatch({ type: 'LOAD_PROJECT', project: proj, path })
+    dispatch({ type: 'LOAD_PROJECT', project: loaded.project, path: loaded.path })
     dispatch({
       type: 'LOG',
-      entry: makeConsoleEntry(`[File] ✓ Loaded "${proj.projectName}" v${proj.version}`, 'info'),
+      entry: makeConsoleEntry(`[File] ✓ Loaded "${loaded.project.projectName}" v${loaded.project.version}`, 'info'),
     })
   }, [closeMenu, confirmDiscardIfDirty, dispatch])
 

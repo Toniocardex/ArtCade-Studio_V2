@@ -6,7 +6,7 @@ import { useEffect } from 'react'
 import { useEditor } from '../store/editor-store'
 import {
   openProjectDialog,
-  loadProjectFile,
+  loadProjectFromPath,
   saveScript,
   saveProjectAsDialog,
   scaffoldNewProjectOnDisk,
@@ -135,16 +135,16 @@ export function useProjectShortcuts(): void {
         const path = await openProjectDialog()
         if (!path) return
         dispatch({ type: 'LOG', entry: kbdLog(`Opening ${path}…`, 'info') })
-        const proj = await loadProjectFile(path)
-        if (!proj) {
-          dispatch({ type: 'LOG', entry: kbdLog('Failed to parse project.json', 'error') })
+        const loaded = await loadProjectFromPath(path)
+        if (!loaded) {
+          dispatch({ type: 'LOG', entry: kbdLog('Failed to open project', 'error') })
           return
         }
         runtimeSync.reset()
-        dispatch({ type: 'LOAD_PROJECT', project: proj, path })
+        dispatch({ type: 'LOAD_PROJECT', project: loaded.project, path: loaded.path })
         dispatch({
           type: 'LOG',
-          entry: kbdLog(`OK loaded "${proj.projectName}" v${proj.version}`, 'info'),
+          entry: kbdLog(`OK loaded "${loaded.project.projectName}" v${loaded.project.version}`, 'info'),
         })
         return
       }

@@ -38,10 +38,13 @@ vi.mock('@tauri-apps/plugin-fs', () => ({
   readFile: () => readFileMock(),
   writeFile: vi.fn(async () => undefined),
   mkdir:     vi.fn(async () => undefined),
+  readDir:   vi.fn(async () => []),
+  exists:    vi.fn(async () => false),
 }))
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const {
+  openProjectDialog,
   saveProjectAsDialog,
   scaffoldNewProjectOnDisk,
 } = await import('./api')
@@ -88,6 +91,22 @@ describe('saveProjectAsDialog', () => {
     await saveProjectAsDialog('My Game', { defaultPath: 'C:/Users/Test' })
     const opts = dialogOpenMock.mock.calls[0][0] as { defaultPath?: string }
     expect(opts.defaultPath).toBe('C:/Users/Test')
+  })
+})
+
+describe('openProjectDialog', () => {
+  beforeEach(() => {
+    dialogOpenMock.mockClear()
+  })
+
+  it('allows opening both project.json and .artcade packages', async () => {
+    dialogOpenMock.mockResolvedValueOnce(null)
+    await openProjectDialog()
+
+    const opts = dialogOpenMock.mock.calls[0][0] as {
+      filters?: Array<{ name: string; extensions: string[] }>
+    }
+    expect(opts.filters?.[0].extensions).toEqual(['json', 'artcade'])
   })
 })
 
