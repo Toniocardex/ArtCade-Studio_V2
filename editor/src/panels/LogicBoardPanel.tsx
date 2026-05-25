@@ -103,20 +103,22 @@ export default function LogicBoardPanel() {
 
   useEffect(() => {
     if (prevBoardsRevision.current === boardsRevision) return
-    prevBoardsRevision.current = boardsRevision
 
     // Auto-sync compiles the visual board into mainScriptPath every time the
     // board JSON changes. If the user has unsaved manual edits in that exact
     // script tab, overwriting them is silent data loss — the conflict banner
     // exists for *this* case but it only fires AFTER we've already destroyed
-    // the buffer. Skip the auto-sync when the tab is dirty; the user can
-    // resolve the conflict explicitly (Apply button or the banner action).
+    // the buffer. Skip the auto-sync when the tab is dirty; do NOT bump
+    // prevBoardsRevision either, so that when the user later resolves the
+    // conflict (saves the buffer → isDirty=false), this effect re-fires via
+    // the `state` dep and the sync runs against the pending revision.
     const mainPath = state.project?.mainScriptPath
     const dirtyMain = mainPath
       ? state.openScripts.find(s => s.path === mainPath && s.isDirty)
       : undefined
     if (dirtyMain) return
 
+    prevBoardsRevision.current = boardsRevision
     syncLogicBoardToScript(dispatch, state, lua)
   }, [boardsRevision, lua, dispatch, state])
 
