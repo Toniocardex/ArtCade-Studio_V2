@@ -132,7 +132,6 @@ void LuaHost::tick(float dt) {
     }
 
     if (!impl_->scriptTickRequired) {
-        lua_gc(impl_->lua.lua_state(), LUA_GCSTEP, 5);
         return;
     }
 
@@ -145,10 +144,12 @@ void LuaHost::tick(float dt) {
         lastError_ = err.what();
     }
 
-    // Run a tiny incremental GC step after every tick (~5 KB worth of work).
-    // This spreads collection across frames so no single frame pays the full
-    // GC cost when a burst of objects (coin, particles, callbacks) is freed.
-    lua_gc(impl_->lua.lua_state(), LUA_GCSTEP, 5);
+    // Intentionally no per-tick lua_gc(LUA_GCSTEP) call here. Per the Lua 5.4
+    // reference manual, LUA_GCSTEP switches the collector back to incremental
+    // mode — which would silently defeat the LUA_GCGEN configured in init().
+    // Generational mode runs minor cycles automatically on allocation, with
+    // no help needed from the host. Tune via LUA_GCGEN(minor, major) if a
+    // particular game profile spikes on the major cycle.
 }
 
 bool LuaHost::isScriptTickRequired() const {
