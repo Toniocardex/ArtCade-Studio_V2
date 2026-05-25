@@ -13,6 +13,12 @@ namespace ArtCade::Modules {
 
 using SpawnLogCallback = std::function<void(const std::string&)>;
 
+// Synchronous notification fired by destroy(id) BEFORE the registry erase.
+// Used by upstream owners (e.g. World) to drop per-entity gameplay caches
+// keyed by EntityId so a recycled id doesn't inherit the previous owner's
+// state (coyote timer, sensor "was overlapping", etc.).
+using EntityDestroyHandler = std::function<void(EntityId)>;
+
 class SceneManager;
 class Physics;
 class EntityRegistry;
@@ -38,6 +44,9 @@ public:
 
     /** Editor console (or tests): called after each spawnFromClass with "[Spawn] …" line. */
     void setSpawnLogCallback(SpawnLogCallback cb);
+
+    /** Fired synchronously from destroy(id) before the entity is erased. */
+    void setEntityDestroyHandler(EntityDestroyHandler cb);
 
     EntityId create(const EntityDef& def);
     /** Spawn a new instance: clone first project entity of that class, else pool, else minimal. */
@@ -219,7 +228,8 @@ private:
     /** First EntityDef seen per className when the project is loaded (spawn template). */
     std::unordered_map<std::string, EntityDef> classPrototypes_;
 
-    SpawnLogCallback spawnLogCallback_;
+    SpawnLogCallback     spawnLogCallback_;
+    EntityDestroyHandler destroyHandler_;
 
     void rebuildClassPrototypes(const std::unordered_map<EntityId, EntityDef>& entityDefs);
     bool entityListedInActiveScene(EntityId id) const;

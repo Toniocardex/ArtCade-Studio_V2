@@ -66,6 +66,15 @@ struct Fixture {
         physics.shutdown();
         sm.shutdown();
     }
+
+    // Sensor edges are now computed by the app driver AFTER physics step
+    // (so begin/end events fire on the same frame as the overlap). Tests
+    // don't run a physics step, so this helper mirrors the new contract:
+    // gameplay tick + sensor refresh.
+    void tickFrame(float dt) {
+        world.tickGameplaySystems(dt);
+        world.refreshSensorEdges();
+    }
 };
 
 static void test_platformer_movement_intent_without_input() {
@@ -98,12 +107,12 @@ static void test_platformer_movement_intent_without_input() {
     CHECK(f.gw.physicsHandle(2) != 0);
 
     f.world.setMovementIntent(1, 1.f, 0.f);
-    f.world.tickGameplaySystems(1.f / 60.f);
+    f.tickFrame(1.f / 60.f);
     Vec2 velocity = f.physics.getLinearVelocity(f.gw.physicsHandle(1));
     CHECK(std::abs(velocity.x - 250.f) < 0.01f);
 
     f.world.clearMovementIntent(1);
-    f.world.tickGameplaySystems(1.f / 60.f);
+    f.tickFrame(1.f / 60.f);
     velocity = f.physics.getLinearVelocity(f.gw.physicsHandle(1));
     CHECK(std::abs(velocity.x) < 0.01f);
 }
@@ -134,7 +143,7 @@ static void test_platformer_jump_intent_without_input() {
     f.world.init(doc);
 
     f.world.requestJump(1);
-    f.world.tickGameplaySystems(1.f / 60.f);
+    f.tickFrame(1.f / 60.f);
     const Vec2 velocity = f.physics.getLinearVelocity(f.gw.physicsHandle(1));
     CHECK(velocity.y < -499.f);
 }
@@ -167,7 +176,7 @@ static void test_platformer_grounded_by_solid_component() {
 
     CHECK(f.gw.physicsHandle(2) != 0);
     f.world.requestJump(1);
-    f.world.tickGameplaySystems(1.f / 60.f);
+    f.tickFrame(1.f / 60.f);
     const Vec2 velocity = f.physics.getLinearVelocity(f.gw.physicsHandle(1));
     CHECK(velocity.y < -419.f);
 }
@@ -205,7 +214,7 @@ static void test_platformer_grounded_on_scaled_solid_platform() {
     CHECK(f.physics.areOverlapping(f.gw.physicsHandle(1), f.gw.physicsHandle(2)));
 
     for (int i = 0; i < 30; ++i)
-        f.world.tickGameplaySystems(1.f / 60.f);
+        f.tickFrame(1.f / 60.f);
 
     CHECK(f.world.isPlatformerGrounded(1));
 }
@@ -269,7 +278,7 @@ static void test_top_down_movement_intent_without_input() {
     f.world.init(doc);
 
     f.world.setMovementIntent(1, 1.f, 1.f);
-    f.world.tickGameplaySystems(1.f);
+    f.tickFrame(1.f);
     f.physics.step(1.f / 60.f);
     f.world.syncPhysicsToEntities();
     Vec2 velocity = f.physics.getLinearVelocity(f.gw.physicsHandle(1));
@@ -277,7 +286,7 @@ static void test_top_down_movement_intent_without_input() {
     CHECK(std::abs(velocity.y - 84.8528f) < 0.1f);
 
     f.world.clearMovementIntent(1);
-    f.world.tickGameplaySystems(1.f);
+    f.tickFrame(1.f);
     f.physics.step(1.f / 60.f);
     f.world.syncPhysicsToEntities();
     velocity = f.physics.getLinearVelocity(f.gw.physicsHandle(1));
@@ -308,7 +317,7 @@ static void test_top_down_four_direction_constraint() {
     f.world.init(doc);
 
     f.world.setMovementIntent(1, 0.25f, 1.f);
-    f.world.tickGameplaySystems(1.f);
+    f.tickFrame(1.f);
     f.physics.step(1.f / 60.f);
     f.world.syncPhysicsToEntities();
     const Vec2 velocity = f.physics.getLinearVelocity(f.gw.physicsHandle(1));
@@ -343,7 +352,7 @@ static void test_sensor_edges_are_drained_deterministically() {
     doc.entities = {{ 1, sensorHost }, { 2, player }};
     f.world.init(doc);
 
-    f.world.tickGameplaySystems(1.f / 60.f);
+    f.tickFrame(1.f / 60.f);
     auto events = f.world.pollSensorEdges();
     CHECK(events.size() == 1);
     CHECK(events[0].entityId == 1);
@@ -354,7 +363,7 @@ static void test_sensor_edges_are_drained_deterministically() {
     CHECK(f.world.pollSensorEdges().empty());
 
     f.physics.setPosition(f.gw.physicsHandle(2), { 1000.f, 1000.f });
-    f.world.tickGameplaySystems(1.f / 60.f);
+    f.tickFrame(1.f / 60.f);
     events = f.world.pollSensorEdges();
     CHECK(events.size() == 1);
     CHECK(events[0].entityId == 1);
@@ -392,7 +401,7 @@ static void test_set_sensor_syncs_fixture_after_body() {
     sensor.targetTag = "player";
     CHECK(f.gw.setSensor(1, sensor));
 
-    f.world.tickGameplaySystems(1.f / 60.f);
+    f.tickFrame(1.f / 60.f);
     auto events = f.world.pollSensorEdges();
     CHECK(events.size() == 1);
     CHECK(events[0].entityId == 1);
@@ -422,7 +431,7 @@ static void test_set_sensor_replaces_fixture_without_duplicates() {
     doc.entities = {{ 1, coin }, { 2, player }};
     f.world.init(doc);
 
-    f.world.tickGameplaySystems(1.f / 60.f);
+    f.tickFrame(1.f / 60.f);
     f.world.pollSensorEdges();
 
     SensorComponent narrow;
@@ -432,16 +441,16 @@ static void test_set_sensor_replaces_fixture_without_duplicates() {
     CHECK(f.gw.setSensor(1, narrow));
     CHECK(f.gw.setSensor(1, narrow));
 
-    f.world.tickGameplaySystems(1.f / 60.f);
+    f.tickFrame(1.f / 60.f);
     CHECK(f.world.pollSensorEdges().empty());
 
     f.physics.setPosition(f.gw.physicsHandle(2), { 0.f, 0.f });
-    f.world.tickGameplaySystems(1.f / 60.f);
+    f.tickFrame(1.f / 60.f);
     auto events = f.world.pollSensorEdges();
     CHECK(events.size() == 1);
     if (events.size() == 1) CHECK(events[0].enter);
 
-    f.world.tickGameplaySystems(1.f / 60.f);
+    f.tickFrame(1.f / 60.f);
     CHECK(f.world.pollSensorEdges().empty());
 }
 
@@ -473,7 +482,7 @@ static void test_set_sensor_creates_body_for_sensor_only_entity() {
     CHECK(f.gw.setSensor(1, sensor));
     CHECK(f.gw.physicsHandle(1) != 0);
 
-    f.world.tickGameplaySystems(1.f / 60.f);
+    f.tickFrame(1.f / 60.f);
     auto events = f.world.pollSensorEdges();
     CHECK(events.size() == 1);
     if (events.size() == 1) CHECK(events[0].enter);
@@ -563,7 +572,7 @@ static void test_linear_mover_moves_transform_without_physics() {
     doc.entities = {{ 1, bullet }};
     f.world.init(doc);
 
-    f.world.tickGameplaySystems(1.f);
+    f.tickFrame(1.f);
 
     Transform transform{};
     CHECK(f.gw.getTransform(1, transform));
@@ -596,7 +605,7 @@ static void test_linear_mover_sets_physics_velocity() {
     f.world.init(doc);
 
     CHECK(f.gw.physicsHandle(1) != 0);
-    f.world.tickGameplaySystems(1.f / 60.f);
+    f.tickFrame(1.f / 60.f);
 
     const Vec2 velocity = f.physics.getLinearVelocity(f.gw.physicsHandle(1));
     CHECK(std::abs(velocity.x) < 0.01f);
@@ -627,7 +636,7 @@ static void test_magnetic_item_pulls_tagged_entity() {
     doc.entities = {{ 1, player }, { 2, coin }};
     f.world.init(doc);
 
-    f.world.tickGameplaySystems(1.f);
+    f.tickFrame(1.f);
 
     Transform coinTransform{};
     CHECK(f.gw.getTransform(2, coinTransform));
@@ -659,7 +668,7 @@ static void test_horde_member_chases_target_class() {
     doc.entities = {{ 1, player }, { 2, enemy }};
     f.world.init(doc);
 
-    f.world.tickGameplaySystems(1.f);
+    f.tickFrame(1.f);
 
     Transform enemyTransform{};
     CHECK(f.gw.getTransform(2, enemyTransform));
@@ -697,7 +706,7 @@ static void test_horde_member_separates_from_peer() {
     doc.entities = {{ 1, player }, { 2, a }, { 3, b }};
     f.world.init(doc);
 
-    f.world.tickGameplaySystems(0.5f);
+    f.tickFrame(0.5f);
 
     Transform ta{}, tb{};
     CHECK(f.gw.getTransform(2, ta));
@@ -795,7 +804,7 @@ static void test_health_damage_respects_iframes() {
     CHECK(f.gw.getHealth(1, h));
     CHECK(h.currentHp == 90.f);
 
-    f.world.tickGameplaySystems(0.25f);
+    f.tickFrame(0.25f);
     CHECK(f.gw.applyDamage(1, 10.f));
     CHECK(f.gw.getHealth(1, h));
     CHECK(h.currentHp == 80.f);
@@ -821,7 +830,7 @@ static void test_linear_mover_pause_stops_movement() {
     doc.entities = {{ 1, bullet }};
     f.world.init(doc);
 
-    f.world.tickGameplaySystems(1.f);
+    f.tickFrame(1.f);
 
     Transform moved{};
     CHECK(f.gw.getTransform(1, moved));
@@ -831,7 +840,7 @@ static void test_linear_mover_pause_stops_movement() {
     paused._paused = true;
     CHECK(f.gw.setLinearMover(1, paused));
 
-    f.world.tickGameplaySystems(1.f);
+    f.tickFrame(1.f);
 
     Transform afterPause{};
     CHECK(f.gw.getTransform(1, afterPause));
@@ -863,7 +872,7 @@ static void test_magnetic_item_disabled_stops_pull() {
     doc.entities = {{ 1, player }, { 2, coin }};
     f.world.init(doc);
 
-    f.world.tickGameplaySystems(1.f);
+    f.tickFrame(1.f);
 
     Transform coinTransform{};
     CHECK(f.gw.getTransform(2, coinTransform));
@@ -954,11 +963,11 @@ static void test_load_scene_resets_runtime_state() {
     f.world.init(makeTileSceneDoc());
 
     f.world.setMovementIntent(1, 1.f, 0.f);
-    f.world.tickGameplaySystems(1.f / 60.f);
+    f.tickFrame(1.f / 60.f);
     CHECK(!f.world.pollSensorEdges().empty());
 
     CHECK(f.world.loadScene("scene_b"));
-    f.world.tickGameplaySystems(1.f / 60.f);
+    f.tickFrame(1.f / 60.f);
 
     const Vec2 velocity = f.physics.getLinearVelocity(f.gw.physicsHandle(1));
     CHECK(std::abs(velocity.x) < 0.01f);

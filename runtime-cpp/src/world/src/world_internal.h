@@ -50,10 +50,10 @@ inline void applySteeringVelocity(Modules::Physics& physics,
                                   const Vec2& velocity,
                                   float dt)
 {
-    SolidComponent solid{};
-    if (gateway.getSolid(id, solid))
-        return;
-
+    // NOTE: do NOT early-return on SolidComponent. "Solid" is a collision
+    // flag (this entity blocks others), NOT an immobility marker. Static
+    // bodies are correctly skipped below via bodyType==Static. The earlier
+    // Solid-as-immobile check froze every horde enemy that had collision.
     const uint32_t handle = gateway.physicsHandle(id);
     if (handle != 0) {
         PhysicsComponent physicsComp{};
@@ -63,6 +63,10 @@ inline void applySteeringVelocity(Modules::Physics& physics,
             physics.setLinearVelocity(handle, velocity);
             return;
         }
+        // Static body: refuse to move it via steering.
+        if (gateway.getPhysicsComponent(id, physicsComp) &&
+            physicsComp.bodyType == BodyType::Static)
+            return;
     }
 
     Transform transform{};

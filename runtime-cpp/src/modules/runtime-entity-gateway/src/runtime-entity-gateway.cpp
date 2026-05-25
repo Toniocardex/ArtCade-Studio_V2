@@ -93,6 +93,10 @@ void RuntimeEntityGateway::setSpawnLogCallback(SpawnLogCallback cb) {
     spawnLogCallback_ = std::move(cb);
 }
 
+void RuntimeEntityGateway::setEntityDestroyHandler(EntityDestroyHandler cb) {
+    destroyHandler_ = std::move(cb);
+}
+
 bool RuntimeEntityGateway::entityListedInActiveScene(EntityId id) const {
     const SceneDef* scene = sceneManager_.activeScene();
     if (!scene) return false;
@@ -328,6 +332,12 @@ EntityId RuntimeEntityGateway::spawnFromClass(const std::string& className, floa
 }
 
 void RuntimeEntityGateway::destroy(EntityId id) {
+    // Fire the upstream destroy hook BEFORE erasing so callers can still
+    // inspect the live entity (e.g. World scrubbing per-entity maps keyed
+    // by id). EnTT will happily recycle the id on the next create(),
+    // so anything not cleaned here leaks across recycled lifetimes.
+    if (destroyHandler_) destroyHandler_(id);
+
     sceneManager_.removeEntityFromAllScenes(id);
     // No explicit teardownPhysicsBody: registry_->erase fires the
     // on_destroy<PhysicsHandleComp> signal which frees the Box2D body

@@ -65,6 +65,13 @@ public:
     // Max shake displacement in world units and max rotation in radians
     void setShakeParams(float maxDisplace, float maxRotation);
 
+    // Current shake displacement (computed in update()). Render code can add
+    // this to the Renderer's base camera position for the frame and subtract
+    // it afterwards, so screen shake stays a pure visual offset and never
+    // bleeds into authoritative game-state camera coordinates.
+    Vec2  shakeOffset()       const { return shakeOffset_; }
+    float shakeRotationOffset() const { return shakeRotOffset_; }
+
     // ------------------------------------------------------------------ update
 
     void update(float dt);

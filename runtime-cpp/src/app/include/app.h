@@ -41,6 +41,8 @@ public:
     /** Called from editor_restore_from_project — reset runtime, keep Lua. */
     void applyEditorPreviewRestore(const std::vector<TilePaletteEntry>& tilePalette,
                                    const std::vector<TilesetAsset>&     tilesets);
+    /** Shared reset for tween/audio/animator/event/layer/save/time/state/camera. */
+    void resetGameplayRuntimeModules();
 #endif
 
 private:

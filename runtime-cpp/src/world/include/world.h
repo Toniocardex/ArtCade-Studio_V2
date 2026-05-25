@@ -50,6 +50,10 @@ public:
 
     void syncPhysicsToEntities();
     void tickGameplaySystems(float dt);
+    /** Compute sensor begin/end edges from CURRENT physics positions. Must
+     *  be called by the app driver AFTER physics->step + syncPhysics, so
+     *  Lua callbacks fire on this frame's overlaps (no 1-frame lag). */
+    void refreshSensorEdges();
     /** Smooth-follow active CameraTargetComponent entities on the Renderer. */
     void tickCameraTargets(float dt);
     /** Count down AutoDestroy lifespans and queue destroys (call before flush). */
@@ -109,6 +113,8 @@ private:
     void clearTilemapPhysics();
     void rebuildTilemapPhysics();
     void clearGameplayRuntimeState();
+    /** Drop per-entity gameplay caches when the gateway destroys entity id. */
+    void forgetEntity(EntityId id);
 
     bool isGrounded(EntityId id, const std::string& groundClass) const;
     void tickPlatformerControllers(float dt);

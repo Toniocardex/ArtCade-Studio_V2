@@ -75,6 +75,13 @@ void World::tickHordeMembers(float dt) {
 
     entityGateway_.forEachActiveHordeMember(
         [&](EntityId id, const HordeMemberComponent& horde) {
+            // Skip entities that ALREADY have their own movement authority:
+            // gameplay controllers (platformer / top-down / linear mover) own
+            // velocity directly and we must not stomp them. SolidComponent,
+            // however, is just a collision flag — having one does NOT mean
+            // the entity has its own steering. The previous code returned
+            // here for any Solid entity, which froze every horde enemy that
+            // also had collision (i.e. almost all of them).
             PlatformerControllerComponent platformer{};
             if (entityGateway_.getPlatformerController(id, platformer))
                 return;
@@ -83,9 +90,6 @@ void World::tickHordeMembers(float dt) {
                 return;
             LinearMoverComponent linear{};
             if (entityGateway_.getLinearMover(id, linear))
-                return;
-            SolidComponent solid{};
-            if (entityGateway_.getSolid(id, solid))
                 return;
 
             Transform transform{};

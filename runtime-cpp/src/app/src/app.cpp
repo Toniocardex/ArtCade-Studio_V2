@@ -289,6 +289,27 @@ void Application::applyEditorProjectCommon(
         mod_->textureManager->unloadAll();
 }
 
+// Both applyEditorProjectLoaded and applyEditorPreviewRestore replace the
+// active project / entity pool, so any stateful module that buffered work
+// from the previous session (looping music, in-flight tweens, queued
+// events, frame-time accumulator, etc.) must be reset before the next
+// tick. Previously only the STOP-preview path did this; structural edits
+// in EDIT mode skipped the reset and leaked state across loads.
+void Application::resetGameplayRuntimeModules() {
+    if (mod_->tweenManager)   mod_->tweenManager->cancelAll();
+    if (mod_->spriteAnimator) mod_->spriteAnimator->clearInstances();
+    if (mod_->audio)          mod_->audio->stopAll();
+
+    if (mod_->eventBus)         { mod_->eventBus->shutdown();         mod_->eventBus->init(); }
+    if (mod_->layerManager)     { mod_->layerManager->shutdown();     mod_->layerManager->init(); }
+    if (mod_->saveLoadManager)  { mod_->saveLoadManager->shutdown();  mod_->saveLoadManager->init(); }
+    if (mod_->timeManager)      { mod_->timeManager->shutdown();      mod_->timeManager->init(); }
+    if (mod_->gameStateManager) { mod_->gameStateManager->shutdown(); mod_->gameStateManager->init(); }
+    if (mod_->cameraManager)      mod_->cameraManager->init();
+
+    accumulator_ = 0.f;
+}
+
 void Application::applyEditorProjectLoaded(
     const std::vector<TilePaletteEntry>& tilePalette,
     const std::vector<TilesetAsset>&     tilesets)
@@ -297,6 +318,8 @@ void Application::applyEditorProjectLoaded(
 
     if (mod_->luaHost)
         mod_->luaHost->loadLuaSource(kEmptyEditorLua);
+
+    resetGameplayRuntimeModules();
 
     if (mod_->world)
         mod_->world->syncAfterEditorProject(tilePalette);
@@ -314,37 +337,7 @@ void Application::applyEditorPreviewRestore(
     if (mod_->luaHost)
         mod_->luaHost->loadLuaSource(kEmptyEditorLua);
 
-    if (mod_->tweenManager)
-        mod_->tweenManager->cancelAll();
-    if (mod_->spriteAnimator)
-        mod_->spriteAnimator->clearInstances();
-    if (mod_->audio)
-        mod_->audio->stopAll();
-    if (mod_->eventBus) {
-        mod_->eventBus->shutdown();
-        mod_->eventBus->init();
-    }
-    if (mod_->layerManager) {
-        mod_->layerManager->shutdown();
-        mod_->layerManager->init();
-    }
-    if (mod_->saveLoadManager) {
-        mod_->saveLoadManager->shutdown();
-        mod_->saveLoadManager->init();
-    }
-
-    if (mod_->timeManager) {
-        mod_->timeManager->shutdown();
-        mod_->timeManager->init();
-    }
-    if (mod_->gameStateManager) {
-        mod_->gameStateManager->shutdown();
-        mod_->gameStateManager->init();
-    }
-    if (mod_->cameraManager)
-        mod_->cameraManager->init();
-
-    accumulator_ = 0.f;
+    resetGameplayRuntimeModules();
 
     if (mod_->world)
         mod_->world->restoreDesignState(tilePalette);
@@ -442,12 +435,6 @@ void Application::tickFixedStep(float dt) {
     }
     {
         const auto start = Clock::now();
-        const uint32_t events = mod_->gameAPI->dispatchSensorEvents();
-        profiler_.addLuaMs(elapsedMs(start));
-        profiler_.addLuaEvents(events);
-    }
-    {
-        const auto start = Clock::now();
         const uint32_t events = mod_->gameAPI->dispatchAnimationEvents();
         profiler_.addLuaMs(elapsedMs(start));
         profiler_.addLuaEvents(events);
@@ -463,9 +450,22 @@ void Application::tickFixedStep(float dt) {
         mod_->physics->step(dt);
         profiler_.addPhysicsMs(elapsedMs(start));
     }
+    // Lua may have queued destroys this tick. Process them BEFORE syncing
+    // physics back to ECS so that doomed entities don't briefly snap to
+    // the last simulated body position in the frame they get removed.
+    mod_->world->flushEntityQueues();
     mod_->world->syncPhysicsToEntities();
     mod_->world->tickCameraTargets(dt);
-    mod_->world->flushEntityQueues();
+    // Sensor edges now run AFTER physics step + sync, so begin/end events
+    // are dispatched in the same frame as the overlap (previously delayed
+    // by one fixed step — noticeable for fast bullets).
+    {
+        const auto start = Clock::now();
+        mod_->world->refreshSensorEdges();
+        const uint32_t events = mod_->gameAPI->dispatchSensorEvents();
+        profiler_.addLuaMs(elapsedMs(start));
+        profiler_.addLuaEvents(events);
+    }
 
     // Dispatch lifecycle events (Spawned / Destroyed) from EnTT
     // signals to Lua handlers registered via lifecycle.onSpawn /
@@ -598,6 +598,17 @@ void Application::renderActiveScene() {
     const SceneDef* activeScene = mod_->sceneManager->activeScene();
     const Vec4 clearColor = {0.015f, 0.018f, 0.025f, 1.f};
 
+    // Camera shake — apply CameraManager's shake offset on top of the
+    // renderer's authoritative camera position for THIS frame only, then
+    // restore on the way out. Without this CameraManager.addTrauma (Lua's
+    // camera.shake) computes a value that nothing ever reads.
+    const Vec2 baseCameraPos = mod_->renderer->getCameraPosition();
+    const Vec2 shake         = mod_->cameraManager->shakeOffset();
+    if (shake.x != 0.f || shake.y != 0.f) {
+        mod_->renderer->setCameraPosition(
+            { baseCameraPos.x + shake.x, baseCameraPos.y + shake.y });
+    }
+
     // Snapshot the editor flags ONCE per frame. Reading EditorAPI::s_*
     // statics inside the renderers would leak runtime-bridge state into
     // every render layer; keeping it here mirrors RuntimeSyncService on
@@ -701,6 +712,12 @@ void Application::renderActiveScene() {
         splash_->render(GetScreenWidth(), GetScreenHeight());
 
     mod_->renderer->endFrame();
+
+    // Restore the base camera position so the next frame's gameplay (and
+    // any reader of renderer->getCameraPosition() — e.g. world's camera
+    // follow lerp) sees the canonical, shake-free value.
+    if (shake.x != 0.f || shake.y != 0.f)
+        mod_->renderer->setCameraPosition(baseCameraPos);
 }
 
 // ---- Shutdown (reverse dependency order) --------------------------------

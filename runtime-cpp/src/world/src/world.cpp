@@ -11,7 +11,23 @@ namespace ArtCade {
 World::World(Modules::RuntimeEntityGateway& gateway,
              Modules::Physics&              ph,
              Modules::VariableManager&      variables)
-    : entityGateway_(gateway), physics_(ph), variables_(variables) {}
+    : entityGateway_(gateway), physics_(ph), variables_(variables) {
+    // Drop per-entity gameplay caches the moment the gateway destroys an
+    // entity. EnTT recycles ids, so without this a fresh entity reusing
+    // id N inherits the previous owner's coyote timer / jump buffer /
+    // sensor "was overlapping" memory → phantom jumps on respawn,
+    // sensor.onEnter mis-fires, etc.
+    entityGateway_.setEntityDestroyHandler([this](EntityId id) {
+        forgetEntity(id);
+    });
+}
+
+void World::forgetEntity(EntityId id) {
+    platformerRt_.erase(id);
+    topDownRt_.erase(id);
+    controlIntents_.erase(id);
+    sensorWasOverlapping_.erase(id);
+}
 
 void World::setGameplayDeps(Modules::Input* /*input*/) {}
 
@@ -123,6 +139,13 @@ void World::tickGameplaySystems(float dt) {
     tickMagneticItems(dt);
     tickHordeMembers(dt);
     tickHealthCooldowns(dt);
+    // tickSensorOverlapEdges() intentionally NOT called here — sensor
+    // edges must be computed against fresh post-physics positions, so the
+    // app driver invokes refreshSensorEdges() after physics->step() and
+    // syncPhysicsToEntities(). See Application::tickFixedStep.
+}
+
+void World::refreshSensorEdges() {
     tickSensorOverlapEdges();
 }
 
