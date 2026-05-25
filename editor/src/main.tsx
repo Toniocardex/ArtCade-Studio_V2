@@ -26,17 +26,27 @@ const rootEl = document.getElementById('root')
 if (!rootEl) throw new Error('#root not found')
 const root = createRoot(rootEl)
 
-async function bootstrap() {
+function reflowInTauri(): void {
   try {
-    const fontsReady = (document as Document).fonts?.ready ?? Promise.resolve()
-    await Promise.race([
-      fontsReady,
-      new Promise((resolve) => window.setTimeout(resolve, 2000)),
-    ])
-  } catch (err) {
-    console.error('[bootstrap] Font preload failed:', err)
+    if (isTauri()) triggerLayoutReflow()
+  } catch {
+    /* browser dev */
   }
+}
 
+function settleFontsThenReflow(): void {
+  const fontsReady = (document as Document).fonts?.ready ?? Promise.resolve()
+  void Promise.race([
+    fontsReady,
+    new Promise((resolve) => window.setTimeout(resolve, 2000)),
+  ])
+    .catch((err) => {
+      console.error('[bootstrap] Font preload failed:', err)
+    })
+    .finally(reflowInTauri)
+}
+
+function bootstrap() {
   root.render(
     <BootErrorBoundary>
       <StrictMode>
@@ -45,11 +55,8 @@ async function bootstrap() {
     </BootErrorBoundary>,
   )
 
-  try {
-    if (isTauri()) triggerLayoutReflow()
-  } catch {
-    /* browser dev */
-  }
+  reflowInTauri()
+  settleFontsThenReflow()
 }
 
-void bootstrap()
+bootstrap()
