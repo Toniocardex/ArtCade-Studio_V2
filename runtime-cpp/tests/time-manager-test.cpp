@@ -154,6 +154,16 @@ static void test_resume_source() {
     std::puts("  [ok] resumeSource clears all entries for that source");
 }
 
+// Regression: now() must equal real time at scale=1, not 5× real time
+// (one accumulation per default layer). Lua's time.now() depends on this.
+static void test_now_tracks_real_time() {
+    TM tm; tm.init();
+    tick(tm, 0.1f, 10);                // 1.0s of real time
+    const float n = tm.now();
+    assert(n > 0.95f && n < 1.05f);    // gameplay layer @ scale 1
+    std::puts("  [ok] now() tracks real time at scale=1 (not multiplied by layer count)");
+}
+
 // ------------------------------------------------------------------ main
 
 int main() {
@@ -170,6 +180,7 @@ int main() {
     test_every_timer();
     test_cancel_timer();
     test_resume_source();
-    std::puts("=== all 12 tests passed ===");
+    test_now_tracks_real_time();
+    std::puts("=== all 13 tests passed ===");
     return 0;
 }

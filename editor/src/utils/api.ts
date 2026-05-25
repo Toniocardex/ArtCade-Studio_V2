@@ -143,6 +143,21 @@ export async function readProjectImageBytes(
 // ---------------------------------------------------------------------------
 
 /**
+ * Read script content from disk. Used by Inspector → "Open in Script Editor"
+ * so the tab is populated with the real file rather than an empty buffer
+ * that the next Save would write over the user's code.
+ */
+export async function loadScript(path: string): Promise<string | null> {
+  if (!isTauri()) { notAvailable('loadScript'); return null }
+  try {
+    return await readTextFile(path)
+  } catch (err) {
+    console.error('[api] loadScript failed:', err)
+    return null
+  }
+}
+
+/**
  * Write script content to disk via the custom Rust `write_file` command.
  * Creates parent directories automatically.
  */
@@ -150,6 +165,28 @@ export async function saveScript(path: string, content: string): Promise<void> {
   if (!isTauri()) { notAvailable('saveScript'); return }
 
   await invoke('write_file', { path, content })
+}
+
+/**
+ * Resolve a script path stored in the editor (typically relative to the
+ * project root, e.g. "scripts/main.lua") to an absolute filesystem path
+ * usable by saveScript / loadScript. Absolute paths are returned unchanged.
+ *
+ * Throws if `projectPath` is empty and `scriptPath` is not absolute — that
+ * case means the project was never saved to disk, and there is nowhere to
+ * resolve against.
+ */
+export function resolveScriptPath(projectPath: string | null, scriptPath: string): string {
+  const isAbs = /^([a-zA-Z]:[\\/]|[\\/])/.test(scriptPath)
+  if (isAbs) return scriptPath.replace(/\\/g, '/')
+  if (!projectPath) {
+    throw new Error(
+      `Cannot resolve "${scriptPath}": project has no on-disk location yet ` +
+      `(use Save Project As… first).`,
+    )
+  }
+  const root = projectPath.replace(/[\\/][^\\/]+$/, '').replace(/\\/g, '/')
+  return `${root}/${scriptPath}`.replace(/\\/g, '/')
 }
 
 export async function saveProjectFile(path: string, project: ProjectDoc): Promise<void> {

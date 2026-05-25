@@ -11,10 +11,14 @@
 #   scripts/               — Lua source files (*.lua)
 #   assets/                — sprites, audio, fonts (if present)
 #
-# Directories excluded from packing: logs/, __pycache__/, .git/
+# Excluded directories and files are listed in EXCLUDED_DIRS / EXCLUDED_FILES /
+# EXCLUDED_EXTENSIONS below. The goal is to keep build artefacts, IDE caches,
+# and prior .artcade outputs from bloating the bundle (and from making the
+# pack non-deterministic between rebuilds).
 # =============================================================================
 
 import argparse
+import fnmatch
 import hashlib
 import json
 import os
@@ -23,8 +27,25 @@ import zipfile
 from datetime import datetime, timezone
 
 
-EXCLUDED_DIRS  = {"logs", "__pycache__", ".git", ".vs", "build", "node_modules"}
-EXCLUDED_FILES = {".DS_Store", "Thumbs.db"}
+EXCLUDED_DIRS = {
+    # VCS / IDE / OS metadata
+    ".git", ".hg", ".svn", ".vs", ".vscode", ".idea", ".DS_Store",
+    # Python / Node / Rust / CMake caches and build outputs
+    "__pycache__", "node_modules", "target",
+    "build", "build-native", "build-wasm", "build-msvc", "build-nmake",
+    "out", "dist", "cmake-build-debug", "cmake-build-release",
+    # Editor scaffolding sometimes co-located with sample projects
+    "editor", "src-tauri", "runtime-cpp",
+    # Misc
+    "logs",
+}
+EXCLUDED_FILES = {
+    ".DS_Store", "Thumbs.db",
+    "package-lock.json", "yarn.lock", "pnpm-lock.yaml", "Cargo.lock",
+}
+# Glob patterns matched against the file BASENAME (so users can also drop
+# stray .log / .artcade files at the project root without bloating the pack).
+EXCLUDED_PATTERNS = ("*.log", "*.artcade", "*.tmp", "*.bak", "*~")
 
 
 def sha256_file(path: str) -> str:
@@ -35,6 +56,12 @@ def sha256_file(path: str) -> str:
     return h.hexdigest()
 
 
+def _is_excluded_file(fname: str) -> bool:
+    if fname in EXCLUDED_FILES:
+        return True
+    return any(fnmatch.fnmatch(fname, pat) for pat in EXCLUDED_PATTERNS)
+
+
 def collect_files(src_dir: str) -> list[tuple[str, str]]:
     """Return list of (absolute_path, archive_relative_path) for all packable files."""
     files = []
@@ -42,7 +69,7 @@ def collect_files(src_dir: str) -> list[tuple[str, str]]:
         # Prune excluded directories in-place
         dirs[:] = sorted(d for d in dirs if d not in EXCLUDED_DIRS)
         for fname in sorted(filenames):
-            if fname in EXCLUDED_FILES:
+            if _is_excluded_file(fname):
                 continue
             full = os.path.join(root, fname)
             rel  = os.path.relpath(full, src_dir).replace("\\", "/")
@@ -75,7 +102,13 @@ def validate_project(src_dir: str, project: dict) -> bool:
     normalized = main_script.replace("\\", "/").lstrip("/")
     full = os.path.abspath(os.path.join(src_dir, normalized))
     root = os.path.abspath(src_dir)
-    if os.path.commonpath([root, full]) != root:
+    # commonpath raises ValueError when paths live on different drives
+    # (Windows). Treat that as "escapes root" rather than crashing.
+    try:
+        inside = os.path.commonpath([root, full]) == root
+    except ValueError:
+        inside = False
+    if not inside:
         print(f"[FAIL] mainScriptPath escapes project root: {main_script}", file=sys.stderr)
         return False
     if not os.path.exists(full):

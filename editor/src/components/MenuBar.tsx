@@ -5,7 +5,7 @@ import { useEditor } from '../store/editor-store'
 import {
   openProjectDialog, loadProjectFile,
   saveScript, saveProjectFile, savePackDialog, packProject, runBuild,
-  saveProjectAsDialog, scaffoldNewProjectOnDisk,
+  saveProjectAsDialog, scaffoldNewProjectOnDisk, resolveScriptPath,
 } from '../utils/api'
 import { dirName, createBlankProject, BLANK_MAIN_LUA } from '../utils/project'
 import { runtimeSync } from '../utils/runtime-sync-service'
@@ -171,7 +171,11 @@ export default function MenuBar() {
       return
     }
     try {
-      await saveScript(script.path, script.content)
+      // openScripts.path is typically project-relative (e.g. "scripts/main.lua")
+      // — write_file would otherwise resolve it against the process cwd and
+      // either fail or scribble outside the project root.
+      const absPath = resolveScriptPath(projectPath, script.path)
+      await saveScript(absPath, script.content)
       dispatch({ type: 'MARK_SCRIPT_SAVED', path: script.path })
       dispatch({ type: 'LOG', entry: makeLog(`[File] ✓ Saved "${script.path}"`, 'info') })
     } catch (err) {
@@ -223,7 +227,7 @@ export default function MenuBar() {
     if (mainScriptPath && project.logicBoards && project.logicBoards.length > 0) {
       try {
         const compiled = compileLogicBoard(project.logicBoards, project)
-        const absScriptPath = `${root}/${mainScriptPath}`.replace(/\\/g, '/')
+        const absScriptPath = resolveScriptPath(projectPath, mainScriptPath)
         await saveScript(absScriptPath, compiled)
         // Mirror the on-disk content into the in-memory script buffer so the
         // editor tab does not stay marked dirty / out of sync after packing.

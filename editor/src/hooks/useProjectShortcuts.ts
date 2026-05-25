@@ -10,7 +10,7 @@ import { useEffect } from 'react'
 import { useEditor } from '../store/editor-store'
 import {
   openProjectDialog, loadProjectFile, saveProjectFile, saveScript,
-  saveProjectAsDialog, scaffoldNewProjectOnDisk,
+  saveProjectAsDialog, scaffoldNewProjectOnDisk, resolveScriptPath,
 } from '../utils/api'
 import { createBlankProject, BLANK_MAIN_LUA } from '../utils/project'
 import { runtimeSync } from '../utils/runtime-sync-service'
@@ -90,7 +90,8 @@ export function useProjectShortcuts(): void {
           return
         }
         try {
-          await saveScript(script.path, script.content)
+          const absPath = resolveScriptPath(state.projectPath, script.path)
+          await saveScript(absPath, script.content)
           dispatch({ type: 'MARK_SCRIPT_SAVED', path: script.path })
           dispatch({ type: 'LOG', entry: kbdLog(`OK saved "${script.path}"`, 'info') })
         } catch (err) {

@@ -32,13 +32,18 @@ void TimeManager::tick(float realDelta) {
     realDelta_    = realDelta;
     realElapsed_ += realDelta;
 
-    bool paused = isPaused();
-
     for (auto& [name, layer] : layers_) {
         updateLayer(layer, realDelta);
-        if (!paused || !layer.affectedByPause)
-            gameElapsed_ += layer.scale * realDelta;
     }
+
+    // gameElapsed_ is the canonical "game time" returned by Lua's time.now().
+    // It MUST track a single layer (gameplay) — previously the loop above
+    // accumulated once per layer, so with the 5 default layers the value
+    // advanced ~5× faster than real time, breaking every cooldown / timer
+    // tied to time.now().
+    auto gameplay = layers_.find("gameplay");
+    if (gameplay != layers_.end())
+        gameElapsed_ = gameplay->second.elapsed;
 
     updateTimers(realDelta);
 }
