@@ -1,7 +1,7 @@
 import type {
   ProjectDoc, EntityDef, SceneDef, Vec2, Vec4, Transform, SpriteComponent,
   AnimationState, PhysicsComponent, WorldSettings, TilemapLayer, TileDef,
-  TilesetAsset, ImageAsset,
+  TilesetAsset, ImageAsset, ImagePointDef, AnimationClipDef, AnimationFrameRect,
 } from '../types'
 import { DEFAULT_WORLD } from '../types'
 import { parseLogicBoards } from './logic-board/factory'
@@ -191,6 +191,51 @@ function parseTilemap(raw: unknown): TilemapLayer | undefined {
   return layer
 }
 
+function parseImagePoints(raw: unknown): ImagePointDef[] | undefined {
+  if (!Array.isArray(raw)) return undefined
+  const out: ImagePointDef[] = []
+  for (const p of raw) {
+    if (!p || typeof p !== 'object') continue
+    const o = p as Record<string, unknown>
+    const id = typeof o.id === 'string' ? o.id : ''
+    if (!id) continue
+    const x = Number(o.x); const y = Number(o.y)
+    if (!Number.isFinite(x) || !Number.isFinite(y)) continue
+    out.push({ id, x, y })
+  }
+  return out.length ? out : undefined
+}
+
+function parseAnimationClips(raw: unknown): AnimationClipDef[] | undefined {
+  if (!Array.isArray(raw)) return undefined
+  const out: AnimationClipDef[] = []
+  for (const c of raw) {
+    if (!c || typeof c !== 'object') continue
+    const o = c as Record<string, unknown>
+    const name = typeof o.name === 'string' ? o.name : ''
+    if (!name) continue
+    const framesRaw = Array.isArray(o.frames) ? o.frames : []
+    const frames: AnimationFrameRect[] = []
+    for (const f of framesRaw) {
+      if (!f || typeof f !== 'object') continue
+      const fo = f as Record<string, unknown>
+      const x = Number(fo.x); const y = Number(fo.y)
+      const w = Number(fo.w); const h = Number(fo.h)
+      if ([x, y, w, h].some((n) => !Number.isFinite(n))) continue
+      frames.push({ x, y, w, h })
+    }
+    if (!frames.length) continue
+    const fps = Number(o.fps)
+    out.push({
+      name,
+      frames,
+      fps: Number.isFinite(fps) && fps > 0 ? fps : 12,
+      loop: Boolean(o.loop ?? true),
+    })
+  }
+  return out.length ? out : undefined
+}
+
 function parseAssets(
   raw: unknown,
 ): Record<string, ImageAsset> | undefined {
@@ -202,12 +247,17 @@ function parseAssets(
     const id = String(o.id ?? key)
     const path = String(o.path ?? '')
     if (!id || !path) continue
-    out[id] = {
+    const asset: ImageAsset = {
       id,
       name: String(o.name ?? id),
       path,
       // dataUrl is transient — never read from persisted JSON.
     }
+    const imagePoints = parseImagePoints(o.imagePoints)
+    if (imagePoints) asset.imagePoints = imagePoints
+    const clips = parseAnimationClips(o.clips)
+    if (clips) asset.clips = clips
+    out[id] = asset
   }
   return Object.keys(out).length ? out : undefined
 }
@@ -409,10 +459,17 @@ export function serializeProjectDoc(project: ProjectDoc): string {
     ...(project.assets && Object.keys(project.assets).length > 0
       ? {
           assets: Object.fromEntries(
-            Object.values(project.assets).map((a) => [
-              a.id,
-              { id: a.id, name: a.name, path: a.path },  // drop transient dataUrl
-            ]),
+            Object.values(project.assets).map((a) => {
+              // Drop transient dataUrl; persist imagePoints + clips when set.
+              const out: Record<string, unknown> = {
+                id: a.id, name: a.name, path: a.path,
+              }
+              if (a.imagePoints && a.imagePoints.length > 0)
+                out.imagePoints = a.imagePoints
+              if (a.clips && a.clips.length > 0)
+                out.clips = a.clips
+              return [a.id, out]
+            }),
           ),
         }
       : {}),

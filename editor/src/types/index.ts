@@ -119,12 +119,34 @@ export interface ImagePointDef {
   y: number
 }
 
+/** Pixel sub-rectangle on a sprite sheet, one frame of an animation clip. */
+export interface AnimationFrameRect {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+/**
+ * Named animation clip authored on an ImageAsset (a sprite sheet). Compiled
+ * to a `SpriteAnimator::Clip` at project load time so the runtime can play
+ * it via `animation.play(entity, clipName)`. See ASSETS_ROADMAP.md Phase 1.
+ */
+export interface AnimationClipDef {
+  name:   string
+  frames: AnimationFrameRect[]
+  fps:    number    // playback speed; > 0
+  loop:   boolean   // when false, fires onAnimationEnd once
+}
+
 export interface ImageAsset {
   id:       string
   name:     string
   path:     string
   dataUrl?: string
   imagePoints?: ImagePointDef[]
+  /** Optional sprite-sheet animation clips. See AnimationClipDef. */
+  clips?: AnimationClipDef[]
 }
 
 export interface ProjectDoc {

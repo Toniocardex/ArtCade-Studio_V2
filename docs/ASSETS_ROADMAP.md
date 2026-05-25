@@ -5,7 +5,7 @@ be closed, validated, and tested before starting the next. If a phase grows
 during execution, split it into the listed sub-phases (or add new ones) and
 apply the same DoD per sub-phase.
 
-**Owner:** Antonio + Claude · **Started:** 2026-05-25 · **Status:** Phase 1 not started
+**Owner:** Antonio + Claude · **Started:** 2026-05-25 · **Status:** Phase 1a done; 1b next
 
 ---
 
@@ -42,13 +42,17 @@ missing piece is editor authoring + the `defineClip` call at load time. High
 value-for-effort and unblocks two Logic Board nodes that today reference
 clips that don't exist.
 
-### 1a — Schema for clips on `ImageAsset`
+### 1a — Schema for clips on `ImageAsset` ✅
 
-- Add `clips?: AnimationClipDef[]` to `ImageAsset` in
-  [editor/src/types/index.ts](../editor/src/types/index.ts).
-- `AnimationClipDef = { name: string; frames: { x; y; w; h }[]; fps: number; loop: boolean }`.
-- Update `parseProjectDoc` / `serializeProjectDoc` to round-trip clips.
-- **Test:** project codec test for save/load of clips.
+- ✅ Added `AnimationClipDef`, `AnimationFrameRect` + `clips?` on `ImageAsset`
+  in [editor/src/types/index.ts](../editor/src/types/index.ts).
+- ✅ `parseProjectDoc` / `serializeProjectDoc` round-trip `clips` (and, while
+  there, `imagePoints` — pre-existing gap silently dropped on save before).
+- ✅ Defensive parser drops malformed clips (empty name, empty frames, NaN
+  rect, invalid fps → default 12).
+- ✅ Tests in [editor/src/store/editor-store.assets.test.ts](../editor/src/store/editor-store.assets.test.ts):
+  clips round-trip, imagePoints round-trip, malformed-clip defensive case.
+- ✅ 288/288 vitest green, tsc clean.
 
 ### 1b — Editor authoring UI
 
