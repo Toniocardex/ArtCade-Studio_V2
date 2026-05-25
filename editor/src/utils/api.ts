@@ -392,6 +392,30 @@ export async function runBuildWasm(projectRoot: string): Promise<void> {
   await invoke<void>('run_build_wasm', { projectRoot })
 }
 
+export type WebExportState = 'missing' | 'stale' | 'ready'
+
+export interface WebExportStatus {
+  state: WebExportState
+  distDir: string
+  hint: string
+}
+
+/** Missing / stale / ready — aligned with `dist/<name>-web/` on disk. */
+export async function getWebExportStatus(
+  projectRoot: string,
+  projectDirty: boolean,
+): Promise<WebExportStatus> {
+  if (!isTauri()) {
+    notAvailable('getWebExportStatus')
+    return {
+      state: 'missing',
+      distDir: '',
+      hint: 'Run BUILD WEB first to create a browser export',
+    }
+  }
+  return invoke<WebExportStatus>('get_web_export_status', { projectRoot, projectDirty })
+}
+
 /** Serve `dist/<name>-web/` via localhost and open index.html in the default browser. */
 export async function openWebExportInBrowser(projectRoot: string): Promise<string> {
   if (!isTauri()) { notAvailable('openWebExportInBrowser'); return '' }

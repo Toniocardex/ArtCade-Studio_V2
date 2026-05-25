@@ -13,11 +13,15 @@ import type { Action as EditorAction, CoreState } from '../../store/editor-store
 import type { ProjectDoc } from '../../types'
 import { makeConsoleEntry } from './makeConsoleEntry'
 import { ensureProjectOnDisk } from './ensureProjectOnDisk'
+import { planOpenWebExport } from './webExportOpen'
+import type { WebExportState } from '../../utils/api'
 
 interface UseBuildToolbarActionsParams {
   dispatch: Dispatch<EditorAction>
   project: ProjectDoc | null
   projectPath: string | null
+  webExportState: WebExportState
+  refreshWebExportStatus: (opts?: { projectDirty?: boolean }) => Promise<void>
   isPlaying: boolean
   openScripts: CoreState['openScripts']
   selectionSceneId: string | null | undefined
@@ -28,6 +32,8 @@ export function useBuildToolbarActions({
   dispatch,
   project,
   projectPath,
+  webExportState,
+  refreshWebExportStatus,
   isPlaying,
   openScripts,
   selectionSceneId,
@@ -115,35 +121,42 @@ export function useBuildToolbarActions({
     dispatch({ type: 'LOG', entry: makeConsoleEntry('[WASM] Starting web export...', 'info') })
     try {
       await runBuildWasm(dirName(buildPath))
+      await refreshWebExportStatus({ projectDirty: false })
+      if (globalThis.confirm?.('Web export ready. Open in browser now?')) {
+        try {
+          const url = await openWebExportInBrowser(dirName(buildPath))
+          dispatch({
+            type: 'LOG',
+            entry: makeConsoleEntry(`[Web] Browser opened at ${url}`, 'info'),
+          })
+        } catch (err) {
+          dispatch({ type: 'LOG', entry: makeConsoleEntry(`[Web] ${err}`, 'error') })
+        }
+      }
     } catch (err) {
       dispatch({ type: 'LOG', entry: makeConsoleEntry(`[WASM] Failed: ${err}`, 'error') })
     } finally {
       setIsBuildingWeb(false)
     }
-  }, [dispatch, prepareProject])
+  }, [dispatch, prepareProject, refreshWebExportStatus])
 
   const handleOpenWebInBrowser = useCallback(async () => {
-    if (!project) {
-      dispatch({ type: 'LOG', entry: makeConsoleEntry('[Web] No project loaded.', 'warn') })
+    const plan = planOpenWebExport(projectPath, webExportState)
+    if (plan.kind === 'skip') {
       return
     }
     setIsOpeningWeb(true)
     dispatch({ type: 'SET_CONSOLE_OPEN', open: true })
-    const root = await prepareProject('Web')
-    if (!root) {
-      setIsOpeningWeb(false)
-      return
-    }
     dispatch({ type: 'LOG', entry: makeConsoleEntry('[Web] Starting local preview server...', 'info') })
     try {
-      const url = await openWebExportInBrowser(dirName(root))
+      const url = await openWebExportInBrowser(plan.projectRoot)
       dispatch({ type: 'LOG', entry: makeConsoleEntry(`[Web] Browser opened at ${url}`, 'info') })
     } catch (err) {
       dispatch({ type: 'LOG', entry: makeConsoleEntry(`[Web] ${err}`, 'error') })
     } finally {
       setIsOpeningWeb(false)
     }
-  }, [dispatch, prepareProject, project])
+  }, [dispatch, projectPath, webExportState])
 
   return {
     buildBusy,

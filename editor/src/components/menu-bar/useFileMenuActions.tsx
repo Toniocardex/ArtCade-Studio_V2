@@ -166,12 +166,13 @@ export function useFileMenuActions({
 
   const handlePackArtcade = useCallback(async () => {
     closeMenu()
-    if (!projectPath) {
+    const flushed = flushBeforePersist()
+    if (!flushed) {
       dispatch({ type: 'LOG', entry: makeConsoleEntry('[Pack] No project loaded.', 'warn') })
       return
     }
-    if (!project) {
-      dispatch({ type: 'LOG', entry: makeConsoleEntry('[Pack] No project in memory.', 'warn') })
+    if (!projectPath) {
+      dispatch({ type: 'LOG', entry: makeConsoleEntry('[Pack] No project loaded.', 'warn') })
       return
     }
     const output = await savePackDialog()
@@ -180,10 +181,10 @@ export function useFileMenuActions({
     if (!(await ensureDependencies('pack'))) return
     const root = dirName(projectPath)
 
-    const mainScriptPath = project.mainScriptPath
-    if (mainScriptPath && project.logicBoards && project.logicBoards.length > 0) {
+    const mainScriptPath = flushed.mainScriptPath
+    if (mainScriptPath && flushed.logicBoards && flushed.logicBoards.length > 0) {
       try {
-        const compiled = compileLogicBoard(project.logicBoards, project)
+        const compiled = compileLogicBoard(flushed.logicBoards, flushed)
         const absScriptPath = resolveScriptPath(projectPath, mainScriptPath)
         await saveScript(absScriptPath, compiled)
         dispatch({
@@ -213,7 +214,7 @@ export function useFileMenuActions({
     } catch (err) {
       dispatch({ type: 'LOG', entry: makeConsoleEntry(`[Pack] ✗ ${err}`, 'error') })
     }
-  }, [closeMenu, dispatch, project, projectPath])
+  }, [closeMenu, dispatch, flushBeforePersist, projectPath])
 
   const handleCheckDependencies = useCallback(async () => {
     closeMenu()

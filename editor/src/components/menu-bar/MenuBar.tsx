@@ -6,6 +6,7 @@ import { ProjectNameField } from './ProjectNameField'
 import { BuildToolbar } from './BuildToolbar'
 import { useFileMenuActions } from './useFileMenuActions'
 import { useBuildToolbarActions } from './useBuildToolbarActions'
+import { mapWebExportToolbar, useWebExportStatus } from './useWebExportStatus'
 import { useProjectNamePersist } from './project-name-context'
 
 export default function MenuBar() {
@@ -48,15 +49,25 @@ export default function MenuBar() {
     flushBeforePersist,
   })
 
+  const webExport = useWebExportStatus(projectPath, projectDirty, project?.projectName)
+
   const buildToolbar = useBuildToolbarActions({
     dispatch,
     project,
     projectPath,
+    webExportState: webExport.status.state,
+    refreshWebExportStatus: webExport.refreshWebExportStatus,
     isPlaying,
     openScripts,
     selectionSceneId: selection.sceneId,
     flushBeforePersist,
   })
+
+  const webExportToolbar = mapWebExportToolbar(
+    webExport.status,
+    !!project,
+    buildToolbar.buildBusy,
+  )
 
   return (
     <header className="editor-toolbar flex items-center justify-between flex-shrink-0 z-50 select-none">
@@ -85,12 +96,15 @@ export default function MenuBar() {
       </div>
 
       <BuildToolbar
-        project={project}
         isPlaying={isPlaying}
         buildBusy={buildToolbar.buildBusy}
         isBuilding={buildToolbar.isBuilding}
         isBuildingWeb={buildToolbar.isBuildingWeb}
         isOpeningWeb={buildToolbar.isOpeningWeb}
+        canOpenInBrowser={webExportToolbar.canOpenInBrowser}
+        openDisabledReason={webExportToolbar.openDisabledReason}
+        exportStatusHint={webExportToolbar.exportStatusHint}
+        buildWebHint={webExportToolbar.buildWebHint}
         onPlayStop={buildToolbar.handlePlayStop}
         onBuildExe={buildToolbar.handleBuildExe}
         onBuildWeb={buildToolbar.handleBuildWeb}

@@ -7,12 +7,15 @@
 //   run_build           — native compile + pack
 //   run_build_wasm      — WASM export to dist/<name>-web/
 //   open_web_export_in_browser — local http.server + default browser
+//   get_web_export_status — missing / stale / ready for toolbar UX
 //   pack_project        — python pack-artcade.py
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod build_log_filter;
+mod project_paths;
 mod sdk;
+mod web_export_status;
 mod web_preview;
 
 use std::io::{BufRead, BufReader};
@@ -150,51 +153,6 @@ fn apply_sdk_env(cmd: &mut Cmd) {
     if let Some(emsdk) = sdk_emscripten_root() {
         cmd.env("EMSDK", &emsdk);
     }
-}
-
-fn safe_artifact_name(name: &str) -> String {
-    let mut out = String::new();
-    for ch in name.chars() {
-        if ch.is_ascii_alphanumeric() || ch == '-' || ch == '_' || ch == ' ' {
-            out.push(ch);
-        } else {
-            out.push('_');
-        }
-    }
-    let trimmed = out.trim();
-    if trimmed.is_empty() {
-        "ArtCadeGame".to_string()
-    } else {
-        trimmed.to_string()
-    }
-}
-
-fn web_export_dist_dir(project_root: &Path) -> PathBuf {
-    let game_name = project_display_name(project_root);
-    project_root.join("dist").join(format!("{game_name}-web"))
-}
-
-fn project_display_name(project_root: &Path) -> String {
-    let path = project_root.join("project.json");
-    let fallback = project_root
-        .file_name()
-        .and_then(|s| s.to_str())
-        .unwrap_or("ArtCadeGame")
-        .to_string();
-    let fallback = safe_artifact_name(&fallback);
-
-    let Ok(text) = std::fs::read_to_string(path) else {
-        return fallback;
-    };
-    let Ok(json) = serde_json::from_str::<serde_json::Value>(&text) else {
-        return fallback;
-    };
-    json.get("projectName")
-        .or_else(|| json.get("project_name"))
-        .and_then(|v| v.as_str())
-        .filter(|s| !s.trim().is_empty())
-        .map(safe_artifact_name)
-        .unwrap_or(fallback)
 }
 
 fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), String> {
@@ -470,7 +428,7 @@ async fn run_build(app: tauri::AppHandle, project_root: String) -> Result<(), St
         return Err(msg);
     }
 
-    let game_name = project_display_name(&project_root);
+    let game_name = project_paths::project_display_name(&project_root);
     let dist_dir = project_root.join("dist").join(&game_name);
     std::fs::create_dir_all(&dist_dir)
         .map_err(|e| format!("create dist dir '{}': {e}", dist_dir.display()))?;
@@ -577,8 +535,8 @@ async fn run_build_wasm(app: tauri::AppHandle, project_root: String) -> Result<(
         emit_log(&app, &msg, "error");
         return Err(msg);
     }
-    let game_name = project_display_name(&project_root);
-    let dist_dir = web_export_dist_dir(&project_root);
+    let game_name = project_paths::project_display_name(&project_root);
+    let dist_dir = project_paths::web_export_dist_dir(&project_root);
     std::fs::create_dir_all(&dist_dir)
         .map_err(|e| format!("create web dist dir '{}': {e}", dist_dir.display()))?;
 
@@ -644,7 +602,7 @@ async fn open_web_export_in_browser(
         return Err(msg);
     }
 
-    let dist_dir = web_export_dist_dir(&project_root);
+    let dist_dir = project_paths::web_export_dist_dir(&project_root);
     let url = web_preview::serve_web_export(&app, &dist_dir)?;
     emit_log(
         &app,
@@ -655,6 +613,11 @@ async fn open_web_export_in_browser(
         "info",
     );
     Ok(url)
+}
+
+#[tauri::command]
+fn get_web_export_status(project_root: String, project_dirty: bool) -> web_export_status::WebExportStatus {
+    web_export_status::evaluate_web_export_status(Path::new(&project_root), project_dirty)
 }
 
 #[tauri::command]
@@ -712,6 +675,7 @@ fn main() {
             run_build,
             run_build_wasm,
             open_web_export_in_browser,
+            get_web_export_status,
             pack_project,
         ])
         .run(tauri::generate_context!())

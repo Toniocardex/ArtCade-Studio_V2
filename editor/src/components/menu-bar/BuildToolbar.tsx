@@ -1,13 +1,14 @@
 import { Play, Square, Hammer, Globe2, ExternalLink } from 'lucide-react'
-import type { ProjectDoc } from '../../types'
-
 interface BuildToolbarProps {
-  project: ProjectDoc | null
   isPlaying: boolean
   buildBusy: boolean
   isBuilding: boolean
   isBuildingWeb: boolean
   isOpeningWeb: boolean
+  canOpenInBrowser: boolean
+  openDisabledReason?: string
+  exportStatusHint: string
+  buildWebHint?: string
   onPlayStop: () => void
   onBuildExe: () => void
   onBuildWeb: () => void
@@ -15,12 +16,15 @@ interface BuildToolbarProps {
 }
 
 export function BuildToolbar({
-  project,
   isPlaying,
   buildBusy,
   isBuilding,
   isBuildingWeb,
   isOpeningWeb,
+  canOpenInBrowser,
+  openDisabledReason,
+  exportStatusHint,
+  buildWebHint,
   onPlayStop,
   onBuildExe,
   onBuildWeb,
@@ -31,6 +35,7 @@ export function BuildToolbar({
       <button
         type="button"
         onClick={onPlayStop}
+        title="Preview in editor (not the browser export)"
         className={`editor-toolbar-btn border ${
           isPlaying
             ? 'border-[var(--danger)] bg-[rgb(var(--danger-rgb)/0.12)] text-[var(--danger)] hover:bg-[rgb(var(--danger-rgb)/0.2)]'
@@ -68,16 +73,22 @@ export function BuildToolbar({
         <Globe2 size={12} className={isBuildingWeb ? 'animate-pulse' : ''} />
         {isBuildingWeb ? 'EXPORTING...' : 'BUILD WEB'}
       </button>
+      <span
+        className="text-[10px] text-[var(--muted)] max-w-[7rem] truncate"
+        title={buildWebHint ?? exportStatusHint}
+      >
+        {exportStatusHint}
+      </span>
 
       <button
         type="button"
         onClick={onOpenWebInBrowser}
-        disabled={!project || buildBusy}
-        title={project ? 'Serve web export on localhost and open in browser' : 'Load a project first'}
+        disabled={!canOpenInBrowser}
+        title={openDisabledReason ?? 'Open last web export in browser (localhost)'}
         className={`editor-toolbar-btn border ${
           isOpeningWeb
             ? 'border-[var(--border-2)] bg-[var(--panel)] text-[var(--muted)] cursor-not-allowed'
-            : !project
+            : !canOpenInBrowser
               ? 'border-[var(--border)] bg-transparent text-[var(--muted)] cursor-not-allowed opacity-60'
               : 'border-[var(--border-2)] bg-transparent text-[var(--text)] hover:border-[var(--accent)] hover:text-[var(--accent)] hover:bg-[var(--accent-bg)]'
         }`}
