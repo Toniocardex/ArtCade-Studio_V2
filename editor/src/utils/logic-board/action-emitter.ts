@@ -5,6 +5,12 @@
 
 import type { LogicAction } from '../../types/logic-board'
 import { luaString, luaValue, targetExpr } from './lua-helpers'
+import { ruleKeyExpr } from './event-slugs'
+
+export interface ActionEmitCtx {
+  /** id → RULE-table slug; used to render `_logic_on[RULE.<slug>]` keys. */
+  eventSlugs?: Map<string, string>
+}
 
 /**
  * Emit a single Lua statement for a Logic Board action. ALWAYS returns a
@@ -21,7 +27,7 @@ function unknownActionComment(a: LogicAction, detail?: string): string {
   return `-- TODO ArtCade: unknown action ${luaString(String(type))}${tail}`
 }
 
-export function actionLua(a: LogicAction): string {
+export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
   switch (a.type) {
     case 'setVariable':
       return `state.set(${luaString(a.key)}, ${luaValue(a.value)})`
@@ -145,7 +151,7 @@ export function actionLua(a: LogicAction): string {
         ? `event.emit(${luaString(a.name)}, { [${luaString(a.payloadKey)}] = ${luaValue(a.payloadValue ?? '')} })`
         : `event.emit(${luaString(a.name)})`
     case 'toggleLogicEvent':
-      return `_logic_on[${luaString(a.eventId)}] = ${a.enabled ? 'true' : 'false'}`
+      return `_logic_on[${ruleKeyExpr(a.eventId, ctx.eventSlugs)}] = ${a.enabled ? 'true' : 'false'}`
     case 'applyImpulse':
       return `physics.applyImpulse(${targetExpr(a.target)}, ${Number(a.ix) || 0}, ${Number(a.iy) || 0})`
     case 'applyForce':

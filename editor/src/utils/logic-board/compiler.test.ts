@@ -85,7 +85,7 @@ describe('Component API actions and conditions', () => {
 
     expect(lua).toContain('local _logic_movement_known = {}')
     expect(lua).toContain('_logic_movement_frame = {}')
-    expect(lua).toContain('if input.isKeyDown("KeyA") and (_logic_on["e1"] ~= false) then')
+    expect(lua).toContain('if input.isKeyDown("KeyA") and (_logic_on[RULE.hold_a] ~= false) then')
     expect(lua).toContain('_logic_add_movement(self, -1, 0)')
     expect(lua).toContain('_logic_flush_movement()')
     expect(lua).toContain('movement.clearIntent(entityId)')
@@ -346,7 +346,7 @@ describe('compileLogicBoard — triggers', () => {
       ]),
     ])
     expect(lua).toContain('collision.touchingClass(self, "Coin")')
-    expect(lua).toContain('_logic_on["e1"] ~= false')
+    expect(lua).toContain('_logic_on[RULE.on_collision_coin] ~= false')
     expect(lua).toContain('state.add("score", 1)')
   })
 
@@ -517,7 +517,8 @@ describe('compileLogicBoard — realistic example', () => {
     ])
 
     expect(lua).toContain('-- board: Player movement')
-    expect(lua).toContain('_logic_on["jump"] ~= false')
+    expect(lua).toContain('_logic_on[RULE.hold_space] ~= false')
+    expect(lua).toContain('hold_space = "jump"')
     expect(lua).not.toContain('-- board: board_mplxyz_1')
   })
 
@@ -571,7 +572,11 @@ describe('Logic Components — Phase A (new blocks)', () => {
       ]),
     ])
     expect(lua).toContain('local _logic_on = {}')
-    expect(lua).toContain('_logic_on["A"] ~= false')
+    // Event A has trigger onUpdate → slug `on_update`; aliased via RULE.
+    expect(lua).toContain('on_update = "A"')
+    expect(lua).toContain('_logic_on[RULE.on_update] ~= false')
+    // Event B is referenced only by toggleLogicEvent and does not exist in
+    // the doc, so it falls back to the raw quoted id — still addressable.
     expect(lua).toContain('_logic_on["B"] = false')
   })
 

@@ -34,6 +34,7 @@ import {
 import { luaString, luaValue, targetExpr, poolExpr, sensorSourceExpr } from './lua-helpers'
 import { actionLua } from './action-emitter'
 import { logicBoardLuaCommentLabel } from './labels'
+import { buildEventSlugs, ruleKeyExpr } from './event-slugs'
 
 // Re-export helpers consumed by compiler.test.ts and any future callers.
 export { luaString, luaValue, targetExpr } from './lua-helpers'
@@ -105,7 +106,11 @@ const INDENT = '  '
  * Emit actions in order; a `wait` splits the sequence — following actions (or
  * `wait.then`) run inside time.after so the game loop is not blocked.
  */
-function emitActionSequence(actions: LogicAction[], indent: string): string[] {
+function emitActionSequence(
+  actions: LogicAction[],
+  indent: string,
+  slugs?: Map<string, string>,
+): string[] {
   if (actions.length === 0) return []
 
   const lines: string[] = []
@@ -115,7 +120,7 @@ function emitActionSequence(actions: LogicAction[], indent: string): string[] {
     batch.push(actions[i++])
   }
   for (const a of batch) {
-    const code = actionLua(a)
+    const code = actionLua(a, { eventSlugs: slugs })
     if (!code) continue
     // Drop only the wait-sentinel comment (wait is handled below via
     // time.after). Other comments — notably the "-- TODO ArtCade:
@@ -134,7 +139,7 @@ function emitActionSequence(actions: LogicAction[], indent: string): string[] {
 
   const secs = Number(w.seconds) || 0
   const deferred = w.then?.length ? w.then : actions.slice(i + 1)
-  const inner = emitActionSequence(deferred, indent + INDENT)
+  const inner = emitActionSequence(deferred, indent + INDENT, slugs)
 
   lines.push(`${indent}time.after(${secs}, function()`)
   lines.push(...inner)
@@ -142,18 +147,22 @@ function emitActionSequence(actions: LogicAction[], indent: string): string[] {
   return lines
 }
 
-function emitGuardedActions(ev: LogicEvent, baseIndent: string): string[] {
-  const enableGuard = `_logic_on[${luaString(ev.id)}] ~= false`
+function emitGuardedActions(
+  ev: LogicEvent,
+  baseIndent: string,
+  slugs?: Map<string, string>,
+): string[] {
+  const enableGuard = `_logic_on[${ruleKeyExpr(ev.id, slugs)}] ~= false`
   const condGuard = conditionExpr(ev)
   const guard =
     condGuard === 'true' ? enableGuard : `${enableGuard} and (${condGuard})`
 
   if (guard === 'true')
-    return emitActionSequence(ev.actions, baseIndent)
+    return emitActionSequence(ev.actions, baseIndent, slugs)
 
   return [
     `${baseIndent}if ${guard} then`,
-    ...emitActionSequence(ev.actions, baseIndent + INDENT),
+    ...emitActionSequence(ev.actions, baseIndent + INDENT, slugs),
     `${baseIndent}end`,
   ]
 }
@@ -162,12 +171,17 @@ function emitGuardedActions(ev: LogicEvent, baseIndent: string): string[] {
  * Emit one event's body inside the per-entity loop. Returns Lua lines.
  * `timerKey` uniquely identifies an onTimer event for accumulator storage.
  */
-function emitEventBody(ev: LogicEvent, board: LogicBoard, baseIndent: string): string[] {
+function emitEventBody(
+  ev: LogicEvent,
+  board: LogicBoard,
+  baseIndent: string,
+  slugs?: Map<string, string>,
+): string[] {
   const lines: string[] = []
   const trig = ev.trigger
 
   // Every event is gated by its toggleLogicEvent enable flag (default on).
-  const enableGuard = `_logic_on[${luaString(ev.id)}] ~= false`
+  const enableGuard = `_logic_on[${ruleKeyExpr(ev.id, slugs)}] ~= false`
   const condGuard = conditionExpr(ev)
   const guard =
     condGuard === 'true' ? enableGuard : `${enableGuard} and (${condGuard})`
@@ -181,7 +195,7 @@ function emitEventBody(ev: LogicEvent, board: LogicBoard, baseIndent: string): s
     const inner = baseIndent + INDENT
     lines.push(`${baseIndent}for _, de in ipairs(_destroy_events) do`)
     lines.push(`${baseIndent}${INDENT}if de.entityId == self and ${guard} then`)
-    lines.push(...emitActionSequence(ev.actions, inner + INDENT))
+    lines.push(...emitActionSequence(ev.actions, inner + INDENT, slugs))
     lines.push(`${baseIndent}${INDENT}end`)
     lines.push(`${baseIndent}end`)
     return lines
@@ -200,7 +214,7 @@ function emitEventBody(ev: LogicEvent, board: LogicBoard, baseIndent: string): s
     )
     lines.push(`${baseIndent}${INDENT}if ${tagGuard} and ${edgeGuard} and ${guard} then`)
     lines.push(`${baseIndent}${INDENT}${INDENT}other = se.otherId`)
-    lines.push(...emitActionSequence(ev.actions, inner + INDENT))
+    lines.push(...emitActionSequence(ev.actions, inner + INDENT, slugs))
     lines.push(`${baseIndent}${INDENT}end`)
     lines.push(`${baseIndent}end`)
     return lines
@@ -217,7 +231,7 @@ function emitEventBody(ev: LogicEvent, board: LogicBoard, baseIndent: string): s
       : trig.eventType === 'released' ? `(not _mbcur) and _mb[${key}]`
       : `_mbcur`
     lines.push(`${baseIndent}if (${fire}) and ${guard} then`)
-    lines.push(...emitActionSequence(ev.actions, inner))
+    lines.push(...emitActionSequence(ev.actions, inner, slugs))
     lines.push(`${baseIndent}end`)
     lines.push(`${baseIndent}_mb[${key}] = _mbcur`)
     return lines
@@ -246,10 +260,10 @@ function emitEventBody(ev: LogicEvent, board: LogicBoard, baseIndent: string): s
       lines.push(`${inner}_logic_timers[${key}] = 0`)
     }
     if (guard === 'true') {
-      lines.push(...emitActionSequence(ev.actions, inner))
+      lines.push(...emitActionSequence(ev.actions, inner, slugs))
     } else {
       lines.push(`${inner}if ${guard} then`)
-      lines.push(...emitActionSequence(ev.actions, inner + INDENT))
+      lines.push(...emitActionSequence(ev.actions, inner + INDENT, slugs))
       lines.push(`${inner}end`)
     }
     lines.push(`${baseIndent}end`)
@@ -264,10 +278,10 @@ function emitEventBody(ev: LogicEvent, board: LogicBoard, baseIndent: string): s
         : guard
 
   if (fullGuard === 'true') {
-    lines.push(...emitActionSequence(ev.actions, baseIndent))
+    lines.push(...emitActionSequence(ev.actions, baseIndent, slugs))
   } else {
     lines.push(`${baseIndent}if ${fullGuard} then`)
-    lines.push(...emitActionSequence(ev.actions, baseIndent + INDENT))
+    lines.push(...emitActionSequence(ev.actions, baseIndent + INDENT, slugs))
     lines.push(`${baseIndent}end`)
   }
   return lines
@@ -277,6 +291,7 @@ function emitEventRegistration(
   ev: LogicEvent,
   board: LogicBoard,
   project?: ProjectDoc | null,
+  slugs?: Map<string, string>,
 ): string[] | null {
   const trig = ev.trigger
   const I = INDENT
@@ -290,7 +305,7 @@ function emitEventRegistration(
       `${I}lifecycle.onSpawn(${luaString(cls)}, function(entityId, tags)`,
       `${I}${I}local self = entityId`,
       `${I}${I}local other = nil`,
-      ...emitGuardedActions(ev, I + I),
+      ...emitGuardedActions(ev, I + I, slugs),
       `${I}end)`,
     ]
   }
@@ -302,7 +317,7 @@ function emitEventRegistration(
       `${I}lifecycle.onDestroy(${luaString(cls)}, function(entityId, tags)`,
       `${I}${I}local self = entityId`,
       `${I}${I}local other = nil`,
-      ...emitGuardedActions(ev, I + I),
+      ...emitGuardedActions(ev, I + I, slugs),
       `${I}end)`,
     ]
   }
@@ -316,7 +331,7 @@ function emitEventRegistration(
       `${I}animation.onFinished(${source}, ${clip}, function(entityId, clip)`,
       `${I}${I}local self = entityId`,
       `${I}${I}local other = nil`,
-      ...emitGuardedActions(ev, I + I),
+      ...emitGuardedActions(ev, I + I, slugs),
       `${I}end)`,
     ]
   }
@@ -327,7 +342,7 @@ function emitEventRegistration(
       `${I}input.${hook}(${luaString(trig.keyCode)}, function()`,
       `${I}${I}for _, self in ipairs(${pool}) do`,
       `${I}${I}${I}local other = nil`,
-      ...emitGuardedActions(ev, I + I + I),
+      ...emitGuardedActions(ev, I + I + I, slugs),
       `${I}${I}end`,
       `${I}end)`,
     ]
@@ -340,7 +355,7 @@ function emitEventRegistration(
       `${I}sensor.${hook}(${source}, ${target}, function(entityId, otherId, tag)`,
       `${I}${I}local self = entityId`,
       `${I}${I}local other = otherId`,
-      ...emitGuardedActions(ev, I + I),
+      ...emitGuardedActions(ev, I + I, slugs),
       `${I}end)`,
     ]
   }
@@ -351,7 +366,7 @@ function emitEventRegistration(
       `${I}time.${fn}(${Number(trig.seconds) || 0}, function()`,
       `${I}${I}for _, self in ipairs(${pool}) do`,
       `${I}${I}${I}local other = nil`,
-      ...emitGuardedActions(ev, I + I + I),
+      ...emitGuardedActions(ev, I + I + I, slugs),
       `${I}${I}end`,
       `${I}end)`,
     ]
@@ -392,6 +407,7 @@ const DESTROY_POLL_PREAMBLE = [
 function emitBoard(
   board: LogicBoard,
   project?: ProjectDoc | null,
+  slugs?: Map<string, string>,
 ): { init: string[]; tick: string[] } {
   const enabled = board.events.filter((e) => e.enabled)
   const startEvents = enabled.filter((e) => e.trigger.type === 'onStart')
@@ -399,7 +415,7 @@ function emitBoard(
   const registeredEvents = enabled.filter((e) => {
     if (e.trigger.type === 'onStart' || e.trigger.type === 'onMessage') return false
     if (usesTickFallback(e, board, project)) return false
-    return emitEventRegistration(e, board, project) !== null
+    return emitEventRegistration(e, board, project, slugs) !== null
   })
   const tickEvents = enabled.filter((e) => usesTickFallback(e, board, project))
 
@@ -410,7 +426,7 @@ function emitBoard(
   if (startEvents.length > 0) {
     init.push(`${INDENT}for _, self in ipairs(${pool}) do`)
     for (const ev of startEvents) {
-      init.push(...emitEventBody(ev, board, INDENT + INDENT))
+      init.push(...emitEventBody(ev, board, INDENT + INDENT, slugs))
     }
     init.push(`${INDENT}end`)
   }
@@ -422,13 +438,13 @@ function emitBoard(
     init.push(`${I}event.on(${luaString(ev.trigger.messageName)}, function()`)
     init.push(`${I}${I}for _, self in ipairs(${pool}) do`)
     init.push(`${I}${I}${I}local other = nil`)
-    init.push(...emitEventBody(ev, board, I + I + I))
+    init.push(...emitEventBody(ev, board, I + I + I, slugs))
     init.push(`${I}${I}end`)
     init.push(`${I}end)`)
   }
 
   for (const ev of registeredEvents) {
-    const registration = emitEventRegistration(ev, board, project)
+    const registration = emitEventRegistration(ev, board, project, slugs)
     if (registration) init.push(...registration)
   }
 
@@ -436,7 +452,7 @@ function emitBoard(
     tick.push(`${INDENT}for _, self in ipairs(${pool}) do`)
     tick.push(`${INDENT}${INDENT}local other = nil`)
     for (const ev of tickEvents) {
-      tick.push(...emitEventBody(ev, board, INDENT + INDENT))
+      tick.push(...emitEventBody(ev, board, INDENT + INDENT, slugs))
     }
     tick.push(`${INDENT}end`)
   }
@@ -454,6 +470,14 @@ export function compileLogicBoard(
   doc: LogicBoardDoc,
   project?: ProjectDoc | null,
 ): string {
+  // Human-readable aliases for every event id. Emitted as a `RULE` table so
+  // the body can read `_logic_on[RULE.player_holds_d]` instead of opaque ids.
+  const eventSlugs = buildEventSlugs(doc)
+  const ruleEntries: string[] = []
+  for (const [id, slug] of eventSlugs) {
+    ruleEntries.push(`${INDENT}${slug} = ${luaString(id)},`)
+  }
+
   const header = [
     '-- AUTO-GENERATED by ArtCade Logic Board compiler.',
     '-- Do not edit by hand: changes will be overwritten on next save.',
@@ -461,6 +485,14 @@ export function compileLogicBoard(
     'local _init_done = false',
     'local _logic_timers = {}   -- polling timers',
     'local _logic_on = {}       -- event enable flags',
+    ...(ruleEntries.length > 0
+      ? [
+          '-- Readable aliases for rule ids — used as keys into _logic_on.',
+          'local RULE = {',
+          ...ruleEntries,
+          '}',
+        ]
+      : []),
     'local _mb = {}             -- mouse button edge state',
     'local _logic_movement_known = {}',
     'local _logic_movement_frame = nil',
@@ -508,7 +540,7 @@ export function compileLogicBoard(
   const initBlocks: string[] = []
   const tickBlocks: string[] = []
   for (const board of doc) {
-    const { init, tick } = emitBoard(board, project)
+    const { init, tick } = emitBoard(board, project, eventSlugs)
     const label = logicBoardLuaCommentLabel(board)
     if (init.length) {
       initBlocks.push(`${INDENT}-- board: ${label}`, ...init)
