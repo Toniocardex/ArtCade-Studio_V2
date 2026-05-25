@@ -2,7 +2,12 @@ import type { ProjectDoc } from '../../types'
 import type { LogicBoard } from '../../types/logic-board'
 import { boardDisplayName } from './friendly-labels'
 import { logicBoardCompilerLabel } from '../../utils/logic-board/labels'
-import { applyInputBackspace, isBackspaceKey } from '../../utils/keyboard'
+import {
+  applyInputBackspace,
+  applyInputDelete,
+  isBackspaceKey,
+  isDeleteKey,
+} from '../../utils/keyboard'
 
 export type LogicBoardPanelMode = 'visual' | 'lua'
 
@@ -66,6 +71,9 @@ export function LogicBoardHeader({
             if (isBackspaceKey(e)) {
               e.preventDefault()
               applyInputBackspace(e.currentTarget)
+            } else if (isDeleteKey(e)) {
+              e.preventDefault()
+              applyInputDelete(e.currentTarget)
             }
           }}
           className="w-52 bg-[var(--bg)] border border-[var(--border-2)] text-[var(--text)] placeholder:text-[var(--muted)] px-2.5 py-1.5 rounded text-xs"

@@ -33,6 +33,10 @@ export function isBackspaceKey(e: { key: string; code: string }): boolean {
   return e.key === 'Backspace' || e.code === 'Backspace'
 }
 
+export function isDeleteKey(e: { key: string; code: string }): boolean {
+  return e.key === 'Delete' || e.code === 'Delete'
+}
+
 /** Apply backward-delete in a text input (WebView2 often blocks native Backspace). */
 export function applyInputBackspace(input: HTMLInputElement): boolean {
   const start = input.selectionStart ?? 0
@@ -45,6 +49,21 @@ export function applyInputBackspace(input: HTMLInputElement): boolean {
   const newPos = start !== end ? start : start - 1
   input.value = next
   input.setSelectionRange(newPos, newPos)
+  input.dispatchEvent(new Event('input', { bubbles: true }))
+  return true
+}
+
+/** Apply forward-delete in a text input (WebView2 often blocks native Delete). */
+export function applyInputDelete(input: HTMLInputElement): boolean {
+  const start = input.selectionStart ?? 0
+  const end = input.selectionEnd ?? 0
+  const v = input.value
+  if (start >= v.length && start === end) return false
+  const next = start !== end
+    ? v.slice(0, start) + v.slice(end)
+    : v.slice(0, start) + v.slice(start + 1)
+  input.value = next
+  input.setSelectionRange(start, start)
   input.dispatchEvent(new Event('input', { bubbles: true }))
   return true
 }
