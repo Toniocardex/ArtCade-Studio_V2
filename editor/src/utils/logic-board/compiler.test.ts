@@ -773,3 +773,116 @@ describe('Logic Components — Phase C (engine-hook triggers)', () => {
     expect(lua).toContain('debug.log("bye")')
   })
 })
+
+describe('RULE alias integrity', () => {
+  // Property: every `RULE.<slug>` referenced in the compiled output must have
+  // a matching binding inside the `local RULE = { ... }` table. Catches drift
+  // between ruleKeyExpr (event-slugs.ts) and buildHeader (compiler-prelude.ts)
+  // if a future patch updates one without the other.
+  function ruleBindingsAreConsistent(lua: string): {
+    referenced: Set<string>
+    bound: Set<string>
+    missing: string[]
+  } {
+    const referenced = new Set<string>()
+    for (const m of lua.matchAll(/RULE\.([A-Za-z_][A-Za-z0-9_]*)/g)) {
+      referenced.add(m[1])
+    }
+    const tableMatch = lua.match(/local RULE = \{([\s\S]*?)\n\}/)
+    const bound = new Set<string>()
+    if (tableMatch) {
+      for (const m of tableMatch[1].matchAll(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=/gm)) {
+        bound.add(m[1])
+      }
+    }
+    const missing = [...referenced].filter((s) => !bound.has(s))
+    return { referenced, bound, missing }
+  }
+
+  it('every RULE.<slug> reference is bound in the RULE table', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({ id: 'r1', trigger: { type: 'onUpdate' },
+             actions: [{ type: 'debugLog', message: 'a' }] }),
+        ev({ id: 'r2', trigger: { type: 'onInput', keyCode: 'KeyD', eventType: 'down' },
+             actions: [{ type: 'toggleLogicEvent', eventId: 'r1', enabled: false }] }),
+        ev({ id: 'r3', trigger: { type: 'onCollision', withClass: 'Coin' },
+             actions: [{ type: 'debugLog', message: 'c' }] }),
+      ]),
+    ])
+    const { referenced, missing } = ruleBindingsAreConsistent(lua)
+    expect(referenced.size).toBeGreaterThan(0)
+    expect(missing).toEqual([])
+  })
+
+  it('RULE table is always emitted, even when no events exist', () => {
+    const lua = compileLogicBoard([])
+    expect(lua).toContain('local RULE = {}')
+  })
+
+  it('toggleLogicEvent against an unknown id falls back to the raw quoted id', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({ id: 'self', trigger: { type: 'onUpdate' },
+             actions: [{ type: 'toggleLogicEvent', eventId: 'ghost', enabled: true }] }),
+      ]),
+    ])
+    // ghost has no slug, so the assignment uses the raw quoted id; the read
+    // side (this event's own guard) still uses RULE.<slug> for `self`.
+    expect(lua).toContain('_logic_on["ghost"] = true')
+    const { missing } = ruleBindingsAreConsistent(lua)
+    expect(missing).toEqual([])
+  })
+})
+
+describe('Defensive value coercion', () => {
+  it('cameraShake without trauma emits a finite numeric literal', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({ trigger: { type: 'onUpdate' },
+             actions: [{ type: 'cameraShake' } as never] }),
+      ]),
+    ])
+    expect(lua).toContain('camera.shake(0)')
+    expect(lua).not.toContain('camera.shake(undefined)')
+    expect(lua).not.toContain('NaN')
+  })
+
+  it('setColorTint with non-numeric alpha falls back to 1', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({ trigger: { type: 'onUpdate' },
+             actions: [{ type: 'setColorTint', target: 'self', hexColor: '#ff0000',
+                         alpha: 'oops' as never }] }),
+      ]),
+    ])
+    expect(lua).not.toContain('NaN')
+    expect(lua).toContain('entity.setTint(self, ')
+  })
+
+  it('loadScene with NaN fadeSeconds omits the fade argument', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({ trigger: { type: 'onUpdate' },
+             actions: [{ type: 'loadScene', sceneName: 'menu',
+                         fadeSeconds: 'oops' as unknown as number }] }),
+      ]),
+    ])
+    expect(lua).toContain('scene.load("menu")')
+    expect(lua).not.toContain('NaN')
+  })
+
+  it('compareVariable rejects an injected operator', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({ trigger: { type: 'onUpdate' },
+             conditions: [{ type: 'compareVariable', key: 'k',
+                            operator: ') or os.exit(1) --' as never, value: 1 }],
+             actions: [{ type: 'debugLog', message: 'x' }] }),
+      ]),
+    ])
+    // The injected operator must collapse to `==`, leaving no shell payload.
+    expect(lua).toContain('(state.get("k") == 1)')
+    expect(lua).not.toContain('os.exit')
+  })
+})

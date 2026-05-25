@@ -7,6 +7,19 @@ import type { LogicAction } from '../../types/logic-board'
 import { luaString, luaValue, targetExpr } from './lua-helpers'
 import { ruleKeyExpr } from './event-slugs'
 
+/** Coerce to a finite number, falling back to `fallback` for NaN/Infinity. */
+function finite(n: unknown, fallback = 0): number {
+  const v = Number(n)
+  return Number.isFinite(v) ? v : fallback
+}
+
+/**
+ * Sentinel returned by actionLua for `wait` so emitActionSequence can detect
+ * and drop it before splicing the deferred tail into `time.after`. Kept as a
+ * shared constant to avoid the magic-string drift between modules.
+ */
+export const WAIT_SENTINEL_PREFIX = '-- wait handled'
+
 export interface ActionEmitCtx {
   /** id → RULE-table slug; used to render `_logic_on[RULE.<slug>]` keys. */
   eventSlugs?: Map<string, string>
@@ -176,23 +189,25 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
       const r = (parseInt(hex.slice(0, 2), 16) / 255).toFixed(4)
       const g = (parseInt(hex.slice(2, 4), 16) / 255).toFixed(4)
       const b = (parseInt(hex.slice(4, 6), 16) / 255).toFixed(4)
-      const al = a.alpha == null ? 1 : Number(a.alpha)
+      const al = a.alpha == null ? 1 : finite(a.alpha, 1)
       return `entity.setTint(${targetExpr(a.target)}, ${r}, ${g}, ${b}, ${al})`
     }
-    case 'loadScene':
-      return a.fadeSeconds != null && a.fadeSeconds > 0
-        ? `scene.load(${luaString(a.sceneName)}, ${Number(a.fadeSeconds)})`
+    case 'loadScene': {
+      const fade = finite(a.fadeSeconds)
+      return fade > 0
+        ? `scene.load(${luaString(a.sceneName)}, ${fade})`
         : `scene.load(${luaString(a.sceneName)})`
+    }
     case 'restartScene':
       return `scene.restart()`
     case 'setCameraTarget':
       return `camera.centerOn(${targetExpr(a.target)})`
     case 'cameraShake':
-      return `camera.shake(${a.trauma})`
+      return `camera.shake(${finite(a.trauma)})`
     case 'debugLog':
       return `debug.log(${luaString(a.message)})`
     case 'wait':
-      return `-- wait handled by emitActionSequence`
+      return `${WAIT_SENTINEL_PREFIX} by emitActionSequence`
     case 'moveByOffset':
       return `grid.moveByOffset(${targetExpr(a.target)}, ${Number(a.dx) || 0}, ${Number(a.dy) || 0})`
     case 'snapToGrid':

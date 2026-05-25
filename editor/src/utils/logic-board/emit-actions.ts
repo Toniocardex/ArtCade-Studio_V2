@@ -12,7 +12,7 @@
 
 import type { LogicAction, LogicEvent } from '../../types/logic-board'
 import { INDENT } from './lua-helpers'
-import { actionLua } from './action-emitter'
+import { actionLua, WAIT_SENTINEL_PREFIX } from './action-emitter'
 import { ruleKeyExpr } from './event-slugs'
 import { conditionExpr } from './condition-expr'
 
@@ -42,7 +42,7 @@ export function emitActionSequence(
     // unrecognised action types — must reach the output so the issue
     // is visible in the generated Lua preview instead of being silently
     // discarded along with the action's behaviour.
-    if (code.startsWith('-- wait handled')) continue
+    if (code.startsWith(WAIT_SENTINEL_PREFIX)) continue
     lines.push(indent + code)
   }
 

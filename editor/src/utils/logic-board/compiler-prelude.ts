@@ -28,14 +28,13 @@ export function buildHeader(eventSlugs: Map<string, string>): string[] {
     'local _init_done = false',
     'local _logic_timers = {}   -- polling timers',
     'local _logic_on = {}       -- event enable flags',
+    // RULE is always declared so any `RULE.<slug>` reference emitted by
+    // ruleKeyExpr resolves to a valid binding, even if buildEventSlugs
+    // ever returns an empty map. Empty literal is valid Lua.
+    '-- Readable aliases for rule ids — used as keys into _logic_on.',
     ...(ruleEntries.length > 0
-      ? [
-          '-- Readable aliases for rule ids — used as keys into _logic_on.',
-          'local RULE = {',
-          ...ruleEntries,
-          '}',
-        ]
-      : []),
+      ? ['local RULE = {', ...ruleEntries, '}']
+      : ['local RULE = {}']),
     'local _mb = {}             -- mouse button edge state',
     'local _logic_movement_known = {}',
     'local _logic_movement_frame = nil',

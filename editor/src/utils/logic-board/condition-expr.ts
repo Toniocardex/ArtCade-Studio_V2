@@ -14,18 +14,30 @@ import type {
 } from '../../types/logic-board'
 import { luaString, luaValue, targetExpr } from './lua-helpers'
 
+/**
+ * Whitelist of binary comparison operators that may appear in a condition.
+ * TypeScript already constrains the field, but we revalidate at emit time so
+ * a corrupted/hand-edited project.json cannot inject arbitrary Lua via the
+ * `c.operator` interpolation in compareVariable/compareDistance/compareHealth.
+ * Unknown operators degrade to `==`, which is the safest neutral comparator.
+ */
+const COMPARISON_OPS = new Set(['==', '~=', '<', '<=', '>', '>='])
+function safeOp(op: string): string {
+  return COMPARISON_OPS.has(op) ? op : '=='
+}
+
 function leafExpr(c: LogicCondition): string {
   switch (c.type) {
     case 'compareClass':
       return `collision.touchingClass(self, ${luaString(c.className)})`
     case 'compareVariable':
-      return `(state.get(${luaString(c.key)}) ${c.operator} ${luaValue(c.value)})`
+      return `(state.get(${luaString(c.key)}) ${safeOp(c.operator)} ${luaValue(c.value)})`
     case 'isKeyDown':
       return `input.isKeyDown(${luaString(c.keyCode)})`
     case 'hasTag':
       return `(function() for _,e in ipairs(object.findByTag(${luaString(c.tag)})) do if e==self then return true end end return false end)()`
     case 'compareDistance':
-      return `(object.distance(self, ${targetExpr(c.target)}) ${c.operator} ${Number(c.value) || 0})`
+      return `(object.distance(self, ${targetExpr(c.target)}) ${safeOp(c.operator)} ${Number(c.value) || 0})`
     case 'isMouseOver': {
       const r2 = Math.pow(Number(c.radius) || 32, 2)
       return `(function() local mx,my=input.mousePosition() local p=entity.position(self) local dx=mx-p.x local dy=my-p.y return (dx*dx+dy*dy) <= ${r2} end)()`
@@ -47,7 +59,7 @@ function leafExpr(c: LogicCondition): string {
       const target = targetExpr(c.target)
       const value = Number(c.value) || 0
       const field = c.field === 'max' ? '_m' : '_c'
-      return `(function() local _c,_m=entity.health(${target}); if _c == nil then return false end return (${field} ${c.operator} ${value}) end)()`
+      return `(function() local _c,_m=entity.health(${target}); if _c == nil then return false end return (${field} ${safeOp(c.operator)} ${value}) end)()`
     }
     case 'isPlatformerGrounded':
       return `platformer.isGrounded(${targetExpr(c.target)})`
