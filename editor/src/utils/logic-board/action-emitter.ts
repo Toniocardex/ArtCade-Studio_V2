@@ -6,6 +6,21 @@
 import type { LogicAction } from '../../types/logic-board'
 import { luaString, luaValue, targetExpr } from './lua-helpers'
 
+/**
+ * Emit a single Lua statement for a Logic Board action. ALWAYS returns a
+ * string — when the action shape is unknown (stale `direction` enum from
+ * an older project.json, future action type loaded by an older editor,
+ * malformed data) we emit a `-- TODO unknown ...` comment instead of
+ * letting the function fall off the end with implicit `undefined`. That
+ * keeps the compiled Lua valid and surfaces the issue to the user via the
+ * generated source preview, rather than silently dropping behaviours.
+ */
+function unknownActionComment(a: LogicAction, detail?: string): string {
+  const type = (a as { type?: unknown }).type ?? 'unknown'
+  const tail = detail ? ` (${detail})` : ''
+  return `-- TODO ArtCade: unknown action ${luaString(String(type))}${tail}`
+}
+
 export function actionLua(a: LogicAction): string {
   switch (a.type) {
     case 'setVariable':
@@ -55,7 +70,8 @@ export function actionLua(a: LogicAction): string {
         case 'backward':
           return `(function() local _sx, _ = entity.scale(${t}); local _d = (_sx < 0) and -1 or 1; entity.setVelocity(${t}, -_d * ${s}, 0) end)()`
       }
-      break
+      return unknownActionComment(a,
+        `direction=${String((a as { direction?: unknown }).direction)}`)
     }
     case 'controllerMovement': {
       const t = targetExpr(a.target)
@@ -69,7 +85,8 @@ export function actionLua(a: LogicAction): string {
         case 'down':
           return `_logic_add_movement(${t}, 0, 1)`
       }
-      break
+      return unknownActionComment(a,
+        `direction=${String((a as { direction?: unknown }).direction)}`)
     }
     case 'moveController': {
       const t = targetExpr(a.target)
@@ -85,7 +102,8 @@ export function actionLua(a: LogicAction): string {
         case 'stop':
           return `movement.clearIntent(${t})`
       }
-      break
+      return unknownActionComment(a,
+        `direction=${String((a as { direction?: unknown }).direction)}`)
     }
     case 'clearMovementIntent':
       return `movement.clearIntent(${targetExpr(a.target)})`
@@ -178,4 +196,9 @@ export function actionLua(a: LogicAction): string {
     case 'setScreenShader':
       return `shaders.setScreen(${luaString(a.shader)})`
   }
+  // Unknown action type (stale project.json, older runtime than the
+  // editor expected, malformed payload). Emit a parseable Lua comment
+  // so emitActionSequence drops it cleanly instead of compiling
+  // undefined into the output and crashing the Lua preview.
+  return unknownActionComment(a)
 }

@@ -115,7 +115,15 @@ function emitActionSequence(actions: LogicAction[], indent: string): string[] {
   }
   for (const a of batch) {
     const code = actionLua(a)
-    if (code && !code.startsWith('--')) lines.push(indent + code)
+    if (!code) continue
+    // Drop only the wait-sentinel comment (wait is handled below via
+    // time.after). Other comments — notably the "-- TODO ArtCade:
+    // unknown action ..." marker the emitter falls back to on stale /
+    // unrecognised action types — must reach the output so the issue
+    // is visible in the generated Lua preview instead of being silently
+    // discarded along with the action's behaviour.
+    if (code.startsWith('-- wait handled')) continue
+    lines.push(indent + code)
   }
 
   if (i >= actions.length) return lines
