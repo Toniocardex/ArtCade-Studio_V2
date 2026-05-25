@@ -199,6 +199,30 @@ describe('RuntimeSyncService', () => {
     expect(bridge.editorSetGridSize).toHaveBeenCalledTimes(1)
   })
 
+  // Regression: the C++ side clamps requested gridSize < 4 to 32. Before
+  // this fix, the JS cache stored the requested value (e.g. 3) while the
+  // runtime stayed at 32, so a later honest request for 3 short-circuited
+  // and the runtime never moved. Now JS mirrors the clamp, so the cache
+  // always reflects what the runtime actually applied.
+  it('syncEditorChrome clamps gridSize < 4 the same way the runtime does', () => {
+    runtimeSync.syncEditorChrome({ guides: true, gridSize: 32, isPlaying: false })
+    expect(bridge.editorSetGridSize).toHaveBeenLastCalledWith(32)
+
+    // Requesting 3 — runtime clamps to 32; JS must NOT re-send because
+    // the effective value didn't change.
+    runtimeSync.syncEditorChrome({ guides: true, gridSize: 3, isPlaying: false })
+    expect(bridge.editorSetGridSize).toHaveBeenCalledTimes(1)
+
+    // After resetting cache, a request below the clamp still pushes 32.
+    runtimeSync.reset()
+    runtimeSync.syncEditorChrome({ guides: true, gridSize: 1, isPlaying: false })
+    expect(bridge.editorSetGridSize).toHaveBeenLastCalledWith(32)
+
+    // A valid grid (>= 4) goes through unmodified.
+    runtimeSync.syncEditorChrome({ guides: true, gridSize: 48, isPlaying: false })
+    expect(bridge.editorSetGridSize).toHaveBeenLastCalledWith(48)
+  })
+
   it('syncEntityTransform skips identical pushes within epsilon', () => {
     const snap = { entityId: 1, x: 100, y: 200, rotation: 0.5, scaleX: 2, scaleY: 1 }
     expect(runtimeSync.syncEntityTransform(snap)).toBe(true)

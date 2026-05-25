@@ -83,6 +83,21 @@ export interface SyncProjectOptions {
 
 const TRANSFORM_EPSILON = 1e-4
 
+// Editor grid minimum + fallback. The C++ side (editor_set_grid_size in
+// editor-api.cpp) silently clamps anything < 4 to 32; mirror that here
+// so the JS cache stores the EFFECTIVE value rather than the requested
+// one. Without this, asking for grid=3 would make lastGridSize===3
+// permanently, so a later honest grid=3 request would short-circuit and
+// the C++ side would stay at 32 forever — JS and runtime out of sync.
+const GRID_SIZE_MIN     = 4
+const GRID_SIZE_FALLBACK = 32
+
+function effectiveGridSize(requested: number): number {
+  if (!Number.isFinite(requested) || requested < GRID_SIZE_MIN)
+    return GRID_SIZE_FALLBACK
+  return requested
+}
+
 class RuntimeSyncServiceImpl {
   private lastLoadKey:        string | null = null
   private lastProjection:     RuntimeProjection | null = null
@@ -275,9 +290,10 @@ class RuntimeSyncServiceImpl {
       this.lastGuides = guidesEffective
       editorSetGuidesEnabled(guidesEffective)
     }
-    if (this.lastGridSize !== state.gridSize) {
-      this.lastGridSize = state.gridSize
-      editorSetGridSize(state.gridSize)
+    const grid = effectiveGridSize(state.gridSize)
+    if (this.lastGridSize !== grid) {
+      this.lastGridSize = grid
+      editorSetGridSize(grid)
     }
   }
 
