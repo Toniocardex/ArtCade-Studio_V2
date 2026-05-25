@@ -370,8 +370,10 @@ void RuntimeEntityGateway::drainLifecycleEvents(
 
 void RuntimeEntityGateway::queueDestroy(EntityId id) {
     if (id == 0) return;
-    if (std::find(pendingDestroy_.begin(), pendingDestroy_.end(), id) == pendingDestroy_.end())
-        pendingDestroy_.push_back(id);
+    // Don't pay an O(n) std::find per enqueue: the flush loop dedups via
+    // exists() so a duplicate queued id becomes a cheap no-op there.
+    // This turned death-wave queueing from O(n²) into O(n).
+    pendingDestroy_.push_back(id);
 }
 
 EntityId RuntimeEntityGateway::queueSpawn(const EntityDef& def) {
@@ -380,15 +382,36 @@ EntityId RuntimeEntityGateway::queueSpawn(const EntityDef& def) {
 }
 
 void RuntimeEntityGateway::flushPendingOperations() {
-    for (EntityId id : pendingDestroy_) {
-        destroyBuffer_.push_back({ id });
-        destroy(id);
+    // Drain destroys via swap-and-iterate, looping until stable. The previous
+    // range-for over `pendingDestroy_` invalidated its own iterator if any
+    // destroy callback (EnTT signal → Lua → queueDestroy of a related entity)
+    // grew the vector mid-iteration. Swapping into a local batch makes new
+    // pushes land on the empty source vector instead, and the while-loop
+    // catches them on the next iteration so cascading destroys still finish
+    // in the same flush call (not deferred to the next frame).
+    //
+    // exists(id) absorbs duplicates: the same id queued twice (or queued
+    // again from a callback fired by its own destroy) simply skips the
+    // second pass, which would otherwise be UB inside EnTT::erase.
+    while (!pendingDestroy_.empty()) {
+        std::vector<EntityId> batch;
+        batch.swap(pendingDestroy_);
+        for (EntityId id : batch) {
+            if (!exists(id)) continue;
+            destroyBuffer_.push_back({ id });
+            destroy(id);
+        }
     }
-    pendingDestroy_.clear();
 
-    for (const EntityDef& def : pendingSpawn_)
-        create(def);
-    pendingSpawn_.clear();
+    // Spawns get the same swap-and-iterate treatment: a spawn callback that
+    // queues another spawn (e.g. spawn-on-spawn chains) is processed in the
+    // same flush, and we never iterate a mutating vector.
+    while (!pendingSpawn_.empty()) {
+        std::vector<EntityDef> batch;
+        batch.swap(pendingSpawn_);
+        for (const EntityDef& def : batch)
+            create(def);
+    }
 }
 
 bool RuntimeEntityGateway::exists(EntityId id) const {
