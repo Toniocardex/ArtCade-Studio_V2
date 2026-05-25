@@ -63,11 +63,7 @@ export default function MenuBar() {
     flushBeforePersist,
   })
 
-  const webExportToolbar = mapWebExportToolbar(
-    webExport.status,
-    !!project,
-    buildToolbar.buildBusy,
-  )
+  const { exportState } = mapWebExportToolbar(webExport.status)
 
   return (
     <header className="editor-toolbar flex items-center justify-between flex-shrink-0 z-50 select-none">
@@ -101,10 +97,7 @@ export default function MenuBar() {
         isBuilding={buildToolbar.isBuilding}
         isBuildingWeb={buildToolbar.isBuildingWeb}
         isOpeningWeb={buildToolbar.isOpeningWeb}
-        canOpenInBrowser={webExportToolbar.canOpenInBrowser}
-        openDisabledReason={webExportToolbar.openDisabledReason}
-        exportStatusHint={webExportToolbar.exportStatusHint}
-        buildWebHint={webExportToolbar.buildWebHint}
+        exportState={exportState}
         onPlayStop={buildToolbar.handlePlayStop}
         onBuildExe={buildToolbar.handleBuildExe}
         onBuildWeb={buildToolbar.handleBuildWeb}

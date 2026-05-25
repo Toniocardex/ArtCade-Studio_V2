@@ -28,20 +28,20 @@
 [data-theme="dark"] {
   /* Surfaces */
   --bg:          #1A1A1A;   /* Antracite Opaco — app background */
-  --panel:       #2D2D2D;   /* Grigio Ardesia Satinato — interactive panels */
-  --panel-2:     #282828;   /* between panel and panel-3 (event sub-headers) */
-  --panel-3:     #232323;   /* deeper raised/code surface */
-  --border:      #3A3A3A;   /* 1px dividers between panel sections */
-  --border-2:    #4A4A4A;   /* stronger borders, input outlines */
+  --panel:       #313131;   /* Grigio Ardesia Satinato — interactive panels */
+  --panel-2:     #2B2B2B;   /* between panel and panel-3 (event sub-headers) */
+  --panel-3:     #252525;   /* deeper raised/code surface */
+  --border:      #484848;   /* 1px dividers between panel sections */
+  --border-2:    #5C5C5C;   /* stronger borders, input outlines */
   /* Extra component-badge accent — desaturated dusky violet, coordinated with
      sage + navy so the inspector pill row keeps semantic differentiation. */
-  --purple:      #7A6C8E;
+  --purple:      #8A7A9E;
 
   /* Text */
   --text:        #EAEAEA;   /* Avorio Leggero — primary text */
   --text-2:      #D0D0D0;   /* softer primary variant */
-  --muted:       #8E8E8E;   /* Grigio Medio Tecnico — secondary text, shortcuts */
-  --muted-2:     #666666;   /* disabled */
+  --muted:       #A2A2A2;   /* Grigio Medio Tecnico — secondary text, shortcuts */
+  --muted-2:     #717171;   /* disabled */
 
   /* Accents */
   --accent:      #7A9C7E;   /* Sage Green — PLAY, critical headers */
@@ -91,17 +91,17 @@
   /* Light variant mantiene la stessa semantica della palette ufficiale,
      adattata a fondo chiaro. Inverte solo le surfaces; accenti restano
      sage + navy desaturato per coerenza brand. */
-  --bg:          #F2F1ED;   /* avorio caldo */
-  --panel:       #FFFFFF;   /* panel chiari */
-  --panel-2:     #F7F5F0;
-  --panel-3:     #E8E6E1;
+  --bg:          #ECEAE4;   /* avorio medio — meno abbagliante del bianco */
+  --panel:       #F5F3EE;   /* avorio caldo invece del bianco puro */
+  --panel-2:     #EDE9E2;
+  --panel-3:     #E2DED6;
   --purple:      #6B5E80;
-  --border:      #D6D3CC;
-  --border-2:    #BAB6AD;
+  --border:      #C4C0B8;   /* bordi più definiti */
+  --border-2:    #A8A39A;
   --text:        #1A1A1A;
   --text-2:      #2D2D2D;
-  --muted:       #6E6E6E;
-  --muted-2:     #9C9C9C;
+  --muted:       #5A5A5A;   /* testo secondario più leggibile */
+  --muted-2:     #888888;
   --accent:      #5D7A61;   /* sage più scuro per contrasto su chiaro */
   --accent-2:    #2F4A66;   /* navy più scuro */
   --accent-bd:   #4E6651;

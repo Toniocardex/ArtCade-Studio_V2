@@ -22,6 +22,39 @@ namespace ArtCade {
 
 namespace {
 
+// ---- Security limits ------------------------------------------------------
+// Cap any single decompressed entry to 256 MiB. A malicious .artcade can
+// declare uncompSize close to 4 GiB (zip-bomb): without this guard
+// `std::vector<uint8_t>(e.uncompSize)` would try to allocate it before we
+// even start inflating. 256 MiB is well above any plausible game asset.
+constexpr uint32_t kMaxEntryUncompressedBytes = 256u * 1024u * 1024u;
+
+// ---- Path sanitisation (Zip-Slip) -----------------------------------------
+// Reject entry names that would escape the destination root:
+//   • absolute paths        ("/etc/passwd",  "C:\\Windows\\…")
+//   • drive letters         ("D:foo")
+//   • UNC / device prefixes ("\\\\server\\share", "\\\\?\\…")
+//   • parent traversal      any path component equal to ".."
+// Forward slashes are the on-the-wire ZIP convention; backslashes appear in
+// archives produced by some Windows tools and must be treated the same way.
+bool isSafeRelativeEntryName(const std::string& name) {
+    if (name.empty()) return false;
+    if (name.front() == '/' || name.front() == '\\') return false;
+    if (name.size() >= 2 && name[1] == ':') return false; // drive letter
+    if (name.size() >= 2 && name[0] == '\\' && name[1] == '\\') return false; // UNC
+    std::string component;
+    for (char c : name) {
+        if (c == '/' || c == '\\') {
+            if (component == "..") return false;
+            component.clear();
+        } else {
+            component.push_back(c);
+        }
+    }
+    if (component == "..") return false;
+    return true;
+}
+
 // ---- Little-endian readers ------------------------------------------------
 
 inline uint16_t rd16(const uint8_t* p) {
@@ -73,7 +106,7 @@ bool findEOCD(const uint8_t* buf, size_t len, uint32_t& cdOff, uint16_t& count) 
 bool parseCentralDirectory(const uint8_t* buf, size_t len,
                            uint32_t cdOff, uint16_t count,
                            std::vector<CDEntry>& entries) {
-    if (cdOff + 4 > len) return false;
+    if (static_cast<size_t>(cdOff) + 4 > len) return false;
     const uint8_t* p = buf + cdOff;
 
     for (uint16_t i = 0; i < count; ++i) {
@@ -107,21 +140,44 @@ bool extractEntry(const uint8_t* buf, size_t len,
     namespace fs = std::filesystem;
 
     // Skip pure directory entries
-    if (e.name.empty() || e.name.back() == '/') return true;
+    if (e.name.empty() || e.name.back() == '/' || e.name.back() == '\\') return true;
+
+    // Reject malicious entry names BEFORE touching the filesystem.
+    if (!isSafeRelativeEntryName(e.name)) return false;
+
+    // Reject zip-bomb sized entries up front (declared size only — the actual
+    // inflater is bounded by compSize on the input side).
+    if (e.uncompSize > kMaxEntryUncompressedBytes) return false;
 
     // Locate local file header
-    if (e.localOff + 30u > len) return false;
+    if (e.localOff > len || e.localOff + 30u > len) return false;
     const uint8_t* lh = buf + e.localOff;
     if (rd32(lh) != SIG_LOCAL) return false;
 
     const uint16_t lhFnLen = rd16(lh + 26);
     const uint16_t lhExLen = rd16(lh + 28);
-    const uint8_t* dataPtr = lh + 30 + lhFnLen + lhExLen;
-    if (dataPtr + e.compSize > buf + len) return false;
+    const size_t   headerSize = static_cast<size_t>(30u) + lhFnLen + lhExLen;
+    if (e.localOff + headerSize > len) return false;
+    const uint8_t* dataPtr = lh + headerSize;
+    if (static_cast<size_t>(dataPtr - buf) + e.compSize > len) return false;
 
-    // Build destination path (normalise forward-slashes from ZIP)
+    // Build destination path, then verify it stays inside destRoot. weakly_
+    // canonical resolves "." / ".." and casing so a symlink in the chain
+    // cannot escape either. Belt-and-braces with isSafeRelativeEntryName.
     fs::path outPath = destRoot / fs::path(e.name);
-    fs::create_directories(outPath.parent_path());
+    std::error_code ec;
+    const fs::path normalisedOut  = fs::weakly_canonical(outPath, ec);
+    const fs::path normalisedRoot = fs::weakly_canonical(destRoot, ec);
+    if (ec) return false;
+    {
+        const auto rootStr = normalisedRoot.native();
+        const auto outStr  = normalisedOut.native();
+        if (outStr.size() < rootStr.size() ||
+            outStr.compare(0, rootStr.size(), rootStr) != 0)
+            return false;
+    }
+    fs::create_directories(outPath.parent_path(), ec);
+    if (ec) return false;
 
     std::ofstream out(outPath, std::ios::binary | std::ios::trunc);
     if (!out) return false;

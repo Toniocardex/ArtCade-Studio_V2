@@ -1,14 +1,12 @@
 import { Play, Square, Hammer, Globe2, ExternalLink } from 'lucide-react'
+
 interface BuildToolbarProps {
   isPlaying: boolean
   buildBusy: boolean
   isBuilding: boolean
   isBuildingWeb: boolean
   isOpeningWeb: boolean
-  canOpenInBrowser: boolean
-  openDisabledReason?: string
-  exportStatusHint: string
-  buildWebHint?: string
+  exportState: 'missing' | 'stale' | 'ready'
   onPlayStop: () => void
   onBuildExe: () => void
   onBuildWeb: () => void
@@ -21,15 +19,32 @@ export function BuildToolbar({
   isBuilding,
   isBuildingWeb,
   isOpeningWeb,
-  canOpenInBrowser,
-  openDisabledReason,
-  exportStatusHint,
-  buildWebHint,
+  exportState,
   onPlayStop,
   onBuildExe,
   onBuildWeb,
   onOpenWebInBrowser,
 }: BuildToolbarProps) {
+  const canOpen = exportState === 'ready' && !buildBusy
+
+  const badgeLabel =
+    isOpeningWeb ? 'Opening…'
+    : exportState === 'ready' ? 'Export ready'
+    : exportState === 'stale' ? 'Export outdated'
+    : 'No export'
+
+  const badgeTitle =
+    isOpeningWeb ? 'Opening browser…'
+    : exportState === 'ready' ? 'Open web export in browser (localhost)'
+    : exportState === 'stale' ? 'Project changed — run BUILD WEB to refresh'
+    : 'Run BUILD WEB first'
+
+  const badgeClass = exportState === 'ready'
+    ? 'text-[var(--accent)] border-[var(--accent-bd)] bg-[var(--accent-bg)] hover:bg-[var(--accent-bg-h)] cursor-pointer'
+    : exportState === 'stale'
+      ? 'text-[color:var(--warn,#f59e0b)] border-[var(--border)] bg-transparent cursor-not-allowed opacity-70'
+      : 'text-[var(--muted)] border-[var(--border)] bg-transparent cursor-not-allowed opacity-50'
+
   return (
     <div className="flex items-center gap-2.5 editor-toolbar-workspace-end">
       <button
@@ -73,28 +88,16 @@ export function BuildToolbar({
         <Globe2 size={12} className={isBuildingWeb ? 'animate-pulse' : ''} />
         {isBuildingWeb ? 'EXPORTING...' : 'BUILD WEB'}
       </button>
-      <span
-        className="text-[10px] text-[var(--muted)] max-w-[7rem] truncate"
-        title={buildWebHint ?? exportStatusHint}
-      >
-        {exportStatusHint}
-      </span>
 
       <button
         type="button"
-        onClick={onOpenWebInBrowser}
-        disabled={!canOpenInBrowser}
-        title={openDisabledReason ?? 'Open last web export in browser (localhost)'}
-        className={`editor-toolbar-btn border ${
-          isOpeningWeb
-            ? 'border-[var(--border-2)] bg-[var(--panel)] text-[var(--muted)] cursor-not-allowed'
-            : !canOpenInBrowser
-              ? 'border-[var(--border)] bg-transparent text-[var(--muted)] cursor-not-allowed opacity-60'
-              : 'border-[var(--border-2)] bg-transparent text-[var(--text)] hover:border-[var(--accent)] hover:text-[var(--accent)] hover:bg-[var(--accent-bg)]'
-        }`}
+        onClick={canOpen ? onOpenWebInBrowser : undefined}
+        disabled={!canOpen}
+        title={badgeTitle}
+        className={`editor-toolbar-btn border text-[10px] gap-1 ${badgeClass}`}
       >
-        <ExternalLink size={12} className={isOpeningWeb ? 'animate-pulse' : ''} />
-        {isOpeningWeb ? 'OPENING…' : 'OPEN IN BROWSER'}
+        <ExternalLink size={10} className={isOpeningWeb ? 'animate-pulse' : ''} />
+        {badgeLabel}
       </button>
     </div>
   )

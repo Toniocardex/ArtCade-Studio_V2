@@ -38,6 +38,7 @@
 #include <cstring>
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <iostream>
 #include <memory>
 #include <vector>
@@ -391,7 +392,14 @@ bool Application::loadProject(const std::string& projectPath) {
     if (mod_->assetLoader->loadLuaBytecode(doc.mainScriptPath, bytecode))
         mod_->luaHost->loadBytecodeBuffer(bytecode.data(), bytecode.size());
 
-    targetDt_ = 1.f / doc.targetFPS;
+    // Guard against 0 / negative / NaN targetFPS from a malformed project.json.
+    // 1/0 → +inf, which makes `accumulator_ >= targetDt_` permanently false and
+    // freezes the fixed-step loop without any error surface. Fall back to 60.
+    {
+        const float fps = doc.targetFPS;
+        const float safeFps = (std::isfinite(fps) && fps >= 1.f) ? fps : 60.f;
+        targetDt_ = 1.f / safeFps;
+    }
     licenseTier_ = doc.licenseTier;
 
     // Show branded splash overlay on FREE tier (watermark requirement)

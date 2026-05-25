@@ -17,7 +17,6 @@ declare global {
       rot: number, sx: number, sy: number,
     ) => void
     onConsoleLine?: (message: string, level: string) => void
-    onObjectUpdated?: (x: number, y: number) => void
   }
 }
 
@@ -29,7 +28,6 @@ describe('bindWindowCallbacks (merge-safe)', () => {
     delete win.onEntitySelected
     delete win.onEntityTransformChanged
     delete win.onConsoleLine
-    delete win.onObjectUpdated
   })
 
   it('binds all callbacks on first call', () => {
@@ -50,7 +48,6 @@ describe('bindWindowCallbacks (merge-safe)', () => {
     expect(win.onEntityTransformChanged).toBe(onEntityTransformChanged)
     expect(win.onConsoleLine).toBe(onConsoleLine)
     expect(win.onTilemapPainted).toBe(onTilemapPainted)
-    expect(typeof win.onObjectUpdated).toBe('function')
   })
 
   it('preserves onTilemapPainted when a later rebind omits it', () => {
@@ -95,17 +92,4 @@ describe('bindWindowCallbacks (merge-safe)', () => {
     expect(win.onTilemapPainted).toBe(second)
   })
 
-  it('onObjectUpdated forwards through the latest transform callback', () => {
-    const calls: Array<[number, number, number, number, number, number]> = []
-    bindWindowCallbacks({
-      onReady: () => {},
-      onEntitySelected: () => {},
-      onEntityTransformChanged: (id, x, y, rot, sx, sy) => {
-        calls.push([id, x, y, rot, sx, sy])
-      },
-      onConsoleLine: () => {},
-    })
-    win.onObjectUpdated?.(10, 20)
-    expect(calls).toEqual([[0, 10, 20, 0, 1, 1]])
-  })
 })

@@ -105,6 +105,12 @@ pub fn serve_web_export(app: &tauri::AppHandle, dist_dir: &Path) -> Result<Strin
         .arg(dist_dir)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
+        // Pipe stderr so we can read the startup failure message during the
+        // initial settle window, but drain it on a background thread for the
+        // rest of the server's lifetime. `http.server` writes one access-log
+        // line per request to stderr; if nobody reads the pipe its OS buffer
+        // (~64 KB on Windows) eventually fills and Python blocks on write —
+        // the server stops responding without any error surface.
         .stderr(Stdio::piped());
     hide_console(&mut child_cmd);
     let mut child = child_cmd
@@ -121,6 +127,20 @@ pub fn serve_web_export(app: &tauri::AppHandle, dist_dir: &Path) -> Result<Strin
         return Err(format!(
             "web preview server exited ({status}); {stderr}"
         ));
+    }
+
+    if let Some(stderr) = child.stderr.take() {
+        thread::spawn(move || {
+            use std::io::Read;
+            let mut sink = stderr;
+            let mut buf = [0u8; 4096];
+            loop {
+                match sink.read(&mut buf) {
+                    Ok(0) | Err(_) => break,
+                    Ok(_) => {}
+                }
+            }
+        });
     }
 
     {

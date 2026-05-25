@@ -122,17 +122,10 @@ export function useBuildToolbarActions({
     try {
       await runBuildWasm(dirName(buildPath))
       await refreshWebExportStatus({ projectDirty: false })
-      if (globalThis.confirm?.('Web export ready. Open in browser now?')) {
-        try {
-          const url = await openWebExportInBrowser(dirName(buildPath))
-          dispatch({
-            type: 'LOG',
-            entry: makeConsoleEntry(`[Web] Browser opened at ${url}`, 'info'),
-          })
-        } catch (err) {
-          dispatch({ type: 'LOG', entry: makeConsoleEntry(`[Web] ${err}`, 'error') })
-        }
-      }
+      dispatch({
+        type: 'LOG',
+        entry: makeConsoleEntry('[WASM] Web export ready — click OPEN IN BROWSER to preview.', 'info'),
+      })
     } catch (err) {
       dispatch({ type: 'LOG', entry: makeConsoleEntry(`[WASM] Failed: ${err}`, 'error') })
     } finally {

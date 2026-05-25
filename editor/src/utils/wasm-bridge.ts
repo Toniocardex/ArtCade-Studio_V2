@@ -44,7 +44,6 @@ declare global {
   interface Window {
     Module: Partial<ArtCadeModule>
 
-    onObjectUpdated?:             (x: number, y: number) => void
     onEntitySelected?:            (entityId: number) => void
     onEntityTransformChanged?:    (entityId: number, x: number, y: number,
                                    rot: number, sx: number, sy: number) => void
@@ -115,10 +114,13 @@ export function bindWindowCallbacks(cbs: Partial<WasmCallbacks>): void {
   if (cbs.onEntityTransformChanged) window.onEntityTransformChanged = cbs.onEntityTransformChanged
   if (cbs.onConsoleLine)            window.onConsoleLine            = cbs.onConsoleLine
   if (cbs.onTilemapPainted)         window.onTilemapPainted         = cbs.onTilemapPainted
-  if (cbs.onEntityTransformChanged) {
-    const fwd = cbs.onEntityTransformChanged
-    window.onObjectUpdated = (x, y) => fwd(0, x, y, 0, 1, 1)
-  }
+  // NOTE: the legacy `window.onObjectUpdated(x, y)` forwarder was removed.
+  // The shipping C++ runtime never emits that signal (only the smoke-test
+  // harness does); meanwhile the forwarder was synthesising entityId=0,
+  // rotation=0, scale=(1,1), which — if the C++ side ever did fire it again
+  // — would silently reset the selected entity's rotation and scale in the
+  // React store. Re-add a properly-shaped binding the day the runtime ships
+  // that channel.
 }
 
 function attachModuleHooks(

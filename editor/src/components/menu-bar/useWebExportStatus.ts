@@ -11,32 +11,8 @@ const MISSING_STATUS: WebExportStatus = {
   hint: 'Run BUILD WEB first to create a browser export',
 }
 
-export function mapWebExportToolbar(
-  status: WebExportStatus,
-  hasProject: boolean,
-  buildBusy: boolean,
-) {
-  const canOpenInBrowser = status.state === 'ready' && hasProject && !buildBusy
-
-  let openDisabledReason: string | undefined
-  if (!hasProject) {
-    openDisabledReason = 'Load a project first'
-  } else if (buildBusy) {
-    openDisabledReason = 'Wait for the current build to finish'
-  } else if (status.state !== 'ready') {
-    openDisabledReason = status.hint
-  }
-
-  const exportStatusHint =
-    status.state === 'ready'
-      ? 'Export ready'
-      : status.state === 'stale'
-        ? 'Export outdated'
-        : 'No export'
-
-  const buildWebHint = status.state === 'stale' ? 'Refresh browser export' : undefined
-
-  return { canOpenInBrowser, openDisabledReason, exportStatusHint, buildWebHint }
+export function mapWebExportToolbar(status: WebExportStatus) {
+  return { exportState: status.state as 'missing' | 'stale' | 'ready' }
 }
 
 export function useWebExportStatus(
