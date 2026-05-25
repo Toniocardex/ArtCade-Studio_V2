@@ -11,6 +11,13 @@
 
 import type { LogicBoardDoc, LogicTrigger } from '../../types/logic-board'
 
+/**
+ * Name of the Lua-local table that maps human slugs to raw event ids. Shared
+ * between the header builder (which emits `local RULE = {...}`) and
+ * ruleKeyExpr (which emits `RULE.<slug>` references) so both stay in lockstep.
+ */
+export const RULE_TABLE = 'RULE'
+
 function shortKeyLabel(code: string): string {
   // Mirrors the spirit of components/logic-board/KeyCapture.formatKeyLabel but
   // stays inside utils/ to avoid pulling UI layers into the compiler. We only
@@ -88,7 +95,7 @@ export function ruleKeyExpr(
   slugs: Map<string, string> | undefined,
 ): string {
   const slug = slugs?.get(eventId)
-  if (slug) return `RULE.${slug}`
+  if (slug) return `${RULE_TABLE}.${slug}`
   // luaString-equivalent inline to avoid a circular import with lua-helpers.
   return `"${eventId.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
 }

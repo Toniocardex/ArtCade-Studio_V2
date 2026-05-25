@@ -14,8 +14,8 @@ import { emitGuardedActions } from './emit-actions'
 export function emitEventRegistration(
   ev: LogicEvent,
   board: LogicBoard,
-  project?: ProjectDoc | null,
-  slugs?: Map<string, string>,
+  project: ProjectDoc | null | undefined,
+  slugs: Map<string, string>,
 ): string[] | null {
   const trig = ev.trigger
   const I = INDENT

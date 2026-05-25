@@ -23,7 +23,7 @@ import { conditionExpr } from './condition-expr'
 export function emitActionSequence(
   actions: LogicAction[],
   indent: string,
-  slugs?: Map<string, string>,
+  slugs: Map<string, string>,
 ): string[] {
   if (actions.length === 0) return []
 
@@ -69,7 +69,7 @@ export function emitActionSequence(
 export function emitGuardedActions(
   ev: LogicEvent,
   baseIndent: string,
-  slugs?: Map<string, string>,
+  slugs: Map<string, string>,
 ): string[] {
   const enableGuard = `_logic_on[${ruleKeyExpr(ev.id, slugs)}] ~= false`
   const condGuard = conditionExpr(ev)

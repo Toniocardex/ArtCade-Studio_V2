@@ -13,6 +13,7 @@
 // ---------------------------------------------------------------------------
 
 import { INDENT, luaString } from './lua-helpers'
+import { RULE_TABLE } from './event-slugs'
 
 /** Header lines emitted once at the top of every compiled board script. */
 export function buildHeader(eventSlugs: Map<string, string>): string[] {
@@ -33,8 +34,8 @@ export function buildHeader(eventSlugs: Map<string, string>): string[] {
     // ever returns an empty map. Empty literal is valid Lua.
     '-- Readable aliases for rule ids — used as keys into _logic_on.',
     ...(ruleEntries.length > 0
-      ? ['local RULE = {', ...ruleEntries, '}']
-      : ['local RULE = {}']),
+      ? [`local ${RULE_TABLE} = {`, ...ruleEntries, '}']
+      : [`local ${RULE_TABLE} = {}`]),
     'local _mb = {}             -- mouse button edge state',
     'local _logic_movement_known = {}',
     'local _logic_movement_frame = nil',

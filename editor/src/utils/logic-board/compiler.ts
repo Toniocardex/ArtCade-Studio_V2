@@ -41,20 +41,36 @@ import { buildHeader, buildTickWrapper } from './compiler-prelude'
 export { luaString, luaValue, targetExpr } from './lua-helpers'
 export { conditionExpr } from './condition-expr'
 
-/** True if any event in the doc whose trigger is `type` uses the tick fallback. */
-function docUsesTickFallback(
+/**
+ * Single walk over the doc that tells the tick wrapper which optional poll
+ * preambles (sensor edge buffer, destroy queue) it needs to emit. Replaces
+ * three separate scans of the same data.
+ */
+function analyzePollingNeeds(
   doc: LogicBoardDoc,
-  type: string,
-  project?: ProjectDoc | null,
-): boolean {
+  project: ProjectDoc | null | undefined,
+): { useSensor: boolean; useDestroy: boolean } {
+  let useSensor = false
+  let useDestroy = false
   for (const board of doc) {
     for (const ev of board.events) {
       if (!ev.enabled) continue
-      if (ev.trigger.type === type && usesTickFallback(ev, board, project))
-        return true
+      if (useSensor && useDestroy) return { useSensor, useDestroy }
+      const type = ev.trigger.type
+      if (
+        (type === 'onTriggerEnter' || type === 'onTriggerExit') &&
+        !useSensor &&
+        usesTickFallback(ev, board, project)
+      ) {
+        useSensor = true
+        continue
+      }
+      if (type === 'onDestroy' && !useDestroy && usesTickFallback(ev, board, project)) {
+        useDestroy = true
+      }
     }
   }
-  return false
+  return { useSensor, useDestroy }
 }
 
 /**
@@ -63,8 +79,8 @@ function docUsesTickFallback(
  */
 function emitBoard(
   board: LogicBoard,
-  project?: ProjectDoc | null,
-  slugs?: Map<string, string>,
+  project: ProjectDoc | null | undefined,
+  slugs: Map<string, string>,
 ): { init: string[]; tick: string[] } {
   const enabled = board.events.filter((e) => e.enabled)
   const startEvents = enabled.filter((e) => e.trigger.type === 'onStart')
@@ -140,10 +156,7 @@ export function compileLogicBoard(
     }
   }
 
-  const useSensor =
-    docUsesTickFallback(doc, 'onTriggerEnter', project) ||
-    docUsesTickFallback(doc, 'onTriggerExit', project)
-  const useDestroy = docUsesTickFallback(doc, 'onDestroy', project)
+  const { useSensor, useDestroy } = analyzePollingNeeds(doc, project)
   const hasPollingLogic =
     tickBlocks.length > 0 || useSensor || useDestroy
 

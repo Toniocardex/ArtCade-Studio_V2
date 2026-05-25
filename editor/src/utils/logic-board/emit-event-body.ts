@@ -18,7 +18,7 @@ export function emitEventBody(
   ev: LogicEvent,
   board: LogicBoard,
   baseIndent: string,
-  slugs?: Map<string, string>,
+  slugs: Map<string, string>,
 ): string[] {
   const lines: string[] = []
   const trig = ev.trigger
