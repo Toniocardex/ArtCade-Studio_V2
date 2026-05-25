@@ -5,6 +5,9 @@
 
 import type { TargetSelector } from '../../types/logic-board'
 
+/** Two-space indent unit used by every emitter in the compiler pipeline. */
+export const INDENT = '  '
+
 /** Escape a JS string into a safe double-quoted Lua string literal. */
 export function luaString(s: string): string {
   return (
