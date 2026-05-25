@@ -1,10 +1,10 @@
 import { useRef, useState, useEffect } from 'react'
 import type { ReactNode } from 'react'
-import { Play, Square, FolderOpen, Save, Package, Hammer, ChevronDown, FilePlus } from 'lucide-react'
+import { Play, Square, FolderOpen, Save, Package, Hammer, ChevronDown, FilePlus, Globe2 } from 'lucide-react'
 import { useEditor } from '../store/editor-store'
 import {
   openProjectDialog, loadProjectFile,
-  saveScript, saveProjectFile, savePackDialog, packProject, runBuild,
+  saveScript, saveProjectFile, savePackDialog, packProject, runBuild, runBuildWasm,
   saveProjectAsDialog, scaffoldNewProjectOnDisk, resolveScriptPath,
   ensureDependencies, checkDependencies,
 } from '../utils/api'
@@ -12,7 +12,7 @@ import { dirName, createBlankProject, BLANK_MAIN_LUA } from '../utils/project'
 import { runtimeSync } from '../utils/runtime-sync-service'
 import { resolvePreviewMainLua } from '../utils/preview-restore'
 import { compileLogicBoard } from '../utils/logic-board/compiler'
-import type { ConsoleEntry } from '../types'
+import type { ConsoleEntry, ProjectDoc } from '../types'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -27,6 +27,12 @@ function makeLog(message: string, level: ConsoleEntry['level']): ConsoleEntry {
     message,
     level,
   }
+}
+
+function mainScriptBodyForProject(project: ProjectDoc): string {
+  return project.logicBoards?.length
+    ? compileLogicBoard(project.logicBoards, project)
+    : BLANK_MAIN_LUA
 }
 
 // ---------------------------------------------------------------------------
@@ -77,6 +83,7 @@ export default function MenuBar() {
 
   const [fileMenuOpen, setFileMenuOpen] = useState(false)
   const [isBuilding,   setIsBuilding]   = useState(false)
+  const [isBuildingWeb, setIsBuildingWeb] = useState(false)
   const fileMenuRef = useRef<HTMLDivElement>(null)
 
   // Close file menu on outside click
@@ -150,7 +157,7 @@ export default function MenuBar() {
     const target = await saveProjectAsDialog()
     if (!target) return
     try {
-      await scaffoldNewProjectOnDisk(target, project, BLANK_MAIN_LUA)
+      await scaffoldNewProjectOnDisk(target, project, mainScriptBodyForProject(project))
       // Promote in-memory state to the new path.
       dispatch({ type: 'LOAD_PROJECT', project, path: target })
       dispatch({ type: 'MARK_PROJECT_SAVED' })
@@ -277,45 +284,97 @@ export default function MenuBar() {
     }
   }
 
-  async function handleBuildExe() {
+  async function ensureProjectReadyForBuild(kind: 'Build' | 'WASM'): Promise<string | null> {
     if (!project) {
-      dispatch({ type: 'LOG', entry: makeLog('[Build] No project loaded.', 'warn') })
-      return
+      dispatch({ type: 'LOG', entry: makeLog(`[${kind}] No project loaded.`, 'warn') })
+      return null
     }
 
-    let buildPath = projectPath
+    let buildPath = projectPath ?? ''
     if (!buildPath) {
       const ok = window.confirm('The project has not been saved.\nSave it now before building?')
-      if (!ok) return
-      const target = await saveProjectAsDialog()
-      if (!target) return
+      if (!ok) return null
+      const target = (await saveProjectAsDialog())!
+      if (!target) return null
       try {
-        await scaffoldNewProjectOnDisk(target, project, BLANK_MAIN_LUA)
+        await scaffoldNewProjectOnDisk(target, project, mainScriptBodyForProject(project))
         dispatch({ type: 'LOAD_PROJECT', project, path: target })
         dispatch({ type: 'MARK_PROJECT_SAVED' })
         dispatch({ type: 'LOG', entry: makeLog(`[File] ✓ Saved "${project.projectName}" to ${target}`, 'info') })
       } catch (err) {
         dispatch({ type: 'LOG', entry: makeLog(`[File] ✗ Save failed: ${err}`, 'error') })
-        return
+        return null
       }
       buildPath = target
     }
 
-    const root = dirName(buildPath)
+    try {
+      await saveProjectFile(buildPath, project)
+      dispatch({ type: 'MARK_PROJECT_SAVED' })
+
+      if (project.mainScriptPath && project.logicBoards?.length) {
+        const compiled = compileLogicBoard(project.logicBoards ?? [], project)
+        await saveScript(resolveScriptPath(buildPath, project.mainScriptPath), compiled)
+        dispatch({
+          type: 'UPSERT_SCRIPT',
+          path: project.mainScriptPath,
+          content: compiled,
+          isDirty: false,
+          activate: false,
+        })
+        dispatch({ type: 'LOG', entry: makeLog(`[${kind}] Logic Board compiled -> ${project.mainScriptPath}`, 'info') })
+      }
+    } catch (err) {
+      dispatch({ type: 'LOG', entry: makeLog(`[${kind}] Prepare project failed: ${err}`, 'error') })
+      return null
+    }
+
+    return buildPath
+  }
+
+  async function handleBuildExe() {
     setIsBuilding(true)
     dispatch({ type: 'SET_CONSOLE_OPEN', open: true })
     if (!await ensureDependencies('native')) {
       setIsBuilding(false)
       return
     }
-    dispatch({ type: 'LOG', entry: makeLog('[Build] Starting cmake build…', 'info') })
+    const preparedBuildPath = await ensureProjectReadyForBuild('Build')
+    if (!preparedBuildPath) {
+      setIsBuilding(false)
+      return
+    }
+    dispatch({ type: 'LOG', entry: makeLog('[Build] Starting cmake build...', 'info') })
     try {
-      await runBuild(root)
-      // Success / failure logs come from Tauri "build-log" events streamed to ConsolePanel
+      await runBuild(dirName(preparedBuildPath))
     } catch (err) {
-      dispatch({ type: 'LOG', entry: makeLog(`[Build] ✗ ${err}`, 'error') })
+      dispatch({ type: 'LOG', entry: makeLog(`[Build] Failed: ${err}`, 'error') })
     } finally {
       setIsBuilding(false)
+    }
+    return
+  }
+
+
+  async function handleBuildWeb() {
+    setIsBuildingWeb(true)
+    dispatch({ type: 'SET_CONSOLE_OPEN', open: true })
+    if (!await ensureDependencies('wasm')) {
+      setIsBuildingWeb(false)
+      return
+    }
+    const buildPath = await ensureProjectReadyForBuild('WASM')
+    if (!buildPath) {
+      setIsBuildingWeb(false)
+      return
+    }
+    dispatch({ type: 'LOG', entry: makeLog('[WASM] Starting web export...', 'info') })
+    try {
+      await runBuildWasm(dirName(buildPath))
+    } catch (err) {
+      dispatch({ type: 'LOG', entry: makeLog(`[WASM] Failed: ${err}`, 'error') })
+    } finally {
+      setIsBuildingWeb(false)
     }
   }
 
@@ -422,7 +481,7 @@ export default function MenuBar() {
         <button
           type="button"
           onClick={handleBuildExe}
-          disabled={isBuilding}
+          disabled={isBuilding || isBuildingWeb}
           className={`editor-toolbar-btn border ${
             isBuilding
               ? 'border-[var(--border-2)] bg-[var(--panel)] text-[var(--muted)] cursor-not-allowed'
@@ -431,6 +490,20 @@ export default function MenuBar() {
         >
           <Hammer size={12} className={isBuilding ? 'animate-pulse' : ''} />
           {isBuilding ? 'BUILDING…' : 'BUILD .EXE'}
+        </button>
+
+        <button
+          type="button"
+          onClick={handleBuildWeb}
+          disabled={isBuilding || isBuildingWeb}
+          className={`editor-toolbar-btn border ${
+            isBuildingWeb
+              ? 'border-[var(--border-2)] bg-[var(--panel)] text-[var(--muted)] cursor-not-allowed'
+              : 'border-[var(--border-2)] bg-transparent text-[var(--text)] hover:border-[var(--accent)] hover:text-[var(--accent)] hover:bg-[var(--accent-bg)]'
+          }`}
+        >
+          <Globe2 size={12} className={isBuildingWeb ? 'animate-pulse' : ''} />
+          {isBuildingWeb ? 'EXPORTING...' : 'BUILD WEB'}
         </button>
       </div>
     </header>

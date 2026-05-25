@@ -357,9 +357,9 @@ export async function runBuild(projectRoot: string): Promise<void> {
   await invoke<void>('run_build', { projectRoot })
 }
 
-export async function runBuildWasm(): Promise<void> {
+export async function runBuildWasm(projectRoot: string): Promise<void> {
   if (!isTauri()) { notAvailable('runBuildWasm'); return }
-  await invoke<void>('run_build_wasm')
+  await invoke<void>('run_build_wasm', { projectRoot })
 }
 
 /**

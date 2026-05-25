@@ -14,7 +14,8 @@ import {
 } from '../utils/api'
 import { createBlankProject, BLANK_MAIN_LUA } from '../utils/project'
 import { runtimeSync } from '../utils/runtime-sync-service'
-import type { ConsoleEntry } from '../types'
+import type { ConsoleEntry, ProjectDoc } from '../types'
+import { compileLogicBoard } from '../utils/logic-board/compiler'
 
 let _kbdLogId = 500
 function kbdLog(message: string, level: ConsoleEntry['level']): ConsoleEntry {
@@ -25,6 +26,12 @@ function kbdLog(message: string, level: ConsoleEntry['level']): ConsoleEntry {
     message,
     level,
   }
+}
+
+function mainScriptBodyForProject(project: ProjectDoc): string {
+  return project.logicBoards?.length
+    ? compileLogicBoard(project.logicBoards, project)
+    : BLANK_MAIN_LUA
 }
 
 export function useProjectShortcuts(): void {
@@ -44,7 +51,7 @@ export function useProjectShortcuts(): void {
       const target = await saveProjectAsDialog()
       if (!target) return
       try {
-        await scaffoldNewProjectOnDisk(target, state.project, BLANK_MAIN_LUA)
+        await scaffoldNewProjectOnDisk(target, state.project, mainScriptBodyForProject(state.project))
         dispatch({ type: 'LOAD_PROJECT', project: state.project, path: target })
         dispatch({ type: 'MARK_PROJECT_SAVED' })
         dispatch({ type: 'LOG', entry: kbdLog(`OK saved project to ${target}`, 'info') })
