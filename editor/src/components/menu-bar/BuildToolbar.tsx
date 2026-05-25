@@ -29,15 +29,15 @@ export function BuildToolbar({
 
   const badgeLabel =
     isOpeningWeb ? 'Opening…'
-    : exportState === 'ready' ? 'Export ready'
-    : exportState === 'stale' ? 'Export outdated'
-    : 'No export'
+    : exportState === 'ready' ? 'Preview in Browser'
+    : exportState === 'stale' ? 'Outdated — rebuild'
+    : 'Build first'
 
   const badgeTitle =
     isOpeningWeb ? 'Opening browser…'
     : exportState === 'ready' ? 'Open web export in browser (localhost)'
     : exportState === 'stale' ? 'Project changed — run BUILD WEB to refresh'
-    : 'Run BUILD WEB first'
+    : 'Run BUILD WEB to create a browser export'
 
   const badgeClass = exportState === 'ready'
     ? 'text-[var(--accent)] border-[var(--accent-bd)] bg-[var(--accent-bg)] hover:bg-[var(--accent-bg-h)] cursor-pointer'
