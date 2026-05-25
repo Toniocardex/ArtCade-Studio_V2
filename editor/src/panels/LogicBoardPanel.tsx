@@ -18,7 +18,7 @@ import {
 } from '../utils/project'
 import { compileLogicBoard } from '../utils/logic-board/compiler'
 import { editorReloadScript } from '../utils/wasm-bridge'
-import { runtimeSync } from '../utils/runtime-sync-service'
+import { runtimeSync, useRuntimeReady } from '../utils/runtime-sync-service'
 import {
   createLogicBoard,
   createLogicBoardForEntity,
@@ -50,6 +50,7 @@ export default function LogicBoardPanel() {
   const { state, dispatch } = useEditor()
   const project = state.project
   const { selection } = state
+  const runtimeReady = useRuntimeReady()
 
   const boards = project?.logicBoards ?? []
   const [selectedBoardId, setSelectedBoardId] = useState<string | null>(
@@ -124,12 +125,21 @@ export default function LogicBoardPanel() {
 
   const handleApply = () => {
     syncLogicBoardToScript(dispatch, state, lua)
+    // Always-on guard: the WASM runtime loads asynchronously at editor boot.
+    // If the user is fast enough to hit Apply before it finishes, fail with
+    // an accurate message rather than telling them to "open Canvas preview"
+    // (the preview is already mounted — it's just not ready yet).
+    if (!runtimeReady) {
+      setApplyMsg('Runtime still loading — try again in a moment.')
+      window.setTimeout(() => setApplyMsg(null), 4000)
+      return
+    }
     if (state.isPlaying && project) {
       dispatch({ type: 'SET_PLAYING', playing: false })
       const activeSceneId = selection.sceneId ?? project.activeSceneId
       const ok = runtimeSync.restorePreviewFromProject(project, activeSceneId, lua)
       if (!ok) {
-        setApplyMsg('Runtime not loaded — open Canvas preview first')
+        setApplyMsg('Runtime call failed — see the console for details.')
         window.setTimeout(() => setApplyMsg(null), 4000)
         return
       }
@@ -138,7 +148,7 @@ export default function LogicBoardPanel() {
       setApplyMsg(
         ok
           ? 'Logic applied — script hot-reloaded (press PLAY to test)'
-          : 'Runtime not loaded — open Canvas preview first',
+          : 'Runtime call failed — see the console for details.',
       )
       window.setTimeout(() => setApplyMsg(null), 4000)
       return

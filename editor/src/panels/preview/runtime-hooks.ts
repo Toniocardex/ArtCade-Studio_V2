@@ -52,6 +52,11 @@ export function buildRuntimeCallbacks(deps: RuntimeCallbackDeps): WasmCallbacks 
   return {
     onReady: () => {
       syncRuntimeUiFlags()
+      // Broadcast readiness so non-PreviewPanel consumers (LogicBoardPanel
+      // Apply, Script editor Hot-Reload, etc.) can transition out of their
+      // "runtime still loading" state without waiting for a re-render of
+      // the preview panel.
+      runtimeSync.notifyReadyChanged()
       if (cancelled()) return
       setTimeout(() => dispatch({
         type: 'LOG',

@@ -16,6 +16,7 @@
 // the singleton exported below (or through the React hooks built on top of
 // it). New runtime channels (e.g. shader push, audio bus) get a method here.
 
+import { useEffect, useState } from 'react'
 import {
   editorDeselect,
   editorLoadProject,
@@ -93,6 +94,8 @@ class RuntimeSyncServiceImpl {
   private lastGridSize:       number | null = null
   private lastTransform:      Map<number, EntityTransformSnapshot> = new Map()
   private assetCacheInvalidator: (() => void) | null = null
+  private readyListeners:     Set<(ready: boolean) => void> = new Set()
+  private lastReadyEmitted:   boolean = false
 
   /** Forget every cached "last sent" value. Use on project open / runtime reload. */
   reset(): void {
@@ -110,6 +113,29 @@ class RuntimeSyncServiceImpl {
   /** PreviewPanel registers this so texture re-upload runs after STOP restore. */
   setAssetCacheInvalidator(fn: (() => void) | null): void {
     this.assetCacheInvalidator = fn
+  }
+
+  /**
+   * Subscribe to runtime-readiness transitions. The callback receives the
+   * current state synchronously, then again whenever it changes. Useful for
+   * panels (e.g. LogicBoardPanel) that gate Apply on `isReady()` and want
+   * to update their UI the moment the WASM finishes loading instead of
+   * leaving the user staring at a misleading "Runtime not loaded" toast.
+   *
+   * Returns an unsubscribe handle.
+   */
+  onReadyChange(cb: (ready: boolean) => void): () => void {
+    this.readyListeners.add(cb)
+    cb(isReady())
+    return () => { this.readyListeners.delete(cb) }
+  }
+
+  /** Called from the wasm-bridge `onReady` (or any path that toggles ready). */
+  notifyReadyChanged(): void {
+    const now = isReady()
+    if (now === this.lastReadyEmitted) return
+    this.lastReadyEmitted = now
+    for (const cb of this.readyListeners) cb(now)
   }
 
   /**
@@ -297,3 +323,16 @@ function sameTransform(a: EntityTransformSnapshot, b: EntityTransformSnapshot): 
  */
 export const runtimeSync = new RuntimeSyncServiceImpl()
 export type RuntimeSyncService = RuntimeSyncServiceImpl
+
+/**
+ * React hook that returns the current runtime-readiness state and re-renders
+ * the caller whenever it changes. Components outside PreviewPanel that need
+ * to gate UI on `isReady()` should use this instead of polling — that's the
+ * only way they learn about the transition without sitting inside the
+ * Preview's local state.
+ */
+export function useRuntimeReady(): boolean {
+  const [ready, setReady] = useState(() => isReady())
+  useEffect(() => runtimeSync.onReadyChange(setReady), [])
+  return ready
+}
