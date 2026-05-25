@@ -52,7 +52,13 @@ export function emitActionSequence(
   if (w.type !== 'wait') return lines
 
   const secs = Number(w.seconds) || 0
-  const deferred = w.then?.length ? w.then : actions.slice(i + 1)
+  // wait.then (optional sub-block from the schema) runs first inside the
+  // time.after callback, followed by whatever the user put AFTER the wait in
+  // the flat list. Earlier versions dropped the post-wait tail whenever
+  // wait.then was non-empty — that was a latent bug since the editor never
+  // populates wait.then today, but future UI work or hand-edited project
+  // files would have silently lost actions.
+  const deferred = [...(w.then ?? []), ...actions.slice(i + 1)]
   const inner = emitActionSequence(deferred, indent + INDENT, slugs)
 
   lines.push(`${indent}time.after(${secs}, function()`)

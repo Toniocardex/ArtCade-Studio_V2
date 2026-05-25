@@ -739,6 +739,31 @@ describe('Logic Components — Phase C (engine-hook triggers)', () => {
     expect(lua).toContain('entity.setScale(_nid')
   })
 
+  it('wait.then runs before post-wait tail actions (concat semantics)', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({
+          trigger: { type: 'onStart' },
+          actions: [
+            { type: 'debugLog', message: 'before' },
+            { type: 'wait', seconds: 1, then: [
+              { type: 'debugLog', message: 'nested' },
+            ] },
+            { type: 'debugLog', message: 'after' },
+          ],
+        }),
+      ]),
+    ])
+    expect(lua).toContain('debug.log("before")')
+    expect(lua).toContain('time.after(1, function()')
+    // Both nested and post-wait tail must reach the output; the order must
+    // be nested-first, tail-second.
+    const nestedIdx = lua.indexOf('debug.log("nested")')
+    const afterIdx = lua.indexOf('debug.log("after")')
+    expect(nestedIdx).toBeGreaterThan(-1)
+    expect(afterIdx).toBeGreaterThan(nestedIdx)
+  })
+
   it('wait splits actions with time.after', () => {
     const lua = compileLogicBoard([
       board([
