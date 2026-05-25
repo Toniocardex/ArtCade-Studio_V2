@@ -184,14 +184,36 @@ Run:
 
 ## 📊 System Requirements
 
+See also **[README — Requirements: end users vs developers](README.md#requirements-end-users-vs-developers)** for install vs source-build details.
+
+### End users (Windows installer)
+
 | Requirement | Minimum | Recommended |
 |-------------|---------|-------------|
-| **OS** | Windows 10, macOS 11, Ubuntu 20.04 | Windows 11, macOS 13, Ubuntu 22.04 |
+| **OS** | Windows 10 x64 | Windows 11 x64 |
+| **Runtime** | Microsoft Edge **WebView2** | Pre-installed (Win11) or via setup |
 | **CPU** | i5-6th Gen / Ryzen 5 2600 | i7 / Ryzen 7 |
 | **RAM** | 4 GB | 8 GB |
-| **Disk** | 500 MB (editor + runtime) | 2 GB (build artifacts, project assets) |
+| **Disk** | 500 MB (editor + runtime) | 2 GB (projects + assets) |
 | **GPU** | Integrated (Intel UHD, AMD Radeon) | Discrete (NVIDIA GTX 1050, AMD RX 580+) |
-| **Browser** (WASM) | Chrome/Edge 90+, Firefox 88+ | Latest (performance) |
+| **Export `.artcade`** | Python 3 on `PATH` | Same |
+
+### Developers (from source — Windows)
+
+All end-user requirements are irrelevant for dev; you need the full toolchain in [README — Getting Started](README.md#getting-started) (Node, Rust, MSVC, CMake, Ninja, Emscripten, Python, Git).
+
+Planned cross-platform support (macOS / Linux) is listed below; **current build scripts are Windows-only** (`.bat`, MSVC).
+
+| Requirement | Minimum | Recommended |
+|-------------|---------|-------------|
+| **OS** | Windows 10 x64 | Windows 11 x64 |
+| **Browser** (web-only dev) | Chrome/Edge 90+, Firefox 88+ | Latest |
+
+### Future targets (not fully supported in current scripts)
+
+| Requirement | Minimum | Recommended |
+|-------------|---------|-------------|
+| **OS** | macOS 11, Ubuntu 20.04 | macOS 13, Ubuntu 22.04 |
 
 ---
 

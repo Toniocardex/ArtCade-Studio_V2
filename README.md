@@ -72,7 +72,142 @@ ArtCade V2/
 - **End-to-end integration:** [docs/ARCHITECTURE_INTEGRATION.md](docs/ARCHITECTURE_INTEGRATION.md)
 - **Global logic & UI (sensors, platformer feel, world UI, text juice):** [docs/GLOBAL_LOGIC_UI_ARCHITECTURE.md](docs/GLOBAL_LOGIC_UI_ARCHITECTURE.md)
 
+## Requirements: end users vs developers
+
+ArtCade ships in two very different ways. **Do not** ask end users to install Node, Rust, or Emscripten unless they are building the engine from source.
+
+### End users — MSI / NSIS installer
+
+The release installer (`ArtCade Editor_2.0.0_x64-setup.exe` or `.msi`) bundles:
+
+- Tauri desktop shell (`artcade-editor.exe`)
+- React editor UI (`editor/dist/`)
+- WASM preview runtime (`dist/runtime/game.js` + `game.wasm`)
+
+**Required on the PC**
+
+| Requirement | Notes |
+|-------------|-------|
+| **Windows 10/11, 64-bit** | Current builds are **x64 only**. Windows 7/8 and 32-bit Windows are not supported. |
+| **Microsoft Edge WebView2 Runtime** | Tauri embeds the UI in WebView2. Usually pre-installed on Windows 11; on Windows 10 it may be installed by the setup or must be installed manually. |
+| **4 GB RAM** (8 GB recommended) | Preview + large projects need headroom. |
+| **~500 MB disk** (2 GB recommended) | Installer + project assets; more if users keep build artifacts nearby. |
+
+**Optional — needed only for some menu actions**
+
+| Tool | When |
+|------|------|
+| **Python 3** on `PATH` | **Export `.artcade`** and **Pack project** (`pack_project` Tauri command). Without it: `python not found`. |
+
+**What works out of the box (installer)**
+
+| Action | Supported |
+|--------|-----------|
+| Open / save projects | Yes |
+| Logic Board → Lua (in-editor compiler) | Yes |
+| WASM live preview | Yes (bundled `game.wasm`) |
+| Import assets, scene editing | Yes |
+
+**What does *not* work without extra setup**
+
+| Action | Why |
+|--------|-----|
+| **Build native `.exe` from the editor menu** | Requires **ArtCade SDK** (on-demand install) + **Visual Studio Build Tools** (MSVC). The base installer does not include MSVC (~GB). |
+| **Rebuild WASM after C++ engine changes** | Requires SDK install with **Emscripten** option (~1 GB download). Preview WASM bundled in the installer still works without this. |
+
+**On-demand SDK (recommended — not in the base MSI size)**
+
+End users can install the **ArtCade SDK** from the editor when they first **Pack**, **Build .exe**, or open **File → Check dependencies**:
+
+| Component | Base installer | SDK on-demand install |
+|-----------|----------------|------------------------|
+| Editor + WASM preview | ✅ Bundled | — |
+| WebView2 | ✅ Tauri installer (`embedBootstrapper`) | — |
+| Python (export) | — | ✅ Embeddable Python → `%LOCALAPPDATA%\ArtCade\sdk\python` |
+| runtime-cpp sources | — | ✅ From `runtime-cpp-sdk.zip` (packaged at `tauri build`) |
+| CMake + Ninja | — | ✅ Portable tools in SDK folder |
+| C++ libs (Raylib, Lua…) | — | ✅ Cloned on first SDK install |
+| Emscripten | — | ⚠️ Optional checkbox (~1 GB) |
+| MSVC (link.exe) | — | ❌ User installs VS Build Tools once |
+
+SDK location: `%LOCALAPPDATA%\ArtCade\sdk\`
+
+Release builds run `npm run package:sdk` before bundling so the installer ships the SDK **bootstrapper + zip**, not the full toolchain. MSVC is the only hard external requirement for native `.exe` builds.
+
+**Common failure cases (end users)**
+
+- **WebView2 missing or blocked** — app window blank or fails to start; common on locked-down corporate PCs or offline installs if WebView2 bootstrap download is blocked.
+- **Antivirus / SmartScreen** — may quarantine `artcade-editor.exe` or block `game.wasm`.
+- **Saving projects under protected folders** — e.g. `C:\Program Files\` → write permission denied.
+- **Very low RAM or disk** — slow preview, failed save, installer abort.
+- **GPU / driver too old** — WASM preview (WebGL) may be black or degraded.
+
+Installers are produced with `npm run tauri:build` (see [Build pipeline](#build-pipeline)).
+
+---
+
+### Developers — build from source
+
+Use this path if you clone the repository or modify the C++ runtime.
+
+**Full toolchain (Windows)**
+
+| Tool | Purpose | Notes |
+|------|---------|-------|
+| **Git** | Clone/pull/push repository | `git` on PATH |
+| **Node.js LTS** | Editor, Vite, npm scripts | `node`, `npm` on PATH |
+| **Python 3.14+** | Icon tooling, `.artcade` packer, Tauri build commands | `python` on PATH |
+| **Rust (rustup)** | Tauri shell | `%USERPROFILE%\.cargo\bin` on PATH |
+| **VS Build Tools 2026** | MSVC linker (`link.exe`) for Rust + C++ native | Workload: *Desktop development with C++* |
+| **CMake** | C++ configure/build | e.g. `C:\Program Files\CMake\bin` |
+| **Ninja** | CMake generator | Used by both native and WASM scripts |
+| **Emscripten SDK** | C++ → WASM | Set `EMSDK` (default in scripts: `%USERPROFILE%\emsdk`) |
+
+**Generated / downloaded artifacts (not in git)**
+
+| Path | How to restore |
+|------|----------------|
+| `node_modules/` | `npm install` |
+| `runtime-cpp/libs/` | `npm run setup:runtime-libs` |
+| `editor/public/runtime/game.wasm` | `npm run build:wasm` |
+| `runtime-cpp/build-native/`, `build-wasm/` | `npm run build:cpp`, `npm run build:wasm` |
+
+**Common failure cases (developers)**
+
+| Symptom | Typical cause |
+|---------|----------------|
+| `"tauri" non è riconosciuto` / `tauri` not found | `node_modules` missing → run `npm install` |
+| `link.exe` not found | MSVC not on PATH → use `npm run tauri:dev` (loads `VsDevCmd`) or set `ARTCADE_VSDEVCMD` |
+| Preview empty / WASM load error | `game.wasm` not built → `npm run build:wasm` |
+| C++ configure fails | `runtime-cpp/libs` missing → `npm run setup:runtime-libs` |
+| WASM build fails | `EMSDK` unset or wrong path |
+| `python not found` on export | Python not installed or not on `PATH` |
+| Port 5173 in use | Another Vite dev server running |
+
+**Web-only dev (`npm run dev`, no Tauri)** — UI loads in the browser but **no** native file dialogs, project save to disk, export, or build commands. WASM needs a browser that supports the COOP/COEP + SharedArrayBuffer setup used by Vite dev.
+
+---
+
+### Feature matrix
+
+| Feature | End user (installer) | Developer (full checkout) |
+|---------|----------------------|---------------------------|
+| Launch editor | Yes | Yes (`npm run tauri:dev`) |
+| Open / save project | Yes | Yes |
+| WASM preview | Yes (bundled) | Yes (after `build:wasm`) |
+| Logic Board → Lua | Yes | Yes |
+| Export `.artcade` | Yes (SDK installs Python if needed) | Yes |
+| Build native `game.exe` | Yes, after SDK + MSVC | Yes |
+| Rebuild engine WASM | After SDK + Emscripten | Yes (`npm run build:wasm`) |
+| Modify C++ runtime | No | Yes |
+
+\*The editor **Build** menu uses the dev checkout when present, otherwise the on-demand SDK under `%LOCALAPPDATA%\ArtCade\sdk`.
+
+---
+
 ## Getting Started
+
+> **Developers only.** End users should install the MSI/NSIS bundle; see [Requirements: end users vs developers](#requirements-end-users-vs-developers).
 
 ### Prerequisites (Windows)
 
@@ -85,7 +220,7 @@ ArtCade V2/
 | **VS Build Tools 2026** | MSVC linker (`link.exe`) for Rust + C++ native | Workload: *Desktop development with C++* |
 | **CMake** | C++ configure/build | e.g. `C:\Program Files\CMake\bin` |
 | **Ninja** | CMake generator | Used by both native and WASM scripts |
-| **Emscripten SDK** | C++ → WASM | Set `EMSDK` (default in scripts: `C:\Users\Antonio\emsdk`) |
+| **Emscripten SDK** | C++ → WASM | Set `EMSDK` (default in scripts: `%USERPROFILE%\emsdk`) |
 
 PowerShell may block `npm.ps1` until you run once:
 
@@ -96,7 +231,7 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 First-time dependency install (npm workspace — deps hoist to repo root):
 
 ```powershell
-cd "C:\Users\Antonio\Desktop\ArtCade V2"
+cd "$env:USERPROFILE\Desktop\ArtCade-Studio_V2"
 npm install
 ```
 
@@ -122,11 +257,11 @@ git clone https://github.com/Toniocardex/ArtCade-Studio_V2.git "ArtCade V2"
 cd "ArtCade V2"
 ```
 
-3. Configure Emscripten. The scripts default to `C:\Users\Antonio\emsdk`;
+3. Configure Emscripten. The scripts default to `%USERPROFILE%\emsdk`;
    if you install it elsewhere, set `EMSDK`:
 
 ```powershell
-[Environment]::SetEnvironmentVariable("EMSDK", "C:\Users\Antonio\emsdk", "User")
+[Environment]::SetEnvironmentVariable("EMSDK", "$env:USERPROFILE\emsdk", "User")
 ```
 
 Typical fresh emsdk install:
@@ -141,14 +276,17 @@ cd emsdk
 ```
 
 4. If Visual Studio Build Tools is not installed in the default location, set
-   `ARTCADE_VSDEVCMD` to your `VsDevCmd.bat`:
+   `ARTCADE_VSDEVCMD` to your `VsDevCmd.bat` (examples):
 
 ```powershell
+# Standard VS Build Tools 2026 install
 [Environment]::SetEnvironmentVariable(
   "ARTCADE_VSDEVCMD",
   "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\Common7\Tools\VsDevCmd.bat",
   "User"
 )
+# Alternate layout (e.g. custom VS install under C:\Program)
+# [Environment]::SetEnvironmentVariable("ARTCADE_VSDEVCMD", "C:\Program\Common7\Tools\VsDevCmd.bat", "User")
 ```
 
 5. Open a **new** PowerShell and verify the toolchain:
@@ -167,10 +305,14 @@ ninja --version
 6. Install project dependencies and runtime libraries:
 
 ```powershell
-cd "C:\Users\Antonio\Desktop\ArtCade V2"
+cd "$env:USERPROFILE\Desktop\ArtCade-Studio_V2"
 npm install
 npm run setup:runtime-libs
+cd editor
+npm run package:sdk
 ```
+
+`npm run package:sdk` (in `editor/`) stages `runtime-cpp-sdk.zip` into `src-tauri/resources/` so Tauri dev/build can bundle the on-demand SDK installer.
 
 `setup:runtime-libs` restores the gitignored C++ dependencies under
 `runtime-cpp/libs`: Raylib 5.0, Lua 5.4.7, Sol2 3.5.0, and
@@ -268,7 +410,7 @@ Override paths when needed:
 **Editor dev (recommended — loads MSVC for Rust link):**
 
 ```powershell
-cd "C:\Users\Antonio\Desktop\ArtCade V2"
+cd "$env:USERPROFILE\Desktop\ArtCade-Studio_V2"
 npm run tauri:dev
 ```
 
@@ -330,4 +472,4 @@ GPL-3.0-or-later
 
 **Status**: MVP integration / release polish  
 **Started**: 2026-05-09  
-**Last updated**: 2026-05-23
+**Last updated**: 2026-05-25

@@ -5,5 +5,5 @@
 [target.x86_64-pc-windows-msvc]
 rustflags = [
   "-L",
-  "C:\\Program Files (x86)\\Microsoft Visual Studio\\18\\BuildTools\\VC\\Tools\\MSVC\\14.51.36231\\lib\\onecore\\x64",
+  "C:\\Program\\VC\\Tools\\MSVC\\14.51.36231\\lib\\onecore\\x64",
 ]

@@ -6,6 +6,7 @@ import {
   openProjectDialog, loadProjectFile,
   saveScript, saveProjectFile, savePackDialog, packProject, runBuild,
   saveProjectAsDialog, scaffoldNewProjectOnDisk, resolveScriptPath,
+  ensureDependencies, checkDependencies,
 } from '../utils/api'
 import { dirName, createBlankProject, BLANK_MAIN_LUA } from '../utils/project'
 import { runtimeSync } from '../utils/runtime-sync-service'
@@ -215,8 +216,9 @@ export default function MenuBar() {
     }
     const output = await savePackDialog()
     if (!output) return
-    const root = dirName(projectPath)
     dispatch({ type: 'SET_CONSOLE_OPEN', open: true })
+    if (!await ensureDependencies('pack')) return
+    const root = dirName(projectPath)
 
     // The C++ runtime ignores ProjectDoc.logicBoards — it only executes
     // scripts/mainScriptPath. Before packing we must compile the visual
@@ -302,6 +304,10 @@ export default function MenuBar() {
     const root = dirName(buildPath)
     setIsBuilding(true)
     dispatch({ type: 'SET_CONSOLE_OPEN', open: true })
+    if (!await ensureDependencies('native')) {
+      setIsBuilding(false)
+      return
+    }
     dispatch({ type: 'LOG', entry: makeLog('[Build] Starting cmake build…', 'info') })
     try {
       await runBuild(root)
@@ -311,6 +317,18 @@ export default function MenuBar() {
     } finally {
       setIsBuilding(false)
     }
+  }
+
+  async function handleCheckDependencies() {
+    setFileMenuOpen(false)
+    dispatch({ type: 'SET_CONSOLE_OPEN', open: true })
+    const report = await checkDependencies()
+    if (!report) return
+    const { formatDependencyReport } = await import('../utils/dependencies')
+    dispatch({
+      type: 'LOG',
+      entry: makeLog(`[Setup] Dependencies\n${formatDependencyReport(report)}`, 'info'),
+    })
   }
 
   // ---- file menu items ---------------------------------------------------
@@ -354,6 +372,12 @@ export default function MenuBar() {
       shortcut: '',
       action:   handlePackArtcade,
       divider:  true,
+    },
+    {
+      label:    'Check dependencies…',
+      icon:     <Hammer size={12} />,
+      shortcut: '',
+      action:   handleCheckDependencies,
     },
   ]
 
