@@ -602,12 +602,24 @@ void Application::renderActiveScene() {
     // statics inside the renderers would leak runtime-bridge state into
     // every render layer; keeping it here mirrors RuntimeSyncService on
     // the editor side (one place owns the editor↔runtime contract).
+    // Native game.exe has no editor attached: force play-mode chrome
+    // (no backdrop grid, no guides, no selection gizmo) regardless of
+    // the EditorAPI defaults — those exist only for the WASM preview.
+#ifdef ARTCADE_WASM
     const EditorOverlayState overlay{
         /* inEditMode    */ EditorAPI::s_mode == 0,
         /* guidesEnabled */ EditorAPI::s_editorGuidesEnabled,
         /* gridSize      */ EditorAPI::s_editorGridSize,
         /* selectedId    */ EditorAPI::s_selectedEntityId,
     };
+#else
+    const EditorOverlayState overlay{
+        /* inEditMode    */ false,
+        /* guidesEnabled */ false,
+        /* gridSize      */ 0.f,
+        /* selectedId    */ 0u,
+    };
+#endif
 
     mod_->renderer->beginFrame(clearColor);
 

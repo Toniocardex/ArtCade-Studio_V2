@@ -10,6 +10,7 @@ import {
 import { dirName, createBlankProject, BLANK_MAIN_LUA } from '../utils/project'
 import { runtimeSync } from '../utils/runtime-sync-service'
 import { resolvePreviewMainLua } from '../utils/preview-restore'
+import { compileLogicBoard } from '../utils/logic-board/compiler'
 import type { ConsoleEntry } from '../types'
 
 // ---------------------------------------------------------------------------
@@ -204,10 +205,44 @@ export default function MenuBar() {
       dispatch({ type: 'LOG', entry: makeLog('[Pack] No project loaded.', 'warn') })
       return
     }
+    if (!project) {
+      dispatch({ type: 'LOG', entry: makeLog('[Pack] No project in memory.', 'warn') })
+      return
+    }
     const output = await savePackDialog()
     if (!output) return
     const root = dirName(projectPath)
     dispatch({ type: 'SET_CONSOLE_OPEN', open: true })
+
+    // The C++ runtime ignores ProjectDoc.logicBoards — it only executes
+    // scripts/mainScriptPath. Before packing we must compile the visual
+    // Logic Board into Lua and persist it onto the main script on disk,
+    // otherwise the .artcade ships with the empty stub and KeyA/KeyD do
+    // nothing in the published game.exe.
+    const mainScriptPath = project.mainScriptPath
+    if (mainScriptPath && project.logicBoards && project.logicBoards.length > 0) {
+      try {
+        const compiled = compileLogicBoard(project.logicBoards, project)
+        const absScriptPath = `${root}/${mainScriptPath}`.replace(/\\/g, '/')
+        await saveScript(absScriptPath, compiled)
+        // Mirror the on-disk content into the in-memory script buffer so the
+        // editor tab does not stay marked dirty / out of sync after packing.
+        dispatch({
+          type: 'UPSERT_SCRIPT',
+          path: mainScriptPath,
+          content: compiled,
+          isDirty: false,
+          activate: false,
+        })
+        dispatch({ type: 'LOG', entry: makeLog(
+          `[Pack] Logic Board compiled → ${mainScriptPath}`, 'info') })
+      } catch (err) {
+        dispatch({ type: 'LOG', entry: makeLog(
+          `[Pack] ✗ Logic Board compile failed: ${err}`, 'error') })
+        return
+      }
+    }
+
     dispatch({ type: 'LOG', entry: makeLog(`[Pack] Packing → ${output}`, 'info') })
     try {
       await packProject(root, output)
