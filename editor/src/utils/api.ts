@@ -10,7 +10,7 @@ import { open  as dialogOpen,
          save  as dialogSave }                 from '@tauri-apps/plugin-dialog'
 import { readTextFile, readFile, writeFile, mkdir } from '@tauri-apps/plugin-fs'
 import type { ProjectDoc }                     from '../types'
-import { parseProjectDoc, serializeProjectDoc } from './project'
+import { parseProjectDoc, safeProjectFolderName, serializeProjectDoc } from './project'
 import { validateProjectBeforeSave } from './logic-board/validate-project'
 
 // ---------------------------------------------------------------------------
@@ -198,43 +198,44 @@ export async function saveProjectFile(path: string, project: ProjectDoc): Promis
 }
 
 /**
- * Open a native "Save As" dialog filtered for project.json.
+ * Open a native directory picker for the parent folder that will contain the
+ * project folder.
  *
- * The dialog defaults to the file name "project.json"; the user may pick any
- * directory. We do NOT force the filename so the user can also save next to
- * a renamed copy, but we always ensure a `.json` extension on the result.
- *
- * @returns the chosen absolute path, or null if the dialog was cancelled.
+ * @returns the chosen parent folder, or null if the dialog was cancelled.
  */
-export async function saveProjectAsDialog(): Promise<string | null> {
+export async function saveProjectAsDialog(projectName = 'Untitled'): Promise<string | null> {
   if (!isTauri()) { notAvailable('saveProjectAsDialog'); return null }
 
-  const chosen = await dialogSave({
-    title:       'Save ArtCade Project As',
-    defaultPath: 'project.json',
-    filters:     [{ name: 'ArtCade Project', extensions: ['json'] }],
+  const selected = await dialogOpen({
+    title:     `Choose where to create "${safeProjectFolderName(projectName, 'Untitled')}"`,
+    directory: true,
+    multiple:  false,
   })
-  if (!chosen) return null
-  return /\.json$/i.test(chosen) ? chosen : `${chosen}.json`
+  return typeof selected === 'string' ? selected : null
 }
 
 /**
- * Scaffold a brand-new project on disk: writes both project.json and a
- * starter script at `<projectDir>/<mainScriptPath>`. Parent directories
- * are created on demand (write_file does `mkdir -p` internally).
+ * Scaffold a brand-new project on disk: creates `<parent>/<projectName>/`,
+ * writes project.json inside it, and writes a starter script at
+ * `<projectDir>/<mainScriptPath>`. Parent directories are created on demand
+ * (write_file does `mkdir -p` internally).
  *
  * Returns the absolute path of the saved project.json so the caller can
  * update editor state (projectPath + MARK_PROJECT_SAVED) atomically.
  *
- * @param projectJsonPath  Target project.json absolute path.
+ * @param parentDir        Directory selected by the user; project folder is
+ *                         created inside it.
  * @param project          ProjectDoc to serialise.
  * @param mainScriptBody   Initial content for project.mainScriptPath.
  */
 export async function scaffoldNewProjectOnDisk(
-  projectJsonPath: string,
+  parentDir: string,
   project: ProjectDoc,
   mainScriptBody: string,
 ): Promise<string> {
+  const projectRoot = joinPath(parentDir, safeProjectFolderName(project.projectName, 'Untitled'))
+  const projectJsonPath = joinPath(projectRoot, 'project.json')
+
   if (!isTauri()) {
     notAvailable('scaffoldNewProjectOnDisk')
     return projectJsonPath
@@ -247,7 +248,6 @@ export async function scaffoldNewProjectOnDisk(
     content: serializeProjectDoc(project),
   })
 
-  const projectRoot = projectJsonPath.replace(/[/\\][^/\\]+$/, '')
   const scriptPath  = `${projectRoot}/${project.mainScriptPath}`.replace(/\\/g, '/')
 
   await invoke('write_file', {

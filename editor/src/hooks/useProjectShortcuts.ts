@@ -48,13 +48,13 @@ export function useProjectShortcuts(): void {
 
     async function saveProjectAsFlow(): Promise<void> {
       if (!state.project) return
-      const target = await saveProjectAsDialog()
+      const target = await saveProjectAsDialog(state.project.projectName)
       if (!target) return
       try {
-        await scaffoldNewProjectOnDisk(target, state.project, mainScriptBodyForProject(state.project))
-        dispatch({ type: 'LOAD_PROJECT', project: state.project, path: target })
+        const projectJsonPath = await scaffoldNewProjectOnDisk(target, state.project, mainScriptBodyForProject(state.project))
+        dispatch({ type: 'LOAD_PROJECT', project: state.project, path: projectJsonPath })
         dispatch({ type: 'MARK_PROJECT_SAVED' })
-        dispatch({ type: 'LOG', entry: kbdLog(`OK saved project to ${target}`, 'info') })
+        dispatch({ type: 'LOG', entry: kbdLog(`OK saved project to ${projectJsonPath}`, 'info') })
       } catch (err) {
         dispatch({ type: 'LOG', entry: kbdLog(`Save As failed: ${err}`, 'error') })
       }

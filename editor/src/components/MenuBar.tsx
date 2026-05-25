@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from 'react'
 import type { ReactNode } from 'react'
-import { Play, Square, FolderOpen, Save, Package, Hammer, ChevronDown, FilePlus, Globe2 } from 'lucide-react'
+import { Play, Square, FolderOpen, Save, Package, Hammer, ChevronDown, FilePlus, Globe2, PencilLine } from 'lucide-react'
 import { useEditor } from '../store/editor-store'
 import {
   openProjectDialog, loadProjectFile,
@@ -8,7 +8,7 @@ import {
   saveProjectAsDialog, scaffoldNewProjectOnDisk, resolveScriptPath,
   ensureDependencies, checkDependencies,
 } from '../utils/api'
-import { dirName, createBlankProject, BLANK_MAIN_LUA } from '../utils/project'
+import { dirName, createBlankProject, BLANK_MAIN_LUA, safeProjectFolderName } from '../utils/project'
 import { runtimeSync } from '../utils/runtime-sync-service'
 import { resolvePreviewMainLua } from '../utils/preview-restore'
 import { compileLogicBoard } from '../utils/logic-board/compiler'
@@ -84,7 +84,12 @@ export default function MenuBar() {
   const [fileMenuOpen, setFileMenuOpen] = useState(false)
   const [isBuilding,   setIsBuilding]   = useState(false)
   const [isBuildingWeb, setIsBuildingWeb] = useState(false)
+  const [projectNameDraft, setProjectNameDraft] = useState(project?.projectName ?? 'Untitled')
   const fileMenuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    setProjectNameDraft(project?.projectName ?? 'Untitled')
+  }, [project?.projectName])
 
   // Close file menu on outside click
   useEffect(() => {
@@ -99,6 +104,13 @@ export default function MenuBar() {
   }, [fileMenuOpen])
 
   // ---- actions -----------------------------------------------------------
+
+  function commitProjectNameDraft() {
+    if (!project) return
+    const nextName = safeProjectFolderName(projectNameDraft, 'Untitled')
+    setProjectNameDraft(nextName)
+    dispatch({ type: 'PROJECT_RENAME', name: nextName })
+  }
 
   /** Confirm-then-discard guard before replacing the in-memory project. */
   function confirmDiscardIfDirty(actionLabel: string): boolean {
@@ -154,14 +166,14 @@ export default function MenuBar() {
       dispatch({ type: 'LOG', entry: makeLog('[File] No project to save.', 'warn') })
       return
     }
-    const target = await saveProjectAsDialog()
+    const target = await saveProjectAsDialog(project.projectName)
     if (!target) return
     try {
-      await scaffoldNewProjectOnDisk(target, project, mainScriptBodyForProject(project))
+      const projectJsonPath = await scaffoldNewProjectOnDisk(target, project, mainScriptBodyForProject(project))
       // Promote in-memory state to the new path.
-      dispatch({ type: 'LOAD_PROJECT', project, path: target })
+      dispatch({ type: 'LOAD_PROJECT', project, path: projectJsonPath })
       dispatch({ type: 'MARK_PROJECT_SAVED' })
-      dispatch({ type: 'LOG', entry: makeLog(`[File] ✓ Saved project to ${target}`, 'info') })
+      dispatch({ type: 'LOG', entry: makeLog(`[File] Saved project to ${projectJsonPath}`, 'info') })
     } catch (err) {
       dispatch({ type: 'LOG', entry: makeLog(`[File] ✗ Save As failed: ${err}`, 'error') })
     }
@@ -294,18 +306,18 @@ export default function MenuBar() {
     if (!buildPath) {
       const ok = window.confirm('The project has not been saved.\nSave it now before building?')
       if (!ok) return null
-      const target = (await saveProjectAsDialog())!
+      const target = (await saveProjectAsDialog(project.projectName))!
       if (!target) return null
       try {
-        await scaffoldNewProjectOnDisk(target, project, mainScriptBodyForProject(project))
-        dispatch({ type: 'LOAD_PROJECT', project, path: target })
+        const projectJsonPath = await scaffoldNewProjectOnDisk(target, project, mainScriptBodyForProject(project))
+        dispatch({ type: 'LOAD_PROJECT', project, path: projectJsonPath })
         dispatch({ type: 'MARK_PROJECT_SAVED' })
-        dispatch({ type: 'LOG', entry: makeLog(`[File] ✓ Saved "${project.projectName}" to ${target}`, 'info') })
+        buildPath = projectJsonPath
+        dispatch({ type: 'LOG', entry: makeLog(`[File] Saved "${project.projectName}" to ${projectJsonPath}`, 'info') })
       } catch (err) {
         dispatch({ type: 'LOG', entry: makeLog(`[File] ✗ Save failed: ${err}`, 'error') })
         return null
       }
-      buildPath = target
     }
 
     try {
@@ -460,6 +472,29 @@ export default function MenuBar() {
           <ChevronDown size={10} className={`transition-transform ${fileMenuOpen ? 'rotate-180' : ''}`} />
         </button>
         {fileMenuOpen && <FileMenu items={fileItems} />}
+        {project && (
+          <label
+            className="ml-3 h-8 min-w-[180px] max-w-[320px] flex items-center gap-2 rounded border border-[var(--border)] bg-[var(--panel-3)] px-2 text-[var(--muted)]"
+            title="Project name"
+          >
+            <PencilLine size={12} className="shrink-0" />
+            <input
+              value={projectNameDraft}
+              onChange={(e) => setProjectNameDraft(e.target.value)}
+              onBlur={commitProjectNameDraft}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.currentTarget.blur()
+                } else if (e.key === 'Escape') {
+                  setProjectNameDraft(project.projectName)
+                  e.currentTarget.blur()
+                }
+              }}
+              className="min-w-0 flex-1 bg-transparent text-[11px] font-semibold text-[var(--text)] outline-none"
+              aria-label="Project name"
+            />
+          </label>
+        )}
       </div>
 
       <div className="flex items-center gap-2.5 editor-toolbar-workspace-end">

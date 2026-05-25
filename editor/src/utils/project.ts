@@ -636,6 +636,15 @@ export function dirName(filePath: string): string {
   return idx >= 0 ? filePath.slice(0, idx) : filePath
 }
 
+/** Filesystem-safe project/export folder name shared by Save As and builds. */
+export function safeProjectFolderName(name: string, fallback = 'Untitled'): string {
+  const safe = Array.from(name)
+    .map((ch) => /[A-Za-z0-9 _-]/.test(ch) ? ch : '_')
+    .join('')
+    .trim()
+  return safe || fallback
+}
+
 // ---------------------------------------------------------------------------
 // Blank project template (File → New Project)
 // ---------------------------------------------------------------------------

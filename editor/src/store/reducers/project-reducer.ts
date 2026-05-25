@@ -12,6 +12,7 @@
 
 import type { CoreState, Action, DomainReducer } from '../editor-store-state'
 import { EDITOR_BOOT_ZOOM } from '../../constants/editor-viewport'
+import { safeProjectFolderName } from '../../utils/project'
 
 export const projectReducer: DomainReducer = (state: CoreState, action: Action) => {
   switch (action.type) {
@@ -40,6 +41,16 @@ export const projectReducer: DomainReducer = (state: CoreState, action: Action) 
         editorZoomMode:   'manual',
         cameraPreview:    false,
         projectLoadEpoch: state.projectLoadEpoch + 1,
+      }
+    }
+    case 'PROJECT_RENAME': {
+      if (!state.project) return state
+      const projectName = safeProjectFolderName(action.name, 'Untitled')
+      if (projectName === state.project.projectName) return state
+      return {
+        ...state,
+        project: { ...state.project, projectName },
+        projectDirty: true,
       }
     }
     case 'MARK_PROJECT_SAVED':

@@ -99,6 +99,7 @@ export type Action =
   | { type: 'LOG';               entry: ConsoleEntry }
   | { type: 'SET_CURSOR';        x: number; y: number }
   | { type: 'LOAD_PROJECT';      project: ProjectDoc; path: string }
+  | { type: 'PROJECT_RENAME';    name: string }
   | { type: 'MARK_PROJECT_SAVED' }
   | { type: 'MARK_SCRIPT_SAVED'; path: string }
   | { type: 'UPDATE_ENTITY_TRANSFORM'; entityId: number; x: number; y: number; rotation: number; scaleX: number; scaleY: number }
