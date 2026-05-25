@@ -1,6 +1,5 @@
 add_library(artcade-asset-system
     src/asset-loader.cpp
-    src/asset-cache.cpp
     src/zip-reader.cpp      # Phase 17: ZIP reader for .artcade archives
 )
 target_include_directories(artcade-asset-system

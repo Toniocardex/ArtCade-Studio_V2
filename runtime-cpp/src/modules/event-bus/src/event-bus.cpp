@@ -32,10 +32,6 @@ void EventBus::unsubscribe(SubToken token) {
     }
 }
 
-void EventBus::unsubscribeAll(const std::string& event) {
-    subs_.erase(event);
-}
-
 void EventBus::emit(const std::string& event, const std::any& payload) {
     auto it = subs_.find(event);
     if (it == subs_.end()) return;

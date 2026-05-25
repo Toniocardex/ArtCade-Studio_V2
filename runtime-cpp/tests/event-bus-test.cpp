@@ -68,16 +68,6 @@ static void test_unsubscribe_by_token() {
     std::puts("  [ok] unsubscribe by token");
 }
 
-static void test_unsubscribe_all() {
-    EB bus; bus.init();
-    bus.subscribe("ev", [](const std::any&){});
-    bus.subscribe("ev", [](const std::any&){});
-    assert(bus.subscriberCount("ev") == 2);
-    bus.unsubscribeAll("ev");
-    assert(bus.subscriberCount("ev") == 0);
-    std::puts("  [ok] unsubscribeAll clears event");
-}
-
 static void test_emit_unknown_event_is_safe() {
     EB bus; bus.init();
     bus.emit("nonexistent", std::string("hello"));   // must not crash
@@ -134,11 +124,10 @@ int main() {
     test_payload_forwarded();
     test_multiple_subscribers();
     test_unsubscribe_by_token();
-    test_unsubscribe_all();
     test_emit_unknown_event_is_safe();
     test_deferred_emit();
     test_deferred_within_flush_lands_next_frame();
     test_subscribe_during_emit_safe();
-    std::puts("=== all 10 tests passed ===");
+    std::puts("=== all 9 tests passed ===");
     return 0;
 }

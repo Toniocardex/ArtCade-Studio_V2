@@ -130,13 +130,6 @@ public:
     /** Phase F2: a tile cell was painted in the scene -> React persists it. */
     static void notifyTilemapPainted(int col, int row, int tileId);
 
-    // -------------------------------------------------------------------------
-    // Accessors
-    // -------------------------------------------------------------------------
-    static int      getMode()           { return s_mode; }
-    static uint32_t getSelectedEntity() { return s_selectedEntityId; }
-    static bool     isEditorMode()      { return s_mode == 0; }
-
     // Written by extern "C" exports -- public so they can be set directly
     static int      s_mode;
     static uint32_t s_selectedEntityId;
@@ -275,9 +268,6 @@ struct EditorAPI {
     static void queueConsoleLine(const char*, const char* = nullptr) {}
     static void flushConsoleLines() {}
     static void notifyTilemapPainted(int, int, int) {}
-    static int      getMode()           { return 0; }
-    static uint32_t getSelectedEntity() { return 0u; }
-    static bool     isEditorMode()      { return true; }
     static int      s_mode;
     static uint32_t s_selectedEntityId;
     static bool     s_isDragging;

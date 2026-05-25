@@ -37,9 +37,6 @@ public:
     // Unsubscribe by token
     void unsubscribe(SubToken token);
 
-    // Remove all subscribers for a given event
-    void unsubscribeAll(const std::string& event);
-
     // Fire synchronously — all subscribers called before emit() returns
     void emit(const std::string& event, const std::any& payload = {});
 

@@ -198,7 +198,6 @@ bool Application::initSubsystems() {
     mod_->world = std::make_unique<World>(
         *mod_->entityGateway, *mod_->physics, *mod_->variableManager);
     mod_->entityGateway->setPhysics(mod_->physics.get());
-    mod_->world->setGameplayDeps(mod_->input.get());
     mod_->world->setRenderer(mod_->renderer.get());
 
     // Popola EngineContext — GameAPI e LuaHost ne hanno bisogno

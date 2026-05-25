@@ -171,17 +171,6 @@ export interface ConsoleEntry {
   level:   ConsoleLevel
 }
 
-export interface EditorState {
-  project:          ProjectDoc | null
-  projectPath:      string | null           // absolute path to project.json on disk
-  projectDirty:     boolean
-  selection:        EditorSelection
-  mode:             EditorView
-  consoleOpen:      boolean
-  editingTilesetId: string | null
-  openScripts:      ScriptFile[]
-  activeScriptPath: string | null
-  isPlaying:        boolean
-  consoleLogs:      ConsoleEntry[]
-  cursorPos:        { x: number; y: number }
-}
+// EditorState legacy aggregate type removed in Sprint 4 cleanup —
+// the active state shape now lives in store/editor-store-state.ts as
+// the split CoreState / VolatileState pair. No importers were found.

@@ -8,7 +8,6 @@
 namespace ArtCade::Modules {
     class RuntimeEntityGateway;
     class Physics;
-    class Input;
     class VariableManager;
     class Renderer;
 }
@@ -35,7 +34,6 @@ public:
           Modules::Physics&              physics,
           Modules::VariableManager&      variables);
 
-    void setGameplayDeps(Modules::Input* input);  // legacy hook; platformer uses intents
     void setRenderer(Modules::Renderer* renderer);
 
     void init(const ProjectDoc& doc);

@@ -32,8 +32,9 @@ public:
     using BindingCallback = std::function<void(sol::state&)>;
     void registerBindings(BindingCallback cb);
 
-    // Load compiled Lua bytecode
-    bool loadBytecodeFile(const std::string& path);
+    // Load compiled Lua bytecode from an in-memory buffer
+    // (the disk-path variant was removed — all production callers go
+    // through AssetLoader::loadLuaBytecode + this buffer overload).
     bool loadBytecodeBuffer(const uint8_t* data, size_t size);
 
     // Hot-reload: load and execute Lua SOURCE text (not bytecode).
@@ -45,9 +46,6 @@ public:
     // Execute the global "tick" function (called every fixed step)
     void tick(float dt);
     bool isScriptTickRequired() const;
-
-    // Execute an arbitrary named global function
-    void callFunction(const std::string& name);
 
     bool        hasError()  const { return !lastError_.empty(); }
     std::string lastError() const { return lastError_; }

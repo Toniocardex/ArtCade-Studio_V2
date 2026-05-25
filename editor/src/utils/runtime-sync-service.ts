@@ -278,10 +278,6 @@ class RuntimeSyncServiceImpl {
   noteTransform(snap: EntityTransformSnapshot): void {
     this.lastTransform.set(snap.entityId, snap)
   }
-
-  forgetEntity(entityId: number): void {
-    this.lastTransform.delete(entityId)
-  }
 }
 
 function sameTransform(a: EntityTransformSnapshot, b: EntityTransformSnapshot): boolean {

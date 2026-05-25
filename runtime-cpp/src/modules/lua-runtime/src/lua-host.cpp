@@ -96,29 +96,6 @@ bool LuaHost::loadBytecodeBuffer(const uint8_t* data, size_t size) {
     return true;
 }
 
-bool LuaHost::loadBytecodeFile(const std::string& path) {
-    // Open file in binary mode
-    auto result = impl_->lua.load_file(path);
-    if (!result.valid()) {
-        sol::error err = result;
-        lastError_ = std::string("load_file: ") + err.what();
-        return false;
-    }
-
-    sol::protected_function chunk = result;
-    auto run = chunk();
-    if (!run.valid()) {
-        sol::error err = run;
-        lastError_ = std::string("exec_file: ") + err.what();
-        return false;
-    }
-
-    impl_->scriptLoaded = true;
-    impl_->scriptTickRequired = readTickRequirement(impl_->lua);
-    lastError_.clear();
-    return true;
-}
-
 bool LuaHost::loadLuaSource(const std::string& sourceCode) {
     // safe_script compiles + runs the chunk; script_pass_on_error keeps the
     // VM alive (and the previous tick/globals intact) if the new code throws.
@@ -176,17 +153,6 @@ void LuaHost::tick(float dt) {
 
 bool LuaHost::isScriptTickRequired() const {
     return impl_->scriptTickRequired;
-}
-
-void LuaHost::callFunction(const std::string& name) {
-    sol::protected_function fn = impl_->lua[name];
-    if (!fn.valid()) return;
-
-    auto result = fn();
-    if (!result.valid()) {
-        sol::error err = result;
-        lastError_ = err.what();
-    }
 }
 
 } // namespace ArtCade::Modules

@@ -1,6 +1,5 @@
 add_library(artcade-renderer
     src/renderer.cpp
-    src/raylib-backend.cpp
     src/texture-cache.cpp
 )
 target_include_directories(artcade-renderer

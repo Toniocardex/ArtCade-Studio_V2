@@ -29,8 +29,6 @@ void World::forgetEntity(EntityId id) {
     sensorWasOverlapping_.erase(id);
 }
 
-void World::setGameplayDeps(Modules::Input* /*input*/) {}
-
 void World::clearGameplayRuntimeState() {
     platformerRt_.clear();
     topDownRt_.clear();
