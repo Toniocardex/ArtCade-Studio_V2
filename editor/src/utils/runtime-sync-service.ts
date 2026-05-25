@@ -95,7 +95,10 @@ class RuntimeSyncServiceImpl {
   private lastTransform:      Map<number, EntityTransformSnapshot> = new Map()
   private assetCacheInvalidator: (() => void) | null = null
   private readyListeners:     Set<(ready: boolean) => void> = new Set()
-  private lastReadyEmitted:   boolean = false
+  // Seed from the actual bridge state so a Vite HMR rehydration (wasm
+  // already alive when this module is re-evaluated) does NOT trigger a
+  // duplicate "false → true" broadcast on the next genuine onReady.
+  private lastReadyEmitted:   boolean = isReady()
 
   /** Forget every cached "last sent" value. Use on project open / runtime reload. */
   reset(): void {
