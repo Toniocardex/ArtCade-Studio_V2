@@ -1181,7 +1181,7 @@ Il **parser C++** (`zip-reader.cpp`) gestisce:
 | Coin flash al pickup (React) | onEntitySelected/onConsoleLine → dispatch() real-time durante rAF → React reconciliation durante WebGL compositing | **Buffering + Polling**: buffer globale, React legge ogni 100-200ms (non real-time) |
 | Canvas non centrato | Missing `aspectRatio` CSS → overflow quando maxWidth vincola | Aggiungere `aspectRatio: \`${res.x} / ${res.y}\`` al canvas style |
 | Spiral-of-death | Accumulator overflow su frame lenti | Cap a `targetDt_ × 4` |
-| GC frame spike | Lua GC batch su entità distrutte (monete, eventi) | Modalità GC generazionale + `LUA_GCSTEP 5` ogni tick |
+| GC frame spike | Lua GC batch su entità distrutte (monete, eventi) | Modalità GC generazionale (LUA_GCGEN); il manual stepping era controproducente — LUA_GCSTEP ri-switcha a incrementale e annullava la generazionale |
 | `#canvas` vs `#artcade-canvas` | rcore_web.c di Raylib usa `"#canvas"` hardcoded | Patch src + ricompila game.wasm |
 
 ---
