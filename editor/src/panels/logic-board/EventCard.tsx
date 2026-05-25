@@ -5,10 +5,7 @@
 
 import type { ReactNode } from 'react'
 import {
-  CheckCircle2,
   Copy,
-  GitBranch,
-  ListChecks,
   Pencil,
   Trash2,
   Zap,
@@ -30,32 +27,6 @@ function SectionLabel({ children }: { children: ReactNode }) {
     <div className="mb-1.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
       {children}
     </div>
-  )
-}
-
-function SummaryChip({
-  children,
-  title,
-  tone = 'neutral',
-}: {
-  children: ReactNode
-  title?: string
-  tone?: 'neutral' | 'ok' | 'warn'
-}) {
-  const toneClass =
-    tone === 'ok'
-      ? 'border-[var(--accent-bd)] bg-[var(--accent-bg)] text-[var(--accent)]'
-      : tone === 'warn'
-        ? 'border-[rgba(var(--warn-rgb),0.45)] bg-[rgba(var(--warn-rgb),0.08)] text-[var(--warn)]'
-        : 'border-[var(--border-2)] bg-[var(--panel)] text-[var(--muted)]'
-
-  return (
-    <span
-      title={title}
-      className={`inline-flex h-5 items-center gap-1 border px-1.5 text-[10px] leading-none ${toneClass}`}
-    >
-      {children}
-    </span>
   )
 }
 
@@ -90,9 +61,13 @@ export default function EventCard({
   const execBadge = triggerExecutionBadge(event, board, project)
   const dim = event.enabled ? '' : 'opacity-50'
   const isHighlighted = editing || selected
-  const actionCount = event.actions.length
-  const conditionCount = ifLines.length
-  const hasActions = actionCount > 0
+
+  const zapTooltip =
+    execBadge.label === 'Polling'
+      ? 'Trigger — polling (runs each frame)'
+      : execBadge.label === 'Event*'
+        ? 'Trigger — event handler (may poll)'
+        : 'Trigger — event handler'
 
   return (
     <div
@@ -103,43 +78,14 @@ export default function EventCard({
       }`}
     >
       <div
-        className={`flex cursor-pointer items-start gap-2.5 border-b border-[var(--border)] bg-[var(--panel-3)] px-3 py-2.5 ${dim}`}
+        className={`flex cursor-pointer items-center gap-2.5 border-b border-[var(--border)] bg-[var(--panel-3)] px-3 py-2.5 ${dim}`}
         onClick={() => onSelect?.()}
       >
-        <div className="mt-[2px] shrink-0 text-[var(--accent)]" title="Trigger">
+        <div className="shrink-0 text-[var(--accent)]" title={zapTooltip}>
           <Zap size={13} strokeWidth={2} />
         </div>
-        <div className="min-w-0 flex-1">
-          <div className="text-[13px] font-medium leading-snug text-[var(--text)]">
-            {triggerSummaryPlain(event.trigger, project)}
-          </div>
-          <div
-            className="mt-0.5 text-[9px] uppercase tracking-wider text-[var(--muted)]"
-            title={execBadge.title}
-          >
-            {execBadge.label === 'Polling'
-              ? 'Polling - runs each frame'
-              : execBadge.label === 'Event*'
-                ? 'Event handler (may poll)'
-                : 'Event handler'}
-          </div>
-          <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            <SummaryChip title="Checks required before actions run">
-              <ListChecks size={11} />
-              {conditionCount === 0
-                ? 'Always'
-                : `${conditionCount} check${conditionCount === 1 ? '' : 's'}`}
-            </SummaryChip>
-            <SummaryChip
-              title="Actions in this rule"
-              tone={hasActions ? 'ok' : 'warn'}
-            >
-              <GitBranch size={11} />
-              {hasActions
-                ? `${actionCount} action${actionCount === 1 ? '' : 's'}`
-                : 'Needs action'}
-            </SummaryChip>
-          </div>
+        <div className="min-w-0 flex-1 text-[13px] font-medium leading-snug text-[var(--text)]">
+          {triggerSummaryPlain(event.trigger, project)}
         </div>
 
         <button
@@ -150,7 +96,7 @@ export default function EventCard({
           }}
           title={event.enabled ? 'Regola attiva' : 'Regola disattivata'}
           aria-label={event.enabled ? 'Regola attiva' : 'Regola disattivata'}
-          className={`relative mt-0.5 h-[18px] w-9 shrink-0 rounded transition-colors ${
+          className={`relative h-[18px] w-9 shrink-0 rounded transition-colors ${
             event.enabled
               ? 'bg-[var(--accent)]'
               : 'bg-[var(--border-2)]'
@@ -205,15 +151,16 @@ export default function EventCard({
         />
       ) : (
         <div className={`cursor-pointer ${dim}`} onClick={() => onSelect?.()}>
-          <div className="grid grid-cols-1 border-b border-[var(--border)] lg:grid-cols-[minmax(220px,0.38fr)_1fr]">
-            <div className="border-b border-[var(--border)] bg-[rgba(var(--bg-rgb),0.25)] px-3 py-2.5 lg:border-b-0 lg:border-r">
-              <SectionLabel>Only if</SectionLabel>
-              {ifLines.length === 0 ? (
-                <div className="flex items-center gap-1.5 text-xs leading-snug text-[var(--muted)]">
-                  <CheckCircle2 size={12} className="text-[var(--accent)]" />
-                  Always runs when triggered
-                </div>
-              ) : (
+          <div
+            className={`grid grid-cols-1 border-b border-[var(--border)] ${
+              ifLines.length > 0
+                ? 'lg:grid-cols-[minmax(220px,0.38fr)_1fr]'
+                : ''
+            }`}
+          >
+            {ifLines.length > 0 && (
+              <div className="border-b border-[var(--border)] bg-[rgba(var(--bg-rgb),0.25)] px-3 py-2.5 lg:border-b-0 lg:border-r">
+                <SectionLabel>If</SectionLabel>
                 <ul className="m-0 flex list-none flex-col gap-1 p-0">
                   {ifLines.map((line, i) => (
                     <li
@@ -228,8 +175,8 @@ export default function EventCard({
                     </li>
                   ))}
                 </ul>
-              )}
-            </div>
+              </div>
+            )}
 
             <div className="relative px-3 py-2.5">
               <span

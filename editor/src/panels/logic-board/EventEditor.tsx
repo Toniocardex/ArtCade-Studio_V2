@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Expanded rule editor - When / Only if / Then blocks
+// Expanded rule editor - When / If / Then blocks
 // ---------------------------------------------------------------------------
 
 import { useState } from 'react'
@@ -199,7 +199,7 @@ function SimpleConditions({
     <div className="space-y-2">
       {conditions.length === 0 && (
         <p className="text-[11px] italic text-[var(--muted)]">
-          Only if is on, but no checks have been added yet.
+          If is on, but no checks have been added yet.
         </p>
       )}
       {conditions.map((c, i) => (
@@ -299,7 +299,6 @@ export default function EventEditor({
     <div className="space-y-3 border-t border-[var(--border)] bg-[var(--panel-3)] p-3">
       <LogicBlock
         title="When"
-        hint="What should start this rule?"
         icon={<Zap size={13} />}
         tone="when"
       >
@@ -327,17 +326,16 @@ export default function EventEditor({
       </LogicBlock>
 
       <LogicBlock
-        title="Only if"
+        title="If"
         optional
-        hint="Leave empty to always run the actions below."
         icon={<ListChecks size={13} />}
         tone="if"
         action={
           <button
             type="button"
             onClick={() => setOnlyIfEnabled(!onlyIfEnabled)}
-            title={onlyIfEnabled ? 'Disable Only if checks' : 'Enable Only if checks'}
-            aria-label={onlyIfEnabled ? 'Disable Only if checks' : 'Enable Only if checks'}
+            title={onlyIfEnabled ? 'Disable If checks' : 'Enable If checks'}
+            aria-label={onlyIfEnabled ? 'Disable If checks' : 'Enable If checks'}
             className={`relative h-[18px] w-9 rounded transition-colors ${
               onlyIfEnabled ? 'bg-[var(--warn)]' : 'bg-[var(--border-2)]'
             }`}
@@ -352,11 +350,7 @@ export default function EventEditor({
           </button>
         }
       >
-        {!onlyIfEnabled ? (
-            <p className="text-[11px] italic text-[var(--muted)]">
-              Only if is off - saved checks are ignored and actions always run.
-            </p>
-        ) : !advancedConditions ? (
+        {!onlyIfEnabled ? null : !advancedConditions ? (
           <>
             <SimpleConditions
               event={event}
@@ -406,7 +400,6 @@ export default function EventEditor({
 
       <LogicBlock
         title="Then"
-        hint="What happens when this rule runs."
         icon={<GitBranch size={13} />}
         tone="then"
       >
