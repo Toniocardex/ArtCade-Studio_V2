@@ -7,9 +7,15 @@ use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
 
+use crate::process_util::{hide_console, prefer_windowless_python};
 use crate::sdk::resolve_python_exe;
 
 static WEB_PREVIEW_SERVER: Mutex<Option<Child>> = Mutex::new(None);
+
+/// Kill the localhost preview server (e.g. when the editor exits).
+pub fn shutdown_web_preview_server() {
+    stop_web_preview_server();
+}
 
 fn stop_web_preview_server() {
     let mut guard = WEB_PREVIEW_SERVER.lock().unwrap_or_else(|e| e.into_inner());
@@ -33,12 +39,13 @@ fn pick_free_port() -> Result<u16, String> {
 fn open_system_browser(url: &str) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
-        Command::new("cmd")
-            .args(["/C", "start", "", url])
+        let mut cmd = Command::new("cmd");
+        cmd.args(["/C", "start", "", url])
             .stdin(Stdio::null())
             .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()
+            .stderr(Stdio::null());
+        hide_console(&mut cmd);
+        cmd.spawn()
             .map_err(|e| format!("failed to open browser: {e}"))?;
     }
     #[cfg(target_os = "macos")]
@@ -81,13 +88,14 @@ pub fn serve_web_export(app: &tauri::AppHandle, dist_dir: &Path) -> Result<Strin
         ));
     }
 
-    let python = resolve_python_exe(app)?;
+    let python = prefer_windowless_python(&resolve_python_exe(app)?);
     let port = pick_free_port()?;
     let url = format!("http://127.0.0.1:{port}/index.html");
 
     stop_web_preview_server();
 
-    let mut child = Command::new(&python)
+    let mut child_cmd = Command::new(&python);
+    child_cmd
         .arg("-m")
         .arg("http.server")
         .arg(port.to_string())
@@ -97,7 +105,9 @@ pub fn serve_web_export(app: &tauri::AppHandle, dist_dir: &Path) -> Result<Strin
         .arg(dist_dir)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
-        .stderr(Stdio::piped())
+        .stderr(Stdio::piped());
+    hide_console(&mut child_cmd);
+    let mut child = child_cmd
         .spawn()
         .map_err(|e| format!("failed to start Python http.server: {e}"))?;
 

@@ -13,6 +13,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod build_log_filter;
+mod process_util;
 mod project_paths;
 mod sdk;
 mod web_export_status;
@@ -25,6 +26,7 @@ use tauri::Emitter;
 use tauri::Manager;
 
 use build_log_filter::BuildLogFilter;
+use process_util::{hide_console, prefer_windowless_python};
 use sdk::{check_dependencies, resolve_pack_script, resolve_python_exe, resolve_workspace_root, sdk_emscripten_root, sdk_path_prefix};
 
 // ---------------------------------------------------------------------------
@@ -121,6 +123,7 @@ async fn install_sdk(
     if let Some(dev) = sdk::dev_repo_root_path() {
         cmd.arg("-DevRepoRoot").arg(dev);
     }
+    hide_console(&mut cmd);
     let child = cmd
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -355,7 +358,7 @@ async fn run_build(app: tauri::AppHandle, project_root: String) -> Result<(), St
     let output_package = app_dir.join("game.artcade");
     let pack_script = resolve_pack_script(&app)?;
     let build_native = runtime_dir.join("build_native.bat");
-    let python = resolve_python_exe(&app)?;
+    let python = prefer_windowless_python(&resolve_python_exe(&app)?);
     let project_root = PathBuf::from(project_root);
 
     if !project_root.join("project.json").exists() {
@@ -392,6 +395,7 @@ async fn run_build(app: tauri::AppHandle, project_root: String) -> Result<(), St
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     apply_sdk_env(&mut build_child);
+    hide_console(&mut build_child);
 
     let build_child = build_child
         .spawn()
@@ -417,6 +421,7 @@ async fn run_build(app: tauri::AppHandle, project_root: String) -> Result<(), St
         .current_dir(&workspace)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
+    hide_console(&mut pack_child);
 
     let pack_child = pack_child
         .spawn()
@@ -525,6 +530,7 @@ async fn run_build_wasm(app: tauri::AppHandle, project_root: String) -> Result<(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     apply_sdk_env(&mut child);
+    hide_console(&mut child);
 
     let child = child
         .spawn()
@@ -559,14 +565,17 @@ async fn run_build_wasm(app: tauri::AppHandle, project_root: String) -> Result<(
     copy_dir_recursive(&project_root.join("assets"), &dist_dir.join("assets"))?;
 
     let pack_script = resolve_pack_script(&app)?;
-    let python = resolve_python_exe(&app)?;
+    let python = prefer_windowless_python(&resolve_python_exe(&app)?);
     let output_package = dist_dir.join("game.artcade");
-    let pack_child = Cmd::new(&python)
+    let mut pack_child = Cmd::new(&python);
+    pack_child
         .arg(&pack_script)
         .arg(&project_root)
         .arg(&output_package)
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
+        .stderr(Stdio::piped());
+    hide_console(&mut pack_child);
+    let pack_child = pack_child
         .spawn()
         .map_err(|e| format!("failed to start pack-artcade: {e}"))?;
 
@@ -634,7 +643,7 @@ async fn pack_project(
     }
 
     let script = resolve_pack_script(&app)?;
-    let python = resolve_python_exe(&app)?;
+    let python = prefer_windowless_python(&resolve_python_exe(&app)?);
 
     emit_log(
         &app,
@@ -646,12 +655,15 @@ async fn pack_project(
         "info",
     );
 
-    let child = Cmd::new(&python)
+    let mut child = Cmd::new(&python);
+    child
         .arg(&script)
         .arg(&project_root)
         .arg(&output_path)
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
+        .stderr(Stdio::piped());
+    hide_console(&mut child);
+    let child = child
         .spawn()
         .map_err(|e| format!("failed to start packer: {e}"))?;
 
@@ -678,6 +690,11 @@ fn main() {
             get_web_export_status,
             pack_project,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running ArtCade Editor");
+        .build(tauri::generate_context!())
+        .expect("error while building ArtCade Editor")
+        .run(|_app, event| {
+            if matches!(event, tauri::RunEvent::Exit) {
+                web_preview::shutdown_web_preview_server();
+            }
+        });
 }
