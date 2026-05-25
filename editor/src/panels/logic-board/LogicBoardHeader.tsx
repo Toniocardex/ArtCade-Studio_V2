@@ -2,6 +2,7 @@ import type { ProjectDoc } from '../../types'
 import type { LogicBoard } from '../../types/logic-board'
 import { boardDisplayName } from './friendly-labels'
 import { logicBoardCompilerLabel } from '../../utils/logic-board/labels'
+import { applyInputBackspace, isBackspaceKey } from '../../utils/keyboard'
 
 export type LogicBoardPanelMode = 'visual' | 'lua'
 
@@ -61,6 +62,12 @@ export function LogicBoardHeader({
           title="Rulesheet name used in generated Lua comments"
           value={compilerLabel}
           onChange={(e) => onRenameBoard(board.boardId, e.target.value)}
+          onKeyDown={(e) => {
+            if (isBackspaceKey(e)) {
+              e.preventDefault()
+              applyInputBackspace(e.currentTarget)
+            }
+          }}
           className="w-52 bg-[var(--bg)] border border-[var(--border-2)] text-[var(--text)] placeholder:text-[var(--muted)] px-2.5 py-1.5 rounded text-xs"
         />
       )}
