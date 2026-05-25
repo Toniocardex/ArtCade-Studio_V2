@@ -3,12 +3,9 @@
 // Plugin JS-side (zero custom Rust needed):
 //   @tauri-apps/plugin-dialog  → open/save dialogs
 //   @tauri-apps/plugin-fs      → readTextFile / writeTextFile
-//   @tauri-apps/plugin-shell   → generic shell (if needed)
 //
 // Custom commands here:
-//   write_file   — creates parent dirs, then writes
-//   create_dir   — mkdir -p wrapper
-//   resolve_path — canonicalize path
+//   write_file   — creates parent dirs, then writes (path-validated)
 //   run_build    — cmake --build + streams output as "build-log" events
 //   pack_project — python pack-artcade.py + streams output
 
@@ -56,29 +53,46 @@ fn repo_root() -> Result<PathBuf, String> {
 // File system helpers
 // ---------------------------------------------------------------------------
 
+/// Validate a frontend-supplied path before any write/mkdir operation.
+///
+/// The frontend is allowed to compose script paths from `projectPath` +
+/// `mainScriptPath` (or entity scriptPath) — both potentially controlled by
+/// the project author. Without validation, a hand-crafted project.json with
+/// `mainScriptPath: "../../Users/x/.ssh/authorized_keys"` would scribble
+/// outside the project tree the moment the user hits Save.
+///
+/// Rules:
+///   • Must be an absolute path (parented on a real filesystem root).
+///   • Must not contain any `..` parent-directory segment.
+///
+/// Both apply BEFORE canonicalisation so we reject obviously bogus input
+/// even if the on-disk target doesn't exist yet.
+fn validate_writable_path(path: &str) -> Result<PathBuf, String> {
+    let p = PathBuf::from(path);
+    if !p.is_absolute() {
+        return Err(format!("path must be absolute: '{}'", path));
+    }
+    use std::path::Component;
+    for comp in p.components() {
+        if matches!(comp, Component::ParentDir) {
+            return Err(format!(
+                "path may not contain '..' segments: '{}'",
+                path
+            ));
+        }
+    }
+    Ok(p)
+}
+
 /// Write text to a file, creating parent directories as needed.
 #[tauri::command]
 fn write_file(path: String, content: String) -> Result<(), String> {
-    let p = PathBuf::from(&path);
+    let p = validate_writable_path(&path)?;
     if let Some(parent) = p.parent() {
         std::fs::create_dir_all(parent)
             .map_err(|e| format!("mkdir '{}': {e}", parent.display()))?;
     }
     std::fs::write(&p, content).map_err(|e| format!("write '{}': {e}", path))
-}
-
-/// mkdir -p wrapper.
-#[tauri::command]
-fn create_dir(path: String) -> Result<(), String> {
-    std::fs::create_dir_all(&path).map_err(|e| e.to_string())
-}
-
-/// Return the canonical absolute path.
-#[tauri::command]
-fn resolve_path(path: String) -> Result<String, String> {
-    std::fs::canonicalize(&path)
-        .map(|p| p.to_string_lossy().to_string())
-        .map_err(|e| e.to_string())
 }
 
 // ---------------------------------------------------------------------------
@@ -132,84 +146,97 @@ async fn run_build(app: tauri::AppHandle, project_root: String) -> Result<(), St
     std::fs::create_dir_all(&build_dir)
         .map_err(|e| format!("create build dir '{}': {e}", build_dir.display()))?;
 
-    let script_path = build_dir.join("artcade-tauri-build.cmd");
-    let script = format!(
-        "@echo off\r\n\
-         call \"{}\" --config Release --no-test\r\n\
-         if errorlevel 1 exit /b %errorlevel%\r\n\
-         python \"{}\" \"{}\" \"{}\"\r\n\
-         exit /b %errorlevel%\r\n",
-        build_native.display(),
-        pack_script.display(),
-        project_root.display(),
-        output_package.display(),
-    );
-    std::fs::write(&script_path, script)
-        .map_err(|e| format!("write build script '{}': {e}", script_path.display()))?;
+    // Build + pack are run as TWO separate child processes with arguments
+    // passed via Cmd::arg, never through a generated .cmd script. The
+    // previous approach used format!() to splice user-controllable paths
+    // (project_root) into a shell script that `cmd.exe` then re-parsed —
+    // any NTFS-legal character that has special meaning to cmd (&, ^, %,
+    // newline) would have broken the script and `%VAR%` inside a folder
+    // name would have been expanded. Cmd::arg sends each value as one
+    // argv entry, so cmd never re-parses it as script syntax.
 
-    let mut child = Cmd::new("cmd")
-        .arg("/d")
-        .arg("/c")
-        .arg(&script_path)
+    // Step 1 — native compile
+    let build_child = Cmd::new("cmd")
+        .arg("/d").arg("/c")
+        .arg(&build_native)
+        .arg("--config").arg("Release")
+        .arg("--no-test")
         .current_dir(&repo)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .map_err(|e| format!("failed to start native build: {e}"))?;
+    let build_status = stream_and_wait(&app, build_child, /*stderr_warn=*/ true)?;
+    if !build_status.success() {
+        let msg = format!("[Build] FAIL (exit {:?})", build_status.code());
+        emit_log(&app, &msg, "error");
+        return Err(msg);
+    }
+    emit_log(&app, "[Build] Build succeeded.", "info");
 
-    // Stream stdout in a background thread
+    // Step 2 — pack into game.artcade next to game.exe
+    let pack_child = Cmd::new("python")
+        .arg(&pack_script)
+        .arg(&project_root)
+        .arg(&output_package)
+        .current_dir(&repo)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("failed to start pack-artcade: {e}"))?;
+    let pack_status = stream_and_wait(&app, pack_child, /*stderr_warn=*/ false)?;
+    if !pack_status.success() {
+        let msg = format!("[Pack] FAIL (exit {:?})", pack_status.code());
+        emit_log(&app, &msg, "error");
+        return Err(msg);
+    }
+
+    emit_log(
+        &app,
+        &format!("[Build] Runnable output: {}", app_dir.display()),
+        "info",
+    );
+    Ok(())
+}
+
+/// Drain stdout/stderr of a child process to "build-log" events and wait.
+/// `stderr_warn=true` keeps the existing CMake filter behaviour for the
+/// native compile step; `false` routes stderr as plain error lines.
+fn stream_and_wait(
+    app: &tauri::AppHandle,
+    mut child: std::process::Child,
+    stderr_warn: bool,
+) -> Result<std::process::ExitStatus, String> {
     if let Some(stdout) = child.stdout.take() {
         let app_c = app.clone();
         std::thread::spawn(move || {
             for line in BufReader::new(stdout).lines().flatten() {
                 let _ = app_c.emit(
                     "build-log",
-                    BuildLogEntry {
-                        message: line,
-                        level: "info".into(),
-                    },
+                    BuildLogEntry { message: line, level: "info".into() },
                 );
             }
         });
     }
-
-    // Stream stderr in a background thread
     if let Some(stderr) = child.stderr.take() {
         let app_c = app.clone();
         std::thread::spawn(move || {
             let mut filter = BuildLogFilter::new();
             for line in BufReader::new(stderr).lines().flatten() {
-                if !filter.should_emit(&line) {
+                if stderr_warn && !filter.should_emit(&line) {
                     continue;
                 }
                 let _ = app_c.emit(
                     "build-log",
                     BuildLogEntry {
                         message: line,
-                        level: "warn".into(),
+                        level: if stderr_warn { "warn".into() } else { "error".into() },
                     },
                 );
             }
         });
     }
-
-    match child.wait() {
-        Ok(status) if status.success() => {
-            emit_log(&app, "[Build] Build succeeded.", "info");
-            emit_log(
-                &app,
-                &format!("[Build] Runnable output: {}", app_dir.display()),
-                "info",
-            );
-            Ok(())
-        }
-        Ok(status) => {
-            let msg = format!("[Build] FAIL (exit {:?})", status.code());
-            emit_log(&app, &msg, "error");
-            Err(msg)
-        }
-        Err(e) => Err(e.to_string()),
-    }
+    child.wait().map_err(|e| e.to_string())
 }
 
 /// Run `python tools/pack-artcade.py <project_root> <output_path>`.
@@ -286,11 +313,8 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
-        .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![
             write_file,
-            create_dir,
-            resolve_path,
             run_build,
             pack_project,
         ])
