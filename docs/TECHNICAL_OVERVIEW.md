@@ -572,7 +572,6 @@ luaHost->registerBindings([&](sol::state& lua) {
 luaHost->init();                         // apre librerie Lua, GC generazionale
 luaHost->loadBytecodeBuffer(data, size); // carica ed esegue chunk
 luaHost->tick(dt);                       // chiama global `tick(dt)` in Lua
-luaHost->callFunction("on_scene_enter"); // chiama qualsiasi global Lua
 ```
 
 GC configurato in modalità **generazionale** (Lua 5.4) + step incrementale ogni tick: elimina i frame spike da bulk-free di oggetti (monete, eventi, callback).

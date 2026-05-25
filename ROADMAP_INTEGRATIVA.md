@@ -246,8 +246,7 @@ game.exe test-project/ → "[App] Project loaded: ArtCade Test"
 
 ### Implementato
 - **LuaHost** — Sol2 `sol::state` (Pimpl), open_libraries base/math/string/table/coroutine
-- `loadBytecodeBuffer` → `lua.load_buffer()` (funziona sia per sorgente `.lua` che bytecode `.luac`)
-- `loadBytecodeFile` → `lua.load_file()`
+- `loadBytecodeBuffer` → `lua.load_buffer()` (funziona sia per sorgente `.lua` che bytecode `.luac`; unico path di caricamento — `loadBytecodeFile` rimosso nel cleanup Sprint 4)
 - `tick(dt)` → chiama `tick` globale Lua con `sol::protected_function` (errori catturati in `lastError_`)
 - `registerBindings(callback)` → eseguiti su `init()` prima di caricare script
 - **GameAPI** — binding entity, physics, input, audio, state, debug già scheletrati con Sol2
