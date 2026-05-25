@@ -63,6 +63,11 @@ void World::init(const ProjectDoc& doc) {
 }
 
 void World::shutdown() {
+    // Unregister the destroy hook before anything else: the lambda captures
+    // `this`, and if World is destroyed before the gateway any later
+    // destroy(id) on the gateway would dereference dangling memory.
+    entityGateway_.setEntityDestroyHandler(nullptr);
+
     clearTilemapPhysics();
     variables_.clear();
     platformerRt_.clear();

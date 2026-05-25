@@ -81,6 +81,11 @@ void RuntimeEntityGateway::shutdown() {
     lifecycleQueue_.clear();
     classPrototypes_.clear();
     spawnLogCallback_ = nullptr;
+    // Drop the destroy hook BEFORE any further destroy() can fire. Owners
+    // (e.g. World) wire a lambda capturing `this`; if their lifetime ends
+    // before the gateway's, leaving the lambda live makes a subsequent
+    // destroy(id) dereference dangling memory.
+    destroyHandler_ = nullptr;
     fadePhase_ = FadePhase::None;
 }
 
