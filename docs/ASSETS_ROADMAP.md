@@ -28,6 +28,11 @@ A phase is closed only when ALL the following are true:
    at the bottom of this doc.
 7. **Docs** — this file's status updated; any new public concept added to
    `docs/README.md` index.
+8. **Internal review pass** — explicit code review of the phase's diff
+   before marking closed: hunt for bugs, regressions, conflicts with
+   surrounding code, edge cases, hidden coupling. Findings either fixed in
+   the same phase or filed as follow-up notes in the closure log. Only
+   *after* the review may the phase be checked off and the next one started.
 
 ---
 
@@ -53,6 +58,14 @@ clips that don't exist.
 - ✅ Tests in [editor/src/store/editor-store.assets.test.ts](../editor/src/store/editor-store.assets.test.ts):
   clips round-trip, imagePoints round-trip, malformed-clip defensive case.
 - ✅ 288/288 vitest green, tsc clean.
+- ✅ Retroactive review (rule #8 introduced after this sub-phase landed):
+  - **OK** new fields are additive + optional → backward compat preserved;
+  - **OK** parser is defensive on every numeric/string field;
+  - **OK** serializer omits empty arrays so existing-project JSON byte-equal
+    on save/load when no clips/points present;
+  - **Note** runtime C++ parser does NOT yet read `clips` — sub-phase 1c
+    will close this; until then `playAnimation` still references undefined
+    clips (no regression: same state as before this sub-phase).
 
 ### 1b — Editor authoring UI
 
