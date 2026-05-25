@@ -71,10 +71,23 @@ describe('saveProjectAsDialog', () => {
     dialogOpenMock.mockResolvedValueOnce(null)
     await saveProjectAsDialog('Bad:/Name')
     expect(dialogOpenMock).toHaveBeenCalledTimes(1)
-    const opts = dialogOpenMock.mock.calls[0][0] as { directory?: boolean; multiple?: boolean; title?: string }
+    const opts = dialogOpenMock.mock.calls[0][0] as {
+      directory?: boolean
+      multiple?: boolean
+      title?: string
+      defaultPath?: string
+    }
     expect(opts.directory).toBe(true)
     expect(opts.multiple).toBe(false)
     expect(opts.title).toContain('Bad__Name')
+    expect(opts.title).toContain('parent folder')
+  })
+
+  it('forwards defaultPath to the directory picker', async () => {
+    dialogOpenMock.mockResolvedValueOnce('/tmp/games')
+    await saveProjectAsDialog('My Game', { defaultPath: 'C:/Users/Test' })
+    const opts = dialogOpenMock.mock.calls[0][0] as { defaultPath?: string }
+    expect(opts.defaultPath).toBe('C:/Users/Test')
   })
 })
 

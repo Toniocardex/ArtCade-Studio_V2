@@ -8,9 +8,9 @@
 import { isTauri, invoke }                    from '@tauri-apps/api/core'
 import { open  as dialogOpen,
          save  as dialogSave }                 from '@tauri-apps/plugin-dialog'
-import { readTextFile, readFile, writeFile, mkdir } from '@tauri-apps/plugin-fs'
+import { readTextFile, readFile, writeFile, mkdir, readDir, exists } from '@tauri-apps/plugin-fs'
 import type { ProjectDoc }                     from '../types'
-import { parseProjectDoc, safeProjectFolderName, serializeProjectDoc } from './project'
+import { dirName, parseProjectDoc, safeProjectFolderName, serializeProjectDoc } from './project'
 import { validateProjectBeforeSave } from './logic-board/validate-project'
 
 // ---------------------------------------------------------------------------
@@ -203,15 +203,45 @@ export async function saveProjectFile(path: string, project: ProjectDoc): Promis
  *
  * @returns the chosen parent folder, or null if the dialog was cancelled.
  */
-export async function saveProjectAsDialog(projectName = 'Untitled'): Promise<string | null> {
+export async function saveProjectAsDialog(
+  projectName = 'Untitled',
+  options?: { defaultPath?: string },
+): Promise<string | null> {
   if (!isTauri()) { notAvailable('saveProjectAsDialog'); return null }
 
+  const folderName = safeProjectFolderName(projectName, 'Untitled')
   const selected = await dialogOpen({
-    title:     `Choose where to create "${safeProjectFolderName(projectName, 'Untitled')}"`,
-    directory: true,
-    multiple:  false,
+    title:       `Select parent folder for project "${folderName}"`,
+    directory:   true,
+    multiple:    false,
+    defaultPath: options?.defaultPath,
   })
   return typeof selected === 'string' ? selected : null
+}
+
+/** Copy `assets/` and `scripts/` from an existing project root into a new root. */
+export async function copyProjectDataDirs(fromRoot: string, toRoot: string): Promise<void> {
+  if (!isTauri()) { notAvailable('copyProjectDataDirs'); return }
+
+  for (const dirName of ['assets', 'scripts'] as const) {
+    await copyDirRecursive(joinPath(fromRoot, dirName), joinPath(toRoot, dirName))
+  }
+}
+
+async function copyDirRecursive(src: string, dst: string): Promise<void> {
+  if (!(await exists(src))) return
+  await mkdir(dst, { recursive: true })
+  const entries = await readDir(src)
+  for (const entry of entries) {
+    const srcPath = joinPath(src, entry.name)
+    const dstPath = joinPath(dst, entry.name)
+    if (entry.isDirectory) {
+      await copyDirRecursive(srcPath, dstPath)
+    } else if (entry.isFile) {
+      await mkdir(dirName(dstPath), { recursive: true })
+      await writeFile(dstPath, await readFile(srcPath))
+    }
+  }
 }
 
 /**

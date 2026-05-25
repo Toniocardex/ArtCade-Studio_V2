@@ -12,7 +12,7 @@ import { resolvePreviewMainLua } from '../../utils/preview-restore'
 import type { Action as EditorAction, CoreState } from '../../store/editor-store'
 import type { ProjectDoc } from '../../types'
 import { makeConsoleEntry } from './makeConsoleEntry'
-import { ensureProjectReadyForBuild } from './prepare-project-for-build'
+import { ensureProjectOnDisk } from './ensureProjectOnDisk'
 
 interface UseBuildToolbarActionsParams {
   dispatch: Dispatch<EditorAction>
@@ -21,6 +21,7 @@ interface UseBuildToolbarActionsParams {
   isPlaying: boolean
   openScripts: CoreState['openScripts']
   selectionSceneId: string | null | undefined
+  flushBeforePersist: () => ProjectDoc | null
 }
 
 export function useBuildToolbarActions({
@@ -30,6 +31,7 @@ export function useBuildToolbarActions({
   isPlaying,
   openScripts,
   selectionSceneId,
+  flushBeforePersist,
 }: UseBuildToolbarActionsParams) {
   const [isBuilding, setIsBuilding] = useState(false)
   const [isBuildingWeb, setIsBuildingWeb] = useState(false)
@@ -39,13 +41,19 @@ export function useBuildToolbarActions({
 
   const prepareProject = useCallback(
     async (kind: 'Build' | 'WASM' | 'Web') => {
-      if (!project) {
+      const flushed = flushBeforePersist()
+      if (!flushed) {
         dispatch({ type: 'LOG', entry: makeConsoleEntry(`[${kind}] No project loaded.`, 'warn') })
         return null
       }
-      return ensureProjectReadyForBuild(kind, dispatch, project, projectPath)
+      return ensureProjectOnDisk({
+        kind,
+        dispatch,
+        project: flushed,
+        projectPath,
+      })
     },
-    [dispatch, project, projectPath],
+    [dispatch, flushBeforePersist, projectPath],
   )
 
   const handlePlayStop = useCallback(() => {

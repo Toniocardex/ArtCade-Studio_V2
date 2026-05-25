@@ -12,6 +12,7 @@ import { createBlankProject } from './utils/project'
 import { runtimeSync } from './utils/runtime-sync-service'
 import { triggerLayoutReflow } from './utils/layout-reflow'
 import { useProjectShortcuts } from './hooks/useProjectShortcuts'
+import { ProjectNamePersistProvider } from './components/menu-bar/project-name-context'
 import { useViewportShortcuts } from './hooks/useViewportShortcuts'
 import { useConsoleShortcut } from './hooks/useConsoleShortcut'
 import { usePersistedWidth } from './hooks/usePersistedWidth'
@@ -185,7 +186,9 @@ function EditorLayout() {
 export default function App() {
   return (
     <EditorProvider>
-      <EditorLayout />
+      <ProjectNamePersistProvider>
+        <EditorLayout />
+      </ProjectNamePersistProvider>
     </EditorProvider>
   )
 }

@@ -1,26 +1,18 @@
-import { useEffect, useState } from 'react'
 import { PencilLine } from 'lucide-react'
-import { safeProjectFolderName } from '../../utils/project'
-import type { ProjectDoc } from '../../types'
 
 interface ProjectNameFieldProps {
-  project: ProjectDoc
-  onRename: (name: string) => void
+  value: string
+  committedName: string
+  onChange: (value: string) => void
+  onCommit: () => void
 }
 
-export function ProjectNameField({ project, onRename }: ProjectNameFieldProps) {
-  const [draft, setDraft] = useState(project.projectName)
-
-  useEffect(() => {
-    setDraft(project.projectName)
-  }, [project.projectName])
-
-  function commitDraft() {
-    const nextName = safeProjectFolderName(draft, 'Untitled')
-    setDraft(nextName)
-    onRename(nextName)
-  }
-
+export function ProjectNameField({
+  value,
+  committedName,
+  onChange,
+  onCommit,
+}: ProjectNameFieldProps) {
   return (
     <label
       className="ml-3 h-8 min-w-[180px] max-w-[320px] flex items-center gap-2 rounded border border-[var(--border)] bg-[var(--panel-3)] px-2 text-[var(--muted)]"
@@ -28,14 +20,14 @@ export function ProjectNameField({ project, onRename }: ProjectNameFieldProps) {
     >
       <PencilLine size={12} className="shrink-0" />
       <input
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commitDraft}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={onCommit}
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
             e.currentTarget.blur()
           } else if (e.key === 'Escape') {
-            setDraft(project.projectName)
+            onChange(committedName)
             e.currentTarget.blur()
           }
         }}

@@ -6,6 +6,7 @@ import { ProjectNameField } from './ProjectNameField'
 import { BuildToolbar } from './BuildToolbar'
 import { useFileMenuActions } from './useFileMenuActions'
 import { useBuildToolbarActions } from './useBuildToolbarActions'
+import { useProjectNamePersist } from './project-name-context'
 
 export default function MenuBar() {
   const { state, dispatch } = useEditor()
@@ -18,6 +19,8 @@ export default function MenuBar() {
     activeScriptPath,
     selection,
   } = state
+
+  const { draft, setDraft, commitDraft, flushBeforePersist } = useProjectNamePersist()
 
   const [fileMenuOpen, setFileMenuOpen] = useState(false)
   const fileMenuRef = useRef<HTMLDivElement>(null)
@@ -42,6 +45,7 @@ export default function MenuBar() {
     openScripts,
     activeScriptPath,
     closeMenu: closeFileMenu,
+    flushBeforePersist,
   })
 
   const buildToolbar = useBuildToolbarActions({
@@ -51,6 +55,7 @@ export default function MenuBar() {
     isPlaying,
     openScripts,
     selectionSceneId: selection.sceneId,
+    flushBeforePersist,
   })
 
   return (
@@ -71,8 +76,10 @@ export default function MenuBar() {
         {fileMenuOpen && <FileMenu items={fileItems} />}
         {project && (
           <ProjectNameField
-            project={project}
-            onRename={(name) => dispatch({ type: 'PROJECT_RENAME', name })}
+            value={draft}
+            committedName={project.projectName}
+            onChange={setDraft}
+            onCommit={commitDraft}
           />
         )}
       </div>

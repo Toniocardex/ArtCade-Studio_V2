@@ -6,7 +6,6 @@ import {
   openProjectDialog,
   loadProjectFile,
   saveScript,
-  saveProjectFile,
   savePackDialog,
   packProject,
   saveProjectAsDialog,
@@ -22,6 +21,7 @@ import type { ProjectDoc } from '../../types'
 import type { FileMenuItem } from './FileMenu'
 import { makeConsoleEntry } from './makeConsoleEntry'
 import { mainScriptBodyForProject } from './project-script'
+import { ensureProjectOnDisk } from './ensureProjectOnDisk'
 
 interface UseFileMenuActionsParams {
   dispatch: Dispatch<EditorAction>
@@ -31,6 +31,7 @@ interface UseFileMenuActionsParams {
   openScripts: CoreState['openScripts']
   activeScriptPath: string | null
   closeMenu: () => void
+  flushBeforePersist: () => ProjectDoc | null
 }
 
 export function useFileMenuActions({
@@ -41,6 +42,7 @@ export function useFileMenuActions({
   openScripts,
   activeScriptPath,
   closeMenu,
+  flushBeforePersist,
 }: UseFileMenuActionsParams) {
   const confirmDiscardIfDirty = useCallback(
     (actionLabel: string): boolean => {
@@ -89,19 +91,20 @@ export function useFileMenuActions({
 
   const handleSaveProjectAs = useCallback(async () => {
     closeMenu()
-    if (!project) {
+    const flushed = flushBeforePersist()
+    if (!flushed) {
       dispatch({ type: 'LOG', entry: makeConsoleEntry('[File] No project to save.', 'warn') })
       return
     }
-    const target = await saveProjectAsDialog(project.projectName)
+    const target = await saveProjectAsDialog(flushed.projectName)
     if (!target) return
     try {
       const projectJsonPath = await scaffoldNewProjectOnDisk(
         target,
-        project,
-        mainScriptBodyForProject(project),
+        flushed,
+        mainScriptBodyForProject(flushed),
       )
-      dispatch({ type: 'LOAD_PROJECT', project, path: projectJsonPath })
+      dispatch({ type: 'LOAD_PROJECT', project: flushed, path: projectJsonPath })
       dispatch({ type: 'MARK_PROJECT_SAVED' })
       dispatch({
         type: 'LOG',
@@ -110,7 +113,7 @@ export function useFileMenuActions({
     } catch (err) {
       dispatch({ type: 'LOG', entry: makeConsoleEntry(`[File] ✗ Save As failed: ${err}`, 'error') })
     }
-  }, [closeMenu, dispatch, project])
+  }, [closeMenu, dispatch, flushBeforePersist])
 
   const handleSaveScript = useCallback(async () => {
     closeMenu()
@@ -138,7 +141,8 @@ export function useFileMenuActions({
 
   const handleSaveProject = useCallback(async () => {
     closeMenu()
-    if (!project) {
+    const flushed = flushBeforePersist()
+    if (!flushed) {
       dispatch({ type: 'LOG', entry: makeConsoleEntry('[File] No project loaded.', 'warn') })
       return
     }
@@ -146,20 +150,19 @@ export function useFileMenuActions({
       await handleSaveProjectAs()
       return
     }
-    try {
-      await saveProjectFile(projectPath, project)
-      dispatch({ type: 'MARK_PROJECT_SAVED' })
+    const savedPath = await ensureProjectOnDisk({
+      kind: 'save',
+      dispatch,
+      project: flushed,
+      projectPath,
+    })
+    if (savedPath) {
       dispatch({
         type: 'LOG',
-        entry: makeConsoleEntry(`[File] Saved project "${project.projectName}"`, 'info'),
-      })
-    } catch (err) {
-      dispatch({
-        type: 'LOG',
-        entry: makeConsoleEntry(`[File] Save project failed: ${err}`, 'error'),
+        entry: makeConsoleEntry(`[File] Saved project "${flushed.projectName}"`, 'info'),
       })
     }
-  }, [closeMenu, dispatch, handleSaveProjectAs, project, projectPath])
+  }, [closeMenu, dispatch, flushBeforePersist, handleSaveProjectAs, projectPath])
 
   const handlePackArtcade = useCallback(async () => {
     closeMenu()

@@ -1,58 +1,64 @@
 // ---------------------------------------------------------------------------
 // useProjectShortcuts — Ctrl+S / Ctrl+Shift+S / Ctrl+N / Ctrl+O
 // ---------------------------------------------------------------------------
-//
-// Extracted from App.tsx (TECHNICAL_DEBT_REVIEW §16). Owns the "project /
-// script lifecycle" shortcuts; viewport zoom shortcuts live in
-// useViewportShortcuts so their dep arrays don't cross-contaminate.
 
 import { useEffect } from 'react'
 import { useEditor } from '../store/editor-store'
 import {
-  openProjectDialog, loadProjectFile, saveProjectFile, saveScript,
-  saveProjectAsDialog, scaffoldNewProjectOnDisk, resolveScriptPath,
+  openProjectDialog,
+  loadProjectFile,
+  saveScript,
+  saveProjectAsDialog,
+  scaffoldNewProjectOnDisk,
+  resolveScriptPath,
 } from '../utils/api'
-import { createBlankProject, BLANK_MAIN_LUA } from '../utils/project'
+import { createBlankProject } from '../utils/project'
 import { runtimeSync } from '../utils/runtime-sync-service'
-import type { ConsoleEntry, ProjectDoc } from '../types'
-import { compileLogicBoard } from '../utils/logic-board/compiler'
+import type { ConsoleEntry } from '../types'
+import { useProjectNamePersist } from '../components/menu-bar/project-name-context'
+import { ensureProjectOnDisk } from '../components/menu-bar/ensureProjectOnDisk'
+import { mainScriptBodyForProject } from '../components/menu-bar/project-script'
 
 let _kbdLogId = 500
 function kbdLog(message: string, level: ConsoleEntry['level']): ConsoleEntry {
   const now = new Date()
   return {
-    id:      ++_kbdLogId,
-    time:    now.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+    id: ++_kbdLogId,
+    time: now.toLocaleTimeString('it-IT', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    }),
     message,
     level,
   }
 }
 
-function mainScriptBodyForProject(project: ProjectDoc): string {
-  return project.logicBoards?.length
-    ? compileLogicBoard(project.logicBoards, project)
-    : BLANK_MAIN_LUA
-}
-
 export function useProjectShortcuts(): void {
   const { state, dispatch } = useEditor()
+  const { flushBeforePersist } = useProjectNamePersist()
 
   useEffect(() => {
     function confirmDirty(actionLabel: string): boolean {
       if (!state.projectDirty) return true
       return window.confirm(
         `You have unsaved changes in "${state.project?.projectName ?? 'this project'}".\n` +
-        `${actionLabel} will discard them. Continue?`
+          `${actionLabel} will discard them. Continue?`,
       )
     }
 
     async function saveProjectAsFlow(): Promise<void> {
-      if (!state.project) return
-      const target = await saveProjectAsDialog(state.project.projectName)
+      const flushed = flushBeforePersist()
+      if (!flushed) return
+      const target = await saveProjectAsDialog(flushed.projectName)
       if (!target) return
       try {
-        const projectJsonPath = await scaffoldNewProjectOnDisk(target, state.project, mainScriptBodyForProject(state.project))
-        dispatch({ type: 'LOAD_PROJECT', project: state.project, path: projectJsonPath })
+        const projectJsonPath = await scaffoldNewProjectOnDisk(
+          target,
+          flushed,
+          mainScriptBodyForProject(flushed),
+        )
+        dispatch({ type: 'LOAD_PROJECT', project: flushed, path: projectJsonPath })
         dispatch({ type: 'MARK_PROJECT_SAVED' })
         dispatch({ type: 'LOG', entry: kbdLog(`OK saved project to ${projectJsonPath}`, 'info') })
       } catch (err) {
@@ -63,34 +69,37 @@ export function useProjectShortcuts(): void {
     async function handleKeyDown(e: KeyboardEvent) {
       if (!e.ctrlKey) return
 
-      // Ctrl+Shift+S — Save Project As… (checked before Ctrl+S so the shift
-      // modifier is not consumed by the plain Save handler below).
       if (e.shiftKey && (e.key === 's' || e.key === 'S')) {
         e.preventDefault()
         await saveProjectAsFlow()
         return
       }
 
-      // Ctrl+S — save active script (script mode) or project (canvas mode)
       if (!e.shiftKey && (e.key === 's' || e.key === 'S')) {
         e.preventDefault()
         if (state.mode === 'canvas') {
-          if (!state.project) return
+          const flushed = flushBeforePersist()
+          if (!flushed) return
           if (!state.projectPath) {
             await saveProjectAsFlow()
             return
           }
-          try {
-            await saveProjectFile(state.projectPath, state.project)
-            dispatch({ type: 'MARK_PROJECT_SAVED' })
-            dispatch({ type: 'LOG', entry: kbdLog(`Saved project "${state.project.projectName}"`, 'info') })
-          } catch (err) {
-            dispatch({ type: 'LOG', entry: kbdLog(`Save project failed: ${err}`, 'error') })
+          const savedPath = await ensureProjectOnDisk({
+            kind: 'save',
+            dispatch,
+            project: flushed,
+            projectPath: state.projectPath,
+          })
+          if (savedPath) {
+            dispatch({
+              type: 'LOG',
+              entry: kbdLog(`Saved project "${flushed.projectName}"`, 'info'),
+            })
           }
           return
         }
 
-        const script = state.openScripts.find(s => s.path === state.activeScriptPath)
+        const script = state.openScripts.find((s) => s.path === state.activeScriptPath)
         if (!script) return
         if (!script.isDirty) {
           dispatch({ type: 'LOG', entry: kbdLog(`"${script.path}" already saved.`, 'info') })
@@ -107,18 +116,19 @@ export function useProjectShortcuts(): void {
         return
       }
 
-      // Ctrl+N — new blank project (in-memory only)
       if (!e.shiftKey && (e.key === 'n' || e.key === 'N')) {
         e.preventDefault()
         if (!confirmDirty('Creating a new project')) return
         const blank = createBlankProject('Untitled')
         runtimeSync.reset()
         dispatch({ type: 'LOAD_PROJECT', project: blank, path: '' })
-        dispatch({ type: 'LOG', entry: kbdLog('OK new blank project (unsaved - use Ctrl+Shift+S).', 'info') })
+        dispatch({
+          type: 'LOG',
+          entry: kbdLog('OK new blank project (unsaved - use Ctrl+Shift+S).', 'info'),
+        })
         return
       }
 
-      // Ctrl+O — open project from disk
       if (e.key === 'o' || e.key === 'O') {
         e.preventDefault()
         if (!confirmDirty('Opening a different project')) return
@@ -132,7 +142,10 @@ export function useProjectShortcuts(): void {
         }
         runtimeSync.reset()
         dispatch({ type: 'LOAD_PROJECT', project: proj, path })
-        dispatch({ type: 'LOG', entry: kbdLog(`OK loaded "${proj.projectName}" v${proj.version}`, 'info') })
+        dispatch({
+          type: 'LOG',
+          entry: kbdLog(`OK loaded "${proj.projectName}" v${proj.version}`, 'info'),
+        })
         return
       }
     }
@@ -140,8 +153,13 @@ export function useProjectShortcuts(): void {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [
-    state.openScripts, state.activeScriptPath,
-    state.project, state.projectPath, state.projectDirty, state.mode,
+    state.openScripts,
+    state.activeScriptPath,
+    state.project,
+    state.projectPath,
+    state.projectDirty,
+    state.mode,
     dispatch,
+    flushBeforePersist,
   ])
 }
