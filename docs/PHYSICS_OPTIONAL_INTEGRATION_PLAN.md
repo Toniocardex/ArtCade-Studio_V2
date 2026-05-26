@@ -532,3 +532,26 @@ Ogni fase = PR separato reviewabile (~300–800 LOC ciascuno).
 2. Add/remove physics sulle entità; chip header + scroll.
 3. Runtime: body solo con collider esplicito, **Solid**, o **Sensor** (platformer/topDown soli → no body).
 4. Test: `world-intent` topDown-only; Vitest `project-physics.test.ts`.
+
+### Review pre-chiusura (Fase 4) — commit `37ac155`
+
+> **Processo:** questa tabella andava redatta **prima** di commit/push (patto §3). Retroattiva.
+
+| Area | Check | Esito |
+|------|--------|--------|
+| **DoD piano** | Inspector Physics come Solid/Sensor | OK — `PhysicsSection.tsx`, add/remove, chip `InspectorBlockKey` |
+| **DoD piano** | `ensurePhysicsBody` solo physics \| solid \| sensor | OK — rimosso gate `hasTopDown`; test `test_topdown_only_*` + fix solid+topDown |
+| **Editor** | Round-trip `project.json` | OK — Vitest `project-physics.test.ts` (2/2) |
+| **Editor** | Platformer hint UX | OK — descrizione registry aggiornata |
+| **Runtime** | Platformer + collider esplicito → kinematic | Invariato (`hasPlatformer && hasExplicitCollider`) |
+| **Runtime** | Solid/sensor senza blocco Physics in JSON | OK — body da componente gameplay (già Fase 1–2) |
+| **Patto §3** | `tsc` (editor) | **Non eseguito** prima del push — da fare in Fase 5 o smoke |
+| **Patto §3** | `cargo test` | **Non eseguito** prima del push |
+| **Patto §3** | `ctest` su binario **ricompilato** | **Non verificato** (build MSVC fallito in agent env; ctest su artefatto precedente) — **ricompilare localmente** |
+| **Patto §3** | Smoke manuale §11 | **Non eseguito** |
+| **Patto §3** | Review diff **prima** di git push | **Violato** — push anticipato |
+| **Processo git** | Tabella review Fase 3 nel commit Fase 4 | Accettabile ma ideale commit separato doc-only |
+
+**Verdetto codice:** approvato per scope Fase 4; **verdetto processo:** chiusura valida solo dopo `tsc` + rebuild C++ + `ctest` locali (e smoke quando possibile).
+
+**Ordine obbligatorio da ora (fasi 0–5):** implementazione → `tsc` + Vitest + rebuild `ctest` → **review diff in chat** → aggiornare questa sezione → **solo allora** commit + push.

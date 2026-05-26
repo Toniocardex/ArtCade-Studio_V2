@@ -7,6 +7,7 @@ import {
   type ComponentDescriptor,
 } from './component-registry'
 import { InspectorSection } from './inspector-fields'
+import { componentBlockId } from './entity-component-utils'
 import { AddPhysicsBar, PhysicsSection } from './PhysicsSection'
 
 function ComponentSection({
