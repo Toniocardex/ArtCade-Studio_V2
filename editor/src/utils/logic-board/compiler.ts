@@ -90,7 +90,12 @@ function emitBoard(
     if (usesTickFallback(e, board, project)) return false
     return emitEventRegistration(e, board, project, slugs) !== null
   })
-  const tickEvents = enabled.filter((e) => usesTickFallback(e, board, project))
+  const allTickEvents = enabled.filter((e) => usesTickFallback(e, board, project))
+  // onDestroy fallback runs against `_destroy_events`, not the live pool
+  // (destroyed entities aren't in pool.getAll). Hoist it out of the per-pool
+  // loop so it iterates the destroy buffer once with `self = de.entityId`.
+  const destroyTickEvents = allTickEvents.filter((e) => e.trigger.type === 'onDestroy')
+  const tickEvents = allTickEvents.filter((e) => e.trigger.type !== 'onDestroy')
 
   const pool = poolExpr(board.target)
   const init: string[] = []
@@ -125,6 +130,16 @@ function emitBoard(
     tick.push(`${INDENT}for _, self in ipairs(${pool}) do`)
     tick.push(`${INDENT}${INDENT}local other = nil`)
     for (const ev of tickEvents) {
+      tick.push(...emitEventBody(ev, board, INDENT + INDENT, slugs))
+    }
+    tick.push(`${INDENT}end`)
+  }
+
+  if (destroyTickEvents.length > 0) {
+    tick.push(`${INDENT}for _, de in ipairs(_destroy_events) do`)
+    tick.push(`${INDENT}${INDENT}local self = de.entityId`)
+    tick.push(`${INDENT}${INDENT}local other = nil`)
+    for (const ev of destroyTickEvents) {
       tick.push(...emitEventBody(ev, board, INDENT + INDENT, slugs))
     }
     tick.push(`${INDENT}end`)

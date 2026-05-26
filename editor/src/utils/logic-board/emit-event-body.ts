@@ -35,12 +35,18 @@ export function emitEventBody(
   }
 
   if (trig.type === 'onDestroy') {
-    const inner = baseIndent + INDENT
-    lines.push(`${baseIndent}for _, de in ipairs(_destroy_events) do`)
-    lines.push(`${baseIndent}${INDENT}if de.entityId == self and ${guard} then`)
-    lines.push(...emitActionSequence(ev.actions, inner + INDENT, slugs))
-    lines.push(`${baseIndent}${INDENT}end`)
-    lines.push(`${baseIndent}end`)
+    // Fallback path only. Iteration scaffolding (for de in _destroy_events do
+    // local self = de.entityId ...) is emitted by compiler.ts so this body
+    // runs once per destroy event with `self` already bound — the old
+    // version sat inside a `for self in pool.getAll(...)` loop that excludes
+    // destroyed entities, so the match `de.entityId == self` was never true.
+    if (guard === 'true') {
+      lines.push(...emitActionSequence(ev.actions, baseIndent, slugs))
+    } else {
+      lines.push(`${baseIndent}if ${guard} then`)
+      lines.push(...emitActionSequence(ev.actions, baseIndent + INDENT, slugs))
+      lines.push(`${baseIndent}end`)
+    }
     return lines
   }
 

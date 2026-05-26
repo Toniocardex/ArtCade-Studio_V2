@@ -395,6 +395,34 @@ describe('compileLogicBoard — triggers', () => {
     expect(lua).not.toContain('_logic_timers["b1:e1"] = 0')
   })
 
+  it('onDestroy tick-fallback iterates _destroy_events with self bound', () => {
+    // entity_id board without a ProjectDoc -> no derivable className ->
+    // onDestroy goes through the fallback tick path (not lifecycle.onDestroy).
+    const lua = compileLogicBoard([
+      {
+        boardId: 'b1',
+        target: { type: 'entity_id', entityId: 99 },
+        events: [
+          ev({
+            trigger: { type: 'onDestroy' },
+            actions: [{ type: 'debugLog', message: 'bye' }],
+          }),
+        ],
+      },
+    ])
+    // Fallback must walk _destroy_events with self bound from de.entityId.
+    expect(lua).toContain('for _, de in ipairs(_destroy_events) do')
+    expect(lua).toContain('local self = de.entityId')
+    expect(lua).toContain('debug.log("bye")')
+    // The previous broken scaffolding compared de.entityId to a `self` from
+    // pool.getAll, which never matched a destroyed entity. Guard against it.
+    expect(lua).not.toContain('if de.entityId == self')
+    // No registration emit (no class to register against) — the only
+    // occurrence of the helper name is its definition in the prelude.
+    const regDestroyCount = lua.split('_logic_reg_destroy(').length - 1
+    expect(regDestroyCount).toBe(1)
+  })
+
   it('onTimer repeat in tick-fallback subtracts interval to preserve cadence', () => {
     const lua = compileLogicBoard([
       board([
