@@ -6,6 +6,7 @@ import { dirName, parseProjectDoc, safeProjectFolderName, serializeProjectDoc } 
 import { validateProjectBeforeSave } from './logic-board/validate-project'
 import { importArtcadePackage, isArtcadePackagePath, type LoadedProjectFile } from './artcade-package'
 import { joinPath } from './file-paths'
+import { assertProjectPathsSafe, normalizeProjectRelativePath } from './project-path-security'
 
 function notAvailable(name: string): void {
   console.warn(`[api] ${name}: Tauri not available in browser mode`)
@@ -39,7 +40,9 @@ export async function loadProjectFile(path: string): Promise<ProjectDoc | null> 
 
   try {
     const content = await readTextFile(path)
-    return parseProjectDoc(content)
+    const project = parseProjectDoc(content)
+    if (project) assertProjectPathsSafe(project)
+    return project
   } catch (err) {
     console.error('[api] loadProjectFile failed:', err)
     return null
@@ -81,8 +84,7 @@ export async function saveScript(path: string, content: string): Promise<void> {
 }
 
 export function resolveScriptPath(projectPath: string | null, scriptPath: string): string {
-  const isAbs = /^([a-zA-Z]:[\\/]|[\\/])/.test(scriptPath)
-  if (isAbs) return scriptPath.replace(/\\/g, '/')
+  const safeScriptPath = normalizeProjectRelativePath(scriptPath, 'scriptPath')
   if (!projectPath) {
     throw new Error(
       `Cannot resolve "${scriptPath}": project has no on-disk location yet ` +
@@ -90,7 +92,7 @@ export function resolveScriptPath(projectPath: string | null, scriptPath: string
     )
   }
   const root = projectPath.replace(/[\\/][^\\/]+$/, '').replace(/\\/g, '/')
-  return `${root}/${scriptPath}`.replace(/\\/g, '/')
+  return `${root}/${safeScriptPath}`
 }
 
 export async function saveProjectFile(path: string, project: ProjectDoc): Promise<void> {
@@ -182,7 +184,8 @@ export async function scaffoldNewProjectOnDisk(
     content: serializeProjectDoc(project),
   })
 
-  const scriptPath  = `${projectRoot}/${project.mainScriptPath}`.replace(/\\/g, '/')
+  const mainScriptPath = normalizeProjectRelativePath(project.mainScriptPath, 'mainScriptPath')
+  const scriptPath  = `${projectRoot}/${mainScriptPath}`.replace(/\\/g, '/')
 
   await invoke('write_file', {
     path:    scriptPath,

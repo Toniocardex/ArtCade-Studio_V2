@@ -1,6 +1,6 @@
 // lua-host-test.cpp — LuaHost error-handling and lifecycle tests
 //
-// Tests (7):
+// Tests:
 //   1. init + shutdown without any script — no crash
 //   2. load valid Lua source, tick() runs without error
 //   3. runtime error in tick() → caught, hasError() = true, no crash
@@ -140,6 +140,20 @@ static void test_tick_can_be_disabled() {
     host.shutdown();
 }
 
+static void test_io_library_not_exposed() {
+    std::cout << "Test 9: io library is not exposed to gameplay Lua\n";
+    LuaHost host;
+    host.init();
+    load(host,
+        "function tick(dt)\n"
+        "    if io ~= nil then error('io library exposed') end\n"
+        "end");
+    CHECK(!host.hasError());
+    host.tick(0.016f);
+    CHECK(!host.hasError());
+    host.shutdown();
+}
+
 // -------------------------------------------------------------------------
 
 int main() {
@@ -153,6 +167,7 @@ int main() {
     test_missing_tick();
     test_repeated_errors();
     test_tick_can_be_disabled();
+    test_io_library_not_exposed();
 
     std::cout << "\nResults: " << g_passed << " passed, "
               << g_failed  << " failed\n";

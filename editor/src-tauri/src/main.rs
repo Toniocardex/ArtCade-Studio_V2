@@ -64,7 +64,46 @@ fn validate_writable_path(path: &str) -> Result<PathBuf, String> {
             return Err(format!("path may not contain '..' segments: '{path}'"));
         }
     }
+    if !is_allowed_editor_write(&p) {
+        return Err(format!(
+            "refusing to write outside ArtCade project files: '{path}'"
+        ));
+    }
     Ok(p)
+}
+
+fn is_allowed_editor_write(path: &Path) -> bool {
+    let file_name = path
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    if file_name == "project.json" {
+        return true;
+    }
+
+    let ext = path
+        .extension()
+        .and_then(|s| s.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    if ext != "lua" && ext != "luac" {
+        return false;
+    }
+
+    let mut project_root = PathBuf::new();
+    for comp in path.components() {
+        if comp
+            .as_os_str()
+            .to_str()
+            .map(|s| s.eq_ignore_ascii_case("scripts"))
+            .unwrap_or(false)
+        {
+            return project_root.join("project.json").is_file();
+        }
+        project_root.push(comp.as_os_str());
+    }
+    false
 }
 
 #[tauri::command]

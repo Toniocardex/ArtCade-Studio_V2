@@ -3,6 +3,7 @@ import { readFile, writeFile, mkdir, exists } from '@tauri-apps/plugin-fs'
 import type { ProjectDoc } from '../types'
 import { dirName, parseProjectDoc, safeProjectFolderName } from './project'
 import { baseName, joinPath } from './file-paths'
+import { assertProjectPathsSafe } from './project-path-security'
 
 export interface LoadedProjectFile {
   project: ProjectDoc
@@ -32,6 +33,7 @@ export async function importArtcadePackage(packagePath: string): Promise<LoadedP
     if (!project) {
       throw new Error('project.json inside package is invalid')
     }
+    assertProjectPathsSafe(project)
 
     const importRoot = await uniqueImportRoot(packagePath, project.projectName)
     for (const entry of entries) {

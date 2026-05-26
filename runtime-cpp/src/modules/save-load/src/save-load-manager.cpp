@@ -3,6 +3,7 @@
 #include <sstream>
 #include <filesystem>
 #include <algorithm>
+#include <cctype>
 
 namespace fs = std::filesystem;
 
@@ -28,6 +29,16 @@ const std::string& SaveLoadManager::saveDirectory() const {
 
 std::string SaveLoadManager::slotPath(const std::string& slot) const {
     return saveDir_ + slot + ".sav";
+}
+
+bool SaveLoadManager::isValidSlotName(const std::string& slot) {
+    if (slot.empty() || slot.size() > 64) return false;
+    for (unsigned char ch : slot) {
+        if (std::isalnum(ch) || ch == '_' || ch == '-' || ch == ' ')
+            continue;
+        return false;
+    }
+    return true;
 }
 
 bool SaveLoadManager::ensureSaveDir() const {
@@ -92,6 +103,7 @@ SaveLoadManager::deserializeSnapshot(const std::string& content) {
 // ------------------------------------------------------------------ save / load
 
 bool SaveLoadManager::save(const std::string& slot, const Snapshot& snapshot) {
+    if (!isValidSlotName(slot)) return false;
     if (!ensureSaveDir()) return false;
 
     std::ofstream f(slotPath(slot));
@@ -103,6 +115,7 @@ bool SaveLoadManager::save(const std::string& slot, const Snapshot& snapshot) {
 
 std::optional<SaveLoadManager::Snapshot>
 SaveLoadManager::load(const std::string& slot) const {
+    if (!isValidSlotName(slot)) return std::nullopt;
     std::ifstream f(slotPath(slot));
     if (!f.is_open()) return std::nullopt;
 
@@ -114,10 +127,12 @@ SaveLoadManager::load(const std::string& slot) const {
 // ------------------------------------------------------------------ query
 
 bool SaveLoadManager::hasSave(const std::string& slot) const {
+    if (!isValidSlotName(slot)) return false;
     return fs::exists(slotPath(slot));
 }
 
 void SaveLoadManager::deleteSave(const std::string& slot) {
+    if (!isValidSlotName(slot)) return;
     std::error_code ec;
     fs::remove(slotPath(slot), ec);
 }

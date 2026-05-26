@@ -30,14 +30,13 @@ LuaHost::LuaHost()  : impl_(std::make_unique<Impl>()) {}
 LuaHost::~LuaHost() = default;
 
 bool LuaHost::init() {
-    // Open only the safe standard libraries (no io/os by default)
+    // Open only deterministic/sandboxed standard libraries (no io/os).
     impl_->lua.open_libraries(
         sol::lib::base,
         sol::lib::math,
         sol::lib::string,
         sol::lib::table,
-        sol::lib::coroutine,
-        sol::lib::io          // needed for log file writing in scripts
+        sol::lib::coroutine
     );
 
     // Switch Lua 5.4 to generational GC mode.

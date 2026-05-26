@@ -25,6 +25,7 @@ static const std::string kTestDir = "test_saves/";
 static void cleanup() {
     std::error_code ec;
     fs::remove_all(kTestDir, ec);
+    fs::remove("escape.sav", ec);
 }
 
 static VM::Snapshot makeSnap() {
@@ -127,6 +128,22 @@ static void test_overwrite_slot() {
     std::puts("  [ok] saving to existing slot overwrites it");
 }
 
+static void test_rejects_path_traversal_slots() {
+    SL sl; sl.init();
+    sl.setSaveDirectory(kTestDir);
+
+    auto snap = makeSnap();
+    assert(!sl.save("../escape", snap));
+    assert(!sl.save("nested/slot", snap));
+    assert(!sl.save("C:\\escape", snap));
+    assert(!sl.hasSave("../escape"));
+    assert(!sl.load("../escape").has_value());
+    sl.deleteSave("../escape");
+    assert(!fs::exists("escape.sav"));
+    cleanup();
+    std::puts("  [ok] invalid slot names cannot escape save directory");
+}
+
 int main() {
     std::puts("=== SaveLoadManager check ===");
     cleanup();   // start clean
@@ -137,6 +154,7 @@ int main() {
     test_delete_save();
     test_list_slots();
     test_overwrite_slot();
-    std::puts("=== all 7 tests passed ===");
+    test_rejects_path_traversal_slots();
+    std::puts("=== all 8 tests passed ===");
     return 0;
 }

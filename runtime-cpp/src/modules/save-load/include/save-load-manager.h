@@ -58,6 +58,7 @@ private:
 
     std::string slotPath(const std::string& slot) const;
     bool ensureSaveDir() const;
+    static bool isValidSlotName(const std::string& slot);
 
     static std::string serializeSnapshot(const Snapshot& snap);
     static std::optional<Snapshot> deserializeSnapshot(const std::string& content);
