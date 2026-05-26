@@ -20,9 +20,9 @@ export const projectReducer: DomainReducer = (state: CoreState, action: Action) 
       const firstSceneId = Object.keys(action.project.scenes)[0] ?? null
       // Reset editor "view" chrome so a 400% zoom, a stuck fit-mode tracking
       // or an active camera preview from the previous project don't bleed
-      // into the freshly loaded one. Every load starts at the standard
-      // EDITOR_BOOT_ZOOM (75%) in manual mode — predictable framing and
-      // Ctrl+9 / the dropdown "Fit" entry are one click away.
+      // into the freshly loaded one. Every load starts at identity zoom
+      // (100%) in manual mode; Ctrl+9 / the dropdown "Fit" entry remain one
+      // click away for users who want to see the whole scene at once.
       return {
         ...state,
         project:     action.project,

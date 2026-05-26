@@ -18,11 +18,10 @@ export const EDITOR_ZOOM_DEFAULT = 1.0
 
 /**
  * Zoom level applied when the editor boots a blank project and on every
- * subsequent LOAD_PROJECT. Kept separate from EDITOR_ZOOM_DEFAULT because
- * Ctrl+0 must remain 100% (universal convention) — only the "fresh project"
- * starting view uses this softer 75% framing.
+ * subsequent LOAD_PROJECT. Kept separate from EDITOR_ZOOM_DEFAULT so the
+ * startup policy can change without altering the Ctrl+0 identity shortcut.
  */
-export const EDITOR_BOOT_ZOOM = 0.75
+export const EDITOR_BOOT_ZOOM = 1.0
 
 /** Keyboard step (Ctrl+/-). 25% per press feels like Photoshop. */
 export const EDITOR_ZOOM_KEYBOARD_STEP = 1.25
