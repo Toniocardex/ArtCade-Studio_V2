@@ -98,6 +98,7 @@ Guida specializzata         (REACT_WASM_PATTERN.md o ECS_IMPLEMENTATION_GUIDE.md
 | **PIANO_SVILUPPO_COMMERCIALE.md** | Early Access 8 settimane: stabilità editor, demo, export web, vendita | ~15min | Product / founder | ⭐ |
 | **GUIDA_INTEGRAZIONE_SPLASH_LICENZE.md** | Splash editor vs runtime; Free/Pro; `pack-artcade.py`; watermark C++ | ~10min | Editor / tooling / runtime | ⭐ |
 | **GLOBAL_LOGIC_UI_ARCHITECTURE.md** | Sensori Box2D, platformer feel, azioni world, UI screen-space, text juice | ~8min | C++ / gameplay / UI | ⭐ |
+| **PHYSICS_OPTIONAL_INTEGRATION_PLAN.md** | Piano: physics opt-in, platformer kinematic (`customGravity`), skip `physics.step` in arcade | ~15min | C++ / Editor / Product | ⭐⭐ |
 | **ArtCade_V2_Riepilogo_Suggerimenti.md** | Visione UX Logic Board (8 gruppi), shader, controlli artist-friendly | ~10min | Design / product | ⭐ |
 | **LOGIC_BOARD_EDITOR_BACKLOG.md** | Backlog editor (JSON Schema fatto; wait, UX, shader) | ~3min | Editor | ⭐ |
 | **TECHNICAL_DEBT_REVIEW.md** | Debito tecnico noto (sync WASM, EditorAPI, build Tauri) | ~10min | Engineers | ⭐⭐ |
@@ -125,6 +126,7 @@ Setup e build pratici: **[README.md](../README.md)** (root) — pipeline, script
 | **Go-to-market / roadmap commerciale** | PIANO_SVILUPPO_COMMERCIALE.md | Intero (fasi 1–4, rischi) | ⭐ |
 | **Splash + licenze Free/Pro** | GUIDA_INTEGRAZIONE_SPLASH_LICENZE.md | Intero | ⭐ |
 | **Fisica arcade, UI world, text juice** | GLOBAL_LOGIC_UI_ARCHITECTURE.md | Intero | ⭐ |
+| **Physics opzionale / platformer kinematic** | PHYSICS_OPTIONAL_INTEGRATION_PLAN.md | Intero | ⭐⭐ |
 | **React-WASM** | TECHNICAL_OVERVIEW | §5.5 | Concettuale |
 | **React-WASM Implementazione** | REACT_WASM_PATTERN | Intera | Pratico |
 | **React-WASM Razionale** | ARCHITECTURAL_RATIONALE | §2 | Data-driven |
