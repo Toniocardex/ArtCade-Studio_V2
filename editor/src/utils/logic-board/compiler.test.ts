@@ -316,7 +316,11 @@ describe('compileLogicBoard — structure', () => {
       },
     ])
     expect(lua).toContain('for _, self in ipairs({ 7 }) do')
-    expect(lua).not.toContain('pool.getAll')
+    // The only pool.getAll occurrence allowed is inside _logic_reg_spawn's
+    // replay loop in the prelude (helper definition, always emitted).
+    // Boards with no onSpawn must add no further pool.getAll calls.
+    const poolGetAllCount = lua.split('pool.getAll(').length - 1
+    expect(poolGetAllCount).toBe(1)
   })
 })
 
@@ -865,6 +869,23 @@ describe('Global-target boards (no entity context)', () => {
     expect(lua).toContain('_logic_reg_message("level_complete", function()')
     const closure = lua.slice(lua.indexOf('_logic_reg_message('))
     expect(closure).not.toContain('for _, self in ipairs')
+  })
+})
+
+describe('Bug #2 — onSpawn replay for already-alive entities', () => {
+  it('_logic_reg_spawn replays for entities in pool.getAll at registration time', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({ trigger: { type: 'onSpawn' },
+             actions: [{ type: 'debugLog', message: 'hi' }] }),
+      ]),
+    ])
+    // Helper definition includes the replay loop.
+    expect(lua).toContain('local function _logic_reg_spawn(cls, fn)')
+    expect(lua).toContain('for _, eid in ipairs(pool.getAll(cls)) do')
+    expect(lua).toContain('pcall(fn, eid, {})')
+    // Errors inside replayed callbacks must not abort _logic_init.
+    expect(lua).toContain('[logic] onSpawn replay error: ')
   })
 })
 
