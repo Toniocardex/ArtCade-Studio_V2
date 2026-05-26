@@ -4,7 +4,7 @@
 // ---------------------------------------------------------------------------
 
 import type { LogicAction } from '../../types/logic-board'
-import { luaString, luaValue, targetExpr } from './lua-helpers'
+import { luaPointerWorldPairStmt, luaString, luaValue, targetExpr } from './lua-helpers'
 import { ruleKeyExpr } from './event-slugs'
 
 /** Coerce to a finite number, falling back to `fallback` for NaN/Infinity. */
@@ -74,7 +74,7 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
     }
     case 'spawnEntityAtPointer': {
       const cls = luaString(a.className)
-      return `(function() local _mx,_my=input.mouseWorld(); return object.spawn(${cls}, _mx, _my) end)()`
+      return `(function() ${luaPointerWorldPairStmt()}; return object.spawn(${cls}, _mx, _my) end)()`
     }
     case 'moveInDirection': {
       const t = targetExpr(a.target)

@@ -11,6 +11,13 @@
 //   • compiler-prelude.ts        — buildHeader, buildTickWrapper, poll preambles
 //   • event-slugs.ts             — buildEventSlugs, ruleKeyExpr (RULE.<slug>)
 //   • action-emitter.ts          — actionLua (one statement per action)
+//   • lua-helpers.ts             — luaPointerNearSelfExpr, luaPointerWorldPairStmt
+//
+// Pointer / hit-test policy (do not regress):
+//   • Object click, hover, isMouseOver, spawn-at-pointer → input.mouseWorld()
+//     via luaPointerNearSelfExpr / luaPointerWorldPairStmt only.
+//   • Never mix input.mousePosition() with entity.position(self) for distance.
+//   • Guard: pointer-hit-policy.test.ts
 //
 // Design constraints (verified against the real runtime):
 //   • The C++ runtime calls `tick(dt)` for polling triggers; event-first

@@ -118,6 +118,8 @@ Su Emscripten il mouse viene scalato da CSS a framebuffer interno (`pointer-coor
 
 **Logic Board:** trigger **Object clicked** / **hover** / condizione **is mouse over** / azione **spawn at pointer** compilano con `input.mouseWorld()` + `entity.position(self)` (non `mousePosition()`). `onMouseInput` (solo tasto) resta invariato.
 
+**Compilatore (policy):** usare solo [`luaPointerNearSelfExpr`](../editor/src/utils/logic-board/lua-helpers.ts) e [`luaPointerWorldPairStmt`](../editor/src/utils/logic-board/lua-helpers.ts); test di guardia [`pointer-hit-policy.test.ts`](../editor/src/utils/logic-board/pointer-hit-policy.test.ts).
+
 ---
 
 ## Logic Board editor (entity-first)

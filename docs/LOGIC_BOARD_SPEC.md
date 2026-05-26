@@ -508,6 +508,8 @@ end
 4. Tradurre `TargetSelector` in chiamate API reali (`entity`, `pool`, …).  
 5. Azioni `wait`: generare equivalente con timer/closure (o API time del runtime) per le azioni successive.
 
+**Coordinate puntatore (hit test / spawn):** il compilatore deve usare `input.mouseWorld()` tramite `luaPointerNearSelfExpr` / `luaPointerWorldPairStmt` in [`lua-helpers.ts`](../editor/src/utils/logic-board/lua-helpers.ts) — non `input.mousePosition()` con `entity.position(self)`. Vedi [`GLOBAL_LOGIC_UI_ARCHITECTURE.md`](GLOBAL_LOGIC_UI_ARCHITECTURE.md) e `pointer-hit-policy.test.ts`.
+
 #### 5.3 Esempio di compilazione
 
 **Input (Logic Event)**

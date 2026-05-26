@@ -70,6 +70,14 @@ export function sensorSourceExpr(target: { type: string; className?: string; ent
 }
 
 /**
+ * Lua statement assigning world pointer coords: `local _mx,_my=input.mouseWorld()`.
+ * Use for spawn-at-pointer and any action needing world-space mouse position.
+ */
+export function luaPointerWorldPairStmt(): string {
+  return 'local _mx,_my=input.mouseWorld()'
+}
+
+/**
  * Lua expression: true when the pointer (world space) is within `radius` px
  * of this entity's position. Uses input.mouseWorld() + entity.position(self).
  */
