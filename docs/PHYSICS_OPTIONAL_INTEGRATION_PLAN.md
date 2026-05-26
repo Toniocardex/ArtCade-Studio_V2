@@ -2,7 +2,7 @@
 
 > **Versione**: 1.2  
 > **Data**: 2026-05-25  
-> **Status**: Fase 4 chiusa — inspector Physics esplicito; Fase 5 (docs) non iniziata  
+> **Status**: Fase 5 chiusa — docs, Logic Board hints, template progetto; piano fisica opzionale completo (0–5)  
 > **Audience**: C++ / Editor / Product  
 > **Collegamenti**: `GLOBAL_LOGIC_UI_ARCHITECTURE.md`, `ARTIST_FRIENDLY_COMPONENTS.md`, `ARCHITETTURA_TECNICA_ENGINE_2D.md` §9, `ENGINE_INTEGRATION_ROADMAP.md` (tracker engine separato)
 
@@ -260,7 +260,7 @@ flowchart TB
 
 ---
 
-### Fase 5 — Logic Board e documentazione (1–2 giorni)
+### Fase 5 — Logic Board e documentazione (1–2 giorni) ✅
 
 | Task | Output |
 |------|--------|
@@ -555,3 +555,31 @@ Ogni fase = PR separato reviewabile (~300–800 LOC ciascuno).
 **Verdetto codice:** approvato per scope Fase 4; **verdetto processo:** chiusura valida solo dopo `tsc` + rebuild C++ + `ctest` locali (e smoke quando possibile).
 
 **Ordine obbligatorio da ora (fasi 0–5):** implementazione → `tsc` + Vitest + rebuild `ctest` → **review diff in chat** → aggiornare questa sezione → **solo allora** commit + push.
+
+---
+
+## Closure log (Fase 5)
+
+| Campo | Valore |
+|-------|--------|
+| **Data** | 2026-05-26 |
+| **Scope** | Docs, Logic Board collision hints, project templates (arcade / platformer) |
+| **Esito** | Chiusa |
+
+### Deliverable
+
+1. `GLOBAL_LOGIC_UI_ARCHITECTURE.md` v1.1 — tabella platformer vs Box2D + matrix trigger collision/sensor.
+2. `physics-trigger-capabilities.ts` + avvisi in `EventEditor` / `triggerRequirement`.
+3. `project-templates.ts` + File → New Project (Blank / Arcade / Platformer).
+4. Vitest: `project-templates.test.ts`, `physics-trigger-capabilities.test.ts`.
+
+### Review pre-chiusura (Fase 5)
+
+| Area | Check | Esito |
+|------|--------|--------|
+| **DoD** | `GLOBAL_LOGIC_UI_ARCHITECTURE.md` | OK |
+| **DoD** | Collision capability + UI hints | OK |
+| **DoD** | Template Arcade / Platformer | OK |
+| **Patto §3** | `tsc` + Vitest (7 test) | OK |
+| **Patto §3** | Review diff prima di push | OK |
+| **Patto §3** | Smoke §11 | Da fare manualmente |

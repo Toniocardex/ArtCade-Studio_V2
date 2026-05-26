@@ -89,6 +89,10 @@ function TriggerFields({
 }) {
   const isSensorTrigger =
     trigger.type === 'onTriggerEnter' || trigger.type === 'onTriggerExit'
+  const isCollisionTrigger =
+    trigger.type === 'onCollision' ||
+    trigger.type === 'onCollisionEnter' ||
+    trigger.type === 'onCollisionExit'
 
   return (
     <>
@@ -98,6 +102,13 @@ function TriggerFields({
         value={trigger as unknown as Record<string, unknown>}
         onChange={(next) => onChange(next as LogicTrigger)}
       />
+      {isCollisionTrigger && (
+        <p className="text-[10px] leading-snug text-[var(--muted)]">
+          Requires Box2D overlap: add <strong>Physics (Box2D Body)</strong> on this entity
+          (platformer/top-down alone is not enough). Arcade without physics: use{' '}
+          <strong>Sensor</strong> (onTriggerEnter/Exit) or <strong>onMessage</strong>.
+        </p>
+      )}
       {isSensorTrigger && (
         <p className="text-[10px] leading-snug text-[var(--muted)]">
           Target tag must match <code className="text-[var(--text)]">SensorComponent.targetTag</code>{' '}

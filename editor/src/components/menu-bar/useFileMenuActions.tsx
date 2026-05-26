@@ -14,7 +14,12 @@ import {
   ensureDependencies,
   checkDependencies,
 } from '../../utils/api'
-import { dirName, createBlankProject } from '../../utils/project'
+import {
+  dirName,
+  createProjectFromTemplate,
+  PROJECT_TEMPLATE_LABELS,
+  type ProjectTemplateId,
+} from '../../utils/project'
 import { runtimeSync } from '../../utils/runtime-sync-service'
 import { compileLogicBoard } from '../../utils/logic-board/compiler'
 import type { ProjectDoc } from '../../types'
@@ -74,20 +79,34 @@ export function useFileMenuActions({
     })
   }, [closeMenu, confirmDiscardIfDirty, dispatch])
 
-  const handleNewProject = useCallback(async () => {
-    closeMenu()
-    if (!confirmDiscardIfDirty('Creating a new project')) return
-    const blank = createBlankProject('Untitled')
-    runtimeSync.reset()
-    dispatch({ type: 'LOAD_PROJECT', project: blank, path: '' })
-    dispatch({
-      type: 'LOG',
-      entry: makeConsoleEntry(
-        '[File] OK new blank project (unsaved – use Save Project As to persist).',
-        'info',
-      ),
-    })
-  }, [closeMenu, confirmDiscardIfDirty, dispatch])
+  const loadNewProject = useCallback(
+    (template: ProjectTemplateId) => {
+      const label = PROJECT_TEMPLATE_LABELS[template]
+      const project = createProjectFromTemplate(
+        template,
+        template === 'blank' ? 'Untitled' : label,
+      )
+      runtimeSync.reset()
+      dispatch({ type: 'LOAD_PROJECT', project, path: '' })
+      dispatch({
+        type: 'LOG',
+        entry: makeConsoleEntry(
+          `[File] OK new ${label} project (unsaved – use Save Project As to persist).`,
+          'info',
+        ),
+      })
+    },
+    [dispatch],
+  )
+
+  const handleNewProject = useCallback(
+    async (template: ProjectTemplateId = 'blank') => {
+      closeMenu()
+      if (!confirmDiscardIfDirty('Creating a new project')) return
+      loadNewProject(template)
+    },
+    [closeMenu, confirmDiscardIfDirty, loadNewProject],
+  )
 
   const handleSaveProjectAs = useCallback(async () => {
     closeMenu()
@@ -231,10 +250,22 @@ export function useFileMenuActions({
   const fileItems: FileMenuItem[] = useMemo(
     () => [
       {
-        label: 'New Project',
+        label: 'New Project (Blank)',
         icon: <FilePlus size={12} />,
         shortcut: 'Ctrl+N',
-        action: handleNewProject,
+        action: () => handleNewProject('blank'),
+      },
+      {
+        label: 'New Project — Arcade (no physics)',
+        icon: <FilePlus size={12} />,
+        shortcut: '',
+        action: () => handleNewProject('arcade'),
+      },
+      {
+        label: 'New Project — Platformer',
+        icon: <FilePlus size={12} />,
+        shortcut: '',
+        action: () => handleNewProject('platformer'),
       },
       {
         label: 'Open Project…',

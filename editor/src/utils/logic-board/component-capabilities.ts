@@ -1,5 +1,6 @@
 import type { ProjectDoc } from '../../types'
 import type { ComponentKey } from '../../types/components'
+import { collisionTriggerRequirement } from './physics-trigger-capabilities'
 import type {
   LogicAction,
   LogicActionType,
@@ -12,7 +13,8 @@ import type {
 export type CapabilityStatus = 'present' | 'partial' | 'missing' | 'unknown'
 
 export interface CapabilityRequirement {
-  component: ComponentKey
+  /** ECS component when applicable; collision hints may omit this. */
+  component?: ComponentKey
   label: string
   status: CapabilityStatus
   message: string
@@ -195,6 +197,8 @@ export function triggerRequirement(
   project: ProjectDoc | null | undefined,
   board: LogicBoard | null | undefined,
 ): CapabilityRequirement | null {
+  const collision = collisionTriggerRequirement(trigger, project, board)
+  if (collision) return collision
   const def = defFor('trigger', trigger.type)[0]
   if (!def) return null
   return requirement(project, board, def)

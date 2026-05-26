@@ -1,8 +1,8 @@
 # ArtCade V2: Global Logic & UI Architecture
 
-> **Versione:** 1.0
-> **Data:** 2026-05-11
-> **Stato:** Specifica di alto livello (logica, fisica arcade, UI)
+> **Versione:** 1.1
+> **Data:** 2026-05-26
+> **Stato:** Specifica di alto livello (logica, fisica arcade, UI) — allineata a [`PHYSICS_OPTIONAL_INTEGRATION_PLAN.md`](PHYSICS_OPTIONAL_INTEGRATION_PLAN.md) Fasi 1–5
 > **Audience:** Runtime C++, editor UI, game design
 
 Questo documento riassume le specifiche finalizzate per i sistemi di **logica**, **fisica arcade** e **interfaccia utente**.
@@ -21,9 +21,21 @@ Invece di calcoli matematici espliciti ovunque, ArtCade sfrutta il **broad-phase
 
 | Tipo | Uso |
 |------|-----|
-| **Static** | Terreno, piattaforme fisse. |
-| **Kinematic (arcade)** | Player tipico: movimento controllato da script; **non** usa la gravita "fisica" classica come un dynamic puro (policy da definire nel controller). |
-| **Dynamic** | Oggetti con massa, rimbalzo, forze esterne. |
+| **Static** | Terreno, piattaforme fisse (`Solid` crea body statico anche senza blocco Physics in JSON). |
+| **Kinematic** | Player con **Physics** esplicito + `PlatformerController`: overlap/collisioni Box2D; movimento da **Transform** (push al body, mai pull). |
+| **Dynamic** | Oggetti con massa, rimbalzo, forze esterne (`physics.applyImpulse` / `applyForce`). |
+
+### Platformer kinematic vs Box2D (2026-05)
+
+| Aspetto | Platformer solo (`platformerController`) | + Physics collider esplicito |
+|---------|------------------------------------------|------------------------------|
+| Movimento | `Transform` + `platformerRt_.velocity` in C++ | Stesso (transform autoritativo) |
+| Body Box2D | **Nessuno** | **Kinematic** (overlap / `onCollision*`) |
+| Grounded | AABB vs entità **Solid** (`groundClass`) | Idem (+ opzionale overlap body) |
+| `world.physicsMode` | `auto` salta `step` se zero bodies | `auto`/`on` quando ci sono solid/sensor/player collider |
+| Logic Board collision | **Non** senza Physics sul player | `onCollision` / Enter / Exit |
+
+**Arcade senza fisica (Flappy, shmup):** `world.physicsMode: off` o `auto` senza Solid/Sensor/Physics; usa **Transform**, **LinearMover**, **onMessage**, o **Sensor** (`onTriggerEnter`/`Exit`) per pickup/zone.
 
 ---
 
@@ -83,6 +95,17 @@ Effetti nativi per aumentare la **qualita percepita** del gioco.
 
 - **Sensor:** fixture Box2D aggiuntiva (`Physics::addSensorFixture`) da `EntityDef.sensor`; log enter/exit in `World::tickSensorOverlapEdges` (MVP debug).
 - **Platformer:** `PlatformerControllerComponent` applicato in C++ in `World::tickPlatformerControllers` (coyote, jump buffer, input WASD/Space) se presente sull'entità della scena attiva.
+
+### Logic Board — capability matrix (collision vs sensor)
+
+| Trigger | Richiede | Alternativa arcade (no player Physics) |
+|---------|----------|----------------------------------------|
+| `onCollision` / `onCollisionEnter` / `onCollisionExit` | Box2D overlap; **Physics** sul player (o target) + `physicsMode` non `off` | `onTriggerEnter`/`Exit` + componente **Sensor** sulla zona; `onMessage` |
+| `onTriggerEnter` / `onTriggerExit` | **Sensor** sulla zona + tag (`targetTag`) | — |
+
+L'editor mostra avvisi gialli in Logic Board (`physics-trigger-capabilities.ts`) quando si usano trigger di collisione senza collider.
+
+**Template progetto (File → New Project):** *Arcade (no physics)* (`physicsMode: off`, player senza body) vs *Platformer* (player + `Solid` ground, `physicsMode: auto`).
 
 ---
 

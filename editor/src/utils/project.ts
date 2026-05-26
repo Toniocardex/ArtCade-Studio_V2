@@ -8,5 +8,6 @@
 export * from './project-builders'
 export * from './project-codec'
 export * from './project-factory'
+export * from './project-templates'
 export * from './project-paths'
 export * from './project-queries'
