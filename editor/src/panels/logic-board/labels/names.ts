@@ -6,19 +6,19 @@ import type {
 
 const TRIGGER_NAMES: Record<LogicTriggerType, string> = {
   onStart: 'Game starts',
-  onSpawn: 'Object spawns',
-  onUpdate: 'Every frame (polling)',
-  onCollision: 'Touching something (level)',
-  onCollisionEnter: 'Starts touching',
-  onCollisionExit: 'Stops touching',
-  onTriggerEnter: 'Enters a zone',
-  onTriggerExit: 'Leaves a zone',
+  onSpawn: 'Object is created',
+  onUpdate: 'Every frame',
+  onCollision: 'While touching object',
+  onCollisionEnter: 'Starts touching object',
+  onCollisionExit: 'Stops touching object',
+  onTriggerEnter: 'Enters trigger zone',
+  onTriggerExit: 'Leaves trigger zone',
   onAnimationEnd: 'Animation finishes',
-  onDestroy: 'Is destroyed',
-  onInput: 'Keyboard input',
-  onMouseInput: 'Mouse on object (polling)',
-  onMessage: 'Message received',
-  onTimer: 'Timer',
+  onDestroy: 'Object is destroyed',
+  onInput: 'Keyboard key',
+  onMouseInput: 'Mouse button',
+  onMessage: 'Message is received',
+  onTimer: 'Timer fires',
 }
 
 const ACTION_NAMES: Record<LogicActionType, string> = {

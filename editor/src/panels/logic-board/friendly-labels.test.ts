@@ -34,7 +34,10 @@ function miniProject(): ProjectDoc {
 
 describe('friendly-labels', () => {
   it('uses plain trigger names', () => {
-    expect(triggerDisplayName('onInput')).toBe('Keyboard input')
+    expect(triggerDisplayName('onInput')).toBe('Keyboard key')
+    expect(triggerDisplayName('onCollisionEnter')).toBe('Starts touching object')
+    expect(triggerDisplayName('onCollisionExit')).toBe('Stops touching object')
+    expect(triggerDisplayName('onMouseInput')).toBe('Mouse button')
     expect(actionDisplayName('spawnEntity')).toBe('Create object')
   })
 

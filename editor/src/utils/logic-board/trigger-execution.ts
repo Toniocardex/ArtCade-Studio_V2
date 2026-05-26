@@ -145,19 +145,38 @@ export function getTriggerExecutionMode(
   return 'event'
 }
 
-export function triggerPickerGroup(
-  type: LogicTriggerType,
-): 'Recommended' | 'Advanced / Polling' {
-  if ((POLLING_TRIGGER_TYPES as readonly string[]).includes(type))
-    return 'Advanced / Polling'
-  return 'Recommended'
+export function triggerPickerGroup(type: LogicTriggerType): string {
+  switch (type) {
+    case 'onStart':
+    case 'onTimer':
+      return 'Time'
+    case 'onSpawn':
+    case 'onDestroy':
+      return 'Object lifecycle'
+    case 'onCollisionEnter':
+    case 'onCollisionExit':
+    case 'onCollision':
+      return 'Object contact'
+    case 'onTriggerEnter':
+    case 'onTriggerExit':
+      return 'Trigger zones'
+    case 'onInput':
+    case 'onMouseInput':
+      return 'Player input'
+    case 'onAnimationEnd':
+      return 'Animation'
+    case 'onMessage':
+      return 'Messages'
+    case 'onUpdate':
+      return 'Frame polling'
+  }
 }
 
 const POLLING_TOOLTIPS: Partial<Record<LogicTriggerType, string>> = {
-  onUpdate: 'Runs every frame — uses tick(dt). Prefer events when possible.',
+  onUpdate: 'Runs every frame - use for continuous checks or per-frame motion.',
   onCollision:
-    'Polls collision.touchingClass each frame. Prefer sensor enter/exit.',
-  onMouseInput: 'Polls mouse state each frame inside tick(dt).',
+    'Runs every frame while objects touch. Use Starts/Stops touching for one-shot contact actions.',
+  onMouseInput: 'Polls mouse button state. Add a Mouse nearby check when the action should require the cursor over this object.',
 }
 
 export function triggerExecutionTooltip(type: LogicTriggerType): string | undefined {

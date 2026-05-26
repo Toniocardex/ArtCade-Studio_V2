@@ -22,8 +22,10 @@ function ev(trigger: LogicEvent['trigger']): LogicEvent {
 
 describe('trigger-execution', () => {
   it('classifies polling trigger types', () => {
-    expect(triggerPickerGroup('onUpdate')).toBe('Advanced / Polling')
-    expect(triggerPickerGroup('onSpawn')).toBe('Recommended')
+    expect(triggerPickerGroup('onUpdate')).toBe('Frame polling')
+    expect(triggerPickerGroup('onSpawn')).toBe('Object lifecycle')
+    expect(triggerPickerGroup('onCollisionEnter')).toBe('Object contact')
+    expect(triggerPickerGroup('onTriggerEnter')).toBe('Trigger zones')
   })
 
   it('onInput pressed is event, down is polling', () => {
