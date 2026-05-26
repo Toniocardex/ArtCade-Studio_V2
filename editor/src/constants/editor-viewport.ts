@@ -35,8 +35,8 @@ export const EDITOR_ZOOM_WHEEL_FACTOR = 1.1
  */
 export const EDITOR_ZOOM_SNAP_DECIMALS = 3
 
-/** Padding on each side of the canvas inside the scroll container (Tailwind p-6 = 24px × 2). */
-export const EDITOR_CANVAS_PADDING_PX = 48
+/** Total canvas scroll-area padding across each axis (Tailwind p-2 = 8px × 2). */
+export const EDITOR_CANVAS_PADDING_PX = 16
 
 /** Default editor-only guide/snap grid size in world pixels. */
 export const DEFAULT_EDITOR_GRID_SIZE = 32

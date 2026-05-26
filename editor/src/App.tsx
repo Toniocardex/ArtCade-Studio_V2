@@ -41,8 +41,8 @@ function bootLog(message: string, level: ConsoleEntry['level']): ConsoleEntry {
 
 function CanvasView() {
   const { state } = useEditor()
-  const [leftW, setLeftW]   = usePersistedWidth('artcade.sidebar-left-w',  256)
-  const [rightW, setRightW] = usePersistedWidth('artcade.sidebar-right-w', 320)
+  const [leftW, setLeftW]   = usePersistedWidth('artcade.sidebar-left-w-v2',  256)
+  const [rightW, setRightW] = usePersistedWidth('artcade.sidebar-right-w-v2', 256)
 
   const isEditingTileset = state.editingTilesetId != null
 

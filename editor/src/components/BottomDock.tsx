@@ -15,8 +15,8 @@ import ConsolePanel from '../panels/ConsolePanel'
 
 const HANDLE_H = 4
 const TAB_BAR_H = 28
-/** Total outer height when expanded (handle + tab bar + content). Matches legacy AssetsStrip. */
-const DEFAULT_HEIGHT = 256
+/** Total outer height when expanded (handle + tab bar + content). */
+const DEFAULT_HEIGHT = 128
 const MIN_CONTENT_H = 92
 const MIN_TOTAL_H = HANDLE_H + TAB_BAR_H + MIN_CONTENT_H
 
@@ -35,7 +35,7 @@ export default function BottomDock() {
 
   const [maxH, setMaxH] = useState(maxDockHeight)
   const [height, setHeight] = usePersistedHeight(
-    'artcade.bottom-dock-h',
+    'artcade.bottom-dock-h-v2',
     DEFAULT_HEIGHT,
     MIN_TOTAL_H,
     maxH,

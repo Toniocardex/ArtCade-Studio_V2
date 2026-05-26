@@ -408,7 +408,7 @@ export default function PreviewPanel() {
         onPointerMove={onCanvasAreaPointerMove}
         onPointerUp={onCanvasAreaPointerUp}
         onPointerCancel={onCanvasAreaPointerUp}
-        className="flex-1 overflow-auto p-6 canvas-scrollarea outline-none"
+        className="flex-1 overflow-auto p-2 canvas-scrollarea outline-none"
         style={{ cursor: panCursor }}
       >
         <div className="min-w-full min-h-full flex items-center justify-center">
