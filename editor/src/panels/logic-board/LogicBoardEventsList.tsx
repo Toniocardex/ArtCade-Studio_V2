@@ -6,7 +6,8 @@ import { TypePicker } from '../../components/logic-board/TypePicker'
 import { createLogicEvent } from '../../utils/logic-board/factory'
 import { logicBoardLabel } from '../../utils/project'
 import EventCard from './EventCard'
-import { TRIGGER_TYPES, defaultTrigger } from './options'
+import { defaultTrigger } from './options'
+import { allowedTriggersForTarget } from '../../utils/logic-board/trigger-compatibility'
 
 interface LogicBoardEventsListProps {
   project: ProjectDoc
@@ -103,7 +104,7 @@ export function LogicBoardEventsList({
           <div className="flex items-center gap-2 mt-2 flex-wrap">
             <TypePicker
               kind="trigger"
-              types={TRIGGER_TYPES}
+              types={allowedTriggersForTarget(board.target.type)}
               value={newTrigger}
               onChange={(t) => setNewTrigger(t as LogicTriggerType)}
               className="max-w-[240px]"

@@ -28,6 +28,10 @@ import {
   triggerRequirement,
   type CapabilityRequirement,
 } from '../../utils/logic-board/component-capabilities'
+import {
+  allowedTriggersForTarget,
+  eventCompatibilityError,
+} from '../../utils/logic-board/trigger-compatibility'
 import LogicIconButton from '../../components/logic-board/LogicIconButton'
 import { cloneLogicAction } from '../../utils/logic-board/clone'
 import {
@@ -283,6 +287,10 @@ export default function EventEditor({
     recommendedActionTypes(project, board),
     event.trigger,
   )
+  const triggerTypes = board
+    ? allowedTriggersForTarget(board.target.type)
+    : TRIGGER_TYPES
+  const compatError = board ? eventCompatibilityError(event, board.target.type) : null
   const hasSavedConditions =
     event.conditionRoot != null || (event.conditions?.length ?? 0) > 0
   const onlyIfEnabled =
@@ -302,9 +310,14 @@ export default function EventEditor({
         icon={<Zap size={13} />}
         tone="when"
       >
+        {compatError && (
+          <div className="mb-2 rounded border border-[var(--danger)] bg-[var(--danger-bg,rgba(220,38,38,0.08))] px-2 py-1.5 text-[11px] text-[var(--danger,#dc2626)]">
+            {compatError} Change the trigger or move this rule to a compatible board.
+          </div>
+        )}
         <TypePicker
           kind="trigger"
-          types={TRIGGER_TYPES}
+          types={triggerTypes}
           value={event.trigger.type}
           onChange={(t) => {
             const nextTrigger = defaultTrigger(t as LogicTrigger['type'])
