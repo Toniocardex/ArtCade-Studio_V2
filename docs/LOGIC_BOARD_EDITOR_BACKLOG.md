@@ -28,6 +28,10 @@
 Regola: mostrare i numeri di design quando servono al bilanciamento; nascondere
 o spostare in Advanced solo la complessità engine-only.
 
+- [x] **UX charter** — [`LOGIC_BOARD_UX_CHARTER.md`](LOGIC_BOARD_UX_CHARTER.md): Base/Advanced view, percorsi utente, When vs If — 2026-05
+- [x] **Base / Advanced toggle** — rail `AuthoringModeSwitch`, default **Base**, `localStorage`, `data-authoring-mode` — 2026-05
+- [x] **Condizioni tier + contesto** — `condition-picker.ts`: Common checks; `isKeyDown` hidden in Base only when When = keyboard — 2026-05
+- [x] **OR tasti su When** — `alternateKeyCodes` + `OnInputTriggerFields` — 2026-05
 - [x] **Logic Board UX refresh (English)** — `friendly-labels.ts`, When / Only if / Then blocks, grouped pickers, advanced condition tree + Script tab tucked away — 2026-05
 - [x] **Entity-first authoring** — rulesheets default to `entity_id`, Scenes-panel/Inspector navigation, class boards under Advanced — 2026-05
 - [x] Modale cattura tasto (`keyCapture` + `KeyCapture.tsx`) — 2026-05

@@ -29,6 +29,7 @@ import { projectReducer }    from './reducers/project-reducer'
 import { entityReducer }     from './reducers/entity-reducer'
 import { sceneReducer }      from './reducers/scene-reducer'
 import { logicBoardReducer } from './reducers/logic-board-reducer'
+import { applyAuthoringModeToDocument } from '../utils/authoring-mode'
 
 export type { CoreState, VolatileState, Action }
 
@@ -87,6 +88,7 @@ const VolatileContext = createContext<VolatileContextValue | null>(null)
 // ---------------------------------------------------------------------------
 
 export function EditorProvider({ children }: { children: ReactNode }) {
+  applyAuthoringModeToDocument(initialCoreState.authoringMode)
   const [coreState,     coreDi]  = useReducer(coreReducer,     initialCoreState)
   const [volatileState, volDi]   = useReducer(volatileReducer, initialVolatileState)
 

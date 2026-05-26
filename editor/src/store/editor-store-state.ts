@@ -6,6 +6,8 @@
 // in editor/src/store/reducers/ can import these types without creating a
 // cycle with the provider module.
 
+import type { AuthoringMode } from '../types/authoring-mode'
+import { readStoredAuthoringMode } from '../utils/authoring-mode'
 import type {
   EditorView,
   ScriptFile, ProjectDoc, ConsoleEntry,
@@ -68,6 +70,8 @@ export interface CoreState {
    * runtime reset, etc.).
    */
   projectLoadEpoch: number
+  /** UI presentation tier: guidance/density only (see LOGIC_BOARD_UX_CHARTER). */
+  authoringMode: AuthoringMode
 }
 
 // ---- Volatile state (high-frequency) ---------------------------------------
@@ -83,6 +87,7 @@ export type Action =
   | { type: 'SELECT_ENTITY';     entityId: number | null }
   | { type: 'SELECT_SCENE';      sceneId: string }
   | { type: 'SET_MODE';          mode: EditorView }
+  | { type: 'SET_AUTHORING_MODE'; mode: AuthoringMode }
   | { type: 'TOGGLE_CONSOLE' }
   | { type: 'SET_CONSOLE_OPEN';  open: boolean }
   | { type: 'SET_BOTTOM_PANEL_TAB'; tab: 'assets' | 'console' }
@@ -173,6 +178,7 @@ export const initialCoreState: CoreState = {
   editorZoomMode:   'manual',
   cameraPreview:    false,
   projectLoadEpoch: 0,
+  authoringMode: readStoredAuthoringMode(),
 }
 
 export const initialVolatileState: VolatileState = {

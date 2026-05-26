@@ -40,6 +40,7 @@ export function TypePicker({
   onChange,
   className,
   recommendedTypes,
+  recommendedGroupLabel,
 }: {
   kind: ComponentKind
   types: readonly string[]
@@ -47,17 +48,24 @@ export function TypePicker({
   onChange: (type: string) => void
   className?: string
   recommendedTypes?: readonly string[]
+  /** Override optgroup label for recommendedTypes (e.g. "Common checks"). */
+  recommendedGroupLabel?: string
 }) {
+  const recommendedLabel =
+    recommendedGroupLabel ??
+    (kind === 'condition' ? 'Common checks' : 'Recommended for this object')
+
   const groups = useMemo(() => {
     const map = new Map<string, string[]>()
     const recommended = new Set(recommendedTypes ?? [])
     for (const t of types) {
-      const cat = recommended.has(t) ? 'Recommended for this object' : category(kind, t)
+      const cat = recommended.has(t) ? recommendedLabel : category(kind, t)
       const list = map.get(cat) ?? []
       list.push(t)
       map.set(cat, list)
     }
     const order = [
+      'Common checks',
       'Recommended for this object',
       'Time',
       'Object state',
@@ -83,7 +91,7 @@ export function TypePicker({
       if (ib >= 0) return 1
       return a.localeCompare(b)
     })
-  }, [kind, recommendedTypes, types])
+  }, [kind, recommendedLabel, recommendedTypes, types])
 
   return (
     <select

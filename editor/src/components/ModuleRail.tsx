@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useEditor } from '../store/editor-store'
 import { applyTheme, toggleTheme, type Theme } from '../utils/theme'
 import type { EditorView } from '../types'
+import AuthoringModeSwitch from './AuthoringModeSwitch'
 
 const MODES: {
   id: EditorView
@@ -71,6 +72,10 @@ export default function ModuleRail() {
       </div>
 
       <div className="flex-1 min-h-4" />
+
+      <AuthoringModeSwitch />
+
+      <div className="h-2" />
 
       <button
         type="button"

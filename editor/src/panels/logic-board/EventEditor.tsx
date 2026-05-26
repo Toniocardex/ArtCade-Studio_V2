@@ -12,7 +12,12 @@ import {
   Trash2,
   Zap,
 } from 'lucide-react'
-import type { LogicAction, LogicEvent, LogicTrigger } from '../../types/logic-board'
+import type {
+  LogicAction,
+  LogicCondition,
+  LogicEvent,
+  LogicTrigger,
+} from '../../types/logic-board'
 import { LogicBlock } from '../../components/logic-board/LogicBlock'
 import { TypePicker } from '../../components/logic-board/TypePicker'
 import { SchemaParamForm } from '../../components/logic-board/SchemaParamForm'
@@ -33,11 +38,17 @@ import {
   allowedTriggersForTarget,
   eventCompatibilityError,
 } from '../../utils/logic-board/trigger-compatibility'
+import {
+  conditionTypesForTrigger,
+  conditionTypesInUse,
+  recommendedConditionTypes,
+} from '../../utils/logic-board/condition-picker'
+import { useEditor } from '../../store/editor-store'
+import type { AuthoringMode } from '../../types/authoring-mode'
 import LogicIconButton from '../../components/logic-board/LogicIconButton'
 import { cloneLogicAction } from '../../utils/logic-board/clone'
 import {
   ACTION_TYPES,
-  CONDITION_TYPES,
   defaultAction,
   defaultCondition,
   defaultTrigger,
@@ -213,16 +224,60 @@ function ActionCard({
 const condSel =
   'bg-[var(--bg)] border border-[var(--border-2)] text-[var(--accent)] px-2 py-1 rounded text-xs'
 
+function IfSectionHints({
+  onlyIfEnabled,
+  trigger,
+  authoringMode,
+}: {
+  onlyIfEnabled: boolean
+  trigger: LogicTrigger
+  authoringMode: AuthoringMode
+}) {
+  if (authoringMode === 'advanced') {
+    if (!onlyIfEnabled) return null
+    return (
+      <p className="text-[10px] leading-snug text-[var(--muted)]">
+        Extra filters after <strong>When</strong>.
+      </p>
+    )
+  }
+  if (!onlyIfEnabled) {
+    return (
+      <p className="text-[10px] leading-snug text-[var(--muted)]">
+        Optional — turn on only if you need extra filters beyond <strong>When</strong>.
+      </p>
+    )
+  }
+  if (trigger.type === 'onInput') {
+    return (
+      <p className="text-[10px] leading-snug text-[var(--muted)]">
+        For key presses (including W <strong>or</strong> Space), use{' '}
+        <strong>When</strong> — not &quot;Key held&quot; here. Use If for score,
+        grounded, touching type, etc.
+      </p>
+    )
+  }
+  return (
+    <p className="text-[10px] leading-snug text-[var(--muted)]">
+      Extra checks that must pass in addition to <strong>When</strong>.
+    </p>
+  )
+}
+
 function SimpleConditions({
   event,
   board,
   project,
   onChange,
+  conditionTypes,
+  recommendedConditions,
 }: {
   event: LogicEvent
   board?: LogicBoard | null
   project?: ProjectDoc | null
   onChange: (e: LogicEvent) => void
+  conditionTypes: readonly LogicCondition['type'][]
+  recommendedConditions: readonly LogicCondition['type'][]
 }) {
   const conditions = event.conditions ?? []
   const combineOp = event.conditionsOperator ?? 'AND'
@@ -262,11 +317,12 @@ function SimpleConditions({
         >
           <TypePicker
             kind="condition"
-            types={CONDITION_TYPES}
+            types={conditionTypes}
+            recommendedTypes={recommendedConditions}
             value={c.type}
             onChange={(t) => {
               const next = conditions.slice()
-              next[i] = defaultCondition(t as (typeof CONDITION_TYPES)[number])
+              next[i] = defaultCondition(t as LogicCondition['type'])
               onChange({ ...event, conditions: next, conditionRoot: undefined })
             }}
             className="max-w-[200px]"
@@ -328,6 +384,8 @@ export default function EventEditor({
   onChange: (e: LogicEvent) => void
   onDone: () => void
 }) {
+  const { state } = useEditor()
+  const authoringMode = state.authoringMode
   const [advancedConditions, setAdvancedConditions] = useState(
     () => event.conditionRoot != null,
   )
@@ -352,8 +410,25 @@ export default function EventEditor({
     })
   }
 
+  const typesInUse = conditionTypesInUse(event)
+  const pickerConditionTypes = conditionTypesForTrigger(
+    event.trigger,
+    undefined,
+    authoringMode,
+    typesInUse,
+  )
+  const pickerRecommendedConditions = recommendedConditionTypes(
+    event.trigger,
+    project,
+    board,
+    authoringMode,
+  )
+
   return (
-    <div className="space-y-3 border-t border-[var(--border)] bg-[var(--panel-3)] p-3">
+    <div
+      className="space-y-3 border-t border-[var(--border)] bg-[var(--panel-3)] p-3"
+      data-logic-rule-editor
+    >
       <LogicBlock
         title="When"
         icon={<Zap size={13} />}
@@ -412,6 +487,11 @@ export default function EventEditor({
           </button>
         }
       >
+        <IfSectionHints
+          onlyIfEnabled={onlyIfEnabled}
+          trigger={event.trigger}
+          authoringMode={authoringMode}
+        />
         {!onlyIfEnabled ? null : !advancedConditions ? (
           <>
             <SimpleConditions
@@ -419,6 +499,8 @@ export default function EventEditor({
               board={board}
               project={project}
               onChange={onChange}
+              conditionTypes={pickerConditionTypes}
+              recommendedConditions={pickerRecommendedConditions}
             />
             <button
               type="button"
@@ -435,7 +517,9 @@ export default function EventEditor({
                 }
               }}
             >
-              Advanced conditions (combine with AND / OR)...
+              {authoringMode === 'base'
+                ? 'Nested AND/OR groups (advanced)…'
+                : 'Nested AND/OR groups…'}
             </button>
           </>
         ) : (
@@ -453,9 +537,15 @@ export default function EventEditor({
                 })
               }}
             >
-              Discard advanced checks and use simple checks
+              Back to simple checks
             </button>
-            <ConditionTreeEditor event={event} onChange={onChange} advanced />
+            <ConditionTreeEditor
+              event={event}
+              onChange={onChange}
+              advanced
+              conditionTypes={pickerConditionTypes}
+              recommendedConditionTypes={pickerRecommendedConditions}
+            />
           </>
         )}
       </LogicBlock>

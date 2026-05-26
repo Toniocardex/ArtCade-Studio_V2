@@ -11,6 +11,10 @@ import {
   DEFAULT_EDITOR_GRID_SIZE, EDITOR_GRID_SIZE_MAX, EDITOR_GRID_SIZE_MIN,
 } from '../../constants/editor-viewport'
 import { clampEditorZoom } from '../../utils/editor-zoom'
+import {
+  applyAuthoringModeToDocument,
+  persistAuthoringMode,
+} from '../../utils/authoring-mode'
 
 function syncConsoleOpen(state: CoreState): CoreState {
   return {
@@ -34,6 +38,12 @@ export const uiReducer: DomainReducer = (state: CoreState, action: Action) => {
         return syncConsoleOpen({ ...next, bottomPanelTab: 'console' })
       }
       return next
+    }
+    case 'SET_AUTHORING_MODE': {
+      if (state.authoringMode === action.mode) return state
+      persistAuthoringMode(action.mode)
+      applyAuthoringModeToDocument(action.mode)
+      return { ...state, authoringMode: action.mode }
     }
     case 'TOGGLE_CONSOLE':
       if (state.bottomPanelCollapsed || state.bottomPanelTab !== 'console') {

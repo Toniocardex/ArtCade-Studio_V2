@@ -47,6 +47,7 @@ export default function LogicBoardPanel() {
   const { selection } = state
   const runtimeReady = useRuntimeReady()
 
+  const authoringMode = state.authoringMode
   const boards = project?.logicBoards ?? []
   const [selectedBoardId, setSelectedBoardId] = useState<string | null>(
     boards[0]?.boardId ?? null,
@@ -311,6 +312,16 @@ export default function LogicBoardPanel() {
         applyMsg={applyMsg}
         project={project}
       />
+
+      {authoringMode === 'base' && (
+        <p className="px-4 py-1.5 text-[10px] leading-snug text-[var(--muted)] border-b border-[var(--border)] bg-[var(--panel-2)]">
+          <strong className="text-[var(--text)] font-medium">Base view</strong> — guided
+          rules with the full toolset (Canvas, Logic, Script). Use{' '}
+          <strong>When</strong> for keys (including OR). Turn on{' '}
+          <strong>If</strong> only for extra filters. Switch to{' '}
+          <strong>Advanced</strong> on the rail for a denser layout.
+        </p>
+      )}
 
       <RulesheetControls
         project={project}

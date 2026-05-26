@@ -36,6 +36,7 @@ function baseState(p: ProjectDoc | null = project()): CoreState {
     editorZoomMode: 'manual',
     cameraPreview: false,
     projectLoadEpoch: 0,
+    authoringMode: 'base',
   }
 }
 

@@ -27,12 +27,16 @@ function NodeEditor({
   onChange,
   onRemove,
   depth,
+  conditionTypes,
+  recommendedConditionTypes,
 }: {
   node: LogicConditionNode
   path: string
   onChange: (n: LogicConditionNode) => void
   onRemove?: () => void
   depth: number
+  conditionTypes: readonly LogicCondition['type'][]
+  recommendedConditionTypes?: readonly LogicCondition['type'][]
 }) {
   if (node.kind === 'leaf') {
     const cond = node.condition
@@ -44,7 +48,8 @@ function NodeEditor({
         <span className={lbl}>Check</span>
         <TypePicker
           kind="condition"
-          types={CONDITION_TYPES}
+          types={conditionTypes}
+          recommendedTypes={recommendedConditionTypes}
           value={cond.type}
           onChange={(t) =>
             onChange({
@@ -145,6 +150,8 @@ function NodeEditor({
           node={child}
           path={`${path}/${i}`}
           depth={depth + 1}
+          conditionTypes={conditionTypes}
+          recommendedConditionTypes={recommendedConditionTypes}
           onChange={(next) => {
             const statements = group.statements.slice()
             statements[i] = next
@@ -165,10 +172,14 @@ export function ConditionTreeEditor({
   event,
   onChange,
   advanced = false,
+  conditionTypes = CONDITION_TYPES,
+  recommendedConditionTypes: recommendedTypes,
 }: {
   event: LogicEvent
   onChange: (e: LogicEvent) => void
   advanced?: boolean
+  conditionTypes?: readonly LogicCondition['type'][]
+  recommendedConditionTypes?: readonly LogicCondition['type'][]
 }) {
   if (!advanced) return null
 
@@ -177,12 +188,15 @@ export function ConditionTreeEditor({
   return (
     <div className="flex flex-col gap-2">
       <p className="text-[10px] text-[var(--muted)]">
-        Combine checks: use groups for &quot;all must pass&quot; or &quot;any can pass&quot;.
+        Nested groups: use when you need (A and B) or C. For simple OR between
+        checks, use simple If with &quot;Any can pass&quot; instead.
       </p>
       <NodeEditor
         node={root}
         path="root"
         depth={0}
+        conditionTypes={conditionTypes}
+        recommendedConditionTypes={recommendedTypes}
         onChange={(r) => onChange({ ...event, conditions: undefined, conditionRoot: r })}
       />
     </div>

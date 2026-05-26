@@ -11,7 +11,7 @@
 
 ### 0️⃣ **LOGIC_BOARD_SPEC.md** — Glossario + Sheet + Logic Board (20–35 min) ⭐
 
-**Parte I:** glossario (Logic Board / Event / Component, ECS, …). **Parte II:** formato tabellare when/then. **Parte III:** specifica tecnica Logic Board (JSON event-centric, compilatore TS→Lua, UI, MVP). **Parte IV:** puntatori a documenti satellite. Contratti nel SPEC; principio prodotto **`ARTIST_FRIENDLY_COMPONENTS.md`** (~5 min); **`LOGIC_BOARD_DESIGN_GUIDELINES.md`** (~5 min); condizionali OR/ELSE e branch flow: **`LOGIC_BOARD_CONDITIONAL_DESIGN.md`** (~10 min).
+**Parte I:** glossario (Logic Board / Event / Component, ECS, …). **Parte II:** formato tabellare when/then. **Parte III:** specifica tecnica Logic Board (JSON event-centric, compilatore TS→Lua, UI, MVP). **Parte IV:** puntatori a documenti satellite. Contratti nel SPEC; principio prodotto **`ARTIST_FRIENDLY_COMPONENTS.md`** (~5 min); **`LOGIC_BOARD_UX_CHARTER.md`** (~5 min, When/If/Then artist-first); **`LOGIC_BOARD_DESIGN_GUIDELINES.md`** (~5 min); condizionali OR/ELSE e branch flow: **`LOGIC_BOARD_CONDITIONAL_DESIGN.md`** (~10 min).
 
 ### 1️⃣ **ARCHITECTURAL_RATIONALE.md** — Il PERCHÉ (20–30 min) ⭐ INIZIO QUI
 

@@ -27,6 +27,7 @@ function baseState(p: ProjectDoc): CoreState {
     openScripts: [], activeScriptPath: null, isPlaying: false, selectedTileCell: 1,
     editorGridSize: 32, snapToGrid: false, editorZoom: 1.0, editorZoomMode: 'manual', cameraPreview: false,
     projectLoadEpoch: 0,
+    authoringMode: 'base',
   }
 }
 

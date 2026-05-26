@@ -711,6 +711,7 @@ Questa parte **non** duplica il contenuto: indica dove trovare le raccomandazion
 | Documento | Contenuto |
 |-----------|-----------|
 | [`ARTIST_FRIENDLY_COMPONENTS.md`](ARTIST_FRIENDLY_COMPONENTS.md) | Principio prodotto: numeri di design espliciti, scelte di comportamento descrittive, dettagli engine-only in Advanced |
+| [`LOGIC_BOARD_UX_CHARTER.md`](LOGIC_BOARD_UX_CHARTER.md) | Filosofia artist-first / advanced-ready: When vs If, tier condizioni, OR tasti, checklist PR |
 | [`LOGIC_BOARD_DESIGN_GUIDELINES.md`](LOGIC_BOARD_DESIGN_GUIDELINES.md) | Blackboard locale/globale, Logic Messaging / segnali, nodi data-driven (JSON Schema), visual flow e organizzazione grafo, precisione numerica Lua ↔ C++ |
 | [`LOGIC_BOARD_CONDITIONAL_DESIGN.md`](LOGIC_BOARD_CONDITIONAL_DESIGN.md) | `LogicConditionGroup` (AND/OR ad albero), anti-pattern eventi duplicati, branching IF/ELSE, branch fisico vs blocco compatto, modello grafo, compilazione Lua, React Flow, uso didattico |
 | [`ArtCade_V2_Riepilogo_Suggerimenti.md`](ArtCade_V2_Riepilogo_Suggerimenti.md) | Visione UX aggiornata: numeri di design visibili, complessità matematica/engine nascosta, 8 gruppi componenti, shader, layout IDE |
