@@ -169,6 +169,8 @@ void RuntimeEntityGateway::ensurePhysicsBody(EntityId id) {
     }
     if (hasTopDown && !hasPlatformer && !hasSolid)
         comp.bodyType = BodyType::Kinematic;
+    if (hasPlatformer && hasExplicitCollider)
+        comp.bodyType = BodyType::Kinematic;
     if (hasSolid)
         comp.bodyType = BodyType::Static;
 
@@ -177,6 +179,11 @@ void RuntimeEntityGateway::ensurePhysicsBody(EntityId id) {
     const uint32_t handle = physics_->createBody(id, comp);
     if (handle == 0) return;
 
+    PhysicsComponent stored{};
+    if (getPhysicsComponent(id, stored) && stored.bodyType != comp.bodyType) {
+        stored.bodyType = comp.bodyType;
+        registry_->setPhysics(id, stored);
+    }
     setPhysicsHandle(id, handle);
     physics_->setPosition(handle, transform.position);
 

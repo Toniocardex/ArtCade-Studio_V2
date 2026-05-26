@@ -1,8 +1,8 @@
 # Piano di integrazione — Physics opzionale e movimento kinematico
 
-> **Versione**: 1.1  
+> **Versione**: 1.2  
 > **Data**: 2026-05-25  
-> **Status**: Fase 1 chiusa — platformer kinematic senza body implicito; Fase 2 (grounded raycast) non iniziata  
+> **Status**: Fase 1 — modello nativo transform-first; Fase 2 (grounded raycast) non iniziata  
 > **Audience**: C++ / Editor / Product  
 > **Collegamenti**: `GLOBAL_LOGIC_UI_ARCHITECTURE.md`, `ARTIST_FRIENDLY_COMPONENTS.md`, `ARCHITETTURA_TECNICA_ENGINE_2D.md` §9, `ENGINE_INTEGRATION_ROADMAP.md` (tracker engine separato)
 
@@ -19,9 +19,17 @@ Permettere due famiglie di giochi nello stesso engine **senza costo mentale né 
 
 Principi:
 
-1. **Platformer Controller** = gravità e salto **scriptati** (`customGravity`, `jumpForce`, `maxSpeed`) — già parzialmente vero oggi; obiettivo = **non obbligare** un corpo Box2D dynamic sul player.
-2. **Physics (Box2D)** = **componente esplicito** (o shortcut documentate), non sottinteso per ogni entità.
+1. **Platformer Controller** = gravità e salto **scriptati** su `Transform` (`customGravity`, `jumpForce`, `maxSpeed`). Unica fonte di verità per posizione/velocità gameplay.
+2. **Physics (Box2D)** = **componente esplicito** per collisioni, sensori, pile, oggetti che cadono — **non** guida il movimento del platformer.
 3. **Mondo** = `physics.step` e sensor refresh **solo se** esistono corpi/fixture attivi (o flag progetto `physicsMode`, vedi §5.1).
+
+### Regola nativa (pre-release, nessun adattamento legacy)
+
+| Sistema | Fonte di verità | Ruolo Box2D |
+|---------|-----------------|-------------|
+| Platformer | `Transform` + `platformerRt_.velocity` | Collider **kinematic** opzionale (overlap / `onCollision`); posizione **push** da transform, mai pull in `syncPhysicsToEntities` |
+| TopDown | `Transform` o body kinematic (stesso pattern) | Opzionale |
+| Oggetti fisici (crate, pile) | Body dynamic/kinematic | Box2D guida posizione → `syncPhysicsToEntities` |
 
 ---
 
@@ -191,16 +199,15 @@ flowchart TB
 
 ### Fase 1 — Platformer kinematic senza body obbligatorio (3–5 giorni) ✅
 
-**Obiettivo**: `PlatformerController` funziona come TopDown quando `physicsHandle == 0`.
+**Obiettivo**: `PlatformerController` integra sempre su `Transform`; collider Physics opzionale solo per overlap.
 
 | Area | Modifica |
 |------|----------|
-| `world_movement.cpp` | Se `handle == 0`: integra `vy`/`vx` su `Transform` (position += velocity * dt) |
-| `ensurePhysicsBody` | **Non** creare body dynamic solo per `platformerController` (rimuovere da condizione “crea body”) |
-| Editor | Tooltip: “Platformer non richiede Physics; aggiungi Solid al terreno per grounded con overlap” |
+| `world_movement.cpp` | Integrazione `vx`/`vy` su `Transform`; push posizione/velocità al body se presente |
+| `world.cpp` | `syncPhysicsToEntities` salta entità con platformer (transform resta autoritativo) |
+| `ensurePhysicsBody` | Nessun body solo per `platformerController`; platformer + collider esplicito → **Kinematic** |
+| Editor | Tooltip: movimento su transform; Physics opzionale per collisioni |
 | Lua API | `platformer.isGrounded` / `requestJump` invariati |
-
-**Compatibilità**: progetti con player + physics + platformer continuano a usare `setLinearVelocity` se handle presente (ramo esistente).
 
 **DoD**:
 
@@ -219,7 +226,7 @@ flowchart TB
 | **2b — AABB vs Solid registry** | Solid come dati + hit test AABB (no step) | Media-alta |
 | **2c — Tilemap layer** | Ground layer da tilemap (futuro) | Alta |
 
-**Raccomandazione**: **2a** per MVP fase 2; overlap Box2D resta fallback se entrambi i body esistono.
+**Raccomandazione**: **2a** per MVP fase 2; overlap Box2D opzionale se player ha collider kinematic.
 
 **DoD**: livello con solo `Solid` static + player kinematic: `isGrounded` true sul pavimento.
 
@@ -248,11 +255,8 @@ flowchart TB
 |------|----------|
 | Inspector | Blocco **Physics** come Sensor/Solid (bodyType, collider shape/size) |
 | `ensurePhysicsBody` | Body **solo** con `physics` esplicito OR `solid` OR `sensor` (platformer/topDown **non** implicano body) |
-| Migrazione | Script one-shot: entità con solo platformer e body implicito → rimuovi body dynamic al load (o mantieni fino a Fase 1 ramo velocity) |
 
-**Breaking change controllato**: progetti che contavano su body auto da platformer → release note + migrazione doc.
-
-**DoD**: nuova entità + platformer: nessun body finché non si aggiunge Physics o Solid al terreno.
+**DoD**: nuova entità + platformer: nessun body finché non si aggiunge Physics (collider) o Solid al terreno.
 
 ---
 
@@ -304,7 +308,8 @@ Resta collider + `bodyType`. Documentare: **non necessario** per platformer kine
 | LinearMover | Opzionale | Se body | Può usare transform fallback |
 | Solid | Static | Se presente | Terreno |
 | Sensor | Static sensor | Se presente | Trigger zone |
-| Physics explicit | Dynamic/Kinematic/Static | Sì | Puzzle, pile, realism |
+| Physics explicit (no platformer) | Dynamic/Kinematic/Static | Sì | Puzzle, pile, realism |
+| Physics + Platformer | Kinematic | Se collider esplicito | Solo overlap / collisioni; movimento da transform |
 
 ---
 
@@ -312,9 +317,9 @@ Resta collider + `bodyType`. Documentare: **non necessario** per platformer kine
 
 | Rischio | Mitigazione |
 |---------|-------------|
-| Progetti esistenti perdono grounded | Fase 1 mantiene ramo overlap; Fase 2 aggiunge raycast |
-| Logic Board `onCollision` inutilizzabile senza physics | Doc + warning in editor; sensor/message per arcade |
-| Doppia fonte posizione (transform vs body) | Regola: kinematic scrive transform; sync one-way se body kinematic esplicito |
+| Grounded senza collider player | Fase 2 raycast / AABB su Solid |
+| Logic Board `onCollision` senza Physics sul player | Doc + warning; sensor/message per arcade puro |
+| Doppia fonte posizione | Platformer: transform autoritativo, body segue; altri: body → transform in sync |
 | Sensor senza step | `physicsMode: on` forza step; oppure sensor AABB futuro (out of scope) |
 | WASM performance | Fase 3 misura con profiler esistente |
 
@@ -377,7 +382,7 @@ Ogni fase = PR separato reviewabile (~300–800 LOC ciascuno).
 1. Template **“Arcade — no physics”** esegue preview senza `physics->step` misurabile quando nessun solid/sensor.
 2. Template **“Platformer”** usa `customGravity` / `jumpForce` configurabili; player **non** richiede `PhysicsComponent`.
 3. Documentazione artista: “Quando aggiungere Physics” in `ARTIST_FRIENDLY_COMPONENTS` o addendum a questo piano.
-4. Zero regression su `test-project` platformer esistente dopo migrazione guidata.
+4. `test-project` e fixture `physics-baseline` passano smoke platformer + optional Physics collider.
 
 ---
 
@@ -443,12 +448,12 @@ Ogni fase = PR separato reviewabile (~300–800 LOC ciascuno).
 3. Inspector: `description` su Platformer + campo `groundClass`.
 4. Test: `test_platformer_kinematic_falls_with_custom_gravity`, no implicit body, movimento orizzontale kinematic.
 
-### Compatibilità
+### Modello nativo (v1.2)
 
-- Player con `physics` + `platformerController`: ramo Box2D invariato (`setLinearVelocity`).
-- `isGrounded` overlap: ancora richiede handle sul player (Fase 2).
+- Un solo percorso platformer: integrazione su `Transform`, push a body kinematic se presente.
+- `syncPhysicsToEntities` non sovrascrive transform su entità con `platformerController`.
+- `ensurePhysicsBody`: platformer + collider esplicito → `BodyType::Kinematic`.
 
 ### Follow-up
 
-- Fase 2: raycast / AABB per grounded senza body player.
-- Aggiornare test baseline fixture README dopo smoke manuale.
+- Fase 2: raycast / AABB per grounded senza collider sul player.

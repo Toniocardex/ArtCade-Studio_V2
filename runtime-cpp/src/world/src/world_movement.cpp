@@ -58,12 +58,8 @@ void World::tickPlatformerControllers(float dt) {
             else
                 rt.jumpBufferTimer = std::max(0.f, rt.jumpBufferTimer - dt);
 
-            const uint32_t handle = entityGateway_.physicsHandle(id);
-
             float vx = 0.f;
-            float vy = handle != 0
-                ? physics_.getLinearVelocity(handle).y
-                : rt.velocity.y;
+            float vy = rt.velocity.y;
 
             if (intent && intent->hasMovement) {
                 const float axis = std::clamp(intent->movement.x, -1.f, 1.f);
@@ -76,20 +72,22 @@ void World::tickPlatformerControllers(float dt) {
                 rt.jumpBufferTimer = 0.f;
             } else if (!grounded) {
                 vy += pc.customGravity * dt;
-            } else if (handle == 0) {
+            } else {
                 vy = 0.f;
             }
 
+            rt.velocity = { vx, vy };
+            Transform transform{};
+            if (!entityGateway_.getTransform(id, transform)) return;
+            transform.velocity = rt.velocity;
+            transform.position.x += rt.velocity.x * dt;
+            transform.position.y += rt.velocity.y * dt;
+            entityGateway_.setTransform(id, transform);
+
+            const uint32_t handle = entityGateway_.physicsHandle(id);
             if (handle != 0) {
-                physics_.setLinearVelocity(handle, { vx, vy });
-            } else {
-                rt.velocity = { vx, vy };
-                Transform transform{};
-                if (!entityGateway_.getTransform(id, transform)) return;
-                transform.velocity = rt.velocity;
-                transform.position.x += rt.velocity.x * dt;
-                transform.position.y += rt.velocity.y * dt;
-                entityGateway_.setTransform(id, transform);
+                physics_.setPosition(handle, transform.position);
+                physics_.setLinearVelocity(handle, transform.velocity);
             }
 
             if (intent)

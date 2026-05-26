@@ -7,8 +7,8 @@ to compare behavior before Fase 1 (kinematic platformer).
 
 | File | Player setup | Expected on `main` today |
 |------|----------------|-------------------------|
-| `player-with-explicit-physics.json` | `platformerController` + explicit `physics` collider | Box2D body; movement/jump via `setLinearVelocity` |
-| `player-platformer-only.json` | `platformerController` only (no `physics` block in JSON) | Kinematic transform (Fase 1); fall/jump via `customGravity`; add Solid for grounded |
+| `player-with-explicit-physics.json` | `platformerController` + explicit `physics` collider | Kinematic Box2D collider; movement/jump on transform (body follows) |
+| `player-platformer-only.json` | `platformerController` only (no `physics` block in JSON) | Transform-only; fall/jump via `customGravity`; add Solid + Physics collider for grounded overlap |
 
 Ground/platform: add a `Solid` or static `physics` entity with `groundClass` matching the player.
 

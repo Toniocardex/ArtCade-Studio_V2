@@ -193,6 +193,31 @@ static void test_platformer_is_grounded_false_without_physics_handle() {
     CHECK(!f.world.isPlatformerGrounded(1));
 }
 
+static void test_platformer_with_physics_collider_is_kinematic_body() {
+    Fixture f;
+
+    EntityDef player = makeEntity(1, "Player", {"player"});
+    player.physics.bodyType = BodyType::Dynamic;
+    player.physics.collider.size = { 32.f, 32.f };
+    PlatformerControllerComponent pc;
+    player.platformerController = pc;
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1 };
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.scenes = {{ scene.id, scene }};
+    doc.entities = {{ 1, player }};
+    f.world.init(doc);
+
+    CHECK(f.gw.physicsHandle(1) != 0);
+    PhysicsComponent physics{};
+    CHECK(f.gw.getPhysicsComponent(1, physics));
+    CHECK(physics.bodyType == BodyType::Kinematic);
+}
+
 static void test_platformer_movement_intent_without_input() {
     Fixture f;
 
@@ -224,13 +249,15 @@ static void test_platformer_movement_intent_without_input() {
 
     f.world.setMovementIntent(1, 1.f, 0.f);
     f.tickFrame(1.f / 60.f);
-    Vec2 velocity = f.physics.getLinearVelocity(f.gw.physicsHandle(1));
-    CHECK(std::abs(velocity.x - 250.f) < 0.01f);
+    Transform transform{};
+    CHECK(f.gw.getTransform(1, transform));
+    CHECK(std::abs(transform.velocity.x - 250.f) < 0.01f);
+    CHECK(transform.position.x > 0.f);
 
     f.world.clearMovementIntent(1);
     f.tickFrame(1.f / 60.f);
-    velocity = f.physics.getLinearVelocity(f.gw.physicsHandle(1));
-    CHECK(std::abs(velocity.x) < 0.01f);
+    CHECK(f.gw.getTransform(1, transform));
+    CHECK(std::abs(transform.velocity.x) < 0.01f);
 }
 
 static void test_platformer_jump_intent_without_input() {
@@ -1137,6 +1164,7 @@ int main() {
     test_platformer_kinematic_falls_with_custom_gravity();
     test_platformer_kinematic_horizontal_movement_without_body();
     test_platformer_is_grounded_false_without_physics_handle();
+    test_platformer_with_physics_collider_is_kinematic_body();
     test_platformer_movement_intent_without_input();
     test_platformer_jump_intent_without_input();
     test_platformer_grounded_by_solid_component();

@@ -113,7 +113,7 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
     key: 'platformerController',
     label: 'Platformer Controller',
     description:
-      'Arcade jump and gravity on the transform. Physics is optional — add Solid on ground for overlap grounded, or Physics on the player for Box2D collisions.',
+      'Jump and gravity always move the transform. Add Solid on the ground for overlap checks. Optional Physics on the player is only a kinematic collider for collisions and sensors.',
     color: 'var(--yellow)',
     create: () => ({ ...PLATFORMER }),
     fields: [

@@ -96,9 +96,13 @@ SceneId World::activeSceneId() const {
 
 void World::syncPhysicsToEntities() {
     // EnTT visitor: in-place Transform update for every active entity that
-    // has a live physics handle. One registry pass, no double lookup.
+    // has a live physics handle. PlatformerController owns transform; its
+    // collider body is pushed from transform in tickPlatformerControllers.
     entityGateway_.forEachActivePhysicsBody(
-        [this](EntityId, uint32_t handle, Transform& t) {
+        [this](EntityId id, uint32_t handle, Transform& t) {
+            PlatformerControllerComponent platformer{};
+            if (entityGateway_.getPlatformerController(id, platformer))
+                return;
             t.position = physics_.getPosition(handle);
             t.velocity = physics_.getLinearVelocity(handle);
         });
