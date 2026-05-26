@@ -8,6 +8,7 @@ import { useFileMenuActions } from './useFileMenuActions'
 import { useBuildToolbarActions } from './useBuildToolbarActions'
 import { mapWebExportToolbar, useWebExportStatus } from './useWebExportStatus'
 import { useProjectNamePersist } from './project-name-context'
+import { usePreviewPlayShortcut } from '../../hooks/usePreviewPlayShortcut'
 
 export default function MenuBar() {
   const { state, dispatch } = useEditor()
@@ -19,6 +20,7 @@ export default function MenuBar() {
     openScripts,
     activeScriptPath,
     selection,
+    mode,
   } = state
 
   const { draft, setDraft, commitDraft, flushBeforePersist } = useProjectNamePersist()
@@ -64,6 +66,8 @@ export default function MenuBar() {
   })
 
   const { exportState } = mapWebExportToolbar(webExport.status)
+
+  usePreviewPlayShortcut(mode, buildToolbar.handlePlayStop)
 
   return (
     <header className="editor-toolbar flex items-center justify-between flex-shrink-0 z-50 select-none">

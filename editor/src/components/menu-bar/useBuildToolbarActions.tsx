@@ -80,6 +80,9 @@ export function useBuildToolbarActions({
         }
       }
     } else {
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur()
+      }
       dispatch({ type: 'SET_PLAYING', playing: true })
     }
   }, [dispatch, isPlaying, openScripts, project, selectionSceneId])

@@ -49,8 +49,14 @@ export function BuildToolbar({
     <div className="flex items-center gap-2.5 editor-toolbar-workspace-end">
       <button
         type="button"
-        onClick={onPlayStop}
-        title="Preview in editor (not the browser export)"
+        onClick={(e) => {
+          onPlayStop()
+          requestAnimationFrame(() => (e.currentTarget as HTMLButtonElement).blur())
+        }}
+        onKeyDown={(e) => {
+          if (e.code === 'Space') e.preventDefault()
+        }}
+        title="Play / Stop preview in editor (P). Space is reserved for game input."
         className={`editor-toolbar-btn border ${
           isPlaying
             ? 'border-[var(--danger)] bg-[rgb(var(--danger-rgb)/0.12)] text-[var(--danger)] hover:bg-[rgb(var(--danger-rgb)/0.2)]'

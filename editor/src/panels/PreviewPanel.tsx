@@ -250,6 +250,13 @@ export default function PreviewPanel() {
     }
   }, [editorZoom, res.x, res.y, selectedSceneId])
 
+  useEffect(() => {
+    if (!isPlaying) return
+    const el = scrollRef.current
+    if (!el) return
+    requestAnimationFrame(() => el.focus({ preventScroll: true }))
+  }, [isPlaying])
+
   const prevSelectedEntityRef = useRef<number | null>(null)
   useEffect(() => {
     const entityId = selection.entityId
@@ -395,12 +402,13 @@ export default function PreviewPanel() {
           when they fit. Ctrl+wheel zooms anchored at the cursor. */}
       <div
         ref={scrollRef}
+        tabIndex={-1}
         onWheel={handleWheel}
         onPointerDown={onCanvasAreaPointerDown}
         onPointerMove={onCanvasAreaPointerMove}
         onPointerUp={onCanvasAreaPointerUp}
         onPointerCancel={onCanvasAreaPointerUp}
-        className="flex-1 overflow-auto p-6 canvas-scrollarea"
+        className="flex-1 overflow-auto p-6 canvas-scrollarea outline-none"
         style={{ cursor: panCursor }}
       >
         <div className="min-w-full min-h-full flex items-center justify-center">
