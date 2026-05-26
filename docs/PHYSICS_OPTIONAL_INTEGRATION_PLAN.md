@@ -2,7 +2,7 @@
 
 > **Versione**: 1.2  
 > **Data**: 2026-05-25  
-> **Status**: Fase 2 chiusa — grounded via Solid AABB; Fase 3 (`physicsMode`) non iniziata  
+> **Status**: Fase 3 in corso — `physicsMode` + step condizionale; Fasi 4–5 non iniziate  
 > **Audience**: C++ / Editor / Product  
 > **Collegamenti**: `GLOBAL_LOGIC_UI_ARCHITECTURE.md`, `ARTIST_FRIENDLY_COMPONENTS.md`, `ARCHITETTURA_TECNICA_ENGINE_2D.md` §9, `ENGINE_INTEGRATION_ROADMAP.md` (tracker engine separato)
 
@@ -471,6 +471,20 @@ Ogni fase = PR separato reviewabile (~300–800 LOC ciascuno).
 ### Deliverable
 
 1. Probe AABB piedi player vs top surface di ogni entità attiva con **Solid** + `groundClass` match.
-2. `isGrounded`: overlap Box2D se player ha handle; altrimenti (o fallback) AABB Solid.
-3. Test: airborne false; platformer-only su Solid scaled → grounded + jump.
+2. `isGrounded`: overlap Box2D se player ha handle; altrimenti AABB Solid.
+3. Test: airborne false; platformer-only su Solid scaled → grounded + jump; coyote dopo distacco.
 4. Nessun nuovo componente — riusa `SolidComponent` + transform/scale per dimensioni.
+
+### Review pre-chiusura (2026-05-25)
+
+| Check | Esito |
+|-------|--------|
+| Solid esistente, nessun duplicato | OK |
+| Platformer senza Physics grounded su Solid | OK (`test_platformer_grounded_on_solid_without_player_physics`) |
+| Coyote + jump buffer attivi in C++ | OK (`canJump = grounded \|\| coyoteTimer > 0`) |
+| Overlap path con collider kinematic player | OK |
+| Regressione test C++ 18/18 | OK |
+
+### Follow-up post-Fase 2
+
+- Raycast down (2a) opzionale se serve probe più preciso su tilemap (fuori MVP AABB).
