@@ -69,20 +69,24 @@ export function emitEventBody(
     return lines
   }
 
-  // onMouseInput: edge/level detection with per-event memory in _mb.
+  // onMouseInput: edge/level detection with per-event-and-entity memory.
+  // The key includes `self` so each pool entry tracks its own pressed/released
+  // edge; without it, only the first entity ever saw the rising edge because
+  // _mb[boardId:eventId] was set true after the first iteration.
   if (trig.type === 'onMouseInput') {
     const btn = trig.button === 'right' ? 1 : 0
-    const key = luaString(`${board.boardId}:${ev.id}`)
+    const prefix = luaString(`${board.boardId}:${ev.id}:`)
     const inner = baseIndent + INDENT
+    lines.push(`${baseIndent}local _mbk = ${prefix} .. tostring(self)`)
     lines.push(`${baseIndent}local _mbcur = input.mouseButtonDown(${btn})`)
     const fire =
-      trig.eventType === 'pressed' ? `_mbcur and not _mb[${key}]`
-      : trig.eventType === 'released' ? `(not _mbcur) and _mb[${key}]`
+      trig.eventType === 'pressed' ? `_mbcur and not _mb[_mbk]`
+      : trig.eventType === 'released' ? `(not _mbcur) and _mb[_mbk]`
       : `_mbcur`
     lines.push(`${baseIndent}if (${fire}) and ${guard} then`)
     lines.push(...emitActionSequence(ev.actions, inner, slugs))
     lines.push(`${baseIndent}end`)
-    lines.push(`${baseIndent}_mb[${key}] = _mbcur`)
+    lines.push(`${baseIndent}_mb[_mbk] = _mbcur`)
     return lines
   }
 

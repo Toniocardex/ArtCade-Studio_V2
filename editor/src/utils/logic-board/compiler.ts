@@ -30,6 +30,7 @@ import type {
 } from '../../types/logic-board'
 import type { ProjectDoc } from '../../types'
 import { usesTickFallback } from './trigger-execution'
+import { assertBoardCompatible } from './trigger-compatibility'
 import { INDENT, poolExpr, luaString, isGlobalTarget } from './lua-helpers'
 import { logicBoardLuaCommentLabel } from './labels'
 import { buildEventSlugs } from './event-slugs'
@@ -189,6 +190,9 @@ export function compileLogicBoard(
   const initBlocks: string[] = []
   const tickBlocks: string[] = []
   for (const board of doc) {
+    // Fail loudly on incompatible trigger/target combos so the editor
+    // surfaces the error instead of producing broken Lua.
+    assertBoardCompatible(board)
     const { init, tick } = emitBoard(board, project, eventSlugs)
     const label = logicBoardLuaCommentLabel(board)
     if (init.length) {

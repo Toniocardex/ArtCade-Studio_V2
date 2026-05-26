@@ -632,8 +632,9 @@ describe('compileLogicBoard — realistic example', () => {
     ])
 
     expect(lua).toContain('-- board: Player movement')
-    expect(lua).toContain('"board_stable_key:mouse"')
-    expect(lua).not.toContain('"Player movement:mouse"')
+    // Key prefix uses boardId (stable) and trailing self-suffix concat.
+    expect(lua).toContain('"board_stable_key:mouse:"')
+    expect(lua).not.toContain('"Player movement:mouse')
   })
 
   it('sanitizes compiler labels only when emitting Lua comments', () => {
