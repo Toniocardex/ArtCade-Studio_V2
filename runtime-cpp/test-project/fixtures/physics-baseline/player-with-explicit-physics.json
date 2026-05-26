@@ -1,0 +1,33 @@
+{
+  "id": 101,
+  "name": "PlayerPhysicsBaseline",
+  "className": "Player",
+  "tags": ["player"],
+  "transform": {
+    "position": [320, 180],
+    "scale": [1, 1],
+    "rotation": 0
+  },
+  "sprite": {
+    "spriteAssetId": "",
+    "tint": [0.2, 0.8, 0.4, 1],
+    "alpha": 1,
+    "renderOrder": 1,
+    "pivot": [0.5, 0.5]
+  },
+  "physics": {
+    "bodyType": "Dynamic",
+    "collider": {
+      "shape": "Rectangle",
+      "size": [32, 32]
+    }
+  },
+  "platformerController": {
+    "maxSpeed": 300,
+    "jumpForce": 600,
+    "customGravity": 1500,
+    "coyoteTime": 0.15,
+    "jumpBuffer": 0.1,
+    "groundClass": "Ground"
+  }
+}

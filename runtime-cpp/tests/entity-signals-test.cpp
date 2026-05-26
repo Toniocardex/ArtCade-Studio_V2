@@ -410,7 +410,35 @@ static void test_set_transform_syncs_physics_position() {
     sm.shutdown();
 }
 
+// Phase 0 baseline: platformerController alone triggers implicit dynamic body
+// when PhysicsComponent exists (default on every entity). See ensurePhysicsBody.
+static void test_baseline_platformer_controller_creates_physics_body() {
+    SceneManager sm;
+    RuntimeEntityGateway gw(sm);
+    Physics physics;
+    sm.init(); gw.init(); physics.init();
+    gw.setPhysics(&physics);
+
+    EntityDef def = makeDef(1, "Player", {"player"});
+    PlatformerControllerComponent pc;
+    pc.maxSpeed = 300.f;
+    def.platformerController = pc;
+
+    SceneDef scene;
+    scene.id = "s";
+    scene.entityIds = { 1 };
+    std::unordered_map<SceneId, SceneDef> scenes{{ scene.id, scene }};
+    std::unordered_map<EntityId, EntityDef> defs{{ 1, def }};
+    CHECK(gw.replaceProject(scenes, defs, "s"));
+    CHECK(gw.physicsHandle(1) != 0);
+
+    gw.shutdown();
+    physics.shutdown();
+    sm.shutdown();
+}
+
 int main() {
+    test_baseline_platformer_controller_creates_physics_body();
     test_signal_indices();
     test_lifecycle_queue_order();
     test_queue_destroy_lifecycle();

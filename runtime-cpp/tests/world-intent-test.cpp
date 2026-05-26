@@ -77,6 +77,105 @@ struct Fixture {
     }
 };
 
+// ---------------------------------------------------------------------------
+// Phase 0 baselines (PHYSICS_OPTIONAL_INTEGRATION_PLAN §7): lock current
+// behavior before Fase 1 kinematic platformer. Update these tests when Fase 1
+// lands (platformer without handle should integrate transform + gravity).
+// ---------------------------------------------------------------------------
+
+static void test_baseline_platformer_only_gets_implicit_physics_body() {
+    Fixture f;
+
+    EntityDef player = makeEntity(1, "Player", {"player"});
+    PlatformerControllerComponent pc;
+    pc.customGravity = 1500.f;
+    player.platformerController = pc;
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1 };
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.scenes = {{ scene.id, scene }};
+    doc.entities = {{ 1, player }};
+    f.world.init(doc);
+
+    CHECK(f.gw.physicsHandle(1) != 0);
+}
+
+static void test_baseline_platformer_without_handle_skips_movement() {
+    Fixture f;
+
+    EntityDef player = makeEntity(1, "Player", {"player"});
+    player.transform.position = { 100.f, 200.f };
+    player.physics.bodyType = BodyType::Dynamic;
+    player.physics.collider.size = { 32.f, 32.f };
+    PlatformerControllerComponent pc;
+    pc.customGravity = 1500.f;
+    pc.jumpForce = 600.f;
+    player.platformerController = pc;
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1 };
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.scenes = {{ scene.id, scene }};
+    doc.entities = {{ 1, player }};
+    f.world.init(doc);
+
+    const uint32_t handle = f.gw.physicsHandle(1);
+    CHECK(handle != 0);
+    f.physics.destroyBody(handle);
+    f.gw.setPhysicsHandle(1, 0);
+    CHECK(f.gw.physicsHandle(1) == 0);
+
+    f.world.setMovementIntent(1, 1.f, 0.f);
+    f.world.requestJump(1);
+    f.tickFrame(1.f / 60.f);
+
+    Transform transform{};
+    CHECK(f.gw.getTransform(1, transform));
+    CHECK(std::abs(transform.position.x - 100.f) < 0.01f);
+    CHECK(std::abs(transform.position.y - 200.f) < 0.01f);
+}
+
+static void test_baseline_is_grounded_false_without_physics_handle() {
+    Fixture f;
+
+    EntityDef player = makeEntity(1, "Player");
+    player.physics.bodyType = BodyType::Dynamic;
+    player.physics.collider.size = { 32.f, 32.f };
+    PlatformerControllerComponent pc;
+    pc.groundClass = "Ground";
+    player.platformerController = pc;
+
+    EntityDef ground = makeEntity(2, "Ground");
+    ground.physics.bodyType = BodyType::Static;
+    ground.physics.collider.size = { 128.f, 32.f };
+    ground.transform.position = { 0.f, 220.f };
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1, 2 };
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.scenes = {{ scene.id, scene }};
+    doc.entities = {{ 1, player }, { 2, ground }};
+    f.world.init(doc);
+
+    const uint32_t playerHandle = f.gw.physicsHandle(1);
+    CHECK(playerHandle != 0);
+    f.physics.destroyBody(playerHandle);
+    f.gw.setPhysicsHandle(1, 0);
+    CHECK(f.gw.physicsHandle(1) == 0);
+    CHECK(f.gw.physicsHandle(2) != 0);
+    CHECK(!f.world.isPlatformerGrounded(1));
+}
+
 static void test_platformer_movement_intent_without_input() {
     Fixture f;
 
@@ -1017,6 +1116,9 @@ static void test_restore_design_state_resets_runtime_from_doc() {
 }
 
 int main() {
+    test_baseline_platformer_only_gets_implicit_physics_body();
+    test_baseline_platformer_without_handle_skips_movement();
+    test_baseline_is_grounded_false_without_physics_handle();
     test_platformer_movement_intent_without_input();
     test_platformer_jump_intent_without_input();
     test_platformer_grounded_by_solid_component();

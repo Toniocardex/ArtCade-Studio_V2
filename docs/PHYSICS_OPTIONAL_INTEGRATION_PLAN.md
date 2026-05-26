@@ -2,7 +2,7 @@
 
 > **Versione**: 1.1  
 > **Data**: 2026-05-25  
-> **Status**: Fase R0 chiusa — piano approvato; implementazione C++ (Fasi 0–5) non iniziata  
+> **Status**: Fase 0 chiusa — baseline test + fixture; Fase 1 (kinematic platformer) non iniziata  
 > **Audience**: C++ / Editor / Product  
 > **Collegamenti**: `GLOBAL_LOGIC_UI_ARCHITECTURE.md`, `ARTIST_FRIENDLY_COMPONENTS.md`, `ARCHITETTURA_TECNICA_ENGINE_2D.md` §9, `ENGINE_INTEGRATION_ROADMAP.md` (tracker engine separato)
 
@@ -168,19 +168,24 @@ flowchart TB
 
 ## 7. Fasi di implementazione (C++)
 
-> **Bloccate** fino a chiusura Fase R0 + commit di questo piano su `origin/main`.
+> **Fase 1–5** bloccate fino a chiusura Fase 0. Fase 0 chiusa → prossimo: **Fase 1**.
 
-### Fase 0 — Allineamento e guardrail (1–2 giorni)
+### Fase 0 — Allineamento e guardrail (1–2 giorni) ✅
 
 **Obiettivo**: documentazione + test baseline senza cambiare comportamento default.
 
 | Task | Output |
 |------|--------|
-| Accettare questo piano in review team | OK in PR/issue |
-| Test C++ esistenti su `world_movement`, gateway physics | Verde |
-| Snapshot progetto demo: platformer con/senza `physics` su player | Fixture in `test-project` o doc |
+| Accettare questo piano in review team | OK (R0 + commit piano su `main`) |
+| Test C++ esistenti su `world_movement`, gateway physics | Verde + 4 test baseline aggiunti |
+| Snapshot progetto demo: platformer con/senza `physics` su player | `runtime-cpp/test-project/fixtures/physics-baseline/` |
 
-**DoD**: nessuna regressione; elenco scenari manuali (vedi §10).
+**DoD**: nessuna regressione; elenco scenari manuali (vedi §11).
+
+**Test baseline aggiunti** (da aggiornare in Fase 1):
+
+- `world-intent-test`: body implicito con solo `platformerController`; early-return movimento senza handle; `isGrounded` false senza handle.
+- `entity-signals-test`: `platformerController` → `ensurePhysicsBody` crea handle.
 
 ---
 
@@ -395,5 +400,28 @@ Ogni fase = PR separato reviewabile (~300–800 LOC ciascuno).
 
 ### Follow-up (non in Fase R0)
 
-- Implementazione C++: avviare da Fase 0 dopo push.
+- ~~Implementazione C++: avviare da Fase 0 dopo push.~~ → Fase 0 chiusa; Fase 1 next.
 - `GLOBAL_LOGIC_UI_ARCHITECTURE.md`: aggiornare in Fase 5 quando il platformer kinematic sarà codificato.
+
+---
+
+## Closure log (Fase 0)
+
+| Campo | Valore |
+|-------|--------|
+| **Data** | 2026-05-25 |
+| **Scope** | Test C++ baseline + fixture `test-project`; nessun cambio comportamento runtime |
+| **Esito** | Chiusa |
+
+### Deliverable
+
+1. `runtime-cpp/tests/world-intent-test.cpp` — 3 test `test_baseline_*` (body implicito, skip movimento senza handle, grounded false senza handle).
+2. `runtime-cpp/tests/entity-signals-test.cpp` — `test_baseline_platformer_controller_creates_physics_body`.
+3. `runtime-cpp/test-project/fixtures/physics-baseline/` — JSON player con/senza blocco `physics` + README smoke.
+4. `ctest`: `world_intent_test`, `entity_signals_test`, `physics_test` verdi (Release).
+
+### Review
+
+- Nessuna modifica a `world_movement.cpp` / `ensurePhysicsBody` (comportamento invariato).
+- I test baseline documentano il gap Fase 1: platformer senza handle non integra transform.
+- Checklist manuale §11 resta per smoke editor/Tauri (non eseguita in CI doc-only).
