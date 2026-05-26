@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Vertical section shell for rule editor (When / If / Then)
+// Vertical section shell for rule editor (When / Also require… / Then)
 // ---------------------------------------------------------------------------
 
 import type { ReactNode } from 'react'

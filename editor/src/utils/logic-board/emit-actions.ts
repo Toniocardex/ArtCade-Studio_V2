@@ -76,11 +76,15 @@ export function emitGuardedActions(
   ev: LogicEvent,
   baseIndent: string,
   slugs: Map<string, string>,
+  triggerAndGate?: string | null,
 ): string[] {
   const enableGuard = `_logic_on[${ruleKeyExpr(ev.id, slugs)}] ~= false`
   const condGuard = conditionExpr(ev)
-  const guard =
+  let guard =
     condGuard === 'true' ? enableGuard : `${enableGuard} and (${condGuard})`
+  if (triggerAndGate) {
+    guard = `${guard} and (${triggerAndGate})`
+  }
 
   if (guard === 'true')
     return emitActionSequence(ev.actions, baseIndent, slugs)

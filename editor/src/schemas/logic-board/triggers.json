@@ -167,6 +167,7 @@
         "type": "array",
         "items": { "type": "string", "minLength": 1 }
       },
+      "keyCombine": { "enum": ["OR", "AND"] },
       "eventType": { "enum": ["pressed", "down", "released"] }
     },
     "additionalProperties": false,

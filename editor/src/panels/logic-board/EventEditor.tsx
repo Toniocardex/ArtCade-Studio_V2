@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Expanded rule editor - When / If / Then blocks
+// Expanded rule editor - When / Also require… / Then blocks
 // ---------------------------------------------------------------------------
 
 import { useState } from 'react'
@@ -230,7 +230,7 @@ function ActionCard({
 const condSel =
   'bg-[var(--bg)] border border-[var(--border-2)] text-[var(--accent)] px-2 py-1 rounded text-xs'
 
-function IfSectionHints({
+function AlsoRequireSectionHints({
   onlyIfEnabled,
   trigger,
   authoringMode,
@@ -243,23 +243,23 @@ function IfSectionHints({
     if (!onlyIfEnabled) return null
     return (
       <p className="text-[10px] leading-snug text-[var(--muted)]">
-        Extra filters after <strong>When</strong>.
+        World-state filters after <strong>When</strong> (grounded, score, …).
       </p>
     )
   }
   if (!onlyIfEnabled) {
     return (
       <p className="text-[10px] leading-snug text-[var(--muted)]">
-        Optional — turn on only if you need extra filters beyond <strong>When</strong>.
+        Optional — turn on only for extra world checks beyond <strong>When</strong>.
       </p>
     )
   }
   if (trigger.type === 'onInput') {
     return (
       <p className="text-[10px] leading-snug text-[var(--muted)]">
-        For key presses (including W <strong>or</strong> Space), use{' '}
-        <strong>When</strong> — not &quot;Key held&quot; here. Use If for score,
-        grounded, touching type, etc.
+        Key combos (W <strong>and</strong> Ctrl) or alternatives (W <strong>or</strong>{' '}
+        Space) belong in <strong>When</strong>. Use <strong>Also require…</strong> for
+        grounded, score, touching type — not extra keys.
       </p>
     )
   }
@@ -290,30 +290,39 @@ function SimpleConditions({
 
   return (
     <div className="space-y-2">
-      {conditions.length > 1 && (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[10px] font-medium text-[var(--muted)]">
-            Combine checks
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-[10px] font-medium text-[var(--muted)]">
+          Match rules
+        </span>
+        <select
+          className={condSel}
+          value={combineOp}
+          disabled={conditions.length < 2}
+          title={
+            conditions.length < 2
+              ? 'Add at least two checks to combine with AND or OR'
+              : undefined
+          }
+          onChange={(e) =>
+            onChange({
+              ...event,
+              conditionsOperator: e.target.value as 'AND' | 'OR',
+              conditionRoot: undefined,
+            })
+          }
+        >
+          <option value="AND">All must pass (AND)</option>
+          <option value="OR">Any can pass (OR)</option>
+        </select>
+        {conditions.length < 2 && (
+          <span className="text-[10px] text-[var(--muted)]">
+            (needs 2+ checks)
           </span>
-          <select
-            className={condSel}
-            value={combineOp}
-            onChange={(e) =>
-              onChange({
-                ...event,
-                conditionsOperator: e.target.value as 'AND' | 'OR',
-                conditionRoot: undefined,
-              })
-            }
-          >
-            <option value="AND">All must pass (AND)</option>
-            <option value="OR">Any can pass (OR)</option>
-          </select>
-        </div>
-      )}
+        )}
+      </div>
       {conditions.length === 0 && (
         <p className="text-[11px] italic text-[var(--muted)]">
-          If is on, but no checks have been added yet.
+          Also require… is on, but no checks have been added yet.
         </p>
       )}
       {conditions.map((c, i) => (
@@ -469,7 +478,7 @@ export default function EventEditor({
       </LogicBlock>
 
       <LogicBlock
-        title="If"
+        title="Also require…"
         optional
         icon={<ListChecks size={13} />}
         tone="if"
@@ -477,8 +486,16 @@ export default function EventEditor({
           <button
             type="button"
             onClick={() => setOnlyIfEnabled(!onlyIfEnabled)}
-            title={onlyIfEnabled ? 'Disable If checks' : 'Enable If checks'}
-            aria-label={onlyIfEnabled ? 'Disable If checks' : 'Enable If checks'}
+            title={
+              onlyIfEnabled
+                ? 'Disable Also require checks'
+                : 'Enable Also require checks'
+            }
+            aria-label={
+              onlyIfEnabled
+                ? 'Disable Also require checks'
+                : 'Enable Also require checks'
+            }
             className={`relative h-[18px] w-9 rounded transition-colors ${
               onlyIfEnabled ? 'bg-[var(--warn)]' : 'bg-[var(--border-2)]'
             }`}
@@ -493,7 +510,7 @@ export default function EventEditor({
           </button>
         }
       >
-        <IfSectionHints
+        <AlsoRequireSectionHints
           onlyIfEnabled={onlyIfEnabled}
           trigger={event.trigger}
           authoringMode={authoringMode}

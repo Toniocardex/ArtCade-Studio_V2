@@ -8,7 +8,12 @@
 import type { LogicBoard, LogicEvent } from '../../types/logic-board'
 import type { ProjectDoc } from '../../types'
 import { INDENT, luaString, poolExpr, sensorSourceExpr, isGlobalTarget } from './lua-helpers'
-import { getOnInputKeyCodes } from './on-input-keys'
+import {
+  getKeyCombine,
+  getOnInputKeyCodes,
+  getOnInputRegistrationKeys,
+  onInputGateExpr,
+} from './on-input-keys'
 import { boardLifecycleClass } from './trigger-execution'
 import { emitGuardedActions } from './emit-actions'
 
@@ -65,14 +70,19 @@ export function emitEventRegistration(
   if (trig.type === 'onInput' && trig.eventType !== 'down') {
     const helper =
       trig.eventType === 'pressed' ? '_logic_reg_input_pressed' : '_logic_reg_input_released'
+    const codes = getOnInputKeyCodes(trig)
+    const inputGate =
+      getKeyCombine(trig) === 'AND' && codes.length > 1
+        ? onInputGateExpr(trig)
+        : null
     const lines: string[] = []
-    for (const keyCode of getOnInputKeyCodes(trig)) {
+    for (const keyCode of getOnInputRegistrationKeys(trig)) {
       if (isGlobal) {
         lines.push(
           `${I}${helper}(${luaString(keyCode)}, function()`,
           `${I}${I}local self = nil`,
           `${I}${I}local other = nil`,
-          ...emitGuardedActions(ev, I + I, slugs),
+          ...emitGuardedActions(ev, I + I, slugs, inputGate),
           `${I}end)`,
         )
       } else {
@@ -80,7 +90,7 @@ export function emitEventRegistration(
           `${I}${helper}(${luaString(keyCode)}, function()`,
           `${I}${I}for _, self in ipairs(${pool}) do`,
           `${I}${I}${I}local other = nil`,
-          ...emitGuardedActions(ev, I + I + I, slugs),
+          ...emitGuardedActions(ev, I + I + I, slugs, inputGate),
           `${I}${I}end`,
           `${I}end)`,
         )

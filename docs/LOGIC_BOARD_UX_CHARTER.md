@@ -13,7 +13,7 @@ ArtCade è per **artisti e creatori senza programmazione** che vogliono finire u
 
 | Principio | Significato |
 |-----------|-------------|
-| **Visual-first** | Regole When / If / Then come percorso principale; Script opzionale ma **sempre visibile** nella rail. |
+| **Visual-first** | Regole **When / Also require… / Then** come percorso principale; Script opzionale ma **sempre visibile** nella rail. |
 | **Stesso gioco ovunque** | Preview WASM = build web. |
 | **Base / Advanced = presentazione** | Stessi trigger, stesse azioni, stesso JSON, stesso compilatore. Cambiano guida, densità, enfasi — non permessi. |
 | **Trigger sempre completi** | Il catalogo When non si filtra in Base. |
@@ -21,7 +21,7 @@ ArtCade è per **artisti e creatori senza programmazione** che vogliono finire u
 
 Regola per ogni feature UI:
 
-1. In **Base**, il caso comune è chiaro in &lt; 1 minuto (hint, Common checks, If spesso spento).
+1. In **Base**, il caso comune è chiaro in &lt; 1 minuto (hint, Common checks, Also require… spesso spento).
 2. In **Advanced**, meno testo guida, stessa potenza, picker più denso.
 3. **Mai** rimuovere Script, PLAY, o un tipo di trigger dal runtime.
 
@@ -35,10 +35,10 @@ Toggle **View → Base | Advanced** sulla module rail (persistito in `localStora
 |---------|----------------|----------|
 | **Canvas / Inspector / Script** | Sempre accessibili | Identico |
 | **Trigger (When)** | Catalogo **completo**, raggruppato + badge esecuzione | Identico |
-| **If** | Hint estesi; If opzionale enfatizzato | Hint brevi |
-| **Condizioni** | Common checks in cima; `Key held` nascosto se When = keyboard (evita confusione OR) | Tutte le condizioni nel picker |
-| **OR tasti** | When → + Add key (OR) | Identico |
-| **OR tra controlli If** | Combine checks (≥ 2 controlli) | Identico |
+| **Also require…** | Hint estesi; blocco opzionale enfatizzato | Hint brevi |
+| **Condizioni** | Common checks in cima; `Key held` nascosto se When = keyboard (evita duplicare tasti) | Tutte le condizioni nel picker |
+| **Tasti in When** | `OR` / `AND` tra tasti (`keyCombine` + `alternateKeyCodes`) | Identico |
+| **AND/OR tra controlli** | Match rules (AND \| OR), visibile con blocco acceso | Identico |
 | **Albero nested** | Link “Nested AND/OR groups (advanced)…” | Link “Nested AND/OR groups…” |
 | **Then (add row)** | **Select action…** placeholder; Add disabled until chosen; resets after each add | Same flow |
 | **Class rulesheet** | `<details>` Advanced (già esistente) | Identico |
@@ -56,12 +56,13 @@ Attributo DOM: `html[data-authoring-mode="base|advanced"]` per eventuali stili C
 1. File → **Platformer** (o Arcade).
 2. **Canvas** — oggetti e numeri di design nell’Inspector (velocità, salto).
 3. **Logic** — rulesheet per il Player.
-4. Regola: **When** → tastiera → W + OR Space → Just pressed → **Then** → Platformer jump (**If** spento).
-5. **PLAY** — prova; Console se serve.
-6. Monete / nemici: stesso schema (When tocca / zona → Then).
-7. **Script** — solo se vuole crescere; non è un secondo prodotto.
+4. Regola salto: **When** → tastiera → W **[OR]** Space → Just pressed → **Then** → Platformer jump (**Also require…** spento).
+5. Regola doppio salto (se serve): **When** → W **[AND]** Ctrl → Just pressed → **Then** → (azione dedicata o script).
+6. **PLAY** — prova; Console se serve.
+7. Monete / nemici: stesso schema (When tocca / zona → Then).
+8. **Script** — solo se vuole crescere; non è un secondo prodotto.
 
-**Modello mentale:** *“Ogni oggetto ha regole: quando … allora … Opzionale: solo se …”*
+**Modello mentale:** *“Ogni oggetto ha regole: quando … allora … Opzionale: anche solo se …”*
 
 ---
 
@@ -73,33 +74,43 @@ Attributo DOM: `html[data-authoring-mode="base|advanced"]` per eventuali stili C
 
 1. Template o Blank; `world.physicsMode` esplicito.
 2. Entità con componenti; rulesheet per classe se molti istanze.
-3. **When** completi + **If** con OR o albero nested + **Then** con wait, messaggi, toggle regole.
+3. **When** completi + **Also require…** con OR o albero nested + **Then** con wait, messaggi, toggle regole.
 4. **Script** per sistemi che la board renderebbe verbosa.
-5. **Advanced** view: meno hint, `Key held` anche con trigger keyboard se serve un caso limite.
+5. **Advanced** view: meno hint, `Key held` anche con trigger keyboard se serve un caso limite documentato.
 
 **Modello mentale:** *“La board compila in Lua; scelgo il livello di astrazione per sottosistema.”*
 
 ---
 
-## 5. When vs If — contratto UX
+## 5. When vs Also require… — contratto UX
 
 | Intento | Dove |
 |---------|------|
-| W **or** Space → salto | **When** (+ Add key OR) |
-| Solo se a terra / score | **If** |
-| (A and B) or C | Nested groups **oppure** evoluzione futura |
+| W **or** Space → salto | **When** → tasti + **OR** |
+| W **and** Ctrl → doppio salto / modifier | **When** → tasti + **AND** |
+| Solo se a terra / score / HP | **Also require…** |
+| (A and B) or C tra controlli mondo | `conditionsOperator` o nested groups |
 
-**Anti-pattern:** Space in If “Key held” + W in When → AND, non OR.
+**Anti-pattern:** Ctrl in **Also require…** come “Key held” mentre W è in When → due concetti mescolati; usare **When [W] AND [Ctrl]**.
+
+**Nota collisioni:** due regole entrambe su **W** (salto vs doppio salto) possono entrambe scattare su **W+Ctrl** finché non c’è un filtro esplicito (es. NOT — roadmap). Progettare regole mutualmente esclusive dove serve.
 
 ---
 
-## 6. OR booleano — un posto per scopo
+## 6. Booleani — un posto per scopo
 
-| OR tra… | Meccanismo |
-|---------|------------|
-| Tasti | `onInput.alternateKeyCodes` |
-| Controlli If semplici | `conditionsOperator: 'OR'` |
-| Gruppi annidati | `conditionRoot` |
+| Combinazione | Meccanismo | Campo / UI |
+|--------------|------------|------------|
+| Tasti OR | Qualsiasi tasto della lista | `onInput.keyCombine: "OR"` (default) + `alternateKeyCodes` |
+| Tasti AND | Tutti i tasti insieme | `onInput.keyCombine: "AND"` |
+| Controlli mondo AND/OR | Tra check in Also require… | `conditionsOperator: 'AND' \| 'OR'` + **Match rules** |
+| Gruppi annidati | Albero | `conditionRoot` |
+
+**Compilazione (tasti):**
+
+- **OR + pressed/released:** registrazione per ogni tasto (handler separati).
+- **AND + pressed/released:** registrazione solo sul tasto primario + gate Lua `wasKeyPressed(primary) and isKeyDown(modifier…)`.
+- **down (polling):** gate unico in tick (`isKeyDown` con `or` / `and`).
 
 ---
 
@@ -110,26 +121,29 @@ Attributo DOM: `html[data-authoring-mode="base|advanced"]` per eventuali stili C
 | **Common** | variable, touching type, grounded, health, chance |
 | **Resto** | tag, distance, mouse, raycast, grid, key held, … |
 
-In **Base**, Common in cima; in **Advanced**, stesso catalogo, meno enfasi sulla gerarchia.
+In **Base**, Common in cima; con trigger **onInput**, `Key held` nascosto nel picker (i tasti stanno in **When**). In **Advanced**, stesso catalogo completo.
 
 ---
 
 ## 8. Checklist PR (Logic Board UI)
 
-- [ ] Base è il default per nuovi utenti?
-- [ ] Trigger catalogo completo in entrambe le modalità?
-- [ ] Script tab sempre nella rail?
-- [ ] Hint When/If coerenti con keyboard OR?
+- [x] Base è il default per nuovi utenti?
+- [x] Trigger catalogo completo in entrambe le modalità?
+- [x] Script tab sempre nella rail?
+- [x] Hint When / Also require… coerenti con OR/AND tasti?
+- [x] `keyCombine` AND/OR in When (`OnInputTriggerFields`)?
+- [x] Blocco editor rinominato **Also require…** (JSON: `onlyIfEnabled` invariato)?
 - [ ] Progetti salvati invariati al cambio View?
-- [ ] Test Vitest per `authoringMode` e `condition-picker`?
+- [x] Test Vitest per `on-input-keys`, compiler AND combo?
 
 ---
 
 ## 9. Template rapidi
 
-| Gioco | When | If | Then |
-|-------|------|-----|------|
+| Gioco | When | Also require… | Then |
+|-------|------|----------------|------|
 | Platformer | W or Space, pressed | Off o On ground | Platformer jump |
+| Platformer (modifier) | W and Ctrl, pressed | Off o On ground | (custom / script) |
 | Arcade | Space, pressed | — | Spawn / move |
 | RPG leggero | Sensor enter | Variable hasKey | Load scene |
 
@@ -138,9 +152,10 @@ In **Base**, Common in cima; in **Advanced**, stesso catalogo, meno enfasi sulla
 ## 10. Roadmap (non normativa)
 
 - Preset regola “Jump / Shoot / Hurt”
+- NOT / gruppi annidati più visibili in Base
 - ELSE esplicito (vedi condizionale design)
-- Grafo React Flow (livello 3, non sostituisce When/If/Then)
+- Grafo React Flow (livello 3, non sostituisce When/Also require…/Then)
 
 ---
 
-*Satellite a `LOGIC_BOARD_SPEC.md` Parte IV. Implementazione toggle: `AuthoringModeSwitch`, `SET_AUTHORING_MODE`, `condition-picker.ts`.*
+*Satellite a `LOGIC_BOARD_SPEC.md` Parte IV. Implementazione: `AuthoringModeSwitch`, `OnInputTriggerFields`, `keyCombine`, `condition-picker.ts`, `EventEditor` (Also require…).*

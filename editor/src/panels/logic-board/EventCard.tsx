@@ -160,7 +160,7 @@ export default function EventCard({
           >
             {ifLines.length > 0 && (
               <div className="border-b border-[var(--border)] bg-[rgba(var(--bg-rgb),0.25)] px-3 py-2.5 lg:border-b-0 lg:border-r">
-                <SectionLabel>If</SectionLabel>
+                <SectionLabel>Also require…</SectionLabel>
                 <ul className="m-0 flex list-none flex-col gap-1 p-0">
                   {ifLines.map((line, i) => (
                     <li

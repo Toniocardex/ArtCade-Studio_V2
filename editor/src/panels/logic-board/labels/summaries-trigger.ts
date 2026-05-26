@@ -1,7 +1,10 @@
 import type { ProjectDoc } from '../../../types'
 import type { LogicTrigger } from '../../../types/logic-board'
 import { formatKeyLabel } from '../../../components/logic-board/KeyCapture'
-import { getOnInputKeyCodes } from '../../../utils/logic-board/on-input-keys'
+import {
+  getKeyCombine,
+  getOnInputKeyCodes,
+} from '../../../utils/logic-board/on-input-keys'
 import { fmtClass } from './board-labels'
 
 export function triggerSummaryPlain(
@@ -39,7 +42,8 @@ export function triggerSummaryPlain(
       return 'When this object is destroyed'
     case 'onInput': {
       const keys = getOnInputKeyCodes(t).map((c) => formatKeyLabel(c))
-      const keyLabel = keys.length > 1 ? keys.join(' or ') : keys[0]
+      const join = getKeyCombine(t) === 'AND' ? ' and ' : ' or '
+      const keyLabel = keys.length > 1 ? keys.join(join) : keys[0]
       const when =
         t.eventType === 'pressed'
           ? 'presses'

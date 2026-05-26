@@ -189,7 +189,7 @@ export function ConditionTreeEditor({
     <div className="flex flex-col gap-2">
       <p className="text-[10px] text-[var(--muted)]">
         Nested groups: use when you need (A and B) or C. For simple OR between
-        checks, use simple If with &quot;Any can pass&quot; instead.
+        checks, use simple Also require… with &quot;Any can pass&quot; instead.
       </p>
       <NodeEditor
         node={root}

@@ -374,6 +374,28 @@ describe('compileLogicBoard — triggers', () => {
     )
   })
 
+  it('onInput AND combo registers primary only and gates modifiers', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({
+          trigger: {
+            type: 'onInput',
+            keyCode: 'KeyW',
+            alternateKeyCodes: ['ControlLeft'],
+            keyCombine: 'AND',
+            eventType: 'pressed',
+          },
+          actions: [{ type: 'debugLog', message: 'double' }],
+        }),
+      ]),
+    ])
+    expect(lua).toContain('_logic_reg_input_pressed("KeyW", function()')
+    expect(lua).not.toContain('_logic_reg_input_pressed("ControlLeft"')
+    expect(lua).toMatch(
+      /wasKeyPressed\("KeyW"\).*and.*input\.isKeyDown\("ControlLeft"\)/s,
+    )
+  })
+
   it('flat conditionsOperator OR joins checks with or', () => {
     const lua = compileLogicBoard([
       board([

@@ -44,8 +44,10 @@ export type LogicTrigger =
   | {
       type: 'onInput'
       keyCode: string
-      /** Additional keys — rule fires when any of keyCode or these match (OR). */
+      /** Additional keys combined with primary via keyCombine (default OR). */
       alternateKeyCodes?: string[]
+      /** OR = any key; AND = all keys together (e.g. W + Ctrl). */
+      keyCombine?: 'OR' | 'AND'
       eventType: 'pressed' | 'down' | 'released'
     }
   | { type: 'onMouseInput'; button: 'left' | 'right'; eventType: 'pressed' | 'down' | 'released' }
