@@ -58,6 +58,12 @@ import {
 const link = 'text-[var(--accent)] text-[11px] hover:underline cursor-pointer'
 const btn =
   'inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium border border-[var(--border-2)] bg-[var(--border)] text-[var(--text)] hover:border-[var(--accent-bd)]'
+const btnDisabled =
+  'inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium border border-[var(--border-2)] bg-[var(--border)] text-[var(--muted)] opacity-50 cursor-not-allowed'
+
+/** Sentinel for the Then-row action picker before the user chooses a type. */
+const NEW_ACTION_NONE = '' as const
+type NewActionPick = LogicAction['type'] | typeof NEW_ACTION_NONE
 
 function hasMovementAction(actions: readonly LogicAction[]): boolean {
   return actions.some((action) => action.type === 'controllerMovement')
@@ -389,7 +395,7 @@ export default function EventEditor({
   const [advancedConditions, setAdvancedConditions] = useState(
     () => event.conditionRoot != null,
   )
-  const [newActionType, setNewActionType] = useState<LogicAction['type']>('spawnEntity')
+  const [newActionType, setNewActionType] = useState<NewActionPick>(NEW_ACTION_NONE)
   const recommendedTypes = recommendedTypesForTrigger(
     recommendedActionTypes(project, board),
     event.trigger,
@@ -591,13 +597,23 @@ export default function EventEditor({
             onChange={(t) => setNewActionType(t as LogicAction['type'])}
             className="max-w-[240px]"
             recommendedTypes={recommendedTypes}
+            placeholder="Select action…"
+            placeholderValue={NEW_ACTION_NONE}
           />
           <button
             type="button"
-            className={btn}
+            className={newActionType ? btn : btnDisabled}
+            disabled={!newActionType}
+            title={
+              newActionType
+                ? 'Add the selected action'
+                : 'Choose an action from the list first'
+            }
             onClick={() => {
+              if (!newActionType) return
               const next = [...event.actions, defaultAction(newActionType)]
               onChange(withContextualInputDefault(event, next))
+              setNewActionType(NEW_ACTION_NONE)
             }}
           >
             <Plus size={13} />

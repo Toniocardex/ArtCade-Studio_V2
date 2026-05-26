@@ -41,6 +41,8 @@ export function TypePicker({
   className,
   recommendedTypes,
   recommendedGroupLabel,
+  placeholder,
+  placeholderValue = '',
 }: {
   kind: ComponentKind
   types: readonly string[]
@@ -50,6 +52,9 @@ export function TypePicker({
   recommendedTypes?: readonly string[]
   /** Override optgroup label for recommendedTypes (e.g. "Common checks"). */
   recommendedGroupLabel?: string
+  /** Disabled first option when no type selected yet (e.g. "Select action…"). */
+  placeholder?: string
+  placeholderValue?: string
 }) {
   const recommendedLabel =
     recommendedGroupLabel ??
@@ -96,9 +101,14 @@ export function TypePicker({
   return (
     <select
       className={`${sel} ${className ?? ''}`}
-      value={value}
+      value={value === '' ? placeholderValue : value}
       onChange={(e) => onChange(e.target.value)}
     >
+      {placeholder && (
+        <option value={placeholderValue} disabled>
+          {placeholder}
+        </option>
+      )}
       {groups.map(([cat, items]) => (
         <optgroup key={cat} label={cat}>
           {items.map((t) => {

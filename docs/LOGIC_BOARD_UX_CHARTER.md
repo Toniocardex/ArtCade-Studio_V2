@@ -40,6 +40,7 @@ Toggle **View → Base | Advanced** sulla module rail (persistito in `localStora
 | **OR tasti** | When → + Add key (OR) | Identico |
 | **OR tra controlli If** | Combine checks (≥ 2 controlli) | Identico |
 | **Albero nested** | Link “Nested AND/OR groups (advanced)…” | Link “Nested AND/OR groups…” |
+| **Then (add row)** | **Select action…** placeholder; Add disabled until chosen; resets after each add | Same flow |
 | **Class rulesheet** | `<details>` Advanced (già esistente) | Identico |
 
 Attributo DOM: `html[data-authoring-mode="base|advanced"]` per eventuali stili CSS.
