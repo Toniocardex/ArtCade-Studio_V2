@@ -16,7 +16,10 @@ function mkBoard(partial: Partial<LogicBoard> & Pick<LogicBoard, 'target' | 'eve
 
 describe('trigger-compatibility matrix', () => {
   it('lifecycle/physics/animation triggers reject global boards', () => {
-    for (const t of ['onSpawn', 'onDestroy', 'onCollision', 'onTriggerEnter', 'onTriggerExit', 'onAnimationEnd'] as const) {
+    for (const t of [
+      'onSpawn', 'onDestroy', 'onCollision', 'onCollisionEnter', 'onCollisionExit',
+      'onTriggerEnter', 'onTriggerExit', 'onAnimationEnd',
+    ] as const) {
       expect(isTriggerCompatible(t, 'global')).toBe(false)
       expect(isTriggerCompatible(t, 'entity_class')).toBe(true)
       expect(isTriggerCompatible(t, 'entity_id')).toBe(true)
@@ -34,7 +37,8 @@ describe('trigger-compatibility matrix', () => {
   it('matrix is exhaustive — every LogicTriggerType has an entry', () => {
     const expectedTypes = [
       'onStart', 'onUpdate', 'onSpawn', 'onDestroy',
-      'onCollision', 'onTriggerEnter', 'onTriggerExit',
+      'onCollision', 'onCollisionEnter', 'onCollisionExit',
+      'onTriggerEnter', 'onTriggerExit',
       'onAnimationEnd', 'onInput', 'onMouseInput', 'onMessage', 'onTimer',
     ]
     expect(Object.keys(TRIGGER_TARGET_MATRIX).sort()).toEqual(expectedTypes.sort())

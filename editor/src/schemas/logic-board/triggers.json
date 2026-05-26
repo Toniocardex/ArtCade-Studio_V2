@@ -44,7 +44,41 @@
     },
     "additionalProperties": false,
     "x-artcade": {
-      "label": "On Collision",
+      "label": "On Collision (while touching)",
+      "category": "Physics",
+      "executionMode": "polling",
+      "params": {
+        "withClass": { "widget": "className", "label": "With class" }
+      }
+    }
+  },
+  "onCollisionEnter": {
+    "type": "object",
+    "required": ["type", "withClass"],
+    "properties": {
+      "type": { "const": "onCollisionEnter" },
+      "withClass": { "type": "string", "minLength": 1 }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "On Collision Enter",
+      "category": "Physics",
+      "executionMode": "polling",
+      "params": {
+        "withClass": { "widget": "className", "label": "With class" }
+      }
+    }
+  },
+  "onCollisionExit": {
+    "type": "object",
+    "required": ["type", "withClass"],
+    "properties": {
+      "type": { "const": "onCollisionExit" },
+      "withClass": { "type": "string", "minLength": 1 }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "On Collision Exit",
       "category": "Physics",
       "executionMode": "polling",
       "params": {

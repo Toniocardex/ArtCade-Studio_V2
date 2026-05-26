@@ -16,8 +16,12 @@ export function triggerSummaryPlain(
       return 'Every frame while playing'
     case 'onCollision':
       return t.withClass
-        ? `When touching "${fmtClass(t.withClass, project)}"`
-        : 'When touching something'
+        ? `While touching "${fmtClass(t.withClass, project)}"`
+        : 'While touching something'
+    case 'onCollisionEnter':
+      return `When starting to touch "${fmtClass(t.withClass, project)}"`
+    case 'onCollisionExit':
+      return `When stopping touching "${fmtClass(t.withClass, project)}"`
     case 'onTriggerEnter':
       return t.withClass
         ? `When entering zone "${fmtClass(t.withClass, project)}"`

@@ -872,6 +872,44 @@ describe('Global-target boards (no entity context)', () => {
   })
 })
 
+describe('Bug #9 — onCollisionEnter / onCollisionExit edge triggers', () => {
+  it('emits _logic_collision_edge gate with want_enter=true for onCollisionEnter', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({ trigger: { type: 'onCollisionEnter', withClass: 'Coin' },
+             actions: [{ type: 'addVariable', key: 'score', amount: 1 }] }),
+      ]),
+    ])
+    expect(lua).toContain('_logic_collision_edge(self, "Coin", true)')
+    expect(lua).toContain('state.add("score", 1)')
+    // The level-triggered collision.touchingClass gate must NOT be used here.
+    // (collision.touchingClass appears only inside the edge helper definition.)
+    const touchingCount = lua.split('collision.touchingClass(').length - 1
+    expect(touchingCount).toBe(1)
+  })
+
+  it('emits _logic_collision_edge gate with want_enter=false for onCollisionExit', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({ trigger: { type: 'onCollisionExit', withClass: 'Spike' },
+             actions: [{ type: 'debugLog', message: 'safe' }] }),
+      ]),
+    ])
+    expect(lua).toContain('_logic_collision_edge(self, "Spike", false)')
+  })
+
+  it('prelude defines the edge helper and the was-touching memory', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({ trigger: { type: 'onUpdate' },
+             actions: [{ type: 'debugLog', message: 'x' }] }),
+      ]),
+    ])
+    expect(lua).toContain('local _collision_was_touching = {}')
+    expect(lua).toContain('local function _logic_collision_edge(eid, cls, want_enter)')
+  })
+})
+
 describe('Bug #2 — onSpawn replay for already-alive entities', () => {
   it('_logic_reg_spawn replays for entities in pool.getAll at registration time', () => {
     const lua = compileLogicBoard([

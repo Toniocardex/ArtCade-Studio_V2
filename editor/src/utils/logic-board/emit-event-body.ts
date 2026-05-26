@@ -116,6 +116,9 @@ export function emitEventBody(
     gate = trig.withClass
       ? `collision.touchingClass(self, ${luaString(trig.withClass)})`
       : null
+  } else if (trig.type === 'onCollisionEnter' || trig.type === 'onCollisionExit') {
+    const wantEnter = trig.type === 'onCollisionEnter' ? 'true' : 'false'
+    gate = `_logic_collision_edge(self, ${luaString(trig.withClass)}, ${wantEnter})`
   } else if (trig.type === 'onInput') {
     const fn =
       trig.eventType === 'pressed'

@@ -32,6 +32,8 @@ function triggerSlugSource(t: LogicTrigger): string {
     case 'onSpawn':         return 'on_spawn'
     case 'onDestroy':       return 'on_destroy'
     case 'onCollision':     return t.withClass ? `on_collision_${t.withClass}` : 'on_collision'
+    case 'onCollisionEnter': return `on_collide_enter_${t.withClass}`
+    case 'onCollisionExit':  return `on_collide_exit_${t.withClass}`
     case 'onTriggerEnter':  return t.withClass ? `on_enter_${t.withClass}` : 'on_enter_zone'
     case 'onTriggerExit':   return t.withClass ? `on_exit_${t.withClass}` : 'on_exit_zone'
     case 'onAnimationEnd':  return t.clipName ? `on_anim_end_${t.clipName}` : 'on_anim_end'

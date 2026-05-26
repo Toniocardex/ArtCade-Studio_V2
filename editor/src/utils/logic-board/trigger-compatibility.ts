@@ -48,9 +48,11 @@ export const TRIGGER_TARGET_MATRIX: Record<
   onSpawn:         ENTITY_TARGETS,
   onDestroy:       ENTITY_TARGETS,
   // Physics — need a specific entity to test collisions/overlaps against.
-  onCollision:     ENTITY_TARGETS,
-  onTriggerEnter:  ENTITY_TARGETS,
-  onTriggerExit:   ENTITY_TARGETS,
+  onCollision:      ENTITY_TARGETS,
+  onCollisionEnter: ENTITY_TARGETS,
+  onCollisionExit:  ENTITY_TARGETS,
+  onTriggerEnter:   ENTITY_TARGETS,
+  onTriggerExit:    ENTITY_TARGETS,
   // Graphics — tied to an entity's sprite animator.
   onAnimationEnd:  ENTITY_TARGETS,
   // Input/messaging — permissive. On entity boards the actions fan out

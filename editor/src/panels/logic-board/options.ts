@@ -41,6 +41,10 @@ export function defaultTrigger(type: LogicTriggerType): LogicTrigger {
       return { type: 'onUpdate' }
     case 'onCollision':
       return { type: 'onCollision', withClass: '' }
+    case 'onCollisionEnter':
+      return { type: 'onCollisionEnter', withClass: '' }
+    case 'onCollisionExit':
+      return { type: 'onCollisionExit', withClass: '' }
     case 'onTriggerEnter':
       return { type: 'onTriggerEnter', withClass: '' }
     case 'onTriggerExit':
