@@ -12,12 +12,14 @@ import {
   validateBoard as validateBoardCompiled,
 } from './validators.generated'
 import { stripConditionNegation } from './condition-combine'
+import { eventHasConditionBlock, eventUsesElseBranch } from './event-conditions'
 import type {
   LogicAction,
   LogicBoard,
   LogicBoardDoc,
   LogicCondition,
   LogicConditionNode,
+  LogicEvent,
   LogicTrigger,
 } from '../../types/logic-board'
 
@@ -303,6 +305,40 @@ export function validateLogicEvent(
         )
       }
     })
+  }
+
+  if (e.elseEnabled != null && typeof e.elseEnabled !== 'boolean') {
+    errors.push({ path: `${pathPrefix}/elseEnabled`, message: 'elseEnabled must be boolean' })
+  }
+  if (Array.isArray(e.elseActions)) {
+    e.elseActions.forEach((a, i) => {
+      const ar = validateAction(a)
+      if (!ar.valid) {
+        errors.push(
+          ...ar.errors.map((x) => ({
+            ...x,
+            path: `${pathPrefix}/elseActions[${i}]${x.path.replace('/action', '')}`,
+          })),
+        )
+      }
+    })
+  }
+
+  const evTyped = e as unknown as LogicEvent
+  if (e.elseEnabled === true && !eventHasConditionBlock(evTyped)) {
+    errors.push({
+      path: `${pathPrefix}/elseEnabled`,
+      message: 'Else requires Also require… with at least one check',
+    })
+  }
+  if (eventUsesElseBranch(evTyped)) {
+    const elseActs = Array.isArray(e.elseActions) ? e.elseActions : []
+    if (elseActs.length === 0) {
+      errors.push({
+        path: `${pathPrefix}/elseActions`,
+        message: 'Else is enabled but has no actions',
+      })
+    }
   }
 
   return { valid: errors.length === 0, errors }

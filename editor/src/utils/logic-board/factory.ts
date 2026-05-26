@@ -93,6 +93,10 @@ function parseEvent(raw: unknown): LogicEvent | null {
       ? { conditionRoot: r.conditionRoot as LogicEvent['conditionRoot'] }
       : {}),
     actions: asArray(r.actions) as LogicAction[],
+    ...(typeof r.elseEnabled === 'boolean' ? { elseEnabled: r.elseEnabled } : {}),
+    ...(Array.isArray(r.elseActions)
+      ? { elseActions: r.elseActions as LogicAction[] }
+      : {}),
   }
 }
 

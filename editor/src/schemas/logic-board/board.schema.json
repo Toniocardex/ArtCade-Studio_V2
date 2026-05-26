@@ -29,7 +29,9 @@
           "trigger": { "type": "object" },
           "conditions": { "type": "array", "items": { "type": "object" } },
           "conditionRoot": { "type": "object" },
-          "actions": { "type": "array", "items": { "type": "object" } }
+          "actions": { "type": "array", "items": { "type": "object" } },
+          "elseEnabled": { "type": "boolean" },
+          "elseActions": { "type": "array", "items": { "type": "object" } }
         },
         "additionalProperties": false
       }

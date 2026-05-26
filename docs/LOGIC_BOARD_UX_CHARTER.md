@@ -157,7 +157,7 @@ In **Base**, Common in cima; con trigger **onInput**, `Key held` nascosto nel pi
 
 - Preset regola “Jump / Shoot / Hurt”
 - Gruppi annidati più visibili in Base (NOT già in tree mode)
-- ELSE esplicito (vedi condizionale design)
+- ~~ELSE esplicito~~ (implementato: blocco **Else** dopo **Then**, richiede Also require…)
 - Grafo React Flow (livello 3, non sostituisce When/Also require…/Then)
 
 ---

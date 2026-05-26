@@ -8,6 +8,7 @@ import {
   Copy,
   GitBranch,
   ListChecks,
+  Split,
   Plus,
   Trash2,
   Zap,
@@ -50,6 +51,7 @@ import { useEditor } from '../../store/editor-store'
 import type { AuthoringMode } from '../../types/authoring-mode'
 import LogicIconButton from '../../components/logic-board/LogicIconButton'
 import { cloneLogicAction } from '../../utils/logic-board/clone'
+import { eventHasConditionBlock } from '../../utils/logic-board/event-conditions'
 import {
   ACTION_TYPES,
   defaultAction,
@@ -158,6 +160,85 @@ function ComponentRequirementWarning({
     <p className="w-full text-[10px] leading-snug text-[var(--warn)]">
       {requirement.message}
     </p>
+  )
+}
+
+function ActionListBlock({
+  actions,
+  board,
+  project,
+  recommendedTypes,
+  onChangeActions,
+  newActionType,
+  setNewActionType,
+  emptyHint,
+}: {
+  actions: LogicAction[]
+  board?: LogicBoard | null
+  project?: ProjectDoc | null
+  recommendedTypes: readonly string[]
+  onChangeActions: (actions: LogicAction[]) => void
+  newActionType: NewActionPick
+  setNewActionType: (t: NewActionPick) => void
+  emptyHint: string
+}) {
+  return (
+    <>
+      {actions.length === 0 && (
+        <p className="text-[11px] text-[var(--muted)]">{emptyHint}</p>
+      )}
+      {actions.map((a, i) => (
+        <ActionCard
+          key={i}
+          act={a}
+          board={board}
+          project={project}
+          recommendedTypes={recommendedTypes}
+          onChange={(na) => {
+            const next = actions.slice()
+            next[i] = na
+            onChangeActions(next)
+          }}
+          onRemove={() => onChangeActions(actions.filter((_, j) => j !== i))}
+          onClone={() => {
+            const next = actions.slice()
+            next.splice(i + 1, 0, cloneLogicAction(a))
+            onChangeActions(next)
+          }}
+        />
+      ))}
+      <div className="flex flex-wrap items-center gap-2 pt-1">
+        <TypePicker
+          kind="action"
+          types={ACTION_TYPES}
+          value={newActionType}
+          onChange={(t) => setNewActionType(t as LogicAction['type'])}
+          className="max-w-[240px]"
+          recommendedTypes={recommendedTypes}
+          placeholder="Select action…"
+          placeholderValue={NEW_ACTION_NONE}
+        />
+        <button
+          type="button"
+          className={newActionType ? btn : btnDisabled}
+          disabled={!newActionType}
+          title={
+            newActionType
+              ? 'Add the selected action'
+              : 'Choose an action from the list first'
+          }
+          onClick={() => {
+            if (!newActionType) return
+            const next = [...actions, defaultAction(newActionType)]
+            onChangeActions(next)
+            setNewActionType(NEW_ACTION_NONE)
+          }}
+        >
+          <Plus size={13} />
+          Add action
+        </button>
+      </div>
+    </>
   )
 }
 
@@ -430,6 +511,8 @@ export default function EventEditor({
     () => event.conditionRoot != null,
   )
   const [newActionType, setNewActionType] = useState<NewActionPick>(NEW_ACTION_NONE)
+  const [newElseActionType, setNewElseActionType] =
+    useState<NewActionPick>(NEW_ACTION_NONE)
   const recommendedTypes = recommendedTypesForTrigger(
     recommendedActionTypes(project, board),
     event.trigger,
@@ -442,11 +525,31 @@ export default function EventEditor({
     event.conditionRoot != null || (event.conditions?.length ?? 0) > 0
   const onlyIfEnabled =
     event.onlyIfEnabled ?? hasSavedConditions
+  const canUseElse = onlyIfEnabled && eventHasConditionBlock(event)
+  const elseEnabled = event.elseEnabled === true && canUseElse
 
   const setOnlyIfEnabled = (enabled: boolean) => {
     onChange({
       ...event,
       onlyIfEnabled: enabled,
+      ...(enabled
+        ? {}
+        : {
+            elseEnabled: false,
+            elseActions: undefined,
+          }),
+    })
+  }
+
+  const setElseEnabled = (enabled: boolean) => {
+    onChange({
+      ...event,
+      elseEnabled: enabled,
+      elseActions: enabled
+        ? event.elseActions?.length
+          ? event.elseActions
+          : []
+        : undefined,
     })
   }
 
@@ -603,66 +706,77 @@ export default function EventEditor({
         icon={<GitBranch size={13} />}
         tone="then"
       >
-        {event.actions.length === 0 && (
-          <p className="text-[11px] text-[var(--muted)]">Add at least one action.</p>
-        )}
-        {event.actions.map((a, i) => (
-          <ActionCard
-            key={i}
-            act={a}
-            board={board}
-            project={project}
-            recommendedTypes={recommendedTypes}
-            onChange={(na) => {
-              const next = event.actions.slice()
-              next[i] = na
-              onChange(withContextualInputDefault(event, next))
-            }}
-            onRemove={() =>
-              onChange({
-                ...event,
-                actions: event.actions.filter((_, j) => j !== i),
-              })
-            }
-            onClone={() => {
-              const next = event.actions.slice()
-              next.splice(i + 1, 0, cloneLogicAction(a))
-              onChange({ ...event, actions: next })
-            }}
-          />
-        ))}
-        <div className="flex flex-wrap items-center gap-2 pt-1">
-          <TypePicker
-            kind="action"
-            types={ACTION_TYPES}
-            value={newActionType}
-            onChange={(t) => setNewActionType(t as LogicAction['type'])}
-            className="max-w-[240px]"
-            recommendedTypes={recommendedTypes}
-            placeholder="Select action…"
-            placeholderValue={NEW_ACTION_NONE}
-          />
-          <button
-            type="button"
-            className={newActionType ? btn : btnDisabled}
-            disabled={!newActionType}
-            title={
-              newActionType
-                ? 'Add the selected action'
-                : 'Choose an action from the list first'
-            }
-            onClick={() => {
-              if (!newActionType) return
-              const next = [...event.actions, defaultAction(newActionType)]
-              onChange(withContextualInputDefault(event, next))
-              setNewActionType(NEW_ACTION_NONE)
-            }}
-          >
-            <Plus size={13} />
-            Add action
-          </button>
-        </div>
+        <p className="text-[10px] leading-snug text-[var(--muted)]">
+          When <strong>Also require…</strong> checks pass.
+        </p>
+        <ActionListBlock
+          actions={event.actions}
+          board={board}
+          project={project}
+          recommendedTypes={recommendedTypes}
+          newActionType={newActionType}
+          setNewActionType={setNewActionType}
+          emptyHint="Add at least one action."
+          onChangeActions={(actions) =>
+            onChange(withContextualInputDefault(event, actions))
+          }
+        />
       </LogicBlock>
+
+      {canUseElse && (
+        <LogicBlock
+          title="Else"
+          optional
+          icon={<Split size={13} />}
+          tone="if"
+          action={
+            <button
+              type="button"
+              onClick={() => setElseEnabled(!elseEnabled)}
+              title={
+                elseEnabled
+                  ? 'Disable Else actions'
+                  : 'Enable Else actions'
+              }
+              aria-label={
+                elseEnabled
+                  ? 'Disable Else actions'
+                  : 'Enable Else actions'
+              }
+              className={`relative h-[18px] w-9 rounded transition-colors ${
+                elseEnabled ? 'bg-[var(--warn)]' : 'bg-[var(--border-2)]'
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 h-3.5 w-3.5 rounded transition-all ${
+                  elseEnabled
+                    ? 'right-0.5 bg-[var(--text)]'
+                    : 'left-0.5 bg-[var(--muted)]'
+                }`}
+              />
+            </button>
+          }
+        >
+          <p className="text-[10px] leading-snug text-[var(--muted)]">
+            When <strong>Also require…</strong> checks <strong>fail</strong> (opposite
+            of Then).
+          </p>
+          {!elseEnabled ? null : (
+            <ActionListBlock
+              actions={event.elseActions ?? []}
+              board={board}
+              project={project}
+              recommendedTypes={recommendedTypes}
+              newActionType={newElseActionType}
+              setNewActionType={setNewElseActionType}
+              emptyHint="Add at least one Else action."
+              onChangeActions={(elseActions) =>
+                onChange({ ...event, elseEnabled: true, elseActions })
+              }
+            />
+          )}
+        </LogicBlock>
+      )}
 
       <div className="flex gap-2 pt-1">
         <button

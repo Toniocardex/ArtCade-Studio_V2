@@ -85,7 +85,9 @@ describe('Component API actions and conditions', () => {
 
     expect(lua).toContain('local _logic_movement_known = {}')
     expect(lua).toContain('_logic_movement_frame = {}')
-    expect(lua).toContain('if input.isKeyDown("KeyA") and (_logic_on[RULE.hold_a] ~= false) then')
+    expect(lua).toMatch(
+      /if _logic_on\[RULE\.hold_a\] ~= false then[\s\S]*if input\.isKeyDown\("KeyA"\) then/,
+    )
     expect(lua).toContain('_logic_add_movement(self, -1, 0)')
     expect(lua).toContain('_logic_flush_movement()')
     expect(lua).toContain('movement.clearIntent(entityId)')
@@ -413,6 +415,26 @@ describe('compileLogicBoard — triggers', () => {
     expect(lua).toMatch(
       /wasKeyPressed\("KeyW"\).*and.*input\.isKeyDown\("ControlLeft"\)/s,
     )
+  })
+
+  it('else branch emits when Also require checks fail', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({
+          onlyIfEnabled: true,
+          conditions: [
+            { type: 'compareVariable', key: 'hasKey', operator: '==', value: 1 },
+          ],
+          elseEnabled: true,
+          elseActions: [{ type: 'debugLog', message: 'locked' }],
+          trigger: { type: 'onUpdate' },
+          actions: [{ type: 'debugLog', message: 'open' }],
+        }),
+      ]),
+    ])
+    expect(lua).toMatch(/if \(state\.get\("hasKey"\) == 1\) then/)
+    expect(lua).toContain('debug.log("open")')
+    expect(lua).toMatch(/else[\s\S]*debug\.log\("locked"\)/)
   })
 
   it('flat conditionsOperator NOT negates combined checks', () => {

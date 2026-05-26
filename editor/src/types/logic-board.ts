@@ -181,6 +181,9 @@ export interface LogicEvent {
   conditions?: LogicConditionEntry[]
   conditionRoot?: LogicConditionNode
   actions:     LogicAction[]
+  /** Optional Else branch when Also require… checks fail (requires conditions). */
+  elseEnabled?: boolean
+  elseActions?: LogicAction[]
 }
 
 export interface LogicBoard {
