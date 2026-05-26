@@ -375,6 +375,40 @@ describe('compileLogicBoard — triggers', () => {
     expect(lua).toContain('_logic_reg_timer_every(1.5, function()')
     expect(lua).toContain('debug.log("tick")')
   })
+
+  it('onTimer in tick-fallback path parks one-shot at -math.huge after fire', () => {
+    // controllerMovement forces usesTickFallback=true even for onTimer,
+    // routing the timer through the inline tick body branch.
+    const lua = compileLogicBoard([
+      board([
+        ev({
+          trigger: { type: 'onTimer', seconds: 2, repeat: false },
+          actions: [
+            { type: 'controllerMovement', target: 'self', direction: 'left' },
+          ],
+        }),
+      ]),
+    ])
+    // One-shot must guard against the "fires every frame after expiry" bug
+    // by parking the accumulator past any reachable threshold.
+    expect(lua).toContain('_logic_timers["b1:e1"] = -math.huge')
+    expect(lua).not.toContain('_logic_timers["b1:e1"] = 0')
+  })
+
+  it('onTimer repeat in tick-fallback subtracts interval to preserve cadence', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({
+          trigger: { type: 'onTimer', seconds: 1.5, repeat: true },
+          actions: [
+            { type: 'controllerMovement', target: 'self', direction: 'right' },
+          ],
+        }),
+      ]),
+    ])
+    // Subtract-instead-of-reset preserves average rate even under frame drift.
+    expect(lua).toContain('_logic_timers["b1:e1"] = _logic_timers["b1:e1"] - 1.5')
+  })
 })
 
 describe('compileLogicBoard — actions', () => {

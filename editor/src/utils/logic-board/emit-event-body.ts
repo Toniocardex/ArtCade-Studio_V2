@@ -97,10 +97,18 @@ export function emitEventBody(
   } else if (trig.type === 'onTimer') {
     const key = luaString(`${board.boardId}:${ev.id}`)
     const inner = baseIndent + INDENT
+    const seconds = Number(trig.seconds) || 0
     lines.push(`${baseIndent}_logic_timers[${key}] = (_logic_timers[${key}] or 0) + dt`)
-    lines.push(`${baseIndent}if _logic_timers[${key}] >= ${Number(trig.seconds) || 0} then`)
+    lines.push(`${baseIndent}if _logic_timers[${key}] >= ${seconds} then`)
     if (trig.repeat) {
-      lines.push(`${inner}_logic_timers[${key}] = 0`)
+      // Repeat: subtract the interval (not reset to 0) so accumulated overshoot
+      // carries forward and the average rate matches the requested period.
+      lines.push(`${inner}_logic_timers[${key}] = _logic_timers[${key}] - ${seconds}`)
+    } else {
+      // One-shot: park the counter at -math.huge so the threshold can never
+      // be crossed again. Without this guard, the timer would fire every
+      // subsequent frame because the accumulator keeps growing.
+      lines.push(`${inner}_logic_timers[${key}] = -math.huge`)
     }
     if (guard === 'true') {
       lines.push(...emitActionSequence(ev.actions, inner, slugs))
