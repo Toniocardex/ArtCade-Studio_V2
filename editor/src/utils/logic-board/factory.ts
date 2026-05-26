@@ -25,7 +25,7 @@ export function logicId(prefix: string): string {
 
 /** A new empty event defaulting to an onSpawn trigger with no actions. */
 export function createLogicEvent(
-  trigger: LogicTrigger = { type: 'onSpawn', className: '' },
+  trigger: LogicTrigger = { type: 'onSpawn' },
   actions: LogicAction[] = [],
 ): LogicEvent {
   return { id: logicId('evt'), enabled: true, trigger, actions }

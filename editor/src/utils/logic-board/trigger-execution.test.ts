@@ -54,9 +54,9 @@ describe('trigger-execution', () => {
     expect(usesTickFallback(event, b)).toBe(true)
   })
 
-  it('onSpawn uses event when className set on trigger', () => {
-    const b = board({ type: 'entity_id', entityId: 1 })
-    const event = ev({ type: 'onSpawn', className: 'Bullet' })
+  it('onSpawn uses event when board has entity_class target', () => {
+    const b = board({ type: 'entity_class', className: 'Bullet' })
+    const event = ev({ type: 'onSpawn' })
     expect(canRegisterLifecycleSpawn(event, b)).toBe(true)
     expect(usesTickFallback(event, b)).toBe(false)
   })

@@ -30,7 +30,9 @@ export type TargetSelector =
 
 export type LogicTrigger =
   | { type: 'onStart' }                                             // once, in init()
-  | { type: 'onSpawn'; className?: string }                         // lifecycle.onSpawn
+  // className is derived from the board's target (entity_class/entity_id+lookup);
+  // a separate trigger.className would create a confusing second source of truth.
+  | { type: 'onSpawn' }                                             // lifecycle.onSpawn
   | { type: 'onUpdate' }                                            // every tick(dt)
   | { type: 'onCollision'; withClass?: string }                     // self touches a class
   | { type: 'onTriggerEnter'; withClass?: string }                  // edge: started touching

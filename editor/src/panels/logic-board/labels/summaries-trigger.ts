@@ -11,9 +11,7 @@ export function triggerSummaryPlain(
     case 'onStart':
       return 'When the game starts'
     case 'onSpawn':
-      return t.className
-        ? `When "${fmtClass(t.className, project)}" spawns`
-        : 'When this object spawns'
+      return 'When this object spawns'
     case 'onUpdate':
       return 'Every frame while playing'
     case 'onCollision':

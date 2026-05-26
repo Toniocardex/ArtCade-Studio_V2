@@ -35,11 +35,9 @@ export const POLLING_TRIGGER_TYPES: readonly LogicTriggerType[] = [
 
 export function boardLifecycleClass(
   board: LogicBoard,
-  ev: LogicEvent,
+  _ev: LogicEvent,
   project?: ProjectDoc | null,
 ): string | null {
-  if (ev.trigger.type === 'onSpawn' && ev.trigger.className)
-    return ev.trigger.className
   if (board.target.type === 'entity_class' && board.target.className)
     return board.target.className
   if (project && board.target.type === 'entity_id') {

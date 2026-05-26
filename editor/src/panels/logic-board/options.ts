@@ -36,7 +36,7 @@ export function defaultTrigger(type: LogicTriggerType): LogicTrigger {
     case 'onStart':
       return { type: 'onStart' }
     case 'onSpawn':
-      return { type: 'onSpawn', className: '' }
+      return { type: 'onSpawn' }
     case 'onUpdate':
       return { type: 'onUpdate' }
     case 'onCollision':

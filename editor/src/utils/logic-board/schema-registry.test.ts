@@ -29,9 +29,19 @@ describe('schema-registry', () => {
     expect(listConditionTypes().sort()).toEqual([...CONDITION_TYPES].sort())
   })
 
-  it('defaultTrigger validates for every trigger type', () => {
+  it('defaultTrigger validates for every trigger type (after filling required user inputs)', () => {
+    // Some triggers have required user-supplied params (withClass, clipName)
+    // that the UI deliberately leaves empty in the default so the EventCard
+    // surfaces a "needs config" state. For schema validation we hydrate
+    // those placeholders here.
+    const fillRequired = (t: ReturnType<typeof defaultTrigger>) => {
+      const o = t as Record<string, unknown>
+      if ('withClass' in o && o.withClass === '') o.withClass = 'PlaceholderClass'
+      if ('clipName' in o && o.clipName === '') o.clipName = 'placeholder_clip'
+      return t
+    }
     for (const t of TRIGGER_TYPES) {
-      const trigger = defaultTrigger(t)
+      const trigger = fillRequired(defaultTrigger(t))
       const r = validateTrigger(trigger)
       expect(r.valid, `${t}: ${JSON.stringify(r.errors)}`).toBe(true)
     }
@@ -60,6 +70,22 @@ describe('schema-registry', () => {
     expect(r.valid, JSON.stringify(r.errors)).toBe(true)
     const doc = validateLogicBoardDoc([board])
     expect(doc.valid).toBe(true)
+  })
+
+  it('schema rejects triggers missing required user params', () => {
+    // These reflect the tightened triggers.json — required+minLength.
+    expect(validateTrigger({ type: 'onCollision' }).valid).toBe(false)
+    expect(validateTrigger({ type: 'onCollision', withClass: '' }).valid).toBe(false)
+    expect(validateTrigger({ type: 'onTriggerEnter' }).valid).toBe(false)
+    expect(validateTrigger({ type: 'onTriggerExit' }).valid).toBe(false)
+    expect(validateTrigger({ type: 'onAnimationEnd' }).valid).toBe(false)
+    expect(validateTrigger({ type: 'onAnimationEnd', clipName: '' }).valid).toBe(false)
+    expect(validateTrigger({ type: 'onMessage', messageName: '' }).valid).toBe(false)
+    expect(validateTrigger({ type: 'onInput', keyCode: '', eventType: 'pressed' }).valid).toBe(false)
+    expect(validateTrigger({ type: 'onTimer', seconds: 0, repeat: false }).valid).toBe(false)
+    expect(validateTrigger({ type: 'onTimer', seconds: -1, repeat: false }).valid).toBe(false)
+    // onSpawn must no longer accept a className (derived from board.target).
+    expect(validateTrigger({ type: 'onSpawn', className: 'Player' }).valid).toBe(false)
   })
 
   it('rejects unknown action type', () => {

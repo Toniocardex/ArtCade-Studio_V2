@@ -14,18 +14,13 @@
   "onSpawn": {
     "type": "object",
     "required": ["type"],
-    "properties": {
-      "type": { "const": "onSpawn" },
-      "className": { "type": "string" }
-    },
+    "properties": { "type": { "const": "onSpawn" } },
     "additionalProperties": false,
     "x-artcade": {
       "label": "On Spawn",
       "category": "System",
       "executionMode": "event",
-      "params": {
-        "className": { "widget": "className", "label": "Class (optional)" }
-      }
+      "params": {}
     }
   },
   "onUpdate": {
@@ -42,10 +37,10 @@
   },
   "onCollision": {
     "type": "object",
-    "required": ["type"],
+    "required": ["type", "withClass"],
     "properties": {
       "type": { "const": "onCollision" },
-      "withClass": { "type": "string" }
+      "withClass": { "type": "string", "minLength": 1 }
     },
     "additionalProperties": false,
     "x-artcade": {
@@ -59,10 +54,10 @@
   },
   "onTriggerEnter": {
     "type": "object",
-    "required": ["type"],
+    "required": ["type", "withClass"],
     "properties": {
       "type": { "const": "onTriggerEnter" },
-      "withClass": { "type": "string" }
+      "withClass": { "type": "string", "minLength": 1 }
     },
     "additionalProperties": false,
     "x-artcade": {
@@ -80,10 +75,10 @@
   },
   "onTriggerExit": {
     "type": "object",
-    "required": ["type"],
+    "required": ["type", "withClass"],
     "properties": {
       "type": { "const": "onTriggerExit" },
-      "withClass": { "type": "string" }
+      "withClass": { "type": "string", "minLength": 1 }
     },
     "additionalProperties": false,
     "x-artcade": {
@@ -101,10 +96,10 @@
   },
   "onAnimationEnd": {
     "type": "object",
-    "required": ["type"],
+    "required": ["type", "clipName"],
     "properties": {
       "type": { "const": "onAnimationEnd" },
-      "clipName": { "type": "string" }
+      "clipName": { "type": "string", "minLength": 1 }
     },
     "additionalProperties": false,
     "x-artcade": {
@@ -133,7 +128,7 @@
     "required": ["type", "keyCode", "eventType"],
     "properties": {
       "type": { "const": "onInput" },
-      "keyCode": { "type": "string" },
+      "keyCode": { "type": "string", "minLength": 1 },
       "eventType": { "enum": ["pressed", "down", "released"] }
     },
     "additionalProperties": false,
@@ -171,7 +166,7 @@
     "required": ["type", "messageName"],
     "properties": {
       "type": { "const": "onMessage" },
-      "messageName": { "type": "string" }
+      "messageName": { "type": "string", "minLength": 1 }
     },
     "additionalProperties": false,
     "x-artcade": {
@@ -188,7 +183,7 @@
     "required": ["type", "seconds", "repeat"],
     "properties": {
       "type": { "const": "onTimer" },
-      "seconds": { "type": "number" },
+      "seconds": { "type": "number", "exclusiveMinimum": 0 },
       "repeat": { "type": "boolean" }
     },
     "additionalProperties": false,

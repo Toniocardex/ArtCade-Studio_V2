@@ -750,7 +750,7 @@ describe('Hot-reload safety — handler unsubscribe tracking', () => {
   it('emits __artcade_lb_unsubs reset block above _logic_init', () => {
     const lua = compileLogicBoard([
       board([
-        ev({ trigger: { type: 'onSpawn', className: 'Player' },
+        ev({ trigger: { type: 'onSpawn' },
              actions: [{ type: 'debugLog', message: 'spawned' }] }),
       ]),
     ])
@@ -770,7 +770,7 @@ describe('Hot-reload safety — handler unsubscribe tracking', () => {
   it('wraps every event-style registration with _logic_track-aware helpers', () => {
     const lua = compileLogicBoard([
       board([
-        ev({ id: 'a', trigger: { type: 'onSpawn', className: 'Player' },
+        ev({ id: 'a', trigger: { type: 'onSpawn' },
              actions: [{ type: 'debugLog', message: 's' }] }),
         ev({ id: 'b', trigger: { type: 'onDestroy' },
              actions: [{ type: 'debugLog', message: 'd' }] }),
@@ -871,7 +871,7 @@ describe('Logic Components — Phase C (engine-hook triggers)', () => {
   it('onSpawn registers a lifecycle handler', () => {
     const lua = compileLogicBoard([
       board([
-        ev({ trigger: { type: 'onSpawn', className: 'Player' },
+        ev({ trigger: { type: 'onSpawn' },
              actions: [{ type: 'debugLog', message: 'spawned' }] }),
       ]),
     ])

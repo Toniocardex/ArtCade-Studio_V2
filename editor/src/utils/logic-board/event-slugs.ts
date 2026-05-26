@@ -29,7 +29,7 @@ function triggerSlugSource(t: LogicTrigger): string {
   switch (t.type) {
     case 'onStart':         return 'on_start'
     case 'onUpdate':        return 'on_update'
-    case 'onSpawn':         return t.className ? `on_spawn_${t.className}` : 'on_spawn'
+    case 'onSpawn':         return 'on_spawn'
     case 'onDestroy':       return 'on_destroy'
     case 'onCollision':     return t.withClass ? `on_collision_${t.withClass}` : 'on_collision'
     case 'onTriggerEnter':  return t.withClass ? `on_enter_${t.withClass}` : 'on_enter_zone'
