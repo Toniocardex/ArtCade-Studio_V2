@@ -1250,14 +1250,14 @@ describe('Logic Components — Phase C (engine-hook triggers)', () => {
     expect(lua).toContain('debug.log("after")')
   })
 
-  it('repeatTimes runs following linear actions in a for loop', () => {
+  it('repeatTimes runs following linear actions in a for loop when interval is 0', () => {
     const lua = compileLogicBoard([
       board([
         ev({
           trigger: { type: 'onStart' },
           actions: [
             { type: 'debugLog', message: 'before' },
-            { type: 'repeatTimes', count: 3 },
+            { type: 'repeatTimes', count: 3, intervalSeconds: 0 },
             { type: 'debugLog', message: 'blink' },
             { type: 'debugLog', message: 'after' },
           ],
@@ -1279,6 +1279,26 @@ describe('Logic Components — Phase C (engine-hook triggers)', () => {
     expect(between.split('debug.log("blink")').length - 1).toBe(1)
   })
 
+  it('repeatTimes spaces iterations with time.after when interval > 0', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({
+          trigger: { type: 'onStart' },
+          actions: [
+            { type: 'repeatTimes', count: 3, intervalSeconds: 0.5 },
+            { type: 'debugLog', message: 'blink' },
+          ],
+        }),
+      ]),
+    ])
+    expect(lua).not.toContain('for _logic_rep = 1, 3 do')
+    expect(lua).toContain('local function _logic_rep_step_1(n)')
+    expect(lua).toContain('if n > 3 then return end')
+    expect(lua).toContain('time.after(0.5, function() _logic_rep_step_1(n + 1) end)')
+    expect(lua).toContain('_logic_rep_step_1(1)')
+    expect(lua).toContain('debug.log("blink")')
+  })
+
   it('repeatTimes uses nested actions when provided', () => {
     const lua = compileLogicBoard([
       board([
@@ -1288,6 +1308,7 @@ describe('Logic Components — Phase C (engine-hook triggers)', () => {
             {
               type: 'repeatTimes',
               count: 2,
+              intervalSeconds: 0,
               actions: [{ type: 'debugLog', message: 'inner' }],
             },
             { type: 'debugLog', message: 'tail' },
@@ -1307,13 +1328,14 @@ describe('Logic Components — Phase C (engine-hook triggers)', () => {
         ev({
           trigger: { type: 'onStart' },
           actions: [
-            { type: 'repeatTimes', count: 0 },
+            { type: 'repeatTimes', count: 0, intervalSeconds: 0.5 },
             { type: 'debugLog', message: 'once' },
           ],
         }),
       ]),
     ])
-    expect(lua).toContain('for _logic_rep = 1, 1 do')
+    expect(lua).toContain('if n > 1 then return end')
+    expect(lua).toContain('time.after(0.5, function()')
   })
 
   it('repeatTimes body stops at the next wait control action', () => {
@@ -1322,7 +1344,7 @@ describe('Logic Components — Phase C (engine-hook triggers)', () => {
         ev({
           trigger: { type: 'onStart' },
           actions: [
-            { type: 'repeatTimes', count: 2 },
+            { type: 'repeatTimes', count: 2, intervalSeconds: 0 },
             { type: 'debugLog', message: 'in-loop' },
             { type: 'wait', seconds: 0.5 },
             { type: 'debugLog', message: 'never' },

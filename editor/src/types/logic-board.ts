@@ -163,7 +163,7 @@ export type LogicAction =
    * this one. If `actions` is set, only that list is repeated; otherwise the following
    * linear actions (until the next Wait / Repeat) form the body.
    */
-  | { type: 'repeatTimes'; count: number; actions?: LogicAction[] }
+  | { type: 'repeatTimes'; count: number; intervalSeconds?: number; actions?: LogicAction[] }
   | { type: 'moveByOffset'; target: TargetSelector; dx: number; dy: number }
   | { type: 'snapToGrid'; target: TargetSelector; cellSize: number }
   | { type: 'setEntityShader'; target: TargetSelector; shader: string }

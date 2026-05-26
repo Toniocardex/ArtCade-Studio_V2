@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Linear action list emission (wait → time.after, repeatTimes → for loop)
+// Linear action list emission (wait → time.after, repeatTimes → loop / stepped)
 // ---------------------------------------------------------------------------
 
 import type { LogicAction } from '../../types/logic-board'
@@ -9,6 +9,9 @@ import {
   REPEAT_TIMES_SENTINEL_PREFIX,
   WAIT_SENTINEL_PREFIX,
 } from './action-emitter'
+
+/** Unique step function names when multiple Repeat blocks compile in one event. */
+let repeatStepSerial = 0
 
 function isSequenceControl(a: LogicAction): boolean {
   return a.type === 'wait' || a.type === 'repeatTimes'
@@ -27,6 +30,60 @@ function emitPlainAction(
   lines.push(indent + code)
 }
 
+function resolveRepeatBody(
+  actions: LogicAction[],
+  index: number,
+): { body: LogicAction[]; nextIndex: number } {
+  const a = actions[index]
+  if (a.type !== 'repeatTimes') {
+    return { body: [], nextIndex: index + 1 }
+  }
+  if (a.actions?.length) {
+    return { body: a.actions, nextIndex: index + 1 }
+  }
+  const body: LogicAction[] = []
+  let j = index + 1
+  while (j < actions.length && !isSequenceControl(actions[j])) {
+    body.push(actions[j++])
+  }
+  return { body, nextIndex: j }
+}
+
+function emitRepeatTimes(
+  a: Extract<LogicAction, { type: 'repeatTimes' }>,
+  actions: LogicAction[],
+  index: number,
+  indent: string,
+  slugs: Map<string, string>,
+  lines: string[],
+): number {
+  const count = Math.max(1, Math.floor(Number(a.count) || 1))
+  const interval =
+    a.intervalSeconds === undefined || a.intervalSeconds === null
+      ? 0.5
+      : Math.max(0, Number(a.intervalSeconds) || 0)
+  const { body, nextIndex } = resolveRepeatBody(actions, index)
+
+  if (interval <= 0) {
+    lines.push(`${indent}for _logic_rep = 1, ${count} do`)
+    lines.push(...emitActionSequence(body, indent + INDENT, slugs))
+    lines.push(`${indent}end`)
+    return nextIndex
+  }
+
+  const stepFn = `_logic_rep_step_${++repeatStepSerial}`
+  const I = indent + INDENT
+  lines.push(`${indent}local function ${stepFn}(n)`)
+  lines.push(`${I}if n > ${count} then return end`)
+  lines.push(...emitActionSequence(body, I, slugs))
+  lines.push(`${I}if n < ${count} then`)
+  lines.push(`${I}${INDENT}time.after(${interval}, function() ${stepFn}(n + 1) end)`)
+  lines.push(`${I}end`)
+  lines.push(`${indent}end`)
+  lines.push(`${indent}${stepFn}(1)`)
+  return nextIndex
+}
+
 export function emitActionSequence(
   actions: LogicAction[],
   indent: string,
@@ -34,6 +91,7 @@ export function emitActionSequence(
 ): string[] {
   if (actions.length === 0) return []
 
+  repeatStepSerial = 0
   const lines: string[] = []
   let i = 0
 
@@ -51,24 +109,7 @@ export function emitActionSequence(
     }
 
     if (a.type === 'repeatTimes') {
-      const count = Math.max(1, Math.floor(Number(a.count) || 1))
-      let body: LogicAction[]
-      let nextIndex: number
-      if (a.actions?.length) {
-        body = a.actions
-        nextIndex = i + 1
-      } else {
-        body = []
-        let j = i + 1
-        while (j < actions.length && !isSequenceControl(actions[j])) {
-          body.push(actions[j++])
-        }
-        nextIndex = j
-      }
-      lines.push(`${indent}for _logic_rep = 1, ${count} do`)
-      lines.push(...emitActionSequence(body, indent + INDENT, slugs))
-      lines.push(`${indent}end`)
-      i = nextIndex
+      i = emitRepeatTimes(a, actions, i, indent, slugs, lines)
       continue
     }
 

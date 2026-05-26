@@ -722,6 +722,7 @@
     "properties": {
       "type": { "const": "repeatTimes" },
       "count": { "type": "number", "minimum": 1 },
+      "intervalSeconds": { "type": "number", "minimum": 0 },
       "actions": {
         "type": "array",
         "items": { "type": "object" }
@@ -732,7 +733,8 @@
       "label": "Repeat",
       "category": "System",
       "params": {
-        "count": { "widget": "number", "label": "Times", "minimum": 1 }
+        "count": { "widget": "number", "label": "Times", "minimum": 1 },
+        "intervalSeconds": { "widget": "number", "label": "Every (seconds)", "minimum": 0 }
       }
     }
   },

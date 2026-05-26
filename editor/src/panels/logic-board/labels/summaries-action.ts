@@ -130,10 +130,17 @@ export function actionSummaryPlain(
         : `Wait ${a.seconds} seconds`
     case 'repeatTimes': {
       const n = Math.max(1, Math.floor(Number(a.count) || 1))
+      const every =
+        a.intervalSeconds === undefined || a.intervalSeconds === null
+          ? 0.5
+          : Math.max(0, Number(a.intervalSeconds) || 0)
       const nested = a.actions?.length ?? 0
-      return nested > 0
-        ? `Repeat ${n} times (${nested} nested action${nested === 1 ? '' : 's'})`
-        : `Repeat ${n} times (next actions in list)`
+      const scope = nested > 0
+        ? `${nested} nested action${nested === 1 ? '' : 's'}`
+        : 'next actions in list'
+      const pace =
+        every > 0 ? `, every ${every}s` : ', instantly (0s interval)'
+      return `Repeat ${n} times${pace} (${scope})`
     }
     case 'moveByOffset':
       return `Move ${who} by (${a.dx}, ${a.dy}) pixels`
