@@ -17,7 +17,7 @@
     "setLinearMoverDirection", "setLinearMoverSpeed", "pauseLinearMover", "resumeLinearMover",
     "setMagnetEnabled", "setMagnetTargetTag", "setHordeTargetClass", "setHordeWeights",
     "setAutoDestroyLifespan", "cancelAutoDestroy",
-    "moveByOffset", "snapToGrid", "setEntityShader", "setScreenShader", "debugLog", "wait"
+    "moveByOffset", "snapToGrid", "setEntityShader", "setScreenShader", "debugLog", "wait", "repeatTimes"
   ],
   "conditions": [
     "compareVariable", "compareClass", "isKeyDown", "hasTag", "compareDistance",

@@ -128,6 +128,13 @@ export function actionSummaryPlain(
       return a.then?.length
         ? `Wait ${a.seconds}s, then more actions`
         : `Wait ${a.seconds} seconds`
+    case 'repeatTimes': {
+      const n = Math.max(1, Math.floor(Number(a.count) || 1))
+      const nested = a.actions?.length ?? 0
+      return nested > 0
+        ? `Repeat ${n} times (${nested} nested action${nested === 1 ? '' : 's'})`
+        : `Repeat ${n} times (next actions in list)`
+    }
     case 'moveByOffset':
       return `Move ${who} by (${a.dx}, ${a.dy}) pixels`
     case 'snapToGrid':

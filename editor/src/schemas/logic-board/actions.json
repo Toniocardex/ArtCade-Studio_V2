@@ -716,6 +716,26 @@
       }
     }
   },
+  "repeatTimes": {
+    "type": "object",
+    "required": ["type", "count"],
+    "properties": {
+      "type": { "const": "repeatTimes" },
+      "count": { "type": "number", "minimum": 1 },
+      "actions": {
+        "type": "array",
+        "items": { "type": "object" }
+      }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Repeat",
+      "category": "System",
+      "params": {
+        "count": { "widget": "number", "label": "Times", "minimum": 1 }
+      }
+    }
+  },
   "setLinearMoverDirection": {
     "type": "object",
     "required": ["type", "target", "directionX", "directionY"],

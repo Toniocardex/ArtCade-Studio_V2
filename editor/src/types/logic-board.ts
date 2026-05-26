@@ -158,6 +158,12 @@ export type LogicAction =
   | { type: 'debugLog'; message: string }
   /** Pauses the action sequence; following actions run inside time.delay (or use `then`). */
   | { type: 'wait'; seconds: number; then?: LogicAction[] }
+  /**
+   * Runs a block of actions `count` times, then continues with any actions listed after
+   * this one. If `actions` is set, only that list is repeated; otherwise the following
+   * linear actions (until the next Wait / Repeat) form the body.
+   */
+  | { type: 'repeatTimes'; count: number; actions?: LogicAction[] }
   | { type: 'moveByOffset'; target: TargetSelector; dx: number; dy: number }
   | { type: 'snapToGrid'; target: TargetSelector; cellSize: number }
   | { type: 'setEntityShader'; target: TargetSelector; shader: string }

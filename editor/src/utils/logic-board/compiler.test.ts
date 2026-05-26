@@ -1250,6 +1250,94 @@ describe('Logic Components — Phase C (engine-hook triggers)', () => {
     expect(lua).toContain('debug.log("after")')
   })
 
+  it('repeatTimes runs following linear actions in a for loop', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({
+          trigger: { type: 'onStart' },
+          actions: [
+            { type: 'debugLog', message: 'before' },
+            { type: 'repeatTimes', count: 3 },
+            { type: 'debugLog', message: 'blink' },
+            { type: 'debugLog', message: 'after' },
+          ],
+        }),
+      ]),
+    ])
+    expect(lua).toContain('debug.log("before")')
+    expect(lua).toContain('for _logic_rep = 1, 3 do')
+    expect(lua).toContain('debug.log("blink")')
+    expect(lua).toContain('debug.log("after")')
+    const loopStart = lua.indexOf('for _logic_rep = 1, 3 do')
+    const blinkIdx = lua.indexOf('debug.log("blink")')
+    const afterIdx = lua.indexOf('debug.log("after")')
+    expect(blinkIdx).toBeGreaterThan(loopStart)
+    expect(afterIdx).toBeGreaterThan(blinkIdx)
+    const between = lua.slice(loopStart, afterIdx)
+    expect(between).toContain('for _logic_rep = 1, 3 do')
+    expect(between).toContain('debug.log("blink")')
+    expect(between.split('debug.log("blink")').length - 1).toBe(1)
+  })
+
+  it('repeatTimes uses nested actions when provided', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({
+          trigger: { type: 'onStart' },
+          actions: [
+            {
+              type: 'repeatTimes',
+              count: 2,
+              actions: [{ type: 'debugLog', message: 'inner' }],
+            },
+            { type: 'debugLog', message: 'tail' },
+          ],
+        }),
+      ]),
+    ])
+    expect(lua).toContain('for _logic_rep = 1, 2 do')
+    expect(lua).toContain('debug.log("inner")')
+    expect(lua).toContain('debug.log("tail")')
+    expect(lua.indexOf('debug.log("tail")')).toBeGreaterThan(lua.indexOf('for _logic_rep = 1, 2 do'))
+  })
+
+  it('repeatTimes clamps invalid count to at least 1', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({
+          trigger: { type: 'onStart' },
+          actions: [
+            { type: 'repeatTimes', count: 0 },
+            { type: 'debugLog', message: 'once' },
+          ],
+        }),
+      ]),
+    ])
+    expect(lua).toContain('for _logic_rep = 1, 1 do')
+  })
+
+  it('repeatTimes body stops at the next wait control action', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({
+          trigger: { type: 'onStart' },
+          actions: [
+            { type: 'repeatTimes', count: 2 },
+            { type: 'debugLog', message: 'in-loop' },
+            { type: 'wait', seconds: 0.5 },
+            { type: 'debugLog', message: 'never' },
+          ],
+        }),
+      ]),
+    ])
+    const loopStart = lua.indexOf('for _logic_rep = 1, 2 do')
+    const waitIdx = lua.indexOf('time.after(0.5, function()')
+    expect(loopStart).toBeGreaterThan(-1)
+    expect(waitIdx).toBeGreaterThan(loopStart)
+    expect(lua.slice(loopStart, waitIdx)).toContain('debug.log("in-loop")')
+    expect(lua).toContain('debug.log("never")')
+  })
+
   it('onAnimationEnd registers animation.onFinished while onDestroy uses lifecycle', () => {
     const lua = compileLogicBoard([
       board([

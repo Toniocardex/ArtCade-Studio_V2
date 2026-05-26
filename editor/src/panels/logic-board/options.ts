@@ -195,6 +195,8 @@ export function defaultAction(type: LogicActionType): LogicAction {
       return { type: 'debugLog', message: '' }
     case 'wait':
       return { type: 'wait', seconds: 1 }
+    case 'repeatTimes':
+      return { type: 'repeatTimes', count: 3 }
     case 'moveByOffset':
       return { type: 'moveByOffset', target: 'self', dx: 0, dy: -32 }
     case 'snapToGrid':

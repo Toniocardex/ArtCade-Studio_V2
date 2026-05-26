@@ -20,6 +20,9 @@ function finite(n: unknown, fallback = 0): number {
  */
 export const WAIT_SENTINEL_PREFIX = '-- wait handled'
 
+/** Sentinel for `repeatTimes`; handled in emit-action-sequence.ts. */
+export const REPEAT_TIMES_SENTINEL_PREFIX = '-- repeatTimes handled'
+
 export interface ActionEmitCtx {
   /** id → RULE-table slug; used to render `_logic_on[RULE.<slug>]` keys. */
   eventSlugs?: Map<string, string>
@@ -212,6 +215,8 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
       return `debug.log(${luaString(a.message)})`
     case 'wait':
       return `${WAIT_SENTINEL_PREFIX} by emitActionSequence`
+    case 'repeatTimes':
+      return `${REPEAT_TIMES_SENTINEL_PREFIX} by emitActionSequence`
     case 'moveByOffset':
       return `grid.moveByOffset(${targetExpr(a.target)}, ${Number(a.dx) || 0}, ${Number(a.dy) || 0})`
     case 'snapToGrid':

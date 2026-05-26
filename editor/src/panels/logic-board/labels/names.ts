@@ -72,6 +72,7 @@ const ACTION_NAMES: Record<LogicActionType, string> = {
   cameraShake: 'Camera shake',
   debugLog: 'Debug message',
   wait: 'Wait',
+  repeatTimes: 'Repeat',
   moveByOffset: 'Step by pixels',
   snapToGrid: 'Snap to grid',
   setEntityShader: 'Visual effect on object',
