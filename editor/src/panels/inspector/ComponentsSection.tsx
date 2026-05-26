@@ -8,7 +8,8 @@ import {
 } from './component-registry'
 import { InspectorSection } from './inspector-fields'
 import { componentBlockId } from './entity-component-utils'
-import { AddPhysicsBar, PhysicsSection } from './PhysicsSection'
+import { PhysicsSection } from './PhysicsSection'
+import { DEFAULT_PHYSICS, PHYSICS_INSPECTOR } from './physics-defaults'
 
 function ComponentSection({
   entity, desc,
@@ -131,12 +132,21 @@ function AddComponentBar({ entity }: { entity: EntityDef }) {
   const missing = COMPONENT_REGISTRY.filter(
     (d) => !(entity as unknown as Record<string, unknown>)[d.key],
   )
-  if (missing.length === 0) return null
+  const showPhysics = !entity.physics
+  if (missing.length === 0 && !showPhysics) return null
 
   return (
     <select
       value=""
       onChange={(e) => {
+        if (e.target.value === PHYSICS_INSPECTOR.key) {
+          dispatch({
+            type: 'ENTITY_SET_PHYSICS',
+            entityId: entity.id,
+            physics: { ...DEFAULT_PHYSICS },
+          })
+          return
+        }
         const desc = COMPONENT_REGISTRY.find((d) => d.key === e.target.value as ComponentKey)
         if (desc)
           dispatch({
@@ -151,6 +161,9 @@ function AddComponentBar({ entity }: { entity: EntityDef }) {
                  focus:outline-none focus:border-[var(--accent-2)] transition-colors"
     >
       <option value="">＋ Add Component…</option>
+      {showPhysics && (
+        <option value={PHYSICS_INSPECTOR.key}>{PHYSICS_INSPECTOR.label}</option>
+      )}
       {missing.map((d) => (
         <option key={d.key} value={d.key}>{d.label}</option>
       ))}
@@ -175,7 +188,6 @@ export function ComponentsSection({
       onOpenChange={onOpenChange}
     >
       <AddComponentBar entity={entity} />
-      <AddPhysicsBar entity={entity} />
       <PhysicsSection entity={entity} />
       {COMPONENT_REGISTRY.map((desc) => (
         <ComponentSection key={desc.key} entity={entity} desc={desc} />

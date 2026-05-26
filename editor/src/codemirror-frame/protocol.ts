@@ -9,6 +9,7 @@ export type ParentToFrameMessage =
 export type FrameToParentMessage =
   | { type: 'ready' }
   | { type: 'change'; value: string }
+  | { type: 'run-preview-shortcut' }
 
 export function isParentToFrameMessage(data: unknown): data is ParentToFrameMessage {
   if (!data || typeof data !== 'object') return false
@@ -19,5 +20,5 @@ export function isParentToFrameMessage(data: unknown): data is ParentToFrameMess
 export function isFrameToParentMessage(data: unknown): data is FrameToParentMessage {
   if (!data || typeof data !== 'object') return false
   const t = (data as { type?: string }).type
-  return t === 'ready' || t === 'change'
+  return t === 'ready' || t === 'change' || t === 'run-preview-shortcut'
 }

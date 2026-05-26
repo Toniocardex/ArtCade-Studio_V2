@@ -295,8 +295,60 @@ static void test_nonexistent_file_returns_false() {
     loader.shutdown();
 }
 
+static void test_reloading_same_artcade_path_clears_stale_extracted_files() {
+    std::cout << "Test 4: loadArtcade - repeated path reload clears stale files\n";
+
+    const std::string zipPath =
+        (fs::temp_directory_path() / "artcade_test_stale_reload.artcade").string();
+
+    const std::string projectWithOldScript = R"({
+  "projectName": "StaleA",
+  "activeSceneId": "s1",
+  "mainScriptPath": "scripts/old.lua",
+  "entities": {},
+  "scenes": { "s1": { "id": "s1", "name": "S1", "entityIds": [] } }
+})";
+    const std::string projectWithoutOldScript = R"({
+  "projectName": "StaleB",
+  "activeSceneId": "s1",
+  "mainScriptPath": "scripts/main.lua",
+  "entities": {},
+  "scenes": { "s1": { "id": "s1", "name": "S1", "entityIds": [] } }
+})";
+    const std::string oldLua = "-- old\n";
+    const std::string mainLua = "-- main\n";
+
+    using namespace MinimalZip;
+    auto zipA = build({
+        { "project.json", std::vector<uint8_t>(projectWithOldScript.begin(), projectWithOldScript.end()) },
+        { "scripts/old.lua", std::vector<uint8_t>(oldLua.begin(), oldLua.end()) },
+    });
+    auto zipB = build({
+        { "project.json", std::vector<uint8_t>(projectWithoutOldScript.begin(), projectWithoutOldScript.end()) },
+        { "scripts/main.lua", std::vector<uint8_t>(mainLua.begin(), mainLua.end()) },
+    });
+
+    AssetLoader loader;
+    loader.init();
+    ArtCade::ProjectDoc doc;
+    std::vector<uint8_t> bytes;
+
+    writeToDisk(zipPath, zipA);
+    CHECK(loader.loadArtcade(zipPath, doc));
+    CHECK(loader.loadLuaBytecode("scripts/old.lua", bytes));
+
+    writeToDisk(zipPath, zipB);
+    bytes.clear();
+    CHECK(loader.loadArtcade(zipPath, doc));
+    CHECK(!loader.loadLuaBytecode("scripts/old.lua", bytes));
+    CHECK(loader.loadLuaBytecode("scripts/main.lua", bytes));
+
+    loader.shutdown();
+    fs::remove(zipPath);
+}
+
 static void test_directory_load_still_works() {
-    std::cout << "Test 4: loadDirectory — regression check still passes\n";
+    std::cout << "Test 5: loadDirectory — regression check still passes\n";
 
     // Build a temp directory with a minimal project.json
     const fs::path tmpDir = fs::temp_directory_path() / "artcade_test_dir";
@@ -341,6 +393,7 @@ int main() {
     test_minimal_zip_load();
     test_invalid_zip_returns_false();
     test_nonexistent_file_returns_false();
+    test_reloading_same_artcade_path_clears_stale_extracted_files();
     test_directory_load_still_works();
 
     std::cout << "\nResults: " << g_passed << " passed, "

@@ -161,21 +161,22 @@ bool extractEntry(const uint8_t* buf, size_t len,
     const uint8_t* dataPtr = lh + headerSize;
     if (static_cast<size_t>(dataPtr - buf) + e.compSize > len) return false;
 
-    // Build destination path, then verify it stays inside destRoot. weakly_
-    // canonical resolves "." / ".." and casing so a symlink in the chain
-    // cannot escape either. Belt-and-braces with isSafeRelativeEntryName.
-    fs::path outPath = destRoot / fs::path(e.name);
     std::error_code ec;
-    const fs::path normalisedOut  = fs::weakly_canonical(outPath, ec);
     const fs::path normalisedRoot = fs::weakly_canonical(destRoot, ec);
     if (ec) return false;
+    // Build destination path under the already-created extraction root. Use a
+    // lexical normalisation for the output path: nested parents may not exist
+    // yet, so canonicalising the final file would reject legitimate entries
+    // such as scripts/main.lua in a freshly-cleaned temp directory.
+    const fs::path normalisedOut =
+        (normalisedRoot / fs::path(e.name)).lexically_normal();
+    const fs::path rel = normalisedOut.lexically_relative(normalisedRoot);
     {
-        const auto rootStr = normalisedRoot.native();
-        const auto outStr  = normalisedOut.native();
-        if (outStr.size() < rootStr.size() ||
-            outStr.compare(0, rootStr.size(), rootStr) != 0)
+        auto it = rel.begin();
+        if (rel.empty() || rel.is_absolute() || it == rel.end() || *it == "..")
             return false;
     }
+    fs::path outPath = normalisedOut;
     fs::create_directories(outPath.parent_path(), ec);
     if (ec) return false;
 

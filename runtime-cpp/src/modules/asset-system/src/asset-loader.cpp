@@ -5,6 +5,7 @@
 #include <fstream>
 #include <functional>
 #include <sstream>
+#include <system_error>
 
 using json = nlohmann::json;
 
@@ -58,7 +59,11 @@ static Vec4 hexToVec4(const std::string& hex) {
     auto byte = [&](int i) {
         return static_cast<float>(std::stoi(h.substr(i, 2), nullptr, 16)) / 255.f;
     };
-    return { byte(0), byte(2), byte(4), 1.f };
+    try {
+        return { byte(0), byte(2), byte(4), 1.f };
+    } catch (...) {
+        return {0.5f, 0.5f, 0.5f, 1.f};
+    }
 }
 
 // ------------------------------------------------------------------ lifecycle
@@ -71,8 +76,12 @@ void AssetLoader::shutdown() {}
 bool AssetLoader::loadDirectory(const std::string& dirPath, ProjectDoc& out) {
     rootPath_ = dirPath;
     devMode_  = true;
-    if (!parseProjectJson(dirPath + "/project.json", out)) return false;
-    parseGameJson(dirPath + "/game.json", out);
+    try {
+        if (!parseProjectJson(dirPath + "/project.json", out)) return false;
+        parseGameJson(dirPath + "/game.json", out);
+    } catch (...) {
+        return false;
+    }
     return true;
 }
 
@@ -83,12 +92,18 @@ bool AssetLoader::loadArtcade(const std::string& archivePath, ProjectDoc& out) {
     const std::string tmpDir =
         (fs::temp_directory_path() / ("artcade_" + std::to_string(h))).string();
 
+    std::error_code ec;
+    fs::remove_all(tmpDir, ec);
     if (!extractZip(archivePath, tmpDir)) return false;
 
     rootPath_ = tmpDir;
     devMode_  = false;
-    if (!parseProjectJson(tmpDir + "/project.json", out)) return false;
-    parseGameJson(tmpDir + "/game.json", out);
+    try {
+        if (!parseProjectJson(tmpDir + "/project.json", out)) return false;
+        parseGameJson(tmpDir + "/game.json", out);
+    } catch (...) {
+        return false;
+    }
     return true;
 }
 

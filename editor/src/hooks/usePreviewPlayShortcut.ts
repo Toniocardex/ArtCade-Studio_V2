@@ -1,34 +1,37 @@
 // ---------------------------------------------------------------------------
-// usePreviewPlayShortcut — P toggles in-editor preview play/stop (canvas mode).
+// usePreviewPlayShortcut — F5 toggles in-editor preview play/stop.
 // Space must not toggle the PLAY toolbar button (game jump / input).
 // ---------------------------------------------------------------------------
 
 import { useEffect } from 'react'
-import { shouldIgnoreEditorShortcut } from '../utils/keyboard'
+
+export const RUN_PREVIEW_SHORTCUT_EVENT = 'artcade-run-preview-shortcut'
 
 export function shouldTogglePreviewPlay(
-  e: Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'altKey' | 'metaKey'>,
-  mode: string,
+  e: Pick<KeyboardEvent, 'key' | 'code' | 'ctrlKey' | 'altKey' | 'metaKey' | 'shiftKey'>,
 ): boolean {
-  if (mode !== 'canvas') return false
-  if (e.ctrlKey || e.altKey || e.metaKey) return false
-  if (e.key !== 'p' && e.key !== 'P') return false
-  return true
+  if (e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return false
+  return e.key === 'F5' || e.code === 'F5'
 }
 
 export function usePreviewPlayShortcut(
-  mode: string,
   onPlayStop: () => void,
 ): void {
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if (!shouldTogglePreviewPlay(e, mode)) return
-      if (shouldIgnoreEditorShortcut(e)) return
+      if (!shouldTogglePreviewPlay(e)) return
       e.preventDefault()
       e.stopPropagation()
       onPlayStop()
     }
+    function handleRunPreviewShortcut() {
+      onPlayStop()
+    }
     window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [mode, onPlayStop])
+    window.addEventListener(RUN_PREVIEW_SHORTCUT_EVENT, handleRunPreviewShortcut)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener(RUN_PREVIEW_SHORTCUT_EVENT, handleRunPreviewShortcut)
+    }
+  }, [onPlayStop])
 }

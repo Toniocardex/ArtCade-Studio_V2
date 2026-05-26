@@ -1,7 +1,7 @@
 import { Trash2 } from 'lucide-react'
 import { useEditor } from '../../store/editor-store'
 import type { EntityDef, PhysicsComponent } from '../../types'
-import { DEFAULT_PHYSICS, PHYSICS_INSPECTOR } from './physics-defaults'
+import { PHYSICS_INSPECTOR } from './physics-defaults'
 import { componentBlockId } from './entity-component-utils'
 
 function num(
@@ -143,27 +143,5 @@ export function PhysicsSection({ entity }: { entity: EntityDef }) {
         Sensor (no solid collision)
       </label>
     </div>
-  )
-}
-
-export function AddPhysicsBar({ entity }: { entity: EntityDef }) {
-  const { dispatch } = useEditor()
-  if (entity.physics) return null
-
-  return (
-    <button
-      type="button"
-      onClick={() =>
-        dispatch({
-          type: 'ENTITY_SET_PHYSICS',
-          entityId: entity.id,
-          physics: { ...DEFAULT_PHYSICS },
-        })
-      }
-      className="w-full mb-2 px-2 py-1.5 rounded text-xs border border-dashed border-[var(--border-2)]
-                 text-[var(--muted)] hover:text-[var(--text)] hover:border-[var(--accent-2)] transition-colors"
-    >
-      ＋ Add Physics (Box2D Body)…
-    </button>
   )
 }

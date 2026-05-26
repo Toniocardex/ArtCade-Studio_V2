@@ -23,6 +23,7 @@ interface UseBuildToolbarActionsParams {
   webExportState: WebExportState
   refreshWebExportStatus: (opts?: { projectDirty?: boolean }) => Promise<void>
   isPlaying: boolean
+  mode: CoreState['mode']
   openScripts: CoreState['openScripts']
   selectionSceneId: string | null | undefined
   flushBeforePersist: () => ProjectDoc | null
@@ -35,6 +36,7 @@ export function useBuildToolbarActions({
   webExportState,
   refreshWebExportStatus,
   isPlaying,
+  mode,
   openScripts,
   selectionSceneId,
   flushBeforePersist,
@@ -83,9 +85,12 @@ export function useBuildToolbarActions({
       if (document.activeElement instanceof HTMLElement) {
         document.activeElement.blur()
       }
+      if (mode !== 'canvas') {
+        dispatch({ type: 'SET_MODE', mode: 'canvas' })
+      }
       dispatch({ type: 'SET_PLAYING', playing: true })
     }
-  }, [dispatch, isPlaying, openScripts, project, selectionSceneId])
+  }, [dispatch, isPlaying, mode, openScripts, project, selectionSceneId])
 
   const handleBuildExe = useCallback(async () => {
     setIsBuilding(true)

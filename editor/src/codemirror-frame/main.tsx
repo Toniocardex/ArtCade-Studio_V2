@@ -71,9 +71,22 @@ function FrameEditor() {
     [themeId],
   )
 
-  const postToParent = useCallback((msg: { type: 'ready' } | { type: 'change'; value: string }) => {
+  const postToParent = useCallback((msg: { type: 'ready' } | { type: 'change'; value: string } | { type: 'run-preview-shortcut' }) => {
     window.parent.postMessage(msg, window.location.origin)
   }, [])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'F5' && event.code !== 'F5') return
+      if (event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return
+      event.preventDefault()
+      event.stopPropagation()
+      postToParent({ type: 'run-preview-shortcut' })
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [postToParent])
 
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {

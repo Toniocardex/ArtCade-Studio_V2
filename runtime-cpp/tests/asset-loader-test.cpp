@@ -3,11 +3,14 @@
 #include "modules/asset-system/include/asset-loader.h"
 
 #include <cmath>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <string>
 
 using namespace ArtCade;
 using namespace ArtCade::Modules;
+namespace fs = std::filesystem;
 
 #ifndef ARTCADE_SOURCE_ROOT
 #define ARTCADE_SOURCE_ROOT "."
@@ -57,8 +60,60 @@ static void test_physics_health_sensor_from_project_json() {
     loader.shutdown();
 }
 
+static void test_invalid_hex_color_falls_back_without_crash() {
+    const fs::path tmpDir = fs::temp_directory_path() / "artcade_asset_loader_bad_color";
+    fs::create_directories(tmpDir);
+    {
+        std::ofstream f(tmpDir / "project.json");
+        f << R"({
+  "projectName": "BadColor",
+  "activeSceneId": "s1",
+  "entities": {},
+  "scenes": { "s1": { "id": "s1", "name": "S1", "entityIds": [] } },
+  "tilePalette": [{ "id": 1, "name": "Broken", "color": "#zzzzzz", "solid": false }]
+})";
+    }
+
+    AssetLoader loader;
+    loader.init();
+    ProjectDoc doc;
+    CHECK(loader.loadDirectory(tmpDir.string(), doc));
+    CHECK(doc.tilePalette.size() == 1);
+    if (!doc.tilePalette.empty()) {
+        CHECK(std::abs(doc.tilePalette[0].color.r - 0.5f) < 0.01f);
+        CHECK(std::abs(doc.tilePalette[0].color.g - 0.5f) < 0.01f);
+        CHECK(std::abs(doc.tilePalette[0].color.b - 0.5f) < 0.01f);
+        CHECK(std::abs(doc.tilePalette[0].color.a - 1.f) < 0.01f);
+    }
+    loader.shutdown();
+    fs::remove_all(tmpDir);
+}
+
+static void test_malformed_project_json_returns_false_without_crash() {
+    const fs::path tmpDir = fs::temp_directory_path() / "artcade_asset_loader_bad_type";
+    fs::create_directories(tmpDir);
+    {
+        std::ofstream f(tmpDir / "project.json");
+        f << R"({
+  "projectName": { "not": "a string" },
+  "activeSceneId": "s1",
+  "entities": {},
+  "scenes": { "s1": { "id": "s1", "name": "S1", "entityIds": [] } }
+})";
+    }
+
+    AssetLoader loader;
+    loader.init();
+    ProjectDoc doc;
+    CHECK(!loader.loadDirectory(tmpDir.string(), doc));
+    loader.shutdown();
+    fs::remove_all(tmpDir);
+}
+
 int main() {
     test_physics_health_sensor_from_project_json();
+    test_invalid_hex_color_falls_back_without_crash();
+    test_malformed_project_json_returns_false_without_crash();
 
     std::cout << "asset-loader-test: " << g_passed << " passed, "
               << g_failed << " failed\n";

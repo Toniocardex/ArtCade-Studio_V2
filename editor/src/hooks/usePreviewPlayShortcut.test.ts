@@ -3,30 +3,34 @@ import { shouldTogglePreviewPlay } from './usePreviewPlayShortcut'
 
 function key(
   partial: Partial<KeyboardEvent> & { key: string },
-): Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'altKey' | 'metaKey'> {
+): Pick<KeyboardEvent, 'key' | 'code' | 'ctrlKey' | 'altKey' | 'metaKey' | 'shiftKey'> {
   return {
+    code: partial.key,
     ctrlKey: false,
     altKey: false,
     metaKey: false,
+    shiftKey: false,
     ...partial,
   }
 }
 
 describe('shouldTogglePreviewPlay', () => {
-  it('accepts P in canvas mode', () => {
-    expect(shouldTogglePreviewPlay(key({ key: 'p' }), 'canvas')).toBe(true)
-    expect(shouldTogglePreviewPlay(key({ key: 'P' }), 'canvas')).toBe(true)
+  it('accepts plain F5', () => {
+    expect(shouldTogglePreviewPlay(key({ key: 'F5' }))).toBe(true)
+    expect(shouldTogglePreviewPlay(key({ key: 'Unidentified', code: 'F5' }))).toBe(true)
   })
 
-  it('rejects other modes and keys', () => {
-    expect(shouldTogglePreviewPlay(key({ key: 'p' }), 'logic')).toBe(false)
-    expect(shouldTogglePreviewPlay(key({ key: ' ' }), 'canvas')).toBe(false)
-    expect(shouldTogglePreviewPlay(key({ key: 'Space' }), 'canvas')).toBe(false)
+  it('rejects P and other keys', () => {
+    expect(shouldTogglePreviewPlay(key({ key: 'p' }))).toBe(false)
+    expect(shouldTogglePreviewPlay(key({ key: 'P' }))).toBe(false)
+    expect(shouldTogglePreviewPlay(key({ key: ' ' }))).toBe(false)
+    expect(shouldTogglePreviewPlay(key({ key: 'Space' }))).toBe(false)
   })
 
-  it('rejects modified P', () => {
-    expect(shouldTogglePreviewPlay(key({ key: 'p', ctrlKey: true }), 'canvas')).toBe(false)
-    expect(shouldTogglePreviewPlay(key({ key: 'p', altKey: true }), 'canvas')).toBe(false)
-    expect(shouldTogglePreviewPlay(key({ key: 'p', metaKey: true }), 'canvas')).toBe(false)
+  it('rejects modified F5', () => {
+    expect(shouldTogglePreviewPlay(key({ key: 'F5', ctrlKey: true }))).toBe(false)
+    expect(shouldTogglePreviewPlay(key({ key: 'F5', altKey: true }))).toBe(false)
+    expect(shouldTogglePreviewPlay(key({ key: 'F5', metaKey: true }))).toBe(false)
+    expect(shouldTogglePreviewPlay(key({ key: 'F5', shiftKey: true }))).toBe(false)
   })
 })

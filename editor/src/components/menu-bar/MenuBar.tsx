@@ -60,6 +60,7 @@ export default function MenuBar() {
     webExportState: webExport.status.state,
     refreshWebExportStatus: webExport.refreshWebExportStatus,
     isPlaying,
+    mode,
     openScripts,
     selectionSceneId: selection.sceneId,
     flushBeforePersist,
@@ -67,7 +68,7 @@ export default function MenuBar() {
 
   const { exportState } = mapWebExportToolbar(webExport.status)
 
-  usePreviewPlayShortcut(mode, buildToolbar.handlePlayStop)
+  usePreviewPlayShortcut(buildToolbar.handlePlayStop)
 
   return (
     <header className="editor-toolbar flex items-center justify-between flex-shrink-0 z-50 select-none">

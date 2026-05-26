@@ -56,7 +56,7 @@ export function BuildToolbar({
         onKeyDown={(e) => {
           if (e.code === 'Space') e.preventDefault()
         }}
-        title="Play / Stop preview in editor (P). Space is reserved for game input."
+        title="Run / Stop preview in editor (F5)"
         className={`editor-toolbar-btn border ${
           isPlaying
             ? 'border-[var(--danger)] bg-[rgb(var(--danger-rgb)/0.12)] text-[var(--danger)] hover:bg-[rgb(var(--danger-rgb)/0.2)]'
@@ -71,6 +71,7 @@ export function BuildToolbar({
         type="button"
         onClick={onBuildExe}
         disabled={buildBusy}
+        title="Build native desktop executable"
         className={`editor-toolbar-btn border ${
           isBuilding
             ? 'border-[var(--border-2)] bg-[var(--panel)] text-[var(--muted)] cursor-not-allowed'
@@ -85,6 +86,7 @@ export function BuildToolbar({
         type="button"
         onClick={onBuildWeb}
         disabled={buildBusy}
+        title="Build Web package"
         className={`editor-toolbar-btn border ${
           isBuildingWeb
             ? 'border-[var(--border-2)] bg-[var(--panel)] text-[var(--muted)] cursor-not-allowed'

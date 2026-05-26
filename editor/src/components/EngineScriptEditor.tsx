@@ -7,6 +7,7 @@ import {
   type CmFrameThemeId,
   isFrameToParentMessage,
 } from '../codemirror-frame/protocol'
+import { RUN_PREVIEW_SHORTCUT_EVENT } from '../hooks/usePreviewPlayShortcut'
 
 export interface EngineScriptEditorProps {
   sourceCode: string
@@ -67,6 +68,11 @@ export function EngineScriptEditor({
       if (event.data.type === 'change') {
         lastSyncedRef.current = event.data.value
         onChange(event.data.value)
+        return
+      }
+
+      if (event.data.type === 'run-preview-shortcut') {
+        window.dispatchEvent(new CustomEvent(RUN_PREVIEW_SHORTCUT_EVENT))
       }
     }
 
