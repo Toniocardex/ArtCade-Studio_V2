@@ -81,7 +81,14 @@ void World::tickPlatformerControllers(float dt) {
                 ? &intentIt->second
                 : nullptr;
 
-            if (intent && intent->jumpRequested)
+            // Consume jump intent once per frame; arm buffer only on rising edge
+            // (same contract as platformer.lua + input.onPressed).
+            const bool jumpPending = intent && intent->jumpRequested;
+            if (intent)
+                intent->jumpRequested = false;
+            const bool jumpEdge = jumpPending && !rt.jumpPendingPrev;
+            rt.jumpPendingPrev = jumpPending;
+            if (jumpEdge)
                 rt.jumpBufferTimer = pc.jumpBuffer;
             else
                 rt.jumpBufferTimer = std::max(0.f, rt.jumpBufferTimer - dt);
@@ -101,7 +108,7 @@ void World::tickPlatformerControllers(float dt) {
                 rt.jumpBufferTimer = 0.f;
             } else if (!grounded) {
                 vy += pc.customGravity * dt;
-            } else {
+            } else if (vy > 0.f) {
                 vy = 0.f;
             }
 
@@ -118,9 +125,6 @@ void World::tickPlatformerControllers(float dt) {
                 physics_.setPosition(handle, transform.position);
                 physics_.setLinearVelocity(handle, transform.velocity);
             }
-
-            if (intent)
-                intent->jumpRequested = false;
         });
 }
 

@@ -339,6 +339,95 @@ static void test_platformer_movement_intent_without_input() {
     CHECK(std::abs(transform.velocity.x) < 0.01f);
 }
 
+static void test_platformer_jump_request_rising_edge_dedupes_hold() {
+    Fixture f;
+
+    EntityDef player = makeEntity(1, "Player", {"player"});
+    player.transform.position = { 160.f, 179.f };
+    PlatformerControllerComponent pc;
+    pc.jumpForce = 600.f;
+    pc.groundClass = "Ground";
+    player.platformerController = pc;
+
+    EntityDef platform = makeEntity(2, "Platform");
+    platform.transform.position = { 160.f, 200.f };
+    platform.transform.scale = { 10.f, 0.3125f };
+    SolidComponent solid;
+    solid.groundClass = "Ground";
+    platform.solid = solid;
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1, 2 };
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.scenes = {{ scene.id, scene }};
+    doc.entities = {{ 1, player }, { 2, platform }};
+    f.world.init(doc);
+
+    CHECK(f.world.isPlatformerGrounded(1));
+
+    const float dt = 1.f / 60.f;
+    int jumpImpulseFrames = 0;
+    float minVy = 0.f;
+    for (int i = 0; i < 30; ++i) {
+        f.world.requestJump(1);
+        f.world.setMovementIntent(1, 1.f, 0.f);
+        f.tickFrame(dt);
+
+        Transform transform{};
+        CHECK(f.gw.getTransform(1, transform));
+        if (transform.velocity.y < -599.f)
+            ++jumpImpulseFrames;
+        minVy = std::min(minVy, transform.velocity.y);
+    }
+
+    CHECK(jumpImpulseFrames == 1);
+    CHECK(minVy < -599.f);
+}
+
+static void test_platformer_same_frame_multiple_request_jump() {
+    Fixture f;
+
+    EntityDef player = makeEntity(1, "Player", {"player"});
+    player.transform.position = { 160.f, 179.f };
+    PlatformerControllerComponent pc;
+    pc.jumpForce = 500.f;
+    pc.groundClass = "Ground";
+    player.platformerController = pc;
+
+    EntityDef platform = makeEntity(2, "Platform");
+    platform.transform.position = { 160.f, 200.f };
+    platform.transform.scale = { 10.f, 0.3125f };
+    SolidComponent solid;
+    solid.groundClass = "Ground";
+    platform.solid = solid;
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1, 2 };
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.scenes = {{ scene.id, scene }};
+    doc.entities = {{ 1, player }, { 2, platform }};
+    f.world.init(doc);
+
+    f.world.requestJump(1);
+    f.world.requestJump(1);
+    f.world.requestJump(1);
+    f.tickFrame(1.f / 60.f);
+
+    Transform transform{};
+    CHECK(f.gw.getTransform(1, transform));
+    CHECK(transform.velocity.y < -499.f);
+
+    f.tickFrame(1.f / 60.f);
+    CHECK(f.gw.getTransform(1, transform));
+    CHECK(transform.velocity.y > -499.f);
+}
+
 static void test_platformer_jump_intent_without_input() {
     Fixture f;
 
@@ -1265,6 +1354,8 @@ int main() {
     test_platformer_grounded_on_solid_without_player_physics();
     test_platformer_with_physics_collider_is_kinematic_body();
     test_platformer_movement_intent_without_input();
+    test_platformer_jump_request_rising_edge_dedupes_hold();
+    test_platformer_same_frame_multiple_request_jump();
     test_platformer_jump_intent_without_input();
     test_platformer_grounded_by_solid_component();
     test_platformer_grounded_on_scaled_solid_platform();

@@ -86,6 +86,8 @@ private:
         float coyoteTimer     = 0.f;
         float jumpBufferTimer = 0.f;
         Vec2  velocity        = {};
+        /** Previous-frame jump intent; used to arm buffer only on rising edge. */
+        bool jumpPendingPrev  = false;
     };
     std::unordered_map<EntityId, PlatformerRt> platformerRt_;
 

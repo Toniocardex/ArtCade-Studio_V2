@@ -94,7 +94,7 @@ Effetti nativi per aumentare la **qualita percepita** del gioco.
 ## Sensor e platformer (implementazione)
 
 - **Sensor:** fixture Box2D aggiuntiva (`Physics::addSensorFixture`) da `EntityDef.sensor`; log enter/exit in `World::tickSensorOverlapEdges` (MVP debug).
-- **Platformer:** `PlatformerControllerComponent` applicato in C++ in `World::tickPlatformerControllers` (coyote, jump buffer, input WASD/Space) se presente sull'entità della scena attiva.
+- **Platformer:** `PlatformerControllerComponent` applicato in C++ in `World::tickPlatformerControllers` (coyote, jump buffer, rising-edge `requestJump`) — **unica verità** per fisica platformer. Logic Board: `controllerMovement` + `requestPlatformerJump` con tasto **`pressed`**. Lo script opzionale `platformer.lua` registra solo input verso `movement`/`platformer` API (non usare insieme al componente sullo stesso entity).
 
 ### Logic Board — capability matrix (collision vs sensor)
 

@@ -127,6 +127,41 @@ time = {
     delay = function(s, cb) return function() end end,
     every = function(s, cb) return function() end end,
 }
+
+movement = {
+    _intents = {},
+    setIntent = function(id, x, y)
+        movement._intents[id] = {x=x, y=y}
+    end,
+    clearIntent = function(id)
+        movement._intents[id] = nil
+    end,
+}
+
+platformer = {
+    _jumpRequests = {},
+    _groundedIds  = {},
+    requestJump = function(id)
+        platformer._jumpRequests[#platformer._jumpRequests + 1] = id
+    end,
+    isGrounded = function(id)
+        return platformer._groundedIds[id] == true
+    end,
+}
+
+input._onPressed  = {}
+input._onReleased = {}
+input.onPressed = function(code, fn)
+    input._onPressed[code] = input._onPressed[code] or {}
+    input._onPressed[code][#input._onPressed[code] + 1] = fn
+end
+input.onReleased = function(code, fn)
+    input._onReleased[code] = input._onReleased[code] or {}
+    input._onReleased[code][#input._onReleased[code] + 1] = fn
+end
+input._firePressed = function(code)
+    for _, fn in ipairs(input._onPressed[code] or {}) do fn() end
+end
 )STUBS";
 
 // ---- embedded component sources ---------------------------------------------
@@ -276,69 +311,48 @@ Platformer = {}
 Platformer.__index = Platformer
 
 function Platformer.new(entityId, cfg)
-    cfg = cfg or {}
     local self = setmetatable({}, Platformer)
-    self.id          = entityId
-    self.speed       = cfg.speed       or 200
-    self.jumpForce   = cfg.jumpForce   or 450
-    self.groundClass = cfg.groundClass or "Ground"
-    self.coyoteTime  = cfg.coyoteTime  or 0.10
-    self.jumpBuffer  = cfg.jumpBuffer  or 0.10
+    self.id = entityId
+    self._enabled = true
+    self._moveKeys = {}
 
-    self._grounded        = false
-    self._coyoteTimer     = 0
-    self._jumpBufferTimer = 0
-    self._enabled         = true
+    local jumpCodes = { "Space", "KeyW", "ArrowUp" }
+    for _, code in ipairs(jumpCodes) do
+        input.onPressed(code, function()
+            platformer.requestJump(self.id)
+        end)
+    end
+
+    local moveCodes = { "KeyA", "ArrowLeft", "KeyD", "ArrowRight" }
+    for _, code in ipairs(moveCodes) do
+        self._moveKeys[code] = input.isKeyDown(code)
+        input.onPressed(code, function() self._moveKeys[code] = true end)
+        input.onReleased(code, function() self._moveKeys[code] = false end)
+    end
+
     return self
 end
 
-function Platformer:update(dt)
+function Platformer:update(_dt)
     if not self._enabled then return end
-
-    self._grounded = collision.touchingClass(self.id, self.groundClass)
-
-    if self._grounded then
-        self._coyoteTimer = self.coyoteTime
-    else
-        self._coyoteTimer = math.max(0, self._coyoteTimer - dt)
-    end
-
-    local jumpPressed = input.wasKeyPressed("Space")
-                     or input.wasKeyPressed("KeyW")
-                     or input.wasKeyPressed("ArrowUp")
-    if jumpPressed then
-        self._jumpBufferTimer = self.jumpBuffer
-    else
-        self._jumpBufferTimer = math.max(0, self._jumpBufferTimer - dt)
-    end
-
-    local vx, vy = entity.velocity(self.id)
-
     local dx = 0
-    if input.isKeyDown("KeyA") or input.isKeyDown("ArrowLeft")  then dx = dx - 1 end
-    if input.isKeyDown("KeyD") or input.isKeyDown("ArrowRight") then dx = dx + 1 end
-    vx = dx * self.speed
-
-    if self._jumpBufferTimer > 0 and self._coyoteTimer > 0 then
-        vy = -self.jumpForce
-        self._coyoteTimer     = 0
-        self._jumpBufferTimer = 0
-        if event and event.emit then
-            event.emit("platformer.jump", { id = self.id })
-        end
+    if self._moveKeys["KeyA"] or self._moveKeys["ArrowLeft"]  then dx = dx - 1 end
+    if self._moveKeys["KeyD"] or self._moveKeys["ArrowRight"] then dx = dx + 1 end
+    if dx == 0 then
+        movement.clearIntent(self.id)
+    else
+        movement.setIntent(self.id, dx, 0)
     end
-
-    entity.setVelocity(self.id, vx, vy)
 end
 
 function Platformer:isGrounded()
-    return self._grounded
+    return platformer.isGrounded(self.id)
 end
 
 function Platformer:setEnabled(flag)
     self._enabled = flag
     if not flag then
-        entity.setVelocity(self.id, 0, 0)
+        movement.clearIntent(self.id)
     end
 end
 )PLAT";
@@ -685,72 +699,37 @@ static void test_platformer_controller() {
     load(host, PLATFORMER_LUA);
     load(host, R"LUA(
 function tick(dt)
-    entity.setVelocity(1, 0, 0)
+    local ctrl = Platformer.new(1, {})
 
-    local ctrl = Platformer.new(1, {
-        speed     = 200,
-        jumpForce = 450,
-        coyoteTime = 0.1,
-        jumpBuffer = 0.1,
-    })
+    platformer._groundedIds[1] = true
+    assert(ctrl:isGrounded(), "isGrounded should use platformer API")
 
-    -- Grounded detection: set grounded, update, check isGrounded()
-    collision._groundedIds[1] = true
-    ctrl:update(0.016)
-    assert(ctrl:isGrounded(), "should be grounded when touchingClass returns true")
-
-    -- Horizontal movement: KeyD → vx = +speed
     input._keysDown["KeyD"] = true
-    collision._groundedIds[1] = true
+    ctrl._moveKeys["KeyD"] = true
     ctrl:update(0.016)
-    local vx, vy = entity.velocity(1)
-    assert(vx == 200, "KeyD should set vx=200, got " .. tostring(vx))
+    local m = movement._intents[1]
+    assert(m and m.x == 1 and m.y == 0, "KeyD should set movement intent +1")
     input._keysDown["KeyD"] = false
+    ctrl._moveKeys["KeyD"] = false
 
-    -- Left movement: KeyA → vx = -speed
     input._keysDown["KeyA"] = true
+    ctrl._moveKeys["KeyA"] = true
     ctrl:update(0.016)
-    local vx2, _ = entity.velocity(1)
-    assert(vx2 == -200, "KeyA should set vx=-200, got " .. tostring(vx2))
+    m = movement._intents[1]
+    assert(m and m.x == -1, "KeyA should set movement intent -1")
     input._keysDown["KeyA"] = false
+    ctrl._moveKeys["KeyA"] = false
 
-    -- Jump: grounded + Space → vy = -jumpForce
-    entity.setVelocity(1, 0, 0)
-    collision._groundedIds[1] = true
-    input._keysPressed["Space"] = true
-    ctrl:update(0.016)
-    local _, vy3 = entity.velocity(1)
-    assert(vy3 == -450, "Space jump should set vy=-450, got " .. tostring(vy3))
-    input._keysPressed["Space"] = false
+    platformer._jumpRequests = {}
+    input._firePressed("Space")
+    assert(#platformer._jumpRequests == 1, "Space should call platformer.requestJump once")
 
-    -- Jump event emitted
-    local found_jump = false
-    for _, e in ipairs(event._emitted) do
-        if e.name == "platformer.jump" then found_jump = true end
-    end
-    assert(found_jump, "platformer.jump event not emitted")
-
-    -- Coyote time: leave ground, still within window → can jump
-    entity.setVelocity(1, 0, 0)
-    collision._groundedIds[1] = true
-    ctrl:update(0.016)           -- grounded, coyoteTimer = 0.1
-    collision._groundedIds[1] = false
-    ctrl:update(0.008)           -- airborne dt=0.008 < 0.1 → coyoteTimer = 0.092 > 0
-    input._keysPressed["Space"] = true
-    ctrl:update(0.016)           -- jumpBuffer=0.1 > 0, coyoteTimer > 0 → jump!
-    local _, vy4 = entity.velocity(1)
-    assert(vy4 == -450, "coyote jump should work within window, got " .. tostring(vy4))
-    input._keysPressed["Space"] = false
-
-    -- setEnabled(false) zeros velocity and skips update
-    entity.setVelocity(1, 99, 99)
     ctrl:setEnabled(false)
-    local vxd, vyd = entity.velocity(1)
-    assert(vxd == 0 and vyd == 0, "setEnabled(false) must zero velocity")
+    assert(movement._intents[1] == nil, "setEnabled(false) must clear intent")
     input._keysDown["KeyD"] = true
-    ctrl:update(0.016)           -- disabled — must not change velocity
-    local vxd2, _ = entity.velocity(1)
-    assert(vxd2 == 0, "disabled controller must not apply movement")
+    ctrl._moveKeys["KeyD"] = true
+    ctrl:update(0.016)
+    assert(movement._intents[1] == nil, "disabled update must not set intent")
     input._keysDown["KeyD"] = false
     ctrl:setEnabled(true)
 end
