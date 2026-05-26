@@ -275,15 +275,15 @@ function ActionCard({
         </span>
         <div className="flex-1" />
         <LogicIconButton
-          title="Clona azione"
-          ariaLabel="Clona azione"
+          title="Clone action"
+          ariaLabel="Clone action"
           onClick={onClone}
         >
           <Copy size={13} />
         </LogicIconButton>
         <LogicIconButton
-          title="Rimuovi azione"
-          ariaLabel="Rimuovi azione"
+          title="Remove action"
+          ariaLabel="Remove action"
           danger
           onClick={onRemove}
         >

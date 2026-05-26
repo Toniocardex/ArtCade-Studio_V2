@@ -94,8 +94,8 @@ export default function EventCard({
             e.stopPropagation()
             onToggleEnabled()
           }}
-          title={event.enabled ? 'Regola attiva' : 'Regola disattivata'}
-          aria-label={event.enabled ? 'Regola attiva' : 'Regola disattivata'}
+          title={event.enabled ? 'Rule enabled' : 'Rule disabled'}
+          aria-label={event.enabled ? 'Rule enabled' : 'Rule disabled'}
           className={`relative h-[18px] w-9 shrink-0 rounded transition-colors ${
             event.enabled
               ? 'bg-[var(--accent)]'
@@ -116,23 +116,23 @@ export default function EventCard({
           onClick={(e) => e.stopPropagation()}
         >
           <LogicIconButton
-            title="Modifica regola"
-            ariaLabel="Modifica regola"
+            title="Edit rule"
+            ariaLabel="Edit rule"
             active={editing}
             onClick={onEdit}
           >
             <Pencil size={13} />
           </LogicIconButton>
           <LogicIconButton
-            title="Clona regola"
-            ariaLabel="Clona regola"
+            title="Clone rule"
+            ariaLabel="Clone rule"
             onClick={onClone}
           >
             <Copy size={13} />
           </LogicIconButton>
           <LogicIconButton
-            title="Elimina regola"
-            ariaLabel="Elimina regola"
+            title="Delete rule"
+            ariaLabel="Delete rule"
             danger
             onClick={onDelete}
           >

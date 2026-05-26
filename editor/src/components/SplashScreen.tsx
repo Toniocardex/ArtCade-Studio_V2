@@ -8,13 +8,13 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
   const [step, setStep] = useState<number>(0); // 0:Idle, 1:Grid, 2:DataFlow, 3:Burst, 4:Text, 5:Closing
 
   useEffect(() => {
-    // Sequenza dell'animazione Synaptic Boot
+    // Synaptic boot animation sequence
     const timers = [
-      setTimeout(() => setStep(1), 200),   // Appare la Griglia
-      setTimeout(() => setStep(2), 600),   // Flusso dati Ciano/Magenta
-      setTimeout(() => setStep(3), 1600),  // Flash e apparizione Logo
-      setTimeout(() => setStep(4), 2200),  // Scrittura testi
-      setTimeout(() => setStep(5), 4500),  // Dissolvenza finale 
+      setTimeout(() => setStep(1), 200),   // Grid fade-in
+      setTimeout(() => setStep(2), 600),   // Cyan/magenta data streams
+      setTimeout(() => setStep(3), 1600),  // Logo flash
+      setTimeout(() => setStep(4), 2200),  // Title text
+      setTimeout(() => setStep(5), 4500),  // Final fade-out
       setTimeout(() => {
         if (onComplete) onComplete();
       }, 5200)
@@ -26,7 +26,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg)] overflow-hidden pointer-events-none select-none font-mono text-white">
       
-      {/* 1. Isometric Grid Background (Appare al step 1) */}
+      {/* 1. Isometric grid background (step 1+) */}
       <div className={`absolute inset-0 transition-opacity duration-1000 ${step >= 1 ? 'opacity-30' : 'opacity-0'}`}
            style={{ 
              backgroundImage: 'linear-gradient(rgba(0, 255, 255, 0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 255, 255, 0.15) 1px, transparent 1px)', 
@@ -35,7 +35,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
            }}>
       </div>
 
-      {/* 2. Data Streams (Appare al step 2, scompare al 3) */}
+      {/* 2. Data streams (step 2, hidden at 3) */}
       {step === 2 && (
         <div className="absolute inset-0 z-10 flex items-center justify-center opacity-70">
           {/* Ciano Streams */}
@@ -56,9 +56,9 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
       {/* 3. The Core & Logo Burst (Step 3+) */}
       <div className={`relative z-20 flex flex-col items-center gap-10 transition-all duration-700 ${step === 5 ? 'opacity-0 scale-110 blur-lg' : 'opacity-100'}`}>
         
-        {/* Logo Container con Burst digitale */}
+        {/* Logo container with digital burst */}
         <div className={`relative ${step >= 3 ? 'animate-logo-glitch-in' : 'opacity-0'}`}>
-          {/* Il Burst Flashead (ONDA QUADRA/PIXELATA) */}
+          {/* Pixel flash burst */}
           {step === 3 && (
             <div className="absolute inset-0 bg-white z-0 animate-pixel-flash rounded-lg"></div>
           )}
@@ -66,7 +66,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
           {/* Subtle sage wash behind the logo — no neon glow, per style guide */}
           <div className="absolute -inset-6 z-0 bg-[rgb(var(--accent-rgb)/0.08)] rounded-full"></div>
 
-          {/* L'immagine Caricata */}
+          {/* Logo image */}
           <img
             src="/artcade_logo.png"
             alt="ArtCade Logo"
@@ -79,11 +79,11 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
             }}
           />
           <div style={{display: 'none'}} className="w-40 h-40 border-2 border-dashed border-cyan-500 items-center justify-center text-cyan-500 font-mono text-[9px] text-center p-4">
-            [Img /artcade_logo.png mancante nella cartella public/]
+            [Missing /artcade_logo.png in the public/ folder]
           </div>
         </div>
 
-        {/* 4. Texts con Terminale effect (Step 4+) */}
+        {/* 4. Terminal-style text (step 4+) */}
         <div className="flex flex-col items-center gap-2">
           <div className={`text-[var(--muted)] tracking-[0.4em] text-xs uppercase font-mono transition-opacity duration-300 ${step >= 4 ? 'opacity-100' : 'opacity-0'}`}>
             {step === 4 ? <span className="animate-type-fast">Made with</span> : "Made with"}

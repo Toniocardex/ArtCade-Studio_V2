@@ -210,7 +210,7 @@ export default function LogicBoardPanel() {
   const copyEvent = useCallback(
     (ev: LogicEvent) => {
       clipboardRef.current = { kind: 'event', event: structuredClone(ev) }
-      showClipboardHint('Regola copiata')
+      showClipboardHint('Rule copied')
     },
     [showClipboardHint],
   )
@@ -220,7 +220,7 @@ export default function LogicBoardPanel() {
       const clip = clipboardRef.current
       if (!clip || clip.kind !== 'event') return
       insertClonedEvent(clip.event, afterEventId ?? focusedEventId ?? undefined)
-      showClipboardHint('Regola incollata in questo rulesheet')
+      showClipboardHint('Rule pasted into this rulesheet')
     },
     [focusedEventId, insertClonedEvent, showClipboardHint],
   )
