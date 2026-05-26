@@ -88,6 +88,9 @@ private:
         Vec2  velocity        = {};
         /** Previous-frame jump intent; used to arm buffer only on rising edge. */
         bool jumpPendingPrev  = false;
+        /** Consecutive frames raw isGrounded() was true/false (hysteresis). */
+        int groundedFrames    = 0;
+        int airborneFrames    = 0;
     };
     std::unordered_map<EntityId, PlatformerRt> platformerRt_;
 

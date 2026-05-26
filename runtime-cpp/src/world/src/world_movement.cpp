@@ -4,6 +4,12 @@
 
 namespace ArtCade {
 
+namespace {
+
+constexpr int kStableGroundedFrames = 2; // snap / coyote refresh (ignore 1-frame overlap glitches)
+
+} // namespace
+
 bool World::isPlatformerGrounded(EntityId id) const {
     PlatformerControllerComponent pc{};
     if (!entityGateway_.getPlatformerController(id, pc)) return false;
@@ -70,10 +76,19 @@ void World::tickPlatformerControllers(float dt) {
         [this, dt](EntityId id, const PlatformerControllerComponent& pc) {
             auto& rt = platformerRt_[id];
 
-            const bool grounded = isGrounded(id, pc.groundClass);
-            if (grounded)
+            const bool rawGrounded = isGrounded(id, pc.groundClass);
+            if (rawGrounded) {
+                rt.groundedFrames = std::min(rt.groundedFrames + 1, kStableGroundedFrames + 4);
+                rt.airborneFrames = 0;
+            } else {
+                rt.airborneFrames = std::min(rt.airborneFrames + 1, 10000);
+                rt.groundedFrames = 0;
+            }
+            const bool stableGrounded = rt.groundedFrames >= kStableGroundedFrames;
+
+            if (stableGrounded)
                 rt.coyoteTimer = pc.coyoteTime;
-            else
+            else if (rt.airborneFrames > 0)
                 rt.coyoteTimer = std::max(0.f, rt.coyoteTimer - dt);
 
             auto intentIt = controlIntents_.find(id);
@@ -101,12 +116,14 @@ void World::tickPlatformerControllers(float dt) {
                 vx = axis * pc.maxSpeed;
             }
 
-            const bool canJump = grounded || rt.coyoteTimer > 0.f;
+            const bool canJump = rawGrounded || rt.coyoteTimer > 0.f;
             if (rt.jumpBufferTimer > 0.f && canJump) {
                 vy = -pc.jumpForce;
                 rt.coyoteTimer     = 0.f;
                 rt.jumpBufferTimer = 0.f;
-            } else if (!grounded) {
+                rt.airborneFrames  = 1;
+                rt.groundedFrames  = 0;
+            } else if (!stableGrounded) {
                 vy += pc.customGravity * dt;
             } else if (vy > 0.f) {
                 vy = 0.f;

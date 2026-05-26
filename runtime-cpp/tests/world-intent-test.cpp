@@ -387,6 +387,57 @@ static void test_platformer_jump_request_rising_edge_dedupes_hold() {
     CHECK(minVy < -599.f);
 }
 
+static void test_platformer_gravity_while_moving_in_air_after_jump() {
+    Fixture f;
+
+    EntityDef player = makeEntity(1, "Player", {"player"});
+    player.transform.position = { 160.f, 179.f };
+    PlatformerControllerComponent pc;
+    pc.jumpForce = 600.f;
+    pc.customGravity = 1500.f;
+    pc.groundClass = "Ground";
+    player.platformerController = pc;
+
+    EntityDef platform = makeEntity(2, "Platform");
+    platform.transform.position = { 160.f, 200.f };
+    platform.transform.scale = { 10.f, 0.3125f };
+    SolidComponent solid;
+    solid.groundClass = "Ground";
+    platform.solid = solid;
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1, 2 };
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.scenes = {{ scene.id, scene }};
+    doc.entities = {{ 1, player }, { 2, platform }};
+    f.world.init(doc);
+
+    const float dt = 1.f / 60.f;
+    f.world.requestJump(1);
+    f.tickFrame(dt);
+
+    Transform transform{};
+    CHECK(f.gw.getTransform(1, transform));
+    CHECK(transform.velocity.y < -599.f);
+
+    float peakY = transform.position.y;
+    bool sawFalling = false;
+    for (int i = 0; i < 40; ++i) {
+        f.world.setMovementIntent(1, 1.f, 0.f);
+        f.tickFrame(dt);
+        CHECK(f.gw.getTransform(1, transform));
+        peakY = std::min(peakY, transform.position.y);
+        if (transform.velocity.y > 1.f)
+            sawFalling = true;
+    }
+
+    CHECK(sawFalling);
+    CHECK(peakY < transform.position.y - 5.f);
+}
+
 static void test_platformer_same_frame_multiple_request_jump() {
     Fixture f;
 
@@ -1355,6 +1406,7 @@ int main() {
     test_platformer_with_physics_collider_is_kinematic_body();
     test_platformer_movement_intent_without_input();
     test_platformer_jump_request_rising_edge_dedupes_hold();
+    test_platformer_gravity_while_moving_in_air_after_jump();
     test_platformer_same_frame_multiple_request_jump();
     test_platformer_jump_intent_without_input();
     test_platformer_grounded_by_solid_component();
