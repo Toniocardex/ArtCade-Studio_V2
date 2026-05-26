@@ -8,6 +8,7 @@
 import type { CoreState, Action, DomainReducer } from '../editor-store-state'
 import { DEFAULT_WORLD, createTilemap, resizeTilemap } from '../../types'
 import { createSceneDef, uniqueSceneName } from '../../utils/project'
+import { clampEntityPositionToScene } from '../../utils/entity-position'
 
 export const sceneReducer: DomainReducer = (state: CoreState, action: Action) => {
   switch (action.type) {
@@ -129,10 +130,30 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
       if (!state.project || !sc) return state
       const worldSize = { x: action.x, y: action.y }
       if (sc.worldSize.x === worldSize.x && sc.worldSize.y === worldSize.y) return state
+      const scaleX = sc.worldSize.x > 0 ? worldSize.x / sc.worldSize.x : 1
+      const scaleY = sc.worldSize.y > 0 ? worldSize.y / sc.worldSize.y : 1
+      const resizedEntityIds = new Set(sc.entityIds)
+      const entities = Object.fromEntries(
+        Object.entries(state.project.entities).map(([id, entity]) => {
+          if (!resizedEntityIds.has(Number(id))) return [id, entity]
+          const position = clampEntityPositionToScene({
+            x: entity.transform.position.x * scaleX,
+            y: entity.transform.position.y * scaleY,
+          }, worldSize)
+          return [id, {
+            ...entity,
+            transform: {
+              ...entity.transform,
+              position,
+            },
+          }]
+        }),
+      )
       return {
         ...state,
         project: {
           ...state.project,
+          entities,
           scenes: {
             ...state.project.scenes,
             [action.sceneId]: {

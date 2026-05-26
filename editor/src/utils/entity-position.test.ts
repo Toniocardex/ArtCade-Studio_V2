@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { normalizeEntityPosition, snapToGridValue } from './entity-position'
+import { clampEntityPositionToScene, normalizeEntityPosition, snapToGridValue } from './entity-position'
 
 describe('snapToGridValue', () => {
   it('snaps to the nearest grid multiple', () => {
@@ -21,5 +21,17 @@ describe('normalizeEntityPosition', () => {
       x: 800,
       y: 416,
     })
+  })
+})
+
+describe('clampEntityPositionToScene', () => {
+  it('keeps an entity inset from the bottom-right scene edge', () => {
+    expect(clampEntityPositionToScene({ x: 640, y: 320 }, { x: 640, y: 320 }))
+      .toEqual({ x: 608, y: 288 })
+  })
+
+  it('centres the entity when the scene is smaller than the inset', () => {
+    expect(clampEntityPositionToScene({ x: 100, y: 100 }, { x: 32, y: 32 }))
+      .toEqual({ x: 16, y: 16 })
   })
 })

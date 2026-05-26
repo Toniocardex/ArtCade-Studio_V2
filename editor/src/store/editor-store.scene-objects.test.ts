@@ -105,6 +105,30 @@ describe('coreReducer — scenes & objects', () => {
     expect(s.projectDirty).toBe(true)
   })
 
+  it('SCENE_SET_WORLD_SIZE scales scene entity positions into the resized canvas', () => {
+    const p = project()
+    p.entities[1].transform.position = { x: 640, y: 360 }
+
+    const s = coreReducer(st(p), {
+      type: 'SCENE_SET_WORLD_SIZE', sceneId: 's', x: 640, y: 360,
+    })
+
+    expect(s.project!.entities[1].transform.position).toEqual({ x: 320, y: 180 })
+    expect(s.project!.scenes.s.worldSize).toEqual({ x: 640, y: 360 })
+    expect(s.projectDirty).toBe(true)
+  })
+
+  it('SCENE_SET_WORLD_SIZE keeps resized entities inside a small canvas inset', () => {
+    const p = project()
+    p.entities[1].transform.position = { x: 1280, y: 720 }
+
+    const s = coreReducer(st(p), {
+      type: 'SCENE_SET_WORLD_SIZE', sceneId: 's', x: 64, y: 64,
+    })
+
+    expect(s.project!.entities[1].transform.position).toEqual({ x: 32, y: 32 })
+  })
+
   it('SCENE_ADD_EMPTY creates an inherited empty scene and selects it', () => {
     const s = coreReducer(st(project()), { type: 'SCENE_ADD_EMPTY', sourceSceneId: 's' })
     expect(s.project!.scenes.scene_2).toBeDefined()

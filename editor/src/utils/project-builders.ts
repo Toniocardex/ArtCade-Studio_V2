@@ -1,7 +1,7 @@
 import type { ProjectDoc, EntityDef, SceneDef, Vec2 } from '../types'
 import { DEFAULT_SCENE_SIZE, DEFAULT_EDITOR_GRID_SIZE } from '../constants/editor-viewport'
 import { getEditorVisibleWorldCenter } from './editor-viewport-center'
-import { normalizeEntityPosition } from './entity-position'
+import { clampEntityPositionToScene, normalizeEntityPosition } from './entity-position'
 
 const sceneSize = (): Vec2 => ({ x: DEFAULT_SCENE_SIZE.x, y: DEFAULT_SCENE_SIZE.y })
 
@@ -67,7 +67,10 @@ export function defaultEntitySpawnPosition(
   const raw = visible ?? { x: vp.x * 0.5, y: vp.y * 0.5 }
   const cx = clamp(raw.x, ws.x)
   const cy = clamp(raw.y, ws.y)
-  return normalizeEntityPosition(cx, cy, snapToGrid, gridSize)
+  return clampEntityPositionToScene(
+    normalizeEntityPosition(cx, cy, snapToGrid, gridSize),
+    ws,
+  )
 }
 
 /** A new EntityDef with sane defaults (Phase B — add entity). */
