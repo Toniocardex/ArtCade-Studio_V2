@@ -85,6 +85,7 @@ private:
     struct PlatformerRt {
         float coyoteTimer     = 0.f;
         float jumpBufferTimer = 0.f;
+        Vec2  velocity        = {};
     };
     std::unordered_map<EntityId, PlatformerRt> platformerRt_;
 

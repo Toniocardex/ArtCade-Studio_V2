@@ -410,9 +410,8 @@ static void test_set_transform_syncs_physics_position() {
     sm.shutdown();
 }
 
-// Phase 0 baseline: platformerController alone triggers implicit dynamic body
-// when PhysicsComponent exists (default on every entity). See ensurePhysicsBody.
-static void test_baseline_platformer_controller_creates_physics_body() {
+// Fase 1: platformerController alone must not create a Box2D body.
+static void test_platformer_controller_does_not_create_physics_body_alone() {
     SceneManager sm;
     RuntimeEntityGateway gw(sm);
     Physics physics;
@@ -430,7 +429,7 @@ static void test_baseline_platformer_controller_creates_physics_body() {
     std::unordered_map<SceneId, SceneDef> scenes{{ scene.id, scene }};
     std::unordered_map<EntityId, EntityDef> defs{{ 1, def }};
     CHECK(gw.replaceProject(scenes, defs, "s"));
-    CHECK(gw.physicsHandle(1) != 0);
+    CHECK(gw.physicsHandle(1) == 0);
 
     gw.shutdown();
     physics.shutdown();
@@ -438,7 +437,7 @@ static void test_baseline_platformer_controller_creates_physics_body() {
 }
 
 int main() {
-    test_baseline_platformer_controller_creates_physics_body();
+    test_platformer_controller_does_not_create_physics_body_alone();
     test_signal_indices();
     test_lifecycle_queue_order();
     test_queue_destroy_lifecycle();

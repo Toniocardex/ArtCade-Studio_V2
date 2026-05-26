@@ -39,6 +39,8 @@ export interface ComponentDescriptor {
   /** EntityDef field name this component is stored under. */
   key:     ComponentKey
   label:   string
+  /** Optional helper shown under the component title in the Inspector. */
+  description?: string
   /** Accent colour (matches the arcade palette). */
   color:   string
   /** Factory for a sane default instance when the user adds the component. */
@@ -54,7 +56,7 @@ const SOLID: SolidComponent = {
 }
 const PLATFORMER: PlatformerControllerComponent = {
   maxSpeed: 300, jumpForce: 600, customGravity: 1500,
-  coyoteTime: 0.15, jumpBuffer: 0.1,
+  coyoteTime: 0.15, jumpBuffer: 0.1, groundClass: 'Ground',
 }
 const TOP_DOWN: TopDownControllerComponent = {
   maxSpeed: 260, acceleration: 1600, friction: 2200, fourDirections: false,
@@ -110,6 +112,8 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
   {
     key: 'platformerController',
     label: 'Platformer Controller',
+    description:
+      'Arcade jump and gravity on the transform. Physics is optional — add Solid on ground for overlap grounded, or Physics on the player for Box2D collisions.',
     color: 'var(--yellow)',
     create: () => ({ ...PLATFORMER }),
     fields: [
@@ -118,6 +122,7 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
       { key: 'customGravity', label: 'Custom Gravity', kind: 'number', min: 0, step: 50 },
       { key: 'coyoteTime', label: 'Coyote Time (s)', kind: 'number', min: 0, step: 0.05 },
       { key: 'jumpBuffer', label: 'Jump Buffer (s)', kind: 'number', min: 0, step: 0.05 },
+      { key: 'groundClass', label: 'Ground Class', kind: 'text' },
     ],
   },
   {

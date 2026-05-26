@@ -2,7 +2,7 @@
 
 > **Versione**: 1.1  
 > **Data**: 2026-05-25  
-> **Status**: Fase 0 chiusa — baseline test + fixture; Fase 1 (kinematic platformer) non iniziata  
+> **Status**: Fase 1 chiusa — platformer kinematic senza body implicito; Fase 2 (grounded raycast) non iniziata  
 > **Audience**: C++ / Editor / Product  
 > **Collegamenti**: `GLOBAL_LOGIC_UI_ARCHITECTURE.md`, `ARTIST_FRIENDLY_COMPONENTS.md`, `ARCHITETTURA_TECNICA_ENGINE_2D.md` §9, `ENGINE_INTEGRATION_ROADMAP.md` (tracker engine separato)
 
@@ -168,7 +168,7 @@ flowchart TB
 
 ## 7. Fasi di implementazione (C++)
 
-> **Fase 1–5** bloccate fino a chiusura Fase 0. Fase 0 chiusa → prossimo: **Fase 1**.
+> **Fase 2–5** da Fase 1 in poi. Prossimo consigliato: **Fase 3** (step condizionale) o **Fase 2** (grounded raycast).
 
 ### Fase 0 — Allineamento e guardrail (1–2 giorni) ✅
 
@@ -189,7 +189,7 @@ flowchart TB
 
 ---
 
-### Fase 1 — Platformer kinematic senza body obbligatorio (3–5 giorni)
+### Fase 1 — Platformer kinematic senza body obbligatorio (3–5 giorni) ✅
 
 **Obiettivo**: `PlatformerController` funziona come TopDown quando `physicsHandle == 0`.
 
@@ -425,3 +425,30 @@ Ogni fase = PR separato reviewabile (~300–800 LOC ciascuno).
 - Nessuna modifica a `world_movement.cpp` / `ensurePhysicsBody` (comportamento invariato).
 - I test baseline documentano il gap Fase 1: platformer senza handle non integra transform.
 - Checklist manuale §11 resta per smoke editor/Tauri (non eseguita in CI doc-only).
+
+---
+
+## Closure log (Fase 1)
+
+| Campo | Valore |
+|-------|--------|
+| **Data** | 2026-05-25 |
+| **Scope** | `world_movement`, `ensurePhysicsBody`, editor inspector, test C++ |
+| **Esito** | Chiusa |
+
+### Deliverable
+
+1. `tickPlatformerControllers`: ramo kinematic su `Transform` quando `physicsHandle == 0` (`platformerRt_.velocity`).
+2. `ensurePhysicsBody`: niente body solo per `platformerController` (resta con `physics` esplicito, solid, sensor, topDown).
+3. Inspector: `description` su Platformer + campo `groundClass`.
+4. Test: `test_platformer_kinematic_falls_with_custom_gravity`, no implicit body, movimento orizzontale kinematic.
+
+### Compatibilità
+
+- Player con `physics` + `platformerController`: ramo Box2D invariato (`setLinearVelocity`).
+- `isGrounded` overlap: ancora richiede handle sul player (Fase 2).
+
+### Follow-up
+
+- Fase 2: raycast / AABB per grounded senza body player.
+- Aggiornare test baseline fixture README dopo smoke manuale.

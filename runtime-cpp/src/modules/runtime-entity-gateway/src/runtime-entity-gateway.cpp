@@ -144,7 +144,8 @@ void RuntimeEntityGateway::ensurePhysicsBody(EntityId id) {
     const bool hasSolid = getSolid(id, solid);
     SensorComponent sensor{};
     const bool hasSensor = getSensor(id, sensor);
-    if (!hasExplicitCollider && !hasPlatformer && !hasTopDown && !hasSolid && !hasSensor)
+    // PlatformerController alone uses kinematic transform (world_movement); no implicit body.
+    if (!hasExplicitCollider && !hasTopDown && !hasSolid && !hasSensor)
         return;
 
     if (!hasExplicitCollider) {

@@ -58,6 +58,12 @@ function ComponentSection({
         </button>
       </div>
 
+      {desc.description ? (
+        <p className="text-[10px] text-[var(--muted)] leading-snug mb-2">
+          {desc.description}
+        </p>
+      ) : null}
+
       {desc.fields
         .filter((f) => !f.visibleWhen || f.visibleWhen(data))
         .map((f) => {
