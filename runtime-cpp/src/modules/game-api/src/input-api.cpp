@@ -1,5 +1,6 @@
 #include "../include/game-api.h"
 #include "../../input/include/input.h"
+#include "../../renderer/include/renderer.h"
 
 #include <functional>
 #include <sol/sol.hpp>
@@ -8,7 +9,8 @@
 namespace ArtCade::Modules {
 
 void GameAPI::bindInputAPI(sol::state& lua) {
-    auto* input = ctx_.input;
+    auto* input    = ctx_.input;
+    auto* renderer = ctx_.renderer;
 
     lua.set_function("input_isKeyDown",      [input](const std::string& c) { return input->isKeyDown(c);      });
     lua.set_function("input_wasKeyPressed",  [input](const std::string& c) { return input->wasKeyPressed(c);  });
@@ -16,6 +18,16 @@ void GameAPI::bindInputAPI(sol::state& lua) {
     lua.set_function("input_mousePosition",  [input]() -> std::tuple<float, float> {
         auto pos = input->mousePosition();
         return { pos.x, pos.y };
+    });
+    lua.set_function("input_mouseScreen", [input]() -> std::tuple<float, float> {
+        auto pos = input->mousePosition();
+        return { pos.x, pos.y };
+    });
+    lua.set_function("input_mouseWorld", [input, renderer]() -> std::tuple<float, float> {
+        const auto pos = input->mousePosition();
+        if (!renderer) return { pos.x, pos.y };
+        const Vec2 world = renderer->screenToWorld(pos.x, pos.y);
+        return { world.x, world.y };
     });
     lua.set_function("input_mouseButtonDown", [input](int btn) { return input->isMouseButtonDown(btn); });
 
@@ -28,6 +40,8 @@ void GameAPI::bindInputAPI(sol::state& lua) {
         input.wasKeyPressed   = function(code) return input_wasKeyPressed(code)    end
         input.wasKeyReleased  = function(code) return input_wasKeyReleased(code)   end
         input.mousePosition   = function()     return input_mousePosition()        end
+        input.mouseScreen     = function()     return input_mouseScreen()          end
+        input.mouseWorld      = function()     return input_mouseWorld()           end
         input.mouseButtonDown = function(btn)  return input_mouseButtonDown(btn)   end
 
         local function registerInputHandler(bag, code, fn)

@@ -4,7 +4,7 @@
 // ---------------------------------------------------------------------------
 
 import type { LogicBoard, LogicEvent } from '../../types/logic-board'
-import { INDENT, luaString } from './lua-helpers'
+import { INDENT, luaPointerNearSelfExpr, luaString } from './lua-helpers'
 import { onInputGateExpr } from './on-input-keys'
 import { emitGuardedBranches } from './emit-guarded-branches'
 import { ruleKeyExpr } from './event-slugs'
@@ -79,14 +79,12 @@ export function emitEventBody(
 
   if (trig.type === 'onObjectClick') {
     const btn = trig.button === 'right' ? 1 : 0
-    const r2 = Math.pow(Number(trig.radius) || 32, 2)
+    const hit = luaPointerNearSelfExpr(Number(trig.radius) || 32)
     const prefix = luaString(`${board.boardId}:${ev.id}:`)
     const inner = baseIndent + INDENT
     lines.push(`${baseIndent}local _ock = ${prefix} .. tostring(self)`)
     lines.push(`${baseIndent}local _ocur = input.mouseButtonDown(${btn})`)
-    lines.push(
-      `${baseIndent}local _ohit = (function() local mx,my=input.mousePosition() local p=entity.position(self) local dx=mx-p.x local dy=my-p.y return (dx*dx+dy*dy) <= ${r2} end)()`,
-    )
+    lines.push(`${baseIndent}local _ohit = ${hit}`)
     lines.push(
       `${baseIndent}if (_ocur and not _mb[_ock] and _ohit) and ${enableGuard} then`,
     )
@@ -99,7 +97,7 @@ export function emitEventBody(
   }
 
   if (trig.type === 'onObjectHoverEnter' || trig.type === 'onObjectHoverExit') {
-    const r2 = Math.pow(Number(trig.radius) || 32, 2)
+    const hit = luaPointerNearSelfExpr(Number(trig.radius) || 32)
     const prefix = luaString(`${board.boardId}:${ev.id}:hover:`)
     const wantEnter = trig.type === 'onObjectHoverEnter'
     const edge = wantEnter
@@ -107,9 +105,7 @@ export function emitEventBody(
       : '((not _ohit) and _mb[_ohk])'
     const inner = baseIndent + INDENT
     lines.push(`${baseIndent}local _ohk = ${prefix} .. tostring(self)`)
-    lines.push(
-      `${baseIndent}local _ohit = (function() local mx,my=input.mousePosition() local p=entity.position(self) local dx=mx-p.x local dy=my-p.y return (dx*dx+dy*dy) <= ${r2} end)()`,
-    )
+    lines.push(`${baseIndent}local _ohit = ${hit}`)
     lines.push(`${baseIndent}if ${edge} and ${enableGuard} then`)
     lines.push(
       ...emitGuardedBranches(ev, inner, slugs, { skipEnable: true }),

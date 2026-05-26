@@ -1,6 +1,7 @@
 add_library(artcade-input
     src/input.cpp
     src/keymap.cpp
+    src/pointer-coords.cpp
 )
 target_include_directories(artcade-input
     PUBLIC  include

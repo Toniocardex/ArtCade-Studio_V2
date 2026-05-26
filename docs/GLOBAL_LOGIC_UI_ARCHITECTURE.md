@@ -107,6 +107,17 @@ L'editor mostra avvisi gialli in Logic Board (`physics-trigger-capabilities.ts`)
 
 **Template progetto (File → New Project):** *Arcade (no physics)* (`physicsMode: off`, player senza body) vs *Platformer* (player + `Solid` ground, `physicsMode: auto`).
 
+### Input Lua — coordinate puntatore
+
+| API | Spazio | Uso |
+|-----|--------|-----|
+| `input.mousePosition()` / `input.mouseScreen()` | Pixel framebuffer (schermo canvas) | UI schermo, debug |
+| `input.mouseWorld()` | Mondo gioco (`Renderer::screenToWorld`, stessa camera del draw) | Hit test entity, spawn al puntatore |
+
+Su Emscripten il mouse viene scalato da CSS a framebuffer interno (`pointer-coords`, canvas `#artcade-canvas`) così resize del pannello preview non sposta il pick.
+
+**Logic Board:** trigger **Object clicked** / **hover** / condizione **is mouse over** / azione **spawn at pointer** compilano con `input.mouseWorld()` + `entity.position(self)` (non `mousePosition()`). `onMouseInput` (solo tasto) resta invariato.
+
 ---
 
 ## Logic Board editor (entity-first)

@@ -13,7 +13,7 @@ import type {
   LogicEvent,
 } from '../../types/logic-board'
 import { combineConditionExprs, wrapNegated } from './condition-combine'
-import { luaString, luaValue, targetExpr } from './lua-helpers'
+import { luaPointerNearSelfExpr, luaString, luaValue, targetExpr } from './lua-helpers'
 
 /**
  * Whitelist of binary comparison operators that may appear in a condition.
@@ -39,10 +39,8 @@ function leafExpr(c: LogicCondition): string {
       return `(function() for _,e in ipairs(object.findByTag(${luaString(c.tag)})) do if e==self then return true end end return false end)()`
     case 'compareDistance':
       return `(object.distance(self, ${targetExpr(c.target)}) ${safeOp(c.operator)} ${Number(c.value) || 0})`
-    case 'isMouseOver': {
-      const r2 = Math.pow(Number(c.radius) || 32, 2)
-      return `(function() local mx,my=input.mousePosition() local p=entity.position(self) local dx=mx-p.x local dy=my-p.y return (dx*dx+dy*dy) <= ${r2} end)()`
-    }
+    case 'isMouseOver':
+      return luaPointerNearSelfExpr(Number(c.radius) || 32)
     case 'raycastHit': {
       const dx = Number(c.dirX) || 0
       const dy = Number(c.dirY) || 0

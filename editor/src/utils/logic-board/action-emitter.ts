@@ -74,7 +74,7 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
     }
     case 'spawnEntityAtPointer': {
       const cls = luaString(a.className)
-      return `(function() local _mx,_my=input.mousePosition(); return object.spawn(${cls}, _mx, _my) end)()`
+      return `(function() local _mx,_my=input.mouseWorld(); return object.spawn(${cls}, _mx, _my) end)()`
     }
     case 'moveInDirection': {
       const t = targetExpr(a.target)

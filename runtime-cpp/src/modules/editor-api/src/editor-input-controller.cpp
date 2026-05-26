@@ -3,6 +3,7 @@
 #ifdef __EMSCRIPTEN__
 
 #include "../include/editor-api.h"
+#include "../../../modules/input/include/pointer-coords.h"
 #include "../../../modules/runtime-entity-gateway/include/runtime-entity-gateway.h"
 #include "../../../modules/renderer/include/renderer.h"
 #include "../../../core/types.h"
@@ -34,14 +35,11 @@ enum EditorToolId {
 // (e.g. 1280x720). Without this scale the painted cell / dragged entity
 // would be offset proportionally to the CSS downscale factor.
 void toScreen(const EmscriptenMouseEvent* e, float& sxOut, float& syOut) {
-    double cssW = 0.0, cssH = 0.0;
-    int    iw   = 0,   ih   = 0;
-    emscripten_get_element_css_size (s_canvasSel.c_str(), &cssW, &cssH);
-    emscripten_get_canvas_element_size(s_canvasSel.c_str(), &iw,  &ih);
-    const float sx = (cssW > 0.0) ? static_cast<float>(iw / cssW) : 1.f;
-    const float sy = (cssH > 0.0) ? static_cast<float>(ih / cssH) : 1.f;
-    sxOut = static_cast<float>(e->targetX) * sx;
-    syOut = static_cast<float>(e->targetY) * sy;
+    const Vec2 fb = pointerCoordsNormalizeToFramebuffer(
+        static_cast<float>(e->targetX),
+        static_cast<float>(e->targetY));
+    sxOut = fb.x;
+    syOut = fb.y;
 }
 
 void toWorld(const EmscriptenMouseEvent* e, float& wx, float& wy) {
@@ -202,6 +200,7 @@ namespace EditorInputController {
 
 void initCanvas(const char* canvasSelector) {
     if (canvasSelector && *canvasSelector) s_canvasSel = canvasSelector;
+    pointerCoordsSetCanvasSelector(s_canvasSel.c_str());
     emscripten_set_mousemove_callback(canvasSelector, nullptr, 1, EditorAPI::onMouseMove);
     emscripten_set_mousedown_callback(canvasSelector, nullptr, 1, EditorAPI::onMouseDown);
     emscripten_set_mouseup_callback  (canvasSelector, nullptr, 1, EditorAPI::onMouseUp);

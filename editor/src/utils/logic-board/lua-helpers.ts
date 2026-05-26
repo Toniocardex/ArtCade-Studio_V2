@@ -68,3 +68,13 @@ export function sensorSourceExpr(target: { type: string; className?: string; ent
     return String(target.entityId)
   return luaString('*')
 }
+
+/**
+ * Lua expression: true when the pointer (world space) is within `radius` px
+ * of this entity's position. Uses input.mouseWorld() + entity.position(self).
+ */
+export function luaPointerNearSelfExpr(radius: number): string {
+  const r = Math.max(0, radius)
+  const r2 = r * r
+  return `(function() local mx,my=input.mouseWorld() local p=entity.position(self) local dx=mx-p.x local dy=my-p.y return (dx*dx+dy*dy) <= ${r2} end)()`
+}

@@ -1,4 +1,5 @@
 #include "../include/input.h"
+#include "../include/pointer-coords.h"
 #include <raylib.h>
 #include <cstring>
 
@@ -47,9 +48,10 @@ void Input::poll() {
         state_.keysReleasedThisFrame[key]= IsKeyReleased(key);
     }
 
-    // Mouse
-    Vector2 mp = GetMousePosition();
-    state_.mousePosition = { mp.x, mp.y };
+    // Mouse — framebuffer pixels (CSS→buffer scale on Emscripten).
+    const Vector2 mp = GetMousePosition();
+    state_.mousePosition =
+        pointerCoordsNormalizeToFramebuffer(mp.x, mp.y);
 
     state_.mouseButtonDown[0] = IsMouseButtonDown(MOUSE_BUTTON_LEFT);
     state_.mouseButtonDown[1] = IsMouseButtonDown(MOUSE_BUTTON_RIGHT);
