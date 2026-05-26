@@ -84,6 +84,9 @@ function parseEvent(raw: unknown): LogicEvent | null {
     ...(Array.isArray(r.conditions)
       ? { conditions: r.conditions as LogicEvent['conditions'] }
       : {}),
+    ...(r.conditionsOperator === 'OR' || r.conditionsOperator === 'AND'
+      ? { conditionsOperator: r.conditionsOperator }
+      : {}),
     ...(r.conditionRoot && typeof r.conditionRoot === 'object'
       ? { conditionRoot: r.conditionRoot as LogicEvent['conditionRoot'] }
       : {}),

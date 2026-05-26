@@ -41,7 +41,13 @@ export type LogicTrigger =
   | { type: 'onTriggerExit'; withClass?: string }                   // edge: stopped touching
   | { type: 'onAnimationEnd'; clipName?: string }                   // needs engine hook (stub)
   | { type: 'onDestroy' }                                           // needs engine hook (stub)
-  | { type: 'onInput'; keyCode: string; eventType: 'pressed' | 'down' | 'released' }
+  | {
+      type: 'onInput'
+      keyCode: string
+      /** Additional keys — rule fires when any of keyCode or these match (OR). */
+      alternateKeyCodes?: string[]
+      eventType: 'pressed' | 'down' | 'released'
+    }
   | { type: 'onMouseInput'; button: 'left' | 'right'; eventType: 'pressed' | 'down' | 'released' }
   | { type: 'onObjectClick'; button: 'left' | 'right'; radius?: number }
   | { type: 'onObjectHoverEnter'; radius?: number }
@@ -162,7 +168,9 @@ export interface LogicEvent {
   trigger:     LogicTrigger
   /** Explicit UI/runtime gate for the optional condition section. */
   onlyIfEnabled?: boolean
-  /** Flat list = AND of leaves. Use `conditionRoot` for OR/nested trees. */
+  /** Flat list combine mode when `conditionRoot` is absent (default AND). */
+  conditionsOperator?: 'AND' | 'OR'
+  /** Flat list of leaves. Use `conditionRoot` for nested AND/OR trees. */
   conditions?: LogicCondition[]
   conditionRoot?: LogicConditionNode
   actions:     LogicAction[]

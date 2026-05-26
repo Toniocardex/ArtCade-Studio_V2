@@ -340,6 +340,60 @@ describe('compileLogicBoard — triggers', () => {
     expect(mk('released')).toContain('_logic_reg_input_released("KeyW", function()')
   })
 
+  it('onInput alternate keys register OR handlers per key', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({
+          trigger: {
+            type: 'onInput',
+            keyCode: 'KeyW',
+            alternateKeyCodes: ['Space'],
+            eventType: 'pressed',
+          },
+          actions: [{ type: 'debugLog', message: 'jump' }],
+        }),
+      ]),
+    ])
+    expect(lua).toContain('_logic_reg_input_pressed("KeyW", function()')
+    expect(lua).toContain('_logic_reg_input_pressed("Space", function()')
+    const downLua = compileLogicBoard([
+      board([
+        ev({
+          trigger: {
+            type: 'onInput',
+            keyCode: 'KeyW',
+            alternateKeyCodes: ['Space'],
+            eventType: 'down',
+          },
+          actions: [{ type: 'debugLog', message: 'hold' }],
+        }),
+      ]),
+    ])
+    expect(downLua).toMatch(
+      /input\.isKeyDown\("KeyW"\).*or.*input\.isKeyDown\("Space"\)/s,
+    )
+  })
+
+  it('flat conditionsOperator OR joins checks with or', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({
+          trigger: { type: 'onUpdate' },
+          onlyIfEnabled: true,
+          conditionsOperator: 'OR',
+          conditions: [
+            { type: 'isKeyDown', keyCode: 'KeyW' },
+            { type: 'isKeyDown', keyCode: 'Space' },
+          ],
+          actions: [{ type: 'debugLog', message: 'either' }],
+        }),
+      ]),
+    ])
+    expect(lua).toMatch(
+      /input\.isKeyDown\("KeyW"\).*or.*input\.isKeyDown\("Space"\)/s,
+    )
+  })
+
   it('onCollision withClass gates on collision.touchingClass', () => {
     const lua = compileLogicBoard([
       board([

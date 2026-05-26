@@ -80,5 +80,9 @@ export function conditionExpr(ev: LogicEvent): string {
   if (ev.conditionRoot) return nodeExpr(ev.conditionRoot)
   const list = ev.conditions ?? []
   if (list.length === 0) return 'true'
-  return list.map((c) => leafExpr(c)).join(' and ')
+  const joiner = ev.conditionsOperator === 'OR' ? ' or ' : ' and '
+  const parts = list.map((c) => leafExpr(c))
+  if (parts.length === 1) return parts[0]
+  const joined = parts.join(joiner)
+  return joiner === ' or ' ? `(${joined})` : joined
 }

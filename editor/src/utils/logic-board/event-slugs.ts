@@ -10,6 +10,7 @@
 // ---------------------------------------------------------------------------
 
 import type { LogicBoardDoc, LogicTrigger } from '../../types/logic-board'
+import { getOnInputKeyCodes } from './on-input-keys'
 
 /**
  * Name of the Lua-local table that maps human slugs to raw event ids. Shared
@@ -42,7 +43,12 @@ function triggerSlugSource(t: LogicTrigger): string {
     case 'onInput': {
       const verb = t.eventType === 'pressed' ? 'press'
         : t.eventType === 'released' ? 'release' : 'hold'
-      return `${verb}_${shortKeyLabel(t.keyCode || 'key')}`
+      const codes = getOnInputKeyCodes(t)
+      const keyPart =
+        codes.length > 1
+          ? codes.map((c) => shortKeyLabel(c)).join('_or_')
+          : shortKeyLabel(codes[0] || 'key')
+      return `${verb}_${keyPart}`
     }
     case 'onMouseInput': {
       const verb = t.eventType === 'pressed' ? 'click'

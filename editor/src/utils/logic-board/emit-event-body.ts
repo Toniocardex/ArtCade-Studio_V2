@@ -23,6 +23,7 @@
 import type { LogicBoard, LogicEvent } from '../../types/logic-board'
 import { INDENT, luaString } from './lua-helpers'
 import { conditionExpr } from './condition-expr'
+import { onInputGateExpr } from './on-input-keys'
 import { emitActionSequence } from './emit-actions'
 import { ruleKeyExpr } from './event-slugs'
 
@@ -155,13 +156,7 @@ export function emitEventBody(
     const wantEnter = trig.type === 'onCollisionEnter' ? 'true' : 'false'
     gate = `_logic_collision_edge(self, ${luaString(trig.withClass)}, ${wantEnter})`
   } else if (trig.type === 'onInput') {
-    const fn =
-      trig.eventType === 'pressed'
-        ? 'wasKeyPressed'
-        : trig.eventType === 'released'
-          ? 'wasKeyReleased'
-          : 'isKeyDown'
-    gate = `input.${fn}(${luaString(trig.keyCode)})`
+    gate = onInputGateExpr(trig)
   } else if (trig.type === 'onTimer') {
     // Per-instance key: appending `self` so each entity in a class-targeted
     // board has its own accumulator. Without `self`, a "every 2s" rule on

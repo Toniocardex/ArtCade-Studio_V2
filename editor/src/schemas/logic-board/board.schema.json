@@ -25,6 +25,7 @@
           "id": { "type": "string", "minLength": 1 },
           "enabled": { "type": "boolean" },
           "onlyIfEnabled": { "type": "boolean" },
+          "conditionsOperator": { "enum": ["AND", "OR"] },
           "trigger": { "type": "object" },
           "conditions": { "type": "array", "items": { "type": "object" } },
           "conditionRoot": { "type": "object" },

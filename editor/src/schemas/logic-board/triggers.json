@@ -163,6 +163,10 @@
     "properties": {
       "type": { "const": "onInput" },
       "keyCode": { "type": "string", "minLength": 1 },
+      "alternateKeyCodes": {
+        "type": "array",
+        "items": { "type": "string", "minLength": 1 }
+      },
       "eventType": { "enum": ["pressed", "down", "released"] }
     },
     "additionalProperties": false,

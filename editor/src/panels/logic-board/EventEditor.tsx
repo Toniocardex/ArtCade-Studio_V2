@@ -17,6 +17,7 @@ import { LogicBlock } from '../../components/logic-board/LogicBlock'
 import { TypePicker } from '../../components/logic-board/TypePicker'
 import { SchemaParamForm } from '../../components/logic-board/SchemaParamForm'
 import { ConditionTreeEditor } from '../../components/logic-board/ConditionTreeEditor'
+import { OnInputTriggerFields } from '../../components/logic-board/OnInputTriggerFields'
 import { defaultConditionRoot } from '../../utils/logic-board/schema-registry'
 import { actionDisplayName } from './friendly-labels'
 import type { ProjectDoc } from '../../types'
@@ -96,12 +97,19 @@ function TriggerFields({
 
   return (
     <>
-      <SchemaParamForm
-        kind="trigger"
-        type={trigger.type}
-        value={trigger as unknown as Record<string, unknown>}
-        onChange={(next) => onChange(next as LogicTrigger)}
-      />
+      {trigger.type === 'onInput' ? (
+        <OnInputTriggerFields
+          trigger={trigger}
+          onChange={(t) => onChange(t)}
+        />
+      ) : (
+        <SchemaParamForm
+          kind="trigger"
+          type={trigger.type}
+          value={trigger as unknown as Record<string, unknown>}
+          onChange={(next) => onChange(next as LogicTrigger)}
+        />
+      )}
       {isCollisionTrigger && (
         <p className="text-[10px] leading-snug text-[var(--muted)]">
           Requires Box2D overlap: add <strong>Physics (Box2D Body)</strong> on this entity
@@ -202,6 +210,9 @@ function ActionCard({
   )
 }
 
+const condSel =
+  'bg-[var(--bg)] border border-[var(--border-2)] text-[var(--accent)] px-2 py-1 rounded text-xs'
+
 function SimpleConditions({
   event,
   board,
@@ -214,9 +225,31 @@ function SimpleConditions({
   onChange: (e: LogicEvent) => void
 }) {
   const conditions = event.conditions ?? []
+  const combineOp = event.conditionsOperator ?? 'AND'
 
   return (
     <div className="space-y-2">
+      {conditions.length > 1 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[10px] font-medium text-[var(--muted)]">
+            Combine checks
+          </span>
+          <select
+            className={condSel}
+            value={combineOp}
+            onChange={(e) =>
+              onChange({
+                ...event,
+                conditionsOperator: e.target.value as 'AND' | 'OR',
+                conditionRoot: undefined,
+              })
+            }
+          >
+            <option value="AND">All must pass (AND)</option>
+            <option value="OR">Any can pass (OR)</option>
+          </select>
+        </div>
+      )}
       {conditions.length === 0 && (
         <p className="text-[11px] italic text-[var(--muted)]">
           If is on, but no checks have been added yet.
