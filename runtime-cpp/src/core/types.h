@@ -264,6 +264,19 @@ struct ImageAssetDef {
     std::vector<ImagePointDef> imagePoints;
 };
 
+enum class PhysicsMode {
+    Auto,
+    Off,
+    On,
+};
+
+struct WorldSettings {
+    float       gravity        = 9.81f;
+    float       pixelsPerMeter = 100.f;
+    float       timeScale      = 1.f;
+    PhysicsMode physicsMode    = PhysicsMode::Auto;
+};
+
 struct ProjectDoc {
     std::string  projectName;
     std::string  version         = "2.0.0";
@@ -278,6 +291,7 @@ struct ProjectDoc {
     std::vector<TilePaletteEntry> tilePalette;   // Phase D2
     std::vector<TilesetAsset>     tilesets;      // Phase F3
     std::vector<ImageAssetDef>    imageAssets;   // editor assets + image points
+    WorldSettings                 world{};
 };
 
 // ============================================================================

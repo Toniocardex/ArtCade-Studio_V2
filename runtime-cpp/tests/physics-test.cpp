@@ -166,7 +166,15 @@ int main() {
     phys.destroyBody(hTarget);
     printf("[PASS] 14. setSensorFixture replace + clearSensorFixture\n");
 
+  // ---- Test 15: hasActiveBodies --------------------------------------------
+    assert(!phys.hasActiveBodies());
+    uint32_t hTmp = phys.createBody(99, makeRect(BodyType::Dynamic, 1.f, 1.f));
+    assert(phys.hasActiveBodies());
+    phys.destroyBody(hTmp);
+    assert(!phys.hasActiveBodies());
+    printf("[PASS] 15. hasActiveBodies\n");
+
     phys.shutdown();
-    printf("\n[physics-test] 14/14 PASSED\n");
+    printf("\n[physics-test] 15/15 PASSED\n");
     return 0;
 }

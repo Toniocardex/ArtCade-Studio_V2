@@ -400,7 +400,8 @@ bool Application::loadProject(const std::string& projectPath) {
         const float safeFps = (std::isfinite(fps) && fps >= 1.f) ? fps : 60.f;
         targetDt_ = 1.f / safeFps;
     }
-    licenseTier_ = doc.licenseTier;
+    licenseTier_  = doc.licenseTier;
+    physicsMode_  = doc.world.physicsMode;
 
     // Show branded splash overlay on FREE tier (watermark requirement)
     if (licenseTier_ == "free")
@@ -452,7 +453,10 @@ void Application::tickFixedStep(float dt) {
         profiler_.addLuaMs(elapsedMs(start));
         profiler_.setLuaTickEnabled(mod_->luaHost->isScriptTickRequired());
     }
-    {
+    const bool runPhysics =
+        physicsMode_ == PhysicsMode::On
+        || (physicsMode_ == PhysicsMode::Auto && mod_->physics->hasActiveBodies());
+    if (runPhysics) {
         const auto start = Clock::now();
         mod_->physics->step(dt);
         profiler_.addPhysicsMs(elapsedMs(start));
@@ -461,12 +465,13 @@ void Application::tickFixedStep(float dt) {
     // physics back to ECS so that doomed entities don't briefly snap to
     // the last simulated body position in the frame they get removed.
     mod_->world->flushEntityQueues();
-    mod_->world->syncPhysicsToEntities();
+    if (runPhysics)
+        mod_->world->syncPhysicsToEntities();
     mod_->world->tickCameraTargets(dt);
     // Sensor edges now run AFTER physics step + sync, so begin/end events
     // are dispatched in the same frame as the overlap (previously delayed
     // by one fixed step — noticeable for fast bullets).
-    {
+    if (runPhysics) {
         const auto start = Clock::now();
         mod_->world->refreshSensorEdges();
         const uint32_t events = mod_->gameAPI->dispatchSensorEvents();

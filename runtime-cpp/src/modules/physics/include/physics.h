@@ -29,6 +29,8 @@ public:
 
     // Fixed-timestep simulation step (substeps interni per stabilità)
     void step(float dt, uint32_t substeps = 2);
+    /** True when at least one Box2D body exists (used for physicsMode auto). */
+    bool hasActiveBodies() const;
 
     // ---- Body lifecycle -----------------------------------------------------
     uint32_t createBody(EntityId entityId, const PhysicsComponent& comp);

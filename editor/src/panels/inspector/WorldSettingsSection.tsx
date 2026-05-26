@@ -27,6 +27,29 @@ export function WorldSettingsSection() {
     <InspectorSection label="World Settings" defaultOpen>
       {num('Gravity (m/s²)', 'gravity', 0.1)}
       {num('Px / Meter', 'pixelsPerMeter', 1)}
+      <div className="mb-2">
+        <label className="text-[9px] text-[var(--muted)] uppercase block mb-1">
+          Physics simulation
+        </label>
+        <select
+          value={w.physicsMode ?? 'auto'}
+          onChange={(e) =>
+            dispatch({
+              type: 'WORLD_SET',
+              patch: { physicsMode: e.target.value as 'off' | 'auto' | 'on' },
+            })
+          }
+          className="w-full bg-[var(--panel-3)] border border-[var(--border-2)] text-[var(--text)]
+                     text-[11px] rounded px-2 py-1 focus:outline-none focus:border-[var(--accent-2)]"
+        >
+          <option value="auto">Auto (only when bodies exist)</option>
+          <option value="on">On (always step)</option>
+          <option value="off">Off (no Box2D step)</option>
+        </select>
+        <p className="text-[9px] text-[var(--muted)] mt-1 leading-snug">
+          Auto skips physics for pure transform / platformer-only scenes. Sensors need On or bodies in Auto.
+        </p>
+      </div>
       <div>
         <div className="flex justify-between items-center mb-1">
           <span className="text-[9px] text-[var(--muted)] uppercase">Time Scale</span>

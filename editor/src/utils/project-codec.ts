@@ -1,6 +1,6 @@
 import type {
   ProjectDoc, EntityDef, SceneDef, Vec2, Vec4, Transform, SpriteComponent,
-  AnimationState, PhysicsComponent, WorldSettings, TilemapLayer, TileDef,
+  AnimationState, PhysicsComponent, PhysicsMode, WorldSettings, TilemapLayer, TileDef,
   TilesetAsset, ImageAsset, ImagePointDef, AnimationClipDef, AnimationFrameRect,
 } from '../types'
 import { DEFAULT_WORLD } from '../types'
@@ -136,6 +136,11 @@ function parseEntity(raw: unknown, fallbackId: number): EntityDef {
   }
 }
 
+function parsePhysicsMode(raw: unknown): PhysicsMode {
+  if (raw === 'off' || raw === 'on' || raw === 'auto') return raw
+  return DEFAULT_WORLD.physicsMode ?? 'auto'
+}
+
 function parseWorld(raw: unknown): WorldSettings | undefined {
   if (!raw || typeof raw !== 'object') return undefined
   const r = raw as Record<string, unknown>
@@ -143,6 +148,7 @@ function parseWorld(raw: unknown): WorldSettings | undefined {
     gravity:        Number(r.gravity ?? DEFAULT_WORLD.gravity),
     pixelsPerMeter: Number(r.pixelsPerMeter ?? DEFAULT_WORLD.pixelsPerMeter),
     timeScale:      Number(r.timeScale ?? DEFAULT_WORLD.timeScale),
+    physicsMode:    parsePhysicsMode(r.physicsMode),
   }
 }
 

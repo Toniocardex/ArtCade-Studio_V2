@@ -74,6 +74,7 @@ private:
     float targetDt_        = 1.f / 60.f;
     float accumulator_      = 0.f;          // persistent tra frame (necessario su WASM)
     bool  running_          = false;
+    PhysicsMode physicsMode_ = PhysicsMode::Auto;
     std::string licenseTier_ = "free";      // from ProjectDoc, used by SplashState
     std::unique_ptr<::ArtCade::Modules::SplashState> splash_;  // FREE-tier watermark overlay
     std::unordered_map<int, ::ArtCade::Vec4> tileColors_;  // Phase D2: id → render colour

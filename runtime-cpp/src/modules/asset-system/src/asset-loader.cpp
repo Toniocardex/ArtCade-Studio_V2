@@ -130,6 +130,20 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
     out.activeSceneId  = readStringAny(j, "activeSceneId", "active_scene_id");
     out.mainScriptPath = readStringAny(j, "mainScriptPath", "main_script_path", "scripts/main.luac");
 
+    if (j.contains("world") && j["world"].is_object()) {
+        const auto& wo = j["world"];
+        out.world.gravity        = readFloatAny(wo, "gravity", "gravity", 9.81f);
+        out.world.pixelsPerMeter = readFloatAny(wo, "pixelsPerMeter", "pixels_per_meter", 100.f);
+        out.world.timeScale      = readFloatAny(wo, "timeScale", "time_scale", 1.f);
+        const std::string mode   = readStringAny(wo, "physicsMode", "physics_mode", "auto");
+        if (mode == "off")
+            out.world.physicsMode = PhysicsMode::Off;
+        else if (mode == "on")
+            out.world.physicsMode = PhysicsMode::On;
+        else
+            out.world.physicsMode = PhysicsMode::Auto;
+    }
+
     // Entities
     if (j.contains("entities") && j["entities"].is_object()) {
         for (auto& [key, ev] : j["entities"].items()) {

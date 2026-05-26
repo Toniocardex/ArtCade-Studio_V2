@@ -2,7 +2,7 @@
 
 > **Versione**: 1.2  
 > **Data**: 2026-05-25  
-> **Status**: Fase 3 in corso — `physicsMode` + step condizionale; Fasi 4–5 non iniziate  
+> **Status**: Fase 3 chiusa — `physicsMode` + step condizionale; Fasi 4–5 non iniziate  
 > **Audience**: C++ / Editor / Product  
 > **Collegamenti**: `GLOBAL_LOGIC_UI_ARCHITECTURE.md`, `ARTIST_FRIENDLY_COMPONENTS.md`, `ARCHITETTURA_TECNICA_ENGINE_2D.md` §9, `ENGINE_INTEGRATION_ROADMAP.md` (tracker engine separato)
 
@@ -232,7 +232,7 @@ flowchart TB
 
 ---
 
-### Fase 3 — Physics world condizionale (2–3 giorni)
+### Fase 3 — Physics world condizionale (2–3 giorni) ✅
 
 **Obiettivo**: non pagare `physics->step` in giochi tipo Flappy Bird.
 
@@ -488,3 +488,20 @@ Ogni fase = PR separato reviewabile (~300–800 LOC ciascuno).
 ### Follow-up post-Fase 2
 
 - Raycast down (2a) opzionale se serve probe più preciso su tilemap (fuori MVP AABB).
+
+---
+
+## Closure log (Fase 3)
+
+| Campo | Valore |
+|-------|--------|
+| **Data** | 2026-05-25 |
+| **Scope** | `Physics::hasActiveBodies`, `Application::tickFixedStep`, `world.physicsMode` editor+C++ |
+| **Esito** | Chiusa |
+
+### Deliverable
+
+1. `physicsMode`: `off` \| `auto` (default) \| `on` in `project.json` → `ProjectDoc.world`.
+2. Auto: `physics.step` + sensor edges solo se `hasActiveBodies()`.
+3. Inspector → World Settings → Physics simulation.
+4. Test: `physics_test` #15; Vitest `project-world.test.ts`.

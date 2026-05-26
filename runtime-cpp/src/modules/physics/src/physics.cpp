@@ -106,6 +106,10 @@ void Physics::step(float dt, uint32_t substeps) {
         impl_->world.Step(subDt, kVelocityIterations, kPositionIterations);
 }
 
+bool Physics::hasActiveBodies() const {
+    return !impl_->bodies.empty();
+}
+
 // ============================================================================
 // Body lifecycle
 // ============================================================================
