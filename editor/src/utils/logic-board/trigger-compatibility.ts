@@ -4,14 +4,18 @@
 // Each trigger declares which board target types it is valid against. The
 // compiler, validator, and UI TypePicker all read from this single source.
 //
-// Rule of thumb:
-//   • Triggers that fire scene-wide (no entity context) → 'global' only.
-//     Input, mouse, message, scene-wide messaging — wrapping them in a
-//     per-pool for-loop would multiply their actions by N entities.
-//   • Triggers that need an entity (lifecycle, collision, animation, sensor)
-//     → 'entity_class' / 'entity_id' only. Running them on a global board
-//     would leave `self = nil` and break any action that touches it.
-//   • System triggers that don't care (onStart, onUpdate, onTimer) → all.
+// Rule of thumb (see the matrix below for the inline rationale per row):
+//   • Lifecycle / physics / animation (onSpawn, onDestroy, onCollision,
+//     onTriggerEnter/Exit, onAnimationEnd) → ENTITY only. The runtime
+//     binds these to a class id; a global board has no class to attach.
+//   • Input / messaging (onInput, onMouseInput, onMessage) → ALL targets.
+//     On entity boards the actions fan out across the pool ("every enemy
+//     reacts to Space"), often the desired intent; on a global board they
+//     fire once with self=nil for scene-wide controls. Author picks the
+//     semantic via the board target.
+//   • System (onStart, onUpdate, onTimer) → ALL targets. Same fan-out
+//     reasoning as input/messaging — onTimer specifically gets a per-self
+//     accumulator on class boards (see emit-event-body.ts).
 //
 // Keep this list in sync with editor/src/schemas/logic-board/triggers.json
 // and the runtime APIs in runtime-cpp/src/modules/game-api/src/*.cpp.

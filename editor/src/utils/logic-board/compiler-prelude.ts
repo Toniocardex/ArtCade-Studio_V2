@@ -2,9 +2,16 @@
 // Compiler scaffolding — the fixed Lua templates wrapped around the per-board
 // emit output:
 //
-//   • buildHeader:           one-time locals (timers, enable flags, RULE
-//                            alias table, movement frame helpers) plus the
-//                            project-tick capture block.
+//   • buildHeader:           emits the script-top block. Three concerns:
+//                             1) Hot-reload unsub tracking: __artcade_lb_unsubs
+//                                global + _logic_track / _logic_bag_unsub /
+//                                _logic_reg_* helpers that revoke handlers
+//                                registered by the previous compile.
+//                             2) One-time locals (timers, enable flags, RULE
+//                                alias table, _mb mouse edge state, movement
+//                                frame helpers).
+//                             3) Project-tick capture (__artcade_project_tick
+//                                / __artcade_board_active globals).
 //   • SENSOR_POLL_PREAMBLE:  builds _sensor_by_ent at the top of each tick
 //                            when any tick-fallback sensor event is present.
 //   • DESTROY_POLL_PREAMBLE: drains lifecycle.pollDestroyed() the same way.

@@ -311,9 +311,9 @@ export default function EventEditor({
         tone="when"
       >
         {compatError && (
-          <div className="mb-2 rounded border border-[var(--danger)] bg-[var(--danger-bg,rgba(220,38,38,0.08))] px-2 py-1.5 text-[11px] text-[var(--danger,#dc2626)]">
+          <p className="mb-1 w-full text-[10px] leading-snug text-[var(--danger)]">
             {compatError} Change the trigger or move this rule to a compatible board.
-          </div>
+          </p>
         )}
         <TypePicker
           kind="trigger"

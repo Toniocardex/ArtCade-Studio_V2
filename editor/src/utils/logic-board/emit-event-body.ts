@@ -1,11 +1,23 @@
 // ---------------------------------------------------------------------------
-// Per-trigger inline body — code that runs inside the per-entity `tick(dt)`
-// loop (or inside a synthesised onMessage / onStart loop in init).
+// Per-trigger inline body — the Lua statements that execute when an event's
+// trigger fires. The body is emitted into one of four scaffolds chosen by
+// compiler.ts based on board target + trigger type:
 //
-// This is the big switch on `LogicTrigger.type`: each case shapes the Lua
-// scaffolding around the action sequence (sensor edge polling, mouse button
-// memory, timer accumulators, etc). Trigger handlers that register a callback
-// in init instead live in emit-event-registration.ts.
+//   1) Per-entity `tick(dt)` loop — `for _, self in ipairs(pool)`. Default
+//      for entity_class / entity_id boards.
+//   2) Single nil-self block — `do local self = nil ... end`. Used for
+//      global boards (target.type='global') where there is no entity
+//      context. Actions targeting `self` are intentionally inert.
+//   3) Per-destroy-event loop — `for _, de in ipairs(_destroy_events) do
+//      local self = de.entityId`. Hoisted by compiler.ts so onDestroy
+//      tick-fallback can react to entities that are no longer in the pool.
+//   4) onMessage / onStart wrappers in init — same shapes as (1) or (2)
+//      depending on isGlobal.
+//
+// This file is the big switch on `LogicTrigger.type`: each case shapes the
+// Lua scaffolding around the action sequence (sensor edge polling, mouse
+// button memory, timer accumulators, etc). Trigger handlers that register
+// a callback in init instead live in emit-event-registration.ts.
 // ---------------------------------------------------------------------------
 
 import type { LogicBoard, LogicEvent } from '../../types/logic-board'
