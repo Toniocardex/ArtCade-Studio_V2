@@ -2,7 +2,7 @@
 // Logic Board panel — visual event-list editor.
 //
 // Entity-first: rulesheets bind to entityId by default; class boards in Advanced.
-// Script tab: read-only Lua preview + Apri in Editor Script.
+// Script tab: per-board read-only Lua slice, optional full main, Open main.lua.
 //
 // All mutations go through LOGIC_*; compiled Lua syncs to mainScriptPath in store.
 // ---------------------------------------------------------------------------
@@ -33,6 +33,11 @@ import {
   openMainScriptInEditor,
   syncLogicBoardToScript,
 } from '../utils/sync-logic-board-script'
+import { extractBoardLuaSlice } from '../utils/logic-board/extract-board-lua-slice'
+import {
+  logicBoardCompilerLabel,
+  logicBoardLuaCommentLabel,
+} from '../utils/logic-board/labels'
 
 type LogicClipboard = { kind: 'event'; event: LogicEvent } | null
 
@@ -54,6 +59,7 @@ export default function LogicBoardPanel() {
   )
   const [editingId, setEditingId] = useState<string | null>(null)
   const [panelMode, setPanelMode] = useState<'visual' | 'lua'>('visual')
+  const [showFullMain, setShowFullMain] = useState(false)
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const [newClass, setNewClass] = useState('')
   const [newTrigger, setNewTrigger] = useState<LogicTriggerType>('onSpawn')
@@ -94,6 +100,10 @@ export default function LogicBoardPanel() {
     () => compileLogicBoard(boards, state.project),
     [boards, state.project],
   )
+
+  useEffect(() => {
+    setShowFullMain(false)
+  }, [selectedBoardId])
 
   const boardsRevision = logicBoardsRevision(project)
   const prevBoardsRevision = useRef(boardsRevision)
@@ -257,7 +267,20 @@ export default function LogicBoardPanel() {
   }
 
   if (panelMode === 'lua') {
-    const mainLabel = project.mainScriptPath.split('/').pop() ?? project.mainScriptPath
+    const mainPath = project.mainScriptPath
+    const boardLabel = board ? logicBoardLuaCommentLabel(board) : ''
+    const slice = extractBoardLuaSlice(lua, boardLabel)
+    const displayLua = showFullMain ? lua : slice.text
+    const previewTitle = board
+      ? `Generated · ${logicBoardCompilerLabel(board)}`
+      : 'Generated script'
+    const previewSubtitle = showFullMain
+      ? `Full ${mainPath}`
+      : `Section of ${mainPath}`
+    const openMainTooltip =
+      `Opens ${mainPath} in the Script Editor with Logic-Board–compiled Lua (all boards). ` +
+      'Open other .lua files from the entity Inspector.'
+
     return (
       <div className="flex-1 flex flex-col min-h-0 bg-[var(--bg)]">
         <LogicBoardHeader
@@ -274,16 +297,31 @@ export default function LogicBoardPanel() {
           project={project}
         />
         <LogicBoardLuaPreview
-          lua={lua}
-          title={`${mainLabel} · anteprima generata`}
+          lua={displayLua}
+          title={previewTitle}
+          subtitle={previewSubtitle}
+          emptyMessage={
+            !showFullMain && slice.sectionCount === 0
+              ? 'No Lua for this board yet. Add or enable events in Rules.'
+              : undefined
+          }
+          secondaryAction={
+            <button
+              type="button"
+              onClick={() => setShowFullMain((v) => !v)}
+              className="px-3 py-2 rounded text-xs text-[var(--muted)] hover:text-[var(--text)] border border-[var(--border-2)] hover:bg-[var(--panel-3)]"
+            >
+              {showFullMain ? 'Show this board only' : 'Show full main'}
+            </button>
+          }
           action={
             <button
               type="button"
-              title="Apri Editor Script con tutte le tab (main, player, …)"
+              title={openMainTooltip}
               onClick={() => openMainScriptInEditor(dispatch, state, lua)}
               className="px-4 py-2 rounded text-xs font-semibold border border-[var(--accent-bd)] bg-[var(--accent-bg)] text-[var(--accent)] hover:bg-[var(--accent-bg-h)]"
             >
-              Apri in Editor Script →
+              Open main.lua →
             </button>
           }
         />
