@@ -8,9 +8,9 @@ export const CONDITION_COMBINE_OPTIONS: ReadonlyArray<{
   value: ConditionCombineOp
   label: string
 }> = [
-  { value: 'AND', label: 'All must pass (AND)' },
-  { value: 'OR', label: 'Any can pass (OR)' },
-  { value: 'NOT', label: 'None pass (NOT)' },
+  { value: 'AND', label: 'AND' },
+  { value: 'OR', label: 'OR' },
+  { value: 'NOT', label: 'NOT' },
 ]
 
 export const CONDITION_POLARITY_OPTIONS = [
