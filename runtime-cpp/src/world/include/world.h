@@ -14,6 +14,21 @@ namespace ArtCade::Modules {
 
 namespace ArtCade {
 
+class World;
+struct PlatformerControllerComponent;
+struct TopDownControllerComponent;
+
+namespace WorldInternal {
+void stepPlatformerController(World& world,
+                              EntityId id,
+                              const PlatformerControllerComponent& pc,
+                              float dt);
+void stepTopDownController(World& world,
+                           EntityId id,
+                           const TopDownControllerComponent& tc,
+                           float dt);
+} // namespace WorldInternal
+
 /** One sensor overlap edge detected this frame (consumed via pollSensorEdges). */
 struct SensorEdgeEvent {
     EntityId    entityId = INVALID_ENTITY;
@@ -76,6 +91,11 @@ public:
     void setMovementIntent(EntityId id, float directionX, float directionY);
     void clearMovementIntent(EntityId id);
     void requestJump(EntityId id);
+
+    friend void WorldInternal::stepPlatformerController(
+        World&, EntityId, const PlatformerControllerComponent&, float);
+    friend void WorldInternal::stepTopDownController(
+        World&, EntityId, const TopDownControllerComponent&, float);
 
 private:
     Modules::RuntimeEntityGateway& entityGateway_;

@@ -1,191 +1,40 @@
 #include "world_internal.h"
+#include "world_grounding.h"
+#include "world_platformer_controller.h"
+#include "world_topdown_controller.h"
 
 #include <algorithm>
 
 namespace ArtCade {
 
-namespace {
-
-constexpr int kStableGroundedFrames = 2; // snap / coyote refresh (ignore 1-frame overlap glitches)
-
-} // namespace
-
 bool World::isPlatformerGrounded(EntityId id) const {
     PlatformerControllerComponent pc{};
     if (!entityGateway_.getPlatformerController(id, pc)) return false;
-    return isGrounded(id, pc.groundClass);
+    const WorldInternal::GroundingContext ctx{ entityGateway_, physics_ };
+    return WorldInternal::isGrounded(ctx, id, pc.groundClass);
 }
 
 bool World::isGroundedOnSolidAabb(EntityId id, const std::string& groundClass) const {
-    const WorldInternal::WorldAabb player = WorldInternal::worldAabb(entityGateway_, id);
-    const float feetY = player.maxY;
-
-    const float snapDownPx = 6.f;
-    const float snapUpPx   = 2.f;
-
-    bool grounded = false;
-    entityGateway_.forEachActiveSolid(
-        [id, feetY, player, snapDownPx, snapUpPx, &groundClass, &grounded, this]
-        (EntityId otherId, const SolidComponent& solid) {
-            if (grounded || otherId == id) return;
-            if (solid.groundClass != groundClass) return;
-
-            const WorldInternal::WorldAabb ground =
-                WorldInternal::worldAabb(entityGateway_, otherId);
-            const float topY = ground.minY;
-
-            if (feetY < topY - snapDownPx || feetY > topY + snapUpPx)
-                return;
-            if (player.maxX < ground.minX || player.minX > ground.maxX)
-                return;
-            grounded = true;
-        });
-    return grounded;
+    const WorldInternal::GroundingContext ctx{ entityGateway_, physics_ };
+    return WorldInternal::isGroundedOnSolidAabb(ctx, id, groundClass);
 }
 
 bool World::isGrounded(EntityId id, const std::string& groundClass) const {
-    const uint32_t selfHandle = entityGateway_.physicsHandle(id);
-    if (selfHandle != 0) {
-        bool grounded = false;
-        entityGateway_.forEachActiveSolid(
-            [this, id, selfHandle, &groundClass, &grounded]
-            (EntityId otherId, const SolidComponent& solid) {
-                if (grounded || otherId == id) return;
-                if (solid.groundClass != groundClass) return;
-                const uint32_t otherHandle = entityGateway_.physicsHandle(otherId);
-                if (otherHandle == 0) return;
-                if (physics_.areOverlapping(selfHandle, otherHandle))
-                    grounded = true;
-            });
-        if (grounded) return true;
-
-        for (EntityId otherId : entityGateway_.poolByClass(groundClass)) {
-            if (otherId == id) continue;
-            const uint32_t otherHandle = entityGateway_.physicsHandle(otherId);
-            if (otherHandle == 0) continue;
-            if (physics_.areOverlapping(selfHandle, otherHandle))
-                return true;
-        }
-    }
-
-    return isGroundedOnSolidAabb(id, groundClass);
+    const WorldInternal::GroundingContext ctx{ entityGateway_, physics_ };
+    return WorldInternal::isGrounded(ctx, id, groundClass);
 }
 
 void World::tickPlatformerControllers(float dt) {
     entityGateway_.forEachActivePlatformer(
         [this, dt](EntityId id, const PlatformerControllerComponent& pc) {
-            auto& rt = platformerRt_[id];
-
-            const bool rawGrounded = isGrounded(id, pc.groundClass);
-            if (rawGrounded) {
-                rt.groundedFrames = std::min(rt.groundedFrames + 1, kStableGroundedFrames + 4);
-                rt.airborneFrames = 0;
-            } else {
-                rt.airborneFrames = std::min(rt.airborneFrames + 1, 10000);
-                rt.groundedFrames = 0;
-            }
-            const bool stableGrounded = rt.groundedFrames >= kStableGroundedFrames;
-
-            if (stableGrounded)
-                rt.coyoteTimer = pc.coyoteTime;
-            else if (rt.airborneFrames > 0)
-                rt.coyoteTimer = std::max(0.f, rt.coyoteTimer - dt);
-
-            auto intentIt = controlIntents_.find(id);
-            ControlIntent* intent = intentIt != controlIntents_.end()
-                ? &intentIt->second
-                : nullptr;
-
-            // Consume jump intent once per frame; arm buffer only on rising edge
-            // (same contract as platformer.lua + input.onPressed).
-            const bool jumpPending = intent && intent->jumpRequested;
-            if (intent)
-                intent->jumpRequested = false;
-            const bool jumpEdge = jumpPending && !rt.jumpPendingPrev;
-            rt.jumpPendingPrev = jumpPending;
-            if (jumpEdge)
-                rt.jumpBufferTimer = pc.jumpBuffer;
-            else
-                rt.jumpBufferTimer = std::max(0.f, rt.jumpBufferTimer - dt);
-
-            float vx = 0.f;
-            float vy = rt.velocity.y;
-
-            if (intent && intent->hasMovement) {
-                const float axis = std::clamp(intent->movement.x, -1.f, 1.f);
-                vx = axis * pc.maxSpeed;
-            }
-
-            const bool canJump = rawGrounded || rt.coyoteTimer > 0.f;
-            if (rt.jumpBufferTimer > 0.f && canJump) {
-                vy = -pc.jumpForce;
-                rt.coyoteTimer     = 0.f;
-                rt.jumpBufferTimer = 0.f;
-                rt.airborneFrames  = 1;
-                rt.groundedFrames  = 0;
-            } else if (!stableGrounded) {
-                vy += pc.customGravity * dt;
-            } else if (vy > 0.f) {
-                vy = 0.f;
-            }
-
-            rt.velocity = { vx, vy };
-            Transform transform{};
-            if (!entityGateway_.getTransform(id, transform)) return;
-            transform.velocity = rt.velocity;
-            transform.position.x += rt.velocity.x * dt;
-            transform.position.y += rt.velocity.y * dt;
-            entityGateway_.setTransform(id, transform);
-
-            const uint32_t handle = entityGateway_.physicsHandle(id);
-            if (handle != 0) {
-                physics_.setPosition(handle, transform.position);
-                physics_.setLinearVelocity(handle, transform.velocity);
-            }
+            WorldInternal::stepPlatformerController(*this, id, pc, dt);
         });
 }
 
 void World::tickTopDownControllers(float dt) {
     entityGateway_.forEachActiveTopDown(
         [this, dt](EntityId id, const TopDownControllerComponent& tc) {
-            PlatformerControllerComponent platformer{};
-            if (entityGateway_.getPlatformerController(id, platformer))
-                return;
-
-            auto& rt = topDownRt_[id];
-            auto intentIt = controlIntents_.find(id);
-            ControlIntent* intent = intentIt != controlIntents_.end()
-                ? &intentIt->second
-                : nullptr;
-
-            Vec2 targetVelocity{};
-            if (intent && intent->hasMovement) {
-                const Vec2 direction = WorldInternal::constrainTopDownDirection(
-                    intent->movement, tc.fourDirections);
-                targetVelocity = {
-                    direction.x * tc.maxSpeed,
-                    direction.y * tc.maxSpeed,
-                };
-                rt.velocity = WorldInternal::approach(
-                    rt.velocity, targetVelocity, std::max(0.f, tc.acceleration) * dt);
-            } else {
-                rt.velocity = WorldInternal::approach(
-                    rt.velocity, {}, std::max(0.f, tc.friction) * dt);
-            }
-
-            const uint32_t handle = entityGateway_.physicsHandle(id);
-            if (handle != 0) {
-                physics_.setGravityScale(handle, 0.f);
-                physics_.setLinearVelocity(handle, rt.velocity);
-                return;
-            }
-
-            Transform transform{};
-            if (!entityGateway_.getTransform(id, transform)) return;
-            transform.velocity = rt.velocity;
-            transform.position.x += rt.velocity.x * dt;
-            transform.position.y += rt.velocity.y * dt;
-            entityGateway_.setTransform(id, transform);
+            WorldInternal::stepTopDownController(*this, id, tc, dt);
         });
 }
 
