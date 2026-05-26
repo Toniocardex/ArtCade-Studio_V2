@@ -332,8 +332,8 @@ describe('compileLogicBoard — triggers', () => {
         ]),
       ])
     expect(mk('down')).toContain('input.isKeyDown("KeyW")')
-    expect(mk('pressed')).toContain('input.onPressed("KeyW", function()')
-    expect(mk('released')).toContain('input.onReleased("KeyW", function()')
+    expect(mk('pressed')).toContain('_logic_reg_input_pressed("KeyW", function()')
+    expect(mk('released')).toContain('_logic_reg_input_released("KeyW", function()')
   })
 
   it('onCollision withClass gates on collision.touchingClass', () => {
@@ -359,7 +359,7 @@ describe('compileLogicBoard — triggers', () => {
         }),
       ]),
     ])
-    expect(lua).toContain('time.after(2, function()')
+    expect(lua).toContain('_logic_reg_timer_after(2, function()')
     expect(lua).toContain('debug.log("tick")')
   })
 
@@ -372,7 +372,7 @@ describe('compileLogicBoard — triggers', () => {
         }),
       ]),
     ])
-    expect(lua).toContain('time.every(1.5, function()')
+    expect(lua).toContain('_logic_reg_timer_every(1.5, function()')
     expect(lua).toContain('debug.log("tick")')
   })
 })
@@ -493,7 +493,7 @@ describe('compileLogicBoard — realistic example', () => {
       },
     ])
     expect(lua).toContain('-- board: player_controller')
-    expect(lua).toContain('input.onPressed("Space", function()')
+    expect(lua).toContain('_logic_reg_input_pressed("Space", function()')
     expect(lua).toContain('entity.setVelocity(self, 0, -400)')
     expect(lua).toContain('collision.touchingClass(self, "Coin")')
     expect(lua).toContain('state.add("coins", 1)')
@@ -619,7 +619,7 @@ describe('Logic Components — Phase A (new blocks)', () => {
              actions: [{ type: 'debugLog', message: 'hit' }] }),
       ]),
     ])
-    expect(lua).toContain('event.on("player_hit", function()')
+    expect(lua).toContain('_logic_reg_message("player_hit", function()')
     expect(lua).toContain('debug.log("hit")')
   })
 })
@@ -653,6 +653,63 @@ describe('Logic Components — Phase B (new runtime-backed actions)', () => {
   })
 })
 
+describe('Hot-reload safety — handler unsubscribe tracking', () => {
+  it('emits __artcade_lb_unsubs reset block above _logic_init', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({ trigger: { type: 'onSpawn', className: 'Player' },
+             actions: [{ type: 'debugLog', message: 'spawned' }] }),
+      ]),
+    ])
+    // Reset block runs every script load and revokes prior subscriptions.
+    expect(lua).toContain('__artcade_lb_unsubs = __artcade_lb_unsubs or {}')
+    expect(lua).toContain('pcall(__artcade_lb_unsubs[i])')
+    // Trackers and helpers exist.
+    expect(lua).toContain('local function _logic_track(unsub)')
+    expect(lua).toContain('local function _logic_bag_unsub(bag, key, fn)')
+    // Reset must occur before _logic_init definition.
+    const resetIdx = lua.indexOf('__artcade_lb_unsubs = {}')
+    const initIdx = lua.indexOf('local function _logic_init()')
+    expect(resetIdx).toBeGreaterThan(-1)
+    expect(initIdx).toBeGreaterThan(resetIdx)
+  })
+
+  it('wraps every event-style registration with _logic_track-aware helpers', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({ id: 'a', trigger: { type: 'onSpawn', className: 'Player' },
+             actions: [{ type: 'debugLog', message: 's' }] }),
+        ev({ id: 'b', trigger: { type: 'onDestroy' },
+             actions: [{ type: 'debugLog', message: 'd' }] }),
+        ev({ id: 'c', trigger: { type: 'onTriggerEnter', withClass: 'Coin' },
+             actions: [{ type: 'debugLog', message: 't' }] }),
+        ev({ id: 'd', trigger: { type: 'onInput', keyCode: 'Space', eventType: 'pressed' },
+             actions: [{ type: 'debugLog', message: 'i' }] }),
+        ev({ id: 'e', trigger: { type: 'onTimer', seconds: 1, repeat: true },
+             actions: [{ type: 'debugLog', message: 'r' }] }),
+        ev({ id: 'f', trigger: { type: 'onMessage', messageName: 'hit' },
+             actions: [{ type: 'debugLog', message: 'm' }] }),
+      ]),
+    ])
+    // Each public API call should appear exactly once — inside its helper
+    // in the prelude. Emit sites must go through the helpers.
+    const occur = (needle: string) => lua.split(needle).length - 1
+    expect(occur('lifecycle.onSpawn(')).toBe(1)
+    expect(occur('lifecycle.onDestroy(')).toBe(1)
+    expect(occur('sensor.onEnter(')).toBe(1)
+    expect(occur('input.onPressed(')).toBe(1)
+    expect(occur('time.every(')).toBe(1)
+    expect(occur('event.on(')).toBe(1)
+    // Helpers are referenced from the emit sites.
+    expect(lua).toContain('_logic_reg_spawn("Player"')
+    expect(lua).toContain('_logic_reg_destroy("Player"')
+    expect(lua).toContain('_logic_reg_sensor_enter("Player", "Coin"')
+    expect(lua).toContain('_logic_reg_input_pressed("Space"')
+    expect(lua).toContain('_logic_reg_timer_every(1, function()')
+    expect(lua).toContain('_logic_reg_message("hit", function()')
+  })
+})
+
 describe('Logic Components — Phase C (engine-hook triggers)', () => {
   it('onSpawn registers a lifecycle handler', () => {
     const lua = compileLogicBoard([
@@ -661,7 +718,7 @@ describe('Logic Components — Phase C (engine-hook triggers)', () => {
              actions: [{ type: 'debugLog', message: 'spawned' }] }),
       ]),
     ])
-    expect(lua).toContain('lifecycle.onSpawn("Player", function(entityId, tags)')
+    expect(lua).toContain('_logic_reg_spawn("Player", function(entityId, tags)')
     expect(lua).toContain('debug.log("spawned")')
   })
 
@@ -679,7 +736,7 @@ describe('Logic Components — Phase C (engine-hook triggers)', () => {
         ],
       },
     ], project)
-    expect(lua).toContain('lifecycle.onDestroy("Player", function(entityId, tags)')
+    expect(lua).toContain('_logic_reg_destroy("Player", function(entityId, tags)')
     expect(lua).not.toContain('lifecycle.pollDestroyed()')
     expect(lua).toContain('debug.log("gone")')
   })
@@ -691,7 +748,7 @@ describe('Logic Components — Phase C (engine-hook triggers)', () => {
              actions: [{ type: 'debugLog', message: 'in' }] }),
       ]),
     ])
-    expect(lua).toContain('sensor.onEnter("Player", "Zone", function(entityId, otherId, tag)')
+    expect(lua).toContain('_logic_reg_sensor_enter("Player", "Zone", function(entityId, otherId, tag)')
     expect(lua).toContain('local self = entityId')
     expect(lua).toContain('local other = otherId')
     expect(lua).not.toContain('_trig')
@@ -705,7 +762,7 @@ describe('Logic Components — Phase C (engine-hook triggers)', () => {
              actions: [{ type: 'debugLog', message: 'out' }] }),
       ]),
     ])
-    expect(lua).toContain('sensor.onExit("Player", "Zone", function(entityId, otherId, tag)')
+    expect(lua).toContain('_logic_reg_sensor_exit("Player", "Zone", function(entityId, otherId, tag)')
     expect(lua).toContain('debug.log("out")')
   })
 
@@ -791,9 +848,9 @@ describe('Logic Components — Phase C (engine-hook triggers)', () => {
              actions: [{ type: 'debugLog', message: 'bye' }] }),
       ]),
     ])
-    expect(lua).toContain('animation.onFinished("Player", "die", function(entityId, clip)')
+    expect(lua).toContain('_logic_reg_anim_end("Player", "die", function(entityId, clip)')
     expect(lua).not.toContain('animation.pollFinished()')
-    expect(lua).toContain('lifecycle.onDestroy("Player", function(entityId, tags)')
+    expect(lua).toContain('_logic_reg_destroy("Player", function(entityId, tags)')
     expect(lua).toContain('debug.log("done")')
     expect(lua).toContain('debug.log("bye")')
   })

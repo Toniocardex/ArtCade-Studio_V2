@@ -26,7 +26,7 @@ export function emitEventRegistration(
     const cls = boardLifecycleClass(board, ev, project)
     if (!cls) return null
     return [
-      `${I}lifecycle.onSpawn(${luaString(cls)}, function(entityId, tags)`,
+      `${I}_logic_reg_spawn(${luaString(cls)}, function(entityId, tags)`,
       `${I}${I}local self = entityId`,
       `${I}${I}local other = nil`,
       ...emitGuardedActions(ev, I + I, slugs),
@@ -38,7 +38,7 @@ export function emitEventRegistration(
     const cls = boardLifecycleClass(board, ev, project)
     if (!cls) return null
     return [
-      `${I}lifecycle.onDestroy(${luaString(cls)}, function(entityId, tags)`,
+      `${I}_logic_reg_destroy(${luaString(cls)}, function(entityId, tags)`,
       `${I}${I}local self = entityId`,
       `${I}${I}local other = nil`,
       ...emitGuardedActions(ev, I + I, slugs),
@@ -52,7 +52,7 @@ export function emitEventRegistration(
         ? luaString(trig.clipName)
         : luaString('*')
     return [
-      `${I}animation.onFinished(${source}, ${clip}, function(entityId, clip)`,
+      `${I}_logic_reg_anim_end(${source}, ${clip}, function(entityId, clip)`,
       `${I}${I}local self = entityId`,
       `${I}${I}local other = nil`,
       ...emitGuardedActions(ev, I + I, slugs),
@@ -61,9 +61,10 @@ export function emitEventRegistration(
   }
 
   if (trig.type === 'onInput' && trig.eventType !== 'down') {
-    const hook = trig.eventType === 'pressed' ? 'onPressed' : 'onReleased'
+    const helper =
+      trig.eventType === 'pressed' ? '_logic_reg_input_pressed' : '_logic_reg_input_released'
     return [
-      `${I}input.${hook}(${luaString(trig.keyCode)}, function()`,
+      `${I}${helper}(${luaString(trig.keyCode)}, function()`,
       `${I}${I}for _, self in ipairs(${pool}) do`,
       `${I}${I}${I}local other = nil`,
       ...emitGuardedActions(ev, I + I + I, slugs),
@@ -73,10 +74,11 @@ export function emitEventRegistration(
   }
 
   if (trig.type === 'onTriggerEnter' || trig.type === 'onTriggerExit') {
-    const hook = trig.type === 'onTriggerEnter' ? 'onEnter' : 'onExit'
+    const helper =
+      trig.type === 'onTriggerEnter' ? '_logic_reg_sensor_enter' : '_logic_reg_sensor_exit'
     const target = trig.withClass ? luaString(trig.withClass) : luaString('*')
     return [
-      `${I}sensor.${hook}(${source}, ${target}, function(entityId, otherId, tag)`,
+      `${I}${helper}(${source}, ${target}, function(entityId, otherId, tag)`,
       `${I}${I}local self = entityId`,
       `${I}${I}local other = otherId`,
       ...emitGuardedActions(ev, I + I, slugs),
@@ -85,9 +87,9 @@ export function emitEventRegistration(
   }
 
   if (trig.type === 'onTimer') {
-    const fn = trig.repeat ? 'every' : 'after'
+    const helper = trig.repeat ? '_logic_reg_timer_every' : '_logic_reg_timer_after'
     return [
-      `${I}time.${fn}(${Number(trig.seconds) || 0}, function()`,
+      `${I}${helper}(${Number(trig.seconds) || 0}, function()`,
       `${I}${I}for _, self in ipairs(${pool}) do`,
       `${I}${I}${I}local other = nil`,
       ...emitGuardedActions(ev, I + I + I, slugs),

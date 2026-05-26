@@ -108,7 +108,7 @@ function emitBoard(
   for (const ev of messageEvents) {
     if (ev.trigger.type !== 'onMessage') continue
     const I = INDENT
-    init.push(`${I}event.on(${luaString(ev.trigger.messageName)}, function()`)
+    init.push(`${I}_logic_reg_message(${luaString(ev.trigger.messageName)}, function()`)
     init.push(`${I}${I}for _, self in ipairs(${pool}) do`)
     init.push(`${I}${I}${I}local other = nil`)
     init.push(...emitEventBody(ev, board, I + I + I, slugs))
