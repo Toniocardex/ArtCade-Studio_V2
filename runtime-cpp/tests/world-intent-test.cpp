@@ -188,6 +188,52 @@ static void test_platformer_is_grounded_false_when_airborne_over_solid() {
     CHECK(!f.world.isPlatformerGrounded(1));
 }
 
+static void test_platformer_coyote_jump_after_leaving_solid() {
+    Fixture f;
+
+    EntityDef player = makeEntity(1, "Player", {"player"});
+    player.transform.position = { 160.f, 179.f };
+    PlatformerControllerComponent pc;
+    pc.jumpForce = 500.f;
+    pc.coyoteTime = 0.2f;
+    pc.jumpBuffer = 0.15f;
+    pc.groundClass = "Ground";
+    player.platformerController = pc;
+
+    EntityDef platform = makeEntity(2, "Platform");
+    platform.transform.position = { 160.f, 200.f };
+    platform.transform.scale = { 10.f, 0.3125f };
+    SolidComponent solid;
+    solid.groundClass = "Ground";
+    platform.solid = solid;
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1, 2 };
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.scenes = {{ scene.id, scene }};
+    doc.entities = {{ 1, player }, { 2, platform }};
+    f.world.init(doc);
+
+    CHECK(f.world.isPlatformerGrounded(1));
+
+    f.world.setMovementIntent(1, 1.f, 0.f);
+    const float dt = 1.f / 60.f;
+    for (int i = 0; i < 45; ++i)
+        f.tickFrame(dt);
+
+    Transform transform{};
+    CHECK(f.gw.getTransform(1, transform));
+    CHECK(!f.world.isPlatformerGrounded(1));
+
+    f.world.requestJump(1);
+    f.tickFrame(dt);
+    CHECK(f.gw.getTransform(1, transform));
+    CHECK(transform.velocity.y < -499.f);
+}
+
 static void test_platformer_grounded_on_solid_without_player_physics() {
     Fixture f;
 
@@ -1197,6 +1243,7 @@ int main() {
     test_platformer_kinematic_falls_with_custom_gravity();
     test_platformer_kinematic_horizontal_movement_without_body();
     test_platformer_is_grounded_false_when_airborne_over_solid();
+    test_platformer_coyote_jump_after_leaving_solid();
     test_platformer_grounded_on_solid_without_player_physics();
     test_platformer_with_physics_collider_is_kinematic_body();
     test_platformer_movement_intent_without_input();

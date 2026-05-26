@@ -32,6 +32,7 @@ export interface PlatformerControllerComponent {
   customGravity: number      // px/s^2 (overrides world gravity)
   coyoteTime:    number      // s — grace after leaving ground
   jumpBuffer:    number      // s — early jump-press tolerance
+  groundClass:   string      // Solid / overlap class for isGrounded
 }
 
 /** Arcade top-down movement driven by movement intents. */

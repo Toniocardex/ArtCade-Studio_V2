@@ -94,7 +94,8 @@ void World::tickPlatformerControllers(float dt) {
                 vx = axis * pc.maxSpeed;
             }
 
-            if (rt.jumpBufferTimer > 0.f && rt.coyoteTimer > 0.f) {
+            const bool canJump = grounded || rt.coyoteTimer > 0.f;
+            if (rt.jumpBufferTimer > 0.f && canJump) {
                 vy = -pc.jumpForce;
                 rt.coyoteTimer     = 0.f;
                 rt.jumpBufferTimer = 0.f;

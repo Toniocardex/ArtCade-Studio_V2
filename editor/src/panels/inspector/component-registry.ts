@@ -113,7 +113,7 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
     key: 'platformerController',
     label: 'Platformer Controller',
     description:
-      'Jump and gravity move the transform. Add Solid on platforms/ground (matching Ground Class) for isGrounded. Optional Physics on the player is only for Box2D collisions and sensors.',
+      'Arcade feel: Coyote Time (jump shortly after leaving ground) and Jump Buffer (early press). Movement is always on the transform. Match Ground Class with Solid on platforms.',
     color: 'var(--yellow)',
     create: () => ({ ...PLATFORMER }),
     fields: [
