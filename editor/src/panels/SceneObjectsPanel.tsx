@@ -343,7 +343,13 @@ export default function SceneObjectsPanel() {
         </div>
       </div>
 
-      <SectionLabel title="Objects" />
+      <SectionLabel title="Objects">
+        <AddEntityButton
+          onClick={addEntity}
+          disabled={!scene}
+          className="px-2 py-0.5"
+        />
+      </SectionLabel>
 
       {/* Entity list */}
       <div className="flex-1 overflow-y-auto p-1 space-y-0.5">
