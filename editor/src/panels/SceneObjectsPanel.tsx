@@ -343,13 +343,7 @@ export default function SceneObjectsPanel() {
         </div>
       </div>
 
-      <SectionLabel title="Objects">
-        <AddEntityButton
-          onClick={addEntity}
-          disabled={!scene}
-          className="px-2 py-0.5"
-        />
-      </SectionLabel>
+      <SectionLabel title="Objects" />
 
       {/* Entity list */}
       <div className="flex-1 overflow-y-auto p-1 space-y-0.5">
@@ -357,13 +351,12 @@ export default function SceneObjectsPanel() {
           <div className="flex flex-col items-center gap-2 px-3 py-6 text-center">
             <p className="text-[11px] text-[var(--text)] font-medium">This scene is empty</p>
             <p className="text-[10px] text-[var(--muted)] leading-snug">
-              Add an object to place it on the canvas. Use Insert or the button below.
+              Add an entity by pressing + Add entity.
             </p>
             <AddEntityButton
               onClick={addEntity}
               disabled={!scene}
-              variant="dashed"
-              className="w-full mt-1 px-3 py-2"
+              className="mt-1 px-2 py-0.5"
             />
           </div>
         ) : (

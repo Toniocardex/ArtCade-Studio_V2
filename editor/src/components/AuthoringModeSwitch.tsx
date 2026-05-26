@@ -3,7 +3,7 @@ import type { AuthoringMode } from '../types/authoring-mode'
 
 const btn = (active: boolean) =>
   [
-    'flex-1 py-1.5 text-[9px] font-semibold tracking-wide transition-colors',
+    'w-full py-1.5 text-[9px] font-semibold leading-none transition-colors',
     active
       ? 'bg-[var(--accent-bg)] text-[var(--accent)]'
       : 'text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--panel-3)]',
@@ -20,11 +20,11 @@ export default function AuthoringModeSwitch() {
 
   return (
     <div className="flex flex-col gap-1 w-full" title="Guidance and layout density — same tools in both modes">
-      <span className="text-[8px] font-medium uppercase tracking-wider text-[var(--muted)] px-0.5">
+      <span className="text-[8px] font-medium uppercase tracking-wider text-[var(--muted)] text-center">
         View
       </span>
       <div
-        className="flex rounded-md border border-[var(--border)] overflow-hidden bg-[var(--bg)]"
+        className="flex flex-col rounded-md border border-[var(--border)] overflow-hidden bg-[var(--bg)]"
         role="group"
         aria-label="Authoring view"
       >
@@ -36,6 +36,7 @@ export default function AuthoringModeSwitch() {
         >
           Base
         </button>
+        <div className="h-px bg-[var(--border)]" aria-hidden />
         <button
           type="button"
           className={btn(mode === 'advanced')}
