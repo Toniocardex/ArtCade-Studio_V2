@@ -93,7 +93,9 @@ Attributo DOM: `html[data-authoring-mode="base|advanced"]` per eventuali stili C
 
 **Anti-pattern:** Ctrl in **Also require…** come “Key held” mentre W è in When → due concetti mescolati; usare **When [W] AND [Ctrl]**.
 
-**Nota collisioni:** due regole entrambe su **W** (salto vs doppio salto) possono entrambe scattare su **W+Ctrl** finché non c’è un filtro esplicito (es. NOT — roadmap). Progettare regole mutualmente esclusive dove serve.
+**Nota collisioni:** due regole entrambe su **W** (salto vs doppio salto) possono entrambe scattare su **W+Ctrl** — usare **Also require…** → Pass/NOT (es. Ctrl NOT held) o regole separate.
+
+**NOT (implementato):** dropdown **Match rules** (AND | OR | NOT) + per ogni check **Pass | NOT**. NOT di gruppo = `not (c1 or c2 …)`; NOT su una riga = `not (check)`.
 
 ---
 
@@ -103,7 +105,8 @@ Attributo DOM: `html[data-authoring-mode="base|advanced"]` per eventuali stili C
 |--------------|------------|------------|
 | Tasti OR | Qualsiasi tasto della lista | `onInput.keyCombine: "OR"` (default) + `alternateKeyCodes` |
 | Tasti AND | Tutti i tasti insieme | `onInput.keyCombine: "AND"` |
-| Controlli mondo AND/OR | Tra check in Also require… | `conditionsOperator: 'AND' \| 'OR'` + **Match rules** |
+| Controlli mondo AND/OR/NOT | Tra check in Also require… | `conditionsOperator: 'AND' \| 'OR' \| 'NOT'` + **Match rules** |
+| Inversione singola check | Pass / NOT per riga | `negated: true` su ogni condizione |
 | Gruppi annidati | Albero | `conditionRoot` |
 
 **Compilazione (tasti):**
@@ -135,6 +138,7 @@ In **Base**, Common in cima; con trigger **onInput**, `Key held` nascosto nel pi
 - [x] Blocco editor rinominato **Also require…** (JSON: `onlyIfEnabled` invariato)?
 - [ ] Progetti salvati invariati al cambio View?
 - [x] Test Vitest per `on-input-keys`, compiler AND combo?
+- [x] NOT in Match rules + Pass/NOT per check?
 
 ---
 
@@ -152,7 +156,7 @@ In **Base**, Common in cima; con trigger **onInput**, `Key held` nascosto nel pi
 ## 10. Roadmap (non normativa)
 
 - Preset regola “Jump / Shoot / Hurt”
-- NOT / gruppi annidati più visibili in Base
+- Gruppi annidati più visibili in Base (NOT già in tree mode)
 - ELSE esplicito (vedi condizionale design)
 - Grafo React Flow (livello 3, non sostituisce When/Also require…/Then)
 

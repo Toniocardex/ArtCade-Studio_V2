@@ -11,6 +11,7 @@ import {
   componentValidators as componentValidatorsRaw,
   validateBoard as validateBoardCompiled,
 } from './validators.generated'
+import { stripConditionNegation } from './condition-combine'
 import type {
   LogicAction,
   LogicBoard,
@@ -144,6 +145,10 @@ export function validateConditionNode(
   const kind = n.kind
 
   if (kind === 'leaf') {
+    if (!n.condition || typeof n.condition !== 'object') {
+      errors.push({ path: `${pathPrefix}/condition`, message: 'condition required' })
+      return { valid: errors.length === 0, errors }
+    }
     const cr = validateCondition(n.condition)
     if (!cr.valid) {
       errors.push(
@@ -157,8 +162,8 @@ export function validateConditionNode(
   }
 
   if (kind === 'group') {
-    if (n.operator !== 'AND' && n.operator !== 'OR') {
-      errors.push({ path: `${pathPrefix}/operator`, message: 'must be AND or OR' })
+    if (n.operator !== 'AND' && n.operator !== 'OR' && n.operator !== 'NOT') {
+      errors.push({ path: `${pathPrefix}/operator`, message: 'must be AND, OR, or NOT' })
     }
     if (!Array.isArray(n.statements)) {
       errors.push({ path: `${pathPrefix}/statements`, message: 'must be array' })
@@ -272,7 +277,7 @@ export function validateLogicEvent(
     if (!nr.valid) errors.push(...nr.errors)
   } else {
     flatList.forEach((c, i) => {
-      const cr = validateCondition(c)
+      const cr = validateCondition(stripConditionNegation(c as Record<string, unknown>))
       if (!cr.valid) {
         errors.push(
           ...cr.errors.map((x) => ({

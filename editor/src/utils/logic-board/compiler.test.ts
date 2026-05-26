@@ -173,7 +173,7 @@ describe('conditionExpr', () => {
       actions: [],
     })
     expect(conditionExpr(e)).toBe(
-      'input.isKeyDown("Space") and (state.get("hp") > 0)',
+      '(input.isKeyDown("Space") and (state.get("hp") > 0))',
     )
   })
 
@@ -394,6 +394,24 @@ describe('compileLogicBoard — triggers', () => {
     expect(lua).toMatch(
       /wasKeyPressed\("KeyW"\).*and.*input\.isKeyDown\("ControlLeft"\)/s,
     )
+  })
+
+  it('flat conditionsOperator NOT negates combined checks', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({
+          onlyIfEnabled: true,
+          conditionsOperator: 'NOT',
+          conditions: [
+            { type: 'isPlatformerGrounded', target: 'self' },
+            { type: 'compareVariable', key: 'x', operator: '==', value: 1 },
+          ],
+          trigger: { type: 'onUpdate' },
+          actions: [{ type: 'debugLog', message: 'x' }],
+        }),
+      ]),
+    ])
+    expect(lua).toMatch(/not \(.*platformer\.isGrounded.*or.*state\.get/s)
   })
 
   it('flat conditionsOperator OR joins checks with or', () => {

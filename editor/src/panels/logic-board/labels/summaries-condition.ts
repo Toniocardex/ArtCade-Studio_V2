@@ -1,48 +1,67 @@
 import type { ProjectDoc } from '../../../types'
 import type {
   LogicCondition,
+  LogicConditionEntry,
   LogicConditionNode,
 } from '../../../types/logic-board'
 import { formatKeyLabel } from '../../../components/logic-board/KeyCapture'
 import { fmtClass, targetDisplayLabel } from './board-labels'
 
+function formatChip(text: string, negated?: boolean): string {
+  return negated ? `NOT ${text}` : text
+}
+
 export function conditionSummaryPlain(
   c: LogicCondition,
   project?: ProjectDoc | null,
+  negated?: boolean,
 ): string {
+  let text: string
   switch (c.type) {
     case 'compareVariable':
-      return `Score ${c.key} ${c.operator} ${c.value}`
+      text = `Score ${c.key} ${c.operator} ${c.value}`
+      break
     case 'compareClass':
-      return `Touching "${fmtClass(c.className || '?', project)}"`
+      text = `Touching "${fmtClass(c.className || '?', project)}"`
+      break
     case 'isKeyDown':
-      return `${formatKeyLabel(c.keyCode)} is held`
+      text = `${formatKeyLabel(c.keyCode)} is held`
+      break
     case 'hasTag':
-      return `Has tag "${c.tag || '?'}"`
+      text = `Has tag "${c.tag || '?'}"`
+      break
     case 'compareDistance':
-      return `Distance to ${targetDisplayLabel(c.target, project)} ${c.operator} ${c.value}`
+      text = `Distance to ${targetDisplayLabel(c.target, project)} ${c.operator} ${c.value}`
+      break
     case 'isMouseOver':
-      return `Mouse is within ${c.radius ?? 32}px`
+      text = `Mouse is within ${c.radius ?? 32}px`
+      break
     case 'raycastHit':
-      return c.className
+      text = c.className
         ? `Can see "${fmtClass(c.className, project)}" ahead`
         : 'Something ahead in line of sight'
+      break
     case 'chance':
-      return `${c.percent}% chance`
+      text = `${c.percent}% chance`
+      break
     case 'isSpaceFree':
-      return `Area (${c.x}, ${c.y}) is free`
+      text = `Area (${c.x}, ${c.y}) is free`
+      break
     case 'compareHealth':
-      return `${targetDisplayLabel(c.target, project)} ${c.field === 'max' ? 'max HP' : 'HP'} ${c.operator} ${c.value}`
+      text = `${targetDisplayLabel(c.target, project)} ${c.field === 'max' ? 'max HP' : 'HP'} ${c.operator} ${c.value}`
+      break
     case 'isPlatformerGrounded':
-      return `${targetDisplayLabel(c.target, project)} is on ground`
+      text = `${targetDisplayLabel(c.target, project)} is on ground`
+      break
   }
+  return formatChip(text, negated)
 }
 
 /** Flatten condition tree to plain chips for collapsed card. */
 export function conditionsPlainList(
   event: {
     onlyIfEnabled?: boolean
-    conditions?: LogicCondition[]
+    conditions?: LogicConditionEntry[]
     conditionRoot?: LogicConditionNode
   },
   project?: ProjectDoc | null,
@@ -51,13 +70,17 @@ export function conditionsPlainList(
   if (event.conditionRoot) {
     return flattenConditionNode(event.conditionRoot, project)
   }
-  return (event.conditions ?? []).map((c) => conditionSummaryPlain(c, project))
+  return (event.conditions ?? []).map((c) =>
+    conditionSummaryPlain(c, project, c.negated),
+  )
 }
 
 function flattenConditionNode(
   node: LogicConditionNode,
   project?: ProjectDoc | null,
 ): string[] {
-  if (node.kind === 'leaf') return [conditionSummaryPlain(node.condition, project)]
+  if (node.kind === 'leaf') {
+    return [conditionSummaryPlain(node.condition, project, node.negated)]
+  }
   return node.statements.flatMap((n) => flattenConditionNode(n, project))
 }

@@ -12,6 +12,7 @@ import type {
   LogicConditionNode,
   LogicEvent,
 } from '../../types/logic-board'
+import { combineConditionExprs, wrapNegated } from './condition-combine'
 import { luaString, luaValue, targetExpr } from './lua-helpers'
 
 /**
@@ -67,11 +68,12 @@ function leafExpr(c: LogicCondition): string {
 }
 
 function nodeExpr(n: LogicConditionNode): string {
-  if (n.kind === 'leaf') return leafExpr(n.condition)
-  const joiner = n.operator === 'OR' ? ' or ' : ' and '
+  if (n.kind === 'leaf') {
+    return wrapNegated(leafExpr(n.condition), n.negated)
+  }
   const parts = n.statements.map(nodeExpr)
-  if (parts.length === 0) return 'true'
-  return '(' + parts.join(joiner) + ')'
+  if (n.operator === 'NOT') return combineConditionExprs(parts, 'NOT')
+  return combineConditionExprs(parts, n.operator)
 }
 
 /** Build the boolean guard for an event (flat list = AND; root = tree). */
@@ -80,9 +82,7 @@ export function conditionExpr(ev: LogicEvent): string {
   if (ev.conditionRoot) return nodeExpr(ev.conditionRoot)
   const list = ev.conditions ?? []
   if (list.length === 0) return 'true'
-  const joiner = ev.conditionsOperator === 'OR' ? ' or ' : ' and '
-  const parts = list.map((c) => leafExpr(c))
-  if (parts.length === 1) return parts[0]
-  const joined = parts.join(joiner)
-  return joiner === ' or ' ? `(${joined})` : joined
+  const op = ev.conditionsOperator ?? 'AND'
+  const parts = list.map((c) => wrapNegated(leafExpr(c), c.negated))
+  return combineConditionExprs(parts, op)
 }

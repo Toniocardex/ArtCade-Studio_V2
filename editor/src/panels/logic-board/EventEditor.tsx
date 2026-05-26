@@ -21,7 +21,10 @@ import type {
 import { LogicBlock } from '../../components/logic-board/LogicBlock'
 import { TypePicker } from '../../components/logic-board/TypePicker'
 import { SchemaParamForm } from '../../components/logic-board/SchemaParamForm'
+import { ConditionCombineSelect } from '../../components/logic-board/ConditionCombineSelect'
+import { ConditionPolaritySelect } from '../../components/logic-board/ConditionPolaritySelect'
 import { ConditionTreeEditor } from '../../components/logic-board/ConditionTreeEditor'
+import type { ConditionCombineOp } from '../../utils/logic-board/condition-combine'
 import { OnInputTriggerFields } from '../../components/logic-board/OnInputTriggerFields'
 import { defaultConditionRoot } from '../../utils/logic-board/schema-registry'
 import { actionDisplayName } from './friendly-labels'
@@ -294,31 +297,17 @@ function SimpleConditions({
         <span className="text-[10px] font-medium text-[var(--muted)]">
           Match rules
         </span>
-        <select
+        <ConditionCombineSelect
           className={condSel}
           value={combineOp}
-          disabled={conditions.length < 2}
-          title={
-            conditions.length < 2
-              ? 'Add at least two checks to combine with AND or OR'
-              : undefined
-          }
-          onChange={(e) =>
+          onChange={(op: ConditionCombineOp) =>
             onChange({
               ...event,
-              conditionsOperator: e.target.value as 'AND' | 'OR',
+              conditionsOperator: op,
               conditionRoot: undefined,
             })
           }
-        >
-          <option value="AND">All must pass (AND)</option>
-          <option value="OR">Any can pass (OR)</option>
-        </select>
-        {conditions.length < 2 && (
-          <span className="text-[10px] text-[var(--muted)]">
-            (needs 2+ checks)
-          </span>
-        )}
+        />
       </div>
       {conditions.length === 0 && (
         <p className="text-[11px] italic text-[var(--muted)]">
@@ -330,6 +319,14 @@ function SimpleConditions({
           key={i}
           className="flex flex-wrap items-center gap-2 rounded border border-[var(--border)] bg-[var(--bg)] px-2 py-1.5"
         >
+          <ConditionPolaritySelect
+            negated={c.negated}
+            onChange={(negated) => {
+              const conds = conditions.slice()
+              conds[i] = { ...c, negated: negated || undefined }
+              onChange({ ...event, conditions: conds, conditionRoot: undefined })
+            }}
+          />
           <TypePicker
             kind="condition"
             types={conditionTypes}
@@ -337,7 +334,10 @@ function SimpleConditions({
             value={c.type}
             onChange={(t) => {
               const next = conditions.slice()
-              next[i] = defaultCondition(t as LogicCondition['type'])
+              next[i] = {
+                ...defaultCondition(t as LogicCondition['type']),
+                negated: c.negated,
+              }
               onChange({ ...event, conditions: next, conditionRoot: undefined })
             }}
             className="max-w-[200px]"
@@ -348,8 +348,8 @@ function SimpleConditions({
             value={c as unknown as Record<string, unknown>}
             onChange={(next) => {
               const conds = conditions.slice()
-              conds[i] = next as typeof c
-              onChange({ ...event, conditions: conds })
+              conds[i] = { ...(next as LogicCondition), negated: c.negated }
+              onChange({ ...event, conditions: conds, conditionRoot: undefined })
             }}
           />
           <ComponentRequirementWarning requirement={conditionRequirement(c, project, board)} />

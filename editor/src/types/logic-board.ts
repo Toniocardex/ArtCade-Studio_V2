@@ -63,6 +63,9 @@ export type LogicTriggerType = LogicTrigger['type']
 // Conditions — IF the event proceeds (MVP: only runtime-backed predicates)
 // ---------------------------------------------------------------------------
 
+/** Optional per-check inversion in flat Also require… (Pass / NOT dropdown). */
+export type LogicConditionNegation = { negated?: boolean }
+
 export type LogicCondition =
   | { type: 'compareClass'; className: string }                     // collision.touchingClass
   | { type: 'compareVariable'; key: string; operator: ComparisonOp; value: number | string }
@@ -80,9 +83,11 @@ export type LogicCondition =
  * Boolean tree for AND/OR/nested conditions (docs/LOGIC_BOARD_CONDITIONAL_DESIGN.md).
  * A flat `LogicCondition[]` on an event is sugar for an AND group of leaves.
  */
+export type LogicConditionEntry = LogicCondition & LogicConditionNegation
+
 export type LogicConditionNode =
-  | { kind: 'leaf'; condition: LogicCondition }
-  | { kind: 'group'; operator: 'AND' | 'OR'; statements: LogicConditionNode[] }
+  | { kind: 'leaf'; condition: LogicCondition; negated?: boolean }
+  | { kind: 'group'; operator: 'AND' | 'OR' | 'NOT'; statements: LogicConditionNode[] }
 
 // ---------------------------------------------------------------------------
 // Actions — WHAT the event does (MVP: only runtime-backed actions)
@@ -171,9 +176,9 @@ export interface LogicEvent {
   /** Explicit UI/runtime gate for the optional condition section. */
   onlyIfEnabled?: boolean
   /** Flat list combine mode when `conditionRoot` is absent (default AND). */
-  conditionsOperator?: 'AND' | 'OR'
-  /** Flat list of leaves. Use `conditionRoot` for nested AND/OR trees. */
-  conditions?: LogicCondition[]
+  conditionsOperator?: 'AND' | 'OR' | 'NOT'
+  /** Flat list of leaves. Use `conditionRoot` for nested AND/OR/NOT trees. */
+  conditions?: LogicConditionEntry[]
   conditionRoot?: LogicConditionNode
   actions:     LogicAction[]
 }

@@ -3,13 +3,14 @@
 // ---------------------------------------------------------------------------
 
 import type { LogicCondition, LogicConditionNode, LogicEvent } from '../../types/logic-board'
+import type { ConditionCombineOp } from '../../utils/logic-board/condition-combine'
+import { ConditionCombineSelect } from './ConditionCombineSelect'
+import { ConditionPolaritySelect } from './ConditionPolaritySelect'
 import { defaultConditionRoot } from '../../utils/logic-board/schema-registry'
 import { CONDITION_TYPES, defaultCondition } from '../../panels/logic-board/options'
 import { SchemaParamForm } from './SchemaParamForm'
 import { TypePicker } from './TypePicker'
 
-const sel =
-  'bg-[var(--bg)] border border-[var(--border-2)] text-[var(--accent)] px-2 py-1 rounded text-xs'
 const lbl = 'text-[10px] font-medium text-[var(--muted)]'
 const link = 'text-[var(--accent)] text-[11px] hover:underline cursor-pointer'
 const panel =
@@ -45,6 +46,16 @@ function NodeEditor({
         className={`${panel} flex items-center flex-wrap gap-2`}
         style={{ marginLeft: depth * 12 }}
       >
+        <ConditionPolaritySelect
+          negated={node.negated}
+          onChange={(negated) =>
+            onChange({
+              kind: 'leaf',
+              condition: cond,
+              negated: negated || undefined,
+            })
+          }
+        />
         <span className={lbl}>Check</span>
         <TypePicker
           kind="condition"
@@ -55,6 +66,7 @@ function NodeEditor({
             onChange({
               kind: 'leaf',
               condition: defaultCondition(t as LogicCondition['type']),
+              negated: node.negated,
             })
           }
           className="max-w-[200px]"
@@ -64,7 +76,11 @@ function NodeEditor({
           type={cond.type}
           value={cond as unknown as Record<string, unknown>}
           onChange={(next) =>
-            onChange({ kind: 'leaf', condition: next as LogicCondition })
+            onChange({
+              kind: 'leaf',
+              condition: next as LogicCondition,
+              negated: node.negated,
+            })
           }
         />
         {onRemove && (
@@ -77,25 +93,20 @@ function NodeEditor({
   }
 
   const group = node
-  const opLabel = group.operator === 'AND' ? 'All must pass' : 'Any can pass'
   return (
     <div className="flex flex-col gap-1" style={{ marginLeft: depth * 12 }}>
       <div className={`${panel} flex items-center flex-wrap gap-2`}>
         <span className={lbl}>Group</span>
-        <select
-          className={sel}
+        <ConditionCombineSelect
           value={group.operator}
-          onChange={(e) =>
+          aria-label="Group match rules"
+          onChange={(operator: ConditionCombineOp) =>
             onChange({
               ...group,
-              operator: e.target.value as 'AND' | 'OR',
+              operator,
             })
           }
-        >
-          <option value="AND">All must pass</option>
-          <option value="OR">Any can pass</option>
-        </select>
-        <span className="text-[10px] text-[var(--muted)]">{opLabel}</span>
+        />
         <button
           type="button"
           className={link}

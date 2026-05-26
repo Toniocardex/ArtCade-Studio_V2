@@ -14,7 +14,8 @@
           "properties": {
             "type": { "type": "string" }
           }
-        }
+        },
+        "negated": { "type": "boolean" }
       },
       "additionalProperties": false
     },
@@ -23,7 +24,7 @@
       "required": ["kind", "operator", "statements"],
       "properties": {
         "kind": { "const": "group" },
-        "operator": { "enum": ["AND", "OR"] },
+        "operator": { "enum": ["AND", "OR", "NOT"] },
         "statements": {
           "type": "array",
           "items": { "$ref": "#" },
