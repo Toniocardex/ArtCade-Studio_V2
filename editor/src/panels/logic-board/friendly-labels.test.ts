@@ -38,7 +38,12 @@ describe('friendly-labels', () => {
     expect(triggerDisplayName('onCollisionEnter')).toBe('Starts touching object')
     expect(triggerDisplayName('onCollisionExit')).toBe('Stops touching object')
     expect(triggerDisplayName('onMouseInput')).toBe('Mouse button')
+    expect(triggerDisplayName('onObjectClick')).toBe('Object clicked')
+    expect(triggerDisplayName('onObjectHoverEnter')).toBe('Pointer enters object')
+    expect(triggerDisplayName('onObjectHoverExit')).toBe('Pointer leaves object')
+    expect(triggerDisplayName('onMessage')).toBe('Game message')
     expect(actionDisplayName('spawnEntity')).toBe('Create object')
+    expect(actionDisplayName('spawnEntityAtPointer')).toBe('Create at pointer')
   })
 
   it('summarizes Space key press in plain English', () => {
@@ -73,6 +78,16 @@ describe('friendly-labels', () => {
     })
     expect(s).toContain('choose what to create')
     expect(s).not.toContain('?')
+  })
+
+  it('summarizes pointer spawn without camelCase', () => {
+    const s = actionSummaryPlain({
+      type: 'spawnEntityAtPointer',
+      className: 'coin',
+    })
+    expect(s).toContain('Create')
+    expect(s).toContain('pointer')
+    expect(s).not.toContain('spawnEntityAtPointer')
   })
 
   it('board display shows the compiler label for shared class boards', () => {

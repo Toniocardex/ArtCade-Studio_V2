@@ -490,6 +490,7 @@ describe('compileLogicBoard — actions', () => {
             { type: 'stopAllAudio' },
             { type: 'destroyEntity', target: { className: 'Bullet', first: true } },
             { type: 'spawnEntity', className: 'Enemy', x: 100, y: 0 },
+            { type: 'spawnEntityAtPointer', className: 'Coin' },
             { type: 'setVariable', key: 'level', value: 2 },
             { type: 'emitEvent', name: 'wave_cleared' },
             { type: 'emitEvent', name: 'dmg', payloadKey: 'amount', payloadValue: 5 },
@@ -507,6 +508,8 @@ describe('compileLogicBoard — actions', () => {
     expect(lua).toContain('audio.stopAll()')
     expect(lua).toContain('entity.destroy((pool.getAll("Bullet")[1]))')
     expect(lua).toContain('object.spawn("Enemy", 100, 0)')
+    expect(lua).toContain('local _mx,_my=input.mousePosition()')
+    expect(lua).toContain('object.spawn("Coin", _mx, _my)')
     expect(lua).toContain('state.set("level", 2)')
     expect(lua).toContain('event.emit("wave_cleared")')
     expect(lua).toContain('event.emit("dmg", { ["amount"] = 5 })')
@@ -708,6 +711,34 @@ describe('Logic Components — Phase A (new blocks)', () => {
     expect(lua).toContain('input.mouseButtonDown(0)')
     expect(lua).toContain('_mb[')
     expect(lua).toContain('debug.log("click")')
+  })
+
+  it('onObjectClick compiles a click plus object hit check', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({ trigger: { type: 'onObjectClick', button: 'left', radius: 24 },
+             actions: [{ type: 'debugLog', message: 'clicked' }] }),
+      ]),
+    ])
+    expect(lua).toContain('input.mouseButtonDown(0)')
+    expect(lua).toContain('<= 576')
+    expect(lua).toContain('debug.log("clicked")')
+  })
+
+  it('object hover triggers compile pointer enter and leave edges', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({ trigger: { type: 'onObjectHoverEnter', radius: 12 },
+             actions: [{ type: 'debugLog', message: 'enter' }] }),
+        ev({ trigger: { type: 'onObjectHoverExit', radius: 12 },
+             actions: [{ type: 'debugLog', message: 'leave' }] }),
+      ]),
+    ])
+    expect(lua).toContain('<= 144')
+    expect(lua).toContain('_ohit and not _mb[_ohk]')
+    expect(lua).toContain('(not _ohit) and _mb[_ohk]')
+    expect(lua).toContain('debug.log("enter")')
+    expect(lua).toContain('debug.log("leave")')
   })
 
   it('onMessage registers an event.on listener in init', () => {

@@ -20,6 +20,9 @@ export const RECOMMENDED_TRIGGER_TYPES: readonly LogicTriggerType[] = [
   'onTriggerEnter',
   'onTriggerExit',
   'onTimer',
+  'onObjectClick',
+  'onObjectHoverEnter',
+  'onObjectHoverExit',
   'onStart',
   'onDestroy',
   'onMessage',
@@ -31,6 +34,9 @@ export const POLLING_TRIGGER_TYPES: readonly LogicTriggerType[] = [
   'onUpdate',
   'onCollision',
   'onMouseInput',
+  'onObjectClick',
+  'onObjectHoverEnter',
+  'onObjectHoverExit',
 ] as const
 
 export function boardLifecycleClass(
@@ -89,6 +95,9 @@ export function usesTickFallback(
       trig.type === 'onUpdate' ||
       trig.type === 'onInput' ||
       trig.type === 'onMouseInput' ||
+      trig.type === 'onObjectClick' ||
+      trig.type === 'onObjectHoverEnter' ||
+      trig.type === 'onObjectHoverExit' ||
       trig.type === 'onCollision' ||
       trig.type === 'onTriggerEnter' ||
       trig.type === 'onTriggerExit' ||
@@ -137,6 +146,9 @@ export function getTriggerExecutionMode(
     return trigger.eventType === 'down' ? 'polling' : 'event'
   }
   if (trigger.type === 'onMouseInput') return 'polling'
+  if (trigger.type === 'onObjectClick') return 'polling'
+  if (trigger.type === 'onObjectHoverEnter') return 'polling'
+  if (trigger.type === 'onObjectHoverExit') return 'polling'
 
   if ((POLLING_TRIGGER_TYPES as readonly string[]).includes(trigger.type))
     return 'polling'
@@ -152,23 +164,26 @@ export function triggerPickerGroup(type: LogicTriggerType): string {
       return 'Time'
     case 'onSpawn':
     case 'onDestroy':
-      return 'Object lifecycle'
+      return 'Object state'
     case 'onCollisionEnter':
     case 'onCollisionExit':
     case 'onCollision':
-      return 'Object contact'
+      return 'Contact'
     case 'onTriggerEnter':
     case 'onTriggerExit':
-      return 'Trigger zones'
+      return 'Zones'
     case 'onInput':
     case 'onMouseInput':
-      return 'Player input'
+    case 'onObjectClick':
+    case 'onObjectHoverEnter':
+    case 'onObjectHoverExit':
+      return 'Input'
     case 'onAnimationEnd':
       return 'Animation'
     case 'onMessage':
-      return 'Messages'
+      return 'Game messages'
     case 'onUpdate':
-      return 'Frame polling'
+      return 'Every frame'
   }
 }
 
@@ -176,7 +191,10 @@ const POLLING_TOOLTIPS: Partial<Record<LogicTriggerType, string>> = {
   onUpdate: 'Runs every frame - use for continuous checks or per-frame motion.',
   onCollision:
     'Runs every frame while objects touch. Use Starts/Stops touching for one-shot contact actions.',
-  onMouseInput: 'Polls mouse button state. Add a Mouse nearby check when the action should require the cursor over this object.',
+  onMouseInput: 'Checks mouse button state. Add a Mouse nearby check when the action should require the cursor over this object.',
+  onObjectClick: 'Runs when the mouse button is pressed while the cursor is near this object.',
+  onObjectHoverEnter: 'Runs once when the pointer moves into this object.',
+  onObjectHoverExit: 'Runs once when the pointer moves out of this object.',
 }
 
 export function triggerExecutionTooltip(type: LogicTriggerType): string | undefined {
@@ -187,7 +205,7 @@ export function executionModeBadgeLabel(
   mode: TriggerExecutionMode,
   usesPolling: boolean,
 ): string {
-  if (usesPolling || mode === 'polling') return 'Polling'
-  if (mode === 'hybrid') return 'Event*'
-  return 'Event'
+  if (usesPolling || mode === 'polling') return 'Every frame'
+  if (mode === 'hybrid') return 'Triggered*'
+  return 'Triggered'
 }

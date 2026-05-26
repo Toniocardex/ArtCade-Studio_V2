@@ -6,7 +6,7 @@ import type {
 
 const TRIGGER_NAMES: Record<LogicTriggerType, string> = {
   onStart: 'Game starts',
-  onSpawn: 'Object is created',
+  onSpawn: 'Object created',
   onUpdate: 'Every frame',
   onCollision: 'While touching object',
   onCollisionEnter: 'Starts touching object',
@@ -14,11 +14,14 @@ const TRIGGER_NAMES: Record<LogicTriggerType, string> = {
   onTriggerEnter: 'Enters trigger zone',
   onTriggerExit: 'Leaves trigger zone',
   onAnimationEnd: 'Animation finishes',
-  onDestroy: 'Object is destroyed',
+  onDestroy: 'Object destroyed',
   onInput: 'Keyboard key',
   onMouseInput: 'Mouse button',
-  onMessage: 'Message is received',
-  onTimer: 'Timer fires',
+  onObjectClick: 'Object clicked',
+  onObjectHoverEnter: 'Pointer enters object',
+  onObjectHoverExit: 'Pointer leaves object',
+  onMessage: 'Game message',
+  onTimer: 'Timer',
 }
 
 const ACTION_NAMES: Record<LogicActionType, string> = {
@@ -34,6 +37,7 @@ const ACTION_NAMES: Record<LogicActionType, string> = {
   resumeMusic: 'Resume music',
   destroyEntity: 'Destroy',
   spawnEntity: 'Create object',
+  spawnEntityAtPointer: 'Create at pointer',
   moveInDirection: 'Move in direction',
   controllerMovement: 'Movement',
   moveController: 'Start controller movement',

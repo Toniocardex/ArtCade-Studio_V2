@@ -55,6 +55,9 @@ export const TRIGGER_TARGET_MATRIX: Record<
   onTriggerExit:    ENTITY_TARGETS,
   // Graphics — tied to an entity's sprite animator.
   onAnimationEnd:  ENTITY_TARGETS,
+  onObjectClick:   ENTITY_TARGETS,
+  onObjectHoverEnter: ENTITY_TARGETS,
+  onObjectHoverExit:  ENTITY_TARGETS,
   // Input/messaging — permissive. On entity boards the actions fan out
   // across the pool (often the intent: "every enemy reacts to Space");
   // on a global board they fire once with self=nil for scene-wide controls.

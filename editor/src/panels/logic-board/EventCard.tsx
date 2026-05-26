@@ -63,11 +63,11 @@ export default function EventCard({
   const isHighlighted = editing || selected
 
   const zapTooltip =
-    execBadge.label === 'Polling'
-      ? 'Trigger — polling (runs each frame)'
-      : execBadge.label === 'Event*'
-        ? 'Trigger — event handler (may poll)'
-        : 'Trigger — event handler'
+    execBadge.label === 'Every frame'
+      ? 'Trigger - checked every frame'
+      : execBadge.label === 'Triggered*'
+        ? 'Trigger - engine event when available'
+        : 'Trigger - engine event'
 
   return (
     <div

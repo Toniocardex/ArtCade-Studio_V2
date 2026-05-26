@@ -179,7 +179,12 @@ function ActionCard({
       <ComponentRequirementWarning requirement={actionRequirement(act, project, board)} />
       {act.type === 'spawnEntity' && (
         <p className="text-[10px] text-[var(--muted)]">
-          Creates a new copy of that object in the level.
+          Creates an object at fixed coordinates or a chosen attachment point.
+        </p>
+      )}
+      {act.type === 'spawnEntityAtPointer' && (
+        <p className="text-[10px] text-[var(--muted)]">
+          Creates an object where the pointer is.
         </p>
       )}
     </div>

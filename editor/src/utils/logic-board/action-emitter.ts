@@ -72,6 +72,10 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
       if (!a.inheritFlip) return spawn
       return `(function() local _nid = ${spawn}; local _sx, _sy = entity.scale(self); local _fx = (_sx < 0) and -1 or 1; entity.setScale(_nid, _fx * math.abs(_sx), math.abs(_sy)); return _nid end)()`
     }
+    case 'spawnEntityAtPointer': {
+      const cls = luaString(a.className)
+      return `(function() local _mx,_my=input.mousePosition(); return object.spawn(${cls}, _mx, _my) end)()`
+    }
     case 'moveInDirection': {
       const t = targetExpr(a.target)
       const s = Number(a.speed) || 0

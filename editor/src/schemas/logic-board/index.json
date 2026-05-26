@@ -4,11 +4,12 @@
   "triggers": [
     "onStart", "onSpawn", "onUpdate", "onCollision", "onCollisionEnter", "onCollisionExit",
     "onTriggerEnter", "onTriggerExit",
-    "onAnimationEnd", "onDestroy", "onInput", "onMouseInput", "onMessage", "onTimer"
+    "onAnimationEnd", "onDestroy", "onInput", "onMouseInput", "onObjectClick",
+    "onObjectHoverEnter", "onObjectHoverExit", "onMessage", "onTimer"
   ],
   "actions": [
     "setVariable", "addVariable", "setPosition", "setVelocity", "playSound", "playMusic",
-    "stopAllAudio", "stopMusic", "pauseMusic", "resumeMusic", "destroyEntity", "spawnEntity", "emitEvent",
+    "stopAllAudio", "stopMusic", "pauseMusic", "resumeMusic", "destroyEntity", "spawnEntity", "spawnEntityAtPointer", "emitEvent",
     "toggleLogicEvent", "applyImpulse", "applyForce", "setRotation", "setScale",
     "playAnimation", "setFlip", "setVisible", "setColorTint", "loadScene", "restartScene", "setCameraTarget", "cameraShake", "moveInDirection",
     "controllerMovement", "moveController", "clearMovementIntent", "requestPlatformerJump", "damageEntity", "healEntity",

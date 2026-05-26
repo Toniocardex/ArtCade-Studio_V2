@@ -110,6 +110,41 @@ export function emitEventBody(
     return lines
   }
 
+  // onObjectClick: mouse press edge plus a local hit radius around self.
+  // This is intentionally a first-class trigger because it is the common
+  // authoring intent behind "mouse button + mouse nearby".
+  if (trig.type === 'onObjectClick') {
+    const btn = trig.button === 'right' ? 1 : 0
+    const r2 = Math.pow(Number(trig.radius) || 32, 2)
+    const prefix = luaString(`${board.boardId}:${ev.id}:`)
+    const inner = baseIndent + INDENT
+    lines.push(`${baseIndent}local _ock = ${prefix} .. tostring(self)`)
+    lines.push(`${baseIndent}local _ocur = input.mouseButtonDown(${btn})`)
+    lines.push(`${baseIndent}local _ohit = (function() local mx,my=input.mousePosition() local p=entity.position(self) local dx=mx-p.x local dy=my-p.y return (dx*dx+dy*dy) <= ${r2} end)()`)
+    lines.push(`${baseIndent}if (_ocur and not _mb[_ock] and _ohit) and ${guard} then`)
+    lines.push(...emitActionSequence(ev.actions, inner, slugs))
+    lines.push(`${baseIndent}end`)
+    lines.push(`${baseIndent}_mb[_ock] = _ocur`)
+    return lines
+  }
+
+  // onObjectHoverEnter / onObjectHoverExit: edge detection around the same
+  // local hit radius used by Object clicked.
+  if (trig.type === 'onObjectHoverEnter' || trig.type === 'onObjectHoverExit') {
+    const r2 = Math.pow(Number(trig.radius) || 32, 2)
+    const prefix = luaString(`${board.boardId}:${ev.id}:hover:`)
+    const wantEnter = trig.type === 'onObjectHoverEnter'
+    const edge = wantEnter ? '(_ohit and not _mb[_ohk])' : '((not _ohit) and _mb[_ohk])'
+    const inner = baseIndent + INDENT
+    lines.push(`${baseIndent}local _ohk = ${prefix} .. tostring(self)`)
+    lines.push(`${baseIndent}local _ohit = (function() local mx,my=input.mousePosition() local p=entity.position(self) local dx=mx-p.x local dy=my-p.y return (dx*dx+dy*dy) <= ${r2} end)()`)
+    lines.push(`${baseIndent}if ${edge} and ${guard} then`)
+    lines.push(...emitActionSequence(ev.actions, inner, slugs))
+    lines.push(`${baseIndent}end`)
+    lines.push(`${baseIndent}_mb[_ohk] = _ohit`)
+    return lines
+  }
+
   // Trigger-specific gating expression layered on top of the condition guard.
   let gate: string | null = null
   if (trig.type === 'onCollision') {

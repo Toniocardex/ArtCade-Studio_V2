@@ -19,6 +19,7 @@ describe('trigger-compatibility matrix', () => {
     for (const t of [
       'onSpawn', 'onDestroy', 'onCollision', 'onCollisionEnter', 'onCollisionExit',
       'onTriggerEnter', 'onTriggerExit', 'onAnimationEnd',
+      'onObjectClick', 'onObjectHoverEnter', 'onObjectHoverExit',
     ] as const) {
       expect(isTriggerCompatible(t, 'global')).toBe(false)
       expect(isTriggerCompatible(t, 'entity_class')).toBe(true)
@@ -39,7 +40,9 @@ describe('trigger-compatibility matrix', () => {
       'onStart', 'onUpdate', 'onSpawn', 'onDestroy',
       'onCollision', 'onCollisionEnter', 'onCollisionExit',
       'onTriggerEnter', 'onTriggerExit',
-      'onAnimationEnd', 'onInput', 'onMouseInput', 'onMessage', 'onTimer',
+      'onAnimationEnd', 'onInput', 'onMouseInput',
+      'onObjectClick', 'onObjectHoverEnter', 'onObjectHoverExit',
+      'onMessage', 'onTimer',
     ]
     expect(Object.keys(TRIGGER_TARGET_MATRIX).sort()).toEqual(expectedTypes.sort())
   })
@@ -48,12 +51,16 @@ describe('trigger-compatibility matrix', () => {
     const global = allowedTriggersForTarget('global')
     expect(global).not.toContain('onSpawn')
     expect(global).not.toContain('onCollision')
+    expect(global).not.toContain('onObjectClick')
+    expect(global).not.toContain('onObjectHoverEnter')
     expect(global).toContain('onInput')
     expect(global).toContain('onStart')
 
     const entityClass = allowedTriggersForTarget('entity_class')
     expect(entityClass).toContain('onSpawn')
     expect(entityClass).toContain('onCollision')
+    expect(entityClass).toContain('onObjectClick')
+    expect(entityClass).toContain('onObjectHoverExit')
     expect(entityClass).toContain('onInput')
   })
 })

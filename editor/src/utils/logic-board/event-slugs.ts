@@ -49,6 +49,12 @@ function triggerSlugSource(t: LogicTrigger): string {
         : t.eventType === 'released' ? 'release' : 'hold'
       return `mouse_${verb}_${t.button === 'right' ? 'rmb' : 'lmb'}`
     }
+    case 'onObjectClick':
+      return `click_object_${t.button === 'right' ? 'rmb' : 'lmb'}`
+    case 'onObjectHoverEnter':
+      return 'pointer_enter_object'
+    case 'onObjectHoverExit':
+      return 'pointer_leave_object'
   }
 }
 

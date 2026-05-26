@@ -43,6 +43,9 @@ export type LogicTrigger =
   | { type: 'onDestroy' }                                           // needs engine hook (stub)
   | { type: 'onInput'; keyCode: string; eventType: 'pressed' | 'down' | 'released' }
   | { type: 'onMouseInput'; button: 'left' | 'right'; eventType: 'pressed' | 'down' | 'released' }
+  | { type: 'onObjectClick'; button: 'left' | 'right'; radius?: number }
+  | { type: 'onObjectHoverEnter'; radius?: number }
+  | { type: 'onObjectHoverExit'; radius?: number }
   | { type: 'onMessage'; messageName: string }                      // event.on listener
   | { type: 'onTimer'; seconds: number; repeat: boolean }
 
@@ -97,6 +100,10 @@ export type LogicAction =
       inheritFlip?: boolean
       /** Spawn at a named point on self's sprite asset (overrides x,y when set). */
       imagePoint?: string
+    }
+  | {
+      type: 'spawnEntityAtPointer'
+      className: string
     }
   | {
       type: 'moveInDirection'

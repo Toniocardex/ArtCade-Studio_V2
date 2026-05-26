@@ -195,6 +195,59 @@
       }
     }
   },
+  "onObjectClick": {
+    "type": "object",
+    "required": ["type", "button"],
+    "properties": {
+      "type": { "const": "onObjectClick" },
+      "button": { "enum": ["left", "right"] },
+      "radius": { "type": "number", "exclusiveMinimum": 0 }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "On Object Click",
+      "category": "Input",
+      "executionMode": "polling",
+      "params": {
+        "button": { "widget": "enum", "label": "Button", "options": ["left", "right"] },
+        "radius": { "widget": "number", "label": "Hit radius" }
+      }
+    }
+  },
+  "onObjectHoverEnter": {
+    "type": "object",
+    "required": ["type"],
+    "properties": {
+      "type": { "const": "onObjectHoverEnter" },
+      "radius": { "type": "number", "exclusiveMinimum": 0 }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "On Pointer Enter Object",
+      "category": "Input",
+      "executionMode": "polling",
+      "params": {
+        "radius": { "widget": "number", "label": "Hit radius" }
+      }
+    }
+  },
+  "onObjectHoverExit": {
+    "type": "object",
+    "required": ["type"],
+    "properties": {
+      "type": { "const": "onObjectHoverExit" },
+      "radius": { "type": "number", "exclusiveMinimum": 0 }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "On Pointer Leave Object",
+      "category": "Input",
+      "executionMode": "polling",
+      "params": {
+        "radius": { "widget": "number", "label": "Hit radius" }
+      }
+    }
+  },
   "onMessage": {
     "type": "object",
     "required": ["type", "messageName"],

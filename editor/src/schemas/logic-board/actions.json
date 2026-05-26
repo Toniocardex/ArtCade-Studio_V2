@@ -197,6 +197,22 @@
       }
     }
   },
+  "spawnEntityAtPointer": {
+    "type": "object",
+    "required": ["type", "className"],
+    "properties": {
+      "type": { "const": "spawnEntityAtPointer" },
+      "className": { "type": "string" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Create at pointer",
+      "category": "Entities",
+      "params": {
+        "className": { "widget": "className", "label": "What to create" }
+      }
+    }
+  },
   "moveInDirection": {
     "type": "object",
     "required": ["type", "target", "direction", "speed"],

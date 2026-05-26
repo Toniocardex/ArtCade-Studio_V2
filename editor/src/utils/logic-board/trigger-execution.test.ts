@@ -21,11 +21,13 @@ function ev(trigger: LogicEvent['trigger']): LogicEvent {
 }
 
 describe('trigger-execution', () => {
-  it('classifies polling trigger types', () => {
-    expect(triggerPickerGroup('onUpdate')).toBe('Frame polling')
-    expect(triggerPickerGroup('onSpawn')).toBe('Object lifecycle')
-    expect(triggerPickerGroup('onCollisionEnter')).toBe('Object contact')
-    expect(triggerPickerGroup('onTriggerEnter')).toBe('Trigger zones')
+  it('classifies trigger picker groups', () => {
+    expect(triggerPickerGroup('onUpdate')).toBe('Every frame')
+    expect(triggerPickerGroup('onSpawn')).toBe('Object state')
+    expect(triggerPickerGroup('onCollisionEnter')).toBe('Contact')
+    expect(triggerPickerGroup('onTriggerEnter')).toBe('Zones')
+    expect(triggerPickerGroup('onObjectClick')).toBe('Input')
+    expect(triggerPickerGroup('onObjectHoverEnter')).toBe('Input')
   })
 
   it('onInput pressed is event, down is polling', () => {
@@ -106,5 +108,25 @@ describe('trigger-execution', () => {
     })
     expect(usesTickFallback(event, b)).toBe(true)
     expect(getTriggerExecutionMode(event.trigger)).toBe('polling')
+  })
+
+  it('onObjectClick is checked continuously against the object hit area', () => {
+    const b = board({ type: 'entity_class', className: 'Button' })
+    const event = ev({
+      type: 'onObjectClick',
+      button: 'left',
+      radius: 32,
+    })
+    expect(usesTickFallback(event, b)).toBe(true)
+    expect(getTriggerExecutionMode(event.trigger)).toBe('polling')
+  })
+
+  it('object hover triggers are checked continuously against the object hit area', () => {
+    const b = board({ type: 'entity_class', className: 'Button' })
+    const enter = ev({ type: 'onObjectHoverEnter', radius: 32 })
+    const exit = ev({ type: 'onObjectHoverExit', radius: 32 })
+    expect(usesTickFallback(enter, b)).toBe(true)
+    expect(usesTickFallback(exit, b)).toBe(true)
+    expect(getTriggerExecutionMode(enter.trigger)).toBe('polling')
   })
 })

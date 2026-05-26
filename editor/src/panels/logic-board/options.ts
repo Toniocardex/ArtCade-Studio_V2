@@ -57,6 +57,12 @@ export function defaultTrigger(type: LogicTriggerType): LogicTrigger {
       return { type: 'onInput', keyCode: 'Space', eventType: 'pressed' }
     case 'onMouseInput':
       return { type: 'onMouseInput', button: 'left', eventType: 'pressed' }
+    case 'onObjectClick':
+      return { type: 'onObjectClick', button: 'left', radius: 32 }
+    case 'onObjectHoverEnter':
+      return { type: 'onObjectHoverEnter', radius: 32 }
+    case 'onObjectHoverExit':
+      return { type: 'onObjectHoverExit', radius: 32 }
     case 'onMessage':
       return { type: 'onMessage', messageName: 'my_event' }
     case 'onTimer':
@@ -119,6 +125,8 @@ export function defaultAction(type: LogicActionType): LogicAction {
       return { type: 'destroyEntity', target: 'self' }
     case 'spawnEntity':
       return { type: 'spawnEntity', className: '', x: 0, y: 0, inheritFlip: false }
+    case 'spawnEntityAtPointer':
+      return { type: 'spawnEntityAtPointer', className: '' }
     case 'moveInDirection':
       return { type: 'moveInDirection', target: 'self', direction: 'forward', speed: 100 }
     case 'controllerMovement':

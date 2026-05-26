@@ -38,6 +38,10 @@ export function actionSummaryPlain(
       const flip = a.inheritFlip ? ', same facing' : ''
       return `Create "${fmtClass(a.className, project)}" ${where}${flip}`
     }
+    case 'spawnEntityAtPointer':
+      return a.className
+        ? `Create "${fmtClass(a.className, project)}" at pointer`
+        : 'Create at pointer - choose what to create'
     case 'moveInDirection': {
       const dir =
         a.direction === 'forward'

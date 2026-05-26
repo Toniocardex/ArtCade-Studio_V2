@@ -16,7 +16,7 @@ export function triggerCategory(type: LogicTriggerType): string {
   return getComponentMeta('trigger', type)?.category ?? 'Other'
 }
 
-/** Compact badge label for collapsed rule cards (Event vs Polling). */
+/** Compact badge label for collapsed rule cards. */
 export function triggerExecutionBadge(
   event: LogicEvent,
   board?: LogicBoard | null,
@@ -31,12 +31,16 @@ export function triggerExecutionBadge(
   const polling = board
     ? usesTickFallback(event, board, project)
     : mode === 'polling'
-  const label = polling ? 'Polling' : mode === 'hybrid' ? 'Event*' : 'Event'
-  const title = polling
-    ? 'This rule runs inside tick(dt) each frame or polls state.'
+  const label = polling
+    ? 'Every frame'
     : mode === 'hybrid'
-      ? 'Event handler when configured; may fall back to polling.'
-      : 'Registered once as an event handler (_logic_init).'
+      ? 'Triggered*'
+      : 'Triggered'
+  const title = polling
+    ? 'This rule is checked continuously while the game runs.'
+    : mode === 'hybrid'
+      ? 'This rule is triggered directly when available; otherwise it is checked while the game runs.'
+      : 'This rule is triggered by the engine when it happens.'
   return { label, title }
 }
 

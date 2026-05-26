@@ -56,6 +56,14 @@ export function triggerSummaryPlain(
             : 'holds'
       return `When ${btn} mouse button ${when}`
     }
+    case 'onObjectClick': {
+      const btn = t.button === 'right' ? 'right' : 'left'
+      return `When this object is clicked with ${btn} mouse`
+    }
+    case 'onObjectHoverEnter':
+      return 'When the pointer enters this object'
+    case 'onObjectHoverExit':
+      return 'When the pointer leaves this object'
     case 'onMessage':
       return `When message "${t.messageName || '...'}" is received`
     case 'onTimer':

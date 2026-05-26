@@ -60,20 +60,20 @@ export function TypePicker({
     const order = [
       'Recommended for this object',
       'Time',
-      'Object lifecycle',
-      'Object contact',
-      'Trigger zones',
-      'Player input',
+      'Object state',
+      'Contact',
+      'Zones',
+      'Input',
       'Animation',
-      'Messages',
-      'Frame polling',
+      'Game messages',
+      'Every frame',
       'Recommended',
       'Movement',
       'Health',
       'AI Logic',
       'Lifecycle',
       'Audio',
-      'Advanced / Polling',
+      'Advanced',
     ]
     return [...map.entries()].sort(([a], [b]) => {
       const ia = order.indexOf(a)
