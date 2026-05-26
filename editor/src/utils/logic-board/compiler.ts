@@ -30,7 +30,7 @@ import type {
 } from '../../types/logic-board'
 import type { ProjectDoc } from '../../types'
 import { usesTickFallback } from './trigger-execution'
-import { INDENT, poolExpr, luaString } from './lua-helpers'
+import { INDENT, poolExpr, luaString, isGlobalTarget } from './lua-helpers'
 import { logicBoardLuaCommentLabel } from './labels'
 import { buildEventSlugs } from './event-slugs'
 import { emitEventBody } from './emit-event-body'
@@ -98,15 +98,27 @@ function emitBoard(
   const tickEvents = allTickEvents.filter((e) => e.trigger.type !== 'onDestroy')
 
   const pool = poolExpr(board.target)
+  const isGlobal = isGlobalTarget(board.target)
   const init: string[] = []
   const tick: string[] = []
 
   if (startEvents.length > 0) {
-    init.push(`${INDENT}for _, self in ipairs(${pool}) do`)
-    for (const ev of startEvents) {
-      init.push(...emitEventBody(ev, board, INDENT + INDENT, slugs))
+    if (isGlobal) {
+      // Global boards have no entity context — single execution block.
+      init.push(`${INDENT}do`)
+      init.push(`${INDENT}${INDENT}local self = nil`)
+      init.push(`${INDENT}${INDENT}local other = nil`)
+      for (const ev of startEvents) {
+        init.push(...emitEventBody(ev, board, INDENT + INDENT, slugs))
+      }
+      init.push(`${INDENT}end`)
+    } else {
+      init.push(`${INDENT}for _, self in ipairs(${pool}) do`)
+      for (const ev of startEvents) {
+        init.push(...emitEventBody(ev, board, INDENT + INDENT, slugs))
+      }
+      init.push(`${INDENT}end`)
     }
-    init.push(`${INDENT}end`)
   }
 
   // onMessage → register an event.on listener once in init.
@@ -114,10 +126,16 @@ function emitBoard(
     if (ev.trigger.type !== 'onMessage') continue
     const I = INDENT
     init.push(`${I}_logic_reg_message(${luaString(ev.trigger.messageName)}, function()`)
-    init.push(`${I}${I}for _, self in ipairs(${pool}) do`)
-    init.push(`${I}${I}${I}local other = nil`)
-    init.push(...emitEventBody(ev, board, I + I + I, slugs))
-    init.push(`${I}${I}end`)
+    if (isGlobal) {
+      init.push(`${I}${I}local self = nil`)
+      init.push(`${I}${I}local other = nil`)
+      init.push(...emitEventBody(ev, board, I + I, slugs))
+    } else {
+      init.push(`${I}${I}for _, self in ipairs(${pool}) do`)
+      init.push(`${I}${I}${I}local other = nil`)
+      init.push(...emitEventBody(ev, board, I + I + I, slugs))
+      init.push(`${I}${I}end`)
+    }
     init.push(`${I}end)`)
   }
 
@@ -127,12 +145,22 @@ function emitBoard(
   }
 
   if (tickEvents.length > 0) {
-    tick.push(`${INDENT}for _, self in ipairs(${pool}) do`)
-    tick.push(`${INDENT}${INDENT}local other = nil`)
-    for (const ev of tickEvents) {
-      tick.push(...emitEventBody(ev, board, INDENT + INDENT, slugs))
+    if (isGlobal) {
+      tick.push(`${INDENT}do`)
+      tick.push(`${INDENT}${INDENT}local self = nil`)
+      tick.push(`${INDENT}${INDENT}local other = nil`)
+      for (const ev of tickEvents) {
+        tick.push(...emitEventBody(ev, board, INDENT + INDENT, slugs))
+      }
+      tick.push(`${INDENT}end`)
+    } else {
+      tick.push(`${INDENT}for _, self in ipairs(${pool}) do`)
+      tick.push(`${INDENT}${INDENT}local other = nil`)
+      for (const ev of tickEvents) {
+        tick.push(...emitEventBody(ev, board, INDENT + INDENT, slugs))
+      }
+      tick.push(`${INDENT}end`)
     }
-    tick.push(`${INDENT}end`)
   }
 
   if (destroyTickEvents.length > 0) {

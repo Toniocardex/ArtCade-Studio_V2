@@ -10,7 +10,7 @@
       "type": "object",
       "required": ["type"],
       "properties": {
-        "type": { "enum": ["entity_class", "entity_id", "scene"] },
+        "type": { "enum": ["entity_class", "entity_id", "global", "scene"] },
         "className": { "type": "string" },
         "entityId": { "type": "number" }
       },

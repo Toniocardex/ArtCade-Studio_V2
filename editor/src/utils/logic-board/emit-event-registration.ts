@@ -7,7 +7,7 @@
 
 import type { LogicBoard, LogicEvent } from '../../types/logic-board'
 import type { ProjectDoc } from '../../types'
-import { INDENT, luaString, poolExpr, sensorSourceExpr } from './lua-helpers'
+import { INDENT, luaString, poolExpr, sensorSourceExpr, isGlobalTarget } from './lua-helpers'
 import { boardLifecycleClass } from './trigger-execution'
 import { emitGuardedActions } from './emit-actions'
 
@@ -21,6 +21,7 @@ export function emitEventRegistration(
   const I = INDENT
   const pool = poolExpr(board.target)
   const source = sensorSourceExpr(board.target)
+  const isGlobal = isGlobalTarget(board.target)
 
   if (trig.type === 'onSpawn') {
     const cls = boardLifecycleClass(board, ev, project)
@@ -63,6 +64,15 @@ export function emitEventRegistration(
   if (trig.type === 'onInput' && trig.eventType !== 'down') {
     const helper =
       trig.eventType === 'pressed' ? '_logic_reg_input_pressed' : '_logic_reg_input_released'
+    if (isGlobal) {
+      return [
+        `${I}${helper}(${luaString(trig.keyCode)}, function()`,
+        `${I}${I}local self = nil`,
+        `${I}${I}local other = nil`,
+        ...emitGuardedActions(ev, I + I, slugs),
+        `${I}end)`,
+      ]
+    }
     return [
       `${I}${helper}(${luaString(trig.keyCode)}, function()`,
       `${I}${I}for _, self in ipairs(${pool}) do`,
@@ -88,6 +98,15 @@ export function emitEventRegistration(
 
   if (trig.type === 'onTimer') {
     const helper = trig.repeat ? '_logic_reg_timer_every' : '_logic_reg_timer_after'
+    if (isGlobal) {
+      return [
+        `${I}${helper}(${Number(trig.seconds) || 0}, function()`,
+        `${I}${I}local self = nil`,
+        `${I}${I}local other = nil`,
+        ...emitGuardedActions(ev, I + I, slugs),
+        `${I}end)`,
+      ]
+    }
     return [
       `${I}${helper}(${Number(trig.seconds) || 0}, function()`,
       `${I}${I}for _, self in ipairs(${pool}) do`,

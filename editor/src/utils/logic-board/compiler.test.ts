@@ -810,6 +810,63 @@ describe('Hot-reload safety — handler unsubscribe tracking', () => {
   })
 })
 
+describe('Global-target boards (no entity context)', () => {
+  it('onStart on global board uses a single nil-self block, no for-loop', () => {
+    const lua = compileLogicBoard([
+      {
+        boardId: 'sysboot',
+        target: { type: 'global' },
+        events: [
+          ev({ trigger: { type: 'onStart' }, actions: [{ type: 'debugLog', message: 'boot' }] }),
+        ],
+      },
+    ])
+    expect(lua).toContain('local self = nil')
+    expect(lua).toContain('debug.log("boot")')
+    // Must not iterate a pool — global boards have no entities to scan.
+    expect(lua).not.toContain('for _, self in ipairs(pool.getAll')
+    expect(lua).not.toContain('for _, self in ipairs({})')
+  })
+
+  it('onInput on global board fires once per keypress, not per pool entry', () => {
+    const lua = compileLogicBoard([
+      {
+        boardId: 'input',
+        target: { type: 'global' },
+        events: [
+          ev({
+            trigger: { type: 'onInput', keyCode: 'Space', eventType: 'pressed' },
+            actions: [{ type: 'debugLog', message: 'jump' }],
+          }),
+        ],
+      },
+    ])
+    expect(lua).toContain('_logic_reg_input_pressed("Space", function()')
+    // Inside the closure: nil-self block, no pool iteration.
+    const inputClosure = lua.slice(lua.indexOf('_logic_reg_input_pressed('))
+    expect(inputClosure).not.toContain('for _, self in ipairs')
+    expect(inputClosure).toContain('local self = nil')
+  })
+
+  it('onMessage on global board does not wrap in a pool loop', () => {
+    const lua = compileLogicBoard([
+      {
+        boardId: 'msgs',
+        target: { type: 'global' },
+        events: [
+          ev({
+            trigger: { type: 'onMessage', messageName: 'level_complete' },
+            actions: [{ type: 'debugLog', message: 'done' }],
+          }),
+        ],
+      },
+    ])
+    expect(lua).toContain('_logic_reg_message("level_complete", function()')
+    const closure = lua.slice(lua.indexOf('_logic_reg_message('))
+    expect(closure).not.toContain('for _, self in ipairs')
+  })
+})
+
 describe('Logic Components — Phase C (engine-hook triggers)', () => {
   it('onSpawn registers a lifecycle handler', () => {
     const lua = compileLogicBoard([

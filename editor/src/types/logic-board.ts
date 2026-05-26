@@ -161,7 +161,17 @@ export interface LogicBoard {
   boardId: string                     // e.g. "player_controller"
   name?: string                       // human-readable label shown in UI / Lua comments
   target: {
-    type:       'entity_class' | 'entity_id' | 'scene'
+    /**
+     * Defines what `self` means for this board's events.
+     *   • entity_class — iterate every live instance of `className` each tick
+     *   • entity_id    — bind `self` to a single specific entity
+     *   • global       — no entity context; for triggers that fire scene-wide
+     *                    (input, mouse, message, global timers). `self` is nil
+     *                    in the generated Lua, so actions targeting self are
+     *                    rejected by the validator for global boards.
+     *   • scene        — reserved/legacy; treated as global for now.
+     */
+    type:       'entity_class' | 'entity_id' | 'global' | 'scene'
     className?: string                // when entity_class
     entityId?:  number                // when entity_id
   }

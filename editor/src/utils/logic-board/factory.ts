@@ -101,7 +101,9 @@ function parseBoard(raw: unknown): LogicBoard | null {
       ? (r.target as Record<string, unknown>)
       : {}
   const type =
-    targetRaw.type === 'entity_id' || targetRaw.type === 'scene'
+    targetRaw.type === 'entity_id' ||
+    targetRaw.type === 'scene' ||
+    targetRaw.type === 'global'
       ? targetRaw.type
       : 'entity_class'
 

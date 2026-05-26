@@ -41,6 +41,14 @@ export function targetExpr(t: TargetSelector): string {
   return `(pool.getAll(${luaString(t.className)})[1])`
 }
 
+/**
+ * True when the board has no entity context (`self` is nil). Global boards
+ * skip the per-entity for-loop scaffolding emitted around init/tick blocks.
+ */
+export function isGlobalTarget(target: { type: string }): boolean {
+  return target.type === 'global' || target.type === 'scene'
+}
+
 /** Lua expression that yields the entity-id pool for a board's target. */
 export function poolExpr(target: { type: string; className?: string; entityId?: number }): string {
   if (target.type === 'entity_class' && target.className) {
