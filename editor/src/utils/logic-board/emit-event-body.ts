@@ -101,20 +101,24 @@ export function emitEventBody(
           : 'isKeyDown'
     gate = `input.${fn}(${luaString(trig.keyCode)})`
   } else if (trig.type === 'onTimer') {
-    const key = luaString(`${board.boardId}:${ev.id}`)
+    // Per-instance key: appending `self` so each entity in a class-targeted
+    // board has its own accumulator. Without `self`, a "every 2s" rule on
+    // 50 enemies would share one timer that fires once for the whole pool.
+    const prefix = luaString(`${board.boardId}:${ev.id}:`)
     const inner = baseIndent + INDENT
     const seconds = Number(trig.seconds) || 0
-    lines.push(`${baseIndent}_logic_timers[${key}] = (_logic_timers[${key}] or 0) + dt`)
-    lines.push(`${baseIndent}if _logic_timers[${key}] >= ${seconds} then`)
+    lines.push(`${baseIndent}local _tk = ${prefix} .. tostring(self)`)
+    lines.push(`${baseIndent}_logic_timers[_tk] = (_logic_timers[_tk] or 0) + dt`)
+    lines.push(`${baseIndent}if _logic_timers[_tk] >= ${seconds} then`)
     if (trig.repeat) {
       // Repeat: subtract the interval (not reset to 0) so accumulated overshoot
       // carries forward and the average rate matches the requested period.
-      lines.push(`${inner}_logic_timers[${key}] = _logic_timers[${key}] - ${seconds}`)
+      lines.push(`${inner}_logic_timers[_tk] = _logic_timers[_tk] - ${seconds}`)
     } else {
       // One-shot: park the counter at -math.huge so the threshold can never
       // be crossed again. Without this guard, the timer would fire every
       // subsequent frame because the accumulator keeps growing.
-      lines.push(`${inner}_logic_timers[${key}] = -math.huge`)
+      lines.push(`${inner}_logic_timers[_tk] = -math.huge`)
     }
     if (guard === 'true') {
       lines.push(...emitActionSequence(ev.actions, inner, slugs))

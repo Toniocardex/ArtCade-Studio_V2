@@ -98,7 +98,15 @@ export function usesTickFallback(
     )
   ) return true
   if (trig.type === 'onInput') return trig.eventType === 'down'
-  if (trig.type === 'onTimer') return false
+  if (trig.type === 'onTimer') {
+    // Class-targeted timers need per-instance accumulators so each entity
+    // has its own clock. The registration path (time.every) is a single
+    // shared timer that fires once for the whole pool — wrong semantics
+    // when the user said "every 2s for each enemy". Route through the
+    // tick body where the key includes `self`. Single-entity boards
+    // (entity_id) still use the cheaper registration path.
+    return board.target.type === 'entity_class'
+  }
   if (trig.type === 'onTriggerEnter' || trig.type === 'onTriggerExit')
     return false
   if (trig.type === 'onAnimationEnd') return false

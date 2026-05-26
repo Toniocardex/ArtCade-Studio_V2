@@ -350,30 +350,59 @@ describe('compileLogicBoard — triggers', () => {
     expect(lua).toContain('state.add("score", 1)')
   })
 
-  it('onTimer non-repeat registers a one-shot timer', () => {
+  it('onTimer non-repeat on entity_id board uses registration path', () => {
+    // Single-entity boards keep the cheaper time.after registration —
+    // shared vs per-instance is moot when the pool has one entry.
     const lua = compileLogicBoard([
-      board([
-        ev({
-          trigger: { type: 'onTimer', seconds: 2, repeat: false },
-          actions: [{ type: 'debugLog', message: 'tick' }],
-        }),
-      ]),
+      {
+        boardId: 'b1',
+        target: { type: 'entity_id', entityId: 7 },
+        events: [
+          ev({
+            trigger: { type: 'onTimer', seconds: 2, repeat: false },
+            actions: [{ type: 'debugLog', message: 'tick' }],
+          }),
+        ],
+      },
     ])
     expect(lua).toContain('_logic_reg_timer_after(2, function()')
     expect(lua).toContain('debug.log("tick")')
   })
 
-  it('onTimer repeat registers an interval timer', () => {
+  it('onTimer repeat on entity_id board uses registration path', () => {
+    const lua = compileLogicBoard([
+      {
+        boardId: 'b1',
+        target: { type: 'entity_id', entityId: 7 },
+        events: [
+          ev({
+            trigger: { type: 'onTimer', seconds: 1.5, repeat: true },
+            actions: [{ type: 'debugLog', message: 'tick' }],
+          }),
+        ],
+      },
+    ])
+    expect(lua).toContain('_logic_reg_timer_every(1.5, function()')
+    expect(lua).toContain('debug.log("tick")')
+  })
+
+  it('onTimer on entity_class board uses per-instance tick timers', () => {
+    // Class-targeted board → tick path with per-self key so each entity
+    // has its own clock. Avoids the "50 enemies share one 2s timer" bug.
     const lua = compileLogicBoard([
       board([
         ev({
-          trigger: { type: 'onTimer', seconds: 1.5, repeat: true },
+          trigger: { type: 'onTimer', seconds: 2, repeat: true },
           actions: [{ type: 'debugLog', message: 'tick' }],
         }),
       ]),
     ])
-    expect(lua).toContain('_logic_reg_timer_every(1.5, function()')
-    expect(lua).toContain('debug.log("tick")')
+    expect(lua).toContain('local _tk = "b1:e1:" .. tostring(self)')
+    expect(lua).toContain('_logic_timers[_tk] = (_logic_timers[_tk] or 0) + dt')
+    expect(lua).toContain('_logic_timers[_tk] = _logic_timers[_tk] - 2')
+    // Must NOT take the registration path for class-targeted boards.
+    const everyCount = lua.split('_logic_reg_timer_every(').length - 1
+    expect(everyCount).toBe(1) // only the prelude helper definition
   })
 
   it('onTimer in tick-fallback path parks one-shot at -math.huge after fire', () => {
@@ -390,9 +419,11 @@ describe('compileLogicBoard — triggers', () => {
       ]),
     ])
     // One-shot must guard against the "fires every frame after expiry" bug
-    // by parking the accumulator past any reachable threshold.
-    expect(lua).toContain('_logic_timers["b1:e1"] = -math.huge')
-    expect(lua).not.toContain('_logic_timers["b1:e1"] = 0')
+    // by parking the accumulator past any reachable threshold. The per-
+    // instance key uses local _tk = "<prefix>" .. tostring(self).
+    expect(lua).toContain('local _tk = "b1:e1:" .. tostring(self)')
+    expect(lua).toContain('_logic_timers[_tk] = -math.huge')
+    expect(lua).not.toContain('_logic_timers[_tk] = 0')
   })
 
   it('onDestroy tick-fallback iterates _destroy_events with self bound', () => {
@@ -435,7 +466,7 @@ describe('compileLogicBoard — triggers', () => {
       ]),
     ])
     // Subtract-instead-of-reset preserves average rate even under frame drift.
-    expect(lua).toContain('_logic_timers["b1:e1"] = _logic_timers["b1:e1"] - 1.5')
+    expect(lua).toContain('_logic_timers[_tk] = _logic_timers[_tk] - 1.5')
   })
 })
 
@@ -747,11 +778,18 @@ describe('Hot-reload safety — handler unsubscribe tracking', () => {
              actions: [{ type: 'debugLog', message: 't' }] }),
         ev({ id: 'd', trigger: { type: 'onInput', keyCode: 'Space', eventType: 'pressed' },
              actions: [{ type: 'debugLog', message: 'i' }] }),
-        ev({ id: 'e', trigger: { type: 'onTimer', seconds: 1, repeat: true },
-             actions: [{ type: 'debugLog', message: 'r' }] }),
         ev({ id: 'f', trigger: { type: 'onMessage', messageName: 'hit' },
              actions: [{ type: 'debugLog', message: 'm' }] }),
       ]),
+      // onTimer on a single-entity board → registration path (time.every).
+      {
+        boardId: 'b2',
+        target: { type: 'entity_id', entityId: 7 },
+        events: [
+          ev({ id: 'e', trigger: { type: 'onTimer', seconds: 1, repeat: true },
+               actions: [{ type: 'debugLog', message: 'r' }] }),
+        ],
+      },
     ])
     // Each public API call should appear exactly once — inside its helper
     // in the prelude. Emit sites must go through the helpers.
