@@ -26,6 +26,10 @@ artcade_test(variable_manager_test
     variable-manager-test.cpp
     artcade-variable-manager)
 
+artcade_test(physics_body_rules_test
+    physics-body-rules-test.cpp
+    artcade-runtime-entity-gateway)
+
 artcade_test(game_state_test
     game-state-test.cpp
     "artcade-game-state;artcade-event-bus")

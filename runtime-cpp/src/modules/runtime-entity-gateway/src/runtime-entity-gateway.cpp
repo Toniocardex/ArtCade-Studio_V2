@@ -1,4 +1,5 @@
 #include "../include/runtime-entity-gateway.h"
+#include "../include/physics-body-rules.h"
 #include "entity-registry.h"
 #include "../../scene-system/include/scene-manager.h"
 #include "../../physics/include/physics.h"
@@ -148,29 +149,15 @@ void RuntimeEntityGateway::ensurePhysicsBody(EntityId id) {
     if (!hasExplicitCollider && !hasSolid && !hasSensor)
         return;
 
-    if (!hasExplicitCollider) {
-        if (hasSensor) {
-            comp.bodyType = BodyType::Static;
-            comp.collider.isSensor = true;
-            if (sensor.shape == "Circle") {
-                comp.collider.shape = ColliderShape::Circle;
-                const float r = std::max(1.f, sensor.radius);
-                comp.collider.size = { r, r };
-            } else {
-                comp.collider.shape = ColliderShape::Rectangle;
-                comp.collider.size = {
-                    std::max(1.f, sensor.width),
-                    std::max(1.f, sensor.height),
-                };
-            }
-        } else {
-            comp.bodyType = BodyType::Dynamic;
-        }
-    }
-    if (hasPlatformer && hasExplicitCollider)
-        comp.bodyType = BodyType::Kinematic;
-    if (hasSolid)
-        comp.bodyType = BodyType::Static;
+    const EntityPhysicsFlags flags{
+        hasExplicitCollider,
+        hasPlatformer,
+        hasTopDown,
+        hasSolid,
+        hasSensor,
+    };
+    const PhysicsBodyRules rules = resolvePhysicsBodyRules(comp, flags);
+    applyPhysicsBodyRules(comp, rules, hasSensor ? &sensor : nullptr);
 
     comp.collider.size = resolveWorldColliderSize(transform, comp, hasExplicitCollider);
 
@@ -184,8 +171,7 @@ void RuntimeEntityGateway::ensurePhysicsBody(EntityId id) {
     }
     setPhysicsHandle(id, handle);
     physics_->setPosition(handle, transform.position);
-    if (hasTopDown)
-        physics_->setGravityScale(handle, 0.f);
+    physics_->setGravityScale(handle, rules.gravityScale);
 
     syncSensorFixture(id);
 }

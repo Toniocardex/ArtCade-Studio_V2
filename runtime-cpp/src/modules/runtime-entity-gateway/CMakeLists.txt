@@ -21,6 +21,7 @@ FetchContent_MakeAvailable(EnTT)
 add_library(artcade-runtime-entity-gateway
     src/runtime-entity-gateway.cpp
     src/entity-registry.cpp
+    src/physics-body-rules.cpp
 )
 target_include_directories(artcade-runtime-entity-gateway
     PUBLIC  include
