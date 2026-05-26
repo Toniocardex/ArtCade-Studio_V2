@@ -18,7 +18,7 @@ endif()
 
 if(EMSCRIPTEN)
     target_compile_definitions(artcade-editor-api PRIVATE ARTCADE_WASM)
-    target_link_libraries(artcade-editor-api PRIVATE artcade-input)
+    target_link_libraries(artcade-editor-api PUBLIC artcade-input)
     message(STATUS "[ArtCade] editor-api  : WASM — full bridge (EMSCRIPTEN_KEEPALIVE + EM_ASM)")
 else()
     message(STATUS "[ArtCade] editor-api  : Native — no-op stubs only")

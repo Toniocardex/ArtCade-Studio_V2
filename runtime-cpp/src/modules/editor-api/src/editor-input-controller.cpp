@@ -3,7 +3,7 @@
 #ifdef __EMSCRIPTEN__
 
 #include "../include/editor-api.h"
-#include "../../../modules/input/include/pointer-coords.h"
+#include "pointer-coords.h"
 #include "../../../modules/runtime-entity-gateway/include/runtime-entity-gateway.h"
 #include "../../../modules/renderer/include/renderer.h"
 #include "../../../core/types.h"
@@ -35,7 +35,7 @@ enum EditorToolId {
 // (e.g. 1280x720). Without this scale the painted cell / dragged entity
 // would be offset proportionally to the CSS downscale factor.
 void toScreen(const EmscriptenMouseEvent* e, float& sxOut, float& syOut) {
-    const Vec2 fb = pointerCoordsNormalizeToFramebuffer(
+    const Vec2 fb = Modules::pointerCoordsNormalizeToFramebuffer(
         static_cast<float>(e->targetX),
         static_cast<float>(e->targetY));
     sxOut = fb.x;
@@ -200,7 +200,7 @@ namespace EditorInputController {
 
 void initCanvas(const char* canvasSelector) {
     if (canvasSelector && *canvasSelector) s_canvasSel = canvasSelector;
-    pointerCoordsSetCanvasSelector(s_canvasSel.c_str());
+    Modules::pointerCoordsSetCanvasSelector(s_canvasSel.c_str());
     emscripten_set_mousemove_callback(canvasSelector, nullptr, 1, EditorAPI::onMouseMove);
     emscripten_set_mousedown_callback(canvasSelector, nullptr, 1, EditorAPI::onMouseDown);
     emscripten_set_mouseup_callback  (canvasSelector, nullptr, 1, EditorAPI::onMouseUp);

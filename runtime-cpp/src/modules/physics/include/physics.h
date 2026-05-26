@@ -46,6 +46,8 @@ public:
 
     // ---- Velocity / position ------------------------------------------------
     void setLinearVelocity(uint32_t handle, const Vec2& vel);
+    /** Per-entity gravity multiplier (0 = ignore world gravity, e.g. top-down). */
+    void setGravityScale(uint32_t handle, float scale);
     Vec2 getLinearVelocity(uint32_t handle) const;
     void setPosition(uint32_t handle, const Vec2& pos);
     Vec2 getPosition(uint32_t handle) const;

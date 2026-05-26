@@ -221,6 +221,12 @@ void Physics::setLinearVelocity(uint32_t handle, const Vec2& vel) {
         it->second.body->SetLinearVelocity(toB2(vel));
 }
 
+void Physics::setGravityScale(uint32_t handle, float scale) {
+    auto it = impl_->bodies.find(handle);
+    if (it != impl_->bodies.end())
+        it->second.body->SetGravityScale(scale);
+}
+
 Vec2 Physics::getLinearVelocity(uint32_t handle) const {
     auto it = impl_->bodies.find(handle);
     if (it == impl_->bodies.end()) return {};

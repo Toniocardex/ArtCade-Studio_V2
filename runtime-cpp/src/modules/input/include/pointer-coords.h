@@ -2,7 +2,7 @@
 
 #include "../../../core/types.h"
 
-namespace ArtCade {
+namespace ArtCade::Modules {
 
 /** Canvas CSS selector used for Emscripten CSS→framebuffer scale (default #artcade-canvas). */
 void pointerCoordsSetCanvasSelector(const char* selector);
@@ -14,4 +14,4 @@ void pointerCoordsSetCanvasSelector(const char* selector);
  */
 Vec2 pointerCoordsNormalizeToFramebuffer(float x, float y);
 
-} // namespace ArtCade
+} // namespace ArtCade::Modules

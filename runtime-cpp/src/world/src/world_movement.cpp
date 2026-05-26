@@ -175,6 +175,7 @@ void World::tickTopDownControllers(float dt) {
 
             const uint32_t handle = entityGateway_.physicsHandle(id);
             if (handle != 0) {
+                physics_.setGravityScale(handle, 0.f);
                 physics_.setLinearVelocity(handle, rt.velocity);
                 return;
             }

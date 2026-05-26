@@ -6,7 +6,7 @@
 #include <emscripten/html5.h>
 #endif
 
-namespace ArtCade {
+namespace ArtCade::Modules {
 
 namespace {
 
@@ -35,4 +35,4 @@ Vec2 pointerCoordsNormalizeToFramebuffer(float x, float y) {
 #endif
 }
 
-} // namespace ArtCade
+} // namespace ArtCade::Modules
