@@ -134,6 +134,8 @@ Il puntatore globale **non elimina** il globale: **concentra** lo stato e rende 
 
 ## 9. Pipeline di frame e doppia fonte di verità
 
+**Dettaglio operativo (ordine reale in PLAY):** [`FIXED_STEP_CONTRACT.md`](FIXED_STEP_CONTRACT.md) — allineato a `Application::tickFixedStep` in `runtime-cpp/src/app/src/app.cpp`.
+
 Se Box2D e Lua (o l’input) **scrivono la posizione** nello stesso frame senza regole, compare **jitter**. Si impone una **pipeline rigida** e si definisce **chi è autorità** sui dati.
 
 | Fase | Responsabilità |

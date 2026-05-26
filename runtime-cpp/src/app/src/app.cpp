@@ -413,6 +413,8 @@ bool Application::loadProject(const std::string& projectPath) {
 }
 
 // ---- Single frame -------------------------------------------------------
+// Fixed-step order (gameplay → Lua → physics → sync → sensors): see
+// docs/FIXED_STEP_CONTRACT.md — keep new systems aligned with that contract.
 
 void Application::tickFixedStep(float dt) {
     using Clock = std::chrono::steady_clock;

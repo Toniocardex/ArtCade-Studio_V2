@@ -44,6 +44,8 @@ ARCHITECTURE_INTEGRATION.md (Scenario: "User clicks PLAY", flussi dati)
 ```
 LOGIC_BOARD_SPEC.md          (Parte I glossario Logic Board / Event / Component)
     ↓
+FIXED_STEP_CONTRACT.md            (ordine tickFixedStep, Transform vs Box2D)
+    ↓
 ARCHITETTURA_TECNICA_ENGINE_2D.md  (Stack, §8–10, §11 stato repo + roadmap)
     ↓
 TECHNICAL_OVERVIEW.md     § 3.5 (ECS Architecture)
@@ -97,6 +99,7 @@ Guida specializzata         (REACT_WASM_PATTERN.md o ECS_IMPLEMENTATION_GUIDE.md
 | **LOGIC_BOARD_CONDITIONAL_DESIGN.md** | OR/AND ad albero, IF/ELSE, branch vs compatto, grafo, codegen Lua, didattica | ~10min | Editor / codegen | ⭐ |
 | **PIANO_SVILUPPO_COMMERCIALE.md** | Early Access 8 settimane: stabilità editor, demo, export web, vendita | ~15min | Product / founder | ⭐ |
 | **GUIDA_INTEGRAZIONE_SPLASH_LICENZE.md** | Splash editor vs runtime; Free/Pro; `pack-artcade.py`; watermark C++ | ~10min | Editor / tooling / runtime | ⭐ |
+| **FIXED_STEP_CONTRACT.md** | Ordine `tickFixedStep`, chi scrive Transform/body, latency intent Lua, physicsMode | ~5min | C++ / gameplay | ⭐⭐ |
 | **GLOBAL_LOGIC_UI_ARCHITECTURE.md** | Sensori Box2D, platformer feel, azioni world, UI screen-space, text juice | ~8min | C++ / gameplay / UI | ⭐ |
 | **PHYSICS_OPTIONAL_INTEGRATION_PLAN.md** | Piano: physics opt-in, platformer kinematic (`customGravity`), skip `physics.step` in arcade | ~15min | C++ / Editor / Product | ⭐⭐ |
 | **ArtCade_V2_Riepilogo_Suggerimenti.md** | Visione UX Logic Board (8 gruppi), shader, controlli artist-friendly | ~10min | Design / product | ⭐ |
@@ -116,7 +119,8 @@ Setup e build pratici: **[README.md](../README.md)** (root) — pipeline, script
 | **ECS Performance** | ARCHITECTURAL_RATIONALE | §1 | Data-driven |
 | **Game Loop** | TECHNICAL_OVERVIEW | §6 | Dettagliato |
 | **EngineContext / Reset** | ARCHITETTURA_TECNICA_ENGINE_2D | §8 | Operativo |
-| **Pipeline frame (fisica/sync)** | ARCHITETTURA_TECNICA_ENGINE_2D | §9 | Operativo |
+| **Pipeline frame (fisica/sync)** | FIXED_STEP_CONTRACT.md | Intero | Operativo |
+| **Pipeline frame (concetti)** | ARCHITETTURA_TECNICA_ENGINE_2D | §9 | Operativo |
 | **Asset WASM / alias** | ARCHITETTURA_TECNICA_ENGINE_2D | §4, §10 | Operativo |
 | **Stato repo vs architettura target** | ARCHITETTURA_TECNICA_ENGINE_2D | §11 | Operativo |
 | **Terminologia + Sheet + Logic Board** | LOGIC_BOARD_SPEC.md | Parte I–III (vedi indice nel file) | ⭐⭐⭐ |

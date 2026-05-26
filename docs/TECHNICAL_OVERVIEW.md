@@ -1057,7 +1057,8 @@ local r   = physics.raycast(x1, y1, x2, y2)  -- {hit, entityId, px, py}
 input.isKeyDown("KeyW")          -- held
 input.wasKeyPressed("Space")     -- edge: true solo 1 frame
 input.wasKeyReleased("Enter")
-local mx, my = input.mousePosition()
+local mx, my = input.mousePosition()   -- screen / framebuffer (UI)
+local wx, wy = input.mouseWorld()      -- world space (gameplay, same camera as draw)
 
 -- ── AUDIO ──────────────────────────────────────────────────
 audio.playSound("assets/audio/coin.ogg", 1.0, 1.0)
