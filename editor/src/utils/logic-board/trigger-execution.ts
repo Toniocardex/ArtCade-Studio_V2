@@ -108,7 +108,17 @@ export function usesTickFallback(
   if (trig.type === 'onTriggerEnter' || trig.type === 'onTriggerExit')
     return false
   if (trig.type === 'onAnimationEnd') return false
-  if (trig.type === 'onSpawn') return !canRegisterLifecycleSpawn(ev, board, project)
+  if (trig.type === 'onSpawn') {
+    // Never tick-fallback. Falling into the generic per-frame gate path
+    // would make the rule fire every frame for the pool — a real
+    // every-frame bug surfaced in the review. If we can't register the
+    // lifecycle handler (no resolvable className), the event is silently
+    // dropped by emitEventRegistration → the rule does nothing rather
+    // than misfire. The compatibility matrix already requires an entity
+    // target, and call sites in the editor always pass project context,
+    // so this drop is theoretical for the current call graph.
+    return false
+  }
   if (trig.type === 'onDestroy') return !canRegisterLifecycleDestroy(ev, board, project)
   return true
 }

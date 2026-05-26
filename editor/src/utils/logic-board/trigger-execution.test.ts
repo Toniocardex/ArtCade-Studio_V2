@@ -61,6 +61,18 @@ describe('trigger-execution', () => {
     expect(usesTickFallback(event, b)).toBe(false)
   })
 
+  it('onSpawn never tick-fallbacks even when no class resolves (N3 guard)', () => {
+    // entity_id board without a project -> no resolvable className.
+    // Previously this would route to tick fallback and the generic gate
+    // path would fire actions every frame. After N3, usesTickFallback
+    // returns false unconditionally for onSpawn; emitEventRegistration
+    // returns null so the event is silently dropped instead.
+    const b = board({ type: 'entity_id', entityId: 99 })
+    const event = ev({ type: 'onSpawn' })
+    expect(canRegisterLifecycleSpawn(event, b)).toBe(false)
+    expect(usesTickFallback(event, b)).toBe(false)
+  })
+
   it('onDestroy on entity_id board resolves class from project', () => {
     const b = board({ type: 'entity_id', entityId: 1 })
     const event = ev({ type: 'onDestroy' })

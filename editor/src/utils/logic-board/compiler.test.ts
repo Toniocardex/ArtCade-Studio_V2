@@ -868,6 +868,32 @@ describe('Global-target boards (no entity context)', () => {
   })
 })
 
+describe('N3 — onSpawn safe drop without resolvable class', () => {
+  it('emits no action code for onSpawn on entity_id board without project context', () => {
+    // Theoretical scenario: someone calls compileLogicBoard with no project.
+    // entity_id can't resolve a className without project lookup.
+    // Pre-N3: usesTickFallback returned true, falling into the generic
+    // gate path and firing actions every frame. Post-N3: the event is
+    // silently dropped (no registration, no tick body).
+    const lua = compileLogicBoard([
+      {
+        boardId: 'b1',
+        target: { type: 'entity_id', entityId: 99 },
+        events: [
+          ev({
+            trigger: { type: 'onSpawn' },
+            actions: [{ type: 'debugLog', message: 'SHOULD_NOT_APPEAR' }],
+          }),
+        ],
+      },
+    ])
+    expect(lua).not.toContain('SHOULD_NOT_APPEAR')
+    // Specifically the every-frame symptom: no per-pool for-loop over { 99 }
+    // wrapping the action.
+    expect(lua).not.toContain('debug.log("SHOULD_NOT_APPEAR")')
+  })
+})
+
 describe('Logic Components — Phase C (engine-hook triggers)', () => {
   it('onSpawn registers a lifecycle handler', () => {
     const lua = compileLogicBoard([

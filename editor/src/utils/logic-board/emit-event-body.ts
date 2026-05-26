@@ -46,6 +46,14 @@ export function emitEventBody(
     return lines
   }
 
+  if (trig.type === 'onSpawn') {
+    // Always registered via lifecycle.onSpawn (usesTickFallback returns
+    // false for onSpawn). If we ever land here, emit nothing — the old
+    // generic gate path made onSpawn fire every frame. Belt-and-suspenders
+    // for any future code path that calls this function with onSpawn.
+    return lines
+  }
+
   if (trig.type === 'onDestroy') {
     // Fallback path only. Iteration scaffolding (for de in _destroy_events do
     // local self = de.entityId ...) is emitted by compiler.ts so this body
