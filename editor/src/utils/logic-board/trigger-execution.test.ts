@@ -44,6 +44,19 @@ describe('trigger-execution', () => {
     expect(getTriggerExecutionMode(down.trigger)).toBe('polling')
   })
 
+  it('onInput NOT uses polling for all event types', () => {
+    const notHeld = ev({
+      type: 'onInput',
+      keyCode: 'ShiftLeft',
+      keyCombine: 'NOT',
+      eventType: 'pressed',
+    })
+    expect(usesTickFallback(notHeld, board({ type: 'entity_class', className: 'P' }))).toBe(
+      true,
+    )
+    expect(getTriggerExecutionMode(notHeld.trigger)).toBe('polling')
+  })
+
   it('onDestroy uses event when board targets a class', () => {
     const b = board({ type: 'entity_class', className: 'Enemy' })
     const event = ev({ type: 'onDestroy' })

@@ -44,7 +44,12 @@ function triggerSlugSource(t: LogicTrigger): string {
       const verb = t.eventType === 'pressed' ? 'press'
         : t.eventType === 'released' ? 'release' : 'hold'
       const codes = getOnInputKeyCodes(t)
-      const sep = (t.keyCombine ?? 'OR') === 'AND' ? '_and_' : '_or_'
+      const sep =
+        (t.keyCombine ?? 'OR') === 'AND'
+          ? '_and_'
+          : (t.keyCombine ?? 'OR') === 'NOT'
+            ? '_not_'
+            : '_or_'
       const keyPart =
         codes.length > 1
           ? codes.map((c) => shortKeyLabel(c)).join(sep)

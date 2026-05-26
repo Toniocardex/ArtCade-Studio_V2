@@ -1,9 +1,11 @@
 // ---------------------------------------------------------------------------
-// onInput trigger — primary key, OR/AND alternates, event type
+// onInput trigger — primary key, OR/AND/NOT alternates, event type
 // ---------------------------------------------------------------------------
 
 import type { LogicTrigger } from '../../types/logic-board'
+import type { ConditionCombineOp } from '../../utils/logic-board/condition-combine'
 import { getKeyCombine } from '../../utils/logic-board/on-input-keys'
+import { ConditionCombineSelect } from './ConditionCombineSelect'
 import { KeyCapture, formatKeyLabel } from './KeyCapture'
 
 const sel =
@@ -15,6 +17,22 @@ const combineBadge =
 
 type OnInputTrigger = Extract<LogicTrigger, { type: 'onInput' }>
 
+function combineHint(combine: ConditionCombineOp): string {
+  if (combine === 'AND') {
+    return 'Fire when the player holds all keys together (AND), e.g. W and Ctrl.'
+  }
+  if (combine === 'NOT') {
+    return 'Fire when none of these keys match (NOT), e.g. move while Shift is not held.'
+  }
+  return 'Fire when the player uses any of these keys (OR), e.g. W or Space for jump.'
+}
+
+function joinLabel(combine: ConditionCombineOp): string {
+  if (combine === 'AND') return 'and'
+  if (combine === 'NOT') return 'not'
+  return 'or'
+}
+
 export function OnInputTriggerFields({
   trigger,
   onChange,
@@ -24,22 +42,21 @@ export function OnInputTriggerFields({
 }) {
   const alternates = trigger.alternateKeyCodes ?? []
   const combine = getKeyCombine(trigger)
-  const joinWord = combine === 'AND' ? 'and' : 'or'
+  const joinWord = joinLabel(combine)
 
   const setAlternates = (codes: string[]) => {
     onChange({
       ...trigger,
       alternateKeyCodes: codes.length > 0 ? codes : undefined,
-      keyCombine: codes.length > 0 ? combine : undefined,
+      keyCombine: codes.length > 0 ? combine : combine === 'NOT' ? 'NOT' : undefined,
     })
   }
 
   return (
     <div className="flex flex-col gap-2 w-full">
       <p className="text-[10px] leading-snug text-[var(--muted)]">
-        {combine === 'AND'
-          ? 'Fire when the player presses all keys together (AND), e.g. W and Ctrl for a modifier combo.'
-          : 'Fire when the player uses any of these keys (OR), e.g. W or Space for jump.'}
+        {combineHint(combine)} World checks (grounded, score, …) go in{' '}
+        <strong>Also require…</strong> with the same AND / OR / NOT menu.
       </p>
       <div className="flex flex-wrap items-center gap-2">
         <span className={lbl}>Key</span>
@@ -47,23 +64,17 @@ export function OnInputTriggerFields({
           value={trigger.keyCode}
           onChange={(keyCode) => onChange({ ...trigger, keyCode })}
         />
-        {alternates.length > 0 && (
-          <select
-            className={sel}
-            value={combine}
-            onChange={(e) =>
-              onChange({
-                ...trigger,
-                keyCombine: e.target.value as OnInputTrigger['keyCombine'],
-              })
-            }
-            title="Combine keys with OR or AND"
-            aria-label="Combine keys"
-          >
-            <option value="OR">OR</option>
-            <option value="AND">AND</option>
-          </select>
-        )}
+        <ConditionCombineSelect
+          className={sel}
+          value={combine}
+          aria-label="Combine keys"
+          onChange={(op) =>
+            onChange({
+              ...trigger,
+              keyCombine: op,
+            })
+          }
+        />
         {alternates.map((code, i) => (
           <span key={`${code}-${i}`} className="flex items-center gap-2">
             <span className={combineBadge}>{joinWord}</span>
@@ -125,12 +136,16 @@ export function OnInputTriggerFields({
               : 'Every frame while held'}
         </span>
       </div>
-      {alternates.length > 0 && (
+      {(alternates.length > 0 || combine === 'NOT') && (
         <p className="text-[10px] text-[var(--muted)]">
           Summary:{' '}
-          {[trigger.keyCode, ...alternates]
-            .map((c) => formatKeyLabel(c))
-            .join(` ${combine} `)}
+          {combine === 'NOT' && alternates.length === 0
+            ? `NOT ${formatKeyLabel(trigger.keyCode)}`
+            : combine === 'NOT'
+              ? `NOT (${[trigger.keyCode, ...alternates].map((c) => formatKeyLabel(c)).join(' or ')})`
+              : [trigger.keyCode, ...alternates]
+                  .map((c) => formatKeyLabel(c))
+                  .join(` ${combine} `)}
         </p>
       )}
     </div>

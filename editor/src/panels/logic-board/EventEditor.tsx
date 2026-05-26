@@ -2,7 +2,7 @@
 // Expanded rule editor - When / Also require… / Then blocks
 // ---------------------------------------------------------------------------
 
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import {
   Check,
   Copy,
@@ -253,7 +253,9 @@ function AlsoRequireSectionHints({
   if (!onlyIfEnabled) {
     return (
       <p className="text-[10px] leading-snug text-[var(--muted)]">
-        Optional — turn on only for extra world checks beyond <strong>When</strong>.
+        Optional — turn on for extra checks beyond <strong>When</strong>. Includes{' '}
+        <strong>AND | OR | NOT</strong> (Match rules) and <strong>Pass / NOT</strong> per
+        check.
       </p>
     )
   }
@@ -262,13 +264,15 @@ function AlsoRequireSectionHints({
       <p className="text-[10px] leading-snug text-[var(--muted)]">
         Key combos (W <strong>and</strong> Ctrl) or alternatives (W <strong>or</strong>{' '}
         Space) belong in <strong>When</strong>. Use <strong>Also require…</strong> for
-        grounded, score, touching type — not extra keys.
+        grounded, score, touching type — not extra keys. Use <strong>Match rules</strong>{' '}
+        and row <strong>NOT</strong> for inversion.
       </p>
     )
   }
   return (
     <p className="text-[10px] leading-snug text-[var(--muted)]">
-      Extra checks that must pass in addition to <strong>When</strong>.
+      Extra checks beyond <strong>When</strong> — <strong>Match rules</strong>: AND, OR,
+      or NOT; each row can be Pass or NOT.
     </p>
   )
 }
@@ -293,30 +297,30 @@ function SimpleConditions({
 
   return (
     <div className="space-y-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-[10px] font-medium text-[var(--muted)]">
-          Match rules
-        </span>
-        <ConditionCombineSelect
-          className={condSel}
-          value={combineOp}
-          onChange={(op: ConditionCombineOp) =>
-            onChange({
-              ...event,
-              conditionsOperator: op,
-              conditionRoot: undefined,
-            })
-          }
-        />
-      </div>
       {conditions.length === 0 && (
         <p className="text-[11px] italic text-[var(--muted)]">
           Also require… is on, but no checks have been added yet.
         </p>
       )}
       {conditions.map((c, i) => (
+        <Fragment key={i}>
+          {i > 0 && (
+            <div className="flex flex-wrap items-center gap-2 py-0.5 pl-1">
+              <ConditionCombineSelect
+                className={condSel}
+                value={combineOp}
+                aria-label="Combine checks"
+                onChange={(op: ConditionCombineOp) =>
+                  onChange({
+                    ...event,
+                    conditionsOperator: op,
+                    conditionRoot: undefined,
+                  })
+                }
+              />
+            </div>
+          )}
         <div
-          key={i}
           className="flex flex-wrap items-center gap-2 rounded border border-[var(--border)] bg-[var(--bg)] px-2 py-1.5"
         >
           <ConditionPolaritySelect
@@ -367,7 +371,28 @@ function SimpleConditions({
             Remove
           </button>
         </div>
+        </Fragment>
       ))}
+      {conditions.length === 1 && (
+        <div className="flex flex-wrap items-center gap-2 py-0.5 pl-1">
+          <span className="text-[10px] text-[var(--muted)]">Combine</span>
+          <ConditionCombineSelect
+            className={condSel}
+            value={combineOp}
+            aria-label="Combine checks"
+            onChange={(op: ConditionCombineOp) =>
+              onChange({
+                ...event,
+                conditionsOperator: op,
+                conditionRoot: undefined,
+              })
+            }
+          />
+          <span className="text-[10px] text-[var(--muted)]">
+            Use NOT to invert this single check.
+          </span>
+        </div>
+      )}
       <button
         type="button"
         className={link}

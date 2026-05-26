@@ -46,8 +46,8 @@ export type LogicTrigger =
       keyCode: string
       /** Additional keys combined with primary via keyCombine (default OR). */
       alternateKeyCodes?: string[]
-      /** OR = any key; AND = all keys together (e.g. W + Ctrl). */
-      keyCombine?: 'OR' | 'AND'
+      /** OR = any key; AND = all keys together; NOT = none of these keys. */
+      keyCombine?: 'OR' | 'AND' | 'NOT'
       eventType: 'pressed' | 'down' | 'released'
     }
   | { type: 'onMouseInput'; button: 'left' | 'right'; eventType: 'pressed' | 'down' | 'released' }

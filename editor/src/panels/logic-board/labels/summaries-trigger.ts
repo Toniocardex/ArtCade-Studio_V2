@@ -42,8 +42,17 @@ export function triggerSummaryPlain(
       return 'When this object is destroyed'
     case 'onInput': {
       const keys = getOnInputKeyCodes(t).map((c) => formatKeyLabel(c))
-      const join = getKeyCombine(t) === 'AND' ? ' and ' : ' or '
-      const keyLabel = keys.length > 1 ? keys.join(join) : keys[0]
+      const combine = getKeyCombine(t)
+      const join =
+        combine === 'AND' ? ' and ' : combine === 'NOT' ? ' not ' : ' or '
+      const keyLabel =
+        combine === 'NOT' && keys.length > 1
+          ? `not (${keys.join(' or ')})`
+          : combine === 'NOT'
+            ? `not ${keys[0]}`
+            : keys.length > 1
+              ? keys.join(join)
+              : keys[0]
       const when =
         t.eventType === 'pressed'
           ? 'presses'

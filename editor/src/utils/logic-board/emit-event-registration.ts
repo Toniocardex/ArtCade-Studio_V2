@@ -13,6 +13,7 @@ import {
   getOnInputKeyCodes,
   getOnInputRegistrationKeys,
   onInputGateExpr,
+  onInputUsesPolling,
 } from './on-input-keys'
 import { boardLifecycleClass } from './trigger-execution'
 import { emitGuardedActions } from './emit-actions'
@@ -67,7 +68,11 @@ export function emitEventRegistration(
     ]
   }
 
-  if (trig.type === 'onInput' && trig.eventType !== 'down') {
+  if (
+    trig.type === 'onInput' &&
+    trig.eventType !== 'down' &&
+    !onInputUsesPolling(trig)
+  ) {
     const helper =
       trig.eventType === 'pressed' ? '_logic_reg_input_pressed' : '_logic_reg_input_released'
     const codes = getOnInputKeyCodes(trig)

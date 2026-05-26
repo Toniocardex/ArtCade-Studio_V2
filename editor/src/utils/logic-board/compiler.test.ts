@@ -374,6 +374,25 @@ describe('compileLogicBoard — triggers', () => {
     )
   })
 
+  it('onInput NOT combo polls with inverted gate', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({
+          trigger: {
+            type: 'onInput',
+            keyCode: 'ShiftLeft',
+            alternateKeyCodes: ['ShiftRight'],
+            keyCombine: 'NOT',
+            eventType: 'down',
+          },
+          actions: [{ type: 'debugLog', message: 'no shift' }],
+        }),
+      ]),
+    ])
+    expect(lua).toMatch(/not \(.*isKeyDown\("ShiftLeft"\).*or.*isKeyDown\("ShiftRight"\)/s)
+    expect(lua).not.toMatch(/_logic_reg_input_pressed\("ShiftLeft"/)
+  })
+
   it('onInput AND combo registers primary only and gates modifiers', () => {
     const lua = compileLogicBoard([
       board([

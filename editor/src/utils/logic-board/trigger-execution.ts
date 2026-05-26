@@ -10,6 +10,7 @@ import type {
   LogicTriggerType,
 } from '../../types/logic-board'
 import type { ProjectDoc } from '../../types'
+import { onInputUsesPolling } from './on-input-keys'
 
 export type TriggerExecutionMode = 'event' | 'polling' | 'hybrid'
 
@@ -104,7 +105,10 @@ export function usesTickFallback(
       trig.type === 'onTimer'
     )
   ) return true
-  if (trig.type === 'onInput') return trig.eventType === 'down'
+  if (trig.type === 'onInput') {
+    if (onInputUsesPolling(trig)) return true
+    return trig.eventType === 'down'
+  }
   if (trig.type === 'onTimer') {
     // Class-targeted timers need per-instance accumulators so each entity
     // has its own clock. The registration path (time.every) is a single
@@ -143,7 +147,7 @@ export function getTriggerExecutionMode(
   }
 
   if (trigger.type === 'onInput') {
-    return trigger.eventType === 'down' ? 'polling' : 'event'
+    return onInputUsesPolling(trigger) ? 'polling' : 'event'
   }
   if (trigger.type === 'onMouseInput') return 'polling'
   if (trigger.type === 'onObjectClick') return 'polling'

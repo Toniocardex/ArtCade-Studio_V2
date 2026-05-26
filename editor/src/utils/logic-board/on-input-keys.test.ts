@@ -3,6 +3,7 @@ import {
   getOnInputKeyCodes,
   getOnInputRegistrationKeys,
   onInputGateExpr,
+  onInputUsesPolling,
 } from './on-input-keys'
 
 describe('on-input-keys', () => {
@@ -53,6 +54,30 @@ describe('on-input-keys', () => {
         eventType: 'pressed',
       }),
     ).toEqual(['KeyW'])
+  })
+
+  it('NOT combine negates OR of keys', () => {
+    const expr = onInputGateExpr({
+      type: 'onInput',
+      keyCode: 'ShiftLeft',
+      alternateKeyCodes: ['ShiftRight'],
+      keyCombine: 'NOT',
+      eventType: 'down',
+    })
+    expect(expr).toContain('not (')
+    expect(expr).toContain('input.isKeyDown("ShiftLeft")')
+    expect(expr).toContain('input.isKeyDown("ShiftRight")')
+  })
+
+  it('NOT uses polling for pressed', () => {
+    expect(
+      onInputUsesPolling({
+        type: 'onInput',
+        keyCode: 'Space',
+        keyCombine: 'NOT',
+        eventType: 'pressed',
+      }),
+    ).toBe(true)
   })
 
   it('AND down uses isKeyDown for every key', () => {
