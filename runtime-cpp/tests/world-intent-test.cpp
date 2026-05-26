@@ -159,20 +159,20 @@ static void test_platformer_kinematic_horizontal_movement_without_body() {
     CHECK(std::abs(transform.velocity.x - 240.f) < 0.01f);
 }
 
-static void test_platformer_is_grounded_false_without_physics_handle() {
+static void test_platformer_is_grounded_false_when_airborne_over_solid() {
     Fixture f;
 
     EntityDef player = makeEntity(1, "Player");
-    player.physics.bodyType = BodyType::Dynamic;
-    player.physics.collider.size = { 32.f, 32.f };
+    player.transform.position = { 160.f, 80.f };
     PlatformerControllerComponent pc;
     pc.groundClass = "Ground";
     player.platformerController = pc;
 
-    EntityDef ground = makeEntity(2, "Ground");
-    ground.physics.bodyType = BodyType::Static;
-    ground.physics.collider.size = { 128.f, 32.f };
-    ground.transform.position = { 0.f, 220.f };
+    EntityDef platform = makeEntity(2, "Platform");
+    platform.transform.position = { 160.f, 200.f };
+    SolidComponent solid;
+    solid.groundClass = "Ground";
+    platform.solid = solid;
 
     SceneDef scene;
     scene.id = "main";
@@ -181,16 +181,49 @@ static void test_platformer_is_grounded_false_without_physics_handle() {
     ProjectDoc doc;
     doc.activeSceneId = "main";
     doc.scenes = {{ scene.id, scene }};
-    doc.entities = {{ 1, player }, { 2, ground }};
+    doc.entities = {{ 1, player }, { 2, platform }};
     f.world.init(doc);
 
-    const uint32_t playerHandle = f.gw.physicsHandle(1);
-    CHECK(playerHandle != 0);
-    f.physics.destroyBody(playerHandle);
-    f.gw.setPhysicsHandle(1, 0);
+    CHECK(f.gw.physicsHandle(1) == 0);
+    CHECK(!f.world.isPlatformerGrounded(1));
+}
+
+static void test_platformer_grounded_on_solid_without_player_physics() {
+    Fixture f;
+
+    EntityDef player = makeEntity(1, "Player", {"player"});
+    player.transform.position = { 160.f, 179.f };
+    PlatformerControllerComponent pc;
+    pc.jumpForce = 420.f;
+    pc.groundClass = "Ground";
+    player.platformerController = pc;
+
+    EntityDef platform = makeEntity(2, "Platform");
+    platform.transform.position = { 160.f, 200.f };
+    platform.transform.scale = { 10.f, 0.3125f };
+    SolidComponent solid;
+    solid.groundClass = "Ground";
+    platform.solid = solid;
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1, 2 };
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.scenes = {{ scene.id, scene }};
+    doc.entities = {{ 1, player }, { 2, platform }};
+    f.world.init(doc);
+
     CHECK(f.gw.physicsHandle(1) == 0);
     CHECK(f.gw.physicsHandle(2) != 0);
-    CHECK(!f.world.isPlatformerGrounded(1));
+    CHECK(f.world.isPlatformerGrounded(1));
+
+    f.world.requestJump(1);
+    f.tickFrame(1.f / 60.f);
+    Transform transform{};
+    CHECK(f.gw.getTransform(1, transform));
+    CHECK(transform.velocity.y < -419.f);
 }
 
 static void test_platformer_with_physics_collider_is_kinematic_body() {
@@ -1163,7 +1196,8 @@ int main() {
     test_platformer_only_has_no_implicit_physics_body();
     test_platformer_kinematic_falls_with_custom_gravity();
     test_platformer_kinematic_horizontal_movement_without_body();
-    test_platformer_is_grounded_false_without_physics_handle();
+    test_platformer_is_grounded_false_when_airborne_over_solid();
+    test_platformer_grounded_on_solid_without_player_physics();
     test_platformer_with_physics_collider_is_kinematic_body();
     test_platformer_movement_intent_without_input();
     test_platformer_jump_intent_without_input();

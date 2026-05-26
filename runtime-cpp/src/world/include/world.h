@@ -116,6 +116,7 @@ private:
     void forgetEntity(EntityId id);
 
     bool isGrounded(EntityId id, const std::string& groundClass) const;
+    bool isGroundedOnSolidAabb(EntityId id, const std::string& groundClass) const;
     void tickPlatformerControllers(float dt);
     void tickTopDownControllers(float dt);
     void tickLinearMovers(float dt);

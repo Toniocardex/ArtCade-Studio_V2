@@ -10,31 +10,59 @@ bool World::isPlatformerGrounded(EntityId id) const {
     return isGrounded(id, pc.groundClass);
 }
 
-bool World::isGrounded(EntityId id, const std::string& groundClass) const {
-    const uint32_t selfHandle = entityGateway_.physicsHandle(id);
-    if (selfHandle == 0) return false;
+bool World::isGroundedOnSolidAabb(EntityId id, const std::string& groundClass) const {
+    const WorldInternal::WorldAabb player = WorldInternal::worldAabb(entityGateway_, id);
+    const float feetY = player.maxY;
+
+    const float snapDownPx = 6.f;
+    const float snapUpPx   = 2.f;
 
     bool grounded = false;
     entityGateway_.forEachActiveSolid(
-        [this, id, selfHandle, &groundClass, &grounded]
+        [id, feetY, player, snapDownPx, snapUpPx, &groundClass, &grounded, this]
         (EntityId otherId, const SolidComponent& solid) {
             if (grounded || otherId == id) return;
             if (solid.groundClass != groundClass) return;
-            const uint32_t otherHandle = entityGateway_.physicsHandle(otherId);
-            if (otherHandle == 0) return;
-            if (physics_.areOverlapping(selfHandle, otherHandle))
-                grounded = true;
-        });
-    if (grounded) return true;
 
-    for (EntityId otherId : entityGateway_.poolByClass(groundClass)) {
-        if (otherId == id) continue;
-        const uint32_t otherHandle = entityGateway_.physicsHandle(otherId);
-        if (otherHandle == 0) continue;
-        if (physics_.areOverlapping(selfHandle, otherHandle))
-            return true;
+            const WorldInternal::WorldAabb ground =
+                WorldInternal::worldAabb(entityGateway_, otherId);
+            const float topY = ground.minY;
+
+            if (feetY < topY - snapDownPx || feetY > topY + snapUpPx)
+                return;
+            if (player.maxX < ground.minX || player.minX > ground.maxX)
+                return;
+            grounded = true;
+        });
+    return grounded;
+}
+
+bool World::isGrounded(EntityId id, const std::string& groundClass) const {
+    const uint32_t selfHandle = entityGateway_.physicsHandle(id);
+    if (selfHandle != 0) {
+        bool grounded = false;
+        entityGateway_.forEachActiveSolid(
+            [this, id, selfHandle, &groundClass, &grounded]
+            (EntityId otherId, const SolidComponent& solid) {
+                if (grounded || otherId == id) return;
+                if (solid.groundClass != groundClass) return;
+                const uint32_t otherHandle = entityGateway_.physicsHandle(otherId);
+                if (otherHandle == 0) return;
+                if (physics_.areOverlapping(selfHandle, otherHandle))
+                    grounded = true;
+            });
+        if (grounded) return true;
+
+        for (EntityId otherId : entityGateway_.poolByClass(groundClass)) {
+            if (otherId == id) continue;
+            const uint32_t otherHandle = entityGateway_.physicsHandle(otherId);
+            if (otherHandle == 0) continue;
+            if (physics_.areOverlapping(selfHandle, otherHandle))
+                return true;
+        }
     }
-    return false;
+
+    return isGroundedOnSolidAabb(id, groundClass);
 }
 
 void World::tickPlatformerControllers(float dt) {

@@ -44,6 +44,54 @@ inline Vec2 constrainTopDownDirection(Vec2 direction, bool fourDirections) {
     return normalizeOrZero(direction);
 }
 
+constexpr float kDefaultColliderSize = 32.f;
+
+inline Vec2 worldColliderSize(const Modules::RuntimeEntityGateway& gateway,
+                              EntityId id)
+{
+    Transform transform{};
+    gateway.getTransform(id, transform);
+    PhysicsComponent comp{};
+    gateway.getPhysicsComponent(id, comp);
+
+    const bool hasExplicit = comp.collider.size.x > 2.f || comp.collider.size.y > 2.f;
+    const Vec2 base = hasExplicit
+        ? comp.collider.size
+        : Vec2{ kDefaultColliderSize, kDefaultColliderSize };
+    if (hasExplicit) {
+        return {
+            std::max(1.f, base.x),
+            std::max(1.f, base.y),
+        };
+    }
+    return {
+        std::max(1.f, base.x * std::abs(transform.scale.x)),
+        std::max(1.f, base.y * std::abs(transform.scale.y)),
+    };
+}
+
+struct WorldAabb {
+    float minX = 0.f;
+    float minY = 0.f;
+    float maxX = 0.f;
+    float maxY = 0.f;
+};
+
+inline WorldAabb worldAabb(const Modules::RuntimeEntityGateway& gateway, EntityId id)
+{
+    Transform transform{};
+    gateway.getTransform(id, transform);
+    const Vec2 size = worldColliderSize(gateway, id);
+    const float halfW = size.x * 0.5f;
+    const float halfH = size.y * 0.5f;
+    return {
+        transform.position.x - halfW,
+        transform.position.y - halfH,
+        transform.position.x + halfW,
+        transform.position.y + halfH,
+    };
+}
+
 inline void applySteeringVelocity(Modules::Physics& physics,
                                   Modules::RuntimeEntityGateway& gateway,
                                   EntityId id,

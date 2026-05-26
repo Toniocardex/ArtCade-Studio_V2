@@ -2,7 +2,7 @@
 
 > **Versione**: 1.2  
 > **Data**: 2026-05-25  
-> **Status**: Fase 1 — modello nativo transform-first; Fase 2 (grounded raycast) non iniziata  
+> **Status**: Fase 2 chiusa — grounded via Solid AABB; Fase 3 (`physicsMode`) non iniziata  
 > **Audience**: C++ / Editor / Product  
 > **Collegamenti**: `GLOBAL_LOGIC_UI_ARCHITECTURE.md`, `ARTIST_FRIENDLY_COMPONENTS.md`, `ARCHITETTURA_TECNICA_ENGINE_2D.md` §9, `ENGINE_INTEGRATION_ROADMAP.md` (tracker engine separato)
 
@@ -176,7 +176,7 @@ flowchart TB
 
 ## 7. Fasi di implementazione (C++)
 
-> **Fase 2–5** da Fase 1 in poi. Prossimo consigliato: **Fase 3** (step condizionale) o **Fase 2** (grounded raycast).
+> Prossimo consigliato: **Fase 3** (step condizionale), poi Fase 4 (inspector Physics) e Fase 5 (docs).
 
 ### Fase 0 — Allineamento e guardrail (1–2 giorni) ✅
 
@@ -216,9 +216,9 @@ flowchart TB
 
 ---
 
-### Fase 2 — Grounded senza overlap (opzionale ma consigliata) (3–4 giorni)
+### Fase 2 — Grounded senza overlap (opzionale ma consigliata) (3–4 giorni) ✅
 
-**Obiettivo**: terra rilevabile senza due dynamic bodies.
+**Obiettivo**: terra rilevabile senza Physics sul player (usa componente **Solid** esistente).
 
 | Opzione | Descrizione | Complessità |
 |---------|-------------|-------------|
@@ -317,7 +317,7 @@ Resta collider + `bodyType`. Documentare: **non necessario** per platformer kine
 
 | Rischio | Mitigazione |
 |---------|-------------|
-| Grounded senza collider player | Fase 2 raycast / AABB su Solid |
+| Grounded senza collider player | ✅ AABB vs entità **Solid** (`isGroundedOnSolidAabb`) |
 | Logic Board `onCollision` senza Physics sul player | Doc + warning; sensor/message per arcade puro |
 | Doppia fonte posizione | Platformer: transform autoritativo, body segue; altri: body → transform in sync |
 | Sensor senza step | `physicsMode: on` forza step; oppure sensor AABB futuro (out of scope) |
@@ -456,4 +456,21 @@ Ogni fase = PR separato reviewabile (~300–800 LOC ciascuno).
 
 ### Follow-up
 
-- Fase 2: raycast / AABB per grounded senza collider sul player.
+- ~~Fase 2: raycast / AABB per grounded senza collider sul player.~~ → Fase 2 chiusa (AABB Solid).
+
+---
+
+## Closure log (Fase 2)
+
+| Campo | Valore |
+|-------|--------|
+| **Data** | 2026-05-25 |
+| **Scope** | `isGroundedOnSolidAabb`, helper AABB in `world_internal.h` |
+| **Esito** | Chiusa |
+
+### Deliverable
+
+1. Probe AABB piedi player vs top surface di ogni entità attiva con **Solid** + `groundClass` match.
+2. `isGrounded`: overlap Box2D se player ha handle; altrimenti (o fallback) AABB Solid.
+3. Test: airborne false; platformer-only su Solid scaled → grounded + jump.
+4. Nessun nuovo componente — riusa `SolidComponent` + transform/scale per dimensioni.
