@@ -7,9 +7,7 @@ import {
   type ComponentDescriptor,
 } from './component-registry'
 import { InspectorSection } from './inspector-fields'
-import {
-  componentBlockId,
-} from './entity-component-utils'
+import { AddPhysicsBar, PhysicsSection } from './PhysicsSection'
 
 function ComponentSection({
   entity, desc,
@@ -176,6 +174,8 @@ export function ComponentsSection({
       onOpenChange={onOpenChange}
     >
       <AddComponentBar entity={entity} />
+      <AddPhysicsBar entity={entity} />
+      <PhysicsSection entity={entity} />
       {COMPONENT_REGISTRY.map((desc) => (
         <ComponentSection key={desc.key} entity={entity} desc={desc} />
       ))}

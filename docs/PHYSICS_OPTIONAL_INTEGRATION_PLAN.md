@@ -2,7 +2,7 @@
 
 > **Versione**: 1.2  
 > **Data**: 2026-05-25  
-> **Status**: Fase 3 chiusa — `physicsMode` + step condizionale; Fasi 4–5 non iniziate  
+> **Status**: Fase 4 chiusa — inspector Physics esplicito; Fase 5 (docs) non iniziata  
 > **Audience**: C++ / Editor / Product  
 > **Collegamenti**: `GLOBAL_LOGIC_UI_ARCHITECTURE.md`, `ARTIST_FRIENDLY_COMPONENTS.md`, `ARCHITETTURA_TECNICA_ENGINE_2D.md` §9, `ENGINE_INTEGRATION_ROADMAP.md` (tracker engine separato)
 
@@ -247,7 +247,7 @@ flowchart TB
 
 ---
 
-### Fase 4 — Componente Physics esplicito in editor (2–3 giorni)
+### Fase 4 — Componente Physics esplicito in editor (2–3 giorni) ✅
 
 **Obiettivo**: UX chiara “aggiungi fisica”.
 
@@ -505,3 +505,30 @@ Ogni fase = PR separato reviewabile (~300–800 LOC ciascuno).
 2. Auto: `physics.step` + sensor edges solo se `hasActiveBodies()`.
 3. Inspector → World Settings → Physics simulation.
 4. Test: `physics_test` #15; Vitest `project-world.test.ts`.
+
+### Review pre-chiusura (Fase 3)
+
+| Check | Esito |
+|-------|--------|
+| `auto` + zero bodies → no `step` | OK (`physics-test` #15, `app.cpp`) |
+| `on` forza step anche senza bodies | OK |
+| Editor World Settings + codec default `auto` | OK |
+| Sensor in `auto` con bodies da Solid | OK (fixture esistenti) |
+| WASM hot-reload `physicsMode` | Da verificare in smoke §11 (reload progetto) |
+
+---
+
+## Closure log (Fase 4)
+
+| Campo | Valore |
+|-------|--------|
+| **Data** | 2026-05-25 |
+| **Scope** | Inspector Physics, `ensurePhysicsBody` senza topDown implicito |
+| **Esito** | Chiusa |
+
+### Deliverable
+
+1. Inspector: **Physics (Box2D Body)** — bodyType, collider (shape/size/offset/density/friction/sensor).
+2. Add/remove physics sulle entità; chip header + scroll.
+3. Runtime: body solo con collider esplicito, **Solid**, o **Sensor** (platformer/topDown soli → no body).
+4. Test: `world-intent` topDown-only; Vitest `project-physics.test.ts`.

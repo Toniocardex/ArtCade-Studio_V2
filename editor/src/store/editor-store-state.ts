@@ -10,7 +10,7 @@ import type {
   EditorView,
   ScriptFile, ProjectDoc, ConsoleEntry,
   LogicBoard, LogicEvent, ComponentKey, WorldSettings, TilesetAsset, ImageAsset,
-  SpriteComponent,
+  SpriteComponent, PhysicsComponent,
 } from '../types'
 import {
   EDITOR_BOOT_ZOOM, DEFAULT_EDITOR_GRID_SIZE,
@@ -104,6 +104,8 @@ export type Action =
   | { type: 'MARK_SCRIPT_SAVED'; path: string }
   | { type: 'UPDATE_ENTITY_TRANSFORM'; entityId: number; x: number; y: number; rotation: number; scaleX: number; scaleY: number }
   | { type: 'ENTITY_SET_SPRITE';       entityId: number; sprite: SpriteComponent }
+  | { type: 'ENTITY_SET_PHYSICS';      entityId: number; physics: PhysicsComponent }
+  | { type: 'ENTITY_REMOVE_PHYSICS';   entityId: number }
   | { type: 'ENTITY_SET_COMPONENT';    entityId: number; key: ComponentKey; value: object }
   | { type: 'ENTITY_REMOVE_COMPONENT'; entityId: number; key: ComponentKey }
   | { type: 'ENTITY_ADD';        sceneId: string }

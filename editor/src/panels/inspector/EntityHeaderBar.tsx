@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useEditor } from '../../store/editor-store'
-import type { ComponentKey, EntityDef } from '../../types'
+import type { EntityDef } from '../../types'
+import type { InspectorBlockKey } from './entity-component-utils'
 import { Field } from './inspector-fields'
 import { activeComponentDescriptors } from './entity-component-utils'
 import { EntityTagsSection } from './EntityTagsSection'
@@ -10,7 +11,7 @@ export function EntityHeaderBar({
   onJumpToComponent,
 }: {
   entity: EntityDef
-  onJumpToComponent: (key: ComponentKey) => void
+  onJumpToComponent: (key: InspectorBlockKey) => void
 }) {
   const { dispatch } = useEditor()
   const [advancedOpen, setAdvancedOpen] = useState(false)

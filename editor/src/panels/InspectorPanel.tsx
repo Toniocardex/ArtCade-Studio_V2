@@ -21,7 +21,8 @@ import {
   type InspectorTab,
 } from './inspector/inspector-tab-logic'
 import { scrollToComponentBlock } from './inspector/entity-component-utils'
-import type { ComponentKey, EntityDef } from '../types'
+import type { EntityDef } from '../types'
+import type { InspectorBlockKey } from './inspector/entity-component-utils'
 
 function InspectorTabBar({
   tab,
@@ -69,7 +70,7 @@ function InspectorTabBar({
 function EntityInspector({ entity }: { entity: EntityDef }) {
   const [componentsOpen, setComponentsOpen] = useState(true)
 
-  const jumpToComponent = useCallback((key: ComponentKey) => {
+  const jumpToComponent = useCallback((key: InspectorBlockKey) => {
     setComponentsOpen(true)
     requestAnimationFrame(() => {
       requestAnimationFrame(() => scrollToComponentBlock(key))

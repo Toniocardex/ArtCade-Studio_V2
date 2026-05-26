@@ -138,14 +138,12 @@ void RuntimeEntityGateway::ensurePhysicsBody(EntityId id) {
     const bool hasExplicitCollider = hasExplicitColliderSize(comp);
     PlatformerControllerComponent platformer{};
     const bool hasPlatformer = getPlatformerController(id, platformer);
-    TopDownControllerComponent topDown{};
-    const bool hasTopDown = getTopDownController(id, topDown);
     SolidComponent solid{};
     const bool hasSolid = getSolid(id, solid);
     SensorComponent sensor{};
     const bool hasSensor = getSensor(id, sensor);
-    // PlatformerController alone uses kinematic transform (world_movement); no implicit body.
-    if (!hasExplicitCollider && !hasTopDown && !hasSolid && !hasSensor)
+    // Bodies only for explicit collider, Solid, or Sensor — not platformer/topDown alone.
+    if (!hasExplicitCollider && !hasSolid && !hasSensor)
         return;
 
     if (!hasExplicitCollider) {
@@ -167,8 +165,6 @@ void RuntimeEntityGateway::ensurePhysicsBody(EntityId id) {
             comp.bodyType = BodyType::Dynamic;
         }
     }
-    if (hasTopDown && !hasPlatformer && !hasSolid)
-        comp.bodyType = BodyType::Kinematic;
     if (hasPlatformer && hasExplicitCollider)
         comp.bodyType = BodyType::Kinematic;
     if (hasSolid)

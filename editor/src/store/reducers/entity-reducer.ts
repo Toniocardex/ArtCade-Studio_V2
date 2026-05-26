@@ -61,6 +61,34 @@ export const entityReducer: DomainReducer = (state: CoreState, action: Action) =
         projectDirty: true,
       }
     }
+    case 'ENTITY_SET_PHYSICS': {
+      if (!state.project || !state.project.entities[action.entityId]) return state
+      const entity = state.project.entities[action.entityId]
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          entities: {
+            ...state.project.entities,
+            [action.entityId]: { ...entity, physics: action.physics },
+          },
+        },
+        projectDirty: true,
+      }
+    }
+    case 'ENTITY_REMOVE_PHYSICS': {
+      if (!state.project || !state.project.entities[action.entityId]) return state
+      const entity = state.project.entities[action.entityId]
+      const { physics: _removed, ...rest } = entity
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          entities: { ...state.project.entities, [action.entityId]: rest },
+        },
+        projectDirty: true,
+      }
+    }
     case 'ENTITY_SET_COMPONENT': {
       if (!state.project || !state.project.entities[action.entityId]) return state
       const entity = state.project.entities[action.entityId]

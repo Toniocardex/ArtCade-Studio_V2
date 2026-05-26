@@ -739,12 +739,30 @@ static void test_set_solid_creates_and_removes_static_body() {
     CHECK(f.gw.setTopDownController(1, topDown));
 
     CHECK(f.gw.setSolid(1, std::nullopt));
-    CHECK(f.gw.physicsHandle(1) != 0);
-    PhysicsComponent physics{};
-    CHECK(f.gw.getPhysicsComponent(1, physics));
-    CHECK(physics.physicsHandle == f.gw.physicsHandle(1));
+    CHECK(f.gw.physicsHandle(1) == 0);
 
     CHECK(f.gw.setTopDownController(1, std::nullopt));
+    CHECK(f.gw.physicsHandle(1) == 0);
+}
+
+static void test_topdown_only_has_no_implicit_physics_body() {
+    Fixture f;
+
+    EntityDef player = makeEntity(1, "Player");
+    TopDownControllerComponent tc;
+    tc.maxSpeed = 200.f;
+    player.topDownController = tc;
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1 };
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.scenes = {{ scene.id, scene }};
+    doc.entities = {{ 1, player }};
+    f.world.init(doc);
+
     CHECK(f.gw.physicsHandle(1) == 0);
 }
 
@@ -1258,6 +1276,7 @@ int main() {
     test_set_sensor_replaces_fixture_without_duplicates();
     test_set_sensor_creates_body_for_sensor_only_entity();
     test_set_solid_creates_and_removes_static_body();
+    test_topdown_only_has_no_implicit_physics_body();
     test_set_physics_component_replaces_body_without_leak();
     test_linear_mover_moves_transform_without_physics();
     test_linear_mover_sets_physics_velocity();

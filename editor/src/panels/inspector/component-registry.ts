@@ -113,7 +113,7 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
     key: 'platformerController',
     label: 'Platformer Controller',
     description:
-      'Arcade feel: Coyote Time (jump shortly after leaving ground) and Jump Buffer (early press). Movement is always on the transform. Match Ground Class with Solid on platforms.',
+      'Arcade feel: Coyote Time and Jump Buffer. Movement is on the transform (no Box2D body by default). Add Physics for collision overlap, or use Solid platforms + Ground Class.',
     color: 'var(--yellow)',
     create: () => ({ ...PLATFORMER }),
     fields: [
