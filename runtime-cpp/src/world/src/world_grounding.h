@@ -37,14 +37,14 @@ void snapTransformFeetToSurface(Transform& transform,
                                 EntityId id,
                                 float surfaceTopY);
 
-/** Separate full Solid AABB overlap (MTV); horizontal only when shallowest axis. */
-void resolvePlatformerSolidVolume(Transform& transform,
-                                  const GroundingContext& ctx,
-                                  EntityId id,
-                                  const std::string& groundClass,
-                                  const Transform& transformBeforeMove,
-                                  float& horizontalVelocity,
-                                  float& verticalVelocity);
+/** Solid surface faces (bottom + sides); top via probe + floor snap. One-way: probe only. */
+void resolvePlatformerSolidSurfaces(Transform& transform,
+                                    const GroundingContext& ctx,
+                                    EntityId id,
+                                    const std::string& groundClass,
+                                    const Transform& transformBeforeMove,
+                                    float& horizontalVelocity,
+                                    float& verticalVelocity);
 
 /** Solid-component ground (platformer path). */
 bool isGroundedOnSolidAabb(const GroundingContext& ctx,

@@ -90,7 +90,7 @@ void stepPlatformerController(World& world,
     transform.position.x += rt.velocity.x * dt;
     transform.position.y += rt.velocity.y * dt;
 
-    resolvePlatformerSolidVolume(
+    resolvePlatformerSolidSurfaces(
         transform, grounding, id, pc.groundClass, beforeMove, vx, vy);
     rt.velocity.x = vx;
     rt.velocity.y = vy;

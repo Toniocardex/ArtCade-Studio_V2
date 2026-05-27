@@ -30,7 +30,22 @@ bool aabbOverlap(const WorldAabb& a, const WorldAabb& b) {
         && a.minY < b.maxY;
 }
 
+bool verticalOverlap(const WorldAabb& a, const WorldAabb& b) {
+    return a.maxY > b.minY && a.minY < b.maxY;
+}
+
+constexpr float kSurfaceSepEpsilon = 0.5f;
+
+bool playerFullyBelow(const WorldAabb& player, const WorldAabb& ground) {
+    return player.minY >= ground.maxY - kSurfaceSepEpsilon;
+}
+
+bool playerFullyAbove(const WorldAabb& player, const WorldAabb& ground) {
+    return player.maxY <= ground.minY + kSurfaceSepEpsilon;
+}
+
 constexpr int kSolidResolvePasses = 4;
+constexpr float kMinPen = 0.001f;
 
 bool isOneWaySurface(const SolidComponent& solid) {
     return solid.surfaceKind == "oneWay"
@@ -93,13 +108,13 @@ void snapTransformFeetToSurface(Transform& transform,
     transform.position.y = surfaceTopY - halfH;
 }
 
-void resolvePlatformerSolidVolume(Transform& transform,
-                                  const GroundingContext& ctx,
-                                  EntityId id,
-                                  const std::string& groundClass,
-                                  const Transform& transformBeforeMove,
-                                  float& horizontalVelocity,
-                                  float& verticalVelocity)
+void resolvePlatformerSolidSurfaces(Transform& transform,
+                                    const GroundingContext& ctx,
+                                    EntityId id,
+                                    const std::string& groundClass,
+                                    const Transform& transformBeforeMove,
+                                    float& horizontalVelocity,
+                                    float& verticalVelocity)
 {
     const Vec2 size = worldColliderSize(ctx.gateway, id);
     const float halfW = size.x * 0.5f;
@@ -119,26 +134,39 @@ void resolvePlatformerSolidVolume(Transform& transform,
 
                 const WorldAabb ground = worldAabb(ctx.gateway, otherId);
 
+                if (playerFullyBelow(player, ground) || playerFullyAbove(player, ground))
+                    return;
+
+                const bool vertWithPrev = verticalOverlap(prev, ground);
+                const bool vertWithPlayer = verticalOverlap(player, ground);
+
                 if (!aabbOverlap(player, ground)) {
-                    if (prev.maxX <= ground.maxX && player.maxX > ground.maxX) {
-                        transform.position.x = ground.maxX - halfW;
-                        if (horizontalVelocity > 0.f) horizontalVelocity = 0.f;
-                        transform.velocity.x = horizontalVelocity;
-                        player = worldAabbAt(ctx.gateway, id, transform);
-                        resolvedAny = true;
-                    } else if (prev.minX >= ground.minX && player.maxX < ground.minX) {
-                        transform.position.x = ground.minX + halfW;
-                        if (horizontalVelocity < 0.f) horizontalVelocity = 0.f;
-                        transform.velocity.x = horizontalVelocity;
-                        player = worldAabbAt(ctx.gateway, id, transform);
-                        resolvedAny = true;
-                    } else if (prev.maxY <= ground.minY && player.minY > ground.maxY) {
+                    if (vertWithPrev || vertWithPlayer) {
+                        if (prev.maxX <= ground.maxX && player.maxX > ground.maxX) {
+                            transform.position.x = ground.maxX - halfW;
+                            if (horizontalVelocity > 0.f) horizontalVelocity = 0.f;
+                            transform.velocity.x = horizontalVelocity;
+                            player = worldAabbAt(ctx.gateway, id, transform);
+                            resolvedAny = true;
+                        } else if (prev.minX >= ground.minX
+                                   && player.maxX < ground.minX) {
+                            transform.position.x = ground.minX + halfW;
+                            if (horizontalVelocity < 0.f) horizontalVelocity = 0.f;
+                            transform.velocity.x = horizontalVelocity;
+                            player = worldAabbAt(ctx.gateway, id, transform);
+                            resolvedAny = true;
+                        }
+                    }
+                    if (horizontalOverlap(prev, ground)
+                        && prev.maxY <= ground.minY && player.minY > ground.maxY) {
                         transform.position.y = ground.maxY + halfH;
                         if (verticalVelocity < 0.f) verticalVelocity = 0.f;
                         transform.velocity.y = verticalVelocity;
                         player = worldAabbAt(ctx.gateway, id, transform);
                         resolvedAny = true;
-                    } else if (prev.minY >= ground.maxY && player.maxY < ground.minY) {
+                    } else if (horizontalOverlap(prev, ground)
+                               && prev.minY >= ground.maxY
+                               && player.maxY < ground.minY) {
                         transform.position.y = ground.minY - halfH;
                         if (verticalVelocity > 0.f) verticalVelocity = 0.f;
                         transform.velocity.y = verticalVelocity;
@@ -148,58 +176,40 @@ void resolvePlatformerSolidVolume(Transform& transform,
                     return;
                 }
 
+                if (!vertWithPlayer) return;
+
                 const float penL = player.maxX - ground.minX;
                 const float penR = ground.maxX - player.minX;
                 const float penUp = player.maxY - ground.minY;
                 const float penDown = ground.maxY - player.minY;
 
-                constexpr float kMinPen = 0.001f;
-                // Horizontal MTV only when shallower than both vertical axes (walls).
-                // On a wide floor penUp is tiny and penL/penR are huge — no X shove.
-                float minVertPen = std::numeric_limits<float>::max();
-                if (penUp > kMinPen) minVertPen = std::min(minVertPen, penUp);
-                if (penDown > kMinPen) minVertPen = std::min(minVertPen, penDown);
+                // Bottom face (ceiling for rising player): block jump through solid underside.
+                if (verticalVelocity < 0.f && penDown > kMinPen
+                    && penDown <= penUp) {
+                    transform.position.y += penDown;
+                    verticalVelocity = 0.f;
+                    transform.velocity.y = verticalVelocity;
+                    player = worldAabbAt(ctx.gateway, id, transform);
+                    resolvedAny = true;
+                    return;
+                }
 
-                float bestPen = std::numeric_limits<float>::max();
-                int axis = -1;
-                if (minVertPen < std::numeric_limits<float>::max()) {
-                    if (penL > kMinPen && penL < bestPen && penL < minVertPen) {
-                        bestPen = penL;
-                        axis = 0;
-                    }
-                    if (penR > kMinPen && penR < bestPen && penR < minVertPen) {
-                        bestPen = penR;
-                        axis = 1;
-                    }
-                }
-                if (penUp > kMinPen && penUp < bestPen) {
-                    bestPen = penUp;
-                    axis = 2;
-                }
-                if (penDown > kMinPen && penDown < bestPen) {
-                    bestPen = penDown;
-                    axis = 3;
-                }
-                if (axis < 0) return;
-
-                if (axis == 0) {
+                // Side faces: only when horizontal penetration is shallower than feet-on-top.
+                if (penL > kMinPen && penL < penR && penL < penUp) {
                     transform.position.x -= penL;
                     if (horizontalVelocity > 0.f) horizontalVelocity = 0.f;
-                } else if (axis == 1) {
+                    transform.velocity.x = horizontalVelocity;
+                    player = worldAabbAt(ctx.gateway, id, transform);
+                    resolvedAny = true;
+                    return;
+                }
+                if (penR > kMinPen && penR <= penL && penR < penUp) {
                     transform.position.x += penR;
                     if (horizontalVelocity < 0.f) horizontalVelocity = 0.f;
-                } else if (axis == 2) {
-                    transform.position.y -= penUp;
-                    if (verticalVelocity < 0.f) verticalVelocity = 0.f;
-                } else {
-                    transform.position.y += penDown;
-                    if (verticalVelocity > 0.f) verticalVelocity = 0.f;
+                    transform.velocity.x = horizontalVelocity;
+                    player = worldAabbAt(ctx.gateway, id, transform);
+                    resolvedAny = true;
                 }
-
-                transform.velocity.x = horizontalVelocity;
-                transform.velocity.y = verticalVelocity;
-                player = worldAabbAt(ctx.gateway, id, transform);
-                resolvedAny = true;
             });
 
         if (!resolvedAny) break;

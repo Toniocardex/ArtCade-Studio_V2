@@ -446,6 +446,59 @@ static void test_platformer_blocks_solid_wall_horizontally() {
     CHECK(transform.position.x <= 176.5f);
 }
 
+static void test_platformer_passes_under_solid_at_horizontal_edges() {
+    Fixture f;
+
+    EntityDef player = makeEntity(1, "Player");
+    player.transform.position = { 40.f, 280.f };
+    PlatformerControllerComponent pc;
+    pc.maxSpeed = 300.f;
+    pc.groundClass = "Ground";
+    player.platformerController = pc;
+
+    EntityDef platform = makeEntity(2, "OverheadSolid");
+    platform.transform.position = { 160.f, 200.f };
+    platform.transform.scale = { 10.f, 1.f };
+    SolidComponent solid;
+    solid.groundClass = "Ground";
+    solid.surfaceKind = "solid";
+    platform.solid = solid;
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1, 2 };
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.scenes = {{ scene.id, scene }};
+    doc.entities = {{ 1, player }, { 2, platform }};
+    f.world.init(doc);
+
+    const float dt = 1.f / 60.f;
+    Transform transform{};
+    float maxX = 40.f;
+    for (int i = 0; i < 90; ++i) {
+        f.world.setMovementIntent(1, 1.f, 0.f);
+        f.tickFrame(dt);
+        CHECK(f.gw.getTransform(1, transform));
+        maxX = std::max(maxX, transform.position.x);
+    }
+    // Platform right edge ~304 (320 - halfW); old volume tunnel clamped here.
+    CHECK(maxX > 308.f);
+
+    f.world.setMovementIntent(1, -1.f, 0.f);
+    transform.position = { 280.f, 280.f };
+    f.gw.setTransform(1, transform);
+    float minX = 280.f;
+    for (int i = 0; i < 90; ++i) {
+        f.world.setMovementIntent(1, -1.f, 0.f);
+        f.tickFrame(dt);
+        CHECK(f.gw.getTransform(1, transform));
+        minX = std::min(minX, transform.position.x);
+    }
+    CHECK(minX < 20.f);
+}
+
 static void test_platformer_passes_through_one_way_when_jumping_up() {
     Fixture f;
 
@@ -1769,6 +1822,7 @@ int main() {
     test_platformer_grounded_with_feet_slightly_below_solid_top();
     test_platformer_blocks_solid_underside_when_jumping_up();
     test_platformer_blocks_solid_wall_horizontally();
+    test_platformer_passes_under_solid_at_horizontal_edges();
     test_platformer_passes_through_one_way_when_jumping_up();
     test_platformer_passes_through_thick_one_way_while_rising();
     test_platformer_lands_on_one_way_when_falling();
