@@ -235,6 +235,35 @@ static void test_platformer_coyote_jump_after_leaving_solid() {
     CHECK(transform.velocity.y < -499.f);
 }
 
+static void test_platformer_grounded_with_feet_slightly_below_solid_top() {
+    Fixture f;
+
+    EntityDef player = makeEntity(1, "Player");
+    player.transform.position = { 160.f, 188.f };
+    PlatformerControllerComponent pc;
+    pc.groundClass = "Ground";
+    player.platformerController = pc;
+
+    EntityDef platform = makeEntity(2, "Platform");
+    platform.transform.position = { 160.f, 200.f };
+    platform.transform.scale = { 10.f, 0.3125f };
+    SolidComponent solid;
+    solid.groundClass = "Ground";
+    platform.solid = solid;
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1, 2 };
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.scenes = {{ scene.id, scene }};
+    doc.entities = {{ 1, player }, { 2, platform }};
+    f.world.init(doc);
+
+    CHECK(f.world.isPlatformerGrounded(1));
+}
+
 static void test_platformer_grounded_on_solid_without_player_physics() {
     Fixture f;
 
@@ -1403,6 +1432,7 @@ int main() {
     test_platformer_kinematic_horizontal_movement_without_body();
     test_platformer_is_grounded_false_when_airborne_over_solid();
     test_platformer_coyote_jump_after_leaving_solid();
+    test_platformer_grounded_with_feet_slightly_below_solid_top();
     test_platformer_grounded_on_solid_without_player_physics();
     test_platformer_with_physics_collider_is_kinematic_body();
     test_platformer_movement_intent_without_input();

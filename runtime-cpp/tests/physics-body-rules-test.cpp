@@ -32,7 +32,7 @@ int main() {
         flags.hasPlatformer = true;
         const PhysicsBodyRules rules = resolvePhysicsBodyRules(comp, flags);
         CHECK(rules.bodyType == BodyType::Kinematic);
-        CHECK(std::abs(rules.gravityScale - 1.f) < 0.001f);
+        CHECK(std::abs(rules.gravityScale) < 0.001f);
     }
 
     {

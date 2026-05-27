@@ -13,12 +13,14 @@ bool isGroundedOnSolidAabb(const GroundingContext& ctx,
     const WorldAabb player = worldAabb(ctx.gateway, id);
     const float feetY = player.maxY;
 
-    const float snapDownPx = 6.f;
-    const float snapUpPx   = 2.f;
+    // Y-down: ground top = minY, player feet = maxY. Allow standing slightly
+    // above (coyote) and modest penetration (gravity integration per frame).
+    const float snapAbovePx    = 8.f;
+    const float maxPenetrationPx = 32.f;
 
     bool grounded = false;
     ctx.gateway.forEachActiveSolid(
-        [&ctx, id, feetY, player, snapDownPx, snapUpPx, &groundClass, &grounded]
+        [&ctx, id, feetY, player, snapAbovePx, maxPenetrationPx, &groundClass, &grounded]
         (EntityId otherId, const SolidComponent& solid) {
             if (grounded || otherId == id) return;
             if (solid.groundClass != groundClass) return;
@@ -26,7 +28,8 @@ bool isGroundedOnSolidAabb(const GroundingContext& ctx,
             const WorldAabb ground = worldAabb(ctx.gateway, otherId);
             const float topY = ground.minY;
 
-            if (feetY < topY - snapDownPx || feetY > topY + snapUpPx)
+            const float dy = feetY - topY;
+            if (dy < -snapAbovePx || dy > maxPenetrationPx)
                 return;
             if (player.maxX < ground.minX || player.minX > ground.maxX)
                 return;
@@ -39,6 +42,11 @@ bool isGrounded(const GroundingContext& ctx,
                 EntityId id,
                 const std::string& groundClass)
 {
+    // Solid surfaces use explicit AABB against SolidComponent — reliable for
+    // kinematic platformers even when a Physics collider exists on the player.
+    if (isGroundedOnSolidAabb(ctx, id, groundClass))
+        return true;
+
     const uint32_t selfHandle = ctx.gateway.physicsHandle(id);
     if (selfHandle != 0) {
         bool grounded = false;
@@ -63,7 +71,7 @@ bool isGrounded(const GroundingContext& ctx,
         }
     }
 
-    return isGroundedOnSolidAabb(ctx, id, groundClass);
+    return false;
 }
 
 } // namespace ArtCade::WorldInternal

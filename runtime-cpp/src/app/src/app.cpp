@@ -457,6 +457,8 @@ void Application::tickFixedStep(float dt) {
     }
     // After Lua: camera.shake may have added trauma — decay + offset for this frame.
     mod_->cameraManager->updateShake(dt);
+    // Platformer integrates Transform before physics; Solid grounding uses AABB.
+    mod_->world->tickPlatformerControllers(dt);
     const bool runPhysics =
         physicsMode_ == PhysicsMode::On
         || (physicsMode_ == PhysicsMode::Auto && mod_->physics->hasActiveBodies());
@@ -471,8 +473,6 @@ void Application::tickFixedStep(float dt) {
     mod_->world->flushEntityQueues();
     if (runPhysics)
         mod_->world->syncPhysicsToEntities();
-    // Platformer grounding uses physics overlap / Solid AABB after bodies moved.
-    mod_->world->tickPlatformerControllers(dt);
     mod_->world->tickCameraTargets(dt);
     // Sensor edges now run AFTER physics step + sync, so begin/end events
     // are dispatched in the same frame as the overlap (previously delayed

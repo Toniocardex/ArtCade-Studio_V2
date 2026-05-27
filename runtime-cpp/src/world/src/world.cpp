@@ -140,8 +140,8 @@ void World::setRenderer(Modules::Renderer* renderer) {
 void World::tickGameplaySystems(float dt) {
     if (const SceneDef* sc = entityGateway_.activeScene())
         activeTilemap_ = sc->tilemap;
-    // Platformer runs in Application::tickFixedStep AFTER physics.step so
-    // isGrounded() / Solid overlap match the same frame (see FIXED_STEP_CONTRACT).
+    // Platformer runs in Application::tickFixedStep after Lua, before physics.step
+    // (see FIXED_STEP_CONTRACT).
     tickTopDownControllers(dt);
     tickLinearMovers(dt);
     tickMagneticItems(dt);

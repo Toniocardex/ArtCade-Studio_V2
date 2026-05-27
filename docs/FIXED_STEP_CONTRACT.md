@@ -15,16 +15,16 @@ flowchart TD
   animPre[dispatchAnimationEvents]
   luaTick[luaHost.tick]
   camShake[cameraManager.updateShake]
+  platformer[tickPlatformerControllers]
   physStep[physics.step if enabled]
   flush1[flushEntityQueues]
   physSync[syncPhysicsToEntities]
-  platformer[tickPlatformerControllers]
   cam[tickCameraTargets]
   sensors[refreshSensorEdges + dispatchSensorEvents]
   life[dispatchLifecycleEvents]
   autoDestroy[tickAutoDestroy + flush + lifecycle again]
-  clearDraw --> gameplay --> animPre --> luaTick --> camShake --> physStep
-  physStep --> flush1 --> physSync --> platformer --> cam --> sensors --> life --> autoDestroy
+  clearDraw --> gameplay --> animPre --> luaTick --> camShake --> platformer --> physStep
+  physStep --> flush1 --> physSync --> cam --> sensors --> life --> autoDestroy
 ```
 
 | Step | What runs | Notes |
@@ -36,10 +36,10 @@ flowchart TD
 | 5 | `gameAPI->dispatchAnimationEvents()` | |
 | 6 | **`luaHost->tick(dt)`** | Logic Board `tick(dt)`, `movement.*` / `platformer.*` intent APIs. |
 | 7 | **`cameraManager->updateShake(dt)`** | Trauma decay + shake offset for render (after Lua `camera.shake`). |
-| 8 | **`physics->step(dt)`** | Skipped when `physicsMode` is `off`; in `auto` only if bodies exist. |
-| 9 | `world->flushEntityQueues()` | Destroys queued from Lua before sync. |
-| 10 | **`world->syncPhysicsToEntities()`** | Box2D → `Transform` for physics bodies (see table below). |
-| 11 | **`world->tickPlatformerControllers(dt)`** | Solid / physics grounding after bodies are current. |
+| 8 | **`world->tickPlatformerControllers(dt)`** | Solid AABB grounding + kinematic move (before `physics.step`). |
+| 9 | **`physics->step(dt)`** | Skipped when `physicsMode` is `off`; in `auto` only if bodies exist. |
+| 10 | `world->flushEntityQueues()` | Destroys queued from Lua before sync. |
+| 11 | **`world->syncPhysicsToEntities()`** | Box2D → `Transform` for physics bodies (see table below). |
 | 12 | `world->tickCameraTargets(dt)` | |
 | 13 | **`world->refreshSensorEdges()`** + `dispatchSensorEvents()` | After physics + sync (same-frame overlap). |
 | 14 | `dispatchLifecycleEvents()` | Spawn/destroy handlers. |
@@ -65,7 +65,7 @@ Top-down bodies get **`gravityScale = 0`** at creation via [`physics-body-rules`
 
 ## Lua intent latency
 
-`movement.setIntent` / `platformer.requestJump` called from Lua during **`luaHost->tick`** apply on the **next** fixed step, because platformer integration runs **after** Lua in the same frame.
+`movement.setIntent` / `platformer.requestJump` called from Lua during **`luaHost->tick`** apply in the **same** fixed step (platformer runs right after Lua, before physics).
 
 Event-first handlers (`input.onPressed`, `lifecycle.onSpawn`, …) registered in `_logic_init()` follow the dispatch order of their respective `gameAPI->dispatch*` calls.
 
