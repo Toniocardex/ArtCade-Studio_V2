@@ -301,6 +301,60 @@ static void test_platformer_grounded_with_feet_slightly_below_solid_top() {
     CHECK(f.world.isPlatformerGrounded(1));
 }
 
+static void test_platformer_blocks_solid_underside_when_jumping_up() {
+    Fixture f;
+
+    EntityDef player = makeEntity(1, "Player");
+    player.transform.position = { 160.f, 379.f };
+    PlatformerControllerComponent pc;
+    pc.jumpForce = 700.f;
+    pc.groundClass = "Ground";
+    player.platformerController = pc;
+
+    EntityDef floor = makeEntity(2, "Floor");
+    floor.transform.position = { 160.f, 400.f };
+    floor.transform.scale = { 10.f, 0.3125f };
+    SolidComponent floorSolid;
+    floorSolid.groundClass = "Ground";
+    floor.solid = floorSolid;
+
+    EntityDef ceiling = makeEntity(3, "SolidCeiling");
+    ceiling.transform.position = { 160.f, 200.f };
+    ceiling.transform.scale = { 10.f, 0.3125f };
+    SolidComponent ceilingSolid;
+    ceilingSolid.groundClass = "Ground";
+    ceilingSolid.surfaceKind = "solid";
+    ceiling.solid = ceilingSolid;
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1, 2, 3 };
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.scenes = {{ scene.id, scene }};
+    doc.entities = {{ 1, player }, { 2, floor }, { 3, ceiling }};
+    f.world.init(doc);
+
+    CHECK(f.world.isPlatformerGrounded(1));
+    f.world.requestJump(1);
+    const float dt = 1.f / 60.f;
+    Transform transform{};
+    CHECK(f.gw.getTransform(1, transform));
+    const float startY = transform.position.y;
+    float peakY        = startY;
+
+    for (int i = 0; i < 25; ++i) {
+        f.tickFrame(dt);
+        CHECK(f.gw.getTransform(1, transform));
+        peakY = std::min(peakY, transform.position.y);
+    }
+
+  // Ceiling underside ~205; player should not pass through (peak well above that).
+    CHECK(peakY > 220.f);
+    CHECK(peakY < startY - 40.f);
+}
+
 static void test_platformer_passes_through_one_way_when_jumping_up() {
     Fixture f;
 
@@ -1621,6 +1675,7 @@ int main() {
     test_platformer_coyote_jump_after_leaving_solid();
     test_platformer_snaps_to_solid_after_fall();
     test_platformer_grounded_with_feet_slightly_below_solid_top();
+    test_platformer_blocks_solid_underside_when_jumping_up();
     test_platformer_passes_through_one_way_when_jumping_up();
     test_platformer_passes_through_thick_one_way_while_rising();
     test_platformer_lands_on_one_way_when_falling();

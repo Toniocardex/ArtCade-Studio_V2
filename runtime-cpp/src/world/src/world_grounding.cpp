@@ -85,6 +85,41 @@ void snapTransformFeetToSurface(Transform& transform,
     transform.position.y = surfaceTopY - halfH;
 }
 
+void resolvePlatformerSolidUnderside(Transform& transform,
+                                     const GroundingContext& ctx,
+                                     EntityId id,
+                                     const std::string& groundClass,
+                                     float& verticalVelocity)
+{
+    if (verticalVelocity >= 0.f) return;
+
+    const WorldAabb player = worldAabbAt(ctx.gateway, id, transform);
+    const float halfH      = aabbHalfHeight(player);
+
+    float hitBottomY = -std::numeric_limits<float>::max();
+
+    ctx.gateway.forEachActiveSolid(
+        [&](EntityId otherId, const SolidComponent& solid) {
+            if (otherId == id) return;
+            if (solid.groundClass != groundClass) return;
+            if (isOneWaySurface(solid)) return;
+
+            const WorldAabb ground = worldAabb(ctx.gateway, otherId);
+            if (!horizontalOverlap(player, ground)) return;
+            if (player.maxY <= ground.minY) return;
+            if (player.minY > ground.maxY) return;
+
+            if (ground.maxY > hitBottomY)
+                hitBottomY = ground.maxY;
+        });
+
+    if (hitBottomY <= -std::numeric_limits<float>::max() / 2.f) return;
+
+    transform.position.y = hitBottomY + halfH;
+    verticalVelocity     = 0.f;
+    transform.velocity.y = 0.f;
+}
+
 bool isGroundedOnSolidAabb(const GroundingContext& ctx,
                            EntityId id,
                            const std::string& groundClass)

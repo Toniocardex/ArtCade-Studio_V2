@@ -77,10 +77,10 @@ struct WorldAabb {
     float maxY = 0.f;
 };
 
-inline WorldAabb worldAabb(const Modules::RuntimeEntityGateway& gateway, EntityId id)
+inline WorldAabb worldAabbAt(const Modules::RuntimeEntityGateway& gateway,
+                              EntityId id,
+                              const Transform& transform)
 {
-    Transform transform{};
-    gateway.getTransform(id, transform);
     const Vec2 size = worldColliderSize(gateway, id);
     const float halfW = size.x * 0.5f;
     const float halfH = size.y * 0.5f;
@@ -90,6 +90,13 @@ inline WorldAabb worldAabb(const Modules::RuntimeEntityGateway& gateway, EntityI
         transform.position.x + halfW,
         transform.position.y + halfH,
     };
+}
+
+inline WorldAabb worldAabb(const Modules::RuntimeEntityGateway& gateway, EntityId id)
+{
+    Transform transform{};
+    gateway.getTransform(id, transform);
+    return worldAabbAt(gateway, id, transform);
 }
 
 inline void applySteeringVelocity(Modules::Physics& physics,

@@ -37,6 +37,13 @@ void snapTransformFeetToSurface(Transform& transform,
                                 EntityId id,
                                 float surfaceTopY);
 
+/** Block rising into full Solid volumes (Construct-style); oneWay is pass-through. */
+void resolvePlatformerSolidUnderside(Transform& transform,
+                                     const GroundingContext& ctx,
+                                     EntityId id,
+                                     const std::string& groundClass,
+                                     float& verticalVelocity);
+
 /** Solid-component ground (platformer path). */
 bool isGroundedOnSolidAabb(const GroundingContext& ctx,
                            EntityId id,

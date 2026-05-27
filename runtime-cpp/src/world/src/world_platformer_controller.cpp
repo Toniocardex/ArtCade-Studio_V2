@@ -89,6 +89,9 @@ void stepPlatformerController(World& world,
     transform.position.x += rt.velocity.x * dt;
     transform.position.y += rt.velocity.y * dt;
 
+    if (vy < 0.f)
+        resolvePlatformerSolidUnderside(transform, grounding, id, pc.groundClass, vy);
+
     // Floor snap: after integration, land on the nearest Solid surface below
     // the feet (native kinematic platformer — no penetration tolerance hack).
     if (vy >= 0.f) {
