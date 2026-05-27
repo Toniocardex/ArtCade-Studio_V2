@@ -174,7 +174,39 @@ int main() {
     assert(!phys.hasActiveBodies());
     printf("[PASS] 15. hasActiveBodies\n");
 
+    // ---- Test 16: dynamic rests on static (multi-pass + resting contact) ----
+    uint32_t hFloor = phys.createBody(30, makeRect(BodyType::Static, 40.f, 2.f));
+    uint32_t hBox   = phys.createBody(31, makeRect(BodyType::Dynamic, 2.f, 2.f));
+    phys.setPosition(hFloor, { 0.f, 20.f });
+    phys.setPosition(hBox, { 0.f, 10.f });
+    phys.setLinearVelocity(hBox, { 0.f, 0.f });
+    for (int i = 0; i < 120; ++i)
+        phys.step(1.f / 60.f);
+    Vec2 boxPos = phys.getPosition(hBox);
+    Vec2 boxVel = phys.getLinearVelocity(hBox);
+    assert(boxPos.y >= 18.f && boxPos.y <= 20.5f);
+    assert(std::abs(boxVel.y) < 0.15f);
+    printf("[PASS] 16. dynamic rests on static (y=%.2f vy=%.3f)\n", boxPos.y, boxVel.y);
+    phys.destroyBody(hFloor);
+    phys.destroyBody(hBox);
+
+    // ---- Test 17: two dynamics stacked — top settles without runaway bounce ----
+    hFloor = phys.createBody(32, makeRect(BodyType::Static, 20.f, 2.f));
+    uint32_t hLow  = phys.createBody(33, makeRect(BodyType::Dynamic, 2.f, 2.f));
+    uint32_t hHigh = phys.createBody(34, makeRect(BodyType::Dynamic, 2.f, 2.f));
+    phys.setPosition(hFloor, { 0.f, 30.f });
+    phys.setPosition(hLow, { 0.f, 20.f });
+    phys.setPosition(hHigh, { 0.f, 12.f });
+    for (int i = 0; i < 180; ++i)
+        phys.step(1.f / 60.f);
+    boxVel = phys.getLinearVelocity(hHigh);
+    assert(std::abs(boxVel.y) < 0.25f);
+    phys.destroyBody(hFloor);
+    phys.destroyBody(hLow);
+    phys.destroyBody(hHigh);
+    printf("[PASS] 17. stacked dynamics settle (vy=%.3f)\n", boxVel.y);
+
     phys.shutdown();
-    printf("\n[physics-test] 15/15 PASSED\n");
+    printf("\n[physics-test] 17/17 PASSED\n");
     return 0;
 }

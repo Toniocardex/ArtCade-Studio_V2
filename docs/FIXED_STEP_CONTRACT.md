@@ -80,3 +80,18 @@ Event-first handlers (`input.onPressed`, `lifecycle.onSpawn`, …) registered in
 | `on` | Always | Top-down with dynamic bodies, physics puzzles |
 
 See [`PHYSICS_OPTIONAL_INTEGRATION_PLAN.md`](PHYSICS_OPTIONAL_INTEGRATION_PLAN.md) for editor wiring and templates.
+
+---
+
+## Dual collision layers (post–custom physics refactor)
+
+Two cooperating systems share [`collision_math.h`](../runtime-cpp/src/modules/collision/include/collision_math.h):
+
+| Layer | Module | When it runs | Terrain / solids |
+|-------|--------|--------------|------------------|
+| **World platformer** | `world_grounding.cpp` | Step 8, before `physics.step` | Solid entities + **tile grid AABB** (no physics bodies required) |
+| **Physics solver** | `physics.cpp` | Step 9 | Dynamic vs static/kinematic bodies; **tile static bodies** only when `Physics::hasDynamicBodies()` |
+
+**Tilemap physics bodies:** `World::rebuildTilemapPhysics()` creates merged horizontal static rectangles (one body per solid run per row) only if at least one **Dynamic** body exists. Platformer-only scenes use the tile grid for grounding and `isSpaceFree`; `collision.*` against tile terrain in those projects requires a Dynamic body or explicit static colliders.
+
+**Platformer + collider:** Transform is owned by World; optional kinematic body follows transform each tick. `syncPhysicsToEntities` does not overwrite platformer transforms.

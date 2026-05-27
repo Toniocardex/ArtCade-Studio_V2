@@ -321,7 +321,7 @@ Focus: compiler collision triggers, `physics-trigger-capabilities` warnings.
 | `runtime-cpp/src/modules/physics/src/physics.cpp` | Riscrittura completa |
 | `runtime-cpp/src/modules/physics/include/physics.h` | Aggiornare commenti (rimuovere “Box2D”) |
 | `runtime-cpp/src/modules/physics/CMakeLists.txt` | Rimuovere FetchContent |
-| `runtime-cpp/src/modules/physics/src/collision_math.h` (nuovo) | Aggiungere |
+| `runtime-cpp/src/modules/collision/include/collision_math.h` | Kernel condiviso World + Physics |
 
 ### 11.2 Verifica / possibili tweak
 
@@ -361,7 +361,24 @@ Focus: compiler collision triggers, `physics-trigger-capabilities` warnings.
 
 ---
 
-## 13. Sintesi per decisione
+## 13. Roadmap post-migrazione (physics refactor)
+
+Incremental work after Box2D removal (see also [`PHYSICS_OPTIONAL_INTEGRATION_PLAN.md`](PHYSICS_OPTIONAL_INTEGRATION_PLAN.md) §13–14):
+
+| Phase | Status | Summary |
+|-------|--------|---------|
+| 1 — Shared collision kernel | Done | `artcade-collision`; World + Physics use `collision_math.h` |
+| 2 — Solver parity | Done | 4-pass resolve, resting contact, light CCD, `physics_test` 16–17 |
+| 3 — Tilemap bodies | Done | Lazy build when no Dynamic; horizontal run merge |
+| 4 — Platformer grounding | Done | Feet raycast probe in `world_grounding.cpp` |
+| 5 — Scale | Done (baseline) | Uniform-grid broadphase when > 64 bodies |
+| 6 — Docs | Done | `FIXED_STEP_CONTRACT`, integration plan, this report |
+
+**Still optional later:** sensor-only tick without full `step`; stronger CCD tuning; remove tile bodies entirely (grid-only Lua collision).
+
+---
+
+## 14. Sintesi per decisione
 
 | | |
 |--|--|
@@ -373,12 +390,13 @@ Focus: compiler collision triggers, `physics-trigger-capabilities` warnings.
 
 ---
 
-## 14. Changelog documento
+## 15. Changelog documento
 
 | Versione | Data | Modifiche |
 |----------|------|-----------|
 | 1.0 | 2026-05-27 | Prima emissione per distribuzione collaboratori |
 | 1.1 | 2026-05-27 | Fase 5: label editor **Physics (Collider)** / **Sensor (Trigger Zone)**; doc GLOBAL_LOGIC, FIXED_STEP, README, TECHNICAL_OVERVIEW |
+| 1.2 | 2026-05-27 | §13 roadmap post-migrazione (collision kernel, solver, tilemap, docs) |
 
 ---
 

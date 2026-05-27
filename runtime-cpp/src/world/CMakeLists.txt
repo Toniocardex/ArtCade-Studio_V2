@@ -14,6 +14,7 @@ target_include_directories(artcade-world
 target_link_libraries(artcade-world
     PUBLIC
         artcade-core
+        artcade-collision
         artcade-runtime-entity-gateway
         artcade-physics
         artcade-variable-manager

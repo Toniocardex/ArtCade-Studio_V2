@@ -20,4 +20,5 @@ target_include_directories(artcade-physics
 
 target_link_libraries(artcade-physics
     PUBLIC artcade-core
+           artcade-collision
 )

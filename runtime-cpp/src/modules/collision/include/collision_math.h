@@ -1,6 +1,6 @@
 #pragma once
 
-// collision_math.h — Stateless collision algebra for artcade-physics.
+// collision_math.h — Stateless collision algebra (shared World + Physics).
 // Screen-space Y-down; axis-aligned shapes only (rotation 0).
 
 #include "../../../core/types.h"
@@ -46,10 +46,24 @@ inline Aabb shapeWorldAabb(const ShapeInstance& s) {
     return aabbFromRect(c, s.size.x * 0.5f, s.size.y * 0.5f);
 }
 
-/** Inclusive edges — touching counts as overlap (matches prior solver queries). */
+/** Inclusive edges — touching counts as overlap (physics queries). */
 inline bool aabbOverlap(const Aabb& a, const Aabb& b) {
     return a.minX <= b.maxX && a.maxX >= b.minX
         && a.minY <= b.maxY && a.maxY >= b.minY;
+}
+
+inline bool horizontalOverlap(const Aabb& a, const Aabb& b) {
+    return a.minX <= b.maxX && a.maxX >= b.minX;
+}
+
+/** Platformer solid resolve: inclusive X, exclusive Y (edge contact). */
+inline bool aabbOverlapPlatformer(const Aabb& a, const Aabb& b) {
+    return horizontalOverlap(a, b)
+        && a.maxY > b.minY && a.minY < b.maxY;
+}
+
+inline bool verticalOverlap(const Aabb& a, const Aabb& b) {
+    return a.maxY > b.minY && a.minY < b.maxY;
 }
 
 inline bool circleCircleOverlap(const Vec2& c1, float r1, const Vec2& c2, float r2) {

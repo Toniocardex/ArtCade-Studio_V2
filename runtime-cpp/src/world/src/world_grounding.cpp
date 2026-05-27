@@ -1,6 +1,8 @@
 #include "world_grounding.h"
 #include "world_internal.h"
 
+#include <collision_math.h>
+
 #include "../../modules/runtime-entity-gateway/include/runtime-entity-gateway.h"
 #include "../../modules/physics/include/physics.h"
 
@@ -14,6 +16,7 @@ namespace {
 
 constexpr float kMinCoyoteAbovePx   = 4.f;
 constexpr float kOneWayLandBelowPx  = 8.f;
+constexpr float kGroundRayProbePx   = 8.f;
 constexpr int   kSolidResolvePasses = 4;
 constexpr float kMinPen             = 0.001f;
 constexpr float kSurfaceSepEpsilon  = 0.5f;
@@ -28,19 +31,11 @@ float aabbHalfHeight(const WorldAabb& box) {
     return std::max(1.f, (box.maxY - box.minY) * 0.5f);
 }
 
-bool horizontalOverlap(const WorldAabb& a, const WorldAabb& b) {
-    return !(a.maxX < b.minX || a.minX > b.maxX);
-}
-
-bool aabbOverlap(const WorldAabb& a, const WorldAabb& b) {
-    return horizontalOverlap(a, b)
-        && a.maxY > b.minY
-        && a.minY < b.maxY;
-}
-
-bool verticalOverlap(const WorldAabb& a, const WorldAabb& b) {
-    return a.maxY > b.minY && a.minY < b.maxY;
-}
+using PhysicsMath::aabbOverlapPlatformer;
+using PhysicsMath::horizontalOverlap;
+using PhysicsMath::RaycastHit;
+using PhysicsMath::raycastSegmentVsAabb;
+using PhysicsMath::verticalOverlap;
 
 bool playerFullyBelow(const WorldAabb& player, const WorldAabb& ground) {
     return player.minY >= ground.maxY - kSurfaceSepEpsilon;
@@ -65,6 +60,42 @@ WorldAabb tileCellAabb(int col, int row, float tileSize) {
     const float x0 = col * tileSize;
     const float y0 = row * tileSize;
     return { x0, y0, x0 + tileSize, y0 + tileSize };
+}
+
+bool tryProbeFeetRaycast(const WorldAabb& player,
+                         float feetY,
+                         float coyoteAbove,
+                         float maxBelow,
+                         const PlatformerSurface& surface,
+                         const std::string& groundClass,
+                         float verticalVelocity,
+                         float& bestDy,
+                         PlatformerSolidContact& best)
+{
+    if (!surface.groundClass || *surface.groundClass != groundClass)
+        return false;
+    if (surface.oneWay && verticalVelocity < 0.f)
+        return false;
+
+    const float cx = (player.minX + player.maxX) * 0.5f;
+    const Vec2 from{ cx, feetY };
+    const Vec2 to{ cx, feetY + std::max(kGroundRayProbePx, maxBelow) };
+    const RaycastHit hit = raycastSegmentVsAabb(from, to, surface.aabb);
+    if (!hit.hit)
+        return false;
+
+    const float topY = surface.aabb.minY;
+    const float dy   = feetY - topY;
+    const float landBelow = surface.oneWay ? kOneWayLandBelowPx : maxBelow;
+    if (dy < -coyoteAbove || dy > landBelow)
+        return false;
+    if (dy >= bestDy)
+        return false;
+
+    bestDy           = dy;
+    best.onGround    = true;
+    best.surfaceTopY = topY;
+    return true;
 }
 
 bool tryProbeFeetOnSurface(const WorldAabb& player,
@@ -164,7 +195,7 @@ bool tryResolveAgainstSurface(const PlatformerSurface& surface,
     const bool vertWithPrev     = verticalOverlap(prev, ground);
     const bool vertWithPlayer   = verticalOverlap(player, ground);
 
-    if (!aabbOverlap(player, ground)) {
+    if (!aabbOverlapPlatformer(player, ground)) {
         if (vertWithPrev || vertWithPlayer) {
             if (prev.maxX <= ground.maxX && player.maxX > ground.maxX) {
                 transform.position.x = ground.maxX - halfW;
@@ -260,6 +291,9 @@ PlatformerSolidContact probePlatformerSolidContact(
             surface.aabb        = worldAabb(ctx.gateway, otherId);
             surface.oneWay        = isOneWaySurface(solid);
             surface.groundClass   = &solid.groundClass;
+            tryProbeFeetRaycast(
+                player, feetY, coyoteAbove, maxBelow,
+                surface, groundClass, verticalVelocity, bestDy, best);
             tryProbeFeetOnSurface(
                 player, feetY, halfH, coyoteAbove, maxBelow,
                 surface, groundClass, verticalVelocity, bestDy, best);
@@ -269,6 +303,9 @@ PlatformerSolidContact probePlatformerSolidContact(
         forEachOverlappingTileSurfaces(
             *ctx.tilemap, *ctx.tileMeta, player,
             [&](const PlatformerSurface& surface) {
+                tryProbeFeetRaycast(
+                    player, feetY, coyoteAbove, maxBelow,
+                    surface, groundClass, verticalVelocity, bestDy, best);
                 tryProbeFeetOnSurface(
                     player, feetY, halfH, coyoteAbove, maxBelow,
                     surface, groundClass, verticalVelocity, bestDy, best);

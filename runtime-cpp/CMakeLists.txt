@@ -94,6 +94,11 @@ add_subdirectory(src/modules/tween-manager)
 add_subdirectory(src/modules/save-load)
 
 # ============================================================================
+# Collision kernel — shared by World platformer + Physics solver
+# ============================================================================
+add_subdirectory(src/modules/collision)
+
+# ============================================================================
 # Physics — custom solver + raymath header; no link to Raylib target (Fase 12)
 # ============================================================================
 add_subdirectory(src/modules/physics)

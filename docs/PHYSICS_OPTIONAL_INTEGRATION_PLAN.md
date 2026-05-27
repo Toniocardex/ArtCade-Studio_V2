@@ -355,21 +355,37 @@ Ogni fase = PR separato reviewabile (~300–800 LOC ciascuno).
 
 ---
 
-## 13. Fuori scope (v2+)
+## 13. Feature → collision layer (reference)
 
-- Physics 2.0 / continuous collision (CCD) nel solver custom.
-- Merge tile static bodies in chain shapes (oggi: un body per cella solida + AABB platformer separato).
-- Networked physics.
-- `onCollision` edge nativo C++ (oggi edge Lua da `touchingClass`).
+| Feature | Layer | Notes |
+|---------|-------|--------|
+| Platformer jump / coyote / one-way | World AABB + feet raycast | `world_grounding.cpp`; 4 resolve passes |
+| Top-down + Dynamic collider | Physics solver | `gravityScale = 0` on create |
+| `collision.overlap` / `touchingClass` | Physics bodies | Entity handles; tile terrain needs Dynamic in scene or Solid entities |
+| `isSpaceFree` (spawn) | Tile grid | No physics bodies |
+| Tile static colliders | Physics (lazy) | Built only when `hasDynamicBodies()`; merged horizontal runs |
+| Sensor enter/exit | Physics overlap | After `syncPhysicsToEntities` |
 
 ---
 
-## 14. Riferimenti codice
+## 14. Fuori scope (v2+)
+
+- Full rigid-body simulation (friction piles, joints, true impulse/mass).
+- Networked physics rollback.
+- Native C++ `onCollision` edge (today: Lua via sensor / `touchingClass`).
+
+**Completato (2026-05):** shared `artcade-collision` kernel; multi-pass resolve + resting contact + light CCD; tile body merge + lazy build; platformer feet raycast; uniform-grid broadphase when body count > 64.
+
+---
+
+## 15. Riferimenti codice
 
 | Argomento | File |
 |-----------|------|
 | Platformer tick | `runtime-cpp/src/world/src/world_platformer_controller.cpp` |
+| Shared collision kernel | `runtime-cpp/src/modules/collision/include/collision_math.h` |
 | Platformer probe/resolve (Solid + tile) | `runtime-cpp/src/world/src/world_grounding.cpp` |
+| Tile physics bodies (lazy + merge) | `runtime-cpp/src/world/src/world_tilemap.cpp` |
 | Tile palette / meta | `runtime-cpp/src/core/types.h` `TilePaletteEntry`, `World::tileMeta_` |
 | Body creation rules | `runtime-cpp/.../runtime-entity-gateway.cpp` `ensurePhysicsBody` |
 | Physics step | `runtime-cpp/src/app/src/app.cpp` `tickFixedStep` |

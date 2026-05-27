@@ -10,7 +10,7 @@ namespace ArtCade::Modules {
 /**
  * Physics — custom 2D solver (Facade; Fase 12+).
  *
- * Implementation in physics.cpp + collision_math.h (semi-implicit Euler,
+ * Implementation in physics.cpp + artcade-collision (semi-implicit Euler,
  * linear broadphase). External modules see only Vec2 / PhysicsComponent / handle.
  *
  * Screen-space Y-down. Default gravity: {0, +10} (fall toward +Y).
@@ -30,6 +30,8 @@ public:
     void step(float dt, uint32_t substeps = 2);
     /** True when at least one physics body exists (used for physicsMode auto). */
     bool hasActiveBodies() const;
+    /** True when at least one active Dynamic body exists (tilemap body policy). */
+    bool hasDynamicBodies() const;
 
     // ---- Body lifecycle -----------------------------------------------------
     uint32_t createBody(EntityId entityId, const PhysicsComponent& comp);

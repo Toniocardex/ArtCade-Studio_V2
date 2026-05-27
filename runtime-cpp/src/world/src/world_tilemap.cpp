@@ -13,6 +13,10 @@ void World::clearTilemapPhysics() {
     tilePhysicsHandles_.clear();
 }
 
+bool World::needsTilemapPhysicsBodies() const {
+    return physics_.hasDynamicBodies();
+}
+
 void World::rebuildTilemapPhysics() {
     clearTilemapPhysics();
 
@@ -26,25 +30,49 @@ void World::rebuildTilemapPhysics() {
     const TilemapData& tm = activeTilemap_;
     if (tm.cols <= 0 || tm.rows <= 0) return;
 
+    if (!needsTilemapPhysicsBodies()) {
+        std::cout << "[Tilemap] 0 solid collision bodies (platformer grid only)\n";
+        return;
+    }
+
+    auto isSolidCell = [&](int col, int row) -> bool {
+        if (col < 0 || row < 0 || col >= tm.cols || row >= tm.rows)
+            return false;
+        const int idx = row * tm.cols + col;
+        if (idx >= static_cast<int>(tm.data.size()))
+            return false;
+        const int id = tm.data[idx];
+        if (id <= 0) return false;
+        auto si = tileMeta_.find(id);
+        return si != tileMeta_.end() && si->second.blocks;
+    };
+
     int created = 0;
-    const int n = static_cast<int>(tm.data.size());
+    const float ts = tm.tileSize;
+
     for (int r = 0; r < tm.rows; ++r) {
-        for (int c = 0; c < tm.cols; ++c) {
-            const int idx = r * tm.cols + c;
-            if (idx >= n) continue;
-            const int id = tm.data[idx];
-            if (id <= 0) continue;
-            auto si = tileMeta_.find(id);
-            if (si == tileMeta_.end() || !si->second.blocks) continue;
+        int c = 0;
+        while (c < tm.cols) {
+            if (!isSolidCell(c, r)) {
+                ++c;
+                continue;
+            }
+            int runStart = c;
+            while (c < tm.cols && isSolidCell(c, r))
+                ++c;
+            const int runLen = c - runStart;
+            const float width  = runLen * ts;
+            const float height = ts;
+            const float centerX =
+                runStart * ts + width * 0.5f;
+            const float centerY = r * ts + height * 0.5f;
 
             PhysicsComponent pc;
             pc.bodyType       = BodyType::Static;
             pc.collider.shape = ColliderShape::Rectangle;
-            pc.collider.size  = { tm.tileSize, tm.tileSize };
+            pc.collider.size  = { width, height };
             const uint32_t h = physics_.createBody(INVALID_ENTITY, pc);
-            physics_.setPosition(h, {
-                c * tm.tileSize + tm.tileSize * 0.5f,
-                r * tm.tileSize + tm.tileSize * 0.5f });
+            physics_.setPosition(h, { centerX, centerY });
             tilePhysicsHandles_.push_back(h);
             ++created;
         }

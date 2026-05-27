@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../include/world.h"
+#include "../../modules/collision/include/collision_math.h"
 #include "../../modules/physics/include/physics.h"
 #include "../../modules/runtime-entity-gateway/include/runtime-entity-gateway.h"
 
@@ -70,12 +71,7 @@ inline Vec2 worldColliderSize(const Modules::RuntimeEntityGateway& gateway,
     };
 }
 
-struct WorldAabb {
-    float minX = 0.f;
-    float minY = 0.f;
-    float maxX = 0.f;
-    float maxY = 0.f;
-};
+using WorldAabb = PhysicsMath::Aabb;
 
 inline WorldAabb worldAabbAt(const Modules::RuntimeEntityGateway& gateway,
                               EntityId id,
