@@ -235,6 +235,43 @@ static void test_platformer_coyote_jump_after_leaving_solid() {
     CHECK(transform.velocity.y < -499.f);
 }
 
+static void test_platformer_snaps_to_solid_after_fall() {
+    Fixture f;
+
+    EntityDef player = makeEntity(1, "Player");
+    player.transform.position = { 160.f, 80.f };
+    PlatformerControllerComponent pc;
+    pc.customGravity = 1500.f;
+    pc.groundClass = "Ground";
+    player.platformerController = pc;
+
+    EntityDef platform = makeEntity(2, "Platform");
+    platform.transform.position = { 160.f, 200.f };
+    platform.transform.scale = { 10.f, 0.3125f };
+    SolidComponent solid;
+    solid.groundClass = "Ground";
+    platform.solid = solid;
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1, 2 };
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.scenes = {{ scene.id, scene }};
+    doc.entities = {{ 1, player }, { 2, platform }};
+    f.world.init(doc);
+
+    const float dt = 1.f / 60.f;
+    for (int i = 0; i < 90; ++i)
+        f.tickFrame(dt);
+
+    CHECK(f.world.isPlatformerGrounded(1));
+    Transform transform{};
+    CHECK(f.gw.getTransform(1, transform));
+    CHECK(std::abs(transform.velocity.y) < 0.01f);
+}
+
 static void test_platformer_grounded_with_feet_slightly_below_solid_top() {
     Fixture f;
 
@@ -513,6 +550,7 @@ static void test_platformer_jump_intent_without_input() {
     Fixture f;
 
     EntityDef player = makeEntity(1, "Player", {"player"});
+    player.transform.position = { 160.f, 179.f };
     player.physics.bodyType = BodyType::Dynamic;
     player.physics.collider.size = { 32.f, 32.f };
     PlatformerControllerComponent pc;
@@ -521,8 +559,12 @@ static void test_platformer_jump_intent_without_input() {
     player.platformerController = pc;
 
     EntityDef ground = makeEntity(2, "Ground");
+    ground.transform.position = { 160.f, 200.f };
+    ground.transform.scale = { 10.f, 0.3125f };
     ground.physics.bodyType = BodyType::Static;
-    ground.physics.collider.size = { 64.f, 64.f };
+    SolidComponent solid;
+    solid.groundClass = "Ground";
+    ground.solid = solid;
 
     SceneDef scene;
     scene.id = "main";
@@ -534,6 +576,7 @@ static void test_platformer_jump_intent_without_input() {
     doc.entities = {{ 1, player }, { 2, ground }};
     f.world.init(doc);
 
+    CHECK(f.world.isPlatformerGrounded(1));
     f.world.requestJump(1);
     f.tickFrame(1.f / 60.f);
     const Vec2 velocity = f.physics.getLinearVelocity(f.gw.physicsHandle(1));
@@ -544,6 +587,7 @@ static void test_platformer_grounded_by_solid_component() {
     Fixture f;
 
     EntityDef player = makeEntity(1, "Player", {"player"});
+    player.transform.position = { 160.f, 179.f };
     player.physics.bodyType = BodyType::Dynamic;
     player.physics.collider.size = { 32.f, 32.f };
     PlatformerControllerComponent pc;
@@ -552,6 +596,8 @@ static void test_platformer_grounded_by_solid_component() {
     player.platformerController = pc;
 
     EntityDef platform = makeEntity(2, "Platform");
+    platform.transform.position = { 160.f, 200.f };
+    platform.transform.scale = { 10.f, 0.3125f };
     SolidComponent solid;
     solid.groundClass = "Ground";
     platform.solid = solid;
@@ -567,6 +613,7 @@ static void test_platformer_grounded_by_solid_component() {
     f.world.init(doc);
 
     CHECK(f.gw.physicsHandle(2) != 0);
+    CHECK(f.world.isPlatformerGrounded(1));
     f.world.requestJump(1);
     f.tickFrame(1.f / 60.f);
     const Vec2 velocity = f.physics.getLinearVelocity(f.gw.physicsHandle(1));
@@ -1432,6 +1479,7 @@ int main() {
     test_platformer_kinematic_horizontal_movement_without_body();
     test_platformer_is_grounded_false_when_airborne_over_solid();
     test_platformer_coyote_jump_after_leaving_solid();
+    test_platformer_snaps_to_solid_after_fall();
     test_platformer_grounded_with_feet_slightly_below_solid_top();
     test_platformer_grounded_on_solid_without_player_physics();
     test_platformer_with_physics_collider_is_kinematic_body();

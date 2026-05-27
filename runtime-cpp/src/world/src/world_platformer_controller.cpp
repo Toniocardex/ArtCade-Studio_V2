@@ -26,7 +26,11 @@ void stepPlatformerController(World& world,
         world.entityGateway_,
         world.physics_,
     };
-    const bool rawGrounded = isGrounded(grounding, id, pc.groundClass);
+
+    const PlatformerSolidContact groundBefore =
+        probePlatformerSolidContact(grounding, id, pc.groundClass);
+    const bool rawGrounded = groundBefore.onGround;
+
     if (rawGrounded) {
         rt.groundedFrames = std::min(rt.groundedFrames + 1, kStableGroundedFrames + 4);
         rt.airborneFrames = 0;
@@ -83,6 +87,20 @@ void stepPlatformerController(World& world,
     transform.velocity = rt.velocity;
     transform.position.x += rt.velocity.x * dt;
     transform.position.y += rt.velocity.y * dt;
+
+    // Floor snap: after integration, land on the nearest Solid surface below
+    // the feet (native kinematic platformer — no penetration tolerance hack).
+    if (vy >= 0.f) {
+        const PlatformerSolidContact groundAfter =
+            probePlatformerSolidContact(grounding, id, pc.groundClass);
+        if (groundAfter.onGround) {
+            snapTransformFeetToSurface(transform, grounding, id, groundAfter.surfaceTopY);
+            vy = 0.f;
+            rt.velocity.y = 0.f;
+            transform.velocity.y = 0.f;
+        }
+    }
+
     world.entityGateway_.setTransform(id, transform);
 
     const uint32_t handle = world.entityGateway_.physicsHandle(id);
