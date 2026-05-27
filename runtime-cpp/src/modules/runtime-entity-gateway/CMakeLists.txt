@@ -30,6 +30,7 @@ target_include_directories(artcade-runtime-entity-gateway
 target_link_libraries(artcade-runtime-entity-gateway
     PUBLIC
         artcade-core
+        artcade-object-type-materialize
         artcade-scene-system
         artcade-physics
     PRIVATE

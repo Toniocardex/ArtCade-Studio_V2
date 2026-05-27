@@ -181,7 +181,8 @@ public:
                         const std::unordered_map<EntityId, EntityDef>& entityDefs);
     bool replaceProject(const std::unordered_map<SceneId, SceneDef>& scenes,
                         const std::unordered_map<EntityId, EntityDef>& entityDefs,
-                        const SceneId& activeSceneId);
+                        const SceneId& activeSceneId,
+                        const std::unordered_map<std::string, EntityDef>* objectTypes = nullptr);
     /** Apply a single EntityDef without clearing the registry (editor sync). */
     bool updateEntity(EntityId id, const EntityDef& def);
     /** Patch scene viewport/world/background on the active project snapshot. */
@@ -239,7 +240,9 @@ private:
     EntityDestroyHandler   destroyHandler_;
     PhysicsTopologyHandler physicsTopologyHandler_;
 
-    void rebuildClassPrototypes(const std::unordered_map<EntityId, EntityDef>& entityDefs);
+    void rebuildClassPrototypes(
+        const std::unordered_map<EntityId, EntityDef>& entityDefs,
+        const std::unordered_map<std::string, EntityDef>* objectTypes = nullptr);
     bool entityListedInActiveScene(EntityId id) const;
     void deactivateEntity(EntityId id);
     void activateEntity(EntityId id);

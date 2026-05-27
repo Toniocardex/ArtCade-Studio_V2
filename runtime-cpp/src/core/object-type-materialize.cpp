@@ -1,0 +1,60 @@
+#include "object-type-materialize.h"
+
+#include <algorithm>
+
+namespace ArtCade {
+
+EntityDef materializeInstance(const EntityDef& typeProto,
+                              const SceneInstanceDef& instance) {
+    EntityDef e = typeProto;
+    e.id        = instance.id;
+    e.className = typeProto.className.empty() ? instance.objectTypeId : typeProto.className;
+    e.name      = instance.instanceName.empty() ? typeProto.name : instance.instanceName;
+    e.transform = instance.transform;
+    e.visible   = instance.visible;
+    return e;
+}
+
+void materializeProjectEntities(ProjectDoc& doc) {
+    if (doc.objectTypes.empty()) return;
+
+    const bool hasInstances = std::any_of(
+        doc.scenes.begin(), doc.scenes.end(),
+        [](const auto& kv) { return !kv.second.instances.empty(); });
+    if (!hasInstances && !doc.entities.empty()) return;
+
+    doc.entities.clear();
+    for (auto& [sid, scene] : doc.scenes) {
+        if (scene.instances.empty()) continue;
+        scene.entityIds.clear();
+        for (const SceneInstanceDef& inst : scene.instances) {
+            auto typeIt = doc.objectTypes.find(inst.objectTypeId);
+            if (typeIt == doc.objectTypes.end()) continue;
+            EntityDef e = materializeInstance(typeIt->second, inst);
+            doc.entities[e.id] = e;
+            scene.entityIds.push_back(e.id);
+        }
+        (void)sid;
+    }
+}
+
+void rebuildClassPrototypes(
+    std::unordered_map<std::string, EntityDef>& out,
+    const std::unordered_map<std::string, EntityDef>& objectTypes,
+    const std::unordered_map<EntityId, EntityDef>& entityDefs)
+{
+    out.clear();
+    for (const auto& [typeId, def] : objectTypes) {
+        EntityDef copy = def;
+        copy.className = typeId;
+        out[typeId] = std::move(copy);
+    }
+    for (const auto& [id, def] : entityDefs) {
+        (void)id;
+        if (def.className.empty()) continue;
+        if (out.find(def.className) == out.end())
+            out[def.className] = def;
+    }
+}
+
+} // namespace ArtCade

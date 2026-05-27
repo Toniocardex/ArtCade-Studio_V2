@@ -79,6 +79,11 @@ foreach(_inc IN ITEMS
     endif()
 endforeach()
 
+add_library(artcade-object-type-materialize STATIC
+    src/core/object-type-materialize.cpp
+)
+target_link_libraries(artcade-object-type-materialize PUBLIC artcade-core)
+
 # ============================================================================
 # Moduli stateless — nessuna dipendenza da Raylib o Lua.
 # Sempre compilati (Fase 3 e oltre).

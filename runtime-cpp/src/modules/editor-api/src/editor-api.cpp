@@ -287,17 +287,22 @@ void loadProjectFromJson(const char* json_utf8, ProjectLoadKind kind) {
     try {
         const json doc = json::parse(json_utf8);
 
+        auto objectTypes = Parser::parseObjectTypes(doc);
         auto entityDefs  = Parser::parseEntities(doc);
         auto sceneDefs   = Parser::parseScenes(doc);
         auto tilesets    = Parser::parseTilesets(doc);
         auto tilePalette = Parser::parseTilePalette(doc);
+
+        Parser::materializeV2Project(entityDefs, sceneDefs, objectTypes);
 
         std::string activeId = doc.value("activeSceneId",
                                doc.value("active_scene_id", std::string{}));
         if (activeId.empty() && !sceneDefs.empty())
             activeId = sceneDefs.begin()->first;
 
-        gateway->replaceProject(sceneDefs, entityDefs, activeId);
+        const std::unordered_map<std::string, EntityDef>* typesPtr =
+            objectTypes.empty() ? nullptr : &objectTypes;
+        gateway->replaceProject(sceneDefs, entityDefs, activeId, typesPtr);
         gateway->setTilesets(tilesets);
 
         if (kind == ProjectLoadKind::HotSync) {

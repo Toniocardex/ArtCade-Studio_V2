@@ -3,6 +3,7 @@
 #include "entity-registry.h"
 #include "../../scene-system/include/scene-manager.h"
 #include "../../physics/include/physics.h"
+#include "object-type-materialize.h"
 
 #include <algorithm>
 #include <cmath>
@@ -297,15 +298,14 @@ EntityId RuntimeEntityGateway::create(const EntityDef& def) {
 }
 
 void RuntimeEntityGateway::rebuildClassPrototypes(
-    const std::unordered_map<EntityId, EntityDef>& entityDefs)
+    const std::unordered_map<EntityId, EntityDef>& entityDefs,
+    const std::unordered_map<std::string, EntityDef>* objectTypes)
 {
-    classPrototypes_.clear();
-    for (const auto& [id, def] : entityDefs) {
-        (void)id;
-        if (def.className.empty()) continue;
-        if (classPrototypes_.find(def.className) == classPrototypes_.end())
-            classPrototypes_[def.className] = def;
-    }
+    const std::unordered_map<std::string, EntityDef> empty;
+    ArtCade::rebuildClassPrototypes(
+        classPrototypes_,
+        objectTypes ? *objectTypes : empty,
+        entityDefs);
 }
 
 EntityId RuntimeEntityGateway::spawnFromClass(const std::string& className, float x, float y) {
@@ -779,7 +779,8 @@ void RuntimeEntityGateway::registerScenes(
 bool RuntimeEntityGateway::replaceProject(
     const std::unordered_map<SceneId, SceneDef>& scenes,
     const std::unordered_map<EntityId, EntityDef>& entityDefs,
-    const SceneId& activeSceneId)
+    const SceneId& activeSceneId,
+    const std::unordered_map<std::string, EntityDef>* objectTypes)
 {
     // registry_->clear() fires on_destroy<PhysicsHandleComp> for every
     // entity, which calls physics_->destroyBody on each live handle.
@@ -788,7 +789,7 @@ bool RuntimeEntityGateway::replaceProject(
     // batch call would risk double-free if the wrapper's destroyAll
     // and per-handle destroy interact.
     registry_->clear();
-    rebuildClassPrototypes(entityDefs);
+    rebuildClassPrototypes(entityDefs, objectTypes);
     sceneManager_.registerScenes(scenes, entityDefs);
     for (const auto& [id, def] : entityDefs) {
         EntityDef copy = def;

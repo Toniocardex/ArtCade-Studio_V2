@@ -1,7 +1,9 @@
 #include "project-doc-parser.h"
+#include "object-type-materialize.h"
 
 #ifdef __EMSCRIPTEN__
 
+#include <algorithm>
 #include <string>
 #include <utility>
 
@@ -190,6 +192,23 @@ SceneDef parseSceneDef(const json& j, const SceneId& fallbackId) {
                       : j.contains("entity_ids") ? j["entity_ids"] : json{};
     if (eids.is_array())
         for (const auto& id : eids) s.entityIds.push_back(id.get<EntityId>());
+    if (j.contains("instances") && j["instances"].is_array()) {
+        for (const auto& item : j["instances"]) {
+            if (!item.is_object()) continue;
+            SceneInstanceDef inst;
+            inst.id           = item.value("id", 0u);
+            inst.objectTypeId = item.value("objectTypeId",
+                                  item.value("object_type_id", std::string{}));
+            inst.instanceName = item.value("instanceName",
+                                  item.value("instance_name", std::string{}));
+            if (item.contains("transform"))
+                inst.transform = parseTransform(item["transform"]);
+            if (item.contains("visible") && item["visible"].is_boolean())
+                inst.visible = item["visible"].get<bool>();
+            if (inst.id != 0 && !inst.objectTypeId.empty())
+                s.instances.push_back(std::move(inst));
+        }
+    }
     if (j.contains("tilemap") && j["tilemap"].is_object()) {
         const auto& tm = j["tilemap"];
         s.tilemap.tileSize = tm.value("tileSize", 32.f);
@@ -295,6 +314,46 @@ parseTilePalette(const json& doc) {
         if (e.id > 0) out.push_back(std::move(e));
     }
     return out;
+}
+
+std::unordered_map<std::string, EntityDef>
+parseObjectTypes(const json& doc) {
+    std::unordered_map<std::string, EntityDef> objectTypes;
+    const json* raw = nullptr;
+    if (doc.contains("objectTypes"))
+        raw = &doc["objectTypes"];
+    else if (doc.contains("object_types"))
+        raw = &doc["object_types"];
+    if (!raw || !raw->is_object()) return objectTypes;
+
+    for (auto& [key, val] : raw->items()) {
+        EntityDef e = parseEntityDef(val, 0);
+        e.id = 0;
+        e.className = val.value("id", key);
+        e.name = val.value("displayName", val.value("display_name", e.className));
+        objectTypes[e.className] = std::move(e);
+    }
+    return objectTypes;
+}
+
+void materializeV2Project(
+    std::unordered_map<EntityId, EntityDef>& entities,
+    std::unordered_map<SceneId, SceneDef>& scenes,
+    const std::unordered_map<std::string, EntityDef>& objectTypes)
+{
+    if (objectTypes.empty()) return;
+    const bool hasInstances = std::any_of(
+        scenes.begin(), scenes.end(),
+        [](const auto& kv) { return !kv.second.instances.empty(); });
+    if (!hasInstances && !entities.empty()) return;
+
+    ProjectDoc doc;
+    doc.objectTypes = objectTypes;
+    doc.scenes      = scenes;
+    doc.entities    = entities;
+    materializeProjectEntities(doc);
+    entities = std::move(doc.entities);
+    scenes   = std::move(doc.scenes);
 }
 
 } // namespace ArtCade::ProjectDocParser

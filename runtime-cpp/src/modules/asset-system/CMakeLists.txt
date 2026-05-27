@@ -7,7 +7,7 @@ target_include_directories(artcade-asset-system
     PRIVATE src
 )
 target_link_libraries(artcade-asset-system
-    PUBLIC  artcade-core
+    PUBLIC  artcade-core artcade-object-type-materialize
 )
 
 # When raylib is present, expose raylib/src for sinfl.h (DEFLATE decompressor)

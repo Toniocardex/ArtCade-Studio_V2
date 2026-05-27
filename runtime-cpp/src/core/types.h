@@ -242,6 +242,15 @@ struct TilesetAsset {
     int         rows     = 1;
 };
 
+/** Scene placement of an object type (project format v2). */
+struct SceneInstanceDef {
+    EntityId    id           = 0;
+    std::string objectTypeId;
+    std::string instanceName;
+    Transform   transform;
+    bool        visible      = true;
+};
+
 struct SceneDef {
     SceneId             id;
     std::string         name;
@@ -249,6 +258,7 @@ struct SceneDef {
     Vec2                viewportSize = {800.f, 600.f};
     Vec4                backgroundColor;
     std::vector<EntityId> entityIds;
+    std::vector<SceneInstanceDef> instances;
     TilemapData         tilemap;     // cols==0 → absent
 };
 
@@ -294,11 +304,14 @@ struct WorldSettings {
 struct ProjectDoc {
     std::string  projectName;
     std::string  version         = "2.0.0";
+    int          formatVersion   = 0;
     std::string  licenseTier     = "free";
     float        targetFPS       = 60.f;
     SceneId      activeSceneId;
     std::string  mainScriptPath  = "scripts/main.luac";
 
+    /** Object type catalog (v2). Key = type id; prototype uses className == key. */
+    std::unordered_map<std::string, EntityDef> objectTypes;
     std::unordered_map<EntityId, EntityDef> entities;
     std::unordered_map<SceneId,  SceneDef>  scenes;
     std::unordered_map<SceneId,  std::string> thumbnails;

@@ -55,6 +55,15 @@ parseTilesets(const nlohmann::json& doc);
 std::vector<ArtCade::TilePaletteEntry>
 parseTilePalette(const nlohmann::json& doc);
 
+std::unordered_map<std::string, ArtCade::EntityDef>
+parseObjectTypes(const nlohmann::json& doc);
+
+/** Merge objectTypes + scene.instances when v2 project has no flat entities map. */
+void materializeV2Project(
+    std::unordered_map<ArtCade::EntityId, ArtCade::EntityDef>& entities,
+    std::unordered_map<ArtCade::SceneId, ArtCade::SceneDef>& scenes,
+    const std::unordered_map<std::string, ArtCade::EntityDef>& objectTypes);
+
 } // namespace ArtCade::ProjectDocParser
 
 #endif // __EMSCRIPTEN__

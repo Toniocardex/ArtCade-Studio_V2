@@ -1,5 +1,6 @@
 #include "../include/asset-loader.h"
 #include "zip-reader.h"
+#include "object-type-materialize.h"
 #include <nlohmann/json.hpp>
 #include <filesystem>
 #include <fstream>
@@ -144,6 +145,7 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
     out.targetFPS      = readFloatAny(j, "targetFPS", "target_fps", 60.f);
     out.activeSceneId  = readStringAny(j, "activeSceneId", "active_scene_id");
     out.mainScriptPath = readStringAny(j, "mainScriptPath", "main_script_path", "scripts/main.luac");
+    out.formatVersion  = j.value("formatVersion", j.value("format_version", 0));
 
     if (j.contains("world") && j["world"].is_object()) {
         const auto& wo = j["world"];
@@ -157,6 +159,42 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
             out.world.physicsMode = PhysicsMode::On;
         else
             out.world.physicsMode = PhysicsMode::Auto;
+    }
+
+    // Object types (v2)
+    if (j.contains("objectTypes") && j["objectTypes"].is_object()) {
+        for (auto& [key, tv] : j["objectTypes"].items()) {
+            if (!tv.is_object()) continue;
+            EntityDef e;
+            e.id        = 0;
+            e.className = tv.value("id", key);
+            e.name      = tv.value("displayName", tv.value("display_name", e.className));
+            if (tv.contains("tags") && tv["tags"].is_array())
+                e.tags = tv["tags"].get<std::vector<std::string>>();
+            if (tv.contains("sprite")) {
+                auto& s = tv["sprite"];
+                e.sprite.spriteAssetId = readStringAny(s, "spriteAssetId", "sprite_asset_id");
+                if (s.contains("tint")) e.sprite.tint = readVec4(s["tint"]);
+                e.sprite.alpha = s.value("alpha", 1.f);
+            }
+            if (tv.contains("solid") && tv["solid"].is_object()) {
+                SolidComponent solid;
+                solid.groundClass = tv["solid"].value("groundClass", std::string("Ground"));
+                solid.surfaceKind = tv["solid"].value("surfaceKind", std::string("solid"));
+                e.solid = solid;
+            }
+            if (tv.contains("platformerController") && tv["platformerController"].is_object()) {
+                auto& p = tv["platformerController"];
+                PlatformerControllerComponent pc;
+                pc.maxSpeed      = p.value("maxSpeed", 300.f);
+                pc.jumpForce     = p.value("jumpForce", 600.f);
+                pc.customGravity = p.value("customGravity", 1500.f);
+                pc.groundClass   = p.value("groundClass", std::string("Ground"));
+                e.platformerController = pc;
+            }
+            if (!e.className.empty())
+                out.objectTypes[e.className] = std::move(e);
+        }
     }
 
     // Entities
@@ -331,6 +369,30 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
             if (sv.contains("entity_ids") && sv["entity_ids"].is_array())
                 s.entityIds = sv["entity_ids"].get<std::vector<EntityId>>();
 
+            if (sv.contains("instances") && sv["instances"].is_array()) {
+                for (const auto& item : sv["instances"]) {
+                    if (!item.is_object()) continue;
+                    SceneInstanceDef inst;
+                    inst.id           = item.value("id", 0u);
+                    inst.objectTypeId = item.value("objectTypeId",
+                                          item.value("object_type_id", std::string{}));
+                    inst.instanceName = item.value("instanceName",
+                                          item.value("instance_name", std::string{}));
+                    if (item.contains("transform")) {
+                        auto& t = item["transform"];
+                        if (t.contains("position"))
+                            inst.transform.position = readVec2(t["position"]);
+                        if (t.contains("scale"))
+                            inst.transform.scale = readVec2(t["scale"], {1, 1});
+                        inst.transform.rotation = t.value("rotation", 0.f);
+                    }
+                    if (item.contains("visible") && item["visible"].is_boolean())
+                        inst.visible = item["visible"].get<bool>();
+                    if (inst.id != 0 && !inst.objectTypeId.empty())
+                        s.instances.push_back(std::move(inst));
+                }
+            }
+
             if (sv.contains("tilemap") && sv["tilemap"].is_object()) {
                 const auto& tm = sv["tilemap"];
                 s.tilemap.tileSize = tm.value("tileSize", 32.f);
@@ -381,6 +443,8 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
             out.tilesets.push_back(ts);
         }
     }
+
+    materializeProjectEntities(out);
 
     if (j.contains("assets") && j["assets"].is_object()) {
         for (auto& [key, av] : j["assets"].items()) {

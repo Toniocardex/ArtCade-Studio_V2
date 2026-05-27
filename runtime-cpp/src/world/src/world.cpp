@@ -67,7 +67,9 @@ void World::restoreDesignState(const std::vector<TilePaletteEntry>& tilePalette)
 
 void World::init(const ProjectDoc& doc) {
     entityGateway_.setPhysics(&physics_);
-    entityGateway_.replaceProject(doc.scenes, doc.entities, doc.activeSceneId);
+    const std::unordered_map<std::string, EntityDef>* typesPtr =
+        doc.objectTypes.empty() ? nullptr : &doc.objectTypes;
+    entityGateway_.replaceProject(doc.scenes, doc.entities, doc.activeSceneId, typesPtr);
 
     applyTilePalette(doc.tilePalette);
     activeTilemap_ = TilemapData{};
