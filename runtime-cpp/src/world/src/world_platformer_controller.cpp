@@ -85,12 +85,16 @@ void stepPlatformerController(World& world,
     rt.velocity = { vx, vy };
     Transform transform{};
     if (!world.entityGateway_.getTransform(id, transform)) return;
+    const Transform beforeMove = transform;
     transform.velocity = rt.velocity;
     transform.position.x += rt.velocity.x * dt;
     transform.position.y += rt.velocity.y * dt;
 
-    if (vy < 0.f)
-        resolvePlatformerSolidUnderside(transform, grounding, id, pc.groundClass, vy);
+    resolvePlatformerSolidVolume(
+        transform, grounding, id, pc.groundClass, beforeMove, vx, vy);
+    rt.velocity.x = vx;
+    rt.velocity.y = vy;
+    transform.velocity = rt.velocity;
 
     // Floor snap: after integration, land on the nearest Solid surface below
     // the feet (native kinematic platformer — no penetration tolerance hack).

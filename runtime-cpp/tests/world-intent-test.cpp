@@ -203,7 +203,7 @@ static void test_platformer_coyote_jump_after_leaving_solid() {
 
     EntityDef platform = makeEntity(2, "Platform");
     platform.transform.position = { 160.f, 200.f };
-    platform.transform.scale = { 10.f, 0.3125f };
+    platform.transform.scale = { 2.f, 0.3125f };
     SolidComponent solid;
     solid.groundClass = "Ground";
     platform.solid = solid;
@@ -220,19 +220,19 @@ static void test_platformer_coyote_jump_after_leaving_solid() {
 
     CHECK(f.world.isPlatformerGrounded(1));
 
-    f.world.setMovementIntent(1, 1.f, 0.f);
     const float dt = 1.f / 60.f;
-    for (int i = 0; i < 45; ++i)
-        f.tickFrame(dt);
-
+    bool jumped = false;
     Transform transform{};
-    CHECK(f.gw.getTransform(1, transform));
-    CHECK(!f.world.isPlatformerGrounded(1));
+    for (int i = 0; i < 18; ++i) {
+        f.world.setMovementIntent(1, 1.f, 0.f);
+        if (i == 4) f.world.requestJump(1);
+        f.tickFrame(dt);
+        CHECK(f.gw.getTransform(1, transform));
+        if (transform.velocity.y < -499.f) jumped = true;
+    }
 
-    f.world.requestJump(1);
-    f.tickFrame(dt);
-    CHECK(f.gw.getTransform(1, transform));
-    CHECK(transform.velocity.y < -499.f);
+    CHECK(jumped);
+    CHECK(!f.world.isPlatformerGrounded(1));
 }
 
 static void test_platformer_snaps_to_solid_after_fall() {
@@ -353,6 +353,52 @@ static void test_platformer_blocks_solid_underside_when_jumping_up() {
   // Ceiling underside ~205; player should not pass through (peak well above that).
     CHECK(peakY > 220.f);
     CHECK(peakY < startY - 40.f);
+}
+
+static void test_platformer_blocks_solid_wall_horizontally() {
+    Fixture f;
+
+    EntityDef player = makeEntity(1, "Player");
+    player.transform.position = { 80.f, 379.f };
+    PlatformerControllerComponent pc;
+    pc.maxSpeed = 300.f;
+    pc.groundClass = "Ground";
+    player.platformerController = pc;
+
+    EntityDef floor = makeEntity(2, "Floor");
+    floor.transform.position = { 160.f, 400.f };
+    floor.transform.scale = { 10.f, 0.3125f };
+    SolidComponent floorSolid;
+    floorSolid.groundClass = "Ground";
+    floor.solid = floorSolid;
+
+    EntityDef wall = makeEntity(3, "Wall");
+    wall.transform.position = { 200.f, 379.f };
+    wall.transform.scale = { 0.5f, 2.f };
+    SolidComponent wallSolid;
+    wallSolid.groundClass = "Ground";
+    wallSolid.surfaceKind = "solid";
+    wall.solid = wallSolid;
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1, 2, 3 };
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.scenes = {{ scene.id, scene }};
+    doc.entities = {{ 1, player }, { 2, floor }, { 3, wall }};
+    f.world.init(doc);
+
+    const float dt = 1.f / 60.f;
+    Transform transform{};
+    for (int i = 0; i < 30; ++i) {
+        f.world.setMovementIntent(1, 1.f, 0.f);
+        f.tickFrame(dt);
+    }
+
+    CHECK(f.gw.getTransform(1, transform));
+    CHECK(transform.position.x <= 176.5f);
 }
 
 static void test_platformer_passes_through_one_way_when_jumping_up() {
@@ -1676,6 +1722,7 @@ int main() {
     test_platformer_snaps_to_solid_after_fall();
     test_platformer_grounded_with_feet_slightly_below_solid_top();
     test_platformer_blocks_solid_underside_when_jumping_up();
+    test_platformer_blocks_solid_wall_horizontally();
     test_platformer_passes_through_one_way_when_jumping_up();
     test_platformer_passes_through_thick_one_way_while_rising();
     test_platformer_lands_on_one_way_when_falling();

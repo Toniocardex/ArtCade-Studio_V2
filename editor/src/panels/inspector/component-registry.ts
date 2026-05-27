@@ -107,7 +107,7 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
     key: 'solid',
     label: 'Platform Surface',
     description:
-      'Ground for Platformer Controller (Solid or One-Way). Solid blocks from below; One-Way only lands on the top edge when falling. Does not require Physics. Match Ground Class on the player.',
+      'Ground for Platformer Controller (Solid or One-Way). Solid blocks on all sides (native AABB); One-Way only lands on the top edge when falling. Does not require Physics. Match Ground Class on the player.',
     color: 'var(--yellow)',
     create: () => ({ ...SOLID }),
     fields: [
