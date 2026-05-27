@@ -31,6 +31,11 @@ export function actionSummaryPlain(
       return 'Resume music'
     case 'destroyEntity':
       return `Destroy ${who}`
+    case 'clickToDestroy': {
+      const btn = a.button === 'right' ? 'right-click' : 'left-click'
+      const r = a.radius != null ? ` within ${a.radius}px` : ''
+      return `Destroy on ${btn}${r}`
+    }
     case 'spawnEntity': {
       if (!a.className) return 'Create object - choose what to create'
       const where = a.imagePoint

@@ -173,6 +173,24 @@
       "params": { "target": { "widget": "target", "label": "Target" } }
     }
   },
+  "clickToDestroy": {
+    "type": "object",
+    "required": ["type", "button"],
+    "properties": {
+      "type": { "const": "clickToDestroy" },
+      "button": { "type": "string", "enum": ["left", "right"] },
+      "radius": { "type": "number", "exclusiveMinimum": 0 }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Click to destroy",
+      "category": "Entities",
+      "params": {
+        "button": { "widget": "enum", "label": "Mouse button" },
+        "radius": { "widget": "number", "label": "Hit radius (px)" }
+      }
+    }
+  },
   "spawnEntity": {
     "type": "object",
     "required": ["type", "className"],

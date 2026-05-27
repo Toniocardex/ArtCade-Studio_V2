@@ -36,6 +36,7 @@ const ACTION_NAMES: Record<LogicActionType, string> = {
   pauseMusic: 'Pause music',
   resumeMusic: 'Resume music',
   destroyEntity: 'Destroy',
+  clickToDestroy: 'Click to destroy',
   spawnEntity: 'Create object',
   spawnEntityAtPointer: 'Create at pointer',
   moveInDirection: 'Move in direction',

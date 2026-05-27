@@ -73,6 +73,8 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
       return `audio.resumeMusic()`
     case 'destroyEntity':
       return `entity.destroy(${targetExpr(a.target)})`
+    case 'clickToDestroy':
+      return 'entity.destroy(self)'
     case 'spawnEntity': {
       const cls = luaString(a.className)
       const spawn = a.imagePoint

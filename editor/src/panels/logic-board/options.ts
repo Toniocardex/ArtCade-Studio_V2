@@ -123,6 +123,8 @@ export function defaultAction(type: LogicActionType): LogicAction {
       return { type: 'resumeMusic' }
     case 'destroyEntity':
       return { type: 'destroyEntity', target: 'self' }
+    case 'clickToDestroy':
+      return { type: 'clickToDestroy', button: 'right', radius: 32 }
     case 'spawnEntity':
       return { type: 'spawnEntity', className: '', x: 0, y: 0, inheritFlip: false }
     case 'spawnEntityAtPointer':

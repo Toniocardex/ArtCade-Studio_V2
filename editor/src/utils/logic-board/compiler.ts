@@ -40,6 +40,7 @@ import { usesTickFallback } from './trigger-execution'
 import { assertBoardCompatible } from './trigger-compatibility'
 import { INDENT, poolExpr, luaString, isGlobalTarget } from './lua-helpers'
 import { logicBoardLuaCommentLabel } from './labels'
+import { applyClickToDestroyTrigger } from './click-to-destroy'
 import { buildEventSlugs } from './event-slugs'
 import { emitEventBody } from './emit-event-body'
 import { emitEventRegistration } from './emit-event-registration'
@@ -90,7 +91,9 @@ function emitBoard(
   project: ProjectDoc | null | undefined,
   slugs: Map<string, string>,
 ): { init: string[]; tick: string[] } {
-  const enabled = board.events.filter((e) => e.enabled)
+  const enabled = board.events
+    .filter((e) => e.enabled)
+    .map((e) => applyClickToDestroyTrigger(e))
   const startEvents = enabled.filter((e) => e.trigger.type === 'onStart')
   const messageEvents = enabled.filter((e) => e.trigger.type === 'onMessage')
   const registeredEvents = enabled.filter((e) => {

@@ -60,6 +60,7 @@ import {
   defaultTrigger,
   TRIGGER_TYPES,
 } from './options'
+import { applyClickToDestroyTrigger } from '../../utils/logic-board/click-to-destroy'
 import { destroyOtherTargetWarning } from '../../utils/logic-board/logic-action-warnings'
 
 const link = 'text-[var(--accent)] text-[11px] hover:underline cursor-pointer'
@@ -109,7 +110,18 @@ function commitEventUpdate(
     'id' in patch && 'trigger' in patch && 'actions' in patch
       ? (patch as LogicEvent)
       : { ...event, ...patch }
-  return withContextualInputDefault(merged, merged.actions)
+  return applyClickToDestroyTrigger(
+    withContextualInputDefault(merged, merged.actions),
+  )
+}
+
+function actionTypesForBoard(
+  board: LogicBoard | null | undefined,
+): readonly LogicAction['type'][] {
+  const isEntity =
+    board?.target.type === 'entity_id' || board?.target.type === 'entity_class'
+  if (isEntity) return ACTION_TYPES
+  return ACTION_TYPES.filter((t) => t !== 'clickToDestroy')
 }
 
 function TriggerFields({
@@ -228,7 +240,7 @@ function ActionListBlock({
       <div className="flex flex-wrap items-center gap-2 pt-1">
         <TypePicker
           kind="action"
-          types={ACTION_TYPES}
+          types={actionTypesForBoard(board)}
           value={newActionType}
           onChange={(t) => setNewActionType(t as LogicAction['type'])}
           className="max-w-[240px]"
@@ -293,7 +305,7 @@ function ActionCard({
       <div className="flex flex-wrap items-center gap-2">
         <TypePicker
           kind="action"
-          types={ACTION_TYPES}
+          types={actionTypesForBoard(board)}
           value={act.type}
           onChange={(t) => onChange(defaultAction(t as LogicAction['type']))}
           className="max-w-[220px]"
@@ -339,6 +351,12 @@ function ActionCard({
       {act.type === 'spawnEntityAtPointer' && (
         <p className="text-[10px] text-[var(--muted)]">
           Creates an object where the pointer is.
+        </p>
+      )}
+      {act.type === 'clickToDestroy' && (
+        <p className="text-[10px] text-[var(--muted)]">
+          Sets <strong>When</strong> to Object clicked and destroys this entity on click.
+          Press Play in the preview to test.
         </p>
       )}
       {act.type === 'repeatTimes' && (

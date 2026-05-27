@@ -106,6 +106,11 @@ export type LogicAction =
   | { type: 'resumeMusic' }
   | { type: 'destroyEntity'; target: TargetSelector }
   | {
+      type: 'clickToDestroy'
+      button: 'left' | 'right'
+      radius?: number
+    }
+  | {
       type: 'spawnEntity'
       className: string
       x: number
