@@ -17,6 +17,17 @@ bool World::needsTilemapPhysicsBodies() const {
     return physics_.hasDynamicBodies();
 }
 
+void World::syncTilemapPhysicsWithDynamics() {
+    if (needsTilemapPhysicsBodies()) {
+        if (tilePhysicsHandles_.empty()
+            && activeTilemap_.cols > 0 && activeTilemap_.rows > 0)
+            rebuildTilemapPhysics();
+        return;
+    }
+    if (!tilePhysicsHandles_.empty())
+        clearTilemapPhysics();
+}
+
 void World::rebuildTilemapPhysics() {
     clearTilemapPhysics();
 

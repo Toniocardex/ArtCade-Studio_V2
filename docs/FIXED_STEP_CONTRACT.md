@@ -92,6 +92,6 @@ Two cooperating systems share [`collision_math.h`](../runtime-cpp/src/modules/co
 | **World platformer** | `world_grounding.cpp` | Step 8, before `physics.step` | Solid entities + **tile grid AABB** (no physics bodies required) |
 | **Physics solver** | `physics.cpp` | Step 9 | Dynamic vs static/kinematic bodies; **tile static bodies** only when `Physics::hasDynamicBodies()` |
 
-**Tilemap physics bodies:** `World::rebuildTilemapPhysics()` creates merged horizontal static rectangles (one body per solid run per row) only if at least one **Dynamic** body exists. Platformer-only scenes use the tile grid for grounding and `isSpaceFree`; `collision.*` against tile terrain in those projects requires a Dynamic body or explicit static colliders.
+**Tilemap physics bodies:** `World::rebuildTilemapPhysics()` creates merged horizontal static rectangles (one body per solid run per row) only if at least one **Dynamic** body exists. `World::syncTilemapPhysicsWithDynamics()` also runs when the gateway creates or destroys a physics body (e.g. Lua spawn of the first Dynamic mid-scene). Platformer-only scenes use the tile grid for grounding and `isSpaceFree`; `collision.*` against tile terrain in those projects requires a Dynamic body or explicit static colliders.
 
 **Platformer + collider:** Transform is owned by World; optional kinematic body follows transform each tick. `syncPhysicsToEntities` does not overwrite platformer transforms.

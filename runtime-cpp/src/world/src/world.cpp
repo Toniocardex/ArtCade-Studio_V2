@@ -20,6 +20,9 @@ World::World(Modules::RuntimeEntityGateway& gateway,
     entityGateway_.setEntityDestroyHandler([this](EntityId id) {
         forgetEntity(id);
     });
+    entityGateway_.setPhysicsTopologyHandler([this] {
+        syncTilemapPhysicsWithDynamics();
+    });
 }
 
 void World::forgetEntity(EntityId id) {
@@ -77,6 +80,7 @@ void World::shutdown() {
     // `this`, and if World is destroyed before the gateway any later
     // destroy(id) on the gateway would dereference dangling memory.
     entityGateway_.setEntityDestroyHandler(nullptr);
+    entityGateway_.setPhysicsTopologyHandler(nullptr);
 
     clearTilemapPhysics();
     variables_.clear();

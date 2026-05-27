@@ -19,6 +19,9 @@ using SpawnLogCallback = std::function<void(const std::string&)>;
 // state (coyote timer, sensor "was overlapping", etc.).
 using EntityDestroyHandler = std::function<void(EntityId)>;
 
+/** Fired after a physics body is created or destroyed via the gateway. */
+using PhysicsTopologyHandler = std::function<void()>;
+
 class SceneManager;
 class Physics;
 class EntityRegistry;
@@ -47,6 +50,9 @@ public:
 
     /** Fired synchronously from destroy(id) before the entity is erased. */
     void setEntityDestroyHandler(EntityDestroyHandler cb);
+
+    /** Fired after ensurePhysicsBody / teardownPhysicsBody mutates the physics world. */
+    void setPhysicsTopologyHandler(PhysicsTopologyHandler cb);
 
     EntityId create(const EntityDef& def);
     /** Spawn a new instance: clone first project entity of that class, else pool, else minimal. */
@@ -230,7 +236,8 @@ private:
     std::unordered_map<std::string, EntityDef> classPrototypes_;
 
     SpawnLogCallback     spawnLogCallback_;
-    EntityDestroyHandler destroyHandler_;
+    EntityDestroyHandler   destroyHandler_;
+    PhysicsTopologyHandler physicsTopologyHandler_;
 
     void rebuildClassPrototypes(const std::unordered_map<EntityId, EntityDef>& entityDefs);
     bool entityListedInActiveScene(EntityId id) const;

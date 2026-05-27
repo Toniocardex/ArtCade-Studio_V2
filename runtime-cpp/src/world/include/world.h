@@ -146,6 +146,8 @@ private:
     /** Tile physics bodies only when Dynamic bodies need terrain overlap (see docs). */
     bool needsTilemapPhysicsBodies() const;
     void rebuildTilemapPhysics();
+    /** Lazy tile bodies when first Dynamic appears; clear when none remain. */
+    void syncTilemapPhysicsWithDynamics();
     void clearGameplayRuntimeState();
     /** Drop per-entity gameplay caches when the gateway destroys entity id. */
     void forgetEntity(EntityId id);

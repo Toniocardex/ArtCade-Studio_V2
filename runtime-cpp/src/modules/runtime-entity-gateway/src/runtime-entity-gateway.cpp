@@ -86,7 +86,8 @@ void RuntimeEntityGateway::shutdown() {
     // (e.g. World) wire a lambda capturing `this`; if their lifetime ends
     // before the gateway's, leaving the lambda live makes a subsequent
     // destroy(id) dereference dangling memory.
-    destroyHandler_ = nullptr;
+    destroyHandler_         = nullptr;
+    physicsTopologyHandler_ = nullptr;
     fadePhase_ = FadePhase::None;
 }
 
@@ -101,6 +102,10 @@ void RuntimeEntityGateway::setSpawnLogCallback(SpawnLogCallback cb) {
 
 void RuntimeEntityGateway::setEntityDestroyHandler(EntityDestroyHandler cb) {
     destroyHandler_ = std::move(cb);
+}
+
+void RuntimeEntityGateway::setPhysicsTopologyHandler(PhysicsTopologyHandler cb) {
+    physicsTopologyHandler_ = std::move(cb);
 }
 
 bool RuntimeEntityGateway::entityListedInActiveScene(EntityId id) const {
@@ -174,6 +179,9 @@ void RuntimeEntityGateway::ensurePhysicsBody(EntityId id) {
     physics_->setGravityScale(handle, rules.gravityScale);
 
     syncSensorFixture(id);
+
+    if (physicsTopologyHandler_)
+        physicsTopologyHandler_();
 }
 
 void RuntimeEntityGateway::rebuildPhysicsBodyIfActive(EntityId id) {
@@ -187,6 +195,8 @@ void RuntimeEntityGateway::teardownPhysicsBody(EntityId id) {
     if (!physics_ || handle == 0) return;
     physics_->destroyBody(handle);
     setPhysicsHandle(id, 0);
+    if (physicsTopologyHandler_)
+        physicsTopologyHandler_();
 }
 
 void RuntimeEntityGateway::deactivateEntity(EntityId id) {
