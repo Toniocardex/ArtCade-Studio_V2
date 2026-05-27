@@ -3,8 +3,76 @@
 // Browser default suppression for right-click is editor-only (PreviewPanel).
 // ---------------------------------------------------------------------------
 
-import type { LogicAction, LogicEvent } from '../../types/logic-board'
+import type { LogicAction, LogicBoard, LogicEvent } from '../../types/logic-board'
 import { createLogicEvent } from './factory'
+
+type ClickToDestroyAction = Extract<LogicAction, { type: 'clickToDestroy' }>
+
+export function isEntityBoardTarget(target: LogicBoard['target']): boolean {
+  return target.type === 'entity_id' || target.type === 'entity_class'
+}
+
+export function collectClickToDestroyActions(
+  actions: readonly LogicAction[],
+): ClickToDestroyAction[] {
+  return actions.filter((a): a is ClickToDestroyAction => a.type === 'clickToDestroy')
+}
+
+export function eventClickToDestroyCount(event: LogicEvent): number {
+  const main = collectClickToDestroyActions(event.actions).length
+  const elseBranch = event.elseActions
+    ? collectClickToDestroyActions(event.elseActions).length
+    : 0
+  return main + elseBranch
+}
+
+export interface ClickToDestroyCompatibilityError {
+  eventId: string
+  message: string
+}
+
+export function findClickToDestroyErrors(
+  board: LogicBoard,
+): ClickToDestroyCompatibilityError[] {
+  const errors: ClickToDestroyCompatibilityError[] = []
+  const entityBoard = isEntityBoardTarget(board.target)
+
+  for (const ev of board.events) {
+    if (!entityBoard && eventClickToDestroyCount(ev) > 0) {
+      errors.push({
+        eventId: ev.id,
+        message:
+          'Click to destroy is only allowed on entity rulesheets (not global or scene boards).',
+      })
+      continue
+    }
+    if (collectClickToDestroyActions(ev.actions).length > 1) {
+      errors.push({
+        eventId: ev.id,
+        message: 'Only one Click to destroy action is allowed per rule (Then branch).',
+      })
+    }
+    if (ev.elseActions && collectClickToDestroyActions(ev.elseActions).length > 0) {
+      errors.push({
+        eventId: ev.id,
+        message: 'Click to destroy cannot be used in the Else branch.',
+      })
+    }
+  }
+  return errors
+}
+
+/** Compiler-side assertion — invalid clickToDestroy placement fails before emit. */
+export function assertClickToDestroyCompatible(board: LogicBoard): void {
+  const errors = findClickToDestroyErrors(board)
+  if (errors.length === 0) return
+  const detail = errors
+    .map((e) => `  • event "${e.eventId}": ${e.message}`)
+    .join('\n')
+  throw new Error(
+    `Logic Board "${board.boardId}" has invalid Click to destroy usage:\n${detail}`,
+  )
+}
 
 export type ClickToDestroyButton = 'left' | 'right'
 

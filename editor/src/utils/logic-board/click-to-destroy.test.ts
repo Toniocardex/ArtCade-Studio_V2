@@ -3,8 +3,10 @@ import { compileLogicBoard } from './compiler'
 import type { LogicBoard, LogicEvent } from '../../types/logic-board'
 import {
   applyClickToDestroyTrigger,
+  assertClickToDestroyCompatible,
   clickToDestroySummary,
   createClickToDestroyEvent,
+  findClickToDestroyErrors,
   isClickToDestroyEvent,
 } from './click-to-destroy'
 
@@ -63,5 +65,50 @@ describe('click to destroy action', () => {
     expect(lua).toContain('input.mouseWorld()')
     expect(lua).toContain('entity.destroy(self)')
     expect(lua).not.toContain('input.preventDefault')
+  })
+
+  it('rejects clickToDestroy on global boards at compile time', () => {
+    const globalBoard: LogicBoard = {
+      boardId: 'g1',
+      target: { type: 'global' },
+      events: [
+        {
+          id: 'e1',
+          enabled: true,
+          trigger: { type: 'onMouseInput', button: 'right', eventType: 'pressed' },
+          actions: [{ type: 'clickToDestroy', button: 'right', radius: 32 }],
+        },
+      ],
+    }
+    expect(() => compileLogicBoard([globalBoard])).toThrow(/entity rulesheets/)
+  })
+
+  it('rejects duplicate clickToDestroy in Then', () => {
+    const ev = createClickToDestroyEvent()
+    ev.actions.push({ type: 'clickToDestroy', button: 'left', radius: 16 })
+    expect(() => compileLogicBoard([board([ev])])).toThrow(/Only one Click to destroy/)
+  })
+
+  it('rejects clickToDestroy in Else branch', () => {
+    const ev = createClickToDestroyEvent()
+    ev.onlyIfEnabled = true
+    ev.elseEnabled = true
+    ev.elseActions = [{ type: 'clickToDestroy', button: 'right', radius: 32 }]
+    const errs = findClickToDestroyErrors(board([ev]))
+    expect(errs).toHaveLength(1)
+    expect(errs[0]?.message).toMatch(/Else branch/)
+    expect(() => assertClickToDestroyCompatible(board([ev]))).toThrow(/Else branch/)
+  })
+
+  it('applyClickToDestroyTrigger fixes wrong trigger before emit', () => {
+    const ev = applyClickToDestroyTrigger({
+      id: 'e1',
+      enabled: true,
+      trigger: { type: 'onMouseInput', button: 'left', eventType: 'pressed' },
+      actions: [{ type: 'clickToDestroy', button: 'right', radius: 48 }],
+    })
+    const lua = compileLogicBoard([board([ev])])
+    expect(lua).toContain('input.mouseButtonDown(1)')
+    expect(lua).toContain('entity.destroy(self)')
   })
 })

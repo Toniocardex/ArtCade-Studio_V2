@@ -40,7 +40,10 @@ import { usesTickFallback } from './trigger-execution'
 import { assertBoardCompatible } from './trigger-compatibility'
 import { INDENT, poolExpr, luaString, isGlobalTarget } from './lua-helpers'
 import { logicBoardLuaCommentLabel } from './labels'
-import { applyClickToDestroyTrigger } from './click-to-destroy'
+import {
+  applyClickToDestroyTrigger,
+  assertClickToDestroyCompatible,
+} from './click-to-destroy'
 import { buildEventSlugs } from './event-slugs'
 import { emitEventBody } from './emit-event-body'
 import { emitEventRegistration } from './emit-event-registration'
@@ -203,6 +206,7 @@ export function compileLogicBoard(
     // Fail loudly on incompatible trigger/target combos so the editor
     // surfaces the error instead of producing broken Lua.
     assertBoardCompatible(board)
+    assertClickToDestroyCompatible(board)
     const { init, tick } = emitBoard(board, project, eventSlugs)
     const label = logicBoardLuaCommentLabel(board)
     if (init.length) {

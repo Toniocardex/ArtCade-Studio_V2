@@ -117,11 +117,20 @@ function commitEventUpdate(
 
 function actionTypesForBoard(
   board: LogicBoard | null | undefined,
+  options?: { forElse?: boolean; existingActions?: readonly LogicAction[] },
 ): readonly LogicAction['type'][] {
   const isEntity =
     board?.target.type === 'entity_id' || board?.target.type === 'entity_class'
-  if (isEntity) return ACTION_TYPES
-  return ACTION_TYPES.filter((t) => t !== 'clickToDestroy')
+  let types: readonly LogicAction['type'][] = isEntity
+    ? ACTION_TYPES
+    : ACTION_TYPES.filter((t) => t !== 'clickToDestroy')
+  if (options?.forElse) {
+    types = types.filter((t) => t !== 'clickToDestroy')
+  }
+  if (options?.existingActions?.some((a) => a.type === 'clickToDestroy')) {
+    types = types.filter((t) => t !== 'clickToDestroy')
+  }
+  return types
 }
 
 function TriggerFields({
@@ -198,6 +207,7 @@ function ActionListBlock({
   newActionType,
   setNewActionType,
   emptyHint,
+  forElse = false,
 }: {
   actions: LogicAction[]
   trigger: LogicTrigger
@@ -208,8 +218,11 @@ function ActionListBlock({
   newActionType: NewActionPick
   setNewActionType: (t: NewActionPick) => void
   emptyHint: string
+  /** When true, Click to destroy is omitted from the action picker (Else branch). */
+  forElse?: boolean
 }) {
   const insideRepeat = repeatBodyIndices(actions)
+  const pickerTypes = actionTypesForBoard(board, { forElse, existingActions: actions })
   return (
     <>
       {actions.length === 0 && (
@@ -223,6 +236,8 @@ function ActionListBlock({
           nestedInRepeat={insideRepeat.has(i)}
           board={board}
           project={project}
+          forElse={forElse}
+          pickerTypes={pickerTypes}
           recommendedTypes={recommendedTypes}
           onChange={(na) => {
             const next = actions.slice()
@@ -231,6 +246,12 @@ function ActionListBlock({
           }}
           onRemove={() => onChangeActions(actions.filter((_, j) => j !== i))}
           onClone={() => {
+            if (
+              a.type === 'clickToDestroy' &&
+              actions.some((x) => x.type === 'clickToDestroy')
+            ) {
+              return
+            }
             const next = actions.slice()
             next.splice(i + 1, 0, cloneLogicAction(a))
             onChangeActions(next)
@@ -240,7 +261,7 @@ function ActionListBlock({
       <div className="flex flex-wrap items-center gap-2 pt-1">
         <TypePicker
           kind="action"
-          types={actionTypesForBoard(board)}
+          types={pickerTypes}
           value={newActionType}
           onChange={(t) => setNewActionType(t as LogicAction['type'])}
           className="max-w-[240px]"
@@ -278,6 +299,8 @@ function ActionCard({
   nestedInRepeat,
   board,
   project,
+  forElse,
+  pickerTypes,
   recommendedTypes,
   onChange,
   onClone,
@@ -288,6 +311,8 @@ function ActionCard({
   nestedInRepeat?: boolean
   board?: LogicBoard | null
   project?: ProjectDoc | null
+  forElse?: boolean
+  pickerTypes: readonly LogicAction['type'][]
   recommendedTypes: readonly string[]
   onChange: (a: LogicAction) => void
   onClone: () => void
@@ -305,9 +330,18 @@ function ActionCard({
       <div className="flex flex-wrap items-center gap-2">
         <TypePicker
           kind="action"
-          types={actionTypesForBoard(board)}
+          types={
+            act.type === 'clickToDestroy'
+              ? pickerTypes.includes('clickToDestroy')
+                ? pickerTypes
+                : [...pickerTypes, 'clickToDestroy']
+              : pickerTypes
+          }
           value={act.type}
-          onChange={(t) => onChange(defaultAction(t as LogicAction['type']))}
+          onChange={(t) => {
+            if (forElse && t === 'clickToDestroy') return
+            onChange(defaultAction(t as LogicAction['type']))
+          }}
           className="max-w-[220px]"
           recommendedTypes={recommendedTypes}
         />
@@ -835,6 +869,7 @@ export default function EventEditor({
               newActionType={newElseActionType}
               setNewActionType={setNewElseActionType}
               emptyHint="Add at least one Else action."
+              forElse
               onChangeActions={(elseActions) =>
                 onChange({ ...event, elseEnabled: true, elseActions })
               }
