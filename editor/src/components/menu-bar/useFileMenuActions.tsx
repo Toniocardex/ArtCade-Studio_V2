@@ -21,11 +21,10 @@ import {
   type ProjectTemplateId,
 } from '../../utils/project'
 import { runtimeSync } from '../../utils/runtime-sync-service'
-import { compileLogicBoard } from '../../utils/logic-board/compiler'
 import type { ProjectDoc } from '../../types'
 import type { FileMenuItem } from './FileMenu'
 import { makeConsoleEntry } from './makeConsoleEntry'
-import { mainScriptBodyForProject } from './project-script'
+import { mainScriptBodyForProject, mainScriptBodyForProjectWithStatus } from './project-script'
 import { ensureProjectOnDisk } from './ensureProjectOnDisk'
 
 interface UseFileMenuActionsParams {
@@ -202,27 +201,30 @@ export function useFileMenuActions({
 
     const mainScriptPath = flushed.mainScriptPath
     if (mainScriptPath && flushed.logicBoards && flushed.logicBoards.length > 0) {
-      try {
-        const compiled = compileLogicBoard(flushed.logicBoards, flushed)
-        const absScriptPath = resolveScriptPath(projectPath, mainScriptPath)
-        await saveScript(absScriptPath, compiled)
+      const { lua, compileError } = mainScriptBodyForProjectWithStatus(flushed)
+      if (compileError) {
         dispatch({
-          type: 'UPSERT_SCRIPT',
-          path: mainScriptPath,
-          content: compiled,
-          isDirty: false,
-          activate: false,
+          type: 'LOG',
+          entry: makeConsoleEntry(
+            `[Pack] Logic Board compile failed — using blank main script:\n${compileError}`,
+            'error',
+          ),
         })
+      }
+      const absScriptPath = resolveScriptPath(projectPath, mainScriptPath)
+      await saveScript(absScriptPath, lua)
+      dispatch({
+        type: 'UPSERT_SCRIPT',
+        path: mainScriptPath,
+        content: lua,
+        isDirty: false,
+        activate: false,
+      })
+      if (!compileError) {
         dispatch({
           type: 'LOG',
           entry: makeConsoleEntry(`[Pack] Logic Board compiled → ${mainScriptPath}`, 'info'),
         })
-      } catch (err) {
-        dispatch({
-          type: 'LOG',
-          entry: makeConsoleEntry(`[Pack] ✗ Logic Board compile failed: ${err}`, 'error'),
-        })
-        return
       }
     }
 

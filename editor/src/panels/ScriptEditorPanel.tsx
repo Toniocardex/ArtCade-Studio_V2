@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { useEditor } from '../store/editor-store'
 import { EngineScriptEditor } from '../components/EngineScriptEditor'
 import { LogicBoardScriptConflictBanner } from '../components/LogicBoardScriptConflictBanner'
-import { compileLogicBoard } from '../utils/logic-board/compiler'
+import { compileLogicBoardSafe } from '../utils/logic-board/compile-logic-board-safe'
 import { logicBoardScriptOutOfSync } from '../utils/logic-board-script-conflict'
+import { LogicBoardCompileErrorBanner } from '../components/LogicBoardCompileErrorBanner'
 import { syncLogicBoardToScript } from '../utils/sync-logic-board-script'
 
 /** Tracks the <html data-theme> attribute so the editor follows the app theme. */
@@ -63,10 +64,12 @@ export default function ScriptEditorPanel() {
     : undefined
   const dirtyPaths = new Set(openScripts.filter(s => s.isDirty).map(s => s.path))
 
-  const compiledLua = useMemo(() => {
+  const compileResult = useMemo(() => {
     if (!project?.logicBoards?.length) return null
-    return compileLogicBoard(project.logicBoards, project)
+    return compileLogicBoardSafe(project.logicBoards, project)
   }, [project?.logicBoards, project])
+  const compiledLua = compileResult?.ok ? compileResult.lua : null
+  const compileError = compileResult && !compileResult.ok ? compileResult.error : null
 
   const mainPath = project?.mainScriptPath ?? null
   const showConflict =
@@ -89,6 +92,7 @@ export default function ScriptEditorPanel() {
 
   return (
     <div className="h-full w-full flex-1 min-w-0 flex flex-col bg-[var(--bg)]">
+      {compileError && <LogicBoardCompileErrorBanner error={compileError} />}
       {showConflict && (
         <LogicBoardScriptConflictBanner
           onRegenerate={handleRegenerate}

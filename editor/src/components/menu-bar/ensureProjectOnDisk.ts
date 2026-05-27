@@ -14,10 +14,9 @@ import {
   projectRootFromProjectPath,
   safeProjectFolderName,
 } from '../../utils/project'
-import { compileLogicBoard } from '../../utils/logic-board/compiler'
 import type { ProjectDoc } from '../../types'
 import { makeConsoleEntry } from './makeConsoleEntry'
-import { mainScriptBodyForProject } from './project-script'
+import { mainScriptBodyForProject, mainScriptBodyForProjectWithStatus } from './project-script'
 
 export type PersistKind = 'Build' | 'WASM' | 'Web' | 'save'
 
@@ -135,19 +134,31 @@ export async function ensureProjectOnDisk(
     dispatch({ type: 'MARK_PROJECT_SAVED' })
 
     if (project.mainScriptPath && project.logicBoards?.length) {
-      const compiled = compileLogicBoard(project.logicBoards ?? [], project)
-      await saveScript(resolveScriptPath(buildPath, project.mainScriptPath), compiled)
+      const { lua, compileError } = mainScriptBodyForProjectWithStatus(project)
+      if (compileError) {
+        dispatch({
+          type: 'LOG',
+          entry: makeConsoleEntry(
+            `${logPrefix} Logic Board compile failed — saved blank main script:\n${compileError}`,
+            'error',
+          ),
+        })
+        dispatch({ type: 'SET_CONSOLE_OPEN', open: true })
+      }
+      await saveScript(resolveScriptPath(buildPath, project.mainScriptPath), lua)
       dispatch({
         type: 'UPSERT_SCRIPT',
         path: project.mainScriptPath,
-        content: compiled,
+        content: lua,
         isDirty: false,
         activate: false,
       })
-      dispatch({
-        type: 'LOG',
-        entry: makeConsoleEntry(`${logPrefix} Logic Board compiled -> ${project.mainScriptPath}`, 'info'),
-      })
+      if (!compileError) {
+        dispatch({
+          type: 'LOG',
+          entry: makeConsoleEntry(`${logPrefix} Logic Board compiled -> ${project.mainScriptPath}`, 'info'),
+        })
+      }
     }
   } catch (err) {
     dispatch({

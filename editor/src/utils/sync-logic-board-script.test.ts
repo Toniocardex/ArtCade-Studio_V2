@@ -126,6 +126,29 @@ describe('syncLogicBoardFromProject', () => {
     expect(syncLogicBoardFromProject((a) => actions.push(a), minimalState())).toBe(false)
     expect(actions).toHaveLength(0)
   })
+
+  it('logs to console and opens dock when compile fails', () => {
+    const actions: Action[] = []
+    const state = minimalState({
+      project: {
+        ...(minimalState().project as object),
+        logicBoards: [{
+          boardId: 'g1',
+          target: { type: 'global' },
+          events: [{
+            id: 'e1',
+            enabled: true,
+            trigger: { type: 'onMouseInput', button: 'right', eventType: 'pressed' },
+            actions: [{ type: 'clickToDestroy', button: 'right', radius: 32 }],
+          }],
+        }],
+      } as CoreState['project'],
+    })
+    expect(syncLogicBoardFromProject((a) => actions.push(a), state)).toBe(false)
+    expect(actions.some((a) => a.type === 'LOG' && a.entry.level === 'error')).toBe(true)
+    expect(actions.some((a) => a.type === 'SET_CONSOLE_OPEN' && a.open === true)).toBe(true)
+    expect(actions.some((a) => a.type === 'UPSERT_SCRIPT')).toBe(false)
+  })
 })
 
 describe('UPSERT_SCRIPT reducer', () => {

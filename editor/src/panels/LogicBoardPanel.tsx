@@ -14,7 +14,8 @@ import {
   findLogicBoardForEntity,
   getEntitiesInScene,
 } from '../utils/project'
-import { compileLogicBoard } from '../utils/logic-board/compiler'
+import { compileLogicBoardSafe } from '../utils/logic-board/compile-logic-board-safe'
+import { LogicBoardCompileErrorBanner } from '../components/LogicBoardCompileErrorBanner'
 import { editorReloadScript } from '../utils/wasm-bridge'
 import { runtimeSync, useRuntimeReady } from '../utils/runtime-sync-service'
 import {
@@ -33,6 +34,7 @@ import {
   openMainScriptInEditor,
   syncLogicBoardToScript,
 } from '../utils/sync-logic-board-script'
+import { boardConfigurationSummary } from '../utils/logic-board/board-configuration-warnings'
 import { extractBoardLuaSlice } from '../utils/logic-board/extract-board-lua-slice'
 import {
   logicBoardCompilerLabel,
@@ -96,9 +98,16 @@ export default function LogicBoardPanel() {
     if (existing) setSelectedBoardId(existing.boardId)
   }, [state.mode, selection.entityId, project])
 
-  const lua = useMemo(
-    () => compileLogicBoard(boards, state.project),
+  const compileResult = useMemo(
+    () => compileLogicBoardSafe(boards, state.project),
     [boards, state.project],
+  )
+  const lua = compileResult.ok ? compileResult.lua : ''
+  const compileError = compileResult.ok ? null : compileResult.error
+
+  const boardConfigWarning = useMemo(
+    () => (board ? boardConfigurationSummary(board) : null),
+    [board],
   )
 
   useEffect(() => {
@@ -124,13 +133,19 @@ export default function LogicBoardPanel() {
       ? state.openScripts.find(s => s.path === mainPath && s.isDirty)
       : undefined
     if (dirtyMain) return
+    if (!compileResult.ok) return
 
     prevBoardsRevision.current = boardsRevision
-    syncLogicBoardToScript(dispatch, state, lua)
-  }, [boardsRevision, lua, dispatch, state])
+    syncLogicBoardToScript(dispatch, state, compileResult.lua)
+  }, [boardsRevision, compileResult, dispatch, state])
 
   const handleApply = () => {
-    syncLogicBoardToScript(dispatch, state, lua)
+    if (!compileResult.ok) {
+      setApplyMsg('Fix Logic Board compile errors before applying.')
+      window.setTimeout(() => setApplyMsg(null), 5000)
+      return
+    }
+    syncLogicBoardToScript(dispatch, state, compileResult.lua)
     // Always-on guard: the WASM runtime loads asynchronously at editor boot.
     // If the user is fast enough to hit Apply before it finishes, fail with
     // an accurate message rather than telling them to "open Canvas preview"
@@ -143,14 +158,14 @@ export default function LogicBoardPanel() {
     if (state.isPlaying && project) {
       dispatch({ type: 'SET_PLAYING', playing: false })
       const activeSceneId = selection.sceneId ?? project.activeSceneId
-      const ok = runtimeSync.restorePreviewFromProject(project, activeSceneId, lua)
+      const ok = runtimeSync.restorePreviewFromProject(project, activeSceneId, compileResult.lua)
       if (!ok) {
         setApplyMsg('Runtime call failed — see the console for details.')
         window.setTimeout(() => setApplyMsg(null), 4000)
         return
       }
     } else {
-      const ok = editorReloadScript(lua)
+      const ok = editorReloadScript(compileResult.lua)
       setApplyMsg(
         ok
           ? 'Logic applied — script hot-reloaded (press PLAY to test)'
@@ -296,6 +311,14 @@ export default function LogicBoardPanel() {
           applyMsg={applyMsg}
           project={project}
         />
+        {compileError && <LogicBoardCompileErrorBanner error={compileError} />}
+        {!compileError && boardConfigWarning && (
+          <LogicBoardCompileErrorBanner
+            title="Rulesheet configuration issue"
+            error={boardConfigWarning}
+            hint="Fix these rules before Apply or Play will use stale or blank logic."
+          />
+        )}
         <LogicBoardLuaPreview
           lua={displayLua}
           title={previewTitle}
@@ -318,8 +341,11 @@ export default function LogicBoardPanel() {
             <button
               type="button"
               title={openMainTooltip}
-              onClick={() => openMainScriptInEditor(dispatch, state, lua)}
-              className="px-4 py-2 rounded text-xs font-semibold border border-[var(--accent-bd)] bg-[var(--accent-bg)] text-[var(--accent)] hover:bg-[var(--accent-bg-h)]"
+              disabled={!!compileError}
+              onClick={() => {
+                if (compileResult.ok) openMainScriptInEditor(dispatch, state, compileResult.lua)
+              }}
+              className="px-4 py-2 rounded text-xs font-semibold border border-[var(--accent-bd)] bg-[var(--accent-bg)] text-[var(--accent)] hover:bg-[var(--accent-bg-h)] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Open main.lua →
             </button>
@@ -350,6 +376,15 @@ export default function LogicBoardPanel() {
         applyMsg={applyMsg}
         project={project}
       />
+
+      {compileError && <LogicBoardCompileErrorBanner error={compileError} />}
+      {!compileError && boardConfigWarning && (
+        <LogicBoardCompileErrorBanner
+          title="Rulesheet configuration issue"
+          error={boardConfigWarning}
+          hint="Fix these rules before Apply or Play will use stale or blank logic."
+        />
+      )}
 
       {authoringMode === 'base' && (
         <p className="px-4 py-1.5 text-[10px] leading-snug text-[var(--muted)] border-b border-[var(--border)] bg-[var(--panel-2)]">

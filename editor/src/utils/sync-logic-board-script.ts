@@ -1,7 +1,8 @@
 import type { Dispatch } from 'react'
 import type { ProjectDoc } from '../types'
 import type { Action, CoreState } from '../store/editor-store'
-import { compileLogicBoard } from './logic-board/compiler'
+import { makeConsoleEntry } from '../components/menu-bar/makeConsoleEntry'
+import { compileLogicBoardSafe } from './logic-board/compile-logic-board-safe'
 
 /**
  * Script path for Logic Board output — always the project entry script.
@@ -51,12 +52,19 @@ export function syncLogicBoardFromProject(
   const project = state.project
   if (!project?.logicBoards?.length || !project.mainScriptPath) return false
 
-  try {
-    const lua = compileLogicBoard(project.logicBoards, project)
-    return syncLogicBoardToScript(dispatch, state, lua, options)
-  } catch {
+  const compiled = compileLogicBoardSafe(project.logicBoards, project)
+  if (!compiled.ok) {
+    dispatch({
+      type: 'LOG',
+      entry: makeConsoleEntry(
+        `[Logic Board] Compile failed — main script was not updated:\n${compiled.error}`,
+        'error',
+      ),
+    })
+    dispatch({ type: 'SET_CONSOLE_OPEN', open: true })
     return false
   }
+  return syncLogicBoardToScript(dispatch, state, compiled.lua, options)
 }
 
 /** Sync compiled board Lua into main, then switch to full Editor Script on that tab. */

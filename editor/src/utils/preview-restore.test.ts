@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { resolvePreviewMainLua } from './preview-restore'
+import { resolvePreviewMainLua, resolvePreviewMainLuaWithStatus } from './preview-restore'
 import { BLANK_MAIN_LUA } from './project'
 
 function makeProject(overrides: Record<string, unknown> = {}) {
@@ -42,5 +42,24 @@ describe('resolvePreviewMainLua', () => {
     const project = makeProject({ mainScriptPath: '', logicBoards: [] })
     const lua = resolvePreviewMainLua({ project: project as never, openScripts: [] })
     expect(lua).toBe(BLANK_MAIN_LUA)
+  })
+
+  it('does not throw when logic boards fail to compile', () => {
+    const project = makeProject({
+      logicBoards: [{
+        boardId: 'g1',
+        target: { type: 'global' },
+        events: [{
+          id: 'e1',
+          enabled: true,
+          trigger: { type: 'onMouseInput', button: 'right', eventType: 'pressed' },
+          actions: [{ type: 'clickToDestroy', button: 'right', radius: 32 }],
+        }],
+      }],
+    })
+    const lua = resolvePreviewMainLua({ project: project as never, openScripts: [] })
+    expect(lua).toBe(BLANK_MAIN_LUA)
+    const status = resolvePreviewMainLuaWithStatus({ project: project as never, openScripts: [] })
+    expect(status.compileError).toMatch(/entity rulesheets/)
   })
 })

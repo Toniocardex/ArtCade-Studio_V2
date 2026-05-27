@@ -57,7 +57,7 @@ export function LogicBoardEventsList({
               <span className="text-[10px] text-[var(--accent)]">{clipboardHint}</span>
             )}
             <span className="text-[10px] text-[var(--muted-2)]">
-              Ctrl+C copia · Ctrl+V incolla · Ctrl+D clona
+              Ctrl+C copy · Ctrl+V paste · Ctrl+D duplicate
             </span>
           </div>
 
