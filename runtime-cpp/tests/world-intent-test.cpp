@@ -1701,6 +1701,328 @@ static void test_auto_destroy_cancel_disables_timer() {
     CHECK(f.gw.exists(1));
 }
 
+// ---- Tilemap platformer grounding (shared surface engine with Solid) ----
+
+static void initTilemapGrid(SceneDef& scene,
+                            int cols = 20,
+                            int rows = 10,
+                            float tileSize = 32.f)
+{
+    scene.tilemap.tileSize = tileSize;
+    scene.tilemap.cols     = cols;
+    scene.tilemap.rows     = rows;
+    scene.tilemap.data.assign(static_cast<size_t>(cols * rows), 0);
+}
+
+static void paintTileRow(SceneDef& scene,
+                         int row,
+                         int col0,
+                         int col1,
+                         int tileId)
+{
+    if (scene.tilemap.cols <= 0)
+        initTilemapGrid(scene);
+    const int cols = scene.tilemap.cols;
+    for (int c = col0; c <= col1; ++c) {
+        if (c < 0 || c >= cols || row < 0 || row >= scene.tilemap.rows)
+            continue;
+        scene.tilemap.data[static_cast<size_t>(row * cols + c)] = tileId;
+    }
+}
+
+static TilePaletteEntry makeGroundPaletteTile(int id = 1)
+{
+    TilePaletteEntry t;
+    t.id          = id;
+    t.name        = "Ground";
+    t.solid       = true;
+    t.groundClass = "Ground";
+    t.surfaceKind = "solid";
+    return t;
+}
+
+static TilePaletteEntry makeOneWayPaletteTile(int id = 6)
+{
+    TilePaletteEntry t = makeGroundPaletteTile(id);
+    t.name        = "OneWay";
+    t.surfaceKind = "oneWay";
+    return t;
+}
+
+static void test_platformer_snaps_to_tilemap_after_fall() {
+    Fixture f;
+
+    EntityDef player = makeEntity(1, "Player");
+    player.transform.position = { 160.f, 80.f };
+    PlatformerControllerComponent pc;
+    pc.customGravity = 1500.f;
+    pc.groundClass   = "Ground";
+    player.platformerController = pc;
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1 };
+    initTilemapGrid(scene);
+    paintTileRow(scene, 6, 0, 10, 1);
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.tilePalette   = { makeGroundPaletteTile(1) };
+    doc.scenes        = {{ scene.id, scene }};
+    doc.entities      = {{ 1, player }};
+    f.world.init(doc);
+
+    const float dt = 1.f / 60.f;
+    for (int i = 0; i < 90; ++i)
+        f.tickFrame(dt);
+
+    CHECK(f.world.isPlatformerGrounded(1));
+    Transform transform{};
+    CHECK(f.gw.getTransform(1, transform));
+    CHECK(std::abs(transform.velocity.y) < 0.01f);
+}
+
+static void test_platformer_grounded_on_tilemap_only() {
+    Fixture f;
+
+    EntityDef player = makeEntity(1, "Player");
+    player.transform.position = { 160.f, 176.f };
+    PlatformerControllerComponent pc;
+    pc.groundClass = "Ground";
+    player.platformerController = pc;
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1 };
+    initTilemapGrid(scene);
+    paintTileRow(scene, 6, 4, 6, 1);
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.tilePalette   = { makeGroundPaletteTile(1) };
+    doc.scenes        = {{ scene.id, scene }};
+    doc.entities      = {{ 1, player }};
+    f.world.init(doc);
+
+    CHECK(f.world.isPlatformerGrounded(1));
+}
+
+static void test_platformer_coyote_jump_after_leaving_tilemap() {
+    Fixture f;
+
+    EntityDef player = makeEntity(1, "Player", {"player"});
+    player.transform.position = { 176.f, 176.f };
+    PlatformerControllerComponent pc;
+    pc.jumpForce   = 500.f;
+    pc.coyoteTime  = 0.2f;
+    pc.jumpBuffer  = 0.15f;
+    pc.groundClass = "Ground";
+    player.platformerController = pc;
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1 };
+    initTilemapGrid(scene);
+    paintTileRow(scene, 6, 4, 6, 1);
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.tilePalette   = { makeGroundPaletteTile(1) };
+    doc.scenes        = {{ scene.id, scene }};
+    doc.entities      = {{ 1, player }};
+    f.world.init(doc);
+
+    CHECK(f.world.isPlatformerGrounded(1));
+
+    const float dt = 1.f / 60.f;
+    bool jumped = false;
+    Transform transform{};
+    for (int i = 0; i < 18; ++i) {
+        f.world.setMovementIntent(1, 1.f, 0.f);
+        if (i == 4) f.world.requestJump(1);
+        f.tickFrame(dt);
+        CHECK(f.gw.getTransform(1, transform));
+        if (transform.velocity.y < -499.f) jumped = true;
+    }
+
+    CHECK(jumped);
+    CHECK(!f.world.isPlatformerGrounded(1));
+}
+
+static void test_platformer_blocks_tilemap_ceiling_when_jumping() {
+    Fixture f;
+
+    EntityDef player = makeEntity(1, "Player");
+    player.transform.position = { 160.f, 379.f };
+    PlatformerControllerComponent pc;
+    pc.jumpForce   = 700.f;
+    pc.groundClass = "Ground";
+    player.platformerController = pc;
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1 };
+    initTilemapGrid(scene, 20, 14);
+    paintTileRow(scene, 6, 0, 10, 1);
+    paintTileRow(scene, 12, 0, 10, 1);
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.tilePalette   = { makeGroundPaletteTile(1) };
+    doc.scenes        = {{ scene.id, scene }};
+    doc.entities      = {{ 1, player }};
+    f.world.init(doc);
+
+    CHECK(f.world.isPlatformerGrounded(1));
+    f.world.requestJump(1);
+    const float dt = 1.f / 60.f;
+    Transform transform{};
+    CHECK(f.gw.getTransform(1, transform));
+    const float startY = transform.position.y;
+    float peakY        = startY;
+
+    for (int i = 0; i < 25; ++i) {
+        f.tickFrame(dt);
+        CHECK(f.gw.getTransform(1, transform));
+        peakY = std::min(peakY, transform.position.y);
+    }
+
+    CHECK(peakY > 220.f);
+    CHECK(peakY < startY - 40.f);
+}
+
+static void test_platformer_blocks_tilemap_wall_horizontally() {
+    Fixture f;
+
+    EntityDef player = makeEntity(1, "Player");
+    player.transform.position = { 80.f, 368.f };
+    PlatformerControllerComponent pc;
+    pc.maxSpeed    = 300.f;
+    pc.groundClass = "Ground";
+    player.platformerController = pc;
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1 };
+    initTilemapGrid(scene, 20, 14);
+    paintTileRow(scene, 12, 0, 10, 1);
+    for (int r = 8; r <= 12; ++r)
+        paintTileRow(scene, r, 6, 6, 1);
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.tilePalette   = { makeGroundPaletteTile(1) };
+    doc.scenes        = {{ scene.id, scene }};
+    doc.entities      = {{ 1, player }};
+    f.world.init(doc);
+
+    const float dt = 1.f / 60.f;
+    Transform transform{};
+    for (int i = 0; i < 30; ++i) {
+        f.world.setMovementIntent(1, 1.f, 0.f);
+        f.tickFrame(dt);
+    }
+
+    CHECK(f.gw.getTransform(1, transform));
+    CHECK(transform.position.x <= 176.5f);
+}
+
+static void test_platformer_passes_through_one_way_tile_when_jumping() {
+    Fixture f;
+
+    EntityDef player = makeEntity(1, "Player");
+    player.transform.position = { 160.f, 176.f };
+    PlatformerControllerComponent pc;
+    pc.jumpForce   = 600.f;
+    pc.groundClass = "Ground";
+    player.platformerController = pc;
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1 };
+    initTilemapGrid(scene);
+    paintTileRow(scene, 6, 0, 10, 6);
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.tilePalette   = { makeOneWayPaletteTile(6) };
+    doc.scenes        = {{ scene.id, scene }};
+    doc.entities      = {{ 1, player }};
+    f.world.init(doc);
+
+    CHECK(f.world.isPlatformerGrounded(1));
+    f.world.requestJump(1);
+    f.tickFrame(1.f / 60.f);
+
+    CHECK(!f.world.isPlatformerGrounded(1));
+    Transform transform{};
+    CHECK(f.gw.getTransform(1, transform));
+    CHECK(transform.velocity.y < -500.f);
+    CHECK(transform.position.y < 176.f);
+}
+
+static void test_platformer_lands_on_one_way_tile_when_falling() {
+    Fixture f;
+
+    EntityDef player = makeEntity(1, "Player");
+    player.transform.position = { 160.f, 80.f };
+    PlatformerControllerComponent pc;
+    pc.customGravity = 1500.f;
+    pc.groundClass   = "Ground";
+    player.platformerController = pc;
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1 };
+    initTilemapGrid(scene);
+    paintTileRow(scene, 6, 0, 10, 6);
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.tilePalette   = { makeOneWayPaletteTile(6) };
+    doc.scenes        = {{ scene.id, scene }};
+    doc.entities      = {{ 1, player }};
+    f.world.init(doc);
+
+    const float dt = 1.f / 60.f;
+    for (int i = 0; i < 90; ++i)
+        f.tickFrame(dt);
+
+    CHECK(f.world.isPlatformerGrounded(1));
+}
+
+static void test_platformer_grounded_on_tilemap_and_solid_together() {
+    Fixture f;
+
+    EntityDef player = makeEntity(1, "Player");
+    player.transform.position = { 160.f, 176.f };
+    PlatformerControllerComponent pc;
+    pc.groundClass = "Ground";
+    player.platformerController = pc;
+
+    EntityDef ramp = makeEntity(2, "Ramp");
+    ramp.transform.position = { 240.f, 200.f };
+    ramp.transform.scale    = { 2.f, 0.3125f };
+    SolidComponent solid;
+    solid.groundClass = "Ground";
+    ramp.solid = solid;
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1, 2 };
+    initTilemapGrid(scene);
+    paintTileRow(scene, 6, 0, 6, 1);
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.tilePalette   = { makeGroundPaletteTile(1) };
+    doc.scenes        = {{ scene.id, scene }};
+    doc.entities      = {{ 1, player }, { 2, ramp } };
+    f.world.init(doc);
+
+    CHECK(f.world.isPlatformerGrounded(1));
+}
+
 static ProjectDoc makeTileSceneDoc() {
     EntityDef player = makeEntity(1, "Player", {"player"});
     player.physics.bodyType = BodyType::Dynamic;
@@ -1860,6 +2182,14 @@ int main() {
     test_load_scene_resets_runtime_state();
     test_shutdown_clears_tilemap_physics();
     test_restore_design_state_resets_runtime_from_doc();
+    test_platformer_snaps_to_tilemap_after_fall();
+    test_platformer_grounded_on_tilemap_only();
+    test_platformer_coyote_jump_after_leaving_tilemap();
+    test_platformer_blocks_tilemap_ceiling_when_jumping();
+    test_platformer_blocks_tilemap_wall_horizontally();
+    test_platformer_passes_through_one_way_tile_when_jumping();
+    test_platformer_lands_on_one_way_tile_when_falling();
+    test_platformer_grounded_on_tilemap_and_solid_together();
 
     std::cout << "world-intent-test: " << g_passed << " passed, "
               << g_failed << " failed\n";

@@ -361,6 +361,8 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
             e.name  = t.value("name", std::string{});
             e.color = hexToVec4(t.value("color", std::string("#808080")));
             e.solid = t.value("solid", false);
+            e.groundClass  = t.value("groundClass", std::string("Ground"));
+            e.surfaceKind  = t.value("surfaceKind", std::string("solid"));
             out.tilePalette.push_back(e);
         }
     }

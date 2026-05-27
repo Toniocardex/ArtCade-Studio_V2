@@ -299,12 +299,17 @@ function parseTilePalette(raw: unknown): TileDef[] | undefined {
     const o = t as Record<string, unknown>
     const id = Number(o.id)
     if (!Number.isFinite(id) || id < 1) continue
-    out.push({
+    const entry: TileDef = {
       id,
       name: String(o.name ?? `Tile ${id}`),
       color: String(o.color ?? '#9CA3AF'),
       solid: Boolean(o.solid),
-    })
+    }
+    if (typeof o.groundClass === 'string' && o.groundClass.length > 0)
+      entry.groundClass = o.groundClass
+    const sk = o.surfaceKind
+    if (sk === 'solid' || sk === 'oneWay') entry.surfaceKind = sk
+    out.push(entry)
   }
   return out.length ? out : undefined
 }

@@ -37,9 +37,22 @@ void World::clearGameplayRuntimeState() {
     sensorEdgeBuffer_.clear();
 }
 
+void World::applyTilePalette(const std::vector<TilePaletteEntry>& tilePalette) {
+    tileMeta_.clear();
+    for (const auto& e : tilePalette) {
+        if (e.id < 1) continue;
+        TileSurfaceMeta m;
+        m.blocks      = e.solid;
+        m.groundClass = e.groundClass.empty() ? "Ground" : e.groundClass;
+        const std::string& kind = e.surfaceKind;
+        m.oneWay = (kind == "oneWay" || kind == "OneWay" || kind == "one-way"
+                    || kind == "One-Way");
+        tileMeta_[e.id] = std::move(m);
+    }
+}
+
 void World::syncAfterEditorProject(const std::vector<TilePaletteEntry>& tilePalette) {
-    tileSolid_.clear();
-    for (const auto& e : tilePalette) tileSolid_[e.id] = e.solid;
+    applyTilePalette(tilePalette);
     clearGameplayRuntimeState();
     rebuildTilemapPhysics();
 }
@@ -53,9 +66,8 @@ void World::init(const ProjectDoc& doc) {
     entityGateway_.setPhysics(&physics_);
     entityGateway_.replaceProject(doc.scenes, doc.entities, doc.activeSceneId);
 
-    tileSolid_.clear();
+    applyTilePalette(doc.tilePalette);
     activeTilemap_ = TilemapData{};
-    for (const auto& e : doc.tilePalette) tileSolid_[e.id] = e.solid;
 
     rebuildTilemapPhysics();
 }
@@ -74,7 +86,7 @@ void World::shutdown() {
     sensorWasOverlapping_.clear();
     sensorEdgeBuffer_.clear();
     activeTilemap_ = TilemapData{};
-    tileSolid_.clear();
+    tileMeta_.clear();
 }
 
 std::vector<SensorEdgeEvent> World::pollSensorEdges() {

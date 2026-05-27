@@ -264,6 +264,8 @@ parseTilePalette(const json& doc) {
         e.id    = item.value("id", 0);
         e.name  = item.value("name", std::string{});
         e.solid = item.value("solid", false);
+        e.groundClass = item.value("groundClass", std::string("Ground"));
+        e.surfaceKind = item.value("surfaceKind", std::string("solid"));
         if (item.contains("color")) {
             if (item["color"].is_string()) {
                 // Hex colours from the editor are display-only; use neutral grey.

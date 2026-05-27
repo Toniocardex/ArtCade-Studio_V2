@@ -34,8 +34,8 @@ void World::rebuildTilemapPhysics() {
             if (idx >= n) continue;
             const int id = tm.data[idx];
             if (id <= 0) continue;
-            auto si = tileSolid_.find(id);
-            if (si == tileSolid_.end() || !si->second) continue;
+            auto si = tileMeta_.find(id);
+            if (si == tileMeta_.end() || !si->second.blocks) continue;
 
             PhysicsComponent pc;
             pc.bodyType       = BodyType::Static;
@@ -69,8 +69,8 @@ bool World::isSpaceFree(float x, float y, float w, float h) const {
             if (idx >= static_cast<int>(tm.data.size())) continue;
             const int tid = tm.data[idx];
             if (tid <= 0) continue;
-            auto it = tileSolid_.find(tid);
-            if (it != tileSolid_.end() && it->second) return false;
+            auto it = tileMeta_.find(tid);
+            if (it != tileMeta_.end() && it->second.blocks) return false;
         }
     }
     return true;

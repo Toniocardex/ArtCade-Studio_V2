@@ -22,10 +22,7 @@ void stepPlatformerController(World& world,
 {
     auto& rt = world.platformerRt_[id];
 
-    const GroundingContext grounding{
-        world.entityGateway_,
-        world.physics_,
-    };
+    const GroundingContext grounding = world.groundingContext();
 
     float vy = rt.velocity.y;
 

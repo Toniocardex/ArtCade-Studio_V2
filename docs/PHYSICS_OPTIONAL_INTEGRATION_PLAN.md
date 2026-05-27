@@ -224,11 +224,12 @@ flowchart TB
 |---------|-------------|-------------|
 | **2a — Raycast down** | `collision.raycast` o helper `platformer.probeGround` da transform | Media |
 | **2b — AABB vs Solid registry** | Solid come dati + hit test AABB (no step) | Media-alta |
-| **2c — Tilemap layer** | Ground layer da tilemap (futuro) | Alta |
+| **2c — Tilemap layer** | Celle `solid` in `SceneDef::tilemap` + `tilePalette` (`groundClass`, `surfaceKind`) | ✅ Implementato |
+| **2b — AABB vs Solid registry** | `SolidComponent` + stesso probe/resolve in `world_grounding.cpp` | ✅ |
 
-**Raccomandazione**: **2a** per MVP fase 2; overlap Box2D opzionale se player ha collider kinematic.
+**Raccomandazione (stato 2026-05)**: terreno statico → **tilemap**; eccezioni (mobili, forme custom) → entità **Solid**. Il platformer kinematic **non** usa i body Box2D per tile per il grounded — solo AABB su griglia (`World::groundingContext` → `probePlatformerSolidContact`).
 
-**DoD**: livello con solo `Solid` static + player kinematic: `isGrounded` true sul pavimento.
+**DoD**: livello con solo tile solid + player kinematic: `isPlatformerGrounded` true; stesse regole coyote/one-way/muri dei test Solid (`world-intent-test` varianti tilemap).
 
 ---
 
@@ -357,7 +358,7 @@ Ogni fase = PR separato reviewabile (~300–800 LOC ciascuno).
 ## 13. Fuori scope (v2+)
 
 - Physics 2.0 / continuous collision custom senza Box2D.
-- Tilemap collision senza solid entities.
+- Merge Box2D tile bodies in chain shapes (oggi: un body per cella solida + AABB platformer separato).
 - Networked physics.
 - `onCollision` edge nativo C++ (oggi edge Lua da `touchingClass`).
 
@@ -367,7 +368,9 @@ Ogni fase = PR separato reviewabile (~300–800 LOC ciascuno).
 
 | Argomento | File |
 |-----------|------|
-| Platformer tick | `runtime-cpp/src/world/src/world_movement.cpp` |
+| Platformer tick | `runtime-cpp/src/world/src/world_platformer_controller.cpp` |
+| Platformer probe/resolve (Solid + tile) | `runtime-cpp/src/world/src/world_grounding.cpp` |
+| Tile palette / meta | `runtime-cpp/src/core/types.h` `TilePaletteEntry`, `World::tileMeta_` |
 | Body creation rules | `runtime-cpp/.../runtime-entity-gateway.cpp` `ensurePhysicsBody` |
 | Physics step | `runtime-cpp/src/app/src/app.cpp` `tickFixedStep` |
 | Top-down fallback | `world_movement.cpp` `tickTopDownControllers` |

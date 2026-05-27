@@ -136,6 +136,21 @@ forEachActiveAutoDestroy(fn)  // (id, AutoDestroyComponent&)              ← co
 forEachActiveHealth(fn)       // (id, HealthComponent&)                    ← componente mutabile
 ```
 
+### Platformer grounding: Solid + tilemap (stesso motore AABB)
+
+Il movimento platformer (`stepPlatformerController`) non itera EnTT per il
+terreno statico. `world_grounding.cpp` espone un unico probe/resolve su
+superfici rettangolari:
+
+- **Entità** con `SolidComponent` (`forEachActiveSolid`)
+- **Celle** della `SceneDef::tilemap` con tile `solid` in `tilePalette`
+  (`groundClass`, `surfaceKind` come su Solid)
+
+`World::groundingContext()` passa `activeTilemap_` e `tileMeta_` a ogni probe.
+Non duplicare regole coyote/one-way/muri: estendere solo la fonte geometrica.
+
+Terreno di livello → tilemap; piattaforme mobili / one-way su misura → Solid.
+
 ### Esempio: rendering sprite (app.cpp)
 
 ```cpp

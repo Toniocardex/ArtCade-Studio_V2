@@ -1,7 +1,9 @@
 #pragma once
 
 #include "../../core/types.h"
+#include <functional>
 #include <string>
+#include <unordered_map>
 
 namespace ArtCade::Modules {
 class RuntimeEntityGateway;
@@ -13,17 +15,18 @@ namespace ArtCade::WorldInternal {
 struct GroundingContext {
     const Modules::RuntimeEntityGateway& gateway;
     Modules::Physics&                    physics;
+    const TilemapData*                   tilemap  = nullptr;
+    const std::unordered_map<int, TileSurfaceMeta>* tileMeta = nullptr;
 };
 
-/** Result of probing Solid surfaces for a kinematic platformer (Y-down). */
+/** Result of probing surfaces for a kinematic platformer (Y-down). */
 struct PlatformerSolidContact {
     bool  onGround     = false;
-    float surfaceTopY  = 0.f;   // ground.minY of supporting Solid
+    float surfaceTopY  = 0.f;   // supporting surface minY
 };
 
 /**
- * Native platformer ground: horizontal overlap with Solid + feet near surface top.
- * Full solids use height-scaled bands; oneWay uses a narrow top-edge band + vy >= 0.
+ * Native platformer ground: Solid entities + solid tile cells (same AABB rules).
  */
 PlatformerSolidContact probePlatformerSolidContact(
     const GroundingContext& ctx,
@@ -31,13 +34,7 @@ PlatformerSolidContact probePlatformerSolidContact(
     const std::string& groundClass,
     float verticalVelocity);
 
-/** Place entity transform so AABB feet (maxY) sit on surfaceTopY. */
-void snapTransformFeetToSurface(Transform& transform,
-                                const GroundingContext& ctx,
-                                EntityId id,
-                                float surfaceTopY);
-
-/** Solid surface faces (bottom + sides); top via probe + floor snap. One-way: probe only. */
+/** Solid + tile surface faces (bottom + sides); top via probe + floor snap. */
 void resolvePlatformerSolidSurfaces(Transform& transform,
                                     const GroundingContext& ctx,
                                     EntityId id,
@@ -46,12 +43,15 @@ void resolvePlatformerSolidSurfaces(Transform& transform,
                                     float& horizontalVelocity,
                                     float& verticalVelocity);
 
-/** Solid-component ground (platformer path). */
+void snapTransformFeetToSurface(Transform& transform,
+                                const GroundingContext& ctx,
+                                EntityId id,
+                                float surfaceTopY);
+
 bool isGroundedOnSolidAabb(const GroundingContext& ctx,
                            EntityId id,
                            const std::string& groundClass);
 
-/** Grounded check: Solid probe for platformers; Box2D overlap for others. */
 bool isGrounded(const GroundingContext& ctx,
                 EntityId id,
                 const std::string& groundClass);

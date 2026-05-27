@@ -7,21 +7,30 @@
 
 namespace ArtCade {
 
+WorldInternal::GroundingContext World::groundingContext() const {
+    const bool hasTilemap =
+        activeTilemap_.cols > 0 && activeTilemap_.rows > 0;
+    return WorldInternal::GroundingContext{
+        entityGateway_,
+        physics_,
+        hasTilemap ? &activeTilemap_ : nullptr,
+        &tileMeta_,
+    };
+}
+
 bool World::isPlatformerGrounded(EntityId id) const {
     PlatformerControllerComponent pc{};
     if (!entityGateway_.getPlatformerController(id, pc)) return false;
-    const WorldInternal::GroundingContext ctx{ entityGateway_, physics_ };
-    return WorldInternal::isGrounded(ctx, id, pc.groundClass);
+    return WorldInternal::isGrounded(groundingContext(), id, pc.groundClass);
 }
 
 bool World::isGroundedOnSolidAabb(EntityId id, const std::string& groundClass) const {
-    const WorldInternal::GroundingContext ctx{ entityGateway_, physics_ };
-    return WorldInternal::isGroundedOnSolidAabb(ctx, id, groundClass);
+    return WorldInternal::isGroundedOnSolidAabb(
+        groundingContext(), id, groundClass);
 }
 
 bool World::isGrounded(EntityId id, const std::string& groundClass) const {
-    const WorldInternal::GroundingContext ctx{ entityGateway_, physics_ };
-    return WorldInternal::isGrounded(ctx, id, groundClass);
+    return WorldInternal::isGrounded(groundingContext(), id, groundClass);
 }
 
 void World::tickPlatformerControllers(float dt) {

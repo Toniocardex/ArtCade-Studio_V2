@@ -19,6 +19,7 @@ struct PlatformerControllerComponent;
 struct TopDownControllerComponent;
 
 namespace WorldInternal {
+struct GroundingContext;
 void stepPlatformerController(World& world,
                               EntityId id,
                               const PlatformerControllerComponent& pc,
@@ -90,6 +91,8 @@ public:
     /** True when entity has PlatformerController and overlaps its groundClass. */
     bool isPlatformerGrounded(EntityId id) const;
 
+    WorldInternal::GroundingContext groundingContext() const;
+
     void setMovementIntent(EntityId id, float directionX, float directionY);
     void clearMovementIntent(EntityId id);
     void requestJump(EntityId id);
@@ -133,8 +136,10 @@ private:
     std::vector<SensorEdgeEvent>       sensorEdgeBuffer_;
 
     TilemapData  activeTilemap_;
-    std::unordered_map<int, bool> tileSolid_;
-    std::vector<uint32_t>         tilePhysicsHandles_;
+    std::unordered_map<int, TileSurfaceMeta> tileMeta_;
+    std::vector<uint32_t>                    tilePhysicsHandles_;
+
+    void applyTilePalette(const std::vector<TilePaletteEntry>& tilePalette);
 
     void clearTilemapPhysics();
     void rebuildTilemapPhysics();

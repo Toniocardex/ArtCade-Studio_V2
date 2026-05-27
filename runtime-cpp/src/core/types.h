@@ -255,6 +255,16 @@ struct TilePaletteEntry {
     std::string name;
     Vec4        color = {0.5f, 0.5f, 0.5f, 1.f};
     bool        solid = false;
+    std::string groundClass  = "Ground";
+    /** "solid" (default) or "oneWay" — mirrors SolidComponent::surfaceKind. */
+    std::string surfaceKind = "solid";
+};
+
+/** Runtime cache per tile id (from tilePalette). Used by platformer grounding. */
+struct TileSurfaceMeta {
+    bool        blocks      = false;
+    bool        oneWay      = false;
+    std::string groundClass = "Ground";
 };
 
 // ============================================================================
