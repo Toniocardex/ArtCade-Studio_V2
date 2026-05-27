@@ -1,4 +1,3 @@
-import { useEditor } from '../../store/editor-store'
 import type { EntityDef } from '../../types'
 import { editorOpenRayTint, isReady } from '../../utils/wasm-bridge'
 import {
