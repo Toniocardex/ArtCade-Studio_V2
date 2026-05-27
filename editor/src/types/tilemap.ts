@@ -3,7 +3,7 @@
 //
 // The grid is authored in the editor and persisted in ProjectDoc/SceneDef.
 // Runtime: tilemap render + platformer grounding use the same surface rules as
-// SolidComponent (groundClass, surfaceKind). Box2D bodies per solid tile remain
+// SolidComponent (groundClass, surfaceKind). Static physics bodies per solid tile remain
 // for generic physics overlap.
 // ---------------------------------------------------------------------------
 
@@ -13,7 +13,7 @@ export interface TileDef {
   id:    number    // >= 1
   name:  string
   color: string    // hex preview colour (editor only)
-  solid: boolean    // blocks movement + platformer / Box2D when true
+  solid: boolean    // blocks movement + platformer / physics collider when true
   /** Matches SolidComponent.groundClass (default Ground). */
   groundClass?: string
   /** Matches SolidComponent.surfaceKind (default solid). */

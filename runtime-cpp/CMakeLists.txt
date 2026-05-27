@@ -94,7 +94,7 @@ add_subdirectory(src/modules/tween-manager)
 add_subdirectory(src/modules/save-load)
 
 # ============================================================================
-# Physics — Box2D puro C++, non dipende da Raylib o Lua (Fase 12)
+# Physics — custom solver + raymath header; no link to Raylib target (Fase 12)
 # ============================================================================
 add_subdirectory(src/modules/physics)
 

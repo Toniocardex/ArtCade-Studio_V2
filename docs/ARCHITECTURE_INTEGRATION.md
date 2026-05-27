@@ -41,7 +41,7 @@ ArtCade V2 è costruito su **3 pilastri architetturali**:
 │  ├─ RuntimeEntityGateway, SceneManager, AssetLoader, World         │
 │                                                                     │
 │  Layer 3: Physics                                                  │
-│  ├─ Physics (Box2D 2.4 wrapper)                                    │
+│  ├─ Physics (custom 2D solver)                                     │
 │                                                                     │
 │  Layer 4: Lua VM                                                   │
 │  ├─ LuaHost (Sol2), GameAPI, Script components (in registry)       │

@@ -14,8 +14,8 @@ export const DEFAULT_PHYSICS: PhysicsComponent = {
 
 export const PHYSICS_INSPECTOR = {
   key: 'physics' as const,
-  label: 'Physics (Box2D Body)',
+  label: 'Physics (Collider)',
   color: 'var(--blue)',
   description:
-    'Explicit collider for Box2D. Not required for Platformer Controller (transform-only). With platformer, body is kinematic for collisions only. Solid and Sensor create bodies without this block.',
+    'Explicit collider for overlap, raycast, and falling objects. Not required for Platformer Controller (transform-only). With platformer, body is kinematic for collisions only. Solid and Sensor create bodies without this block.',
 }

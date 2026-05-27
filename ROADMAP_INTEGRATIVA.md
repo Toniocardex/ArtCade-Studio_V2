@@ -262,7 +262,7 @@ game.exe test-project/ → "[App] Project loaded: ArtCade Test"
 
 ---
 
-## FASE 12 — Physics (Box2D 2.4)
+## FASE 12 — Physics (custom 2D; ex Box2D 2.4)
 
 **Stato**: ✅ Completata — 11/11 test passano (incluso physics_test)
 
@@ -529,7 +529,7 @@ editor/
 | 9  | EntityManager + SceneManager + World | 4 | ✅ |
 | 10 | AssetLoader + project.json (nlohmann/json) | 9 | ✅ |
 | 11 | LuaHost (Sol2) + GameAPI binding | 9, 10 | ✅ |
-| 12 | Physics (Box2D 2.4) | 9 | ✅ |
+| 12 | Physics (custom 2D) | 9 | ✅ |
 | 13 | First Playable native .exe | 5–12 | ✅ |
 | 14 | WebAssembly (Emscripten) | 13 | ✅ |
 | 15 | Tauri Integration (editor nativo + IPC) | 14, 18 | ✅ |

@@ -538,10 +538,10 @@ Game Loop
 
 ---
 
-### 4.4 Layer 3 — Physics (Box2D 2.4)
+### 4.4 Layer 3 — Physics (custom solver)
 
 #### `Physics`
-Wrapper Box2D. Coordinate screen-space (Y verso il basso), unità pixel.
+Facade invariata; implementazione in `physics.cpp` + `collision_math.h` (Euler semi-implicito, broadphase lineare, Raymath). Coordinate screen-space (Y verso il basso), unità pixel.
 
 ```cpp
 physics->setGravity({0.f, 500.f});       // 500 px/s² verso il basso
@@ -1160,7 +1160,7 @@ Il **parser C++** (`zip-reader.cpp`) gestisce:
 | 9 | RuntimeEntityGateway + SceneManager + World | ✅ | EnTT storage, indici class/tag deterministici, syncPhysics |
 | 10 | AssetLoader + project.json | ✅ | Parser nlohmann/json, dev mode |
 | 11 | LuaHost + GameAPI | ✅ | Sol2, tick(), registerBindings() |
-| 12 | Physics (Box2D 2.4) | ✅ | Dynamic/Static/Kinematic, raycast, overlap — 11 test |
+| 12 | Physics (custom 2D) | ✅ | Dynamic/Static/Kinematic, raycast, overlap — 15+ test |
 | 13 | First Playable native | ✅ | Demo interattiva 7 entity, 60fps stabile, log su disco |
 | 14 | WebAssembly (Emscripten) | ✅ | game.html + game.js + game.wasm, VFS preload |
 | 16 | Logic Components Lua | ✅ | PauseManager, PathFollower, PlatformerController, ParticleEmitter, DialogueSystem — 13 test |

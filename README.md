@@ -56,7 +56,7 @@ ArtCade V2/
 | **Editor Bridge** | Tauri (Rust) | File I/O, system integration, preview |
 | **Game Engine** | C++ (C++17) | Core game loop, deterministic |
 | **Graphics** | Raylib (C) | 2D rendering (native + WASM) |
-| **Physics** | Box2D 2.4 (C++) | 2D collisions, rigid bodies |
+| **Physics** | Custom 2D (C++ + Raymath) | Collisions, overlap, raycast, dynamic bodies |
 | **Scripting** | Lua 5.4 + Sol2 | Game logic (bytecode compiled) |
 | **Audio** | Raylib Audio (OpenAL) | Sound, music |
 | **Build (Native)** | CMake + MSVC/GCC/Clang | Windows/Linux/macOS .exe |

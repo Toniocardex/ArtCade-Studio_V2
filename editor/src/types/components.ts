@@ -11,7 +11,7 @@
 // engine — no regression for projects that don't use them.
 // ---------------------------------------------------------------------------
 
-/** Box2D trigger volume — fires when a tagged entity enters its area. */
+/** Physics trigger volume — fires when a tagged entity enters its area. */
 export interface SensorComponent {
   shape:     'Circle' | 'Rectangle'
   radius:    number          // px (Circle)
@@ -23,7 +23,7 @@ export interface SensorComponent {
 /** Platform surface kind (Construct-style Solid vs Jump-thru). */
 export type SolidSurfaceKind = 'solid' | 'oneWay'
 
-/** Static / one-way surface for platformer grounding (not Box2D by itself). */
+/** Static / one-way surface for platformer grounding (AABB resolve; not a physics body by itself). */
 export interface SolidComponent {
   groundClass: string
   /** Default `solid` when omitted (legacy projects). */

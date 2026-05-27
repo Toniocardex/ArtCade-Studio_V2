@@ -7,12 +7,12 @@ to compare behavior before Fase 1 (kinematic platformer).
 
 | File | Player setup | Expected on `main` today |
 |------|----------------|-------------------------|
-| `player-with-explicit-physics.json` | `platformerController` + explicit `physics` collider | Kinematic Box2D collider; movement/jump on transform (body follows) |
+| `player-with-explicit-physics.json` | `platformerController` + explicit `physics` collider | Kinematic physics collider; movement/jump on transform (body follows) |
 | `player-platformer-only.json` | `platformerController` only (no `physics` block in JSON) | Transform-only; fall/jump via `customGravity`; **Solid** on ground → `isGrounded` via AABB (no player Physics required) |
 
 Ground/platform: add a `Solid` or static `physics` entity with `groundClass` matching the player.
 
 ## Manual checklist (§11)
 
-- [ ] `player-platformer-only`: preview — player falls with gravity; no Box2D body on player until Physics added.
+- [ ] `player-platformer-only`: preview — player falls with gravity; no physics body on player until Physics added.
 - [ ] With Solid ground: overlap grounded when player has explicit Physics collider (Fase 2 improves kinematic-only grounded).

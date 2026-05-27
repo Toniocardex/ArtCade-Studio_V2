@@ -160,7 +160,7 @@ export function runtimeProjectProjection(
  *
  * Excluded by design: `tilemap.data` (live painting echoes through React
  * separately), `thumbnails`, `logicBoards` (compiled by the save pipeline
- * before reaching the runtime), `licenseTier`, `world` (Box2D settings — TODO
+ * before reaching the runtime), `licenseTier`, `world` (physics settings — TODO
  * once the runtime reads them dynamically).
  */
 export function runtimeProjectFingerprint(

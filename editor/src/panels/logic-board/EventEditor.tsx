@@ -168,7 +168,7 @@ function TriggerFields({
       )}
       {isCollisionTrigger && (
         <p className="text-[10px] leading-snug text-[var(--muted)]">
-          Requires Box2D overlap: add <strong>Physics (Box2D Body)</strong> on this entity
+          Requires physics overlap: add <strong>Physics (Collider)</strong> on this entity
           (platformer/top-down alone is not enough). Arcade without physics: use{' '}
           <strong>Sensor</strong> (onTriggerEnter/Exit) or <strong>onMessage</strong>.
         </p>

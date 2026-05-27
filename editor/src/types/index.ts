@@ -95,12 +95,12 @@ export interface SceneDef {
   tilemap?:        TilemapLayer   // Scene Editor Phase C (editor-side)
 }
 
-/** When the Box2D world steps each fixed tick. */
+/** When the physics world steps each fixed tick. */
 export type PhysicsMode = 'off' | 'auto' | 'on'
 
 /** Global world simulation settings (Scene Editor Phase B). */
 export interface WorldSettings {
-  gravity:        number   // m/s^2 (Box2D vertical gravity)
+  gravity:        number   // m/s^2 (world vertical gravity, Y-down)
   pixelsPerMeter: number   // metric scale, e.g. 100 px = 1 m
   timeScale:      number   // engine speed multiplier (0..2, 1 = normal)
   physicsMode?:   PhysicsMode  // default 'auto' — step only when bodies exist

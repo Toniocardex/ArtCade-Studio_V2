@@ -83,7 +83,7 @@ const AUTODESTROY: AutoDestroyComponent = { lifespan: 0 }
 export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
   {
     key: 'sensor',
-    label: 'Sensor (Box2D Trigger)',
+    label: 'Sensor (Trigger Zone)',
     color: 'var(--accent)',
     create: () => ({ ...SENSOR }),
     fields: [
@@ -125,7 +125,7 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
     key: 'platformerController',
     label: 'Platformer Controller',
     description:
-      'Arcade feel: Coyote Time and Jump Buffer. Movement is on the transform (no Box2D body by default). Add Physics for collision overlap, or use Solid platforms + Ground Class.',
+      'Arcade feel: Coyote Time and Jump Buffer. Movement is on the transform (no physics body by default). Add Physics for collision overlap, or use Solid platforms + Ground Class.',
     color: 'var(--yellow)',
     create: () => ({ ...PLATFORMER }),
     fields: [

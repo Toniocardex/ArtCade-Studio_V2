@@ -2,7 +2,7 @@
 
 > **Versione:** 1.1
 > **Data:** 2026-05-26
-> **Stato:** Specifica di alto livello (logica, fisica arcade, UI) — allineata a [`PHYSICS_OPTIONAL_INTEGRATION_PLAN.md`](PHYSICS_OPTIONAL_INTEGRATION_PLAN.md) Fasi 1–5
+> **Stato:** Specifica di alto livello (logica, fisica arcade, UI) — runtime physics: custom solver (`collision_math` + Raymath), no Box2D (2026-05)
 > **Audience:** Runtime C++, editor UI, game design
 
 Questo documento riassume le specifiche finalizzate per i sistemi di **logica**, **fisica arcade** e **interfaccia utente**.
@@ -11,26 +11,26 @@ Questo documento riassume le specifiche finalizzate per i sistemi di **logica**,
 
 ## 1. Physics & proximity (sensor system)
 
-Invece di calcoli matematici espliciti ovunque, ArtCade sfrutta il **broad-phase** di **Box2D** per vicinanza e contatti.
+Il modulo **Physics** (solver custom, broadphase lineare) gestisce overlap, raycast e corpi dynamic/kinematic/static; il platformer usa AABB separato su **Solid** / tilemap.
 
 ### Sensor component
 
-- Fixture **"ghost"** (sensor) che rilevano entita tramite **`OnEnter`** e **`OnExit`** (o equivalente nel binding verso Box2D / event bus del motore).
+- Volume **sensor** (trigger) che rilevano entità tramite **`onTriggerEnter`** / **`onTriggerExit`** (overlap physics + event bus).
 
 ### Body types
 
 | Tipo | Uso |
 |------|-----|
 | **Static** | Terreno, piattaforme fisse (`Solid` crea body statico anche senza blocco Physics in JSON). |
-| **Kinematic** | Player con **Physics** esplicito + `PlatformerController`: overlap/collisioni Box2D; movimento da **Transform** (push al body, mai pull). |
+| **Kinematic** | Player con **Physics** esplicito + `PlatformerController`: overlap/collisioni physics; movimento da **Transform** (push al body, mai pull). |
 | **Dynamic** | Oggetti con massa, rimbalzo, forze esterne (`physics.applyImpulse` / `applyForce`). |
 
-### Platformer kinematic vs Box2D (2026-05)
+### Platformer kinematic vs Physics module (2026-05)
 
 | Aspetto | Platformer solo (`platformerController`) | + Physics collider esplicito |
 |---------|------------------------------------------|------------------------------|
 | Movimento | `Transform` + `platformerRt_.velocity` in C++ | Stesso (transform autoritativo) |
-| Body Box2D | **Nessuno** | **Kinematic** (overlap / `onCollision*`) |
+| Physics body | **Nessuno** | **Kinematic** (overlap / `onCollision*`) |
 | Grounded | AABB vs entità **Solid** (`groundClass`) | Idem (+ opzionale overlap body) |
 | `world.physicsMode` | `auto` salta `step` se zero bodies | `auto`/`on` quando ci sono solid/sensor/player collider |
 | Logic Board collision | **Non** senza Physics sul player | `onCollision` / Enter / Exit |
@@ -93,14 +93,14 @@ Effetti nativi per aumentare la **qualita percepita** del gioco.
 
 ## Sensor e platformer (implementazione)
 
-- **Sensor:** fixture Box2D aggiuntiva (`Physics::addSensorFixture`) da `EntityDef.sensor`; log enter/exit in `World::tickSensorOverlapEdges` (MVP debug).
+- **Sensor:** shape aggiuntiva (`Physics::setSensorFixture`) da `EntityDef.sensor`; enter/exit in `World::tickSensorOverlapEdges`.
 - **Platformer:** `PlatformerControllerComponent` applicato in C++ in `World::tickPlatformerControllers` (coyote, jump buffer, rising-edge `requestJump`) — **unica verità** per fisica platformer. Logic Board: `controllerMovement` + `requestPlatformerJump` con tasto **`pressed`**. Lo script opzionale `platformer.lua` registra solo input verso `movement`/`platformer` API (non usare insieme al componente sullo stesso entity).
 
 ### Logic Board — capability matrix (collision vs sensor)
 
 | Trigger | Richiede | Alternativa arcade (no player Physics) |
 |---------|----------|----------------------------------------|
-| `onCollision` / `onCollisionEnter` / `onCollisionExit` | Box2D overlap; **Physics** sul player (o target) + `physicsMode` non `off` | `onTriggerEnter`/`Exit` + componente **Sensor** sulla zona; `onMessage` |
+| `onCollision` / `onCollisionEnter` / `onCollisionExit` | Physics overlap; **Physics** sul player (o target) + `physicsMode` non `off` | `onTriggerEnter`/`Exit` + componente **Sensor** sulla zona; `onMessage` |
 | `onTriggerEnter` / `onTriggerExit` | **Sensor** sulla zona + tag (`targetTag`) | — |
 
 L'editor mostra avvisi gialli in Logic Board (`physics-trigger-capabilities.ts`) quando si usano trigger di collisione senza collider.

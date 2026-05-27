@@ -1,8 +1,8 @@
 # Piano di integrazione — Physics opzionale e movimento kinematico
 
-> **Versione**: 1.2  
-> **Data**: 2026-05-25  
-> **Status**: Fase 5 chiusa — docs, Logic Board hints, template progetto; piano fisica opzionale completo (0–5)  
+> **Versione**: 1.3  
+> **Data**: 2026-05-27  
+> **Status**: Runtime senza Box2D (custom physics + Raymath su `feat/physics-no-box2d`); Fase 5 editor/docs aggiornata (label **Physics (Collider)**)  
 > **Audience**: C++ / Editor / Product  
 > **Collegamenti**: `GLOBAL_LOGIC_UI_ARCHITECTURE.md`, `ARTIST_FRIENDLY_COMPONENTS.md`, `ARCHITETTURA_TECNICA_ENGINE_2D.md` §9, `ENGINE_INTEGRATION_ROADMAP.md` (tracker engine separato)
 
@@ -15,21 +15,21 @@ Permettere due famiglie di giochi nello stesso engine **senza costo mentale né 
 | Famiglia | Esempi | Cosa serve |
 |--------|--------|------------|
 | **Arcade / scriptato** | Flappy Bird, puzzle, shmup a griglia, UI-heavy | Transform + input + timer; **nessun** `physics.step` se non serve |
-| **Fisico / level-based** | Platformer, puzzle con gravità reale, oggetti che cadono | Box2D su entità/solidi che lo richiedono |
+| **Fisico / level-based** | Platformer, puzzle con gravità reale, oggetti che cadono | Physics module su entità/solidi che lo richiedono |
 
 Principi:
 
 1. **Platformer Controller** = gravità e salto **scriptati** su `Transform` (`customGravity`, `jumpForce`, `maxSpeed`). Unica fonte di verità per posizione/velocità gameplay.
-2. **Physics (Box2D)** = **componente esplicito** per collisioni, sensori, pile, oggetti che cadono — **non** guida il movimento del platformer.
+2. **Physics (Collider)** = **componente esplicito** per collisioni, sensori, oggetti che cadono — **non** guida il movimento del platformer.
 3. **Mondo** = `physics.step` e sensor refresh **solo se** esistono corpi/fixture attivi (o flag progetto `physicsMode`, vedi §5.1).
 
 ### Regola nativa (pre-release, nessun adattamento legacy)
 
-| Sistema | Fonte di verità | Ruolo Box2D |
-|---------|-----------------|-------------|
+| Sistema | Fonte di verità | Ruolo physics module |
+|---------|-----------------|------------------------|
 | Platformer | `Transform` + `platformerRt_.velocity` | Collider **kinematic** opzionale (overlap / `onCollision`); posizione **push** da transform, mai pull in `syncPhysicsToEntities` |
 | TopDown | `Transform` o body kinematic (stesso pattern) | Opzionale |
-| Oggetti fisici (crate, pile) | Body dynamic/kinematic | Box2D guida posizione → `syncPhysicsToEntities` |
+| Oggetti fisici (crate, pile) | Body dynamic/kinematic | Physics step guida posizione → `syncPhysicsToEntities` |
 
 ---
 
@@ -531,7 +531,7 @@ Ogni fase = PR separato reviewabile (~300–800 LOC ciascuno).
 
 ### Deliverable
 
-1. Inspector: **Physics (Box2D Body)** — bodyType, collider (shape/size/offset/density/friction/sensor).
+1. Inspector: **Physics (Collider)** — bodyType, collider (shape/size/offset/density/friction/sensor).
 2. Add/remove physics sulle entità; chip header + scroll.
 3. Runtime: body solo con collider esplicito, **Solid**, o **Sensor** (platformer/topDown soli → no body).
 4. Test: `world-intent` topDown-only; Vitest `project-physics.test.ts`.

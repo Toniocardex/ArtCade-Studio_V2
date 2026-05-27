@@ -44,7 +44,7 @@ export function WorldSettingsSection() {
         >
           <option value="auto">Auto (only when bodies exist)</option>
           <option value="on">On (always step)</option>
-          <option value="off">Off (no Box2D step)</option>
+          <option value="off">Off (no physics step)</option>
         </select>
         <p className="text-[9px] text-[var(--muted)] mt-1 leading-snug">
           Auto skips physics for pure transform / platformer-only scenes. Sensors need On or bodies in Auto.

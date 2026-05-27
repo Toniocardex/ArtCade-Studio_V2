@@ -46,7 +46,7 @@ runtime-cpp/
 │   ├── main.cpp                    # Entry point
 │   ├── engine/
 │   │   ├── renderer.h/.cpp         # Raylib wrapper
-│   │   ├── physics.h/.cpp          # Box2D 2.4 wrapper
+│   │   ├── physics.h/.cpp          # Custom 2D physics (collision_math + raymath)
 │   │   ├── input.h/.cpp            # Keyboard, mouse, gamepad
 │   │   ├── audio.h/.cpp            # Raylib audio system
 │   │   ├── game-api.h/.cpp         # Lua binding layer (Sol2)
@@ -66,7 +66,7 @@ runtime-cpp/
 ├── libs/                           # Third-party source
 │   ├── raylib-5.0/
 │   ├── lua-5.4/
-│   └── (Box2D 2.4 via FetchContent nel modulo physics, non in libs/)
+│   └── (Physics: custom solver in src/modules/physics; raymath header from libs/raylib)
 ├── CMakeLists.txt                  # Root build config
 └── build/                          # Cmake output (gitignored)
 ```

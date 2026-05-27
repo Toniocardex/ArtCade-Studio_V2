@@ -1,7 +1,7 @@
 //! Build log noise filter.
 //!
-//! CMake emits a multi-line "CMake Deprecation Warning" block when raylib or
-//! Box2D set a minimum required CMake version below the one we use to drive
+//! CMake emits a multi-line "CMake Deprecation Warning" block when raylib (or
+//! legacy FetchContent deps) set a minimum required CMake version below the one we use to drive
 //! the build. The warning is harmless and originates from third-party code,
 //! but every line of it lands in the editor's ConsolePanel through Tauri's
 //! `build-log` event and drowns out real build output.

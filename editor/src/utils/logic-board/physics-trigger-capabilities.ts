@@ -12,7 +12,7 @@ export function isCollisionTrigger(type: LogicTrigger['type']): boolean {
   return COLLISION_TRIGGERS.has(type)
 }
 
-/** True when the entity can participate in Box2D overlap / collision events. */
+/** True when the entity can participate in physics overlap / collision events. */
 export function entityHasCollisionBody(entity: EntityDef): boolean {
   const p = entity.physics
   if (!p) return false
@@ -32,7 +32,7 @@ function targetEntityIds(project: ProjectDoc, board: LogicBoard): number[] {
 }
 
 /**
- * Logic Board warning when collision triggers are used without a Box2D collider
+ * Logic Board warning when collision triggers are used without a Physics collider
  * on the board's target entity/entities.
  */
 export function collisionTriggerRequirement(
@@ -45,11 +45,11 @@ export function collisionTriggerRequirement(
   const ids = targetEntityIds(project, board)
   if (ids.length === 0) {
     return {
-      label: 'Physics (Box2D Body)',
+      label: 'Physics (Collider)',
       status: 'missing',
       message:
         'Collision triggers need a target entity with a Physics collider. ' +
-        'For arcade games without Box2D, use Sensor zones (onTriggerEnter/Exit) or messages instead.',
+        'For arcade games without physics bodies, use Sensor zones (onTriggerEnter/Exit) or messages instead.',
     }
   }
 
@@ -68,19 +68,19 @@ export function collisionTriggerRequirement(
 
   if (withBody.length > 0) {
     return {
-      label: 'Physics (Box2D Body)',
+      label: 'Physics (Collider)',
       status: 'partial',
       message:
-        'Some targets lack a Physics collider — collision rules only run on entities with Box2D overlap. ' +
+        'Some targets lack a Physics collider — collision rules only run on entities with physics overlap. ' +
         'Platformer movement alone does not create a body; add Physics in the Inspector if you need onCollision.',
     }
   }
 
   return {
-    label: 'Physics (Box2D Body)',
+    label: 'Physics (Collider)',
     status: 'missing',
     message:
-      'While touching / collision triggers require Box2D overlap. Add Physics (Box2D Body) on this entity, ' +
+      'While touching / collision triggers require physics overlap. Add Physics (Collider) on this entity, ' +
       'or use onTriggerEnter/Exit with a Sensor zone, or onMessage for arcade logic without physics.',
   }
 }

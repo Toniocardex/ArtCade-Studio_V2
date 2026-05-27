@@ -1,4 +1,4 @@
-// physics-test.cpp — Fase 12: Box2D integration test
+// physics-test.cpp — Fase 12: custom physics regression baseline
 // Test deterministici: gravità, velocity, posizione, corpo statico, cerchio.
 // Non richiede Raylib né finestra grafica.
 
@@ -132,7 +132,7 @@ int main() {
     phys.destroyBody(h1);
     printf("[PASS] 12. destroyBody + double-destroy no-op\n");
 
-    // ---- Test 13: addSensorFixture (Box2D sensor, no solid response) ----
+    // ---- Test 13: addSensorFixture (sensor overlap, no solid response) ----
     uint32_t hSensorHost = phys.createBody(20, makeRect(BodyType::Dynamic, 2.f, 2.f));
     SensorComponent sensor;
     sensor.shape = "Rectangle";

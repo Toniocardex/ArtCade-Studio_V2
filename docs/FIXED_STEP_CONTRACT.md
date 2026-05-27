@@ -39,7 +39,7 @@ flowchart TD
 | 8 | **`world->tickPlatformerControllers(dt)`** | Solid AABB grounding + kinematic move (before `physics.step`). |
 | 9 | **`physics->step(dt)`** | Skipped when `physicsMode` is `off`; in `auto` only if bodies exist. |
 | 10 | `world->flushEntityQueues()` | Destroys queued from Lua before sync. |
-| 11 | **`world->syncPhysicsToEntities()`** | Box2D → `Transform` for physics bodies (see table below). |
+| 11 | **`world->syncPhysicsToEntities()`** | Physics body → `Transform` for simulated bodies (see table below). |
 | 12 | `world->tickCameraTargets(dt)` | |
 | 13 | **`world->refreshSensorEdges()`** + `dispatchSensorEvents()` | After physics + sync (same-frame overlap). |
 | 14 | `dispatchLifecycleEvents()` | Spawn/destroy handlers. |
@@ -49,12 +49,12 @@ flowchart TD
 
 ---
 
-## Who writes `Transform` vs Box2D
+## Who writes `Transform` vs physics body
 
 | Entity profile | Authority during PLAY | After `physics.step` |
 |----------------|----------------------|-------------------------|
-| **Platformer** (no body or kinematic follower) | `World` integrates `Transform`, **surface-face** resolve on **solid** (bottom + sides with vertical overlap; no block when fully above/below), **floor-snaps** feet via top probe; **oneWay** uses top-edge probe + pass-through when `vy < 0`; optional kinematic body follows transform | `syncPhysicsToEntities` **skips** platformer entities; Box2D gravity **off** on platformer bodies |
-| **Top-down** + Dynamic collider | `World` sets `linearVelocity`; Box2D integrates | Sync copies body → `Transform` |
+| **Platformer** (no body or kinematic follower) | `World` integrates `Transform`, **surface-face** resolve on **solid** (bottom + sides with vertical overlap; no block when fully above/below), **floor-snaps** feet via top probe; **oneWay** uses top-edge probe + pass-through when `vy < 0`; optional kinematic body follows transform | `syncPhysicsToEntities` **skips** platformer entities; world gravity **off** on platformer bodies (`gravityScale = 0`) |
+| **Top-down** + Dynamic collider | `World` sets `linearVelocity`; physics step integrates | Sync copies body → `Transform` |
 | **Top-down** without body | `World` integrates `Transform` directly | N/A |
 | **Linear mover / horde** (no platformer/top-down) | Velocity via `applySteeringVelocity` | Sync if body exists |
 | **Lua `entity.setPosition`** | Immediate gateway write; may fight physics same frame | Use sparingly during PLAY |

@@ -44,7 +44,7 @@ ARCHITECTURE_INTEGRATION.md (Scenario: "User clicks PLAY", flussi dati)
 ```
 LOGIC_BOARD_SPEC.md          (Parte I glossario Logic Board / Event / Component)
     ↓
-FIXED_STEP_CONTRACT.md            (ordine tickFixedStep, Transform vs Box2D)
+FIXED_STEP_CONTRACT.md            (ordine tickFixedStep, Transform vs physics body)
     ↓
 ARCHITETTURA_TECNICA_ENGINE_2D.md  (Stack, §8–10, §11 stato repo + roadmap)
     ↓
@@ -100,8 +100,9 @@ Guida specializzata         (REACT_WASM_PATTERN.md o ECS_IMPLEMENTATION_GUIDE.md
 | **PIANO_SVILUPPO_COMMERCIALE.md** | Early Access 8 settimane: stabilità editor, demo, export web, vendita | ~15min | Product / founder | ⭐ |
 | **GUIDA_INTEGRAZIONE_SPLASH_LICENZE.md** | Splash editor vs runtime; Free/Pro; `pack-artcade.py`; watermark C++ | ~10min | Editor / tooling / runtime | ⭐ |
 | **FIXED_STEP_CONTRACT.md** | Ordine `tickFixedStep`, chi scrive Transform/body, latency intent Lua, physicsMode | ~5min | C++ / gameplay | ⭐⭐ |
-| **GLOBAL_LOGIC_UI_ARCHITECTURE.md** | Sensori Box2D, platformer feel, azioni world, UI screen-space, text juice | ~8min | C++ / gameplay / UI | ⭐ |
+| **GLOBAL_LOGIC_UI_ARCHITECTURE.md** | Sensori physics, platformer feel, azioni world, UI screen-space, text juice | ~8min | C++ / gameplay / UI | ⭐ |
 | **PHYSICS_OPTIONAL_INTEGRATION_PLAN.md** | Piano: physics opt-in, platformer kinematic (`customGravity`), skip `physics.step` in arcade | ~15min | C++ / Editor / Product | ⭐⭐ |
+| **REPORT_MIGRAZIONE_PHYSICS_SENZA_BOX2D.md** | Report team: rimozione Box2D, backend custom, impatto ruoli, test, decisioni D1–D5 | ~20min | Tutti / review migrazione | ⭐⭐ |
 | **ArtCade_V2_Riepilogo_Suggerimenti.md** | Visione UX Logic Board (8 gruppi), shader, controlli artist-friendly | ~10min | Design / product | ⭐ |
 | **LOGIC_BOARD_EDITOR_BACKLOG.md** | Backlog editor (JSON Schema fatto; wait, UX, shader) | ~3min | Editor | ⭐ |
 | **TECHNICAL_DEBT_REVIEW.md** | Debito tecnico noto (sync WASM, EditorAPI, build Tauri) | ~10min | Engineers | ⭐⭐ |
@@ -131,6 +132,7 @@ Setup e build pratici: **[README.md](../README.md)** (root) — pipeline, script
 | **Splash + licenze Free/Pro** | GUIDA_INTEGRAZIONE_SPLASH_LICENZE.md | Intero | ⭐ |
 | **Fisica arcade, UI world, text juice** | GLOBAL_LOGIC_UI_ARCHITECTURE.md | Intero | ⭐ |
 | **Physics opzionale / platformer kinematic** | PHYSICS_OPTIONAL_INTEGRATION_PLAN.md | Intero | ⭐⭐ |
+| **Migrazione Box2D → physics custom** | REPORT_MIGRAZIONE_PHYSICS_SENZA_BOX2D.md | Intero | ⭐⭐ |
 | **React-WASM** | TECHNICAL_OVERVIEW | §5.5 | Concettuale |
 | **React-WASM Implementazione** | REACT_WASM_PATTERN | Intera | Pratico |
 | **React-WASM Razionale** | ARCHITECTURAL_RATIONALE | §2 | Data-driven |

@@ -71,7 +71,7 @@ target_include_directories(texture_manager_test PRIVATE
 add_test(NAME texture_manager_test COMMAND texture_manager_test)
 
 # ============================================================================
-# Fase 12: Physics (Box2D) — nessuna dipendenza da Raylib o Lua
+# Fase 12: Physics (custom) — raymath header only; no Raylib link
 # ============================================================================
 artcade_test(physics_test
     physics-test.cpp

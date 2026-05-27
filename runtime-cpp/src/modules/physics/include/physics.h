@@ -8,13 +8,12 @@
 namespace ArtCade::Modules {
 
 /**
- * Physics — wraps Box2D 2.4 (Fase 12).
+ * Physics — custom 2D solver (Facade; Fase 12+).
  *
- * Tutte le strutture Box2D restano in src/physics.cpp via Pimpl.
- * I moduli esterni vedono solo Vec2 / PhysicsComponent / handle uint32_t.
+ * Implementation in physics.cpp + collision_math.h (semi-implicit Euler,
+ * linear broadphase). External modules see only Vec2 / PhysicsComponent / handle.
  *
- * Coordinate: screen-space Y-down.
- * Gravità di default: {0, +10} → i corpi cadono verso Y crescente.
+ * Screen-space Y-down. Default gravity: {0, +10} (fall toward +Y).
  */
 class Physics final : public IModule {
 public:
@@ -29,7 +28,7 @@ public:
 
     // Fixed-timestep simulation step (substeps interni per stabilità)
     void step(float dt, uint32_t substeps = 2);
-    /** True when at least one Box2D body exists (used for physicsMode auto). */
+    /** True when at least one physics body exists (used for physicsMode auto). */
     bool hasActiveBodies() const;
 
     // ---- Body lifecycle -----------------------------------------------------
