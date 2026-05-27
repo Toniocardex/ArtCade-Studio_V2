@@ -69,7 +69,7 @@ void GameAPI::bindPhysicsAPI(sol::state& lua) {
     //   shapeType : "rect" | "circle"                     (default "rect")
     //   w, h      : collider half-size in pixels          (default 32, 32)
     //
-    // Creates a Box2D body positioned at the entity's current transform and
+    // Creates a physics body positioned at the entity's current transform and
     // stores the runtime handle in RuntimeEntityGateway so entity.velocity /
     // entity.setVelocity and syncPhysicsToEntities all work automatically.
     // Returns the opaque uint32_t handle, or 0 on failure.
@@ -113,7 +113,7 @@ void GameAPI::bindPhysicsAPI(sol::state& lua) {
         physics->setGravity({ gx, gy });
     });
 
-    // physics.bodyPosition(entityId) → x, y  (direct from Box2D, not transform)
+    // physics.bodyPosition(entityId) → x, y  (direct from physics body, not transform)
     lua.set_function("physics_bodyPosition",
         [entities, physics](EntityId id) -> std::tuple<float,float> {
             const uint32_t handle = entities->physicsHandle(id);

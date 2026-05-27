@@ -2,7 +2,7 @@
 
 > **Versione:** 1.1
 > **Data:** 2026-05-26
-> **Stato:** Specifica di alto livello (logica, fisica arcade, UI) — runtime physics: custom solver (`collision_math` + Raymath), no Box2D (2026-05)
+> **Stato:** Specifica di alto livello (logica, fisica arcade, UI) — runtime physics: custom solver (`collision_math` + Raymath) (2026-05)
 > **Audience:** Runtime C++, editor UI, game design
 
 Questo documento riassume le specifiche finalizzate per i sistemi di **logica**, **fisica arcade** e **interfaccia utente**.

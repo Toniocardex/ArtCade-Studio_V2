@@ -107,7 +107,7 @@ Quando un **Logic Event** scatta nel C++, l'engine invia al buffer di polling l'
 ---
 
 ## 5. Precisione Numerica e Bridge
-Un punto critico del bridge `sol2` tra Lua (che usa `double`) e Raylib/Box2D (che usano spesso `float`).
+Un punto critico del bridge `sol2` tra Lua (che usa `double`) e Raylib / runtime C++ (che usano spesso `float`).
 
 - **Casting Safe**: Il bridge deve gestire internamente l'arrotondamento o il troncamento dei valori numerici.
 - **Jittering**: Assicurarsi che le posizioni calcolate da Lua non introducano micro-scostamenti (es. `0.999999`) che potrebbero causare tremolii nel rendering dello sprite.

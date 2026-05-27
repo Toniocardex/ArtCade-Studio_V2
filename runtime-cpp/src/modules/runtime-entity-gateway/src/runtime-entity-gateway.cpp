@@ -75,7 +75,7 @@ void RuntimeEntityGateway::shutdown() {
     destroyBuffer_.clear();
     // Clear while physics is still alive: registry.clear() fires
     // on_destroy<PhysicsHandleComp> for every entity, which frees the
-    // matching Box2D bodies. Detach physics afterwards so any stray
+    // matching physics bodies. Detach physics afterwards so any stray
     // signal during ~EntityRegistry can't reach a torn-down module.
     registry_->clear();
     registry_->attachPhysicsModule(nullptr);
@@ -339,7 +339,7 @@ void RuntimeEntityGateway::destroy(EntityId id) {
 
     sceneManager_.removeEntityFromAllScenes(id);
     // No explicit teardownPhysicsBody: registry_->erase fires the
-    // on_destroy<PhysicsHandleComp> signal which frees the Box2D body
+    // on_destroy<PhysicsHandleComp> signal which frees the physics body
     // (see EntityRegistry::Impl::onPhysicsHandleDestroyed). It also
     // fires on_destroy<Identity>, draining class/tag indices and
     // queueing a LifecycleEvent::Destroyed for Lua.
@@ -774,7 +774,7 @@ bool RuntimeEntityGateway::replaceProject(
     // registry_->clear() fires on_destroy<PhysicsHandleComp> for every
     // entity, which calls physics_->destroyBody on each live handle.
     // No explicit destroyAllBodies() is needed — the signal is the
-    // single source of truth for Box2D teardown. Keeping a parallel
+    // single source of truth for physics body teardown. Keeping a parallel
     // batch call would risk double-free if the wrapper's destroyAll
     // and per-handle destroy interact.
     registry_->clear();

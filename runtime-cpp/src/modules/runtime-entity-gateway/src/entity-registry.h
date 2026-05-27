@@ -134,7 +134,7 @@ public:
 
     // ---- Signal-driven external resource cleanup -----------------------
     //
-    // The registry owns Box2D body teardown via on_destroy<PhysicsHandleComp>.
+    // The registry owns physics body teardown via on_destroy<PhysicsHandleComp>.
     // When an entity is destroyed (entity-wide destroy or registry.clear),
     // the signal fires with the still-set handle, and the registry calls
     // physics->destroyBody(handle) automatically. This closes the leak

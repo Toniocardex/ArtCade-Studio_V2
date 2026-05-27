@@ -127,7 +127,7 @@ Core MVP target:
 - `SolidComponent`: ground semantico per platformer (`groundClass`). **Integrato
   end-to-end**: Inspector, ProjectDoc, parser native/WASM, registry/gateway,
   `forEachActiveSolid`, `World::isGrounded` (in `world_movement.cpp`), test.
-- `PhysicsComponent` statico/dynamic: collider e body Box2D (non e' un Component
+- `PhysicsComponent` statico/dynamic: collider e physics body (non e' un Component
   Inspector separato; convive con `solid` e controller).
 - `LinearMoverComponent` / Bullet: moto lineare continuo, direzione/velocita.
   **Integrato end-to-end**: Inspector, ProjectDoc, parser native/WASM,
@@ -156,7 +156,7 @@ Advanced target:
   `World::tickHordeMembers`, test intent + gateway.
 - `ProceduralJuiceComponent`: deformazioni visive procedurali senza cambiare
   hitbox fisiche.
-- `GrapplingHookComponent`: rope/joint Box2D e azioni Logic Board dedicate.
+- `GrapplingHookComponent`: rope/joint physics e azioni Logic Board dedicate.
 
 Ordine consigliato: completare i Core mancanti prima degli Advanced, salvo
 necessita demo specifiche. **Catalogo Core MVP runtime integrato:** Platformer,
@@ -178,7 +178,7 @@ integrati:** MagneticItem, HordeMember. **Core ancora da progettare:**
 
 Warning residui noti:
 
-- CMake deprecation da dipendenze `raylib` / `box2d`.
+- CMake deprecation da dipendenze `raylib` (e FetchContent legacy).
 - Emscripten/sol2: warning su gruppo `-Wmaybe-uninitialized` non riconosciuto.
 
 ## Regole Architetturali
@@ -425,7 +425,7 @@ Completato:
 
 - `RuntimeEntityGateway::setSensor` chiama `syncSensorFixture` quando il body esiste già.
 - `syncSensorFixture` condiviso con `ensurePhysicsBody`.
-- `entity.setPosition` sincronizza il body Box2D (sensor overlap con player script-driven).
+- `entity.setPosition` sincronizza il physics body (sensor overlap con player script-driven).
 - Test: `test_set_sensor_syncs_fixture_after_body` in `world-intent-test.cpp`.
 - Demo `test-project`:
   - `SensorComponent` su Coin/Enemy + physics static su Player/Coin/Enemy;
@@ -465,7 +465,7 @@ Completato (follow-up):
 Completato:
 
 - `Physics::setSensorFixture` / `clearSensorFixture` — replace idempotente (no fixture duplicate).
-- `RuntimeEntityGateway::setTransform` sincronizza posizione body Box2D.
+- `RuntimeEntityGateway::setTransform` sincronizza posizione physics body.
 - Test: `physics-test` #14, `world_intent_test` replace sensor, `entity_signals_test`
   transform sync, `asset_loader_test` parsing physics/health/sensor JSON.
 - Demo: ball/floor physics in ProjectDoc; danno nemico via `entity.damage`.

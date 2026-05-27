@@ -9,7 +9,7 @@ PhysicsBodyRules resolvePhysicsBodyRules(const PhysicsComponent& compIn,
 {
     PhysicsBodyRules rules{};
     rules.bodyType = compIn.bodyType;
-    // Platformer / top-down controllers integrate gravity in World — not Box2D.
+    // Platformer / top-down controllers integrate gravity in World — not physics step.
     rules.gravityScale =
         (flags.hasTopDown || flags.hasPlatformer) ? 0.f : 1.f;
     rules.deriveColliderFromSensor =

@@ -78,7 +78,7 @@ struct Fixture {
     }
 };
 
-// Fase 1 — kinematic platformer without implicit Box2D body (physics plan §7).
+// Fase 1 — kinematic platformer without implicit physics body (physics plan §7).
 
 static void test_platformer_only_has_no_implicit_physics_body() {
     Fixture f;

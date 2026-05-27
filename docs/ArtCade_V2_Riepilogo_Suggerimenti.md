@@ -6,7 +6,7 @@
 ---
 
 ## 1. Visione del Progetto & Filosofia UX
-ArtCade V2 si propone come un game engine e un editor visuale (React + Tauri v2) accoppiato a un runtime ultra-performante (C++ + Raylib + Box2D + Lua). 
+ArtCade V2 si propone come un game engine e un editor visuale (React + Tauri v2) accoppiato a un runtime ultra-performante (C++ + Raylib + custom 2D physics + Lua). 
 La **Logic Board** adotta una filosofia più precisa di "zero-code": **non nasconde i numeri importanti, nasconde la complessità inutile**. Valori come `speed`, `damage`, `cooldown`, `radius`, `duration` e `health` sono numeri di design e devono rimanere visibili e bilanciabili. La complessità da nascondere è quella engine-only: vettori, delta time, handle fisici, fixture, sync ECS, callback e gestione memoria. Vedi [`ARTIST_FRIENDLY_COMPONENTS.md`](ARTIST_FRIENDLY_COMPONENTS.md).
 
 ---
@@ -26,13 +26,13 @@ I componenti logici sono stati riorganizzati e potenziati per coprire non solo i
 * **Condizioni:** `isKeyDown`, `isMouseOver`.
 
 ### 🏃‍♂️ 3. Fisica & Spazio (Physics & Transform)
-* **Trigger:** `onCollision` (urti solidi Box2D), `onTriggerEnter` / `onTriggerExit` (sensori, checkpoint, passaggi di livello).
+* **Trigger:** `onCollision` (overlap physics), `onTriggerEnter` / `onTriggerExit` (sensori, checkpoint, passaggi di livello).
 * **Condizioni:** * `compareDistance`: Verifica la vicinanza spaziale da un target.
     * `isSpaceFree`: Condizione predittiva fondamentale per i giochi a griglia (es. *Tetris*); controlla se una cella adiacente è libera prima di spostarsi.
 * **Azioni:** * `setPosition`, `setRotation`.
     * `setVelocity`: Per movimenti continui e piattaforme mobili.
     * `applyImpulse`: Forza secca istantanea (es. salto, rinculo).
-    * `moveByOffset`: Spostamento discreto al pixel (scavalca Box2D, ideale per movimenti a griglia).
+    * `moveByOffset`: Spostamento discreto al pixel (scavalca physics step, ideale per movimenti a griglia).
     * `snapToGrid`: Forza l'allineamento dello sprite ai multipli della griglia impostata.
     * `clampToScreen`: Impedisce all'entità di uscire dai bordi visivi della telecamera (ideale per shooter a schermo fisso alla *Space Invaders*).
 

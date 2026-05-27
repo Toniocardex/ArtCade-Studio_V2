@@ -84,7 +84,7 @@ Il motore espone una **GameAPI** uniforme (entity, physics, input, audio, state,
 | **Black Box Canvas** | PreviewPanel | Zero re-render durante gameplay — React non tocca il canvas |
 | **Buffered Events** | window.\_consoleLogs, window.\_selectedEntity | C++ scrive, React legge asincrono (non real-time) |
 | **Imperative Commands** | editorSetMode, editorLoadProject, editorSelectEntity | React → C++ via ccall, non viceversa |
-| **Pimpl** | Ogni modulo con tipi Raylib/Box2D/Sol2 | Nessun header di terze parti trapela |
+| **Pimpl** | Ogni modulo con tipi Raylib/Sol2 (e raymath in physics.cpp) | Nessun header di terze parti trapela |
 | **IModule** | Tutti i moduli | Interfaccia uniforme `init()/shutdown()` |
 | **EngineContext** | `core/engine-context.h` | DI container non-owning; evita catene di puntatori |
 | **Fixed timestep** | `app.cpp::loopIteration()` | Fisica deterministica, decoupled da framerate |
@@ -281,7 +281,7 @@ GameLoop
   │  │          └─ Simula body in registry
   │  │
   │  ├─ Sync: world->syncPhysicsToEntities()
-  │  │        └─ Copia posizioni Box2D → registry Transform
+  │  │        └─ Copia posizioni physics body → registry Transform
   │  │
   │  ├─ Audio/Time: audio->update(), timeManager->tick(dt)
   │  │
@@ -300,7 +300,7 @@ Ogni modulo rispetta la struttura:
 ```
 modules/<nome>/
   include/<nome>.h     API pubblica (no tipi di terze parti nel header)
-  src/<nome>.cpp       Implementazione (Pimpl, include raylib/box2d/sol2 qui)
+  src/<nome>.cpp       Implementazione (Pimpl, include raylib/sol2/raymath qui)
   CMakeLists.txt
 ```
 
@@ -898,10 +898,10 @@ loopIteration() — eseguita ogni frame (60Hz target)
 │   │   └── drawScene() accumula drawQueue
 │   │
 │   ├── Physics System (queries world.view<RigidBody>):
-│   │   └── physics->step(dt)              ← Box2D simula
+│   │   └── physics->step(dt)              ← custom solver integra
 │   │
-│   ├── Sync System (reads Box2D → registry):
-│   │   └── world->syncPhysicsToEntities() ← copia pos Box2D → Transform
+│   ├── Sync System (reads physics → registry):
+│   │   └── world->syncPhysicsToEntities() ← copia pos body → Transform
 │   │
 │   ├── Audio System:
 │   │   └── audio->update()
@@ -1217,7 +1217,7 @@ Le fasi 15 e 19-23 sono implementate a livello MVP nel repository corrente. La r
 1. **Non passare alla Fase N+1 finché il checkpoint di N non è verde e i test passano localmente.**
 2. **Ogni modulo nuovo** segue la struttura `include/` + `src/` + `CMakeLists.txt` + almeno 5 unit test.
 3. **No god files**: nessun sorgente supera ~300 righe. Se cresce, split in sub-file.
-4. **Nessun tipo Raylib/Box2D/Sol2 nei header pubblici** — Pimpl obbligatorio.
+4. **Nessun tipo Raylib/Sol2 nei header pubblici** — Pimpl obbligatorio (raymath solo in physics.cpp).
 5. **`engine-context.h` non include nessun header di modulo** — solo forward declarations.
 6. **Il drawQueue viene sempre svuotato prima di ogni `luaHost->tick()`** nel loop.
 7. **`locateFile` usa sempre percorso assoluto** `/runtime/${path}` — mai prefix Emscripten.

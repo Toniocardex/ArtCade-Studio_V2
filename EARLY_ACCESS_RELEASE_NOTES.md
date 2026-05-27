@@ -13,7 +13,7 @@
 ✅ **Dual-Runtime Engine**
 - C++ codebase compiles to Windows/macOS/Linux native (.exe)
 - Same codebase compiles to WebAssembly for browsers + Tauri preview
-- Raylib 2D renderer, Lua 5.4 + Sol2 bindings, Box2D 2.4 physics
+- Raylib 2D renderer, Lua 5.4 + Sol2 bindings, custom 2D physics (Raymath + collision_math)
 
 ✅ **React TypeScript Editor (Tauri)**
 - Scenes panel (scenes + objects) + entity inspector
@@ -57,7 +57,7 @@
 |-----------|--------|--------------|
 | Emscripten SDK local setup | ⚠️ Manual setup required | Week 2 (docker image) |
 | Sprite skinning / bone animation | ❌ Not yet | Week 4 |
-| Advanced physics (ragdoll, joints) | ❌ Basic Box2D only | Week 6 |
+| Advanced physics (ragdoll, joints) | ❌ Basic 2D solver only | Week 6 |
 | Steam integration | ❌ Stub present | Future (Week 8+) |
 | Real-time collaboration | ❌ Not planned | N/A (v3.0) |
 | Visual Logic Board | ⚠️ Code-only for now | Week 3 (if funded) |
@@ -227,7 +227,7 @@ Planned cross-platform support (macOS / Linux) is listed below; **current build 
 - Raylib (zlib license)
 - Lua 5.4 (MIT license)
 - Sol2 (MIT license)
-- Box2D 2.4 (MIT license)
+- Custom 2D physics module (no third-party physics engine)
 - React 19 (MIT license)
 
 **Attribution**: Games made with ArtCade FREE must display "Made with ArtCade" watermark in splash screen (automatic, non-removable).

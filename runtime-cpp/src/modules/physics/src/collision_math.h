@@ -46,7 +46,7 @@ inline Aabb shapeWorldAabb(const ShapeInstance& s) {
     return aabbFromRect(c, s.size.x * 0.5f, s.size.y * 0.5f);
 }
 
-/** Inclusive edges — touching counts as overlap (matches legacy Box2D queries). */
+/** Inclusive edges — touching counts as overlap (matches prior solver queries). */
 inline bool aabbOverlap(const Aabb& a, const Aabb& b) {
     return a.minX <= b.maxX && a.maxX >= b.minX
         && a.minY <= b.maxY && a.maxY >= b.minY;

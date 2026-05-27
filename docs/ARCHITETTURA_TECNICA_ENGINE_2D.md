@@ -13,7 +13,7 @@ L’engine è basato su un’architettura **data-oriented** e **multi-layer**, p
 | Language | C++ 17/20 | Logica core ad alte prestazioni e gestione memoria. |
 | Rendering | Raylib | Backend grafico (OpenGL/WebGL) e astrazione input/audio. |
 | ECS | EnTT | Gestione delle entità e dei dati tramite Entity Component System. |
-| Physics | Box2D | Simulazione fisica 2D deterministica. |
+| Physics | Custom 2D (Raymath + collision_math) | Overlap, raycast, corpi dynamic/kinematic/static. |
 | Scripting | Lua (via Sol2) | Logica di gioco ad alto livello e bridge verso il visual scripting. |
 | Frontend UI | React | Interfaccia dell’editor e gestione dello stato dei tool. |
 | Desktop shell | Tauri | Bridge tra l’interfaccia web e il sistema operativo. |
@@ -34,7 +34,7 @@ L’architettura si divide in **tre domini** principali che comunicano tramite c
 
 Per garantire la stabilità della simulazione indipendentemente dal refresh rate del monitor (60 Hz, 144 Hz, ecc.), l’engine adotta un **accumulatore di tempo**.
 
-- **Fixed update:** la fisica (Box2D) e la logica degli script procedono a passi costanti (\(1/60\) s).
+- **Fixed update:** il modulo Physics e la logica degli script procedono a passi costanti (\(1/60\) s).
 - **Variable render:** il rendering segue il `requestAnimationFrame` del browser.
 - **Interpolazione:** viene calcolato un fattore \(\alpha\) per correggere il micro-stuttering, permettendo al renderer di interpolare le posizioni tra l’ultimo stato fisico e quello precedente.
 
@@ -79,12 +79,12 @@ L’engine implementa un sistema di scripting e authoring a **più livelli** (te
 
 Il progetto utilizza **CMake** per la multi-piattaforma:
 
-- **Target Windows:** compilazione nativa in `.exe` con collegamento diretto a Raylib e Box2D.
+- **Target Windows:** compilazione nativa in `.exe` con collegamento diretto a Raylib (physics custom nel modulo `artcade-physics`).
 - **Target Web (WASM):** compilazione tramite Emscripten per generare i moduli `.wasm` e `.js` pronti per essere importati nel progetto React/Tauri.
 
 ### Nota di design
 
-Questa architettura **2D-first** è pensata per essere estesa in modo modulare verso il 3D, sostituendo o affiancando Box2D con motori fisici 3D e introducendo sistemi di frustum culling all’interno dei sistemi di rendering di EnTT.
+Questa architettura **2D-first** è pensata per essere estesa in modo modulare verso il 3D, affiancando o sostituendo il solver 2D attuale con motori fisici 3D e introducendo frustum culling nei sistemi di rendering.
 
 ---
 
@@ -100,7 +100,7 @@ Lo stato del runtime non è disperso in molte variabili globali (`globalRegistry
 **Checklist `Reset()`**
 
 - **EnTT:** `registry.clear()` (o politica equivalente per pool di entità).
-- **Box2D:** distruggere o ricreare `b2World` e body/fixture; nessun handle orfano.
+- **Physics:** distruggere o ricreare tutti i body (`destroyAllBodies` / per-handle); nessun handle orfano.
 - **Asset / Raylib:** scaricare texture/audio in linea con le API Raylib e con la cache `weak_ptr`.
 - **Lua:** documentare **reset completo VM** vs ricreazione di soli `environment` / script.
 
@@ -110,12 +110,12 @@ Lo stato del runtime non è disperso in molte variabili globali (`globalRegistry
 struct EngineContext {
     entt::registry registry;
     AssetManager assetManager;
-    std::unique_ptr<b2World> physicsWorld;  // #include <box2d/box2d.h> nel .cpp
+    Physics* physics;  // modulo artcade-physics (Pimpl in physics.cpp)
     sol::state lua;
 
     void Reset() {
         registry.clear();
-        // Ricreare o svuotare b2World e tutti i body/fixture
+        // Ricreare o svuotare tutti i physics body
         // Svuotare / re-inizializzare asset manager (Unload coerente con Raylib)
         // Policy Lua: reset VM vs solo script — da documentare per il team
     }
@@ -136,20 +136,20 @@ Il puntatore globale **non elimina** il globale: **concentra** lo stato e rende 
 
 **Dettaglio operativo (ordine reale in PLAY):** [`FIXED_STEP_CONTRACT.md`](FIXED_STEP_CONTRACT.md) — allineato a `Application::tickFixedStep` in `runtime-cpp/src/app/src/app.cpp`.
 
-Se Box2D e Lua (o l’input) **scrivono la posizione** nello stesso frame senza regole, compare **jitter**. Si impone una **pipeline rigida** e si definisce **chi è autorità** sui dati.
+Se il modulo Physics e Lua (o l’input) **scrivono la posizione** nello stesso frame senza regole, compare **jitter**. Si impone una **pipeline rigida** e si definisce **chi è autorità** sui dati.
 
 | Fase | Responsabilità |
 |------|----------------|
 | **Input e comandi UI** | React invia comandi al C++ (IPC / buffer); nessun accesso diretto al canvas durante il gameplay (cfr. `REACT_WASM_PATTERN.md`). |
-| **Scripting (pre-fisica)** | Lua legge lo stato e applica **forze, impulsi o velocità desiderata** — non teletrasporti arbitrari sulla posizione integrata da Box2D, salvo spawn/cutscene espliciti. |
-| **Physics step** | Solo Box2D integra a passo fisso (`FIXED_DT`). |
-| **Sync** | Solo C++: **Box2D → `TransformComponent`** (posizione, rotazione). |
+| **Scripting (pre-fisica)** | Lua legge lo stato e applica **forze, impulsi o velocità desiderata** — non teletrasporti arbitrari sulla posizione integrata dal solver, salvo spawn/cutscene espliciti. |
+| **Physics step** | Solo `Physics::step` integra a passo fisso (`FIXED_DT`). |
+| **Sync** | Solo C++: **physics body → `TransformComponent`** (posizione). |
 | **Scripting (post-fisica)** | Lua legge posizioni e contatti per logica di gioco. |
 | **Rendering** | Raylib usa i **`TransformComponent`** (eventualmente interpolati come in §3). |
 
 **Rifiniture consigliate**
 
-- Corpi **kinematic** o «motore»: lo script esprime **intento di movimento**; il C++ traduce in comandi Box2D stabili.
+- Corpi **kinematic** o «motore»: lo script esprime **intento di movimento**; il C++ traduce in velocità/posizione sul body.
 - Entità **solo visive** (senza body): il transform non passa dal sync fisico.
 
 ---
@@ -189,7 +189,7 @@ Questa sezione allinea **ciò che il codice fa oggi** con gli obiettivi delle se
 
 ### 11.2 Dove il documento è «target» rispetto al codice
 
-- **§8 — struct con `registry` / `AssetManager` / `b2World` / `lua`:** nel repo oggi il mondo è **modulare** (`World`, `Physics`, `LuaHost`, …) e `EngineContext` è solo **wiring**. La struct dell’§8 resta **obiettivo di consolidamento** (reset scena, embind) non la copia byte-per-byte del tree attuale.
+- **§8 — struct con `registry` / `AssetManager` / `Physics` / `lua`:** nel repo oggi il mondo è **modulare** (`World`, `Physics`, `LuaHost`, …) e `EngineContext` è solo **wiring**. La struct dell’§8 resta **obiettivo di consolidamento** (reset scena, embind) non la copia byte-per-byte del tree attuale.
 - **§9 — due fasi Lua (pre/post fisica):** oggi c’è **una** `luaHost->tick` prima della fisica. La tabella dell’§9 è il **modello di riferimento anti-jitter**; allineamento possibile in due modi indolenti: (A) **documentare** che in questo tick Lua non vede ancora le pose post–fisica e che la logica che legge posizioni deve stare dopo sync (es. hook o tick diviso in futuro); (B) **evolvere** il runtime con `tickPrePhysics` / `tickPostPhysics` quando servirà.
 - **Appendice — `entt::registry`, `SerializeScene(registry)`:** storage runtime già su EnTT dietro `EntityRegistry`; la serializzazione editor/React continua a passare da JSON/`EntityDef` e gateway getter, non da `registry` esposto a JS.
 - **`g_Context` nell’appendice:** pattern pedagogico; in WASM l’istanza reale è **`Application`** (o un handle esposto). I wrapper embind dovranno delegare a `Application*` o a funzioni che ricevono il contesto già inizializzato.
@@ -266,11 +266,11 @@ EMSCRIPTEN_BINDINGS(engine_module) {
 
 Stesso schema per `tick`, `hotReload`, ecc.: wrapper senza tipi non bindabili o uso di `class_` con istanza registrata.
 
-#### 4. Box2D e EnTT
+#### 4. Physics e EnTT
 
-**Il problema:** dopo `physicsWorld->Step(...)`, Box2D aggiorna le pose interne ma **EnTT non viene aggiornato da solo**.
+**Il problema:** dopo `physics->step(...)`, il solver aggiorna le pose interne ma **EnTT non viene aggiornato da solo**.
 
-**Cosa manca:** uno **sync** post-step: per ogni entità con body Box2D **e** `TransformComponent`, copiare `body->GetPosition()` (e rotazione se serve) in `transform.position`. Senza questo, script Lua e renderer vedono entità ferme mentre la fisica si muove.
+**Implementato:** sync post-step in `World::syncPhysicsToEntities()` — per ogni entità con physics handle, copiare `getPosition(handle)` in `transform.position` (platformer senza body o follower kinematic esclusi).
 
 ---
 
@@ -407,7 +407,7 @@ void UpdateScripts(entt::registry& registry, float dt) {
 
 ### 4. Il Game Loop con Fixed Timestep
 
-La logica per rendere la fisica di Box2D fluida e deterministica.
+La logica per rendere la fisica fluida e deterministica (solver custom + platformer AABB).
 
 ```cpp
 class Engine {
@@ -426,7 +426,7 @@ public:
         while (accumulator >= FIXED_DT) {
             // 1. Fisica
             // physicsWorld->Step(FIXED_DT, 8, 3);
-            // Poi: sync Box2D -> TransformComponent su EnTT (body->GetPosition() -> transform.position)
+            // Poi: sync physics -> TransformComponent (getPosition(handle) -> transform.position)
 
             // 2. Logica Script
             UpdateScripts(registry, FIXED_DT);

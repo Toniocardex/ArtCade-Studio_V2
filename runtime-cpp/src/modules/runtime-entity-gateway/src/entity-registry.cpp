@@ -15,7 +15,7 @@
 //   - SceneActiveTag : empty tag, presence == active in current scene.
 //   - PhysicsHandle  : small uint32 wrapper, separate from PhysicsComponent
 //     because the handle changes for body lifetime independently of the
-//     authored physics data. on_destroy<PhysicsHandleComp> frees the Box2D
+//     authored physics data. on_destroy<PhysicsHandleComp> frees the physics
 //     body automatically when the entity is destroyed or registry.clear()
 //     runs (signal-driven cleanup; see Impl::onPhysicsHandleDestroyed).
 //   - Identity       : className + tags metadata, deliberately NOT default-
@@ -194,7 +194,7 @@ void EntityRegistry::erase(EntityId id) {
     if (e == entt::null) return;
     // reg.destroy fires on_destroy signals for every component the entity
     // holds; the Identity and PhysicsHandle handlers do their own cleanup
-    // (indices, lifecycle event, Box2D body). After this call the slot is
+    // (indices, lifecycle event, physics body). After this call the slot is
     // gone from the EnTT registry — we only need to mop up the manual
     // EntityId→entt::entity bookkeeping.
     impl_->reg.destroy(e);

@@ -1,4 +1,4 @@
-// physics.cpp — Custom iterative physics (Facade: physics.h unchanged; no Box2D).
+// physics.cpp — Custom iterative physics (Facade: physics.h unchanged).
 #include "../include/physics.h"
 #include "collision_math.h"
 

@@ -15,7 +15,7 @@ Portare ArtCade V2 da uno stato di **architettura avanzata con editor funzionant
 
 ## 2. Stato Attuale (Pre‑Piano)
 
-- Runtime C++ con Raylib, Box2D, Lua VM (Sol2) e oltre 20 moduli utility **completato**.
+- Runtime C++ con Raylib, custom 2D physics, Lua VM (Sol2) e oltre 20 moduli utility **completato**.
 - Editor React con 7 pannelli, WASM Preview Panel e hot‑reload script **completato**.
 - Documentazione tecnica e architetturale **completa e aggiornata** (RATIONALE, OVERVIEW, INTEGRATION, SPECS).
 - Logic Board (visual scripting) **specificata e documentata**, implementazione editor in roadmap.

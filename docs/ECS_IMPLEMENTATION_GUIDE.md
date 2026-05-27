@@ -44,7 +44,7 @@ site non cambino quando l'implementazione interna evolve.
    usato solo per caricare il `ProjectDoc` JSON. Una volta caricata la
    scena, i dati vivono nei componenti EnTT, non in `EntityDef`.
 4. **Signal-driven side effects**: gli indici `classIndex`/`tagIndex` e
-   il teardown dei body Box2D sono mantenuti automaticamente da
+   il teardown dei physics body sono mantenuti automaticamente da
    `on_construct/on_destroy` (vedi §9). Non duplicare la logica nei
    chiamanti — affidati al fatto che `setIdentity` e `erase` *fanno la
    cosa giusta da soli*.
@@ -62,7 +62,7 @@ entità (vedi `EntityRegistry::Impl::ensure`):
 - `Transform`           — posizione, rotazione, scala, velocity
 - `SpriteComponent`     — asset sprite, tint, alpha, shader effect
 - `PhysicsComponent`    — body type, shape, friction, restituzione
-- `PhysicsHandleComp`   — `uint32_t value` (handle Box2D, 0 se assente)
+- `PhysicsHandleComp`   — `uint32_t value` (physics handle, 0 se assente)
 - `Identity`            — className + tags (usati anche per gli indici)
 
 Tipi opzionali (emplace on demand via `EntityRegistry::set*`):
@@ -411,7 +411,7 @@ mai un `entt::sigh_helper`.
 | --------------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `on_construct<Identity>`          | `EntityRegistry::Impl`           | Aggiunge `id` a `classIndex[className]` e `tagIndex[tag]`; accoda un `LifecycleEvent::Spawned`.                                                                                          |
 | `on_destroy<Identity>`            | `EntityRegistry::Impl`           | Rimuove `id` dagli stessi indici e accoda un `LifecycleEvent::Destroyed`. Fired *prima* della rimozione effettiva, quindi `Identity` è ancora leggibile dalla callback.                  |
-| `on_destroy<PhysicsHandleComp>`   | `EntityRegistry::Impl`           | Se `value != 0` e `Physics*` è iniettato, chiama `Physics::destroyBody(value)`. Risolve la fuga di body Box2D che avveniva su `replaceProject` / `clear()`.                              |
+| `on_destroy<PhysicsHandleComp>`   | `EntityRegistry::Impl`           | Se `value != 0` e `Physics*` è iniettato, chiama `Physics::destroyBody(value)`. Risolve la fuga di physics body che avveniva su `replaceProject` / `clear()`.                              |
 
 Cablaggio (una volta sola in `EntityRegistry()` costruttore):
 
@@ -578,5 +578,5 @@ I test runnano via `ctest -C Release --output-on-failure` da
 *Questa guida riflette l'integrazione EnTT completata a 2026-05-21
 (rimozione `EntityManager`, registry PIMPL, visitor view-based,
 determinismo enforced, signal/observer per indici automatici, teardown
-Box2D automatico, lifecycle events verso Lua). Per estensioni vedi §6
+physics body automatico, lifecycle events verso Lua). Per estensioni vedi §6
 (nuovi componenti) e §9 (nuovi signal).*

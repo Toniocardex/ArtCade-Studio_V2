@@ -448,7 +448,7 @@ Verified on **VS BuildTools 2026 (18.x)** + **Node 24 LTS** + **Rust 1.95** + **
 
 ## Current Status
 
-- Runtime C++ MVP: complete native/WASM loop, Lua 5.4, Raylib, Box2D, asset loader, `.artcade` package loading.
+- Runtime C++ MVP: complete native/WASM loop, Lua 5.4, Raylib, custom 2D physics, asset loader, `.artcade` package loading.
 - Editor MVP: React/Tauri app, project open/save, script save, Logic Board, Scene Editor, asset import, console copy, dark/light theme.
 - Preview: WASM canvas is treated as a black box; React communicates through imperative bridge functions and buffered callbacks.
 - Logic Board: entity-first authoring, schema-driven forms, Ajv build-time validators for Tauri CSP, Lua compiler, runtime APIs for spawn/sensor/lifecycle/shaders, and artist-friendly controls that show design numbers while hiding engine-only complexity.

@@ -5,7 +5,7 @@
 | **Progetto** | ArtCade Studio V2 |
 | **Versione documento** | 1.0 |
 | **Data** | 2026-05-27 |
-| **Stato** | Completo su branch `feat/physics-no-box2d` (Fasi 1–5: runtime + editor + doc chiave) |
+| **Stato** | **Completato** su branch `feat/physics-no-box2d` (Fasi 1–5 + ripulitura doc) |
 | **Audience** | Team C++, Editor/TS, QA, Product, Documentazione |
 | **Autore** | Engineering (draft per review team) |
 
@@ -13,13 +13,13 @@
 
 ## 1. Executive summary
 
-ArtCade V2 oggi usa **Box2D 2.4.1** (FetchContent) dietro il modulo `artcade-physics` per corpi rigid-body leggeri, overlap, raycast e sensori. Il **gameplay platformer** (movimento, coyote time, terreno, one-way) è già implementato con **AABB custom** in `world_grounding.cpp` e **non dipende dal solver Box2D**.
+**Esito:** Box2D è stato **rimosso**. Il modulo `artcade-physics` usa un solver **custom** (`collision_math.h` + integrazione in `physics.cpp` con **Raymath**). Il **gameplay platformer** resta su **AABB custom** in `world_grounding.cpp`.
 
-La proposta è **rimuovere Box2D** e sostituire il backend in `physics.cpp` con un motore **custom minimale** (integrazione velocità/posizione + test geometrici rettangolo/cerchio), usando **Raymath** per algebra vettoriale dove utile e, opzionalmente, le stesse formule di collisione di **Raylib** (`CheckCollision*`, `GetRayCollisionRec`) quando il runtime è linkato a Raylib.
+**Invariato:** facciata `physics.h`, binding Lua (`collision.*`, `physics.*`), ordine fixed-step (`docs/FIXED_STEP_CONTRACT.md`).
 
-**Obiettivi:** binary WASM più piccolo, build più veloce, comportamento più deterministico e allineato al modello “arcade + Transform”, meno dipendenze esterne.
+**Benefici:** niente FetchContent Box2D, WASM/link più leggeri, modello arcade coerente.
 
-**Vincolo chiave:** mantenere **invariata** la facciata pubblica `Physics` (`physics.h`), l’API Lua (`collision.*`, `physics.*`) e il contratto fixed-step documentato in `docs/FIXED_STEP_CONTRACT.md`, salvo note esplicite su differenze numeriche minime (es. caduta sotto gravità).
+Le sezioni **3.x** descrivono lo **stato pre-migrazione** (riferimento storico). Per l’implementazione attuale vedere `runtime-cpp/src/modules/physics/`.
 
 ---
 
@@ -36,7 +36,7 @@ La proposta è **rimuovere Box2D** e sostituire il backend in `physics.cpp` con 
 
 ---
 
-## 3. Stato attuale (as-is)
+## 3. Stato pre-migrazione (storico — as-was)
 
 ### 3.1 Due layer di “fisica”
 

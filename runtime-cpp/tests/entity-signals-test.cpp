@@ -1,6 +1,6 @@
 // entity-signals-test.cpp — verify the EnTT signal-driven contracts of
 // RuntimeEntityGateway: auto-maintained class/tag indices, lifecycle event
-// queue, idempotent setIdentity, Box2D body auto-teardown, and the
+// queue, idempotent setIdentity, physics body auto-teardown, and the
 // "events emitted during clear() are dropped" shutdown invariant.
 
 #include "modules/scene-system/include/scene-manager.h"
@@ -218,8 +218,8 @@ static void test_set_identity_idempotent() {
 
 // ---- Test 5: physics handle cleared on destroy (signal effect) ---------
 //
-// gw.destroy(id) must release the Box2D body via the
-// on_destroy<PhysicsHandleComp> signal. We can't query Box2D body count
+// gw.destroy(id) must release the physics body via the
+// on_destroy<PhysicsHandleComp> signal. We can't query internal body count
 // directly from this test, but the gateway contract is enough: after
 // destroy(), physicsHandle(id) returns 0 *and* the registry has erased
 // the entity. If the signal hadn't fired, the leak would surface in
@@ -410,7 +410,7 @@ static void test_set_transform_syncs_physics_position() {
     sm.shutdown();
 }
 
-// Fase 1: platformerController alone must not create a Box2D body.
+// Fase 1: platformerController alone must not create a physics body.
 static void test_platformer_controller_does_not_create_physics_body_alone() {
     SceneManager sm;
     RuntimeEntityGateway gw(sm);

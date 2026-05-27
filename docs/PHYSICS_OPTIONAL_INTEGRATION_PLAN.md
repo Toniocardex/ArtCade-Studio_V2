@@ -2,7 +2,7 @@
 
 > **Versione**: 1.3  
 > **Data**: 2026-05-27  
-> **Status**: Runtime senza Box2D (custom physics + Raymath su `feat/physics-no-box2d`); Fase 5 editor/docs aggiornata (label **Physics (Collider)**)  
+> **Status**: Runtime con solver custom (Raymath + `collision_math`); Fasi 0–5 complete (label editor **Physics (Collider)**)  
 > **Audience**: C++ / Editor / Product  
 > **Collegamenti**: `GLOBAL_LOGIC_UI_ARCHITECTURE.md`, `ARTIST_FRIENDLY_COMPONENTS.md`, `ARCHITETTURA_TECNICA_ENGINE_2D.md` §9, `ENGINE_INTEGRATION_ROADMAP.md` (tracker engine separato)
 
@@ -98,13 +98,13 @@ Riferimento: `runtime-cpp/src/modules/runtime-entity-gateway/src/runtime-entity-
 ### 5.2 Cosa resta sempre “acceso”
 
 - `Application::tickFixedStep` chiama **`physics->step(dt)`** ogni frame (`app.cpp`).
-- Mondo Box2D con gravità default `(0, 10)` anche a zero corpi (`physics.cpp`).
+- Physics world con gravità default `(0, 10)` anche a zero corpi (`physics.cpp`).
 - `World::tickPlatformerControllers` **esce subito** se `physicsHandle == 0` — il platformer **non funziona** senza body.
 - Grounded platformer: `physics_.areOverlapping` vs `Solid` / `groundClass` — richiede corpi su player e terreno.
 
 ### 5.3 Cosa è già kinematico (logica)
 
-- Gravità verticale platformer: `vy += customGravity * dt` in `world_movement.cpp` (non gravità mondo Box2D).
+- Gravità verticale platformer: `vy += customGravity * dt` in `world_movement.cpp` (non gravità mondo physics).
 - Parametri editor: `maxSpeed`, `jumpForce`, `customGravity`, `coyoteTime`, `jumpBuffer` (`PlatformerControllerComponent`).
 
 ### 5.4 Pattern di riferimento nel codebase
@@ -114,8 +114,8 @@ Riferimento: `runtime-cpp/src/modules/runtime-entity-gateway/src/runtime-entity-
 
 ### 5.5 Logic Board / Lua
 
-- `onCollision*` → `collision.touchingClass` (overlap Box2D) o edge sintetizzato in Lua.
-- `onTriggerEnter/Exit` → `sensor.*` (fixture Box2D + `dispatchSensorEvents`).
+- `onCollision*` → `collision.touchingClass` (physics overlap) o edge sintetizzato in Lua.
+- `onTriggerEnter/Exit` → `sensor.*` (sensor shape + `dispatchSensorEvents`).
 - Giochi senza physics: preferire `onUpdate`, `onInput`, distanza manuale, `event.emit`, o sensor **solo dove serve**.
 
 ---
@@ -128,7 +128,7 @@ flowchart TB
     PC[PlatformerController kinematic]
     TD[TopDownController kinematic]
     LM[LinearMover optional physics]
-    PHY[Physics step Box2D]
+    PHY[Physics step]
   end
 
   subgraph opt [Solo se necessario]
@@ -150,7 +150,7 @@ flowchart TB
 | Livello | Campo / regola | Effetto |
 |---------|----------------|---------|
 | **Progetto / scena** | `world.physicsMode` (default `auto`, proposta §7.1) | `auto` = step solo se `physics.hasActiveBodies()` |
-| **Entità — Physics** | `physics?: PhysicsComponent` | Collider + bodyType espliciti → body Box2D |
+| **Entità — Physics** | `physics?: PhysicsComponent` | Collider + bodyType espliciti → physics body |
 | **Entità — Platformer** | `platformerController` | Movimento scriptato; grounded configurabile |
 | **Entità — Solid** | `solid` | Richiede Physics static (shortcut o componente separato) |
 | **Entità — Sensor** | `sensor` | Richiede fixture sensor (static); opzionale world physics |
@@ -164,7 +164,7 @@ flowchart TB
 | Orizzontale | `maxSpeed` × asse input |
 | Feel | coyote + jump buffer (invariati) |
 | Posizione | Scrittura su **Transform** (+ sync opzionale a body kinematic se presente) |
-| Grounded | **Fase A**: overlap Box2D (compat). **Fase B**: raycast/AABB vs solid layer o tilemap |
+| Grounded | **Fase A**: overlap physics (compat). **Fase B**: raycast/AABB vs solid layer o tilemap |
 
 ### 6.3 Physics “pesante” (opt-in)
 
@@ -227,7 +227,7 @@ flowchart TB
 | **2c — Tilemap layer** | Celle `solid` in `SceneDef::tilemap` + `tilePalette` (`groundClass`, `surfaceKind`) | ✅ Implementato |
 | **2b — AABB vs Solid registry** | `SolidComponent` + stesso probe/resolve in `world_grounding.cpp` | ✅ |
 
-**Raccomandazione (stato 2026-05)**: terreno statico → **tilemap**; eccezioni (mobili, forme custom) → entità **Solid**. Il platformer kinematic **non** usa i body Box2D per tile per il grounded — solo AABB su griglia (`World::groundingContext` → `probePlatformerSolidContact`).
+**Raccomandazione (stato 2026-05)**: terreno statico → **tilemap**; eccezioni (mobili, forme custom) → entità **Solid**. Il platformer kinematic **non** usa i physics body per tile per il grounded — solo AABB su griglia (`World::groundingContext` → `probePlatformerSolidContact`).
 
 **DoD**: livello con solo tile solid + player kinematic: `isPlatformerGrounded` true; stesse regole coyote/one-way/muri dei test Solid (`world-intent-test` varianti tilemap).
 
@@ -265,7 +265,7 @@ flowchart TB
 
 | Task | Output |
 |------|--------|
-| Aggiornare `GLOBAL_LOGIC_UI_ARCHITECTURE.md` | Platformer kinematic vs Box2D |
+| Aggiornare `GLOBAL_LOGIC_UI_ARCHITECTURE.md` | Platformer kinematic vs physics module |
 | Capability matrix | `onCollision*` richiede overlap; suggerire alternative in UI |
 | Template progetto | “Arcade (no physics)” vs “Platformer” |
 
@@ -299,9 +299,9 @@ Resta collider + `bodyType`. Documentare: **non necessario** per platformer kine
 
 ---
 
-## 9. Matrice componenti → Box2D
+## 9. Matrice componenti → physics module
 
-| Componente | Body Box2D | Step mondo | Note |
+| Componente | Physics body | Step mondo | Note |
 |------------|------------|------------|------|
 | Sprite only | No | No | Transform + render |
 | Platformer (target Fase 1+) | No | No | Kinematic scriptato |
@@ -357,8 +357,8 @@ Ogni fase = PR separato reviewabile (~300–800 LOC ciascuno).
 
 ## 13. Fuori scope (v2+)
 
-- Physics 2.0 / continuous collision custom senza Box2D.
-- Merge Box2D tile bodies in chain shapes (oggi: un body per cella solida + AABB platformer separato).
+- Physics 2.0 / continuous collision (CCD) nel solver custom.
+- Merge tile static bodies in chain shapes (oggi: un body per cella solida + AABB platformer separato).
 - Networked physics.
 - `onCollision` edge nativo C++ (oggi edge Lua da `touchingClass`).
 
@@ -474,7 +474,7 @@ Ogni fase = PR separato reviewabile (~300–800 LOC ciascuno).
 ### Deliverable
 
 1. Probe AABB piedi player vs top surface di ogni entità attiva con **Solid** + `groundClass` match.
-2. `isGrounded`: overlap Box2D se player ha handle; altrimenti AABB Solid.
+2. `isGrounded`: overlap physics se player ha handle; altrimenti AABB Solid.
 3. Test: airborne false; platformer-only su Solid scaled → grounded + jump; coyote dopo distacco.
 4. Nessun nuovo componente — riusa `SolidComponent` + transform/scale per dimensioni.
 
@@ -571,7 +571,7 @@ Ogni fase = PR separato reviewabile (~300–800 LOC ciascuno).
 
 ### Deliverable
 
-1. `GLOBAL_LOGIC_UI_ARCHITECTURE.md` v1.1 — tabella platformer vs Box2D + matrix trigger collision/sensor.
+1. `GLOBAL_LOGIC_UI_ARCHITECTURE.md` v1.1 — tabella platformer vs physics module + matrix trigger collision/sensor.
 2. `physics-trigger-capabilities.ts` + avvisi in `EventEditor` / `triggerRequirement`.
 3. `project-templates.ts` + File → New Project (Blank / Arcade / Platformer).
 4. Vitest: `project-templates.test.ts`, `physics-trigger-capabilities.test.ts`.

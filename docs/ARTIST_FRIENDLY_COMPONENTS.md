@@ -11,7 +11,7 @@
 ArtCade non deve nascondere i numeri importanti. Deve nascondere la
 complessita tecnica inutile.
 
-Un creativo non ha bisogno di vedere `delta time`, handle Box2D, fixture,
+Un creativo non ha bisogno di vedere `delta time`, physics handle, collider size,
 sync ECS, callback o boilerplate Lua per costruire un gioco. Ha pero bisogno
 di controllare valori che cambiano davvero il feeling del gioco:
 

@@ -55,7 +55,7 @@ impl Default for BuildLogFilter {
 pub fn is_third_party_cmake_deprecation_start(line: &str) -> bool {
     line.starts_with("CMake Deprecation Warning at ")
         && (line.contains("libs/raylib/CMakeLists.txt")
-            || line.contains("_deps/box2d-src/CMakeLists.txt"))
+            || (line.contains("_deps/") && line.contains("CMakeLists.txt")))
 }
 
 pub fn starts_new_build_log_record(line: &str) -> bool {
@@ -108,14 +108,14 @@ mod tests {
     }
 
     #[test]
-    fn suppresses_box2d_cmake_deprecation_block() {
+    fn suppresses_fetchcontent_cmake_deprecation_block() {
         let out = run(&[
-            "CMake Deprecation Warning at _deps/box2d-src/CMakeLists.txt:1 (cmake_minimum_required):",
+            "CMake Deprecation Warning at _deps/foo-src/CMakeLists.txt:1 (cmake_minimum_required):",
             "  body",
             "  body continued",
-            "Built target box2d",
+            "Built target foo",
         ]);
-        assert_eq!(out, vec!["Built target box2d".to_string()]);
+        assert_eq!(out, vec!["Built target foo".to_string()]);
     }
 
     #[test]
@@ -141,7 +141,7 @@ mod tests {
         let out = run(&[
             "CMake Deprecation Warning at libs/raylib/CMakeLists.txt:5 (cmake_minimum_required):",
             "  body",
-            "CMake Deprecation Warning at _deps/box2d-src/CMakeLists.txt:1 (cmake_minimum_required):",
+            "CMake Deprecation Warning at _deps/foo-src/CMakeLists.txt:1 (cmake_minimum_required):",
             "  body",
             "-- Configuring done",
         ]);

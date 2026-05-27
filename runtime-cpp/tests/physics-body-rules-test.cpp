@@ -1,4 +1,4 @@
-// physics-body-rules-test.cpp — stateless policy for Box2D body setup.
+// physics-body-rules-test.cpp — stateless policy for physics body setup.
 
 #include "modules/runtime-entity-gateway/include/physics-body-rules.h"
 

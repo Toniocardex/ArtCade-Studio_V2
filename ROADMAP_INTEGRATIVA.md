@@ -212,7 +212,7 @@ ctest → texture_manager_test  9/9 passed
 ### Implementato
 - **EntityManager**: `createEntity`, `destroyEntity`, `getPool(className)`, `getByTag`, index doppio (class + tag), `forEachInPool`
 - **SceneManager**: `registerScenes`, `loadScene`, `activeScene()` — carica dalla ProjectDoc
-- **World**: `syncPhysicsToEntities()` (copia posizioni da Box2D → Transform), `getGlobalState/setGlobalState`, `activeEntityIds()`
+- **World**: `syncPhysicsToEntities()` (copia posizioni da physics body → Transform), `getGlobalState/setGlobalState`, `activeEntityIds()`
 
 ### Checkpoint ✅
 - [x] EntityManager: create/destroy/pool query funzionanti
@@ -262,22 +262,22 @@ game.exe test-project/ → "[App] Project loaded: ArtCade Test"
 
 ---
 
-## FASE 12 — Physics (custom 2D; ex Box2D 2.4)
+## FASE 12 — Physics (custom 2D)
 
-**Stato**: ✅ Completata — 11/11 test passano (incluso physics_test)
+**Stato**: ✅ Completata — 15/15 `physics_test` + integrazione world (2026-05: migrazione da Box2D)
 
 ### Cosa è stato fatto
-- **Backend**: Box2D 2.4.1 via `FetchContent` (C++ puro, nessun binding Rust)
-- **Pimpl completo**: `physics.h` espone solo `Vec2`/`PhysicsComponent`/`uint32_t handle`; Box2D resta in `physics.cpp`
+- **Backend**: solver custom in `physics.cpp` + `collision_math.h` + header **Raymath** (niente FetchContent Box2D)
+- **Pimpl completo**: `physics.h` espone solo `Vec2`/`PhysicsComponent`/`uint32_t handle`; implementazione in `physics.cpp`
 - `createBody` — Dynamic/Static/Kinematic, collider Rectangle e Circle
-- `destroyBody` — rimozione sicura da world + mappe interne
-- `step(dt, substeps=2)` — integrazione a substep con `b2World::Step`
-- `setGravity` — configura gravità Y-down (default +10, screen-space)
-- `setLinearVelocity/getLinearVelocity` — accesso diretto a `b2Body`
-- `setPosition/getPosition` — teleport con preservazione angolo
-- `areOverlapping` — `b2TestOverlap` con shape + transform correnti
-- `raycast` — `b2RayCastCallback` closest-hit con restituzione handle + punto
-- `getContactingBodies` — `b2QueryAABB` con epsilon 0.5
+- `destroyBody` — rimozione sicura da mappe interne
+- `step(dt, substeps=2)` — Euler semi-implicito + `resolveCollisionsLinear` (broadphase O(n²))
+- `setGravity` — gravità Y-down (default +10, screen-space)
+- `setLinearVelocity/getLinearVelocity` — stato velocità per body
+- `setPosition/getPosition` — teleport posizione body
+- `areOverlapping` — overlap rect/circle (+ sensor opzionale)
+- `raycast` — segmento vs forme, hit più vicino
+- `getContactingBodies` — point-in-shape query
 - `physics` spostato fuori dalla guardia `HAS_RAYLIB && HAS_LUA` (puro C++)
 - `build.ps1` / `build_wasm.bat` — aggiunto `-DCMAKE_POLICY_VERSION_MINIMUM=3.5`
 
@@ -356,8 +356,8 @@ stdout_8s.txt / stdout_30s.txt  in test-project/logs/
 **Analisi fisica Ball:**
 - Inizio: y=60, gravità=500 px/s²
 - Caduta: a t≈1.5s tocca il pavimento
-- Rest y = floor_y(640) − floor_half(20) − ball_half(22) = **598** (Box2D contact esatto)
-- Nessuna instabilità numerica in 30s (Box2D stabile a scale pixel con g=500)
+- Rest y = floor_y(640) − floor_half(20) − ball_half(22) = **598** (contatto solver)
+- Nessuna instabilità numerica in 30s (solver stabile a scale pixel con g=500)
 
 ### Architettura game loop ✅
 ```
@@ -405,7 +405,7 @@ Per avviare nel browser:
 
 Criteri verificati:
 - [x] Build WASM completato senza errori
-- [x] Tutti i moduli compilati con emcc (Raylib PLATFORM_WEB, Box2D, Lua, Sol2, nlohmann)
+- [x] Tutti i moduli compilati con emcc (Raylib PLATFORM_WEB, custom physics, Lua, Sol2, nlohmann)
 - [x] Assets preloadati nel VFS Emscripten (test-project/)
 - [x] Build nativo 11/11 test invariati (app.cpp modifiche retrocompatibili)
 - [ ] Test browser live (richiede http-server e apertura manuale)

@@ -94,11 +94,11 @@ ArtCade V2 è costruito su **3 pilastri architetturali**:
 │  │  │     └─ Modifica Transform, RigidBody via Lua API    │
 │  │  │                                                      │
 │  │  ├─ Physics: physics->step(dt)                         │
-│  │  │  └─ Simula RigidBody via Box2D                      │
+│  │  │  └─ Simula corpi via Physics module               │
 │  │  │                                                      │
 │  │  ├─ Sync: world->syncPhysicsToEntities()              │
 │  │  │  └─ Itera: world->view<RigidBody, Transform>()    │
-│  │  │     └─ Copia Box2D position → Transform            │
+│  │  │     └─ Copia physics body position → Transform    │
 │  │  │                                                      │
 │  │  └─ accumulator -= targetDt                            │
 │  │                                                         │
@@ -175,7 +175,7 @@ ArtCade V2 è costruito su **3 pilastri architetturali**:
 | Modulo | Input | Output | Registry Access |
 |--------|-------|--------|---|
 | **Lua** | tick(dt) via C++ | Modifica Transform, RigidBody | `view<Script>()` |
-| **Physics** | step(dt) | Aggiorna Box2D RigidBody | `view<RigidBody>()` |
+| **Physics** | step(dt) | Integra corpi + risolve overlap | handle su `PhysicsComponent` |
 | **Renderer** | draw() | drawQueue + GPU | `view<Transform, Sprite>()` |
 | **Animation** | update(dt) | Incrementa frame index | `view<SpriteAnimator>()` |
 | **Audio** | update() | PlaySound, UpdateMusicStream | N/A (immediatamente) |
