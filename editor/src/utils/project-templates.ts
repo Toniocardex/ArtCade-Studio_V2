@@ -2,6 +2,7 @@ import type { ProjectDoc } from '../types'
 import { DEFAULT_WORLD } from '../types'
 import { createBlankProject } from './project-factory'
 import { createEntityDef } from './project-builders'
+import { migrateLegacyProject } from './project-object-types'
 
 export type ProjectTemplateId = 'blank' | 'arcade' | 'platformer'
 
@@ -37,7 +38,7 @@ export function createArcadeNoPhysicsProject(projectName = 'Arcade Game'): Proje
   player.tags = ['player']
   player.linearMover = { directionX: 0, directionY: 0, speed: 0 }
 
-  return {
+  return migrateLegacyProject({
     ...base,
     world: {
       ...DEFAULT_WORLD,
@@ -51,7 +52,7 @@ export function createArcadeNoPhysicsProject(projectName = 'Arcade Game'): Proje
         entityIds: [1],
       },
     },
-  }
+  })
 }
 
 /** Platformer: kinematic controller + Solid ground, physicsMode auto. */
@@ -74,7 +75,7 @@ export function createPlatformerProject(projectName = 'Platformer'): ProjectDoc 
   ground.transform.scale = { x: 20, y: 1 }
   ground.solid = { groundClass: 'Ground', surfaceKind: 'solid' }
 
-  return {
+  return migrateLegacyProject({
     ...base,
     world: { ...DEFAULT_WORLD, physicsMode: 'auto' },
     entities: { 1: player, 2: ground },
@@ -84,5 +85,5 @@ export function createPlatformerProject(projectName = 'Platformer'): ProjectDoc 
         entityIds: [1, 2],
       },
     },
-  }
+  })
 }

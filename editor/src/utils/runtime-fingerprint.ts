@@ -21,6 +21,7 @@
 // dev machine and only happens after the store actually changed.
 
 import type { EntityDef, ProjectDoc, SceneDef, Vec2, Vec4 } from '../types'
+import { materializeAllEntities } from './project-object-types'
 
 interface FpVec2 { x: number; y: number }
 interface FpVec3 { x: number; y: number; z: number }
@@ -136,11 +137,19 @@ function projectScene(s: SceneDef): FpScene {
  * ProjectDoc. Exported for testing; production callers should use
  * {@link runtimeProjectFingerprint} which returns the stringified form.
  */
+function runtimeEntities(project: ProjectDoc): Record<number, EntityDef> {
+  if (project.objectTypes && Object.keys(project.objectTypes).length > 0) {
+    return materializeAllEntities(project)
+  }
+  return project.entities
+}
+
 export function runtimeProjectProjection(
   project: ProjectDoc,
   activeSceneId: string,
 ): RuntimeProjection {
-  const entityIds = Object.keys(project.entities).map(Number).sort((a, b) => a - b)
+  const entities = runtimeEntities(project)
+  const entityIds = Object.keys(entities).map(Number).sort((a, b) => a - b)
   const sceneIds  = Object.keys(project.scenes).sort()
   return {
     pn:  project.projectName,
@@ -148,7 +157,7 @@ export function runtimeProjectProjection(
     as:  activeSceneId,
     fps: project.targetFPS,
     msp: project.mainScriptPath,
-    entities: entityIds.map((id) => projectEntity(project.entities[id])),
+    entities: entityIds.map((id) => projectEntity(entities[id])),
     scenes:   sceneIds.map((id) => projectScene(project.scenes[id])),
   }
 }
@@ -179,6 +188,7 @@ export interface RuntimeProjectPayload {
   licenseTier?:   string
   world?:         ProjectDoc['world']
   entities:       ProjectDoc['entities']
+  objectTypes?:   ProjectDoc['objectTypes']
   scenes:         ProjectDoc['scenes']
   tilePalette?:   ProjectDoc['tilePalette']
   tilesets?:      ProjectDoc['tilesets']
@@ -193,6 +203,7 @@ export function runtimeProjectPayload(
   project: ProjectDoc,
   activeSceneId: string,
 ): RuntimeProjectPayload {
+  const entities = runtimeEntities(project)
   return {
     projectName:    project.projectName,
     version:        project.version,
@@ -200,7 +211,10 @@ export function runtimeProjectPayload(
     mainScriptPath: project.mainScriptPath,
     licenseTier:    project.licenseTier,
     world:          project.world,
-    entities:       project.entities,
+    entities,
+    ...(project.objectTypes && Object.keys(project.objectTypes).length > 0
+      ? { objectTypes: project.objectTypes }
+      : {}),
     scenes:         project.scenes,
     tilePalette:    project.tilePalette,
     tilesets:       project.tilesets,

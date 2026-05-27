@@ -12,6 +12,16 @@ function notAvailable(name: string): void {
   console.warn(`[api] ${name}: Tauri not available in browser mode`)
 }
 
+function detectMigratedFromLegacy(content: string, project: ProjectDoc | null): boolean {
+  if (!project?.objectTypes || Object.keys(project.objectTypes).length === 0) return false
+  try {
+    const raw = JSON.parse(content) as { objectTypes?: unknown; object_types?: unknown }
+    return !raw.objectTypes && !raw.object_types
+  } catch {
+    return false
+  }
+}
+
 /**
  * Open a native file-picker filtered for source projects and packages.
  * Returns the chosen absolute path, or null if cancelled.
@@ -54,8 +64,21 @@ export async function loadProjectFromPath(path: string): Promise<LoadedProjectFi
   if (isArtcadePackagePath(path)) {
     return importArtcadePackage(path)
   }
-  const project = await loadProjectFile(path)
-  return project ? { project, path } : null
+  if (!isTauri()) { notAvailable('loadProjectFromPath'); return null }
+  try {
+    const content = await readTextFile(path)
+    const project = parseProjectDoc(content)
+    if (!project) return null
+    assertProjectPathsSafe(project)
+    return {
+      project,
+      path,
+      migratedFromLegacy: detectMigratedFromLegacy(content, project),
+    }
+  } catch (err) {
+    console.error('[api] loadProjectFromPath failed:', err)
+    return null
+  }
 }
 
 /**

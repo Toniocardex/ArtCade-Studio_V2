@@ -1,12 +1,19 @@
 import type {
-  ProjectDoc, EntityDef, SceneDef, Vec2, Vec3, Vec4, Transform, SpriteComponent,
-  AnimationState, PhysicsComponent, PhysicsMode, WorldSettings, TilemapLayer, TileDef,
-  TilesetAsset, ImageAsset, ImagePointDef, AnimationClipDef, AnimationFrameRect,
+  ProjectDoc, EntityDef, SceneDef, SceneInstanceDef, ObjectTypeDef, Vec2, Vec3, Vec4,
+  Transform, SpriteComponent, AnimationState, PhysicsComponent, PhysicsMode, WorldSettings,
+  TilemapLayer, TileDef, TilesetAsset, ImageAsset, ImagePointDef, AnimationClipDef,
+  AnimationFrameRect,
 } from '../types'
 import { DEFAULT_WORLD } from '../types'
 import { parseLogicBoards } from './logic-board/factory'
 import { COMPONENT_KEYS } from '../types/components'
 import { DEFAULT_SCENE_SIZE } from '../constants/editor-viewport'
+import {
+  normalizeProjectDoc,
+  projectForSave,
+  PROJECT_FORMAT_V2,
+} from './project-object-types'
+import { entityToObjectType } from './project-object-types'
 
 // Plain mutable Vec2 helpers — DEFAULT_SCENE_SIZE is `as const`, so we wrap it
 // to hand out fresh `{x,y}` literals (callers mutate worldSize/viewportSize).
@@ -172,6 +179,36 @@ function parseWorld(raw: unknown): WorldSettings | undefined {
   }
 }
 
+function parseInstance(raw: unknown, fallbackId: number): SceneInstanceDef | null {
+  if (!raw || typeof raw !== 'object') return null
+  const r = raw as Record<string, unknown>
+  const id = Number(r.id) || fallbackId
+  const objectTypeId = String(r.objectTypeId ?? r.object_type_id ?? '')
+  if (!objectTypeId) return null
+  return {
+    id,
+    objectTypeId,
+    ...(r.instanceName != null ? { instanceName: String(r.instanceName) } : {}),
+    ...(r.instance_name != null ? { instanceName: String(r.instance_name) } : {}),
+    transform: parseTransform(r.transform),
+    ...(typeof r.visible === 'boolean' && !r.visible ? { visible: false } : {}),
+  }
+}
+
+function parseObjectType(raw: unknown, fallbackId: string): ObjectTypeDef | null {
+  if (!raw || typeof raw !== 'object') return null
+  const r = raw as Record<string, unknown>
+  const id = String(r.id ?? fallbackId)
+  if (!id) return null
+  const entLike = parseEntity(raw, 0)
+  const type = entityToObjectType(entLike, id)
+  type.displayName = String(r.displayName ?? r.display_name ?? entLike.name ?? id)
+  if (r.defaultLogicBoardId != null) {
+    type.defaultLogicBoardId = String(r.defaultLogicBoardId)
+  }
+  return type
+}
+
 function parseScene(raw: unknown, fallbackId: string): SceneDef {
   if (!raw || typeof raw !== 'object') {
     return {
@@ -192,6 +229,14 @@ function parseScene(raw: unknown, fallbackId: string): SceneDef {
     entityIds:       (() => {
                        const raw = r.entityIds ?? r.entity_ids
                        return Array.isArray(raw) ? (raw as unknown[]).map(Number) : []
+                     })(),
+    instances:       (() => {
+                       const raw = r.instances
+                       if (!Array.isArray(raw)) return undefined
+                       const list = raw
+                         .map((item, i) => parseInstance(item, i + 1))
+                         .filter((x): x is SceneInstanceDef => x != null)
+                       return list.length ? list : undefined
                      })(),
     ...(() => {
       const tm = parseTilemap(r.tilemap)
@@ -378,9 +423,21 @@ export function parseProjectDoc(jsonStr: string): ProjectDoc | null {
 
     const firstSceneId = Object.keys(scenes)[0] ?? ''
 
-    return {
+    const objectTypesRaw = raw.objectTypes ?? raw.object_types
+    const objectTypes: Record<string, ObjectTypeDef> = {}
+    if (objectTypesRaw && typeof objectTypesRaw === 'object' && !Array.isArray(objectTypesRaw)) {
+      for (const [key, value] of Object.entries(objectTypesRaw as object)) {
+        const ot = parseObjectType(value, key)
+        if (ot) objectTypes[ot.id] = ot
+      }
+    }
+
+    const formatVersion = Number(raw.formatVersion ?? raw.format_version) || undefined
+
+    const base: ProjectDoc = {
       projectName:    String(raw.projectName ?? raw.project_name ?? 'Untitled'),
       version:        String(raw.version ?? '1.0.0'),
+      ...(formatVersion ? { formatVersion } : {}),
       licenseTier:    (() => {
                        const tier = String(raw.licenseTier ?? raw.license_tier ?? 'free')
                        return tier === 'pro' ? 'pro' : 'free'
@@ -388,6 +445,7 @@ export function parseProjectDoc(jsonStr: string): ProjectDoc | null {
       targetFPS:      Number(raw.targetFPS ?? raw.target_fps ?? 60),
       activeSceneId:  String(raw.activeSceneId ?? raw.active_scene_id ?? firstSceneId),
       mainScriptPath: String(raw.mainScriptPath ?? raw.main_script_path ?? 'scripts/main.lua'),
+      ...(Object.keys(objectTypes).length > 0 ? { objectTypes } : {}),
       entities,
       scenes,
       thumbnails:     raw.thumbnails && typeof raw.thumbnails === 'object'
@@ -401,6 +459,9 @@ export function parseProjectDoc(jsonStr: string): ProjectDoc | null {
       assets:         parseAssets(raw.assets),
       logicBoards:    parseLogicBoards(raw.logicBoards ?? raw.logic_boards),
     }
+
+    const { project } = normalizeProjectDoc(base)
+    return project
   } catch {
     return null
   }
@@ -457,6 +518,43 @@ function serializeEntity(entity: EntityDef) {
   }
 }
 
+function serializeInstance(inst: SceneInstanceDef) {
+  return {
+    id: inst.id,
+    objectTypeId: inst.objectTypeId,
+    ...(inst.instanceName ? { instanceName: inst.instanceName } : {}),
+    transform: serializeTransform(inst.transform),
+    ...(inst.visible === false ? { visible: false } : {}),
+  }
+}
+
+function serializeObjectType(type: ObjectTypeDef) {
+  const base = serializeEntity({
+    id: 0,
+    name: type.displayName,
+    className: type.id,
+    tags: type.tags,
+    transform: { position: { x: 0, y: 0 }, scale: { x: 1, y: 1 }, rotation: 0 },
+    sprite: type.sprite,
+    animation: type.animation,
+    physics: type.physics,
+    scriptPath: type.scriptPath,
+    visible: type.visible,
+    ...(Object.fromEntries(
+      COMPONENT_KEYS
+        .filter((k) => (type as Record<string, unknown>)[k])
+        .map((k) => [k, (type as Record<string, unknown>)[k]]),
+    ) as Partial<EntityDef>),
+  })
+  const { id: _id, name: _n, className: _c, transform: _t, ...rest } = base
+  return {
+    id: type.id,
+    displayName: type.displayName,
+    ...rest,
+    ...(type.defaultLogicBoardId ? { defaultLogicBoardId: type.defaultLogicBoardId } : {}),
+  }
+}
+
 function serializeScene(scene: SceneDef) {
   return {
     id:              scene.id,
@@ -464,26 +562,30 @@ function serializeScene(scene: SceneDef) {
     worldSize:       vec2Array(scene.worldSize),
     viewportSize:    vec2Array(scene.viewportSize),
     backgroundColor: vec4Array(scene.backgroundColor),
-    entityIds:       scene.entityIds,
+    ...(scene.instances?.length
+      ? { instances: scene.instances.map(serializeInstance) }
+      : { entityIds: scene.entityIds }),
     ...(scene.tilemap ? { tilemap: scene.tilemap } : {}),
   }
 }
 
 export function serializeProjectDoc(project: ProjectDoc): string {
-  const entities = Object.fromEntries(
-    Object.values(project.entities)
-      .sort((a, b) => a.id - b.id)
-      .map(entity => [String(entity.id), serializeEntity(entity)])
+  const v2 = projectForSave(project)
+  const objectTypes = Object.fromEntries(
+    Object.values(v2.objectTypes ?? {})
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .map((t) => [t.id, serializeObjectType(t)]),
   )
   const scenes = Object.fromEntries(
-    Object.values(project.scenes)
+    Object.values(v2.scenes)
       .sort((a, b) => a.id.localeCompare(b.id))
       .map(scene => [scene.id, serializeScene(scene)])
   )
 
   const json = {
-    projectName:    project.projectName,
-    version:        project.version,
+    projectName:    v2.projectName,
+    version:        v2.version,
+    formatVersion:  PROJECT_FORMAT_V2,
     licenseTier:    project.licenseTier ?? 'free',
     ...(project.world ? { world: project.world } : {}),
     ...(project.tilePalette && project.tilePalette.length > 0
@@ -509,14 +611,14 @@ export function serializeProjectDoc(project: ProjectDoc): string {
           ),
         }
       : {}),
-    targetFPS:      project.targetFPS,
-    activeSceneId:  project.activeSceneId,
-    mainScriptPath: project.mainScriptPath,
-    entities,
+    targetFPS:      v2.targetFPS,
+    activeSceneId:  v2.activeSceneId,
+    mainScriptPath: v2.mainScriptPath,
+    objectTypes,
     scenes,
-    ...(project.thumbnails ? { thumbnails: project.thumbnails } : {}),
-    ...(project.logicBoards && project.logicBoards.length > 0
-      ? { logicBoards: project.logicBoards }
+    ...(v2.thumbnails ? { thumbnails: v2.thumbnails } : {}),
+    ...(v2.logicBoards && v2.logicBoards.length > 0
+      ? { logicBoards: v2.logicBoards }
       : {}),
   }
 

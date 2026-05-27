@@ -8,6 +8,7 @@ import { assertProjectPathsSafe } from './project-path-security'
 export interface LoadedProjectFile {
   project: ProjectDoc
   path: string
+  migratedFromLegacy?: boolean
 }
 
 export function isArtcadePackagePath(path: string): boolean {
@@ -34,6 +35,13 @@ export async function importArtcadePackage(packagePath: string): Promise<LoadedP
       throw new Error('project.json inside package is invalid')
     }
     assertProjectPathsSafe(project)
+    let migratedFromLegacy = false
+    try {
+      const raw = JSON.parse(projectJson) as { objectTypes?: unknown; object_types?: unknown }
+      migratedFromLegacy =
+        !raw.objectTypes && !raw.object_types
+        && Boolean(project.objectTypes && Object.keys(project.objectTypes).length > 0)
+    } catch { /* ignore */ }
 
     const importRoot = await uniqueImportRoot(packagePath, project.projectName)
     for (const entry of entries) {
@@ -44,7 +52,11 @@ export async function importArtcadePackage(packagePath: string): Promise<LoadedP
       await writeFile(outputPath, await inflateZipEntry(bytes, entry))
     }
 
-    return { project, path: joinPath(importRoot, 'project.json') }
+    return {
+      project,
+      path: joinPath(importRoot, 'project.json'),
+      ...(migratedFromLegacy ? { migratedFromLegacy: true } : {}),
+    }
   } catch (err) {
     console.error('[api] importArtcadePackage failed:', err)
     return null

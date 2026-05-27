@@ -61,6 +61,38 @@ export interface PhysicsComponent {
   collider: Collider
 }
 
+/** Shared gameplay fields (no scene placement). `id` is the runtime pool key (= className). */
+export interface ObjectTypeDef {
+  id: string
+  displayName: string
+  tags:        string[]
+  sprite:      SpriteComponent
+  animation?:  AnimationState
+  physics?:    PhysicsComponent
+  scriptPath?: string
+  visible?:    boolean
+  sensor?:               SensorComponent
+  solid?:                SolidComponent
+  platformerController?: PlatformerControllerComponent
+  topDownController?:    TopDownControllerComponent
+  linearMover?:          LinearMoverComponent
+  cameraTarget?:         CameraTargetComponent
+  magneticItem?:         MagneticItemComponent
+  hordeMember?:          HordeMemberComponent
+  health?:               HealthComponent
+  autoDestroy?:          AutoDestroyComponent
+  defaultLogicBoardId?:  string
+}
+
+/** Scene placement of an object type. */
+export interface SceneInstanceDef {
+  id:           number
+  objectTypeId: string
+  instanceName?: string
+  transform:    Transform
+  visible?:     boolean
+}
+
 export interface EntityDef {
   id:          number
   name:        string
@@ -91,7 +123,10 @@ export interface SceneDef {
   worldSize:       Vec2
   viewportSize:    Vec2
   backgroundColor: Vec4
+  /** Derived from `instances` for legacy code paths; kept in sync on load/save. */
   entityIds:       number[]
+  /** v2: scene instances (placement only). */
+  instances?:      SceneInstanceDef[]
   tilemap?:        TilemapLayer   // Scene Editor Phase C (editor-side)
 }
 
@@ -158,11 +193,16 @@ export interface ImageAsset {
 export interface ProjectDoc {
   projectName:    string
   version:        string
+  /** 2 = objectTypes + scene instances on disk; entities are materialized in memory. */
+  formatVersion?: number
   licenseTier?:   'free' | 'pro'
   world?:         WorldSettings
   targetFPS:      number
   activeSceneId:  string
   mainScriptPath: string
+  /** Object type catalog (v2). */
+  objectTypes?:   Record<string, ObjectTypeDef>
+  /** Materialized cache for editor/runtime; rebuilt from types + instances. */
   entities:       Record<number, EntityDef>
   scenes:         Record<string, SceneDef>
   thumbnails?:    Record<string, string>

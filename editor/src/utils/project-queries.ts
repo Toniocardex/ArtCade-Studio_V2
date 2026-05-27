@@ -31,18 +31,36 @@ export function entitiesByClass(project: ProjectDoc, className: string): EntityD
     .sort((a, b) => a.name.localeCompare(b.name))
 }
 
+export function getObjectType(
+  project: ProjectDoc,
+  objectTypeId: string,
+) {
+  return project.objectTypes?.[objectTypeId]
+}
+
 const CLASS_LABEL_MAX = 56
 
 /**
  * Logic Board / picker label: shows scene entity names for a class.
  * e.g. "Enemy — Patrol_A, Patrol_B" or "Hero (Player)" when alone.
  */
+export function objectTypeDisplayLabel(
+  project: ProjectDoc | null | undefined,
+  objectTypeId: string,
+): string {
+  const t = project?.objectTypes?.[objectTypeId]
+  if (t) return t.displayName || objectTypeId
+  return classDisplayLabel(project, objectTypeId)
+}
+
 export function classDisplayLabel(
   project: ProjectDoc | null | undefined,
   className: string,
 ): string {
   if (!className) return '…'
   if (!project) return className
+  const typeDef = project.objectTypes?.[className]
+  if (typeDef) return typeDef.displayName
   const ents = entitiesByClass(project, className)
   if (ents.length === 0) return className
   if (ents.length === 1) return entityLabel(ents[0])
@@ -85,7 +103,38 @@ export function logicBoardLabel(
 
 /** All unique class names across all entities in the project. */
 export function allClassNames(project: ProjectDoc): string[] {
+  const fromTypes = Object.keys(project.objectTypes ?? {})
+  if (fromTypes.length > 0) return fromTypes.sort()
   return [...new Set(Object.values(project.entities).map(e => e.className))].sort()
+}
+
+/** Logic board bound to an object type (preferred). */
+export function findLogicBoardForObjectType(
+  project: ProjectDoc | null | undefined,
+  objectTypeId: string,
+): LogicBoard | undefined {
+  if (!project?.logicBoards) return undefined
+  return project.logicBoards.find(
+    (b) =>
+      b.target.type === 'object_type' && b.target.objectTypeId === objectTypeId,
+  )
+}
+
+/** Resolve board for a scene instance: type board first, then legacy entity_id board. */
+export function findLogicBoardForInstance(
+  project: ProjectDoc | null | undefined,
+  instanceId: number,
+): LogicBoard | undefined {
+  if (!project) return undefined
+  const typeId =
+    project.scenes[project.activeSceneId]?.instances?.find((i) => i.id === instanceId)
+      ?.objectTypeId
+    ?? project.entities[instanceId]?.className
+  if (typeId) {
+    const typeBoard = findLogicBoardForObjectType(project, typeId)
+    if (typeBoard) return typeBoard
+  }
+  return findLogicBoardForEntity(project, instanceId)
 }
 
 /** Tags used in the project: entity.tags plus SensorComponent.targetTag values. */

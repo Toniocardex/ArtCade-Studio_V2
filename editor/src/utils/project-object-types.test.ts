@@ -1,0 +1,96 @@
+import { describe, expect, it } from 'vitest'
+import { createEntityDef } from './project-builders'
+import { createBlankProject } from './project-factory'
+import { parseProjectDoc, serializeProjectDoc } from './project'
+import {
+  buildObjectModelFromEntities,
+  effectiveTypeId,
+  materializeEntity,
+  migrateLegacyProject,
+  PROJECT_FORMAT_V2,
+} from './project-object-types'
+
+describe('project-object-types', () => {
+  it('effectiveTypeId uses className when not generic', () => {
+    const e = createEntityDef(1, 'Hero', 'Player')
+    expect(effectiveTypeId(e)).toBe('Player')
+  })
+
+  it('effectiveTypeId falls back to slugged name for generic class', () => {
+    const e = createEntityDef(1, 'coin pickup', 'Entity')
+    expect(effectiveTypeId(e)).toBe('Coin_pickup')
+  })
+
+  it('migrateLegacyProject builds types and instances', () => {
+    const base = createBlankProject('Test')
+    const player = createEntityDef(1, 'Player', 'Player', { x: 10, y: 20 })
+    const coin = createEntityDef(2, 'Coin', 'Coin', { x: 50, y: 30 })
+    const migrated = migrateLegacyProject({
+      ...base,
+      entities: { 1: player, 2: coin },
+      scenes: {
+        scene_main: {
+          ...base.scenes.scene_main,
+          entityIds: [1, 2],
+        },
+      },
+    })
+    expect(migrated.formatVersion).toBe(PROJECT_FORMAT_V2)
+    expect(migrated.objectTypes?.Player).toBeDefined()
+    expect(migrated.objectTypes?.Coin).toBeDefined()
+    expect(migrated.scenes.scene_main.instances?.length).toBe(2)
+    expect(migrated.entities[1].className).toBe('Player')
+    expect(migrated.entities[2].transform.position.x).toBe(50)
+  })
+
+  it('materializeEntity merges type + instance', () => {
+    const { objectTypes } = buildObjectModelFromEntities(
+      migrateLegacyProject({
+        ...createBlankProject(),
+        entities: {
+          1: createEntityDef(1, 'Player', 'Player'),
+        },
+        scenes: {
+          scene_main: {
+            ...createBlankProject().scenes.scene_main,
+            entityIds: [1],
+          },
+        },
+      }),
+    )
+    const type = objectTypes.Player
+    const ent = materializeEntity(type, {
+      id: 99,
+      objectTypeId: 'Player',
+      instanceName: 'Hero',
+      transform: { position: { x: 1, y: 2 }, scale: { x: 1, y: 1 }, rotation: 0 },
+    })
+    expect(ent.id).toBe(99)
+    expect(ent.name).toBe('Hero')
+    expect(ent.className).toBe('Player')
+    expect(ent.transform.position).toEqual({ x: 1, y: 2 })
+  })
+
+  it('serialize v2 omits flat entities map', () => {
+    const migrated = migrateLegacyProject({
+      ...createBlankProject('V2'),
+      entities: {
+        1: createEntityDef(1, 'Player', 'Player'),
+      },
+      scenes: {
+        scene_main: {
+          ...createBlankProject().scenes.scene_main,
+          entityIds: [1],
+        },
+      },
+    })
+    const json = serializeProjectDoc(migrated)
+    expect(json).toMatch(/"formatVersion"\s*:\s*2/)
+    expect(json).toContain('"objectTypes"')
+    expect(json).toContain('"instances"')
+    expect(json).not.toMatch(/"entities"\s*:/)
+    const again = parseProjectDoc(json)!
+    expect(again.entities[1]?.className).toBe('Player')
+    expect(again.objectTypes?.Player).toBeDefined()
+  })
+})
