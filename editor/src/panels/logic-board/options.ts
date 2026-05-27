@@ -191,6 +191,8 @@ export function defaultAction(type: LogicActionType): LogicAction {
       return { type: 'setCameraTarget', target: 'self' }
     case 'cameraShake':
       return { type: 'cameraShake', trauma: 0.5 }
+    case 'preventDefault':
+      return { type: 'preventDefault', button: 'left' }
     case 'debugLog':
       return { type: 'debugLog', message: '' }
     case 'wait':
@@ -213,6 +215,7 @@ export function defaultAction(type: LogicActionType): LogicAction {
 import {
   actionSummaryPlain,
   conditionSummaryPlain,
+  eventTriggerSummaryPlain,
   triggerSummaryPlain,
 } from './friendly-labels'
 
@@ -229,5 +232,5 @@ export function actionSummary(a: LogicAction): string {
 }
 
 export function eventTitle(e: LogicEvent): string {
-  return triggerSummaryPlain(e.trigger)
+  return eventTriggerSummaryPlain(e)
 }

@@ -2,7 +2,7 @@
 // Expanded rule editor - When / Also require… / Then blocks
 // ---------------------------------------------------------------------------
 
-import { Fragment, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import {
   Check,
   Copy,
@@ -60,6 +60,10 @@ import {
   defaultTrigger,
   TRIGGER_TYPES,
 } from './options'
+import {
+  applyMousePreventDefaultDefaults,
+  destroyOtherTargetWarning,
+} from '../../utils/logic-board/mouse-prevent-default'
 
 const link = 'text-[var(--accent)] text-[11px] hover:underline cursor-pointer'
 const btn =
@@ -98,6 +102,20 @@ function withContextualInputDefault(
     trigger: { ...event.trigger, eventType: 'down' },
     actions,
   }
+}
+
+function commitEventUpdate(
+  event: LogicEvent,
+  patch: Partial<LogicEvent> | LogicEvent,
+): LogicEvent {
+  const merged =
+    'id' in patch && 'trigger' in patch && 'actions' in patch
+      ? (patch as LogicEvent)
+      : { ...event, ...patch }
+  return withContextualInputDefault(
+    applyMousePreventDefaultDefaults(merged),
+    merged.actions,
+  )
 }
 
 function TriggerFields({
@@ -166,6 +184,7 @@ function ComponentRequirementWarning({
 
 function ActionListBlock({
   actions,
+  trigger,
   board,
   project,
   recommendedTypes,
@@ -175,6 +194,7 @@ function ActionListBlock({
   emptyHint,
 }: {
   actions: LogicAction[]
+  trigger: LogicTrigger
   board?: LogicBoard | null
   project?: ProjectDoc | null
   recommendedTypes: readonly string[]
@@ -193,6 +213,7 @@ function ActionListBlock({
         <ActionCard
           key={i}
           act={a}
+          trigger={trigger}
           nestedInRepeat={insideRepeat.has(i)}
           board={board}
           project={project}
@@ -247,6 +268,7 @@ function ActionListBlock({
 
 function ActionCard({
   act,
+  trigger,
   nestedInRepeat,
   board,
   project,
@@ -256,6 +278,7 @@ function ActionCard({
   onRemove,
 }: {
   act: LogicAction
+  trigger: LogicTrigger
   nestedInRepeat?: boolean
   board?: LogicBoard | null
   project?: ProjectDoc | null
@@ -264,6 +287,7 @@ function ActionCard({
   onClone: () => void
   onRemove: () => void
 }) {
+  const destroyOtherWarn = destroyOtherTargetWarning(act, trigger)
   return (
     <div
       className={`space-y-2 rounded border bg-[var(--bg)] p-2.5 ${
@@ -308,6 +332,11 @@ function ActionCard({
         onChange={(next) => onChange(next as LogicAction)}
       />
       <ComponentRequirementWarning requirement={actionRequirement(act, project, board)} />
+      {destroyOtherWarn && (
+        <p className="w-full text-[10px] leading-snug text-[var(--warn)]">
+          {destroyOtherWarn}
+        </p>
+      )}
       {act.type === 'spawnEntity' && (
         <p className="text-[10px] text-[var(--muted)]">
           Creates an object at fixed coordinates or a chosen attachment point.
@@ -534,6 +563,19 @@ export default function EventEditor({
   const [newActionType, setNewActionType] = useState<NewActionPick>(NEW_ACTION_NONE)
   const [newElseActionType, setNewElseActionType] =
     useState<NewActionPick>(NEW_ACTION_NONE)
+  const mouseDefaultsPatchedRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (mouseDefaultsPatchedRef.current === event.id) return
+    mouseDefaultsPatchedRef.current = event.id
+    const next = applyMousePreventDefaultDefaults(event)
+    const changed =
+      next.actions.length !== event.actions.length ||
+      next.actions.some(
+        (a, i) => JSON.stringify(a) !== JSON.stringify(event.actions[i]),
+      )
+    if (changed) onChange(commitEventUpdate(event, { actions: next.actions }))
+  }, [event.id, event, onChange])
+
   const recommendedTypes = recommendedTypesForTrigger(
     recommendedActionTypes(project, board),
     event.trigger,
@@ -609,20 +651,21 @@ export default function EventEditor({
           value={event.trigger.type}
           onChange={(t) => {
             const nextTrigger = defaultTrigger(t as LogicTrigger['type'])
-            onChange({
-              ...event,
-              trigger:
-                nextTrigger.type === 'onInput' && hasMovementAction(event.actions)
-                  ? { ...nextTrigger, eventType: 'down' }
-                  : nextTrigger,
-            })
+            onChange(
+              commitEventUpdate(event, {
+                trigger:
+                  nextTrigger.type === 'onInput' && hasMovementAction(event.actions)
+                    ? { ...nextTrigger, eventType: 'down' }
+                    : nextTrigger,
+              }),
+            )
           }}
         />
         <TriggerFields
           trigger={event.trigger}
           board={board}
           project={project}
-          onChange={(t) => onChange({ ...event, trigger: t })}
+          onChange={(t) => onChange(commitEventUpdate(event, { trigger: t }))}
         />
       </LogicBlock>
 
@@ -732,6 +775,7 @@ export default function EventEditor({
         </p>
         <ActionListBlock
           actions={event.actions}
+          trigger={event.trigger}
           board={board}
           project={project}
           recommendedTypes={recommendedTypes}
@@ -739,7 +783,7 @@ export default function EventEditor({
           setNewActionType={setNewActionType}
           emptyHint="Add at least one action."
           onChangeActions={(actions) =>
-            onChange(withContextualInputDefault(event, actions))
+            onChange(commitEventUpdate(event, { actions }))
           }
         />
       </LogicBlock>
@@ -785,6 +829,7 @@ export default function EventEditor({
           {!elseEnabled ? null : (
             <ActionListBlock
               actions={event.elseActions ?? []}
+              trigger={event.trigger}
               board={board}
               project={project}
               recommendedTypes={recommendedTypes}

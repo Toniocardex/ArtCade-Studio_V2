@@ -16,7 +16,7 @@ import {
   actionSummaryPlain,
   conditionsPlainList,
   triggerExecutionBadge,
-  triggerSummaryPlain,
+  eventTriggerSummaryPlain,
 } from './friendly-labels'
 import type { LogicBoard } from '../../types/logic-board'
 import LogicIconButton from '../../components/logic-board/LogicIconButton'
@@ -85,7 +85,7 @@ export default function EventCard({
           <Zap size={13} strokeWidth={2} />
         </div>
         <div className="min-w-0 flex-1 text-[13px] font-medium leading-snug text-[var(--text)]">
-          {triggerSummaryPlain(event.trigger, project)}
+          {eventTriggerSummaryPlain(event, project)}
         </div>
 
         <button

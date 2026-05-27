@@ -1,11 +1,23 @@
 import type { ProjectDoc } from '../../../types'
-import type { LogicTrigger } from '../../../types/logic-board'
+import type { LogicEvent, LogicTrigger } from '../../../types/logic-board'
+import {
+  clickToDestroySummary,
+  isClickToDestroyEvent,
+} from '../../../utils/logic-board/click-to-destroy'
 import { formatKeyLabel } from '../../../components/logic-board/KeyCapture'
 import {
   getKeyCombine,
   getOnInputKeyCodes,
 } from '../../../utils/logic-board/on-input-keys'
 import { fmtClass } from './board-labels'
+
+export function eventTriggerSummaryPlain(
+  event: LogicEvent,
+  project?: ProjectDoc | null,
+): string {
+  if (isClickToDestroyEvent(event)) return clickToDestroySummary(event)
+  return triggerSummaryPlain(event.trigger, project)
+}
 
 export function triggerSummaryPlain(
   t: LogicTrigger,

@@ -123,6 +123,10 @@ export function actionSummaryPlain(
       return `Camera follows ${who}`
     case 'cameraShake':
       return `Shake camera (intensity ${a.trauma})`
+    case 'preventDefault':
+      return a.button === 'right'
+        ? 'Block browser right-click menu'
+        : 'Block browser left-click default'
     case 'debugLog':
       return a.message ? `Log: ${a.message}` : 'Log message'
     case 'wait':

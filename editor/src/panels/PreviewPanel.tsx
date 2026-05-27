@@ -432,6 +432,7 @@ export default function PreviewPanel() {
               id="artcade-canvas"
               width={res.x}
               height={res.y}
+              onContextMenu={isPlaying ? (e) => e.preventDefault() : undefined}
               style={{
                 display:         'block',
                 position:        'absolute',

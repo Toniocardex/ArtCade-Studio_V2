@@ -155,6 +155,7 @@ export type LogicAction =
   | { type: 'restartScene' }
   | { type: 'setCameraTarget'; target: TargetSelector }
   | { type: 'cameraShake'; trauma: number }
+  | { type: 'preventDefault'; button: 'left' | 'right' }
   | { type: 'debugLog'; message: string }
   /** Pauses the action sequence; following actions run inside time.delay (or use `then`). */
   | { type: 'wait'; seconds: number; then?: LogicAction[] }

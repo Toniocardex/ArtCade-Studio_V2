@@ -3,6 +3,7 @@ import type { Action } from '../../store/editor-store'
 import type { ProjectDoc } from '../../types'
 import type { LogicBoard, LogicEvent, LogicTriggerType } from '../../types/logic-board'
 import { TypePicker } from '../../components/logic-board/TypePicker'
+import { createClickToDestroyEvent } from '../../utils/logic-board/click-to-destroy'
 import { createLogicEvent } from '../../utils/logic-board/factory'
 import { logicBoardLabel } from '../../utils/project'
 import EventCard from './EventCard'
@@ -36,6 +37,9 @@ export function LogicBoardEventsList({
   onCloneEvent,
   dispatch,
 }: LogicBoardEventsListProps) {
+  const canClickToDestroy =
+    board?.target.type === 'entity_id' || board?.target.type === 'entity_class'
+
   return (
     <div className="flex-1 min-h-0 overflow-auto p-4">
       {!board ? (
@@ -124,6 +128,29 @@ export function LogicBoardEventsList({
               className="flex-1 min-w-[140px] px-3 py-2 rounded border border-dashed border-[var(--border-2)] text-[var(--muted)] text-xs hover:text-[var(--accent)] hover:border-[var(--accent-bd)]"
             >
               Add rule
+            </button>
+            <button
+              type="button"
+              disabled={!canClickToDestroy}
+              title={
+                canClickToDestroy
+                  ? 'Click this object to remove it (right mouse). Adds Prevent default + Destroy.'
+                  : 'Click to destroy requires an entity rulesheet (not global).'
+              }
+              onClick={() => {
+                if (!board || !canClickToDestroy) return
+                const ev = createClickToDestroyEvent()
+                dispatch({
+                  type: 'LOGIC_ADD_EVENT',
+                  boardId: board.boardId,
+                  event: ev,
+                })
+                setFocusedEventId(ev.id)
+                setEditingId(ev.id)
+              }}
+              className="min-w-[140px] px-3 py-2 rounded border border-dashed border-[var(--border-2)] text-[var(--muted)] text-xs hover:text-[var(--accent)] hover:border-[var(--accent-bd)] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-[var(--border-2)] disabled:hover:text-[var(--muted)]"
+            >
+              Click to destroy
             </button>
           </div>
         </>

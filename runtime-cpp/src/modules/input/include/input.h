@@ -36,10 +36,17 @@ public:
     bool isMouseButtonDown(int btn)   const;   // 0=LMB 1=RMB 2=MMB
     bool wasMouseButtonPressed(int btn) const;
 
+    /** Request blocking browser defaults for this mouse button (0=left, 1=right). */
+    void requestPreventDefault(int btn);
+
+    /** Bitmask for DOM suppress (bit0=left, bit1=right); cleared after publish. */
+    uint8_t consumePreventDefaultMask();
+
     const InputState& state() const { return state_; }
 
 private:
     InputState state_;
+    uint8_t preventDefaultMask_ = 0;
 
     int stringToRaylibKey(const std::string& code) const;
 };

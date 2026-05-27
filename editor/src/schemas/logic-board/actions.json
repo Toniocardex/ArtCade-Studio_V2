@@ -684,6 +684,22 @@
       }
     }
   },
+  "preventDefault": {
+    "type": "object",
+    "required": ["type", "button"],
+    "properties": {
+      "type": { "const": "preventDefault" },
+      "button": { "enum": ["left", "right"] }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Prevent Default",
+      "category": "Input",
+      "params": {
+        "button": { "widget": "enum", "label": "Button", "options": ["left", "right"] }
+      }
+    }
+  },
   "debugLog": {
     "type": "object",
     "required": ["type", "message"],
