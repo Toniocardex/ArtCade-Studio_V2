@@ -54,6 +54,18 @@ describe('coreReducer — image asset library', () => {
     expect(s.projectDirty).toBe(true)
   })
 
+  it('ENTITY_SET_SPRITE assigns tint rgb', () => {
+    const s = coreReducer(st(project()), {
+      type: 'ENTITY_SET_SPRITE',
+      entityId: 1,
+      sprite: {
+        ...project().entities[1].sprite,
+        tint: { x: 1, y: 0.5, z: 0, w: 1 },
+      },
+    })
+    expect(s.project!.entities[1].sprite.tint).toEqual({ x: 1, y: 0.5, z: 0, w: 1 })
+  })
+
   it('ASSET_REMOVE deletes it and detaches the sprite from entities', () => {
     let s = coreReducer(st(project()), { type: 'ASSET_ADD', asset: IMG })
     s = coreReducer(s, { type: 'ASSET_REMOVE', assetId: 'img_a' })
