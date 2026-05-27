@@ -272,6 +272,51 @@ static void test_platformer_snaps_to_solid_after_fall() {
     CHECK(std::abs(transform.velocity.y) < 0.01f);
 }
 
+static void test_platformer_stays_centered_on_wide_solid_after_land() {
+    Fixture f;
+
+    EntityDef player = makeEntity(1, "Player");
+    player.transform.position = { 160.f, 80.f };
+    PlatformerControllerComponent pc;
+    pc.customGravity = 1500.f;
+    pc.jumpForce = 600.f;
+    pc.groundClass = "Ground";
+    player.platformerController = pc;
+
+    EntityDef platform = makeEntity(2, "Platform");
+    platform.transform.position = { 160.f, 200.f };
+    platform.transform.scale = { 10.f, 0.3125f };
+    SolidComponent solid;
+    solid.groundClass = "Ground";
+    solid.surfaceKind = "solid";
+    platform.solid = solid;
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1, 2 };
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.scenes = {{ scene.id, scene }};
+    doc.entities = {{ 1, player }, { 2, platform }};
+    f.world.init(doc);
+
+    const float dt = 1.f / 60.f;
+    for (int i = 0; i < 90; ++i)
+        f.tickFrame(dt);
+
+    Transform transform{};
+    CHECK(f.gw.getTransform(1, transform));
+    CHECK(f.world.isPlatformerGrounded(1));
+    CHECK(std::abs(transform.position.x - 160.f) < 2.f);
+
+    f.world.requestJump(1);
+    for (int i = 0; i < 4; ++i)
+        f.tickFrame(dt);
+    CHECK(f.gw.getTransform(1, transform));
+    CHECK(transform.velocity.y < -50.f);
+}
+
 static void test_platformer_grounded_with_feet_slightly_below_solid_top() {
     Fixture f;
 
@@ -1720,6 +1765,7 @@ int main() {
     test_platformer_is_grounded_false_when_airborne_over_solid();
     test_platformer_coyote_jump_after_leaving_solid();
     test_platformer_snaps_to_solid_after_fall();
+    test_platformer_stays_centered_on_wide_solid_after_land();
     test_platformer_grounded_with_feet_slightly_below_solid_top();
     test_platformer_blocks_solid_underside_when_jumping_up();
     test_platformer_blocks_solid_wall_horizontally();

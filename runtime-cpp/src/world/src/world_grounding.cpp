@@ -154,33 +154,31 @@ void resolvePlatformerSolidVolume(Transform& transform,
                 const float penDown = ground.maxY - player.minY;
 
                 constexpr float kMinPen = 0.001f;
-                const float centerX = transform.position.x;
-                const bool centerInsideX =
-                    centerX >= ground.minX && centerX <= ground.maxX;
-                const bool horizOnly =
-                    verticalVelocity >= 0.f && penDown > penUp;
+                // Horizontal MTV only when shallower than both vertical axes (walls).
+                // On a wide floor penUp is tiny and penL/penR are huge — no X shove.
+                float minVertPen = std::numeric_limits<float>::max();
+                if (penUp > kMinPen) minVertPen = std::min(minVertPen, penUp);
+                if (penDown > kMinPen) minVertPen = std::min(minVertPen, penDown);
 
                 float bestPen = std::numeric_limits<float>::max();
                 int axis = -1;
-                if (centerInsideX) {
-                    if (penL > kMinPen && penL < bestPen) {
+                if (minVertPen < std::numeric_limits<float>::max()) {
+                    if (penL > kMinPen && penL < bestPen && penL < minVertPen) {
                         bestPen = penL;
                         axis = 0;
                     }
-                    if (penR > kMinPen && penR < bestPen) {
+                    if (penR > kMinPen && penR < bestPen && penR < minVertPen) {
                         bestPen = penR;
                         axis = 1;
                     }
                 }
-                if (!horizOnly) {
-                    if (penUp > kMinPen && penUp < bestPen) {
-                        bestPen = penUp;
-                        axis = 2;
-                    }
-                    if (penDown > kMinPen && penDown < bestPen) {
-                        bestPen = penDown;
-                        axis = 3;
-                    }
+                if (penUp > kMinPen && penUp < bestPen) {
+                    bestPen = penUp;
+                    axis = 2;
+                }
+                if (penDown > kMinPen && penDown < bestPen) {
+                    bestPen = penDown;
+                    axis = 3;
                 }
                 if (axis < 0) return;
 

@@ -37,7 +37,7 @@ void snapTransformFeetToSurface(Transform& transform,
                                 EntityId id,
                                 float surfaceTopY);
 
-/** Separate full Solid AABB overlap on all four sides; oneWay uses probe only. */
+/** Separate full Solid AABB overlap (MTV); horizontal only when shallowest axis. */
 void resolvePlatformerSolidVolume(Transform& transform,
                                   const GroundingContext& ctx,
                                   EntityId id,
