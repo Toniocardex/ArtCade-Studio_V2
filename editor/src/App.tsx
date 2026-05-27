@@ -12,6 +12,7 @@ import { createBlankProject } from './utils/project'
 import { runtimeSync } from './utils/runtime-sync-service'
 import { triggerLayoutReflow } from './utils/layout-reflow'
 import { useProjectShortcuts } from './hooks/useProjectShortcuts'
+import { useProjectLogicBoardSync } from './hooks/useProjectLogicBoardSync'
 import { ProjectNamePersistProvider } from './components/menu-bar/project-name-context'
 import { useViewportShortcuts } from './hooks/useViewportShortcuts'
 import { useConsoleShortcut } from './hooks/useConsoleShortcut'
@@ -139,6 +140,7 @@ function EditorLayout() {
   // Global shortcuts are split by concern so each hook only re-binds when its
   // own state changes (TECHNICAL_DEBT_REVIEW §16).
   useProjectShortcuts()
+  useProjectLogicBoardSync()
   useViewportShortcuts()
   useConsoleShortcut()
 

@@ -1,6 +1,7 @@
 import type { Dispatch } from 'react'
 import type { ProjectDoc } from '../types'
 import type { Action, CoreState } from '../store/editor-store'
+import { compileLogicBoard } from './logic-board/compiler'
 
 /**
  * Script path for Logic Board output — always the project entry script.
@@ -10,23 +11,52 @@ export function resolveLogicScriptPath(state: CoreState): string | null {
   return state.project?.mainScriptPath ?? null
 }
 
+export interface SyncLogicBoardToScriptOptions {
+  /** When false, update main script buffer without switching the active tab. */
+  activate?: boolean
+}
+
 /** Push compiled Logic Board Lua into openScripts (opens tab if needed). */
 export function syncLogicBoardToScript(
   dispatch: Dispatch<Action>,
   state: CoreState,
   lua: string,
+  options: SyncLogicBoardToScriptOptions = {},
 ): boolean {
   const path = resolveLogicScriptPath(state)
   if (!path) return false
 
+  const { activate = true } = options
   dispatch({
     type: 'UPSERT_SCRIPT',
     path,
     content: lua,
     isDirty: false,
-    activate: true,
+    activate,
   })
   return true
+}
+
+export interface SyncLogicBoardFromProjectOptions extends SyncLogicBoardToScriptOptions {}
+
+/**
+ * After LOAD_PROJECT: compile logic boards into mainScriptPath so preview/runtime
+ * and resolvePreviewMainLua see fresh Lua (not stale main.lua on disk).
+ */
+export function syncLogicBoardFromProject(
+  dispatch: Dispatch<Action>,
+  state: CoreState,
+  options: SyncLogicBoardFromProjectOptions = {},
+): boolean {
+  const project = state.project
+  if (!project?.logicBoards?.length || !project.mainScriptPath) return false
+
+  try {
+    const lua = compileLogicBoard(project.logicBoards, project)
+    return syncLogicBoardToScript(dispatch, state, lua, options)
+  } catch {
+    return false
+  }
 }
 
 /** Sync compiled board Lua into main, then switch to full Editor Script on that tab. */
