@@ -63,6 +63,8 @@ public:
 
     void syncPhysicsToEntities();
     void tickGameplaySystems(float dt);
+    /** Kinematic platformer — call after physics.step + syncPhysicsToEntities. */
+    void tickPlatformerControllers(float dt);
     /** Compute sensor begin/end edges from CURRENT physics positions. Must
      *  be called by the app driver AFTER physics->step + syncPhysics, so
      *  Lua callbacks fire on this frame's overlaps (no 1-frame lag). */
@@ -142,7 +144,6 @@ private:
 
     bool isGrounded(EntityId id, const std::string& groundClass) const;
     bool isGroundedOnSolidAabb(EntityId id, const std::string& groundClass) const;
-    void tickPlatformerControllers(float dt);
     void tickTopDownControllers(float dt);
     void tickLinearMovers(float dt);
     void tickMagneticItems(float dt);

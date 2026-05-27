@@ -93,7 +93,7 @@ float CameraManager::pseudoNoise(float x) const {
     return s * 2.f - 1.f;   // range [-1, 1]
 }
 
-void CameraManager::update(float dt) {
+void CameraManager::updateMotion(float dt) {
     // Follow target (overrides lerp tween if both active)
     if (followGetter_) {
         Vec2 target = followGetter_();
@@ -117,10 +117,12 @@ void CameraManager::update(float dt) {
         zoom_ = lerpf(zoomStart_, zoomTarget_, t);
         if (t >= 1.f) zoomDuration_ = 0.f;
     }
+}
 
+void CameraManager::updateShake(float dt) {
     // Shake (trauma^2 so response is quadratic — feels more natural)
     if (trauma_ > 0.f) {
-        float shake = trauma_ * trauma_;
+        const float shake = trauma_ * trauma_;
         shakeTime_ += dt;
         shakeOffset_.x = shakeDisplace_ * shake * pseudoNoise(shakeTime_ * 17.f);
         shakeOffset_.y = shakeDisplace_ * shake * pseudoNoise(shakeTime_ * 13.f + 5.f);
@@ -130,6 +132,11 @@ void CameraManager::update(float dt) {
         shakeOffset_    = { 0.f, 0.f };
         shakeRotOffset_ = 0.f;
     }
+}
+
+void CameraManager::update(float dt) {
+    updateMotion(dt);
+    updateShake(dt);
 }
 
 // ------------------------------------------------------------------ coordinates

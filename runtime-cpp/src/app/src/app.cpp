@@ -436,6 +436,7 @@ void Application::tickFixedStep(float dt) {
         mod_->tweenManager->update(dt);
         mod_->spriteAnimator->update(dt);
         mod_->layerManager->update(dt);
+        mod_->cameraManager->updateMotion(dt);
         mod_->gameStateManager->update(dt);
         mod_->eventBus->flushDeferred();
         mod_->world->tickGameplaySystems(dt);
@@ -454,9 +455,8 @@ void Application::tickFixedStep(float dt) {
         profiler_.addLuaMs(elapsedMs(start));
         profiler_.setLuaTickEnabled(mod_->luaHost->isScriptTickRequired());
     }
-    // After Lua: camera.shake / time.after callbacks may have added trauma this
-    // step — update shake offset now so renderActiveScene() sees it this frame.
-    mod_->cameraManager->update(dt);
+    // After Lua: camera.shake may have added trauma — decay + offset for this frame.
+    mod_->cameraManager->updateShake(dt);
     const bool runPhysics =
         physicsMode_ == PhysicsMode::On
         || (physicsMode_ == PhysicsMode::Auto && mod_->physics->hasActiveBodies());
@@ -471,6 +471,8 @@ void Application::tickFixedStep(float dt) {
     mod_->world->flushEntityQueues();
     if (runPhysics)
         mod_->world->syncPhysicsToEntities();
+    // Platformer grounding uses physics overlap / Solid AABB after bodies moved.
+    mod_->world->tickPlatformerControllers(dt);
     mod_->world->tickCameraTargets(dt);
     // Sensor edges now run AFTER physics step + sync, so begin/end events
     // are dispatched in the same frame as the overlap (previously delayed

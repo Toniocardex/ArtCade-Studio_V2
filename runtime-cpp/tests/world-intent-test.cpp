@@ -73,6 +73,7 @@ struct Fixture {
     // gameplay tick + sensor refresh.
     void tickFrame(float dt) {
         world.tickGameplaySystems(dt);
+        world.tickPlatformerControllers(dt);
         world.refreshSensorEdges();
     }
 };

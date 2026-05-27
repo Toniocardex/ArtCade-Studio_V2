@@ -75,6 +75,10 @@ public:
     // ------------------------------------------------------------------ update
 
     void update(float dt);
+    /** Follow / lerp / zoom only (safe before gameplay). */
+    void updateMotion(float dt);
+    /** Trauma decay + shake offset (run after Lua may call camera.shake). */
+    void updateShake(float dt);
 
     // ------------------------------------------------------------------ coordinate conversion
 

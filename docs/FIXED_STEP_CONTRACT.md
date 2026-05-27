@@ -14,32 +14,36 @@ flowchart TD
   gameplay[tickGameplaySystems + scene transition]
   animPre[dispatchAnimationEvents]
   luaTick[luaHost.tick]
+  camShake[cameraManager.updateShake]
   physStep[physics.step if enabled]
   flush1[flushEntityQueues]
   physSync[syncPhysicsToEntities]
+  platformer[tickPlatformerControllers]
   cam[tickCameraTargets]
   sensors[refreshSensorEdges + dispatchSensorEvents]
   life[dispatchLifecycleEvents]
   autoDestroy[tickAutoDestroy + flush + lifecycle again]
-  clearDraw --> gameplay --> animPre --> luaTick --> physStep
-  physStep --> flush1 --> physSync --> cam --> sensors --> life --> autoDestroy
+  clearDraw --> gameplay --> animPre --> luaTick --> camShake --> physStep
+  physStep --> flush1 --> physSync --> platformer --> cam --> sensors --> life --> autoDestroy
 ```
 
 | Step | What runs | Notes |
 |------|-----------|--------|
 | 1 | `renderer->clearDrawQueue()` | Only last tick’s draw commands render (avoids ghost sprites). |
-| 2 | Time / tween / sprite / layer / camera managers, event bus | |
-| 3 | **`world->tickGameplaySystems(dt)`** | Platformer, top-down, linear mover, magnet, horde, health; **not** sensor edges. |
+| 2 | Time / tween / sprite / layer managers, **`cameraManager->updateMotion`**, event bus | |
+| 3 | **`world->tickGameplaySystems(dt)`** | Top-down, linear mover, magnet, horde, health; **not** platformer or sensor edges. |
 | 4 | `entityGateway->tickSceneTransition(dt)` | |
 | 5 | `gameAPI->dispatchAnimationEvents()` | |
 | 6 | **`luaHost->tick(dt)`** | Logic Board `tick(dt)`, `movement.*` / `platformer.*` intent APIs. |
-| 7 | **`physics->step(dt)`** | Skipped when `physicsMode` is `off`; in `auto` only if bodies exist. |
-| 8 | `world->flushEntityQueues()` | Destroys queued from Lua before sync. |
-| 9 | **`world->syncPhysicsToEntities()`** | Box2D → `Transform` for physics bodies (see table below). |
-| 10 | `world->tickCameraTargets(dt)` | |
-| 11 | **`world->refreshSensorEdges()`** + `dispatchSensorEvents()` | After physics + sync (same-frame overlap). |
-| 12 | `dispatchLifecycleEvents()` | Spawn/destroy handlers. |
-| 13 | `tickAutoDestroy` + flush + lifecycle again | |
+| 7 | **`cameraManager->updateShake(dt)`** | Trauma decay + shake offset for render (after Lua `camera.shake`). |
+| 8 | **`physics->step(dt)`** | Skipped when `physicsMode` is `off`; in `auto` only if bodies exist. |
+| 9 | `world->flushEntityQueues()` | Destroys queued from Lua before sync. |
+| 10 | **`world->syncPhysicsToEntities()`** | Box2D → `Transform` for physics bodies (see table below). |
+| 11 | **`world->tickPlatformerControllers(dt)`** | Solid / physics grounding after bodies are current. |
+| 12 | `world->tickCameraTargets(dt)` | |
+| 13 | **`world->refreshSensorEdges()`** + `dispatchSensorEvents()` | After physics + sync (same-frame overlap). |
+| 14 | `dispatchLifecycleEvents()` | Spawn/destroy handlers. |
+| 15 | `tickAutoDestroy` + flush + lifecycle again | |
 
 **Input:** `input->poll()` runs at the start of `loopIteration()`, before the fixed-step accumulator drains.
 
@@ -61,7 +65,7 @@ Top-down bodies get **`gravityScale = 0`** at creation via [`physics-body-rules`
 
 ## Lua intent latency
 
-`movement.setIntent` / `platformer.requestJump` called from Lua during **`luaHost->tick`** apply on the **next** fixed step, because `tickGameplaySystems` runs **before** Lua in the same frame.
+`movement.setIntent` / `platformer.requestJump` called from Lua during **`luaHost->tick`** apply on the **next** fixed step, because platformer integration runs **after** Lua in the same frame.
 
 Event-first handlers (`input.onPressed`, `lifecycle.onSpawn`, …) registered in `_logic_init()` follow the dispatch order of their respective `gameAPI->dispatch*` calls.
 
