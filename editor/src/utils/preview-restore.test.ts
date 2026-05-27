@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { resolvePreviewMainLua, resolvePreviewMainLuaWithStatus } from './preview-restore'
+import {
+  logLogicBoardCompileFailure,
+  resolvePreviewMainLua,
+  resolvePreviewMainLuaWithStatus,
+} from './preview-restore'
+import type { Action } from '../store/editor-store'
 import { BLANK_MAIN_LUA } from './project'
 
 function makeProject(overrides: Record<string, unknown> = {}) {
@@ -61,5 +66,27 @@ describe('resolvePreviewMainLua', () => {
     expect(lua).toBe(BLANK_MAIN_LUA)
     const status = resolvePreviewMainLuaWithStatus({ project: project as never, openScripts: [] })
     expect(status.compileError).toMatch(/entity rulesheets/)
+  })
+})
+
+describe('logLogicBoardCompileFailure', () => {
+  it('dispatches LOG and opens console when compile failed', () => {
+    const actions: Action[] = []
+    const dispatch = (a: Action) => actions.push(a)
+    logLogicBoardCompileFailure(
+      dispatch,
+      'invalid rules',
+      (message, level) => ({ id: 1, time: '', message, level }),
+    )
+    expect(actions).toEqual([
+      { type: 'LOG', entry: { id: 1, time: '', message: expect.stringContaining('invalid rules'), level: 'error' } },
+      { type: 'SET_CONSOLE_OPEN', open: true },
+    ])
+  })
+
+  it('no-ops when compileError is null', () => {
+    const actions: Action[] = []
+    logLogicBoardCompileFailure(actions.push as never, null, () => ({ id: 0, time: '', message: '', level: 'info' }))
+    expect(actions).toHaveLength(0)
   })
 })

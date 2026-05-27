@@ -8,7 +8,11 @@ import {
 } from '../../utils/api'
 import { dirName } from '../../utils/project'
 import { runtimeSync } from '../../utils/runtime-sync-service'
-import { resolvePreviewMainLua } from '../../utils/preview-restore'
+import {
+  logLogicBoardCompileFailure,
+  resolvePreviewMainLua,
+  resolvePreviewMainLuaWithStatus,
+} from '../../utils/preview-restore'
 import type { Action as EditorAction, CoreState } from '../../store/editor-store'
 import type { ProjectDoc } from '../../types'
 import { makeConsoleEntry } from './makeConsoleEntry'
@@ -82,6 +86,10 @@ export function useBuildToolbarActions({
         }
       }
     } else {
+      if (project?.logicBoards?.length) {
+        const { compileError } = resolvePreviewMainLuaWithStatus({ project, openScripts })
+        logLogicBoardCompileFailure(dispatch, compileError, makeConsoleEntry)
+      }
       if (document.activeElement instanceof HTMLElement) {
         document.activeElement.blur()
       }

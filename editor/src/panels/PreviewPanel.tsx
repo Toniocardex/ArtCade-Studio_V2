@@ -121,6 +121,8 @@ export default function PreviewPanel() {
     selectionSceneId: selection.sceneId,
     wasmReady, engineReady,
     isPlaying,
+    dispatch,
+    makeLogEntry,
   })
 
   useRuntimeAssetUpload({

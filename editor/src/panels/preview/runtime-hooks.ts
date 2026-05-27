@@ -19,7 +19,10 @@ import {
 } from '../../utils/wasm-bridge'
 import { WASM_RUNTIME_SRC } from '../../utils/runtime-path'
 import { runtimeSync, type EditorTool } from '../../utils/runtime-sync-service'
-import { resolvePreviewMainLua } from '../../utils/preview-restore'
+import {
+  logLogicBoardCompileFailure,
+  resolvePreviewMainLuaWithStatus,
+} from '../../utils/preview-restore'
 import { readProjectImageBytes } from '../../utils/api'
 import { dirName } from '../../utils/project'
 import type { ConsoleEntry, ProjectDoc, ScriptFile } from '../../types'
@@ -203,19 +206,29 @@ interface ProjectSyncOptions {
   wasmReady: boolean
   engineReady: boolean
   isPlaying: boolean
+  dispatch: Dispatch<EditorAction>
+  makeLogEntry: MakeLogEntry
 }
 
 export function useRuntimeProjectSync(opts: ProjectSyncOptions): void {
   const {
     project, projectPath, openScripts, selectionSceneId,
     wasmReady, engineReady, isPlaying,
+    dispatch, makeLogEntry,
   } = opts
   useEffect(() => {
     if (!shouldSyncProjectToRuntime({ wasmReady, engineReady, project, isPlaying })) return
     const runtimeSceneId = selectionSceneId ?? project!.activeSceneId
-    const mainLua = resolvePreviewMainLua({ project: project!, openScripts })
+    const { lua: mainLua, compileError } = resolvePreviewMainLuaWithStatus({
+      project: project!,
+      openScripts,
+    })
+    logLogicBoardCompileFailure(dispatch, compileError, makeLogEntry)
     runtimeSync.syncProject(project!, runtimeSceneId, projectPath, { mainLua })
-  }, [project, projectPath, openScripts, selectionSceneId, wasmReady, engineReady, isPlaying])
+  }, [
+    project, projectPath, openScripts, selectionSceneId,
+    wasmReady, engineReady, isPlaying, dispatch, makeLogEntry,
+  ])
 }
 
 // ---------------------------------------------------------------------------
