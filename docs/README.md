@@ -101,6 +101,7 @@ Guida specializzata         (REACT_WASM_PATTERN.md o ECS_IMPLEMENTATION_GUIDE.md
 | **GUIDA_INTEGRAZIONE_SPLASH_LICENZE.md** | Splash editor vs runtime; Free/Pro; `pack-artcade.py`; watermark C++ | ~10min | Editor / tooling / runtime | ⭐ |
 | **FIXED_STEP_CONTRACT.md** | Ordine `tickFixedStep`, chi scrive Transform/body, latency intent Lua, physicsMode | ~5min | C++ / gameplay | ⭐⭐ |
 | **GLOBAL_LOGIC_UI_ARCHITECTURE.md** | Sensori physics, platformer feel, azioni world, UI screen-space, text juice | ~8min | C++ / gameplay / UI | ⭐ |
+| **OBJECT_TYPES_ARCHITECTURE.md** | Object Types + scene instances (v2 project.json), merge rules, Logic Board on type | ~8min | Editor / runtime / design | ⭐⭐ |
 | **PHYSICS_OPTIONAL_INTEGRATION_PLAN.md** | Piano: physics opt-in, platformer kinematic (`customGravity`), skip `physics.step` in arcade | ~15min | C++ / Editor / Product | ⭐⭐ |
 | **REPORT_MIGRAZIONE_PHYSICS_SENZA_BOX2D.md** | Report team: rimozione Box2D, backend custom, impatto ruoli, test, decisioni D1–D5 | ~20min | Tutti / review migrazione | ⭐⭐ |
 | **ArtCade_V2_Riepilogo_Suggerimenti.md** | Visione UX Logic Board (8 gruppi), shader, controlli artist-friendly | ~10min | Design / product | ⭐ |

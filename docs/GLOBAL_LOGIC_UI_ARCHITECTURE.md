@@ -9,6 +9,21 @@ Questo documento riassume le specifiche finalizzate per i sistemi di **logica**,
 
 ---
 
+## 0. Object Types (project format v2)
+
+Rules live on **object types** (`project.objectTypes`), not on every scene instance. Scene rows are **instances** (`scene.instances`: `objectTypeId`, `transform`, optional `instanceName`). Runtime pool key `className` === `objectTypeId` (e.g. `"Player"`, `"Coin"`).
+
+| Concern | Where |
+|---------|--------|
+| Sprite, components, default Logic Board | Object Type |
+| Position, visibility, display name | Scene instance |
+| Logic Board target (preferred) | `{ type: "object_type", objectTypeId: "Player" }` |
+| Pickup recipe | Board on **Player**: While touching **Coin** → Destroy objects of class **Coin** (not Destroy This) |
+
+Full spec: [`OBJECT_TYPES_ARCHITECTURE.md`](OBJECT_TYPES_ARCHITECTURE.md).
+
+---
+
 ## 1. Physics & proximity (sensor system)
 
 Il modulo **Physics** (solver custom, broadphase lineare) gestisce overlap, raycast e corpi dynamic/kinematic/static; il platformer usa AABB separato su **Solid** / tilemap.
