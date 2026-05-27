@@ -3,11 +3,190 @@
 // trigger fires. See file header in repo for scaffold types (tick, global, …).
 // ---------------------------------------------------------------------------
 
-import type { LogicBoard, LogicEvent } from '../../types/logic-board'
+import type { LogicBoard, LogicEvent, LogicTrigger } from '../../types/logic-board'
 import { INDENT, luaPointerNearSelfExpr, luaString } from './lua-helpers'
 import { onInputGateExpr } from './on-input-keys'
 import { emitGuardedBranches } from './emit-guarded-branches'
 import { ruleKeyExpr } from './event-slugs'
+
+type EmitCtx = {
+  ev: LogicEvent
+  board: LogicBoard
+  baseIndent: string
+  slugs: Map<string, string>
+  enableGuard: string
+}
+
+function enableGuardExpr(ev: LogicEvent, slugs: Map<string, string>): string {
+  return `_logic_on[${ruleKeyExpr(ev.id, slugs)}] ~= false`
+}
+
+function emitGuarded(
+  ctx: EmitCtx,
+  indent: string,
+  opts?: { triggerGate?: string | null; skipEnable?: boolean },
+): string[] {
+  return emitGuardedBranches(ctx.ev, indent, ctx.slugs, opts)
+}
+
+function collisionWhileGate(trig: Extract<LogicTrigger, { type: 'onCollision' }>): string | null {
+  const cls = trig.withClass?.trim()
+  if (!cls) return null
+  return `collision.touchingClass(self, ${luaString(cls)})`
+}
+
+function collisionEdgeGate(
+  trig: Extract<LogicTrigger, { type: 'onCollisionEnter' } | { type: 'onCollisionExit' }>,
+): { triggerGate: string | null; withClass: string } {
+  const wantEnter = trig.type === 'onCollisionEnter' ? 'true' : 'false'
+  const withClass = trig.withClass?.trim() ?? ''
+  const triggerGate = withClass
+    ? `_logic_collision_edge(self, ${luaString(withClass)}, ${wantEnter})`
+    : null
+  return { triggerGate, withClass }
+}
+
+function mouseButtonFireExpr(
+  eventType: 'pressed' | 'down' | 'released',
+): string {
+  if (eventType === 'pressed') return '_mbcur and not _mb[_mbk]'
+  if (eventType === 'released') return '(not _mbcur) and _mb[_mbk]'
+  return '_mbcur'
+}
+
+function emitDestroyBody(ctx: EmitCtx): string[] {
+  return emitGuarded(ctx, ctx.baseIndent)
+}
+
+function emitSensorTriggerBody(
+  ctx: EmitCtx,
+  trig: Extract<LogicTrigger, { type: 'onTriggerEnter' } | { type: 'onTriggerExit' }>,
+): string[] {
+  const { baseIndent, enableGuard } = ctx
+  const inner = baseIndent + INDENT
+  const tagGuard = trig.withClass
+    ? `se.tag == ${luaString(trig.withClass)}`
+    : 'true'
+  const edgeGuard = trig.type === 'onTriggerEnter' ? 'se.enter' : '(not se.enter)'
+  return [
+    `${baseIndent}for _, se in ipairs(_sensor_by_ent[self] or {}) do`,
+    `${baseIndent}${INDENT}if ${tagGuard} and ${edgeGuard} and ${enableGuard} then`,
+    `${inner}other = se.otherId`,
+    ...emitGuarded(ctx, inner, { skipEnable: true }),
+    `${baseIndent}${INDENT}end`,
+    `${baseIndent}end`,
+  ]
+}
+
+function emitMouseInputBody(
+  ctx: EmitCtx,
+  trig: Extract<LogicTrigger, { type: 'onMouseInput' }>,
+): string[] {
+  const { ev, board, baseIndent, enableGuard } = ctx
+  const btn = trig.button === 'right' ? 1 : 0
+  const prefix = luaString(`${board.boardId}:${ev.id}:`)
+  const inner = baseIndent + INDENT
+  const fire = mouseButtonFireExpr(trig.eventType)
+  return [
+    `${baseIndent}local _mbk = ${prefix} .. tostring(self)`,
+    `${baseIndent}local _mbcur = input.mouseButtonDown(${btn})`,
+    `${baseIndent}if (${fire}) and ${enableGuard} then`,
+    ...emitGuarded(ctx, inner, { skipEnable: true }),
+    `${baseIndent}end`,
+    `${baseIndent}_mb[_mbk] = _mbcur`,
+  ]
+}
+
+function emitObjectClickBody(
+  ctx: EmitCtx,
+  trig: Extract<LogicTrigger, { type: 'onObjectClick' }>,
+): string[] {
+  const { ev, board, baseIndent, enableGuard } = ctx
+  const btn = trig.button === 'right' ? 1 : 0
+  const hit = luaPointerNearSelfExpr(Number(trig.radius) || 32)
+  const prefix = luaString(`${board.boardId}:${ev.id}:`)
+  const inner = baseIndent + INDENT
+  return [
+    `${baseIndent}local _ock = ${prefix} .. tostring(self)`,
+    `${baseIndent}local _ocur = input.mouseButtonDown(${btn})`,
+    `${baseIndent}local _ohit = ${hit}`,
+    `${baseIndent}if (_ocur and not _mb[_ock] and _ohit) and ${enableGuard} then`,
+    ...emitGuarded(ctx, inner, { skipEnable: true }),
+    `${baseIndent}end`,
+    `${baseIndent}_mb[_ock] = _ocur`,
+  ]
+}
+
+function emitObjectHoverBody(
+  ctx: EmitCtx,
+  trig: Extract<LogicTrigger, { type: 'onObjectHoverEnter' } | { type: 'onObjectHoverExit' }>,
+): string[] {
+  const { ev, board, baseIndent, enableGuard } = ctx
+  const hit = luaPointerNearSelfExpr(Number(trig.radius) || 32)
+  const prefix = luaString(`${board.boardId}:${ev.id}:hover:`)
+  const wantEnter = trig.type === 'onObjectHoverEnter'
+  const edge = wantEnter
+    ? '(_ohit and not _mb[_ohk])'
+    : '((not _ohit) and _mb[_ohk])'
+  const inner = baseIndent + INDENT
+  return [
+    `${baseIndent}local _ohk = ${prefix} .. tostring(self)`,
+    `${baseIndent}local _ohit = ${hit}`,
+    `${baseIndent}if ${edge} and ${enableGuard} then`,
+    ...emitGuarded(ctx, inner, { skipEnable: true }),
+    `${baseIndent}end`,
+    `${baseIndent}_mb[_ohk] = _ohit`,
+  ]
+}
+
+function emitCollisionEdgeBody(
+  ctx: EmitCtx,
+  trig: Extract<LogicTrigger, { type: 'onCollisionEnter' } | { type: 'onCollisionExit' }>,
+): string[] {
+  const { baseIndent } = ctx
+  const { triggerGate, withClass } = collisionEdgeGate(trig)
+  const lines: string[] = []
+  if (withClass) {
+    lines.push(
+      `${baseIndent}other = collision.firstTouching(self, ${luaString(withClass)})`,
+    )
+  }
+  lines.push(...emitGuarded(ctx, baseIndent, { triggerGate }))
+  return lines
+}
+
+function emitTimerBody(
+  ctx: EmitCtx,
+  trig: Extract<LogicTrigger, { type: 'onTimer' }>,
+): string[] {
+  const { ev, board, baseIndent, enableGuard } = ctx
+  const prefix = luaString(`${board.boardId}:${ev.id}:`)
+  const inner = baseIndent + INDENT
+  const seconds = Number(trig.seconds) || 0
+  const timerReset = trig.repeat
+    ? `${inner}_logic_timers[_tk] = _logic_timers[_tk] - ${seconds}`
+    : `${inner}_logic_timers[_tk] = -math.huge`
+  return [
+    `${baseIndent}local _tk = ${prefix} .. tostring(self)`,
+    `${baseIndent}_logic_timers[_tk] = (_logic_timers[_tk] or 0) + dt`,
+    `${baseIndent}if _logic_timers[_tk] >= ${seconds} then`,
+    timerReset,
+    `${inner}if ${enableGuard} then`,
+    ...emitGuarded(ctx, inner + INDENT, { skipEnable: true }),
+    `${inner}end`,
+    `${baseIndent}end`,
+  ]
+}
+
+function simpleTriggerGate(trig: LogicTrigger): string | null {
+  if (trig.type === 'onCollision') return collisionWhileGate(trig)
+  if (trig.type === 'onInput') return onInputGateExpr(trig)
+  return null
+}
+
+function emitSimpleGatedBody(ctx: EmitCtx, trig: LogicTrigger): string[] {
+  return emitGuarded(ctx, ctx.baseIndent, { triggerGate: simpleTriggerGate(trig) })
+}
 
 export function emitEventBody(
   ev: LogicEvent,
@@ -15,155 +194,31 @@ export function emitEventBody(
   baseIndent: string,
   slugs: Map<string, string>,
 ): string[] {
-  const lines: string[] = []
   const trig = ev.trigger
-  const enableGuard = `_logic_on[${ruleKeyExpr(ev.id, slugs)}] ~= false`
+  const ctx: EmitCtx = { ev, board, baseIndent, slugs, enableGuard: enableGuardExpr(ev, slugs) }
 
-  if (trig.type === 'onAnimationEnd') {
-    return lines
+  switch (trig.type) {
+    case 'onAnimationEnd':
+    case 'onSpawn':
+      return []
+    case 'onDestroy':
+      return emitDestroyBody(ctx)
+    case 'onTriggerEnter':
+    case 'onTriggerExit':
+      return emitSensorTriggerBody(ctx, trig)
+    case 'onMouseInput':
+      return emitMouseInputBody(ctx, trig)
+    case 'onObjectClick':
+      return emitObjectClickBody(ctx, trig)
+    case 'onObjectHoverEnter':
+    case 'onObjectHoverExit':
+      return emitObjectHoverBody(ctx, trig)
+    case 'onCollisionEnter':
+    case 'onCollisionExit':
+      return emitCollisionEdgeBody(ctx, trig)
+    case 'onTimer':
+      return emitTimerBody(ctx, trig)
+    default:
+      return emitSimpleGatedBody(ctx, trig)
   }
-
-  if (trig.type === 'onSpawn') {
-    return lines
-  }
-
-  if (trig.type === 'onDestroy') {
-    lines.push(
-      ...emitGuardedBranches(ev, baseIndent, slugs),
-    )
-    return lines
-  }
-
-  if (trig.type === 'onTriggerEnter' || trig.type === 'onTriggerExit') {
-    const inner = baseIndent + INDENT
-    const tagGuard = trig.withClass
-      ? `se.tag == ${luaString(trig.withClass)}`
-      : 'true'
-    const edgeGuard =
-      trig.type === 'onTriggerEnter' ? 'se.enter' : '(not se.enter)'
-    lines.push(
-      `${baseIndent}for _, se in ipairs(_sensor_by_ent[self] or {}) do`,
-    )
-    lines.push(
-      `${baseIndent}${INDENT}if ${tagGuard} and ${edgeGuard} and ${enableGuard} then`,
-    )
-    lines.push(`${inner}other = se.otherId`)
-    lines.push(
-      ...emitGuardedBranches(ev, inner, slugs, { skipEnable: true }),
-    )
-    lines.push(`${baseIndent}${INDENT}end`)
-    lines.push(`${baseIndent}end`)
-    return lines
-  }
-
-  if (trig.type === 'onMouseInput') {
-    const btn = trig.button === 'right' ? 1 : 0
-    const prefix = luaString(`${board.boardId}:${ev.id}:`)
-    const inner = baseIndent + INDENT
-    lines.push(`${baseIndent}local _mbk = ${prefix} .. tostring(self)`)
-    lines.push(`${baseIndent}local _mbcur = input.mouseButtonDown(${btn})`)
-    const fire =
-      trig.eventType === 'pressed'
-        ? `_mbcur and not _mb[_mbk]`
-        : trig.eventType === 'released'
-          ? `(not _mbcur) and _mb[_mbk]`
-          : `_mbcur`
-    lines.push(`${baseIndent}if (${fire}) and ${enableGuard} then`)
-    lines.push(
-      ...emitGuardedBranches(ev, inner, slugs, { skipEnable: true }),
-    )
-    lines.push(`${baseIndent}end`)
-    lines.push(`${baseIndent}_mb[_mbk] = _mbcur`)
-    return lines
-  }
-
-  if (trig.type === 'onObjectClick') {
-    const btn = trig.button === 'right' ? 1 : 0
-    const hit = luaPointerNearSelfExpr(Number(trig.radius) || 32)
-    const prefix = luaString(`${board.boardId}:${ev.id}:`)
-    const inner = baseIndent + INDENT
-    lines.push(`${baseIndent}local _ock = ${prefix} .. tostring(self)`)
-    lines.push(`${baseIndent}local _ocur = input.mouseButtonDown(${btn})`)
-    lines.push(`${baseIndent}local _ohit = ${hit}`)
-    lines.push(
-      `${baseIndent}if (_ocur and not _mb[_ock] and _ohit) and ${enableGuard} then`,
-    )
-    lines.push(
-      ...emitGuardedBranches(ev, inner, slugs, { skipEnable: true }),
-    )
-    lines.push(`${baseIndent}end`)
-    lines.push(`${baseIndent}_mb[_ock] = _ocur`)
-    return lines
-  }
-
-  if (trig.type === 'onObjectHoverEnter' || trig.type === 'onObjectHoverExit') {
-    const hit = luaPointerNearSelfExpr(Number(trig.radius) || 32)
-    const prefix = luaString(`${board.boardId}:${ev.id}:hover:`)
-    const wantEnter = trig.type === 'onObjectHoverEnter'
-    const edge = wantEnter
-      ? '(_ohit and not _mb[_ohk])'
-      : '((not _ohit) and _mb[_ohk])'
-    const inner = baseIndent + INDENT
-    lines.push(`${baseIndent}local _ohk = ${prefix} .. tostring(self)`)
-    lines.push(`${baseIndent}local _ohit = ${hit}`)
-    lines.push(`${baseIndent}if ${edge} and ${enableGuard} then`)
-    lines.push(
-      ...emitGuardedBranches(ev, inner, slugs, { skipEnable: true }),
-    )
-    lines.push(`${baseIndent}end`)
-    lines.push(`${baseIndent}_mb[_ohk] = _ohit`)
-    return lines
-  }
-
-  let triggerGate: string | null = null
-  if (trig.type === 'onCollision') {
-    triggerGate = trig.withClass
-      ? `collision.touchingClass(self, ${luaString(trig.withClass)})`
-      : null
-  } else if (trig.type === 'onCollisionEnter' || trig.type === 'onCollisionExit') {
-    const wantEnter = trig.type === 'onCollisionEnter' ? 'true' : 'false'
-    const withClass = trig.withClass?.trim() ?? ''
-    triggerGate = withClass
-      ? `_logic_collision_edge(self, ${luaString(withClass)}, ${wantEnter})`
-      : null
-    if (withClass) {
-      lines.push(
-        `${baseIndent}other = collision.firstTouching(self, ${luaString(withClass)})`,
-      )
-    }
-    lines.push(
-      ...emitGuardedBranches(ev, baseIndent, slugs, {
-        triggerGate,
-      }),
-    )
-    return lines
-  } else if (trig.type === 'onInput') {
-    triggerGate = onInputGateExpr(trig)
-  } else if (trig.type === 'onTimer') {
-    const prefix = luaString(`${board.boardId}:${ev.id}:`)
-    const inner = baseIndent + INDENT
-    const seconds = Number(trig.seconds) || 0
-    lines.push(`${baseIndent}local _tk = ${prefix} .. tostring(self)`)
-    lines.push(`${baseIndent}_logic_timers[_tk] = (_logic_timers[_tk] or 0) + dt`)
-    lines.push(`${baseIndent}if _logic_timers[_tk] >= ${seconds} then`)
-    if (trig.repeat) {
-      lines.push(`${inner}_logic_timers[_tk] = _logic_timers[_tk] - ${seconds}`)
-    } else {
-      lines.push(`${inner}_logic_timers[_tk] = -math.huge`)
-    }
-    lines.push(`${inner}if ${enableGuard} then`)
-    lines.push(
-      ...emitGuardedBranches(ev, inner + INDENT, slugs, { skipEnable: true }),
-    )
-    lines.push(`${inner}end`)
-    lines.push(`${baseIndent}end`)
-    return lines
-  }
-
-  lines.push(
-    ...emitGuardedBranches(ev, baseIndent, slugs, {
-      triggerGate,
-    }),
-  )
-  return lines
 }
