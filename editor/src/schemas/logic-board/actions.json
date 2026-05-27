@@ -596,7 +596,11 @@
       "label": "Camera Shake",
       "category": "Camera",
       "params": {
-        "trauma": { "widget": "number", "label": "Intensity (0–1)" }
+        "trauma": {
+          "widget": "number",
+          "label": "Intensity (0–1)",
+          "placeholder": "0.5"
+        }
       }
     }
   },

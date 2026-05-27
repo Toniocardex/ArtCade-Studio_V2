@@ -13,6 +13,12 @@ function finite(n: unknown, fallback = 0): number {
   return Number.isFinite(v) ? v : fallback
 }
 
+/** Camera shake intensity 0–1 (Logic Board trauma field). */
+function traumaIntensity(n: unknown): number {
+  const v = finite(n, 0.5)
+  return Math.min(1, Math.max(0, v))
+}
+
 /**
  * Sentinel returned by actionLua for `wait` so emitActionSequence can detect
  * and drop it before splicing the deferred tail into `time.after`. Kept as a
@@ -210,7 +216,7 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
     case 'setCameraTarget':
       return `camera.centerOn(${targetExpr(a.target)})`
     case 'cameraShake':
-      return `camera.shake(${finite(a.trauma)})`
+      return `camera.shake(${traumaIntensity(a.trauma)})`
     case 'debugLog':
       return `debug.log(${luaString(a.message)})`
     case 'wait':

@@ -114,17 +114,25 @@ function Field({
         type === 'repeatTimes' &&
         name === 'intervalSeconds'
       const numValue = typeof value === 'number' && Number.isFinite(value) ? value : undefined
+      const emptyDefault =
+        kind === 'action' && type === 'repeatTimes' && name === 'count'
+          ? 3
+          : kind === 'action' && type === 'cameraShake' && name === 'trauma'
+            ? 0.5
+            : 0
       return (
         <span key={name} className="flex items-center gap-2">
           {label}
           <Num
             value={numValue}
             allowEmpty={allowEmpty}
-            emptyDefault={
-              kind === 'action' && type === 'repeatTimes' && name === 'count' ? 3 : 0
-            }
+            emptyDefault={emptyDefault}
             placeholder={
-              allowEmpty ? meta.placeholder ?? '0.5' : meta.placeholder
+              allowEmpty
+                ? meta.placeholder ?? '0.5'
+                : kind === 'action' && type === 'cameraShake' && name === 'trauma'
+                  ? meta.placeholder ?? '0.5'
+                  : meta.placeholder
             }
             onChange={(n) => onPatch(name, n)}
           />

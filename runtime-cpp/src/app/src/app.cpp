@@ -436,7 +436,6 @@ void Application::tickFixedStep(float dt) {
         mod_->tweenManager->update(dt);
         mod_->spriteAnimator->update(dt);
         mod_->layerManager->update(dt);
-        mod_->cameraManager->update(dt);
         mod_->gameStateManager->update(dt);
         mod_->eventBus->flushDeferred();
         mod_->world->tickGameplaySystems(dt);
@@ -455,6 +454,9 @@ void Application::tickFixedStep(float dt) {
         profiler_.addLuaMs(elapsedMs(start));
         profiler_.setLuaTickEnabled(mod_->luaHost->isScriptTickRequired());
     }
+    // After Lua: camera.shake / time.after callbacks may have added trauma this
+    // step — update shake offset now so renderActiveScene() sees it this frame.
+    mod_->cameraManager->update(dt);
     const bool runPhysics =
         physicsMode_ == PhysicsMode::On
         || (physicsMode_ == PhysicsMode::Auto && mod_->physics->hasActiveBodies());

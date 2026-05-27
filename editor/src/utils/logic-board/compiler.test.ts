@@ -1457,16 +1457,28 @@ describe('RULE alias integrity', () => {
 })
 
 describe('Defensive value coercion', () => {
-  it('cameraShake without trauma emits a finite numeric literal', () => {
+  it('cameraShake without trauma defaults intensity to 0.5', () => {
     const lua = compileLogicBoard([
       board([
         ev({ trigger: { type: 'onUpdate' },
              actions: [{ type: 'cameraShake' } as never] }),
       ]),
     ])
-    expect(lua).toContain('camera.shake(0)')
+    expect(lua).toContain('camera.shake(0.5)')
     expect(lua).not.toContain('camera.shake(undefined)')
     expect(lua).not.toContain('NaN')
+  })
+
+  it('cameraShake clamps trauma above 1 in emitted Lua', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({
+          trigger: { type: 'onStart' },
+          actions: [{ type: 'cameraShake', trauma: 8.5 }],
+        }),
+      ]),
+    ])
+    expect(lua).toContain('camera.shake(1)')
   })
 
   it('setColorTint with non-numeric alpha falls back to 1', () => {
