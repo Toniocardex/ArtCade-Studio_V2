@@ -64,6 +64,7 @@ public:
     bool setTransform(EntityId id, Vec2 position, float rotation, Vec2 scale);
     bool getSprite(EntityId id, SpriteComponent& out) const;
     bool setSprite(EntityId id, const SpriteComponent& sprite);
+    bool setSpriteFillColor(EntityId id, float r, float g, float b);
     bool getPhysicsComponent(EntityId id, PhysicsComponent& out) const;
     bool setPhysicsComponent(EntityId id, const PhysicsComponent& physics);
     bool getSensor(EntityId id, SensorComponent& out) const;

@@ -19,6 +19,7 @@ function makeEntity(overrides: Partial<EntityDef> = {}): EntityDef {
     sprite: {
       spriteAssetId: '',
       tint:          vec4(1, 1, 1, 1),
+      fillColor:     { x: 1, y: 1, z: 1 },
       alpha:         1,
       pivot:         vec(0.5, 0.5),
       renderOrder:   0,
@@ -71,6 +72,7 @@ describe('runtimeProjectFingerprint', () => {
         1: makeEntity({
           sprite: {
             spriteAssetId: '', tint: vec4(1, 0, 0, 1),
+            fillColor: { x: 1, y: 0, z: 0 },
             alpha: 1, pivot: vec(0.5, 0.5), renderOrder: 0,
           },
         }),

@@ -17,7 +17,7 @@
     "properties": { "type": { "const": "onSpawn" } },
     "additionalProperties": false,
     "x-artcade": {
-      "label": "On Spawn",
+      "label": "Create()",
       "category": "System",
       "executionMode": "event",
       "params": {}
@@ -151,7 +151,7 @@
     "properties": { "type": { "const": "onDestroy" } },
     "additionalProperties": false,
     "x-artcade": {
-      "label": "On Destroy",
+      "label": "Destroy()",
       "category": "System",
       "executionMode": "hybrid",
       "params": {}

@@ -130,6 +130,9 @@ public:
     /** Phase F2: a tile cell was painted in the scene -> React persists it. */
     static void notifyTilemapPainted(int col, int row, int tileId);
 
+    /** RayTint Apply -> React updates sprite.fillColor in the project store. */
+    static void notifySpriteFillColor(uint32_t entityId, float r, float g, float b);
+
     // Written by extern "C" exports -- public so they can be set directly
     static int      s_mode;
     static uint32_t s_selectedEntityId;
@@ -245,6 +248,12 @@ EMSCRIPTEN_KEEPALIVE void editor_set_grid_size(float tileSize);
 EMSCRIPTEN_KEEPALIVE void editor_register_image(
     const char* path, const uint8_t* bytes, int len, const char* ext);
 
+/** Open RayTint picker for placeholder fill on an entity without a texture. */
+EMSCRIPTEN_KEEPALIVE void editor_open_raytint(uint32_t entityId);
+
+/** Close RayTint; apply=1 commits fill to React, apply=0 restores snapshot. */
+EMSCRIPTEN_KEEPALIVE void editor_close_raytint(int apply);
+
 } // extern "C"
 
 // =============================================================================
@@ -268,6 +277,7 @@ struct EditorAPI {
     static void queueConsoleLine(const char*, const char* = nullptr) {}
     static void flushConsoleLines() {}
     static void notifyTilemapPainted(int, int, int) {}
+    static void notifySpriteFillColor(uint32_t, float, float, float) {}
     static int      s_mode;
     static uint32_t s_selectedEntityId;
     static bool     s_isDragging;

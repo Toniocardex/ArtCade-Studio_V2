@@ -10,7 +10,8 @@
 //                         camera shows the scene colour, not raylib's clear
 //                         clearColor, when the world is smaller than the
 //                         viewport).
-//   • drawGuides        — world bounds + viewport bounds + editor grid.
+//   • drawGrid          — editor alignment grid (under entities).
+//   • drawGuides        — camera viewport bounds outline (over entities).
 //   • drawSelection     — selection box + sensor preview for the picked
 //                         entity.
 //
@@ -43,8 +44,16 @@ void drawBackdrop(Modules::Renderer& renderer,
                   const EditorOverlayState& state);
 
 /**
- * World bounds (cyan) + camera viewport (amber) + grid (cyan, low alpha).
- * Skipped entirely when overlay is off or guides are disabled.
+ * Alignment grid (ivory, low alpha). Drawn under entity sprites so solid
+ * placeholder fills are not crossed by guide lines.
+ */
+void drawGrid(Modules::Renderer& renderer,
+              const SceneDef& scene,
+              const EditorOverlayState& state);
+
+/**
+ * Camera viewport bounds outline (sage green). Skipped when overlay is off
+ * or guides are disabled.
  */
 void drawGuides(Modules::Renderer& renderer,
                 const SceneDef& scene,

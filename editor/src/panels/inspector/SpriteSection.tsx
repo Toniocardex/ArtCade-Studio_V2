@@ -1,7 +1,7 @@
 import { useEditor } from '../../store/editor-store'
 import type { EntityDef } from '../../types'
 import { InspectorSection, NumberField } from './inspector-fields'
-import { SpriteFillColorField } from './SpriteFillColorField'
+import { SpriteRayTintField } from './SpriteRayTintField'
 
 export function SpriteSection({ entity }: { entity: EntityDef }) {
   const { state, dispatch } = useEditor()
@@ -43,7 +43,7 @@ export function SpriteSection({ entity }: { entity: EntityDef }) {
           </p>
         )}
       </div>
-      <SpriteFillColorField entity={entity} />
+      <SpriteRayTintField entity={entity} />
       <div className="grid grid-cols-2 gap-2 mb-2">
         <NumberField
           label="Alpha"

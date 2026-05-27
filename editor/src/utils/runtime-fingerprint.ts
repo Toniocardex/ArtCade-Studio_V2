@@ -23,6 +23,7 @@
 import type { EntityDef, ProjectDoc, SceneDef, Vec2, Vec4 } from '../types'
 
 interface FpVec2 { x: number; y: number }
+interface FpVec3 { x: number; y: number; z: number }
 interface FpVec4 { x: number; y: number; z: number; w: number }
 
 interface FpTransform {
@@ -34,6 +35,7 @@ interface FpTransform {
 interface FpSprite {
   a: string                  // spriteAssetId
   t: FpVec4                  // tint
+  fc: FpVec3                 // fillColor
   o: number                  // alpha
   p: FpVec2                  // pivot
   z: number                  // renderOrder
@@ -88,6 +90,7 @@ export interface RuntimeProjection {
 }
 
 function v2(v: Vec2): FpVec2 { return { x: v.x, y: v.y } }
+function v3(v: { x: number; y: number; z: number }): FpVec3 { return { x: v.x, y: v.y, z: v.z } }
 function v4(v: Vec4): FpVec4 { return { x: v.x, y: v.y, z: v.z, w: v.w } }
 
 function projectEntity(e: EntityDef): FpEntity {
@@ -99,7 +102,7 @@ function projectEntity(e: EntityDef): FpEntity {
     c:  e.className,
     g:  [...e.tags].sort(),
     t:  { px: t.position.x, py: t.position.y, r: t.rotation, sx: t.scale.x, sy: t.scale.y },
-    s:  { a: s.spriteAssetId, t: v4(s.tint), o: s.alpha, p: v2(s.pivot), z: s.renderOrder },
+    s:  { a: s.spriteAssetId, t: v4(s.tint), fc: v3(s.fillColor), o: s.alpha, p: v2(s.pivot), z: s.renderOrder },
     v:  e.visible,
     sp: e.scriptPath,
     ph: e.physics,

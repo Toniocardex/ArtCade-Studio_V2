@@ -17,6 +17,7 @@ import type {
 } from './components'
 
 export interface Vec2 { x: number; y: number }
+export interface Vec3 { x: number; y: number; z: number }
 export interface Vec4 { x: number; y: number; z: number; w: number }
 
 export interface Transform {
@@ -28,7 +29,8 @@ export interface Transform {
 
 export interface SpriteComponent {
   spriteAssetId: string
-  tint:          Vec4    // stored as {x,y,z,w} in TS; C++ emits {r,g,b,a} — parseProjectDoc normalises
+  tint:          Vec4    // texture multiply when spriteAssetId is set
+  fillColor:     Vec3    // opaque RGB placeholder when no sprite image
   alpha:         number
   pivot:         Vec2    // normalised anchor 0..1, default {x:0.5, y:0.5}
   renderOrder:   number

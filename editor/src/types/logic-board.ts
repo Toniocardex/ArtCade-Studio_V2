@@ -40,7 +40,7 @@ export type LogicTrigger =
   | { type: 'onTriggerEnter'; withClass?: string }                  // edge: started touching
   | { type: 'onTriggerExit'; withClass?: string }                   // edge: stopped touching
   | { type: 'onAnimationEnd'; clipName?: string }                   // needs engine hook (stub)
-  | { type: 'onDestroy' }                                           // needs engine hook (stub)
+  | { type: 'onDestroy' }                                           // lifecycle.onDestroy
   | {
       type: 'onInput'
       keyCode: string

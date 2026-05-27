@@ -92,6 +92,18 @@ export function buildRuntimeCallbacks(deps: RuntimeCallbackDeps): WasmCallbacks 
         type: 'TILEMAP_PAINT_CELL', sceneId, col, row, tileId,
       }), 0)
     },
+    onSpriteFillColor: (entityId: number, r: number, g: number, b: number) => {
+      if (cancelled()) return
+      setTimeout(() => {
+        if (!cancelled()) {
+          dispatch({
+            type: 'ENTITY_SET_SPRITE_FILL',
+            entityId,
+            fillColor: { x: r, y: g, z: b },
+          })
+        }
+      }, 0)
+    },
   }
 }
 

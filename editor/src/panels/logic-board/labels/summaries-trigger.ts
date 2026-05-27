@@ -15,7 +15,7 @@ export function triggerSummaryPlain(
     case 'onStart':
       return 'When the game starts'
     case 'onSpawn':
-      return 'When this object spawns'
+      return 'When this object is created'
     case 'onUpdate':
       return 'Every frame while playing'
     case 'onCollision':
@@ -39,7 +39,7 @@ export function triggerSummaryPlain(
         ? `When animation "${t.clipName}" ends`
         : 'When an animation ends'
     case 'onDestroy':
-      return 'When this object is destroyed'
+      return 'When this object is destroyed (Destroy)'
     case 'onInput': {
       const keys = getOnInputKeyCodes(t).map((c) => formatKeyLabel(c))
       const combine = getKeyCombine(t)

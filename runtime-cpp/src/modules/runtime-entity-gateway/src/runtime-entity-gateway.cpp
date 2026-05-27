@@ -460,6 +460,11 @@ bool RuntimeEntityGateway::setSprite(EntityId id, const SpriteComponent& sprite)
     return true;
 }
 
+bool RuntimeEntityGateway::setSpriteFillColor(EntityId id, float r, float g, float b) {
+    if (!registry_->contains(id)) return false;
+    return registry_->setSpriteFillColor(id, r, g, b);
+}
+
 bool RuntimeEntityGateway::getPhysicsComponent(EntityId id, PhysicsComponent& out) const {
     return registry_->getPhysics(id, out);
 }

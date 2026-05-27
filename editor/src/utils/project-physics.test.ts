@@ -11,7 +11,7 @@ describe('entity physics component', () => {
       tags: [],
       transform: { position: { x: 0, y: 0 }, scale: { x: 1, y: 1 }, rotation: 0 },
       sprite: {
-        spriteAssetId: '', tint: { x: 1, y: 1, z: 1, w: 1 },
+        spriteAssetId: '', tint: { x: 1, y: 1, z: 1, w: 1 }, fillColor: { x: 1, y: 1, z: 1 },
         alpha: 1, pivot: { x: 0.5, y: 0.5 }, renderOrder: 0,
       },
       physics: {
@@ -43,7 +43,7 @@ describe('entity physics component', () => {
           tags: [],
           transform: { position: { x: 0, y: 0 }, scale: { x: 1, y: 1 }, rotation: 0 },
           sprite: {
-            spriteAssetId: '', tint: { x: 1, y: 1, z: 1, w: 1 },
+            spriteAssetId: '', tint: { x: 1, y: 1, z: 1, w: 1 }, fillColor: { x: 1, y: 1, z: 1 },
             alpha: 1, pivot: { x: 0.5, y: 0.5 }, renderOrder: 0,
           },
           platformerController: {

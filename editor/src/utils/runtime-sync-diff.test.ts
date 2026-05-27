@@ -22,7 +22,7 @@ function makeProject() {
         },
         sprite: {
           spriteAssetId: '',
-          tint: { x: 1, y: 1, z: 1, w: 1 },
+          tint: { x: 1, y: 1, z: 1, w: 1 }, fillColor: { x: 1, y: 1, z: 1 },
           alpha: 1,
           pivot: { x: 0.5, y: 0.5 },
           renderOrder: 0,
@@ -51,7 +51,7 @@ describe('planProjectSync', () => {
   it('plans incremental entity update for tint change', () => {
     const p = makeProject()
     const prev = runtimeProjectProjection(p as never, 'a')
-    p.entities[1].sprite.tint = { x: 0, y: 1, z: 0, w: 1 }
+    p.entities[1].sprite.fillColor = { x: 0, y: 1, z: 0 }
     expect(planProjectSync(prev, p as never, 'a')).toEqual({
       kind: 'incremental',
       entityIds: [1],

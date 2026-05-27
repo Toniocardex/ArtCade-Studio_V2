@@ -1,5 +1,5 @@
 import type {
-  ProjectDoc, EntityDef, SceneDef, Vec2, Vec4, Transform, SpriteComponent,
+  ProjectDoc, EntityDef, SceneDef, Vec2, Vec3, Vec4, Transform, SpriteComponent,
   AnimationState, PhysicsComponent, PhysicsMode, WorldSettings, TilemapLayer, TileDef,
   TilesetAsset, ImageAsset, ImagePointDef, AnimationClipDef, AnimationFrameRect,
 } from '../types'
@@ -41,6 +41,16 @@ function toVec2(v: unknown): Vec2 {
   return { x: 0, y: 0 }
 }
 
+function toVec3(v: unknown): Vec3 {
+  if (Array.isArray(v))
+    return { x: Number(v[0]) || 0, y: Number(v[1]) || 0, z: Number(v[2]) || 0 }
+  if (v && typeof v === 'object') {
+    const o = v as Record<string, unknown>
+    return { x: Number(o.x) || 0, y: Number(o.y) || 0, z: Number(o.z) || 0 }
+  }
+  return { x: 1, y: 1, z: 1 }
+}
+
 function toVec4(v: unknown): Vec4 {
   if (Array.isArray(v))
     return { x: Number(v[0]) || 0, y: Number(v[1]) || 0, z: Number(v[2]) || 0, w: v[3] != null ? Number(v[3]) : 1 }
@@ -70,12 +80,22 @@ function parseTransform(raw: unknown): Transform {
 
 function parseSprite(raw: unknown): SpriteComponent {
   if (!raw || typeof raw !== 'object') {
-    return { spriteAssetId: '', tint: { x:1, y:1, z:1, w:1 }, alpha: 1, pivot: { x:0.5, y:0.5 }, renderOrder: 0 }
+    return {
+      spriteAssetId: '', tint: { x: 1, y: 1, z: 1, w: 1 },
+      fillColor: { x: 1, y: 1, z: 1 },
+      alpha: 1, pivot: { x: 0.5, y: 0.5 }, renderOrder: 0,
+    }
   }
   const r = raw as Record<string, unknown>
+  const spriteAssetId = String(r.spriteAssetId ?? r.sprite_asset_id ?? '')
+  const tint = toVec4(r.tint ?? [1, 1, 1, 1])
+  const fillColor = r.fillColor != null
+    ? toVec3(r.fillColor)
+    : { x: tint.x, y: tint.y, z: tint.z }
   return {
-    spriteAssetId: String(r.spriteAssetId ?? r.sprite_asset_id ?? ''),
-    tint:          toVec4(r.tint ?? [1, 1, 1, 1]),
+    spriteAssetId,
+    tint,
+    fillColor,
     alpha:         r.alpha != null ? Number(r.alpha) : 1,
     pivot:         toVec2(r.pivot ?? [0.5, 0.5]),
     renderOrder:   Number(r.renderOrder ?? r.render_order) || 0,
@@ -402,10 +422,15 @@ function serializeTransform(t: Transform) {
   }
 }
 
+function vec3Array(v: Vec3): [number, number, number] {
+  return [v.x, v.y, v.z]
+}
+
 function serializeSprite(sprite: SpriteComponent) {
   return {
     spriteAssetId: sprite.spriteAssetId,
     tint:          vec4Array(sprite.tint),
+    fillColor:     vec3Array(sprite.fillColor),
     alpha:         sprite.alpha,
     renderOrder:   sprite.renderOrder,
     ...(sprite.pivot ? { pivot: vec2Array(sprite.pivot) } : {}),

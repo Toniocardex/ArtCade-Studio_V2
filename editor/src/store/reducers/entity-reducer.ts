@@ -61,6 +61,24 @@ export const entityReducer: DomainReducer = (state: CoreState, action: Action) =
         projectDirty: true,
       }
     }
+    case 'ENTITY_SET_SPRITE_FILL': {
+      if (!state.project || !state.project.entities[action.entityId]) return state
+      const entity = state.project.entities[action.entityId]
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          entities: {
+            ...state.project.entities,
+            [action.entityId]: {
+              ...entity,
+              sprite: { ...entity.sprite, fillColor: action.fillColor },
+            },
+          },
+        },
+        projectDirty: true,
+      }
+    }
     case 'ENTITY_SET_PHYSICS': {
       if (!state.project || !state.project.entities[action.entityId]) return state
       const entity = state.project.entities[action.entityId]

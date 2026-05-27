@@ -15,7 +15,7 @@ function baseEntity(): EntityDef {
     },
     sprite: {
       spriteAssetId: '',
-      tint: { x: 1, y: 1, z: 1, w: 1 },
+      tint: { x: 1, y: 1, z: 1, w: 1 }, fillColor: { x: 1, y: 1, z: 1 },
       alpha: 1,
       pivot: { x: 0.5, y: 0.5 },
       renderOrder: 0,

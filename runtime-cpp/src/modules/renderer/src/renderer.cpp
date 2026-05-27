@@ -147,9 +147,7 @@ void Renderer::beginFrame(const Vec4& clearColor) {
     BeginMode2D(impl_->camera);
 }
 
-void Renderer::endFrame() {
-    // Flush deferred draw commands (queued by Lua during tick()).
-    // Still inside BeginMode2D → uses camera/world space.
+void Renderer::endWorldPass() {
     for (const auto& cmd : impl_->drawQueue) {
         Color c{ cmd.cr, cmd.cg, cmd.cb, cmd.ca };
         switch (cmd.type) {
@@ -170,10 +168,17 @@ void Renderer::endFrame() {
         }
     }
     impl_->drawQueue.clear();
-
     EndMode2D();
+}
+
+void Renderer::presentScreen() {
     drawScreenPostEffects();
     EndDrawing();
+}
+
+void Renderer::endFrame() {
+    endWorldPass();
+    presentScreen();
 }
 
 void Renderer::setScreenShader(const std::string& name) {
@@ -209,6 +214,7 @@ void Renderer::drawSprite(const AssetId& assetId,
                            float          rotation,
                            const Vec2&    scale,
                            const Vec4&    tint,
+                           const Vec3&    fillColor,
                            float          alpha,
                            const std::string& shaderEffect)
 {
@@ -216,10 +222,10 @@ void Renderer::drawSprite(const AssetId& assetId,
     if (outline) {
         const Vec4 outlineTint{ 0.f, 0.f, 0.f, tint.a };
         const float o = 2.f;
-        drawSprite(assetId, { pos.x - o, pos.y }, rotation, scale, outlineTint, alpha, "");
-        drawSprite(assetId, { pos.x + o, pos.y }, rotation, scale, outlineTint, alpha, "");
-        drawSprite(assetId, { pos.x, pos.y - o }, rotation, scale, outlineTint, alpha, "");
-        drawSprite(assetId, { pos.x, pos.y + o }, rotation, scale, outlineTint, alpha, "");
+        drawSprite(assetId, { pos.x - o, pos.y }, rotation, scale, outlineTint, fillColor, alpha, "");
+        drawSprite(assetId, { pos.x + o, pos.y }, rotation, scale, outlineTint, fillColor, alpha, "");
+        drawSprite(assetId, { pos.x, pos.y - o }, rotation, scale, outlineTint, fillColor, alpha, "");
+        drawSprite(assetId, { pos.x, pos.y + o }, rotation, scale, outlineTint, fillColor, alpha, "");
     }
 
     Vec4 drawTint = tint;
@@ -230,9 +236,15 @@ void Renderer::drawSprite(const AssetId& assetId,
     if (!tex || tex->id == 0) {
         const float fw = 32.f * scale.x;
         const float fh = 32.f * scale.y;
+        const unsigned char ca =
+            static_cast<unsigned char>(std::clamp(alpha, 0.f, 1.f) * 255.f);
+        const Color fill{
+            static_cast<unsigned char>(std::clamp(fillColor.x, 0.f, 1.f) * 255.f),
+            static_cast<unsigned char>(std::clamp(fillColor.y, 0.f, 1.f) * 255.f),
+            static_cast<unsigned char>(std::clamp(fillColor.z, 0.f, 1.f) * 255.f),
+            ca };
         DrawRectangleV({ pos.x - fw * 0.5f, pos.y - fh * 0.5f },
-                       { fw, fh },
-                       toColor(drawTint, alpha));
+                       { fw, fh }, fill);
         return;
     }
 

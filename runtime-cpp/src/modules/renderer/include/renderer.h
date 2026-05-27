@@ -28,6 +28,10 @@ public:
     // Frame lifecycle
     void beginFrame(const Vec4& clearColor);
     void endFrame();
+    /** Flush world draw queue and leave 2D camera mode (screen-space draws follow). */
+    void endWorldPass();
+    /** Post effects and swap (after screen-space UI such as RayTint). */
+    void presentScreen();
     bool shouldClose() const;
 
     // Discard any draw commands queued by Lua this tick.
@@ -44,6 +48,7 @@ public:
                     float          rotation,   // degrees
                     const Vec2&    scale,
                     const Vec4&    tint,
+                    const Vec3&    fillColor,
                     float          alpha,
                     const std::string& shaderEffect = "");
 

@@ -359,6 +359,15 @@ void EntityRegistry::setSprite(EntityId id, const SpriteComponent& s) {
     impl_->reg.emplace_or_replace<SpriteComponent>(e, s);
 }
 
+bool EntityRegistry::setSpriteFillColor(EntityId id, float r, float g, float b) {
+    const entt::entity e = impl_->toEntt(id);
+    if (e == entt::null) return false;
+    auto* c = impl_->reg.try_get<SpriteComponent>(e);
+    if (!c) return false;
+    c->fillColor = { r, g, b };
+    return true;
+}
+
 bool EntityRegistry::getPhysics(EntityId id, PhysicsComponent& out) const {
     const entt::entity e = impl_->toEntt(id);
     if (e == entt::null) return false;

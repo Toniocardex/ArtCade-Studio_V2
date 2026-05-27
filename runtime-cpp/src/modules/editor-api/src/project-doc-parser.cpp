@@ -21,6 +21,20 @@ Vec2 parseVec2(const json& j) {
     return v;
 }
 
+Vec3 parseVec3(const json& j) {
+    Vec3 v{1.f, 1.f, 1.f};
+    if (j.is_array() && j.size() >= 3) {
+        v.x = j[0].get<float>();
+        v.y = j[1].get<float>();
+        v.z = j[2].get<float>();
+    } else if (j.is_object()) {
+        v.x = j.value("x", j.value("r", 1.f));
+        v.y = j.value("y", j.value("g", 1.f));
+        v.z = j.value("z", j.value("b", 1.f));
+    }
+    return v;
+}
+
 Vec4 parseVec4(const json& j) {
     Vec4 v{1.f, 1.f, 1.f, 1.f};
     if (j.is_array() && j.size() >= 4) {
@@ -52,6 +66,10 @@ SpriteComponent parseSprite(const json& j) {
     if (!j.is_object()) return s;
     s.spriteAssetId = j.value("spriteAssetId", j.value("sprite_asset_id", std::string{}));
     if (j.contains("tint"))  s.tint  = parseVec4(j["tint"]);
+    if (j.contains("fillColor"))
+        s.fillColor = parseVec3(j["fillColor"]);
+    else
+        s.fillColor = { s.tint.r, s.tint.g, s.tint.b };
     s.alpha       = j.value("alpha", 1.f);
     if (j.contains("pivot")) s.pivot = parseVec2(j["pivot"]);
     s.renderOrder = j.value("renderOrder", j.value("render_order", 0));

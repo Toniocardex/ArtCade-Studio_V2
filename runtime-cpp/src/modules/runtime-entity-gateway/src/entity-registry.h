@@ -85,6 +85,7 @@ public:
 
     bool getSprite(EntityId id, SpriteComponent& out) const;
     void setSprite(EntityId id, const SpriteComponent& s);
+    bool setSpriteFillColor(EntityId id, float r, float g, float b);
 
     bool getPhysics(EntityId id, PhysicsComponent& out) const;
     void setPhysics(EntityId id, const PhysicsComponent& p);

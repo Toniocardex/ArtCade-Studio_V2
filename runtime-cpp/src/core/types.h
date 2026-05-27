@@ -24,6 +24,7 @@ constexpr EntityId INVALID_ENTITY = 0;
 // ============================================================================
 
 struct Vec2 { float x = 0.f, y = 0.f; };
+struct Vec3 { float x = 1.f, y = 1.f, z = 1.f; };
 struct Vec4 { float r = 1.f, g = 1.f, b = 1.f, a = 1.f; };
 
 // ============================================================================
@@ -73,6 +74,7 @@ struct ImagePointDef {
 struct SpriteComponent {
     AssetId spriteAssetId;
     Vec4    tint        = {1.f, 1.f, 1.f, 1.f};
+    Vec3    fillColor   = {1.f, 1.f, 1.f};  // opaque placeholder when no texture
     float   alpha       = 1.f;
     Vec2    pivot       = {0.5f, 0.5f};
     int32_t renderOrder = 0;

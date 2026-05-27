@@ -3,6 +3,7 @@ add_executable(game
     src/app.cpp
     render/editor-overlay-renderer.cpp
     render/tilemap-renderer.cpp
+    render/ray-tint-widget.cpp
 )
 target_include_directories(game PRIVATE include render)
 target_link_libraries(game PRIVATE
@@ -65,6 +66,8 @@ if(EMSCRIPTEN)
         "_editor_set_guides_enabled"
         "_editor_set_grid_size"
         "_editor_register_image"
+        "_editor_open_raytint"
+        "_editor_close_raytint"
         "_malloc"
         "_free"
     )

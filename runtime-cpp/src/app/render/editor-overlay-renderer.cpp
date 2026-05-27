@@ -78,9 +78,9 @@ void drawBackdrop(Modules::Renderer& renderer,
         scene.backgroundColor);
 }
 
-void drawGuides(Modules::Renderer& renderer,
-                const SceneDef& scene,
-                const EditorOverlayState& state) {
+void drawGrid(Modules::Renderer& renderer,
+              const SceneDef& scene,
+              const EditorOverlayState& state) {
     if (!state.inEditMode || !state.guidesEnabled) return;
 
     const float w = std::max(1.f, scene.worldSize.x);
@@ -88,7 +88,7 @@ void drawGuides(Modules::Renderer& renderer,
 
     // Avorio Leggero (#EAEAEA) — engineering grid, no neon glow.
     // 0.22 alpha: visible on dark bg (0.082) without dominating the scene.
-    const Vec4  grid{0.918f, 0.918f, 0.918f, 0.22f};
+    const Vec4 grid{0.918f, 0.918f, 0.918f, 0.22f};
     const float step = state.gridSize > 0.f ? state.gridSize : 32.f;
     if (step >= 4.f) {
         for (float x = step; x < w; x += step)
@@ -96,6 +96,15 @@ void drawGuides(Modules::Renderer& renderer,
         for (float y = step; y < h; y += step)
             renderer.drawLine(0.f, y, w, y, grid);
     }
+}
+
+void drawGuides(Modules::Renderer& renderer,
+                const SceneDef& scene,
+                const EditorOverlayState& state) {
+    if (!state.inEditMode || !state.guidesEnabled) return;
+
+    const float w = std::max(1.f, scene.worldSize.x);
+    const float h = std::max(1.f, scene.worldSize.y);
 
     const float vw = std::max(1.f, scene.viewportSize.x);
     const float vh = std::max(1.f, scene.viewportSize.y);

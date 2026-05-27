@@ -168,6 +168,13 @@ void EditorAPI::notifyTilemapPainted(int col, int row, int tileId) {
     }, col, row, tileId);
 }
 
+void EditorAPI::notifySpriteFillColor(uint32_t entityId, float r, float g, float b) {
+    EM_ASM({
+        if (typeof window.onSpriteFillColor === 'function')
+            window.onSpriteFillColor($0, $1, $2, $3);
+    }, static_cast<int>(entityId), r, g, b);
+}
+
 void EditorAPI::queueConsoleLine(const char* message, const char* level) {
     s_consoleQueue.emplace_back(message ? message : "", level ? level : "info");
 }
@@ -369,11 +376,6 @@ EMSCRIPTEN_KEEPALIVE void editor_update_entity(
             ArtCade::EditorAPI::notifyConsoleLine(buf, "warn");
             return;
         }
-
-        char buf[96];
-        std::snprintf(buf, sizeof(buf),
-            "[EditorAPI] Entity #%u updated incrementally.", entityId);
-        ArtCade::EditorAPI::notifyConsoleLine(buf, "info");
     } catch (const std::exception& ex) {
         char buf[256];
         std::snprintf(buf, sizeof(buf),

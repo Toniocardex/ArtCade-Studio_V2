@@ -13,7 +13,7 @@ function makeState(): CoreState {
         id: 1, name: 'P', className: 'Player', tags: [],
         transform: { position: vec(100, 200), scale: vec(2, 1), rotation: 0.5 },
         sprite: {
-          spriteAssetId: '', tint: { x: 1, y: 1, z: 1, w: 1 },
+          spriteAssetId: '', tint: { x: 1, y: 1, z: 1, w: 1 }, fillColor: { x: 1, y: 1, z: 1 },
           alpha: 1, pivot: vec(0.5, 0.5), renderOrder: 0,
         },
       },

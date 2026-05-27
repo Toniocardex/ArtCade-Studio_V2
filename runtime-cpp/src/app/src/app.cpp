@@ -33,6 +33,7 @@
 #include "../../modules/game-state/include/splash-state.h"
 
 #include "../render/editor-overlay-renderer.h"
+#include "../render/ray-tint-widget.h"
 #include "../render/tilemap-renderer.h"
 
 #include <cstring>
@@ -668,6 +669,8 @@ void Application::renderActiveScene() {
         TilemapRenderer::draw(*mod_->renderer, *activeScene,
                               mod_->sceneManager->tilesets(),
                               tilesets_, tileColors_);
+
+        EditorOverlayRenderer::drawGrid(*mod_->renderer, *activeScene, overlay);
     }
 
     // Entity sprites. EnTT-backed visitor: one registry pass, typed
@@ -680,12 +683,17 @@ void Application::renderActiveScene() {
             if (!inEditMode && s.alpha <= 0.001f)
                 return;
             float alpha = s.alpha;
-            if (inEditMode && !gw->visibleInGame(id))
+            const bool placeholderFill = s.spriteAssetId.empty();
+            // Prototype fill blocks stay fully opaque in the editor; dimming
+            // (0.45) applies only to textured sprites hidden from play.
+            if (inEditMode && !placeholderFill && !gw->visibleInGame(id))
                 alpha *= 0.45f;
+            if (inEditMode && placeholderFill)
+                alpha = 1.f;
             renderer->drawSprite(
                 s.spriteAssetId,
                 t.position, t.rotation, t.scale,
-                s.tint, alpha, s.shaderEffect);
+                s.tint, s.fillColor, alpha, s.shaderEffect);
         });
 
     // Scene fade (game layer, drawn over entities, under editor chrome).
@@ -729,7 +737,9 @@ void Application::renderActiveScene() {
     if (splash_)
         splash_->render(GetScreenWidth(), GetScreenHeight());
 
-    mod_->renderer->endFrame();
+    mod_->renderer->endWorldPass();
+    RayTintWidget::draw();
+    mod_->renderer->presentScreen();
 
     // Restore the base camera position so the next frame's gameplay (and
     // any reader of renderer->getCameraPosition() — e.g. world's camera

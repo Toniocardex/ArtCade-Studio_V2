@@ -49,6 +49,7 @@ declare global {
                                    rot: number, sx: number, sy: number) => void
     onConsoleLine?:               (message: string, level: string) => void
     onTilemapPainted?:            (col: number, row: number, tileId: number) => void
+    onSpriteFillColor?:           (entityId: number, r: number, g: number, b: number) => void
   }
 }
 
@@ -114,6 +115,7 @@ export function bindWindowCallbacks(cbs: Partial<WasmCallbacks>): void {
   if (cbs.onEntityTransformChanged) window.onEntityTransformChanged = cbs.onEntityTransformChanged
   if (cbs.onConsoleLine)            window.onConsoleLine            = cbs.onConsoleLine
   if (cbs.onTilemapPainted)         window.onTilemapPainted         = cbs.onTilemapPainted
+  if (cbs.onSpriteFillColor)        window.onSpriteFillColor        = cbs.onSpriteFillColor
   // NOTE: the legacy `window.onObjectUpdated(x, y)` forwarder was removed.
   // The shipping C++ runtime never emits that signal (only the smoke-test
   // harness does); meanwhile the forwarder was synthesising entityId=0,
@@ -201,6 +203,7 @@ export interface WasmCallbacks {
                              rot: number, sx: number, sy: number) => void
   onConsoleLine:            (message: string, level: string) => void
   onTilemapPainted?:        (col: number, row: number, tileId: number) => void
+  onSpriteFillColor?:       (entityId: number, r: number, g: number, b: number) => void
 }
 
 /**
@@ -442,6 +445,14 @@ export function editorUpdateEntity(entityId: number, entityJson: string): void {
   } finally {
     _module._free(ptr)
   }
+}
+
+export function editorOpenRayTint(entityId: number): void {
+  safeCall('editor_open_raytint', null, ['number'], [entityId])
+}
+
+export function editorCloseRayTint(apply: boolean): void {
+  safeCall('editor_close_raytint', null, ['number'], [apply ? 1 : 0])
 }
 
 export function editorSetSceneSettings(sceneId: string, sceneJson: string): void {

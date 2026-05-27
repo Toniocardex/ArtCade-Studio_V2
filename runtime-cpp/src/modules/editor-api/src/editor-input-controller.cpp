@@ -3,6 +3,7 @@
 #ifdef __EMSCRIPTEN__
 
 #include "../include/editor-api.h"
+#include "../../../app/render/ray-tint-widget.h"
 #include "pointer-coords.h"
 #include "../../../modules/runtime-entity-gateway/include/runtime-entity-gateway.h"
 #include "../../../modules/renderer/include/renderer.h"
@@ -102,6 +103,12 @@ uint32_t pickEntityAt(float x, float y) {
 
 EM_BOOL EditorAPI::onMouseMove(int, const EmscriptenMouseEvent* e, void*) {
     if (s_mode != 0) return EM_FALSE;
+    float screenX = 0.f, screenY = 0.f;
+    toScreen(e, screenX, screenY);
+    if (RayTintWidget::isActive()) {
+        RayTintWidget::onMouseMove(screenX, screenY);
+        return EM_TRUE;
+    }
     if (s_editorTool == ToolPan && s_isDragging) {
         float sx = 0.f, sy = 0.f;
         toScreen(e, sx, sy);
@@ -132,6 +139,12 @@ EM_BOOL EditorAPI::onMouseMove(int, const EmscriptenMouseEvent* e, void*) {
 
 EM_BOOL EditorAPI::onMouseDown(int, const EmscriptenMouseEvent* e, void*) {
     if (s_mode != 0) return EM_FALSE;
+    float screenX = 0.f, screenY = 0.f;
+    toScreen(e, screenX, screenY);
+    if (RayTintWidget::isActive()) {
+        if (RayTintWidget::onMouseDown(screenX, screenY))
+            return EM_TRUE;
+    }
     s_isDragging = true;
     toScreen(e, s_lastPanScreenX, s_lastPanScreenY);
     if (s_editorTool == ToolPan) return EM_TRUE;
@@ -156,6 +169,12 @@ EM_BOOL EditorAPI::onMouseDown(int, const EmscriptenMouseEvent* e, void*) {
 
 EM_BOOL EditorAPI::onMouseUp(int, const EmscriptenMouseEvent* e, void*) {
     if (s_mode != 0) return EM_FALSE;
+    float screenX = 0.f, screenY = 0.f;
+    toScreen(e, screenX, screenY);
+    if (RayTintWidget::isActive()) {
+        RayTintWidget::onMouseUp(screenX, screenY);
+        return EM_TRUE;
+    }
     s_isDragging = false;
     if (s_editorTool == ToolPan) return EM_TRUE;  // panning: no transform notify
     if (s_tilePaintMode)         return EM_TRUE;  // painting: no transform notify
@@ -183,8 +202,12 @@ EM_BOOL EditorAPI::onMouseUp(int, const EmscriptenMouseEvent* e, void*) {
     return EM_TRUE;
 }
 
-EM_BOOL EditorAPI::onKeyDown(int, const EmscriptenKeyboardEvent*, void*) {
+EM_BOOL EditorAPI::onKeyDown(int, const EmscriptenKeyboardEvent* key, void*) {
     if (s_mode != 0) return EM_FALSE;
+    if (RayTintWidget::isActive() && key && key->keyCode == 256) { // Escape
+        RayTintWidget::close(false);
+        return EM_TRUE;
+    }
     return EM_FALSE; // don't consume — let the browser handle F5, tab, etc.
 }
 
