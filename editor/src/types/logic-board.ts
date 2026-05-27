@@ -211,8 +211,9 @@ export interface LogicBoard {
      *                    rejected by the validator for global boards.
      *   • scene        — reserved/legacy; treated as global for now.
      */
-    type:       'entity_class' | 'entity_id' | 'global' | 'scene'
-    className?: string                // when entity_class
+    type:       'object_type' | 'entity_class' | 'entity_id' | 'global' | 'scene'
+    objectTypeId?: string             // when object_type (preferred)
+    className?: string                // when entity_class (legacy alias)
     entityId?:  number                // when entity_id
   }
   events: LogicEvent[]

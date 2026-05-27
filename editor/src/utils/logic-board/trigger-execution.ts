@@ -45,6 +45,8 @@ export function boardLifecycleClass(
   _ev: LogicEvent,
   project?: ProjectDoc | null,
 ): string | null {
+  if (board.target.type === 'object_type' && board.target.objectTypeId)
+    return board.target.objectTypeId
   if (board.target.type === 'entity_class' && board.target.className)
     return board.target.className
   if (project && board.target.type === 'entity_id') {
@@ -116,7 +118,7 @@ export function usesTickFallback(
     // when the user said "every 2s for each enemy". Route through the
     // tick body where the key includes `self`. Single-entity boards
     // (entity_id) still use the cheaper registration path.
-    return board.target.type === 'entity_class'
+    return board.target.type === 'object_type' || board.target.type === 'entity_class'
   }
   if (trig.type === 'onTriggerEnter' || trig.type === 'onTriggerExit')
     return false

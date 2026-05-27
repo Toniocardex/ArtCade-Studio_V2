@@ -50,9 +50,20 @@ export function isGlobalTarget(target: { type: string }): boolean {
 }
 
 /** Lua expression that yields the entity-id pool for a board's target. */
-export function poolExpr(target: { type: string; className?: string; entityId?: number }): string {
-  if (target.type === 'entity_class' && target.className) {
-    return `pool.getAll(${luaString(target.className)})`
+export function poolExpr(target: {
+  type: string
+  className?: string
+  objectTypeId?: string
+  entityId?: number
+}): string {
+  const poolKey =
+    target.type === 'object_type'
+      ? target.objectTypeId
+      : target.type === 'entity_class'
+        ? target.className
+        : undefined
+  if (poolKey) {
+    return `pool.getAll(${luaString(poolKey)})`
   }
   if (target.type === 'entity_id' && target.entityId != null) {
     return `{ ${target.entityId} }`
@@ -61,9 +72,19 @@ export function poolExpr(target: { type: string; className?: string; entityId?: 
 }
 
 /** Lua expression identifying the sensor source for a board's target. */
-export function sensorSourceExpr(target: { type: string; className?: string; entityId?: number }): string {
-  if (target.type === 'entity_class' && target.className)
-    return luaString(target.className)
+export function sensorSourceExpr(target: {
+  type: string
+  className?: string
+  objectTypeId?: string
+  entityId?: number
+}): string {
+  const key =
+    target.type === 'object_type'
+      ? target.objectTypeId
+      : target.type === 'entity_class'
+        ? target.className
+        : undefined
+  if (key) return luaString(key)
   if (target.type === 'entity_id' && target.entityId != null)
     return String(target.entityId)
   return luaString('*')

@@ -51,18 +51,27 @@ export function createLogicBoardForEntity(
   }
 }
 
-/** A new board targeting an entity class (advanced / shared behavior). */
-export function createLogicBoard(
-  className: string,
+/** A new board targeting an object type (primary shared behavior). */
+export function createLogicBoardForObjectType(
+  objectTypeId: string,
   boardId = logicId('board'),
   name?: string,
 ): LogicBoard {
   return {
     boardId,
     name: name?.trim() || logicBoardGeneratedLabel(boardId),
-    target: { type: 'entity_class', className },
+    target: { type: 'object_type', objectTypeId },
     events: [],
   }
+}
+
+/** @deprecated Prefer createLogicBoardForObjectType */
+export function createLogicBoard(
+  className: string,
+  boardId = logicId('board'),
+  name?: string,
+): LogicBoard {
+  return createLogicBoardForObjectType(className, boardId, name)
 }
 
 // ---- defensive parsing ----------------------------------------------------
@@ -116,12 +125,17 @@ function parseBoard(raw: unknown): LogicBoard | null {
     r.target && typeof r.target === 'object'
       ? (r.target as Record<string, unknown>)
       : {}
-  const type =
+  let type: LogicBoard['target']['type'] =
     targetRaw.type === 'entity_id' ||
+    targetRaw.type === 'object_type' ||
     targetRaw.type === 'scene' ||
     targetRaw.type === 'global'
       ? targetRaw.type
       : 'entity_class'
+
+  if (type === 'entity_class' && targetRaw.className) {
+    type = 'object_type'
+  }
 
   const events = asArray(r.events)
     .map(parseEvent)
@@ -143,7 +157,14 @@ function parseBoard(raw: unknown): LogicBoard | null {
       : {}),
     target: {
       type,
-      ...(targetRaw.className != null
+      ...(type === 'object_type'
+        ? {
+            objectTypeId: String(
+              targetRaw.objectTypeId ?? targetRaw.object_type_id ?? targetRaw.className ?? '',
+            ),
+          }
+        : {}),
+      ...(type === 'entity_class' && targetRaw.className != null
         ? { className: String(targetRaw.className) }
         : {}),
       ...(targetRaw.entityId != null

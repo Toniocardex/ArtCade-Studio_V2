@@ -34,6 +34,11 @@ function targetEntityIds(project: ProjectDoc, board: LogicBoard): number[] {
   if (board.target.type === 'entity_id' && board.target.entityId != null) {
     return project.entities[board.target.entityId] ? [board.target.entityId] : []
   }
+  if (board.target.type === 'object_type' && board.target.objectTypeId) {
+    return Object.values(project.entities)
+      .filter((e) => e.className === board.target.objectTypeId)
+      .map((e) => e.id)
+  }
   if (board.target.type === 'entity_class' && board.target.className) {
     return Object.values(project.entities)
       .filter((entity) => entity.className === board.target.className)

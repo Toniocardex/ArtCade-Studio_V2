@@ -30,6 +30,7 @@ export type BoardTargetType = LogicBoard['target']['type']
  * as `'global'` (legacy alias) so we don't list it separately.
  */
 const ENTITY_TARGETS: readonly BoardTargetType[] = [
+  'object_type',
   'entity_class',
   'entity_id',
 ] as const
