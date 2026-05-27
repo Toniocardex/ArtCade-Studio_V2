@@ -1076,6 +1076,20 @@ describe('Bug #9 — onCollisionEnter / onCollisionExit edge triggers', () => {
     expect(lua).toContain('local _collision_was_touching = {}')
     expect(lua).toContain('local function _logic_collision_edge(eid, cls, want_enter)')
   })
+
+  it('onCollisionEnter sets other via collision.firstTouching for destroy other', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({
+          trigger: { type: 'onCollisionEnter', withClass: 'Coin' },
+          actions: [{ type: 'destroyEntity', target: 'other' }],
+        }),
+      ]),
+    ])
+    expect(lua).toContain('other = collision.firstTouching(self, "Coin")')
+    expect(lua).toContain('entity.destroy(other)')
+    expect(lua).toContain('_logic_collision_edge(self, "Coin", true)')
+  })
 })
 
 describe('Bug #2 — onSpawn replay for already-alive entities', () => {

@@ -61,7 +61,10 @@ import {
   TRIGGER_TYPES,
 } from './options'
 import { applyClickToDestroyTrigger } from '../../utils/logic-board/click-to-destroy'
-import { destroyOtherTargetWarning } from '../../utils/logic-board/logic-action-warnings'
+import {
+  destroyOtherTargetWarning,
+  destroySelfOnCollisionWarning,
+} from '../../utils/logic-board/logic-action-warnings'
 
 const link = 'text-[var(--accent)] text-[11px] hover:underline cursor-pointer'
 const btn =
@@ -319,6 +322,7 @@ function ActionCard({
   onRemove: () => void
 }) {
   const destroyOtherWarn = destroyOtherTargetWarning(act, trigger)
+  const destroySelfWarn = destroySelfOnCollisionWarning(act, trigger)
   return (
     <div
       className={`space-y-2 rounded border bg-[var(--bg)] p-2.5 ${
@@ -375,6 +379,11 @@ function ActionCard({
       {destroyOtherWarn && (
         <p className="w-full text-[10px] leading-snug text-[var(--warn)]">
           {destroyOtherWarn}
+        </p>
+      )}
+      {destroySelfWarn && (
+        <p className="w-full text-[10px] leading-snug text-[var(--warn)]">
+          {destroySelfWarn}
         </p>
       )}
       {act.type === 'spawnEntity' && (

@@ -114,7 +114,8 @@ Riferimento: `runtime-cpp/src/modules/runtime-entity-gateway/src/runtime-entity-
 
 ### 5.5 Logic Board / Lua
 
-- `onCollision*` → `collision.touchingClass` (physics overlap) o edge sintetizzato in Lua.
+- `onCollision*` → `collision.touchingClass` (overlap geometrico Transform+collider via `entity_collision_query.h`; **no** physics body obbligatorio) o edge sintetizzato in Lua; `collision.firstTouching` per **Destroy Other**.
+- Pickup (hero + coin): `className` sulla moneta; While touching → Destroy class, oppure Starts touching → Destroy Other.
 - `onTriggerEnter/Exit` → `sensor.*` (sensor shape + `dispatchSensorEvents`).
 - Giochi senza physics: preferire `onUpdate`, `onInput`, distanza manuale, `event.emit`, o sensor **solo dove serve**.
 
@@ -361,7 +362,7 @@ Ogni fase = PR separato reviewabile (~300–800 LOC ciascuno).
 |---------|-------|--------|
 | Platformer jump / coyote / one-way | World AABB + feet raycast | `world_grounding.cpp`; 4 resolve passes |
 | Top-down + Dynamic collider | Physics solver | `gravityScale = 0` on create |
-| `collision.overlap` / `touchingClass` | Physics bodies | Entity handles; tile terrain needs Dynamic in scene or Solid entities |
+| `collision.overlap` / `touchingClass` / `firstTouching` | `entity_collision_query` (kernel geometrico) | Default hitbox 32×scale; Physics (Collider) opzionale; tile terrain via Solid/Dynamic come prima |
 | `isSpaceFree` (spawn) | Tile grid | No physics bodies |
 | Tile static colliders | Physics (lazy) | Built only when `hasDynamicBodies()`; merged horizontal runs |
 | Sensor enter/exit | Physics overlap | After `syncPhysicsToEntities` |

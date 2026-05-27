@@ -33,7 +33,7 @@ Il modulo **Physics** (solver custom, broadphase lineare) gestisce overlap, rayc
 | Physics body | **Nessuno** | **Kinematic** (overlap / `onCollision*`) |
 | Grounded | AABB vs entità **Solid** (`groundClass`) | Idem (+ opzionale overlap body) |
 | `world.physicsMode` | `auto` salta `step` se zero bodies | `auto`/`on` quando ci sono solid/sensor/player collider |
-| Logic Board collision | **Non** senza Physics sul player | `onCollision` / Enter / Exit |
+| Logic Board collision | **Overlap geometrico** (Transform + hitbox default 32×scale); Physics opzionale per tuning | `onCollision` / Enter / Exit |
 
 **Arcade senza fisica (Flappy, shmup):** `world.physicsMode: off` o `auto` senza Solid/Sensor/Physics; usa **Transform**, **LinearMover**, **onMessage**, o **Sensor** (`onTriggerEnter`/`Exit`) per pickup/zone.
 
@@ -98,12 +98,14 @@ Effetti nativi per aumentare la **qualita percepita** del gioco.
 
 ### Logic Board — capability matrix (collision vs sensor)
 
-| Trigger | Richiede | Alternativa arcade (no player Physics) |
-|---------|----------|----------------------------------------|
-| `onCollision` / `onCollisionEnter` / `onCollisionExit` | Physics overlap; **Physics** sul player (o target) + `physicsMode` non `off` | `onTriggerEnter`/`Exit` + componente **Sensor** sulla zona; `onMessage` |
-| `onTriggerEnter` / `onTriggerExit` | **Sensor** sulla zona + tag (`targetTag`) | — |
+| Trigger | Richiede | Note |
+|---------|----------|------|
+| `onCollision` / `onCollisionEnter` / `onCollisionExit` | Entità in scena con Transform; `withClass` sulla controparte | Runtime: `collision.touchingClass` / `collision.firstTouching` (kernel geometrico). Physics (Collider) opzionale per hitbox custom. `physicsMode: off` OK per pickup. |
+| `onTriggerEnter` / `onTriggerExit` | **Sensor** sulla zona + tag (`targetTag`) | Path separato (physics sensor fixture) |
 
-L'editor mostra avvisi gialli in Logic Board (`physics-trigger-capabilities.ts`) quando si usano trigger di collisione senza collider.
+**Ricetta pickup (hero + coin):** Coin con `className = Coin`, Transform sovrapposto al path del player (nessun Physics obbligatorio). Hero: **While touching** class `Coin` → **Destroy** class `Coin` (first), **oppure** **Starts touching** `Coin` → **Destroy Other** (`other` da `collision.firstTouching`).
+
+L'editor mostra hint informativi (`physics-trigger-capabilities.ts`) se non c'è collider esplicito (default 32×scale).
 
 **Template progetto (File → New Project):** *Arcade (no physics)* (`physicsMode: off`, player senza body) vs *Platformer* (player + `Solid` ground, `physicsMode: auto`).
 

@@ -5,6 +5,7 @@ import type { LogicBoard } from '../../types/logic-board'
 import {
   collisionTriggerRequirement,
   entityHasCollisionBody,
+  entityHasOverlapBounds,
 } from './physics-trigger-capabilities'
 
 function entityBoard(entityId: number): LogicBoard {
@@ -33,7 +34,11 @@ describe('physics-trigger-capabilities', () => {
     expect(entityHasCollisionBody(e)).toBe(true)
   })
 
-  it('warns when onCollision used on platformer-only entity', () => {
+  it('entityHasOverlapBounds is true for any entity def', () => {
+    expect(entityHasOverlapBounds(createEntityDef(1))).toBe(true)
+  })
+
+  it('platformer-only gets optional hitbox hint, not missing Physics', () => {
     const project = createBlankProject('T')
     const player = createEntityDef(1, 'Player', 'Player')
     player.platformerController = {
@@ -47,11 +52,12 @@ describe('physics-trigger-capabilities', () => {
       project,
       entityBoard(1),
     )
-    expect(req?.status).toBe('missing')
-    expect(req?.message).toMatch(/Physics/)
+    expect(req?.status).toBe('partial')
+    expect(req?.message).toMatch(/default 32/)
+    expect(req?.message).not.toMatch(/require physics overlap/i)
   })
 
-  it('clears warning when physics collider present', () => {
+  it('clears warning when physics collider present for tuning', () => {
     const project = createBlankProject('T')
     const player = createEntityDef(1, 'Player', 'Player')
     player.physics = {
@@ -76,20 +82,13 @@ describe('physics-trigger-capabilities', () => {
     ).toBeNull()
   })
 
-  it('warns when world physicsMode is off despite collider', () => {
+  it('does not warn about physicsMode off for collision overlap', () => {
     const project = createBlankProject('T')
     project.world = { gravity: 9.81, pixelsPerMeter: 100, timeScale: 1, physicsMode: 'off' }
     const player = createEntityDef(1, 'Player', 'Player')
-    player.physics = {
-      bodyType: 'Dynamic',
-      collider: {
-        shape: 'Rectangle',
-        size: { x: 32, y: 32 },
-        offset: { x: 0, y: 0 },
-        density: 1,
-        friction: 0.3,
-        isSensor: false,
-      },
+    player.platformerController = {
+      maxSpeed: 300, jumpForce: 600, customGravity: 1500,
+      coyoteTime: 0.15, jumpBuffer: 0.1, groundClass: 'Ground',
     }
     project.entities[1] = player
 
@@ -98,7 +97,6 @@ describe('physics-trigger-capabilities', () => {
       project,
       entityBoard(1),
     )
-    expect(req?.status).toBe('partial')
-    expect(req?.message).toMatch(/Off/)
+    expect(req?.message).not.toMatch(/physics is Off/i)
   })
 })

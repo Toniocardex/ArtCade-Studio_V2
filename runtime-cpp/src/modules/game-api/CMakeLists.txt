@@ -25,6 +25,7 @@ target_include_directories(artcade-game-api
 target_link_libraries(artcade-game-api
     PUBLIC
         artcade-core
+        artcade-collision
         artcade-renderer
         artcade-physics
         artcade-input

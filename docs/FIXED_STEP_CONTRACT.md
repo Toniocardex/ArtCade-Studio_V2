@@ -94,4 +94,13 @@ Two cooperating systems share [`collision_math.h`](../runtime-cpp/src/modules/co
 
 **Tilemap physics bodies:** `World::rebuildTilemapPhysics()` creates merged horizontal static rectangles (one body per solid run per row) only if at least one **Dynamic** body exists. `World::syncTilemapPhysicsWithDynamics()` also runs when the gateway creates or destroys a physics body (e.g. Lua spawn of the first Dynamic mid-scene). Platformer-only scenes use the tile grid for grounding and `isSpaceFree`; `collision.*` against tile terrain in those projects requires a Dynamic body or explicit static colliders.
 
+**Entity-vs-entity Lua (`collision.overlap`, `collision.touchingClass`, `collision.firstTouching`):** Implemented in [`entity_collision_query.h`](../runtime-cpp/src/modules/collision/include/entity_collision_query.h) from **Transform + collider** (default 32×scale when no explicit collider). **Does not require** physics bodies or `physics.step`. Same kernel as World platformer AABB. `collision.raycast` still uses physics bodies.
+
+| Feature | Layer |
+|---------|--------|
+| Pickup / While touching class | `collision.touchingClass` → geometric query |
+| Destroy Other on Enter | `collision.firstTouching` + compiler sets `other` |
+| Dynamic crates / impulses | Physics solver + bodies |
+| Platformer ground | World tile grid + Solid AABB |
+
 **Platformer + collider:** Transform is owned by World; optional kinematic body follows transform each tick. `syncPhysicsToEntities` does not overwrite platformer transforms.

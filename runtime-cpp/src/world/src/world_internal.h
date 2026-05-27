@@ -2,6 +2,7 @@
 
 #include "../include/world.h"
 #include "../../modules/collision/include/collision_math.h"
+#include "../../modules/collision/include/entity_collision_query.h"
 #include "../../modules/physics/include/physics.h"
 #include "../../modules/runtime-entity-gateway/include/runtime-entity-gateway.h"
 
@@ -45,30 +46,10 @@ inline Vec2 constrainTopDownDirection(Vec2 direction, bool fourDirections) {
     return normalizeOrZero(direction);
 }
 
-constexpr float kDefaultColliderSize = 32.f;
-
 inline Vec2 worldColliderSize(const Modules::RuntimeEntityGateway& gateway,
                               EntityId id)
 {
-    Transform transform{};
-    gateway.getTransform(id, transform);
-    PhysicsComponent comp{};
-    gateway.getPhysicsComponent(id, comp);
-
-    const bool hasExplicit = comp.collider.size.x > 2.f || comp.collider.size.y > 2.f;
-    const Vec2 base = hasExplicit
-        ? comp.collider.size
-        : Vec2{ kDefaultColliderSize, kDefaultColliderSize };
-    if (hasExplicit) {
-        return {
-            std::max(1.f, base.x),
-            std::max(1.f, base.y),
-        };
-    }
-    return {
-        std::max(1.f, base.x * std::abs(transform.scale.x)),
-        std::max(1.f, base.y * std::abs(transform.scale.y)),
-    };
+    return CollisionQuery::colliderWorldSize(gateway, id);
 }
 
 using WorldAabb = PhysicsMath::Aabb;
@@ -101,10 +82,6 @@ inline void applySteeringVelocity(Modules::Physics& physics,
                                   const Vec2& velocity,
                                   float dt)
 {
-    // NOTE: do NOT early-return on SolidComponent. "Solid" is a collision
-    // flag (this entity blocks others), NOT an immobility marker. Static
-    // bodies are correctly skipped below via bodyType==Static. The earlier
-    // Solid-as-immobile check froze every horde enemy that had collision.
     const uint32_t handle = gateway.physicsHandle(id);
     if (handle != 0) {
         PhysicsComponent physicsComp{};
@@ -114,7 +91,6 @@ inline void applySteeringVelocity(Modules::Physics& physics,
             physics.setLinearVelocity(handle, velocity);
             return;
         }
-        // Static body: refuse to move it via steering.
         if (gateway.getPhysicsComponent(id, physicsComp) &&
             physicsComp.bodyType == BodyType::Static)
             return;

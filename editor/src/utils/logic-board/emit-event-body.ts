@@ -122,7 +122,21 @@ export function emitEventBody(
       : null
   } else if (trig.type === 'onCollisionEnter' || trig.type === 'onCollisionExit') {
     const wantEnter = trig.type === 'onCollisionEnter' ? 'true' : 'false'
-    triggerGate = `_logic_collision_edge(self, ${luaString(trig.withClass)}, ${wantEnter})`
+    const withClass = trig.withClass?.trim() ?? ''
+    triggerGate = withClass
+      ? `_logic_collision_edge(self, ${luaString(withClass)}, ${wantEnter})`
+      : null
+    if (withClass) {
+      lines.push(
+        `${baseIndent}other = collision.firstTouching(self, ${luaString(withClass)})`,
+      )
+    }
+    lines.push(
+      ...emitGuardedBranches(ev, baseIndent, slugs, {
+        triggerGate,
+      }),
+    )
+    return lines
   } else if (trig.type === 'onInput') {
     triggerGate = onInputGateExpr(trig)
   } else if (trig.type === 'onTimer') {

@@ -1,0 +1,116 @@
+#pragma once
+
+// entity_collision_query.h — Entity-vs-entity overlap from Transform + collider
+// (shared by World AABB, Lua collision.*, Logic Board touchingClass).
+
+#include "collision_math.h"
+#include "../../../modules/runtime-entity-gateway/include/runtime-entity-gateway.h"
+
+#include <algorithm>
+#include <cmath>
+
+namespace ArtCade::CollisionQuery {
+
+constexpr float kDefaultColliderSize = 32.f;
+
+inline Vec2 colliderWorldSize(const Modules::RuntimeEntityGateway& gateway,
+                              EntityId id)
+{
+    Transform transform{};
+    gateway.getTransform(id, transform);
+    PhysicsComponent comp{};
+    gateway.getPhysicsComponent(id, comp);
+
+    const bool hasExplicit =
+        comp.collider.size.x > 2.f || comp.collider.size.y > 2.f;
+    const Vec2 base = hasExplicit
+        ? comp.collider.size
+        : Vec2{ kDefaultColliderSize, kDefaultColliderSize };
+    if (hasExplicit) {
+        return {
+            std::max(1.f, base.x),
+            std::max(1.f, base.y),
+        };
+    }
+    return {
+        std::max(1.f, base.x * std::abs(transform.scale.x)),
+        std::max(1.f, base.y * std::abs(transform.scale.y)),
+    };
+}
+
+inline PhysicsMath::ShapeInstance shapeFromEntity(
+    const Modules::RuntimeEntityGateway& gateway,
+    EntityId id)
+{
+    PhysicsMath::ShapeInstance s;
+    Transform transform{};
+    if (!gateway.getTransform(id, transform))
+        return s;
+
+    PhysicsComponent comp{};
+    gateway.getPhysicsComponent(id, comp);
+
+    s.position = transform.position;
+    s.offset   = comp.collider.offset;
+    s.shape    = comp.collider.shape;
+
+    const bool hasExplicit =
+        comp.collider.size.x > 2.f || comp.collider.size.y > 2.f;
+    const Vec2 worldSize = colliderWorldSize(gateway, id);
+    if (s.shape == ColliderShape::Circle) {
+        const float r = hasExplicit
+            ? std::max(0.5f, comp.collider.size.x)
+            : worldSize.x * 0.5f;
+        s.size = { r, r };
+    } else {
+        s.size = worldSize;
+    }
+    return s;
+}
+
+inline bool entityParticipatesInOverlapQuery(
+    const Modules::RuntimeEntityGateway& gateway,
+    EntityId id)
+{
+    return gateway.exists(id) && gateway.isEntityActiveInScene(id);
+}
+
+inline bool entitiesOverlap(const Modules::RuntimeEntityGateway& gateway,
+                          EntityId id1,
+                          EntityId id2)
+{
+    if (id1 == id2) return false;
+    if (!entityParticipatesInOverlapQuery(gateway, id1)) return false;
+    if (!entityParticipatesInOverlapQuery(gateway, id2)) return false;
+    return PhysicsMath::shapesOverlap(shapeFromEntity(gateway, id1),
+                                      shapeFromEntity(gateway, id2));
+}
+
+inline bool touchingClass(const Modules::RuntimeEntityGateway& gateway,
+                          EntityId id,
+                          const std::string& className)
+{
+    if (!entityParticipatesInOverlapQuery(gateway, id)) return false;
+    for (EntityId otherId : gateway.poolByClass(className)) {
+        if (otherId == id) continue;
+        if (entitiesOverlap(gateway, id, otherId))
+            return true;
+    }
+    return false;
+}
+
+inline EntityId firstOverlappingInClass(
+    const Modules::RuntimeEntityGateway& gateway,
+    EntityId id,
+    const std::string& className)
+{
+    if (!entityParticipatesInOverlapQuery(gateway, id)) return INVALID_ENTITY;
+    for (EntityId otherId : gateway.poolByClass(className)) {
+        if (otherId == id) continue;
+        if (entitiesOverlap(gateway, id, otherId))
+            return otherId;
+    }
+    return INVALID_ENTITY;
+}
+
+} // namespace ArtCade::CollisionQuery

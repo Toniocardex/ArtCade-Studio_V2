@@ -112,6 +112,10 @@ if(ARTCADE_HAS_RAYLIB AND ARTCADE_HAS_LUA)
         entity-signals-test.cpp
         "artcade-runtime-entity-gateway;artcade-physics")
 
+    artcade_test(entity_collision_query_test
+        entity-collision-query-test.cpp
+        "artcade-runtime-entity-gateway;artcade-collision")
+
     artcade_test(world_intent_test
         world-intent-test.cpp
         "artcade-world;artcade-runtime-entity-gateway;artcade-physics;artcade-variable-manager")

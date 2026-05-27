@@ -12,11 +12,16 @@ export function isCollisionTrigger(type: LogicTrigger['type']): boolean {
   return COLLISION_TRIGGERS.has(type)
 }
 
-/** True when the entity can participate in physics overlap / collision events. */
+/** Explicit Physics collider size in the inspector (tuning hitbox). */
 export function entityHasCollisionBody(entity: EntityDef): boolean {
   const p = entity.physics
   if (!p) return false
   return p.collider.size.x > 2 || p.collider.size.y > 2
+}
+
+/** Target can use geometric overlap (Transform + default or explicit collider). */
+export function entityHasOverlapBounds(entity: EntityDef): boolean {
+  return entity != null
 }
 
 function targetEntityIds(project: ProjectDoc, board: LogicBoard): number[] {
@@ -32,8 +37,8 @@ function targetEntityIds(project: ProjectDoc, board: LogicBoard): number[] {
 }
 
 /**
- * Logic Board warning when collision triggers are used without a Physics collider
- * on the board's target entity/entities.
+ * Logic Board hints for collision triggers — geometric overlap does not require
+ * a Physics body; optional collider tunes the default 32×scale hitbox.
  */
 export function collisionTriggerRequirement(
   trigger: LogicTrigger,
@@ -45,42 +50,37 @@ export function collisionTriggerRequirement(
   const ids = targetEntityIds(project, board)
   if (ids.length === 0) {
     return {
-      label: 'Physics (Collider)',
+      label: 'Collision target',
       status: 'missing',
       message:
-        'Collision triggers need a target entity with a Physics collider. ' +
-        'For arcade games without physics bodies, use Sensor zones (onTriggerEnter/Exit) or messages instead.',
+        'Collision triggers need a target entity on this rulesheet. ' +
+        'Use Sensor zones (onTriggerEnter/Exit) or messages for global logic.',
     }
   }
 
-  const withBody = ids.filter((id) => entityHasCollisionBody(project.entities[id]))
-  if (withBody.length === ids.length) {
-    if (project.world?.physicsMode === 'off') {
-      return {
-        label: 'World physics',
-        status: 'partial',
-        message:
-          'World physics is Off — collision events will not run. Set World → Physics simulation to Auto or On, or use Sensor triggers.',
-      }
-    }
-    return null
-  }
+  const withBounds = ids.filter((id) =>
+    entityHasOverlapBounds(project.entities[id]),
+  )
+  if (withBounds.length !== ids.length) return null
 
-  if (withBody.length > 0) {
+  const tuned = ids.filter((id) => entityHasCollisionBody(project.entities[id]))
+  if (tuned.length === 0) {
     return {
-      label: 'Physics (Collider)',
+      label: 'Hitbox (optional)',
       status: 'partial',
       message:
-        'Some targets lack a Physics collider — collision rules only run on entities with physics overlap. ' +
-        'Platformer movement alone does not create a body; add Physics in the Inspector if you need onCollision.',
+        'Overlap uses Transform bounds (default 32×scale). Add Physics (Collider) in the Inspector to tune the hitbox — not required for pickup.',
     }
   }
 
-  return {
-    label: 'Physics (Collider)',
-    status: 'missing',
-    message:
-      'While touching / collision triggers require physics overlap. Add Physics (Collider) on this entity, ' +
-      'or use onTriggerEnter/Exit with a Sensor zone, or onMessage for arcade logic without physics.',
+  if (tuned.length < ids.length) {
+    return {
+      label: 'Hitbox (optional)',
+      status: 'partial',
+      message:
+        'Some targets use the default hitbox only. Add Physics (Collider) to tune size per entity.',
+    }
   }
+
+  return null
 }

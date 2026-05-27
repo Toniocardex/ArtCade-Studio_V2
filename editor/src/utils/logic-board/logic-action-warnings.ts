@@ -3,6 +3,7 @@
 // ---------------------------------------------------------------------------
 
 import type { LogicAction, LogicTrigger } from '../../types/logic-board'
+import { isCollisionTrigger } from './physics-trigger-capabilities'
 
 const TRIGGERS_WITHOUT_OTHER: ReadonlySet<LogicTrigger['type']> = new Set([
   'onMouseInput',
@@ -27,5 +28,27 @@ export function destroyOtherTargetWarning(
   return (
     '"Other object" is only available on collision or sensor triggers. ' +
     'Use "This object" to destroy the entity running this rule.'
+  )
+}
+
+/** Warn when Destroy → This object on a collision rule would delete the hero, not the pickup. */
+export function destroySelfOnCollisionWarning(
+  action: LogicAction,
+  trigger: LogicTrigger,
+): string | null {
+  if (action.type !== 'destroyEntity' || action.target !== 'self') return null
+  if (!isCollisionTrigger(trigger.type)) return null
+  const cls =
+    trigger.type === 'onCollision' ||
+    trigger.type === 'onCollisionEnter' ||
+    trigger.type === 'onCollisionExit'
+      ? trigger.withClass?.trim() ?? ''
+      : ''
+  if (!cls) return null
+  const lower = cls.toLowerCase()
+  if (lower === 'coin' || lower === 'pickup') return null
+  return (
+    'Destroy This removes the entity running this rule (e.g. the player). ' +
+    'Use Other object or Destroy objects of class Coin to remove the pickup.'
   )
 }
