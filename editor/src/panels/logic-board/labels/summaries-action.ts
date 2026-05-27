@@ -1,5 +1,6 @@
 import type { ProjectDoc } from '../../../types'
 import type { LogicAction, TargetSelector } from '../../../types/logic-board'
+import { repeatIntervalSeconds } from '../../../utils/logic-board/repeat-interval'
 import { fmtClass, targetDisplayLabel } from './board-labels'
 
 export function actionSummaryPlain(
@@ -130,10 +131,7 @@ export function actionSummaryPlain(
         : `Wait ${a.seconds} seconds`
     case 'repeatTimes': {
       const n = Math.max(1, Math.floor(Number(a.count) || 1))
-      const every =
-        a.intervalSeconds === undefined || a.intervalSeconds === null
-          ? 0.5
-          : Math.max(0, Number(a.intervalSeconds) || 0)
+      const every = repeatIntervalSeconds(a.intervalSeconds)
       const nested = a.actions?.length ?? 0
       const scope = nested > 0
         ? `${nested} nested action${nested === 1 ? '' : 's'}`

@@ -7,6 +7,7 @@ import {
   type ComponentKind,
   type ParamFieldMeta,
 } from '../../utils/logic-board/schema-registry'
+import { parseLogicNumber } from '../../utils/logic-board/parse-logic-number'
 import type { TargetSelector } from '../../types/logic-board'
 import { enumDisplayLabel, fieldDisplayLabel } from '../../panels/logic-board/friendly-labels'
 import { TargetPicker } from './TargetPicker'
@@ -24,17 +25,43 @@ function Num({
   value,
   onChange,
   w = 'w-20',
+  placeholder,
+  allowEmpty = false,
+  emptyDefault = 0,
 }: {
-  value: number
-  onChange: (n: number) => void
+  value: number | undefined
+  onChange: (n: number | undefined) => void
   w?: string
+  placeholder?: string
+  /** When true, clearing the field calls onChange(undefined) instead of 0. */
+  allowEmpty?: boolean
+  /** Display/fallback when value is undefined and allowEmpty is false. */
+  emptyDefault?: number
 }) {
+  const display =
+    value !== undefined && value !== null && Number.isFinite(value)
+      ? String(value)
+      : allowEmpty
+        ? ''
+        : String(emptyDefault)
+
   return (
     <input
-      type="number"
+      type="text"
+      inputMode="decimal"
       className={`${inp} ${w}`}
-      value={Number.isFinite(value) ? value : 0}
-      onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
+      value={display}
+      placeholder={placeholder}
+      onChange={(e) => {
+        const raw = e.target.value
+        if (allowEmpty && raw.trim() === '') {
+          onChange(undefined)
+          return
+        }
+        const n = parseLogicNumber(raw)
+        if (n !== undefined) onChange(n)
+        else if (!allowEmpty) onChange(emptyDefault)
+      }}
     />
   )
 }
@@ -81,16 +108,29 @@ function Field({
   const enumCtx = `${kind}:${type}:${name}`
 
   switch (meta.widget) {
-    case 'number':
+    case 'number': {
+      const allowEmpty =
+        kind === 'action' &&
+        type === 'repeatTimes' &&
+        name === 'intervalSeconds'
+      const numValue = typeof value === 'number' && Number.isFinite(value) ? value : undefined
       return (
         <span key={name} className="flex items-center gap-2">
           {label}
           <Num
-            value={typeof value === 'number' ? value : 0}
+            value={numValue}
+            allowEmpty={allowEmpty}
+            emptyDefault={
+              kind === 'action' && type === 'repeatTimes' && name === 'count' ? 3 : 0
+            }
+            placeholder={
+              allowEmpty ? meta.placeholder ?? '0.5' : meta.placeholder
+            }
             onChange={(n) => onPatch(name, n)}
           />
         </span>
       )
+    }
     case 'boolean':
       return (
         <label key={name} className="flex items-center gap-1 text-xs text-[var(--muted)]">

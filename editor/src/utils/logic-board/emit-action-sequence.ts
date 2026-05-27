@@ -9,6 +9,7 @@ import {
   REPEAT_TIMES_SENTINEL_PREFIX,
   WAIT_SENTINEL_PREFIX,
 } from './action-emitter'
+import { repeatIntervalSeconds } from './repeat-interval'
 
 /** Unique step function names when multiple Repeat blocks compile in one event. */
 let repeatStepSerial = 0
@@ -58,10 +59,7 @@ function emitRepeatTimes(
   lines: string[],
 ): number {
   const count = Math.max(1, Math.floor(Number(a.count) || 1))
-  const interval =
-    a.intervalSeconds === undefined || a.intervalSeconds === null
-      ? 0.5
-      : Math.max(0, Number(a.intervalSeconds) || 0)
+  const interval = repeatIntervalSeconds(a.intervalSeconds)
   const { body, nextIndex } = resolveRepeatBody(actions, index)
 
   if (interval <= 0) {

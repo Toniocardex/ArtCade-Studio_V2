@@ -734,7 +734,12 @@
       "category": "System",
       "params": {
         "count": { "widget": "number", "label": "Times", "minimum": 1 },
-        "intervalSeconds": { "widget": "number", "label": "Every (seconds)", "minimum": 0 }
+        "intervalSeconds": {
+          "widget": "number",
+          "label": "Every (seconds)",
+          "minimum": 0,
+          "placeholder": "0.5"
+        }
       }
     }
   },

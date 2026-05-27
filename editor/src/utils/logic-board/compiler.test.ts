@@ -1338,6 +1338,24 @@ describe('Logic Components — Phase C (engine-hook triggers)', () => {
     expect(lua).toContain('time.after(0.5, function()')
   })
 
+  it('repeatTimes onStart repeats cameraShake with default interval when interval omitted', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({
+          trigger: { type: 'onStart' },
+          actions: [
+            { type: 'repeatTimes', count: 5 },
+            { type: 'cameraShake', trauma: 0.5 },
+          ],
+        }),
+      ]),
+    ])
+    expect(lua).toContain('local function _logic_rep_step_1(n)')
+    expect(lua).toContain('if n > 5 then return end')
+    expect(lua).toContain('camera.shake(0.5)')
+    expect(lua).toContain('time.after(0.5, function() _logic_rep_step_1(n + 1) end)')
+  })
+
   it('repeatTimes body stops at the next wait control action', () => {
     const lua = compileLogicBoard([
       board([

@@ -51,6 +51,7 @@ import { useEditor } from '../../store/editor-store'
 import type { AuthoringMode } from '../../types/authoring-mode'
 import LogicIconButton from '../../components/logic-board/LogicIconButton'
 import { cloneLogicAction } from '../../utils/logic-board/clone'
+import { repeatBodyIndices } from '../../utils/logic-board/repeat-body-indices'
 import { eventHasConditionBlock } from '../../utils/logic-board/event-conditions'
 import {
   ACTION_TYPES,
@@ -182,6 +183,7 @@ function ActionListBlock({
   setNewActionType: (t: NewActionPick) => void
   emptyHint: string
 }) {
+  const insideRepeat = repeatBodyIndices(actions)
   return (
     <>
       {actions.length === 0 && (
@@ -191,6 +193,7 @@ function ActionListBlock({
         <ActionCard
           key={i}
           act={a}
+          nestedInRepeat={insideRepeat.has(i)}
           board={board}
           project={project}
           recommendedTypes={recommendedTypes}
@@ -244,6 +247,7 @@ function ActionListBlock({
 
 function ActionCard({
   act,
+  nestedInRepeat,
   board,
   project,
   recommendedTypes,
@@ -252,6 +256,7 @@ function ActionCard({
   onRemove,
 }: {
   act: LogicAction
+  nestedInRepeat?: boolean
   board?: LogicBoard | null
   project?: ProjectDoc | null
   recommendedTypes: readonly string[]
@@ -260,7 +265,13 @@ function ActionCard({
   onRemove: () => void
 }) {
   return (
-    <div className="space-y-2 rounded border border-[var(--border)] bg-[var(--bg)] p-2.5">
+    <div
+      className={`space-y-2 rounded border bg-[var(--bg)] p-2.5 ${
+        nestedInRepeat
+          ? 'ml-4 border-[var(--accent-bd)] border-l-2'
+          : 'border-[var(--border)]'
+      }`}
+    >
       <div className="flex flex-wrap items-center gap-2">
         <TypePicker
           kind="action"
@@ -306,6 +317,16 @@ function ActionCard({
         <p className="text-[10px] text-[var(--muted)]">
           Creates an object where the pointer is.
         </p>
+      )}
+      {act.type === 'repeatTimes' && (
+        <p className="text-[10px] leading-snug text-[var(--muted)]">
+          Actions listed <strong>below</strong> Repeat run once per iteration (until the
+          next Wait or Repeat). Set <strong>Every</strong> to <strong>0</strong> to run
+          all iterations in one frame.
+        </p>
+      )}
+      {nestedInRepeat && (
+        <p className="text-[10px] text-[var(--accent)]">Inside Repeat above</p>
       )}
     </div>
   )
