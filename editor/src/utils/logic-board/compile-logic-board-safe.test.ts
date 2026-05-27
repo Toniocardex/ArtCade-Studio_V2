@@ -1,9 +1,11 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, beforeEach } from 'vitest'
 import type { LogicBoard } from '../../types/logic-board'
 import { compileLogicBoardLuaOrBlank, compileLogicBoardSafe } from './compile-logic-board-safe'
+import { clearLogicCompileCache } from './logic-compile-service'
 import { BLANK_MAIN_LUA } from '../project-factory'
 
 describe('compileLogicBoardSafe', () => {
+  beforeEach(() => clearLogicCompileCache())
   it('returns lua on success', () => {
     const board: LogicBoard = {
       boardId: 'b1',
@@ -44,7 +46,7 @@ describe('compileLogicBoardSafe', () => {
         actions: [{ type: 'clickToDestroy' as const, button: 'right' as const, radius: 32 }],
       }],
     }
-    const { lua, error } = compileLogicBoardLuaOrBlank([board])
+    const { lua, error } = compileLogicBoardLuaOrBlank([board], null, { projectKey: 'safe-test' })
     expect(lua).toBe(BLANK_MAIN_LUA)
     expect(error).toMatch(/entity rulesheets/)
   })

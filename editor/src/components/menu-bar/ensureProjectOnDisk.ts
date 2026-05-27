@@ -134,7 +134,7 @@ export async function ensureProjectOnDisk(
     dispatch({ type: 'MARK_PROJECT_SAVED' })
 
     if (project.mainScriptPath && project.logicBoards?.length) {
-      const { lua, compileError } = mainScriptBodyForProjectWithStatus(project)
+      const { lua, compileError } = mainScriptBodyForProjectWithStatus(project, buildPath)
       if (compileError) {
         dispatch({
           type: 'LOG',

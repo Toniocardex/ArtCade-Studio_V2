@@ -1,5 +1,5 @@
 import type { Dispatch } from 'react'
-import { compileLogicBoardLuaOrBlank } from './logic-board/compile-logic-board-safe'
+import { compileProjectLogic } from './logic-board/logic-compile-service'
 import { BLANK_MAIN_LUA } from './project'
 import type { Action } from '../store/editor-store'
 import type { ConsoleEntry, ProjectDoc, ScriptFile } from '../types'
@@ -7,18 +7,21 @@ import type { ConsoleEntry, ProjectDoc, ScriptFile } from '../types'
 export interface PreviewRestoreInput {
   project: ProjectDoc
   openScripts: ScriptFile[]
+  projectPath?: string | null
 }
 
 /** Resolve the main Lua source to push after a preview STOP / Logic Board Apply. */
 export function resolvePreviewMainLua(input: PreviewRestoreInput): string {
-  const { project, openScripts } = input
+  const { project, openScripts, projectPath } = input
   const path = project.mainScriptPath
   if (path) {
     const tab = openScripts.find(s => s.path === path)
     if (tab?.content) return tab.content
   }
   const boards = project.logicBoards ?? []
-  if (boards.length > 0) return compileLogicBoardLuaOrBlank(boards, project).lua
+  if (boards.length > 0) {
+    return compileProjectLogic(project, { projectKey: projectPath ?? undefined }).lua
+  }
   return BLANK_MAIN_LUA
 }
 
@@ -26,7 +29,7 @@ export function resolvePreviewMainLua(input: PreviewRestoreInput): string {
 export function resolvePreviewMainLuaWithStatus(
   input: PreviewRestoreInput,
 ): { lua: string; compileError: string | null } {
-  const { project, openScripts } = input
+  const { project, openScripts, projectPath } = input
   const path = project.mainScriptPath
   if (path) {
     const tab = openScripts.find((s) => s.path === path)
@@ -34,8 +37,8 @@ export function resolvePreviewMainLuaWithStatus(
   }
   const boards = project.logicBoards ?? []
   if (boards.length > 0) {
-    const { lua, error } = compileLogicBoardLuaOrBlank(boards, project)
-    return { lua, compileError: error }
+    const result = compileProjectLogic(project, { projectKey: projectPath ?? undefined })
+    return { lua: result.lua, compileError: result.compileError }
   }
   return { lua: BLANK_MAIN_LUA, compileError: null }
 }

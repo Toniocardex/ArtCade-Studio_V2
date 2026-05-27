@@ -14,7 +14,11 @@ import {
   findLogicBoardForEntity,
   getEntitiesInScene,
 } from '../utils/project'
-import { compileLogicBoardSafe } from '../utils/logic-board/compile-logic-board-safe'
+import {
+  compileProjectLogic,
+  configDiagnosticsForBoard,
+  formatConfigDiagnosticsSummary,
+} from '../utils/logic-board/logic-compile-service'
 import { LogicBoardCompileErrorBanner } from '../components/LogicBoardCompileErrorBanner'
 import { editorReloadScript } from '../utils/wasm-bridge'
 import { runtimeSync, useRuntimeReady } from '../utils/runtime-sync-service'
@@ -34,7 +38,6 @@ import {
   openMainScriptInEditor,
   syncLogicBoardToScript,
 } from '../utils/sync-logic-board-script'
-import { boardConfigurationSummary } from '../utils/logic-board/board-configuration-warnings'
 import { extractBoardLuaSlice } from '../utils/logic-board/extract-board-lua-slice'
 import {
   logicBoardCompilerLabel,
@@ -99,16 +102,17 @@ export default function LogicBoardPanel() {
   }, [state.mode, selection.entityId, project])
 
   const compileResult = useMemo(
-    () => compileLogicBoardSafe(boards, state.project),
-    [boards, state.project],
+    () => compileProjectLogic(state.project, { projectKey: state.projectPath ?? undefined }),
+    [boards, state.project, state.projectPath],
   )
-  const lua = compileResult.ok ? compileResult.lua : ''
-  const compileError = compileResult.ok ? null : compileResult.error
+  const lua = compileResult.lua
+  const compileError = compileResult.compileError
 
-  const boardConfigWarning = useMemo(
-    () => (board ? boardConfigurationSummary(board) : null),
-    [board],
-  )
+  const boardConfigWarning = useMemo(() => {
+    if (!board) return null
+    const warns = configDiagnosticsForBoard(compileResult.diagnostics, board.boardId)
+    return formatConfigDiagnosticsSummary(warns)
+  }, [board, compileResult.diagnostics])
 
   useEffect(() => {
     setShowFullMain(false)

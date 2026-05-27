@@ -2,7 +2,7 @@ import type { Dispatch } from 'react'
 import type { ProjectDoc } from '../types'
 import type { Action, CoreState } from '../store/editor-store'
 import { makeConsoleEntry } from '../components/menu-bar/makeConsoleEntry'
-import { compileLogicBoardSafe } from './logic-board/compile-logic-board-safe'
+import { compileProjectLogic } from './logic-board/logic-compile-service'
 
 /**
  * Script path for Logic Board output — always the project entry script.
@@ -52,12 +52,12 @@ export function syncLogicBoardFromProject(
   const project = state.project
   if (!project?.logicBoards?.length || !project.mainScriptPath) return false
 
-  const compiled = compileLogicBoardSafe(project.logicBoards, project)
+  const compiled = compileProjectLogic(project, { projectKey: state.projectPath ?? undefined })
   if (!compiled.ok) {
     dispatch({
       type: 'LOG',
       entry: makeConsoleEntry(
-        `[Logic Board] Compile failed — main script was not updated:\n${compiled.error}`,
+        `[Logic Board] Compile failed — main script was not updated:\n${compiled.compileError}`,
         'error',
       ),
     })

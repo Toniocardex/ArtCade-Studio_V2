@@ -56,7 +56,7 @@ export function useProjectShortcuts(): void {
         const projectJsonPath = await scaffoldNewProjectOnDisk(
           target,
           flushed,
-          mainScriptBodyForProject(flushed),
+          mainScriptBodyForProject(flushed, state.projectPath),
         )
         dispatch({ type: 'LOAD_PROJECT', project: flushed, path: projectJsonPath })
         dispatch({ type: 'MARK_PROJECT_SAVED' })

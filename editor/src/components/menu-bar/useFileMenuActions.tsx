@@ -120,7 +120,7 @@ export function useFileMenuActions({
       const projectJsonPath = await scaffoldNewProjectOnDisk(
         target,
         flushed,
-        mainScriptBodyForProject(flushed),
+        mainScriptBodyForProject(flushed, projectPath),
       )
       dispatch({ type: 'LOAD_PROJECT', project: flushed, path: projectJsonPath })
       dispatch({ type: 'MARK_PROJECT_SAVED' })
@@ -201,7 +201,7 @@ export function useFileMenuActions({
 
     const mainScriptPath = flushed.mainScriptPath
     if (mainScriptPath && flushed.logicBoards && flushed.logicBoards.length > 0) {
-      const { lua, compileError } = mainScriptBodyForProjectWithStatus(flushed)
+      const { lua, compileError } = mainScriptBodyForProjectWithStatus(flushed, projectPath)
       if (compileError) {
         dispatch({
           type: 'LOG',

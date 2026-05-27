@@ -1,10 +1,11 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import {
   logLogicBoardCompileFailure,
   resolvePreviewMainLua,
   resolvePreviewMainLuaWithStatus,
 } from './preview-restore'
 import type { Action } from '../store/editor-store'
+import { clearLogicCompileCache } from './logic-board/logic-compile-service'
 import { BLANK_MAIN_LUA } from './project'
 
 function makeProject(overrides: Record<string, unknown> = {}) {
@@ -22,6 +23,8 @@ function makeProject(overrides: Record<string, unknown> = {}) {
 }
 
 describe('resolvePreviewMainLua', () => {
+  beforeEach(() => clearLogicCompileCache())
+
   it('prefers openScripts content for mainScriptPath', () => {
     const project = makeProject()
     const lua = resolvePreviewMainLua({
@@ -62,10 +65,51 @@ describe('resolvePreviewMainLua', () => {
         }],
       }],
     })
-    const lua = resolvePreviewMainLua({ project: project as never, openScripts: [] })
+    const input = {
+      project: project as never,
+      openScripts: [],
+      projectPath: '/tmp/preview-fail.artcade',
+    }
+    const lua = resolvePreviewMainLua(input)
     expect(lua).toBe(BLANK_MAIN_LUA)
-    const status = resolvePreviewMainLuaWithStatus({ project: project as never, openScripts: [] })
+    const status = resolvePreviewMainLuaWithStatus(input)
     expect(status.compileError).toMatch(/entity rulesheets/)
+  })
+
+  it('uses last-good lua from cache when compile fails', () => {
+    const key = '/tmp/preview-cache.artcade'
+    const okProject = makeProject({
+      logicBoards: [{
+        boardId: 'b1',
+        target: { type: 'entity_id', entityId: 1 },
+        events: [],
+      }],
+    })
+    const goodLua = resolvePreviewMainLua({
+      project: okProject as never,
+      openScripts: [],
+      projectPath: key,
+    })
+    expect(goodLua).toContain('AUTO-GENERATED')
+
+    const badProject = makeProject({
+      logicBoards: [{
+        boardId: 'g1',
+        target: { type: 'global' },
+        events: [{
+          id: 'e1',
+          enabled: true,
+          trigger: { type: 'onMouseInput', button: 'right', eventType: 'pressed' },
+          actions: [{ type: 'clickToDestroy', button: 'right', radius: 32 }],
+        }],
+      }],
+    })
+    const lua = resolvePreviewMainLua({
+      project: badProject as never,
+      openScripts: [],
+      projectPath: key,
+    })
+    expect(lua).toBe(goodLua)
   })
 })
 

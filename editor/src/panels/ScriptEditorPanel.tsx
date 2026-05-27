@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useEditor } from '../store/editor-store'
 import { EngineScriptEditor } from '../components/EngineScriptEditor'
 import { LogicBoardScriptConflictBanner } from '../components/LogicBoardScriptConflictBanner'
-import { compileLogicBoardSafe } from '../utils/logic-board/compile-logic-board-safe'
+import { compileProjectLogic } from '../utils/logic-board/logic-compile-service'
 import { logicBoardScriptOutOfSync } from '../utils/logic-board-script-conflict'
 import { LogicBoardCompileErrorBanner } from '../components/LogicBoardCompileErrorBanner'
 import { syncLogicBoardToScript } from '../utils/sync-logic-board-script'
@@ -55,7 +55,7 @@ function ScriptTabBar({ paths, activePath, dirtyPaths, onSelect }: {
 
 export default function ScriptEditorPanel() {
   const { state, dispatch } = useEditor()
-  const { openScripts, activeScriptPath, project } = state
+  const { openScripts, activeScriptPath, project, projectPath } = state
   const themeMode = useThemeMode()
   const [dismissedConflict, setDismissedConflict] = useState(false)
 
@@ -66,10 +66,10 @@ export default function ScriptEditorPanel() {
 
   const compileResult = useMemo(() => {
     if (!project?.logicBoards?.length) return null
-    return compileLogicBoardSafe(project.logicBoards, project)
-  }, [project?.logicBoards, project])
+    return compileProjectLogic(project, { projectKey: projectPath ?? undefined })
+  }, [project, projectPath])
   const compiledLua = compileResult?.ok ? compileResult.lua : null
-  const compileError = compileResult && !compileResult.ok ? compileResult.error : null
+  const compileError = compileResult?.compileError ?? null
 
   const mainPath = project?.mainScriptPath ?? null
   const showConflict =

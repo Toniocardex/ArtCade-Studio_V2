@@ -222,6 +222,7 @@ export function useRuntimeProjectSync(opts: ProjectSyncOptions): void {
     const { lua: mainLua, compileError } = resolvePreviewMainLuaWithStatus({
       project: project!,
       openScripts,
+      projectPath,
     })
     logLogicBoardCompileFailure(dispatch, compileError, makeLogEntry)
     runtimeSync.syncProject(project!, runtimeSceneId, projectPath, { mainLua })

@@ -73,7 +73,7 @@ export function useBuildToolbarActions({
       dispatch({ type: 'SET_PLAYING', playing: false })
       if (project) {
         const activeSceneId = selectionSceneId ?? project.activeSceneId
-        const mainLua = resolvePreviewMainLua({ project, openScripts })
+        const mainLua = resolvePreviewMainLua({ project, openScripts, projectPath })
         const ok = runtimeSync.restorePreviewFromProject(project, activeSceneId, mainLua)
         if (!ok) {
           dispatch({
@@ -87,7 +87,11 @@ export function useBuildToolbarActions({
       }
     } else {
       if (project?.logicBoards?.length) {
-        const { compileError } = resolvePreviewMainLuaWithStatus({ project, openScripts })
+        const { compileError } = resolvePreviewMainLuaWithStatus({
+          project,
+          openScripts,
+          projectPath,
+        })
         logLogicBoardCompileFailure(dispatch, compileError, makeConsoleEntry)
       }
       if (document.activeElement instanceof HTMLElement) {
