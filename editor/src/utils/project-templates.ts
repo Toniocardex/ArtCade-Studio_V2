@@ -72,7 +72,7 @@ export function createPlatformerProject(projectName = 'Platformer'): ProjectDoc 
 
   const ground = createEntityDef(2, 'Ground', 'Ground', { x: 320, y: 340 })
   ground.transform.scale = { x: 20, y: 1 }
-  ground.solid = { groundClass: 'Ground' }
+  ground.solid = { groundClass: 'Ground', surfaceKind: 'solid' }
 
   return {
     ...base,

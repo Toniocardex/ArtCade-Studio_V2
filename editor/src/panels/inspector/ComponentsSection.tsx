@@ -73,13 +73,15 @@ function ComponentSection({
               <div key={f.key} className="mb-2">
                 <label className="text-[9px] text-[var(--muted)] uppercase">{f.label}</label>
                 <select
-                  value={String(v ?? '')}
+                  value={String(v ?? 'solid')}
                   onChange={(e) => commit(f.key, e.target.value)}
                   className="w-full bg-[var(--border)] border border-[var(--border-2)] rounded px-2 py-1
                              text-xs text-[var(--text)] focus:outline-none focus:border-[var(--accent-2)] transition-colors"
                 >
-                  {(f.options ?? []).map((o) => (
-                    <option key={o} value={o}>{o}</option>
+                  {(f.options ?? []).map((o, i) => (
+                    <option key={o} value={o}>
+                      {f.optionLabels?.[i] ?? o}
+                    </option>
                   ))}
                 </select>
               </div>

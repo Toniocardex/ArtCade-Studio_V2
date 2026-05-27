@@ -12,7 +12,9 @@ namespace ArtCade::WorldInternal {
 
 namespace {
 
-constexpr float kMinCoyoteAbovePx = 4.f;
+constexpr float kMinCoyoteAbovePx   = 4.f;
+/** One-way: feet must be near surface top only (not deep inside thick platforms). */
+constexpr float kOneWayLandBelowPx = 8.f;
 
 float aabbHalfHeight(const WorldAabb& box) {
     return std::max(1.f, (box.maxY - box.minY) * 0.5f);
@@ -22,12 +24,20 @@ bool horizontalOverlap(const WorldAabb& a, const WorldAabb& b) {
     return !(a.maxX < b.minX || a.minX > b.maxX);
 }
 
+bool isOneWaySurface(const SolidComponent& solid) {
+    return solid.surfaceKind == "oneWay"
+        || solid.surfaceKind == "OneWay"
+        || solid.surfaceKind == "one-way"
+        || solid.surfaceKind == "One-Way";
+}
+
 } // namespace
 
 PlatformerSolidContact probePlatformerSolidContact(
     const GroundingContext& ctx,
     EntityId id,
-    const std::string& groundClass)
+    const std::string& groundClass,
+    float verticalVelocity)
 {
     PlatformerSolidContact best{};
     const WorldAabb player = worldAabb(ctx.gateway, id);
@@ -44,13 +54,17 @@ PlatformerSolidContact probePlatformerSolidContact(
         [&](EntityId otherId, const SolidComponent& solid) {
             if (otherId == id) return;
             if (solid.groundClass != groundClass) return;
+            if (isOneWaySurface(solid) && verticalVelocity < 0.f) return;
 
             const WorldAabb ground = worldAabb(ctx.gateway, otherId);
             if (!horizontalOverlap(player, ground)) return;
 
             const float topY = ground.minY;
             const float dy   = feetY - topY;
-            if (dy < -coyoteAbove || dy > maxBelow) return;
+            const float landBelow = isOneWaySurface(solid)
+                ? kOneWayLandBelowPx
+                : maxBelow;
+            if (dy < -coyoteAbove || dy > landBelow) return;
             if (dy >= bestDy) return;
 
             bestDy          = dy;
@@ -75,7 +89,11 @@ bool isGroundedOnSolidAabb(const GroundingContext& ctx,
                            EntityId id,
                            const std::string& groundClass)
 {
-    return probePlatformerSolidContact(ctx, id, groundClass).onGround;
+    Transform transform{};
+    float vy = 0.f;
+    if (ctx.gateway.getTransform(id, transform))
+        vy = transform.velocity.y;
+    return probePlatformerSolidContact(ctx, id, groundClass, vy).onGround;
 }
 
 bool isGroundedViaPhysicsOverlap(const GroundingContext& ctx,
@@ -115,7 +133,11 @@ bool isGrounded(const GroundingContext& ctx,
 {
     PlatformerControllerComponent pc{};
     if (ctx.gateway.getPlatformerController(id, pc)) {
-        return probePlatformerSolidContact(ctx, id, groundClass).onGround;
+        Transform transform{};
+        float vy = 0.f;
+        if (ctx.gateway.getTransform(id, transform))
+            vy = transform.velocity.y;
+        return probePlatformerSolidContact(ctx, id, groundClass, vy).onGround;
     }
 
     if (isGroundedOnSolidAabb(ctx, id, groundClass))

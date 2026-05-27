@@ -8,7 +8,7 @@ export * from './tilemap'
 import type { LogicBoardDoc } from './logic-board'
 import type { TileDef, TilemapLayer, TilesetAsset } from './tilemap'
 import type {
-  SensorComponent, SolidComponent, PlatformerControllerComponent,
+  SensorComponent, SolidComponent, SolidSurfaceKind, PlatformerControllerComponent,
   TopDownControllerComponent, LinearMoverComponent,
   CameraTargetComponent,
   MagneticItemComponent,

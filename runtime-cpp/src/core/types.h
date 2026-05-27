@@ -103,7 +103,9 @@ struct SensorComponent {
 };
 
 struct SolidComponent {
-    std::string groundClass = "Ground";
+    std::string groundClass  = "Ground";
+    /** "solid" (default) or "oneWay" — one-way only collides when falling (vy >= 0). */
+    std::string surfaceKind = "solid";
 };
 
 struct PlatformerControllerComponent {

@@ -53,7 +53,7 @@ flowchart TD
 
 | Entity profile | Authority during PLAY | After `physics.step` |
 |----------------|----------------------|-------------------------|
-| **Platformer** (no body or kinematic follower) | `World` integrates `Transform`, probes **Solid** surfaces, **floor-snaps** feet to `surfaceTopY`; optional kinematic body follows transform | `syncPhysicsToEntities` **skips** platformer entities; Box2D gravity **off** on platformer bodies |
+| **Platformer** (no body or kinematic follower) | `World` integrates `Transform`, probes **Solid** surfaces, **floor-snaps** feet to `surfaceTopY`; **oneWay** uses top-edge band + `vy >= 0`; optional kinematic body follows transform | `syncPhysicsToEntities` **skips** platformer entities; Box2D gravity **off** on platformer bodies |
 | **Top-down** + Dynamic collider | `World` sets `linearVelocity`; Box2D integrates | Sync copies body → `Transform` |
 | **Top-down** without body | `World` integrates `Transform` directly | N/A |
 | **Linear mover / horde** (no platformer/top-down) | Velocity via `applySteeringVelocity` | Sync if body exists |

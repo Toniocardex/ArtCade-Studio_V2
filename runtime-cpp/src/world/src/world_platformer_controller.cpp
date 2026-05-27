@@ -27,8 +27,10 @@ void stepPlatformerController(World& world,
         world.physics_,
     };
 
+    float vy = rt.velocity.y;
+
     const PlatformerSolidContact groundBefore =
-        probePlatformerSolidContact(grounding, id, pc.groundClass);
+        probePlatformerSolidContact(grounding, id, pc.groundClass, vy);
     const bool rawGrounded = groundBefore.onGround;
 
     if (rawGrounded) {
@@ -61,7 +63,6 @@ void stepPlatformerController(World& world,
         rt.jumpBufferTimer = std::max(0.f, rt.jumpBufferTimer - dt);
 
     float vx = 0.f;
-    float vy = rt.velocity.y;
 
     if (intent && intent->hasMovement) {
         const float axis = std::clamp(intent->movement.x, -1.f, 1.f);
@@ -92,7 +93,7 @@ void stepPlatformerController(World& world,
     // the feet (native kinematic platformer — no penetration tolerance hack).
     if (vy >= 0.f) {
         const PlatformerSolidContact groundAfter =
-            probePlatformerSolidContact(grounding, id, pc.groundClass);
+            probePlatformerSolidContact(grounding, id, pc.groundClass, vy);
         if (groundAfter.onGround) {
             snapTransformFeetToSurface(transform, grounding, id, groundAfter.surfaceTopY);
             vy = 0.f;

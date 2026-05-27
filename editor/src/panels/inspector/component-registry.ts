@@ -31,6 +31,8 @@ export interface FieldDescriptor {
   max?:  number
   step?: number
   options?: string[]
+  /** Display labels for select options (same order as `options`). */
+  optionLabels?: string[]
   /** Field shown only when this predicate holds (conditional fields). */
   visibleWhen?: (c: Record<string, unknown>) => boolean
 }
@@ -53,6 +55,7 @@ const SENSOR: SensorComponent = {
 }
 const SOLID: SolidComponent = {
   groundClass: 'Ground',
+  surfaceKind: 'solid',
 }
 const PLATFORMER: PlatformerControllerComponent = {
   maxSpeed: 300, jumpForce: 600, customGravity: 1500,
@@ -102,10 +105,19 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
   },
   {
     key: 'solid',
-    label: 'Solid',
+    label: 'Platform Surface',
+    description:
+      'Ground for Platformer Controller (Solid or One-Way). One-Way only lands on the top edge when falling. Does not require Physics. Match Ground Class on the player.',
     color: 'var(--yellow)',
     create: () => ({ ...SOLID }),
     fields: [
+      {
+        key: 'surfaceKind',
+        label: 'Surface',
+        kind: 'select',
+        options: ['solid', 'oneWay'],
+        optionLabels: ['Solid', 'One-Way'],
+      },
       { key: 'groundClass', label: 'Ground Class', kind: 'text' },
     ],
   },

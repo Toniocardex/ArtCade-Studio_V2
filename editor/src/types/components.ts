@@ -20,9 +20,14 @@ export interface SensorComponent {
   targetTag: string          // only entities with this tag trigger it
 }
 
-/** Static blocking surface used by platformers and level geometry. */
+/** Platform surface kind (Construct-style Solid vs Jump-thru). */
+export type SolidSurfaceKind = 'solid' | 'oneWay'
+
+/** Static / one-way surface for platformer grounding (not Box2D by itself). */
 export interface SolidComponent {
-  groundClass: string          // matched by PlatformerController.groundClass
+  groundClass: string
+  /** Default `solid` when omitted (legacy projects). */
+  surfaceKind?: SolidSurfaceKind
 }
 
 /** Arcade kinematic platformer movement (coyote time, jump buffer, …). */

@@ -301,6 +301,146 @@ static void test_platformer_grounded_with_feet_slightly_below_solid_top() {
     CHECK(f.world.isPlatformerGrounded(1));
 }
 
+static void test_platformer_passes_through_one_way_when_jumping_up() {
+    Fixture f;
+
+    EntityDef player = makeEntity(1, "Player");
+    player.transform.position = { 160.f, 179.f };
+    PlatformerControllerComponent pc;
+    pc.jumpForce = 600.f;
+    pc.groundClass = "Ground";
+    player.platformerController = pc;
+
+    EntityDef platform = makeEntity(2, "Platform");
+    platform.transform.position = { 160.f, 200.f };
+    platform.transform.scale = { 10.f, 0.3125f };
+    SolidComponent solid;
+    solid.groundClass = "Ground";
+    solid.surfaceKind = "oneWay";
+    platform.solid = solid;
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1, 2 };
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.scenes = {{ scene.id, scene }};
+    doc.entities = {{ 1, player }, { 2, platform }};
+    f.world.init(doc);
+
+    CHECK(f.world.isPlatformerGrounded(1));
+    f.world.requestJump(1);
+    f.tickFrame(1.f / 60.f);
+
+    CHECK(!f.world.isPlatformerGrounded(1));
+    Transform transform{};
+    CHECK(f.gw.getTransform(1, transform));
+    CHECK(transform.velocity.y < -500.f);
+    CHECK(transform.position.y < 179.f);
+}
+
+static void test_platformer_passes_through_thick_one_way_while_rising() {
+    Fixture f;
+
+    EntityDef player = makeEntity(1, "Player");
+    player.transform.position = { 160.f, 279.f };
+    PlatformerControllerComponent pc;
+    pc.jumpForce = 650.f;
+    pc.groundClass = "Ground";
+    player.platformerController = pc;
+
+    EntityDef floor = makeEntity(2, "Floor");
+    floor.transform.position = { 160.f, 300.f };
+    floor.transform.scale = { 10.f, 0.3125f };
+    SolidComponent floorSolid;
+    floorSolid.groundClass = "Ground";
+    floor.solid = floorSolid;
+
+    EntityDef platform = makeEntity(3, "OneWayThick");
+    platform.transform.position = { 160.f, 200.f };
+    platform.transform.scale = { 10.f, 2.f };
+    SolidComponent oneWay;
+    oneWay.groundClass = "Ground";
+    oneWay.surfaceKind = "oneWay";
+    platform.solid = oneWay;
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1, 2, 3 };
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.scenes = {{ scene.id, scene }};
+    doc.entities = {{ 1, player }, { 2, floor }, { 3, platform }};
+    f.world.init(doc);
+
+    CHECK(f.world.isPlatformerGrounded(1));
+
+    // One-way AABB top ~168, bottom ~232 (center 200, halfH 32).
+    constexpr float kOneWayTopY    = 168.f;
+    constexpr float kOneWayBottomY = 232.f;
+
+    f.world.requestJump(1);
+    const float dt = 1.f / 60.f;
+    Transform transform{};
+    CHECK(f.gw.getTransform(1, transform));
+    const float startY = transform.position.y;
+
+    bool insideThickVolume = false;
+    for (int i = 0; i < 40; ++i) {
+        f.tickFrame(dt);
+        CHECK(f.gw.getTransform(1, transform));
+        const bool inside = transform.position.y > kOneWayTopY + 10.f
+            && transform.position.y < kOneWayBottomY - 10.f;
+        if (inside) {
+            insideThickVolume = true;
+            CHECK(!f.world.isPlatformerGrounded(1));
+        }
+    }
+
+    CHECK(insideThickVolume);
+    CHECK(transform.position.y < startY - 15.f);
+}
+
+static void test_platformer_lands_on_one_way_when_falling() {
+    Fixture f;
+
+    EntityDef player = makeEntity(1, "Player");
+    player.transform.position = { 160.f, 80.f };
+    PlatformerControllerComponent pc;
+    pc.customGravity = 1500.f;
+    pc.groundClass = "Ground";
+    player.platformerController = pc;
+
+    EntityDef platform = makeEntity(2, "Platform");
+    platform.transform.position = { 160.f, 200.f };
+    platform.transform.scale = { 10.f, 0.3125f };
+    SolidComponent solid;
+    solid.groundClass = "Ground";
+    solid.surfaceKind = "oneWay";
+    platform.solid = solid;
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1, 2 };
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.scenes = {{ scene.id, scene }};
+    doc.entities = {{ 1, player }, { 2, platform }};
+    f.world.init(doc);
+
+    const float dt = 1.f / 60.f;
+    for (int i = 0; i < 90; ++i)
+        f.tickFrame(dt);
+
+    CHECK(f.world.isPlatformerGrounded(1));
+    Transform transform{};
+    CHECK(f.gw.getTransform(1, transform));
+    CHECK(std::abs(transform.velocity.y) < 0.01f);
+}
+
 static void test_platformer_grounded_on_solid_without_player_physics() {
     Fixture f;
 
@@ -1481,6 +1621,9 @@ int main() {
     test_platformer_coyote_jump_after_leaving_solid();
     test_platformer_snaps_to_solid_after_fall();
     test_platformer_grounded_with_feet_slightly_below_solid_top();
+    test_platformer_passes_through_one_way_when_jumping_up();
+    test_platformer_passes_through_thick_one_way_while_rising();
+    test_platformer_lands_on_one_way_when_falling();
     test_platformer_grounded_on_solid_without_player_physics();
     test_platformer_with_physics_collider_is_kinematic_body();
     test_platformer_movement_intent_without_input();

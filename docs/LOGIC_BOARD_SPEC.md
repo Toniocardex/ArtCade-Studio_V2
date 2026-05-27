@@ -92,7 +92,7 @@ Esempi Core:
 
 - `PlatformerControllerComponent`: movimento side-scroller con salto.
 - `TopDownControllerComponent`: movimento libero X/Y con attrito e 4-direzioni.
-- `SolidComponent`: ostacolo fisico statico o one-way platform.
+- `SolidComponent`: superficie platform (`surfaceKind`: `solid` \| `oneWay`) + `groundClass`; non richiede Physics.
 - `LinearMoverComponent`: proiettili/barriere con moto lineare continuo.
 - `CameraTargetComponent`: target camera con offset, smoothing e bounds.
 

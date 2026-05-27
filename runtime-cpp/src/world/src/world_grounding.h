@@ -23,12 +23,13 @@ struct PlatformerSolidContact {
 
 /**
  * Native platformer ground: horizontal overlap with Solid + feet near surface top.
- * Probe bands scale with entity height (no fixed penetration slack).
+ * Full solids use height-scaled bands; oneWay uses a narrow top-edge band + vy >= 0.
  */
 PlatformerSolidContact probePlatformerSolidContact(
     const GroundingContext& ctx,
     EntityId id,
-    const std::string& groundClass);
+    const std::string& groundClass,
+    float verticalVelocity);
 
 /** Place entity transform so AABB feet (maxY) sit on surfaceTopY. */
 void snapTransformFeetToSurface(Transform& transform,

@@ -232,6 +232,7 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
                 auto& s = ev["solid"];
                 SolidComponent solid;
                 solid.groundClass = s.value("groundClass", std::string("Ground"));
+                solid.surfaceKind = s.value("surfaceKind", std::string("solid"));
                 e.solid = solid;
             }
             if (ev.contains("platformerController") && ev["platformerController"].is_object()) {

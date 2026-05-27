@@ -82,7 +82,8 @@ EntityDef parseEntityDef(const json& j, EntityId fallbackId) {
     if (j.contains("solid") && j["solid"].is_object()) {
         const auto& s = j["solid"];
         SolidComponent solid;
-        solid.groundClass = s.value("groundClass", std::string("Ground"));
+        solid.groundClass  = s.value("groundClass", std::string("Ground"));
+        solid.surfaceKind  = s.value("surfaceKind", std::string("solid"));
         e.solid = solid;
     }
     if (j.contains("platformerController") && j["platformerController"].is_object()) {
