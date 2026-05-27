@@ -1,6 +1,5 @@
 #include "../include/input.h"
 #include "../include/pointer-coords.h"
-#include "../include/pointer-dom-suppress.h"
 #include <raylib.h>
 #include <cstring>
 
@@ -38,7 +37,6 @@ bool Input::init()     { return true; }
 void Input::shutdown() {}
 
 void Input::poll() {
-    preventDefaultMask_ = 0;
     // Clear frame-edge flags
     std::memset(state_.keysPressedThisFrame,  0, sizeof(state_.keysPressedThisFrame));
     std::memset(state_.keysReleasedThisFrame, 0, sizeof(state_.keysReleasedThisFrame));
@@ -96,18 +94,6 @@ bool Input::wasMouseButtonPressed(int btn) const {
 
 int Input::stringToRaylibKey(const std::string& code) const {
     return keyCodeFromString(code);
-}
-
-void Input::requestPreventDefault(int btn) {
-    if (btn == 0) preventDefaultMask_ |= 1u;
-    else if (btn == 1) preventDefaultMask_ |= 2u;
-    pointerDomSuppressPublishMask(preventDefaultMask_);
-}
-
-uint8_t Input::consumePreventDefaultMask() {
-    const uint8_t mask = preventDefaultMask_;
-    preventDefaultMask_ = 0;
-    return mask;
 }
 
 } // namespace ArtCade::Modules

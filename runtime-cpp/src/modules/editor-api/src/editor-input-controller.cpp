@@ -5,7 +5,6 @@
 #include "../include/editor-api.h"
 #include "../../../app/render/ray-tint-widget.h"
 #include "pointer-coords.h"
-#include "pointer-dom-suppress.h"
 #include "../../../modules/runtime-entity-gateway/include/runtime-entity-gateway.h"
 #include "../../../modules/renderer/include/renderer.h"
 #include "../../../core/types.h"
@@ -230,7 +229,6 @@ void initCanvas(const char* canvasSelector) {
     emscripten_set_mouseup_callback  (canvasSelector, nullptr, 1, EditorAPI::onMouseUp);
     emscripten_set_keydown_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, nullptr, 1, EditorAPI::onKeyDown);
     emscripten_set_keyup_callback  (EMSCRIPTEN_EVENT_TARGET_WINDOW, nullptr, 1, EditorAPI::onKeyUp);
-    Modules::pointerDomSuppressInit(canvasSelector);
 }
 
 void shutdownCanvas() {

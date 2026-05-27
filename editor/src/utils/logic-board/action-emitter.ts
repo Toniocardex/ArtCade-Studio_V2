@@ -217,10 +217,6 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
       return `camera.centerOn(${targetExpr(a.target)})`
     case 'cameraShake':
       return `camera.shake(${traumaIntensity(a.trauma)})`
-    case 'preventDefault': {
-      const btn = a.button === 'right' ? 1 : 0
-      return `input.preventDefault(${btn})`
-    }
     case 'debugLog':
       return `debug.log(${luaString(a.message)})`
     case 'wait':

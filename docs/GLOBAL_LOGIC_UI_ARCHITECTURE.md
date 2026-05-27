@@ -116,7 +116,7 @@ L'editor mostra avvisi gialli in Logic Board (`physics-trigger-capabilities.ts`)
 
 Su Emscripten il mouse viene scalato da CSS a framebuffer interno (`pointer-coords`, canvas `#artcade-canvas`) così resize del pannello preview non sposta il pick.
 
-**Logic Board:** trigger **Object clicked** / **hover** / condizione **is mouse over** / azione **spawn at pointer** compilano con `input.mouseWorld()` + `entity.position(self)` (non `mousePosition()`). `onMouseInput` (solo tasto) resta invariato. Preset **Click to destroy** (entity rulesheets) = `onObjectClick` + `preventDefault` + `destroyEntity(self)` via [`click-to-destroy.ts`](../editor/src/utils/logic-board/click-to-destroy.ts).
+**Logic Board:** trigger **Object clicked** / **hover** / condizione **is mouse over** / azione **spawn at pointer** compilano con `input.mouseWorld()` + `entity.position(self)` (non `mousePosition()`). `onMouseInput` (solo tasto) resta invariato. Preset **Click to destroy** (entity rulesheets) = `onObjectClick` + `destroyEntity(self)` via [`click-to-destroy.ts`](../editor/src/utils/logic-board/click-to-destroy.ts). Soppressione menu contestuale tasto destro in **anteprima Play** = solo editor ([`PreviewPanel.tsx`](../editor/src/panels/PreviewPanel.tsx) `onContextMenu`), non azione Logic Board.
 
 **Compilatore (policy):** usare solo [`luaPointerNearSelfExpr`](../editor/src/utils/logic-board/lua-helpers.ts) e [`luaPointerWorldPairStmt`](../editor/src/utils/logic-board/lua-helpers.ts); test di guardia [`pointer-hit-policy.test.ts`](../editor/src/utils/logic-board/pointer-hit-policy.test.ts).
 

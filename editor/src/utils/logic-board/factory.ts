@@ -15,7 +15,7 @@ import type {
 } from '../../types/logic-board'
 import { validateLogicBoard, validateLogicEvent } from './schema-registry'
 import { logicBoardGeneratedLabel } from './labels'
-import { applyMousePreventDefaultDefaults } from './mouse-prevent-default'
+import { stripLegacyLogicActions } from './strip-legacy-actions'
 
 let _seq = 0
 /** Monotonic, collision-free id (good enough for editor undo/redo). */
@@ -29,12 +29,12 @@ export function createLogicEvent(
   trigger: LogicTrigger = { type: 'onSpawn' },
   actions: LogicAction[] = [],
 ): LogicEvent {
-  return applyMousePreventDefaultDefaults({
+  return {
     id: logicId('evt'),
     enabled: true,
     trigger,
-    actions,
-  })
+    actions: stripLegacyLogicActions(actions),
+  }
 }
 
 /** A new board targeting a single scene entity (primary editor workflow). */
@@ -98,13 +98,13 @@ function parseEvent(raw: unknown): LogicEvent | null {
     ...(r.conditionRoot && typeof r.conditionRoot === 'object'
       ? { conditionRoot: r.conditionRoot as LogicEvent['conditionRoot'] }
       : {}),
-    actions: asArray(r.actions) as LogicAction[],
+    actions: stripLegacyLogicActions(asArray(r.actions) as LogicAction[]),
     ...(typeof r.elseEnabled === 'boolean' ? { elseEnabled: r.elseEnabled } : {}),
     ...(Array.isArray(r.elseActions)
-      ? { elseActions: r.elseActions as LogicAction[] }
+      ? { elseActions: stripLegacyLogicActions(r.elseActions as LogicAction[]) }
       : {}),
   }
-  return applyMousePreventDefaultDefaults(event)
+  return event
 }
 
 function parseBoard(raw: unknown): LogicBoard | null {

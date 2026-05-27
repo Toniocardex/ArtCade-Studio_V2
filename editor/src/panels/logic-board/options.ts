@@ -191,8 +191,6 @@ export function defaultAction(type: LogicActionType): LogicAction {
       return { type: 'setCameraTarget', target: 'self' }
     case 'cameraShake':
       return { type: 'cameraShake', trauma: 0.5 }
-    case 'preventDefault':
-      return { type: 'preventDefault', button: 'left' }
     case 'debugLog':
       return { type: 'debugLog', message: '' }
     case 'wait':

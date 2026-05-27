@@ -134,7 +134,7 @@ export function LogicBoardEventsList({
               disabled={!canClickToDestroy}
               title={
                 canClickToDestroy
-                  ? 'Click this object to remove it (right mouse). Adds Prevent default + Destroy.'
+                  ? 'Click this object to remove it (right mouse).'
                   : 'Click to destroy requires an entity rulesheet (not global).'
               }
               onClick={() => {

@@ -2,7 +2,7 @@
 // Expanded rule editor - When / Also require… / Then blocks
 // ---------------------------------------------------------------------------
 
-import { Fragment, useEffect, useRef, useState } from 'react'
+import { Fragment, useState } from 'react'
 import {
   Check,
   Copy,
@@ -60,10 +60,7 @@ import {
   defaultTrigger,
   TRIGGER_TYPES,
 } from './options'
-import {
-  applyMousePreventDefaultDefaults,
-  destroyOtherTargetWarning,
-} from '../../utils/logic-board/mouse-prevent-default'
+import { destroyOtherTargetWarning } from '../../utils/logic-board/logic-action-warnings'
 
 const link = 'text-[var(--accent)] text-[11px] hover:underline cursor-pointer'
 const btn =
@@ -112,10 +109,7 @@ function commitEventUpdate(
     'id' in patch && 'trigger' in patch && 'actions' in patch
       ? (patch as LogicEvent)
       : { ...event, ...patch }
-  return withContextualInputDefault(
-    applyMousePreventDefaultDefaults(merged),
-    merged.actions,
-  )
+  return withContextualInputDefault(merged, merged.actions)
 }
 
 function TriggerFields({
@@ -563,19 +557,6 @@ export default function EventEditor({
   const [newActionType, setNewActionType] = useState<NewActionPick>(NEW_ACTION_NONE)
   const [newElseActionType, setNewElseActionType] =
     useState<NewActionPick>(NEW_ACTION_NONE)
-  const mouseDefaultsPatchedRef = useRef<string | null>(null)
-  useEffect(() => {
-    if (mouseDefaultsPatchedRef.current === event.id) return
-    mouseDefaultsPatchedRef.current = event.id
-    const next = applyMousePreventDefaultDefaults(event)
-    const changed =
-      next.actions.length !== event.actions.length ||
-      next.actions.some(
-        (a, i) => JSON.stringify(a) !== JSON.stringify(event.actions[i]),
-      )
-    if (changed) onChange(commitEventUpdate(event, { actions: next.actions }))
-  }, [event.id, event, onChange])
-
   const recommendedTypes = recommendedTypesForTrigger(
     recommendedActionTypes(project, board),
     event.trigger,

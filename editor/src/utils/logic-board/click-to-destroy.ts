@@ -1,13 +1,15 @@
 // ---------------------------------------------------------------------------
-// "Click to destroy" rule preset — onObjectClick + preventDefault + destroy(self).
+// "Click to destroy" rule preset — onObjectClick + destroy(self).
+// Browser default suppression for right-click is editor/runtime only (PreviewPanel).
 // ---------------------------------------------------------------------------
 
 import type { LogicEvent } from '../../types/logic-board'
-import type { MouseButtonSide } from './mouse-prevent-default'
 import { createLogicEvent } from './factory'
 
+export type ClickToDestroyButton = 'left' | 'right'
+
 export type ClickToDestroyOptions = {
-  button?: MouseButtonSide
+  button?: ClickToDestroyButton
   radius?: number
 }
 
@@ -18,10 +20,7 @@ export function createClickToDestroyEvent(
   const radius = options.radius ?? 32
   return createLogicEvent(
     { type: 'onObjectClick', button, radius },
-    [
-      { type: 'preventDefault', button },
-      { type: 'destroyEntity', target: 'self' },
-    ],
+    [{ type: 'destroyEntity', target: 'self' }],
   )
 }
 
@@ -29,14 +28,12 @@ export function createClickToDestroyEvent(
 export function isClickToDestroyEvent(event: LogicEvent): boolean {
   const t = event.trigger
   if (t.type !== 'onObjectClick') return false
-
   const { actions } = event
-  if (actions.length !== 2) return false
-
-  const [a0, a1] = actions
-  if (a0?.type !== 'preventDefault' || a0.button !== t.button) return false
-  if (a1?.type !== 'destroyEntity' || a1.target !== 'self') return false
-  return true
+  return (
+    actions.length === 1 &&
+    actions[0]?.type === 'destroyEntity' &&
+    actions[0].target === 'self'
+  )
 }
 
 export function clickToDestroySummary(event: LogicEvent): string {

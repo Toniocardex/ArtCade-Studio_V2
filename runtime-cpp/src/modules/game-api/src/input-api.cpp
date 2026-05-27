@@ -30,9 +30,6 @@ void GameAPI::bindInputAPI(sol::state& lua) {
         return { world.x, world.y };
     });
     lua.set_function("input_mouseButtonDown", [input](int btn) { return input->isMouseButtonDown(btn); });
-    lua.set_function("input_preventDefault", [input](int btn) {
-        input->requestPreventDefault(btn);
-    });
 
     lua.script(R"(
         input = input or {}
@@ -46,7 +43,6 @@ void GameAPI::bindInputAPI(sol::state& lua) {
         input.mouseScreen     = function()     return input_mouseScreen()          end
         input.mouseWorld      = function()     return input_mouseWorld()           end
         input.mouseButtonDown = function(btn)  return input_mouseButtonDown(btn)   end
-        input.preventDefault    = function(btn)  input_preventDefault(btn)         end
 
         local function registerInputHandler(bag, code, fn)
             assert(type(code) == "string" and code ~= "",

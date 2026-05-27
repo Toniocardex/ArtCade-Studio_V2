@@ -849,22 +849,6 @@ describe('Logic Components — Phase A (new blocks)', () => {
     expect(lua).toContain('debug.log("click")')
   })
 
-  it('preventDefault compiles to input.preventDefault', () => {
-    const lua = compileLogicBoard([
-      board([
-        ev({
-          trigger: { type: 'onMouseInput', button: 'right', eventType: 'pressed' },
-          actions: [
-            { type: 'preventDefault', button: 'right' },
-            { type: 'destroyEntity', target: 'self' },
-          ],
-        }),
-      ]),
-    ])
-    expect(lua).toContain('input.preventDefault(1)')
-    expect(lua).toContain('entity.destroy(self)')
-  })
-
   it('onObjectClick compiles a click plus object hit check', () => {
     const lua = compileLogicBoard([
       board([
