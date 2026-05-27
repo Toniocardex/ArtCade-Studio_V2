@@ -11,7 +11,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useEditor } from '../store/editor-store'
 import {
   allClassNames,
-  findLogicBoardForEntity,
+  findLogicBoardForInstance,
+  findObjectTypeForInstance,
   getEntitiesInScene,
 } from '../utils/project'
 import {
@@ -25,6 +26,7 @@ import { runtimeSync, useRuntimeReady } from '../utils/runtime-sync-service'
 import {
   createLogicBoard,
   createLogicBoardForEntity,
+  createLogicBoardForObjectType,
 } from '../utils/logic-board/factory'
 import { cloneLogicEvent } from '../utils/logic-board/clone'
 import { shouldIgnoreEditorShortcut } from '../utils/keyboard'
@@ -89,7 +91,7 @@ export default function LogicBoardPanel() {
   const selectedEntityId = selection.entityId
   const boardForSelection =
     project && selectedEntityId != null
-      ? findLogicBoardForEntity(project, selectedEntityId)
+      ? findLogicBoardForInstance(project, selectedEntityId)
       : undefined
 
   // Sync Scenes-panel selection → rulesheet when in Logic mode.
@@ -97,7 +99,7 @@ export default function LogicBoardPanel() {
     if (state.mode !== 'logic' || !project) return
     const eid = selection.entityId
     if (eid == null) return
-    const existing = findLogicBoardForEntity(project, eid)
+    const existing = findLogicBoardForInstance(project, eid)
     if (existing) setSelectedBoardId(existing.boardId)
   }, [state.mode, selection.entityId, project])
 
@@ -186,18 +188,21 @@ export default function LogicBoardPanel() {
 
   const selectEntityForRules = (entityId: number) => {
     dispatch({ type: 'SELECT_ENTITY', entityId })
-    const existing = project && findLogicBoardForEntity(project, entityId)
+    const existing = project && findLogicBoardForInstance(project, entityId)
     if (existing) setSelectedBoardId(existing.boardId)
   }
 
   const createBoardForEntity = (entityId: number) => {
     if (!project) return
-    const existing = findLogicBoardForEntity(project, entityId)
+    const existing = findLogicBoardForInstance(project, entityId)
     if (existing) {
       setSelectedBoardId(existing.boardId)
       return
     }
-    const b = createLogicBoardForEntity(entityId)
+    const typeId = findObjectTypeForInstance(project, entityId)
+    const b = typeId
+      ? createLogicBoardForObjectType(typeId)
+      : createLogicBoardForEntity(entityId)
     dispatch({ type: 'LOGIC_ADD_BOARD', board: b })
     setSelectedBoardId(b.boardId)
   }

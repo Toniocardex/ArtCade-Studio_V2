@@ -27,6 +27,7 @@ import {
 import { uiReducer }         from './reducers/ui-reducer'
 import { projectReducer }    from './reducers/project-reducer'
 import { entityReducer }     from './reducers/entity-reducer'
+import { objectTypeReducer } from './reducers/object-type-reducer'
 import { sceneReducer }      from './reducers/scene-reducer'
 import { logicBoardReducer } from './reducers/logic-board-reducer'
 import { applyAuthoringModeToDocument } from '../utils/authoring-mode'
@@ -46,6 +47,7 @@ export function coreReducer(state: CoreState, action: Action): CoreState {
   next = uiReducer(next, action)
   next = projectReducer(next, action)
   next = entityReducer(next, action)
+  next = objectTypeReducer(next, action)
   next = sceneReducer(next, action)
   next = logicBoardReducer(next, action)
   return next

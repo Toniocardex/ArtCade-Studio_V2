@@ -1,0 +1,119 @@
+// ---------------------------------------------------------------------------
+// Object type + scene instance placement (project format v2)
+// ---------------------------------------------------------------------------
+
+import type { CoreState, Action, DomainReducer } from '../editor-store-state'
+import {
+  createEntityDef,
+  defaultEntitySpawnPosition,
+  nextEntityId,
+} from '../../utils/project'
+import {
+  entityToObjectType,
+  materializeEntity,
+  slugTypeId,
+} from '../../utils/project-object-types'
+import type { SceneInstanceDef } from '../../types'
+
+function syncInstanceTransform(
+  sceneId: string,
+  entityId: number,
+  project: NonNullable<CoreState['project']>,
+): SceneInstanceDef[] | undefined {
+  const scene = project.scenes[sceneId]
+  const inst = scene?.instances?.find((i) => i.id === entityId)
+  const ent = project.entities[entityId]
+  if (!inst || !ent) return scene?.instances
+  return scene.instances!.map((i) =>
+    i.id === entityId
+      ? {
+          ...i,
+          transform: {
+            position: { ...ent.transform.position },
+            scale: { ...ent.transform.scale },
+            rotation: ent.transform.rotation,
+            ...(ent.transform.velocity
+              ? { velocity: { ...ent.transform.velocity } }
+              : {}),
+          },
+          ...(ent.visible === false ? { visible: false } : { visible: true }),
+        }
+      : i,
+  )
+}
+
+export const objectTypeReducer: DomainReducer = (state: CoreState, action: Action) => {
+  switch (action.type) {
+    case 'OBJECT_TYPE_ADD': {
+      if (!state.project) return state
+      const typeId = slugTypeId(action.displayName || 'Object')
+      if (state.project.objectTypes?.[typeId]) return state
+      const proto = entityToObjectType(
+        createEntityDef(0, action.displayName || typeId, typeId),
+        typeId,
+      )
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          objectTypes: { ...state.project.objectTypes, [typeId]: proto },
+        },
+        projectDirty: true,
+      }
+    }
+    case 'INSTANCE_ADD_FROM_TYPE': {
+      if (!state.project || !state.project.scenes[action.sceneId]) return state
+      const type = state.project.objectTypes?.[action.objectTypeId]
+      if (!type) return state
+      const id = nextEntityId(state.project)
+      const scene = state.project.scenes[action.sceneId]
+      const spawn = defaultEntitySpawnPosition(scene, state.editorGridSize, state.snapToGrid)
+      const inst: SceneInstanceDef = {
+        id,
+        objectTypeId: action.objectTypeId,
+        transform: {
+          position: spawn,
+          scale: { x: 1, y: 1 },
+          rotation: 0,
+        },
+      }
+      const ent = materializeEntity(type, inst)
+      const instances = [...(scene.instances ?? []), inst]
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          entities: { ...state.project.entities, [id]: ent },
+          scenes: {
+            ...state.project.scenes,
+            [action.sceneId]: {
+              ...scene,
+              instances,
+              entityIds: [...scene.entityIds, id],
+            },
+          },
+        },
+        selection: { ...state.selection, entityId: id },
+        projectDirty: true,
+      }
+    }
+    case 'UPDATE_ENTITY_TRANSFORM': {
+      if (!state.project || !state.project.entities[action.entityId]) return state
+      const sceneId = state.selection.sceneId ?? state.project.activeSceneId
+      const instances = syncInstanceTransform(sceneId, action.entityId, state.project)
+      if (!instances) return state
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          scenes: {
+            ...state.project.scenes,
+            [sceneId]: { ...state.project.scenes[sceneId], instances },
+          },
+        },
+      }
+    }
+    default:
+      return state
+  }
+}

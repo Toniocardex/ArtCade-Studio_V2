@@ -141,7 +141,12 @@ export function useProjectShortcuts(): void {
           return
         }
         runtimeSync.reset()
-        dispatch({ type: 'LOAD_PROJECT', project: loaded.project, path: loaded.path })
+        dispatch({
+          type: 'LOAD_PROJECT',
+          project: loaded.project,
+          path: loaded.path,
+          migratedFromLegacy: loaded.migratedFromLegacy,
+        })
         dispatch({
           type: 'LOG',
           entry: kbdLog(`OK loaded "${loaded.project.projectName}" v${loaded.project.version}`, 'info'),

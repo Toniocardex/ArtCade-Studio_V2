@@ -27,7 +27,13 @@ import {
   isBackspaceKey,
   shouldIgnoreEditorShortcut,
 } from '../utils/keyboard'
-import { createEntityDef, findLogicBoardForEntity, nextEntityId } from '../utils/project'
+import {
+  allObjectTypeIds,
+  createEntityDef,
+  findLogicBoardForInstance,
+  nextEntityId,
+  objectTypeDisplayLabel,
+} from '../utils/project'
 
 const CLASS_COLOR: Record<string, string> = {
   Player:  'var(--accent)',
@@ -343,6 +349,47 @@ export default function SceneObjectsPanel() {
         </div>
       </div>
 
+      <SectionLabel title="Object types">
+        <button
+          type="button"
+          disabled={!project}
+          onClick={() => {
+            const name = window.prompt('New object type name', 'Object')
+            if (!name?.trim()) return
+            dispatch({ type: 'OBJECT_TYPE_ADD', displayName: name.trim() })
+          }}
+          className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold
+                     border border-[var(--border-2)] text-[var(--muted)] hover:text-[var(--accent)]"
+        >
+          <Plus size={12} /> Type
+        </button>
+      </SectionLabel>
+      <div className="px-2 pb-2 border-b border-[var(--border)] space-y-1 max-h-28 overflow-y-auto">
+        {allObjectTypeIds(project).length === 0 ? (
+          <p className="text-[10px] text-[var(--muted)] px-1">Types are created when you save, or add one above.</p>
+        ) : (
+          allObjectTypeIds(project).map((typeId) => (
+            <div key={typeId} className="flex items-center gap-1">
+              <span className="flex-1 text-[10px] text-[var(--text)] truncate" title={typeId}>
+                {objectTypeDisplayLabel(project, typeId)}
+              </span>
+              <button
+                type="button"
+                disabled={!scene}
+                title={`Place instance of ${typeId}`}
+                onClick={() =>
+                  dispatch({ type: 'INSTANCE_ADD_FROM_TYPE', sceneId, objectTypeId: typeId })
+                }
+                className="text-[10px] px-1.5 py-0.5 rounded border border-[var(--border-2)]
+                           text-[var(--accent)] hover:border-[var(--accent-bd)] disabled:opacity-40"
+              >
+                Place
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+
       <SectionLabel title="Objects">
         <AddEntityButton
           onClick={addEntity}
@@ -371,7 +418,7 @@ export default function SceneObjectsPanel() {
               key={e.id}
               entity={e}
               selected={selection.entityId === e.id}
-              hasLogic={Boolean(findLogicBoardForEntity(project, e.id))}
+              hasLogic={Boolean(findLogicBoardForInstance(project, e.id))}
               onClick={() =>
                 dispatch({ type: 'SELECT_ENTITY', entityId: selection.entityId === e.id ? null : e.id })
               }

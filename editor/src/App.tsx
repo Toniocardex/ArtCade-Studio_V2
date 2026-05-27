@@ -40,6 +40,26 @@ function bootLog(message: string, level: ConsoleEntry['level']): ConsoleEntry {
 // Assets + Console live in BottomDock (EditorLayout), not here.
 // ---------------------------------------------------------------------------
 
+function LegacyMigrateBanner() {
+  const { state, dispatch } = useEditor()
+  if (!state.legacyMigrateBanner) return null
+  return (
+    <div className="shrink-0 px-3 py-1.5 bg-[var(--accent-bg)] border-b border-[var(--accent-bd)]
+                    text-[11px] text-[var(--text)] flex items-center justify-between gap-2">
+      <span>
+        Project upgraded to Object Types (format v2). Save to keep the new layout on disk.
+      </span>
+      <button
+        type="button"
+        className="text-[10px] font-semibold text-[var(--accent)] hover:underline"
+        onClick={() => dispatch({ type: 'DISMISS_LEGACY_MIGRATE_BANNER' })}
+      >
+        Dismiss
+      </button>
+    </div>
+  )
+}
+
 function CanvasView() {
   const { state } = useEditor()
   const [leftW, setLeftW]   = usePersistedWidth('artcade.sidebar-left-w-v2',  256)
@@ -48,7 +68,9 @@ function CanvasView() {
   const isEditingTileset = state.editingTilesetId != null
 
   return (
-    <div className="flex flex-1 min-h-0 overflow-hidden">
+    <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
+      <LegacyMigrateBanner />
+      <div className="flex flex-1 min-h-0 overflow-hidden">
 
       {/* Left sidebar — Scenes + Objects */}
       <aside
@@ -85,6 +107,7 @@ function CanvasView() {
       >
         <InspectorPanel />
       </aside>
+      </div>
     </div>
   )
 }

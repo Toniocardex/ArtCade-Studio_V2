@@ -70,6 +70,8 @@ export interface CoreState {
    * runtime reset, etc.).
    */
   projectLoadEpoch: number
+  /** True once after opening a legacy project upgraded to format v2 in memory. */
+  legacyMigrateBanner?: boolean
   /** UI presentation tier: guidance/density only (see LOGIC_BOARD_UX_CHARTER). */
   authoringMode: AuthoringMode
 }
@@ -103,7 +105,8 @@ export type Action =
   | { type: 'SET_ACTIVE_SCRIPT'; path: string }
   | { type: 'LOG';               entry: ConsoleEntry }
   | { type: 'SET_CURSOR';        x: number; y: number }
-  | { type: 'LOAD_PROJECT';      project: ProjectDoc; path: string }
+  | { type: 'LOAD_PROJECT';      project: ProjectDoc; path: string; migratedFromLegacy?: boolean }
+  | { type: 'DISMISS_LEGACY_MIGRATE_BANNER' }
   | { type: 'PROJECT_RENAME';    name: string }
   | { type: 'MARK_PROJECT_SAVED' }
   | { type: 'MARK_SCRIPT_SAVED'; path: string }
@@ -115,6 +118,8 @@ export type Action =
   | { type: 'ENTITY_SET_COMPONENT';    entityId: number; key: ComponentKey; value: object }
   | { type: 'ENTITY_REMOVE_COMPONENT'; entityId: number; key: ComponentKey }
   | { type: 'ENTITY_ADD';        sceneId: string }
+  | { type: 'OBJECT_TYPE_ADD';   displayName: string }
+  | { type: 'INSTANCE_ADD_FROM_TYPE'; sceneId: string; objectTypeId: string }
   | { type: 'ENTITY_DUPLICATE';  entityId: number; sceneId: string }
   | { type: 'ENTITY_DELETE';     entityId: number }
   | { type: 'ENTITY_SET_VISIBLE'; entityId: number; visible: boolean }
