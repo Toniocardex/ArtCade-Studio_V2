@@ -1,15 +1,17 @@
 import type { DialogCommand } from '../../utils/dialog/dialog-script'
 import { DialogCommandCard } from './DialogCommandCard'
 
+type DialogChoiceBranchEditorProps = Readonly<{
+  commands: DialogCommand[]
+  onChange: (commands: DialogCommand[]) => void
+  depth?: number
+}>
+
 export function DialogChoiceBranchEditor({
   commands,
   onChange,
   depth = 0,
-}: {
-  commands: DialogCommand[]
-  onChange: (commands: DialogCommand[]) => void
-  depth?: number
-}) {
+}: DialogChoiceBranchEditorProps) {
   const pad = depth > 0 ? 'ml-4 border-l-2 border-[var(--border)] pl-3' : ''
 
   function updateAt(i: number, cmd: DialogCommand) {
@@ -25,10 +27,12 @@ export function DialogChoiceBranchEditor({
   function moveAt(i: number, dir: -1 | 1) {
     const j = i + dir
     if (j < 0 || j >= commands.length) return
+    const a = commands[i]
+    const b = commands[j]
+    if (a === undefined || b === undefined) return
     const next = [...commands]
-    const tmp = next[i]!
-    next[i] = next[j]!
-    next[j] = tmp
+    next[i] = b
+    next[j] = a
     onChange(next)
   }
 
@@ -62,7 +66,7 @@ export function DialogChoiceBranchEditor({
   )
 }
 
-function AddCmdButton({ label, onClick }: { label: string; onClick: () => void }) {
+function AddCmdButton({ label, onClick }: Readonly<{ label: string; onClick: () => void }>) {
   return (
     <button
       type="button"
