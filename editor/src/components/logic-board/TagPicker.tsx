@@ -29,19 +29,22 @@ export function isTagPickerOtherMode(
   return value !== '' && !tags.includes(value)
 }
 
+export type TagPickerProps = Readonly<{
+  value: string
+  onChange: (tag: string) => void
+  /** Override for tests; otherwise from open project. */
+  tags?: string[]
+  allowEmpty?: boolean
+  emptyLabel?: string
+}>
+
 export function TagPicker({
   value,
   onChange,
   tags: tagsProp,
   allowEmpty = true,
   emptyLabel = '— Any tag —',
-}: {
-  value: string
-  onChange: (tag: string) => void
-  tags?: string[]
-  allowEmpty?: boolean
-  emptyLabel?: string
-}) {
+}: TagPickerProps) {
   const { state } = useEditor()
   const tags = useMemo(
     () => tagsProp ?? (state.project ? allEntityTags(state.project) : []),
