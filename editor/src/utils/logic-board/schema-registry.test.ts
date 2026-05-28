@@ -4,10 +4,12 @@ import {
   listConditionTypes,
   listTriggerTypes,
   validateAction,
+  validateActionTree,
   validateCondition,
   validateConditionNode,
   validateLogicBoard,
   validateLogicBoardDoc,
+  validateActionTree,
   validateLogicEvent,
   validateTrigger,
 } from './schema-registry'
@@ -127,5 +129,32 @@ describe('schema-registry', () => {
   it('rejects leaf without condition', () => {
     const r = validateConditionNode({ kind: 'leaf' })
     expect(r.valid).toBe(false)
+  })
+})
+
+describe('validateActionTree', () => {
+  it('validates nested wait.then actions', () => {
+    const r = validateActionTree(
+      {
+        type: 'wait',
+        seconds: 1,
+        then: [{ type: 'debugLog', message: 'ok' }],
+      },
+      '/actions[0]',
+    )
+    expect(r.valid).toBe(true)
+  })
+
+  it('rejects invalid nested wait.then actions', () => {
+    const r = validateActionTree(
+      {
+        type: 'wait',
+        seconds: 1,
+        then: [{ type: 'not_a_real_action' }],
+      },
+      '/actions[0]',
+    )
+    expect(r.valid).toBe(false)
+    expect(r.errors.some((e) => e.path.includes('/then[0]'))).toBe(true)
   })
 })

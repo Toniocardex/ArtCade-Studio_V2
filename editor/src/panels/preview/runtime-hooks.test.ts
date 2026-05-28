@@ -20,9 +20,11 @@ vi.mock('../../utils/runtime-sync-service', () => ({
   },
 }))
 
+const resolvePreviewMainLuaMock = vi.fn(() => ({ lua: 'function tick(dt) end', compileError: null }))
 vi.mock('../../utils/preview-restore', () => ({
-  resolvePreviewMainLuaWithStatus: vi.fn(() => ({ lua: 'function tick(dt) end', compileError: null })),
+  resolvePreviewMainLuaWithStatus: resolvePreviewMainLuaMock,
   logLogicBoardCompileFailure: vi.fn(),
+  getPreviewLuaSyncKey: vi.fn(() => 'sync-key'),
 }))
 
 const { shouldSyncProjectToRuntime, performRuntimeProjectSync } = await import('./runtime-hooks')

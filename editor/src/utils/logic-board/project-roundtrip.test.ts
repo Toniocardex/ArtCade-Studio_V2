@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { parseProjectDoc, serializeProjectDoc } from '../project'
-import { parseLogicBoards } from './factory'
+import { parseLogicBoards, parseLogicBoardsWithIssues } from './factory'
 import type { LogicBoard } from '../../types/logic-board'
 
 const SAMPLE_BOARD: LogicBoard = {
@@ -59,6 +59,27 @@ describe('parseLogicBoards — defensive', () => {
     expect(boards).toHaveLength(1)
     expect(boards?.[0].boardId).toBe('ok')
     expect(boards?.[0].events).toHaveLength(1)
+  })
+
+  it('keeps schema-invalid events and records load issues', () => {
+    const { doc, issues } = parseLogicBoardsWithIssues([
+      {
+        boardId: 'broken',
+        target: { type: 'entity_class', className: 'P' },
+        events: [
+          {
+            id: 'bad',
+            enabled: true,
+            trigger: { type: 'onUpdate' },
+            actions: [{ type: 'not_a_real_action_type' }],
+          },
+        ],
+      },
+    ])
+    expect(doc).toHaveLength(1)
+    expect(doc?.[0].events).toHaveLength(1)
+    expect(issues.length).toBeGreaterThan(0)
+    expect(issues[0].boardId).toBe('broken')
   })
 
   it('defaults enabled to true when omitted', () => {

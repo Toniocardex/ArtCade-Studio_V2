@@ -302,6 +302,18 @@ describe('RuntimeSyncService', () => {
     expect(bridge.editorRestoreFromProject).not.toHaveBeenCalled()
   })
 
+  it('applyMainLua does not cache Lua when editorReloadScript fails', () => {
+    runtimeSync.reset()
+    vi.mocked(bridge.editorReloadScript).mockReturnValue(false)
+    expect(runtimeSync.applyMainLua('function tick(dt) end')).toBe(false)
+
+    vi.mocked(bridge.editorReloadScript).mockReturnValue(true)
+    expect(runtimeSync.applyMainLua('function tick(dt) end')).toBe(true)
+    vi.mocked(bridge.editorReloadScript).mockClear()
+    expect(runtimeSync.applyMainLua('function tick(dt) end')).toBe(false)
+    expect(bridge.editorReloadScript).not.toHaveBeenCalled()
+  })
+
   it('applyMainLua reloads once and syncProject skips duplicate Lua', () => {
     const p = makeProject()
     const luaV1 = 'function tick(dt) end'

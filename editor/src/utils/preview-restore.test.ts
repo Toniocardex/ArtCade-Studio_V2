@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import {
+  getPreviewLuaSyncKey,
   logLogicBoardCompileFailure,
   resolvePreviewMainLua,
   resolvePreviewMainLuaWithStatus,
@@ -149,6 +150,41 @@ describe('resolvePreviewMainLua', () => {
       projectPath: key,
     })
     expect(lua).toBe(goodLua)
+  })
+})
+
+describe('getPreviewLuaSyncKey', () => {
+  it('ignores keystrokes on non-main script tabs', () => {
+    const project = makeProject()
+    const base = {
+      project: project as never,
+      projectPath: '/tmp/p',
+      openScripts: [] as { path: string; content: string; isDirty: boolean }[],
+    }
+    const keyA = getPreviewLuaSyncKey({
+      ...base,
+      openScripts: [{ path: 'scripts/other.lua', content: 'a', isDirty: true }],
+    })
+    const keyB = getPreviewLuaSyncKey({
+      ...base,
+      openScripts: [{ path: 'scripts/other.lua', content: 'bbbb', isDirty: true }],
+    })
+    expect(keyA).toBe(keyB)
+  })
+
+  it('changes when the main script tab is dirty-edited', () => {
+    const project = makeProject()
+    const keyA = getPreviewLuaSyncKey({
+      project: project as never,
+      projectPath: '/tmp/p',
+      openScripts: [{ path: 'scripts/main.lua', content: 'v1', isDirty: true }],
+    })
+    const keyB = getPreviewLuaSyncKey({
+      project: project as never,
+      projectPath: '/tmp/p',
+      openScripts: [{ path: 'scripts/main.lua', content: 'v2', isDirty: true }],
+    })
+    expect(keyA).not.toBe(keyB)
   })
 })
 
