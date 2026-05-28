@@ -5,19 +5,21 @@ const sel =
 const inp =
   'bg-[var(--bg)] border border-[var(--border-2)] text-[var(--text)] px-2 py-1 rounded text-xs'
 
-export function TargetPicker({
-  value,
-  onChange,
-}: {
+export type TargetPickerKind = 'self' | 'other' | 'entityId' | 'className'
+
+export function targetPickerKind(value: TargetSelector): TargetPickerKind {
+  if (value === 'self' || value === 'other') return value
+  if (typeof value === 'object' && 'entityId' in value) return 'entityId'
+  return 'className'
+}
+
+export type TargetPickerProps = Readonly<{
   value: TargetSelector
   onChange: (t: TargetSelector) => void
-}) {
-  const kind =
-    value === 'self' || value === 'other'
-      ? value
-      : typeof value === 'object' && 'entityId' in value
-        ? 'entityId'
-        : 'className'
+}>
+
+export function TargetPicker({ value, onChange }: TargetPickerProps) {
+  const kind = targetPickerKind(value)
   return (
     <span className="flex items-center gap-1">
       <select
@@ -40,7 +42,9 @@ export function TargetPicker({
           type="number"
           className={`${inp} w-16`}
           value={value.entityId}
-          onChange={(e) => onChange({ entityId: parseFloat(e.target.value) || 0 })}
+          onChange={(e) =>
+            onChange({ entityId: Number.parseFloat(e.target.value) || 0 })
+          }
         />
       )}
       {kind === 'className' && typeof value === 'object' && 'className' in value && (
