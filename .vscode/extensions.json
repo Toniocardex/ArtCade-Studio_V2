@@ -1,6 +1,7 @@
 {
   "recommendations": [
     "sonarsource.sonarlint-vscode",
-    "ms-vscode.cpptools"
+    "ms-vscode.cpptools",
+    "bradlc.vscode-tailwindcss"
   ]
 }
