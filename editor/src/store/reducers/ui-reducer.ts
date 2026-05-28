@@ -19,7 +19,7 @@ import {
 function syncConsoleOpen(state: CoreState): CoreState {
   return {
     ...state,
-    consoleOpen: !state.bottomPanelCollapsed && state.bottomPanelTab === 'console',
+    consoleOpen: !state.bottomPanelCollapsed,
   }
 }
 
@@ -32,13 +32,8 @@ export const uiReducer: DomainReducer = (state: CoreState, action: Action) => {
         ...state,
         selection: { ...state.selection, sceneId: action.sceneId, entityId: null },
       }
-    case 'SET_MODE': {
-      const next = { ...state, mode: action.mode }
-      if (action.mode !== 'canvas' && next.bottomPanelTab === 'assets') {
-        return syncConsoleOpen({ ...next, bottomPanelTab: 'console' })
-      }
-      return next
-    }
+    case 'SET_MODE':
+      return { ...state, mode: action.mode }
     case 'SET_AUTHORING_MODE': {
       if (state.authoringMode === action.mode) return state
       persistAuthoringMode(action.mode)
@@ -46,40 +41,27 @@ export const uiReducer: DomainReducer = (state: CoreState, action: Action) => {
       return { ...state, authoringMode: action.mode }
     }
     case 'TOGGLE_CONSOLE':
-      if (state.bottomPanelCollapsed || state.bottomPanelTab !== 'console') {
-        return syncConsoleOpen({
-          ...state,
-          bottomPanelTab: 'console',
-          bottomPanelCollapsed: false,
-        })
-      }
-      return syncConsoleOpen({ ...state, bottomPanelCollapsed: true })
-    case 'SET_CONSOLE_OPEN':
-      if (action.open) {
-        return syncConsoleOpen({
-          ...state,
-          bottomPanelTab: 'console',
-          bottomPanelCollapsed: false,
-        })
-      }
-      if (state.mode === 'canvas') {
-        return syncConsoleOpen({
-          ...state,
-          bottomPanelTab: 'assets',
-          bottomPanelCollapsed: false,
-        })
-      }
-      return syncConsoleOpen({ ...state, bottomPanelCollapsed: true })
-    case 'SET_BOTTOM_PANEL_TAB':
       return syncConsoleOpen({
         ...state,
-        bottomPanelTab: action.tab,
-        bottomPanelCollapsed: false,
+        bottomPanelCollapsed: !state.bottomPanelCollapsed,
+      })
+    case 'SET_CONSOLE_OPEN':
+      return syncConsoleOpen({
+        ...state,
+        bottomPanelCollapsed: !action.open,
       })
     case 'SET_BOTTOM_PANEL_COLLAPSED':
       return state.bottomPanelCollapsed === action.collapsed
         ? state
         : syncConsoleOpen({ ...state, bottomPanelCollapsed: action.collapsed })
+    case 'LOG':
+      if (
+        state.bottomPanelCollapsed &&
+        (action.entry.level === 'warn' || action.entry.level === 'error')
+      ) {
+        return syncConsoleOpen({ ...state, bottomPanelCollapsed: false })
+      }
+      return state
     case 'ACKNOWLEDGE_CONSOLE_LOGS':
       return action.upToId <= state.consoleAckUpToId
         ? state
@@ -104,15 +86,11 @@ export const uiReducer: DomainReducer = (state: CoreState, action: Action) => {
         ? state
         : { ...state, snapToGrid: action.enabled }
     case 'EDITOR_SET_ZOOM': {
-      // Any explicit user zoom action releases fit-tracking: the user is
-      // saying "I want THIS percentage", not "follow the panel".
       const next = clampEditorZoom(action.zoom)
       if (state.editorZoom === next && state.editorZoomMode === 'manual') return state
       return { ...state, editorZoom: next, editorZoomMode: 'manual' }
     }
     case 'EDITOR_SET_FIT_ZOOM': {
-      // The fit-to-panel computation dispatches this so panel resizes can
-      // re-fit later. Mode stays 'fit'; only the percentage moves.
       const next = clampEditorZoom(action.zoom)
       if (state.editorZoom === next && state.editorZoomMode === 'fit') return state
       return { ...state, editorZoom: next, editorZoomMode: 'fit' }

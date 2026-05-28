@@ -1,67 +1,73 @@
 import { describe, it, expect } from 'vitest'
 import { uiReducer } from './reducers/ui-reducer'
 import { initialCoreState, type CoreState } from './editor-store-state'
+import type { ConsoleEntry } from '../types'
 
 function base(overrides: Partial<CoreState> = {}): CoreState {
   return { ...initialCoreState, ...overrides }
 }
 
-describe('uiReducer — bottom dock / console', () => {
-  it('TOGGLE_CONSOLE opens Console tab when collapsed on Assets', () => {
-    const s = uiReducer(base(), { type: 'TOGGLE_CONSOLE' })
-    expect(s.bottomPanelTab).toBe('console')
+function logEntry(level: ConsoleEntry['level'], id: number): ConsoleEntry {
+  return { id, time: '12:00:00', message: 'test', level }
+}
+
+describe('uiReducer — console dock', () => {
+  it('TOGGLE_CONSOLE expands when collapsed', () => {
+    const s = uiReducer(base({ bottomPanelCollapsed: true }), { type: 'TOGGLE_CONSOLE' })
     expect(s.bottomPanelCollapsed).toBe(false)
     expect(s.consoleOpen).toBe(true)
   })
 
-  it('TOGGLE_CONSOLE collapses when Console is already expanded', () => {
-    const start = base({
-      bottomPanelTab: 'console',
-      bottomPanelCollapsed: false,
-      consoleOpen: true,
-    })
+  it('TOGGLE_CONSOLE collapses when expanded', () => {
+    const start = base({ bottomPanelCollapsed: false, consoleOpen: true })
     const s = uiReducer(start, { type: 'TOGGLE_CONSOLE' })
     expect(s.bottomPanelCollapsed).toBe(true)
     expect(s.consoleOpen).toBe(false)
   })
 
-  it('SET_BOTTOM_PANEL_TAB switches tab and expands', () => {
-    const start = base({ bottomPanelTab: 'assets', bottomPanelCollapsed: true })
-    const s = uiReducer(start, { type: 'SET_BOTTOM_PANEL_TAB', tab: 'console' })
-    expect(s.bottomPanelTab).toBe('console')
+  it('SET_CONSOLE_OPEN(true) expands the dock', () => {
+    const s = uiReducer(base({ bottomPanelCollapsed: true }), {
+      type: 'SET_CONSOLE_OPEN',
+      open: true,
+    })
     expect(s.bottomPanelCollapsed).toBe(false)
     expect(s.consoleOpen).toBe(true)
   })
 
-  it('SET_CONSOLE_OPEN(false) in canvas mode returns to Assets tab', () => {
-    const start = base({
-      bottomPanelTab: 'console',
-      bottomPanelCollapsed: false,
-      consoleOpen: true,
-    })
+  it('SET_CONSOLE_OPEN(false) collapses the dock in canvas mode', () => {
+    const start = base({ bottomPanelCollapsed: false, consoleOpen: true })
     const s = uiReducer(start, { type: 'SET_CONSOLE_OPEN', open: false })
-    expect(s.bottomPanelTab).toBe('assets')
-    expect(s.bottomPanelCollapsed).toBe(false)
-    expect(s.consoleOpen).toBe(false)
-  })
-
-  it('SET_CONSOLE_OPEN(false) in logic mode collapses the dock', () => {
-    const start = base({
-      mode: 'logic',
-      bottomPanelTab: 'console',
-      bottomPanelCollapsed: false,
-      consoleOpen: true,
-    })
-    const s = uiReducer(start, { type: 'SET_CONSOLE_OPEN', open: false })
-    expect(s.bottomPanelTab).toBe('console')
     expect(s.bottomPanelCollapsed).toBe(true)
     expect(s.consoleOpen).toBe(false)
   })
 
-  it('SET_MODE away from canvas forces Console tab when on Assets', () => {
-    const start = base({ mode: 'canvas', bottomPanelTab: 'assets' })
-    const s = uiReducer(start, { type: 'SET_MODE', mode: 'logic' })
-    expect(s.bottomPanelTab).toBe('console')
+  it('SET_CONSOLE_OPEN(false) collapses the dock in logic mode', () => {
+    const start = base({
+      mode: 'logic',
+      bottomPanelCollapsed: false,
+      consoleOpen: true,
+    })
+    const s = uiReducer(start, { type: 'SET_CONSOLE_OPEN', open: false })
+    expect(s.bottomPanelCollapsed).toBe(true)
+    expect(s.consoleOpen).toBe(false)
+  })
+
+  it('LOG warn/error auto-expands collapsed console', () => {
+    const s = uiReducer(base({ bottomPanelCollapsed: true }), {
+      type: 'LOG',
+      entry: logEntry('error', 1),
+    })
+    expect(s.bottomPanelCollapsed).toBe(false)
+    expect(s.consoleOpen).toBe(true)
+  })
+
+  it('LOG info does not expand collapsed console', () => {
+    const s = uiReducer(base({ bottomPanelCollapsed: true }), {
+      type: 'LOG',
+      entry: logEntry('info', 1),
+    })
+    expect(s.bottomPanelCollapsed).toBe(true)
+    expect(s.consoleOpen).toBe(false)
   })
 
   it('ACKNOWLEDGE_CONSOLE_LOGS only moves the watermark forward', () => {

@@ -84,10 +84,12 @@ Per elevare l'estetica dei giochi senza richiedere codice GLSL, l'engine include
 ---
 
 ## 5. Struttura Suggerita per la UI (IDE React/Tauri)
-L'interfaccia utente è pensata come un ambiente scuro (Dark Mode), pulito ed enterprise-grade basato su pannelli ridimensionabili (layout a 4 colonne):
-* **Colonna 1 (Sinistra):** Esploratore delle Scene e dell'albero degli Asset (Sprite, Audio, Classi). Supporta il drag-and-drop diretto dal sistema operativo.
+L'interfaccia utente è pensata come un ambiente scuro (Dark Mode), pulito ed enterprise-grade basato su pannelli ridimensionabili. Il **viewport WASM** resta l'area protagonista al centro.
+* **Colonna 1 (Sinistra, canvas):** Scenes + Objects in alto; **Asset browser** in basso (split ridimensionabile, sezione collassabile). Drag-and-drop immagini dal sistema operativo.
 * **Colonna 2 (Centro):** Area di lavoro principale divisa in Tab intercambiabili: la *Scena Visiva* (livello su griglia WYSIWYG) e la *Logic Board* (i blocchi logici disposti in verticale con codice colore associato per macro-categoria).
 * **Colonna 3 (Destra):** Pannello delle Proprietà contestuale. Ospita controlli **artist-friendly**:
+* **Console (basso, tutte le modalità):** Pannello dedicato ai log (build, runtime, Lua) — ridimensionabile, collassabile di default; si espande automaticamente su warn/error.
+* **Barra di stato:** Metadati (runtime, zoom, cursore, selezione); toggle console (Ctrl+`).
     * La bussola rotante per definire gli angoli di movimento.
     * Il Color Picker nativo per tinte e shader.
     * Le checkbox per l'ereditarietà delle trasformazioni (`inheritFlip`).

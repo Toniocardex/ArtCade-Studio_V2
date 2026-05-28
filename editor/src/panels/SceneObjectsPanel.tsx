@@ -291,7 +291,7 @@ export default function SceneObjectsPanel() {
   }
 
   return (
-    <div className="h-full flex flex-col bg-[var(--panel)]" data-panel="scene-objects">
+    <div className="h-full min-h-0 flex flex-col bg-[var(--panel)]" data-panel="scene-objects">
       <PanelHeader title="Scenes">
         <AddSceneButton onClick={addScene} />
       </PanelHeader>

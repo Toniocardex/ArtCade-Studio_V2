@@ -24,7 +24,6 @@ function minimalState(overrides: Partial<CoreState> = {}): CoreState {
     selection: { entityId: null, sceneId: 's1' },
     mode: 'logic',
     consoleOpen: false,
-    bottomPanelTab: 'console',
     bottomPanelCollapsed: false,
     consoleAckUpToId: 0,
     editingTilesetId: null,

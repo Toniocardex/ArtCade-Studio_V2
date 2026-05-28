@@ -17,7 +17,7 @@ export default function StatusBar() {
   const { state: volatile } = useConsoleLogs()
   const {
     project, selection, isPlaying, projectDirty, editorGridSize, snapToGrid,
-    editorZoom, editorZoomMode, cameraPreview, consoleOpen, bottomPanelCollapsed,
+    editorZoom, editorZoomMode, cameraPreview, bottomPanelCollapsed,
     consoleAckUpToId,
   } = state
   const { cursorPos, consoleLogs } = volatile
@@ -35,14 +35,14 @@ export default function StatusBar() {
   )
 
   const issueCount = useMemo(() => {
-    if (consoleOpen) return 0
+    if (!bottomPanelCollapsed) return 0
     return consoleLogs.filter(
       (e) => (e.level === 'warn' || e.level === 'error') && e.id > consoleAckUpToId,
     ).length
-  }, [consoleLogs, consoleOpen, consoleAckUpToId])
+  }, [consoleLogs, bottomPanelCollapsed, consoleAckUpToId])
 
-  function openConsole() {
-    dispatch({ type: 'SET_CONSOLE_OPEN', open: true })
+  function toggleConsole() {
+    dispatch({ type: 'TOGGLE_CONSOLE' })
   }
 
   const runtime = runtimeDisplay(isPlaying, isWasmReady())
@@ -76,10 +76,10 @@ export default function StatusBar() {
       <div className="flex items-center gap-4">
         <button
           type="button"
-          onClick={openConsole}
-          title="Open console (Ctrl+`)"
+          onClick={toggleConsole}
+          title="Toggle console (Ctrl+`)"
           className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border transition-colors ${
-            consoleOpen && !bottomPanelCollapsed
+            !bottomPanelCollapsed
               ? 'border-[rgb(var(--accent-rgb)/0.5)] text-[var(--accent)]'
               : 'border-transparent hover:border-[var(--border)] hover:text-[var(--text)]'
           }`}

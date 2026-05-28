@@ -217,8 +217,8 @@ export default function PreviewPanel() {
   // reducer flips mode to 'manual' and this observer becomes a no-op.
   //
   // Why ResizeObserver and not window resize? The scroll area shrinks and
-  // grows without the window resizing — toggling the asset browser tab is
-  // the obvious case, and a window-only listener would miss it.
+  // grows without the window resizing — toggling the console dock or left
+  // assets panel is the obvious case, and a window-only listener would miss it.
   useLayoutEffect(() => {
     if (editorZoomMode !== 'fit') return
     const el = scrollRef.current

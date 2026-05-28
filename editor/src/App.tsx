@@ -3,9 +3,9 @@ import { EditorProvider, useEditor } from './store/editor-store'
 import MenuBar            from './components/MenuBar'
 import ModuleRail from './components/ModuleRail'
 import StatusBar          from './components/StatusBar'
-import BottomDock         from './components/BottomDock'
+import ConsoleDock        from './components/ConsoleDock'
+import LeftSidebar        from './components/LeftSidebar'
 import ResizeHandle       from './components/ResizeHandle'
-import SceneObjectsPanel from './panels/SceneObjectsPanel'
 import PreviewPanel       from './panels/PreviewPanel'
 import InspectorPanel     from './panels/InspectorPanel'
 import { createBlankProject } from './utils/project'
@@ -40,7 +40,7 @@ function bootLog(message: string, level: ConsoleEntry['level']): ConsoleEntry {
 // ---------------------------------------------------------------------------
 // CANVAS mode layout: scene objects | viewport (or tileset editor) | inspector
 // Sidebars are user-resizable; widths persist in localStorage.
-// Assets + Console live in BottomDock (EditorLayout), not here.
+// Assets live in LeftSidebar; console in ConsoleDock (EditorLayout).
 // ---------------------------------------------------------------------------
 
 function LegacyMigrateBanner() {
@@ -80,7 +80,7 @@ function CanvasView() {
         style={{ width: leftW }}
         className="border-r border-[var(--border)] flex-shrink-0 overflow-hidden bg-[var(--panel)]"
       >
-        <SceneObjectsPanel />
+        <LeftSidebar />
       </aside>
       <ResizeHandle side="left" onResize={(d) => setLeftW((w) => w + d)} />
 
@@ -221,7 +221,7 @@ function EditorLayout() {
           {state.mode === 'dialog' && <DialogEditorView />}
         </div>
 
-        <BottomDock />
+        <ConsoleDock />
 
         <StatusBar />
         </div>

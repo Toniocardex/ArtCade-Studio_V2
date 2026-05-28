@@ -33,8 +33,7 @@ export const projectReducer: DomainReducer = (state: CoreState, action: Action) 
         activeScriptPath: null,
         isPlaying:   false,
         consoleOpen:           false,
-        bottomPanelTab:        'assets',
-        bottomPanelCollapsed:  false,
+        bottomPanelCollapsed:  true,
         consoleAckUpToId:      0,
         editingTilesetId: null,    // reset tileset sub-view
         editorZoom:       EDITOR_BOOT_ZOOM,
