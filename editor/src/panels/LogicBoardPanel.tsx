@@ -148,12 +148,18 @@ function executeApplyLogic({
     return
   }
   if (state.isPlaying) {
-    dispatch({ type: 'SET_PLAYING', playing: false })
     const activeSceneId = selectionSceneId ?? project.activeSceneId
-    const ok = runtimeSync.restorePreviewFromProject(
-      project, activeSceneId, compileResult.lua, state.dialogs, state.projectPath,
-    )
-    if (!ok) {
+    const outcome = runtimeSync.transitionPreview('stop', {
+      project,
+      activeSceneId,
+      mainLua: compileResult.lua,
+      dialogs: state.dialogs,
+      projectPath: state.projectPath,
+    })
+    if (outcome.nextPlaying !== state.isPlaying) {
+      dispatch({ type: 'SET_PLAYING', playing: outcome.nextPlaying })
+    }
+    if (!outcome.ok) {
       flashApplyMsg('Failed to reset preview — see console.')
       dispatch({
         type: 'LOG',

@@ -7,7 +7,11 @@ import {
   ensureDependencies,
 } from '../../utils/api'
 import { dirName } from '../../utils/project'
-import { runtimeSync, messageForEditorApiCode } from '../../utils/runtime-sync-service'
+import {
+  runtimeSync,
+  messageForEditorApiCode,
+  type PreviewTransitionBundle,
+} from '../../utils/runtime-sync-service'
 import {
   logLogicBoardCompileFailure,
   resolvePreviewMainLua,
@@ -73,54 +77,56 @@ export function useBuildToolbarActions({
   )
 
   const handlePlayStop = useCallback(() => {
+    if (!project) {
+      dispatch({
+        type: 'LOG',
+        entry: makeConsoleEntry('[Preview] No project loaded.', 'warn'),
+      })
+      return
+    }
+
+    const activeSceneId = selectionSceneId ?? project.activeSceneId
+    let mainLua: string
     if (isPlaying) {
-      dispatch({ type: 'SET_PLAYING', playing: false })
-      if (project) {
-        const activeSceneId = selectionSceneId ?? project.activeSceneId
-        const mainLua = resolvePreviewMainLua({ project, openScripts, projectPath })
-        const stopResult = runtimeSync.exitPlaySession(
-          project, activeSceneId, mainLua, dialogs, projectPath,
-        )
-        if (!stopResult.ok) {
-          dispatch({
-            type: 'LOG',
-            entry: makeConsoleEntry(
-              `[Preview] Stop failed: ${stopResult.message ?? messageForEditorApiCode(stopResult.code)}`,
-              'error',
-            ),
-          })
-        }
-      }
+      mainLua = resolvePreviewMainLua({ project, openScripts, projectPath })
     } else {
-      if (project) {
-        const { lua: mainLua, compileError } = resolvePreviewMainLuaWithStatus({
-          project,
-          openScripts,
-          projectPath,
-        })
-        logLogicBoardCompileFailure(dispatch, compileError, makeConsoleEntry)
-        const activeSceneId = selectionSceneId ?? project.activeSceneId
-        const playResult = runtimeSync.enterPlaySession(
-          project, activeSceneId, mainLua, dialogs, projectPath,
-        )
-        if (!playResult.ok) {
-          dispatch({
-            type: 'LOG',
-            entry: makeConsoleEntry(
-              `[Preview] Play failed: ${playResult.message ?? messageForEditorApiCode(playResult.code)}`,
-              'error',
-            ),
-          })
-          return
-        }
-      }
+      const resolved = resolvePreviewMainLuaWithStatus({ project, openScripts, projectPath })
+      logLogicBoardCompileFailure(dispatch, resolved.compileError, makeConsoleEntry)
+      mainLua = resolved.lua
+    }
+
+    const bundle: PreviewTransitionBundle = {
+      project,
+      activeSceneId,
+      mainLua,
+      dialogs,
+      projectPath,
+    }
+    const outcome = runtimeSync.transitionPreview(isPlaying ? 'stop' : 'play', bundle)
+
+    if (outcome.nextPlaying !== isPlaying) {
+      dispatch({ type: 'SET_PLAYING', playing: outcome.nextPlaying })
+    }
+
+    if (!outcome.ok) {
+      const label = isPlaying ? 'Stop' : 'Play'
+      dispatch({
+        type: 'LOG',
+        entry: makeConsoleEntry(
+          `[Preview] ${label} failed: ${outcome.message ?? messageForEditorApiCode(outcome.code)}`,
+          'error',
+        ),
+      })
+      return
+    }
+
+    if (!isPlaying) {
       if (document.activeElement instanceof HTMLElement) {
         document.activeElement.blur()
       }
       if (mode !== 'canvas') {
         dispatch({ type: 'SET_MODE', mode: 'canvas' })
       }
-      dispatch({ type: 'SET_PLAYING', playing: true })
     }
   }, [dispatch, dialogs, isPlaying, mode, openScripts, project, projectPath, selectionSceneId])
 

@@ -460,13 +460,13 @@ EMSCRIPTEN_KEEPALIVE int editor_exit_play_mode(
     if (!ArtCade::EditorAPI::s_entityGateway)
         return ArtCade::kEditorApiNotWired;
 
-    ArtCade::EditorAPI::s_mode = 0;
-    if (auto* gw = ArtCade::EditorAPI::s_entityGateway)
-        gw->restoreDesignVisibilityForEdit();
-
     const std::string luaCopy = lua_utf8 ? lua_utf8 : std::string{};
     if (!loadProjectFromJson(project_json, ProjectLoadKind::ExitPlay, &luaCopy))
         return ArtCade::kEditorApiJsonError;
+
+    ArtCade::EditorAPI::s_mode = 0;
+    if (auto* gw = ArtCade::EditorAPI::s_entityGateway)
+        gw->restoreDesignVisibilityForEdit();
 
     ArtCade::EditorAPI::notifyConsoleLine("[EditorAPI] Mode: EDIT", "info");
     return ArtCade::kEditorApiOk;

@@ -71,12 +71,13 @@ ArtCade V2 è costruito su **3 pilastri architetturali**:
 ```
 ┌─ Editor React ─────────────────────────────────────────────┐
 │ User clicca ▶ PLAY                                         │
-│  └─ MenuBar.tsx dispatches "SET_PLAYING: true"            │
+│  └─ runtimeSync.transitionPreview('play', bundle)         │
+│     └─ on success only: SET_PLAYING true                  │
 └─────────────────────────────────────────────────────────────┘
                           │
                           ↓
 ┌─ React → C++ (Imperative) ────────────────────────────────┐
-│ editorSetMode(1)  via Module.ccall()                       │
+│ editor_enter_play_mode(project, lua, dialogs)              │
 └─────────────────────────────────────────────────────────────┘
                           │
                           ↓
@@ -146,12 +147,13 @@ ArtCade V2 è costruito su **3 pilastri architetturali**:
 | **EDIT** | `0` | Frozen: render + gizmo/tile paint only; no `tickFixedStep` | Authoritative design state |
 | **PLAY** | `1` | Full fixed-step loop (Lua, physics, gameplay systems) | Immutable during play (incremental sync blocked) |
 | **STOP** | back to `0` | `editor_exit_play_mode` (atomic) | Reloaded into C++ from React store |
-| **Logic Board Apply** | implicit STOP if playing | `exitPlaySession` when playing, else `applyMainLua` | Unchanged in Inspector |
+| **Logic Board Apply** | implicit STOP if playing | `transitionPreview('stop', …)` when playing, else `applyMainLua` | Unchanged in Inspector |
 
 **PLAY / STOP (atomic, `runtime-sync-service`)**:
 
-- **PLAY:** `editor_enter_play_mode(projectJson, mainLua, dialogsJson)` — world sync, dialogs, Lua, `s_mode = 1` in one C++ transaction.
-- **STOP:** `editor_exit_play_mode(projectJson, mainLua)` — design restore, design-time Lua, `s_mode = 0`.
+- **Entry point:** `runtimeSync.transitionPreview('play' | 'stop', bundle)` — returns `nextPlaying` for the React store (unchanged on C++ failure).
+- **PLAY:** `editor_enter_play_mode(projectJson, mainLua, dialogsJson)` — world sync, dialogs, Lua, then `s_mode = 1`.
+- **STOP:** `editor_exit_play_mode(projectJson, mainLua)` — design restore + Lua first; `s_mode = 0` only on success.
 - **EDIT hot-sync:** `editor_load_project` no longer loads an empty Lua stub; `editor_reload_script` returns `EditorApiResult` (0 = ok).
 - React blocks `useRuntimeProjectSync` while `runtimeSync.isTransitioning()` to avoid racing STOP/PLAY.
 

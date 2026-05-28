@@ -350,6 +350,44 @@ describe('RuntimeSyncService', () => {
     expect(bridge.editorReloadScript).toHaveBeenCalledWith(luaV2)
   })
 
+  it('transitionPreview play sets nextPlaying only on success', () => {
+    const p = makeProject()
+    const bundle = {
+      project: p as never,
+      activeSceneId: 'a',
+      mainLua: 'function tick(dt) end',
+      dialogs: {},
+    }
+    vi.mocked(bridge.editorEnterPlayMode).mockReturnValue(2)
+    const fail = runtimeSync.transitionPreview('play', bundle)
+    expect(fail.ok).toBe(false)
+    expect(fail.nextPlaying).toBe(false)
+
+    vi.mocked(bridge.editorEnterPlayMode).mockReturnValue(0)
+    const ok = runtimeSync.transitionPreview('play', bundle)
+    expect(ok.ok).toBe(true)
+    expect(ok.nextPlaying).toBe(true)
+  })
+
+  it('transitionPreview stop keeps nextPlaying true on failure', () => {
+    const p = makeProject()
+    const bundle = {
+      project: p as never,
+      activeSceneId: 'a',
+      mainLua: 'function tick(dt) end',
+      dialogs: {},
+    }
+    vi.mocked(bridge.editorExitPlayMode).mockReturnValue(1)
+    const fail = runtimeSync.transitionPreview('stop', bundle)
+    expect(fail.ok).toBe(false)
+    expect(fail.nextPlaying).toBe(true)
+
+    vi.mocked(bridge.editorExitPlayMode).mockReturnValue(0)
+    const ok = runtimeSync.transitionPreview('stop', bundle)
+    expect(ok.ok).toBe(true)
+    expect(ok.nextPlaying).toBe(false)
+  })
+
   it('isTransitioning is true inside exitPlaySession', () => {
     const p = makeProject()
     let inside = false

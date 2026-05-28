@@ -21,7 +21,6 @@ import {
   editorDeselect,
   editorLoadProject,
   editorLoadDialogs,
-  editorRestoreFromProject,
   editorReloadScript,
   editorEnterPlayMode,
   editorExitPlayMode,
@@ -66,6 +65,20 @@ export interface PlayTransitionResult {
   /** C++ EditorApiResult or EDITOR_API_CCALL_FAILED. */
   code: number
   message?: string
+}
+
+/** Payload for `transitionPreview` — single entry point for PLAY / STOP. */
+export interface PreviewTransitionBundle {
+  project: ProjectDoc
+  activeSceneId: string
+  mainLua: string
+  dialogs: Record<string, DialogScript>
+  projectPath?: string | null
+}
+
+/** WASM transition result + desired React `isPlaying` (only commit store after C++ ok). */
+export interface PreviewTransitionOutcome extends PlayTransitionResult {
+  nextPlaying: boolean
 }
 
 export function messageForEditorApiCode(code: number): string {
@@ -230,7 +243,34 @@ class RuntimeSyncServiceImpl {
     dialogs?: Record<string, DialogScript>,
     projectPath?: string | null,
   ): boolean {
-    return this.exitPlaySession(project, activeSceneId, mainLua, dialogs, projectPath).ok
+    return this.transitionPreview('stop', {
+      project,
+      activeSceneId,
+      mainLua,
+      dialogs: dialogs ?? {},
+      projectPath,
+    }).ok
+  }
+
+  /**
+   * Single PLAY/STOP entry: runs the atomic C++ transition, then returns the
+   * `isPlaying` value the React store should adopt (unchanged on failure).
+   */
+  transitionPreview(
+    target: 'play' | 'stop',
+    bundle: PreviewTransitionBundle,
+  ): PreviewTransitionOutcome {
+    const { project, activeSceneId, mainLua, dialogs, projectPath } = bundle
+    if (target === 'play') {
+      const result = this.enterPlaySession(
+        project, activeSceneId, mainLua, dialogs, projectPath,
+      )
+      return { ...result, nextPlaying: result.ok }
+    }
+    const result = this.exitPlaySession(
+      project, activeSceneId, mainLua, dialogs, projectPath,
+    )
+    return { ...result, nextPlaying: result.ok ? false : true }
   }
 
   /**
@@ -343,11 +383,8 @@ class RuntimeSyncServiceImpl {
   }
 
   /** Hot-reload main Lua when the compiled source changes (logic boards, script tab). */
-  private reloadMainLuaIfChanged(
-    mainLua: string,
-    opts?: { force?: boolean },
-  ): 'reloaded' | 'unchanged' | 'failed' {
-    if (!opts?.force && mainLua === this.lastMainLua) return 'unchanged'
+  private reloadMainLuaIfChanged(mainLua: string): 'reloaded' | 'unchanged' | 'failed' {
+    if (mainLua === this.lastMainLua) return 'unchanged'
     const code = editorReloadScript(mainLua)
     if (code === EDITOR_API_CCALL_FAILED || code !== EditorApiResult.Ok) {
       const detail = messageForEditorApiCode(code)
@@ -432,7 +469,7 @@ class RuntimeSyncServiceImpl {
     if (plan.kind === 'full') {
       this.latchProjectProjection(loadKey, projection)
       editorLoadProject(projectJsonForRuntime(project, activeSceneId))
-      // C++ load resets Lua to an empty stub; always follow with the real script.
+      // Full load does not push Lua; follow with hot-reload when script is provided.
       if (options?.mainLua && this.reloadMainLuaIfChanged(options.mainLua) === 'failed') {
         return false
       }
