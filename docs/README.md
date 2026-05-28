@@ -68,6 +68,10 @@ TECHNICAL_OVERVIEW.md       (Referenza, § 2, 4, 6, 12)
 
 #### Se sei **Nuovo Collaboratore**
 ```
+ENGINE_DESIGN_RECAP.md               (Progettazione engine — 25 min) ⭐
+    ↓
+ENGINE_STATE_RECAP_COLLABORATORS.md  (Onboarding rapido — 10 min)
+    ↓
 LOGIC_BOARD_SPEC.md         (Parte I: glossario Logic Board / Event / Component)
     ↓
 ARCHITECTURAL_RATIONALE.md  (Capire il contesto)
@@ -101,6 +105,8 @@ Guida specializzata         (REACT_WASM_PATTERN.md o ECS_IMPLEMENTATION_GUIDE.md
 | **GUIDA_INTEGRAZIONE_SPLASH_LICENZE.md** | Splash editor vs runtime; Free/Pro; `pack-artcade.py`; watermark C++ | ~10min | Editor / tooling / runtime | ⭐ |
 | **FIXED_STEP_CONTRACT.md** | Ordine `tickFixedStep`, chi scrive Transform/body, latency intent Lua, physicsMode | ~5min | C++ / gameplay | ⭐⭐ |
 | **GLOBAL_LOGIC_UI_ARCHITECTURE.md** | Sensori physics, platformer feel, azioni world, UI screen-space, text juice | ~8min | C++ / gameplay / UI | ⭐ |
+| **ENGINE_DESIGN_RECAP.md** | Documento di progettazione engine (ECS, Logic Board, Object Types, fisica, roadmap, nomenclatura) | ~25min | **Tutti / design** | ⭐⭐⭐ |
+| **ENGINE_STATE_RECAP_COLLABORATORS.md** | Onboarding rapido + link a doc operativi | ~10min | **Tutti / onboarding** | ⭐⭐ |
 | **OBJECT_TYPES_ARCHITECTURE.md** | Object Types + scene instances (v2 project.json), merge rules, Logic Board on type | ~8min | Editor / runtime / design | ⭐⭐ |
 | **PHYSICS_OPTIONAL_INTEGRATION_PLAN.md** | Piano: physics opt-in, platformer kinematic (`customGravity`), skip `physics.step` in arcade | ~15min | C++ / Editor / Product | ⭐⭐ |
 | **REPORT_MIGRAZIONE_PHYSICS_SENZA_BOX2D.md** | Report team: rimozione Box2D, backend custom, impatto ruoli, test, decisioni D1–D5 | ~20min | Tutti / review migrazione | ⭐⭐ |
@@ -203,6 +209,8 @@ A: TECHNICAL_OVERVIEW.md (v2.2) — è il documento di "verità" per implementaz
 ## 📦 Distribuzione
 
 ### Manda a TUTTI
+- **ENGINE_DESIGN_RECAP.md** — documento di progettazione engine (condivisione team)
+- **ENGINE_STATE_RECAP_COLLABORATORS.md** — onboarding rapido + link operativi
 - LOGIC_BOARD_SPEC.md (**Parte I** glossario; **Parte III** per chi implementa la Board)
 - ARCHITECTURAL_RATIONALE.md
 - README.md (root) — setup e build
