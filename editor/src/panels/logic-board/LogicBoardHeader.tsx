@@ -20,6 +20,7 @@ interface LogicBoardHeaderProps {
   onRenameBoard: (id: string, name: string) => void
   onApply: () => void
   applyMsg: string | null
+  needsApply?: boolean
   project: ProjectDoc
 }
 
@@ -32,6 +33,7 @@ export function LogicBoardHeader({
   onRenameBoard,
   onApply,
   applyMsg,
+  needsApply,
   project,
 }: LogicBoardHeaderProps) {
   const rulesFor = board ? boardDisplayName(board, project) : null
@@ -80,6 +82,16 @@ export function LogicBoardHeader({
         />
       )}
       <div className="flex-1" />
+      {needsApply && (
+        <button
+          type="button"
+          onClick={onApply}
+          className="text-[11px] text-[var(--warn)] hover:underline"
+          title="Logic changed since last Apply — update the preview runtime"
+        >
+          Logic changed — Apply to update preview
+        </button>
+      )}
       {applyMsg && (
         <span className="text-[11px] text-[var(--muted)]">{applyMsg}</span>
       )}
