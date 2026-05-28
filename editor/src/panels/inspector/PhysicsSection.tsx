@@ -4,16 +4,26 @@ import type { EntityDef, PhysicsComponent } from '../../types'
 import { PHYSICS_INSPECTOR } from './physics-defaults'
 import { componentBlockId } from './entity-component-utils'
 
+function numInputId(entityId: number, label: string): string {
+  const slug = label.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+  return `physics-${entityId}-${slug}`
+}
+
 function num(
+  entityId: number,
   label: string,
   value: number,
   onChange: (n: number) => void,
   opts?: { min?: number; step?: number },
 ) {
+  const inputId = numInputId(entityId, label)
   return (
     <div className="mb-2">
-      <label className="text-[9px] text-[var(--muted)] uppercase">{label}</label>
+      <label htmlFor={inputId} className="text-[9px] text-[var(--muted)] uppercase">
+        {label}
+      </label>
       <input
+        id={inputId}
         type="number"
         value={value}
         min={opts?.min}
@@ -27,10 +37,17 @@ function num(
   )
 }
 
-export function PhysicsSection({ entity }: { entity: EntityDef }) {
+export type PhysicsSectionProps = Readonly<{
+  entity: EntityDef
+}>
+
+export function PhysicsSection({ entity }: PhysicsSectionProps) {
   const { dispatch } = useEditor()
   const physics = entity.physics
   if (!physics) return null
+
+  const bodyTypeSelectId = `physics-body-type-${entity.id}`
+  const shapeSelectId = `physics-shape-${entity.id}`
 
   function patch(partial: Partial<PhysicsComponent>) {
     dispatch({
@@ -74,8 +91,11 @@ export function PhysicsSection({ entity }: { entity: EntityDef }) {
       </p>
 
       <div className="mb-2">
-        <label className="text-[9px] text-[var(--muted)] uppercase">Body Type</label>
+        <label htmlFor={bodyTypeSelectId} className="text-[9px] text-[var(--muted)] uppercase">
+          Body Type
+        </label>
         <select
+          id={bodyTypeSelectId}
           value={physics.bodyType}
           onChange={(e) =>
             patch({ bodyType: e.target.value as PhysicsComponent['bodyType'] })
@@ -90,8 +110,11 @@ export function PhysicsSection({ entity }: { entity: EntityDef }) {
       </div>
 
       <div className="mb-2">
-        <label className="text-[9px] text-[var(--muted)] uppercase">Collider Shape</label>
+        <label htmlFor={shapeSelectId} className="text-[9px] text-[var(--muted)] uppercase">
+          Collider Shape
+        </label>
         <select
+          id={shapeSelectId}
           value={physics.collider.shape}
           onChange={(e) =>
             patchCollider({
@@ -107,30 +130,30 @@ export function PhysicsSection({ entity }: { entity: EntityDef }) {
       </div>
 
       {isCircle ? (
-        num('Radius (px)', physics.collider.size.x, (x) =>
+        num(entity.id, 'Radius (px)', physics.collider.size.x, (x) =>
           patchCollider({ size: { x, y: x } }),
         { min: 1 })
       ) : (
         <>
-          {num('Width (px)', physics.collider.size.x, (x) =>
+          {num(entity.id, 'Width (px)', physics.collider.size.x, (x) =>
             patchCollider({ size: { ...physics.collider.size, x } }),
           { min: 1 })}
-          {num('Height (px)', physics.collider.size.y, (y) =>
+          {num(entity.id, 'Height (px)', physics.collider.size.y, (y) =>
             patchCollider({ size: { ...physics.collider.size, y } }),
           { min: 1 })}
         </>
       )}
 
-      {num('Offset X (px)', physics.collider.offset.x, (x) =>
+      {num(entity.id, 'Offset X (px)', physics.collider.offset.x, (x) =>
         patchCollider({ offset: { ...physics.collider.offset, x } }),
       )}
-      {num('Offset Y (px)', physics.collider.offset.y, (y) =>
+      {num(entity.id, 'Offset Y (px)', physics.collider.offset.y, (y) =>
         patchCollider({ offset: { ...physics.collider.offset, y } }),
       )}
-      {num('Density', physics.collider.density, (density) =>
+      {num(entity.id, 'Density', physics.collider.density, (density) =>
         patchCollider({ density }),
       { min: 0, step: 0.1 })}
-      {num('Friction', physics.collider.friction, (friction) =>
+      {num(entity.id, 'Friction', physics.collider.friction, (friction) =>
         patchCollider({ friction }),
       { min: 0, step: 0.05 })}
 
@@ -140,7 +163,7 @@ export function PhysicsSection({ entity }: { entity: EntityDef }) {
           checked={physics.collider.isSensor}
           onChange={(e) => patchCollider({ isSensor: e.target.checked })}
         />
-        Sensor (no solid collision)
+        <span>Sensor (no solid collision)</span>
       </label>
     </div>
   )
