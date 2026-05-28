@@ -78,6 +78,13 @@ export interface CoreState {
   dialogs: Record<string, DialogScript>
   selectedDialogId: string | null
   dialogModal: { open: boolean; dialogId: string | null }
+  /** Undo/redo snapshots for project.logicBoards (Logic Board panel only). */
+  logicBoardHistory: LogicBoardHistory
+}
+
+export type LogicBoardHistory = {
+  past: LogicBoard[][]
+  future: LogicBoard[][]
 }
 
 // ---- Volatile state (high-frequency) ---------------------------------------
@@ -168,6 +175,8 @@ export type Action =
   | { type: 'LOGIC_UPDATE_EVENT'; boardId: string; event: LogicEvent }
   | { type: 'LOGIC_DELETE_EVENT'; boardId: string; eventId: string }
   | { type: 'LOGIC_MOVE_EVENT'; boardId: string; eventId: string; toIndex: number }
+  | { type: 'LOGIC_UNDO' }
+  | { type: 'LOGIC_REDO' }
   | { type: 'DIALOG_SET_LIBRARY'; dialogs: Record<string, DialogScript>; selectedDialogId?: string | null }
   | { type: 'DIALOG_SELECT'; dialogId: string | null }
   | { type: 'DIALOG_UPSERT'; script: DialogScript }
@@ -206,6 +215,7 @@ export const initialCoreState: CoreState = {
   dialogs: {},
   selectedDialogId: null,
   dialogModal: { open: false, dialogId: null },
+  logicBoardHistory: { past: [], future: [] },
 }
 
 export const initialVolatileState: VolatileState = {

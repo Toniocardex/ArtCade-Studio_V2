@@ -98,6 +98,8 @@ type LogicBoardKeyHandlers = {
   focusEvent: (eventId: string) => void
   deleteFocusedEvent: () => void
   moveFocusedEvent: (toIndex: number) => void
+  undoLogic: () => void
+  redoLogic: () => void
 }
 
 function handleLogicBoardKey(e: KeyboardEvent, handlers: LogicBoardKeyHandlers): void {
@@ -115,8 +117,25 @@ function handleLogicBoardKey(e: KeyboardEvent, handlers: LogicBoardKeyHandlers):
     focusEvent,
     deleteFocusedEvent,
     moveFocusedEvent,
+    undoLogic,
+    redoLogic,
   } = handlers
   if (shouldIgnoreEditorShortcut(e)) return
+
+  if (e.ctrlKey || e.metaKey) {
+    const key = e.key.toLowerCase()
+    if (key === 'z' && !e.altKey) {
+      e.preventDefault()
+      if (e.shiftKey) redoLogic()
+      else undoLogic()
+      return
+    }
+    if (key === 'y' && !e.shiftKey) {
+      e.preventDefault()
+      redoLogic()
+      return
+    }
+  }
 
   const focused = findEventInBoards(sceneBoards, focusedEventId)?.event
 
@@ -601,6 +620,24 @@ export default function LogicBoardPanel() {
     [sceneBoards, focusedEventId, dispatch],
   )
 
+  const undoLogic = useCallback(() => {
+    dispatch({ type: 'LOGIC_UNDO' })
+  }, [dispatch])
+
+  const redoLogic = useCallback(() => {
+    dispatch({ type: 'LOGIC_REDO' })
+  }, [dispatch])
+
+  useEffect(() => {
+    if (!project) return
+    if (editingId != null && !findEventInBoards(sceneBoards, editingId)) {
+      setEditingId(null)
+    }
+    if (focusedEventId != null && !findEventInBoards(sceneBoards, focusedEventId)) {
+      setFocusedEventId(null)
+    }
+  }, [boardsRevision, project, editingId, focusedEventId, sceneBoards])
+
   const deleteFocusedEvent = useCallback(() => {
     const hit = findEventInBoards(sceneBoards, focusedEventId)
     if (!hit) return
@@ -641,6 +678,8 @@ export default function LogicBoardPanel() {
         },
         deleteFocusedEvent,
         moveFocusedEvent,
+        undoLogic,
+        redoLogic,
       })
     }
 
@@ -658,6 +697,8 @@ export default function LogicBoardPanel() {
     cloneEvent,
     deleteFocusedEvent,
     moveFocusedEvent,
+    undoLogic,
+    redoLogic,
   ])
 
   if (!project) {

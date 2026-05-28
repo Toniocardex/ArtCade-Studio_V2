@@ -36,6 +36,10 @@ function baseState(project: ProjectDoc | null = emptyProject()): CoreState {
     editorGridSize: 32, snapToGrid: false, editorZoom: 1.0, editorZoomMode: 'manual', cameraPreview: false,
     projectLoadEpoch: 0,
     authoringMode: 'base',
+    dialogs: {},
+    selectedDialogId: null,
+    dialogModal: { open: false, dialogId: null },
+    logicBoardHistory: { past: [], future: [] },
   }
 }
 
@@ -100,6 +104,18 @@ describe('coreReducer — Logic Board CRUD', () => {
     expect(events.map((e) => e.trigger.type)).toEqual(['onUpdate', 'onSpawn'])
     expect(events[1].id).toBe(b.id)
     expect(s.projectDirty).toBe(true)
+  })
+
+  it('LOGIC_UNDO and LOGIC_REDO restore logic boards', () => {
+    const board = createLogicBoard('Player', 'pc')
+    let s = coreReducer(baseState(), { type: 'LOGIC_ADD_BOARD', board })
+    const a = createLogicEvent({ type: 'onStart' }, [])
+    s = coreReducer(s, { type: 'LOGIC_ADD_EVENT', boardId: 'pc', event: a })
+    expect(s.project?.logicBoards?.[0].events).toHaveLength(1)
+    s = coreReducer(s, { type: 'LOGIC_UNDO' })
+    expect(s.project?.logicBoards?.[0].events).toHaveLength(0)
+    s = coreReducer(s, { type: 'LOGIC_REDO' })
+    expect(s.project?.logicBoards?.[0].events).toHaveLength(1)
   })
 
   it('LOGIC_MOVE_EVENT reorders events within a board', () => {

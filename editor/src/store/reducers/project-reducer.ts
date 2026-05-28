@@ -13,6 +13,7 @@
 import type { CoreState, Action, DomainReducer } from '../editor-store-state'
 import { EDITOR_BOOT_ZOOM } from '../../constants/editor-viewport'
 import { safeProjectFolderName } from '../../utils/project'
+import { emptyLogicBoardHistory } from './logic-board-history'
 
 export const projectReducer: DomainReducer = (state: CoreState, action: Action) => {
   switch (action.type) {
@@ -41,6 +42,7 @@ export const projectReducer: DomainReducer = (state: CoreState, action: Action) 
         cameraPreview:    false,
         projectLoadEpoch: state.projectLoadEpoch + 1,
         legacyMigrateBanner: action.migratedFromLegacy ?? false,
+        logicBoardHistory: emptyLogicBoardHistory(),
         dialogs: action.dialogs ?? {},
         selectedDialogId:
           action.selectedDialogId ??

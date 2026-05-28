@@ -9,16 +9,24 @@
 import type { CoreState, Action, DomainReducer } from '../editor-store-state'
 import type { LogicBoard } from '../../types'
 import { logicBoardGeneratedLabel } from '../../utils/logic-board/labels'
+import {
+  MAX_LOGIC_BOARD_HISTORY,
+  emptyLogicBoardHistory,
+  pushLogicBoardHistory,
+  restoreLogicBoards,
+} from './logic-board-history'
 
 function withBoards(
   state: CoreState,
   fn: (boards: LogicBoard[]) => LogicBoard[],
+  recordHistory = true,
 ): CoreState {
   if (!state.project) return state
-  const next = fn(state.project.logicBoards ?? [])
+  const base = recordHistory ? pushLogicBoardHistory(state) : state
+  const next = fn(base.project!.logicBoards ?? [])
   return {
-    ...state,
-    project: { ...state.project, logicBoards: next },
+    ...base,
+    project: { ...base.project!, logicBoards: next },
     projectDirty: true,
   }
 }
@@ -111,6 +119,26 @@ export const logicBoardReducer: DomainReducer = (state: CoreState, action: Actio
           return { ...board, events }
         }),
       )
+    }
+    case 'LOGIC_UNDO': {
+      const { past, future } = state.logicBoardHistory ?? emptyLogicBoardHistory()
+      if (!state.project || past.length === 0) return state
+      const previous = past[past.length - 1]!
+      const current = structuredClone(state.project.logicBoards ?? [])
+      return restoreLogicBoards(state, previous, {
+        past: past.slice(0, -1),
+        future: [current, ...future].slice(0, MAX_LOGIC_BOARD_HISTORY),
+      })
+    }
+    case 'LOGIC_REDO': {
+      const { past, future } = state.logicBoardHistory ?? emptyLogicBoardHistory()
+      if (!state.project || future.length === 0) return state
+      const next = future[0]!
+      const current = structuredClone(state.project.logicBoards ?? [])
+      return restoreLogicBoards(state, next, {
+        past: [...past, current].slice(-MAX_LOGIC_BOARD_HISTORY),
+        future: future.slice(1),
+      })
     }
     default:
       return state
