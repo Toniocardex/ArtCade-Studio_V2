@@ -23,8 +23,7 @@ describe('ClassNamePicker helpers', () => {
     expect(isClassPickerOtherMode('CustomBullet', CLASSES)).toBe(true)
   })
 
-  it('sorts project classes via stable list order', () => {
-    const sorted = [...CLASSES].sort()
-    expect(sorted).toEqual(['Coin', 'Player'])
+  it('preserves project class list order for select options', () => {
+    expect([...CLASSES]).toEqual(['Coin', 'Player'])
   })
 })
