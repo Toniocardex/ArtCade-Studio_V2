@@ -283,6 +283,19 @@ describe('RuntimeSyncService', () => {
     expect(bridge.editorLoadProject).toHaveBeenCalledTimes(2)
   })
 
+  it('preparePlaySession succeeds when main Lua is already loaded', () => {
+    const lua = 'function tick(dt) end'
+    runtimeSync.syncProject(makeProject() as never, 'a', '/tmp/x', { mainLua: lua })
+    vi.mocked(bridge.editorReloadScript).mockClear()
+    expect(runtimeSync.preparePlaySession(lua, {})).toBe(true)
+    expect(bridge.editorReloadScript).not.toHaveBeenCalled()
+  })
+
+  it('preparePlaySession returns false when runtime is not ready', () => {
+    vi.mocked(bridge.isReady).mockReturnValue(false)
+    expect(runtimeSync.preparePlaySession('function tick(dt) end', {})).toBe(false)
+  })
+
   it('restorePreviewFromProject returns false when runtime is not ready', () => {
     vi.mocked(bridge.isReady).mockReturnValue(false)
     expect(runtimeSync.restorePreviewFromProject(makeProject() as never, 'a', 'x')).toBe(false)

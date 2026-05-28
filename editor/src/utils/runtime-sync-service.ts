@@ -206,7 +206,9 @@ class RuntimeSyncServiceImpl {
   ): boolean {
     if (!isReady()) return false
     this.syncDialogs(dialogs)
-    return this.reloadMainLuaIfChanged(mainLua)
+    // Script may already match lastMainLua after syncProject; PLAY must still proceed.
+    this.reloadMainLuaIfChanged(mainLua)
+    return true
   }
 
   /** Hot-reload main Lua when the compiled source changes (logic boards, script tab). */
