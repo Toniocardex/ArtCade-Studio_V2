@@ -119,19 +119,27 @@ void CameraManager::updateMotion(float dt) {
     }
 }
 
-void CameraManager::updateShake(float dt) {
-    // Shake (trauma^2 so response is quadratic — feels more natural)
+void CameraManager::refreshShakeOffset(float dt) {
     if (trauma_ > 0.f) {
         const float shake = trauma_ * trauma_;
         shakeTime_ += dt;
         shakeOffset_.x = shakeDisplace_ * shake * pseudoNoise(shakeTime_ * 17.f);
         shakeOffset_.y = shakeDisplace_ * shake * pseudoNoise(shakeTime_ * 13.f + 5.f);
         shakeRotOffset_ = shakeRotation_ * shake * pseudoNoise(shakeTime_ * 23.f + 3.f);
-        trauma_ = std::max(0.f, trauma_ - dt * 1.5f);   // decay
     } else {
         shakeOffset_    = { 0.f, 0.f };
         shakeRotOffset_ = 0.f;
     }
+}
+
+void CameraManager::decayTrauma(float dt) {
+    if (trauma_ > 0.f)
+        trauma_ = std::max(0.f, trauma_ - dt * 1.5f);
+}
+
+void CameraManager::updateShake(float dt) {
+    refreshShakeOffset(dt);
+    decayTrauma(dt);
 }
 
 void CameraManager::update(float dt) {

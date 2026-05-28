@@ -118,26 +118,44 @@ static void test_visible_bounds() {
 
 static void test_shake_adds_offset() {
     CM cam; cam.init();
-    cam.setPosition({ 0.f, 0.f });
     cam.addTrauma(1.f);
-    cam.update(0.016f);
-    // With full trauma the shake offset should be non-zero
-    auto p = cam.position();
-    bool shook = (p.x != 0.f || p.y != 0.f);
-    assert(shook);
-    std::puts("  [ok] addTrauma produces non-zero shake offset");
+    cam.refreshShakeOffset(0.016f);
+    const auto off = cam.shakeOffset();
+    assert(off.x != 0.f || off.y != 0.f);
+    std::puts("  [ok] addTrauma produces non-zero shakeOffset");
 }
 
 static void test_trauma_decays() {
     CM cam; cam.init();
     cam.addTrauma(0.5f);
-    // After enough time trauma should reach 0
-    for (int i = 0; i < 100; ++i) cam.update(0.1f);
-    // With decay rate 1.5/s, 0.5 trauma decays in ~0.33 s
-    // After 10 s it must be 0 and position back to 0
-    auto p = cam.position();
-    assert(approx(p.x, 0.f, 0.01f) && approx(p.y, 0.f, 0.01f));
+    for (int i = 0; i < 100; ++i) {
+        cam.refreshShakeOffset(0.1f);
+        cam.decayTrauma(0.1f);
+    }
+    assert(approx(cam.shakeOffset().x, 0.f, 0.01f) &&
+           approx(cam.shakeOffset().y, 0.f, 0.01f));
     std::puts("  [ok] trauma decays over time");
+}
+
+static void test_multi_step_lua_before_frame_decay() {
+    CM cam; cam.init();
+    cam.addTrauma(0.8f);
+    const float step = 1.f / 60.f;
+    // Old bug: updateShake per fixed step decayed trauma 4x before render.
+    for (int i = 0; i < 4; ++i)
+        cam.updateShake(step);
+    const auto weak = cam.shakeOffset();
+
+    cam.init();
+    cam.addTrauma(0.8f);
+    cam.refreshShakeOffset(4.f * step);
+    cam.decayTrauma(4.f * step);
+    const auto strong = cam.shakeOffset();
+
+    const float weakMag = std::fabs(weak.x) + std::fabs(weak.y);
+    const float strongMag = std::fabs(strong.x) + std::fabs(strong.y);
+    assert(strongMag > weakMag + 0.5f);
+    std::puts("  [ok] frame-once refresh keeps stronger shake than per-step decay");
 }
 
 int main() {
@@ -154,6 +172,7 @@ int main() {
     test_visible_bounds();
     test_shake_adds_offset();
     test_trauma_decays();
-    std::puts("=== all 12 tests passed ===");
+    test_multi_step_lua_before_frame_decay();
+    std::puts("=== all 13 tests passed ===");
     return 0;
 }

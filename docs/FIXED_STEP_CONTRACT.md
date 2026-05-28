@@ -15,7 +15,7 @@ flowchart TD
   animPre[dispatchAnimationEvents]
   luaTick[luaHost.tick]
   dialogTick[dialogManager.tick]
-  camShake[cameraManager.updateShake]
+  camShake[cameraManager.refreshShakeOffset + decayTrauma once per frame]
   platformer[tickPlatformerControllers]
   physStep[physics.step if enabled]
   flush1[flushEntityQueues]
@@ -37,7 +37,7 @@ flowchart TD
 | 5 | `gameAPI->dispatchAnimationEvents()` | |
 | 6 | **`luaHost->tick(dt)`** | Logic Board `tick(dt)`, `movement.*` / `platformer.*` intent APIs. |
 | 7 | **`dialogManager->tick(dt)`** | Dialog typewriter / choices; `emitDeferred` from dialog nodes flushed at end of step. Skipped when inactive. |
-| 8 | **`cameraManager->updateShake(dt)`** | Trauma decay + shake offset for render (after Lua `camera.shake`). |
+| 8 | *(moved)* | **`camera.shake`** only adds trauma during Lua; **`refreshShakeOffset` + `decayTrauma`** run once per render frame in `loopIteration()` (after all fixed steps) so catch-up steps do not drain shake early. |
 | 9 | **`world->tickPlatformerControllers(dt)`** | Solid AABB grounding + kinematic move (before `physics.step`). **Skipped when `dialogManager->isBlocking()`.** |
 | 10 | **`physics->step(dt)`** | Skipped when `physicsMode` is `off`; in `auto` only if bodies exist. |
 | 11 | `world->flushEntityQueues()` | Destroys queued from Lua before sync. |

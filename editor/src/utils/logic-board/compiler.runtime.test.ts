@@ -282,6 +282,26 @@ describe('runtime: syntax validity', () => {
   })
 })
 
+describe('runtime: cameraShake', () => {
+  it('onStart emits camera.shake and harness records it', async () => {
+    const r = await makeRunner([
+      {
+        boardId: 'b',
+        target: { type: 'entity_class', className: 'Player' },
+        events: [
+          ev({
+            trigger: { type: 'onStart' },
+            actions: [{ type: 'cameraShake', trauma: 0.75 }],
+          }),
+        ],
+      },
+    ])
+    r.tick()
+    expect(r.h.calls.cameraShake).toBe(1)
+    r.close()
+  })
+})
+
 describe('runtime: onStart runs exactly once', () => {
   it('init fires on first tick only', async () => {
     const r = await makeRunner([

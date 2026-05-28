@@ -524,8 +524,8 @@ void Application::tickFixedStep(float dt) {
     if (mod_->dialogManager) {
         mod_->dialogManager->tick(dt);
     }
-    // After Lua: camera.shake may have added trauma — decay + offset for this frame.
-    mod_->cameraManager->updateShake(dt);
+    // camera.shake adds trauma during Lua; offset/decay run once per render frame
+    // in loopIteration() so multi-step catch-up does not drain trauma early.
     // Platformer integrates Transform before physics; Solid grounding uses AABB.
     if (!mod_->dialogManager || !mod_->dialogManager->isBlocking()) {
         mod_->world->tickPlatformerControllers(dt);
@@ -650,6 +650,7 @@ void Application::loopIteration() {
     const bool simulating = true;
 #endif
 
+    float simDtThisFrame = 0.f;
     if (simulating) {
         if (!mod_->dialogManager || !mod_->dialogManager->isBlocking()) {
             const auto start = Clock::now();
@@ -661,6 +662,12 @@ void Application::loopIteration() {
         while (accumulator_ >= targetDt_) {
             tickFixedStep(targetDt_);
             accumulator_ -= targetDt_;
+            simDtThisFrame += targetDt_;
+        }
+
+        if (simDtThisFrame > 0.f) {
+            mod_->cameraManager->refreshShakeOffset(simDtThisFrame);
+            mod_->cameraManager->decayTrauma(simDtThisFrame);
         }
     } else {
         // EDIT mode: discard accumulated time so PLAY does not burst-catch-up.
