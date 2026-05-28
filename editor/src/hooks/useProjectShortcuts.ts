@@ -18,6 +18,7 @@ import type { ConsoleEntry } from '../types'
 import { useProjectNamePersist } from '../components/menu-bar/project-name-context'
 import { ensureProjectOnDisk } from '../components/menu-bar/ensureProjectOnDisk'
 import { mainScriptBodyForProject } from '../components/menu-bar/project-script'
+import { loadDialogsFromProject, starterInnkeeperScript } from '../utils/dialog/dialog-file-api'
 
 let _kbdLogId = 500
 function kbdLog(message: string, level: ConsoleEntry['level']): ConsoleEntry {
@@ -89,6 +90,7 @@ export function useProjectShortcuts(): void {
             dispatch,
             project: flushed,
             projectPath: state.projectPath,
+            dialogs: state.dialogs,
           })
           if (savedPath) {
             dispatch({
@@ -121,7 +123,14 @@ export function useProjectShortcuts(): void {
         if (!confirmDirty('Creating a new project')) return
         const blank = createBlankProject('Untitled')
         runtimeSync.reset()
-        dispatch({ type: 'LOAD_PROJECT', project: blank, path: '' })
+        const starter = { innkeeper: starterInnkeeperScript() }
+        dispatch({
+          type: 'LOAD_PROJECT',
+          project: blank,
+          path: '',
+          dialogs: starter,
+          selectedDialogId: 'innkeeper',
+        })
         dispatch({
           type: 'LOG',
           entry: kbdLog('OK new blank project (unsaved - use Ctrl+Shift+S).', 'info'),
@@ -141,11 +150,15 @@ export function useProjectShortcuts(): void {
           return
         }
         runtimeSync.reset()
+        const loadedDialogs = await loadDialogsFromProject(loaded.path)
+        const dialogIds = Object.keys(loadedDialogs).sort()
         dispatch({
           type: 'LOAD_PROJECT',
           project: loaded.project,
           path: loaded.path,
           migratedFromLegacy: loaded.migratedFromLegacy,
+          dialogs: loadedDialogs,
+          selectedDialogId: dialogIds[0] ?? null,
         })
         dispatch({
           type: 'LOG',

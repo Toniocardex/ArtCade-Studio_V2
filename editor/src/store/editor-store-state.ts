@@ -14,6 +14,7 @@ import type {
   LogicBoard, LogicEvent, ComponentKey, WorldSettings, TilesetAsset, ImageAsset,
   SpriteComponent, PhysicsComponent, Vec3,
 } from '../types'
+import type { DialogScript } from '../utils/dialog/dialog-script'
 import {
   EDITOR_BOOT_ZOOM, DEFAULT_EDITOR_GRID_SIZE,
 } from '../constants/editor-viewport'
@@ -74,6 +75,10 @@ export interface CoreState {
   legacyMigrateBanner?: boolean
   /** UI presentation tier: guidance/density only (see LOGIC_BOARD_UX_CHARTER). */
   authoringMode: AuthoringMode
+  /** Dialog scripts keyed by dialogId (persisted as dialogs/*.json). */
+  dialogs: Record<string, DialogScript>
+  selectedDialogId: string | null
+  dialogModal: { open: boolean; dialogId: string | null }
 }
 
 // ---- Volatile state (high-frequency) ---------------------------------------
@@ -105,7 +110,14 @@ export type Action =
   | { type: 'SET_ACTIVE_SCRIPT'; path: string }
   | { type: 'LOG';               entry: ConsoleEntry }
   | { type: 'SET_CURSOR';        x: number; y: number }
-  | { type: 'LOAD_PROJECT';      project: ProjectDoc; path: string; migratedFromLegacy?: boolean }
+  | {
+      type: 'LOAD_PROJECT'
+      project: ProjectDoc
+      path: string
+      migratedFromLegacy?: boolean
+      dialogs?: Record<string, DialogScript>
+      selectedDialogId?: string | null
+    }
   | { type: 'DISMISS_LEGACY_MIGRATE_BANNER' }
   | { type: 'PROJECT_RENAME';    name: string }
   | { type: 'MARK_PROJECT_SAVED' }
@@ -157,6 +169,14 @@ export type Action =
   | { type: 'LOGIC_INSERT_EVENT'; boardId: string; event: LogicEvent; afterEventId?: string }
   | { type: 'LOGIC_UPDATE_EVENT'; boardId: string; event: LogicEvent }
   | { type: 'LOGIC_DELETE_EVENT'; boardId: string; eventId: string }
+  | { type: 'DIALOG_SET_LIBRARY'; dialogs: Record<string, DialogScript>; selectedDialogId?: string | null }
+  | { type: 'DIALOG_SELECT'; dialogId: string | null }
+  | { type: 'DIALOG_UPSERT'; script: DialogScript }
+  | { type: 'DIALOG_CREATE'; dialogId: string }
+  | { type: 'DIALOG_DELETE'; dialogId: string }
+  | { type: 'DIALOG_RENAME'; fromId: string; toId: string }
+  | { type: 'DIALOG_OPEN_MODAL'; dialogId: string }
+  | { type: 'DIALOG_CLOSE_MODAL' }
 
 export type DomainReducer = (state: CoreState, action: Action) => CoreState
 
@@ -185,6 +205,9 @@ export const initialCoreState: CoreState = {
   cameraPreview:    false,
   projectLoadEpoch: 0,
   authoringMode: readStoredAuthoringMode(),
+  dialogs: {},
+  selectedDialogId: null,
+  dialogModal: { open: false, dialogId: null },
 }
 
 export const initialVolatileState: VolatileState = {

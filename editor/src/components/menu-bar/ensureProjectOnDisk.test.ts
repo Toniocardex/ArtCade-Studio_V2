@@ -9,6 +9,12 @@ const scaffoldNewProjectOnDisk = vi.fn()
 const saveProjectFile = vi.fn()
 const saveScript = vi.fn()
 const copyProjectDataDirs = vi.fn()
+const saveDialogsToProject = vi.fn()
+
+vi.mock('../../utils/dialog/dialog-file-api', () => ({
+  saveDialogsToProject: (...args: unknown[]) => saveDialogsToProject(...args),
+  starterInnkeeperScript: () => ({ dialogId: 'innkeeper', commands: [{ type: 'end' }] }),
+}))
 
 vi.mock('../../utils/api', () => ({
   saveProjectAsDialog: (...args: unknown[]) => saveProjectAsDialog(...args),
@@ -31,6 +37,7 @@ describe('ensureProjectOnDisk', () => {
     saveProjectFile.mockResolvedValue(undefined)
     saveScript.mockResolvedValue(undefined)
     copyProjectDataDirs.mockResolvedValue(undefined)
+    saveDialogsToProject.mockResolvedValue(undefined)
   })
 
   it('prompts migration when on-disk folder name differs from project name', async () => {
@@ -44,6 +51,7 @@ describe('ensureProjectOnDisk', () => {
       dispatch,
       project,
       projectPath: '/tmp/games/Untitled/project.json',
+      dialogs: {},
     })
 
     expect(path).toBe('/tmp/games/MyGame/project.json')
@@ -63,6 +71,7 @@ describe('ensureProjectOnDisk', () => {
       dispatch,
       project,
       projectPath: '/tmp/games/Untitled/project.json',
+      dialogs: {},
     })
 
     expect(path).toBeNull()

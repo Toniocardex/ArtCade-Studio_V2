@@ -15,6 +15,7 @@ import {
 } from '../../utils/preview-restore'
 import type { Action as EditorAction, CoreState } from '../../store/editor-store'
 import type { ProjectDoc } from '../../types'
+import type { DialogScript } from '../../utils/dialog/dialog-script'
 import { makeConsoleEntry } from './makeConsoleEntry'
 import { ensureProjectOnDisk } from './ensureProjectOnDisk'
 import { planOpenWebExport } from './webExportOpen'
@@ -24,6 +25,7 @@ interface UseBuildToolbarActionsParams {
   dispatch: Dispatch<EditorAction>
   project: ProjectDoc | null
   projectPath: string | null
+  dialogs: Record<string, DialogScript>
   webExportState: WebExportState
   refreshWebExportStatus: (opts?: { projectDirty?: boolean }) => Promise<void>
   isPlaying: boolean
@@ -37,6 +39,7 @@ export function useBuildToolbarActions({
   dispatch,
   project,
   projectPath,
+  dialogs,
   webExportState,
   refreshWebExportStatus,
   isPlaying,
@@ -63,9 +66,10 @@ export function useBuildToolbarActions({
         dispatch,
         project: flushed,
         projectPath,
+        dialogs,
       })
     },
-    [dispatch, flushBeforePersist, projectPath],
+    [dialogs, dispatch, flushBeforePersist, projectPath],
   )
 
   const handlePlayStop = useCallback(() => {

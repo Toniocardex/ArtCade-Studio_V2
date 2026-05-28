@@ -26,12 +26,16 @@ import type { FileMenuItem } from './FileMenu'
 import { makeConsoleEntry } from './makeConsoleEntry'
 import { mainScriptBodyForProject, mainScriptBodyForProjectWithStatus } from './project-script'
 import { ensureProjectOnDisk } from './ensureProjectOnDisk'
+import { loadDialogsFromProject, saveDialogsToProject } from '../../utils/dialog/dialog-file-api'
+import { starterInnkeeperScript } from '../../utils/dialog/dialog-file-api'
+import type { DialogScript } from '../../utils/dialog/dialog-script'
 
 interface UseFileMenuActionsParams {
   dispatch: Dispatch<EditorAction>
   project: ProjectDoc | null
   projectPath: string | null
   projectDirty: boolean
+  dialogs: Record<string, DialogScript>
   openScripts: CoreState['openScripts']
   activeScriptPath: string | null
   closeMenu: () => void
@@ -43,6 +47,7 @@ export function useFileMenuActions({
   project,
   projectPath,
   projectDirty,
+  dialogs,
   openScripts,
   activeScriptPath,
   closeMenu,
@@ -71,11 +76,15 @@ export function useFileMenuActions({
       return
     }
     runtimeSync.reset()
+    const loadedDialogs = await loadDialogsFromProject(loaded.path)
+    const dialogIds = Object.keys(loadedDialogs).sort()
     dispatch({
       type: 'LOAD_PROJECT',
       project: loaded.project,
       path: loaded.path,
       migratedFromLegacy: loaded.migratedFromLegacy,
+      dialogs: loadedDialogs,
+      selectedDialogId: dialogIds[0] ?? null,
     })
     dispatch({
       type: 'LOG',
@@ -91,7 +100,14 @@ export function useFileMenuActions({
         template === 'blank' ? 'Untitled' : label,
       )
       runtimeSync.reset()
-      dispatch({ type: 'LOAD_PROJECT', project, path: '' })
+      const starter = { innkeeper: starterInnkeeperScript() }
+      dispatch({
+        type: 'LOAD_PROJECT',
+        project,
+        path: '',
+        dialogs: starter,
+        selectedDialogId: 'innkeeper',
+      })
       dispatch({
         type: 'LOG',
         entry: makeConsoleEntry(
@@ -127,7 +143,18 @@ export function useFileMenuActions({
         flushed,
         mainScriptBodyForProject(flushed, projectPath),
       )
-      dispatch({ type: 'LOAD_PROJECT', project: flushed, path: projectJsonPath })
+      const library =
+        Object.keys(dialogs).length > 0
+          ? dialogs
+          : { innkeeper: starterInnkeeperScript() }
+      await saveDialogsToProject(projectJsonPath, library)
+      dispatch({
+        type: 'LOAD_PROJECT',
+        project: flushed,
+        path: projectJsonPath,
+        dialogs: library,
+        selectedDialogId: Object.keys(library).sort()[0] ?? null,
+      })
       dispatch({ type: 'MARK_PROJECT_SAVED' })
       dispatch({
         type: 'LOG',
@@ -178,6 +205,7 @@ export function useFileMenuActions({
       dispatch,
       project: flushed,
       projectPath,
+      dialogs,
     })
     if (savedPath) {
       dispatch({
@@ -185,7 +213,7 @@ export function useFileMenuActions({
         entry: makeConsoleEntry(`[File] Saved project "${flushed.projectName}"`, 'info'),
       })
     }
-  }, [closeMenu, dispatch, flushBeforePersist, handleSaveProjectAs, projectPath])
+  }, [closeMenu, dialogs, dispatch, flushBeforePersist, handleSaveProjectAs, projectPath])
 
   const handlePackArtcade = useCallback(async () => {
     closeMenu()

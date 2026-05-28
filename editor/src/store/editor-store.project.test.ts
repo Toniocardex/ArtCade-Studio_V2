@@ -37,6 +37,9 @@ function baseState(p: ProjectDoc | null = project()): CoreState {
     cameraPreview: false,
     projectLoadEpoch: 0,
     authoringMode: 'base',
+    dialogs: {},
+    selectedDialogId: null,
+    dialogModal: { open: false, dialogId: null },
   }
 }
 

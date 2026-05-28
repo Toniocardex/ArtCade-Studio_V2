@@ -42,6 +42,11 @@ export const projectReducer: DomainReducer = (state: CoreState, action: Action) 
         cameraPreview:    false,
         projectLoadEpoch: state.projectLoadEpoch + 1,
         legacyMigrateBanner: action.migratedFromLegacy ?? false,
+        dialogs: action.dialogs ?? {},
+        selectedDialogId:
+          action.selectedDialogId ??
+          (action.dialogs ? Object.keys(action.dialogs).sort()[0] ?? null : null),
+        dialogModal: { open: false, dialogId: null },
       }
     }
     case 'DISMISS_LEGACY_MIGRATE_BANNER':

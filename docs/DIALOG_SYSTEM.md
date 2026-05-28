@@ -1,6 +1,17 @@
 # Dialog System (ArtCade V2)
 
-> Runtime consumes **JSON only** (`dialogs/{dialogId}.json`). Authoring: CSV import or Dialog Editor (React Flow).
+> Runtime consumes **JSON only** (`dialogs/{dialogId}.json`). The editor authors **RPG Maker–style command lists** that compile to that JSON on save.
+
+## Authoring (editor)
+
+| Entry | UI |
+|-------|-----|
+| **Module rail → Dialog** | Sidebar lists all `dialogId`s; main pane is a command list (Show Text, Show Choices, …) |
+| **Inspector → Dialog component** | **Edit dialog…** opens the same editor in a modal (stays on the canvas) |
+
+Commands compile to the graph in [`examples/dialogs/innkeeper.json`](examples/dialogs/innkeeper.json). **File → Save Project** writes `dialogs/*.json` next to `project.json`.
+
+Optional: **Import CSV** (see [`DIALOG_CSV_FORMAT.md`](DIALOG_CSV_FORMAT.md)) in the Dialog sidebar.
 
 ## Data flow
 

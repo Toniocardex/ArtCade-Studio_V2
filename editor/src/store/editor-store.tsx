@@ -30,6 +30,7 @@ import { entityReducer }     from './reducers/entity-reducer'
 import { objectTypeReducer } from './reducers/object-type-reducer'
 import { sceneReducer }      from './reducers/scene-reducer'
 import { logicBoardReducer } from './reducers/logic-board-reducer'
+import { dialogReducer } from './reducers/dialog-reducer'
 import { applyAuthoringModeToDocument } from '../utils/authoring-mode'
 
 export type { CoreState, VolatileState, Action }
@@ -50,6 +51,7 @@ export function coreReducer(state: CoreState, action: Action): CoreState {
   next = objectTypeReducer(next, action)
   next = sceneReducer(next, action)
   next = logicBoardReducer(next, action)
+  next = dialogReducer(next, action)
   return next
 }
 

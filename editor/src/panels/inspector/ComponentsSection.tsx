@@ -10,6 +10,7 @@ import { InspectorSection } from './inspector-fields'
 import { componentBlockId } from './entity-component-utils'
 import { PhysicsSection } from './PhysicsSection'
 import { DEFAULT_PHYSICS, PHYSICS_INSPECTOR } from './physics-defaults'
+import { DialogInspectorActions } from './DialogInspectorActions'
 
 function ComponentSection({
   entity, desc,
@@ -63,6 +64,8 @@ function ComponentSection({
           {desc.description}
         </p>
       ) : null}
+
+      {desc.key === 'dialog' ? <DialogInspectorActions entity={entity} /> : null}
 
       {desc.fields
         .filter((f) => !f.visibleWhen || f.visibleWhen(data))

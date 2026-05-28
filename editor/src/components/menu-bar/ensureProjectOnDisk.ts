@@ -17,6 +17,9 @@ import {
 import type { ProjectDoc } from '../../types'
 import { makeConsoleEntry } from './makeConsoleEntry'
 import { mainScriptBodyForProject, mainScriptBodyForProjectWithStatus } from './project-script'
+import { saveDialogsToProject } from '../../utils/dialog/dialog-file-api'
+import type { DialogScript } from '../../utils/dialog/dialog-script'
+import { starterInnkeeperScript } from '../../utils/dialog/dialog-file-api'
 
 export type PersistKind = 'Build' | 'WASM' | 'Web' | 'save'
 
@@ -25,6 +28,7 @@ interface EnsureProjectOnDiskOptions {
   dispatch: Dispatch<EditorAction>
   project: ProjectDoc
   projectPath: string | null
+  dialogs: Record<string, DialogScript>
 }
 
 function buildConfirmMessage(kind: PersistKind): string {
@@ -37,6 +41,7 @@ function buildConfirmMessage(kind: PersistKind): string {
 async function scaffoldIntoParent(
   parentDir: string,
   project: ProjectDoc,
+  dialogs: Record<string, DialogScript>,
   dispatch: Dispatch<EditorAction>,
   logPrefix: string,
 ): Promise<string | null> {
@@ -46,7 +51,18 @@ async function scaffoldIntoParent(
       project,
       mainScriptBodyForProject(project),
     )
-    dispatch({ type: 'LOAD_PROJECT', project, path: projectJsonPath })
+    const library =
+      Object.keys(dialogs).length > 0
+        ? dialogs
+        : { innkeeper: starterInnkeeperScript() }
+    await saveDialogsToProject(projectJsonPath, library)
+    dispatch({
+      type: 'LOAD_PROJECT',
+      project,
+      path: projectJsonPath,
+      dialogs: library,
+      selectedDialogId: Object.keys(library).sort()[0] ?? null,
+    })
     dispatch({ type: 'MARK_PROJECT_SAVED' })
     dispatch({
       type: 'LOG',
@@ -85,6 +101,7 @@ async function migrateProjectFolder(
   const projectJsonPath = await scaffoldIntoParent(
     parentDir,
     project,
+    opts.dialogs,
     dispatch,
     '[File]',
   )
@@ -110,7 +127,7 @@ async function migrateProjectFolder(
 export async function ensureProjectOnDisk(
   opts: EnsureProjectOnDiskOptions,
 ): Promise<string | null> {
-  const { kind, dispatch, project, projectPath } = opts
+  const { kind, dispatch, project, projectPath, dialogs } = opts
   const folderName = safeProjectFolderName(project.projectName, 'Untitled')
   const logPrefix = kind === 'save' ? '[File]' : `[${kind}]`
 
@@ -121,7 +138,8 @@ export async function ensureProjectOnDisk(
     if (!ok) return null
     const parentDir = await saveProjectAsDialog(folderName)
     if (!parentDir) return null
-    buildPath = (await scaffoldIntoParent(parentDir, project, dispatch, logPrefix)) ?? ''
+    buildPath =
+      (await scaffoldIntoParent(parentDir, project, dialogs, dispatch, logPrefix)) ?? ''
     if (!buildPath) return null
   } else if (projectFolderBaseName(buildPath) !== folderName) {
     const migrated = await migrateProjectFolder(opts, folderName)
@@ -131,6 +149,7 @@ export async function ensureProjectOnDisk(
 
   try {
     await saveProjectFile(buildPath, project)
+    await saveDialogsToProject(buildPath, dialogs)
     dispatch({ type: 'MARK_PROJECT_SAVED' })
 
     if (project.mainScriptPath && project.logicBoards?.length) {

@@ -19,6 +19,7 @@ export default function MenuBar() {
     projectDirty,
     openScripts,
     activeScriptPath,
+    dialogs,
     selection,
     mode,
   } = state
@@ -45,6 +46,7 @@ export default function MenuBar() {
     project,
     projectPath,
     projectDirty,
+    dialogs,
     openScripts,
     activeScriptPath,
     closeMenu: closeFileMenu,
@@ -57,6 +59,7 @@ export default function MenuBar() {
     dispatch,
     project,
     projectPath,
+    dialogs,
     webExportState: webExport.status.state,
     refreshWebExportStatus: webExport.refreshWebExportStatus,
     isPlaying,

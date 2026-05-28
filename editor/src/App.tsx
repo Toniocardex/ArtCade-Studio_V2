@@ -9,6 +9,8 @@ import SceneObjectsPanel from './panels/SceneObjectsPanel'
 import PreviewPanel       from './panels/PreviewPanel'
 import InspectorPanel     from './panels/InspectorPanel'
 import { createBlankProject } from './utils/project'
+import { starterInnkeeperScript } from './utils/dialog/dialog-file-api'
+import { DialogEditorModal } from './panels/dialog/DialogEditorModal'
 import { runtimeSync } from './utils/runtime-sync-service'
 import { triggerLayoutReflow } from './utils/layout-reflow'
 import { useProjectShortcuts } from './hooks/useProjectShortcuts'
@@ -165,7 +167,14 @@ function EditorLayout() {
     if (state.project || state.projectPath) return
     const blank = createBlankProject('Untitled')
     runtimeSync.reset()
-    dispatch({ type: 'LOAD_PROJECT', project: blank, path: '' })
+    const starter = { innkeeper: starterInnkeeperScript() }
+    dispatch({
+      type: 'LOAD_PROJECT',
+      project: blank,
+      path: '',
+      dialogs: starter,
+      selectedDialogId: 'innkeeper',
+    })
     dispatch({ type: 'LOG', entry: bootLog('OK new blank project (unsaved – use Save Project As to persist).', 'info') })
     // Run once at mount; further "new project" actions go through the menu/shortcut.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -186,6 +195,7 @@ function EditorLayout() {
   return (
     <div className="editor-shell flex flex-col w-full h-full bg-[var(--bg)] text-[var(--text)] overflow-hidden select-none">
       <MenuBar />
+      <DialogEditorModal />
 
       <div className="flex flex-1 min-w-0 min-h-0 overflow-hidden">
         <ModuleRail />

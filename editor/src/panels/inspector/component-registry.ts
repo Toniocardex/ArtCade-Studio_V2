@@ -225,7 +225,7 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
   {
     key: 'dialog',
     label: 'Dialog',
-    description: 'References dialogs/{dialogId}.json in the project folder. Use Logic Board Start Dialog or dialog.start in Lua.',
+    description: 'Talkable NPC — edit lines with Edit dialog, then Start Dialog on the Logic Board or dialog.start in Lua.',
     color: 'var(--purple)',
     create: () => ({ ...DIALOG }),
     fields: [
