@@ -35,10 +35,10 @@ function reflowInTauri(): void {
 }
 
 function settleFontsThenReflow(): void {
-  const fontsReady = (document as Document).fonts?.ready ?? Promise.resolve()
+  const fontsReady = document.fonts?.ready ?? Promise.resolve()
   void Promise.race([
     fontsReady,
-    new Promise((resolve) => window.setTimeout(resolve, 2000)),
+    new Promise((resolve) => globalThis.setTimeout(resolve, 2000)),
   ])
     .catch((err) => {
       console.error('[bootstrap] Font preload failed:', err)
