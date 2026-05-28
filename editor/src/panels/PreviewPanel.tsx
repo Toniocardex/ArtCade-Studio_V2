@@ -41,6 +41,12 @@ function sameTransform(a: TransformSnapshot, b: TransformSnapshot): boolean {
     Math.abs(a.scaleY - b.scaleY) < epsilon
 }
 
+function panCursorStyle(isPanning: boolean, tool: EditorTool): string {
+  if (isPanning) return 'grabbing'
+  if (tool === 'pan') return 'grab'
+  return 'default'
+}
+
 export default function PreviewPanel() {
   // useEditor() subscribes ONLY to CoreContext. It does NOT subscribe to
   // VolatileContext, so this component is NOT re-rendered on every
@@ -340,11 +346,8 @@ export default function PreviewPanel() {
     setIsPanning(false)
   }
 
-  // Effective cursor over the canvas scroll area.
-  const panActive   = activeTool === 'pan' || isPanning
-  const panCursor   = isPanning ? 'grabbing'
-                    : activeTool === 'pan' ? 'grab'
-                    : 'default'
+  const panActive = activeTool === 'pan' || isPanning
+  const panCursor = panCursorStyle(isPanning, activeTool)
 
   // Ctrl + wheel: zoom anchored at the cursor (Figma/Photoshop behaviour).
   // Without anchoring, zooming "in" always re-centres on the world origin and
