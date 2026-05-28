@@ -93,4 +93,25 @@ void World::requestJump(EntityId id) {
     controlIntents_[id].jumpRequested = true;
 }
 
+void World::tickSimpleMovementIntents(float dt) {
+    constexpr float kDefaultSpeed = 240.f;
+    for (const auto& [id, intent] : controlIntents_) {
+        if (!intent.hasMovement) continue;
+        PlatformerControllerComponent platformer{};
+        if (entityGateway_.getPlatformerController(id, platformer)) continue;
+        TopDownControllerComponent topDown{};
+        if (entityGateway_.getTopDownController(id, topDown)) continue;
+
+        const float ax = std::clamp(intent.movement.x, -1.f, 1.f);
+        const float ay = std::clamp(intent.movement.y, -1.f, 1.f);
+        if (ax == 0.f && ay == 0.f) continue;
+
+        Transform transform{};
+        if (!entityGateway_.getTransform(id, transform)) continue;
+        transform.position.x += ax * kDefaultSpeed * dt;
+        transform.position.y += ay * kDefaultSpeed * dt;
+        entityGateway_.setTransform(id, transform);
+    }
+}
+
 } // namespace ArtCade

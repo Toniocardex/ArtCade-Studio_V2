@@ -97,6 +97,8 @@ public:
     void setMovementIntent(EntityId id, float directionX, float directionY);
     void clearMovementIntent(EntityId id);
     void requestJump(EntityId id);
+    /** Apply movement intent on entities without Platformer/TopDown (Logic Board default). */
+    void tickSimpleMovementIntents(float dt);
 
     friend void WorldInternal::stepPlatformerController(
         World&, EntityId, const PlatformerControllerComponent&, float);

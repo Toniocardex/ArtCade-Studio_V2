@@ -3,7 +3,17 @@
 // compiler modules. No imports from the rest of the logic-board package.
 // ---------------------------------------------------------------------------
 
-import type { TargetSelector } from '../../types/logic-board'
+import type { LogicBoard, TargetSelector } from '../../types/logic-board'
+import type { ProjectDoc } from '../../types'
+import {
+  logicBoardRuntimeClassKey,
+  logicBoardTargetEntityIds,
+  logicBoardTargetTypeKey,
+} from '../project-queries'
+
+function compilePoolBoard(target: LogicBoard['target']): LogicBoard {
+  return { boardId: '_pool', target, events: [] }
+}
 
 /** Two-space indent unit used by every emitter in the compiler pipeline. */
 export const INDENT = '  '
@@ -13,11 +23,11 @@ export function luaString(s: string): string {
   return (
     '"' +
     s
-      .replace(/\\/g, '\\\\')
-      .replace(/"/g, '\\"')
-      .replace(/\n/g, '\\n')
-      .replace(/\r/g, '\\r')
-      .replace(/\t/g, '\\t') +
+      .replace(/\\/g, String.raw`\\`)
+      .replace(/"/g, String.raw`\"`)
+      .replace(/\n/g, String.raw`\n`)
+      .replace(/\r/g, String.raw`\r`)
+      .replace(/\t/g, String.raw`\t`) +
     '"'
   )
 }
@@ -50,23 +60,24 @@ export function isGlobalTarget(target: { type: string }): boolean {
 }
 
 /** Lua expression that yields the entity-id pool for a board's target. */
-export function poolExpr(target: {
-  type: string
-  className?: string
-  objectTypeId?: string
-  entityId?: number
-}): string {
-  const poolKey =
-    target.type === 'object_type'
-      ? target.objectTypeId
-      : target.type === 'entity_class'
-        ? target.className
-        : undefined
-  if (poolKey) {
-    return `pool.getAll(${luaString(poolKey)})`
-  }
+export function poolExpr(
+  target: LogicBoard['target'],
+  project?: ProjectDoc | null,
+): string {
   if (target.type === 'entity_id' && target.entityId != null) {
     return `{ ${target.entityId} }`
+  }
+  if (project) {
+    const board = compilePoolBoard(target)
+    const ids = logicBoardTargetEntityIds(project, board)
+    if (ids.length === 1) return `{ ${ids[0]} }`
+    if (ids.length > 1) return `{ ${ids.join(', ')} }`
+    const runtimeKey = logicBoardRuntimeClassKey(project, board)
+    if (runtimeKey) return `pool.getAll(${luaString(runtimeKey)})`
+  }
+  const poolKey = logicBoardTargetTypeKey(target)
+  if (poolKey) {
+    return `pool.getAll(${luaString(poolKey)})`
   }
   return `{}`
 }
@@ -78,12 +89,7 @@ export function sensorSourceExpr(target: {
   objectTypeId?: string
   entityId?: number
 }): string {
-  const key =
-    target.type === 'object_type'
-      ? target.objectTypeId
-      : target.type === 'entity_class'
-        ? target.className
-        : undefined
+  const key = logicBoardTargetTypeKey(target as LogicBoard['target'])
   if (key) return luaString(key)
   if (target.type === 'entity_id' && target.entityId != null)
     return String(target.entityId)

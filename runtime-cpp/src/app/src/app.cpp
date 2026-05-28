@@ -478,8 +478,10 @@ void Application::tickFixedStep(float dt) {
     // After Lua: camera.shake may have added trauma — decay + offset for this frame.
     mod_->cameraManager->updateShake(dt);
     // Platformer integrates Transform before physics; Solid grounding uses AABB.
-    if (!mod_->dialogManager || !mod_->dialogManager->isBlocking())
+    if (!mod_->dialogManager || !mod_->dialogManager->isBlocking()) {
         mod_->world->tickPlatformerControllers(dt);
+        mod_->world->tickSimpleMovementIntents(dt);
+    }
     const bool runPhysics =
         physicsMode_ == PhysicsMode::On
         || (physicsMode_ == PhysicsMode::Auto && mod_->physics->hasActiveBodies());

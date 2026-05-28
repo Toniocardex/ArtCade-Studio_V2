@@ -26,7 +26,7 @@ export function emitEventRegistration(
 ): string[] | null {
   const trig = ev.trigger
   const I = INDENT
-  const pool = poolExpr(board.target)
+  const pool = poolExpr(board.target, project)
   const source = sensorSourceExpr(board.target)
   const isGlobal = isGlobalTarget(board.target)
 

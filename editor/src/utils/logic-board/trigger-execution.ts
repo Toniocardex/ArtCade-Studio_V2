@@ -10,6 +10,7 @@ import type {
   LogicTriggerType,
 } from '../../types/logic-board'
 import type { ProjectDoc } from '../../types'
+import { logicBoardRuntimeClassKey, logicBoardTargetTypeKey } from '../project-queries'
 import { onInputUsesPolling } from './on-input-keys'
 
 export type TriggerExecutionMode = 'event' | 'polling' | 'hybrid'
@@ -45,18 +46,10 @@ export function boardLifecycleClass(
   _ev: LogicEvent,
   project?: ProjectDoc | null,
 ): string | null {
-  if (board.target.type === 'object_type' && board.target.objectTypeId)
-    return board.target.objectTypeId
-  if (board.target.type === 'entity_class' && board.target.className)
-    return board.target.className
-  if (project && board.target.type === 'entity_id') {
-    const id = board.target.entityId
-    if (id != null) {
-      const ent = project.entities[id]
-      if (ent?.className) return ent.className
-    }
+  if (project) {
+    return logicBoardRuntimeClassKey(project, board) ?? null
   }
-  return null
+  return logicBoardTargetTypeKey(board.target) ?? null
 }
 
 export function canRegisterLifecycleSpawn(

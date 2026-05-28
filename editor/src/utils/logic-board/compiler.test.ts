@@ -8,6 +8,8 @@ import {
 } from './compiler'
 import type { LogicBoard, LogicEvent } from '../../types/logic-board'
 import type { ProjectDoc } from '../../types'
+import { createEntityDef } from '../project-builders'
+import { createBlankProject } from '../project-factory'
 
 // Small helpers to build boards tersely.
 function board(events: LogicEvent[], className = 'Player'): LogicBoard {
@@ -91,6 +93,29 @@ describe('Component API actions and conditions', () => {
     expect(lua).toContain('_logic_add_movement(self, -1, 0)')
     expect(lua).toContain('_logic_flush_movement()')
     expect(lua).toContain('movement.clearIntent(entityId)')
+  })
+
+  it('resolves legacy Entity_* rulesheet pool to scene entity ids', () => {
+    const project = createBlankProject('Untitled')
+    project.entities[1] = createEntityDef(1, 'Entity_1', 'Entity', { x: 100, y: 100 })
+    project.scenes.scene_main.entityIds = [1]
+    const lua = compileLogicBoard(
+      [
+        {
+          boardId: 'board_legacy',
+          target: { type: 'object_type', objectTypeId: 'Entity_1' },
+          events: [
+            ev({
+              trigger: { type: 'onInput', keyCode: 'KeyA', eventType: 'down' },
+              actions: [{ type: 'controllerMovement', target: 'self', direction: 'left' }],
+            }),
+          ],
+        },
+      ],
+      project,
+    )
+    expect(lua).toContain('for _, self in ipairs({ 1 }) do')
+    expect(lua).not.toContain('pool.getAll("Entity_1")')
   })
 
   it('emits component runtime API calls (Tranche 2)', () => {

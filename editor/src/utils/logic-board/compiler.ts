@@ -111,7 +111,7 @@ function emitBoard(
   const destroyTickEvents = allTickEvents.filter((e) => e.trigger.type === 'onDestroy')
   const tickEvents = allTickEvents.filter((e) => e.trigger.type !== 'onDestroy')
 
-  const pool = poolExpr(board.target)
+  const pool = poolExpr(board.target, project)
   const isGlobal = isGlobalTarget(board.target)
   const init: string[] = []
   const tick: string[] = []

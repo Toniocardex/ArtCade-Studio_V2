@@ -84,10 +84,17 @@ export function entityIdDisplayLabel(
   return e?.name ?? `Object #${entityId}`
 }
 
-function logicBoardSharedTypeId(board: LogicBoard): string | undefined {
-  if (board.target.type === 'object_type') return board.target.objectTypeId
-  if (board.target.type === 'entity_class') return board.target.className
+/** Object-type / legacy class key on a rulesheet target (not entity_id). */
+export function logicBoardTargetTypeKey(
+  target: LogicBoard['target'],
+): string | undefined {
+  if (target.type === 'object_type') return target.objectTypeId
+  if (target.type === 'entity_class') return target.className
   return undefined
+}
+
+function logicBoardSharedTypeId(board: LogicBoard): string | undefined {
+  return logicBoardTargetTypeKey(board.target)
 }
 
 function collectInstanceIdsForType(project: ProjectDoc, typeId: string): number[] {
@@ -104,10 +111,31 @@ function entityMatchesSharedType(ent: EntityDef, typeId: string): boolean {
   return ent.className === typeId || effectiveTypeId(ent) === typeId
 }
 
+function projectEntities(project: ProjectDoc): Record<number, EntityDef> {
+  return project.entities ?? {}
+}
+
 function collectLegacyEntityIdsForType(project: ProjectDoc, typeId: string): number[] {
-  return Object.values(project.entities)
+  return Object.values(projectEntities(project))
     .filter((ent) => entityMatchesSharedType(ent, typeId))
     .map((ent) => ent.id)
+}
+
+/**
+ * Class string used by the runtime for pool/lifecycle (`pool.getAll`, onSpawn).
+ * When the board targets a legacy instance slug (e.g. Entity_1) but className is
+ * still "Entity", returns the real className so compiled Lua matches C++.
+ */
+export function logicBoardRuntimeClassKey(
+  project: ProjectDoc,
+  board: LogicBoard,
+): string | undefined {
+  const ids = logicBoardTargetEntityIds(project, board)
+  if (ids.length > 0) {
+    const ent = projectEntities(project)[ids[0]]
+    if (ent?.className) return ent.className
+  }
+  return logicBoardSharedTypeId(board)
 }
 
 /**
@@ -120,7 +148,9 @@ export function logicBoardTargetEntityIds(
   board: LogicBoard,
 ): number[] {
   if (board.target.type === 'entity_id' && board.target.entityId != null) {
-    return project.entities[board.target.entityId] ? [board.target.entityId] : []
+    return projectEntities(project)[board.target.entityId]
+      ? [board.target.entityId]
+      : []
   }
   const typeId = logicBoardSharedTypeId(board)
   if (!typeId) return []
