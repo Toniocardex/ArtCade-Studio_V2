@@ -67,6 +67,12 @@ const WASM_SCRIPT_ID = 'artcade-raylib-wasm-script'
 let _module: ArtCadeModule | null = null
 let _ready  = false
 let wasmInitPromise: Promise<ArtCadeModule> | null = null
+let _lastBridgeError: string | null = null
+
+/** Last JS-side failure from `safeCall` / `editorReloadScript` (not C++ Lua errors). */
+export function peekWasmBridgeLastError(): string | null {
+  return _lastBridgeError
+}
 
 /**
  * True only after Emscripten finished startup (onRuntimeInitialized + main).
@@ -334,11 +340,17 @@ function safeCall(
   argTypes:   string[],
   args:       unknown[],
 ): boolean {
-  if (!_module?.ccall || !_module.calledRun) return false
+  if (!_module?.ccall || !_module.calledRun) {
+    _lastBridgeError = 'WASM runtime is not initialized (ccall unavailable).'
+    return false
+  }
   try {
     _module.ccall(name, returnType, argTypes, args)
+    _lastBridgeError = null
     return true
   } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err)
+    _lastBridgeError = `Runtime call '${name}' failed: ${detail}`
     console.warn(`[wasm-bridge] ccall('${name}') failed:`, err)
     return false
   }
@@ -381,7 +393,10 @@ export function editorRestoreFromProject(projectJson: string): void {
 }
 
 export function editorReloadScript(luaSource: string): boolean {
-  if (!_module) return false
+  if (!_module) {
+    _lastBridgeError = 'WASM module is not loaded.'
+    return false
+  }
   const ptr = marshalString(luaSource)
   try {
     return safeCall('editor_reload_script', null, ['number'], [ptr])

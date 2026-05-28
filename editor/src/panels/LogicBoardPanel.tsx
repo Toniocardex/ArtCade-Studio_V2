@@ -23,6 +23,7 @@ import {
 } from '../utils/logic-board/logic-compile-service'
 import { LogicBoardCompileErrorBanner } from '../components/LogicBoardCompileErrorBanner'
 import { runtimeSync, useRuntimeReady } from '../utils/runtime-sync-service'
+import { makeConsoleEntry } from '../components/menu-bar/makeConsoleEntry'
 import {
   createLogicBoardForEntity,
   createLogicBoardForObjectType,
@@ -153,19 +154,48 @@ function executeApplyLogic({
       project, activeSceneId, compileResult.lua, state.dialogs,
     )
     if (!ok) {
-      flashApplyMsg('Runtime call failed — see the console for details.')
+      flashApplyMsg('Failed to reset preview — see console.')
+      dispatch({
+        type: 'LOG',
+        entry: makeConsoleEntry(
+          '[Logic] Apply failed while exiting play mode (runtime not ready or script reload failed).',
+          'error',
+        ),
+      })
       return
     }
     flashApplyMsg('Logic applied — preview reset to design state')
     return
   }
   runtimeSync.syncDialogs(state.dialogs)
-  const ok = runtimeSync.applyMainLua(compileResult.lua)
-  flashApplyMsg(
-    ok
-      ? 'Logic applied — script hot-reloaded (press PLAY to test)'
-      : 'Runtime call failed — see the console for details.',
-  )
+  const applyResult = runtimeSync.applyMainLua(compileResult.lua)
+  switch (applyResult.status) {
+    case 'reloaded':
+      flashApplyMsg('Logic applied — script hot-reloaded (press PLAY to test)')
+      break
+    case 'unchanged':
+      flashApplyMsg('Logic already active in preview — no reload needed')
+      break
+    case 'not_ready':
+      flashApplyMsg('Runtime still loading — try again in a moment.')
+      if (applyResult.message) {
+        dispatch({
+          type: 'LOG',
+          entry: makeConsoleEntry(`[Logic] ${applyResult.message}`, 'warn'),
+        })
+      }
+      break
+    case 'failed':
+      flashApplyMsg('Failed to apply logic — see console.')
+      dispatch({
+        type: 'LOG',
+        entry: makeConsoleEntry(
+          `[Logic] ${applyResult.message ?? 'Script hot-reload failed.'}`,
+          'error',
+        ),
+      })
+      break
+  }
 }
 
 type LogicBoardLuaModeProps = Readonly<{

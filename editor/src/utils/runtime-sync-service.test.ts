@@ -25,6 +25,7 @@ vi.mock('./wasm-bridge', () => {
     editorSetTransform:       vi.fn(),
     editorUpdateEntity:       vi.fn(),
     editorSetSceneSettings:   vi.fn(),
+    peekWasmBridgeLastError:  vi.fn(() => 'mock bridge error'),
   }
 })
 
@@ -305,12 +306,15 @@ describe('RuntimeSyncService', () => {
   it('applyMainLua does not cache Lua when editorReloadScript fails', () => {
     runtimeSync.reset()
     vi.mocked(bridge.editorReloadScript).mockReturnValue(false)
-    expect(runtimeSync.applyMainLua('function tick(dt) end')).toBe(false)
+    expect(runtimeSync.applyMainLua('function tick(dt) end')).toEqual({
+      status: 'failed',
+      message: 'mock bridge error',
+    })
 
     vi.mocked(bridge.editorReloadScript).mockReturnValue(true)
-    expect(runtimeSync.applyMainLua('function tick(dt) end')).toBe(true)
+    expect(runtimeSync.applyMainLua('function tick(dt) end')).toEqual({ status: 'reloaded' })
     vi.mocked(bridge.editorReloadScript).mockClear()
-    expect(runtimeSync.applyMainLua('function tick(dt) end')).toBe(false)
+    expect(runtimeSync.applyMainLua('function tick(dt) end')).toEqual({ status: 'unchanged' })
     expect(bridge.editorReloadScript).not.toHaveBeenCalled()
   })
 
@@ -321,17 +325,27 @@ describe('RuntimeSyncService', () => {
     runtimeSync.syncProject(p as never, 'a', '/tmp/x')
     vi.mocked(bridge.editorReloadScript).mockClear()
 
-    expect(runtimeSync.applyMainLua(luaV1)).toBe(true)
+    expect(runtimeSync.applyMainLua(luaV1)).toEqual({ status: 'reloaded' })
     expect(bridge.editorReloadScript).toHaveBeenCalledWith(luaV1)
 
     vi.mocked(bridge.editorReloadScript).mockClear()
-    expect(runtimeSync.applyMainLua(luaV1)).toBe(false)
+    expect(runtimeSync.applyMainLua(luaV1)).toEqual({ status: 'unchanged' })
     expect(bridge.editorReloadScript).not.toHaveBeenCalled()
 
     expect(runtimeSync.syncProject(p as never, 'a', '/tmp/x', { mainLua: luaV1 })).toBe(false)
     expect(bridge.editorReloadScript).not.toHaveBeenCalled()
 
-    expect(runtimeSync.applyMainLua(luaV2)).toBe(true)
+    expect(runtimeSync.applyMainLua(luaV2)).toEqual({ status: 'reloaded' })
     expect(bridge.editorReloadScript).toHaveBeenCalledWith(luaV2)
+  })
+
+  it('applyMainLua reports not_ready when WASM is not ready', () => {
+    runtimeSync.reset()
+    vi.mocked(bridge.isReady).mockReturnValue(false)
+    expect(runtimeSync.applyMainLua('function tick(dt) end')).toEqual({
+      status: 'not_ready',
+      message: 'WASM runtime is not ready yet.',
+    })
+    vi.mocked(bridge.isReady).mockReturnValue(true)
   })
 })

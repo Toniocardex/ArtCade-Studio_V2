@@ -81,7 +81,12 @@ export function buildRuntimeCallbacks(deps: RuntimeCallbackDeps): WasmCallbacks 
       }, 0)
     },
     onConsoleLine: (message: string, level: string) => {
-      if (cancelled()) return
+      // EditorAPI errors must reach the console even if an older lifecycle
+      // hook marked itself cancelled (e.g. StrictMode / dispatch identity churn).
+      const forceLog =
+        level === 'error' ||
+        (level === 'warn' && message.includes('[EditorAPI]'))
+      if (cancelled() && !forceLog) return
       const entry = makeLogEntry(message, level)
       if (message.includes('[EditorAPI] Bridge initialised')) {
         setTimeout(() => { if (!cancelled()) setEngineReady(true) }, 0)

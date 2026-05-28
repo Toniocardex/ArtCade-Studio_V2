@@ -23,6 +23,7 @@ import {
   editorLoadDialogs,
   editorRestoreFromProject,
   editorReloadScript,
+  peekWasmBridgeLastError,
   editorSelectEntity,
   editorSetGridSize,
   editorSetGuidesEnabled,
@@ -47,6 +48,14 @@ import { dialogsJsonForRuntime } from './dialog/runtime-dialogs'
 // ---------------------------------------------------------------------------
 // Public domain types
 // ---------------------------------------------------------------------------
+
+export type ApplyMainLuaStatus = 'reloaded' | 'unchanged' | 'not_ready' | 'failed'
+
+export interface ApplyMainLuaResult {
+  status: ApplyMainLuaStatus
+  /** Present for `not_ready` and `failed`. */
+  message?: string
+}
 
 export type EditorTool = 'select' | 'pan' | 'paint' | 'erase' | 'tile'
 
@@ -181,7 +190,7 @@ class RuntimeSyncServiceImpl {
     this.lastMode = 0
     editorRestoreFromProject(projectJsonForRuntime(project, activeSceneId))
     this.syncDialogs(dialogs ?? {})
-    this.reloadMainLuaIfChanged(mainLua)
+    if (this.reloadMainLuaIfChanged(mainLua) === 'failed') return false
     this.assetCacheInvalidator?.()
     return true
   }
@@ -215,20 +224,34 @@ class RuntimeSyncServiceImpl {
    * Hot-reload main Lua from Logic Board Apply or script saves.
    * Updates the internal cache so later syncProject does not skip reload.
    */
-  applyMainLua(mainLua: string): boolean {
-    if (!isReady()) return false
-    return this.reloadMainLuaIfChanged(mainLua)
+  applyMainLua(mainLua: string): ApplyMainLuaResult {
+    if (!isReady()) {
+      return {
+        status: 'not_ready',
+        message: 'WASM runtime is not ready yet.',
+      }
+    }
+    const outcome = this.reloadMainLuaIfChanged(mainLua)
+    if (outcome === 'unchanged') return { status: 'unchanged' }
+    if (outcome === 'failed') {
+      return {
+        status: 'failed',
+        message: peekWasmBridgeLastError() ?? 'Script hot-reload failed.',
+      }
+    }
+    return { status: 'reloaded' }
   }
 
   /** Hot-reload main Lua when the compiled source changes (logic boards, script tab). */
-  private reloadMainLuaIfChanged(mainLua: string): boolean {
-    if (mainLua === this.lastMainLua) return false
+  private reloadMainLuaIfChanged(mainLua: string): 'reloaded' | 'unchanged' | 'failed' {
+    if (mainLua === this.lastMainLua) return 'unchanged'
     if (editorReloadScript(mainLua) === false) {
-      console.warn('[runtime-sync] Script hot-reload failed — preview may be stale')
-      return false
+      const detail = peekWasmBridgeLastError() ?? 'editor_reload_script failed'
+      console.warn('[runtime-sync] Script hot-reload failed:', detail)
+      return 'failed'
     }
     this.lastMainLua = mainLua
-    return true
+    return 'reloaded'
   }
 
   private latchProjectProjection(loadKey: string, projection: RuntimeProjection): void {
@@ -289,7 +312,9 @@ class RuntimeSyncServiceImpl {
     if (!isReady()) return false
     let didWork = false
     if (options?.dialogs && this.syncDialogs(options.dialogs)) didWork = true
-    if (options?.mainLua && this.reloadMainLuaIfChanged(options.mainLua)) didWork = true
+    if (options?.mainLua && this.reloadMainLuaIfChanged(options.mainLua) === 'reloaded') {
+      didWork = true
+    }
 
     const projection = runtimeProjectProjection(project, activeSceneId)
     const fp = JSON.stringify(projection)
