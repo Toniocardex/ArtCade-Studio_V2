@@ -19,8 +19,18 @@ const panel =
 export type ConditionMode = 'flat' | 'tree'
 
 export function getConditionMode(event: LogicEvent): ConditionMode {
-  return event.conditionRoot != null ? 'tree' : 'flat'
+  return event.conditionRoot == null ? 'flat' : 'tree'
 }
+
+type NodeEditorProps = Readonly<{
+  node: LogicConditionNode
+  path: string
+  onChange: (n: LogicConditionNode) => void
+  onRemove?: () => void
+  depth: number
+  conditionTypes: readonly LogicCondition['type'][]
+  recommendedConditionTypes?: readonly LogicCondition['type'][]
+}>
 
 function NodeEditor({
   node,
@@ -30,15 +40,7 @@ function NodeEditor({
   depth,
   conditionTypes,
   recommendedConditionTypes,
-}: {
-  node: LogicConditionNode
-  path: string
-  onChange: (n: LogicConditionNode) => void
-  onRemove?: () => void
-  depth: number
-  conditionTypes: readonly LogicCondition['type'][]
-  recommendedConditionTypes?: readonly LogicCondition['type'][]
-}) {
+}: NodeEditorProps) {
   if (node.kind === 'leaf') {
     const cond = node.condition
     return (
@@ -74,7 +76,7 @@ function NodeEditor({
         <SchemaParamForm
           kind="condition"
           type={cond.type}
-          value={cond as unknown as Record<string, unknown>}
+          value={cond}
           onChange={(next) =>
             onChange({
               kind: 'leaf',
@@ -178,6 +180,14 @@ function NodeEditor({
   )
 }
 
+export type ConditionTreeEditorProps = Readonly<{
+  event: LogicEvent
+  onChange: (e: LogicEvent) => void
+  advanced?: boolean
+  conditionTypes?: readonly LogicCondition['type'][]
+  recommendedConditionTypes?: readonly LogicCondition['type'][]
+}>
+
 /** Tree-only editor for advanced mode. */
 export function ConditionTreeEditor({
   event,
@@ -185,13 +195,7 @@ export function ConditionTreeEditor({
   advanced = false,
   conditionTypes = CONDITION_TYPES,
   recommendedConditionTypes: recommendedTypes,
-}: {
-  event: LogicEvent
-  onChange: (e: LogicEvent) => void
-  advanced?: boolean
-  conditionTypes?: readonly LogicCondition['type'][]
-  recommendedConditionTypes?: readonly LogicCondition['type'][]
-}) {
+}: ConditionTreeEditorProps) {
   if (!advanced) return null
 
   const root = event.conditionRoot ?? defaultConditionRoot()
