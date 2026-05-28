@@ -1,26 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 
-// Vitest runs in node by default; wasm-bridge accesses `window` at import
-// time (HMR rehydration). Provide a minimal shim BEFORE importing the module.
-;(globalThis as unknown as { window: Record<string, unknown> }).window =
-  (globalThis as unknown as { window?: Record<string, unknown> }).window ?? {}
+// Vitest runs in node by default; wasm-bridge touches globalThis at import
+// time (HMR rehydration). Callbacks are bound on globalThis (Emscripten contract).
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { bindWindowCallbacks } = await import('./wasm-bridge')
 
-declare global {
-  interface Window {
-    onTilemapPainted?: (col: number, row: number, tileId: number) => void
-    onEntitySelected?: (entityId: number) => void
-    onEntityTransformChanged?: (
-      entityId: number, x: number, y: number,
-      rot: number, sx: number, sy: number,
-    ) => void
-    onConsoleLine?: (message: string, level: string) => void
-  }
-}
-
-const win = (globalThis as unknown as { window: Window }).window
+const win = globalThis as unknown as Window
 
 describe('bindWindowCallbacks (merge-safe)', () => {
   beforeEach(() => {

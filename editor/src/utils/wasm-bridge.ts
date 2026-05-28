@@ -5,13 +5,13 @@ import { runtimeAssetPath } from './runtime-path'
 //
 // Architecture (Guida_Architettura_e_SmokeTest_ArtCade):
 //
-//   C++ → React : EM_ASM calls window.on* globals
+//   C++ → React : EM_ASM calls globalThis.on* globals
 //                 (set here BEFORE game.js loads so the callback is ready)
 //
 //   React → C++ : Module.ccall('function_name', returnType, argTypes, args)
 //                 Calls EMSCRIPTEN_KEEPALIVE exported C functions.
 //
-// WASM singleton: game.js (Emscripten) must be injected ONCE per window.
+// WASM singleton: game.js (Emscripten) must be injected ONCE per globalThis.
 // React StrictMode / HMR remounts must not re-append the script (game.js
 // redeclaration crash + audio buffer loop).
 // ---------------------------------------------------------------------------
@@ -42,7 +42,7 @@ export interface ArtCadeModule {
 
 declare global {
   interface Window {
-    Module: Partial<ArtCadeModule>
+    Module?: Partial<ArtCadeModule>
 
     onEntitySelected?:            (entityId: number) => void
     onEntityTransformChanged?:    (entityId: number, x: number, y: number,
@@ -51,6 +51,11 @@ declare global {
     onTilemapPainted?:            (col: number, row: number, tileId: number) => void
     onSpriteFillColor?:           (entityId: number, r: number, g: number, b: number) => void
   }
+}
+
+/** Emscripten + C++→JS callbacks live on `globalThis` (browser `window`). */
+function emscriptenGlobal(): Window {
+  return globalThis as unknown as Window
 }
 
 // ---------------------------------------------------------------------------
@@ -68,14 +73,14 @@ let wasmInitPromise: Promise<ArtCadeModule> | null = null
  * `ccall` exists earlier — calling exports before `calledRun` throws "func is not a function".
  */
 function isWasmModuleReady(): boolean {
-  const mod = window.Module as Partial<ArtCadeModule> | undefined
+  const mod = emscriptenGlobal().Module
   return typeof mod?.ccall === 'function' && mod.calledRun === true
 }
 
 /** After Vite HMR replaces this module, re-link to an already-running Emscripten instance. */
 function rehydrateFromWindow(): void {
   if (isWasmModuleReady()) {
-    _module = window.Module as ArtCadeModule
+    _module = emscriptenGlobal().Module as ArtCadeModule
     _ready  = true
   }
 }
@@ -106,17 +111,18 @@ function cacheQuery(): string {
  *
  * Why: callers like `PreviewPanel` invoke `loadWasmRuntime` again on canvas
  * rebind. If that rebind happens with a partial callback set, naively
- * assigning `window.onTilemapPainted = cbs.onTilemapPainted` would
+ * assigning `globalThis.onTilemapPainted = cbs.onTilemapPainted` would
  * silently set it to `undefined`, breaking tilemap-paint persistence into
  * React (P1 in TECHNICAL_DEBT_REVIEW.md).
  */
 export function bindWindowCallbacks(cbs: Partial<WasmCallbacks>): void {
-  if (cbs.onEntitySelected)         window.onEntitySelected         = cbs.onEntitySelected
-  if (cbs.onEntityTransformChanged) window.onEntityTransformChanged = cbs.onEntityTransformChanged
-  if (cbs.onConsoleLine)            window.onConsoleLine            = cbs.onConsoleLine
-  if (cbs.onTilemapPainted)         window.onTilemapPainted         = cbs.onTilemapPainted
-  if (cbs.onSpriteFillColor)        window.onSpriteFillColor        = cbs.onSpriteFillColor
-  // NOTE: the legacy `window.onObjectUpdated(x, y)` forwarder was removed.
+  const g = emscriptenGlobal()
+  if (cbs.onEntitySelected)         g.onEntitySelected         = cbs.onEntitySelected
+  if (cbs.onEntityTransformChanged) g.onEntityTransformChanged = cbs.onEntityTransformChanged
+  if (cbs.onConsoleLine)            g.onConsoleLine            = cbs.onConsoleLine
+  if (cbs.onTilemapPainted)         g.onTilemapPainted         = cbs.onTilemapPainted
+  if (cbs.onSpriteFillColor)        g.onSpriteFillColor        = cbs.onSpriteFillColor
+  // NOTE: the legacy `globalThis.onObjectUpdated(x, y)` forwarder was removed.
   // The shipping C++ runtime never emits that signal (only the smoke-test
   // harness does); meanwhile the forwarder was synthesising entityId=0,
   // rotation=0, scale=(1,1), which — if the C++ side ever did fire it again
@@ -130,19 +136,20 @@ function attachModuleHooks(
   cbs: WasmCallbacks,
 ): void {
   const cacheBust = cacheQuery()
-  const existing = window.Module ?? {}
+  const g = emscriptenGlobal()
+  const existing = g.Module ?? {}
   const prevOnRuntimeInitialized = existing.onRuntimeInitialized
 
-  window.Module = {
+  g.Module = {
     ...existing,
     canvas,
     locateFile: (path: string, _prefix: string) => `${runtimeAssetPath(path)}${cacheBust}`,
 
     onRuntimeInitialized() {
       if (typeof prevOnRuntimeInitialized === 'function') {
-        prevOnRuntimeInitialized.call(window.Module)
+        prevOnRuntimeInitialized.call(g.Module)
       }
-      _module = window.Module as ArtCadeModule
+      _module = g.Module as ArtCadeModule
       _ready  = true
 
       _module.print    = (t) => cbs.onConsoleLine(t, 'info')
@@ -155,7 +162,7 @@ function attachModuleHooks(
 
   // Runtime may already be up (HMR / StrictMode remount / script tag left in DOM).
   if (isWasmModuleReady()) {
-    _module = window.Module as ArtCadeModule
+    _module = emscriptenGlobal().Module as ArtCadeModule
     _ready  = true
     _module.canvas = canvas
     _module.print    = (t) => cbs.onConsoleLine(t, 'info')
@@ -169,7 +176,7 @@ function adoptExistingRuntime(
   canvas: HTMLCanvasElement,
   cbs: WasmCallbacks,
 ): ArtCadeModule {
-  const mod = window.Module as ArtCadeModule
+  const mod = emscriptenGlobal().Module as ArtCadeModule
   _module = mod
   _ready  = true
   mod.canvas = canvas
@@ -207,7 +214,7 @@ export interface WasmCallbacks {
 }
 
 /**
- * Load game.js once per window. Safe under React StrictMode and Vite HMR.
+ * Load game.js once per globalThis. Safe under React StrictMode and Vite HMR.
  */
 export function loadWasmRuntime(
   canvas:  HTMLCanvasElement,
@@ -294,11 +301,12 @@ export function loadWasmRuntime(
       tick()
     }
 
-    script.onerror = (err) => {
+    script.onerror = () => {
       wasmInitPromise = null
       script.remove()
-      console.error(`[wasm-bridge] Failed to load WASM runtime from "${gameSrc}"`, err)
-      reject(err)
+      const message = `[wasm-bridge] Failed to load WASM runtime from "${gameSrc}"`
+      console.error(message)
+      reject(new Error(message))
     }
 
     document.body.appendChild(script)
