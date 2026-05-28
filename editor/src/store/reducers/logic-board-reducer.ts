@@ -96,6 +96,22 @@ export const logicBoardReducer: DomainReducer = (state: CoreState, action: Actio
             : board,
         ),
       )
+    case 'LOGIC_MOVE_EVENT': {
+      const { boardId, eventId, toIndex } = action
+      return withBoards(state, (b) =>
+        b.map((board) => {
+          if (board.boardId !== boardId) return board
+          const from = board.events.findIndex((e) => e.id === eventId)
+          if (from < 0) return board
+          const clamped = Math.max(0, Math.min(toIndex, board.events.length - 1))
+          if (from === clamped) return board
+          const events = board.events.slice()
+          const [item] = events.splice(from, 1)
+          events.splice(clamped, 0, item!)
+          return { ...board, events }
+        }),
+      )
+    }
     default:
       return state
   }

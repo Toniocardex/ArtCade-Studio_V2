@@ -3,13 +3,17 @@
 // Sections: header (trigger), ONLY IF (conditions), THEN (actions).
 // ---------------------------------------------------------------------------
 
-import type { ReactNode } from 'react'
+import type { DragEvent, ReactNode } from 'react'
 import {
+  ChevronDown,
+  ChevronUp,
   Copy,
+  GripVertical,
   Pencil,
   Trash2,
   Zap,
 } from 'lucide-react'
+import { LOGIC_EVENT_DRAG_MIME } from '../../utils/logic-board/logic-event-list-ui'
 import { useEditor } from '../../store/editor-store'
 import type { LogicAction, LogicBoard, LogicEvent } from '../../types/logic-board'
 import type { ProjectDoc } from '../../types'
@@ -39,6 +43,11 @@ export type EventCardProps = Readonly<{
   onDelete: () => void
   onChange: (e: LogicEvent) => void
   onDoneEditing: () => void
+  canMoveUp?: boolean
+  canMoveDown?: boolean
+  onMoveUp?: () => void
+  onMoveDown?: () => void
+  onReorderDrop?: (draggedEventId: string) => void
 }>
 
 function SectionLabel({ children }: Readonly<{ children: ReactNode }>) {
@@ -168,6 +177,11 @@ function EventCardHeader({
   onEdit,
   onClone,
   onDelete,
+  selected,
+  canMoveUp,
+  canMoveDown,
+  onMoveUp,
+  onMoveDown,
 }: Readonly<{
   event: LogicEvent
   project: ProjectDoc | null
@@ -182,11 +196,36 @@ function EventCardHeader({
   onEdit: () => void
   onClone: () => void
   onDelete: () => void
+  selected?: boolean
+  canMoveUp?: boolean
+  canMoveDown?: boolean
+  onMoveUp?: () => void
+  onMoveDown?: () => void
 }>) {
   return (
     <div
       className={`flex items-center gap-2.5 border-b border-[var(--border)] bg-[var(--panel-3)] px-3 py-2.5 ${dim}`}
     >
+      {selected && (
+        <div className="flex shrink-0 flex-col gap-0.5">
+          <LogicIconButton
+            title="Move rule up"
+            ariaLabel="Move rule up"
+            disabled={!canMoveUp}
+            onClick={onMoveUp}
+          >
+            <ChevronUp size={13} />
+          </LogicIconButton>
+          <LogicIconButton
+            title="Move rule down"
+            ariaLabel="Move rule down"
+            disabled={!canMoveDown}
+            onClick={onMoveDown}
+          >
+            <ChevronDown size={13} />
+          </LogicIconButton>
+        </div>
+      )}
       <CardSelectButton
         className="flex min-w-0 flex-1 items-center gap-2.5"
         onSelect={onSelect}
@@ -260,6 +299,11 @@ export default function EventCard(props: EventCardProps) {
     onChange,
     onDoneEditing,
     showAppliesTo = true,
+    canMoveUp,
+    canMoveDown,
+    onMoveUp,
+    onMoveDown,
+    onReorderDrop,
   } = props
 
   const { state } = useEditor()
@@ -286,18 +330,53 @@ export default function EventCard(props: EventCardProps) {
     onEdit,
     onClone,
     onDelete,
+    selected,
+    canMoveUp,
+    canMoveDown,
+    onMoveUp,
+    onMoveDown,
   }
 
   const collapsedSelectTitle = editing ? undefined : 'Double-click to edit rule'
+
+  const onDragOverCard = (e: DragEvent) => {
+    if (!e.dataTransfer.types.includes(LOGIC_EVENT_DRAG_MIME)) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+  }
+
+  const onDropCard = (e: DragEvent) => {
+    const draggedId = e.dataTransfer.getData(LOGIC_EVENT_DRAG_MIME)
+    if (!draggedId || draggedId === event.id) return
+    e.preventDefault()
+    onReorderDrop?.(draggedId)
+  }
 
   return (
     <div
       data-logic-event-id={event.id}
       tabIndex={selected && !editing ? 0 : undefined}
+      onDragOver={onReorderDrop ? onDragOverCard : undefined}
+      onDrop={onReorderDrop ? onDropCard : undefined}
       className={`mb-3 overflow-hidden border bg-[var(--panel)] transition-colors ${
         isHighlighted ? 'border-[var(--accent-2)]' : 'border-[var(--border)]'
       }`}
     >
+      {onReorderDrop && (
+        <div
+          className="flex cursor-grab items-center justify-center border-b border-[var(--border)] bg-[var(--panel-3)] py-0.5 text-[var(--muted)] active:cursor-grabbing"
+          draggable
+          title="Drag to reorder rule"
+          onDragStart={(e) => {
+            e.dataTransfer.setData(LOGIC_EVENT_DRAG_MIME, event.id)
+            e.dataTransfer.effectAllowed = 'move'
+            e.stopPropagation()
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <GripVertical size={14} aria-hidden />
+        </div>
+      )}
       <EventCardHeader {...headerProps} />
 
       {editing ? (

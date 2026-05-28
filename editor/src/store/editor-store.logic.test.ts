@@ -102,6 +102,25 @@ describe('coreReducer — Logic Board CRUD', () => {
     expect(s.projectDirty).toBe(true)
   })
 
+  it('LOGIC_MOVE_EVENT reorders events within a board', () => {
+    const board = createLogicBoard('Player', 'pc')
+    let s = coreReducer(baseState(), { type: 'LOGIC_ADD_BOARD', board })
+    const a = createLogicEvent({ type: 'onStart' }, [])
+    const b = createLogicEvent({ type: 'onUpdate' }, [])
+    const c = createLogicEvent({ type: 'onTimer', seconds: 1, repeat: false }, [])
+    s = coreReducer(s, { type: 'LOGIC_ADD_EVENT', boardId: 'pc', event: a })
+    s = coreReducer(s, { type: 'LOGIC_ADD_EVENT', boardId: 'pc', event: b })
+    s = coreReducer(s, { type: 'LOGIC_ADD_EVENT', boardId: 'pc', event: c })
+    s = coreReducer(s, {
+      type: 'LOGIC_MOVE_EVENT',
+      boardId: 'pc',
+      eventId: c.id,
+      toIndex: 0,
+    })
+    const ids = s.project?.logicBoards?.[0].events.map((e) => e.id) ?? []
+    expect(ids).toEqual([c.id, a.id, b.id])
+  })
+
   it('LOGIC_ADD_EVENT / UPDATE_EVENT / DELETE_EVENT operate on the right board', () => {
     const board = createLogicBoard('Player', 'pc')
     let s = coreReducer(baseState(), { type: 'LOGIC_ADD_BOARD', board })

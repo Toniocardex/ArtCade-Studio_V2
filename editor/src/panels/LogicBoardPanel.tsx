@@ -97,6 +97,7 @@ type LogicBoardKeyHandlers = {
   closeEditor: () => void
   focusEvent: (eventId: string) => void
   deleteFocusedEvent: () => void
+  moveFocusedEvent: (toIndex: number) => void
 }
 
 function handleLogicBoardKey(e: KeyboardEvent, handlers: LogicBoardKeyHandlers): void {
@@ -113,6 +114,7 @@ function handleLogicBoardKey(e: KeyboardEvent, handlers: LogicBoardKeyHandlers):
     closeEditor,
     focusEvent,
     deleteFocusedEvent,
+    moveFocusedEvent,
   } = handlers
   if (shouldIgnoreEditorShortcut(e)) return
 
@@ -126,6 +128,29 @@ function handleLogicBoardKey(e: KeyboardEvent, handlers: LogicBoardKeyHandlers):
   ) {
     e.preventDefault()
     deleteFocusedEvent()
+    return
+  }
+
+  if (
+    !editingId &&
+    e.altKey &&
+    !e.ctrlKey &&
+    !e.metaKey &&
+    focusedEventId &&
+    (e.key === 'ArrowUp' || e.key === 'ArrowDown')
+  ) {
+    const hit = findEventInBoards(sceneBoards, focusedEventId)
+    if (hit) {
+      const idx = hit.board.events.findIndex((ev) => ev.id === focusedEventId)
+      const to =
+        e.key === 'ArrowDown'
+          ? Math.min(idx + 1, hit.board.events.length - 1)
+          : Math.max(idx - 1, 0)
+      if (idx >= 0 && to !== idx) {
+        e.preventDefault()
+        handlers.moveFocusedEvent(to)
+      }
+    }
     return
   }
 
@@ -561,6 +586,21 @@ export default function LogicBoardPanel() {
     [board, focusedEventId, insertClonedEvent, showClipboardHint],
   )
 
+  const moveFocusedEvent = useCallback(
+    (toIndex: number) => {
+      const hit = findEventInBoards(sceneBoards, focusedEventId)
+      if (!hit || focusedEventId == null) return
+      dispatch({
+        type: 'LOGIC_MOVE_EVENT',
+        boardId: hit.board.boardId,
+        eventId: focusedEventId,
+        toIndex,
+      })
+      scrollEventCardIntoViewSoon(focusedEventId)
+    },
+    [sceneBoards, focusedEventId, dispatch],
+  )
+
   const deleteFocusedEvent = useCallback(() => {
     const hit = findEventInBoards(sceneBoards, focusedEventId)
     if (!hit) return
@@ -600,6 +640,7 @@ export default function LogicBoardPanel() {
           scrollEventCardIntoViewSoon(eventId)
         },
         deleteFocusedEvent,
+        moveFocusedEvent,
       })
     }
 
@@ -616,6 +657,7 @@ export default function LogicBoardPanel() {
     pasteEvent,
     cloneEvent,
     deleteFocusedEvent,
+    moveFocusedEvent,
   ])
 
   if (!project) {

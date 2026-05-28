@@ -5,6 +5,7 @@
 import type { LogicBoard, LogicEvent } from '../../types/logic-board'
 
 export const LOGIC_EVENTS_LIST_SELECTOR = '[data-logic-events-list]'
+export const LOGIC_EVENT_DRAG_MIME = 'application/x-artcade-logic-event-id'
 export const logicEventCardSelector = (eventId: string) =>
   `[data-logic-event-id="${eventId}"]`
 

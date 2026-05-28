@@ -55,6 +55,17 @@ function renderEventCard(
     dispatch,
   } = props
 
+  const eventIndex = eventBoard.events.findIndex((e) => e.id === ev.id)
+  const moveEvent = (toIndex: number) => {
+    dispatch({
+      type: 'LOGIC_MOVE_EVENT',
+      boardId: eventBoard.boardId,
+      eventId: ev.id,
+      toIndex,
+    })
+    scrollEventCardIntoViewSoon(ev.id)
+  }
+
   return (
     <EventCard
       event={ev}
@@ -97,6 +108,22 @@ function renderEventCard(
         })
       }
       onDoneEditing={() => setEditingId(null)}
+      canMoveUp={eventIndex > 0}
+      canMoveDown={eventIndex >= 0 && eventIndex < eventBoard.events.length - 1}
+      onMoveUp={() => moveEvent(eventIndex - 1)}
+      onMoveDown={() => moveEvent(eventIndex + 1)}
+      onReorderDrop={(draggedEventId) => {
+        const from = eventBoard.events.findIndex((e) => e.id === draggedEventId)
+        const to = eventBoard.events.findIndex((e) => e.id === ev.id)
+        if (from < 0 || to < 0) return
+        dispatch({
+          type: 'LOGIC_MOVE_EVENT',
+          boardId: eventBoard.boardId,
+          eventId: draggedEventId,
+          toIndex: to,
+        })
+        scrollEventCardIntoViewSoon(draggedEventId)
+      }}
     />
   )
 }

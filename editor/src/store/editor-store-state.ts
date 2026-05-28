@@ -167,6 +167,7 @@ export type Action =
   | { type: 'LOGIC_INSERT_EVENT'; boardId: string; event: LogicEvent; afterEventId?: string }
   | { type: 'LOGIC_UPDATE_EVENT'; boardId: string; event: LogicEvent }
   | { type: 'LOGIC_DELETE_EVENT'; boardId: string; eventId: string }
+  | { type: 'LOGIC_MOVE_EVENT'; boardId: string; eventId: string; toIndex: number }
   | { type: 'DIALOG_SET_LIBRARY'; dialogs: Record<string, DialogScript>; selectedDialogId?: string | null }
   | { type: 'DIALOG_SELECT'; dialogId: string | null }
   | { type: 'DIALOG_UPSERT'; script: DialogScript }
