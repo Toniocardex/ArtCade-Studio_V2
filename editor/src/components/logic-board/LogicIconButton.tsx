@@ -4,6 +4,28 @@
 
 import type { ReactNode } from 'react'
 
+const ICON_BTN_BASE =
+  'w-7 h-7 rounded border flex items-center justify-center text-xs shrink-0'
+
+function logicIconButtonClass(active?: boolean, danger?: boolean): string {
+  if (danger) {
+    return `${ICON_BTN_BASE} border-[var(--border-2)] text-[var(--muted)] hover:text-[var(--danger)]`
+  }
+  if (active) {
+    return `${ICON_BTN_BASE} border-[var(--accent)] text-[var(--accent)]`
+  }
+  return `${ICON_BTN_BASE} border-[var(--border-2)] text-[var(--muted)] hover:text-[var(--accent)] hover:border-[var(--accent-bd)]`
+}
+
+export type LogicIconButtonProps = Readonly<{
+  title: string
+  ariaLabel: string
+  onClick: () => void
+  active?: boolean
+  danger?: boolean
+  children: ReactNode
+}>
+
 export default function LogicIconButton({
   title,
   ariaLabel,
@@ -11,27 +33,14 @@ export default function LogicIconButton({
   active,
   danger,
   children,
-}: {
-  title: string
-  ariaLabel: string
-  onClick: () => void
-  active?: boolean
-  danger?: boolean
-  children: ReactNode
-}) {
+}: LogicIconButtonProps) {
   return (
     <button
       type="button"
       onClick={onClick}
       title={title}
       aria-label={ariaLabel}
-      className={`w-7 h-7 rounded border flex items-center justify-center text-xs shrink-0 ${
-        danger
-          ? 'border-[var(--border-2)] text-[var(--muted)] hover:text-[var(--danger)]'
-          : active
-            ? 'border-[var(--accent)] text-[var(--accent)]'
-            : 'border-[var(--border-2)] text-[var(--muted)] hover:text-[var(--accent)] hover:border-[var(--accent-bd)]'
-      }`}
+      className={logicIconButtonClass(active, danger)}
     >
       {children}
     </button>
