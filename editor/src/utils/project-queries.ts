@@ -180,6 +180,56 @@ export function logicBoardLabel(
   return logicBoardCompilerLabel(board)
 }
 
+/**
+ * Human-readable label for which scene objects a rulesheet affects (Logic Board cards).
+ */
+export function rulesheetAppliesToLabel(
+  project: ProjectDoc | null | undefined,
+  board: LogicBoard,
+): string {
+  if (!project) return 'Unknown'
+  const target = board.target
+  if (target.type === 'global') return 'Global'
+  if (target.type === 'scene') return 'Scene'
+  if (target.type === 'entity_id' && target.entityId != null) {
+    const ent = projectEntities(project)[target.entityId]
+    return ent?.name?.trim() || `Object #${target.entityId}`
+  }
+  const typeKey = logicBoardTargetTypeKey(target)
+  const ids = logicBoardTargetEntityIds(project, board)
+  if (ids.length === 1) {
+    const name = projectEntities(project)[ids[0]]?.name?.trim()
+    return name || `Object #${ids[0]}`
+  }
+  if (ids.length > 1) {
+    const names = ids
+      .map((id) => projectEntities(project)[id]?.name?.trim() || `#${id}`)
+      .slice(0, 3)
+    const more = ids.length - names.length
+    const prefix = typeKey ? `${typeKey}: ` : ''
+    return more > 0 ? `${prefix}${names.join(', ')} +${more}` : `${prefix}${names.join(', ')}`
+  }
+  if (typeKey) return `Type ${typeKey} (no instances in scene)`
+  return 'No target'
+}
+
+/** Rulesheets that apply to at least one entity in the given scene. */
+export function logicBoardsForScene(
+  project: ProjectDoc | null | undefined,
+  sceneId: string,
+): LogicBoard[] {
+  if (!project?.logicBoards?.length) return []
+  const sceneEntityIds = new Set(
+    getEntitiesInScene(project, sceneId).map((e) => e.id),
+  )
+  return project.logicBoards.filter((board) => {
+    if (board.target.type === 'global' || board.target.type === 'scene') return true
+    return logicBoardTargetEntityIds(project, board).some((id) =>
+      sceneEntityIds.has(id),
+    )
+  })
+}
+
 /** All unique class names across all entities in the project. */
 export function allClassNames(project: ProjectDoc): string[] {
   const fromTypes = Object.keys(project.objectTypes ?? {})

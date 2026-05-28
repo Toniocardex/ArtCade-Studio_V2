@@ -11,40 +11,23 @@ import {
   Zap,
 } from 'lucide-react'
 import { useEditor } from '../../store/editor-store'
-import type { LogicEvent } from '../../types/logic-board'
+import type { LogicAction, LogicBoard, LogicEvent } from '../../types/logic-board'
+import type { ProjectDoc } from '../../types'
 import {
   actionSummaryPlain,
   conditionsPlainList,
   triggerExecutionBadge,
   eventTriggerSummaryPlain,
 } from './friendly-labels'
-import type { LogicBoard } from '../../types/logic-board'
+import { rulesheetAppliesToLabel } from '../../utils/project'
 import LogicIconButton from '../../components/logic-board/LogicIconButton'
 import EventEditor from './EventEditor'
 
-function SectionLabel({ children }: { children: ReactNode }) {
-  return (
-    <div className="mb-1.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
-      {children}
-    </div>
-  )
-}
-
-export default function EventCard({
-  event,
-  board,
-  editing,
-  selected,
-  onSelect,
-  onToggleEnabled,
-  onEdit,
-  onClone,
-  onDelete,
-  onChange,
-  onDoneEditing,
-}: {
+export type EventCardProps = Readonly<{
   event: LogicEvent
   board?: LogicBoard | null
+  /** When false, entity label is shown on a parent section header instead. */
+  showAppliesTo?: boolean
   editing: boolean
   selected?: boolean
   onSelect?: () => void
@@ -54,92 +37,247 @@ export default function EventCard({
   onDelete: () => void
   onChange: (e: LogicEvent) => void
   onDoneEditing: () => void
-}) {
-  const { state } = useEditor()
-  const project = state.project
-  const ifLines = conditionsPlainList(event, project)
-  const execBadge = triggerExecutionBadge(event, board, project)
-  const dim = event.enabled ? '' : 'opacity-50'
-  const isHighlighted = editing || selected
+}>
 
-  const zapTooltip =
-    execBadge.label === 'Every frame'
-      ? 'Trigger - checked every frame'
-      : execBadge.label === 'Triggered*'
-        ? 'Trigger - engine event when available'
-        : 'Trigger - engine event'
+function SectionLabel({ children }: Readonly<{ children: ReactNode }>) {
+  return (
+    <div className="mb-1.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
+      {children}
+    </div>
+  )
+}
 
+function zapTriggerTooltip(execLabel: string): string {
+  if (execLabel === 'Every frame') return 'Trigger - checked every frame'
+  if (execLabel === 'Triggered*') return 'Trigger - engine event when available'
+  return 'Trigger - engine event'
+}
+
+function CardSelectButton({
+  className = '',
+  onSelect,
+  children,
+}: Readonly<{
+  className?: string
+  onSelect?: () => void
+  children: ReactNode
+}>) {
+  if (!onSelect) {
+    return <div className={className}>{children}</div>
+  }
+  return (
+    <button
+      type="button"
+      className={`block w-full border-0 bg-transparent p-0 text-left ${className}`}
+      onClick={onSelect}
+    >
+      {children}
+    </button>
+  )
+}
+
+function actionListKey(eventId: string, action: LogicAction, index: number): string {
+  return `${eventId}:act:${action.type}:${index}`
+}
+
+function EventCardConditions({
+  eventId,
+  lines,
+}: Readonly<{ eventId: string; lines: string[] }>) {
+  return (
+    <div className="border-b border-[var(--border)] bg-[rgba(var(--bg-rgb),0.25)] px-3 py-2.5 lg:border-b-0 lg:border-r">
+      <SectionLabel>Also require…</SectionLabel>
+      <ul className="m-0 flex list-none flex-col gap-1 p-0">
+        {lines.map((line) => (
+          <li
+            key={`${eventId}:if:${line}`}
+            className="relative pl-3 text-xs leading-snug text-[var(--text)]"
+          >
+            <span
+              className="absolute left-0 top-[7px] h-1 w-1 bg-[var(--muted)]"
+              aria-hidden="true"
+            />
+            {line}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+function EventCardActions({
+  eventId,
+  actions,
+  project,
+}: Readonly<{ eventId: string; actions: LogicAction[]; project: ProjectDoc | null }>) {
+  return (
+    <div className="relative px-3 py-2.5">
+      <span
+        className="absolute bottom-2.5 left-0 top-2.5 w-[2px] bg-[var(--accent)]"
+        aria-hidden="true"
+      />
+      <div className="pl-2">
+        <SectionLabel>Then</SectionLabel>
+        {actions.length === 0 ? (
+          <span className="text-xs italic text-[var(--muted-2)]">No actions yet</span>
+        ) : (
+          <ol className="m-0 flex list-none flex-col gap-1 p-0">
+            {actions.map((action, index) => (
+              <li
+                key={actionListKey(eventId, action, index)}
+                className="relative pl-5 text-xs leading-snug text-[var(--text)]"
+              >
+                <span
+                  className="absolute left-0 top-0 text-[10px] font-semibold tabular-nums text-[var(--muted)]"
+                  aria-hidden="true"
+                >
+                  {String(index + 1).padStart(2, '0')}
+                </span>
+                {actionSummaryPlain(action, project)}
+              </li>
+            ))}
+          </ol>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function EventCardHeader({
+  event,
+  project,
+  showAppliesTo,
+  appliesTo,
+  dim,
+  editing,
+  zapTooltip,
+  onSelect,
+  onToggleEnabled,
+  onEdit,
+  onClone,
+  onDelete,
+}: Readonly<{
+  event: LogicEvent
+  project: ProjectDoc | null
+  showAppliesTo: boolean
+  appliesTo: string | null
+  dim: string
+  editing: boolean
+  zapTooltip: string
+  onSelect?: () => void
+  onToggleEnabled: () => void
+  onEdit: () => void
+  onClone: () => void
+  onDelete: () => void
+}>) {
   return (
     <div
-      className={`mb-3 overflow-hidden border bg-[var(--panel)] transition-colors ${
-        isHighlighted
-          ? 'border-[var(--accent-2)]'
-          : 'border-[var(--border)]'
-      }`}
+      className={`flex items-center gap-2.5 border-b border-[var(--border)] bg-[var(--panel-3)] px-3 py-2.5 ${dim}`}
     >
-      <div
-        className={`flex cursor-pointer items-center gap-2.5 border-b border-[var(--border)] bg-[var(--panel-3)] px-3 py-2.5 ${dim}`}
-        onClick={() => onSelect?.()}
+      <CardSelectButton
+        className="flex min-w-0 flex-1 items-center gap-2.5"
+        onSelect={onSelect}
       >
         <div className="shrink-0 text-[var(--accent)]" title={zapTooltip}>
           <Zap size={13} strokeWidth={2} />
         </div>
-        <div className="min-w-0 flex-1 text-[13px] font-medium leading-snug text-[var(--text)]">
-          {eventTriggerSummaryPlain(event, project)}
+        <div className="min-w-0 flex-1">
+          {showAppliesTo && appliesTo && (
+            <div
+              className="mb-0.5 truncate text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--accent)]"
+              title={`Applies to: ${appliesTo}`}
+            >
+              {appliesTo}
+            </div>
+          )}
+          <div className="text-[13px] font-medium leading-snug text-[var(--text)]">
+            {eventTriggerSummaryPlain(event, project)}
+          </div>
         </div>
+      </CardSelectButton>
 
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation()
-            onToggleEnabled()
-          }}
-          title={event.enabled ? 'Rule enabled' : 'Rule disabled'}
-          aria-label={event.enabled ? 'Rule enabled' : 'Rule disabled'}
-          className={`relative h-[18px] w-9 shrink-0 rounded transition-colors ${
-            event.enabled
-              ? 'bg-[var(--accent)]'
-              : 'bg-[var(--border-2)]'
+      <button
+        type="button"
+        onClick={onToggleEnabled}
+        title={event.enabled ? 'Rule enabled' : 'Rule disabled'}
+        aria-label={event.enabled ? 'Rule enabled' : 'Rule disabled'}
+        className={`relative h-[18px] w-9 shrink-0 rounded transition-colors ${
+          event.enabled ? 'bg-[var(--accent)]' : 'bg-[var(--border-2)]'
+        }`}
+      >
+        <span
+          className={`absolute top-0.5 h-3.5 w-3.5 rounded transition-all ${
+            event.enabled ? 'right-0.5 bg-[var(--text)]' : 'left-0.5 bg-[var(--muted)]'
           }`}
-        >
-          <span
-            className={`absolute top-0.5 h-3.5 w-3.5 rounded transition-all ${
-              event.enabled
-                ? 'right-0.5 bg-[var(--text)]'
-                : 'left-0.5 bg-[var(--muted)]'
-            }`}
-          />
-        </button>
+        />
+      </button>
 
-        <div
-          className="flex shrink-0 items-center gap-1"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <LogicIconButton
-            title="Edit rule"
-            ariaLabel="Edit rule"
-            active={editing}
-            onClick={onEdit}
-          >
-            <Pencil size={13} />
-          </LogicIconButton>
-          <LogicIconButton
-            title="Clone rule"
-            ariaLabel="Clone rule"
-            onClick={onClone}
-          >
-            <Copy size={13} />
-          </LogicIconButton>
-          <LogicIconButton
-            title="Delete rule"
-            ariaLabel="Delete rule"
-            danger
-            onClick={onDelete}
-          >
-            <Trash2 size={13} />
-          </LogicIconButton>
-        </div>
-      </div>
+      <fieldset
+        aria-label="Rule actions"
+        className="m-0 flex shrink-0 items-center gap-1 border-0 p-0"
+      >
+        <LogicIconButton title="Edit rule" ariaLabel="Edit rule" active={editing} onClick={onEdit}>
+          <Pencil size={13} />
+        </LogicIconButton>
+        <LogicIconButton title="Clone rule" ariaLabel="Clone rule" onClick={onClone}>
+          <Copy size={13} />
+        </LogicIconButton>
+        <LogicIconButton title="Delete rule" ariaLabel="Delete rule" danger onClick={onDelete}>
+          <Trash2 size={13} />
+        </LogicIconButton>
+      </fieldset>
+    </div>
+  )
+}
+
+export default function EventCard(props: EventCardProps) {
+  const {
+    event,
+    board,
+    editing,
+    selected,
+    onSelect,
+    onToggleEnabled,
+    onEdit,
+    onClone,
+    onDelete,
+    onChange,
+    onDoneEditing,
+    showAppliesTo = true,
+  } = props
+
+  const { state } = useEditor()
+  const project = state.project
+  const ifLines = conditionsPlainList(event, project)
+  const execBadge = triggerExecutionBadge(event, board, project)
+  const appliesTo =
+    board && project ? rulesheetAppliesToLabel(project, board) : null
+  const dim = event.enabled ? '' : 'opacity-50'
+  const isHighlighted = editing || selected
+  const zapTooltip = zapTriggerTooltip(execBadge.label)
+
+  const headerProps = {
+    event,
+    project,
+    showAppliesTo,
+    appliesTo,
+    dim,
+    editing,
+    zapTooltip,
+    onSelect,
+    onToggleEnabled,
+    onEdit,
+    onClone,
+    onDelete,
+  }
+
+  return (
+    <div
+      className={`mb-3 overflow-hidden border bg-[var(--panel)] transition-colors ${
+        isHighlighted ? 'border-[var(--accent-2)]' : 'border-[var(--border)]'
+      }`}
+    >
+      <EventCardHeader {...headerProps} />
 
       {editing ? (
         <EventEditor
@@ -150,67 +288,18 @@ export default function EventCard({
           onDone={onDoneEditing}
         />
       ) : (
-        <div className={`cursor-pointer ${dim}`} onClick={() => onSelect?.()}>
+        <CardSelectButton className={`cursor-pointer ${dim}`} onSelect={onSelect}>
           <div
             className={`grid grid-cols-1 border-b border-[var(--border)] ${
-              ifLines.length > 0
-                ? 'lg:grid-cols-[minmax(220px,0.38fr)_1fr]'
-                : ''
+              ifLines.length > 0 ? 'lg:grid-cols-[minmax(220px,0.38fr)_1fr]' : ''
             }`}
           >
             {ifLines.length > 0 && (
-              <div className="border-b border-[var(--border)] bg-[rgba(var(--bg-rgb),0.25)] px-3 py-2.5 lg:border-b-0 lg:border-r">
-                <SectionLabel>Also require…</SectionLabel>
-                <ul className="m-0 flex list-none flex-col gap-1 p-0">
-                  {ifLines.map((line, i) => (
-                    <li
-                      key={i}
-                      className="relative pl-3 text-xs leading-snug text-[var(--text)]"
-                    >
-                      <span
-                        className="absolute left-0 top-[7px] h-1 w-1 bg-[var(--muted)]"
-                        aria-hidden="true"
-                      />
-                      {line}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              <EventCardConditions eventId={event.id} lines={ifLines} />
             )}
-
-            <div className="relative px-3 py-2.5">
-              <span
-                className="absolute bottom-2.5 left-0 top-2.5 w-[2px] bg-[var(--accent)]"
-                aria-hidden="true"
-              />
-              <div className="pl-2">
-                <SectionLabel>Then</SectionLabel>
-                {event.actions.length === 0 ? (
-                  <span className="text-xs italic text-[var(--muted-2)]">
-                    No actions yet
-                  </span>
-                ) : (
-                  <ol className="m-0 flex list-none flex-col gap-1 p-0">
-                    {event.actions.map((a, i) => (
-                      <li
-                        key={i}
-                        className="relative pl-5 text-xs leading-snug text-[var(--text)]"
-                      >
-                        <span
-                          className="absolute left-0 top-0 text-[10px] font-semibold tabular-nums text-[var(--muted)]"
-                          aria-hidden="true"
-                        >
-                          {String(i + 1).padStart(2, '0')}
-                        </span>
-                        {actionSummaryPlain(a, project)}
-                      </li>
-                    ))}
-                  </ol>
-                )}
-              </div>
-            </div>
+            <EventCardActions eventId={event.id} actions={event.actions} project={project} />
           </div>
-        </div>
+        </CardSelectButton>
       )}
     </div>
   )
