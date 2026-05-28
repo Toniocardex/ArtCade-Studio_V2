@@ -25,9 +25,12 @@ function baseState(p: ProjectDoc): CoreState {
     selection: { entityId: 1, sceneId: 's' },
     mode: 'canvas', consoleOpen: false, bottomPanelTab: 'assets', bottomPanelCollapsed: false, consoleAckUpToId: 0, editingTilesetId: null,
     openScripts: [], activeScriptPath: null, isPlaying: false, selectedTileCell: 1,
-    editorGridSize: 32, snapToGrid: false, editorZoom: 1.0, editorZoomMode: 'manual', cameraPreview: false,
+    editorGridSize: 32, snapToGrid: false, editorZoom: 1, editorZoomMode: 'manual', cameraPreview: false,
     projectLoadEpoch: 0,
     authoringMode: 'base',
+    dialogs: {},
+    selectedDialogId: null,
+    dialogModal: { open: false, dialogId: null },
   }
 }
 
@@ -37,14 +40,14 @@ describe('coreReducer — ECS components', () => {
       type: 'ENTITY_SET_COMPONENT', entityId: 1, key: 'health',
       value: { maxHp: 100, currentHp: 100, iFrames: 0.2 },
     })
-    expect(s.project!.entities[1].health).toEqual({ maxHp: 100, currentHp: 100, iFrames: 0.2 })
+    expect(s.project?.entities[1].health).toEqual({ maxHp: 100, currentHp: 100, iFrames: 0.2 })
     expect(s.projectDirty).toBe(true)
 
     s = coreReducer(s, {
       type: 'ENTITY_SET_COMPONENT', entityId: 1, key: 'health',
       value: { maxHp: 100, currentHp: 50, iFrames: 0.2 },
     })
-    expect(s.project!.entities[1].health!.currentHp).toBe(50)
+    expect(s.project?.entities[1].health?.currentHp).toBe(50)
   })
 
   it('ENTITY_REMOVE_COMPONENT deletes the key immutably', () => {
@@ -55,8 +58,8 @@ describe('coreReducer — ECS components', () => {
     const next = coreReducer(prev, {
       type: 'ENTITY_REMOVE_COMPONENT', entityId: 1, key: 'sensor',
     })
-    expect(next.project!.entities[1].sensor).toBeUndefined()
-    expect(prev.project!.entities[1].sensor).toBeDefined() // immutability
+    expect(next.project?.entities[1].sensor).toBeUndefined()
+    expect(prev.project?.entities[1].sensor).toBeDefined() // immutability
     expect(next).not.toBe(prev)
   })
 
@@ -70,14 +73,20 @@ describe('coreReducer — ECS components', () => {
 
 describe('project.json roundtrip with components', () => {
   it('serialize → parse preserves components, omits when absent', () => {
-    const withComp = coreReducer(baseState(project()), {
+    const withCompState = coreReducer(baseState(project()), {
       type: 'ENTITY_SET_COMPONENT', entityId: 1, key: 'linearMover',
       value: { directionX: 1, directionY: 0, speed: 300 },
-    }).project!
+    })
+    const withComp = withCompState.project
+    expect(withComp).toBeDefined()
+    if (!withComp) return
 
     const json = serializeProjectDoc(withComp)
     expect(json).toContain('linearMover')
-    const again = parseProjectDoc(json)!
+    const again = parseProjectDoc(json)
+    expect(again).toBeDefined()
+    if (!again) return
+
     expect(again.entities[1].linearMover).toEqual(
       withComp.entities[1].linearMover,
     )
@@ -96,7 +105,10 @@ describe('project.json roundtrip with components', () => {
       entities: { 1: { id: 1, name: 'E', className: 'C', tags: [], health: 'bogus', sensor: { shape: 'Circle', radius: 10, width: 1, height: 1, targetTag: 't' } } },
       scenes: { s: { id: 's', name: 'S', entityIds: [1] } },
     })
-    const p = parseProjectDoc(raw)!
+    const p = parseProjectDoc(raw)
+    expect(p).toBeDefined()
+    if (!p) return
+
     expect(p.entities[1].health).toBeUndefined()        // string → dropped
     expect(p.entities[1].sensor).toBeDefined()          // object → kept
   })
