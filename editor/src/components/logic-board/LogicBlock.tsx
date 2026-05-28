@@ -4,6 +4,24 @@
 
 import type { ReactNode } from 'react'
 
+export type LogicBlockTone = 'neutral' | 'when' | 'if' | 'then'
+
+const TONE_BORDER_CLASS: Record<LogicBlockTone, string> = {
+  neutral: 'border-l-[var(--border-2)]',
+  when: 'border-l-[var(--accent-2)]',
+  if: 'border-l-[var(--warn)]',
+  then: 'border-l-[var(--accent)]',
+}
+
+export type LogicBlockProps = Readonly<{
+  title: string
+  children: ReactNode
+  optional?: boolean
+  icon?: ReactNode
+  action?: ReactNode
+  tone?: LogicBlockTone
+}>
+
 export function LogicBlock({
   title,
   children,
@@ -11,22 +29,8 @@ export function LogicBlock({
   icon,
   action,
   tone = 'neutral',
-}: {
-  title: string
-  children: ReactNode
-  optional?: boolean
-  icon?: ReactNode
-  action?: ReactNode
-  tone?: 'neutral' | 'when' | 'if' | 'then'
-}) {
-  const toneClass =
-    tone === 'when'
-      ? 'border-l-[var(--accent-2)]'
-      : tone === 'if'
-        ? 'border-l-[var(--warn)]'
-        : tone === 'then'
-          ? 'border-l-[var(--accent)]'
-          : 'border-l-[var(--border-2)]'
+}: LogicBlockProps) {
+  const toneClass = TONE_BORDER_CLASS[tone]
 
   return (
     <div className={`border-l-2 ${toneClass} pl-3`}>
