@@ -34,7 +34,7 @@ export function resolvePreviewMainLua(input: PreviewRestoreInput): string {
 export function getPreviewLuaSyncKey(input: PreviewRestoreInput): string {
   const tab = mainScriptTab(input)
   return JSON.stringify({
-    projectFp: runtimeProjectFingerprint(input.project),
+    projectFp: runtimeProjectFingerprint(input.project, input.project.activeSceneId),
     projectPath: input.projectPath ?? '',
     mainDirty: Boolean(tab?.isDirty),
     mainContent: tab?.isDirty ? tab.content : '',
