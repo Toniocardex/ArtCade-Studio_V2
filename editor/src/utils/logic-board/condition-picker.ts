@@ -12,6 +12,7 @@ import type {
   LogicTrigger,
 } from '../../types/logic-board'
 import type { ComponentKey } from '../../types/components'
+import { logicBoardTargetEntityIds } from '../project-queries'
 import { CONDITION_TYPES } from '../../panels/logic-board/options'
 
 /** Shown first in the condition picker (tier 1–2). */
@@ -31,20 +32,7 @@ const CONDITION_RECOMMENDATIONS: Partial<
 }
 
 function targetEntityIds(project: ProjectDoc, board: LogicBoard): number[] {
-  if (board.target.type === 'entity_id' && board.target.entityId != null) {
-    return project.entities[board.target.entityId] ? [board.target.entityId] : []
-  }
-  if (board.target.type === 'object_type' && board.target.objectTypeId) {
-    return Object.values(project.entities)
-      .filter((e) => e.className === board.target.objectTypeId)
-      .map((e) => e.id)
-  }
-  if (board.target.type === 'entity_class' && board.target.className) {
-    return Object.values(project.entities)
-      .filter((entity) => entity.className === board.target.className)
-      .map((entity) => entity.id)
-  }
-  return []
+  return logicBoardTargetEntityIds(project, board)
 }
 
 function entityHasComponent(
@@ -86,6 +74,31 @@ export function conditionTypesForTrigger(
   return types
 }
 
+function addCommonConditionTypes(
+  out: Set<LogicCondition['type']>,
+  allowed: Set<LogicCondition['type']>,
+): void {
+  for (const t of COMMON_CONDITION_TYPES) {
+    if (allowed.has(t)) out.add(t)
+  }
+}
+
+function addComponentBackedConditionTypes(
+  out: Set<LogicCondition['type']>,
+  allowed: Set<LogicCondition['type']>,
+  project: ProjectDoc,
+  board: LogicBoard,
+): void {
+  const ids = targetEntityIds(project, board)
+  for (const key of Object.keys(CONDITION_RECOMMENDATIONS) as ComponentKey[]) {
+    const types = CONDITION_RECOMMENDATIONS[key]
+    if (!types || !ids.some((id) => entityHasComponent(project, id, key))) continue
+    for (const t of types) {
+      if (allowed.has(t)) out.add(t)
+    }
+  }
+}
+
 /** Highlighted at top of condition TypePicker. */
 export function recommendedConditionTypes(
   trigger: LogicTrigger,
@@ -97,20 +110,9 @@ export function recommendedConditionTypes(
     conditionTypesForTrigger(trigger, CONDITION_TYPES, authoringMode, []),
   )
   const out = new Set<LogicCondition['type']>()
-  for (const t of COMMON_CONDITION_TYPES) {
-    if (allowed.has(t)) out.add(t)
-  }
+  addCommonConditionTypes(out, allowed)
   if (project && board) {
-    const ids = targetEntityIds(project, board)
-    for (const key of Object.keys(CONDITION_RECOMMENDATIONS) as ComponentKey[]) {
-      const types = CONDITION_RECOMMENDATIONS[key]
-      if (!types) continue
-      if (ids.some((id) => entityHasComponent(project, id, key))) {
-        for (const t of types) {
-          if (allowed.has(t)) out.add(t)
-        }
-      }
-    }
+    addComponentBackedConditionTypes(out, allowed, project, board)
   }
   return [...out]
 }

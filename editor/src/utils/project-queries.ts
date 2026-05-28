@@ -1,6 +1,9 @@
 import type { ProjectDoc, EntityDef, SceneDef } from '../types'
 import type { LogicBoard } from '../types/logic-board'
 import { logicBoardCompilerLabel } from './logic-board/labels'
+import { effectiveTypeId } from './project-object-types'
+
+const compareLocale = (a: string, b: string): number => a.localeCompare(b)
 
 /** Entities that belong to a given scene, in entityIds order. */
 export function getEntitiesInScene(project: ProjectDoc, sceneId: string): EntityDef[] {
@@ -81,6 +84,53 @@ export function entityIdDisplayLabel(
   return e?.name ?? `Object #${entityId}`
 }
 
+function logicBoardSharedTypeId(board: LogicBoard): string | undefined {
+  if (board.target.type === 'object_type') return board.target.objectTypeId
+  if (board.target.type === 'entity_class') return board.target.className
+  return undefined
+}
+
+function collectInstanceIdsForType(project: ProjectDoc, typeId: string): number[] {
+  const ids: number[] = []
+  for (const scene of Object.values(project.scenes)) {
+    for (const inst of scene.instances ?? []) {
+      if (inst.objectTypeId === typeId) ids.push(inst.id)
+    }
+  }
+  return ids
+}
+
+function entityMatchesSharedType(ent: EntityDef, typeId: string): boolean {
+  return ent.className === typeId || effectiveTypeId(ent) === typeId
+}
+
+function collectLegacyEntityIdsForType(project: ProjectDoc, typeId: string): number[] {
+  return Object.values(project.entities)
+    .filter((ent) => entityMatchesSharedType(ent, typeId))
+    .map((ent) => ent.id)
+}
+
+/**
+ * Entity ids that a rulesheet's target refers to (`self` pool).
+ * Matches scene instances by objectTypeId and legacy flat entities by className
+ * or effectiveTypeId (e.g. Entity_1 named instance with className "Entity").
+ */
+export function logicBoardTargetEntityIds(
+  project: ProjectDoc,
+  board: LogicBoard,
+): number[] {
+  if (board.target.type === 'entity_id' && board.target.entityId != null) {
+    return project.entities[board.target.entityId] ? [board.target.entityId] : []
+  }
+  const typeId = logicBoardSharedTypeId(board)
+  if (!typeId) return []
+
+  const ids = new Set<number>()
+  for (const id of collectInstanceIdsForType(project, typeId)) ids.add(id)
+  for (const id of collectLegacyEntityIdsForType(project, typeId)) ids.add(id)
+  return [...ids]
+}
+
 /** Rulesheet bound to one entity instance. */
 export function findLogicBoardForEntity(
   project: ProjectDoc | null | undefined,
@@ -94,18 +144,17 @@ export function findLogicBoardForEntity(
 
 /** Display name for a rulesheet in dropdowns and headers. */
 export function logicBoardLabel(
-  project: ProjectDoc | null | undefined,
+  _project: ProjectDoc | null | undefined,
   board: LogicBoard,
 ): string {
-  void project
   return logicBoardCompilerLabel(board)
 }
 
 /** All unique class names across all entities in the project. */
 export function allClassNames(project: ProjectDoc): string[] {
   const fromTypes = Object.keys(project.objectTypes ?? {})
-  if (fromTypes.length > 0) return fromTypes.sort()
-  return [...new Set(Object.values(project.entities).map(e => e.className))].sort()
+  if (fromTypes.length > 0) return fromTypes.sort(compareLocale)
+  return [...new Set(Object.values(project.entities).map((e) => e.className))].sort(compareLocale)
 }
 
 /** Logic board bound to an object type (preferred). */
@@ -147,5 +196,5 @@ export function allEntityTags(project: ProjectDoc): string[] {
     const sensor = e.sensor as { targetTag?: string } | undefined
     if (sensor?.targetTag) set.add(sensor.targetTag)
   }
-  return [...set].sort()
+  return [...set].sort(compareLocale)
 }

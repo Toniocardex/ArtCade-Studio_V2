@@ -1,5 +1,6 @@
 import type { EntityDef, ProjectDoc } from '../../types'
 import type { LogicBoard, LogicTrigger } from '../../types/logic-board'
+import { logicBoardTargetEntityIds } from '../project-queries'
 import type { CapabilityRequirement } from './component-capabilities'
 
 const COLLISION_TRIGGERS = new Set<LogicTrigger['type']>([
@@ -25,20 +26,7 @@ export function entityHasOverlapBounds(entity: EntityDef): boolean {
 }
 
 function targetEntityIds(project: ProjectDoc, board: LogicBoard): number[] {
-  if (board.target.type === 'entity_id' && board.target.entityId != null) {
-    return project.entities[board.target.entityId] ? [board.target.entityId] : []
-  }
-  if (board.target.type === 'object_type' && board.target.objectTypeId) {
-    return Object.values(project.entities)
-      .filter((e) => e.className === board.target.objectTypeId)
-      .map((e) => e.id)
-  }
-  if (board.target.type === 'entity_class' && board.target.className) {
-    return Object.values(project.entities)
-      .filter((e) => e.className === board.target.className)
-      .map((e) => e.id)
-  }
-  return []
+  return logicBoardTargetEntityIds(project, board)
 }
 
 /**

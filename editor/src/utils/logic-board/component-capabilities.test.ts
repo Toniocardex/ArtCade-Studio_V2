@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import type { ProjectDoc } from '../../types'
 import type { LogicBoard } from '../../types/logic-board'
+import { createEntityDef } from '../project-builders'
+import { createBlankProject } from '../project-factory'
+import { createLogicBoardForObjectType } from './factory'
 import {
   actionRequirement,
   conditionRequirement,
@@ -67,6 +70,32 @@ describe('component capabilities', () => {
       'healEntity',
       'setEntityHealth',
     ])
+  })
+
+  it('startDialog does not warn when dialog is on a legacy Entity_* instance board', () => {
+    const base = createBlankProject('T')
+    const ent = createEntityDef(1, 'Entity_1', 'Entity')
+    ent.dialog = { dialogId: 'innkeeper' }
+    const project: ProjectDoc = {
+      ...base,
+      entities: { 1: ent },
+      scenes: {
+        scene_main: {
+          ...base.scenes.scene_main,
+          entityIds: [1],
+        },
+      },
+      logicBoards: [],
+    }
+    const board = createLogicBoardForObjectType('Entity_1')
+    expect(
+      actionRequirement(
+        { type: 'startDialog', target: 'self', dialogId: 'innkeeper' },
+        project,
+        board,
+      ),
+    ).toBeNull()
+    expect(recommendedActionTypes(project, board)).toContain('startDialog')
   })
 
   it('warns when a required component is missing', () => {
