@@ -46,9 +46,11 @@ runtime-cpp/build-wasm*.log
 runtime-cpp/test-project/logs/*.txt
 !runtime-cpp/test-project/logs/.gitkeep
 
-# Claude / Cursor (machine-local)
+# Claude / Cursor (machine-local except shared agent rules)
 .claude/settings.local.json
-.cursor/
+.cursor/*
+!.cursor/rules/
+!.cursor/rules/**
 
 # IDE (commit shared C++/SonarLint workspace config under .vscode/)
 .vscode/*
