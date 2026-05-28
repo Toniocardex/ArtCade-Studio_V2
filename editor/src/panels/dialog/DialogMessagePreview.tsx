@@ -7,17 +7,17 @@ type DialogMessagePreviewProps = Readonly<{
   focusIndex: number | null
 }>
 
+function isShowTextCommand(cmd: DialogCommand | undefined): cmd is ShowTextCommand {
+  return cmd?.type === 'showText'
+}
+
 function pickShowTextPreview(
   commands: DialogCommand[],
   focusIndex: number | null,
 ): ShowTextCommand | null {
-  if (
-    focusIndex != null &&
-    focusIndex >= 0 &&
-    focusIndex < commands.length &&
-    commands[focusIndex]?.type === 'showText'
-  ) {
-    return commands[focusIndex] as ShowTextCommand
+  if (focusIndex != null && focusIndex >= 0 && focusIndex < commands.length) {
+    const focused = commands[focusIndex]
+    if (isShowTextCommand(focused)) return focused
   }
   const first = commands.find((c): c is ShowTextCommand => c.type === 'showText')
   return first ?? null

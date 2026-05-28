@@ -32,9 +32,13 @@ export function DialogLibrarySidebar() {
         >
           + New dialog
         </button>
-        <label className="block text-xs text-center cursor-pointer py-1 rounded border border-[var(--border)] hover:bg-[var(--bg)]">
-          Import CSV
+        <label
+          htmlFor="dialog-csv-import"
+          className="block text-xs text-center cursor-pointer py-1 rounded border border-[var(--border)] hover:bg-[var(--bg)]"
+        >
+          <span>Import CSV</span>
           <input
+            id="dialog-csv-import"
             type="file"
             accept=".csv,text/csv"
             className="hidden"
