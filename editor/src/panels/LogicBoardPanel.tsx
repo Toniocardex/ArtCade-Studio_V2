@@ -29,6 +29,7 @@ import {
   createLogicBoardForObjectType,
 } from '../utils/logic-board/factory'
 import { cloneLogicEvent } from '../utils/logic-board/clone'
+import { scrollEventCardIntoViewSoon } from '../utils/logic-board/logic-event-list-ui'
 import { shouldIgnoreEditorShortcut } from '../utils/keyboard'
 import type { LogicBoard, LogicEvent } from '../types/logic-board'
 import type { ProjectDoc } from '../types'
@@ -474,6 +475,7 @@ export default function LogicBoardPanel() {
       })
       setFocusedEventId(copy.id)
       setEditingId(copy.id)
+      scrollEventCardIntoViewSoon(copy.id)
       return copy
     },
     [dispatch],

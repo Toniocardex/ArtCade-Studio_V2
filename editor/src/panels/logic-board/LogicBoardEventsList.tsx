@@ -12,6 +12,7 @@ import {
 import EventCard from './EventCard'
 import { defaultTrigger } from './options'
 import { allowedTriggersForTarget } from '../../utils/logic-board/trigger-compatibility'
+import { scrollEventCardIntoViewSoon } from '../../utils/logic-board/logic-event-list-ui'
 
 /** Sentinel for the add-rule trigger picker before the user chooses a type. */
 export const NEW_TRIGGER_NONE = '' as const
@@ -65,6 +66,7 @@ function renderEventCard(
       onOpenEdit={() => {
         setFocusedEventId(ev.id)
         setEditingId(ev.id)
+        scrollEventCardIntoViewSoon(ev.id)
       }}
       onToggleEnabled={() =>
         dispatch({
@@ -116,7 +118,7 @@ export function LogicBoardEventsList(listProps: LogicBoardEventsListProps) {
   const totalRules = sceneBoards.reduce((n, b) => n + b.events.length, 0)
 
   return (
-    <div className="flex-1 min-h-0 overflow-auto p-4">
+    <div className="flex-1 min-h-0 overflow-auto p-4" data-logic-events-list>
       {!board && sceneBoards.length === 0 ? (
         <div className="text-[var(--muted)] text-sm mt-8 text-center max-w-md mx-auto leading-relaxed">
           Select an entity in the Scenes panel, then create a rulesheet with{' '}
@@ -216,6 +218,7 @@ export function LogicBoardEventsList(listProps: LogicBoardEventsListProps) {
                   })
                   setFocusedEventId(ev.id)
                   setEditingId(ev.id)
+                  scrollEventCardIntoViewSoon(ev.id)
                   setNewTrigger(NEW_TRIGGER_NONE)
                 }}
                 className={newTrigger ? addRuleBtnEnabled : addRuleBtnDisabled}

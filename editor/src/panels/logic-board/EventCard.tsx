@@ -292,6 +292,7 @@ export default function EventCard(props: EventCardProps) {
 
   return (
     <div
+      data-logic-event-id={event.id}
       className={`mb-3 overflow-hidden border bg-[var(--panel)] transition-colors ${
         isHighlighted ? 'border-[var(--accent-2)]' : 'border-[var(--border)]'
       }`}
