@@ -232,10 +232,8 @@ void RuntimeEntityGateway::applyEntityDefToRegistry(
     registry_->setVisibleInGame(id, def.visible);
     registry_->setTransform(id, def.transform);
     SpriteComponent sprite = def.sprite;
-#ifndef __EMSCRIPTEN__
     if (!def.visible)
         sprite.alpha = 0.f;
-#endif
     registry_->setSprite(id, sprite);
     registry_->setPhysics(id, def.physics);
     registry_->setSensor(id, def.sensor);

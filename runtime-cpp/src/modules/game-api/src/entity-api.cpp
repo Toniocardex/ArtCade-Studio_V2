@@ -145,12 +145,11 @@ void GameAPI::bindEntityAPI(sol::state& lua) {
     lua.set_function("entity_setHealth",
         [entities](EntityId id, float currentHp, sol::optional<float> maxHp) {
             HealthComponent health{};
-            if (entities->getHealth(id, health) && maxHp)
-                health.maxHp = *maxHp;
+            const bool had = entities->getHealth(id, health);
+            if (!had)
+                health.maxHp = maxHp.value_or(currentHp);
             else if (maxHp)
                 health.maxHp = *maxHp;
-            else if (!entities->getHealth(id, health))
-                health.maxHp = currentHp;
             health.currentHp = currentHp;
             entities->setHealth(id, health);
         });

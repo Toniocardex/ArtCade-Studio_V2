@@ -414,9 +414,22 @@ bool Application::loadProject(const std::string& projectPath) {
     // tilesets pushed by the editor via editor_load_project (hot-reload).
     mod_->sceneManager->setTilesets(doc.tilesets);
 
-    std::vector<uint8_t> bytecode;
-    if (mod_->assetLoader->loadLuaBytecode(doc.mainScriptPath, bytecode))
-        mod_->luaHost->loadBytecodeBuffer(bytecode.data(), bytecode.size());
+    if (!doc.mainScriptPath.empty()) {
+        std::vector<uint8_t> bytecode;
+        const bool haveBytecode =
+            mod_->assetLoader->loadLuaBytecode(doc.mainScriptPath, bytecode)
+            && !bytecode.empty();
+        if (!haveBytecode
+            || !mod_->luaHost->loadBytecodeBuffer(bytecode.data(), bytecode.size())) {
+            std::cerr << "[App] Missing or invalid main script bytecode: "
+                      << doc.mainScriptPath;
+            const std::string& err = mod_->luaHost->lastError();
+            if (!err.empty())
+                std::cerr << " (" << err << ")";
+            std::cerr << "\n";
+            return false;
+        }
+    }
 
     licenseTier_ = doc.licenseTier;
 

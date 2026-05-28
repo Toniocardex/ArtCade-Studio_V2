@@ -1,6 +1,7 @@
 #include "object-type-materialize.h"
 
 #include <algorithm>
+#include <iostream>
 
 namespace ArtCade {
 
@@ -23,13 +24,22 @@ void materializeProjectEntities(ProjectDoc& doc) {
         [](const auto& kv) { return !kv.second.instances.empty(); });
     if (!hasInstances && !doc.entities.empty()) return;
 
-    doc.entities.clear();
+    if (hasInstances && !doc.entities.empty()) {
+        std::cerr << "[Project] Warning: materializing scene instances into a project "
+                     "that also has legacy entity definitions; instance IDs override "
+                     "matching legacy entries.\n";
+    }
+
     for (auto& [sid, scene] : doc.scenes) {
         if (scene.instances.empty()) continue;
         scene.entityIds.clear();
         for (const SceneInstanceDef& inst : scene.instances) {
             auto typeIt = doc.objectTypes.find(inst.objectTypeId);
-            if (typeIt == doc.objectTypes.end()) continue;
+            if (typeIt == doc.objectTypes.end()) {
+                std::cerr << "[Project] Unknown objectTypeId \"" << inst.objectTypeId
+                          << "\" for instance id " << inst.id << " — skipped.\n";
+                continue;
+            }
             EntityDef e = materializeInstance(typeIt->second, inst);
             doc.entities[e.id] = e;
             scene.entityIds.push_back(e.id);
