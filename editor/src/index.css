@@ -126,6 +126,12 @@
   --danger-rgb:   142 54 54;
 }
 
+/* <dialog> top layer uses UA CanvasText (often black), not body theme tokens. */
+dialog.artcade-dialog {
+  color: var(--text);
+  background: transparent;
+}
+
 /* ---------------------------------------------------------------------------
    Globals
    --------------------------------------------------------------------------- */

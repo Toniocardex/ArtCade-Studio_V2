@@ -73,7 +73,7 @@ export function DialogCommandCard({
         </span>
         {!nested && (
           <select
-            className="text-[10px] ml-auto bg-[var(--panel)] border border-[var(--border)] rounded px-1 py-0.5"
+            className="text-[10px] ml-auto bg-[var(--panel)] border border-[var(--border)] rounded px-1 py-0.5 text-[var(--text)]"
             value={command.type}
             onFocus={rowFocus}
             onMouseEnter={onMouseEnter}
@@ -239,7 +239,7 @@ export function DialogCommandCard({
       {command.type === 'emitMessage' && (
         <Field label="Message name">
           <input
-            className="field-input"
+            className={inputCls}
             value={command.event}
             onChange={(e) => onChange({ ...command, event: e.target.value })}
           />
@@ -307,7 +307,7 @@ type FieldProps = Readonly<{
 function Field({ label, children }: FieldProps) {
   return (
     <div className="mb-2">
-      <label className="text-[9px] text-[var(--muted)] uppercase block mb-0.5">{label}</label>
+      <span className="text-[9px] text-[var(--muted)] uppercase block mb-0.5">{label}</span>
       {children}
     </div>
   )
@@ -332,7 +332,7 @@ function IconBtn({
       title={title}
       disabled={disabled}
       onClick={onClick}
-      className="text-[10px] w-6 h-6 rounded border border-[var(--border)] disabled:opacity-30 hover:bg-[var(--panel)]"
+      className="text-[10px] w-6 h-6 rounded border border-[var(--border)] text-[var(--text)] disabled:opacity-30 hover:bg-[var(--panel)]"
     >
       {children}
     </button>

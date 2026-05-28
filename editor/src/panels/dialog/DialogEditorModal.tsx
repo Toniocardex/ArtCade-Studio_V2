@@ -49,13 +49,13 @@ export function DialogEditorModal() {
       ref={dialogRef}
       aria-labelledby="dialog-editor-title"
       aria-modal={true}
-      className="fixed inset-0 z-[200] m-0 flex h-full max-h-full w-full max-w-full items-center justify-center border-0 bg-transparent p-6 backdrop:bg-black/60"
+      className="artcade-dialog fixed inset-0 z-[200] m-0 flex h-full max-h-full w-full max-w-full items-center justify-center border-0 bg-transparent p-6 backdrop:bg-black/60"
     >
       <div
-        className="flex flex-col w-full max-w-3xl min-h-[min(40vh,20rem)] h-[min(85vh,42rem)] max-h-[90vh] rounded-xl border border-[var(--border)] bg-[var(--bg)] shadow-2xl overflow-hidden"
+        className="flex flex-col w-full max-w-3xl min-h-[min(40vh,20rem)] h-[min(85vh,42rem)] max-h-[90vh] rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--text)] shadow-2xl overflow-hidden"
       >
         <header className="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-[var(--border)]">
-          <h2 id="dialog-editor-title" className="text-sm font-semibold flex-1">
+          <h2 id="dialog-editor-title" className="text-sm font-semibold flex-1 text-[var(--text)]">
             Edit dialog: {dialogId}
           </h2>
           <button
@@ -71,7 +71,7 @@ export function DialogEditorModal() {
           </button>
           <button
             type="button"
-            className="text-xs px-3 py-1 rounded border border-[var(--border)]"
+            className="text-xs px-3 py-1 rounded border border-[var(--border)] text-[var(--text)] hover:border-[var(--border-2)]"
             onClick={closeModal}
           >
             Close
