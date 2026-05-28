@@ -6,13 +6,15 @@ import { Field } from './inspector-fields'
 import { activeComponentDescriptors } from './entity-component-utils'
 import { EntityTagsSection } from './EntityTagsSection'
 
+export type EntityHeaderBarProps = Readonly<{
+  entity: EntityDef
+  onJumpToComponent: (key: InspectorBlockKey) => void
+}>
+
 export function EntityHeaderBar({
   entity,
   onJumpToComponent,
-}: {
-  entity: EntityDef
-  onJumpToComponent: (key: InspectorBlockKey) => void
-}) {
+}: EntityHeaderBarProps) {
   const { dispatch } = useEditor()
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const active = activeComponentDescriptors(entity)
