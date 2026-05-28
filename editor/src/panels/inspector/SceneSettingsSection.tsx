@@ -91,8 +91,7 @@ export function SceneSettingsSection({ scene }: SceneSettingsSectionProps) {
               checked={state.snapToGrid}
               onChange={(e) => dispatch({ type: 'SET_SNAP_TO_GRID', enabled: e.target.checked })}
               className="accent-[var(--accent)]"
-            />
-            <span>Snap to grid</span>
+            /><span>Snap to grid</span>
           </label>
         </div>
       </div>
