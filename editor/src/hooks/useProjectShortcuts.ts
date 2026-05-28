@@ -21,6 +21,7 @@ import { useProjectNamePersist } from '../components/menu-bar/project-name-conte
 import { ensureProjectOnDisk } from '../components/menu-bar/ensureProjectOnDisk'
 import { mainScriptBodyForProject } from '../components/menu-bar/project-script'
 import { loadDialogsFromProject, starterInnkeeperScript } from '../utils/dialog/dialog-file-api'
+import { confirmDialog } from '../utils/native-dialog'
 
 let _kbdLogId = 500
 function kbdLog(message: string, level: ConsoleEntry['level']): ConsoleEntry {
@@ -47,11 +48,12 @@ type ShortcutCtx = Readonly<{
   flushBeforePersist: () => ProjectDoc | null
 }>
 
-function confirmDirty(state: CoreState, actionLabel: string): boolean {
+async function confirmDirty(state: CoreState, actionLabel: string): Promise<boolean> {
   if (!state.projectDirty) return true
-  return globalThis.confirm(
+  return confirmDialog(
     `You have unsaved changes in "${state.project?.projectName ?? 'this project'}".\n` +
       `${actionLabel} will discard them. Continue?`,
+    { title: 'Unsaved changes', kind: 'warning' },
   )
 }
 
@@ -120,8 +122,8 @@ async function handleCtrlSave(ctx: ShortcutCtx): Promise<void> {
   }
 }
 
-function handleCtrlNew(ctx: ShortcutCtx): void {
-  if (!confirmDirty(ctx.state, 'Creating a new project')) return
+async function handleCtrlNew(ctx: ShortcutCtx): Promise<void> {
+  if (!(await confirmDirty(ctx.state, 'Creating a new project'))) return
   const blank = createBlankProject('Untitled')
   runtimeSync.reset()
   const starter = { innkeeper: starterInnkeeperScript() }
@@ -139,7 +141,7 @@ function handleCtrlNew(ctx: ShortcutCtx): void {
 }
 
 async function handleCtrlOpen(ctx: ShortcutCtx): Promise<void> {
-  if (!confirmDirty(ctx.state, 'Opening a different project')) return
+  if (!(await confirmDirty(ctx.state, 'Opening a different project'))) return
   const path = await openProjectDialog()
   if (!path) return
   ctx.dispatch({ type: 'LOG', entry: kbdLog(`Opening ${path}…`, 'info') })
@@ -182,7 +184,7 @@ async function handleKeyDown(ctx: ShortcutCtx, e: KeyboardEvent): Promise<void> 
 
   if (!e.shiftKey && (e.key === 'n' || e.key === 'N')) {
     e.preventDefault()
-    handleCtrlNew(ctx)
+    await handleCtrlNew(ctx)
     return
   }
 

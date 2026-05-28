@@ -2,10 +2,12 @@ import { useMemo, useState } from 'react'
 import { useEditor } from '../../store/editor-store'
 import { importDialogCsv } from '../../utils/dialog/import-dialog-csv'
 import { parseDialogGraph } from '../../utils/dialog/dialog-script'
+import { confirmDialog, promptTextInput } from '../../utils/native-dialog'
 
 export function DialogLibrarySidebar() {
   const { state, dispatch } = useEditor()
   const [filter, setFilter] = useState('')
+
   const ids = useMemo(() => {
     const all = Object.keys(state.dialogs).sort((a, b) => a.localeCompare(b))
     const q = filter.trim().toLowerCase()
@@ -25,9 +27,13 @@ export function DialogLibrarySidebar() {
           type="button"
           className="w-full text-xs py-1.5 rounded border border-[var(--accent-bd)] bg-[var(--accent-bg)] text-[var(--accent)]"
           onClick={() => {
-            const id = globalThis.prompt('New dialog ID (e.g. guard):', 'new_dialog')
-            if (!id?.trim()) return
-            dispatch({ type: 'DIALOG_CREATE', dialogId: id.trim() })
+            void promptTextInput({
+              title: 'New dialog',
+              message: 'Dialog ID (e.g. guard):',
+              defaultValue: 'new_dialog',
+            }).then((id) => {
+              if (id) dispatch({ type: 'DIALOG_CREATE', dialogId: id })
+            })
           }}
         >
           + New dialog
@@ -96,12 +102,19 @@ export function DialogLibrarySidebar() {
             type="button"
             className="text-[10px] text-[var(--muted)] hover:text-[var(--text)]"
             onClick={() => {
-              const to = globalThis.prompt('Rename dialog to:', state.selectedDialogId ?? '')
-              if (!to?.trim() || !state.selectedDialogId) return
-              dispatch({
-                type: 'DIALOG_RENAME',
-                fromId: state.selectedDialogId,
-                toId: to.trim(),
+              const fromId = state.selectedDialogId
+              if (!fromId) return
+              void promptTextInput({
+                title: 'Rename dialog',
+                message: 'Dialog ID:',
+                defaultValue: fromId,
+              }).then((toId) => {
+                if (!toId || toId === fromId) return
+                dispatch({
+                  type: 'DIALOG_RENAME',
+                  fromId,
+                  toId,
+                })
               })
             }}
           >
@@ -111,9 +124,14 @@ export function DialogLibrarySidebar() {
             type="button"
             className="text-[10px] text-[var(--danger)]"
             onClick={() => {
-              if (!state.selectedDialogId) return
-              if (!globalThis.confirm(`Delete dialog "${state.selectedDialogId}"?`)) return
-              dispatch({ type: 'DIALOG_DELETE', dialogId: state.selectedDialogId })
+              const id = state.selectedDialogId
+              if (!id) return
+              void confirmDialog(`Delete dialog "${id}"?`, {
+                title: 'Delete dialog',
+                kind: 'warning',
+              }).then((ok) => {
+                if (ok) dispatch({ type: 'DIALOG_DELETE', dialogId: id })
+              })
             }}
           >
             Delete

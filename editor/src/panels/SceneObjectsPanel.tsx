@@ -27,6 +27,7 @@ import {
   isBackspaceKey,
   shouldIgnoreEditorShortcut,
 } from '../utils/keyboard'
+import { confirmDialog, promptTextInput } from '../utils/native-dialog'
 import {
   allObjectTypeIds,
   createEntityDef,
@@ -247,9 +248,12 @@ export default function SceneObjectsPanel() {
 
   const deleteScene = useCallback(() => {
     if (!scene || !canDeleteScene) return
-    const ok = globalThis.confirm(`Delete scene "${scene.name}" and its objects?`)
-    if (!ok) return
-    dispatch({ type: 'SCENE_DELETE', sceneId: scene.id })
+    void confirmDialog(`Delete scene "${scene.name}" and its objects?`, {
+      title: 'Delete scene',
+      kind: 'warning',
+    }).then((ok) => {
+      if (ok) dispatch({ type: 'SCENE_DELETE', sceneId: scene.id })
+    })
   }, [canDeleteScene, dispatch, scene])
 
   const addEntity = useCallback(() => {
@@ -376,9 +380,14 @@ export default function SceneObjectsPanel() {
           type="button"
           disabled={!project}
           onClick={() => {
-            const name = globalThis.prompt('New object type name', 'Object')
-            if (!name?.trim()) return
-            dispatch({ type: 'OBJECT_TYPE_ADD', displayName: name.trim() })
+            void promptTextInput({
+              title: 'New object type',
+              message: 'Object type name:',
+              defaultValue: 'Object',
+            }).then((name) => {
+              if (!name) return
+              dispatch({ type: 'OBJECT_TYPE_ADD', displayName: name })
+            })
           }}
           className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold
                      border border-[var(--border-2)] text-[var(--muted)] hover:text-[var(--accent)]"

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useEditor } from '../../store/editor-store'
 import { emptyDialogScript } from '../../utils/dialog/dialog-script'
+import { alertDialog } from '../../utils/native-dialog'
 import { DialogScriptEditor } from './DialogScriptEditor'
 
 export function DialogEditorModal() {
@@ -97,7 +98,10 @@ export function openDialogEditorForId(
 ): void {
   const id = dialogId.trim()
   if (!id) {
-    globalThis.alert('Set a Dialog ID on this component first.')
+    void alertDialog('Set a Dialog ID on this component first.', {
+      title: 'Dialog editor',
+      kind: 'warning',
+    })
     return
   }
   if (!dialogs[id]) {

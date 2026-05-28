@@ -20,6 +20,7 @@ import { mainScriptBodyForProject, mainScriptBodyForProjectWithStatus } from './
 import { saveDialogsToProject } from '../../utils/dialog/dialog-file-api'
 import type { DialogScript } from '../../utils/dialog/dialog-script'
 import { starterInnkeeperScript } from '../../utils/dialog/dialog-file-api'
+import { confirmDialog } from '../../utils/native-dialog'
 
 export type PersistKind = 'Build' | 'WASM' | 'Web' | 'save'
 
@@ -89,9 +90,10 @@ async function migrateProjectFolder(
   const oldFolder = projectFolderBaseName(projectPath)
   const defaultParent = dirName(oldRoot)
 
-  const ok = globalThis.confirm?.(
+  const ok = await confirmDialog(
     `Project is named "${folderName}" but saved in folder "${oldFolder}".\n` +
       `Save a copy into a new "${folderName}" folder?`,
+    { title: 'Project folder name', kind: 'warning' },
   )
   if (!ok) return null
 
@@ -134,7 +136,10 @@ export async function ensureProjectOnDisk(
   let buildPath = projectPath ?? ''
 
   if (!buildPath) {
-    const ok = globalThis.confirm?.(buildConfirmMessage(kind)) ?? false
+    const ok = await confirmDialog(buildConfirmMessage(kind), {
+      title: 'Save project',
+      kind: 'warning',
+    })
     if (!ok) return null
     const parentDir = await saveProjectAsDialog(folderName)
     if (!parentDir) return null

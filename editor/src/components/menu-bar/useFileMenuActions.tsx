@@ -31,6 +31,7 @@ import {
   saveDialogsToProject,
   starterInnkeeperScript,
 } from '../../utils/dialog/dialog-file-api'
+import { confirmDialog } from '../../utils/native-dialog'
 import type { DialogScript } from '../../utils/dialog/dialog-script'
 
 interface UseFileMenuActionsParams {
@@ -57,11 +58,12 @@ export function useFileMenuActions({
   flushBeforePersist,
 }: UseFileMenuActionsParams) {
   const confirmDiscardIfDirty = useCallback(
-    (actionLabel: string): boolean => {
+    async (actionLabel: string): Promise<boolean> => {
       if (!projectDirty) return true
-      return globalThis.confirm(
+      return confirmDialog(
         `You have unsaved changes in "${project?.projectName ?? 'this project'}".\n` +
           `${actionLabel} will discard them. Continue?`,
+        { title: 'Unsaved changes', kind: 'warning' },
       )
     },
     [project?.projectName, projectDirty],
@@ -69,7 +71,7 @@ export function useFileMenuActions({
 
   const handleOpenProject = useCallback(async () => {
     closeMenu()
-    if (!confirmDiscardIfDirty('Opening a different project')) return
+    if (!(await confirmDiscardIfDirty('Opening a different project'))) return
     const path = await openProjectDialog()
     if (!path) return
     dispatch({ type: 'LOG', entry: makeConsoleEntry(`[File] Opening ${path}…`, 'info') })
@@ -125,7 +127,7 @@ export function useFileMenuActions({
   const handleNewProject = useCallback(
     async (template: ProjectTemplateId = 'blank') => {
       closeMenu()
-      if (!confirmDiscardIfDirty('Creating a new project')) return
+      if (!(await confirmDiscardIfDirty('Creating a new project'))) return
       loadNewProject(template)
     },
     [closeMenu, confirmDiscardIfDirty, loadNewProject],

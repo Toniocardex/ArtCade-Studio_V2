@@ -13,6 +13,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod build_log_filter;
+mod native_input;
 mod process_util;
 mod project_paths;
 mod sdk;
@@ -668,6 +669,22 @@ fn get_web_export_status(project_root: String, project_dirty: bool) -> web_expor
     web_export_status::evaluate_web_export_status(Path::new(&project_root), project_dirty)
 }
 
+/// Native Win32/macOS/Linux input dialog (not WebView `prompt`).
+#[tauri::command]
+async fn prompt_text_input(
+    title: String,
+    message: String,
+    default_value: Option<String>,
+) -> Option<String> {
+    let default = default_value.unwrap_or_default();
+    tauri::async_runtime::spawn_blocking(move || {
+        native_input::show_text_input(&title, &message, &default)
+    })
+    .await
+    .ok()
+    .flatten()
+}
+
 #[tauri::command]
 async fn pack_project(
     app: tauri::AppHandle,
@@ -728,6 +745,7 @@ fn main() {
             open_web_export_in_browser,
             get_web_export_status,
             pack_project,
+            prompt_text_input,
         ])
         .build(tauri::generate_context!())
         .expect("error while building ArtCade Editor")

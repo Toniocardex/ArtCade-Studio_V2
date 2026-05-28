@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createBlankProject } from '../../utils/project'
 
-const confirmMock = vi.fn(() => true)
-vi.stubGlobal('confirm', confirmMock)
+const confirmDialogMock = vi.fn(async () => true)
+vi.mock('../../utils/native-dialog', () => ({
+  confirmDialog: (...args: unknown[]) => confirmDialogMock(...args),
+}))
 
 const saveProjectAsDialog = vi.fn()
 const scaffoldNewProjectOnDisk = vi.fn()
@@ -33,7 +35,7 @@ describe('ensureProjectOnDisk', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    confirmMock.mockReturnValue(true)
+    confirmDialogMock.mockResolvedValue(true)
     saveProjectFile.mockResolvedValue(undefined)
     saveScript.mockResolvedValue(undefined)
     copyProjectDataDirs.mockResolvedValue(undefined)
@@ -41,7 +43,7 @@ describe('ensureProjectOnDisk', () => {
   })
 
   it('prompts migration when on-disk folder name differs from project name', async () => {
-    confirmMock.mockReturnValue(true)
+    confirmDialogMock.mockResolvedValue(true)
     saveProjectAsDialog.mockResolvedValueOnce('/tmp/games')
     scaffoldNewProjectOnDisk.mockResolvedValueOnce('/tmp/games/MyGame/project.json')
 
@@ -63,7 +65,7 @@ describe('ensureProjectOnDisk', () => {
   })
 
   it('cancels migration when the user declines', async () => {
-    confirmMock.mockReturnValue(false)
+    confirmDialogMock.mockResolvedValue(false)
 
     const project = createBlankProject('MyGame')
     const path = await ensureProjectOnDisk({

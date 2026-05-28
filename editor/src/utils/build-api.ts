@@ -1,6 +1,7 @@
 import { isTauri, invoke } from '@tauri-apps/api/core'
 import { save as dialogSave } from '@tauri-apps/plugin-dialog'
 import type { DependencyReport } from './dependencies'
+import { alertDialog, confirmDialog } from './native-dialog'
 
 function notAvailable(name: string): void {
   console.warn(`[api] ${name}: Tauri not available in browser mode`)
@@ -68,7 +69,7 @@ export async function ensureDependencies(
     if (!report.msvc.ok && mode === 'native') {
       message += '\nNote: Visual Studio Build Tools must still be installed separately.'
     }
-    if (!window.confirm(message)) return false
+    if (!(await confirmDialog(message, { title: 'Install SDK', kind: 'warning' }))) return false
     await installSdk(includeEms)
     const after = await checkDependencies()
     if (!after) return false
@@ -81,7 +82,7 @@ export async function ensureDependencies(
     message += '\nInstall Visual Studio Build Tools with "Desktop development with C++":\nhttps://visualstudio.microsoft.com/visual-cpp-build-tools/'
   }
 
-  window.alert(message)
+  await alertDialog(message, { title: 'Build dependencies', kind: 'warning' })
   return false
 }
 
