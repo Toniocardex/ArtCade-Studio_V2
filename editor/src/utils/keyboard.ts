@@ -43,10 +43,10 @@ export function applyInputBackspace(input: HTMLInputElement): boolean {
   const end = input.selectionEnd ?? 0
   if (start === 0 && start === end) return false
   const v = input.value
-  const next = start !== end
-    ? v.slice(0, start) + v.slice(end)
-    : v.slice(0, start - 1) + v.slice(start)
-  const newPos = start !== end ? start : start - 1
+  const next = start === end
+    ? v.slice(0, start - 1) + v.slice(start)
+    : v.slice(0, start) + v.slice(end)
+  const newPos = start === end ? start - 1 : start
   input.value = next
   input.setSelectionRange(newPos, newPos)
   input.dispatchEvent(new Event('input', { bubbles: true }))
@@ -59,9 +59,9 @@ export function applyInputDelete(input: HTMLInputElement): boolean {
   const end = input.selectionEnd ?? 0
   const v = input.value
   if (start >= v.length && start === end) return false
-  const next = start !== end
-    ? v.slice(0, start) + v.slice(end)
-    : v.slice(0, start) + v.slice(start + 1)
+  const next = start === end
+    ? v.slice(0, start) + v.slice(start + 1)
+    : v.slice(0, start) + v.slice(end)
   input.value = next
   input.setSelectionRange(start, start)
   input.dispatchEvent(new Event('input', { bubbles: true }))
@@ -72,9 +72,9 @@ let guardsInstalled = false
 
 /** Block browser/WebView "go back" on Backspace outside text fields. */
 export function installEditorKeyboardGuards(): void {
-  if (guardsInstalled || typeof window === 'undefined') return
+  if (guardsInstalled || globalThis.window === undefined) return
   guardsInstalled = true
-  window.addEventListener(
+  globalThis.addEventListener(
     'keydown',
     (e) => {
       if (!isBackspaceKey(e)) return

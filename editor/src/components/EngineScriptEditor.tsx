@@ -9,11 +9,11 @@ import {
 } from '../codemirror-frame/protocol'
 import { RUN_PREVIEW_SHORTCUT_EVENT } from '../hooks/usePreviewPlayShortcut'
 
-export interface EngineScriptEditorProps {
+export type EngineScriptEditorProps = Readonly<{
   sourceCode: string
-  theme:      string
-  onChange:   (value: string) => void
-}
+  theme: string
+  onChange: (value: string) => void
+}>
 
 function toFrameTheme(theme: string): CmFrameThemeId {
   return theme === 'artcade-light' ? 'artcade-light' : 'artcade-dark'
@@ -30,14 +30,14 @@ export function EngineScriptEditor({
   const lastSyncedRef = useRef(sourceCode)
 
   const frameSrc = useMemo(
-    () => new URL('codemirror-frame.html', window.location.href).href,
+    () => new URL('codemirror-frame.html', globalThis.location.href).href,
     [],
   )
 
   const postToFrame = useCallback((data: unknown) => {
     const win = iframeRef.current?.contentWindow
     if (!win) return
-    win.postMessage(data, window.location.origin)
+    win.postMessage(data, globalThis.location.origin)
   }, [])
 
   const sendInit = useCallback(() => {
@@ -55,7 +55,7 @@ export function EngineScriptEditor({
 
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
-      if (event.origin !== window.location.origin) return
+      if (event.origin !== globalThis.location.origin) return
       if (event.source !== iframeRef.current?.contentWindow) return
       if (!isFrameToParentMessage(event.data)) return
 
@@ -72,12 +72,12 @@ export function EngineScriptEditor({
       }
 
       if (event.data.type === 'run-preview-shortcut') {
-        window.dispatchEvent(new CustomEvent(RUN_PREVIEW_SHORTCUT_EVENT))
+        globalThis.dispatchEvent(new CustomEvent(RUN_PREVIEW_SHORTCUT_EVENT))
       }
     }
 
-    window.addEventListener('message', onMessage)
-    return () => window.removeEventListener('message', onMessage)
+    globalThis.addEventListener('message', onMessage)
+    return () => globalThis.removeEventListener('message', onMessage)
   }, [onChange, sendInit])
 
   useEffect(() => {
@@ -99,8 +99,7 @@ export function EngineScriptEditor({
       ref={iframeRef}
       src={frameSrc}
       title="Lua script editor"
-      className="block w-full h-full min-h-0 overflow-hidden border-0 bg-[var(--bg)]"
-      scrolling="yes"
+      className="block w-full h-full min-h-0 overflow-auto border-0 bg-[var(--bg)]"
       sandbox="allow-scripts allow-same-origin"
     />
   )

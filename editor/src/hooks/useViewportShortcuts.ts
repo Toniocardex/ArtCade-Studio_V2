@@ -49,11 +49,10 @@ export function useViewportShortcuts(): void {
       if (e.key === '8') {
         e.preventDefault()
         dispatch({ type: 'EDITOR_SET_CAMERA_PREVIEW', enabled: !state.cameraPreview })
-        return
       }
     }
 
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+    globalThis.addEventListener('keydown', handleKeyDown)
+    return () => globalThis.removeEventListener('keydown', handleKeyDown)
   }, [state.mode, state.editorZoom, state.cameraPreview, dispatch])
 }

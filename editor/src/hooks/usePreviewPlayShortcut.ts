@@ -27,11 +27,11 @@ export function usePreviewPlayShortcut(
     function handleRunPreviewShortcut() {
       onPlayStop()
     }
-    window.addEventListener('keydown', handleKeyDown)
-    window.addEventListener(RUN_PREVIEW_SHORTCUT_EVENT, handleRunPreviewShortcut)
+    globalThis.addEventListener('keydown', handleKeyDown)
+    globalThis.addEventListener(RUN_PREVIEW_SHORTCUT_EVENT, handleRunPreviewShortcut)
     return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-      window.removeEventListener(RUN_PREVIEW_SHORTCUT_EVENT, handleRunPreviewShortcut)
+      globalThis.removeEventListener('keydown', handleKeyDown)
+      globalThis.removeEventListener(RUN_PREVIEW_SHORTCUT_EVENT, handleRunPreviewShortcut)
     }
   }, [onPlayStop])
 }

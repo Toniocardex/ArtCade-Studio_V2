@@ -21,8 +21,8 @@ const MIN_CONTENT_H = 92
 const MIN_TOTAL_H = HANDLE_H + TAB_BAR_H + MIN_CONTENT_H
 
 function maxDockHeight(): number {
-  if (typeof window === 'undefined') return 400
-  return Math.max(MIN_TOTAL_H, Math.round(window.innerHeight * 0.45))
+  if (globalThis.window === undefined) return 400
+  return Math.max(MIN_TOTAL_H, Math.round(globalThis.innerHeight * 0.45))
 }
 
 export default function BottomDock() {
@@ -45,8 +45,8 @@ export default function BottomDock() {
     function onResize() {
       setMaxH(maxDockHeight())
     }
-    window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
+    globalThis.addEventListener('resize', onResize)
+    return () => globalThis.removeEventListener('resize', onResize)
   }, [])
 
   useEffect(() => {

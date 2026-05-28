@@ -25,7 +25,7 @@ export function resolveInitialTheme(): Theme {
   const stored = getStoredTheme()
   if (stored) return stored
   try {
-    if (window.matchMedia('(prefers-color-scheme: light)').matches)
+    if (globalThis.matchMedia('(prefers-color-scheme: light)').matches)
       return 'light'
   } catch {
     /* matchMedia unavailable → fall through */
@@ -35,7 +35,7 @@ export function resolveInitialTheme(): Theme {
 
 /** Apply a theme to <html> and persist it. */
 export function applyTheme(theme: Theme): void {
-  document.documentElement.setAttribute('data-theme', theme)
+  document.documentElement.dataset.theme = theme
   try {
     localStorage.setItem(STORAGE_KEY, theme)
   } catch {
@@ -50,6 +50,6 @@ export function toggleTheme(current: Theme): Theme {
 /** Call once at startup, before React renders, to avoid a flash. */
 export function initTheme(): Theme {
   const t = resolveInitialTheme()
-  document.documentElement.setAttribute('data-theme', t)
+  document.documentElement.dataset.theme = t
   return t
 }

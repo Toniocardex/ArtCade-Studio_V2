@@ -5,20 +5,16 @@ import {
 
 // Lightweight DOM/storage mocks so the suite stays in the node environment
 // (no jsdom dependency — matches the rest of the test setup).
-let attrs: Record<string, string>
+let dataset: { theme?: string }
 let store: Record<string, string>
 let prefersLight = false
 
 beforeEach(() => {
-  attrs = {}
+  dataset = {}
   store = {}
   prefersLight = false
   vi.stubGlobal('document', {
-    documentElement: {
-      setAttribute: (k: string, v: string) => { attrs[k] = v },
-      getAttribute: (k: string) => (k in attrs ? attrs[k] : null),
-      removeAttribute: (k: string) => { delete attrs[k] },
-    },
+    documentElement: { dataset },
   })
   vi.stubGlobal('localStorage', {
     getItem: (k: string) => (k in store ? store[k] : null),
@@ -26,9 +22,9 @@ beforeEach(() => {
     removeItem: (k: string) => { delete store[k] },
     clear: () => { store = {} },
   })
-  vi.stubGlobal('window', {
-    matchMedia: (q: string) => ({ matches: prefersLight && q.includes('light') }),
-  })
+  vi.stubGlobal('matchMedia', (q: string) => ({
+    matches: prefersLight && q.includes('light'),
+  }))
 })
 
 describe('theme util (Phase E)', () => {
@@ -39,10 +35,10 @@ describe('theme util (Phase E)', () => {
 
   it('applyTheme sets data-theme + persists', () => {
     applyTheme('light')
-    expect(attrs['data-theme']).toBe('light')
+    expect(dataset.theme).toBe('light')
     expect(getStoredTheme()).toBe('light')
     applyTheme('dark')
-    expect(attrs['data-theme']).toBe('dark')
+    expect(dataset.theme).toBe('dark')
     expect(getStoredTheme()).toBe('dark')
   })
 
@@ -70,6 +66,6 @@ describe('theme util (Phase E)', () => {
     store['artcade-theme'] = 'light'
     const t = initTheme()
     expect(t).toBe('light')
-    expect(attrs['data-theme']).toBe('light')
+    expect(dataset.theme).toBe('light')
   })
 })

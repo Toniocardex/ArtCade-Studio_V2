@@ -26,8 +26,11 @@ import type { FileMenuItem } from './FileMenu'
 import { makeConsoleEntry } from './makeConsoleEntry'
 import { mainScriptBodyForProject, mainScriptBodyForProjectWithStatus } from './project-script'
 import { ensureProjectOnDisk } from './ensureProjectOnDisk'
-import { loadDialogsFromProject, saveDialogsToProject } from '../../utils/dialog/dialog-file-api'
-import { starterInnkeeperScript } from '../../utils/dialog/dialog-file-api'
+import {
+  loadDialogsFromProject,
+  saveDialogsToProject,
+  starterInnkeeperScript,
+} from '../../utils/dialog/dialog-file-api'
 import type { DialogScript } from '../../utils/dialog/dialog-script'
 
 interface UseFileMenuActionsParams {
@@ -56,7 +59,7 @@ export function useFileMenuActions({
   const confirmDiscardIfDirty = useCallback(
     (actionLabel: string): boolean => {
       if (!projectDirty) return true
-      return window.confirm(
+      return globalThis.confirm(
         `You have unsaved changes in "${project?.projectName ?? 'this project'}".\n` +
           `${actionLabel} will discard them. Continue?`,
       )
@@ -77,7 +80,7 @@ export function useFileMenuActions({
     }
     runtimeSync.reset()
     const loadedDialogs = await loadDialogsFromProject(loaded.path)
-    const dialogIds = Object.keys(loadedDialogs).sort()
+    const dialogIds = Object.keys(loadedDialogs).sort((a, b) => a.localeCompare(b))
     dispatch({
       type: 'LOAD_PROJECT',
       project: loaded.project,
@@ -153,7 +156,7 @@ export function useFileMenuActions({
         project: flushed,
         path: projectJsonPath,
         dialogs: library,
-        selectedDialogId: Object.keys(library).sort()[0] ?? null,
+        selectedDialogId: Object.keys(library).sort((a, b) => a.localeCompare(b))[0] ?? null,
       })
       dispatch({ type: 'MARK_PROJECT_SAVED' })
       dispatch({

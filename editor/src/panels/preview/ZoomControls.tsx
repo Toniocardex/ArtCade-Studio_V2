@@ -44,8 +44,8 @@ export function ZoomControls() {
         setOpen(false)
       }
     }
-    window.addEventListener('mousedown', onDocClick)
-    return () => window.removeEventListener('mousedown', onDocClick)
+    globalThis.addEventListener('mousedown', onDocClick)
+    return () => globalThis.removeEventListener('mousedown', onDocClick)
   }, [open])
 
   // Autofocus the manual-entry input when entering edit mode.
@@ -57,7 +57,7 @@ export function ZoomControls() {
   }, [editing])
 
   function commitDraft() {
-    const n = parseFloat(draft.replace(',', '.').replace('%', ''))
+    const n = Number.parseFloat(draft.replace(',', '.').replace('%', ''))
     if (Number.isFinite(n) && n > 0) setZoom(n / 100)
     setEditing(false)
     setDraft('')

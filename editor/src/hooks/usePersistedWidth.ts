@@ -12,8 +12,8 @@ export function usePersistedWidth(
   max = 480,
 ): [number, (next: number | ((prev: number) => number)) => void] {
   const [value, setValue] = useState<number>(() => {
-    if (typeof window === 'undefined') return defaultPx
-    const raw = window.localStorage.getItem(key)
+    if (globalThis.window === undefined) return defaultPx
+    const raw = globalThis.localStorage.getItem(key)
     if (!raw) return defaultPx
     const n = Number(raw)
     if (!Number.isFinite(n)) return defaultPx
@@ -31,8 +31,8 @@ export function usePersistedWidth(
   )
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    window.localStorage.setItem(key, String(value))
+    if (globalThis.window === undefined) return
+    globalThis.localStorage.setItem(key, String(value))
   }, [key, value])
 
   return [value, setClamped]

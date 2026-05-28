@@ -1,10 +1,10 @@
-/** Pulse resize after Tauri window.show() (WASM preview layout). */
+/** Pulse resize after Tauri globalThis.show() (WASM preview layout). */
 export function triggerLayoutReflow(): void {
-  const pulse = () => window.dispatchEvent(new Event('resize'))
+  const pulse = () => globalThis.dispatchEvent(new Event('resize'))
 
   pulse()
   for (const delay of [50, 150, 350]) {
-    window.setTimeout(pulse, delay)
+    globalThis.setTimeout(pulse, delay)
   }
   requestAnimationFrame(() => requestAnimationFrame(pulse))
 }
