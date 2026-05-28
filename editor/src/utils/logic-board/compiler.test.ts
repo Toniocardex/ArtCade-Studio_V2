@@ -6,6 +6,7 @@ import {
   targetExpr,
   conditionExpr,
 } from './compiler'
+import { ruleBindingsAreConsistent } from './rule-bindings-audit'
 import type { LogicBoard, LogicEvent } from '../../types/logic-board'
 import type { ProjectDoc } from '../../types'
 import { createEntityDef } from '../project-builders'
@@ -44,7 +45,7 @@ function miniProject(): ProjectDoc {
 
 describe('literal helpers', () => {
   it('escapes Lua strings', () => {
-    expect(luaString('a"b\\c\n')).toBe('"a\\"b\\\\c\\n"')
+    expect(luaString('a"b\\c\n')).toBe(String.raw`"a\"b\\c\n"`)
   })
   it('renders Lua values', () => {
     expect(luaValue(42)).toBe('42')
@@ -694,9 +695,9 @@ describe('compileLogicBoard — actions', () => {
   // actionLua used to fall off the switch and return undefined, which then
   // silently dropped the action from the compiled Lua (the consumer guard
   // `if (code && !code.startsWith('--'))` masked the undefined). We now
-  // emit a TODO comment so the issue surfaces in the Lua preview AND the
+  // emit an ArtCade marker comment so the issue surfaces in the Lua preview AND the
   // compiler keeps producing a parseable script for the rest of the board.
-  it('unknown action enum produces a TODO comment instead of crashing', () => {
+  it('unknown action enum produces a marker comment instead of crashing', () => {
     // moveInDirection with an unrecognised direction.
     const board1 = {
       boardId: 'b', target: { type: 'entity_class', className: 'Player' },
@@ -708,7 +709,7 @@ describe('compileLogicBoard — actions', () => {
                     direction: 'diagonal-up-left', speed: 100 } as unknown as never],
       }],
     } as never
-    const lua = compileLogicBoard([board1 as never])
+    const lua = compileLogicBoard([board1])
     // The compiler must not throw and must not embed `undefined` anywhere.
     expect(lua).not.toContain('undefined')
     // Surface the dropped action so the user can fix it.
@@ -723,7 +724,7 @@ describe('compileLogicBoard — actions', () => {
         actions: [{ type: 'newFutureAction', target: 'self' } as unknown as never],
       }],
     } as never
-    const lua2 = compileLogicBoard([board2 as never])
+    const lua2 = compileLogicBoard([board2])
     expect(lua2).not.toContain('undefined')
     expect(lua2).toContain('-- TODO ArtCade: unknown action "newFutureAction"')
   })
@@ -1259,15 +1260,16 @@ describe('Logic Components — Phase C (engine-hook triggers)', () => {
   })
 
   it('wait.then runs before post-wait tail actions (concat semantics)', () => {
+    const waitWithBranch = JSON.parse(
+      '{"type":"wait","seconds":1,"then":[{"type":"debugLog","message":"nested"}]}',
+    ) as LogicEvent['actions'][number]
     const lua = compileLogicBoard([
       board([
         ev({
           trigger: { type: 'onStart' },
           actions: [
             { type: 'debugLog', message: 'before' },
-            { type: 'wait', seconds: 1, then: [
-              { type: 'debugLog', message: 'nested' },
-            ] },
+            waitWithBranch,
             { type: 'debugLog', message: 'after' },
           ],
         }),
@@ -1451,25 +1453,6 @@ describe('RULE alias integrity', () => {
   // a matching binding inside the `local RULE = { ... }` table. Catches drift
   // between ruleKeyExpr (event-slugs.ts) and buildHeader (compiler-prelude.ts)
   // if a future patch updates one without the other.
-  function ruleBindingsAreConsistent(lua: string): {
-    referenced: Set<string>
-    bound: Set<string>
-    missing: string[]
-  } {
-    const referenced = new Set<string>()
-    for (const m of lua.matchAll(/RULE\.([A-Za-z_][A-Za-z0-9_]*)/g)) {
-      referenced.add(m[1])
-    }
-    const tableMatch = lua.match(/local RULE = \{([\s\S]*?)\n\}/)
-    const bound = new Set<string>()
-    if (tableMatch) {
-      for (const m of tableMatch[1].matchAll(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=/gm)) {
-        bound.add(m[1])
-      }
-    }
-    const missing = [...referenced].filter((s) => !bound.has(s))
-    return { referenced, bound, missing }
-  }
 
   it('every RULE.<slug> reference is bound in the RULE table', () => {
     const lua = compileLogicBoard([

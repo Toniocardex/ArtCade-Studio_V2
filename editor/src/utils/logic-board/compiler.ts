@@ -34,29 +34,52 @@
 import type {
   LogicBoard,
   LogicBoardDoc,
+  LogicEvent,
 } from '../../types/logic-board'
 import type { ProjectDoc } from '../../types'
 import { usesTickFallback } from './trigger-execution'
 import { assertBoardCompatible } from './trigger-compatibility'
-import { INDENT, poolExpr, luaString, isGlobalTarget } from './lua-helpers'
+import { INDENT, poolExpr, isGlobalTarget } from './lua-helpers'
 import { logicBoardLuaCommentLabel } from './labels'
 import {
   applyClickToDestroyTrigger,
   assertClickToDestroyCompatible,
 } from './click-to-destroy'
 import { buildEventSlugs } from './event-slugs'
-import { emitEventBody } from './emit-event-body'
 import { emitEventRegistration } from './emit-event-registration'
 import { buildHeader, buildTickWrapper } from './compiler-prelude'
+import {
+  pushDestroyTickBlock,
+  pushMessageEventsInit,
+  pushStartEventsInit,
+  pushTickEventsBlock,
+} from './emit-board-blocks'
 
 // Re-export helpers consumed by compiler.test.ts and any future callers.
 export { luaString, luaValue, targetExpr } from './lua-helpers'
 export { conditionExpr } from './condition-expr'
 
+function eventNeedsSensorEdge(
+  ev: LogicEvent,
+  board: LogicBoard,
+  project: ProjectDoc | null | undefined,
+): boolean {
+  const type = ev.trigger.type
+  if (type !== 'onTriggerEnter' && type !== 'onTriggerExit') return false
+  return usesTickFallback(ev, board, project)
+}
+
+function eventNeedsDestroyBuffer(
+  ev: LogicEvent,
+  board: LogicBoard,
+  project: ProjectDoc | null | undefined,
+): boolean {
+  return ev.trigger.type === 'onDestroy' && usesTickFallback(ev, board, project)
+}
+
 /**
  * Single walk over the doc that tells the tick wrapper which optional poll
- * preambles (sensor edge buffer, destroy queue) it needs to emit. Replaces
- * three separate scans of the same data.
+ * preambles (sensor edge buffer, destroy queue) it needs to emit.
  */
 function analyzePollingNeeds(
   doc: LogicBoardDoc,
@@ -67,22 +90,96 @@ function analyzePollingNeeds(
   for (const board of doc) {
     for (const ev of board.events) {
       if (!ev.enabled) continue
+      if (!useSensor && eventNeedsSensorEdge(ev, board, project)) useSensor = true
+      if (!useDestroy && eventNeedsDestroyBuffer(ev, board, project)) useDestroy = true
       if (useSensor && useDestroy) return { useSensor, useDestroy }
-      const type = ev.trigger.type
-      if (
-        (type === 'onTriggerEnter' || type === 'onTriggerExit') &&
-        !useSensor &&
-        usesTickFallback(ev, board, project)
-      ) {
-        useSensor = true
-        continue
-      }
-      if (type === 'onDestroy' && !useDestroy && usesTickFallback(ev, board, project)) {
-        useDestroy = true
-      }
     }
   }
   return { useSensor, useDestroy }
+}
+
+type BoardPartitions = {
+  startEvents: LogicEvent[]
+  messageEvents: LogicEvent[]
+  registeredEvents: LogicEvent[]
+  tickEvents: LogicEvent[]
+  destroyTickEvents: LogicEvent[]
+  pool: string
+  isGlobal: boolean
+}
+
+type BoardEventBuckets = {
+  startEvents: LogicEvent[]
+  messageEvents: LogicEvent[]
+  registeredEvents: LogicEvent[]
+  tickFallback: LogicEvent[]
+}
+
+function classifyBoardEvent(
+  ev: LogicEvent,
+  board: LogicBoard,
+  project: ProjectDoc | null | undefined,
+  slugs: Map<string, string>,
+  buckets: BoardEventBuckets,
+): void {
+  const kind = ev.trigger.type
+  if (kind === 'onStart') {
+    buckets.startEvents.push(ev)
+    return
+  }
+  if (kind === 'onMessage') {
+    buckets.messageEvents.push(ev)
+    return
+  }
+  if (usesTickFallback(ev, board, project)) {
+    buckets.tickFallback.push(ev)
+    return
+  }
+  if (emitEventRegistration(ev, board, project, slugs)) {
+    buckets.registeredEvents.push(ev)
+  }
+}
+
+function partitionBoardEvents(
+  board: LogicBoard,
+  project: ProjectDoc | null | undefined,
+  slugs: Map<string, string>,
+): BoardPartitions {
+  const enabled = board.events
+    .filter((e) => e.enabled)
+    .map((e) => applyClickToDestroyTrigger(e))
+  const buckets: BoardEventBuckets = {
+    startEvents: [],
+    messageEvents: [],
+    registeredEvents: [],
+    tickFallback: [],
+  }
+  for (const ev of enabled) {
+    classifyBoardEvent(ev, board, project, slugs, buckets)
+  }
+
+  return {
+    startEvents: buckets.startEvents,
+    messageEvents: buckets.messageEvents,
+    registeredEvents: buckets.registeredEvents,
+    tickEvents: buckets.tickFallback.filter((e) => e.trigger.type !== 'onDestroy'),
+    destroyTickEvents: buckets.tickFallback.filter((e) => e.trigger.type === 'onDestroy'),
+    pool: poolExpr(board.target, project),
+    isGlobal: isGlobalTarget(board.target),
+  }
+}
+
+function pushRegisteredInitEvents(
+  init: string[],
+  events: LogicEvent[],
+  board: LogicBoard,
+  project: ProjectDoc | null | undefined,
+  slugs: Map<string, string>,
+): void {
+  for (const ev of events) {
+    const registration = emitEventRegistration(ev, board, project, slugs)
+    if (registration) init.push(...registration)
+  }
 }
 
 /**
@@ -94,98 +191,15 @@ function emitBoard(
   project: ProjectDoc | null | undefined,
   slugs: Map<string, string>,
 ): { init: string[]; tick: string[] } {
-  const enabled = board.events
-    .filter((e) => e.enabled)
-    .map((e) => applyClickToDestroyTrigger(e))
-  const startEvents = enabled.filter((e) => e.trigger.type === 'onStart')
-  const messageEvents = enabled.filter((e) => e.trigger.type === 'onMessage')
-  const registeredEvents = enabled.filter((e) => {
-    if (e.trigger.type === 'onStart' || e.trigger.type === 'onMessage') return false
-    if (usesTickFallback(e, board, project)) return false
-    return emitEventRegistration(e, board, project, slugs) !== null
-  })
-  const allTickEvents = enabled.filter((e) => usesTickFallback(e, board, project))
-  // onDestroy fallback runs against `_destroy_events`, not the live pool
-  // (destroyed entities aren't in pool.getAll). Hoist it out of the per-pool
-  // loop so it iterates the destroy buffer once with `self = de.entityId`.
-  const destroyTickEvents = allTickEvents.filter((e) => e.trigger.type === 'onDestroy')
-  const tickEvents = allTickEvents.filter((e) => e.trigger.type !== 'onDestroy')
-
-  const pool = poolExpr(board.target, project)
-  const isGlobal = isGlobalTarget(board.target)
+  const parts = partitionBoardEvents(board, project, slugs)
   const init: string[] = []
   const tick: string[] = []
 
-  if (startEvents.length > 0) {
-    if (isGlobal) {
-      // Global boards have no entity context — single execution block.
-      init.push(`${INDENT}do`)
-      init.push(`${INDENT}${INDENT}local self = nil`)
-      init.push(`${INDENT}${INDENT}local other = nil`)
-      for (const ev of startEvents) {
-        init.push(...emitEventBody(ev, board, INDENT + INDENT, slugs))
-      }
-      init.push(`${INDENT}end`)
-    } else {
-      init.push(`${INDENT}for _, self in ipairs(${pool}) do`)
-      for (const ev of startEvents) {
-        init.push(...emitEventBody(ev, board, INDENT + INDENT, slugs))
-      }
-      init.push(`${INDENT}end`)
-    }
-  }
-
-  // onMessage → register an event.on listener once in init.
-  for (const ev of messageEvents) {
-    if (ev.trigger.type !== 'onMessage') continue
-    const I = INDENT
-    init.push(`${I}_logic_reg_message(${luaString(ev.trigger.messageName)}, function()`)
-    if (isGlobal) {
-      init.push(`${I}${I}local self = nil`)
-      init.push(`${I}${I}local other = nil`)
-      init.push(...emitEventBody(ev, board, I + I, slugs))
-    } else {
-      init.push(`${I}${I}for _, self in ipairs(${pool}) do`)
-      init.push(`${I}${I}${I}local other = nil`)
-      init.push(...emitEventBody(ev, board, I + I + I, slugs))
-      init.push(`${I}${I}end`)
-    }
-    init.push(`${I}end)`)
-  }
-
-  for (const ev of registeredEvents) {
-    const registration = emitEventRegistration(ev, board, project, slugs)
-    if (registration) init.push(...registration)
-  }
-
-  if (tickEvents.length > 0) {
-    if (isGlobal) {
-      tick.push(`${INDENT}do`)
-      tick.push(`${INDENT}${INDENT}local self = nil`)
-      tick.push(`${INDENT}${INDENT}local other = nil`)
-      for (const ev of tickEvents) {
-        tick.push(...emitEventBody(ev, board, INDENT + INDENT, slugs))
-      }
-      tick.push(`${INDENT}end`)
-    } else {
-      tick.push(`${INDENT}for _, self in ipairs(${pool}) do`)
-      tick.push(`${INDENT}${INDENT}local other = nil`)
-      for (const ev of tickEvents) {
-        tick.push(...emitEventBody(ev, board, INDENT + INDENT, slugs))
-      }
-      tick.push(`${INDENT}end`)
-    }
-  }
-
-  if (destroyTickEvents.length > 0) {
-    tick.push(`${INDENT}for _, de in ipairs(_destroy_events) do`)
-    tick.push(`${INDENT}${INDENT}local self = de.entityId`)
-    tick.push(`${INDENT}${INDENT}local other = nil`)
-    for (const ev of destroyTickEvents) {
-      tick.push(...emitEventBody(ev, board, INDENT + INDENT, slugs))
-    }
-    tick.push(`${INDENT}end`)
-  }
+  pushStartEventsInit(init, parts.startEvents, board, parts.pool, parts.isGlobal, slugs)
+  pushMessageEventsInit(init, parts.messageEvents, board, parts.pool, parts.isGlobal, slugs)
+  pushRegisteredInitEvents(init, parts.registeredEvents, board, project, slugs)
+  pushTickEventsBlock(tick, parts.tickEvents, board, parts.pool, parts.isGlobal, slugs)
+  pushDestroyTickBlock(tick, parts.destroyTickEvents, board, slugs)
 
   return { init, tick }
 }
@@ -203,8 +217,6 @@ export function compileLogicBoard(
   const initBlocks: string[] = []
   const tickBlocks: string[] = []
   for (const board of doc) {
-    // Fail loudly on incompatible trigger/target combos so the editor
-    // surfaces the error instead of producing broken Lua.
     assertBoardCompatible(board)
     assertClickToDestroyCompatible(board)
     const { init, tick } = emitBoard(board, project, eventSlugs)
