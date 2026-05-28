@@ -3,12 +3,17 @@ import type { EntityDef } from '../../types'
 import { Field, InspectorSection } from './inspector-fields'
 import { loadScript, resolveScriptPath } from '../../utils/api'
 
-export function ScriptSection({ entity }: { entity: EntityDef }) {
+export type ScriptSectionProps = Readonly<{
+  entity: EntityDef
+}>
+
+export function ScriptSection({ entity }: ScriptSectionProps) {
   const { state, dispatch } = useEditor()
-  if (!entity.scriptPath) return null
+  const scriptPath = entity.scriptPath
+  if (!scriptPath) return null
 
   async function openInEditor() {
-    const path = entity.scriptPath!
+    const path = scriptPath
     // If the tab is already open, just switch to it — never reload the
     // content from disk, that would clobber unsaved edits.
     const existing = state.openScripts.find(s => s.path === path)
