@@ -15,7 +15,7 @@ Follow this sequence for implementation tasks unless the user asks for a subset 
 
 ### 1. Implement
 
-- Minimal, focused diff; match existing conventions in `AGENTS.md` and surrounding code.
+- Minimal, focused diff; match project structure and stack boundaries in `AGENTS.md`, and naming/style conventions in the files you touch.
 - User-facing copy in **English** (editor UI, tooltips, banners, hints).
 - Logic Board changes: update schema JSON → run `npm run compile-schemas` in `editor/` → wire compiler, labels, tests.
 

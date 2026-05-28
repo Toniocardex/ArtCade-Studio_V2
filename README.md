@@ -42,7 +42,9 @@ ArtCade V2/
 ├── UI/                  # Design mockups (reference PNGs)
 ├── start-desktop.ps1    # Launch Tauri dev (alternative entry)
 ├── start-webapp.ps1     # Launch Vite dev in browser
-├── CLAUDE.md            # Development guidelines
+├── AGENTS.md            # Architecture & repo conventions (for humans + agents)
+├── CLAUDE.md            # Same guidelines as AGENTS.md (Claude)
+├── .cursor/rules/       # Canonical Cursor agent rules (delivery + code review)
 ├── .gitignore
 └── CMakeLists.txt       # Root build config
 ```
@@ -65,6 +67,7 @@ ArtCade V2/
 
 ## Documentation
 
+- **Cursor / AI agent rules (delivery + code review):** [`.cursor/rules/artcade-studio.mdc`](.cursor/rules/artcade-studio.mdc) — architecture context in [AGENTS.md](AGENTS.md)
 - **Index (all docs):** [docs/README.md](docs/README.md)
 - **Artist-friendly component principle:** [docs/ARTIST_FRIENDLY_COMPONENTS.md](docs/ARTIST_FRIENDLY_COMPONENTS.md)
 - **Engine integration roadmap:** [docs/ENGINE_INTEGRATION_ROADMAP.md](docs/ENGINE_INTEGRATION_ROADMAP.md)
