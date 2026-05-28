@@ -2,7 +2,11 @@ import { useEditor } from '../../store/editor-store'
 import type { EntityDef } from '../../types'
 import { openDialogEditorForId } from '../dialog/DialogEditorModal'
 
-export function DialogInspectorActions({ entity }: { entity: EntityDef }) {
+export type DialogInspectorActionsProps = Readonly<{
+  entity: EntityDef
+}>
+
+export function DialogInspectorActions({ entity }: DialogInspectorActionsProps) {
   const { state, dispatch } = useEditor()
   const dialogId = entity.dialog?.dialogId ?? ''
 
