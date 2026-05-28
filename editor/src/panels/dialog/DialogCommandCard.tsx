@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react'
 import type { DialogCommand } from '../../utils/dialog/dialog-script'
+import { DialogChoiceBranchEditor, defaultCommand } from './DialogChoiceBranchEditor'
 
 const inputCls =
   'w-full bg-[var(--border)] border border-[var(--border-2)] rounded px-2 py-1 text-xs text-[var(--text)] focus:outline-none focus:border-[var(--accent-2)]'
-import { DialogChoiceBranchEditor, defaultCommand } from './DialogChoiceBranchEditor'
 
 const COMMAND_LABELS: Record<DialogCommand['type'], string> = {
   showText: 'Show Text',
