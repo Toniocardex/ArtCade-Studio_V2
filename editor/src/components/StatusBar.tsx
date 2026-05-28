@@ -2,6 +2,16 @@ import { useMemo } from 'react'
 import { useEditor, useConsoleLogs } from '../store/editor-store'
 import { isReady as isWasmReady } from '../utils/wasm-bridge'
 
+function runtimeDisplay(playing: boolean, wasmReady: boolean): { text: string; className: string } {
+  if (playing) {
+    return { text: 'PLAYING', className: 'text-[var(--danger)]' }
+  }
+  if (wasmReady) {
+    return { text: 'READY', className: 'text-[var(--accent)]' }
+  }
+  return { text: 'LOADING', className: 'text-[var(--muted)]' }
+}
+
 export default function StatusBar() {
   const { state, dispatch } = useEditor()
   const { state: volatile } = useConsoleLogs()
@@ -35,18 +45,16 @@ export default function StatusBar() {
     dispatch({ type: 'SET_CONSOLE_OPEN', open: true })
   }
 
+  const runtime = runtimeDisplay(isPlaying, isWasmReady())
+
   return (
     <footer
       className="editor-statusbar flex items-center justify-between text-[9px]
                  text-[var(--muted)] flex-shrink-0 select-none"
     >
       <div className="flex items-center gap-4">
-        <span className={
-          isPlaying ? 'text-[var(--danger)]'
-          : isWasmReady() ? 'text-[var(--accent)]'
-          : 'text-[var(--muted)]'
-        }>
-          Runtime: {isPlaying ? 'PLAYING' : isWasmReady() ? 'READY' : 'LOADING'}
+        <span className={runtime.className}>
+          Runtime: {runtime.text}
         </span>
         {scene && (
           <>
