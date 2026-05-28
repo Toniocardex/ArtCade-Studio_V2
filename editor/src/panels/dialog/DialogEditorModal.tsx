@@ -8,18 +8,20 @@ export function DialogEditorModal() {
   const { open, dialogId } = state.dialogModal
   const dialogRef = useRef<HTMLDialogElement>(null)
   const script = dialogId ? state.dialogs[dialogId] : undefined
+  const visible = open && !!dialogId
 
   useEffect(() => {
+    if (!visible) return
     const el = dialogRef.current
     if (!el) return
-    if (open && dialogId) {
-      if (!el.open) el.showModal()
-    } else if (el.open) {
-      el.close()
+    if (!el.open) el.showModal()
+    return () => {
+      if (el.open) el.close()
     }
-  }, [open, dialogId])
+  }, [visible])
 
   useEffect(() => {
+    if (!visible) return
     const el = dialogRef.current
     if (!el) return
     const onCancel = (e: Event) => {
@@ -33,21 +35,22 @@ export function DialogEditorModal() {
       el.removeEventListener('cancel', onCancel)
       el.removeEventListener('close', onClose)
     }
-  }, [dispatch])
+  }, [visible, dispatch])
 
   const closeModal = () => {
     dialogRef.current?.close()
     dispatch({ type: 'DIALOG_CLOSE_MODAL' })
   }
 
+  if (!visible) return null
+
   return (
     <dialog
       ref={dialogRef}
-      aria-labelledby={open && dialogId ? 'dialog-editor-title' : undefined}
-      aria-modal={open && dialogId ? true : undefined}
-      className="fixed inset-0 z-[200] m-0 flex h-full max-h-full w-full max-w-full items-center justify-center border-0 bg-transparent p-6 backdrop:bg-black/60 open:flex"
+      aria-labelledby="dialog-editor-title"
+      aria-modal={true}
+      className="fixed inset-0 z-[200] m-0 flex h-full max-h-full w-full max-w-full items-center justify-center border-0 bg-transparent p-6 backdrop:bg-black/60"
     >
-      {open && dialogId ? (
       <div
         className="flex flex-col w-full max-w-3xl min-h-[min(40vh,20rem)] h-[min(85vh,42rem)] max-h-[90vh] rounded-xl border border-[var(--border)] bg-[var(--bg)] shadow-2xl overflow-hidden"
       >
@@ -83,7 +86,6 @@ export function DialogEditorModal() {
           )}
         </div>
       </div>
-      ) : null}
     </dialog>
   )
 }

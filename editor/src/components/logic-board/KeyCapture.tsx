@@ -28,16 +28,17 @@ export function KeyCapture({ value, onChange, placeholder }: KeyCaptureProps) {
   const close = useCallback(() => setOpen(false), [])
 
   useEffect(() => {
+    if (!open) return
     const el = dialogRef.current
     if (!el) return
-    if (open) {
-      if (!el.open) el.showModal()
-    } else if (el.open) {
-      el.close()
+    if (!el.open) el.showModal()
+    return () => {
+      if (el.open) el.close()
     }
   }, [open])
 
   useEffect(() => {
+    if (!open) return
     const el = dialogRef.current
     if (!el) return
     const onDialogClose = () => setOpen(false)
@@ -51,7 +52,7 @@ export function KeyCapture({ value, onChange, placeholder }: KeyCaptureProps) {
       el.removeEventListener('close', onDialogClose)
       el.removeEventListener('cancel', onCancel)
     }
-  }, [close])
+  }, [open, close])
 
   useEffect(() => {
     if (!open) return
@@ -78,16 +79,18 @@ export function KeyCapture({ value, onChange, placeholder }: KeyCaptureProps) {
       <button type="button" className={btn} onClick={() => setOpen(true)} title={value || undefined}>
         {label}
       </button>
-      <dialog
-        ref={dialogRef}
-        aria-label="Capture key"
-        className="fixed inset-0 z-[200] m-0 flex h-full max-h-full w-full max-w-full items-center justify-center border-0 bg-transparent p-6 backdrop:bg-black/50 open:flex"
-      >
-        <div className="bg-[var(--panel)] border border-[var(--border-2)] rounded px-6 py-4 text-center">
-          <p className="text-sm text-[var(--text)] mb-1">Press any key</p>
-          <p className="text-[10px] text-[var(--muted)]">Esc to cancel</p>
-        </div>
-      </dialog>
+      {open ? (
+        <dialog
+          ref={dialogRef}
+          aria-label="Capture key"
+          className="fixed inset-0 z-[200] m-0 flex h-full max-h-full w-full max-w-full items-center justify-center border-0 bg-transparent p-6 backdrop:bg-black/50"
+        >
+          <div className="bg-[var(--panel)] border border-[var(--border-2)] rounded px-6 py-4 text-center">
+            <p className="text-sm text-[var(--text)] mb-1">Press any key</p>
+            <p className="text-[10px] text-[var(--muted)]">Esc to cancel</p>
+          </div>
+        </dialog>
+      ) : null}
     </>
   )
 }
