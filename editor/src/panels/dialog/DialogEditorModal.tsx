@@ -8,7 +8,7 @@ export function DialogEditorModal() {
   const { open, dialogId } = state.dialogModal
   const dialogRef = useRef<HTMLDialogElement>(null)
   const script = dialogId ? state.dialogs[dialogId] : undefined
-  const visible = open && !!dialogId
+  const visible = open && dialogId != null && dialogId.length > 0
 
   useEffect(() => {
     if (!visible) return
@@ -48,7 +48,7 @@ export function DialogEditorModal() {
     <dialog
       ref={dialogRef}
       aria-labelledby="dialog-editor-title"
-      aria-modal={true}
+      aria-modal
       className="artcade-dialog fixed inset-0 z-[200] m-0 flex h-full max-h-full w-full max-w-full items-center justify-center border-0 bg-transparent p-6 backdrop:bg-black/60"
     >
       <div
