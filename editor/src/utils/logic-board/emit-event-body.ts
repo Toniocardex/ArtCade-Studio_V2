@@ -4,6 +4,7 @@
 // ---------------------------------------------------------------------------
 
 import type { LogicBoard, LogicEvent, LogicTrigger } from '../../types/logic-board'
+import type { ProjectDoc } from '../../types'
 import { INDENT, luaPointerNearSelfExpr, luaString } from './lua-helpers'
 import { onInputGateExpr } from './on-input-keys'
 import { emitGuardedBranches } from './emit-guarded-branches'
@@ -14,6 +15,7 @@ type EmitCtx = {
   board: LogicBoard
   baseIndent: string
   slugs: Map<string, string>
+  project?: ProjectDoc | null
   enableGuard: string
 }
 
@@ -26,7 +28,7 @@ function emitGuarded(
   indent: string,
   opts?: { triggerGate?: string | null; skipEnable?: boolean },
 ): string[] {
-  return emitGuardedBranches(ctx.ev, indent, ctx.slugs, opts)
+  return emitGuardedBranches(ctx.ev, indent, ctx.slugs, opts, ctx.project)
 }
 
 function collisionWhileGate(trig: Extract<LogicTrigger, { type: 'onCollision' }>): string | null {
@@ -193,9 +195,17 @@ export function emitEventBody(
   board: LogicBoard,
   baseIndent: string,
   slugs: Map<string, string>,
+  project?: ProjectDoc | null,
 ): string[] {
   const trig = ev.trigger
-  const ctx: EmitCtx = { ev, board, baseIndent, slugs, enableGuard: enableGuardExpr(ev, slugs) }
+  const ctx: EmitCtx = {
+    ev,
+    board,
+    baseIndent,
+    slugs,
+    project,
+    enableGuard: enableGuardExpr(ev, slugs),
+  }
 
   switch (trig.type) {
     case 'onAnimationEnd':

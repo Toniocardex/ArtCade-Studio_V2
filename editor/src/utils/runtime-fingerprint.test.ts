@@ -141,6 +141,18 @@ describe('runtimeProjectFingerprint', () => {
   })
 })
 
+describe('runtimeProjectFingerprint', () => {
+  it('includes targetFPS and physicsMode', () => {
+    const proj = makeProject({ targetFPS: 30, world: { physicsMode: 'off' } as never })
+    const fp = JSON.parse(runtimeProjectFingerprint(proj, 'scene_a')) as {
+      fps: number
+      pm: string
+    }
+    expect(fp.fps).toBe(30)
+    expect(fp.pm).toBe('off')
+  })
+})
+
 describe('projectJsonForRuntime', () => {
   it('includes runtime fields and omits editor-only data', () => {
     const proj = makeProject({

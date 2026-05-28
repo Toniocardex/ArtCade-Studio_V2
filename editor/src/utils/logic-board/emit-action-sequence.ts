@@ -3,6 +3,7 @@
 // ---------------------------------------------------------------------------
 
 import type { LogicAction } from '../../types/logic-board'
+import type { ProjectDoc } from '../../types'
 import { INDENT } from './lua-helpers'
 import {
   actionLua,
@@ -22,9 +23,10 @@ function emitPlainAction(
   a: LogicAction,
   indent: string,
   slugs: Map<string, string>,
+  project: ProjectDoc | null | undefined,
   lines: string[],
 ): void {
-  const code = actionLua(a, { eventSlugs: slugs })
+  const code = actionLua(a, { eventSlugs: slugs, project })
   if (!code) return
   if (code.startsWith(WAIT_SENTINEL_PREFIX)) return
   if (code.startsWith(REPEAT_TIMES_SENTINEL_PREFIX)) return
@@ -56,6 +58,7 @@ function emitRepeatTimes(
   index: number,
   indent: string,
   slugs: Map<string, string>,
+  project: ProjectDoc | null | undefined,
   lines: string[],
 ): number {
   const count = Math.max(1, Math.floor(Number(a.count) || 1))
@@ -64,7 +67,7 @@ function emitRepeatTimes(
 
   if (interval <= 0) {
     lines.push(`${indent}for _logic_rep = 1, ${count} do`)
-    lines.push(...emitActionSequence(body, indent + INDENT, slugs))
+    lines.push(...emitActionSequence(body, indent + INDENT, slugs, project))
     lines.push(`${indent}end`)
     return nextIndex
   }
@@ -73,7 +76,7 @@ function emitRepeatTimes(
   const I = indent + INDENT
   lines.push(`${indent}local function ${stepFn}(n)`)
   lines.push(`${I}if n > ${count} then return end`)
-  lines.push(...emitActionSequence(body, I, slugs))
+  lines.push(...emitActionSequence(body, I, slugs, project))
   lines.push(`${I}if n < ${count} then`)
   lines.push(`${I}${INDENT}time.after(${interval}, function() ${stepFn}(n + 1) end)`)
   lines.push(`${I}end`)
@@ -86,6 +89,7 @@ export function emitActionSequence(
   actions: LogicAction[],
   indent: string,
   slugs: Map<string, string>,
+  project?: ProjectDoc | null,
 ): string[] {
   if (actions.length === 0) return []
 
@@ -107,11 +111,11 @@ export function emitActionSequence(
     }
 
     if (a.type === 'repeatTimes') {
-      i = emitRepeatTimes(a, actions, i, indent, slugs, lines)
+      i = emitRepeatTimes(a, actions, i, indent, slugs, project, lines)
       continue
     }
 
-    emitPlainAction(a, indent, slugs, lines)
+    emitPlainAction(a, indent, slugs, project, lines)
     i++
   }
 

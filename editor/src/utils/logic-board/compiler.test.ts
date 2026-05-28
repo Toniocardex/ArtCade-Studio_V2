@@ -188,6 +188,13 @@ describe('targetExpr', () => {
       '(pool.getAll("Coin")[1])',
     )
   })
+
+  it('resolves legacy Entity_* slug to runtime class for actions', () => {
+    const project = createBlankProject('T')
+    project.entities[1] = createEntityDef(1, 'Entity_1', 'Entity', { x: 0, y: 0 })
+    project.scenes.scene_main.entityIds = [1]
+    expect(targetExpr({ className: 'Entity_1', first: true }, project)).toBe('1')
+  })
 })
 
 describe('conditionExpr', () => {

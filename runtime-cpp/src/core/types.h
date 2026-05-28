@@ -310,6 +310,12 @@ struct WorldSettings {
     PhysicsMode physicsMode    = PhysicsMode::Auto;
 };
 
+/** Runtime timing + physics from project JSON (editor WASM + native load). */
+struct ProjectRuntimeSettings {
+    float       targetFPS    = 60.f;
+    PhysicsMode physicsMode  = PhysicsMode::Auto;
+};
+
 struct ProjectDoc {
     std::string  projectName;
     std::string  version         = "2.0.0";
@@ -329,6 +335,13 @@ struct ProjectDoc {
     std::vector<ImageAssetDef>    imageAssets;   // editor assets + image points
     WorldSettings                 world{};
 };
+
+inline ProjectRuntimeSettings runtimeSettingsFromProjectDoc(const ProjectDoc& doc) {
+    ProjectRuntimeSettings s;
+    s.targetFPS   = doc.targetFPS;
+    s.physicsMode = doc.world.physicsMode;
+    return s;
+}
 
 // ============================================================================
 // Global state (runtime key-value store)

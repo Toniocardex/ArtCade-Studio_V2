@@ -18,11 +18,18 @@ function compilePoolBoard(target: LogicBoard['target']): LogicBoard {
 /** Two-space indent unit used by every emitter in the compiler pipeline. */
 export const INDENT = '  '
 
+/** Strip ASCII control characters unsafe in Lua string literals. */
+/** Remove NUL and other controls; keep tab/LF/CR (escaped by luaString). */
+function sanitizeLuaStringInput(s: string): string {
+  return s.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '')
+}
+
 /** Escape a JS string into a safe double-quoted Lua string literal. */
 export function luaString(s: string): string {
+  const clean = sanitizeLuaStringInput(s)
   return (
     '"' +
-    s
+    clean
       .replace(/\\/g, String.raw`\\`)
       .replace(/"/g, String.raw`\"`)
       .replace(/\n/g, String.raw`\n`)
@@ -43,12 +50,39 @@ export function luaValue(v: number | string | boolean): string {
  * Resolve a TargetSelector to a Lua expression yielding an entity id.
  * `self` / `other` are loop-local locals emitted by the trigger scaffolding.
  */
-export function targetExpr(t: TargetSelector): string {
+/** First entity id for a class/object-type slug (legacy Entity_* aware). */
+export function targetClassFirstExpr(
+  className: string,
+  project?: ProjectDoc | null,
+): string {
+  if (!project) {
+    return `(pool.getAll(${luaString(className)})[1])`
+  }
+  const board = compilePoolBoard({
+    type: 'object_type',
+    objectTypeId: className,
+  })
+  const ids = logicBoardTargetEntityIds(project, board)
+  if (ids.length === 1) return String(ids[0])
+  const runtimeKey = logicBoardRuntimeClassKey(project, board)
+  if (runtimeKey) {
+    return `(pool.getAll(${luaString(runtimeKey)})[1])`
+  }
+  const poolKey = logicBoardTargetTypeKey(board.target)
+  if (poolKey) {
+    return `(pool.getAll(${luaString(poolKey)})[1])`
+  }
+  return `(pool.getAll(${luaString(className)})[1])`
+}
+
+export function targetExpr(
+  t: TargetSelector,
+  project?: ProjectDoc | null,
+): string {
   if (t === 'self') return 'self'
   if (t === 'other') return 'other'
   if ('entityId' in t) return String(t.entityId)
-  // class pool — MVP resolves to the first match (Lua arrays are 1-indexed)
-  return `(pool.getAll(${luaString(t.className)})[1])`
+  return targetClassFirstExpr(t.className, project)
 }
 
 /**

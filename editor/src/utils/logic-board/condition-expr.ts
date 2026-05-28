@@ -12,6 +12,7 @@ import type {
   LogicConditionNode,
   LogicEvent,
 } from '../../types/logic-board'
+import type { ProjectDoc } from '../../types'
 import { combineConditionExprs, wrapNegated } from './condition-combine'
 import { luaPointerNearSelfExpr, luaString, luaValue, targetExpr } from './lua-helpers'
 
@@ -27,7 +28,7 @@ function safeOp(op: string): string {
   return COMPARISON_OPS.has(op) ? op : '=='
 }
 
-function leafExpr(c: LogicCondition): string {
+function leafExpr(c: LogicCondition, project?: ProjectDoc | null): string {
   switch (c.type) {
     case 'compareClass':
       return `collision.touchingClass(self, ${luaString(c.className)})`
@@ -38,7 +39,7 @@ function leafExpr(c: LogicCondition): string {
     case 'hasTag':
       return `(function() for _,e in ipairs(object.findByTag(${luaString(c.tag)})) do if e==self then return true end end return false end)()`
     case 'compareDistance':
-      return `(object.distance(self, ${targetExpr(c.target)}) ${safeOp(c.operator)} ${Number(c.value) || 0})`
+      return `(object.distance(self, ${targetExpr(c.target, project)}) ${safeOp(c.operator)} ${Number(c.value) || 0})`
     case 'isMouseOver':
       return luaPointerNearSelfExpr(Number(c.radius) || 32)
     case 'raycastHit': {
@@ -55,32 +56,32 @@ function leafExpr(c: LogicCondition): string {
     case 'isSpaceFree':
       return `grid.isSpaceFree(${Number(c.x) || 0}, ${Number(c.y) || 0}, ${Number(c.w) || 32}, ${Number(c.h) || 32})`
     case 'compareHealth': {
-      const target = targetExpr(c.target)
+      const target = targetExpr(c.target, project)
       const value = Number(c.value) || 0
       const field = c.field === 'max' ? '_m' : '_c'
       return `(function() local _c,_m=entity.health(${target}); if _c == nil then return false end return (${field} ${safeOp(c.operator)} ${value}) end)()`
     }
     case 'isPlatformerGrounded':
-      return `platformer.isGrounded(${targetExpr(c.target)})`
+      return `platformer.isGrounded(${targetExpr(c.target, project)})`
   }
 }
 
-function nodeExpr(n: LogicConditionNode): string {
+function nodeExpr(n: LogicConditionNode, project?: ProjectDoc | null): string {
   if (n.kind === 'leaf') {
-    return wrapNegated(leafExpr(n.condition), n.negated)
+    return wrapNegated(leafExpr(n.condition, project), n.negated)
   }
-  const parts = n.statements.map(nodeExpr)
+  const parts = n.statements.map((s) => nodeExpr(s, project))
   if (n.operator === 'NOT') return combineConditionExprs(parts, 'NOT')
   return combineConditionExprs(parts, n.operator)
 }
 
 /** Build the boolean guard for an event (flat list = AND; root = tree). */
-export function conditionExpr(ev: LogicEvent): string {
+export function conditionExpr(ev: LogicEvent, project?: ProjectDoc | null): string {
   if (ev.onlyIfEnabled === false) return 'true'
-  if (ev.conditionRoot) return nodeExpr(ev.conditionRoot)
+  if (ev.conditionRoot) return nodeExpr(ev.conditionRoot, project)
   const list = ev.conditions ?? []
   if (list.length === 0) return 'true'
   const op = ev.conditionsOperator ?? 'AND'
-  const parts = list.map((c) => wrapNegated(leafExpr(c), c.negated))
+  const parts = list.map((c) => wrapNegated(leafExpr(c, project), c.negated))
   return combineConditionExprs(parts, op)
 }

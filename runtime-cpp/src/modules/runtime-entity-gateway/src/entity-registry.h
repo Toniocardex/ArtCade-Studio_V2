@@ -66,7 +66,8 @@ public:
     const std::vector<std::string>& tags(EntityId id) const;
 
     /** Insertion-order list of ids carrying `className`. */
-    std::vector<EntityId> idsByClass(const std::string& className) const;
+    /** Live view into the class index; empty vector when unknown. */
+    const std::vector<EntityId>& idsByClass(const std::string& className) const;
     /** Insertion-order list of ids carrying `tag`. */
     std::vector<EntityId> idsByTag(const std::string& tag) const;
 

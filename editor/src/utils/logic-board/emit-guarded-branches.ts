@@ -3,6 +3,7 @@
 // ---------------------------------------------------------------------------
 
 import type { LogicEvent } from '../../types/logic-board'
+import type { ProjectDoc } from '../../types'
 import { conditionExpr } from './condition-expr'
 import { eventUsesElseBranch } from './event-conditions'
 import { emitActionSequence } from './emit-action-sequence'
@@ -18,9 +19,10 @@ export type EmitGuardedBranchesOptions = {
 
 function innerConditionGuard(
   ev: LogicEvent,
+  project: ProjectDoc | null | undefined,
   triggerGate?: string | null,
 ): string {
-  const cond = conditionExpr(ev)
+  const cond = conditionExpr(ev, project)
   if (!triggerGate) return cond
   if (cond === 'true') return triggerGate
   return `${triggerGate} and (${cond})`
@@ -44,15 +46,16 @@ export function emitGuardedBranches(
   baseIndent: string,
   slugs: Map<string, string>,
   options: EmitGuardedBranchesOptions = {},
+  project?: ProjectDoc | null,
 ): string[] {
   const I = INDENT
   const enableGuard = `_logic_on[${ruleKeyExpr(ev.id, slugs)}] ~= false`
-  const innerGuard = innerConditionGuard(ev, options.triggerGate ?? null)
+  const innerGuard = innerConditionGuard(ev, project, options.triggerGate ?? null)
   const useElse = eventUsesElseBranch(ev)
 
-  const thenLines = emitActionSequence(ev.actions, baseIndent + I, slugs)
+  const thenLines = emitActionSequence(ev.actions, baseIndent + I, slugs, project)
   const elseLines = useElse
-    ? emitActionSequence(ev.elseActions ?? [], baseIndent + I, slugs)
+    ? emitActionSequence(ev.elseActions ?? [], baseIndent + I, slugs, project)
     : []
 
   const bodyIndent = baseIndent + I
@@ -91,8 +94,9 @@ export function emitGuardedActions(
   baseIndent: string,
   slugs: Map<string, string>,
   triggerAndGate?: string | null,
+  project?: ProjectDoc | null,
 ): string[] {
   return emitGuardedBranches(ev, baseIndent, slugs, {
     triggerGate: triggerAndGate ?? null,
-  })
+  }, project)
 }

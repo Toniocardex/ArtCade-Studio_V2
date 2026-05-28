@@ -22,7 +22,6 @@ import {
   formatConfigDiagnosticsSummary,
 } from '../utils/logic-board/logic-compile-service'
 import { LogicBoardCompileErrorBanner } from '../components/LogicBoardCompileErrorBanner'
-import { editorReloadScript } from '../utils/wasm-bridge'
 import { runtimeSync, useRuntimeReady } from '../utils/runtime-sync-service'
 import {
   createLogicBoardForEntity,
@@ -161,7 +160,7 @@ function executeApplyLogic({
     return
   }
   runtimeSync.syncDialogs(state.dialogs)
-  const ok = editorReloadScript(compileResult.lua)
+  const ok = runtimeSync.applyMainLua(compileResult.lua)
   flashApplyMsg(
     ok
       ? 'Logic applied — script hot-reloaded (press PLAY to test)'

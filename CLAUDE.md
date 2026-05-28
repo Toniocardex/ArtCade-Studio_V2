@@ -16,19 +16,20 @@ Lua 5.4 bytecode as the game logic layer, deterministic and portable.
 **Why**: Raylib is C, born for Emscripten. Write once (C++), compile twice (native .exe + .wasm).
 Zero rendering logic rewrite. 99% code identical across targets.
 
-### 2. Fresh Start (No Legacy Code)
-**Why**: Old codebase is schema-driven + Logic Board AST. New engine is Lua + Raylib + Sol2.
-Mixing them creates technical debt. Cleaner to rewrite.
+### 2. Hybrid authoring (Logic Board + Lua + dialogs)
+**Why**: Gameplay ships as compiled Lua; the editor adds a visual Logic Board (schemas → Lua), script editing, and dialog JSON. C++ runtime is Lua + Raylib + Sol2.
 
 ### 3. Tauri Preview Integration
 **Why**: Tauri loads the WASM build inside WebView. What you see in editor preview is
 exactly what users see in browser. No sync issues.
 
 ### 4. Lua for Game Logic
-**Why**: Portable, deterministic, easy Lua<->C++ binding via Sol2. Bytecode compiled.
-No Logic Board visual AST complexity.
+**Why**: Portable, deterministic, easy Lua<->C++ binding via Sol2. Native builds use bytecode; editor preview hot-reloads Lua source.
 
-### 5. .artcade Format (ZIP-based)
+### 5. ProjectRuntimeSettings (editor ↔ runtime contract)
+**Why**: `runtime-fingerprint.ts` and C++ `ProjectRuntimeSettings` keep targetFPS, physicsMode, and viewport policy aligned between WASM preview and native play.
+
+### 6. .artcade Format (ZIP-based)
 **Why**: Single-file distribution, fast web loading, asset encryption (future), version manifest.
 
 ---

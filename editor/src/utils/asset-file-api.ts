@@ -2,6 +2,15 @@ import { isTauri } from '@tauri-apps/api/core'
 import { open as dialogOpen } from '@tauri-apps/plugin-dialog'
 import { readFile, writeFile, mkdir } from '@tauri-apps/plugin-fs'
 import { joinPath } from './file-paths'
+import { normalizeProjectRelativePath } from './project-path-security'
+
+function safeAssetFileName(fileName: string): string {
+  const base = fileName.replace(/\\/g, '/').split('/').pop() ?? ''
+  if (!base || base === '.' || base === '..' || base.includes('..')) {
+    throw new Error('Invalid image file name.')
+  }
+  return base
+}
 
 function notAvailable(name: string): void {
   console.warn(`[api] ${name}: Tauri not available in browser mode`)
@@ -49,8 +58,9 @@ export async function importImageIntoProject(
   bytes: Uint8Array,
 ): Promise<string | null> {
   if (!isTauri()) { notAvailable('importImageIntoProject'); return null }
+  const safeName = safeAssetFileName(fileName)
   const relDir  = 'assets/images'
-  const relPath = `${relDir}/${fileName}`
+  const relPath = `${relDir}/${safeName}`
   try {
     await mkdir(joinPath(projectRoot, relDir), { recursive: true })
     await writeFile(joinPath(projectRoot, relPath), bytes)
@@ -68,7 +78,8 @@ export async function readProjectImageBytes(
 ): Promise<Uint8Array | null> {
   if (!isTauri()) { notAvailable('readProjectImageBytes'); return null }
   try {
-    return await readFile(joinPath(projectRoot, relPath))
+    const safeRel = normalizeProjectRelativePath(relPath, 'image path')
+    return await readFile(joinPath(projectRoot, safeRel))
   } catch (err) {
     console.error('[api] readProjectImageBytes failed:', err)
     return null

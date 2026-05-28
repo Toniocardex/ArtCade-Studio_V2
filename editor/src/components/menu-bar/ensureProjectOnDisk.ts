@@ -169,7 +169,7 @@ export async function ensureProjectOnDisk(
         })
         dispatch({ type: 'SET_CONSOLE_OPEN', open: true })
       }
-      await saveScript(resolveScriptPath(buildPath, project.mainScriptPath), lua)
+      await saveScript(resolveScriptPath(buildPath, project.mainScriptPath), lua, buildPath)
       dispatch({
         type: 'UPSERT_SCRIPT',
         path: project.mainScriptPath,

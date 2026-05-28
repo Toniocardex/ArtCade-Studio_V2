@@ -77,4 +77,25 @@ describe('parseDialogGraph', () => {
       expect(choice.options[0]?.text).toBe('A room')
     }
   })
+
+  it('returns parseWarning for unsupported graph shapes', () => {
+    const cyclic: DialogGraphJson = {
+      dialogId: 'loop',
+      startNode: 'a',
+      nodes: {
+        a: { type: 'text', character: 'X', text: 'Hi', next: 'b' },
+        b: { type: 'text', character: 'X', text: 'Again', next: 'a' },
+      },
+    }
+    const { script, parseWarning } = parseDialogGraph(cyclic)
+    expect(parseWarning).toBeTruthy()
+    expect(script.commands).toEqual([])
+  })
+
+  it('compileDialogScript handles empty command list', () => {
+    const graph = compileDialogScript({ dialogId: 'empty', commands: [] })
+    expect(graph.dialogId).toBe('empty')
+    const endNode = Object.values(graph.nodes).find((n) => n.type === 'end')
+    expect(endNode).toBeDefined()
+  })
 })

@@ -54,67 +54,215 @@ fn emit_log(app: &tauri::AppHandle, msg: &str, level: &str) {
 // File system helpers
 // ---------------------------------------------------------------------------
 
-fn validate_writable_path(path: &str) -> Result<PathBuf, String> {
-    let p = PathBuf::from(path);
-    if !p.is_absolute() {
-        return Err(format!("path must be absolute: '{path}'"));
-    }
-    use std::path::Component;
-    for comp in p.components() {
+use std::path::Component;
+
+fn reject_parent_dir_components(path: &Path) -> Result<(), String> {
+    for comp in path.components() {
         if matches!(comp, Component::ParentDir) {
-            return Err(format!("path may not contain '..' segments: '{path}'"));
+            return Err(format!(
+                "path may not contain '..' segments: '{}'",
+                path.display()
+            ));
         }
     }
-    if !is_allowed_editor_write(&p) {
+    Ok(())
+}
+
+fn validate_absolute_path_no_dotdot(path: &str, label: &str) -> Result<PathBuf, String> {
+    let p = PathBuf::from(path);
+    if !p.is_absolute() {
+        return Err(format!("{label} must be absolute: '{path}'"));
+    }
+    reject_parent_dir_components(&p)?;
+    Ok(p)
+}
+
+fn is_under_project_root(file: &Path, root: &Path) -> bool {
+    if file.starts_with(root) {
+        return true;
+    }
+    match (file.canonicalize(), root.canonicalize()) {
+        (Ok(f), Ok(r)) => f.starts_with(&r),
+        _ => false,
+    }
+}
+
+fn strip_project_relative(file: &Path, root: &Path) -> Option<PathBuf> {
+    if let Ok(rel) = file.strip_prefix(root) {
+        return Some(rel.to_path_buf());
+    }
+    if let (Ok(f), Ok(r)) = (file.canonicalize(), root.canonicalize()) {
+        return f.strip_prefix(&r).ok().map(|p| p.to_path_buf());
+    }
+    None
+}
+
+/// Allowed writes under `project_root`: `project.json`, `scripts/**.{lua,luac}`, `dialogs/**.json`.
+fn is_allowed_project_relative(rel: &Path) -> bool {
+    if rel.as_os_str().is_empty() {
+        return false;
+    }
+
+    if rel.components().count() == 1 {
+        if let Some(Component::Normal(name)) = rel.components().next() {
+            if name.eq_ignore_ascii_case("project.json") {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    let ext = rel
+        .extension()
+        .and_then(|s| s.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+
+    let mut comps = rel.components();
+    let first = match comps.next() {
+        Some(Component::Normal(s)) => s,
+        _ => return false,
+    };
+
+    if first.eq_ignore_ascii_case("scripts") {
+        return ext == "lua" || ext == "luac";
+    }
+    if first.eq_ignore_ascii_case("dialogs") {
+        return ext == "json";
+    }
+
+    false
+}
+
+fn validate_writable_path(path: &str, project_root: &str) -> Result<PathBuf, String> {
+    let file = validate_absolute_path_no_dotdot(path, "path")?;
+    let root = validate_absolute_path_no_dotdot(project_root, "project_root")?;
+
+    if !is_under_project_root(&file, &root) {
         return Err(format!(
-            "refusing to write outside ArtCade project files: '{path}'"
+            "refusing to write outside project root '{}': '{}'",
+            root.display(),
+            file.display()
+        ));
+    }
+
+    let rel = strip_project_relative(&file, &root).ok_or_else(|| {
+        format!(
+            "could not resolve path relative to project root '{}': '{}'",
+            root.display(),
+            file.display()
+        )
+    })?;
+
+    if !is_allowed_project_relative(&rel) {
+        return Err(format!(
+            "refusing to write non-project artifact '{}'",
+            rel.display()
+        ));
+    }
+
+    Ok(file)
+}
+
+fn validate_build_project_root(project_root: &str) -> Result<PathBuf, String> {
+    let root = validate_absolute_path_no_dotdot(project_root, "project_root")?;
+    let canonical = root
+        .canonicalize()
+        .map_err(|e| format!("project_root canonicalize: {e}"))?;
+    if !canonical.join("project.json").is_file() {
+        return Err(format!(
+            "project.json not found in {}",
+            canonical.display()
+        ));
+    }
+    Ok(canonical)
+}
+
+fn validate_pack_output_path(output_path: &str) -> Result<PathBuf, String> {
+    let p = validate_absolute_path_no_dotdot(output_path, "output_path")?;
+    let ext = p
+        .extension()
+        .and_then(|s| s.to_str())
+        .unwrap_or_default();
+    if !ext.eq_ignore_ascii_case("artcade") {
+        return Err(format!(
+            "output_path must end with .artcade, got '{}'",
+            p.display()
         ));
     }
     Ok(p)
 }
 
-fn is_allowed_editor_write(path: &Path) -> bool {
-    let file_name = path
-        .file_name()
-        .and_then(|s| s.to_str())
-        .unwrap_or_default()
-        .to_ascii_lowercase();
-    if file_name == "project.json" {
-        return true;
-    }
-
-    let ext = path
-        .extension()
-        .and_then(|s| s.to_str())
-        .unwrap_or_default()
-        .to_ascii_lowercase();
-    if ext != "lua" && ext != "luac" {
-        return false;
-    }
-
-    let mut project_root = PathBuf::new();
-    for comp in path.components() {
-        if comp
-            .as_os_str()
-            .to_str()
-            .map(|s| s.eq_ignore_ascii_case("scripts"))
-            .unwrap_or(false)
-        {
-            return project_root.join("project.json").is_file();
-        }
-        project_root.push(comp.as_os_str());
-    }
-    false
-}
-
 #[tauri::command]
-fn write_file(path: String, content: String) -> Result<(), String> {
-    let p = validate_writable_path(&path)?;
+fn write_file(path: String, content: String, project_root: String) -> Result<(), String> {
+    let p = validate_writable_path(&path, &project_root)?;
     if let Some(parent) = p.parent() {
         std::fs::create_dir_all(parent)
             .map_err(|e| format!("mkdir '{}': {e}", parent.display()))?;
     }
     std::fs::write(&p, content).map_err(|e| format!("write '{path}': {e}"))
+}
+
+#[cfg(test)]
+mod write_path_tests {
+    use super::*;
+    use std::fs;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static TEMP_SERIAL: AtomicU64 = AtomicU64::new(0);
+
+    fn temp_project() -> (PathBuf, PathBuf) {
+        let n = TEMP_SERIAL.fetch_add(1, Ordering::Relaxed);
+        let root = std::env::temp_dir().join(format!("artcade_write_test_{n}"));
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("project.json"), r#"{"projectName":"T"}"#).unwrap();
+        fs::create_dir_all(root.join("scripts")).unwrap();
+        fs::create_dir_all(root.join("dialogs")).unwrap();
+        let project_json = root.join("project.json");
+        (root, project_json)
+    }
+
+    #[test]
+    fn allows_project_json_and_scripts_and_dialogs_under_root() {
+        let (root, project_json) = temp_project();
+        let script = root.join("scripts").join("main.lua");
+        let dialog = root.join("dialogs").join("innkeeper.json");
+
+        assert!(validate_writable_path(&project_json.display().to_string(), &root.display().to_string()).is_ok());
+        assert!(validate_writable_path(&script.display().to_string(), &root.display().to_string()).is_ok());
+        assert!(validate_writable_path(&dialog.display().to_string(), &root.display().to_string()).is_ok());
+    }
+
+    #[test]
+    fn rejects_foreign_project_json() {
+        let (root, _) = temp_project();
+        let other = std::env::temp_dir().join(format!(
+            "artcade_foreign_{}",
+            TEMP_SERIAL.fetch_add(1, Ordering::Relaxed)
+        ));
+        fs::create_dir_all(&other).unwrap();
+        let foreign = other.join("project.json");
+        fs::write(&foreign, "{}").unwrap();
+
+        let err = validate_writable_path(
+            &foreign.display().to_string(),
+            &root.display().to_string(),
+        )
+        .unwrap_err();
+        assert!(err.contains("outside project root"));
+    }
+
+    #[test]
+    fn rejects_path_outside_root() {
+        let (root, _) = temp_project();
+        let outside = std::env::temp_dir().join("artcade_outside_secret.txt");
+        let err = validate_writable_path(
+            &outside.display().to_string(),
+            &root.display().to_string(),
+        )
+        .unwrap_err();
+        assert!(err.contains("outside project root") || err.contains("non-project"));
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -399,16 +547,13 @@ async fn run_build(app: tauri::AppHandle, project_root: String) -> Result<(), St
     let pack_script = resolve_pack_script(&app)?;
     let build_native = runtime_dir.join("build_native.bat");
     let python = prefer_windowless_python(&resolve_python_exe(&app)?);
-    let project_root = PathBuf::from(project_root);
-
-    if !project_root.join("project.json").exists() {
-        let msg = format!(
-            "[Build] project.json not found in {}",
-            project_root.display()
-        );
-        emit_log(&app, &msg, "error");
-        return Err(msg);
-    }
+    let project_root = match validate_build_project_root(&project_root) {
+        Ok(p) => p,
+        Err(msg) => {
+            emit_log(&app, &msg, "error");
+            return Err(msg);
+        }
+    };
 
     emit_log(
         &app,
@@ -544,16 +689,13 @@ async fn run_build_wasm(app: tauri::AppHandle, project_root: String) -> Result<(
     let workspace = resolve_workspace_root()?;
     let build_wasm = workspace.join("runtime-cpp").join("build_wasm.bat");
     let wasm_app_dir = workspace.join("runtime-cpp").join("build-wasm").join("src").join("app");
-    let project_root = PathBuf::from(project_root);
-
-    if !project_root.join("project.json").exists() {
-        let msg = format!(
-            "[WASM] project.json not found in {}",
-            project_root.display()
-        );
-        emit_log(&app, &msg, "error");
-        return Err(msg);
-    }
+    let project_root = match validate_build_project_root(&project_root) {
+        Ok(p) => p,
+        Err(msg) => {
+            emit_log(&app, &msg, "error");
+            return Err(msg);
+        }
+    };
 
     emit_log(
         &app,
@@ -641,15 +783,13 @@ async fn open_web_export_in_browser(
     app: tauri::AppHandle,
     project_root: String,
 ) -> Result<String, String> {
-    let project_root = PathBuf::from(project_root);
-    if !project_root.join("project.json").exists() {
-        let msg = format!(
-            "[Web] project.json not found in {}",
-            project_root.display()
-        );
-        emit_log(&app, &msg, "error");
-        return Err(msg);
-    }
+    let project_root = match validate_build_project_root(&project_root) {
+        Ok(p) => p,
+        Err(msg) => {
+            emit_log(&app, &msg, "error");
+            return Err(msg);
+        }
+    };
 
     let dist_dir = project_paths::web_export_dist_dir(&project_root);
     let url = web_preview::serve_web_export(&app, &dist_dir)?;
@@ -701,12 +841,16 @@ async fn pack_project(
     let script = resolve_pack_script(&app)?;
     let python = prefer_windowless_python(&resolve_python_exe(&app)?);
 
+    let project_root = validate_build_project_root(&project_root)?;
+    let output_path = validate_pack_output_path(&output_path)?;
+
     emit_log(
         &app,
         &format!(
-            "[Pack] {} {} -> {output_path}",
+            "[Pack] {} {} -> {}",
             python.display(),
-            script.display()
+            script.display(),
+            output_path.display()
         ),
         "info",
     );

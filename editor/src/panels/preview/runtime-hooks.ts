@@ -211,25 +211,30 @@ interface ProjectSyncOptions {
   makeLogEntry: MakeLogEntry
 }
 
-export function useRuntimeProjectSync(opts: ProjectSyncOptions): void {
+/** Imperative project → WASM sync (testable; used by useRuntimeProjectSync). */
+export function performRuntimeProjectSync(opts: ProjectSyncOptions): void {
   const {
     project, projectPath, openScripts, dialogs, selectionSceneId,
     wasmReady, engineReady, isPlaying,
     dispatch, makeLogEntry,
   } = opts
+  if (!shouldSyncProjectToRuntime({ wasmReady, engineReady, project, isPlaying })) return
+  const runtimeSceneId = selectionSceneId ?? project!.activeSceneId
+  const { lua: mainLua, compileError } = resolvePreviewMainLuaWithStatus({
+    project: project!,
+    openScripts,
+    projectPath,
+  })
+  logLogicBoardCompileFailure(dispatch, compileError, makeLogEntry)
+  runtimeSync.syncProject(project!, runtimeSceneId, projectPath, { mainLua, dialogs })
+}
+
+export function useRuntimeProjectSync(opts: ProjectSyncOptions): void {
   useEffect(() => {
-    if (!shouldSyncProjectToRuntime({ wasmReady, engineReady, project, isPlaying })) return
-    const runtimeSceneId = selectionSceneId ?? project!.activeSceneId
-    const { lua: mainLua, compileError } = resolvePreviewMainLuaWithStatus({
-      project: project!,
-      openScripts,
-      projectPath,
-    })
-    logLogicBoardCompileFailure(dispatch, compileError, makeLogEntry)
-    runtimeSync.syncProject(project!, runtimeSceneId, projectPath, { mainLua, dialogs })
+    performRuntimeProjectSync(opts)
   }, [
-    project, projectPath, openScripts, dialogs, selectionSceneId,
-    wasmReady, engineReady, isPlaying, dispatch, makeLogEntry,
+    opts.project, opts.projectPath, opts.openScripts, opts.dialogs, opts.selectionSceneId,
+    opts.wasmReady, opts.engineReady, opts.isPlaying, opts.dispatch, opts.makeLogEntry,
   ])
 }
 

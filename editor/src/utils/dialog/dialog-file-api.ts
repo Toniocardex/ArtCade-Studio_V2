@@ -2,9 +2,10 @@
  * Load / save dialogs/{dialogId}.json beside project.json (Tauri).
  */
 
-import { isTauri, invoke } from '@tauri-apps/api/core'
+import { isTauri } from '@tauri-apps/api/core'
 import { exists, readDir, readTextFile } from '@tauri-apps/plugin-fs'
 import { joinPath } from '../file-paths'
+import { invokeWriteFile } from '../project-file-api'
 import { projectRootFromProjectPath } from '../project-paths'
 import {
   compileDialogScript,
@@ -79,8 +80,8 @@ export async function loadDialogsFromProject(
       const path = joinPath(dir, name)
       const content = await readTextFile(path)
       const graph = JSON.parse(content) as DialogGraphJson
-      const { script } = parseDialogGraph(graph)
-      out[script.dialogId] = script
+      const { script, parseWarning } = parseDialogGraph(graph)
+      out[script.dialogId] = parseWarning ? { ...script, parseWarning } : script
     }
   } catch (err) {
     console.error('[dialog-file-api] loadDialogsFromProject failed:', err)
@@ -101,10 +102,7 @@ export async function saveDialogsToProject(
   for (const script of Object.values(dialogs)) {
     const graph = compileDialogScript(script)
     const path = joinPath(root, 'dialogs', `${script.dialogId}.json`)
-    await invoke('write_file', {
-      path,
-      content: dialogGraphToJson(graph),
-    })
+    await invokeWriteFile(path, dialogGraphToJson(graph), root)
   }
 }
 
@@ -113,7 +111,7 @@ export async function scaffoldStarterDialogs(projectJsonPath: string): Promise<v
   const root = projectRootFromProjectPath(projectJsonPath)
   const graph = compileDialogScript(starterInnkeeperScript())
   const path = joinPath(root, 'dialogs', 'innkeeper.json')
-  await invoke('write_file', { path, content: dialogGraphToJson(graph) })
+  await invokeWriteFile(path, dialogGraphToJson(graph), root)
 }
 
 export function ensureDialogInLibrary(

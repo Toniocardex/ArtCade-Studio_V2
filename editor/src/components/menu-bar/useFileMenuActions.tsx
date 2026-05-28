@@ -185,8 +185,9 @@ export function useFileMenuActions({
       return
     }
     try {
+      if (!projectPath) return
       const absPath = resolveScriptPath(projectPath, script.path)
-      await saveScript(absPath, script.content)
+      await saveScript(absPath, script.content, projectPath)
       dispatch({ type: 'MARK_SCRIPT_SAVED', path: script.path })
       dispatch({ type: 'LOG', entry: makeConsoleEntry(`[File] ✓ Saved "${script.path}"`, 'info') })
     } catch (err) {
@@ -250,7 +251,7 @@ export function useFileMenuActions({
         })
       }
       const absScriptPath = resolveScriptPath(projectPath, mainScriptPath)
-      await saveScript(absScriptPath, lua)
+      await saveScript(absScriptPath, lua, projectPath)
       dispatch({
         type: 'UPSERT_SCRIPT',
         path: mainScriptPath,

@@ -31,6 +31,8 @@ export type DialogCommand =
 export interface DialogScript {
   dialogId: string
   commands: DialogCommand[]
+  /** Set when loaded from a graph the command editor cannot fully represent. */
+  parseWarning?: string
 }
 
 export interface ParseDialogResult {
@@ -258,8 +260,8 @@ function ensureEnd(nodes: GraphNodes): string {
 export function compileDialogScript(script: DialogScript): DialogGraphJson {
   resetIds()
   const { entry, nodes } = compileBlock(script.commands)
+  if (!nodes.n_end) ensureEnd(nodes)
   const startNode = entry ?? Object.keys(nodes)[0] ?? ''
-  if (!nodes.n_end && Object.keys(nodes).length > 0) ensureEnd(nodes)
   return {
     dialogId: script.dialogId,
     startNode,

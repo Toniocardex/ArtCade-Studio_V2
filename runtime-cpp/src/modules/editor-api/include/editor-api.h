@@ -36,6 +36,7 @@ class DialogManager;
 }
 struct TilePaletteEntry;
 struct TilesetAsset;
+struct ProjectRuntimeSettings;
 
 /**
  * Callback invoked by editor_load_project AFTER the gateway has been
@@ -46,7 +47,8 @@ struct TilesetAsset;
  */
 using EditorProjectLoadedHandler = std::function<void(
     const std::vector<TilePaletteEntry>&,
-    const std::vector<TilesetAsset>&)>;
+    const std::vector<TilesetAsset>&,
+    const ProjectRuntimeSettings&)>;
 
 /** Same payload as EditorProjectLoadedHandler; used by editor_restore_from_project. */
 using EditorPreviewRestoreHandler = EditorProjectLoadedHandler;

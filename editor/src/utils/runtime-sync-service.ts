@@ -211,6 +211,15 @@ class RuntimeSyncServiceImpl {
     return true
   }
 
+  /**
+   * Hot-reload main Lua from Logic Board Apply or script saves.
+   * Updates the internal cache so later syncProject does not skip reload.
+   */
+  applyMainLua(mainLua: string): boolean {
+    if (!isReady()) return false
+    return this.reloadMainLuaIfChanged(mainLua)
+  }
+
   /** Hot-reload main Lua when the compiled source changes (logic boards, script tab). */
   private reloadMainLuaIfChanged(mainLua: string): boolean {
     if (mainLua === this.lastMainLua) return false

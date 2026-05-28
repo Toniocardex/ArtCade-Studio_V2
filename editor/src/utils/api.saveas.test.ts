@@ -124,18 +124,26 @@ describe('scaffoldNewProjectOnDisk', () => {
     expect(invokeMock).toHaveBeenCalledTimes(2)
 
     // 1st write — project.json with normalised path & valid JSON content.
-    const [cmd0, args0] = invokeMock.mock.calls[0] as [string, { path: string; content: string }]
+    const [cmd0, args0] = invokeMock.mock.calls[0] as [
+      string,
+      { path: string; content: string; projectRoot: string },
+    ]
     expect(cmd0).toBe('write_file')
     expect(args0.path).toBe('/tmp/games/Scaffold Test/project.json')
+    expect(args0.projectRoot).toBe('/tmp/games/Scaffold Test')
     // The serialised JSON must parse back into a valid project.
     const round = parseProjectDoc(args0.content)
     expect(round).not.toBeNull()
     expect(round!.projectName).toBe('Scaffold Test')
 
     // 2nd write — main.lua at <projectRoot>/<mainScriptPath>, slash-normalised.
-    const [cmd1, args1] = invokeMock.mock.calls[1] as [string, { path: string; content: string }]
+    const [cmd1, args1] = invokeMock.mock.calls[1] as [
+      string,
+      { path: string; content: string; projectRoot: string },
+    ]
     expect(cmd1).toBe('write_file')
     expect(args1.path).toBe('/tmp/games/Scaffold Test/scripts/main.lua')
+    expect(args1.projectRoot).toBe('/tmp/games/Scaffold Test')
     expect(args1.content).toBe(BLANK_MAIN_LUA)
   })
 

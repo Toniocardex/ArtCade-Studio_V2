@@ -6,7 +6,17 @@ import { dirName, parseProjectDoc, safeProjectFolderName, serializeProjectDoc } 
 import { validateProjectBeforeSave } from './logic-board/validate-project'
 import { importArtcadePackage, isArtcadePackagePath, type LoadedProjectFile } from './artcade-package'
 import { joinPath } from './file-paths'
+import { projectRootFromProjectPath } from './project-paths'
 import { assertProjectPathsSafe, normalizeProjectRelativePath } from './project-path-security'
+
+/** Validated project write via Tauri `write_file` (requires project root). */
+export async function invokeWriteFile(
+  path: string,
+  content: string,
+  projectRoot: string,
+): Promise<void> {
+  await invoke('write_file', { path, content, projectRoot })
+}
 
 function notAvailable(name: string): void {
   console.warn(`[api] ${name}: Tauri not available in browser mode`)
@@ -100,10 +110,15 @@ export async function loadScript(path: string): Promise<string | null> {
  * Write script content to disk via the custom Rust `write_file` command.
  * Creates parent directories automatically.
  */
-export async function saveScript(path: string, content: string): Promise<void> {
+export async function saveScript(
+  path: string,
+  content: string,
+  projectJsonPath: string,
+): Promise<void> {
   if (!isTauri()) { notAvailable('saveScript'); return }
 
-  await invoke('write_file', { path, content })
+  const projectRoot = projectRootFromProjectPath(projectJsonPath)
+  await invokeWriteFile(path, content, projectRoot)
 }
 
 export function resolveScriptPath(projectPath: string | null, scriptPath: string): string {
@@ -123,7 +138,8 @@ export async function saveProjectFile(path: string, project: ProjectDoc): Promis
 
   validateProjectBeforeSave(project)
 
-  await invoke('write_file', { path, content: serializeProjectDoc(project) })
+  const projectRoot = projectRootFromProjectPath(path)
+  await invokeWriteFile(path, serializeProjectDoc(project), projectRoot)
 }
 
 /**
@@ -202,18 +218,16 @@ export async function scaffoldNewProjectOnDisk(
 
   validateProjectBeforeSave(project)
 
-  await invoke('write_file', {
-    path:    projectJsonPath,
-    content: serializeProjectDoc(project),
-  })
+  await invokeWriteFile(
+    projectJsonPath,
+    serializeProjectDoc(project),
+    projectRoot,
+  )
 
   const mainScriptPath = normalizeProjectRelativePath(project.mainScriptPath, 'mainScriptPath')
   const scriptPath  = `${projectRoot}/${mainScriptPath}`.replace(/\\/g, '/')
 
-  await invoke('write_file', {
-    path:    scriptPath,
-    content: mainScriptBody,
-  })
+  await invokeWriteFile(scriptPath, mainScriptBody, projectRoot)
 
   return projectJsonPath
 }

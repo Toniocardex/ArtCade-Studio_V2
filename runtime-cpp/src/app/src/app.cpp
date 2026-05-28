@@ -105,6 +105,7 @@ int Application::run(int argc, char* argv[]) {
         std::cerr << "[App] Initialization failed.\n";
         return 1;
     }
+    // targetDt_ / physicsMode_ applied on first editor_load_project via applyRuntimeSettings.
     targetDt_ = 1.f / 60.f;
 #else
     std::string projectPath = (argc > 1) ? argv[1] : "game.artcade";
@@ -245,17 +246,52 @@ bool Application::initSubsystems() {
     // in the right order without editor-api needing to depend on app.h.
     EditorAPI::setProjectLoadedHandler(
         [this](const std::vector<TilePaletteEntry>& palette,
-               const std::vector<TilesetAsset>&     tilesets) {
-            applyEditorProjectLoaded(palette, tilesets);
+               const std::vector<TilesetAsset>&     tilesets,
+               const ProjectRuntimeSettings&        settings) {
+            applyEditorProjectLoaded(palette, tilesets, settings);
         });
     EditorAPI::setPreviewRestoreHandler(
         [this](const std::vector<TilePaletteEntry>& palette,
-               const std::vector<TilesetAsset>&     tilesets) {
-            applyEditorPreviewRestore(palette, tilesets);
+               const std::vector<TilesetAsset>&     tilesets,
+               const ProjectRuntimeSettings&        settings) {
+            applyEditorPreviewRestore(palette, tilesets, settings);
         });
 #endif
 
     return true;
+}
+
+void Application::applyRuntimeSettings(const ProjectRuntimeSettings& settings,
+                                       ViewportPolicy              policy) {
+    const float fps = settings.targetFPS;
+    const float safeFps =
+        (std::isfinite(fps) && fps >= 1.f) ? fps : 60.f;
+    targetDt_     = 1.f / safeFps;
+    physicsMode_  = settings.physicsMode;
+
+    if (!mod_ || !mod_->renderer || !mod_->sceneManager) return;
+
+    const SceneDef* sc = mod_->sceneManager->activeScene();
+    if (!sc) return;
+
+    if (policy == ViewportPolicy::EditorPreview) {
+        if (sc->worldSize.x > 0.f && sc->worldSize.y > 0.f) {
+            mod_->renderer->setWindowSize(
+                static_cast<uint32_t>(sc->worldSize.x),
+                static_cast<uint32_t>(sc->worldSize.y),
+                "ArtCade V2");
+        }
+        mod_->renderer->setSceneViewport(sc->worldSize, sc->worldSize);
+        return;
+    }
+
+    if (sc->viewportSize.x > 0.f && sc->viewportSize.y > 0.f) {
+        mod_->renderer->setWindowSize(
+            static_cast<uint32_t>(sc->viewportSize.x),
+            static_cast<uint32_t>(sc->viewportSize.y),
+            "ArtCade V2");
+    }
+    mod_->renderer->setSceneViewport(sc->worldSize, sc->viewportSize);
 }
 
 #ifdef ARTCADE_WASM
@@ -277,22 +313,6 @@ void Application::applyEditorProjectCommon(
     for (const auto& ts : tilesets)
         tilesets_[ts.assetId] = ts;
     mod_->sceneManager->setTilesets(tilesets);
-
-    // Editor preview semantics:
-    //   • The HTML canvas is sized to the scene worldSize (= playable level).
-    //   • The WebGL framebuffer matches, so we render world-space 1:1.
-    //   • Camera zoom must be 1 (no scaling): we pass viewportSize = worldSize
-    //     to setSceneViewport. The user's real viewportSize is reserved for
-    //     PLAY mode (future overlay rectangle).
-    if (const SceneDef* sc = mod_->sceneManager->activeScene()) {
-        if (sc->worldSize.x > 0.f && sc->worldSize.y > 0.f) {
-            mod_->renderer->setWindowSize(
-                static_cast<uint32_t>(sc->worldSize.x),
-                static_cast<uint32_t>(sc->worldSize.y),
-                "ArtCade V2");
-        }
-        mod_->renderer->setSceneViewport(sc->worldSize, sc->worldSize);
-    }
 
     if (mod_->textureManager)
         mod_->textureManager->unloadAll();
@@ -321,9 +341,11 @@ void Application::resetGameplayRuntimeModules() {
 
 void Application::applyEditorProjectLoaded(
     const std::vector<TilePaletteEntry>& tilePalette,
-    const std::vector<TilesetAsset>&     tilesets)
+    const std::vector<TilesetAsset>&     tilesets,
+    const ProjectRuntimeSettings&        settings)
 {
     applyEditorProjectCommon(tilePalette, tilesets);
+    applyRuntimeSettings(settings, ViewportPolicy::EditorPreview);
 
     if (mod_->dialogManager && mod_->assetLoader)
         mod_->dialogManager->loadDialogsFromDirectory(mod_->assetLoader->projectRoot());
@@ -339,9 +361,11 @@ void Application::applyEditorProjectLoaded(
 
 void Application::applyEditorPreviewRestore(
     const std::vector<TilePaletteEntry>& tilePalette,
-    const std::vector<TilesetAsset>&     tilesets)
+    const std::vector<TilesetAsset>&     tilesets,
+    const ProjectRuntimeSettings&        settings)
 {
     applyEditorProjectCommon(tilePalette, tilesets);
+    applyRuntimeSettings(settings, ViewportPolicy::EditorPreview);
 
     // Load empty stub immediately so the play-mode tick cannot run against the
     // restored entity pool. JS will hot-reload the real design-time Lua via
@@ -375,17 +399,7 @@ bool Application::loadProject(const std::string& projectPath) {
     }
 
     mod_->world->init(doc);
-    // Native runtime semantics: the game window opens at the active scene's
-    // viewportSize (the camera lens = what the player sees).
-    if (const SceneDef* sc = mod_->sceneManager->activeScene()) {
-        if (sc->viewportSize.x > 0.f && sc->viewportSize.y > 0.f) {
-            mod_->renderer->setWindowSize(
-                static_cast<uint32_t>(sc->viewportSize.x),
-                static_cast<uint32_t>(sc->viewportSize.y),
-                "ArtCade V2");
-        }
-        mod_->renderer->setSceneViewport(sc->worldSize, sc->viewportSize);
-    }
+    applyRuntimeSettings(runtimeSettingsFromProjectDoc(doc), ViewportPolicy::NativePlay);
 
     // Phase D2: cache tile id → render colour for renderActiveScene()
     tileColors_.clear();
@@ -404,16 +418,7 @@ bool Application::loadProject(const std::string& projectPath) {
     if (mod_->assetLoader->loadLuaBytecode(doc.mainScriptPath, bytecode))
         mod_->luaHost->loadBytecodeBuffer(bytecode.data(), bytecode.size());
 
-    // Guard against 0 / negative / NaN targetFPS from a malformed project.json.
-    // 1/0 → +inf, which makes `accumulator_ >= targetDt_` permanently false and
-    // freezes the fixed-step loop without any error surface. Fall back to 60.
-    {
-        const float fps = doc.targetFPS;
-        const float safeFps = (std::isfinite(fps) && fps >= 1.f) ? fps : 60.f;
-        targetDt_ = 1.f / safeFps;
-    }
-    licenseTier_  = doc.licenseTier;
-    physicsMode_  = doc.world.physicsMode;
+    licenseTier_ = doc.licenseTier;
 
     // Show branded splash overlay on FREE tier (watermark requirement)
     if (licenseTier_ == "free")

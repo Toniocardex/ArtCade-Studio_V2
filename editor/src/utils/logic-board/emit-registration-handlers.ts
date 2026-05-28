@@ -28,6 +28,7 @@ type EmitCtx = {
 function lifecycleHandlerLines(
   ev: LogicEvent,
   slugs: Map<string, string>,
+  project: ProjectDoc | null | undefined,
   open: string,
   close: string,
 ): string[] {
@@ -36,7 +37,7 @@ function lifecycleHandlerLines(
     open,
     `${I}${I}local self = entityId`,
     `${I}${I}local other = nil`,
-    ...emitGuardedActions(ev, I + I, slugs),
+    ...emitGuardedActions(ev, I + I, slugs, null, project),
     close,
   ]
 }
@@ -49,6 +50,7 @@ export function emitSpawnRegistration(ctx: EmitCtx): string[] | null {
   return lifecycleHandlerLines(
     ctx.ev,
     ctx.slugs,
+    ctx.project,
     `${I}_logic_reg_spawn(${luaString(cls)}, function(entityId, tags)`,
     `${I}end)`,
   )
@@ -62,6 +64,7 @@ export function emitDestroyRegistration(ctx: EmitCtx): string[] | null {
   return lifecycleHandlerLines(
     ctx.ev,
     ctx.slugs,
+    ctx.project,
     `${I}_logic_reg_destroy(${luaString(cls)}, function(entityId, tags)`,
     `${I}end)`,
   )
@@ -78,6 +81,7 @@ export function emitAnimationEndRegistration(ctx: EmitCtx): string[] | null {
   return lifecycleHandlerLines(
     ctx.ev,
     ctx.slugs,
+    ctx.project,
     `${I}_logic_reg_anim_end(${ctx.source}, ${clip}, function(entityId, clip)`,
     `${I}end)`,
   )
@@ -96,7 +100,7 @@ function pushInputRegistrationBlock(
       `${I}${helper}(${luaString(keyCode)}, function()`,
       `${I}${I}local self = nil`,
       `${I}${I}local other = nil`,
-      ...emitGuardedActions(ctx.ev, I + I, ctx.slugs, inputGate),
+      ...emitGuardedActions(ctx.ev, I + I, ctx.slugs, inputGate, ctx.project),
       `${I}end)`,
     )
     return
@@ -105,7 +109,7 @@ function pushInputRegistrationBlock(
     `${I}${helper}(${luaString(keyCode)}, function()`,
     `${I}${I}for _, self in ipairs(${ctx.pool}) do`,
     `${I}${I}${I}local other = nil`,
-    ...emitGuardedActions(ctx.ev, I + I + I, ctx.slugs, inputGate),
+    ...emitGuardedActions(ctx.ev, I + I + I, ctx.slugs, inputGate, ctx.project),
     `${I}${I}end`,
     `${I}end)`,
   )
@@ -139,7 +143,7 @@ export function emitSensorRegistration(ctx: EmitCtx): string[] | null {
     `${I}${helper}(${ctx.source}, ${target}, function(entityId, otherId, tag)`,
     `${I}${I}local self = entityId`,
     `${I}${I}local other = otherId`,
-    ...emitGuardedActions(ctx.ev, I + I, ctx.slugs),
+    ...emitGuardedActions(ctx.ev, I + I, ctx.slugs, null, ctx.project),
     `${I}end)`,
   ]
 }
@@ -150,13 +154,13 @@ function timerCallbackLines(ctx: EmitCtx): string[] {
     return [
       `${I}${I}local self = nil`,
       `${I}${I}local other = nil`,
-      ...emitGuardedActions(ctx.ev, I + I, ctx.slugs),
+      ...emitGuardedActions(ctx.ev, I + I, ctx.slugs, null, ctx.project),
     ]
   }
   return [
     `${I}${I}for _, self in ipairs(${ctx.pool}) do`,
     `${I}${I}${I}local other = nil`,
-    ...emitGuardedActions(ctx.ev, I + I + I, ctx.slugs),
+    ...emitGuardedActions(ctx.ev, I + I + I, ctx.slugs, null, ctx.project),
     `${I}${I}end`,
   ]
 }

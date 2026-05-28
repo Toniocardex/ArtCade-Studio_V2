@@ -91,6 +91,7 @@ function FrameEditor() {
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
       if (event.origin !== globalThis.location.origin) return
+      if (event.source !== window.parent) return
       if (!isParentToFrameMessage(event.data)) return
 
       const msg = event.data

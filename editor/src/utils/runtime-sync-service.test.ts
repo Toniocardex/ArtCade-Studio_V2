@@ -301,4 +301,25 @@ describe('RuntimeSyncService', () => {
     expect(runtimeSync.restorePreviewFromProject(makeProject() as never, 'a', 'x')).toBe(false)
     expect(bridge.editorRestoreFromProject).not.toHaveBeenCalled()
   })
+
+  it('applyMainLua reloads once and syncProject skips duplicate Lua', () => {
+    const p = makeProject()
+    const luaV1 = 'function tick(dt) end'
+    const luaV2 = '-- logic v2'
+    runtimeSync.syncProject(p as never, 'a', '/tmp/x')
+    vi.mocked(bridge.editorReloadScript).mockClear()
+
+    expect(runtimeSync.applyMainLua(luaV1)).toBe(true)
+    expect(bridge.editorReloadScript).toHaveBeenCalledWith(luaV1)
+
+    vi.mocked(bridge.editorReloadScript).mockClear()
+    expect(runtimeSync.applyMainLua(luaV1)).toBe(false)
+    expect(bridge.editorReloadScript).not.toHaveBeenCalled()
+
+    expect(runtimeSync.syncProject(p as never, 'a', '/tmp/x', { mainLua: luaV1 })).toBe(false)
+    expect(bridge.editorReloadScript).not.toHaveBeenCalled()
+
+    expect(runtimeSync.applyMainLua(luaV2)).toBe(true)
+    expect(bridge.editorReloadScript).toHaveBeenCalledWith(luaV2)
+  })
 })

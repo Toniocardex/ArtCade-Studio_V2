@@ -4,6 +4,7 @@
 // ---------------------------------------------------------------------------
 
 import type { LogicAction } from '../../types/logic-board'
+import type { ProjectDoc } from '../../types'
 import { luaPointerWorldPairStmt, luaString, luaValue, targetExpr } from './lua-helpers'
 import { ruleKeyExpr } from './event-slugs'
 
@@ -32,6 +33,7 @@ export const REPEAT_TIMES_SENTINEL_PREFIX = '-- repeatTimes handled'
 export interface ActionEmitCtx {
   /** id → RULE-table slug; used to render `_logic_on[RULE.<slug>]` keys. */
   eventSlugs?: Map<string, string>
+  project?: ProjectDoc | null
 }
 
 /**
@@ -50,15 +52,17 @@ function unknownActionComment(a: LogicAction, detail?: string): string {
 }
 
 export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
+  const project = ctx.project
+  const target = (sel: Parameters<typeof targetExpr>[0]) => targetExpr(sel, project)
   switch (a.type) {
     case 'setVariable':
       return `state.set(${luaString(a.key)}, ${luaValue(a.value)})`
     case 'addVariable':
       return `state.add(${luaString(a.key)}, ${Number(a.amount) || 0})`
     case 'setPosition':
-      return `entity.setPosition(${targetExpr(a.target)}, ${Number(a.x) || 0}, ${Number(a.y) || 0})`
+      return `entity.setPosition(${target(a.target)}, ${Number(a.x) || 0}, ${Number(a.y) || 0})`
     case 'setVelocity':
-      return `entity.setVelocity(${targetExpr(a.target)}, ${Number(a.vx) || 0}, ${Number(a.vy) || 0})`
+      return `entity.setVelocity(${target(a.target)}, ${Number(a.vx) || 0}, ${Number(a.vy) || 0})`
     case 'playSound':
       return `audio.playSound(${luaString(a.path)}, ${a.volume ?? 1}, ${a.pitch ?? 1})`
     case 'playMusic':
@@ -72,7 +76,7 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
     case 'resumeMusic':
       return `audio.resumeMusic()`
     case 'destroyEntity':
-      return `entity.destroy(${targetExpr(a.target)})`
+      return `entity.destroy(${target(a.target)})`
     case 'clickToDestroy':
       return 'entity.destroy(self)'
     case 'spawnEntity': {
@@ -88,7 +92,7 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
       return `(function() ${luaPointerWorldPairStmt()}; return object.spawn(${cls}, _mx, _my) end)()`
     }
     case 'moveInDirection': {
-      const t = targetExpr(a.target)
+      const t = target(a.target)
       const s = Number(a.speed) || 0
       switch (a.direction) {
         case 'up':
@@ -108,7 +112,7 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
         `direction=${String((a as { direction?: unknown }).direction)}`)
     }
     case 'controllerMovement': {
-      const t = targetExpr(a.target)
+      const t = target(a.target)
       switch (a.direction) {
         case 'left':
           return `_logic_add_movement(${t}, -1, 0)`
@@ -123,7 +127,7 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
         `direction=${String((a as { direction?: unknown }).direction)}`)
     }
     case 'moveController': {
-      const t = targetExpr(a.target)
+      const t = target(a.target)
       switch (a.direction) {
         case 'left':
           return `movement.setIntent(${t}, -1, 0)`
@@ -140,66 +144,66 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
         `direction=${String((a as { direction?: unknown }).direction)}`)
     }
     case 'clearMovementIntent':
-      return `movement.clearIntent(${targetExpr(a.target)})`
+      return `movement.clearIntent(${target(a.target)})`
     case 'requestPlatformerJump':
-      return `platformer.requestJump(${targetExpr(a.target)})`
+      return `platformer.requestJump(${target(a.target)})`
     case 'damageEntity':
-      return `entity.damage(${targetExpr(a.target)}, ${Number(a.amount) || 0})`
+      return `entity.damage(${target(a.target)}, ${Number(a.amount) || 0})`
     case 'healEntity': {
-      const t = targetExpr(a.target)
+      const t = target(a.target)
       const amount = Number(a.amount) || 0
       return `(function() local _c,_m=entity.health(${t}); if _c ~= nil then entity.setHealth(${t}, math.min(_m, _c + ${amount}), _m) end end)()`
     }
     case 'setEntityHealth':
       return a.maxHp != null
-        ? `entity.setHealth(${targetExpr(a.target)}, ${Number(a.currentHp) || 0}, ${Number(a.maxHp) || 0})`
-        : `entity.setHealth(${targetExpr(a.target)}, ${Number(a.currentHp) || 0})`
+        ? `entity.setHealth(${target(a.target)}, ${Number(a.currentHp) || 0}, ${Number(a.maxHp) || 0})`
+        : `entity.setHealth(${target(a.target)}, ${Number(a.currentHp) || 0})`
     case 'setLinearMoverDirection':
-      return `linearMover.setDirection(${targetExpr(a.target)}, ${Number(a.directionX) || 0}, ${Number(a.directionY) || 0})`
+      return `linearMover.setDirection(${target(a.target)}, ${Number(a.directionX) || 0}, ${Number(a.directionY) || 0})`
     case 'setLinearMoverSpeed':
-      return `linearMover.setSpeed(${targetExpr(a.target)}, ${Number(a.speed) || 0})`
+      return `linearMover.setSpeed(${target(a.target)}, ${Number(a.speed) || 0})`
     case 'pauseLinearMover':
-      return `linearMover.pause(${targetExpr(a.target)})`
+      return `linearMover.pause(${target(a.target)})`
     case 'resumeLinearMover':
-      return `linearMover.resume(${targetExpr(a.target)})`
+      return `linearMover.resume(${target(a.target)})`
     case 'setMagnetEnabled':
-      return `magnet.setEnabled(${targetExpr(a.target)}, ${a.enabled ? 'true' : 'false'})`
+      return `magnet.setEnabled(${target(a.target)}, ${a.enabled ? 'true' : 'false'})`
     case 'setMagnetTargetTag':
-      return `magnet.setTargetTag(${targetExpr(a.target)}, ${luaString(a.tag)})`
+      return `magnet.setTargetTag(${target(a.target)}, ${luaString(a.tag)})`
     case 'setHordeTargetClass':
-      return `horde.setTargetClass(${targetExpr(a.target)}, ${luaString(a.className)})`
+      return `horde.setTargetClass(${target(a.target)}, ${luaString(a.className)})`
     case 'setHordeWeights':
-      return `horde.setWeights(${targetExpr(a.target)}, ${Number(a.chaseWeight) || 0}, ${Number(a.separationWeight) || 0})`
+      return `horde.setWeights(${target(a.target)}, ${Number(a.chaseWeight) || 0}, ${Number(a.separationWeight) || 0})`
     case 'setAutoDestroyLifespan':
-      return `autoDestroy.setLifespan(${targetExpr(a.target)}, ${Number(a.lifespan) || 0})`
+      return `autoDestroy.setLifespan(${target(a.target)}, ${Number(a.lifespan) || 0})`
     case 'cancelAutoDestroy':
-      return `autoDestroy.cancel(${targetExpr(a.target)})`
+      return `autoDestroy.cancel(${target(a.target)})`
     case 'emitEvent':
       return a.payloadKey
         ? `event.emit(${luaString(a.name)}, { [${luaString(a.payloadKey)}] = ${luaValue(a.payloadValue ?? '')} })`
         : `event.emit(${luaString(a.name)})`
     case 'startDialog':
-      return `dialog.start(${targetExpr(a.target)}, ${luaString(a.dialogId)})`
+      return `dialog.start(${target(a.target)}, ${luaString(a.dialogId)})`
     case 'toggleLogicEvent':
       return `_logic_on[${ruleKeyExpr(a.eventId, ctx.eventSlugs)}] = ${a.enabled ? 'true' : 'false'}`
     case 'applyImpulse':
-      return `physics.applyImpulse(${targetExpr(a.target)}, ${Number(a.ix) || 0}, ${Number(a.iy) || 0})`
+      return `physics.applyImpulse(${target(a.target)}, ${Number(a.ix) || 0}, ${Number(a.iy) || 0})`
     case 'applyForce':
-      return `physics.applyForce(${targetExpr(a.target)}, ${Number(a.fx) || 0}, ${Number(a.fy) || 0})`
+      return `physics.applyForce(${target(a.target)}, ${Number(a.fx) || 0}, ${Number(a.fy) || 0})`
     case 'setRotation':
-      return `entity.setRotation(${targetExpr(a.target)}, ${Number(a.angle) || 0})`
+      return `entity.setRotation(${target(a.target)}, ${Number(a.angle) || 0})`
     case 'setScale':
-      return `entity.setScale(${targetExpr(a.target)}, ${Number(a.scaleX) || 0}, ${Number(a.scaleY) || 0})`
+      return `entity.setScale(${target(a.target)}, ${Number(a.scaleX) || 0}, ${Number(a.scaleY) || 0})`
     case 'playAnimation':
-      return `animation.play(${targetExpr(a.target)}, ${luaString(a.clipName)})`
+      return `animation.play(${target(a.target)}, ${luaString(a.clipName)})`
     case 'setFlip': {
-      const t = targetExpr(a.target)
+      const t = target(a.target)
       const fx = a.flipX ? 'true' : 'false'
       const fy = a.flipY != null ? (a.flipY ? 'true' : 'false') : 'nil'
       return `entity.setFlip(${t}, ${fx}, ${fy})`
     }
     case 'setVisible':
-      return `entity.setVisible(${targetExpr(a.target)}, ${a.visible ? 'true' : 'false'})`
+      return `entity.setVisible(${target(a.target)}, ${a.visible ? 'true' : 'false'})`
     case 'setColorTint': {
       const m = /^#?([0-9a-fA-F]{6})$/.exec(a.hexColor || '')
       const hex = m ? m[1] : 'ffffff'
@@ -207,7 +211,7 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
       const g = (parseInt(hex.slice(2, 4), 16) / 255).toFixed(4)
       const b = (parseInt(hex.slice(4, 6), 16) / 255).toFixed(4)
       const al = a.alpha == null ? 1 : finite(a.alpha, 1)
-      return `entity.setTint(${targetExpr(a.target)}, ${r}, ${g}, ${b}, ${al})`
+      return `entity.setTint(${target(a.target)}, ${r}, ${g}, ${b}, ${al})`
     }
     case 'loadScene': {
       const fade = finite(a.fadeSeconds)
@@ -218,7 +222,7 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
     case 'restartScene':
       return `scene.restart()`
     case 'setCameraTarget':
-      return `camera.centerOn(${targetExpr(a.target)})`
+      return `camera.centerOn(${target(a.target)})`
     case 'cameraShake':
       return `camera.shake(${traumaIntensity(a.trauma)})`
     case 'debugLog':
@@ -228,11 +232,11 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
     case 'repeatTimes':
       return `${REPEAT_TIMES_SENTINEL_PREFIX} by emitActionSequence`
     case 'moveByOffset':
-      return `grid.moveByOffset(${targetExpr(a.target)}, ${Number(a.dx) || 0}, ${Number(a.dy) || 0})`
+      return `grid.moveByOffset(${target(a.target)}, ${Number(a.dx) || 0}, ${Number(a.dy) || 0})`
     case 'snapToGrid':
-      return `grid.snapToGrid(${targetExpr(a.target)}, ${Number(a.cellSize) || 32})`
+      return `grid.snapToGrid(${target(a.target)}, ${Number(a.cellSize) || 32})`
     case 'setEntityShader':
-      return `shaders.setEntity(${targetExpr(a.target)}, ${luaString(a.shader)})`
+      return `shaders.setEntity(${target(a.target)}, ${luaString(a.shader)})`
     case 'setScreenShader':
       return `shaders.setScreen(${luaString(a.shader)})`
   }

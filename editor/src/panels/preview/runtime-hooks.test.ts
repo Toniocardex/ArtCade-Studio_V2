@@ -9,9 +9,10 @@ vi.mock('../../utils/wasm-bridge', () => ({
   editorRegisterImage: vi.fn(),
 }))
 
+const syncProjectMock = vi.fn()
 vi.mock('../../utils/runtime-sync-service', () => ({
   runtimeSync: {
-    syncProject: vi.fn(),
+    syncProject: syncProjectMock,
     syncPlayMode: vi.fn(),
     syncSelection: vi.fn(),
     syncEditorTool: vi.fn(),
@@ -19,7 +20,12 @@ vi.mock('../../utils/runtime-sync-service', () => ({
   },
 }))
 
-const { shouldSyncProjectToRuntime } = await import('./runtime-hooks')
+vi.mock('../../utils/preview-restore', () => ({
+  resolvePreviewMainLuaWithStatus: vi.fn(() => ({ lua: 'function tick(dt) end', compileError: null })),
+  logLogicBoardCompileFailure: vi.fn(),
+}))
+
+const { shouldSyncProjectToRuntime, performRuntimeProjectSync } = await import('./runtime-hooks')
 
 function makeProject() {
   return {
@@ -59,5 +65,29 @@ describe('shouldSyncProjectToRuntime', () => {
       project: makeProject() as never,
       isPlaying: false,
     })).toBe(false)
+  })
+})
+
+describe('performRuntimeProjectSync', () => {
+  it('calls runtimeSync.syncProject with compiled main Lua', () => {
+    syncProjectMock.mockClear()
+    performRuntimeProjectSync({
+      project: makeProject() as never,
+      projectPath: '/tmp/p/project.json',
+      openScripts: [],
+      dialogs: {},
+      selectionSceneId: 'a',
+      wasmReady: true,
+      engineReady: true,
+      isPlaying: false,
+      dispatch: vi.fn(),
+      makeLogEntry: () => ({ id: 0, time: '', message: '', level: 'info' }),
+    })
+    expect(syncProjectMock).toHaveBeenCalledWith(
+      expect.objectContaining({ projectName: 'T' }),
+      'a',
+      '/tmp/p/project.json',
+      expect.objectContaining({ mainLua: 'function tick(dt) end' }),
+    )
   })
 })

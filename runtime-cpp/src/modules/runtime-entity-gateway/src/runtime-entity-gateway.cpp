@@ -662,8 +662,10 @@ void RuntimeEntityGateway::setPhysicsHandle(EntityId id, uint32_t handle) {
 }
 
 std::vector<EntityId> RuntimeEntityGateway::poolByClass(const std::string& className) const {
+    const std::vector<EntityId>& ids = registry_->idsByClass(className);
     std::vector<EntityId> out;
-    for (EntityId id : registry_->idsByClass(className)) {
+    out.reserve(ids.size());
+    for (EntityId id : ids) {
         if (isEntityActiveInScene(id))
             out.push_back(id);
     }

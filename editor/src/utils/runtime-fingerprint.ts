@@ -86,9 +86,16 @@ export interface RuntimeProjection {
   pv: string                 // version
   as: string                 // activeSceneId
   fps: number                // targetFPS
+  pm: string                 // world.physicsMode (auto | on | off)
   msp: string                // mainScriptPath
   entities: FpEntity[]
   scenes: FpScene[]
+}
+
+/** TypeScript contract mirrored by C++ `ProjectRuntimeSettings` (see types.h). */
+export type ProjectRuntimeSettings = {
+  targetFPS: number
+  physicsMode: NonNullable<ProjectDoc['world']>['physicsMode']
 }
 
 function v2(v: Vec2): FpVec2 { return { x: v.x, y: v.y } }
@@ -158,6 +165,7 @@ export function runtimeProjectProjection(
     pv:  project.version,
     as:  activeSceneId,
     fps: project.targetFPS,
+    pm:  project.world?.physicsMode ?? 'auto',
     msp: project.mainScriptPath,
     entities: entityIds.map((id) => projectEntity(entities[id])),
     scenes:   sceneIds.map((id) => projectScene(project.scenes[id])),
@@ -171,8 +179,7 @@ export function runtimeProjectProjection(
  *
  * Excluded by design: `tilemap.data` (live painting echoes through React
  * separately), `thumbnails`, `logicBoards` (compiled by the save pipeline
- * before reaching the runtime), `licenseTier`, `world` (physics settings — TODO
- * once the runtime reads them dynamically).
+ * before reaching the runtime), `licenseTier`. Physics mode is included via `pm`.
  */
 export function runtimeProjectFingerprint(
   project: ProjectDoc,
@@ -181,7 +188,10 @@ export function runtimeProjectFingerprint(
   return JSON.stringify(runtimeProjectProjection(project, activeSceneId))
 }
 
-/** Fields the C++ editor bridge reads from `editor_load_project` / restore. */
+/**
+ * Fields the C++ editor bridge reads from `editor_load_project` / restore.
+ * Keep in sync with `ProjectRuntimeSettings` in runtime-cpp/src/core/types.h.
+ */
 export interface RuntimeProjectPayload {
   projectName:    string
   version:        string

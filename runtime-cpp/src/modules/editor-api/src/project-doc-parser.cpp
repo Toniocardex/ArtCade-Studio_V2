@@ -366,6 +366,28 @@ void materializeV2Project(
     scenes   = std::move(doc.scenes);
 }
 
+ArtCade::ProjectRuntimeSettings parseRuntimeSettings(const json& doc) {
+    ArtCade::ProjectRuntimeSettings s;
+    if (doc.contains("targetFPS"))
+        s.targetFPS = doc["targetFPS"].get<float>();
+    else if (doc.contains("target_fps"))
+        s.targetFPS = doc["target_fps"].get<float>();
+
+    if (doc.contains("world") && doc["world"].is_object()) {
+        const auto& wo = doc["world"];
+        const std::string mode = wo.value(
+            "physicsMode",
+            wo.value("physics_mode", std::string("auto")));
+        if (mode == "off")
+            s.physicsMode = ArtCade::PhysicsMode::Off;
+        else if (mode == "on")
+            s.physicsMode = ArtCade::PhysicsMode::On;
+        else
+            s.physicsMode = ArtCade::PhysicsMode::Auto;
+    }
+    return s;
+}
+
 } // namespace ArtCade::ProjectDocParser
 
 #endif // __EMSCRIPTEN__

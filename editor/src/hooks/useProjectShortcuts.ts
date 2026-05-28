@@ -113,8 +113,9 @@ async function handleCtrlSave(ctx: ShortcutCtx): Promise<void> {
     return
   }
   try {
+    if (!ctx.state.projectPath) return
     const absPath = resolveScriptPath(ctx.state.projectPath, script.path)
-    await saveScript(absPath, script.content)
+    await saveScript(absPath, script.content, ctx.state.projectPath)
     ctx.dispatch({ type: 'MARK_SCRIPT_SAVED', path: script.path })
     ctx.dispatch({ type: 'LOG', entry: kbdLog(`OK saved "${script.path}"`, 'info') })
   } catch (err) {

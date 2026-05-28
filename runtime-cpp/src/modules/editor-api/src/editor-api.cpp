@@ -314,11 +314,16 @@ void loadProjectFromJson(const char* json_utf8, ProjectLoadKind kind) {
         gateway->replaceProject(sceneDefs, entityDefs, activeId, typesPtr);
         gateway->setTilesets(tilesets);
 
+        const ArtCade::ProjectRuntimeSettings runtimeSettings =
+            Parser::parseRuntimeSettings(doc);
+
         if (kind == ProjectLoadKind::HotSync) {
             if (ArtCade::EditorAPI::s_onProjectLoaded)
-                ArtCade::EditorAPI::s_onProjectLoaded(tilePalette, tilesets);
+                ArtCade::EditorAPI::s_onProjectLoaded(
+                    tilePalette, tilesets, runtimeSettings);
         } else if (ArtCade::EditorAPI::s_onPreviewRestore) {
-            ArtCade::EditorAPI::s_onPreviewRestore(tilePalette, tilesets);
+            ArtCade::EditorAPI::s_onPreviewRestore(
+                tilePalette, tilesets, runtimeSettings);
         }
 
         char buf[128];

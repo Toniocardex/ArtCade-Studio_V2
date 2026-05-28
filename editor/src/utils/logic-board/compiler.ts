@@ -195,11 +195,11 @@ function emitBoard(
   const init: string[] = []
   const tick: string[] = []
 
-  pushStartEventsInit(init, parts.startEvents, board, parts.pool, parts.isGlobal, slugs)
-  pushMessageEventsInit(init, parts.messageEvents, board, parts.pool, parts.isGlobal, slugs)
+  pushStartEventsInit(init, parts.startEvents, board, parts.pool, parts.isGlobal, slugs, project)
+  pushMessageEventsInit(init, parts.messageEvents, board, parts.pool, parts.isGlobal, slugs, project)
   pushRegisteredInitEvents(init, parts.registeredEvents, board, project, slugs)
-  pushTickEventsBlock(tick, parts.tickEvents, board, parts.pool, parts.isGlobal, slugs)
-  pushDestroyTickBlock(tick, parts.destroyTickEvents, board, slugs)
+  pushTickEventsBlock(tick, parts.tickEvents, board, parts.pool, parts.isGlobal, slugs, project)
+  pushDestroyTickBlock(tick, parts.destroyTickEvents, board, slugs, project)
 
   return { init, tick }
 }

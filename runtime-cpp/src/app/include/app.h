@@ -12,6 +12,12 @@ namespace ArtCade {
 
 namespace Modules { class SplashState; }
 
+/** How the renderer maps world vs viewport for the active scene. */
+enum class ViewportPolicy {
+    EditorPreview, /**< worldSize window; viewport = world (1:1 edit canvas) */
+    NativePlay,    /**< viewportSize window; camera lens = viewport */
+};
+
 
 /**
  * Application — top-level orchestrator (Layer 4).
@@ -31,16 +37,22 @@ public:
 
     int run(int argc, char* argv[]);
 
+    /** Apply targetFPS, physicsMode, and viewport/window from project settings. */
+    void applyRuntimeSettings(const ProjectRuntimeSettings& settings,
+                              ViewportPolicy              policy);
+
 #ifdef ARTCADE_WASM
-    /** Shared tile/viewport setup after editor project JSON is applied. */
+    /** Shared tile setup after editor project JSON is applied (no viewport). */
     void applyEditorProjectCommon(const std::vector<TilePaletteEntry>& tilePalette,
                                   const std::vector<TilesetAsset>&     tilesets);
     /** Called from editor_load_project after the gateway swap. */
     void applyEditorProjectLoaded(const std::vector<TilePaletteEntry>& tilePalette,
-                                  const std::vector<TilesetAsset>&     tilesets);
+                                  const std::vector<TilesetAsset>&     tilesets,
+                                  const ProjectRuntimeSettings&        settings);
     /** Called from editor_restore_from_project — reset runtime, keep Lua. */
     void applyEditorPreviewRestore(const std::vector<TilePaletteEntry>& tilePalette,
-                                   const std::vector<TilesetAsset>&     tilesets);
+                                   const std::vector<TilesetAsset>&     tilesets,
+                                   const ProjectRuntimeSettings&        settings);
     /** Shared reset for tween/audio/animator/event/layer/save/time/state/camera. */
     void resetGameplayRuntimeModules();
 #endif

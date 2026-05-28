@@ -289,10 +289,11 @@ const std::vector<std::string>& EntityRegistry::tags(EntityId id) const {
     return empty;
 }
 
-std::vector<EntityId>
+const std::vector<EntityId>&
 EntityRegistry::idsByClass(const std::string& className) const {
+    static const std::vector<EntityId> kEmpty;
     auto it = impl_->classIndex.find(className);
-    if (it == impl_->classIndex.end()) return {};
+    if (it == impl_->classIndex.end()) return kEmpty;
     return it->second;
 }
 
