@@ -13,6 +13,17 @@ import EventCard from './EventCard'
 import { defaultTrigger } from './options'
 import { allowedTriggersForTarget } from '../../utils/logic-board/trigger-compatibility'
 
+/** Sentinel for the add-rule trigger picker before the user chooses a type. */
+export const NEW_TRIGGER_NONE = '' as const
+export type NewTriggerPick = LogicTriggerType | typeof NEW_TRIGGER_NONE
+
+const addRuleBtn =
+  'flex-1 min-w-[140px] px-3 py-2 rounded border border-dashed border-[var(--border-2)] text-xs'
+const addRuleBtnEnabled =
+  `${addRuleBtn} text-[var(--muted)] hover:text-[var(--accent)] hover:border-[var(--accent-bd)]`
+const addRuleBtnDisabled =
+  `${addRuleBtn} text-[var(--muted)] opacity-50 cursor-not-allowed`
+
 type LogicBoardEventsListProps = Readonly<{
   project: ProjectDoc
   board: LogicBoard | null
@@ -22,8 +33,8 @@ type LogicBoardEventsListProps = Readonly<{
   setEditingId: (id: string | null) => void
   focusedEventId: string | null
   setFocusedEventId: (id: string | null) => void
-  newTrigger: LogicTriggerType
-  setNewTrigger: (trigger: LogicTriggerType) => void
+  newTrigger: NewTriggerPick
+  setNewTrigger: (trigger: NewTriggerPick) => void
   onCloneEvent: (event: LogicEvent, board: LogicBoard) => void
   dispatch: Dispatch<Action>
 }>
@@ -178,12 +189,21 @@ export function LogicBoardEventsList(listProps: LogicBoardEventsListProps) {
                 kind="trigger"
                 types={allowedTriggersForTarget(board.target.type)}
                 value={newTrigger}
-                onChange={(t) => setNewTrigger(t as LogicTriggerType)}
+                onChange={(t) => setNewTrigger(t as NewTriggerPick)}
                 className="max-w-[240px]"
+                placeholder="Select trigger…"
+                placeholderValue={NEW_TRIGGER_NONE}
               />
               <button
                 type="button"
+                disabled={!newTrigger}
+                title={
+                  newTrigger
+                    ? 'Add a new rule with the selected trigger'
+                    : 'Choose a trigger from the list first'
+                }
                 onClick={() => {
+                  if (!newTrigger) return
                   const ev = createLogicEvent(defaultTrigger(newTrigger))
                   dispatch({
                     type: 'LOGIC_ADD_EVENT',
@@ -192,8 +212,9 @@ export function LogicBoardEventsList(listProps: LogicBoardEventsListProps) {
                   })
                   setFocusedEventId(ev.id)
                   setEditingId(ev.id)
+                  setNewTrigger(NEW_TRIGGER_NONE)
                 }}
-                className="flex-1 min-w-[140px] px-3 py-2 rounded border border-dashed border-[var(--border-2)] text-[var(--muted)] text-xs hover:text-[var(--accent)] hover:border-[var(--accent-bd)]"
+                className={newTrigger ? addRuleBtnEnabled : addRuleBtnDisabled}
               >
                 Add rule to {rulesheetAppliesToLabel(project, board)}
               </button>

@@ -30,11 +30,15 @@ import {
 } from '../utils/logic-board/factory'
 import { cloneLogicEvent } from '../utils/logic-board/clone'
 import { shouldIgnoreEditorShortcut } from '../utils/keyboard'
-import type { LogicBoard, LogicEvent, LogicTriggerType } from '../types/logic-board'
+import type { LogicBoard, LogicEvent } from '../types/logic-board'
 import type { ProjectDoc } from '../types'
 import { LogicBoardLuaPreview } from './logic-board/LogicBoardLuaPreview'
 import { LogicBoardHeader } from './logic-board/LogicBoardHeader'
-import { LogicBoardEventsList } from './logic-board/LogicBoardEventsList'
+import {
+  LogicBoardEventsList,
+  NEW_TRIGGER_NONE,
+  type NewTriggerPick,
+} from './logic-board/LogicBoardEventsList'
 import { RulesheetControls } from './logic-board/RulesheetControls'
 import {
   logicBoardsRevision,
@@ -328,7 +332,7 @@ export default function LogicBoardPanel() {
   const [showFullMain, setShowFullMain] = useState(false)
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const [newClass, setNewClass] = useState('')
-  const [newTrigger, setNewTrigger] = useState<LogicTriggerType>('onSpawn')
+  const [newTrigger, setNewTrigger] = useState<NewTriggerPick>(NEW_TRIGGER_NONE)
   const [applyMsg, setApplyMsg] = useState<string | null>(null)
   const [focusedEventId, setFocusedEventId] = useState<string | null>(null)
   const [clipboardHint, setClipboardHint] = useState<string | null>(null)
