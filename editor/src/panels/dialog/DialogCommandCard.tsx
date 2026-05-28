@@ -14,6 +14,17 @@ const COMMAND_LABELS: Record<DialogCommand['type'], string> = {
   end: 'End Conversation',
 }
 
+const COMMAND_TYPES = Object.keys(COMMAND_LABELS) as DialogCommand['type'][]
+
+function isDialogCommandType(value: string): value is DialogCommand['type'] {
+  return (COMMAND_TYPES as readonly string[]).includes(value)
+}
+
+function choiceOptionKey(opt: { text: string; commands: DialogCommand[] }): string {
+  const branchSig = opt.commands.map((c) => c.type).join('|')
+  return `${opt.text}::${branchSig}`
+}
+
 export type DialogCommandCardProps = Readonly<{
   command: DialogCommand
   index: number
@@ -45,6 +56,7 @@ export function DialogCommandCard({
     onFocus?.()
     onMouseEnter?.()
   }
+  const rowFocus = nested ? undefined : focusRow
 
   return (
     <section
@@ -54,15 +66,6 @@ export function DialogCommandCard({
           : 'border-[var(--border)] bg-[rgb(var(--border-rgb)/0.12)]'
       }`}
       aria-label={`${COMMAND_LABELS[command.type]} step ${index + 1} of ${total}`}
-      tabIndex={nested ? undefined : 0}
-      onFocus={focusRow}
-      onMouseEnter={onMouseEnter}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-          focusRow()
-        }
-      }}
     >
       <div className="flex items-center gap-2 mb-2 flex-wrap">
         <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--purple)]">
@@ -72,9 +75,14 @@ export function DialogCommandCard({
           <select
             className="text-[10px] ml-auto bg-[var(--panel)] border border-[var(--border)] rounded px-1 py-0.5"
             value={command.type}
-            onChange={(e) => onChange(defaultCommand(e.target.value as DialogCommand['type']))}
+            onFocus={rowFocus}
+            onMouseEnter={onMouseEnter}
+            onChange={(e) => {
+              const nextType = e.target.value
+              if (isDialogCommandType(nextType)) onChange(defaultCommand(nextType))
+            }}
           >
-            {(Object.keys(COMMAND_LABELS) as DialogCommand['type'][]).map((t) => (
+            {COMMAND_TYPES.map((t) => (
               <option key={t} value={t}>
                 {COMMAND_LABELS[t]}
               </option>
@@ -100,6 +108,7 @@ export function DialogCommandCard({
             <input
               className={inputCls}
               value={command.character}
+              onFocus={rowFocus}
               onChange={(e) => onChange({ ...command, character: e.target.value })}
             />
           </Field>
@@ -108,6 +117,8 @@ export function DialogCommandCard({
               className={`${inputCls} min-h-[72px]`}
               rows={4}
               value={command.text}
+              onFocus={rowFocus}
+              onMouseEnter={onMouseEnter}
               onChange={(e) => onChange({ ...command, text: e.target.value })}
             />
           </Field>
@@ -129,11 +140,13 @@ export function DialogCommandCard({
       {command.type === 'showChoices' && (
         <div className="space-y-3">
           {command.options.map((opt, oi) => (
-            <div key={oi} className="rounded border border-[var(--border)] p-2">
+            <div key={choiceOptionKey(opt)} className="rounded border border-[var(--border)] p-2">
               <Field label={`Choice ${oi + 1}`}>
                 <input
                   className={inputCls}
                   value={opt.text}
+                  onFocus={rowFocus}
+                  onMouseEnter={onMouseEnter}
                   onChange={(e) => {
                     const options = [...command.options]
                     options[oi] = { ...opt, text: e.target.value }
@@ -286,7 +299,12 @@ export function DialogCommandCard({
   )
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+type FieldProps = Readonly<{
+  label: string
+  children: ReactNode
+}>
+
+function Field({ label, children }: FieldProps) {
   return (
     <div className="mb-2">
       <label className="text-[9px] text-[var(--muted)] uppercase block mb-0.5">{label}</label>
@@ -295,17 +313,19 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
+type IconBtnProps = Readonly<{
+  children: ReactNode
+  title: string
+  disabled?: boolean
+  onClick: () => void
+}>
+
 function IconBtn({
   children,
   title,
   disabled,
   onClick,
-}: {
-  children: ReactNode
-  title: string
-  disabled?: boolean
-  onClick: () => void
-}) {
+}: IconBtnProps) {
   return (
     <button
       type="button"
