@@ -4,7 +4,11 @@ import {
   Field, InspectorSection, parseGridSize, parseSceneDimension,
 } from './inspector-fields'
 
-export function SceneSettingsSection({ scene }: { scene: SceneDef }) {
+export type SceneSettingsSectionProps = Readonly<{
+  scene: SceneDef
+}>
+
+export function SceneSettingsSection({ scene }: SceneSettingsSectionProps) {
   const { state, dispatch } = useEditor()
   const gridSize = state.editorGridSize
 
@@ -36,7 +40,7 @@ export function SceneSettingsSection({ scene }: { scene: SceneDef }) {
   return (
     <InspectorSection label="Scene Settings" defaultOpen>
       <div className="mb-3">
-        <label className="text-[9px] text-[var(--muted)] uppercase block mb-0.5">Scene Size</label>
+        <span className="text-[9px] text-[var(--muted)] uppercase block mb-0.5">Scene Size</span>
         <div className="grid grid-cols-2 gap-2">
           <Field
             label="Width"
@@ -55,7 +59,7 @@ export function SceneSettingsSection({ scene }: { scene: SceneDef }) {
         </div>
       </div>
       <div className="mb-3">
-        <label className="text-[9px] text-[var(--muted)] uppercase block mb-0.5">Viewport</label>
+        <span className="text-[9px] text-[var(--muted)] uppercase block mb-0.5">Viewport</span>
         <div className="grid grid-cols-2 gap-2">
           <Field
             label="Width"
@@ -74,7 +78,7 @@ export function SceneSettingsSection({ scene }: { scene: SceneDef }) {
         </div>
       </div>
       <div className="mb-3">
-        <label className="text-[9px] text-[var(--muted)] uppercase block mb-0.5">Editor Grid</label>
+        <span className="text-[9px] text-[var(--muted)] uppercase block mb-0.5">Editor Grid</span>
         <div className="grid grid-cols-2 gap-2 items-end">
           <Field
             label="Size (px)"
@@ -88,7 +92,7 @@ export function SceneSettingsSection({ scene }: { scene: SceneDef }) {
               onChange={(e) => dispatch({ type: 'SET_SNAP_TO_GRID', enabled: e.target.checked })}
               className="accent-[var(--accent)]"
             />
-            Snap to grid
+            <span>Snap to grid</span>
           </label>
         </div>
       </div>
