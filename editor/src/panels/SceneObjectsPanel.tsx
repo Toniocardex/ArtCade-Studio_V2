@@ -53,17 +53,25 @@ function panelLog(message: string, level: ConsoleEntry['level']): ConsoleEntry {
   }
 }
 
+function deleteSceneButtonTitle(isStartScene: boolean, sceneCount: number): string {
+  if (isStartScene) return 'Start scene cannot be deleted'
+  if (sceneCount <= 1) return 'Project must keep at least one scene'
+  return 'Delete this scene'
+}
+
+type AddEntityButtonProps = Readonly<{
+  onClick: () => void
+  disabled?: boolean
+  className?: string
+  variant?: 'solid' | 'dashed'
+}>
+
 function AddEntityButton({
   onClick,
   disabled,
   className = '',
   variant = 'solid',
-}: {
-  onClick: () => void
-  disabled?: boolean
-  className?: string
-  variant?: 'solid' | 'dashed'
-}) {
+}: AddEntityButtonProps) {
   const base =
     variant === 'dashed'
       ? 'border border-dashed border-[var(--border-2)] text-[var(--muted)] hover:text-[var(--accent)] hover:border-[var(--accent-bd)] bg-transparent'
@@ -84,7 +92,11 @@ function AddEntityButton({
   )
 }
 
-function AddSceneButton({ onClick }: { onClick: () => void }) {
+type AddSceneButtonProps = Readonly<{
+  onClick: () => void
+}>
+
+function AddSceneButton({ onClick }: AddSceneButtonProps) {
   return (
     <button
       type="button"
@@ -100,7 +112,12 @@ function AddSceneButton({ onClick }: { onClick: () => void }) {
   )
 }
 
-function SectionLabel({ title, children }: { title: string; children?: ReactNode }) {
+type SectionLabelProps = Readonly<{
+  title: string
+  children?: ReactNode
+}>
+
+function SectionLabel({ title, children }: SectionLabelProps) {
   return (
     <div className="flex items-center justify-between gap-2 px-2 py-1.5">
       <div className="text-[9px] text-[var(--muted)] uppercase font-bold tracking-widest">
@@ -111,16 +128,27 @@ function SectionLabel({ title, children }: { title: string; children?: ReactNode
   )
 }
 
-function EntityRow({ entity, selected, hasLogic, onClick, onEditLogic, onToggleVisible, onDuplicate, onDelete }: {
-  entity:  EntityDef
+type EntityRowProps = Readonly<{
+  entity: EntityDef
   selected: boolean
   hasLogic: boolean
-  onClick:  () => void
+  onClick: () => void
   onEditLogic: () => void
   onToggleVisible: () => void
   onDuplicate: () => void
   onDelete: () => void
-}) {
+}>
+
+function EntityRow({
+  entity,
+  selected,
+  hasLogic,
+  onClick,
+  onEditLogic,
+  onToggleVisible,
+  onDuplicate,
+  onDelete,
+}: EntityRowProps) {
   const color = CLASS_COLOR[entity.className] ?? 'var(--muted)'
   const visible = entity.visible !== false
   const showRowActions = selected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
@@ -191,7 +219,7 @@ export default function SceneObjectsPanel() {
   const sceneId   = project ? selection.sceneId ?? project.activeSceneId : ''
   const scene     = project?.scenes[sceneId]
   const sceneCount = project ? Object.keys(project.scenes).length : 0
-  const isStartScene = Boolean(project && sceneId === project.activeSceneId)
+  const isStartScene = sceneId === project?.activeSceneId
   const canDeleteScene = Boolean(scene && sceneCount > 1 && !isStartScene)
   const entities  = project ? (scene?.entityIds ?? [])
     .map(id => project.entities[id])
@@ -219,7 +247,7 @@ export default function SceneObjectsPanel() {
 
   const deleteScene = useCallback(() => {
     if (!scene || !canDeleteScene) return
-    const ok = window.confirm(`Delete scene "${scene.name}" and its objects?`)
+    const ok = globalThis.confirm(`Delete scene "${scene.name}" and its objects?`)
     if (!ok) return
     dispatch({ type: 'SCENE_DELETE', sceneId: scene.id })
   }, [canDeleteScene, dispatch, scene])
@@ -246,8 +274,8 @@ export default function SceneObjectsPanel() {
       e.preventDefault()
       addEntity()
     }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+    globalThis.addEventListener('keydown', handleKeyDown)
+    return () => globalThis.removeEventListener('keydown', handleKeyDown)
   }, [mode, scene, addEntity])
 
   if (!project) {
@@ -333,13 +361,7 @@ export default function SceneObjectsPanel() {
             type="button"
             disabled={!canDeleteScene}
             onClick={deleteScene}
-            title={
-              isStartScene
-                ? 'Start scene cannot be deleted'
-                : sceneCount <= 1
-                  ? 'Project must keep at least one scene'
-                  : 'Delete this scene'
-            }
+            title={deleteSceneButtonTitle(isStartScene, sceneCount)}
             className="rounded border border-[var(--border-2)] px-2 py-1 text-[10px] font-semibold
                        text-[var(--muted)] hover:border-[var(--danger)] hover:text-[var(--danger)]
                        disabled:opacity-40 disabled:hover:text-[var(--muted)] disabled:hover:border-[var(--border-2)]"
@@ -354,7 +376,7 @@ export default function SceneObjectsPanel() {
           type="button"
           disabled={!project}
           onClick={() => {
-            const name = window.prompt('New object type name', 'Object')
+            const name = globalThis.prompt('New object type name', 'Object')
             if (!name?.trim()) return
             dispatch({ type: 'OBJECT_TYPE_ADD', displayName: name.trim() })
           }}
