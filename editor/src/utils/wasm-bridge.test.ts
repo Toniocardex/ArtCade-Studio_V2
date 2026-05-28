@@ -109,13 +109,13 @@ describe('editorReloadScript', () => {
       throw new Error('reload failed')
     })
     const { editorReloadScript } = await import('./wasm-bridge')
-    expect(editorReloadScript('function tick() end')).toBe(false)
+    expect(editorReloadScript('function tick() end')).toBe(-1)
   })
 
   it('returns true when ccall succeeds', async () => {
     vi.resetModules()
-    stubModule(() => undefined)
+    stubModule(() => 0)
     const { editorReloadScript } = await import('./wasm-bridge')
-    expect(editorReloadScript('function tick() end')).toBe(true)
+    expect(editorReloadScript('function tick() end')).toBe(0)
   })
 })

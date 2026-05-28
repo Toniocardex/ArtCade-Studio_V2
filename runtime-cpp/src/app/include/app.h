@@ -49,10 +49,19 @@ public:
     void applyEditorProjectLoaded(const std::vector<TilePaletteEntry>& tilePalette,
                                   const std::vector<TilesetAsset>&     tilesets,
                                   const ProjectRuntimeSettings&        settings);
-    /** Called from editor_restore_from_project — reset runtime, keep Lua. */
+    /** Called from editor_restore_from_project — reset runtime, restore design. */
     void applyEditorPreviewRestore(const std::vector<TilePaletteEntry>& tilePalette,
                                    const std::vector<TilesetAsset>&     tilesets,
                                    const ProjectRuntimeSettings&        settings);
+    /** Atomic PLAY: world sync + gameplay module reset (Lua set by editor-api). */
+    void applyEditorEnterPlay(const std::vector<TilePaletteEntry>& tilePalette,
+                              const std::vector<TilesetAsset>&     tilesets,
+                              const ProjectRuntimeSettings&        settings);
+    /** Atomic STOP: design restore + gameplay Lua (no empty stub). */
+    void applyEditorExitPlay(const std::vector<TilePaletteEntry>& tilePalette,
+                             const std::vector<TilesetAsset>&     tilesets,
+                             const ProjectRuntimeSettings&        settings,
+                             const std::string&                   luaSource);
     /** Shared reset for tween/audio/animator/event/layer/save/time/state/camera. */
     void resetGameplayRuntimeModules();
 #endif

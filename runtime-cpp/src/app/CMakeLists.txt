@@ -57,6 +57,8 @@ if(EMSCRIPTEN)
         "_editor_deselect"
         "_editor_load_project"
         "_editor_restore_from_project"
+        "_editor_enter_play_mode"
+        "_editor_exit_play_mode"
         "_editor_set_transform"
         "_editor_update_entity"
         "_editor_set_scene_settings"

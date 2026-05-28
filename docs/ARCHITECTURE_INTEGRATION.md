@@ -145,14 +145,15 @@ ArtCade V2 è costruito su **3 pilastri architetturali**:
 |------|---------------------|------------|---------------------|
 | **EDIT** | `0` | Frozen: render + gizmo/tile paint only; no `tickFixedStep` | Authoritative design state |
 | **PLAY** | `1` | Full fixed-step loop (Lua, physics, gameplay systems) | Immutable during play (incremental sync blocked) |
-| **STOP** | back to `0` | `editor_restore_from_project` + `editor_reload_script` | Reloaded into C++ from React store |
-| **Logic Board Apply** | implicit STOP if playing | Same restore sequence, then script hot-reload | Unchanged in Inspector |
+| **STOP** | back to `0` | `editor_exit_play_mode` (atomic) | Reloaded into C++ from React store |
+| **Logic Board Apply** | implicit STOP if playing | `exitPlaySession` when playing, else `applyMainLua` | Unchanged in Inspector |
 
-**STOP sequence** (`MenuBar` → `runtimeSync.restorePreviewFromProject`):
+**PLAY / STOP (atomic, `runtime-sync-service`)**:
 
-1. `editor_restore_from_project(JSON)` — `replaceProject` from ProjectDoc + reset tweens/audio/variables (Lua kept).
-2. `editor_reload_script(mainLua)` — compiled Logic Board / main script from editor buffers.
-3. Asset cache bust on React side so textures re-upload after C++ `unloadAll`.
+- **PLAY:** `editor_enter_play_mode(projectJson, mainLua, dialogsJson)` — world sync, dialogs, Lua, `s_mode = 1` in one C++ transaction.
+- **STOP:** `editor_exit_play_mode(projectJson, mainLua)` — design restore, design-time Lua, `s_mode = 0`.
+- **EDIT hot-sync:** `editor_load_project` no longer loads an empty Lua stub; `editor_reload_script` returns `EditorApiResult` (0 = ok).
+- React blocks `useRuntimeProjectSync` while `runtimeSync.isTransitioning()` to avoid racing STOP/PLAY.
 
 **C++ gate:** `app.cpp::loopIteration()` runs `dispatchInputEvents` and `tickFixedStep` only when `s_mode == 1` (WASM editor). Native game builds always simulate.
 

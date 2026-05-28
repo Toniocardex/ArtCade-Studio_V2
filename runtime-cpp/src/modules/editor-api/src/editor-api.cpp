@@ -22,6 +22,8 @@ Modules::Renderer*             EditorAPI::s_renderer      = nullptr;
 Modules::DialogManager*        EditorAPI::s_dialogManager = nullptr;
 EditorProjectLoadedHandler     EditorAPI::s_onProjectLoaded{};
 EditorPreviewRestoreHandler    EditorAPI::s_onPreviewRestore{};
+EditorEnterPlayHandler         EditorAPI::s_onEnterPlay{};
+EditorExitPlayHandler          EditorAPI::s_onExitPlay{};
 std::vector<std::pair<std::string, std::string>> EditorAPI::s_consoleQueue;
 
 } // namespace ArtCade
@@ -85,6 +87,8 @@ Modules::Renderer*             EditorAPI::s_renderer      = nullptr;
 Modules::DialogManager*        EditorAPI::s_dialogManager = nullptr;
 EditorProjectLoadedHandler     EditorAPI::s_onProjectLoaded{};
 EditorPreviewRestoreHandler    EditorAPI::s_onPreviewRestore{};
+EditorEnterPlayHandler         EditorAPI::s_onEnterPlay{};
+EditorExitPlayHandler          EditorAPI::s_onExitPlay{};
 std::vector<std::pair<std::string, std::string>> EditorAPI::s_consoleQueue;
 
 namespace {
@@ -130,6 +134,14 @@ void EditorAPI::setProjectLoadedHandler(EditorProjectLoadedHandler handler) {
 
 void EditorAPI::setPreviewRestoreHandler(EditorPreviewRestoreHandler handler) {
     s_onPreviewRestore = std::move(handler);
+}
+
+void EditorAPI::setEnterPlayHandler(EditorEnterPlayHandler handler) {
+    s_onEnterPlay = std::move(handler);
+}
+
+void EditorAPI::setExitPlayHandler(EditorExitPlayHandler handler) {
+    s_onExitPlay = std::move(handler);
 }
 
 // ── Init / Shutdown ───────────────────────────────────────────────────────────
@@ -272,23 +284,63 @@ EMSCRIPTEN_KEEPALIVE void editor_deselect() {
 
 namespace {
 
-enum class ProjectLoadKind { HotSync, PreviewRestore };
+enum class ProjectLoadKind { HotSync, PreviewRestore, EnterPlay, ExitPlay };
 
-void loadProjectFromJson(const char* json_utf8, ProjectLoadKind kind) {
-    const char* apiName = kind == ProjectLoadKind::HotSync
-        ? "editor_load_project"
-        : "editor_restore_from_project";
+/** Load dialog JSON; returns false if DialogManager missing. */
+bool loadDialogsFromJson(const char* json_utf8) {
+    auto* dm = ArtCade::EditorAPI::s_dialogManager;
+    if (!dm) return false;
+    if (!json_utf8) {
+        (void)dm->loadDialogGraphsJson("[]");
+        return true;
+    }
+    return dm->loadDialogGraphsJson(json_utf8);
+}
+
+int loadLuaFromUtf8(const char* lua_utf8) {
+    if (!lua_utf8 || !*lua_utf8) {
+        ArtCade::EditorAPI::notifyConsoleLine(
+            "[EditorAPI] empty Lua source.", "warn");
+        return ArtCade::kEditorApiLuaError;
+    }
+    auto* host = ArtCade::EditorAPI::s_luaHost;
+    if (!host) {
+        ArtCade::EditorAPI::notifyConsoleLine(
+            "[EditorAPI] LuaHost not wired yet.", "warn");
+        return ArtCade::kEditorApiNotWired;
+    }
+    if (host->loadLuaSource(lua_utf8)) {
+        ArtCade::EditorAPI::notifyConsoleLine(
+            "[EditorAPI] Logic Board hot-reloaded.", "info");
+        return ArtCade::kEditorApiOk;
+    }
+    std::string msg =
+        "[EditorAPI] Hot-reload failed: " + host->lastError();
+    ArtCade::EditorAPI::notifyConsoleLine(msg.c_str(), "error");
+    return ArtCade::kEditorApiLuaError;
+}
+
+/** @return true on success, false on parse/wire failure (sets console message). */
+bool loadProjectFromJson(const char* json_utf8, ProjectLoadKind kind,
+                         const std::string* exitPlayLua = nullptr) {
+    const char* apiName = "editor_load_project";
+    switch (kind) {
+    case ProjectLoadKind::HotSync:       apiName = "editor_load_project"; break;
+    case ProjectLoadKind::PreviewRestore: apiName = "editor_restore_from_project"; break;
+    case ProjectLoadKind::EnterPlay:     apiName = "editor_enter_play_mode"; break;
+    case ProjectLoadKind::ExitPlay:      apiName = "editor_exit_play_mode"; break;
+    }
 
     if (!json_utf8 || !*json_utf8) {
         std::string msg = std::string("[EditorAPI] ") + apiName + ": empty JSON.";
         ArtCade::EditorAPI::notifyConsoleLine(msg.c_str(), "warn");
-        return;
+        return false;
     }
     auto* gateway = ArtCade::EditorAPI::s_entityGateway;
     if (!gateway) {
         std::string msg = std::string("[EditorAPI] ") + apiName + ": engine not wired yet.";
         ArtCade::EditorAPI::notifyConsoleLine(msg.c_str(), "warn");
-        return;
+        return false;
     }
 
     namespace Parser = ArtCade::ProjectDocParser;
@@ -321,9 +373,19 @@ void loadProjectFromJson(const char* json_utf8, ProjectLoadKind kind) {
             if (ArtCade::EditorAPI::s_onProjectLoaded)
                 ArtCade::EditorAPI::s_onProjectLoaded(
                     tilePalette, tilesets, runtimeSettings);
-        } else if (ArtCade::EditorAPI::s_onPreviewRestore) {
-            ArtCade::EditorAPI::s_onPreviewRestore(
-                tilePalette, tilesets, runtimeSettings);
+        } else if (kind == ProjectLoadKind::PreviewRestore) {
+            if (ArtCade::EditorAPI::s_onPreviewRestore)
+                ArtCade::EditorAPI::s_onPreviewRestore(
+                    tilePalette, tilesets, runtimeSettings);
+        } else if (kind == ProjectLoadKind::EnterPlay) {
+            if (ArtCade::EditorAPI::s_onEnterPlay)
+                ArtCade::EditorAPI::s_onEnterPlay(
+                    tilePalette, tilesets, runtimeSettings);
+        } else if (kind == ProjectLoadKind::ExitPlay) {
+            const std::string lua = exitPlayLua ? *exitPlayLua : std::string{};
+            if (ArtCade::EditorAPI::s_onExitPlay)
+                ArtCade::EditorAPI::s_onExitPlay(
+                    tilePalette, tilesets, runtimeSettings, lua);
         }
 
         char buf[128];
@@ -331,28 +393,83 @@ void loadProjectFromJson(const char* json_utf8, ProjectLoadKind kind) {
             std::snprintf(buf, sizeof(buf),
                 "[EditorAPI] Project loaded: %zu entities, %zu scenes.",
                 entityDefs.size(), sceneDefs.size());
+        } else if (kind == ProjectLoadKind::EnterPlay) {
+            std::snprintf(buf, sizeof(buf),
+                "[EditorAPI] Enter play: %zu entities, %zu scenes.",
+                entityDefs.size(), sceneDefs.size());
+        } else if (kind == ProjectLoadKind::ExitPlay) {
+            std::snprintf(buf, sizeof(buf),
+                "[EditorAPI] Exit play: %zu entities, %zu scenes.",
+                entityDefs.size(), sceneDefs.size());
         } else {
             std::snprintf(buf, sizeof(buf),
                 "[EditorAPI] Preview restored: %zu entities, %zu scenes.",
                 entityDefs.size(), sceneDefs.size());
         }
         ArtCade::EditorAPI::notifyConsoleLine(buf, "info");
+        return true;
 
     } catch (const std::exception& ex) {
         char buf[256];
         std::snprintf(buf, sizeof(buf), "[EditorAPI] JSON parse error: %s", ex.what());
         ArtCade::EditorAPI::notifyConsoleLine(buf, "error");
+        return false;
     }
 }
 
 } // namespace
 
 EMSCRIPTEN_KEEPALIVE void editor_load_project(const char* json_utf8) {
-    loadProjectFromJson(json_utf8, ProjectLoadKind::HotSync);
+    (void)loadProjectFromJson(json_utf8, ProjectLoadKind::HotSync);
 }
 
 EMSCRIPTEN_KEEPALIVE void editor_restore_from_project(const char* json_utf8) {
-    loadProjectFromJson(json_utf8, ProjectLoadKind::PreviewRestore);
+    (void)loadProjectFromJson(json_utf8, ProjectLoadKind::PreviewRestore);
+}
+
+EMSCRIPTEN_KEEPALIVE int editor_enter_play_mode(
+    const char* project_json,
+    const char* lua_utf8,
+    const char* dialogs_json)
+{
+    if (!ArtCade::EditorAPI::s_entityGateway || !ArtCade::EditorAPI::s_luaHost)
+        return ArtCade::kEditorApiNotWired;
+
+    if (!loadProjectFromJson(project_json, ProjectLoadKind::EnterPlay))
+        return ArtCade::kEditorApiJsonError;
+
+    if (!loadDialogsFromJson(dialogs_json))
+        ArtCade::EditorAPI::notifyConsoleLine(
+            "[EditorAPI] editor_enter_play_mode: DialogManager not wired.", "warn");
+
+    const int luaResult = loadLuaFromUtf8(lua_utf8);
+    if (luaResult != ArtCade::kEditorApiOk)
+        return luaResult;
+
+    ArtCade::EditorAPI::s_mode = 1;
+    if (auto* gw = ArtCade::EditorAPI::s_entityGateway)
+        gw->applyDesignVisibilityForPlay();
+    ArtCade::EditorAPI::notifyConsoleLine("[EditorAPI] Mode: PLAY", "info");
+    return ArtCade::kEditorApiOk;
+}
+
+EMSCRIPTEN_KEEPALIVE int editor_exit_play_mode(
+    const char* project_json,
+    const char* lua_utf8)
+{
+    if (!ArtCade::EditorAPI::s_entityGateway)
+        return ArtCade::kEditorApiNotWired;
+
+    ArtCade::EditorAPI::s_mode = 0;
+    if (auto* gw = ArtCade::EditorAPI::s_entityGateway)
+        gw->restoreDesignVisibilityForEdit();
+
+    const std::string luaCopy = lua_utf8 ? lua_utf8 : std::string{};
+    if (!loadProjectFromJson(project_json, ProjectLoadKind::ExitPlay, &luaCopy))
+        return ArtCade::kEditorApiJsonError;
+
+    ArtCade::EditorAPI::notifyConsoleLine("[EditorAPI] Mode: EDIT", "info");
+    return ArtCade::kEditorApiOk;
 }
 
 EMSCRIPTEN_KEEPALIVE void editor_set_transform(
@@ -455,27 +572,8 @@ EMSCRIPTEN_KEEPALIVE void editor_set_scene_settings(
     }
 }
 
-EMSCRIPTEN_KEEPALIVE void editor_reload_script(const char* lua_utf8) {
-    if (!lua_utf8 || !*lua_utf8) {
-        ArtCade::EditorAPI::notifyConsoleLine(
-            "[EditorAPI] editor_reload_script: empty source.", "warn");
-        return;
-    }
-    auto* host = ArtCade::EditorAPI::s_luaHost;
-    if (!host) {
-        ArtCade::EditorAPI::notifyConsoleLine(
-            "[EditorAPI] editor_reload_script: LuaHost not wired yet.", "warn");
-        return;
-    }
-
-    if (host->loadLuaSource(lua_utf8)) {
-        ArtCade::EditorAPI::notifyConsoleLine(
-            "[EditorAPI] Logic Board hot-reloaded.", "info");
-    } else {
-        std::string msg =
-            "[EditorAPI] Hot-reload failed: " + host->lastError();
-        ArtCade::EditorAPI::notifyConsoleLine(msg.c_str(), "error");
-    }
+EMSCRIPTEN_KEEPALIVE int editor_reload_script(const char* lua_utf8) {
+    return loadLuaFromUtf8(lua_utf8);
 }
 
 EMSCRIPTEN_KEEPALIVE void editor_load_dialogs(const char* json_utf8) {

@@ -256,6 +256,19 @@ bool Application::initSubsystems() {
                const ProjectRuntimeSettings&        settings) {
             applyEditorPreviewRestore(palette, tilesets, settings);
         });
+    EditorAPI::setEnterPlayHandler(
+        [this](const std::vector<TilePaletteEntry>& palette,
+               const std::vector<TilesetAsset>&     tilesets,
+               const ProjectRuntimeSettings&        settings) {
+            applyEditorEnterPlay(palette, tilesets, settings);
+        });
+    EditorAPI::setExitPlayHandler(
+        [this](const std::vector<TilePaletteEntry>& palette,
+               const std::vector<TilesetAsset>&     tilesets,
+               const ProjectRuntimeSettings&        settings,
+               const std::string&                   luaSource) {
+            applyEditorExitPlay(palette, tilesets, settings, luaSource);
+        });
 #endif
 
     return true;
@@ -295,11 +308,6 @@ void Application::applyRuntimeSettings(const ProjectRuntimeSettings& settings,
 }
 
 #ifdef ARTCADE_WASM
-namespace {
-const char kEmptyEditorLua[] =
-    "function tick(dt)\n"
-    "end\n";
-}
 
 void Application::applyEditorProjectCommon(
     const std::vector<TilePaletteEntry>& tilePalette,
@@ -350,9 +358,6 @@ void Application::applyEditorProjectLoaded(
     if (mod_->dialogManager && mod_->assetLoader)
         mod_->dialogManager->loadDialogsFromDirectory(mod_->assetLoader->projectRoot());
 
-    if (mod_->luaHost)
-        mod_->luaHost->loadLuaSource(kEmptyEditorLua);
-
     resetGameplayRuntimeModules();
 
     if (mod_->world)
@@ -367,11 +372,37 @@ void Application::applyEditorPreviewRestore(
     applyEditorProjectCommon(tilePalette, tilesets);
     applyRuntimeSettings(settings, ViewportPolicy::EditorPreview);
 
-    // Load empty stub immediately so the play-mode tick cannot run against the
-    // restored entity pool. JS will hot-reload the real design-time Lua via
-    // editorReloadScript right after this call completes.
-    if (mod_->luaHost)
-        mod_->luaHost->loadLuaSource(kEmptyEditorLua);
+    resetGameplayRuntimeModules();
+
+    if (mod_->world)
+        mod_->world->restoreDesignState(tilePalette);
+}
+
+void Application::applyEditorEnterPlay(
+    const std::vector<TilePaletteEntry>& tilePalette,
+    const std::vector<TilesetAsset>&     tilesets,
+    const ProjectRuntimeSettings&        settings)
+{
+    applyEditorProjectCommon(tilePalette, tilesets);
+    applyRuntimeSettings(settings, ViewportPolicy::NativePlay);
+
+    resetGameplayRuntimeModules();
+
+    if (mod_->world)
+        mod_->world->syncAfterEditorProject(tilePalette);
+}
+
+void Application::applyEditorExitPlay(
+    const std::vector<TilePaletteEntry>& tilePalette,
+    const std::vector<TilesetAsset>&     tilesets,
+    const ProjectRuntimeSettings&        settings,
+    const std::string&                   luaSource)
+{
+    applyEditorProjectCommon(tilePalette, tilesets);
+    applyRuntimeSettings(settings, ViewportPolicy::EditorPreview);
+
+    if (mod_->luaHost && !luaSource.empty())
+        mod_->luaHost->loadLuaSource(luaSource);
 
     resetGameplayRuntimeModules();
 

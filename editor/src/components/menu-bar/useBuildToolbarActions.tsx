@@ -7,7 +7,7 @@ import {
   ensureDependencies,
 } from '../../utils/api'
 import { dirName } from '../../utils/project'
-import { runtimeSync } from '../../utils/runtime-sync-service'
+import { runtimeSync, messageForEditorApiCode } from '../../utils/runtime-sync-service'
 import {
   logLogicBoardCompileFailure,
   resolvePreviewMainLua,
@@ -78,15 +78,15 @@ export function useBuildToolbarActions({
       if (project) {
         const activeSceneId = selectionSceneId ?? project.activeSceneId
         const mainLua = resolvePreviewMainLua({ project, openScripts, projectPath })
-        const ok = runtimeSync.restorePreviewFromProject(
+        const stopResult = runtimeSync.exitPlaySession(
           project, activeSceneId, mainLua, dialogs, projectPath,
         )
-        if (!ok) {
+        if (!stopResult.ok) {
           dispatch({
             type: 'LOG',
             entry: makeConsoleEntry(
-              '[Preview] Runtime not ready — open Canvas preview first.',
-              'warn',
+              `[Preview] Stop failed: ${stopResult.message ?? messageForEditorApiCode(stopResult.code)}`,
+              'error',
             ),
           })
         }
@@ -99,12 +99,16 @@ export function useBuildToolbarActions({
           projectPath,
         })
         logLogicBoardCompileFailure(dispatch, compileError, makeConsoleEntry)
-        if (!runtimeSync.preparePlaySession(mainLua, dialogs)) {
+        const activeSceneId = selectionSceneId ?? project.activeSceneId
+        const playResult = runtimeSync.enterPlaySession(
+          project, activeSceneId, mainLua, dialogs, projectPath,
+        )
+        if (!playResult.ok) {
           dispatch({
             type: 'LOG',
             entry: makeConsoleEntry(
-              '[Preview] Runtime not ready — open Canvas preview first.',
-              'warn',
+              `[Preview] Play failed: ${playResult.message ?? messageForEditorApiCode(playResult.code)}`,
+              'error',
             ),
           })
           return

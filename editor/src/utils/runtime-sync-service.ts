@@ -23,6 +23,10 @@ import {
   editorLoadDialogs,
   editorRestoreFromProject,
   editorReloadScript,
+  editorEnterPlayMode,
+  editorExitPlayMode,
+  EditorApiResult,
+  EDITOR_API_CCALL_FAILED,
   peekWasmBridgeLastError,
   editorSelectEntity,
   editorSetGridSize,
@@ -33,7 +37,7 @@ import {
   editorSetTool,
   editorSetTransform,
   editorUpdateEntity,
-  isReady,
+  isReady as isWasmReady,
 } from './wasm-bridge'
 import {
   projectJsonForRuntime,
@@ -55,6 +59,31 @@ export interface ApplyMainLuaResult {
   status: ApplyMainLuaStatus
   /** Present for `not_ready` and `failed`. */
   message?: string
+}
+
+export interface PlayTransitionResult {
+  ok: boolean
+  /** C++ EditorApiResult or EDITOR_API_CCALL_FAILED. */
+  code: number
+  message?: string
+}
+
+export function messageForEditorApiCode(code: number): string {
+  if (code === EDITOR_API_CCALL_FAILED) {
+    return peekWasmBridgeLastError() ?? 'WASM call failed.'
+  }
+  switch (code) {
+    case EditorApiResult.Ok:
+      return ''
+    case EditorApiResult.JsonError:
+      return 'Project could not be applied to the runtime.'
+    case EditorApiResult.LuaError:
+      return 'Lua script failed to load (see console for details).'
+    case EditorApiResult.NotWired:
+      return 'WASM runtime is not ready yet.'
+    default:
+      return `Runtime error (code ${code}).`
+  }
 }
 
 export type EditorTool = 'select' | 'pan' | 'paint' | 'erase' | 'tile'
@@ -129,7 +158,23 @@ class RuntimeSyncServiceImpl {
   // Seed from the actual bridge state so a Vite HMR rehydration (wasm
   // already alive when this module is re-evaluated) does NOT trigger a
   // duplicate "false → true" broadcast on the next genuine onReady.
-  private lastReadyEmitted:   boolean = isReady()
+  private lastReadyEmitted:   boolean = isWasmReady()
+  private transitionDepth = 0
+  private lastScriptReloadMessage: string | null = null
+
+  /** True while PLAY/STOP/restore runs — blocks competing project sync from React effects. */
+  isTransitioning(): boolean {
+    return this.transitionDepth > 0
+  }
+
+  private runTransition<T>(fn: () => T): T {
+    this.transitionDepth++
+    try {
+      return fn()
+    } finally {
+      this.transitionDepth--
+    }
+  }
 
   /** Forget every cached "last sent" value. Use on project open / runtime reload. */
   reset(): void {
@@ -162,13 +207,13 @@ class RuntimeSyncServiceImpl {
    */
   onReadyChange(cb: (ready: boolean) => void): () => void {
     this.readyListeners.add(cb)
-    cb(isReady())
+    cb(isWasmReady())
     return () => { this.readyListeners.delete(cb) }
   }
 
   /** Called from the wasm-bridge `onReady` (or any path that toggles ready). */
   notifyReadyChanged(): void {
-    const now = isReady()
+    const now = isWasmReady()
     if (now === this.lastReadyEmitted) return
     this.lastReadyEmitted = now
     for (const cb of this.readyListeners) cb(now)
@@ -185,25 +230,85 @@ class RuntimeSyncServiceImpl {
     dialogs?: Record<string, DialogScript>,
     projectPath?: string | null,
   ): boolean {
-    if (!isReady()) return false
-    editorSetMode(0)
-    this.reset()
-    this.lastMode = 0
-    editorRestoreFromProject(projectJsonForRuntime(project, activeSceneId))
-    this.syncDialogs(dialogs ?? {})
-    if (this.reloadMainLuaIfChanged(mainLua, { force: true }) === 'failed') return false
-    // Latch so the STOP-triggered useRuntimeProjectSync does not run a redundant
-    // editor_load_project (C++ resets Lua to an empty stub; see applyEditorProjectLoaded).
-    const projection = runtimeProjectProjection(project, activeSceneId)
-    const loadKey = `${projectPath ?? ''}|${JSON.stringify(projection)}`
-    this.latchProjectProjection(loadKey, projection)
-    this.assetCacheInvalidator?.()
-    return true
+    return this.exitPlaySession(project, activeSceneId, mainLua, dialogs, projectPath).ok
+  }
+
+  /**
+   * Atomic STOP: C++ restores design state and loads design-time Lua in one transaction.
+   */
+  exitPlaySession(
+    project: ProjectDoc,
+    activeSceneId: string,
+    mainLua: string,
+    dialogs?: Record<string, DialogScript>,
+    projectPath?: string | null,
+  ): PlayTransitionResult {
+    return this.runTransition(() => {
+      if (!isWasmReady()) {
+        return {
+          ok: false,
+          code: EditorApiResult.NotWired,
+          message: messageForEditorApiCode(EditorApiResult.NotWired),
+        }
+      }
+      const code = editorExitPlayMode(
+        projectJsonForRuntime(project, activeSceneId),
+        mainLua,
+      )
+      if (code !== EditorApiResult.Ok) {
+        return { ok: false, code, message: messageForEditorApiCode(code) }
+      }
+      this.reset()
+      this.lastMode = 0
+      this.lastMainLua = mainLua
+      this.syncDialogs(dialogs ?? {})
+      const projection = runtimeProjectProjection(project, activeSceneId)
+      const loadKey = `${projectPath ?? ''}|${JSON.stringify(projection)}`
+      this.latchProjectProjection(loadKey, projection)
+      this.assetCacheInvalidator?.()
+      return { ok: true, code: EditorApiResult.Ok }
+    })
+  }
+
+  /**
+   * Atomic PLAY: sync project, dialogs, Lua, and enter simulation mode in one transaction.
+   */
+  enterPlaySession(
+    project: ProjectDoc,
+    activeSceneId: string,
+    mainLua: string,
+    dialogs: Record<string, DialogScript>,
+    projectPath?: string | null,
+  ): PlayTransitionResult {
+    return this.runTransition(() => {
+      if (!isWasmReady()) {
+        return {
+          ok: false,
+          code: EditorApiResult.NotWired,
+          message: messageForEditorApiCode(EditorApiResult.NotWired),
+        }
+      }
+      const code = editorEnterPlayMode(
+        projectJsonForRuntime(project, activeSceneId),
+        mainLua,
+        dialogsJsonForRuntime(dialogs),
+      )
+      if (code !== EditorApiResult.Ok) {
+        return { ok: false, code, message: messageForEditorApiCode(code) }
+      }
+      this.lastMainLua = mainLua
+      this.lastMode = 1
+      const projection = runtimeProjectProjection(project, activeSceneId)
+      const loadKey = `${projectPath ?? ''}|${JSON.stringify(projection)}`
+      this.latchProjectProjection(loadKey, projection)
+      this.lastDialogsKey = dialogsJsonForRuntime(dialogs)
+      return { ok: true, code: EditorApiResult.Ok }
+    })
   }
 
   /** Push dialog graphs compiled from the editor library into the WASM runtime. */
   syncDialogs(dialogs: Record<string, DialogScript>): boolean {
-    if (!isReady()) return false
+    if (!isWasmReady()) return false
     const payload = dialogsJsonForRuntime(dialogs)
     if (payload === this.lastDialogsKey) return false
     this.lastDialogsKey = payload
@@ -215,24 +320,12 @@ class RuntimeSyncServiceImpl {
    * Before PLAY: hot-reload main Lua + dialog graphs (logic board edits do not
    * change the project fingerprint, so preview would otherwise keep a stub).
    */
-  preparePlaySession(
-    mainLua: string,
-    dialogs: Record<string, DialogScript>,
-  ): boolean {
-    if (!isReady()) return false
-    this.syncDialogs(dialogs)
-    // C++ may still hold the empty editor stub after a full project load; always push
-    // gameplay Lua when entering PLAY.
-    if (this.reloadMainLuaIfChanged(mainLua, { force: true }) === 'failed') return false
-    return true
-  }
-
   /**
    * Hot-reload main Lua from Logic Board Apply or script saves.
    * Updates the internal cache so later syncProject does not skip reload.
    */
   applyMainLua(mainLua: string): ApplyMainLuaResult {
-    if (!isReady()) {
+    if (!isWasmReady()) {
       return {
         status: 'not_ready',
         message: 'WASM runtime is not ready yet.',
@@ -243,7 +336,7 @@ class RuntimeSyncServiceImpl {
     if (outcome === 'failed') {
       return {
         status: 'failed',
-        message: peekWasmBridgeLastError() ?? 'Script hot-reload failed.',
+        message: this.lastScriptReloadMessage ?? 'Script hot-reload failed.',
       }
     }
     return { status: 'reloaded' }
@@ -255,11 +348,14 @@ class RuntimeSyncServiceImpl {
     opts?: { force?: boolean },
   ): 'reloaded' | 'unchanged' | 'failed' {
     if (!opts?.force && mainLua === this.lastMainLua) return 'unchanged'
-    if (editorReloadScript(mainLua) === false) {
-      const detail = peekWasmBridgeLastError() ?? 'editor_reload_script failed'
+    const code = editorReloadScript(mainLua)
+    if (code === EDITOR_API_CCALL_FAILED || code !== EditorApiResult.Ok) {
+      const detail = messageForEditorApiCode(code)
+      this.lastScriptReloadMessage = detail
       console.warn('[runtime-sync] Script hot-reload failed:', detail)
       return 'failed'
     }
+    this.lastScriptReloadMessage = null
     this.lastMainLua = mainLua
     return 'reloaded'
   }
@@ -300,7 +396,7 @@ class RuntimeSyncServiceImpl {
 
   /** True if the runtime is ready to accept commands. */
   isReady(): boolean {
-    return isReady()
+    return isWasmReady()
   }
 
   // ── Project ────────────────────────────────────────────────────────────────
@@ -319,7 +415,7 @@ class RuntimeSyncServiceImpl {
     projectPath: string | null,
     options?: SyncProjectOptions,
   ): boolean {
-    if (!isReady()) return false
+    if (!isWasmReady()) return false
     let didWork = false
     if (options?.dialogs && this.syncDialogs(options.dialogs)) didWork = true
     if (options?.mainLua && this.reloadMainLuaIfChanged(options.mainLua) === 'reloaded') {
@@ -337,7 +433,7 @@ class RuntimeSyncServiceImpl {
       this.latchProjectProjection(loadKey, projection)
       editorLoadProject(projectJsonForRuntime(project, activeSceneId))
       // C++ load resets Lua to an empty stub; always follow with the real script.
-      if (options?.mainLua && this.reloadMainLuaIfChanged(options.mainLua, { force: true }) === 'failed') {
+      if (options?.mainLua && this.reloadMainLuaIfChanged(options.mainLua) === 'failed') {
         return false
       }
       return true
@@ -356,7 +452,7 @@ class RuntimeSyncServiceImpl {
   // ── Mode / selection / chrome / tool ──────────────────────────────────────
 
   syncPlayMode(isPlaying: boolean): void {
-    if (!isReady()) return
+    if (!isWasmReady()) return
     const next: 0 | 1 = isPlaying ? 1 : 0
     if (this.lastMode === next) return
     this.lastMode = next
@@ -364,7 +460,7 @@ class RuntimeSyncServiceImpl {
   }
 
   syncSelection(entityId: number | null): void {
-    if (!isReady()) return
+    if (!isWasmReady()) return
     if (this.lastSelection === entityId) return
     this.lastSelection = entityId
     if (entityId == null) editorDeselect()
@@ -372,7 +468,7 @@ class RuntimeSyncServiceImpl {
   }
 
   syncEditorTool(tool: EditorTool, selectedTileCell: number): void {
-    if (!isReady()) return
+    if (!isWasmReady()) return
     if (this.lastTool !== tool) {
       this.lastTool = tool
       editorSetTool(TOOL_ID[tool])
@@ -388,7 +484,7 @@ class RuntimeSyncServiceImpl {
   }
 
   syncEditorChrome(state: EditorChromeState): void {
-    if (!isReady()) return
+    if (!isWasmReady()) return
     const guidesEffective = state.guides && !state.isPlaying
     if (this.lastGuides !== guidesEffective) {
       this.lastGuides = guidesEffective
@@ -411,7 +507,7 @@ class RuntimeSyncServiceImpl {
    * Returns true when a sync was performed.
    */
   syncEntityTransform(snap: EntityTransformSnapshot): boolean {
-    if (!isReady()) return false
+    if (!isWasmReady()) return false
     const prev = this.lastTransform.get(snap.entityId)
     if (prev && sameTransform(prev, snap)) return false
     this.lastTransform.set(snap.entityId, snap)
@@ -455,7 +551,7 @@ export type RuntimeSyncService = RuntimeSyncServiceImpl
  * Preview's local state.
  */
 export function useRuntimeReady(): boolean {
-  const [ready, setReady] = useState(() => isReady())
+  const [ready, setReady] = useState(() => isWasmReady())
   useEffect(() => runtimeSync.onReadyChange(setReady), [])
   return ready
 }

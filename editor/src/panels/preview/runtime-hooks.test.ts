@@ -10,9 +10,11 @@ vi.mock('../../utils/wasm-bridge', () => ({
 }))
 
 const syncProjectMock = vi.fn()
+const isTransitioningMock = vi.fn(() => false)
 vi.mock('../../utils/runtime-sync-service', () => ({
   runtimeSync: {
     syncProject: syncProjectMock,
+    isTransitioning: isTransitioningMock,
     syncPlayMode: vi.fn(),
     syncSelection: vi.fn(),
     syncEditorTool: vi.fn(),
@@ -91,5 +93,24 @@ describe('performRuntimeProjectSync', () => {
       '/tmp/p/project.json',
       expect.objectContaining({ mainLua: 'function tick(dt) end' }),
     )
+  })
+
+  it('skips sync while runtime transition is in progress', () => {
+    syncProjectMock.mockClear()
+    isTransitioningMock.mockReturnValue(true)
+    performRuntimeProjectSync({
+      project: makeProject() as never,
+      projectPath: null,
+      openScripts: [],
+      dialogs: {},
+      selectionSceneId: 'a',
+      wasmReady: true,
+      engineReady: true,
+      isPlaying: false,
+      dispatch: vi.fn(),
+      makeLogEntry: () => ({ id: 0, time: '', message: '', level: 'info' }),
+    })
+    expect(syncProjectMock).not.toHaveBeenCalled()
+    isTransitioningMock.mockReturnValue(false)
   })
 })

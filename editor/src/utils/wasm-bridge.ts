@@ -74,6 +74,17 @@ export function peekWasmBridgeLastError(): string | null {
   return _lastBridgeError
 }
 
+/** Mirrors C++ `ArtCade::EditorApiResult`. */
+export const EditorApiResult = {
+  Ok: 0,
+  JsonError: 1,
+  LuaError: 2,
+  NotWired: 3,
+} as const
+
+/** `ccall` transport failure (distinct from C++ return codes). */
+export const EDITOR_API_CCALL_FAILED = -1
+
 /**
  * True only after Emscripten finished startup (onRuntimeInitialized + main).
  * `ccall` exists earlier — calling exports before `calledRun` throws "func is not a function".
@@ -356,6 +367,46 @@ function safeCall(
   }
 }
 
+function safeCcallNumber(
+  name:     string,
+  argTypes: string[],
+  args:     unknown[],
+): number {
+  if (!_module?.ccall || !_module.calledRun) {
+    _lastBridgeError = 'WASM runtime is not initialized (ccall unavailable).'
+    return EDITOR_API_CCALL_FAILED
+  }
+  try {
+    const value = _module.ccall(name, 'number', argTypes, args) as number
+    _lastBridgeError = null
+    return value
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err)
+    _lastBridgeError = `Runtime call '${name}' failed: ${detail}`
+    console.warn(`[wasm-bridge] ccall('${name}') failed:`, err)
+    return EDITOR_API_CCALL_FAILED
+  }
+}
+
+function marshalThreeStrings(
+  a: string,
+  b: string,
+  c: string,
+): { ptrs: [number, number, number]; free: () => void } {
+  if (!_module) throw new Error('[wasm-bridge] Module not loaded')
+  const ptrA = marshalString(a)
+  const ptrB = marshalString(b)
+  const ptrC = marshalString(c)
+  return {
+    ptrs: [ptrA, ptrB, ptrC],
+    free: () => {
+      _module!._free(ptrA)
+      _module!._free(ptrB)
+      _module!._free(ptrC)
+    },
+  }
+}
+
 // ---------------------------------------------------------------------------
 // React → C++ command wrappers
 // ---------------------------------------------------------------------------
@@ -392,16 +443,51 @@ export function editorRestoreFromProject(projectJson: string): void {
   }
 }
 
-export function editorReloadScript(luaSource: string): boolean {
+/** @returns EditorApiResult, or EDITOR_API_CCALL_FAILED on transport error. */
+export function editorReloadScript(luaSource: string): number {
   if (!_module) {
     _lastBridgeError = 'WASM module is not loaded.'
-    return false
+    return EDITOR_API_CCALL_FAILED
   }
   const ptr = marshalString(luaSource)
   try {
-    return safeCall('editor_reload_script', null, ['number'], [ptr])
+    return safeCcallNumber('editor_reload_script', ['number'], [ptr])
   } finally {
     _module._free(ptr)
+  }
+}
+
+/** Atomic PLAY — project JSON, main Lua, dialog library JSON. */
+export function editorEnterPlayMode(
+  projectJson: string,
+  luaSource: string,
+  dialogsJson: string,
+): number {
+  if (!_module) {
+    _lastBridgeError = 'WASM module is not loaded.'
+    return EDITOR_API_CCALL_FAILED
+  }
+  const { ptrs, free } = marshalThreeStrings(projectJson, luaSource, dialogsJson)
+  try {
+    return safeCcallNumber('editor_enter_play_mode', ['number', 'number', 'number'], ptrs)
+  } finally {
+    free()
+  }
+}
+
+/** Atomic STOP — restore design project JSON + design-time Lua. */
+export function editorExitPlayMode(projectJson: string, luaSource: string): number {
+  if (!_module) {
+    _lastBridgeError = 'WASM module is not loaded.'
+    return EDITOR_API_CCALL_FAILED
+  }
+  const ptrProject = marshalString(projectJson)
+  const ptrLua = marshalString(luaSource)
+  try {
+    return safeCcallNumber('editor_exit_play_mode', ['number', 'number'], [ptrProject, ptrLua])
+  } finally {
+    _module._free(ptrProject)
+    _module._free(ptrLua)
   }
 }
 

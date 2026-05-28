@@ -225,6 +225,7 @@ export function performRuntimeProjectSync(opts: ProjectSyncOptions): void {
     dispatch, makeLogEntry,
   } = opts
   if (!shouldSyncProjectToRuntime({ wasmReady, engineReady, project, isPlaying })) return
+  if (runtimeSync.isTransitioning()) return
   const runtimeSceneId = selectionSceneId ?? project!.activeSceneId
   const { lua: mainLua, compileError } = resolvePreviewMainLuaWithStatus({
     project: project!,

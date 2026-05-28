@@ -14,7 +14,11 @@ vi.mock('./wasm-bridge', () => {
     editorLoadProject:        vi.fn(),
     editorLoadDialogs:        vi.fn(),
     editorRestoreFromProject: vi.fn(),
-    editorReloadScript:       vi.fn(),
+    editorReloadScript:       vi.fn(() => 0),
+    editorEnterPlayMode:      vi.fn(() => 0),
+    editorExitPlayMode:       vi.fn(() => 0),
+    EditorApiResult: { Ok: 0, JsonError: 1, LuaError: 2, NotWired: 3 },
+    EDITOR_API_CCALL_FAILED: -1,
     editorSetMode:            vi.fn(),
     editorSelectEntity:       vi.fn(),
     editorDeselect:           vi.fn(),
@@ -67,6 +71,11 @@ describe('RuntimeSyncService', () => {
     vi.mocked(bridge.editorLoadDialogs).mockReset()
     vi.mocked(bridge.editorRestoreFromProject).mockReset()
     vi.mocked(bridge.editorReloadScript).mockReset()
+    vi.mocked(bridge.editorReloadScript).mockReturnValue(0)
+    vi.mocked(bridge.editorEnterPlayMode).mockReset()
+    vi.mocked(bridge.editorEnterPlayMode).mockReturnValue(0)
+    vi.mocked(bridge.editorExitPlayMode).mockReset()
+    vi.mocked(bridge.editorExitPlayMode).mockReturnValue(0)
     vi.mocked(bridge.editorSetMode).mockReset()
     vi.mocked(bridge.editorSelectEntity).mockReset()
     vi.mocked(bridge.editorDeselect).mockReset()
@@ -261,72 +270,59 @@ describe('RuntimeSyncService', () => {
     expect(bridge.editorSetMode).toHaveBeenCalledTimes(2)
   })
 
-  it('restorePreviewFromProject sets EDIT mode before restore and reload', () => {
+  it('exitPlaySession calls atomic editor_exit_play_mode and latches projection', () => {
     const p = makeProject()
     const invalidator = vi.fn()
     runtimeSync.setAssetCacheInvalidator(invalidator)
     runtimeSync.syncProject(p as never, 'a', '/tmp/x')
-    vi.mocked(bridge.editorSetMode).mockClear()
-    vi.mocked(bridge.editorRestoreFromProject).mockClear()
-    vi.mocked(bridge.editorReloadScript).mockClear()
-    expect(runtimeSync.restorePreviewFromProject(p as never, 'a', 'function tick(dt) end', {}, '/tmp/x')).toBe(true)
-    expect(bridge.editorSetMode).toHaveBeenCalledWith(0)
-    expect(bridge.editorRestoreFromProject).toHaveBeenCalledTimes(1)
-    expect(bridge.editorReloadScript).toHaveBeenCalledWith('function tick(dt) end')
+    vi.mocked(bridge.editorExitPlayMode).mockClear()
+    expect(runtimeSync.exitPlaySession(p as never, 'a', 'function tick(dt) end', {}, '/tmp/x').ok).toBe(true)
+    expect(bridge.editorExitPlayMode).toHaveBeenCalledTimes(1)
     expect(invalidator).toHaveBeenCalledTimes(1)
-    const setModeOrder = vi.mocked(bridge.editorSetMode).mock.invocationCallOrder[0]
-    const restoreOrder = vi.mocked(bridge.editorRestoreFromProject).mock.invocationCallOrder[0]
-    const reloadOrder = vi.mocked(bridge.editorReloadScript).mock.invocationCallOrder[0]
-    expect(setModeOrder).toBeLessThan(restoreOrder)
-    expect(restoreOrder).toBeLessThan(reloadOrder)
-    // Projection is latched after STOP so the follow-up sync does not full-load (stub Lua).
     vi.mocked(bridge.editorLoadProject).mockClear()
     expect(runtimeSync.syncProject(p as never, 'a', '/tmp/x')).toBe(false)
     expect(bridge.editorLoadProject).not.toHaveBeenCalled()
   })
 
-  it('preparePlaySession always reloads Lua even when source unchanged', () => {
-    const lua = 'function tick(dt) end'
-    runtimeSync.syncProject(makeProject() as never, 'a', '/tmp/x', { mainLua: lua })
-    vi.mocked(bridge.editorReloadScript).mockClear()
-    expect(runtimeSync.preparePlaySession(lua, {})).toBe(true)
-    expect(bridge.editorReloadScript).toHaveBeenCalledWith(lua)
-  })
-
-  it('after STOP restore, syncProject does not full-load and wipe Lua', () => {
+  it('enterPlaySession calls atomic editor_enter_play_mode', () => {
     const p = makeProject()
     const lua = 'function tick(dt) end'
-    const path = '/tmp/proj'
-    runtimeSync.syncProject(p as never, 'a', path, { mainLua: lua })
-    vi.mocked(bridge.editorLoadProject).mockClear()
-    vi.mocked(bridge.editorReloadScript).mockClear()
-    expect(runtimeSync.restorePreviewFromProject(p as never, 'a', lua, {}, path)).toBe(true)
-    vi.mocked(bridge.editorReloadScript).mockClear()
-    runtimeSync.syncProject(p as never, 'a', path, { mainLua: lua })
-    expect(bridge.editorLoadProject).not.toHaveBeenCalled()
-    expect(bridge.editorReloadScript).not.toHaveBeenCalled()
+    vi.mocked(bridge.editorEnterPlayMode).mockClear()
+    expect(runtimeSync.enterPlaySession(p as never, 'a', lua, {}).ok).toBe(true)
+    expect(bridge.editorEnterPlayMode).toHaveBeenCalledTimes(1)
   })
 
-  it('preparePlaySession returns false when runtime is not ready', () => {
-    vi.mocked(bridge.isReady).mockReturnValue(false)
-    expect(runtimeSync.preparePlaySession('function tick(dt) end', {})).toBe(false)
+  it('enterPlaySession returns failure when atomic play fails', () => {
+    vi.mocked(bridge.editorEnterPlayMode).mockReturnValue(2)
+    const result = runtimeSync.enterPlaySession(makeProject() as never, 'a', 'x', {})
+    expect(result.ok).toBe(false)
+    expect(result.code).toBe(2)
+    vi.mocked(bridge.editorEnterPlayMode).mockReturnValue(0)
   })
 
-  it('restorePreviewFromProject returns false when runtime is not ready', () => {
+  it('enterPlaySession returns not_ready when runtime is not ready', () => {
+    runtimeSync.reset()
     vi.mocked(bridge.isReady).mockReturnValue(false)
-    expect(runtimeSync.restorePreviewFromProject(makeProject() as never, 'a', 'x')).toBe(false)
-    expect(bridge.editorRestoreFromProject).not.toHaveBeenCalled()
+    expect(runtimeSync.enterPlaySession(makeProject() as never, 'a', 'x', {}).ok).toBe(false)
+    vi.mocked(bridge.isReady).mockReturnValue(true)
+  })
+
+  it('exitPlaySession returns false when runtime is not ready', () => {
+    vi.mocked(bridge.isReady).mockReturnValue(false)
+    expect(runtimeSync.exitPlaySession(makeProject() as never, 'a', 'x').ok).toBe(false)
+    expect(bridge.editorExitPlayMode).not.toHaveBeenCalled()
+    vi.mocked(bridge.isReady).mockReturnValue(true)
   })
 
   it('applyMainLua does not cache Lua when editorReloadScript fails', () => {
     runtimeSync.reset()
-    vi.mocked(bridge.editorReloadScript).mockReturnValue(false)
+    vi.mocked(bridge.editorReloadScript).mockReturnValue(2)
     expect(runtimeSync.applyMainLua('function tick(dt) end')).toEqual({
       status: 'failed',
-      message: 'mock bridge error',
+      message: expect.stringContaining('Lua script failed'),
     })
 
-    vi.mocked(bridge.editorReloadScript).mockReturnValue(true)
+    vi.mocked(bridge.editorReloadScript).mockReturnValue(0)
     expect(runtimeSync.applyMainLua('function tick(dt) end')).toEqual({ status: 'reloaded' })
     vi.mocked(bridge.editorReloadScript).mockClear()
     expect(runtimeSync.applyMainLua('function tick(dt) end')).toEqual({ status: 'unchanged' })
@@ -352,6 +348,18 @@ describe('RuntimeSyncService', () => {
 
     expect(runtimeSync.applyMainLua(luaV2)).toEqual({ status: 'reloaded' })
     expect(bridge.editorReloadScript).toHaveBeenCalledWith(luaV2)
+  })
+
+  it('isTransitioning is true inside exitPlaySession', () => {
+    const p = makeProject()
+    let inside = false
+    vi.mocked(bridge.editorExitPlayMode).mockImplementation(() => {
+      inside = runtimeSync.isTransitioning()
+      return 0
+    })
+    runtimeSync.exitPlaySession(p as never, 'a', 'function tick(dt) end', {}, '/tmp/x')
+    expect(inside).toBe(true)
+    expect(runtimeSync.isTransitioning()).toBe(false)
   })
 
   it('applyMainLua reports not_ready when WASM is not ready', () => {

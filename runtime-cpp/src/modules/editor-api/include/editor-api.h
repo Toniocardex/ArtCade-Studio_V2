@@ -52,6 +52,24 @@ using EditorProjectLoadedHandler = std::function<void(
 
 /** Same payload as EditorProjectLoadedHandler; used by editor_restore_from_project. */
 using EditorPreviewRestoreHandler = EditorProjectLoadedHandler;
+
+/** After editor_enter_play_mode repopulates the gateway (PLAY transition). */
+using EditorEnterPlayHandler = EditorProjectLoadedHandler;
+
+/** After editor_exit_play_mode — includes design-time Lua source. */
+using EditorExitPlayHandler = std::function<void(
+    const std::vector<TilePaletteEntry>&,
+    const std::vector<TilesetAsset>&,
+    const ProjectRuntimeSettings&,
+    const std::string& luaSource)>;
+
+/** Return codes for editor_enter_play_mode / editor_exit_play_mode / editor_reload_script. */
+enum EditorApiResult : int {
+    kEditorApiOk         = 0,
+    kEditorApiJsonError  = 1,
+    kEditorApiLuaError   = 2,
+    kEditorApiNotWired   = 3,
+};
 } // namespace ArtCade
 
 #ifdef __EMSCRIPTEN__
@@ -113,6 +131,12 @@ public:
      */
     static void setPreviewRestoreHandler(EditorPreviewRestoreHandler handler);
 
+    /** After editor_enter_play_mode JSON is applied to the gateway. */
+    static void setEnterPlayHandler(EditorEnterPlayHandler handler);
+
+    /** After editor_exit_play_mode JSON is applied (Lua applied in handler). */
+    static void setExitPlayHandler(EditorExitPlayHandler handler);
+
     // -------------------------------------------------------------------------
     // C++ -> React notifications (Smoke Test 3)
     // -------------------------------------------------------------------------
@@ -157,6 +181,8 @@ public:
     static Modules::DialogManager*        s_dialogManager;
     static EditorProjectLoadedHandler     s_onProjectLoaded;
     static EditorPreviewRestoreHandler    s_onPreviewRestore;
+    static EditorEnterPlayHandler         s_onEnterPlay;
+    static EditorExitPlayHandler          s_onExitPlay;
     static std::vector<std::pair<std::string, std::string>> s_consoleQueue;
 
     // Native input callbacks -- bypass the JS thread entirely (Smoke Test 2)
@@ -193,10 +219,27 @@ EMSCRIPTEN_KEEPALIVE void editor_deselect();
 EMSCRIPTEN_KEEPALIVE void editor_load_project(const char* json_utf8);
 
 /**
- * Preview STOP: reload ProjectDoc from React design state and reset gameplay
- * modules without clearing the active Lua script (React calls editor_reload_script next).
+ * Preview STOP (legacy): reload ProjectDoc; Lua is not reset here — use
+ * editor_exit_play_mode for atomic STOP or editor_reload_script after restore.
  */
 EMSCRIPTEN_KEEPALIVE void editor_restore_from_project(const char* json_utf8);
+
+/**
+ * Atomic PLAY: parse project JSON, sync world for play, load dialogs + Lua, mode=1.
+ * @return EditorApiResult (0 = ok).
+ */
+EMSCRIPTEN_KEEPALIVE int editor_enter_play_mode(
+    const char* project_json,
+    const char* lua_utf8,
+    const char* dialogs_json);
+
+/**
+ * Atomic STOP: mode=0, restore design project, load design-time Lua.
+ * @return EditorApiResult (0 = ok).
+ */
+EMSCRIPTEN_KEEPALIVE int editor_exit_play_mode(
+    const char* project_json,
+    const char* lua_utf8);
 
 /**
  * Push a transform change from the React Inspector into the C++ scene.
@@ -229,7 +272,8 @@ EMSCRIPTEN_KEEPALIVE void editor_set_scene_settings(
  * redefines the global tick(). On error the previous script stays active
  * and the message is pushed to the React console.
  */
-EMSCRIPTEN_KEEPALIVE void editor_reload_script(const char* lua_utf8);
+/** @return EditorApiResult (0 = ok). */
+EMSCRIPTEN_KEEPALIVE int editor_reload_script(const char* lua_utf8);
 
 /**
  * Hot-reload dialog graphs from the editor library (JSON array of graph objects).
@@ -285,6 +329,8 @@ struct EditorAPI {
     static void wireDialog(Modules::DialogManager*) {}
     static void setProjectLoadedHandler(EditorProjectLoadedHandler) {}
     static void setPreviewRestoreHandler(EditorPreviewRestoreHandler) {}
+    static void setEnterPlayHandler(EditorEnterPlayHandler) {}
+    static void setExitPlayHandler(EditorExitPlayHandler) {}
     static void notifyEntitySelected(uint32_t) {}
     static void notifyTransformChanged(uint32_t, float, float, float, float, float) {}
     static void notifyConsoleLine(const char*, const char* = nullptr) {}
@@ -307,6 +353,8 @@ struct EditorAPI {
     static Modules::DialogManager*        s_dialogManager;
     static EditorProjectLoadedHandler     s_onProjectLoaded;
     static EditorPreviewRestoreHandler    s_onPreviewRestore;
+    static EditorEnterPlayHandler         s_onEnterPlay;
+    static EditorExitPlayHandler          s_onExitPlay;
     static std::vector<std::pair<std::string, std::string>> s_consoleQueue;
 };
 } // namespace ArtCade
