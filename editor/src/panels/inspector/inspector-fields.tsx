@@ -12,19 +12,21 @@ import { ChevronRight } from 'lucide-react'
 import { applyInputBackspace, isBackspaceKey } from '../../utils/keyboard'
 export { snapToGridValue } from '../../utils/entity-position'
 
+export type InspectorSectionProps = Readonly<{
+  label: string
+  defaultOpen?: boolean
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  children: ReactNode
+}>
+
 export function InspectorSection({
   label,
   defaultOpen = false,
   open: controlledOpen,
   onOpenChange,
   children,
-}: {
-  label: string
-  defaultOpen?: boolean
-  open?: boolean
-  onOpenChange?: (open: boolean) => void
-  children: ReactNode
-}) {
+}: InspectorSectionProps) {
   const [internalOpen, setInternalOpen] = useState(defaultOpen)
   const isControlled = controlledOpen !== undefined
   const open = isControlled ? controlledOpen : internalOpen
@@ -52,14 +54,16 @@ export function InspectorSection({
   )
 }
 
-export function Field({
-  label, value, onCommit, cyan = false,
-}: {
+export type FieldProps = Readonly<{
   label: string
   value: string | number
   onCommit?: (value: string) => void
   cyan?: boolean
-}) {
+}>
+
+export function Field({
+  label, value, onCommit, cyan = false,
+}: FieldProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const lastCommitted = useRef(String(value))
 
@@ -113,14 +117,16 @@ export function Field({
   )
 }
 
-export function NumberField({
-  label, value, onCommit, step,
-}: {
+export type NumberFieldProps = Readonly<{
   label: string
   value: number
   onCommit: (value: number) => void
   step?: number
-}) {
+}>
+
+export function NumberField({
+  label, value, onCommit, step,
+}: NumberFieldProps) {
   return (
     <div>
       <label className="text-[9px] text-[var(--muted)] uppercase tracking-wide">{label}</label>
