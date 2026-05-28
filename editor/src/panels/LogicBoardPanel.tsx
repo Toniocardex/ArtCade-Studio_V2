@@ -30,11 +30,16 @@ import {
 } from '../utils/logic-board/factory'
 import { cloneLogicEvent } from '../utils/logic-board/clone'
 import {
+  focusIdAfterDelete,
   navigableBoardEvents,
   scrollEventCardIntoViewSoon,
   siblingEventId,
 } from '../utils/logic-board/logic-event-list-ui'
-import { shouldIgnoreEditorShortcut } from '../utils/keyboard'
+import {
+  isBackspaceKey,
+  isDeleteKey,
+  shouldIgnoreEditorShortcut,
+} from '../utils/keyboard'
 import type { LogicBoard, LogicEvent } from '../types/logic-board'
 import type { ProjectDoc } from '../types'
 import { LogicBoardLuaPreview } from './logic-board/LogicBoardLuaPreview'
@@ -91,6 +96,7 @@ type LogicBoardKeyHandlers = {
   openFocusedForEdit: () => void
   closeEditor: () => void
   focusEvent: (eventId: string) => void
+  deleteFocusedEvent: () => void
 }
 
 function handleLogicBoardKey(e: KeyboardEvent, handlers: LogicBoardKeyHandlers): void {
@@ -106,10 +112,22 @@ function handleLogicBoardKey(e: KeyboardEvent, handlers: LogicBoardKeyHandlers):
     openFocusedForEdit,
     closeEditor,
     focusEvent,
+    deleteFocusedEvent,
   } = handlers
   if (shouldIgnoreEditorShortcut(e)) return
 
   const focused = findEventInBoards(sceneBoards, focusedEventId)?.event
+
+  if (
+    !editingId &&
+    focusedEventId &&
+    (isDeleteKey(e) || isBackspaceKey(e)) &&
+    !hasNonEmptyTextSelection()
+  ) {
+    e.preventDefault()
+    deleteFocusedEvent()
+    return
+  }
 
   if (
     !editingId &&
@@ -538,6 +556,21 @@ export default function LogicBoardPanel() {
     [board, focusedEventId, insertClonedEvent, showClipboardHint],
   )
 
+  const deleteFocusedEvent = useCallback(() => {
+    const hit = findEventInBoards(sceneBoards, focusedEventId)
+    if (!hit) return
+    const { board: eventBoard, event } = hit
+    const nextFocus = focusIdAfterDelete(eventBoard.events, event.id)
+    dispatch({
+      type: 'LOGIC_DELETE_EVENT',
+      boardId: eventBoard.boardId,
+      eventId: event.id,
+    })
+    if (editingId === event.id) setEditingId(null)
+    setFocusedEventId(nextFocus)
+    if (nextFocus) scrollEventCardIntoViewSoon(nextFocus)
+  }, [sceneBoards, focusedEventId, editingId, dispatch])
+
   useEffect(() => {
     if (state.mode !== 'logic' || panelMode !== 'visual') return
     if (sceneBoards.length === 0 && !board) return
@@ -561,6 +594,7 @@ export default function LogicBoardPanel() {
           setFocusedEventId(eventId)
           scrollEventCardIntoViewSoon(eventId)
         },
+        deleteFocusedEvent,
       })
     }
 
@@ -576,6 +610,7 @@ export default function LogicBoardPanel() {
     copyEvent,
     pasteEvent,
     cloneEvent,
+    deleteFocusedEvent,
   ])
 
   if (!project) {

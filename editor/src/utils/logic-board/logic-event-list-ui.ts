@@ -54,3 +54,15 @@ export function siblingEventId(
   if (next < 0 || next >= events.length) return events[idx]!.id
   return events[next]!.id
 }
+
+/** Prefer the rule at the same index after removal, else the previous one. */
+export function focusIdAfterDelete(
+  events: readonly LogicEvent[],
+  deletedId: string,
+): string | null {
+  const idx = events.findIndex((e) => e.id === deletedId)
+  if (idx < 0) return null
+  const remaining = events.filter((e) => e.id !== deletedId)
+  if (remaining.length === 0) return null
+  return remaining[Math.min(idx, remaining.length - 1)]!.id
+}
