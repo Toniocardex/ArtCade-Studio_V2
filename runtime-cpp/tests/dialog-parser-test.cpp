@@ -28,8 +28,10 @@ int main() {
     expect(result.ok(), "parse innkeeper golden JSON");
     expect(result.graph.dialogId == "innkeeper", "dialogId");
     expect(result.graph.startNode == "n1", "startNode");
-    expect(result.graph.nodes.count("n3") == 1, "choice node n3");
-    expect(result.graph.nodes.at("n3").options.size() == 2, "two choices");
+    const auto n3 = result.graph.nodes.find("n3");
+    expect(n3 != result.graph.nodes.end(), "choice node n3");
+    expect(n3 != result.graph.nodes.end() && n3->second.options.size() == 2,
+           "two choices");
 
     const std::string bad = R"({"dialogId":"x","startNode":"missing","nodes":{}})";
     auto badResult = ArtCade::Modules::DialogParser::parseJsonString(bad);

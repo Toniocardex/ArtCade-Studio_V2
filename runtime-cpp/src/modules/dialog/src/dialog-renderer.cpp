@@ -6,6 +6,13 @@
 
 namespace ArtCade::Modules {
 
+namespace {
+constexpr Vec4 kNameColor    {1.f, 215.f / 255.f, 0.f, 1.f};
+constexpr Vec4 kBodyColor    {1.f, 1.f, 1.f, 1.f};
+constexpr Vec4 kChoiceActive {1.f, 1.f, 0.f, 1.f};
+constexpr Vec4 kChoiceIdle   {204.f / 255.f, 204.f / 255.f, 204.f / 255.f, 1.f};
+} // namespace
+
 void updateTypewriter(TypewriterState& tw, float dt, float charsPerSecond) {
     if (tw.complete) return;
     tw.timer += dt;
@@ -30,7 +37,7 @@ void DialogRenderer::draw(Renderer& renderer,
 
     if (!characterName.empty()) {
         renderer.drawText(characterName, x + config_.padding, y + config_.padding,
-                        config_.nameSize, "#FFD700");
+                        config_.nameSize, kNameColor);
         y += config_.nameSize + 8.f;
     }
 
@@ -39,7 +46,7 @@ void DialogRenderer::draw(Renderer& renderer,
                           x + config_.padding,
                           y + config_.padding + config_.nameSize,
                           config_.fontSize,
-                          "#FFFFFF");
+                          kBodyColor);
     }
 
     if (choices && !choices->empty()) {
@@ -49,7 +56,8 @@ void DialogRenderer::draw(Renderer& renderer,
             const std::string prefix =
                 (i == selectedChoice) ? "> " : "  ";
             const std::string line = prefix + (*choices)[static_cast<std::size_t>(i)].text;
-            const char* color = (i == selectedChoice) ? "#FFFF00" : "#CCCCCC";
+            const Vec4& color =
+                (i == selectedChoice) ? kChoiceActive : kChoiceIdle;
             renderer.drawText(line,
                               x + config_.padding,
                               cy,

@@ -58,7 +58,7 @@ artcade_test(dialog_parser_test
     dialog-parser-test.cpp
     artcade-dialog)
 target_compile_definitions(dialog_parser_test
-    PRIVATE ARTCADE_REPO_ROOT="${CMAKE_SOURCE_DIR}/../..")
+    PRIVATE ARTCADE_REPO_ROOT="${CMAKE_SOURCE_DIR}/..")
 
 # ============================================================================
 # TextureManager — compilato con stub Raylib (funziona anche senza GPU).
