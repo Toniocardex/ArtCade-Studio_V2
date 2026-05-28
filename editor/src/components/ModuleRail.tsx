@@ -17,6 +17,11 @@ const MODES: {
   { id: 'dialog', label: 'Dialog Editor', shortLabel: 'Dialog', icon: MessageSquare },
 ]
 
+function themeFromDocument(): Theme {
+  const value = document.documentElement.dataset.theme
+  return value === 'light' || value === 'dark' ? value : 'dark'
+}
+
 function modeBtnClass(active: boolean) {
   return [
     'relative flex flex-col items-center justify-center gap-1.5',
@@ -30,9 +35,7 @@ function modeBtnClass(active: boolean) {
 /** Vertical module rail — sits beside the Scenes panel / workspace (not in the top menubar). */
 export default function ModuleRail() {
   const { state, dispatch } = useEditor()
-  const [theme, setTheme] = useState<Theme>(
-    () => (document.documentElement.getAttribute('data-theme') as Theme) || 'dark',
-  )
+  const [theme, setTheme] = useState<Theme>(themeFromDocument)
 
   return (
     <nav
