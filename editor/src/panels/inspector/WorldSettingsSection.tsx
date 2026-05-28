@@ -2,6 +2,8 @@ import { useEditor } from '../../store/editor-store'
 import { DEFAULT_WORLD } from '../../types'
 import { InspectorSection } from './inspector-fields'
 
+const physicsModeSelectId = 'world-physics-mode'
+
 export function WorldSettingsSection() {
   const { state, dispatch } = useEditor()
   const w = { ...DEFAULT_WORLD, ...state.project?.world }
@@ -28,10 +30,14 @@ export function WorldSettingsSection() {
       {num('Gravity (m/s²)', 'gravity', 0.1)}
       {num('Px / Meter', 'pixelsPerMeter', 1)}
       <div className="mb-2">
-        <label className="text-[9px] text-[var(--muted)] uppercase block mb-1">
+        <label
+          htmlFor={physicsModeSelectId}
+          className="text-[9px] text-[var(--muted)] uppercase block mb-1"
+        >
           Physics simulation
         </label>
         <select
+          id={physicsModeSelectId}
           value={w.physicsMode ?? 'auto'}
           onChange={(e) =>
             dispatch({
