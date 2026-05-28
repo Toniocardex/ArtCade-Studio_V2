@@ -24,6 +24,7 @@ export type LogicIconButtonProps = Readonly<{
   active?: boolean
   danger?: boolean
   disabled?: boolean
+  ariaExpanded?: boolean
   children: ReactNode
 }>
 
@@ -34,6 +35,7 @@ export default function LogicIconButton({
   active,
   danger,
   disabled,
+  ariaExpanded,
   children,
 }: LogicIconButtonProps) {
   return (
@@ -43,6 +45,7 @@ export default function LogicIconButton({
       disabled={disabled}
       title={title}
       aria-label={ariaLabel}
+      aria-expanded={ariaExpanded}
       className={`${logicIconButtonClass(active, danger)}${
         disabled ? ' opacity-40 cursor-not-allowed pointer-events-none' : ''
       }`}

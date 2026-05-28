@@ -69,12 +69,14 @@ function CardSelectButton({
   onSelect,
   onDoubleClick,
   title,
+  ariaLabel,
   children,
 }: Readonly<{
   className?: string
   onSelect?: () => void
   onDoubleClick?: () => void
   title?: string
+  ariaLabel?: string
   children: ReactNode
 }>) {
   if (!onSelect && !onDoubleClick) {
@@ -85,6 +87,7 @@ function CardSelectButton({
       type="button"
       className={`block w-full border-0 bg-transparent p-0 text-left ${className}`}
       title={title}
+      aria-label={ariaLabel}
       onClick={onSelect}
       onDoubleClick={(e) => {
         e.preventDefault()
@@ -171,6 +174,7 @@ function EventCardHeader({
   dim,
   editing,
   zapTooltip,
+  ruleSummary,
   onSelect,
   onOpenEdit,
   onToggleEnabled,
@@ -190,6 +194,7 @@ function EventCardHeader({
   dim: string
   editing: boolean
   zapTooltip: string
+  ruleSummary: string
   onSelect?: () => void
   onOpenEdit?: () => void
   onToggleEnabled: () => void
@@ -231,6 +236,7 @@ function EventCardHeader({
         onSelect={onSelect}
         onDoubleClick={editing ? undefined : onOpenEdit}
         title={editing ? undefined : 'Double-click to edit rule'}
+        ariaLabel={ruleSummary}
       >
         <div className="shrink-0 text-[var(--accent)]" title={zapTooltip}>
           <Zap size={13} strokeWidth={2} />
@@ -270,7 +276,13 @@ function EventCardHeader({
         aria-label="Rule actions"
         className="m-0 flex shrink-0 items-center gap-1 border-0 p-0"
       >
-        <LogicIconButton title="Edit rule" ariaLabel="Edit rule" active={editing} onClick={onEdit}>
+        <LogicIconButton
+          title="Edit rule"
+          ariaLabel="Edit rule"
+          ariaExpanded={editing}
+          active={editing}
+          onClick={onEdit}
+        >
           <Pencil size={13} />
         </LogicIconButton>
         <LogicIconButton title="Clone rule" ariaLabel="Clone rule" onClick={onClone}>
@@ -324,6 +336,7 @@ export default function EventCard(props: EventCardProps) {
     dim,
     editing,
     zapTooltip,
+    ruleSummary: eventTriggerSummaryPlain(event, project),
     onSelect,
     onOpenEdit,
     onToggleEnabled,
@@ -338,6 +351,8 @@ export default function EventCard(props: EventCardProps) {
   }
 
   const collapsedSelectTitle = editing ? undefined : 'Double-click to edit rule'
+  const ruleSummary = eventTriggerSummaryPlain(event, project)
+  const editorRegionId = `logic-rule-editor-${event.id}`
 
   const onDragOverCard = (e: DragEvent) => {
     if (!e.dataTransfer.types.includes(LOGIC_EVENT_DRAG_MIME)) return
@@ -355,6 +370,10 @@ export default function EventCard(props: EventCardProps) {
   return (
     <div
       data-logic-event-id={event.id}
+      role="listitem"
+      aria-selected={selected ?? false}
+      aria-expanded={editing}
+      aria-controls={editing ? editorRegionId : undefined}
       tabIndex={selected && !editing ? 0 : undefined}
       onDragOver={onReorderDrop ? onDragOverCard : undefined}
       onDrop={onReorderDrop ? onDropCard : undefined}
@@ -380,19 +399,22 @@ export default function EventCard(props: EventCardProps) {
       <EventCardHeader {...headerProps} />
 
       {editing ? (
-        <EventEditor
-          event={event}
-          board={board}
-          project={project}
-          onChange={onChange}
-          onDone={onDoneEditing}
-        />
+        <div id={editorRegionId}>
+          <EventEditor
+            event={event}
+            board={board}
+            project={project}
+            onChange={onChange}
+            onDone={onDoneEditing}
+          />
+        </div>
       ) : (
         <CardSelectButton
           className={`cursor-pointer ${dim}`}
           onSelect={onSelect}
           onDoubleClick={onOpenEdit}
           title={collapsedSelectTitle}
+          ariaLabel={ruleSummary}
         >
           <div
             className={`grid grid-cols-1 border-b border-[var(--border)] ${

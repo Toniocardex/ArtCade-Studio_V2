@@ -13,6 +13,7 @@ import EventCard from './EventCard'
 import { defaultTrigger } from './options'
 import { allowedTriggersForTarget } from '../../utils/logic-board/trigger-compatibility'
 import { scrollEventCardIntoViewSoon } from '../../utils/logic-board/logic-event-list-ui'
+import { LogicBoardShortcutsHelp } from './LogicBoardShortcutsHelp'
 
 /** Sentinel for the add-rule trigger picker before the user chooses a type. */
 export const NEW_TRIGGER_NONE = '' as const
@@ -145,7 +146,12 @@ export function LogicBoardEventsList(listProps: LogicBoardEventsListProps) {
   const totalRules = sceneBoards.reduce((n, b) => n + b.events.length, 0)
 
   return (
-    <div className="flex-1 min-h-0 overflow-auto p-4" data-logic-events-list>
+    <div
+      className="flex-1 min-h-0 overflow-auto p-4"
+      data-logic-events-list
+      role="list"
+      aria-label="Logic rules"
+    >
       {!board && sceneBoards.length === 0 ? (
         <div className="text-[var(--muted)] text-sm mt-8 text-center max-w-md mx-auto leading-relaxed">
           Select an entity in the Scenes panel, then create a rulesheet with{' '}
@@ -175,9 +181,7 @@ export function LogicBoardEventsList(listProps: LogicBoardEventsListProps) {
             {clipboardHint && (
               <span className="text-[10px] text-[var(--accent)]">{clipboardHint}</span>
             )}
-            <span className="text-[10px] text-[var(--muted-2)]">
-              Double-click or Enter to edit · Ctrl+C copy · Ctrl+V paste · Ctrl+D duplicate
-            </span>
+            <LogicBoardShortcutsHelp />
           </div>
 
           {groupedView
