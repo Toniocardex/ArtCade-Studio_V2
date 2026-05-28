@@ -30,13 +30,7 @@ export function isClassPickerOtherMode(
   return value !== '' && !classNames.includes(value)
 }
 
-export function ClassNamePicker({
-  value,
-  onChange,
-  classNames: classNamesProp,
-  allowEmpty = true,
-  emptyLabel = '— Choose object —',
-}: {
+export type ClassNamePickerProps = Readonly<{
   value: string
   onChange: (className: string) => void
   /** Override for tests; otherwise from open project. */
@@ -44,7 +38,15 @@ export function ClassNamePicker({
   /** Show blank first option (filters / optional class fields). */
   allowEmpty?: boolean
   emptyLabel?: string
-}) {
+}>
+
+export function ClassNamePicker({
+  value,
+  onChange,
+  classNames: classNamesProp,
+  allowEmpty = true,
+  emptyLabel = '— Choose object —',
+}: ClassNamePickerProps) {
   const { state } = useEditor()
   const classNames = useMemo(
     () => classNamesProp ?? (state.project ? allClassNames(state.project) : []),
