@@ -39,7 +39,7 @@ import {
   runtimeProjectProjection,
   type RuntimeProjection,
 } from './runtime-fingerprint'
-import { planProjectSync } from './runtime-sync-diff'
+import { planProjectSync, type ProjectSyncPlan } from './runtime-sync-diff'
 import type { ProjectDoc } from '../types'
 import type { DialogScript } from './dialog/dialog-script'
 import { dialogsJsonForRuntime } from './dialog/runtime-dialogs'
@@ -105,6 +105,7 @@ function effectiveGridSize(requested: number): number {
 
 class RuntimeSyncServiceImpl {
   private lastLoadKey:        string | null = null
+  private lastMainLua:        string | null = null
   private lastDialogsKey:     string | null = null
   private lastProjection:     RuntimeProjection | null = null
   private lastMode:           0 | 1 | null = null
@@ -124,6 +125,7 @@ class RuntimeSyncServiceImpl {
   /** Forget every cached "last sent" value. Use on project open / runtime reload. */
   reset(): void {
     this.lastLoadKey   = null
+    this.lastMainLua   = null
     this.lastDialogsKey = null
     this.lastProjection = null
     this.lastMode      = null
@@ -179,7 +181,7 @@ class RuntimeSyncServiceImpl {
     this.lastMode = 0
     editorRestoreFromProject(projectJsonForRuntime(project, activeSceneId))
     this.syncDialogs(dialogs ?? {})
-    editorReloadScript(mainLua)
+    this.reloadMainLuaIfChanged(mainLua)
     this.assetCacheInvalidator?.()
     return true
   }
@@ -204,7 +206,49 @@ class RuntimeSyncServiceImpl {
   ): boolean {
     if (!isReady()) return false
     this.syncDialogs(dialogs)
-    return editorReloadScript(mainLua)
+    return this.reloadMainLuaIfChanged(mainLua)
+  }
+
+  /** Hot-reload main Lua when the compiled source changes (logic boards, script tab). */
+  private reloadMainLuaIfChanged(mainLua: string): boolean {
+    if (mainLua === this.lastMainLua) return false
+    if (editorReloadScript(mainLua) === false) return false
+    this.lastMainLua = mainLua
+    return true
+  }
+
+  private latchProjectProjection(loadKey: string, projection: RuntimeProjection): void {
+    this.lastLoadKey = loadKey
+    this.lastProjection = projection
+  }
+
+  private applyIncrementalSync(project: ProjectDoc, plan: ProjectSyncPlan): boolean {
+    if (plan.kind !== 'incremental') return false
+    for (const entityId of plan.entityIds) {
+      const def = project.entities[entityId]
+      if (!def) continue
+      editorUpdateEntity(entityId, JSON.stringify(def))
+      const t = def.transform
+      this.lastTransform.set(entityId, {
+        entityId,
+        x: t.position.x,
+        y: t.position.y,
+        rotation: t.rotation,
+        scaleX: t.scale.x,
+        scaleY: t.scale.y,
+      })
+    }
+    for (const sceneId of plan.sceneIds) {
+      const scene = project.scenes[sceneId]
+      if (!scene) continue
+      editorSetSceneSettings(sceneId, JSON.stringify({
+        id: scene.id,
+        worldSize: scene.worldSize,
+        viewportSize: scene.viewportSize,
+        backgroundColor: scene.backgroundColor,
+      }))
+    }
+    return plan.entityIds.length > 0 || plan.sceneIds.length > 0
   }
 
   /** True if the runtime is ready to accept commands. */
@@ -231,6 +275,7 @@ class RuntimeSyncServiceImpl {
     if (!isReady()) return false
     let didWork = false
     if (options?.dialogs && this.syncDialogs(options.dialogs)) didWork = true
+    if (options?.mainLua && this.reloadMainLuaIfChanged(options.mainLua)) didWork = true
 
     const projection = runtimeProjectProjection(project, activeSceneId)
     const fp = JSON.stringify(projection)
@@ -240,48 +285,21 @@ class RuntimeSyncServiceImpl {
     const plan = planProjectSync(this.lastProjection, project, activeSceneId)
 
     if (plan.kind === 'full') {
-      this.lastLoadKey = loadKey
-      this.lastProjection = projection
+      this.latchProjectProjection(loadKey, projection)
       editorLoadProject(projectJsonForRuntime(project, activeSceneId))
-      if (options?.mainLua) editorReloadScript(options.mainLua)
+      // C++ load resets Lua to an empty stub; always follow with the real script.
+      if (options?.mainLua) this.reloadMainLuaIfChanged(options.mainLua)
       return true
     }
 
     if (plan.kind === 'none') {
-      this.lastLoadKey = loadKey
-      this.lastProjection = projection
+      this.latchProjectProjection(loadKey, projection)
       return didWork
     }
 
-    for (const entityId of plan.entityIds) {
-      const def = project.entities[entityId]
-      if (!def) continue
-      editorUpdateEntity(entityId, JSON.stringify(def))
-      const t = def.transform
-      this.lastTransform.set(entityId, {
-        entityId,
-        x: t.position.x,
-        y: t.position.y,
-        rotation: t.rotation,
-        scaleX: t.scale.x,
-        scaleY: t.scale.y,
-      })
-    }
-
-    for (const sceneId of plan.sceneIds) {
-      const scene = project.scenes[sceneId]
-      if (!scene) continue
-      editorSetSceneSettings(sceneId, JSON.stringify({
-        id: scene.id,
-        worldSize: scene.worldSize,
-        viewportSize: scene.viewportSize,
-        backgroundColor: scene.backgroundColor,
-      }))
-    }
-
-    this.lastLoadKey = loadKey
-    this.lastProjection = projection
-    return didWork || plan.entityIds.length > 0 || plan.sceneIds.length > 0
+    const incremental = this.applyIncrementalSync(project, plan)
+    this.latchProjectProjection(loadKey, projection)
+    return didWork || incremental
   }
 
   // ── Mode / selection / chrome / tool ──────────────────────────────────────

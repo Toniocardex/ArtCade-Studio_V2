@@ -132,6 +132,17 @@ describe('RuntimeSyncService', () => {
     expect(bridge.editorUpdateEntity).not.toHaveBeenCalled()
   })
 
+  it('syncProject hot-reloads main Lua when only the script changes', () => {
+    const p = makeProject()
+    runtimeSync.syncProject(p as never, 'a', '/tmp/x', { mainLua: 'function tick(dt) end' })
+    vi.mocked(bridge.editorReloadScript).mockClear()
+    expect(runtimeSync.syncProject(p as never, 'a', '/tmp/x', {
+      mainLua: '-- logic v2',
+    })).toBe(true)
+    expect(bridge.editorLoadProject).toHaveBeenCalledTimes(1)
+    expect(bridge.editorReloadScript).toHaveBeenCalledWith('-- logic v2')
+  })
+
   it('syncProject full-reload hot-reloads main Lua when provided', () => {
     const p = makeProject()
     ;(p.entities as Record<number, (typeof p.entities)[1]>)[2] = {

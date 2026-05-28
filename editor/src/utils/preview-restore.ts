@@ -10,36 +10,40 @@ export interface PreviewRestoreInput {
   projectPath?: string | null
 }
 
-/** Resolve the main Lua source to push after a preview STOP / Logic Board Apply. */
+function mainScriptTab(
+  input: PreviewRestoreInput,
+): ScriptFile | undefined {
+  const path = input.project.mainScriptPath
+  if (!path) return undefined
+  return input.openScripts.find((s) => s.path === path)
+}
+
+/**
+ * Resolve the main Lua pushed on PLAY / STOP / preview sync.
+ * Logic Board output wins over the on-disk main.lua stub unless the user is
+ * actively editing that script tab (isDirty).
+ */
 export function resolvePreviewMainLua(input: PreviewRestoreInput): string {
-  const { project, openScripts, projectPath } = input
-  const path = project.mainScriptPath
-  if (path) {
-    const tab = openScripts.find(s => s.path === path)
-    if (tab?.content) return tab.content
-  }
-  const boards = project.logicBoards ?? []
-  if (boards.length > 0) {
-    return compileProjectLogic(project, { projectKey: projectPath ?? undefined }).lua
-  }
-  return BLANK_MAIN_LUA
+  return resolvePreviewMainLuaWithStatus(input).lua
 }
 
 /** Same as resolvePreviewMainLua but surfaces compile failure for logging. */
 export function resolvePreviewMainLuaWithStatus(
   input: PreviewRestoreInput,
 ): { lua: string; compileError: string | null } {
-  const { project, openScripts, projectPath } = input
-  const path = project.mainScriptPath
-  if (path) {
-    const tab = openScripts.find((s) => s.path === path)
-    if (tab?.content) return { lua: tab.content, compileError: null }
-  }
+  const { project, projectPath } = input
+  const tab = mainScriptTab(input)
   const boards = project.logicBoards ?? []
+
   if (boards.length > 0) {
+    if (tab?.isDirty && tab.content) {
+      return { lua: tab.content, compileError: null }
+    }
     const result = compileProjectLogic(project, { projectKey: projectPath ?? undefined })
     return { lua: result.lua, compileError: result.compileError }
   }
+
+  if (tab?.content) return { lua: tab.content, compileError: null }
   return { lua: BLANK_MAIN_LUA, compileError: null }
 }
 
