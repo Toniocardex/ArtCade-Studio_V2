@@ -22,8 +22,10 @@ function withBoards(
   recordHistory = true,
 ): CoreState {
   if (!state.project) return state
+  const boards = state.project.logicBoards ?? []
+  const next = fn(boards)
+  if (next === boards) return state
   const base = recordHistory ? pushLogicBoardHistory(state) : state
-  const next = fn(base.project!.logicBoards ?? [])
   return {
     ...base,
     project: { ...base.project!, logicBoards: next },
@@ -140,6 +142,10 @@ export const logicBoardReducer: DomainReducer = (state: CoreState, action: Actio
         future: future.slice(1),
       })
     }
+    case 'LOGIC_MARK_SCRIPT_SYNCED':
+      return { ...state, logicScriptSyncedRevision: action.revision }
+    case 'LOGIC_MARK_PREVIEW_APPLIED':
+      return { ...state, logicPreviewAppliedRevision: action.revision }
     default:
       return state
   }

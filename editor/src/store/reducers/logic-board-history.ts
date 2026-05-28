@@ -1,9 +1,11 @@
 // ---------------------------------------------------------------------------
 // Logic Board undo/redo snapshot stack (logicBoards only).
+// Snapshots use structuredClone (deep copy); skip push when revision unchanged.
 // ---------------------------------------------------------------------------
 
 import type { CoreState, LogicBoardHistory } from '../editor-store-state'
 import type { LogicBoard } from '../../types'
+import { logicBoardsRevision } from '../../utils/sync-logic-board-script'
 
 export const MAX_LOGIC_BOARD_HISTORY = 50
 
@@ -14,8 +16,16 @@ export const emptyLogicBoardHistory = (): LogicBoardHistory => ({
 
 export function pushLogicBoardHistory(state: CoreState): CoreState {
   if (!state.project?.logicBoards) return state
-  const snap = structuredClone(state.project.logicBoards)
   const hist = state.logicBoardHistory ?? emptyLogicBoardHistory()
+  const currentRev = logicBoardsRevision(state.project)
+  const last = hist.past[hist.past.length - 1]
+  if (
+    last &&
+    logicBoardsRevision({ ...state.project, logicBoards: last }) === currentRev
+  ) {
+    return state
+  }
+  const snap = structuredClone(state.project.logicBoards)
   const past = [...hist.past, snap].slice(-MAX_LOGIC_BOARD_HISTORY)
   return {
     ...state,

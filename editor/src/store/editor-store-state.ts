@@ -80,6 +80,10 @@ export interface CoreState {
   dialogModal: { open: boolean; dialogId: string | null }
   /** Undo/redo snapshots for project.logicBoards (Logic Board panel only). */
   logicBoardHistory: LogicBoardHistory
+  /** Last `logicBoardsRevision` written to main script via auto-sync / Apply. */
+  logicScriptSyncedRevision: string | null
+  /** Last `logicBoardsRevision` hot-reloaded into the WASM preview runtime. */
+  logicPreviewAppliedRevision: string | null
 }
 
 export type LogicBoardHistory = {
@@ -177,6 +181,8 @@ export type Action =
   | { type: 'LOGIC_MOVE_EVENT'; boardId: string; eventId: string; toIndex: number }
   | { type: 'LOGIC_UNDO' }
   | { type: 'LOGIC_REDO' }
+  | { type: 'LOGIC_MARK_SCRIPT_SYNCED'; revision: string }
+  | { type: 'LOGIC_MARK_PREVIEW_APPLIED'; revision: string }
   | { type: 'DIALOG_SET_LIBRARY'; dialogs: Record<string, DialogScript>; selectedDialogId?: string | null }
   | { type: 'DIALOG_SELECT'; dialogId: string | null }
   | { type: 'DIALOG_UPSERT'; script: DialogScript }
@@ -216,6 +222,8 @@ export const initialCoreState: CoreState = {
   selectedDialogId: null,
   dialogModal: { open: false, dialogId: null },
   logicBoardHistory: { past: [], future: [] },
+  logicScriptSyncedRevision: null,
+  logicPreviewAppliedRevision: null,
 }
 
 export const initialVolatileState: VolatileState = {

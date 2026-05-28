@@ -40,6 +40,8 @@ function baseState(project: ProjectDoc | null = emptyProject()): CoreState {
     selectedDialogId: null,
     dialogModal: { open: false, dialogId: null },
     logicBoardHistory: { past: [], future: [] },
+    logicScriptSyncedRevision: null,
+    logicPreviewAppliedRevision: null,
   }
 }
 
@@ -116,6 +118,19 @@ describe('coreReducer — Logic Board CRUD', () => {
     expect(s.project?.logicBoards?.[0].events).toHaveLength(0)
     s = coreReducer(s, { type: 'LOGIC_REDO' })
     expect(s.project?.logicBoards?.[0].events).toHaveLength(1)
+  })
+
+  it('LOGIC_MARK_SCRIPT_SYNCED and LOGIC_MARK_PREVIEW_APPLIED update revision fields', () => {
+    let s = coreReducer(baseState(), {
+      type: 'LOGIC_MARK_SCRIPT_SYNCED',
+      revision: 'rev-a',
+    })
+    expect(s.logicScriptSyncedRevision).toBe('rev-a')
+    s = coreReducer(s, {
+      type: 'LOGIC_MARK_PREVIEW_APPLIED',
+      revision: 'rev-b',
+    })
+    expect(s.logicPreviewAppliedRevision).toBe('rev-b')
   })
 
   it('LOGIC_MOVE_EVENT reorders events within a board', () => {

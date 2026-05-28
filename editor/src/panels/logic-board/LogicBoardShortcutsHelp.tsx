@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { HelpCircle } from 'lucide-react'
 
 const SHORTCUTS: ReadonlyArray<{ keys: string; action: string }> = [
@@ -12,15 +12,40 @@ const SHORTCUTS: ReadonlyArray<{ keys: string; action: string }> = [
   { keys: 'Ctrl+C / Ctrl+V', action: 'Copy / paste rule' },
   { keys: 'Ctrl+Z / Ctrl+Shift+Z', action: 'Undo / redo Logic Board' },
   { keys: 'Drag grip', action: 'Reorder rule' },
-  { keys: 'Apply to game', action: 'Hot-reload logic into preview' },
+  {
+    keys: 'Auto-sync',
+    action: 'Rules compile into main.lua as you edit (Script tab)',
+  },
+  {
+    keys: 'Apply to game',
+    action: 'Push compiled logic into the WASM preview runtime',
+  },
 ]
 
 export function LogicBoardShortcutsHelp() {
   const [open, setOpen] = useState(false)
   const panelId = useId()
+  const rootRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const onPointerDown = (e: PointerEvent) => {
+      const root = rootRef.current
+      if (root && !root.contains(e.target as Node)) setOpen(false)
+    }
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    globalThis.addEventListener('pointerdown', onPointerDown)
+    globalThis.addEventListener('keydown', onKeyDown)
+    return () => {
+      globalThis.removeEventListener('pointerdown', onPointerDown)
+      globalThis.removeEventListener('keydown', onKeyDown)
+    }
+  }, [open])
 
   return (
-    <div className="relative">
+    <div ref={rootRef} className="relative">
       <button
         type="button"
         className="inline-flex items-center gap-1 text-[10px] text-[var(--muted)] hover:text-[var(--accent)]"

@@ -14,11 +14,13 @@ import type { CoreState, Action, DomainReducer } from '../editor-store-state'
 import { EDITOR_BOOT_ZOOM } from '../../constants/editor-viewport'
 import { safeProjectFolderName } from '../../utils/project'
 import { emptyLogicBoardHistory } from './logic-board-history'
+import { logicBoardsRevision } from '../../utils/sync-logic-board-script'
 
 export const projectReducer: DomainReducer = (state: CoreState, action: Action) => {
   switch (action.type) {
     case 'LOAD_PROJECT': {
       const firstSceneId = Object.keys(action.project.scenes)[0] ?? null
+      const loadedLogicRev = logicBoardsRevision(action.project) || null
       // Reset editor "view" chrome so a 400% zoom, a stuck fit-mode tracking
       // or an active camera preview from the previous project don't bleed
       // into the freshly loaded one. Every load starts at identity zoom
@@ -43,6 +45,8 @@ export const projectReducer: DomainReducer = (state: CoreState, action: Action) 
         projectLoadEpoch: state.projectLoadEpoch + 1,
         legacyMigrateBanner: action.migratedFromLegacy ?? false,
         logicBoardHistory: emptyLogicBoardHistory(),
+        logicScriptSyncedRevision: loadedLogicRev,
+        logicPreviewAppliedRevision: null,
         dialogs: action.dialogs ?? {},
         selectedDialogId:
           action.selectedDialogId ??

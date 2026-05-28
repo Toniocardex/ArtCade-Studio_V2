@@ -32,15 +32,13 @@ import { cloneLogicEvent } from '../utils/logic-board/clone'
 import { eventCompatibilityError } from '../utils/logic-board/trigger-compatibility'
 import {
   focusIdAfterDelete,
-  navigableBoardEvents,
   scrollEventCardIntoViewSoon,
-  siblingEventId,
 } from '../utils/logic-board/logic-event-list-ui'
 import {
-  isBackspaceKey,
-  isDeleteKey,
-  shouldIgnoreEditorShortcut,
-} from '../utils/keyboard'
+  findEventInBoards,
+  handleLogicBoardKey,
+} from '../utils/logic-board/logic-board-keyboard'
+import { logicBoardNeedsPreviewApply } from '../utils/logic-board/logic-board-revisions'
 import type { LogicBoard, LogicEvent } from '../types/logic-board'
 import type { ProjectDoc } from '../types'
 import { LogicBoardLuaPreview } from './logic-board/LogicBoardLuaPreview'
@@ -67,170 +65,6 @@ import type { Dispatch } from 'react'
 type EditorDispatch = Dispatch<Action>
 
 type LogicClipboard = { kind: 'event'; event: LogicEvent } | null
-
-function hasNonEmptyTextSelection(): boolean {
-  const sel = globalThis.getSelection?.()
-  return Boolean(sel && sel.toString().length > 0)
-}
-
-function findEventInBoards(
-  boards: LogicBoard[],
-  eventId: string | null,
-): { board: LogicBoard; event: LogicEvent } | undefined {
-  if (eventId == null) return undefined
-  for (const board of boards) {
-    const event = board.events.find((ev) => ev.id === eventId)
-    if (event) return { board, event }
-  }
-  return undefined
-}
-
-type LogicBoardKeyHandlers = {
-  sceneBoards: LogicBoard[]
-  activeBoard: LogicBoard | null
-  focusedEventId: string | null
-  editingId: string | null
-  clipboard: LogicClipboard
-  copyEvent: (ev: LogicEvent) => void
-  pasteEvent: (afterEventId?: string) => void
-  cloneEvent: (ev: LogicEvent, board?: LogicBoard) => void
-  openFocusedForEdit: () => void
-  closeEditor: () => void
-  focusEvent: (eventId: string) => void
-  deleteFocusedEvent: () => void
-  moveFocusedEvent: (toIndex: number) => void
-  undoLogic: () => void
-  redoLogic: () => void
-}
-
-function handleLogicBoardKey(e: KeyboardEvent, handlers: LogicBoardKeyHandlers): void {
-  const {
-    sceneBoards,
-    activeBoard,
-    focusedEventId,
-    editingId,
-    clipboard,
-    copyEvent,
-    pasteEvent,
-    cloneEvent,
-    openFocusedForEdit,
-    closeEditor,
-    focusEvent,
-    deleteFocusedEvent,
-    moveFocusedEvent,
-    undoLogic,
-    redoLogic,
-  } = handlers
-  if (shouldIgnoreEditorShortcut(e)) return
-
-  if (e.ctrlKey || e.metaKey) {
-    const key = e.key.toLowerCase()
-    if (key === 'z' && !e.altKey) {
-      e.preventDefault()
-      if (e.shiftKey) redoLogic()
-      else undoLogic()
-      return
-    }
-    if (key === 'y' && !e.shiftKey) {
-      e.preventDefault()
-      redoLogic()
-      return
-    }
-  }
-
-  const focused = findEventInBoards(sceneBoards, focusedEventId)?.event
-
-  if (
-    !editingId &&
-    focusedEventId &&
-    (isDeleteKey(e) || isBackspaceKey(e)) &&
-    !hasNonEmptyTextSelection()
-  ) {
-    e.preventDefault()
-    deleteFocusedEvent()
-    return
-  }
-
-  if (
-    !editingId &&
-    e.altKey &&
-    !e.ctrlKey &&
-    !e.metaKey &&
-    focusedEventId &&
-    (e.key === 'ArrowUp' || e.key === 'ArrowDown')
-  ) {
-    const hit = findEventInBoards(sceneBoards, focusedEventId)
-    if (hit) {
-      const idx = hit.board.events.findIndex((ev) => ev.id === focusedEventId)
-      const to =
-        e.key === 'ArrowDown'
-          ? Math.min(idx + 1, hit.board.events.length - 1)
-          : Math.max(idx - 1, 0)
-      if (idx >= 0 && to !== idx) {
-        e.preventDefault()
-        moveFocusedEvent(to)
-      }
-    }
-    return
-  }
-
-  if (
-    !editingId &&
-    !e.ctrlKey &&
-    !e.metaKey &&
-    !e.altKey &&
-    (e.key === 'ArrowUp' || e.key === 'ArrowDown')
-  ) {
-    const events = navigableBoardEvents(sceneBoards, activeBoard, focusedEventId)
-    if (events.length > 0) {
-      e.preventDefault()
-      const nextId = siblingEventId(
-        events,
-        focusedEventId,
-        e.key === 'ArrowDown' ? 'down' : 'up',
-      )
-      if (nextId) focusEvent(nextId)
-    }
-    return
-  }
-
-  if (e.key === 'Escape' && editingId) {
-    e.preventDefault()
-    closeEditor()
-    return
-  }
-
-  if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey && !e.altKey) {
-    if (!focused || hasNonEmptyTextSelection()) return
-    if (editingId === focused.id) return
-    e.preventDefault()
-    openFocusedForEdit()
-    return
-  }
-
-  if (!e.ctrlKey && !e.metaKey) return
-
-  const key = e.key.toLowerCase()
-
-  if (key === 'c') {
-    if (!focused || hasNonEmptyTextSelection()) return
-    e.preventDefault()
-    copyEvent(focused)
-    return
-  }
-  if (key === 'v') {
-    if (clipboard?.kind !== 'event' || !activeBoard) return
-    e.preventDefault()
-    pasteEvent(focused?.id)
-    return
-  }
-  if (key === 'd') {
-    if (!focused) return
-    e.preventDefault()
-    const hit = findEventInBoards(sceneBoards, focusedEventId)
-    cloneEvent(focused, hit?.board ?? activeBoard ?? undefined)
-  }
-}
 
 type ApplyLogicParams = Readonly<{
   compileResult: ReturnType<typeof compileProjectLogic>
@@ -448,8 +282,6 @@ export default function LogicBoardPanel() {
   const [clipboardHint, setClipboardHint] = useState<string | null>(null)
   const clipboardRef = useRef<LogicClipboard>(null)
   const hintTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null)
-  const lastAppliedRevisionRef = useRef<string | null>(null)
-
   const flashApplyMsg = useCallback((msg: string, ms = 4000) => {
     setApplyMsg(msg)
     globalThis.setTimeout(() => setApplyMsg(null), ms)
@@ -501,15 +333,16 @@ export default function LogicBoardPanel() {
   const boardsRevision = logicBoardsRevision(project)
 
   useEffect(() => {
-    if (state.mode === 'logic' && lastAppliedRevisionRef.current === null && boardsRevision) {
-      lastAppliedRevisionRef.current = boardsRevision
-    }
-  }, [state.mode, boardsRevision])
-  const needsApply =
-    Boolean(project) &&
-    compileResult.ok &&
-    boardsRevision !== '' &&
-    lastAppliedRevisionRef.current !== boardsRevision
+    if (state.mode !== 'logic' || !boardsRevision) return
+    if (state.logicPreviewAppliedRevision != null) return
+    dispatch({ type: 'LOGIC_MARK_PREVIEW_APPLIED', revision: boardsRevision })
+  }, [state.mode, state.logicPreviewAppliedRevision, boardsRevision, dispatch])
+
+  const needsApply = logicBoardNeedsPreviewApply(
+    project,
+    compileResult.ok,
+    state.logicPreviewAppliedRevision,
+  )
   const sceneBoards = useMemo(
     () => (project ? logicBoardsForScene(project, sceneId) : []),
     [project, sceneId, boardsRevision],
@@ -528,6 +361,7 @@ export default function LogicBoardPanel() {
 
     prevBoardsRevision.current = boardsRevision
     syncLogicBoardToScript(dispatch, state, compileResult.lua)
+    dispatch({ type: 'LOGIC_MARK_SCRIPT_SYNCED', revision: boardsRevision })
   }, [boardsRevision, compileResult, dispatch, state])
 
   const handleApply = useCallback(() => {
@@ -541,7 +375,9 @@ export default function LogicBoardPanel() {
       dispatch,
       flashApplyMsg,
     })
-    if (ok) lastAppliedRevisionRef.current = boardsRevision
+    if (ok) {
+      dispatch({ type: 'LOGIC_MARK_PREVIEW_APPLIED', revision: boardsRevision })
+    }
   }, [
     compileResult,
     runtimeReady,
@@ -618,20 +454,23 @@ export default function LogicBoardPanel() {
   const pasteEvent = useCallback(
     (afterEventId?: string) => {
       const clip = clipboardRef.current
-      if (clip?.kind !== 'event' || !board) return
-      const compat = eventCompatibilityError(clip.event, board.target.type)
+      if (clip?.kind !== 'event') return
+      const pasteBoard =
+        findEventInBoards(sceneBoards, focusedEventId)?.board ?? board
+      if (!pasteBoard) return
+      const compat = eventCompatibilityError(clip.event, pasteBoard.target.type)
       if (compat) {
         showClipboardHint(compat)
         return
       }
       insertClonedEvent(
         clip.event,
-        board,
+        pasteBoard,
         afterEventId ?? focusedEventId ?? undefined,
       )
       showClipboardHint('Rule pasted into this rulesheet')
     },
-    [board, focusedEventId, insertClonedEvent, showClipboardHint],
+    [board, sceneBoards, focusedEventId, insertClonedEvent, showClipboardHint],
   )
 
   const moveFocusedEvent = useCallback(
@@ -650,10 +489,12 @@ export default function LogicBoardPanel() {
   )
 
   const undoLogic = useCallback(() => {
+    setEditingId(null)
     dispatch({ type: 'LOGIC_UNDO' })
   }, [dispatch])
 
   const redoLogic = useCallback(() => {
+    setEditingId(null)
     dispatch({ type: 'LOGIC_REDO' })
   }, [dispatch])
 
