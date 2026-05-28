@@ -33,13 +33,45 @@ function joinLabel(combine: ConditionCombineOp): string {
   return 'or'
 }
 
+function keyCombineForAlternates(
+  codes: string[],
+  combine: ConditionCombineOp,
+): ConditionCombineOp | undefined {
+  if (codes.length > 0) return combine
+  if (combine === 'NOT') return 'NOT'
+  return undefined
+}
+
+function eventTypeHint(eventType: OnInputTrigger['eventType']): string {
+  if (eventType === 'pressed') return 'Edge once per press'
+  if (eventType === 'released') return 'Edge once on release'
+  return 'Every frame while held'
+}
+
+function inputKeysSummary(
+  trigger: OnInputTrigger,
+  combine: ConditionCombineOp,
+  alternates: readonly string[],
+): string {
+  if (combine === 'NOT' && alternates.length === 0) {
+    return `NOT ${formatKeyLabel(trigger.keyCode)}`
+  }
+  const labels = [trigger.keyCode, ...alternates].map((c) => formatKeyLabel(c))
+  if (combine === 'NOT') {
+    return `NOT (${labels.join(' or ')})`
+  }
+  return labels.join(` ${combine} `)
+}
+
+export type OnInputTriggerFieldsProps = Readonly<{
+  trigger: OnInputTrigger
+  onChange: (t: OnInputTrigger) => void
+}>
+
 export function OnInputTriggerFields({
   trigger,
   onChange,
-}: {
-  trigger: OnInputTrigger
-  onChange: (t: OnInputTrigger) => void
-}) {
+}: OnInputTriggerFieldsProps) {
   const alternates = trigger.alternateKeyCodes ?? []
   const combine = getKeyCombine(trigger)
   const joinWord = joinLabel(combine)
@@ -48,7 +80,7 @@ export function OnInputTriggerFields({
     onChange({
       ...trigger,
       alternateKeyCodes: codes.length > 0 ? codes : undefined,
-      keyCombine: codes.length > 0 ? combine : combine === 'NOT' ? 'NOT' : undefined,
+      keyCombine: keyCombineForAlternates(codes, combine),
     })
   }
 
@@ -129,23 +161,12 @@ export function OnInputTriggerFields({
           <option value="released">Just released</option>
         </select>
         <span className="text-[10px] text-[var(--muted)]">
-          {trigger.eventType === 'pressed'
-            ? 'Edge once per press'
-            : trigger.eventType === 'released'
-              ? 'Edge once on release'
-              : 'Every frame while held'}
+          {eventTypeHint(trigger.eventType)}
         </span>
       </div>
       {(alternates.length > 0 || combine === 'NOT') && (
         <p className="text-[10px] text-[var(--muted)]">
-          Summary:{' '}
-          {combine === 'NOT' && alternates.length === 0
-            ? `NOT ${formatKeyLabel(trigger.keyCode)}`
-            : combine === 'NOT'
-              ? `NOT (${[trigger.keyCode, ...alternates].map((c) => formatKeyLabel(c)).join(' or ')})`
-              : [trigger.keyCode, ...alternates]
-                  .map((c) => formatKeyLabel(c))
-                  .join(` ${combine} `)}
+          Summary: {inputKeysSummary(trigger, combine, alternates)}
         </p>
       )}
     </div>
