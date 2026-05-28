@@ -24,15 +24,13 @@ import { scrollToComponentBlock } from './inspector/entity-component-utils'
 import type { EntityDef } from '../types'
 import type { InspectorBlockKey } from './inspector/entity-component-utils'
 
-function InspectorTabBar({
-  tab,
-  onTab,
-  hasEntity,
-}: {
+type InspectorTabBarProps = Readonly<{
   tab: InspectorTab
   onTab: (t: InspectorTab) => void
   hasEntity: boolean
-}) {
+}>
+
+function InspectorTabBar({ tab, onTab, hasEntity }: InspectorTabBarProps) {
   if (!hasEntity) return null
 
   const btn = (id: InspectorTab, label: string) => {
@@ -67,7 +65,11 @@ function InspectorTabBar({
   )
 }
 
-function EntityInspector({ entity }: { entity: EntityDef }) {
+type EntityInspectorProps = Readonly<{
+  entity: EntityDef
+}>
+
+function EntityInspector({ entity }: EntityInspectorProps) {
   const [componentsOpen, setComponentsOpen] = useState(true)
 
   const jumpToComponent = useCallback((key: InspectorBlockKey) => {
