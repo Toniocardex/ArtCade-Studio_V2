@@ -24,6 +24,17 @@ function deriveGrid(imgW: number, imgH: number, tileSize: number, margin: number
   return { cols, rows }
 }
 
+function fileReaderDataUrl(result: string | ArrayBuffer | null): string {
+  return typeof result === 'string' ? result : ''
+}
+
+const FILE_EXT_RE = /\.[^.]+$/
+
+function fileExtension(name: string): string {
+  const match = FILE_EXT_RE.exec(name)
+  return (match?.[0] ?? '.png').toLowerCase()
+}
+
 export default function TilesetEditorPanel() {
   const { state, dispatch } = useEditor()
   const { project, selection, selectedTileCell } = state
@@ -54,7 +65,8 @@ export default function TilesetEditorPanel() {
     if (!file || !project) return
     const reader = new FileReader()
     reader.onload = () => {
-      const url = String(reader.result)
+      const url = fileReaderDataUrl(reader.result)
+      if (!url) return
       const img = new Image()
       img.onload = async () => {
         setImgUrl(url)
@@ -95,7 +107,7 @@ export default function TilesetEditorPanel() {
 
         // Immediate delivery to the C++ renderer (keyed by the SAME path the
         // runtime renders with); PreviewPanel also re-registers on reopen.
-        const ext = (file.name.match(/\.[^.]+$/)?.[0] ?? '.png').toLowerCase()
+        const ext = fileExtension(file.name)
         editorRegisterImage(path, bytes, ext)
       }
       img.src = url
@@ -156,6 +168,7 @@ export default function TilesetEditorPanel() {
       <div className="w-56 border-r border-[var(--border)] p-3 flex flex-col gap-3
                       flex-shrink-0 overflow-y-auto min-h-0">
         <button
+          type="button"
           onClick={() => fileRef.current?.click()}
           className="flex items-center justify-center gap-2 px-3 py-2 rounded
                      text-xs font-semibold border border-[var(--accent-bd)] bg-[var(--accent-bg)]
@@ -170,7 +183,7 @@ export default function TilesetEditorPanel() {
               {tileset?.name ?? 'New tileset'}
             </div>
             <label className="text-[9px] text-[var(--muted)] uppercase flex items-center justify-between">
-              Tile size
+              <span>Tile size</span>
               <input
                 type="number" min={1} value={tileSize}
                 onChange={e => applyGrid(Math.max(1, Number(e.target.value)), margin)}
@@ -179,7 +192,7 @@ export default function TilesetEditorPanel() {
               />
             </label>
             <label className="text-[9px] text-[var(--muted)] uppercase flex items-center justify-between">
-              Margin
+              <span>Margin</span>
               <input
                 type="number" min={0} value={margin}
                 onChange={e => applyGrid(tileSize, Math.max(0, Number(e.target.value)))}
@@ -196,6 +209,7 @@ export default function TilesetEditorPanel() {
               </div>
             </div>
             <button
+              type="button"
               onClick={() => dispatch({ type: 'TILESET_SELECT_CELL', cellIndex: 0 })}
               className={`flex items-center gap-2 px-2 py-1.5 rounded text-xs border ${
                 selectedTileCell === 0
@@ -207,6 +221,7 @@ export default function TilesetEditorPanel() {
             </button>
             {tileset && (
               <button
+                type="button"
                 onClick={() =>
                   dispatch({ type: 'TILESET_ASSET_REMOVE', assetId: tileset.assetId })
                 }
@@ -222,13 +237,7 @@ export default function TilesetEditorPanel() {
 
       {/* Right: image + grid overlay (cell picker) */}
       <div className="flex-1 overflow-auto p-3">
-        {!hasImage ? (
-          <div className="h-full flex items-center justify-center text-[var(--muted)] text-xs text-center">
-            {tileset
-              ? `Tileset "${tileset.name}" (${tileset.cols}×${tileset.rows}) — reload the image to edit the grid.`
-              : 'Load a spritesheet image to slice it into tiles.'}
-          </div>
-        ) : (
+        {hasImage ? (
           <div
             className="relative inline-block border border-[var(--border)]"
             style={{ lineHeight: 0 }}
@@ -249,6 +258,7 @@ export default function TilesetEditorPanel() {
                 return (
                   <button
                     key={i}
+                    type="button"
                     onClick={() =>
                       dispatch({ type: 'TILESET_SELECT_CELL', cellIndex: cellId })
                     }
@@ -263,6 +273,12 @@ export default function TilesetEditorPanel() {
               })}
             </div>
           </div>
+        ) : (
+          <div className="h-full flex items-center justify-center text-[var(--muted)] text-xs text-center">
+            {tileset
+              ? `Tileset "${tileset.name}" (${tileset.cols}×${tileset.rows}) — reload the image to edit the grid.`
+              : 'Load a spritesheet image to slice it into tiles.'}
+          </div>
         )}
       </div>
       </div>
@@ -270,15 +286,13 @@ export default function TilesetEditorPanel() {
   )
 }
 
-function TilesetHeader({
-  name,
-  isStandalone,
-  onBack,
-}: {
+type TilesetHeaderProps = Readonly<{
   name?: string
   isStandalone: boolean
   onBack: () => void
-}) {
+}>
+
+function TilesetHeader({ name, isStandalone, onBack }: TilesetHeaderProps) {
   return (
     <div className="flex items-center gap-3 px-3 h-9 border-b border-[var(--border)]
                     bg-[var(--panel-3)] flex-shrink-0">
