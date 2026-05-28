@@ -105,6 +105,8 @@ Guida specializzata         (REACT_WASM_PATTERN.md o ECS_IMPLEMENTATION_GUIDE.md
 | **GUIDA_INTEGRAZIONE_SPLASH_LICENZE.md** | Splash editor vs runtime; Free/Pro; `pack-artcade.py`; watermark C++ | ~10min | Editor / tooling / runtime | ⭐ |
 | **FIXED_STEP_CONTRACT.md** | Ordine `tickFixedStep`, chi scrive Transform/body, latency intent Lua, physicsMode | ~5min | C++ / gameplay | ⭐⭐ |
 | **GLOBAL_LOGIC_UI_ARCHITECTURE.md** | Sensori physics, platformer feel, azioni world, UI screen-space, text juice | ~8min | C++ / gameplay / UI | ⭐ |
+| **DIALOG_SYSTEM.md** | Dialog System: JSON, CSV import, runtime, Logic Board | ~10min | Editor / C++ / narrative | ⭐⭐ |
+| **DIALOG_CSV_FORMAT.md** | Colonne CSV ArtCade per dialoghi | ~5min | Writers | ⭐ |
 | **ENGINE_DESIGN_RECAP.md** | Documento di progettazione engine (ECS, Logic Board, Object Types, fisica, roadmap, nomenclatura) | ~25min | **Tutti / design** | ⭐⭐⭐ |
 | **ENGINE_STATE_RECAP_COLLABORATORS.md** | Onboarding rapido + link a doc operativi | ~10min | **Tutti / onboarding** | ⭐⭐ |
 | **OBJECT_TYPES_ARCHITECTURE.md** | Object Types + scene instances (v2 project.json), merge rules, Logic Board on type | ~8min | Editor / runtime / design | ⭐⭐ |

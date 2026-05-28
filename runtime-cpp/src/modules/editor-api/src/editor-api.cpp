@@ -300,7 +300,7 @@ void loadProjectFromJson(const char* json_utf8, ProjectLoadKind kind) {
         if (activeId.empty() && !sceneDefs.empty())
             activeId = sceneDefs.begin()->first;
 
-        const std::unordered_map<std::string, EntityDef>* typesPtr =
+        const std::unordered_map<std::string, ArtCade::EntityDef>* typesPtr =
             objectTypes.empty() ? nullptr : &objectTypes;
         gateway->replaceProject(sceneDefs, entityDefs, activeId, typesPtr);
         gateway->setTilesets(tilesets);

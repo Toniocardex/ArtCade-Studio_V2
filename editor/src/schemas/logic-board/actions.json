@@ -409,6 +409,24 @@
       }
     }
   },
+  "startDialog": {
+    "type": "object",
+    "required": ["type", "target", "dialogId"],
+    "properties": {
+      "type": { "const": "startDialog" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "dialogId": { "type": "string" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Start Dialog",
+      "category": "Messaging",
+      "params": {
+        "target": { "widget": "target", "label": "NPC" },
+        "dialogId": { "widget": "string", "label": "Dialog ID" }
+      }
+    }
+  },
   "toggleLogicEvent": {
     "type": "object",
     "required": ["type", "eventId", "enabled"],

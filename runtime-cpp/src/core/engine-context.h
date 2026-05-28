@@ -35,6 +35,7 @@ namespace Modules {
     class CameraManager;
     class TweenManager;
     class SaveLoadManager;
+    class DialogManager;
 }
 class World;
 class RuntimeProfiler;
@@ -64,6 +65,7 @@ struct EngineContext {
     Modules::CameraManager*    cameraManager    = nullptr;
     Modules::TweenManager*     tweenManager     = nullptr;
     Modules::SaveLoadManager*  saveLoadManager  = nullptr;
+    Modules::DialogManager*    dialogManager    = nullptr;
 };
 
 } // namespace ArtCade

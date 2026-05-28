@@ -340,6 +340,16 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
                 ac.lifespan = ev["autoDestroy"].value("lifespan", 0.f);
                 e.autoDestroy = ac;
             }
+            if (ev.contains("dialog") && ev["dialog"].is_object()) {
+                auto& d = ev["dialog"];
+                DialogComponent dc;
+                dc.dialogId        = d.value("dialogId", "");
+                dc.startNode       = d.value("startNode", "");
+                dc.textSpeed       = d.value("textSpeed", 40.f);
+                dc.triggerMessage  = d.value("triggerMessage", "");
+                if (!dc.dialogId.empty())
+                    e.dialog = dc;
+            }
             if (ev.contains("visible") && ev["visible"].is_boolean())
                 e.visible = ev["visible"].get<bool>();
 

@@ -26,6 +26,7 @@ void GameAPI::registerAll(sol::state& lua) {
     bindLifecycleAPI (lua);
     bindGridAPI      (lua);
     bindShaderAPI    (lua);
+    bindDialogAPI    (lua);
 }
 
 } // namespace ArtCade::Modules

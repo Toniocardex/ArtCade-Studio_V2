@@ -177,6 +177,14 @@ struct AutoDestroyComponent {
     float _timeAlive = 0.f;  // runtime accumulator (not serialised)
 };
 
+/** NPC / talkable — references dialogs/{dialogId}.json in project root. */
+struct DialogComponent {
+    std::string dialogId;
+    std::string startNode;       // optional override; empty = graph startNode
+    float       textSpeed = 40.f;
+    std::string triggerMessage;  // optional Logic Board message name
+};
+
 // LifecycleEvent — emitted by EntityRegistry signals (on_construct/on_destroy
 // of Identity) when an entity gains its className/tags (Spawned) or is being
 // destroyed (Destroyed). Drained once per frame by the gateway and routed to
@@ -216,6 +224,7 @@ struct EntityDef {
     std::optional<HordeMemberComponent>          hordeMember;
     std::optional<HealthComponent>               health;
     std::optional<AutoDestroyComponent>          autoDestroy;
+    std::optional<DialogComponent>               dialog;
     /** Design-time flag: when false the sprite is hidden in play / shipped
      *  builds. The editor preview always draws the sprite (with a dashed
      *  outline). Runtime Logic Board setVisible() toggles sprite alpha. */

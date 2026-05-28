@@ -167,6 +167,8 @@ export function defaultAction(type: LogicActionType): LogicAction {
       return { type: 'cancelAutoDestroy', target: 'self' }
     case 'emitEvent':
       return { type: 'emitEvent', name: 'my_event', payloadKey: '', payloadValue: '' }
+    case 'startDialog':
+      return { type: 'startDialog', target: 'self', dialogId: 'innkeeper' }
     case 'toggleLogicEvent':
       return { type: 'toggleLogicEvent', eventId: '', enabled: true }
     case 'applyImpulse':

@@ -147,6 +147,7 @@ export type LogicAction =
   | { type: 'setAutoDestroyLifespan'; target: TargetSelector; lifespan: number }
   | { type: 'cancelAutoDestroy'; target: TargetSelector }
   | { type: 'emitEvent'; name: string; payloadKey?: string; payloadValue?: number | string | boolean }
+  | { type: 'startDialog'; target: TargetSelector; dialogId: string }
   | { type: 'toggleLogicEvent'; eventId: string; enabled: boolean }
   | { type: 'applyImpulse'; target: TargetSelector; ix: number; iy: number }
   | { type: 'applyForce'; target: TargetSelector; fx: number; fy: number }

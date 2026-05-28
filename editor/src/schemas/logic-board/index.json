@@ -9,7 +9,7 @@
   ],
   "actions": [
     "setVariable", "addVariable", "setPosition", "setVelocity", "playSound", "playMusic",
-    "stopAllAudio", "stopMusic", "pauseMusic", "resumeMusic", "destroyEntity", "clickToDestroy", "spawnEntity", "spawnEntityAtPointer", "emitEvent",
+    "stopAllAudio", "stopMusic", "pauseMusic", "resumeMusic", "destroyEntity", "clickToDestroy", "spawnEntity", "spawnEntityAtPointer", "emitEvent", "startDialog",
     "toggleLogicEvent", "applyImpulse", "applyForce", "setRotation", "setScale",
     "playAnimation", "setFlip", "setVisible", "setColorTint", "loadScene", "restartScene", "setCameraTarget", "cameraShake", "moveInDirection",
     "controllerMovement", "moveController", "clearMovementIntent", "requestPlatformerJump", "damageEntity", "healEntity",

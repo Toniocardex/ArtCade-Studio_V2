@@ -42,6 +42,9 @@ public:
 
     bool isDevMode() const { return devMode_; }
 
+    /** Project root (directory or extracted .artcade temp dir). */
+    const std::string& projectRoot() const { return rootPath_; }
+
     /** Normalised image point 0..1 on asset path; empty if unknown. */
     std::optional<Vec2> getImagePoint(const std::string& assetPath,
                                       const std::string& pointId) const;

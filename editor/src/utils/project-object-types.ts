@@ -38,10 +38,6 @@ export function slugTypeId(name: string): string {
   return base.charAt(0).toUpperCase() + base.slice(1)
 }
 
-function defaultTransform(): Transform {
-  return { position: { x: 0, y: 0 }, scale: { x: 1, y: 1 }, rotation: 0 }
-}
-
 function cloneTransform(t: Transform): Transform {
   return {
     position: { x: t.position.x, y: t.position.y },
@@ -64,9 +60,9 @@ export function entityToObjectType(entity: EntityDef, typeId: string): ObjectTyp
     ...(entity.visible === false ? { visible: false } : {}),
   }
   for (const key of COMPONENT_KEYS) {
-    const v = (entity as Record<string, unknown>)[key]
+    const v = (entity as unknown as Record<string, unknown>)[key]
     if (v && typeof v === 'object') {
-      (base as Record<string, unknown>)[key] = JSON.parse(JSON.stringify(v))
+      (base as unknown as Record<string, unknown>)[key] = JSON.parse(JSON.stringify(v))
     }
   }
   return base
@@ -96,9 +92,9 @@ export function materializeEntity(
   if (type.scriptPath) ent.scriptPath = type.scriptPath
   ent.visible = instance.visible ?? type.visible ?? true
   for (const key of COMPONENT_KEYS) {
-    const v = (type as Record<string, unknown>)[key]
+    const v = (type as unknown as Record<string, unknown>)[key]
     if (v && typeof v === 'object') {
-      (ent as Record<string, unknown>)[key] = JSON.parse(JSON.stringify(v))
+      (ent as unknown as Record<string, unknown>)[key] = JSON.parse(JSON.stringify(v))
     }
   }
   return ent

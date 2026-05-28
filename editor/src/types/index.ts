@@ -217,7 +217,7 @@ export interface ProjectDoc {
 // ---------------------------------------------------------------------------
 
 /** Top-level mode: Canvas/Scene editor · Logic Board · Script editor */
-export type EditorView = 'canvas' | 'logic' | 'script'
+export type EditorView = 'canvas' | 'logic' | 'script' | 'dialog'
 
 export interface EditorSelection {
   entityId: number | null

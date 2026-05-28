@@ -62,6 +62,7 @@ interface FpEntity {
   hm?: unknown               // hordeMember
   he?: unknown               // health
   ad?: unknown               // autoDestroy
+  dg?: unknown               // dialog
 }
 
 interface FpTilemap {
@@ -117,6 +118,7 @@ function projectEntity(e: EntityDef): FpEntity {
     hm: e.hordeMember,
     he: e.health,
     ad: e.autoDestroy,
+    dg: e.dialog,
   }
 }
 

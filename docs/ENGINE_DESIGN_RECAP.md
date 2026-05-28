@@ -473,14 +473,15 @@ THEN: → aggiungi item "mappa"
 
 ### Roadmap Dialog System
 
-| Priorità | Step |
-|---|---|
-| 1 | Data Model + parser JSON |
-| 2 | DialogComponent + DialogSystem |
-| 3 | DialogRenderer + typewriter effect |
-| 4 | Integrazione Logic Board via `event.emit` |
-| 5 | Ritratti personaggio, flag "già visto", localizzazione |
-| 6 | Dialog Editor visuale (imnodes + ImGui) |
+| Priorità | Step | Stato |
+|---|---|---|
+| 1 | Data Model + parser JSON | Vedi [`DIALOG_SYSTEM.md`](DIALOG_SYSTEM.md) |
+| 2 | DialogComponent + DialogSystem | |
+| 3 | DialogRenderer + typewriter effect | |
+| 4 | Integrazione Logic Board (`startDialog`, `event.emit`) | |
+| 4b | CSV import ([`DIALOG_CSV_FORMAT.md`](DIALOG_CSV_FORMAT.md)) | |
+| 5 | Ritratti, flag visited, localizzazione | |
+| 6 | Dialog Editor visuale (**React Flow**, non ImGui) | |
 
 ---
 

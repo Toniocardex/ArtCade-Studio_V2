@@ -11,6 +11,7 @@ import type {
   AutoDestroyComponent,
   ComponentKey,
   HealthComponent,
+  DialogComponent,
   LinearMoverComponent,
   CameraTargetComponent,
   MagneticItemComponent,
@@ -79,6 +80,12 @@ const HORDE_MEMBER: HordeMemberComponent = {
 }
 const HEALTH: HealthComponent = { maxHp: 100, currentHp: 100, iFrames: 0.2 }
 const AUTODESTROY: AutoDestroyComponent = { lifespan: 0 }
+const DIALOG: DialogComponent = {
+  dialogId: 'innkeeper',
+  startNode: '',
+  textSpeed: 40,
+  triggerMessage: '',
+}
 
 export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
   {
@@ -213,6 +220,19 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
     create: () => ({ ...AUTODESTROY }),
     fields: [
       { key: 'lifespan', label: 'Lifespan (s, 0=manual)', kind: 'number', min: 0, step: 0.1 },
+    ],
+  },
+  {
+    key: 'dialog',
+    label: 'Dialog',
+    description: 'References dialogs/{dialogId}.json in the project folder. Use Logic Board Start Dialog or dialog.start in Lua.',
+    color: 'var(--purple)',
+    create: () => ({ ...DIALOG }),
+    fields: [
+      { key: 'dialogId', label: 'Dialog ID', kind: 'text' },
+      { key: 'startNode', label: 'Start node override', kind: 'text' },
+      { key: 'textSpeed', label: 'Text speed (chars/s)', kind: 'number', min: 1, step: 5 },
+      { key: 'triggerMessage', label: 'Trigger message', kind: 'text' },
     ],
   },
 ]

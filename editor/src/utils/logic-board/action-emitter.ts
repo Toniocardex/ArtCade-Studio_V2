@@ -178,6 +178,8 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
       return a.payloadKey
         ? `event.emit(${luaString(a.name)}, { [${luaString(a.payloadKey)}] = ${luaValue(a.payloadValue ?? '')} })`
         : `event.emit(${luaString(a.name)})`
+    case 'startDialog':
+      return `dialog.start(${targetExpr(a.target)}, ${luaString(a.dialogId)})`
     case 'toggleLogicEvent':
       return `_logic_on[${ruleKeyExpr(a.eventId, ctx.eventSlugs)}] = ${a.enabled ? 'true' : 'false'}`
     case 'applyImpulse':

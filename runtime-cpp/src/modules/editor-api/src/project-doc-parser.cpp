@@ -173,6 +173,16 @@ EntityDef parseEntityDef(const json& j, EntityId fallbackId) {
         ac.lifespan = j["autoDestroy"].value("lifespan", 0.f);
         e.autoDestroy = ac;
     }
+    if (j.contains("dialog") && j["dialog"].is_object()) {
+        const auto& d = j["dialog"];
+        DialogComponent dc;
+        dc.dialogId       = d.value("dialogId", "");
+        dc.startNode      = d.value("startNode", "");
+        dc.textSpeed      = d.value("textSpeed", 40.f);
+        dc.triggerMessage = d.value("triggerMessage", "");
+        if (!dc.dialogId.empty())
+            e.dialog = dc;
+    }
     if (j.contains("visible") && j["visible"].is_boolean())
         e.visible = j["visible"].get<bool>();
     return e;

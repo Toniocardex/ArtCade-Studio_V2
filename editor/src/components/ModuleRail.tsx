@@ -1,4 +1,4 @@
-import { LayoutGrid, Workflow, Code2, Sun, Moon } from 'lucide-react'
+import { LayoutGrid, Workflow, Code2, MessageSquare, Sun, Moon } from 'lucide-react'
 import { useState } from 'react'
 import { useEditor } from '../store/editor-store'
 import { applyTheme, toggleTheme, type Theme } from '../utils/theme'
@@ -14,6 +14,7 @@ const MODES: {
   { id: 'canvas', label: 'Canvas',        shortLabel: 'Canvas', icon: LayoutGrid },
   { id: 'logic',  label: 'Logic Board',   shortLabel: 'Logic',  icon: Workflow },
   { id: 'script', label: 'Editor Script', shortLabel: 'Script', icon: Code2 },
+  { id: 'dialog', label: 'Dialog Editor', shortLabel: 'Dialog', icon: MessageSquare },
 ]
 
 function modeBtnClass(active: boolean) {

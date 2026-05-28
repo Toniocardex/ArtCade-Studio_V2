@@ -90,6 +90,14 @@ export interface AutoDestroyComponent {
   lifespan: number           // s
 }
 
+/** Talkable NPC — references `dialogs/{dialogId}.json` in the project folder. */
+export interface DialogComponent {
+  dialogId: string
+  startNode?: string
+  textSpeed?: number
+  triggerMessage?: string
+}
+
 /**
  * The set of optional ECS components an entity can carry, keyed by the field
  * name used on EntityDef. `physics`/`animation` already live on EntityDef and
@@ -106,6 +114,7 @@ export interface EntityComponents {
   hordeMember?:          HordeMemberComponent
   health?:               HealthComponent
   autoDestroy?:          AutoDestroyComponent
+  dialog?:               DialogComponent
 }
 
 export type ComponentKey = keyof EntityComponents
@@ -113,5 +122,5 @@ export type ComponentKey = keyof EntityComponents
 /** Runtime list of optional component field names (parse/serialize). */
 export const COMPONENT_KEYS: ComponentKey[] = [
   'sensor', 'solid', 'platformerController', 'topDownController', 'linearMover',
-  'cameraTarget', 'magneticItem', 'hordeMember', 'health', 'autoDestroy',
+  'cameraTarget', 'magneticItem', 'hordeMember', 'health', 'autoDestroy', 'dialog',
 ]

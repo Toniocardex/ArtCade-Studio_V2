@@ -14,6 +14,7 @@ flowchart TD
   gameplay[tickGameplaySystems + scene transition]
   animPre[dispatchAnimationEvents]
   luaTick[luaHost.tick]
+  dialogTick[dialogManager.tick]
   camShake[cameraManager.updateShake]
   platformer[tickPlatformerControllers]
   physStep[physics.step if enabled]
@@ -23,7 +24,7 @@ flowchart TD
   sensors[refreshSensorEdges + dispatchSensorEvents]
   life[dispatchLifecycleEvents]
   autoDestroy[tickAutoDestroy + flush + lifecycle again]
-  clearDraw --> gameplay --> animPre --> luaTick --> camShake --> platformer --> physStep
+  clearDraw --> gameplay --> animPre --> luaTick --> dialogTick --> camShake --> platformer --> physStep
   physStep --> flush1 --> physSync --> cam --> sensors --> life --> autoDestroy
 ```
 
@@ -35,15 +36,17 @@ flowchart TD
 | 4 | `entityGateway->tickSceneTransition(dt)` | |
 | 5 | `gameAPI->dispatchAnimationEvents()` | |
 | 6 | **`luaHost->tick(dt)`** | Logic Board `tick(dt)`, `movement.*` / `platformer.*` intent APIs. |
-| 7 | **`cameraManager->updateShake(dt)`** | Trauma decay + shake offset for render (after Lua `camera.shake`). |
-| 8 | **`world->tickPlatformerControllers(dt)`** | Solid AABB grounding + kinematic move (before `physics.step`). |
-| 9 | **`physics->step(dt)`** | Skipped when `physicsMode` is `off`; in `auto` only if bodies exist. |
-| 10 | `world->flushEntityQueues()` | Destroys queued from Lua before sync. |
-| 11 | **`world->syncPhysicsToEntities()`** | Physics body → `Transform` for simulated bodies (see table below). |
-| 12 | `world->tickCameraTargets(dt)` | |
-| 13 | **`world->refreshSensorEdges()`** + `dispatchSensorEvents()` | After physics + sync (same-frame overlap). |
-| 14 | `dispatchLifecycleEvents()` | Spawn/destroy handlers. |
-| 15 | `tickAutoDestroy` + flush + lifecycle again | |
+| 7 | **`dialogManager->tick(dt)`** | Dialog typewriter / choices; `emitDeferred` from dialog nodes flushed at end of step. Skipped when inactive. |
+| 8 | **`cameraManager->updateShake(dt)`** | Trauma decay + shake offset for render (after Lua `camera.shake`). |
+| 9 | **`world->tickPlatformerControllers(dt)`** | Solid AABB grounding + kinematic move (before `physics.step`). **Skipped when `dialogManager->isBlocking()`.** |
+| 10 | **`physics->step(dt)`** | Skipped when `physicsMode` is `off`; in `auto` only if bodies exist. |
+| 11 | `world->flushEntityQueues()` | Destroys queued from Lua before sync. |
+| 12 | **`world->syncPhysicsToEntities()`** | Physics body → `Transform` for simulated bodies (see table below). |
+| 13 | `world->tickCameraTargets(dt)` | |
+| 14 | **`world->refreshSensorEdges()`** + `dispatchSensorEvents()` | After physics + sync (same-frame overlap). |
+| 15 | `dispatchLifecycleEvents()` | Spawn/destroy handlers. |
+| 16 | `tickAutoDestroy` + flush + lifecycle again | |
+| — | `eventBus->flushDeferred()` | End of step (dialog `emitEvent` + other deferred). |
 
 **Input:** `input->poll()` runs at the start of `loopIteration()`, before the fixed-step accumulator drains.
 

@@ -22,6 +22,7 @@ import type { ConsoleEntry } from './types'
 const LogicBoardPanel = lazy(() => import('./panels/LogicBoardPanel'))
 const ScriptEditorPanel = lazy(() => import('./panels/ScriptEditorPanel'))
 const TilesetEditorPanel = lazy(() => import('./panels/TilesetEditorPanel'))
+const DialogEditorPanel = lazy(() => import('./panels/DialogEditorPanel'))
 
 let _bootLogId = 500
 function bootLog(message: string, level: ConsoleEntry['level']): ConsoleEntry {
@@ -140,6 +141,16 @@ function ScriptEditorView() {
   )
 }
 
+function DialogEditorView() {
+  return (
+    <div className="flex flex-1 min-h-0 overflow-hidden">
+      <Suspense fallback={null}>
+        <DialogEditorPanel />
+      </Suspense>
+    </div>
+  )
+}
+
 // ---------------------------------------------------------------------------
 // Root layout
 // ---------------------------------------------------------------------------
@@ -197,6 +208,7 @@ function EditorLayout() {
           </div>
           {state.mode === 'logic'  && <LogicBoardView />}
           {state.mode === 'script' && <ScriptEditorView />}
+          {state.mode === 'dialog' && <DialogEditorView />}
         </div>
 
         <BottomDock />

@@ -542,8 +542,8 @@ function serializeObjectType(type: ObjectTypeDef) {
     visible: type.visible,
     ...(Object.fromEntries(
       COMPONENT_KEYS
-        .filter((k) => (type as Record<string, unknown>)[k])
-        .map((k) => [k, (type as Record<string, unknown>)[k]]),
+        .filter((k) => (type as unknown as Record<string, unknown>)[k])
+        .map((k) => [k, (type as unknown as Record<string, unknown>)[k]]),
     ) as Partial<EntityDef>),
   })
   const { id: _id, name: _n, className: _c, transform: _t, ...rest } = base

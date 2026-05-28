@@ -75,6 +75,7 @@ private:
     void bindGridAPI       (sol::state& lua);
     void bindShaderAPI     (sol::state& lua);
     void bindComponentAPI  (sol::state& lua);
+    void bindDialogAPI     (sol::state& lua);
 };
 
 } // namespace ArtCade::Modules

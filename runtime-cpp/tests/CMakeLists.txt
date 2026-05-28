@@ -54,6 +54,12 @@ artcade_test(save_load_test
     save-load-test.cpp
     "artcade-save-load;artcade-variable-manager")
 
+artcade_test(dialog_parser_test
+    dialog-parser-test.cpp
+    artcade-dialog)
+target_compile_definitions(dialog_parser_test
+    PRIVATE ARTCADE_REPO_ROOT="${CMAKE_SOURCE_DIR}/../..")
+
 # ============================================================================
 # TextureManager — compilato con stub Raylib (funziona anche senza GPU).
 # Le sorgenti vengono compilate direttamente (no link a artcade-texture-manager

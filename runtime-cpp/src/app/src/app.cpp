@@ -29,6 +29,7 @@
 #include "../../modules/camera-manager/include/camera-manager.h"
 #include "../../modules/tween-manager/include/tween-manager.h"
 #include "../../modules/save-load/include/save-load-manager.h"
+#include "../../modules/dialog/include/dialog-manager.h"
 #include "../../modules/editor-api/include/editor-api.h"
 #include "../../modules/game-state/include/splash-state.h"
 
@@ -76,6 +77,7 @@ struct Application::Modules {
     std::unique_ptr<ArtCade::Modules::CameraManager>    cameraManager;
     std::unique_ptr<ArtCade::Modules::TweenManager>     tweenManager;
     std::unique_ptr<ArtCade::Modules::SaveLoadManager>  saveLoadManager;
+    std::unique_ptr<ArtCade::Modules::DialogManager>  dialogManager;
 };
 
 // ---- Construction / destruction -----------------------------------------
@@ -212,6 +214,11 @@ bool Application::initSubsystems() {
     ctx_.assetLoader   = mod_->assetLoader.get();
     ctx_.world         = mod_->world.get();
 
+    mod_->dialogManager = std::make_unique<ArtCade::Modules::DialogManager>();
+    if (!mod_->dialogManager->init()) return false;
+    mod_->dialogManager->setContext(&ctx_);
+    ctx_.dialogManager = mod_->dialogManager.get();
+
     mod_->gameAPI = std::make_unique<ArtCade::Modules::GameAPI>(ctx_);
     if (!mod_->gameAPI->init()) return false;
     ctx_.gameAPI = mod_->gameAPI.get();
@@ -317,6 +324,9 @@ void Application::applyEditorProjectLoaded(
 {
     applyEditorProjectCommon(tilePalette, tilesets);
 
+    if (mod_->dialogManager && mod_->assetLoader)
+        mod_->dialogManager->loadDialogsFromDirectory(mod_->assetLoader->projectRoot());
+
     if (mod_->luaHost)
         mod_->luaHost->loadLuaSource(kEmptyEditorLua);
 
@@ -408,6 +418,9 @@ bool Application::loadProject(const std::string& projectPath) {
     if (licenseTier_ == "free")
         splash_ = std::make_unique<ArtCade::Modules::SplashState>("free");
 
+    if (mod_->dialogManager)
+        mod_->dialogManager->loadDialogsFromDirectory(mod_->assetLoader->projectRoot());
+
     std::cout << "[App] Project loaded: " << doc.projectName
               << " (license=" << licenseTier_ << ")\n";
     return true;
@@ -440,8 +453,10 @@ void Application::tickFixedStep(float dt) {
         mod_->cameraManager->updateMotion(dt);
         mod_->gameStateManager->update(dt);
         mod_->eventBus->flushDeferred();
-        mod_->world->tickGameplaySystems(dt);
-        mod_->entityGateway->tickSceneTransition(dt);
+        if (!mod_->dialogManager || !mod_->dialogManager->isBlocking()) {
+            mod_->world->tickGameplaySystems(dt);
+            mod_->entityGateway->tickSceneTransition(dt);
+        }
         profiler_.addGameplayMs(elapsedMs(start));
     }
     {
@@ -456,10 +471,14 @@ void Application::tickFixedStep(float dt) {
         profiler_.addLuaMs(elapsedMs(start));
         profiler_.setLuaTickEnabled(mod_->luaHost->isScriptTickRequired());
     }
+    if (mod_->dialogManager) {
+        mod_->dialogManager->tick(dt);
+    }
     // After Lua: camera.shake may have added trauma — decay + offset for this frame.
     mod_->cameraManager->updateShake(dt);
     // Platformer integrates Transform before physics; Solid grounding uses AABB.
-    mod_->world->tickPlatformerControllers(dt);
+    if (!mod_->dialogManager || !mod_->dialogManager->isBlocking())
+        mod_->world->tickPlatformerControllers(dt);
     const bool runPhysics =
         physicsMode_ == PhysicsMode::On
         || (physicsMode_ == PhysicsMode::Auto && mod_->physics->hasActiveBodies());
@@ -515,6 +534,8 @@ void Application::tickFixedStep(float dt) {
             profiler_.addLuaEvents(events);
         }
     }
+
+    mod_->eventBus->flushDeferred();
 
     mod_->audio->update();
 
@@ -578,7 +599,7 @@ void Application::loopIteration() {
 #endif
 
     if (simulating) {
-        {
+        if (!mod_->dialogManager || !mod_->dialogManager->isBlocking()) {
             const auto start = Clock::now();
             const uint32_t events = mod_->gameAPI->dispatchInputEvents();
             profiler_.addLuaMs(elapsedMs(start));
@@ -737,6 +758,9 @@ void Application::renderActiveScene() {
     if (splash_)
         splash_->render(GetScreenWidth(), GetScreenHeight());
 
+    if (mod_->dialogManager && mod_->dialogManager->isActive())
+        mod_->dialogManager->render();
+
     mod_->renderer->endWorldPass();
     RayTintWidget::draw();
     mod_->renderer->presentScreen();
@@ -754,6 +778,7 @@ void Application::shutdownModules() {
     // Shutdown in reverse init order
     if (mod_->luaHost)          { mod_->luaHost->shutdown();          mod_->luaHost.reset();          }
     if (mod_->gameAPI)          { mod_->gameAPI->shutdown();          mod_->gameAPI.reset();          }
+    if (mod_->dialogManager)    { mod_->dialogManager->shutdown();    mod_->dialogManager.reset();    }
     if (mod_->world)            { mod_->world->shutdown();            mod_->world.reset();            }
     if (mod_->entityGateway)    { mod_->entityGateway->shutdown();    mod_->entityGateway.reset();    }
     if (mod_->sceneManager)     { mod_->sceneManager->shutdown();     mod_->sceneManager.reset();     }

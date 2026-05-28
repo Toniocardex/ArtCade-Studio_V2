@@ -888,6 +888,18 @@ describe('Logic Components — Phase A (new blocks)', () => {
     expect(lua).toContain('_logic_reg_message("player_hit", function()')
     expect(lua).toContain('debug.log("hit")')
   })
+
+  it('startDialog emits dialog.start on target entity', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({
+          trigger: { type: 'onTriggerEnter' },
+          actions: [{ type: 'startDialog', target: 'self', dialogId: 'innkeeper' }],
+        }),
+      ]),
+    ])
+    expect(lua).toContain('dialog.start(self, "innkeeper")')
+  })
 })
 
 describe('Logic Components — Phase B (new runtime-backed actions)', () => {

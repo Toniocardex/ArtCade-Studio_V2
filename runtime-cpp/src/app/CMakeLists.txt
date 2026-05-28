@@ -29,6 +29,7 @@ target_link_libraries(game PRIVATE
     artcade-camera-manager
     artcade-tween-manager
     artcade-save-load
+    artcade-dialog
 )
 
 # ============================================================================

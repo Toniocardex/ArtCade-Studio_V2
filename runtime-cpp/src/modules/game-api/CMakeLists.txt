@@ -17,6 +17,7 @@ add_library(artcade-game-api
     src/grid-api.cpp
     src/shader-api.cpp
     src/component-api.cpp
+    src/dialog-api.cpp
 )
 target_include_directories(artcade-game-api
     PUBLIC  include
@@ -36,6 +37,7 @@ target_link_libraries(artcade-game-api
         artcade-world
         artcade-sprite-animator
         artcade-asset-system
+        artcade-dialog
     PRIVATE
         lua54
 )
