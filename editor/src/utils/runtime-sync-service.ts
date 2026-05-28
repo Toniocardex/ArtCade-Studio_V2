@@ -183,6 +183,7 @@ class RuntimeSyncServiceImpl {
     activeSceneId: string,
     mainLua: string,
     dialogs?: Record<string, DialogScript>,
+    projectPath?: string | null,
   ): boolean {
     if (!isReady()) return false
     editorSetMode(0)
@@ -190,7 +191,12 @@ class RuntimeSyncServiceImpl {
     this.lastMode = 0
     editorRestoreFromProject(projectJsonForRuntime(project, activeSceneId))
     this.syncDialogs(dialogs ?? {})
-    if (this.reloadMainLuaIfChanged(mainLua) === 'failed') return false
+    if (this.reloadMainLuaIfChanged(mainLua, { force: true }) === 'failed') return false
+    // Latch so the STOP-triggered useRuntimeProjectSync does not run a redundant
+    // editor_load_project (C++ resets Lua to an empty stub; see applyEditorProjectLoaded).
+    const projection = runtimeProjectProjection(project, activeSceneId)
+    const loadKey = `${projectPath ?? ''}|${JSON.stringify(projection)}`
+    this.latchProjectProjection(loadKey, projection)
     this.assetCacheInvalidator?.()
     return true
   }
@@ -215,8 +221,9 @@ class RuntimeSyncServiceImpl {
   ): boolean {
     if (!isReady()) return false
     this.syncDialogs(dialogs)
-    // Script may already match lastMainLua after syncProject; PLAY must still proceed.
-    this.reloadMainLuaIfChanged(mainLua)
+    // C++ may still hold the empty editor stub after a full project load; always push
+    // gameplay Lua when entering PLAY.
+    if (this.reloadMainLuaIfChanged(mainLua, { force: true }) === 'failed') return false
     return true
   }
 
@@ -243,8 +250,11 @@ class RuntimeSyncServiceImpl {
   }
 
   /** Hot-reload main Lua when the compiled source changes (logic boards, script tab). */
-  private reloadMainLuaIfChanged(mainLua: string): 'reloaded' | 'unchanged' | 'failed' {
-    if (mainLua === this.lastMainLua) return 'unchanged'
+  private reloadMainLuaIfChanged(
+    mainLua: string,
+    opts?: { force?: boolean },
+  ): 'reloaded' | 'unchanged' | 'failed' {
+    if (!opts?.force && mainLua === this.lastMainLua) return 'unchanged'
     if (editorReloadScript(mainLua) === false) {
       const detail = peekWasmBridgeLastError() ?? 'editor_reload_script failed'
       console.warn('[runtime-sync] Script hot-reload failed:', detail)
@@ -327,7 +337,9 @@ class RuntimeSyncServiceImpl {
       this.latchProjectProjection(loadKey, projection)
       editorLoadProject(projectJsonForRuntime(project, activeSceneId))
       // C++ load resets Lua to an empty stub; always follow with the real script.
-      if (options?.mainLua) this.reloadMainLuaIfChanged(options.mainLua)
+      if (options?.mainLua && this.reloadMainLuaIfChanged(options.mainLua, { force: true }) === 'failed') {
+        return false
+      }
       return true
     }
 

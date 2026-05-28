@@ -79,7 +79,7 @@ export function useBuildToolbarActions({
         const activeSceneId = selectionSceneId ?? project.activeSceneId
         const mainLua = resolvePreviewMainLua({ project, openScripts, projectPath })
         const ok = runtimeSync.restorePreviewFromProject(
-          project, activeSceneId, mainLua, dialogs,
+          project, activeSceneId, mainLua, dialogs, projectPath,
         )
         if (!ok) {
           dispatch({

@@ -269,7 +269,7 @@ describe('RuntimeSyncService', () => {
     vi.mocked(bridge.editorSetMode).mockClear()
     vi.mocked(bridge.editorRestoreFromProject).mockClear()
     vi.mocked(bridge.editorReloadScript).mockClear()
-    expect(runtimeSync.restorePreviewFromProject(p as never, 'a', 'function tick(dt) end')).toBe(true)
+    expect(runtimeSync.restorePreviewFromProject(p as never, 'a', 'function tick(dt) end', {}, '/tmp/x')).toBe(true)
     expect(bridge.editorSetMode).toHaveBeenCalledWith(0)
     expect(bridge.editorRestoreFromProject).toHaveBeenCalledTimes(1)
     expect(bridge.editorReloadScript).toHaveBeenCalledWith('function tick(dt) end')
@@ -279,16 +279,31 @@ describe('RuntimeSyncService', () => {
     const reloadOrder = vi.mocked(bridge.editorReloadScript).mock.invocationCallOrder[0]
     expect(setModeOrder).toBeLessThan(restoreOrder)
     expect(restoreOrder).toBeLessThan(reloadOrder)
-    // After reset(), a repeat sync should load again.
-    expect(runtimeSync.syncProject(p as never, 'a', '/tmp/x')).toBe(true)
-    expect(bridge.editorLoadProject).toHaveBeenCalledTimes(2)
+    // Projection is latched after STOP so the follow-up sync does not full-load (stub Lua).
+    vi.mocked(bridge.editorLoadProject).mockClear()
+    expect(runtimeSync.syncProject(p as never, 'a', '/tmp/x')).toBe(false)
+    expect(bridge.editorLoadProject).not.toHaveBeenCalled()
   })
 
-  it('preparePlaySession succeeds when main Lua is already loaded', () => {
+  it('preparePlaySession always reloads Lua even when source unchanged', () => {
     const lua = 'function tick(dt) end'
     runtimeSync.syncProject(makeProject() as never, 'a', '/tmp/x', { mainLua: lua })
     vi.mocked(bridge.editorReloadScript).mockClear()
     expect(runtimeSync.preparePlaySession(lua, {})).toBe(true)
+    expect(bridge.editorReloadScript).toHaveBeenCalledWith(lua)
+  })
+
+  it('after STOP restore, syncProject does not full-load and wipe Lua', () => {
+    const p = makeProject()
+    const lua = 'function tick(dt) end'
+    const path = '/tmp/proj'
+    runtimeSync.syncProject(p as never, 'a', path, { mainLua: lua })
+    vi.mocked(bridge.editorLoadProject).mockClear()
+    vi.mocked(bridge.editorReloadScript).mockClear()
+    expect(runtimeSync.restorePreviewFromProject(p as never, 'a', lua, {}, path)).toBe(true)
+    vi.mocked(bridge.editorReloadScript).mockClear()
+    runtimeSync.syncProject(p as never, 'a', path, { mainLua: lua })
+    expect(bridge.editorLoadProject).not.toHaveBeenCalled()
     expect(bridge.editorReloadScript).not.toHaveBeenCalled()
   })
 

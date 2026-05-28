@@ -151,7 +151,7 @@ function executeApplyLogic({
     dispatch({ type: 'SET_PLAYING', playing: false })
     const activeSceneId = selectionSceneId ?? project.activeSceneId
     const ok = runtimeSync.restorePreviewFromProject(
-      project, activeSceneId, compileResult.lua, state.dialogs,
+      project, activeSceneId, compileResult.lua, state.dialogs, state.projectPath,
     )
     if (!ok) {
       flashApplyMsg('Failed to reset preview — see console.')
