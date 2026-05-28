@@ -29,7 +29,11 @@ import {
   createLogicBoardForObjectType,
 } from '../utils/logic-board/factory'
 import { cloneLogicEvent } from '../utils/logic-board/clone'
-import { scrollEventCardIntoViewSoon } from '../utils/logic-board/logic-event-list-ui'
+import {
+  navigableBoardEvents,
+  scrollEventCardIntoViewSoon,
+  siblingEventId,
+} from '../utils/logic-board/logic-event-list-ui'
 import { shouldIgnoreEditorShortcut } from '../utils/keyboard'
 import type { LogicBoard, LogicEvent } from '../types/logic-board'
 import type { ProjectDoc } from '../types'
@@ -86,6 +90,7 @@ type LogicBoardKeyHandlers = {
   cloneEvent: (ev: LogicEvent, board?: LogicBoard) => void
   openFocusedForEdit: () => void
   closeEditor: () => void
+  focusEvent: (eventId: string) => void
 }
 
 function handleLogicBoardKey(e: KeyboardEvent, handlers: LogicBoardKeyHandlers): void {
@@ -100,10 +105,31 @@ function handleLogicBoardKey(e: KeyboardEvent, handlers: LogicBoardKeyHandlers):
     cloneEvent,
     openFocusedForEdit,
     closeEditor,
+    focusEvent,
   } = handlers
   if (shouldIgnoreEditorShortcut(e)) return
 
   const focused = findEventInBoards(sceneBoards, focusedEventId)?.event
+
+  if (
+    !editingId &&
+    !e.ctrlKey &&
+    !e.metaKey &&
+    !e.altKey &&
+    (e.key === 'ArrowUp' || e.key === 'ArrowDown')
+  ) {
+    const events = navigableBoardEvents(sceneBoards, activeBoard, focusedEventId)
+    if (events.length > 0) {
+      e.preventDefault()
+      const nextId = siblingEventId(
+        events,
+        focusedEventId,
+        e.key === 'ArrowDown' ? 'down' : 'up',
+      )
+      if (nextId) focusEvent(nextId)
+    }
+    return
+  }
 
   if (e.key === 'Escape' && editingId) {
     e.preventDefault()
@@ -531,6 +557,10 @@ export default function LogicBoardPanel() {
           setEditingId(focusedEventId)
         },
         closeEditor: () => setEditingId(null),
+        focusEvent: (eventId) => {
+          setFocusedEventId(eventId)
+          scrollEventCardIntoViewSoon(eventId)
+        },
       })
     }
 

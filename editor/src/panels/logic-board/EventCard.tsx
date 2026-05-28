@@ -293,6 +293,7 @@ export default function EventCard(props: EventCardProps) {
   return (
     <div
       data-logic-event-id={event.id}
+      tabIndex={selected && !editing ? 0 : undefined}
       className={`mb-3 overflow-hidden border bg-[var(--panel)] transition-colors ${
         isHighlighted ? 'border-[var(--accent-2)]' : 'border-[var(--border)]'
       }`}
