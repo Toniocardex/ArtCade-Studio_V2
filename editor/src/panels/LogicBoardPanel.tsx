@@ -74,33 +74,52 @@ function findEventInBoards(
   return undefined
 }
 
-type LogicClipboardKeyHandlers = {
+type LogicBoardKeyHandlers = {
   sceneBoards: LogicBoard[]
   activeBoard: LogicBoard | null
   focusedEventId: string | null
+  editingId: string | null
   clipboard: LogicClipboard
   copyEvent: (ev: LogicEvent) => void
   pasteEvent: (afterEventId?: string) => void
   cloneEvent: (ev: LogicEvent, board?: LogicBoard) => void
+  openFocusedForEdit: () => void
+  closeEditor: () => void
 }
 
-function handleLogicBoardClipboardKey(
-  e: KeyboardEvent,
-  handlers: LogicClipboardKeyHandlers,
-): void {
+function handleLogicBoardKey(e: KeyboardEvent, handlers: LogicBoardKeyHandlers): void {
   const {
     sceneBoards,
     activeBoard,
     focusedEventId,
+    editingId,
     clipboard,
     copyEvent,
     pasteEvent,
     cloneEvent,
+    openFocusedForEdit,
+    closeEditor,
   } = handlers
   if (shouldIgnoreEditorShortcut(e)) return
-  if (!e.ctrlKey && !e.metaKey) return
 
   const focused = findEventInBoards(sceneBoards, focusedEventId)?.event
+
+  if (e.key === 'Escape' && editingId) {
+    e.preventDefault()
+    closeEditor()
+    return
+  }
+
+  if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    if (!focused || hasNonEmptyTextSelection()) return
+    if (editingId === focused.id) return
+    e.preventDefault()
+    openFocusedForEdit()
+    return
+  }
+
+  if (!e.ctrlKey && !e.metaKey) return
+
   const key = e.key.toLowerCase()
 
   if (key === 'c') {
@@ -496,14 +515,20 @@ export default function LogicBoardPanel() {
     if (sceneBoards.length === 0 && !board) return
 
     const onKeyDown = (e: KeyboardEvent) => {
-      handleLogicBoardClipboardKey(e, {
+      handleLogicBoardKey(e, {
         sceneBoards,
         activeBoard: board,
         focusedEventId,
+        editingId,
         clipboard: clipboardRef.current,
         copyEvent,
         pasteEvent,
         cloneEvent,
+        openFocusedForEdit: () => {
+          if (focusedEventId == null) return
+          setEditingId(focusedEventId)
+        },
+        closeEditor: () => setEditingId(null),
       })
     }
 
@@ -515,6 +540,7 @@ export default function LogicBoardPanel() {
     board,
     sceneBoards,
     focusedEventId,
+    editingId,
     copyEvent,
     pasteEvent,
     cloneEvent,

@@ -31,6 +31,8 @@ export type EventCardProps = Readonly<{
   editing: boolean
   selected?: boolean
   onSelect?: () => void
+  /** Opens the rule editor (e.g. double-click); does not toggle closed. */
+  onOpenEdit?: () => void
   onToggleEnabled: () => void
   onEdit: () => void
   onClone: () => void
@@ -56,20 +58,29 @@ function zapTriggerTooltip(execLabel: string): string {
 function CardSelectButton({
   className = '',
   onSelect,
+  onDoubleClick,
+  title,
   children,
 }: Readonly<{
   className?: string
   onSelect?: () => void
+  onDoubleClick?: () => void
+  title?: string
   children: ReactNode
 }>) {
-  if (!onSelect) {
+  if (!onSelect && !onDoubleClick) {
     return <div className={className}>{children}</div>
   }
   return (
     <button
       type="button"
       className={`block w-full border-0 bg-transparent p-0 text-left ${className}`}
+      title={title}
       onClick={onSelect}
+      onDoubleClick={(e) => {
+        e.preventDefault()
+        onDoubleClick?.()
+      }}
     >
       {children}
     </button>
@@ -152,6 +163,7 @@ function EventCardHeader({
   editing,
   zapTooltip,
   onSelect,
+  onOpenEdit,
   onToggleEnabled,
   onEdit,
   onClone,
@@ -165,6 +177,7 @@ function EventCardHeader({
   editing: boolean
   zapTooltip: string
   onSelect?: () => void
+  onOpenEdit?: () => void
   onToggleEnabled: () => void
   onEdit: () => void
   onClone: () => void
@@ -177,6 +190,8 @@ function EventCardHeader({
       <CardSelectButton
         className="flex min-w-0 flex-1 items-center gap-2.5"
         onSelect={onSelect}
+        onDoubleClick={editing ? undefined : onOpenEdit}
+        title={editing ? undefined : 'Double-click to edit rule'}
       >
         <div className="shrink-0 text-[var(--accent)]" title={zapTooltip}>
           <Zap size={13} strokeWidth={2} />
@@ -237,6 +252,7 @@ export default function EventCard(props: EventCardProps) {
     editing,
     selected,
     onSelect,
+    onOpenEdit,
     onToggleEnabled,
     onEdit,
     onClone,
@@ -265,11 +281,14 @@ export default function EventCard(props: EventCardProps) {
     editing,
     zapTooltip,
     onSelect,
+    onOpenEdit,
     onToggleEnabled,
     onEdit,
     onClone,
     onDelete,
   }
+
+  const collapsedSelectTitle = editing ? undefined : 'Double-click to edit rule'
 
   return (
     <div
@@ -288,7 +307,12 @@ export default function EventCard(props: EventCardProps) {
           onDone={onDoneEditing}
         />
       ) : (
-        <CardSelectButton className={`cursor-pointer ${dim}`} onSelect={onSelect}>
+        <CardSelectButton
+          className={`cursor-pointer ${dim}`}
+          onSelect={onSelect}
+          onDoubleClick={onOpenEdit}
+          title={collapsedSelectTitle}
+        >
           <div
             className={`grid grid-cols-1 border-b border-[var(--border)] ${
               ifLines.length > 0 ? 'lg:grid-cols-[minmax(220px,0.38fr)_1fr]' : ''

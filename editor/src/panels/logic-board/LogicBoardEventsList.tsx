@@ -62,6 +62,10 @@ function renderEventCard(
       editing={editingId === ev.id}
       selected={focusedEventId === ev.id}
       onSelect={() => setFocusedEventId(ev.id)}
+      onOpenEdit={() => {
+        setFocusedEventId(ev.id)
+        setEditingId(ev.id)
+      }}
       onToggleEnabled={() =>
         dispatch({
           type: 'LOGIC_UPDATE_EVENT',
@@ -143,7 +147,7 @@ export function LogicBoardEventsList(listProps: LogicBoardEventsListProps) {
               <span className="text-[10px] text-[var(--accent)]">{clipboardHint}</span>
             )}
             <span className="text-[10px] text-[var(--muted-2)]">
-              Ctrl+C copy · Ctrl+V paste · Ctrl+D duplicate
+              Double-click or Enter to edit · Ctrl+C copy · Ctrl+V paste · Ctrl+D duplicate
             </span>
           </div>
 
