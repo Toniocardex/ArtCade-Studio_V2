@@ -10,17 +10,19 @@ import {
 const sel =
   'bg-[var(--bg)] border border-[var(--border-2)] text-[var(--accent)] px-2 py-1 rounded text-xs'
 
+export type ConditionCombineSelectProps = Readonly<{
+  value: ConditionCombineOp
+  onChange: (op: ConditionCombineOp) => void
+  className?: string
+  'aria-label'?: string
+}>
+
 export function ConditionCombineSelect({
   value,
   onChange,
   className = sel,
   'aria-label': ariaLabel = 'Match rules',
-}: {
-  value: ConditionCombineOp
-  onChange: (op: ConditionCombineOp) => void
-  className?: string
-  'aria-label'?: string
-}) {
+}: ConditionCombineSelectProps) {
   return (
     <select
       className={className}
