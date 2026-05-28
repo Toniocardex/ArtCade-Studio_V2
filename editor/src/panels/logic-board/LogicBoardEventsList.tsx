@@ -217,7 +217,6 @@ export function LogicBoardEventsList(listProps: LogicBoardEventsListProps) {
                     event: ev,
                   })
                   setFocusedEventId(ev.id)
-                  setEditingId(ev.id)
                   scrollEventCardIntoViewSoon(ev.id)
                   setNewTrigger(NEW_TRIGGER_NONE)
                 }}

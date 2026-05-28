@@ -509,7 +509,12 @@ export default function LogicBoardPanel() {
   }
 
   const insertClonedEvent = useCallback(
-    (source: LogicEvent, targetBoard: LogicBoard, afterEventId?: string) => {
+    (
+      source: LogicEvent,
+      targetBoard: LogicBoard,
+      afterEventId?: string,
+      options?: { openEditor?: boolean },
+    ) => {
       const copy = cloneLogicEvent(source)
       dispatch({
         type: 'LOGIC_INSERT_EVENT',
@@ -518,7 +523,7 @@ export default function LogicBoardPanel() {
         afterEventId,
       })
       setFocusedEventId(copy.id)
-      setEditingId(copy.id)
+      if (options?.openEditor) setEditingId(copy.id)
       scrollEventCardIntoViewSoon(copy.id)
       return copy
     },
