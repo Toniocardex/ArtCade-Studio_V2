@@ -3,9 +3,14 @@ import type { EntityDef } from '../../types'
 import { InspectorSection, NumberField } from './inspector-fields'
 import { SpriteRayTintField } from './SpriteRayTintField'
 
-export function SpriteSection({ entity }: { entity: EntityDef }) {
+export type SpriteSectionProps = Readonly<{
+  entity: EntityDef
+}>
+
+export function SpriteSection({ entity }: SpriteSectionProps) {
   const { state, dispatch } = useEditor()
   const images = Object.values(state.project?.assets ?? {})
+  const assetSelectId = `${entity.id}-sprite-asset`
 
   function commitSprite(patch: Partial<EntityDef['sprite']>) {
     dispatch({
@@ -18,8 +23,11 @@ export function SpriteSection({ entity }: { entity: EntityDef }) {
   return (
     <InspectorSection label="Sprite">
       <div className="mb-2">
-        <label className="text-[9px] text-[var(--muted)] uppercase">Asset</label>
+        <label htmlFor={assetSelectId} className="text-[9px] text-[var(--muted)] uppercase">
+          Asset
+        </label>
         <select
+          id={assetSelectId}
           value={entity.sprite.spriteAssetId}
           onChange={(e) => commitSprite({ spriteAssetId: e.target.value })}
           className="w-full bg-[var(--panel-3)] border border-[var(--border-2)] rounded px-2 py-1
