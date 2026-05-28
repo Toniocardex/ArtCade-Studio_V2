@@ -19,8 +19,6 @@
     "fs:allow-mkdir",
     "fs:allow-exists",
     "fs:allow-remove",
-    "fs:allow-rename",
-    "fs:scope-home-recursive",
-    "fs:scope-desktop-recursive"
+    "fs:allow-rename"
   ]
 }

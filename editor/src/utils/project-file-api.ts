@@ -24,6 +24,15 @@ export async function invokeWriteFile(
   await invoke('write_file', { path, content, projectRoot })
 }
 
+/** Validated binary write (e.g. assets/images) via Rust path sandbox. */
+export async function invokeWriteBinaryFile(
+  path: string,
+  bytes: Uint8Array,
+  projectRoot: string,
+): Promise<void> {
+  await invoke('write_binary_file', { path, bytes: Array.from(bytes), projectRoot })
+}
+
 function notAvailable(name: string): void {
   console.warn(`[api] ${name}: Tauri not available in browser mode`)
 }

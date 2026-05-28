@@ -232,6 +232,38 @@ export function validateAction(action: unknown): ValidationResult {
   return { valid: !!ok, errors: ajvErrorToIssues(fn.errors, '/action') }
 }
 
+/** Validate an action and nested wait.then / repeatTimes.actions trees. */
+export function validateActionTree(
+  action: unknown,
+  pathPrefix: string,
+): ValidationResult {
+  const ar = validateAction(action)
+  const errors: ValidationIssue[] = ar.valid
+    ? []
+    : ar.errors.map((x) => ({
+        ...x,
+        path: `${pathPrefix}${x.path.replace('/action', '')}`,
+      }))
+
+  if (action && typeof action === 'object') {
+    const a = action as Record<string, unknown>
+    if (a.type === 'wait' && Array.isArray(a.then)) {
+      a.then.forEach((nested, i) => {
+        const nr = validateActionTree(nested, `${pathPrefix}/then[${i}]`)
+        if (!nr.valid) errors.push(...nr.errors)
+      })
+    }
+    if (a.type === 'repeatTimes' && Array.isArray(a.actions)) {
+      a.actions.forEach((nested, i) => {
+        const nr = validateActionTree(nested, `${pathPrefix}/actions[${i}]`)
+        if (!nr.valid) errors.push(...nr.errors)
+      })
+    }
+  }
+
+  return { valid: errors.length === 0, errors }
+}
+
 export function validateCondition(condition: unknown): ValidationResult {
   if (!condition || typeof condition !== 'object') {
     return { valid: false, errors: [{ path: '/condition', message: 'missing condition' }] }
@@ -295,15 +327,8 @@ export function validateLogicEvent(
     errors.push({ path: `${pathPrefix}/actions`, message: 'actions must be array' })
   } else {
     e.actions.forEach((a, i) => {
-      const ar = validateAction(a)
-      if (!ar.valid) {
-        errors.push(
-          ...ar.errors.map((x) => ({
-            ...x,
-            path: `${pathPrefix}/actions[${i}]${x.path.replace('/action', '')}`,
-          })),
-        )
-      }
+      const ar = validateActionTree(a, `${pathPrefix}/actions[${i}]`)
+      if (!ar.valid) errors.push(...ar.errors)
     })
   }
 
@@ -312,15 +337,8 @@ export function validateLogicEvent(
   }
   if (Array.isArray(e.elseActions)) {
     e.elseActions.forEach((a, i) => {
-      const ar = validateAction(a)
-      if (!ar.valid) {
-        errors.push(
-          ...ar.errors.map((x) => ({
-            ...x,
-            path: `${pathPrefix}/elseActions[${i}]${x.path.replace('/action', '')}`,
-          })),
-        )
-      }
+      const ar = validateActionTree(a, `${pathPrefix}/elseActions[${i}]`)
+      if (!ar.valid) errors.push(...ar.errors)
     })
   }
 

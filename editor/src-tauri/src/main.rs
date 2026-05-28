@@ -160,6 +160,21 @@ fn is_allowed_project_relative(rel: &Path) -> bool {
     if first.eq_ignore_ascii_case("dialogs") {
         return ext == "json";
     }
+    if first.eq_ignore_ascii_case("assets") {
+        let second = match comps.next() {
+            Some(Component::Normal(s)) => s.to_ascii_lowercase(),
+            _ => return false,
+        };
+        if second == "images" {
+            return matches!(
+                ext.as_str(),
+                "png" | "jpg" | "jpeg" | "gif" | "webp" | "bmp"
+            );
+        }
+        if second == "audio" {
+            return matches!(ext.as_str(), "ogg" | "wav" | "mp3" | "flac");
+        }
+    }
 
     false
 }
@@ -230,6 +245,16 @@ fn write_file(path: String, content: String, project_root: String) -> Result<(),
     std::fs::write(&p, content).map_err(|e| format!("write '{path}': {e}"))
 }
 
+#[tauri::command]
+fn write_binary_file(path: String, bytes: Vec<u8>, project_root: String) -> Result<(), String> {
+    let p = validate_writable_path(&path, &project_root)?;
+    if let Some(parent) = p.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("mkdir '{}': {e}", parent.display()))?;
+    }
+    std::fs::write(&p, bytes).map_err(|e| format!("write binary '{path}': {e}"))
+}
+
 #[cfg(test)]
 mod write_path_tests {
     use super::*;
@@ -258,6 +283,9 @@ mod write_path_tests {
         assert!(validate_writable_path(&project_json.display().to_string(), &root.display().to_string()).is_ok());
         assert!(validate_writable_path(&script.display().to_string(), &root.display().to_string()).is_ok());
         assert!(validate_writable_path(&dialog.display().to_string(), &root.display().to_string()).is_ok());
+
+        let image = root.join("assets").join("images").join("tile.png");
+        assert!(validate_writable_path(&image.display().to_string(), &root.display().to_string()).is_ok());
     }
 
     #[test]
@@ -947,6 +975,7 @@ fn main() {
         .plugin(tauri_plugin_fs::init())
         .invoke_handler(tauri::generate_handler![
             write_file,
+            write_binary_file,
             check_dependencies_cmd,
             install_sdk,
             run_build,

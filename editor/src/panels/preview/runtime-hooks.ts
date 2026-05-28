@@ -20,6 +20,7 @@ import {
 import { WASM_RUNTIME_SRC } from '../../utils/runtime-path'
 import { runtimeSync, type EditorTool } from '../../utils/runtime-sync-service'
 import {
+  getPreviewLuaSyncKey,
   logLogicBoardCompileFailure,
   resolvePreviewMainLuaWithStatus,
 } from '../../utils/preview-restore'
@@ -230,11 +231,26 @@ export function performRuntimeProjectSync(opts: ProjectSyncOptions): void {
 }
 
 export function useRuntimeProjectSync(opts: ProjectSyncOptions): void {
+  const previewLuaSyncKey =
+    opts.project != null
+      ? getPreviewLuaSyncKey({
+          project: opts.project,
+          openScripts: opts.openScripts,
+          projectPath: opts.projectPath,
+        })
+      : ''
+
   useEffect(() => {
     performRuntimeProjectSync(opts)
   }, [
-    opts.project, opts.projectPath, opts.openScripts, opts.dialogs, opts.selectionSceneId,
-    opts.wasmReady, opts.engineReady, opts.isPlaying, opts.dispatch, opts.makeLogEntry,
+    previewLuaSyncKey,
+    opts.dialogs,
+    opts.selectionSceneId,
+    opts.wasmReady,
+    opts.engineReady,
+    opts.isPlaying,
+    opts.dispatch,
+    opts.makeLogEntry,
   ])
 }
 

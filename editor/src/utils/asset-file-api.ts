@@ -1,8 +1,9 @@
 import { isTauri } from '@tauri-apps/api/core'
 import { open as dialogOpen } from '@tauri-apps/plugin-dialog'
-import { readFile, writeFile, mkdir } from '@tauri-apps/plugin-fs'
+import { readFile } from '@tauri-apps/plugin-fs'
 import { joinPath } from './file-paths'
 import { normalizeProjectRelativePath } from './project-path-security'
+import { invokeWriteBinaryFile } from './project-file-api'
 
 function safeAssetFileName(fileName: string): string {
   const base = fileName.replace(/\\/g, '/').split('/').pop() ?? ''
@@ -62,8 +63,7 @@ export async function importImageIntoProject(
   const relDir  = 'assets/images'
   const relPath = `${relDir}/${safeName}`
   try {
-    await mkdir(joinPath(projectRoot, relDir), { recursive: true })
-    await writeFile(joinPath(projectRoot, relPath), bytes)
+    await invokeWriteBinaryFile(joinPath(projectRoot, relPath), bytes, projectRoot)
     return relPath
   } catch (err) {
     console.error('[api] importImageIntoProject failed:', err)
