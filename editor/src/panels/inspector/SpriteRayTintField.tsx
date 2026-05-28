@@ -5,7 +5,11 @@ import {
   hasSpriteImageAsset,
 } from '../../utils/sprite-fill-color'
 
-export function SpriteRayTintField({ entity }: { entity: EntityDef }) {
+export type SpriteRayTintFieldProps = Readonly<{
+  entity: EntityDef
+}>
+
+export function SpriteRayTintField({ entity }: SpriteRayTintFieldProps) {
   const disabled = hasSpriteImageAsset(entity.sprite.spriteAssetId)
   const hex = fillColorToHex(entity.sprite.fillColor)
 
@@ -16,9 +20,9 @@ export function SpriteRayTintField({ entity }: { entity: EntityDef }) {
 
   return (
     <div className={`mb-2 ${disabled ? 'opacity-50' : ''}`}>
-      <label className="text-[9px] text-[var(--muted)] uppercase block mb-1">
+      <span className="text-[9px] text-[var(--muted)] uppercase block mb-1">
         Fill color (no asset)
-      </label>
+      </span>
       <div className="flex items-center gap-2">
         <div
           className="w-8 h-7 shrink-0 rounded border border-[var(--border-2)]"
