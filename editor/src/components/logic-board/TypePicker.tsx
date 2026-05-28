@@ -11,8 +11,11 @@ import {
   conditionDisplayName,
   triggerDisplayName,
 } from '../../panels/logic-board/friendly-labels'
-import type { LogicActionType, LogicTriggerType } from '../../types/logic-board'
-import type { LogicCondition } from '../../types/logic-board'
+import type {
+  LogicActionType,
+  LogicCondition,
+  LogicTriggerType,
+} from '../../types/logic-board'
 import {
   triggerExecutionTooltip,
   triggerPickerGroup,
@@ -33,17 +36,7 @@ function category(kind: ComponentKind, type: string): string {
   return conditionCategory(type as LogicCondition['type'])
 }
 
-export function TypePicker({
-  kind,
-  types,
-  value,
-  onChange,
-  className,
-  recommendedTypes,
-  recommendedGroupLabel,
-  placeholder,
-  placeholderValue = '',
-}: {
+export type TypePickerProps = Readonly<{
   kind: ComponentKind
   types: readonly string[]
   value: string
@@ -55,7 +48,19 @@ export function TypePicker({
   /** Disabled first option when no type selected yet (e.g. "Select action…"). */
   placeholder?: string
   placeholderValue?: string
-}) {
+}>
+
+export function TypePicker({
+  kind,
+  types,
+  value,
+  onChange,
+  className,
+  recommendedTypes,
+  recommendedGroupLabel,
+  placeholder,
+  placeholderValue = '',
+}: TypePickerProps) {
   const recommendedLabel =
     recommendedGroupLabel ??
     (kind === 'condition' ? 'Common checks' : 'Recommended for this object')
