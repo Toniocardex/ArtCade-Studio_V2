@@ -217,7 +217,7 @@ function EventCardHeader({
             title="Move rule up"
             ariaLabel="Move rule up"
             disabled={!canMoveUp}
-            onClick={onMoveUp}
+            onClick={() => onMoveUp?.()}
           >
             <ChevronUp size={13} />
           </LogicIconButton>
@@ -225,7 +225,7 @@ function EventCardHeader({
             title="Move rule down"
             ariaLabel="Move rule down"
             disabled={!canMoveDown}
-            onClick={onMoveDown}
+            onClick={() => onMoveDown?.()}
           >
             <ChevronDown size={13} />
           </LogicIconButton>

@@ -168,7 +168,7 @@ function handleLogicBoardKey(e: KeyboardEvent, handlers: LogicBoardKeyHandlers):
           : Math.max(idx - 1, 0)
       if (idx >= 0 && to !== idx) {
         e.preventDefault()
-        handlers.moveFocusedEvent(to)
+        moveFocusedEvent(to)
       }
     }
     return
@@ -498,13 +498,13 @@ export default function LogicBoardPanel() {
     setShowFullMain(false)
   }, [selectedBoardId])
 
+  const boardsRevision = logicBoardsRevision(project)
+
   useEffect(() => {
     if (state.mode === 'logic' && lastAppliedRevisionRef.current === null && boardsRevision) {
       lastAppliedRevisionRef.current = boardsRevision
     }
   }, [state.mode, boardsRevision])
-
-  const boardsRevision = logicBoardsRevision(project)
   const needsApply =
     Boolean(project) &&
     compileResult.ok &&

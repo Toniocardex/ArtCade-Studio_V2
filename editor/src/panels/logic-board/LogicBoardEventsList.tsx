@@ -135,7 +135,6 @@ export function LogicBoardEventsList(listProps: LogicBoardEventsListProps) {
     board,
     sceneId,
     clipboardHint,
-    setEditingId,
     setFocusedEventId,
     newTrigger,
     setNewTrigger,
