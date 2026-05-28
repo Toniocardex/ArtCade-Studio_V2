@@ -77,24 +77,54 @@ fn validate_absolute_path_no_dotdot(path: &str, label: &str) -> Result<PathBuf, 
     Ok(p)
 }
 
-fn is_under_project_root(file: &Path, root: &Path) -> bool {
-    if file.starts_with(root) {
-        return true;
-    }
-    match (file.canonicalize(), root.canonicalize()) {
-        (Ok(f), Ok(r)) => f.starts_with(&r),
-        _ => false,
-    }
-}
+/// Resolve `file` to a path that is provably under canonical `root` (blocks symlink escape).
+fn resolve_path_under_project_root(file: &Path, root: &Path) -> Result<PathBuf, String> {
+    let root_canon = root
+        .canonicalize()
+        .map_err(|e| format!("project_root canonicalize '{}': {e}", root.display()))?;
 
-fn strip_project_relative(file: &Path, root: &Path) -> Option<PathBuf> {
-    if let Ok(rel) = file.strip_prefix(root) {
-        return Some(rel.to_path_buf());
+    let resolved = if file.exists() {
+        file.canonicalize()
+            .map_err(|e| format!("path canonicalize '{}': {e}", file.display()))?
+    } else if let Some(parent) = file.parent() {
+        if parent.exists() {
+            let parent_canon = parent
+                .canonicalize()
+                .map_err(|e| format!("parent canonicalize '{}': {e}", parent.display()))?;
+            let name = file
+                .file_name()
+                .ok_or_else(|| format!("path has no file name: '{}'", file.display()))?;
+            parent_canon.join(name)
+        } else {
+            let rel = file
+                .strip_prefix(root)
+                .or_else(|_| {
+                    file.strip_prefix(&root_canon)
+                        .map_err(|_| ())
+                })
+                .map_err(|_| {
+                    format!(
+                        "could not resolve path relative to project root '{}': '{}'",
+                        root.display(),
+                        file.display()
+                    )
+                })?;
+            reject_parent_dir_components(rel)?;
+            root_canon.join(rel)
+        }
+    } else {
+        return Err(format!("invalid path (no parent): '{}'", file.display()));
+    };
+
+    if !resolved.starts_with(&root_canon) {
+        return Err(format!(
+            "refusing to write outside project root '{}': '{}'",
+            root_canon.display(),
+            resolved.display()
+        ));
     }
-    if let (Ok(f), Ok(r)) = (file.canonicalize(), root.canonicalize()) {
-        return f.strip_prefix(&r).ok().map(|p| p.to_path_buf());
-    }
-    None
+
+    Ok(resolved)
 }
 
 /// Allowed writes under `project_root`: `project.json`, `scripts/**.{lua,luac}`, `dialogs/**.json`.
@@ -137,20 +167,17 @@ fn is_allowed_project_relative(rel: &Path) -> bool {
 fn validate_writable_path(path: &str, project_root: &str) -> Result<PathBuf, String> {
     let file = validate_absolute_path_no_dotdot(path, "path")?;
     let root = validate_absolute_path_no_dotdot(project_root, "project_root")?;
+    let root_canon = root
+        .canonicalize()
+        .map_err(|e| format!("project_root canonicalize '{}': {e}", root.display()))?;
 
-    if !is_under_project_root(&file, &root) {
-        return Err(format!(
-            "refusing to write outside project root '{}': '{}'",
-            root.display(),
-            file.display()
-        ));
-    }
+    let resolved = resolve_path_under_project_root(&file, &root)?;
 
-    let rel = strip_project_relative(&file, &root).ok_or_else(|| {
+    let rel = resolved.strip_prefix(&root_canon).map_err(|_| {
         format!(
             "could not resolve path relative to project root '{}': '{}'",
-            root.display(),
-            file.display()
+            root_canon.display(),
+            resolved.display()
         )
     })?;
 
@@ -161,7 +188,7 @@ fn validate_writable_path(path: &str, project_root: &str) -> Result<PathBuf, Str
         ));
     }
 
-    Ok(file)
+    Ok(resolved)
 }
 
 fn validate_build_project_root(project_root: &str) -> Result<PathBuf, String> {
@@ -262,6 +289,44 @@ mod write_path_tests {
         )
         .unwrap_err();
         assert!(err.contains("outside project root") || err.contains("non-project"));
+    }
+
+    /// Symlink under scripts/ must not bypass the project-root check.
+    #[test]
+    fn rejects_symlink_escape_under_scripts() {
+        let (root, _) = temp_project();
+        let outside_dir = std::env::temp_dir().join(format!(
+            "artcade_symlink_target_{}",
+            TEMP_SERIAL.fetch_add(1, Ordering::Relaxed)
+        ));
+        fs::create_dir_all(&outside_dir).unwrap();
+        let secret = outside_dir.join("secret.lua");
+        fs::write(&secret, "-- outside").unwrap();
+
+        let link = root.join("scripts").join("escape.lua");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::symlink;
+            symlink(&secret, &link).expect("symlink");
+        }
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs::symlink_file;
+            if symlink_file(&secret, &link).is_err() {
+                // Symlink creation may require elevation; skip rather than flake.
+                return;
+            }
+        }
+
+        let err = validate_writable_path(
+            &link.display().to_string(),
+            &root.display().to_string(),
+        )
+        .unwrap_err();
+        assert!(
+            err.contains("outside project root"),
+            "expected outside-root error, got: {err}"
+        );
     }
 }
 

@@ -2,7 +2,13 @@ import { isTauri, invoke } from '@tauri-apps/api/core'
 import { open as dialogOpen } from '@tauri-apps/plugin-dialog'
 import { readTextFile, readFile, writeFile, mkdir, readDir, exists } from '@tauri-apps/plugin-fs'
 import type { ProjectDoc } from '../types'
-import { dirName, parseProjectDoc, safeProjectFolderName, serializeProjectDoc } from './project'
+import {
+  dirName,
+  parseProjectDoc,
+  parseProjectDocWithMeta,
+  safeProjectFolderName,
+  serializeProjectDoc,
+} from './project'
 import { validateProjectBeforeSave } from './logic-board/validate-project'
 import { importArtcadePackage, isArtcadePackagePath, type LoadedProjectFile } from './artcade-package'
 import { joinPath } from './file-paths'
@@ -77,13 +83,15 @@ export async function loadProjectFromPath(path: string): Promise<LoadedProjectFi
   if (!isTauri()) { notAvailable('loadProjectFromPath'); return null }
   try {
     const content = await readTextFile(path)
-    const project = parseProjectDoc(content)
-    if (!project) return null
+    const parsed = parseProjectDocWithMeta(content)
+    if (!parsed) return null
+    const { project, logicBoardLoadIssues } = parsed
     assertProjectPathsSafe(project)
     return {
       project,
       path,
       migratedFromLegacy: detectMigratedFromLegacy(content, project),
+      ...(logicBoardLoadIssues.length > 0 ? { logicBoardLoadIssues } : {}),
     }
   } catch (err) {
     console.error('[api] loadProjectFromPath failed:', err)

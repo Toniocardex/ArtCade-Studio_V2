@@ -222,3 +222,10 @@ export interface LogicBoard {
 
 /** Persisted inside ProjectDoc as `logicBoards`. */
 export type LogicBoardDoc = LogicBoard[]
+
+/** Non-fatal issues found while parsing boards from disk (events are preserved). */
+export interface LogicBoardLoadIssue {
+  boardId: string
+  eventIndex: number
+  errors: string[]
+}

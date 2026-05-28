@@ -10,6 +10,7 @@ import type {
   LogicAction,
   LogicBoard,
   LogicBoardDoc,
+  LogicBoardLoadIssue,
   LogicEvent,
   LogicTrigger,
 } from '../../types/logic-board'
@@ -116,7 +117,10 @@ function parseEvent(raw: unknown): LogicEvent | null {
   return event
 }
 
-function parseBoard(raw: unknown): LogicBoard | null {
+function parseBoard(
+  raw: unknown,
+  issues: LogicBoardLoadIssue[],
+): LogicBoard | null {
   if (!raw || typeof raw !== 'object') return null
   const r = raw as Record<string, unknown>
   if (typeof r.boardId !== 'string' || !r.boardId) return null
@@ -137,17 +141,21 @@ function parseBoard(raw: unknown): LogicBoard | null {
     type = 'object_type'
   }
 
+  const boardId = r.boardId
   const events = asArray(r.events)
     .map(parseEvent)
     .filter((e): e is LogicEvent => e !== null)
-    .filter((e, i) => {
+    .map((e, i) => {
       const vr = validateLogicEvent(e, `/events[${i}]`)
-      if (vr.valid) return true
-      console.warn(
-        `[LogicBoard] Dropped invalid event on board "${r.boardId}":`,
-        vr.errors.map((x) => `${x.path} ${x.message}`).join('; '),
-      )
-      return false
+      if (!vr.valid) {
+        const messages = vr.errors.map((x) => `${x.path} ${x.message}`)
+        console.warn(
+          `[LogicBoard] Invalid event on board "${boardId}" (kept for repair):`,
+          messages.join('; '),
+        )
+        issues.push({ boardId, eventIndex: i, errors: messages })
+      }
+      return e
     })
 
   const board: LogicBoard = {
@@ -185,14 +193,39 @@ function parseBoard(raw: unknown): LogicBoard | null {
   return board
 }
 
+export interface ParseLogicBoardsResult {
+  doc?: LogicBoardDoc
+  issues: LogicBoardLoadIssue[]
+}
+
+/**
+ * Parse the `logicBoards` field of a project.json. Invalid events are kept so
+ * the user can repair them; issues are returned for console warnings on load.
+ */
+export function parseLogicBoardsWithIssues(raw: unknown): ParseLogicBoardsResult {
+  const issues: LogicBoardLoadIssue[] = []
+  if (!Array.isArray(raw)) return { doc: undefined, issues }
+  const boards = raw
+    .map((item) => parseBoard(item, issues))
+    .filter((b): b is LogicBoard => b !== null)
+  return {
+    doc: boards.length > 0 ? boards : undefined,
+    issues,
+  }
+}
+
 /**
  * Parse the `logicBoards` field of a project.json. Returns undefined when the
  * field is absent or not an array, so the project simply has no boards.
  */
 export function parseLogicBoards(raw: unknown): LogicBoardDoc | undefined {
-  if (!Array.isArray(raw)) return undefined
-  const boards = raw
-    .map(parseBoard)
-    .filter((b): b is LogicBoard => b !== null)
-  return boards.length > 0 ? boards : undefined
+  return parseLogicBoardsWithIssues(raw).doc
+}
+
+/** English summary for console when boards have load-time validation issues. */
+export function formatLogicBoardLoadIssuesMessage(issues: LogicBoardLoadIssue[]): string {
+  const n = issues.length
+  if (n === 0) return ''
+  const boards = new Set(issues.map((i) => i.boardId)).size
+  return `${n} Logic Board event(s) on ${boards} board(s) need repair before save — see warnings above.`
 }

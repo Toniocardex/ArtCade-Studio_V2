@@ -5,6 +5,7 @@
 import { useEffect } from 'react'
 import { useEditor } from '../store/editor-store'
 import type { Dispatch } from 'react'
+import { dispatchLogicBoardLoadWarnings } from '../utils/logic-board/logic-board-load-warnings'
 import {
   openProjectDialog,
   loadProjectFromPath,
@@ -166,6 +167,7 @@ async function handleCtrlOpen(ctx: ShortcutCtx): Promise<void> {
     type: 'LOG',
     entry: kbdLog(`OK loaded "${loaded.project.projectName}" v${loaded.project.version}`, 'info'),
   })
+  dispatchLogicBoardLoadWarnings(ctx.dispatch, loaded.logicBoardLoadIssues, kbdLog)
 }
 
 async function handleKeyDown(ctx: ShortcutCtx, e: KeyboardEvent): Promise<void> {

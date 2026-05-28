@@ -223,7 +223,10 @@ class RuntimeSyncServiceImpl {
   /** Hot-reload main Lua when the compiled source changes (logic boards, script tab). */
   private reloadMainLuaIfChanged(mainLua: string): boolean {
     if (mainLua === this.lastMainLua) return false
-    if (editorReloadScript(mainLua) === false) return false
+    if (editorReloadScript(mainLua) === false) {
+      console.warn('[runtime-sync] Script hot-reload failed — preview may be stale')
+      return false
+    }
     this.lastMainLua = mainLua
     return true
   }

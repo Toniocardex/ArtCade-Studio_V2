@@ -2,6 +2,7 @@ import { useCallback, useMemo } from 'react'
 import type { Dispatch } from 'react'
 import { FilePlus, FolderOpen, Save, Package, Hammer } from 'lucide-react'
 import type { Action as EditorAction, CoreState } from '../../store/editor-store'
+import { dispatchLogicBoardLoadWarnings } from '../../utils/logic-board/logic-board-load-warnings'
 import {
   openProjectDialog,
   loadProjectFromPath,
@@ -95,6 +96,7 @@ export function useFileMenuActions({
       type: 'LOG',
       entry: makeConsoleEntry(`[File] ✓ Loaded "${loaded.project.projectName}" v${loaded.project.version}`, 'info'),
     })
+    dispatchLogicBoardLoadWarnings(dispatch, loaded.logicBoardLoadIssues, makeConsoleEntry)
   }, [closeMenu, confirmDiscardIfDirty, dispatch])
 
   const loadNewProject = useCallback(

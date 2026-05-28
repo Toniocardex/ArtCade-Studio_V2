@@ -1416,6 +1416,29 @@ describe('Logic Components — Phase C (engine-hook triggers)', () => {
     expect(lua).toContain('time.after(0.5, function() _logic_rep_step_1(n + 1) end)')
   })
 
+  it('nested timed repeatTimes inside wait.then use unique step function names', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({
+          trigger: { type: 'onStart' },
+          actions: [
+            {
+              type: 'wait',
+              seconds: 0.1,
+              then: [
+                { type: 'repeatTimes', count: 2, intervalSeconds: 0.5, actions: [{ type: 'debugLog', message: 'a' }] },
+                { type: 'repeatTimes', count: 2, intervalSeconds: 0.5, actions: [{ type: 'debugLog', message: 'b' }] },
+              ],
+            },
+          ],
+        }),
+      ]),
+    ])
+    expect(lua).toContain('local function _logic_rep_step_1(n)')
+    expect(lua).toContain('local function _logic_rep_step_2(n)')
+    expect(lua).not.toMatch(/local function _logic_rep_step_1\(n\)[\s\S]*local function _logic_rep_step_1\(n\)/)
+  })
+
   it('repeatTimes body stops at the next wait control action', () => {
     const lua = compileLogicBoard([
       board([

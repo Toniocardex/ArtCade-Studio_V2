@@ -5,7 +5,11 @@ import type {
   AnimationFrameRect,
 } from '../types'
 import { DEFAULT_WORLD } from '../types'
-import { parseLogicBoards } from './logic-board/factory'
+import {
+  parseLogicBoardsWithIssues,
+  type ParseLogicBoardsResult,
+} from './logic-board/factory'
+import type { LogicBoardLoadIssue } from '../types/logic-board'
 import { COMPONENT_KEYS } from '../types/components'
 import { DEFAULT_SCENE_SIZE } from '../constants/editor-viewport'
 import {
@@ -379,12 +383,17 @@ function parseTilePalette(raw: unknown): TileDef[] | undefined {
   return out.length ? out : undefined
 }
 
+export interface ParseProjectDocResult {
+  project: ProjectDoc
+  logicBoardLoadIssues: LogicBoardLoadIssue[]
+}
+
 /**
  * Parse a project.json string produced by the C++ runtime.
  * Handles Vec2/Vec4 as either `[x,y]` arrays or `{x,y}` objects.
  * Returns null if the JSON is invalid or missing required fields.
  */
-export function parseProjectDoc(jsonStr: string): ProjectDoc | null {
+export function parseProjectDocWithMeta(jsonStr: string): ParseProjectDocResult | null {
   try {
     const raw = JSON.parse(jsonStr) as Record<string, unknown>
 
@@ -434,6 +443,10 @@ export function parseProjectDoc(jsonStr: string): ProjectDoc | null {
 
     const formatVersion = Number(raw.formatVersion ?? raw.format_version) || undefined
 
+    const logicBoardsParsed: ParseLogicBoardsResult = parseLogicBoardsWithIssues(
+      raw.logicBoards ?? raw.logic_boards,
+    )
+
     const base: ProjectDoc = {
       projectName:    String(raw.projectName ?? raw.project_name ?? 'Untitled'),
       version:        String(raw.version ?? '1.0.0'),
@@ -457,14 +470,18 @@ export function parseProjectDoc(jsonStr: string): ProjectDoc | null {
       tilePalette:    parseTilePalette(raw.tilePalette ?? raw.tile_palette),
       tilesets:       parseTilesets(raw.tilesets),
       assets:         parseAssets(raw.assets),
-      logicBoards:    parseLogicBoards(raw.logicBoards ?? raw.logic_boards),
+      logicBoards:    logicBoardsParsed.doc,
     }
 
     const { project } = normalizeProjectDoc(base)
-    return project
+    return { project, logicBoardLoadIssues: logicBoardsParsed.issues }
   } catch {
     return null
   }
+}
+
+export function parseProjectDoc(jsonStr: string): ProjectDoc | null {
+  return parseProjectDocWithMeta(jsonStr)?.project ?? null
 }
 
 function vec2Array(v: Vec2): [number, number] {

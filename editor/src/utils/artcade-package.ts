@@ -1,7 +1,8 @@
 import { isTauri } from '@tauri-apps/api/core'
 import { readFile, writeFile, mkdir, exists } from '@tauri-apps/plugin-fs'
 import type { ProjectDoc } from '../types'
-import { dirName, parseProjectDoc, safeProjectFolderName } from './project'
+import type { LogicBoardLoadIssue } from '../types/logic-board'
+import { dirName, parseProjectDocWithMeta, safeProjectFolderName } from './project'
 import { baseName, joinPath } from './file-paths'
 import { assertProjectPathsSafe } from './project-path-security'
 
@@ -9,6 +10,7 @@ export interface LoadedProjectFile {
   project: ProjectDoc
   path: string
   migratedFromLegacy?: boolean
+  logicBoardLoadIssues?: LogicBoardLoadIssue[]
 }
 
 export function isArtcadePackagePath(path: string): boolean {
@@ -30,10 +32,11 @@ export async function importArtcadePackage(packagePath: string): Promise<LoadedP
     }
 
     const projectJson = textDecoder.decode(await inflateZipEntry(bytes, projectEntry))
-    const project = parseProjectDoc(projectJson)
-    if (!project) {
+    const parsed = parseProjectDocWithMeta(projectJson)
+    if (!parsed) {
       throw new Error('project.json inside package is invalid')
     }
+    const { project, logicBoardLoadIssues } = parsed
     assertProjectPathsSafe(project)
     let migratedFromLegacy = false
     try {
@@ -56,6 +59,7 @@ export async function importArtcadePackage(packagePath: string): Promise<LoadedP
       project,
       path: joinPath(importRoot, 'project.json'),
       ...(migratedFromLegacy ? { migratedFromLegacy: true } : {}),
+      ...(logicBoardLoadIssues.length > 0 ? { logicBoardLoadIssues } : {}),
     }
   } catch (err) {
     console.error('[api] importArtcadePackage failed:', err)

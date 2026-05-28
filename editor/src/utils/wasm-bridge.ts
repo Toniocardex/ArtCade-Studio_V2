@@ -333,12 +333,14 @@ function safeCall(
   returnType: string | null,
   argTypes:   string[],
   args:       unknown[],
-): void {
-  if (!_module?.ccall || !_module.calledRun) return
+): boolean {
+  if (!_module?.ccall || !_module.calledRun) return false
   try {
     _module.ccall(name, returnType, argTypes, args)
+    return true
   } catch (err) {
     console.warn(`[wasm-bridge] ccall('${name}') failed:`, err)
+    return false
   }
 }
 
@@ -382,8 +384,7 @@ export function editorReloadScript(luaSource: string): boolean {
   if (!_module) return false
   const ptr = marshalString(luaSource)
   try {
-    safeCall('editor_reload_script', null, ['number'], [ptr])
-    return true
+    return safeCall('editor_reload_script', null, ['number'], [ptr])
   } finally {
     _module._free(ptr)
   }
@@ -393,8 +394,7 @@ export function editorLoadDialogs(dialogsJson: string): boolean {
   if (!_module) return false
   const ptr = marshalString(dialogsJson)
   try {
-    safeCall('editor_load_dialogs', null, ['number'], [ptr])
-    return true
+    return safeCall('editor_load_dialogs', null, ['number'], [ptr])
   } finally {
     _module._free(ptr)
   }
@@ -411,13 +411,12 @@ export function editorRegisterImage(
   const dataPtr = _module._malloc(bytes.length)
   try {
     _module.HEAPU8.set(bytes, dataPtr)
-    safeCall(
+    return safeCall(
       'editor_register_image',
       null,
       ['number', 'number', 'number', 'number'],
       [pathPtr, dataPtr, bytes.length, extPtr],
     )
-    return true
   } finally {
     _module._free(dataPtr)
     _module._free(extPtr)
