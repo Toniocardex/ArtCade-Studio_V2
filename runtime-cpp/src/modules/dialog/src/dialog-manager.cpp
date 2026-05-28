@@ -75,6 +75,38 @@ bool DialogManager::loadDialogsFromDirectory(const std::string& projectRoot) {
     return anyOk;
 }
 
+bool DialogManager::loadDialogGraphsJson(const std::string& jsonUtf8) {
+    endDialog();
+    graphs_.clear();
+    locale_.clear();
+
+    if (jsonUtf8.empty()) return true;
+
+    try {
+        const auto j = nlohmann::json::parse(jsonUtf8);
+        if (!j.is_array()) {
+            std::cerr << "[Dialog] editor_load_dialogs: expected JSON array\n";
+            return false;
+        }
+
+        bool anyOk = true;
+        for (const auto& item : j) {
+            if (!item.is_object()) continue;
+            auto result = DialogParser::parseJsonString(item.dump());
+            if (!result.ok()) {
+                std::cerr << "[Dialog] " << result.error << "\n";
+                anyOk = false;
+                continue;
+            }
+            registerGraph(std::move(result.graph));
+        }
+        return anyOk;
+    } catch (const std::exception& ex) {
+        std::cerr << "[Dialog] editor_load_dialogs parse error: " << ex.what() << "\n";
+        return false;
+    }
+}
+
 void DialogManager::registerGraph(DialogGraph graph) {
     if (graph.dialogId.empty()) return;
     graphs_[graph.dialogId] = std::move(graph);

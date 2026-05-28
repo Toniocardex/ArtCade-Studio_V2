@@ -124,6 +124,7 @@ export default function PreviewPanel() {
 
   useRuntimeProjectSync({
     project, projectPath, openScripts,
+    dialogs: state.dialogs,
     selectionSceneId: selection.sceneId,
     wasmReady, engineReady,
     isPlaying,

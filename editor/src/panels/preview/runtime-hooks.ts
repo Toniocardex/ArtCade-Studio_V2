@@ -202,6 +202,7 @@ interface ProjectSyncOptions {
   project: ProjectDoc | null
   projectPath: string | null
   openScripts: ScriptFile[]
+  dialogs: Record<string, import('../../utils/dialog/dialog-script').DialogScript>
   selectionSceneId: string | null
   wasmReady: boolean
   engineReady: boolean
@@ -212,7 +213,7 @@ interface ProjectSyncOptions {
 
 export function useRuntimeProjectSync(opts: ProjectSyncOptions): void {
   const {
-    project, projectPath, openScripts, selectionSceneId,
+    project, projectPath, openScripts, dialogs, selectionSceneId,
     wasmReady, engineReady, isPlaying,
     dispatch, makeLogEntry,
   } = opts
@@ -225,9 +226,9 @@ export function useRuntimeProjectSync(opts: ProjectSyncOptions): void {
       projectPath,
     })
     logLogicBoardCompileFailure(dispatch, compileError, makeLogEntry)
-    runtimeSync.syncProject(project!, runtimeSceneId, projectPath, { mainLua })
+    runtimeSync.syncProject(project!, runtimeSceneId, projectPath, { mainLua, dialogs })
   }, [
-    project, projectPath, openScripts, selectionSceneId,
+    project, projectPath, openScripts, dialogs, selectionSceneId,
     wasmReady, engineReady, isPlaying, dispatch, makeLogEntry,
   ])
 }

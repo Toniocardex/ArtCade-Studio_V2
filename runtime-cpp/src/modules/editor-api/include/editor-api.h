@@ -32,6 +32,7 @@ namespace Modules {
 class RuntimeEntityGateway;
 class LuaHost;
 class Renderer;
+class DialogManager;
 }
 struct TilePaletteEntry;
 struct TilesetAsset;
@@ -93,6 +94,9 @@ public:
      */
     static void wireRenderer(Modules::Renderer* renderer);
 
+    /** Wire DialogManager so editor_load_dialogs() can register preview graphs. */
+    static void wireDialog(Modules::DialogManager* dialogManager);
+
     /**
      * Register the callback invoked after editor_load_project finishes
      * populating the gateway. Replaces the previous direct
@@ -144,10 +148,11 @@ public:
     static bool     s_editorGuidesEnabled;
     static float    s_editorGridSize;
 
-    // Engine pointers wired in wireEngine() / wireLua()
+    // Engine pointers wired in wireEngine() / wireLua() / wireDialog()
     static Modules::RuntimeEntityGateway* s_entityGateway;
     static Modules::LuaHost*              s_luaHost;
     static Modules::Renderer*             s_renderer;
+    static Modules::DialogManager*        s_dialogManager;
     static EditorProjectLoadedHandler     s_onProjectLoaded;
     static EditorPreviewRestoreHandler    s_onPreviewRestore;
     static std::vector<std::pair<std::string, std::string>> s_consoleQueue;
@@ -224,6 +229,12 @@ EMSCRIPTEN_KEEPALIVE void editor_set_scene_settings(
  */
 EMSCRIPTEN_KEEPALIVE void editor_reload_script(const char* lua_utf8);
 
+/**
+ * Hot-reload dialog graphs from the editor library (JSON array of graph objects).
+ * Used in preview when dialogs/ is not on disk yet.
+ */
+EMSCRIPTEN_KEEPALIVE void editor_load_dialogs(const char* json_utf8);
+
 /** Phase F2: toggle in-scene tile painting (1 = on). */
 EMSCRIPTEN_KEEPALIVE void editor_set_tile_paint_mode(int enabled);
 
@@ -269,6 +280,7 @@ struct EditorAPI {
     static void wireEngine(Modules::RuntimeEntityGateway*) {}
     static void wireLua(Modules::LuaHost*) {}
     static void wireRenderer(Modules::Renderer*) {}
+    static void wireDialog(Modules::DialogManager*) {}
     static void setProjectLoadedHandler(EditorProjectLoadedHandler) {}
     static void setPreviewRestoreHandler(EditorPreviewRestoreHandler) {}
     static void notifyEntitySelected(uint32_t) {}
@@ -290,6 +302,7 @@ struct EditorAPI {
     static Modules::RuntimeEntityGateway* s_entityGateway;
     static Modules::LuaHost*              s_luaHost;
     static Modules::Renderer*             s_renderer;
+    static Modules::DialogManager*        s_dialogManager;
     static EditorProjectLoadedHandler     s_onProjectLoaded;
     static EditorPreviewRestoreHandler    s_onPreviewRestore;
     static std::vector<std::pair<std::string, std::string>> s_consoleQueue;

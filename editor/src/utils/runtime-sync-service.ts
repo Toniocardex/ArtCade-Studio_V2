@@ -20,6 +20,7 @@ import { useEffect, useState } from 'react'
 import {
   editorDeselect,
   editorLoadProject,
+  editorLoadDialogs,
   editorRestoreFromProject,
   editorReloadScript,
   editorSelectEntity,
@@ -40,6 +41,8 @@ import {
 } from './runtime-fingerprint'
 import { planProjectSync } from './runtime-sync-diff'
 import type { ProjectDoc } from '../types'
+import type { DialogScript } from './dialog/dialog-script'
+import { dialogsJsonForRuntime } from './dialog/runtime-dialogs'
 
 // ---------------------------------------------------------------------------
 // Public domain types
@@ -75,6 +78,8 @@ export interface EntityTransformSnapshot {
 export interface SyncProjectOptions {
   /** After a structural full reload in EDIT, hot-reload main Lua (avoids empty tick stub). */
   mainLua?: string
+  /** Dialog library from editor store (preview has no dialogs/ folder until save). */
+  dialogs?: Record<string, DialogScript>
 }
 
 // ---------------------------------------------------------------------------
@@ -100,6 +105,7 @@ function effectiveGridSize(requested: number): number {
 
 class RuntimeSyncServiceImpl {
   private lastLoadKey:        string | null = null
+  private lastDialogsKey:     string | null = null
   private lastProjection:     RuntimeProjection | null = null
   private lastMode:           0 | 1 | null = null
   private lastSelection:      number | null | undefined = undefined
@@ -118,6 +124,7 @@ class RuntimeSyncServiceImpl {
   /** Forget every cached "last sent" value. Use on project open / runtime reload. */
   reset(): void {
     this.lastLoadKey   = null
+    this.lastDialogsKey = null
     this.lastProjection = null
     this.lastMode      = null
     this.lastSelection = undefined
@@ -164,15 +171,40 @@ class RuntimeSyncServiceImpl {
     project: ProjectDoc,
     activeSceneId: string,
     mainLua: string,
+    dialogs?: Record<string, DialogScript>,
   ): boolean {
     if (!isReady()) return false
     editorSetMode(0)
     this.reset()
     this.lastMode = 0
     editorRestoreFromProject(projectJsonForRuntime(project, activeSceneId))
+    this.syncDialogs(dialogs ?? {})
     editorReloadScript(mainLua)
     this.assetCacheInvalidator?.()
     return true
+  }
+
+  /** Push dialog graphs compiled from the editor library into the WASM runtime. */
+  syncDialogs(dialogs: Record<string, DialogScript>): boolean {
+    if (!isReady()) return false
+    const payload = dialogsJsonForRuntime(dialogs)
+    if (payload === this.lastDialogsKey) return false
+    this.lastDialogsKey = payload
+    editorLoadDialogs(payload)
+    return true
+  }
+
+  /**
+   * Before PLAY: hot-reload main Lua + dialog graphs (logic board edits do not
+   * change the project fingerprint, so preview would otherwise keep a stub).
+   */
+  preparePlaySession(
+    mainLua: string,
+    dialogs: Record<string, DialogScript>,
+  ): boolean {
+    if (!isReady()) return false
+    this.syncDialogs(dialogs)
+    return editorReloadScript(mainLua)
   }
 
   /** True if the runtime is ready to accept commands. */
@@ -197,10 +229,13 @@ class RuntimeSyncServiceImpl {
     options?: SyncProjectOptions,
   ): boolean {
     if (!isReady()) return false
+    let didWork = false
+    if (options?.dialogs && this.syncDialogs(options.dialogs)) didWork = true
+
     const projection = runtimeProjectProjection(project, activeSceneId)
     const fp = JSON.stringify(projection)
     const loadKey = `${projectPath ?? ''}|${fp}`
-    if (this.lastLoadKey === loadKey) return false
+    if (this.lastLoadKey === loadKey) return didWork
 
     const plan = planProjectSync(this.lastProjection, project, activeSceneId)
 
@@ -215,7 +250,7 @@ class RuntimeSyncServiceImpl {
     if (plan.kind === 'none') {
       this.lastLoadKey = loadKey
       this.lastProjection = projection
-      return false
+      return didWork
     }
 
     for (const entityId of plan.entityIds) {
@@ -246,7 +281,7 @@ class RuntimeSyncServiceImpl {
 
     this.lastLoadKey = loadKey
     this.lastProjection = projection
-    return true
+    return true || didWork
   }
 
   // ── Mode / selection / chrome / tool ──────────────────────────────────────

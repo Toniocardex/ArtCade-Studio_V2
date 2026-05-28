@@ -235,6 +235,7 @@ bool Application::initSubsystems() {
     EditorAPI::wireEngine(mod_->entityGateway.get());
     EditorAPI::wireLua(mod_->luaHost.get());   // hot-reload from Logic Board
     EditorAPI::wireRenderer(mod_->renderer.get()); // tileset image upload (F3)
+    EditorAPI::wireDialog(mod_->dialogManager.get());
     EditorAPI::init("#artcade-canvas");
 
 #ifdef ARTCADE_WASM

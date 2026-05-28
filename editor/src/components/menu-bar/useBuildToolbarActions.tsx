@@ -78,7 +78,9 @@ export function useBuildToolbarActions({
       if (project) {
         const activeSceneId = selectionSceneId ?? project.activeSceneId
         const mainLua = resolvePreviewMainLua({ project, openScripts, projectPath })
-        const ok = runtimeSync.restorePreviewFromProject(project, activeSceneId, mainLua)
+        const ok = runtimeSync.restorePreviewFromProject(
+          project, activeSceneId, mainLua, dialogs,
+        )
         if (!ok) {
           dispatch({
             type: 'LOG',
@@ -90,13 +92,23 @@ export function useBuildToolbarActions({
         }
       }
     } else {
-      if (project?.logicBoards?.length) {
-        const { compileError } = resolvePreviewMainLuaWithStatus({
+      if (project) {
+        const { lua: mainLua, compileError } = resolvePreviewMainLuaWithStatus({
           project,
           openScripts,
           projectPath,
         })
         logLogicBoardCompileFailure(dispatch, compileError, makeConsoleEntry)
+        if (!runtimeSync.preparePlaySession(mainLua, dialogs)) {
+          dispatch({
+            type: 'LOG',
+            entry: makeConsoleEntry(
+              '[Preview] Runtime not ready — open Canvas preview first.',
+              'warn',
+            ),
+          })
+          return
+        }
       }
       if (document.activeElement instanceof HTMLElement) {
         document.activeElement.blur()
@@ -106,7 +118,7 @@ export function useBuildToolbarActions({
       }
       dispatch({ type: 'SET_PLAYING', playing: true })
     }
-  }, [dispatch, isPlaying, mode, openScripts, project, selectionSceneId])
+  }, [dispatch, dialogs, isPlaying, mode, openScripts, project, projectPath, selectionSceneId])
 
   const handleBuildExe = useCallback(async () => {
     setIsBuilding(true)

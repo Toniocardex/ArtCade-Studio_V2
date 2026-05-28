@@ -130,7 +130,9 @@ function executeApplyLogic({
   if (state.isPlaying) {
     dispatch({ type: 'SET_PLAYING', playing: false })
     const activeSceneId = selectionSceneId ?? project.activeSceneId
-    const ok = runtimeSync.restorePreviewFromProject(project, activeSceneId, compileResult.lua)
+    const ok = runtimeSync.restorePreviewFromProject(
+      project, activeSceneId, compileResult.lua, state.dialogs,
+    )
     if (!ok) {
       flashApplyMsg('Runtime call failed — see the console for details.')
       return
@@ -138,6 +140,7 @@ function executeApplyLogic({
     flashApplyMsg('Logic applied — preview reset to design state')
     return
   }
+  runtimeSync.syncDialogs(state.dialogs)
   const ok = editorReloadScript(compileResult.lua)
   flashApplyMsg(
     ok

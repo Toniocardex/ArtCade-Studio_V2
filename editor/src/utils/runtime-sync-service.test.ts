@@ -12,6 +12,7 @@ vi.mock('./wasm-bridge', () => {
   return {
     isReady: vi.fn(() => true),
     editorLoadProject:        vi.fn(),
+    editorLoadDialogs:        vi.fn(),
     editorRestoreFromProject: vi.fn(),
     editorReloadScript:       vi.fn(),
     editorSetMode:            vi.fn(),
@@ -62,6 +63,7 @@ describe('RuntimeSyncService', () => {
     runtimeSync.reset()
     vi.mocked(bridge.isReady).mockReturnValue(true)
     vi.mocked(bridge.editorLoadProject).mockReset()
+    vi.mocked(bridge.editorLoadDialogs).mockReset()
     vi.mocked(bridge.editorRestoreFromProject).mockReset()
     vi.mocked(bridge.editorReloadScript).mockReset()
     vi.mocked(bridge.editorSetMode).mockReset()

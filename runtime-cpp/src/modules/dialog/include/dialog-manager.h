@@ -32,6 +32,8 @@ public:
     void setContext(const EngineContext* ctx);
 
     bool loadDialogsFromDirectory(const std::string& projectRoot);
+    /** Replace all graphs from a JSON array of dialog graph objects (editor preview). */
+    bool loadDialogGraphsJson(const std::string& jsonUtf8);
     void registerGraph(DialogGraph graph);
     const DialogGraph* getGraph(const std::string& dialogId) const;
 

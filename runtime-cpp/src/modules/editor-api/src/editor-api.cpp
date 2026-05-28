@@ -19,6 +19,7 @@ float    EditorAPI::s_editorGridSize   = 32.f;
 Modules::RuntimeEntityGateway* EditorAPI::s_entityGateway = nullptr;
 Modules::LuaHost*              EditorAPI::s_luaHost       = nullptr;
 Modules::Renderer*             EditorAPI::s_renderer      = nullptr;
+Modules::DialogManager*        EditorAPI::s_dialogManager = nullptr;
 EditorProjectLoadedHandler     EditorAPI::s_onProjectLoaded{};
 EditorPreviewRestoreHandler    EditorAPI::s_onPreviewRestore{};
 std::vector<std::pair<std::string, std::string>> EditorAPI::s_consoleQueue;
@@ -47,6 +48,8 @@ std::vector<std::pair<std::string, std::string>> EditorAPI::s_consoleQueue;
 #include "../../../modules/runtime-entity-gateway/include/runtime-entity-gateway.h"
 #include "../../../modules/lua-runtime/include/lua-host.h"
 #include "../../../modules/renderer/include/renderer.h"
+#include "../../../modules/dialog/include/dialog-manager.h"
+#include "../../../modules/dialog/include/dialog-parser.h"
 #include "../../../core/types.h"
 
 #include "editor-input-controller.h"
@@ -79,6 +82,7 @@ float    EditorAPI::s_editorGridSize   = 32.f;
 Modules::RuntimeEntityGateway* EditorAPI::s_entityGateway = nullptr;
 Modules::LuaHost*              EditorAPI::s_luaHost       = nullptr;
 Modules::Renderer*             EditorAPI::s_renderer      = nullptr;
+Modules::DialogManager*        EditorAPI::s_dialogManager = nullptr;
 EditorProjectLoadedHandler     EditorAPI::s_onProjectLoaded{};
 EditorPreviewRestoreHandler    EditorAPI::s_onPreviewRestore{};
 std::vector<std::pair<std::string, std::string>> EditorAPI::s_consoleQueue;
@@ -113,6 +117,11 @@ void EditorAPI::wireLua(Modules::LuaHost* luaHost) {
 void EditorAPI::wireRenderer(Modules::Renderer* renderer) {
     s_renderer = renderer;
     notifyConsoleLine("[EditorAPI] Engine wired to Renderer (image upload ready).", "info");
+}
+
+void EditorAPI::wireDialog(Modules::DialogManager* dialogManager) {
+    s_dialogManager = dialogManager;
+    notifyConsoleLine("[EditorAPI] Engine wired to DialogManager.", "info");
 }
 
 void EditorAPI::setProjectLoadedHandler(EditorProjectLoadedHandler handler) {
@@ -461,6 +470,26 @@ EMSCRIPTEN_KEEPALIVE void editor_reload_script(const char* lua_utf8) {
         std::string msg =
             "[EditorAPI] Hot-reload failed: " + host->lastError();
         ArtCade::EditorAPI::notifyConsoleLine(msg.c_str(), "error");
+    }
+}
+
+EMSCRIPTEN_KEEPALIVE void editor_load_dialogs(const char* json_utf8) {
+    auto* dm = ArtCade::EditorAPI::s_dialogManager;
+    if (!dm) {
+        ArtCade::EditorAPI::notifyConsoleLine(
+            "[EditorAPI] editor_load_dialogs: DialogManager not wired yet.", "warn");
+        return;
+    }
+    if (!json_utf8) {
+        (void)dm->loadDialogGraphsJson("[]");
+        return;
+    }
+    if (dm->loadDialogGraphsJson(json_utf8)) {
+        ArtCade::EditorAPI::notifyConsoleLine(
+            "[EditorAPI] Dialog library synced to runtime.", "info");
+    } else {
+        ArtCade::EditorAPI::notifyConsoleLine(
+            "[EditorAPI] Dialog library sync had parse errors — see stderr.", "warn");
     }
 }
 

@@ -381,6 +381,17 @@ export function editorReloadScript(luaSource: string): boolean {
   }
 }
 
+export function editorLoadDialogs(dialogsJson: string): boolean {
+  if (!_module) return false
+  const ptr = marshalString(dialogsJson)
+  try {
+    safeCall('editor_load_dialogs', null, ['number'], [ptr])
+    return true
+  } finally {
+    _module._free(ptr)
+  }
+}
+
 export function editorRegisterImage(
   path: string,
   bytes: Uint8Array,

@@ -61,6 +61,7 @@ if(EMSCRIPTEN)
         "_editor_update_entity"
         "_editor_set_scene_settings"
         "_editor_reload_script"
+        "_editor_load_dialogs"
         "_editor_set_tile_paint_mode"
         "_editor_set_selected_tile"
         "_editor_set_tool"
