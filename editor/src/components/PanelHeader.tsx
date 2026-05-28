@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react'
 
-interface PanelHeaderProps {
-  title:     string
+export type PanelHeaderProps = Readonly<{
+  title: string
   children?: ReactNode
-}
+}>
 
 /** Panel header — bottom border, muted ALL-CAPS label */
 export default function PanelHeader({ title, children }: PanelHeaderProps) {
