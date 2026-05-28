@@ -9,8 +9,8 @@ import { syncLogicBoardToScript } from '../utils/sync-logic-board-script'
 
 /** Tracks the <html data-theme> attribute so the editor follows the app theme. */
 function useThemeMode(): 'dark' | 'light' {
-  const read = () =>
-    document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark'
+  const read = (): 'dark' | 'light' =>
+    document.documentElement.dataset.theme === 'light' ? 'light' : 'dark'
   const [theme, setTheme] = useState<'dark' | 'light'>(read)
   useEffect(() => {
     const obs = new MutationObserver(() => setTheme(read()))
@@ -20,12 +20,14 @@ function useThemeMode(): 'dark' | 'light' {
   return theme
 }
 
-function ScriptTabBar({ paths, activePath, dirtyPaths, onSelect }: {
-  paths:      string[]
+type ScriptTabBarProps = Readonly<{
+  paths: string[]
   activePath: string | null
   dirtyPaths: Set<string>
-  onSelect:   (path: string) => void
-}) {
+  onSelect: (path: string) => void
+}>
+
+function ScriptTabBar({ paths, activePath, dirtyPaths, onSelect }: ScriptTabBarProps) {
   return (
     <div className="flex overflow-x-auto border-b border-[var(--border)] bg-[var(--panel)] flex-shrink-0">
       {paths.map(p => {
@@ -34,6 +36,7 @@ function ScriptTabBar({ paths, activePath, dirtyPaths, onSelect }: {
         return (
           <button
             key={p}
+            type="button"
             onClick={() => onSelect(p)}
             className={`flex items-center gap-2 px-4 py-2 text-[11px] whitespace-nowrap
                         border-r border-[var(--border)] transition-colors ${
