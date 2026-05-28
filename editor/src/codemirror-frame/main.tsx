@@ -12,7 +12,6 @@ import { themeExtensions } from '../codemirror/artcade-theme'
 import {
   type CmFrameThemeId,
   isParentToFrameMessage,
-  type ParentToFrameMessage,
 } from './protocol'
 import './frame.css'
 
@@ -33,17 +32,18 @@ const BASIC_SETUP: ReactCodeMirrorProps['basicSetup'] = {
   highlightSelectionMatches: false,
 }
 
+function wheelScrollUnit(event: WheelEvent, view: EditorView): number {
+  if (event.deltaMode === WheelEvent.DOM_DELTA_LINE) return 22
+  if (event.deltaMode === WheelEvent.DOM_DELTA_PAGE) return view.scrollDOM.clientHeight
+  return 1
+}
+
 const WHEEL_SCROLL_EXTENSION = EditorView.domEventHandlers({
   wheel(event, view) {
     if (event.ctrlKey || event.metaKey) return false
     if (event.deltaX === 0 && event.deltaY === 0) return false
 
-    const unit =
-      event.deltaMode === WheelEvent.DOM_DELTA_LINE
-        ? 22
-        : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
-          ? view.scrollDOM.clientHeight
-          : 1
+    const unit = wheelScrollUnit(event, view)
 
     view.scrollDOM.scrollBy({
       left: event.deltaX * unit,
@@ -72,7 +72,7 @@ function FrameEditor() {
   )
 
   const postToParent = useCallback((msg: { type: 'ready' } | { type: 'change'; value: string } | { type: 'run-preview-shortcut' }) => {
-    window.parent.postMessage(msg, window.location.origin)
+    globalThis.parent.postMessage(msg, globalThis.location.origin)
   }, [])
 
   useEffect(() => {
@@ -84,16 +84,16 @@ function FrameEditor() {
       postToParent({ type: 'run-preview-shortcut' })
     }
 
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
+    globalThis.addEventListener('keydown', onKeyDown)
+    return () => globalThis.removeEventListener('keydown', onKeyDown)
   }, [postToParent])
 
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
-      if (event.origin !== window.location.origin) return
+      if (event.origin !== globalThis.location.origin) return
       if (!isParentToFrameMessage(event.data)) return
 
-      const msg = event.data as ParentToFrameMessage
+      const msg = event.data
       if (msg.type === 'init') {
         setThemeId(msg.theme)
         setValue(msg.value)
@@ -106,10 +106,10 @@ function FrameEditor() {
       }
     }
 
-    window.addEventListener('message', onMessage)
+    globalThis.addEventListener('message', onMessage)
     postToParent({ type: 'ready' })
 
-    return () => window.removeEventListener('message', onMessage)
+    return () => globalThis.removeEventListener('message', onMessage)
   }, [postToParent])
 
   if (!mounted) {
