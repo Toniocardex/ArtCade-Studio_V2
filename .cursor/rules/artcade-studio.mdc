@@ -36,7 +36,7 @@ Run `git status` and `git diff --stat`. Review explicitly:
 
 | Check | Action |
 |-------|--------|
-| Scope | Only intended files staged; drop unrelated noise (e.g. `editor/src-tauri/gen/schemas/*` CRLF unless part of the task). |
+| Scope | Only intended files staged. Tauri FS permissions: edit `editor/src-tauri/capabilities/default.json` only, then `npm run tauri:sync-schemas` in `editor/` (do not hand-edit `gen/schemas/`). |
 | Regressions | Related tests still pass; behavior of adjacent features unchanged. |
 | Logic Board | `wait` / control-flow actions, hot reload, `emit-action-sequence` semantics. |
 | Secrets | Never stage `.env`, keys, credentials. |
@@ -125,7 +125,7 @@ When requested to perform a code review (diff, PR, pre-commit, or "review this")
 - Confusing labels, misleading trigger/action names, or copy that describes implementation rather than user intent.
 
 ### 7. Commit Scope & Hygiene
-- Only intended files staged; no unrelated noise (e.g., `editor/src-tauri/gen/schemas/*` CRLF unless part of the task).
+- Tauri capabilities: change `editor/src-tauri/capabilities/default.json`, run `cd editor; npm run tauri:sync-schemas`, commit both if `gen/schemas/capabilities.json` updates.
 - Generated files included when schemas change (`validators.generated.ts` after `npm run compile-schemas`).
 - No secrets in the commit.
 - Commit message is imperative, explains *why*, and is accurate to the actual diff.

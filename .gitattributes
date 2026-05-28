@@ -1,3 +1,7 @@
 *.bat text eol=crlf
 *.ps1 text eol=crlf
 *.cmd text eol=crlf
+
+# Tauri capability source + generated ACL (avoid CRLF-only drift on Windows)
+editor/src-tauri/capabilities/*.json text eol=lf
+editor/src-tauri/gen/schemas/*.json text eol=lf
