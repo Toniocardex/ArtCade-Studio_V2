@@ -39,11 +39,10 @@ export interface ParseDialogResult {
   parseWarning?: string
 }
 
-type GraphNode = Record<string, unknown> & {
-  type?: string
-  next?: string
-  options?: { text: string; next: string }[]
-}
+type GraphNode = Record<string, unknown>
+type GraphNodes = Record<string, GraphNode>
+type DialogChoiceOption = { text: string; next: string }
+type SetVariableOp = '=' | '+=' | '-='
 
 let idSeq = 0
 
@@ -60,113 +59,197 @@ function allocEndId(): string {
   return 'n_end'
 }
 
+/** Avoid [object Object] when JSON fields are not strings. */
+function asString(value: unknown, fallback = ''): string {
+  return typeof value === 'string' ? value : fallback
+}
+
+function asGraphRef(value: unknown): string {
+  return typeof value === 'string' ? value : ''
+}
+
+function asSetVariableOp(value: unknown): SetVariableOp {
+  if (value === '+=' || value === '-=' || value === '=') return value
+  return '='
+}
+
+function asNumber(value: unknown): number {
+  return typeof value === 'number' && !Number.isNaN(value) ? value : Number(value) || 0
+}
+
+function nodeType(node: GraphNode): string {
+  return asString(node.type)
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function asChoiceOptions(value: unknown): DialogChoiceOption[] {
+  if (!Array.isArray(value)) return []
+  const options: DialogChoiceOption[] = []
+  for (const item of value) {
+    if (!isRecord(item)) continue
+    const text = asString(item.text)
+    const next = asString(item.next)
+    if (text && next) options.push({ text, next })
+  }
+  return options
+}
+
 interface CompileBlockResult {
   entry: string | null
   exit: string | null
-  nodes: Record<string, Record<string, unknown>>
+  nodes: GraphNodes
 }
 
-function compileBlock(commands: DialogCommand[]): CompileBlockResult {
-  const nodes: Record<string, Record<string, unknown>> = {}
-  let prevExit: string | null = null
-  let entry: string | null = null
+interface CompileLinearState {
+  nodes: GraphNodes
+  prevExit: string | null
+  entry: string | null
+}
 
-  const linkNext = (from: string, to: string) => {
-    nodes[from].next = to
+function linkNext(nodes: GraphNodes, from: string, to: string): void {
+  nodes[from].next = to
+}
+
+function appendLinearNode(
+  state: CompileLinearState,
+  node: Record<string, unknown>,
+): CompileLinearState {
+  const id = allocId()
+  state.nodes[id] = node
+  if (state.prevExit) linkNext(state.nodes, state.prevExit, id)
+  else state.entry = id
+  return { ...state, prevExit: id }
+}
+
+function compileShowText(
+  cmd: Extract<DialogCommand, { type: 'showText' }>,
+  state: CompileLinearState,
+): CompileLinearState {
+  const node: Record<string, unknown> = {
+    type: 'say',
+    character: cmd.character,
+    text: cmd.text,
   }
+  if (cmd.portrait) node.portrait = cmd.portrait
+  return appendLinearNode(state, node)
+}
 
-  for (const cmd of commands) {
-    switch (cmd.type) {
-      case 'showText': {
-        const id = allocId()
-        const node: Record<string, unknown> = {
-          type: 'say',
-          character: cmd.character,
-          text: cmd.text,
-        }
-        if (cmd.portrait) node.portrait = cmd.portrait
-        nodes[id] = node
-        if (prevExit) linkNext(prevExit, id)
-        else entry = id
-        prevExit = id
-        break
-      }
-      case 'setVariable': {
-        const id = allocId()
-        nodes[id] = {
-          type: 'setVariable',
-          variable: cmd.variable,
-          operation: cmd.operation,
-          value: cmd.value,
-        }
-        if (prevExit) linkNext(prevExit, id)
-        else entry = id
-        prevExit = id
-        break
-      }
-      case 'emitMessage': {
-        const id = allocId()
-        nodes[id] = {
-          type: 'emitEvent',
-          event: cmd.event,
-        }
-        if (prevExit) linkNext(prevExit, id)
-        else entry = id
-        prevExit = id
-        break
-      }
-      case 'condition': {
-        const id = allocId()
-        const trueBlock = compileBlock(cmd.ifTrue)
-        const falseBlock = compileBlock(cmd.ifFalse)
-        Object.assign(nodes, trueBlock.nodes, falseBlock.nodes)
-        nodes[id] = {
-          type: 'condition',
-          variable: cmd.variable,
-          operator: cmd.operator,
-          value: cmd.value,
-          ifTrue: trueBlock.entry ?? ensureEnd(nodes),
-          ifFalse: falseBlock.entry ?? ensureEnd(nodes),
-        }
-        if (prevExit) linkNext(prevExit, id)
-        else entry = id
-        return { entry, exit: null, nodes }
-      }
-      case 'showChoices': {
-        const choiceId = allocId()
-        nodes[choiceId] = { type: 'choice', options: [] as { text: string; next: string }[] }
-        if (prevExit) linkNext(prevExit, choiceId)
-        else entry = choiceId
-        const options = (nodes[choiceId].options ?? []) as { text: string; next: string }[]
-        for (const opt of cmd.options) {
-          const branch = compileBlock(opt.commands)
-          Object.assign(nodes, branch.nodes)
-          const branchEntry = branch.entry ?? ensureEnd(nodes)
-          options.push({ text: opt.text, next: branchEntry })
-        }
-        nodes[choiceId].options = options
-        return { entry, exit: null, nodes }
-      }
-      case 'end': {
-        const endId = ensureEnd(nodes)
-        if (prevExit) linkNext(prevExit, endId)
-        return { entry, exit: endId, nodes }
-      }
-      default:
-        break
-    }
+function compileSetVariable(
+  cmd: Extract<DialogCommand, { type: 'setVariable' }>,
+  state: CompileLinearState,
+): CompileLinearState {
+  return appendLinearNode(state, {
+    type: 'setVariable',
+    variable: cmd.variable,
+    operation: cmd.operation,
+    value: cmd.value,
+  })
+}
+
+function compileEmitMessage(
+  cmd: Extract<DialogCommand, { type: 'emitMessage' }>,
+  state: CompileLinearState,
+): CompileLinearState {
+  return appendLinearNode(state, { type: 'emitEvent', event: cmd.event })
+}
+
+function compileCondition(
+  cmd: Extract<DialogCommand, { type: 'condition' }>,
+  state: CompileLinearState,
+): CompileBlockResult {
+  const id = allocId()
+  const trueBlock = compileBlock(cmd.ifTrue)
+  const falseBlock = compileBlock(cmd.ifFalse)
+  const nodes = { ...state.nodes, ...trueBlock.nodes, ...falseBlock.nodes }
+  nodes[id] = {
+    type: 'condition',
+    variable: cmd.variable,
+    operator: cmd.operator,
+    value: cmd.value,
+    ifTrue: trueBlock.entry ?? ensureEnd(nodes),
+    ifFalse: falseBlock.entry ?? ensureEnd(nodes),
   }
-
-  if (prevExit) {
-    const endId = ensureEnd(nodes)
-    linkNext(prevExit, endId)
-    return { entry, exit: endId, nodes }
-  }
-
+  if (state.prevExit) linkNext(nodes, state.prevExit, id)
+  const entry = state.entry ?? id
   return { entry, exit: null, nodes }
 }
 
-function ensureEnd(nodes: Record<string, Record<string, unknown>>): string {
+function compileShowChoices(
+  cmd: Extract<DialogCommand, { type: 'showChoices' }>,
+  state: CompileLinearState,
+): CompileBlockResult {
+  const choiceId = allocId()
+  const nodes = { ...state.nodes }
+  const options: { text: string; next: string }[] = []
+  for (const opt of cmd.options) {
+    const branch = compileBlock(opt.commands)
+    Object.assign(nodes, branch.nodes)
+    options.push({ text: opt.text, next: branch.entry ?? ensureEnd(nodes) })
+  }
+  nodes[choiceId] = { type: 'choice', options }
+  if (state.prevExit) linkNext(nodes, state.prevExit, choiceId)
+  const entry = state.entry ?? choiceId
+  return { entry, exit: null, nodes }
+}
+
+function compileEnd(state: CompileLinearState): CompileBlockResult {
+  const nodes = { ...state.nodes }
+  const endId = ensureEnd(nodes)
+  if (state.prevExit) linkNext(nodes, state.prevExit, endId)
+  return { entry: state.entry, exit: endId, nodes }
+}
+
+function compileLinearCommand(
+  cmd: DialogCommand,
+  state: CompileLinearState,
+): CompileLinearState | CompileBlockResult {
+  switch (cmd.type) {
+    case 'showText':
+      return compileShowText(cmd, state)
+    case 'setVariable':
+      return compileSetVariable(cmd, state)
+    case 'emitMessage':
+      return compileEmitMessage(cmd, state)
+    case 'condition':
+      return compileCondition(cmd, state)
+    case 'showChoices':
+      return compileShowChoices(cmd, state)
+    case 'end':
+      return compileEnd(state)
+    default:
+      return state
+  }
+}
+
+function isTerminalCompileResult(
+  result: CompileLinearState | CompileBlockResult,
+): result is CompileBlockResult {
+  return !('prevExit' in result)
+}
+
+function compileBlock(commands: DialogCommand[]): CompileBlockResult {
+  let state: CompileLinearState = { nodes: {}, prevExit: null, entry: null }
+
+  for (const cmd of commands) {
+    const result = compileLinearCommand(cmd, state)
+    if (isTerminalCompileResult(result)) return result
+    state = result
+  }
+
+  if (state.prevExit) {
+    const nodes = { ...state.nodes }
+    const endId = ensureEnd(nodes)
+    linkNext(nodes, state.prevExit, endId)
+    return { entry: state.entry, exit: endId, nodes }
+  }
+
+  return { entry: state.entry, exit: null, nodes: state.nodes }
+}
+
+function ensureEnd(nodes: GraphNodes): string {
   const endId = allocEndId()
   if (!nodes[endId]) nodes[endId] = { type: 'end' }
   return endId
@@ -194,8 +277,106 @@ export function emptyDialogScript(dialogId: string): DialogScript {
   }
 }
 
-function nodeType(node: GraphNode): string {
-  return String(node.type ?? '')
+type ParseStep =
+  | { kind: 'continue'; next: string | undefined }
+  | { kind: 'stop'; commands: DialogCommand[] }
+  | { kind: 'fail' }
+
+function parseSayCommand(node: GraphNode): DialogCommand {
+  return {
+    type: 'showText',
+    character: asString(node.character),
+    text: asString(node.text),
+    ...(typeof node.portrait === 'string' ? { portrait: node.portrait } : {}),
+  }
+}
+
+function linearNextStep(node: GraphNode): ParseStep {
+  return { kind: 'continue', next: asGraphRef(node.next) || undefined }
+}
+
+function parseSetVariableCommand(node: GraphNode): DialogCommand {
+  return {
+    type: 'setVariable',
+    variable: asString(node.variable),
+    operation: asSetVariableOp(node.operation),
+    value: asNumber(node.value),
+  }
+}
+
+function parseEmitCommand(node: GraphNode): DialogCommand {
+  return { type: 'emitMessage', event: asString(node.event) }
+}
+
+function parseChoiceNode(
+  graph: DialogGraphJson,
+  node: GraphNode,
+  endIds: Set<string>,
+  visiting: Set<string>,
+): ParseStep {
+  const opts = asChoiceOptions(node.options)
+  const options: { text: string; commands: DialogCommand[] }[] = []
+  for (const opt of opts) {
+    if (!opt.next) return { kind: 'fail' }
+    const branch = parseBranch(graph, opt.next, endIds, new Set(visiting))
+    if (branch === null) return { kind: 'fail' }
+    options.push({ text: opt.text, commands: branch })
+  }
+  return { kind: 'stop', commands: [{ type: 'showChoices', options }] }
+}
+
+function parseConditionNode(
+  graph: DialogGraphJson,
+  node: GraphNode,
+  endIds: Set<string>,
+  visiting: Set<string>,
+): ParseStep {
+  const ifTrue = asGraphRef(node.ifTrue)
+  const ifFalse = asGraphRef(node.ifFalse)
+  const trueCmds = parseBranch(graph, ifTrue, endIds, new Set(visiting))
+  const falseCmds = parseBranch(graph, ifFalse, endIds, new Set(visiting))
+  if (trueCmds === null || falseCmds === null) return { kind: 'fail' }
+  return {
+    kind: 'stop',
+    commands: [
+      {
+        type: 'condition',
+        variable: asString(node.variable),
+        operator: asString(node.operator, '=='),
+        value: asNumber(node.value),
+        ifTrue: trueCmds,
+        ifFalse: falseCmds,
+      },
+    ],
+  }
+}
+
+function parseGraphNode(
+  graph: DialogGraphJson,
+  node: GraphNode,
+  endIds: Set<string>,
+  visiting: Set<string>,
+): { step: ParseStep; command?: DialogCommand } {
+  const t = nodeType(node)
+  if (t === 'say') {
+    return { step: linearNextStep(node), command: parseSayCommand(node) }
+  }
+  if (t === 'setVariable') {
+    return { step: linearNextStep(node), command: parseSetVariableCommand(node) }
+  }
+  if (t === 'emitEvent') {
+    return { step: linearNextStep(node), command: parseEmitCommand(node) }
+  }
+  if (t === 'end') {
+    return { step: { kind: 'stop', commands: [{ type: 'end' }] } }
+  }
+  if (t === 'choice') {
+    return { step: parseChoiceNode(graph, node, endIds, visiting) }
+  }
+  if (t === 'condition') {
+    return { step: parseConditionNode(graph, node, endIds, visiting) }
+  }
+  return { step: { kind: 'fail' } }
 }
 
 function parseBranch(
@@ -214,87 +395,30 @@ function parseBranch(
 
     const raw = graph.nodes[cur]
     if (!raw) return null
-    const node = raw as GraphNode
-    const t = nodeType(node)
 
-    if (t === 'say') {
-      commands.push({
-        type: 'showText',
-        character: String(node.character ?? ''),
-        text: String(node.text ?? ''),
-        ...(node.portrait ? { portrait: String(node.portrait) } : {}),
-      })
-      cur = node.next
-      continue
-    }
-
-    if (t === 'setVariable') {
-      commands.push({
-        type: 'setVariable',
-        variable: String(node.variable ?? ''),
-        operation: (node.operation as '=' | '+=' | '-=') ?? '=',
-        value: Number(node.value) || 0,
-      })
-      cur = node.next
-      continue
-    }
-
-    if (t === 'emitEvent') {
-      commands.push({
-        type: 'emitMessage',
-        event: String(node.event ?? ''),
-      })
-      cur = node.next
-      continue
-    }
-
-    if (t === 'end') {
-      commands.push({ type: 'end' })
+    const { step, command } = parseGraphNode(graph, raw, endIds, visiting)
+    if (step.kind === 'fail') return null
+    if (command) commands.push(command)
+    if (step.kind === 'stop') {
+      commands.push(...step.commands)
       return commands
     }
-
-    if (t === 'choice') {
-      const opts = node.options ?? []
-      const options: { text: string; commands: DialogCommand[] }[] = []
-      for (const opt of opts) {
-        if (!opt.next) return null
-        const branch = parseBranch(graph, opt.next, endIds, new Set(visiting))
-        if (branch === null) return null
-        options.push({ text: opt.text, commands: branch })
-      }
-      commands.push({ type: 'showChoices', options })
-      return commands
-    }
-
-    if (t === 'condition') {
-      const ifTrue = String(node.ifTrue ?? '')
-      const ifFalse = String(node.ifFalse ?? '')
-      const trueCmds = parseBranch(graph, ifTrue, endIds, new Set(visiting))
-      const falseCmds = parseBranch(graph, ifFalse, endIds, new Set(visiting))
-      if (trueCmds === null || falseCmds === null) return null
-      commands.push({
-        type: 'condition',
-        variable: String(node.variable ?? ''),
-        operator: String(node.operator ?? '=='),
-        value: Number(node.value) || 0,
-        ifTrue: trueCmds,
-        ifFalse: falseCmds,
-      })
-      return commands
-    }
-
-    return null
+    cur = step.next
   }
 
   return commands
 }
 
-export function parseDialogGraph(graph: DialogGraphJson): ParseDialogResult {
+function collectEndNodeIds(graph: DialogGraphJson): Set<string> {
   const endIds = new Set<string>()
   for (const [id, raw] of Object.entries(graph.nodes)) {
-    if (nodeType(raw as GraphNode) === 'end') endIds.add(id)
+    if (nodeType(raw) === 'end') endIds.add(id)
   }
+  return endIds
+}
 
+export function parseDialogGraph(graph: DialogGraphJson): ParseDialogResult {
+  const endIds = collectEndNodeIds(graph)
   const commands = parseBranch(graph, graph.startNode, endIds, new Set())
   if (commands === null) {
     return {
@@ -311,8 +435,8 @@ export function parseDialogGraph(graph: DialogGraphJson): ParseDialogResult {
 
 /** Normalize graph for test comparison (stable key order). */
 export function normalizeDialogGraph(graph: DialogGraphJson): DialogGraphJson {
-  const sortedNodes: Record<string, Record<string, unknown>> = {}
-  for (const key of Object.keys(graph.nodes).sort()) {
+  const sortedNodes: GraphNodes = {}
+  for (const key of Object.keys(graph.nodes).sort((a, b) => a.localeCompare(b))) {
     sortedNodes[key] = graph.nodes[key]
   }
   return { ...graph, nodes: sortedNodes }
@@ -320,17 +444,92 @@ export function normalizeDialogGraph(graph: DialogGraphJson): DialogGraphJson {
 
 type CanonNode = Record<string, unknown>
 
+function canonSayNode(raw: GraphNode, queue: string[], remapRef: (r: string | undefined) => string | undefined): CanonNode {
+  const out: CanonNode = { type: raw.type, character: raw.character, text: raw.text }
+  if (typeof raw.portrait === 'string') out.portrait = raw.portrait
+  const nextRef = asGraphRef(raw.next)
+  if (nextRef) {
+    out.next = remapRef(nextRef)
+    queue.push(nextRef)
+  }
+  return out
+}
+
+function canonChoiceNode(raw: GraphNode, queue: string[], remapRef: (r: string | undefined) => string | undefined): CanonNode {
+  return {
+    type: raw.type,
+    options: asChoiceOptions(raw.options).map((opt) => {
+      queue.push(opt.next)
+      const next = remapRef(opt.next) ?? opt.next
+      return { text: opt.text, next }
+    }),
+  }
+}
+
+function canonSetVariableNode(raw: GraphNode, queue: string[], remapRef: (r: string | undefined) => string | undefined): CanonNode {
+  const out: CanonNode = { type: raw.type, variable: raw.variable, operation: raw.operation, value: raw.value }
+  const nextRef = asGraphRef(raw.next)
+  if (nextRef) {
+    out.next = remapRef(nextRef)
+    queue.push(nextRef)
+  }
+  return out
+}
+
+function canonEmitNode(raw: GraphNode, queue: string[], remapRef: (r: string | undefined) => string | undefined): CanonNode {
+  const out: CanonNode = { type: raw.type, event: raw.event }
+  const nextRef = asGraphRef(raw.next)
+  if (nextRef) {
+    out.next = remapRef(nextRef)
+    queue.push(nextRef)
+  }
+  return out
+}
+
+function canonConditionNode(raw: GraphNode, queue: string[], remapRef: (r: string | undefined) => string | undefined): CanonNode {
+  const ifTrueRef = asGraphRef(raw.ifTrue)
+  const ifFalseRef = asGraphRef(raw.ifFalse)
+  const out: CanonNode = {
+    type: raw.type,
+    variable: raw.variable,
+    operator: raw.operator,
+    value: raw.value,
+    ifTrue: remapRef(ifTrueRef),
+    ifFalse: remapRef(ifFalseRef),
+  }
+  if (ifTrueRef) queue.push(ifTrueRef)
+  if (ifFalseRef) queue.push(ifFalseRef)
+  return out
+}
+
+function buildCanonNode(
+  raw: GraphNode,
+  queue: string[],
+  remapRef: (ref: string | undefined) => string | undefined,
+): CanonNode {
+  const t = nodeType(raw)
+  if (t === 'say') return canonSayNode(raw, queue, remapRef)
+  if (t === 'choice') return canonChoiceNode(raw, queue, remapRef)
+  if (t === 'setVariable') return canonSetVariableNode(raw, queue, remapRef)
+  if (t === 'emitEvent') return canonEmitNode(raw, queue, remapRef)
+  if (t === 'condition') return canonConditionNode(raw, queue, remapRef)
+  if (t === 'end') return { type: raw.type }
+  return { ...raw }
+}
+
 /** Relabel node ids in BFS order so structurally equal graphs compare equal. */
 export function canonicalizeDialogGraph(graph: DialogGraphJson): DialogGraphJson {
   const idMap = new Map<string, string>()
   let seq = 0
   const mapId = (old: string): string => {
     if (old === 'n_end') return 'n_end'
-    if (!idMap.has(old)) {
+    let mapped = idMap.get(old)
+    if (!mapped) {
       seq += 1
-      idMap.set(old, `n${seq}`)
+      mapped = `n${seq}`
+      idMap.set(old, mapped)
     }
-    return idMap.get(old)!
+    return mapped
   }
 
   const remapRef = (ref: string | undefined): string | undefined => {
@@ -342,60 +541,17 @@ export function canonicalizeDialogGraph(graph: DialogGraphJson): DialogGraphJson
   const queue = [graph.startNode]
   const canonNodes: Record<string, CanonNode> = {}
 
-  while (queue.length) {
-    const oldId = queue.shift()!
+  while (queue.length > 0) {
+    const oldId = queue.shift()
+    if (oldId === undefined) break
     if (visited.has(oldId)) continue
     visited.add(oldId)
 
-    const raw = graph.nodes[oldId] as GraphNode | undefined
+    const raw = graph.nodes[oldId]
     if (!raw) continue
 
     const newId = oldId === 'n_end' ? 'n_end' : mapId(oldId)
-    const t = nodeType(raw)
-    const out: CanonNode = { type: raw.type }
-
-    if (t === 'say') {
-      out.character = raw.character
-      out.text = raw.text
-      if (raw.portrait) out.portrait = raw.portrait
-      if (raw.next) {
-        out.next = remapRef(raw.next)
-        queue.push(raw.next)
-      }
-    } else if (t === 'choice') {
-      out.options = (raw.options ?? []).map((opt) => {
-        queue.push(opt.next)
-        return { text: opt.text, next: remapRef(opt.next)! }
-      })
-    } else if (t === 'setVariable') {
-      out.variable = raw.variable
-      out.operation = raw.operation
-      out.value = raw.value
-      if (raw.next) {
-        out.next = remapRef(raw.next)
-        queue.push(raw.next)
-      }
-    } else if (t === 'emitEvent') {
-      out.event = raw.event
-      if (raw.next) {
-        out.next = remapRef(raw.next)
-        queue.push(raw.next)
-      }
-    } else if (t === 'condition') {
-      out.variable = raw.variable
-      out.operator = raw.operator
-      out.value = raw.value
-      out.ifTrue = remapRef(String(raw.ifTrue ?? ''))
-      out.ifFalse = remapRef(String(raw.ifFalse ?? ''))
-      if (raw.ifTrue) queue.push(String(raw.ifTrue))
-      if (raw.ifFalse) queue.push(String(raw.ifFalse))
-    } else if (t === 'end') {
-      // no refs
-    } else {
-      Object.assign(out, raw)
-    }
-
-    canonNodes[newId] = out
+    canonNodes[newId] = buildCanonNode(raw, queue, remapRef)
   }
 
   return {

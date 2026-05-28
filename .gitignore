@@ -50,8 +50,12 @@ runtime-cpp/test-project/logs/*.txt
 .claude/settings.local.json
 .cursor/
 
-# IDE
-.vscode/
+# IDE (commit shared C++/SonarLint workspace config under .vscode/)
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/c_cpp_properties.json
+!.vscode/extensions.json
 .idea/
 *.swp
 *.swo

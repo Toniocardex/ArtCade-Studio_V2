@@ -1,0 +1,71 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Generate WASM compile_commands.json",
+      "type": "shell",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "call \"%USERPROFILE%\\emsdk\\emsdk_env.bat\" && call \"%USERPROFILE%\\emsdk\\upstream\\emscripten\\emcmake.bat\" \"${input:cmakeExe}\" -S \"${workspaceFolder}/runtime-cpp\" -B \"${workspaceFolder}/runtime-cpp/build-wasm\" -G Ninja -Wno-dev -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DPLATFORM=Web -DARTCADE_BUILD_TESTS=OFF -DARTCADE_BUILD_SMOKE_TESTS=OFF"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Generate Native compile_commands.json",
+      "type": "shell",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "\"${workspaceFolder}/runtime-cpp/build_native.bat\" --no-test"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/runtime-cpp"
+      },
+      "problemMatcher": [],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Build WASM (full)",
+      "type": "shell",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "\"${workspaceFolder}/runtime-cpp/build_wasm.bat\""
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/runtime-cpp"
+      },
+      "problemMatcher": ["$gcc"],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "dependsOn": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    }
+  ],
+  "inputs": [
+    {
+      "id": "cmakeExe",
+      "type": "promptString",
+      "description": "Path to cmake.exe",
+      "default": "cmake"
+    }
+  ]
+}
