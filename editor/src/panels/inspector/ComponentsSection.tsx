@@ -12,12 +12,19 @@ import { PhysicsSection } from './PhysicsSection'
 import { DEFAULT_PHYSICS, PHYSICS_INSPECTOR } from './physics-defaults'
 import { DialogInspectorActions } from './DialogInspectorActions'
 
-function ComponentSection({
-  entity, desc,
-}: {
+function fieldStringValue(value: unknown, fallback = ''): string {
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value)
+  if (typeof value === 'boolean') return String(value)
+  return fallback
+}
+
+type ComponentSectionProps = Readonly<{
   entity: EntityDef
   desc: ComponentDescriptor
-}) {
+}>
+
+function ComponentSection({ entity, desc }: ComponentSectionProps) {
   const { dispatch } = useEditor()
   const data = (entity as unknown as Record<string, unknown>)[desc.key] as
     | Record<string, unknown>
@@ -45,6 +52,7 @@ function ComponentSection({
       >
         <span>{desc.label}</span>
         <button
+          type="button"
           title="Remove component"
           onClick={() =>
             dispatch({
@@ -76,7 +84,7 @@ function ComponentSection({
               <div key={f.key} className="mb-2">
                 <label className="text-[9px] text-[var(--muted)] uppercase">{f.label}</label>
                 <select
-                  value={String(v ?? 'solid')}
+                  value={fieldStringValue(v, 'solid')}
                   onChange={(e) => commit(f.key, e.target.value)}
                   className="w-full bg-[var(--border)] border border-[var(--border-2)] rounded px-2 py-1
                              text-xs text-[var(--text)] focus:outline-none focus:border-[var(--accent-2)] transition-colors"
@@ -108,7 +116,7 @@ function ComponentSection({
               <label className="text-[9px] text-[var(--muted)] uppercase">{f.label}</label>
               <input
                 type={isNum ? 'number' : 'text'}
-                value={isNum ? Number(v ?? 0) : String(v ?? '')}
+                value={isNum ? Number(v ?? 0) : fieldStringValue(v)}
                 min={f.min}
                 max={f.max}
                 step={f.step}
@@ -132,7 +140,11 @@ function ComponentSection({
   )
 }
 
-function AddComponentBar({ entity }: { entity: EntityDef }) {
+type AddComponentBarProps = Readonly<{
+  entity: EntityDef
+}>
+
+function AddComponentBar({ entity }: AddComponentBarProps) {
   const { dispatch } = useEditor()
   const missing = COMPONENT_REGISTRY.filter(
     (d) => !(entity as unknown as Record<string, unknown>)[d.key],
@@ -176,15 +188,17 @@ function AddComponentBar({ entity }: { entity: EntityDef }) {
   )
 }
 
+export type ComponentsSectionProps = Readonly<{
+  entity: EntityDef
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+}>
+
 export function ComponentsSection({
   entity,
   open,
   onOpenChange,
-}: {
-  entity: EntityDef
-  open?: boolean
-  onOpenChange?: (open: boolean) => void
-}) {
+}: ComponentsSectionProps) {
   return (
     <InspectorSection
       label="Components"
