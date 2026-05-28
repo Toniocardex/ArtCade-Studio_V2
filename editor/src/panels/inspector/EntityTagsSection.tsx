@@ -3,9 +3,14 @@ import { X } from 'lucide-react'
 import { useEditor } from '../../store/editor-store'
 import type { EntityDef } from '../../types'
 
-export function EntityTagsSection({ entity }: { entity: EntityDef }) {
+export type EntityTagsSectionProps = Readonly<{
+  entity: EntityDef
+}>
+
+export function EntityTagsSection({ entity }: EntityTagsSectionProps) {
   const { dispatch } = useEditor()
   const [draft, setDraft] = useState('')
+  const tagInputId = `entity-tag-input-${entity.id}`
 
   useEffect(() => setDraft(''), [entity.id])
 
@@ -18,7 +23,10 @@ export function EntityTagsSection({ entity }: { entity: EntityDef }) {
 
   return (
     <div className="mb-2">
-      <label className="text-[9px] text-[var(--muted)] uppercase block mb-1">
+      <label
+        htmlFor={tagInputId}
+        className="text-[9px] text-[var(--muted)] uppercase block mb-1"
+      >
         Tags
       </label>
       <p className="text-[9px] text-[var(--muted)] leading-snug mb-1.5">
@@ -50,6 +58,7 @@ export function EntityTagsSection({ entity }: { entity: EntityDef }) {
       )}
       <div className="flex gap-1">
         <input
+          id={tagInputId}
           type="text"
           value={draft}
           placeholder="e.g. player"
