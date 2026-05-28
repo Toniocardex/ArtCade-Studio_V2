@@ -4,7 +4,6 @@
 import { useEditor } from '../store/editor-store'
 import { DialogLibrarySidebar } from './dialog/DialogLibrarySidebar'
 import { DialogScriptEditor } from './dialog/DialogScriptEditor'
-import { emptyDialogScript } from '../utils/dialog/dialog-script'
 
 export default function DialogEditorPanel() {
   const { state } = useEditor()
@@ -36,4 +35,4 @@ export default function DialogEditorPanel() {
   )
 }
 
-export { emptyDialogScript }
+export { emptyDialogScript } from '../utils/dialog/dialog-script'
