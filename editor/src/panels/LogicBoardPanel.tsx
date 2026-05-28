@@ -29,6 +29,7 @@ import {
   createLogicBoardForObjectType,
 } from '../utils/logic-board/factory'
 import { cloneLogicEvent } from '../utils/logic-board/clone'
+import { eventCompatibilityError } from '../utils/logic-board/trigger-compatibility'
 import {
   focusIdAfterDelete,
   navigableBoardEvents,
@@ -249,15 +250,15 @@ function executeApplyLogic({
   selectionSceneId,
   dispatch,
   flashApplyMsg,
-}: ApplyLogicParams): void {
+}: ApplyLogicParams): boolean {
   if (!compileResult.ok) {
     flashApplyMsg('Fix Logic Board compile errors before applying.', 5000)
-    return
+    return false
   }
   syncLogicBoardToScript(dispatch, state, compileResult.lua)
   if (!runtimeReady) {
     flashApplyMsg('Runtime still loading — try again in a moment.')
-    return
+    return false
   }
   if (state.isPlaying) {
     const activeSceneId = selectionSceneId ?? project.activeSceneId
@@ -280,20 +281,20 @@ function executeApplyLogic({
           'error',
         ),
       })
-      return
+      return false
     }
     flashApplyMsg('Logic applied — preview reset to design state')
-    return
+    return true
   }
   runtimeSync.syncDialogs(state.dialogs)
   const applyResult = runtimeSync.applyMainLua(compileResult.lua)
   switch (applyResult.status) {
     case 'reloaded':
       flashApplyMsg('Logic applied — script hot-reloaded (press PLAY to test)')
-      break
+      return true
     case 'unchanged':
       flashApplyMsg('Logic already active in preview — no reload needed')
-      break
+      return true
     case 'not_ready':
       flashApplyMsg('Runtime still loading — try again in a moment.')
       if (applyResult.message) {
@@ -314,6 +315,7 @@ function executeApplyLogic({
       })
       break
   }
+  return false
 }
 
 type LogicBoardLuaModeProps = Readonly<{
@@ -446,6 +448,7 @@ export default function LogicBoardPanel() {
   const [clipboardHint, setClipboardHint] = useState<string | null>(null)
   const clipboardRef = useRef<LogicClipboard>(null)
   const hintTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null)
+  const lastAppliedRevisionRef = useRef<string | null>(null)
 
   const flashApplyMsg = useCallback((msg: string, ms = 4000) => {
     setApplyMsg(msg)
@@ -495,7 +498,18 @@ export default function LogicBoardPanel() {
     setShowFullMain(false)
   }, [selectedBoardId])
 
+  useEffect(() => {
+    if (state.mode === 'logic' && lastAppliedRevisionRef.current === null && boardsRevision) {
+      lastAppliedRevisionRef.current = boardsRevision
+    }
+  }, [state.mode, boardsRevision])
+
   const boardsRevision = logicBoardsRevision(project)
+  const needsApply =
+    Boolean(project) &&
+    compileResult.ok &&
+    boardsRevision !== '' &&
+    lastAppliedRevisionRef.current !== boardsRevision
   const sceneBoards = useMemo(
     () => (project ? logicBoardsForScene(project, sceneId) : []),
     [project, sceneId, boardsRevision],
@@ -518,7 +532,7 @@ export default function LogicBoardPanel() {
 
   const handleApply = useCallback(() => {
     if (!project) return
-    executeApplyLogic({
+    const ok = executeApplyLogic({
       compileResult,
       runtimeReady,
       state,
@@ -527,7 +541,17 @@ export default function LogicBoardPanel() {
       dispatch,
       flashApplyMsg,
     })
-  }, [compileResult, runtimeReady, state, project, selection.sceneId, dispatch, flashApplyMsg])
+    if (ok) lastAppliedRevisionRef.current = boardsRevision
+  }, [
+    compileResult,
+    runtimeReady,
+    state,
+    project,
+    selection.sceneId,
+    dispatch,
+    flashApplyMsg,
+    boardsRevision,
+  ])
 
   const classes = project ? allClassNames(project) : []
 
@@ -595,6 +619,11 @@ export default function LogicBoardPanel() {
     (afterEventId?: string) => {
       const clip = clipboardRef.current
       if (clip?.kind !== 'event' || !board) return
+      const compat = eventCompatibilityError(clip.event, board.target.type)
+      if (compat) {
+        showClipboardHint(compat)
+        return
+      }
       insertClonedEvent(
         clip.event,
         board,
@@ -671,7 +700,10 @@ export default function LogicBoardPanel() {
           if (focusedEventId == null) return
           setEditingId(focusedEventId)
         },
-        closeEditor: () => setEditingId(null),
+        closeEditor: () => {
+          setEditingId(null)
+          scrollEventCardIntoViewSoon(focusedEventId)
+        },
         focusEvent: (eventId) => {
           setFocusedEventId(eventId)
           scrollEventCardIntoViewSoon(eventId)
@@ -750,6 +782,7 @@ export default function LogicBoardPanel() {
         }
         onApply={handleApply}
         applyMsg={applyMsg}
+        needsApply={needsApply}
         project={project}
       />
 
