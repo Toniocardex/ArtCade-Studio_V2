@@ -4,8 +4,12 @@ import type { CoreState, Action, DomainReducer } from '../editor-store-state'
 import type { DialogScript } from '../../utils/dialog/dialog-script'
 import { emptyDialogScript } from '../../utils/dialog/dialog-script'
 
+function compareDialogId(a: string, b: string): number {
+  return a.localeCompare(b)
+}
+
 function firstDialogId(dialogs: Record<string, DialogScript>): string | null {
-  const ids = Object.keys(dialogs).sort()
+  const ids = Object.keys(dialogs).sort(compareDialogId)
   return ids[0] ?? null
 }
 
@@ -45,7 +49,7 @@ export const dialogReducer: DomainReducer = (state: CoreState, action: Action) =
     case 'DIALOG_DELETE': {
       if (!state.dialogs[action.dialogId]) return state
       const { [action.dialogId]: _removed, ...rest } = state.dialogs
-      const ids = Object.keys(rest).sort()
+      const ids = Object.keys(rest).sort(compareDialogId)
       const selectedDialogId =
         state.selectedDialogId === action.dialogId
           ? (ids[0] ?? null)
