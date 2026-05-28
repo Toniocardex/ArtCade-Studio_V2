@@ -13,26 +13,42 @@ import ConsolePanel from '../panels/ConsolePanel'
 
 const HANDLE_H = 4
 const HEADER_H = 28
-const DEFAULT_HEIGHT = 168
-const MIN_CONTENT_H = 100
+/** Total dock height (handle + header + ConsolePanel). ~260px ≈ 5–6 log lines + input bar. */
+const DEFAULT_HEIGHT = 260
+const MIN_CONTENT_H = 160
 const MIN_TOTAL_H = HANDLE_H + HEADER_H + MIN_CONTENT_H
+/** Heights saved before the layout-A retune were too small to read logs. */
+const LEGACY_HEIGHT_CEILING = 220
 
 function maxDockHeight(): number {
-  if (globalThis.window === undefined) return 400
-  return Math.max(MIN_TOTAL_H, Math.round(globalThis.innerHeight * 0.30))
+  if (globalThis.window === undefined) return 480
+  return Math.max(MIN_TOTAL_H, Math.round(globalThis.innerHeight * 0.38))
+}
+
+function clampDockHeight(n: number): number {
+  return Math.max(MIN_TOTAL_H, Math.min(maxDockHeight(), Math.round(n)))
 }
 
 function readInitialHeight(): number {
   if (globalThis.window === undefined) return DEFAULT_HEIGHT
+  const v4 = globalThis.localStorage.getItem('artcade.console-dock-h-v4')
+  if (v4) {
+    const n = Number(v4)
+    if (Number.isFinite(n)) return clampDockHeight(n)
+  }
   const v3 = globalThis.localStorage.getItem('artcade.console-dock-h-v3')
   if (v3) {
     const n = Number(v3)
-    if (Number.isFinite(n)) return n
+    if (Number.isFinite(n)) {
+      return clampDockHeight(n < LEGACY_HEIGHT_CEILING ? DEFAULT_HEIGHT : n)
+    }
   }
   const v2 = globalThis.localStorage.getItem('artcade.bottom-dock-h-v2')
   if (v2) {
     const n = Number(v2)
-    if (Number.isFinite(n)) return Math.max(MIN_TOTAL_H, n)
+    if (Number.isFinite(n)) {
+      return clampDockHeight(n < LEGACY_HEIGHT_CEILING ? DEFAULT_HEIGHT : n)
+    }
   }
   return DEFAULT_HEIGHT
 }
@@ -46,7 +62,7 @@ export default function ConsoleDock() {
 
   const [maxH, setMaxH] = useState(maxDockHeight)
   const [height, setHeight] = usePersistedHeight(
-    'artcade.console-dock-h-v3',
+    'artcade.console-dock-h-v4',
     readInitialHeight(),
     MIN_TOTAL_H,
     maxH,

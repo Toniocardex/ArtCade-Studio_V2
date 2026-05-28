@@ -12,8 +12,8 @@ import { usePersistedHeight } from '../hooks/usePersistedHeight'
 import { usePersistedBoolean } from '../hooks/usePersistedBoolean'
 import { triggerLayoutReflow } from '../utils/layout-reflow'
 
-const DEFAULT_ASSETS_H = 180
-const MIN_ASSETS_H = 100
+const DEFAULT_ASSETS_H = 220
+const MIN_ASSETS_H = 120
 
 export default function LeftSidebar() {
   const containerRef = useRef<HTMLDivElement>(null)

@@ -62,10 +62,10 @@ describe('uiReducer — console dock', () => {
   })
 
   it('LOG info does not expand collapsed console', () => {
-    const s = uiReducer(base({ bottomPanelCollapsed: true }), {
-      type: 'LOG',
-      entry: logEntry('info', 1),
-    })
+    const s = uiReducer(
+      base({ bottomPanelCollapsed: true, consoleOpen: false }),
+      { type: 'LOG', entry: logEntry('info', 1) },
+    )
     expect(s.bottomPanelCollapsed).toBe(true)
     expect(s.consoleOpen).toBe(false)
   })
