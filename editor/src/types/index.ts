@@ -13,7 +13,7 @@ import type {
   CameraTargetComponent,
   MagneticItemComponent,
   HordeMemberComponent,
-  HealthComponent, AutoDestroyComponent,
+  HealthComponent, AutoDestroyComponent, DialogComponent,
 } from './components'
 
 export interface Vec2 { x: number; y: number }
@@ -81,6 +81,7 @@ export interface ObjectTypeDef {
   hordeMember?:          HordeMemberComponent
   health?:               HealthComponent
   autoDestroy?:          AutoDestroyComponent
+  dialog?:               DialogComponent
   defaultLogicBoardId?:  string
 }
 
@@ -115,6 +116,7 @@ export interface EntityDef {
   hordeMember?:          HordeMemberComponent
   health?:               HealthComponent
   autoDestroy?:          AutoDestroyComponent
+  dialog?:               DialogComponent
 }
 
 export interface SceneDef {

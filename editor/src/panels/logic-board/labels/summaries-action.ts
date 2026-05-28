@@ -153,5 +153,7 @@ export function actionSummaryPlain(
       return `Apply ${a.shader.replace(/_/g, ' ')} effect on ${who}`
     case 'setScreenShader':
       return `Apply ${a.shader.replace(/_/g, ' ')} on screen`
+    case 'startDialog':
+      return `Start dialog "${a.dialogId}" on ${who(a.target)}`
   }
 }

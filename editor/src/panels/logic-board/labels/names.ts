@@ -78,6 +78,7 @@ const ACTION_NAMES: Record<LogicActionType, string> = {
   snapToGrid: 'Snap to grid',
   setEntityShader: 'Visual effect on object',
   setScreenShader: 'Screen effect',
+  startDialog: 'Start dialog',
 }
 
 const CONDITION_NAMES: Record<LogicCondition['type'], string> = {

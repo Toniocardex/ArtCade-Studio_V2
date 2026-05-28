@@ -52,6 +52,7 @@ const CAPABILITIES: CapabilityDef[] = [
   { kind: 'action', type: 'setHordeWeights', component: 'hordeMember', label: 'Horde Member' },
   { kind: 'action', type: 'setAutoDestroyLifespan', component: 'autoDestroy', label: 'Auto Destroy' },
   { kind: 'action', type: 'cancelAutoDestroy', component: 'autoDestroy', label: 'Auto Destroy' },
+  { kind: 'action', type: 'startDialog', component: 'dialog', label: 'Dialog' },
   { kind: 'trigger', type: 'onTriggerEnter', component: 'sensor', label: 'Sensor' },
   { kind: 'trigger', type: 'onTriggerExit', component: 'sensor', label: 'Sensor' },
 ]
@@ -67,6 +68,7 @@ const ACTION_RECOMMENDATIONS: Record<ComponentKey, LogicActionType[]> = {
   magneticItem: ['setMagnetEnabled', 'setMagnetTargetTag'],
   hordeMember: ['setHordeTargetClass', 'setHordeWeights'],
   autoDestroy: ['setAutoDestroyLifespan', 'cancelAutoDestroy'],
+  dialog: ['startDialog'],
 }
 
 function defFor(kind: CapabilityKind, type: string): CapabilityDef[] {
