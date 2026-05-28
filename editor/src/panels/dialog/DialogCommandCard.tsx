@@ -14,6 +14,20 @@ const COMMAND_LABELS: Record<DialogCommand['type'], string> = {
   end: 'End Conversation',
 }
 
+export type DialogCommandCardProps = Readonly<{
+  command: DialogCommand
+  index: number
+  total: number
+  nested?: boolean
+  focused?: boolean
+  onFocus?: () => void
+  onMouseEnter?: () => void
+  onChange: (cmd: DialogCommand) => void
+  onDelete: () => void
+  onMoveUp: () => void
+  onMoveDown: () => void
+}>
+
 export function DialogCommandCard({
   command,
   index,
@@ -21,30 +35,34 @@ export function DialogCommandCard({
   nested = false,
   focused = false,
   onFocus,
+  onMouseEnter,
   onChange,
   onDelete,
   onMoveUp,
   onMoveDown,
-}: {
-  command: DialogCommand
-  index: number
-  total: number
-  nested?: boolean
-  focused?: boolean
-  onFocus?: () => void
-  onChange: (cmd: DialogCommand) => void
-  onDelete: () => void
-  onMoveUp: () => void
-  onMoveDown: () => void
-}) {
+}: DialogCommandCardProps) {
+  const focusRow = () => {
+    onFocus?.()
+    onMouseEnter?.()
+  }
+
   return (
-    <div
+    <section
       className={`rounded-lg border mb-2 p-3 ${
         focused
           ? 'border-[var(--accent)] bg-[var(--accent-bg)]'
           : 'border-[var(--border)] bg-[rgb(var(--border-rgb)/0.12)]'
       }`}
-      onFocus={onFocus}
+      aria-label={`${COMMAND_LABELS[command.type]} step ${index + 1} of ${total}`}
+      tabIndex={nested ? undefined : 0}
+      onFocus={focusRow}
+      onMouseEnter={onMouseEnter}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          focusRow()
+        }
+      }}
     >
       <div className="flex items-center gap-2 mb-2 flex-wrap">
         <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--purple)]">
@@ -264,7 +282,7 @@ export function DialogCommandCard({
       {command.type === 'end' && (
         <p className="text-xs text-[var(--muted)]">Closes the dialog and resumes gameplay.</p>
       )}
-    </div>
+    </section>
   )
 }
 
