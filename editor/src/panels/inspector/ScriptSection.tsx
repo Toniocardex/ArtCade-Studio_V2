@@ -9,8 +9,8 @@ export type ScriptSectionProps = Readonly<{
 
 export function ScriptSection({ entity }: ScriptSectionProps) {
   const { state, dispatch } = useEditor()
+  if (!entity.scriptPath) return null
   const scriptPath = entity.scriptPath
-  if (!scriptPath) return null
 
   async function openInEditor() {
     const path = scriptPath
@@ -46,7 +46,7 @@ export function ScriptSection({ entity }: ScriptSectionProps) {
 
   return (
     <InspectorSection label="Script">
-      <Field label="Path" value={entity.scriptPath} />
+      <Field label="Path" value={scriptPath} />
       <button
         onClick={openInEditor}
         className="w-full mt-1 px-3 py-1 bg-[rgb(var(--accent-2-rgb)/0.1)] border border-[rgb(var(--accent-2-rgb)/0.4)]
