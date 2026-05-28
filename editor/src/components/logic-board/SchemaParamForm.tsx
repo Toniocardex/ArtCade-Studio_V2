@@ -2,10 +2,12 @@
 // Dynamic parameter form driven by JSON Schema x-artcade.params metadata
 // ---------------------------------------------------------------------------
 
+import type { ReactElement } from 'react'
 import {
   getComponentMeta,
   type ComponentKind,
   type ParamFieldMeta,
+  type ParamWidget,
 } from '../../utils/logic-board/schema-registry'
 import { parseLogicNumber } from '../../utils/logic-board/parse-logic-number'
 import type { TargetSelector } from '../../types/logic-board'
@@ -21,14 +23,81 @@ const inp =
   'bg-[var(--bg)] border border-[var(--border-2)] text-[var(--text)] px-2 py-1 rounded text-xs'
 const lbl = 'text-[10px] text-[var(--muted)]'
 
-function Num({
-  value,
-  onChange,
-  w = 'w-20',
-  placeholder,
-  allowEmpty = false,
-  emptyDefault = 0,
-}: {
+/** Avoid `[object Object]` when schema values are not primitives. */
+function asParamString(value: unknown, fallback = ''): string {
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value)
+  if (typeof value === 'boolean') return String(value)
+  return fallback
+}
+
+function enumSelectValue(value: unknown, options: readonly string[] | undefined): string {
+  if (typeof value === 'string') return value
+  const first = options?.[0]
+  return typeof first === 'string' ? first : ''
+}
+
+function numDisplayValue(
+  value: number | undefined,
+  allowEmpty: boolean,
+  emptyDefault: number,
+): string {
+  if (value !== undefined && value !== null && Number.isFinite(value)) {
+    return String(value)
+  }
+  if (allowEmpty) return ''
+  return String(emptyDefault)
+}
+
+function numberEmptyDefault(kind: ComponentKind, type: string, name: string): number {
+  if (kind === 'action' && type === 'repeatTimes' && name === 'count') return 3
+  if (kind === 'action' && type === 'cameraShake' && name === 'trauma') return 0.5
+  return 0
+}
+
+function numberPlaceholder(
+  kind: ComponentKind,
+  type: string,
+  name: string,
+  meta: ParamFieldMeta,
+  allowEmpty: boolean,
+): string | undefined {
+  if (allowEmpty) return meta.placeholder ?? '0.5'
+  const isCameraTrauma =
+    kind === 'action' && type === 'cameraShake' && name === 'trauma'
+  if (isCameraTrauma) return meta.placeholder ?? '0.5'
+  return meta.placeholder
+}
+
+function repeatIntervalAllowEmpty(kind: ComponentKind, type: string, name: string): boolean {
+  return kind === 'action' && type === 'repeatTimes' && name === 'intervalSeconds'
+}
+
+function classNameAllowEmpty(kind: ComponentKind, type: string, name: string): boolean {
+  return (
+    (kind === 'trigger' && name === 'withClass') ||
+    (kind === 'condition' && type === 'raycastHit' && name === 'className')
+  )
+}
+
+function tagAllowEmpty(kind: ComponentKind, name: string): boolean {
+  return kind === 'trigger' && name === 'withClass'
+}
+
+function patchStringField(name: string, s: string, onPatch: (key: string, val: unknown) => void): void {
+  if (name !== 'value' && name !== 'payloadValue') {
+    onPatch(name, s)
+    return
+  }
+  if (s === '') {
+    onPatch(name, s)
+    return
+  }
+  const parsed = Number(s)
+  onPatch(name, Number.isNaN(parsed) ? s : parsed)
+}
+
+type NumProps = Readonly<{
   value: number | undefined
   onChange: (n: number | undefined) => void
   w?: string
@@ -37,13 +106,17 @@ function Num({
   allowEmpty?: boolean
   /** Display/fallback when value is undefined and allowEmpty is false. */
   emptyDefault?: number
-}) {
-  const display =
-    value !== undefined && value !== null && Number.isFinite(value)
-      ? String(value)
-      : allowEmpty
-        ? ''
-        : String(emptyDefault)
+}>
+
+function Num({
+  value,
+  onChange,
+  w = 'w-20',
+  placeholder,
+  allowEmpty = false,
+  emptyDefault = 0,
+}: NumProps) {
+  const display = numDisplayValue(value, allowEmpty, emptyDefault)
 
   return (
     <input
@@ -66,17 +139,14 @@ function Num({
   )
 }
 
-function Txt({
-  value,
-  onChange,
-  w = 'w-40',
-  placeholder,
-}: {
+type TxtProps = Readonly<{
   value: string
   onChange: (s: string) => void
   w?: string
   placeholder?: string
-}) {
+}>
+
+function Txt({ value, onChange, w = 'w-40', placeholder }: TxtProps) {
   return (
     <input
       className={`${inp} ${w}`}
@@ -87,171 +157,177 @@ function Txt({
   )
 }
 
-function Field({
-  kind,
-  type,
-  name,
-  meta,
-  value,
-  onPatch,
-}: {
+type FieldProps = Readonly<{
   kind: ComponentKind
   type: string
   name: string
   meta: ParamFieldMeta
   value: unknown
   onPatch: (key: string, val: unknown) => void
-}) {
-  const displayLabel =
-    fieldDisplayLabel(kind, type, name) ?? meta.label ?? name
-  const label = <span className={lbl}>{displayLabel}</span>
-  const enumCtx = `${kind}:${type}:${name}`
+}>
 
-  switch (meta.widget) {
-    case 'number': {
-      const allowEmpty =
-        kind === 'action' &&
-        type === 'repeatTimes' &&
-        name === 'intervalSeconds'
-      const numValue = typeof value === 'number' && Number.isFinite(value) ? value : undefined
-      const emptyDefault =
-        kind === 'action' && type === 'repeatTimes' && name === 'count'
-          ? 3
-          : kind === 'action' && type === 'cameraShake' && name === 'trauma'
-            ? 0.5
-            : 0
-      return (
-        <span key={name} className="flex items-center gap-2">
-          {label}
-          <Num
-            value={numValue}
-            allowEmpty={allowEmpty}
-            emptyDefault={emptyDefault}
-            placeholder={
-              allowEmpty
-                ? meta.placeholder ?? '0.5'
-                : kind === 'action' && type === 'cameraShake' && name === 'trauma'
-                  ? meta.placeholder ?? '0.5'
-                  : meta.placeholder
-            }
-            onChange={(n) => onPatch(name, n)}
-          />
-        </span>
-      )
-    }
-    case 'boolean':
-      return (
-        <label key={name} className="flex items-center gap-1 text-xs text-[var(--muted)]">
-          <input
-            type="checkbox"
-            checked={!!value}
-            onChange={(e) => onPatch(name, e.target.checked)}
-          />
-          {displayLabel}
-        </label>
-      )
-    case 'enum':
-      return (
-        <span key={name} className="flex items-center gap-2">
-          {label}
-          <select
-            className={sel}
-            value={String(value ?? meta.options?.[0] ?? '')}
-            onChange={(e) => onPatch(name, e.target.value)}
-          >
-            {(meta.options ?? []).map((o) => (
-              <option key={o} value={o}>
-                {enumDisplayLabel(enumCtx, o)}
-              </option>
-            ))}
-          </select>
-        </span>
-      )
-    case 'target':
-      return (
-        <span key={name} className="flex items-center gap-2">
-          {label}
-          <TargetPicker
-            value={(value as TargetSelector) ?? 'self'}
-            onChange={(t) => onPatch(name, t)}
-          />
-        </span>
-      )
-    case 'color':
-      return (
-        <span key={name} className="flex items-center gap-2">
-          {label}
-          <input
-            type="color"
-            value={typeof value === 'string' && value ? value : '#ffffff'}
-            onChange={(e) => onPatch(name, e.target.value)}
-            className="w-7 h-6 bg-transparent border border-[var(--border-2)] rounded"
-          />
-        </span>
-      )
-    case 'keyCapture':
-      return (
-        <span key={name} className="flex items-center gap-2">
-          {label}
-          <KeyCapture
-            value={value != null ? String(value) : ''}
-            placeholder={meta.placeholder}
-            onChange={(code) => onPatch(name, code)}
-          />
-        </span>
-      )
-    case 'className':
-      return (
-        <span key={name} className="flex items-center gap-2">
-          {label}
-          <ClassNamePicker
-            value={value != null ? String(value) : ''}
-            onChange={(s) => onPatch(name, s)}
-            allowEmpty={
-              (kind === 'trigger' && name === 'withClass') ||
-              (kind === 'condition' && type === 'raycastHit' && name === 'className')
-            }
-          />
-        </span>
-      )
-    case 'entityTag':
-      return (
-        <span key={name} className="flex items-center gap-2">
-          {label}
-          <TagPicker
-            value={value != null ? String(value) : ''}
-            onChange={(s) => onPatch(name, s)}
-            allowEmpty={kind === 'trigger' && name === 'withClass'}
-          />
-        </span>
-      )
-    case 'string':
-    default:
-      return (
-        <span key={name} className="flex items-center gap-2">
-          {label}
-          <Txt
-            value={value != null ? String(value) : ''}
-            placeholder={meta.placeholder}
-            onChange={(s) => {
-              if (name === 'value' || name === 'payloadValue') {
-                onPatch(name, s !== '' && !isNaN(Number(s)) ? Number(s) : s)
-              } else {
-                onPatch(name, s)
-              }
-            }}
-          />
-        </span>
-      )
-  }
+function fieldLabel(kind: ComponentKind, type: string, name: string, meta: ParamFieldMeta): string {
+  return fieldDisplayLabel(kind, type, name) ?? meta.label ?? name
 }
 
-export interface SchemaParamFormProps {
+function renderNumberField({ kind, type, name, meta, value, onPatch }: FieldProps) {
+  const allowEmpty = repeatIntervalAllowEmpty(kind, type, name)
+  const numValue = typeof value === 'number' && Number.isFinite(value) ? value : undefined
+  const emptyDefault = numberEmptyDefault(kind, type, name)
+
+  return (
+    <span key={name} className="flex items-center gap-2">
+      <span className={lbl}>{fieldLabel(kind, type, name, meta)}</span>
+      <Num
+        value={numValue}
+        allowEmpty={allowEmpty}
+        emptyDefault={emptyDefault}
+        placeholder={numberPlaceholder(kind, type, name, meta, allowEmpty)}
+        onChange={(n) => onPatch(name, n)}
+      />
+    </span>
+  )
+}
+
+function renderBooleanField({ kind, type, name, meta, value, onPatch }: FieldProps) {
+  return (
+    <label key={name} className="flex items-center gap-1 text-xs text-[var(--muted)]">
+      <input
+        type="checkbox"
+        checked={!!value}
+        onChange={(e) => onPatch(name, e.target.checked)}
+      />
+      {fieldLabel(kind, type, name, meta)}
+    </label>
+  )
+}
+
+function renderEnumField({ kind, type, name, meta, value, onPatch }: FieldProps) {
+  const enumCtx = `${kind}:${type}:${name}`
+  const options = meta.options ?? []
+
+  return (
+    <span key={name} className="flex items-center gap-2">
+      <span className={lbl}>{fieldLabel(kind, type, name, meta)}</span>
+      <select
+        className={sel}
+        value={enumSelectValue(value, options)}
+        onChange={(e) => onPatch(name, e.target.value)}
+      >
+        {options.map((o) => (
+          <option key={o} value={o}>
+            {enumDisplayLabel(enumCtx, o)}
+          </option>
+        ))}
+      </select>
+    </span>
+  )
+}
+
+function renderTargetField({ kind, type, name, value, onPatch }: FieldProps) {
+  return (
+    <span key={name} className="flex items-center gap-2">
+      <span className={lbl}>{fieldDisplayLabel(kind, type, name) ?? name}</span>
+      <TargetPicker
+        value={(value as TargetSelector) ?? 'self'}
+        onChange={(t) => onPatch(name, t)}
+      />
+    </span>
+  )
+}
+
+function renderColorField({ kind, type, name, value, onPatch }: FieldProps) {
+  const color =
+    typeof value === 'string' && value.length > 0 ? value : '#ffffff'
+
+  return (
+    <span key={name} className="flex items-center gap-2">
+      <span className={lbl}>{fieldDisplayLabel(kind, type, name) ?? name}</span>
+      <input
+        type="color"
+        value={color}
+        onChange={(e) => onPatch(name, e.target.value)}
+        className="w-7 h-6 bg-transparent border border-[var(--border-2)] rounded"
+      />
+    </span>
+  )
+}
+
+function renderKeyCaptureField({ kind, type, name, meta, value, onPatch }: FieldProps) {
+  return (
+    <span key={name} className="flex items-center gap-2">
+      <span className={lbl}>{fieldLabel(kind, type, name, meta)}</span>
+      <KeyCapture
+        value={asParamString(value)}
+        placeholder={meta.placeholder}
+        onChange={(code) => onPatch(name, code)}
+      />
+    </span>
+  )
+}
+
+function renderClassNameField({ kind, type, name, value, onPatch }: FieldProps) {
+  return (
+    <span key={name} className="flex items-center gap-2">
+      <span className={lbl}>{fieldDisplayLabel(kind, type, name) ?? name}</span>
+      <ClassNamePicker
+        value={asParamString(value)}
+        onChange={(s) => onPatch(name, s)}
+        allowEmpty={classNameAllowEmpty(kind, type, name)}
+      />
+    </span>
+  )
+}
+
+function renderEntityTagField({ kind, type, name, value, onPatch }: FieldProps) {
+  return (
+    <span key={name} className="flex items-center gap-2">
+      <span className={lbl}>{fieldDisplayLabel(kind, type, name) ?? name}</span>
+      <TagPicker
+        value={asParamString(value)}
+        onChange={(s) => onPatch(name, s)}
+        allowEmpty={tagAllowEmpty(kind, name)}
+      />
+    </span>
+  )
+}
+
+function renderStringField({ kind, type, name, meta, value, onPatch }: FieldProps) {
+  return (
+    <span key={name} className="flex items-center gap-2">
+      <span className={lbl}>{fieldLabel(kind, type, name, meta)}</span>
+      <Txt
+        value={asParamString(value)}
+        placeholder={meta.placeholder}
+        onChange={(s) => patchStringField(name, s, onPatch)}
+      />
+    </span>
+  )
+}
+
+const FIELD_RENDERERS: Record<ParamWidget, (props: FieldProps) => ReactElement> = {
+  number: renderNumberField,
+  boolean: renderBooleanField,
+  enum: renderEnumField,
+  target: renderTargetField,
+  color: renderColorField,
+  keyCapture: renderKeyCaptureField,
+  className: renderClassNameField,
+  entityTag: renderEntityTagField,
+  string: renderStringField,
+}
+
+function Field(props: FieldProps) {
+  const render = FIELD_RENDERERS[props.meta.widget] ?? renderStringField
+  return render(props)
+}
+
+export type SchemaParamFormProps = Readonly<{
   kind: ComponentKind
   type: string
   value: Record<string, unknown>
   onChange: (next: Record<string, unknown>) => void
-}
+}>
 
 export function SchemaParamForm({ kind, type, value, onChange }: SchemaParamFormProps) {
   const meta = getComponentMeta(kind, type)
