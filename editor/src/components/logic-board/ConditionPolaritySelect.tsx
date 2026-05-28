@@ -7,15 +7,17 @@ import { CONDITION_POLARITY_OPTIONS } from '../../utils/logic-board/condition-co
 const sel =
   'bg-[var(--bg)] border border-[var(--border-2)] text-[var(--accent)] px-2 py-1 rounded text-xs'
 
+export type ConditionPolaritySelectProps = Readonly<{
+  negated?: boolean
+  onChange: (negated: boolean) => void
+  className?: string
+}>
+
 export function ConditionPolaritySelect({
   negated,
   onChange,
   className = sel,
-}: {
-  negated?: boolean
-  onChange: (negated: boolean) => void
-  className?: string
-}) {
+}: ConditionPolaritySelectProps) {
   return (
     <select
       className={className}
