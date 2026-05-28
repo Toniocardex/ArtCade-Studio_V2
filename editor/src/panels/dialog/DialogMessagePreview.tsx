@@ -1,25 +1,30 @@
 import type { DialogCommand } from '../../utils/dialog/dialog-script'
 
-export function DialogMessagePreview({
-  commands,
-  focusIndex,
-}: {
+type ShowTextCommand = Extract<DialogCommand, { type: 'showText' }>
+
+type DialogMessagePreviewProps = Readonly<{
   commands: DialogCommand[]
   focusIndex: number | null
-}) {
-  const cmd =
-    focusIndex != null && focusIndex >= 0 && focusIndex < commands.length
-      ? commands[focusIndex]
-      : null
-  const show =
-    cmd?.type === 'showText'
-      ? cmd
-      : commands.find((c) => c.type === 'showText')?.type === 'showText'
-        ? (commands.find((c) => c.type === 'showText') as Extract<
-            DialogCommand,
-            { type: 'showText' }
-          >)
-        : null
+}>
+
+function pickShowTextPreview(
+  commands: DialogCommand[],
+  focusIndex: number | null,
+): ShowTextCommand | null {
+  if (
+    focusIndex != null &&
+    focusIndex >= 0 &&
+    focusIndex < commands.length &&
+    commands[focusIndex]?.type === 'showText'
+  ) {
+    return commands[focusIndex] as ShowTextCommand
+  }
+  const first = commands.find((c): c is ShowTextCommand => c.type === 'showText')
+  return first ?? null
+}
+
+export function DialogMessagePreview({ commands, focusIndex }: DialogMessagePreviewProps) {
+  const show = pickShowTextPreview(commands, focusIndex)
 
   return (
     <div
@@ -32,9 +37,9 @@ export function DialogMessagePreview({
       {show ? (
         <>
           {show.character ? (
-            <p className="text-sm font-semibold text-[#FFD700] mb-1">{show.character}</p>
+            <p className="text-sm font-semibold text-[var(--accent)] mb-1">{show.character}</p>
           ) : null}
-          <p className="text-sm text-white whitespace-pre-wrap leading-relaxed">
+          <p className="text-sm text-[var(--text)] whitespace-pre-wrap leading-relaxed">
             {show.text || '…'}
           </p>
         </>
