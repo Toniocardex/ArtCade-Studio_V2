@@ -36,10 +36,10 @@ export default function ConsolePanel() {
     try {
       await navigator.clipboard.writeText(text)
       setCopyStatus(`${label} COPIED`)
-      window.setTimeout(() => setCopyStatus(null), 1600)
+      globalThis.setTimeout(() => setCopyStatus(null), 1600)
     } catch {
       setCopyStatus('COPY FAILED')
-      window.setTimeout(() => setCopyStatus(null), 1600)
+      globalThis.setTimeout(() => setCopyStatus(null), 1600)
     }
   }
 
