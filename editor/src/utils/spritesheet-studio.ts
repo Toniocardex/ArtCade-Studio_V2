@@ -184,6 +184,35 @@ export function frameAtCell(
   return { x: col * cellW, y: row * cellH, w: cellW, h: cellH }
 }
 
+/** Frame rect clipped to sheet bounds (avoids oversized cells on short strips). */
+export function frameAtCellInSheet(
+  col: number,
+  row: number,
+  cellW: number,
+  cellH: number,
+  imgW: number,
+  imgH: number,
+): AnimationFrameRect {
+  const x = col * cellW
+  const y = row * cellH
+  const w = Math.max(0, Math.min(cellW, imgW - x))
+  const h = Math.max(0, Math.min(cellH, imgH - y))
+  return { x, y, w, h }
+}
+
+export function frameForCell(
+  col: number,
+  row: number,
+  cellW: number,
+  cellH: number,
+  sheet: { w: number; h: number } | null,
+): AnimationFrameRect {
+  if (sheet && sheet.w > 0 && sheet.h > 0) {
+    return frameAtCellInSheet(col, row, cellW, cellH, sheet.w, sheet.h)
+  }
+  return frameAtCell(col, row, cellW, cellH)
+}
+
 export function cellIndex(col: number, row: number, cols: number): number {
   return row * cols + col
 }
@@ -218,7 +247,9 @@ export function framesToSortedIndices(
     const col = Math.round(fr.x / cellW)
     const row = Math.round(fr.y / cellH)
     if (col < 0 || row < 0 || col >= grid.cols || row >= grid.rows) continue
-    if (fr.w !== cellW || fr.h !== cellH) continue
+    const ox = col * cellW
+    const oy = row * cellH
+    if (Math.abs(fr.x - ox) > 0.5 || Math.abs(fr.y - oy) > 0.5) continue
     indices.push(cellIndex(col, row, grid.cols))
   }
   return [...new Set(indices)].sort((a, b) => a - b)
@@ -231,13 +262,14 @@ export function indicesRangeToFrames(
   grid: SpritesheetGrid,
   cellW: number,
   cellH: number,
+  sheet: { w: number; h: number } | null = null,
 ): AnimationFrameRect[] {
   const clamped = clampFrameRange(start, end, grid.totalFrames)
   if (!clamped) return []
   const out: AnimationFrameRect[] = []
   for (let i = clamped.start; i <= clamped.end; i++) {
     const { col, row } = indexToCell(i, grid.cols)
-    out.push(frameAtCell(col, row, cellW, cellH))
+    out.push(frameForCell(col, row, cellW, cellH, sheet))
   }
   return out
 }
@@ -247,12 +279,23 @@ export function indicesSetToFrames(
   grid: SpritesheetGrid,
   cellW: number,
   cellH: number,
+  sheet: { w: number; h: number } | null = null,
 ): AnimationFrameRect[] {
   const sorted = [...new Set(indices)].filter((i) => i >= 0 && i < grid.totalFrames).sort((a, b) => a - b)
   return sorted.map((i) => {
     const { col, row } = indexToCell(i, grid.cols)
-    return frameAtCell(col, row, cellW, cellH)
+    return frameForCell(col, row, cellW, cellH, sheet)
   })
+}
+
+export function maxFrameExtents(frames: readonly AnimationFrameRect[]): { w: number; h: number } {
+  let w = 0
+  let h = 0
+  for (const fr of frames) {
+    if (fr.w > w) w = fr.w
+    if (fr.h > h) h = fr.h
+  }
+  return { w, h }
 }
 
 export type FrameRangeUi = Readonly<{

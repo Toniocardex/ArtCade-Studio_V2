@@ -85,5 +85,6 @@ describe('SpritesheetStudioModal', () => {
     render(<SpritesheetStudioModal />)
     expect(screen.getByRole('dialog')).toBeTruthy()
     expect(screen.getByText(/Sprite Studio — hero.png/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Reset position/i })).toBeTruthy()
   })
 })

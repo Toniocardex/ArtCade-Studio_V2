@@ -10,7 +10,7 @@ type ClipPreviewPaneProps = Readonly<{
 }>
 
 export function ClipPreviewPane({ asset, session }: ClipPreviewPaneProps) {
-  const { activeClip } = session
+  const { activeClip, previewSrc } = session
   const [previewTick, setPreviewTick] = useState(0)
   const previewRef = useRef(0)
 
@@ -42,9 +42,15 @@ export function ClipPreviewPane({ asset, session }: ClipPreviewPaneProps) {
 
   const previewFrame = activeClip?.frames[previewTick]
 
-  if (!previewFrame || !asset.dataUrl) {
+  const playbackSrc = previewSrc ?? asset.dataUrl ?? ''
+  const hasPreviewSource = playbackSrc.length > 0
+
+  if (!previewFrame || !hasPreviewSource) {
     return (
-      <div className="p-3 border-t border-[var(--border)] text-[10px] text-[var(--muted)]">
+      <div
+        className="shrink-0 p-3 border-t border-[var(--border)] bg-[var(--panel-3)] text-[10px] text-[var(--muted)]"
+        data-testid="spritesheet-preview-host"
+      >
         Select frames on the grid to preview playback.
       </div>
     )
@@ -52,22 +58,33 @@ export function ClipPreviewPane({ asset, session }: ClipPreviewPaneProps) {
 
   if (isReady()) {
     return (
-      <div className="p-3 border-t border-[var(--border)]" data-testid="spritesheet-preview-host">
+      <div
+        className="shrink-0 p-3 border-t border-[var(--border)] bg-[var(--panel-3)]"
+        data-testid="spritesheet-preview-host"
+      >
         <SpritesheetEnginePreview asset={asset} session={session} />
       </div>
     )
   }
 
   return (
-    <div className="p-3 border-t border-[var(--border)] flex items-center gap-3">
-      <span className="text-[10px] text-[var(--muted)]">Playback</span>
+    <div
+      className="shrink-0 p-3 border-t border-[var(--border)] bg-[var(--panel-3)] flex flex-col items-center gap-2"
+      data-testid="spritesheet-preview-host"
+    >
+      <p className="text-[10px] uppercase tracking-wider text-[var(--muted)] w-full">Playback</p>
       <div
         className="border border-[var(--border)] overflow-hidden"
-        style={{ width: previewFrame.w, height: previewFrame.h }}
+        style={{
+          width: previewFrame.w * 5,
+          height: previewFrame.h * 5,
+          imageRendering: 'pixelated',
+        }}
       >
         <img
-          src={asset.dataUrl}
+          src={playbackSrc}
           alt=""
+          draggable={false}
           style={{
             imageRendering: 'pixelated',
             marginLeft: -previewFrame.x,

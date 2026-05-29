@@ -13,6 +13,13 @@ type SpritesheetEnginePreviewProps = Readonly<{
   session: SpritesheetStudioSession
 }>
 
+/** CSS scale so small frames (e.g. 16×16) are readable in the clips column. */
+export function previewDisplayScale(frameW: number, frameH: number): number {
+  const maxDim = Math.max(frameW, frameH, 1)
+  const target = 160
+  return Math.min(12, Math.max(3, Math.ceil(target / maxDim)))
+}
+
 export function SpritesheetEnginePreview({ asset, session }: SpritesheetEnginePreviewProps) {
   const { activeClip } = session
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -22,11 +29,14 @@ export function SpritesheetEnginePreview({ asset, session }: SpritesheetEnginePr
 
   const texturePath = asset.path?.trim() || asset.id
   const clipName = activeClip?.name ?? ''
-  const frameW = activeClip?.frames[0]?.w ?? 64
-  const frameH = activeClip?.frames[0]?.h ?? 64
+  const frameW = activeClip?.frames.reduce((m, f) => Math.max(m, f.w), 0) || 64
+  const frameH = activeClip?.frames.reduce((m, f) => Math.max(m, f.h), 0) || 64
   const pad = 8
   const canvasW = Math.min(256, Math.max(32, frameW + pad * 2))
   const canvasH = Math.min(256, Math.max(32, frameH + pad * 2))
+  const displayScale = previewDisplayScale(frameW, frameH)
+  const displayW = canvasW * displayScale
+  const displayH = canvasH * displayScale
 
   const setEngineOkTracked = (ok: boolean) => {
     if (engineOkRef.current === ok) return
@@ -91,14 +101,20 @@ export function SpritesheetEnginePreview({ asset, session }: SpritesheetEnginePr
   }
 
   return (
-    <div className="flex items-center gap-3 flex-wrap">
-      <span className="text-[10px] text-[var(--muted)]">Engine preview</span>
-      <canvas
-        ref={canvasRef}
-        className="border border-[var(--border)]"
-        style={{ imageRendering: 'pixelated', width: canvasW, height: canvasH }}
-        data-testid="spritesheet-engine-preview-canvas"
-      />
+    <div className="flex flex-col gap-2 w-full">
+      <p className="text-[10px] uppercase tracking-wider text-[var(--muted)]">Engine preview</p>
+      <div className="flex justify-center w-full min-h-[120px] items-center rounded border border-[var(--border)] bg-[var(--bg)] p-2">
+        <canvas
+          ref={canvasRef}
+          className="border border-[var(--border-2)]"
+          style={{
+            imageRendering: 'pixelated',
+            width: displayW,
+            height: displayH,
+          }}
+          data-testid="spritesheet-engine-preview-canvas"
+        />
+      </div>
       {!isReady() ? (
         <span className="text-[9px] text-[var(--muted)]">WASM runtime not ready.</span>
       ) : !engineOk ? (
@@ -106,9 +122,11 @@ export function SpritesheetEnginePreview({ asset, session }: SpritesheetEnginePr
           Waiting for engine texture or clip sync — save the project if this persists.
         </span>
       ) : (
-        <span className="text-[9px] text-[var(--muted)]">{clipName}</span>
+        <span className="text-[9px] text-[var(--muted)] truncate" title={clipName}>
+          {clipName}
+        </span>
       )}
-      <span className="text-[9px] text-[var(--muted)] w-full">
+      <span className="text-[9px] text-[var(--muted)] leading-snug">
         Clip names are global in the runtime — use unique names across all image sheets.
       </span>
     </div>

@@ -424,8 +424,9 @@ int Renderer::captureSpriteRegionFrame(const AssetId& assetId,
 
     BeginTextureMode(g_regionPreview.rt);
     ClearBackground(BLANK);
-    const float dx = (static_cast<float>(w) - srcW) * 0.5f;
-    const float dy = (static_cast<float>(h) - srcH) * 0.5f;
+    constexpr float kPreviewPad = 8.f;
+    const float dx = kPreviewPad;
+    const float dy = kPreviewPad;
     if (!drawSpriteRegion(assetId, srcX, srcY, srcW, srcH, dx, dy, srcW, srcH)) {
         EndTextureMode();
         return -4;

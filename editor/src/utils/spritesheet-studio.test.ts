@@ -5,6 +5,8 @@ import {
   deriveGrid,
   deriveStripLayout,
   frameAtCell,
+  frameAtCellInSheet,
+  frameForCell,
   frameKey,
   frameRangeFromIndices,
   framesToSortedIndices,
@@ -43,6 +45,19 @@ describe('spritesheet-studio', () => {
   it('indicesSetToFrames preserves sort order', () => {
     const frames = indicesSetToFrames([3, 1, 2], grid, 32, 32)
     expect(framesToSortedIndices(frames, grid, 32, 32)).toEqual([1, 2, 3])
+  })
+
+  it('frameAtCellInSheet clamps cells to sheet bounds', () => {
+    const stripGrid = deriveGrid(64, 16, 32, 32)
+    expect(stripGrid).toEqual({ cols: 2, rows: 1, totalFrames: 2 })
+    const frames = indicesSetToFrames([0, 1], stripGrid, 32, 32, { w: 64, h: 16 })
+    expect(frames[0]).toEqual({ x: 0, y: 0, w: 32, h: 16 })
+    expect(frames[1]).toEqual({ x: 32, y: 0, w: 32, h: 16 })
+    expect(framesToSortedIndices(frames, stripGrid, 32, 32)).toEqual([0, 1])
+  })
+
+  it('frameForCell matches frameAtCell when no sheet', () => {
+    expect(frameForCell(1, 0, 32, 32, null)).toEqual(frameAtCell(1, 0, 32, 32))
   })
 
   it('frameRangeFromIndices detects contiguous vs sparse', () => {

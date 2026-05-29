@@ -1,14 +1,17 @@
 import { Plus, Trash2 } from 'lucide-react'
+import type { ImageAsset } from '../../types'
 import { useEditor } from '../../store/editor-store'
 import { findDuplicateClipNameAcrossAssets } from '../../utils/spritesheet-clip-names'
+import { ClipPreviewPane } from './ClipPreviewPane'
 import type { SpritesheetStudioSession } from './useSpritesheetStudioSession'
 
 type ClipListPanelProps = Readonly<{
+  asset: ImageAsset
   assetId: string
   session: SpritesheetStudioSession
 }>
 
-export function ClipListPanel({ assetId, session }: ClipListPanelProps) {
+export function ClipListPanel({ asset, assetId, session }: ClipListPanelProps) {
   const { state } = useEditor()
   const project = state.project
   const {
@@ -30,7 +33,11 @@ export function ClipListPanel({ assetId, session }: ClipListPanelProps) {
       : null
 
   return (
-    <div className="flex flex-col gap-3 p-3 border-l border-[var(--border)] min-w-[200px] max-w-[280px] overflow-y-auto">
+    <div
+      className="flex flex-col min-h-0 border-l border-[var(--border)] min-w-[220px] max-w-[300px] w-[min(28vw,300px)] shrink-0"
+      data-testid="spritesheet-clips-column"
+    >
+      <div className="flex flex-col gap-3 p-3 flex-1 min-h-0 overflow-y-auto">
       <div className="flex items-center justify-between gap-2">
         <p className="text-[10px] uppercase tracking-wider text-[var(--muted)]">Clips</p>
         <button
@@ -165,6 +172,8 @@ export function ClipListPanel({ assetId, session }: ClipListPanelProps) {
           </button>
         </div>
       ) : null}
+      </div>
+      <ClipPreviewPane asset={asset} session={session} />
     </div>
   )
 }

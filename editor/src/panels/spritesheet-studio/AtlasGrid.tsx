@@ -3,7 +3,7 @@ import {
   frameKey,
   indicesInCellRect,
   normalizeCellRect,
-  frameAtCell,
+  frameForCell,
 } from '../../utils/spritesheet-studio'
 import type { SpritesheetStudioSession } from './useSpritesheetStudioSession'
 import { AtlasViewportToolbar } from './AtlasViewportToolbar'
@@ -175,7 +175,7 @@ export function AtlasGrid({ session }: AtlasGridProps) {
               {Array.from({ length: grid.totalFrames }, (_, i) => {
                 const col = i % grid.cols
                 const row = Math.floor(i / grid.cols)
-                const fr = frameAtCell(col, row, cellW, cellH)
+                const fr = frameForCell(col, row, cellW, cellH, imgWH)
                 const key = frameKey(fr)
                 const on = selectedKeys.has(key)
                 const inDrag =

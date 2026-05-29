@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { AnimationClipDef, ImageAsset } from '../../types'
 import {
   isBlobPreviewSrc,
@@ -7,7 +7,7 @@ import {
   revokeImagePreviewSrc,
 } from '../../utils/image-preview-src'
 import {
-  frameAtCell,
+  frameForCell,
   frameKey,
   frameRangeFromFrames,
   framesToSortedIndices,
@@ -92,13 +92,18 @@ export function useSpritesheetStudioSession(
   const [stripAxis, setStripAxis] = useState<StripAxis>('horizontal')
   const [imgWH, setImgWH] = useState<{ w: number; h: number } | null>(null)
   const [previewSrc, setPreviewSrc] = useState<string | null>(asset.dataUrl ?? null)
+  const clipsNormalizedRef = useRef<string | null>(null)
 
   const activeClip = clips[activeClipIndex]
 
   useEffect(() => {
     const inferred = inferCell(asset.clips ?? [])
-    setCellW(inferred.w)
-    setCellH(inferred.h)
+    setCellW(imgWH ? Math.min(inferred.w, imgWH.w) : inferred.w)
+    setCellH(imgWH ? Math.min(inferred.h, imgWH.h) : inferred.h)
+  }, [asset.path, imgWH?.w, imgWH?.h])
+
+  useEffect(() => {
+    clipsNormalizedRef.current = null
   }, [asset.path])
 
   useEffect(() => {
@@ -135,8 +140,10 @@ export function useSpritesheetStudioSession(
   useEffect(() => {
     if (!imgWH) return
     const c = inferCell(asset.clips ?? [])
-    const cols = inferGridCols(asset.clips ?? [], imgWH.w, c.w)
-    const rows = Math.max(1, Math.floor(imgWH.h / Math.max(1, c.h)))
+    const cw = Math.min(c.w, imgWH.w)
+    const ch = Math.min(c.h, imgWH.h)
+    const cols = inferGridCols(asset.clips ?? [], imgWH.w, cw)
+    const rows = Math.max(1, Math.floor(imgWH.h / Math.max(1, ch)))
     setGridCols(cols)
     setGridRows(rows)
     setStripFrameCount(cols)
@@ -167,13 +174,49 @@ export function useSpritesheetStudioSession(
 
   const gridWarning = useMemo(() => {
     if (!imgWH) return null
-    const { remainderW, remainderH } = slicing.remainder
-    if (remainderW === 0 && remainderH === 0) return null
     const parts: string[] = []
+    if (effectiveCellH > imgWH.h || effectiveCellW > imgWH.w) {
+      parts.push(
+        `Cell size exceeds the sheet (${imgWH.w}×${imgWH.h}px). Use height ${imgWH.h}px or Frame strip mode.`,
+      )
+    }
+    const { remainderW, remainderH } = slicing.remainder
     if (remainderW > 0) parts.push(`${remainderW}px width unused`)
     if (remainderH > 0) parts.push(`${remainderH}px height unused`)
-    return `Unused pixels: ${parts.join(', ')}.`
-  }, [imgWH, slicing.remainder])
+    return parts.length > 0 ? parts.join(' ') : null
+  }, [imgWH, effectiveCellW, effectiveCellH, slicing.remainder])
+
+  const sheet = imgWH
+
+  useEffect(() => {
+    if (!sheet || grid.totalFrames <= 0 || clips.length === 0) return
+    const normKey = `${asset.path}:${sheet.w}x${sheet.h}:${effectiveCellW}x${effectiveCellH}`
+    if (clipsNormalizedRef.current === normKey) return
+
+    let changed = false
+    const next = clips.map((clip) => {
+      const indices = framesToSortedIndices(clip.frames, grid, effectiveCellW, effectiveCellH)
+      const frames = indicesSetToFrames(indices, grid, effectiveCellW, effectiveCellH, sheet)
+      if (
+        frames.length === clip.frames.length &&
+        frames.every((f, i) => frameKey(f) === frameKey(clip.frames[i]!))
+      ) {
+        return clip
+      }
+      changed = true
+      return { ...clip, frames }
+    })
+    clipsNormalizedRef.current = normKey
+    if (changed) onPatchClips(next)
+  }, [
+    asset.path,
+    sheet,
+    grid,
+    effectiveCellW,
+    effectiveCellH,
+    clips,
+    onPatchClips,
+  ])
 
   const selectedKeys = useMemo(() => {
     const set = new Set<string>()
@@ -220,34 +263,44 @@ export function useSpritesheetStudioSession(
         grid,
         effectiveCellW,
         effectiveCellH,
+        sheet,
       )
       patchActiveClip({ frames: newFrames })
     },
-    [activeClip, grid, effectiveCellW, effectiveCellH, patchActiveClip],
+    [activeClip, grid, effectiveCellW, effectiveCellH, sheet, patchActiveClip],
   )
 
   const toggleCell = useCallback(
     (col: number, row: number) => {
       if (!activeClip || effectiveCellW <= 0 || effectiveCellH <= 0) return
-      const fr = frameAtCell(col, row, effectiveCellW, effectiveCellH)
+      const fr = frameForCell(col, row, effectiveCellW, effectiveCellH, sheet)
       const key = frameKey(fr)
       const frames = [...activeClip.frames]
       const idx = frames.findIndex((f) => frameKey(f) === key)
       if (idx >= 0) frames.splice(idx, 1)
       else frames.push(fr)
       const indices = framesToSortedIndices(frames, grid, effectiveCellW, effectiveCellH)
-      patchActiveClip({ frames: indicesSetToFrames(indices, grid, effectiveCellW, effectiveCellH) })
+      patchActiveClip({
+        frames: indicesSetToFrames(indices, grid, effectiveCellW, effectiveCellH, sheet),
+      })
     },
-    [activeClip, effectiveCellW, effectiveCellH, patchActiveClip, grid],
+    [activeClip, effectiveCellW, effectiveCellH, sheet, patchActiveClip, grid],
   )
 
   const setRange = useCallback(
     (start: number, end: number) => {
-      const frames = indicesRangeToFrames(start, end, grid, effectiveCellW, effectiveCellH)
+      const frames = indicesRangeToFrames(
+        start,
+        end,
+        grid,
+        effectiveCellW,
+        effectiveCellH,
+        sheet,
+      )
       if (frames.length === 0) return
       patchActiveClip({ frames })
     },
-    [grid, effectiveCellW, effectiveCellH, patchActiveClip],
+    [grid, effectiveCellW, effectiveCellH, sheet, patchActiveClip],
   )
 
   const setSelectionIndices = useCallback(
