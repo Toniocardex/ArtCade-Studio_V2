@@ -4,6 +4,7 @@
 
 import type { ProjectDoc } from '../../types'
 import { assetOrchestrator } from '../../utils/asset-orchestrator'
+import type { CollectSceneAssetRefsOptions } from '../../utils/collect-scene-asset-refs'
 import { dirName } from '../../utils/project'
 
 /** Load active scene textures, prefetch siblings (idle). */
@@ -11,10 +12,11 @@ export function performRuntimeSceneAssetSync(
   project: ProjectDoc,
   activeSceneId: string,
   projectPath: string | null,
+  options?: Pick<CollectSceneAssetRefsOptions, 'scope'>,
 ): void {
   const root = projectPath ? dirName(projectPath) : ''
-  void assetOrchestrator.loadScene(project, activeSceneId, root)
+  void assetOrchestrator.loadScene(project, activeSceneId, root, options)
   for (const sid of Object.keys(project.scenes)) {
-    if (sid !== activeSceneId) assetOrchestrator.prefetchScene(project, sid, root)
+    if (sid !== activeSceneId) assetOrchestrator.prefetchScene(project, sid, root, options)
   }
 }

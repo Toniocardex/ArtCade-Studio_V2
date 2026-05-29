@@ -11,7 +11,7 @@
 // group separated by a thin vertical divider. Order matches the original
 // vertical palette so muscle memory is preserved.
 
-import { Camera, Eraser, Grid3x3, Hand, ImageIcon, MousePointer2, Pencil } from 'lucide-react'
+import { Boxes, Camera, Eraser, Grid3x3, Hand, ImageIcon, MousePointer2, Pencil } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useEditor } from '../../store/editor-store'
 import type { EditorTool } from '../../utils/runtime-sync-service'
@@ -39,6 +39,25 @@ function Divider() {
  * Kept inline in CanvasToolbar because it has no other call sites — moving
  * it into its own file would add fragmentation without any reuse benefit.
  */
+function PreviewSpawnScopeToggle() {
+  const { state, dispatch } = useEditor()
+  const spawnScope = state.previewAssetLoadScope === 'scene+spawn-prototypes'
+  return (
+    <button
+      onClick={() => dispatch({
+        type: 'EDITOR_SET_PREVIEW_ASSET_LOAD_SCOPE',
+        scope: spawnScope ? 'scene-static' : 'scene+spawn-prototypes',
+      })}
+      title="Preload spawn prototype sprites in preview (Logic Board spawnEntity)"
+      className={`p-1.5 rounded transition-colors ${
+        spawnScope ? 'bg-[rgb(var(--accent-2-rgb)/0.2)]' : 'hover:bg-[var(--panel-3)]'
+      }`}
+    >
+      <Boxes size={15} color={spawnScope ? 'var(--accent-2)' : 'var(--muted)'} />
+    </button>
+  )
+}
+
 function CameraPreviewToggle() {
   const { state, dispatch } = useEditor()
   const enabled = state.cameraPreview
@@ -121,6 +140,7 @@ export function CanvasToolbar({
       </button>
 
       <CameraPreviewToggle />
+      <PreviewSpawnScopeToggle />
 
       <Divider />
 

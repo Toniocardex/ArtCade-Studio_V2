@@ -31,7 +31,11 @@ describe('performRuntimeSceneAssetSync', () => {
       },
     }
     performRuntimeSceneAssetSync(project, 'scene_main', '/proj/game.artcade/project.json')
-    expect(loadScene).toHaveBeenCalledWith(project, 'scene_main', '/proj/game.artcade')
-    expect(prefetchScene).toHaveBeenCalledWith(project, 'scene_b', '/proj/game.artcade')
+    expect(loadScene).toHaveBeenCalledWith(
+      project, 'scene_main', '/proj/game.artcade', undefined,
+    )
+    expect(prefetchScene).toHaveBeenCalledWith(
+      project, 'scene_b', '/proj/game.artcade', undefined,
+    )
   })
 })

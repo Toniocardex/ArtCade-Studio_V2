@@ -331,12 +331,17 @@ interface AssetUploadOptions {
   activeSceneId: string | null
   wasmReady: boolean
   engineReady: boolean
+  previewAssetLoadScope: 'scene-static' | 'scene+spawn-prototypes'
 }
 
 export function useRuntimeAssetUpload(opts: AssetUploadOptions): void {
-  const { project, projectPath, activeSceneId, wasmReady, engineReady } = opts
+  const {
+    project, projectPath, activeSceneId, wasmReady, engineReady, previewAssetLoadScope,
+  } = opts
   useEffect(() => {
     if (!wasmReady || !engineReady || !project || !activeSceneId) return
-    performRuntimeSceneAssetSync(project, activeSceneId, projectPath)
-  }, [project, projectPath, activeSceneId, wasmReady, engineReady])
+    performRuntimeSceneAssetSync(project, activeSceneId, projectPath, {
+      scope: previewAssetLoadScope,
+    })
+  }, [project, projectPath, activeSceneId, wasmReady, engineReady, previewAssetLoadScope])
 }

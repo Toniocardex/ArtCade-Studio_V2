@@ -4,7 +4,11 @@
 
 import type { ProjectDoc } from '../types'
 import { readProjectFileBytes } from './asset-file-api'
-import { collectSceneAssetRefs, collectSceneAudioRefs } from './collect-scene-asset-refs'
+import {
+  collectSceneAssetRefs,
+  collectSceneAudioRefs,
+  type CollectSceneAssetRefsOptions,
+} from './collect-scene-asset-refs'
 import {
   editorInvalidateAsset,
   editorRegisterAudio,
@@ -142,8 +146,9 @@ export function projectFontDescriptors(project: ProjectDoc): AssetDescriptor[] {
 export function sceneAssetDescriptors(
   project: ProjectDoc,
   sceneId: string,
+  options?: Pick<CollectSceneAssetRefsOptions, 'scope'>,
 ): AssetDescriptor[] {
-  const imagePaths = collectSceneAssetRefs(project, sceneId)
+  const imagePaths = collectSceneAssetRefs(project, sceneId, options)
   const audioPaths = collectSceneAudioRefs(project, sceneId)
   return [
     ...pathsToDescriptors(project, imagePaths),
@@ -202,18 +207,18 @@ export class AssetOrchestrator {
     project: ProjectDoc,
     sceneId: string,
     projectRoot: string,
+    options?: Pick<CollectSceneAssetRefsOptions, 'scope'>,
   ): Promise<AssetLoadResult> {
     const gen = this.bumpSceneGeneration()
+    const descriptors = sceneAssetDescriptors(project, sceneId, options)
     const result = await this.loadDescriptors(
       project,
-      sceneAssetDescriptors(project, sceneId),
+      descriptors,
       projectRoot,
       gen,
       'critical',
     )
-    const protectedPaths = new Set(
-      sceneAssetDescriptors(project, sceneId).map((d) => d.path),
-    )
+    const protectedPaths = new Set(descriptors.map((d) => d.path))
     this.evictLru(protectedPaths)
     return result
   }
@@ -222,9 +227,10 @@ export class AssetOrchestrator {
     project: ProjectDoc,
     sceneId: string,
     projectRoot: string,
+    options?: Pick<CollectSceneAssetRefsOptions, 'scope'>,
   ): void {
     const pfGen = ++this.prefetchGeneration
-    const descriptors = sceneAssetDescriptors(project, sceneId)
+    const descriptors = sceneAssetDescriptors(project, sceneId, options)
     const run = () => {
       if (pfGen !== this.prefetchGeneration) return
       void this.loadDescriptors(project, descriptors, projectRoot, pfGen, 'prefetch')

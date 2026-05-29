@@ -67,6 +67,7 @@ export default function PreviewPanel() {
   const {
     project, projectPath, isPlaying, selection, selectedTileCell, mode,
     editorGridSize, snapToGrid, editorZoom, editorZoomMode, cameraPreview,
+    previewAssetLoadScope,
     openScripts,
   } = state
 
@@ -75,6 +76,7 @@ export default function PreviewPanel() {
   const sceneIdRef          = useRef<string>('')
   const projectRef          = useRef(project)
   const projectPathRef      = useRef(projectPath)
+  const previewScopeRef     = useRef(previewAssetLoadScope)
   const snapToGridRef       = useRef(false)
   const gridSizeRef         = useRef(32)
   const ignoredTransformEchoRef = useRef<TransformSnapshot | null>(null)
@@ -82,6 +84,7 @@ export default function PreviewPanel() {
   sceneIdRef.current    = selection.sceneId ?? project?.activeSceneId ?? ''
   projectRef.current    = project
   projectPathRef.current = projectPath
+  previewScopeRef.current = previewAssetLoadScope
   snapToGridRef.current = snapToGrid
   gridSizeRef.current   = editorGridSize
 
@@ -151,7 +154,12 @@ export default function PreviewPanel() {
     activeSceneId: selection.sceneId ?? project?.activeSceneId ?? null,
     wasmReady,
     engineReady,
+    previewAssetLoadScope,
   })
+
+  useEffect(() => {
+    runtimeSync.setPreviewAssetLoadScope(previewAssetLoadScope)
+  }, [previewAssetLoadScope])
 
   useEffect(() => {
     runtimeSync.setAssetCacheInvalidator(() => {
@@ -159,7 +167,9 @@ export default function PreviewPanel() {
       const p = projectRef.current
       const sid = sceneIdRef.current
       const root = projectPathRef.current ? dirName(projectPathRef.current) : ''
-      if (p && sid) void assetOrchestrator.loadScene(p, sid, root)
+      if (p && sid) {
+        void assetOrchestrator.loadScene(p, sid, root, { scope: previewScopeRef.current })
+      }
     })
     return () => runtimeSync.setAssetCacheInvalidator(null)
   }, [])

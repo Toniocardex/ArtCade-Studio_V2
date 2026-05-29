@@ -49,6 +49,7 @@ import type { ProjectDoc } from '../types'
 import type { DialogScript } from './dialog/dialog-script'
 import { dialogsJsonForRuntime } from './dialog/runtime-dialogs'
 import { performRuntimeSceneAssetSync } from '../panels/preview/runtime-asset-sync'
+import type { CollectSceneAssetRefsOptions } from './collect-scene-asset-refs'
 
 // ---------------------------------------------------------------------------
 // Public domain types
@@ -173,6 +174,7 @@ class RuntimeSyncServiceImpl {
   private readonly lastTransform: Map<number, EntityTransformSnapshot> = new Map()
   private assetCacheInvalidator: (() => void) | null = null
   private lastAssetSceneId: string | null = null
+  private previewAssetLoadScope: CollectSceneAssetRefsOptions['scope'] = 'scene-static'
   private readonly readyListeners: Set<(ready: boolean) => void> = new Set()
   // Seed from the actual bridge state so a Vite HMR rehydration (wasm
   // already alive when this module is re-evaluated) does NOT trigger a
@@ -225,6 +227,14 @@ class RuntimeSyncServiceImpl {
     this.assetCacheInvalidator = fn
   }
 
+  /** Editor-only preview closure (spawn prototype sprites). */
+  setPreviewAssetLoadScope(scope: CollectSceneAssetRefsOptions['scope']): void {
+    if (this.previewAssetLoadScope === scope) return
+    this.previewAssetLoadScope = scope
+    this.lastAssetSceneId = null
+    this.assetCacheInvalidator?.()
+  }
+
   /** Scene-scoped texture upload after project sync (Phase B). */
   private syncSceneAssetsIfNeeded(
     project: ProjectDoc,
@@ -234,7 +244,9 @@ class RuntimeSyncServiceImpl {
     if (!this.engineReady) return
     if (this.lastAssetSceneId === activeSceneId) return
     this.lastAssetSceneId = activeSceneId
-    performRuntimeSceneAssetSync(project, activeSceneId, projectPath ?? null)
+    performRuntimeSceneAssetSync(project, activeSceneId, projectPath ?? null, {
+      scope: this.previewAssetLoadScope,
+    })
   }
 
   /**
