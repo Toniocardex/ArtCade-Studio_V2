@@ -346,13 +346,8 @@ const FIELD_RENDERERS: Record<ParamWidget, (props: FieldProps) => ReactElement> 
   keyCapture: renderKeyCaptureField,
   className: renderClassNameField,
   entityTag: renderEntityTagField,
-  animationClip: renderAnimationClipField,
+  animationClip: (props) => renderAnimationClipField(props),
   string: renderStringField,
-}
-
-function Field(props: FieldProps) {
-  const render = FIELD_RENDERERS[props.meta.widget] ?? renderStringField
-  return render(props)
 }
 
 export type SchemaParamFormProps = Readonly<{

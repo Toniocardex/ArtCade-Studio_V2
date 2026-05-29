@@ -398,6 +398,9 @@ struct EditorAPI {
     static void notifyTilemapPainted(int, int, int) {}
     static void notifySpriteFillColor(uint32_t, float, float, float) {}
     static void notifyCursorWorld(float, float) {}
+    static void queueSpritesheetPreview(const char*, const char*, float, int, int) {}
+    static void resetSpritesheetPreview() {}
+    static void processSpritesheetPreviewQueue() {}
     static int      s_mode;
     static uint32_t s_selectedEntityId;
     static bool     s_isDragging;
