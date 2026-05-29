@@ -218,6 +218,7 @@ namespace {
 
 constexpr float kOutlineTexelRadius = 2.f;
 constexpr float kPlaceholderOutlinePad = 1.06f;
+constexpr float kPlaceholderSpriteSize = 32.f;
 
 void drawPlaceholderOutlineSilhouette(const Vec2& pos,
                                       const Vec2& pivot,
@@ -253,8 +254,8 @@ void Renderer::drawSprite(const AssetId& assetId,
 
     const Texture2D* tex = impl_->texCache.getByPath(assetId);
     if (!tex || tex->id == 0) {
-        const float fw = 32.f * scale.x;
-        const float fh = 32.f * scale.y;
+        const float fw = kPlaceholderSpriteSize * scale.x;
+        const float fh = kPlaceholderSpriteSize * scale.y;
         const unsigned char ca =
             static_cast<unsigned char>(std::clamp(alpha, 0.f, 1.f) * 255.f);
         const Color fill{
@@ -303,6 +304,19 @@ void Renderer::drawSprite(const AssetId& assetId,
     }
 
     DrawTexturePro(*tex, src, dst, origin, rotation, tintColor);
+}
+
+Vec2 Renderer::spriteDestinationSize(const AssetId& assetId, const Vec2& scale) const {
+    const float sx = std::abs(scale.x);
+    const float sy = std::abs(scale.y);
+    const Texture2D* tex = impl_->texCache.getByPath(assetId);
+    if (!tex || tex->id == 0) {
+        return { kPlaceholderSpriteSize * sx, kPlaceholderSpriteSize * sy };
+    }
+    return {
+        static_cast<float>(tex->width)  * sx,
+        static_cast<float>(tex->height) * sy,
+    };
 }
 
 bool Renderer::drawSpriteRegion(const AssetId& assetId,

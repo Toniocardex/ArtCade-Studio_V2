@@ -53,6 +53,9 @@ public:
                     const std::string& shaderEffect = "",
                     const Vec2&    pivot = {0.5f, 0.5f});
 
+    /** Width/height `drawSprite` uses (texture pixels × scale, or 32×32 placeholder). */
+    Vec2 spriteDestinationSize(const AssetId& assetId, const Vec2& scale) const;
+
     /**
      * Phase F3: draw a sub-rectangle (atlas cell) of a texture at a
      * top-left destination. Returns false if the texture is missing

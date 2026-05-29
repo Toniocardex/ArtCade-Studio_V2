@@ -113,6 +113,23 @@ export function materializeAllEntities(project: ProjectDoc): Record<number, Enti
   return out
 }
 
+/**
+ * Authoritative entity map for WASM sync / runtime fingerprint.
+ * With object types, materialize instances from type+placement, then overlay
+ * `project.entities` (Inspector overrides: pivot, tint, components, …).
+ */
+export function entitiesForRuntimeSync(project: ProjectDoc): Record<number, EntityDef> {
+  const hasObjectTypes =
+    project.objectTypes != null && Object.keys(project.objectTypes).length > 0
+  if (!hasObjectTypes) return project.entities
+
+  const out = materializeAllEntities(project)
+  for (const ent of Object.values(project.entities)) {
+    out[ent.id] = ent
+  }
+  return out
+}
+
 function syncSceneEntityIds(scene: SceneDef): void {
   scene.entityIds = (scene.instances ?? []).map((i) => i.id)
 }

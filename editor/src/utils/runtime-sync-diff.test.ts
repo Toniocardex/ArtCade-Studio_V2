@@ -59,6 +59,17 @@ describe('planProjectSync', () => {
     })
   })
 
+  it('plans incremental entity update for pivot change', () => {
+    const p = makeProject()
+    const prev = runtimeProjectProjection(p as never, 'a')
+    p.entities[1].sprite.pivot = { x: 0.5, y: 1 }
+    expect(planProjectSync(prev, p as never, 'a')).toEqual({
+      kind: 'incremental',
+      entityIds: [1],
+      sceneIds: [],
+    })
+  })
+
   it('plans scene settings patch without entity reload', () => {
     const p = makeProject()
     const prev = runtimeProjectProjection(p as never, 'a')

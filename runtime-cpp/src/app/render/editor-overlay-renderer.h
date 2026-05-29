@@ -65,7 +65,7 @@ void drawGuides(Modules::Renderer& renderer,
  */
 void drawSelection(Modules::Renderer& renderer,
                    const Transform& transform,
-                   const PhysicsComponent& physics,
+                   const SpriteComponent& sprite,
                    const std::optional<SensorComponent>& sensor,
                    const EditorOverlayState& state,
                    bool hiddenInGame = false);
@@ -75,7 +75,7 @@ void drawSelection(Modules::Renderer& renderer,
  */
 void drawHiddenInGameOutline(Modules::Renderer& renderer,
                              const Transform& transform,
-                             const PhysicsComponent& physics);
+                             const SpriteComponent& sprite);
 
 } // namespace EditorOverlayRenderer
 } // namespace ArtCade

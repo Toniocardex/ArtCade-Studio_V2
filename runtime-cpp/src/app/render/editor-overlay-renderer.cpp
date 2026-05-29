@@ -1,6 +1,7 @@
 #include "editor-overlay-renderer.h"
 
 #include "../../modules/renderer/include/renderer.h"
+#include "../../core/sprite-draw-math.h"
 
 #include <algorithm>
 #include <cmath>
@@ -16,20 +17,14 @@ struct EntityOutlineBounds {
     float h = 0.f;
 };
 
-EntityOutlineBounds entityOutlineBounds(const Transform& transform,
-                                        const PhysicsComponent& physics) {
-    const float w = physics.collider.size.x > 2.f
-        ? physics.collider.size.x
-        : 40.f * std::abs(transform.scale.x);
-    const float h = physics.collider.size.y > 2.f
-        ? physics.collider.size.y
-        : 40.f * std::abs(transform.scale.y);
-    return {
-        transform.position.x - w * 0.5f,
-        transform.position.y - h * 0.5f,
-        w,
-        h,
-    };
+/** Selection / hidden outline aligned with Renderer::drawSprite (pivot anchor). */
+EntityOutlineBounds spriteVisualBounds(Modules::Renderer& renderer,
+                                       const Transform& transform,
+                                       const SpriteComponent& sprite) {
+    const Vec2 size = renderer.spriteDestinationSize(sprite.spriteAssetId, transform.scale);
+    const Vec2 topLeft = SpriteDrawMath::placeholderTopLeft(
+        transform.position, sprite.pivot, size.x, size.y);
+    return { topLeft.x, topLeft.y, size.x, size.y };
 }
 
 // Rectangle outline drawn as four 2-world-pixel-thick filled rects, fully
@@ -118,7 +113,7 @@ void drawGuides(Modules::Renderer& renderer,
 
 void drawSelection(Modules::Renderer& renderer,
                    const Transform& transform,
-                   const PhysicsComponent& physics,
+                   const SpriteComponent& sprite,
                    const std::optional<SensorComponent>& sensor,
                    const EditorOverlayState& state,
                    bool hiddenInGame) {
@@ -137,7 +132,7 @@ void drawSelection(Modules::Renderer& renderer,
         }
     }
 
-    const EntityOutlineBounds bounds = entityOutlineBounds(transform, physics);
+    const EntityOutlineBounds bounds = spriteVisualBounds(renderer, transform, sprite);
     const Vec4 sel = hiddenInGame
         ? Vec4{1.f, 0.55f, 0.1f, 1.f}
         : Vec4{1.f, 1.f, 0.f, 1.f};
@@ -146,8 +141,8 @@ void drawSelection(Modules::Renderer& renderer,
 
 void drawHiddenInGameOutline(Modules::Renderer& renderer,
                              const Transform& transform,
-                             const PhysicsComponent& physics) {
-    const EntityOutlineBounds bounds = entityOutlineBounds(transform, physics);
+                             const SpriteComponent& sprite) {
+    const EntityOutlineBounds bounds = spriteVisualBounds(renderer, transform, sprite);
     const Vec4 amber{1.f, 0.55f, 0.1f, 0.75f};
     drawEntityOutline(renderer, bounds, amber);
 }

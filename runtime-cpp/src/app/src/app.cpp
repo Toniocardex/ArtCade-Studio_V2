@@ -789,26 +789,29 @@ void Application::renderActiveScene() {
 
     if (overlay.inEditMode) {
         mod_->entityGateway->forEachActiveHiddenInGame(
-            [renderer = mod_->renderer.get(), selectedId = overlay.selectedId]
-            (EntityId id, const Transform& t, const PhysicsComponent& p) {
+            [renderer = mod_->renderer.get(), gw = mod_->entityGateway.get(),
+             selectedId = overlay.selectedId]
+            (EntityId id, const Transform& t, const PhysicsComponent&) {
                 if (id == selectedId) return;
-                EditorOverlayRenderer::drawHiddenInGameOutline(*renderer, t, p);
+                SpriteComponent sprite{};
+                if (!gw->getSprite(id, sprite)) return;
+                EditorOverlayRenderer::drawHiddenInGameOutline(*renderer, t, sprite);
             });
     }
 
     if (overlay.selectedId != 0u) {
         Transform selectedTransform{};
-        PhysicsComponent selectedPhysics{};
+        SpriteComponent selectedSprite{};
         SensorComponent selectedSensor{};
         std::optional<SensorComponent> sensor;
         if (mod_->entityGateway->getSensor(overlay.selectedId, selectedSensor))
             sensor = selectedSensor;
         if (mod_->entityGateway->getTransform(overlay.selectedId, selectedTransform) &&
-            mod_->entityGateway->getPhysicsComponent(overlay.selectedId, selectedPhysics)) {
+            mod_->entityGateway->getSprite(overlay.selectedId, selectedSprite)) {
             const bool hiddenInGame =
                 !mod_->entityGateway->visibleInGame(overlay.selectedId);
             EditorOverlayRenderer::drawSelection(
-                *mod_->renderer, selectedTransform, selectedPhysics, sensor,
+                *mod_->renderer, selectedTransform, selectedSprite, sensor,
                 overlay, hiddenInGame);
         }
     }

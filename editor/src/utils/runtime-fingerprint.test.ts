@@ -65,6 +65,23 @@ describe('runtimeProjectFingerprint', () => {
       .toBe(runtimeProjectFingerprint(b, 'scene_a'))
   })
 
+  it('changes when sprite pivot changes', () => {
+    const base = makeProject()
+    const pivoted = makeProject({
+      entities: {
+        1: makeEntity({
+          sprite: {
+            spriteAssetId: '', tint: vec4(1, 1, 1, 1),
+            fillColor: { x: 1, y: 1, z: 1 },
+            alpha: 1, pivot: vec(0.5, 1), renderOrder: 0,
+          },
+        }),
+      },
+    })
+    expect(runtimeProjectFingerprint(base, 'scene_a'))
+      .not.toBe(runtimeProjectFingerprint(pivoted, 'scene_a'))
+  })
+
   it('changes when sprite tint changes (was silently ignored before)', () => {
     const base   = makeProject()
     const tinted = makeProject({

@@ -21,7 +21,7 @@
 // dev machine and only happens after the store actually changed.
 
 import type { EntityDef, ProjectDoc, SceneDef, Vec2, Vec4 } from '../types'
-import { materializeAllEntities } from './project-object-types'
+import { entitiesForRuntimeSync } from './project-object-types'
 
 interface FpVec2 { x: number; y: number }
 interface FpVec3 { x: number; y: number; z: number }
@@ -147,10 +147,7 @@ function projectScene(s: SceneDef): FpScene {
  * {@link runtimeProjectFingerprint} which returns the stringified form.
  */
 function runtimeEntities(project: ProjectDoc): Record<number, EntityDef> {
-  if (project.objectTypes && Object.keys(project.objectTypes).length > 0) {
-    return materializeAllEntities(project)
-  }
-  return project.entities
+  return entitiesForRuntimeSync(project)
 }
 
 export function runtimeProjectProjection(

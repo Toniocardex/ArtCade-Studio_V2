@@ -5,10 +5,12 @@ import { parseProjectDoc, serializeProjectDoc } from './project'
 import {
   buildObjectModelFromEntities,
   effectiveTypeId,
+  entitiesForRuntimeSync,
   materializeEntity,
   migrateLegacyProject,
   PROJECT_FORMAT_V2,
 } from './project-object-types'
+import { runtimeProjectFingerprint } from './runtime-fingerprint'
 
 describe('project-object-types', () => {
   it('effectiveTypeId uses className when not generic', () => {
@@ -69,6 +71,32 @@ describe('project-object-types', () => {
     expect(ent.name).toBe('Hero')
     expect(ent.className).toBe('Player')
     expect(ent.transform.position).toEqual({ x: 1, y: 2 })
+  })
+
+  it('entitiesForRuntimeSync uses project.entities overrides over type prototype', () => {
+    const migrated = migrateLegacyProject({
+      ...createBlankProject(),
+      entities: {
+        1: createEntityDef(1, 'Player', 'Player'),
+      },
+      scenes: {
+        scene_main: {
+          ...createBlankProject().scenes.scene_main,
+          entityIds: [1],
+        },
+      },
+    })
+    const fpBase = runtimeProjectFingerprint(migrated, 'scene_main')
+    migrated.entities[1] = {
+      ...migrated.entities[1],
+      sprite: {
+        ...migrated.entities[1].sprite,
+        pivot: { x: 0.5, y: 1 },
+      },
+    }
+    const synced = entitiesForRuntimeSync(migrated)
+    expect(synced[1].sprite.pivot).toEqual({ x: 0.5, y: 1 })
+    expect(runtimeProjectFingerprint(migrated, 'scene_main')).not.toBe(fpBase)
   })
 
   it('serialize v2 omits flat entities map', () => {
