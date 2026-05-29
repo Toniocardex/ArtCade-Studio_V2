@@ -1,13 +1,16 @@
 #include "../include/animation-clips-registry.h"
 #include "../include/sprite-animator.h"
 
+#include <unordered_set>
+
 namespace ArtCade {
 
-void registerAnimationClipsFromAssets(
+namespace {
+
+void defineClipsFromAssets(
     Modules::SpriteAnimator& animator,
     const std::vector<ImageAssetDef>& imageAssets)
 {
-    animator.clearClips();
     for (const ImageAssetDef& asset : imageAssets) {
         for (const AnimationClipDef& def : asset.clips) {
             if (def.name.empty() || def.frames.empty()) continue;
@@ -29,6 +32,31 @@ void registerAnimationClipsFromAssets(
                 animator.defineClip(clip);
         }
     }
+}
+
+} // namespace
+
+void registerAnimationClipsFromAssets(
+    Modules::SpriteAnimator& animator,
+    const std::vector<ImageAssetDef>& imageAssets)
+{
+    animator.clearClips();
+    defineClipsFromAssets(animator, imageAssets);
+}
+
+void replaceAnimationClipsFromAssets(
+    Modules::SpriteAnimator& animator,
+    const std::vector<ImageAssetDef>& imageAssets)
+{
+    std::unordered_set<std::string> keep;
+    for (const ImageAssetDef& asset : imageAssets) {
+        for (const AnimationClipDef& def : asset.clips) {
+            if (!def.name.empty() && !def.frames.empty())
+                keep.insert(def.name);
+        }
+    }
+    animator.removeClipsExcept(keep);
+    defineClipsFromAssets(animator, imageAssets);
 }
 
 } // namespace ArtCade

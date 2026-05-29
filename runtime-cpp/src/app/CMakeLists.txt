@@ -76,7 +76,7 @@ if(EMSCRIPTEN)
         "_editor_invalidate_asset"
         "_editor_reregister_animation_clips"
         "_editor_preview_spritesheet_reset"
-        "_editor_preview_spritesheet_tick"
+        "_editor_preview_spritesheet_submit"
         "_editor_open_raytint"
         "_editor_close_raytint"
         "_malloc"

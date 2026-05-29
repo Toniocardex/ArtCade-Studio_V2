@@ -789,7 +789,7 @@ The left sidebar uses **`ProjectExplorerPanel`** (`editor/src/components/project
 - Normalize refs: File menu → `PROJECT_NORMALIZE_ASSET_REFS` → `normalize-asset-refs.ts` (entities, tilesets, Logic Board `playSound`/`playMusic` in `actions` and `elseActions`; no sprite-path action fields in schema today)
 - ZIP I/O: `artcade-zip-io.ts` shared by `artcade-package.ts` import and `artcade-zip-parse.ts` tests
 - Preview spawn scope: canvas toolbar → `EDITOR_SET_PREVIEW_ASSET_LOAD_SCOPE` → `collect-scene-asset-refs` `scene+spawn-prototypes`
-- **Spritesheet Studio** (image animations): full-screen `<dialog>` modal (`editor/src/panels/spritesheet-studio/`) — entry from image context menu or Asset detail strip; authors `ImageAsset.clips` with grid slice + frame range; live `ASSET_ADD`; `editor_reregister_animation_clips` hot-syncs clips to WASM; `editor_preview_spritesheet_tick` draws engine-accurate playback in the modal (`SpritesheetEnginePreview`) without hiding the main scene preview canvas
+- **Spritesheet Studio** (image animations): full-screen `<dialog>` modal (`editor/src/panels/spritesheet-studio/`) — entry from image context menu or Asset detail strip; authors `ImageAsset.clips` with grid slice + frame range; live `ASSET_ADD`; `editor_reregister_animation_clips` hot-syncs clips to WASM (merge registry, avoids clearing active play); React submits preview params via `editor_preview_spritesheet_submit`; C++ drains one request per frame after scene render (`EditorAPI::processSpritesheetPreviewQueue`, entity `0xE0000001`); frame RGBA delivered through `window.onSpritesheetPreviewFrame` into `SpritesheetEnginePreview` without hiding the main scene preview canvas
 
 ---
 

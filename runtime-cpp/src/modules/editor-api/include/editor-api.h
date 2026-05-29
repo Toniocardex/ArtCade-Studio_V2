@@ -173,6 +173,16 @@ public:
     /** Editor viewport: mouse world position for the status bar (editor mode only). */
     static void notifyCursorWorld(float x, float y);
 
+    /** Spritesheet Studio preview queue (processed on the engine main loop). */
+    static void queueSpritesheetPreview(
+        const char* texturePath,
+        const char* clipName,
+        float dtSeconds,
+        int canvasW,
+        int canvasH);
+    static void resetSpritesheetPreview();
+    static void processSpritesheetPreviewQueue();
+
     // Written by extern "C" exports -- public so they can be set directly
     static int      s_mode;
     static uint32_t s_selectedEntityId;
@@ -342,17 +352,15 @@ EMSCRIPTEN_KEEPALIVE int editor_reregister_animation_clips(const char* json_utf8
 EMSCRIPTEN_KEEPALIVE void editor_preview_spritesheet_reset();
 
 /**
- * Advance and rasterize one Spritesheet Studio preview frame into RGBA8.
- * @return 0 on success, negative on failure (missing clip/texture, etc.).
+ * Queue one Spritesheet Studio preview frame (processed on the engine main loop).
+ * @return 0 when queued, negative on invalid arguments.
  */
-EMSCRIPTEN_KEEPALIVE int editor_preview_spritesheet_tick(
+EMSCRIPTEN_KEEPALIVE int editor_preview_spritesheet_submit(
     const char* texturePath,
     const char* clipName,
     float dtSeconds,
     int canvasW,
-    int canvasH,
-    unsigned char* rgbaOut,
-    int rgbaOutLen);
+    int canvasH);
 
 /** Open RayTint picker for placeholder fill on an entity without a texture. */
 EMSCRIPTEN_KEEPALIVE void editor_open_raytint(uint32_t entityId);

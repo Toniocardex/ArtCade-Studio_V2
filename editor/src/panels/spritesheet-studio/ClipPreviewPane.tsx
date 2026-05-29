@@ -20,7 +20,7 @@ export function ClipPreviewPane({ asset, session }: ClipPreviewPaneProps) {
   }, [activeClip?.name, activeClip?.frames.length])
 
   useEffect(() => {
-    if (!activeClip || activeClip.frames.length === 0) return
+    if (isReady() || !activeClip || activeClip.frames.length === 0) return
     const fps = activeClip.fps > 0 ? activeClip.fps : 12
     const frameMs = 1000 / fps
     let raf = 0
@@ -52,7 +52,7 @@ export function ClipPreviewPane({ asset, session }: ClipPreviewPaneProps) {
 
   if (isReady()) {
     return (
-      <div className="p-3 border-t border-[var(--border)]">
+      <div className="p-3 border-t border-[var(--border)]" data-testid="spritesheet-preview-host">
         <SpritesheetEnginePreview asset={asset} session={session} />
       </div>
     )

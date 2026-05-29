@@ -4,6 +4,7 @@
 #include "../../../core/types.h"
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 #include <functional>
 #include <cstdint>
@@ -49,6 +50,8 @@ public:
 
     void defineClip(const Clip& clip);
     bool hasClip(const std::string& name) const;
+    /** Remove clip definitions whose names are not in keep (instances may still reference them). */
+    void removeClipsExcept(const std::unordered_set<std::string>& keep);
     void clearClips();
 
     // ------------------------------------------------------------------ instance control

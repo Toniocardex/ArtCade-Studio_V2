@@ -4,7 +4,7 @@ import { useEditor } from '../../store/editor-store'
 import { assetOrchestrator } from '../../utils/asset-orchestrator'
 import { dirName } from '../../utils/project'
 import { syncAnimationClipsToWasm } from '../../utils/sync-animation-clips-wasm'
-import { editorPreviewSpritesheetReset } from '../../utils/wasm-bridge'
+import { editorPreviewSpritesheetReset } from '../../utils/spritesheet-preview-bridge'
 
 /** Keep WASM texture + SpriteAnimator clips aligned with live studio edits. */
 export function useSpritesheetWasmSync(asset: ImageAsset, enabled: boolean): void {
@@ -18,13 +18,16 @@ export function useSpritesheetWasmSync(asset: ImageAsset, enabled: boolean): voi
     let cancelled = false
     const root = projectPath ? dirName(projectPath) : ''
 
-    void (async () => {
-      await assetOrchestrator.ensureImageRegistered(project, asset, root)
-      if (!cancelled) syncAnimationClipsToWasm(project)
-    })()
+    const raf = requestAnimationFrame(() => {
+      void (async () => {
+        await assetOrchestrator.ensureImageRegistered(project, asset, root)
+        if (!cancelled) syncAnimationClipsToWasm(project)
+      })()
+    })
 
     return () => {
       cancelled = true
+      cancelAnimationFrame(raf)
       editorPreviewSpritesheetReset()
     }
   }, [enabled, project, projectPath, asset.id, asset.path, asset.dataUrl, clipsKey])

@@ -12,6 +12,22 @@ vi.mock('../../store/editor-store', () => ({
   useEditor: () => ({ state: mockState, dispatch: vi.fn() }),
 }))
 
+vi.mock('./useSpritesheetWasmSync', () => ({ useSpritesheetWasmSync: vi.fn() }))
+vi.mock('./useSpritesheetStudioSession', () => ({
+  useSpritesheetStudioSession: () => ({
+    clips: [],
+    activeClipIndex: 0,
+    setActiveClipIndex: vi.fn(),
+    activeClip: null,
+    rangeUi: { start: 0, end: 0 },
+    setRange: vi.fn(),
+    patchActiveClip: vi.fn(),
+    addClip: vi.fn(),
+    removeActiveClip: vi.fn(),
+    grid: { cols: 1, rows: 1, cellW: 16, cellH: 16 },
+  }),
+}))
+
 describe('SpritesheetStudioModal', () => {
   afterEach(() => {
     cleanup()
@@ -42,5 +58,32 @@ describe('SpritesheetStudioModal', () => {
     const { container } = render(<SpritesheetStudioModal />)
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(container.querySelector('[data-testid="spritesheet-preview-host"]')).toBeNull()
+  })
+
+  it('opens dialog when studio is open with a valid image asset', () => {
+    mockState = {
+      ...initialCoreState,
+      spritesheetStudio: { open: true, imageAssetId: 'img1' },
+      project: {
+        projectName: 'T',
+        version: '2.0.0',
+        targetFPS: 60,
+        activeSceneId: 's',
+        mainScriptPath: 'scripts/main.lua',
+        entities: {},
+        scenes: {},
+        assets: {
+          img1: {
+            id: 'img1',
+            name: 'hero.png',
+            path: 'assets/images/hero.png',
+            dataUrl: 'data:image/png;base64,AA==',
+          },
+        },
+      },
+    }
+    render(<SpritesheetStudioModal />)
+    expect(screen.getByRole('dialog')).toBeTruthy()
+    expect(screen.getByText(/Spritesheet Studio — hero.png/)).toBeTruthy()
   })
 })

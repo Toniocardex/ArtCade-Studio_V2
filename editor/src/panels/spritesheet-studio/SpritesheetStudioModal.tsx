@@ -16,7 +16,7 @@ function SpritesheetStudioBody({ asset, imageAssetId }: SpritesheetStudioBodyPro
   const session = useSpritesheetStudioSession(asset, (clips: AnimationClipDef[]) => {
     dispatch({ type: 'ASSET_ADD', asset: { ...asset, id: imageAssetId, clips } })
   })
-  return <SpritesheetStudioLayout asset={asset} session={session} />
+  return <SpritesheetStudioLayout asset={asset} assetId={imageAssetId} session={session} />
 }
 
 export function SpritesheetStudioModal() {

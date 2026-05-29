@@ -623,6 +623,7 @@ void Application::tickFrameEnd() {
         profiler_.setRenderMs(elapsedMs(start));
     }
     EditorAPI::flushConsoleLines();
+    EditorAPI::processSpritesheetPreviewQueue();
     mod_->input->resetFrameState();
     profiler_.endFrame();
 }

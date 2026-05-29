@@ -133,6 +133,21 @@ describe('asset-orchestrator', () => {
     expect(registerImage).toHaveBeenCalledTimes(1)
   })
 
+  it('ensureImageRegistered uses dataUrl bytes when path read fails', async () => {
+    const registerImage = vi.fn(() => true)
+    const { orch } = makeOrchestrator({
+      registerImage,
+      readProjectFileBytes: vi.fn(async () => null),
+    })
+    const p = testProject()
+    const asset = {
+      ...p.assets!.img,
+      dataUrl: 'data:image/png;base64,iVBORw0KGgo=',
+    }
+    expect(await orch.ensureImageRegistered(p, asset, '/proj')).toBe(true)
+    expect(registerImage).toHaveBeenCalledTimes(1)
+  })
+
   it('dedupes console failure logs per path', async () => {
     const logFailure = vi.fn()
     const { orch } = makeOrchestrator({

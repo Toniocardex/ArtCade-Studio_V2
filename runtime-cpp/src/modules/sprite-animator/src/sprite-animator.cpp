@@ -1,5 +1,7 @@
 #include "../include/sprite-animator.h"
 
+#include <unordered_set>
+
 namespace ArtCade::Modules {
 
 bool SpriteAnimator::init() {
@@ -32,6 +34,15 @@ bool SpriteAnimator::hasClip(const std::string& name) const {
 
 void SpriteAnimator::clearClips() {
     clips_.clear();
+}
+
+void SpriteAnimator::removeClipsExcept(const std::unordered_set<std::string>& keep) {
+    for (auto it = clips_.begin(); it != clips_.end(); ) {
+        if (keep.count(it->first) == 0)
+            it = clips_.erase(it);
+        else
+            ++it;
+    }
 }
 
 // ------------------------------------------------------------------ instance control

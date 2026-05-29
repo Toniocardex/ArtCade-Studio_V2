@@ -298,7 +298,7 @@ Work landed after pipeline phases A–D (commits `ab471f0`, `e68928b`, `952aa43`
 | Audio/font detail strip | ✅ | `AssetMediaDetailStrip` (preview from disk when project saved) |
 | Export manifest + ZIP round-trip | ✅ | `buildArtcadeZipBytes` + `parseArtcadePackageBytes` vitest |
 | Preview spawn-prototype preload | ✅ | Canvas toolbar toggle → `scene+spawn-prototypes` scope |
-| **Spritesheet Studio** (modal + engine preview) | ✅ | `editor/src/panels/spritesheet-studio/`; `editor_reregister_animation_clips`; `editor_preview_spritesheet_tick`; `Renderer::captureSpriteRegionFrame`; does not hide main preview canvas |
+| **Spritesheet Studio** (modal + engine preview) | ✅ | `editor/src/panels/spritesheet-studio/`; `editor_reregister_animation_clips` (merge, no full clear); `editor_preview_spritesheet_submit` + queue drained in `Application::tickFrameEnd` (one readback/frame); `Renderer::captureSpriteRegionFrame`; does not hide main preview canvas |
 | CI (vitest, native, wasm) | ✅ | `.github/workflows/ci.yml` |
 | Console REPL / LSP Lua | ❌ | Deferred — spike in `TECHNICAL_OVERVIEW.md` §11.1 |
 

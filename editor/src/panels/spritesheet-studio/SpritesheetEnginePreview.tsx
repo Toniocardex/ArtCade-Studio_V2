@@ -3,9 +3,10 @@ import type { ImageAsset } from '../../types'
 import type { SpritesheetStudioSession } from './useSpritesheetStudioSession'
 import {
   editorPreviewSpritesheetReset,
-  editorPreviewSpritesheetTick,
-  isReady,
-} from '../../utils/wasm-bridge'
+  setSpritesheetPreviewFrameHandler,
+  submitSpritesheetPreviewFrame,
+} from '../../utils/spritesheet-preview-bridge'
+import { isReady } from '../../utils/wasm-bridge'
 
 type SpritesheetEnginePreviewProps = Readonly<{
   asset: ImageAsset
@@ -15,6 +16,8 @@ type SpritesheetEnginePreviewProps = Readonly<{
 export function SpritesheetEnginePreview({ asset, session }: SpritesheetEnginePreviewProps) {
   const { activeClip } = session
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const imageDataRef = useRef<ImageData | null>(null)
+  const engineOkRef = useRef(false)
   const [engineOk, setEngineOk] = useState(false)
 
   const texturePath = asset.path?.trim() || asset.id
@@ -25,48 +28,57 @@ export function SpritesheetEnginePreview({ asset, session }: SpritesheetEnginePr
   const canvasW = Math.min(256, Math.max(32, frameW + pad * 2))
   const canvasH = Math.min(256, Math.max(32, frameH + pad * 2))
 
+  const setEngineOkTracked = (ok: boolean) => {
+    if (engineOkRef.current === ok) return
+    engineOkRef.current = ok
+    setEngineOk(ok)
+  }
+
   useEffect(() => {
     editorPreviewSpritesheetReset()
   }, [clipName])
 
   useEffect(() => {
-    if (!isReady() || !activeClip || activeClip.frames.length === 0 || !clipName) {
-      setEngineOk(false)
-      return
-    }
-
     const canvas = canvasRef.current
     if (!canvas) return
     canvas.width = canvasW
     canvas.height = canvasH
     const ctx = canvas.getContext('2d', { willReadFrequently: true })
     if (!ctx) return
+    imageDataRef.current = ctx.createImageData(canvasW, canvasH)
 
-    const imageData = ctx.createImageData(canvasW, canvasH)
-    const rgba = imageData.data
+    setSpritesheetPreviewFrameHandler((status, w, h, rgba) => {
+      if (!ctx || !imageDataRef.current || w !== canvasW || h !== canvasH) return
+      if (status === 0 && rgba) {
+        imageDataRef.current.data.set(rgba)
+        ctx.putImageData(imageDataRef.current, 0, 0)
+        setEngineOkTracked(true)
+      } else {
+        setEngineOkTracked(false)
+      }
+    })
+
+    return () => {
+      setSpritesheetPreviewFrameHandler(null)
+      setEngineOkTracked(false)
+    }
+  }, [canvasW, canvasH])
+
+  useEffect(() => {
+    if (!isReady() || !activeClip || activeClip.frames.length === 0 || !clipName) {
+      setEngineOkTracked(false)
+      return
+    }
 
     let raf = 0
     let last = performance.now()
-    const tick = (now: number) => {
+    const pump = (now: number) => {
       const dt = (now - last) / 1000
       last = now
-      const code = editorPreviewSpritesheetTick(
-        texturePath,
-        clipName,
-        dt,
-        canvasW,
-        canvasH,
-        rgba,
-      )
-      if (code === 0) {
-        ctx.putImageData(imageData, 0, 0)
-        setEngineOk(true)
-      } else {
-        setEngineOk(false)
-      }
-      raf = requestAnimationFrame(tick)
+      submitSpritesheetPreviewFrame(texturePath, clipName, dt, canvasW, canvasH)
+      raf = requestAnimationFrame(pump)
     }
-    raf = requestAnimationFrame(tick)
+    raf = requestAnimationFrame(pump)
     return () => cancelAnimationFrame(raf)
   }, [activeClip, clipName, texturePath, canvasW, canvasH])
 
@@ -96,6 +108,9 @@ export function SpritesheetEnginePreview({ asset, session }: SpritesheetEnginePr
       ) : (
         <span className="text-[9px] text-[var(--muted)]">{clipName}</span>
       )}
+      <span className="text-[9px] text-[var(--muted)] w-full">
+        Clip names are global in the runtime — use unique names across all image sheets.
+      </span>
     </div>
   )
 }

@@ -62,6 +62,7 @@ std::vector<std::pair<std::string, std::string>> EditorAPI::s_consoleQueue;
 #include "../../../core/types.h"
 
 #include "editor-input-controller.h"
+#include "editor-spritesheet-preview.h"
 #include "project-doc-parser.h"
 
 #include <nlohmann/json.hpp>
@@ -427,13 +428,6 @@ EMSCRIPTEN_KEEPALIVE void editor_deselect() {
     ArtCade::EditorAPI::s_selectedEntityId = 0u;
 }
 
-namespace {
-
-std::string g_sheetPreviewActiveClip;
-constexpr ArtCade::Modules::SpriteAnimator::EntityId kSpritesheetPreviewEntity = 0xE0000001u;
-
-} // namespace
-
 EMSCRIPTEN_KEEPALIVE int editor_reregister_animation_clips(const char* json_utf8) {
     auto* anim = ArtCade::EditorAPI::s_spriteAnimator;
     if (!anim) return -1;
@@ -444,7 +438,7 @@ EMSCRIPTEN_KEEPALIVE int editor_reregister_animation_clips(const char* json_utf8
     try {
         const json doc = json::parse(json_utf8);
         auto imageAssets = ArtCade::ProjectDocParser::parseImageAssets(doc);
-        registerAnimationClipsFromAssets(*anim, imageAssets);
+        replaceAnimationClipsFromAssets(*anim, imageAssets);
         return 0;
     } catch (const std::exception&) {
         return -2;
@@ -452,45 +446,18 @@ EMSCRIPTEN_KEEPALIVE int editor_reregister_animation_clips(const char* json_utf8
 }
 
 EMSCRIPTEN_KEEPALIVE void editor_preview_spritesheet_reset() {
-    if (auto* anim = ArtCade::EditorAPI::s_spriteAnimator)
-        anim->stop(kSpritesheetPreviewEntity);
-    g_sheetPreviewActiveClip.clear();
+    ArtCade::EditorAPI::resetSpritesheetPreview();
 }
 
-EMSCRIPTEN_KEEPALIVE int editor_preview_spritesheet_tick(
+EMSCRIPTEN_KEEPALIVE int editor_preview_spritesheet_submit(
     const char* texturePath,
     const char* clipName,
     float dtSeconds,
     int canvasW,
-    int canvasH,
-    unsigned char* rgbaOut,
-    int rgbaOutLen) {
-    if (!rgbaOut || rgbaOutLen <= 0) return -1;
+    int canvasH) {
     if (!texturePath || !*texturePath || !clipName || !*clipName) return -2;
-    auto* renderer = ArtCade::EditorAPI::s_renderer;
-    auto* anim     = ArtCade::EditorAPI::s_spriteAnimator;
-    if (!renderer || !anim) return -3;
-    if (!anim->hasClip(clipName)) return -4;
-
-    const int w = canvasW > 0 ? canvasW : 64;
-    const int h = canvasH > 0 ? canvasH : 64;
-
-    const std::string clip(clipName);
-    if (g_sheetPreviewActiveClip != clip) {
-        anim->play(kSpritesheetPreviewEntity, clip);
-        g_sheetPreviewActiveClip = clip;
-    }
-    if (dtSeconds > 0.f)
-        anim->update(dtSeconds);
-
-    const auto fr = anim->currentFrame(kSpritesheetPreviewEntity);
-    if (fr.w <= 0 || fr.h <= 0) return -7;
-
-    return renderer->captureSpriteRegionFrame(
-        texturePath,
-        static_cast<float>(fr.x), static_cast<float>(fr.y),
-        static_cast<float>(fr.w), static_cast<float>(fr.h),
-        w, h, rgbaOut, rgbaOutLen);
+    ArtCade::EditorAPI::queueSpritesheetPreview(texturePath, clipName, dtSeconds, canvasW, canvasH);
+    return 0;
 }
 
 namespace {

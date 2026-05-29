@@ -51,6 +51,13 @@ declare global {
     onTilemapPainted?:            (col: number, row: number, tileId: number) => void
     onSpriteFillColor?:           (entityId: number, r: number, g: number, b: number) => void
     onEditorCursorWorld?:         (x: number, y: number) => void
+  /** Spritesheet Studio engine preview (one frame per main-loop tick). */
+    onSpritesheetPreviewFrame?:   (
+      status: number,
+      width: number,
+      height: number,
+      rgba: Uint8ClampedArray | 0,
+    ) => void
   }
 }
 
@@ -608,33 +615,26 @@ export function editorPreviewSpritesheetReset(): void {
 }
 
 /**
- * Rasterize one engine-accurate preview frame (RGBA8) for Spritesheet Studio.
- * @returns 0 on success, negative on failure.
+ * Queue one Spritesheet Studio preview frame (rasterized on the engine main loop).
+ * @returns 0 when queued, negative on invalid arguments.
  */
-export function editorPreviewSpritesheetTick(
+export function editorPreviewSpritesheetSubmit(
   texturePath: string,
   clipName: string,
   dtSeconds: number,
   width: number,
   height: number,
-  rgbaOut: Uint8Array | Uint8ClampedArray,
 ): number {
-  if (!_module || rgbaOut.byteLength < width * height * 4) return -1
+  if (!_module) return -1
   const pathPtr = marshalString(texturePath)
   const clipPtr = marshalString(clipName)
-  const bufPtr = _module._malloc(rgbaOut.byteLength)
   try {
-    const code = safeCcallNumber(
-      'editor_preview_spritesheet_tick',
-      ['number', 'number', 'number', 'number', 'number', 'number', 'number'],
-      [pathPtr, clipPtr, dtSeconds, width, height, bufPtr, rgbaOut.byteLength],
+    return safeCcallNumber(
+      'editor_preview_spritesheet_submit',
+      ['number', 'number', 'number', 'number', 'number'],
+      [pathPtr, clipPtr, dtSeconds, width, height],
     )
-    if (code === 0) {
-      rgbaOut.set(_module.HEAPU8.subarray(bufPtr, bufPtr + rgbaOut.byteLength) as Uint8Array)
-    }
-    return code
   } finally {
-    _module._free(bufPtr)
     _module._free(clipPtr)
     _module._free(pathPtr)
   }

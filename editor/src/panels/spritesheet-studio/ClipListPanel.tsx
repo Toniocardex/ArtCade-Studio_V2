@@ -1,11 +1,16 @@
 import { Plus, Trash2 } from 'lucide-react'
+import { useEditor } from '../../store/editor-store'
+import { findDuplicateClipNameAcrossAssets } from '../../utils/spritesheet-clip-names'
 import type { SpritesheetStudioSession } from './useSpritesheetStudioSession'
 
 type ClipListPanelProps = Readonly<{
+  assetId: string
   session: SpritesheetStudioSession
 }>
 
-export function ClipListPanel({ session }: ClipListPanelProps) {
+export function ClipListPanel({ assetId, session }: ClipListPanelProps) {
+  const { state } = useEditor()
+  const project = state.project
   const {
     clips,
     activeClipIndex,
@@ -18,6 +23,11 @@ export function ClipListPanel({ session }: ClipListPanelProps) {
     removeActiveClip,
     grid,
   } = session
+
+  const duplicateOnAsset =
+    project && activeClip?.name
+      ? findDuplicateClipNameAcrossAssets(project, activeClip.name, assetId)
+      : null
 
   return (
     <div className="flex flex-col gap-3 p-3 border-l border-[var(--border)] min-w-[200px] max-w-[280px] overflow-y-auto">
@@ -63,6 +73,12 @@ export function ClipListPanel({ session }: ClipListPanelProps) {
               onChange={(e) => patchActiveClip({ name: e.target.value })}
             />
           </label>
+          {duplicateOnAsset ? (
+            <p className="text-[9px] text-[var(--warn)]">
+              Clip name &quot;{activeClip.name}&quot; is already used on &quot;{duplicateOnAsset}&quot;.
+              Runtime uses one global name — rename to avoid conflicts.
+            </p>
+          ) : null}
           <label className="block text-[var(--muted)]">
             FPS
             <input
