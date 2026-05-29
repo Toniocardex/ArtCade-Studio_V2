@@ -16,13 +16,13 @@ import './index.css'
 import App from './App'
 import { BootErrorBoundary } from './components/BootErrorBoundary'
 import { initTheme } from './utils/theme'
-import { applyTauriWindowSurface, revealTauriWindowAfterPaint } from './utils/boot-chrome'
+import { applyTauriWindowSurfaceIfNeeded } from './utils/boot-chrome'
 import { triggerLayoutReflow } from './utils/layout-reflow'
 import { installEditorKeyboardGuards } from './utils/keyboard'
 
 const bootTheme = initTheme()
 installEditorKeyboardGuards()
-applyTauriWindowSurface(bootTheme)
+applyTauriWindowSurfaceIfNeeded(bootTheme)
 
 const rootEl = document.getElementById('root')
 if (!rootEl) throw new Error('#root not found')
@@ -52,7 +52,6 @@ function bootstrap() {
 
   reflowInTauri()
   settleFontsThenReflow()
-  revealTauriWindowAfterPaint()
 }
 
 bootstrap()

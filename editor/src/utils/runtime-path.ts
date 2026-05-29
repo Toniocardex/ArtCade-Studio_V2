@@ -7,3 +7,4 @@ export function runtimeAssetPath(file: string): string {
 }
 
 export const WASM_RUNTIME_SRC = runtimeAssetPath('game.js')
+export const WASM_BINARY_URL = runtimeAssetPath('game.wasm')

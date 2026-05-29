@@ -1,4 +1,4 @@
-import { createContext, useContext, useReducer, useCallback, useMemo } from 'react'
+import { createContext, useContext, useReducer, useCallback, useMemo, useRef } from 'react'
 import type { ReactNode, Dispatch } from 'react'
 
 // ---------------------------------------------------------------------------
@@ -32,6 +32,7 @@ import { sceneReducer }      from './reducers/scene-reducer'
 import { logicBoardReducer } from './reducers/logic-board-reducer'
 import { dialogReducer } from './reducers/dialog-reducer'
 import { applyAuthoringModeToDocument } from '../utils/authoring-mode'
+import { ensureBootSessionReset } from '../utils/boot-session'
 
 export type { CoreState, VolatileState, Action }
 
@@ -93,6 +94,12 @@ const VolatileContext = createContext<VolatileContextValue | null>(null)
 // ---------------------------------------------------------------------------
 
 export function EditorProvider({ children }: { children: ReactNode }) {
+  const bootResetDone = useRef(false)
+  if (!bootResetDone.current) {
+    bootResetDone.current = true
+    ensureBootSessionReset()
+  }
+
   applyAuthoringModeToDocument(initialCoreState.authoringMode)
   const [coreState,     coreDi]  = useReducer(coreReducer,     initialCoreState)
   const [volatileState, volDi]   = useReducer(volatileReducer, initialVolatileState)

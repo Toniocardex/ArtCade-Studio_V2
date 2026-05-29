@@ -71,5 +71,18 @@ body {
 
 writeFileSync(join(root, 'public', 'boot-theme-init.js'), bootJs, 'utf8')
 writeFileSync(join(root, 'public', 'critical-layout.css'), criticalCss, 'utf8')
+
+const indexPath = join(root, 'index.html')
+let indexHtml = readFileSync(indexPath, 'utf8')
+const wasmPreload = '<link rel="preload" href="./runtime/game.wasm" as="fetch" crossorigin />'
+if (!indexHtml.includes('runtime/game.wasm')) {
+  indexHtml = indexHtml.replace(
+    '<link rel="stylesheet" href="./critical-layout.css" />',
+    `${wasmPreload}\n    <link rel="stylesheet" href="./critical-layout.css" />`,
+  )
+}
+writeFileSync(indexPath, indexHtml, 'utf8')
+
 console.log('[sync-boot-chrome] Wrote public/boot-theme-init.js')
 console.log('[sync-boot-chrome] Wrote public/critical-layout.css (--bg/--text from boot-surfaces.json)')
+console.log('[sync-boot-chrome] Ensured index.html WASM preload link')

@@ -1,4 +1,4 @@
-import { runtimeAssetPath } from './runtime-path'
+import { runtimeAssetPath, WASM_BINARY_URL } from './runtime-path'
 
 // ---------------------------------------------------------------------------
 // wasm-bridge.ts — React ↔ C++ WASM bridge
@@ -68,7 +68,22 @@ const WASM_SCRIPT_ID = 'artcade-raylib-wasm-script'
 let _module: ArtCadeModule | null = null
 let _ready  = false
 let wasmInitPromise: Promise<ArtCadeModule> | null = null
+let wasmWarmPromise: Promise<void> | null = null
 let _lastBridgeError: string | null = null
+
+/**
+ * Start fetching game.wasm before loadWasmRuntime (pairs with index.html preload).
+ * Emscripten still loads via game.js; this warms the HTTP cache for locateFile('game.wasm').
+ */
+export function warmWasmBinary(): Promise<void> {
+  if (wasmWarmPromise) return wasmWarmPromise
+  wasmWarmPromise = fetch(WASM_BINARY_URL, { credentials: 'same-origin' })
+    .then(() => undefined)
+    .catch((err) => {
+      console.warn('[wasm-bridge] WASM preload fetch failed (non-fatal):', err)
+    })
+  return wasmWarmPromise
+}
 
 /** Last JS-side failure from `safeCall` / `editorReloadScript` (not C++ Lua errors). */
 export function peekWasmBridgeLastError(): string | null {

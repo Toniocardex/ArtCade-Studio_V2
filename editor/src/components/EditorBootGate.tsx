@@ -1,11 +1,12 @@
 import {
-  useCallback, useEffect, useLayoutEffect, useRef, useState, type TransitionEvent, type ReactNode,
+  useCallback, useEffect, useLayoutEffect, useState, type TransitionEvent, type ReactNode,
 } from 'react'
 import SplashScreen from './SplashScreen'
 import { BootLoadingOverlay } from './BootLoadingOverlay'
 import { useEditorBootReady } from '../hooks/useEditorBootReady'
 import { hasSeenBootSplash, markBootSplashSeen } from '../utils/editor-boot-storage'
-import { runtimeSync } from '../utils/runtime-sync-service'
+import { revealTauriWindowAfterBoot } from '../utils/boot-chrome'
+import { warmWasmBinary } from '../utils/wasm-bridge'
 
 export interface EditorBootGateProps {
   children: ReactNode
@@ -17,18 +18,16 @@ export interface EditorBootGateProps {
  * blank project, and first project→WASM sync are all ready.
  *
  * First launch: marketing SplashScreen (once per machine), then spinner if needed.
+ * Tauri window stays hidden until revealTauriWindowAfterBoot() after the gate clears.
  */
 export default function EditorBootGate({ children }: EditorBootGateProps) {
-  // Synchronous reset before descendants mount/effects — avoids parent useEffect
-  // running after PreviewPanel and clearing engine/boot flags (race on warm WASM).
-  const sessionResetDone = useRef(false)
-  if (!sessionResetDone.current) {
-    sessionResetDone.current = true
-    runtimeSync.reset()
-  }
-
   const [showMarketing] = useState(() => !hasSeenBootSplash())
   const { ready, timedOut, statusLine, retry } = useEditorBootReady()
+
+  // Phase 0 preload companion — warm WASM binary cache as early as possible.
+  useEffect(() => {
+    void warmWasmBinary()
+  }, [])
 
   useLayoutEffect(() => {
     document.getElementById('boot-shell')?.remove()
@@ -46,6 +45,7 @@ export default function EditorBootGate({ children }: EditorBootGateProps) {
   useEffect(() => {
     if (!ready || !marketingDone || bootComplete) return
     setFadeOut(true)
+    revealTauriWindowAfterBoot()
   }, [ready, marketingDone, bootComplete])
 
   const onOverlayTransitionEnd = useCallback((e: TransitionEvent<HTMLDivElement>) => {
@@ -54,6 +54,13 @@ export default function EditorBootGate({ children }: EditorBootGateProps) {
     setBootComplete(true)
   }, [fadeOut])
 
+  // Backup if opacity transition is skipped (reduced-motion / zero-duration CSS).
+  useEffect(() => {
+    if (!fadeOut || bootComplete) return undefined
+    const t = globalThis.setTimeout(() => setBootComplete(true), 350)
+    return () => globalThis.clearTimeout(t)
+  }, [fadeOut, bootComplete])
+
   const showOverlay = !bootComplete
   const showSplash = showOverlay && showMarketing && !marketingDone
   const showSpinner = showOverlay && marketingDone
@@ -61,7 +68,7 @@ export default function EditorBootGate({ children }: EditorBootGateProps) {
   return (
     <div className="relative h-full w-full min-h-0 flex flex-col overflow-hidden bg-[var(--bg)]">
       <div
-        className={`flex flex-1 min-h-0 flex-col overflow-hidden transition-opacity duration-300 ${
+        className={`flex flex-1 min-h-0 flex-col overflow-hidden transition-opacity duration-300 ease-out ${
           bootComplete ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
         aria-hidden={!bootComplete}
@@ -71,8 +78,8 @@ export default function EditorBootGate({ children }: EditorBootGateProps) {
 
       {showOverlay && (
         <div
-          className={`fixed inset-0 z-[100] bg-[var(--bg)] transition-opacity duration-300 ${
-            fadeOut ? 'opacity-0 pointer-events-none' : 'opacity-100'
+          className={`boot-overlay fixed inset-0 z-[100] bg-[var(--bg)] transition-opacity duration-300 ease-out ${
+            fadeOut ? 'boot-overlay--fading opacity-0 pointer-events-none' : 'opacity-100'
           }`}
           onTransitionEnd={onOverlayTransitionEnd}
         >

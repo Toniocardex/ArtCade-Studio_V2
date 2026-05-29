@@ -50,12 +50,27 @@ export function applyTauriWindowSurface(theme: Theme): void {
   void getCurrentWindow().setBackgroundColor({ ...rgb, alpha: 255 })
 }
 
-/** Show main window after first React paint (window starts hidden in tauri.conf.json). */
-export function revealTauriWindowAfterPaint(): void {
+/** Boot-only: skip redundant IPC when boot-theme-init.js already painted the document. */
+export function applyTauriWindowSurfaceIfNeeded(theme: Theme): void {
+  if (!isTauri()) return
+  const root = document.documentElement
+  if (!root) return
+  const targetBg = surfaceHex(theme)
+  if (root.style.backgroundColor === targetBg) return
+  applyTauriWindowSurface(theme)
+}
+
+/**
+ * Show the Tauri window after the boot gate fades (window starts hidden in tauri.conf.json).
+ * 2× rAF + setTimeout(0) so WebView2 commits a painted frame before the native window appears.
+ */
+export function revealTauriWindowAfterBoot(): void {
   if (!isTauri()) return
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
-      void getCurrentWindow().show()
+      globalThis.setTimeout(() => {
+        void getCurrentWindow().show()
+      }, 0)
     })
   })
 }

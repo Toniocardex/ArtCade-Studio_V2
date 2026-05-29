@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useEditor } from '../store/editor-store'
 import { isReady as isWasmReady } from '../utils/wasm-bridge'
 import { runtimeSync } from '../utils/runtime-sync-service'
+import { scheduleBootIdleTask } from '../utils/boot-idle'
 
 const BOOT_TIMEOUT_MS = 20_000
 
@@ -18,6 +19,7 @@ function buildStatusLine(opts: {
   engine: boolean
   synced: boolean
   fonts: boolean
+  idle: boolean
 }): string {
   const parts: string[] = []
   if (!opts.project) parts.push('project')
@@ -25,6 +27,7 @@ function buildStatusLine(opts: {
   if (!opts.engine) parts.push('editor API')
   if (!opts.synced) parts.push('scene sync')
   if (!opts.fonts) parts.push('fonts')
+  if (!opts.idle) parts.push('init')
   if (parts.length === 0) return 'Starting…'
   return `Loading ${parts.join(', ')}…`
 }
@@ -35,6 +38,7 @@ export function useEditorBootReady(): EditorBootReadyState {
   const [engineReady, setEngineReady] = useState(() => runtimeSync.isEngineReady())
   const [synced, setSynced] = useState(() => runtimeSync.isBootProjectSynced())
   const [fontsReady, setFontsReady] = useState(false)
+  const [idleReady, setIdleReady] = useState(false)
   const [timedOut, setTimedOut] = useState(false)
 
   const projectReady = state.project != null
@@ -42,6 +46,9 @@ export function useEditorBootReady(): EditorBootReadyState {
   useEffect(() => runtimeSync.onReadyChange(setWasmReady), [])
   useEffect(() => runtimeSync.onEngineReadyChange(setEngineReady), [])
   useEffect(() => runtimeSync.onBootProjectSyncedChange(setSynced), [])
+
+  // Track C — defer non-blocking boot bookkeeping until the main thread is idle.
+  useEffect(() => scheduleBootIdleTask(() => setIdleReady(true)), [])
 
   useEffect(() => {
     let cancelled = false
@@ -53,7 +60,7 @@ export function useEditorBootReady(): EditorBootReadyState {
   }, [])
 
   const ready =
-    projectReady && wasmReady && engineReady && synced && fontsReady
+    projectReady && wasmReady && engineReady && synced && fontsReady && idleReady
 
   // Watchdog for stuck WASM/EditorAPI sync — not a race-condition workaround.
   useEffect(() => {
@@ -72,8 +79,9 @@ export function useEditorBootReady(): EditorBootReadyState {
       engine: engineReady,
       synced,
       fonts: fontsReady,
+      idle: idleReady,
     }),
-    [projectReady, wasmReady, engineReady, synced, fontsReady],
+    [projectReady, wasmReady, engineReady, synced, fontsReady, idleReady],
   )
 
   const retry = useCallback(() => {
