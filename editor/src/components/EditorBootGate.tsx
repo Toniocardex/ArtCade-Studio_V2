@@ -1,12 +1,9 @@
 import {
-  useCallback, useEffect, useLayoutEffect, useRef, useState, type TransitionEvent, type ReactNode,
+  useCallback, useEffect, useLayoutEffect, useState, type TransitionEvent, type ReactNode,
 } from 'react'
 import SplashScreen from './SplashScreen'
-import { BootLoadingOverlay } from './BootLoadingOverlay'
 import { useEditorBootReady } from '../hooks/useEditorBootReady'
-import { hasSeenBootSplash, markBootSplashSeen } from '../utils/editor-boot-storage'
 import { revealTauriWindowAfterBoot } from '../utils/boot-chrome'
-import { BOOT_MIN_SPINNER_MS } from '../utils/boot-timing'
 import { warmWasmBinary } from '../utils/wasm-bridge'
 
 export interface EditorBootGateProps {
@@ -15,18 +12,18 @@ export interface EditorBootGateProps {
 
 /**
  * Full-screen boot gate: editor shell mounts underneath (WASM + project load)
- * while the overlay blocks interaction. Dismisses only when runtime, EditorAPI,
- * blank project, and first project→WASM sync are all ready.
+ * while the splash blocks interaction. Dismisses only when runtime, EditorAPI,
+ * blank project, and first project→WASM sync are all ready — and the intro
+ * animation has finished or the user skipped it.
  *
- * First launch: marketing SplashScreen (once per machine), then spinner if needed.
- * Spinner stays at least BOOT_MIN_SPINNER_MS once shown (fast loads still feel deliberate).
  * Tauri window stays hidden until revealTauriWindowAfterBoot() after the gate clears.
  */
 export default function EditorBootGate({ children }: EditorBootGateProps) {
-  const [showMarketing] = useState(() => !hasSeenBootSplash())
   const { ready, timedOut, statusLine, retry } = useEditorBootReady()
+  const [introDone, setIntroDone] = useState(false)
+  const [bootComplete, setBootComplete] = useState(false)
+  const [fadeOut, setFadeOut] = useState(false)
 
-  // Phase 0 preload companion — warm WASM binary cache as early as possible.
   useEffect(() => {
     void warmWasmBinary()
   }, [])
@@ -35,42 +32,13 @@ export default function EditorBootGate({ children }: EditorBootGateProps) {
     document.getElementById('boot-shell')?.remove()
   }, [])
 
-  const [marketingDone, setMarketingDone] = useState(!showMarketing)
-  const [bootComplete, setBootComplete] = useState(false)
-  const [fadeOut, setFadeOut] = useState(false)
-  const spinnerShownAtRef = useRef<number | null>(null)
-
-  const finishMarketing = useCallback(() => {
-    markBootSplashSeen()
-    setMarketingDone(true)
-  }, [])
+  const skipIntro = useCallback(() => setIntroDone(true), [])
 
   useEffect(() => {
-    if (!marketingDone || bootComplete) return
-    if (spinnerShownAtRef.current === null) {
-      spinnerShownAtRef.current = Date.now()
-    }
-  }, [marketingDone, bootComplete])
-
-  useEffect(() => {
-    if (!ready || !marketingDone || bootComplete || fadeOut) return undefined
-
-    const shownAt = spinnerShownAtRef.current ?? Date.now()
-    const remaining = BOOT_MIN_SPINNER_MS - (Date.now() - shownAt)
-
-    const startFade = () => {
-      setFadeOut(true)
-      revealTauriWindowAfterBoot()
-    }
-
-    if (remaining <= 0) {
-      startFade()
-      return undefined
-    }
-
-    const t = globalThis.setTimeout(startFade, remaining)
-    return () => globalThis.clearTimeout(t)
-  }, [ready, marketingDone, bootComplete, fadeOut])
+    if (!ready || !introDone || bootComplete || fadeOut) return
+    setFadeOut(true)
+    revealTauriWindowAfterBoot()
+  }, [ready, introDone, bootComplete, fadeOut])
 
   const onOverlayTransitionEnd = useCallback((e: TransitionEvent<HTMLDivElement>) => {
     if (e.target !== e.currentTarget) return
@@ -78,7 +46,6 @@ export default function EditorBootGate({ children }: EditorBootGateProps) {
     setBootComplete(true)
   }, [fadeOut])
 
-  // Backup if opacity transition is skipped (reduced-motion / zero-duration CSS).
   useEffect(() => {
     if (!fadeOut || bootComplete) return undefined
     const t = globalThis.setTimeout(() => setBootComplete(true), 350)
@@ -86,8 +53,6 @@ export default function EditorBootGate({ children }: EditorBootGateProps) {
   }, [fadeOut, bootComplete])
 
   const showOverlay = !bootComplete
-  const showSplash = showOverlay && showMarketing && !marketingDone
-  const showSpinner = showOverlay && marketingDone
 
   return (
     <div className="relative h-full w-full min-h-0 flex flex-col overflow-hidden bg-[var(--bg)]">
@@ -106,27 +71,39 @@ export default function EditorBootGate({ children }: EditorBootGateProps) {
             fadeOut ? 'boot-overlay--fading opacity-0 pointer-events-none' : 'opacity-100'
           }`}
           onTransitionEnd={onOverlayTransitionEnd}
+          role="status"
+          aria-live="polite"
+          aria-busy={!timedOut}
         >
-          {showSplash ? (
-            <>
-              <SplashScreen onComplete={finishMarketing} />
+          <SplashScreen
+            fastForward={introDone}
+            onIntroComplete={() => setIntroDone(true)}
+          />
+          <button
+            type="button"
+            onClick={skipIntro}
+            className="fixed bottom-6 right-6 z-[110] px-3 py-1.5 rounded text-[10px] font-semibold
+                       border border-[var(--border-2)] text-[var(--muted)]
+                       hover:text-[var(--text)] hover:border-[var(--accent-bd)] pointer-events-auto"
+          >
+            Skip intro
+          </button>
+          {timedOut && (
+            <div className="fixed bottom-6 left-6 right-24 z-[110] flex flex-col gap-2 pointer-events-auto max-w-md">
+              <p className="text-[11px] text-[var(--danger)] font-mono leading-snug">
+                Startup timed out. Check the console for runtime errors, then retry.
+              </p>
+              <p className="text-[10px] text-[var(--muted)] font-mono">{statusLine}</p>
               <button
                 type="button"
-                onClick={finishMarketing}
-                className="fixed bottom-6 right-6 z-[110] px-3 py-1.5 rounded text-[10px] font-semibold
-                           border border-[var(--border-2)] text-[var(--muted)]
-                           hover:text-[var(--text)] hover:border-[var(--accent-bd)] pointer-events-auto"
+                onClick={retry}
+                className="self-start px-4 py-1.5 rounded text-xs font-semibold border border-[var(--accent-bd)]
+                           bg-[var(--accent-bg)] text-[var(--accent)] hover:bg-[var(--accent-bg-h)]"
               >
-                Skip intro
+                Retry
               </button>
-            </>
-          ) : showSpinner ? (
-            <BootLoadingOverlay
-              statusLine={statusLine}
-              timedOut={timedOut}
-              onRetry={retry}
-            />
-          ) : null}
+            </div>
+          )}
         </div>
       )}
     </div>

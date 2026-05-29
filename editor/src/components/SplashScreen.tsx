@@ -1,24 +1,31 @@
 import { useState, useEffect } from 'react'
 
-interface SplashScreenProps {
-  onComplete?: () => void
+export interface SplashScreenProps {
+  /** Choreography finished (or skipped via `fastForward`). Does not mean runtime is ready. */
+  onIntroComplete?: () => void
+  /** Skip animation — hold on title until the boot gate dismisses. */
+  fastForward?: boolean
 }
 
-/** Marketing boot splash (first launch only). Text-only — no logo image. */
-export default function SplashScreen({ onComplete }: SplashScreenProps) {
+/** Boot splash every launch. Text-only — no logo image. */
+export default function SplashScreen({ onIntroComplete, fastForward = false }: SplashScreenProps) {
   const [step, setStep] = useState(0) // 0 idle, 1 grid, 2 streams, 3 title, 4 closing
 
-  // Choreographed marketing timeline (UX), not an ordering workaround — see animation delays in CSS.
   useEffect(() => {
+    if (fastForward) {
+      setStep(3)
+      return undefined
+    }
+
     const timers = [
       globalThis.setTimeout(() => setStep(1), 200),
       globalThis.setTimeout(() => setStep(2), 600),
       globalThis.setTimeout(() => setStep(3), 1400),
       globalThis.setTimeout(() => setStep(4), 4500),
-      globalThis.setTimeout(() => { onComplete?.() }, 5200),
+      globalThis.setTimeout(() => onIntroComplete?.(), 5200),
     ]
     return () => timers.forEach(globalThis.clearTimeout)
-  }, [onComplete])
+  }, [fastForward, onIntroComplete])
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg)] text-[var(--text)] overflow-hidden pointer-events-none select-none font-mono">
