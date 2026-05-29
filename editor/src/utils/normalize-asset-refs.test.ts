@@ -43,4 +43,33 @@ describe('normalizeAssetRefs', () => {
       volume: 1,
     })
   })
+
+  it('rewrites playMusic path in elseActions branch', () => {
+    const path = 'assets/audio/theme.ogg'
+    const project = createBlankProject()
+    project.audioAssets = { mus1: { id: 'mus1', name: 'Theme', path } }
+    project.logicBoards = [
+      {
+        boardId: 'lb1',
+        name: 'Main',
+        target: { type: 'global' },
+        events: [
+          {
+            id: 'ev1',
+            trigger: { type: 'onStart' },
+            actions: [],
+            elseEnabled: true,
+            elseActions: [{ type: 'playMusic', path, loop: true }],
+          },
+        ],
+      },
+    ]
+    const { changed, project: next } = normalizeAssetRefs(project)
+    expect(changed).toBe(1)
+    expect(next.logicBoards?.[0].events[0].elseActions?.[0]).toEqual({
+      type: 'playMusic',
+      audioAssetId: 'mus1',
+      loop: true,
+    })
+  })
 })

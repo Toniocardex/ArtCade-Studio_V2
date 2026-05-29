@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------------------
 
 import type { ProjectDoc } from '../types'
-import type { LogicAction, LogicBoard } from '../types/logic-board'
+import type { LogicAction, LogicBoard, LogicEvent } from '../types/logic-board'
 import { resolveImageLoadKey } from './resolve-image-load-key'
 
 export type NormalizeAssetRefsResult = Readonly<{
@@ -20,6 +20,49 @@ function audioLibraryIdForRef(project: ProjectDoc, raw: string): string | null {
   return byPath?.id ?? null
 }
 
+function normalizeLogicActionAudio(project: ProjectDoc, action: LogicAction): LogicAction {
+  if (action.type !== 'playSound' && action.type !== 'playMusic') return action
+  const pathRaw = action.path?.trim()
+  const idRaw = action.audioAssetId?.trim()
+  const libId = audioLibraryIdForRef(project, pathRaw ?? idRaw ?? '')
+  if (!libId || (libId === idRaw && !pathRaw)) return action
+  const { path: _legacyPath, ...rest } = action
+  return { ...rest, audioAssetId: libId }
+}
+
+function normalizeLogicActionList(
+  project: ProjectDoc,
+  actions: LogicAction[],
+  onChanged: () => void,
+): LogicAction[] {
+  return actions.map((action) => {
+    const normalized = normalizeLogicActionAudio(project, action)
+    if (normalized !== action) onChanged()
+    return normalized
+  })
+}
+
+function normalizeLogicEvent(
+  project: ProjectDoc,
+  event: LogicEvent,
+): { event: LogicEvent; changed: number } {
+  let changed = 0
+  const bump = () => { changed++ }
+  const actions = normalizeLogicActionList(project, event.actions ?? [], bump)
+  const elseActions = event.elseActions
+    ? normalizeLogicActionList(project, event.elseActions, bump)
+    : event.elseActions
+  if (changed === 0) return { event, changed: 0 }
+  return {
+    event: {
+      ...event,
+      actions,
+      ...(event.elseActions != null ? { elseActions } : {}),
+    },
+    changed,
+  }
+}
+
 function normalizeLogicBoardsAudio(
   project: ProjectDoc,
   boards: LogicBoard[] | undefined,
@@ -29,17 +72,10 @@ function normalizeLogicBoardsAudio(
   const nextBoards = boards.map((board) => {
     let boardChanged = false
     const events = (board.events ?? []).map((event) => {
-      let eventChanged = false
-      const actions = (event.actions ?? []).map((action) => {
-        const normalized = normalizeLogicActionAudio(project, action)
-        if (normalized !== action) {
-          eventChanged = true
-          changed++
-        }
-        return normalized
-      })
-      if (eventChanged) boardChanged = true
-      return eventChanged ? { ...event, actions } : event
+      const { event: nextEvent, changed: eventChanged } = normalizeLogicEvent(project, event)
+      if (eventChanged > 0) boardChanged = true
+      changed += eventChanged
+      return nextEvent
     })
     return boardChanged ? { ...board, events } : board
   })
@@ -47,16 +83,6 @@ function normalizeLogicBoardsAudio(
     boards: changed > 0 ? nextBoards : boards,
     changed,
   }
-}
-
-function normalizeLogicActionAudio(project: ProjectDoc, action: LogicAction): LogicAction {
-  if (action.type !== 'playSound' && action.type !== 'playMusic') return action
-  const pathRaw = action.path?.trim()
-  const idRaw = action.audioAssetId?.trim()
-  const libId = audioLibraryIdForRef(project, pathRaw ?? idRaw ?? '')
-  if (!libId || (libId === idRaw && !pathRaw)) return action
-  const { path: _path, ...rest } = action
-  return { ...rest, audioAssetId: libId }
 }
 
 /** Rewrite sprite/tileset/audio refs to stable library ids where a match exists. */
