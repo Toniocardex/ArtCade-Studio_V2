@@ -16,4 +16,31 @@ describe('normalizeAssetRefs', () => {
     expect(changed).toBe(1)
     expect(next.entities[1].sprite.spriteAssetId).toBe('img1')
   })
+
+  it('rewrites logic board playSound path to audioAssetId', () => {
+    const path = 'assets/audio/coin.ogg'
+    const project = createBlankProject()
+    project.audioAssets = { sfx1: { id: 'sfx1', name: 'Coin', path } }
+    project.logicBoards = [
+      {
+        boardId: 'lb1',
+        name: 'Main',
+        target: { type: 'global' },
+        events: [
+          {
+            id: 'ev1',
+            trigger: { type: 'onStart' },
+            actions: [{ type: 'playSound', path, volume: 1 }],
+          },
+        ],
+      },
+    ]
+    const { changed, project: next } = normalizeAssetRefs(project)
+    expect(changed).toBe(1)
+    expect(next.logicBoards?.[0].events[0].actions[0]).toEqual({
+      type: 'playSound',
+      audioAssetId: 'sfx1',
+      volume: 1,
+    })
+  })
 })

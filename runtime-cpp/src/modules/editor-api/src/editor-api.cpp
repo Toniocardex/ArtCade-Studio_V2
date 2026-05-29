@@ -79,6 +79,27 @@ namespace {
 
 ArtCade::Modules::AssetManifestIndex s_editorAssetManifest;
 
+std::string resolveImageLoadKeyFromDoc(const json& doc, const std::string& raw) {
+    if (raw.empty()) return {};
+    if (doc.contains("assets") && doc["assets"].is_object()) {
+        if (doc["assets"].contains(raw)) {
+            const auto& av = doc["assets"][raw];
+            if (av.is_object()) {
+                const std::string p = av.value("path", std::string{});
+                if (!p.empty()) return p;
+            }
+        }
+        for (auto& [key, av] : doc["assets"].items()) {
+            if (!av.is_object()) continue;
+            if (av.value("id", key) == raw) {
+                const std::string p = av.value("path", std::string{});
+                if (!p.empty()) return p;
+            }
+        }
+    }
+    return raw;
+}
+
 void rebuildEditorAssetManifest(const json& doc) {
     s_editorAssetManifest.clear();
     if (doc.contains("assets") && doc["assets"].is_object()) {
@@ -86,6 +107,15 @@ void rebuildEditorAssetManifest(const json& doc) {
             if (!av.is_object()) continue;
             const std::string id   = av.value("id", key);
             const std::string path = av.value("path", std::string{});
+            if (!path.empty()) s_editorAssetManifest.addImageEntry(id, path);
+        }
+    }
+    if (doc.contains("tilesets") && doc["tilesets"].is_object()) {
+        for (auto& [key, tv] : doc["tilesets"].items()) {
+            if (!tv.is_object()) continue;
+            const std::string id  = tv.value("id", key);
+            const std::string raw = tv.value("spriteImagePath", std::string{});
+            const std::string path = resolveImageLoadKeyFromDoc(doc, raw);
             if (!path.empty()) s_editorAssetManifest.addImageEntry(id, path);
         }
     }
