@@ -33,6 +33,7 @@ target_link_libraries(artcade-runtime-entity-gateway
         artcade-object-type-materialize
         artcade-scene-system
         artcade-physics
+        artcade-sprite-animator
     PRIVATE
         EnTT::EnTT
 )
