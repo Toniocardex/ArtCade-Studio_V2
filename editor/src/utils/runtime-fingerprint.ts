@@ -146,15 +146,11 @@ function projectScene(s: SceneDef): FpScene {
  * ProjectDoc. Exported for testing; production callers should use
  * {@link runtimeProjectFingerprint} which returns the stringified form.
  */
-function runtimeEntities(project: ProjectDoc): Record<number, EntityDef> {
-  return entitiesForRuntimeSync(project)
-}
-
 export function runtimeProjectProjection(
   project: ProjectDoc,
   activeSceneId: string,
 ): RuntimeProjection {
-  const entities = runtimeEntities(project)
+  const entities = entitiesForRuntimeSync(project)
   const entityIds = Object.keys(entities).map(Number).sort((a, b) => a - b)
   const sceneIds  = Object.keys(project.scenes).sort()
   return {
@@ -212,7 +208,7 @@ export function runtimeProjectPayload(
   project: ProjectDoc,
   activeSceneId: string,
 ): RuntimeProjectPayload {
-  const entities = runtimeEntities(project)
+  const entities = entitiesForRuntimeSync(project)
   return {
     projectName:    project.projectName,
     version:        project.version,
