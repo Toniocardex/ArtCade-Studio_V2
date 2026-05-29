@@ -5,7 +5,8 @@ be closed, validated, and tested before starting the next. If a phase grows
 during execution, split it into the listed sub-phases (or add new ones) and
 apply the same DoD per sub-phase.
 
-**Owner:** Antonio + Claude · **Started:** 2026-05-25 · **Status:** Phases 1–5 (fonts) implemented in editor + C++; manual smoke + formal closure pending
+**Owner:** Antonio + Codex · **Started:** 2026-05-25 · **Last updated:** 2026-05-29  
+**Status:** Core phases 1–5 and asset-pipeline A–D are implemented in code; per-phase closure checklists below still need manual smoke and (where noted) stronger automated tests before calling each phase fully closed.
 
 ---
 
@@ -76,14 +77,13 @@ clips that don't exist.
 - Live preview of the clip (looped playback in a small canvas).
 - **Test:** reducer test for add/remove/rename clip + frame selection.
 
-### 1c — Runtime wiring
+### 1c — Runtime wiring ✅ (preview path)
 
-- Extend `runtime-cpp/src/modules/editor-api/src/project-doc-parser.cpp` to
-  parse `clips[]` from each image asset.
-- At project load (`app.cpp` / wherever `defineClip` would naturally be
-  called), iterate parsed clips → `SpriteAnimator::defineClip`.
-- **Test:** C++ unit test or smoke that `playAnimation("walk")` works on a
-  preview scene.
+- ✅ `project-doc-parser` + `parseImageAssets` supply clip metadata.
+- ✅ On `editor_load_project`, `registerAnimationClipsFromAssets` →
+  `SpriteAnimator::defineClip` (`editor-api.cpp`).
+- **Test:** C++ `sprite_animator_test`; end-to-end `playAnimation` smoke still
+  manual (see closure checklist).
 
 ### 1d — Wire `onAnimationEnd` out of stub
 
@@ -138,8 +138,8 @@ fallback for retro-compat with existing projects).
 - **Test:** compiler emission test for both shapes.
 
 ### Closure checklist
-- [ ] tsc clean
-- [ ] vitest green
+- [x] tsc clean (editor `npm run build`)
+- [x] vitest green (`cd editor; npm test -- --run`)
 - [ ] manual smoke: import an OGG, drop it into a `playSound` action, hear it
 - [ ] existing projects with raw-path `playSound` still work
 
@@ -185,10 +185,12 @@ users. Hot-reload is dev-side quality of life and can wait.
   game runs.
 
 ### Closure checklist
-- [ ] export → import round-trip is byte-for-byte equivalent on `project.json`
+- [x] `exportArtcadePackage` + File menu hook (`useFileMenuActions.tsx`)
+- [x] manifest builder unit test (`export-artcade-package.test.ts`)
+- [ ] export → import round-trip is byte-for-byte equivalent on full `project.json`
 - [ ] export → native runtime can load and play
-- [ ] orphan files (unreferenced assets) NOT included
-- [ ] vitest green, tsc clean
+- [ ] orphan files (unreferenced assets) NOT included (verify with fixture project)
+- [x] vitest green, tsc clean
 
 ---
 
@@ -227,9 +229,12 @@ Aseprite), the preview updates without restart.
 - Don't spam — coalesce burst events.
 
 ### Closure checklist
-- [ ] edit a PNG in an external tool, see it update in preview within 1s
+- [x] Tauri `fs.watch` + debounce → re-register (`asset-orchestrator.ts`; see
+  `ASSET_PIPELINE_ARCHITECTURE.md` §7.2)
+- [x] `editor_invalidate_asset` + LRU cap in preview orchestrator
+- [ ] edit a PNG in an external tool, see it update in preview within 1s (manual)
 - [ ] no leaks (texture cache size doesn't grow on repeated reloads)
-- [ ] disabling it via a setting is possible (escape hatch)
+- [ ] disabling watcher via a setting (escape hatch)
 
 ---
 
@@ -279,12 +284,37 @@ Any new asset kind extends this convention.
 
 ---
 
+## Explorer & stable IDs (post-pipeline, 2026-05-29)
+
+Work landed after pipeline phases A–D (commits `ab471f0`, `e68928b`, `952aa43` on `main`).
+
+| Item | Status | Notes |
+|------|--------|--------|
+| C++ `AssetManifestIndex` + dual-read draw | ✅ | `Renderer::setTextureKeyResolver`; native `AssetLoader`; WASM manifest rebuild on `editor_load_project` |
+| File → **Normalize asset references…** | ✅ | `normalize-asset-refs.ts`; entities + tilesets only (not Logic Board actions yet) |
+| Scene duplicate + Logic Board clone | ✅ | `SCENE_DUPLICATE` remaps `entity_id` boards |
+| Entity type rename / delete | ✅ | Explorer + `object-type-reducer` |
+| Virtual folders (`assetVirtualFolders`) | ⚠️ v0 | Create folder (Images only); persist in codec; **no UI** for move/delete (`ASSET_MOVE_TO_FOLDER` reducer only) |
+| Audio/font detail strip | ✅ | `AssetMediaDetailStrip` (preview from disk when project saved) |
+| Export manifest test | ⚠️ | Builder covered; full ZIP round-trip still open |
+| Console REPL / LSP Lua | ❌ | REPL logs input only; LSP not started |
+
+**Manual smoke checklist (recommended before marking explorer track closed):**
+
+1. Preview sprite referenced by **path** and by **library id** after Normalize.
+2. Duplicate scene that has an **entity_id** Logic Board — board still runs on clone.
+3. Create image virtual folder → save → reload — folder and membership persist.
+4. Replace PNG on disk — preview updates without restart (Phase 4).
+
+---
+
 ## Closure log (append on each phase close)
 
 | Phase | Closed on | Validated by | Notes |
 |------:|-----------|--------------|-------|
-| 1 | — | — | — |
-| 2 | — | — | — |
-| 3 | — | — | — |
-| 4 | — | — | — |
-| 5 | — | — | — |
+| 1 | 2026-05-29 (partial) | vitest; `registerAnimationClipsFromAssets` | 1a–1b ✅; 1c preview ✅; 1d + manual walk/`onAnimationEnd` smoke open |
+| 2 | 2026-05-29 (partial) | vitest; `editor_register_audio` | Schema/import/UI/compiler in tree; manual hear-in-preview open |
+| 3 | 2026-05-29 (partial) | `export-artcade-package.test.ts`; File menu | Export ships; full import round-trip + native `.artcade` smoke open |
+| 4 | 2026-05-29 (partial) | orchestrator + `editor_invalidate_asset` | Watch + re-register ✅; leak test + disable setting open |
+| 5 | 2026-05-29 (partial) | `editor_register_font`; FontCache | 5a–5b ✅; manual TTF smoke + Logic Board `drawText` deferred |
+| Explorer | 2026-05-29 (partial) | vitest (`scene-duplicate`, `normalize-asset-refs`) | See table above; virtual-folder UI + extended normalize open |

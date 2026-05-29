@@ -2,8 +2,8 @@
 
 **Document type:** Architecture proposal + codebase audit  
 **Audience:** Engine / editor collaborators  
-**Status:** Phases A–D implemented in editor preview (2026-05-29); native manifest draw path optional (Phase C)  
-**Last updated:** 2026-05-29 (§3.4 dual-read, §5.2 queue, §7.2 invalidate/hot-reload)  
+**Status:** Phases A–D implemented in editor preview and native draw path (2026-05-29); explorer/normalize/virtual-folders v0 documented in `ASSETS_ROADMAP.md` § Explorer  
+**Last updated:** 2026-05-29 (§4.2 resolved gaps, §12.1 explorer, §13 conclusion; C++ `AssetManifestIndex` on `main`)  
 **Repository:** ArtCade-Studio_V2  
 
 **Related docs:** `ASSETS_ROADMAP.md` (phased delivery), `ARCHITETTURA_TECNICA_ENGINE_2D.md` §10 (WASM assets), `REACT_WASM_PATTERN.md` (editor↔WASM boundaries)
@@ -180,7 +180,7 @@ The collaborator diagram mentions **zero-copy** transfer (e.g. `postMessage` wit
 2. Else if `ref` matches a known `ImageAsset.path` → use `ref` as-is.
 3. Else if `ref` is a non-empty string (legacy orphan path) → use as path; **warn once** in console.
 
-**WASM cache key (until Phase C manifest in draw path):** still the **resolved path string** passed to `editor_register_image` — same as today’s `TextureCache` path map.
+**WASM cache key:** still the **resolved path string** passed to `editor_register_image` (after manifest/id resolution in TS and in `Renderer::resolvedTextureKey` for draw).
 
 **Persistence:** Saving a project does **not** require rewriting references. Optional future action: “Normalize asset references to IDs” (explicit, user-triggered).
 
@@ -205,26 +205,37 @@ The collaborator diagram mentions **zero-copy** transfer (e.g. `postMessage` wit
 
 ### 4.2 Gaps vs target
 
+**Resolved in repo (2026-05-29):**
+
+| Former gap | Resolution |
+|------------|------------|
+| Path-only runtime key | **Dual-read** (§3.4): `AssetManifestIndex` + `Renderer::setTextureKeyResolver`; optional File → Normalize asset references |
+| Eager load of all images | **Scene-scoped orchestrator** + prefetch + LRU (`asset-orchestrator.ts`, §5) |
+| No manifest / queue | **`build-project-asset-manifest.ts`** + `AssetLoadQueue` (§5.2) |
+| No scene-scoped policy | **`collect-scene-asset-refs`** with `scene-static` default (§5.1) |
+| No file-watch pipeline | Tauri watch → re-register (§7.2; ASSETS_ROADMAP Phase 4) |
+| Clips not at load | `registerAnimationClipsFromAssets` on `editor_load_project` |
+
+**Still open:**
+
 | Gap | Impact | Priority |
 |-----|--------|----------|
-| **Path used as runtime key** (`spriteAssetId` = file path) | Renames break scenes | High |
-| **Eager load of all images** | Slow open; memory spike | High |
-| **No AssetManifest / load queue** | Ad-hoc `useEffect` loops | High |
-| **No `editor_register_audio`** | Weak audio in preview | Medium (ASSETS_ROADMAP Phase 2) |
-| **No scene-scoped unload** | WebView memory growth | Medium |
-| **No file-watch → re-register pipeline** | Stale GPU after file replace; swap exists in `registerFromMemory` (§7.2) | Medium (ASSETS_ROADMAP Phase 4) |
-| **Animation clips schema; partial runtime wiring** | `playAnimation` clips missing at load | Medium (ASSETS_ROADMAP Phase 1c) |
+| **`editor_register_audio` parity** | Logic Board audio weaker in preview until bytes registered | Medium — Phase 2 manual smoke |
+| **Normalize scope** | Only entities + tilesets; Logic Board / dialog refs still path-based | Medium |
+| **Virtual folders v0** | Create/list Images only; no move/delete UI | Low–Medium |
+| **Export round-trip test** | Manifest builder tested; full ZIP ↔ import not automated | Medium — Phase 3 |
 | **Fragmented C++ caches** | TextureCache vs TextureManager vs Audio | Low (registry facade later) |
+| **`game.wasm` not in git** | Clone/CI must run `build_wasm.bat` | Ops (documented in root `README.md`) |
 
 ### 4.3 Asset identity today
 
 From `editor/src/types/index.ts` (`ImageAsset`):
 
 - `id`, `name`, `path` on each asset.
-- **`path` is the render key** for `entity.sprite.spriteAssetId` and `TilesetAsset.spriteImagePath`.
+- **Saved projects may use either** stable `ImageAsset.id` or legacy **path** in `spriteAssetId` / `spriteImagePath`.
 - `dataUrl` is **transient** (preview / unsaved assets) — correctly **not** serialized to `project.json`.
 
-**Target:** Runtime resolves **`asset.id`** via dual-read (§3.4); manifest maps `id → path` (+ hash for hot-reload).
+**Runtime (2026-05-29):** C++ and WASM resolve refs through **`AssetManifestIndex::resolveImageKey`** (id → path, known path passthrough, else legacy ref). Editor **Normalize asset references…** rewrites entity/tileset fields to ids where a library match exists.
 
 ### 4.4 Dual paths: editor WASM vs shipped native
 
@@ -759,19 +770,38 @@ This document validates that direction against the repo and sequences work throu
 
 ### 12.1 Editor UI — Project Explorer (canvas mode)
 
-The left sidebar uses **`ProjectExplorerPanel`** (`editor/src/components/project-explorer/`) with a unified scrollable tree: Scenes, Entities (active scene), Entity Types, and **fixed asset folders** (Audio, Fonts, Images, Scripts, Tilesets). Custom virtual folders in `project.json` are not implemented yet.
+The left sidebar uses **`ProjectExplorerPanel`** (`editor/src/components/project-explorer/`) with a unified scrollable tree:
 
-- Import / remove: `editor/src/hooks/useAssetExplorerActions.ts`
-- Scene / entity actions: `editor/src/hooks/useSceneExplorerActions.ts`
-- Tree model + search filter: `editor/src/utils/project-explorer-tree.ts`
+| Section | Capabilities (2026-05-29) |
+|---------|-------------------------|
+| **Scenes** | Add, duplicate (entities + `entity_id` logic boards), rename, delete, set start; labeled CTAs + context menus |
+| **Entities** | Per active scene; rename, delete, open Logic Board |
+| **Entity types** | Add, rename display name, delete (blocked if instances exist) |
+| **Assets** | Fixed folders: Audio, Fonts, Images, Scripts, Tilesets; import/remove; **Expand all**; image **New Folder** (virtual) |
+| **Virtual folders** | `project.json` → `assetVirtualFolders` (codec round-trip). **v0:** create under Images only; assets listed under folder; **no** move-to-folder / delete-folder UI yet (`ASSET_MOVE_TO_FOLDER` / `ASSET_FOLDER_DELETE` reducers exist) |
+
+**Related modules:**
+
+- Import / remove / selection: `editor/src/hooks/useAssetExplorerActions.ts`
+- Scene / entity / type actions: `editor/src/hooks/useSceneExplorerActions.ts`
+- Tree model + search: `editor/src/utils/project-explorer-tree.ts`
+- Audio/font preview strip: `editor/src/components/asset-explorer/AssetMediaDetailStrip.tsx`
+- Normalize refs: File menu → `PROJECT_NORMALIZE_ASSET_REFS` → `editor/src/utils/normalize-asset-refs.ts`
 
 ---
 
 ## 13. Conclusion
 
-The proposed architecture is **correct** and matches long-term engine docs. Implementation is roughly **85% complete** for **images in Tauri preview**; missing pieces are **orchestration, stable IDs, scene scope, audio symmetry, and lifecycle**.
+The proposed architecture matches long-term engine docs and is **implemented for Tauri preview and native draw** (phases A–D): orchestration, scene-scoped load, manifest export, dual-read ids, invalidate/watch, and LRU.
 
-**Recommended next step:** C++ draw path `assetId` lookup from packaged manifest; optional “Normalize references to asset IDs” editor action.
+**Remaining work to “close the circle”** (see `ASSETS_ROADMAP.md` closure log + § Explorer):
+
+1. **Manual smoke** on preview (id vs path sprites, duplicate scene + boards, virtual folder save/reload, disk hot-reload).
+2. **Explorer v1:** UI for move/delete virtual folders; optional folders on audio/font/tileset.
+3. **Tests:** full `.artcade` export → import round-trip; extended normalize (Logic Board asset refs).
+4. **Ops:** run `runtime-cpp/build_wasm.bat` after C++ changes (`game.wasm` is gitignored).
+
+**Recommended next engineering step:** virtual-folder UI (`ASSET_MOVE_TO_FOLDER`) or automated export round-trip test — whichever unblocks shipping confidence first.
 
 ---
 
