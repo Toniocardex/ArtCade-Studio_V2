@@ -30,6 +30,7 @@ struct Renderer::Impl {
     Vec2        viewportSize = {1280.f, 720.f};
 
     Camera2D camera = {};
+    Vec2 renderShakeOffset = { 0.f, 0.f };
     TextureCache texCache;
 
     // Draw commands queued by Lua during tick(); flushed in endFrame().
@@ -146,10 +147,20 @@ void Renderer::clearDrawQueue() {
     impl_->drawQueue.clear();
 }
 
+void Renderer::setRenderShakeOffset(const Vec2& offset) {
+    impl_->renderShakeOffset = offset;
+}
+
 void Renderer::beginFrame(const Vec4& clearColor) {
     BeginDrawing();
     ClearBackground(toColor(clearColor));
-    BeginMode2D(impl_->camera);
+    Camera2D frameCamera = impl_->camera;
+    // Jitter in screen pixels (world shake × zoom). Applied to offset, not target,
+    // so clampCameraTarget cannot zero it out in 1:1 editor preview viewports.
+    const float z = (frameCamera.zoom > 0.f) ? frameCamera.zoom : 1.f;
+    frameCamera.offset.x += impl_->renderShakeOffset.x * z;
+    frameCamera.offset.y += impl_->renderShakeOffset.y * z;
+    BeginMode2D(frameCamera);
 }
 
 void Renderer::endWorldPass() {

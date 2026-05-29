@@ -625,7 +625,8 @@
     "required": ["type", "trauma"],
     "properties": {
       "type": { "const": "cameraShake" },
-      "trauma": { "type": "number", "minimum": 0, "maximum": 1 }
+      "trauma": { "type": "number", "minimum": 0, "maximum": 1 },
+      "durationSeconds": { "type": "number", "minimum": 0.05, "maximum": 10 }
     },
     "additionalProperties": false,
     "x-artcade": {
@@ -635,7 +636,14 @@
         "trauma": {
           "widget": "number",
           "label": "Intensity (0–1)",
-          "placeholder": "0.5"
+          "placeholder": "0.35",
+          "hint": "0 = none, 1 = full strength. Amplitude scales linearly."
+        },
+        "durationSeconds": {
+          "widget": "number",
+          "label": "Duration (seconds)",
+          "placeholder": "0.5",
+          "hint": "How long the shake takes to fade out."
         }
       }
     }

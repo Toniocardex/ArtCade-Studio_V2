@@ -38,6 +38,17 @@ int main() {
     const auto origin = renderer.screenToWorld(0.f, 0.f);
     expect(near(origin.x, 0.f) && near(origin.y, 0.f), "screenToWorld at origin");
 
+    // 1:1 world/viewport clamps authoritative camera; shake must stay render-only.
+    renderer.setSceneViewport({ 1280.f, 720.f }, { 1280.f, 720.f });
+    renderer.setCameraPosition({ 12.f, 8.f });
+    const auto clamped = renderer.getCameraPosition();
+    expect(near(clamped.x, 0.f) && near(clamped.y, 0.f),
+           "setCameraPosition clamped at 1:1 viewport");
+    renderer.setRenderShakeOffset({ 20.f, 15.f });
+    const auto still = renderer.getCameraPosition();
+    expect(near(still.x, 0.f) && near(still.y, 0.f),
+           "render shake offset does not mutate authoritative camera");
+
     std::puts("renderer_screen_world_test: all passed");
     return 0;
 }

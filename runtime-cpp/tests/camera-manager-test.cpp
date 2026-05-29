@@ -137,6 +137,15 @@ static void test_trauma_decays() {
     std::puts("  [ok] trauma decays over time");
 }
 
+static void test_shake_duration_sets_decay_rate() {
+    CM cam; cam.init();
+    cam.addTrauma(1.f, 2.f);
+    cam.refreshShakeOffset(0.f);
+    cam.decayTrauma(1.f);
+    assert(approx(cam.trauma(), 0.5f, 0.02f));
+    std::puts("  [ok] addTrauma duration controls decay rate");
+}
+
 static void test_shake_refresh_without_sim_step() {
     CM cam; cam.init();
     cam.addTrauma(0.75f);
@@ -183,7 +192,8 @@ int main() {
     test_shake_adds_offset();
     test_shake_refresh_without_sim_step();
     test_trauma_decays();
+    test_shake_duration_sets_decay_rate();
     test_multi_step_lua_before_frame_decay();
-    std::puts("=== all 13 tests passed ===");
+    std::puts("=== all 14 tests passed ===");
     return 0;
 }

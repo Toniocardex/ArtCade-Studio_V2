@@ -16,8 +16,14 @@ function finite(n: unknown, fallback = 0): number {
 
 /** Camera shake intensity 0–1 (Logic Board trauma field). */
 function traumaIntensity(n: unknown): number {
-  const v = finite(n, 0.5)
+  const v = finite(n, 0.35)
   return Math.min(1, Math.max(0, v))
+}
+
+/** Shake fade-out duration in seconds (Logic Board durationSeconds). */
+function shakeDurationSeconds(n: unknown): number {
+  const v = finite(n, 0.5)
+  return Math.min(10, Math.max(0.05, v))
 }
 
 /**
@@ -224,7 +230,7 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
     case 'setCameraTarget':
       return `camera.centerOn(${target(a.target)})`
     case 'cameraShake':
-      return `camera.shake(${traumaIntensity(a.trauma)})`
+      return `camera.shake(${traumaIntensity(a.trauma)}, ${shakeDurationSeconds(a.durationSeconds)})`
     case 'debugLog':
       return `debug.log(${luaString(a.message)})`
     case 'wait':

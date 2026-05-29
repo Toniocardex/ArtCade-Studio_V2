@@ -69,8 +69,10 @@ void GameAPI::bindCameraAPI(sol::state& lua) {
     });
 
     // camera.shake(trauma) — add screen-shake trauma (0–1, stacks, decays over time)
-    lua.set_function("camera_shake", [camMgr](float trauma) {
-        if (camMgr) camMgr->addTrauma(trauma);
+    lua.set_function("camera_shake", [camMgr](float trauma, sol::optional<float> durationSeconds) {
+        if (!camMgr || trauma <= 0.f) return;
+        const float duration = durationSeconds.value_or(0.5f);
+        camMgr->addTrauma(trauma, duration > 0.f ? duration : 0.5f);
     });
 
     // Lua-side convenience table
@@ -84,7 +86,10 @@ void GameAPI::bindCameraAPI(sol::state& lua) {
         camera.x           = function()  return camera_x()               end
         camera.y           = function()  return camera_y()               end
         camera.zoom        = function()  return camera_getZoom()         end
-        camera.shake       = function(t)       camera_shake(t ~= nil and t or 0.5) end
+        camera.shake       = function(intensity, duration)
+            camera_shake(intensity ~= nil and intensity or 0.5,
+                         duration ~= nil and duration or 0.5)
+        end
     )");
 }
 

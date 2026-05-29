@@ -49,6 +49,7 @@ const FIELD_LABELS: Record<string, string> = {
   'condition:isSpaceFree:h': 'Height',
   'action:playAnimation:clipName': 'Clip name',
   'action:cameraShake:trauma': 'Intensity (0–1)',
+  'action:cameraShake:durationSeconds': 'Duration (seconds)',
   'action:setFlip:flipX': 'Flip horizontal',
   'action:setFlip:flipY': 'Flip vertical',
   'condition:compareHealth:field': 'Health value',

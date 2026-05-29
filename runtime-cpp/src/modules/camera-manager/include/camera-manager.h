@@ -59,8 +59,9 @@ public:
 
     // ------------------------------------------------------------------ shake
 
-    // Add trauma (0–1 range; stacks additively, clamped to 1)
-    void addTrauma(float amount);
+    // Add trauma (0–1 range; stacks additively, clamped to 1).
+    // durationSeconds > 0 sets linear decay so trauma≈1 reaches ~0 in that time.
+    void addTrauma(float amount, float durationSeconds = 0.f);
     float trauma() const { return trauma_; }
 
     // Max shake displacement in world units and max rotation in radians
@@ -121,8 +122,9 @@ private:
     float        followSpeed_ = 5.f;
 
     // Shake
-    float trauma_         = 0.f;
-    float shakeDisplace_  = 20.f;
+    float trauma_           = 0.f;
+    float traumaDecayRate_  = 1.5f;
+    float shakeDisplace_    = 32.f;
     float shakeRotation_  = 0.05f;
     Vec2  shakeOffset_    = { 0.f, 0.f };
     float shakeRotOffset_ = 0.f;

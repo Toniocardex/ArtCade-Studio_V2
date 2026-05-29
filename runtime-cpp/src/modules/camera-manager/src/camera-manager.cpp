@@ -10,8 +10,9 @@ bool CameraManager::init() {
     zoom_     = 1.f;
     movDuration_ = zoomDuration_ = 0.f;
     followGetter_ = {};
-    trauma_       = 0.f;
-    shakeOffset_  = { 0.f, 0.f };
+    trauma_          = 0.f;
+    traumaDecayRate_ = 1.5f;
+    shakeOffset_     = { 0.f, 0.f };
     shakeRotOffset_ = 0.f;
     shakeTime_    = 0.f;
     return true;
@@ -66,9 +67,11 @@ void CameraManager::clearFollowTarget() {
 
 // ------------------------------------------------------------------ shake
 
-void CameraManager::addTrauma(float amount) {
+void CameraManager::addTrauma(float amount, float durationSeconds) {
     if (amount <= 0.f) return;
     trauma_ = std::min(trauma_ + amount, 1.f);
+    if (durationSeconds > 0.f)
+        traumaDecayRate_ = 1.f / durationSeconds;
 }
 
 void CameraManager::setShakeParams(float maxDisplace, float maxRotation) {
@@ -121,7 +124,8 @@ void CameraManager::updateMotion(float dt) {
 
 void CameraManager::refreshShakeOffset(float dt) {
     if (trauma_ > 0.f) {
-        const float shake = trauma_ * trauma_;
+        // Linear in trauma so Logic Board intensity 0–1 maps predictably to amplitude.
+        const float shake = trauma_;
         shakeTime_ += dt;
         shakeOffset_.x = shakeDisplace_ * shake * pseudoNoise(shakeTime_ * 17.f);
         shakeOffset_.y = shakeDisplace_ * shake * pseudoNoise(shakeTime_ * 13.f + 5.f);
@@ -134,7 +138,7 @@ void CameraManager::refreshShakeOffset(float dt) {
 
 void CameraManager::decayTrauma(float dt) {
     if (trauma_ > 0.f)
-        trauma_ = std::max(0.f, trauma_ - dt * 1.5f);
+        trauma_ = std::max(0.f, trauma_ - dt * traumaDecayRate_);
 }
 
 void CameraManager::updateShake(float dt) {

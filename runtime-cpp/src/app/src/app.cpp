@@ -703,16 +703,11 @@ void Application::renderActiveScene() {
     const SceneDef* activeScene = mod_->sceneManager->activeScene();
     const Vec4 clearColor = {0.015f, 0.018f, 0.025f, 1.f};
 
-    // Camera shake — apply CameraManager's shake offset on top of the
-    // renderer's authoritative camera position for THIS frame only, then
-    // restore on the way out. Without this CameraManager.addTrauma (Lua's
-    // camera.shake) computes a value that nothing ever reads.
-    const Vec2 baseCameraPos = mod_->renderer->getCameraPosition();
-    const Vec2 shake         = mod_->cameraManager->shakeOffset();
-    if (shake.x != 0.f || shake.y != 0.f) {
-        mod_->renderer->setCameraPosition(
-            { baseCameraPos.x + shake.x, baseCameraPos.y + shake.y });
-    }
+    // Camera shake — render-only offset (see Renderer::setRenderShakeOffset).
+    // Do not use setCameraPosition for shake: clampCameraTarget can zero it out
+    // when the world fits the viewport (editor 1:1 preview).
+    const Vec2 shake = mod_->cameraManager->shakeOffset();
+    mod_->renderer->setRenderShakeOffset(shake);
 
     // Snapshot the editor flags ONCE per frame. Reading EditorAPI::s_*
     // statics inside the renderers would leak runtime-bridge state into
@@ -833,11 +828,7 @@ void Application::renderActiveScene() {
     RayTintWidget::draw();
     mod_->renderer->presentScreen();
 
-    // Restore the base camera position so the next frame's gameplay (and
-    // any reader of renderer->getCameraPosition() — e.g. world's camera
-    // follow lerp) sees the canonical, shake-free value.
-    if (shake.x != 0.f || shake.y != 0.f)
-        mod_->renderer->setCameraPosition(baseCameraPos);
+    mod_->renderer->setRenderShakeOffset({ 0.f, 0.f });
 }
 
 // ---- Shutdown (reverse dependency order) --------------------------------

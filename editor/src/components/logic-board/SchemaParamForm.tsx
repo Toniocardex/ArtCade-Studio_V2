@@ -51,7 +51,8 @@ function numDisplayValue(
 
 function numberEmptyDefault(kind: ComponentKind, type: string, name: string): number {
   if (kind === 'action' && type === 'repeatTimes' && name === 'count') return 3
-  if (kind === 'action' && type === 'cameraShake' && name === 'trauma') return 0.5
+  if (kind === 'action' && type === 'cameraShake' && name === 'trauma') return 0.35
+  if (kind === 'action' && type === 'cameraShake' && name === 'durationSeconds') return 0.5
   return 0
 }
 

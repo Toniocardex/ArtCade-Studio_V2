@@ -1412,7 +1412,7 @@ describe('Logic Components — Phase C (engine-hook triggers)', () => {
     ])
     expect(lua).toContain('local function _logic_rep_step_1(n)')
     expect(lua).toContain('if n > 5 then return end')
-    expect(lua).toContain('camera.shake(0.5)')
+    expect(lua).toContain('camera.shake(0.5, 0.5)')
     expect(lua).toContain('time.after(0.5, function() _logic_rep_step_1(n + 1) end)')
   })
 
@@ -1521,16 +1521,29 @@ describe('RULE alias integrity', () => {
 })
 
 describe('Defensive value coercion', () => {
-  it('cameraShake without trauma defaults intensity to 0.5', () => {
+  it('cameraShake without trauma defaults intensity to 0.35', () => {
     const lua = compileLogicBoard([
       board([
         ev({ trigger: { type: 'onUpdate' },
              actions: [{ type: 'cameraShake' } as never] }),
       ]),
     ])
-    expect(lua).toContain('camera.shake(0.5)')
-    expect(lua).not.toContain('camera.shake(undefined)')
+    expect(lua).toContain('camera.shake(0.35, 0.5)')
+    expect(lua).not.toContain('camera.shake(undefined')
+    expect(lua).toMatch(/camera\.shake\(0\.35, 0\.5\)/)
     expect(lua).not.toContain('NaN')
+  })
+
+  it('cameraShake emits custom durationSeconds', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({
+          trigger: { type: 'onStart' },
+          actions: [{ type: 'cameraShake', trauma: 0.5, durationSeconds: 2 }],
+        }),
+      ]),
+    ])
+    expect(lua).toContain('camera.shake(0.5, 2)')
   })
 
   it('cameraShake clamps trauma above 1 in emitted Lua', () => {
@@ -1542,7 +1555,7 @@ describe('Defensive value coercion', () => {
         }),
       ]),
     ])
-    expect(lua).toContain('camera.shake(1)')
+    expect(lua).toContain('camera.shake(1, 0.5)')
   })
 
   it('onStart-only cameraShake runs init at script load (edit-mode hot reload)', () => {
@@ -1556,9 +1569,9 @@ describe('Defensive value coercion', () => {
     ])
     expect(lua).toContain('__artcade_requires_tick = false or (__artcade_project_tick ~= nil)')
     expect(lua).toContain('if not __artcade_requires_tick and not _init_done then')
-    expect(lua).toContain('camera.shake(0.6)')
+    expect(lua).toContain('camera.shake(0.6, 0.5)')
     const initDef = lua.indexOf('local function _logic_init()')
-    const shakeCall = lua.indexOf('camera.shake(0.6)')
+    const shakeCall = lua.indexOf('camera.shake(0.6, 0.5)')
     const eagerInit = lua.indexOf('if not __artcade_requires_tick and not _init_done then')
     expect(shakeCall).toBeGreaterThan(initDef)
     expect(eagerInit).toBeGreaterThan(shakeCall)
