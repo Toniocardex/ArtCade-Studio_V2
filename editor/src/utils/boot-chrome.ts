@@ -68,6 +68,7 @@ export function revealTauriWindowAfterBoot(): void {
   if (!isTauri()) return
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
+      // lint-ignore: setTimeout — WebView2 needs a task after rAF before show().
       globalThis.setTimeout(() => {
         void getCurrentWindow().show()
       }, 0)

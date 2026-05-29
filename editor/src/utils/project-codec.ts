@@ -475,7 +475,8 @@ export function parseProjectDocWithMeta(jsonStr: string): ParseProjectDocResult 
 
     const { project } = normalizeProjectDoc(base)
     return { project, logicBoardLoadIssues: logicBoardsParsed.issues }
-  } catch {
+  } catch (err) {
+    console.error('[project-codec] Failed to parse project.json:', err)
     return null
   }
 }

@@ -26,6 +26,10 @@ import {
 } from '../../utils/preview-restore'
 import { readProjectImageBytes } from '../../utils/api'
 import { dirName } from '../../utils/project'
+import {
+  scheduleWasmUiUpdate,
+  scheduleWasmUiUpdateWhen,
+} from '../../utils/wasm-ui-scheduler'
 import type { ConsoleEntry, ProjectDoc, ScriptFile } from '../../types'
 import type { Action as EditorAction } from '../../store/editor-store'
 
@@ -33,6 +37,7 @@ export interface MakeLogEntry { (message: string, level: string): ConsoleEntry }
 
 // ---------------------------------------------------------------------------
 // buildRuntimeCallbacks — single source of truth for the C++→React contract
+// (all deferred UI work goes through utils/wasm-ui-scheduler)
 // ---------------------------------------------------------------------------
 
 export interface RuntimeCallbackDeps {
@@ -61,24 +66,25 @@ export function buildRuntimeCallbacks(deps: RuntimeCallbackDeps): WasmCallbacks 
       // "runtime still loading" state without waiting for a re-render of
       // the preview panel.
       runtimeSync.notifyReadyChanged()
-      if (cancelled()) return
-      setTimeout(() => dispatch({
-        type: 'LOG',
-        entry: makeLogEntry('[WASM] Runtime initialised — editor mode active.', 'info'),
-      }), 0)
+      scheduleWasmUiUpdateWhen(cancelled, () => {
+        dispatch({
+          type: 'LOG',
+          entry: makeLogEntry('[WASM] Runtime initialised — editor mode active.', 'info'),
+        })
+      })
     },
     onEntitySelected: (entityId: number) => {
-      if (cancelled()) return
-      dispatch({ type: 'SELECT_ENTITY', entityId })
+      scheduleWasmUiUpdateWhen(cancelled, () => {
+        dispatch({ type: 'SELECT_ENTITY', entityId })
+      }, { urgent: true })
     },
     onEntityTransformChanged: (
       entityId: number, x: number, y: number,
       rotation: number, scaleX: number, scaleY: number,
     ) => {
-      if (cancelled()) return
-      setTimeout(() => {
-        if (!cancelled()) handleRuntimeTransform(entityId, x, y, rotation, scaleX, scaleY)
-      }, 0)
+      scheduleWasmUiUpdateWhen(cancelled, () => {
+        handleRuntimeTransform(entityId, x, y, rotation, scaleX, scaleY)
+      }, { urgent: true })
     },
     onConsoleLine: (message: string, level: string) => {
       // EditorAPI errors must reach the console even if an older lifecycle
@@ -89,38 +95,39 @@ export function buildRuntimeCallbacks(deps: RuntimeCallbackDeps): WasmCallbacks 
       if (cancelled() && !forceLog) return
       const entry = makeLogEntry(message, level)
       if (message.includes('[EditorAPI] Bridge initialised')) {
-        setTimeout(() => {
-          if (!cancelled()) {
-            setEngineReady(true)
-            runtimeSync.notifyEngineReady()
-          }
-        }, 0)
+        scheduleWasmUiUpdateWhen(cancelled, () => {
+          setEngineReady(true)
+          runtimeSync.notifyEngineReady()
+        }, { urgent: true })
       }
-      setTimeout(() => dispatch({ type: 'LOG', entry }), 0)
+      scheduleWasmUiUpdate(() => {
+        if (cancelled() && !forceLog) return
+        dispatch({ type: 'LOG', entry })
+      }, { urgent: forceLog })
     },
     onTilemapPainted: (col: number, row: number, tileId: number) => {
       if (cancelled()) return
       const sceneId = sceneIdRef.current
       if (!sceneId) return
-      setTimeout(() => dispatch({
-        type: 'TILEMAP_PAINT_CELL', sceneId, col, row, tileId,
-      }), 0)
+      scheduleWasmUiUpdateWhen(cancelled, () => {
+        dispatch({
+          type: 'TILEMAP_PAINT_CELL', sceneId, col, row, tileId,
+        })
+      }, { urgent: true })
     },
     onSpriteFillColor: (entityId: number, r: number, g: number, b: number) => {
-      if (cancelled()) return
-      setTimeout(() => {
-        if (!cancelled()) {
-          dispatch({
-            type: 'ENTITY_SET_SPRITE_FILL',
-            entityId,
-            fillColor: { x: r, y: g, z: b },
-          })
-        }
-      }, 0)
+      scheduleWasmUiUpdateWhen(cancelled, () => {
+        dispatch({
+          type: 'ENTITY_SET_SPRITE_FILL',
+          entityId,
+          fillColor: { x: r, y: g, z: b },
+        })
+      })
     },
     onEditorCursorWorld: (x: number, y: number) => {
-      if (cancelled()) return
-      dispatch({ type: 'SET_CURSOR', x, y })
+      scheduleWasmUiUpdateWhen(cancelled, () => {
+        dispatch({ type: 'SET_CURSOR', x, y })
+      })
     },
   }
 }
@@ -179,8 +186,9 @@ export function useWasmRuntimeLifecycle(opts: LifecycleOptions): void {
     })
 
     return () => { cancelled = true }
-    // We intentionally re-run only when the dispatch identity changes (i.e.
-    // when EditorProvider remounts). Other deps are stable refs/callbacks.
+    // Intentionally keyed on `dispatch` only: remount WASM when EditorProvider
+    // resets (boot session). Canvas/mode/callbacks are stable refs — re-running
+    // on them would double-init the runtime (see docs/TECHNICAL_DEBT_REVIEW.md P1/P2).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch])
 
@@ -190,6 +198,8 @@ export function useWasmRuntimeLifecycle(opts: LifecycleOptions): void {
     const canvas = canvasRef.current
     if (!canvas || !isReady()) return
     syncRuntimeUiFlags()
+    // Rebind uses cancelled: () => false — this effect only swaps the canvas
+    // target; lifecycle teardown remains on the mount effect above.
     void loadWasmRuntime(canvas, WASM_RUNTIME_SRC, buildRuntimeCallbacks({
       cancelled: () => false,
       dispatch, setEngineReady,

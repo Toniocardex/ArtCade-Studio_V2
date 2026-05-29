@@ -17,6 +17,24 @@ export function isArtcadePackagePath(path: string): boolean {
   return path.toLowerCase().endsWith('.artcade')
 }
 
+/** True when package JSON had no objectTypes but normalize added them from legacy entities. */
+export function detectLegacyMigrationFromPackageJson(
+  projectJson: string,
+  project: ProjectDoc,
+): boolean {
+  let raw: { objectTypes?: unknown; object_types?: unknown }
+  try {
+    raw = JSON.parse(projectJson) as { objectTypes?: unknown; object_types?: unknown }
+  } catch {
+    return false
+  }
+  return (
+    !raw.objectTypes
+    && !raw.object_types
+    && Boolean(project.objectTypes && Object.keys(project.objectTypes).length > 0)
+  )
+}
+
 export async function importArtcadePackage(packagePath: string): Promise<LoadedProjectFile | null> {
   if (!isTauri()) {
     console.warn('[api] importArtcadePackage: Tauri not available in browser mode')
@@ -38,13 +56,7 @@ export async function importArtcadePackage(packagePath: string): Promise<LoadedP
     }
     const { project, logicBoardLoadIssues } = parsed
     assertProjectPathsSafe(project)
-    let migratedFromLegacy = false
-    try {
-      const raw = JSON.parse(projectJson) as { objectTypes?: unknown; object_types?: unknown }
-      migratedFromLegacy =
-        !raw.objectTypes && !raw.object_types
-        && Boolean(project.objectTypes && Object.keys(project.objectTypes).length > 0)
-    } catch { /* ignore */ }
+    const migratedFromLegacy = detectLegacyMigrationFromPackageJson(projectJson, project)
 
     const importRoot = await uniqueImportRoot(packagePath, project.projectName)
     for (const entry of entries) {

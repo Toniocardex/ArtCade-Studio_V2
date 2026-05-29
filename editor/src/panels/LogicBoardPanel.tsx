@@ -282,9 +282,19 @@ export default function LogicBoardPanel() {
   const [clipboardHint, setClipboardHint] = useState<string | null>(null)
   const clipboardRef = useRef<LogicClipboard>(null)
   const hintTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null)
+  const applyMsgTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null)
   const flashApplyMsg = useCallback((msg: string, ms = 4000) => {
+    if (applyMsgTimerRef.current != null) globalThis.clearTimeout(applyMsgTimerRef.current)
     setApplyMsg(msg)
-    globalThis.setTimeout(() => setApplyMsg(null), ms)
+    applyMsgTimerRef.current = globalThis.setTimeout(() => {
+      applyMsgTimerRef.current = null
+      setApplyMsg(null)
+    }, ms)
+  }, [])
+
+  useEffect(() => () => {
+    if (applyMsgTimerRef.current != null) globalThis.clearTimeout(applyMsgTimerRef.current)
+    if (hintTimerRef.current != null) globalThis.clearTimeout(hintTimerRef.current)
   }, [])
 
   const showClipboardHint = useCallback((msg: string) => {

@@ -2,6 +2,7 @@ import {
   useCallback, useEffect, useLayoutEffect, useState, type TransitionEvent, type ReactNode,
 } from 'react'
 import SplashScreen from './SplashScreen'
+import { shouldShowBootLoadingStatus, shouldStartBootFade } from './boot-gate-logic'
 import { useEditorBootReady } from '../hooks/useEditorBootReady'
 import { revealTauriWindowAfterBoot } from '../utils/boot-chrome'
 import { warmWasmBinary } from '../utils/wasm-bridge'
@@ -35,7 +36,7 @@ export default function EditorBootGate({ children }: EditorBootGateProps) {
   const skipIntro = useCallback(() => setIntroDone(true), [])
 
   useEffect(() => {
-    if (!ready || !introDone || bootComplete || fadeOut) return
+    if (!shouldStartBootFade({ ready, introDone, bootComplete, fadeOut })) return
     setFadeOut(true)
     revealTauriWindowAfterBoot()
   }, [ready, introDone, bootComplete, fadeOut])
@@ -46,6 +47,7 @@ export default function EditorBootGate({ children }: EditorBootGateProps) {
     setBootComplete(true)
   }, [fadeOut])
 
+  // lint-ignore: setTimeout — opacity transitionend may not fire (reduced-motion).
   useEffect(() => {
     if (!fadeOut || bootComplete) return undefined
     const t = globalThis.setTimeout(() => setBootComplete(true), 350)
@@ -53,6 +55,7 @@ export default function EditorBootGate({ children }: EditorBootGateProps) {
   }, [fadeOut, bootComplete])
 
   const showOverlay = !bootComplete
+  const showLoadingStatus = shouldShowBootLoadingStatus({ introDone, ready, timedOut })
 
   return (
     <div className="relative h-full w-full min-h-0 flex flex-col overflow-hidden bg-[var(--bg)]">
@@ -88,6 +91,11 @@ export default function EditorBootGate({ children }: EditorBootGateProps) {
           >
             Skip intro
           </button>
+          {showLoadingStatus && (
+            <p className="fixed bottom-16 left-0 right-0 z-[105] text-center text-[10px] text-[var(--muted)] font-mono pointer-events-none px-6">
+              {statusLine}
+            </p>
+          )}
           {timedOut && (
             <div className="fixed bottom-6 left-6 right-24 z-[110] flex flex-col gap-2 pointer-events-auto max-w-md">
               <p className="text-[11px] text-[var(--danger)] font-mono leading-snug">
