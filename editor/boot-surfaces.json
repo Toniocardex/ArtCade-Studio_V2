@@ -1,0 +1,16 @@
+{
+  "dark": {
+    "bg": "#1A1A1A",
+    "text": "#EAEAEA",
+    "red": 26,
+    "green": 26,
+    "blue": 26
+  },
+  "light": {
+    "bg": "#ECEAE4",
+    "text": "#1A1A1A",
+    "red": 236,
+    "green": 234,
+    "blue": 228
+  }
+}

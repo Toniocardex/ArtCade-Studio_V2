@@ -46,10 +46,7 @@ export function useEditorBootReady(): EditorBootReadyState {
   useEffect(() => {
     let cancelled = false
     const fonts = document.fonts?.ready ?? Promise.resolve()
-    void Promise.race([
-      fonts,
-      new Promise<void>((resolve) => { globalThis.setTimeout(resolve, 2000) }),
-    ]).finally(() => {
+    void fonts.finally(() => {
       if (!cancelled) setFontsReady(true)
     })
     return () => { cancelled = true }
@@ -58,6 +55,7 @@ export function useEditorBootReady(): EditorBootReadyState {
   const ready =
     projectReady && wasmReady && engineReady && synced && fontsReady
 
+  // Watchdog for stuck WASM/EditorAPI sync — not a race-condition workaround.
   useEffect(() => {
     if (ready) {
       setTimedOut(false)

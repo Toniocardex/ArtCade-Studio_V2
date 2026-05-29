@@ -7,16 +7,25 @@ html, body, #root {
   padding: 0;
   overflow: hidden;
 }
-:root {
-  --bg: #09090b;
-  --panel: #18181b;
-  --border: #27272a;
-  --text: #e4e4e7;
-  --muted: #71717a;
-  --accent: #3b82f6;
+:root,
+[data-theme="dark"] {
+  --bg: #1A1A1A;
+  --panel: #313131;
+  --border: #484848;
+  --text: #EAEAEA;
+  --muted: #A2A2A2;
+  --accent: #7A9C7E;
+}
+[data-theme="light"] {
+  --bg: #ECEAE4;
+  --panel: #F5F3EE;
+  --border: #C4C0B8;
+  --text: #1A1A1A;
+  --muted: #5A5A5A;
+  --accent: #5D7A61;
 }
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: ui-monospace, monospace;
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
 }

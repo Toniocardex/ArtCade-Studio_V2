@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "compile-schemas": "node scripts/compile-logic-schemas.mjs",
-    "build": "npm run compile-schemas && tsc && vite build",
+    "sync-boot-chrome": "node scripts/sync-boot-chrome.mjs",
+    "build": "npm run compile-schemas && npm run sync-boot-chrome && tsc && vite build",
     "build:release": "npm run build && npm run package:sdk",
     "package:sdk": "powershell -ExecutionPolicy Bypass -File ..\\scripts\\package-runtime-sdk.ps1",
     "preview": "vite preview",

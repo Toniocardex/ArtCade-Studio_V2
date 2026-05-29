@@ -13,14 +13,8 @@ export function BootLoadingOverlay({ statusLine, timedOut, onRetry }: BootLoadin
       aria-live="polite"
       aria-busy={!timedOut}
     >
-      <img
-        src="/artcade_logo.png"
-        alt=""
-        className="w-24 h-24 object-contain opacity-90"
-        onError={(e) => { e.currentTarget.style.display = 'none' }}
-      />
       <div className="flex flex-col items-center gap-3 px-6 max-w-sm text-center">
-        <p className="text-sm font-semibold tracking-wide text-[var(--text)]">
+        <p className="text-lg font-bold tracking-tight text-[var(--text)]">
           ArtCade Studio
         </p>
         {!timedOut ? (

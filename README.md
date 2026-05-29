@@ -67,7 +67,7 @@ ArtCade V2/
 
 ## Documentation
 
-- **Cursor / AI agent rules (delivery + code review):** [`.cursor/rules/artcade-studio.mdc`](.cursor/rules/artcade-studio.mdc) — architecture context in [AGENTS.md](AGENTS.md)
+- **Cursor / AI agent rules (delivery + code review):** [`.cursor/rules/cursorrules-artcade.mdc`](.cursor/rules/cursorrules-artcade.mdc) — architecture context in [AGENTS.md](AGENTS.md)
 - **Index (all docs):** [docs/README.md](docs/README.md)
 - **Artist-friendly component principle:** [docs/ARTIST_FRIENDLY_COMPONENTS.md](docs/ARTIST_FRIENDLY_COMPONENTS.md)
 - **Engine integration roadmap:** [docs/ENGINE_INTEGRATION_ROADMAP.md](docs/ENGINE_INTEGRATION_ROADMAP.md)

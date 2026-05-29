@@ -9,6 +9,39 @@ Follow these rules for implementation work and when the user asks for a code rev
 
 ---
 
+## Native-first policy
+
+**These rules apply to every implementation task and every code review in this repo.**
+
+- **ALWAYS prefer native language/framework/platform APIs** over third-party solutions, manual reimplementations, or compatibility shims — unless the native API is genuinely absent or insufficient for the target platform.
+- **Fix the root cause, not the symptom.** If a bug requires patching behavior from the outside, stop and ask why the underlying mechanism is broken.
+- **Workarounds are never acceptable as final solutions.** A workaround in a commit must be marked `// TEMPORARY: <reason> — must be replaced by <native approach> before <milestone/ticket>`. Unmarked workarounds are a SHOULD-FIX in review.
+- **If a native fix requires a refactor, propose the refactor.** Do not avoid correct solutions because they are larger. Present the scope clearly and let the user decide.
+
+### Banned patterns (require explicit justification to use)
+
+| Pattern | Why it is banned | Native alternative |
+|---|---|---|
+| `setTimeout` / `setInterval` to fix timing or ordering bugs | Masks race conditions; breaks under load | Fix the async contract; use `await`, signals, or proper lifecycle hooks |
+| `try/catch` around logic to silence unexpected errors | Hides root failures | Handle or propagate explicitly; use typed error results |
+| Double-negation (`!!x`) for coercion | Fragile on `null`/`0`/`NaN` in this stack | Explicit type guard or native boolean cast |
+| Manual DOM manipulation when a framework method exists | Bypasses reactivity, causes stale state | Use the framework's reactive API |
+| Polyfills/shims for features available natively in the target runtime | Adds weight, diverges from platform semantics | Use the native API; bump the minimum runtime version if needed |
+| Redundant state copies to work around a stale-closure bug | Symptom patch | Fix the closure / subscription scope |
+
+### Critic step (self-review before proposing code)
+
+After drafting any fix or implementation, run this internal checklist before presenting it:
+
+1. Is any part of this solution patching a symptom instead of fixing a cause?
+2. Does this use a native API, or did I reach for a workaround because it was faster to write?
+3. If I used a non-idiomatic pattern, have I added a comment explaining *why* the native approach is not viable here?
+4. Would a Principal Engineer reading this diff ask "why didn't you just use X?"
+
+If the answer to (1) or (2) is yes, rewrite before presenting.
+
+---
+
 ## Operational pipeline
 
 Follow this sequence for implementation tasks unless the user asks for a subset only.
@@ -42,6 +75,7 @@ Run `git status` and `git diff --stat`. Review explicitly:
 | Secrets | Never stage `.env`, keys, credentials. |
 | Generated files | Include `validators.generated.ts` when schemas change. |
 | Breaking changes | If the diff touches a public contract (TypeScript types, Lua API, JSON schema, Tauri IPC, saved project format), flag it explicitly. Silent backward-incompatible changes are always a BLOCKER. |
+| Native-first | Flag any workaround introduced by this diff. If present, it must carry a `// TEMPORARY:` comment or be converted to the native solution before the commit is allowed. |
 
 Summarize for the user: what changed, risks (if any), test result.
 
@@ -93,13 +127,15 @@ When requested to perform a code review (diff, PR, pre-commit, or "review this")
 - Null / undefined / empty / zero edge cases — especially across Tauri IPC and WASM boundaries where types can be erased.
 - Race conditions, ordering assumptions, async/timing issues.
 - Error handling: swallowed errors, unhandled promise rejections, partial failure leaving state inconsistent.
-- Verify that every fix actually addresses the root cause, not just the symptom.
+- **Verify that every fix actually addresses the root cause, not just the symptom. A patch that suppresses an error without eliminating its source is always at least a SHOULD-FIX.**
+- **Workaround check:** does the fix use a banned pattern from the Native-first policy (setTimeout, silent try/catch, etc.)? If so, flag at SHOULD-FIX minimum with the native alternative shown in the proposed fix.
 
 ### 2. Integration & Architecture
 - Call graph: who calls what, missing wiring, dead code introduced by a refactor.
 - Breaking changes to public contracts: TypeScript types, Lua scripting APIs, JSON schema, Tauri IPC command signatures.
 - **Saved-project compatibility:** if the diff alters any serialized format (schema JSON, entity fields, action payloads, file structure), assess whether existing `.artcade` projects still load correctly. A migration gap is always a BLOCKER.
 - Dependency direction: new coupling that makes a module harder to test or replace in isolation.
+- **Native API availability:** if the diff introduces a third-party utility for something the target runtime (Node, browser, Rust std, C++ stdlib) provides natively, flag it as a NIT with the native alternative. If the native API is meaningfully inferior in this context, note why.
 
 ### 3. Extreme Performance
 - Hot paths: per-frame ECS/render tick, compile-on-keystroke, event dispatch loops.
@@ -129,6 +165,7 @@ When requested to perform a code review (diff, PR, pre-commit, or "review this")
 - Generated files included when schemas change (`validators.generated.ts` after `npm run compile-schemas`).
 - No secrets in the commit.
 - Commit message is imperative, explains *why*, and is accurate to the actual diff.
+- **Workarounds without a `// TEMPORARY:` annotation are a SHOULD-FIX** — either convert to the native solution or annotate with rationale and a remediation target.
 
 (Pre-commit step 3 in the Operational pipeline overlaps with pillar 7 — apply both when committing.)
 </review_pipeline>
@@ -175,6 +212,7 @@ Present your review using EXACTLY this Markdown structure. Omit sections that ha
 - Every finding must cite a specific file and line. No generic observations ("error handling could be improved") without a concrete example.
 - If a finding has a fix, show the fix. A diagnosis without a cure is half a review.
 - Do not manufacture findings to fill the template. An empty section is correct output when a pillar has no issues.
+- **For every workaround or banned pattern found, the proposed fix must show the native alternative — not just flag the problem.**
 
 **Pragmatic linting**
 - Static analysis warnings (from any tool) are advisory signals, not verdicts. Before surfacing a linter finding, verify manually that the fix would not change observable behavior — especially across Tauri IPC, WASM, or Lua boundaries where type information is incomplete.

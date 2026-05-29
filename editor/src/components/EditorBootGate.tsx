@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import {
+  useCallback, useEffect, useLayoutEffect, useRef, useState, type TransitionEvent, type ReactNode,
+} from 'react'
 import SplashScreen from './SplashScreen'
 import { BootLoadingOverlay } from './BootLoadingOverlay'
 import { useEditorBootReady } from '../hooks/useEditorBootReady'
@@ -28,6 +30,10 @@ export default function EditorBootGate({ children }: EditorBootGateProps) {
   const [showMarketing] = useState(() => !hasSeenBootSplash())
   const { ready, timedOut, statusLine, retry } = useEditorBootReady()
 
+  useLayoutEffect(() => {
+    document.getElementById('boot-shell')?.remove()
+  }, [])
+
   const [marketingDone, setMarketingDone] = useState(!showMarketing)
   const [bootComplete, setBootComplete] = useState(false)
   const [fadeOut, setFadeOut] = useState(false)
@@ -40,16 +46,20 @@ export default function EditorBootGate({ children }: EditorBootGateProps) {
   useEffect(() => {
     if (!ready || !marketingDone || bootComplete) return
     setFadeOut(true)
-    const t = globalThis.setTimeout(() => setBootComplete(true), 280)
-    return () => globalThis.clearTimeout(t)
   }, [ready, marketingDone, bootComplete])
+
+  const onOverlayTransitionEnd = useCallback((e: TransitionEvent<HTMLDivElement>) => {
+    if (e.target !== e.currentTarget) return
+    if (e.propertyName !== 'opacity' || !fadeOut) return
+    setBootComplete(true)
+  }, [fadeOut])
 
   const showOverlay = !bootComplete
   const showSplash = showOverlay && showMarketing && !marketingDone
   const showSpinner = showOverlay && marketingDone
 
   return (
-    <div className="relative h-full w-full min-h-0 flex flex-col overflow-hidden">
+    <div className="relative h-full w-full min-h-0 flex flex-col overflow-hidden bg-[var(--bg)]">
       <div
         className={`flex flex-1 min-h-0 flex-col overflow-hidden transition-opacity duration-300 ${
           bootComplete ? 'opacity-100' : 'opacity-0 pointer-events-none'
@@ -61,9 +71,10 @@ export default function EditorBootGate({ children }: EditorBootGateProps) {
 
       {showOverlay && (
         <div
-          className={`fixed inset-0 z-[100] transition-opacity duration-300 ${
+          className={`fixed inset-0 z-[100] bg-[var(--bg)] transition-opacity duration-300 ${
             fadeOut ? 'opacity-0 pointer-events-none' : 'opacity-100'
           }`}
+          onTransitionEnd={onOverlayTransitionEnd}
         >
           {showSplash ? (
             <>

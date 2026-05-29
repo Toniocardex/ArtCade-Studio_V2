@@ -6,15 +6,18 @@ import {
 // Lightweight DOM/storage mocks so the suite stays in the node environment
 // (no jsdom dependency — matches the rest of the test setup).
 let dataset: { theme?: string }
+let elementStyle: { backgroundColor?: string; color?: string }
 let store: Record<string, string>
 let prefersLight = false
 
 beforeEach(() => {
   dataset = {}
+  elementStyle = {}
   store = {}
   prefersLight = false
   vi.stubGlobal('document', {
-    documentElement: { dataset },
+    documentElement: { dataset, style: elementStyle },
+    getElementById: () => null,
   })
   vi.stubGlobal('localStorage', {
     getItem: (k: string) => (k in store ? store[k] : null),
