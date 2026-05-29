@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  editor:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Editor tests
+        run: cd editor; npm test -- --run
+
+      - name: Editor production build
+        run: npm run build
+
+  native:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Native runtime and tests
+        run: npm run build:cpp
+
+  wasm:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup Emscripten
+        uses: mymind/emsetup@v1
+        with:
+          version: '3.1.64'
+
+      - name: Build WASM preview runtime
+        run: npm run build:wasm
+
+      - name: Verify game.wasm copied into Vite public
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "editor/public/runtime/game.wasm")) {
+            throw "Missing editor/public/runtime/game.wasm after build:wasm"
+          }
+          npm run build
+          if (-not (Test-Path "editor/dist/runtime/game.wasm")) {
+            throw "Missing editor/dist/runtime/game.wasm after npm run build"
+          }
