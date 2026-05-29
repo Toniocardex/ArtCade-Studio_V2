@@ -12,10 +12,10 @@ import { usePersistedHeight } from '../hooks/usePersistedHeight'
 import { usePersistedBoolean } from '../hooks/usePersistedBoolean'
 import { triggerLayoutReflow } from '../utils/layout-reflow'
 
-const DEFAULT_ASSETS_H = 360
-const MIN_ASSETS_H = 140
-const MAX_ASSETS_RATIO = 0.65
-const SCENE_PANEL_MAX_RATIO = 0.42
+/** Default asset strip height — enough for tabs + a few rows, not half the sidebar. */
+const DEFAULT_ASSETS_H = 250
+const MIN_ASSETS_H = 120
+const MAX_ASSETS_RATIO = 0.5
 
 export default function LeftSidebar() {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -26,7 +26,7 @@ export default function LeftSidebar() {
   )
 
   const [assetsHeight, setAssetsHeight] = usePersistedHeight(
-    'artcade.left-assets-h-v2',
+    'artcade.left-assets-h-v3',
     DEFAULT_ASSETS_H,
     MIN_ASSETS_H,
     maxAssetsH,
@@ -48,6 +48,21 @@ export default function LeftSidebar() {
     setAssetsHeight((h) => Math.min(h, maxAssetsH))
   }, [maxAssetsH, setAssetsHeight])
 
+  // One-time: v2 often saved ~360px and left a dead band above the asset strip.
+  useEffect(() => {
+    if (globalThis.window === undefined) return
+    const migrated = globalThis.localStorage.getItem('artcade.left-assets-migrated-v3')
+    if (migrated) return
+    const raw = globalThis.localStorage.getItem('artcade.left-assets-h-v2')
+    if (raw) {
+      const n = Number(raw)
+      if (Number.isFinite(n) && n > DEFAULT_ASSETS_H + 40) {
+        setAssetsHeight(DEFAULT_ASSETS_H)
+      }
+    }
+    globalThis.localStorage.setItem('artcade.left-assets-migrated-v3', '1')
+  }, [setAssetsHeight])
+
   useEffect(() => {
     triggerLayoutReflow()
   }, [assetsHeight, assetsCollapsed])
@@ -56,10 +71,7 @@ export default function LeftSidebar() {
 
   return (
     <div ref={containerRef} className="h-full min-h-0 flex flex-col bg-[var(--panel)]">
-      <div
-        className="flex-1 min-h-0 overflow-hidden"
-        style={{ maxHeight: `${SCENE_PANEL_MAX_RATIO * 100}%` }}
-      >
+      <div className="flex-1 min-h-0 overflow-hidden">
         <SceneObjectsPanel />
       </div>
 
