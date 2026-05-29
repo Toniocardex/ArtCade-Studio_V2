@@ -23,6 +23,7 @@ export function AtlasGrid({ asset, session }: AtlasGridProps) {
       <div
         className="relative border border-[var(--border-2)] overflow-auto flex-1 min-h-0"
         data-testid="spritesheet-preview-host"
+        // WASM engine preview: SpritesheetEnginePreview (phase 2) in ClipPreviewPane
       >
         <img
           src={asset.dataUrl}

@@ -77,6 +77,16 @@ public:
                           float srcX, float srcY, float srcW, float srcH,
                           float dstX, float dstY, float dstW, float dstH);
 
+    /**
+     * Spritesheet Studio: rasterize one atlas sub-rect into RGBA8 (top-left origin).
+     * @return 0 on success, negative on failure.
+     */
+    int captureSpriteRegionFrame(const AssetId& assetId,
+                                 float srcX, float srcY, float srcW, float srcH,
+                                 int canvasW, int canvasH,
+                                 unsigned char* rgbaOut,
+                                 int rgbaOutLen);
+
     void drawRect  (float x, float y, float w, float h, const Vec4& color);
     void drawRectImmediate(float x, float y, float w, float h, const Vec4& color);
     void drawLine  (float x1, float y1, float x2, float y2, const Vec4& color);

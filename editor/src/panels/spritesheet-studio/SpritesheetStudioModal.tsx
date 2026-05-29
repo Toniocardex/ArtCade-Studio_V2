@@ -3,6 +3,7 @@ import { useEditor } from '../../store/editor-store'
 import type { AnimationClipDef, ImageAsset } from '../../types'
 import { SpritesheetStudioLayout } from './SpritesheetStudioLayout'
 import { useSpritesheetStudioSession } from './useSpritesheetStudioSession'
+import { useSpritesheetWasmSync } from './useSpritesheetWasmSync'
 
 type SpritesheetStudioBodyProps = Readonly<{
   asset: ImageAsset
@@ -11,6 +12,7 @@ type SpritesheetStudioBodyProps = Readonly<{
 
 function SpritesheetStudioBody({ asset, imageAssetId }: SpritesheetStudioBodyProps) {
   const { dispatch } = useEditor()
+  useSpritesheetWasmSync(asset, true)
   const session = useSpritesheetStudioSession(asset, (clips: AnimationClipDef[]) => {
     dispatch({ type: 'ASSET_ADD', asset: { ...asset, id: imageAssetId, clips } })
   })

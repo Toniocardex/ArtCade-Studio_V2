@@ -31,6 +31,7 @@ function baseState(p: ProjectDoc): CoreState {
     dialogs: {},
     selectedDialogId: null,
     dialogModal: { open: false, dialogId: null },
+    spritesheetStudio: { open: false, imageAssetId: null },
   }
 }
 

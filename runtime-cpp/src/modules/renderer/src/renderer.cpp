@@ -5,6 +5,7 @@
 #include "../../../core/sprite-draw-math.h"
 #include <raylib.h>
 #include <algorithm>
+#include <cstring>
 #include <vector>
 
 namespace ArtCade::Modules {
@@ -383,6 +384,63 @@ Vec2 Renderer::spriteDestinationSize(const AssetId& assetId, const Vec2& scale) 
         static_cast<float>(tex->width)  * sx,
         static_cast<float>(tex->height) * sy,
     };
+}
+
+namespace {
+
+struct RegionPreviewTarget {
+    RenderTexture2D rt{};
+    int w = 0;
+    int h = 0;
+};
+
+RegionPreviewTarget g_regionPreview;
+
+bool ensureRegionPreviewTarget(int w, int h) {
+    if (w <= 0 || h <= 0) return false;
+    if (g_regionPreview.rt.id != 0 && g_regionPreview.w == w && g_regionPreview.h == h)
+        return true;
+    if (g_regionPreview.rt.id != 0)
+        UnloadRenderTexture(g_regionPreview.rt);
+    g_regionPreview.rt = LoadRenderTexture(w, h);
+    g_regionPreview.w  = w;
+    g_regionPreview.h  = h;
+    return g_regionPreview.rt.id != 0;
+}
+
+} // namespace
+
+int Renderer::captureSpriteRegionFrame(const AssetId& assetId,
+                                       float srcX, float srcY, float srcW, float srcH,
+                                       int canvasW, int canvasH,
+                                       unsigned char* rgbaOut,
+                                       int rgbaOutLen) {
+    if (!rgbaOut || rgbaOutLen <= 0) return -1;
+    const int w = canvasW > 0 ? canvasW : 64;
+    const int h = canvasH > 0 ? canvasH : 64;
+    const int need = w * h * 4;
+    if (rgbaOutLen < need || srcW <= 0.f || srcH <= 0.f) return -2;
+    if (!ensureRegionPreviewTarget(w, h)) return -3;
+
+    BeginTextureMode(g_regionPreview.rt);
+    ClearBackground(BLANK);
+    const float dx = (static_cast<float>(w) - srcW) * 0.5f;
+    const float dy = (static_cast<float>(h) - srcH) * 0.5f;
+    if (!drawSpriteRegion(assetId, srcX, srcY, srcW, srcH, dx, dy, srcW, srcH)) {
+        EndTextureMode();
+        return -4;
+    }
+    EndTextureMode();
+
+    Image pixels = LoadImageFromTexture(g_regionPreview.rt.texture);
+    if (!pixels.data || pixels.width != w || pixels.height != h) {
+        if (pixels.data) UnloadImage(pixels);
+        return -5;
+    }
+    ImageFlipVertical(&pixels);
+    std::memcpy(rgbaOut, pixels.data, static_cast<size_t>(need));
+    UnloadImage(pixels);
+    return 0;
 }
 
 bool Renderer::drawSpriteRegion(const AssetId& assetId,

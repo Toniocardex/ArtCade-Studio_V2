@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ImageAsset } from '../../types'
+import { SpritesheetEnginePreview } from './SpritesheetEnginePreview'
 import type { SpritesheetStudioSession } from './useSpritesheetStudioSession'
+import { isReady } from '../../utils/wasm-bridge'
 
 type ClipPreviewPaneProps = Readonly<{
   asset: ImageAsset
@@ -44,6 +46,14 @@ export function ClipPreviewPane({ asset, session }: ClipPreviewPaneProps) {
     return (
       <div className="p-3 border-t border-[var(--border)] text-[10px] text-[var(--muted)]">
         Select frames on the grid to preview playback.
+      </div>
+    )
+  }
+
+  if (isReady()) {
+    return (
+      <div className="p-3 border-t border-[var(--border)]">
+        <SpritesheetEnginePreview asset={asset} session={session} />
       </div>
     )
   }

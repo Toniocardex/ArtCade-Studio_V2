@@ -592,6 +592,54 @@ export function editorRegisterFont(
   }
 }
 
+/** @returns 0 on success, negative on failure. */
+export function editorReregisterAnimationClips(assetsJson: string): number {
+  if (!_module) return -1
+  const ptr = marshalString(assetsJson)
+  try {
+    return safeCcallNumber('editor_reregister_animation_clips', ['number'], [ptr])
+  } finally {
+    _module._free(ptr)
+  }
+}
+
+export function editorPreviewSpritesheetReset(): void {
+  safeCall('editor_preview_spritesheet_reset', null, [], [])
+}
+
+/**
+ * Rasterize one engine-accurate preview frame (RGBA8) for Spritesheet Studio.
+ * @returns 0 on success, negative on failure.
+ */
+export function editorPreviewSpritesheetTick(
+  texturePath: string,
+  clipName: string,
+  dtSeconds: number,
+  width: number,
+  height: number,
+  rgbaOut: Uint8Array,
+): number {
+  if (!_module || rgbaOut.byteLength < width * height * 4) return -1
+  const pathPtr = marshalString(texturePath)
+  const clipPtr = marshalString(clipName)
+  const bufPtr = _module._malloc(rgbaOut.byteLength)
+  try {
+    const code = safeCcallNumber(
+      'editor_preview_spritesheet_tick',
+      ['number', 'number', 'number', 'number', 'number', 'number', 'number'],
+      [pathPtr, clipPtr, dtSeconds, width, height, bufPtr, rgbaOut.byteLength],
+    )
+    if (code === 0) {
+      rgbaOut.set(_module.HEAPU8.subarray(bufPtr, bufPtr + rgbaOut.byteLength))
+    }
+    return code
+  } finally {
+    _module._free(bufPtr)
+    _module._free(clipPtr)
+    _module._free(pathPtr)
+  }
+}
+
 export function editorInvalidateAsset(assetKey: string, type: 'image' | 'audio' | 'font'): void {
   if (!_module) return
   const keyPtr = marshalString(assetKey)

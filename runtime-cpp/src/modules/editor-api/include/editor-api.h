@@ -330,6 +330,30 @@ EMSCRIPTEN_KEEPALIVE void editor_register_font(
 
 EMSCRIPTEN_KEEPALIVE void editor_invalidate_asset(const char* assetKey, const char* type);
 
+/**
+ * Rebuild SpriteAnimator clips from a partial project JSON blob containing
+ * `assets` (same shape as editor_load_project). Used when Spritesheet Studio
+ * edits clips without a full project hot-sync.
+ * @return 0 on success, negative on failure.
+ */
+EMSCRIPTEN_KEEPALIVE int editor_reregister_animation_clips(const char* json_utf8);
+
+/** Stop the isolated Spritesheet Studio preview animator instance. */
+EMSCRIPTEN_KEEPALIVE void editor_preview_spritesheet_reset();
+
+/**
+ * Advance and rasterize one Spritesheet Studio preview frame into RGBA8.
+ * @return 0 on success, negative on failure (missing clip/texture, etc.).
+ */
+EMSCRIPTEN_KEEPALIVE int editor_preview_spritesheet_tick(
+    const char* texturePath,
+    const char* clipName,
+    float dtSeconds,
+    int canvasW,
+    int canvasH,
+    unsigned char* rgbaOut,
+    int rgbaOutLen);
+
 /** Open RayTint picker for placeholder fill on an entity without a texture. */
 EMSCRIPTEN_KEEPALIVE void editor_open_raytint(uint32_t entityId);
 

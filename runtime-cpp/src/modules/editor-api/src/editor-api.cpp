@@ -68,6 +68,7 @@ std::vector<std::pair<std::string, std::string>> EditorAPI::s_consoleQueue;
 
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -424,6 +425,72 @@ EMSCRIPTEN_KEEPALIVE void editor_register_font(
 
 EMSCRIPTEN_KEEPALIVE void editor_deselect() {
     ArtCade::EditorAPI::s_selectedEntityId = 0u;
+}
+
+namespace {
+
+std::string g_sheetPreviewActiveClip;
+constexpr ArtCade::Modules::SpriteAnimator::EntityId kSpritesheetPreviewEntity = 0xE0000001u;
+
+} // namespace
+
+EMSCRIPTEN_KEEPALIVE int editor_reregister_animation_clips(const char* json_utf8) {
+    auto* anim = ArtCade::EditorAPI::s_spriteAnimator;
+    if (!anim) return -1;
+    if (!json_utf8 || !*json_utf8) {
+        anim->clearClips();
+        return 0;
+    }
+    try {
+        const json doc = json::parse(json_utf8);
+        auto imageAssets = ArtCade::ProjectDocParser::parseImageAssets(doc);
+        registerAnimationClipsFromAssets(*anim, imageAssets);
+        return 0;
+    } catch (const std::exception&) {
+        return -2;
+    }
+}
+
+EMSCRIPTEN_KEEPALIVE void editor_preview_spritesheet_reset() {
+    if (auto* anim = ArtCade::EditorAPI::s_spriteAnimator)
+        anim->stop(kSpritesheetPreviewEntity);
+    g_sheetPreviewActiveClip.clear();
+}
+
+EMSCRIPTEN_KEEPALIVE int editor_preview_spritesheet_tick(
+    const char* texturePath,
+    const char* clipName,
+    float dtSeconds,
+    int canvasW,
+    int canvasH,
+    unsigned char* rgbaOut,
+    int rgbaOutLen) {
+    if (!rgbaOut || rgbaOutLen <= 0) return -1;
+    if (!texturePath || !*texturePath || !clipName || !*clipName) return -2;
+    auto* renderer = ArtCade::EditorAPI::s_renderer;
+    auto* anim     = ArtCade::EditorAPI::s_spriteAnimator;
+    if (!renderer || !anim) return -3;
+    if (!anim->hasClip(clipName)) return -4;
+
+    const int w = canvasW > 0 ? canvasW : 64;
+    const int h = canvasH > 0 ? canvasH : 64;
+
+    const std::string clip(clipName);
+    if (g_sheetPreviewActiveClip != clip) {
+        anim->play(kSpritesheetPreviewEntity, clip);
+        g_sheetPreviewActiveClip = clip;
+    }
+    if (dtSeconds > 0.f)
+        anim->update(dtSeconds);
+
+    const auto fr = anim->currentFrame(kSpritesheetPreviewEntity);
+    if (fr.w <= 0 || fr.h <= 0) return -7;
+
+    return renderer->captureSpriteRegionFrame(
+        texturePath,
+        static_cast<float>(fr.x), static_cast<float>(fr.y),
+        static_cast<float>(fr.w), static_cast<float>(fr.h),
+        w, h, rgbaOut, rgbaOutLen);
 }
 
 namespace {
