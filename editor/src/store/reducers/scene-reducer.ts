@@ -9,6 +9,7 @@ import type { CoreState, Action, DomainReducer } from '../editor-store-state'
 import { DEFAULT_WORLD, createTilemap, resizeTilemap } from '../../types'
 import { createSceneDef, uniqueSceneName } from '../../utils/project'
 import { clampEntityPositionToScene } from '../../utils/entity-position'
+import { projectAfterRemovingAsset } from '../../utils/strip-project-asset-refs'
 
 export const sceneReducer: DomainReducer = (state: CoreState, action: Action) => {
   switch (action.type) {
@@ -258,23 +259,13 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
       }
     }
     case 'TILESET_ASSET_REMOVE': {
-      if (!state.project || !state.project.tilesets) return state
-      const tilesets = Object.fromEntries(
-        Object.entries(state.project.tilesets).filter(
-          ([k]) => k !== action.assetId,
-        ),
-      )
-      // detach from any scene that referenced it
-      const scenes = Object.fromEntries(
-        Object.entries(state.project.scenes).map(([sid, sc]) => {
-          if (sc.tilemap?.tilesetAssetId !== action.assetId) return [sid, sc]
-          const { tilesetAssetId: _drop, ...rest } = sc.tilemap
-          return [sid, { ...sc, tilemap: rest }]
-        }),
-      )
+      if (!state.project?.tilesets?.[action.assetId]) return state
       return {
         ...state,
-        project: { ...state.project, tilesets, scenes },
+        project: projectAfterRemovingAsset(state.project, {
+          kind: 'tileset',
+          id: action.assetId,
+        }),
         projectDirty: true,
       }
     }
@@ -307,13 +298,15 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
       }
     }
     case 'AUDIO_ASSET_REMOVE': {
-      if (!state.project?.audioAssets) return state
-      const audioAssets = Object.fromEntries(
-        Object.entries(state.project.audioAssets).filter(([k]) => k !== action.assetId),
-      )
+      const entry = state.project?.audioAssets?.[action.assetId]
+      if (!entry) return state
       return {
         ...state,
-        project: { ...state.project, audioAssets },
+        project: projectAfterRemovingAsset(state.project, {
+          kind: 'audio',
+          id: action.assetId,
+          path: entry.path,
+        }),
         projectDirty: true,
       }
     }
@@ -332,38 +325,28 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
       }
     }
     case 'FONT_ASSET_REMOVE': {
-      if (!state.project?.fontAssets) return state
-      const fontAssets = Object.fromEntries(
-        Object.entries(state.project.fontAssets).filter(([k]) => k !== action.assetId),
-      )
+      const entry = state.project?.fontAssets?.[action.assetId]
+      if (!entry) return state
       return {
         ...state,
-        project: { ...state.project, fontAssets },
+        project: projectAfterRemovingAsset(state.project, {
+          kind: 'font',
+          id: action.assetId,
+          path: entry.path,
+        }),
         projectDirty: true,
       }
     }
     case 'ASSET_REMOVE': {
-      if (!state.project || !state.project.assets) return state
-      const removed = state.project.assets[action.assetId]
-      const assets = Object.fromEntries(
-        Object.entries(state.project.assets).filter(
-          ([k]) => k !== action.assetId,
-        ),
-      )
-      // Detach the sprite from any entity that referenced this image so it
-      // falls back cleanly instead of pointing at a missing asset.
-      const entities = removed
-        ? Object.fromEntries(
-            Object.entries(state.project.entities).map(([eid, e]) =>
-              e.sprite?.spriteAssetId === removed.path
-                ? [eid, { ...e, sprite: { ...e.sprite, spriteAssetId: '' } }]
-                : [eid, e],
-            ),
-          )
-        : state.project.entities
+      const removed = state.project?.assets?.[action.assetId]
+      if (!removed) return state
       return {
         ...state,
-        project: { ...state.project, assets, entities },
+        project: projectAfterRemovingAsset(state.project, {
+          kind: 'image',
+          id: action.assetId,
+          path: removed.path,
+        }),
         projectDirty: true,
       }
     }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { ElementType } from 'react'
+import type { ElementType, KeyboardEvent } from 'react'
 import { Image, Music, Code, FileText, ImagePlus, Trash2, Grid3x3, Type } from 'lucide-react'
 import { useEditor } from '../store/editor-store'
 import { importImageIntoProject } from '../utils/api'
@@ -23,6 +23,57 @@ type Category = 'ALL' | 'IMAGES' | 'AUDIO' | 'FONTS' | 'SCRIPTS' | 'TILESETS'
 
 const CATEGORIES: Category[] = ['ALL', 'IMAGES', 'AUDIO', 'FONTS', 'SCRIPTS', 'TILESETS']
 
+type AssetListSelection =
+  | { type: 'image'; id: string }
+  | { type: 'audio'; id: string }
+  | { type: 'font'; id: string }
+  | { type: 'tileset'; id: string }
+
+function selectionExists(project: ProjectDoc, sel: AssetListSelection): boolean {
+  switch (sel.type) {
+    case 'image':
+      return Boolean(project.assets?.[sel.id])
+    case 'audio':
+      return Boolean(project.audioAssets?.[sel.id])
+    case 'font':
+      return Boolean(project.fontAssets?.[sel.id])
+    case 'tileset':
+      return Boolean(project.tilesets?.[sel.id])
+  }
+}
+
+function selectionLabel(project: ProjectDoc, sel: AssetListSelection): string {
+  switch (sel.type) {
+    case 'image':
+      return project.assets?.[sel.id]?.name ?? 'image'
+    case 'audio':
+      return project.audioAssets?.[sel.id]?.name ?? 'audio'
+    case 'font':
+      return project.fontAssets?.[sel.id]?.name ?? 'font'
+    case 'tileset':
+      return project.tilesets?.[sel.id]?.name ?? 'tileset'
+  }
+}
+
+function removeSelectionTitle(sel: AssetListSelection | null): string {
+  if (!sel) return 'Select an asset to remove'
+  switch (sel.type) {
+    case 'image':
+      return 'Remove image (Delete)'
+    case 'audio':
+      return 'Remove audio (Delete)'
+    case 'font':
+      return 'Remove font (Delete)'
+    case 'tileset':
+      return 'Remove tileset (Delete)'
+  }
+}
+
+const CARD_SELECTED =
+  'border-[var(--accent)] ring-1 ring-[rgb(var(--accent-rgb)/0.35)]'
+const CARD_IDLE =
+  'border-[var(--border)] hover:border-[rgb(var(--accent-rgb)/0.5)]'
+
 const ICON_MAP: Record<string, ElementType> = {
   IMAGES:   Image,
   AUDIO:    Music,
@@ -30,6 +81,13 @@ const ICON_MAP: Record<string, ElementType> = {
   SCRIPTS:  Code,
   TILESETS: Grid3x3,
 }
+
+const importBtnBase =
+  'flex items-center justify-center gap-1.5 px-3 py-1.5 rounded text-[10px] font-semibold'
+const importBtnAccent =
+  `${importBtnBase} border border-[var(--accent-bd)] bg-[var(--accent-bg)] text-[var(--accent)] hover:bg-[var(--accent-bg-h)] disabled:opacity-40`
+const importBtnMuted =
+  `${importBtnBase} border border-[var(--border-2)] text-[var(--muted)] hover:text-[var(--text)] disabled:opacity-40`
 
 const ASSET_ICON_COLOR: Record<string, string> = {
   IMAGES: 'var(--accent)',
@@ -64,16 +122,16 @@ function emptyCategoryMessage(cat: Category, project: ProjectDoc | null): string
     return 'No project loaded — use File → New Project or Open Project.'
   }
   if (cat === 'IMAGES') {
-    return 'No images yet — use Import image. Double-click (with an entity selected) to assign a sprite.'
+    return 'No images yet — click Import image above. Double-click (with an entity selected) to assign a sprite.'
   }
   if (cat === 'TILESETS') {
     return 'No tilesets yet — create one from the scene tilemap settings, then click here to edit.'
   }
   if (cat === 'AUDIO') {
-    return 'No audio yet — use Import audio.'
+    return 'No audio yet — click Import audio above.'
   }
   if (cat === 'FONTS') {
-    return 'No fonts yet — use Import font. Draw in Lua with text.draw(path, …).'
+    return 'No fonts yet — click Import font above. Draw in Lua with text.draw(path, …).'
   }
   return 'No assets in this category yet.'
 }
@@ -110,9 +168,18 @@ function audioMimeFromPath(path: string): string {
 type AudioAssetCardProps = Readonly<{
   asset: AudioAsset
   projectRoot: string | null
+  selected: boolean
+  onSelect: () => void
 }>
 
-function AudioAssetCard({ asset, projectRoot }: AudioAssetCardProps) {
+function selectCardKeyDown(e: KeyboardEvent, onSelect: () => void): void {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault()
+    onSelect()
+  }
+}
+
+function AudioAssetCard({ asset, projectRoot, selected, onSelect }: AudioAssetCardProps) {
   const [src, setSrc] = useState<string | null>(null)
 
   useEffect(() => {
@@ -136,11 +203,21 @@ function AudioAssetCard({ asset, projectRoot }: AudioAssetCardProps) {
 
   return (
     <div
-      className={`${CARD_BTN} border-[var(--border)]`}
-      title={asset.path}
+      role="button"
+      tabIndex={0}
+      onClick={onSelect}
+      onKeyDown={(e) => selectCardKeyDown(e, onSelect)}
+      title={`${asset.path}\nClick to select · Delete to remove`}
+      className={`${CARD_BTN} ${selected ? CARD_SELECTED : CARD_IDLE}`}
     >
       {src ? (
-        <audio controls src={src} className="w-full h-8" preload="metadata" />
+        <audio
+          controls
+          src={src}
+          className="w-full h-8"
+          preload="metadata"
+          onClick={(e) => e.stopPropagation()}
+        />
       ) : (
         <AssetIcon type="AUDIO" />
       )}
@@ -168,11 +245,7 @@ function ImageAssetCard({
       onClick={onSelect}
       onDoubleClick={onAssign}
       title={title}
-      className={`${CARD_BTN} ${
-        selected
-          ? 'border-[var(--accent)] ring-1 ring-[rgb(var(--accent-rgb)/0.35)]'
-          : 'border-[var(--border)] hover:border-[rgb(var(--accent-rgb)/0.5)]'
-      }`}
+      className={`${CARD_BTN} ${selected ? CARD_SELECTED : CARD_IDLE}`}
     >
       <div className="w-[22px] h-[22px] flex items-center justify-center group-hover:scale-110 transition-transform">
         {asset.dataUrl ? (
@@ -196,16 +269,23 @@ function ImageAssetCard({
 
 type TilesetAssetCardProps = Readonly<{
   tileset: TilesetAsset
+  selected: boolean
+  onSelect: () => void
   onOpen: () => void
 }>
 
-function TilesetAssetCard({ tileset, onOpen }: TilesetAssetCardProps) {
+function TilesetAssetCard({ tileset, selected, onSelect, onOpen }: TilesetAssetCardProps) {
   return (
     <button
       type="button"
-      onClick={onOpen}
-      title={`Open "${tileset.name}" in the Tileset Editor`}
-      className={`${CARD_BTN} border-[var(--border)] hover:border-[var(--purple)] hover:bg-[var(--panel-3)]`}
+      onClick={onSelect}
+      onDoubleClick={onOpen}
+      title={`Click to select · Double-click to open Tileset Editor`}
+      className={`${CARD_BTN} ${
+        selected
+          ? CARD_SELECTED
+          : 'border-[var(--border)] hover:border-[var(--purple)] hover:bg-[var(--panel-3)]'
+      }`}
     >
       <div className="w-[22px] h-[22px] flex items-center justify-center group-hover:scale-110 transition-transform">
         <AssetIcon type="TILESETS" />
@@ -223,28 +303,16 @@ function TilesetAssetCard({ tileset, onOpen }: TilesetAssetCardProps) {
 type ImagePointsEditorProps = Readonly<{
   asset: ImageAsset
   onPatchPoints: (points: ImagePointDef[]) => void
-  onRemove: () => void
 }>
 
-function ImagePointsEditor({ asset, onPatchPoints, onRemove }: ImagePointsEditorProps) {
+function ImagePointsEditor({ asset, onPatchPoints }: ImagePointsEditorProps) {
   const points = asset.imagePoints ?? []
 
   return (
     <div className="mt-4 p-3 rounded border border-[var(--border)] bg-[var(--panel)]">
-      <div className="flex items-center justify-between gap-2 mb-2">
-        <p className="text-[10px] uppercase tracking-wider text-[var(--muted)]">
-          Image points — {asset.name}
-        </p>
-        <button
-          type="button"
-          onClick={onRemove}
-          title="Remove image (Delete)"
-          className="flex items-center gap-1 px-2 py-1 rounded text-[10px]
-                     text-[var(--muted)] hover:text-[var(--danger)]"
-        >
-          <Trash2 size={11} /> Remove
-        </button>
-      </div>
+      <p className="text-[10px] uppercase tracking-wider text-[var(--muted)] mb-2">
+        Image points — {asset.name}
+      </p>
       <ul className="space-y-1 mb-2">
         {points.map((pt, i) => (
           <li key={pt.id || i} className="flex gap-2 items-center text-xs">
@@ -303,7 +371,7 @@ export default function AssetBrowserPanel() {
   const { state, dispatch } = useEditor()
   const [cat, setCat] = useState<Category>('ALL')
   const [msg, setMsg] = useState<string | null>(null)
-  const [selAssetId, setSelAssetId] = useState<string | null>(null)
+  const [selection, setSelection] = useState<AssetListSelection | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const project = state.project
@@ -320,7 +388,10 @@ export default function AssetBrowserPanel() {
 
   const flash = useCallback((text: string) => {
     setMsg(text)
-    globalThis.setTimeout(() => setMsg(null), 3000)
+  }, [])
+
+  const clearFlashOnAnimationEnd = useCallback(() => {
+    setMsg(null)
   }, [])
 
   const patchAssetPoints = useCallback(
@@ -332,16 +403,36 @@ export default function AssetBrowserPanel() {
     [project, dispatch],
   )
 
-  const selAsset = selAssetId ? project?.assets?.[selAssetId] : undefined
-  const canRemove = Boolean(selAssetId && project?.assets?.[selAssetId])
+  const selAsset =
+    selection?.type === 'image' && project?.assets?.[selection.id]
+      ? project.assets[selection.id]
+      : undefined
+  const canRemove = Boolean(project && selection && selectionExists(project, selection))
 
   const removeSelectedAsset = useCallback(() => {
-    if (!selAssetId || !project?.assets?.[selAssetId]) return
-    const name = project.assets[selAssetId].name
-    dispatch({ type: 'ASSET_REMOVE', assetId: selAssetId })
-    setSelAssetId(null)
+    if (!project || !selection || !selectionExists(project, selection)) return
+    const name = selectionLabel(project, selection)
+    switch (selection.type) {
+      case 'image':
+        dispatch({ type: 'ASSET_REMOVE', assetId: selection.id })
+        break
+      case 'audio':
+        dispatch({ type: 'AUDIO_ASSET_REMOVE', assetId: selection.id })
+        break
+      case 'font':
+        dispatch({ type: 'FONT_ASSET_REMOVE', assetId: selection.id })
+        break
+      case 'tileset':
+        dispatch({ type: 'TILESET_ASSET_REMOVE', assetId: selection.id })
+        break
+    }
+    setSelection(null)
     flash(`Removed ${name}`)
-  }, [selAssetId, project, dispatch, flash])
+  }, [selection, project, dispatch, flash])
+
+  useEffect(() => {
+    setSelection(null)
+  }, [cat])
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -349,13 +440,13 @@ export default function AssetBrowserPanel() {
       const focus = keyboardFocusElement(e)
       if (!focus || !isInsidePanel(focus, 'assets')) return
       if (shouldIgnoreEditorShortcut(e)) return
-      if (!selAssetId || !project?.assets?.[selAssetId]) return
+      if (!project || !selection || !selectionExists(project, selection)) return
       e.preventDefault()
       removeSelectedAsset()
     }
     globalThis.addEventListener('keydown', handleKeyDown)
     return () => globalThis.removeEventListener('keydown', handleKeyDown)
-  }, [selAssetId, project, removeSelectedAsset])
+  }, [selection, project, removeSelectedAsset])
 
   const onPickFile = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -497,73 +588,90 @@ export default function AssetBrowserPanel() {
         onChange={onPickFont}
       />
 
-      <div className="flex items-center border-b border-[var(--border)] px-2 flex-shrink-0">
-        {CATEGORIES.map((c) => (
-          <button
-            key={c}
-            type="button"
-            onClick={() => setCat(c)}
-            className={`px-4 py-2 text-[10px] font-bold tracking-wider transition-colors whitespace-nowrap border-b-2 ${
-              cat === c
-                ? 'border-[var(--accent-2)] text-[var(--text)]'
-                : 'border-transparent text-[var(--muted)] hover:text-[var(--text)]'
-            }`}
-          >
-            {c}
-          </button>
-        ))}
-        <div className="flex-1" />
-        {msg && <span className="text-[9px] text-[var(--muted)] mr-3">{msg}</span>}
-        <button
-          type="button"
-          onClick={removeSelectedAsset}
-          disabled={!canRemove}
-          title={canRemove ? 'Remove image (Delete)' : 'Select an imported image to remove'}
-          className="flex items-center gap-1.5 px-3 py-1 my-1 mr-1 rounded text-[10px] font-semibold
-                     border border-[var(--border-2)] text-[var(--muted)]
-                     hover:text-[var(--danger)] hover:border-[var(--danger)] disabled:opacity-40"
-        >
-          <Trash2 size={12} /> Remove
-        </button>
-        {(cat === 'AUDIO' || cat === 'ALL') && (
-          <button
-            type="button"
-            onClick={() => audioRef.current?.click()}
-            disabled={!project}
-            className="flex items-center gap-1.5 px-3 py-1 my-1 mr-1 rounded text-[10px] font-semibold
-                       border border-[var(--border-2)] text-[var(--muted)]
-                       hover:text-[var(--text)] disabled:opacity-40"
-          >
-            <Music size={12} /> Import audio
-          </button>
-        )}
-        {(cat === 'FONTS' || cat === 'ALL') && (
-          <button
-            type="button"
-            onClick={() => fontRef.current?.click()}
-            disabled={!project}
-            className="flex items-center gap-1.5 px-3 py-1 my-1 mr-1 rounded text-[10px] font-semibold
-                       border border-[var(--border-2)] text-[var(--muted)]
-                       hover:text-[var(--text)] disabled:opacity-40"
-          >
-            <Type size={12} /> Import font
-          </button>
-        )}
-        {(cat === 'IMAGES' || cat === 'ALL') && (
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            disabled={!project}
-            className="flex items-center gap-1.5 px-3 py-1 my-1 rounded text-[10px] font-semibold
-                       border border-[var(--accent-bd)] bg-[var(--accent-bg)] text-[var(--accent)]
-                       hover:bg-[var(--accent-bg-h)] disabled:opacity-40"
-          >
-            <ImagePlus size={12} /> Import image
-          </button>
-        )}
+      <div className="flex-shrink-0 border-b border-[var(--border)] pe-2.5">
+        <div className="flex flex-wrap items-end gap-x-0.5 gap-y-0 px-1.5 pt-1">
+          {CATEGORIES.map((c) => {
+            const active = cat === c
+            return (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setCat(c)}
+                className={`relative px-2.5 py-1.5 text-[10px] font-bold tracking-wider transition-colors whitespace-nowrap ${
+                  active
+                    ? 'text-[var(--text)]'
+                    : 'text-[var(--muted)] hover:text-[var(--text)]'
+                }`}
+              >
+                {c}
+                {active ? (
+                  <span
+                    className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full bg-[var(--accent-2)]"
+                    aria-hidden
+                  />
+                ) : null}
+              </button>
+            )
+          })}
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5 px-2 py-1.5 pe-1 bg-[var(--panel-2)]">
+          {msg && (
+            <span
+              key={msg}
+              className="asset-flash-msg text-[9px] text-[var(--muted)] w-full sm:w-auto"
+              onAnimationEnd={clearFlashOnAnimationEnd}
+            >
+              {msg}
+            </span>
+          )}
+          {(cat === 'IMAGES' || cat === 'ALL') && (
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={!project}
+              title="Import PNG, JPEG, or GIF"
+              className={importBtnAccent}
+            >
+              <ImagePlus size={12} /> Import image
+            </button>
+          )}
+          {(cat === 'AUDIO' || cat === 'ALL') && (
+            <button
+              type="button"
+              onClick={() => audioRef.current?.click()}
+              disabled={!project}
+              title="Import OGG, WAV, or MP3"
+              className={cat === 'AUDIO' ? importBtnAccent : importBtnMuted}
+            >
+              <Music size={12} /> Import audio
+            </button>
+          )}
+          {(cat === 'FONTS' || cat === 'ALL') && (
+            <button
+              type="button"
+              onClick={() => fontRef.current?.click()}
+              disabled={!project}
+              title="Import TTF or OTF"
+              className={cat === 'FONTS' ? importBtnAccent : importBtnMuted}
+            >
+              <Type size={12} /> Import font
+            </button>
+          )}
+          {cat !== 'SCRIPTS' && (
+            <button
+              type="button"
+              onClick={removeSelectedAsset}
+              disabled={!canRemove}
+              title={removeSelectionTitle(selection)}
+              className={`${importBtnMuted} hover:text-[var(--danger)] hover:border-[var(--danger)]`}
+            >
+              <Trash2 size={12} /> Remove
+            </button>
+          )}
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="panel-scroll flex-1 min-h-0 p-3 pe-2">
         {showEmpty && (
           <p className="text-[var(--muted)] text-[10px] mb-3 leading-relaxed">
             {emptyCategoryMessage(cat, project)}
@@ -575,9 +683,9 @@ export default function AssetBrowserPanel() {
               <ImageAssetCard
                 key={asset.id}
                 asset={asset}
-                selected={selAssetId === asset.id}
+                selected={selection?.type === 'image' && selection.id === asset.id}
                 entityName={selEntity?.name ?? null}
-                onSelect={() => setSelAssetId(asset.id)}
+                onSelect={() => setSelection({ type: 'image', id: asset.id })}
                 onAssign={() => assignSprite(asset)}
               />
             ))}
@@ -588,14 +696,20 @@ export default function AssetBrowserPanel() {
                 key={a.id}
                 asset={a}
                 projectRoot={state.projectPath ? dirName(state.projectPath) : null}
+                selected={selection?.type === 'audio' && selection.id === a.id}
+                onSelect={() => setSelection({ type: 'audio', id: a.id })}
               />
             ))}
 
           {showFonts &&
             fontFiles.map((f) => (
-              <div
+              <button
                 key={f.id}
-                className={`${CARD_BTN} border-[var(--border)]`}
+                type="button"
+                onClick={() => setSelection({ type: 'font', id: f.id })}
+                className={`${CARD_BTN} ${
+                  selection?.type === 'font' && selection.id === f.id ? CARD_SELECTED : CARD_IDLE
+                }`}
                 title={`${f.path}\nLua: text.draw("${f.path}", "Hello", x, y, ${f.defaultSize ?? 32})`}
               >
                 <AssetIcon type="FONTS" />
@@ -605,7 +719,7 @@ export default function AssetBrowserPanel() {
                 {f.defaultSize != null && (
                   <span className="text-[8px] text-[var(--muted)]">{f.defaultSize}px</span>
                 )}
-              </div>
+              </button>
             ))}
 
           {showTilesets &&
@@ -613,6 +727,8 @@ export default function AssetBrowserPanel() {
               <TilesetAssetCard
                 key={t.assetId}
                 tileset={t}
+                selected={selection?.type === 'tileset' && selection.id === t.assetId}
+                onSelect={() => setSelection({ type: 'tileset', id: t.assetId })}
                 onOpen={() => openTilesetEditor(t)}
               />
             ))}
@@ -623,7 +739,6 @@ export default function AssetBrowserPanel() {
           <ImagePointsEditor
             asset={selAsset}
             onPatchPoints={(points) => patchAssetPoints(selAsset.id, points)}
-            onRemove={removeSelectedAsset}
           />
           <AnimationClipsEditor
             asset={selAsset}

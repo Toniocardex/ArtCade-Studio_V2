@@ -188,6 +188,22 @@ input[data-mono],
 .canvas-scrollarea::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 .canvas-scrollarea::-webkit-scrollbar-corner     { background: var(--panel); }
 
+/* Sidebar panels: reserve gutter so thumbs do not sit under tab chrome. */
+.panel-scroll {
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
+}
+
+.asset-flash-msg {
+  animation: asset-flash-fade 3s forwards;
+}
+
+@keyframes asset-flash-fade {
+  0%, 80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
 /* ---------------------------------------------------------------------------
    Canvas viewport frame — kept as inset ring (renderer-independent)
    --------------------------------------------------------------------------- */

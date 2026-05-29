@@ -12,10 +12,14 @@ import { usePersistedHeight } from '../hooks/usePersistedHeight'
 import { usePersistedBoolean } from '../hooks/usePersistedBoolean'
 import { triggerLayoutReflow } from '../utils/layout-reflow'
 
-/** Default asset strip height — enough for tabs + a few rows, not half the sidebar. */
-const DEFAULT_ASSETS_H = 250
-const MIN_ASSETS_H = 120
-const MAX_ASSETS_RATIO = 0.5
+// Asset panel height (persisted in localStorage as artcade.left-assets-h-v4):
+// - DEFAULT_ASSETS_H 360px: room for tab row, import/remove toolbar, thumbnails.
+// - MIN_ASSETS_H 200px, MAX_ASSETS_RATIO 0.55 of sidebar: user can drag HorizontalSplitHandle.
+// - Top Scenes/Entities section uses remaining flex space (scrolls via panel-scroll).
+// - Migration artcade.left-assets-migrated-v4 only raises short v2/v3 saved heights; never shrinks.
+const DEFAULT_ASSETS_H = 360
+const MIN_ASSETS_H = 200
+const MAX_ASSETS_RATIO = 0.55
 
 export default function LeftSidebar() {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -26,7 +30,7 @@ export default function LeftSidebar() {
   )
 
   const [assetsHeight, setAssetsHeight] = usePersistedHeight(
-    'artcade.left-assets-h-v3',
+    'artcade.left-assets-h-v4',
     DEFAULT_ASSETS_H,
     MIN_ASSETS_H,
     maxAssetsH,
@@ -48,19 +52,21 @@ export default function LeftSidebar() {
     setAssetsHeight((h) => Math.min(h, maxAssetsH))
   }, [maxAssetsH, setAssetsHeight])
 
-  // One-time: v2 often saved ~360px and left a dead band above the asset strip.
+  // One-time: raise short heights saved in v2/v3 so import toolbar stays visible.
   useEffect(() => {
     if (globalThis.window === undefined) return
-    const migrated = globalThis.localStorage.getItem('artcade.left-assets-migrated-v3')
+    const migrated = globalThis.localStorage.getItem('artcade.left-assets-migrated-v4')
     if (migrated) return
-    const raw = globalThis.localStorage.getItem('artcade.left-assets-h-v2')
-    if (raw) {
+    for (const key of ['artcade.left-assets-h-v3', 'artcade.left-assets-h-v2']) {
+      const raw = globalThis.localStorage.getItem(key)
+      if (!raw) continue
       const n = Number(raw)
-      if (Number.isFinite(n) && n > DEFAULT_ASSETS_H + 40) {
+      if (Number.isFinite(n) && n < DEFAULT_ASSETS_H - 20) {
         setAssetsHeight(DEFAULT_ASSETS_H)
+        break
       }
     }
-    globalThis.localStorage.setItem('artcade.left-assets-migrated-v3', '1')
+    globalThis.localStorage.setItem('artcade.left-assets-migrated-v4', '1')
   }, [setAssetsHeight])
 
   useEffect(() => {

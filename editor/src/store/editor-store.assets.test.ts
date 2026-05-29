@@ -193,6 +193,46 @@ describe('project.json roundtrip — assets', () => {
     expect(s.projectDirty).toBe(true)
   })
 
+  it('FONT_ASSET_REMOVE deletes font entry', () => {
+    const font = { id: 'f1', name: 'A.ttf', path: 'assets/fonts/a.ttf', defaultSize: 28 }
+    let s = coreReducer(st(project()), { type: 'FONT_ASSET_ADD', asset: font })
+    s = coreReducer(s, { type: 'FONT_ASSET_REMOVE', assetId: 'f1' })
+    expect(s.project!.fontAssets).toEqual({})
+    expect(s.projectDirty).toBe(true)
+  })
+
+  it('AUDIO_ASSET_REMOVE deletes entry and scrubs logic board audioAssetId', () => {
+    const audio = {
+      id: 'sfx_a',
+      name: 'coin.ogg',
+      path: 'assets/audio/coin.ogg',
+      category: 'sfx' as const,
+    }
+    let p = project()
+    p.logicBoards = [
+      {
+        boardId: 'b1',
+        name: 'Board',
+        target: { type: 'scene', sceneId: 's' },
+        events: [
+          {
+            id: 'e1',
+            trigger: { type: 'onStart' },
+            actions: [{ type: 'playSound', audioAssetId: 'sfx_a', volume: 1 }],
+          },
+        ],
+      },
+    ]
+    let s = coreReducer(st(p), { type: 'AUDIO_ASSET_ADD', asset: audio })
+    s = coreReducer(s, { type: 'AUDIO_ASSET_REMOVE', assetId: 'sfx_a' })
+    expect(s.project!.audioAssets).toEqual({})
+    expect(s.project!.logicBoards![0].events[0].actions[0]).toEqual({
+      type: 'playSound',
+      volume: 1,
+    })
+    expect(s.projectDirty).toBe(true)
+  })
+
   it('parseAssets is defensive (skips entries without a path)', () => {
     const raw = JSON.stringify({
       projectName: 'D', version: '2.0.0',
