@@ -25,6 +25,13 @@ public:
                    float volume = 1.f,
                    float pitch  = 1.f);
 
+    /** Register SFX from memory (editor WASM upload). `ext` e.g. ".ogg". */
+    bool registerSoundFromMemory(const std::string& path,
+                                 const unsigned char* data, int len,
+                                 const std::string& ext);
+
+    void invalidateSound(const std::string& path);
+
     // Music (single streaming track; replaces current)
     void playMusic  (const std::string& assetPath, bool loop = true);
     void stopMusic  ();

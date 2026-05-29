@@ -66,6 +66,11 @@ void TextureCache::unload(uint32_t handle) {
     byHandle_.erase(it);
 }
 
+void TextureCache::unloadByPath(const std::string& path) {
+    auto it = pathToHandle_.find(path);
+    if (it != pathToHandle_.end()) unload(it->second);
+}
+
 void TextureCache::unloadAll() {
     for (auto& [h, e] : byHandle_) UnloadTexture(e.tex);
     byHandle_.clear();

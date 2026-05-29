@@ -317,6 +317,29 @@ void Renderer::drawSprite(const AssetId& assetId,
     DrawTexturePro(*tex, src, dst, origin, rotation, tintColor);
 }
 
+void Renderer::drawSpriteFrame(const AssetId& assetId,
+                               float srcX, float srcY, float srcW, float srcH,
+                               const Vec2&    pos,
+                               float          rotation,
+                               const Vec2&    scale,
+                               const Vec4&    tint,
+                               float          alpha,
+                               const Vec2&    pivot)
+{
+    const Texture2D* tex = impl_->texCache.getByPath(assetId);
+    if (!tex || tex->id == 0 || srcW <= 0.f || srcH <= 0.f) {
+        drawSprite(assetId, pos, rotation, scale, tint, { tint.r, tint.g, tint.b },
+                   alpha, "", pivot);
+        return;
+    }
+
+    Rectangle src = { srcX, srcY, srcW, srcH };
+    Rectangle dst = { pos.x, pos.y, srcW * scale.x, srcH * scale.y };
+    const Vec2 originVec = SpriteDrawMath::drawOrigin(pivot, dst.width, dst.height);
+    Vector2 origin = { originVec.x, originVec.y };
+    DrawTexturePro(*tex, src, dst, origin, rotation, toColor(tint, alpha));
+}
+
 Vec2 Renderer::spriteDestinationSize(const AssetId& assetId, const Vec2& scale) const {
     const float sx = std::abs(scale.x);
     const float sy = std::abs(scale.y);
@@ -402,6 +425,10 @@ bool Renderer::registerImageFromMemory(const std::string& assetId,
                                        const unsigned char* data, int len,
                                        const std::string& ext) {
     return impl_->texCache.registerFromMemory(assetId, data, len, ext) != 0;
+}
+
+void Renderer::invalidateImageAsset(const std::string& assetPath) {
+    impl_->texCache.unloadByPath(assetPath);
 }
 
 void Renderer::unloadTexture(uint32_t handle) {

@@ -56,6 +56,16 @@ public:
     /** Width/height `drawSprite` uses (texture pixels × scale, or 32×32 placeholder). */
     Vec2 spriteDestinationSize(const AssetId& assetId, const Vec2& scale) const;
 
+    /** Draw a pixel sub-rectangle of a sprite sheet (animation frame). */
+    void drawSpriteFrame(const AssetId& assetId,
+                         float srcX, float srcY, float srcW, float srcH,
+                         const Vec2&    position,
+                         float          rotation,
+                         const Vec2&    scale,
+                         const Vec4&    tint,
+                         float          alpha,
+                         const Vec2&    pivot = {0.5f, 0.5f});
+
     /**
      * Phase F3: draw a sub-rectangle (atlas cell) of a texture at a
      * top-left destination. Returns false if the texture is missing
@@ -82,6 +92,9 @@ public:
     bool registerImageFromMemory(const std::string& assetId,
                                  const unsigned char* data, int len,
                                  const std::string& ext);
+
+    /** Remove a path-keyed texture (LRU / explicit eviction). */
+    void invalidateImageAsset(const std::string& assetPath);
 
     // GPU texture management
     uint32_t loadTexture  (const std::string& filePath);

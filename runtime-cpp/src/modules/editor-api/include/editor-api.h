@@ -33,6 +33,8 @@ class RuntimeEntityGateway;
 class LuaHost;
 class Renderer;
 class DialogManager;
+class SpriteAnimator;
+class Audio;
 }
 struct TilePaletteEntry;
 struct TilesetAsset;
@@ -117,6 +119,11 @@ public:
     /** Wire DialogManager so editor_load_dialogs() can register preview graphs. */
     static void wireDialog(Modules::DialogManager* dialogManager);
 
+    /** Wire SpriteAnimator so project load can register animation clips. */
+    static void wireSpriteAnimator(Modules::SpriteAnimator* spriteAnimator);
+
+    static void wireAudio(Modules::Audio* audio);
+
     /**
      * Register the callback invoked after editor_load_project finishes
      * populating the gateway. Replaces the previous direct
@@ -184,6 +191,8 @@ public:
     static Modules::LuaHost*              s_luaHost;
     static Modules::Renderer*             s_renderer;
     static Modules::DialogManager*        s_dialogManager;
+    static Modules::SpriteAnimator*        s_spriteAnimator;
+    static Modules::Audio*                 s_audio;
     static EditorProjectLoadedHandler     s_onProjectLoaded;
     static EditorPreviewRestoreHandler    s_onPreviewRestore;
     static EditorEnterPlayHandler         s_onEnterPlay;
@@ -313,6 +322,11 @@ EMSCRIPTEN_KEEPALIVE void editor_set_snap_to_grid(int enabled);
 EMSCRIPTEN_KEEPALIVE void editor_register_image(
     const char* path, const uint8_t* bytes, int len, const char* ext);
 
+EMSCRIPTEN_KEEPALIVE void editor_register_audio(
+    const char* path, const uint8_t* bytes, int len, const char* ext);
+
+EMSCRIPTEN_KEEPALIVE void editor_invalidate_asset(const char* assetKey, const char* type);
+
 /** Open RayTint picker for placeholder fill on an entity without a texture. */
 EMSCRIPTEN_KEEPALIVE void editor_open_raytint(uint32_t entityId);
 
@@ -335,6 +349,8 @@ struct EditorAPI {
     static void wireLua(Modules::LuaHost*) {}
     static void wireRenderer(Modules::Renderer*) {}
     static void wireDialog(Modules::DialogManager*) {}
+    static void wireSpriteAnimator(Modules::SpriteAnimator*) {}
+    static void wireAudio(Modules::Audio*) {}
     static void setProjectLoadedHandler(EditorProjectLoadedHandler) {}
     static void setPreviewRestoreHandler(EditorPreviewRestoreHandler) {}
     static void setEnterPlayHandler(EditorEnterPlayHandler) {}
@@ -361,6 +377,8 @@ struct EditorAPI {
     static Modules::LuaHost*              s_luaHost;
     static Modules::Renderer*             s_renderer;
     static Modules::DialogManager*        s_dialogManager;
+    static Modules::SpriteAnimator*        s_spriteAnimator;
+    static Modules::Audio*                 s_audio;
     static EditorProjectLoadedHandler     s_onProjectLoaded;
     static EditorPreviewRestoreHandler    s_onPreviewRestore;
     static EditorEnterPlayHandler         s_onEnterPlay;

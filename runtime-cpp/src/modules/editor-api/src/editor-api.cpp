@@ -21,6 +21,8 @@ Modules::RuntimeEntityGateway* EditorAPI::s_entityGateway = nullptr;
 Modules::LuaHost*              EditorAPI::s_luaHost       = nullptr;
 Modules::Renderer*             EditorAPI::s_renderer      = nullptr;
 Modules::DialogManager*        EditorAPI::s_dialogManager = nullptr;
+Modules::SpriteAnimator*       EditorAPI::s_spriteAnimator = nullptr;
+Modules::Audio*                EditorAPI::s_audio = nullptr;
 EditorProjectLoadedHandler     EditorAPI::s_onProjectLoaded{};
 EditorPreviewRestoreHandler    EditorAPI::s_onPreviewRestore{};
 EditorEnterPlayHandler         EditorAPI::s_onEnterPlay{};
@@ -53,6 +55,9 @@ std::vector<std::pair<std::string, std::string>> EditorAPI::s_consoleQueue;
 #include "../../../modules/renderer/include/renderer.h"
 #include "../../../modules/dialog/include/dialog-manager.h"
 #include "../../../modules/dialog/include/dialog-parser.h"
+#include "../../../modules/sprite-animator/include/sprite-animator.h"
+#include "../../../modules/sprite-animator/include/animation-clips-registry.h"
+#include "../../../modules/audio/include/audio.h"
 #include "../../../core/types.h"
 
 #include "editor-input-controller.h"
@@ -88,6 +93,8 @@ Modules::RuntimeEntityGateway* EditorAPI::s_entityGateway = nullptr;
 Modules::LuaHost*              EditorAPI::s_luaHost       = nullptr;
 Modules::Renderer*             EditorAPI::s_renderer      = nullptr;
 Modules::DialogManager*        EditorAPI::s_dialogManager = nullptr;
+Modules::SpriteAnimator*       EditorAPI::s_spriteAnimator = nullptr;
+Modules::Audio*                EditorAPI::s_audio = nullptr;
 EditorProjectLoadedHandler     EditorAPI::s_onProjectLoaded{};
 EditorPreviewRestoreHandler    EditorAPI::s_onPreviewRestore{};
 EditorEnterPlayHandler         EditorAPI::s_onEnterPlay{};
@@ -124,6 +131,14 @@ void EditorAPI::wireLua(Modules::LuaHost* luaHost) {
 void EditorAPI::wireRenderer(Modules::Renderer* renderer) {
     s_renderer = renderer;
     notifyConsoleLine("[EditorAPI] Engine wired to Renderer (image upload ready).", "info");
+}
+
+void EditorAPI::wireSpriteAnimator(Modules::SpriteAnimator* spriteAnimator) {
+    s_spriteAnimator = spriteAnimator;
+}
+
+void EditorAPI::wireAudio(Modules::Audio* audio) {
+    s_audio = audio;
 }
 
 void EditorAPI::wireDialog(Modules::DialogManager* dialogManager) {
@@ -299,6 +314,30 @@ EMSCRIPTEN_KEEPALIVE void editor_register_image(
     }
 }
 
+EMSCRIPTEN_KEEPALIVE void editor_register_audio(
+    const char* path, const uint8_t* bytes, int len, const char* ext) {
+    if (!path || !*path || !bytes || len <= 0) return;
+    auto* a = ArtCade::EditorAPI::s_audio;
+    if (!a) return;
+    const std::string fileExt = (ext && *ext) ? ext : ".ogg";
+    (void)a->registerSoundFromMemory(
+        path, reinterpret_cast<const unsigned char*>(bytes), len, fileExt);
+}
+
+EMSCRIPTEN_KEEPALIVE void editor_invalidate_asset(
+    const char* assetKey, const char* type) {
+    if (!assetKey || !*assetKey || !type || !*type) return;
+    const std::string key(assetKey);
+    const std::string kind(type);
+    if (kind == "image") {
+        if (auto* r = ArtCade::EditorAPI::s_renderer)
+            r->invalidateImageAsset(key);
+    } else if (kind == "audio") {
+        if (auto* a = ArtCade::EditorAPI::s_audio)
+            a->invalidateSound(key);
+    }
+}
+
 EMSCRIPTEN_KEEPALIVE void editor_deselect() {
     ArtCade::EditorAPI::s_selectedEntityId = 0u;
 }
@@ -374,8 +413,13 @@ bool loadProjectFromJson(const char* json_utf8, ProjectLoadKind kind,
         auto sceneDefs   = Parser::parseScenes(doc);
         auto tilesets    = Parser::parseTilesets(doc);
         auto tilePalette = Parser::parseTilePalette(doc);
+        auto imageAssets = Parser::parseImageAssets(doc);
 
         Parser::materializeV2Project(entityDefs, sceneDefs, objectTypes);
+
+        if (ArtCade::EditorAPI::s_spriteAnimator)
+            registerAnimationClipsFromAssets(
+                *ArtCade::EditorAPI::s_spriteAnimator, imageAssets);
 
         std::string activeId = doc.value("activeSceneId",
                                doc.value("active_scene_id", std::string{}));

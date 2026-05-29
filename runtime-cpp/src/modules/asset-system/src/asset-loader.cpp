@@ -471,6 +471,29 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
                     if (!ip.id.empty()) ad.imagePoints.push_back(ip);
                 }
             }
+            if (av.contains("clips") && av["clips"].is_array()) {
+                for (const auto& cv : av["clips"]) {
+                    if (!cv.is_object()) continue;
+                    AnimationClipDef clip;
+                    clip.name = cv.value("name", std::string{});
+                    clip.fps  = cv.value("fps", 12.f);
+                    clip.loop = cv.value("loop", true);
+                    if (cv.contains("frames") && cv["frames"].is_array()) {
+                        for (const auto& fr : cv["frames"]) {
+                            if (!fr.is_object()) continue;
+                            AnimationFrameRect rect;
+                            rect.x = fr.value("x", 0.f);
+                            rect.y = fr.value("y", 0.f);
+                            rect.w = fr.value("w", 0.f);
+                            rect.h = fr.value("h", 0.f);
+                            if (rect.w > 0.f && rect.h > 0.f)
+                                clip.frames.push_back(rect);
+                        }
+                    }
+                    if (!clip.name.empty() && !clip.frames.empty())
+                        ad.clips.push_back(std::move(clip));
+                }
+            }
             out.imageAssets.push_back(ad);
             if (!ad.imagePoints.empty())
                 imagePointsByAsset_[ad.assetId] = ad.imagePoints;

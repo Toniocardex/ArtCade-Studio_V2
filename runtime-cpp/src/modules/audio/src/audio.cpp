@@ -49,6 +49,35 @@ void Audio::shutdown() {
 
 // ------------------------------------------------------------------ SFX
 
+bool Audio::registerSoundFromMemory(const std::string& path,
+                                    const unsigned char* data, int len,
+                                    const std::string& ext) {
+    if (!impl_->deviceOpen || !data || len <= 0) return false;
+    auto it = impl_->soundCache.find(path);
+    if (it != impl_->soundCache.end()) {
+        UnloadSound(it->second);
+        impl_->soundCache.erase(it);
+    }
+    const char* hint = ext.empty() ? ".wav" : ext.c_str();
+    Wave wave = LoadWaveFromMemory(hint, data, len);
+    if (wave.data == nullptr) return false;
+    Sound snd = LoadSoundFromWave(wave);
+    UnloadWave(wave);
+    if (snd.frameCount <= 0) {
+        UnloadSound(snd);
+        return false;
+    }
+    impl_->soundCache[path] = snd;
+    return true;
+}
+
+void Audio::invalidateSound(const std::string& path) {
+    auto it = impl_->soundCache.find(path);
+    if (it == impl_->soundCache.end()) return;
+    UnloadSound(it->second);
+    impl_->soundCache.erase(it);
+}
+
 void Audio::playSound(const std::string& path, float volume, float pitch) {
     if (!impl_->deviceOpen) return;
 

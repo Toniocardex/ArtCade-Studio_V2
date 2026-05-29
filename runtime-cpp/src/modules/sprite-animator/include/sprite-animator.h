@@ -49,6 +49,7 @@ public:
 
     void defineClip(const Clip& clip);
     bool hasClip(const std::string& name) const;
+    void clearClips();
 
     // ------------------------------------------------------------------ instance control
 

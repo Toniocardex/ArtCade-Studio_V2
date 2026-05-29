@@ -192,6 +192,14 @@ export interface ImageAsset {
   clips?: AnimationClipDef[]
 }
 
+export interface AudioAsset {
+  id:       string
+  name:     string
+  path:     string
+  category?: 'sfx' | 'music'
+  volume?:  number
+}
+
 export interface ProjectDoc {
   projectName:    string
   version:        string
@@ -211,6 +219,7 @@ export interface ProjectDoc {
   tilePalette?:   TileDef[]              // Scene Editor Phase C (legacy colour)
   tilesets?:      Record<string, TilesetAsset>  // Phase F: image tilesets
   assets?:        Record<string, ImageAsset>    // persistent image library
+  audioAssets?:   Record<string, AudioAsset>
   logicBoards?:   LogicBoardDoc          // visual game logic, compiled to Lua
 }
 

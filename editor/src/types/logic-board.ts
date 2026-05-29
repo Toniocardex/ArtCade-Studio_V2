@@ -39,7 +39,7 @@ export type LogicTrigger =
   | { type: 'onCollisionExit'; withClass: string }                  // edge: stopped touching this frame
   | { type: 'onTriggerEnter'; withClass?: string }                  // edge: started touching
   | { type: 'onTriggerExit'; withClass?: string }                   // edge: stopped touching
-  | { type: 'onAnimationEnd'; clipName?: string }                   // needs engine hook (stub)
+  | { type: 'onAnimationEnd'; clipName?: string }
   | { type: 'onDestroy' }                                           // lifecycle.onDestroy
   | {
       type: 'onInput'
@@ -98,8 +98,8 @@ export type LogicAction =
   | { type: 'addVariable'; key: string; amount: number }
   | { type: 'setPosition'; target: TargetSelector; x: number; y: number }
   | { type: 'setVelocity'; target: TargetSelector; vx: number; vy: number }
-  | { type: 'playSound'; path: string; volume?: number; pitch?: number }
-  | { type: 'playMusic'; path: string; loop?: boolean }
+  | { type: 'playSound'; path?: string; audioAssetId?: string; volume?: number; pitch?: number }
+  | { type: 'playMusic'; path?: string; audioAssetId?: string; loop?: boolean }
   | { type: 'stopAllAudio' }
   | { type: 'stopMusic' }
   | { type: 'pauseMusic' }

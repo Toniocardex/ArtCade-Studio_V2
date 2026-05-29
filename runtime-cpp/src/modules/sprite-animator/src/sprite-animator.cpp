@@ -30,6 +30,10 @@ bool SpriteAnimator::hasClip(const std::string& name) const {
     return clips_.count(name) > 0;
 }
 
+void SpriteAnimator::clearClips() {
+    clips_.clear();
+}
+
 // ------------------------------------------------------------------ instance control
 
 void SpriteAnimator::play(EntityId entity, const std::string& clipName, FinishCb onFinish) {

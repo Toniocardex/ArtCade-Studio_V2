@@ -2,6 +2,10 @@ import { useRef, useLayoutEffect, useEffect, useState } from 'react'
 import { useEditor } from '../store/editor-store'
 import type { ConsoleEntry } from '../types'
 import { isReady } from '../utils/wasm-bridge'
+import { assetOrchestrator } from '../utils/asset-orchestrator'
+import { watchProjectAssets } from '../utils/asset-watcher'
+import { dirName } from '../utils/project'
+import { reloadProjectAudioAsset, reloadProjectImageAsset } from '../utils/reload-project-asset'
 import { runtimeSync, type EditorTool } from '../utils/runtime-sync-service'
 import { clampEditorZoom, computeFitZoom } from '../utils/editor-zoom'
 import { zoomFitRegistry } from '../utils/zoom-fit-registry'
@@ -63,13 +67,16 @@ export default function PreviewPanel() {
 
   const canvasRef           = useRef<HTMLCanvasElement>(null)
   const scrollRef           = useRef<HTMLDivElement>(null)
-  const registeredAssetsRef = useRef<Set<string>>(new Set())
   const sceneIdRef          = useRef<string>('')
+  const projectRef          = useRef(project)
+  const projectPathRef      = useRef(projectPath)
   const snapToGridRef       = useRef(false)
   const gridSizeRef         = useRef(32)
   const ignoredTransformEchoRef = useRef<TransformSnapshot | null>(null)
 
   sceneIdRef.current    = selection.sceneId ?? project?.activeSceneId ?? ''
+  projectRef.current    = project
+  projectPathRef.current = projectPath
   snapToGridRef.current = snapToGrid
   gridSizeRef.current   = editorGridSize
 
@@ -134,14 +141,67 @@ export default function PreviewPanel() {
   })
 
   useRuntimeAssetUpload({
-    project, projectPath, wasmReady, engineReady,
-    registeredAssetsRef,
+    project,
+    projectPath,
+    activeSceneId: selection.sceneId ?? project?.activeSceneId ?? null,
+    wasmReady,
+    engineReady,
   })
 
   useEffect(() => {
-    runtimeSync.setAssetCacheInvalidator(() => registeredAssetsRef.current.clear())
+    runtimeSync.setAssetCacheInvalidator(() => {
+      assetOrchestrator.clearRegistered()
+      const p = projectRef.current
+      const sid = sceneIdRef.current
+      const root = projectPathRef.current ? dirName(projectPathRef.current) : ''
+      if (p && sid) void assetOrchestrator.loadScene(p, sid, root)
+    })
     return () => runtimeSync.setAssetCacheInvalidator(null)
   }, [])
+
+  useEffect(() => {
+    const root = projectPath ? dirName(projectPath) : ''
+    if (!root || !wasmReady || !engineReady) return
+    let cancelled = false
+    let unwatchFn: (() => void) | null = null
+    void watchProjectAssets(root, (relPath) => {
+      if (cancelled) return
+      const p = projectRef.current
+      if (!p) return
+      const image = Object.values(p.assets ?? {}).find((a) => a.path === relPath)
+      if (image) {
+        void reloadProjectImageAsset(root, image).then((ok) => {
+          if (ok && !cancelled) {
+            dispatch({
+              type: 'LOG',
+              entry: makeLogEntry(`[Asset] Reloaded: ${relPath}`, 'info'),
+            })
+          }
+        })
+        return
+      }
+      const audio = Object.values(p.audioAssets ?? {}).find((a) => a.path === relPath)
+      if (!audio) return
+      void reloadProjectAudioAsset(root, audio).then((ok) => {
+        if (ok && !cancelled) {
+          dispatch({
+            type: 'LOG',
+            entry: makeLogEntry(`[Asset] Reloaded: ${relPath}`, 'info'),
+          })
+        }
+      })
+    }).then((fn) => {
+      if (cancelled) {
+        void fn?.()
+        return
+      }
+      unwatchFn = () => { void fn?.() }
+    })
+    return () => {
+      cancelled = true
+      unwatchFn?.()
+    }
+  }, [projectPath, wasmReady, engineReady, dispatch])
 
   // All per-frame editor channels (mode, selection, tool, chrome) go
   // through RuntimeSyncService — there is exactly one place that owns the

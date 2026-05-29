@@ -71,6 +71,37 @@ export async function importImageIntoProject(
   }
 }
 
+/** Copy an imported audio file into `assets/audio/`. */
+export async function importAudioIntoProject(
+  projectRoot: string,
+  fileName: string,
+  bytes: Uint8Array,
+): Promise<string | null> {
+  if (!isTauri()) { notAvailable('importAudioIntoProject'); return null }
+  const safeName = safeAssetFileName(fileName)
+  const relPath = `assets/audio/${safeName}`
+  try {
+    await invokeWriteBinaryFile(joinPath(projectRoot, relPath), bytes, projectRoot)
+    return relPath
+  } catch (err) {
+    console.error('[api] importAudioIntoProject failed:', err)
+    return null
+  }
+}
+
+export async function readProjectFileBytes(
+  projectRoot: string,
+  relPath: string,
+): Promise<Uint8Array | null> {
+  if (!isTauri()) return null
+  try {
+    const safeRel = normalizeProjectRelativePath(relPath, 'asset path')
+    return await readFile(joinPath(projectRoot, safeRel))
+  } catch {
+    return null
+  }
+}
+
 /** Read a project image (path relative to project root) as raw bytes. */
 export async function readProjectImageBytes(
   projectRoot: string,

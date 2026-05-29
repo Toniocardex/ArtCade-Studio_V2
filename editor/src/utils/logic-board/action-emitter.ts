@@ -42,6 +42,16 @@ export interface ActionEmitCtx {
   project?: ProjectDoc | null
 }
 
+function resolveAudioPath(
+  project: ProjectDoc | null | undefined,
+  audioAssetId: string | undefined,
+  fallbackPath: string | undefined,
+): string {
+  if (audioAssetId && project?.audioAssets?.[audioAssetId]?.path)
+    return project.audioAssets[audioAssetId].path
+  return fallbackPath ?? ''
+}
+
 /**
  * Emit a single Lua statement for a Logic Board action. ALWAYS returns a
  * string — when the action shape is unknown (stale `direction` enum from
@@ -69,10 +79,14 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
       return `entity.setPosition(${target(a.target)}, ${Number(a.x) || 0}, ${Number(a.y) || 0})`
     case 'setVelocity':
       return `entity.setVelocity(${target(a.target)}, ${Number(a.vx) || 0}, ${Number(a.vy) || 0})`
-    case 'playSound':
-      return `audio.playSound(${luaString(a.path)}, ${a.volume ?? 1}, ${a.pitch ?? 1})`
-    case 'playMusic':
-      return `audio.playMusic(${luaString(a.path)}, ${a.loop !== false})`
+    case 'playSound': {
+      const path = resolveAudioPath(ctx.project, a.audioAssetId, a.path)
+      return `audio.playSound(${luaString(path)}, ${a.volume ?? 1}, ${a.pitch ?? 1})`
+    }
+    case 'playMusic': {
+      const path = resolveAudioPath(ctx.project, a.audioAssetId, a.path)
+      return `audio.playMusic(${luaString(path)}, ${a.loop !== false})`
+    }
     case 'stopAllAudio':
       return `audio.stopAll()`
     case 'stopMusic':

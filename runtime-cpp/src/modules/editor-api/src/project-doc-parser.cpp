@@ -366,6 +366,51 @@ void materializeV2Project(
     scenes   = std::move(doc.scenes);
 }
 
+std::vector<ImageAssetDef> parseImageAssets(const json& doc) {
+    std::vector<ImageAssetDef> out;
+    if (!doc.contains("assets") || !doc["assets"].is_object()) return out;
+    for (auto& [key, av] : doc["assets"].items()) {
+        if (!av.is_object()) continue;
+        ImageAssetDef ad;
+        ad.assetId = av.value("path", key);
+        if (av.contains("imagePoints") && av["imagePoints"].is_array()) {
+            for (const auto& pt : av["imagePoints"]) {
+                if (!pt.is_object()) continue;
+                ImagePointDef ip;
+                ip.id = pt.value("id", std::string{});
+                ip.x  = pt.value("x", 0.f);
+                ip.y  = pt.value("y", 0.f);
+                if (!ip.id.empty()) ad.imagePoints.push_back(ip);
+            }
+        }
+        if (av.contains("clips") && av["clips"].is_array()) {
+            for (const auto& cv : av["clips"]) {
+                if (!cv.is_object()) continue;
+                AnimationClipDef clip;
+                clip.name = cv.value("name", std::string{});
+                clip.fps  = cv.value("fps", 12.f);
+                clip.loop = cv.value("loop", true);
+                if (cv.contains("frames") && cv["frames"].is_array()) {
+                    for (const auto& fr : cv["frames"]) {
+                        if (!fr.is_object()) continue;
+                        AnimationFrameRect rect;
+                        rect.x = fr.value("x", 0.f);
+                        rect.y = fr.value("y", 0.f);
+                        rect.w = fr.value("w", 0.f);
+                        rect.h = fr.value("h", 0.f);
+                        if (rect.w > 0.f && rect.h > 0.f)
+                            clip.frames.push_back(rect);
+                    }
+                }
+                if (!clip.name.empty() && !clip.frames.empty())
+                    ad.clips.push_back(std::move(clip));
+            }
+        }
+        out.push_back(std::move(ad));
+    }
+    return out;
+}
+
 ArtCade::ProjectRuntimeSettings parseRuntimeSettings(const json& doc) {
     ArtCade::ProjectRuntimeSettings s;
     if (doc.contains("targetFPS"))

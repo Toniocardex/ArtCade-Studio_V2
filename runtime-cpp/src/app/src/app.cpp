@@ -25,6 +25,7 @@
 #include "../../modules/game-state/include/game-state-manager.h"
 #include "../../modules/texture-manager/include/texture-manager.h"
 #include "../../modules/sprite-animator/include/sprite-animator.h"
+#include "../../modules/sprite-animator/include/animation-clips-registry.h"
 #include "../../modules/layer-manager/include/layer-manager.h"
 #include "../../modules/camera-manager/include/camera-manager.h"
 #include "../../modules/tween-manager/include/tween-manager.h"
@@ -237,6 +238,8 @@ bool Application::initSubsystems() {
     EditorAPI::wireLua(mod_->luaHost.get());   // hot-reload from Logic Board
     EditorAPI::wireRenderer(mod_->renderer.get()); // tileset image upload (F3)
     EditorAPI::wireDialog(mod_->dialogManager.get());
+    EditorAPI::wireSpriteAnimator(mod_->spriteAnimator.get());
+    EditorAPI::wireAudio(mod_->audio.get());
     EditorAPI::init("#artcade-canvas");
 
 #ifdef ARTCADE_WASM
@@ -430,6 +433,8 @@ bool Application::loadProject(const std::string& projectPath) {
     }
 
     mod_->world->init(doc);
+    if (mod_->spriteAnimator)
+        registerAnimationClipsFromAssets(*mod_->spriteAnimator, doc.imageAssets);
     applyRuntimeSettings(runtimeSettingsFromProjectDoc(doc), ViewportPolicy::NativePlay);
 
     // Phase D2: cache tile id → render colour for renderActiveScene()
@@ -759,7 +764,9 @@ void Application::renderActiveScene() {
     // (SceneActiveTag) are visited.
     const bool inEditMode = overlay.inEditMode;
     mod_->entityGateway->forEachActiveRenderable(
-        [renderer = mod_->renderer.get(), inEditMode, gw = mod_->entityGateway.get()]
+        [renderer = mod_->renderer.get(),
+         animator = mod_->spriteAnimator.get(),
+         inEditMode, gw = mod_->entityGateway.get()]
         (EntityId id, const Transform& t, const SpriteComponent& s) {
             if (!inEditMode && s.alpha <= 0.001f)
                 return;
@@ -771,10 +778,23 @@ void Application::renderActiveScene() {
                 alpha *= 0.45f;
             if (inEditMode && placeholderFill)
                 alpha = 1.f;
-            renderer->drawSprite(
-                s.spriteAssetId,
-                t.position, t.rotation, t.scale,
-                s.tint, s.fillColor, alpha, s.shaderEffect, s.pivot);
+            const auto frame = animator ? animator->currentFrame(id)
+                                        : Modules::SpriteAnimator::Frame{};
+            if (frame.w > 0 && frame.h > 0) {
+                renderer->drawSpriteFrame(
+                    s.spriteAssetId,
+                    static_cast<float>(frame.x),
+                    static_cast<float>(frame.y),
+                    static_cast<float>(frame.w),
+                    static_cast<float>(frame.h),
+                    t.position, t.rotation, t.scale,
+                    s.tint, alpha, s.pivot);
+            } else {
+                renderer->drawSprite(
+                    s.spriteAssetId,
+                    t.position, t.rotation, t.scale,
+                    s.tint, s.fillColor, alpha, s.shaderEffect, s.pivot);
+            }
         });
 
     // Scene fade (game layer, drawn over entities, under editor chrome).

@@ -95,6 +95,7 @@ Guida specializzata         (REACT_WASM_PATTERN.md o ECS_IMPLEMENTATION_GUIDE.md
 | **ECS_IMPLEMENTATION_GUIDE.md** | EnTT pratica | 30–45min | C++ dev | ⭐⭐ |
 | **ENGINE_INTEGRATION_ROADMAP.md** | Tracker operativo Thick Core / Thin Script / Gateway / EnTT | ~5min | C++ / Tech lead | ⭐⭐⭐ |
 | **ASSETS_ROADMAP.md** | Piano fase-per-fase su asset/sprite (animation clips, audio, .artcade export, hot-reload, font) con DoD e closure log | ~10min | Editor / C++ / Tooling | ⭐⭐⭐ |
+| **ASSET_PIPELINE_ARCHITECTURE.md** | Architettura asset (TS orchestra, WASM possiede), audit repo, manifest/ID, fasi A–D — doc per collaboratori | ~15min | Editor / C++ / Tech lead | ⭐⭐⭐ |
 | **LOGIC_BOARD_COMPONENT_API_ROADMAP.md** | Component runtime → azioni/condizioni Logic Board (capability registry, tranche) | ~5min | Editor / C++ | ⭐⭐ |
 | **ARTIST_FRIENDLY_COMPONENTS.md** | Principio prodotto: numeri di design visibili, complessità tecnica nascosta | ~5min | Product / Editor / C++ | ⭐⭐⭐ |
 | **ARCHITETTURA_TECNICA_ENGINE_2D.md** | Stack collab, §8–10, §11 stato vs target + roadmap | 30–40min | C++ / Tech lead | ⭐⭐ |

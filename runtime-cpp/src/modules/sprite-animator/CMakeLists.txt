@@ -1,5 +1,6 @@
 add_library(artcade-sprite-animator
     src/sprite-animator.cpp
+    src/animation-clips-registry.cpp
 )
 target_include_directories(artcade-sprite-animator
     PUBLIC  include

@@ -22,6 +22,7 @@ public:
 
     // Release a single texture by handle or path.
     void unload(uint32_t handle);
+    void unloadByPath(const std::string& path);
     void unloadAll();
 
     // Non-owning access; returns nullptr if handle/path is unknown.

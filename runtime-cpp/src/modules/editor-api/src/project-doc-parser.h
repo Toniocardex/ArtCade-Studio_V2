@@ -67,6 +67,9 @@ void materializeV2Project(
 /** targetFPS + world.physicsMode from editor_load_project JSON. */
 ArtCade::ProjectRuntimeSettings parseRuntimeSettings(const nlohmann::json& doc);
 
+std::vector<ArtCade::ImageAssetDef>
+parseImageAssets(const nlohmann::json& doc);
+
 } // namespace ArtCade::ProjectDocParser
 
 #endif // __EMSCRIPTEN__

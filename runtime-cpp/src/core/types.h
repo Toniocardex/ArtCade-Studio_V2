@@ -292,9 +292,24 @@ struct TileSurfaceMeta {
 // Project document (root data model)
 // ============================================================================
 
+struct AnimationFrameRect {
+    float x = 0.f;
+    float y = 0.f;
+    float w = 0.f;
+    float h = 0.f;
+};
+
+struct AnimationClipDef {
+    std::string              name;
+    std::vector<AnimationFrameRect> frames;
+    float                    fps  = 12.f;
+    bool                     loop = true;
+};
+
 struct ImageAssetDef {
     std::string assetId;
     std::vector<ImagePointDef> imagePoints;
+    std::vector<AnimationClipDef> clips;
 };
 
 enum class PhysicsMode {

@@ -20,6 +20,13 @@ if(TARGET artcade-dialog)
     target_link_libraries(artcade-editor-api PUBLIC artcade-dialog)
 endif()
 
+if(TARGET artcade-sprite-animator)
+    target_link_libraries(artcade-editor-api PUBLIC artcade-sprite-animator)
+endif()
+if(TARGET artcade-audio)
+    target_link_libraries(artcade-editor-api PUBLIC artcade-audio)
+endif()
+
 if(EMSCRIPTEN)
     target_compile_definitions(artcade-editor-api PRIVATE ARTCADE_WASM)
     target_link_libraries(artcade-editor-api PUBLIC artcade-input)

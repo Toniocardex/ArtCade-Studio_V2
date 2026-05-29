@@ -48,6 +48,7 @@ import { planProjectSync, type ProjectSyncPlan } from './runtime-sync-diff'
 import type { ProjectDoc } from '../types'
 import type { DialogScript } from './dialog/dialog-script'
 import { dialogsJsonForRuntime } from './dialog/runtime-dialogs'
+import { performRuntimeSceneAssetSync } from '../panels/preview/runtime-asset-sync'
 
 // ---------------------------------------------------------------------------
 // Public domain types
@@ -171,6 +172,7 @@ class RuntimeSyncServiceImpl {
   private lastSnapToGrid:     boolean | null = null
   private readonly lastTransform: Map<number, EntityTransformSnapshot> = new Map()
   private assetCacheInvalidator: (() => void) | null = null
+  private lastAssetSceneId: string | null = null
   private readonly readyListeners: Set<(ready: boolean) => void> = new Set()
   // Seed from the actual bridge state so a Vite HMR rehydration (wasm
   // already alive when this module is re-evaluated) does NOT trigger a
@@ -211,6 +213,7 @@ class RuntimeSyncServiceImpl {
     this.lastGridSize  = null
     this.lastSnapToGrid = null
     this.lastTransform.clear()
+    this.lastAssetSceneId = null
     this.engineReady = false
     this.bootProjectSynced = false
     for (const cb of this.engineReadyListeners) cb(false)
@@ -220,6 +223,18 @@ class RuntimeSyncServiceImpl {
   /** PreviewPanel registers this so texture re-upload runs after STOP restore. */
   setAssetCacheInvalidator(fn: (() => void) | null): void {
     this.assetCacheInvalidator = fn
+  }
+
+  /** Scene-scoped texture upload after project sync (Phase B). */
+  private syncSceneAssetsIfNeeded(
+    project: ProjectDoc,
+    activeSceneId: string,
+    projectPath: string | null | undefined,
+  ): void {
+    if (!this.engineReady) return
+    if (this.lastAssetSceneId === activeSceneId) return
+    this.lastAssetSceneId = activeSceneId
+    performRuntimeSceneAssetSync(project, activeSceneId, projectPath ?? null)
   }
 
   /**
@@ -524,6 +539,7 @@ class RuntimeSyncServiceImpl {
       if (options?.mainLua && this.reloadMainLuaIfChanged(options.mainLua) === 'failed') {
         return false
       }
+      this.syncSceneAssetsIfNeeded(project, activeSceneId, projectPath)
       return true
     }
 
@@ -534,6 +550,7 @@ class RuntimeSyncServiceImpl {
 
     const incremental = this.applyIncrementalSync(project, plan)
     this.latchProjectProjection(loadKey, projection)
+    this.syncSceneAssetsIfNeeded(project, activeSceneId, projectPath)
     return didWork || incremental
   }
 

@@ -5,7 +5,7 @@ be closed, validated, and tested before starting the next. If a phase grows
 during execution, split it into the listed sub-phases (or add new ones) and
 apply the same DoD per sub-phase.
 
-**Owner:** Antonio + Claude · **Started:** 2026-05-25 · **Status:** Phase 1a done; 1b next
+**Owner:** Antonio + Claude · **Started:** 2026-05-25 · **Status:** Pipeline A–B + export + hot-reload shipped; Phase 1–2 editor/C++ wired; manual smoke + formal closure pending
 
 ---
 
@@ -67,8 +67,9 @@ clips that don't exist.
     will close this; until then `playAnimation` still references undefined
     clips (no regression: same state as before this sub-phase).
 
-### 1b — Editor authoring UI
+### 1b — Editor authoring UI ✅
 
+- ✅ `AnimationClipsEditor` on image asset detail in `AssetBrowserPanel` (grid slicer + preview).
 - New "Animations" tab inside the existing image asset detail (or a modal),
   reusing the Tileset grid-slicer pattern (cell size + selection rectangle).
 - Allow: add clip, name it, pick frames by clicking cells, set fps + loop.
@@ -94,11 +95,11 @@ clips that don't exist.
 - **Test:** Logic Board compiler test + manual smoke firing a non-loop clip.
 
 ### Closure checklist
-- [ ] tsc clean
-- [ ] vitest green (incl. new tests)
+- [x] tsc clean
+- [x] vitest green (incl. new tests)
 - [ ] manual smoke: define a 4-frame "walk" clip on a sprite, scene plays it
 - [ ] manual smoke: non-loop clip fires `onAnimationEnd`
-- [ ] docs/ASSETS_ROADMAP.md status updated
+- [x] docs/ASSETS_ROADMAP.md status updated
 
 ---
 

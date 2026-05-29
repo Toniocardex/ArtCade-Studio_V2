@@ -14,7 +14,6 @@
 import { useEffect, type Dispatch, type MutableRefObject, type RefObject } from 'react'
 import {
   loadWasmRuntime, isReady,
-  editorRegisterImage,
   type WasmCallbacks,
 } from '../../utils/wasm-bridge'
 import { WASM_RUNTIME_SRC } from '../../utils/runtime-path'
@@ -24,8 +23,7 @@ import {
   logLogicBoardCompileFailure,
   resolvePreviewMainLuaWithStatus,
 } from '../../utils/preview-restore'
-import { readProjectImageBytes } from '../../utils/api'
-import { dirName } from '../../utils/project'
+import { performRuntimeSceneAssetSync } from './runtime-asset-sync'
 import {
   scheduleWasmUiUpdate,
   scheduleWasmUiUpdateWhen,
@@ -324,44 +322,21 @@ export function useRuntimeEditorSync(opts: EditorSyncOptions): void {
 }
 
 // ---------------------------------------------------------------------------
-// useRuntimeAssetUpload — push ProjectDoc.assets into the C++ texture cache
+// useRuntimeAssetUpload — scene-scoped textures into the C++ cache (Phase A/B)
 // ---------------------------------------------------------------------------
 
 interface AssetUploadOptions {
   project: ProjectDoc | null
   projectPath: string | null
+  activeSceneId: string | null
   wasmReady: boolean
   engineReady: boolean
-  registeredAssetsRef: MutableRefObject<Set<string>>
 }
 
 export function useRuntimeAssetUpload(opts: AssetUploadOptions): void {
-  const { project, projectPath, wasmReady, engineReady, registeredAssetsRef } = opts
+  const { project, projectPath, activeSceneId, wasmReady, engineReady } = opts
   useEffect(() => {
-    if (!wasmReady || !engineReady || !project?.assets) return
-    const root = projectPath ? dirName(projectPath) : ''
-    const assets = project.assets
-    void (async () => {
-      for (const asset of Object.values(assets)) {
-        const key = `${asset.path}#${asset.dataUrl ? 'd' : 'f'}`
-        if (registeredAssetsRef.current.has(key)) continue
-        let bytes: Uint8Array | null = null
-        if (asset.dataUrl) {
-          try {
-            const b64 = asset.dataUrl.split(',')[1] ?? ''
-            const bin = atob(b64)
-            const u8  = new Uint8Array(bin.length)
-            for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i)
-            bytes = u8
-          } catch { bytes = null }
-        } else if (root) {
-          bytes = await readProjectImageBytes(root, asset.path)
-        }
-        if (!bytes || bytes.length === 0) continue
-        const ext = `.${(asset.path.split('.').pop() ?? 'png').toLowerCase()}`
-        if (editorRegisterImage(asset.path, bytes, ext))
-          registeredAssetsRef.current.add(key)
-      }
-    })()
-  }, [project, projectPath, wasmReady, engineReady, registeredAssetsRef])
+    if (!wasmReady || !engineReady || !project || !activeSceneId) return
+    performRuntimeSceneAssetSync(project, activeSceneId, projectPath)
+  }, [project, projectPath, activeSceneId, wasmReady, engineReady])
 }

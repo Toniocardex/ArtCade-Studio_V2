@@ -1,7 +1,7 @@
 import type {
   ProjectDoc, EntityDef, SceneDef, SceneInstanceDef, ObjectTypeDef, Vec2, Vec3, Vec4,
   Transform, SpriteComponent, AnimationState, PhysicsComponent, PhysicsMode, WorldSettings,
-  TilemapLayer, TileDef, TilesetAsset, ImageAsset, ImagePointDef, AnimationClipDef,
+  TilemapLayer, TileDef, TilesetAsset, ImageAsset, AudioAsset, ImagePointDef, AnimationClipDef,
   AnimationFrameRect,
 } from '../types'
 import { DEFAULT_WORLD } from '../types'
@@ -337,6 +337,31 @@ function parseAssets(
   return Object.keys(out).length ? out : undefined
 }
 
+function parseAudioAssets(
+  raw: unknown,
+): Record<string, AudioAsset> | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined
+  const out: Record<string, AudioAsset> = {}
+  for (const [key, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (!v || typeof v !== 'object') continue
+    const o = v as Record<string, unknown>
+    const id = String(o.id ?? key)
+    const path = String(o.path ?? '')
+    if (!id || !path) continue
+    const cat = o.category
+    const asset: AudioAsset = {
+      id,
+      name: String(o.name ?? id),
+      path,
+      ...(cat === 'sfx' || cat === 'music' ? { category: cat } : {}),
+    }
+    const vol = Number(o.volume)
+    if (Number.isFinite(vol)) asset.volume = vol
+    out[id] = asset
+  }
+  return Object.keys(out).length ? out : undefined
+}
+
 function parseTilesets(
   raw: unknown,
 ): Record<string, TilesetAsset> | undefined {
@@ -470,6 +495,7 @@ export function parseProjectDocWithMeta(jsonStr: string): ParseProjectDocResult 
       tilePalette:    parseTilePalette(raw.tilePalette ?? raw.tile_palette),
       tilesets:       parseTilesets(raw.tilesets),
       assets:         parseAssets(raw.assets),
+      audioAssets:    parseAudioAssets(raw.audioAssets ?? raw.audio_assets),
       logicBoards:    logicBoardsParsed.doc,
     }
 
@@ -628,6 +654,9 @@ export function serializeProjectDoc(project: ProjectDoc): string {
             }),
           ),
         }
+      : {}),
+    ...(project.audioAssets && Object.keys(project.audioAssets).length > 0
+      ? { audioAssets: project.audioAssets }
       : {}),
     targetFPS:      v2.targetFPS,
     activeSceneId:  v2.activeSceneId,

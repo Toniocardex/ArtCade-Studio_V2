@@ -292,6 +292,31 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
         projectDirty: true,
       }
     }
+    case 'AUDIO_ASSET_ADD': {
+      if (!state.project) return state
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          audioAssets: {
+            ...(state.project.audioAssets ?? {}),
+            [action.asset.id]: action.asset,
+          },
+        },
+        projectDirty: true,
+      }
+    }
+    case 'AUDIO_ASSET_REMOVE': {
+      if (!state.project?.audioAssets) return state
+      const audioAssets = Object.fromEntries(
+        Object.entries(state.project.audioAssets).filter(([k]) => k !== action.assetId),
+      )
+      return {
+        ...state,
+        project: { ...state.project, audioAssets },
+        projectDirty: true,
+      }
+    }
     case 'ASSET_REMOVE': {
       if (!state.project || !state.project.assets) return state
       const removed = state.project.assets[action.assetId]

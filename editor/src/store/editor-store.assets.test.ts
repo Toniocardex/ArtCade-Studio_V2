@@ -130,6 +130,25 @@ describe('project.json roundtrip — assets', () => {
     expect(again.assets!['img_a'].clips).toEqual(withClips.clips)
   })
 
+  it('ASSET_ADD replaces clips on the same asset id', () => {
+    const withClips: ImageAsset = {
+      ...IMG,
+      clips: [{ name: 'walk', frames: [{ x: 0, y: 0, w: 16, h: 16 }], fps: 8, loop: true }],
+    }
+    let s = coreReducer(st(project()), { type: 'ASSET_ADD', asset: withClips })
+    s = coreReducer(s, {
+      type: 'ASSET_ADD',
+      asset: {
+        ...withClips,
+        clips: [
+          { name: 'run', frames: [{ x: 16, y: 0, w: 16, h: 16 }], fps: 12, loop: false },
+        ],
+      },
+    })
+    expect(s.project!.assets!.img_a.clips).toHaveLength(1)
+    expect(s.project!.assets!.img_a.clips![0].name).toBe('run')
+  })
+
   it('parseAnimationClips drops malformed clips defensively', () => {
     const raw = JSON.stringify({
       projectName: 'D', version: '2.0.0', targetFPS: 60,

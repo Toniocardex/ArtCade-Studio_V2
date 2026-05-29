@@ -168,6 +168,8 @@ export type Action =
   | { type: 'TILESET_ASSET_REMOVE';  assetId: string }
   | { type: 'ASSET_ADD';             asset: ImageAsset }
   | { type: 'ASSET_REMOVE';          assetId: string }
+  | { type: 'AUDIO_ASSET_ADD';       asset: import('../types/index').AudioAsset }
+  | { type: 'AUDIO_ASSET_REMOVE';    assetId: string }
   | { type: 'TILEMAP_SET_TILESETID'; sceneId: string; assetId: string }
   | { type: 'TILESET_SELECT_CELL';   cellIndex: number }
   // ---- Logic Board CRUD (all operate on project.logicBoards) ----
