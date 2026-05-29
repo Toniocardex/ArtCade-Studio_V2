@@ -70,6 +70,13 @@ describe('planProjectSync', () => {
     })
   })
 
+  it('requires full load when physicsMode changes', () => {
+    const p = makeProject()
+    const prev = runtimeProjectProjection(p as never, 'a')
+    p.world = { physicsMode: 'on' }
+    expect(planProjectSync(prev, p as never, 'a')).toEqual({ kind: 'full' })
+  })
+
   it('requires full load when entity ids change', () => {
     const p = makeProject()
     const prev = runtimeProjectProjection(p as never, 'a')

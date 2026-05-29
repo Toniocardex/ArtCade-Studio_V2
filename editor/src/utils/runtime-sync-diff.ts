@@ -38,7 +38,8 @@ export function planProjectSync(
     prev.pv !== next.pv ||
     prev.as !== next.as ||
     prev.fps !== next.fps ||
-    prev.msp !== next.msp
+    prev.msp !== next.msp ||
+    prev.pm !== next.pm
   ) {
     return { kind: 'full' }
   }

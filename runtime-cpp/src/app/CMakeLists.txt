@@ -69,6 +69,7 @@ if(EMSCRIPTEN)
         "_editor_set_tool"
         "_editor_set_guides_enabled"
         "_editor_set_grid_size"
+        "_editor_set_snap_to_grid"
         "_editor_register_image"
         "_editor_open_raytint"
         "_editor_close_raytint"
