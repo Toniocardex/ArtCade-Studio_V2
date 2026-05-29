@@ -753,6 +753,14 @@ Original schema summary for traceability:
 
 This document validates that direction against the repo and sequences work through `ASSETS_ROADMAP.md`.
 
+### 12.1 Editor UI — Project Explorer (canvas mode)
+
+The left sidebar uses **`ProjectExplorerPanel`** (`editor/src/components/project-explorer/`) with a unified scrollable tree: Scenes, Entities (active scene), Entity Types, and **fixed asset folders** (Audio, Fonts, Images, Scripts, Tilesets). Custom virtual folders in `project.json` are not implemented yet.
+
+- Import / remove: `editor/src/hooks/useAssetExplorerActions.ts`
+- Scene / entity actions: `editor/src/hooks/useSceneExplorerActions.ts`
+- Tree model + search filter: `editor/src/utils/project-explorer-tree.ts`
+
 ---
 
 ## 13. Conclusion

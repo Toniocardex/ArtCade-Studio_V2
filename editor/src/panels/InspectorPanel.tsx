@@ -15,6 +15,7 @@ import { TransformSection } from './inspector/TransformSection'
 import { SpriteSection } from './inspector/SpriteSection'
 import { ComponentsSection } from './inspector/ComponentsSection'
 import { ScriptSection } from './inspector/ScriptSection'
+import { LogicBoardCta } from './inspector/LogicBoardCta'
 import {
   inspectorBodyView,
   nextInspectorTab,
@@ -87,6 +88,7 @@ function EntityInspector({ entity }: EntityInspectorProps) {
         open={componentsOpen}
         onOpenChange={setComponentsOpen}
       />
+      <LogicBoardCta entity={entity} />
       <TransformSection entity={entity} />
       <SpriteSection entity={entity} />
       <ScriptSection entity={entity} />

@@ -1,5 +1,7 @@
 // ---------------------------------------------------------------------------
-// SceneObjectsPanel — left sidebar in canvas mode
+// SceneObjectsPanel — legacy flat list (superseded by ProjectExplorerPanel).
+// Kept for reference; canvas mode uses components/project-explorer/.
+// Scene actions live in hooks/useSceneExplorerActions.ts.
 // ---------------------------------------------------------------------------
 //
 // Sidebar layout (canvas mode):

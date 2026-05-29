@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { Check } from 'lucide-react'
 import { useEditor, useConsoleLogs } from '../store/editor-store'
 import { isReady as isWasmReady } from '../utils/wasm-bridge'
 
@@ -71,7 +72,17 @@ export default function StatusBar() {
         {cameraPreviewActive && <span className="text-[var(--accent-2)]">Camera: PREVIEW</span>}
         <span>Lua: 5.4</span>
         <span>Raylib: 5.0</span>
-        {projectDirty && <span className="text-[var(--warn)]">Project: UNSAVED</span>}
+        {projectDirty ? (
+          <span className="text-[var(--warn)]">Project: UNSAVED</span>
+        ) : project ? (
+          <span
+            className="inline-flex items-center gap-1 text-[var(--text)]"
+            title="All edits are saved in memory; use File → Save Project to write to disk"
+          >
+            <Check size={11} className="text-[var(--accent)]" aria-hidden />
+            No unsaved changes
+          </span>
+        ) : null}
       </div>
       <div className="flex items-center gap-4">
         <button

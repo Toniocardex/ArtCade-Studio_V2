@@ -19,11 +19,6 @@ export function EntityHeaderBar({
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const active = activeComponentDescriptors(entity)
 
-  function openLogicBoard() {
-    dispatch({ type: 'SELECT_ENTITY', entityId: entity.id })
-    dispatch({ type: 'SET_MODE', mode: 'logic' })
-  }
-
   return (
     <div
       className="sticky top-0 z-10 -mx-4 px-4 pt-1 pb-3 mb-1
@@ -59,15 +54,6 @@ export function EntityHeaderBar({
           ))}
         </div>
       )}
-
-      <button
-        type="button"
-        onClick={openLogicBoard}
-        className="w-full mb-2 px-3 py-1.5 rounded text-xs font-semibold border border-[var(--accent-bd)]
-                   bg-[var(--accent-bg)] text-[var(--accent)] hover:bg-[var(--accent-bg-h)]"
-      >
-        Open Logic Board
-      </button>
 
       <EntityTagsSection entity={entity} />
 
