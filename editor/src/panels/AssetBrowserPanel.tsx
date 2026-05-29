@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ElementType } from 'react'
-import { Image, Music, Code, FileText, ImagePlus, Trash2, Grid3x3 } from 'lucide-react'
+import { Image, Music, Code, FileText, ImagePlus, Trash2, Grid3x3, Type } from 'lucide-react'
 import { useEditor } from '../store/editor-store'
 import { importImageIntoProject } from '../utils/api'
-import { importAudioIntoProject, readProjectFileBytes } from '../utils/asset-file-api'
+import { importAudioIntoProject, importFontIntoProject, readProjectFileBytes } from '../utils/asset-file-api'
 import { dirName } from '../utils/project'
-import type { AnimationClipDef, AudioAsset, ImageAsset, ImagePointDef, ProjectDoc, TilesetAsset } from '../types'
+import type { AnimationClipDef, AudioAsset, FontAsset, ImageAsset, ImagePointDef, ProjectDoc, TilesetAsset } from '../types'
 import { AnimationClipsEditor } from '../components/AnimationClipsEditor'
 import {
   isBackspaceKey,
@@ -14,13 +14,14 @@ import {
   shouldIgnoreEditorShortcut,
 } from '../utils/keyboard'
 
-type Category = 'ALL' | 'IMAGES' | 'AUDIO' | 'SCRIPTS' | 'TILESETS'
+type Category = 'ALL' | 'IMAGES' | 'AUDIO' | 'FONTS' | 'SCRIPTS' | 'TILESETS'
 
-const CATEGORIES: Category[] = ['ALL', 'IMAGES', 'AUDIO', 'SCRIPTS', 'TILESETS']
+const CATEGORIES: Category[] = ['ALL', 'IMAGES', 'AUDIO', 'FONTS', 'SCRIPTS', 'TILESETS']
 
 const ICON_MAP: Record<string, ElementType> = {
   IMAGES:   Image,
   AUDIO:    Music,
+  FONTS:    Type,
   SCRIPTS:  Code,
   TILESETS: Grid3x3,
 }
@@ -28,6 +29,7 @@ const ICON_MAP: Record<string, ElementType> = {
 const ASSET_ICON_COLOR: Record<string, string> = {
   IMAGES: 'var(--accent)',
   AUDIO: 'var(--accent-2)',
+  FONTS: 'var(--warn)',
   TILESETS: 'var(--purple)',
 }
 
@@ -41,12 +43,14 @@ function categoryShowsEmpty(
   hasImages: boolean,
   hasTilesets: boolean,
   hasAudio: boolean,
+  hasFonts: boolean,
 ): boolean {
   if (!project) return true
-  if (cat === 'ALL') return !hasImages && !hasTilesets && !hasAudio
+  if (cat === 'ALL') return !hasImages && !hasTilesets && !hasAudio && !hasFonts
   if (cat === 'IMAGES') return !hasImages
   if (cat === 'TILESETS') return !hasTilesets
   if (cat === 'AUDIO') return !hasAudio
+  if (cat === 'FONTS') return !hasFonts
   return true
 }
 
@@ -62,6 +66,9 @@ function emptyCategoryMessage(cat: Category, project: ProjectDoc | null): string
   }
   if (cat === 'AUDIO') {
     return 'No audio yet — use Import audio.'
+  }
+  if (cat === 'FONTS') {
+    return 'No fonts yet — use Import font. Draw in Lua with text.draw(path, …).'
   }
   return 'No assets in this category yet.'
 }
@@ -297,8 +304,10 @@ export default function AssetBrowserPanel() {
   const project = state.project
   const images = Object.values(project?.assets ?? {})
   const audioFiles = Object.values(project?.audioAssets ?? {})
+  const fontFiles = Object.values(project?.fontAssets ?? {})
   const tilesets = Object.values(project?.tilesets ?? {}) as TilesetAsset[]
   const audioRef = useRef<HTMLInputElement>(null)
+  const fontRef = useRef<HTMLInputElement>(null)
   const selEntity =
     project && state.selection.entityId != null
       ? project.entities[state.selection.entityId]
@@ -399,6 +408,31 @@ export default function AssetBrowserPanel() {
     [dispatch],
   )
 
+  const onPickFont = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      if (!file || !project) return
+      void (async () => {
+        const bytes = new Uint8Array(await file.arrayBuffer())
+        let relPath: string | null = null
+        if (state.projectPath) {
+          relPath = await importFontIntoProject(dirName(state.projectPath), file.name, bytes)
+        }
+        const path = relPath ?? `assets/fonts/${file.name}`
+        const asset: FontAsset = {
+          id: `font_${Date.now().toString(36)}`,
+          name: file.name,
+          path,
+          defaultSize: 32,
+        }
+        dispatch({ type: 'FONT_ASSET_ADD', asset })
+        flash(relPath ? `Imported ${file.name}` : `${file.name} (save project to persist)`)
+      })()
+      e.target.value = ''
+    },
+    [project, state.projectPath, dispatch, flash],
+  )
+
   const onPickAudio = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0]
@@ -426,11 +460,13 @@ export default function AssetBrowserPanel() {
 
   const showImages = cat === 'ALL' || cat === 'IMAGES'
   const showAudio = cat === 'ALL' || cat === 'AUDIO'
+  const showFonts = cat === 'ALL' || cat === 'FONTS'
   const showTilesets = cat === 'ALL' || cat === 'TILESETS'
   const hasImages = images.length > 0
   const hasTilesets = tilesets.length > 0
   const hasAudio = audioFiles.length > 0
-  const showEmpty = categoryShowsEmpty(cat, project, hasImages, hasTilesets, hasAudio)
+  const hasFonts = fontFiles.length > 0
+  const showEmpty = categoryShowsEmpty(cat, project, hasImages, hasTilesets, hasAudio, hasFonts)
 
   return (
     <div className="h-full flex flex-col bg-[var(--bg)]" data-panel="assets">
@@ -447,6 +483,13 @@ export default function AssetBrowserPanel() {
         accept="audio/ogg,audio/wav,audio/mpeg,.ogg,.wav,.mp3"
         className="hidden"
         onChange={onPickAudio}
+      />
+      <input
+        ref={fontRef}
+        type="file"
+        accept=".ttf,.otf,font/ttf,font/otf"
+        className="hidden"
+        onChange={onPickFont}
       />
 
       <div className="flex items-center border-b border-[var(--border)] px-2 flex-shrink-0">
@@ -489,6 +532,18 @@ export default function AssetBrowserPanel() {
             <Music size={12} /> Import audio
           </button>
         )}
+        {(cat === 'FONTS' || cat === 'ALL') && (
+          <button
+            type="button"
+            onClick={() => fontRef.current?.click()}
+            disabled={!project}
+            className="flex items-center gap-1.5 px-3 py-1 my-1 mr-1 rounded text-[10px] font-semibold
+                       border border-[var(--border-2)] text-[var(--muted)]
+                       hover:text-[var(--text)] disabled:opacity-40"
+          >
+            <Type size={12} /> Import font
+          </button>
+        )}
         {(cat === 'IMAGES' || cat === 'ALL') && (
           <button
             type="button"
@@ -529,6 +584,23 @@ export default function AssetBrowserPanel() {
                 asset={a}
                 projectRoot={state.projectPath ? dirName(state.projectPath) : null}
               />
+            ))}
+
+          {showFonts &&
+            fontFiles.map((f) => (
+              <div
+                key={f.id}
+                className={`${CARD_BTN} border-[var(--border)]`}
+                title={`${f.path}\nLua: text.draw("${f.path}", "Hello", x, y, ${f.defaultSize ?? 32})`}
+              >
+                <AssetIcon type="FONTS" />
+                <span className="text-[9px] truncate w-full text-center text-[var(--muted)]">
+                  {f.name}
+                </span>
+                {f.defaultSize != null && (
+                  <span className="text-[8px] text-[var(--muted)]">{f.defaultSize}px</span>
+                )}
+              </div>
             ))}
 
           {showTilesets &&

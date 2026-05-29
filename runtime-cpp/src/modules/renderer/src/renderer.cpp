@@ -1,6 +1,7 @@
 #include "../include/renderer.h"
 #include "sprite-outline-shader.h"
 #include "texture-cache.h"
+#include "font-cache.h"
 #include "../../../core/sprite-draw-math.h"
 #include <raylib.h>
 #include <algorithm>
@@ -18,6 +19,7 @@ struct DrawCmd {
     float r  = 0.f;             // radius (Circle)
     int   fontSize = 20;        // Text font size
     std::string text;           // Text content
+    std::string fontPath;       // empty = Raylib default bitmap font
     unsigned char cr=255, cg=255, cb=255, ca=255;  // packed colour
 };
 
@@ -32,6 +34,7 @@ struct Renderer::Impl {
     Camera2D camera = {};
     Vec2 renderShakeOffset = { 0.f, 0.f };
     TextureCache texCache;
+    FontCache    fontCache;
 
     // Draw commands queued by Lua during tick(); flushed in endFrame().
     std::vector<DrawCmd> drawQueue;
@@ -100,6 +103,7 @@ void Renderer::shutdown() {
     if (!impl_->open) return;
     impl_->spriteOutline.unload();
     impl_->texCache.unloadAll();
+    impl_->fontCache.unloadAll();
     CloseWindow();
     impl_->open = false;
 }
@@ -176,11 +180,20 @@ void Renderer::endWorldPass() {
         case DrawCmd::Type::Circle:
             DrawCircleV({ cmd.x, cmd.y }, cmd.r, c);
             break;
-        case DrawCmd::Type::Text:
-            DrawText(cmd.text.c_str(),
-                     static_cast<int>(cmd.x), static_cast<int>(cmd.y),
-                     cmd.fontSize, c);
+        case DrawCmd::Type::Text: {
+            const int px = static_cast<int>(cmd.x);
+            const int py = static_cast<int>(cmd.y);
+            if (cmd.fontPath.empty()) {
+                DrawText(cmd.text.c_str(), px, py, cmd.fontSize, c);
+            } else if (const Font* font = impl_->fontCache.get(cmd.fontPath)) {
+                DrawTextEx(*font, cmd.text.c_str(),
+                           Vector2{ cmd.x, cmd.y },
+                           static_cast<float>(cmd.fontSize), 1.f, c);
+            } else {
+                DrawText(cmd.text.c_str(), px, py, cmd.fontSize, c);
+            }
             break;
+        }
         }
     }
     impl_->drawQueue.clear();
@@ -403,7 +416,8 @@ void Renderer::drawCircle(float x, float y, float radius, const Vec4& color) {
 }
 
 void Renderer::drawText(const std::string& text, float x, float y,
-                        int fontSize, const Vec4& color) {
+                        int fontSize, const Vec4& color,
+                        const std::string& fontPath) {
     Color c = toColor(color);
     DrawCmd cmd;
     cmd.type     = DrawCmd::Type::Text;
@@ -411,8 +425,20 @@ void Renderer::drawText(const std::string& text, float x, float y,
     cmd.y        = y;
     cmd.fontSize = fontSize;
     cmd.text     = text;
+    cmd.fontPath = fontPath;
     cmd.cr = c.r; cmd.cg = c.g; cmd.cb = c.b; cmd.ca = c.a;
     impl_->drawQueue.push_back(std::move(cmd));
+}
+
+bool Renderer::registerFontFromMemory(const std::string& path,
+                                      const unsigned char* data, int len,
+                                      const std::string& ext,
+                                      int baseSize) {
+    return impl_->fontCache.registerFromMemory(path, data, len, ext, baseSize);
+}
+
+void Renderer::invalidateFontAsset(const std::string& path) {
+    impl_->fontCache.invalidate(path);
 }
 
 // ------------------------------------------------------------------ textures

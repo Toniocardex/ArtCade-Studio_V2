@@ -46,6 +46,7 @@ function makeOrchestrator(overrides: Partial<AssetOrchestratorDeps> = {}) {
     readProjectFileBytes: vi.fn(async () => new Uint8Array([1, 2, 3])),
     registerImage: vi.fn(() => true),
     registerAudio: vi.fn(() => true),
+    registerFont: vi.fn(() => true),
     isRuntimeReady: () => true,
     scheduleIdle: (fn) => fn(),
     logFailure,

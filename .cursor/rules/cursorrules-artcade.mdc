@@ -63,7 +63,22 @@ cd editor; npm test -- --run
 - If `runtime-cpp/` changed: run relevant C++ tests / build as appropriate.
 - Fix failures before proceeding. **Exception:** if a test was already failing before your change (confirm with `git stash; npm test -- --run; git stash pop`), flag it as a pre-existing failure — do not block the commit, but note it explicitly in the summary.
 
-### 3. Pre-commit review (required before every commit)
+### 3. Diff audit (required before every commit)
+
+Audit the **full diff** (`git diff` / staged changes), not only the happy path. Fix issues in-tree before commit; do not leave BLOCKER or SHOULD-FIX findings for the user unless they explicitly asked review-only.
+
+| Area | Look for |
+|------|----------|
+| Correctness | Logic errors, off-by-one, null/empty edge cases, races, WASM/Tauri IPC contract mismatches |
+| Memory & resources | Event listeners without cleanup, `URL.revokeObjectURL` after blob URLs, C++ `UnloadFont` / `UnloadTexture` / cache growth on hot-reload |
+| Conflicts | Duplicate sync paths, shadowed names (`Application::Modules` vs `ArtCade::Modules`), double registration, stale generation tokens |
+| Dead code | Unused exports/imports, unreachable branches, orphaned helpers |
+| Saved-project compat | New optional fields only; migrations if format changes |
+| Native-first | Banned patterns (see above); unmarked workarounds |
+
+Classify findings as **BLOCKER**, **SHOULD-FIX**, or **NIT** (same definitions as the code review pipeline below). **BLOCKER** and **SHOULD-FIX** must be fixed or explicitly deferred with a tracked note before commit.
+
+### 4. Pre-commit review (required before every commit)
 
 Run `git status` and `git diff --stat`. Review explicitly:
 
@@ -76,12 +91,13 @@ Run `git status` and `git diff --stat`. Review explicitly:
 | Generated files | Include `validators.generated.ts` when schemas change. |
 | Breaking changes | If the diff touches a public contract (TypeScript types, Lua API, JSON schema, Tauri IPC, saved project format), flag it explicitly. Silent backward-incompatible changes are always a BLOCKER. |
 | Native-first | Flag any workaround introduced by this diff. If present, it must carry a `// TEMPORARY:` comment or be converted to the native solution before the commit is allowed. |
+| Diff audit | Step 3 completed; no open BLOCKER/SHOULD-FIX from that pass. |
 
-Summarize for the user: what changed, risks (if any), test result.
+Summarize for the user: what changed, audit outcome, risks (if any), test result.
 
-**Do not commit** until this review is done.
+**Do not commit** until steps 3–4 are done.
 
-### 4. Commit and push
+### 5. Commit and push
 
 - Commit **only when the user asks** (or an explicit project rule).
 - Message: imperative, 1–2 sentences, focus on *why*.
@@ -90,11 +106,27 @@ Summarize for the user: what changed, risks (if any), test result.
 
 PowerShell: use `;` instead of `&&` for chained commands.
 
+### 6. Build (when user asks for “all builds” or release validation)
+
+Run in order; fix failures before declaring done:
+
+```powershell
+cd editor; npm test -- --run
+cd ..\runtime-cpp; .\build_wasm.bat
+cd ..\editor; npm run build
+cd ..\editor; npm run tauri:build
+```
+
+- Close `artcade-editor.exe` before `tauri:build` on Windows (file lock).
+- `game.wasm` is gitignored; `build_wasm.bat` copies to `editor/public/runtime/`.
+- If only `editor/src/` TS changed (no Rust/C++), WASM/Tauri rebuild may be skipped unless the user asked for full builds.
+
 ---
 
 ### Quick reference (this repo)
 
 - **Editor tests:** `cd editor; npm test -- --run`
+- **WASM preview:** `cd runtime-cpp; .\build_wasm.bat`
 - **Tauri build:** close running `artcade-editor.exe` first — Windows file-locks the binary on rebuild.
 - **Logic Board timing:**
   - Periodic gameplay → **When: Timer**
@@ -126,6 +158,7 @@ When requested to perform a code review (diff, PR, pre-commit, or "review this")
 - Logic errors, off-by-one, wrong assumptions about input shape.
 - Null / undefined / empty / zero edge cases — especially across Tauri IPC and WASM boundaries where types can be erased.
 - Race conditions, ordering assumptions, async/timing issues.
+- **Memory & resources:** leaked listeners, blob URLs not revoked, C++/WASM caches that grow on hot-reload without `invalidate` + `Unload*`.
 - Error handling: swallowed errors, unhandled promise rejections, partial failure leaving state inconsistent.
 - **Verify that every fix actually addresses the root cause, not just the symptom. A patch that suppresses an error without eliminating its source is always at least a SHOULD-FIX.**
 - **Workaround check:** does the fix use a banned pattern from the Native-first policy (setTimeout, silent try/catch, etc.)? If so, flag at SHOULD-FIX minimum with the native alternative shown in the proposed fix.

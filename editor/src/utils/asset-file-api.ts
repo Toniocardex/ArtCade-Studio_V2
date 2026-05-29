@@ -89,6 +89,24 @@ export async function importAudioIntoProject(
   }
 }
 
+/** Copy an imported font into `assets/fonts/`. */
+export async function importFontIntoProject(
+  projectRoot: string,
+  fileName: string,
+  bytes: Uint8Array,
+): Promise<string | null> {
+  if (!isTauri()) { notAvailable('importFontIntoProject'); return null }
+  const safeName = safeAssetFileName(fileName)
+  const relPath = `assets/fonts/${safeName}`
+  try {
+    await invokeWriteBinaryFile(joinPath(projectRoot, relPath), bytes, projectRoot)
+    return relPath
+  } catch (err) {
+    console.error('[api] importFontIntoProject failed:', err)
+    return null
+  }
+}
+
 export async function readProjectFileBytes(
   projectRoot: string,
   relPath: string,

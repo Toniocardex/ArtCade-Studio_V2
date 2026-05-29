@@ -72,6 +72,7 @@ if(EMSCRIPTEN)
         "_editor_set_snap_to_grid"
         "_editor_register_image"
         "_editor_register_audio"
+        "_editor_register_font"
         "_editor_invalidate_asset"
         "_editor_open_raytint"
         "_editor_close_raytint"

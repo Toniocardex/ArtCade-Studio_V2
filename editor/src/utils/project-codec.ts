@@ -1,7 +1,7 @@
 import type {
   ProjectDoc, EntityDef, SceneDef, SceneInstanceDef, ObjectTypeDef, Vec2, Vec3, Vec4,
   Transform, SpriteComponent, AnimationState, PhysicsComponent, PhysicsMode, WorldSettings,
-  TilemapLayer, TileDef, TilesetAsset, ImageAsset, AudioAsset, ImagePointDef, AnimationClipDef,
+  TilemapLayer, TileDef, TilesetAsset, ImageAsset, AudioAsset, FontAsset, ImagePointDef, AnimationClipDef,
   AnimationFrameRect,
 } from '../types'
 import { DEFAULT_WORLD } from '../types'
@@ -362,6 +362,29 @@ function parseAudioAssets(
   return Object.keys(out).length ? out : undefined
 }
 
+function parseFontAssets(
+  raw: unknown,
+): Record<string, FontAsset> | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined
+  const out: Record<string, FontAsset> = {}
+  for (const [key, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (!v || typeof v !== 'object') continue
+    const o = v as Record<string, unknown>
+    const id = String(o.id ?? key)
+    const path = String(o.path ?? '')
+    if (!id || !path) continue
+    const asset: FontAsset = {
+      id,
+      name: String(o.name ?? id),
+      path,
+    }
+    const defaultSize = Number(o.defaultSize ?? o.default_size)
+    if (Number.isFinite(defaultSize) && defaultSize > 0) asset.defaultSize = defaultSize
+    out[id] = asset
+  }
+  return Object.keys(out).length ? out : undefined
+}
+
 function parseTilesets(
   raw: unknown,
 ): Record<string, TilesetAsset> | undefined {
@@ -496,6 +519,7 @@ export function parseProjectDocWithMeta(jsonStr: string): ParseProjectDocResult 
       tilesets:       parseTilesets(raw.tilesets),
       assets:         parseAssets(raw.assets),
       audioAssets:    parseAudioAssets(raw.audioAssets ?? raw.audio_assets),
+      fontAssets:     parseFontAssets(raw.fontAssets ?? raw.font_assets),
       logicBoards:    logicBoardsParsed.doc,
     }
 
@@ -657,6 +681,9 @@ export function serializeProjectDoc(project: ProjectDoc): string {
       : {}),
     ...(project.audioAssets && Object.keys(project.audioAssets).length > 0
       ? { audioAssets: project.audioAssets }
+      : {}),
+    ...(project.fontAssets && Object.keys(project.fontAssets).length > 0
+      ? { fontAssets: project.fontAssets }
       : {}),
     targetFPS:      v2.targetFPS,
     activeSceneId:  v2.activeSceneId,

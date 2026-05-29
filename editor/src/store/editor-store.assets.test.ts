@@ -176,6 +176,23 @@ describe('project.json roundtrip — assets', () => {
     })
   })
 
+  it('fontAssets round-trip through serializeProjectDoc', () => {
+    const p = project()
+    p.fontAssets = {
+      ui: { id: 'ui', name: 'UI.ttf', path: 'assets/fonts/ui.ttf', defaultSize: 24 },
+    }
+    const json = serializeProjectDoc(p)
+    const loaded = parseProjectDoc(json)!
+    expect(loaded.fontAssets!['ui']).toEqual(p.fontAssets!['ui'])
+  })
+
+  it('FONT_ASSET_ADD stores font and marks dirty', () => {
+    const font = { id: 'f1', name: 'A.ttf', path: 'assets/fonts/a.ttf', defaultSize: 28 }
+    const s = coreReducer(st(project()), { type: 'FONT_ASSET_ADD', asset: font })
+    expect(s.project!.fontAssets!['f1']).toEqual(font)
+    expect(s.projectDirty).toBe(true)
+  })
+
   it('parseAssets is defensive (skips entries without a path)', () => {
     const raw = JSON.stringify({
       projectName: 'D', version: '2.0.0',

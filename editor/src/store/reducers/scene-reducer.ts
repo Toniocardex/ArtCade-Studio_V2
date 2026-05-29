@@ -317,6 +317,31 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
         projectDirty: true,
       }
     }
+    case 'FONT_ASSET_ADD': {
+      if (!state.project) return state
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          fontAssets: {
+            ...(state.project.fontAssets ?? {}),
+            [action.asset.id]: action.asset,
+          },
+        },
+        projectDirty: true,
+      }
+    }
+    case 'FONT_ASSET_REMOVE': {
+      if (!state.project?.fontAssets) return state
+      const fontAssets = Object.fromEntries(
+        Object.entries(state.project.fontAssets).filter(([k]) => k !== action.assetId),
+      )
+      return {
+        ...state,
+        project: { ...state.project, fontAssets },
+        projectDirty: true,
+      }
+    }
     case 'ASSET_REMOVE': {
       if (!state.project || !state.project.assets) return state
       const removed = state.project.assets[action.assetId]

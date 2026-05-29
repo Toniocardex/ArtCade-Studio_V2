@@ -81,7 +81,8 @@ public:
     void drawLine  (float x1, float y1, float x2, float y2, const Vec4& color);
     void drawCircle(float x, float y, float radius, const Vec4& color);
     void drawText  (const std::string& text, float x, float y,
-                    int fontSize, const Vec4& color);
+                    int fontSize, const Vec4& color,
+                    const std::string& fontPath = "");
 
     /**
      * Register/replace a GPU texture decoded from an in-memory image buffer
@@ -95,6 +96,13 @@ public:
 
     /** Remove a path-keyed texture (LRU / explicit eviction). */
     void invalidateImageAsset(const std::string& assetPath);
+
+    bool registerFontFromMemory(const std::string& path,
+                                const unsigned char* data, int len,
+                                const std::string& ext,
+                                int baseSize = 32);
+
+    void invalidateFontAsset(const std::string& path);
 
     // GPU texture management
     uint32_t loadTexture  (const std::string& filePath);

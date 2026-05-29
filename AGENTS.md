@@ -1,6 +1,6 @@
 # ArtCade V2 Development Guidelines
 
-**Cursor / AI agents:** delivery pipeline, pre-commit checks, and code-review format live in [`.cursor/rules/cursorrules-artcade.mdc`](.cursor/rules/cursorrules-artcade.mdc) (canonical; versioned in git). This file covers architecture and repo layout — not step-by-step agent workflow.
+**Cursor / AI agents:** delivery pipeline (implement → test → **diff audit** → pre-commit review → commit → builds), pre-commit checks, and code-review format live in [`.cursor/rules/cursorrules-artcade.mdc`](.cursor/rules/cursorrules-artcade.mdc) (canonical; versioned in git). This file covers architecture and repo layout — not step-by-step agent workflow.
 
 ## Project Vision
 

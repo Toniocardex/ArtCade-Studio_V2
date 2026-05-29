@@ -5,7 +5,11 @@ import { isReady } from '../utils/wasm-bridge'
 import { assetOrchestrator } from '../utils/asset-orchestrator'
 import { watchProjectAssets } from '../utils/asset-watcher'
 import { dirName } from '../utils/project'
-import { reloadProjectAudioAsset, reloadProjectImageAsset } from '../utils/reload-project-asset'
+import {
+  reloadProjectAudioAsset,
+  reloadProjectFontAsset,
+  reloadProjectImageAsset,
+} from '../utils/reload-project-asset'
 import { runtimeSync, type EditorTool } from '../utils/runtime-sync-service'
 import { clampEditorZoom, computeFitZoom } from '../utils/editor-zoom'
 import { zoomFitRegistry } from '../utils/zoom-fit-registry'
@@ -181,8 +185,20 @@ export default function PreviewPanel() {
         return
       }
       const audio = Object.values(p.audioAssets ?? {}).find((a) => a.path === relPath)
-      if (!audio) return
-      void reloadProjectAudioAsset(root, audio).then((ok) => {
+      if (audio) {
+        void reloadProjectAudioAsset(root, audio).then((ok) => {
+          if (ok && !cancelled) {
+            dispatch({
+              type: 'LOG',
+              entry: makeLogEntry(`[Asset] Reloaded: ${relPath}`, 'info'),
+            })
+          }
+        })
+        return
+      }
+      const font = Object.values(p.fontAssets ?? {}).find((a) => a.path === relPath)
+      if (!font) return
+      void reloadProjectFontAsset(root, font).then((ok) => {
         if (ok && !cancelled) {
           dispatch({
             type: 'LOG',

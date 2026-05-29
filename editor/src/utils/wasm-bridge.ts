@@ -567,7 +567,32 @@ export function editorRegisterAudio(
   }
 }
 
-export function editorInvalidateAsset(assetKey: string, type: 'image' | 'audio'): void {
+export function editorRegisterFont(
+  path: string,
+  bytes: Uint8Array,
+  ext: string,
+  baseSize: number,
+): boolean {
+  if (!_module || bytes.length === 0) return false
+  const pathPtr = marshalString(path)
+  const extPtr = marshalString(ext)
+  const dataPtr = _module._malloc(bytes.length)
+  try {
+    _module.HEAPU8.set(bytes, dataPtr)
+    return safeCall(
+      'editor_register_font',
+      null,
+      ['number', 'number', 'number', 'number', 'number'],
+      [pathPtr, dataPtr, bytes.length, extPtr, baseSize],
+    )
+  } finally {
+    _module._free(dataPtr)
+    _module._free(extPtr)
+    _module._free(pathPtr)
+  }
+}
+
+export function editorInvalidateAsset(assetKey: string, type: 'image' | 'audio' | 'font'): void {
   if (!_module) return
   const keyPtr = marshalString(assetKey)
   const typePtr = marshalString(type)

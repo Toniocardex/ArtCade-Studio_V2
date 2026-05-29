@@ -18,6 +18,7 @@ void GameAPI::registerAll(sol::state& lua) {
     bindIntentAPI (lua);   // movement/platformer intents
     bindComponentAPI(lua); // component runtime APIs (Tranche 2)
     bindAudioAPI  (lua);   // audio
+    bindTextAPI   (lua);   // text.draw
     bindStateAPI  (lua);   // state
     bindSaveAPI   (lua);   // save
     bindCameraAPI (lua);   // camera

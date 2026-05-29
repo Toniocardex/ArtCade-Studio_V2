@@ -34,6 +34,9 @@ export function collectReferencedProjectPaths(project: ProjectDoc): string[] {
   for (const a of Object.values(project.audioAssets ?? {})) {
     if (a.path.trim()) paths.add(a.path.trim())
   }
+  for (const a of Object.values(project.fontAssets ?? {})) {
+    if (a.path.trim()) paths.add(a.path.trim())
+  }
   for (const ts of Object.values(project.tilesets ?? {})) {
     if (ts.spriteImagePath.trim()) paths.add(ts.spriteImagePath.trim())
   }

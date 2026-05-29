@@ -19,6 +19,7 @@ namespace ArtCade::Modules {
  *   physics-api.cpp  — collision.* / physics.*
  *   input-api.cpp    — input.*
  *   audio-api.cpp    — audio.*
+ *   text-api.cpp     — text.*
  *   state-api.cpp    — state.*
  *   debug-api.cpp    — debug.*
  *   save-api.cpp     — save.*
@@ -63,6 +64,7 @@ private:
     void bindInputAPI  (sol::state& lua);
     void bindIntentAPI (sol::state& lua);
     void bindAudioAPI  (sol::state& lua);
+    void bindTextAPI   (sol::state& lua);
     void bindStateAPI  (sol::state& lua);
     void bindDebugAPI  (sol::state& lua);
     void bindSaveAPI   (sol::state& lua);

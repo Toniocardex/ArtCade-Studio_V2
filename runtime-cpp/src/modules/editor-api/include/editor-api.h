@@ -325,6 +325,9 @@ EMSCRIPTEN_KEEPALIVE void editor_register_image(
 EMSCRIPTEN_KEEPALIVE void editor_register_audio(
     const char* path, const uint8_t* bytes, int len, const char* ext);
 
+EMSCRIPTEN_KEEPALIVE void editor_register_font(
+    const char* path, const uint8_t* bytes, int len, const char* ext, int baseSize);
+
 EMSCRIPTEN_KEEPALIVE void editor_invalidate_asset(const char* assetKey, const char* type);
 
 /** Open RayTint picker for placeholder fill on an entity without a texture. */

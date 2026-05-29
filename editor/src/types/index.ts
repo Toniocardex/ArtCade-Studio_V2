@@ -200,6 +200,13 @@ export interface AudioAsset {
   volume?:  number
 }
 
+export interface FontAsset {
+  id:           string
+  name:         string
+  path:         string
+  defaultSize?: number
+}
+
 export interface ProjectDoc {
   projectName:    string
   version:        string
@@ -220,6 +227,7 @@ export interface ProjectDoc {
   tilesets?:      Record<string, TilesetAsset>  // Phase F: image tilesets
   assets?:        Record<string, ImageAsset>    // persistent image library
   audioAssets?:   Record<string, AudioAsset>
+  fontAssets?:    Record<string, FontAsset>
   logicBoards?:   LogicBoardDoc          // visual game logic, compiled to Lua
 }
 

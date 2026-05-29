@@ -335,7 +335,21 @@ EMSCRIPTEN_KEEPALIVE void editor_invalidate_asset(
     } else if (kind == "audio") {
         if (auto* a = ArtCade::EditorAPI::s_audio)
             a->invalidateSound(key);
+    } else if (kind == "font") {
+        if (auto* r = ArtCade::EditorAPI::s_renderer)
+            r->invalidateFontAsset(key);
     }
+}
+
+EMSCRIPTEN_KEEPALIVE void editor_register_font(
+    const char* path, const uint8_t* bytes, int len, const char* ext, int baseSize) {
+    if (!path || !*path || !bytes || len <= 0) return;
+    auto* r = ArtCade::EditorAPI::s_renderer;
+    if (!r) return;
+    const std::string fileExt = (ext && *ext) ? ext : ".ttf";
+    const int size = baseSize > 0 ? baseSize : 32;
+    (void)r->registerFontFromMemory(
+        path, reinterpret_cast<const unsigned char*>(bytes), len, fileExt, size);
 }
 
 EMSCRIPTEN_KEEPALIVE void editor_deselect() {

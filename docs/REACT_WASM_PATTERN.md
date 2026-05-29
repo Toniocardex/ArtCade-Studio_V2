@@ -316,8 +316,8 @@ R: Sì, ma array + drain è più semplice. Implementa con `const q = []; q.push(
 ## Scene asset upload (editor preview)
 
 Preview textures and sounds are **not** bundled in `project.json`. After `editor_load_project`,
-`AssetOrchestrator` uploads only assets referenced by the active scene (sprites, tileset image,
-Logic Board `playSound` / `playMusic` paths) via `editor_register_image` / `editor_register_audio`.
+`AssetOrchestrator` uploads scene images, Logic Board audio paths, and all project fonts via
+`editor_register_image` / `editor_register_audio` / `editor_register_font`.
 Other scenes prefetch on `requestIdleCallback`. Hot-reload on disk changes re-registers the same
 path key and logs `[Asset] Reloaded: …` to the console. All WASM calls go through `wasm-bridge.ts`;
 panels use `runtime-sync-service` + `performRuntimeSceneAssetSync`, not direct `editor_*` from UI code.

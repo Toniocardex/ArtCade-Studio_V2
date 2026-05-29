@@ -5,7 +5,12 @@
 import type { ProjectDoc } from '../types'
 import { readProjectFileBytes } from './asset-file-api'
 import { collectSceneAssetRefs, collectSceneAudioRefs } from './collect-scene-asset-refs'
-import { editorRegisterAudio, editorRegisterImage, isReady as isWasmReady } from './wasm-bridge'
+import {
+  editorRegisterAudio,
+  editorRegisterFont,
+  editorRegisterImage,
+  isReady as isWasmReady,
+} from './wasm-bridge'
 import {
   imageAssetForPath,
   resolveImageLoadKey,
@@ -22,6 +27,7 @@ export interface AssetOrchestratorDeps {
   readProjectFileBytes: (projectRoot: string, relPath: string) => Promise<Uint8Array | null>
   registerImage: (path: string, bytes: Uint8Array, ext: string) => boolean
   registerAudio: (path: string, bytes: Uint8Array, ext: string) => boolean
+  registerFont: (path: string, bytes: Uint8Array, ext: string, baseSize: number) => boolean
   isRuntimeReady: () => boolean
   scheduleIdle: (fn: () => void) => void
   cancelIdle?: (fn: () => void) => void
@@ -112,6 +118,21 @@ export function audioPathsToDescriptors(
   return out
 }
 
+export function projectFontDescriptors(project: ProjectDoc): AssetDescriptor[] {
+  const out: AssetDescriptor[] = []
+  for (const asset of Object.values(project.fontAssets ?? {})) {
+    const path = asset.path?.trim()
+    if (!path) continue
+    out.push({
+      id: asset.id,
+      type: 'font',
+      path,
+      ext: extFromPath(path),
+    })
+  }
+  return out
+}
+
 export function sceneAssetDescriptors(
   project: ProjectDoc,
   sceneId: string,
@@ -121,6 +142,7 @@ export function sceneAssetDescriptors(
   return [
     ...pathsToDescriptors(project, imagePaths),
     ...audioPathsToDescriptors(project, audioPaths),
+    ...projectFontDescriptors(project),
   ]
 }
 
@@ -222,7 +244,7 @@ export class AssetOrchestrator {
         cancelled = true
         break
       }
-      const result = await this.loadOne(desc, projectRoot, generation, priority)
+      const result = await this.loadOne(project, desc, projectRoot, generation, priority)
       if (result === 'cancelled') {
         cancelled = true
         break
@@ -245,6 +267,7 @@ export class AssetOrchestrator {
   }
 
   private async loadOne(
+    project: ProjectDoc,
     desc: AssetDescriptor,
     projectRoot: string,
     generation: number,
@@ -257,7 +280,7 @@ export class AssetOrchestrator {
     const existing = this.inFlight.get(inflightKey)
     if (existing) return existing
 
-    const promise = this.loadOneInner(desc, projectRoot, generation, priority, regKey)
+    const promise = this.loadOneInner(project, desc, projectRoot, generation, priority, regKey)
     this.inFlight.set(inflightKey, promise)
     try {
       return await promise
@@ -267,6 +290,7 @@ export class AssetOrchestrator {
   }
 
   private async loadOneInner(
+    project: ProjectDoc,
     desc: AssetDescriptor,
     projectRoot: string,
     generation: number,
@@ -300,10 +324,16 @@ export class AssetOrchestrator {
 
     const ext = desc.ext ?? extFromPath(desc.path)
 
-    const registered =
-      desc.type === 'audio'
-        ? this.deps.registerAudio(desc.path, bytes, ext)
-        : this.deps.registerImage(desc.path, bytes, ext)
+    let registered = false
+    if (desc.type === 'audio') {
+      registered = this.deps.registerAudio(desc.path, bytes, ext)
+    } else if (desc.type === 'font') {
+      const font = project.fontAssets?.[desc.id]
+      const baseSize = font?.defaultSize && font.defaultSize > 0 ? font.defaultSize : 32
+      registered = this.deps.registerFont(desc.path, bytes, ext, baseSize)
+    } else {
+      registered = this.deps.registerImage(desc.path, bytes, ext)
+    }
     if (!registered) {
       this.logFailureOnce(desc.path, 'register_rejected')
       return { reason: 'register_rejected' }
@@ -339,6 +369,10 @@ export function createDefaultAssetOrchestrator(): AssetOrchestrator {
     registerAudio: (path, bytes, ext) => {
       if (!isWasmReady()) return false
       return editorRegisterAudio(path, bytes, ext)
+    },
+    registerFont: (path, bytes, ext, baseSize) => {
+      if (!isWasmReady()) return false
+      return editorRegisterFont(path, bytes, ext, baseSize)
     },
     isRuntimeReady: isWasmReady,
     scheduleIdle: scheduleAssetIdle,

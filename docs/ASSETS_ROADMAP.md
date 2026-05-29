@@ -5,7 +5,7 @@ be closed, validated, and tested before starting the next. If a phase grows
 during execution, split it into the listed sub-phases (or add new ones) and
 apply the same DoD per sub-phase.
 
-**Owner:** Antonio + Claude · **Started:** 2026-05-25 · **Status:** Pipeline A–B + export + hot-reload shipped; Phase 1–2 editor/C++ wired; manual smoke + formal closure pending
+**Owner:** Antonio + Claude · **Started:** 2026-05-25 · **Status:** Phases 1–5 (fonts) implemented in editor + C++; manual smoke + formal closure pending
 
 ---
 
@@ -249,8 +249,11 @@ Aseprite), the preview updates without restart.
   the phase.
 
 ### Closure checklist
-- [ ] import + draw at least one custom font in a smoke scene
-- [ ] fallback to default font when assetId is invalid
+- [x] 5a schema + import (`FontAsset`, `assets/fonts/`, Asset Browser tab)
+- [x] 5b Lua `text.draw(path, …)` + `FontCache` + `editor_register_font`
+- [ ] manual smoke: import TTF, `text.draw` in preview
+- [x] fallback to default font when path is missing/invalid (DrawText)
+- [ ] Logic Board `drawText` action (deferred — script-only for now)
 
 ---
 
