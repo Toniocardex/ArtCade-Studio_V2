@@ -21,7 +21,18 @@ function SpritesheetStudioBody({ asset, imageAssetId }: SpritesheetStudioBodyPro
       dispatch({ type: 'ASSET_ADD', asset: { ...asset, id: imageAssetId, clips } })
     },
   )
-  return <SpritesheetStudioLayout asset={asset} assetId={imageAssetId} session={session} />
+  const patchAsset = (patch: Partial<ImageAsset>) => {
+    dispatch({ type: 'ASSET_ADD', asset: { ...asset, id: imageAssetId, ...patch } })
+  }
+
+  return (
+    <SpritesheetStudioLayout
+      asset={asset}
+      assetId={imageAssetId}
+      session={session}
+      onPatchDefaultPivot={(defaultPivot) => patchAsset({ defaultPivot })}
+    />
+  )
 }
 
 export function SpritesheetStudioModal() {

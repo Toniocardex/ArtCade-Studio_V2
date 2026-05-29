@@ -514,11 +514,15 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
                         ad.clips.push_back(std::move(clip));
                 }
             }
+            if (av.contains("defaultPivot"))
+                ad.defaultPivot = readVec2(av["defaultPivot"], ad.defaultPivot);
             out.imageAssets.push_back(ad);
             if (!ad.imagePoints.empty())
                 imagePointsByAsset_[ad.assetId] = ad.imagePoints;
         }
     }
+
+    resolveSpritePivotsFromImageAssets(out);
 
     return true;
 }

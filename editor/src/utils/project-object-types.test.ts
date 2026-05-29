@@ -91,6 +91,7 @@ describe('project-object-types', () => {
       ...migrated.entities[1],
       sprite: {
         ...migrated.entities[1].sprite,
+        pivotFromAsset: false,
         pivot: { x: 0.5, y: 1 },
       },
     }

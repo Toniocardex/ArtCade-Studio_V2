@@ -1,5 +1,7 @@
 import type { Vec2 } from '../types'
 
+export const DEFAULT_PIVOT: Vec2 = { x: 0.5, y: 0.5 }
+
 export interface PivotPreset {
   id: string
   label: string

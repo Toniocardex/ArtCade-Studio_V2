@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <iostream>
+#include <unordered_map>
 
 namespace ArtCade {
 
@@ -65,6 +66,25 @@ void rebuildClassPrototypes(
         if (out.find(def.className) == out.end())
             out[def.className] = def;
     }
+}
+
+void resolveSpritePivotsFromImageAssets(ProjectDoc& doc) {
+    if (doc.imageAssets.empty()) return;
+
+    std::unordered_map<std::string, Vec2> pivotByPath;
+    for (const ImageAssetDef& ad : doc.imageAssets)
+        pivotByPath[ad.assetId] = ad.defaultPivot;
+
+    const auto apply = [&](EntityDef& e) {
+        if (!e.sprite.pivotFromAsset) return;
+        const auto it = pivotByPath.find(e.sprite.spriteAssetId);
+        e.sprite.pivot = it != pivotByPath.end() ? it->second : Vec2{0.5f, 0.5f};
+    };
+
+    for (auto& [_, e] : doc.entities)
+        apply(e);
+    for (auto& [_, t] : doc.objectTypes)
+        apply(t);
 }
 
 } // namespace ArtCade

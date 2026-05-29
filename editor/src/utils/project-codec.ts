@@ -94,7 +94,7 @@ function parseSprite(raw: unknown): SpriteComponent {
     return {
       spriteAssetId: '', tint: { x: 1, y: 1, z: 1, w: 1 },
       fillColor: { x: 1, y: 1, z: 1 },
-      alpha: 1, pivot: { x: 0.5, y: 0.5 }, renderOrder: 0,
+      alpha: 1, pivotFromAsset: true, pivot: { x: 0.5, y: 0.5 }, renderOrder: 0,
     }
   }
   const r = raw as Record<string, unknown>
@@ -103,12 +103,14 @@ function parseSprite(raw: unknown): SpriteComponent {
   const fillColor = r.fillColor != null
     ? toVec3(r.fillColor)
     : { x: tint.x, y: tint.y, z: tint.z }
+  const pivotFromAsset = r.pivotFromAsset !== false
   return {
     spriteAssetId,
     tint,
     fillColor,
     alpha:         r.alpha != null ? Number(r.alpha) : 1,
-    pivot:         toVec2(r.pivot ?? [0.5, 0.5]),
+    pivotFromAsset,
+    pivot:         pivotFromAsset ? { x: 0.5, y: 0.5 } : toVec2(r.pivot ?? [0.5, 0.5]),
     renderOrder:   Number(r.renderOrder ?? r.render_order) || 0,
   }
 }
@@ -332,6 +334,7 @@ function parseAssets(
     if (imagePoints) asset.imagePoints = imagePoints
     const clips = parseAnimationClips(o.clips)
     if (clips) asset.clips = clips
+    if (o.defaultPivot != null) asset.defaultPivot = toVec2(o.defaultPivot)
     out[id] = asset
   }
   return Object.keys(out).length ? out : undefined
@@ -602,14 +605,21 @@ function vec3Array(v: Vec3): [number, number, number] {
 }
 
 function serializeSprite(sprite: SpriteComponent) {
-  return {
+  const base = {
     spriteAssetId: sprite.spriteAssetId,
     tint:          vec4Array(sprite.tint),
     fillColor:     vec3Array(sprite.fillColor),
     alpha:         sprite.alpha,
     renderOrder:   sprite.renderOrder,
-    ...(sprite.pivot ? { pivot: vec2Array(sprite.pivot) } : {}),
   }
+  if (sprite.pivotFromAsset === false) {
+    return {
+      ...base,
+      pivotFromAsset: false,
+      pivot: vec2Array(sprite.pivot),
+    }
+  }
+  return { ...base, pivotFromAsset: true }
 }
 
 function serializeEntity(entity: EntityDef) {
@@ -720,6 +730,8 @@ export function serializeProjectDoc(project: ProjectDoc): string {
                 out.imagePoints = a.imagePoints
               if (a.clips && a.clips.length > 0)
                 out.clips = a.clips
+              if (a.defaultPivot != null)
+                out.defaultPivot = vec2Array(a.defaultPivot)
               return [a.id, out]
             }),
           ),

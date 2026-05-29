@@ -76,6 +76,7 @@ struct SpriteComponent {
     Vec4    tint        = {1.f, 1.f, 1.f, 1.f};
     Vec3    fillColor   = {1.f, 1.f, 1.f};  // opaque placeholder when no texture
     float   alpha       = 1.f;
+    bool    pivotFromAsset = true;
     Vec2    pivot       = {0.5f, 0.5f};
     int32_t renderOrder = 0;
     std::string shaderEffect;  // "" | outline | hit_flash | palette_swap | wave
@@ -308,6 +309,7 @@ struct AnimationClipDef {
 
 struct ImageAssetDef {
     std::string assetId;
+    Vec2 defaultPivot = {0.5f, 0.5f};
     std::vector<ImagePointDef> imagePoints;
     std::vector<AnimationClipDef> clips;
 };

@@ -13,6 +13,7 @@ import type {
 import type { LogicBoard } from '../types/logic-board'
 import { COMPONENT_KEYS } from '../types/components'
 import { createEntityDef } from './project-builders'
+import { resolveEntitiesForRuntime } from './sprite-pivot-resolve'
 
 export const PROJECT_FORMAT_V2 = 2
 
@@ -53,7 +54,13 @@ export function entityToObjectType(entity: EntityDef, typeId: string): ObjectTyp
     id: typeId,
     displayName: entity.name || typeId,
     tags: [...(entity.tags ?? [])],
-    sprite: { ...entity.sprite, tint: { ...entity.sprite.tint }, fillColor: { ...entity.sprite.fillColor }, pivot: { ...entity.sprite.pivot } },
+    sprite: {
+      ...entity.sprite,
+      tint: { ...entity.sprite.tint },
+      fillColor: { ...entity.sprite.fillColor },
+      pivot: { ...entity.sprite.pivot },
+      ...(entity.sprite.pivotFromAsset === false ? { pivotFromAsset: false } : {}),
+    },
     ...(entity.animation ? { animation: { ...entity.animation } } : {}),
     ...(entity.physics ? { physics: JSON.parse(JSON.stringify(entity.physics)) } : {}),
     ...(entity.scriptPath ? { scriptPath: entity.scriptPath } : {}),
@@ -121,13 +128,17 @@ export function materializeAllEntities(project: ProjectDoc): Record<number, Enti
 export function entitiesForRuntimeSync(project: ProjectDoc): Record<number, EntityDef> {
   const hasObjectTypes =
     project.objectTypes != null && Object.keys(project.objectTypes).length > 0
-  if (!hasObjectTypes) return project.entities
+  const merged = hasObjectTypes
+    ? (() => {
+        const out = materializeAllEntities(project)
+        for (const ent of Object.values(project.entities)) {
+          out[ent.id] = ent
+        }
+        return out
+      })()
+    : project.entities
 
-  const out = materializeAllEntities(project)
-  for (const ent of Object.values(project.entities)) {
-    out[ent.id] = ent
-  }
-  return out
+  return resolveEntitiesForRuntime(merged, project.assets)
 }
 
 function syncSceneEntityIds(scene: SceneDef): void {

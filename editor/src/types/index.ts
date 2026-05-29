@@ -32,7 +32,10 @@ export interface SpriteComponent {
   tint:          Vec4    // texture multiply when spriteAssetId is set
   fillColor:     Vec3    // opaque RGB placeholder when no sprite image
   alpha:         number
-  pivot:         Vec2    // normalised anchor 0..1, default {x:0.5, y:0.5}
+  /** When true (default), runtime uses ImageAsset.defaultPivot for this sprite path. */
+  pivotFromAsset?: boolean
+  /** Override pivot when pivotFromAsset is false; otherwise cached effective pivot. */
+  pivot:         Vec2
   renderOrder:   number
 }
 
@@ -187,6 +190,8 @@ export interface ImageAsset {
   name:     string
   path:     string
   dataUrl?: string
+  /** Default draw anchor for entities using this sheet (normalised 0..1). */
+  defaultPivot?: Vec2
   imagePoints?: ImagePointDef[]
   /** Optional sprite-sheet animation clips. See AnimationClipDef. */
   clips?: AnimationClipDef[]

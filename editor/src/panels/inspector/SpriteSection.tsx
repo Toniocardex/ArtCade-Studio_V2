@@ -1,11 +1,17 @@
+import { useState } from 'react'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 import { useEditor } from '../../store/editor-store'
 import type { EntityDef } from '../../types'
+import { PivotPresetFields } from '../../components/pivot/PivotPresetFields'
 import {
-  clampPivot,
-  activePresetId,
-  formatPivotLabel,
-  PIVOT_PRESETS,
-} from '../../utils/sprite-pivot'
+  findImageAssetByPath,
+  resolveEffectivePivot,
+  spriteAssignedFromAsset,
+  spriteInheritingAssetPivot,
+  spriteWithPivotOverride,
+  usesAssetPivot,
+} from '../../utils/sprite-pivot-resolve'
+import { formatPivotLabel } from '../../utils/sprite-pivot'
 import { InspectorSection, NumberField } from './inspector-fields'
 import { SpriteRayTintField } from './SpriteRayTintField'
 
@@ -15,8 +21,14 @@ export type SpriteSectionProps = Readonly<{
 
 export function SpriteSection({ entity }: SpriteSectionProps) {
   const { state, dispatch } = useEditor()
-  const images = Object.values(state.project?.assets ?? {})
+  const project = state.project
+  const images = Object.values(project?.assets ?? {})
   const assetSelectId = `${entity.id}-sprite-asset`
+  const [overrideOpen, setOverrideOpen] = useState(false)
+
+  const linkedAsset = findImageAssetByPath(project?.assets, entity.sprite.spriteAssetId)
+  const effectivePivot = resolveEffectivePivot(entity.sprite, project?.assets)
+  const fromAsset = usesAssetPivot(entity.sprite)
 
   function commitSprite(patch: Partial<EntityDef['sprite']>) {
     dispatch({
@@ -25,6 +37,10 @@ export function SpriteSection({ entity }: SpriteSectionProps) {
       sprite: { ...entity.sprite, ...patch },
     })
   }
+
+  const pivotSummary = fromAsset
+    ? `From sheet — ${formatPivotLabel(effectivePivot)}`
+    : `Override — ${formatPivotLabel(entity.sprite.pivot)}`
 
   return (
     <InspectorSection label="Sprite">
@@ -35,12 +51,15 @@ export function SpriteSection({ entity }: SpriteSectionProps) {
         <select
           id={assetSelectId}
           value={entity.sprite.spriteAssetId}
-          onChange={(e) => commitSprite({ spriteAssetId: e.target.value })}
+          onChange={(e) => {
+            const path = e.target.value
+            const img = images.find((a) => a.path === path)
+            commitSprite(spriteAssignedFromAsset(entity.sprite, img))
+          }}
           className="w-full bg-[var(--panel-3)] border border-[var(--border-2)] rounded px-2 py-1
                      text-xs text-[var(--text)] focus:outline-none focus:border-[var(--accent-2)] transition-colors"
         >
           <option value="">(none)</option>
-          {/* keep an unknown/legacy value selectable */}
           {entity.sprite.spriteAssetId &&
             !images.some((a) => a.path === entity.sprite.spriteAssetId) && (
               <option value={entity.sprite.spriteAssetId}>
@@ -70,55 +89,42 @@ export function SpriteSection({ entity }: SpriteSectionProps) {
           onCommit={(v) => commitSprite({ renderOrder: Math.round(v) })}
         />
       </div>
-      <div className="mb-2">
-        <p className="text-[9px] text-[var(--muted)] uppercase mb-1">
-          Pivot — {formatPivotLabel(entity.sprite.pivot)}
-        </p>
-        <div className="grid grid-cols-2 gap-2 mb-2">
-          <NumberField
-            label="Pivot X"
-            value={entity.sprite.pivot.x}
-            onCommit={(v) =>
-              commitSprite({ pivot: clampPivot({ ...entity.sprite.pivot, x: v }) })
-            }
-          />
-          <NumberField
-            label="Pivot Y"
-            value={entity.sprite.pivot.y}
-            onCommit={(v) =>
-              commitSprite({ pivot: clampPivot({ ...entity.sprite.pivot, y: v }) })
-            }
-          />
-        </div>
-        <div
-          className="grid grid-cols-3 gap-1 mb-1"
-          role="group"
-          aria-label="Pivot presets"
+
+      <div className="mb-2 rounded border border-[var(--border)] bg-[var(--panel-3)] p-2">
+        <p className="text-[9px] text-[var(--muted)] uppercase mb-1">Pivot</p>
+        <p className="text-[10px] text-[var(--text)] mb-2">{pivotSummary}</p>
+        {fromAsset && linkedAsset ? (
+          <p className="text-[8px] text-[var(--muted)] mb-2 leading-snug">
+            Edit the default on this sheet in Sprite Studio.
+          </p>
+        ) : null}
+        <button
+          type="button"
+          className="flex items-center gap-1 text-[10px] text-[var(--accent)] w-full text-left"
+          aria-expanded={overrideOpen}
+          onClick={() => setOverrideOpen((o) => !o)}
         >
-          {PIVOT_PRESETS.map((preset) => {
-            const active = activePresetId(entity.sprite.pivot) === preset.id
-            return (
+          {overrideOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+          Override pivot (advanced)
+        </button>
+        {overrideOpen ? (
+          <div className="mt-2 pt-2 border-t border-[var(--border)] space-y-2">
+            <PivotPresetFields
+              pivot={fromAsset ? effectivePivot : entity.sprite.pivot}
+              onChange={(pivot) => commitSprite(spriteWithPivotOverride(entity.sprite, pivot))}
+              compact
+            />
+            {!fromAsset ? (
               <button
-                key={preset.id}
                 type="button"
-                title={preset.label}
-                aria-label={preset.label}
-                aria-pressed={active}
-                onClick={() => commitSprite({ pivot: { ...preset.pivot } })}
-                className={`h-6 rounded text-[9px] font-semibold border transition-colors
-                  ${active
-                    ? 'border-[var(--accent-2)] bg-[var(--accent-bg)] text-[var(--accent)]'
-                    : 'border-[var(--border-2)] text-[var(--muted)] hover:text-[var(--text)] hover:border-[var(--accent-bd)]'
-                  }`}
+                className="text-[10px] text-[var(--muted)] hover:text-[var(--text)]"
+                onClick={() => commitSprite(spriteInheritingAssetPivot(entity.sprite))}
               >
-                {preset.id.toUpperCase()}
+                Reset to sheet default
               </button>
-            )
-          })}
-        </div>
-        <p className="text-[8px] text-[rgb(var(--muted-rgb)/0.7)] leading-snug">
-          Transform position is the pivot point on the sprite.
-        </p>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </InspectorSection>
   )

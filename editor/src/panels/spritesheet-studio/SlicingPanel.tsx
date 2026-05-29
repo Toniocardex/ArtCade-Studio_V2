@@ -1,8 +1,12 @@
+import type { ImageAsset } from '../../types'
 import type { SpritesheetStudioSession } from './useSpritesheetStudioSession'
 import type { SlicingMode } from '../../utils/spritesheet-studio'
+import { DefaultPivotPanel } from './DefaultPivotPanel'
 
 type SlicingPanelProps = Readonly<{
+  asset: ImageAsset
   session: SpritesheetStudioSession
+  onPatchDefaultPivot: (pivot: ImageAsset['defaultPivot']) => void
 }>
 
 const MODES: ReadonlyArray<{ id: SlicingMode; label: string }> = [
@@ -11,7 +15,7 @@ const MODES: ReadonlyArray<{ id: SlicingMode; label: string }> = [
   { id: 'strip', label: 'Frame strip' },
 ]
 
-export function SlicingPanel({ session }: SlicingPanelProps) {
+export function SlicingPanel({ asset, session, onPatchDefaultPivot }: SlicingPanelProps) {
   const {
     slicingMode,
     setSlicingMode,
@@ -163,6 +167,8 @@ export function SlicingPanel({ session }: SlicingPanelProps) {
       {gridWarning ? (
         <p className="text-[9px] text-[var(--warn)]">{gridWarning}</p>
       ) : null}
+
+      <DefaultPivotPanel asset={asset} onPatchDefaultPivot={onPatchDefaultPivot} />
     </div>
   )
 }

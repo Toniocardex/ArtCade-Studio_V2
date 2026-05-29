@@ -73,7 +73,9 @@ SpriteComponent parseSprite(const json& j) {
     else
         s.fillColor = { s.tint.r, s.tint.g, s.tint.b };
     s.alpha       = j.value("alpha", 1.f);
-    if (j.contains("pivot")) s.pivot = parseVec2(j["pivot"]);
+    s.pivotFromAsset = j.value("pivotFromAsset", true);
+    if (j.contains("pivot"))
+        s.pivot = parseVec2(j["pivot"]);
     s.renderOrder = j.value("renderOrder", j.value("render_order", 0));
     return s;
 }
@@ -383,6 +385,8 @@ std::vector<ImageAssetDef> parseImageAssets(const json& doc) {
                 if (!ip.id.empty()) ad.imagePoints.push_back(ip);
             }
         }
+        if (av.contains("defaultPivot"))
+            ad.defaultPivot = parseVec2(av["defaultPivot"]);
         if (av.contains("clips") && av["clips"].is_array()) {
             for (const auto& cv : av["clips"]) {
                 if (!cv.is_object()) continue;

@@ -13,6 +13,7 @@ import {
   openSpritesheetStudio,
 } from '../panels/spritesheet-studio/openSpritesheetStudio'
 import type { AudioAsset, FontAsset, ImageAsset } from '../types'
+import { spriteAssignedFromAsset } from '../utils/sprite-pivot-resolve'
 import {
   isBackspaceKey,
   isInsidePanel,
@@ -157,7 +158,7 @@ export function useAssetExplorerActions() {
       dispatch({
         type: 'ENTITY_SET_SPRITE',
         entityId: selEntity.id,
-        sprite: { ...selEntity.sprite, spriteAssetId: asset.path },
+        sprite: spriteAssignedFromAsset(selEntity.sprite, asset),
       })
       showFlash(`Sprite "${asset.name}" → ${selEntity.name}`)
     },

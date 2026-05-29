@@ -20,4 +20,7 @@ void rebuildClassPrototypes(
     const std::unordered_map<std::string, EntityDef>& objectTypes,
     const std::unordered_map<EntityId, EntityDef>& entityDefs);
 
+/** Apply ImageAssetDef.defaultPivot to sprites with pivotFromAsset. */
+void resolveSpritePivotsFromImageAssets(ProjectDoc& doc);
+
 } // namespace ArtCade

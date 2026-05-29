@@ -98,6 +98,32 @@ describe('project.json roundtrip — assets', () => {
     expect(plain).not.toContain('"assets"')
   })
 
+  it('serializes pivotFromAsset on entities without inline pivot', () => {
+    const s = coreReducer(st(project()), {
+      type: 'ENTITY_ADD',
+      entity: {
+        id: 1,
+        name: 'Hero',
+        className: 'Hero',
+        tags: [],
+        transform: { position: { x: 0, y: 0 }, scale: { x: 1, y: 1 }, rotation: 0 },
+        sprite: {
+          spriteAssetId: 'assets/hero.png',
+          tint: { x: 1, y: 1, z: 1, w: 1 },
+          fillColor: { x: 1, y: 1, z: 1 },
+          alpha: 1,
+          pivotFromAsset: true,
+          pivot: { x: 0.5, y: 0.5 },
+          renderOrder: 0,
+        },
+        visible: true,
+      },
+    })
+    const json = serializeProjectDoc(s.project!)
+    expect(json).toContain('"pivotFromAsset": true')
+    expect(json).not.toMatch(/"pivot":\s*\[/)
+  })
+
   it('round-trips imagePoints when present on an image asset', () => {
     const withPoints: ImageAsset = {
       ...IMG,
