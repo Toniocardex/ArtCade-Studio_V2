@@ -69,7 +69,7 @@ clips that don't exist.
 
 ### 1b — Editor authoring UI ✅
 
-- ✅ `AnimationClipsEditor` on image asset detail in `AssetBrowserPanel` (grid slicer + preview).
+- ✅ `AnimationClipsEditor` on image asset detail in `ProjectExplorerPanel` → `AssetDetailStrip` (grid slicer + preview).
 - New "Animations" tab inside the existing image asset detail (or a modal),
   reusing the Tileset grid-slicer pattern (cell size + selection rectangle).
 - Allow: add clip, name it, pick frames by clicking cells, set fps + loop.
@@ -125,7 +125,7 @@ fallback for retro-compat with existing projects).
 
 ### 2c — Asset browser tab
 
-- Add an "Audio" tab to `AssetBrowserPanel`, with play/stop preview using
+- Add audio preview in the Project Explorer asset tree (folder Audio), with play/stop preview using
   the browser's `HTMLAudioElement`.
 - **Test:** reducer / panel rendering smoke.
 

@@ -1,6 +1,5 @@
 // ---------------------------------------------------------------------------
 // LeftSidebar — unified Project Explorer (scenes, entities, types, assets).
-// Replaces the former split SceneObjectsPanel + resizable AssetBrowserPanel.
 // ---------------------------------------------------------------------------
 
 import ProjectExplorerPanel from './project-explorer/ProjectExplorerPanel'
