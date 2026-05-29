@@ -17,11 +17,10 @@ export function shouldStartBootFade(opts: Readonly<{
 }
 
 export function shouldShowBootLoadingStatus(opts: Readonly<{
-  introComplete: boolean
   ready: boolean
   timedOut: boolean
 }>): boolean {
-  return opts.introComplete && !opts.ready && !opts.timedOut
+  return !opts.ready && !opts.timedOut
 }
 
 /** Skip is allowed only after full boot readiness; one-shot after click. */

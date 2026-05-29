@@ -204,6 +204,15 @@ input[data-mono],
   100% { opacity: 0; }
 }
 
+@keyframes boot-bar-slide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}
+
+.animate-boot-bar {
+  animation: boot-bar-slide 1.2s ease-in-out infinite;
+}
+
 /* ---------------------------------------------------------------------------
    Canvas viewport frame — kept as inset ring (renderer-independent)
    --------------------------------------------------------------------------- */

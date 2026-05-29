@@ -77,18 +77,18 @@ describe('canSkipBootIntro', () => {
 })
 
 describe('shouldShowBootLoadingStatus', () => {
-  it('shows status after intro while engine still loading', () => {
+  it('shows status while engine still loading', () => {
     expect(shouldShowBootLoadingStatus({
-      introComplete: true, ready: false, timedOut: false,
+      ready: false, timedOut: false,
     })).toBe(true)
   })
 
   it('hides status when ready or timed out', () => {
     expect(shouldShowBootLoadingStatus({
-      introComplete: true, ready: true, timedOut: false,
+      ready: true, timedOut: false,
     })).toBe(false)
     expect(shouldShowBootLoadingStatus({
-      introComplete: true, ready: false, timedOut: true,
+      ready: false, timedOut: true,
     })).toBe(false)
   })
 })

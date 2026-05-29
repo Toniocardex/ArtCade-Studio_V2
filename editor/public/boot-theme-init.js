@@ -31,6 +31,6 @@
   style.id = 'boot-chrome'
   style.textContent =
     'html,body,#root{width:100%;height:100%;margin:0;padding:0;overflow:hidden;background:' + c.bg + ';color:' + c.text + '}' +
-    '#boot-shell{position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;background:' + c.bg + ';color:' + c.text + ";font-family:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:1.25rem;font-weight:700;letter-spacing:-0.02em;user-select:none}"
+    '#boot-shell{position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;background:' + c.bg + ';color:' + c.text + ";font-family:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;user-select:none}"
   document.head.appendChild(style)
 })()

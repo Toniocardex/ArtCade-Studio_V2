@@ -13,7 +13,15 @@
   </head>
   <body>
     <div id="root">
-      <div id="boot-shell" aria-busy="true" aria-live="polite">ArtCade Studio</div>
+      <div id="boot-shell" aria-busy="true" aria-live="polite">
+        <div class="boot-shell__panel">
+          <h1 class="boot-shell__title">ArtCade Studio</h1>
+          <p class="boot-shell__status">Starting…</p>
+          <div class="boot-shell__bar" role="progressbar" aria-label="Loading">
+            <div class="boot-shell__bar-fill"></div>
+          </div>
+        </div>
+      </div>
     </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
