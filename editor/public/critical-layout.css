@@ -1,4 +1,6 @@
-/* Critical layout + theme fallback if bundled CSS is blocked (Tauri CSP). */
+/* Critical layout + theme fallback if bundled CSS is blocked (Tauri CSP).
+ * --bg / --text: AUTO-GENERATED from boot-surfaces.json (npm run sync-boot-chrome).
+ * Other tokens mirror index.css fallbacks for offline shell paint. */
 html, body, #root {
   width: 100%;
   height: 100%;
