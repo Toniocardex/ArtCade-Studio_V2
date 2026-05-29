@@ -144,6 +144,31 @@ async function buildZipDeflate(entries: ZipWriteEntry[]): Promise<Uint8Array> {
   return out
 }
 
+/** Build in-memory .artcade ZIP bytes (for tests and headless validation). */
+export async function buildArtcadeZipBytes(
+  project: ProjectDoc,
+  extraFiles: Readonly<Record<string, Uint8Array>> = {},
+): Promise<Uint8Array> {
+  const entries: ZipWriteEntry[] = []
+  const checksums: Record<string, string> = {}
+  const projectJson = serializeProjectDoc(project)
+  const projectBytes = new TextEncoder().encode(projectJson)
+  entries.push({ path: 'project.json', data: projectBytes })
+  checksums['project.json'] = await sha256Hex(projectBytes)
+
+  for (const [rel, bytes] of Object.entries(extraFiles)) {
+    const norm = rel.replace(/\\/g, '/')
+    entries.push({ path: norm, data: bytes })
+    checksums[norm] = await sha256Hex(bytes)
+  }
+
+  const manifest = buildProjectAssetManifest(project, checksums)
+  const manifestBytes = new TextEncoder().encode(JSON.stringify(manifest, null, 2))
+  entries.push({ path: 'manifest.json', data: manifestBytes })
+
+  return entries.length > 3 ? buildZipDeflate(entries) : buildZipStore(entries)
+}
+
 export async function exportArtcadePackage(
   project: ProjectDoc,
   projectRoot: string,
