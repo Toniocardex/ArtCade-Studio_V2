@@ -259,10 +259,11 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
       }
     }
     case 'TILESET_ASSET_REMOVE': {
-      if (!state.project?.tilesets?.[action.assetId]) return state
+      const project = state.project
+      if (!project?.tilesets?.[action.assetId]) return state
       return {
         ...state,
-        project: projectAfterRemovingAsset(state.project, {
+        project: projectAfterRemovingAsset(project, {
           kind: 'tileset',
           id: action.assetId,
         }),
@@ -298,11 +299,12 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
       }
     }
     case 'AUDIO_ASSET_REMOVE': {
-      const entry = state.project?.audioAssets?.[action.assetId]
-      if (!entry) return state
+      const project = state.project
+      const entry = project?.audioAssets?.[action.assetId]
+      if (!project || !entry) return state
       return {
         ...state,
-        project: projectAfterRemovingAsset(state.project, {
+        project: projectAfterRemovingAsset(project, {
           kind: 'audio',
           id: action.assetId,
           path: entry.path,
@@ -325,11 +327,12 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
       }
     }
     case 'FONT_ASSET_REMOVE': {
-      const entry = state.project?.fontAssets?.[action.assetId]
-      if (!entry) return state
+      const project = state.project
+      const entry = project?.fontAssets?.[action.assetId]
+      if (!project || !entry) return state
       return {
         ...state,
-        project: projectAfterRemovingAsset(state.project, {
+        project: projectAfterRemovingAsset(project, {
           kind: 'font',
           id: action.assetId,
           path: entry.path,
@@ -338,11 +341,12 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
       }
     }
     case 'ASSET_REMOVE': {
-      const removed = state.project?.assets?.[action.assetId]
-      if (!removed) return state
+      const project = state.project
+      const removed = project?.assets?.[action.assetId]
+      if (!project || !removed) return state
       return {
         ...state,
-        project: projectAfterRemovingAsset(state.project, {
+        project: projectAfterRemovingAsset(project, {
           kind: 'image',
           id: action.assetId,
           path: removed.path,

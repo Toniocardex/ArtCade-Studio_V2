@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { ElementType, KeyboardEvent } from 'react'
+import type { ElementType, KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { Image, Music, Code, FileText, ImagePlus, Trash2, Grid3x3, Type } from 'lucide-react'
 import { useEditor } from '../store/editor-store'
 import { importImageIntoProject } from '../utils/api'
@@ -172,7 +172,7 @@ type AudioAssetCardProps = Readonly<{
   onSelect: () => void
 }>
 
-function selectCardKeyDown(e: KeyboardEvent, onSelect: () => void): void {
+function selectCardKeyDown(e: ReactKeyboardEvent, onSelect: () => void): void {
   if (e.key === 'Enter' || e.key === ' ') {
     e.preventDefault()
     onSelect()
