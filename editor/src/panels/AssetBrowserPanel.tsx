@@ -3,7 +3,12 @@ import type { ElementType } from 'react'
 import { Image, Music, Code, FileText, ImagePlus, Trash2, Grid3x3, Type } from 'lucide-react'
 import { useEditor } from '../store/editor-store'
 import { importImageIntoProject } from '../utils/api'
-import { importAudioIntoProject, importFontIntoProject, readProjectFileBytes } from '../utils/asset-file-api'
+import {
+  bytesToArrayBuffer,
+  importAudioIntoProject,
+  importFontIntoProject,
+  readProjectFileBytes,
+} from '../utils/asset-file-api'
 import { dirName } from '../utils/project'
 import type { AnimationClipDef, AudioAsset, FontAsset, ImageAsset, ImagePointDef, ProjectDoc, TilesetAsset } from '../types'
 import { AnimationClipsEditor } from '../components/AnimationClipsEditor'
@@ -119,7 +124,7 @@ function AudioAssetCard({ asset, projectRoot }: AudioAssetCardProps) {
     let objectUrl: string | null = null
     void readProjectFileBytes(projectRoot, asset.path).then((bytes) => {
       if (cancelled || !bytes || bytes.length === 0) return
-      const blob = new Blob([bytes], { type: audioMimeFromPath(asset.path) })
+      const blob = new Blob([bytesToArrayBuffer(bytes)], { type: audioMimeFromPath(asset.path) })
       objectUrl = URL.createObjectURL(blob)
       setSrc(objectUrl)
     })

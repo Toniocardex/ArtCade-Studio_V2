@@ -202,7 +202,7 @@ function LogicBoardLuaMode({
     'Open other .lua files from the entity Inspector.'
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-[var(--bg)]">
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-[var(--bg)]">
       <LogicBoardHeader
         mode="lua"
         setMode={setPanelMode}
@@ -619,7 +619,7 @@ export default function LogicBoardPanel() {
 
   return (
     <div
-      className="flex-1 flex flex-col min-h-0 bg-[var(--bg)]"
+      className="flex-1 flex flex-col min-h-0 overflow-hidden bg-[var(--bg)]"
       data-panel="logic-board"
     >
       <LogicBoardHeader
@@ -647,7 +647,7 @@ export default function LogicBoardPanel() {
       )}
 
       {authoringMode === 'base' && (
-        <p className="px-4 py-1.5 text-[10px] leading-snug text-[var(--muted)] border-b border-[var(--border)] bg-[var(--panel-2)]">
+        <p className="flex-shrink-0 px-4 py-1.5 text-[10px] leading-snug text-[var(--muted)] border-b border-[var(--border)] bg-[var(--panel-2)]">
           <strong className="text-[var(--text)] font-medium">Base view</strong> — guided
           rules with the full toolset (Canvas, Logic, Script). Use{' '}
           <strong>When</strong> for keys (including OR). Turn on{' '}

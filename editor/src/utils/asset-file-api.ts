@@ -17,6 +17,11 @@ function notAvailable(name: string): void {
   console.warn(`[api] ${name}: Tauri not available in browser mode`)
 }
 
+/** Standalone ArrayBuffer for Blob/crypto (strict TS; Tauri may use SharedArrayBuffer views). */
+export function bytesToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer
+}
+
 /** Native file-picker for a spritesheet image. Returns the path or null. */
 export async function openImageDialog(): Promise<string | null> {
   if (!isTauri()) { notAvailable('openImageDialog'); return null }

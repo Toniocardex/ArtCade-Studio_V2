@@ -12,8 +12,10 @@ import { usePersistedHeight } from '../hooks/usePersistedHeight'
 import { usePersistedBoolean } from '../hooks/usePersistedBoolean'
 import { triggerLayoutReflow } from '../utils/layout-reflow'
 
-const DEFAULT_ASSETS_H = 220
-const MIN_ASSETS_H = 120
+const DEFAULT_ASSETS_H = 360
+const MIN_ASSETS_H = 140
+const MAX_ASSETS_RATIO = 0.65
+const SCENE_PANEL_MAX_RATIO = 0.42
 
 export default function LeftSidebar() {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -24,7 +26,7 @@ export default function LeftSidebar() {
   )
 
   const [assetsHeight, setAssetsHeight] = usePersistedHeight(
-    'artcade.left-assets-h-v1',
+    'artcade.left-assets-h-v2',
     DEFAULT_ASSETS_H,
     MIN_ASSETS_H,
     maxAssetsH,
@@ -34,7 +36,7 @@ export default function LeftSidebar() {
     const el = containerRef.current
     if (!el) return
     const updateMax = () => {
-      setMaxAssetsH(Math.max(MIN_ASSETS_H, Math.round(el.clientHeight * 0.5)))
+      setMaxAssetsH(Math.max(MIN_ASSETS_H, Math.round(el.clientHeight * MAX_ASSETS_RATIO)))
     }
     updateMax()
     const ro = new ResizeObserver(updateMax)
@@ -54,7 +56,10 @@ export default function LeftSidebar() {
 
   return (
     <div ref={containerRef} className="h-full min-h-0 flex flex-col bg-[var(--panel)]">
-      <div className="flex-1 min-h-0 overflow-hidden">
+      <div
+        className="flex-1 min-h-0 overflow-hidden"
+        style={{ maxHeight: `${SCENE_PANEL_MAX_RATIO * 100}%` }}
+      >
         <SceneObjectsPanel />
       </div>
 

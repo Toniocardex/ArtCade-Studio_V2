@@ -425,7 +425,7 @@ export default function SceneObjectsPanel() {
       {/* Entity list */}
       <div className="flex-1 min-h-0 overflow-y-auto p-1 space-y-0.5">
         {entities.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 px-3 py-6 text-center">
+          <div className="flex flex-col items-center gap-2 px-3 py-4 text-center">
             <p className="text-[11px] text-[var(--text)] font-medium">This scene is empty</p>
             <p className="text-[10px] text-[var(--muted)] leading-snug">
               Start with Add entity, or open Entity types and Place a copy.

@@ -5,9 +5,10 @@ import { serializeProjectDoc } from './project-codec'
 import { collectReferencedProjectPaths } from './collect-referenced-project-paths'
 import { joinPath, baseName } from './file-paths'
 import { dirName } from './project'
+import { bytesToArrayBuffer } from './asset-file-api'
 
 async function sha256Hex(bytes: Uint8Array): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', bytes)
+  const digest = await crypto.subtle.digest('SHA-256', bytesToArrayBuffer(bytes))
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 
@@ -15,7 +16,9 @@ async function deflateRaw(data: Uint8Array): Promise<Uint8Array> {
   if (typeof CompressionStream === 'undefined') {
     throw new Error('CompressionStream is not available in this environment')
   }
-  const stream = new Blob([data]).stream().pipeThrough(new CompressionStream('deflate-raw'))
+  const stream = new Blob([bytesToArrayBuffer(data)]).stream().pipeThrough(
+    new CompressionStream('deflate-raw'),
+  )
   return new Uint8Array(await new Response(stream).arrayBuffer())
 }
 

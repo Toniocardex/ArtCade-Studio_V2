@@ -38,7 +38,7 @@ export function RulesheetControls({
   onDeleteBoard,
 }: RulesheetControlsProps) {
   return (
-    <div className="flex flex-col gap-2 px-4 py-2 border-b border-[var(--border)] bg-[var(--panel)]">
+    <div className="flex-shrink-0 flex flex-col gap-2 px-4 py-2 border-b border-[var(--border)] bg-[var(--panel)]">
       <div className="flex items-center gap-3 flex-wrap">
         <span className="text-[11px] text-[var(--muted)]">Rules for entity</span>
         <select

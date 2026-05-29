@@ -40,7 +40,7 @@ export function LogicBoardHeader({
   const compilerLabel = board ? logicBoardCompilerLabel(board) : ''
 
   return (
-    <div className="h-[52px] flex items-center gap-3.5 px-4 bg-[var(--panel)] border-b border-[var(--border)]">
+    <div className="flex-shrink-0 h-[52px] flex items-center gap-3.5 px-4 bg-[var(--panel)] border-b border-[var(--border)]">
       <h1 className="text-sm font-semibold tracking-wide">
         ⬡ Logic <span className="text-[var(--accent)]">Board</span>
       </h1>
