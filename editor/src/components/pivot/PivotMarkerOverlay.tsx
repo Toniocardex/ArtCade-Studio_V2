@@ -57,7 +57,6 @@ export function PivotMarker({ left, top, radius = 6 }: PivotMarkerProps) {
 type PivotGridOverlayProps = Readonly<{
   pivot: Vec2
   cols: number
-  rows: number
   totalFrames: number
   cellWidth: number
   cellHeight: number
@@ -67,7 +66,6 @@ type PivotGridOverlayProps = Readonly<{
 export function PivotGridOverlay({
   pivot,
   cols,
-  rows,
   totalFrames,
   cellWidth,
   cellHeight,

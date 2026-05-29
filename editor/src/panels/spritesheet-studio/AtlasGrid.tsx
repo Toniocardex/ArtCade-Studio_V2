@@ -209,7 +209,6 @@ export function AtlasGrid({ session, defaultPivot }: AtlasGridProps) {
             <PivotGridOverlay
               pivot={defaultPivot}
               cols={grid.cols}
-              rows={grid.rows}
               totalFrames={grid.totalFrames}
               cellWidth={scaledCellW}
               cellHeight={scaledCellH}
