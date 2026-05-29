@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
+import { PivotMarker, pivotOffsetInRect } from '../../components/pivot/PivotMarkerOverlay'
 import type { ImageAsset } from '../../types'
+import { getAssetDefaultPivot } from '../../utils/sprite-pivot-resolve'
 import { SpritesheetEnginePreview } from './SpritesheetEnginePreview'
 import type { SpritesheetStudioSession } from './useSpritesheetStudioSession'
 import { isReady } from '../../utils/wasm-bridge'
@@ -41,6 +43,8 @@ export function ClipPreviewPane({ asset, session }: ClipPreviewPaneProps) {
   }, [activeClip, activeClip?.frames.length, activeClip?.fps])
 
   const previewFrame = activeClip?.frames[previewTick]
+  const pivot = getAssetDefaultPivot(asset)
+  const fallbackScale = 5
 
   const playbackSrc = previewSrc ?? asset.dataUrl ?? ''
   const hasPreviewSource = playbackSrc.length > 0
@@ -72,12 +76,12 @@ export function ClipPreviewPane({ asset, session }: ClipPreviewPaneProps) {
       className="shrink-0 p-3 border-t border-[var(--border)] bg-[var(--panel-3)] flex flex-col items-center gap-2"
       data-testid="spritesheet-preview-host"
     >
-      <p className="text-[10px] uppercase tracking-wider text-[var(--muted)] w-full">Playback</p>
+      <p className="text-[10px] uppercase tracking-wider text-[var(--muted)] w-full">Clip preview</p>
       <div
-        className="border border-[var(--border)] overflow-hidden"
+        className="relative border border-[var(--border)] overflow-hidden shrink-0"
         style={{
-          width: previewFrame.w * 5,
-          height: previewFrame.h * 5,
+          width: previewFrame.w * fallbackScale,
+          height: previewFrame.h * fallbackScale,
           imageRendering: 'pixelated',
         }}
       >
@@ -90,6 +94,11 @@ export function ClipPreviewPane({ asset, session }: ClipPreviewPaneProps) {
             marginLeft: -previewFrame.x,
             marginTop: -previewFrame.y,
           }}
+        />
+        <PivotMarker
+          left={pivotOffsetInRect(pivot, previewFrame.w, previewFrame.h).left}
+          top={pivotOffsetInRect(pivot, previewFrame.w, previewFrame.h).top}
+          radius={6}
         />
       </div>
       <span className="text-[10px] text-[var(--muted)]">

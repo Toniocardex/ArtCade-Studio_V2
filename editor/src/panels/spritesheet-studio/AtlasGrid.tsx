@@ -1,4 +1,6 @@
 import { useCallback, useRef, useState, type PointerEvent } from 'react'
+import { PivotGridOverlay } from '../../components/pivot/PivotMarkerOverlay'
+import type { Vec2 } from '../../types'
 import {
   frameKey,
   indicesInCellRect,
@@ -13,6 +15,7 @@ const DRAG_THRESHOLD_PX = 4
 
 type AtlasGridProps = Readonly<{
   session: SpritesheetStudioSession
+  defaultPivot: Vec2
 }>
 
 type DragState = Readonly<{
@@ -23,7 +26,7 @@ type DragState = Readonly<{
   additive: boolean
 }>
 
-export function AtlasGrid({ session }: AtlasGridProps) {
+export function AtlasGrid({ session, defaultPivot }: AtlasGridProps) {
   const {
     previewSrc,
     imgWH,
@@ -203,6 +206,14 @@ export function AtlasGrid({ session }: AtlasGridProps) {
                 )
               })}
             </div>
+            <PivotGridOverlay
+              pivot={defaultPivot}
+              cols={grid.cols}
+              rows={grid.rows}
+              totalFrames={grid.totalFrames}
+              cellWidth={scaledCellW}
+              cellHeight={scaledCellH}
+            />
           </div>
         </div>
       </div>

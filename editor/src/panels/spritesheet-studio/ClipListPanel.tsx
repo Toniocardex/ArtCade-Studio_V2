@@ -1,5 +1,6 @@
 import { Plus, Trash2 } from 'lucide-react'
 import type { ImageAsset } from '../../types'
+import { ExplorerLabelCta } from '../../components/project-explorer/explorer-cta'
 import { useEditor } from '../../store/editor-store'
 import { findDuplicateClipNameAcrossAssets } from '../../utils/spritesheet-clip-names'
 import { ClipPreviewPane } from './ClipPreviewPane'
@@ -40,13 +41,13 @@ export function ClipListPanel({ asset, assetId, session }: ClipListPanelProps) {
       <div className="flex flex-col gap-3 p-3 flex-1 min-h-0 overflow-y-auto">
       <div className="flex items-center justify-between gap-2">
         <p className="text-[10px] uppercase tracking-wider text-[var(--muted)]">Clips</p>
-        <button
-          type="button"
-          className="flex items-center gap-1 text-[10px] text-[var(--accent)]"
+        <ExplorerLabelCta
+          label="Add clip"
+          title="Add animation clip"
           onClick={addClip}
-        >
-          <Plus size={11} /> Add
-        </button>
+          tone="primary"
+          icon={<Plus size={11} aria-hidden />}
+        />
       </div>
 
       {clips.length > 0 ? (

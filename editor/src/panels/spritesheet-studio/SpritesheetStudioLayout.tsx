@@ -1,4 +1,5 @@
 import type { ImageAsset } from '../../types'
+import { getAssetDefaultPivot } from '../../utils/sprite-pivot-resolve'
 import { AtlasGrid } from './AtlasGrid'
 import { ClipListPanel } from './ClipListPanel'
 import { SlicingPanel } from './SlicingPanel'
@@ -24,7 +25,7 @@ export function SpritesheetStudioLayout({
         session={session}
         onPatchDefaultPivot={onPatchDefaultPivot}
       />
-      <AtlasGrid session={session} />
+      <AtlasGrid session={session} defaultPivot={getAssetDefaultPivot(asset)} />
       <ClipListPanel asset={asset} assetId={assetId} session={session} />
     </div>
   )

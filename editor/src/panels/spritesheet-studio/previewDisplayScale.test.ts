@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { previewDisplayScale } from './SpritesheetEnginePreview'
+import {
+  clampPreviewDisplayScale,
+  CLIP_PREVIEW_MAX_CSS,
+  previewDisplayScale,
+} from './SpritesheetEnginePreview'
 
 describe('previewDisplayScale', () => {
   it('scales small frames up for readable preview', () => {
@@ -9,5 +13,16 @@ describe('previewDisplayScale', () => {
 
   it('caps scale for large frames', () => {
     expect(previewDisplayScale(128, 64)).toBe(3)
+  })
+})
+
+describe('clampPreviewDisplayScale', () => {
+  it('fits scaled canvas inside the clips column host', () => {
+    const canvasW = 32
+    const canvasH = 32
+    const raw = previewDisplayScale(16, 16)
+    const clamped = clampPreviewDisplayScale(canvasW, canvasH, raw, CLIP_PREVIEW_MAX_CSS)
+    expect(canvasW * clamped).toBeLessThanOrEqual(CLIP_PREVIEW_MAX_CSS)
+    expect(clamped).toBeLessThan(raw)
   })
 })
