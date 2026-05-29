@@ -37,6 +37,7 @@ export default function EditorBootGate({ children }: EditorBootGateProps) {
   }, [])
 
   const skipIntro = useCallback(() => setIntroSkipped(true), [])
+  const onIntroComplete = useCallback(() => setIntroComplete(true), [])
 
   useEffect(() => {
     if (!ready || !introComplete || bootComplete || fadeOut) return undefined
@@ -105,7 +106,7 @@ export default function EditorBootGate({ children }: EditorBootGateProps) {
           <SplashScreen
             skipped={introSkipped}
             exiting={fadeOut}
-            onIntroComplete={() => setIntroComplete(true)}
+            onIntroComplete={onIntroComplete}
           />
           <button
             type="button"
