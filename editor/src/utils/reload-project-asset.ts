@@ -1,5 +1,5 @@
 import { readProjectFileBytes } from './asset-file-api'
-import { editorInvalidateAsset, editorRegisterAudio, editorRegisterFont, editorRegisterImage } from './wasm-bridge'
+import { editorRegisterAudio, editorRegisterFont, editorRegisterImage } from './wasm-bridge'
 import type { AudioAsset, FontAsset, ImageAsset } from '../types'
 
 function extFromPath(path: string): string {
@@ -25,14 +25,13 @@ async function bytesForImageAsset(
   return readProjectFileBytes(projectRoot, asset.path)
 }
 
-/** Hot-reload a single image into the WASM texture cache (§7.2). */
+/** Hot-reload a single image into the WASM texture cache (§7.2 in-place register). */
 export async function reloadProjectImageAsset(
   projectRoot: string,
   asset: ImageAsset,
 ): Promise<boolean> {
   const bytes = await bytesForImageAsset(projectRoot, asset)
   if (!bytes || bytes.length === 0) return false
-  editorInvalidateAsset(asset.path, 'image')
   return editorRegisterImage(asset.path, bytes, extFromPath(asset.path))
 }
 
@@ -43,7 +42,6 @@ export async function reloadProjectAudioAsset(
 ): Promise<boolean> {
   const bytes = await readProjectFileBytes(projectRoot, asset.path)
   if (!bytes || bytes.length === 0) return false
-  editorInvalidateAsset(asset.path, 'audio')
   return editorRegisterAudio(asset.path, bytes, extFromPath(asset.path))
 }
 
@@ -54,7 +52,6 @@ export async function reloadProjectFontAsset(
 ): Promise<boolean> {
   const bytes = await readProjectFileBytes(projectRoot, asset.path)
   if (!bytes || bytes.length === 0) return false
-  editorInvalidateAsset(asset.path, 'font')
   const baseSize = asset.defaultSize && asset.defaultSize > 0 ? asset.defaultSize : 32
   return editorRegisterFont(asset.path, bytes, extFromPath(asset.path), baseSize)
 }

@@ -3,6 +3,7 @@ import { readFile, writeFile, mkdir } from '@tauri-apps/plugin-fs'
 import type { ProjectDoc } from '../types'
 import { serializeProjectDoc } from './project-codec'
 import { collectReferencedProjectPaths } from './collect-referenced-project-paths'
+import { buildProjectAssetManifest } from './build-project-asset-manifest'
 import { joinPath, baseName } from './file-paths'
 import { dirName } from './project'
 import { bytesToArrayBuffer } from './asset-file-api'
@@ -164,11 +165,7 @@ export async function exportArtcadePackage(
       checksums[rel.replace(/\\/g, '/')] = await sha256Hex(bytes)
     }
 
-    const manifest = {
-      version: '1.0.0',
-      exportedAt: new Date().toISOString(),
-      checksums,
-    }
+    const manifest = buildProjectAssetManifest(project, checksums)
     const manifestBytes = new TextEncoder().encode(JSON.stringify(manifest, null, 2))
     entries.push({ path: 'manifest.json', data: manifestBytes })
 

@@ -3,10 +3,12 @@ import { createBlankProject } from './project-factory'
 import { createEntityDef } from './project-builders'
 import { migrateLegacyProject } from './project-object-types'
 import {
+  ASSET_CACHE_MAX_ENTRIES,
   AssetOrchestrator,
   pathsToDescriptors,
   resetAssetFailureLogs,
 } from './asset-orchestrator'
+import type { AssetDescriptor } from './asset-types'
 import type { AssetOrchestratorDeps } from './asset-orchestrator'
 
 const IMG = 'assets/images/hero.png'
@@ -99,6 +101,26 @@ describe('asset-orchestrator', () => {
     p.scenes.scene_main.entityIds = [1, 2]
     await orch.loadScene(p, 'scene_main', '/proj')
     expect(readProjectFileBytes).toHaveBeenCalledTimes(1)
+  })
+
+  it('evictLru invalidates oldest paths outside the active scene set', () => {
+    const invalidateAsset = vi.fn()
+    const { orch } = makeOrchestrator({ invalidateAsset })
+    const seed = (path: string, lastUsed: number) => {
+      const desc: AssetDescriptor = { id: path, type: 'image', path }
+      const key = `image:${path}#f`
+      ;(orch as unknown as { registered: Set<string> }).registered.add(key)
+      ;(orch as unknown as { registeredMeta: Map<string, { desc: AssetDescriptor; lastUsed: number }> })
+        .registeredMeta.set(key, { desc, lastUsed })
+    }
+    for (let i = 0; i < ASSET_CACHE_MAX_ENTRIES + 2; i++) {
+      seed(`assets/images/extra-${i}.png`, i)
+    }
+    orch.evictLru(new Set(['assets/images/hero.png']))
+    expect(invalidateAsset).toHaveBeenCalled()
+    expect(
+      (orch as unknown as { registered: Set<string> }).registered.size,
+    ).toBeLessThanOrEqual(ASSET_CACHE_MAX_ENTRIES)
   })
 
   it('dedupes console failure logs per path', async () => {

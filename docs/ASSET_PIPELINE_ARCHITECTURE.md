@@ -2,7 +2,7 @@
 
 **Document type:** Architecture proposal + codebase audit  
 **Audience:** Engine / editor collaborators  
-**Status:** Proposed target architecture (partially implemented)  
+**Status:** Phases A–D implemented in editor preview (2026-05-29); native manifest draw path optional (Phase C)  
 **Last updated:** 2026-05-29 (§3.4 dual-read, §5.2 queue, §7.2 invalidate/hot-reload)  
 **Repository:** ArtCade-Studio_V2  
 
@@ -136,7 +136,7 @@ assetBridge.loadAsset({ id, type: 'image', ext, bytes: buffer });
 - `project.assets` — image definitions
 - *(v2)* Logic Board static analysis — audio paths, `loadScene` actions
 
-**Current implementation:** **Eager** — `useRuntimeAssetUpload` in `editor/src/panels/preview/runtime-hooks.ts` iterates **all** `project.assets` when WASM and engine are ready. No per-scene split, no unload.
+**Current implementation:** **Scene-scoped** — `useRuntimeAssetUpload` → `performRuntimeSceneAssetSync` → `AssetOrchestrator.loadScene` for the active scene; other scenes prefetch on idle. LRU eviction when registered count exceeds `ASSET_CACHE_MAX_ENTRIES` (96).
 
 ---
 
@@ -445,7 +445,7 @@ Apply **`resolveImageLoadKey`** (§3.4) to each collected path/id before enqueue
 
 ### 5.2 `AssetLoadQueue` — errors, cancellation, and UX
 
-**Status:** Spec only (not implemented). Phase A deliverable alongside §5.1.
+**Status:** Implemented in `editor/src/utils/asset-orchestrator.ts` (generation token, `AssetLoadResult`, deduped failures).
 
 The queue must define preview behaviour on failure and scene supersession — these cases drive every error UX in Tauri preview.
 
@@ -532,13 +532,13 @@ Aligned with `docs/ASSETS_ROADMAP.md` — incremental delivery, no big-bang.
 
 **Goal:** One orchestration API in TS; thin C++ register functions per asset type.
 
-- [ ] `AssetDescriptor { id, type, path, ext }` from `ProjectDoc.assets`
-- [ ] `AssetLoadQueue` per **§5.2** (generation token, `AssetLoadResult`, non-blocking failures)
-- [ ] `resolveImageLoadKey` per **§3.4**
-- [ ] Implement `collectSceneAssetRefs` per **§5.1** (`editor/src/utils/collect-scene-asset-refs.ts`)
-- [ ] Refactor `useRuntimeAssetUpload` → `loadAssetsForPaths(paths)` via `pathsToDescriptors`
-- [ ] Document handoff in `REACT_WASM_PATTERN.md` or this doc
-- [ ] Backward compat: `spriteAssetId` may still equal `path` until Phase C
+- [x] `AssetDescriptor { id, type, path, ext }` from `ProjectDoc.assets`
+- [x] `AssetLoadQueue` per **§5.2** (generation token, `AssetLoadResult`, non-blocking failures)
+- [x] `resolveImageLoadKey` per **§3.4**
+- [x] Implement `collectSceneAssetRefs` per **§5.1** (`editor/src/utils/collect-scene-asset-refs.ts`)
+- [x] Refactor `useRuntimeAssetUpload` → `performRuntimeSceneAssetSync` via `pathsToDescriptors`
+- [x] Document handoff in `REACT_WASM_PATTERN.md`
+- [x] Backward compat: `spriteAssetId` may still equal `path` until manifest draw path uses ids
 
 **Tests:** vitest **§5.1.6** + **§5.2.5** queue cases  
 **DoD:** Opening a project loads assets for the **active scene** only, not the full library.
@@ -549,11 +549,11 @@ Aligned with `docs/ASSETS_ROADMAP.md` — incremental delivery, no big-bang.
 
 **Goal:** Load on scene enter; prefetch neighbors when idle.
 
-- [ ] Wire `AssetOrchestrator.loadScene` → `collectSceneAssetRefs(activeSceneId)` (§5.1)
-- [ ] Hook scene change in `runtime-sync-service` → reload asset set
-- [ ] Prefetch: run same collector on other `ProjectDoc.scenes` keys (simple full list in v1; graph via `loadScene` later)
-- [ ] Optional: unload textures not in active + prefetched sets
-- [ ] Optional flag: `scope: 'scene+spawn-prototypes'` (§5.1.4)
+- [x] Wire `AssetOrchestrator.loadScene` → `collectSceneAssetRefs(activeSceneId)` (§5.1)
+- [x] Hook scene change via `useRuntimeAssetUpload` / `PreviewPanel` asset sync
+- [x] Prefetch: other `ProjectDoc.scenes` keys on `requestIdleCallback`
+- [x] LRU eviction via `evictLru` when cache exceeds cap (non-active paths first)
+- [x] Optional flag: `scope: 'scene+spawn-prototypes'` (§5.1.4) on collector
 
 **Tests:** §5.1.6 + integration test orchestrator calls collector on scene switch  
 **DoD:** Scene switch in preview loads new textures; manual smoke in Tauri.
@@ -564,10 +564,10 @@ Aligned with `docs/ASSETS_ROADMAP.md` — incremental delivery, no big-bang.
 
 **Goal:** Same index for editor, `.artcade`, and native.
 
-- [ ] Align with **ASSETS_ROADMAP Phase 3** (`exportArtcadePackage`)
-- [ ] Manifest entry: `{ id, type, relativePath, sha256? }`
-- [ ] Manifest resolve layered on **§3.4** dual-read (no mandatory rewrite on open)
-- [ ] C++: optional `assetId` in draw path when manifest present
+- [x] Align with **ASSETS_ROADMAP Phase 3** (`exportArtcadePackage`)
+- [x] Manifest entry: `{ id, type, relativePath, sha256? }` via `build-project-asset-manifest.ts`
+- [x] Manifest resolve layered on **§3.4** dual-read (no mandatory rewrite on open)
+- [ ] C++: optional `assetId` in draw path when manifest present (native runtime follow-up)
 
 **Breaking change:** None for open — dual-read preserves saved projects. Document new export format only.
 
@@ -577,9 +577,9 @@ Aligned with `docs/ASSETS_ROADMAP.md` — incremental delivery, no big-bang.
 
 **Goal:** File changes on disk refresh preview; evict distant scenes under pressure.
 
-- [ ] **ASSETS_ROADMAP Phase 4:** Tauri `fs.watch` on `assets/**` → **re-register** same key (§7.2)
-- [ ] `editor_invalidate_asset` for eviction / LRU only (§7.2)
-- [ ] LRU / refcount when `loadedCount > N`
+- [x] **ASSETS_ROADMAP Phase 4:** Tauri `fs.watch` on `assets/**` → **re-register** same key (§7.2)
+- [x] `editor_invalidate_asset` for eviction / LRU only (§7.2)
+- [x] LRU when registered count > `ASSET_CACHE_MAX_ENTRIES` (96)
 
 ---
 
@@ -707,6 +707,10 @@ Gameplay continues to reference assets via entity fields and Lua APIs:
 | TS image read | `editor/src/utils/asset-file-api.ts` |
 | WASM register | `editor/src/utils/wasm-bridge.ts` (`editorRegisterImage`) |
 | Preview upload hook | `editor/src/panels/preview/runtime-hooks.ts` (`useRuntimeAssetUpload`) |
+| Scene asset sync | `editor/src/panels/preview/runtime-asset-sync.ts` |
+| Orchestrator | `editor/src/utils/asset-orchestrator.ts` |
+| Export manifest | `editor/src/utils/build-project-asset-manifest.ts` |
+| Hot-reload | `editor/src/utils/asset-watcher.ts`, `reload-project-asset.ts` |
 | Runtime sync | `editor/src/utils/runtime-sync-service.ts` (`assetCacheInvalidator`) |
 | C++ IPC | `runtime-cpp/src/modules/editor-api/src/editor-api.cpp` |
 | Texture upload | `runtime-cpp/src/modules/renderer/src/texture-cache.cpp` |
@@ -767,7 +771,7 @@ The left sidebar uses **`ProjectExplorerPanel`** (`editor/src/components/project
 
 The proposed architecture is **correct** and matches long-term engine docs. Implementation is roughly **40% complete** for **images in Tauri preview**; missing pieces are **orchestration, stable IDs, scene scope, audio symmetry, and lifecycle**.
 
-**Recommended next step:** Phase A — implement **§5.1** `collectSceneAssetRefs` + vitest, then `AssetOrchestrator` + refactor `useRuntimeAssetUpload` before investing in a Vite-generated `AssetManifest.json`.
+**Recommended next step:** C++ draw path `assetId` lookup from packaged manifest; optional “Normalize references to asset IDs” editor action.
 
 ---
 

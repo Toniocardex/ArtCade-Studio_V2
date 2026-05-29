@@ -6,6 +6,7 @@ import type { ProjectDoc } from '../types'
 import { readProjectFileBytes } from './asset-file-api'
 import { collectSceneAssetRefs, collectSceneAudioRefs } from './collect-scene-asset-refs'
 import {
+  editorInvalidateAsset,
   editorRegisterAudio,
   editorRegisterFont,
   editorRegisterImage,
@@ -18,10 +19,14 @@ import {
 } from './resolve-image-load-key'
 import type {
   AssetDescriptor,
+  AssetKind,
   AssetLoadFailure,
   AssetLoadPriority,
   AssetLoadResult,
 } from './asset-types'
+
+/** Max WASM-registered assets before LRU eviction of non-active-scene paths (Phase D). */
+export const ASSET_CACHE_MAX_ENTRIES = 96
 
 export interface AssetOrchestratorDeps {
   readProjectFileBytes: (projectRoot: string, relPath: string) => Promise<Uint8Array | null>
@@ -32,6 +37,7 @@ export interface AssetOrchestratorDeps {
   scheduleIdle: (fn: () => void) => void
   cancelIdle?: (fn: () => void) => void
   logFailure: (path: string, reason: string) => void
+  invalidateAsset?: (path: string, type: AssetKind) => void
 }
 
 function extFromPath(path: string): string {
@@ -158,12 +164,14 @@ export class AssetOrchestrator {
     Promise<'loaded' | 'cancelled' | { reason: string }>
   >()
   private readonly registered = new Set<string>()
+  private readonly registeredMeta = new Map<string, { desc: AssetDescriptor; lastUsed: number }>()
   private readonly loggedFailures = new Set<string>()
 
   constructor(private readonly deps: AssetOrchestratorDeps) {}
 
   clearRegistered(): void {
     this.registered.clear()
+    this.registeredMeta.clear()
     this.inFlight.clear()
     this.loggedFailures.clear()
     warnedMissingLibrary.clear()
@@ -196,13 +204,18 @@ export class AssetOrchestrator {
     projectRoot: string,
   ): Promise<AssetLoadResult> {
     const gen = this.bumpSceneGeneration()
-    return this.loadDescriptors(
+    const result = await this.loadDescriptors(
       project,
       sceneAssetDescriptors(project, sceneId),
       projectRoot,
       gen,
       'critical',
     )
+    const protectedPaths = new Set(
+      sceneAssetDescriptors(project, sceneId).map((d) => d.path),
+    )
+    this.evictLru(protectedPaths)
+    return result
   }
 
   prefetchScene(
@@ -340,7 +353,25 @@ export class AssetOrchestrator {
     }
 
     this.registered.add(regKey)
+    this.registeredMeta.set(regKey, { desc, lastUsed: Date.now() })
     return 'loaded'
+  }
+
+  /** Evict least-recently-used entries outside the active scene path set (Phase D). */
+  evictLru(protectedPaths: ReadonlySet<string>): void {
+    if (this.registered.size <= ASSET_CACHE_MAX_ENTRIES) return
+    if (!this.deps.invalidateAsset) return
+
+    const candidates = [...this.registeredMeta.entries()]
+      .filter(([, meta]) => !protectedPaths.has(meta.desc.path))
+      .sort((a, b) => a[1].lastUsed - b[1].lastUsed)
+
+    for (const [regKey, meta] of candidates) {
+      if (this.registered.size <= ASSET_CACHE_MAX_ENTRIES) break
+      this.deps.invalidateAsset(meta.desc.path, meta.desc.type)
+      this.registered.delete(regKey)
+      this.registeredMeta.delete(regKey)
+    }
   }
 }
 
@@ -380,6 +411,10 @@ export function createDefaultAssetOrchestrator(): AssetOrchestrator {
       if (sessionFailureLogs.has(path)) return
       sessionFailureLogs.add(path)
       console.warn(`[Asset] Failed to load: ${path} (${reason})`)
+    },
+    invalidateAsset: (path, type) => {
+      if (!isWasmReady()) return
+      editorInvalidateAsset(path, type)
     },
   })
 }
