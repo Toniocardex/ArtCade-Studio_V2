@@ -1,11 +1,12 @@
 import {
-  useCallback, useEffect, useLayoutEffect, useState, type TransitionEvent, type ReactNode,
+  useCallback, useEffect, useLayoutEffect, useRef, useState, type TransitionEvent, type ReactNode,
 } from 'react'
 import SplashScreen from './SplashScreen'
 import { BootLoadingOverlay } from './BootLoadingOverlay'
 import { useEditorBootReady } from '../hooks/useEditorBootReady'
 import { hasSeenBootSplash, markBootSplashSeen } from '../utils/editor-boot-storage'
 import { revealTauriWindowAfterBoot } from '../utils/boot-chrome'
+import { BOOT_MIN_SPINNER_MS } from '../utils/boot-timing'
 import { warmWasmBinary } from '../utils/wasm-bridge'
 
 export interface EditorBootGateProps {
@@ -18,6 +19,7 @@ export interface EditorBootGateProps {
  * blank project, and first project→WASM sync are all ready.
  *
  * First launch: marketing SplashScreen (once per machine), then spinner if needed.
+ * Spinner stays at least BOOT_MIN_SPINNER_MS once shown (fast loads still feel deliberate).
  * Tauri window stays hidden until revealTauriWindowAfterBoot() after the gate clears.
  */
 export default function EditorBootGate({ children }: EditorBootGateProps) {
@@ -36,6 +38,7 @@ export default function EditorBootGate({ children }: EditorBootGateProps) {
   const [marketingDone, setMarketingDone] = useState(!showMarketing)
   const [bootComplete, setBootComplete] = useState(false)
   const [fadeOut, setFadeOut] = useState(false)
+  const spinnerShownAtRef = useRef<number | null>(null)
 
   const finishMarketing = useCallback(() => {
     markBootSplashSeen()
@@ -43,10 +46,31 @@ export default function EditorBootGate({ children }: EditorBootGateProps) {
   }, [])
 
   useEffect(() => {
-    if (!ready || !marketingDone || bootComplete) return
-    setFadeOut(true)
-    revealTauriWindowAfterBoot()
-  }, [ready, marketingDone, bootComplete])
+    if (!marketingDone || bootComplete) return
+    if (spinnerShownAtRef.current === null) {
+      spinnerShownAtRef.current = Date.now()
+    }
+  }, [marketingDone, bootComplete])
+
+  useEffect(() => {
+    if (!ready || !marketingDone || bootComplete || fadeOut) return undefined
+
+    const shownAt = spinnerShownAtRef.current ?? Date.now()
+    const remaining = BOOT_MIN_SPINNER_MS - (Date.now() - shownAt)
+
+    const startFade = () => {
+      setFadeOut(true)
+      revealTauriWindowAfterBoot()
+    }
+
+    if (remaining <= 0) {
+      startFade()
+      return undefined
+    }
+
+    const t = globalThis.setTimeout(startFade, remaining)
+    return () => globalThis.clearTimeout(t)
+  }, [ready, marketingDone, bootComplete, fadeOut])
 
   const onOverlayTransitionEnd = useCallback((e: TransitionEvent<HTMLDivElement>) => {
     if (e.target !== e.currentTarget) return
