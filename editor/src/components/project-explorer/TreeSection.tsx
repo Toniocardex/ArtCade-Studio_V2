@@ -6,6 +6,8 @@ export type TreeSectionProps = Readonly<{
   open: boolean
   onToggle: () => void
   actions?: ReactNode
+  /** Prominent CTAs shown below the header when the section is open. */
+  actionBar?: ReactNode
   children: ReactNode
   hidden?: boolean
   bodyClassName?: string
@@ -16,6 +18,7 @@ export function TreeSection({
   open,
   onToggle,
   actions,
+  actionBar,
   children,
   hidden = false,
   bodyClassName = '',
@@ -40,8 +43,11 @@ export function TreeSection({
             {title}
           </span>
         </button>
-        {actions}
+        {actions ? (
+          <div className="flex items-center gap-1 flex-shrink-0">{actions}</div>
+        ) : null}
       </div>
+      {open && actionBar ? actionBar : null}
       {open ? <div className={`px-1 py-1 ${bodyClassName}`.trim()}>{children}</div> : null}
     </section>
   )

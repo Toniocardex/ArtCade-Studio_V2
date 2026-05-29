@@ -25,6 +25,11 @@ import { TreeSection } from './TreeSection'
 import { TreeFolder, TreeLeaf } from './TreeNode'
 import { AssetToolbar } from './AssetToolbar'
 import { AssetDetailStrip } from '../asset-explorer/AssetDetailStrip'
+import {
+  ExplorerActionBar,
+  ExplorerLabelCta,
+  ExplorerLeafActionBtn,
+} from './explorer-cta'
 
 const CLASS_COLOR: Record<string, string> = {
   Player: 'var(--accent)',
@@ -135,46 +140,41 @@ export default function ProjectExplorerPanel() {
           onToggle={() => toggle('scenes')}
           hidden={!tree.scenesVisible}
           actions={
-            <div className="flex items-center gap-0.5">
-              {scene.scene ? (
-                <>
-                  <button
-                    type="button"
-                    disabled={scene.isStartScene}
-                    onClick={scene.setStartScene}
-                    title="Set as start scene"
-                    className="p-1 rounded text-[var(--muted)] hover:text-[var(--accent)] disabled:opacity-40"
-                  >
-                    <Star size={12} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={scene.renameScene}
-                    title="Rename scene"
-                    className="p-1 rounded text-[var(--muted)] hover:text-[var(--accent)]"
-                  >
-                    <Pencil size={12} />
-                  </button>
-                  <button
-                    type="button"
-                    disabled={!scene.canDeleteScene}
-                    onClick={scene.deleteScene}
-                    title="Delete scene"
-                    className="p-1 rounded text-[var(--muted)] hover:text-[var(--danger)] disabled:opacity-40"
-                  >
-                    <Trash2 size={12} />
-                  </button>
-                </>
-              ) : null}
-              <button
-                type="button"
-                onClick={scene.addScene}
-                title="Create scene"
-                className="p-1 rounded text-[var(--muted)] hover:text-[var(--accent)]"
-              >
-                <Plus size={12} />
-              </button>
-            </div>
+            <ExplorerLabelCta
+              label="Add scene"
+              title="Create a new scene"
+              onClick={scene.addScene}
+              icon={<Plus size={12} />}
+            />
+          }
+          actionBar={
+            scene.scene ? (
+              <ExplorerActionBar>
+                <ExplorerLabelCta
+                  label="Set start"
+                  title="Set as start scene"
+                  tone="default"
+                  disabled={scene.isStartScene}
+                  onClick={scene.setStartScene}
+                  icon={<Star size={12} />}
+                />
+                <ExplorerLabelCta
+                  label="Rename"
+                  title="Rename scene"
+                  tone="default"
+                  onClick={scene.renameScene}
+                  icon={<Pencil size={12} />}
+                />
+                <ExplorerLabelCta
+                  label="Delete"
+                  title="Delete scene"
+                  tone="default"
+                  disabled={!scene.canDeleteScene}
+                  onClick={scene.deleteScene}
+                  icon={<Trash2 size={12} />}
+                />
+              </ExplorerActionBar>
+            ) : null
           }
         >
           {tree.scenes.length === 0 ? (
@@ -208,15 +208,13 @@ export default function ProjectExplorerPanel() {
           hidden={!tree.entitiesVisible}
           bodyClassName={tree.entities.length === 0 ? 'min-h-[3.25rem]' : ''}
           actions={
-            <button
-              type="button"
+            <ExplorerLabelCta
+              label="Add entity"
+              title="Add entity to this scene (Insert)"
               onClick={scene.addEntity}
               disabled={!scene.scene}
-              title="Add entity (Insert)"
-              className="p-1 rounded text-[var(--muted)] hover:text-[var(--accent)] disabled:opacity-40"
-            >
-              <Plus size={12} />
-            </button>
+              icon={<Plus size={12} />}
+            />
           }
         >
           {tree.entities.length === 0 ? (
@@ -232,9 +230,6 @@ export default function ProjectExplorerPanel() {
               const entity = project.entities[e.entityId]
               const color = entity ? (CLASS_COLOR[entity.className] ?? 'var(--muted)') : 'var(--muted)'
               const selected = selectedEntityId === e.entityId
-              const actionBtnClass =
-                'p-1 rounded hover:bg-[rgb(var(--bg-rgb)/0.15)] text-[var(--bg)] flex-shrink-0'
-
               return (
                 <TreeLeaf
                   key={e.entityId}
@@ -261,50 +256,42 @@ export default function ProjectExplorerPanel() {
                   actions={
                     selected ? (
                       <>
-                        <button
-                          type="button"
+                        <ExplorerLeafActionBtn
                           title="Edit logic"
-                          className={actionBtnClass}
                           onClick={(ev) => {
                             ev.stopPropagation()
                             scene.openEntityLogic(e.entityId)
                           }}
                         >
-                          <Workflow size={12} />
-                        </button>
-                        <button
-                          type="button"
+                          <Workflow size={13} />
+                        </ExplorerLeafActionBtn>
+                        <ExplorerLeafActionBtn
                           title={e.visible ? 'Hide in game' : 'Show in game'}
-                          className={actionBtnClass}
                           onClick={(ev) => {
                             ev.stopPropagation()
                             scene.toggleEntityVisible(e.entityId, e.visible)
                           }}
                         >
-                          {e.visible ? <Eye size={12} /> : <EyeOff size={12} />}
-                        </button>
-                        <button
-                          type="button"
+                          {e.visible ? <Eye size={13} /> : <EyeOff size={13} />}
+                        </ExplorerLeafActionBtn>
+                        <ExplorerLeafActionBtn
                           title="Duplicate"
-                          className={actionBtnClass}
                           onClick={(ev) => {
                             ev.stopPropagation()
                             scene.duplicateEntity(e.entityId)
                           }}
                         >
-                          <Copy size={12} />
-                        </button>
-                        <button
-                          type="button"
+                          <Copy size={13} />
+                        </ExplorerLeafActionBtn>
+                        <ExplorerLeafActionBtn
                           title="Delete"
-                          className={actionBtnClass}
                           onClick={(ev) => {
                             ev.stopPropagation()
                             scene.deleteEntity(e.entityId)
                           }}
                         >
-                          <Trash2 size={12} />
-                        </button>
+                          <Trash2 size={13} />
+                        </ExplorerLeafActionBtn>
                       </>
                     ) : undefined
                   }
@@ -320,41 +307,34 @@ export default function ProjectExplorerPanel() {
           onToggle={() => toggle('entityTypes')}
           hidden={!tree.entityTypesVisible}
           actions={
-            <button
-              type="button"
+            <ExplorerLabelCta
+              label="New type"
+              title="Create reusable entity type"
               onClick={scene.addEntityType}
-              title="New entity type"
-              className="text-[9px] font-semibold px-1.5 py-0.5 rounded border border-[var(--border-2)]
-                         hover:border-[var(--accent-bd)]"
-            >
-              <Plus size={10} className="inline" /> New
-            </button>
+              icon={<Plus size={12} />}
+            />
           }
         >
           {tree.entityTypes.length === 0 ? (
             <p className="text-[10px] text-[var(--muted)] italic px-2 py-1">
-              No types yet — + New for reusable templates.
+              No types yet — use New type above for reusable templates.
             </p>
           ) : (
             tree.entityTypes.map((t) => (
               <div
                 key={t.objectTypeId}
-                className="flex items-center gap-1 px-2 py-0.5"
+                className="flex items-center gap-1.5 px-2 py-1"
                 style={{ paddingLeft: 20 }}
               >
                 <span className="flex-1 text-[10px] truncate text-[var(--text)]" title={t.objectTypeId}>
                   {t.label}
                 </span>
-                <button
-                  type="button"
-                  disabled={!scene.scene}
+                <ExplorerLabelCta
+                  label="Place"
+                  title="Place instance in active scene"
                   onClick={() => scene.placeEntityType(t.objectTypeId)}
-                  className="text-[9px] font-semibold px-1.5 py-0.5 rounded border border-[var(--accent-bd)]
-                             bg-[var(--accent-bg)] text-[var(--accent)] hover:bg-[var(--accent-bg-h)]
-                             disabled:opacity-40"
-                >
-                  Place
-                </button>
+                  disabled={!scene.scene}
+                />
               </div>
             ))
           )}
