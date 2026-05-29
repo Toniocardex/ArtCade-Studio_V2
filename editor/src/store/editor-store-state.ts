@@ -84,6 +84,11 @@ export interface CoreState {
   logicScriptSyncedRevision: string | null
   /** Last `logicBoardsRevision` hot-reloaded into the WASM preview runtime. */
   logicPreviewAppliedRevision: string | null
+  /**
+   * Preview WASM texture/audio closure scope (see collect-scene-asset-refs).
+   * `scene+spawn-prototypes` preloads sprites for spawnEntity prototype classes.
+   */
+  previewAssetLoadScope: 'scene-static' | 'scene+spawn-prototypes'
 }
 
 export type LogicBoardHistory = {
@@ -159,6 +164,7 @@ export type Action =
   | { type: 'PROJECT_NORMALIZE_ASSET_REFS' }
   | { type: 'ASSET_FOLDER_CREATE'; category: AssetFolderCategory; name: string }
   | { type: 'ASSET_MOVE_TO_FOLDER'; folderId: string; assetType: 'image' | 'audio' | 'font' | 'tileset'; assetId: string }
+  | { type: 'ASSET_UNASSIGN_FROM_FOLDERS'; assetType: 'image' | 'audio' | 'font' | 'tileset'; assetId: string }
   | { type: 'ASSET_FOLDER_DELETE'; folderId: string }
   | { type: 'SCENE_SET_WORLD_SIZE'; sceneId: string; x: number; y: number }
   | { type: 'SCENE_SET_VIEWPORT_SIZE'; sceneId: string; x: number; y: number }
@@ -168,6 +174,7 @@ export type Action =
   /** Used by fit-to-panel: applies the zoom AND keeps editorZoomMode = 'fit'. */
   | { type: 'EDITOR_SET_FIT_ZOOM'; zoom: number }
   | { type: 'EDITOR_SET_CAMERA_PREVIEW'; enabled: boolean }
+  | { type: 'EDITOR_SET_PREVIEW_ASSET_LOAD_SCOPE'; scope: 'scene-static' | 'scene+spawn-prototypes' }
   | { type: 'TILEMAP_INIT';  sceneId: string }
   | { type: 'TILEMAP_PAINT'; sceneId: string; index: number; tileId: number }
   | { type: 'TILEMAP_PAINT_CELL'; sceneId: string; col: number; row: number; tileId: number }
@@ -235,6 +242,7 @@ export const initialCoreState: CoreState = {
   logicBoardHistory: { past: [], future: [] },
   logicScriptSyncedRevision: null,
   logicPreviewAppliedRevision: null,
+  previewAssetLoadScope: 'scene-static',
 }
 
 export const initialVolatileState: VolatileState = {

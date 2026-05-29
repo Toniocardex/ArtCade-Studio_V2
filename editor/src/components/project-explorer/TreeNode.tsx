@@ -7,6 +7,7 @@ export type TreeFolderProps = Readonly<{
   depth?: number
   open: boolean
   onToggle: () => void
+  onContextMenu?: (ev: React.MouseEvent) => void
   accent?: boolean
   children?: ReactNode
 }>
@@ -17,6 +18,7 @@ export function TreeFolder({
   depth = 0,
   open,
   onToggle,
+  onContextMenu,
   accent = false,
   children,
 }: TreeFolderProps) {
@@ -24,7 +26,7 @@ export function TreeFolder({
   const FolderIcon = open ? FolderOpen : Folder
 
   return (
-    <div>
+    <div onContextMenu={onContextMenu}>
       <button
         type="button"
         onClick={onToggle}
