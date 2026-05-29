@@ -1545,6 +1545,26 @@ describe('Defensive value coercion', () => {
     expect(lua).toContain('camera.shake(1)')
   })
 
+  it('onStart-only cameraShake runs init at script load (edit-mode hot reload)', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({
+          trigger: { type: 'onStart' },
+          actions: [{ type: 'cameraShake', trauma: 0.6 }],
+        }),
+      ]),
+    ])
+    expect(lua).toContain('__artcade_requires_tick = false or (__artcade_project_tick ~= nil)')
+    expect(lua).toContain('if not __artcade_requires_tick and not _init_done then')
+    expect(lua).toContain('camera.shake(0.6)')
+    const initDef = lua.indexOf('local function _logic_init()')
+    const shakeCall = lua.indexOf('camera.shake(0.6)')
+    const eagerInit = lua.indexOf('if not __artcade_requires_tick and not _init_done then')
+    expect(shakeCall).toBeGreaterThan(initDef)
+    expect(eagerInit).toBeGreaterThan(shakeCall)
+    expect(lua.indexOf('_logic_init()', eagerInit)).toBeGreaterThan(eagerInit)
+  })
+
   it('setColorTint with non-numeric alpha falls back to 1', () => {
     const lua = compileLogicBoard([
       board([

@@ -664,14 +664,20 @@ void Application::loopIteration() {
             accumulator_ -= targetDt_;
             simDtThisFrame += targetDt_;
         }
-
-        if (simDtThisFrame > 0.f) {
-            mod_->cameraManager->refreshShakeOffset(simDtThisFrame);
-            mod_->cameraManager->decayTrauma(simDtThisFrame);
-        }
     } else {
         // EDIT mode: discard accumulated time so PLAY does not burst-catch-up.
         accumulator_ = 0.f;
+    }
+
+    // Shake offset/decay once per render frame (see FIXED_STEP_CONTRACT.md).
+    // Use accumulated sim dt when gameplay stepped; otherwise wall-clock dt
+    // so edit-mode Logic Board hot reload (_logic_init → camera.shake) still
+    // animates before PLAY.
+    if (mod_->cameraManager->trauma() > 0.f) {
+        const float shakeDt =
+            (simDtThisFrame > 0.f) ? simDtThisFrame : frameTime;
+        mod_->cameraManager->refreshShakeOffset(shakeDt);
+        mod_->cameraManager->decayTrauma(shakeDt);
     }
 
     tickFrameEnd();

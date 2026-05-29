@@ -137,6 +137,16 @@ static void test_trauma_decays() {
     std::puts("  [ok] trauma decays over time");
 }
 
+static void test_shake_refresh_without_sim_step() {
+    CM cam; cam.init();
+    cam.addTrauma(0.75f);
+    // Edit-mode preview: trauma from hot-reload init, no fixed-step dt yet.
+    cam.refreshShakeOffset(1.f / 60.f);
+    const auto off = cam.shakeOffset();
+    assert(off.x != 0.f || off.y != 0.f);
+    std::puts("  [ok] refreshShakeOffset with frame dt (no sim step)");
+}
+
 static void test_multi_step_lua_before_frame_decay() {
     CM cam; cam.init();
     cam.addTrauma(0.8f);
@@ -171,6 +181,7 @@ int main() {
     test_screen_to_world_roundtrip();
     test_visible_bounds();
     test_shake_adds_offset();
+    test_shake_refresh_without_sim_step();
     test_trauma_decays();
     test_multi_step_lua_before_frame_decay();
     std::puts("=== all 13 tests passed ===");

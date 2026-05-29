@@ -61,6 +61,7 @@ public:
 
     // Add trauma (0–1 range; stacks additively, clamped to 1)
     void addTrauma(float amount);
+    float trauma() const { return trauma_; }
 
     // Max shake displacement in world units and max rotation in radians
     void setShakeParams(float maxDisplace, float maxRotation);
