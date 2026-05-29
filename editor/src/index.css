@@ -74,7 +74,7 @@
   --danger-rgb:   168 67 67;
 
   /* Layout */
-  --editor-rail-width:     5rem;
+  --editor-rail-width:     6rem;   /* fits module labels (Script, Dialog, Theme) */
   --editor-workspace-inset: 1rem;
 
   /* Geometry — ArtCade style guide says "ridotti al minimo o azzerati" */

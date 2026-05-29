@@ -11,7 +11,6 @@ import InspectorPanel     from './panels/InspectorPanel'
 import { createBlankProject } from './utils/project'
 import { starterInnkeeperScript } from './utils/dialog/dialog-file-api'
 import { DialogEditorModal } from './panels/dialog/DialogEditorModal'
-import { runtimeSync } from './utils/runtime-sync-service'
 import { triggerLayoutReflow } from './utils/layout-reflow'
 import { useProjectShortcuts } from './hooks/useProjectShortcuts'
 import { useProjectLogicBoardSync } from './hooks/useProjectLogicBoardSync'
@@ -19,6 +18,7 @@ import { ProjectNamePersistProvider } from './components/menu-bar/project-name-c
 import { useViewportShortcuts } from './hooks/useViewportShortcuts'
 import { useConsoleShortcut } from './hooks/useConsoleShortcut'
 import { usePersistedWidth } from './hooks/usePersistedWidth'
+import EditorBootGate from './components/EditorBootGate'
 import type { ConsoleEntry } from './types'
 
 const LogicBoardPanel = lazy(() => import('./panels/LogicBoardPanel'))
@@ -65,7 +65,7 @@ function LegacyMigrateBanner() {
 
 function CanvasView() {
   const { state } = useEditor()
-  const [leftW, setLeftW]   = usePersistedWidth('artcade.sidebar-left-w-v2',  256)
+  const [leftW, setLeftW]   = usePersistedWidth('artcade.sidebar-left-w-v2',  280)
   const [rightW, setRightW] = usePersistedWidth('artcade.sidebar-right-w-v2', 256)
 
   const isEditingTileset = state.editingTilesetId != null
@@ -166,7 +166,6 @@ function EditorLayout() {
   useEffect(() => {
     if (state.project || state.projectPath) return
     const blank = createBlankProject('Untitled')
-    runtimeSync.reset()
     const starter = { innkeeper: starterInnkeeperScript() }
     dispatch({
       type: 'LOAD_PROJECT',
@@ -234,7 +233,9 @@ export default function App() {
   return (
     <EditorProvider>
       <ProjectNamePersistProvider>
-        <EditorLayout />
+        <EditorBootGate>
+          <EditorLayout />
+        </EditorBootGate>
       </ProjectNamePersistProvider>
     </EditorProvider>
   )

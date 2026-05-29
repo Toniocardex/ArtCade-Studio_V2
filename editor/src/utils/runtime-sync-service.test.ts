@@ -26,6 +26,7 @@ vi.mock('./wasm-bridge', () => {
     editorSetSelectedTile:    vi.fn(),
     editorSetGuidesEnabled:   vi.fn(),
     editorSetGridSize:        vi.fn(),
+    editorSetSnapToGrid:      vi.fn(),
     editorSetTransform:       vi.fn(),
     editorUpdateEntity:       vi.fn(),
     editorSetSceneSettings:   vi.fn(),
@@ -93,7 +94,7 @@ describe('RuntimeSyncService', () => {
     runtimeSync.syncPlayMode(true)
     runtimeSync.syncSelection(7)
     runtimeSync.syncEditorTool('select', 0)
-    runtimeSync.syncEditorChrome({ guides: true, gridSize: 32, isPlaying: false })
+    runtimeSync.syncEditorChrome({ guides: true, gridSize: 32, snapToGrid: false, isPlaying: false })
     expect(bridge.editorSetMode).not.toHaveBeenCalled()
     expect(bridge.editorSelectEntity).not.toHaveBeenCalled()
     expect(bridge.editorSetTool).not.toHaveBeenCalled()
@@ -214,9 +215,9 @@ describe('RuntimeSyncService', () => {
   })
 
   it('syncEditorChrome forces guides off while playing', () => {
-    runtimeSync.syncEditorChrome({ guides: true, gridSize: 32, isPlaying: false })
+    runtimeSync.syncEditorChrome({ guides: true, gridSize: 32, snapToGrid: false, isPlaying: false })
     expect(bridge.editorSetGuidesEnabled).toHaveBeenLastCalledWith(true)
-    runtimeSync.syncEditorChrome({ guides: true, gridSize: 32, isPlaying: true })
+    runtimeSync.syncEditorChrome({ guides: true, gridSize: 32, snapToGrid: false, isPlaying: true })
     expect(bridge.editorSetGuidesEnabled).toHaveBeenLastCalledWith(false)
     // gridSize did not change → still only one call
     expect(bridge.editorSetGridSize).toHaveBeenCalledTimes(1)
@@ -228,22 +229,33 @@ describe('RuntimeSyncService', () => {
   // and the runtime never moved. Now JS mirrors the clamp, so the cache
   // always reflects what the runtime actually applied.
   it('syncEditorChrome clamps gridSize < 4 the same way the runtime does', () => {
-    runtimeSync.syncEditorChrome({ guides: true, gridSize: 32, isPlaying: false })
+    runtimeSync.syncEditorChrome({ guides: true, gridSize: 32, snapToGrid: false, isPlaying: false })
     expect(bridge.editorSetGridSize).toHaveBeenLastCalledWith(32)
 
     // Requesting 3 — runtime clamps to 32; JS must NOT re-send because
     // the effective value didn't change.
-    runtimeSync.syncEditorChrome({ guides: true, gridSize: 3, isPlaying: false })
+    runtimeSync.syncEditorChrome({ guides: true, gridSize: 3, snapToGrid: false, isPlaying: false })
     expect(bridge.editorSetGridSize).toHaveBeenCalledTimes(1)
 
     // After resetting cache, a request below the clamp still pushes 32.
     runtimeSync.reset()
-    runtimeSync.syncEditorChrome({ guides: true, gridSize: 1, isPlaying: false })
+    runtimeSync.syncEditorChrome({ guides: true, gridSize: 1, snapToGrid: false, isPlaying: false })
     expect(bridge.editorSetGridSize).toHaveBeenLastCalledWith(32)
 
     // A valid grid (>= 4) goes through unmodified.
-    runtimeSync.syncEditorChrome({ guides: true, gridSize: 48, isPlaying: false })
+    runtimeSync.syncEditorChrome({ guides: true, gridSize: 48, snapToGrid: false, isPlaying: false })
     expect(bridge.editorSetGridSize).toHaveBeenLastCalledWith(48)
+  })
+
+  it('syncEditorChrome pushes snapToGrid to the runtime', () => {
+    vi.mocked(bridge.editorSetSnapToGrid).mockClear()
+    runtimeSync.syncEditorChrome({ guides: true, gridSize: 32, snapToGrid: true, isPlaying: false })
+    expect(bridge.editorSetSnapToGrid).toHaveBeenCalledWith(true)
+    vi.mocked(bridge.editorSetSnapToGrid).mockClear()
+    runtimeSync.syncEditorChrome({ guides: true, gridSize: 32, snapToGrid: true, isPlaying: false })
+    expect(bridge.editorSetSnapToGrid).not.toHaveBeenCalled()
+    runtimeSync.syncEditorChrome({ guides: true, gridSize: 32, snapToGrid: false, isPlaying: false })
+    expect(bridge.editorSetSnapToGrid).toHaveBeenCalledWith(false)
   })
 
   it('syncEntityTransform skips identical pushes within epsilon', () => {
@@ -408,5 +420,41 @@ describe('RuntimeSyncService', () => {
       message: 'WASM runtime is not ready yet.',
     })
     vi.mocked(bridge.isReady).mockReturnValue(true)
+  })
+
+  it('notifyEngineReady fires listeners once', () => {
+    const cb = vi.fn()
+    runtimeSync.onEngineReadyChange(cb)
+    expect(runtimeSync.isEngineReady()).toBe(false)
+    runtimeSync.notifyEngineReady()
+    expect(runtimeSync.isEngineReady()).toBe(true)
+    expect(cb).toHaveBeenCalledWith(true)
+    runtimeSync.notifyEngineReady()
+    expect(cb).toHaveBeenCalledTimes(2)
+  })
+
+  it('notifyBootProjectSynced fires when projection latches via syncProject', () => {
+    const cb = vi.fn()
+    runtimeSync.onBootProjectSyncedChange(cb)
+    expect(runtimeSync.isBootProjectSynced()).toBe(false)
+    const p = makeProject()
+    runtimeSync.syncProject(p as never, 'a', '/tmp/x', { mainLua: 'function tick(dt) end' })
+    expect(runtimeSync.hasProjectProjectionLatched()).toBe(true)
+    expect(runtimeSync.isBootProjectSynced()).toBe(true)
+    expect(cb).toHaveBeenLastCalledWith(true)
+  })
+
+  it('reset clears boot readiness flags', () => {
+    runtimeSync.notifyEngineReady()
+    runtimeSync.notifyBootProjectSynced()
+    const engineCb = vi.fn()
+    const syncCb = vi.fn()
+    runtimeSync.onEngineReadyChange(engineCb)
+    runtimeSync.onBootProjectSyncedChange(syncCb)
+    runtimeSync.reset()
+    expect(runtimeSync.isEngineReady()).toBe(false)
+    expect(runtimeSync.isBootProjectSynced()).toBe(false)
+    expect(engineCb).toHaveBeenLastCalledWith(false)
+    expect(syncCb).toHaveBeenLastCalledWith(false)
   })
 })

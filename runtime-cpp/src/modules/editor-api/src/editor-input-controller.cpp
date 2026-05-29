@@ -12,9 +12,23 @@
 #include <emscripten.h>
 #include <emscripten/html5.h>
 
+#include <cmath>
 #include <string>
 
 namespace ArtCade {
+
+namespace {
+
+/** Mirrors editor/src/utils/entity-position.ts snapToGridValue (authoring only). */
+void snapWorldToEditorGrid(float& wx, float& wy) {
+    if (!EditorAPI::s_editorSnapEnabled || EditorAPI::s_editorGridSize <= 0.f)
+        return;
+    const float cs = EditorAPI::s_editorGridSize;
+    wx = std::round(wx / cs) * cs;
+    wy = std::round(wy / cs) * cs;
+}
+
+} // namespace
 
 // Defined here (instead of editor-api.cpp) so the input-related callbacks
 // can refer to it without exposing a setter on EditorAPI. The canvas
@@ -103,6 +117,11 @@ uint32_t pickEntityAt(float x, float y) {
 
 EM_BOOL EditorAPI::onMouseMove(int, const EmscriptenMouseEvent* e, void*) {
     if (s_mode != 0) return EM_FALSE;
+    {
+        float wx = 0.f, wy = 0.f;
+        toWorld(e, wx, wy);
+        EditorAPI::notifyCursorWorld(wx, wy);
+    }
     float screenX = 0.f, screenY = 0.f;
     toScreen(e, screenX, screenY);
     if (RayTintWidget::isActive()) {
@@ -125,6 +144,7 @@ EM_BOOL EditorAPI::onMouseMove(int, const EmscriptenMouseEvent* e, void*) {
         return EM_TRUE;
     }
     if (s_isDragging && s_selectedEntityId != 0u) {
+        snapWorldToEditorGrid(wx, wy);
         if (s_entityGateway) {
             Transform transform{};
             if (s_entityGateway->getTransform(s_selectedEntityId, transform)) {

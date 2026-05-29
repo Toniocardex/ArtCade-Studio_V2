@@ -25,7 +25,7 @@ function themeFromDocument(): Theme {
 function modeBtnClass(active: boolean) {
   return [
     'relative flex flex-col items-center justify-center gap-1.5',
-    'w-full py-2.5 px-1 rounded transition-colors',
+    'w-full min-w-0 py-2.5 px-0.5 rounded transition-colors',
     active
       ? 'bg-[var(--accent-bg)] text-[var(--accent)] border border-[var(--accent-bd)]'
       : 'border border-transparent text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--panel-3)]',
@@ -39,13 +39,14 @@ export default function ModuleRail() {
 
   return (
     <nav
-      className="editor-module-rail w-[var(--editor-rail-width)] flex-shrink-0 flex flex-col items-stretch
+      className="editor-module-rail w-[var(--editor-rail-width)] min-w-[var(--editor-rail-width)]
+                 flex-shrink-0 flex flex-col items-stretch box-border
                  border-r border-[var(--border)] bg-[var(--panel)]
-                 pt-3 pb-4 px-2 select-none"
+                 pt-3 pb-4 px-1.5 select-none"
       aria-label="Editor modules"
     >
       <div
-        className="flex flex-col gap-4 p-2 rounded-xl
+        className="flex flex-col gap-3 p-1.5 rounded-xl
                    bg-[rgb(var(--bg-rgb)/0.35)] border border-[var(--border)]"
       >
         {MODES.map(({ id, label, shortLabel, icon: Icon }) => {
@@ -67,7 +68,7 @@ export default function ModuleRail() {
                 />
               )}
               <Icon size={18} className="flex-shrink-0" strokeWidth={active ? 2.25 : 2} />
-              <span className="text-[9px] font-semibold leading-none tracking-wide">
+              <span className="w-full text-center text-[9px] font-semibold leading-none tracking-wide whitespace-nowrap">
                 {shortLabel}
               </span>
             </button>
@@ -93,7 +94,9 @@ export default function ModuleRail() {
         className={modeBtnClass(false)}
       >
         {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
-        <span className="text-[9px] font-semibold leading-none tracking-wide">Theme</span>
+        <span className="w-full text-center text-[9px] font-semibold leading-none tracking-wide whitespace-nowrap">
+          Theme
+        </span>
       </button>
     </nav>
   )

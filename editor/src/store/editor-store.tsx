@@ -64,6 +64,7 @@ function volatileReducer(state: VolatileState, action: Action): VolatileState {
     case 'LOG':
       return { ...state, consoleLogs: [...state.consoleLogs, action.entry] }
     case 'SET_CURSOR':
+      if (state.cursorPos.x === action.x && state.cursorPos.y === action.y) return state
       return { ...state, cursorPos: { x: action.x, y: action.y } }
     default:
       return state

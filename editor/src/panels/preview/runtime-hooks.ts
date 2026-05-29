@@ -89,7 +89,12 @@ export function buildRuntimeCallbacks(deps: RuntimeCallbackDeps): WasmCallbacks 
       if (cancelled() && !forceLog) return
       const entry = makeLogEntry(message, level)
       if (message.includes('[EditorAPI] Bridge initialised')) {
-        setTimeout(() => { if (!cancelled()) setEngineReady(true) }, 0)
+        setTimeout(() => {
+          if (!cancelled()) {
+            setEngineReady(true)
+            runtimeSync.notifyEngineReady()
+          }
+        }, 0)
       }
       setTimeout(() => dispatch({ type: 'LOG', entry }), 0)
     },
@@ -112,6 +117,10 @@ export function buildRuntimeCallbacks(deps: RuntimeCallbackDeps): WasmCallbacks 
           })
         }
       }, 0)
+    },
+    onEditorCursorWorld: (x: number, y: number) => {
+      if (cancelled()) return
+      dispatch({ type: 'SET_CURSOR', x, y })
     },
   }
 }
@@ -273,13 +282,14 @@ interface EditorSyncOptions {
   selectedTileCell: number
   guides: boolean
   gridSize: number
+  snapToGrid: boolean
 }
 
 export function useRuntimeEditorSync(opts: EditorSyncOptions): void {
   const {
     wasmReady, engineReady,
     isPlaying, selectedEntityId, tool, selectedTileCell,
-    guides, gridSize,
+    guides, gridSize, snapToGrid,
   } = opts
 
   useEffect(() => {
@@ -299,8 +309,8 @@ export function useRuntimeEditorSync(opts: EditorSyncOptions): void {
 
   useEffect(() => {
     if (!wasmReady || !engineReady) return
-    runtimeSync.syncEditorChrome({ guides, gridSize, isPlaying })
-  }, [guides, gridSize, isPlaying, wasmReady, engineReady])
+    runtimeSync.syncEditorChrome({ guides, gridSize, snapToGrid, isPlaying })
+  }, [guides, gridSize, snapToGrid, isPlaying, wasmReady, engineReady])
 }
 
 // ---------------------------------------------------------------------------

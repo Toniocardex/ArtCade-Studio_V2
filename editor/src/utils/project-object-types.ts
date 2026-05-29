@@ -260,7 +260,8 @@ export function projectForSave(project: ProjectDoc): ProjectDoc {
   }
 }
 
-export function allObjectTypeIds(project: ProjectDoc): string[] {
+export function allObjectTypeIds(project: ProjectDoc | null | undefined): string[] {
+  if (!project) return []
   return Object.keys(project.objectTypes ?? {}).sort()
 }
 

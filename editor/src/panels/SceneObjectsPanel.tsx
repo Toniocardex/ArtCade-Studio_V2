@@ -2,16 +2,13 @@
 // SceneObjectsPanel — left sidebar in canvas mode
 // ---------------------------------------------------------------------------
 //
-// Two stacked sections:
+// Sidebar layout (canvas mode):
 //
-//   1. Scenes ........ create / select / rename / set-start / delete the
-//                      scenes that make up the project. Start scene is
-//                      ProjectDoc.activeSceneId. Delete is blocked for the
-//                      only remaining scene and for the start scene; the
-//                      reducer also cleans orphan entities, thumbnails and
-//                      logic boards.
-//   2. Objects ....... entities of the currently selected scene; add /
-//                      duplicate / visibility / delete / open Logic Board.
+//   1. Scenes — scene list and lifecycle.
+//   2. In this scene — entity instances in the active scene; "Add entity" for a
+//      one-off placement (ENTITY_ADD). Primary workflow for new users.
+//   3. Entity types — reusable ObjectTypeDef templates; "Place" spawns copies
+//      (INSTANCE_ADD_FROM_TYPE). Collapsed in Base view until a type exists.
 //
 // Global world/physics settings live in Inspector → Scene tab.
 // ---------------------------------------------------------------------------
@@ -67,6 +64,7 @@ type AddEntityButtonProps = Readonly<{
   variant?: 'solid' | 'dashed'
 }>
 
+/** One-off scene entity (ENTITY_ADD) — not spawned from an entity type template. */
 function AddEntityButton({
   onClick,
   disabled,
@@ -84,7 +82,7 @@ function AddEntityButton({
       onClick={onClick}
       disabled={disabled}
       aria-label="Add entity to the current scene"
-      title="Add entity to the current scene (Insert)"
+      title="Place a one-off entity in this scene (Insert). Save the project to promote it to an entity type."
       className={`flex items-center justify-center gap-1.5 rounded text-[10px] font-semibold
                   disabled:opacity-40 cursor-pointer ${base} ${className}`}
     >
@@ -214,7 +212,7 @@ function EntityRow({
 
 export default function SceneObjectsPanel() {
   const { state, dispatch } = useEditor()
-  const { project, selection, mode } = state
+  const { project, selection, mode, authoringMode } = state
   const [sceneNameDraft, setSceneNameDraft] = useState('')
 
   const sceneId   = project ? selection.sceneId ?? project.activeSceneId : ''
@@ -226,10 +224,22 @@ export default function SceneObjectsPanel() {
     .map(id => project.entities[id])
     .filter((e): e is EntityDef => Boolean(e))
     : []
+  const entityTypeIds = project ? allObjectTypeIds(project) : []
+  const [entityTypesOpen, setEntityTypesOpen] = useState(false)
 
   useEffect(() => {
     setSceneNameDraft(scene?.name ?? '')
   }, [scene?.id, scene?.name])
+
+  useEffect(() => {
+    if (!project) {
+      setEntityTypesOpen(false)
+      return
+    }
+    if (authoringMode === 'advanced' || entityTypeIds.length > 0) {
+      setEntityTypesOpen(true)
+    }
+  }, [project, authoringMode, entityTypeIds.length])
 
   const addScene = useCallback(() => {
     if (!project) return
@@ -248,7 +258,7 @@ export default function SceneObjectsPanel() {
 
   const deleteScene = useCallback(() => {
     if (!scene || !canDeleteScene) return
-    void confirmDialog(`Delete scene "${scene.name}" and its objects?`, {
+    void confirmDialog(`Delete scene "${scene.name}" and its entities?`, {
       title: 'Delete scene',
       kind: 'warning',
     }).then((ok) => {
@@ -266,6 +276,32 @@ export default function SceneObjectsPanel() {
       entry: panelLog(`Added ${preview.name} — rename in Inspector`, 'info'),
     })
   }, [scene, sceneId, project, dispatch])
+
+  const addEntityType = useCallback(() => {
+    void promptTextInput({
+      title: 'New entity type',
+      message: 'Type name (reusable template for many entity copies):',
+      defaultValue: 'Entity',
+    }).then((name) => {
+      if (!name) return
+      dispatch({ type: 'OBJECT_TYPE_ADD', displayName: name })
+    })
+  }, [dispatch])
+
+  const placeEntityType = useCallback(
+    (objectTypeId: string) => {
+      if (!scene) return
+      dispatch({ type: 'INSTANCE_ADD_FROM_TYPE', sceneId, objectTypeId })
+      dispatch({
+        type: 'LOG',
+        entry: panelLog(
+          `Placed ${objectTypeDisplayLabel(project!, objectTypeId)} in scene`,
+          'info',
+        ),
+      })
+    },
+    [dispatch, project, scene, sceneId],
+  )
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -375,67 +411,24 @@ export default function SceneObjectsPanel() {
         </div>
       </div>
 
-      <SectionLabel title="Object types">
-        <button
-          type="button"
-          disabled={!project}
-          onClick={() => {
-            void promptTextInput({
-              title: 'New object type',
-              message: 'Object type name:',
-              defaultValue: 'Object',
-            }).then((name) => {
-              if (!name) return
-              dispatch({ type: 'OBJECT_TYPE_ADD', displayName: name })
-            })
-          }}
-          className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold
-                     border border-[var(--border-2)] text-[var(--muted)] hover:text-[var(--accent)]"
-        >
-          <Plus size={12} /> Type
-        </button>
-      </SectionLabel>
-      <div className="px-2 pb-2 border-b border-[var(--border)] space-y-1 max-h-28 overflow-y-auto">
-        {allObjectTypeIds(project).length === 0 ? (
-          <p className="text-[10px] text-[var(--muted)] px-1">Types are created when you save, or add one above.</p>
-        ) : (
-          allObjectTypeIds(project).map((typeId) => (
-            <div key={typeId} className="flex items-center gap-1">
-              <span className="flex-1 text-[10px] text-[var(--text)] truncate" title={typeId}>
-                {objectTypeDisplayLabel(project, typeId)}
-              </span>
-              <button
-                type="button"
-                disabled={!scene}
-                title={`Place instance of ${typeId}`}
-                onClick={() =>
-                  dispatch({ type: 'INSTANCE_ADD_FROM_TYPE', sceneId, objectTypeId: typeId })
-                }
-                className="text-[10px] px-1.5 py-0.5 rounded border border-[var(--border-2)]
-                           text-[var(--accent)] hover:border-[var(--accent-bd)] disabled:opacity-40"
-              >
-                Place
-              </button>
-            </div>
-          ))
-        )}
-      </div>
-
-      <SectionLabel title="Objects">
+      <SectionLabel title="Entities">
         <AddEntityButton
           onClick={addEntity}
           disabled={!scene}
           className="px-2 py-0.5"
         />
       </SectionLabel>
+      <p className="px-2 pb-1.5 text-[9px] text-[var(--muted)] leading-snug border-b border-[var(--border)]">
+        Add entity = one placement. Use entity types below for copies and Logic Board rules on a type.
+      </p>
 
       {/* Entity list */}
-      <div className="flex-1 overflow-y-auto p-1 space-y-0.5">
+      <div className="flex-1 min-h-0 overflow-y-auto p-1 space-y-0.5">
         {entities.length === 0 ? (
           <div className="flex flex-col items-center gap-2 px-3 py-6 text-center">
             <p className="text-[11px] text-[var(--text)] font-medium">This scene is empty</p>
             <p className="text-[10px] text-[var(--muted)] leading-snug">
-              Add an entity by pressing + Add entity.
+              Start with Add entity, or open Entity types and Place a copy.
             </p>
             <AddEntityButton
               onClick={addEntity}
@@ -467,8 +460,70 @@ export default function SceneObjectsPanel() {
         )}
       </div>
 
-      <div className="px-2 py-1 border-t border-[var(--border)] text-[9px] text-[var(--muted)]">
-        {sceneCount} scenes · {entities.length} objects · {scene?.name ?? '-'}
+      <details
+        className="border-t border-[var(--border)] flex-shrink-0"
+        open={entityTypesOpen}
+        onToggle={(e) => setEntityTypesOpen(e.currentTarget.open)}
+      >
+        <summary
+          className="flex items-center justify-between gap-2 px-2 py-1.5 cursor-pointer
+                     list-none [&::-webkit-details-marker]:hidden"
+        >
+          <span className="text-[9px] text-[var(--muted)] uppercase font-bold tracking-widest">
+            Entity types
+            {entityTypeIds.length > 0 && (
+              <span className="ml-1 font-normal normal-case tracking-normal text-[var(--text)]">
+                ({entityTypeIds.length})
+              </span>
+            )}
+          </span>
+          <button
+            type="button"
+            disabled={!project}
+            onClick={(e) => {
+              e.preventDefault()
+              addEntityType()
+            }}
+            className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold
+                       border border-[var(--border-2)] text-[var(--muted)] hover:text-[var(--accent)]"
+          >
+            <Plus size={12} /> New
+          </button>
+        </summary>
+        <div className="px-2 pb-2 space-y-1 max-h-32 overflow-y-auto">
+          {entityTypeIds.length === 0 ? (
+            <p className="text-[10px] text-[var(--muted)] px-1 leading-snug">
+              Reusable templates for many entity copies and Logic Board targets by type.
+              Saving the project can promote entities into types, or create one with New.
+            </p>
+          ) : (
+            entityTypeIds.map((typeId) => (
+              <div
+                key={typeId}
+                className="flex items-center gap-1.5 rounded border border-[var(--border)] bg-[var(--panel-3)] px-1.5 py-1"
+              >
+                <span className="flex-1 text-[10px] text-[var(--text)] truncate" title={typeId}>
+                  {objectTypeDisplayLabel(project, typeId)}
+                </span>
+                <button
+                  type="button"
+                  disabled={!scene}
+                  title={`Place a copy of ${objectTypeDisplayLabel(project, typeId)} in this scene`}
+                  onClick={() => placeEntityType(typeId)}
+                  className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold
+                             border border-[var(--accent-bd)] bg-[var(--accent-bg)] text-[var(--accent)]
+                             hover:bg-[var(--accent-bg-h)] disabled:opacity-40"
+                >
+                  <Plus size={10} /> Place
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      </details>
+
+      <div className="px-2 py-1 border-t border-[var(--border)] text-[9px] text-[var(--muted)] flex-shrink-0">
+        {sceneCount} scenes · {entities.length} entities · {entityTypeIds.length} types
       </div>
     </div>
   )

@@ -83,6 +83,7 @@ export default function PreviewPanel() {
     if (!isReady()) return
     setWasmReady(true)
     setEngineReady(true)
+    runtimeSync.notifyEngineReady()
   }
 
   function handleRuntimeTransform(
@@ -153,6 +154,7 @@ export default function PreviewPanel() {
     selectedTileCell,
     guides: showEditorGuides,
     gridSize: editorGridSize,
+    snapToGrid,
   })
 
   const selectedSceneId = selection.sceneId ?? project?.activeSceneId

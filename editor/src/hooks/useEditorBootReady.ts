@@ -1,0 +1,87 @@
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEditor } from '../store/editor-store'
+import { isReady as isWasmReady } from '../utils/wasm-bridge'
+import { runtimeSync } from '../utils/runtime-sync-service'
+
+const BOOT_TIMEOUT_MS = 20_000
+
+export interface EditorBootReadyState {
+  ready: boolean
+  timedOut: boolean
+  statusLine: string
+  retry: () => void
+}
+
+function buildStatusLine(opts: {
+  project: boolean
+  wasm: boolean
+  engine: boolean
+  synced: boolean
+  fonts: boolean
+}): string {
+  const parts: string[] = []
+  if (!opts.project) parts.push('project')
+  if (!opts.wasm) parts.push('runtime')
+  if (!opts.engine) parts.push('editor API')
+  if (!opts.synced) parts.push('scene sync')
+  if (!opts.fonts) parts.push('fonts')
+  if (parts.length === 0) return 'Starting…'
+  return `Loading ${parts.join(', ')}…`
+}
+
+export function useEditorBootReady(): EditorBootReadyState {
+  const { state } = useEditor()
+  const [wasmReady, setWasmReady] = useState(() => isWasmReady())
+  const [engineReady, setEngineReady] = useState(() => runtimeSync.isEngineReady())
+  const [synced, setSynced] = useState(() => runtimeSync.isBootProjectSynced())
+  const [fontsReady, setFontsReady] = useState(false)
+  const [timedOut, setTimedOut] = useState(false)
+
+  const projectReady = state.project != null
+
+  useEffect(() => runtimeSync.onReadyChange(setWasmReady), [])
+  useEffect(() => runtimeSync.onEngineReadyChange(setEngineReady), [])
+  useEffect(() => runtimeSync.onBootProjectSyncedChange(setSynced), [])
+
+  useEffect(() => {
+    let cancelled = false
+    const fonts = document.fonts?.ready ?? Promise.resolve()
+    void Promise.race([
+      fonts,
+      new Promise<void>((resolve) => { globalThis.setTimeout(resolve, 2000) }),
+    ]).finally(() => {
+      if (!cancelled) setFontsReady(true)
+    })
+    return () => { cancelled = true }
+  }, [])
+
+  const ready =
+    projectReady && wasmReady && engineReady && synced && fontsReady
+
+  useEffect(() => {
+    if (ready) {
+      setTimedOut(false)
+      return undefined
+    }
+    const t = globalThis.setTimeout(() => setTimedOut(true), BOOT_TIMEOUT_MS)
+    return () => globalThis.clearTimeout(t)
+  }, [ready])
+
+  const statusLine = useMemo(
+    () => buildStatusLine({
+      project: projectReady,
+      wasm: wasmReady,
+      engine: engineReady,
+      synced,
+      fonts: fontsReady,
+    }),
+    [projectReady, wasmReady, engineReady, synced, fontsReady],
+  )
+
+  const retry = useCallback(() => {
+    setTimedOut(false)
+    globalThis.location.reload()
+  }, [])
+
+  return { ready, timedOut, statusLine, retry }
+}

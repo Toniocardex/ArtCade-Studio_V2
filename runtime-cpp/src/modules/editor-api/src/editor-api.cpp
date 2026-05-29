@@ -16,6 +16,7 @@ int      EditorAPI::s_selectedTileId   = 1;
 int      EditorAPI::s_editorTool       = 0;
 bool     EditorAPI::s_editorGuidesEnabled = true;
 float    EditorAPI::s_editorGridSize   = 32.f;
+bool     EditorAPI::s_editorSnapEnabled = false;
 Modules::RuntimeEntityGateway* EditorAPI::s_entityGateway = nullptr;
 Modules::LuaHost*              EditorAPI::s_luaHost       = nullptr;
 Modules::Renderer*             EditorAPI::s_renderer      = nullptr;
@@ -59,6 +60,7 @@ std::vector<std::pair<std::string, std::string>> EditorAPI::s_consoleQueue;
 
 #include <nlohmann/json.hpp>
 
+#include <cmath>
 #include <cstdio>
 #include <string>
 #include <unordered_map>
@@ -80,6 +82,7 @@ int      EditorAPI::s_selectedTileId   = 1;
 int      EditorAPI::s_editorTool       = 0;
 bool     EditorAPI::s_editorGuidesEnabled = true;
 float    EditorAPI::s_editorGridSize   = 32.f;
+bool     EditorAPI::s_editorSnapEnabled = false;
 
 Modules::RuntimeEntityGateway* EditorAPI::s_entityGateway = nullptr;
 Modules::LuaHost*              EditorAPI::s_luaHost       = nullptr;
@@ -196,6 +199,20 @@ void EditorAPI::notifySpriteFillColor(uint32_t entityId, float r, float g, float
     }, static_cast<int>(entityId), r, g, b);
 }
 
+void EditorAPI::notifyCursorWorld(float x, float y) {
+    static int lastX = 0x7fffffff;
+    static int lastY = 0x7fffffff;
+    const int ix = static_cast<int>(std::lround(x));
+    const int iy = static_cast<int>(std::lround(y));
+    if (ix == lastX && iy == lastY) return;
+    lastX = ix;
+    lastY = iy;
+    EM_ASM({
+        if (typeof window.onEditorCursorWorld === 'function')
+            window.onEditorCursorWorld($0, $1);
+    }, ix, iy);
+}
+
 void EditorAPI::queueConsoleLine(const char* message, const char* level) {
     s_consoleQueue.emplace_back(message ? message : "", level ? level : "info");
 }
@@ -249,6 +266,10 @@ EMSCRIPTEN_KEEPALIVE void editor_set_guides_enabled(int enabled) {
 
 EMSCRIPTEN_KEEPALIVE void editor_set_grid_size(float tileSize) {
     ArtCade::EditorAPI::s_editorGridSize = tileSize >= 4.f ? tileSize : 32.f;
+}
+
+EMSCRIPTEN_KEEPALIVE void editor_set_snap_to_grid(int enabled) {
+    ArtCade::EditorAPI::s_editorSnapEnabled = (enabled != 0);
 }
 
 EMSCRIPTEN_KEEPALIVE void editor_register_image(

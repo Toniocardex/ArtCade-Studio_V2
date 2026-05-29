@@ -50,6 +50,7 @@ declare global {
     onConsoleLine?:               (message: string, level: string) => void
     onTilemapPainted?:            (col: number, row: number, tileId: number) => void
     onSpriteFillColor?:           (entityId: number, r: number, g: number, b: number) => void
+    onEditorCursorWorld?:         (x: number, y: number) => void
   }
 }
 
@@ -139,6 +140,7 @@ export function bindWindowCallbacks(cbs: Partial<WasmCallbacks>): void {
   if (cbs.onConsoleLine)            g.onConsoleLine            = cbs.onConsoleLine
   if (cbs.onTilemapPainted)         g.onTilemapPainted         = cbs.onTilemapPainted
   if (cbs.onSpriteFillColor)        g.onSpriteFillColor        = cbs.onSpriteFillColor
+  if (cbs.onEditorCursorWorld)      g.onEditorCursorWorld      = cbs.onEditorCursorWorld
   // NOTE: the legacy `globalThis.onObjectUpdated(x, y)` forwarder was removed.
   // The shipping C++ runtime never emits that signal (only the smoke-test
   // harness does); meanwhile the forwarder was synthesising entityId=0,
@@ -228,6 +230,7 @@ export interface WasmCallbacks {
   onConsoleLine:            (message: string, level: string) => void
   onTilemapPainted?:        (col: number, row: number, tileId: number) => void
   onSpriteFillColor?:       (entityId: number, r: number, g: number, b: number) => void
+  onEditorCursorWorld?:     (x: number, y: number) => void
 }
 
 /**
@@ -543,6 +546,10 @@ export function editorSetGuidesEnabled(enabled: boolean): void {
 
 export function editorSetGridSize(tileSize: number): void {
   safeCall('editor_set_grid_size', null, ['number'], [tileSize])
+}
+
+export function editorSetSnapToGrid(enabled: boolean): void {
+  safeCall('editor_set_snap_to_grid', null, ['number'], [enabled ? 1 : 0])
 }
 
 export function editorSetTransform(

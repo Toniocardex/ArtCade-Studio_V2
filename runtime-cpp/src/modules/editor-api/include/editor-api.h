@@ -163,6 +163,9 @@ public:
     /** RayTint Apply -> React updates sprite.fillColor in the project store. */
     static void notifySpriteFillColor(uint32_t entityId, float r, float g, float b);
 
+    /** Editor viewport: mouse world position for the status bar (editor mode only). */
+    static void notifyCursorWorld(float x, float y);
+
     // Written by extern "C" exports -- public so they can be set directly
     static int      s_mode;
     static uint32_t s_selectedEntityId;
@@ -173,6 +176,8 @@ public:
     static int      s_editorTool;      // 0 select, 1 pan, 2 paint, 3 erase/tile
     static bool     s_editorGuidesEnabled;
     static float    s_editorGridSize;
+    /** Scene-settings "Snap while editing" — live magnetism during canvas drag. */
+    static bool     s_editorSnapEnabled;
 
     // Engine pointers wired in wireEngine() / wireLua() / wireDialog()
     static Modules::RuntimeEntityGateway* s_entityGateway;
@@ -296,6 +301,9 @@ EMSCRIPTEN_KEEPALIVE void editor_set_guides_enabled(int enabled);
 /** Editor-only guide/snap grid size in world pixels. Does not affect tilemap. */
 EMSCRIPTEN_KEEPALIVE void editor_set_grid_size(float tileSize);
 
+/** Editor placement snap (magnetic drag + React commit); not gameplay grid.snapToGrid. */
+EMSCRIPTEN_KEEPALIVE void editor_set_snap_to_grid(int enabled);
+
 /**
  * Phase F3: upload an editor-loaded image (e.g. a tileset spritesheet not
  * present in the WASM VFS) into the renderer's texture cache under `path`
@@ -338,6 +346,7 @@ struct EditorAPI {
     static void flushConsoleLines() {}
     static void notifyTilemapPainted(int, int, int) {}
     static void notifySpriteFillColor(uint32_t, float, float, float) {}
+    static void notifyCursorWorld(float, float) {}
     static int      s_mode;
     static uint32_t s_selectedEntityId;
     static bool     s_isDragging;
@@ -347,6 +356,7 @@ struct EditorAPI {
     static int      s_editorTool;
     static bool     s_editorGuidesEnabled;
     static float    s_editorGridSize;
+    static bool     s_editorSnapEnabled;
     static Modules::RuntimeEntityGateway* s_entityGateway;
     static Modules::LuaHost*              s_luaHost;
     static Modules::Renderer*             s_renderer;

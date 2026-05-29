@@ -30,6 +30,7 @@ import {
   editorSelectEntity,
   editorSetGridSize,
   editorSetGuidesEnabled,
+  editorSetSnapToGrid,
   editorSetMode,
   editorSetSceneSettings,
   editorSetSelectedTile,
@@ -113,6 +114,8 @@ const TOOL_ID: Record<EditorTool, number> = {
 export interface EditorChromeState {
   guides:   boolean
   gridSize: number
+  /** Scene-settings placement snap (magnetic canvas drag). */
+  snapToGrid: boolean
   /** Guides must be hidden while the game is playing even if the toggle is on. */
   isPlaying: boolean
 }
@@ -165,6 +168,7 @@ class RuntimeSyncServiceImpl {
   private lastTileBrush:      number | null = null
   private lastGuides:         boolean | null = null
   private lastGridSize:       number | null = null
+  private lastSnapToGrid:     boolean | null = null
   private readonly lastTransform: Map<number, EntityTransformSnapshot> = new Map()
   private assetCacheInvalidator: (() => void) | null = null
   private readonly readyListeners: Set<(ready: boolean) => void> = new Set()
@@ -172,6 +176,10 @@ class RuntimeSyncServiceImpl {
   // already alive when this module is re-evaluated) does NOT trigger a
   // duplicate "false → true" broadcast on the next genuine onReady.
   private lastReadyEmitted:   boolean = isWasmReady()
+  private engineReady = false
+  private bootProjectSynced = false
+  private readonly engineReadyListeners = new Set<(ready: boolean) => void>()
+  private readonly bootSyncedListeners = new Set<(synced: boolean) => void>()
   private transitionDepth = 0
   private lastScriptReloadMessage: string | null = null
 
@@ -201,7 +209,12 @@ class RuntimeSyncServiceImpl {
     this.lastTileBrush = null
     this.lastGuides    = null
     this.lastGridSize  = null
+    this.lastSnapToGrid = null
     this.lastTransform.clear()
+    this.engineReady = false
+    this.bootProjectSynced = false
+    for (const cb of this.engineReadyListeners) cb(false)
+    for (const cb of this.bootSyncedListeners) cb(false)
   }
 
   /** PreviewPanel registers this so texture re-upload runs after STOP restore. */
@@ -230,6 +243,43 @@ class RuntimeSyncServiceImpl {
     if (now === this.lastReadyEmitted) return
     this.lastReadyEmitted = now
     for (const cb of this.readyListeners) cb(now)
+  }
+
+  isEngineReady(): boolean {
+    return this.engineReady
+  }
+
+  isBootProjectSynced(): boolean {
+    return this.bootProjectSynced
+  }
+
+  /** True after the first successful editor_load_project latch (boot gate). */
+  hasProjectProjectionLatched(): boolean {
+    return this.lastLoadKey != null
+  }
+
+  notifyEngineReady(): void {
+    if (this.engineReady) return
+    this.engineReady = true
+    for (const cb of this.engineReadyListeners) cb(true)
+  }
+
+  notifyBootProjectSynced(): void {
+    if (this.bootProjectSynced) return
+    this.bootProjectSynced = true
+    for (const cb of this.bootSyncedListeners) cb(true)
+  }
+
+  onEngineReadyChange(cb: (ready: boolean) => void): () => void {
+    this.engineReadyListeners.add(cb)
+    cb(this.engineReady)
+    return () => { this.engineReadyListeners.delete(cb) }
+  }
+
+  onBootProjectSyncedChange(cb: (synced: boolean) => void): () => void {
+    this.bootSyncedListeners.add(cb)
+    cb(this.bootProjectSynced)
+    return () => { this.bootSyncedListeners.delete(cb) }
   }
 
   /**
@@ -400,6 +450,7 @@ class RuntimeSyncServiceImpl {
   private latchProjectProjection(loadKey: string, projection: RuntimeProjection): void {
     this.lastLoadKey = loadKey
     this.lastProjection = projection
+    this.notifyBootProjectSynced()
   }
 
   private applyIncrementalSync(project: ProjectDoc, plan: ProjectSyncPlan): boolean {
@@ -531,6 +582,10 @@ class RuntimeSyncServiceImpl {
     if (this.lastGridSize !== grid) {
       this.lastGridSize = grid
       editorSetGridSize(grid)
+    }
+    if (this.lastSnapToGrid !== state.snapToGrid) {
+      this.lastSnapToGrid = state.snapToGrid
+      editorSetSnapToGrid(state.snapToGrid)
     }
   }
 

@@ -75,7 +75,7 @@ const ACTION_NAMES: Record<LogicActionType, string> = {
   wait: 'Wait',
   repeatTimes: 'Repeat',
   moveByOffset: 'Step by pixels',
-  snapToGrid: 'Snap to grid',
+  snapToGrid: 'Snap entity to grid (runtime)',
   setEntityShader: 'Visual effect on object',
   setScreenShader: 'Screen effect',
   startDialog: 'Start dialog',

@@ -11,6 +11,7 @@ const win = globalThis as unknown as Window
 describe('bindWindowCallbacks (merge-safe)', () => {
   beforeEach(() => {
     delete win.onTilemapPainted
+    delete win.onEditorCursorWorld
     delete win.onEntitySelected
     delete win.onEntityTransformChanged
     delete win.onConsoleLine
@@ -76,6 +77,24 @@ describe('bindWindowCallbacks (merge-safe)', () => {
       onTilemapPainted: second,
     })
     expect(win.onTilemapPainted).toBe(second)
+  })
+
+  it('preserves onEditorCursorWorld when a later rebind omits it', () => {
+    const onEditorCursorWorld = () => {}
+    bindWindowCallbacks({
+      onReady: () => {},
+      onEntitySelected: () => {},
+      onEntityTransformChanged: () => {},
+      onConsoleLine: () => {},
+      onEditorCursorWorld,
+    })
+    bindWindowCallbacks({
+      onReady: () => {},
+      onEntitySelected: () => {},
+      onEntityTransformChanged: () => {},
+      onConsoleLine: () => {},
+    })
+    expect(win.onEditorCursorWorld).toBe(onEditorCursorWorld)
   })
 
 })
