@@ -59,10 +59,19 @@ export type TreeLeafProps = Readonly<{
   muted?: boolean
   icon?: ReactNode
   trailing?: ReactNode
+  /** Icon buttons shown on the right (same row); use stopPropagation inside handlers. */
+  actions?: ReactNode
   onClick: () => void
   onDoubleClick?: () => void
   title?: string
 }>
+
+const leafRowClass = (selected: boolean, muted: boolean) =>
+  selected
+    ? 'bg-[var(--accent)] text-[var(--bg)] font-semibold'
+    : muted
+      ? 'text-[var(--muted)] opacity-60 hover:opacity-100 hover:bg-[rgb(var(--border-rgb)/0.35)]'
+      : 'text-[var(--text)] hover:bg-[rgb(var(--border-rgb)/0.35)]'
 
 export function TreeLeaf({
   label,
@@ -71,11 +80,34 @@ export function TreeLeaf({
   muted = false,
   icon,
   trailing,
+  actions,
   onClick,
   onDoubleClick,
   title,
 }: TreeLeafProps) {
   const pad = 12 + depth * 12
+
+  if (actions) {
+    return (
+      <div
+        className={`flex items-center gap-0.5 w-full min-w-0 rounded text-xs transition-colors ${leafRowClass(selected, muted)}`}
+        style={{ paddingLeft: pad }}
+      >
+        <button
+          type="button"
+          onClick={onClick}
+          onDoubleClick={onDoubleClick}
+          title={title}
+          className="flex flex-1 items-center gap-1.5 py-1 min-w-0 text-left"
+        >
+          {icon}
+          <span className="truncate flex-1 min-w-0">{label}</span>
+          {trailing}
+        </button>
+        <div className="flex items-center gap-0.5 pr-1 flex-shrink-0">{actions}</div>
+      </div>
+    )
+  }
 
   return (
     <button
@@ -83,13 +115,7 @@ export function TreeLeaf({
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       title={title}
-      className={`w-full flex items-center gap-1.5 py-1 pr-2 rounded text-xs text-left transition-colors ${
-        selected
-          ? 'bg-[var(--accent)] text-[var(--bg)] font-semibold'
-          : muted
-            ? 'text-[var(--muted)] opacity-60 hover:opacity-100 hover:bg-[rgb(var(--border-rgb)/0.35)]'
-            : 'text-[var(--text)] hover:bg-[rgb(var(--border-rgb)/0.35)]'
-      }`}
+      className={`w-full flex items-center gap-1.5 py-1 pr-2 rounded text-xs text-left transition-colors ${leafRowClass(selected, muted)}`}
       style={{ paddingLeft: pad }}
     >
       {icon}

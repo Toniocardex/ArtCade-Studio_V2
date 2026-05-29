@@ -232,69 +232,83 @@ export default function ProjectExplorerPanel() {
               const entity = project.entities[e.entityId]
               const color = entity ? (CLASS_COLOR[entity.className] ?? 'var(--muted)') : 'var(--muted)'
               const selected = selectedEntityId === e.entityId
+              const actionBtnClass =
+                'p-1 rounded hover:bg-[rgb(var(--bg-rgb)/0.15)] text-[var(--bg)] flex-shrink-0'
+
               return (
-                <div key={e.entityId} className="group relative">
-                  <TreeLeaf
-                    label={e.name}
-                    depth={1}
-                    selected={selected}
-                    muted={!e.visible}
-                    onClick={() => scene.selectEntity(e.entityId)}
-                    icon={
-                      <Box
-                        size={11}
-                        style={{ color: selected ? 'var(--bg)' : color }}
-                        className="flex-shrink-0"
+                <TreeLeaf
+                  key={e.entityId}
+                  label={e.name}
+                  depth={1}
+                  selected={selected}
+                  muted={!e.visible}
+                  onClick={() => scene.selectEntity(e.entityId)}
+                  icon={
+                    <Box
+                      size={11}
+                      style={{ color: selected ? 'var(--bg)' : color }}
+                      className="flex-shrink-0"
+                    />
+                  }
+                  trailing={
+                    !selected && e.hasLogic ? (
+                      <span
+                        className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-[var(--accent)]"
+                        title="Has Logic Board rules"
                       />
-                    }
-                    trailing={
-                      e.hasLogic ? (
-                        <span
-                          className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                            selected ? 'bg-[var(--bg)]' : 'bg-[var(--accent)]'
-                          }`}
-                          title="Has Logic Board rules"
-                        />
-                      ) : null
-                    }
-                  />
-                  {selected ? (
-                    <div className="flex justify-end gap-1 px-2 -mt-0.5 mb-1">
-                      <button
-                        type="button"
-                        title="Edit logic"
-                        onClick={() => scene.openEntityLogic(e.entityId)}
-                        className="text-[var(--bg)] opacity-80 hover:opacity-100"
-                      >
-                        <Workflow size={10} />
-                      </button>
-                      <button
-                        type="button"
-                        title={e.visible ? 'Hide' : 'Show'}
-                        onClick={() => scene.toggleEntityVisible(e.entityId, e.visible)}
-                        className="text-[var(--bg)] opacity-80 hover:opacity-100"
-                      >
-                        {e.visible ? <Eye size={10} /> : <EyeOff size={10} />}
-                      </button>
-                      <button
-                        type="button"
-                        title="Duplicate"
-                        onClick={() => scene.duplicateEntity(e.entityId)}
-                        className="text-[var(--bg)] opacity-80 hover:opacity-100"
-                      >
-                        <Copy size={10} />
-                      </button>
-                      <button
-                        type="button"
-                        title="Delete"
-                        onClick={() => scene.deleteEntity(e.entityId)}
-                        className="text-[var(--bg)] opacity-80 hover:opacity-100"
-                      >
-                        <Trash2 size={10} />
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
+                    ) : null
+                  }
+                  actions={
+                    selected ? (
+                      <>
+                        <button
+                          type="button"
+                          title="Edit logic"
+                          className={actionBtnClass}
+                          onClick={(ev) => {
+                            ev.stopPropagation()
+                            scene.openEntityLogic(e.entityId)
+                          }}
+                        >
+                          <Workflow size={12} />
+                        </button>
+                        <button
+                          type="button"
+                          title={e.visible ? 'Hide in game' : 'Show in game'}
+                          className={actionBtnClass}
+                          onClick={(ev) => {
+                            ev.stopPropagation()
+                            scene.toggleEntityVisible(e.entityId, e.visible)
+                          }}
+                        >
+                          {e.visible ? <Eye size={12} /> : <EyeOff size={12} />}
+                        </button>
+                        <button
+                          type="button"
+                          title="Duplicate"
+                          className={actionBtnClass}
+                          onClick={(ev) => {
+                            ev.stopPropagation()
+                            scene.duplicateEntity(e.entityId)
+                          }}
+                        >
+                          <Copy size={12} />
+                        </button>
+                        <button
+                          type="button"
+                          title="Delete"
+                          className={actionBtnClass}
+                          onClick={(ev) => {
+                            ev.stopPropagation()
+                            scene.deleteEntity(e.entityId)
+                          }}
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </>
+                    ) : undefined
+                  }
+                />
               )
             })
           )}
