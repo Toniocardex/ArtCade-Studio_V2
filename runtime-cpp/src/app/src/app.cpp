@@ -773,7 +773,7 @@ void Application::renderActiveScene() {
             renderer->drawSprite(
                 s.spriteAssetId,
                 t.position, t.rotation, t.scale,
-                s.tint, s.fillColor, alpha, s.shaderEffect);
+                s.tint, s.fillColor, alpha, s.shaderEffect, s.pivot);
         });
 
     // Scene fade (game layer, drawn over entities, under editor chrome).

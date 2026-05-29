@@ -26,6 +26,10 @@ artcade_test(variable_manager_test
     variable-manager-test.cpp
     artcade-variable-manager)
 
+artcade_test(sprite_pivot_test
+    sprite-pivot-test.cpp
+    artcade-core)
+
 artcade_test(physics_body_rules_test
     physics-body-rules-test.cpp
     artcade-runtime-entity-gateway)

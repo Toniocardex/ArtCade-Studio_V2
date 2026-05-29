@@ -50,7 +50,8 @@ public:
                     const Vec4&    tint,
                     const Vec3&    fillColor,
                     float          alpha,
-                    const std::string& shaderEffect = "");
+                    const std::string& shaderEffect = "",
+                    const Vec2&    pivot = {0.5f, 0.5f});
 
     /**
      * Phase F3: draw a sub-rectangle (atlas cell) of a texture at a

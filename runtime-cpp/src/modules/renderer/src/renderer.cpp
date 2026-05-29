@@ -1,5 +1,6 @@
 #include "../include/renderer.h"
 #include "texture-cache.h"
+#include "../../../core/sprite-draw-math.h"
 #include <raylib.h>
 #include <algorithm>
 #include <vector>
@@ -216,16 +217,17 @@ void Renderer::drawSprite(const AssetId& assetId,
                            const Vec4&    tint,
                            const Vec3&    fillColor,
                            float          alpha,
-                           const std::string& shaderEffect)
+                           const std::string& shaderEffect,
+                           const Vec2&    pivot)
 {
     const bool outline = (shaderEffect == "outline");
     if (outline) {
         const Vec4 outlineTint{ 0.f, 0.f, 0.f, tint.a };
         const float o = 2.f;
-        drawSprite(assetId, { pos.x - o, pos.y }, rotation, scale, outlineTint, fillColor, alpha, "");
-        drawSprite(assetId, { pos.x + o, pos.y }, rotation, scale, outlineTint, fillColor, alpha, "");
-        drawSprite(assetId, { pos.x, pos.y - o }, rotation, scale, outlineTint, fillColor, alpha, "");
-        drawSprite(assetId, { pos.x, pos.y + o }, rotation, scale, outlineTint, fillColor, alpha, "");
+        drawSprite(assetId, { pos.x - o, pos.y }, rotation, scale, outlineTint, fillColor, alpha, "", pivot);
+        drawSprite(assetId, { pos.x + o, pos.y }, rotation, scale, outlineTint, fillColor, alpha, "", pivot);
+        drawSprite(assetId, { pos.x, pos.y - o }, rotation, scale, outlineTint, fillColor, alpha, "", pivot);
+        drawSprite(assetId, { pos.x, pos.y + o }, rotation, scale, outlineTint, fillColor, alpha, "", pivot);
     }
 
     Vec4 drawTint = tint;
@@ -243,8 +245,8 @@ void Renderer::drawSprite(const AssetId& assetId,
             static_cast<unsigned char>(std::clamp(fillColor.y, 0.f, 1.f) * 255.f),
             static_cast<unsigned char>(std::clamp(fillColor.z, 0.f, 1.f) * 255.f),
             ca };
-        DrawRectangleV({ pos.x - fw * 0.5f, pos.y - fh * 0.5f },
-                       { fw, fh }, fill);
+        const Vec2 topLeft = SpriteDrawMath::placeholderTopLeft(pos, pivot, fw, fh);
+        DrawRectangleV({ topLeft.x, topLeft.y }, { fw, fh }, fill);
         return;
     }
 
@@ -252,7 +254,8 @@ void Renderer::drawSprite(const AssetId& assetId,
     Rectangle dst = { pos.x, pos.y,
                       tex->width  * scale.x,
                       tex->height * scale.y };
-    Vector2 origin = { dst.width * 0.5f, dst.height * 0.5f };
+    const Vec2 originVec = SpriteDrawMath::drawOrigin(pivot, dst.width, dst.height);
+    Vector2 origin = { originVec.x, originVec.y };
 
     DrawTexturePro(*tex, src, dst, origin, rotation, toColor(drawTint, alpha));
 }
