@@ -99,12 +99,24 @@ describe('EditorBootGate splash pipeline', () => {
     expect(revealForSplash).toHaveBeenCalledTimes(1)
   })
 
-  it('skip path: title hold → loading status → engine ready → fade', () => {
+  it('skip is disabled until engine ready', () => {
+    mockBootReady({ ready: false })
+
+    render(
+      <EditorBootGate>
+        <div>editor</div>
+      </EditorBootGate>,
+    )
+
+    const skipBtn = screen.getByRole('button', { name: /skip intro/i }) as HTMLButtonElement
+    expect(skipBtn.disabled).toBe(true)
+    fireEvent.click(skipBtn)
+    expect(overlayEl().className).not.toContain('boot-overlay--fading')
+  })
+
+  it('skip path: engine ready → skip → fade after minimum visible time', () => {
     const started = Date.now()
     vi.setSystemTime(started)
-
-    const readyRef = { current: false }
-    mockBootReady({ ready: readyRef.current })
 
     const view = render(
       <EditorBootGate>
@@ -112,13 +124,6 @@ describe('EditorBootGate splash pipeline', () => {
       </EditorBootGate>,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: /skip intro/i }))
-
-    act(() => { vi.advanceTimersByTime(SPLASH_SKIP_INTRO_COMPLETE_MS) })
-    expect(screen.getByText('Loading runtime…')).toBeTruthy()
-    expect(overlayEl().className).not.toContain('boot-overlay--fading')
-
-    readyRef.current = true
     mockBootReady({ ready: true })
     view.rerender(
       <EditorBootGate>
@@ -126,9 +131,18 @@ describe('EditorBootGate splash pipeline', () => {
       </EditorBootGate>,
     )
 
+    const skipBtn = screen.getByRole('button', { name: /skip intro/i }) as HTMLButtonElement
+    expect(skipBtn.disabled).toBe(false)
+    fireEvent.click(skipBtn)
+
+    act(() => { vi.advanceTimersByTime(SPLASH_SKIP_INTRO_COMPLETE_MS) })
+    expect(screen.queryByText('Loading runtime…')).toBeNull()
+    expect(overlayEl().className).not.toContain('boot-overlay--fading')
+
     act(() => { vi.advanceTimersByTime(SPLASH_MIN_VISIBLE_MS) })
 
     expect(overlayEl().className).toContain('boot-overlay--fading')
+    expect(skipBtn.disabled).toBe(true)
   })
 
   it('does not fade before intro completes even if engine is ready', () => {

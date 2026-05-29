@@ -3,6 +3,7 @@ import {
 } from 'react'
 import SplashScreen from './SplashScreen'
 import {
+  canSkipBootIntro,
   shouldShowBootLoadingStatus,
   shouldStartBootFade,
   SPLASH_MIN_VISIBLE_MS,
@@ -18,7 +19,8 @@ export interface EditorBootGateProps {
 /**
  * Full-screen boot gate: splash plays its intro, holds on the title, then fades
  * only when the engine is ready and the minimum splash time has elapsed.
- * Skip jumps to the title hold but still waits for runtime readiness.
+ * Skip jumps to the title hold once runtime is fully ready; fade still respects
+ * minimum splash time and intro completion (including the skip hold beat).
  */
 export default function EditorBootGate({ children }: EditorBootGateProps) {
   const { ready, timedOut, statusLine, retry } = useEditorBootReady()
@@ -81,6 +83,7 @@ export default function EditorBootGate({ children }: EditorBootGateProps) {
 
   const showOverlay = !bootComplete
   const showLoadingStatus = shouldShowBootLoadingStatus({ introComplete, ready, timedOut })
+  const skipEnabled = canSkipBootIntro({ ready, introSkipped })
 
   return (
     <div className="relative h-full w-full min-h-0 flex flex-col overflow-hidden bg-[var(--bg)]">
@@ -111,7 +114,8 @@ export default function EditorBootGate({ children }: EditorBootGateProps) {
           <button
             type="button"
             onClick={skipIntro}
-            disabled={introSkipped}
+            disabled={!skipEnabled}
+            title={skipEnabled ? 'Skip intro animation' : 'Available when loading finishes'}
             className="fixed bottom-6 right-6 z-[110] px-3 py-1.5 rounded text-[10px] font-semibold
                        border border-[var(--border-2)] text-[var(--muted)]
                        hover:text-[var(--text)] hover:border-[var(--accent-bd)] pointer-events-auto

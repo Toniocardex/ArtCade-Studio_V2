@@ -23,3 +23,11 @@ export function shouldShowBootLoadingStatus(opts: Readonly<{
 }>): boolean {
   return opts.introComplete && !opts.ready && !opts.timedOut
 }
+
+/** Skip is allowed only after full boot readiness; one-shot after click. */
+export function canSkipBootIntro(opts: Readonly<{
+  ready: boolean
+  introSkipped: boolean
+}>): boolean {
+  return opts.ready && !opts.introSkipped
+}

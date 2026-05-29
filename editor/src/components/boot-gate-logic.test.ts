@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   SPLASH_MIN_VISIBLE_MS,
+  canSkipBootIntro,
   shouldShowBootLoadingStatus,
   shouldStartBootFade,
 } from './boot-gate-logic'
@@ -63,6 +64,15 @@ describe('shouldStartBootFade', () => {
       nowMs: started + SPLASH_MIN_VISIBLE_MS,
       splashStartedAtMs: started,
     })).toBe(false)
+  })
+})
+
+describe('canSkipBootIntro', () => {
+  it('is false until runtime ready and not yet skipped', () => {
+    expect(canSkipBootIntro({ ready: false, introSkipped: false })).toBe(false)
+    expect(canSkipBootIntro({ ready: true, introSkipped: false })).toBe(true)
+    expect(canSkipBootIntro({ ready: true, introSkipped: true })).toBe(false)
+    expect(canSkipBootIntro({ ready: false, introSkipped: true })).toBe(false)
   })
 })
 
