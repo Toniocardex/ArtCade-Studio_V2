@@ -291,13 +291,15 @@ Work landed after pipeline phases A–D (commits `ab471f0`, `e68928b`, `952aa43`
 | Item | Status | Notes |
 |------|--------|--------|
 | C++ `AssetManifestIndex` + dual-read draw | ✅ | `Renderer::setTextureKeyResolver`; native `AssetLoader`; WASM manifest rebuild on `editor_load_project` |
-| File → **Normalize asset references…** | ✅ | `normalize-asset-refs.ts`; entities + tilesets only (not Logic Board actions yet) |
+| File → **Normalize asset references…** | ✅ | `normalize-asset-refs.ts`; entities, tilesets, Logic Board `playSound` / `playMusic` |
 | Scene duplicate + Logic Board clone | ✅ | `SCENE_DUPLICATE` remaps `entity_id` boards |
 | Entity type rename / delete | ✅ | Explorer + `object-type-reducer` |
-| Virtual folders (`assetVirtualFolders`) | ⚠️ v0 | Create folder (Images only); persist in codec; **no UI** for move/delete (`ASSET_MOVE_TO_FOLDER` reducer only) |
+| Virtual folders (`assetVirtualFolders`) | ✅ | Images, audio, fonts, tilesets — New Folder, move/remove via context menu |
 | Audio/font detail strip | ✅ | `AssetMediaDetailStrip` (preview from disk when project saved) |
-| Export manifest test | ⚠️ | Builder covered; full ZIP round-trip still open |
-| Console REPL / LSP Lua | ❌ | REPL logs input only; LSP not started |
+| Export manifest + ZIP round-trip | ✅ | `buildArtcadeZipBytes` + `parseArtcadePackageBytes` vitest |
+| Preview spawn-prototype preload | ✅ | Canvas toolbar toggle → `scene+spawn-prototypes` scope |
+| CI (vitest, native, wasm) | ✅ | `.github/workflows/ci.yml` |
+| Console REPL / LSP Lua | ❌ | Deferred — spike in `TECHNICAL_OVERVIEW.md` §11.1 |
 
 **Manual smoke checklist (recommended before marking explorer track closed):**
 
@@ -317,4 +319,4 @@ Work landed after pipeline phases A–D (commits `ab471f0`, `e68928b`, `952aa43`
 | 3 | 2026-05-29 (partial) | `export-artcade-package.test.ts`; File menu | Export ships; full import round-trip + native `.artcade` smoke open |
 | 4 | 2026-05-29 (partial) | orchestrator + `editor_invalidate_asset` | Watch + re-register ✅; leak test + disable setting open |
 | 5 | 2026-05-29 (partial) | `editor_register_font`; FontCache | 5a–5b ✅; manual TTF smoke + Logic Board `drawText` deferred |
-| Explorer | 2026-05-29 (partial) | vitest (`scene-duplicate`, `normalize-asset-refs`) | See table above; virtual-folder UI + extended normalize open |
+| Explorer | 2026-05-29 | vitest + CI | Virtual folders all categories; normalize audio; export round-trip |

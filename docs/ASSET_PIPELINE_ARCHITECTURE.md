@@ -777,8 +777,8 @@ The left sidebar uses **`ProjectExplorerPanel`** (`editor/src/components/project
 | **Scenes** | Add, duplicate (entities + `entity_id` logic boards), rename, delete, set start; labeled CTAs + context menus |
 | **Entities** | Per active scene; rename, delete, open Logic Board |
 | **Entity types** | Add, rename display name, delete (blocked if instances exist) |
-| **Assets** | Fixed folders: Audio, Fonts, Images, Scripts, Tilesets; import/remove; **Expand all**; image **New Folder** (virtual) |
-| **Virtual folders** | `project.json` → `assetVirtualFolders` (codec round-trip). **v0:** create under Images only; assets listed under folder; **no** move-to-folder / delete-folder UI yet (`ASSET_MOVE_TO_FOLDER` / `ASSET_FOLDER_DELETE` reducers exist) |
+| **Assets** | Fixed folders: Audio, Fonts, Images, Scripts, Tilesets; import/remove; **Expand all**; header **Import image** CTA |
+| **Virtual folders** | `assetVirtualFolders` on all four media categories — New Folder, move/remove via context menu (`useAssetFolderActions`, `VirtualFoldersBlock`) |
 
 **Related modules:**
 
@@ -786,7 +786,8 @@ The left sidebar uses **`ProjectExplorerPanel`** (`editor/src/components/project
 - Scene / entity / type actions: `editor/src/hooks/useSceneExplorerActions.ts`
 - Tree model + search: `editor/src/utils/project-explorer-tree.ts`
 - Audio/font preview strip: `editor/src/components/asset-explorer/AssetMediaDetailStrip.tsx`
-- Normalize refs: File menu → `PROJECT_NORMALIZE_ASSET_REFS` → `editor/src/utils/normalize-asset-refs.ts`
+- Normalize refs: File menu → `PROJECT_NORMALIZE_ASSET_REFS` → `normalize-asset-refs.ts` (entities, tilesets, Logic Board audio)
+- Preview spawn scope: canvas toolbar → `EDITOR_SET_PREVIEW_ASSET_LOAD_SCOPE` → `collect-scene-asset-refs` `scene+spawn-prototypes`
 
 ---
 
@@ -794,14 +795,11 @@ The left sidebar uses **`ProjectExplorerPanel`** (`editor/src/components/project
 
 The proposed architecture matches long-term engine docs and is **implemented for Tauri preview and native draw** (phases A–D): orchestration, scene-scoped load, manifest export, dual-read ids, invalidate/watch, and LRU.
 
-**Remaining work to “close the circle”** (see `ASSETS_ROADMAP.md` closure log + § Explorer):
+**Remaining work** (see `ASSETS_ROADMAP.md` closure log):
 
 1. **Manual smoke** on preview (id vs path sprites, duplicate scene + boards, virtual folder save/reload, disk hot-reload).
-2. **Explorer v1:** UI for move/delete virtual folders; optional folders on audio/font/tileset.
-3. **Tests:** full `.artcade` export → import round-trip; extended normalize (Logic Board asset refs).
-4. **Ops:** run `runtime-cpp/build_wasm.bat` after C++ changes (`game.wasm` is gitignored).
-
-**Recommended next engineering step:** virtual-folder UI (`ASSET_MOVE_TO_FOLDER`) or automated export round-trip test — whichever unblocks shipping confidence first.
+2. **Ops:** run `runtime-cpp/build_wasm.bat` after C++ changes (`game.wasm` is gitignored); CI runs the same on PRs.
+3. **Deferred epics:** Console REPL, Lua LSP (§11.1 in `TECHNICAL_OVERVIEW.md`); drag-and-drop into virtual folders.
 
 ---
 

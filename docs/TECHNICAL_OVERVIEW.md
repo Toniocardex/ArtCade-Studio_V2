@@ -1205,8 +1205,17 @@ Le fasi 15 e 19-23 sono implementate a livello MVP nel repository corrente. La r
 ### Aperto / prossimo lavoro
 
 - **Asset pipeline completa**: import immagini arbitrarie editor → VFS WASM/runtime packaged senza workaround manuali.
-- **Build WASM da UI**: esporre il flusso `runtime-cpp/build_wasm.bat` o equivalente direttamente nell'editor.
-- **LSP/diagnostica Lua**: markers errori nel CodeMirror iframe.
+- **Build WASM da UI**: `build-api.ts` → Tauri `run_build_wasm` (menu Build). **Ship order:** `npm run build:wasm` then `npm run tauri:build` so `editor/public/runtime/game.wasm` is bundled (see root `README.md` Build pipeline).
+- **LSP/diagnostica Lua**: markers errori nel CodeMirror iframe (see §11.1 spike).
+
+### 11.1 Editor infra spike (REPL / LSP — deferred)
+
+| Epic | v1 direction | Blocker |
+|------|----------------|---------|
+| **Console REPL** | Evaluate short Lua snippets in the WASM preview VM with a hard timeout; reuse `editor_reload_script` / sandboxed eval — not a persistent REPL session | Needs safe interrupt + no editor state corruption on error |
+| **Lua LSP** | Subprocess `lua-language-server` (or equivalent) → diagnostics pushed into the CodeMirror iframe via postMessage | IPC + lifecycle across iframe boundary; not `typescript-language-server` |
+
+These are intentionally **out of** the post-pipeline closure milestone; track as separate epics after explorer + manifest work is green in CI.
 - **Undo/redo strutturato**: trasformazioni, tile paint, scene/objects actions e Logic Board.
 - **Steamworks SDK**: futuro, no-op fuori build Steam.
 
