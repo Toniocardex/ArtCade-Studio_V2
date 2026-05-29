@@ -22,6 +22,7 @@ import {
   type ProjectTemplateId,
 } from '../../utils/project'
 import { runtimeSync } from '../../utils/runtime-sync-service'
+import { confirmDialog } from '../../utils/native-dialog'
 import type { ProjectDoc } from '../../types'
 import type { FileMenuItem } from './FileMenu'
 import { makeConsoleEntry } from './makeConsoleEntry'
@@ -301,6 +302,16 @@ export function useFileMenuActions({
     })
   }, [closeMenu, dispatch, flushBeforePersist, projectPath])
 
+  const handleNormalizeAssetRefs = useCallback(() => {
+    closeMenu()
+    void confirmDialog(
+      'Rewrite sprite and tileset references to stable asset IDs where possible?',
+      { title: 'Normalize asset references', kind: 'warning' },
+    ).then((ok) => {
+      if (ok) dispatch({ type: 'PROJECT_NORMALIZE_ASSET_REFS' })
+    })
+  }, [closeMenu, dispatch])
+
   const handleCheckDependencies = useCallback(async () => {
     closeMenu()
     dispatch({ type: 'SET_CONSOLE_OPEN', open: true })
@@ -373,13 +384,21 @@ export function useFileMenuActions({
         divider: true,
       },
       {
+        label: 'Normalize asset references…',
+        icon: <Package size={12} />,
+        shortcut: '',
+        action: handleNormalizeAssetRefs,
+      },
+      {
         label: 'Check dependencies…',
         icon: <Hammer size={12} />,
         shortcut: '',
         action: handleCheckDependencies,
+        divider: true,
       },
     ],
     [
+      handleNormalizeAssetRefs,
       handleCheckDependencies,
       handleNewProject,
       handleOpenProject,

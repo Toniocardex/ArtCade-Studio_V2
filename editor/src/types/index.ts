@@ -207,6 +207,20 @@ export interface FontAsset {
   defaultSize?: number
 }
 
+export type AssetFolderCategory = 'images' | 'audio' | 'fonts' | 'scripts' | 'tilesets'
+
+export interface AssetVirtualFolderDef {
+  id: string
+  name: string
+  category: AssetFolderCategory
+  assetRefs: ReadonlyArray<
+    | { type: 'image'; id: string }
+    | { type: 'audio'; id: string }
+    | { type: 'font'; id: string }
+    | { type: 'tileset'; id: string }
+  >
+}
+
 export interface ProjectDoc {
   projectName:    string
   version:        string
@@ -228,6 +242,7 @@ export interface ProjectDoc {
   assets?:        Record<string, ImageAsset>    // persistent image library
   audioAssets?:   Record<string, AudioAsset>
   fontAssets?:    Record<string, FontAsset>
+  assetVirtualFolders?: Record<string, AssetVirtualFolderDef>
   logicBoards?:   LogicBoardDoc          // visual game logic, compiled to Lua
 }
 

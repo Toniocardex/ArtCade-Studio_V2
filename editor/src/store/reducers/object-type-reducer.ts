@@ -44,6 +44,37 @@ function syncInstanceTransform(
 
 export const objectTypeReducer: DomainReducer = (state: CoreState, action: Action) => {
   switch (action.type) {
+    case 'OBJECT_TYPE_RENAME': {
+      if (!state.project?.objectTypes?.[action.objectTypeId]) return state
+      const existing = state.project.objectTypes[action.objectTypeId]
+      const displayName = action.displayName.trim()
+      if (!displayName || displayName === existing.displayName) return state
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          objectTypes: {
+            ...state.project.objectTypes,
+            [action.objectTypeId]: { ...existing, displayName },
+          },
+        },
+        projectDirty: true,
+      }
+    }
+    case 'OBJECT_TYPE_DELETE': {
+      if (!state.project?.objectTypes?.[action.objectTypeId]) return state
+      const inUse = Object.values(state.project.scenes).some((sc) =>
+        (sc.instances ?? []).some((i) => i.objectTypeId === action.objectTypeId),
+      )
+      if (inUse) return state
+      const objectTypes = { ...state.project.objectTypes }
+      delete objectTypes[action.objectTypeId]
+      return {
+        ...state,
+        project: { ...state.project, objectTypes },
+        projectDirty: true,
+      }
+    }
     case 'OBJECT_TYPE_ADD': {
       if (!state.project) return state
       const typeId = slugTypeId(action.displayName || 'Object')

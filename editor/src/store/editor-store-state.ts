@@ -12,7 +12,7 @@ import type {
   EditorView,
   ScriptFile, ProjectDoc, ConsoleEntry,
   LogicBoard, LogicEvent, ComponentKey, WorldSettings, TilesetAsset, ImageAsset,
-  SpriteComponent, PhysicsComponent, Vec3,
+  SpriteComponent, PhysicsComponent, Vec3, AssetFolderCategory,
 } from '../types'
 import type { DialogScript } from '../utils/dialog/dialog-script'
 import {
@@ -153,6 +153,13 @@ export type Action =
   | { type: 'SCENE_RENAME';    sceneId: string; name: string }
   | { type: 'SCENE_SET_START'; sceneId: string }
   | { type: 'SCENE_DELETE';    sceneId: string }
+  | { type: 'SCENE_DUPLICATE'; sceneId: string }
+  | { type: 'OBJECT_TYPE_RENAME'; objectTypeId: string; displayName: string }
+  | { type: 'OBJECT_TYPE_DELETE'; objectTypeId: string }
+  | { type: 'PROJECT_NORMALIZE_ASSET_REFS' }
+  | { type: 'ASSET_FOLDER_CREATE'; category: AssetFolderCategory; name: string }
+  | { type: 'ASSET_MOVE_TO_FOLDER'; folderId: string; assetType: 'image' | 'audio' | 'font' | 'tileset'; assetId: string }
+  | { type: 'ASSET_FOLDER_DELETE'; folderId: string }
   | { type: 'SCENE_SET_WORLD_SIZE'; sceneId: string; x: number; y: number }
   | { type: 'SCENE_SET_VIEWPORT_SIZE'; sceneId: string; x: number; y: number }
   | { type: 'EDITOR_SET_GRID_SIZE'; tileSize: number }

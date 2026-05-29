@@ -20,11 +20,13 @@ import { assetFolderItemCount, buildProjectExplorerData } from '../../utils/proj
 import { useExplorerExpanded } from '../../hooks/useExplorerExpanded'
 import { useAssetExplorerActions } from '../../hooks/useAssetExplorerActions'
 import { useSceneExplorerActions } from '../../hooks/useSceneExplorerActions'
+import { useTextPrompt } from '../../hooks/useTextPrompt'
 import { ProjectSearch } from './ProjectSearch'
 import { TreeSection } from './TreeSection'
 import { TreeFolder, TreeLeaf } from './TreeNode'
 import { AssetToolbar } from './AssetToolbar'
 import { AssetDetailStrip } from '../asset-explorer/AssetDetailStrip'
+import { AssetMediaDetailStrip } from '../asset-explorer/AssetMediaDetailStrip'
 import {
   ExplorerActionBar,
   ExplorerLabelCta,
@@ -51,6 +53,7 @@ export default function ProjectExplorerPanel() {
   const { isOpen, toggle, setOpen, expandAllAssetFolders } = useExplorerExpanded()
   const scene = useSceneExplorerActions()
   const assets = useAssetExplorerActions()
+  const promptText = useTextPrompt()
 
   const sceneId = scene.sceneId
   const project = scene.project
@@ -166,6 +169,13 @@ export default function ProjectExplorerPanel() {
                   icon={<Star size={12} />}
                 />
                 <ExplorerLabelCta
+                  label="Duplicate"
+                  title="Duplicate scene"
+                  tone="default"
+                  onClick={() => scene.duplicateSceneById(sceneId)}
+                  icon={<Copy size={12} />}
+                />
+                <ExplorerLabelCta
                   label="Rename"
                   title="Rename scene"
                   tone="default"
@@ -205,6 +215,11 @@ export default function ProjectExplorerPanel() {
                           label: 'Set as start scene',
                           disabled: s.isStartScene,
                           onSelect: () => scene.setStartSceneById(s.sceneId),
+                        },
+                        {
+                          id: 'duplicate',
+                          label: 'Duplicate scene',
+                          onSelect: () => scene.duplicateSceneById(s.sceneId),
                         },
                         {
                           id: 'rename',
@@ -402,6 +417,17 @@ export default function ProjectExplorerPanel() {
                         disabled: !scene.scene,
                         onSelect: () => scene.placeEntityType(t.objectTypeId),
                       },
+                      {
+                        id: 'rename',
+                        label: 'Rename type',
+                        onSelect: () => scene.renameEntityType(t.objectTypeId),
+                      },
+                      {
+                        id: 'delete',
+                        label: 'Delete type',
+                        danger: true,
+                        onSelect: () => scene.deleteEntityType(t.objectTypeId),
+                      },
                     ],
                     setContextMenu,
                   )
@@ -466,7 +492,52 @@ export default function ProjectExplorerPanel() {
                         No assets in this category yet.
                       </p>
                     ) : null}
-                    {folder.images.map((img) => {
+                    {folder.id === 'images'
+                      ? Object.values(project.assetVirtualFolders ?? {})
+                          .filter((vf) => vf.category === 'images')
+                          .map((vf) => (
+                            <TreeFolder
+                              key={vf.id}
+                              label={vf.name}
+                              count={vf.assetRefs.length}
+                              depth={2}
+                              open={isOpen(`asset:vf:${vf.id}`)}
+                              onToggle={() => toggle(`asset:vf:${vf.id}`)}
+                            >
+                              {vf.assetRefs.map((ref) => {
+                                if (ref.type !== 'image') return null
+                                const imgRow = folder.images.find((i) => i.id === ref.id)
+                                if (!imgRow) return null
+                                const asset = project.assets?.[imgRow.id]
+                                return (
+                                  <TreeLeaf
+                                    key={`${vf.id}:${ref.id}`}
+                                    label={imgRow.name}
+                                    depth={3}
+                                    selected={
+                                      assets.selection?.type === 'image' &&
+                                      assets.selection.id === imgRow.id
+                                    }
+                                    onClick={() =>
+                                      assets.setSelection({ type: 'image', id: imgRow.id })
+                                    }
+                                    icon={<Image size={11} className="flex-shrink-0 text-[var(--accent)]" />}
+                                  />
+                                )
+                              })}
+                            </TreeFolder>
+                          ))
+                      : null}
+                    {folder.images
+                      .filter((img) => {
+                        const inVirtual = Object.values(project.assetVirtualFolders ?? {}).some(
+                          (vf) =>
+                            vf.category === 'images' &&
+                            vf.assetRefs.some((r) => r.type === 'image' && r.id === img.id),
+                        )
+                        return !inVirtual
+                      })
+                      .map((img) => {
                       const asset = project.assets?.[img.id]
                       const selected =
                         assets.selection?.type === 'image' && assets.selection.id === img.id
@@ -635,6 +706,9 @@ export default function ProjectExplorerPanel() {
           </TreeSection>
           {assets.selection?.type === 'image' ? (
             <AssetDetailStrip selection={assets.selection} />
+          ) : null}
+          {assets.selection?.type === 'audio' || assets.selection?.type === 'font' ? (
+            <AssetMediaDetailStrip selection={assets.selection} />
           ) : null}
         </div>
       </div>

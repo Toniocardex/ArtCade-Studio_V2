@@ -16,7 +16,7 @@ function explorerLog(message: string, level: ConsoleEntry['level']): ConsoleEntr
   const now = new Date()
   return {
     id: ++_explorerLogId,
-    time: now.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+    time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
     message,
     level,
   }
@@ -119,7 +119,7 @@ export function useSceneExplorerActions() {
     dispatch({ type: 'ENTITY_ADD', sceneId })
     dispatch({
       type: 'LOG',
-      entry: explorerLog(`Added ${preview.name} — rename in Inspector`, 'info'),
+      entry: explorerLog(`Added ${preview.name} — rename in Inspector if needed`, 'info'),
     })
   }, [scene, sceneId, project, dispatch])
 
@@ -188,6 +188,53 @@ export function useSceneExplorerActions() {
     [dispatch, project, promptText],
   )
 
+  const duplicateSceneById = useCallback(
+    (targetSceneId: string) => {
+      if (!project?.scenes[targetSceneId]) return
+      dispatch({ type: 'SCENE_DUPLICATE', sceneId: targetSceneId })
+    },
+    [dispatch, project],
+  )
+
+  const renameEntityType = useCallback(
+    (objectTypeId: string) => {
+      const type = project?.objectTypes?.[objectTypeId]
+      if (!type) return
+      void promptText({
+        title: 'Rename entity type',
+        message: 'Type display name:',
+        defaultValue: type.displayName,
+      }).then((name) => {
+        if (!name || name === type.displayName) return
+        dispatch({ type: 'OBJECT_TYPE_RENAME', objectTypeId, displayName: name })
+      })
+    },
+    [dispatch, project, promptText],
+  )
+
+  const deleteEntityType = useCallback(
+    (objectTypeId: string) => {
+      if (!project?.objectTypes?.[objectTypeId]) return
+      const inUse = Object.values(project.scenes).some((sc) =>
+        (sc.instances ?? []).some((i) => i.objectTypeId === objectTypeId),
+      )
+      if (inUse) {
+        dispatch({
+          type: 'LOG',
+          entry: explorerLog('Cannot delete type — instances exist in a scene.', 'warn'),
+        })
+        return
+      }
+      void confirmDialog('Delete this entity type?', {
+        title: 'Delete entity type',
+        kind: 'warning',
+      }).then((ok) => {
+        if (ok) dispatch({ type: 'OBJECT_TYPE_DELETE', objectTypeId })
+      })
+    },
+    [dispatch, project, promptText],
+  )
+
   const placeEntityType = useCallback(
     (objectTypeId: string) => {
       if (!scene || !project) return
@@ -232,6 +279,7 @@ export function useSceneExplorerActions() {
     deleteSceneById,
     renameScene,
     renameSceneById,
+    duplicateSceneById,
     addEntity,
     selectEntity,
     toggleEntityVisible,
@@ -240,6 +288,8 @@ export function useSceneExplorerActions() {
     openEntityLogic,
     renameEntity,
     addEntityType,
+    renameEntityType,
+    deleteEntityType,
     placeEntityType,
   }
 }

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useConsoleLogs } from '../store/editor-store'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useConsoleLogs, useEditor } from '../store/editor-store'
 import type { ConsoleLevel } from '../types'
 import { ConsoleFilterBar } from '../components/console/ConsoleFilterBar'
 import {
@@ -47,8 +47,10 @@ function readStoredFilters(): ConsoleLevelFilters {
 }
 
 export default function ConsolePanel() {
+  const { dispatch } = useEditor()
   const { state } = useConsoleLogs()
   const { consoleLogs } = state
+  const [commandLine, setCommandLine] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
   const lastScrolledLogIdRef = useRef(0)
   const [copyStatus, setCopyStatus] = useState<string | null>(null)
@@ -186,17 +188,39 @@ export default function ConsolePanel() {
         <div ref={bottomRef} />
       </div>
 
-      <div className="flex items-center gap-2 px-3 py-2 border-t border-[var(--border)] flex-shrink-0">
+      <form
+        className="flex items-center gap-2 px-3 py-2 border-t border-[var(--border)] flex-shrink-0"
+        onSubmit={(e: FormEvent) => {
+          e.preventDefault()
+          const line = commandLine.trim()
+          if (!line) return
+          dispatch({
+            type: 'LOG',
+            entry: {
+              id: Date.now(),
+              time: new Date().toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+              }),
+              message: `[Console] ${line} (REPL evaluation not wired — logged only)`,
+              level: 'lua',
+            },
+          })
+          setCommandLine('')
+        }}
+      >
         <span className="text-[var(--accent)] text-[10px]">&gt;</span>
         <input
           type="text"
-          placeholder="Enter Lua expression…"
-          disabled
-          title="Command line — coming in a later release"
-          className="flex-1 bg-transparent text-[10px] text-[var(--muted)] outline-none
-                     placeholder:text-[rgb(var(--muted-rgb)/0.4)] cursor-not-allowed"
+          value={commandLine}
+          onChange={(e) => setCommandLine(e.target.value)}
+          placeholder="Lua expression (log only)…"
+          title="Console command line — logs input; full Lua eval in a future release"
+          className="flex-1 bg-transparent text-[10px] text-[var(--text)] outline-none
+                     placeholder:text-[rgb(var(--muted-rgb)/0.4)]"
         />
-      </div>
+      </form>
     </div>
   )
 }

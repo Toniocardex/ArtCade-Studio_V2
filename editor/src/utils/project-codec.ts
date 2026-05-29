@@ -2,7 +2,7 @@ import type {
   ProjectDoc, EntityDef, SceneDef, SceneInstanceDef, ObjectTypeDef, Vec2, Vec3, Vec4,
   Transform, SpriteComponent, AnimationState, PhysicsComponent, PhysicsMode, WorldSettings,
   TilemapLayer, TileDef, TilesetAsset, ImageAsset, AudioAsset, FontAsset, ImagePointDef, AnimationClipDef,
-  AnimationFrameRect,
+  AnimationFrameRect, AssetVirtualFolderDef, AssetFolderCategory,
 } from '../types'
 import { DEFAULT_WORLD } from '../types'
 import {
@@ -385,6 +385,49 @@ function parseFontAssets(
   return Object.keys(out).length ? out : undefined
 }
 
+const ASSET_FOLDER_CATEGORIES: AssetFolderCategory[] = [
+  'images',
+  'audio',
+  'fonts',
+  'scripts',
+  'tilesets',
+]
+
+function parseAssetVirtualFolders(
+  raw: unknown,
+): Record<string, AssetVirtualFolderDef> | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined
+  const out: Record<string, AssetVirtualFolderDef> = {}
+  for (const [key, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (!v || typeof v !== 'object') continue
+    const o = v as Record<string, unknown>
+    const id = String(o.id ?? key)
+    const category = String(o.category ?? 'images') as AssetFolderCategory
+    if (!id || !ASSET_FOLDER_CATEGORIES.includes(category)) continue
+    const refsRaw = o.assetRefs ?? o.asset_refs
+    const assetRefs: AssetVirtualFolderDef['assetRefs'] = []
+    if (Array.isArray(refsRaw)) {
+      for (const r of refsRaw) {
+        if (!r || typeof r !== 'object') continue
+        const ro = r as Record<string, unknown>
+        const type = String(ro.type ?? '')
+        const refId = String(ro.id ?? '')
+        if (!refId) continue
+        if (type === 'image' || type === 'audio' || type === 'font' || type === 'tileset') {
+          assetRefs.push({ type, id: refId })
+        }
+      }
+    }
+    out[id] = {
+      id,
+      name: String(o.name ?? 'Folder'),
+      category,
+      assetRefs,
+    }
+  }
+  return Object.keys(out).length ? out : undefined
+}
+
 function parseTilesets(
   raw: unknown,
 ): Record<string, TilesetAsset> | undefined {
@@ -520,6 +563,9 @@ export function parseProjectDocWithMeta(jsonStr: string): ParseProjectDocResult 
       assets:         parseAssets(raw.assets),
       audioAssets:    parseAudioAssets(raw.audioAssets ?? raw.audio_assets),
       fontAssets:     parseFontAssets(raw.fontAssets ?? raw.font_assets),
+      assetVirtualFolders: parseAssetVirtualFolders(
+        raw.assetVirtualFolders ?? raw.asset_virtual_folders,
+      ),
       logicBoards:    logicBoardsParsed.doc,
     }
 
@@ -684,6 +730,10 @@ export function serializeProjectDoc(project: ProjectDoc): string {
       : {}),
     ...(project.fontAssets && Object.keys(project.fontAssets).length > 0
       ? { fontAssets: project.fontAssets }
+      : {}),
+    ...(project.assetVirtualFolders &&
+    Object.keys(project.assetVirtualFolders).length > 0
+      ? { assetVirtualFolders: project.assetVirtualFolders }
       : {}),
     targetFPS:      v2.targetFPS,
     activeSceneId:  v2.activeSceneId,

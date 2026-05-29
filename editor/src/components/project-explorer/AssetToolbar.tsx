@@ -95,15 +95,15 @@ export function AssetToolbar({
           label="New Folder"
           icon={<FolderPlus size={18} />}
           onClick={onNewFolder}
-          disabled
-          title="Custom folders — coming soon"
+          disabled={disabled}
+          title="Create a virtual folder under Images"
           className="flex-1 min-w-0"
         />
         <ToolbarBtn
-          label="Asset Browser"
+          label="Expand all"
           icon={<Search size={18} />}
           onClick={onFocusAssets}
-          title="Expand all asset folders"
+          title="Expand all asset category folders"
           className="flex-1 min-w-0"
         />
         {canRemove ? (

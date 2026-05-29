@@ -7,12 +7,21 @@
 
 import type { CoreState, Action, DomainReducer } from '../editor-store-state'
 import { DEFAULT_WORLD, createTilemap, resizeTilemap } from '../../types'
-import { createSceneDef, uniqueSceneName } from '../../utils/project'
+import type { EntityDef, LogicBoard, SceneDef } from '../../types'
+import { createSceneDef, uniqueSceneName, nextEntityId } from '../../utils/project'
+import { logicId } from '../../utils/logic-board/factory'
 import { clampEntityPositionToScene } from '../../utils/entity-position'
 import { projectAfterRemovingAsset } from '../../utils/strip-project-asset-refs'
+import { normalizeAssetRefs } from '../../utils/normalize-asset-refs'
 
 export const sceneReducer: DomainReducer = (state: CoreState, action: Action) => {
   switch (action.type) {
+    case 'PROJECT_NORMALIZE_ASSET_REFS': {
+      if (!state.project) return state
+      const { project, changed } = normalizeAssetRefs(state.project)
+      if (changed === 0) return state
+      return { ...state, project, projectDirty: true }
+    }
     case 'WORLD_SET': {
       if (!state.project) return state
       const world = { ...DEFAULT_WORLD, ...state.project.world, ...action.patch }
@@ -63,6 +72,74 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
       return {
         ...state,
         project: { ...state.project, activeSceneId: action.sceneId },
+        projectDirty: true,
+      }
+    }
+    case 'SCENE_DUPLICATE': {
+      const srcScene = state.project?.scenes[action.sceneId]
+      if (!state.project || !srcScene) return state
+      const newSceneMeta = createSceneDef(state.project, srcScene, `${srcScene.name} Copy`)
+      const entities = { ...state.project.entities }
+      const idMap = new Map<number, number>()
+      const newEntityIds: number[] = []
+
+      for (const eid of srcScene.entityIds) {
+        const ent = state.project.entities[eid]
+        if (!ent) continue
+        const newId = nextEntityId({ ...state.project, entities })
+        const clone: EntityDef = JSON.parse(JSON.stringify(ent))
+        clone.id = newId
+        entities[newId] = clone
+        newEntityIds.push(newId)
+        idMap.set(eid, newId)
+      }
+
+      const instances = srcScene.instances?.map((inst) => {
+        const mapped = idMap.get(inst.id)
+        if (mapped == null) return null
+        return { ...inst, id: mapped }
+      }).filter((i): i is NonNullable<typeof i> => i != null)
+
+      const duplicated: SceneDef = {
+        ...srcScene,
+        id: newSceneMeta.id,
+        name: newSceneMeta.name,
+        entityIds: newEntityIds,
+        ...(instances ? { instances } : {}),
+        ...(srcScene.tilemap
+          ? { tilemap: JSON.parse(JSON.stringify(srcScene.tilemap)) }
+          : {}),
+      }
+
+      const sourceEntityIds = new Set(srcScene.entityIds)
+      const clonedBoards: LogicBoard[] = []
+      for (const board of state.project.logicBoards ?? []) {
+        if (board.target.type !== 'entity_id' || board.target.entityId == null) continue
+        if (!sourceEntityIds.has(board.target.entityId)) continue
+        const mappedEntityId = idMap.get(board.target.entityId)
+        if (mappedEntityId == null) continue
+        const copy = JSON.parse(JSON.stringify(board)) as LogicBoard
+        copy.boardId = logicId('board')
+        copy.target = { type: 'entity_id', entityId: mappedEntityId }
+        clonedBoards.push(copy)
+      }
+
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          entities,
+          scenes: {
+            ...state.project.scenes,
+            [duplicated.id]: duplicated,
+          },
+          ...(clonedBoards.length > 0
+            ? {
+                logicBoards: [...(state.project.logicBoards ?? []), ...clonedBoards],
+              }
+            : {}),
+        },
+        selection: { sceneId: duplicated.id, entityId: null },
         projectDirty: true,
       }
     }
