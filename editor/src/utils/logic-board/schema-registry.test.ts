@@ -21,7 +21,7 @@ import {
   defaultCondition,
   defaultTrigger,
 } from '../../panels/logic-board/options'
-import { createLogicBoard, createLogicEvent } from './factory'
+import { createLogicBoardForObjectType, createLogicEvent } from './factory'
 import type { LogicConditionNode } from '../../types/logic-board'
 
 describe('schema-registry', () => {
@@ -66,7 +66,7 @@ describe('schema-registry', () => {
   })
 
   it('minimal board from factory validates', () => {
-    const board = createLogicBoard('Player', 'test_board')
+    const board = createLogicBoardForObjectType('Player', 'test_board')
     board.events.push(createLogicEvent())
     const r = validateLogicBoard(board)
     expect(r.valid, JSON.stringify(r.errors)).toBe(true)

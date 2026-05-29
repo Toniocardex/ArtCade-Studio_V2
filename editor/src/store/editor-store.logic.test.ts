@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { coreReducer, type CoreState } from './editor-store'
 import {
-  createLogicBoard,
   createLogicBoardForEntity,
+  createLogicBoardForObjectType,
   createLogicEvent,
 } from '../utils/logic-board/factory'
 import type { ProjectDoc } from '../types'
@@ -47,7 +47,7 @@ function baseState(project: ProjectDoc | null = emptyProject()): CoreState {
 
 describe('coreReducer — Logic Board CRUD', () => {
   it('LOGIC_ADD_BOARD adds a board and marks dirty', () => {
-    const board = createLogicBoard('Player', 'pc')
+    const board = createLogicBoardForObjectType('Player', 'pc')
     const s = coreReducer(baseState(), { type: 'LOGIC_ADD_BOARD', board })
     expect(s.project?.logicBoards).toEqual([board])
     expect(s.project?.logicBoards?.[0].name).toBe('pc')
@@ -55,14 +55,14 @@ describe('coreReducer — Logic Board CRUD', () => {
   })
 
   it('LOGIC_ADD_BOARD is idempotent on duplicate boardId', () => {
-    const board = createLogicBoard('Player', 'pc')
+    const board = createLogicBoardForObjectType('Player', 'pc')
     let s = coreReducer(baseState(), { type: 'LOGIC_ADD_BOARD', board })
-    s = coreReducer(s, { type: 'LOGIC_ADD_BOARD', board: createLogicBoard('Enemy', 'pc') })
+    s = coreReducer(s, { type: 'LOGIC_ADD_BOARD', board: createLogicBoardForObjectType('Enemy', 'pc') })
     expect(s.project?.logicBoards).toHaveLength(1)
   })
 
   it('LOGIC_RENAME_BOARD stores a readable board name', () => {
-    const board = createLogicBoard('Player', 'pc')
+    const board = createLogicBoardForObjectType('Player', 'pc')
     let s = coreReducer(baseState(), { type: 'LOGIC_ADD_BOARD', board })
     s = coreReducer(s, {
       type: 'LOGIC_RENAME_BOARD',
@@ -74,7 +74,7 @@ describe('coreReducer — Logic Board CRUD', () => {
   })
 
   it('LOGIC_RENAME_BOARD resets blank names to the generated compiler label', () => {
-    const board = createLogicBoard('Player', 'pc', 'Player movement')
+    const board = createLogicBoardForObjectType('Player', 'pc', 'Player movement')
     let s = coreReducer(baseState(), { type: 'LOGIC_ADD_BOARD', board })
     s = coreReducer(s, {
       type: 'LOGIC_RENAME_BOARD',
@@ -85,8 +85,8 @@ describe('coreReducer — Logic Board CRUD', () => {
   })
 
   it('LOGIC_DELETE_BOARD removes by id', () => {
-    const a = createLogicBoard('Player', 'a')
-    const b = createLogicBoard('Enemy', 'b')
+    const a = createLogicBoardForObjectType('Player', 'a')
+    const b = createLogicBoardForObjectType('Enemy', 'b')
     let s = coreReducer(baseState(), { type: 'LOGIC_ADD_BOARD', board: a })
     s = coreReducer(s, { type: 'LOGIC_ADD_BOARD', board: b })
     s = coreReducer(s, { type: 'LOGIC_DELETE_BOARD', boardId: 'a' })
@@ -94,7 +94,7 @@ describe('coreReducer — Logic Board CRUD', () => {
   })
 
   it('LOGIC_INSERT_EVENT inserts after a given event id', () => {
-    const board = createLogicBoard('Player', 'pc')
+    const board = createLogicBoardForObjectType('Player', 'pc')
     let s = coreReducer(baseState(), { type: 'LOGIC_ADD_BOARD', board })
 
     const a = createLogicEvent({ type: 'onUpdate' }, [{ type: 'debugLog', message: 'a' }])
@@ -109,7 +109,7 @@ describe('coreReducer — Logic Board CRUD', () => {
   })
 
   it('LOGIC_UNDO and LOGIC_REDO restore logic boards', () => {
-    const board = createLogicBoard('Player', 'pc')
+    const board = createLogicBoardForObjectType('Player', 'pc')
     let s = coreReducer(baseState(), { type: 'LOGIC_ADD_BOARD', board })
     const a = createLogicEvent({ type: 'onStart' }, [])
     s = coreReducer(s, { type: 'LOGIC_ADD_EVENT', boardId: 'pc', event: a })
@@ -134,7 +134,7 @@ describe('coreReducer — Logic Board CRUD', () => {
   })
 
   it('LOGIC_MOVE_EVENT reorders events within a board', () => {
-    const board = createLogicBoard('Player', 'pc')
+    const board = createLogicBoardForObjectType('Player', 'pc')
     let s = coreReducer(baseState(), { type: 'LOGIC_ADD_BOARD', board })
     const a = createLogicEvent({ type: 'onStart' }, [])
     const b = createLogicEvent({ type: 'onUpdate' }, [])
@@ -153,7 +153,7 @@ describe('coreReducer — Logic Board CRUD', () => {
   })
 
   it('LOGIC_ADD_EVENT / UPDATE_EVENT / DELETE_EVENT operate on the right board', () => {
-    const board = createLogicBoard('Player', 'pc')
+    const board = createLogicBoardForObjectType('Player', 'pc')
     let s = coreReducer(baseState(), { type: 'LOGIC_ADD_BOARD', board })
 
     const evt = createLogicEvent({ type: 'onUpdate' }, [
@@ -173,7 +173,7 @@ describe('coreReducer — Logic Board CRUD', () => {
   it('CRUD actions are no-ops when no project is open', () => {
     const s = coreReducer(baseState(null), {
       type: 'LOGIC_ADD_BOARD',
-      board: createLogicBoard('Player'),
+      board: createLogicBoardForObjectType('Player'),
     })
     expect(s.project).toBeNull()
     expect(s.projectDirty).toBe(false)
@@ -206,7 +206,7 @@ describe('coreReducer — Logic Board CRUD', () => {
       },
       logicBoards: [
         createLogicBoardForEntity(1, 'b1'),
-        createLogicBoard('Player', 'class'),
+        createLogicBoardForObjectType('Player', 'class'),
       ],
     }
     let s = coreReducer(baseState(project), { type: 'ENTITY_DELETE', entityId: 1 })
@@ -217,7 +217,7 @@ describe('coreReducer — Logic Board CRUD', () => {
   it('does not mutate the previous state (immutability)', () => {
     const prev = coreReducer(baseState(), {
       type: 'LOGIC_ADD_BOARD',
-      board: createLogicBoard('Player', 'pc'),
+      board: createLogicBoardForObjectType('Player', 'pc'),
     })
     const next = coreReducer(prev, {
       type: 'LOGIC_ADD_EVENT',

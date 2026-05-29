@@ -38,9 +38,9 @@ function bootLog(message: string, level: ConsoleEntry['level']): ConsoleEntry {
 }
 
 // ---------------------------------------------------------------------------
-// CANVAS mode layout: scene objects | viewport (or tileset editor) | inspector
+// CANVAS mode layout: Project Explorer | viewport (or tileset editor) | inspector
 // Sidebars are user-resizable; widths persist in localStorage.
-// Assets live in LeftSidebar; console in ConsoleDock (EditorLayout).
+// Assets live in LeftSidebar tree; console in ConsoleDock (EditorLayout).
 // ---------------------------------------------------------------------------
 
 function LegacyMigrateBanner() {

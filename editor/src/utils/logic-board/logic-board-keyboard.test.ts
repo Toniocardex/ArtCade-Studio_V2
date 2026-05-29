@@ -4,7 +4,7 @@ vi.mock('../keyboard', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../keyboard')>()
   return { ...actual, shouldIgnoreEditorShortcut: () => false }
 })
-import { createLogicBoard, createLogicEvent } from './factory'
+import { createLogicBoardForObjectType, createLogicEvent } from './factory'
 import {
   findEventInBoards,
   handleLogicBoardKey,
@@ -29,7 +29,7 @@ function key(
 function baseHandlers(
   overrides: Partial<LogicBoardKeyHandlers> = {},
 ): LogicBoardKeyHandlers {
-  const board = createLogicBoard('Player', 'pc')
+  const board = createLogicBoardForObjectType('Player', 'pc')
   const a = createLogicEvent({ type: 'onStart' }, [])
   const b = createLogicEvent({ type: 'onUpdate' }, [])
   board.events = [a, b]
@@ -55,7 +55,7 @@ function baseHandlers(
 
 describe('findEventInBoards', () => {
   it('returns board and event by id', () => {
-    const board = createLogicBoard('P', 'pc')
+    const board = createLogicBoardForObjectType('P', 'pc')
     const ev = createLogicEvent({ type: 'onStart' }, [])
     board.events = [ev]
     expect(findEventInBoards([board], ev.id)?.event.id).toBe(ev.id)
@@ -105,7 +105,7 @@ describe('handleLogicBoardKey', () => {
 
   it('pastes when clipboard has an event', () => {
     const pasteEvent = vi.fn()
-    const board = createLogicBoard('P', 'pc')
+    const board = createLogicBoardForObjectType('P', 'pc')
     const ev = createLogicEvent({ type: 'onStart' }, [])
     board.events = [ev]
     handleLogicBoardKey(

@@ -46,9 +46,9 @@ Il motore espone una **GameAPI** uniforme (entity, physics, input, audio, state,
 ┌──────────────────────────────────────────────────────────┐
 │             EDITOR (React + Tauri) — Thin Shell          │
 │                                                           │
-│  SceneObjects  Inspector  ScriptEditor  AssetBrowser  …  │
-│       │          │           │              │             │
-│       └──────────┴───────────┴──────────────┘            │
+│  ProjectExplorer  Inspector  LogicBoard  ScriptEditor  …  │
+│       │              │            │            │          │
+│       └──────────────┴────────────┴────────────┘          │
 │                         │                                │
 │  (imperative commands + buffered reads — NO real-time)  │
 └──────────────────────────────────────────────────────────┘
@@ -607,16 +607,18 @@ Design: Slate Night `#0B1121` / Neon Cyan `#00FFFF` / Neon Magenta `#FF00FF`
 ┌─ MenuBar ─────────────────────────────────────────────────┐
 │ File | Build | ▶ PLAY | BUILD .EXE                        │
 ├─────────────┬─────────────────────────┬───────────────────┤
-│ SceneObjects│      PreviewPanel        │    Inspector      │
-│ (scenes:    │   (WebAssembly canvas)   │  (transform,      │
-│  CRUD +     │   tool palette:          │   sprite, script) │
-│  start +    │   select/pan/paint/erase │                   │
-│  objects)   │                          │                   │
+│ Project     │      PreviewPanel        │    Inspector      │
+│ Explorer    │   (WebAssembly canvas)   │  (transform,      │
+│ (tree:      │   tool palette:          │   sprite, Logic   │
+│  scenes,    │   select/pan/paint/erase │   Board CTA)      │
+│  entities,  │   TilesetEditor overlay  │                   │
+│  types,     │   when editing tilesets  │                   │
+│  assets)    │                          │                   │
 ├─────────────┴─────────────────────────┴───────────────────┤
-│ AssetBrowser │  ScriptEditor (CodeMirror) │  TilesetEditor  │
-├──────────────┴─────────────────────────┴──────────────────┤
-│ ConsolePanel + StatusBar                                   │
+│ ConsoleDock (ConsolePanel) + StatusBar                     │
 └────────────────────────────────────────────────────────────┘
+
+ModuleRail modes (full-width when active): LogicBoardPanel · ScriptEditorPanel · DialogEditorPanel
 ```
 
 ### Componenti

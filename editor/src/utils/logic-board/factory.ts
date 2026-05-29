@@ -66,15 +66,6 @@ export function createLogicBoardForObjectType(
   }
 }
 
-/** @deprecated Prefer createLogicBoardForObjectType */
-export function createLogicBoard(
-  className: string,
-  boardId = logicId('board'),
-  name?: string,
-): LogicBoard {
-  return createLogicBoardForObjectType(className, boardId, name)
-}
-
 // ---- defensive parsing ----------------------------------------------------
 
 function asArray(v: unknown): unknown[] {
