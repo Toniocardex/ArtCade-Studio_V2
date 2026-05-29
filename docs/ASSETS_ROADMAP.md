@@ -298,6 +298,7 @@ Work landed after pipeline phases A–D (commits `ab471f0`, `e68928b`, `952aa43`
 | Audio/font detail strip | ✅ | `AssetMediaDetailStrip` (preview from disk when project saved) |
 | Export manifest + ZIP round-trip | ✅ | `buildArtcadeZipBytes` + `parseArtcadePackageBytes` vitest |
 | Preview spawn-prototype preload | ✅ | Canvas toolbar toggle → `scene+spawn-prototypes` scope |
+| **Spritesheet Studio** (modal + engine preview) | ✅ | `editor/src/panels/spritesheet-studio/`; `editor_reregister_animation_clips`; `editor_preview_spritesheet_tick`; `Renderer::captureSpriteRegionFrame`; does not hide main preview canvas |
 | CI (vitest, native, wasm) | ✅ | `.github/workflows/ci.yml` |
 | Console REPL / LSP Lua | ❌ | Deferred — spike in `TECHNICAL_OVERVIEW.md` §11.1 |
 
@@ -307,6 +308,7 @@ Work landed after pipeline phases A–D (commits `ab471f0`, `e68928b`, `952aa43`
 2. Duplicate scene that has an **entity_id** Logic Board — board still runs on clone.
 3. Create image virtual folder → save → reload — folder and membership persist.
 4. Replace PNG on disk — preview updates without restart (Phase 4).
+5. Open **Spritesheet Studio** on an image → engine preview canvas animates; scene preview still visible; `animation.play` uses clip name after save.
 
 ---
 
@@ -320,3 +322,4 @@ Work landed after pipeline phases A–D (commits `ab471f0`, `e68928b`, `952aa43`
 | 4 | 2026-05-29 (partial) | orchestrator + `editor_invalidate_asset` | Watch + re-register ✅; leak test + disable setting open |
 | 5 | 2026-05-29 (partial) | `editor_register_font`; FontCache | 5a–5b ✅; manual TTF smoke + Logic Board `drawText` deferred |
 | Explorer | 2026-05-29 | vitest + CI | Virtual folders all categories; normalize audio; export round-trip |
+| Spritesheet Studio | 2026-05-29 | vitest + WASM build | Modal UI (fase 1); clip hot-sync + engine canvas preview (fase 2); manual smoke item 5 above |

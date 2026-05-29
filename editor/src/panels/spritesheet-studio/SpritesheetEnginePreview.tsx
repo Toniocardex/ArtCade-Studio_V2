@@ -15,7 +15,6 @@ type SpritesheetEnginePreviewProps = Readonly<{
 export function SpritesheetEnginePreview({ asset, session }: SpritesheetEnginePreviewProps) {
   const { activeClip } = session
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const bufferRef = useRef<Uint8ClampedArray | null>(null)
   const [engineOk, setEngineOk] = useState(false)
 
   const texturePath = asset.path?.trim() || asset.id
@@ -43,12 +42,8 @@ export function SpritesheetEnginePreview({ asset, session }: SpritesheetEnginePr
     const ctx = canvas.getContext('2d', { willReadFrequently: true })
     if (!ctx) return
 
-    const byteLen = canvasW * canvasH * 4
-    if (!bufferRef.current || bufferRef.current.byteLength !== byteLen) {
-      bufferRef.current = new Uint8ClampedArray(byteLen)
-    }
-    const rgba = bufferRef.current
-    const imageData = new ImageData(rgba, canvasW, canvasH)
+    const imageData = ctx.createImageData(canvasW, canvasH)
+    const rgba = imageData.data
 
     let raf = 0
     let last = performance.now()
@@ -61,7 +56,7 @@ export function SpritesheetEnginePreview({ asset, session }: SpritesheetEnginePr
         dt,
         canvasW,
         canvasH,
-        new Uint8Array(rgba.buffer, rgba.byteOffset, rgba.byteLength),
+        rgba,
       )
       if (code === 0) {
         ctx.putImageData(imageData, 0, 0)
@@ -96,7 +91,7 @@ export function SpritesheetEnginePreview({ asset, session }: SpritesheetEnginePr
         <span className="text-[9px] text-[var(--muted)]">WASM runtime not ready.</span>
       ) : !engineOk ? (
         <span className="text-[9px] text-[var(--warn)]">
-          Ensure the image is loaded in preview (save project / open scene preview once).
+          Waiting for engine texture or clip sync — save the project if this persists.
         </span>
       ) : (
         <span className="text-[9px] text-[var(--muted)]">{clipName}</span>

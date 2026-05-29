@@ -123,6 +123,16 @@ describe('asset-orchestrator', () => {
     ).toBeLessThanOrEqual(ASSET_CACHE_MAX_ENTRIES)
   })
 
+  it('ensureImageRegistered uploads once and skips when already registered', async () => {
+    const registerImage = vi.fn(() => true)
+    const { orch } = makeOrchestrator({ registerImage })
+    const p = testProject()
+    const asset = p.assets!.img
+    expect(await orch.ensureImageRegistered(p, asset, '/proj')).toBe(true)
+    expect(await orch.ensureImageRegistered(p, asset, '/proj')).toBe(true)
+    expect(registerImage).toHaveBeenCalledTimes(1)
+  })
+
   it('dedupes console failure logs per path', async () => {
     const logFailure = vi.fn()
     const { orch } = makeOrchestrator({

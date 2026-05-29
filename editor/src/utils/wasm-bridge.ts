@@ -617,7 +617,7 @@ export function editorPreviewSpritesheetTick(
   dtSeconds: number,
   width: number,
   height: number,
-  rgbaOut: Uint8Array,
+  rgbaOut: Uint8Array | Uint8ClampedArray,
 ): number {
   if (!_module || rgbaOut.byteLength < width * height * 4) return -1
   const pathPtr = marshalString(texturePath)
@@ -630,7 +630,7 @@ export function editorPreviewSpritesheetTick(
       [pathPtr, clipPtr, dtSeconds, width, height, bufPtr, rgbaOut.byteLength],
     )
     if (code === 0) {
-      rgbaOut.set(_module.HEAPU8.subarray(bufPtr, bufPtr + rgbaOut.byteLength))
+      rgbaOut.set(_module.HEAPU8.subarray(bufPtr, bufPtr + rgbaOut.byteLength) as Uint8Array)
     }
     return code
   } finally {

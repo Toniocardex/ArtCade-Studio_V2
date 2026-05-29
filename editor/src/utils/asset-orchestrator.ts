@@ -161,6 +161,21 @@ export function registerKeyForDescriptor(desc: AssetDescriptor): string {
   return `${desc.type}:${desc.path}#${desc.dataUrl ? 'd' : 'f'}`
 }
 
+export function imageAssetDescriptor(asset: {
+  id: string
+  path: string
+  dataUrl?: string
+}): AssetDescriptor {
+  const path = asset.path?.trim() || asset.id
+  return {
+    id: asset.id,
+    type: 'image',
+    path,
+    ext: extFromPath(path),
+    dataUrl: asset.dataUrl,
+  }
+}
+
 export class AssetOrchestrator {
   loadGeneration = 0
   prefetchGeneration = 0
@@ -201,6 +216,28 @@ export class AssetOrchestrator {
 
   cancelPrefetch(): void {
     this.prefetchGeneration++
+  }
+
+  /**
+   * Upload one image into the WASM texture cache (Spritesheet Studio / detail strip).
+   * No-op when already registered or runtime not ready.
+   */
+  async ensureImageRegistered(
+    project: ProjectDoc,
+    asset: { id: string; path: string; dataUrl?: string },
+    projectRoot: string,
+  ): Promise<boolean> {
+    const desc = imageAssetDescriptor(asset)
+    if (this.isRegistered(desc)) return true
+    if (!this.deps.isRuntimeReady()) return false
+    const result = await this.loadOne(
+      project,
+      desc,
+      projectRoot,
+      this.loadGeneration,
+      'critical',
+    )
+    return result === 'loaded'
   }
 
   async loadScene(
