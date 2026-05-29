@@ -9,12 +9,22 @@ export type ViewportAxisGizmoProps = Readonly<{
 export function ViewportAxisGizmo({ visible = true }: ViewportAxisGizmoProps) {
   if (!visible) return null
 
+  const axisHint =
+    '2D axes: X increases to the right (E). World Y+ points down on screen; N marks up (−Y).'
+
   return (
     <div
-      className="absolute bottom-3 right-3 z-[2] pointer-events-none select-none"
-      aria-hidden
+      className="absolute bottom-3 right-3 z-[2] select-none"
+      title={axisHint}
+      role="img"
+      aria-label={axisHint}
     >
-      <svg width="56" height="56" viewBox="0 0 56 56" className="drop-shadow-md">
+      <svg
+        width="56"
+        height="56"
+        viewBox="0 0 56 56"
+        className="drop-shadow-md pointer-events-none"
+      >
         {/* Y axis — up in world space (screen -Y) */}
         <line x1="28" y1="28" x2="28" y2="8" stroke="var(--accent)" strokeWidth="2" />
         <text x="32" y="10" fill="var(--accent)" fontSize="9" fontWeight="700" fontFamily="monospace">

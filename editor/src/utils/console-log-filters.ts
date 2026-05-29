@@ -36,6 +36,10 @@ export function normalizeConsoleSearch(query: string): string {
   return query.trim().toLowerCase()
 }
 
+export function hasAnyConsoleFilterActive(filters: ConsoleLevelFilters): boolean {
+  return filters.error || filters.warn || filters.info
+}
+
 export function filterConsoleLogs(
   logs: readonly ConsoleEntry[],
   filters: ConsoleLevelFilters,
@@ -52,4 +56,31 @@ export function filterConsoleLogs(
       || entry.time.toLowerCase().includes(q)
     )
   })
+}
+
+/** Chip badge counts: totals when no search; per-level search hits when searching. */
+export function consoleChipCounts(
+  logs: readonly ConsoleEntry[],
+  searchQuery: string,
+): ConsoleLevelCounts {
+  const q = normalizeConsoleSearch(searchQuery)
+  if (!q) return countConsoleLogsByFilter(logs)
+  return countConsoleLogsByFilter(
+    filterConsoleLogs(logs, DEFAULT_CONSOLE_FILTERS, searchQuery),
+  )
+}
+
+export function consoleEmptyListMessage(
+  logs: readonly ConsoleEntry[],
+  filters: ConsoleLevelFilters,
+  searchQuery: string,
+): string {
+  if (logs.length === 0) return 'No log output yet.'
+  if (!hasAnyConsoleFilterActive(filters)) {
+    return 'All level filters are off — enable Errors, Warnings, or Info.'
+  }
+  if (normalizeConsoleSearch(searchQuery)) {
+    return 'No logs match the current search.'
+  }
+  return 'No logs match the enabled level filters.'
 }

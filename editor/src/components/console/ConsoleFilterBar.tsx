@@ -5,6 +5,7 @@ import type { ConsoleLevelCounts, ConsoleLevelFilters, ConsoleFilterKey } from '
 export type ConsoleFilterBarProps = Readonly<{
   filters: ConsoleLevelFilters
   counts: ConsoleLevelCounts
+  searchActive?: boolean
   search: string
   onToggle: (key: ConsoleFilterKey) => void
   onSearchChange: (value: string) => void
@@ -14,12 +15,13 @@ type ChipProps = Readonly<{
   active: boolean
   label: string
   count: number
+  countTitle?: string
   icon: ReactNode
   tone: 'error' | 'warn' | 'info'
   onClick: () => void
 }>
 
-function FilterChip({ active, label, count, icon, tone, onClick }: ChipProps) {
+function FilterChip({ active, label, count, countTitle, icon, tone, onClick }: ChipProps) {
   const toneClass =
     tone === 'error'
       ? 'text-[var(--danger-2)]'
@@ -40,7 +42,9 @@ function FilterChip({ active, label, count, icon, tone, onClick }: ChipProps) {
     >
       <span className={toneClass}>{icon}</span>
       <span>{label}</span>
-      <span className="text-[var(--muted)] tabular-nums">{count}</span>
+      <span className="text-[var(--muted)] tabular-nums" title={countTitle}>
+        {count}
+      </span>
     </button>
   )
 }
@@ -48,10 +52,15 @@ function FilterChip({ active, label, count, icon, tone, onClick }: ChipProps) {
 export function ConsoleFilterBar({
   filters,
   counts,
+  searchActive = false,
   search,
   onToggle,
   onSearchChange,
 }: ConsoleFilterBarProps) {
+  const countTitle = searchActive
+    ? 'Count for logs matching the search box'
+    : 'Total count in the console buffer'
+
   return (
     <div className="flex flex-wrap items-center gap-2 px-2 py-1.5 border-b border-[var(--border)] bg-[var(--panel-2)]">
       <div className="flex flex-wrap items-center gap-1.5 flex-1 min-w-0">
@@ -59,6 +68,7 @@ export function ConsoleFilterBar({
           active={filters.error}
           label="Errors"
           count={counts.error}
+          countTitle={countTitle}
           tone="error"
           icon={<XCircle size={12} fill="currentColor" />}
           onClick={() => onToggle('error')}
@@ -67,6 +77,7 @@ export function ConsoleFilterBar({
           active={filters.warn}
           label="Warnings"
           count={counts.warn}
+          countTitle={countTitle}
           tone="warn"
           icon={<AlertTriangle size={12} fill="currentColor" />}
           onClick={() => onToggle('warn')}
@@ -75,6 +86,7 @@ export function ConsoleFilterBar({
           active={filters.info}
           label="Info"
           count={counts.info}
+          countTitle={countTitle}
           tone="info"
           icon={<Info size={12} fill="currentColor" />}
           onClick={() => onToggle('info')}

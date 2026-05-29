@@ -3,7 +3,8 @@ import { useConsoleLogs } from '../store/editor-store'
 import type { ConsoleLevel } from '../types'
 import { ConsoleFilterBar } from '../components/console/ConsoleFilterBar'
 import {
-  countConsoleLogsByFilter,
+  consoleChipCounts,
+  consoleEmptyListMessage,
   DEFAULT_CONSOLE_FILTERS,
   filterConsoleLogs,
   type ConsoleFilterKey,
@@ -32,11 +33,14 @@ function readStoredFilters(): ConsoleLevelFilters {
     const raw = globalThis.localStorage.getItem(FILTERS_STORAGE_KEY)
     if (!raw) return DEFAULT_CONSOLE_FILTERS
     const parsed = JSON.parse(raw) as Partial<ConsoleLevelFilters>
-    return {
-      error: parsed.error !== false,
-      warn: parsed.warn !== false,
-      info: parsed.info !== false,
+    if (
+      typeof parsed.error === 'boolean'
+      && typeof parsed.warn === 'boolean'
+      && typeof parsed.info === 'boolean'
+    ) {
+      return { error: parsed.error, warn: parsed.warn, info: parsed.info }
     }
+    return DEFAULT_CONSOLE_FILTERS
   } catch {
     return DEFAULT_CONSOLE_FILTERS
   }
@@ -46,11 +50,20 @@ export default function ConsolePanel() {
   const { state } = useConsoleLogs()
   const { consoleLogs } = state
   const bottomRef = useRef<HTMLDivElement>(null)
+  const lastScrolledLogIdRef = useRef(0)
   const [copyStatus, setCopyStatus] = useState<string | null>(null)
   const [filters, setFilters] = useState<ConsoleLevelFilters>(readStoredFilters)
   const [search, setSearch] = useState('')
 
-  const counts = useMemo(() => countConsoleLogsByFilter(consoleLogs), [consoleLogs])
+  const chipCounts = useMemo(
+    () => consoleChipCounts(consoleLogs, search),
+    [consoleLogs, search],
+  )
+
+  const emptyMessage = useMemo(
+    () => consoleEmptyListMessage(consoleLogs, filters, search),
+    [consoleLogs, filters, search],
+  )
 
   const visibleLogs = useMemo(
     () => filterConsoleLogs(consoleLogs, filters, search),
@@ -96,14 +109,19 @@ export default function ConsolePanel() {
   }
 
   useEffect(() => {
+    if (!consoleLogs.length) return
+    const maxId = consoleLogs.reduce((max, entry) => (entry.id > max ? entry.id : max), 0)
+    if (maxId <= lastScrolledLogIdRef.current) return
+    lastScrolledLogIdRef.current = maxId
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [visibleLogs.length, consoleLogs.length])
+  }, [consoleLogs])
 
   return (
     <div className="h-full flex flex-col bg-[var(--panel-3)]" data-panel="console">
       <ConsoleFilterBar
         filters={filters}
-        counts={counts}
+        counts={chipCounts}
+        searchActive={search.trim().length > 0}
         search={search}
         onToggle={toggleFilter}
         onSearchChange={setSearch}
@@ -143,11 +161,7 @@ export default function ConsolePanel() {
 
       <div className="flex-1 overflow-y-auto p-3 space-y-0.5 font-mono select-text min-h-0">
         {visibleLogs.length === 0 ? (
-          <p className="text-[10px] text-[var(--muted)] italic py-2">
-            {consoleLogs.length === 0
-              ? 'No log output yet.'
-              : 'No logs match the current filters.'}
-          </p>
+          <p className="text-[10px] text-[var(--muted)] italic py-2">{emptyMessage}</p>
         ) : (
           visibleLogs.map((entry) => (
             <div key={entry.id} className="flex items-start gap-3 text-[10px] leading-5">
