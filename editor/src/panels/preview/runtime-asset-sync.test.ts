@@ -38,4 +38,28 @@ describe('performRuntimeSceneAssetSync', () => {
       project, 'scene_b', '/proj/game.artcade', undefined,
     )
   })
+
+  it('prefetches inactive scenes with scene-static when active uses spawn-prototypes', () => {
+    const project = {
+      ...createBlankProject(),
+      scenes: {
+        scene_main: createBlankProject().scenes.scene_main,
+        scene_b: {
+          ...createBlankProject().scenes.scene_main,
+          id: 'scene_b',
+          name: 'B',
+        },
+      },
+    }
+    const projectPath = '/proj/game.artcade/project.json'
+    performRuntimeSceneAssetSync(project, 'scene_main', projectPath, {
+      scope: 'scene+spawn-prototypes',
+    })
+    expect(loadScene).toHaveBeenCalledWith(
+      project, 'scene_main', '/proj/game.artcade', { scope: 'scene+spawn-prototypes' },
+    )
+    expect(prefetchScene).toHaveBeenCalledWith(
+      project, 'scene_b', '/proj/game.artcade', { scope: 'scene-static' },
+    )
+  })
 })

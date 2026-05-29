@@ -1,14 +1,20 @@
 import type { CoreState, Action, DomainReducer } from '../editor-store-state'
 import type { AssetVirtualFolderDef } from '../../types'
 
-let virtualFolderSeq = 0
+function nextVirtualFolderId(folders: Record<string, AssetVirtualFolderDef> | undefined): string {
+  let max = 0
+  for (const id of Object.keys(folders ?? {})) {
+    const m = /^folder_(\d+)$/.exec(id)
+    if (m) max = Math.max(max, Number(m[1]))
+  }
+  return `folder_${max + 1}`
+}
 
 export const assetFolderReducer: DomainReducer = (state: CoreState, action: Action) => {
   switch (action.type) {
     case 'ASSET_FOLDER_CREATE': {
       if (!state.project) return state
-      virtualFolderSeq += 1
-      const id = `folder_${Date.now().toString(36)}_${virtualFolderSeq.toString(36)}`
+      const id = nextVirtualFolderId(state.project.assetVirtualFolders)
       const folder: AssetVirtualFolderDef = {
         id,
         name: action.name.trim() || 'New Folder',

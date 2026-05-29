@@ -16,7 +16,14 @@ export function performRuntimeSceneAssetSync(
 ): void {
   const root = projectPath ? dirName(projectPath) : ''
   void assetOrchestrator.loadScene(project, activeSceneId, root, options)
+  // Prefetch inactive scenes with scene-static only — spawn prototypes apply to active scene.
+  const prefetchOptions =
+    options?.scope === 'scene+spawn-prototypes'
+      ? { scope: 'scene-static' as const }
+      : options
   for (const sid of Object.keys(project.scenes)) {
-    if (sid !== activeSceneId) assetOrchestrator.prefetchScene(project, sid, root, options)
+    if (sid !== activeSceneId) {
+      assetOrchestrator.prefetchScene(project, sid, root, prefetchOptions)
+    }
   }
 }

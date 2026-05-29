@@ -786,7 +786,8 @@ The left sidebar uses **`ProjectExplorerPanel`** (`editor/src/components/project
 - Scene / entity / type actions: `editor/src/hooks/useSceneExplorerActions.ts`
 - Tree model + search: `editor/src/utils/project-explorer-tree.ts`
 - Audio/font preview strip: `editor/src/components/asset-explorer/AssetMediaDetailStrip.tsx`
-- Normalize refs: File menu → `PROJECT_NORMALIZE_ASSET_REFS` → `normalize-asset-refs.ts` (entities, tilesets, Logic Board audio)
+- Normalize refs: File menu → `PROJECT_NORMALIZE_ASSET_REFS` → `normalize-asset-refs.ts` (entities, tilesets, Logic Board `playSound`/`playMusic` in `actions` and `elseActions`; no sprite-path action fields in schema today)
+- ZIP I/O: `artcade-zip-io.ts` shared by `artcade-package.ts` import and `artcade-zip-parse.ts` tests
 - Preview spawn scope: canvas toolbar → `EDITOR_SET_PREVIEW_ASSET_LOAD_SCOPE` → `collect-scene-asset-refs` `scene+spawn-prototypes`
 
 ---
