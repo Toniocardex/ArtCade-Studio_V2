@@ -76,3 +76,21 @@ describe('uiReducer — console dock', () => {
     expect(uiReducer(start, { type: 'ACKNOWLEDGE_CONSOLE_LOGS', upToId: 42 }).consoleAckUpToId).toBe(42)
   })
 })
+
+describe('uiReducer — spritesheet studio', () => {
+  it('SPRITESHEET_STUDIO_OPEN sets open and imageAssetId', () => {
+    const s = uiReducer(base(), {
+      type: 'SPRITESHEET_STUDIO_OPEN',
+      imageAssetId: 'img_hero',
+    })
+    expect(s.spritesheetStudio).toEqual({ open: true, imageAssetId: 'img_hero' })
+  })
+
+  it('SPRITESHEET_STUDIO_CLOSE clears modal state', () => {
+    const start = base({
+      spritesheetStudio: { open: true, imageAssetId: 'img_hero' },
+    })
+    const s = uiReducer(start, { type: 'SPRITESHEET_STUDIO_CLOSE' })
+    expect(s.spritesheetStudio).toEqual({ open: false, imageAssetId: null })
+  })
+})

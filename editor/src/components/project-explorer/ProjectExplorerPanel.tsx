@@ -25,6 +25,7 @@ import { useSceneExplorerActions } from '../../hooks/useSceneExplorerActions'
 import type { AssetFolderCategory } from '../../types'
 import { explorerFolderIdToCategory } from '../../utils/asset-virtual-folders'
 import { buildAssetFolderMenuItems } from './asset-folder-context-menus'
+import { openSpritesheetStudio } from '../../panels/spritesheet-studio/openSpritesheetStudio'
 import {
   VirtualFoldersBlock,
   assetHiddenByVirtualFolder,
@@ -567,6 +568,12 @@ export default function ProjectExplorerPanel() {
                               extraMenuItems: asset
                                 ? [
                                     {
+                                      id: 'spritesheet-studio',
+                                      label: 'Open Spritesheet Studio',
+                                      onSelect: () =>
+                                        openSpritesheetStudio(dispatch, project, imgRow.id),
+                                    },
+                                    {
                                       id: 'assign',
                                       label: 'Assign to selected entity',
                                       disabled: selectedEntityId == null,
@@ -705,6 +712,12 @@ export default function ProjectExplorerPanel() {
                                     assetFolders.createVirtualFolder('images'),
                                 },
                                 [
+                                  {
+                                    id: 'spritesheet-studio',
+                                    label: 'Open Spritesheet Studio',
+                                    onSelect: () =>
+                                      openSpritesheetStudio(dispatch, project, img.id),
+                                  },
                                   {
                                     id: 'assign',
                                     label: 'Assign to selected entity',

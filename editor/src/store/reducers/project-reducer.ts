@@ -52,6 +52,7 @@ export const projectReducer: DomainReducer = (state: CoreState, action: Action) 
           action.selectedDialogId ??
           (action.dialogs ? Object.keys(action.dialogs).sort()[0] ?? null : null),
         dialogModal: { open: false, dialogId: null },
+        spritesheetStudio: { open: false, imageAssetId: null },
       }
     }
     case 'DISMISS_LEGACY_MIGRATE_BANNER':

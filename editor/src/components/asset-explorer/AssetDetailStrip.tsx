@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { useEditor } from '../../store/editor-store'
-import type { ImageAsset, AnimationClipDef } from '../../types'
-import { AnimationClipsEditor } from '../AnimationClipsEditor'
+import type { ImageAsset } from '../../types'
+import { AnimationClipsSummary } from './AnimationClipsSummary'
+import { openSpritesheetStudio } from '../../panels/spritesheet-studio/openSpritesheetStudio'
 import { ImagePointsEditor } from './ImagePointsEditor'
 import type { AssetExplorerSelection } from '../../hooks/useAssetExplorerActions'
 
@@ -47,9 +48,9 @@ export function AssetDetailStrip({ selection }: AssetDetailStripProps) {
             asset={asset}
             onPatchPoints={(points) => patchImage({ imagePoints: points })}
           />
-          <AnimationClipsEditor
+          <AnimationClipsSummary
             asset={asset}
-            onPatch={(clips: AnimationClipDef[]) => patchImage({ clips })}
+            onOpenStudio={() => openSpritesheetStudio(dispatch, project, selection.id)}
           />
         </div>
       ) : null}

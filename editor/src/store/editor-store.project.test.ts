@@ -39,6 +39,7 @@ function baseState(p: ProjectDoc | null = project()): CoreState {
     dialogs: {},
     selectedDialogId: null,
     dialogModal: { open: false, dialogId: null },
+    spritesheetStudio: { open: false, imageAssetId: null },
   }
 }
 
@@ -48,6 +49,20 @@ describe('coreReducer - project metadata', () => {
 
     expect(s.project?.projectName).toBe('My Game')
     expect(s.projectDirty).toBe(true)
+  })
+
+  it('LOAD_PROJECT closes Spritesheet Studio modal', () => {
+    const open = coreReducer(baseState(), {
+      type: 'SPRITESHEET_STUDIO_OPEN',
+      imageAssetId: 'img_a',
+    })
+    expect(open.spritesheetStudio.open).toBe(true)
+    const loaded = coreReducer(open, {
+      type: 'LOAD_PROJECT',
+      project: project('Next'),
+      path: '/tmp/next.artcade',
+    })
+    expect(loaded.spritesheetStudio).toEqual({ open: false, imageAssetId: null })
   })
 
   it('falls back to Untitled when the provided name is empty', () => {

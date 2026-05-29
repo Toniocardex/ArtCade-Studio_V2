@@ -789,6 +789,7 @@ The left sidebar uses **`ProjectExplorerPanel`** (`editor/src/components/project
 - Normalize refs: File menu → `PROJECT_NORMALIZE_ASSET_REFS` → `normalize-asset-refs.ts` (entities, tilesets, Logic Board `playSound`/`playMusic` in `actions` and `elseActions`; no sprite-path action fields in schema today)
 - ZIP I/O: `artcade-zip-io.ts` shared by `artcade-package.ts` import and `artcade-zip-parse.ts` tests
 - Preview spawn scope: canvas toolbar → `EDITOR_SET_PREVIEW_ASSET_LOAD_SCOPE` → `collect-scene-asset-refs` `scene+spawn-prototypes`
+- **Spritesheet Studio** (image animations): full-screen `<dialog>` modal (`editor/src/panels/spritesheet-studio/`) — entry from image context menu or Asset detail strip; authors `ImageAsset.clips` (`AnimationClipDef[]`) with grid slice + frame range; live `ASSET_ADD`; same payload consumed by `registerAnimationClipsFromAssets` / `SpriteAnimator` on play (phase 2: WASM WYSIWYG preview inside modal only)
 
 ---
 

@@ -40,6 +40,7 @@ function baseState(): CoreState {
     dialogs: { innkeeper: emptyDialogScript('innkeeper') },
     selectedDialogId: 'innkeeper',
     dialogModal: { open: false, dialogId: null },
+    spritesheetStudio: { open: false, imageAssetId: null },
   }
 }
 

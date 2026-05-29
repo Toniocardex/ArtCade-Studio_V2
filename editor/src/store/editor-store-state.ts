@@ -78,6 +78,8 @@ export interface CoreState {
   dialogs: Record<string, DialogScript>
   selectedDialogId: string | null
   dialogModal: { open: boolean; dialogId: string | null }
+  /** Spritesheet Studio modal — edits ImageAsset.clips (runtime-ready). */
+  spritesheetStudio: { open: boolean; imageAssetId: string | null }
   /** Undo/redo snapshots for project.logicBoards (Logic Board panel only). */
   logicBoardHistory: LogicBoardHistory
   /** Last `logicBoardsRevision` written to main script via auto-sync / Apply. */
@@ -209,6 +211,8 @@ export type Action =
   | { type: 'DIALOG_RENAME'; fromId: string; toId: string }
   | { type: 'DIALOG_OPEN_MODAL'; dialogId: string }
   | { type: 'DIALOG_CLOSE_MODAL' }
+  | { type: 'SPRITESHEET_STUDIO_OPEN'; imageAssetId: string }
+  | { type: 'SPRITESHEET_STUDIO_CLOSE' }
 
 export type DomainReducer = (state: CoreState, action: Action) => CoreState
 
@@ -239,6 +243,7 @@ export const initialCoreState: CoreState = {
   dialogs: {},
   selectedDialogId: null,
   dialogModal: { open: false, dialogId: null },
+  spritesheetStudio: { open: false, imageAssetId: null },
   logicBoardHistory: { past: [], future: [] },
   logicScriptSyncedRevision: null,
   logicPreviewAppliedRevision: null,

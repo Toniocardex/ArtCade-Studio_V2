@@ -105,6 +105,15 @@ export const uiReducer: DomainReducer = (state: CoreState, action: Action) => {
         : { ...state, previewAssetLoadScope: action.scope }
     case 'TILESET_SELECT_CELL':
       return { ...state, selectedTileCell: Math.max(0, action.cellIndex) }
+    case 'SPRITESHEET_STUDIO_OPEN':
+      return {
+        ...state,
+        spritesheetStudio: { open: true, imageAssetId: action.imageAssetId },
+      }
+    case 'SPRITESHEET_STUDIO_CLOSE':
+      return state.spritesheetStudio.open
+        ? { ...state, spritesheetStudio: { open: false, imageAssetId: null } }
+        : state
     default:
       return state
   }
