@@ -7,6 +7,10 @@ type Surface = (typeof surfaces)['dark']
 
 const SURFACES: Record<Theme, Surface> = surfaces
 
+/** Same stack as `--font-ui` in index.css (splash + boot shell). */
+export const BOOT_UI_FONT_FAMILY =
+  "'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif"
+
 /** Matches index.css + boot-surfaces.json — Tauri window / WebView chrome. */
 export const THEME_SURFACE_RGB: Record<Theme, { red: number; green: number; blue: number }> = {
   dark:  { red: SURFACES.dark.red, green: SURFACES.dark.green, blue: SURFACES.dark.blue },
@@ -26,7 +30,7 @@ function bootShellCss(theme: Theme): string {
   const text = textHex(theme)
   return (
     `html,body,#root{width:100%;height:100%;margin:0;padding:0;overflow:hidden;background:${bg};color:${text}}` +
-    `#boot-shell{position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;background:${bg};color:${text};font-family:system-ui,-apple-system,Segoe UI,sans-serif;font-size:1.25rem;font-weight:700;letter-spacing:-0.02em;user-select:none}`
+    `#boot-shell{position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;background:${bg};color:${text};font-family:${BOOT_UI_FONT_FAMILY};font-size:1.25rem;font-weight:700;letter-spacing:-0.02em;user-select:none}`
   )
 }
 

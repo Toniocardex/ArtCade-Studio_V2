@@ -18,7 +18,7 @@ export default function SplashScreen({
   const step = useSplashChoreography({ skipped, exiting, onIntroComplete })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg)] text-[var(--text)] overflow-hidden pointer-events-none select-none font-mono">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg)] text-[var(--text)] overflow-hidden pointer-events-none select-none font-ui">
 
       <div
         className={`absolute inset-0 transition-opacity duration-1000 ${step >= 1 ? 'opacity-30' : 'opacity-0'}`}
@@ -31,7 +31,7 @@ export default function SplashScreen({
       />
 
       {step === 2 && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center opacity-70">
+        <div className="absolute inset-0 z-10 flex items-center justify-center opacity-70 font-mono">
           <div className="absolute h-px bg-[var(--accent)] animate-stream-h" style={{ width: '40vw', top: '45%' }} />
           <div className="absolute w-px bg-[var(--accent)] animate-stream-v" style={{ height: '40vh', left: '45%' }} />
           <div className="absolute h-px bg-[var(--accent-2)] animate-stream-h-reverse" style={{ width: '40vw', top: '55%' }} />
