@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Box,
   Copy,
@@ -8,6 +8,7 @@ import {
   Grid3x3,
   Image,
   Music,
+  Pencil,
   Plus,
   Star,
   Trash2,
@@ -15,7 +16,7 @@ import {
   Workflow,
 } from 'lucide-react'
 import { useEditor } from '../../store/editor-store'
-import { buildProjectExplorerData } from '../../utils/project-explorer-tree'
+import { assetFolderItemCount, buildProjectExplorerData } from '../../utils/project-explorer-tree'
 import { useExplorerExpanded } from '../../hooks/useExplorerExpanded'
 import { useAssetExplorerActions } from '../../hooks/useAssetExplorerActions'
 import { useSceneExplorerActions } from '../../hooks/useSceneExplorerActions'
@@ -36,7 +37,7 @@ export default function ProjectExplorerPanel() {
   const { state } = useEditor()
   const [search, setSearch] = useState('')
   const assetsAnchorRef = useRef<HTMLDivElement>(null)
-  const { isOpen, toggle, expandAllAssetFolders } = useExplorerExpanded()
+  const { isOpen, toggle, setOpen, expandAllAssetFolders } = useExplorerExpanded()
   const scene = useSceneExplorerActions()
   const assets = useAssetExplorerActions()
 
@@ -52,6 +53,28 @@ export default function ProjectExplorerPanel() {
     const extra = openScriptPaths ? openScriptPaths.split('\0') : []
     return buildProjectExplorerData(project, sceneId, search, extra)
   }, [project, sceneId, search, openScriptPaths])
+
+  const totalAssets = useMemo(() => {
+    if (!tree) return 0
+    return tree.assetFolders.reduce((n, f) => n + assetFolderItemCount(f), 0)
+  }, [tree])
+
+  const prevTypeCountRef = useRef(0)
+  const prevAssetCountRef = useRef(0)
+  useEffect(() => {
+    if (!tree) return
+    if (tree.entityTypes.length > 0 && prevTypeCountRef.current === 0) {
+      setOpen('entityTypes', true)
+    }
+    prevTypeCountRef.current = tree.entityTypes.length
+  }, [tree, setOpen])
+
+  useEffect(() => {
+    if (totalAssets > 0 && prevAssetCountRef.current === 0) {
+      setOpen('assets', true)
+    }
+    prevAssetCountRef.current = totalAssets
+  }, [totalAssets, setOpen])
 
   const focusAssets = () => {
     expandAllAssetFolders()
@@ -98,21 +121,54 @@ export default function ProjectExplorerPanel() {
 
       <ProjectSearch value={search} onChange={setSearch} />
 
-      <div className="panel-scroll flex-1 min-h-0">
+      <div className="flex flex-col flex-1 min-h-0">
+        <div className="panel-scroll flex-[3] min-h-0">
         <TreeSection
           title="Scenes"
           open={isOpen('scenes')}
           onToggle={() => toggle('scenes')}
           hidden={!tree.scenesVisible}
           actions={
-            <button
-              type="button"
-              onClick={scene.addScene}
-              title="Create scene"
-              className="p-1 rounded text-[var(--muted)] hover:text-[var(--accent)]"
-            >
-              <Plus size={12} />
-            </button>
+            <div className="flex items-center gap-0.5">
+              {scene.scene ? (
+                <>
+                  <button
+                    type="button"
+                    disabled={scene.isStartScene}
+                    onClick={scene.setStartScene}
+                    title="Set as start scene"
+                    className="p-1 rounded text-[var(--muted)] hover:text-[var(--accent)] disabled:opacity-40"
+                  >
+                    <Star size={12} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={scene.renameScene}
+                    title="Rename scene"
+                    className="p-1 rounded text-[var(--muted)] hover:text-[var(--accent)]"
+                  >
+                    <Pencil size={12} />
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!scene.canDeleteScene}
+                    onClick={scene.deleteScene}
+                    title="Delete scene"
+                    className="p-1 rounded text-[var(--muted)] hover:text-[var(--danger)] disabled:opacity-40"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </>
+              ) : null}
+              <button
+                type="button"
+                onClick={scene.addScene}
+                title="Create scene"
+                className="p-1 rounded text-[var(--muted)] hover:text-[var(--accent)]"
+              >
+                <Plus size={12} />
+              </button>
+            </div>
           }
         >
           {tree.scenes.length === 0 ? (
@@ -137,36 +193,6 @@ export default function ProjectExplorerPanel() {
               )
             })
           )}
-          {scene.scene && (
-            <div className="flex flex-wrap gap-1 px-2 pt-1 pb-0.5">
-              <button
-                type="button"
-                disabled={scene.isStartScene}
-                onClick={scene.setStartScene}
-                className="text-[9px] font-semibold px-2 py-0.5 rounded border border-[var(--border-2)]
-                           hover:border-[var(--accent-bd)] disabled:opacity-40"
-              >
-                Set Start
-              </button>
-              <button
-                type="button"
-                onClick={scene.renameScene}
-                className="text-[9px] font-semibold px-2 py-0.5 rounded border border-[var(--border-2)]
-                           hover:border-[var(--accent-bd)]"
-              >
-                Rename
-              </button>
-              <button
-                type="button"
-                disabled={!scene.canDeleteScene}
-                onClick={scene.deleteScene}
-                className="text-[9px] font-semibold px-2 py-0.5 rounded border border-[var(--border-2)]
-                           hover:border-[var(--danger)] hover:text-[var(--danger)] disabled:opacity-40"
-              >
-                Delete
-              </button>
-            </div>
-          )}
         </TreeSection>
 
         <TreeSection
@@ -174,6 +200,7 @@ export default function ProjectExplorerPanel() {
           open={isOpen('entities')}
           onToggle={() => toggle('entities')}
           hidden={!tree.entitiesVisible}
+          bodyClassName={tree.entities.length === 0 ? 'min-h-[3.25rem]' : ''}
           actions={
             <button
               type="button"
@@ -285,8 +312,8 @@ export default function ProjectExplorerPanel() {
           }
         >
           {tree.entityTypes.length === 0 ? (
-            <p className="text-[10px] text-[var(--muted)] italic px-2 py-1 leading-snug">
-              Reusable templates for copies and Logic Board rules by type.
+            <p className="text-[10px] text-[var(--muted)] italic px-2 py-1">
+              No types yet — + New for reusable templates.
             </p>
           ) : (
             tree.entityTypes.map((t) => (
@@ -312,8 +339,9 @@ export default function ProjectExplorerPanel() {
             ))
           )}
         </TreeSection>
+        </div>
 
-        <div ref={assetsAnchorRef}>
+        <div ref={assetsAnchorRef} className="panel-scroll flex-[2] min-h-0 border-t border-[var(--border)]">
           <TreeSection
             title="Assets"
             open={isOpen('assets')}

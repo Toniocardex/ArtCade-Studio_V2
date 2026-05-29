@@ -14,8 +14,8 @@ type ExpandedMap = Record<string, boolean>
 const DEFAULT_EXPANDED: ExpandedMap = {
   scenes: true,
   entities: true,
-  entityTypes: true,
-  assets: true,
+  entityTypes: false,
+  assets: false,
   'asset:audio': true,
   'asset:fonts': true,
   'asset:images': true,

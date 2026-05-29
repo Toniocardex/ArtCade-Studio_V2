@@ -1,9 +1,10 @@
 /**
- * Native OS dialogs in Tauri (Win32 message boxes + input on Windows).
- * Browser fallbacks only when not running inside the Tauri shell.
+ * Dialogs: confirm/alert use Tauri plugin (native). Text prompts use the in-editor
+ * themed modal so UI stays consistent with the Slate Night shell.
  */
-import { invoke, isTauri } from '@tauri-apps/api/core'
+import { isTauri } from '@tauri-apps/api/core'
 import { confirm as tauriConfirm, message as tauriMessage } from '@tauri-apps/plugin-dialog'
+import { requestTextPrompt } from './text-prompt'
 
 export async function confirmDialog(
   message: string,
@@ -40,22 +41,12 @@ export type PromptTextInputOptions = Readonly<{
   defaultValue?: string
 }>
 
-/** Native text field (Rust → Win32 on Windows). Returns null if cancelled. */
+/** Themed editor modal. Returns null if cancelled or empty. */
 export async function promptTextInput(
   options: PromptTextInputOptions,
 ): Promise<string | null> {
-  if (isTauri()) {
-    const value = await invoke<string | null>('prompt_text_input', {
-      title: options.title,
-      message: options.message,
-      defaultValue: options.defaultValue ?? '',
-    })
-    if (value == null) return null
-    const trimmed = value.trim()
-    return trimmed.length > 0 ? trimmed : null
-  }
-  const fallback = globalThis.prompt(options.message, options.defaultValue ?? '')
-  if (fallback == null) return null
-  const trimmed = fallback.trim()
+  const value = await requestTextPrompt(options)
+  if (value == null) return null
+  const trimmed = value.trim()
   return trimmed.length > 0 ? trimmed : null
 }

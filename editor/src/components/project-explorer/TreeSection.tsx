@@ -8,6 +8,7 @@ export type TreeSectionProps = Readonly<{
   actions?: ReactNode
   children: ReactNode
   hidden?: boolean
+  bodyClassName?: string
 }>
 
 export function TreeSection({
@@ -17,6 +18,7 @@ export function TreeSection({
   actions,
   children,
   hidden = false,
+  bodyClassName = '',
 }: TreeSectionProps) {
   if (hidden) return null
 
@@ -40,7 +42,7 @@ export function TreeSection({
         </button>
         {actions}
       </div>
-      {open ? <div className="px-1 py-1">{children}</div> : null}
+      {open ? <div className={`px-1 py-1 ${bodyClassName}`.trim()}>{children}</div> : null}
     </section>
   )
 }
