@@ -1,5 +1,6 @@
-/** Minimum time splash branding stays visible (classic splash — never instant dismiss). */
-export const SPLASH_MIN_VISIBLE_MS = 2500
+import { SPLASH_MIN_VISIBLE_MS } from './splash-choreography'
+
+export { SPLASH_MIN_VISIBLE_MS }
 
 /** Pure boot-gate conditions (testable without mounting React). */
 

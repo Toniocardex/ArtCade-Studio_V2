@@ -8,7 +8,7 @@ import {
   SPLASH_MIN_VISIBLE_MS,
 } from './boot-gate-logic'
 import { useEditorBootReady } from '../hooks/useEditorBootReady'
-import { revealTauriWindowAfterBoot } from '../utils/boot-chrome'
+import { revealTauriWindowForSplash } from '../utils/boot-chrome'
 import { warmWasmBinary } from '../utils/wasm-bridge'
 
 export interface EditorBootGateProps {
@@ -34,6 +34,7 @@ export default function EditorBootGate({ children }: EditorBootGateProps) {
 
   useLayoutEffect(() => {
     document.getElementById('boot-shell')?.remove()
+    revealTauriWindowForSplash()
   }, [])
 
   const skipIntro = useCallback(() => setIntroSkipped(true), [])
@@ -44,7 +45,6 @@ export default function EditorBootGate({ children }: EditorBootGateProps) {
 
     const startFade = () => {
       setFadeOut(true)
-      revealTauriWindowAfterBoot()
     }
 
     const now = Date.now()

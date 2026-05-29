@@ -1,9 +1,4 @@
-import { useState, useEffect } from 'react'
-
-/** Title visible; hold before boot gate may dismiss (no exit blur). */
-const INTRO_HOLD_COMPLETE_MS = 4800
-/** After skip, brief beat so the title frame paints before intro counts as complete. */
-const SKIP_INTRO_COMPLETE_MS = 400
+import { useSplashChoreography } from './useSplashChoreography'
 
 export interface SplashScreenProps {
   /** Intro choreography finished (title held). Does not mean runtime is ready. */
@@ -20,27 +15,7 @@ export default function SplashScreen({
   skipped = false,
   exiting = false,
 }: SplashScreenProps) {
-  const [step, setStep] = useState(0) // 0 idle, 1 grid, 2 streams, 3 title hold, 4 exit blur
-
-  useEffect(() => {
-    if (exiting) {
-      setStep(4)
-      return undefined
-    }
-    if (skipped) {
-      setStep(3)
-      const t = globalThis.setTimeout(() => onIntroComplete?.(), SKIP_INTRO_COMPLETE_MS)
-      return () => globalThis.clearTimeout(t)
-    }
-
-    const timers = [
-      globalThis.setTimeout(() => setStep(1), 200),
-      globalThis.setTimeout(() => setStep(2), 600),
-      globalThis.setTimeout(() => setStep(3), 1400),
-      globalThis.setTimeout(() => onIntroComplete?.(), INTRO_HOLD_COMPLETE_MS),
-    ]
-    return () => timers.forEach(globalThis.clearTimeout)
-  }, [skipped, exiting, onIntroComplete])
+  const step = useSplashChoreography({ skipped, exiting, onIntroComplete })
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg)] text-[var(--text)] overflow-hidden pointer-events-none select-none font-mono">
