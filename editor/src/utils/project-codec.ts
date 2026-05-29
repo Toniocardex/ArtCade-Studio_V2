@@ -104,6 +104,11 @@ function parseSprite(raw: unknown): SpriteComponent {
     ? toVec3(r.fillColor)
     : { x: tint.x, y: tint.y, z: tint.z }
   const pivotFromAsset = r.pivotFromAsset !== false
+  const defaultClipRaw = r.defaultClip ?? r.default_clip
+  const defaultClip =
+    typeof defaultClipRaw === 'string' && defaultClipRaw.trim().length > 0
+      ? defaultClipRaw.trim()
+      : undefined
   return {
     spriteAssetId,
     tint,
@@ -112,6 +117,10 @@ function parseSprite(raw: unknown): SpriteComponent {
     pivotFromAsset,
     pivot:         pivotFromAsset ? { x: 0.5, y: 0.5 } : toVec2(r.pivot ?? [0.5, 0.5]),
     renderOrder:   Number(r.renderOrder ?? r.render_order) || 0,
+    ...(defaultClip ? { defaultClip } : {}),
+    ...(r.playClipOnSpawn === true || r.play_clip_on_spawn === true
+      ? { playClipOnSpawn: true }
+      : {}),
   }
 }
 
@@ -154,14 +163,18 @@ function parseEntity(raw: unknown, fallbackId: number): EntityDef {
     }
   }
   const r = raw as Record<string, unknown>
+  let sprite = parseSprite(r.sprite)
+  const legacyAnim = parseAnimation(r.animation)
+  if (legacyAnim?.currentAnim?.trim() && !sprite.defaultClip) {
+    sprite = { ...sprite, defaultClip: legacyAnim.currentAnim.trim() }
+  }
   return {
     id:        Number(r.id) || fallbackId,
     name:      String(r.name ?? `Entity_${fallbackId}`),
     className: String(r.className ?? r.class_name ?? 'Unknown'),
     tags:      Array.isArray(r.tags) ? r.tags.map(String) : [],
     transform: parseTransform(r.transform),
-    sprite:    parseSprite(r.sprite),
-    animation:  parseAnimation(r.animation),
+    sprite,
     physics:    parsePhysics(r.physics),
     scriptPath: r.scriptPath != null ? String(r.scriptPath) : (r.script_path != null ? String(r.script_path) : undefined),
     visible: typeof r.visible === 'boolean' ? r.visible : true,
@@ -611,6 +624,10 @@ function serializeSprite(sprite: SpriteComponent) {
     fillColor:     vec3Array(sprite.fillColor),
     alpha:         sprite.alpha,
     renderOrder:   sprite.renderOrder,
+    ...(sprite.defaultClip?.trim()
+      ? { defaultClip: sprite.defaultClip.trim() }
+      : {}),
+    ...(sprite.playClipOnSpawn === true ? { playClipOnSpawn: true } : {}),
   }
   if (sprite.pivotFromAsset === false) {
     return {
@@ -631,7 +648,6 @@ function serializeEntity(entity: EntityDef) {
     transform: serializeTransform(entity.transform),
     sprite:    serializeSprite(entity.sprite),
     ...(entity.scriptPath ? { scriptPath: entity.scriptPath } : {}),
-    ...(entity.animation ? { animation: entity.animation } : {}),
     ...(entity.physics ? { physics: entity.physics } : {}),
     ...(entity.visible === false ? { visible: false } : {}),
     ...Object.fromEntries(

@@ -94,6 +94,15 @@ clips that don't exist.
   marked stub).
 - **Test:** Logic Board compiler test + manual smoke firing a non-loop clip.
 
+### 1e — Editor affordances (clip picker + play on spawn) ✅
+
+- ✅ `animation-clips-catalog.ts` — list project clips for UI.
+- ✅ Logic Board widget `animationClip` + `ClipPicker` on `playAnimation` / `onAnimationEnd`.
+- ✅ Inspector: `sprite.defaultClip` + `playClipOnSpawn` on [`SpriteSection`](../editor/src/panels/inspector/SpriteSection.tsx).
+- ✅ C++ `SpriteComponent` fields + `RuntimeEntityGateway::maybePlaySpawnClip` on activate/create.
+- ✅ Legacy load: `entity.animation.currentAnim` → `sprite.defaultClip` (no longer serializes `animation`).
+- **Test:** `sprite-clip-fields.test.ts`, `animation-clips-catalog.test.ts`; manual smoke still open below.
+
 ### Closure checklist
 - [x] tsc clean
 - [x] vitest green (incl. new tests)

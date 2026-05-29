@@ -244,6 +244,7 @@ bool Application::initSubsystems() {
     EditorAPI::wireRenderer(mod_->renderer.get()); // tileset image upload (F3)
     EditorAPI::wireDialog(mod_->dialogManager.get());
     EditorAPI::wireSpriteAnimator(mod_->spriteAnimator.get());
+    mod_->entityGateway->setSpriteAnimator(mod_->spriteAnimator.get());
     EditorAPI::wireAudio(mod_->audio.get());
     EditorAPI::init("#artcade-canvas");
 

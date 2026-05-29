@@ -30,6 +30,7 @@ type NodeEditorProps = Readonly<{
   depth: number
   conditionTypes: readonly LogicCondition['type'][]
   recommendedConditionTypes?: readonly LogicCondition['type'][]
+  contextSpritePath?: string
 }>
 
 function NodeEditor({
@@ -40,6 +41,7 @@ function NodeEditor({
   depth,
   conditionTypes,
   recommendedConditionTypes,
+  contextSpritePath,
 }: NodeEditorProps) {
   if (node.kind === 'leaf') {
     const cond = node.condition
@@ -84,6 +86,7 @@ function NodeEditor({
               negated: node.negated,
             })
           }
+          contextSpritePath={contextSpritePath}
         />
         {onRemove && (
           <button type="button" className={link} onClick={onRemove}>
@@ -165,6 +168,7 @@ function NodeEditor({
           depth={depth + 1}
           conditionTypes={conditionTypes}
           recommendedConditionTypes={recommendedConditionTypes}
+          contextSpritePath={contextSpritePath}
           onChange={(next) => {
             const statements = group.statements.slice()
             statements[i] = next
@@ -186,6 +190,7 @@ export type ConditionTreeEditorProps = Readonly<{
   advanced?: boolean
   conditionTypes?: readonly LogicCondition['type'][]
   recommendedConditionTypes?: readonly LogicCondition['type'][]
+  contextSpritePath?: string
 }>
 
 /** Tree-only editor for advanced mode. */
@@ -195,6 +200,7 @@ export function ConditionTreeEditor({
   advanced = false,
   conditionTypes = CONDITION_TYPES,
   recommendedConditionTypes: recommendedTypes,
+  contextSpritePath,
 }: ConditionTreeEditorProps) {
   if (!advanced) return null
 
@@ -212,6 +218,7 @@ export function ConditionTreeEditor({
         depth={0}
         conditionTypes={conditionTypes}
         recommendedConditionTypes={recommendedTypes}
+        contextSpritePath={contextSpritePath}
         onChange={(r) => onChange({ ...event, conditions: undefined, conditionRoot: r })}
       />
     </div>

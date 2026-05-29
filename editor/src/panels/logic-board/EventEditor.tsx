@@ -2,7 +2,7 @@
 // Expanded rule editor - When / Also require… / Then blocks
 // ---------------------------------------------------------------------------
 
-import { Fragment, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import {
   Check,
   Copy,
@@ -27,6 +27,7 @@ import { ConditionPolaritySelect } from '../../components/logic-board/ConditionP
 import { ConditionTreeEditor } from '../../components/logic-board/ConditionTreeEditor'
 import type { ConditionCombineOp } from '../../utils/logic-board/condition-combine'
 import { OnInputTriggerFields } from '../../components/logic-board/OnInputTriggerFields'
+import { spritePathForLogicBoardTarget } from '../../utils/animation-clips-catalog'
 import { defaultConditionRoot } from '../../utils/logic-board/schema-registry'
 import { actionDisplayName } from './friendly-labels'
 import type { ProjectDoc } from '../../types'
@@ -140,11 +141,13 @@ function TriggerFields({
   trigger,
   board,
   project,
+  contextSpritePath,
   onChange,
 }: {
   trigger: LogicTrigger
   board?: LogicBoard | null
   project?: ProjectDoc | null
+  contextSpritePath?: string
   onChange: (t: LogicTrigger) => void
 }) {
   const isSensorTrigger =
@@ -167,6 +170,7 @@ function TriggerFields({
           type={trigger.type}
           value={trigger as unknown as Record<string, unknown>}
           onChange={(next) => onChange(next as LogicTrigger)}
+          contextSpritePath={contextSpritePath}
         />
       )}
       {isCollisionTrigger && (
@@ -205,6 +209,7 @@ function ActionListBlock({
   trigger,
   board,
   project,
+  contextSpritePath,
   recommendedTypes,
   onChangeActions,
   newActionType,
@@ -216,6 +221,7 @@ function ActionListBlock({
   trigger: LogicTrigger
   board?: LogicBoard | null
   project?: ProjectDoc | null
+  contextSpritePath?: string
   recommendedTypes: readonly string[]
   onChangeActions: (actions: LogicAction[]) => void
   newActionType: NewActionPick
@@ -239,6 +245,7 @@ function ActionListBlock({
           nestedInRepeat={insideRepeat.has(i)}
           board={board}
           project={project}
+          contextSpritePath={contextSpritePath}
           forElse={forElse}
           pickerTypes={pickerTypes}
           recommendedTypes={recommendedTypes}
@@ -302,6 +309,7 @@ function ActionCard({
   nestedInRepeat,
   board,
   project,
+  contextSpritePath,
   forElse,
   pickerTypes,
   recommendedTypes,
@@ -314,6 +322,7 @@ function ActionCard({
   nestedInRepeat?: boolean
   board?: LogicBoard | null
   project?: ProjectDoc | null
+  contextSpritePath?: string
   forElse?: boolean
   pickerTypes: readonly LogicAction['type'][]
   recommendedTypes: readonly string[]
@@ -374,6 +383,7 @@ function ActionCard({
         type={act.type}
         value={act as unknown as Record<string, unknown>}
         onChange={(next) => onChange(next as LogicAction)}
+        contextSpritePath={contextSpritePath}
       />
       <ComponentRequirementWarning requirement={actionRequirement(act, project, board)} />
       {destroyOtherWarn && (
@@ -467,6 +477,7 @@ function SimpleConditions({
   event,
   board,
   project,
+  contextSpritePath,
   onChange,
   conditionTypes,
   recommendedConditions,
@@ -474,6 +485,7 @@ function SimpleConditions({
   event: LogicEvent
   board?: LogicBoard | null
   project?: ProjectDoc | null
+  contextSpritePath?: string
   onChange: (e: LogicEvent) => void
   conditionTypes: readonly LogicCondition['type'][]
   recommendedConditions: readonly LogicCondition['type'][]
@@ -541,6 +553,7 @@ function SimpleConditions({
               conds[i] = { ...(next as LogicCondition), negated: c.negated }
               onChange({ ...event, conditions: conds, conditionRoot: undefined })
             }}
+            contextSpritePath={contextSpritePath}
           />
           <ComponentRequirementWarning requirement={conditionRequirement(c, project, board)} />
           <button
@@ -671,6 +684,10 @@ export default function EventEditor({
     board,
     authoringMode,
   )
+  const contextSpritePath = useMemo(
+    () => spritePathForLogicBoardTarget(project, board),
+    [project, board],
+  )
 
   return (
     <div
@@ -707,6 +724,7 @@ export default function EventEditor({
           trigger={event.trigger}
           board={board}
           project={project}
+          contextSpritePath={contextSpritePath}
           onChange={(t) => onChange(commitEventUpdate(event, { trigger: t }))}
         />
       </LogicBlock>
@@ -755,6 +773,7 @@ export default function EventEditor({
               event={event}
               board={board}
               project={project}
+              contextSpritePath={contextSpritePath}
               onChange={onChange}
               conditionTypes={pickerConditionTypes}
               recommendedConditions={pickerRecommendedConditions}
@@ -802,6 +821,7 @@ export default function EventEditor({
               advanced
               conditionTypes={pickerConditionTypes}
               recommendedConditionTypes={pickerRecommendedConditions}
+              contextSpritePath={contextSpritePath}
             />
           </>
         )}
@@ -820,6 +840,7 @@ export default function EventEditor({
           trigger={event.trigger}
           board={board}
           project={project}
+          contextSpritePath={contextSpritePath}
           recommendedTypes={recommendedTypes}
           newActionType={newActionType}
           setNewActionType={setNewActionType}
@@ -874,6 +895,7 @@ export default function EventEditor({
               trigger={event.trigger}
               board={board}
               project={project}
+              contextSpritePath={contextSpritePath}
               recommendedTypes={recommendedTypes}
               newActionType={newElseActionType}
               setNewActionType={setNewElseActionType}

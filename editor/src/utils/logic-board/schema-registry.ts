@@ -44,6 +44,7 @@ export type ParamWidget =
   | 'keyCapture'
   | 'className'
   | 'entityTag'
+  | 'animationClip'
 
 export interface ParamFieldMeta {
   widget: ParamWidget

@@ -3,6 +3,7 @@
 #include "entity-registry.h"
 #include "../../scene-system/include/scene-manager.h"
 #include "../../physics/include/physics.h"
+#include "../../sprite-animator/include/sprite-animator.h"
 #include "object-type-materialize.h"
 
 #include <algorithm>
@@ -95,6 +96,17 @@ void RuntimeEntityGateway::shutdown() {
 void RuntimeEntityGateway::setPhysics(Physics* physics) {
     physics_ = physics;
     registry_->attachPhysicsModule(physics);
+}
+
+void RuntimeEntityGateway::setSpriteAnimator(SpriteAnimator* animator) {
+    spriteAnimator_ = animator;
+}
+
+void RuntimeEntityGateway::maybePlaySpawnClip(EntityId id, const SpriteComponent& sprite) {
+    if (!spriteAnimator_ || !sprite.playClipOnSpawn || sprite.defaultClip.empty())
+        return;
+    if (spriteAnimator_->hasClip(sprite.defaultClip))
+        spriteAnimator_->play(id, sprite.defaultClip);
 }
 
 void RuntimeEntityGateway::setSpawnLogCallback(SpawnLogCallback cb) {
@@ -208,8 +220,14 @@ void RuntimeEntityGateway::deactivateEntity(EntityId id) {
 
 void RuntimeEntityGateway::activateEntity(EntityId id) {
     if (!registry_->contains(id)) return;
+    const bool wasActive = registry_->sceneActive(id);
     registry_->setSceneActive(id, true);
     ensurePhysicsBody(id);
+    if (!wasActive) {
+        SpriteComponent sprite;
+        if (getSprite(id, sprite))
+            maybePlaySpawnClip(id, sprite);
+    }
 }
 
 void RuntimeEntityGateway::syncSceneActivation() {
@@ -290,8 +308,10 @@ EntityId RuntimeEntityGateway::create(const EntityDef& def) {
     registry_->setSceneActive(id, entityListedInActiveScene(id));
     applyEntityDefToRegistry(id, copy);
 
-    if (registry_->sceneActive(id))
+    if (registry_->sceneActive(id)) {
         ensurePhysicsBody(id);
+        maybePlaySpawnClip(id, copy.sprite);
+    }
     return id;
 }
 

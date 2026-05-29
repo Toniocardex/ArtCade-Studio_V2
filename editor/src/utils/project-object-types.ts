@@ -60,6 +60,8 @@ export function entityToObjectType(entity: EntityDef, typeId: string): ObjectTyp
       fillColor: { ...entity.sprite.fillColor },
       pivot: { ...entity.sprite.pivot },
       ...(entity.sprite.pivotFromAsset === false ? { pivotFromAsset: false } : {}),
+      ...(entity.sprite.defaultClip ? { defaultClip: entity.sprite.defaultClip } : {}),
+      ...(entity.sprite.playClipOnSpawn === true ? { playClipOnSpawn: true } : {}),
     },
     ...(entity.animation ? { animation: { ...entity.animation } } : {}),
     ...(entity.physics ? { physics: JSON.parse(JSON.stringify(entity.physics)) } : {}),
@@ -93,6 +95,8 @@ export function materializeEntity(
     tint: { ...type.sprite.tint },
     fillColor: { ...type.sprite.fillColor },
     pivot: { ...type.sprite.pivot },
+    ...(type.sprite.defaultClip ? { defaultClip: type.sprite.defaultClip } : {}),
+    ...(type.sprite.playClipOnSpawn === true ? { playClipOnSpawn: true } : {}),
   }
   if (type.animation) ent.animation = { ...type.animation }
   if (type.physics) ent.physics = JSON.parse(JSON.stringify(type.physics))

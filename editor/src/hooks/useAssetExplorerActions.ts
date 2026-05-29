@@ -158,7 +158,7 @@ export function useAssetExplorerActions() {
       dispatch({
         type: 'ENTITY_SET_SPRITE',
         entityId: selEntity.id,
-        sprite: spriteAssignedFromAsset(selEntity.sprite, asset),
+        sprite: spriteAssignedFromAsset(selEntity.sprite, asset, project),
       })
       showFlash(`Sprite "${asset.name}" → ${selEntity.name}`)
     },

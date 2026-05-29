@@ -37,6 +37,10 @@ export interface SpriteComponent {
   /** Override pivot when pivotFromAsset is false; otherwise cached effective pivot. */
   pivot:         Vec2
   renderOrder:   number
+  /** Clip on the assigned sheet to play when playClipOnSpawn is true. */
+  defaultClip?: string
+  /** If true and defaultClip is set, runtime plays that clip when the entity spawns. */
+  playClipOnSpawn?: boolean
 }
 
 export interface AnimationState {

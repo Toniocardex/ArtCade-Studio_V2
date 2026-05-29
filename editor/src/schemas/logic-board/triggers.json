@@ -141,7 +141,7 @@
       "category": "Graphics",
       "executionMode": "event",
       "params": {
-        "clipName": { "widget": "string", "label": "Clip", "placeholder": "death" }
+        "clipName": { "widget": "animationClip", "label": "Clip", "placeholder": "death" }
       }
     }
   },

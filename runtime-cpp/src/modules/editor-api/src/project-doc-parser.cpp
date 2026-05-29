@@ -77,6 +77,11 @@ SpriteComponent parseSprite(const json& j) {
     if (j.contains("pivot"))
         s.pivot = parseVec2(j["pivot"]);
     s.renderOrder = j.value("renderOrder", j.value("render_order", 0));
+    if (j.contains("defaultClip"))
+        s.defaultClip = j["defaultClip"].get<std::string>();
+    else if (j.contains("default_clip"))
+        s.defaultClip = j["default_clip"].get<std::string>();
+    s.playClipOnSpawn = j.value("playClipOnSpawn", j.value("play_clip_on_spawn", false));
     return s;
 }
 

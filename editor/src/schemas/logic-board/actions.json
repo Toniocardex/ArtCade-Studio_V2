@@ -167,7 +167,7 @@
       "category": "Graphics",
       "params": {
         "target": { "widget": "target", "label": "Target" },
-        "clipName": { "widget": "string", "label": "Clip name" }
+        "clipName": { "widget": "animationClip", "label": "Clip name" }
       }
     }
   },

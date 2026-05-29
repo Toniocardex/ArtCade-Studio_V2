@@ -25,6 +25,7 @@ using PhysicsTopologyHandler = std::function<void()>;
 class SceneManager;
 class Physics;
 class EntityRegistry;
+class SpriteAnimator;
 
 /**
  * RuntimeEntityGateway — single owner of runtime entity state.
@@ -44,6 +45,9 @@ public:
     void shutdown() override;
 
     void setPhysics(Physics* physics);
+
+    /** Optional: play defaultClip on spawn when sprite.playClipOnSpawn is set. */
+    void setSpriteAnimator(SpriteAnimator* animator);
 
     /** Editor console (or tests): called after each spawnFromClass with "[Spawn] …" line. */
     void setSpawnLogCallback(SpawnLogCallback cb);
@@ -217,6 +221,7 @@ public:
 private:
     SceneManager&  sceneManager_;
     Physics*       physics_ = nullptr;
+    SpriteAnimator* spriteAnimator_ = nullptr;
 
     /** EnTT-backed storage (entity-registry.cpp). PIMPL keeps entt headers
      *  out of this public include; gateway methods delegate here. */
@@ -255,6 +260,8 @@ private:
      *  create(), spawnFromClass() and replaceProject() to keep them
      *  in lockstep when new components are added. */
     void applyEntityDefToRegistry(EntityId id, const EntityDef& def);
+    /** After registry apply; before lifecycle Lua drain in the same frame. */
+    void maybePlaySpawnClip(EntityId id, const SpriteComponent& sprite);
 };
 
 } // namespace ArtCade::Modules

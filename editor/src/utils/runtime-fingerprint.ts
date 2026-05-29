@@ -40,6 +40,8 @@ interface FpSprite {
   o: number                  // alpha
   p: FpVec2                  // pivot
   z: number                  // renderOrder
+  dc?: string                // defaultClip
+  ps?: boolean               // playClipOnSpawn
 }
 
 interface FpEntity {
@@ -111,7 +113,16 @@ function projectEntity(e: EntityDef): FpEntity {
     c:  e.className,
     g:  [...e.tags].sort(),
     t:  { px: t.position.x, py: t.position.y, r: t.rotation, sx: t.scale.x, sy: t.scale.y },
-    s:  { a: s.spriteAssetId, t: v4(s.tint), fc: v3(s.fillColor), o: s.alpha, p: v2(s.pivot), z: s.renderOrder },
+    s:  {
+      a: s.spriteAssetId,
+      t: v4(s.tint),
+      fc: v3(s.fillColor),
+      o: s.alpha,
+      p: v2(s.pivot),
+      z: s.renderOrder,
+      ...(s.defaultClip?.trim() ? { dc: s.defaultClip.trim() } : {}),
+      ...(s.playClipOnSpawn === true ? { ps: true } : {}),
+    },
     v:  e.visible,
     sp: e.scriptPath,
     ph: e.physics,

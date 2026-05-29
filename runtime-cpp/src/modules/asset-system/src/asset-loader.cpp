@@ -192,6 +192,12 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
                 e.sprite.spriteAssetId = readStringAny(s, "spriteAssetId", "sprite_asset_id");
                 if (s.contains("tint")) e.sprite.tint = readVec4(s["tint"]);
                 e.sprite.alpha = s.value("alpha", 1.f);
+                if (s.contains("defaultClip"))
+                    e.sprite.defaultClip = s["defaultClip"].get<std::string>();
+                else if (s.contains("default_clip"))
+                    e.sprite.defaultClip = s["default_clip"].get<std::string>();
+                e.sprite.playClipOnSpawn = s.value("playClipOnSpawn",
+                    s.value("play_clip_on_spawn", false));
             }
             if (tv.contains("solid") && tv["solid"].is_object()) {
                 SolidComponent solid;
@@ -242,6 +248,12 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
                 e.sprite.renderOrder = s.contains("renderOrder")
                     ? s["renderOrder"].get<int32_t>()
                     : s.value("render_order", 0);
+                if (s.contains("defaultClip"))
+                    e.sprite.defaultClip = s["defaultClip"].get<std::string>();
+                else if (s.contains("default_clip"))
+                    e.sprite.defaultClip = s["default_clip"].get<std::string>();
+                e.sprite.playClipOnSpawn = s.value("playClipOnSpawn",
+                    s.value("play_clip_on_spawn", false));
             }
 
             if (ev.contains("physics") && ev["physics"].is_object()) {

@@ -15,6 +15,7 @@ import { enumDisplayLabel, fieldDisplayLabel } from '../../panels/logic-board/fr
 import { TargetPicker } from './TargetPicker'
 import { KeyCapture } from './KeyCapture'
 import { ClassNamePicker } from './ClassNamePicker'
+import { ClipPicker } from './ClipPicker'
 import { TagPicker } from './TagPicker'
 
 const sel =
@@ -293,6 +294,31 @@ function renderEntityTagField({ kind, type, name, value, onPatch }: FieldProps) 
   )
 }
 
+type AnimationClipFieldProps = FieldProps & { contextSpritePath?: string }
+
+function renderAnimationClipField({
+  kind,
+  type,
+  name,
+  value,
+  onPatch,
+  contextSpritePath,
+}: AnimationClipFieldProps) {
+  const allowEmpty = kind === 'action' && type === 'playAnimation'
+  return (
+    <span key={name} className="flex items-center gap-2">
+      <span className={lbl}>{fieldDisplayLabel(kind, type, name) ?? name}</span>
+      <ClipPicker
+        value={asParamString(value)}
+        onChange={(s) => onPatch(name, s)}
+        allowEmpty={allowEmpty}
+        emptyLabel="— Choose clip —"
+        filterSpritePath={contextSpritePath}
+      />
+    </span>
+  )
+}
+
 function renderStringField({ kind, type, name, meta, value, onPatch }: FieldProps) {
   return (
     <span key={name} className="flex items-center gap-2">
@@ -315,6 +341,7 @@ const FIELD_RENDERERS: Record<ParamWidget, (props: FieldProps) => ReactElement> 
   keyCapture: renderKeyCaptureField,
   className: renderClassNameField,
   entityTag: renderEntityTagField,
+  animationClip: renderAnimationClipField,
   string: renderStringField,
 }
 
@@ -328,9 +355,17 @@ export type SchemaParamFormProps = Readonly<{
   type: string
   value: Record<string, unknown>
   onChange: (next: Record<string, unknown>) => void
+  /** Entity rulesheet: prefer clips from this sprite sheet in animationClip fields. */
+  contextSpritePath?: string
 }>
 
-export function SchemaParamForm({ kind, type, value, onChange }: SchemaParamFormProps) {
+export function SchemaParamForm({
+  kind,
+  type,
+  value,
+  onChange,
+  contextSpritePath,
+}: SchemaParamFormProps) {
   const meta = getComponentMeta(kind, type)
   if (!meta || Object.keys(meta.params).length === 0) return null
 
@@ -340,17 +375,21 @@ export function SchemaParamForm({ kind, type, value, onChange }: SchemaParamForm
 
   return (
     <span className="flex items-center flex-wrap gap-2">
-      {Object.entries(meta.params).map(([name, fieldMeta]) => (
-        <Field
-          key={name}
-          kind={kind}
-          type={type}
-          name={name}
-          meta={fieldMeta}
-          value={value[name]}
-          onPatch={patch}
-        />
-      ))}
+      {Object.entries(meta.params).map(([name, fieldMeta]) => {
+        const fieldProps: FieldProps = {
+          kind,
+          type,
+          name,
+          meta: fieldMeta,
+          value: value[name],
+          onPatch: patch,
+        }
+        if (fieldMeta.widget === 'animationClip') {
+          return renderAnimationClipField({ ...fieldProps, contextSpritePath })
+        }
+        const render = FIELD_RENDERERS[fieldMeta.widget] ?? renderStringField
+        return render(fieldProps)
+      })}
     </span>
   )
 }

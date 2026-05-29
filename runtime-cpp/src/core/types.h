@@ -80,6 +80,8 @@ struct SpriteComponent {
     Vec2    pivot       = {0.5f, 0.5f};
     int32_t renderOrder = 0;
     std::string shaderEffect;  // "" | outline | hit_flash | palette_swap | wave
+    std::string defaultClip;
+    bool        playClipOnSpawn = false;
 };
 
 struct AnimationState {
