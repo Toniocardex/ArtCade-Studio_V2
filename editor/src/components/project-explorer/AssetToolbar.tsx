@@ -1,5 +1,5 @@
-import { useRef, useState, type ReactNode } from 'react'
-import { FolderPlus, FileDown, Search, ImagePlus, Music, Type, Trash2 } from 'lucide-react'
+import type { ReactNode } from 'react'
+import { FolderPlus, Search, ImagePlus, Music, Type, Trash2 } from 'lucide-react'
 
 export type AssetToolbarProps = Readonly<{
   disabled: boolean
@@ -18,12 +18,14 @@ function ToolbarBtn({
   onClick,
   disabled,
   title,
+  className = '',
 }: Readonly<{
   label: string
   icon: ReactNode
   onClick: () => void
   disabled?: boolean
   title?: string
+  className?: string
 }>) {
   return (
     <button
@@ -31,12 +33,47 @@ function ToolbarBtn({
       onClick={onClick}
       disabled={disabled}
       title={title ?? label}
-      className="flex-1 flex flex-col items-center justify-center gap-0.5 p-1.5 rounded
+      className={`flex flex-col items-center justify-center gap-1 min-h-[3.25rem] px-2 py-2 rounded
                  border border-[var(--border)] bg-[var(--panel-2)] text-[var(--muted)]
-                 hover:bg-[var(--border)] hover:text-[var(--text)] disabled:opacity-40 transition-colors"
+                 hover:bg-[var(--border)] hover:text-[var(--text)] disabled:opacity-40 transition-colors
+                 ${className}`}
     >
       <span className="text-[var(--muted)]">{icon}</span>
-      <span className="text-[9px] leading-tight text-center">{label}</span>
+      <span className="text-[10px] leading-tight text-center font-medium">{label}</span>
+    </button>
+  )
+}
+
+function ImportBtn({
+  label,
+  hint,
+  icon,
+  onClick,
+  disabled,
+  accent = false,
+}: Readonly<{
+  label: string
+  hint: string
+  icon: ReactNode
+  onClick: () => void
+  disabled?: boolean
+  accent?: boolean
+}>) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      title={hint}
+      className={`flex flex-col items-center justify-center gap-1 min-h-[3.5rem] px-1.5 py-2 rounded
+                 border text-center transition-colors disabled:opacity-40 ${
+        accent
+          ? 'border-[var(--accent-bd)] bg-[var(--accent-bg)] text-[var(--accent)] hover:bg-[var(--accent-bg-h)]'
+          : 'border-[var(--border-2)] bg-[var(--bg)] text-[var(--text)] hover:bg-[var(--panel-2)] hover:border-[var(--border)]'
+      }`}
+    >
+      <span className={accent ? 'text-[var(--accent)]' : 'text-[var(--muted)]'}>{icon}</span>
+      <span className="text-[10px] font-semibold leading-tight">{label}</span>
     </button>
   )
 }
@@ -51,76 +88,67 @@ export function AssetToolbar({
   onFocusAssets,
   onRemove,
 }: AssetToolbarProps) {
-  const [importOpen, setImportOpen] = useState(false)
-  const menuRef = useRef<HTMLDivElement>(null)
-
   return (
-    <div className="px-2 py-2 flex gap-1 border-b border-[var(--border)] bg-[var(--panel-3)] relative">
-      <ToolbarBtn
-        label="New Folder"
-        icon={<FolderPlus size={18} />}
-        onClick={onNewFolder}
-        disabled
-        title="Custom folders — coming soon"
-      />
-      <div className="flex-1 relative" ref={menuRef}>
+    <div className="px-2 py-2 border-b border-[var(--border)] bg-[var(--panel-3)] space-y-2">
+      <div className="flex gap-1.5 items-stretch">
         <ToolbarBtn
-          label="Import File"
-          icon={<FileDown size={18} />}
-          onClick={() => setImportOpen((v) => !v)}
-          disabled={disabled}
-          title="Import image, audio, or font"
+          label="New Folder"
+          icon={<FolderPlus size={18} />}
+          onClick={onNewFolder}
+          disabled
+          title="Custom folders — coming soon"
+          className="flex-1 min-w-0"
         />
-        {importOpen && !disabled ? (
-          <div
-            className="absolute left-0 right-0 top-full mt-1 z-20 rounded border border-[var(--border)]
-                       bg-[var(--panel)] shadow-lg py-1 flex flex-col"
-            role="menu"
+        <ToolbarBtn
+          label="Asset Browser"
+          icon={<Search size={18} />}
+          onClick={onFocusAssets}
+          title="Expand all asset folders"
+          className="flex-1 min-w-0"
+        />
+        {canRemove ? (
+          <button
+            type="button"
+            onClick={onRemove}
+            title="Remove selected asset (Delete)"
+            className="flex items-center justify-center min-h-[3.25rem] min-w-[2.75rem] px-2 rounded
+                       border border-[var(--border)] text-[var(--danger)]
+                       hover:bg-[var(--panel-2)] hover:border-[var(--danger)]"
           >
-            <button
-              type="button"
-              role="menuitem"
-              className="flex items-center gap-2 px-2 py-1.5 text-[10px] hover:bg-[var(--panel-2)] text-left"
-              onClick={() => { setImportOpen(false); onImportImage() }}
-            >
-              <ImagePlus size={12} /> Import image
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              className="flex items-center gap-2 px-2 py-1.5 text-[10px] hover:bg-[var(--panel-2)] text-left"
-              onClick={() => { setImportOpen(false); onImportAudio() }}
-            >
-              <Music size={12} /> Import audio
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              className="flex items-center gap-2 px-2 py-1.5 text-[10px] hover:bg-[var(--panel-2)] text-left"
-              onClick={() => { setImportOpen(false); onImportFont() }}
-            >
-              <Type size={12} /> Import font
-            </button>
-          </div>
+            <Trash2 size={18} />
+          </button>
         ) : null}
       </div>
-      <ToolbarBtn
-        label="Asset Browser"
-        icon={<Search size={18} />}
-        onClick={onFocusAssets}
-        title="Expand all asset folders"
-      />
-      {canRemove ? (
-        <button
-          type="button"
-          onClick={onRemove}
-          title="Remove selected asset (Delete)"
-          className="flex items-center justify-center p-1.5 rounded border border-[var(--border)]
-                     text-[var(--danger)] hover:bg-[var(--panel-2)]"
-        >
-          <Trash2 size={16} />
-        </button>
-      ) : null}
+
+      <div className="space-y-1.5">
+        <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--muted)] px-0.5">
+          Import
+        </p>
+        <div className="grid grid-cols-3 gap-1.5 w-full">
+          <ImportBtn
+            label="Image"
+            hint="Import PNG, JPEG, or GIF"
+            icon={<ImagePlus size={16} />}
+            onClick={onImportImage}
+            disabled={disabled}
+            accent
+          />
+          <ImportBtn
+            label="Audio"
+            hint="Import OGG, WAV, or MP3"
+            icon={<Music size={16} />}
+            onClick={onImportAudio}
+            disabled={disabled}
+          />
+          <ImportBtn
+            label="Font"
+            hint="Import TTF or OTF"
+            icon={<Type size={16} />}
+            onClick={onImportFont}
+            disabled={disabled}
+          />
+        </div>
+      </div>
     </div>
   )
 }
