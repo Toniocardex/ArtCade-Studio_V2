@@ -58,6 +58,7 @@ std::vector<std::pair<std::string, std::string>> EditorAPI::s_consoleQueue;
 #include "../../../modules/sprite-animator/include/sprite-animator.h"
 #include "../../../modules/sprite-animator/include/animation-clips-registry.h"
 #include "../../../modules/audio/include/audio.h"
+#include "../../../modules/asset-system/include/asset-manifest-index.h"
 #include "../../../core/types.h"
 
 #include "editor-input-controller.h"
@@ -101,6 +102,36 @@ EditorEnterPlayHandler         EditorAPI::s_onEnterPlay{};
 EditorExitPlayHandler          EditorAPI::s_onExitPlay{};
 std::vector<std::pair<std::string, std::string>> EditorAPI::s_consoleQueue;
 
+static Modules::AssetManifestIndex s_editorAssetManifest;
+
+static void rebuildEditorAssetManifest(const json& doc) {
+    s_editorAssetManifest.clear();
+    if (doc.contains("assets") && doc["assets"].is_object()) {
+        for (auto& [key, av] : doc["assets"].items()) {
+            if (!av.is_object()) continue;
+            const std::string id   = av.value("id", key);
+            const std::string path = av.value("path", std::string{});
+            if (!path.empty()) s_editorAssetManifest.addImageEntry(id, path);
+        }
+    }
+    if (doc.contains("audioAssets") && doc["audioAssets"].is_object()) {
+        for (auto& [key, av] : doc["audioAssets"].items()) {
+            if (!av.is_object()) continue;
+            const std::string id   = av.value("id", key);
+            const std::string path = av.value("path", std::string{});
+            if (!path.empty()) s_editorAssetManifest.addAudioEntry(id, path);
+        }
+    }
+    if (doc.contains("fontAssets") && doc["fontAssets"].is_object()) {
+        for (auto& [key, av] : doc["fontAssets"].items()) {
+            if (!av.is_object()) continue;
+            const std::string id   = av.value("id", key);
+            const std::string path = av.value("path", std::string{});
+            if (!path.empty()) s_editorAssetManifest.addFontEntry(id, path);
+        }
+    }
+}
+
 namespace {
 
 // Tool ids accepted by editor_set_tool(); kept in this TU to validate
@@ -130,6 +161,11 @@ void EditorAPI::wireLua(Modules::LuaHost* luaHost) {
 
 void EditorAPI::wireRenderer(Modules::Renderer* renderer) {
     s_renderer = renderer;
+    if (renderer) {
+        renderer->setTextureKeyResolver([](const std::string& ref) {
+            return s_editorAssetManifest.resolveImageKey(ref);
+        });
+    }
     notifyConsoleLine("[EditorAPI] Engine wired to Renderer (image upload ready).", "info");
 }
 
@@ -421,6 +457,7 @@ bool loadProjectFromJson(const char* json_utf8, ProjectLoadKind kind,
 
     try {
         const json doc = json::parse(json_utf8);
+        rebuildEditorAssetManifest(doc);
 
         auto objectTypes = Parser::parseObjectTypes(doc);
         auto entityDefs  = Parser::parseEntities(doc);

@@ -567,7 +567,7 @@ Aligned with `docs/ASSETS_ROADMAP.md` — incremental delivery, no big-bang.
 - [x] Align with **ASSETS_ROADMAP Phase 3** (`exportArtcadePackage`)
 - [x] Manifest entry: `{ id, type, relativePath, sha256? }` via `build-project-asset-manifest.ts`
 - [x] Manifest resolve layered on **§3.4** dual-read (no mandatory rewrite on open)
-- [ ] C++: optional `assetId` in draw path when manifest present (native runtime follow-up)
+- [x] C++: optional `assetId` in draw path when manifest present (`AssetManifestIndex` + `Renderer::setTextureKeyResolver`)
 
 **Breaking change:** None for open — dual-read preserves saved projects. Document new export format only.
 
@@ -769,7 +769,7 @@ The left sidebar uses **`ProjectExplorerPanel`** (`editor/src/components/project
 
 ## 13. Conclusion
 
-The proposed architecture is **correct** and matches long-term engine docs. Implementation is roughly **40% complete** for **images in Tauri preview**; missing pieces are **orchestration, stable IDs, scene scope, audio symmetry, and lifecycle**.
+The proposed architecture is **correct** and matches long-term engine docs. Implementation is roughly **85% complete** for **images in Tauri preview**; missing pieces are **orchestration, stable IDs, scene scope, audio symmetry, and lifecycle**.
 
 **Recommended next step:** C++ draw path `assetId` lookup from packaged manifest; optional “Normalize references to asset IDs” editor action.
 

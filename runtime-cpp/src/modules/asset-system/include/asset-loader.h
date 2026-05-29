@@ -2,6 +2,7 @@
 
 #include "../../../core/module.h"
 #include "../../../core/types.h"
+#include "asset-manifest-index.h"
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -40,6 +41,14 @@ public:
     std::string resolveAssetPath(const std::string& assetId,
                                  const std::string& assetType) const;
 
+    /** Dual-read: stable image id or legacy path → project-relative texture key. */
+    std::string resolveImagePath(const std::string& ref) const;
+
+    /** Dual-read for audio keys. */
+    std::string resolveAudioPath(const std::string& ref) const;
+
+    const AssetManifestIndex& manifestIndex() const { return manifestIndex_; }
+
     bool isDevMode() const { return devMode_; }
 
     /** Project root (directory or extracted .artcade temp dir). */
@@ -52,11 +61,13 @@ public:
 private:
     bool        devMode_  = false;
     std::string rootPath_;
+    AssetManifestIndex manifestIndex_;
     std::unordered_map<std::string, std::vector<ImagePointDef>> imagePointsByAsset_;
 
     bool parseProjectJson(const std::string& path, ProjectDoc& out);
     bool parseGameJson(const std::string& path,    ProjectDoc& out);
     bool extractZip(const std::string& zipPath, const std::string& destDir);
+    void loadManifestForRoot(const std::string& rootPath);
 };
 
 } // namespace ArtCade::Modules

@@ -40,6 +40,7 @@ struct Renderer::Impl {
     std::vector<DrawCmd> drawQueue;
     std::string screenShader;
     SpriteOutlineShader spriteOutline;
+    std::function<std::string(const std::string&)> textureKeyResolver;
 };
 
 // ------------------------------------------------------------------ helpers
@@ -258,7 +259,20 @@ void drawPlaceholderOutlineSilhouette(const Vec2& pos,
     DrawRectangleV({ topLeft.x, topLeft.y }, { padW, padH }, Color{ 0, 0, 0, ca });
 }
 
-} // namespace
+std::string Renderer::resolvedTextureKey(const std::string& ref) const {
+    if (ref.empty()) return ref;
+    if (impl_->textureKeyResolver) {
+        const std::string resolved = impl_->textureKeyResolver(ref);
+        return resolved.empty() ? ref : resolved;
+    }
+    return ref;
+}
+
+void Renderer::setTextureKeyResolver(
+    std::function<std::string(const std::string&)> resolver)
+{
+    impl_->textureKeyResolver = std::move(resolver);
+}
 
 void Renderer::drawSprite(const AssetId& assetId,
                            const Vec2&    pos,
@@ -276,7 +290,8 @@ void Renderer::drawSprite(const AssetId& assetId,
     if (shaderEffect == "hit_flash")
         drawTint = { 1.f, 1.f, 1.f, tint.a };
 
-    const Texture2D* tex = impl_->texCache.getByPath(assetId);
+    const std::string texKey = resolvedTextureKey(assetId);
+    const Texture2D* tex = impl_->texCache.getByPath(texKey);
     if (!tex || tex->id == 0) {
         const float fw = kPlaceholderSpriteSize * scale.x;
         const float fh = kPlaceholderSpriteSize * scale.y;
@@ -339,7 +354,8 @@ void Renderer::drawSpriteFrame(const AssetId& assetId,
                                float          alpha,
                                const Vec2&    pivot)
 {
-    const Texture2D* tex = impl_->texCache.getByPath(assetId);
+    const std::string texKey = resolvedTextureKey(assetId);
+    const Texture2D* tex = impl_->texCache.getByPath(texKey);
     if (!tex || tex->id == 0 || srcW <= 0.f || srcH <= 0.f) {
         drawSprite(assetId, pos, rotation, scale, tint, { tint.r, tint.g, tint.b },
                    alpha, "", pivot);
@@ -356,7 +372,8 @@ void Renderer::drawSpriteFrame(const AssetId& assetId,
 Vec2 Renderer::spriteDestinationSize(const AssetId& assetId, const Vec2& scale) const {
     const float sx = std::abs(scale.x);
     const float sy = std::abs(scale.y);
-    const Texture2D* tex = impl_->texCache.getByPath(assetId);
+    const std::string texKey = resolvedTextureKey(assetId);
+    const Texture2D* tex = impl_->texCache.getByPath(texKey);
     if (!tex || tex->id == 0) {
         return { kPlaceholderSpriteSize * sx, kPlaceholderSpriteSize * sy };
     }
@@ -370,11 +387,12 @@ bool Renderer::drawSpriteRegion(const AssetId& assetId,
                                 float srcX, float srcY, float srcW, float srcH,
                                 float dstX, float dstY, float dstW, float dstH)
 {
-    const Texture2D* tex = impl_->texCache.getByPath(assetId);
+    const std::string texKey = resolvedTextureKey(assetId);
+    const Texture2D* tex = impl_->texCache.getByPath(texKey);
     if (!tex || tex->id == 0) {
         // getByPath only looks up the cache; load on first use.
-        impl_->texCache.load(assetId);
-        tex = impl_->texCache.getByPath(assetId);
+        impl_->texCache.load(texKey);
+        tex = impl_->texCache.getByPath(texKey);
     }
     if (!tex || tex->id == 0) return false;   // caller falls back to colour
 
@@ -462,7 +480,7 @@ void Renderer::unloadTexture(uint32_t handle) {
 }
 
 bool Renderer::isTextureLoaded(const AssetId& assetId) const {
-    return impl_->texCache.isLoaded(assetId);
+    return impl_->texCache.isLoaded(resolvedTextureKey(assetId));
 }
 
 // ------------------------------------------------------------------ camera

@@ -74,9 +74,23 @@ void AssetLoader::shutdown() {}
 
 // ------------------------------------------------------------------ loaders
 
+void AssetLoader::loadManifestForRoot(const std::string& rootPath) {
+    manifestIndex_.clear();
+    manifestIndex_.loadFromJsonFile(rootPath + "/manifest.json");
+}
+
+std::string AssetLoader::resolveImagePath(const std::string& ref) const {
+    return manifestIndex_.resolveImageKey(ref);
+}
+
+std::string AssetLoader::resolveAudioPath(const std::string& ref) const {
+    return manifestIndex_.resolveAudioKey(ref);
+}
+
 bool AssetLoader::loadDirectory(const std::string& dirPath, ProjectDoc& out) {
     rootPath_ = dirPath;
     devMode_  = true;
+    loadManifestForRoot(dirPath);
     try {
         if (!parseProjectJson(dirPath + "/project.json", out)) return false;
         parseGameJson(dirPath + "/game.json", out);
@@ -99,6 +113,7 @@ bool AssetLoader::loadArtcade(const std::string& archivePath, ProjectDoc& out) {
 
     rootPath_ = tmpDir;
     devMode_  = false;
+    loadManifestForRoot(tmpDir);
     try {
         if (!parseProjectJson(tmpDir + "/project.json", out)) return false;
         parseGameJson(tmpDir + "/game.json", out);
@@ -132,6 +147,7 @@ std::string AssetLoader::resolveAssetPath(const std::string& assetId,
 
 bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
     imagePointsByAsset_.clear();
+    // project.json assets augment manifest (dev mode may have no manifest.json).
     std::ifstream f(path);
     if (!f) return false;
 
@@ -459,8 +475,12 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
     if (j.contains("assets") && j["assets"].is_object()) {
         for (auto& [key, av] : j["assets"].items()) {
             if (!av.is_object()) continue;
+            const std::string libId   = av.value("id", key);
+            const std::string libPath = av.value("path", std::string{});
+            if (!libPath.empty())
+                manifestIndex_.addImageEntry(libId, libPath);
             ImageAssetDef ad;
-            ad.assetId = av.value("path", key);
+            ad.assetId = libPath.empty() ? libId : libPath;
             if (av.contains("imagePoints") && av["imagePoints"].is_array()) {
                 for (const auto& pt : av["imagePoints"]) {
                     if (!pt.is_object()) continue;
@@ -503,9 +523,12 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
     return true;
 }
 
-std::optional<Vec2> AssetLoader::getImagePoint(const std::string& assetPath,
+std::optional<Vec2> AssetLoader::getImagePoint(const std::string& assetRef,
                                                 const std::string& pointId) const {
-    auto it = imagePointsByAsset_.find(assetPath);
+    const std::string pathKey = manifestIndex_.resolveImageKey(assetRef);
+    auto it = imagePointsByAsset_.find(pathKey);
+    if (it == imagePointsByAsset_.end() && pathKey != assetRef)
+        it = imagePointsByAsset_.find(assetRef);
     if (it == imagePointsByAsset_.end()) return std::nullopt;
     for (const auto& p : it->second) {
         if (p.id == pointId) return Vec2{ p.x, p.y };

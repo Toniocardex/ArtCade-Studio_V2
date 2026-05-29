@@ -216,6 +216,11 @@ bool Application::initSubsystems() {
     ctx_.assetLoader   = mod_->assetLoader.get();
     ctx_.world         = mod_->world.get();
 
+    mod_->renderer->setTextureKeyResolver(
+        [loader = mod_->assetLoader.get()](const std::string& ref) {
+            return loader ? loader->resolveImagePath(ref) : ref;
+        });
+
     mod_->dialogManager = std::make_unique<ArtCade::Modules::DialogManager>();
     if (!mod_->dialogManager->init()) return false;
     mod_->dialogManager->setContext(&ctx_);

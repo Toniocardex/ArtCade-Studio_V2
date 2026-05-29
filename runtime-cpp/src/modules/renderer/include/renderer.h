@@ -2,6 +2,7 @@
 
 #include "../../../core/module.h"
 #include "../../../core/types.h"
+#include <functional>
 #include <string>
 #include <memory>
 
@@ -109,6 +110,16 @@ public:
     void     unloadTexture(uint32_t handle);
     bool     isTextureLoaded(const AssetId& assetId) const;
 
+    /**
+     * Optional resolver: stable asset id or legacy path → TextureCache key (path).
+     * Used by native AssetLoader manifest and WASM editor_load_project.
+     */
+    void setTextureKeyResolver(std::function<std::string(const std::string&)> resolver);
+
+private:
+    std::string resolvedTextureKey(const std::string& ref) const;
+
+public:
     // 2D camera
     void setCameraPosition(const Vec2& pos);
     /** Visual-only offset for this frame's world pass (not clamped; does not change getCameraPosition). */
