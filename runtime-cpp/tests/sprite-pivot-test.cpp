@@ -6,7 +6,7 @@
 #include <cstdio>
 #include <cstdlib>
 
-using ArtCade::SpriteDrawMath;
+using namespace ArtCade::SpriteDrawMath;
 using ArtCade::Vec2;
 
 static bool near(float a, float b, float eps = 0.001f) {

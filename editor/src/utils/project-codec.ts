@@ -405,7 +405,7 @@ function parseAssetVirtualFolders(
     const category = String(o.category ?? 'images') as AssetFolderCategory
     if (!id || !ASSET_FOLDER_CATEGORIES.includes(category)) continue
     const refsRaw = o.assetRefs ?? o.asset_refs
-    const assetRefs: AssetVirtualFolderDef['assetRefs'] = []
+    const assetRefs: AssetVirtualFolderDef['assetRefs'][number][] = []
     if (Array.isArray(refsRaw)) {
       for (const r of refsRaw) {
         if (!r || typeof r !== 'object') continue

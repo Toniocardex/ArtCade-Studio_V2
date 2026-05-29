@@ -29,11 +29,11 @@ export function DialogLibrarySidebar() {
           type="button"
           className="w-full text-xs py-1.5 rounded border border-[var(--accent-bd)] bg-[var(--accent-bg)] text-[var(--accent)]"
           onClick={() => {
-            void promptTextInput({
+            void promptText({
               title: 'New dialog',
               message: 'Dialog ID (e.g. guard):',
               defaultValue: 'new_dialog',
-            }).then((id) => {
+            }).then((id: string | null) => {
               if (id) dispatch({ type: 'DIALOG_CREATE', dialogId: id })
             })
           }}

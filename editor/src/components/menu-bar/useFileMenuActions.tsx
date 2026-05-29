@@ -33,7 +33,6 @@ import {
   saveDialogsToProject,
   starterInnkeeperScript,
 } from '../../utils/dialog/dialog-file-api'
-import { confirmDialog } from '../../utils/native-dialog'
 import { exportArtcadePackage } from '../../utils/export-artcade-package'
 import type { DialogScript } from '../../utils/dialog/dialog-script'
 

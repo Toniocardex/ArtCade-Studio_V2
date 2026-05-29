@@ -259,6 +259,8 @@ void drawPlaceholderOutlineSilhouette(const Vec2& pos,
     DrawRectangleV({ topLeft.x, topLeft.y }, { padW, padH }, Color{ 0, 0, 0, ca });
 }
 
+} // anonymous namespace (draw helpers)
+
 std::string Renderer::resolvedTextureKey(const std::string& ref) const {
     if (ref.empty()) return ref;
     if (impl_->textureKeyResolver) {

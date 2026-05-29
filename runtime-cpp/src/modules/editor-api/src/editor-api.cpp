@@ -75,36 +75,11 @@ std::vector<std::pair<std::string, std::string>> EditorAPI::s_consoleQueue;
 
 using json = nlohmann::json;
 
-namespace ArtCade {
+namespace {
 
-// ── Static state ──────────────────────────────────────────────────────────────
-int      EditorAPI::s_mode             = 0;
-uint32_t EditorAPI::s_selectedEntityId = 0u;
-bool     EditorAPI::s_isDragging       = false;
-float    EditorAPI::s_dragStartX       = 0.f;
-float    EditorAPI::s_dragStartY       = 0.f;
-bool     EditorAPI::s_tilePaintMode    = false;
-int      EditorAPI::s_selectedTileId   = 1;
-int      EditorAPI::s_editorTool       = 0;
-bool     EditorAPI::s_editorGuidesEnabled = true;
-float    EditorAPI::s_editorGridSize   = 32.f;
-bool     EditorAPI::s_editorSnapEnabled = false;
+ArtCade::Modules::AssetManifestIndex s_editorAssetManifest;
 
-Modules::RuntimeEntityGateway* EditorAPI::s_entityGateway = nullptr;
-Modules::LuaHost*              EditorAPI::s_luaHost       = nullptr;
-Modules::Renderer*             EditorAPI::s_renderer      = nullptr;
-Modules::DialogManager*        EditorAPI::s_dialogManager = nullptr;
-Modules::SpriteAnimator*       EditorAPI::s_spriteAnimator = nullptr;
-Modules::Audio*                EditorAPI::s_audio = nullptr;
-EditorProjectLoadedHandler     EditorAPI::s_onProjectLoaded{};
-EditorPreviewRestoreHandler    EditorAPI::s_onPreviewRestore{};
-EditorEnterPlayHandler         EditorAPI::s_onEnterPlay{};
-EditorExitPlayHandler          EditorAPI::s_onExitPlay{};
-std::vector<std::pair<std::string, std::string>> EditorAPI::s_consoleQueue;
-
-static Modules::AssetManifestIndex s_editorAssetManifest;
-
-static void rebuildEditorAssetManifest(const json& doc) {
+void rebuildEditorAssetManifest(const json& doc) {
     s_editorAssetManifest.clear();
     if (doc.contains("assets") && doc["assets"].is_object()) {
         for (auto& [key, av] : doc["assets"].items()) {
@@ -131,6 +106,35 @@ static void rebuildEditorAssetManifest(const json& doc) {
         }
     }
 }
+
+} // namespace
+
+namespace ArtCade {
+
+// ── Static state ──────────────────────────────────────────────────────────────
+int      EditorAPI::s_mode             = 0;
+uint32_t EditorAPI::s_selectedEntityId = 0u;
+bool     EditorAPI::s_isDragging       = false;
+float    EditorAPI::s_dragStartX       = 0.f;
+float    EditorAPI::s_dragStartY       = 0.f;
+bool     EditorAPI::s_tilePaintMode    = false;
+int      EditorAPI::s_selectedTileId   = 1;
+int      EditorAPI::s_editorTool       = 0;
+bool     EditorAPI::s_editorGuidesEnabled = true;
+float    EditorAPI::s_editorGridSize   = 32.f;
+bool     EditorAPI::s_editorSnapEnabled = false;
+
+Modules::RuntimeEntityGateway* EditorAPI::s_entityGateway = nullptr;
+Modules::LuaHost*              EditorAPI::s_luaHost       = nullptr;
+Modules::Renderer*             EditorAPI::s_renderer      = nullptr;
+Modules::DialogManager*        EditorAPI::s_dialogManager = nullptr;
+Modules::SpriteAnimator*       EditorAPI::s_spriteAnimator = nullptr;
+Modules::Audio*                EditorAPI::s_audio = nullptr;
+EditorProjectLoadedHandler     EditorAPI::s_onProjectLoaded{};
+EditorPreviewRestoreHandler    EditorAPI::s_onPreviewRestore{};
+EditorEnterPlayHandler         EditorAPI::s_onEnterPlay{};
+EditorExitPlayHandler          EditorAPI::s_onExitPlay{};
+std::vector<std::pair<std::string, std::string>> EditorAPI::s_consoleQueue;
 
 namespace {
 

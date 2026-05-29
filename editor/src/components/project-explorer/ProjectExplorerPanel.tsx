@@ -20,7 +20,6 @@ import { assetFolderItemCount, buildProjectExplorerData } from '../../utils/proj
 import { useExplorerExpanded } from '../../hooks/useExplorerExpanded'
 import { useAssetExplorerActions } from '../../hooks/useAssetExplorerActions'
 import { useSceneExplorerActions } from '../../hooks/useSceneExplorerActions'
-import { useTextPrompt } from '../../hooks/useTextPrompt'
 import { ProjectSearch } from './ProjectSearch'
 import { TreeSection } from './TreeSection'
 import { TreeFolder, TreeLeaf } from './TreeNode'
@@ -53,7 +52,6 @@ export default function ProjectExplorerPanel() {
   const { isOpen, toggle, setOpen, expandAllAssetFolders } = useExplorerExpanded()
   const scene = useSceneExplorerActions()
   const assets = useAssetExplorerActions()
-  const promptText = useTextPrompt()
 
   const sceneId = scene.sceneId
   const project = scene.project
@@ -508,7 +506,6 @@ export default function ProjectExplorerPanel() {
                                 if (ref.type !== 'image') return null
                                 const imgRow = folder.images.find((i) => i.id === ref.id)
                                 if (!imgRow) return null
-                                const asset = project.assets?.[imgRow.id]
                                 return (
                                   <TreeLeaf
                                     key={`${vf.id}:${ref.id}`}
