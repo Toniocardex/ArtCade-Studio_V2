@@ -23,7 +23,7 @@ export function AnimationClipsSummary({ asset, onOpenStudio }: AnimationClipsSum
         className="text-[10px] px-2 py-1 rounded border border-[var(--accent)] text-[var(--accent)] hover:bg-[rgb(var(--accent-rgb)/0.1)]"
         onClick={onOpenStudio}
       >
-        Open Spritesheet Studio
+        Open Sprite Studio
       </button>
     </div>
   )

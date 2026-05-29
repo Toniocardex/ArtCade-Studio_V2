@@ -20,7 +20,7 @@ describe('ImageAssetPreview', () => {
     render(
       <ImageAssetPreview asset={asset} projectPath={null} onOpenStudio={onOpenStudio} />,
     )
-    const btn = screen.getByRole('button', { name: /Open Spritesheet Studio for hero.png/i })
+    const btn = screen.getByRole('button', { name: /Open Sprite Studio for hero.png/i })
     expect(btn.hasAttribute(SPRITESHEET_STUDIO_TRIGGER_ATTR)).toBe(true)
     fireEvent.keyDown(btn, { key: 'Enter' })
     expect(onOpenStudio).toHaveBeenCalledTimes(1)

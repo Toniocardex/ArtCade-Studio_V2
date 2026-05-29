@@ -1,13 +1,19 @@
 import { describe, expect, it } from 'vitest'
 import {
   clampFrameRange,
+  deriveCellSizeFromLayout,
   deriveGrid,
+  deriveStripLayout,
   frameAtCell,
   frameKey,
   frameRangeFromIndices,
   framesToSortedIndices,
+  indicesInCellRect,
   indicesRangeToFrames,
   indicesSetToFrames,
+  mergeFrameIndices,
+  normalizeCellRect,
+  resolveSlicing,
 } from './spritesheet-studio'
 
 describe('spritesheet-studio', () => {
@@ -55,5 +61,39 @@ describe('spritesheet-studio', () => {
   it('clampFrameRange rejects inverted ranges', () => {
     expect(clampFrameRange(5, 2, 8)).toBeNull()
     expect(clampFrameRange(2, 5, 8)).toEqual({ start: 2, end: 5 })
+  })
+
+  it('deriveCellSizeFromLayout divides sheet evenly', () => {
+    expect(deriveCellSizeFromLayout(128, 32, 4, 1)).toEqual({ cellW: 32, cellH: 32 })
+  })
+
+  it('deriveStripLayout builds horizontal strip', () => {
+    const strip = deriveStripLayout(128, 32, 4, 'horizontal')
+    expect(strip.cols).toBe(4)
+    expect(strip.rows).toBe(1)
+    expect(strip.cellW).toBe(32)
+  })
+
+  it('resolveSlicing strip mode matches strip layout', () => {
+    const r = resolveSlicing(128, 32, 'strip', {
+      cellW: 32,
+      cellH: 32,
+      gridCols: 1,
+      gridRows: 1,
+      stripFrameCount: 4,
+      stripAxis: 'horizontal',
+    })
+    expect(r.grid.cols).toBe(4)
+    expect(r.grid.totalFrames).toBe(4)
+  })
+
+  it('indicesInCellRect lists cells in rectangle', () => {
+    const grid = deriveGrid(64, 32, 32, 32)
+    const rect = normalizeCellRect(0, 0, 1, 0)
+    expect(indicesInCellRect(rect, grid)).toEqual([0, 1])
+  })
+
+  it('mergeFrameIndices unions without duplicates', () => {
+    expect(mergeFrameIndices([0, 2], [1, 2])).toEqual([0, 1, 2])
   })
 })

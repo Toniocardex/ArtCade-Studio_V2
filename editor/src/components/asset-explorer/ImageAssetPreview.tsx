@@ -1,15 +1,11 @@
 import { useEffect, useState } from 'react'
 import type { ImageAsset } from '../../types'
 import { spritesheetStudioTriggerProps } from '../../panels/spritesheet-studio/openSpritesheetStudio'
-import { bytesToArrayBuffer } from '../../utils/asset-file-api'
-
-function mimeForImagePath(path: string): string {
-  const ext = path.toLowerCase().split('.').pop() ?? 'png'
-  if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg'
-  if (ext === 'gif') return 'image/gif'
-  if (ext === 'webp') return 'image/webp'
-  return 'image/png'
-}
+import {
+  isBlobPreviewSrc,
+  resolveImagePreviewSrc,
+  revokeImagePreviewSrc,
+} from '../../utils/image-preview-src'
 
 export type ImageAssetPreviewProps = Readonly<{
   asset: ImageAsset
@@ -21,50 +17,33 @@ export function ImageAssetPreview({ asset, projectPath, onOpenStudio }: ImageAss
   const [src, setSrc] = useState<string | null>(asset.dataUrl ?? null)
 
   useEffect(() => {
-    if (asset.dataUrl) {
-      setSrc((prev) => {
-        if (prev?.startsWith('blob:')) URL.revokeObjectURL(prev)
-        return asset.dataUrl ?? null
-      })
-      return
-    }
-
     let cancelled = false
-    let objectUrl: string | null = null
 
-    if (!projectPath || !asset.path?.trim()) {
-      setSrc(null)
+    if (asset.dataUrl) {
+      setSrc(asset.dataUrl)
       return
     }
 
     void (async () => {
-      const { readProjectFileBytes } = await import('../../utils/asset-file-api')
-      const { dirName } = await import('../../utils/project')
-      const root = dirName(projectPath)
-      const bytes = await readProjectFileBytes(root, asset.path)
-      if (cancelled) return
-      if (!bytes) {
-        setSrc(null)
-        return
-      }
-      objectUrl = URL.createObjectURL(
-        new Blob([bytesToArrayBuffer(bytes)], { type: mimeForImagePath(asset.path) }),
-      )
+      const next = await resolveImagePreviewSrc(asset, projectPath)
       if (cancelled) {
-        URL.revokeObjectURL(objectUrl)
+        if (isBlobPreviewSrc(next)) revokeImagePreviewSrc(next)
         return
       }
       setSrc((prev) => {
-        if (prev && prev.startsWith('blob:')) URL.revokeObjectURL(prev)
-        return objectUrl
+        if (isBlobPreviewSrc(prev)) revokeImagePreviewSrc(prev)
+        return next
       })
     })()
 
     return () => {
       cancelled = true
-      if (objectUrl) URL.revokeObjectURL(objectUrl)
+      setSrc((prev) => {
+        if (isBlobPreviewSrc(prev)) revokeImagePreviewSrc(prev)
+        return asset.dataUrl ?? null
+      })
     }
-  }, [asset.id, asset.dataUrl, asset.path, projectPath])
+  }, [asset.dataUrl, asset.path, projectPath])
 
   if (!src) {
     return (
@@ -95,8 +74,8 @@ export function ImageAssetPreview({ asset, projectPath, onOpenStudio }: ImageAss
           activateStudio()
         }
       }}
-      aria-label={`Open Spritesheet Studio for ${asset.name}`}
-      title="Double-click or press Enter to open Spritesheet Studio"
+      aria-label={`Open Sprite Studio for ${asset.name}`}
+      title="Double-click or press Enter to open Sprite Studio"
     >
       <img
         src={src}

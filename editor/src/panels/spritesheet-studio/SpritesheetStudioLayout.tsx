@@ -16,7 +16,7 @@ export function SpritesheetStudioLayout({ asset, assetId, session }: Spritesheet
     <div className="flex flex-col flex-1 min-h-0 min-w-0">
       <div className="flex flex-1 min-h-0 min-w-0">
         <SlicingPanel session={session} />
-        <AtlasGrid asset={asset} session={session} />
+        <AtlasGrid session={session} />
         <ClipListPanel assetId={assetId} session={session} />
       </div>
       <ClipPreviewPane asset={asset} session={session} />

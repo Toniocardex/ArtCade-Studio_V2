@@ -11,11 +11,15 @@ type SpritesheetStudioBodyProps = Readonly<{
 }>
 
 function SpritesheetStudioBody({ asset, imageAssetId }: SpritesheetStudioBodyProps) {
-  const { dispatch } = useEditor()
+  const { state, dispatch } = useEditor()
   useSpritesheetWasmSync(asset, true)
-  const session = useSpritesheetStudioSession(asset, (clips: AnimationClipDef[]) => {
-    dispatch({ type: 'ASSET_ADD', asset: { ...asset, id: imageAssetId, clips } })
-  })
+  const session = useSpritesheetStudioSession(
+    asset,
+    state.projectPath,
+    (clips: AnimationClipDef[]) => {
+      dispatch({ type: 'ASSET_ADD', asset: { ...asset, id: imageAssetId, clips } })
+    },
+  )
   return <SpritesheetStudioLayout asset={asset} assetId={imageAssetId} session={session} />
 }
 
@@ -71,7 +75,7 @@ export function SpritesheetStudioModal() {
         <header className="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-[var(--border)]">
           <div className="flex-1 min-w-0">
             <h2 id="spritesheet-studio-title" className="text-sm font-semibold text-[var(--text)] truncate">
-              Spritesheet Studio — {asset.name}
+              Sprite Studio — {asset.name}
             </h2>
             <p className="text-[10px] text-[var(--muted)] mt-0.5">
               Clips are saved on this image asset and used by the game runtime on play.

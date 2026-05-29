@@ -22,7 +22,7 @@ export function ImageTreeThumbnail({ asset, onOpenStudio }: ImageTreeThumbnailPr
     return (
       <span
         className="inline-flex flex-shrink-0"
-        title="Double-click to open Spritesheet Studio"
+        title="Double-click to open Sprite Studio"
         onDoubleClick={openFromThumbnail}
       >
         <Image size={11} className="text-[var(--accent)]" aria-hidden />

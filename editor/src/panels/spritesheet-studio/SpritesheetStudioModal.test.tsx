@@ -84,6 +84,6 @@ describe('SpritesheetStudioModal', () => {
     }
     render(<SpritesheetStudioModal />)
     expect(screen.getByRole('dialog')).toBeTruthy()
-    expect(screen.getByText(/Spritesheet Studio — hero.png/)).toBeTruthy()
+    expect(screen.getByText(/Sprite Studio — hero.png/)).toBeTruthy()
   })
 })

@@ -6,7 +6,6 @@ import {
   EyeOff,
   FileText,
   Grid3x3,
-  Image,
   ImagePlus,
   Music,
   Pencil,
@@ -554,7 +553,7 @@ export default function ProjectExplorerPanel() {
                                 assets.setSelection({ type: 'image', id: imgRow.id }),
                               onDoubleClick: () => asset && assets.assignSprite(asset),
                               title: asset
-                                ? 'Double-click thumbnail for Spritesheet Studio; double-click row to assign sprite'
+                                ? 'Double-click thumbnail for Sprite Studio; double-click row to assign sprite'
                                 : imgRow.path,
                               icon: (
                                 <ImageTreeThumbnail
@@ -569,7 +568,7 @@ export default function ProjectExplorerPanel() {
                                 ? [
                                     {
                                       id: 'spritesheet-studio',
-                                      label: 'Open Spritesheet Studio',
+                                      label: 'Open Sprite Studio',
                                       onSelect: () =>
                                         openSpritesheetStudio(dispatch, project, imgRow.id),
                                     },
@@ -715,7 +714,7 @@ export default function ProjectExplorerPanel() {
                                 [
                                   {
                                     id: 'spritesheet-studio',
-                                    label: 'Open Spritesheet Studio',
+                                    label: 'Open Sprite Studio',
                                     onSelect: () =>
                                       openSpritesheetStudio(dispatch, project, img.id),
                                   },
@@ -739,7 +738,7 @@ export default function ProjectExplorerPanel() {
                           }}
                           title={
                             asset
-                              ? 'Double-click thumbnail for Spritesheet Studio; double-click row to assign sprite'
+                              ? 'Double-click thumbnail for Sprite Studio; double-click row to assign sprite'
                               : img.path
                           }
                           icon={

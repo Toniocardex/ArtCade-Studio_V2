@@ -10,6 +10,21 @@ export type SpritesheetGrid = Readonly<{
   totalFrames: number
 }>
 
+export type SlicingMode = 'cell' | 'layout' | 'strip'
+export type StripAxis = 'horizontal' | 'vertical'
+
+export type GridRemainder = Readonly<{
+  remainderW: number
+  remainderH: number
+}>
+
+export type DerivedSlicing = Readonly<{
+  cellW: number
+  cellH: number
+  grid: SpritesheetGrid
+  remainder: GridRemainder
+}>
+
 export function deriveGrid(
   imgW: number,
   imgH: number,
@@ -19,6 +34,141 @@ export function deriveGrid(
   const cols = cellW > 0 ? Math.max(1, Math.floor(imgW / cellW)) : 1
   const rows = cellH > 0 ? Math.max(1, Math.floor(imgH / cellH)) : 1
   return { cols, rows, totalFrames: cols * rows }
+}
+
+export function gridRemainder(
+  imgW: number,
+  imgH: number,
+  cellW: number,
+  cellH: number,
+  grid: SpritesheetGrid,
+): GridRemainder {
+  return {
+    remainderW: Math.max(0, imgW - grid.cols * cellW),
+    remainderH: Math.max(0, imgH - grid.rows * cellH),
+  }
+}
+
+export function deriveCellSizeFromLayout(
+  imgW: number,
+  imgH: number,
+  cols: number,
+  rows: number,
+): { cellW: number; cellH: number } {
+  const c = Math.max(1, Math.floor(cols))
+  const r = Math.max(1, Math.floor(rows))
+  return {
+    cellW: Math.max(1, Math.floor(imgW / c)),
+    cellH: Math.max(1, Math.floor(imgH / r)),
+  }
+}
+
+export function deriveLayoutFromCellSize(
+  imgW: number,
+  imgH: number,
+  cellW: number,
+  cellH: number,
+): SpritesheetGrid {
+  return deriveGrid(imgW, imgH, cellW, cellH)
+}
+
+export function deriveStripLayout(
+  imgW: number,
+  imgH: number,
+  frameCount: number,
+  axis: StripAxis,
+): { cols: number; rows: number; cellW: number; cellH: number } {
+  const n = Math.max(1, Math.floor(frameCount))
+  if (axis === 'vertical') {
+    const rows = n
+    const cols = 1
+    return {
+      cols,
+      rows,
+      ...deriveCellSizeFromLayout(imgW, imgH, cols, rows),
+    }
+  }
+  const cols = n
+  const rows = 1
+  return {
+    cols,
+    rows,
+    ...deriveCellSizeFromLayout(imgW, imgH, cols, rows),
+  }
+}
+
+export function resolveSlicing(
+  imgW: number,
+  imgH: number,
+  mode: SlicingMode,
+  params: Readonly<{
+    cellW: number
+    cellH: number
+    gridCols: number
+    gridRows: number
+    stripFrameCount: number
+    stripAxis: StripAxis
+  }>,
+): DerivedSlicing {
+  let cellW = params.cellW
+  let cellH = params.cellH
+  let grid: SpritesheetGrid
+
+  if (mode === 'layout') {
+    const size = deriveCellSizeFromLayout(imgW, imgH, params.gridCols, params.gridRows)
+    cellW = size.cellW
+    cellH = size.cellH
+    grid = {
+      cols: Math.max(1, Math.floor(params.gridCols)),
+      rows: Math.max(1, Math.floor(params.gridRows)),
+      totalFrames: Math.max(1, Math.floor(params.gridCols)) * Math.max(1, Math.floor(params.gridRows)),
+    }
+  } else if (mode === 'strip') {
+    const strip = deriveStripLayout(imgW, imgH, params.stripFrameCount, params.stripAxis)
+    cellW = strip.cellW
+    cellH = strip.cellH
+    grid = { cols: strip.cols, rows: strip.rows, totalFrames: strip.cols * strip.rows }
+  } else {
+    grid = deriveGrid(imgW, imgH, cellW, cellH)
+  }
+
+  return {
+    cellW,
+    cellH,
+    grid,
+    remainder: gridRemainder(imgW, imgH, cellW, cellH, grid),
+  }
+}
+
+export type CellRect = Readonly<{
+  colMin: number
+  colMax: number
+  rowMin: number
+  rowMax: number
+}>
+
+export function normalizeCellRect(col0: number, row0: number, col1: number, row1: number): CellRect {
+  return {
+    colMin: Math.min(col0, col1),
+    colMax: Math.max(col0, col1),
+    rowMin: Math.min(row0, row1),
+    rowMax: Math.max(row0, row1),
+  }
+}
+
+export function indicesInCellRect(rect: CellRect, grid: SpritesheetGrid): number[] {
+  const out: number[] = []
+  for (let row = rect.rowMin; row <= rect.rowMax; row++) {
+    for (let col = rect.colMin; col <= rect.colMax; col++) {
+      if (col < 0 || row < 0 || col >= grid.cols || row >= grid.rows) continue
+      out.push(cellIndex(col, row, grid.cols))
+    }
+  }
+  return out
+}
+
+export function mergeFrameIndices(base: readonly number[], added: readonly number[]): number[] {
+  return [...new Set([...base, ...added])].sort((a, b) => a - b)
 }
 
 export function frameKey(fr: AnimationFrameRect): string {

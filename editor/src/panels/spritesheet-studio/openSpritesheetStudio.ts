@@ -23,13 +23,13 @@ export function openSpritesheetStudio(
   if (!id || !project) return
   const asset = project.assets?.[id]
   if (!asset) {
-    void alertDialog('Image asset not found.', { title: 'Spritesheet Studio', kind: 'warning' })
+    void alertDialog('Image asset not found.', { title: 'Sprite Studio', kind: 'warning' })
     return
   }
   if (!asset.dataUrl && !asset.path?.trim()) {
     void alertDialog(
       'Save the project or ensure the image file is on disk before editing animations.',
-      { title: 'Spritesheet Studio', kind: 'warning' },
+      { title: 'Sprite Studio', kind: 'warning' },
     )
     return
   }
