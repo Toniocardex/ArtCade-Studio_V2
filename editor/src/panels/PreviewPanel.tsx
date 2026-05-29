@@ -29,7 +29,6 @@ import {
 import { normalizeEntityPosition } from '../utils/entity-position'
 import { CanvasToolbar } from './preview/CanvasToolbar'
 import { RuntimeStatusBadge } from './preview/RuntimeStatusBadge'
-import { ViewportAxisGizmo } from './preview/ViewportAxisGizmo'
 
 type TransformSnapshot = {
   entityId: number
@@ -547,7 +546,6 @@ export default function PreviewPanel() {
             />
             {/* Scene edge — always on, independent of grid guides. */}
             <div className="canvas-scene-frame__edge" aria-hidden />
-            <ViewportAxisGizmo visible={!isPlaying && wasmReady} />
           </div>
         </div>
       </div>
