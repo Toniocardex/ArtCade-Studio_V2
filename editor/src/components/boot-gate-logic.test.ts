@@ -1,45 +1,84 @@
 import { describe, it, expect } from 'vitest'
-import { shouldShowBootLoadingStatus, shouldStartBootFade } from './boot-gate-logic'
+import {
+  SPLASH_MIN_VISIBLE_MS,
+  shouldShowBootLoadingStatus,
+  shouldStartBootFade,
+} from './boot-gate-logic'
 
 describe('shouldStartBootFade', () => {
+  const started = 1000
+
   it('is false until runtime ready and intro finished', () => {
     expect(shouldStartBootFade({
-      ready: false, introDone: true, bootComplete: false, fadeOut: false,
+      ready: false,
+      introComplete: true,
+      bootComplete: false,
+      fadeOut: false,
+      nowMs: started + SPLASH_MIN_VISIBLE_MS,
+      splashStartedAtMs: started,
     })).toBe(false)
     expect(shouldStartBootFade({
-      ready: true, introDone: false, bootComplete: false, fadeOut: false,
+      ready: true,
+      introComplete: false,
+      bootComplete: false,
+      fadeOut: false,
+      nowMs: started + SPLASH_MIN_VISIBLE_MS,
+      splashStartedAtMs: started,
     })).toBe(false)
   })
 
-  it('is true when ready, intro done, and overlay still active', () => {
+  it('is false until minimum splash visible time elapses', () => {
     expect(shouldStartBootFade({
-      ready: true, introDone: true, bootComplete: false, fadeOut: false,
+      ready: true,
+      introComplete: true,
+      bootComplete: false,
+      fadeOut: false,
+      nowMs: started + SPLASH_MIN_VISIBLE_MS - 1,
+      splashStartedAtMs: started,
+    })).toBe(false)
+    expect(shouldStartBootFade({
+      ready: true,
+      introComplete: true,
+      bootComplete: false,
+      fadeOut: false,
+      nowMs: started + SPLASH_MIN_VISIBLE_MS,
+      splashStartedAtMs: started,
     })).toBe(true)
   })
 
   it('is false after fade started or boot complete', () => {
     expect(shouldStartBootFade({
-      ready: true, introDone: true, bootComplete: true, fadeOut: false,
+      ready: true,
+      introComplete: true,
+      bootComplete: true,
+      fadeOut: false,
+      nowMs: started + SPLASH_MIN_VISIBLE_MS,
+      splashStartedAtMs: started,
     })).toBe(false)
     expect(shouldStartBootFade({
-      ready: true, introDone: true, bootComplete: false, fadeOut: true,
+      ready: true,
+      introComplete: true,
+      bootComplete: false,
+      fadeOut: true,
+      nowMs: started + SPLASH_MIN_VISIBLE_MS,
+      splashStartedAtMs: started,
     })).toBe(false)
   })
 })
 
 describe('shouldShowBootLoadingStatus', () => {
-  it('shows status after skip while engine still loading', () => {
+  it('shows status after intro while engine still loading', () => {
     expect(shouldShowBootLoadingStatus({
-      introDone: true, ready: false, timedOut: false,
+      introComplete: true, ready: false, timedOut: false,
     })).toBe(true)
   })
 
   it('hides status when ready or timed out', () => {
     expect(shouldShowBootLoadingStatus({
-      introDone: true, ready: true, timedOut: false,
+      introComplete: true, ready: true, timedOut: false,
     })).toBe(false)
     expect(shouldShowBootLoadingStatus({
-      introDone: true, ready: false, timedOut: true,
+      introComplete: true, ready: false, timedOut: true,
     })).toBe(false)
   })
 })

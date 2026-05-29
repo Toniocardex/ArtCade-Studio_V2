@@ -1,31 +1,46 @@
 import { useState, useEffect } from 'react'
 
+/** Title visible; hold before boot gate may dismiss (no exit blur). */
+const INTRO_HOLD_COMPLETE_MS = 4800
+/** After skip, brief beat so the title frame paints before intro counts as complete. */
+const SKIP_INTRO_COMPLETE_MS = 400
+
 export interface SplashScreenProps {
-  /** Choreography finished (or skipped via `fastForward`). Does not mean runtime is ready. */
+  /** Intro choreography finished (title held). Does not mean runtime is ready. */
   onIntroComplete?: () => void
-  /** Skip animation — hold on title until the boot gate dismisses. */
-  fastForward?: boolean
+  /** Skip animation — jump to title hold frame. */
+  skipped?: boolean
+  /** Boot gate is fading — play exit blur on the title. */
+  exiting?: boolean
 }
 
 /** Boot splash every launch. Text-only — no logo image. */
-export default function SplashScreen({ onIntroComplete, fastForward = false }: SplashScreenProps) {
-  const [step, setStep] = useState(0) // 0 idle, 1 grid, 2 streams, 3 title, 4 closing
+export default function SplashScreen({
+  onIntroComplete,
+  skipped = false,
+  exiting = false,
+}: SplashScreenProps) {
+  const [step, setStep] = useState(0) // 0 idle, 1 grid, 2 streams, 3 title hold, 4 exit blur
 
   useEffect(() => {
-    if (fastForward) {
-      setStep(3)
+    if (exiting) {
+      setStep(4)
       return undefined
+    }
+    if (skipped) {
+      setStep(3)
+      const t = globalThis.setTimeout(() => onIntroComplete?.(), SKIP_INTRO_COMPLETE_MS)
+      return () => globalThis.clearTimeout(t)
     }
 
     const timers = [
       globalThis.setTimeout(() => setStep(1), 200),
       globalThis.setTimeout(() => setStep(2), 600),
       globalThis.setTimeout(() => setStep(3), 1400),
-      globalThis.setTimeout(() => setStep(4), 4500),
-      globalThis.setTimeout(() => onIntroComplete?.(), 5200),
+      globalThis.setTimeout(() => onIntroComplete?.(), INTRO_HOLD_COMPLETE_MS),
     ]
     return () => timers.forEach(globalThis.clearTimeout)
-  }, [fastForward, onIntroComplete])
+  }, [skipped, exiting, onIntroComplete])
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg)] text-[var(--text)] overflow-hidden pointer-events-none select-none font-mono">

@@ -1,8 +1,12 @@
 import {
-  useCallback, useEffect, useLayoutEffect, useState, type TransitionEvent, type ReactNode,
+  useCallback, useEffect, useLayoutEffect, useRef, useState, type TransitionEvent, type ReactNode,
 } from 'react'
 import SplashScreen from './SplashScreen'
-import { shouldShowBootLoadingStatus, shouldStartBootFade } from './boot-gate-logic'
+import {
+  shouldShowBootLoadingStatus,
+  shouldStartBootFade,
+  SPLASH_MIN_VISIBLE_MS,
+} from './boot-gate-logic'
 import { useEditorBootReady } from '../hooks/useEditorBootReady'
 import { revealTauriWindowAfterBoot } from '../utils/boot-chrome'
 import { warmWasmBinary } from '../utils/wasm-bridge'
@@ -12,16 +16,15 @@ export interface EditorBootGateProps {
 }
 
 /**
- * Full-screen boot gate: editor shell mounts underneath (WASM + project load)
- * while the splash blocks interaction. Dismisses only when runtime, EditorAPI,
- * blank project, and first project→WASM sync are all ready — and the intro
- * animation has finished or the user skipped it.
- *
- * Tauri window stays hidden until revealTauriWindowAfterBoot() after the gate clears.
+ * Full-screen boot gate: splash plays its intro, holds on the title, then fades
+ * only when the engine is ready and the minimum splash time has elapsed.
+ * Skip jumps to the title hold but still waits for runtime readiness.
  */
 export default function EditorBootGate({ children }: EditorBootGateProps) {
   const { ready, timedOut, statusLine, retry } = useEditorBootReady()
-  const [introDone, setIntroDone] = useState(false)
+  const splashStartedAtRef = useRef(Date.now())
+  const [introSkipped, setIntroSkipped] = useState(false)
+  const [introComplete, setIntroComplete] = useState(false)
   const [bootComplete, setBootComplete] = useState(false)
   const [fadeOut, setFadeOut] = useState(false)
 
@@ -33,13 +36,34 @@ export default function EditorBootGate({ children }: EditorBootGateProps) {
     document.getElementById('boot-shell')?.remove()
   }, [])
 
-  const skipIntro = useCallback(() => setIntroDone(true), [])
+  const skipIntro = useCallback(() => setIntroSkipped(true), [])
 
   useEffect(() => {
-    if (!shouldStartBootFade({ ready, introDone, bootComplete, fadeOut })) return
-    setFadeOut(true)
-    revealTauriWindowAfterBoot()
-  }, [ready, introDone, bootComplete, fadeOut])
+    if (!ready || !introComplete || bootComplete || fadeOut) return undefined
+
+    const startFade = () => {
+      setFadeOut(true)
+      revealTauriWindowAfterBoot()
+    }
+
+    const now = Date.now()
+    const started = splashStartedAtRef.current
+    if (shouldStartBootFade({
+      ready,
+      introComplete,
+      bootComplete: false,
+      fadeOut: false,
+      nowMs: now,
+      splashStartedAtMs: started,
+    })) {
+      startFade()
+      return undefined
+    }
+
+    const remaining = SPLASH_MIN_VISIBLE_MS - (now - started)
+    const t = globalThis.setTimeout(startFade, remaining)
+    return () => globalThis.clearTimeout(t)
+  }, [ready, introComplete, bootComplete, fadeOut])
 
   const onOverlayTransitionEnd = useCallback((e: TransitionEvent<HTMLDivElement>) => {
     if (e.target !== e.currentTarget) return
@@ -55,7 +79,7 @@ export default function EditorBootGate({ children }: EditorBootGateProps) {
   }, [fadeOut, bootComplete])
 
   const showOverlay = !bootComplete
-  const showLoadingStatus = shouldShowBootLoadingStatus({ introDone, ready, timedOut })
+  const showLoadingStatus = shouldShowBootLoadingStatus({ introComplete, ready, timedOut })
 
   return (
     <div className="relative h-full w-full min-h-0 flex flex-col overflow-hidden bg-[var(--bg)]">
@@ -79,15 +103,18 @@ export default function EditorBootGate({ children }: EditorBootGateProps) {
           aria-busy={!timedOut}
         >
           <SplashScreen
-            fastForward={introDone}
-            onIntroComplete={() => setIntroDone(true)}
+            skipped={introSkipped}
+            exiting={fadeOut}
+            onIntroComplete={() => setIntroComplete(true)}
           />
           <button
             type="button"
             onClick={skipIntro}
+            disabled={introSkipped}
             className="fixed bottom-6 right-6 z-[110] px-3 py-1.5 rounded text-[10px] font-semibold
                        border border-[var(--border-2)] text-[var(--muted)]
-                       hover:text-[var(--text)] hover:border-[var(--accent-bd)] pointer-events-auto"
+                       hover:text-[var(--text)] hover:border-[var(--accent-bd)] pointer-events-auto
+                       disabled:opacity-40 disabled:pointer-events-none"
           >
             Skip intro
           </button>
