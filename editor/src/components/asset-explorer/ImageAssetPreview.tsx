@@ -81,7 +81,7 @@ export function ImageAssetPreview({ asset, projectPath, onOpenStudio }: ImageAss
         src={src}
         alt=""
         draggable={false}
-        className="max-w-full max-h-32 object-contain"
+        className="max-w-full max-h-32 object-contain pointer-events-none"
         style={{ imageRendering: 'pixelated' }}
       />
     </button>

@@ -551,9 +551,10 @@ export default function ProjectExplorerPanel() {
                                 assets.selection.id === imgRow.id,
                               onClick: () =>
                                 assets.setSelection({ type: 'image', id: imgRow.id }),
-                              onDoubleClick: () => asset && assets.assignSprite(asset),
+                              onDoubleClick: () =>
+                                openSpritesheetStudio(dispatch, project, imgRow.id),
                               title: asset
-                                ? 'Double-click thumbnail for Sprite Studio; double-click row to assign sprite'
+                                ? 'Double-click to open Sprite Studio'
                                 : imgRow.path,
                               icon: (
                                 <ImageTreeThumbnail
@@ -693,7 +694,9 @@ export default function ProjectExplorerPanel() {
                           selected={selected}
                           spritesheetStudioTrigger={Boolean(asset)}
                           onClick={() => assets.setSelection({ type: 'image', id: img.id })}
-                          onDoubleClick={() => asset && assets.assignSprite(asset)}
+                          onDoubleClick={() =>
+                            openSpritesheetStudio(dispatch, project, img.id)
+                          }
                           onContextMenu={(ev) => {
                             if (!asset) return
                             openExplorerContextMenu(
@@ -737,9 +740,7 @@ export default function ProjectExplorerPanel() {
                             )
                           }}
                           title={
-                            asset
-                              ? 'Double-click thumbnail for Sprite Studio; double-click row to assign sprite'
-                              : img.path
+                            asset ? 'Double-click to open Sprite Studio' : img.path
                           }
                           icon={
                             <ImageTreeThumbnail

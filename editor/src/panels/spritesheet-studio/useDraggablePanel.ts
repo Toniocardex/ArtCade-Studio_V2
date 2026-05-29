@@ -10,15 +10,46 @@ import {
 } from 'react'
 
 const STORAGE_KEY = 'artcade-spritesheet-studio-pos'
+const MIN_PANEL_W = 320
+const MIN_PANEL_H = 240
 
 type PanelPos = Readonly<{ x: number; y: number }>
+
+/** CSS max size of the studio panel — used until layout reports real dimensions. */
+export function defaultPanelSize(): Readonly<{ w: number; h: number }> {
+  return {
+    w: Math.min(1400, Math.round(window.innerWidth * 0.96)),
+    h: Math.min(820, Math.round(window.innerHeight * 0.9)),
+  }
+}
+
+export function measurePanelSize(el: HTMLElement): Readonly<{ w: number; h: number }> {
+  const rect = el.getBoundingClientRect()
+  const fallback = defaultPanelSize()
+  const w = Math.max(el.offsetWidth, rect.width, fallback.w)
+  const h = Math.max(el.offsetHeight, rect.height, fallback.h)
+  return { w, h }
+}
+
+/** Top-left snapped to viewport center with zero size (bad first-layout measure). */
+function isCorruptCenterSnap(pos: PanelPos): boolean {
+  const cx = window.innerWidth / 2
+  const cy = window.innerHeight / 2
+  return Math.abs(pos.x - cx) < 96 && Math.abs(pos.y - cy) < 96
+}
 
 function loadStoredPos(): PanelPos | null {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY)
     if (!raw) return null
     const p = JSON.parse(raw) as { x?: unknown; y?: unknown }
-    if (typeof p.x === 'number' && typeof p.y === 'number') return { x: p.x, y: p.y }
+    if (typeof p.x !== 'number' || typeof p.y !== 'number') return null
+    const pos = { x: p.x, y: p.y }
+    if (isCorruptCenterSnap(pos)) {
+      sessionStorage.removeItem(STORAGE_KEY)
+      return null
+    }
+    return pos
   } catch {
     /* ignore */
   }
@@ -68,22 +99,36 @@ export function useDraggablePanel(
     null,
   )
 
+  const applyCenteredPosition = useCallback(() => {
+    const el = panelRef.current
+    const { w, h } = el ? measurePanelSize(el) : defaultPanelSize()
+    setPos(centerPanelPosition(w, h))
+  }, [panelRef])
+
   useLayoutEffect(() => {
     if (!enabled || pos != null) return
     const el = panelRef.current
     if (!el) return
-    setPos(centerPanelPosition(el.offsetWidth, el.offsetHeight))
-  }, [enabled, pos, panelRef])
+
+    const place = () => {
+      if (panelRef.current == null) return
+      const { w, h } = measurePanelSize(panelRef.current)
+      if (w < MIN_PANEL_W || h < MIN_PANEL_H) return false
+      setPos(centerPanelPosition(w, h))
+      return true
+    }
+
+    if (place()) return
+    const raf = requestAnimationFrame(() => {
+      if (!place()) applyCenteredPosition()
+    })
+    return () => cancelAnimationFrame(raf)
+  }, [enabled, pos, panelRef, applyCenteredPosition])
 
   const resetPosition = useCallback(() => {
     clearStoredPanelPosition()
-    const el = panelRef.current
-    if (!el) {
-      setPos(null)
-      return
-    }
-    setPos(centerPanelPosition(el.offsetWidth, el.offsetHeight))
-  }, [panelRef])
+    applyCenteredPosition()
+  }, [applyCenteredPosition])
 
   useEffect(() => {
     if (!enabled || !pos) return
@@ -136,7 +181,13 @@ export function useDraggablePanel(
     [endDrag],
   )
 
-  const panelStyle: CSSProperties | undefined = pos ? { left: pos.x, top: pos.y } : undefined
+  const panelStyle: CSSProperties | undefined = pos
+    ? { left: pos.x, top: pos.y, transform: 'none' }
+    : {
+        left: '50%',
+        top: '50%',
+        transform: 'translate(-50%, -50%)',
+      }
 
   return {
     pos,

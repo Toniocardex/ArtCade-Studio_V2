@@ -111,7 +111,9 @@ export function TreeLeaf({
           {...studioTrigger}
           className="flex flex-1 items-center gap-1.5 py-1 min-w-0 text-left"
         >
-          {icon}
+          <span className="flex-shrink-0" aria-hidden>
+            {icon}
+          </span>
           <span className="truncate flex-1 min-w-0">{label}</span>
           {trailing}
         </button>
