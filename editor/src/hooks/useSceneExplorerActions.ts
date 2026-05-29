@@ -49,6 +49,14 @@ export function useSceneExplorerActions() {
     dispatch({ type: 'SCENE_SET_START', sceneId: scene.id })
   }, [dispatch, scene, isStartScene])
 
+  const setStartSceneById = useCallback(
+    (targetSceneId: string) => {
+      if (!project || targetSceneId === project.activeSceneId) return
+      dispatch({ type: 'SCENE_SET_START', sceneId: targetSceneId })
+    },
+    [dispatch, project],
+  )
+
   const deleteScene = useCallback(() => {
     if (!scene || !canDeleteScene) return
     void confirmDialog(`Delete scene "${scene.name}" and its entities?`, {
@@ -58,6 +66,23 @@ export function useSceneExplorerActions() {
       if (ok) dispatch({ type: 'SCENE_DELETE', sceneId: scene.id })
     })
   }, [canDeleteScene, dispatch, scene])
+
+  const deleteSceneById = useCallback(
+    (targetSceneId: string) => {
+      if (!project) return
+      const target = project.scenes[targetSceneId]
+      if (!target) return
+      const isStart = targetSceneId === project.activeSceneId
+      if (sceneCount <= 1 || isStart) return
+      void confirmDialog(`Delete scene "${target.name}" and its entities?`, {
+        title: 'Delete scene',
+        kind: 'warning',
+      }).then((ok) => {
+        if (ok) dispatch({ type: 'SCENE_DELETE', sceneId: targetSceneId })
+      })
+    },
+    [dispatch, project, sceneCount],
+  )
 
   const renameScene = useCallback(() => {
     if (!scene) return
@@ -70,6 +95,22 @@ export function useSceneExplorerActions() {
       dispatch({ type: 'SCENE_RENAME', sceneId: scene.id, name })
     })
   }, [dispatch, scene, promptText])
+
+  const renameSceneById = useCallback(
+    (targetSceneId: string) => {
+      const target = project?.scenes[targetSceneId]
+      if (!target) return
+      void promptText({
+        title: 'Rename scene',
+        message: 'Scene name:',
+        defaultValue: target.name,
+      }).then((name) => {
+        if (!name || name === target.name) return
+        dispatch({ type: 'SCENE_RENAME', sceneId: targetSceneId, name })
+      })
+    },
+    [dispatch, project, promptText],
+  )
 
   const addEntity = useCallback(() => {
     if (!project || !scene) return
@@ -131,6 +172,22 @@ export function useSceneExplorerActions() {
     })
   }, [dispatch, promptText])
 
+  const renameEntity = useCallback(
+    (entityId: number) => {
+      const ent = project?.entities[entityId]
+      if (!ent) return
+      void promptText({
+        title: 'Rename entity',
+        message: 'Entity name:',
+        defaultValue: ent.name,
+      }).then((name) => {
+        if (!name || name === ent.name) return
+        dispatch({ type: 'ENTITY_SET_NAME', entityId, name })
+      })
+    },
+    [dispatch, project, promptText],
+  )
+
   const placeEntityType = useCallback(
     (objectTypeId: string) => {
       if (!scene || !project) return
@@ -170,14 +227,18 @@ export function useSceneExplorerActions() {
     addScene,
     selectScene,
     setStartScene,
+    setStartSceneById,
     deleteScene,
+    deleteSceneById,
     renameScene,
+    renameSceneById,
     addEntity,
     selectEntity,
     toggleEntityVisible,
     duplicateEntity,
     deleteEntity,
     openEntityLogic,
+    renameEntity,
     addEntityType,
     placeEntityType,
   }

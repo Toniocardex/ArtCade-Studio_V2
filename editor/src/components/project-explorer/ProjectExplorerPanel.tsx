@@ -30,6 +30,11 @@ import {
   ExplorerLabelCta,
   ExplorerLeafActionBtn,
 } from './explorer-cta'
+import {
+  ExplorerContextMenu,
+  openExplorerContextMenu,
+  type ExplorerContextMenuState,
+} from './explorer-context-menu'
 
 const CLASS_COLOR: Record<string, string> = {
   Player: 'var(--accent)',
@@ -39,8 +44,9 @@ const CLASS_COLOR: Record<string, string> = {
 }
 
 export default function ProjectExplorerPanel() {
-  const { state } = useEditor()
+  const { state, dispatch } = useEditor()
   const [search, setSearch] = useState('')
+  const [contextMenu, setContextMenu] = useState<ExplorerContextMenuState | null>(null)
   const assetsAnchorRef = useRef<HTMLDivElement>(null)
   const { isOpen, toggle, setOpen, expandAllAssetFolders } = useExplorerExpanded()
   const scene = useSceneExplorerActions()
@@ -108,6 +114,7 @@ export default function ProjectExplorerPanel() {
       className="h-full min-h-0 flex flex-col bg-[var(--panel)]"
       data-panel="project-explorer"
     >
+      <ExplorerContextMenu state={contextMenu} onClose={() => setContextMenu(null)} />
       <input
         ref={assets.imageRef}
         type="file"
@@ -189,6 +196,32 @@ export default function ProjectExplorerPanel() {
                   depth={1}
                   selected={active}
                   onClick={() => scene.selectScene(s.sceneId)}
+                  onContextMenu={(ev) =>
+                    openExplorerContextMenu(
+                      ev,
+                      [
+                        {
+                          id: 'set-start',
+                          label: 'Set as start scene',
+                          disabled: s.isStartScene,
+                          onSelect: () => scene.setStartSceneById(s.sceneId),
+                        },
+                        {
+                          id: 'rename',
+                          label: 'Rename scene',
+                          onSelect: () => scene.renameSceneById(s.sceneId),
+                        },
+                        {
+                          id: 'delete',
+                          label: 'Delete scene',
+                          danger: true,
+                          disabled: s.isStartScene || scene.sceneCount <= 1,
+                          onSelect: () => scene.deleteSceneById(s.sceneId),
+                        },
+                      ],
+                      setContextMenu,
+                    )
+                  }
                   icon={<FileText size={11} className="flex-shrink-0 opacity-70" />}
                   trailing={
                     s.isStartScene ? (
@@ -238,6 +271,40 @@ export default function ProjectExplorerPanel() {
                   selected={selected}
                   muted={!e.visible}
                   onClick={() => scene.selectEntity(e.entityId)}
+                  onContextMenu={(ev) =>
+                    openExplorerContextMenu(
+                      ev,
+                      [
+                        {
+                          id: 'logic',
+                          label: 'Edit Logic Board',
+                          onSelect: () => scene.openEntityLogic(e.entityId),
+                        },
+                        {
+                          id: 'visible',
+                          label: e.visible ? 'Hide in game' : 'Show in game',
+                          onSelect: () => scene.toggleEntityVisible(e.entityId, e.visible),
+                        },
+                        {
+                          id: 'rename',
+                          label: 'Rename',
+                          onSelect: () => scene.renameEntity(e.entityId),
+                        },
+                        {
+                          id: 'duplicate',
+                          label: 'Duplicate',
+                          onSelect: () => scene.duplicateEntity(e.entityId),
+                        },
+                        {
+                          id: 'delete',
+                          label: 'Delete',
+                          danger: true,
+                          onSelect: () => scene.deleteEntity(e.entityId),
+                        },
+                      ],
+                      setContextMenu,
+                    )
+                  }
                   icon={
                     <Box
                       size={11}
@@ -325,6 +392,20 @@ export default function ProjectExplorerPanel() {
                 key={t.objectTypeId}
                 className="flex items-center gap-1.5 px-2 py-1"
                 style={{ paddingLeft: 20 }}
+                onContextMenu={(ev) =>
+                  openExplorerContextMenu(
+                    ev,
+                    [
+                      {
+                        id: 'place',
+                        label: 'Place in scene',
+                        disabled: !scene.scene,
+                        onSelect: () => scene.placeEntityType(t.objectTypeId),
+                      },
+                    ],
+                    setContextMenu,
+                  )
+                }
               >
                 <span className="flex-1 text-[10px] truncate text-[var(--text)]" title={t.objectTypeId}>
                   {t.label}
@@ -397,6 +478,28 @@ export default function ProjectExplorerPanel() {
                           selected={selected}
                           onClick={() => assets.setSelection({ type: 'image', id: img.id })}
                           onDoubleClick={() => asset && assets.assignSprite(asset)}
+                          onContextMenu={(ev) => {
+                            if (!asset) return
+                            openExplorerContextMenu(
+                              ev,
+                              [
+                                {
+                                  id: 'assign',
+                                  label: 'Assign to selected entity',
+                                  disabled: selectedEntityId == null,
+                                  onSelect: () => assets.assignSprite(asset),
+                                },
+                                {
+                                  id: 'remove',
+                                  label: 'Remove image',
+                                  danger: true,
+                                  onSelect: () =>
+                                    dispatch({ type: 'ASSET_REMOVE', assetId: img.id }),
+                                },
+                              ],
+                              setContextMenu,
+                            )
+                          }}
                           title={asset ? 'Double-click to assign sprite to selected entity' : img.path}
                           icon={
                             asset?.dataUrl ? (
@@ -422,6 +525,21 @@ export default function ProjectExplorerPanel() {
                           assets.selection?.type === 'audio' && assets.selection.id === a.id
                         }
                         onClick={() => assets.setSelection({ type: 'audio', id: a.id })}
+                        onContextMenu={(ev) =>
+                          openExplorerContextMenu(
+                            ev,
+                            [
+                              {
+                                id: 'remove',
+                                label: 'Remove audio',
+                                danger: true,
+                                onSelect: () =>
+                                  dispatch({ type: 'AUDIO_ASSET_REMOVE', assetId: a.id }),
+                              },
+                            ],
+                            setContextMenu,
+                          )
+                        }
                         icon={<Music size={11} className="flex-shrink-0 text-[var(--accent-2)]" />}
                         title={a.path}
                       />
@@ -435,6 +553,21 @@ export default function ProjectExplorerPanel() {
                           assets.selection?.type === 'font' && assets.selection.id === f.id
                         }
                         onClick={() => assets.setSelection({ type: 'font', id: f.id })}
+                        onContextMenu={(ev) =>
+                          openExplorerContextMenu(
+                            ev,
+                            [
+                              {
+                                id: 'remove',
+                                label: 'Remove font',
+                                danger: true,
+                                onSelect: () =>
+                                  dispatch({ type: 'FONT_ASSET_REMOVE', assetId: f.id }),
+                              },
+                            ],
+                            setContextMenu,
+                          )
+                        }
                         icon={<Type size={11} className="flex-shrink-0 text-[var(--warn)]" />}
                         title={f.path}
                       />
@@ -445,6 +578,19 @@ export default function ProjectExplorerPanel() {
                         label={s.label}
                         depth={2}
                         onClick={() => assets.openScript(s.path)}
+                        onContextMenu={(ev) =>
+                          openExplorerContextMenu(
+                            ev,
+                            [
+                              {
+                                id: 'open',
+                                label: 'Open in script editor',
+                                onSelect: () => assets.openScript(s.path),
+                              },
+                            ],
+                            setContextMenu,
+                          )
+                        }
                         icon={<FileText size={11} className="flex-shrink-0 text-[var(--muted)]" />}
                         title={s.path}
                       />
@@ -459,6 +605,26 @@ export default function ProjectExplorerPanel() {
                         }
                         onClick={() => assets.setSelection({ type: 'tileset', id: t.assetId })}
                         onDoubleClick={() => assets.openTilesetEditor(t.assetId)}
+                        onContextMenu={(ev) =>
+                          openExplorerContextMenu(
+                            ev,
+                            [
+                              {
+                                id: 'edit',
+                                label: 'Open Tileset Editor',
+                                onSelect: () => assets.openTilesetEditor(t.assetId),
+                              },
+                              {
+                                id: 'remove',
+                                label: 'Remove tileset',
+                                danger: true,
+                                onSelect: () =>
+                                  dispatch({ type: 'TILESET_ASSET_REMOVE', assetId: t.assetId }),
+                              },
+                            ],
+                            setContextMenu,
+                          )
+                        }
                         icon={<Grid3x3 size={11} className="flex-shrink-0 text-[var(--purple)]" />}
                         title="Double-click to open Tileset Editor"
                       />

@@ -63,6 +63,7 @@ export type TreeLeafProps = Readonly<{
   actions?: ReactNode
   onClick: () => void
   onDoubleClick?: () => void
+  onContextMenu?: (ev: React.MouseEvent) => void
   title?: string
 }>
 
@@ -83,6 +84,7 @@ export function TreeLeaf({
   actions,
   onClick,
   onDoubleClick,
+  onContextMenu,
   title,
 }: TreeLeafProps) {
   const pad = 12 + depth * 12
@@ -97,6 +99,7 @@ export function TreeLeaf({
           type="button"
           onClick={onClick}
           onDoubleClick={onDoubleClick}
+          onContextMenu={onContextMenu}
           title={title}
           className="flex flex-1 items-center gap-1.5 py-1 min-w-0 text-left"
         >
@@ -114,6 +117,7 @@ export function TreeLeaf({
       type="button"
       onClick={onClick}
       onDoubleClick={onDoubleClick}
+      onContextMenu={onContextMenu}
       title={title}
       className={`w-full flex items-center gap-1.5 py-1 pr-2 rounded text-xs text-left transition-colors ${leafRowClass(selected, muted)}`}
       style={{ paddingLeft: pad }}
