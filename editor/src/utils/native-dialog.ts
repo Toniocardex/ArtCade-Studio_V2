@@ -4,7 +4,7 @@
  */
 import { isTauri } from '@tauri-apps/api/core'
 import { confirm as tauriConfirm, message as tauriMessage } from '@tauri-apps/plugin-dialog'
-import { requestTextPrompt } from './text-prompt'
+import { requestTextPromptTrimmed } from './text-prompt'
 
 export async function confirmDialog(
   message: string,
@@ -41,12 +41,9 @@ export type PromptTextInputOptions = Readonly<{
   defaultValue?: string
 }>
 
-/** Themed editor modal. Returns null if cancelled or empty. */
+/** Themed editor modal (requires TextPromptProvider). Returns null if cancelled or empty. */
 export async function promptTextInput(
   options: PromptTextInputOptions,
 ): Promise<string | null> {
-  const value = await requestTextPrompt(options)
-  if (value == null) return null
-  const trimmed = value.trim()
-  return trimmed.length > 0 ? trimmed : null
+  return requestTextPromptTrimmed(options)
 }

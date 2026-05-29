@@ -11,7 +11,6 @@ import InspectorPanel     from './panels/InspectorPanel'
 import { createBlankProject } from './utils/project'
 import { starterInnkeeperScript } from './utils/dialog/dialog-file-api'
 import { DialogEditorModal } from './panels/dialog/DialogEditorModal'
-import { TextPromptModal } from './components/TextPromptModal'
 import { triggerLayoutReflow } from './utils/layout-reflow'
 import { useProjectShortcuts } from './hooks/useProjectShortcuts'
 import { useProjectLogicBoardSync } from './hooks/useProjectLogicBoardSync'
@@ -196,7 +195,6 @@ function EditorLayout() {
     <div className="editor-shell flex flex-col w-full h-full bg-[var(--bg)] text-[var(--text)] overflow-hidden select-none">
       <MenuBar />
       <DialogEditorModal />
-      <TextPromptModal />
 
       <div className="flex flex-1 min-w-0 min-h-0 overflow-hidden">
         <ModuleRail />

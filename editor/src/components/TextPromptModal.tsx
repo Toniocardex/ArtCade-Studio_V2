@@ -3,6 +3,7 @@ import {
   completeTextPrompt,
   getTextPromptRequest,
   subscribeTextPrompt,
+  TEXT_PROMPT_TEST_IDS,
 } from '../utils/text-prompt'
 
 /** Themed single-line prompt — replaces native Win32 input for editor UX. */
@@ -12,14 +13,15 @@ export function TextPromptModal() {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const dismissKindRef = useRef<'submit' | null>(null)
-  const [draft, setDraft] = useState('')
+  const [editDraft, setEditDraft] = useState<string | null>(null)
 
   useEffect(() => subscribeTextPrompt(() => bump((n) => n + 1)), [])
 
   useEffect(() => {
-    if (!request) return
-    setDraft(request.options.defaultValue ?? '')
-  }, [request?.id, request?.options.defaultValue])
+    setEditDraft(null)
+  }, [request?.id])
+
+  const draft = editDraft ?? request?.options.defaultValue ?? ''
 
   useEffect(() => {
     if (!request) return
@@ -57,12 +59,14 @@ export function TextPromptModal() {
   }
 
   const cancel = () => {
+    dialogRef.current?.close()
     completeTextPrompt(null)
   }
 
   return (
     <dialog
       ref={dialogRef}
+      data-testid={TEXT_PROMPT_TEST_IDS.modal}
       aria-labelledby="text-prompt-title"
       aria-describedby="text-prompt-message"
       aria-modal
@@ -88,14 +92,16 @@ export function TextPromptModal() {
           </h2>
         </header>
         <div className="px-4 py-4 space-y-3">
-          <label id="text-prompt-message" className="block text-[11px] text-[var(--muted)]">
+          <label htmlFor="text-prompt-input" className="block text-[11px] text-[var(--muted)]">
             {message}
           </label>
           <input
+            id="text-prompt-input"
             ref={inputRef}
             type="text"
+            data-testid={TEXT_PROMPT_TEST_IDS.input}
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
+            onChange={(e) => setEditDraft(e.target.value)}
             className="w-full px-3 py-2 rounded border border-[var(--border-2)] bg-[var(--bg)]
                        text-sm text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
             autoComplete="off"
@@ -104,6 +110,7 @@ export function TextPromptModal() {
         <footer className="flex justify-end gap-2 px-4 py-3 border-t border-[var(--border)] bg-[var(--panel-2)]">
           <button
             type="button"
+            data-testid={TEXT_PROMPT_TEST_IDS.cancel}
             onClick={cancel}
             className="px-3 py-1.5 text-xs rounded border border-[var(--border)] text-[var(--muted)]
                        hover:text-[var(--text)] hover:border-[var(--border-2)]"
@@ -112,6 +119,7 @@ export function TextPromptModal() {
           </button>
           <button
             type="submit"
+            data-testid={TEXT_PROMPT_TEST_IDS.submit}
             className="px-3 py-1.5 text-xs font-semibold rounded border border-[var(--accent-bd)]
                        bg-[var(--accent-bg)] text-[var(--accent)] hover:bg-[var(--accent-bg-h)]"
           >

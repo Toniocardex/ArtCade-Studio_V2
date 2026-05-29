@@ -2,10 +2,12 @@ import { useMemo, useState } from 'react'
 import { useEditor } from '../../store/editor-store'
 import { importDialogCsv } from '../../utils/dialog/import-dialog-csv'
 import { parseDialogGraph } from '../../utils/dialog/dialog-script'
-import { confirmDialog, promptTextInput } from '../../utils/native-dialog'
+import { confirmDialog } from '../../utils/native-dialog'
+import { useTextPrompt } from '../../hooks/useTextPrompt'
 
 export function DialogLibrarySidebar() {
   const { state, dispatch } = useEditor()
+  const promptText = useTextPrompt()
   const [filter, setFilter] = useState('')
 
   const ids = useMemo(() => {
@@ -104,7 +106,7 @@ export function DialogLibrarySidebar() {
             onClick={() => {
               const fromId = state.selectedDialogId
               if (!fromId) return
-              void promptTextInput({
+              void promptText({
                 title: 'Rename dialog',
                 message: 'Dialog ID:',
                 defaultValue: fromId,

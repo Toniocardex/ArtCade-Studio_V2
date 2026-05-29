@@ -61,6 +61,12 @@ export default function ProjectExplorerPanel() {
 
   const prevTypeCountRef = useRef(0)
   const prevAssetCountRef = useRef(0)
+
+  useEffect(() => {
+    prevTypeCountRef.current = 0
+    prevAssetCountRef.current = 0
+  }, [state.projectLoadEpoch])
+
   useEffect(() => {
     if (!tree) return
     if (tree.entityTypes.length > 0 && prevTypeCountRef.current === 0) {

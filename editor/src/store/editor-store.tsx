@@ -33,6 +33,7 @@ import { logicBoardReducer } from './reducers/logic-board-reducer'
 import { dialogReducer } from './reducers/dialog-reducer'
 import { applyAuthoringModeToDocument } from '../utils/authoring-mode'
 import { ensureBootSessionReset } from '../utils/boot-session'
+import { TextPromptProvider } from '../components/TextPromptProvider'
 
 export type { CoreState, VolatileState, Action }
 
@@ -122,7 +123,9 @@ export function EditorProvider({ children }: { children: ReactNode }) {
   return (
     <CoreContext.Provider value={coreValue}>
       <VolatileContext.Provider value={volatileValue}>
-        {children}
+        <TextPromptProvider>
+          {children}
+        </TextPromptProvider>
       </VolatileContext.Provider>
     </CoreContext.Provider>
   )

@@ -1,7 +1,8 @@
 import { useCallback, useEffect } from 'react'
 import { useEditor } from '../store/editor-store'
 import type { ConsoleEntry } from '../types'
-import { confirmDialog, promptTextInput } from '../utils/native-dialog'
+import { confirmDialog } from '../utils/native-dialog'
+import { useTextPrompt } from './useTextPrompt'
 import {
   createEntityDef,
   nextEntityId,
@@ -23,6 +24,7 @@ function explorerLog(message: string, level: ConsoleEntry['level']): ConsoleEntr
 
 export function useSceneExplorerActions() {
   const { state, dispatch } = useEditor()
+  const promptText = useTextPrompt()
   const { project, selection, mode } = state
   const sceneId = project ? selection.sceneId ?? project.activeSceneId : ''
   const scene = project?.scenes[sceneId]
@@ -59,7 +61,7 @@ export function useSceneExplorerActions() {
 
   const renameScene = useCallback(() => {
     if (!scene) return
-    void promptTextInput({
+    void promptText({
       title: 'Rename scene',
       message: 'Scene name:',
       defaultValue: scene.name,
@@ -67,7 +69,7 @@ export function useSceneExplorerActions() {
       if (!name || name === scene.name) return
       dispatch({ type: 'SCENE_RENAME', sceneId: scene.id, name })
     })
-  }, [dispatch, scene])
+  }, [dispatch, scene, promptText])
 
   const addEntity = useCallback(() => {
     if (!project || !scene) return
@@ -119,7 +121,7 @@ export function useSceneExplorerActions() {
   )
 
   const addEntityType = useCallback(() => {
-    void promptTextInput({
+    void promptText({
       title: 'New entity type',
       message: 'Type name (reusable template):',
       defaultValue: 'Entity',
@@ -127,7 +129,7 @@ export function useSceneExplorerActions() {
       if (!name) return
       dispatch({ type: 'OBJECT_TYPE_ADD', displayName: name })
     })
-  }, [dispatch])
+  }, [dispatch, promptText])
 
   const placeEntityType = useCallback(
     (objectTypeId: string) => {
