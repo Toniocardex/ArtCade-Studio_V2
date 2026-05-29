@@ -15,10 +15,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Editor tests
         run: cd editor; npm test -- --run
@@ -31,6 +30,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Bootstrap runtime libraries
+        shell: pwsh
+        run: npm run setup:runtime-libs
+
+      - name: Configure MSVC for build_native.bat
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          if (-not (Test-Path $vswhere)) { throw "vswhere not found on runner" }
+          $install = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $install) { throw "Visual Studio with C++ tools not found on runner" }
+          $devcmd = Join-Path $install "Common7\Tools\VsDevCmd.bat"
+          Add-Content -Path $env:GITHUB_ENV -Value "ARTCADE_VSDEVCMD=$devcmd"
+
       - name: Native runtime and tests
         run: npm run build:cpp
 
@@ -42,13 +55,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
+
+      - name: Bootstrap runtime libraries
+        shell: pwsh
+        run: npm run setup:runtime-libs
 
       - name: Setup Emscripten
-        uses: egordm/setup-emsdk@v2
+        uses: emscripten-core/setup-emsdk@v16
         with:
           version: '3.1.64'
 
