@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import type { ProjectDoc } from '../types'
 import type { LogicBoard } from '../types/logic-board'
+import type { ProjectDoc } from '../types'
+import { listProjectClips } from './animation-clips-catalog'
 import {
-  listProjectClips,
+  resolveClipContextForLogicBoard,
   spritePathForLogicBoardTarget,
-} from './animation-clips-catalog'
+} from './entity-clip-resolve'
 
 function miniProject(assets: ProjectDoc['assets']): ProjectDoc {
   return {
@@ -77,7 +78,7 @@ describe('listProjectClips', () => {
   })
 })
 
-describe('spritePathForLogicBoardTarget', () => {
+describe('resolveClipContextForLogicBoard (re-exported spritePathForLogicBoardTarget)', () => {
   it('returns sprite path for entity_id boards', () => {
     const project: ProjectDoc = {
       ...miniProject({}),
@@ -116,5 +117,6 @@ describe('spritePathForLogicBoardTarget', () => {
       events: [],
     }
     expect(spritePathForLogicBoardTarget(miniProject({}), board)).toBeUndefined()
+    expect(resolveClipContextForLogicBoard(miniProject({}), board)).toEqual({})
   })
 })

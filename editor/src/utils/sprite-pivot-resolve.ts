@@ -1,5 +1,5 @@
 import type { ImageAsset, ProjectDoc, SpriteComponent, Vec2 } from '../types'
-import { clipExistsOnSpritePath } from './animation-clips-catalog'
+import { normalizeSpriteClipFields } from './entity-clip-resolve'
 import {
   clampPivot,
   DEFAULT_PIVOT,
@@ -43,18 +43,14 @@ export function spriteAssignedFromAsset(
   project?: ProjectDoc | null,
 ): SpriteComponent {
   const spriteAssetId = asset?.path ?? ''
-  const defaultClip =
-    sprite.defaultClip &&
-    clipExistsOnSpritePath(project, spriteAssetId, sprite.defaultClip)
-      ? sprite.defaultClip
-      : undefined
+  const clipFields = normalizeSpriteClipFields({ ...sprite, spriteAssetId }, project)
   return {
     ...sprite,
     spriteAssetId,
     pivotFromAsset: true,
     pivot: getAssetDefaultPivot(asset),
-    defaultClip,
-    playClipOnSpawn: defaultClip ? sprite.playClipOnSpawn === true : false,
+    defaultClip: clipFields.defaultClip,
+    playClipOnSpawn: clipFields.playClipOnSpawn,
   }
 }
 

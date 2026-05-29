@@ -27,7 +27,7 @@ import { ConditionPolaritySelect } from '../../components/logic-board/ConditionP
 import { ConditionTreeEditor } from '../../components/logic-board/ConditionTreeEditor'
 import type { ConditionCombineOp } from '../../utils/logic-board/condition-combine'
 import { OnInputTriggerFields } from '../../components/logic-board/OnInputTriggerFields'
-import { spritePathForLogicBoardTarget } from '../../utils/animation-clips-catalog'
+import { resolveClipContextForLogicBoard } from '../../utils/entity-clip-resolve'
 import { defaultConditionRoot } from '../../utils/logic-board/schema-registry'
 import { actionDisplayName } from './friendly-labels'
 import type { ProjectDoc } from '../../types'
@@ -142,12 +142,14 @@ function TriggerFields({
   board,
   project,
   contextSpritePath,
+  ambiguousTargetSpritePaths,
   onChange,
 }: {
   trigger: LogicTrigger
   board?: LogicBoard | null
   project?: ProjectDoc | null
   contextSpritePath?: string
+  ambiguousTargetSpritePaths?: boolean
   onChange: (t: LogicTrigger) => void
 }) {
   const isSensorTrigger =
@@ -171,6 +173,7 @@ function TriggerFields({
           value={trigger as unknown as Record<string, unknown>}
           onChange={(next) => onChange(next as LogicTrigger)}
           contextSpritePath={contextSpritePath}
+          ambiguousTargetSpritePaths={ambiguousTargetSpritePaths}
         />
       )}
       {isCollisionTrigger && (
@@ -210,6 +213,7 @@ function ActionListBlock({
   board,
   project,
   contextSpritePath,
+  ambiguousTargetSpritePaths,
   recommendedTypes,
   onChangeActions,
   newActionType,
@@ -222,6 +226,7 @@ function ActionListBlock({
   board?: LogicBoard | null
   project?: ProjectDoc | null
   contextSpritePath?: string
+  ambiguousTargetSpritePaths?: boolean
   recommendedTypes: readonly string[]
   onChangeActions: (actions: LogicAction[]) => void
   newActionType: NewActionPick
@@ -246,6 +251,7 @@ function ActionListBlock({
           board={board}
           project={project}
           contextSpritePath={contextSpritePath}
+          ambiguousTargetSpritePaths={ambiguousTargetSpritePaths}
           forElse={forElse}
           pickerTypes={pickerTypes}
           recommendedTypes={recommendedTypes}
@@ -310,6 +316,7 @@ function ActionCard({
   board,
   project,
   contextSpritePath,
+  ambiguousTargetSpritePaths,
   forElse,
   pickerTypes,
   recommendedTypes,
@@ -323,6 +330,7 @@ function ActionCard({
   board?: LogicBoard | null
   project?: ProjectDoc | null
   contextSpritePath?: string
+  ambiguousTargetSpritePaths?: boolean
   forElse?: boolean
   pickerTypes: readonly LogicAction['type'][]
   recommendedTypes: readonly string[]
@@ -384,6 +392,7 @@ function ActionCard({
         value={act as unknown as Record<string, unknown>}
         onChange={(next) => onChange(next as LogicAction)}
         contextSpritePath={contextSpritePath}
+        ambiguousTargetSpritePaths={ambiguousTargetSpritePaths}
       />
       <ComponentRequirementWarning requirement={actionRequirement(act, project, board)} />
       {destroyOtherWarn && (
@@ -478,6 +487,7 @@ function SimpleConditions({
   board,
   project,
   contextSpritePath,
+  ambiguousTargetSpritePaths,
   onChange,
   conditionTypes,
   recommendedConditions,
@@ -486,6 +496,7 @@ function SimpleConditions({
   board?: LogicBoard | null
   project?: ProjectDoc | null
   contextSpritePath?: string
+  ambiguousTargetSpritePaths?: boolean
   onChange: (e: LogicEvent) => void
   conditionTypes: readonly LogicCondition['type'][]
   recommendedConditions: readonly LogicCondition['type'][]
@@ -554,6 +565,7 @@ function SimpleConditions({
               onChange({ ...event, conditions: conds, conditionRoot: undefined })
             }}
             contextSpritePath={contextSpritePath}
+            ambiguousTargetSpritePaths={ambiguousTargetSpritePaths}
           />
           <ComponentRequirementWarning requirement={conditionRequirement(c, project, board)} />
           <button
@@ -684,10 +696,14 @@ export default function EventEditor({
     board,
     authoringMode,
   )
-  const contextSpritePath = useMemo(
-    () => spritePathForLogicBoardTarget(project, board),
+  const logicBoardClipContext = useMemo(
+    () => resolveClipContextForLogicBoard(project, board),
     [project, board],
   )
+  const contextSpritePath = logicBoardClipContext.ambiguousSpritePath
+    ? undefined
+    : logicBoardClipContext.spritePath
+  const ambiguousTargetSpritePaths = logicBoardClipContext.ambiguousSpritePath === true
 
   return (
     <div
@@ -725,6 +741,7 @@ export default function EventEditor({
           board={board}
           project={project}
           contextSpritePath={contextSpritePath}
+          ambiguousTargetSpritePaths={ambiguousTargetSpritePaths}
           onChange={(t) => onChange(commitEventUpdate(event, { trigger: t }))}
         />
       </LogicBlock>
@@ -774,6 +791,7 @@ export default function EventEditor({
               board={board}
               project={project}
               contextSpritePath={contextSpritePath}
+              ambiguousTargetSpritePaths={ambiguousTargetSpritePaths}
               onChange={onChange}
               conditionTypes={pickerConditionTypes}
               recommendedConditions={pickerRecommendedConditions}
@@ -822,6 +840,7 @@ export default function EventEditor({
               conditionTypes={pickerConditionTypes}
               recommendedConditionTypes={pickerRecommendedConditions}
               contextSpritePath={contextSpritePath}
+              ambiguousTargetSpritePaths={ambiguousTargetSpritePaths}
             />
           </>
         )}
@@ -841,6 +860,7 @@ export default function EventEditor({
           board={board}
           project={project}
           contextSpritePath={contextSpritePath}
+          ambiguousTargetSpritePaths={ambiguousTargetSpritePaths}
           recommendedTypes={recommendedTypes}
           newActionType={newActionType}
           setNewActionType={setNewActionType}
@@ -896,6 +916,7 @@ export default function EventEditor({
               board={board}
               project={project}
               contextSpritePath={contextSpritePath}
+              ambiguousTargetSpritePaths={ambiguousTargetSpritePaths}
               recommendedTypes={recommendedTypes}
               newActionType={newElseActionType}
               setNewActionType={setNewElseActionType}

@@ -1,6 +1,4 @@
 import type { AnimationClipDef, ImageAsset, ProjectDoc } from '../types'
-import type { LogicBoard } from '../types/logic-board'
-import { logicBoardTargetEntityIds } from './project-queries'
 import { findImageAssetByPath } from './sprite-pivot-resolve'
 
 export type ProjectClipEntry = Readonly<{
@@ -16,21 +14,6 @@ export function assetDisplayLabel(asset: ImageAsset, assetId: string): string {
 
 export function formatClipOption(clipName: string, asset: ImageAsset, assetId: string): string {
   return `${clipName} — ${assetDisplayLabel(asset, assetId)}`
-}
-
-/** Sprite sheet path for entity-scoped rulesheets (entity_id / object_type). */
-export function spritePathForLogicBoardTarget(
-  project: ProjectDoc | null | undefined,
-  board: LogicBoard | null | undefined,
-): string | undefined {
-  if (!project || !board) return undefined
-  const t = board.target.type
-  if (t !== 'entity_id' && t !== 'object_type') return undefined
-  const ids = logicBoardTargetEntityIds(project, board)
-  const firstId = ids[0]
-  if (firstId == null) return undefined
-  const path = project.entities[firstId]?.sprite.spriteAssetId?.trim()
-  return path || undefined
 }
 
 /** All clips in the project (one row per clip definition). */

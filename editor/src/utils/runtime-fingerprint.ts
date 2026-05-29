@@ -21,6 +21,7 @@
 // dev machine and only happens after the store actually changed.
 
 import type { EntityDef, ProjectDoc, SceneDef, Vec2, Vec4 } from '../types'
+import { resolveClipForEntity } from './entity-clip-resolve'
 import { entitiesForRuntimeSync } from './project-object-types'
 
 interface FpVec2 { x: number; y: number }
@@ -104,9 +105,10 @@ function v2(v: Vec2): FpVec2 { return { x: v.x, y: v.y } }
 function v3(v: { x: number; y: number; z: number }): FpVec3 { return { x: v.x, y: v.y, z: v.z } }
 function v4(v: Vec4): FpVec4 { return { x: v.x, y: v.y, z: v.z, w: v.w } }
 
-function projectEntity(e: EntityDef): FpEntity {
+function projectEntity(project: ProjectDoc, e: EntityDef): FpEntity {
   const t = e.transform
   const s = e.sprite
+  const clip = resolveClipForEntity(project, e.id, e)
   return {
     id: e.id,
     n:  e.name,
@@ -120,8 +122,8 @@ function projectEntity(e: EntityDef): FpEntity {
       o: s.alpha,
       p: v2(s.pivot),
       z: s.renderOrder,
-      ...(s.defaultClip?.trim() ? { dc: s.defaultClip.trim() } : {}),
-      ...(s.playClipOnSpawn === true ? { ps: true } : {}),
+      ...(clip?.defaultClip ? { dc: clip.defaultClip } : {}),
+      ...(clip?.playClipOnSpawn ? { ps: true } : {}),
     },
     v:  e.visible,
     sp: e.scriptPath,
@@ -171,7 +173,7 @@ export function runtimeProjectProjection(
     fps: project.targetFPS,
     pm:  project.world?.physicsMode ?? 'auto',
     msp: project.mainScriptPath,
-    entities: entityIds.map((id) => projectEntity(entities[id])),
+    entities: entityIds.map((id) => projectEntity(project, entities[id])),
     scenes:   sceneIds.map((id) => projectScene(project.scenes[id])),
   }
 }

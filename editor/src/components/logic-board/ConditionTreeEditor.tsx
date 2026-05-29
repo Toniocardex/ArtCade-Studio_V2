@@ -31,6 +31,7 @@ type NodeEditorProps = Readonly<{
   conditionTypes: readonly LogicCondition['type'][]
   recommendedConditionTypes?: readonly LogicCondition['type'][]
   contextSpritePath?: string
+  ambiguousTargetSpritePaths?: boolean
 }>
 
 function NodeEditor({
@@ -42,6 +43,7 @@ function NodeEditor({
   conditionTypes,
   recommendedConditionTypes,
   contextSpritePath,
+  ambiguousTargetSpritePaths,
 }: NodeEditorProps) {
   if (node.kind === 'leaf') {
     const cond = node.condition
@@ -87,6 +89,7 @@ function NodeEditor({
             })
           }
           contextSpritePath={contextSpritePath}
+          ambiguousTargetSpritePaths={ambiguousTargetSpritePaths}
         />
         {onRemove && (
           <button type="button" className={link} onClick={onRemove}>
@@ -169,6 +172,7 @@ function NodeEditor({
           conditionTypes={conditionTypes}
           recommendedConditionTypes={recommendedConditionTypes}
           contextSpritePath={contextSpritePath}
+          ambiguousTargetSpritePaths={ambiguousTargetSpritePaths}
           onChange={(next) => {
             const statements = group.statements.slice()
             statements[i] = next
@@ -191,6 +195,7 @@ export type ConditionTreeEditorProps = Readonly<{
   conditionTypes?: readonly LogicCondition['type'][]
   recommendedConditionTypes?: readonly LogicCondition['type'][]
   contextSpritePath?: string
+  ambiguousTargetSpritePaths?: boolean
 }>
 
 /** Tree-only editor for advanced mode. */
@@ -201,6 +206,7 @@ export function ConditionTreeEditor({
   conditionTypes = CONDITION_TYPES,
   recommendedConditionTypes: recommendedTypes,
   contextSpritePath,
+  ambiguousTargetSpritePaths,
 }: ConditionTreeEditorProps) {
   if (!advanced) return null
 
@@ -219,6 +225,7 @@ export function ConditionTreeEditor({
         conditionTypes={conditionTypes}
         recommendedConditionTypes={recommendedTypes}
         contextSpritePath={contextSpritePath}
+        ambiguousTargetSpritePaths={ambiguousTargetSpritePaths}
         onChange={(r) => onChange({ ...event, conditions: undefined, conditionRoot: r })}
       />
     </div>

@@ -294,7 +294,10 @@ function renderEntityTagField({ kind, type, name, value, onPatch }: FieldProps) 
   )
 }
 
-type AnimationClipFieldProps = FieldProps & { contextSpritePath?: string }
+type AnimationClipFieldProps = FieldProps & {
+  contextSpritePath?: string
+  ambiguousTargetSpritePaths?: boolean
+}
 
 function renderAnimationClipField({
   kind,
@@ -303,6 +306,7 @@ function renderAnimationClipField({
   value,
   onPatch,
   contextSpritePath,
+  ambiguousTargetSpritePaths,
 }: AnimationClipFieldProps) {
   const allowEmpty = kind === 'action' && type === 'playAnimation'
   return (
@@ -314,6 +318,7 @@ function renderAnimationClipField({
         allowEmpty={allowEmpty}
         emptyLabel="— Choose clip —"
         filterSpritePath={contextSpritePath}
+        ambiguousTargetSpritePaths={ambiguousTargetSpritePaths}
       />
     </span>
   )
@@ -357,6 +362,7 @@ export type SchemaParamFormProps = Readonly<{
   onChange: (next: Record<string, unknown>) => void
   /** Entity rulesheet: prefer clips from this sprite sheet in animationClip fields. */
   contextSpritePath?: string
+  ambiguousTargetSpritePaths?: boolean
 }>
 
 export function SchemaParamForm({
@@ -365,6 +371,7 @@ export function SchemaParamForm({
   value,
   onChange,
   contextSpritePath,
+  ambiguousTargetSpritePaths,
 }: SchemaParamFormProps) {
   const meta = getComponentMeta(kind, type)
   if (!meta || Object.keys(meta.params).length === 0) return null
@@ -385,7 +392,11 @@ export function SchemaParamForm({
           onPatch: patch,
         }
         if (fieldMeta.widget === 'animationClip') {
-          return renderAnimationClipField({ ...fieldProps, contextSpritePath })
+          return renderAnimationClipField({
+            ...fieldProps,
+            contextSpritePath,
+            ambiguousTargetSpritePaths,
+          })
         }
         const render = FIELD_RENDERERS[fieldMeta.widget] ?? renderStringField
         return render(fieldProps)

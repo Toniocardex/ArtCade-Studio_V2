@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { useEditor } from '../../store/editor-store'
 import type { EntityDef } from '../../types'
 import { PivotPresetFields } from '../../components/pivot/PivotPresetFields'
-import { clipsForSpritePath } from '../../utils/animation-clips-catalog'
+import { resolveClipForEntity } from '../../utils/entity-clip-resolve'
 import {
   findImageAssetByPath,
   resolveEffectivePivot,
@@ -28,8 +28,13 @@ export function SpriteSection({ entity }: SpriteSectionProps) {
   const assetSelectId = `${entity.id}-sprite-asset`
   const [overrideOpen, setOverrideOpen] = useState(false)
 
-  const linkedAsset = findImageAssetByPath(project?.assets, entity.sprite.spriteAssetId)
-  const sheetClips = clipsForSpritePath(project, entity.sprite.spriteAssetId)
+  const clip = useMemo(
+    () => resolveClipForEntity(project, entity.id, entity),
+    [project, entity],
+  )
+  const spritePath = clip?.spritePath ?? entity.sprite.spriteAssetId
+  const linkedAsset = findImageAssetByPath(project?.assets, spritePath)
+  const sheetClips = clip?.clips ?? []
   const effectivePivot = resolveEffectivePivot(entity.sprite, project?.assets)
   const fromAsset = usesAssetPivot(entity.sprite)
   const defaultClipId = `${entity.id}-default-clip`
@@ -88,8 +93,8 @@ export function SpriteSection({ entity }: SpriteSectionProps) {
         </label>
         <select
           id={defaultClipId}
-          disabled={!entity.sprite.spriteAssetId || sheetClips.length === 0}
-          value={entity.sprite.defaultClip ?? ''}
+          disabled={!spritePath || sheetClips.length === 0}
+          value={clip?.defaultClip ?? entity.sprite.defaultClip ?? ''}
           onChange={(e) => {
             const defaultClip = e.target.value || undefined
             commitSprite({
@@ -108,7 +113,7 @@ export function SpriteSection({ entity }: SpriteSectionProps) {
             </option>
           ))}
         </select>
-        {!entity.sprite.spriteAssetId ? (
+        {!spritePath ? (
           <p className="text-[8px] text-[rgb(var(--muted-rgb)/0.6)] mt-0.5">
             Assign a sprite sheet first.
           </p>
@@ -117,27 +122,27 @@ export function SpriteSection({ entity }: SpriteSectionProps) {
             Open Sprite Studio on this sheet to add clips.
           </p>
         ) : null}
-        {linkedAsset && entity.sprite.defaultClip ? (
-          <InspectorClipPreview asset={linkedAsset} clipName={entity.sprite.defaultClip} />
+        {linkedAsset && clip?.defaultClip ? (
+          <InspectorClipPreview asset={linkedAsset} clipName={clip.defaultClip} />
         ) : null}
       </div>
 
       <label
         htmlFor={playOnSpawnId}
         className={`flex items-center gap-2 text-[10px] mb-2 ${
-          entity.sprite.defaultClip ? 'text-[var(--text)]' : 'text-[var(--muted)]'
+          clip?.defaultClip ? 'text-[var(--text)]' : 'text-[var(--muted)]'
         }`}
       >
         <input
           id={playOnSpawnId}
           type="checkbox"
-          disabled={!entity.sprite.defaultClip}
+          disabled={!clip?.defaultClip}
           checked={entity.sprite.playClipOnSpawn === true}
           onChange={(e) => commitSprite({ playClipOnSpawn: e.target.checked })}
         />
         Play on spawn
       </label>
-      {entity.sprite.playClipOnSpawn && entity.sprite.defaultClip ? (
+      {entity.sprite.playClipOnSpawn && clip?.defaultClip ? (
         <p className="text-[8px] text-[var(--muted)] mb-2 leading-snug -mt-1">
           Starts this clip when the entity enters play without a Logic Board rule. Logic Board can still call Play animation.
         </p>

@@ -15,6 +15,8 @@ export type ClipPickerProps = Readonly<{
   emptyLabel?: string
   /** When set (entity rulesheet), list only clips on this sprite sheet. */
   filterSpritePath?: string
+  /** Target instances disagree on sprite sheet — show all clips + warning. */
+  ambiguousTargetSpritePaths?: boolean
 }>
 
 export function ClipPicker({
@@ -23,6 +25,7 @@ export function ClipPicker({
   allowEmpty = true,
   emptyLabel = '— Choose clip —',
   filterSpritePath,
+  ambiguousTargetSpritePaths = false,
 }: ClipPickerProps) {
   const { state } = useEditor()
   const project = state.project
@@ -95,6 +98,11 @@ export function ClipPicker({
       {duplicateWarn ? (
         <span className="text-[9px] text-[var(--warn)] leading-snug">
           Clip name &quot;{value}&quot; exists on multiple sheets — runtime uses one global name.
+        </span>
+      ) : null}
+      {ambiguousTargetSpritePaths ? (
+        <span className="text-[9px] text-[var(--warn)] leading-snug">
+          This rulesheet&apos;s instances use different sprite sheets — showing clips from the whole project.
         </span>
       ) : null}
     </span>
