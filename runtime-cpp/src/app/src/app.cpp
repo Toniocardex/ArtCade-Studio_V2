@@ -779,7 +779,7 @@ void Application::renderActiveScene() {
             if (inEditMode && placeholderFill)
                 alpha = 1.f;
             const auto frame = animator ? animator->currentFrame(id)
-                                        : Modules::SpriteAnimator::Frame{};
+                                        : ::ArtCade::Modules::SpriteAnimator::Frame{};
             if (frame.w > 0 && frame.h > 0) {
                 renderer->drawSpriteFrame(
                     s.spriteAssetId,
