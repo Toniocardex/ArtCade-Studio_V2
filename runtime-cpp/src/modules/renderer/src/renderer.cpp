@@ -1,4 +1,5 @@
 #include "../include/renderer.h"
+#include "sprite-outline-shader.h"
 #include "texture-cache.h"
 #include "../../../core/sprite-draw-math.h"
 #include <raylib.h>
@@ -34,6 +35,7 @@ struct Renderer::Impl {
     // Draw commands queued by Lua during tick(); flushed in endFrame().
     std::vector<DrawCmd> drawQueue;
     std::string screenShader;
+    SpriteOutlineShader spriteOutline;
 };
 
 // ------------------------------------------------------------------ helpers
@@ -88,12 +90,14 @@ bool Renderer::init() {
     impl_->camera.offset = { 0.f, 0.f };
     impl_->camera.target = { 0.f, 0.f };
     impl_->camera.zoom   = 1.f;
+    impl_->spriteOutline.load();
     impl_->open = true;
     return true;
 }
 
 void Renderer::shutdown() {
     if (!impl_->open) return;
+    impl_->spriteOutline.unload();
     impl_->texCache.unloadAll();
     CloseWindow();
     impl_->open = false;
@@ -210,6 +214,27 @@ bool Renderer::shouldClose() const {
 
 // ------------------------------------------------------------------ draw
 
+namespace {
+
+constexpr float kOutlineTexelRadius = 2.f;
+constexpr float kPlaceholderOutlinePad = 1.06f;
+
+void drawPlaceholderOutlineSilhouette(const Vec2& pos,
+                                      const Vec2& pivot,
+                                      float fw,
+                                      float fh,
+                                      float alpha)
+{
+    const float padW = fw * kPlaceholderOutlinePad;
+    const float padH = fh * kPlaceholderOutlinePad;
+    const Vec2 topLeft = SpriteDrawMath::placeholderTopLeft(pos, pivot, padW, padH);
+    const unsigned char ca =
+        static_cast<unsigned char>(std::clamp(alpha, 0.f, 1.f) * 255.f);
+    DrawRectangleV({ topLeft.x, topLeft.y }, { padW, padH }, Color{ 0, 0, 0, ca });
+}
+
+} // namespace
+
 void Renderer::drawSprite(const AssetId& assetId,
                            const Vec2&    pos,
                            float          rotation,
@@ -221,14 +246,6 @@ void Renderer::drawSprite(const AssetId& assetId,
                            const Vec2&    pivot)
 {
     const bool outline = (shaderEffect == "outline");
-    if (outline) {
-        const Vec4 outlineTint{ 0.f, 0.f, 0.f, tint.a };
-        const float o = 2.f;
-        drawSprite(assetId, { pos.x - o, pos.y }, rotation, scale, outlineTint, fillColor, alpha, "", pivot);
-        drawSprite(assetId, { pos.x + o, pos.y }, rotation, scale, outlineTint, fillColor, alpha, "", pivot);
-        drawSprite(assetId, { pos.x, pos.y - o }, rotation, scale, outlineTint, fillColor, alpha, "", pivot);
-        drawSprite(assetId, { pos.x, pos.y + o }, rotation, scale, outlineTint, fillColor, alpha, "", pivot);
-    }
 
     Vec4 drawTint = tint;
     if (shaderEffect == "hit_flash")
@@ -245,6 +262,8 @@ void Renderer::drawSprite(const AssetId& assetId,
             static_cast<unsigned char>(std::clamp(fillColor.y, 0.f, 1.f) * 255.f),
             static_cast<unsigned char>(std::clamp(fillColor.z, 0.f, 1.f) * 255.f),
             ca };
+        if (outline)
+            drawPlaceholderOutlineSilhouette(pos, pivot, fw, fh, tint.a * alpha);
         const Vec2 topLeft = SpriteDrawMath::placeholderTopLeft(pos, pivot, fw, fh);
         DrawRectangleV({ topLeft.x, topLeft.y }, { fw, fh }, fill);
         return;
@@ -256,8 +275,34 @@ void Renderer::drawSprite(const AssetId& assetId,
                       tex->height * scale.y };
     const Vec2 originVec = SpriteDrawMath::drawOrigin(pivot, dst.width, dst.height);
     Vector2 origin = { originVec.x, originVec.y };
+    const Color tintColor = toColor(drawTint, alpha);
 
-    DrawTexturePro(*tex, src, dst, origin, rotation, toColor(drawTint, alpha));
+    if (outline && impl_->spriteOutline.ready) {
+        const float texelSize[2] = {
+            1.f / static_cast<float>(tex->width),
+            1.f / static_cast<float>(tex->height),
+        };
+        const float outlineSize = kOutlineTexelRadius;
+        const float outlineColor[4] = { 0.f, 0.f, 0.f, tint.a * alpha };
+        SetShaderValue(impl_->spriteOutline.shader,
+                       impl_->spriteOutline.locTexelSize,
+                       texelSize,
+                       SHADER_UNIFORM_VEC2);
+        SetShaderValue(impl_->spriteOutline.shader,
+                       impl_->spriteOutline.locOutlineSize,
+                       &outlineSize,
+                       SHADER_UNIFORM_FLOAT);
+        SetShaderValue(impl_->spriteOutline.shader,
+                       impl_->spriteOutline.locOutlineColor,
+                       outlineColor,
+                       SHADER_UNIFORM_VEC4);
+        BeginShaderMode(impl_->spriteOutline.shader);
+        DrawTexturePro(*tex, src, dst, origin, rotation, tintColor);
+        EndShaderMode();
+        return;
+    }
+
+    DrawTexturePro(*tex, src, dst, origin, rotation, tintColor);
 }
 
 bool Renderer::drawSpriteRegion(const AssetId& assetId,
