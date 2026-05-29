@@ -36,6 +36,7 @@ import { TreeFolder, TreeLeaf } from './TreeNode'
 import { AssetToolbar } from './AssetToolbar'
 import { AssetDetailStrip } from '../asset-explorer/AssetDetailStrip'
 import { AssetMediaDetailStrip } from '../asset-explorer/AssetMediaDetailStrip'
+import { ImageTreeThumbnail } from '../asset-explorer/ImageTreeThumbnail'
 import {
   ExplorerActionBar,
   ExplorerLabelCta,
@@ -553,18 +554,17 @@ export default function ProjectExplorerPanel() {
                                 assets.setSelection({ type: 'image', id: imgRow.id }),
                               onDoubleClick: () => asset && assets.assignSprite(asset),
                               title: asset
-                                ? 'Double-click to assign sprite to selected entity'
+                                ? 'Double-click thumbnail for Spritesheet Studio; double-click row to assign sprite'
                                 : imgRow.path,
-                              icon: asset?.dataUrl ? (
-                                <img
-                                  src={asset.dataUrl}
-                                  alt=""
-                                  className="w-4 h-4 object-contain flex-shrink-0"
-                                  style={{ imageRendering: 'pixelated' }}
+                              icon: (
+                                <ImageTreeThumbnail
+                                  asset={asset}
+                                  onOpenStudio={() =>
+                                    openSpritesheetStudio(dispatch, project, imgRow.id)
+                                  }
                                 />
-                              ) : (
-                                <Image size={11} className="flex-shrink-0 text-[var(--accent)]" />
                               ),
+                              spritesheetStudioTrigger: Boolean(asset),
                               extraMenuItems: asset
                                 ? [
                                     {
@@ -692,6 +692,7 @@ export default function ProjectExplorerPanel() {
                           label={img.name}
                           depth={2}
                           selected={selected}
+                          spritesheetStudioTrigger={Boolean(asset)}
                           onClick={() => assets.setSelection({ type: 'image', id: img.id })}
                           onDoubleClick={() => asset && assets.assignSprite(asset)}
                           onContextMenu={(ev) => {
@@ -736,18 +737,18 @@ export default function ProjectExplorerPanel() {
                               setContextMenu,
                             )
                           }}
-                          title={asset ? 'Double-click to assign sprite to selected entity' : img.path}
+                          title={
+                            asset
+                              ? 'Double-click thumbnail for Spritesheet Studio; double-click row to assign sprite'
+                              : img.path
+                          }
                           icon={
-                            asset?.dataUrl ? (
-                              <img
-                                src={asset.dataUrl}
-                                alt=""
-                                className="w-4 h-4 object-contain flex-shrink-0"
-                                style={{ imageRendering: 'pixelated' }}
-                              />
-                            ) : (
-                              <Image size={11} className="flex-shrink-0 text-[var(--accent)]" />
-                            )
+                            <ImageTreeThumbnail
+                              asset={asset}
+                              onOpenStudio={() =>
+                                openSpritesheetStudio(dispatch, project, img.id)
+                              }
+                            />
                           }
                         />
                       )

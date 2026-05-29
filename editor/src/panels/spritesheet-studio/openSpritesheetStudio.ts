@@ -2,6 +2,18 @@ import type { useEditor } from '../../store/editor-store'
 import type { ProjectDoc } from '../../types'
 import { alertDialog } from '../../utils/native-dialog'
 
+/** Mark controls that should open Spritesheet Studio on Enter (explorer keyboard shortcut). */
+export const SPRITESHEET_STUDIO_TRIGGER_ATTR = 'data-spritesheet-studio-trigger'
+
+export const spritesheetStudioTriggerProps = {
+  [SPRITESHEET_STUDIO_TRIGGER_ATTR]: '',
+} as const
+
+export function isSpritesheetStudioEnterTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false
+  return target.closest(`[${SPRITESHEET_STUDIO_TRIGGER_ATTR}]`) != null
+}
+
 export function openSpritesheetStudio(
   dispatch: ReturnType<typeof useEditor>['dispatch'],
   project: ProjectDoc | null,

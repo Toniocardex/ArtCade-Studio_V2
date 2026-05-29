@@ -3,6 +3,7 @@ import { ChevronDown, ChevronRight } from 'lucide-react'
 import { useEditor } from '../../store/editor-store'
 import type { ImageAsset } from '../../types'
 import { AnimationClipsSummary } from './AnimationClipsSummary'
+import { ImageAssetPreview } from './ImageAssetPreview'
 import { openSpritesheetStudio } from '../../panels/spritesheet-studio/openSpritesheetStudio'
 import { ImagePointsEditor } from './ImagePointsEditor'
 import type { AssetExplorerSelection } from '../../hooks/useAssetExplorerActions'
@@ -19,6 +20,8 @@ export function AssetDetailStrip({ selection }: AssetDetailStripProps) {
   if (selection.type !== 'image' || !project) return null
   const asset: ImageAsset | undefined = project.assets?.[selection.id]
   if (!asset) return null
+
+  const openStudio = () => openSpritesheetStudio(dispatch, project, selection.id)
 
   function patchImage(patch: Partial<ImageAsset>) {
     dispatch({ type: 'ASSET_ADD', asset: { ...asset!, ...patch } })
@@ -43,15 +46,17 @@ export function AssetDetailStrip({ selection }: AssetDetailStripProps) {
         </span>
       </button>
       {open ? (
-        <div className="p-2 space-y-2 max-h-48 overflow-y-auto">
+        <div className="p-2 space-y-2 max-h-64 overflow-y-auto">
+          <ImageAssetPreview
+            asset={asset}
+            projectPath={state.projectPath}
+            onOpenStudio={openStudio}
+          />
           <ImagePointsEditor
             asset={asset}
             onPatchPoints={(points) => patchImage({ imagePoints: points })}
           />
-          <AnimationClipsSummary
-            asset={asset}
-            onOpenStudio={() => openSpritesheetStudio(dispatch, project, selection.id)}
-          />
+          <AnimationClipsSummary asset={asset} onOpenStudio={openStudio} />
         </div>
       ) : null}
     </div>

@@ -8,6 +8,10 @@ import {
 } from '../utils/asset-file-api'
 import { dirName } from '../utils/project'
 import { openProjectScript } from '../utils/open-project-script'
+import {
+  isSpritesheetStudioEnterTarget,
+  openSpritesheetStudio,
+} from '../panels/spritesheet-studio/openSpritesheetStudio'
 import type { AudioAsset, FontAsset, ImageAsset } from '../types'
 import {
   isBackspaceKey,
@@ -23,6 +27,17 @@ export type AssetExplorerSelection =
   | { type: 'tileset'; id: string }
 
 const ASSET_PANEL_SELECTOR = '[data-panel="project-explorer"], [data-panel="assets"]'
+
+export function shouldOpenSpritesheetStudioOnExplorerEnter(
+  e: Pick<KeyboardEvent, 'key' | 'target'>,
+  selection: AssetExplorerSelection | null,
+): selection is { type: 'image'; id: string } {
+  return (
+    e.key === 'Enter' &&
+    selection?.type === 'image' &&
+    isSpritesheetStudioEnterTarget(e.target)
+  )
+}
 
 function fileReaderDataUrl(result: string | ArrayBuffer | null): string {
   return typeof result === 'string' ? result : ''
@@ -192,7 +207,6 @@ export function useAssetExplorerActions() {
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key !== 'Delete' && !isBackspaceKey(e)) return
       if (!selection || !project) return
       const focus = keyboardFocusElement(e)
       const el = focus ?? (e.target instanceof HTMLElement ? e.target : null)
@@ -201,12 +215,20 @@ export function useAssetExplorerActions() {
         || (e.target instanceof HTMLElement && Boolean(e.target.closest(ASSET_PANEL_SELECTOR)))
       if (!inPanel) return
       if (shouldIgnoreEditorShortcut(e)) return
+
+      if (shouldOpenSpritesheetStudioOnExplorerEnter(e, selection)) {
+        e.preventDefault()
+        openSpritesheetStudio(dispatch, project, selection.id)
+        return
+      }
+
+      if (e.key !== 'Delete' && !isBackspaceKey(e)) return
       e.preventDefault()
       removeSelection()
     }
     globalThis.addEventListener('keydown', handleKeyDown)
     return () => globalThis.removeEventListener('keydown', handleKeyDown)
-  }, [selection, project, removeSelection])
+  }, [selection, project, removeSelection, dispatch])
 
   return {
     project,

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { ChevronDown, ChevronRight, Folder, FolderOpen } from 'lucide-react'
+import { spritesheetStudioTriggerProps } from '../../panels/spritesheet-studio/openSpritesheetStudio'
 
 export type TreeFolderProps = Readonly<{
   label: string
@@ -67,6 +68,8 @@ export type TreeLeafProps = Readonly<{
   onDoubleClick?: () => void
   onContextMenu?: (ev: React.MouseEvent) => void
   title?: string
+  /** Image asset rows: allow Enter in explorer to open Spritesheet Studio when this leaf is focused. */
+  spritesheetStudioTrigger?: boolean
 }>
 
 const leafRowClass = (selected: boolean, muted: boolean) =>
@@ -88,8 +91,10 @@ export function TreeLeaf({
   onDoubleClick,
   onContextMenu,
   title,
+  spritesheetStudioTrigger = false,
 }: TreeLeafProps) {
   const pad = 12 + depth * 12
+  const studioTrigger = spritesheetStudioTrigger ? spritesheetStudioTriggerProps : undefined
 
   if (actions) {
     return (
@@ -103,6 +108,7 @@ export function TreeLeaf({
           onDoubleClick={onDoubleClick}
           onContextMenu={onContextMenu}
           title={title}
+          {...studioTrigger}
           className="flex flex-1 items-center gap-1.5 py-1 min-w-0 text-left"
         >
           {icon}
@@ -121,6 +127,7 @@ export function TreeLeaf({
       onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}
       title={title}
+      {...studioTrigger}
       className={`w-full flex items-center gap-1.5 py-1 pr-2 rounded text-xs text-left transition-colors ${leafRowClass(selected, muted)}`}
       style={{ paddingLeft: pad }}
     >
