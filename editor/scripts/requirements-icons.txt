@@ -1,0 +1,5 @@
+# Icon pipeline (Python): pip install -r scripts/requirements-icons.txt
+# SVG rasterization on Windows: npm install in editor/ (sharp via render-icon-svg.mjs)
+Pillow>=10.4.0
+# Optional on Linux/macOS if libcairo is installed:
+# cairosvg>=2.7.1

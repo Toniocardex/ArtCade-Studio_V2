@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="ArtCade">
+  <rect width="1024" height="1024" rx="186" ry="186" fill="#121212"/>
+  <g transform="translate(512 468) scale(1.58)">
+    <path
+      fill="#5E5E5E"
+      fill-rule="evenodd"
+      d="M -12 -198
+         A 198 198 0 1 1 -168 118
+         L -122 96
+         A 148 148 0 1 0 8 -152
+         Z
+         M 92 -118 L 198 -118 L 198 118 L 92 118 Z"/>
+    <path
+      fill="#FFFFFF"
+      d="M -128 -142 L 0 118 L 128 -142 L 82 -142 L 0 28 L -82 -142 Z"/>
+  </g>
+</svg>
