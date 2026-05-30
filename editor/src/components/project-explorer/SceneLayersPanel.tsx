@@ -14,7 +14,8 @@ const LAYER_ROWS = [
 /** UI-only layer reference (spec §4) until ProjectDoc gains a layer model. */
 export function SceneLayersPanel() {
   const { state } = useEditor()
-  const scene = state.project?.scenes.find((s) => s.id === state.selection.sceneId)
+  const sceneId = state.selection.sceneId ?? state.project?.activeSceneId
+  const scene = sceneId && state.project ? state.project.scenes[sceneId] : undefined
 
   return (
     <div className="h-full overflow-auto p-2 text-[10px]">

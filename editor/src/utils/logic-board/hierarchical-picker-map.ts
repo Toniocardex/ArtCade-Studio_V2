@@ -15,13 +15,13 @@ export type HierarchicalNode = Readonly<{
   children?: readonly HierarchicalNode[]
 }>
 
-function mapTypes(
+function mapTypes<T extends string>(
   kind: ComponentKind,
-  types: readonly string[],
-  categoryFn: (type: string) => string,
-  labelFn: (type: string) => string,
+  types: readonly T[],
+  categoryFn: (type: T) => string,
+  labelFn: (type: T) => string,
 ): readonly HierarchicalNode[] {
-  const byCat = new Map<string, string[]>()
+  const byCat = new Map<string, T[]>()
   for (const t of types) {
     const cat = categoryFn(t)
     const list = byCat.get(cat) ?? []

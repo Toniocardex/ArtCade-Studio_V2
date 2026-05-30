@@ -96,7 +96,7 @@ export default function BottomDock() {
 
   const rulesheetSuffix = useMemo(() => {
     if (mode !== 'logic' || !project) return ''
-    const board = project.logicBoards?.boards.find((b) =>
+    const board = project.logicBoards?.find((b) =>
       selection.entityId != null
         ? b.target.type === 'entity_id' && b.target.entityId === selection.entityId
         : false,
