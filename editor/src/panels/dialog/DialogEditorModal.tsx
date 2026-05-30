@@ -65,7 +65,7 @@ export function DialogEditorModal() {
           </button>
         </header>
         <div className="flex flex-1 min-h-0 overflow-hidden bg-[var(--void)]">
-          <DialogEditorPanel layout="shell" />
+          <DialogEditorPanel />
         </div>
       </div>
     </dialog>

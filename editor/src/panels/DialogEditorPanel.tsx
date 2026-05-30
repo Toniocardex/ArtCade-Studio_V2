@@ -1,5 +1,5 @@
 /**
- * Dialog library — sidebar list + RPG Maker-style command editor.
+ * Dialog library — sidebar list + RPG Maker-style command editor (modal shell).
  */
 import { useEditor } from '../store/editor-store'
 import { DialogLibrarySidebar } from './dialog/DialogLibrarySidebar'
@@ -17,11 +17,7 @@ function DialogEditorHint() {
   )
 }
 
-type DialogEditorPanelProps = Readonly<{
-  layout?: 'default' | 'shell'
-}>
-
-export default function DialogEditorPanel({ layout = 'default' }: DialogEditorPanelProps) {
+export default function DialogEditorPanel() {
   const { state } = useEditor()
   const id = state.selectedDialogId
   const script = id ? state.dialogs[id] : null
@@ -47,34 +43,23 @@ export default function DialogEditorPanel({ layout = 'default' }: DialogEditorPa
     </div>
   )
 
-  if (layout === 'shell') {
-    return (
-      <EditorShellLayout
-        className="h-full"
-        left={<DialogLibrarySidebar wide />}
-        center={center}
-        right={
-          script ? (
-            <div className="h-full flex flex-col p-3 border-l border-[var(--outline)] bg-[var(--surface)]">
-              <p className="text-[9px] uppercase tracking-wide text-[var(--muted)] mb-2">Preview</p>
-              <DialogMessagePreview commands={script.commands} focusIndex={null} />
-            </div>
-          ) : (
-            <div className="h-full flex items-center justify-center p-4 text-[10px] text-[var(--muted)]">
-              Preview
-            </div>
-          )
-        }
-      />
-    )
-  }
-
   return (
-    <div className="flex flex-1 min-h-0 bg-[var(--void)] text-[var(--primary)] h-full">
-      <DialogLibrarySidebar />
-      {center}
-    </div>
+    <EditorShellLayout
+      className="h-full"
+      left={<DialogLibrarySidebar wide />}
+      center={center}
+      right={
+        script ? (
+          <div className="h-full flex flex-col p-3 border-l border-[var(--outline)] bg-[var(--surface)]">
+            <p className="text-[9px] uppercase tracking-wide text-[var(--muted)] mb-2">Preview</p>
+            <DialogMessagePreview commands={script.commands} focusIndex={null} />
+          </div>
+        ) : (
+          <div className="h-full flex items-center justify-center p-4 text-[10px] text-[var(--muted)]">
+            Preview
+          </div>
+        )
+      }
+    />
   )
 }
-
-export { emptyDialogScript } from '../utils/dialog/dialog-script'

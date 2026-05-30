@@ -8,6 +8,7 @@ import {
   isBackspaceKey,
   isDeleteKey,
 } from '../../utils/keyboard'
+import { LogicBoardShortcutsHelp } from './LogicBoardShortcutsHelp'
 
 export type LogicBoardPanelMode = 'visual' | 'lua'
 
@@ -103,6 +104,7 @@ export function LogicBoardHeader({
       >
         Apply to game
       </button>
+      <LogicBoardShortcutsHelp />
       <div className="flex rounded border border-[var(--border-2)] overflow-hidden">
         {(['visual', 'lua'] as const).map((m) => (
           <button
