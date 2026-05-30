@@ -68,7 +68,7 @@ function ImportBtn({
       className={`flex flex-col items-center justify-center gap-1 min-h-[3.5rem] px-1.5 py-2 rounded
                  border text-center transition-colors disabled:opacity-40 ${
         accent
-          ? 'border-[var(--accent-bd)] bg-[var(--accent-bg)] text-[var(--accent)] hover:bg-[var(--accent-bg-h)]'
+          ? 'border-[var(--accent-bd)] bg-[var(--accent-bg)] text-[var(--accent-fg-on-bg)] hover:bg-[var(--accent-bg-h)]'
           : 'border-[var(--border-2)] bg-[var(--bg)] text-[var(--text)] hover:bg-[var(--panel-2)] hover:border-[var(--border)]'
       }`}
     >

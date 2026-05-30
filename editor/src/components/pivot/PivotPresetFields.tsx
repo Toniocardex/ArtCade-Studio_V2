@@ -50,7 +50,7 @@ export function PivotPresetFields({ pivot, onChange, compact = false }: PivotPre
               onClick={() => commit({ ...preset.pivot })}
               className={`h-6 rounded text-[9px] font-semibold border transition-colors
                 ${active
-                  ? 'border-[var(--accent-2)] bg-[var(--accent-bg)] text-[var(--accent)]'
+                  ? 'border-[var(--accent-2)] bg-[var(--accent-bg)] text-[var(--accent-fg-on-bg)]'
                   : 'border-[var(--border-2)] text-[var(--muted)] hover:text-[var(--text)] hover:border-[var(--accent-bd)]'
                 }`}
             >

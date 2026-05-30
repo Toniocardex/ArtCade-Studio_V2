@@ -20,7 +20,7 @@ export function LogicBoardScriptConflictBanner({
       <button
         type="button"
         onClick={onRegenerate}
-        className="px-2.5 py-1 rounded font-semibold border border-[var(--accent-bd)] bg-[var(--accent-bg)] text-[var(--accent)] hover:bg-[var(--accent-bg-h)]"
+        className="px-2.5 py-1 rounded font-semibold border border-[var(--accent-bd)] bg-[var(--accent-bg)] text-[var(--accent-fg-on-bg)] hover:bg-[var(--accent-bg-h)]"
       >
         Regenerate from board
       </button>

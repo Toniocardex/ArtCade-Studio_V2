@@ -22,5 +22,9 @@ export const editorRowSelected =
 export const editorToolbarPrimary =
   'border-[var(--outline-strong)] bg-[var(--surface-2)] text-[var(--primary)] hover:bg-[var(--surface-hover)]'
 
+/** Filled CTA (explorer + dialogs) — readable label on accent/surface fill. */
+export const editorCtaFilled =
+  'border-[var(--outline-strong)] bg-[var(--accent-bg)] text-[var(--accent-fg-on-bg)] hover:bg-[var(--accent-bg-h)]'
+
 export const editorTabInactive =
   'border-transparent text-[var(--muted)] hover:text-[var(--primary)]'

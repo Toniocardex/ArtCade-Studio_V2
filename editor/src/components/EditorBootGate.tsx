@@ -135,7 +135,7 @@ export default function EditorBootGate({ children }: EditorBootGateProps) {
                 type="button"
                 onClick={retry}
                 className="self-start px-4 py-1.5 rounded text-xs font-semibold border border-[var(--accent-bd)]
-                           bg-[var(--accent-bg)] text-[var(--accent)] hover:bg-[var(--accent-bg-h)]"
+                           bg-[var(--accent-bg)] text-[var(--accent-fg-on-bg)] hover:bg-[var(--accent-bg-h)]"
               >
                 Retry
               </button>

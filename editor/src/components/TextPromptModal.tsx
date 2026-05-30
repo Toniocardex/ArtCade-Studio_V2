@@ -121,7 +121,7 @@ export function TextPromptModal() {
             type="submit"
             data-testid={TEXT_PROMPT_TEST_IDS.submit}
             className="px-3 py-1.5 text-xs font-semibold rounded border border-[var(--accent-bd)]
-                       bg-[var(--accent-bg)] text-[var(--accent)] hover:bg-[var(--accent-bg-h)]"
+                       bg-[var(--accent-bg)] text-[var(--accent-fg-on-bg)] hover:bg-[var(--accent-bg-h)]"
           >
             OK
           </button>

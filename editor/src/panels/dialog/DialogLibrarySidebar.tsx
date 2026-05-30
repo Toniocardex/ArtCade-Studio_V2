@@ -33,7 +33,7 @@ export function DialogLibrarySidebar({ wide = false }: DialogLibrarySidebarProps
         />
         <button
           type="button"
-          className="w-full text-xs py-1.5 rounded border border-[var(--accent-bd)] bg-[var(--accent-bg)] text-[var(--accent)]"
+          className="w-full text-xs py-1.5 rounded border border-[var(--accent-bd)] bg-[var(--accent-bg)] text-[var(--accent-fg-on-bg)]"
           onClick={() => {
             void promptText({
               title: 'New dialog',
@@ -93,7 +93,7 @@ export function DialogLibrarySidebar({ wide = false }: DialogLibrarySidebarProps
                 onClick={() => dispatch({ type: 'DIALOG_SELECT', dialogId: id })}
                 className={`w-full text-left text-xs px-2 py-1.5 rounded truncate ${
                   state.selectedDialogId === id
-                    ? 'bg-[var(--accent-bg)] text-[var(--accent)]'
+                    ? 'bg-[var(--accent-bg)] text-[var(--accent-fg-on-bg)]'
                     : 'hover:bg-[rgb(var(--border-rgb)/0.35)]'
                 }`}
               >

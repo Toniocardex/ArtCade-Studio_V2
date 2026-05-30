@@ -5,7 +5,7 @@ const btn = (active: boolean) =>
   [
     'w-full py-1.5 text-[9px] font-semibold leading-none transition-colors',
     active
-      ? 'bg-[var(--accent-bg)] text-[var(--accent)]'
+      ? 'bg-[var(--accent-bg)] text-[var(--accent-fg-on-bg)]'
       : 'text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--panel-3)]',
   ].join(' ')
 

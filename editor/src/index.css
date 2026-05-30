@@ -85,6 +85,7 @@
   --accent-bd:   var(--outline-focus);
   --accent-bg:   var(--surface-selected);
   --accent-bg-h: var(--surface-hover);
+  --accent-fg-on-bg: var(--text-on-selected);
   --yellow:      var(--warn);
   --green-2:     var(--success);
   --blue:        var(--info);
@@ -165,6 +166,7 @@
   --accent-bd:   var(--accent);
   --accent-bg:   var(--accent-muted);
   --accent-bg-h: var(--outline-faint);
+  --accent-fg-on-bg: var(--primary);
   --yellow:      var(--warn);
   --green-2:     var(--success);
   --blue:        var(--accent);

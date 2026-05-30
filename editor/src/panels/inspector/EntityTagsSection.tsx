@@ -78,7 +78,7 @@ export function EntityTagsSection({ entity }: EntityTagsSectionProps) {
           onClick={() => addTag(draft)}
           disabled={!draft.trim()}
           className="px-2 py-1 rounded text-[10px] font-semibold border border-[var(--accent-bd)]
-                     bg-[var(--accent-bg)] text-[var(--accent)] hover:bg-[var(--accent-bg-h)]
+                     bg-[var(--accent-bg)] text-[var(--accent-fg-on-bg)] hover:bg-[var(--accent-bg-h)]
                      disabled:opacity-40 disabled:cursor-not-allowed"
         >
           Add

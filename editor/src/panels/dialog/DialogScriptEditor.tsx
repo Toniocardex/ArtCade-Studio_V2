@@ -121,7 +121,7 @@ function AddBtn({ children, onClick }: AddBtnProps) {
     <button
       type="button"
       onClick={onClick}
-      className="text-xs px-2 py-1 rounded border border-[var(--accent-bd)] bg-[var(--accent-bg)] text-[var(--accent)] hover:bg-[var(--accent-bg-h)]"
+      className="text-xs px-2 py-1 rounded border border-[var(--accent-bd)] bg-[var(--accent-bg)] text-[var(--accent-fg-on-bg)] hover:bg-[var(--accent-bg-h)]"
     >
       {children}
     </button>

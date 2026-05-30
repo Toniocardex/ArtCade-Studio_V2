@@ -246,7 +246,7 @@ function LogicBoardLuaMode({
             onClick={() => {
               if (compileResult.ok) openMainScriptInEditor(dispatch, state, compileResult.lua)
             }}
-            className="px-4 py-2 rounded text-xs font-semibold border border-[var(--accent-bd)] bg-[var(--accent-bg)] text-[var(--accent)] hover:bg-[var(--accent-bg-h)] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 rounded text-xs font-semibold border border-[var(--accent-bd)] bg-[var(--accent-bg)] text-[var(--accent-fg-on-bg)] hover:bg-[var(--accent-bg-h)] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Open main.lua →
           </button>

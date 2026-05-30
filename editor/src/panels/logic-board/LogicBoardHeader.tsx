@@ -100,7 +100,7 @@ export function LogicBoardHeader({
         type="button"
         title="Compile the Logic Board to Lua and hot-reload it into the running runtime"
         onClick={onApply}
-        className="px-3 py-1.5 rounded text-xs font-semibold border border-[var(--accent-bd)] bg-[var(--accent-bg)] text-[var(--accent)] hover:bg-[var(--accent-bg-h)]"
+        className="px-3 py-1.5 rounded text-xs font-semibold border border-[var(--accent-bd)] bg-[var(--accent-bg)] text-[var(--accent-fg-on-bg)] hover:bg-[var(--accent-bg-h)]"
       >
         Apply to game
       </button>

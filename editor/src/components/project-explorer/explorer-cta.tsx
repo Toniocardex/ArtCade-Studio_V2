@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { editorCtaFilled } from '../ui/editor-ui-classes'
 
 const base =
   'inline-flex items-center justify-center gap-1 rounded border font-semibold transition-colors disabled:opacity-40 disabled:pointer-events-none'
@@ -18,10 +19,10 @@ export function ExplorerIconBtn({
 }>) {
   const toneClass =
     tone === 'accent'
-      ? 'border-[var(--accent-bd)] bg-[var(--accent-bg)] text-[var(--accent)] hover:bg-[var(--accent-bg-h)]'
+      ? editorCtaFilled
       : tone === 'danger'
-        ? 'border-[var(--border-2)] bg-[var(--bg)] text-[var(--muted)] hover:border-[var(--danger)] hover:text-[var(--danger)] hover:bg-[rgb(var(--danger-rgb)/0.12)]'
-        : 'border-[var(--border-2)] bg-[var(--bg)] text-[var(--muted)] hover:text-[var(--text)] hover:border-[var(--border)] hover:bg-[var(--panel-2)]'
+        ? 'border-[var(--border-2)] bg-[var(--bg)] text-[var(--primary-soft)] hover:border-[var(--danger)] hover:text-[var(--danger)] hover:bg-[rgb(var(--danger-rgb)/0.12)]'
+        : 'border-[var(--border-2)] bg-[var(--bg)] text-[var(--primary-soft)] hover:text-[var(--primary)] hover:border-[var(--border)] hover:bg-[var(--panel-2)]'
 
   return (
     <button
@@ -54,8 +55,8 @@ export function ExplorerLabelCta({
 }>) {
   const toneClass =
     tone === 'primary'
-      ? 'border-[var(--accent-bd)] bg-[var(--accent-bg)] text-[var(--accent)] hover:bg-[var(--accent-bg-h)] px-2 py-1 text-[10px]'
-      : 'border-[var(--border-2)] bg-[var(--bg)] text-[var(--text)] hover:bg-[var(--panel-2)] px-2 py-1 text-[10px]'
+      ? `${editorCtaFilled} px-2 py-1 text-[10px]`
+      : 'border-[var(--border-2)] bg-[var(--surface-2)] text-[var(--primary)] hover:bg-[var(--surface-hover)] px-2 py-1 text-[10px]'
 
   return (
     <button
