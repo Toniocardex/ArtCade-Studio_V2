@@ -385,7 +385,7 @@ Completato:
 - `compiler.ts`: refactor — importa da `trigger-execution` (no drift).
 - UI Logic Board:
   - `TypePicker`: optgroup **Recommended** vs **Advanced / Polling** + `title` su polling;
-  - `EventCard`: badge `Event` / `Polling` / `Event*`;
+  - `LogicEventRow`: execution badges (`Event` / `Polling` / `Event*`);
   - `friendly-labels`: distinzione onInput pressed vs down;
   - default nuova regola: `onSpawn` (`factory.ts`, `LogicBoardPanel.tsx`).
 - Test: `trigger-execution.test.ts` + aggiornamenti `compiler.test.ts`.

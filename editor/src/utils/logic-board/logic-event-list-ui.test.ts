@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   focusIdAfterDelete,
-  logicEventCardSelector,
+  logicEventRowSelector,
   siblingEventId,
 } from './logic-event-list-ui'
 import type { LogicEvent } from '../../types/logic-board'
@@ -14,8 +14,8 @@ const ev = (id: string): LogicEvent => ({
 })
 
 describe('logic-event-list-ui', () => {
-  it('logicEventCardSelector builds data-attribute selector', () => {
-    expect(logicEventCardSelector('ev-1')).toBe('[data-logic-event-id="ev-1"]')
+  it('logicEventRowSelector builds data-attribute selector', () => {
+    expect(logicEventRowSelector('ev-1')).toBe('[data-logic-event-id="ev-1"]')
   })
 
   it('siblingEventId moves within list and clamps at ends', () => {

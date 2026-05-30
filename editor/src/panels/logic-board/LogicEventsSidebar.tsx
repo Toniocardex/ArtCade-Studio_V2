@@ -14,7 +14,7 @@ import { LogicEventRow } from './LogicEventRow'
 import { LogicVariablesPanel } from './LogicVariablesPanel'
 import { NEW_TRIGGER_NONE, type NewTriggerPick } from './picker-constants'
 import LogicIconButton from '../../components/logic-board/LogicIconButton'
-import { scrollEventCardIntoViewSoon } from '../../utils/logic-board/logic-event-list-ui'
+import { scrollLogicEventRowIntoViewSoon } from '../../utils/logic-board/logic-event-list-ui'
 import {
   groupEventsByVisualCategory,
   orderedVisualGroups,
@@ -81,7 +81,7 @@ function EventListForBoard({
                   selected={focusedEventId === ev.id}
                   onSelect={() => {
                     setFocusedEventId(ev.id)
-                    scrollEventCardIntoViewSoon(ev.id)
+                    scrollLogicEventRowIntoViewSoon(ev.id)
                   }}
                 />
               </div>

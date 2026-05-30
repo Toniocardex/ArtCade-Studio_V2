@@ -32,7 +32,7 @@ import { cloneLogicEvent } from '../utils/logic-board/clone'
 import { eventCompatibilityError } from '../utils/logic-board/trigger-compatibility'
 import {
   focusIdAfterDelete,
-  scrollEventCardIntoViewSoon,
+  scrollLogicEventRowIntoViewSoon,
 } from '../utils/logic-board/logic-event-list-ui'
 import {
   findEventInBoards,
@@ -434,7 +434,7 @@ export default function LogicBoardPanel() {
       })
       setFocusedEventId(copy.id)
       if (options?.openEditor) setEditingId(copy.id)
-      scrollEventCardIntoViewSoon(copy.id)
+      scrollLogicEventRowIntoViewSoon(copy.id)
       return copy
     },
     [dispatch],
@@ -489,7 +489,7 @@ export default function LogicBoardPanel() {
         eventId: focusedEventId,
         toIndex,
       })
-      scrollEventCardIntoViewSoon(focusedEventId)
+      scrollLogicEventRowIntoViewSoon(focusedEventId)
     },
     [sceneBoards, focusedEventId, dispatch],
   )
@@ -526,7 +526,7 @@ export default function LogicBoardPanel() {
     })
     if (editingId === event.id) setEditingId(null)
     setFocusedEventId(nextFocus)
-    if (nextFocus) scrollEventCardIntoViewSoon(nextFocus)
+    if (nextFocus) scrollLogicEventRowIntoViewSoon(nextFocus)
   }, [sceneBoards, focusedEventId, editingId, dispatch])
 
   useEffect(() => {
@@ -549,11 +549,11 @@ export default function LogicBoardPanel() {
         },
         closeEditor: () => {
           setEditingId(null)
-          scrollEventCardIntoViewSoon(focusedEventId)
+          scrollLogicEventRowIntoViewSoon(focusedEventId)
         },
         focusEvent: (eventId) => {
           setFocusedEventId(eventId)
-          scrollEventCardIntoViewSoon(eventId)
+          scrollLogicEventRowIntoViewSoon(eventId)
         },
         deleteFocusedEvent,
         moveFocusedEvent,
@@ -717,7 +717,7 @@ export default function LogicBoardPanel() {
           })
           if (editingId === ev.id) setEditingId(null)
           setFocusedEventId(nextFocus)
-          if (nextFocus) scrollEventCardIntoViewSoon(nextFocus)
+          if (nextFocus) scrollLogicEventRowIntoViewSoon(nextFocus)
         }}
         onMoveEvent={(eventBoard, eventId, toIndex) => {
           dispatch({
@@ -726,7 +726,7 @@ export default function LogicBoardPanel() {
             eventId,
             toIndex,
           })
-          scrollEventCardIntoViewSoon(eventId)
+          scrollLogicEventRowIntoViewSoon(eventId)
         }}
       />
     </div>

@@ -127,7 +127,7 @@ ArtCade V2/
 ├── editor/                      React 19 + Vite + Tauri
 │   ├── src/
 │   │   ├── App.tsx              Layout root
-│   │   ├── components/          MenuBar, PanelHeader, StatusBar
+│   │   ├── components/          MenuBar, ModuleTabs, shell (BottomDock), StatusBar
 │   │   ├── panels/              7 pannelli editor (vedi §5)
 │   │   ├── utils/
 │   │   │   ├── api.ts           IPC Tauri (file I/O, build, pack)
@@ -615,10 +615,10 @@ Design: Slate Night `#0B1121` / Neon Cyan `#00FFFF` / Neon Magenta `#FF00FF`
 │  types,     │   when editing tilesets  │                   │
 │  assets)    │                          │                   │
 ├─────────────┴─────────────────────────┴───────────────────┤
-│ ConsoleDock (ConsolePanel) + StatusBar                     │
+│ BottomDock (Console · Timeline · Logic preview) + StatusBar │
 └────────────────────────────────────────────────────────────┘
 
-ModuleRail modes (full-width when active): LogicBoardPanel · ScriptEditorPanel · DialogEditorPanel
+ModuleTabs (Canvas · Logic Board · Script): LogicBoardPanel · ScriptEditorPanel swap the center column; Dialog library opens in a modal (`DialogEditorModal`).
 ```
 
 ### Componenti
@@ -626,7 +626,8 @@ ModuleRail modes (full-width when active): LogicBoardPanel · ScriptEditorPanel 
 | File | Ruolo |
 |------|-------|
 | `MenuBar.tsx` | File → Open Project, Save, Build .EXE, ▶ PLAY / ■ STOP |
-| `PanelHeader.tsx` | Header riutilizzabile per ogni pannello |
+| `ModuleTabs.tsx` | Canvas / Logic Board / Script module switcher |
+| `BottomDock.tsx` | Resizable bottom dock (console, animation timeline summary, logic preview) |
 | `StatusBar.tsx` | Runtime status · cursore · entity selezionata · versioni |
 
 ### Pannelli

@@ -92,6 +92,8 @@ profile-*.json
 # Large optional assets (marketing / exports — keep local, not needed to build)
 ico_1920x1504.png
 ArtCade_ICO.png
+ArtCade_ico.svg
+ArtCade_logo_noName.svg
 docs/*.pdf
 
 # OS

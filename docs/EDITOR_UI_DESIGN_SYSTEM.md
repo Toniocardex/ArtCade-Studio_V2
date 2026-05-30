@@ -200,7 +200,7 @@ Light theme: defer until dark refactor is stable; if added, invert void/surface 
 | `--panel: #313131` | `--surface` `#1A1A1A` (panels darken to match logo) |
 | `--accent: #7A9C7E` (sage) | Remove; use `--accent` `#4A72B2` or monochrome hover only |
 | `--accent-2: #3F5D7E` (navy) | Remove; selection uses `--accent` |
-| Pill radii on `ModuleRail` | Replace with 2–4px radius per §3.1 |
+| ~~Pill radii on `ModuleRail`~~ | Done — `ModuleTabs` uses 2–4px radius per §3.1 |
 
 **Out of scope for this document:** Logic Board JSON schema, Lua codegen, WASM preview rendering, `.artcade` format.
 

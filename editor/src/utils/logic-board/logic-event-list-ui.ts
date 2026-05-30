@@ -6,20 +6,20 @@ import type { LogicBoard, LogicEvent } from '../../types/logic-board'
 
 export const LOGIC_EVENTS_LIST_SELECTOR = '[data-logic-events-list]'
 export const LOGIC_EVENT_DRAG_MIME = 'application/x-artcade-logic-event-id'
-export const logicEventCardSelector = (eventId: string) =>
+export const logicEventRowSelector = (eventId: string) =>
   `[data-logic-event-id="${eventId}"]`
 
-/** Scroll a rule card into the Logic Board events list viewport. */
-export function scrollEventCardIntoView(eventId: string | null | undefined): void {
+/** Scroll a rule row into the Logic Board events list viewport. */
+export function scrollLogicEventRowIntoView(eventId: string | null | undefined): void {
   if (!eventId || globalThis.document === undefined) return
-  const el = globalThis.document.querySelector(logicEventCardSelector(eventId))
+  const el = globalThis.document.querySelector(logicEventRowSelector(eventId))
   el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
 }
 
 /** Run scroll after React commits focus/editing state. */
-export function scrollEventCardIntoViewSoon(eventId: string | null | undefined): void {
+export function scrollLogicEventRowIntoViewSoon(eventId: string | null | undefined): void {
   if (!eventId) return
-  requestAnimationFrame(() => scrollEventCardIntoView(eventId))
+  requestAnimationFrame(() => scrollLogicEventRowIntoView(eventId))
 }
 
 export type LogicEventNavDirection = 'up' | 'down'
