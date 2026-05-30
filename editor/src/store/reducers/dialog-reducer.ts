@@ -83,12 +83,14 @@ export const dialogReducer: DomainReducer = (state: CoreState, action: Action) =
         projectDirty: true,
       }
     }
-    case 'DIALOG_OPEN_MODAL':
+    case 'DIALOG_OPEN_MODAL': {
+      const id = action.dialogId.trim()
       return {
         ...state,
-        dialogModal: { open: true, dialogId: action.dialogId },
-        selectedDialogId: action.dialogId,
+        dialogModal: { open: true, dialogId: id.length > 0 ? id : null },
+        selectedDialogId: id.length > 0 ? id : state.selectedDialogId,
       }
+    }
     case 'DIALOG_CLOSE_MODAL':
       return {
         ...state,

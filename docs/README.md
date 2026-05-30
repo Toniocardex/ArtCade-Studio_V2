@@ -33,6 +33,9 @@ Inizia QUI se vuoi capire il **razionale** dietro ogni decisione.
 
 #### Se sei **React Developer**
 ```
+EDITOR_UI_DESIGN_SYSTEM.md  (Palette + token CSS — refactor UI visivo)
+new-ui/README.md            (Mockup PNG + specs; ArtCade, not PixelForge placeholder)
+    ↓
 TECHNICAL_OVERVIEW.md     § 5.5 (React-WASM Decoupling Pattern)
     ↓
 REACT_WASM_PATTERN.md     (Buffering model, checklist, anti-pattern)
@@ -92,6 +95,10 @@ Guida specializzata         (REACT_WASM_PATTERN.md o ECS_IMPLEMENTATION_GUIDE.md
 | **ARCHITECTURE_INTEGRATION.md** | End-to-end flows | 15–20min | Tech leads | ⭐⭐ |
 | **REACT_WASM_PATTERN.md** | Buffering implementazione | 15–20min | React dev | ⭐⭐ |
 | **CODEMIRROR_EDITOR.md** | Editor Script CodeMirror 6 (iframe), sync Logic Board→Lua, Tauri dev/build | ~5min | React dev | ⭐ |
+| **EDITOR_UI_DESIGN_SYSTEM.md** | Palette monocromatica editor (#121212–#F4F4F4), regole hover/geometry, token CSS per refactor UI | ~5min | Editor / design | ⭐⭐ |
+| **new-ui/README.md** | Indice refactor UI 2026, mockup PNG, naming ArtCade vs placeholder | ~2min | Editor / design | ⭐⭐ |
+| **new-ui/LOGIC_BOARD_UI_SPEC.md** | Spec UI Canvas + Logic Board (mockup `New_UI_artCade`, prodotto **ArtCade Studio**) | ~15min | Editor / design | ⭐⭐ |
+| **new-ui/TRIGGER_CONDITIONS_ACTIONS_UI.md** | Picker gerarchico Trigger/Condition/Action, cataloghi e integrazione UI | ~8min | Editor / design | ⭐⭐ |
 | **ECS_IMPLEMENTATION_GUIDE.md** | EnTT pratica | 30–45min | C++ dev | ⭐⭐ |
 | **ENGINE_INTEGRATION_ROADMAP.md** | Tracker operativo Thick Core / Thin Script / Gateway / EnTT | ~5min | C++ / Tech lead | ⭐⭐⭐ |
 | **ASSETS_ROADMAP.md** | Piano fase-per-fase su asset/sprite (animation clips, audio, .artcade export, hot-reload, font) con DoD, closure log e § Explorer (2026-05-29) | ~12min | Editor / C++ / Tooling | ⭐⭐⭐ |

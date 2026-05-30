@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------------
 // usePersistedHeight — useState backed by localStorage with clamp.
-// Used by ConsoleDock / LeftSidebar to remember the user's preferred panel height.
+// Used by BottomDock / LeftSidebar to remember the user's preferred panel height.
 // ---------------------------------------------------------------------------
 
 import { useCallback, useEffect, useState } from 'react'

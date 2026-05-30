@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------------
 // useBuildLogListener — Tauri build-log stream → store LOG entries.
-// Lives on ConsoleDock (always mounted) so build output is captured even when
+// Lives on BottomDock (always mounted) so build output is captured even when
 // the Console tab is hidden or another tab is active.
 // ---------------------------------------------------------------------------
 

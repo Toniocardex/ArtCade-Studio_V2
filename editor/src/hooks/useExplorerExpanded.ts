@@ -7,6 +7,7 @@ export type ExplorerExpandKey =
   | 'entities'
   | 'entityTypes'
   | 'assets'
+  | 'dialogs'
   | `asset:${string}`
 
 type ExpandedMap = Record<string, boolean>
@@ -16,6 +17,7 @@ const DEFAULT_EXPANDED: ExpandedMap = {
   entities: true,
   entityTypes: false,
   assets: false,
+  dialogs: true,
   'asset:audio': true,
   'asset:fonts': true,
   'asset:images': true,

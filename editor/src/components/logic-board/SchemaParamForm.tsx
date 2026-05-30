@@ -3,6 +3,7 @@
 // ---------------------------------------------------------------------------
 
 import type { ReactElement } from 'react'
+import { DialogIdField } from './DialogIdField'
 import {
   getComponentMeta,
   type ComponentKind,
@@ -325,6 +326,20 @@ function renderAnimationClipField({
 }
 
 function renderStringField({ kind, type, name, meta, value, onPatch }: FieldProps) {
+  if (kind === 'action' && type === 'startDialog' && name === 'dialogId') {
+    return (
+      <DialogIdField
+        key={name}
+        kind={kind}
+        type={type}
+        name={name}
+        meta={meta}
+        value={value}
+        onPatch={onPatch}
+        label={fieldLabel(kind, type, name, meta)}
+      />
+    )
+  }
   return (
     <span key={name} className="flex items-center gap-2">
       <span className={lbl}>{fieldLabel(kind, type, name, meta)}</span>

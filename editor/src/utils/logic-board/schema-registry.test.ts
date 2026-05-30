@@ -33,7 +33,7 @@ describe('schema-registry', () => {
 
   it('defaultTrigger validates for every trigger type (after filling required user inputs)', () => {
     // Some triggers have required user-supplied params (withClass, clipName)
-    // that the UI deliberately leaves empty in the default so the EventCard
+    // that the UI deliberately leaves empty in the default so the event editor
     // surfaces a "needs config" state. For schema validation we hydrate
     // those placeholders here.
     const fillRequired = (t: ReturnType<typeof defaultTrigger>) => {

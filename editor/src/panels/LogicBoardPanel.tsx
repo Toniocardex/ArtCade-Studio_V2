@@ -43,12 +43,8 @@ import type { LogicBoard, LogicEvent } from '../types/logic-board'
 import type { ProjectDoc } from '../types'
 import { LogicBoardLuaPreview } from './logic-board/LogicBoardLuaPreview'
 import { LogicBoardHeader } from './logic-board/LogicBoardHeader'
-import {
-  LogicBoardEventsList,
-  NEW_TRIGGER_NONE,
-  type NewTriggerPick,
-} from './logic-board/LogicBoardEventsList'
-import { RulesheetControls } from './logic-board/RulesheetControls'
+import { NEW_TRIGGER_NONE, type NewTriggerPick } from './logic-board/picker-constants'
+import { LogicBoardVisualLayout } from './logic-board/LogicBoardVisualLayout'
 import {
   logicBoardsRevision,
   openMainScriptInEditor,
@@ -617,6 +613,18 @@ export default function LogicBoardPanel() {
   const canCreateForSelection =
     selectedEntityId != null && boardForSelection == null
 
+  const focusedEvent =
+    board?.events.find((ev) => ev.id === focusedEventId) ?? null
+
+  const patchFocusedEvent = (event: LogicEvent) => {
+    if (!board) return
+    dispatch({
+      type: 'LOGIC_UPDATE_EVENT',
+      boardId: board.boardId,
+      event,
+    })
+  }
+
   return (
     <div
       className="flex-1 flex flex-col min-h-0 overflow-hidden bg-[var(--bg)]"
@@ -652,13 +660,29 @@ export default function LogicBoardPanel() {
           rules with the full toolset (Canvas, Logic, Script). Use{' '}
           <strong>When</strong> for keys (including OR). Turn on{' '}
           <strong>If</strong> only for extra filters. Switch to{' '}
-          <strong>Advanced</strong> on the rail for a denser layout.
+          <strong>Advanced</strong> in the View menu for a denser layout.
         </p>
       )}
 
-      <RulesheetControls
+      {clipboardHint ? (
+        <p className="shrink-0 px-3 py-1 text-[10px] text-[var(--accent)] border-b border-[var(--outline)]">
+          {clipboardHint}
+        </p>
+      ) : null}
+
+      <LogicBoardVisualLayout
         project={project}
+        sceneId={sceneId}
         board={board}
+        focusedEvent={focusedEvent}
+        focusedEventId={focusedEventId}
+        setFocusedEventId={(id) => {
+          setFocusedEventId(id)
+          setEditingId(id)
+        }}
+        setSelectedBoardId={setSelectedBoardId}
+        newTrigger={newTrigger}
+        setNewTrigger={setNewTrigger}
         sceneEntities={sceneEntities}
         selectedEntityId={selectedEntityId}
         boardForSelection={boardForSelection}
@@ -681,21 +705,29 @@ export default function LogicBoardPanel() {
           dispatch({ type: 'LOGIC_DELETE_BOARD', boardId: board.boardId })
           setSelectedBoardId(null)
         }}
-      />
-
-      <LogicBoardEventsList
-        project={project}
-        board={board}
-        sceneId={sceneId}
-        clipboardHint={clipboardHint}
-        editingId={editingId}
-        setEditingId={setEditingId}
-        focusedEventId={focusedEventId}
-        setFocusedEventId={setFocusedEventId}
-        newTrigger={newTrigger}
-        setNewTrigger={setNewTrigger}
-        onCloneEvent={cloneEvent}
         dispatch={dispatch}
+        onPatchEvent={patchFocusedEvent}
+        onCloneEvent={cloneEvent}
+        onDeleteEvent={(ev, eventBoard) => {
+          const nextFocus = focusIdAfterDelete(eventBoard.events, ev.id)
+          dispatch({
+            type: 'LOGIC_DELETE_EVENT',
+            boardId: eventBoard.boardId,
+            eventId: ev.id,
+          })
+          if (editingId === ev.id) setEditingId(null)
+          setFocusedEventId(nextFocus)
+          if (nextFocus) scrollEventCardIntoViewSoon(nextFocus)
+        }}
+        onMoveEvent={(eventBoard, eventId, toIndex) => {
+          dispatch({
+            type: 'LOGIC_MOVE_EVENT',
+            boardId: eventBoard.boardId,
+            eventId,
+            toIndex,
+          })
+          scrollEventCardIntoViewSoon(eventId)
+        }}
       />
     </div>
   )

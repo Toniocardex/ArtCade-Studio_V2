@@ -544,6 +544,15 @@ export default function PreviewPanel() {
                 pointerEvents:   panActive ? 'none' : 'auto',
               }}
             />
+            {preview && (
+              <div
+                className="absolute top-1 left-1 z-[2] px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wide
+                           bg-[var(--surface)]/90 text-[var(--accent)] border border-[var(--outline)] pointer-events-none"
+                aria-label={`Camera view ${vp.x} by ${vp.y}`}
+              >
+                Camera view · {vp.x}×{vp.y}
+              </div>
+            )}
             {/* Scene edge — always on, independent of grid guides. */}
             <div className="canvas-scene-frame__edge" aria-hidden />
           </div>

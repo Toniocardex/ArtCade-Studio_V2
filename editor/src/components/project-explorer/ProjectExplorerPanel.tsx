@@ -14,7 +14,9 @@ import {
   Trash2,
   Type,
   Workflow,
+  MessageSquare,
 } from 'lucide-react'
+import { openDialogEditorForId } from '../../panels/dialog/dialog-modal-api'
 import { useEditor } from '../../store/editor-store'
 import { assetFolderItemCount, buildProjectExplorerData } from '../../utils/project-explorer-tree'
 import { useExplorerExpanded } from '../../hooks/useExplorerExpanded'
@@ -54,7 +56,13 @@ const CLASS_COLOR: Record<string, string> = {
   Enemy: 'var(--danger)',
 }
 
-export default function ProjectExplorerPanel() {
+export type ExplorerPane = 'scene' | 'assets' | 'all'
+
+export type ProjectExplorerPanelProps = Readonly<{
+  explorerPane?: ExplorerPane
+}>
+
+export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectExplorerPanelProps) {
   const { state, dispatch } = useEditor()
   const [search, setSearch] = useState('')
   const [contextMenu, setContextMenu] = useState<ExplorerContextMenuState | null>(null)
@@ -113,7 +121,7 @@ export default function ProjectExplorerPanel() {
 
   if (!project || !tree) {
     return (
-      <div className="h-full flex items-center justify-center bg-[var(--panel)]">
+      <div className="h-full flex items-center justify-center bg-[var(--surface)]">
         <span className="text-[var(--muted)] text-xs">No project</span>
       </div>
     )
@@ -121,6 +129,8 @@ export default function ProjectExplorerPanel() {
 
   const sel = scene.selection
   const selectedEntityId = sel.entityId
+  const showScene = explorerPane === 'all' || explorerPane === 'scene'
+  const showAssets = explorerPane === 'all' || explorerPane === 'assets'
 
   return (
     <div
@@ -153,6 +163,7 @@ export default function ProjectExplorerPanel() {
       <ProjectSearch value={search} onChange={setSearch} />
 
       <div className="flex flex-col flex-1 min-h-0">
+        {showScene ? (
         <div className="panel-scroll flex-[3] min-h-0">
         <TreeSection
           title="Scenes"
@@ -457,8 +468,10 @@ export default function ProjectExplorerPanel() {
           )}
         </TreeSection>
         </div>
+        ) : null}
 
-        <div ref={assetsAnchorRef} className="panel-scroll flex-[2] min-h-0 border-t border-[var(--border)]">
+        {showAssets ? (
+        <div ref={assetsAnchorRef} className="panel-scroll flex-[2] min-h-0 border-t border-[var(--outline)]">
           <TreeSection
             title="Assets"
             open={isOpen('assets')}
@@ -935,6 +948,29 @@ export default function ProjectExplorerPanel() {
                 )
               })}
           </TreeSection>
+
+          <TreeSection
+            title="Dialogs"
+            open={isOpen('dialogs')}
+            onToggle={() => toggle('dialogs')}
+          >
+            {Object.keys(state.dialogs)
+              .sort((a, b) => a.localeCompare(b))
+              .map((dialogId) => (
+                <TreeLeaf
+                  key={dialogId}
+                  label={dialogId}
+                  depth={1}
+                  onClick={() => openDialogEditorForId(dispatch, state.dialogs, dialogId)}
+                  icon={<MessageSquare size={11} className="flex-shrink-0 text-[var(--accent)]" />}
+                  title={`dialogs/${dialogId}.json`}
+                />
+              ))}
+            {Object.keys(state.dialogs).length === 0 ? (
+              <p className="px-3 py-2 text-[10px] text-[var(--muted)]">No dialog scripts yet. Use View → Dialog library…</p>
+            ) : null}
+          </TreeSection>
+
           {assets.selection?.type === 'image' ? (
             <AssetDetailStrip selection={assets.selection} />
           ) : null}
@@ -942,9 +978,10 @@ export default function ProjectExplorerPanel() {
             <AssetMediaDetailStrip selection={assets.selection} />
           ) : null}
         </div>
+        ) : null}
       </div>
 
-      <div className="px-2 py-1 border-t border-[var(--border)] text-[9px] text-[var(--muted)] flex-shrink-0">
+      <div className="px-2 py-1 border-t border-[var(--outline)] text-[9px] text-[var(--muted)] flex-shrink-0">
         {scene.sceneCount} scenes · {tree.entities.length} entities · {tree.entityTypes.length} types
       </div>
     </div>

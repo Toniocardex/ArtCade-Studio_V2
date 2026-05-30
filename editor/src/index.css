@@ -3,125 +3,128 @@
 @tailwind utilities;
 
 /* ===========================================================================
-   ArtCade Engine — GUI Style Guide tokens.
+   ArtCade Studio — Editor UI (2026 monochrome)
+   See docs/EDITOR_UI_DESIGN_SYSTEM.md
 
-   Palette engineering (deviazione dalla style guide §2 per il primary accent —
-   sage green dà identità "ingegneria calma" più distintiva del bronzo originale):
-     #1A1A1A Antracite Opaco        — sfondo app/menubar
-     #2D2D2D Grigio Ardesia Satinato — pannelli interattivi
-     #7A9C7E Sage Green             — accento PRIMARIO (Play, header critici)
-     #3F5D7E Blu Navy Desaturato    — accento SECONDARIO (selezioni, hover)
-     #EAEAEA Avorio Leggero         — testo primario
-     #8E8E8E Grigio Medio Tecnico   — testo secondario, scorciatoie, default
-     #A84343 Rosso Desaturato       — errori critici
+   void #121212 — workspace (canvas, logic center, script)
+   surface #1A1A1A — panels, menu, status
+   outline #555555 — borders, muted labels
+   primary #F4F4F4 — text, active icons
+   accent #4A72B2 — selection only (flat)
 
-   Principi:
-     • Geometrie squadrate (border-radius ≤ 2px).
-     • Niente glow / glassmorphism / ombre sfarzose.
-     • Transizioni ≤ 100ms.
-     • Doppio font: IBM Plex Sans (UI) + JetBrains Mono (dati tecnici).
-
-   PreviewPanel canvas è renderizzato da C++/WASM e non è influenzato.
+   PreviewPanel canvas is C++/WASM — not themed here.
    ========================================================================== */
 
 :root,
 [data-theme="dark"] {
-  /* Surfaces */
-  --bg:          #1A1A1A;   /* Antracite Opaco — app background */
-  --panel:       #313131;   /* Grigio Ardesia Satinato — interactive panels */
-  --panel-2:     #2B2B2B;   /* between panel and panel-3 (event sub-headers) */
-  --panel-3:     #252525;   /* deeper raised/code surface */
-  --border:      #484848;   /* 1px dividers between panel sections */
-  --border-2:    #5C5C5C;   /* stronger borders, input outlines */
-  /* Extra component-badge accent — desaturated dusky violet, coordinated with
-     sage + navy so the inspector pill row keeps semantic differentiation. */
-  --purple:      #8A7A9E;
+  --void:           #121212;
+  --surface:        #1A1A1A;
+  --surface-2:      #1E1E1E;
+  --surface-3:      #242424;
+  --outline:        #555555;
+  --outline-subtle: rgba(85, 85, 85, 0.5);
+  --outline-faint:  rgba(85, 85, 85, 0.35);
+  --primary:        #F4F4F4;
+  --primary-soft:   #D8D8D8;
+  --muted:          #555555;
+  --muted-2:        #444444;
+  --accent:         #4A72B2;
+  --accent-muted:   rgba(74, 114, 178, 0.25);
+  --warn:           #C49A4A;
+  --danger:         #A84343;
+  --danger-2:       #8E3636;
+  --success:        #6FA083;
+  --purple:         #8A7A9E;
 
-  /* Text */
-  --text:        #EAEAEA;   /* Avorio Leggero — primary text */
-  --text-2:      #D0D0D0;   /* softer primary variant */
-  --muted:       #A2A2A2;   /* Grigio Medio Tecnico — secondary text, shortcuts */
-  --muted-2:     #717171;   /* disabled */
+  /* Back-compat aliases (legacy class names) */
+  --bg:          var(--void);
+  --panel:       var(--surface);
+  --panel-2:     var(--surface-2);
+  --panel-3:     var(--surface-3);
+  --border:      var(--outline);
+  --border-2:    var(--outline);
+  --text:        var(--primary);
+  --text-2:      var(--primary-soft);
+  --accent-2:    var(--accent);
+  --accent-bd:   var(--accent);
+  --accent-bg:   var(--accent-muted);
+  --accent-bg-h: var(--outline);
+  --yellow:      var(--warn);
+  --green-2:     var(--success);
+  --blue:        var(--accent);
 
-  /* Accents */
-  --accent:      #7A9C7E;   /* Sage Green — PLAY, critical headers */
-  --accent-2:    #3F5D7E;   /* Blu Navy Desaturato — selection, hover */
-  --accent-bd:   #5D7A61;   /* darker sage for button borders */
-  --accent-bg:   #1E2620;   /* near-black sage wash */
-  --accent-bg-h: #28332B;   /* hover wash */
+  --pill-if-bg:  var(--surface-2);
+  --pill-if-bd:  var(--accent);
+  --pill-then-bg: var(--surface-3);
+  --pill-then-bd: var(--outline);
 
-  /* Status */
-  --warn:        #C49A4A;   /* desaturated amber — warning indicator */
-  --danger:      #A84343;   /* Rosso Desaturato — errors */
-  --danger-2:    #8E3636;   /* deeper error */
-  --yellow:      #C49A4A;   /* alias */
-  --green-2:     #6FA083;   /* desaturated success */
-  --blue:        #3F5D7E;   /* alias of accent-2, used by component badges */
-
-  /* Logic Board pill backgrounds (when/if/then) */
-  --pill-if-bg:  #2A3340;   /* navy-tinted */
-  --pill-if-bd:  #3F5D7E;
-  --pill-then-bg:#1E2620;   /* sage-tinted */
-  --pill-then-bd:#7A9C7E;
-
-  /* RGB triplets for opacity modifiers */
-  --accent-rgb:   122 156 126;
-  --accent-2-rgb: 63 93 126;
-  --bg-rgb:       26 26 26;
-  --border-rgb:   58 58 58;
-  --muted-rgb:    142 142 142;
+  --accent-rgb:   74 114 178;
+  --accent-2-rgb: 74 114 178;
+  --bg-rgb:       18 18 18;
+  --border-rgb:   85 85 85;
+  --muted-rgb:    85 85 85;
   --warn-rgb:     196 154 74;
   --danger-rgb:   168 67 67;
 
-  /* Layout */
-  --editor-rail-width:     6rem;   /* fits module labels (Script, Dialog, Theme) */
-  --editor-workspace-inset: 1rem;
+  --editor-rail-width:      0px;
+  --editor-workspace-inset: 0.75rem;
+  --editor-left-w-default:  280px;
+  --editor-right-w-default: 320px;
+  --editor-dock-h-default:  300px;
 
-  /* Geometry — ArtCade style guide says "ridotti al minimo o azzerati" */
   --radius:    2px;
   --radius-sm: 2px;
-  --radius-lg: 2px;
+  --radius-md: 4px;
+  --radius-lg: 4px;
 
-  /* Fonts */
   --font-ui:   'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Courier New', Courier, monospace;
 }
 
 [data-theme="light"] {
-  /* Light variant mantiene la stessa semantica della palette ufficiale,
-     adattata a fondo chiaro. Inverte solo le surfaces; accenti restano
-     sage + navy desaturato per coerenza brand. */
-  --bg:          #ECEAE4;   /* avorio medio — meno abbagliante del bianco */
-  --panel:       #F5F3EE;   /* avorio caldo invece del bianco puro */
-  --panel-2:     #EDE9E2;
-  --panel-3:     #E2DED6;
-  --purple:      #6B5E80;
-  --border:      #C4C0B8;   /* bordi più definiti */
-  --border-2:    #A8A39A;
-  --text:        #1A1A1A;
-  --text-2:      #2D2D2D;
-  --muted:       #5A5A5A;   /* testo secondario più leggibile */
-  --muted-2:     #888888;
-  --accent:      #5D7A61;   /* sage più scuro per contrasto su chiaro */
-  --accent-2:    #2F4A66;   /* navy più scuro */
-  --accent-bd:   #4E6651;
-  --accent-bg:   #EAF0EB;
-  --accent-bg-h: #D8E2DA;
-  --warn:        #9A7A36;
-  --danger:      #8E3636;
-  --danger-2:    #6E2828;
-  --yellow:      #9A7A36;
-  --green-2:     #2F5240;
-  --blue:        #2F4A66;
+  --void:           #E8E8E8;
+  --surface:        #F4F4F4;
+  --surface-2:      #ECECEC;
+  --surface-3:      #E2E2E2;
+  --outline:        #888888;
+  --outline-subtle: rgba(136, 136, 136, 0.45);
+  --outline-faint:  rgba(136, 136, 136, 0.25);
+  --primary:        #121212;
+  --primary-soft:   #2D2D2D;
+  --muted:          #666666;
+  --muted-2:        #999999;
+  --accent:         #3A5F94;
+  --accent-muted:   rgba(58, 95, 148, 0.2);
+  --warn:           #9A7A36;
+  --danger:         #8E3636;
+  --danger-2:       #6E2828;
+  --success:        #2F5240;
+  --purple:         #6B5E80;
+
+  --bg:          var(--void);
+  --panel:       var(--surface);
+  --panel-2:     var(--surface-2);
+  --panel-3:     var(--surface-3);
+  --border:      var(--outline);
+  --border-2:    var(--outline);
+  --text:        var(--primary);
+  --text-2:      var(--primary-soft);
+  --accent-2:    var(--accent);
+  --accent-bd:   var(--accent);
+  --accent-bg:   var(--accent-muted);
+  --accent-bg-h: var(--outline-faint);
+  --yellow:      var(--warn);
+  --green-2:     var(--success);
+  --blue:        var(--accent);
   --pill-if-bg:  #E8EEF4;
-  --pill-if-bd:  #2F4A66;
-  --pill-then-bg:#EAF0EB;
-  --pill-then-bd:#5D7A61;
-  --accent-rgb:   93 122 97;
-  --accent-2-rgb: 47 74 102;
-  --bg-rgb:       242 241 237;
-  --border-rgb:   214 211 204;
-  --muted-rgb:    110 110 110;
+  --pill-if-bd:  var(--accent);
+  --pill-then-bg: #EEEEEE;
+  --pill-then-bd: var(--outline);
+  --accent-rgb:   58 95 148;
+  --accent-2-rgb: 58 95 148;
+  --bg-rgb:       232 232 232;
+  --border-rgb:   136 136 136;
+  --muted-rgb:    102 102 102;
   --warn-rgb:     154 122 54;
   --danger-rgb:   142 54 54;
 }
@@ -239,14 +242,24 @@ input[data-mono],
   align-items: center;
   justify-content: space-between;
   flex-shrink: 0;
-  min-height: 2.75rem;
-  padding: 0.5rem 0;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg);
+  min-height: 3rem;
+  padding: 0.375rem 0;
+  border-bottom: 1px solid var(--outline);
+  background: var(--surface);
 }
 
 .editor-toolbar-workspace-start {
-  margin-left: calc(var(--editor-rail-width) + var(--editor-workspace-inset));
+  margin-left: var(--editor-workspace-inset);
+}
+
+.editor-module-tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  flex-shrink: 0;
+  padding: 0 var(--editor-workspace-inset);
+  border-bottom: 1px solid var(--outline);
+  background: var(--surface);
 }
 
 .editor-toolbar-workspace-end {

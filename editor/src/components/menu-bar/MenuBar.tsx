@@ -9,6 +9,8 @@ import { useBuildToolbarActions } from './useBuildToolbarActions'
 import { mapWebExportToolbar, useWebExportStatus } from './useWebExportStatus'
 import { useProjectNamePersist } from './project-name-context'
 import { usePreviewPlayShortcut } from '../../hooks/usePreviewPlayShortcut'
+import { ViewToolbarMenu } from './ViewToolbarMenu'
+import { ToolsMenu } from './ToolsMenu'
 
 export default function MenuBar() {
   const { state, dispatch } = useEditor()
@@ -99,18 +101,22 @@ export default function MenuBar() {
         )}
       </div>
 
-      <BuildToolbar
-        isPlaying={isPlaying}
-        buildBusy={buildToolbar.buildBusy}
-        isBuilding={buildToolbar.isBuilding}
-        isBuildingWeb={buildToolbar.isBuildingWeb}
-        isOpeningWeb={buildToolbar.isOpeningWeb}
-        exportState={exportState}
-        onPlayStop={buildToolbar.handlePlayStop}
-        onBuildExe={buildToolbar.handleBuildExe}
-        onBuildWeb={buildToolbar.handleBuildWeb}
-        onOpenWebInBrowser={buildToolbar.handleOpenWebInBrowser}
-      />
+      <div className="flex items-center gap-2">
+        <BuildToolbar
+          isPlaying={isPlaying}
+          buildBusy={buildToolbar.buildBusy}
+          isBuilding={buildToolbar.isBuilding}
+          isBuildingWeb={buildToolbar.isBuildingWeb}
+          isOpeningWeb={buildToolbar.isOpeningWeb}
+          exportState={exportState}
+          onPlayStop={buildToolbar.handlePlayStop}
+          onBuildExe={buildToolbar.handleBuildExe}
+          onBuildWeb={buildToolbar.handleBuildWeb}
+          onOpenWebInBrowser={buildToolbar.handleOpenWebInBrowser}
+        />
+        <ToolsMenu />
+        <ViewToolbarMenu />
+      </div>
     </header>
   )
 }

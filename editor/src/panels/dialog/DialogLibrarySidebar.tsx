@@ -5,7 +5,11 @@ import { parseDialogGraph } from '../../utils/dialog/dialog-script'
 import { confirmDialog } from '../../utils/native-dialog'
 import { useTextPrompt } from '../../hooks/useTextPrompt'
 
-export function DialogLibrarySidebar() {
+export type DialogLibrarySidebarProps = Readonly<{
+  wide?: boolean
+}>
+
+export function DialogLibrarySidebar({ wide = false }: DialogLibrarySidebarProps) {
   const { state, dispatch } = useEditor()
   const promptText = useTextPrompt()
   const [filter, setFilter] = useState('')
@@ -17,7 +21,9 @@ export function DialogLibrarySidebar() {
   }, [state.dialogs, filter])
 
   return (
-    <aside className="w-56 shrink-0 border-r border-[var(--border)] flex flex-col bg-[var(--panel)]">
+    <aside
+      className={`${wide ? 'w-full h-full' : 'w-56'} shrink-0 border-r border-[var(--outline)] flex flex-col bg-[var(--surface)]`}
+    >
       <div className="p-2 border-b border-[var(--border)] space-y-2">
         <input
           className="w-full text-xs px-2 py-1 rounded border border-[var(--border)] bg-[var(--bg)]"

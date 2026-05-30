@@ -10,8 +10,8 @@
 /** Lowest zoom factor allowed. 10% keeps text/handles readable. */
 export const EDITOR_ZOOM_MIN = 0.1
 
-/** Highest zoom factor. 400% is the industry-standard upper bound for 2D editors. */
-export const EDITOR_ZOOM_MAX = 4.0
+/** Highest zoom factor. 800% supports pixel-level inspection on small sprites. */
+export const EDITOR_ZOOM_MAX = 8.0
 
 /** Identity zoom (Ctrl+0). Industry-standard meaning of "100%": 1 scene px = 1 device px. */
 export const EDITOR_ZOOM_DEFAULT = 1.0
@@ -69,7 +69,7 @@ export const DEFAULT_SCENE_SIZE = { x: 1280, y: 640 } as const
  * Tight steps near 100% and wider at the extremes.
  */
 export const ZOOM_PRESETS: readonly number[] = [
-  0.10, 0.25, 0.50, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0, 4.0,
+  0.10, 0.25, 0.50, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0, 4.0, 6.0, 8.0,
 ] as const
 
 /** Small epsilon used to compare zoom values without false equality misses. */

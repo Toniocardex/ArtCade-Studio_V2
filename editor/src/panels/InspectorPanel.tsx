@@ -16,6 +16,7 @@ import { SpriteSection } from './inspector/SpriteSection'
 import { ComponentsSection } from './inspector/ComponentsSection'
 import { ScriptSection } from './inspector/ScriptSection'
 import { LogicBoardCta } from './inspector/LogicBoardCta'
+import { EntityMetadataSection } from './inspector/EntityMetadataSection'
 import {
   inspectorBodyView,
   nextInspectorTab,
@@ -83,6 +84,7 @@ function EntityInspector({ entity }: EntityInspectorProps) {
   return (
     <>
       <EntityHeaderBar entity={entity} onJumpToComponent={jumpToComponent} />
+      <EntityMetadataSection entity={entity} />
       <ComponentsSection
         entity={entity}
         open={componentsOpen}

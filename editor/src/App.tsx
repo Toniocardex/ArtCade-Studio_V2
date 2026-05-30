@@ -1,9 +1,9 @@
 import { lazy, Suspense, useEffect } from 'react'
 import { EditorProvider, useEditor } from './store/editor-store'
 import MenuBar            from './components/MenuBar'
-import ModuleRail from './components/ModuleRail'
+import ModuleTabs from './components/shell/ModuleTabs'
 import StatusBar          from './components/StatusBar'
-import ConsoleDock        from './components/ConsoleDock'
+import BottomDock        from './components/shell/BottomDock'
 import LeftSidebar        from './components/LeftSidebar'
 import ResizeHandle       from './components/ResizeHandle'
 import PreviewPanel       from './panels/PreviewPanel'
@@ -20,12 +20,12 @@ import { useViewportShortcuts } from './hooks/useViewportShortcuts'
 import { useConsoleShortcut } from './hooks/useConsoleShortcut'
 import { usePersistedWidth } from './hooks/usePersistedWidth'
 import EditorBootGate from './components/EditorBootGate'
+import { EditorViewportBanner } from './components/shell/EditorViewportBanner'
 import type { ConsoleEntry } from './types'
 
 const LogicBoardPanel = lazy(() => import('./panels/LogicBoardPanel'))
 const ScriptEditorPanel = lazy(() => import('./panels/ScriptEditorPanel'))
 const TilesetEditorPanel = lazy(() => import('./panels/TilesetEditorPanel'))
-const DialogEditorPanel = lazy(() => import('./panels/DialogEditorPanel'))
 
 let _bootLogId = 500
 function bootLog(message: string, level: ConsoleEntry['level']): ConsoleEntry {
@@ -38,18 +38,12 @@ function bootLog(message: string, level: ConsoleEntry['level']): ConsoleEntry {
   }
 }
 
-// ---------------------------------------------------------------------------
-// CANVAS mode layout: Project Explorer | viewport (or tileset editor) | inspector
-// Sidebars are user-resizable; widths persist in localStorage.
-// Assets live in LeftSidebar tree; console in ConsoleDock (EditorLayout).
-// ---------------------------------------------------------------------------
-
 function LegacyMigrateBanner() {
   const { state, dispatch } = useEditor()
   if (!state.legacyMigrateBanner) return null
   return (
-    <div className="shrink-0 px-3 py-1.5 bg-[var(--accent-bg)] border-b border-[var(--accent-bd)]
-                    text-[11px] text-[var(--text)] flex items-center justify-between gap-2">
+    <div className="shrink-0 px-3 py-1.5 bg-[var(--accent-muted)] border-b border-[var(--outline)]
+                    text-[11px] text-[var(--primary)] flex items-center justify-between gap-2">
       <span>
         Project upgraded to Object Types (format v2). Save to keep the new layout on disk.
       </span>
@@ -66,8 +60,8 @@ function LegacyMigrateBanner() {
 
 function CanvasView() {
   const { state } = useEditor()
-  const [leftW, setLeftW]   = usePersistedWidth('artcade.sidebar-left-w-v2',  280)
-  const [rightW, setRightW] = usePersistedWidth('artcade.sidebar-right-w-v2', 256)
+  const [leftW, setLeftW]   = usePersistedWidth('artcade.sidebar-left-w-v3',  280)
+  const [rightW, setRightW] = usePersistedWidth('artcade.sidebar-right-w-v3', 320)
 
   const isEditingTileset = state.editingTilesetId != null
 
@@ -76,20 +70,16 @@ function CanvasView() {
       <LegacyMigrateBanner />
       <div className="flex flex-1 min-h-0 overflow-hidden">
 
-      {/* Left sidebar — Scenes + Objects */}
       <aside
         style={{ width: leftW }}
-        className="border-r border-[var(--border)] flex-shrink-0 overflow-hidden bg-[var(--panel)]"
+        className="border-r border-[var(--outline)] flex-shrink-0 overflow-hidden bg-[var(--surface)]"
       >
         <LeftSidebar />
       </aside>
       <ResizeHandle side="left" onResize={(d) => setLeftW((w) => w + d)} />
 
-      {/* Center — Viewport (or TilesetEditor) */}
-      <section className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[var(--bg)]">
+      <section className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[var(--void)]">
         <div className="flex-1 min-h-0 overflow-hidden relative">
-          {/* WASM canvas stays MOUNTED (Emscripten lifetime). Hide it via
-              display:'none' when the tileset editor takes over the viewport. */}
           <div
             style={{ display: isEditingTileset ? 'none' : 'contents' }}
           >
@@ -103,11 +93,10 @@ function CanvasView() {
         </div>
       </section>
 
-      {/* Right sidebar — Inspector */}
       <ResizeHandle side="right" onResize={(d) => setRightW((w) => w + d)} />
       <aside
         style={{ width: rightW }}
-        className="border-l border-[var(--border)] flex-shrink-0 overflow-hidden bg-[var(--panel)]"
+        className="border-l border-[var(--outline)] flex-shrink-0 overflow-hidden bg-[var(--surface)]"
       >
         <InspectorPanel />
       </aside>
@@ -116,13 +105,9 @@ function CanvasView() {
   )
 }
 
-// ---------------------------------------------------------------------------
-// LOGIC_BOARD mode
-// ---------------------------------------------------------------------------
-
 function LogicBoardView() {
   return (
-    <div className="flex flex-1 min-h-0 overflow-hidden">
+    <div className="flex flex-1 min-h-0 overflow-hidden bg-[var(--void)]">
       <Suspense fallback={null}>
         <LogicBoardPanel />
       </Suspense>
@@ -130,13 +115,9 @@ function LogicBoardView() {
   )
 }
 
-// ---------------------------------------------------------------------------
-// SCRIPT mode: full-screen Lua editor
-// ---------------------------------------------------------------------------
-
 function ScriptEditorView() {
   return (
-    <div className="flex flex-1 min-h-0 overflow-hidden">
+    <div className="flex flex-1 min-h-0 overflow-hidden bg-[var(--void)]">
       <Suspense fallback={null}>
         <ScriptEditorPanel />
       </Suspense>
@@ -144,26 +125,9 @@ function ScriptEditorView() {
   )
 }
 
-function DialogEditorView() {
-  return (
-    <div className="flex flex-1 min-h-0 overflow-hidden">
-      <Suspense fallback={null}>
-        <DialogEditorPanel />
-      </Suspense>
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Root layout
-// ---------------------------------------------------------------------------
-
 function EditorLayout() {
   const { state, dispatch } = useEditor()
 
-  // ── First boot: load an in-memory blank project so the editor opens to the
-  // same clean state produced by File → New Project (1 empty Main Scene, no
-  // entities, no scripts). path='' marks it as unsaved.
   useEffect(() => {
     if (state.project || state.projectPath) return
     const blank = createBlankProject('Untitled')
@@ -176,40 +140,27 @@ function EditorLayout() {
       selectedDialogId: 'innkeeper',
     })
     dispatch({ type: 'LOG', entry: bootLog('OK new blank project (unsaved – use Save Project As to persist).', 'info') })
-    // Run once at mount; further "new project" actions go through the menu/shortcut.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Global shortcuts are split by concern so each hook only re-binds when its
-  // own state changes (TECHNICAL_DEBT_REVIEW §16).
   useProjectShortcuts()
   useProjectLogicBoardSync()
   useViewportShortcuts()
   useConsoleShortcut()
 
-  // Script editor mounts only in script mode — reflow after Tauri show / tab switch.
   useEffect(() => {
     if (state.mode === 'script') triggerLayoutReflow()
   }, [state.mode])
 
   return (
-    <div className="editor-shell flex flex-col w-full h-full bg-[var(--bg)] text-[var(--text)] overflow-hidden select-none">
+    <div className="editor-shell flex flex-col w-full h-full bg-[var(--void)] text-[var(--primary)] overflow-hidden select-none">
       <MenuBar />
+      <EditorViewportBanner />
+      <ModuleTabs />
       <DialogEditorModal />
       <SpritesheetStudioModal />
 
-      <div className="flex flex-1 min-w-0 min-h-0 overflow-hidden">
-        <ModuleRail />
-
-        <div className="flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden">
-        {/* Only CanvasView must stay MOUNTED: unmounting it would detach the
-            WASM canvas while Emscripten keeps rendering into the removed node
-            → empty viewport on return. It is kept alive via display toggling
-            (`contents` when active, `none` when hidden).
-
-            LogicBoardView / ScriptEditorView have NO WASM canvas, so they are
-            mounted CONDITIONALLY. Script editor needs a real sized flex box
-            (not `display:contents`), so it mounts only when active. */}
+      <div className="flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden">
         <div className="flex flex-1 min-h-0 overflow-hidden flex-col min-w-0">
           <div
             className="flex flex-1 min-h-0 overflow-hidden"
@@ -219,13 +170,10 @@ function EditorLayout() {
           </div>
           {state.mode === 'logic'  && <LogicBoardView />}
           {state.mode === 'script' && <ScriptEditorView />}
-          {state.mode === 'dialog' && <DialogEditorView />}
         </div>
 
-        <ConsoleDock />
-
+        <BottomDock />
         <StatusBar />
-        </div>
       </div>
     </div>
   )

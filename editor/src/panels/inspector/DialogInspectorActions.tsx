@@ -1,6 +1,6 @@
 import { useEditor } from '../../store/editor-store'
 import type { EntityDef } from '../../types'
-import { openDialogEditorForId } from '../dialog/DialogEditorModal'
+import { openDialogEditorForId } from '../dialog/dialog-modal-api'
 
 export type DialogInspectorActionsProps = Readonly<{
   entity: EntityDef
