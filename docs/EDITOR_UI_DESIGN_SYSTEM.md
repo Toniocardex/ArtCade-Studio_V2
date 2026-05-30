@@ -188,7 +188,21 @@ Target file: `editor/src/index.css`. Replace legacy sage/navy tokens when the UI
 }
 ```
 
-Light theme: defer until dark refactor is stable; if added, invert void/surface relationship without introducing new accent hues.
+### Light theme — Industrial Mid-Grey (`data-theme="light"`)
+
+Alternate editor chrome (VIEW → Light theme). Mid-grey UI so sprite preview colours are not biased by paper-white or pure black surrounds.
+
+| Token | Hex | Role |
+|-------|-----|------|
+| `void` | `#404040` | Canvas / Logic Board workspace |
+| `surface` | `#535353` | Side panels, menu, status |
+| `surface-3` | `#3A3A3A` | Recessed wells (console, inputs, script editor) |
+| `outline` | `#222222` | 1px borders and dividers |
+| `primary` | `#E0E0E0` | Body text |
+| `muted` | `#999999` | Secondary labels |
+| `accent` | `#5C83C4` | Selection, primary actions (Play) |
+
+Boot splash / Tauri chrome: `editor/boot-surfaces.json` → `npm run sync-boot-chrome` in `editor/`.
 
 ---
 

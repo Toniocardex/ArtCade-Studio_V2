@@ -19,12 +19,12 @@ html, body, #root {
   --accent: #7A9C7E;
 }
 [data-theme="light"] {
-  --bg: #ECEAE4;
-  --panel: #F5F3EE;
-  --border: #C4C0B8;
-  --text: #1A1A1A;
-  --muted: #5A5A5A;
-  --accent: #5D7A61;
+  --bg: #535353;
+  --panel: #535353;
+  --border: #222222;
+  --text: #E0E0E0;
+  --muted: #999999;
+  --accent: #5C83C4;
 }
 body {
   background: var(--bg);

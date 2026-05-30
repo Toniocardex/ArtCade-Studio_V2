@@ -7,10 +7,10 @@
     "blue": 26
   },
   "light": {
-    "bg": "#ECEAE4",
-    "text": "#1A1A1A",
-    "red": 236,
-    "green": 234,
-    "blue": 228
+    "bg": "#535353",
+    "text": "#E0E0E0",
+    "red": 83,
+    "green": 83,
+    "blue": 83
   }
 }

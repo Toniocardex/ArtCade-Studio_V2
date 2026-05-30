@@ -56,11 +56,11 @@ html, body, #root {
 }
 [data-theme="light"] {
   --bg: ${light.bg};
-  --panel: #F5F3EE;
-  --border: #C4C0B8;
+  --panel: #535353;
+  --border: #222222;
   --text: ${light.text};
-  --muted: #5A5A5A;
-  --accent: #5D7A61;
+  --muted: #999999;
+  --accent: #5C83C4;
 }
 body {
   background: var(--bg);
