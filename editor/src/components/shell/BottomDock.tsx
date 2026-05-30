@@ -114,7 +114,7 @@ export default function BottomDock() {
 
   return (
     <div
-      className="flex flex-col flex-shrink-0 border-t border-[var(--outline)] bg-[var(--surface)]
+      className="flex flex-col flex-shrink-0 border-t border-[var(--outline)] bg-[var(--bg-window)]
                  transition-[height] duration-100"
       style={{ height: panelHeight }}
       data-panel="bottom-dock"
@@ -156,7 +156,7 @@ export default function BottomDock() {
       </div>
 
       {!bottomPanelCollapsed && (
-        <div className="flex-1 min-h-0 overflow-hidden bg-[var(--void)]">
+        <div className="flex-1 min-h-0 overflow-hidden bg-[var(--panel-3)]">
           {dockTab === 'console' && <ConsolePanel />}
           {dockTab === 'timeline' && <AnimationTimelineTab />}
           {dockTab === 'logicPreview' && <LogicBoardPreviewTab />}

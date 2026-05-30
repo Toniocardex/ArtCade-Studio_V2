@@ -30,7 +30,7 @@ export class BootErrorBoundary extends Component<Props, State> {
           padding: 24,
           height: '100vh',
           boxSizing: 'border-box',
-          background: '#1A1A1A',
+          background: '#15191C',
           color: '#EAEAEA',
           fontFamily: "'JetBrains Mono', ui-monospace, monospace",
           fontSize: 12,

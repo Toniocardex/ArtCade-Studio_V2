@@ -3,20 +3,21 @@ import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
 import { tags as t } from '@lezer/highlight'
 import type { Extension } from '@codemirror/state'
 
+/** Desaturated Lua tokens on Dark Anthracite script wells. */
 const artcadeHighlightDark = HighlightStyle.define([
-  { tag: t.comment,   color: '#7A9C7E', fontStyle: 'normal' },
-  { tag: t.keyword,   color: '#569CD6' },
-  { tag: t.string,    color: '#CE9178' },
-  { tag: t.number,    color: '#B5CEA8' },
-  { tag: t.regexp,    color: '#D16969' },
-  { tag: t.operator,  color: '#D4D4D4' },
-  { tag: t.function(t.variableName), color: '#DCDCAA' },
-  { tag: t.variableName, color: '#9CDCFE' },
-  { tag: t.typeName,  color: '#4EC9B0' },
-  { tag: t.bracket,   color: '#D4D4D4' },
+  { tag: t.comment,   color: '#6F8F7A', fontStyle: 'normal' },
+  { tag: t.keyword,   color: '#6F8A9B' },
+  { tag: t.string,    color: '#B59A5B' },
+  { tag: t.number,    color: '#8D969E' },
+  { tag: t.regexp,    color: '#B86A62' },
+  { tag: t.operator,  color: '#AAB2B8' },
+  { tag: t.function(t.variableName), color: '#C4CBD0' },
+  { tag: t.variableName, color: '#AAB2B8' },
+  { tag: t.typeName,  color: '#6B7C87' },
+  { tag: t.bracket,   color: '#AAB2B8' },
 ])
 
-/** Lua colours on Industrial Mid-Grey script wells (light theme = mid-grey UI, not paper-white). */
+/** Lua colours on Industrial Mid-Grey script wells (light theme). */
 const artcadeHighlightLight = HighlightStyle.define([
   { tag: t.comment,   color: '#8FA893', fontStyle: 'normal' },
   { tag: t.keyword,   color: '#7BA3D4' },
@@ -32,8 +33,8 @@ const artcadeHighlightLight = HighlightStyle.define([
 
 const editorThemeDark = EditorView.theme({
   '&': {
-    backgroundColor: '#09090B',
-    color: '#E4E4E7',
+    backgroundColor: '#111518',
+    color: '#D8DEE3',
   },
   '.cm-content': {
     fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
@@ -46,16 +47,16 @@ const editorThemeDark = EditorView.theme({
     overscrollBehavior: 'contain',
   },
   '.cm-gutters': {
-    backgroundColor: '#09090B',
-    color: '#52525B',
+    backgroundColor: '#111518',
+    color: '#555E65',
     border: 'none',
   },
-  '.cm-activeLineGutter': { color: '#A1A1AA' },
-  '.cm-activeLine': { backgroundColor: '#18181B' },
+  '.cm-activeLineGutter': { color: '#AAB2B8' },
+  '.cm-activeLine': { backgroundColor: '#1B2024' },
   '.cm-selectionBackground, &.cm-focused .cm-selectionBackground': {
-    backgroundColor: '#1E3A8A80',
+    backgroundColor: '#33414C99',
   },
-  '&.cm-focused .cm-cursor': { borderLeftColor: '#E4E4E7' },
+  '&.cm-focused .cm-cursor': { borderLeftColor: '#D8DEE3' },
 }, { dark: true })
 
 const editorThemeLight = EditorView.theme({

@@ -7,7 +7,7 @@ import { logicBoardScriptOutOfSync } from '../utils/logic-board-script-conflict'
 import { LogicBoardCompileErrorBanner } from '../components/LogicBoardCompileErrorBanner'
 import { syncLogicBoardToScript } from '../utils/sync-logic-board-script'
 
-/** Tracks the <html data-theme> attribute so the editor follows the app theme. */
+/** Tracks the <html data-theme> attribute so CodeMirror follows the app theme. */
 function useThemeMode(): 'dark' | 'light' {
   const read = (): 'dark' | 'light' =>
     document.documentElement.dataset.theme === 'light' ? 'light' : 'dark'
@@ -41,7 +41,7 @@ function ScriptTabBar({ paths, activePath, dirtyPaths, onSelect }: ScriptTabBarP
             className={`flex items-center gap-2 px-4 py-2 text-[11px] whitespace-nowrap
                         border-r border-[var(--border)] transition-colors ${
                           active
-                            ? 'bg-[var(--bg)] text-[var(--accent)] border-t-2 border-t-[var(--accent)]'
+                            ? 'bg-[var(--void)] text-[var(--primary)] border-t-2 border-t-[var(--outline-focus)]'
                             : 'text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--panel-3)]'
                         }`}
           >

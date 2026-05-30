@@ -5,7 +5,7 @@ import { paintDocumentChrome, applyTauriWindowSurface } from './boot-chrome'
 //
 // Colours live as CSS custom properties in index.css; switching the
 // `data-theme` attribute on <html> repaints the whole editor. The choice is
-// persisted in localStorage; first run falls back to prefers-color-scheme.
+// persisted in localStorage; first run defaults to dark (anthracite).
 // Surface hex/RGB for boot: editor/boot-surfaces.json (+ sync-boot-chrome).
 // The PreviewPanel canvas is C++/WASM-rendered and unaffected.
 // ---------------------------------------------------------------------------
@@ -23,16 +23,10 @@ export function getStoredTheme(): Theme | null {
   }
 }
 
-/** Stored choice → prefers-color-scheme → 'dark' default. */
+/** Stored choice only; otherwise Dark Anthracite (production default). */
 export function resolveInitialTheme(): Theme {
   const stored = getStoredTheme()
   if (stored) return stored
-  try {
-    if (globalThis.matchMedia('(prefers-color-scheme: light)').matches)
-      return 'light'
-  } catch {
-    /* matchMedia unavailable → fall through */
-  }
   return 'dark'
 }
 

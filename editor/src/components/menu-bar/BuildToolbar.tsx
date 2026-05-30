@@ -1,4 +1,5 @@
 import { Play, Square, Hammer, Globe2, ExternalLink } from 'lucide-react'
+import { editorToolbarPrimary } from '../ui/editor-ui-classes'
 
 interface BuildToolbarProps {
   isPlaying: boolean
@@ -40,7 +41,7 @@ export function BuildToolbar({
     : 'Run BUILD WEB to create a browser export'
 
   const badgeClass = exportState === 'ready'
-    ? 'text-[var(--accent)] border-[var(--accent-bd)] bg-[var(--accent-bg)] hover:bg-[var(--accent-bg-h)] cursor-pointer'
+    ? 'text-[var(--primary)] border-[var(--outline-strong)] bg-[var(--surface-2)] hover:bg-[var(--surface-hover)] cursor-pointer'
     : exportState === 'stale'
       ? 'text-[color:var(--warn,#f59e0b)] border-[var(--border)] bg-transparent cursor-not-allowed opacity-70'
       : 'text-[var(--muted)] border-[var(--border)] bg-transparent cursor-not-allowed opacity-50'
@@ -60,7 +61,7 @@ export function BuildToolbar({
         className={`editor-toolbar-btn border ${
           isPlaying
             ? 'border-[var(--danger)] bg-[rgb(var(--danger-rgb)/0.12)] text-[var(--danger)] hover:bg-[rgb(var(--danger-rgb)/0.2)]'
-            : 'border-[var(--accent-bd)] bg-[var(--accent-bg)] text-[var(--accent)] hover:bg-[var(--accent-bg-h)]'
+            : editorToolbarPrimary
         }`}
       >
         {isPlaying ? <Square size={12} fill="currentColor" /> : <Play size={12} fill="currentColor" />}
@@ -75,7 +76,7 @@ export function BuildToolbar({
         className={`editor-toolbar-btn border ${
           isBuilding
             ? 'border-[var(--border-2)] bg-[var(--panel)] text-[var(--muted)] cursor-not-allowed'
-            : 'border-[var(--border-2)] bg-transparent text-[var(--text)] hover:border-[var(--accent)] hover:text-[var(--accent)] hover:bg-[var(--accent-bg)]'
+            : 'border-[var(--border-2)] bg-transparent text-[var(--text)] hover:border-[var(--outline-strong)] hover:bg-[var(--surface-hover)]'
         }`}
       >
         <Hammer size={12} className={isBuilding ? 'animate-pulse' : ''} />
@@ -90,7 +91,7 @@ export function BuildToolbar({
         className={`editor-toolbar-btn border ${
           isBuildingWeb
             ? 'border-[var(--border-2)] bg-[var(--panel)] text-[var(--muted)] cursor-not-allowed'
-            : 'border-[var(--border-2)] bg-transparent text-[var(--text)] hover:border-[var(--accent)] hover:text-[var(--accent)] hover:bg-[var(--accent-bg)]'
+            : 'border-[var(--border-2)] bg-transparent text-[var(--text)] hover:border-[var(--outline-strong)] hover:bg-[var(--surface-hover)]'
         }`}
       >
         <Globe2 size={12} className={isBuildingWeb ? 'animate-pulse' : ''} />

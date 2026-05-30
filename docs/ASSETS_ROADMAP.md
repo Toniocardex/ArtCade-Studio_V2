@@ -308,7 +308,7 @@ Work landed after pipeline phases A–D (commits `ab471f0`, `e68928b`, `952aa43`
 | Export manifest + ZIP round-trip | ✅ | `buildArtcadeZipBytes` + `parseArtcadePackageBytes` vitest |
 | Preview spawn-prototype preload | ✅ | Canvas toolbar toggle → `scene+spawn-prototypes` scope |
 | **Sprite Studio** (Spritesheet Studio modal + engine preview) | ✅ | `editor/src/panels/spritesheet-studio/`; `editor_reregister_animation_clips` (merge, no full clear); `editor_preview_spritesheet_submit` + queue drained in `Application::tickFrameEnd` (one readback/frame); `Renderer::captureSpriteRegionFrame`; does not hide main preview canvas |
-| CI (vitest, native, wasm) | ✅ | `.github/workflows/ci.yml` |
+| Local verify (vitest, native, wasm) | ✅ | Run on dev machine only — no GitHub Actions |
 | Console REPL / LSP Lua | ❌ | Deferred — spike in `TECHNICAL_OVERVIEW.md` §11.1 |
 
 **Manual smoke checklist (recommended before marking explorer track closed):**
@@ -330,5 +330,5 @@ Work landed after pipeline phases A–D (commits `ab471f0`, `e68928b`, `952aa43`
 | 3 | 2026-05-29 (partial) | `export-artcade-package.test.ts`; File menu | Export ships; full import round-trip + native `.artcade` smoke open |
 | 4 | 2026-05-29 (partial) | orchestrator + `editor_invalidate_asset` | Watch + re-register ✅; leak test + disable setting open |
 | 5 | 2026-05-29 (partial) | `editor_register_font`; FontCache | 5a–5b ✅; manual TTF smoke + Logic Board `drawText` deferred |
-| Explorer | 2026-05-29 | vitest + CI | Virtual folders all categories; normalize audio; export round-trip |
+| Explorer | 2026-05-29 | vitest (local) | Virtual folders all categories; normalize audio; export round-trip |
 | Sprite Studio | 2026-05-29 | vitest + WASM build | Modal UI (fase 1); clip hot-sync + engine canvas preview (fase 2); manual smoke item 5 above |

@@ -60,8 +60,13 @@ describe('theme util (Phase E)', () => {
     expect(resolveInitialTheme()).toBe('dark')
   })
 
-  it('resolveInitialTheme: prefers-color-scheme light when no stored', () => {
+  it('resolveInitialTheme: ignores OS light preference when nothing stored', () => {
     prefersLight = true
+    expect(resolveInitialTheme()).toBe('dark')
+  })
+
+  it('resolveInitialTheme: honors stored light', () => {
+    store['artcade-theme'] = 'light'
     expect(resolveInitialTheme()).toBe('light')
   })
 

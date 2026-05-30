@@ -107,7 +107,7 @@ function CanvasView() {
 
 function LogicBoardView() {
   return (
-    <div className="flex flex-1 min-h-0 overflow-hidden bg-[var(--void)]">
+    <div className="flex flex-1 min-h-0 overflow-hidden bg-[var(--logic-bg)]">
       <Suspense fallback={null}>
         <LogicBoardPanel />
       </Suspense>
@@ -153,7 +153,7 @@ function EditorLayout() {
   }, [state.mode])
 
   return (
-    <div className="editor-shell flex flex-col w-full h-full bg-[var(--void)] text-[var(--primary)] overflow-hidden select-none">
+    <div className="editor-shell flex flex-col w-full h-full bg-[var(--bg-app)] text-[var(--primary)] overflow-hidden select-none">
       <MenuBar />
       <EditorViewportBanner />
       <ModuleTabs />

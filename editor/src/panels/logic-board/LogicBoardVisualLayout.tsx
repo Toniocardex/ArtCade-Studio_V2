@@ -119,7 +119,7 @@ export function LogicBoardVisualLayout(props: LogicBoardVisualLayoutProps) {
 
       <ResizeHandle side="left" onResize={(d) => setLeftW((w) => w + d)} />
 
-      <section className="flex-1 min-w-0 flex flex-col bg-[var(--void)] overflow-hidden">
+      <section className="flex-1 min-w-0 flex flex-col bg-[var(--logic-bg)] overflow-hidden">
         <header className="shrink-0 px-4 py-2 border-b border-[var(--outline)] bg-[var(--surface)]">
           <p className="text-[9px] uppercase tracking-wide text-[var(--muted)]">Single Event Editor</p>
           <p className="text-sm font-semibold text-[var(--primary)]">

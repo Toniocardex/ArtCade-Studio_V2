@@ -27,7 +27,7 @@ export function LogicBoardCta({ entity }: LogicBoardCtaProps) {
         onClick={() => openLogicBoardForEntity(dispatch, entity.id)}
         aria-label={`Open Logic Board for ${entity.name}`}
         className="w-full flex flex-col items-center justify-center gap-1.5 py-3 px-4 rounded
-                   bg-[var(--accent)] text-[var(--bg)] font-extrabold text-xs tracking-wide
+                   bg-[var(--surface-selected)] text-[var(--text-on-selected)] font-extrabold text-xs tracking-wide border border-[var(--outline-focus)]
                    shadow-[0_4px_14px_rgb(var(--accent-rgb)/0.35)]
                    hover:brightness-110 active:translate-y-px transition-all"
       >

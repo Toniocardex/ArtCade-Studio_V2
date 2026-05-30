@@ -49,7 +49,9 @@ export function ViewToolbarMenu() {
           >
             <span className="inline-flex items-center gap-2">
               {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
-              {theme === 'dark' ? 'Light theme' : 'Dark theme'}
+              {theme === 'dark'
+                ? 'Switch to light theme (mid-grey)'
+                : 'Switch to dark theme (anthracite)'}
             </span>
           </button>
           <button

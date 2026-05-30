@@ -394,7 +394,7 @@ function ActionCard({
   return (
     <div
       onClick={onSelect}
-      className={`space-y-2 rounded border bg-[var(--bg)] p-2.5 ${onSelect ? 'cursor-pointer' : ''} ${
+      className={`space-y-2 rounded border bg-[var(--logic-card)] p-2.5 ${onSelect ? 'cursor-pointer' : ''} ${
         selected ? 'ring-1 ring-[var(--accent)]' : ''
       } ${
         nestedInRepeat
@@ -498,7 +498,7 @@ function ActionCard({
 }
 
 const condSel =
-  'bg-[var(--bg)] border border-[var(--border-2)] text-[var(--accent)] px-2 py-1 rounded text-xs'
+  'bg-[var(--panel-3)] border border-[var(--border-2)] text-[var(--accent)] px-2 py-1 rounded text-xs'
 
 function AlsoRequireSectionHints({
   onlyIfEnabled,
@@ -613,7 +613,7 @@ function SimpleConditions({
         <div
           role="presentation"
           onClick={() => onConditionSelect?.(i)}
-          className={`flex flex-wrap items-center gap-2 rounded border border-[var(--border)] bg-[var(--bg)] px-2 py-1.5 ${
+          className={`flex flex-wrap items-center gap-2 rounded border border-[var(--border)] bg-[var(--logic-block)] px-2 py-1.5 ${
             onConditionSelect ? 'cursor-pointer' : ''
           } ${isConditionSelected?.(i) ? 'ring-1 ring-[var(--accent)]' : ''}`}
         >

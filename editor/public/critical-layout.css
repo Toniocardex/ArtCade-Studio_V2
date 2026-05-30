@@ -11,15 +11,15 @@ html, body, #root {
 }
 :root,
 [data-theme="dark"] {
-  --bg: #1A1A1A;
-  --panel: #313131;
-  --border: #484848;
-  --text: #EAEAEA;
-  --muted: #A2A2A2;
-  --accent: #7A9C7E;
+  --bg: #0E1113;
+  --panel: #1B2024;
+  --border: #2A3035;
+  --text: #D8DEE3;
+  --muted: #7E878E;
+  --accent: #4A5D6A;
 }
 [data-theme="light"] {
-  --bg: #535353;
+  --bg: #404040;
   --panel: #535353;
   --border: #222222;
   --text: #E0E0E0;

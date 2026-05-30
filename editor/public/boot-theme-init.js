@@ -3,25 +3,24 @@
 (function () {
   var SURFACES = {
   "dark": {
-    "bg": "#1A1A1A",
-    "text": "#EAEAEA",
-    "red": 26,
-    "green": 26,
-    "blue": 26
+    "bg": "#0E1113",
+    "text": "#D8DEE3",
+    "red": 14,
+    "green": 17,
+    "blue": 19
   },
   "light": {
-    "bg": "#535353",
+    "bg": "#404040",
     "text": "#E0E0E0",
-    "red": 83,
-    "green": 83,
-    "blue": 83
+    "red": 64,
+    "green": 64,
+    "blue": 64
   }
 }
   var theme = 'dark'
   try {
     var stored = localStorage.getItem('artcade-theme')
     if (stored === 'dark' || stored === 'light') theme = stored
-    else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) theme = 'light'
   } catch (_e) { /* private mode */ }
   var c = SURFACES[theme]
   document.documentElement.dataset.theme = theme

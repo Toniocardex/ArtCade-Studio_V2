@@ -79,7 +79,7 @@ export function LogicBoardHeader({
               applyInputDelete(e.currentTarget)
             }
           }}
-          className="w-52 bg-[var(--bg)] border border-[var(--border-2)] text-[var(--text)] placeholder:text-[var(--muted)] px-2.5 py-1.5 rounded text-xs"
+          className="w-52 bg-[var(--panel-3)] border border-[var(--border-2)] text-[var(--text)] placeholder:text-[var(--muted)] px-2.5 py-1.5 rounded text-xs"
         />
       )}
       <div className="flex-1" />

@@ -94,7 +94,7 @@ function EventListForBoard({
           <button
             type="button"
             className={`relative h-[16px] w-8 shrink-0 rounded transition-colors ${
-              focused.enabled ? 'bg-[var(--accent)]' : 'bg-[var(--outline)]'
+              focused.enabled ? 'bg-[var(--outline-focus)]' : 'bg-[var(--outline)]'
             }`}
             title={focused.enabled ? 'Disable rule' : 'Enable rule'}
             onClick={() =>

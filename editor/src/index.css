@@ -3,104 +3,155 @@
 @tailwind utilities;
 
 /* ===========================================================================
-   ArtCade Studio — Editor UI (2026 monochrome)
+   ArtCade Studio — Editor UI
    See docs/EDITOR_UI_DESIGN_SYSTEM.md
 
-   void #121212 — workspace (canvas, logic center, script)
-   surface #1A1A1A — panels, menu, status
-   outline #555555 — borders, muted labels
-   primary #F4F4F4 — text, active icons
-   accent #4A72B2 — selection only (flat)
+   dark:  Dark Anthracite — flat professional desktop (default)
+   light: Industrial Mid-Grey — sprite-neutral authoring
 
-   PreviewPanel canvas is C++/WASM — not themed here.
+   PreviewPanel game pixels are C++/WASM — not themed here.
    ========================================================================== */
 
 :root,
 [data-theme="dark"] {
-  --void:           #121212;
-  --surface:        #1A1A1A;
-  --surface-2:      #1E1E1E;
-  --surface-3:      #242424;
-  --outline:        #555555;
-  --outline-subtle: rgba(85, 85, 85, 0.5);
-  --outline-faint:  rgba(85, 85, 85, 0.35);
-  --primary:        #F4F4F4;
-  --primary-soft:   #D8D8D8;
-  --muted:          #555555;
-  --muted-2:        #444444;
-  --accent:         #4A72B2;
-  --accent-muted:   rgba(74, 114, 178, 0.25);
-  --warn:           #C49A4A;
-  --danger:         #A84343;
-  --danger-2:       #8E3636;
-  --success:        #6FA083;
-  --purple:         #8A7A9E;
+  /* Base surfaces */
+  --bg-app:                 #0E1113;
+  --bg-window:              #15191C;
+  --void:                   #11161A;
+  --logic-bg:               #14191D;
+  --surface:                #1B2024;
+  --surface-2:              #20262A;
+  --surface-3:              #111518;
+  --surface-hover:          #252B30;
+  --surface-selected:       #2B3640;
+  --surface-selected-strong:#35424D;
 
-  /* Back-compat aliases (legacy class names) */
+  /* Borders */
+  --outline:                #2A3035;
+  --outline-subtle:         #22282D;
+  --outline-strong:         #3A4248;
+  --outline-focus:          #6B7C87;
+  --outline-faint:          rgba(34, 40, 45, 0.45);
+
+  /* Text */
+  --primary:                #D8DEE3;
+  --primary-soft:           #AAB2B8;
+  --muted:                  #7E878E;
+  --muted-2:                #555E65;
+  --text-meta:              #8D969E;
+  --text-on-selected:       #EEF2F4;
+
+  /* Accent — selection / focus only, no glow */
+  --accent:                 #4A5D6A;
+  --accent-hover:           #5C6F7D;
+  --accent-selected:        #33414C;
+  --accent-muted:           rgba(51, 65, 76, 0.5);
+
+  /* Status (desaturated) */
+  --info:                   #6F8A9B;
+  --warn:                   #B59A5B;
+  --danger:                 #B86A62;
+  --danger-2:               #A35A52;
+  --success:                #6F8F7A;
+  --debug:                  #8A9298;
+  --purple:                 #8A9298;
+
+  /* Logic Board */
+  --logic-card:             #1B2024;
+  --logic-card-header:      #20262A;
+  --logic-block:            #1E2428;
+  --logic-row-disabled:     #171B1E;
+
+  /* Canvas chrome */
+  --grid-primary:           #252B30;
+  --grid-secondary:         #1B2024;
+  --camera-frame:           #B7C0C7;
+  --camera-frame-muted:     #6E777E;
+  --selection-outline:      #6B7C87;
+  --gizmo-x:                #A86A64;
+  --gizmo-y:                #7E9A78;
+  --gizmo-neutral:          #C4CBD0;
+
+  /* Aliases (components) */
   --bg:          var(--void);
   --panel:       var(--surface);
   --panel-2:     var(--surface-2);
   --panel-3:     var(--surface-3);
   --border:      var(--outline);
-  --border-2:    var(--outline);
+  --border-2:    var(--outline-strong);
   --text:        var(--primary);
   --text-2:      var(--primary-soft);
-  --accent-2:    var(--accent);
-  --accent-bd:   var(--accent);
-  --accent-bg:   var(--accent-muted);
-  --accent-bg-h: var(--outline);
+  --accent-2:    var(--accent-hover);
+  --accent-bd:   var(--outline-focus);
+  --accent-bg:   var(--surface-selected);
+  --accent-bg-h: var(--surface-hover);
   --yellow:      var(--warn);
   --green-2:     var(--success);
-  --blue:        var(--accent);
-
-  --pill-if-bg:  var(--surface-2);
-  --pill-if-bd:  var(--accent);
-  --pill-then-bg: var(--surface-3);
+  --blue:        var(--info);
+  --pill-if-bg:  rgba(74, 93, 106, 0.2);
+  --pill-if-bd:  var(--outline-focus);
+  --pill-then-bg: var(--logic-block);
   --pill-then-bd: var(--outline);
-
-  --accent-rgb:   74 114 178;
-  --accent-2-rgb: 74 114 178;
-  --bg-rgb:       18 18 18;
-  --border-rgb:   85 85 85;
-  --muted-rgb:    85 85 85;
-  --warn-rgb:     196 154 74;
-  --danger-rgb:   168 67 67;
-
-  --editor-rail-width:      0px;
-  --editor-workspace-inset: 0.75rem;
-  --editor-left-w-default:  280px;
-  --editor-right-w-default: 320px;
-  --editor-dock-h-default:  300px;
-
-  --radius:    2px;
-  --radius-sm: 2px;
-  --radius-md: 4px;
-  --radius-lg: 4px;
-
-  --font-ui:   'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Courier New', Courier, monospace;
+  --accent-rgb:   74 93 106;
+  --accent-2-rgb: 92 111 125;
+  --bg-rgb:       17 22 26;
+  --border-rgb:   42 48 53;
+  --muted-rgb:    126 135 142;
+  --warn-rgb:     181 154 91;
+  --danger-rgb:   184 106 98;
 }
 
-/* Light theme = Industrial Mid-Grey (neutral workspace, carved recesses, no drop shadows). */
 [data-theme="light"] {
-  --void:           #404040;
-  --surface:        #535353;
-  --surface-2:      #4A4A4A;
-  --surface-3:      #3A3A3A;
-  --outline:        #222222;
-  --outline-subtle: rgba(34, 34, 34, 0.55);
-  --outline-faint:  rgba(34, 34, 34, 0.38);
-  --primary:        #E0E0E0;
-  --primary-soft:   #C8C8C8;
-  --muted:          #999999;
-  --muted-2:        #7A7A7A;
-  --accent:         #5C83C4;
-  --accent-muted:   rgba(92, 131, 196, 0.22);
-  --warn:           #C4A86A;
-  --danger:         #C45C5C;
-  --danger-2:       #A84848;
-  --success:        #7FA88A;
-  --purple:         #9A8AAF;
+  --bg-app:                 #404040;
+  --bg-window:              #535353;
+  --void:                   #404040;
+  --logic-bg:               #404040;
+  --surface:                #535353;
+  --surface-2:              #4A4A4A;
+  --surface-3:              #3A3A3A;
+  --surface-hover:          #4A4A4A;
+  --surface-selected:       #4A4A4A;
+  --surface-selected-strong:#555555;
+
+  --outline:                #222222;
+  --outline-subtle:         rgba(34, 34, 34, 0.55);
+  --outline-strong:         #222222;
+  --outline-focus:          #5C83C4;
+  --outline-faint:          rgba(34, 34, 34, 0.38);
+
+  --primary:                #E0E0E0;
+  --primary-soft:           #C8C8C8;
+  --muted:                  #999999;
+  --muted-2:                #7A7A7A;
+  --text-meta:              #999999;
+  --text-on-selected:       #E0E0E0;
+
+  --accent:                 #5C83C4;
+  --accent-hover:           #6A90CC;
+  --accent-selected:        #5C83C4;
+  --accent-muted:           rgba(92, 131, 196, 0.22);
+
+  --info:                   #6F8A9B;
+  --warn:                   #C4A86A;
+  --danger:                 #C45C5C;
+  --danger-2:               #A84848;
+  --success:                #7FA88A;
+  --debug:                  #8A9298;
+  --purple:                 #9A8AAF;
+
+  --logic-card:             #535353;
+  --logic-card-header:      #4A4A4A;
+  --logic-block:            #3A3A3A;
+  --logic-row-disabled:     #3A3A3A;
+
+  --grid-primary:           #4A4A4A;
+  --grid-secondary:         #3A3A3A;
+  --camera-frame:           #C8C8C8;
+  --camera-frame-muted:     #999999;
+  --selection-outline:      #5C83C4;
+  --gizmo-x:                #C45C5C;
+  --gizmo-y:                #7FA88A;
+  --gizmo-neutral:          #C8C8C8;
 
   --bg:          var(--void);
   --panel:       var(--surface);
@@ -130,6 +181,22 @@
   --danger-rgb:   196 92 92;
 }
 
+:root {
+  --editor-rail-width:      0px;
+  --editor-workspace-inset: 0.75rem;
+  --editor-left-w-default:  280px;
+  --editor-right-w-default: 320px;
+  --editor-dock-h-default:  300px;
+
+  --radius:    2px;
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 4px;
+
+  --font-ui:   'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Courier New', Courier, monospace;
+}
+
 /* <dialog> top layer uses UA CanvasText (often black), not body theme tokens. */
 dialog.artcade-dialog {
   color: var(--text);
@@ -146,7 +213,7 @@ html, body, #root {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: var(--bg);
+  background: var(--bg-app);
   color: var(--text);
   /* UI default = IBM Plex Sans. Technical/numeric data opts into JetBrains
      Mono via the .font-mono utility or the [data-mono] attribute. */

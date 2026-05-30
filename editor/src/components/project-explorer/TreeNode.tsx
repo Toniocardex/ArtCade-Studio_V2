@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { ChevronDown, ChevronRight, Folder, FolderOpen } from 'lucide-react'
 import { spritesheetStudioTriggerProps } from '../../panels/spritesheet-studio/openSpritesheetStudio'
+import { editorRowSelected } from '../ui/editor-ui-classes'
 
 export type TreeFolderProps = Readonly<{
   label: string
@@ -74,7 +75,7 @@ export type TreeLeafProps = Readonly<{
 
 const leafRowClass = (selected: boolean, muted: boolean) =>
   selected
-    ? 'bg-[var(--accent)] text-[var(--bg)] font-semibold'
+    ? editorRowSelected
     : muted
       ? 'text-[var(--muted)] opacity-60 hover:opacity-100 hover:bg-[rgb(var(--border-rgb)/0.35)]'
       : 'text-[var(--text)] hover:bg-[rgb(var(--border-rgb)/0.35)]'
