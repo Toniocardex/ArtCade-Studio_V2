@@ -19,6 +19,7 @@ When re-extracting `.docx` with `editor/scripts/extract_docx_to_md.py`, run the 
 | [TRIGGER_CONDITIONS_ACTIONS_UI.md](TRIGGER_CONDITIONS_ACTIONS_UI.md) | Hierarchical Category → Subcategory → Block pickers |
 | [DEFERRED_UI_ITEMS.md](DEFERRED_UI_ITEMS.md) | Runtime trace, event metadata, full catalogs — separate tickets |
 | [UI_REFACTOR_FIX_PLAN.md](UI_REFACTOR_FIX_PLAN.md) | Post-audit fix order (hooks, inspector, dead code) |
+| [UI_REFACTOR_PHASE2.md](UI_REFACTOR_PHASE2.md) | Layout 96/280/320/280, camera frame, dock, contextual inspector |
 | [../EDITOR_UI_DESIGN_SYSTEM.md](../EDITOR_UI_DESIGN_SYSTEM.md) | Monochrome palette `#121212`–`#F4F4F4`, CSS tokens, hover/geometry rules |
 
 ## Visual mockups (source)

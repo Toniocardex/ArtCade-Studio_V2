@@ -1,12 +1,8 @@
 // ---------------------------------------------------------------------------
-// InspectorPanel — orchestrator
+// InspectorPanel — contextual right dock (scene / entity / asset / layer)
 // ---------------------------------------------------------------------------
-//
-// Entity tab: header + Components (prominent) + Transform/Sprite/Script.
-// Scene tab: scene layout, grid, and global world/physics settings.
 
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { Settings } from 'lucide-react'
+import { useCallback, useState } from 'react'
 import { useEditor } from '../store/editor-store'
 import { SceneSettingsSection } from './inspector/SceneSettingsSection'
 import { WorldSettingsSection } from './inspector/WorldSettingsSection'
@@ -17,55 +13,16 @@ import { ComponentsSection } from './inspector/ComponentsSection'
 import { ScriptSection } from './inspector/ScriptSection'
 import { LogicBoardCta } from './inspector/LogicBoardCta'
 import { EntityMetadataSection } from './inspector/EntityMetadataSection'
+import { AssetInspectorSection } from './inspector/AssetInspectorSection'
+import { LayerSettingsSection } from './inspector/LayerSettingsSection'
+import { VariableWatchSection } from './inspector/VariableWatchSection'
 import {
-  inspectorBodyView,
-  nextInspectorTab,
-  type InspectorTab,
-} from './inspector/inspector-tab-logic'
+  deriveInspectorMode,
+  inspectorChromeForMode,
+} from './inspector/inspector-context'
 import { scrollToComponentBlock } from './inspector/entity-component-utils'
 import type { EntityDef } from '../types'
 import type { InspectorBlockKey } from './inspector/entity-component-utils'
-
-type InspectorTabBarProps = Readonly<{
-  tab: InspectorTab
-  onTab: (t: InspectorTab) => void
-  hasEntity: boolean
-}>
-
-function InspectorTabBar({ tab, onTab, hasEntity }: InspectorTabBarProps) {
-  if (!hasEntity) return null
-
-  const btn = (id: InspectorTab, label: string) => {
-    const active = tab === id
-    return (
-      <button
-        key={id}
-        type="button"
-        role="tab"
-        aria-selected={active}
-        onClick={() => onTab(id)}
-        className={`flex-1 py-1.5 text-[10px] font-bold uppercase tracking-widest transition-colors
-          ${active
-            ? 'text-[var(--text)] border-b-2 border-[var(--accent-2)]'
-            : 'text-[var(--muted)] hover:text-[var(--text)] border-b-2 border-transparent'
-          }`}
-      >
-        {label}
-      </button>
-    )
-  }
-
-  return (
-    <div
-      className="flex border-b border-[var(--border)] flex-shrink-0 px-2"
-      role="tablist"
-      aria-label="Inspector sections"
-    >
-      {btn('scene', 'Scene')}
-      {btn('entity', 'Entity')}
-    </div>
-  )
-}
 
 type EntityInspectorProps = Readonly<{
   entity: EntityDef
@@ -108,38 +65,32 @@ export default function InspectorPanel() {
   const sceneId = selection.sceneId ?? project?.activeSceneId
   const scene = project && sceneId ? project.scenes[sceneId] : null
 
-  const [tab, setTab] = useState<InspectorTab>('scene')
-  const hadEntityRef = useRef(false)
-
-  useEffect(() => {
-    const hasEntity = entity != null
-    setTab((prev) => nextInspectorTab(prev, hadEntityRef.current, hasEntity))
-    hadEntityRef.current = hasEntity
-  }, [entity?.id])
-
-  const bodyView = inspectorBodyView({
-    tab,
-    hasEntity: entity != null,
-    hasScene: scene != null,
-  })
-
+  const mode = deriveInspectorMode(state)
+  const chrome = inspectorChromeForMode(mode, state)
   return (
     <div className="h-full flex flex-col bg-[var(--bg-window)]" data-panel="inspector">
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-[var(--border)] flex-shrink-0">
-        <Settings size={13} className="text-[var(--muted)]" />
-        <span className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-widest">
-          Inspector
-        </span>
+      <div className="editor-panel-header flex-col !items-start !gap-0.5 !py-2">
+        <span className="editor-panel-header__title">{chrome.title}</span>
+        {chrome.subtitle ? (
+          <span className="editor-panel-header__subtitle text-[10px]">{chrome.subtitle}</span>
+        ) : null}
       </div>
 
-      <InspectorTabBar tab={tab} onTab={setTab} hasEntity={entity != null} />
-
-      <div className="flex-1 overflow-y-auto px-4 py-3" data-panel="inspector-body">
-        {bodyView === 'entity' && entity && (
-          <EntityInspector key={entity.id} entity={entity} />
+      <div className="flex-1 overflow-y-auto px-4 py-3 panel-scroll" data-panel="inspector-body">
+        {mode === 'entity' && entity && (
+          <>
+            <EntityInspector key={entity.id} entity={entity} />
+            <VariableWatchSection />
+          </>
         )}
 
-        {tab === 'scene' && (
+        {mode === 'entity' && !entity && (
+          <div className="py-8 flex items-center justify-center opacity-20">
+            <span className="text-[10px] uppercase tracking-widest">Nothing to inspect</span>
+          </div>
+        )}
+
+        {mode === 'scene' && (
           <>
             {scene && <SceneSettingsSection scene={scene} />}
             {project && <WorldSettingsSection />}
@@ -151,10 +102,15 @@ export default function InspectorPanel() {
           </>
         )}
 
-        {bodyView === 'entity' && !entity && (
-          <div className="py-8 flex items-center justify-center opacity-20">
-            <span className="text-[10px] uppercase tracking-widest">Nothing to inspect</span>
-          </div>
+        {mode === 'asset' && state.inspectorAsset && (
+          <AssetInspectorSection selection={state.inspectorAsset} />
+        )}
+
+        {mode === 'layer' && state.inspectorLayerName && (
+          <LayerSettingsSection
+            layerName={state.inspectorLayerName}
+            sceneName={scene?.name}
+          />
         )}
       </div>
     </div>

@@ -64,6 +64,9 @@ export const EDITOR_GRID_SIZE_MAX = 512
  */
 export const DEFAULT_SCENE_SIZE = { x: 1280, y: 640 } as const
 
+/** Default camera / viewport rectangle for new scenes (mockup: 512×320 inside world). */
+export const DEFAULT_VIEWPORT_SIZE = { x: 512, y: 320 } as const
+
 /**
  * Industry-standard zoom ladder (Photoshop / Aseprite / Affinity Designer).
  * Tight steps near 100% and wider at the extremes.

@@ -17,7 +17,7 @@ import {
   parseProjectDoc,
   serializeProjectDoc,
 } from './project'
-import { DEFAULT_SCENE_SIZE } from '../constants/editor-viewport'
+import { DEFAULT_SCENE_SIZE, DEFAULT_VIEWPORT_SIZE } from '../constants/editor-viewport'
 
 describe('createBlankProject', () => {
   it('returns a minimal but valid ProjectDoc', () => {
@@ -40,8 +40,10 @@ describe('createBlankProject', () => {
     // Non-zero world & viewport (otherwise the editor camera divides by 0).
     expect(scenes[0].worldSize.x).toBeGreaterThan(0)
     expect(scenes[0].worldSize.y).toBeGreaterThan(0)
-    expect(scenes[0].viewportSize.x).toBeGreaterThan(0)
-    expect(scenes[0].viewportSize.y).toBeGreaterThan(0)
+    expect(scenes[0].viewportSize.x).toBe(DEFAULT_VIEWPORT_SIZE.x)
+    expect(scenes[0].viewportSize.y).toBe(DEFAULT_VIEWPORT_SIZE.y)
+    expect(scenes[0].worldSize.x).toBe(DEFAULT_SCENE_SIZE.x)
+    expect(scenes[0].worldSize.y).toBe(DEFAULT_SCENE_SIZE.y)
 
     // logicBoards present (empty) so reducers can push without null checks.
     expect(Array.isArray(p.logicBoards)).toBe(true)

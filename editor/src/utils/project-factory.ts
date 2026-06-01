@@ -1,8 +1,9 @@
 import type { ProjectDoc, Vec2 } from '../types'
 import { DEFAULT_WORLD } from '../types'
-import { DEFAULT_SCENE_SIZE } from '../constants/editor-viewport'
+import { DEFAULT_SCENE_SIZE, DEFAULT_VIEWPORT_SIZE } from '../constants/editor-viewport'
 
 const sceneSize = (): Vec2 => ({ x: DEFAULT_SCENE_SIZE.x, y: DEFAULT_SCENE_SIZE.y })
+const viewportSize = (): Vec2 => ({ x: DEFAULT_VIEWPORT_SIZE.x, y: DEFAULT_VIEWPORT_SIZE.y })
 
 /**
  * Build a minimal valid ProjectDoc the editor can open immediately.
@@ -26,7 +27,7 @@ export function createBlankProject(projectName = 'Untitled'): ProjectDoc {
         id:              'scene_main',
         name:            'Main Scene',
         worldSize:       sceneSize(),
-        viewportSize:    sceneSize(),
+        viewportSize:    viewportSize(),
         backgroundColor: { x: 0.082, y: 0.090, z: 0.110, w: 1 },
         entityIds:       [],
       },

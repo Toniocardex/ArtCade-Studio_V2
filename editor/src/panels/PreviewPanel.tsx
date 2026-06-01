@@ -30,6 +30,9 @@ import { normalizeEntityPosition } from '../utils/entity-position'
 import { CanvasToolbar } from './preview/CanvasToolbar'
 import { RuntimeStatusBadge } from './preview/RuntimeStatusBadge'
 import { ProjectHealthBanner } from './preview/ProjectHealthBanner'
+import { CameraFrameOverlay } from './preview/CameraFrameOverlay'
+import { CanvasViewportWithRulers } from './preview/CanvasViewportWithRulers'
+import { CanvasFooterBar } from './preview/CanvasFooterBar'
 
 type TransformSnapshot = {
   entityId: number
@@ -267,6 +270,7 @@ export default function PreviewPanel() {
   // viewport that actually differs from the world. StatusBar mirrors this
   // derivation so the pill never lies.
   const preview = cameraPreview && (vp.x !== res.x || vp.y !== res.y)
+  const showCameraFrame = !isPlaying && mode === 'canvas' && (vp.x < res.x || vp.y < res.y)
   const frameW   = preview ? Math.round(vp.x * zoom) : scaledW
   const frameH   = preview ? Math.round(vp.y * zoom) : scaledH
   const canvasDX = preview ? -Math.round(((res.x - vp.x) / 2) * zoom) : 0
@@ -496,19 +500,16 @@ export default function PreviewPanel() {
         )}
       />
 
-      {/* Viewport area.
-          Scrollable wrapper: native scrollbars appear when the (zoomed) scene
-          exceeds the panel; the inner flex centring keeps small scenes aligned
-          when they fit. Ctrl+wheel zooms anchored at the cursor. */}
-      <div
-        ref={scrollRef}
-        tabIndex={-1}
+      <CanvasViewportWithRulers
+        scrollRef={scrollRef}
+        zoom={zoom}
+        worldWidth={res.x}
+        worldHeight={res.y}
         onWheel={handleWheel}
         onPointerDown={onCanvasAreaPointerDown}
         onPointerMove={onCanvasAreaPointerMove}
         onPointerUp={onCanvasAreaPointerUp}
         onPointerCancel={onCanvasAreaPointerUp}
-        className="flex-1 overflow-auto p-2 canvas-scrollarea outline-none"
         style={{ cursor: panCursor }}
       >
         <div className="min-w-full min-h-full flex items-center justify-center">
@@ -550,20 +551,21 @@ export default function PreviewPanel() {
                 pointerEvents:   panActive ? 'none' : 'auto',
               }}
             />
-            {preview && (
-              <div
-                className="absolute top-1 left-1 z-[2] px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wide
-                           bg-[var(--surface)]/90 text-[var(--accent)] border border-[var(--outline)] pointer-events-none"
-                aria-label={`Camera view ${vp.x} by ${vp.y}`}
-              >
-                Camera view · {vp.x}×{vp.y}
-              </div>
+            {showCameraFrame && (
+              <CameraFrameOverlay
+                worldSize={res}
+                viewportSize={vp}
+                zoom={zoom}
+                fillFrame={preview}
+              />
             )}
             {/* Scene edge — always on, independent of grid guides. */}
             <div className="canvas-scene-frame__edge" aria-hidden />
           </div>
         </div>
-      </div>
+      </CanvasViewportWithRulers>
+
+      <CanvasFooterBar />
     </div>
   )
 }

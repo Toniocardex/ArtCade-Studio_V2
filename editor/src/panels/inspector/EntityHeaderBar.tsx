@@ -5,6 +5,7 @@ import type { InspectorBlockKey } from './entity-component-utils'
 import { Field } from './inspector-fields'
 import { activeComponentDescriptors } from './entity-component-utils'
 import { EntityTagsSection } from './EntityTagsSection'
+import { EntityLayerField } from './EntityLayerField'
 
 export type EntityHeaderBarProps = Readonly<{
   entity: EntityDef
@@ -55,6 +56,7 @@ export function EntityHeaderBar({
         </div>
       )}
 
+      <EntityLayerField entity={entity} />
       <EntityTagsSection entity={entity} />
 
       <label className="flex items-center gap-2 mb-2 cursor-pointer select-none">

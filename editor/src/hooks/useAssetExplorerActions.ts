@@ -21,11 +21,9 @@ import {
   shouldIgnoreEditorShortcut,
 } from '../utils/keyboard'
 
-export type AssetExplorerSelection =
-  | { type: 'image'; id: string }
-  | { type: 'audio'; id: string }
-  | { type: 'font'; id: string }
-  | { type: 'tileset'; id: string }
+import type { InspectorAssetSelection } from '../types/inspector-selection'
+
+export type AssetExplorerSelection = InspectorAssetSelection
 
 const ASSET_PANEL_SELECTOR = '[data-panel="project-explorer"], [data-panel="assets"]'
 
@@ -46,7 +44,13 @@ function fileReaderDataUrl(result: string | ArrayBuffer | null): string {
 
 export function useAssetExplorerActions() {
   const { state, dispatch } = useEditor()
-  const [selection, setSelection] = useState<AssetExplorerSelection | null>(null)
+  const selection = state.inspectorAsset
+  const setSelection = useCallback(
+    (next: AssetExplorerSelection | null) => {
+      dispatch({ type: 'SELECT_INSPECTOR_ASSET', asset: next })
+    },
+    [dispatch],
+  )
   const [flash, setFlash] = useState<string | null>(null)
   const imageRef = useRef<HTMLInputElement>(null)
   const audioRef = useRef<HTMLInputElement>(null)
@@ -181,7 +185,7 @@ export function useAssetExplorerActions() {
         dispatch({ type: 'TILESET_ASSET_REMOVE', assetId: selection.id })
         break
     }
-    setSelection(null)
+    dispatch({ type: 'SELECT_INSPECTOR_ASSET', asset: null })
     showFlash('Asset removed')
   }, [project, selection, dispatch, showFlash])
 

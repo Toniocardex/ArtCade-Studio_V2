@@ -20,6 +20,10 @@ import { ProjectNamePersistProvider } from './components/menu-bar/project-name-c
 import { useViewportShortcuts } from './hooks/useViewportShortcuts'
 import { useConsoleShortcut } from './hooks/useConsoleShortcut'
 import { usePersistedWidth } from './hooks/usePersistedWidth'
+import {
+  readEditorLeftWidthDefault,
+  readEditorRightWidthDefault,
+} from './constants/editor-layout'
 import EditorBootGate from './components/EditorBootGate'
 import { EditorViewportBanner } from './components/shell/EditorViewportBanner'
 import type { ConsoleEntry } from './types'
@@ -61,8 +65,14 @@ function LegacyMigrateBanner() {
 
 function CanvasView() {
   const { state } = useEditor()
-  const [leftW, setLeftW]   = usePersistedWidth('artcade.sidebar-left-w-v3',  280)
-  const [rightW, setRightW] = usePersistedWidth('artcade.sidebar-right-w-v3', 320)
+  const [leftW, setLeftW]   = usePersistedWidth(
+    'artcade.sidebar-left-w-v3',
+    readEditorLeftWidthDefault(),
+  )
+  const [rightW, setRightW] = usePersistedWidth(
+    'artcade.sidebar-right-w-v3',
+    readEditorRightWidthDefault(),
+  )
 
   const isEditingTileset = state.editingTilesetId != null
 
@@ -155,14 +165,16 @@ function EditorLayout() {
   }, [state.mode])
 
   return (
-    <div className="editor-shell flex flex-col w-full h-full bg-[var(--bg-app)] text-[var(--primary)] overflow-hidden select-none">
-      <MenuBar />
+    <div className="editor-shell relative flex flex-col w-full h-full bg-[var(--bg-app)] text-[var(--primary)] overflow-hidden select-none">
+      <header className="editor-top-chrome">
+        <MenuBar />
+        <ModuleTabs />
+      </header>
       <EditorViewportBanner />
-      <ModuleTabs />
       <DialogEditorModal />
       <SpritesheetStudioModal />
 
-      <div className="flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden">
+      <div className="editor-workspace flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden">
         <div className="flex flex-1 min-h-0 overflow-hidden flex-col min-w-0">
           <div
             className="flex flex-1 min-h-0 overflow-hidden"

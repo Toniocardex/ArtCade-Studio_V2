@@ -16,6 +16,7 @@ import type { ReactNode } from 'react'
 import { useEditor } from '../../store/editor-store'
 import type { EditorTool } from '../../utils/runtime-sync-service'
 import { ZoomControls } from './ZoomControls'
+import { ActiveLayerSelect } from './ActiveLayerSelect'
 
 // The toolbar owns tool / guides state (local to PreviewPanel) and a free
 // right slot. Everything else (zoom, camera preview) is store-driven and
@@ -141,6 +142,10 @@ export function CanvasToolbar({
 
       <CameraPreviewToggle />
       <PreviewSpawnScopeToggle />
+
+      <Divider />
+
+      <ActiveLayerSelect />
 
       <Divider />
 

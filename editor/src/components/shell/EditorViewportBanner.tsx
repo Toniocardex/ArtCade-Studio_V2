@@ -17,8 +17,9 @@ export function EditorViewportBanner() {
 
   return (
     <div
-      className="shrink-0 px-3 py-1 text-center text-[10px] text-[var(--primary-soft)] border-b border-[var(--outline)]
-                 bg-[var(--surface-2)]"
+      className="absolute left-0 right-0 top-[var(--editor-top-chrome-h)] z-20 pointer-events-none
+                 px-3 py-0.5 text-center text-[9px] text-[var(--primary-soft)]
+                 bg-[var(--surface-2)]/90 border-b border-[var(--outline-subtle)]"
       role="status"
     >
       Narrow window — layout is optimized for {MIN_WIDTH}px width or wider.

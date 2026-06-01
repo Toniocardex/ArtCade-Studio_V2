@@ -1,9 +1,12 @@
 import type { ProjectDoc, EntityDef, SceneDef, Vec2 } from '../types'
-import { DEFAULT_SCENE_SIZE, DEFAULT_EDITOR_GRID_SIZE } from '../constants/editor-viewport'
+import {
+  DEFAULT_SCENE_SIZE, DEFAULT_VIEWPORT_SIZE, DEFAULT_EDITOR_GRID_SIZE,
+} from '../constants/editor-viewport'
 import { getEditorVisibleWorldCenter } from './editor-viewport-center'
 import { clampEntityPositionToScene, normalizeEntityPosition } from './entity-position'
 
 const sceneSize = (): Vec2 => ({ x: DEFAULT_SCENE_SIZE.x, y: DEFAULT_SCENE_SIZE.y })
+const defaultViewportSize = (): Vec2 => ({ x: DEFAULT_VIEWPORT_SIZE.x, y: DEFAULT_VIEWPORT_SIZE.y })
 
 /** Next free numeric entity id for a project. */
 export function nextEntityId(project: ProjectDoc): number {
@@ -48,7 +51,7 @@ export function createSceneDef(
     id,
     name: uniqueSceneName(project, name ?? `Scene ${numericSuffix}`, id),
     worldSize: sourceScene?.worldSize ?? sceneSize(),
-    viewportSize: sourceScene?.viewportSize ?? sceneSize(),
+    viewportSize: sourceScene?.viewportSize ?? defaultViewportSize(),
     backgroundColor: sourceScene?.backgroundColor ?? { x: 0.082, y: 0.090, z: 0.110, w: 1 },
     entityIds: [],
   }

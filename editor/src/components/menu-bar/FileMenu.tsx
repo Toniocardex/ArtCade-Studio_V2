@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react'
+import type { RefObject } from 'react'
+import { ToolbarDropdown } from './ToolbarDropdown'
 
 export interface FileMenuItem {
   label: string
@@ -8,19 +10,25 @@ export interface FileMenuItem {
   divider?: boolean
 }
 
-export function FileMenu({ items }: { items: FileMenuItem[] }) {
+export type FileMenuProps = Readonly<{
+  items: FileMenuItem[]
+  open: boolean
+  anchorRef: RefObject<HTMLElement | null>
+  onClose: () => void
+  align?: 'left' | 'right'
+}>
+
+export function FileMenuContent({ items }: { items: FileMenuItem[] }) {
   return (
-    <div
-      className="absolute top-full left-0 mt-1 z-[999]
-                    bg-[var(--panel)] border border-[var(--border-2)] rounded
-                    min-w-[220px] py-1 select-none"
-    >
+    <>
       {items.map((item, i) => (
         <div key={i}>
           {item.divider && i > 0 && (
             <div className="my-1 border-t border-[var(--border)]" />
           )}
           <button
+            type="button"
+            role="menuitem"
             onClick={item.action}
             className="w-full flex items-center gap-3 px-4 py-2
                        text-[11px] text-[var(--text)] hover:bg-[var(--panel-3)]
@@ -34,6 +42,14 @@ export function FileMenu({ items }: { items: FileMenuItem[] }) {
           </button>
         </div>
       ))}
-    </div>
+    </>
+  )
+}
+
+export function FileMenu({ items, open, anchorRef, onClose, align = 'left' }: FileMenuProps) {
+  return (
+    <ToolbarDropdown open={open} anchorRef={anchorRef} align={align} onClose={onClose}>
+      <FileMenuContent items={items} />
+    </ToolbarDropdown>
   )
 }

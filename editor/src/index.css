@@ -14,7 +14,9 @@
 
 :root,
 [data-theme="dark"] {
-  /* Base surfaces */
+  /* Dark Anthracite Monochrome — canonical hex in docs/EDITOR_UI_DESIGN_SYSTEM.md.
+     Borders / selection / tab chrome use a slight separation lift so panels do
+     not collapse into one flat gray plane (still flat, no glow). */
   --bg-app:                 #0E1113;
   --bg-window:              #15191C;
   --void:                   #11161A;
@@ -23,15 +25,15 @@
   --surface-2:              #20262A;
   --surface-3:              #111518;
   --surface-hover:          #252B30;
-  --surface-selected:       #2B3640;
-  --surface-selected-strong:#35424D;
+  --surface-selected:       #2F3C48;
+  --surface-selected-strong:#384653;
 
-  /* Borders */
-  --outline:                #2A3035;
-  --outline-subtle:         #22282D;
-  --outline-strong:         #3A4248;
+  /* Borders (canonical #2A3035 / #22282D / #3A4248 → lifted for legibility) */
+  --outline:                #323940;
+  --outline-subtle:         #2A3138;
+  --outline-strong:         #424B53;
   --outline-focus:          #6B7C87;
-  --outline-faint:          rgba(34, 40, 45, 0.45);
+  --outline-faint:          #2E363D;
 
   /* Text */
   --primary:                #D8DEE3;
@@ -72,6 +74,25 @@
   --gizmo-y:                #7E9A78;
   --gizmo-neutral:          #C4CBD0;
 
+  /* Canonical names (spec) → same tokens */
+  --bg-panel:               var(--surface);
+  --bg-panel-soft:          var(--surface-2);
+  --bg-input:               var(--surface-3);
+  --bg-hover:               var(--surface-hover);
+  --bg-selected:            var(--surface-selected);
+  --bg-selected-strong:     var(--surface-selected-strong);
+  --border-subtle:          var(--outline-subtle);
+  --border-default:         var(--outline);
+  --border-strong:          var(--outline-strong);
+  --border-focus:           var(--outline-focus);
+  --text-primary:           var(--primary);
+  --text-secondary:         var(--primary-soft);
+  --text-muted:             var(--muted);
+  --text-disabled:          var(--muted-2);
+  --canvas-bg:              var(--void);
+  --tab-active-bg:          var(--surface-selected-strong);
+  --tab-active-border:      var(--accent);
+
   /* Aliases (components) */
   --bg:          var(--void);
   --panel:       var(--surface);
@@ -83,7 +104,7 @@
   --text-2:      var(--primary-soft);
   --accent-2:    var(--accent-hover);
   --accent-bd:   var(--outline-focus);
-  --accent-bg:   var(--surface-selected);
+  --accent-bg:   var(--surface-selected-strong);
   --accent-bg-h: var(--surface-hover);
   --accent-fg-on-bg: var(--text-on-selected);
   --yellow:      var(--warn);
@@ -96,7 +117,7 @@
   --accent-rgb:   74 93 106;
   --accent-2-rgb: 92 111 125;
   --bg-rgb:       17 22 26;
-  --border-rgb:   42 48 53;
+  --border-rgb:   50 57 64;
   --muted-rgb:    126 135 142;
   --warn-rgb:     181 154 91;
   --danger-rgb:   184 106 98;
@@ -188,7 +209,8 @@
   --editor-workspace-inset: 0.75rem;
   --editor-left-w-default:  280px;
   --editor-right-w-default: 320px;
-  --editor-dock-h-default:  300px;
+  --editor-dock-h-default:  280px;
+  --editor-top-chrome-h:    96px;
 
   --radius:    2px;
   --radius-sm: 2px;
@@ -303,19 +325,58 @@ input[data-mono],
   box-shadow: inset 0 0 0 1px var(--border-2);
 }
 
+.canvas-ruler-corner {
+  background: var(--surface-2);
+  border-right: 1px solid var(--outline-subtle);
+  border-bottom: 1px solid var(--outline-subtle);
+}
+
+.canvas-ruler-h,
+.canvas-ruler-v {
+  background: var(--surface-2);
+}
+
 /* ---------------------------------------------------------------------------
-   Top menubar
+   Top chrome — MenuBar + module tabs = 96px total
    --------------------------------------------------------------------------- */
+
+.editor-top-chrome {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 100;
+  height: var(--editor-top-chrome-h);
+  min-height: var(--editor-top-chrome-h);
+  max-height: var(--editor-top-chrome-h);
+  overflow: visible;
+  background: var(--surface);
+  border-bottom: 1px solid var(--outline-strong);
+}
+
+.editor-menu-dropdown {
+  min-width: 200px;
+  padding: 0.25rem 0;
+  background: var(--surface);
+  border: 1px solid var(--outline-strong);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.45);
+}
+
+.editor-workspace {
+  position: relative;
+  z-index: 0;
+}
 
 .editor-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  flex-shrink: 0;
-  min-height: 3rem;
-  padding: 0.375rem 0;
-  border-bottom: 1px solid var(--outline);
-  background: var(--surface);
+  flex: 1 1 52px;
+  min-height: 0;
+  padding: 0.25rem 0;
+  border-bottom: none;
+  background: transparent;
 }
 
 .editor-toolbar-workspace-start {
@@ -326,10 +387,13 @@ input[data-mono],
   display: flex;
   align-items: stretch;
   gap: 0;
-  flex-shrink: 0;
+  flex: 0 0 44px;
+  min-height: 44px;
+  max-height: 44px;
   padding: 0 var(--editor-workspace-inset);
-  border-bottom: 1px solid var(--outline);
-  background: var(--surface);
+  border-top: 1px solid var(--outline);
+  border-bottom: none;
+  background: var(--surface-2);
 }
 
 .editor-toolbar-workspace-end {
@@ -365,4 +429,72 @@ input[data-mono],
   font-family: var(--font-mono);
   font-size: 0.6875rem;
   color: var(--muted);
+}
+
+/* ---------------------------------------------------------------------------
+   Compact editor controls (anti–web-form)
+   --------------------------------------------------------------------------- */
+
+.editor-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  padding: 0.375rem 0.75rem;
+  border-bottom: 1px solid var(--outline-strong);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: var(--surface-2);
+}
+
+.editor-panel-header__title {
+  color: var(--primary);
+}
+
+.editor-panel-header__subtitle {
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: var(--primary-soft);
+}
+
+.editor-input {
+  display: block;
+  width: 100%;
+  height: 1.5rem;
+  padding: 0 0.375rem;
+  font-size: 0.6875rem;
+  line-height: 1.5rem;
+  color: var(--primary);
+  background: var(--surface-3);
+  border: 1px solid var(--outline-strong);
+  border-radius: var(--radius);
+  transition: border-color 100ms;
+}
+
+.editor-input:focus {
+  outline: none;
+  border-color: var(--outline-focus);
+}
+
+.editor-input[data-mono],
+.editor-input[type="number"] {
+  font-family: var(--font-mono);
+}
+
+.editor-checkbox {
+  width: 0.875rem;
+  height: 0.875rem;
+  margin: 0;
+  accent-color: var(--outline-focus);
+  border: 1px solid var(--outline-strong);
+  border-radius: var(--radius-sm);
+}
+
+.editor-dock-body {
+  font-size: 0.625rem;
+  line-height: 1.35;
 }

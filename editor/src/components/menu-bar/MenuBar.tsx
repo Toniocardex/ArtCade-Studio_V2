@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useCallback } from 'react'
+import { useRef, useState, useCallback } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { useEditor } from '../../store/editor-store'
 import { FileMenu } from './FileMenu'
@@ -12,6 +12,7 @@ import { useProjectNamePersist } from './project-name-context'
 import { usePreviewPlayShortcut } from '../../hooks/usePreviewPlayShortcut'
 import { ViewToolbarMenu } from './ViewToolbarMenu'
 import { ToolsMenu } from './ToolsMenu'
+import { HelpMenu } from './HelpMenu'
 
 export default function MenuBar() {
   const { state, dispatch } = useEditor()
@@ -35,21 +36,6 @@ export default function MenuBar() {
   const editMenuRef = useRef<HTMLDivElement>(null)
   const closeFileMenu = useCallback(() => setFileMenuOpen(false), [])
   const closeEditMenu = useCallback(() => setEditMenuOpen(false), [])
-
-  useEffect(() => {
-    if (!fileMenuOpen && !editMenuOpen) return
-    function onDown(e: MouseEvent) {
-      const t = e.target as Node
-      if (fileMenuOpen && fileMenuRef.current && !fileMenuRef.current.contains(t)) {
-        setFileMenuOpen(false)
-      }
-      if (editMenuOpen && editMenuRef.current && !editMenuRef.current.contains(t)) {
-        setEditMenuOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', onDown)
-    return () => document.removeEventListener('mousedown', onDown)
-  }, [fileMenuOpen, editMenuOpen])
 
   const { fileItems } = useFileMenuActions({
     dispatch,
@@ -108,7 +94,12 @@ export default function MenuBar() {
             FILE
             <ChevronDown size={10} className={`transition-transform ${fileMenuOpen ? 'rotate-180' : ''}`} />
           </button>
-          {fileMenuOpen && <FileMenu items={fileItems} />}
+          <FileMenu
+            items={fileItems}
+            open={fileMenuOpen}
+            anchorRef={fileMenuRef}
+            onClose={closeFileMenu}
+          />
         </div>
         {project && (
           <div ref={editMenuRef} className="relative">
@@ -127,16 +118,26 @@ export default function MenuBar() {
               EDIT
               <ChevronDown size={10} className={`transition-transform ${editMenuOpen ? 'rotate-180' : ''}`} />
             </button>
-            {editMenuOpen && <FileMenu items={editItems} />}
+            <FileMenu
+              items={editItems}
+              open={editMenuOpen}
+              anchorRef={editMenuRef}
+              onClose={closeEditMenu}
+            />
           </div>
         )}
         {project && (
-          <ProjectNameField
-            value={draft}
-            committedName={project.projectName}
-            onChange={setDraft}
-            onCommit={commitDraft}
-          />
+          <div className="flex items-center gap-2 min-w-0">
+            <ProjectNameField
+              value={draft}
+              committedName={project.projectName}
+              onChange={setDraft}
+              onCommit={commitDraft}
+            />
+            <span className="text-[10px] font-mono text-[var(--muted)] shrink-0">
+              v{project.version ?? '1.0.0'}
+            </span>
+          </div>
         )}
       </div>
 
@@ -155,6 +156,7 @@ export default function MenuBar() {
         />
         <ToolsMenu />
         <ViewToolbarMenu />
+        <HelpMenu />
       </div>
     </header>
   )

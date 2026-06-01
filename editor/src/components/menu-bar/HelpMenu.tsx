@@ -1,11 +1,10 @@
 import { useCallback, useRef, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
-import { useEditor } from '../../store/editor-store'
-import { openDialogLibraryModal } from '../../panels/dialog/dialog-modal-api'
 import { ToolbarDropdown } from './ToolbarDropdown'
 
-export function ToolsMenu() {
-  const { dispatch } = useEditor()
+const DOCS_URL = 'https://github.com/Toniocardex/ArtCade-Studio_V2/blob/main/docs/README.md'
+
+export function HelpMenu() {
   const [open, setOpen] = useState(false)
   const anchorRef = useRef<HTMLDivElement>(null)
   const close = useCallback(() => setOpen(false), [])
@@ -17,24 +16,34 @@ export function ToolsMenu() {
         onClick={() => setOpen((v) => !v)}
         className={`editor-toolbar-btn border ${
           open
-            ? 'border-[var(--outline)] bg-[var(--outline-faint)] text-[var(--primary)]'
+            ? 'border-[var(--outline-strong)] bg-[var(--surface-selected)] text-[var(--text-on-selected)]'
             : 'border-[var(--outline)] bg-[var(--surface-3)] text-[var(--muted)] hover:text-[var(--primary)]'
         }`}
       >
-        TOOLS
+        HELP
         <ChevronDown size={10} className={open ? 'rotate-180' : ''} />
       </button>
-      <ToolbarDropdown open={open} anchorRef={anchorRef} onClose={close}>
+      <ToolbarDropdown open={open} anchorRef={anchorRef} align="right" onClose={close}>
+        <a
+          href={DOCS_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          role="menuitem"
+          className="block px-3 py-2 text-xs text-[var(--primary)] hover:bg-[var(--surface-hover)]"
+          onClick={close}
+        >
+          Documentation…
+        </a>
         <button
           type="button"
           role="menuitem"
           className="w-full text-left px-3 py-2 text-xs text-[var(--primary)] hover:bg-[var(--surface-hover)]"
           onClick={() => {
-            openDialogLibraryModal(dispatch)
+            void navigator.clipboard?.writeText('ArtCade Studio — editor UI refactor 2026')
             close()
           }}
         >
-          Dialog library…
+          About ArtCade Studio
         </button>
       </ToolbarDropdown>
     </div>

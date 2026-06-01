@@ -11,7 +11,7 @@ import {
 } from './logic-board/factory'
 import type { LogicBoardLoadIssue } from '../types/logic-board'
 import { COMPONENT_KEYS } from '../types/components'
-import { DEFAULT_SCENE_SIZE } from '../constants/editor-viewport'
+import { DEFAULT_SCENE_SIZE, DEFAULT_VIEWPORT_SIZE } from '../constants/editor-viewport'
 import {
   normalizeProjectDoc,
   projectForSave,
@@ -22,7 +22,9 @@ import { entityToObjectType } from './project-object-types'
 // Plain mutable Vec2 helpers — DEFAULT_SCENE_SIZE is `as const`, so we wrap it
 // to hand out fresh `{x,y}` literals (callers mutate worldSize/viewportSize).
 const sceneSize = (): Vec2 => ({ x: DEFAULT_SCENE_SIZE.x, y: DEFAULT_SCENE_SIZE.y })
+const viewportSize = (): Vec2 => ({ x: DEFAULT_VIEWPORT_SIZE.x, y: DEFAULT_VIEWPORT_SIZE.y })
 const sceneSizeArray = (): [number, number] => [DEFAULT_SCENE_SIZE.x, DEFAULT_SCENE_SIZE.y]
+const viewportSizeArray = (): [number, number] => [DEFAULT_VIEWPORT_SIZE.x, DEFAULT_VIEWPORT_SIZE.y]
 
 /** Pass through known ECS component objects defensively (only if object). */
 function parseComponents(r: Record<string, unknown>): Record<string, object> {
@@ -233,7 +235,7 @@ function parseScene(raw: unknown, fallbackId: string): SceneDef {
     return {
       id: fallbackId, name: fallbackId,
       worldSize:       sceneSize(),
-      viewportSize:    sceneSize(),
+      viewportSize:    viewportSize(),
       backgroundColor: { x: 0.082, y: 0.090, z: 0.110, w: 1 },
       entityIds: [],
     }
@@ -243,7 +245,7 @@ function parseScene(raw: unknown, fallbackId: string): SceneDef {
     id:              String(r.id ?? fallbackId),
     name:            String(r.name ?? fallbackId),
     worldSize:       toVec2(r.worldSize ?? r.world_size ?? sceneSizeArray()),
-    viewportSize:    toVec2(r.viewportSize ?? r.viewport_size ?? sceneSizeArray()),
+    viewportSize:    toVec2(r.viewportSize ?? r.viewport_size ?? viewportSizeArray()),
     backgroundColor: toVec4(r.backgroundColor ?? r.background_color ?? [0.082, 0.090, 0.110, 1]),
     entityIds:       (() => {
                        const raw = r.entityIds ?? r.entity_ids

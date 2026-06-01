@@ -27,7 +27,7 @@ export function LogicEventRow({
       onClick={onSelect}
       className={`w-full text-left px-2 py-2 border-b border-[var(--outline-subtle)] transition-colors ${
         selected
-          ? 'bg-[var(--surface-selected)] text-[var(--text-on-selected)]'
+          ? 'bg-[var(--surface-selected-strong)] text-[var(--text-on-selected)]'
           : 'text-[var(--primary-soft)] hover:bg-[var(--surface-hover)]'
       } ${event.enabled ? '' : 'opacity-50'}`}
     >

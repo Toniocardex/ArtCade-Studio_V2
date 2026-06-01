@@ -46,7 +46,12 @@ function readStoredFilters(): ConsoleLevelFilters {
   }
 }
 
-export default function ConsolePanel() {
+export type ConsolePanelProps = Readonly<{
+  /** Narrow dock column: hide copy toolbar, tighter padding. */
+  compact?: boolean
+}>
+
+export default function ConsolePanel({ compact = false }: ConsolePanelProps) {
   const { dispatch } = useEditor()
   const { state } = useConsoleLogs()
   const { consoleLogs } = state
@@ -129,39 +134,41 @@ export default function ConsolePanel() {
         onSearchChange={setSearch}
       />
 
-      <div className="h-7 flex items-center justify-between px-3 border-b border-[var(--border)] flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => copyText(allLogText, 'LOGS')}
-            disabled={!visibleLogs.length}
-            className="px-2 py-1 rounded border border-[var(--border)] text-[9px] font-bold text-[var(--muted)]
-                       hover:text-[var(--text)] hover:border-[rgb(var(--accent-rgb)/0.6)] disabled:opacity-40"
-          >
-            COPY VISIBLE
-          </button>
-          <button
-            type="button"
-            onClick={() => copyText(errorLogText, 'ERRORS')}
-            disabled={!errorLogText}
-            className="px-2 py-1 rounded border border-[var(--border)] text-[9px] font-bold text-[var(--warn)]
-                       hover:text-[var(--text)] hover:border-[rgb(var(--warn-rgb)/0.7)] disabled:opacity-40"
-          >
-            COPY ERRORS
-          </button>
+      {!compact && (
+        <div className="h-7 flex items-center justify-between px-3 border-b border-[var(--border)] flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => copyText(allLogText, 'LOGS')}
+              disabled={!visibleLogs.length}
+              className="px-2 py-1 rounded border border-[var(--border)] text-[9px] font-bold text-[var(--muted)]
+                         hover:text-[var(--text)] hover:border-[rgb(var(--accent-rgb)/0.6)] disabled:opacity-40"
+            >
+              COPY VISIBLE
+            </button>
+            <button
+              type="button"
+              onClick={() => copyText(errorLogText, 'ERRORS')}
+              disabled={!errorLogText}
+              className="px-2 py-1 rounded border border-[var(--border)] text-[9px] font-bold text-[var(--warn)]
+                         hover:text-[var(--text)] hover:border-[rgb(var(--warn-rgb)/0.7)] disabled:opacity-40"
+            >
+              COPY ERRORS
+            </button>
+          </div>
+          {copyStatus ? (
+            <span
+              key={copyStatus}
+              className="asset-flash-msg text-[9px] font-mono text-[var(--accent)]"
+              onAnimationEnd={clearCopyStatus}
+            >
+              {copyStatus}
+            </span>
+          ) : null}
         </div>
-        {copyStatus ? (
-          <span
-            key={copyStatus}
-            className="asset-flash-msg text-[9px] font-mono text-[var(--accent)]"
-            onAnimationEnd={clearCopyStatus}
-          >
-            {copyStatus}
-          </span>
-        ) : null}
-      </div>
+      )}
 
-      <div className="flex-1 overflow-y-auto p-3 space-y-0.5 font-mono select-text min-h-0">
+      <div className={`flex-1 overflow-y-auto space-y-0.5 font-mono select-text min-h-0 ${compact ? 'p-1.5' : 'p-3'}`}>
         {visibleLogs.length === 0 ? (
           <p className="text-[10px] text-[var(--muted)] italic py-2">{emptyMessage}</p>
         ) : (

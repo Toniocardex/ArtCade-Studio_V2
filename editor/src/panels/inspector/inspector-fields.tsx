@@ -108,10 +108,7 @@ export function Field({
         defaultValue={String(value)}
         onBlur={commitFromInput}
         onKeyDown={handleKeyDown}
-        className={`w-full bg-[var(--panel-3)] border border-[var(--border-2)] rounded px-2 py-1
-                    text-xs focus:outline-none focus:border-[var(--accent-2)] transition-colors ${
-                      cyan ? 'text-[var(--accent)] font-semibold' : 'text-[var(--text)]'
-                    }`}
+        className={`editor-input font-ui ${cyan ? 'text-[var(--accent)] font-semibold' : ''}`}
       />
     </div>
   )
@@ -142,8 +139,8 @@ export function NumberField({
             applyInputBackspace(e.currentTarget)
           }
         }}
-        className="w-full bg-[var(--panel-3)] border border-[var(--border-2)] rounded px-2 py-1
-                   text-xs text-[var(--text)] focus:outline-none focus:border-[var(--accent-2)] transition-colors"
+        className="editor-input"
+        data-mono
       />
     </div>
   )

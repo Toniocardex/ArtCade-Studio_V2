@@ -1,21 +1,19 @@
 import { useEditor } from '../../store/editor-store'
+import { SCENE_LAYER_ROWS } from '../../constants/scene-layers'
+import { editorRowSelected } from '../ui/editor-ui-classes'
 
-const LAYER_ROWS = [
-  { name: 'Debug', order: 700 },
-  { name: 'UI', order: 600 },
-  { name: 'Foreground', order: 500 },
-  { name: 'Gameplay', order: 400 },
-  { name: 'Collision', order: 300 },
-  { name: 'Platforms', order: 200 },
-  { name: 'Background', order: 100 },
-  { name: 'Parallax Far', order: 0 },
-] as const
+function layerRowClass(selected: boolean): string {
+  return selected
+    ? editorRowSelected
+    : 'hover:bg-[var(--surface-hover)] text-[var(--primary)]'
+}
 
 /** UI-only layer reference (spec §4) until ProjectDoc gains a layer model. */
 export function SceneLayersPanel() {
-  const { state } = useEditor()
+  const { state, dispatch } = useEditor()
   const sceneId = state.selection.sceneId ?? state.project?.activeSceneId
   const scene = sceneId && state.project ? state.project.scenes[sceneId] : undefined
+  const selectedLayer = state.inspectorLayerName
 
   return (
     <div className="h-full overflow-auto p-2 text-[10px]">
@@ -31,12 +29,27 @@ export function SceneLayersPanel() {
           </tr>
         </thead>
         <tbody>
-          {LAYER_ROWS.map((row) => (
-            <tr key={row.name} className="border-t border-[var(--outline-faint)]">
-              <td className="py-1.5 text-[var(--primary)]">{row.name}</td>
-              <td className="py-1.5 text-right font-mono text-[var(--muted)]">{row.order}</td>
-            </tr>
-          ))}
+          {SCENE_LAYER_ROWS.map((row) => {
+            const active = selectedLayer === row.name
+            return (
+              <tr
+                key={row.name}
+                className={`border-t border-[var(--outline-faint)] cursor-pointer ${layerRowClass(active)}`}
+                onClick={() => {
+                  dispatch({
+                    type: 'SELECT_INSPECTOR_LAYER',
+                    layerName: active ? null : row.name,
+                  })
+                  if (!active) {
+                    dispatch({ type: 'SET_EDITOR_ACTIVE_LAYER', layerName: row.name })
+                  }
+                }}
+              >
+                <td className="py-1.5 px-1">{row.name}</td>
+                <td className="py-1.5 text-right font-mono pr-1">{row.order}</td>
+              </tr>
+            )
+          })}
         </tbody>
       </table>
     </div>
