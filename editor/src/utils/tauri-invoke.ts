@@ -16,7 +16,9 @@ export async function invokeTauri<T>(
     return await invoke<T>(command, args)
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err)
-    throw new Error(`[tauri-invoke] ${command} failed: ${detail}`, { cause: err })
+    const wrapped = new Error(`[tauri-invoke] ${command} failed: ${detail}`)
+    if (err instanceof Error) wrapped.stack = `${wrapped.stack}\nCaused by: ${err.stack}`
+    throw wrapped
   }
 }
 

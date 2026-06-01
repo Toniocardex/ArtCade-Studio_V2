@@ -1,8 +1,4 @@
 import { runtimeAssetPath, WASM_BINARY_URL } from './runtime-path'
-import {
-  getRuntimeProfileSample,
-  type RuntimeProfileSample,
-} from './runtime-profile-buffer'
 
 // ---------------------------------------------------------------------------
 // wasm-bridge.ts — React ↔ C++ WASM bridge
