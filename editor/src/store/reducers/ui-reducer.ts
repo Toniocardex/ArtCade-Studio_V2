@@ -10,27 +10,88 @@ import type { CoreState, Action, DomainReducer } from '../editor-store-state'
 import {
   DEFAULT_EDITOR_GRID_SIZE, EDITOR_GRID_SIZE_MAX, EDITOR_GRID_SIZE_MIN,
 } from '../../constants/editor-viewport'
+import type { DockPanelId } from '../../constants/dock-panels'
 import { clampEditorZoom } from '../../utils/editor-zoom'
 import {
   applyAuthoringModeToDocument,
   persistAuthoringMode,
 } from '../../utils/authoring-mode'
+import { persistDockPanelVisibility } from '../../utils/dock-panel-visibility'
+import {
+  applyDockVisibility,
+  expandDockWithConsole,
+  mergeDockUiSlice,
+  revealConsoleOnLog,
+  setDockPanelVisible,
+  toggleConsoleDock,
+  withDerivedConsoleOpen,
+} from '../../utils/dock-ui-state'
 
-function syncConsoleOpen(state: CoreState): CoreState {
-  return {
-    ...state,
-    consoleOpen: !state.bottomPanelCollapsed,
+function applyDockUiChange(state: CoreState, slice: ReturnType<typeof applyDockVisibility>): CoreState {
+  if (slice.dockPanelVisibility !== state.dockPanelVisibility) {
+    persistDockPanelVisibility(slice.dockPanelVisibility)
   }
+  return mergeDockUiSlice(state, slice)
+}
+
+function setDockPanelVisibleOnState(
+  state: CoreState,
+  panel: DockPanelId,
+  visible: boolean,
+): CoreState {
+  const next = setDockPanelVisible(state, panel, visible)
+  if (!next) return state
+  return applyDockUiChange(state, next)
 }
 
 export const uiReducer: DomainReducer = (state: CoreState, action: Action) => {
   switch (action.type) {
     case 'SELECT_ENTITY':
-      return { ...state, selection: { ...state.selection, entityId: action.entityId } }
+      return {
+        ...state,
+        selection: { ...state.selection, entityId: action.entityId },
+        inspectorAsset: null,
+        inspectorLayerName: null,
+      }
     case 'SELECT_SCENE':
       return {
         ...state,
         selection: { ...state.selection, sceneId: action.sceneId, entityId: null },
+        inspectorAsset: null,
+        inspectorLayerName: null,
+      }
+    case 'SELECT_INSPECTOR_ASSET':
+      return {
+        ...state,
+        inspectorAsset: action.asset,
+        inspectorLayerName: null,
+        selection: { ...state.selection, entityId: null },
+      }
+    case 'SELECT_INSPECTOR_LAYER':
+      return {
+        ...state,
+        inspectorLayerName: action.layerName,
+        editorActiveLayer: action.layerName ?? state.editorActiveLayer,
+        inspectorAsset: null,
+        selection: { ...state.selection, entityId: null },
+      }
+    case 'SET_EDITOR_ACTIVE_LAYER':
+      return state.editorActiveLayer === action.layerName
+        ? state
+        : {
+            ...state,
+            editorActiveLayer: action.layerName,
+            inspectorLayerName: action.layerName,
+          }
+    case 'ENTITY_SET_DISPLAY_LAYER':
+      return {
+        ...state,
+        entityDisplayLayers: {
+          ...state.entityDisplayLayers,
+          [action.entityId]: action.layerName,
+        },
+        editorActiveLayer: action.layerName,
+        inspectorLayerName: action.layerName,
       }
     case 'SET_MODE':
       return { ...state, mode: action.mode }
@@ -40,28 +101,51 @@ export const uiReducer: DomainReducer = (state: CoreState, action: Action) => {
       applyAuthoringModeToDocument(action.mode)
       return { ...state, authoringMode: action.mode }
     }
-    case 'TOGGLE_CONSOLE':
-      return syncConsoleOpen({
-        ...state,
-        bottomPanelCollapsed: !state.bottomPanelCollapsed,
-      })
+    case 'TOGGLE_CONSOLE': {
+      const next = toggleConsoleDock(state)
+      if (!state.dockPanelVisibility.console && next.dockPanelVisibility.console) {
+        persistDockPanelVisibility(next.dockPanelVisibility)
+      }
+      return mergeDockUiSlice(state, next)
+    }
     case 'SET_CONSOLE_OPEN':
-      return syncConsoleOpen({
-        ...state,
-        bottomPanelCollapsed: !action.open,
-      })
+      if (action.open) {
+        const next = expandDockWithConsole(state)
+        if (!state.dockPanelVisibility.console) {
+          persistDockPanelVisibility(next.dockPanelVisibility)
+        }
+        return mergeDockUiSlice(state, next)
+      }
+      return mergeDockUiSlice(
+        state,
+        withDerivedConsoleOpen({ ...state, bottomPanelCollapsed: true }),
+      )
     case 'SET_BOTTOM_PANEL_COLLAPSED':
       return state.bottomPanelCollapsed === action.collapsed
         ? state
-        : syncConsoleOpen({ ...state, bottomPanelCollapsed: action.collapsed })
-    case 'LOG':
-      if (
-        state.bottomPanelCollapsed &&
-        (action.entry.level === 'warn' || action.entry.level === 'error')
-      ) {
-        return syncConsoleOpen({ ...state, bottomPanelCollapsed: false })
+        : mergeDockUiSlice(
+            state,
+            withDerivedConsoleOpen({ ...state, bottomPanelCollapsed: action.collapsed }),
+          )
+    case 'SET_DOCK_PANEL_VISIBLE':
+      return setDockPanelVisibleOnState(state, action.panel, action.visible)
+    case 'TOGGLE_DOCK_PANEL':
+      return setDockPanelVisibleOnState(
+        state,
+        action.panel,
+        !state.dockPanelVisibility[action.panel],
+      )
+    case 'LOG': {
+      if (action.entry.level !== 'warn' && action.entry.level !== 'error') {
+        return state
       }
-      return state
+      const next = revealConsoleOnLog(state)
+      if (!next) return state
+      if (!state.dockPanelVisibility.console) {
+        persistDockPanelVisibility(next.dockPanelVisibility)
+      }
+      return mergeDockUiSlice(state, next)
+    }
     case 'ACKNOWLEDGE_CONSOLE_LOGS':
       return action.upToId <= state.consoleAckUpToId
         ? state

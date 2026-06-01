@@ -6,6 +6,7 @@ import {
   createLogicEvent,
 } from '../utils/logic-board/factory'
 import type { ProjectDoc } from '../types'
+import { DEFAULT_DOCK_PANEL_VISIBILITY } from '../constants/dock-panels'
 
 function emptyProject(): ProjectDoc {
   return {
@@ -28,6 +29,7 @@ function baseState(project: ProjectDoc | null = emptyProject()): CoreState {
     mode: 'canvas',
     consoleOpen: false,
     bottomPanelCollapsed: true,
+    dockPanelVisibility: DEFAULT_DOCK_PANEL_VISIBILITY,
     consoleAckUpToId: 0,
     editingTilesetId: null,
     openScripts: [],

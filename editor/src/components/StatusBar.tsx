@@ -22,7 +22,7 @@ export default function StatusBar() {
   const {
     project, selection, isPlaying, projectDirty, editorGridSize, snapToGrid,
     editorZoom, editorZoomMode, cameraPreview, bottomPanelCollapsed,
-    consoleAckUpToId,
+    consoleAckUpToId, dockPanelVisibility, consoleOpen,
   } = state
   const { cursorPos, consoleLogs } = volatile
 
@@ -50,21 +50,33 @@ export default function StatusBar() {
   const showRuntimeStats = { ...DEFAULT_WORLD, ...project?.world }.showRuntimeStats === true
   const runtimeProfile = useRuntimeProfilePoll(showRuntimeStats, isPlaying)
 
+  const dockShowsConsoleIssues =
+    !bottomPanelCollapsed && dockPanelVisibility.console
+
   const issueCount = useMemo(() => {
     const validationCount =
       validationIssues.errors.length + validationIssues.warnings.length
-    if (!bottomPanelCollapsed) return validationCount
+    if (dockShowsConsoleIssues) {
+      return validationCount
+    }
     const consoleCount = consoleLogs.filter(
       (e) => (e.level === 'warn' || e.level === 'error') && e.id > consoleAckUpToId,
     ).length
     return validationCount + consoleCount
-  }, [consoleLogs, bottomPanelCollapsed, consoleAckUpToId, validationIssues])
+  }, [
+    consoleLogs,
+    dockShowsConsoleIssues,
+    consoleAckUpToId,
+    validationIssues,
+  ])
 
   function toggleConsole() {
     dispatch({ type: 'TOGGLE_CONSOLE' })
   }
 
   const runtime = runtimeDisplay(isPlaying, isWasmReady())
+
+  const consoleActive = !bottomPanelCollapsed && consoleOpen
 
   return (
     <footer
@@ -119,9 +131,9 @@ export default function StatusBar() {
         <button
           type="button"
           onClick={toggleConsole}
-          title="Toggle console (Ctrl+`)"
+          title="Toggle console panel (Ctrl+`)"
           className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border transition-colors ${
-            !bottomPanelCollapsed
+            consoleActive
               ? 'border-[rgb(var(--accent-rgb)/0.5)] text-[var(--accent)]'
               : 'border-transparent hover:border-[var(--border)] hover:text-[var(--text)]'
           }`}

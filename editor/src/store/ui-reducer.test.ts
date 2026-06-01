@@ -1,7 +1,12 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { uiReducer } from './reducers/ui-reducer'
 import { initialCoreState, type CoreState } from './editor-store-state'
 import type { ConsoleEntry } from '../types'
+import {
+  DEFAULT_DOCK_PANEL_VISIBILITY,
+  DOCK_VISIBILITY_STORAGE_KEY,
+} from '../constants/dock-panels'
+import { deriveConsoleOpen } from '../utils/dock-ui-state'
 
 function base(overrides: Partial<CoreState> = {}): CoreState {
   return { ...initialCoreState, ...overrides }
@@ -11,6 +16,33 @@ function logEntry(level: ConsoleEntry['level'], id: number): ConsoleEntry {
   return { id, time: '12:00:00', message: 'test', level }
 }
 
+describe('initialCoreState — dock boot sync', () => {
+  it('consoleOpen matches deriveConsoleOpen from dock fields', () => {
+    expect(initialCoreState.consoleOpen).toBe(
+      deriveConsoleOpen(
+        initialCoreState.bottomPanelCollapsed,
+        initialCoreState.dockPanelVisibility,
+      ),
+    )
+  })
+})
+
+describe('uiReducer — inspector context', () => {
+  it('SELECT_INSPECTOR_ASSET clears entity and layer', () => {
+    const start = base({
+      selection: { entityId: 3, sceneId: 's1' },
+      inspectorLayerName: 'UI',
+    })
+    const s = uiReducer(start, {
+      type: 'SELECT_INSPECTOR_ASSET',
+      asset: { type: 'image', id: 'img_1' },
+    })
+    expect(s.inspectorAsset).toEqual({ type: 'image', id: 'img_1' })
+    expect(s.selection.entityId).toBeNull()
+    expect(s.inspectorLayerName).toBeNull()
+  })
+})
+
 describe('uiReducer — console dock', () => {
   it('TOGGLE_CONSOLE expands when collapsed', () => {
     const s = uiReducer(base({ bottomPanelCollapsed: true }), { type: 'TOGGLE_CONSOLE' })
@@ -18,8 +50,20 @@ describe('uiReducer — console dock', () => {
     expect(s.consoleOpen).toBe(true)
   })
 
-  it('TOGGLE_CONSOLE collapses when expanded', () => {
+  it('TOGGLE_CONSOLE hides console when other dock panels are visible', () => {
     const start = base({ bottomPanelCollapsed: false, consoleOpen: true })
+    const s = uiReducer(start, { type: 'TOGGLE_CONSOLE' })
+    expect(s.dockPanelVisibility.console).toBe(false)
+    expect(s.bottomPanelCollapsed).toBe(false)
+    expect(s.consoleOpen).toBe(false)
+  })
+
+  it('TOGGLE_CONSOLE collapses dock when console is the only visible panel', () => {
+    const start = base({
+      bottomPanelCollapsed: false,
+      consoleOpen: true,
+      dockPanelVisibility: { console: true, timeline: false, logic: false, events: false },
+    })
     const s = uiReducer(start, { type: 'TOGGLE_CONSOLE' })
     expect(s.bottomPanelCollapsed).toBe(true)
     expect(s.consoleOpen).toBe(false)
@@ -74,6 +118,89 @@ describe('uiReducer — console dock', () => {
     const start = base({ consoleAckUpToId: 10 })
     expect(uiReducer(start, { type: 'ACKNOWLEDGE_CONSOLE_LOGS', upToId: 5 }).consoleAckUpToId).toBe(10)
     expect(uiReducer(start, { type: 'ACKNOWLEDGE_CONSOLE_LOGS', upToId: 42 }).consoleAckUpToId).toBe(42)
+  })
+
+  it('consoleOpen is false when dock expanded but console panel hidden', () => {
+    const start = base({
+      bottomPanelCollapsed: false,
+      consoleOpen: false,
+      dockPanelVisibility: { ...DEFAULT_DOCK_PANEL_VISIBILITY, console: false },
+    })
+    expect(start.consoleOpen).toBe(false)
+    const s = uiReducer(start, { type: 'SET_BOTTOM_PANEL_COLLAPSED', collapsed: false })
+    expect(s.consoleOpen).toBe(false)
+  })
+
+  it('TOGGLE_CONSOLE enables console panel when expanding dock', () => {
+    const start = base({
+      bottomPanelCollapsed: true,
+      dockPanelVisibility: { ...DEFAULT_DOCK_PANEL_VISIBILITY, console: false },
+    })
+    const s = uiReducer(start, { type: 'TOGGLE_CONSOLE' })
+    expect(s.bottomPanelCollapsed).toBe(false)
+    expect(s.dockPanelVisibility.console).toBe(true)
+    expect(s.consoleOpen).toBe(true)
+  })
+
+  it('LOG error reveals console when panel was hidden', () => {
+    const start = base({
+      bottomPanelCollapsed: false,
+      dockPanelVisibility: { ...DEFAULT_DOCK_PANEL_VISIBILITY, console: false },
+      consoleOpen: false,
+    })
+    const s = uiReducer(start, { type: 'LOG', entry: logEntry('error', 2) })
+    expect(s.dockPanelVisibility.console).toBe(true)
+    expect(s.bottomPanelCollapsed).toBe(false)
+    expect(s.consoleOpen).toBe(true)
+  })
+})
+
+describe('uiReducer — dock panel visibility', () => {
+  beforeEach(() => {
+    vi.stubGlobal('localStorage', {
+      getItem: vi.fn(() => null),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+    })
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('SET_DOCK_PANEL_VISIBLE persists and expands collapsed dock', () => {
+    const start = base({
+      bottomPanelCollapsed: true,
+      dockPanelVisibility: { console: false, timeline: false, logic: true, events: false },
+    })
+    const s = uiReducer(start, {
+      type: 'SET_DOCK_PANEL_VISIBLE',
+      panel: 'timeline',
+      visible: true,
+    })
+    expect(s.dockPanelVisibility.timeline).toBe(true)
+    expect(s.bottomPanelCollapsed).toBe(false)
+    expect(localStorage.setItem).toHaveBeenCalledWith(
+      DOCK_VISIBILITY_STORAGE_KEY,
+      expect.any(String),
+    )
+  })
+
+  it('cannot hide the last visible panel', () => {
+    const vis = { console: true, timeline: false, logic: false, events: false }
+    const start = base({ dockPanelVisibility: vis })
+    const s = uiReducer(start, {
+      type: 'SET_DOCK_PANEL_VISIBLE',
+      panel: 'console',
+      visible: false,
+    })
+    expect(s).toBe(start)
+  })
+
+  it('TOGGLE_DOCK_PANEL flips panel visibility', () => {
+    const start = base()
+    const s = uiReducer(start, { type: 'TOGGLE_DOCK_PANEL', panel: 'events' })
+    expect(s.dockPanelVisibility.events).toBe(true)
   })
 })
 

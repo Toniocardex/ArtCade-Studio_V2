@@ -31,17 +31,20 @@ Monochrome, flat, professional. Accents only for selection/focus.
 | `surface-2` | `#20262A` | Section headers, secondary panels |
 | `surface-3` | `#111518` | Inputs, console well |
 | `surface-hover` | `#252B30` | Row/button hover |
-| `surface-selected` | `#2B3640` | List selection |
-| `surface-selected-strong` | `#35424D` | Strong focus |
+| `surface-selected` | `#2B3640` canonical · **`#2F3C48` in app** | List selection |
+| `surface-selected-strong` | `#35424D` canonical · **`#384653` in app** | Active tab fill, strong focus |
 
 ### Borders
 
-| Token | Hex |
-|-------|-----|
-| `outline-subtle` | `#22282D` |
-| `outline` | `#2A3035` |
-| `outline-strong` | `#3A4248` |
-| `outline-focus` | `#6B7C87` |
+Canonical spec values are the baseline; the shipped editor applies a **separation lift** (~one step lighter on the grey ramp) so panel edges, tabs, and selected rows do not melt into the same plane.
+
+| Token | Canonical | In `index.css` (dark) |
+|-------|-----------|------------------------|
+| `outline-subtle` | `#22282D` | `#2A3138` |
+| `outline` | `#2A3035` | `#323940` |
+| `outline-strong` | `#3A4248` | `#424B53` |
+| `outline-focus` | `#6B7C87` | `#6B7C87` |
+| `outline-faint` | — | `#2E363D` (row dividers) |
 
 ### Text
 
@@ -58,7 +61,8 @@ Monochrome, flat, professional. Accents only for selection/focus.
 
 | Token | Hex | Use |
 |-------|-----|-----|
-| `accent` | `#4A5D6A` | Active tab, selected control |
+| `accent` | `#4A5D6A` | Active tab underline (`tab-active-border`), focus |
+| `tab-active-bg` | — | `surface-selected-strong` fill on module/dock tabs |
 | `accent-hover` | `#5C6F7D` | Hover on accent control |
 | `accent-selected` | `#33414C` | Deep selection fill |
 
@@ -143,6 +147,8 @@ Source of truth: `editor/src/index.css` (`:root` / `[data-theme="dark"]` / `[dat
 
 Legacy aliases used by components: `--bg`, `--panel`, `--panel-3`, `--text`, `--border`, `--accent`, etc.
 
+Spec-style names (dark theme): `--bg-panel`, `--bg-input`, `--text-primary`, `--border-default`, `--tab-active-bg`, `--tab-active-border` — see `:root` block in `index.css`.
+
 CodeMirror: `editor/src/codemirror/artcade-theme.ts` (`artcade-dark` / `artcade-light`).
 
 ---
@@ -153,8 +159,12 @@ CodeMirror: `editor/src/codemirror/artcade-theme.ts` (`artcade-dark` / `artcade-
 |--------|---------|
 | Left column | 280px |
 | Right Inspector | 320px |
-| Bottom dock | 300px |
+| Bottom dock | 280px (open default) |
 | Min editor width | 1520px |
+
+### Bottom dock panels (View menu)
+
+Four fixed-order columns when the dock is expanded: **Debug Console**, **Animation Timeline**, **Logic Preview**, **Event Debugger**. Visibility is toggled in **VIEW → Bottom panels** (persisted in `localStorage` key `artcade.dock-panels-v1`). Default on first run: Console + Logic Preview only. The dock header **−** button collapses the whole strip; **Ctrl+`** toggles the console panel (or collapses the dock when console is the only visible panel). Warn/error log lines auto-expand the dock and show the console panel.
 
 ---
 

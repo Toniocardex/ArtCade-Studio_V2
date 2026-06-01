@@ -15,9 +15,14 @@ import type {
   SpriteComponent, PhysicsComponent, Vec3, AssetFolderCategory,
 } from '../types'
 import type { DialogScript } from '../utils/dialog/dialog-script'
+import type { InspectorAssetSelection } from '../types/inspector-selection'
+import { DEFAULT_EDITOR_ACTIVE_LAYER } from '../constants/scene-layers'
 import {
   EDITOR_BOOT_ZOOM, DEFAULT_EDITOR_GRID_SIZE,
 } from '../constants/editor-viewport'
+import type { DockPanelId, DockPanelVisibility } from '../constants/dock-panels'
+import { readStoredDockPanelVisibility } from '../utils/dock-panel-visibility'
+import { createInitialDockUiSlice } from '../utils/dock-ui-state'
 
 // ---- Core state (stable) ---------------------------------------------------
 
@@ -26,10 +31,20 @@ export interface CoreState {
   projectPath:      string | null
   projectDirty:     boolean
   selection:        { entityId: number | null; sceneId: string | null }
+  /** Asset-driven inspector (Project Explorer); cleared when an entity is selected. */
+  inspectorAsset:   InspectorAssetSelection | null
+  /** Layer row selected in Scene Layers panel (UI-only until layer model ships). */
+  inspectorLayerName: string | null
+  /** Active layer for canvas toolbar (UI-only until layer model ships). */
+  editorActiveLayer: string
+  /** Per-entity display layer in inspector (UI-only). */
+  entityDisplayLayers: Record<number, string>
   mode:             EditorView
-  /** True when the console dock is expanded (derived from bottomPanelCollapsed). */
+  /** True when the bottom dock is expanded and the console panel is visible. */
   consoleOpen:           boolean
   bottomPanelCollapsed:  boolean
+  /** Per-panel visibility for the bottom dock (persisted in localStorage). */
+  dockPanelVisibility:   DockPanelVisibility
   /** Last console log id acknowledged while the console dock was visible. */
   consoleAckUpToId:      number
   /** When non-null, swap the canvas viewport for the TilesetEditorPanel
@@ -110,11 +125,17 @@ export interface VolatileState {
 export type Action =
   | { type: 'SELECT_ENTITY';     entityId: number | null }
   | { type: 'SELECT_SCENE';      sceneId: string }
+  | { type: 'SELECT_INSPECTOR_ASSET'; asset: InspectorAssetSelection | null }
+  | { type: 'SELECT_INSPECTOR_LAYER'; layerName: string | null }
+  | { type: 'SET_EDITOR_ACTIVE_LAYER'; layerName: string }
+  | { type: 'ENTITY_SET_DISPLAY_LAYER'; entityId: number; layerName: string }
   | { type: 'SET_MODE';          mode: EditorView }
   | { type: 'SET_AUTHORING_MODE'; mode: AuthoringMode }
   | { type: 'TOGGLE_CONSOLE' }
   | { type: 'SET_CONSOLE_OPEN';  open: boolean }
   | { type: 'SET_BOTTOM_PANEL_COLLAPSED'; collapsed: boolean }
+  | { type: 'SET_DOCK_PANEL_VISIBLE'; panel: DockPanelId; visible: boolean }
+  | { type: 'TOGGLE_DOCK_PANEL'; panel: DockPanelId }
   | { type: 'ACKNOWLEDGE_CONSOLE_LOGS'; upToId: number }
   | { type: 'TILESET_EDIT_OPEN'; tilesetId: string }
   | { type: 'TILESET_EDIT_CLOSE' }
@@ -231,15 +252,22 @@ export type DomainReducer = (state: CoreState, action: Action) => CoreState
 
 export const INITIAL_LOGS: ConsoleEntry[] = []
 
+const initialDockUi = createInitialDockUiSlice(readStoredDockPanelVisibility())
+
 /** Boot state: no project until the user creates or opens one (File menu). */
 export const initialCoreState: CoreState = {
   project:          null,
   projectPath:      null,
   projectDirty:     false,
   selection:        { entityId: null, sceneId: null },
+  inspectorAsset:   null,
+  inspectorLayerName: null,
+  editorActiveLayer: DEFAULT_EDITOR_ACTIVE_LAYER,
+  entityDisplayLayers: {},
   mode:             'canvas',
-  consoleOpen:           false,
-  bottomPanelCollapsed:  true,
+  consoleOpen:           initialDockUi.consoleOpen,
+  bottomPanelCollapsed:  initialDockUi.bottomPanelCollapsed,
+  dockPanelVisibility:   initialDockUi.dockPanelVisibility,
   consoleAckUpToId:      0,
   editingTilesetId: null,
   openScripts:      [],

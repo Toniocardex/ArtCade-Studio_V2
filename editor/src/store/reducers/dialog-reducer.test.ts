@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { coreReducer, type CoreState } from '../editor-store'
 import { emptyDialogScript } from '../../utils/dialog/dialog-script'
 import type { ProjectDoc } from '../../types'
+import { DEFAULT_DOCK_PANEL_VISIBILITY } from '../../constants/dock-panels'
 
 function emptyProject(): ProjectDoc {
   return {
@@ -24,6 +25,7 @@ function baseState(): CoreState {
     mode: 'canvas',
     consoleOpen: false,
     bottomPanelCollapsed: true,
+    dockPanelVisibility: DEFAULT_DOCK_PANEL_VISIBILITY,
     consoleAckUpToId: 0,
     editingTilesetId: null,
     openScripts: [],

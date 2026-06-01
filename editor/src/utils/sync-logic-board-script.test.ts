@@ -6,6 +6,7 @@ import {
   syncLogicBoardFromProject,
   syncLogicBoardToScript,
 } from './sync-logic-board-script'
+import { DEFAULT_DOCK_PANEL_VISIBILITY } from '../constants/dock-panels'
 
 function minimalState(overrides: Partial<CoreState> = {}): CoreState {
   return {
@@ -25,6 +26,7 @@ function minimalState(overrides: Partial<CoreState> = {}): CoreState {
     mode: 'logic',
     consoleOpen: false,
     bottomPanelCollapsed: false,
+    dockPanelVisibility: DEFAULT_DOCK_PANEL_VISIBILITY,
     consoleAckUpToId: 0,
     editingTilesetId: null,
     openScripts: [

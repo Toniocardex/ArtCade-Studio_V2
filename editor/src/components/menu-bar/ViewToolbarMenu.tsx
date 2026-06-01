@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { ChevronDown, Moon, Sun } from 'lucide-react'
 import { useEditor } from '../../store/editor-store'
 import { applyTheme, toggleTheme, type Theme } from '../../utils/theme'
 import AuthoringModeSwitch from '../AuthoringModeSwitch'
 import { openDialogLibraryModal } from '../../panels/dialog/dialog-modal-api'
+import { ToolbarDropdown } from './ToolbarDropdown'
+import { DockPanelsViewSection } from './DockPanelsViewSection'
 
 function themeFromDocument(): Theme {
   const value = document.documentElement.dataset.theme
@@ -14,9 +16,11 @@ export function ViewToolbarMenu() {
   const { dispatch } = useEditor()
   const [open, setOpen] = useState(false)
   const [theme, setTheme] = useState<Theme>(themeFromDocument)
+  const anchorRef = useRef<HTMLDivElement>(null)
+  const close = useCallback(() => setOpen(false), [])
 
   return (
-    <div className="relative editor-toolbar-workspace-end pr-[var(--editor-workspace-inset)]">
+    <div ref={anchorRef} className="relative editor-toolbar-workspace-end pr-[var(--editor-workspace-inset)]">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -25,48 +29,43 @@ export function ViewToolbarMenu() {
         VIEW
         <ChevronDown size={10} className={open ? 'rotate-180' : ''} />
       </button>
-      {open && (
-        <div
-          className="absolute right-0 top-full mt-1 z-[60] min-w-[200px] py-2 border border-[var(--outline)]
-                     bg-[var(--surface)] rounded-[var(--radius-md)] shadow-none"
-          role="menu"
-        >
-          <div className="px-3 py-2 border-b border-[var(--outline-subtle)]">
-            <span className="text-[9px] uppercase tracking-wide text-[var(--muted)]">Authoring</span>
-            <div className="mt-2">
-              <AuthoringModeSwitch />
-            </div>
+      <ToolbarDropdown open={open} anchorRef={anchorRef} align="right" onClose={close}>
+        <div className="px-3 py-2 border-b border-[var(--outline-subtle)]">
+          <span className="text-[9px] uppercase tracking-wide text-[var(--muted)]">Authoring</span>
+          <div className="mt-2">
+            <AuthoringModeSwitch />
           </div>
-          <button
-            type="button"
-            role="menuitem"
-            className="w-full text-left px-3 py-2 text-xs text-[var(--primary)] hover:bg-[var(--outline)]"
-            onClick={() => {
-              const next = toggleTheme(theme)
-              applyTheme(next)
-              setTheme(next)
-            }}
-          >
-            <span className="inline-flex items-center gap-2">
-              {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
-              {theme === 'dark'
-                ? 'Switch to light theme (mid-grey)'
-                : 'Switch to dark theme (anthracite)'}
-            </span>
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            className="w-full text-left px-3 py-2 text-xs text-[var(--primary)] hover:bg-[var(--outline)]"
-            onClick={() => {
-              openDialogLibraryModal(dispatch)
-              setOpen(false)
-            }}
-          >
-            Dialog library…
-          </button>
         </div>
-      )}
+        <DockPanelsViewSection />
+        <button
+          type="button"
+          role="menuitem"
+          className="w-full text-left px-3 py-2 text-xs text-[var(--primary)] hover:bg-[var(--surface-hover)]"
+          onClick={() => {
+            const next = toggleTheme(theme)
+            applyTheme(next)
+            setTheme(next)
+          }}
+        >
+          <span className="inline-flex items-center gap-2">
+            {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+            {theme === 'dark'
+              ? 'Switch to light theme (mid-grey)'
+              : 'Switch to dark theme (anthracite)'}
+          </span>
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          className="w-full text-left px-3 py-2 text-xs text-[var(--primary)] hover:bg-[var(--surface-hover)]"
+          onClick={() => {
+            openDialogLibraryModal(dispatch)
+            close()
+          }}
+        >
+          Dialog library…
+        </button>
+      </ToolbarDropdown>
     </div>
   )
 }

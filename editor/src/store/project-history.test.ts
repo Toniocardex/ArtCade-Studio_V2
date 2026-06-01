@@ -5,6 +5,7 @@ import {
   createLogicEvent,
 } from '../utils/logic-board/factory'
 import type { ProjectDoc } from '../types'
+import { DEFAULT_DOCK_PANEL_VISIBILITY } from '../constants/dock-panels'
 import { MAX_PROJECT_HISTORY, pushProjectHistory, projectRevision, snapshotProjectHistory } from './project-history'
 
 function projectWithEntity(): ProjectDoc {
@@ -50,6 +51,7 @@ function baseState(project: ProjectDoc | null = projectWithEntity()): CoreState 
     mode: 'canvas',
     consoleOpen: false,
     bottomPanelCollapsed: true,
+    dockPanelVisibility: DEFAULT_DOCK_PANEL_VISIBILITY,
     consoleAckUpToId: 0,
     editingTilesetId: null,
     openScripts: [],
