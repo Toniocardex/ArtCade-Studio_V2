@@ -70,6 +70,12 @@ public:
     std::string className(EntityId id) const;
 
     bool getTransform(EntityId id, Transform& out) const;
+    /**
+     * Transform for editor→React notifications (canvas drag mouse-up).
+     * Reads the live ECS component first, then falls back to the authored
+     * EntityDef so rotation/scale are never replaced by {0, 1, 1} defaults.
+     */
+    bool getAuthoringTransform(EntityId id, Transform& out) const;
     bool setTransform(EntityId id, const Transform& transform);
     bool setTransform(EntityId id, Vec2 position, float rotation, Vec2 scale);
     bool getSprite(EntityId id, SpriteComponent& out) const;

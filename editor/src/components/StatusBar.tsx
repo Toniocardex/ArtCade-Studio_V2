@@ -1,7 +1,10 @@
 import { useMemo } from 'react'
 import { Check } from 'lucide-react'
 import { useEditor, useConsoleLogs } from '../store/editor-store'
+import { DEFAULT_WORLD } from '../types'
 import { isReady as isWasmReady } from '../utils/wasm-bridge'
+import { getProjectWorkbenchSnapshot } from '../utils/project-health'
+import { useRuntimeProfilePoll } from '../hooks/useRuntimeProfilePoll'
 
 function runtimeDisplay(playing: boolean, wasmReady: boolean): { text: string; className: string } {
   if (playing) {
@@ -35,12 +38,27 @@ export default function StatusBar() {
      scene.viewportSize.y !== scene.worldSize.y)
   )
 
+  const validationIssues = useMemo(
+    () => getProjectWorkbenchSnapshot({
+      project,
+      openScripts: state.openScripts,
+      includeCompile: false,
+    }).health,
+    [project, state.openScripts],
+  )
+
+  const showRuntimeStats = { ...DEFAULT_WORLD, ...project?.world }.showRuntimeStats === true
+  const runtimeProfile = useRuntimeProfilePoll(showRuntimeStats, isPlaying)
+
   const issueCount = useMemo(() => {
-    if (!bottomPanelCollapsed) return 0
-    return consoleLogs.filter(
+    const validationCount =
+      validationIssues.errors.length + validationIssues.warnings.length
+    if (!bottomPanelCollapsed) return validationCount
+    const consoleCount = consoleLogs.filter(
       (e) => (e.level === 'warn' || e.level === 'error') && e.id > consoleAckUpToId,
     ).length
-  }, [consoleLogs, bottomPanelCollapsed, consoleAckUpToId])
+    return validationCount + consoleCount
+  }, [consoleLogs, bottomPanelCollapsed, consoleAckUpToId, validationIssues])
 
   function toggleConsole() {
     dispatch({ type: 'TOGGLE_CONSOLE' })
@@ -70,6 +88,19 @@ export default function StatusBar() {
           {editorZoomMode === 'fit' && <span className="text-[var(--accent)]"> · FIT</span>}
         </span>
         {cameraPreviewActive && <span className="text-[var(--accent-2)]">Camera: PREVIEW</span>}
+        {isPlaying && showRuntimeStats && runtimeProfile.fps > 0 && (
+          <span title="Lua / physics / render ms (last frame)">
+            FPS: {Math.round(runtimeProfile.fps)}
+            {' · '}
+            Lua {runtimeProfile.luaMs.toFixed(1)}ms
+            {' · '}
+            Phys {runtimeProfile.physicsMs.toFixed(1)}ms
+            {' · '}
+            Draw {runtimeProfile.renderMs.toFixed(1)}ms
+            {' · '}
+            Ent {Math.round(runtimeProfile.entityCount)}
+          </span>
+        )}
         <span>Lua: 5.4</span>
         <span>Raylib: 5.0</span>
         {projectDirty ? (

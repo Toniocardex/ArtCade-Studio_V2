@@ -146,6 +146,10 @@ export type PhysicsMode = 'off' | 'auto' | 'on'
 export interface WorldSettings {
   /** When true, Logic Board compile emits debug.log traces for rule conditions. */
   logicDebugTrace?: boolean
+  /** When true, runtime draws physics collider outlines while playing. */
+  physicsDebugDraw?: boolean
+  /** When true, status bar shows FPS and profiler timings during play. */
+  showRuntimeStats?: boolean
   gravity:        number   // m/s^2 (world vertical gravity, Y-down)
   pixelsPerMeter: number   // metric scale, e.g. 100 px = 1 m
   timeScale:      number   // engine speed multiplier (0..2, 1 = normal)

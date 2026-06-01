@@ -27,8 +27,11 @@
 | **B** | `project-validator.ts` + save/compile integration | Done |
 | **C** | Raylib boundary doc + `app.cpp` splash via `Renderer` metrics | Done |
 | **D** | `world.logicDebugTrace` + architecture doc section | Done |
+| **E** | Extended validation UI, `project-health`, play gate, physics overlay, runtime stats | Done |
 
 Checkpoint: `cd editor; npm test -- --run` green.
+
+See [`docs/NORTH_STAR_ARCHITECTURE.md`](docs/NORTH_STAR_ARCHITECTURE.md) for principles and V2 vs report differences.
 
 ---
 

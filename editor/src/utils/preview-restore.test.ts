@@ -7,6 +7,7 @@ import {
 } from './preview-restore'
 import type { Action } from '../store/editor-store'
 import { clearLogicCompileCache } from './logic-board/logic-compile-service'
+import { clearProjectWorkbenchCache } from './project-health'
 import { BLANK_MAIN_LUA } from './project'
 
 function makeProject(overrides: Record<string, unknown> = {}) {
@@ -24,7 +25,10 @@ function makeProject(overrides: Record<string, unknown> = {}) {
 }
 
 describe('resolvePreviewMainLua', () => {
-  beforeEach(() => clearLogicCompileCache())
+  beforeEach(() => {
+    clearLogicCompileCache()
+    clearProjectWorkbenchCache()
+  })
 
   it('prefers openScripts content for mainScriptPath when no logic boards', () => {
     const project = makeProject()

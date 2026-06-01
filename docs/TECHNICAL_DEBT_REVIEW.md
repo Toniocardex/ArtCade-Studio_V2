@@ -18,7 +18,7 @@ Tutte le fasi del piano `Debito tecnico sync` sono in `main`:
 
 Findings risolti rispetto a questa review:
 
-- **P1** (drag entita resetta rotation/scale) - risolto in `editor-api.cpp`: il mouse-up legge il transform reale dal gateway prima di notificare React.
+- **P1** (drag entita resetta rotation/scale) - risolto in `editor-input-controller.cpp` (`onMouseUp` → `RuntimeEntityGateway::getAuthoringTransform`); test in `scene-gateway-test.cpp` + `editor-store.transform.test.ts`.
 - **P1** (tile painting puo perdere `onTilemapPainted` dopo rebind) - risolto rendendo merge-safe `bindWindowCallbacks` ed estraendo `buildRuntimeCallbacks` come unica fonte di verita.
 - **P2** (sync preview incompleto per modifiche Inspector) - risolto con `runtime-fingerprint.ts`, che ora copre tint/alpha/pivot/renderOrder, className, tags, componenti ECS, viewport e tilemap meta. La canalizzazione `editor_load_project` passa per `RuntimeSyncService.syncProject()`.
 - **P2** (click/drag puo marcare dirty senza cambio reale) - equality guard a `1e-4` nel reducer `UPDATE_ENTITY_TRANSFORM`.
@@ -78,38 +78,16 @@ Il sync Inspector→preview e stato consolidato con `RuntimeSyncService` + `runt
 
 ## Findings Prioritari
 
-### P1 - Drag entita resetta rotation/scale
+### P1 - Drag entita resetta rotation/scale — **RISOLTO**
 
-**Area:** Runtime WASM / EditorAPI  
-**File:** `runtime-cpp/src/modules/editor-api/src/editor-api.cpp`
+**Area:** Runtime WASM / Editor input  
+**File:** `runtime-cpp/src/modules/editor-api/src/editor-input-controller.cpp`, `runtime-entity-gateway.cpp`
 
-Nel mouse-up del drag entita, il runtime notifica React con:
+**Causa:** il mouse-up notificava React con `rotation=0` e `scale=(1,1)` invece dei valori ECS.
 
-```cpp
-notifyTransformChanged(s_selectedEntityId, finalX, finalY, 0.f, 1.f, 1.f);
-```
+**Fix:** `getAuthoringTransform()` (registry, poi fallback `EntityDef`); `onMouseUp` notifica solo se il transform e leggibile; nessun default `{0,1,1}`.
 
-Questo significa che un'entita gia ruotata o scalata puo perdere rotation/scale quando viene trascinata dal canvas. La posizione e corretta, ma i valori non modificati vengono sovrascritti da default.
-
-**Impatto:**
-
-- Possibile perdita dati nel ProjectDoc.
-- Inspector e runtime possono divergere.
-- Il bug e facile da attivare quando si usa lo scale nell'Inspector e poi si trascina dal canvas.
-
-**Soluzione consigliata:**
-
-- In `onMouseUp`, leggere l'entita corrente dal `RuntimeEntityGateway`.
-- Notificare React con rotation e scale reali:
-  - `ent->transform.rotation`
-  - `ent->transform.scale.x`
-  - `ent->transform.scale.y`
-- Aggiungere test manuale:
-  - impostare scale `3,1`;
-  - trascinare dal canvas;
-  - verificare che scale resti `3,1`.
-
-**Priorita:** Alta. Da correggere prima di nuove feature editor.
+**Verifica:** test C++ in `scene-gateway-test.cpp`; Vitest `preserves rotation and scale when canvas drag updates position only (P1)`; smoke manuale: scale `3,1` in Inspector → trascina dal canvas → scale invariata.
 
 ### P1 - Tile painting puo smettere di persistere dopo rebind canvas
 

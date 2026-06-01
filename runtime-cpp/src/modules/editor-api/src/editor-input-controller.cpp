@@ -147,7 +147,7 @@ EM_BOOL EditorAPI::onMouseMove(int, const EmscriptenMouseEvent* e, void*) {
         snapWorldToEditorGrid(wx, wy);
         if (s_entityGateway) {
             Transform transform{};
-            if (s_entityGateway->getTransform(s_selectedEntityId, transform)) {
+            if (s_entityGateway->getAuthoringTransform(s_selectedEntityId, transform)) {
                 transform.position.x = wx;
                 transform.position.y = wy;
                 s_entityGateway->setTransform(s_selectedEntityId, transform);
@@ -199,25 +199,15 @@ EM_BOOL EditorAPI::onMouseUp(int, const EmscriptenMouseEvent* e, void*) {
     if (s_editorTool == ToolPan) return EM_TRUE;  // panning: no transform notify
     if (s_tilePaintMode)         return EM_TRUE;  // painting: no transform notify
 
-    if (s_selectedEntityId != 0u) {
-        // Preserve rotation/scale: the live drag in onMouseMove only updates
-        // position. Hard-coding {0, 1, 1} silently reverted a rotated or
-        // scaled entity on every canvas drag (P1 — TECHNICAL_DEBT_REVIEW).
-        // Read the real transform from the gateway so React stays in sync.
-        float finalX, finalY;
-        toWorld(e, finalX, finalY);
-        float rot = 0.f, sx = 1.f, sy = 1.f;
-        if (s_entityGateway) {
-            Transform transform{};
-            if (s_entityGateway->getTransform(s_selectedEntityId, transform)) {
-                finalX = transform.position.x;
-                finalY = transform.position.y;
-                rot    = transform.rotation;
-                sx     = transform.scale.x;
-                sy     = transform.scale.y;
-            }
-        }
-        notifyTransformChanged(s_selectedEntityId, finalX, finalY, rot, sx, sy);
+    if (s_selectedEntityId != 0u && s_entityGateway) {
+        // P1: mouse-up must echo rotation/scale from the gateway, never {0,1,1}.
+        // onMouseMove only mutates position; skip notify if transform is unknown.
+        Transform transform{};
+        if (s_entityGateway->getAuthoringTransform(s_selectedEntityId, transform))
+            notifyTransformChanged(s_selectedEntityId,
+                transform.position.x, transform.position.y,
+                transform.rotation,
+                transform.scale.x, transform.scale.y);
     }
     return EM_TRUE;
 }

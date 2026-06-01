@@ -17,6 +17,7 @@ int      EditorAPI::s_editorTool       = 0;
 bool     EditorAPI::s_editorGuidesEnabled = true;
 float    EditorAPI::s_editorGridSize   = 32.f;
 bool     EditorAPI::s_editorSnapEnabled = false;
+bool     EditorAPI::s_physicsDebugDraw  = false;
 Modules::RuntimeEntityGateway* EditorAPI::s_entityGateway = nullptr;
 Modules::LuaHost*              EditorAPI::s_luaHost       = nullptr;
 Modules::Renderer*             EditorAPI::s_renderer      = nullptr;
@@ -28,6 +29,39 @@ EditorPreviewRestoreHandler    EditorAPI::s_onPreviewRestore{};
 EditorEnterPlayHandler         EditorAPI::s_onEnterPlay{};
 EditorExitPlayHandler          EditorAPI::s_onExitPlay{};
 std::vector<std::pair<std::string, std::string>> EditorAPI::s_consoleQueue;
+
+void EditorAPI::publishRuntimeProfile(const float fps,
+                                      const float luaMs,
+                                      const float physicsMs,
+                                      const float renderMs,
+                                      const uint32_t entityCount,
+                                      const uint32_t physicsBodies) {
+    (void)fps;
+    (void)luaMs;
+    (void)physicsMs;
+    (void)renderMs;
+    (void)entityCount;
+    (void)physicsBodies;
+}
+
+void EditorAPI::notifyRuntimeProfile(const float fps,
+                                    const float luaMs,
+                                    const float physicsMs,
+                                    const float renderMs,
+                                    const uint32_t entityCount,
+                                    const uint32_t physicsBodies) {
+    (void)fps;
+    (void)luaMs;
+    (void)physicsMs;
+    (void)renderMs;
+    (void)entityCount;
+    (void)physicsBodies;
+}
+
+const float* EditorAPI::runtimeProfileBuffer() {
+    static float zeros[6] = {};
+    return zeros;
+}
 
 } // namespace ArtCade
 
@@ -155,6 +189,7 @@ int      EditorAPI::s_editorTool       = 0;
 bool     EditorAPI::s_editorGuidesEnabled = true;
 float    EditorAPI::s_editorGridSize   = 32.f;
 bool     EditorAPI::s_editorSnapEnabled = false;
+bool     EditorAPI::s_physicsDebugDraw  = false;
 
 Modules::RuntimeEntityGateway* EditorAPI::s_entityGateway = nullptr;
 Modules::LuaHost*              EditorAPI::s_luaHost       = nullptr;
@@ -167,6 +202,28 @@ EditorPreviewRestoreHandler    EditorAPI::s_onPreviewRestore{};
 EditorEnterPlayHandler         EditorAPI::s_onEnterPlay{};
 EditorExitPlayHandler          EditorAPI::s_onExitPlay{};
 std::vector<std::pair<std::string, std::string>> EditorAPI::s_consoleQueue;
+
+namespace {
+float s_runtimeProfile[6] = {};
+} // namespace
+
+void EditorAPI::publishRuntimeProfile(const float fps,
+                                      const float luaMs,
+                                      const float physicsMs,
+                                      const float renderMs,
+                                      const uint32_t entityCount,
+                                      const uint32_t physicsBodies) {
+    s_runtimeProfile[0] = fps;
+    s_runtimeProfile[1] = luaMs;
+    s_runtimeProfile[2] = physicsMs;
+    s_runtimeProfile[3] = renderMs;
+    s_runtimeProfile[4] = static_cast<float>(entityCount);
+    s_runtimeProfile[5] = static_cast<float>(physicsBodies);
+}
+
+const float* EditorAPI::runtimeProfileBuffer() {
+    return s_runtimeProfile;
+}
 
 namespace {
 
@@ -270,6 +327,19 @@ void EditorAPI::notifyConsoleLine(const char* message, const char* level) {
         if (typeof window.onConsoleLine === 'function')
             window.onConsoleLine(msg, lvl);
     }, message, level);
+}
+
+void EditorAPI::notifyRuntimeProfile(const float fps,
+                                    const float luaMs,
+                                    const float physicsMs,
+                                    const float renderMs,
+                                    const uint32_t entityCount,
+                                    const uint32_t physicsBodies) {
+    EM_ASM({
+        if (typeof window.onRuntimeProfile === 'function')
+            window.onRuntimeProfile($0, $1, $2, $3, $4, $5);
+    }, fps, luaMs, physicsMs, renderMs,
+       static_cast<int>(entityCount), static_cast<int>(physicsBodies));
 }
 
 void EditorAPI::notifyTilemapPainted(int col, int row, int tileId) {
@@ -553,6 +623,14 @@ bool loadProjectFromJson(const char* json_utf8, ProjectLoadKind kind,
         const ArtCade::ProjectRuntimeSettings runtimeSettings =
             Parser::parseRuntimeSettings(doc);
 
+        ArtCade::EditorAPI::s_physicsDebugDraw = false;
+        if (doc.contains("world") && doc["world"].is_object()) {
+            const auto& wo = doc["world"];
+            if (wo.contains("physicsDebugDraw"))
+                ArtCade::EditorAPI::s_physicsDebugDraw =
+                    wo["physicsDebugDraw"].get<bool>();
+        }
+
         if (kind == ProjectLoadKind::HotSync) {
             if (ArtCade::EditorAPI::s_onProjectLoaded)
                 ArtCade::EditorAPI::s_onProjectLoaded(
@@ -758,6 +836,10 @@ EMSCRIPTEN_KEEPALIVE void editor_set_scene_settings(
 
 EMSCRIPTEN_KEEPALIVE int editor_reload_script(const char* lua_utf8) {
     return loadLuaFromUtf8(lua_utf8);
+}
+
+EMSCRIPTEN_KEEPALIVE const float* editor_get_runtime_profile() {
+    return ArtCade::EditorAPI::runtimeProfileBuffer();
 }
 
 EMSCRIPTEN_KEEPALIVE void editor_load_dialogs(const char* json_utf8) {

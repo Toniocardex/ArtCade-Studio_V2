@@ -1,4 +1,8 @@
 import { runtimeAssetPath, WASM_BINARY_URL } from './runtime-path'
+import {
+  getRuntimeProfileSample,
+  type RuntimeProfileSample,
+} from './runtime-profile-buffer'
 
 // ---------------------------------------------------------------------------
 // wasm-bridge.ts — React ↔ C++ WASM bridge
@@ -35,6 +39,7 @@ export interface ArtCadeModule {
   _malloc(size: number): number
   _free(ptr: number): void
   HEAPU8: Uint8Array
+  HEAPF32: Float32Array
 
   print?:    (text: string) => void
   printErr?: (text: string) => void
@@ -48,6 +53,14 @@ declare global {
     onEntityTransformChanged?:    (entityId: number, x: number, y: number,
                                    rot: number, sx: number, sy: number) => void
     onConsoleLine?:               (message: string, level: string) => void
+    onRuntimeProfile?:            (
+      fps: number,
+      luaMs: number,
+      physicsMs: number,
+      renderMs: number,
+      entityCount: number,
+      physicsBodies: number,
+    ) => void
     onTilemapPainted?:            (col: number, row: number, tileId: number) => void
     onSpriteFillColor?:           (entityId: number, r: number, g: number, b: number) => void
     onEditorCursorWorld?:         (x: number, y: number) => void
@@ -160,6 +173,7 @@ export function bindWindowCallbacks(cbs: Partial<WasmCallbacks>): void {
   if (cbs.onEntitySelected)         g.onEntitySelected         = cbs.onEntitySelected
   if (cbs.onEntityTransformChanged) g.onEntityTransformChanged = cbs.onEntityTransformChanged
   if (cbs.onConsoleLine)            g.onConsoleLine            = cbs.onConsoleLine
+  if (cbs.onRuntimeProfile)         g.onRuntimeProfile         = cbs.onRuntimeProfile
   if (cbs.onTilemapPainted)         g.onTilemapPainted         = cbs.onTilemapPainted
   if (cbs.onSpriteFillColor)        g.onSpriteFillColor        = cbs.onSpriteFillColor
   if (cbs.onEditorCursorWorld)      g.onEditorCursorWorld      = cbs.onEditorCursorWorld
@@ -250,6 +264,14 @@ export interface WasmCallbacks {
   onEntityTransformChanged: (entityId: number, x: number, y: number,
                              rot: number, sx: number, sy: number) => void
   onConsoleLine:            (message: string, level: string) => void
+  onRuntimeProfile?:        (
+    fps: number,
+    luaMs: number,
+    physicsMs: number,
+    renderMs: number,
+    entityCount: number,
+    physicsBodies: number,
+  ) => void
   onTilemapPainted?:        (col: number, row: number, tileId: number) => void
   onSpriteFillColor?:       (entityId: number, r: number, g: number, b: number) => void
   onEditorCursorWorld?:     (x: number, y: number) => void
@@ -714,6 +736,28 @@ export function editorSetSceneSettings(sceneId: string, sceneJson: string): void
   } finally {
     _module._free(jsonPtr)
     _module._free(idPtr)
+  }
+}
+
+export type RuntimeProfileSnapshot = RuntimeProfileSample
+
+/** Last frame profiler snapshot (push callback preferred, ccall fallback). */
+export function getRuntimeProfile(): RuntimeProfileSnapshot | null {
+  const pushed = getRuntimeProfileSample()
+  if (pushed.fps > 0) return pushed
+
+  if (!_module) return null
+  const raw = safeCcallNumber('editor_get_runtime_profile', [], [])
+  if (!raw) return null
+  const heap = _module.HEAPF32
+  const base = raw >> 2
+  return {
+    fps: heap[base] ?? 0,
+    luaMs: heap[base + 1] ?? 0,
+    physicsMs: heap[base + 2] ?? 0,
+    renderMs: heap[base + 3] ?? 0,
+    entityCount: heap[base + 4] ?? 0,
+    physicsBodies: heap[base + 5] ?? 0,
   }
 }
 

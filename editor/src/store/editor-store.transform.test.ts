@@ -98,6 +98,20 @@ describe('UPDATE_ENTITY_TRANSFORM equality guard', () => {
     expect(next.project?.entities[1].transform.scale.x).toBe(3)
   })
 
+  it('preserves rotation and scale when canvas drag updates position only (P1)', () => {
+    const s = makeState()
+    const next = coreReducer(s, {
+      type: 'UPDATE_ENTITY_TRANSFORM',
+      entityId: 1,
+      x: 110, y: 210,
+      rotation: 0.5,
+      scaleX: 2, scaleY: 1,
+    })
+    expect(next.project?.entities[1].transform.rotation).toBe(0.5)
+    expect(next.project?.entities[1].transform.scale.x).toBe(2)
+    expect(next.project?.entities[1].transform.scale.y).toBe(1)
+  })
+
   it('ignores UPDATE_ENTITY_TRANSFORM while isPlaying', () => {
     const s = { ...makeState(), isPlaying: true }
     const next = coreReducer(s, {

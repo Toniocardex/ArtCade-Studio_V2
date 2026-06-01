@@ -160,14 +160,21 @@ describe('runtimeProjectFingerprint', () => {
 })
 
 describe('runtimeProjectFingerprint', () => {
-  it('includes targetFPS and physicsMode', () => {
+  it('includes targetFPS and world digest', () => {
     const proj = makeProject({ targetFPS: 30, world: { physicsMode: 'off' } as never })
     const fp = JSON.parse(runtimeProjectFingerprint(proj, 'scene_a')) as {
       fps: number
-      pm: string
+      wd: string
     }
     expect(fp.fps).toBe(30)
-    expect(fp.pm).toBe('off')
+    expect(fp.wd).toContain('"pm":"off"')
+  })
+
+  it('changes when physicsDebugDraw toggles', () => {
+    const base = makeProject()
+    const withDebug = makeProject({ world: { physicsDebugDraw: true } as never })
+    expect(runtimeProjectFingerprint(base, 'scene_a'))
+      .not.toBe(runtimeProjectFingerprint(withDebug, 'scene_a'))
   })
 })
 

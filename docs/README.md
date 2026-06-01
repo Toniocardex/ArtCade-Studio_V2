@@ -13,6 +13,10 @@
 
 **Parte I:** glossario (Logic Board / Event / Component, ECS, …). **Parte II:** formato tabellare when/then. **Parte III:** specifica tecnica Logic Board (JSON event-centric, compilatore TS→Lua, UI, MVP). **Parte IV:** puntatori a documenti satellite. Contratti nel SPEC; principio prodotto **`ARTIST_FRIENDLY_COMPONENTS.md`** (~5 min); **`LOGIC_BOARD_UX_CHARTER.md`** (~5 min, When/If/Then artist-first); **`LOGIC_BOARD_DESIGN_GUIDELINES.md`** (~5 min); condizionali OR/ELSE e branch flow: **`LOGIC_BOARD_CONDITIONAL_DESIGN.md`** (~10 min).
 
+### 0.5️⃣ **NORTH_STAR_ARCHITECTURE.md** — Principi e confini V2 (15 min)
+
+Riferimento unico allineato al report struttura ArtCade, con sezione **Come differisce V2** (React, ECS, compile-to-Lua, `.artcade`). Usalo prima di proporre refactor massicci.
+
 ### 1️⃣ **ARCHITECTURAL_RATIONALE.md** — Il PERCHÉ (20–30 min) ⭐ INIZIO QUI
 
 Inizia QUI se vuoi capire il **razionale** dietro ogni decisione.

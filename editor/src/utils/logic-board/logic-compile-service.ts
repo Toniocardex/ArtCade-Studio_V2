@@ -40,6 +40,11 @@ export interface CompileProjectLogicOptions {
 
 const lastGoodLuaByProjectKey = new Map<string, string>()
 
+/** Full structural validation applies only when a scene graph is present. */
+function hasProjectStructure(project: ProjectDoc): boolean {
+  return Object.keys(project.scenes ?? {}).length > 0
+}
+
 export function clearLogicCompileCache(projectKey?: string): void {
   if (projectKey === undefined) {
     lastGoodLuaByProjectKey.clear()
@@ -101,9 +106,10 @@ export function compileProjectLogic(
   options?: CompileProjectLogicOptions,
 ): CompileProjectLogicResult {
   const configDiagnostics = collectConfigDiagnostics(project)
-  const projectErrors = project
-    ? projectDiagnosticsErrors(collectProjectDiagnostics(project))
-    : []
+  const projectErrors =
+    project && hasProjectStructure(project)
+      ? projectDiagnosticsErrors(collectProjectDiagnostics(project))
+      : []
   const boards = project?.logicBoards ?? []
   const cacheKey = resolveProjectKey(project, options)
 
@@ -138,7 +144,7 @@ export function compileProjectLogic(
     const lua = compileLogicBoard(boards, project, {
       logicDebugTrace:
         options?.logicDebugTrace === true ||
-        project.world?.logicDebugTrace === true,
+        project?.world?.logicDebugTrace === true,
     })
     lastGoodLuaByProjectKey.set(cacheKey, lua)
     return {

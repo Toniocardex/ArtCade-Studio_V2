@@ -8,7 +8,7 @@ export function WorldSettingsSection() {
   const { state, dispatch } = useEditor()
   const w = { ...DEFAULT_WORLD, ...state.project?.world }
 
-  const num = (label: string, key: keyof typeof w, step: number) => (
+  const num = (label: string, key: 'gravity' | 'pixelsPerMeter', step: number) => (
     <div className="flex items-center justify-between gap-2 mb-2">
       <span className="text-[9px] text-[var(--muted)] uppercase">{label}</span>
       <input
@@ -56,6 +56,39 @@ export function WorldSettingsSection() {
           Auto skips physics for pure transform / platformer-only scenes. Sensors need On or bodies in Auto.
         </p>
       </div>
+      <label className="flex items-center gap-2 mb-2 cursor-pointer select-none">
+        <input
+          type="checkbox"
+          checked={w.logicDebugTrace === true}
+          onChange={(e) =>
+            dispatch({ type: 'WORLD_SET', patch: { logicDebugTrace: e.target.checked } })
+          }
+          className="accent-[var(--accent-2)]"
+        />
+        <span className="text-[10px] text-[var(--text)]">Logic Board debug trace (console)</span>
+      </label>
+      <label className="flex items-center gap-2 mb-2 cursor-pointer select-none">
+        <input
+          type="checkbox"
+          checked={w.physicsDebugDraw === true}
+          onChange={(e) =>
+            dispatch({ type: 'WORLD_SET', patch: { physicsDebugDraw: e.target.checked } })
+          }
+          className="accent-[var(--accent-2)]"
+        />
+        <span className="text-[10px] text-[var(--text)]">Physics collider overlay (play)</span>
+      </label>
+      <label className="flex items-center gap-2 mb-2 cursor-pointer select-none">
+        <input
+          type="checkbox"
+          checked={w.showRuntimeStats === true}
+          onChange={(e) =>
+            dispatch({ type: 'WORLD_SET', patch: { showRuntimeStats: e.target.checked } })
+          }
+          className="accent-[var(--accent-2)]"
+        />
+        <span className="text-[10px] text-[var(--text)]">Runtime stats in status bar (play)</span>
+      </label>
       <div>
         <div className="flex justify-between items-center mb-1">
           <span className="text-[9px] text-[var(--muted)] uppercase">Time Scale</span>

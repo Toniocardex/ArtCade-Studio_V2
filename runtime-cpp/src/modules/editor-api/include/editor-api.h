@@ -161,6 +161,12 @@ public:
 
     /** Engine / Lua debug.log() -> React Console panel. */
     static void notifyConsoleLine(const char* message, const char* level = "info");
+    static void notifyRuntimeProfile(float fps,
+                                     float luaMs,
+                                     float physicsMs,
+                                     float renderMs,
+                                     uint32_t entityCount,
+                                     uint32_t physicsBodies);
     static void queueConsoleLine(const char* message, const char* level = "info");
     static void flushConsoleLines();
 
@@ -195,6 +201,17 @@ public:
     static float    s_editorGridSize;
     /** Scene-settings "Snap while editing" — live magnetism during canvas drag. */
     static bool     s_editorSnapEnabled;
+    /** World Settings → draw collider outlines in play mode (from project JSON). */
+    static bool     s_physicsDebugDraw;
+
+    /** Last frame timings for editor status bar (WASM); see publishRuntimeProfile(). */
+    static void publishRuntimeProfile(float fps,
+                                      float luaMs,
+                                      float physicsMs,
+                                      float renderMs,
+                                      uint32_t entityCount,
+                                      uint32_t physicsBodies);
+    static const float* runtimeProfileBuffer();
 
     // Engine pointers wired in wireEngine() / wireLua() / wireDialog()
     static Modules::RuntimeEntityGateway* s_entityGateway;
@@ -305,6 +322,9 @@ EMSCRIPTEN_KEEPALIVE int editor_reload_script(const char* lua_utf8);
  */
 EMSCRIPTEN_KEEPALIVE void editor_load_dialogs(const char* json_utf8);
 
+/** Returns pointer to 6 floats: fps, luaMs, physicsMs, renderMs, entityCount, physicsBodies. */
+EMSCRIPTEN_KEEPALIVE const float* editor_get_runtime_profile();
+
 /** Phase F2: toggle in-scene tile painting (1 = on). */
 EMSCRIPTEN_KEEPALIVE void editor_set_tile_paint_mode(int enabled);
 
@@ -393,6 +413,7 @@ struct EditorAPI {
     static void notifyEntitySelected(uint32_t) {}
     static void notifyTransformChanged(uint32_t, float, float, float, float, float) {}
     static void notifyConsoleLine(const char*, const char* = nullptr) {}
+    static void notifyRuntimeProfile(float, float, float, float, uint32_t, uint32_t) {}
     static void queueConsoleLine(const char*, const char* = nullptr) {}
     static void flushConsoleLines() {}
     static void notifyTilemapPainted(int, int, int) {}

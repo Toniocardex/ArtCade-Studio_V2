@@ -57,4 +57,29 @@ describe('collectProjectDiagnostics', () => {
     delete p.entities[1]!.physics
     expect(projectDiagnosticsErrors(collectProjectDiagnostics(p))).toHaveLength(0)
   })
+
+  it('flags invalid activeSceneId', () => {
+    const p = baseProject()
+    p.activeSceneId = 'missing'
+    const errors = projectDiagnosticsErrors(collectProjectDiagnostics(p))
+    expect(errors.some((e) => e.message.includes('activeSceneId'))).toBe(true)
+  })
+
+  it('flags duplicate logic board ids', () => {
+    const p = baseProject()
+    p.logicBoards = [
+      {
+        boardId: 'dup',
+        target: { type: 'global' },
+        events: [],
+      },
+      {
+        boardId: 'dup',
+        target: { type: 'global' },
+        events: [],
+      },
+    ]
+    const errors = projectDiagnosticsErrors(collectProjectDiagnostics(p))
+    expect(errors.some((e) => e.message.includes('Duplicate Logic Board'))).toBe(true)
+  })
 })

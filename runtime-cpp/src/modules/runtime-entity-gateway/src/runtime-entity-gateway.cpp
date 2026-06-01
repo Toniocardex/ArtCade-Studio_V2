@@ -449,6 +449,16 @@ bool RuntimeEntityGateway::getTransform(EntityId id, Transform& out) const {
     return registry_->getTransform(id, out);
 }
 
+bool RuntimeEntityGateway::getAuthoringTransform(EntityId id, Transform& out) const {
+    if (getTransform(id, out))
+        return true;
+    if (const EntityDef* def = sceneManager_.getEntityDef(id)) {
+        out = def->transform;
+        return true;
+    }
+    return false;
+}
+
 bool RuntimeEntityGateway::setTransform(EntityId id, const Transform& transform) {
     if (!registry_->contains(id)) return false;
     Transform previous{};

@@ -3,6 +3,7 @@
 // ---------------------------------------------------------------------------
 
 import type { ProjectDoc } from '../types'
+import type { LogicBoard } from '../types/logic-board'
 
 export type ProjectDiagnosticSeverity = 'error' | 'warn'
 
@@ -19,11 +20,114 @@ function objectTypeSpriteAssetId(project: ProjectDoc, typeId: string): string | 
   return ot.sprite.spriteAssetId
 }
 
+function classNameExists(project: ProjectDoc, className: string): boolean {
+  if (project.objectTypes?.[className]) return true
+  return Object.values(project.entities ?? {}).some((e) => e.className === className)
+}
+
+function collectLogicBoardTargetDiagnostics(
+  project: ProjectDoc,
+  boards: LogicBoard[],
+): ProjectDiagnostic[] {
+  const out: ProjectDiagnostic[] = []
+  const types = project.objectTypes ?? {}
+  const seenBoardIds = new Set<string>()
+
+  for (const board of boards) {
+    if (seenBoardIds.has(board.boardId)) {
+      out.push({
+        severity: 'error',
+        context: `board:${board.boardId}`,
+        message: `Duplicate Logic Board id "${board.boardId}".`,
+      })
+    }
+    seenBoardIds.add(board.boardId)
+
+    const label = board.name?.trim() || board.boardId
+    const t = board.target
+    if (t.type === 'object_type') {
+      const id = t.objectTypeId?.trim()
+      if (!id) {
+        out.push({
+          severity: 'error',
+          context: `board:${board.boardId}`,
+          message: `Logic Board "${label}" targets object_type but objectTypeId is empty.`,
+        })
+      } else if (!types[id]) {
+        out.push({
+          severity: 'error',
+          context: `board:${board.boardId}`,
+          message: `Logic Board "${label}" references unknown object type "${id}".`,
+        })
+      }
+    }
+    if (t.type === 'entity_class') {
+      const cn = t.className?.trim()
+      if (!cn) {
+        out.push({
+          severity: 'error',
+          context: `board:${board.boardId}`,
+          message: `Logic Board "${label}" targets entity_class but className is empty.`,
+        })
+      } else if (!classNameExists(project, cn)) {
+        out.push({
+          severity: 'warn',
+          context: `board:${board.boardId}`,
+          message: `Logic Board "${label}" references class "${cn}" with no matching object type or entity.`,
+        })
+      }
+    }
+    if (t.type === 'entity_id') {
+      const eid = t.entityId
+      if (eid == null || !project.entities[eid]) {
+        out.push({
+          severity: 'error',
+          context: `board:${board.boardId}`,
+          message: `Logic Board "${label}" references missing entity id ${String(eid)}.`,
+        })
+      }
+    }
+
+  }
+
+  return out
+}
+
 export function collectProjectDiagnostics(project: ProjectDoc): ProjectDiagnostic[] {
   const out: ProjectDiagnostic[] = []
   const assets = project.assets ?? {}
-  const audio = project.audioAssets ?? {}
   const types = project.objectTypes ?? {}
+  const scenes = project.scenes ?? {}
+
+  if (Object.keys(scenes).length === 0) {
+    out.push({
+      severity: 'error',
+      message: 'Project has no scenes.',
+    })
+  }
+
+  const activeId = project.activeSceneId?.trim()
+  if (!activeId) {
+    out.push({
+      severity: 'error',
+      message: 'activeSceneId is not set.',
+    })
+  } else if (!scenes[activeId]) {
+    out.push({
+      severity: 'error',
+      context: `scene:${activeId}`,
+      message: `activeSceneId "${activeId}" does not match any scene.`,
+    })
+  }
+
+  if ((project.logicBoards?.length ?? 0) > 0 && !project.mainScriptPath?.trim()) {
+    out.push({
+      severity: 'warn',
+      message: 'Logic boards exist but mainScriptPath is empty (compile output may not load).',
+    })
+  }
+
+  out.push(...collectLogicBoardTargetDiagnostics(project, project.logicBoards ?? []))
 
   for (const [id, ent] of Object.entries(project.entities ?? {})) {
     const numId = Number(id)
@@ -93,6 +197,10 @@ export function collectProjectDiagnostics(project: ProjectDoc): ProjectDiagnosti
 
 export function projectDiagnosticsErrors(diagnostics: ProjectDiagnostic[]): ProjectDiagnostic[] {
   return diagnostics.filter((d) => d.severity === 'error')
+}
+
+export function projectDiagnosticsWarnings(diagnostics: ProjectDiagnostic[]): ProjectDiagnostic[] {
+  return diagnostics.filter((d) => d.severity === 'warn')
 }
 
 export function formatProjectDiagnostics(diagnostics: ProjectDiagnostic[]): string | null {

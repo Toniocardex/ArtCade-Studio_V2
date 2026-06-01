@@ -20,7 +20,8 @@
 // For an MVP this is enough: a 100-entity scene serialises in < 1 ms on the
 // dev machine and only happens after the store actually changed.
 
-import type { EntityDef, ProjectDoc, SceneDef, Vec2, Vec4 } from '../types'
+import type { EntityDef, ProjectDoc, SceneDef, Vec2, Vec4, WorldSettings } from '../types'
+import { DEFAULT_WORLD } from '../types'
 import { resolveClipForEntity } from './entity-clip-resolve'
 import { entitiesForRuntimeSync } from './project-object-types'
 
@@ -89,10 +90,23 @@ export interface RuntimeProjection {
   pv: string                 // version
   as: string                 // activeSceneId
   fps: number                // targetFPS
-  pm: string                 // world.physicsMode (auto | on | off)
+  /** World settings consumed by WASM (gravity, physicsMode, physicsDebugDraw, …). */
+  wd: string
   msp: string                // mainScriptPath
   entities: FpEntity[]
   scenes: FpScene[]
+}
+
+/** Stable digest of runtime-facing WorldSettings (excludes editor-only flags). */
+export function worldRuntimeDigest(world?: WorldSettings): string {
+  const w = { ...DEFAULT_WORLD, ...world }
+  return JSON.stringify({
+    g: w.gravity,
+    ppm: w.pixelsPerMeter,
+    ts: w.timeScale,
+    pm: w.physicsMode ?? 'auto',
+    pdb: w.physicsDebugDraw === true,
+  })
 }
 
 /** TypeScript contract mirrored by C++ `ProjectRuntimeSettings` (see types.h). */
@@ -171,7 +185,7 @@ export function runtimeProjectProjection(
     pv:  project.version,
     as:  activeSceneId,
     fps: project.targetFPS,
-    pm:  project.world?.physicsMode ?? 'auto',
+    wd:  worldRuntimeDigest(project.world),
     msp: project.mainScriptPath,
     entities: entityIds.map((id) => projectEntity(project, entities[id])),
     scenes:   sceneIds.map((id) => projectScene(project.scenes[id])),
@@ -185,7 +199,7 @@ export function runtimeProjectProjection(
  *
  * Excluded by design: `tilemap.data` (live painting echoes through React
  * separately), `thumbnails`, `logicBoards` (compiled by the save pipeline
- * before reaching the runtime), `licenseTier`. Physics mode is included via `pm`.
+ * before reaching the runtime), `licenseTier`. World settings via `wd`.
  */
 export function runtimeProjectFingerprint(
   project: ProjectDoc,

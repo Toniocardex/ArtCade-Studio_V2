@@ -15,6 +15,7 @@ describe('bindWindowCallbacks (merge-safe)', () => {
     delete win.onEntitySelected
     delete win.onEntityTransformChanged
     delete win.onConsoleLine
+    delete win.onRuntimeProfile
   })
 
   it('binds all callbacks on first call', () => {
@@ -77,6 +78,24 @@ describe('bindWindowCallbacks (merge-safe)', () => {
       onTilemapPainted: second,
     })
     expect(win.onTilemapPainted).toBe(second)
+  })
+
+  it('preserves onRuntimeProfile when a later rebind omits it', () => {
+    const onRuntimeProfile = () => {}
+    bindWindowCallbacks({
+      onReady: () => {},
+      onEntitySelected: () => {},
+      onEntityTransformChanged: () => {},
+      onConsoleLine: () => {},
+      onRuntimeProfile,
+    })
+    bindWindowCallbacks({
+      onReady: () => {},
+      onEntitySelected: () => {},
+      onEntityTransformChanged: () => {},
+      onConsoleLine: () => {},
+    })
+    expect(win.onRuntimeProfile).toBe(onRuntimeProfile)
   })
 
   it('preserves onEditorCursorWorld when a later rebind omits it', () => {

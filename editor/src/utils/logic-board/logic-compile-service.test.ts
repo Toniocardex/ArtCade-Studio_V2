@@ -31,9 +31,41 @@ function invalidGlobalBoard(): LogicBoard {
 
 function project(boards: LogicBoard[], path = '/proj/game.artcade'): ProjectDoc {
   return {
-    logicBoards: boards,
+    projectName: 'T',
+    version: '1',
+    targetFPS: 60,
+    activeSceneId: 's',
     mainScriptPath: 'scripts/main.lua',
-  } as ProjectDoc
+    entities: {
+      1: {
+        id: 1,
+        name: 'E',
+        className: 'E',
+        tags: [],
+        transform: { position: { x: 0, y: 0 }, scale: { x: 1, y: 1 }, rotation: 0 },
+        sprite: {
+          spriteAssetId: '',
+          tint: { x: 1, y: 1, z: 1, w: 1 },
+          fillColor: { x: 0.5, y: 0.5, z: 0.5 },
+          alpha: 1,
+          pivot: { x: 0.5, y: 0.5 },
+          renderOrder: 0,
+        },
+        visible: true,
+      },
+    },
+    scenes: {
+      s: {
+        id: 's',
+        name: 'S',
+        worldSize: { x: 800, y: 600 },
+        viewportSize: { x: 800, y: 600 },
+        backgroundColor: { x: 0, y: 0, z: 0, w: 1 },
+        entityIds: [1],
+      },
+    },
+    logicBoards: boards,
+  }
 }
 
 describe('compileProjectLogic', () => {

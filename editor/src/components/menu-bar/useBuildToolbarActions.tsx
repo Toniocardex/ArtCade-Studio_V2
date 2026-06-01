@@ -12,11 +12,11 @@ import {
   messageForEditorApiCode,
   type PreviewTransitionBundle,
 } from '../../utils/runtime-sync-service'
+import { logLogicBoardCompileFailure } from '../../utils/preview-restore'
 import {
-  logLogicBoardCompileFailure,
-  resolvePreviewMainLua,
-  resolvePreviewMainLuaWithStatus,
-} from '../../utils/preview-restore'
+  formatHealthSummary,
+  getProjectWorkbenchSnapshot,
+} from '../../utils/project-health'
 import type { Action as EditorAction, CoreState } from '../../store/editor-store'
 import type { ProjectDoc } from '../../types'
 import type { DialogScript } from '../../utils/dialog/dialog-script'
@@ -88,11 +88,33 @@ export function useBuildToolbarActions({
     const activeSceneId = selectionSceneId ?? project.activeSceneId
     let mainLua: string
     if (isPlaying) {
-      mainLua = resolvePreviewMainLua({ project, openScripts, projectPath })
+      mainLua = getProjectWorkbenchSnapshot({
+        project,
+        projectPath,
+        openScripts,
+        includeCompile: true,
+      }).previewLua.lua
     } else {
-      const resolved = resolvePreviewMainLuaWithStatus({ project, openScripts, projectPath })
-      logLogicBoardCompileFailure(dispatch, resolved.compileError, makeConsoleEntry)
-      mainLua = resolved.lua
+      const workbench = getProjectWorkbenchSnapshot({
+        project,
+        projectPath,
+        openScripts,
+        includeCompile: true,
+      })
+      if (workbench.health.blocksPlay) {
+        const summary = formatHealthSummary(workbench.health)
+        dispatch({
+          type: 'LOG',
+          entry: makeConsoleEntry(
+            `[Preview] Play blocked — fix project issues first.${summary ? `\n${summary}` : ''}`,
+            'error',
+          ),
+        })
+        dispatch({ type: 'SET_CONSOLE_OPEN', open: true })
+        return
+      }
+      logLogicBoardCompileFailure(dispatch, workbench.previewLua.compileError, makeConsoleEntry)
+      mainLua = workbench.previewLua.lua
     }
 
     const bundle: PreviewTransitionBundle = {

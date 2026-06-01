@@ -39,7 +39,7 @@ export function planProjectSync(
     prev.as !== next.as ||
     prev.fps !== next.fps ||
     prev.msp !== next.msp ||
-    prev.pm !== next.pm
+    prev.wd !== next.wd
   ) {
     return { kind: 'full' }
   }

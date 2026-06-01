@@ -208,6 +208,26 @@ int main() {
                     sceneAfterDestroy->entityIds.end(), 2)
               == sceneAfterDestroy->entityIds.end());
 
+    // P1 editor canvas drag: position-only updates must keep rotation/scale.
+    EntityDef scaledPlayer = player;
+    scaledPlayer.transform.rotation = 0.75f;
+    scaledPlayer.transform.scale    = { 3.f, 1.f };
+    scaledPlayer.transform.position = { 10.f, 20.f };
+    CHECK(gw.updateEntity(1, scaledPlayer));
+    Transform dragStart{};
+    CHECK(gw.getAuthoringTransform(1, dragStart));
+    CHECK(std::abs(dragStart.rotation - 0.75f) < 1e-4f);
+    CHECK(std::abs(dragStart.scale.x - 3.f) < 1e-4f);
+    dragStart.position = { 99.f, 88.f };
+    CHECK(gw.setTransform(1, dragStart));
+    Transform dragEnd{};
+    CHECK(gw.getAuthoringTransform(1, dragEnd));
+    CHECK(dragEnd.position.x == 99.f);
+    CHECK(dragEnd.position.y == 88.f);
+    CHECK(std::abs(dragEnd.rotation - 0.75f) < 1e-4f);
+    CHECK(std::abs(dragEnd.scale.x - 3.f) < 1e-4f);
+    CHECK(std::abs(dragEnd.scale.y - 1.f) < 1e-4f);
+
     gw.shutdown();
     sm.shutdown();
     vm.shutdown();

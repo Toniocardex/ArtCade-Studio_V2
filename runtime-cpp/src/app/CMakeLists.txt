@@ -79,6 +79,7 @@ if(EMSCRIPTEN)
         "_editor_preview_spritesheet_submit"
         "_editor_open_raytint"
         "_editor_close_raytint"
+        "_editor_get_runtime_profile"
         "_malloc"
         "_free"
     )

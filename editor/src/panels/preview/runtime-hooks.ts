@@ -28,6 +28,7 @@ import {
   scheduleWasmUiUpdate,
   scheduleWasmUiUpdateWhen,
 } from '../../utils/wasm-ui-scheduler'
+import { setRuntimeProfileSample } from '../../utils/runtime-profile-buffer'
 import type { ConsoleEntry, ProjectDoc, ScriptFile } from '../../types'
 import type { Action as EditorAction } from '../../store/editor-store'
 
@@ -102,6 +103,18 @@ export function buildRuntimeCallbacks(deps: RuntimeCallbackDeps): WasmCallbacks 
         if (cancelled() && !forceLog) return
         dispatch({ type: 'LOG', entry })
       }, { urgent: forceLog })
+    },
+    onRuntimeProfile: (
+      fps: number,
+      luaMs: number,
+      physicsMs: number,
+      renderMs: number,
+      entityCount: number,
+      physicsBodies: number,
+    ) => {
+      setRuntimeProfileSample({
+        fps, luaMs, physicsMs, renderMs, entityCount, physicsBodies,
+      })
     },
     onTilemapPainted: (col: number, row: number, tileId: number) => {
       if (cancelled()) return

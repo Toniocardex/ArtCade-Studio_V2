@@ -29,6 +29,7 @@ import {
 import { normalizeEntityPosition } from '../utils/entity-position'
 import { CanvasToolbar } from './preview/CanvasToolbar'
 import { RuntimeStatusBadge } from './preview/RuntimeStatusBadge'
+import { ProjectHealthBanner } from './preview/ProjectHealthBanner'
 
 type TransformSnapshot = {
   entityId: number
@@ -487,7 +488,12 @@ export default function PreviewPanel() {
         selectedTileCell={selectedTileCell}
         showGuides={showEditorGuides}
         onToggleGuides={() => setShowEditorGuides(v => !v)}
-        rightSlot={<RuntimeStatusBadge wasmReady={wasmReady} hasProject={!!project} />}
+        rightSlot={(
+          <div className="flex items-center gap-2">
+            <ProjectHealthBanner projectKey={projectPath} />
+            <RuntimeStatusBadge wasmReady={wasmReady} hasProject={!!project} />
+          </div>
+        )}
       />
 
       {/* Viewport area.

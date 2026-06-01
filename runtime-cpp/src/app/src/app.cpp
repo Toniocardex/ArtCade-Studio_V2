@@ -36,13 +36,59 @@
 #include "../render/ray-tint-widget.h"
 #include "../render/tilemap-renderer.h"
 
-#include <cstring>
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstring>
 #include <iostream>
 #include <memory>
 #include <vector>
+
+namespace {
+
+void drawPhysicsDebugColliders(ArtCade::Modules::Renderer& renderer,
+                               ArtCade::Modules::RuntimeEntityGateway& gateway,
+                               ArtCade::Modules::Physics& physics) {
+    gateway.forEachActivePhysicsBody(
+        [&](ArtCade::EntityId id, uint32_t handle, ArtCade::Transform& transform) {
+            ArtCade::PhysicsComponent pc{};
+            if (!gateway.getPhysicsComponent(id, pc)) return;
+            const ArtCade::Vec2 pos = physics.getPosition(handle);
+            const ArtCade::Vec2 vel = physics.getLinearVelocity(handle);
+            const ArtCade::Collider& col = pc.collider;
+            const float sx = std::abs(transform.scale.x);
+            const float sy = std::abs(transform.scale.y);
+            const float ox = col.offset.x * sx;
+            const float oy = col.offset.y * sy;
+
+            ArtCade::Vec4 color{0.2f, 1.f, 0.35f, 0.55f};
+            if (col.isSensor)
+                color = {1.f, 1.f, 0.2f, 0.5f};
+            else if (pc.bodyType == ArtCade::BodyType::Static)
+                color = {0.5f, 0.7f, 1.f, 0.5f};
+
+            if (col.shape == ArtCade::ColliderShape::Circle) {
+                const float r = col.size.x * std::max(sx, sy);
+                renderer.drawCircle(pos.x + ox, pos.y + oy, r, color);
+            } else {
+                const float w = col.size.x * sx;
+                const float h = col.size.y * sy;
+                renderer.drawRect(
+                    pos.x + ox - w * 0.5f, pos.y + oy - h * 0.5f, w, h, color);
+            }
+
+            const float vlen2 = vel.x * vel.x + vel.y * vel.y;
+            if (vlen2 > 4.f) {
+                const float inv = 0.05f / std::sqrt(vlen2);
+                renderer.drawLine(
+                    pos.x, pos.y,
+                    pos.x + vel.x * inv, pos.y + vel.y * inv,
+                    {0.2f, 1.f, 0.2f, 0.85f});
+            }
+        });
+}
+
+} // namespace
 
 namespace ArtCade {
 
@@ -625,6 +671,22 @@ void Application::tickFrameEnd() {
     EditorAPI::processSpritesheetPreviewQueue();
     mod_->input->resetFrameState();
     profiler_.endFrame();
+
+    if (mod_->renderer) {
+        const float dt = mod_->renderer->deltaTime();
+        const float fps = (dt > 1e-6f) ? (1.f / dt) : 0.f;
+        const auto snap = profiler_.snapshot();
+        EditorAPI::publishRuntimeProfile(
+            fps, static_cast<float>(snap.luaMs),
+            static_cast<float>(snap.physicsMs),
+            static_cast<float>(snap.renderMs),
+            snap.entityCount, snap.activePhysicsBodies);
+        EditorAPI::notifyRuntimeProfile(
+            fps, static_cast<float>(snap.luaMs),
+            static_cast<float>(snap.physicsMs),
+            static_cast<float>(snap.renderMs),
+            snap.entityCount, snap.activePhysicsBodies);
+    }
 }
 
 void Application::loopIteration() {
@@ -850,6 +912,11 @@ void Application::renderActiveScene() {
 
     if (mod_->dialogManager && mod_->dialogManager->isActive())
         mod_->dialogManager->render();
+
+    if (EditorAPI::s_physicsDebugDraw && !overlay.inEditMode && mod_->physics) {
+        drawPhysicsDebugColliders(
+            *mod_->renderer, *mod_->entityGateway, *mod_->physics);
+    }
 
     mod_->renderer->endWorldPass();
     RayTintWidget::draw();
