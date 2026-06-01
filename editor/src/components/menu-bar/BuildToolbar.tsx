@@ -47,7 +47,7 @@ export function BuildToolbar({
       : 'text-[var(--muted)] border-[var(--border)] bg-transparent cursor-not-allowed opacity-50'
 
   return (
-    <div className="flex items-center gap-2.5 editor-toolbar-workspace-end">
+    <div className="editor-toolbar-cluster editor-toolbar-build">
       <button
         type="button"
         onClick={(e) => {

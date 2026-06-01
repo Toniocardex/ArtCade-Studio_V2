@@ -77,7 +77,7 @@ export default function MenuBar() {
 
   return (
     <header className="editor-toolbar flex items-center justify-between flex-shrink-0 z-50 select-none">
-      <div className="relative flex items-center gap-1 editor-toolbar-workspace-start">
+      <div className="editor-toolbar-cluster editor-toolbar-workspace-start">
         <div ref={fileMenuRef} className="relative">
           <button
             type="button"
@@ -141,7 +141,7 @@ export default function MenuBar() {
         )}
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="editor-toolbar-actions">
         <BuildToolbar
           isPlaying={isPlaying}
           buildBusy={buildToolbar.buildBusy}
@@ -154,9 +154,11 @@ export default function MenuBar() {
           onBuildWeb={buildToolbar.handleBuildWeb}
           onOpenWebInBrowser={buildToolbar.handleOpenWebInBrowser}
         />
-        <ToolsMenu />
-        <ViewToolbarMenu />
-        <HelpMenu />
+        <div className="editor-toolbar-menus">
+          <ToolsMenu />
+          <ViewToolbarMenu />
+          <HelpMenu />
+        </div>
       </div>
     </header>
   )

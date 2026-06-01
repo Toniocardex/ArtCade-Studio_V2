@@ -20,7 +20,7 @@ export function ViewToolbarMenu() {
   const close = useCallback(() => setOpen(false), [])
 
   return (
-    <div ref={anchorRef} className="relative editor-toolbar-workspace-end pr-[var(--editor-workspace-inset)]">
+    <div ref={anchorRef} className="relative">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -50,8 +50,8 @@ export function ViewToolbarMenu() {
           <span className="inline-flex items-center gap-2">
             {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
             {theme === 'dark'
-              ? 'Switch to light theme (mid-grey)'
-              : 'Switch to dark theme (anthracite)'}
+              ? 'Switch to light mode'
+              : 'Switch to dark mode'}
           </span>
         </button>
         <button
