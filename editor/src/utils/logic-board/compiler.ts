@@ -175,9 +175,10 @@ function pushRegisteredInitEvents(
   board: LogicBoard,
   project: ProjectDoc | null | undefined,
   slugs: Map<string, string>,
+  logicDebugTrace: boolean,
 ): void {
   for (const ev of events) {
-    const registration = emitEventRegistration(ev, board, project, slugs)
+    const registration = emitEventRegistration(ev, board, project, slugs, logicDebugTrace)
     if (registration) init.push(...registration)
   }
 }
@@ -190,16 +191,17 @@ function emitBoard(
   board: LogicBoard,
   project: ProjectDoc | null | undefined,
   slugs: Map<string, string>,
+  logicDebugTrace: boolean,
 ): { init: string[]; tick: string[] } {
   const parts = partitionBoardEvents(board, project, slugs)
   const init: string[] = []
   const tick: string[] = []
 
-  pushStartEventsInit(init, parts.startEvents, board, parts.pool, parts.isGlobal, slugs, project)
-  pushMessageEventsInit(init, parts.messageEvents, board, parts.pool, parts.isGlobal, slugs, project)
-  pushRegisteredInitEvents(init, parts.registeredEvents, board, project, slugs)
-  pushTickEventsBlock(tick, parts.tickEvents, board, parts.pool, parts.isGlobal, slugs, project)
-  pushDestroyTickBlock(tick, parts.destroyTickEvents, board, slugs, project)
+  pushStartEventsInit(init, parts.startEvents, board, parts.pool, parts.isGlobal, slugs, project, logicDebugTrace)
+  pushMessageEventsInit(init, parts.messageEvents, board, parts.pool, parts.isGlobal, slugs, project, logicDebugTrace)
+  pushRegisteredInitEvents(init, parts.registeredEvents, board, project, slugs, logicDebugTrace)
+  pushTickEventsBlock(tick, parts.tickEvents, board, parts.pool, parts.isGlobal, slugs, project, logicDebugTrace)
+  pushDestroyTickBlock(tick, parts.destroyTickEvents, board, slugs, project, logicDebugTrace)
 
   return { init, tick }
 }
@@ -208,10 +210,16 @@ function emitBoard(
  * Compile a full LogicBoardDoc into one Lua source string with a single
  * `tick(dt)` entry point (plus a one-shot init guard).
  */
+export interface CompileLogicBoardOptions {
+  logicDebugTrace?: boolean
+}
+
 export function compileLogicBoard(
   doc: LogicBoardDoc,
   project?: ProjectDoc | null,
+  options?: CompileLogicBoardOptions,
 ): string {
+  const logicDebugTrace = options?.logicDebugTrace === true
   const eventSlugs = buildEventSlugs(doc)
 
   const initBlocks: string[] = []
@@ -219,7 +227,7 @@ export function compileLogicBoard(
   for (const board of doc) {
     assertBoardCompatible(board)
     assertClickToDestroyCompatible(board)
-    const { init, tick } = emitBoard(board, project, eventSlugs)
+    const { init, tick } = emitBoard(board, project, eventSlugs, logicDebugTrace)
     const label = logicBoardLuaCommentLabel(board)
     if (init.length) {
       initBlocks.push(`${INDENT}-- board: ${label}`, ...init)

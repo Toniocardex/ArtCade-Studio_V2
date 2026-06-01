@@ -15,6 +15,8 @@ export type EmitGuardedBranchesOptions = {
   triggerGate?: string | null
   /** Skip `_logic_on` wrapper (caller already gates enable on an outer if). */
   skipEnable?: boolean
+  /** Emit debug.log lines for condition pass/fail (report §22). */
+  logicDebugTrace?: boolean
 }
 
 function innerConditionGuard(
@@ -61,20 +63,35 @@ export function emitGuardedBranches(
   const bodyIndent = baseIndent + I
   let conditionBlock: string[]
 
+  const ruleRef = ruleKeyExpr(ev.id, slugs)
+  const tracePass = options.logicDebugTrace
+    ? [`${bodyIndent}${I}debug.log("[logic] " .. ${ruleRef} .. " condition pass")`]
+    : []
+  const traceFail = options.logicDebugTrace
+    ? [`${bodyIndent}${I}debug.log("[logic] " .. ${ruleRef} .. " condition fail")`]
+    : []
+
   if (useElse) {
     conditionBlock = [
       `${bodyIndent}if ${innerGuard} then`,
+      ...tracePass,
       ...thenLines,
       `${bodyIndent}else`,
+      ...traceFail,
       ...elseLines,
       `${bodyIndent}end`,
     ]
   } else if (innerGuard === 'true') {
-    conditionBlock = thenLines
+    conditionBlock = options.logicDebugTrace
+      ? [...tracePass, ...thenLines]
+      : thenLines
   } else {
     conditionBlock = [
       `${bodyIndent}if ${innerGuard} then`,
+      ...tracePass,
       ...thenLines,
+      `${bodyIndent}else`,
+      ...traceFail,
       `${bodyIndent}end`,
     ]
   }
@@ -95,8 +112,10 @@ export function emitGuardedActions(
   slugs: Map<string, string>,
   triggerAndGate?: string | null,
   project?: ProjectDoc | null,
+  logicDebugTrace?: boolean,
 ): string[] {
   return emitGuardedBranches(ev, baseIndent, slugs, {
     triggerGate: triggerAndGate ?? null,
+    logicDebugTrace,
   }, project)
 }

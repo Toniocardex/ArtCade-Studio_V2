@@ -14,6 +14,7 @@ import { DialogEditorModal } from './panels/dialog/DialogEditorModal'
 import { SpritesheetStudioModal } from './panels/spritesheet-studio/SpritesheetStudioModal'
 import { triggerLayoutReflow } from './utils/layout-reflow'
 import { useProjectShortcuts } from './hooks/useProjectShortcuts'
+import { useEditorUndoRedo } from './hooks/useEditorUndoRedo'
 import { useProjectLogicBoardSync } from './hooks/useProjectLogicBoardSync'
 import { ProjectNamePersistProvider } from './components/menu-bar/project-name-context'
 import { useViewportShortcuts } from './hooks/useViewportShortcuts'
@@ -144,6 +145,7 @@ function EditorLayout() {
   }, [])
 
   useProjectShortcuts()
+  useEditorUndoRedo()
   useProjectLogicBoardSync()
   useViewportShortcuts()
   useConsoleShortcut()

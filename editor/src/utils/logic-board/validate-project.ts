@@ -1,9 +1,11 @@
 import type { ProjectDoc } from '../../types'
 import { assertProjectPathsSafe } from '../project-path-security'
+import { assertProjectDiagnosticsClean } from '../project-validator'
 import { assertLogicBoardsValid } from './schema-registry'
 
 export function validateProjectBeforeSave(project: ProjectDoc): void {
   assertProjectPathsSafe(project)
+  assertProjectDiagnosticsClean(project)
   if (Object.keys(project.scenes).length === 0) {
     throw new Error('Project must contain at least one scene.')
   }

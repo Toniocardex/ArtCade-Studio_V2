@@ -35,6 +35,15 @@ import { dialogReducer } from './reducers/dialog-reducer'
 import { applyAuthoringModeToDocument } from '../utils/authoring-mode'
 import { ensureBootSessionReset } from '../utils/boot-session'
 import { TextPromptProvider } from '../components/TextPromptProvider'
+import {
+  applyProjectRedo,
+  applyProjectUndo,
+  isHistoryRecordingAction,
+  isUndoRedoAction,
+  pushProjectHistory,
+  projectRevision,
+  snapshotProjectHistory,
+} from './project-history'
 
 export type { CoreState, VolatileState, Action }
 
@@ -47,6 +56,16 @@ export type { CoreState, VolatileState, Action }
 // ---------------------------------------------------------------------------
 
 export function coreReducer(state: CoreState, action: Action): CoreState {
+  if (action.type === 'SNAPSHOT_PROJECT_HISTORY') {
+    return snapshotProjectHistory(state)
+  }
+  if (action.type === 'PROJECT_UNDO' || action.type === 'LOGIC_UNDO') {
+    return applyProjectUndo(state)
+  }
+  if (action.type === 'PROJECT_REDO' || action.type === 'LOGIC_REDO') {
+    return applyProjectRedo(state)
+  }
+
   let next = state
   next = uiReducer(next, action)
   next = projectReducer(next, action)
@@ -56,6 +75,17 @@ export function coreReducer(state: CoreState, action: Action): CoreState {
   next = assetFolderReducer(next, action)
   next = logicBoardReducer(next, action)
   next = dialogReducer(next, action)
+
+  if (
+    !isUndoRedoAction(action) &&
+    isHistoryRecordingAction(action) &&
+    state.project &&
+    next.project &&
+    next !== state &&
+    projectRevision(state.project) !== projectRevision(next.project)
+  ) {
+    return pushProjectHistory(state, next)
+  }
   return next
 }
 

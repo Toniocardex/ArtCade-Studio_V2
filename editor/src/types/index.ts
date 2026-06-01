@@ -144,6 +144,8 @@ export type PhysicsMode = 'off' | 'auto' | 'on'
 
 /** Global world simulation settings (Scene Editor Phase B). */
 export interface WorldSettings {
+  /** When true, Logic Board compile emits debug.log traces for rule conditions. */
+  logicDebugTrace?: boolean
   gravity:        number   // m/s^2 (world vertical gravity, Y-down)
   pixelsPerMeter: number   // metric scale, e.g. 100 px = 1 m
   timeScale:      number   // engine speed multiplier (0..2, 1 = normal)

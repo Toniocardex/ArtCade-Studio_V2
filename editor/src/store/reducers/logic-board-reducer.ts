@@ -9,26 +9,17 @@
 import type { CoreState, Action, DomainReducer } from '../editor-store-state'
 import type { LogicBoard } from '../../types'
 import { logicBoardGeneratedLabel } from '../../utils/logic-board/labels'
-import {
-  MAX_LOGIC_BOARD_HISTORY,
-  emptyLogicBoardHistory,
-  pushLogicBoardHistory,
-  restoreLogicBoards,
-} from './logic-board-history'
-
 function withBoards(
   state: CoreState,
   fn: (boards: LogicBoard[]) => LogicBoard[],
-  recordHistory = true,
 ): CoreState {
   if (!state.project) return state
   const boards = state.project.logicBoards ?? []
   const next = fn(boards)
   if (next === boards) return state
-  const base = recordHistory ? pushLogicBoardHistory(state) : state
   return {
-    ...base,
-    project: { ...base.project!, logicBoards: next },
+    ...state,
+    project: { ...state.project, logicBoards: next },
     projectDirty: true,
   }
 }
@@ -122,26 +113,9 @@ export const logicBoardReducer: DomainReducer = (state: CoreState, action: Actio
         }),
       )
     }
-    case 'LOGIC_UNDO': {
-      const { past, future } = state.logicBoardHistory ?? emptyLogicBoardHistory()
-      if (!state.project || past.length === 0) return state
-      const previous = past[past.length - 1]!
-      const current = structuredClone(state.project.logicBoards ?? [])
-      return restoreLogicBoards(state, previous, {
-        past: past.slice(0, -1),
-        future: [current, ...future].slice(0, MAX_LOGIC_BOARD_HISTORY),
-      })
-    }
-    case 'LOGIC_REDO': {
-      const { past, future } = state.logicBoardHistory ?? emptyLogicBoardHistory()
-      if (!state.project || future.length === 0) return state
-      const next = future[0]!
-      const current = structuredClone(state.project.logicBoards ?? [])
-      return restoreLogicBoards(state, next, {
-        past: [...past, current].slice(-MAX_LOGIC_BOARD_HISTORY),
-        future: future.slice(1),
-      })
-    }
+    case 'LOGIC_UNDO':
+    case 'LOGIC_REDO':
+      return state
     case 'LOGIC_MARK_SCRIPT_SYNCED':
       return { ...state, logicScriptSyncedRevision: action.revision }
     case 'LOGIC_MARK_PREVIEW_APPLIED':

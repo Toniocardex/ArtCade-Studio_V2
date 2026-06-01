@@ -47,8 +47,6 @@ function baseHandlers(
     focusEvent: vi.fn(),
     deleteFocusedEvent: vi.fn(),
     moveFocusedEvent: vi.fn(),
-    undoLogic: vi.fn(),
-    redoLogic: vi.fn(),
     ...overrides,
   }
 }
@@ -86,21 +84,6 @@ describe('handleLogicBoardKey', () => {
     const h = baseHandlers({ focusEvent })
     handleLogicBoardKey(key({ key: 'ArrowDown' }), h)
     expect(focusEvent).toHaveBeenCalledWith(h.sceneBoards[0]!.events[1]!.id)
-  })
-
-  it('calls undoLogic on Ctrl+Z', () => {
-    const undoLogic = vi.fn()
-    handleLogicBoardKey(key({ key: 'z', ctrlKey: true }), baseHandlers({ undoLogic }))
-    expect(undoLogic).toHaveBeenCalledOnce()
-  })
-
-  it('calls redoLogic on Ctrl+Shift+Z', () => {
-    const redoLogic = vi.fn()
-    handleLogicBoardKey(
-      key({ key: 'z', ctrlKey: true, shiftKey: true }),
-      baseHandlers({ redoLogic }),
-    )
-    expect(redoLogic).toHaveBeenCalledOnce()
   })
 
   it('pastes when clipboard has an event', () => {

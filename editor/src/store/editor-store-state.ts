@@ -80,8 +80,8 @@ export interface CoreState {
   dialogModal: { open: boolean; dialogId: string | null }
   /** Spritesheet Studio modal — edits ImageAsset.clips (runtime-ready). */
   spritesheetStudio: { open: boolean; imageAssetId: string | null }
-  /** Undo/redo snapshots for project.logicBoards (Logic Board panel only). */
-  logicBoardHistory: LogicBoardHistory
+  /** Undo/redo snapshots for the full ProjectDoc (unified editor history). */
+  projectHistory: ProjectHistory
   /** Last `logicBoardsRevision` written to main script via auto-sync / Apply. */
   logicScriptSyncedRevision: string | null
   /** Last `logicBoardsRevision` hot-reloaded into the WASM preview runtime. */
@@ -93,9 +93,9 @@ export interface CoreState {
   previewAssetLoadScope: 'scene-static' | 'scene+spawn-prototypes'
 }
 
-export type LogicBoardHistory = {
-  past: LogicBoard[][]
-  future: LogicBoard[][]
+export type ProjectHistory = {
+  past: ProjectDoc[]
+  future: ProjectDoc[]
 }
 
 // ---- Volatile state (high-frequency) ---------------------------------------
@@ -138,7 +138,20 @@ export type Action =
   | { type: 'PROJECT_RENAME';    name: string }
   | { type: 'MARK_PROJECT_SAVED' }
   | { type: 'MARK_SCRIPT_SAVED'; path: string }
-  | { type: 'UPDATE_ENTITY_TRANSFORM'; entityId: number; x: number; y: number; rotation: number; scaleX: number; scaleY: number }
+  | {
+      type: 'UPDATE_ENTITY_TRANSFORM'
+      entityId: number
+      x: number
+      y: number
+      rotation: number
+      scaleX: number
+      scaleY: number
+      /** When false, skip undo snapshot (e.g. live canvas drag). Default: record. */
+      recordHistory?: boolean
+    }
+  | { type: 'SNAPSHOT_PROJECT_HISTORY' }
+  | { type: 'PROJECT_UNDO' }
+  | { type: 'PROJECT_REDO' }
   | { type: 'ENTITY_SET_SPRITE';       entityId: number; sprite: SpriteComponent }
   | { type: 'ENTITY_SET_SPRITE_FILL';  entityId: number; fillColor: Vec3 }
   | { type: 'ENTITY_SET_PHYSICS';      entityId: number; physics: PhysicsComponent }
@@ -244,7 +257,7 @@ export const initialCoreState: CoreState = {
   selectedDialogId: null,
   dialogModal: { open: false, dialogId: null },
   spritesheetStudio: { open: false, imageAssetId: null },
-  logicBoardHistory: { past: [], future: [] },
+  projectHistory: { past: [], future: [] },
   logicScriptSyncedRevision: null,
   logicPreviewAppliedRevision: null,
   previewAssetLoadScope: 'scene-static',

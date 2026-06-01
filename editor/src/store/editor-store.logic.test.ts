@@ -40,7 +40,7 @@ function baseState(project: ProjectDoc | null = emptyProject()): CoreState {
     selectedDialogId: null,
     dialogModal: { open: false, dialogId: null },
     spritesheetStudio: { open: false, imageAssetId: null },
-    logicBoardHistory: { past: [], future: [] },
+    projectHistory: { past: [], future: [] },
     logicScriptSyncedRevision: null,
     logicPreviewAppliedRevision: null,
   }

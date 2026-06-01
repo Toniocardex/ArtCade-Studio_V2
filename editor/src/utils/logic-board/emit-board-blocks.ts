@@ -42,9 +42,10 @@ export function pushEventBodies(
   bodyIndent: string,
   slugs: Map<string, string>,
   project?: ProjectDoc | null,
+  logicDebugTrace?: boolean,
 ): void {
   for (const ev of events) {
-    out.push(...emitEventBody(ev, board, bodyIndent, slugs, project))
+    out.push(...emitEventBody(ev, board, bodyIndent, slugs, project, logicDebugTrace))
   }
 }
 
@@ -56,10 +57,11 @@ export function pushStartEventsInit(
   isGlobal: boolean,
   slugs: Map<string, string>,
   project?: ProjectDoc | null,
+  logicDebugTrace?: boolean,
 ): void {
   if (startEvents.length === 0) return
   const body: string[] = []
-  pushEventBodies(body, startEvents, board, INDENT + INDENT, slugs, project)
+  pushEventBodies(body, startEvents, board, INDENT + INDENT, slugs, project, logicDebugTrace)
   pushEntityScopedBlock(init, INDENT, pool, isGlobal, false, body)
 }
 
@@ -71,10 +73,11 @@ export function pushTickEventsBlock(
   isGlobal: boolean,
   slugs: Map<string, string>,
   project?: ProjectDoc | null,
+  logicDebugTrace?: boolean,
 ): void {
   if (tickEvents.length === 0) return
   const body: string[] = []
-  pushEventBodies(body, tickEvents, board, INDENT + INDENT, slugs, project)
+  pushEventBodies(body, tickEvents, board, INDENT + INDENT, slugs, project, logicDebugTrace)
   pushEntityScopedBlock(tick, INDENT, pool, isGlobal, !isGlobal, body)
 }
 
@@ -85,6 +88,7 @@ function messageHandlerBody(
   isGlobal: boolean,
   slugs: Map<string, string>,
   project?: ProjectDoc | null,
+  logicDebugTrace?: boolean,
 ): string[] {
   const I = INDENT
   if (isGlobal) {
@@ -92,14 +96,14 @@ function messageHandlerBody(
       `${I}${I}local self = nil`,
       `${I}${I}local other = nil`,
     ]
-    pushEventBodies(body, [ev], board, I + I, slugs, project)
+    pushEventBodies(body, [ev], board, I + I, slugs, project, logicDebugTrace)
     return body
   }
   const body: string[] = [
     `${I}${I}for _, self in ipairs(${pool}) do`,
     `${I}${I}${I}local other = nil`,
   ]
-  pushEventBodies(body, [ev], board, I + I + I, slugs, project)
+  pushEventBodies(body, [ev], board, I + I + I, slugs, project, logicDebugTrace)
   body.push(`${I}${I}end`)
   return body
 }
@@ -112,13 +116,14 @@ export function pushMessageEventsInit(
   isGlobal: boolean,
   slugs: Map<string, string>,
   project?: ProjectDoc | null,
+  logicDebugTrace?: boolean,
 ): void {
   for (const ev of messageEvents) {
     if (ev.trigger.type !== 'onMessage') continue
     const I = INDENT
     init.push(
       `${I}_logic_reg_message(${luaString(ev.trigger.messageName)}, function()`,
-      ...messageHandlerBody(ev, board, pool, isGlobal, slugs, project),
+      ...messageHandlerBody(ev, board, pool, isGlobal, slugs, project, logicDebugTrace),
       `${I}end)`,
     )
   }
@@ -130,10 +135,11 @@ export function pushDestroyTickBlock(
   board: LogicBoard,
   slugs: Map<string, string>,
   project?: ProjectDoc | null,
+  logicDebugTrace?: boolean,
 ): void {
   if (destroyTickEvents.length === 0) return
   const body: string[] = []
-  pushEventBodies(body, destroyTickEvents, board, INDENT + INDENT, slugs, project)
+  pushEventBodies(body, destroyTickEvents, board, INDENT + INDENT, slugs, project, logicDebugTrace)
   tick.push(
     `${INDENT}for _, de in ipairs(_destroy_events) do`,
     `${INDENT}${INDENT}local self = de.entityId`,

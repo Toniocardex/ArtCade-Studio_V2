@@ -43,8 +43,6 @@ export type LogicBoardKeyHandlers = {
   focusEvent: (eventId: string) => void
   deleteFocusedEvent: () => void
   moveFocusedEvent: (toIndex: number) => void
-  undoLogic: () => void
-  redoLogic: () => void
 }
 
 /** Returns true when the event was handled (caller may still rely on preventDefault inside). */
@@ -63,25 +61,10 @@ export function handleLogicBoardKey(e: KeyboardEvent, handlers: LogicBoardKeyHan
     focusEvent,
     deleteFocusedEvent,
     moveFocusedEvent,
-    undoLogic,
-    redoLogic,
   } = handlers
   if (shouldIgnoreEditorShortcut(e)) return
 
-  if (e.ctrlKey || e.metaKey) {
-    const key = e.key.toLowerCase()
-    if (key === 'z' && !e.altKey) {
-      e.preventDefault()
-      if (e.shiftKey) redoLogic()
-      else undoLogic()
-      return
-    }
-    if (key === 'y' && !e.shiftKey) {
-      e.preventDefault()
-      redoLogic()
-      return
-    }
-  }
+  // Undo/redo: global useEditorUndoRedo (unified project history).
 
   const focused = findEventInBoards(sceneBoards, focusedEventId)?.event
 

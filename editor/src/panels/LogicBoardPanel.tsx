@@ -494,16 +494,6 @@ export default function LogicBoardPanel() {
     [sceneBoards, focusedEventId, dispatch],
   )
 
-  const undoLogic = useCallback(() => {
-    setEditingId(null)
-    dispatch({ type: 'LOGIC_UNDO' })
-  }, [dispatch])
-
-  const redoLogic = useCallback(() => {
-    setEditingId(null)
-    dispatch({ type: 'LOGIC_REDO' })
-  }, [dispatch])
-
   useEffect(() => {
     if (!project) return
     if (editingId != null && !findEventInBoards(sceneBoards, editingId)) {
@@ -557,8 +547,6 @@ export default function LogicBoardPanel() {
         },
         deleteFocusedEvent,
         moveFocusedEvent,
-        undoLogic,
-        redoLogic,
       })
     }
 
@@ -576,8 +564,6 @@ export default function LogicBoardPanel() {
     cloneEvent,
     deleteFocusedEvent,
     moveFocusedEvent,
-    undoLogic,
-    redoLogic,
   ])
 
   if (!project) {

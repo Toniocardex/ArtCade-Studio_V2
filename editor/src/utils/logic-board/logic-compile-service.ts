@@ -8,6 +8,10 @@ import { BLANK_MAIN_LUA } from '../project-factory'
 import { compileLogicBoard } from './compiler'
 import { findClickToDestroyErrors } from './click-to-destroy'
 import { findBoardCompatibilityErrors } from './trigger-compatibility'
+import {
+  collectProjectDiagnostics,
+  projectDiagnosticsErrors,
+} from '../project-validator'
 
 export type LogicDiagnosticSeverity = 'error' | 'warn'
 export type LogicDiagnosticSource = 'config' | 'compile'
@@ -30,6 +34,8 @@ export interface CompileProjectLogicResult {
 
 export interface CompileProjectLogicOptions {
   projectKey?: string
+  /** When true, compiled Lua emits debug.log traces for rule conditions/actions. */
+  logicDebugTrace?: boolean
 }
 
 const lastGoodLuaByProjectKey = new Map<string, string>()
@@ -95,8 +101,29 @@ export function compileProjectLogic(
   options?: CompileProjectLogicOptions,
 ): CompileProjectLogicResult {
   const configDiagnostics = collectConfigDiagnostics(project)
+  const projectErrors = project
+    ? projectDiagnosticsErrors(collectProjectDiagnostics(project))
+    : []
   const boards = project?.logicBoards ?? []
   const cacheKey = resolveProjectKey(project, options)
+
+  if (projectErrors.length > 0) {
+    const message = projectErrors.map((e) => e.message).join('\n')
+    return {
+      ok: false,
+      lua: lastGoodLuaByProjectKey.get(cacheKey) ?? BLANK_MAIN_LUA,
+      diagnostics: [
+        ...configDiagnostics,
+        ...projectErrors.map((e) => ({
+          boardId: '',
+          message: e.message,
+          severity: 'error' as const,
+          source: 'config' as const,
+        })),
+      ],
+      compileError: message,
+    }
+  }
 
   if (boards.length === 0) {
     return {
@@ -108,7 +135,11 @@ export function compileProjectLogic(
   }
 
   try {
-    const lua = compileLogicBoard(boards, project)
+    const lua = compileLogicBoard(boards, project, {
+      logicDebugTrace:
+        options?.logicDebugTrace === true ||
+        project.world?.logicDebugTrace === true,
+    })
     lastGoodLuaByProjectKey.set(cacheKey, lua)
     return {
       ok: true,

@@ -1616,3 +1616,24 @@ describe('Defensive value coercion', () => {
     expect(lua).not.toContain('os.exit')
   })
 })
+
+describe('logicDebugTrace', () => {
+  it('emits debug.log for condition pass/fail when enabled', () => {
+    const lua = compileLogicBoard(
+      [
+        board([
+          ev({
+            trigger: { type: 'onUpdate' },
+            conditions: [{ type: 'compareVariable', key: 'hp', operator: '>', value: 0 }],
+            actions: [{ type: 'debugLog', message: 'alive' }],
+          }),
+        ]),
+      ],
+      null,
+      { logicDebugTrace: true },
+    )
+    expect(lua).toContain('[logic]')
+    expect(lua).toContain('condition pass')
+    expect(lua).toContain('condition fail')
+  })
+})

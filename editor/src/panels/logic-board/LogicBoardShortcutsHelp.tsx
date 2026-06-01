@@ -10,7 +10,7 @@ const SHORTCUTS: ReadonlyArray<{ keys: string; action: string }> = [
   { keys: 'Delete / Backspace', action: 'Delete selected rule' },
   { keys: 'Ctrl+D', action: 'Duplicate rule' },
   { keys: 'Ctrl+C / Ctrl+V', action: 'Copy / paste rule' },
-  { keys: 'Ctrl+Z / Ctrl+Shift+Z', action: 'Undo / redo Logic Board' },
+  { keys: 'Ctrl+Z / Ctrl+Shift+Z', action: 'Undo / redo project edits' },
   { keys: 'Drag grip', action: 'Reorder rule' },
   {
     keys: 'Auto-sync',

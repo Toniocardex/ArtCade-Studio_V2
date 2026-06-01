@@ -17,6 +17,7 @@ type EmitCtx = {
   slugs: Map<string, string>
   project?: ProjectDoc | null
   enableGuard: string
+  logicDebugTrace?: boolean
 }
 
 function enableGuardExpr(ev: LogicEvent, slugs: Map<string, string>): string {
@@ -28,7 +29,10 @@ function emitGuarded(
   indent: string,
   opts?: { triggerGate?: string | null; skipEnable?: boolean },
 ): string[] {
-  return emitGuardedBranches(ctx.ev, indent, ctx.slugs, opts, ctx.project)
+  return emitGuardedBranches(ctx.ev, indent, ctx.slugs, {
+    ...opts,
+    logicDebugTrace: ctx.logicDebugTrace,
+  }, ctx.project)
 }
 
 function collisionWhileGate(trig: Extract<LogicTrigger, { type: 'onCollision' }>): string | null {
@@ -196,6 +200,7 @@ export function emitEventBody(
   baseIndent: string,
   slugs: Map<string, string>,
   project?: ProjectDoc | null,
+  logicDebugTrace?: boolean,
 ): string[] {
   const trig = ev.trigger
   const ctx: EmitCtx = {
@@ -205,6 +210,7 @@ export function emitEventBody(
     slugs,
     project,
     enableGuard: enableGuardExpr(ev, slugs),
+    logicDebugTrace,
   }
 
   switch (trig.type) {

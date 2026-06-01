@@ -22,6 +22,7 @@ export function emitEventRegistration(
   board: LogicBoard,
   project: ProjectDoc | null | undefined,
   slugs: Map<string, string>,
+  logicDebugTrace?: boolean,
 ): string[] | null {
   const ctx = {
     ev,
@@ -31,6 +32,7 @@ export function emitEventRegistration(
     pool: poolExpr(board.target, project),
     source: sensorSourceExpr(board.target),
     isGlobal: isGlobalTarget(board.target),
+    logicDebugTrace,
   }
 
   return (

@@ -351,6 +351,24 @@ La checklist EnTT originale è stata declassata a roadmap futura. Il runtime att
 
 ---
 
+## Report alignment (editor architecture)
+
+Mapping from the external *Report Struttura Artcade* to this repo:
+
+| Report concept | ArtCade V2 implementation |
+|----------------|---------------------------|
+| Editor modifies data | React store + `ProjectDoc`; see [`project-history.ts`](../editor/src/store/project-history.ts) |
+| Command / undo | Unified `projectHistory` snapshots (`PROJECT_UNDO` / `PROJECT_REDO`), not per-panel stacks |
+| Core model | TypeScript `ProjectDoc` + JSON round-trip; C++ loads via `project-doc-parser` |
+| Logic Board runtime | **Compile-to-Lua** (`logic-compile-service.ts`), not a C++ rule interpreter |
+| Platform / Raylib | I/O modules only — [`RAYLIB_PLATFORM_BOUNDARY.md`](RAYLIB_PLATFORM_BOUNDARY.md) |
+| Project validation | [`project-validator.ts`](../editor/src/utils/project-validator.ts) before save / compile |
+| Logic debug trace | `world.logicDebugTrace` → optional `debug.log` in generated Lua |
+
+We do **not** plan a native `LogicRuntime` that evaluates JSON rules in C++; visual rules remain data compiled to Lua for one VM and hot reload.
+
+---
+
 ## 🎓 Conclusione
 
 ArtCade V2 è un'architettura **modernare su 3 pilastri**:

@@ -1,7 +1,5 @@
 #include "../include/app.h"
 
-#include <raylib.h>   // GetScreenWidth/Height for splash overlay
-
 #include <optional>
 
 #ifdef ARTCADE_WASM
@@ -846,7 +844,9 @@ void Application::renderActiveScene() {
 
     // FREE-tier splash overlay drawn on top of the game frame.
     if (splash_)
-        splash_->render(GetScreenWidth(), GetScreenHeight());
+        splash_->render(
+            static_cast<int>(mod_->renderer->windowWidth()),
+            static_cast<int>(mod_->renderer->windowHeight()));
 
     if (mod_->dialogManager && mod_->dialogManager->isActive())
         mod_->dialogManager->render();

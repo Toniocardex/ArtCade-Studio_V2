@@ -19,6 +19,19 @@
 
 ---
 
+## Report alignment phases (editor, 2026)
+
+| Phase | Focus | Status |
+|-------|--------|--------|
+| **A** | Unified project undo/redo (`project-history.ts`, Edit menu, global Ctrl+Z) | Done |
+| **B** | `project-validator.ts` + save/compile integration | Done |
+| **C** | Raylib boundary doc + `app.cpp` splash via `Renderer` metrics | Done |
+| **D** | `world.logicDebugTrace` + architecture doc section | Done |
+
+Checkpoint: `cd editor; npm test -- --run` green.
+
+---
+
 ## FASE 0 — Struttura di progetto e architettura
 
 **Stato**: ✅ Completata
