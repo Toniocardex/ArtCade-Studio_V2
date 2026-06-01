@@ -102,7 +102,24 @@ The report at repo root describes a **greenfield C/C++ monolith** (`src/editor/`
 
 ---
 
-## 7. Validation & debug (report §21–§22)
+## 7. World settings field contract (TS ↔ JSON ↔ runtime)
+
+`ProjectDoc.world` in TypeScript is the authoring source of truth. Not every flag reaches every layer:
+
+| Field | Persisted in `project.json` | WASM / C++ runtime | Effect |
+|-------|----------------------------|--------------------|--------|
+| `gravity`, `pixelsPerMeter`, `timeScale`, `physicsMode` | Yes | Yes (`parseRuntimeSettings`, physics) | Simulation |
+| `physicsDebugDraw` | Yes | Yes (`EditorAPI::s_physicsDebugDraw`, overlay in play) | Full WASM reload when changed (`worldRuntimeDigest` / `wd`) |
+| `logicDebugTrace` | Yes | No (not interpreted in C++) | Logic Board compile only → extra `debug.log` in generated Lua |
+| `showRuntimeStats` | Yes | No | Editor UI only (`useRuntimeProfilePoll`, status bar) |
+
+C++ also defines a smaller `WorldSettings` struct in `runtime-cpp/src/core/types.h` (gravity scale only) used by native physics helpers — do not confuse it with the JSON `world` object shape in `editor/src/types`.
+
+When adding a world flag, decide: **runtime sim**, **WASM preview reload**, **compile-time Lua**, or **editor-only**, then update `worldRuntimeDigest`, parser (`editor-api.cpp` / `project-doc-parser.cpp`), and Inspector accordingly.
+
+---
+
+## 8. Validation & debug (report §21–§22)
 
 **Validation (editor):**
 
@@ -121,7 +138,7 @@ The report at repo root describes a **greenfield C/C++ monolith** (`src/editor/`
 
 ---
 
-## 8. Camera & output policy (deferred product surface)
+## 9. Camera & output policy (deferred product surface)
 
 **Current behaviour:**
 
@@ -136,7 +153,19 @@ The report at repo root describes a **greenfield C/C++ monolith** (`src/editor/`
 
 ---
 
-## 9. Roadmap alignment
+## 10. Release build checklist (desktop + preview)
+
+Before tagging or shipping an installer:
+
+1. `cd runtime-cpp && build_wasm.bat` — copies `game.js` + `game.wasm` to `editor/public/runtime/` (`.wasm` is gitignored; stale WASM is a common preview bug).
+2. `cd editor && npm test -- --run`
+3. `cd editor && npm run build`
+4. Close running `artcade-editor.exe`, then `npm run tauri:build`
+5. Smoke: open project, toggle **Physics collider overlay**, drag entity (rotation/scale preserved), Play blocked when health errors exist.
+
+---
+
+## 11. Roadmap alignment
 
 Implemented report-alignment tranches (see [`ROADMAP_INTEGRATIVA.md`](../ROADMAP_INTEGRATIVA.md)):
 
@@ -150,7 +179,7 @@ Implemented report-alignment tranches (see [`ROADMAP_INTEGRATIVA.md`](../ROADMAP
 
 ---
 
-## 10. Decision checklist (before a large PR)
+## 12. Decision checklist (before a large PR)
 
 1. Does it mutate **`ProjectDoc`** (or a documented projection), not ad-hoc globals?
 2. Does gameplay stay out of React and out of Raylib headers outside the platform layer?

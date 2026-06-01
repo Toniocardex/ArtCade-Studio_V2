@@ -1,4 +1,5 @@
-import { isTauri, invoke } from '@tauri-apps/api/core'
+import { isTauri } from '@tauri-apps/api/core'
+import { invokeTauri } from './tauri-invoke'
 import { open as dialogOpen } from '@tauri-apps/plugin-dialog'
 import { readTextFile, readFile, writeFile, mkdir, readDir, exists } from '@tauri-apps/plugin-fs'
 import type { ProjectDoc } from '../types'
@@ -21,7 +22,7 @@ export async function invokeWriteFile(
   content: string,
   projectRoot: string,
 ): Promise<void> {
-  await invoke('write_file', { path, content, projectRoot })
+  await invokeTauri<void>('write_file', { path, content, projectRoot })
 }
 
 /** Validated binary write (e.g. assets/images) via Rust path sandbox. */
@@ -30,7 +31,7 @@ export async function invokeWriteBinaryFile(
   bytes: Uint8Array,
   projectRoot: string,
 ): Promise<void> {
-  await invoke('write_binary_file', { path, bytes: Array.from(bytes), projectRoot })
+  await invokeTauri<void>('write_binary_file', { path, bytes: Array.from(bytes), projectRoot })
 }
 
 function notAvailable(name: string): void {

@@ -1,4 +1,5 @@
-import { isTauri, invoke } from '@tauri-apps/api/core'
+import { isTauri } from '@tauri-apps/api/core'
+import { invokeTauri, invokeTauriOrNull } from './tauri-invoke'
 import { save as dialogSave } from '@tauri-apps/plugin-dialog'
 import type { DependencyReport } from './dependencies'
 import { alertDialog, confirmDialog } from './native-dialog'
@@ -23,13 +24,13 @@ export async function savePackDialog(): Promise<string | null> {
 
 export async function checkDependencies(): Promise<DependencyReport | null> {
   if (!isTauri()) { notAvailable('checkDependencies'); return null }
-  return invoke<DependencyReport>('check_dependencies_cmd')
+  return invokeTauriOrNull<DependencyReport>('check_dependencies_cmd')
 }
 
 /** Download/extract ArtCade SDK to %LOCALAPPDATA%/ArtCade/sdk. */
 export async function installSdk(includeEmscripten = false): Promise<void> {
   if (!isTauri()) { notAvailable('installSdk'); return }
-  await invoke<void>('install_sdk', { includeEmscripten })
+  await invokeTauri<void>('install_sdk', { includeEmscripten })
 }
 
 /**
@@ -93,12 +94,12 @@ export async function ensureDependencies(
 export async function runBuild(projectRoot: string): Promise<void> {
   if (!isTauri()) { notAvailable('runBuild'); return }
 
-  await invoke<void>('run_build', { projectRoot })
+  await invokeTauri<void>('run_build', { projectRoot })
 }
 
 export async function runBuildWasm(projectRoot: string): Promise<void> {
   if (!isTauri()) { notAvailable('runBuildWasm'); return }
-  await invoke<void>('run_build_wasm', { projectRoot })
+  await invokeTauri<void>('run_build_wasm', { projectRoot })
 }
 
 export type WebExportState = 'missing' | 'stale' | 'ready'
@@ -122,13 +123,13 @@ export async function getWebExportStatus(
       hint: 'Run BUILD WEB first to create a browser export',
     }
   }
-  return invoke<WebExportStatus>('get_web_export_status', { projectRoot, projectDirty })
+  return invokeTauri<WebExportStatus>('get_web_export_status', { projectRoot, projectDirty })
 }
 
 /** Serve `dist/<name>-web/` via localhost and open index.html in the default browser. */
 export async function openWebExportInBrowser(projectRoot: string): Promise<string> {
   if (!isTauri()) { notAvailable('openWebExportInBrowser'); return '' }
-  return invoke<string>('open_web_export_in_browser', { projectRoot })
+  return invokeTauri<string>('open_web_export_in_browser', { projectRoot })
 }
 
 /**
@@ -137,5 +138,5 @@ export async function openWebExportInBrowser(projectRoot: string): Promise<strin
 export async function packProject(projectRoot: string, outputPath: string): Promise<void> {
   if (!isTauri()) { notAvailable('packProject'); return }
 
-  await invoke<void>('pack_project', { projectRoot, outputPath })
+  await invokeTauri<void>('pack_project', { projectRoot, outputPath })
 }

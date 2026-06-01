@@ -6,6 +6,11 @@ export type AssetChangedHandler = (relPath: string) => void
 
 const DEBOUNCE_MS = 200
 
+function clearPendingTimers(pending: Map<string, ReturnType<typeof setTimeout>>): void {
+  for (const id of pending.values()) clearTimeout(id)
+  pending.clear()
+}
+
 /** Watch `assets/**` under project root; invokes handler with project-relative paths. */
 export async function watchProjectAssets(
   projectRoot: string,
@@ -33,15 +38,20 @@ export async function watchProjectAssets(
   }
 
   try {
-    return await watch(
+    const unwatchFs = await watch(
       assetsDir,
       (event) => {
         for (const p of event.paths) schedule(p)
       },
       { recursive: true },
     )
+    return () => {
+      clearPendingTimers(pending)
+      void unwatchFs()
+    }
   } catch (err) {
     console.warn('[asset-watcher] watch failed:', err)
+    clearPendingTimers(pending)
     return null
   }
 }

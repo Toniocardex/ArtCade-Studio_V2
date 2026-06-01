@@ -8,3 +8,4 @@
 export * from './asset-file-api'
 export * from './build-api'
 export * from './project-file-api'
+export * from './tauri-invoke'

@@ -432,6 +432,12 @@ struct EditorAPI {
     static bool     s_editorGuidesEnabled;
     static float    s_editorGridSize;
     static bool     s_editorSnapEnabled;
+    static bool     s_physicsDebugDraw;
+    static void publishRuntimeProfile(float, float, float, float, uint32_t, uint32_t) {}
+    static const float* runtimeProfileBuffer() {
+        static float zeros[6] = {};
+        return zeros;
+    }
     static Modules::RuntimeEntityGateway* s_entityGateway;
     static Modules::LuaHost*              s_luaHost;
     static Modules::Renderer*             s_renderer;

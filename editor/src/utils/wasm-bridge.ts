@@ -379,15 +379,6 @@ export function loadWasmRuntime(
   return wasmInitPromise
 }
 
-/** Alias for docs / callers that prefer the singleton name. */
-export function initWasmEngine(
-  scriptUrl: string,
-  canvas: HTMLCanvasElement,
-  cbs: WasmCallbacks,
-): Promise<ArtCadeModule> {
-  return loadWasmRuntime(canvas, scriptUrl, cbs)
-}
-
 // ---------------------------------------------------------------------------
 // Internal ccall helper
 // ---------------------------------------------------------------------------
@@ -736,28 +727,6 @@ export function editorSetSceneSettings(sceneId: string, sceneJson: string): void
   } finally {
     _module._free(jsonPtr)
     _module._free(idPtr)
-  }
-}
-
-export type RuntimeProfileSnapshot = RuntimeProfileSample
-
-/** Last frame profiler snapshot (push callback preferred, ccall fallback). */
-export function getRuntimeProfile(): RuntimeProfileSnapshot | null {
-  const pushed = getRuntimeProfileSample()
-  if (pushed.fps > 0) return pushed
-
-  if (!_module) return null
-  const raw = safeCcallNumber('editor_get_runtime_profile', [], [])
-  if (!raw) return null
-  const heap = _module.HEAPF32
-  const base = raw >> 2
-  return {
-    fps: heap[base] ?? 0,
-    luaMs: heap[base + 1] ?? 0,
-    physicsMs: heap[base + 2] ?? 0,
-    renderMs: heap[base + 3] ?? 0,
-    entityCount: heap[base + 4] ?? 0,
-    physicsBodies: heap[base + 5] ?? 0,
   }
 }
 

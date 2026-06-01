@@ -30,39 +30,6 @@ EditorEnterPlayHandler         EditorAPI::s_onEnterPlay{};
 EditorExitPlayHandler          EditorAPI::s_onExitPlay{};
 std::vector<std::pair<std::string, std::string>> EditorAPI::s_consoleQueue;
 
-void EditorAPI::publishRuntimeProfile(const float fps,
-                                      const float luaMs,
-                                      const float physicsMs,
-                                      const float renderMs,
-                                      const uint32_t entityCount,
-                                      const uint32_t physicsBodies) {
-    (void)fps;
-    (void)luaMs;
-    (void)physicsMs;
-    (void)renderMs;
-    (void)entityCount;
-    (void)physicsBodies;
-}
-
-void EditorAPI::notifyRuntimeProfile(const float fps,
-                                    const float luaMs,
-                                    const float physicsMs,
-                                    const float renderMs,
-                                    const uint32_t entityCount,
-                                    const uint32_t physicsBodies) {
-    (void)fps;
-    (void)luaMs;
-    (void)physicsMs;
-    (void)renderMs;
-    (void)entityCount;
-    (void)physicsBodies;
-}
-
-const float* EditorAPI::runtimeProfileBuffer() {
-    static float zeros[6] = {};
-    return zeros;
-}
-
 } // namespace ArtCade
 
 #else // __EMSCRIPTEN__ ─────────────────────────────────────────────────────────
