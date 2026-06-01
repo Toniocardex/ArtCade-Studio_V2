@@ -1,7 +1,7 @@
 # ArtCade V2 — North Star Architecture
 
 > **Purpose:** Single reference for *how ArtCade should be shaped* — principles, boundaries, and data flow.  
-> **Source:** Derived from `Report Struttura Artcade.md`, aligned with the **actual** V2 codebase (2026-06).  
+> **Source:** Derived from [`Report-Struttura-Artcade.md`](Report-Struttura-Artcade.md), aligned with the **actual** V2 codebase (2026-06).  
 > **Audience:** Contributors, reviewers, future-you before proposing a “big rewrite”.
 
 ---
@@ -198,4 +198,4 @@ If any answer is “no”, stop and narrow the scope.
 | [`LOGIC_BOARD_SPEC.md`](LOGIC_BOARD_SPEC.md) | Board JSON, compiler, UI terms |
 | [`OBJECT_TYPES_ARCHITECTURE.md`](OBJECT_TYPES_ARCHITECTURE.md) | format v2, instances |
 | [`FIXED_STEP_CONTRACT.md`](FIXED_STEP_CONTRACT.md) | Physics timestep |
-| [`Report Struttura Artcade.md`](../Report%20Struttura%20Artcade.md) | Original north-star prose (Italian) |
+| [`Report-Struttura-Artcade.md`](Report-Struttura-Artcade.md) | Original north-star prose (Italian) |

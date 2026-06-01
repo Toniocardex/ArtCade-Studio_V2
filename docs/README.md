@@ -17,6 +17,8 @@
 
 Riferimento unico allineato al report struttura ArtCade, con sezione **Come differisce V2** (React, ECS, compile-to-Lua, `.artcade`). Usalo prima di proporre refactor massicci.
 
+Prosa estesa del report greenfield (italiano, riferimento storico): **`Report-Struttura-Artcade.md`**.
+
 ### 1️⃣ **ARCHITECTURAL_RATIONALE.md** — Il PERCHÉ (20–30 min) ⭐ INIZIO QUI
 
 Inizia QUI se vuoi capire il **razionale** dietro ogni decisione.
