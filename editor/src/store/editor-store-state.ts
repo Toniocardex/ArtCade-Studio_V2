@@ -23,6 +23,7 @@ import {
 import type { DockPanelId, DockPanelVisibility } from '../constants/dock-panels'
 import { readStoredDockPanelVisibility } from '../utils/dock-panel-visibility'
 import { createInitialDockUiSlice } from '../utils/dock-ui-state'
+import { readEditorPreferences } from '../utils/editor-preferences'
 
 // ---- Core state (stable) ---------------------------------------------------
 
@@ -106,6 +107,10 @@ export interface CoreState {
    * `scene+spawn-prototypes` preloads sprites for spawnEntity prototype classes.
    */
   previewAssetLoadScope: 'scene-static' | 'scene+spawn-prototypes'
+  /** Canvas-only chromeless mode (F11); session-only, not persisted. */
+  focusMode: boolean
+  /** Disables tier/focus CSS transitions (persisted per user). */
+  reduceMotion: boolean
 }
 
 export type ProjectHistory = {
@@ -130,6 +135,9 @@ export type Action =
   | { type: 'SET_EDITOR_ACTIVE_LAYER'; layerName: string }
   | { type: 'ENTITY_SET_DISPLAY_LAYER'; entityId: number; layerName: string }
   | { type: 'SET_MODE';          mode: EditorView }
+  | { type: 'TOGGLE_FOCUS_MODE' }
+  | { type: 'SET_FOCUS_MODE';    enabled: boolean }
+  | { type: 'SET_REDUCE_MOTION'; enabled: boolean }
   | { type: 'SET_AUTHORING_MODE'; mode: AuthoringMode }
   | { type: 'TOGGLE_CONSOLE' }
   | { type: 'SET_CONSOLE_OPEN';  open: boolean }
@@ -253,6 +261,7 @@ export type DomainReducer = (state: CoreState, action: Action) => CoreState
 export const INITIAL_LOGS: ConsoleEntry[] = []
 
 const initialDockUi = createInitialDockUiSlice(readStoredDockPanelVisibility())
+const initialEditorPrefs = readEditorPreferences()
 
 /** Boot state: no project until the user creates or opens one (File menu). */
 export const initialCoreState: CoreState = {
@@ -289,6 +298,8 @@ export const initialCoreState: CoreState = {
   logicScriptSyncedRevision: null,
   logicPreviewAppliedRevision: null,
   previewAssetLoadScope: 'scene-static',
+  focusMode: false,
+  reduceMotion: initialEditorPrefs.reduceMotion,
 }
 
 export const initialVolatileState: VolatileState = {

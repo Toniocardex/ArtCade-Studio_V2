@@ -11,7 +11,7 @@
 // group separated by a thin vertical divider. Order matches the original
 // vertical palette so muscle memory is preserved.
 
-import { Boxes, Camera, Eraser, Grid3x3, Hand, ImageIcon, MousePointer2, Pencil } from 'lucide-react'
+import { Boxes, Camera, Eraser, Grid3x3, Hand, ImageIcon, Maximize2, MousePointer2, Pencil } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useEditor } from '../../store/editor-store'
 import type { EditorTool } from '../../utils/runtime-sync-service'
@@ -79,6 +79,8 @@ export function CanvasToolbar({
   activeTool, onSelectTool, selectedTileCell, showGuides, onToggleGuides,
   rightSlot,
 }: CanvasToolbarProps) {
+  const { dispatch } = useEditor()
+
   return (
     <div className="flex items-center gap-1 px-2 py-1.5
                     border-b border-[var(--border)] bg-[var(--panel)]
@@ -153,6 +155,14 @@ export function CanvasToolbar({
 
       {/* Right-aligned slot: runtime status badge, future view-mode toggles, etc. */}
       <div className="ml-auto flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => dispatch({ type: 'SET_FOCUS_MODE', enabled: true })}
+          title="Focus mode — maximize canvas (F11)"
+          className="p-1.5 rounded transition-colors hover:bg-[var(--panel-3)]"
+        >
+          <Maximize2 size={15} color="var(--muted)" />
+        </button>
         {rightSlot}
       </div>
     </div>

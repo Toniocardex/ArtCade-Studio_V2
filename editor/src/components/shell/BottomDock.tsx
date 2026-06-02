@@ -1,22 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Minus } from 'lucide-react'
 import { useEditor, useConsoleLogs } from '../../store/editor-store'
-import { usePersistedHeight } from '../../hooks/usePersistedHeight'
+import { useEditorLayoutContext } from '../../contexts/editor-layout-context'
 import { useBuildLogListener } from '../../hooks/useBuildLogListener'
 import { triggerLayoutReflow } from '../../utils/layout-reflow'
 import VerticalResizeHandle from '../VerticalResizeHandle'
 import { DockPanelChrome } from './dock/DockPanelChrome'
 import { DOCK_PANEL_REGISTRY } from './dock/dock-panel-registry'
-import { readEditorDockHeightDefault } from '../../constants/editor-layout'
 import { DOCK_PANEL_ORDER } from '../../constants/dock-panels'
 
 const HANDLE_H = 4
 const HEADER_H = 28
-const DEFAULT_HEIGHT = readEditorDockHeightDefault()
 const MIN_CONTENT_H = 160
 const MIN_TOTAL_H = HANDLE_H + HEADER_H + MIN_CONTENT_H
-const LEGACY_HEIGHT_CEILING = 220
-
 function maxDockHeight(): number {
   if (globalThis.window === undefined) return 480
   const cap = Math.min(320, Math.round(globalThis.innerHeight * 0.32))
@@ -27,21 +23,6 @@ function clampDockHeight(n: number): number {
   return Math.max(MIN_TOTAL_H, Math.min(maxDockHeight(), Math.round(n)))
 }
 
-function readInitialHeight(): number {
-  if (globalThis.window === undefined) return DEFAULT_HEIGHT
-  const v5 = globalThis.localStorage.getItem('artcade.bottom-dock-h-v5')
-  if (v5) {
-    const n = Number(v5)
-    if (Number.isFinite(n)) return clampDockHeight(n)
-  }
-  const v4 = globalThis.localStorage.getItem('artcade.console-dock-h-v4')
-  if (v4) {
-    const n = Number(v4)
-    if (Number.isFinite(n)) return clampDockHeight(n < LEGACY_HEIGHT_CEILING ? DEFAULT_HEIGHT : n)
-  }
-  return DEFAULT_HEIGHT
-}
-
 export default function BottomDock() {
   const { state, dispatch } = useEditor()
   const { state: volatile } = useConsoleLogs()
@@ -50,12 +31,14 @@ export default function BottomDock() {
   useBuildLogListener()
 
   const [maxH, setMaxH] = useState(maxDockHeight)
-  const [height, setHeight] = usePersistedHeight(
-    'artcade.bottom-dock-h-v5',
-    readInitialHeight(),
-    MIN_TOTAL_H,
-    maxH,
-  )
+  const layout = useEditorLayoutContext()
+  const height = clampDockHeight(layout.dockH)
+  const setHeight = (next: number | ((prev: number) => number)) => {
+    layout.setDockH((h) => {
+      const raw = typeof next === 'function' ? next(h) : next
+      return clampDockHeight(raw)
+    })
+  }
 
   const visiblePanels = useMemo(
     () => DOCK_PANEL_REGISTRY.filter((p) => dockPanelVisibility[p.id]),
@@ -111,7 +94,7 @@ export default function BottomDock() {
       data-visible-panels={visibleCount}
     >
       {!bottomPanelCollapsed && (
-        <VerticalResizeHandle onResize={(d) => setHeight((h) => h + d)} />
+        <VerticalResizeHandle onResize={(d) => setHeight((h) => clampDockHeight(h + d))} />
       )}
 
       <div className="shrink-0 flex items-center border-b border-[var(--outline)] min-h-7 px-2 bg-[var(--surface-2)]">
@@ -128,12 +111,14 @@ export default function BottomDock() {
         )}
         <button
           type="button"
-          onClick={() =>
+          onClick={() => {
+            const collapsed = !bottomPanelCollapsed
+            layout.setDockCollapsed(collapsed)
             dispatch({
               type: 'SET_BOTTOM_PANEL_COLLAPSED',
-              collapsed: !bottomPanelCollapsed,
+              collapsed,
             })
-          }
+          }}
           title={bottomPanelCollapsed ? 'Expand bottom dock' : 'Collapse bottom dock'}
           aria-label={bottomPanelCollapsed ? 'Expand bottom dock' : 'Collapse bottom dock'}
           className="w-8 h-7 flex items-center justify-center text-[var(--muted)] hover:text-[var(--primary)] shrink-0"

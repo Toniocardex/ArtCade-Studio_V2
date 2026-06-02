@@ -18,16 +18,17 @@ import {
 } from '../../utils/authoring-mode'
 import { persistDockPanelVisibility } from '../../utils/dock-panel-visibility'
 import {
-  applyDockVisibility,
   expandDockWithConsole,
   mergeDockUiSlice,
   revealConsoleOnLog,
   setDockPanelVisible,
   toggleConsoleDock,
   withDerivedConsoleOpen,
+  type DockUiSlice,
 } from '../../utils/dock-ui-state'
+import { writeEditorPreferences } from '../../utils/editor-preferences'
 
-function applyDockUiChange(state: CoreState, slice: ReturnType<typeof applyDockVisibility>): CoreState {
+function applyDockUiChange(state: CoreState, slice: DockUiSlice): CoreState {
   if (slice.dockPanelVisibility !== state.dockPanelVisibility) {
     persistDockPanelVisibility(slice.dockPanelVisibility)
   }
@@ -95,6 +96,27 @@ export const uiReducer: DomainReducer = (state: CoreState, action: Action) => {
       }
     case 'SET_MODE':
       return { ...state, mode: action.mode }
+    case 'TOGGLE_FOCUS_MODE': {
+      const next = !state.focusMode
+      return {
+        ...state,
+        focusMode: next,
+        mode: next ? 'canvas' : state.mode,
+        editingTilesetId: next ? null : state.editingTilesetId,
+      }
+    }
+    case 'SET_FOCUS_MODE':
+      if (state.focusMode === action.enabled) return state
+      return {
+        ...state,
+        focusMode: action.enabled,
+        mode: action.enabled ? 'canvas' : state.mode,
+        editingTilesetId: action.enabled ? null : state.editingTilesetId,
+      }
+    case 'SET_REDUCE_MOTION':
+      if (state.reduceMotion === action.enabled) return state
+      writeEditorPreferences({ reduceMotion: action.enabled })
+      return { ...state, reduceMotion: action.enabled }
     case 'SET_AUTHORING_MODE': {
       if (state.authoringMode === action.mode) return state
       persistAuthoringMode(action.mode)

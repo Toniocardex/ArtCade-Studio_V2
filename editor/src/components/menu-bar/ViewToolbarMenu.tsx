@@ -6,6 +6,8 @@ import AuthoringModeSwitch from '../AuthoringModeSwitch'
 import { openDialogLibraryModal } from '../../panels/dialog/dialog-modal-api'
 import { ToolbarDropdown } from './ToolbarDropdown'
 import { DockPanelsViewSection } from './DockPanelsViewSection'
+import { EditorUiScaleViewSection } from './EditorUiScaleViewSection'
+import { useEditorUiScaleContext } from '../../contexts/editor-ui-scale-context'
 
 function themeFromDocument(): Theme {
   const value = document.documentElement.dataset.theme
@@ -14,6 +16,7 @@ function themeFromDocument(): Theme {
 
 export function ViewToolbarMenu() {
   const { dispatch } = useEditor()
+  const uiScale = useEditorUiScaleContext()
   const [open, setOpen] = useState(false)
   const [theme, setTheme] = useState<Theme>(themeFromDocument)
   const anchorRef = useRef<HTMLDivElement>(null)
@@ -36,6 +39,7 @@ export function ViewToolbarMenu() {
             <AuthoringModeSwitch />
           </div>
         </div>
+        <EditorUiScaleViewSection uiScale={uiScale} />
         <DockPanelsViewSection />
         <button
           type="button"

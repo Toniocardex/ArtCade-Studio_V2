@@ -204,6 +204,37 @@ describe('uiReducer — dock panel visibility', () => {
   })
 })
 
+describe('uiReducer — focus mode & preferences', () => {
+  it('TOGGLE_FOCUS_MODE switches focus and forces canvas mode', () => {
+    const start = base({ mode: 'logic', focusMode: false })
+    const on = uiReducer(start, { type: 'TOGGLE_FOCUS_MODE' })
+    expect(on.focusMode).toBe(true)
+    expect(on.mode).toBe('canvas')
+    const off = uiReducer(on, { type: 'TOGGLE_FOCUS_MODE' })
+    expect(off.focusMode).toBe(false)
+    expect(off.mode).toBe('canvas')
+  })
+
+  it('SET_FOCUS_MODE clears tileset edit when enabling focus', () => {
+    const start = base({ editingTilesetId: 'ts_1', focusMode: false })
+    const s = uiReducer(start, { type: 'SET_FOCUS_MODE', enabled: true })
+    expect(s.focusMode).toBe(true)
+    expect(s.editingTilesetId).toBeNull()
+  })
+
+  it('SET_REDUCE_MOTION persists preference', () => {
+    vi.stubGlobal('localStorage', {
+      getItem: vi.fn(() => null),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+    })
+    const s = uiReducer(base(), { type: 'SET_REDUCE_MOTION', enabled: true })
+    expect(s.reduceMotion).toBe(true)
+    expect(localStorage.setItem).toHaveBeenCalled()
+    vi.unstubAllGlobals()
+  })
+})
+
 describe('uiReducer — spritesheet studio', () => {
   it('SPRITESHEET_STUDIO_OPEN sets open and imageAssetId', () => {
     const s = uiReducer(base(), {

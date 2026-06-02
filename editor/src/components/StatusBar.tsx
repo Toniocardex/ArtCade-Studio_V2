@@ -5,6 +5,7 @@ import { DEFAULT_WORLD } from '../types'
 import { isReady as isWasmReady } from '../utils/wasm-bridge'
 import { getProjectWorkbenchSnapshot } from '../utils/project-health'
 import { useRuntimeProfilePoll } from '../hooks/useRuntimeProfilePoll'
+import { useEditorUiScaleContext } from '../contexts/editor-ui-scale-context'
 
 function runtimeDisplay(playing: boolean, wasmReady: boolean): { text: string; className: string } {
   if (playing) {
@@ -16,8 +17,13 @@ function runtimeDisplay(playing: boolean, wasmReady: boolean): { text: string; c
   return { text: 'LOADING', className: 'text-[var(--muted)]' }
 }
 
-export default function StatusBar() {
+type StatusBarProps = Readonly<{
+  compact?: boolean
+}>
+
+export default function StatusBar({ compact = false }: StatusBarProps) {
   const { state, dispatch } = useEditor()
+  const { scaleLabel } = useEditorUiScaleContext()
   const { state: volatile } = useConsoleLogs()
   const {
     project, selection, isPlaying, projectDirty, editorGridSize, snapToGrid,
@@ -77,6 +83,22 @@ export default function StatusBar() {
   const runtime = runtimeDisplay(isPlaying, isWasmReady())
 
   const consoleActive = !bottomPanelCollapsed && consoleOpen
+
+  if (compact) {
+    const runtime = runtimeDisplay(isPlaying, isWasmReady())
+    return (
+      <footer
+        className="editor-statusbar flex items-center justify-between text-[9px]
+                   text-[var(--muted)] flex-shrink-0 select-none"
+      >
+        <span className={runtime.className}>Runtime: {runtime.text}</span>
+        <div className="flex items-center gap-3">
+          <span title="Editor interface scale">UI {scaleLabel}</span>
+          <span className="font-mono">X: {cursorPos.x} Y: {cursorPos.y}</span>
+        </div>
+      </footer>
+    )
+  }
 
   return (
     <footer
@@ -146,6 +168,7 @@ export default function StatusBar() {
             </span>
           )}
         </button>
+        <span title="Editor interface scale (VIEW → Interface)">UI {scaleLabel}</span>
         <span>X: {cursorPos.x} Y: {cursorPos.y}</span>
         <span>Selection: {selectedName}</span>
       </div>

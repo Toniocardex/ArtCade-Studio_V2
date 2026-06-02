@@ -28,6 +28,7 @@ import {
 } from '../utils/editor-viewport-center'
 import { normalizeEntityPosition } from '../utils/entity-position'
 import { CanvasToolbar } from './preview/CanvasToolbar'
+import { CanvasFocusToolbar } from './preview/CanvasFocusToolbar'
 import { RuntimeStatusBadge } from './preview/RuntimeStatusBadge'
 import { ProjectHealthBanner } from './preview/ProjectHealthBanner'
 import { CameraFrameOverlay } from './preview/CameraFrameOverlay'
@@ -71,7 +72,7 @@ export default function PreviewPanel() {
     project, projectPath, isPlaying, selection, selectedTileCell, mode,
     editorGridSize, snapToGrid, editorZoom, editorZoomMode, cameraPreview,
     previewAssetLoadScope,
-    openScripts,
+    openScripts, focusMode,
   } = state
 
   const canvasRef           = useRef<HTMLCanvasElement>(null)
@@ -485,20 +486,24 @@ export default function PreviewPanel() {
   })()
 
   return (
-    <div className="h-full flex flex-col bg-[var(--bg)]">
-      <CanvasToolbar
-        activeTool={activeTool}
-        onSelectTool={setActiveTool}
-        selectedTileCell={selectedTileCell}
-        showGuides={showEditorGuides}
-        onToggleGuides={() => setShowEditorGuides(v => !v)}
-        rightSlot={(
-          <div className="flex items-center gap-2">
-            <ProjectHealthBanner projectKey={projectPath} />
-            <RuntimeStatusBadge wasmReady={wasmReady} hasProject={!!project} />
-          </div>
-        )}
-      />
+    <div className="editor-preview-island h-full flex flex-col bg-[var(--bg)]">
+      {focusMode ? (
+        <CanvasFocusToolbar />
+      ) : (
+        <CanvasToolbar
+          activeTool={activeTool}
+          onSelectTool={setActiveTool}
+          selectedTileCell={selectedTileCell}
+          showGuides={showEditorGuides}
+          onToggleGuides={() => setShowEditorGuides(v => !v)}
+          rightSlot={(
+            <div className="flex items-center gap-2">
+              <ProjectHealthBanner projectKey={projectPath} />
+              <RuntimeStatusBadge wasmReady={wasmReady} hasProject={!!project} />
+            </div>
+          )}
+        />
+      )}
 
       <CanvasViewportWithRulers
         scrollRef={scrollRef}
@@ -565,7 +570,7 @@ export default function PreviewPanel() {
         </div>
       </CanvasViewportWithRulers>
 
-      <CanvasFooterBar />
+      {!focusMode && <CanvasFooterBar />}
     </div>
   )
 }

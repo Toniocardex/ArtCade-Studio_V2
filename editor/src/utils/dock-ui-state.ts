@@ -120,9 +120,6 @@ export function createInitialDockUiSlice(
   })
 }
 
-export function mergeDockUiSlice(
-  state: { bottomPanelCollapsed: boolean; dockPanelVisibility: DockPanelVisibility; consoleOpen: boolean },
-  slice: DockUiSlice,
-): typeof state {
+export function mergeDockUiSlice<S extends DockUiSlice>(state: S, slice: DockUiSlice): S {
   return { ...state, ...slice }
 }

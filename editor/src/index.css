@@ -205,6 +205,7 @@
 }
 
 :root {
+  --editor-scale:           1;
   --editor-rail-width:      0px;
   --editor-workspace-inset: 0.75rem;
   --editor-toolbar-gap: 0.5rem;
@@ -341,6 +342,42 @@ input[data-mono],
 }
 
 /* ---------------------------------------------------------------------------
+   Adaptive UI scale — chrome only (see docs/ADAPTIVE_LAYOUT.md Phase 1)
+   --------------------------------------------------------------------------- */
+
+.editor-shell {
+  --editor-scale: 1;
+  font-size: calc(12px * var(--editor-scale));
+  --editor-left-w-default:  calc(280px * var(--editor-scale));
+  --editor-right-w-default: calc(320px * var(--editor-scale));
+  --editor-dock-h-default:  calc(280px * var(--editor-scale));
+  --editor-top-chrome-h:    calc(96px * var(--editor-scale));
+  --editor-workspace-inset: calc(0.75rem * var(--editor-scale));
+}
+
+/* Game preview / WASM viewport — fixed px; not scaled with editor UI. */
+.editor-preview-island {
+  font-size: 12px;
+}
+
+.editor-chrome-panel {
+  transition: width 180ms ease-in-out, opacity 180ms ease-in-out, transform 180ms ease-in-out;
+}
+
+.editor-reduce-motion .editor-chrome-panel,
+.editor-reduce-motion .editor-top-chrome {
+  transition: none;
+}
+
+.editor-focus-mode .editor-chrome-panel {
+  width: 0 !important;
+  min-width: 0 !important;
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* ---------------------------------------------------------------------------
    Top chrome — MenuBar + module tabs = 96px total
    --------------------------------------------------------------------------- */
 
@@ -450,12 +487,12 @@ input[data-mono],
 }
 
 .editor-statusbar {
-  min-height: 1.625rem;
-  padding: 0.25rem 1.25rem;
+  min-height: 1.625em;
+  padding: 0.25em 1.25em;
   border-top: 1px solid var(--border);
   background: var(--panel);
   font-family: var(--font-mono);
-  font-size: 0.6875rem;
+  font-size: 0.6875em;
   color: var(--muted);
 }
 

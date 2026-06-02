@@ -1,19 +1,27 @@
-import { useEffect, useState } from 'react'
+import { EDITOR_LAYOUT_MIN_WIDTH_PX } from '../../constants/editor-ui-scale'
+import { useWorkspaceLayoutMetricsContext } from '../../contexts/editor-layout-tier-context'
 
-const MIN_WIDTH = 1520
+function bannerMessage(
+  tier: ReturnType<typeof useWorkspaceLayoutMetricsContext>['tier'],
+  width: number,
+): string | null {
+  if (tier === 'unsupported') {
+    return 'Resolution not supported — use at least 1024×600 (1366×768 recommended).'
+  }
+  if (tier === 'minimal') {
+    return 'Low resolution — some features may be hard to use. Recommended minimum: 1366×768.'
+  }
+  if (tier === 'compact' && width < EDITOR_LAYOUT_MIN_WIDTH_PX) {
+    return `Narrow window — layout is optimized for ${EDITOR_LAYOUT_MIN_WIDTH_PX}px width or wider.`
+  }
+  return null
+}
 
-/** Non-blocking hint when the editor window is narrower than the recommended layout width. */
+/** Non-blocking hint when the editor workspace is below recommended size. */
 export function EditorViewportBanner() {
-  const [narrow, setNarrow] = useState(false)
-
-  useEffect(() => {
-    const check = () => setNarrow(globalThis.innerWidth < MIN_WIDTH)
-    check()
-    globalThis.addEventListener('resize', check)
-    return () => globalThis.removeEventListener('resize', check)
-  }, [])
-
-  if (!narrow) return null
+  const { tier, width } = useWorkspaceLayoutMetricsContext()
+  const message = bannerMessage(tier, width)
+  if (!message) return null
 
   return (
     <div
@@ -22,7 +30,7 @@ export function EditorViewportBanner() {
                  bg-[var(--surface-2)]/90 border-b border-[var(--outline-subtle)]"
       role="status"
     >
-      Narrow window — layout is optimized for {MIN_WIDTH}px width or wider.
+      {message}
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from 'react'
+import { lazy, Suspense, useEffect, useRef, type CSSProperties } from 'react'
 import { EditorProvider, useEditor } from './store/editor-store'
 import MenuBar            from './components/MenuBar'
 import ModuleTabs from './components/shell/ModuleTabs'
@@ -19,13 +19,15 @@ import { useProjectLogicBoardSync } from './hooks/useProjectLogicBoardSync'
 import { ProjectNamePersistProvider } from './components/menu-bar/project-name-context'
 import { useViewportShortcuts } from './hooks/useViewportShortcuts'
 import { useConsoleShortcut } from './hooks/useConsoleShortcut'
-import { usePersistedWidth } from './hooks/usePersistedWidth'
-import {
-  readEditorLeftWidthDefault,
-  readEditorRightWidthDefault,
-} from './constants/editor-layout'
+import { useFocusModeShortcut, useExitFocusOnEscape } from './hooks/useFocusModeShortcut'
+import { useEditorLayoutContext, EditorLayoutProvider } from './contexts/editor-layout-context'
 import EditorBootGate from './components/EditorBootGate'
 import { EditorViewportBanner } from './components/shell/EditorViewportBanner'
+import { EditorUiScaleProvider, useEditorUiScaleContext } from './contexts/editor-ui-scale-context'
+import { EditorLayoutTierProvider, useLayoutTier } from './contexts/editor-layout-tier-context'
+import CompactLeftSidebar from './components/shell/CompactLeftSidebar'
+import { InspectorDrawer } from './components/shell/InspectorDrawer'
+import { LayoutTierSideEffects } from './components/shell/LayoutTierSideEffects'
 import type { ConsoleEntry } from './types'
 
 const LogicBoardPanel = lazy(() => import('./panels/LogicBoardPanel'))
@@ -65,38 +67,44 @@ function LegacyMigrateBanner() {
 
 function CanvasView() {
   const { state } = useEditor()
-  const [leftW, setLeftW]   = usePersistedWidth(
-    'artcade.sidebar-left-w-v3',
-    readEditorLeftWidthDefault(),
-  )
-  const [rightW, setRightW] = usePersistedWidth(
-    'artcade.sidebar-right-w-v3',
-    readEditorRightWidthDefault(),
-  )
+  const focusMode = state.focusMode
+  const tier = useLayoutTier()
+  const useCompactShell = tier === 'compact' || tier === 'minimal'
+
+  const { leftW, rightW, setLeftW, setRightW, resetLeftW, resetRightW } = useEditorLayoutContext()
 
   const isEditingTileset = state.editingTilesetId != null
 
   return (
     <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
-      <LegacyMigrateBanner />
+      {!focusMode && <LegacyMigrateBanner />}
       <div className="flex flex-1 min-h-0 overflow-hidden">
 
-      <aside
-        style={{ width: leftW }}
-        className="border-r border-[var(--outline)] flex-shrink-0 overflow-hidden bg-[var(--surface)]"
-      >
-        <LeftSidebar />
-      </aside>
-      <ResizeHandle side="left" onResize={(d) => setLeftW((w) => w + d)} />
+      {!focusMode && (
+        <>
+          <aside
+            style={{ width: leftW }}
+            className="editor-chrome-panel border-r border-[var(--outline)] flex-shrink-0 overflow-hidden bg-[var(--surface)]"
+          >
+            {useCompactShell ? <CompactLeftSidebar /> : <LeftSidebar />}
+          </aside>
+          <ResizeHandle
+            side="left"
+            onResize={(d) => setLeftW((w) => w + d)}
+            onReset={resetLeftW}
+          />
+        </>
+      )}
 
-      <section className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[var(--void)]">
+      <section className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[var(--void)] relative">
         <div className="flex-1 min-h-0 overflow-hidden relative">
+          {useCompactShell && <InspectorDrawer />}
           <div
             style={{ display: isEditingTileset ? 'none' : 'contents' }}
           >
             <PreviewPanel />
           </div>
-          {isEditingTileset && (
+          {isEditingTileset && !focusMode && (
             <Suspense fallback={null}>
               <TilesetEditorPanel />
             </Suspense>
@@ -104,13 +112,21 @@ function CanvasView() {
         </div>
       </section>
 
-      <ResizeHandle side="right" onResize={(d) => setRightW((w) => w + d)} />
-      <aside
-        style={{ width: rightW }}
-        className="border-l border-[var(--outline)] flex-shrink-0 overflow-hidden bg-[var(--surface)]"
-      >
-        <InspectorPanel />
-      </aside>
+      {!focusMode && !useCompactShell && (
+        <>
+          <ResizeHandle
+            side="right"
+            onResize={(d) => setRightW((w) => w + d)}
+            onReset={resetRightW}
+          />
+          <aside
+            style={{ width: rightW }}
+            className="editor-chrome-panel border-l border-[var(--outline)] flex-shrink-0 overflow-hidden bg-[var(--surface)]"
+          >
+            <InspectorPanel />
+          </aside>
+        </>
+      )}
       </div>
     </div>
   )
@@ -138,6 +154,8 @@ function ScriptEditorView() {
 
 function EditorLayout() {
   const { state, dispatch } = useEditor()
+  const uiScale = useEditorUiScaleContext()
+  const workspaceRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (state.project || state.projectPath) return
@@ -159,22 +177,42 @@ function EditorLayout() {
   useProjectLogicBoardSync()
   useViewportShortcuts()
   useConsoleShortcut()
+  useFocusModeShortcut()
+  useExitFocusOnEscape()
 
   useEffect(() => {
     if (state.mode === 'script') triggerLayoutReflow()
   }, [state.mode])
 
+  const shellStyle = {
+    '--editor-scale': String(uiScale.scale),
+  } as CSSProperties
+
+  const motionClass = state.reduceMotion ? 'editor-reduce-motion' : ''
+  const focusClass = state.focusMode ? 'editor-focus-mode' : ''
+
   return (
-    <div className="editor-shell relative flex flex-col w-full h-full bg-[var(--bg-app)] text-[var(--primary)] overflow-hidden select-none">
-      <header className="editor-top-chrome">
-        <MenuBar />
-        <ModuleTabs />
-      </header>
-      <EditorViewportBanner />
+    <div
+      className={`editor-shell relative flex flex-col w-full h-full bg-[var(--bg-app)] text-[var(--primary)] overflow-hidden select-none ${motionClass} ${focusClass}`}
+      style={shellStyle}
+    >
+      <EditorLayoutTierProvider workspaceRef={workspaceRef}>
+      <EditorLayoutProvider>
+        <LayoutTierSideEffects />
+      {!state.focusMode && (
+        <header className="editor-top-chrome">
+          <MenuBar />
+          <ModuleTabs />
+        </header>
+      )}
+      {!state.focusMode && <EditorViewportBanner />}
       <DialogEditorModal />
       <SpritesheetStudioModal />
 
-      <div className="editor-workspace flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden">
+      <div
+        ref={workspaceRef}
+        className="editor-workspace flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden"
+      >
         <div className="flex flex-1 min-h-0 overflow-hidden flex-col min-w-0">
           <div
             className="flex flex-1 min-h-0 overflow-hidden"
@@ -186,9 +224,11 @@ function EditorLayout() {
           {state.mode === 'script' && <ScriptEditorView />}
         </div>
 
-        <BottomDock />
-        <StatusBar />
+        {!state.focusMode && <BottomDock />}
+        <StatusBar compact={state.focusMode} />
       </div>
+      </EditorLayoutProvider>
+      </EditorLayoutTierProvider>
     </div>
   )
 }
@@ -197,9 +237,11 @@ export default function App() {
   return (
     <EditorProvider>
       <ProjectNamePersistProvider>
-        <EditorBootGate>
-          <EditorLayout />
-        </EditorBootGate>
+        <EditorUiScaleProvider>
+          <EditorBootGate>
+            <EditorLayout />
+          </EditorBootGate>
+        </EditorUiScaleProvider>
       </ProjectNamePersistProvider>
     </EditorProvider>
   )
