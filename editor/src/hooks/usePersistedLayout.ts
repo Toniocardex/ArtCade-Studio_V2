@@ -2,13 +2,13 @@
 // usePersistedLayout — panel sizes per window resolution bucket (Phase 3)
 // ---------------------------------------------------------------------------
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { EditorLayoutSnapshot } from '../utils/editor-layout-persist'
 import { useWorkspaceLayoutMetricsContext } from '../contexts/editor-layout-tier-context'
 import {
   clampLeftWidthInWorkspace,
   clampRightWidthInWorkspace,
-  defaultLayoutSnapshot,
+  defaultLayoutSnapshotForTier,
   readEditorLayoutSnapshot,
   writeEditorLayoutSnapshot,
 } from '../utils/editor-layout-persist'
@@ -27,10 +27,17 @@ export type PersistedLayoutApi = EditorLayoutSnapshot & {
   resetRightW: () => void
 }
 
+function reserveRightWidthForTier(
+  tier: ReturnType<typeof useWorkspaceLayoutMetricsContext>['tier'],
+  rightW: number,
+): number {
+  return tier === 'full' ? rightW : 0
+}
+
 export function usePersistedLayout(): PersistedLayoutApi {
-  const { width, height } = useWorkspaceLayoutMetricsContext()
+  const { width, height, tier } = useWorkspaceLayoutMetricsContext()
   const [snapshot, setSnapshot] = useState<EditorLayoutSnapshot>(() =>
-    readEditorLayoutSnapshot(width, height),
+    readEditorLayoutSnapshot(width, height, tier),
   )
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const snapshotRef = useRef(snapshot)
@@ -44,10 +51,10 @@ export function usePersistedLayout(): PersistedLayoutApi {
   }, [])
 
   useEffect(() => {
-    const loaded = readEditorLayoutSnapshot(width, height)
+    const loaded = readEditorLayoutSnapshot(width, height, tier)
     setSnapshot(loaded)
     snapshotRef.current = loaded
-  }, [width, height])
+  }, [width, height, tier])
 
   useEffect(() => {
     scheduleSave(width, height, snapshot)
@@ -67,22 +74,27 @@ export function usePersistedLayout(): PersistedLayoutApi {
   const setLeftW = useCallback((next: number | ((prev: number) => number)) => {
     setSnapshot((prev) => {
       const raw = typeof next === 'function' ? next(prev.leftW) : next
-      const leftW = clampLeftWidthInWorkspace(raw, width, prev.rightW)
+      const leftW = clampLeftWidthInWorkspace(
+        raw,
+        width,
+        reserveRightWidthForTier(tier, prev.rightW),
+      )
       const nextSnap = { ...prev, leftW }
       snapshotRef.current = nextSnap
       return nextSnap
     })
-  }, [width])
+  }, [width, tier])
 
   const setRightW = useCallback((next: number | ((prev: number) => number)) => {
     setSnapshot((prev) => {
       const raw = typeof next === 'function' ? next(prev.rightW) : next
-      const rightW = clampRightWidthInWorkspace(raw, width, prev.leftW)
+      const leftReserve = tier === 'full' ? prev.leftW : 0
+      const rightW = clampRightWidthInWorkspace(raw, width, leftReserve)
       const nextSnap = { ...prev, rightW }
       snapshotRef.current = nextSnap
       return nextSnap
     })
-  }, [width])
+  }, [width, tier])
 
   const setDockH = useCallback((next: number | ((prev: number) => number)) => {
     setSnapshot((prev) => {
@@ -99,31 +111,45 @@ export function usePersistedLayout(): PersistedLayoutApi {
   }, [patch])
 
   const resetToDefaults = useCallback(() => {
-    const defaults = defaultLayoutSnapshot()
+    const defaults = defaultLayoutSnapshotForTier(tier)
     setSnapshot(defaults)
     writeEditorLayoutSnapshot(width, height, defaults)
-  }, [width, height])
+  }, [width, height, tier])
 
   const resetLeftW = useCallback(() => {
-    const leftW = defaultLayoutSnapshot().leftW
+    const leftW = defaultLayoutSnapshotForTier(tier).leftW
     patch({ leftW })
-  }, [patch])
+  }, [patch, tier])
 
   const resetRightW = useCallback(() => {
-    const rightW = defaultLayoutSnapshot().rightW
+    const rightW = defaultLayoutSnapshotForTier(tier).rightW
     patch({ rightW })
-  }, [patch])
+  }, [patch, tier])
 
-  return {
-    ...snapshot,
-    bucketWidth: width,
-    bucketHeight: height,
-    setLeftW,
-    setRightW,
-    setDockH,
-    setDockCollapsed,
-    resetToDefaults,
-    resetLeftW,
-    resetRightW,
-  }
+  return useMemo(
+    () => ({
+      ...snapshot,
+      bucketWidth: width,
+      bucketHeight: height,
+      setLeftW,
+      setRightW,
+      setDockH,
+      setDockCollapsed,
+      resetToDefaults,
+      resetLeftW,
+      resetRightW,
+    }),
+    [
+      snapshot,
+      width,
+      height,
+      setLeftW,
+      setRightW,
+      setDockH,
+      setDockCollapsed,
+      resetToDefaults,
+      resetLeftW,
+      resetRightW,
+    ],
+  )
 }

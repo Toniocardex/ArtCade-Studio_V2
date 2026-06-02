@@ -18,6 +18,10 @@ import {
 } from '../constants/editor-layout'
 import type { DockPanelVisibility } from '../constants/dock-panels'
 import { readStoredDockPanelVisibility } from './dock-panel-visibility'
+import type { LayoutTier } from './editor-layout-tier'
+
+/** Compact/minimal left rail target (ADAPTIVE_LAYOUT §6.2). */
+export const EDITOR_LEFT_W_COMPACT = 200
 
 export type EditorLayoutSnapshot = {
   leftW: number
@@ -84,11 +88,23 @@ export function clampRightWidthInWorkspace(
 }
 
 export function defaultLayoutSnapshot(): EditorLayoutSnapshot {
+  return defaultLayoutSnapshotForTier('full')
+}
+
+export function defaultLayoutSnapshotForTier(tier: LayoutTier): EditorLayoutSnapshot {
+  if (tier === 'full') {
+    return {
+      leftW: EDITOR_LEFT_W_DEFAULT,
+      rightW: EDITOR_RIGHT_W_DEFAULT,
+      dockH: EDITOR_DOCK_H_DEFAULT,
+      dockCollapsed: false,
+    }
+  }
   return {
-    leftW: EDITOR_LEFT_W_DEFAULT,
+    leftW: clampLeftWidth(EDITOR_LEFT_W_COMPACT),
     rightW: EDITOR_RIGHT_W_DEFAULT,
     dockH: EDITOR_DOCK_H_DEFAULT,
-    dockCollapsed: false,
+    dockCollapsed: true,
   }
 }
 
@@ -117,8 +133,9 @@ function migrateLegacyWidths(): Partial<EditorLayoutSnapshot> | null {
 export function readEditorLayoutSnapshot(
   width: number,
   height: number,
+  tier: LayoutTier = 'full',
 ): EditorLayoutSnapshot {
-  const defaults = defaultLayoutSnapshot()
+  const defaults = defaultLayoutSnapshotForTier(tier)
   if (globalThis.localStorage === undefined) return defaults
 
   const key = layoutStorageKey(width, height)

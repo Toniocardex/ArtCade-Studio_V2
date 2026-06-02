@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, type CSSProperties } from 'react'
+import { lazy, Suspense, useEffect, useRef, type CSSProperties, type RefObject } from 'react'
 import { EditorProvider, useEditor } from './store/editor-store'
 import MenuBar            from './components/MenuBar'
 import ModuleTabs from './components/shell/ModuleTabs'
@@ -69,7 +69,7 @@ function CanvasView() {
   const { state } = useEditor()
   const focusMode = state.focusMode
   const tier = useLayoutTier()
-  const useCompactShell = tier === 'compact' || tier === 'minimal'
+  const useCompactShell = tier === 'compact' || tier === 'minimal' || tier === 'unsupported'
 
   const { leftW, rightW, setLeftW, setRightW, resetLeftW, resetRightW } = useEditorLayoutContext()
 
@@ -152,9 +152,61 @@ function ScriptEditorView() {
   )
 }
 
+function EditorShell({ workspaceRef }: Readonly<{ workspaceRef: RefObject<HTMLDivElement | null> }>) {
+  const { state } = useEditor()
+  const uiScale = useEditorUiScaleContext()
+  const tier = useLayoutTier()
+
+  const shellStyle = {
+    '--editor-scale': String(uiScale.scale),
+  } as CSSProperties
+
+  const motionClass = state.reduceMotion ? 'editor-reduce-motion' : ''
+  const focusClass = state.focusMode ? 'editor-focus-mode' : ''
+
+  return (
+    <div
+      className={`editor-shell relative flex flex-col w-full h-full bg-[var(--bg-app)] text-[var(--primary)] overflow-hidden select-none ${motionClass} ${focusClass}`}
+      style={shellStyle}
+      data-layout-tier={tier}
+    >
+      <EditorLayoutProvider>
+        <LayoutTierSideEffects />
+        {!state.focusMode && (
+          <header className="editor-top-chrome">
+            <MenuBar />
+            <ModuleTabs />
+          </header>
+        )}
+        {!state.focusMode && <EditorViewportBanner />}
+        <DialogEditorModal />
+        <SpritesheetStudioModal />
+
+        <div
+          ref={workspaceRef}
+          className="editor-workspace flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden"
+        >
+          <div className="flex flex-1 min-h-0 overflow-hidden flex-col min-w-0">
+            <div
+              className="flex flex-1 min-h-0 overflow-hidden"
+              style={{ display: state.mode === 'canvas' ? 'flex' : 'none' }}
+            >
+              <CanvasView />
+            </div>
+            {state.mode === 'logic' && <LogicBoardView />}
+            {state.mode === 'script' && <ScriptEditorView />}
+          </div>
+
+          {!state.focusMode && <BottomDock />}
+          <StatusBar compact={state.focusMode} />
+        </div>
+      </EditorLayoutProvider>
+    </div>
+  )
+}
+
 function EditorLayout() {
   const { state, dispatch } = useEditor()
-  const uiScale = useEditorUiScaleContext()
   const workspaceRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -184,52 +236,10 @@ function EditorLayout() {
     if (state.mode === 'script') triggerLayoutReflow()
   }, [state.mode])
 
-  const shellStyle = {
-    '--editor-scale': String(uiScale.scale),
-  } as CSSProperties
-
-  const motionClass = state.reduceMotion ? 'editor-reduce-motion' : ''
-  const focusClass = state.focusMode ? 'editor-focus-mode' : ''
-
   return (
-    <div
-      className={`editor-shell relative flex flex-col w-full h-full bg-[var(--bg-app)] text-[var(--primary)] overflow-hidden select-none ${motionClass} ${focusClass}`}
-      style={shellStyle}
-    >
-      <EditorLayoutTierProvider workspaceRef={workspaceRef}>
-      <EditorLayoutProvider>
-        <LayoutTierSideEffects />
-      {!state.focusMode && (
-        <header className="editor-top-chrome">
-          <MenuBar />
-          <ModuleTabs />
-        </header>
-      )}
-      {!state.focusMode && <EditorViewportBanner />}
-      <DialogEditorModal />
-      <SpritesheetStudioModal />
-
-      <div
-        ref={workspaceRef}
-        className="editor-workspace flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden"
-      >
-        <div className="flex flex-1 min-h-0 overflow-hidden flex-col min-w-0">
-          <div
-            className="flex flex-1 min-h-0 overflow-hidden"
-            style={{ display: state.mode === 'canvas' ? 'flex' : 'none' }}
-          >
-            <CanvasView />
-          </div>
-          {state.mode === 'logic'  && <LogicBoardView />}
-          {state.mode === 'script' && <ScriptEditorView />}
-        </div>
-
-        {!state.focusMode && <BottomDock />}
-        <StatusBar compact={state.focusMode} />
-      </div>
-      </EditorLayoutProvider>
-      </EditorLayoutTierProvider>
-    </div>
+    <EditorLayoutTierProvider workspaceRef={workspaceRef}>
+      <EditorShell workspaceRef={workspaceRef} />
+    </EditorLayoutTierProvider>
   )
 }
 

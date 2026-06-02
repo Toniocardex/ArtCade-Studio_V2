@@ -6,6 +6,8 @@ import {
   clampLeftWidth,
   clampLeftWidthInWorkspace,
   clearEditorLayoutSnapshot,
+  defaultLayoutSnapshotForTier,
+  EDITOR_LEFT_W_COMPACT,
 } from './editor-layout-persist'
 
 let store: Record<string, string>
@@ -42,6 +44,18 @@ describe('editor-layout-persist', () => {
 
   it('clampLeftWidthInWorkspace reserves canvas minimum width', () => {
     expect(clampLeftWidthInWorkspace(320, 900, 320)).toBeLessThanOrEqual(900 - 320 - 400)
+  })
+
+  it('defaultLayoutSnapshotForTier uses compact rail width', () => {
+    const snap = defaultLayoutSnapshotForTier('compact')
+    expect(snap.leftW).toBe(EDITOR_LEFT_W_COMPACT)
+    expect(snap.dockCollapsed).toBe(true)
+  })
+
+  it('readEditorLayoutSnapshot uses tier defaults when bucket missing', () => {
+    const snap = readEditorLayoutSnapshot(1366, 768, 'compact')
+    expect(snap.leftW).toBe(EDITOR_LEFT_W_COMPACT)
+    expect(snap.dockCollapsed).toBe(true)
   })
 
   it('clearEditorLayoutSnapshot removes bucket', () => {

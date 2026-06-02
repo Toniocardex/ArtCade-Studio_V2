@@ -1,4 +1,4 @@
-import { useRef, useLayoutEffect, useEffect, useState } from 'react'
+import { useRef, useLayoutEffect, useEffect, useState, useCallback } from 'react'
 import { useEditor } from '../store/editor-store'
 import type { ConsoleEntry } from '../types'
 import { isReady } from '../utils/wasm-bridge'
@@ -98,12 +98,12 @@ export default function PreviewPanel() {
   const [showEditorGuides, setShowEditorGuides] = useState(true)
 
   /** UI must reflect the window singleton (StrictMode/HMR can skip onReady). */
-  const syncRuntimeUiFlags = () => {
+  const syncRuntimeUiFlags = useCallback(() => {
     if (!isReady()) return
-    setWasmReady(true)
-    setEngineReady(true)
+    setWasmReady((w) => (w ? w : true))
+    setEngineReady((e) => (e ? e : true))
     runtimeSync.notifyEngineReady()
-  }
+  }, [])
 
   function handleRuntimeTransform(
     entityId: number, x: number, y: number,
@@ -134,7 +134,11 @@ export default function PreviewPanel() {
     })
   }
 
-  useLayoutEffect(() => { syncRuntimeUiFlags() })
+  // Mount-only: wasm-bridge onReady also calls syncRuntimeUiFlags; do not run
+  // every render (causes "Maximum update depth exceeded").
+  useLayoutEffect(() => {
+    syncRuntimeUiFlags()
+  }, [syncRuntimeUiFlags])
 
   useWasmRuntimeLifecycle({
     canvasRef, mode, dispatch, setEngineReady,

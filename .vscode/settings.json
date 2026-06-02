@@ -1,5 +1,7 @@
 {
   "sonarlint.pathToCompileCommands": "${workspaceFolder}/runtime-cpp/build-wasm/compile_commands.json",
   "C_Cpp.default.compileCommands": "${workspaceFolder}/runtime-cpp/build-wasm/compile_commands.json",
-  "C_Cpp.default.configurationProvider": "ms-vscode.cpptools"
+  "C_Cpp.default.configurationProvider": "ms-vscode.cpptools",
+  "css.lint.unknownAtRules": "ignore",
+  "scss.lint.unknownAtRules": "ignore"
 }
