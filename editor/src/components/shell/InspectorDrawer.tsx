@@ -1,23 +1,12 @@
-import { useState } from 'react'
 import { X } from 'lucide-react'
 import InspectorPanel from '../../panels/InspectorPanel'
+import { useInspectorDrawer } from '../../contexts/inspector-drawer-context'
 
 /** Right overlay inspector for compact layout tier (ADAPTIVE_LAYOUT D2). */
 export function InspectorDrawer() {
-  const [open, setOpen] = useState(false)
+  const { open, setOpen } = useInspectorDrawer()
 
-  if (!open) {
-    return (
-      <button
-        type="button"
-        className="absolute right-2 top-2 z-30 px-2 py-1 text-[10px] rounded border border-[var(--outline)]
-                   bg-[var(--surface)] text-[var(--primary)] hover:bg-[var(--surface-hover)]"
-        onClick={() => setOpen(true)}
-      >
-        Inspector
-      </button>
-    )
-  }
+  if (!open) return null
 
   return (
     <aside

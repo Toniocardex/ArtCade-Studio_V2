@@ -34,6 +34,8 @@ import { ProjectHealthBanner } from './preview/ProjectHealthBanner'
 import { CameraFrameOverlay } from './preview/CameraFrameOverlay'
 import { CanvasViewportWithRulers } from './preview/CanvasViewportWithRulers'
 import { CanvasFooterBar } from './preview/CanvasFooterBar'
+import { useLayoutTier } from '../contexts/editor-layout-tier-context'
+import { InspectorDrawerToggle } from '../contexts/inspector-drawer-context'
 
 type TransformSnapshot = {
   entityId: number
@@ -91,6 +93,9 @@ export default function PreviewPanel() {
   previewScopeRef.current = previewAssetLoadScope
   snapToGridRef.current = snapToGrid
   gridSizeRef.current   = editorGridSize
+
+  const tier = useLayoutTier()
+  const showInspectorToggle = tier !== 'full'
 
   const [wasmReady,   setWasmReady]        = useState(() => isReady())
   const [engineReady, setEngineReady]      = useState(() => isReady())
@@ -501,9 +506,10 @@ export default function PreviewPanel() {
           showGuides={showEditorGuides}
           onToggleGuides={() => setShowEditorGuides(v => !v)}
           rightSlot={(
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              {showInspectorToggle && <InspectorDrawerToggle />}
               <ProjectHealthBanner projectKey={projectPath} />
-              <RuntimeStatusBadge wasmReady={wasmReady} hasProject={!!project} />
+              <RuntimeStatusBadge wasmReady={wasmReady} hasProject={!!project} compact={showInspectorToggle} />
             </div>
           )}
         />

@@ -154,7 +154,7 @@ export function CanvasToolbar({
       <ZoomControls />
 
       {/* Right-aligned slot: runtime status badge, future view-mode toggles, etc. */}
-      <div className="ml-auto flex items-center gap-2">
+      <div className="ml-auto flex items-center gap-2 min-w-0 shrink">
         <button
           type="button"
           onClick={() => dispatch({ type: 'SET_FOCUS_MODE', enabled: true })}

@@ -27,6 +27,7 @@ import { EditorUiScaleProvider, useEditorUiScaleContext } from './contexts/edito
 import { EditorLayoutTierProvider, useLayoutTier } from './contexts/editor-layout-tier-context'
 import CompactLeftSidebar from './components/shell/CompactLeftSidebar'
 import { InspectorDrawer } from './components/shell/InspectorDrawer'
+import { InspectorDrawerProvider } from './contexts/inspector-drawer-context'
 import { LayoutTierSideEffects } from './components/shell/LayoutTierSideEffects'
 import type { ConsoleEntry } from './types'
 
@@ -98,12 +99,20 @@ function CanvasView() {
 
       <section className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[var(--void)] relative">
         <div className="flex-1 min-h-0 overflow-hidden relative">
-          {useCompactShell && <InspectorDrawer />}
+          {useCompactShell ? (
+            <InspectorDrawerProvider>
+              <InspectorDrawer />
+              <div style={{ display: isEditingTileset ? 'none' : 'contents' }}>
+                <PreviewPanel />
+              </div>
+            </InspectorDrawerProvider>
+          ) : (
           <div
             style={{ display: isEditingTileset ? 'none' : 'contents' }}
           >
             <PreviewPanel />
           </div>
+          )}
           {isEditingTileset && !focusMode && (
             <Suspense fallback={null}>
               <TilesetEditorPanel />
