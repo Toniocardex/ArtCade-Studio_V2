@@ -433,6 +433,15 @@ describe('RuntimeSyncService', () => {
     expect(cb).toHaveBeenCalledTimes(2)
   })
 
+  it('notifyEngineReady invalidates chrome cache so grid/guides resync', () => {
+    vi.mocked(bridge.isReady).mockReturnValue(true)
+    runtimeSync.syncEditorChrome({ guides: true, gridSize: 32, snapToGrid: false, isPlaying: false })
+    expect(bridge.editorSetGuidesEnabled).toHaveBeenCalledTimes(1)
+    runtimeSync.notifyEngineReady()
+    runtimeSync.syncEditorChrome({ guides: true, gridSize: 32, snapToGrid: false, isPlaying: false })
+    expect(bridge.editorSetGuidesEnabled).toHaveBeenCalledTimes(2)
+  })
+
   it('notifyBootProjectSynced fires when projection latches via syncProject', () => {
     const cb = vi.fn()
     runtimeSync.onBootProjectSyncedChange(cb)

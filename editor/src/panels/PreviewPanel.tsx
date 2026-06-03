@@ -97,17 +97,18 @@ export default function PreviewPanel() {
   const tier = useLayoutTier()
   const showInspectorToggle = tier !== 'full'
 
-  const [wasmReady,   setWasmReady]        = useState(() => isReady())
-  const [engineReady, setEngineReady]      = useState(() => isReady())
+  const [wasmReady, setWasmReady] = useState(() => isReady())
+  const [engineReady, setEngineReady] = useState(() => runtimeSync.isEngineReady())
   const [activeTool,  setActiveTool]       = useState<EditorTool>('select')
   const [showEditorGuides, setShowEditorGuides] = useState(true)
 
-  /** UI must reflect the window singleton (StrictMode/HMR can skip onReady). */
+  useEffect(() => runtimeSync.onReadyChange(setWasmReady), [])
+  useEffect(() => runtimeSync.onEngineReadyChange(setEngineReady), [])
+
+  /** WASM singleton may be ready before React onReady (StrictMode/HMR). */
   const syncRuntimeUiFlags = useCallback(() => {
     if (!isReady()) return
     setWasmReady((w) => (w ? w : true))
-    setEngineReady((e) => (e ? e : true))
-    runtimeSync.notifyEngineReady()
   }, [])
 
   function handleRuntimeTransform(
