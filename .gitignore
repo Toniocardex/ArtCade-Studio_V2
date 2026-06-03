@@ -11,6 +11,8 @@ dist/
 # Third-party libraries (large binaries, fetched at configure time)
 runtime-cpp/libs/
 tools/
+!runtime-cpp/tools/
+!runtime-cpp/tools/**
 *.exe
 *.dll
 *.so

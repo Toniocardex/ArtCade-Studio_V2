@@ -14,7 +14,6 @@ if not defined NPMC if exist "%ProgramFiles%\nodejs\npm.cmd" set "NPMC=%ProgramF
 if not defined NPMC ( echo [ArtCade] Node.js/npm not found. Install Node LTS from https://nodejs.org & goto :done )
 rem npm workspace: deps hoist to the ROOT node_modules, not editor\node_modules.
 if not exist "%ROOT%node_modules\vite" ( echo [ArtCade] Installing dependencies, first run... & call "%NPMC%" install )
-cd /d "%ROOT%editor"
 echo [ArtCade] Starting Tauri dev, first run compiles Rust, can take minutes...
 call "%NPMC%" run tauri:dev
 :done

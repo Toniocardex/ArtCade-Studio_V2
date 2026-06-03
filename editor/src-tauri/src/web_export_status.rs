@@ -21,7 +21,7 @@ pub struct WebExportStatus {
 }
 
 impl WebExportStatus {
-    fn new(state: ExportState, dist_dir: PathBuf) -> Self {
+    pub(crate) fn new(state: ExportState, dist_dir: PathBuf) -> Self {
         let (state_str, hint) = match state {
             ExportState::Missing => (
                 "missing",

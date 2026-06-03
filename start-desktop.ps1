@@ -18,7 +18,6 @@ if (-not (Test-Path (Join-Path $Root 'node_modules\vite'))) {
     if ($LASTEXITCODE -ne 0) { Read-Host '[ArtCade] npm install failed. Press Enter'; exit 1 }
 }
 
-Set-Location -Path (Join-Path $Root 'editor')
 Write-Host '[ArtCade] Starting the desktop editor (Tauri dev). First run'
 Write-Host '[ArtCade] compiles Rust and may take a few minutes.'
 npm run tauri:dev

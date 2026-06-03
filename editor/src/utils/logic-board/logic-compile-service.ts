@@ -171,13 +171,6 @@ export function compileProjectLogic(
   }
 }
 
-export function compileProjectLogicLua(
-  project: ProjectDoc | null,
-  options?: CompileProjectLogicOptions,
-): string {
-  return compileProjectLogic(project, options).lua
-}
-
 /** Compile a board doc slice with optional full project context (tests, previews). */
 export function compileLogicBoardDoc(
   doc: LogicBoardDoc,

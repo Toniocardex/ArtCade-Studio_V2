@@ -11,6 +11,6 @@ npm run tauri:sync-schemas
 
 Then commit `default.json` and, if `gen/schemas/capabilities.json` changed, that file too.
 
-`fs:scope-home-recursive` and `fs:scope-desktop-recursive` are required so projects under Desktop / user profile paths work with the fs plugin (Open/Save, build, pack).
+**FS scope model:** project reads/writes for user-chosen locations use `document` / `desktop` / `download` recursive scopes plus `$HOME/**` with explicit **deny** rules for `.ssh` and `AppData`. This replaces blanket `fs:scope-home-recursive` while still allowing projects under the user profile (e.g. `~/source/repos`).
 
-**Security model:** the wide FS scopes allow the plugin to read user-chosen paths; **writes** to project files go through Rust commands (`write_file`, `write_binary_file`) with `validate_writable_path` / `resolve_path_under_project_root` in `src-tauri/src/main.rs`. Narrowing scopes to “project root only” is not supported by the fs plugin alone without breaking Desktop/Home project locations — do not remove these permissions without a replacement path API.
+**Security model:** validated writes to project files go through Rust commands (`write_file`, `write_binary_file`) with `validate_writable_path` / `is_allowed_project_relative` in `src-tauri/src/main.rs`.

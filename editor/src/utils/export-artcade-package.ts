@@ -7,6 +7,7 @@ import { buildProjectAssetManifest } from './build-project-asset-manifest'
 import { joinPath, baseName } from './file-paths'
 import { dirName } from './project'
 import { bytesToArrayBuffer } from './asset-file-api'
+import { assertProjectPathsSafe } from './project-path-security'
 
 async function sha256Hex(bytes: Uint8Array): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', bytesToArrayBuffer(bytes))
@@ -176,6 +177,7 @@ export async function exportArtcadePackage(
 ): Promise<boolean> {
   if (!isTauri()) return false
   try {
+    assertProjectPathsSafe(project)
     const entries: ZipWriteEntry[] = []
     const checksums: Record<string, string> = {}
     const projectJson = serializeProjectDoc(project)

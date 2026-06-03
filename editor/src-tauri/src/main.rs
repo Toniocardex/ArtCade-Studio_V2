@@ -173,6 +173,12 @@ fn is_allowed_project_relative(rel: &Path) -> bool {
         if second == "audio" {
             return matches!(ext.as_str(), "ogg" | "wav" | "mp3" | "flac");
         }
+        if second == "fonts" {
+            return matches!(
+                ext.as_str(),
+                "ttf" | "otf" | "woff" | "woff2"
+            );
+        }
     }
 
     false
@@ -285,6 +291,9 @@ mod write_path_tests {
 
         let image = root.join("assets").join("images").join("tile.png");
         assert!(validate_writable_path(&image.display().to_string(), &root.display().to_string()).is_ok());
+
+        let font = root.join("assets").join("fonts").join("ui.ttf");
+        assert!(validate_writable_path(&font.display().to_string(), &root.display().to_string()).is_ok());
     }
 
     #[test]
@@ -898,7 +907,16 @@ async fn open_web_export_in_browser(
 
 #[tauri::command]
 fn get_web_export_status(project_root: String, project_dirty: bool) -> web_export_status::WebExportStatus {
-    web_export_status::evaluate_web_export_status(Path::new(&project_root), project_dirty)
+    match validate_build_project_root(&project_root) {
+        Ok(root) => web_export_status::evaluate_web_export_status(&root, project_dirty),
+        Err(_) => {
+            let dist = project_paths::web_export_dist_dir(Path::new(&project_root));
+            web_export_status::WebExportStatus::new(
+                web_export_status::ExportState::Missing,
+                dist,
+            )
+        }
+    }
 }
 
 #[tauri::command]
