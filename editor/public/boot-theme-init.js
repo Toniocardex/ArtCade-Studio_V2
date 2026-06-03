@@ -10,11 +10,11 @@
     "blue": 5
   },
   "light": {
-    "bg": "#404040",
-    "text": "#E0E0E0",
-    "red": 64,
-    "green": 64,
-    "blue": 64
+    "bg": "#FAFBFC",
+    "text": "#1F2937",
+    "red": 250,
+    "green": 251,
+    "blue": 252
   }
 }
   var theme = 'dark'

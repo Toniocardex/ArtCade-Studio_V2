@@ -19,10 +19,10 @@ html, body, #root {
   --accent: #4A5D6A;
 }
 [data-theme="light"] {
-  --bg: #404040;
+  --bg: #FAFBFC;
   --panel: #535353;
   --border: #222222;
-  --text: #E0E0E0;
+  --text: #1F2937;
   --muted: #999999;
   --accent: #5C83C4;
 }
