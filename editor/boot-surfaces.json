@@ -2,6 +2,10 @@
   "dark": {
     "bg": "#050505",
     "text": "#F2F2F2",
+    "panel": "#111214",
+    "border": "#24272D",
+    "muted": "#A0A4AB",
+    "accent": "#6E7684",
     "red": 5,
     "green": 5,
     "blue": 5
@@ -9,6 +13,10 @@
   "light": {
     "bg": "#FAFBFC",
     "text": "#1F2937",
+    "panel": "#FFFFFF",
+    "border": "#E5E7EB",
+    "muted": "#64748B",
+    "accent": "#3B82F6",
     "red": 250,
     "green": 251,
     "blue": 252

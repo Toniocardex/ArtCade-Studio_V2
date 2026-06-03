@@ -34,6 +34,68 @@
   --outline-faint:          rgb(36 39 45 / 0.38);
   --chrome-hairline:        rgb(199 204 212 / 0.075);
   --chrome-shadow:          rgb(0 0 0 / 0.42);
+  --shell-bg:
+    radial-gradient(circle at 50% -20%, rgb(255 255 255 / 0.04), transparent 34%),
+    linear-gradient(180deg, rgb(255 255 255 / 0.022), transparent 120px),
+    var(--bg-app);
+  --chrome-bg:
+    linear-gradient(180deg, rgb(255 255 255 / 0.045), transparent 58%),
+    linear-gradient(180deg, var(--surface) 0%, var(--bg-window) 100%);
+  --chrome-top-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.05),
+    0 16px 32px rgb(0 0 0 / 0.3);
+  --module-tabs-bg:
+    linear-gradient(180deg, rgb(255 255 255 / 0.015), transparent),
+    var(--bg-window);
+  --rail-bg:
+    linear-gradient(180deg, rgb(255 255 255 / 0.025), transparent 42%),
+    linear-gradient(180deg, var(--bg-window), var(--bg-app));
+  --ruler-corner-bg:
+    linear-gradient(180deg, rgb(255 255 255 / 0.025), transparent),
+    var(--bg-window);
+  --ruler-bg:
+    linear-gradient(180deg, rgb(255 255 255 / 0.018), transparent),
+    var(--bg-window);
+  --panel-bg:
+    linear-gradient(180deg, rgb(255 255 255 / 0.02), transparent 180px),
+    var(--surface);
+  --panel-shadow:
+    inset 1px 0 0 rgb(255 255 255 / 0.018),
+    inset -1px 0 0 rgb(0 0 0 / 0.28);
+  --panel-titlebar-bg:
+    linear-gradient(180deg, rgb(255 255 255 / 0.025), transparent),
+    var(--surface);
+  --panel-header-bg:
+    linear-gradient(180deg, rgb(255 255 255 / 0.03), transparent),
+    var(--surface);
+  --control-bg:
+    linear-gradient(180deg, rgb(255 255 255 / 0.035), rgb(255 255 255 / 0.012)),
+    var(--surface-3);
+  --control-bg-hover:
+    linear-gradient(180deg, rgb(255 255 255 / 0.055), rgb(255 255 255 / 0.018)),
+    var(--surface);
+  --control-border:         var(--outline-faint);
+  --control-hover-border:   rgb(199 204 212 / 0.28);
+  --control-shadow:         inset 0 1px 0 rgb(255 255 255 / 0.035);
+  --control-active-bg:
+    linear-gradient(180deg, rgb(var(--accent-rgb) / 0.24), rgb(var(--accent-rgb) / 0.12));
+  --control-active-border:  rgb(199 204 212 / 0.55);
+  --control-active-fg:      var(--primary);
+  --control-active-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.08),
+    0 8px 18px rgb(0 0 0 / 0.24);
+  --input-bg:               rgb(0 0 0 / 0.22);
+  --focus-ring:             0 0 0 1px rgb(var(--accent-rgb) / 0.2);
+  --canvas-workspace-bg:    #090A0B;
+  --canvas-workspace-glow:
+    radial-gradient(circle at 50% 0%, rgb(255 255 255 / 0.025), transparent 38%);
+  --preview-island-bg:
+    linear-gradient(180deg, rgb(255 255 255 / 0.018), transparent 180px),
+    var(--bg-window);
+  --preview-island-shadow:  inset 0 1px 0 rgb(255 255 255 / 0.035);
+  --focus-toolbar-bg:
+    linear-gradient(180deg, rgb(255 255 255 / 0.04), transparent),
+    var(--bg-window);
 
   /* Text */
   --primary:                #F2F2F2;
@@ -113,6 +175,47 @@
   --outline-faint:          rgb(100 116 139 / 0.18);
   --chrome-hairline:        rgb(31 41 55 / 0.09);
   --chrome-shadow:          rgb(15 23 42 / 0.12);
+  --shell-bg:
+    radial-gradient(circle at 50% -18%, rgb(59 130 246 / 0.08), transparent 34%),
+    linear-gradient(180deg, #FFFFFF 0%, var(--bg-app) 46%, #F8FAFC 100%);
+  --chrome-bg:              linear-gradient(180deg, #FFFFFF 0%, var(--bg-window) 100%);
+  --chrome-top-shadow:
+    inset 0 1px 0 #FFFFFF,
+    0 12px 28px rgb(15 23 42 / 0.08);
+  --module-tabs-bg:         linear-gradient(180deg, #FFFFFF, var(--bg-window));
+  --rail-bg:                linear-gradient(180deg, #FFFFFF, var(--bg-window));
+  --ruler-corner-bg:        linear-gradient(180deg, #FFFFFF, var(--bg-window));
+  --ruler-bg:               linear-gradient(180deg, #FFFFFF, var(--bg-window));
+  --panel-bg:
+    linear-gradient(180deg, #FFFFFF, transparent 180px),
+    var(--surface);
+  --panel-shadow:
+    inset 1px 0 0 #FFFFFF,
+    inset -1px 0 0 rgb(15 23 42 / 0.06);
+  --panel-titlebar-bg:      linear-gradient(180deg, #FFFFFF, var(--surface));
+  --panel-header-bg:        linear-gradient(180deg, #FFFFFF, var(--surface));
+  --control-bg:             #FFFFFF;
+  --control-bg-hover:       var(--surface-hover);
+  --control-border:         var(--outline);
+  --control-hover-border:   rgb(59 130 246 / 0.22);
+  --control-shadow:         inset 0 1px 0 #FFFFFF;
+  --control-active-bg:
+    linear-gradient(180deg, #DBEAFE, rgb(219 234 254 / 0.72));
+  --control-active-border:  rgb(59 130 246 / 0.42);
+  --control-active-fg:      var(--accent);
+  --control-active-shadow:
+    inset 0 1px 0 #FFFFFF,
+    0 8px 18px rgb(59 130 246 / 0.12);
+  --input-bg:               #FFFFFF;
+  --focus-ring:             0 0 0 1px rgb(var(--accent-rgb) / 0.2);
+  --canvas-workspace-bg:    #FFFFFF;
+  --canvas-workspace-glow:
+    radial-gradient(circle at 50% 0%, rgb(59 130 246 / 0.04), transparent 38%);
+  --preview-island-bg:
+    linear-gradient(180deg, rgb(59 130 246 / 0.035), transparent 180px),
+    var(--bg-window);
+  --preview-island-shadow:  inset 0 1px 0 #FFFFFF;
+  --focus-toolbar-bg:       linear-gradient(180deg, #FFFFFF, var(--bg-window));
 
   --primary:                #1F2937;
   --primary-soft:           #64748B;
@@ -289,14 +392,14 @@ input[data-mono],
 }
 
 .canvas-ruler-corner {
-  background: linear-gradient(180deg, rgb(255 255 255 / 0.025), transparent), var(--bg-window);
+  background: var(--ruler-corner-bg);
   border-right: 1px solid var(--outline-faint);
   border-bottom: 1px solid var(--outline-faint);
 }
 
 .canvas-ruler-h,
 .canvas-ruler-v {
-  background: linear-gradient(180deg, rgb(255 255 255 / 0.018), transparent), var(--bg-window);
+  background: var(--ruler-bg);
 }
 
 .editor-preview-island {
@@ -378,13 +481,9 @@ input[data-mono],
   min-height: var(--editor-top-chrome-h);
   max-height: var(--editor-top-chrome-h);
   overflow: visible;
-  background:
-    linear-gradient(180deg, rgb(255 255 255 / 0.045), transparent 58%),
-    linear-gradient(180deg, var(--surface) 0%, var(--bg-window) 100%);
+  background: var(--chrome-bg);
   border-bottom: 1px solid var(--chrome-hairline);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.05),
-    0 16px 32px rgb(0 0 0 / 0.3);
+  box-shadow: var(--chrome-top-shadow);
 }
 
 .editor-menu-dropdown {
@@ -406,9 +505,7 @@ input[data-mono],
   gap: calc(0.3125rem * var(--editor-scale));
   padding: calc(0.625rem * var(--editor-scale)) calc(0.4375rem * var(--editor-scale));
   border-right: 1px solid var(--chrome-hairline);
-  background:
-    linear-gradient(180deg, rgb(255 255 255 / 0.025), transparent 42%),
-    linear-gradient(180deg, var(--bg-window), var(--bg-app));
+  background: var(--rail-bg);
 }
 
 .editor-tool-rail__button {
@@ -433,18 +530,15 @@ input[data-mono],
 
 .editor-tool-rail__button:hover {
   color: var(--primary);
-  background: rgb(255 255 255 / 0.035);
-  border-color: var(--outline-faint);
+  background: var(--control-bg-hover);
+  border-color: var(--control-hover-border);
 }
 
 .editor-tool-rail__button--active {
-  color: var(--primary);
-  background:
-    linear-gradient(180deg, rgb(var(--accent-rgb) / 0.24), rgb(var(--accent-rgb) / 0.12));
-  border-color: rgb(199 204 212 / 0.55);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.08),
-    0 8px 18px rgb(0 0 0 / 0.24);
+  color: var(--control-active-fg);
+  background: var(--control-active-bg);
+  border-color: var(--control-active-border);
+  box-shadow: var(--control-active-shadow);
 }
 
 .editor-tool-rail__separator {
@@ -477,9 +571,7 @@ input[data-mono],
   min-height: calc(32px * var(--editor-scale));
   padding: 0 calc(0.75rem * var(--editor-scale));
   border-bottom: 1px solid var(--outline-faint);
-  background:
-    linear-gradient(180deg, rgb(255 255 255 / 0.025), transparent),
-    var(--surface);
+  background: var(--panel-titlebar-bg);
   color: var(--primary);
   font-size: 0.6875rem;
   font-weight: 700;
@@ -544,9 +636,7 @@ input[data-mono],
   padding: 0 var(--editor-workspace-inset);
   border-top: 1px solid var(--chrome-hairline);
   border-bottom: none;
-  background:
-    linear-gradient(180deg, rgb(255 255 255 / 0.015), transparent),
-    var(--bg-window);
+  background: var(--module-tabs-bg);
 }
 
 .editor-toolbar-btn {
@@ -568,19 +658,15 @@ input[data-mono],
 }
 
 .editor-toolbar-btn.border {
-  border-color: var(--outline-faint);
-  background:
-    linear-gradient(180deg, rgb(255 255 255 / 0.035), rgb(255 255 255 / 0.012)),
-    var(--surface-3);
+  border-color: var(--control-border);
+  background: var(--control-bg);
   color: var(--primary-soft);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.035);
+  box-shadow: var(--control-shadow);
 }
 
 .editor-toolbar-btn.border:hover {
-  border-color: rgb(199 204 212 / 0.28);
-  background:
-    linear-gradient(180deg, rgb(255 255 255 / 0.055), rgb(255 255 255 / 0.018)),
-    var(--surface);
+  border-color: var(--control-hover-border);
+  background: var(--control-bg-hover);
   color: var(--primary);
 }
 
@@ -617,17 +703,17 @@ input[data-mono],
   justify-content: center;
   min-height: calc(24px * var(--editor-scale));
   padding: 0 calc(0.5rem * var(--editor-scale));
-  border: 1px solid var(--outline-faint);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius);
-  background:
-    linear-gradient(180deg, rgb(255 255 255 / 0.028), transparent),
-    var(--surface-3);
+  background: var(--control-bg);
   color: var(--primary);
   font-size: 0.625rem;
+  box-shadow: var(--control-shadow);
 }
 
 .editor-mini-btn:hover {
-  background: var(--surface-hover);
+  background: var(--control-bg-hover);
+  border-color: var(--control-hover-border);
 }
 
 .editor-focus-toolbar {
@@ -638,9 +724,7 @@ input[data-mono],
   min-height: calc(42px * var(--editor-scale));
   padding: calc(0.375rem * var(--editor-scale)) calc(0.75rem * var(--editor-scale));
   border-bottom: 1px solid var(--chrome-hairline);
-  background:
-    linear-gradient(180deg, rgb(255 255 255 / 0.04), transparent),
-    var(--bg-window);
+  background: var(--focus-toolbar-bg);
   color: var(--muted);
   font-size: 0.6875rem;
   transition: transform 180ms ease-in-out, opacity 180ms ease-in-out;
@@ -672,9 +756,7 @@ input[data-mono],
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--muted);
-  background:
-    linear-gradient(180deg, rgb(255 255 255 / 0.03), transparent),
-    var(--surface);
+  background: var(--panel-header-bg);
 }
 
 .editor-panel-header__title {
@@ -769,10 +851,7 @@ input[data-mono],
    --------------------------------------------------------------------------- */
 
 .editor-shell {
-  background:
-    radial-gradient(circle at 50% -20%, rgb(255 255 255 / 0.04), transparent 34%),
-    linear-gradient(180deg, rgb(255 255 255 / 0.022), transparent 120px),
-    var(--bg-app);
+  background: var(--shell-bg);
 }
 
 .editor-chrome-panel,
@@ -782,19 +861,15 @@ input[data-mono],
 [data-panel="logic-events-sidebar"],
 [data-panel="logic-inspector"],
 [data-panel="project-explorer"] {
-  background:
-    linear-gradient(180deg, rgb(255 255 255 / 0.02), transparent 180px),
-    var(--surface);
-  box-shadow:
-    inset 1px 0 0 rgb(255 255 255 / 0.018),
-    inset -1px 0 0 rgb(0 0 0 / 0.28);
+  background: var(--panel-bg);
+  box-shadow: var(--panel-shadow);
 }
 
 .editor-shell select,
 .editor-shell input:not([type="checkbox"]):not([type="radio"]),
 .editor-shell textarea {
-  background: rgb(0 0 0 / 0.22);
-  border: 1px solid var(--outline-faint);
+  background: var(--input-bg);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius);
   color: var(--primary);
 }
@@ -804,7 +879,7 @@ input[data-mono],
 .editor-shell textarea:focus {
   outline: none;
   border-color: var(--outline-focus);
-  box-shadow: 0 0 0 1px rgb(var(--accent-rgb) / 0.2);
+  box-shadow: var(--focus-ring);
 }
 
 .editor-shell button {
@@ -812,9 +887,9 @@ input[data-mono],
 }
 
 .canvas-scrollarea {
-  background-color: #090A0B;
+  background-color: var(--canvas-workspace-bg);
   background-image:
-    radial-gradient(circle at 50% 0%, rgb(255 255 255 / 0.025), transparent 38%),
+    var(--canvas-workspace-glow),
     linear-gradient(var(--grid-secondary) 1px, transparent 1px),
     linear-gradient(90deg, var(--grid-secondary) 1px, transparent 1px),
     linear-gradient(var(--grid-primary) 1px, transparent 1px),
@@ -823,94 +898,8 @@ input[data-mono],
 }
 
 .editor-preview-island {
-  background:
-    linear-gradient(180deg, rgb(255 255 255 / 0.018), transparent 180px),
-    var(--bg-window);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.035);
-}
-
-[data-theme="light"] .editor-shell {
-  background:
-    radial-gradient(circle at 50% -18%, rgb(59 130 246 / 0.08), transparent 34%),
-    linear-gradient(180deg, #FFFFFF 0%, var(--bg-app) 46%, #F8FAFC 100%);
-}
-
-[data-theme="light"] .editor-top-chrome {
-  background:
-    linear-gradient(180deg, #FFFFFF 0%, var(--bg-window) 100%);
-  border-bottom-color: var(--outline);
-  box-shadow:
-    inset 0 1px 0 #FFFFFF,
-    0 12px 28px rgb(15 23 42 / 0.08);
-}
-
-[data-theme="light"] .editor-tool-rail {
-  background:
-    linear-gradient(180deg, #FFFFFF, var(--bg-window));
-  border-right-color: var(--outline);
-}
-
-[data-theme="light"] .editor-tool-rail__button:hover {
-  background: var(--surface-hover);
-  border-color: rgb(59 130 246 / 0.2);
-}
-
-[data-theme="light"] .editor-tool-rail__button--active {
-  background:
-    linear-gradient(180deg, #DBEAFE, rgb(219 234 254 / 0.72));
-  border-color: rgb(59 130 246 / 0.42);
-  color: var(--accent);
-  box-shadow:
-    inset 0 1px 0 #FFFFFF,
-    0 8px 18px rgb(59 130 246 / 0.12);
-}
-
-[data-theme="light"] .editor-chrome-panel,
-[data-theme="light"] [data-panel="bottom-dock"],
-[data-theme="light"] [data-panel="inspector"],
-[data-theme="light"] [data-panel="logic-board"],
-[data-theme="light"] [data-panel="logic-events-sidebar"],
-[data-theme="light"] [data-panel="logic-inspector"],
-[data-theme="light"] [data-panel="project-explorer"] {
-  background:
-    linear-gradient(180deg, #FFFFFF, transparent 180px),
-    var(--surface);
-  box-shadow:
-    inset 1px 0 0 #FFFFFF,
-    inset -1px 0 0 rgb(15 23 42 / 0.06);
-}
-
-[data-theme="light"] .editor-toolbar-btn.border,
-[data-theme="light"] .editor-mini-btn,
-[data-theme="light"] .editor-shell select,
-[data-theme="light"] .editor-shell input:not([type="checkbox"]):not([type="radio"]),
-[data-theme="light"] .editor-shell textarea {
-  background: #FFFFFF;
-  border-color: var(--outline);
-  box-shadow: inset 0 1px 0 #FFFFFF;
-}
-
-[data-theme="light"] .editor-toolbar-btn.border:hover,
-[data-theme="light"] .editor-mini-btn:hover {
-  background: var(--surface-hover);
-  border-color: rgb(59 130 246 / 0.22);
-}
-
-[data-theme="light"] .canvas-scrollarea {
-  background-color: #FFFFFF;
-  background-image:
-    radial-gradient(circle at 50% 0%, rgb(59 130 246 / 0.04), transparent 38%),
-    linear-gradient(var(--grid-secondary) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-secondary) 1px, transparent 1px),
-    linear-gradient(var(--grid-primary) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-primary) 1px, transparent 1px);
-}
-
-[data-theme="light"] .editor-preview-island {
-  background:
-    linear-gradient(180deg, rgb(59 130 246 / 0.035), transparent 180px),
-    var(--bg-window);
-  box-shadow: inset 0 1px 0 #FFFFFF;
+  background: var(--preview-island-bg);
+  box-shadow: var(--preview-island-shadow);
 }
 
 [data-logic-rule-editor] {
