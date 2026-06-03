@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { coreReducer, type CoreState } from './editor-store'
 import { parseProjectDoc, serializeProjectDoc } from '../utils/project'
+import { collectProjectDiagnostics, projectDiagnosticsErrors } from '../utils/project-validator'
+import { createLogicBoardForObjectType } from '../utils/logic-board/factory'
 import { DEFAULT_WORLD } from '../types'
 import type { ProjectDoc } from '../types'
 
@@ -42,6 +44,9 @@ describe('coreReducer — scenes & objects', () => {
     expect(s.project!.entities[2]).toBeDefined()
     expect(s.project!.entities[2].transform.position).toEqual({ x: 640, y: 360 })
     expect(s.project!.scenes.s.entityIds).toContain(2)
+    expect(s.project!.objectTypes?.Player).toBeDefined()
+    expect(s.project!.objectTypes?.Entity_2).toBeDefined()
+    expect(s.project!.scenes.s.instances?.some((i) => i.id === 2)).toBe(true)
     expect(s.selection.entityId).toBe(2)
     expect(s.projectDirty).toBe(true)
   })
@@ -60,6 +65,38 @@ describe('coreReducer — scenes & objects', () => {
     expect(s.project!.scenes.s.entityIds).toEqual([1, 2])
     expect(s.selection.entityId).toBe(2)
     expect(s.projectDirty).toBe(true)
+  })
+
+  it('ENTITY_ADD syncs objectTypes so logic boards targeting the type validate', () => {
+    const blank = parseProjectDoc(serializeProjectDoc({
+      projectName: 'T',
+      version: '2.0.0',
+      targetFPS: 60,
+      activeSceneId: 's',
+      mainScriptPath: 'scripts/main.lua',
+      entities: {},
+      scenes: {
+        s: {
+          id: 's',
+          name: 'S',
+          worldSize: { x: 1280, y: 720 },
+          viewportSize: { x: 1280, y: 720 },
+          backgroundColor: { x: 0, y: 0, z: 0, w: 1 },
+          entityIds: [],
+        },
+      },
+      world: { ...DEFAULT_WORLD },
+    }))!
+    let s = st(blank)
+    s = coreReducer(s, { type: 'ENTITY_ADD', sceneId: 's' })
+    const typeId = 'Entity_1'
+    expect(s.project!.objectTypes?.[typeId]).toBeDefined()
+    s = coreReducer(s, {
+      type: 'LOGIC_ADD_BOARD',
+      board: createLogicBoardForObjectType(typeId, 'board_test'),
+    })
+    const errors = projectDiagnosticsErrors(collectProjectDiagnostics(s.project!))
+    expect(errors.some((e) => e.message.includes('unknown object type'))).toBe(false)
   })
 
   it('ENTITY_DELETE removes from entities + all scenes + deselects', () => {

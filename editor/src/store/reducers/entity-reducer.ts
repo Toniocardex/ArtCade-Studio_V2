@@ -8,7 +8,12 @@
 // nothing (P2 in docs/TECHNICAL_DEBT_REVIEW.md).
 
 import type { CoreState, Action, DomainReducer } from '../editor-store-state'
-import { createEntityDef, nextEntityId, defaultEntitySpawnPosition } from '../../utils/project'
+import {
+  createEntityDef,
+  nextEntityId,
+  defaultEntitySpawnPosition,
+  syncObjectModelFromEntities,
+} from '../../utils/project'
 
 const TRANSFORM_EPS = 1e-4
 
@@ -145,14 +150,14 @@ export const entityReducer: DomainReducer = (state: CoreState, action: Action) =
       const ent = createEntityDef(id, undefined, undefined, spawn)
       return {
         ...state,
-        project: {
+        project: syncObjectModelFromEntities({
           ...state.project,
           entities: { ...state.project.entities, [id]: ent },
           scenes: {
             ...state.project.scenes,
             [action.sceneId]: { ...scene, entityIds: [...scene.entityIds, id] },
           },
-        },
+        }),
         selection: { ...state.selection, entityId: id },
         projectDirty: true,
       }
@@ -180,14 +185,14 @@ export const entityReducer: DomainReducer = (state: CoreState, action: Action) =
       const scene = state.project.scenes[action.sceneId]
       return {
         ...state,
-        project: {
+        project: syncObjectModelFromEntities({
           ...state.project,
           entities: { ...state.project.entities, [id]: clone },
           scenes: {
             ...state.project.scenes,
             [action.sceneId]: { ...scene, entityIds: [...scene.entityIds, id] },
           },
-        },
+        }),
         selection: { ...state.selection, entityId: id },
         projectDirty: true,
       }
@@ -214,14 +219,14 @@ export const entityReducer: DomainReducer = (state: CoreState, action: Action) =
       )
       return {
         ...state,
-        project: {
+        project: syncObjectModelFromEntities({
           ...state.project,
           entities,
           scenes,
           ...(state.project.logicBoards != null
             ? { logicBoards: logicBoards.length > 0 ? logicBoards : undefined }
             : {}),
-        },
+        }),
         selection: {
           ...state.selection,
           entityId:

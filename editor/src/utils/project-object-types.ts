@@ -212,6 +212,20 @@ export function buildObjectModelFromEntities(project: ProjectDoc): {
   return { objectTypes, scenes }
 }
 
+/**
+ * Keep `objectTypes` and scene `instances` aligned with flat `entities` during editing.
+ * Preserves `project.entities` as the inspector authoring source (no rematerialize pass).
+ */
+export function syncObjectModelFromEntities(project: ProjectDoc): ProjectDoc {
+  const { objectTypes, scenes } = buildObjectModelFromEntities(project)
+  return {
+    ...project,
+    formatVersion: PROJECT_FORMAT_V2,
+    objectTypes,
+    scenes,
+  }
+}
+
 function migrateLogicBoards(
   boards: LogicBoard[] | undefined,
   entityToType: Map<number, string>,

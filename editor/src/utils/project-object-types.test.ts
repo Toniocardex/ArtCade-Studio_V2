@@ -9,6 +9,7 @@ import {
   materializeEntity,
   migrateLegacyProject,
   PROJECT_FORMAT_V2,
+  syncObjectModelFromEntities,
 } from './project-object-types'
 import { runtimeProjectFingerprint } from './runtime-fingerprint'
 
@@ -21,6 +22,25 @@ describe('project-object-types', () => {
   it('effectiveTypeId falls back to slugged name for generic class', () => {
     const e = createEntityDef(1, 'coin pickup', 'Entity')
     expect(effectiveTypeId(e)).toBe('Coin_pickup')
+  })
+
+  it('syncObjectModelFromEntities builds types without rematerializing entities', () => {
+    const base = createBlankProject('Test')
+    const ent = createEntityDef(1, 'Entity_1', 'Entity', { x: 4, y: 8 })
+    const synced = syncObjectModelFromEntities({
+      ...base,
+      entities: { 1: ent },
+      scenes: {
+        scene_main: {
+          ...base.scenes.scene_main,
+          entityIds: [1],
+        },
+      },
+    })
+    expect(synced.objectTypes?.Entity_1).toBeDefined()
+    expect(synced.scenes.scene_main.instances?.[0]?.objectTypeId).toBe('Entity_1')
+    expect(synced.entities[1]).toBe(ent)
+    expect(synced.entities[1].transform.position).toEqual({ x: 4, y: 8 })
   })
 
   it('migrateLegacyProject builds types and instances', () => {
