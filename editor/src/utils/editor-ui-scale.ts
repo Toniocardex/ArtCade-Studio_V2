@@ -1,9 +1,10 @@
 // ---------------------------------------------------------------------------
-// editor-ui-scale — persistence, auto-detect, stepping (Phase 1 adaptive layout)
+// editor-ui-scale - persistence, auto-detect, stepping (Phase 1 adaptive layout)
 // ---------------------------------------------------------------------------
 
 import {
   EDITOR_UI_SCALE_DEFAULT,
+  EDITOR_UI_SCALE_SUGGESTION_STORAGE_KEY,
   EDITOR_UI_SCALE_STORAGE_KEY,
   EDITOR_UI_SCALE_VALUES,
   type EditorUiScale,
@@ -30,7 +31,7 @@ export function clampToEditorUiScale(value: number): EditorUiScale {
   return best
 }
 
-/** First-run suggestion from workspace pixel size (silent auto-apply per ADAPTIVE_LAYOUT §8.1.3). */
+/** First-run suggestion from workspace pixel size. */
 export function suggestEditorUiScale(width: number, height: number): EditorUiScale {
   if (width >= 2560 && height >= 1440) return 1.15
   if (width >= 1920 && height >= 1080) return 1
@@ -52,6 +53,16 @@ export function readStoredEditorUiScale(): EditorUiScale | null {
 export function writeStoredEditorUiScale(scale: EditorUiScale): void {
   if (globalThis.localStorage === undefined) return
   globalThis.localStorage.setItem(EDITOR_UI_SCALE_STORAGE_KEY, String(scale))
+}
+
+export function hasSeenEditorUiScaleSuggestion(): boolean {
+  if (globalThis.localStorage === undefined) return true
+  return globalThis.localStorage.getItem(EDITOR_UI_SCALE_SUGGESTION_STORAGE_KEY) === '1'
+}
+
+export function markEditorUiScaleSuggestionSeen(): void {
+  if (globalThis.localStorage === undefined) return
+  globalThis.localStorage.setItem(EDITOR_UI_SCALE_SUGGESTION_STORAGE_KEY, '1')
 }
 
 export function resolveInitialEditorUiScale(width: number, height: number): EditorUiScale {

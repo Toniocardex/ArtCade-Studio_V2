@@ -7,6 +7,8 @@ import {
   formatEditorUiScalePercent,
   clampToEditorUiScale,
   writeStoredEditorUiScale,
+  hasSeenEditorUiScaleSuggestion,
+  markEditorUiScaleSuggestionSeen,
 } from './editor-ui-scale'
 import { EDITOR_UI_SCALE_STORAGE_KEY } from '../constants/editor-ui-scale'
 
@@ -57,5 +59,11 @@ describe('editor-ui-scale', () => {
   it('read/write round-trip', () => {
     writeStoredEditorUiScale(0.85)
     expect(readStoredEditorUiScale()).toBe(0.85)
+  })
+
+  it('tracks whether the first-run scale suggestion was seen', () => {
+    expect(hasSeenEditorUiScaleSuggestion()).toBe(false)
+    markEditorUiScaleSuggestionSeen()
+    expect(hasSeenEditorUiScaleSuggestion()).toBe(true)
   })
 })

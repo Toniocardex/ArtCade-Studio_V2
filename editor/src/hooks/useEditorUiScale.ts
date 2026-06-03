@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// useEditorUiScale — global editor chrome density (--editor-scale on shell)
+// useEditorUiScale - global editor chrome density (--editor-scale on shell)
 // ---------------------------------------------------------------------------
 
 import { useCallback, useState } from 'react'
@@ -9,6 +9,8 @@ import {
 } from '../constants/editor-ui-scale'
 import {
   formatEditorUiScalePercent,
+  hasSeenEditorUiScaleSuggestion,
+  markEditorUiScaleSuggestionSeen,
   readStoredEditorUiScale,
   suggestEditorUiScale,
   stepEditorUiScale,
@@ -26,31 +28,59 @@ function readWorkspaceSize(): { width: number; height: number } {
 export type EditorUiScaleApi = {
   scale: EditorUiScale
   scaleLabel: string
+  suggestedScale: EditorUiScale | null
   setScale: (scale: EditorUiScale) => void
+  acceptSuggestedScale: () => void
+  ignoreSuggestedScale: () => void
   increaseScale: () => void
   decreaseScale: () => void
   resetScale: () => void
 }
 
 export function useEditorUiScale(): EditorUiScaleApi {
+  const [suggestedScale, setSuggestedScale] = useState<EditorUiScale | null>(() => {
+    if (readStoredEditorUiScale() || hasSeenEditorUiScaleSuggestion()) return null
+    const { width, height } = readWorkspaceSize()
+    const suggestion = suggestEditorUiScale(width, height)
+    return suggestion === EDITOR_UI_SCALE_DEFAULT ? null : suggestion
+  })
+
   const [scale, setScaleState] = useState<EditorUiScale>(() => {
     const stored = readStoredEditorUiScale()
     if (stored) return stored
     const { width, height } = readWorkspaceSize()
-    const initial = suggestEditorUiScale(width, height)
-    writeStoredEditorUiScale(initial)
-    return initial
+    return suggestEditorUiScale(width, height)
   })
 
   const setScale = useCallback((next: EditorUiScale) => {
     setScaleState(next)
     writeStoredEditorUiScale(next)
+    markEditorUiScaleSuggestionSeen()
+    setSuggestedScale(null)
+  }, [])
+
+  const acceptSuggestedScale = useCallback(() => {
+    setScaleState((prev) => {
+      writeStoredEditorUiScale(prev)
+      return prev
+    })
+    markEditorUiScaleSuggestionSeen()
+    setSuggestedScale(null)
+  }, [])
+
+  const ignoreSuggestedScale = useCallback(() => {
+    setScaleState(EDITOR_UI_SCALE_DEFAULT)
+    writeStoredEditorUiScale(EDITOR_UI_SCALE_DEFAULT)
+    markEditorUiScaleSuggestionSeen()
+    setSuggestedScale(null)
   }, [])
 
   const increaseScale = useCallback(() => {
     setScaleState((prev) => {
       const next = stepEditorUiScale(prev, 1)
       writeStoredEditorUiScale(next)
+      markEditorUiScaleSuggestionSeen()
+      setSuggestedScale(null)
       return next
     })
   }, [])
@@ -59,6 +89,8 @@ export function useEditorUiScale(): EditorUiScaleApi {
     setScaleState((prev) => {
       const next = stepEditorUiScale(prev, -1)
       writeStoredEditorUiScale(next)
+      markEditorUiScaleSuggestionSeen()
+      setSuggestedScale(null)
       return next
     })
   }, [])
@@ -72,7 +104,10 @@ export function useEditorUiScale(): EditorUiScaleApi {
   return {
     scale,
     scaleLabel: formatEditorUiScalePercent(scale),
+    suggestedScale,
     setScale,
+    acceptSuggestedScale,
+    ignoreSuggestedScale,
     increaseScale,
     decreaseScale,
     resetScale,

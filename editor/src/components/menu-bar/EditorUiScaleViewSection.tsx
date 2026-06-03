@@ -10,12 +10,11 @@ type EditorUiScaleViewSectionProps = Readonly<{
   uiScale: EditorUiScaleApi
 }>
 
-/** VIEW → Interface — UI scale presets (docs/ADAPTIVE_LAYOUT.md Phase 1). */
+/** VIEW -> Interface: UI scale, focus mode, layout reset and motion prefs. */
 export function EditorUiScaleViewSection({ uiScale }: EditorUiScaleViewSectionProps) {
   const { state, dispatch } = useEditor()
   const layout = useEditorLayoutContext()
   const { scale, setScale, resetScale } = uiScale
-
   const { width, height } = useWorkspaceLayoutMetricsContext()
 
   function resetLayoutForResolution() {
@@ -49,7 +48,7 @@ export function EditorUiScaleViewSection({ uiScale }: EditorUiScaleViewSectionPr
             >
               <span>{formatEditorUiScalePercent(value)}</span>
               {active ? (
-                <span className="text-[var(--accent)]" aria-hidden>✓</span>
+                <span className="text-[var(--accent)]" aria-hidden>On</span>
               ) : null}
             </button>
           )
@@ -62,7 +61,7 @@ export function EditorUiScaleViewSection({ uiScale }: EditorUiScaleViewSectionPr
         >
           Reset UI scale to 100%
           <span className="block text-[9px] text-[var(--muted)] mt-0.5">
-            Ctrl+Shift+= increase · Ctrl+Shift+- decrease
+            Ctrl+Shift+= increase. Ctrl+Shift+- decrease. Ctrl+Shift+0 reset.
           </span>
         </button>
         <button
@@ -72,7 +71,7 @@ export function EditorUiScaleViewSection({ uiScale }: EditorUiScaleViewSectionPr
           className="w-full text-left px-3 py-2 text-xs text-[var(--primary)] hover:bg-[var(--surface-hover)]"
           onClick={() => dispatch({ type: 'TOGGLE_FOCUS_MODE' })}
         >
-          Focus mode (F11)
+          Focus mode (F11 or double-click Canvas tab)
         </button>
         <button
           type="button"
@@ -80,7 +79,7 @@ export function EditorUiScaleViewSection({ uiScale }: EditorUiScaleViewSectionPr
           className="w-full text-left px-3 py-2 text-xs text-[var(--primary-soft)] hover:bg-[var(--surface-hover)]"
           onClick={resetLayoutForResolution}
         >
-          Reset layout for current resolution
+          Reset layout for this resolution
         </button>
         <button
           type="button"

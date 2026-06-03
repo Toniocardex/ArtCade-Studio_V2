@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// LeftSidebar — Scene (hierarchy + layers) above Assets, resizable split.
+// LeftSidebar - Scene (hierarchy + layers) above Assets, resizable split.
 // ---------------------------------------------------------------------------
 
 import { useRef, useState } from 'react'
@@ -27,6 +27,9 @@ export default function LeftSidebar() {
         className="min-h-0 flex flex-col overflow-hidden shrink-0"
         style={{ flex: `${topPct} 1 0%` }}
       >
+        <div className="editor-panel-titlebar">
+          <span>Scene</span>
+        </div>
         <div className="shrink-0 flex border-b border-[var(--outline)]">
           <EditorTab active={sceneTab === 'hierarchy'} onClick={() => setSceneTab('hierarchy')} className="flex-1 !text-[9px]">
             Hierarchy
@@ -50,8 +53,8 @@ export default function LeftSidebar() {
         className="min-h-0 flex flex-col overflow-hidden"
         style={{ flex: `${100 - topPct} 1 0%` }}
       >
-        <div className="shrink-0 px-3 py-1.5 border-b border-[var(--outline)] text-[9px] font-semibold uppercase tracking-wide text-[var(--muted)]">
-          Assets
+        <div className="editor-panel-titlebar">
+          <span>Assets</span>
         </div>
         <div className="flex-1 min-h-0 overflow-hidden">
           <ProjectExplorerPanel explorerPane="assets" />

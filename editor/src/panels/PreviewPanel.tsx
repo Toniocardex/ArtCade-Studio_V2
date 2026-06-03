@@ -1,4 +1,4 @@
-import { useRef, useLayoutEffect, useEffect, useState, useCallback, useMemo } from 'react'
+import { useRef, useLayoutEffect, useEffect, useCallback, useMemo } from 'react'
 import { useEditor } from '../store/editor-store'
 import type { ConsoleEntry } from '../types'
 import { assetOrchestrator } from '../utils/asset-orchestrator'
@@ -51,7 +51,21 @@ function sameTransform(a: TransformSnapshot, b: TransformSnapshot): boolean {
     Math.abs(a.scaleY - b.scaleY) < epsilon
 }
 
-export default function PreviewPanel() {
+export type PreviewPanelProps = Readonly<{
+  activeTool: EditorTool
+  onSelectTool: (tool: EditorTool) => void
+  showEditorGuides: boolean
+  onToggleGuides: () => void
+  showToolPalette?: boolean
+}>
+
+export default function PreviewPanel({
+  activeTool,
+  onSelectTool,
+  showEditorGuides,
+  onToggleGuides,
+  showToolPalette = true,
+}: PreviewPanelProps) {
   // useEditor() subscribes ONLY to CoreContext. It does NOT subscribe to
   // VolatileContext, so this component is NOT re-rendered on every
   // debug.log() call from Lua. Re-rendering PreviewPanel during the WASM
@@ -87,9 +101,6 @@ export default function PreviewPanel() {
   const showInspectorToggle = tier !== 'full'
 
   const { wasmReady, engineReady, syncWasmFromBridge } = useRuntimeReadiness()
-  const [activeTool,  setActiveTool]       = useState<EditorTool>('select')
-  const [showEditorGuides, setShowEditorGuides] = useState(true)
-
   const syncRuntimeUiFlags = useCallback(() => {
     syncWasmFromBridge()
   }, [syncWasmFromBridge])
@@ -308,13 +319,14 @@ export default function PreviewPanel() {
       {focusMode ? (
         <CanvasFocusToolbar />
       ) : (
-        <CanvasToolbar
-          activeTool={activeTool}
-          onSelectTool={setActiveTool}
-          selectedTileCell={selectedTileCell}
-          showGuides={showEditorGuides}
-          onToggleGuides={() => setShowEditorGuides(v => !v)}
-          rightSlot={(
+          <CanvasToolbar
+            activeTool={activeTool}
+            onSelectTool={onSelectTool}
+            selectedTileCell={selectedTileCell}
+            showGuides={showEditorGuides}
+            onToggleGuides={onToggleGuides}
+            showToolPalette={showToolPalette}
+            rightSlot={(
             <div className="flex items-center gap-2 min-w-0">
               {showInspectorToggle && <InspectorDrawerToggle />}
               <ProjectHealthBanner projectKey={projectPath} />

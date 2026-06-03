@@ -35,7 +35,7 @@ function reserveRightWidthForTier(
 }
 
 export function usePersistedLayout(): PersistedLayoutApi {
-  const { width, height, tier } = useWorkspaceLayoutMetricsContext()
+  const { width, height, workspaceWidth, tier } = useWorkspaceLayoutMetricsContext()
   const [snapshot, setSnapshot] = useState<EditorLayoutSnapshot>(() =>
     readEditorLayoutSnapshot(width, height, tier),
   )
@@ -76,25 +76,25 @@ export function usePersistedLayout(): PersistedLayoutApi {
       const raw = typeof next === 'function' ? next(prev.leftW) : next
       const leftW = clampLeftWidthInWorkspace(
         raw,
-        width,
+        workspaceWidth,
         reserveRightWidthForTier(tier, prev.rightW),
       )
       const nextSnap = { ...prev, leftW }
       snapshotRef.current = nextSnap
       return nextSnap
     })
-  }, [width, tier])
+  }, [workspaceWidth, tier])
 
   const setRightW = useCallback((next: number | ((prev: number) => number)) => {
     setSnapshot((prev) => {
       const raw = typeof next === 'function' ? next(prev.rightW) : next
       const leftReserve = tier === 'full' ? prev.leftW : 0
-      const rightW = clampRightWidthInWorkspace(raw, width, leftReserve)
+      const rightW = clampRightWidthInWorkspace(raw, workspaceWidth, leftReserve)
       const nextSnap = { ...prev, rightW }
       snapshotRef.current = nextSnap
       return nextSnap
     })
-  }, [width, tier])
+  }, [workspaceWidth, tier])
 
   const setDockH = useCallback((next: number | ((prev: number) => number)) => {
     setSnapshot((prev) => {

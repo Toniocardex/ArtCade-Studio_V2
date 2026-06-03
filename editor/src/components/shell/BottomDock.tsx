@@ -8,19 +8,21 @@ import VerticalResizeHandle from '../VerticalResizeHandle'
 import { DockPanelChrome } from './dock/DockPanelChrome'
 import { DOCK_PANEL_REGISTRY } from './dock/dock-panel-registry'
 import { DOCK_PANEL_ORDER } from '../../constants/dock-panels'
+import { CANVAS_MIN_HEIGHT, DOCK_HEIGHT_MIN } from '../../constants/editor-layout-persist'
+import { EDITOR_DOCK_H_DEFAULT, EDITOR_TOP_CHROME_H_PX } from '../../constants/editor-layout'
 
-const HANDLE_H = 4
 const HEADER_H = 28
-const MIN_CONTENT_H = 160
-const MIN_TOTAL_H = HANDLE_H + HEADER_H + MIN_CONTENT_H
+const STATUS_H = 24
+
 function maxDockHeight(): number {
   if (globalThis.window === undefined) return 480
-  const cap = Math.min(320, Math.round(globalThis.innerHeight * 0.32))
-  return Math.max(MIN_TOTAL_H, cap)
+  const viewportCap = Math.round(globalThis.innerHeight * 0.6)
+  const canvasReserveCap = globalThis.innerHeight - EDITOR_TOP_CHROME_H_PX - STATUS_H - CANVAS_MIN_HEIGHT
+  return Math.max(DOCK_HEIGHT_MIN, Math.min(viewportCap, canvasReserveCap))
 }
 
 function clampDockHeight(n: number): number {
-  return Math.max(MIN_TOTAL_H, Math.min(maxDockHeight(), Math.round(n)))
+  return Math.max(DOCK_HEIGHT_MIN, Math.min(maxDockHeight(), Math.round(n)))
 }
 
 export default function BottomDock() {
@@ -46,6 +48,7 @@ export default function BottomDock() {
   )
   const visibleCount = visiblePanels.length
   const consoleVisible = dockPanelVisibility.console
+  const dockExpanded = !bottomPanelCollapsed
 
   useEffect(() => {
     function onResize() {
@@ -62,8 +65,6 @@ export default function BottomDock() {
   useEffect(() => {
     triggerLayoutReflow()
   }, [height, bottomPanelCollapsed, dockPanelVisibility])
-
-  const dockExpanded = !bottomPanelCollapsed
 
   useEffect(() => {
     if (!dockExpanded || !consoleVisible || !volatile.consoleLogs.length) return
@@ -94,15 +95,16 @@ export default function BottomDock() {
       data-visible-panels={visibleCount}
     >
       {!bottomPanelCollapsed && (
-        <VerticalResizeHandle onResize={(d) => setHeight((h) => clampDockHeight(h + d))} />
+        <VerticalResizeHandle
+          onResize={(d) => setHeight((h) => clampDockHeight(h + d))}
+          onReset={() => setHeight(EDITOR_DOCK_H_DEFAULT)}
+        />
       )}
 
       <div className="shrink-0 flex items-center border-b border-[var(--outline)] min-h-7 px-2 bg-[var(--surface-2)]">
         <span className="flex-1 text-[8px] font-bold uppercase tracking-widest text-[var(--muted)]">
           Bottom panels
-          {visibleCount > 0 && visibleCount < DOCK_PANEL_ORDER.length
-            ? ` · ${visibleCount}`
-            : ''}
+          {visibleCount > 0 && visibleCount < DOCK_PANEL_ORDER.length ? ` / ${visibleCount}` : ''}
         </span>
         {issueCount > 0 && (
           <span className="text-[9px] font-mono text-[var(--warn)] mr-2">
@@ -114,10 +116,7 @@ export default function BottomDock() {
           onClick={() => {
             const collapsed = !bottomPanelCollapsed
             layout.setDockCollapsed(collapsed)
-            dispatch({
-              type: 'SET_BOTTOM_PANEL_COLLAPSED',
-              collapsed,
-            })
+            dispatch({ type: 'SET_BOTTOM_PANEL_COLLAPSED', collapsed })
           }}
           title={bottomPanelCollapsed ? 'Expand bottom dock' : 'Collapse bottom dock'}
           aria-label={bottomPanelCollapsed ? 'Expand bottom dock' : 'Collapse bottom dock'}
@@ -131,7 +130,7 @@ export default function BottomDock() {
         <div className="flex-1 min-h-0 grid editor-dock-body" style={gridStyle}>
           {visibleCount === 0 ? (
             <p className="col-span-full flex items-center justify-center text-[10px] text-[var(--muted)] px-4">
-              No panels visible — enable panels in View → Bottom panels
+              No panels visible - enable panels in View / Bottom panels
             </p>
           ) : (
             visiblePanels.map((panel) => (

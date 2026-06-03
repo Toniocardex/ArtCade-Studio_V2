@@ -1,13 +1,13 @@
 // ---------------------------------------------------------------------------
-// CanvasToolbar — horizontal tool palette above the preview canvas
+// CanvasToolbar - horizontal viewport controls above the preview canvas
 // ---------------------------------------------------------------------------
 //
 // Sits as a normal flex item at the top of PreviewPanel (no absolute
 // positioning), so it never overlaps the canvas. Layout:
 //
-//   [ select | pan ] · [ paint | erase | tile ] · [ guides ]        [ status ]
+//   [ viewport controls ] [ layer ] [ zoom ]        [ status ]
 //
-// Tools are grouped by purpose (navigation · painting · view options), each
+// Controls are grouped by purpose, each
 // group separated by a thin vertical divider. Order matches the original
 // vertical palette so muscle memory is preserved.
 
@@ -28,6 +28,7 @@ interface CanvasToolbarProps {
   selectedTileCell: number
   showGuides:       boolean
   onToggleGuides:   () => void
+  showToolPalette?: boolean
   rightSlot?:       ReactNode
 }
 
@@ -37,7 +38,7 @@ function Divider() {
 
 /**
  * Self-contained toggle that mirrors the store's `cameraPreview` flag.
- * Kept inline in CanvasToolbar because it has no other call sites — moving
+ * Kept inline in CanvasToolbar because it has no other call sites; moving
  * it into its own file would add fragmentation without any reuse benefit.
  */
 function PreviewSpawnScopeToggle() {
@@ -65,7 +66,7 @@ function CameraPreviewToggle() {
   return (
     <button
       onClick={() => dispatch({ type: 'EDITOR_SET_CAMERA_PREVIEW', enabled: !enabled })}
-      title="Camera preview — clip canvas to scene viewportSize (Ctrl+8)"
+      title="Camera preview - clip canvas to scene viewportSize (Ctrl+8)"
       className={`p-1.5 rounded transition-colors ${
         enabled ? 'bg-[rgb(var(--accent-2-rgb)/0.2)]' : 'hover:bg-[var(--panel-3)]'
       }`}
@@ -77,6 +78,7 @@ function CameraPreviewToggle() {
 
 export function CanvasToolbar({
   activeTool, onSelectTool, selectedTileCell, showGuides, onToggleGuides,
+  showToolPalette = true,
   rightSlot,
 }: CanvasToolbarProps) {
   const { dispatch } = useEditor()
@@ -85,62 +87,67 @@ export function CanvasToolbar({
     <div className="flex items-center gap-1 px-2 py-1.5
                     border-b border-[var(--border)] bg-[var(--panel)]
                     flex-shrink-0">
-      {([
-        { id: 'select', Icon: MousePointer2, color: 'var(--accent)', title: 'Select / move entities' },
-        { id: 'pan',    Icon: Hand,           color: 'var(--muted)',  title: 'Pan camera' },
-      ] as const).map(({ id, Icon, color, title }) => (
-        <button
-          key={id}
-          onClick={() => onSelectTool(id)}
-          title={title}
-          className={`p-1.5 rounded transition-colors ${
-            activeTool === id ? 'bg-[rgb(var(--accent-rgb)/0.2)]' : 'hover:bg-[var(--panel-3)]'
-          }`}
-        >
-          <Icon size={15} color={activeTool === id ? color : 'var(--muted)'} />
-        </button>
-      ))}
+      {showToolPalette && (
+        <>
+          {([
+            { id: 'select', Icon: MousePointer2, color: 'var(--accent)', title: 'Select / move entities' },
+            { id: 'pan',    Icon: Hand,           color: 'var(--muted)',  title: 'Pan camera' },
+          ] as const).map(({ id, Icon, color, title }) => (
+            <button
+              key={id}
+              onClick={() => onSelectTool(id)}
+              title={title}
+              className={`p-1.5 rounded transition-colors ${
+                activeTool === id ? 'bg-[rgb(var(--accent-rgb)/0.2)]' : 'hover:bg-[var(--panel-3)]'
+              }`}
+            >
+              <Icon size={15} color={activeTool === id ? color : 'var(--muted)'} />
+            </button>
+          ))}
 
-      <Divider />
+          <Divider />
 
-      {([
-        { id: 'paint', Icon: Pencil, title: 'Paint tiles' },
-        { id: 'erase', Icon: Eraser, title: 'Erase tiles' },
-      ] as const).map(({ id, Icon, title }) => (
-        <button
-          key={id}
-          onClick={() => onSelectTool(id)}
-          title={title}
-          className={`p-1.5 rounded transition-colors ${
-            activeTool === id ? 'bg-[rgb(var(--accent-2-rgb)/0.2)]' : 'hover:bg-[var(--panel-3)]'
-          }`}
-        >
-          <Icon size={15} color={activeTool === id ? 'var(--accent-2)' : 'var(--muted)'} />
-        </button>
-      ))}
+          {([
+            { id: 'paint', Icon: Pencil, title: 'Paint tiles' },
+            { id: 'erase', Icon: Eraser, title: 'Erase tiles' },
+          ] as const).map(({ id, Icon, title }) => (
+            <button
+              key={id}
+              onClick={() => onSelectTool(id)}
+              title={title}
+              className={`p-1.5 rounded transition-colors ${
+                activeTool === id ? 'bg-[rgb(var(--accent-2-rgb)/0.2)]' : 'hover:bg-[var(--panel-3)]'
+              }`}
+            >
+              <Icon size={15} color={activeTool === id ? 'var(--accent-2)' : 'var(--muted)'} />
+            </button>
+          ))}
 
-      {/* Phase F2: in-scene tile painting (uses the currently selected tileset cell) */}
-      <button
-        onClick={() => onSelectTool('tile')}
-        title={`Paint selected tileset cell ${selectedTileCell === 0 ? '(empty)' : '#' + selectedTileCell}`}
-        className={`p-1.5 rounded transition-colors ${
-          activeTool === 'tile' ? 'bg-[rgb(var(--accent-2-rgb)/0.2)]' : 'hover:bg-[var(--panel-3)]'
-        }`}
-      >
-        <ImageIcon size={15} color={activeTool === 'tile' ? 'var(--accent-2)' : 'var(--muted)'} />
-      </button>
+          <button
+            onClick={() => onSelectTool('tile')}
+            title={`Paint selected tileset cell ${selectedTileCell === 0 ? '(empty)' : '#' + selectedTileCell}`}
+            className={`p-1.5 rounded transition-colors ${
+              activeTool === 'tile' ? 'bg-[rgb(var(--accent-2-rgb)/0.2)]' : 'hover:bg-[var(--panel-3)]'
+            }`}
+          >
+            <ImageIcon size={15} color={activeTool === 'tile' ? 'var(--accent-2)' : 'var(--muted)'} />
+          </button>
 
-      <Divider />
+          <Divider />
 
-      <button
-        onClick={onToggleGuides}
-        title="Toggle editor guides"
-        className={`p-1.5 rounded transition-colors ${
-          showGuides ? 'bg-[rgb(var(--accent-2-rgb)/0.25)]' : 'hover:bg-[var(--panel-3)]'
-        }`}
-      >
-        <Grid3x3 size={15} color={showGuides ? 'var(--accent-2)' : 'var(--muted)'} />
-      </button>
+          <button
+            onClick={onToggleGuides}
+            title="Toggle editor guides"
+            className={`p-1.5 rounded transition-colors ${
+              showGuides ? 'bg-[rgb(var(--accent-2-rgb)/0.25)]' : 'hover:bg-[var(--panel-3)]'
+            }`}
+          >
+            <Grid3x3 size={15} color={showGuides ? 'var(--accent-2)' : 'var(--muted)'} />
+          </button>
+
+          <Divider />
+        </>
+      )}
 
       <CameraPreviewToggle />
       <PreviewSpawnScopeToggle />
@@ -158,7 +165,7 @@ export function CanvasToolbar({
         <button
           type="button"
           onClick={() => dispatch({ type: 'SET_FOCUS_MODE', enabled: true })}
-          title="Focus mode — maximize canvas (F11)"
+          title="Focus mode - maximize canvas (F11)"
           className="p-1.5 rounded transition-colors hover:bg-[var(--panel-3)]"
         >
           <Maximize2 size={15} color="var(--muted)" />

@@ -4,6 +4,10 @@
 
 export type DockPanelId = 'console' | 'timeline' | 'logic' | 'events'
 
+export type DockPanelDockState = 'docked' | 'hidden' | 'floating'
+
+export type DockPanelDockStateMap = Record<DockPanelId, DockPanelDockState>
+
 export type DockPanelVisibility = Record<DockPanelId, boolean>
 
 export const DOCK_PANEL_ORDER: readonly DockPanelId[] = [
@@ -18,6 +22,13 @@ export const DEFAULT_DOCK_PANEL_VISIBILITY: DockPanelVisibility = {
   timeline: false,
   logic: true,
   events: false,
+}
+
+export const DEFAULT_DOCK_PANEL_STATE: DockPanelDockStateMap = {
+  console: 'docked',
+  timeline: 'hidden',
+  logic: 'docked',
+  events: 'hidden',
 }
 
 export const DOCK_PANEL_LABELS: Record<DockPanelId, string> = {

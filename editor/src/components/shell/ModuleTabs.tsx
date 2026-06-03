@@ -29,6 +29,9 @@ export default function ModuleTabs() {
             key={id}
             active={active}
             onClick={() => dispatch({ type: 'SET_MODE', mode: id })}
+            onDoubleClick={() => {
+              if (id === 'canvas') dispatch({ type: 'SET_FOCUS_MODE', enabled: true })
+            }}
             title={label}
             className={`inline-flex items-center gap-2 ${iconOnly ? 'px-3 py-2.5' : 'px-4 py-2.5'}`}
           >

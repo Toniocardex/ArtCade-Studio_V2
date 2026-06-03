@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, type CSSProperties, type RefObject } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState, type CSSProperties, type RefObject } from 'react'
 import { EditorProvider, useEditor } from './store/editor-store'
 import MenuBar            from './components/MenuBar'
 import ModuleTabs from './components/shell/ModuleTabs'
@@ -29,6 +29,9 @@ import CompactLeftSidebar from './components/shell/CompactLeftSidebar'
 import { InspectorDrawer } from './components/shell/InspectorDrawer'
 import { InspectorDrawerProvider } from './contexts/inspector-drawer-context'
 import { LayoutTierSideEffects } from './components/shell/LayoutTierSideEffects'
+import { EditorUiScaleSuggestionBanner } from './components/shell/EditorUiScaleSuggestionBanner'
+import { CanvasToolRail } from './components/shell/CanvasToolRail'
+import type { EditorTool } from './utils/runtime-sync-service'
 import type { ConsoleEntry } from './types'
 
 const LogicBoardPanel = lazy(() => import('./panels/LogicBoardPanel'))
@@ -71,8 +74,13 @@ function CanvasView() {
   const focusMode = state.focusMode
   const tier = useLayoutTier()
   const useCompactShell = tier === 'compact' || tier === 'minimal' || tier === 'unsupported'
+  const showLeftRail = !focusMode && (tier === 'full' || tier === 'compact')
+  const showFullSidebars = !focusMode && tier === 'full'
+  const showToolRail = showLeftRail && state.mode === 'canvas'
 
   const { leftW, rightW, setLeftW, setRightW, resetLeftW, resetRightW } = useEditorLayoutContext()
+  const [activeTool, setActiveTool] = useState<EditorTool>('select')
+  const [showEditorGuides, setShowEditorGuides] = useState(true)
 
   const isEditingTileset = state.editingTilesetId != null
 
@@ -80,8 +88,16 @@ function CanvasView() {
     <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
       {!focusMode && <LegacyMigrateBanner />}
       <div className="flex flex-1 min-h-0 overflow-hidden">
+      {showToolRail && (
+        <CanvasToolRail
+          activeTool={activeTool}
+          onSelectTool={setActiveTool}
+          showGuides={showEditorGuides}
+          onToggleGuides={() => setShowEditorGuides((v) => !v)}
+        />
+      )}
 
-      {!focusMode && (
+      {showLeftRail && (
         <>
           <aside
             style={{ width: leftW }}
@@ -103,14 +119,26 @@ function CanvasView() {
             <InspectorDrawerProvider>
               <InspectorDrawer />
               <div style={{ display: isEditingTileset ? 'none' : 'contents' }}>
-                <PreviewPanel />
+                <PreviewPanel
+                  activeTool={activeTool}
+                  onSelectTool={setActiveTool}
+                  showEditorGuides={showEditorGuides}
+                  onToggleGuides={() => setShowEditorGuides((v) => !v)}
+                  showToolPalette={!showToolRail}
+                />
               </div>
             </InspectorDrawerProvider>
           ) : (
           <div
             style={{ display: isEditingTileset ? 'none' : 'contents' }}
           >
-            <PreviewPanel />
+            <PreviewPanel
+              activeTool={activeTool}
+              onSelectTool={setActiveTool}
+              showEditorGuides={showEditorGuides}
+              onToggleGuides={() => setShowEditorGuides((v) => !v)}
+              showToolPalette={!showToolRail}
+            />
           </div>
           )}
           {isEditingTileset && !focusMode && (
@@ -121,7 +149,7 @@ function CanvasView() {
         </div>
       </section>
 
-      {!focusMode && !useCompactShell && (
+      {showFullSidebars && (
         <>
           <ResizeHandle
             side="right"
@@ -188,6 +216,7 @@ function EditorShell({ workspaceRef }: Readonly<{ workspaceRef: RefObject<HTMLDi
           </header>
         )}
         {!state.focusMode && <EditorViewportBanner />}
+        {!state.focusMode && <EditorUiScaleSuggestionBanner />}
         <DialogEditorModal />
         <SpritesheetStudioModal />
 
