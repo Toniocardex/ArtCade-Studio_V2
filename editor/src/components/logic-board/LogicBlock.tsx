@@ -33,20 +33,20 @@ export function LogicBlock({
   const toneClass = TONE_BORDER_CLASS[tone]
 
   return (
-    <div className={`border-l-2 ${toneClass} pl-3`}>
-      <div className="flex items-center gap-2 pb-2">
+    <div className={`border-l-2 ${toneClass}`} data-logic-section={tone}>
+      <div className="flex items-center gap-2 border-b border-[var(--outline-subtle)] pb-2">
         {icon && (
           <span className="shrink-0 text-[var(--accent)]" aria-hidden="true">
             {icon}
           </span>
         )}
-        <span className="text-xs font-semibold text-[var(--text)]">{title}</span>
+        <span className="text-[11px] font-semibold text-[var(--text)]">{title}</span>
         {optional && (
           <span className="text-[10px] text-[var(--muted)]">(optional)</span>
         )}
         {action && <div className="ml-auto">{action}</div>}
       </div>
-      <div className="space-y-2">{children}</div>
+      <div className="space-y-2 pt-2">{children}</div>
     </div>
   )
 }

@@ -159,7 +159,7 @@ export function LogicEventsSidebar({
   return (
     <div className="h-full flex flex-col min-h-0 bg-[var(--surface)]" data-panel="logic-events-sidebar">
       <header className="shrink-0 px-3 py-2 border-b border-[var(--outline)]">
-        <p className="text-[9px] uppercase tracking-wide text-[var(--muted)]">Events</p>
+        <p className="text-[9px] uppercase tracking-widest text-[var(--muted)]">Rulesheet Events</p>
         {board && !groupedView ? (
           <p
             className="text-[11px] font-semibold text-[var(--primary)] truncate mt-0.5"
@@ -180,7 +180,7 @@ export function LogicEventsSidebar({
             <section key={eventBoard.boardId} className="border-b border-[var(--outline-subtle)]">
               <button
                 type="button"
-                className="w-full text-left px-2 py-1.5 text-[10px] font-semibold text-[var(--accent)] hover:bg-[var(--outline-faint)]"
+                className="w-full text-left px-2 py-1.5 text-[10px] font-semibold text-[var(--primary-soft)] hover:bg-[var(--outline-faint)]"
                 onClick={() => setSelectedBoardId(eventBoard.boardId)}
               >
                 {rulesheetAppliesToLabel(project, eventBoard)} ({eventBoard.events.length})
@@ -237,10 +237,10 @@ export function LogicEventsSidebar({
           <>
             <button
               type="button"
-              className="w-full text-[10px] px-2 py-1 rounded-[var(--radius)] border border-[var(--outline)] hover:bg-[var(--outline-faint)]"
+              className="w-full text-[10px] px-2 py-1 rounded-[var(--radius)] border border-[var(--outline)] bg-[var(--surface-2)] hover:bg-[var(--outline-faint)]"
               onClick={() => setPickerOpen(true)}
             >
-              Browse triggers…
+              Browse triggers...
             </button>
             {pickerOpen && (
               <div

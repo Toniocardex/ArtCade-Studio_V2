@@ -3,94 +3,65 @@
 @tailwind utilities;
 
 /* ===========================================================================
-   ArtCade Studio — Editor UI
+   ArtCade Studio - Editor UI
    See docs/EDITOR_UI_DESIGN_SYSTEM.md
 
-   dark:  Dark Anthracite — flat professional desktop (default)
-   light: Industrial Mid-Grey — sprite-neutral authoring
+   dark:  Dark Premium Anthracite - production authoring (default)
+   light: Industrial Mid-Grey - sprite-neutral authoring
 
-   PreviewPanel game pixels are C++/WASM — not themed here.
+   PreviewPanel game pixels are C++/WASM - not themed here.
    ========================================================================== */
 
 :root,
 [data-theme="dark"] {
-  /* Dark Anthracite Monochrome — canonical hex in docs/EDITOR_UI_DESIGN_SYSTEM.md.
-     Borders / selection / tab chrome use a slight separation lift so panels do
-     not collapse into one flat gray plane (still flat, no glow). */
-  --bg-app:                 #0E1113;
-  --bg-window:              #15191C;
-  --void:                   #11161A;
-  --logic-bg:               #14191D;
-  --surface:                #1B2024;
-  --surface-2:              #20262A;
-  --surface-3:              #111518;
-  --surface-hover:          #252B30;
-  --surface-selected:       #2F3C48;
-  --surface-selected-strong:#384653;
+  /* Dark Premium Anthracite - canonical hex in docs/EDITOR_UI_DESIGN_SYSTEM.md. */
+  --bg-app:                 #050505;
+  --bg-window:              #0B0B0C;
+  --void:                   #08090A;
+  --logic-bg:               #0B0D0F;
+  --surface:                #111214;
+  --surface-2:              #16181B;
+  --surface-3:              #0B0B0C;
+  --surface-hover:          #1C2025;
+  --surface-selected:       #263143;
+  --surface-selected-strong:#33425B;
 
-  /* Borders (canonical #2A3035 / #22282D / #3A4248 → lifted for legibility) */
-  --outline:                #323940;
-  --outline-subtle:         #2A3138;
-  --outline-strong:         #424B53;
-  --outline-focus:          #6B7C87;
-  --outline-faint:          #2E363D;
+  /* Borders */
+  --outline:                #24272D;
+  --outline-subtle:         #1B1E23;
+  --outline-strong:         #30343B;
+  --outline-focus:          #6E7684;
+  --outline-faint:          #15171B;
 
   /* Text */
-  --primary:                #D8DEE3;
-  --primary-soft:           #AAB2B8;
-  --muted:                  #7E878E;
-  --muted-2:                #555E65;
-  --text-meta:              #8D969E;
-  --text-on-selected:       #EEF2F4;
+  --primary:                #F2F2F2;
+  --primary-soft:           #C7CCD4;
+  --muted:                  #A0A4AB;
+  --text-on-selected:       #F2F2F2;
 
-  /* Accent — selection / focus only, no glow */
-  --accent:                 #4A5D6A;
-  --accent-hover:           #5C6F7D;
-  --accent-selected:        #33414C;
-  --accent-muted:           rgba(51, 65, 76, 0.5);
+  /* Accent - selection / focus only, no glow */
+  --accent:                 #6E7684;
+  --accent-hover:           #C7CCD4;
+  --accent-muted:           rgba(110, 118, 132, 0.16);
 
   /* Status (desaturated) */
-  --info:                   #6F8A9B;
-  --warn:                   #B59A5B;
-  --danger:                 #B86A62;
-  --danger-2:               #A35A52;
-  --success:                #6F8F7A;
-  --debug:                  #8A9298;
-  --purple:                 #8A9298;
+  --info:                   #6E7684;
+  --warn:                   #B8973F;
+  --danger:                 #A35656;
+  --danger-2:               #8E4548;
+  --success:                #4F8F73;
+  --purple:                 #9B7BFF;
 
   /* Logic Board */
-  --logic-card:             #1B2024;
-  --logic-card-header:      #20262A;
-  --logic-block:            #1E2428;
-  --logic-row-disabled:     #171B1E;
+  --logic-card:             #111418;
+  --logic-block:            #15191E;
 
   /* Canvas chrome */
-  --grid-primary:           #252B30;
-  --grid-secondary:         #1B2024;
-  --camera-frame:           #B7C0C7;
-  --camera-frame-muted:     #6E777E;
-  --selection-outline:      #6B7C87;
-  --gizmo-x:                #A86A64;
-  --gizmo-y:                #7E9A78;
-  --gizmo-neutral:          #C4CBD0;
+  --grid-primary:           #24272D;
+  --grid-secondary:         #14171B;
+  --camera-frame:           #80D6FF;
 
-  /* Canonical names (spec) → same tokens */
-  --bg-panel:               var(--surface);
-  --bg-panel-soft:          var(--surface-2);
-  --bg-input:               var(--surface-3);
-  --bg-hover:               var(--surface-hover);
-  --bg-selected:            var(--surface-selected);
-  --bg-selected-strong:     var(--surface-selected-strong);
-  --border-subtle:          var(--outline-subtle);
-  --border-default:         var(--outline);
-  --border-strong:          var(--outline-strong);
-  --border-focus:           var(--outline-focus);
-  --text-primary:           var(--primary);
-  --text-secondary:         var(--primary-soft);
-  --text-muted:             var(--muted);
-  --text-disabled:          var(--muted-2);
-  --canvas-bg:              var(--void);
-  --tab-active-bg:          var(--surface-selected-strong);
+  /* Shared component aliases. */
   --tab-active-border:      var(--accent);
 
   /* Aliases (components) */
@@ -110,17 +81,15 @@
   --yellow:      var(--warn);
   --green-2:     var(--success);
   --blue:        var(--info);
-  --pill-if-bg:  rgba(74, 93, 106, 0.2);
-  --pill-if-bd:  var(--outline-focus);
   --pill-then-bg: var(--logic-block);
   --pill-then-bd: var(--outline);
-  --accent-rgb:   74 93 106;
-  --accent-2-rgb: 92 111 125;
-  --bg-rgb:       17 22 26;
-  --border-rgb:   50 57 64;
-  --muted-rgb:    126 135 142;
-  --warn-rgb:     181 154 91;
-  --danger-rgb:   184 106 98;
+  --accent-rgb:   110 118 132;
+  --accent-2-rgb: 199 204 212;
+  --bg-rgb:       8 9 10;
+  --border-rgb:   36 39 45;
+  --muted-rgb:    160 164 171;
+  --warn-rgb:     184 151 63;
+  --danger-rgb:   163 86 86;
 }
 
 [data-theme="light"] {
@@ -144,13 +113,10 @@
   --primary:                #E0E0E0;
   --primary-soft:           #C8C8C8;
   --muted:                  #999999;
-  --muted-2:                #7A7A7A;
-  --text-meta:              #999999;
   --text-on-selected:       #E0E0E0;
 
   --accent:                 #5C83C4;
   --accent-hover:           #6A90CC;
-  --accent-selected:        #5C83C4;
   --accent-muted:           rgba(92, 131, 196, 0.22);
 
   --info:                   #6F8A9B;
@@ -158,22 +124,14 @@
   --danger:                 #C45C5C;
   --danger-2:               #A84848;
   --success:                #7FA88A;
-  --debug:                  #8A9298;
   --purple:                 #9A8AAF;
 
   --logic-card:             #535353;
-  --logic-card-header:      #4A4A4A;
   --logic-block:            #3A3A3A;
-  --logic-row-disabled:     #3A3A3A;
 
   --grid-primary:           #4A4A4A;
   --grid-secondary:         #3A3A3A;
   --camera-frame:           #C8C8C8;
-  --camera-frame-muted:     #999999;
-  --selection-outline:      #5C83C4;
-  --gizmo-x:                #C45C5C;
-  --gizmo-y:                #7FA88A;
-  --gizmo-neutral:          #C8C8C8;
 
   --bg:          var(--void);
   --panel:       var(--surface);
@@ -191,8 +149,6 @@
   --yellow:      var(--warn);
   --green-2:     var(--success);
   --blue:        var(--accent);
-  --pill-if-bg:  rgba(92, 131, 196, 0.14);
-  --pill-if-bd:  var(--accent);
   --pill-then-bg: var(--surface-3);
   --pill-then-bd: var(--outline);
   --accent-rgb:   92 131 196;
@@ -205,7 +161,6 @@
 }
 
 :root {
-  --editor-rail-width:      0px;
   --editor-workspace-inset: 0.75rem;
   --editor-toolbar-gap: 0.5rem;
   --editor-toolbar-build-gap: 0.625rem;
@@ -213,12 +168,11 @@
   --editor-toolbar-section-gap: 0.75rem;
   --editor-left-w-default:  280px;
   --editor-right-w-default: 320px;
-  --editor-dock-h-default:  280px;
+  --editor-dock-h-default:  300px;
 
-  --radius:    2px;
-  --radius-sm: 2px;
+  --radius:    4px;
+  --radius-sm: 3px;
   --radius-md: 4px;
-  --radius-lg: 4px;
 
   --font-ui:   'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Courier New', Courier, monospace;
@@ -261,13 +215,13 @@ input[data-mono],
   font-feature-settings: 'zero', 'ss01';
 }
 
-/* IBM Plex Sans utility — explicit opt-in where a parent forced mono. */
+/* IBM Plex Sans utility - explicit opt-in where a parent forced mono. */
 .font-ui {
   font-family: var(--font-ui);
 }
 
 /* ---------------------------------------------------------------------------
-   Scrollbars — thin, opaque, no rounded corners
+   Scrollbars - thin, opaque, no rounded corners
    --------------------------------------------------------------------------- */
 
 ::-webkit-scrollbar       { width: 6px; height: 6px; }
@@ -275,7 +229,7 @@ input[data-mono],
 ::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 0; }
 ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 
-/* Preview canvas affordance — slightly thicker, still squared. */
+/* Preview canvas affordance - slightly thicker, still squared. */
 .canvas-scrollarea::-webkit-scrollbar       { width: 12px; height: 12px; }
 .canvas-scrollarea::-webkit-scrollbar-track { background: var(--panel); }
 .canvas-scrollarea::-webkit-scrollbar-thumb {
@@ -312,7 +266,7 @@ input[data-mono],
 }
 
 /* ---------------------------------------------------------------------------
-   Canvas viewport frame — kept as inset ring (renderer-independent)
+   Canvas viewport frame - kept as inset ring (renderer-independent)
    --------------------------------------------------------------------------- */
 
 .canvas-scene-frame {
@@ -325,18 +279,20 @@ input[data-mono],
   inset: 0;
   pointer-events: none;
   z-index: 1;
-  box-shadow: inset 0 0 0 1px var(--border-2);
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 0.08),
+    inset 0 0 0 2px rgb(0 0 0 / 0.22);
 }
 
 .canvas-ruler-corner {
-  background: var(--surface-2);
+  background: #0D0F11;
   border-right: 1px solid var(--outline-subtle);
   border-bottom: 1px solid var(--outline-subtle);
 }
 
 .canvas-ruler-h,
 .canvas-ruler-v {
-  background: var(--surface-2);
+  background: #0D0F11;
 }
 
 .editor-preview-island {
@@ -349,7 +305,7 @@ input[data-mono],
 }
 
 /* ---------------------------------------------------------------------------
-   Adaptive UI scale — chrome only (see docs/ADAPTIVE_LAYOUT.md Phase 1)
+   Adaptive UI scale - chrome only (see docs/ADAPTIVE_LAYOUT.md Phase 1)
    --------------------------------------------------------------------------- */
 
 .editor-shell {
@@ -357,7 +313,7 @@ input[data-mono],
   font-size: calc(12px * var(--editor-scale));
   --editor-left-w-default:  calc(280px * var(--editor-scale));
   --editor-right-w-default: calc(320px * var(--editor-scale));
-  --editor-dock-h-default:  calc(280px * var(--editor-scale));
+  --editor-dock-h-default:  calc(300px * var(--editor-scale));
   --editor-workspace-inset: calc(0.75rem * var(--editor-scale));
   --editor-toolbar-row-h:   calc(52px * var(--editor-scale));
   --editor-module-tabs-h:   calc(44px * var(--editor-scale));
@@ -376,7 +332,7 @@ input[data-mono],
   --editor-toolbar-row-h: calc(48px * var(--editor-scale));
 }
 
-/* Game preview / WASM viewport — fixed px; not scaled with editor UI. */
+/* Game preview / WASM viewport - fixed px; not scaled with editor UI. */
 .editor-preview-island {
   font-size: 12px;
 }
@@ -399,7 +355,7 @@ input[data-mono],
 }
 
 /* ---------------------------------------------------------------------------
-   Top chrome — MenuBar + module tabs = 96px total
+   Top chrome - MenuBar + module tabs = 96px total
    --------------------------------------------------------------------------- */
 
 .editor-top-chrome {
@@ -414,6 +370,7 @@ input[data-mono],
   overflow: visible;
   background: var(--surface);
   border-bottom: 1px solid var(--outline-strong);
+  box-shadow: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 12px 26px rgb(0 0 0 / 0.22);
 }
 
 .editor-menu-dropdown {
@@ -439,7 +396,7 @@ input[data-mono],
   gap: var(--editor-toolbar-section-gap);
   padding: 0.375rem 0;
   border-bottom: none;
-  background: transparent;
+  background: linear-gradient(180deg, #101215 0%, var(--bg-window) 100%);
 }
 
 .editor-toolbar-cluster {
@@ -481,14 +438,9 @@ input[data-mono],
   min-height: var(--editor-module-tabs-h);
   max-height: var(--editor-module-tabs-h);
   padding: 0 var(--editor-workspace-inset);
-  border-top: 1px solid var(--outline);
+  border-top: 1px solid var(--outline-subtle);
   border-bottom: none;
-  background: var(--surface-2);
-}
-
-.editor-panel-inset-x {
-  padding-left: var(--editor-workspace-inset);
-  padding-right: var(--editor-workspace-inset);
+  background: #0D0F11;
 }
 
 .editor-toolbar-btn {
@@ -502,7 +454,7 @@ input[data-mono],
   font-family: var(--font-ui);
   font-size: 0.6875rem;
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
   /* Style guide: "Nessuna animazione di transizione superiore ai 100ms." */
   transition: background-color 100ms, border-color 100ms, color 100ms;
 }
@@ -511,7 +463,7 @@ input[data-mono],
   min-height: 1.625em;
   padding: 0.25em 1.25em;
   border-top: 1px solid var(--border);
-  background: var(--panel);
+  background: var(--bg-window);
   font-family: var(--font-mono);
   font-size: 0.6875em;
   color: var(--muted);
@@ -527,13 +479,13 @@ input[data-mono],
   gap: 0.5rem;
   flex-shrink: 0;
   padding: 0.375rem 0.75rem;
-  border-bottom: 1px solid var(--outline-strong);
+  border-bottom: 1px solid var(--outline);
   font-size: 0.625rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--muted);
-  background: var(--surface-2);
+  background: linear-gradient(180deg, var(--surface-2), var(--surface));
 }
 
 .editor-panel-header__title {
@@ -556,7 +508,7 @@ input[data-mono],
   line-height: 1.5rem;
   color: var(--primary);
   background: var(--surface-3);
-  border: 1px solid var(--outline-strong);
+  border: 1px solid var(--outline);
   border-radius: var(--radius);
   transition: border-color 100ms;
 }
@@ -583,4 +535,67 @@ input[data-mono],
 .editor-dock-body {
   font-size: 0.625rem;
   line-height: 1.35;
+}
+
+/* ---------------------------------------------------------------------------
+   Premium workbench skin
+   --------------------------------------------------------------------------- */
+
+.editor-shell {
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.025), transparent 120px),
+    var(--bg-app);
+}
+
+.editor-chrome-panel,
+[data-panel="bottom-dock"],
+[data-panel="inspector"],
+[data-panel="logic-board"],
+[data-panel="logic-events-sidebar"],
+[data-panel="logic-inspector"],
+[data-panel="project-explorer"] {
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.018), transparent 180px), var(--surface);
+}
+
+.editor-shell select,
+.editor-shell input:not([type="checkbox"]):not([type="radio"]),
+.editor-shell textarea {
+  background: var(--surface-3);
+  border: 1px solid var(--outline);
+  border-radius: var(--radius);
+  color: var(--primary);
+}
+
+.editor-shell select:focus,
+.editor-shell input:not([type="checkbox"]):not([type="radio"]):focus,
+.editor-shell textarea:focus {
+  outline: none;
+  border-color: var(--outline-focus);
+  box-shadow: 0 0 0 1px rgb(var(--accent-rgb) / 0.25);
+}
+
+.editor-shell button {
+  letter-spacing: 0;
+}
+
+.canvas-scrollarea {
+  background-color: var(--void);
+  background-image:
+    linear-gradient(var(--grid-secondary) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-secondary) 1px, transparent 1px),
+    linear-gradient(var(--grid-primary) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-primary) 1px, transparent 1px);
+  background-size: 16px 16px, 16px 16px, 64px 64px, 64px 64px;
+}
+
+[data-logic-rule-editor] {
+  border-color: var(--outline);
+  background: var(--surface);
+}
+
+[data-logic-section] {
+  background: var(--logic-card);
+  border: 1px solid var(--outline);
+  border-radius: var(--radius-md);
+  padding: 0.65rem;
 }

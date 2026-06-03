@@ -38,22 +38,42 @@ export function RulesheetControls({
   onDeleteBoard,
 }: RulesheetControlsProps) {
   return (
-    <div className="flex-shrink-0 flex flex-col gap-2 px-4 py-2 border-b border-[var(--border)] bg-[var(--panel)]">
-      <div className="flex items-center gap-3 flex-wrap">
-        <span className="text-[11px] text-[var(--muted)]">Rules for entity</span>
+    <div className="flex-shrink-0 flex flex-col gap-2 border-b border-[var(--outline)] bg-[var(--surface)]">
+      <header className="flex items-center justify-between gap-2 px-3 py-2 border-b border-[var(--outline-subtle)]">
+        <div className="min-w-0">
+          <p className="text-[9px] font-semibold uppercase tracking-widest text-[var(--muted)]">
+            Rulesheet Browser
+          </p>
+          <p className="truncate text-[10px] text-[var(--primary-soft)]">
+            {board ? 'Entity rulesheet selected' : 'Select or create rules'}
+          </p>
+        </div>
+        {board && (
+          <button
+            type="button"
+            onClick={onDeleteBoard}
+            className="shrink-0 rounded border border-[var(--outline)] px-2 py-1 text-[10px] text-[var(--muted)] hover:border-[var(--danger)] hover:text-[var(--danger)]"
+          >
+            Delete
+          </button>
+        )}
+      </header>
+
+      <div className="flex flex-col gap-2 px-3 py-2">
+        <span className="text-[10px] text-[var(--muted)]">Entity</span>
         <select
-          className="bg-[var(--bg)] border border-[var(--border-2)] text-[var(--accent)] px-2 py-1 rounded text-xs min-w-[140px]"
+          className="bg-[var(--bg)] border border-[var(--border-2)] text-[var(--primary-soft)] px-2 py-1 rounded text-xs min-w-[140px]"
           value={selectedEntityId ?? ''}
           onChange={(e) => {
             const id = Number(e.target.value)
             if (!Number.isNaN(id)) onSelectEntity(id)
           }}
         >
-          <option value="">Choose entity…</option>
+          <option value="">Choose entity...</option>
           {sceneEntities.map((e) => (
             <option key={e.id} value={e.id}>
               {e.name}
-              {findLogicBoardForEntity(project, e.id) ? ' · rules' : ''}
+              {findLogicBoardForEntity(project, e.id) ? ' / rules' : ''}
             </option>
           ))}
         </select>
@@ -70,39 +90,30 @@ export function RulesheetControls({
           onClick={() => {
             if (selectedEntityId != null) onCreateForEntity(selectedEntityId)
           }}
-          className="px-3 py-1 rounded text-xs font-semibold border border-[var(--border-2)] bg-[var(--border)] text-[var(--text)] disabled:opacity-40"
+          className="px-3 py-1 rounded text-xs font-semibold border border-[var(--outline)] bg-[var(--surface-2)] text-[var(--text)] disabled:opacity-40"
         >
-          New rulesheet for selection
+          New rulesheet
         </button>
-        {board && (
-          <button
-            type="button"
-            onClick={onDeleteBoard}
-            className="px-3 py-1 rounded text-xs text-[var(--muted)] hover:text-[var(--danger)]"
-          >
-            Delete rulesheet
-          </button>
-        )}
       </div>
 
       <details
         open={advancedOpen}
         onToggle={(e) => setAdvancedOpen((e.target as HTMLDetailsElement).open)}
-        className="text-xs"
+        className="px-3 pb-2 text-xs"
       >
         <summary className="cursor-pointer text-[var(--muted)] hover:text-[var(--text)] select-none">
-          Advanced — shared rulesheet (class)
+          Advanced - shared class rulesheet
         </summary>
         <p className="text-[10px] text-[var(--muted)] mt-1 mb-2 max-w-xl">
           Use only when many identical objects share one behavior. Default workflow is one rulesheet per entity in the Scenes panel.
         </p>
         <div className="flex items-center gap-2 flex-wrap">
           <select
-            className="bg-[var(--bg)] border border-[var(--border-2)] text-[var(--accent)] px-2 py-1 rounded text-xs"
+            className="bg-[var(--bg)] border border-[var(--border-2)] text-[var(--primary-soft)] px-2 py-1 rounded text-xs"
             value={newClass}
             onChange={(e) => setNewClass(e.target.value)}
           >
-            <option value="">Choose class…</option>
+            <option value="">Choose class...</option>
             {classes.map((c) => (
               <option key={c} value={c}>
                 {classDisplayLabel(project, c)}
@@ -113,7 +124,7 @@ export function RulesheetControls({
             type="button"
             disabled={!newClass}
             onClick={onCreateClassRulesheet}
-            className="px-3 py-1 rounded text-xs font-semibold border border-[var(--border-2)] bg-[var(--border)] text-[var(--text)] disabled:opacity-40"
+            className="px-3 py-1 rounded text-xs font-semibold border border-[var(--outline)] bg-[var(--surface-2)] text-[var(--text)] disabled:opacity-40"
           >
             New class rulesheet
           </button>

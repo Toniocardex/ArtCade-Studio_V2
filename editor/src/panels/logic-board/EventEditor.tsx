@@ -848,9 +848,22 @@ export default function EventEditor({
 
   return (
     <div
-      className="space-y-3 border border-[var(--outline)] bg-[var(--surface)] p-3 rounded-[var(--radius-md)]"
+      className="space-y-3 border border-[var(--outline)] bg-[var(--surface)] p-3 rounded-[var(--radius-md)] shadow-[0_18px_40px_rgb(0_0_0_/_0.18)]"
       data-logic-rule-editor
     >
+      <div className="rounded-[var(--radius)] border border-[var(--outline)] bg-[var(--surface-2)] px-3 py-2">
+        <p className="text-[9px] font-semibold uppercase tracking-widest text-[var(--muted)]">
+          Event Settings
+        </p>
+        <div className="mt-2 flex flex-wrap items-center gap-3 text-[10px] text-[var(--muted)]">
+          <span>
+            Event <strong className="text-[var(--primary-soft)]">{event.id}</strong>
+          </span>
+          <span>
+            Enabled <strong className="text-[var(--primary-soft)]">{event.enabled ? 'true' : 'false'}</strong>
+          </span>
+        </div>
+      </div>
       <div
         role="button"
         tabIndex={0}

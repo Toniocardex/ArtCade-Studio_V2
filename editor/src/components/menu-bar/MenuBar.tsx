@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback } from 'react'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Hexagon } from 'lucide-react'
 import { useEditor } from '../../store/editor-store'
 import { FileMenu } from './FileMenu'
 import { useEditMenuActions } from './useEditMenuActions'
@@ -78,6 +78,12 @@ export default function MenuBar() {
   return (
     <header className="editor-toolbar flex items-center justify-between flex-shrink-0 z-50 select-none">
       <div className="editor-toolbar-cluster editor-toolbar-workspace-start">
+        <div className="hidden min-w-0 items-center gap-2 pr-2 text-[var(--primary)] lg:flex">
+          <span className="flex h-7 w-7 items-center justify-center rounded-[var(--radius)] border border-[var(--outline)] bg-[var(--surface-3)]">
+            <Hexagon size={14} />
+          </span>
+          <span className="truncate text-[12px] font-semibold">ArtCade Studio</span>
+        </div>
         <div ref={fileMenuRef} className="relative">
           <button
             type="button"
@@ -91,7 +97,7 @@ export default function MenuBar() {
                 : 'border-[var(--border)] bg-[var(--panel-3)] text-[var(--muted)] hover:text-[var(--text)] hover:border-[var(--border-2)]'
             }`}
           >
-            FILE
+            File
             <ChevronDown size={10} className={`transition-transform ${fileMenuOpen ? 'rotate-180' : ''}`} />
           </button>
           <FileMenu
@@ -115,7 +121,7 @@ export default function MenuBar() {
                   : 'border-[var(--border)] bg-[var(--panel-3)] text-[var(--muted)] hover:text-[var(--text)] hover:border-[var(--border-2)]'
               }`}
             >
-              EDIT
+              Edit
               <ChevronDown size={10} className={`transition-transform ${editMenuOpen ? 'rotate-180' : ''}`} />
             </button>
             <FileMenu

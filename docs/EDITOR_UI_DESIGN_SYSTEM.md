@@ -1,107 +1,90 @@
-# ArtCade Studio — Editor UI Design System
+# ArtCade Studio - Editor UI Design System
 
-> **Status**: Active (2026 UI).  
-> **Scope**: React/Tailwind shell, Logic Board chrome, Inspector, docks — **not** game viewport pixels (WASM/Raylib) or in-game sprites.  
-> **Principle**: Desktop-professional chrome; game art stays primary. Flat, no neon/glow/heavy shadows.
+> **Status**: Active 2026 UI.
+> **Scope**: React/Tailwind shell, Logic Board chrome, Inspector, docks, boot chrome. Game viewport pixels rendered by WASM/Raylib are not themed here.
+> **Principle**: premium desktop editor chrome; game art remains the visual priority.
 
 Two editor themes:
 
 | Theme | `data-theme` | Use |
-|-------|----------------|-----|
-| **Dark Anthracite** | `dark` (default) | Production authoring — cold graphite, muted blue-gray accents |
-| **Industrial Mid-Grey** | `light` | Alternate — neutral mid-grey for sprite colour judgement |
+|-------|--------------|-----|
+| **Dark Premium Anthracite** | `dark` (default) | Production authoring - refined black surfaces, restrained blue-gray/silver accents |
+| **Industrial Mid-Grey** | `light` | Alternate - neutral mid-grey for sprite colour judgement |
 
 Toggle: **VIEW** menu in the editor.
 
 ---
 
-## 1. Dark Anthracite (`data-theme="dark"`)
+## 1. Dark Premium Anthracite
 
-Monochrome, flat, professional. Accents only for selection/focus.
+Deep, minimal, professional. No neon, no decorative glow. Accents appear only where they improve state recognition.
 
 ### Base surfaces
 
 | Token | Hex | Role |
 |-------|-----|------|
-| `bg-app` | `#0E1113` | Deepest app background |
-| `bg-window` | `#15191C` | Editor frame, inspector shell, bottom dock |
-| `void` | `#11161A` | Canvas / viewport workspace |
-| `logic-bg` | `#14191D` | Logic Board workspace |
-| `surface` | `#1B2024` | Side panels, main chrome |
-| `surface-2` | `#20262A` | Section headers, secondary panels |
-| `surface-3` | `#111518` | Inputs, console well |
-| `surface-hover` | `#252B30` | Row/button hover |
-| `surface-selected` | `#2B3640` canonical · **`#2F3C48` in app** | List selection |
-| `surface-selected-strong` | `#35424D` canonical · **`#384653` in app** | Active tab fill, strong focus |
+| `bg-app` | `#050505` | Tauri window, boot shell, deepest app background |
+| `bg-window` | `#0B0B0C` | Status bar, top chrome underside, dock shell |
+| `void` | `#08090A` | Canvas / viewport workspace |
+| `logic-bg` | `#0B0D0F` | Logic Board workspace |
+| `surface` | `#111214` | Side panels, main chrome |
+| `surface-2` | `#16181B` | Section headers, raised controls |
+| `surface-3` | `#0B0B0C` | Inputs, console wells |
+| `surface-hover` | `#1C2025` | Row/button hover |
+| `surface-selected` | `#263143` | Selected rows and segmented controls |
+| `surface-selected-strong` | `#33425B` | Stronger active/control fill |
 
 ### Borders
 
-Canonical spec values are the baseline; the shipped editor applies a **separation lift** (~one step lighter on the grey ramp) so panel edges, tabs, and selected rows do not melt into the same plane.
-
-| Token | Canonical | In `index.css` (dark) |
-|-------|-----------|------------------------|
-| `outline-subtle` | `#22282D` | `#2A3138` |
-| `outline` | `#2A3035` | `#323940` |
-| `outline-strong` | `#3A4248` | `#424B53` |
-| `outline-focus` | `#6B7C87` | `#6B7C87` |
-| `outline-faint` | — | `#2E363D` (row dividers) |
+| Token | Hex |
+|-------|-----|
+| `outline-subtle` | `#1B1E23` |
+| `outline` | `#24272D` |
+| `outline-strong` | `#30343B` |
+| `outline-focus` | `#6E7684` |
+| `outline-faint` | `#15171B` |
 
 ### Text
 
 | Token | Hex |
 |-------|-----|
-| `primary` | `#D8DEE3` |
-| `primary-soft` | `#AAB2B8` |
-| `muted` | `#7E878E` |
-| `muted-2` | `#555E65` |
-| `text-on-selected` | `#EEF2F4` |
-| `text-meta` | `#8D969E` |
+| `primary` | `#F2F2F2` |
+| `primary-soft` | `#C7CCD4` |
+| `muted` | `#A0A4AB` |
+| `text-on-selected` | `#F2F2F2` |
 
-### Accent (sparingly)
+### Accents and status
 
 | Token | Hex | Use |
 |-------|-----|-----|
-| `accent` | `#4A5D6A` | Active tab underline (`tab-active-border`), focus |
-| `tab-active-bg` | — | `surface-selected-strong` fill on module/dock tabs |
-| `accent-hover` | `#5C6F7D` | Hover on accent control |
-| `accent-selected` | `#33414C` | Deep selection fill |
-
-No glow. No saturated “web app” blue.
-
-### Status (badges only)
-
-| Token | Hex |
-|-------|-----|
-| `info` | `#6F8A9B` |
-| `success` | `#6F8F7A` |
-| `warn` | `#B59A5B` |
-| `danger` | `#B86A62` |
-| `debug` | `#8A9298` |
+| `accent` | `#6E7684` | Focus, subtle active state |
+| `accent-hover` | `#C7CCD4` | Silver hover/active icon color |
+| `warn` | `#B8973F` | Warning badges |
+| `success` | `#4F8F73` | Success badges |
+| `danger` | `#A35656` | Error/danger badges |
+| `info` | `#6E7684` | Informational metadata |
+| `purple` | `#9B7BFF` | Rare Logic Board or asset accent |
 
 ### Logic Board
 
 | Token | Hex |
 |-------|-----|
-| `logic-card` | `#1B2024` |
-| `logic-card-header` | `#20262A` |
-| `logic-block` | `#1E2428` |
-| `logic-row-disabled` | `#171B1E` |
+| `logic-card` | `#111418` |
+| `logic-block` | `#15191E` |
 
-Trigger / condition / action blocks are distinguished by icon, label, and layout — not strong colours.
+Trigger, condition, and action blocks are distinguished by layout, title, icon, and thin left accent rails rather than large saturated fills.
 
 ### Canvas chrome
 
 | Token | Hex |
 |-------|-----|
-| `grid-primary` | `#252B30` |
-| `grid-secondary` | `#1B2024` |
-| `camera-frame` | `#B7C0C7` |
-| `selection-outline` | `#6B7C87` |
-| `gizmo-x` / `gizmo-y` | `#A86A64` / `#7E9A78` (desaturated) |
+| `grid-primary` | `#24272D` |
+| `grid-secondary` | `#14171B` |
+| `camera-frame` | `#80D6FF` |
 
 ---
 
-## 2. Industrial Mid-Grey (`data-theme="light"`)
+## 2. Industrial Mid-Grey
 
 Mid-grey UI so sprite preview colours are not biased by pure black or paper white.
 
@@ -113,24 +96,25 @@ Mid-grey UI so sprite preview colours are not biased by pure black or paper whit
 | `outline` | `#222222` | Borders |
 | `primary` | `#E0E0E0` | Body text |
 | `muted` | `#999999` | Secondary labels |
-| `accent` | `#5C83C4` | Selection, Play |
+| `accent` | `#5C83C4` | Selection/focus |
 
-Boot splash / Tauri window: `editor/boot-surfaces.json` → `npm run sync-boot-chrome`.
+Boot splash and Tauri window surfaces are generated from `editor/boot-surfaces.json`.
 
 ---
 
-## 3. Component rules (both themes)
+## 3. Component Rules
 
 ### Geometry
 
-- **No pill buttons.** `border-radius: 2px` default; `4px` max for modals.
-- Square icon buttons.
+- Default radius: `4px`; compact controls may use `3px`; larger framed tools may use `6px` only when needed.
+- Use square icon buttons for tools and symbolic actions.
+- Avoid card-in-card layouts. Cards are for repeated items, modals, or genuinely framed tools.
 
-### Hover / focus
+### Hover and focus
 
-- Flat fill only; ≤ 100ms transitions.
-- No outer glow, glassmorphism, or heavy shadows.
-- Focus: 1px `outline-focus` or 2px left rail — not box-shadow rings.
+- Flat fill only, 100ms transition cap.
+- No glassmorphism or decorative glow.
+- Focus is a 1px border/focus ring based on `outline-focus`.
 
 ### Typography
 
@@ -141,49 +125,56 @@ Boot splash / Tauri window: `editor/boot-surfaces.json` → `npm run sync-boot-c
 
 ---
 
-## 4. CSS implementation
+## 4. CSS Implementation
 
-Source of truth: `editor/src/index.css` (`:root` / `[data-theme="dark"]` / `[data-theme="light"]`).
+Source of truth: `editor/src/index.css`.
 
-Legacy aliases used by components: `--bg`, `--panel`, `--panel-3`, `--text`, `--border`, `--accent`, etc.
+Boot source of truth: `editor/boot-surfaces.json`.
 
-Spec-style names (dark theme): `--bg-panel`, `--bg-input`, `--text-primary`, `--border-default`, `--tab-active-bg`, `--tab-active-border` — see `:root` block in `index.css`.
+Generated boot files:
 
-CodeMirror: `editor/src/codemirror/artcade-theme.ts` (`artcade-dark` / `artcade-light`).
+- `editor/public/boot-theme-init.js`
+- `editor/public/critical-layout.css`
+
+Regenerate them with:
+
+```powershell
+cd editor; npm run sync-boot-chrome
+```
+
+Current component aliases retained for TSX class names:
+
+`--bg`, `--panel`, `--panel-2`, `--panel-3`, `--border`, `--border-2`, `--text`, `--text-2`, `--accent-2`, `--accent-bd`, `--accent-bg`, `--accent-bg-h`, `--accent-fg-on-bg`, `--yellow`, `--green-2`, `--blue`.
+
+Removed legacy spec aliases:
+
+`--bg-panel`, `--bg-input`, `--text-primary`, `--border-default`, `--tab-active-bg`, and similar unused aliases are no longer part of the active contract.
 
 ---
 
-## 5. Layout tokens
+## 5. Layout Tokens
 
 | Region | Default |
 |--------|---------|
+| Top menu + toolbar | 96px |
 | Left column | 280px |
 | Right Inspector | 320px |
-| Bottom dock | 280px (open default) |
-| Min editor width | 1520px |
+| Bottom dock | 300px |
+| Recommended minimum editor width | 1520px |
 
-### Bottom dock panels (View menu)
+### Bottom Dock Panels
 
-Four fixed-order columns when the dock is expanded: **Debug Console**, **Animation Timeline**, **Logic Preview**, **Event Debugger**. Visibility is toggled in **VIEW → Bottom panels** (persisted in `localStorage` key `artcade.dock-panels-v1`). Default on first run: Console + Logic Preview only. The dock header **−** button collapses the whole strip; **Ctrl+`** toggles the console panel (or collapses the dock when console is the only visible panel). Warn/error log lines auto-expand the dock and show the console panel.
+Four fixed-order columns when the dock is expanded: **Debug Console**, **Animation Timeline**, **Logic Preview**, **Event Debugger**.
 
----
-
-## 6. Related assets
-
-| Asset | Path |
-|-------|------|
-| Index (mockups) | [`new-ui/README.md`](new-ui/README.md) |
-| Logic Board spec | [`new-ui/LOGIC_BOARD_UI_SPEC.md`](new-ui/LOGIC_BOARD_UI_SPEC.md) |
-
-**Product name:** ArtCade Studio in shipped UI. Mockup title bars may still say *PixelForge 2D* — layout reference only.
+Visibility is toggled in **VIEW -> Bottom panels** and persisted in `localStorage` key `artcade.dock-panels-v1`. First run defaults to Console + Logic Preview.
 
 ---
 
-## 7. Review checklist
+## 6. Review Checklist
 
-- [ ] Default launch uses **Dark Anthracite** (`dark`)
+- [ ] Default launch uses **Dark Premium Anthracite** (`dark`)
+- [ ] `boot-surfaces.json`, Tauri `backgroundColor`, and `index.css --bg-app` match
 - [ ] Light theme restores **Industrial Mid-Grey** only when toggled
-- [ ] Workspace uses `void` / `logic-bg`, not flat black `#000`
+- [ ] Workspace uses `void` / `logic-bg`, not raw `#000`
 - [ ] Accents appear on selection/focus only
-- [ ] No pill primary buttons; hovers are flat
-- [ ] User-facing strings in **English**
+- [ ] User-facing strings are in English

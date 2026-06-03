@@ -41,18 +41,25 @@ export function LogicBoardHeader({
   const compilerLabel = board ? logicBoardCompilerLabel(board) : ''
 
   return (
-    <div className="flex-shrink-0 h-[52px] flex items-center gap-3.5 px-4 bg-[var(--panel)] border-b border-[var(--border)]">
-      <h1 className="text-sm font-semibold tracking-wide">
-        ⬡ Logic <span className="text-[var(--accent)]">Board</span>
-      </h1>
+    <div className="flex-shrink-0 h-[52px] flex items-center gap-3 px-4 bg-[var(--surface)] border-b border-[var(--outline)]">
+      <div className="min-w-0 pr-2">
+        <h1 className="truncate text-[13px] font-semibold text-[var(--primary)]">
+          {compilerLabel || 'Rulesheet'}
+        </h1>
+        <p className="truncate text-[10px] text-[var(--muted)]">
+          {rulesFor ? `Attached target: ${rulesFor}` : 'No rulesheet selected'}
+        </p>
+      </div>
+
       {rulesFor && (
-        <span className="text-[11px] text-[var(--muted)]">
-          Rules for <span className="text-[var(--text)] font-medium">{rulesFor}</span>
+        <span className="hidden text-[10px] text-[var(--muted)] xl:inline">
+          Compiler label <span className="text-[var(--primary-soft)]">{compilerLabel}</span>
         </span>
       )}
+
       {boards.length > 0 && (
         <select
-          className="bg-[var(--border)] border border-[var(--border-2)] text-[var(--accent)] px-2.5 py-1.5 rounded text-xs"
+          className="bg-[var(--surface-3)] border border-[var(--outline)] text-[var(--primary-soft)] px-2.5 py-1.5 rounded text-xs"
           value={board?.boardId ?? ''}
           onChange={(e) => onSelectBoard(e.target.value)}
         >
@@ -63,6 +70,7 @@ export function LogicBoardHeader({
           ))}
         </select>
       )}
+
       {board && (
         <input
           type="text"
@@ -79,46 +87,52 @@ export function LogicBoardHeader({
               applyInputDelete(e.currentTarget)
             }
           }}
-          className="w-52 bg-[var(--panel-3)] border border-[var(--border-2)] text-[var(--text)] placeholder:text-[var(--muted)] px-2.5 py-1.5 rounded text-xs"
+          className="w-52 bg-[var(--surface-3)] border border-[var(--outline)] text-[var(--text)] placeholder:text-[var(--muted)] px-2.5 py-1.5 rounded text-xs"
         />
       )}
+
       <div className="flex-1" />
+
       {needsApply && (
         <button
           type="button"
           onClick={onApply}
           className="text-[11px] text-[var(--warn)] hover:underline"
-          title="Logic changed since last Apply — update the preview runtime"
+          title="Logic changed since last Apply. Update the preview runtime."
         >
-          Logic changed — Apply to update preview
+          Apply required
         </button>
       )}
+
       {applyMsg && (
-        <span className="text-[11px] text-[var(--muted)]">{applyMsg}</span>
+        <span className="max-w-[220px] truncate text-[11px] text-[var(--muted)]">{applyMsg}</span>
       )}
+
       <button
         type="button"
         title="Compile the Logic Board to Lua and hot-reload it into the running runtime"
         onClick={onApply}
-        className="px-3 py-1.5 rounded text-xs font-semibold border border-[var(--accent-bd)] bg-[var(--accent-bg)] text-[var(--accent-fg-on-bg)] hover:bg-[var(--accent-bg-h)]"
+        className="px-3 py-1.5 rounded text-xs font-semibold border border-[var(--outline-strong)] bg-[var(--surface-2)] text-[var(--primary)] hover:bg-[var(--surface-hover)]"
       >
-        Apply to game
+        Apply
       </button>
+
       <LogicBoardShortcutsHelp />
-      <div className="flex rounded border border-[var(--border-2)] overflow-hidden">
+
+      <div className="flex rounded border border-[var(--outline)] overflow-hidden bg-[var(--surface-3)]">
         {(['visual', 'lua'] as const).map((m) => (
           <button
             key={m}
             type="button"
             title={
               m === 'lua'
-                ? 'Advanced · generated Lua code'
+                ? 'Advanced generated Lua code'
                 : 'Visual rules editor'
             }
             onClick={() => setMode(m)}
             className={`px-3 py-1.5 text-xs ${
               mode === m
-                ? 'bg-[var(--border)] text-[var(--accent)]'
+                ? 'bg-[var(--surface-selected)] text-[var(--primary)]'
                 : 'text-[var(--muted)] hover:text-[var(--text)]'
             }`}
           >

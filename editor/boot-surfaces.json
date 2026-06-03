@@ -1,10 +1,10 @@
 {
   "dark": {
-    "bg": "#0E1113",
-    "text": "#D8DEE3",
-    "red": 14,
-    "green": 17,
-    "blue": 19
+    "bg": "#050505",
+    "text": "#F2F2F2",
+    "red": 5,
+    "green": 5,
+    "blue": 5
   },
   "light": {
     "bg": "#404040",

@@ -11,10 +11,10 @@ html, body, #root {
 }
 :root,
 [data-theme="dark"] {
-  --bg: #0E1113;
+  --bg: #050505;
   --panel: #1B2024;
   --border: #2A3035;
-  --text: #D8DEE3;
+  --text: #F2F2F2;
   --muted: #7E878E;
   --accent: #4A5D6A;
 }

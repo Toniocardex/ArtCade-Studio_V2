@@ -1,6 +1,6 @@
 /** Shared Tailwind class fragments for 2026 monochrome UI. */
 export const editorBtnBase =
-  'inline-flex items-center justify-center gap-1.5 rounded-[var(--radius)] border text-xs font-medium transition-colors duration-100 select-none'
+  'inline-flex items-center justify-center gap-1.5 rounded-[var(--radius)] border text-xs font-medium tracking-normal transition-colors duration-100 select-none'
 
 export const editorBtnDefault =
   `${editorBtnBase} border-[var(--outline-strong)] bg-[var(--surface)] text-[var(--primary)] hover:bg-[var(--surface-hover)]`
@@ -9,10 +9,10 @@ export const editorBtnGhost =
   `${editorBtnBase} border-transparent bg-transparent text-[var(--muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--primary)]`
 
 export const editorTabBase =
-  'px-4 py-2 text-[11px] font-semibold uppercase tracking-wide border-b-2 transition-colors duration-100'
+  'px-4 py-2 text-[11px] font-semibold tracking-normal border-b transition-colors duration-100'
 
 export const editorTabActive =
-  'border-[var(--tab-active-border)] bg-[var(--tab-active-bg)] text-[var(--text-on-selected)]'
+  'border-[var(--tab-active-border)] bg-[var(--surface)] text-[var(--text-on-selected)]'
 
 /** List/tree row selection — flat graphite fill, not saturated accent. */
 export const editorRowSelected =

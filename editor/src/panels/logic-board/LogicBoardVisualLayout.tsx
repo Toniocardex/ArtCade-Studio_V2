@@ -79,10 +79,10 @@ export function LogicBoardVisualLayout(props: LogicBoardVisualLayoutProps) {
   const sceneBoards = logicBoardsForScene(project, sceneId)
 
   return (
-    <div className="flex flex-1 min-h-0 overflow-hidden">
+    <div className="flex flex-1 min-h-0 overflow-hidden bg-[var(--logic-bg)]">
       <aside
         style={{ width: leftW }}
-        className="shrink-0 border-r border-[var(--outline)] flex flex-col min-h-0 overflow-hidden"
+        className="shrink-0 border-r border-[var(--outline)] flex flex-col min-h-0 overflow-hidden bg-[var(--surface)]"
       >
         <RulesheetControls
           project={project}
@@ -120,11 +120,19 @@ export function LogicBoardVisualLayout(props: LogicBoardVisualLayoutProps) {
       <ResizeHandle side="left" onResize={(d) => setLeftW((w) => w + d)} />
 
       <section className="flex-1 min-w-0 flex flex-col bg-[var(--logic-bg)] overflow-hidden">
-        <header className="shrink-0 px-4 py-2 border-b border-[var(--outline)] bg-[var(--surface)]">
-          <p className="text-[9px] uppercase tracking-wide text-[var(--muted)]">Single Event Editor</p>
-          <p className="text-sm font-semibold text-[var(--primary)]">
-            {board ? logicBoardLabel(project, board) : 'Select a rulesheet'}
-          </p>
+        <header className="shrink-0 flex items-center justify-between gap-3 px-4 py-2 border-b border-[var(--outline)] bg-[var(--surface)]">
+          <div className="min-w-0">
+            <p className="text-[9px] uppercase tracking-widest text-[var(--muted)]">Event Editor</p>
+            <p className="truncate text-sm font-semibold text-[var(--primary)]">
+              {board ? logicBoardLabel(project, board) : 'Select a rulesheet'}
+            </p>
+          </div>
+          <div className="hidden items-center gap-2 text-[10px] text-[var(--muted)] xl:flex">
+            <span>Attached Target</span>
+            <span className="rounded border border-[var(--outline)] bg-[var(--surface-3)] px-2 py-1 text-[var(--primary-soft)]">
+              {board?.target.type ?? 'None'}
+            </span>
+          </div>
         </header>
         <div className="flex-1 min-h-0 overflow-auto panel-scroll p-4">
           {focusedEvent && board ? (
@@ -149,7 +157,7 @@ export function LogicBoardVisualLayout(props: LogicBoardVisualLayoutProps) {
 
       <aside
         style={{ width: rightW }}
-        className="shrink-0 border-l border-[var(--outline)] min-h-0 overflow-hidden"
+        className="shrink-0 border-l border-[var(--outline)] min-h-0 overflow-hidden bg-[var(--surface)]"
       >
         <LogicInspectorPanel
           project={project}
