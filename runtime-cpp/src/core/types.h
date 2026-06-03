@@ -323,16 +323,21 @@ enum class PhysicsMode {
 };
 
 struct WorldSettings {
-    float       gravity        = 9.81f;
-    float       pixelsPerMeter = 100.f;
-    float       timeScale      = 1.f;
-    PhysicsMode physicsMode    = PhysicsMode::Auto;
+    float       gravity           = 9.81f;
+    float       pixelsPerMeter    = 100.f;
+    float       timeScale         = 1.f;
+    PhysicsMode physicsMode       = PhysicsMode::Auto;
+    bool        physicsDebugDraw  = false;
 };
 
 /** Runtime timing + physics from project JSON (editor WASM + native load). */
 struct ProjectRuntimeSettings {
-    float       targetFPS    = 60.f;
-    PhysicsMode physicsMode  = PhysicsMode::Auto;
+    float       targetFPS         = 60.f;
+    PhysicsMode physicsMode       = PhysicsMode::Auto;
+    float       gravity           = 9.81f;
+    float       pixelsPerMeter    = 100.f;
+    float       timeScale         = 1.f;
+    bool        physicsDebugDraw  = false;
 };
 
 struct ProjectDoc {
@@ -357,8 +362,12 @@ struct ProjectDoc {
 
 inline ProjectRuntimeSettings runtimeSettingsFromProjectDoc(const ProjectDoc& doc) {
     ProjectRuntimeSettings s;
-    s.targetFPS   = doc.targetFPS;
-    s.physicsMode = doc.world.physicsMode;
+    s.targetFPS          = doc.targetFPS;
+    s.physicsMode        = doc.world.physicsMode;
+    s.gravity            = doc.world.gravity;
+    s.pixelsPerMeter     = doc.world.pixelsPerMeter;
+    s.timeScale          = doc.world.timeScale;
+    s.physicsDebugDraw   = doc.world.physicsDebugDraw;
     return s;
 }
 

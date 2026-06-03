@@ -134,9 +134,13 @@ if(ARTCADE_HAS_RAYLIB AND ARTCADE_HAS_LUA)
         world-intent-test.cpp
         "artcade-world;artcade-runtime-entity-gateway;artcade-physics;artcade-variable-manager")
 
-    artcade_test(artcade_package_test
-        artcade-package-test.cpp
-        artcade-asset-system)
+add_executable(artcade_package_test artcade-package-test.cpp)
+target_include_directories(artcade_package_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/modules/asset-system/include
+    ${CMAKE_SOURCE_DIR}/src/modules/asset-system/src)
+target_link_libraries(artcade_package_test PRIVATE artcade-asset-system)
+add_test(NAME artcade_package_test COMMAND artcade_package_test)
 
     artcade_test(asset_loader_test
         asset-loader-test.cpp

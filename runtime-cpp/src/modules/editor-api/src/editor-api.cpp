@@ -590,14 +590,6 @@ bool loadProjectFromJson(const char* json_utf8, ProjectLoadKind kind,
         const ArtCade::ProjectRuntimeSettings runtimeSettings =
             Parser::parseRuntimeSettings(doc);
 
-        ArtCade::EditorAPI::s_physicsDebugDraw = false;
-        if (doc.contains("world") && doc["world"].is_object()) {
-            const auto& wo = doc["world"];
-            if (wo.contains("physicsDebugDraw"))
-                ArtCade::EditorAPI::s_physicsDebugDraw =
-                    wo["physicsDebugDraw"].get<bool>();
-        }
-
         if (kind == ProjectLoadKind::HotSync) {
             if (ArtCade::EditorAPI::s_onProjectLoaded)
                 ArtCade::EditorAPI::s_onProjectLoaded(

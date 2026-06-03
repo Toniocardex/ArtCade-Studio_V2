@@ -701,16 +701,32 @@ std::vector<EntityId> RuntimeEntityGateway::poolByClass(const std::string& class
 }
 
 size_t RuntimeEntityGateway::poolCount(const std::string& className) const {
-    return poolByClass(className).size();
+    size_t count = 0;
+    for (EntityId id : registry_->idsByClass(className)) {
+        if (isEntityActiveInScene(id))
+            ++count;
+    }
+    return count;
 }
 
 std::vector<EntityId> RuntimeEntityGateway::byTag(const std::string& tag) const {
     std::vector<EntityId> out;
+    out.reserve(registry_->idsByTag(tag).size());
     for (EntityId id : registry_->idsByTag(tag)) {
         if (isEntityActiveInScene(id))
             out.push_back(id);
     }
     return out;
+}
+
+void RuntimeEntityGateway::forEachActiveByTag(
+    const std::string& tag,
+    const ActiveByTagFn& fn) const
+{
+    for (EntityId id : registry_->idsByTag(tag)) {
+        if (isEntityActiveInScene(id))
+            fn(id);
+    }
 }
 
 std::vector<EntityId> RuntimeEntityGateway::allIds() const {

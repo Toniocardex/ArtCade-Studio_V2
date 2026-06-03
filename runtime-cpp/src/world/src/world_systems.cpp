@@ -42,16 +42,15 @@ void World::tickSensorOverlapEdges() {
             EntityId otherHit = INVALID_ENTITY;
             const std::string& target = sensor.targetTag;
 
-            for (EntityId otherId : entityGateway_.byTag(target)) {
-                if (otherId == id) continue;
+            entityGateway_.forEachActiveByTag(target, [&](EntityId otherId) {
+                if (overlapping || otherId == id) return;
                 const uint32_t otherHandle = entityGateway_.physicsHandle(otherId);
-                if (otherHandle == 0) continue;
+                if (otherHandle == 0) return;
                 if (physics_.areOverlapping(handle, otherHandle)) {
                     overlapping = true;
                     otherHit = otherId;
-                    break;
                 }
-            }
+            });
 
             const bool was = sensorWasOverlapping_[id];
             if (overlapping && !was) {

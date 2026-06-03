@@ -10,6 +10,7 @@
 // =============================================================================
 
 #include "modules/asset-system/include/asset-loader.h"
+#include "zip-reader.h"
 
 #include <cassert>
 #include <cstdint>
@@ -154,6 +155,55 @@ std::vector<uint8_t> build(const std::vector<Entry>& entries) {
     push16(buf, 0);             // Comment length
 
     return buf;
+}
+
+/** STORE entry with compSize != uncompSize (must be rejected by zip-reader). */
+std::vector<uint8_t> buildStoreSizeMismatch() {
+    std::vector<uint8_t> zip;
+    const std::string name = "bad.bin";
+    const std::vector<uint8_t> data = {'A'};
+    const uint32_t crc = crc32(data.data(), data.size());
+
+    push32(zip, 0x04034b50u);
+    push16(zip, 20);
+    push16(zip, 0);
+    push16(zip, 0);
+    push16(zip, 0);
+    push16(zip, 0);
+    push32(zip, crc);
+    push32(zip, 1);
+    push32(zip, 4);
+    push16(zip, static_cast<uint16_t>(name.size()));
+    push16(zip, 0);
+    pushStr(zip, name);
+    pushBytes(zip, data);
+
+    const uint32_t cdOff = static_cast<uint32_t>(zip.size());
+    push32(zip, 0x02014b50u);
+    push16(zip, 20);
+    push16(zip, 20);
+    push16(zip, 0);
+    push16(zip, 0);
+    push16(zip, 0);
+    push16(zip, 0);
+    push32(zip, crc);
+    push32(zip, 1);
+    push32(zip, 4);
+    push16(zip, static_cast<uint16_t>(name.size()));
+    push16(zip, 0);
+    push16(zip, 0);
+    push32(zip, 0);
+    pushStr(zip, name);
+
+    push32(zip, 0x06054b50u);
+    push16(zip, 0);
+    push16(zip, 0);
+    push16(zip, 1);
+    push16(zip, 1);
+    push32(zip, cdOff);
+    push32(zip, static_cast<uint32_t>(zip.size() - cdOff));
+
+    return zip;
 }
 
 } // namespace MinimalZip
@@ -385,6 +435,47 @@ static void test_directory_load_still_works() {
     fs::remove_all(tmpDir);
 }
 
+static void test_zip_slip_entry_rejected() {
+    std::cout << "Test 6: zipExtractAll rejects parent traversal paths\n";
+
+    const fs::path zipPath = fs::temp_directory_path() / "artcade_zip_slip_test.zip";
+    const fs::path outDir  = fs::temp_directory_path() / "artcade_zip_slip_out";
+    fs::remove_all(outDir);
+
+    const std::vector<uint8_t> payload = {'x'};
+    const auto zip = MinimalZip::build({
+        { "../evil.txt", payload },
+    });
+    {
+        std::ofstream f(zipPath, std::ios::binary);
+        f.write(reinterpret_cast<const char*>(zip.data()),
+                static_cast<std::streamsize>(zip.size()));
+    }
+
+    CHECK(!ArtCade::zipExtractAll(zipPath.string(), outDir.string()));
+    fs::remove(zipPath);
+    fs::remove_all(outDir);
+}
+
+static void test_store_size_mismatch_rejected() {
+    std::cout << "Test 7: zipExtractAll rejects STORE entries with mismatched sizes\n";
+
+    const fs::path zipPath = fs::temp_directory_path() / "artcade_zip_store_test.zip";
+    const fs::path outDir  = fs::temp_directory_path() / "artcade_zip_store_out";
+    fs::remove_all(outDir);
+
+    const auto zip = MinimalZip::buildStoreSizeMismatch();
+    {
+        std::ofstream f(zipPath, std::ios::binary);
+        f.write(reinterpret_cast<const char*>(zip.data()),
+                static_cast<std::streamsize>(zip.size()));
+    }
+
+    CHECK(!ArtCade::zipExtractAll(zipPath.string(), outDir.string()));
+    fs::remove(zipPath);
+    fs::remove_all(outDir);
+}
+
 // ---- main ------------------------------------------------------------------
 
 int main() {
@@ -395,6 +486,8 @@ int main() {
     test_nonexistent_file_returns_false();
     test_reloading_same_artcade_path_clears_stale_extracted_files();
     test_directory_load_still_works();
+    test_zip_slip_entry_rejected();
+    test_store_size_mismatch_rejected();
 
     std::cout << "\nResults: " << g_passed << " passed, "
               << g_failed  << " failed\n";

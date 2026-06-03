@@ -297,10 +297,11 @@ EntityRegistry::idsByClass(const std::string& className) const {
     return it->second;
 }
 
-std::vector<EntityId>
+const std::vector<EntityId>&
 EntityRegistry::idsByTag(const std::string& tag) const {
+    static const std::vector<EntityId> kEmpty;
     auto it = impl_->tagIndex.find(tag);
-    if (it == impl_->tagIndex.end()) return {};
+    if (it == impl_->tagIndex.end()) return kEmpty;
     return it->second;
 }
 

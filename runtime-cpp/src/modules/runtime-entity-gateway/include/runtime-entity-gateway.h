@@ -119,6 +119,8 @@ public:
     std::vector<EntityId> poolByClass(const std::string& className) const;
     size_t poolCount(const std::string& className) const;
     std::vector<EntityId> byTag(const std::string& tag) const;
+    using ActiveByTagFn = std::function<void(EntityId)>;
+    void forEachActiveByTag(const std::string& tag, const ActiveByTagFn& fn) const;
     std::vector<EntityId> allIds() const;
     std::vector<EntityId> activeSceneIds() const;
 

@@ -429,6 +429,18 @@ ArtCade::ProjectRuntimeSettings parseRuntimeSettings(const json& doc) {
 
     if (doc.contains("world") && doc["world"].is_object()) {
         const auto& wo = doc["world"];
+        if (wo.contains("gravity"))
+            s.gravity = wo["gravity"].get<float>();
+        if (wo.contains("pixelsPerMeter"))
+            s.pixelsPerMeter = wo["pixelsPerMeter"].get<float>();
+        else if (wo.contains("pixels_per_meter"))
+            s.pixelsPerMeter = wo["pixels_per_meter"].get<float>();
+        if (wo.contains("timeScale"))
+            s.timeScale = wo["timeScale"].get<float>();
+        else if (wo.contains("time_scale"))
+            s.timeScale = wo["time_scale"].get<float>();
+        if (wo.contains("physicsDebugDraw"))
+            s.physicsDebugDraw = wo["physicsDebugDraw"].get<bool>();
         const std::string mode = wo.value(
             "physicsMode",
             wo.value("physics_mode", std::string("auto")));

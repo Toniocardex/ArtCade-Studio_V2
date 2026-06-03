@@ -28,6 +28,8 @@ namespace {
 // `std::vector<uint8_t>(e.uncompSize)` would try to allocate it before we
 // even start inflating. 256 MiB is well above any plausible game asset.
 constexpr uint32_t kMaxEntryUncompressedBytes = 256u * 1024u * 1024u;
+constexpr uint32_t kMaxArchiveBytes           = 64u * 1024u * 1024u;
+constexpr uint64_t kMaxTotalExtractedBytes    = 512u * 1024u * 1024u;
 
 // ---- Path sanitisation (Zip-Slip) -----------------------------------------
 // Reject entry names that would escape the destination root:
@@ -184,20 +186,22 @@ bool extractEntry(const uint8_t* buf, size_t len,
     if (!out) return false;
 
     if (e.method == 0) {
-        // STORE — raw copy
+        // STORE — raw copy (compressed size must match declared uncompressed size)
+        if (e.compSize != e.uncompSize) return false;
         out.write(reinterpret_cast<const char*>(dataPtr),
                   static_cast<std::streamsize>(e.compSize));
     } else if (e.method == 8) {
         // DEFLATE — decompress with sinflate (from raylib/rcore.c)
         std::vector<uint8_t> decompressed(e.uncompSize);
-        int result = sinflate(
+        const int result = sinflate(
             decompressed.data(),
             static_cast<int>(e.uncompSize),
             dataPtr,
             static_cast<int>(e.compSize));
         if (result < 0) return false;
+        if (static_cast<uint32_t>(result) != e.uncompSize) return false;
         out.write(reinterpret_cast<const char*>(decompressed.data()),
-                  static_cast<std::streamsize>(result));
+                  static_cast<std::streamsize>(e.uncompSize));
     } else {
         return false;   // unsupported compression method
     }
@@ -219,7 +223,7 @@ bool zipExtractAll(const std::string& zipPath, const std::string& destDir) {
     std::vector<uint8_t> data(
         (std::istreambuf_iterator<char>(f)),
         std::istreambuf_iterator<char>());
-    if (data.empty()) return false;
+    if (data.empty() || data.size() > kMaxArchiveBytes) return false;
 
     const uint8_t* buf = data.data();
     const size_t   len = data.size();
@@ -239,10 +243,14 @@ bool zipExtractAll(const std::string& zipPath, const std::string& destDir) {
     fs::create_directories(destDir, ec);
     if (ec) return false;
 
-    // 4. Extract each entry
+    // 4. Extract each entry (cap cumulative declared uncompressed size)
     const fs::path root(destDir);
-    for (const auto& e : entries)
+    uint64_t totalUncomp = 0;
+    for (const auto& e : entries) {
+        totalUncomp += static_cast<uint64_t>(e.uncompSize);
+        if (totalUncomp > kMaxTotalExtractedBytes) return false;
         if (!extractEntry(buf, len, e, root)) return false;
+    }
 
     return true;
 }

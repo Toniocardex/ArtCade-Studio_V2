@@ -335,6 +335,20 @@ void Application::applyRuntimeSettings(const ProjectRuntimeSettings& settings,
     targetDt_     = 1.f / safeFps;
     physicsMode_  = settings.physicsMode;
 
+    if (mod_ && mod_->physics) {
+        const float g = std::isfinite(settings.gravity) ? settings.gravity : 9.81f;
+        mod_->physics->setGravity({0.f, g});
+    }
+    if (mod_ && mod_->timeManager) {
+        const float ts = std::isfinite(settings.timeScale) && settings.timeScale > 0.f
+            ? settings.timeScale
+            : 1.f;
+        mod_->timeManager->setTimeScale(ts, "gameplay");
+    }
+#ifdef ARTCADE_WASM
+    EditorAPI::s_physicsDebugDraw = settings.physicsDebugDraw;
+#endif
+
     if (!mod_ || !mod_->renderer || !mod_->sceneManager) return;
 
     const SceneDef* sc = mod_->sceneManager->activeScene();

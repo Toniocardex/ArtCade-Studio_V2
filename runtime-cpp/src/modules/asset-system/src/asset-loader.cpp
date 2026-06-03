@@ -175,6 +175,8 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
             out.world.physicsMode = PhysicsMode::On;
         else
             out.world.physicsMode = PhysicsMode::Auto;
+        if (wo.contains("physicsDebugDraw"))
+            out.world.physicsDebugDraw = wo["physicsDebugDraw"].get<bool>();
     }
 
     // Object types (v2)

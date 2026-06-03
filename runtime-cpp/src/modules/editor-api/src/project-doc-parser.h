@@ -64,7 +64,7 @@ void materializeV2Project(
     std::unordered_map<ArtCade::SceneId, ArtCade::SceneDef>& scenes,
     const std::unordered_map<std::string, ArtCade::EntityDef>& objectTypes);
 
-/** targetFPS + world.physicsMode from editor_load_project JSON. */
+/** targetFPS + world runtime fields from editor_load_project JSON. */
 ArtCade::ProjectRuntimeSettings parseRuntimeSettings(const nlohmann::json& doc);
 
 std::vector<ArtCade::ImageAssetDef>
