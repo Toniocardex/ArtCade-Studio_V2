@@ -296,7 +296,7 @@ Apply to every PR touching editor chrome.
 
 - Canvas minimum: **400×300 px** in workspace — panels shrink first.
 - **Editor zoom** (canvas) ≠ **UI scale** — independent systems.
-- Rulers/guides follow canvas zoom, not `--editor-scale`.
+- Rulers/guides follow canvas zoom and scroll, not `--editor-scale`. Tick labels use absolute world coordinates; origin aligns with the scene frame top-left (padding `EDITOR_CANVAS_PADDING_PX`).
 
 ### 7.5 Animation
 

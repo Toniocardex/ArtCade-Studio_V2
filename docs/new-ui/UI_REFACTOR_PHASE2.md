@@ -44,7 +44,7 @@ Logic block editing remains on Logic Board (`LogicInspectorPanel`).
 ## Phase 2b — Mockup chrome (UI-only)
 
 - Bottom dock: **4 columns** visible at once (Console compact, Timeline filmstrip, Logic graph + list, Event table).
-- Canvas: **rulers**, **footer** (Grid / Snap), **Active layer** in toolbar.
+- Canvas: **rulers** (world px, scroll-synced; camera preview shows absolute world coords), **footer** (Grid / Snap), **Active layer** in toolbar.
 - Inspector: **Variable Watch** stub, **Layer** dropdown on entity.
 - Menu: **HELP**, project **version** next to name.
 

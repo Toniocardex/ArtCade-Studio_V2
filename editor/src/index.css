@@ -339,6 +339,15 @@ input[data-mono],
   background: var(--surface-2);
 }
 
+.editor-preview-island {
+  --canvas-ruler-gap: 4px;
+}
+
+.editor-focus-mode .canvas-viewport-rulers {
+  padding-top: var(--canvas-ruler-gap);
+  padding-left: var(--canvas-ruler-gap);
+}
+
 /* ---------------------------------------------------------------------------
    Adaptive UI scale — chrome only (see docs/ADAPTIVE_LAYOUT.md Phase 1)
    --------------------------------------------------------------------------- */
