@@ -1,4 +1,8 @@
 import type { Vec2 } from '../types'
+import {
+  scrollToWorld,
+  type CanvasViewportLayout,
+} from './canvas-viewport-layout'
 
 let visibleWorldCenter: Vec2 | null = null
 
@@ -17,11 +21,10 @@ export function computeVisibleWorldCenter(
   scrollTop: number,
   clientWidth: number,
   clientHeight: number,
-  zoom: number,
+  layout: CanvasViewportLayout,
 ): Vec2 {
-  const z = zoom > 0 ? zoom : 1
-  return {
-    x: (scrollLeft + clientWidth * 0.5) / z,
-    y: (scrollTop + clientHeight * 0.5) / z,
-  }
+  return scrollToWorld(scrollLeft, scrollTop, layout, {
+    x: clientWidth * 0.5,
+    y: clientHeight * 0.5,
+  })
 }

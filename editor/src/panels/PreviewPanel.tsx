@@ -1,4 +1,4 @@
-import { useRef, useLayoutEffect, useEffect, useState, useCallback } from 'react'
+import { useRef, useLayoutEffect, useEffect, useState, useCallback, useMemo } from 'react'
 import { useEditor } from '../store/editor-store'
 import type { ConsoleEntry } from '../types'
 import { assetOrchestrator } from '../utils/asset-orchestrator'
@@ -25,6 +25,11 @@ import {
   computeVisibleWorldCenter,
   setEditorVisibleWorldCenter,
 } from '../utils/editor-viewport-center'
+import {
+  computeCanvasViewportLayout,
+  worldToScroll,
+  scrollToWorld,
+} from '../utils/canvas-viewport-layout'
 import { normalizeEntityPosition } from '../utils/entity-position'
 import { CanvasToolbar } from './preview/CanvasToolbar'
 import { CanvasFocusToolbar } from './preview/CanvasFocusToolbar'
@@ -262,8 +267,6 @@ export default function PreviewPanel() {
   const res = selectedScene?.worldSize ?? DEFAULT_SCENE_SIZE
   const vp  = selectedScene?.viewportSize ?? res
   const zoom = editorZoom
-  const scaledW = Math.round(res.x * zoom)
-  const scaledH = Math.round(res.y * zoom)
 
   // Camera preview: clip the visual footprint to viewportSize while keeping
   // the canvas mounted at its full worldSize. The canvas is positioned with a
@@ -276,8 +279,17 @@ export default function PreviewPanel() {
   // derivation so the pill never lies.
   const preview = cameraPreview && (vp.x !== res.x || vp.y !== res.y)
   const showCameraFrame = !isPlaying && mode === 'canvas' && (vp.x < res.x || vp.y < res.y)
-  const frameW   = preview ? Math.round(vp.x * zoom) : scaledW
-  const frameH   = preview ? Math.round(vp.y * zoom) : scaledH
+  const layout = useMemo(
+    () => computeCanvasViewportLayout({
+      worldSize: res,
+      viewportSize: vp,
+      zoom,
+      preview,
+    }),
+    [res.x, res.y, vp.x, vp.y, zoom, preview],
+  )
+  const frameW = layout.contentSizePx.x
+  const frameH = layout.contentSizePx.y
   const canvasDX = preview ? -Math.round(((res.x - vp.x) / 2) * zoom) : 0
   const canvasDY = preview ? -Math.round(((res.y - vp.y) / 2) * zoom) : 0
 
@@ -342,7 +354,7 @@ export default function PreviewPanel() {
     const publish = () => {
       setEditorVisibleWorldCenter(
         computeVisibleWorldCenter(
-          el.scrollLeft, el.scrollTop, el.clientWidth, el.clientHeight, editorZoom,
+          el.scrollLeft, el.scrollTop, el.clientWidth, el.clientHeight, layout,
         ),
       )
     }
@@ -355,7 +367,7 @@ export default function PreviewPanel() {
       ro.disconnect()
       setEditorVisibleWorldCenter(null)
     }
-  }, [editorZoom, res.x, res.y, selectedSceneId])
+  }, [editorZoom, layout, res.x, res.y, selectedSceneId])
 
   useEffect(() => {
     if (!isPlaying) return
@@ -374,15 +386,17 @@ export default function PreviewPanel() {
     if (!def) return
     const el = scrollRef.current
     if (!el) return
-    const z = editorZoom > 0 ? editorZoom : 1
     const { x, y } = def.transform.position
-    const targetX = x * z - el.clientWidth * 0.5
-    const targetY = y * z - el.clientHeight * 0.5
+    const { scrollLeft: targetX, scrollTop: targetY } = worldToScroll(
+      { x, y },
+      layout,
+      { x: el.clientWidth * 0.5, y: el.clientHeight * 0.5 },
+    )
     const maxX = Math.max(0, el.scrollWidth - el.clientWidth)
     const maxY = Math.max(0, el.scrollHeight - el.clientHeight)
     el.scrollLeft = Math.min(maxX, Math.max(0, targetX))
     el.scrollTop  = Math.min(maxY, Math.max(0, targetY))
-  }, [selection.entityId, project, editorZoom])
+  }, [selection.entityId, project, layout])
 
   // -------------------------------------------------------------- pan tool
   //
@@ -462,22 +476,28 @@ export default function PreviewPanel() {
     const cursorX = e.clientX - rect.left
     const cursorY = e.clientY - rect.top
 
-    // World point currently under the cursor (independent of zoom).
-    const worldX = (el.scrollLeft + cursorX) / zoom
-    const worldY = (el.scrollTop  + cursorY) / zoom
+    const world = scrollToWorld(el.scrollLeft, el.scrollTop, layout, { x: cursorX, y: cursorY })
 
     // Exponential step keeps the "feel" linear regardless of current zoom.
     const factor = e.deltaY < 0 ? EDITOR_ZOOM_WHEEL_FACTOR : 1 / EDITOR_ZOOM_WHEEL_FACTOR
     const nextZoom = clampEditorZoom(zoom * factor)
     dispatch({ type: 'EDITOR_SET_ZOOM', zoom: nextZoom })
 
+    const nextLayout = computeCanvasViewportLayout({
+      worldSize: res,
+      viewportSize: vp,
+      zoom: nextZoom,
+      preview,
+    })
+
     // After React applies the new wrapper width, scroll so the cursor still
     // sits on the same world point. requestAnimationFrame waits for the
     // re-render so scrollWidth/scrollHeight reflect the new size.
     requestAnimationFrame(() => {
       if (!scrollRef.current) return
-      scrollRef.current.scrollLeft = worldX * nextZoom - cursorX
-      scrollRef.current.scrollTop  = worldY * nextZoom - cursorY
+      const nextScroll = worldToScroll(world, nextLayout, { x: cursorX, y: cursorY })
+      scrollRef.current.scrollLeft = nextScroll.scrollLeft
+      scrollRef.current.scrollTop  = nextScroll.scrollTop
     })
   }
 
@@ -512,9 +532,7 @@ export default function PreviewPanel() {
 
       <CanvasViewportWithRulers
         scrollRef={scrollRef}
-        zoom={zoom}
-        worldWidth={res.x}
-        worldHeight={res.y}
+        layout={layout}
         onWheel={handleWheel}
         onPointerDown={onCanvasAreaPointerDown}
         onPointerMove={onCanvasAreaPointerMove}
@@ -522,10 +540,13 @@ export default function PreviewPanel() {
         onPointerCancel={onCanvasAreaPointerUp}
         style={{ cursor: panCursor }}
       >
-        <div className="min-w-full min-h-full flex items-center justify-center">
+        <div
+          className="w-fit h-fit shrink-0"
+          style={{ width: frameW, height: frameH }}
+        >
           {/* Sized wrapper = the visual footprint of the canvas at the current
-              zoom. Layout uses this size for scrolling; the canvas inside is
-              still at native worldSize and is visually scaled via CSS
+              zoom. Top-left anchored (letterbox only right/bottom). The canvas
+              inside is still at native worldSize and is visually scaled via CSS
               transform. The C++ input controller picks the correct mouse
               coords because it reads CSS-vs-internal canvas size at runtime. */}
           <div
