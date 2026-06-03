@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useEditor } from '../store/editor-store'
-import { isReady as isWasmReady } from '../utils/wasm-bridge'
 import { runtimeSync } from '../utils/runtime-sync-service'
 import { scheduleBootIdleTask } from '../utils/boot-idle'
+import { useRuntimeReadiness } from './useRuntimeReadiness'
 
 const BOOT_TIMEOUT_MS = 20_000
 
@@ -34,8 +34,7 @@ function buildStatusLine(opts: {
 
 export function useEditorBootReady(): EditorBootReadyState {
   const { state } = useEditor()
-  const [wasmReady, setWasmReady] = useState(() => isWasmReady())
-  const [engineReady, setEngineReady] = useState(() => runtimeSync.isEngineReady())
+  const { wasmReady, engineReady } = useRuntimeReadiness()
   const [synced, setSynced] = useState(() => runtimeSync.isBootProjectSynced())
   const [fontsReady, setFontsReady] = useState(false)
   const [idleReady, setIdleReady] = useState(false)
@@ -43,8 +42,6 @@ export function useEditorBootReady(): EditorBootReadyState {
 
   const projectReady = state.project != null
 
-  useEffect(() => runtimeSync.onReadyChange(setWasmReady), [])
-  useEffect(() => runtimeSync.onEngineReadyChange(setEngineReady), [])
   useEffect(() => runtimeSync.onBootProjectSyncedChange(setSynced), [])
 
   // Track C — defer non-blocking boot bookkeeping until the main thread is idle.

@@ -286,8 +286,7 @@ class RuntimeSyncServiceImpl {
   }
 
   notifyEngineReady(): void {
-    const wasReady = this.engineReady
-    if (wasReady) return
+    if (this.engineReady) return
     this.engineReady = true
     // Editor API just wired — force chrome channels (grid/guides) to resync.
     this.lastGuides = null

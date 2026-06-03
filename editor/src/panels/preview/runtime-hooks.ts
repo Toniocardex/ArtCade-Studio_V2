@@ -42,7 +42,6 @@ export interface MakeLogEntry { (message: string, level: string): ConsoleEntry }
 export interface RuntimeCallbackDeps {
   cancelled: () => boolean
   dispatch: Dispatch<EditorAction>
-  setEngineReady: (ready: boolean) => void
   handleRuntimeTransform: (
     entityId: number, x: number, y: number,
     rotation: number, scaleX: number, scaleY: number,
@@ -54,7 +53,7 @@ export interface RuntimeCallbackDeps {
 
 export function buildRuntimeCallbacks(deps: RuntimeCallbackDeps): WasmCallbacks {
   const {
-    cancelled, dispatch, setEngineReady,
+    cancelled, dispatch,
     handleRuntimeTransform, sceneIdRef, syncRuntimeUiFlags, makeLogEntry,
   } = deps
   return {
@@ -95,7 +94,6 @@ export function buildRuntimeCallbacks(deps: RuntimeCallbackDeps): WasmCallbacks 
       const entry = makeLogEntry(message, level)
       if (message.includes('[EditorAPI] Bridge initialised')) {
         scheduleWasmUiUpdateWhen(cancelled, () => {
-          setEngineReady(true)
           runtimeSync.notifyEngineReady()
         }, { urgent: true })
       }
@@ -151,7 +149,6 @@ interface LifecycleOptions {
   canvasRef: RefObject<HTMLCanvasElement | null>
   mode: string
   dispatch: Dispatch<EditorAction>
-  setEngineReady: (b: boolean) => void
   sceneIdRef: MutableRefObject<string>
   syncRuntimeUiFlags: () => void
   handleRuntimeTransform: (
@@ -163,7 +160,7 @@ interface LifecycleOptions {
 
 export function useWasmRuntimeLifecycle(opts: LifecycleOptions): void {
   const {
-    canvasRef, mode, dispatch, setEngineReady,
+    canvasRef, mode, dispatch,
     sceneIdRef, syncRuntimeUiFlags, handleRuntimeTransform, makeLogEntry,
   } = opts
 
@@ -175,7 +172,7 @@ export function useWasmRuntimeLifecycle(opts: LifecycleOptions): void {
     let cancelled = false
     const callbacks = buildRuntimeCallbacks({
       cancelled: () => cancelled,
-      dispatch, setEngineReady,
+      dispatch,
       handleRuntimeTransform, sceneIdRef, syncRuntimeUiFlags,
       makeLogEntry,
     })
@@ -213,7 +210,7 @@ export function useWasmRuntimeLifecycle(opts: LifecycleOptions): void {
     // target; lifecycle teardown remains on the mount effect above.
     void loadWasmRuntime(canvas, WASM_RUNTIME_SRC, buildRuntimeCallbacks({
       cancelled: () => false,
-      dispatch, setEngineReady,
+      dispatch,
       handleRuntimeTransform, sceneIdRef, syncRuntimeUiFlags,
       makeLogEntry,
     }))

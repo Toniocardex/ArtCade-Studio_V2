@@ -1,7 +1,6 @@
 import { useRef, useLayoutEffect, useEffect, useState, useCallback } from 'react'
 import { useEditor } from '../store/editor-store'
 import type { ConsoleEntry } from '../types'
-import { isReady } from '../utils/wasm-bridge'
 import { assetOrchestrator } from '../utils/asset-orchestrator'
 import { watchProjectAssets } from '../utils/asset-watcher'
 import { dirName } from '../utils/project'
@@ -36,6 +35,7 @@ import { CanvasViewportWithRulers } from './preview/CanvasViewportWithRulers'
 import { CanvasFooterBar } from './preview/CanvasFooterBar'
 import { useLayoutTier } from '../contexts/editor-layout-tier-context'
 import { InspectorDrawerToggle } from '../contexts/inspector-drawer-context'
+import { useRuntimeReadiness } from '../hooks/useRuntimeReadiness'
 
 type TransformSnapshot = {
   entityId: number
@@ -97,19 +97,13 @@ export default function PreviewPanel() {
   const tier = useLayoutTier()
   const showInspectorToggle = tier !== 'full'
 
-  const [wasmReady, setWasmReady] = useState(() => isReady())
-  const [engineReady, setEngineReady] = useState(() => runtimeSync.isEngineReady())
+  const { wasmReady, engineReady, syncWasmFromBridge } = useRuntimeReadiness()
   const [activeTool,  setActiveTool]       = useState<EditorTool>('select')
   const [showEditorGuides, setShowEditorGuides] = useState(true)
 
-  useEffect(() => runtimeSync.onReadyChange(setWasmReady), [])
-  useEffect(() => runtimeSync.onEngineReadyChange(setEngineReady), [])
-
-  /** WASM singleton may be ready before React onReady (StrictMode/HMR). */
   const syncRuntimeUiFlags = useCallback(() => {
-    if (!isReady()) return
-    setWasmReady((w) => (w ? w : true))
-  }, [])
+    syncWasmFromBridge()
+  }, [syncWasmFromBridge])
 
   function handleRuntimeTransform(
     entityId: number, x: number, y: number,
@@ -147,7 +141,7 @@ export default function PreviewPanel() {
   }, [syncRuntimeUiFlags])
 
   useWasmRuntimeLifecycle({
-    canvasRef, mode, dispatch, setEngineReady,
+    canvasRef, mode, dispatch,
     sceneIdRef, syncRuntimeUiFlags, handleRuntimeTransform,
     makeLogEntry,
   })
