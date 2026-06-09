@@ -2,8 +2,9 @@
 // Expanded rule editor - When / Also require… / Then blocks
 // ---------------------------------------------------------------------------
 
-import { Fragment, useEffect, useMemo, useState, type MouseEvent } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { HierarchicalBlockPicker } from '../../components/logic-board/HierarchicalBlockPicker'
+import { HierarchicalPickerOverlay } from '../../components/logic-board/HierarchicalPickerOverlay'
 import type { LogicBlockSelection } from './useLogicBlockSelection'
 import {
   NEW_ACTION_NONE,
@@ -304,22 +305,22 @@ function ActionListBlock({
             Browse actions…
           </button>
         )}
-        {pickerOpen && useHierarchicalPicker && (
-          <div className="fixed inset-0 z-[70] flex justify-end bg-black/40" onClick={() => setPickerOpen(false)}>
-            <div onClick={(e: MouseEvent) => e.stopPropagation()}>
-              <HierarchicalBlockPicker
-                kind="action"
-                types={pickerTypes}
-                title="Add action"
-                onClose={() => setPickerOpen(false)}
-                onPick={(type) => {
-                  onChangeActions([...actions, defaultAction(type as LogicAction['type'])])
-                  setPickerOpen(false)
-                }}
-              />
-            </div>
-          </div>
-        )}
+        <HierarchicalPickerOverlay
+          open={pickerOpen && (useHierarchicalPicker ?? false)}
+          onClose={() => setPickerOpen(false)}
+        >
+          <HierarchicalBlockPicker
+            kind="action"
+            types={pickerTypes}
+            title="Add action"
+            pickOnSelect
+            onClose={() => setPickerOpen(false)}
+            onPick={(type) => {
+              onChangeActions([...actions, defaultAction(type as LogicAction['type'])])
+              setPickerOpen(false)
+            }}
+          />
+        </HierarchicalPickerOverlay>
         <TypePicker
           kind="action"
           types={pickerTypes}
@@ -699,22 +700,22 @@ function SimpleConditions({
             Browse checks…
           </button>
         )}
-        {pickerOpen && useHierarchicalPicker && (
-          <div className="fixed inset-0 z-[70] flex justify-end bg-black/40" onClick={() => setPickerOpen(false)}>
-            <div onClick={(e: MouseEvent) => e.stopPropagation()}>
-              <HierarchicalBlockPicker
-                kind="condition"
-                types={conditionTypes}
-                title="Add check"
-                onClose={() => setPickerOpen(false)}
-                onPick={(type) => {
-                  appendCondition(type as LogicCondition['type'])
-                  setPickerOpen(false)
-                }}
-              />
-            </div>
-          </div>
-        )}
+        <HierarchicalPickerOverlay
+          open={pickerOpen && (useHierarchicalPicker ?? false)}
+          onClose={() => setPickerOpen(false)}
+        >
+          <HierarchicalBlockPicker
+            kind="condition"
+            types={conditionTypes}
+            title="Add check"
+            pickOnSelect
+            onClose={() => setPickerOpen(false)}
+            onPick={(type) => {
+              appendCondition(type as LogicCondition['type'])
+              setPickerOpen(false)
+            }}
+          />
+        </HierarchicalPickerOverlay>
         <TypePicker
           kind="condition"
           types={conditionTypes}

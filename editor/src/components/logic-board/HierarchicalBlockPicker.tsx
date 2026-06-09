@@ -14,6 +14,8 @@ export type HierarchicalBlockPickerProps = Readonly<{
   onPick: (type: string) => void
   onClose: () => void
   title: string
+  /** When true, a single click on a block row confirms the pick (browse overlays). */
+  pickOnSelect?: boolean
 }>
 
 function flattenLeaves(nodes: readonly HierarchicalNode[]): HierarchicalNode[] {
@@ -31,6 +33,7 @@ export function HierarchicalBlockPicker({
   onPick,
   onClose,
   title,
+  pickOnSelect = false,
 }: HierarchicalBlockPickerProps) {
   const tree = useMemo(() => {
     if (kind === 'trigger') return triggerHierarchy(types as LogicTriggerType[])
@@ -63,7 +66,7 @@ export function HierarchicalBlockPicker({
 
   return (
     <div
-      className="flex flex-col h-full border-l border-[var(--outline)] bg-[var(--surface)] w-[min(300px,100%)] shrink-0"
+      className="flex flex-col h-full min-h-0 border-l border-[var(--outline)] bg-[var(--surface)] w-full shrink-0"
       data-testid="hierarchical-block-picker"
     >
       <header className="shrink-0 px-3 py-2 border-b border-[var(--outline)] flex items-center gap-2">
@@ -78,13 +81,13 @@ export function HierarchicalBlockPicker({
         value={query}
         onChange={(e) => setQuery(e.target.value)}
       />
-      <div className="flex flex-1 min-h-0 border-t border-[var(--outline-subtle)] mt-2">
-        <div className="w-[38%] border-r border-[var(--outline-faint)] overflow-auto">
+      <div className="flex flex-1 min-h-[240px] border-t border-[var(--outline-subtle)] mt-2">
+        <div className="w-[42%] min-w-[9rem] border-r border-[var(--outline-faint)] overflow-auto panel-scroll">
           {tree.map((cat) => (
             <button
               key={cat.id}
               type="button"
-              className={`w-full text-left px-2 py-1.5 text-[10px] truncate ${
+              className={`w-full text-left px-3 py-2 text-[11px] leading-snug truncate ${
                 cat.id === category?.id
                   ? 'bg-[var(--outline)] text-[var(--primary)]'
                   : 'text-[var(--muted)] hover:bg-[var(--outline-faint)]'
@@ -99,18 +102,21 @@ export function HierarchicalBlockPicker({
             </button>
           ))}
         </div>
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1 min-w-0 overflow-auto panel-scroll">
           {filteredBlocks.map((block) => (
             <button
               key={block.id}
               type="button"
-              className={`w-full text-left px-2 py-1.5 text-[10px] ${
+              className={`w-full text-left px-3 py-2 text-[11px] leading-snug ${
                 block.id === selected?.id
                   ? 'bg-[var(--accent-muted)] text-[var(--primary)]'
                   : 'text-[var(--primary-soft)] hover:bg-[var(--outline-faint)]'
               }`}
-              onClick={() => setBlockId(block.id)}
-              onDoubleClick={() => onPick(block.id)}
+              onClick={() => {
+                setBlockId(block.id)
+                if (pickOnSelect) onPick(block.id)
+              }}
+              onDoubleClick={pickOnSelect ? undefined : () => onPick(block.id)}
             >
               {block.label}
             </button>
