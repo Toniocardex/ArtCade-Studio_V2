@@ -11,6 +11,8 @@ vi.mock('../../utils/wasm-bridge', () => ({
 
 const syncProjectMock = vi.fn()
 const isTransitioningMock = vi.fn(() => false)
+const notifyReadyChanged = vi.fn()
+const notifyEngineReady = vi.fn()
 vi.mock('../../utils/runtime-sync-service', () => ({
   runtimeSync: {
     syncProject: syncProjectMock,
@@ -19,6 +21,8 @@ vi.mock('../../utils/runtime-sync-service', () => ({
     syncSelection: vi.fn(),
     syncEditorTool: vi.fn(),
     syncEditorChrome: vi.fn(),
+    notifyReadyChanged,
+    notifyEngineReady,
   },
 }))
 
@@ -29,7 +33,15 @@ vi.mock('../../utils/preview-restore', () => ({
   getPreviewLuaSyncKey: vi.fn(() => 'sync-key'),
 }))
 
-const { shouldSyncProjectToRuntime, performRuntimeProjectSync } = await import('./runtime-hooks')
+const scheduleWasmUiUpdate = vi.fn((fn: () => void) => fn())
+const scheduleWasmUiUpdateWhen = vi.fn((_: () => boolean, fn: () => void) => fn())
+vi.mock('../../utils/wasm-ui-scheduler', () => ({
+  scheduleWasmUiUpdate,
+  scheduleWasmUiUpdateWhen,
+}))
+
+const { shouldSyncProjectToRuntime, performRuntimeProjectSync, buildRuntimeCallbacks } =
+  await import('./runtime-hooks')
 
 function makeProject() {
   return {
@@ -112,5 +124,60 @@ describe('performRuntimeProjectSync', () => {
     })
     expect(syncProjectMock).not.toHaveBeenCalled()
     isTransitioningMock.mockReturnValue(false)
+  })
+})
+
+describe('buildRuntimeCallbacks', () => {
+  it('notifies runtime readiness on onReady', () => {
+    notifyReadyChanged.mockClear()
+    const dispatch = vi.fn()
+    const callbacks = buildRuntimeCallbacks({
+      cancelled: () => false,
+      dispatch,
+      handleRuntimeTransform: vi.fn(),
+      sceneIdRef: { current: 'a' },
+      syncRuntimeUiFlags: vi.fn(),
+      makeLogEntry: (message, level) => ({ id: 1, time: '', message, level }),
+    })
+
+    callbacks.onReady?.()
+    expect(notifyReadyChanged).toHaveBeenCalledTimes(1)
+    expect(dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'LOG', entry: expect.objectContaining({ level: 'info' }) }),
+    )
+  })
+
+  it('dispatches SELECT_ENTITY from onEntitySelected', () => {
+    const dispatch = vi.fn()
+    const callbacks = buildRuntimeCallbacks({
+      cancelled: () => false,
+      dispatch,
+      handleRuntimeTransform: vi.fn(),
+      sceneIdRef: { current: 'a' },
+      syncRuntimeUiFlags: vi.fn(),
+      makeLogEntry: (message, level) => ({ id: 1, time: '', message, level }),
+    })
+
+    callbacks.onEntitySelected?.(42)
+    expect(dispatch).toHaveBeenCalledWith({ type: 'SELECT_ENTITY', entityId: 42 })
+  })
+
+  it('marks engine ready when EditorAPI bridge initialises', () => {
+    notifyEngineReady.mockClear()
+    const dispatch = vi.fn()
+    const callbacks = buildRuntimeCallbacks({
+      cancelled: () => false,
+      dispatch,
+      handleRuntimeTransform: vi.fn(),
+      sceneIdRef: { current: 'a' },
+      syncRuntimeUiFlags: vi.fn(),
+      makeLogEntry: (message, level) => ({ id: 1, time: '', message, level }),
+    })
+
+    callbacks.onConsoleLine?.('[EditorAPI] Bridge initialised', 'info')
+    expect(notifyEngineReady).toHaveBeenCalledTimes(1)
+    expect(dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'LOG' }),
+    )
   })
 })

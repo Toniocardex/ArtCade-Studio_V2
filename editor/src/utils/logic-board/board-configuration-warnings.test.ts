@@ -1,8 +1,28 @@
 import { describe, expect, it } from 'vitest'
 import type { LogicBoard } from '../../types/logic-board'
-import { boardConfigurationSummary, boardConfigurationWarnings } from './board-configuration-warnings'
+import type { ProjectDoc } from '../../types'
+import { collectConfigDiagnostics, formatConfigDiagnosticsSummary } from './logic-compile-service'
 
-describe('boardConfigurationWarnings', () => {
+function projectWithBoard(board: LogicBoard): ProjectDoc {
+  return {
+    projectName: 'T',
+    version: '2.0.0',
+    targetFPS: 60,
+    activeSceneId: 's1',
+    mainScriptPath: 'scripts/main.lua',
+    entities: {},
+    scenes: { s1: { id: 's1', name: 'S1', entityIds: [] } },
+    logicBoards: [board],
+  }
+}
+
+function boardWarnings(board: LogicBoard): string[] {
+  return collectConfigDiagnostics(projectWithBoard(board))
+    .filter((d) => d.boardId === board.boardId)
+    .map((d) => d.message)
+}
+
+describe('collectConfigDiagnostics (board configuration)', () => {
   it('reports clickToDestroy in Else', () => {
     const board: LogicBoard = {
       boardId: 'b1',
@@ -17,9 +37,9 @@ describe('boardConfigurationWarnings', () => {
         elseActions: [{ type: 'clickToDestroy', button: 'right', radius: 32 }],
       }],
     }
-    const warnings = boardConfigurationWarnings(board)
+    const warnings = boardWarnings(board)
     expect(warnings.some((w) => /Else branch/.test(w))).toBe(true)
-    expect(boardConfigurationSummary(board)).toBeTruthy()
+    expect(formatConfigDiagnosticsSummary(collectConfigDiagnostics(projectWithBoard(board)))).toBeTruthy()
   })
 
   it('reports incompatible trigger on global board', () => {
@@ -33,6 +53,6 @@ describe('boardConfigurationWarnings', () => {
         actions: [{ type: 'debugLog', message: 'x' }],
       }],
     }
-    expect(boardConfigurationWarnings(board).some((w) => /not allowed/.test(w))).toBe(true)
+    expect(boardWarnings(board).some((w) => /not allowed/.test(w))).toBe(true)
   })
 })

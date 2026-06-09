@@ -24,17 +24,6 @@
     "fs:allow-unwatch",
     "fs:scope-document-recursive",
     "fs:scope-desktop-recursive",
-    "fs:scope-download-recursive",
-    {
-      "identifier": "fs:scope",
-      "allow": [
-        "$HOME/**"
-      ],
-      "deny": [
-        "$HOME/.ssh/**",
-        "$HOME/AppData/**",
-        "$HOME/Application Data/**"
-      ]
-    }
+    "fs:scope-download-recursive"
   ]
 }

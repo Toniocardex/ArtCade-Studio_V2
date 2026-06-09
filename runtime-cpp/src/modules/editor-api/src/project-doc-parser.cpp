@@ -1,6 +1,7 @@
 #include "project-doc-parser.h"
 #include "object-type-materialize.h"
 #include "physics-json.h"
+#include "sprite-json.h"
 
 #ifdef __EMSCRIPTEN__
 
@@ -94,8 +95,7 @@ EntityDef parseEntityDef(const json& j, EntityId fallbackId) {
     if (j.contains("tags") && j["tags"].is_array())
         for (const auto& tag : j["tags"]) e.tags.push_back(tag.get<std::string>());
     if (j.contains("transform")) e.transform = parseTransform(j["transform"]);
-    if (j.contains("sprite"))    e.sprite    = parseSprite(j["sprite"]);
-
+    ProjectJson::read_sprite_component(j, e.sprite);
     ProjectJson::read_physics_component(j, e.physics);
 
     // -- Optional gameplay components (Phase D1) — names mirror the editor TS.

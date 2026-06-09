@@ -61,6 +61,7 @@ public:
 private:
     bool        devMode_  = false;
     std::string rootPath_;
+    std::string extractTempDir_;
     AssetManifestIndex manifestIndex_;
     std::unordered_map<std::string, std::vector<ImagePointDef>> imagePointsByAsset_;
 

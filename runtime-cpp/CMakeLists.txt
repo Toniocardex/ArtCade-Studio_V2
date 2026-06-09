@@ -86,6 +86,7 @@ target_link_libraries(artcade-object-type-materialize PUBLIC artcade-core)
 
 add_library(artcade-project-json STATIC
     src/core/physics-json.cpp
+    src/core/sprite-json.cpp
 )
 target_link_libraries(artcade-project-json PUBLIC artcade-core)
 

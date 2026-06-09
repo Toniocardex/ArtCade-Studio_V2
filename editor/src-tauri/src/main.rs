@@ -9,6 +9,7 @@
 //   open_web_export_in_browser — local http.server + default browser
 //   get_web_export_status — missing / stale / ready for toolbar UX
 //   pack_project        — python pack-artcade.py
+//   register_project_fs_scope — allow plugin-fs access to opened project dir
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
@@ -24,6 +25,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command as Cmd, Stdio};
 use tauri::Emitter;
 use tauri::Manager;
+use tauri_plugin_fs::FsExt;
 
 use build_log_filter::BuildLogFilter;
 use process_util::{hide_console, prefer_windowless_python};
@@ -404,6 +406,25 @@ mod write_path_tests {
             "expected outside-root error, got: {err}"
         );
     }
+}
+
+/// Extend plugin-fs scope to the opened project directory (parent of project.json).
+#[tauri::command]
+fn register_project_fs_scope(app: tauri::AppHandle, project_root: String) -> Result<(), String> {
+    let root = validate_absolute_path_no_dotdot(&project_root, "project_root")?;
+    if !root.is_dir() {
+        return Err(format!(
+            "project_root must be an existing directory: '{}'",
+            root.display()
+        ));
+    }
+    let canon = root
+        .canonicalize()
+        .map_err(|e| format!("canonicalize '{}': {e}", root.display()))?;
+    app.fs_scope()
+        .allow_directory(&canon, true)
+        .map_err(|e| format!("fs scope allow_directory: {e}"))?;
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------
@@ -1066,6 +1087,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             write_file,
             write_binary_file,
+            register_project_fs_scope,
             check_dependencies_cmd,
             install_sdk,
             run_build,

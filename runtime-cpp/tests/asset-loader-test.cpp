@@ -146,6 +146,47 @@ static void test_object_types_physics_from_project_json() {
     fs::remove_all(tmpDir);
 }
 
+static void test_object_types_snake_case_sprite_fill_color() {
+    const fs::path tmpDir =
+        fs::temp_directory_path() / "artcade_asset_loader_v2_sprite";
+    fs::create_directories(tmpDir);
+    {
+        std::ofstream f(tmpDir / "project.json");
+        f << R"({
+  "projectName": "V2Sprite",
+  "activeSceneId": "s1",
+  "object_types": {
+    "Hero": {
+      "id": "Hero",
+      "display_name": "Hero",
+      "sprite": {
+        "sprite_asset_id": "hero.png",
+        "fillColor": { "x": 0.1, "y": 0.2, "z": 0.3 },
+        "pivot_from_asset": false
+      }
+    }
+  },
+  "scenes": {
+    "s1": { "id": "s1", "name": "S1", "instances": [] }
+  }
+})";
+    }
+
+    AssetLoader loader;
+    loader.init();
+    ProjectDoc doc;
+    CHECK(loader.loadDirectory(tmpDir.string(), doc));
+
+    const auto heroType = doc.objectTypes.find("Hero");
+    CHECK(heroType != doc.objectTypes.end());
+    CHECK(heroType->second.sprite.spriteAssetId == "hero.png");
+    CHECK(std::abs(heroType->second.sprite.fillColor.x - 0.1f) < 0.01f);
+    CHECK(heroType->second.sprite.pivotFromAsset == false);
+
+    loader.shutdown();
+    fs::remove_all(tmpDir);
+}
+
 static void test_malformed_project_json_returns_false_without_crash() {
     const fs::path tmpDir = fs::temp_directory_path() / "artcade_asset_loader_bad_type";
     fs::create_directories(tmpDir);
@@ -170,6 +211,7 @@ static void test_malformed_project_json_returns_false_without_crash() {
 int main() {
     test_physics_health_sensor_from_project_json();
     test_object_types_physics_from_project_json();
+    test_object_types_snake_case_sprite_fill_color();
     test_invalid_hex_color_falls_back_without_crash();
     test_malformed_project_json_returns_false_without_crash();
 

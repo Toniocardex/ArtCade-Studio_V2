@@ -35,7 +35,7 @@ describe('runLoadProjectSideEffects', () => {
     const cachedAgain = getProjectWorkbenchSnapshot(input)
     expect(cachedAgain).toBe(cached)
 
-    runLoadProjectSideEffects()
+    runLoadProjectSideEffects(null)
 
     const rebuilt = getProjectWorkbenchSnapshot(input)
     expect(rebuilt).not.toBe(cached)

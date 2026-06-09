@@ -2,6 +2,7 @@
 #include "zip-reader.h"
 #include "object-type-materialize.h"
 #include "physics-json.h"
+#include "sprite-json.h"
 #include <nlohmann/json.hpp>
 #include <filesystem>
 #include <fstream>
@@ -71,7 +72,13 @@ static Vec4 hexToVec4(const std::string& hex) {
 // ------------------------------------------------------------------ lifecycle
 
 bool AssetLoader::init()     { return true; }
-void AssetLoader::shutdown() {}
+void AssetLoader::shutdown() {
+    if (!extractTempDir_.empty()) {
+        std::error_code ec;
+        std::filesystem::remove_all(extractTempDir_, ec);
+        extractTempDir_.clear();
+    }
+}
 
 // ------------------------------------------------------------------ loaders
 
@@ -89,6 +96,7 @@ std::string AssetLoader::resolveAudioPath(const std::string& ref) const {
 }
 
 bool AssetLoader::loadDirectory(const std::string& dirPath, ProjectDoc& out) {
+    extractTempDir_.clear();
     rootPath_ = dirPath;
     devMode_  = true;
     loadManifestForRoot(dirPath);
@@ -112,6 +120,7 @@ bool AssetLoader::loadArtcade(const std::string& archivePath, ProjectDoc& out) {
     fs::remove_all(tmpDir, ec);
     if (!extractZip(archivePath, tmpDir)) return false;
 
+    extractTempDir_ = tmpDir;
     rootPath_ = tmpDir;
     devMode_  = false;
     loadManifestForRoot(tmpDir);
@@ -181,8 +190,13 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
     }
 
     // Object types (v2)
-    if (j.contains("objectTypes") && j["objectTypes"].is_object()) {
-        for (auto& [key, tv] : j["objectTypes"].items()) {
+    const json* objectTypesRaw = nullptr;
+    if (j.contains("objectTypes") && j["objectTypes"].is_object())
+        objectTypesRaw = &j["objectTypes"];
+    else if (j.contains("object_types") && j["object_types"].is_object())
+        objectTypesRaw = &j["object_types"];
+    if (objectTypesRaw) {
+        for (auto& [key, tv] : objectTypesRaw->items()) {
             if (!tv.is_object()) continue;
             EntityDef e;
             e.id        = 0;
@@ -190,18 +204,7 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
             e.name      = tv.value("displayName", tv.value("display_name", e.className));
             if (tv.contains("tags") && tv["tags"].is_array())
                 e.tags = tv["tags"].get<std::vector<std::string>>();
-            if (tv.contains("sprite")) {
-                auto& s = tv["sprite"];
-                e.sprite.spriteAssetId = readStringAny(s, "spriteAssetId", "sprite_asset_id");
-                if (s.contains("tint")) e.sprite.tint = readVec4(s["tint"]);
-                e.sprite.alpha = s.value("alpha", 1.f);
-                if (s.contains("defaultClip"))
-                    e.sprite.defaultClip = s["defaultClip"].get<std::string>();
-                else if (s.contains("default_clip"))
-                    e.sprite.defaultClip = s["default_clip"].get<std::string>();
-                e.sprite.playClipOnSpawn = s.value("playClipOnSpawn",
-                    s.value("play_clip_on_spawn", false));
-            }
+            ProjectJson::read_sprite_component(tv, e.sprite);
             if (tv.contains("solid") && tv["solid"].is_object()) {
                 SolidComponent solid;
                 solid.groundClass = tv["solid"].value("groundClass", std::string("Ground"));
@@ -224,10 +227,11 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
     }
 
     // Entities
-    if (j.contains("entities") && j["entities"].is_object()) {
-        for (auto& [key, ev] : j["entities"].items()) {
+    if (j.contains("entities")) {
+        const auto& ents = j["entities"];
+        auto ingest_entity = [&](const json& ev, EntityId fallbackId) {
             EntityDef e;
-            e.id        = ev.value("id", static_cast<EntityId>(0));
+            e.id        = ev.value("id", fallbackId);
             e.name      = ev.value("name", std::string{});
             e.className = readStringAny(ev, "className", "class_name");
 
@@ -243,23 +247,7 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
                 e.transform.rotation = t.value("rotation", 0.f);
             }
 
-            if (ev.contains("sprite")) {
-                auto& s = ev["sprite"];
-                e.sprite.spriteAssetId = readStringAny(s, "spriteAssetId", "sprite_asset_id");
-                if (s.contains("tint"))
-                    e.sprite.tint = readVec4(s["tint"]);
-                e.sprite.alpha       = s.value("alpha",       1.f);
-                e.sprite.renderOrder = s.contains("renderOrder")
-                    ? s["renderOrder"].get<int32_t>()
-                    : s.value("render_order", 0);
-                if (s.contains("defaultClip"))
-                    e.sprite.defaultClip = s["defaultClip"].get<std::string>();
-                else if (s.contains("default_clip"))
-                    e.sprite.defaultClip = s["default_clip"].get<std::string>();
-                e.sprite.playClipOnSpawn = s.value("playClipOnSpawn",
-                    s.value("play_clip_on_spawn", false));
-            }
-
+            ProjectJson::read_sprite_component(ev, e.sprite);
             ProjectJson::read_physics_component(ev, e.physics);
 
             // Optional gameplay components (Phase D1) — names mirror editor TS
@@ -362,15 +350,26 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
 
             if (e.id != 0)
                 out.entities[e.id] = std::move(e);
+        };
+        if (ents.is_object()) {
+            for (auto& [key, ev] : ents.items()) {
+                const EntityId fid = static_cast<EntityId>(std::stoul(key));
+                ingest_entity(ev, fid);
+            }
+        } else if (ents.is_array()) {
+            for (const auto& ev : ents) {
+                ingest_entity(ev, static_cast<EntityId>(out.entities.size() + 1));
+            }
         }
     }
 
     // Scenes
-    if (j.contains("scenes") && j["scenes"].is_object()) {
-        for (auto& [key, sv] : j["scenes"].items()) {
+    if (j.contains("scenes")) {
+        const auto& sc = j["scenes"];
+        auto ingest_scene = [&](const json& sv, const SceneId& fallbackId) {
             SceneDef s;
-            s.id   = sv.value("id",   key);
-            s.name = sv.value("name", key);
+            s.id   = sv.value("id",   fallbackId);
+            s.name = sv.value("name", fallbackId);
 
             if (sv.contains("worldSize"))
                 s.worldSize    = readVec2(sv["worldSize"],    {800,600});
@@ -422,6 +421,13 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
             }
 
             out.scenes[s.id] = std::move(s);
+        };
+        if (sc.is_object()) {
+            for (auto& [key, sv] : sc.items())
+                ingest_scene(sv, key);
+        } else if (sc.is_array()) {
+            for (const auto& sv : sc)
+                ingest_scene(sv, "scene_" + std::to_string(out.scenes.size()));
         }
     }
 

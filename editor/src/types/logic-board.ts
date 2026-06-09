@@ -34,11 +34,11 @@ export type LogicTrigger =
   // a separate trigger.className would create a confusing second source of truth.
   | { type: 'onSpawn' }                                             // lifecycle.onSpawn
   | { type: 'onUpdate' }                                            // every tick(dt)
-  | { type: 'onCollision'; withClass?: string }                     // level-triggered (every frame while touching)
+  | { type: 'onCollision'; withClass: string }                      // level-triggered (every frame while touching)
   | { type: 'onCollisionEnter'; withClass: string }                 // edge: started touching this frame
   | { type: 'onCollisionExit'; withClass: string }                  // edge: stopped touching this frame
-  | { type: 'onTriggerEnter'; withClass?: string }                  // edge: started touching
-  | { type: 'onTriggerExit'; withClass?: string }                   // edge: stopped touching
+  | { type: 'onTriggerEnter'; withClass: string }                   // edge: started touching
+  | { type: 'onTriggerExit'; withClass: string }                    // edge: stopped touching
   | { type: 'onAnimationEnd'; clipName?: string }
   | { type: 'onDestroy' }                                           // lifecycle.onDestroy
   | {
