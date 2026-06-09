@@ -2,6 +2,7 @@
 #include "zip-reader.h"
 #include "object-type-materialize.h"
 #include "entity-json.h"
+#include "scene-json.h"
 #include <nlohmann/json.hpp>
 #include <filesystem>
 #include <fstream>
@@ -230,58 +231,7 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
         const auto& sc = j["scenes"];
         auto ingest_scene = [&](const json& sv, const SceneId& fallbackId) {
             SceneDef s;
-            s.id   = sv.value("id",   fallbackId);
-            s.name = sv.value("name", fallbackId);
-
-            if (sv.contains("worldSize"))
-                s.worldSize    = readVec2(sv["worldSize"],    {800,600});
-            if (sv.contains("viewportSize"))
-                s.viewportSize = readVec2(sv["viewportSize"], {800,600});
-            if (sv.contains("backgroundColor"))
-                s.backgroundColor = readVec4(sv["backgroundColor"]);
-            if (sv.contains("background_color"))
-                s.backgroundColor = readVec4(sv["background_color"]);
-
-            if (sv.contains("entityIds") && sv["entityIds"].is_array())
-                s.entityIds = sv["entityIds"].get<std::vector<EntityId>>();
-            if (sv.contains("entity_ids") && sv["entity_ids"].is_array())
-                s.entityIds = sv["entity_ids"].get<std::vector<EntityId>>();
-
-            if (sv.contains("instances") && sv["instances"].is_array()) {
-                for (const auto& item : sv["instances"]) {
-                    if (!item.is_object()) continue;
-                    SceneInstanceDef inst;
-                    inst.id           = item.value("id", 0u);
-                    inst.objectTypeId = item.value("objectTypeId",
-                                          item.value("object_type_id", std::string{}));
-                    inst.instanceName = item.value("instanceName",
-                                          item.value("instance_name", std::string{}));
-                    if (item.contains("transform")) {
-                        auto& t = item["transform"];
-                        if (t.contains("position"))
-                            inst.transform.position = readVec2(t["position"]);
-                        if (t.contains("scale"))
-                            inst.transform.scale = readVec2(t["scale"], {1, 1});
-                        inst.transform.rotation = t.value("rotation", 0.f);
-                    }
-                    if (item.contains("visible") && item["visible"].is_boolean())
-                        inst.visible = item["visible"].get<bool>();
-                    if (inst.id != 0 && !inst.objectTypeId.empty())
-                        s.instances.push_back(std::move(inst));
-                }
-            }
-
-            if (sv.contains("tilemap") && sv["tilemap"].is_object()) {
-                const auto& tm = sv["tilemap"];
-                s.tilemap.tileSize = tm.value("tileSize", 32.f);
-                s.tilemap.cols     = tm.value("cols", 0);
-                s.tilemap.rows     = tm.value("rows", 0);
-                if (tm.contains("data") && tm["data"].is_array())
-                    s.tilemap.data = tm["data"].get<std::vector<int>>();
-                s.tilemap.tilesetAssetId =
-                    tm.value("tilesetAssetId", std::string{});
-            }
-
+            ProjectJson::read_scene_def(sv, fallbackId, s);
             out.scenes[s.id] = std::move(s);
         };
         if (sc.is_object()) {

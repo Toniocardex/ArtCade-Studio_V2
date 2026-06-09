@@ -89,6 +89,7 @@ add_library(artcade-project-json STATIC
     src/core/physics-json.cpp
     src/core/sprite-json.cpp
     src/core/entity-json.cpp
+    src/core/scene-json.cpp
 )
 target_link_libraries(artcade-project-json PUBLIC artcade-core)
 

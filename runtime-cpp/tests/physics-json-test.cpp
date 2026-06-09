@@ -2,6 +2,7 @@
 
 #include "entity-json.h"
 #include "physics-json.h"
+#include "scene-json.h"
 #include "sprite-json.h"
 
 #include <cmath>
@@ -96,6 +97,66 @@ static void test_read_object_type_all_gameplay_components() {
     CHECK(e.hordeMember->targetClass == "Player");
 }
 
+static void test_read_scene_def_snake_case_and_tilemap() {
+    const json scene = json::parse(R"({
+      "id": "level_1",
+      "name": "Level 1",
+      "world_size": [1280, 720],
+      "viewport_size": { "x": 800, "y": 600 },
+      "background_color": { "r": 0.1, "g": 0.2, "b": 0.3, "a": 1 },
+      "entity_ids": [1, 2],
+      "instances": [
+        {
+          "id": 10,
+          "object_type_id": "Hero",
+          "instance_name": "Player",
+          "transform": { "position": { "x": 50, "y": 100 }, "scale": { "x": 2, "y": 2 }, "rotation": 15 },
+          "visible": false
+        },
+        { "id": 0, "objectTypeId": "Skip" }
+      ],
+      "tilemap": {
+        "tile_size": 16,
+        "cols": 2,
+        "rows": 1,
+        "data": [1, 2],
+        "tileset_asset_id": "ts_grass"
+      }
+    })");
+
+    ArtCade::SceneDef s{};
+    ArtCade::ProjectJson::read_scene_def(scene, "fallback", s);
+    CHECK(s.id == "level_1");
+    CHECK(s.name == "Level 1");
+    CHECK(std::abs(s.worldSize.x - 1280.f) < 0.01f);
+    CHECK(std::abs(s.viewportSize.y - 600.f) < 0.01f);
+    CHECK(std::abs(s.backgroundColor.g - 0.2f) < 0.01f);
+    CHECK(s.entityIds.size() == 2);
+    CHECK(s.entityIds[0] == 1);
+    CHECK(s.instances.size() == 1);
+    CHECK(s.instances[0].objectTypeId == "Hero");
+    CHECK(s.instances[0].instanceName == "Player");
+    CHECK(std::abs(s.instances[0].transform.position.x - 50.f) < 0.01f);
+    CHECK(std::abs(s.instances[0].transform.scale.y - 2.f) < 0.01f);
+    CHECK(std::abs(s.instances[0].transform.rotation - 15.f) < 0.01f);
+    CHECK(s.instances[0].visible == false);
+    CHECK(std::abs(s.tilemap.tileSize - 16.f) < 0.01f);
+    CHECK(s.tilemap.cols == 2);
+    CHECK(s.tilemap.data.size() == 2);
+    CHECK(s.tilemap.tilesetAssetId == "ts_grass");
+}
+
+static void test_read_scene_def_defaults_when_fields_absent() {
+    const json scene = json::parse(R"({ "name": "Empty" })");
+    ArtCade::SceneDef s{};
+    ArtCade::ProjectJson::read_scene_def(scene, "scene_0", s);
+    CHECK(s.id == "scene_0");
+    CHECK(std::abs(s.worldSize.x - 800.f) < 0.01f);
+    CHECK(std::abs(s.viewportSize.y - 600.f) < 0.01f);
+    CHECK(s.instances.empty());
+    CHECK(s.tilemap.cols == 0);
+}
+
 static void test_read_entity_instance_wasm_name_fallback() {
     const json entity = json::parse(R"({ "id": 7, "className": "Hero" })");
     ArtCade::EntityDef wasm{};
@@ -112,6 +173,8 @@ int main() {
     test_missing_physics_returns_false();
     test_read_sprite_component_fill_color();
     test_read_object_type_all_gameplay_components();
+    test_read_scene_def_snake_case_and_tilemap();
+    test_read_scene_def_defaults_when_fields_absent();
     test_read_entity_instance_wasm_name_fallback();
 
     std::cout << "physics-json-test: " << g_passed << " passed, "

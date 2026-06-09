@@ -1,6 +1,7 @@
 #include "project-doc-parser.h"
 #include "object-type-materialize.h"
 #include "entity-json.h"
+#include "scene-json.h"
 
 #ifdef __EMSCRIPTEN__
 
@@ -96,44 +97,7 @@ EntityDef parseEntityDef(const json& j, EntityId fallbackId) {
 
 SceneDef parseSceneDef(const json& j, const SceneId& fallbackId) {
     SceneDef s;
-    s.id   = j.value("id",   fallbackId);
-    s.name = j.value("name", fallbackId);
-    if (j.contains("worldSize"))        s.worldSize       = parseVec2(j["worldSize"]);
-    if (j.contains("world_size"))       s.worldSize       = parseVec2(j["world_size"]);
-    if (j.contains("viewportSize"))     s.viewportSize    = parseVec2(j["viewportSize"]);
-    if (j.contains("viewport_size"))    s.viewportSize    = parseVec2(j["viewport_size"]);
-    if (j.contains("backgroundColor"))  s.backgroundColor = parseVec4(j["backgroundColor"]);
-    if (j.contains("background_color")) s.backgroundColor = parseVec4(j["background_color"]);
-    const json& eids = j.contains("entityIds") ? j["entityIds"]
-                      : j.contains("entity_ids") ? j["entity_ids"] : json{};
-    if (eids.is_array())
-        for (const auto& id : eids) s.entityIds.push_back(id.get<EntityId>());
-    if (j.contains("instances") && j["instances"].is_array()) {
-        for (const auto& item : j["instances"]) {
-            if (!item.is_object()) continue;
-            SceneInstanceDef inst;
-            inst.id           = item.value("id", 0u);
-            inst.objectTypeId = item.value("objectTypeId",
-                                  item.value("object_type_id", std::string{}));
-            inst.instanceName = item.value("instanceName",
-                                  item.value("instance_name", std::string{}));
-            if (item.contains("transform"))
-                inst.transform = parseTransform(item["transform"]);
-            if (item.contains("visible") && item["visible"].is_boolean())
-                inst.visible = item["visible"].get<bool>();
-            if (inst.id != 0 && !inst.objectTypeId.empty())
-                s.instances.push_back(std::move(inst));
-        }
-    }
-    if (j.contains("tilemap") && j["tilemap"].is_object()) {
-        const auto& tm = j["tilemap"];
-        s.tilemap.tileSize = tm.value("tileSize", 32.f);
-        s.tilemap.cols     = tm.value("cols", 0);
-        s.tilemap.rows     = tm.value("rows", 0);
-        if (tm.contains("data") && tm["data"].is_array())
-            s.tilemap.data = tm["data"].get<std::vector<int>>();
-        s.tilemap.tilesetAssetId = tm.value("tilesetAssetId", std::string{});
-    }
+    ProjectJson::read_scene_def(j, fallbackId, s);
     return s;
 }
 
