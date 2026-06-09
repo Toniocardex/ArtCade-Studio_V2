@@ -119,7 +119,7 @@ static void test_object_types_physics_from_project_json() {
     "s1": {
       "id": "s1",
       "name": "S1",
-      "instances": [{ "id": 1, "typeId": "Hero", "name": "Hero_1" }]
+      "instances": [{ "id": 1, "objectTypeId": "Hero", "instanceName": "Hero_1" }]
     }
   }
 })";
@@ -208,7 +208,7 @@ static void test_object_types_full_gameplay_components() {
     "s1": {
       "id": "s1",
       "name": "S1",
-      "instances": [{ "id": 1, "typeId": "Enemy", "name": "Enemy_1" }]
+      "instances": [{ "id": 1, "objectTypeId": "Enemy", "instanceName": "Enemy_1" }]
     }
   }
 })";

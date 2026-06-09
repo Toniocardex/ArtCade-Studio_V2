@@ -2,6 +2,7 @@
 #include "object-type-materialize.h"
 #include "entity-json.h"
 #include "scene-json.h"
+#include "project-meta-json.h"
 
 #ifdef __EMSCRIPTEN__
 
@@ -103,12 +104,7 @@ SceneDef parseSceneDef(const json& j, const SceneId& fallbackId) {
 
 TilesetAsset parseTilesetAsset(const json& j) {
     TilesetAsset t;
-    t.assetId         = j.value("assetId",         j.value("asset_id", std::string{}));
-    t.spriteImagePath = j.value("spriteImagePath", j.value("sprite_image_path", std::string{}));
-    t.tileSize        = j.value("tileSize", j.value("tile_size", 32.f));
-    t.margin          = j.value("margin", 0);
-    t.cols            = j.value("cols", 1);
-    t.rows            = j.value("rows", 1);
+    ProjectJson::read_tileset_asset(j, {}, t);
     return t;
 }
 
@@ -154,45 +150,14 @@ parseScenes(const json& doc) {
 std::vector<TilesetAsset>
 parseTilesets(const json& doc) {
     std::vector<TilesetAsset> tilesets;
-    if (!doc.contains("tilesets")) return tilesets;
-    const auto& tsj = doc["tilesets"];
-    if (tsj.is_array()) {
-        for (const auto& item : tsj) tilesets.push_back(parseTilesetAsset(item));
-    } else if (tsj.is_object()) {
-        for (auto& [key, val] : tsj.items()) {
-            auto t = parseTilesetAsset(val);
-            if (t.assetId.empty()) t.assetId = key;
-            tilesets.push_back(std::move(t));
-        }
-    }
+    ProjectJson::read_tilesets(doc, tilesets);
     return tilesets;
 }
 
 std::vector<TilePaletteEntry>
 parseTilePalette(const json& doc) {
     std::vector<TilePaletteEntry> out;
-    if (!doc.contains("tilePalette") && !doc.contains("tile_palette"))
-        return out;
-    const auto& raw = doc.contains("tilePalette") ? doc["tilePalette"] : doc["tile_palette"];
-    if (!raw.is_array()) return out;
-    for (const auto& item : raw) {
-        if (!item.is_object()) continue;
-        TilePaletteEntry e;
-        e.id    = item.value("id", 0);
-        e.name  = item.value("name", std::string{});
-        e.solid = item.value("solid", false);
-        e.groundClass = item.value("groundClass", std::string("Ground"));
-        e.surfaceKind = item.value("surfaceKind", std::string("solid"));
-        if (item.contains("color")) {
-            if (item["color"].is_string()) {
-                // Hex colours from the editor are display-only; use neutral grey.
-                e.color = Vec4{0.5f, 0.5f, 0.5f, 1.f};
-            } else {
-                e.color = parseVec4(item["color"]);
-            }
-        }
-        if (e.id > 0) out.push_back(std::move(e));
-    }
+    ProjectJson::read_tile_palette(doc, out);
     return out;
 }
 

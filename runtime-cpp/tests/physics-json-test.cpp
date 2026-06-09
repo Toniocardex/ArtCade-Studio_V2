@@ -2,12 +2,15 @@
 
 #include "entity-json.h"
 #include "physics-json.h"
+#include "project-meta-json.h"
 #include "scene-json.h"
 #include "sprite-json.h"
 
 #include <cmath>
 #include <iostream>
 #include <nlohmann/json.hpp>
+#include <unordered_map>
+#include <vector>
 
 using json = nlohmann::json;
 
@@ -146,6 +149,71 @@ static void test_read_scene_def_snake_case_and_tilemap() {
     CHECK(s.tilemap.tilesetAssetId == "ts_grass");
 }
 
+static void test_read_tile_palette_hex_and_snake_case() {
+    const json doc = json::parse(R"({
+      "tile_palette": [{
+        "id": 1,
+        "name": "Grass",
+        "color": "#ff8040",
+        "solid": true,
+        "ground_class": "Terrain",
+        "surface_kind": "oneWay"
+      }]
+    })");
+
+    std::vector<ArtCade::TilePaletteEntry> palette;
+    ArtCade::ProjectJson::read_tile_palette(doc, palette);
+    CHECK(palette.size() == 1);
+    CHECK(palette[0].name == "Grass");
+    CHECK(std::abs(palette[0].color.r - 1.f) < 0.02f);
+    CHECK(std::abs(palette[0].color.g - 0.5f) < 0.02f);
+    CHECK(palette[0].solid);
+    CHECK(palette[0].groundClass == "Terrain");
+    CHECK(palette[0].surfaceKind == "oneWay");
+
+    CHECK(std::abs(ArtCade::ProjectJson::hex_to_vec4("#zzzzzz").r - 0.5f) < 0.01f);
+}
+
+static void test_read_tilesets_array_and_world_settings() {
+    const json doc = json::parse(R"({
+      "world": {
+        "gravity": 12.5,
+        "pixels_per_meter": 64,
+        "physics_mode": "off",
+        "physics_debug_draw": true
+      },
+      "tilesets": [
+        {
+          "asset_id": "ts_a",
+          "sprite_image_path": "tiles.png",
+          "tile_size": 24,
+          "cols": 8,
+          "rows": 4
+        }
+      ],
+      "thumbnails": { "scene_1": "thumbnails/scene_1.png" }
+    })");
+
+    ArtCade::WorldSettings world{};
+    ArtCade::ProjectJson::read_world_settings(doc["world"], world);
+    CHECK(std::abs(world.gravity - 12.5f) < 0.01f);
+    CHECK(std::abs(world.pixelsPerMeter - 64.f) < 0.01f);
+    CHECK(world.physicsMode == ArtCade::PhysicsMode::Off);
+    CHECK(world.physicsDebugDraw);
+
+    std::vector<ArtCade::TilesetAsset> tilesets;
+    ArtCade::ProjectJson::read_tilesets(doc, tilesets);
+    CHECK(tilesets.size() == 1);
+    CHECK(tilesets[0].assetId == "ts_a");
+    CHECK(tilesets[0].spriteImagePath == "tiles.png");
+    CHECK(std::abs(tilesets[0].tileSize - 24.f) < 0.01f);
+
+    std::unordered_map<std::string, std::string> thumbs;
+    ArtCade::ProjectJson::read_thumbnails(doc, thumbs);
+    CHECK(thumbs.size() == 1);
+    CHECK(thumbs["scene_1"] == "thumbnails/scene_1.png");
+}
+
 static void test_read_scene_def_defaults_when_fields_absent() {
     const json scene = json::parse(R"({ "name": "Empty" })");
     ArtCade::SceneDef s{};
@@ -174,6 +242,8 @@ int main() {
     test_read_sprite_component_fill_color();
     test_read_object_type_all_gameplay_components();
     test_read_scene_def_snake_case_and_tilemap();
+    test_read_tile_palette_hex_and_snake_case();
+    test_read_tilesets_array_and_world_settings();
     test_read_scene_def_defaults_when_fields_absent();
     test_read_entity_instance_wasm_name_fallback();
 

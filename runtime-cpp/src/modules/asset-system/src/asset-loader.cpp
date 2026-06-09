@@ -3,6 +3,7 @@
 #include "object-type-materialize.h"
 #include "entity-json.h"
 #include "scene-json.h"
+#include "project-meta-json.h"
 #include <nlohmann/json.hpp>
 #include <filesystem>
 #include <fstream>
@@ -51,22 +52,6 @@ static float readFloatAny(const json& j, const char* camel, const char* snake, f
     if (j.contains(camel)) return j[camel].get<float>();
     if (j.contains(snake)) return j[snake].get<float>();
     return def;
-}
-
-// "#RRGGBB" / "#RGB" → Vec4 (0..1). Falls back to opaque grey on bad input.
-static Vec4 hexToVec4(const std::string& hex) {
-    auto h = hex;
-    if (!h.empty() && h[0] == '#') h.erase(0, 1);
-    if (h.size() == 3) h = { h[0],h[0], h[1],h[1], h[2],h[2] };
-    if (h.size() != 6) return {0.5f, 0.5f, 0.5f, 1.f};
-    auto byte = [&](int i) {
-        return static_cast<float>(std::stoi(h.substr(i, 2), nullptr, 16)) / 255.f;
-    };
-    try {
-        return { byte(0), byte(2), byte(4), 1.f };
-    } catch (...) {
-        return {0.5f, 0.5f, 0.5f, 1.f};
-    }
 }
 
 // ------------------------------------------------------------------ lifecycle
@@ -173,21 +158,8 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
     out.mainScriptPath = readStringAny(j, "mainScriptPath", "main_script_path", "scripts/main.luac");
     out.formatVersion  = j.value("formatVersion", j.value("format_version", 0));
 
-    if (j.contains("world") && j["world"].is_object()) {
-        const auto& wo = j["world"];
-        out.world.gravity        = readFloatAny(wo, "gravity", "gravity", 9.81f);
-        out.world.pixelsPerMeter = readFloatAny(wo, "pixelsPerMeter", "pixels_per_meter", 100.f);
-        out.world.timeScale      = readFloatAny(wo, "timeScale", "time_scale", 1.f);
-        const std::string mode   = readStringAny(wo, "physicsMode", "physics_mode", "auto");
-        if (mode == "off")
-            out.world.physicsMode = PhysicsMode::Off;
-        else if (mode == "on")
-            out.world.physicsMode = PhysicsMode::On;
-        else
-            out.world.physicsMode = PhysicsMode::Auto;
-        if (wo.contains("physicsDebugDraw"))
-            out.world.physicsDebugDraw = wo["physicsDebugDraw"].get<bool>();
-    }
+    if (j.contains("world") && j["world"].is_object())
+        ProjectJson::read_world_settings(j["world"], out.world);
 
     // Object types (v2)
     const json* objectTypesRaw = nullptr;
@@ -243,41 +215,9 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
         }
     }
 
-    if (j.contains("thumbnails") && j["thumbnails"].is_object()) {
-        for (auto& [sceneId, thumbPath] : j["thumbnails"].items())
-            out.thumbnails[sceneId] = thumbPath.get<std::string>();
-    }
-
-    // Tile palette (Phase D2) — id, name, hex color, solid
-    if (j.contains("tilePalette") && j["tilePalette"].is_array()) {
-        for (const auto& t : j["tilePalette"]) {
-            if (!t.is_object()) continue;
-            TilePaletteEntry e;
-            e.id    = t.value("id", 0);
-            if (e.id < 1) continue;
-            e.name  = t.value("name", std::string{});
-            e.color = hexToVec4(t.value("color", std::string("#808080")));
-            e.solid = t.value("solid", false);
-            e.groundClass  = t.value("groundClass", std::string("Ground"));
-            e.surfaceKind  = t.value("surfaceKind", std::string("solid"));
-            out.tilePalette.push_back(e);
-        }
-    }
-
-    // Tilesets (Phase F3) — spritesheet metadata, keyed by assetId
-    if (j.contains("tilesets") && j["tilesets"].is_object()) {
-        for (auto& [key, tv] : j["tilesets"].items()) {
-            if (!tv.is_object()) continue;
-            TilesetAsset ts;
-            ts.assetId         = tv.value("assetId", key);
-            ts.spriteImagePath = tv.value("spriteImagePath", std::string{});
-            ts.tileSize        = tv.value("tileSize", 32.f);
-            ts.margin          = tv.value("margin", 0);
-            ts.cols            = tv.value("cols", 1);
-            ts.rows            = tv.value("rows", 1);
-            out.tilesets.push_back(ts);
-        }
-    }
+    ProjectJson::read_thumbnails(j, out.thumbnails);
+    ProjectJson::read_tile_palette(j, out.tilePalette);
+    ProjectJson::read_tilesets(j, out.tilesets);
 
     materializeProjectEntities(out);
 
