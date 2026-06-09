@@ -1,5 +1,5 @@
 import { useRef, useLayoutEffect, useEffect, useCallback, useMemo } from 'react'
-import { useEditor } from '../store/editor-store'
+import { useEditorDispatch, useEditorSelector } from '../store/editor-store'
 import type { ConsoleEntry } from '../types'
 import { assetOrchestrator } from '../utils/asset-orchestrator'
 import { watchProjectAssets } from '../utils/asset-watcher'
@@ -66,19 +66,27 @@ export default function PreviewPanel({
   onToggleGuides,
   showToolPalette = true,
 }: PreviewPanelProps) {
-  // useEditor() subscribes ONLY to CoreContext. It does NOT subscribe to
-  // VolatileContext, so this component is NOT re-rendered on every
-  // debug.log() call from Lua. Re-rendering PreviewPanel during the WASM
-  // rAF callback would race React reconciliation with WebGL compositing
-  // and surface as a one-frame flash. The context split in
-  // editor-store.tsx prevents this entirely.
-  const { state, dispatch } = useEditor()
-  const {
-    project, projectPath, isPlaying, selection, selectedTileCell, mode,
-    editorGridSize, snapToGrid, editorZoom, editorZoomMode, cameraPreview,
-    previewAssetLoadScope,
-    openScripts, focusMode,
-  } = state
+  // useEditorSelector reads CoreStateStore only — not VolatileContext — so
+  // this panel is NOT re-rendered on every debug.log() from Lua. Re-rendering
+  // PreviewPanel during the WASM rAF callback would race React reconciliation
+  // with WebGL compositing and surface as a one-frame flash. The Core/Volatile
+  // split in editor-store.tsx prevents this entirely.
+  const dispatch = useEditorDispatch()
+  const project = useEditorSelector((s) => s.project)
+  const projectPath = useEditorSelector((s) => s.projectPath)
+  const isPlaying = useEditorSelector((s) => s.isPlaying)
+  const selection = useEditorSelector((s) => s.selection)
+  const selectedTileCell = useEditorSelector((s) => s.selectedTileCell)
+  const mode = useEditorSelector((s) => s.mode)
+  const editorGridSize = useEditorSelector((s) => s.editorGridSize)
+  const snapToGrid = useEditorSelector((s) => s.snapToGrid)
+  const editorZoom = useEditorSelector((s) => s.editorZoom)
+  const editorZoomMode = useEditorSelector((s) => s.editorZoomMode)
+  const cameraPreview = useEditorSelector((s) => s.cameraPreview)
+  const previewAssetLoadScope = useEditorSelector((s) => s.previewAssetLoadScope)
+  const openScripts = useEditorSelector((s) => s.openScripts)
+  const focusMode = useEditorSelector((s) => s.focusMode)
+  const dialogs = useEditorSelector((s) => s.dialogs)
 
   const canvasRef           = useRef<HTMLCanvasElement>(null)
   const scrollRef           = useRef<HTMLDivElement>(null)
@@ -148,7 +156,7 @@ export default function PreviewPanel({
 
   useRuntimeProjectSync({
     project, projectPath, openScripts,
-    dialogs: state.dialogs,
+    dialogs,
     selectionSceneId: selection.sceneId,
     wasmReady, engineReady,
     isPlaying,

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
-import { useEditor } from '../../store/editor-store'
+import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import type { EntityDef } from '../../types'
 import { PivotPresetFields } from '../../components/pivot/PivotPresetFields'
 import { resolveClipForEntity } from '../../utils/entity-clip-resolve'
@@ -22,8 +22,8 @@ export type SpriteSectionProps = Readonly<{
 }>
 
 export function SpriteSection({ entity }: SpriteSectionProps) {
-  const { state, dispatch } = useEditor()
-  const project = state.project
+  const dispatch = useEditorDispatch()
+  const project = useEditorSelector((s) => s.project)
   const images = Object.values(project?.assets ?? {})
   const assetSelectId = `${entity.id}-sprite-asset`
   const [overrideOpen, setOverrideOpen] = useState(false)

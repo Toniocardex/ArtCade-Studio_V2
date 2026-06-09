@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useEditor } from '../../store/editor-store'
+import { useEditorDispatch } from '../../store/editor-store'
 import type { DialogScript, DialogCommand } from '../../utils/dialog/dialog-script'
 import { compileDialogScript } from '../../utils/dialog/dialog-script'
 import { dialogGraphToJson } from '../../utils/dialog/import-dialog-csv'
@@ -18,7 +18,7 @@ export function DialogScriptEditor({
   parseWarning,
   compact = false,
 }: DialogScriptEditorProps) {
-  const { dispatch } = useEditor()
+  const dispatch = useEditorDispatch()
   const [focusIndex, setFocusIndex] = useState<number | null>(0)
 
   function upsert(next: DialogScript) {

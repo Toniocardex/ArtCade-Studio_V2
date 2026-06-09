@@ -8,10 +8,10 @@
 // so this only triggers on the explicit combo.
 
 import { useEffect } from 'react'
-import { useEditor } from '../store/editor-store'
+import { useEditorDispatch } from '../store/editor-store'
 
 export function useConsoleShortcut(): void {
-  const { dispatch } = useEditor()
+  const dispatch = useEditorDispatch()
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {

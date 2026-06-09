@@ -1,14 +1,13 @@
 import { useMemo } from 'react'
-import { useEditor } from '../../../store/editor-store'
+import { useEditorSelector } from '../../../store/editor-store'
 import { findLogicBoardForInstance } from '../../../utils/project'
 import { eventTriggerSummaryPlain } from '../../../panels/logic-board/friendly-labels'
 import { LogicBoardPreviewGraph } from './LogicBoardPreviewGraph'
 
 /** Logic preview column: static graph chrome + event list. */
 export function LogicBoardPreviewTab() {
-  const { state } = useEditor()
-  const project = state.project
-  const entityId = state.selection.entityId
+  const project = useEditorSelector((s) => s.project)
+  const entityId = useEditorSelector((s) => s.selection.entityId)
 
   const lines = useMemo(() => {
     if (!project || entityId == null) {

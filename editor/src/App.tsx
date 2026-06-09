@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState, type CSSProperties, type RefObject } from 'react'
-import { EditorProvider, useEditor } from './store/editor-store'
+import { EditorProvider, useEditorDispatch, useEditorSelector, useEditorStore } from './store/editor-store'
 import MenuBar            from './components/MenuBar'
 import ModuleTabs from './components/shell/ModuleTabs'
 import StatusBar          from './components/StatusBar'
@@ -50,8 +50,9 @@ function bootLog(message: string, level: ConsoleEntry['level']): ConsoleEntry {
 }
 
 function LegacyMigrateBanner() {
-  const { state, dispatch } = useEditor()
-  if (!state.legacyMigrateBanner) return null
+  const dispatch = useEditorDispatch()
+  const legacyMigrateBanner = useEditorSelector((s) => s.legacyMigrateBanner)
+  if (!legacyMigrateBanner) return null
   return (
     <div className="shrink-0 px-3 py-1.5 bg-[var(--accent-muted)] border-b border-[var(--outline)]
                     text-[11px] text-[var(--primary)] flex items-center justify-between gap-2">
@@ -70,19 +71,20 @@ function LegacyMigrateBanner() {
 }
 
 function CanvasView() {
-  const { state } = useEditor()
-  const focusMode = state.focusMode
+  const focusMode = useEditorSelector((s) => s.focusMode)
+  const mode = useEditorSelector((s) => s.mode)
+  const editingTilesetId = useEditorSelector((s) => s.editingTilesetId)
   const tier = useLayoutTier()
   const useCompactShell = tier === 'compact' || tier === 'minimal' || tier === 'unsupported'
   const showLeftRail = !focusMode && (tier === 'full' || tier === 'compact')
   const showFullSidebars = !focusMode && tier === 'full'
-  const showToolRail = showLeftRail && state.mode === 'canvas'
+  const showToolRail = showLeftRail && mode === 'canvas'
 
   const { leftW, rightW, setLeftW, setRightW, resetLeftW, resetRightW } = useEditorLayoutContext()
   const [activeTool, setActiveTool] = useState<EditorTool>('select')
   const [showEditorGuides, setShowEditorGuides] = useState(true)
 
-  const isEditingTileset = state.editingTilesetId != null
+  const isEditingTileset = editingTilesetId != null
 
   return (
     <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
@@ -188,7 +190,9 @@ function ScriptEditorView() {
 }
 
 function EditorShell({ workspaceRef }: Readonly<{ workspaceRef: RefObject<HTMLDivElement | null> }>) {
-  const { state } = useEditor()
+  const reduceMotion = useEditorSelector((s) => s.reduceMotion)
+  const focusMode = useEditorSelector((s) => s.focusMode)
+  const mode = useEditorSelector((s) => s.mode)
   const uiScale = useEditorUiScaleContext()
   const tier = useLayoutTier()
 
@@ -196,8 +200,8 @@ function EditorShell({ workspaceRef }: Readonly<{ workspaceRef: RefObject<HTMLDi
     '--editor-scale': String(uiScale.scale),
   } as CSSProperties
 
-  const motionClass = state.reduceMotion ? 'editor-reduce-motion' : ''
-  const focusClass = state.focusMode ? 'editor-focus-mode' : ''
+  const motionClass = reduceMotion ? 'editor-reduce-motion' : ''
+  const focusClass = focusMode ? 'editor-focus-mode' : ''
 
   return (
     <div
@@ -207,14 +211,14 @@ function EditorShell({ workspaceRef }: Readonly<{ workspaceRef: RefObject<HTMLDi
     >
       <EditorLayoutProvider>
         <LayoutTierSideEffects />
-        {!state.focusMode && (
+        {!focusMode && (
           <header className="editor-top-chrome">
             <MenuBar />
             <ModuleTabs />
           </header>
         )}
-        {!state.focusMode && <EditorViewportBanner />}
-        {!state.focusMode && <EditorUiScaleSuggestionBanner />}
+        {!focusMode && <EditorViewportBanner />}
+        {!focusMode && <EditorUiScaleSuggestionBanner />}
         <DialogEditorModal />
         <SpritesheetStudioModal />
 
@@ -223,13 +227,13 @@ function EditorShell({ workspaceRef }: Readonly<{ workspaceRef: RefObject<HTMLDi
           className="editor-workspace flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden"
         >
           <div className="flex flex-1 min-h-0 min-w-0 overflow-hidden">
-            {state.mode === 'canvas' && <CanvasView />}
-            {state.mode === 'logic' && <LogicBoardView />}
-            {state.mode === 'script' && <ScriptEditorView />}
+            {mode === 'canvas' && <CanvasView />}
+            {mode === 'logic' && <LogicBoardView />}
+            {mode === 'script' && <ScriptEditorView />}
           </div>
 
-          {!state.focusMode && <BottomDock />}
-          <StatusBar compact={state.focusMode} />
+          {!focusMode && <BottomDock />}
+          <StatusBar compact={focusMode} />
         </div>
       </EditorLayoutProvider>
     </div>
@@ -237,11 +241,14 @@ function EditorShell({ workspaceRef }: Readonly<{ workspaceRef: RefObject<HTMLDi
 }
 
 function EditorLayout() {
-  const { state, dispatch } = useEditor()
+  const dispatch = useEditorDispatch()
+  const store = useEditorStore()
+  const mode = useEditorSelector((s) => s.mode)
   const workspaceRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (state.project || state.projectPath) return
+    const { project, projectPath } = store.getState()
+    if (project || projectPath) return
     const blank = createBlankProject('Untitled')
     const starter = { innkeeper: starterInnkeeperScript() }
     dispatch({
@@ -264,8 +271,8 @@ function EditorLayout() {
   useExitFocusOnEscape()
 
   useEffect(() => {
-    if (state.mode === 'script') triggerLayoutReflow()
-  }, [state.mode])
+    if (mode === 'script') triggerLayoutReflow()
+  }, [mode])
 
   return (
     <EditorLayoutTierProvider workspaceRef={workspaceRef}>

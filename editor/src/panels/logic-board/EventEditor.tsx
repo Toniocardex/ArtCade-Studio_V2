@@ -55,7 +55,7 @@ import {
   conditionTypesInUse,
   recommendedConditionTypes,
 } from '../../utils/logic-board/condition-picker'
-import { useEditor } from '../../store/editor-store'
+import { useEditorSelector } from '../../store/editor-store'
 import type { AuthoringMode } from '../../types/authoring-mode'
 import LogicIconButton from '../../components/logic-board/LogicIconButton'
 import { cloneLogicAction } from '../../utils/logic-board/clone'
@@ -767,8 +767,7 @@ export default function EventEditor({
   onBlockSelect?: (sel: LogicBlockSelection) => void
   isBlockSelected?: (block: LogicBlockSelection) => boolean
 }) {
-  const { state } = useEditor()
-  const authoringMode = state.authoringMode
+  const authoringMode = useEditorSelector((s) => s.authoringMode)
   const [advancedConditions, setAdvancedConditions] = useState(
     () => event.conditionRoot != null,
   )

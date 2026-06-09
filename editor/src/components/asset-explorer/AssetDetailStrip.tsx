@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
-import { useEditor } from '../../store/editor-store'
+import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import type { ImageAsset } from '../../types'
 import { AnimationClipsSummary } from './AnimationClipsSummary'
 import { ImageAssetPreview } from './ImageAssetPreview'
@@ -13,9 +13,10 @@ export type AssetDetailStripProps = Readonly<{
 }>
 
 export function AssetDetailStrip({ selection }: AssetDetailStripProps) {
-  const { state, dispatch } = useEditor()
+  const dispatch = useEditorDispatch()
+  const project = useEditorSelector((s) => s.project)
+  const projectPath = useEditorSelector((s) => s.projectPath)
   const [open, setOpen] = useState(true)
-  const project = state.project
 
   if (selection.type !== 'image' || !project) return null
   const asset: ImageAsset | undefined = project.assets?.[selection.id]
@@ -49,7 +50,7 @@ export function AssetDetailStrip({ selection }: AssetDetailStripProps) {
         <div className="p-2 space-y-2 max-h-64 overflow-y-auto">
           <ImageAssetPreview
             asset={asset}
-            projectPath={state.projectPath}
+            projectPath={projectPath}
             onOpenStudio={openStudio}
           />
           <ImagePointsEditor

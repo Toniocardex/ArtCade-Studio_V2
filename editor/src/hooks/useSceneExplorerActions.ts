@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from 'react'
-import { useEditor } from '../store/editor-store'
+import { useEditorDispatch, useEditorSelector } from '../store/editor-store'
 import type { ConsoleEntry } from '../types'
 import { confirmDialog } from '../utils/native-dialog'
 import { useTextPrompt } from './useTextPrompt'
@@ -23,9 +23,11 @@ function explorerLog(message: string, level: ConsoleEntry['level']): ConsoleEntr
 }
 
 export function useSceneExplorerActions() {
-  const { state, dispatch } = useEditor()
+  const dispatch = useEditorDispatch()
   const promptText = useTextPrompt()
-  const { project, selection, mode } = state
+  const project = useEditorSelector((s) => s.project)
+  const selection = useEditorSelector((s) => s.selection)
+  const mode = useEditorSelector((s) => s.mode)
   const sceneId = project ? selection.sceneId ?? project.activeSceneId : ''
   const scene = project?.scenes[sceneId]
   const sceneCount = project ? Object.keys(project.scenes).length : 0

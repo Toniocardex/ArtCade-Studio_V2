@@ -1,7 +1,7 @@
 import { Plus, Trash2 } from 'lucide-react'
 import type { ImageAsset } from '../../types'
 import { ExplorerLabelCta } from '../../components/project-explorer/explorer-cta'
-import { useEditor } from '../../store/editor-store'
+import { useEditorSelector } from '../../store/editor-store'
 import { findDuplicateClipNameAcrossAssets } from '../../utils/spritesheet-clip-names'
 import { ClipPreviewPane } from './ClipPreviewPane'
 import type { SpritesheetStudioSession } from './useSpritesheetStudioSession'
@@ -13,8 +13,7 @@ type ClipListPanelProps = Readonly<{
 }>
 
 export function ClipListPanel({ asset, assetId, session }: ClipListPanelProps) {
-  const { state } = useEditor()
-  const project = state.project
+  const project = useEditorSelector((s) => s.project)
   const {
     clips,
     activeClipIndex,

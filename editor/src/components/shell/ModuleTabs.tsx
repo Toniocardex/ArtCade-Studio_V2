@@ -1,5 +1,5 @@
 import { LayoutGrid, Workflow, Code2 } from 'lucide-react'
-import { useEditor } from '../../store/editor-store'
+import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import { useLayoutTier } from '../../contexts/editor-layout-tier-context'
 import type { EditorView } from '../../types'
 import { EditorTab } from '../ui/EditorTab'
@@ -16,14 +16,15 @@ const MODES: ReadonlyArray<{
 
 /** Horizontal module tabs — Canvas | Logic Board | Script Editor (3 core loop). */
 export default function ModuleTabs() {
-  const { state, dispatch } = useEditor()
+  const dispatch = useEditorDispatch()
+  const mode = useEditorSelector((s) => s.mode)
   const tier = useLayoutTier()
   const iconOnly = tier !== 'full'
 
   return (
     <nav className="editor-module-tabs" aria-label="Editor modules">
       {MODES.map(({ id, label, icon: Icon }) => {
-        const active = state.mode === id
+        const active = mode === id
         return (
           <EditorTab
             key={id}

@@ -1,12 +1,13 @@
-import { useEditor } from '../../store/editor-store'
+import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import { DEFAULT_WORLD } from '../../types'
 import { InspectorSection } from './inspector-fields'
 
 const physicsModeSelectId = 'world-physics-mode'
 
 export function WorldSettingsSection() {
-  const { state, dispatch } = useEditor()
-  const w = { ...DEFAULT_WORLD, ...state.project?.world }
+  const dispatch = useEditorDispatch()
+  const project = useEditorSelector((s) => s.project)
+  const w = { ...DEFAULT_WORLD, ...project?.world }
 
   const num = (label: string, key: 'gravity' | 'pixelsPerMeter', step: number) => (
     <div className="flex items-center justify-between gap-2 mb-2">

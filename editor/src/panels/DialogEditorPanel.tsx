@@ -1,7 +1,7 @@
 /**
  * Dialog library — sidebar list + RPG Maker-style command editor (modal shell).
  */
-import { useEditor } from '../store/editor-store'
+import { useEditorSelector } from '../store/editor-store'
 import { DialogLibrarySidebar } from './dialog/DialogLibrarySidebar'
 import { DialogScriptEditor } from './dialog/DialogScriptEditor'
 import { DialogMessagePreview } from './dialog/DialogMessagePreview'
@@ -18,9 +18,10 @@ function DialogEditorHint() {
 }
 
 export default function DialogEditorPanel() {
-  const { state } = useEditor()
-  const id = state.selectedDialogId
-  const script = id ? state.dialogs[id] : null
+  const selectedDialogId = useEditorSelector((s) => s.selectedDialogId)
+  const dialogs = useEditorSelector((s) => s.dialogs)
+  const id = selectedDialogId
+  const script = id ? dialogs[id] : null
 
   const center = (
     <div className="flex flex-col flex-1 min-w-0 min-h-0 h-full">

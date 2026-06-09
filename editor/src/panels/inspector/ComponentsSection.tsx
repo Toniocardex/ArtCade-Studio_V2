@@ -1,5 +1,5 @@
 import { Trash2 } from 'lucide-react'
-import { useEditor } from '../../store/editor-store'
+import { useEditorDispatch } from '../../store/editor-store'
 import type { ComponentKey, EntityDef } from '../../types'
 import { applyInputBackspace, isBackspaceKey } from '../../utils/keyboard'
 import {
@@ -25,7 +25,7 @@ type ComponentSectionProps = Readonly<{
 }>
 
 function ComponentSection({ entity, desc }: ComponentSectionProps) {
-  const { dispatch } = useEditor()
+  const dispatch = useEditorDispatch()
   const data = (entity as unknown as Record<string, unknown>)[desc.key] as
     | Record<string, unknown>
     | undefined
@@ -145,7 +145,7 @@ type AddComponentBarProps = Readonly<{
 }>
 
 function AddComponentBar({ entity }: AddComponentBarProps) {
-  const { dispatch } = useEditor()
+  const dispatch = useEditorDispatch()
   const missing = COMPONENT_REGISTRY.filter(
     (d) => !(entity as unknown as Record<string, unknown>)[d.key],
   )

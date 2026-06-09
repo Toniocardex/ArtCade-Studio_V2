@@ -4,7 +4,7 @@
 
 import { AlertTriangle } from 'lucide-react'
 import { useMemo } from 'react'
-import { useEditor } from '../../store/editor-store'
+import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import { getProjectWorkbenchSnapshot } from '../../utils/project-health'
 
 interface ProjectHealthBannerProps {
@@ -12,15 +12,17 @@ interface ProjectHealthBannerProps {
 }
 
 export function ProjectHealthBanner({ projectKey }: ProjectHealthBannerProps) {
-  const { state, dispatch } = useEditor()
+  const dispatch = useEditorDispatch()
+  const project = useEditorSelector((s) => s.project)
+  const openScripts = useEditorSelector((s) => s.openScripts)
   const health = useMemo(
     () => getProjectWorkbenchSnapshot({
-      project: state.project,
+      project,
       projectPath: projectKey,
-      openScripts: state.openScripts,
+      openScripts,
       includeCompile: true,
     }).health,
-    [state.project, state.openScripts, projectKey],
+    [project, openScripts, projectKey],
   )
 
   if (health.errors.length === 0 && health.warnings.length === 0) return null

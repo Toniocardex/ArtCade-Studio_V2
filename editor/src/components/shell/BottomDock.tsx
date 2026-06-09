@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Minus } from 'lucide-react'
-import { useEditor, useConsoleLogs } from '../../store/editor-store'
+import { useEditorDispatch, useEditorSelector, useConsoleLogs } from '../../store/editor-store'
 import { useEditorLayoutContext } from '../../contexts/editor-layout-context'
 import { useBuildLogListener } from '../../hooks/useBuildLogListener'
 import { triggerLayoutReflow } from '../../utils/layout-reflow'
@@ -26,9 +26,11 @@ function clampDockHeight(n: number): number {
 }
 
 export default function BottomDock() {
-  const { state, dispatch } = useEditor()
+  const dispatch = useEditorDispatch()
+  const bottomPanelCollapsed = useEditorSelector((s) => s.bottomPanelCollapsed)
+  const consoleAckUpToId = useEditorSelector((s) => s.consoleAckUpToId)
+  const dockPanelVisibility = useEditorSelector((s) => s.dockPanelVisibility)
   const { state: volatile } = useConsoleLogs()
-  const { bottomPanelCollapsed, consoleAckUpToId, dockPanelVisibility } = state
 
   useBuildLogListener()
 

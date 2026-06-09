@@ -1,4 +1,13 @@
-import { createContext, useContext, useReducer, useCallback, useMemo, useRef } from 'react'
+import {
+  createContext,
+  useContext,
+  useReducer,
+  useCallback,
+  useMemo,
+  useRef,
+  useLayoutEffect,
+  useSyncExternalStore,
+} from 'react'
 import type { ReactNode, Dispatch } from 'react'
 
 // ---------------------------------------------------------------------------
@@ -12,9 +21,11 @@ import type { ReactNode, Dispatch } from 'react'
 // compositing glitch visible as a one-frame flash when entities are
 // destroyed.
 //
+// Granular subscriptions: CoreStateStore + useEditorSelector (useSyncExternalStore)
+// and DispatchContext (stable dispatch reference).
+//
 // State shape, actions, and initial values live in editor-store-state.ts;
-// per-domain reducers under store/reducers/.  This
-// file is just the React glue.
+// per-domain reducers under store/reducers/.  This file is the React glue.
 // ---------------------------------------------------------------------------
 
 import {
@@ -24,6 +35,7 @@ import {
   type VolatileState,
   type Action,
 } from './editor-store-state'
+import { createCoreStateStore, shallowEqual, type CoreStateStore } from './core-state-store'
 import { uiReducer }         from './reducers/ui-reducer'
 import { projectReducer }    from './reducers/project-reducer'
 import { entityReducer }     from './reducers/entity-reducer'
@@ -47,13 +59,10 @@ import {
 } from './project-history'
 
 export type { CoreState, VolatileState, Action }
+export { shallowEqual }
 
 // ---------------------------------------------------------------------------
 // Core reducer — pipe each per-domain reducer.
-//
-// Every domain reducer returns the input state by reference for actions it
-// does not own, so a single dispatch costs N function calls but at most one
-// state allocation.
 // ---------------------------------------------------------------------------
 
 export function coreReducer(state: CoreState, action: Action): CoreState {
@@ -90,10 +99,6 @@ export function coreReducer(state: CoreState, action: Action): CoreState {
   return next
 }
 
-// ---------------------------------------------------------------------------
-// Volatile reducer — handles logs and cursor; ignores everything else
-// ---------------------------------------------------------------------------
-
 function volatileReducer(state: VolatileState, action: Action): VolatileState {
   switch (action.type) {
     case 'LOG':
@@ -120,8 +125,10 @@ interface VolatileContextValue {
   dispatch: Dispatch<Action>
 }
 
-const CoreContext     = createContext<CoreContextValue | null>(null)
-const VolatileContext = createContext<VolatileContextValue | null>(null)
+const CoreStateStoreContext = createContext<CoreStateStore | null>(null)
+const DispatchContext       = createContext<Dispatch<Action> | null>(null)
+const CoreContext           = createContext<CoreContextValue | null>(null)
+const VolatileContext       = createContext<VolatileContextValue | null>(null)
 
 // ---------------------------------------------------------------------------
 // Provider
@@ -137,11 +144,12 @@ export function EditorProvider({ children }: { children: ReactNode }) {
   applyAuthoringModeToDocument(initialCoreState.authoringMode)
   const [coreState,     coreDi]  = useReducer(coreReducer,     initialCoreState)
   const [volatileState, volDi]   = useReducer(volatileReducer, initialVolatileState)
+  const coreStore = useRef(createCoreStateStore(initialCoreState))
 
-  // Single stable dispatch that fans out to both reducers.
-  // Wrapped in useCallback so its reference never changes -> contexts that
-  // receive it as a dep (useMemo below) won't needlessly re-create their
-  // value.
+  useLayoutEffect(() => {
+    coreStore.current.setState(coreState)
+  }, [coreState])
+
   const dispatch = useCallback((action: Action) => {
     if (action.type === 'LOAD_PROJECT') {
       runLoadProjectSideEffects(action.path)
@@ -150,20 +158,21 @@ export function EditorProvider({ children }: { children: ReactNode }) {
     volDi(action)
   }, [coreDi, volDi])
 
-  // Memoize context values so reference only changes when the respective
-  // state slice changes. PreviewPanel consumes CoreContext only -> it will
-  // NOT re-render when consoleLogs or cursorPos change.
   const coreValue     = useMemo(() => ({ state: coreState,     dispatch }), [coreState,     dispatch])
   const volatileValue = useMemo(() => ({ state: volatileState, dispatch }), [volatileState, dispatch])
 
   return (
-    <CoreContext.Provider value={coreValue}>
-      <VolatileContext.Provider value={volatileValue}>
-        <TextPromptProvider>
-          {children}
-        </TextPromptProvider>
-      </VolatileContext.Provider>
-    </CoreContext.Provider>
+    <CoreStateStoreContext.Provider value={coreStore.current}>
+      <DispatchContext.Provider value={dispatch}>
+        <CoreContext.Provider value={coreValue}>
+          <VolatileContext.Provider value={volatileValue}>
+            <TextPromptProvider>
+              {children}
+            </TextPromptProvider>
+          </VolatileContext.Provider>
+        </CoreContext.Provider>
+      </DispatchContext.Provider>
+    </CoreStateStoreContext.Provider>
   )
 }
 
@@ -171,11 +180,49 @@ export function EditorProvider({ children }: { children: ReactNode }) {
 // Hooks
 // ---------------------------------------------------------------------------
 
+export function useEditorDispatch(): Dispatch<Action> {
+  const dispatch = useContext(DispatchContext)
+  if (!dispatch) throw new Error('useEditorDispatch must be inside EditorProvider')
+  return dispatch
+}
+
+/** Stable store reference — use getState() in callbacks without subscribing to updates. */
+export function useEditorStore(): CoreStateStore {
+  const store = useContext(CoreStateStoreContext)
+  if (!store) throw new Error('useEditorStore must be inside EditorProvider')
+  return store
+}
+
+export function useEditorSelector<T>(
+  selector: (state: CoreState) => T,
+  isEqual: (a: T, b: T) => boolean = Object.is,
+): T {
+  const store = useContext(CoreStateStoreContext)
+  if (!store) throw new Error('useEditorSelector must be inside EditorProvider')
+
+  const selectorRef = useRef(selector)
+  const isEqualRef = useRef(isEqual)
+  selectorRef.current = selector
+  isEqualRef.current = isEqual
+
+  const snapshotRef = useRef<{ value: T; hasValue: boolean }>({ value: undefined as T, hasValue: false })
+
+  const getSnapshot = useCallback(() => {
+    const next = selectorRef.current(store.getState())
+    if (snapshotRef.current.hasValue && isEqualRef.current(snapshotRef.current.value, next)) {
+      return snapshotRef.current.value
+    }
+    snapshotRef.current = { value: next, hasValue: true }
+    return next
+  }, [store])
+
+  return useSyncExternalStore(store.subscribe, getSnapshot, getSnapshot)
+}
+
 /**
- * useEditor() — subscribes to CoreContext (project, selection, mode, scripts).
- * Does NOT re-render when consoleLogs or cursorPos change.
- * Use for: PreviewPanel, ProjectExplorerPanel, InspectorPanel, ScriptEditor,
- * MenuBar, etc.
+ * @deprecated Prefer useEditorSelector for reads and useEditorDispatch for actions.
+ *
+ * Subscribes to the full CoreContext — re-renders on every core state change.
  */
 export function useEditor(): CoreContextValue {
   const ctx = useContext(CoreContext)
@@ -186,7 +233,6 @@ export function useEditor(): CoreContextValue {
 /**
  * useConsoleLogs() — subscribes to VolatileContext (consoleLogs, cursorPos).
  * Re-renders on every log line and mouse move — use only where needed.
- * Use for: ConsolePanel, StatusBar.
  */
 export function useConsoleLogs(): VolatileContextValue {
   const ctx = useContext(VolatileContext)

@@ -1,5 +1,5 @@
 import { Workflow } from 'lucide-react'
-import { useEditor } from '../../store/editor-store'
+import { useEditorDispatch } from '../../store/editor-store'
 import type { EntityDef } from '../../types'
 import { InspectorSection } from './inspector-fields'
 import { openLogicBoardForEntity } from './logic-board-navigation'
@@ -9,7 +9,7 @@ export type LogicBoardCtaProps = Readonly<{
 }>
 
 export function LogicBoardCta({ entity }: LogicBoardCtaProps) {
-  const { dispatch } = useEditor()
+  const dispatch = useEditorDispatch()
 
   return (
     <InspectorSection label="Scripts & rules" defaultOpen>

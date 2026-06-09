@@ -7,7 +7,7 @@ import { ConditionTreeEditor } from '../../components/logic-board/ConditionTreeE
 import { SectionCollapse } from '../../components/ui/SectionCollapse'
 import { eventTriggerSummaryPlain } from './friendly-labels'
 import type { ProjectDoc } from '../../types'
-import { useEditor } from '../../store/editor-store'
+import { useEditorSelector } from '../../store/editor-store'
 import { resolveClipContextForLogicBoard } from '../../utils/entity-clip-resolve'
 import {
   conditionTypesForTrigger,
@@ -33,8 +33,7 @@ export function LogicInspectorPanel({
   selection,
   onPatchEvent,
 }: LogicInspectorPanelProps) {
-  const { state } = useEditor()
-  const authoringMode = state.authoringMode
+  const authoringMode = useEditorSelector((s) => s.authoringMode)
 
   const clipContext = useMemo(
     () => resolveClipContextForLogicBoard(project, board),

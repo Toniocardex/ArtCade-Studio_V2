@@ -1,4 +1,4 @@
-import { useEditor } from '../../store/editor-store'
+import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import { SCENE_LAYER_NAMES } from '../../constants/scene-layers'
 import type { EntityDef } from '../../types'
 
@@ -7,8 +7,10 @@ export type EntityLayerFieldProps = Readonly<{
 }>
 
 export function EntityLayerField({ entity }: EntityLayerFieldProps) {
-  const { state, dispatch } = useEditor()
-  const value = state.entityDisplayLayers[entity.id] ?? state.editorActiveLayer
+  const dispatch = useEditorDispatch()
+  const entityDisplayLayers = useEditorSelector((s) => s.entityDisplayLayers)
+  const editorActiveLayer = useEditorSelector((s) => s.editorActiveLayer)
+  const value = entityDisplayLayers[entity.id] ?? editorActiveLayer
 
   return (
     <label className="block mb-2">

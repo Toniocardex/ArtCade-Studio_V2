@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------------------
 
 import { useCallback, useState } from 'react'
-import { useEditor } from '../store/editor-store'
+import { shallowEqual, useEditorSelector } from '../store/editor-store'
 import { SceneSettingsSection } from './inspector/SceneSettingsSection'
 import { WorldSettingsSection } from './inspector/WorldSettingsSection'
 import { EntityHeaderBar } from './inspector/EntityHeaderBar'
@@ -56,8 +56,10 @@ function EntityInspector({ entity }: EntityInspectorProps) {
 }
 
 export default function InspectorPanel() {
-  const { state } = useEditor()
-  const { project, selection } = state
+  const project = useEditorSelector((s) => s.project)
+  const selection = useEditorSelector((s) => s.selection)
+  const inspectorAsset = useEditorSelector((s) => s.inspectorAsset)
+  const inspectorLayerName = useEditorSelector((s) => s.inspectorLayerName)
 
   const entity = (project && selection.entityId != null)
     ? project.entities[selection.entityId]
@@ -65,8 +67,11 @@ export default function InspectorPanel() {
   const sceneId = selection.sceneId ?? project?.activeSceneId
   const scene = project && sceneId ? project.scenes[sceneId] : null
 
-  const mode = deriveInspectorMode(state)
-  const chrome = inspectorChromeForMode(mode, state)
+  const chrome = useEditorSelector(
+    (s) => inspectorChromeForMode(deriveInspectorMode(s), s),
+    shallowEqual,
+  )
+  const mode = chrome.mode
   return (
     <div className="h-full flex flex-col bg-[var(--bg-window)]" data-panel="inspector">
       <div className="editor-panel-header flex-col !items-start !gap-0.5 !py-2">
@@ -102,13 +107,13 @@ export default function InspectorPanel() {
           </>
         )}
 
-        {mode === 'asset' && state.inspectorAsset && (
-          <AssetInspectorSection selection={state.inspectorAsset} />
+        {mode === 'asset' && inspectorAsset && (
+          <AssetInspectorSection selection={inspectorAsset} />
         )}
 
-        {mode === 'layer' && state.inspectorLayerName && (
+        {mode === 'layer' && inspectorLayerName && (
           <LayerSettingsSection
-            layerName={state.inspectorLayerName}
+            layerName={inspectorLayerName}
             sceneName={scene?.name}
           />
         )}

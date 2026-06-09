@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useEditor } from '../../store/editor-store'
+import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import { importDialogCsv } from '../../utils/dialog/import-dialog-csv'
 import { parseDialogGraph } from '../../utils/dialog/dialog-script'
 import { confirmDialog } from '../../utils/native-dialog'
@@ -10,15 +10,17 @@ export type DialogLibrarySidebarProps = Readonly<{
 }>
 
 export function DialogLibrarySidebar({ wide = false }: DialogLibrarySidebarProps) {
-  const { state, dispatch } = useEditor()
+  const dispatch = useEditorDispatch()
+  const dialogs = useEditorSelector((s) => s.dialogs)
+  const selectedDialogId = useEditorSelector((s) => s.selectedDialogId)
   const promptText = useTextPrompt()
   const [filter, setFilter] = useState('')
 
   const ids = useMemo(() => {
-    const all = Object.keys(state.dialogs).sort((a, b) => a.localeCompare(b))
+    const all = Object.keys(dialogs).sort((a, b) => a.localeCompare(b))
     const q = filter.trim().toLowerCase()
     return q ? all.filter((id) => id.toLowerCase().includes(q)) : all
-  }, [state.dialogs, filter])
+  }, [dialogs, filter])
 
   return (
     <aside
@@ -92,7 +94,7 @@ export function DialogLibrarySidebar({ wide = false }: DialogLibrarySidebarProps
                 type="button"
                 onClick={() => dispatch({ type: 'DIALOG_SELECT', dialogId: id })}
                 className={`w-full text-left text-xs px-2 py-1.5 rounded truncate ${
-                  state.selectedDialogId === id
+                  selectedDialogId === id
                     ? 'bg-[var(--accent-bg)] text-[var(--accent-fg-on-bg)]'
                     : 'hover:bg-[rgb(var(--border-rgb)/0.35)]'
                 }`}
@@ -104,13 +106,13 @@ export function DialogLibrarySidebar({ wide = false }: DialogLibrarySidebarProps
         )}
       </ul>
 
-      {state.selectedDialogId && (
+      {selectedDialogId && (
         <div className="p-2 border-t border-[var(--border)] flex flex-col gap-1">
           <button
             type="button"
             className="text-[10px] text-[var(--muted)] hover:text-[var(--text)]"
             onClick={() => {
-              const fromId = state.selectedDialogId
+              const fromId = selectedDialogId
               if (!fromId) return
               void promptText({
                 title: 'Rename dialog',
@@ -132,7 +134,7 @@ export function DialogLibrarySidebar({ wide = false }: DialogLibrarySidebarProps
             type="button"
             className="text-[10px] text-[var(--danger)]"
             onClick={() => {
-              const id = state.selectedDialogId
+              const id = selectedDialogId
               if (!id) return
               void confirmDialog(`Delete dialog "${id}"?`, {
                 title: 'Delete dialog',

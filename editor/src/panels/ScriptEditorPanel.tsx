@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useEditor } from '../store/editor-store'
+import { useEditorDispatch, useEditorSelector } from '../store/editor-store'
 import { EngineScriptEditor } from '../components/EngineScriptEditor'
 import { LogicBoardScriptConflictBanner } from '../components/LogicBoardScriptConflictBanner'
 import { compileProjectLogic } from '../utils/logic-board/logic-compile-service'
@@ -57,8 +57,11 @@ function ScriptTabBar({ paths, activePath, dirtyPaths, onSelect }: ScriptTabBarP
 }
 
 export default function ScriptEditorPanel() {
-  const { state, dispatch } = useEditor()
-  const { openScripts, activeScriptPath, project, projectPath } = state
+  const dispatch = useEditorDispatch()
+  const openScripts = useEditorSelector((s) => s.openScripts)
+  const activeScriptPath = useEditorSelector((s) => s.activeScriptPath)
+  const project = useEditorSelector((s) => s.project)
+  const projectPath = useEditorSelector((s) => s.projectPath)
   const themeMode = useThemeMode()
   const [dismissedConflict, setDismissedConflict] = useState(false)
 

@@ -11,7 +11,7 @@
 
 import { useMemo, useRef, useState } from 'react'
 import { ImagePlus, Eraser, Trash2, ArrowLeft } from 'lucide-react'
-import { useEditor } from '../store/editor-store'
+import { useEditorDispatch, useEditorSelector } from '../store/editor-store'
 import { editorRegisterImage } from '../utils/wasm-bridge'
 import { importImageIntoProject } from '../utils/api'
 import { dirName } from '../utils/project'
@@ -36,14 +36,18 @@ function fileExtension(name: string): string {
 }
 
 export default function TilesetEditorPanel() {
-  const { state, dispatch } = useEditor()
-  const { project, selection, selectedTileCell } = state
+  const dispatch = useEditorDispatch()
+  const project = useEditorSelector((s) => s.project)
+  const selection = useEditorSelector((s) => s.selection)
+  const selectedTileCell = useEditorSelector((s) => s.selectedTileCell)
+  const editingTilesetId = useEditorSelector((s) => s.editingTilesetId)
+  const projectPath = useEditorSelector((s) => s.projectPath)
 
   const sceneId = selection.sceneId ?? project?.activeSceneId ?? ''
   const scene   = project?.scenes[sceneId]
   // editingTilesetId (set by AssetBrowser click) wins; fall back to the
   // active scene's tilemap binding for legacy/Tilemap-from-scene flows.
-  const tilesetId = state.editingTilesetId ?? scene?.tilemap?.tilesetAssetId
+  const tilesetId = editingTilesetId ?? scene?.tilemap?.tilesetAssetId
   const tileset: TilesetAsset | undefined =
     tilesetId ? project?.tilesets?.[tilesetId] : undefined
 
@@ -79,9 +83,9 @@ export default function TilesetEditorPanel() {
         const buf   = await file.arrayBuffer()
         const bytes = new Uint8Array(buf)
         let relPath: string | null = null
-        if (state.projectPath) {
+        if (projectPath) {
           relPath = await importImageIntoProject(
-            dirName(state.projectPath), file.name, bytes,
+            dirName(projectPath), file.name, bytes,
           )
         }
         const path = relPath ?? `assets/images/${file.name}`
@@ -127,7 +131,7 @@ export default function TilesetEditorPanel() {
     })
   }
 
-  const isStandalone = state.editingTilesetId != null  // opened from AssetBrowser
+  const isStandalone = editingTilesetId != null  // opened from AssetBrowser
   const backToCanvas = () => dispatch({ type: 'TILESET_EDIT_CLOSE' })
 
   if (!project || (!scene && !isStandalone)) {

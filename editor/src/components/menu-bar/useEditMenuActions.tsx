@@ -1,24 +1,23 @@
 import { useMemo } from 'react'
 import type { Dispatch } from 'react'
 import { Undo2, Redo2 } from 'lucide-react'
-import type { Action as EditorAction, CoreState } from '../../store/editor-store'
-import { canRedoProject, canUndoProject } from '../../store/project-history'
+import type { Action as EditorAction } from '../../store/editor-store'
 import type { FileMenuItem } from './FileMenu'
 
 interface UseEditMenuActionsParams {
-  state: CoreState
+  undoEnabled: boolean
+  redoEnabled: boolean
   dispatch: Dispatch<EditorAction>
   closeMenu: () => void
 }
 
 export function useEditMenuActions({
-  state,
+  undoEnabled,
+  redoEnabled,
   dispatch,
   closeMenu,
 }: UseEditMenuActionsParams) {
   const editItems: FileMenuItem[] = useMemo(() => {
-    const undoEnabled = canUndoProject(state)
-    const redoEnabled = canRedoProject(state)
     return [
       {
         label: 'Undo',
@@ -39,7 +38,7 @@ export function useEditMenuActions({
         },
       },
     ]
-  }, [state, dispatch, closeMenu])
+  }, [undoEnabled, redoEnabled, dispatch, closeMenu])
 
-  return { editItems, undoEnabled: canUndoProject(state), redoEnabled: canRedoProject(state) }
+  return { editItems }
 }

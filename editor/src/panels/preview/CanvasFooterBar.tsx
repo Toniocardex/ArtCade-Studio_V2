@@ -1,9 +1,10 @@
-import { useEditor } from '../../store/editor-store'
+import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 
 /** Local canvas footer (mockup: grid + snap); mirrors status bar for the viewport. */
 export function CanvasFooterBar() {
-  const { state, dispatch } = useEditor()
-  const { editorGridSize, snapToGrid } = state
+  const dispatch = useEditorDispatch()
+  const editorGridSize = useEditorSelector((s) => s.editorGridSize)
+  const snapToGrid = useEditorSelector((s) => s.snapToGrid)
 
   return (
     <div

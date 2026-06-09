@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, type ReactNode } from 'react'
-import { useEditor } from '../store/editor-store'
+import { useEditorDispatch } from '../store/editor-store'
 import { usePersistedLayout, type PersistedLayoutApi } from '../hooks/usePersistedLayout'
 
 const EditorLayoutContext = createContext<PersistedLayoutApi | null>(null)
@@ -7,7 +7,7 @@ const EditorLayoutContext = createContext<PersistedLayoutApi | null>(null)
 /** Must render inside EditorLayoutTierProvider (workspace metrics for layout bucket). */
 export function EditorLayoutProvider({ children }: Readonly<{ children: ReactNode }>) {
   const layout = usePersistedLayout()
-  const { dispatch } = useEditor()
+  const dispatch = useEditorDispatch()
 
   useEffect(() => {
     dispatch({

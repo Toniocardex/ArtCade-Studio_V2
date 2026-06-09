@@ -1,10 +1,10 @@
 import { useEffect, useRef } from 'react'
-import { useEditor } from '../../store/editor-store'
+import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import DialogEditorPanel from '../DialogEditorPanel'
 
 export function DialogEditorModal() {
-  const { state, dispatch } = useEditor()
-  const { open } = state.dialogModal
+  const dispatch = useEditorDispatch()
+  const open = useEditorSelector((s) => s.dialogModal.open)
   const dialogRef = useRef<HTMLDialogElement>(null)
   const visible = open
 

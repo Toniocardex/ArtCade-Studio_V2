@@ -1,4 +1,4 @@
-import { useEditor } from '../../store/editor-store'
+import { useEditorDispatch, useEditorStore } from '../../store/editor-store'
 import type { EntityDef } from '../../types'
 import { Field, InspectorSection } from './inspector-fields'
 import { openProjectScript } from '../../utils/open-project-script'
@@ -8,14 +8,16 @@ export type ScriptSectionProps = Readonly<{
 }>
 
 export function ScriptSection({ entity }: ScriptSectionProps) {
-  const { state, dispatch } = useEditor()
+  const dispatch = useEditorDispatch()
+  const store = useEditorStore()
   if (!entity.scriptPath) return null
   const scriptPath = entity.scriptPath
 
   function openInEditor() {
+    const { projectPath, openScripts } = store.getState()
     void openProjectScript(dispatch, {
-      projectPath: state.projectPath,
-      openScripts: state.openScripts,
+      projectPath,
+      openScripts,
     }, scriptPath)
   }
 

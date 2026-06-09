@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Check } from 'lucide-react'
-import { useEditor, useConsoleLogs } from '../store/editor-store'
+import { useEditorDispatch, useEditorSelector, useConsoleLogs } from '../store/editor-store'
 import { DEFAULT_WORLD } from '../types'
 import { isReady as isWasmReady } from '../utils/wasm-bridge'
 import { getProjectWorkbenchSnapshot } from '../utils/project-health'
@@ -22,14 +22,23 @@ type StatusBarProps = Readonly<{
 }>
 
 export default function StatusBar({ compact = false }: StatusBarProps) {
-  const { state, dispatch } = useEditor()
+  const dispatch = useEditorDispatch()
   const { scaleLabel } = useEditorUiScaleContext()
   const { state: volatile } = useConsoleLogs()
-  const {
-    project, selection, isPlaying, projectDirty, editorGridSize, snapToGrid,
-    editorZoom, editorZoomMode, cameraPreview, bottomPanelCollapsed,
-    consoleAckUpToId, dockPanelVisibility, consoleOpen,
-  } = state
+  const project = useEditorSelector((s) => s.project)
+  const selection = useEditorSelector((s) => s.selection)
+  const isPlaying = useEditorSelector((s) => s.isPlaying)
+  const projectDirty = useEditorSelector((s) => s.projectDirty)
+  const editorGridSize = useEditorSelector((s) => s.editorGridSize)
+  const snapToGrid = useEditorSelector((s) => s.snapToGrid)
+  const editorZoom = useEditorSelector((s) => s.editorZoom)
+  const editorZoomMode = useEditorSelector((s) => s.editorZoomMode)
+  const cameraPreview = useEditorSelector((s) => s.cameraPreview)
+  const bottomPanelCollapsed = useEditorSelector((s) => s.bottomPanelCollapsed)
+  const consoleAckUpToId = useEditorSelector((s) => s.consoleAckUpToId)
+  const dockPanelVisibility = useEditorSelector((s) => s.dockPanelVisibility)
+  const consoleOpen = useEditorSelector((s) => s.consoleOpen)
+  const openScripts = useEditorSelector((s) => s.openScripts)
   const { cursorPos, consoleLogs } = volatile
 
   const selectedName = (selection.entityId != null && project)
@@ -47,10 +56,10 @@ export default function StatusBar({ compact = false }: StatusBarProps) {
   const validationIssues = useMemo(
     () => getProjectWorkbenchSnapshot({
       project,
-      openScripts: state.openScripts,
+      openScripts,
       includeCompile: false,
     }).health,
-    [project, state.openScripts],
+    [project, openScripts],
   )
 
   const showRuntimeStats = { ...DEFAULT_WORLD, ...project?.world }.showRuntimeStats === true

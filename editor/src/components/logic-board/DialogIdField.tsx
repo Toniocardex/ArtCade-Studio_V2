@@ -1,4 +1,4 @@
-import { useEditor } from '../../store/editor-store'
+import { useEditorDispatch, useEditorStore } from '../../store/editor-store'
 import { openDialogEditorForId } from '../../panels/dialog/dialog-modal-api'
 import type { ComponentKind } from '../../utils/logic-board/schema-registry'
 import type { ParamFieldMeta } from '../../utils/logic-board/schema-registry'
@@ -29,7 +29,8 @@ export function DialogIdField({
   onPatch,
   label,
 }: DialogIdFieldProps) {
-  const { state, dispatch } = useEditor()
+  const dispatch = useEditorDispatch()
+  const store = useEditorStore()
   const dialogId = asParamString(value)
 
   return (
@@ -44,7 +45,7 @@ export function DialogIdField({
       <button
         type="button"
         className="text-[10px] px-2 py-1 rounded-[var(--radius)] border border-[var(--outline)] hover:bg-[var(--outline-faint)] text-[var(--accent)]"
-        onClick={() => openDialogEditorForId(dispatch, state.dialogs, dialogId)}
+        onClick={() => openDialogEditorForId(dispatch, store.getState().dialogs, dialogId)}
       >
         Edit dialog…
       </button>

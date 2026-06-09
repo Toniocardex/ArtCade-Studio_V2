@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------------------
 
 import { useMemo } from 'react'
-import { useEditor } from '../../store/editor-store'
+import { useEditorSelector } from '../../store/editor-store'
 import { allClassNames, classDisplayLabel } from '../../utils/project'
 
 const sel =
@@ -47,10 +47,10 @@ export function ClassNamePicker({
   allowEmpty = true,
   emptyLabel = '— Choose object —',
 }: ClassNamePickerProps) {
-  const { state } = useEditor()
+  const project = useEditorSelector((s) => s.project)
   const classNames = useMemo(
-    () => classNamesProp ?? (state.project ? allClassNames(state.project) : []),
-    [classNamesProp, state.project],
+    () => classNamesProp ?? (project ? allClassNames(project) : []),
+    [classNamesProp, project],
   )
 
   const selectValue = classPickerSelectValue(value, classNames)

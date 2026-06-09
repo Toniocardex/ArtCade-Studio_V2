@@ -1,4 +1,4 @@
-import { useEditor } from '../../store/editor-store'
+import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import { SCENE_LAYER_ROWS } from '../../constants/scene-layers'
 import { editorRowSelected } from '../ui/editor-ui-classes'
 
@@ -10,10 +10,12 @@ function layerRowClass(selected: boolean): string {
 
 /** UI-only layer reference (spec §4) until ProjectDoc gains a layer model. */
 export function SceneLayersPanel() {
-  const { state, dispatch } = useEditor()
-  const sceneId = state.selection.sceneId ?? state.project?.activeSceneId
-  const scene = sceneId && state.project ? state.project.scenes[sceneId] : undefined
-  const selectedLayer = state.inspectorLayerName
+  const dispatch = useEditorDispatch()
+  const project = useEditorSelector((s) => s.project)
+  const selectionSceneId = useEditorSelector((s) => s.selection.sceneId)
+  const selectedLayer = useEditorSelector((s) => s.inspectorLayerName)
+  const sceneId = selectionSceneId ?? project?.activeSceneId
+  const scene = sceneId && project ? project.scenes[sceneId] : undefined
 
   return (
     <div className="h-full overflow-auto p-2 text-[10px]">

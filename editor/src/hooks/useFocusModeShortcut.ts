@@ -3,11 +3,11 @@
 // ---------------------------------------------------------------------------
 
 import { useEffect } from 'react'
-import { useEditor } from '../store/editor-store'
+import { useEditorDispatch, useEditorSelector } from '../store/editor-store'
 import { shouldIgnoreEditorShortcut } from '../utils/keyboard'
 
 export function useFocusModeShortcut(): void {
-  const { dispatch } = useEditor()
+  const dispatch = useEditorDispatch()
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -23,10 +23,11 @@ export function useFocusModeShortcut(): void {
 }
 
 export function useExitFocusOnEscape(): void {
-  const { state, dispatch } = useEditor()
+  const dispatch = useEditorDispatch()
+  const focusMode = useEditorSelector((s) => s.focusMode)
 
   useEffect(() => {
-    if (!state.focusMode) return
+    if (!focusMode) return
 
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key !== 'Escape') return
@@ -37,5 +38,5 @@ export function useExitFocusOnEscape(): void {
 
     globalThis.addEventListener('keydown', handleKeyDown)
     return () => globalThis.removeEventListener('keydown', handleKeyDown)
-  }, [state.focusMode, dispatch])
+  }, [focusMode, dispatch])
 }

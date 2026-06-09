@@ -1,5 +1,5 @@
 import { createContext, useContext, type ReactNode } from 'react'
-import { useEditor } from '../../store/editor-store'
+import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import { useProjectNameEditor } from './useProjectNameEditor'
 import type { ProjectDoc } from '../../types'
 
@@ -13,8 +13,9 @@ export interface ProjectNamePersistContextValue {
 const ProjectNamePersistContext = createContext<ProjectNamePersistContextValue | null>(null)
 
 export function ProjectNamePersistProvider({ children }: { children: ReactNode }) {
-  const { state, dispatch } = useEditor()
-  const editor = useProjectNameEditor(state.project, dispatch)
+  const dispatch = useEditorDispatch()
+  const project = useEditorSelector((s) => s.project)
+  const editor = useProjectNameEditor(project, dispatch)
 
   return (
     <ProjectNamePersistContext.Provider value={editor}>

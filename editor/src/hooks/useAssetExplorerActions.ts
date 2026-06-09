@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
-import { useEditor } from '../store/editor-store'
+import { useEditorDispatch, useEditorSelector, useEditorStore } from '../store/editor-store'
 import { importImageIntoProject } from '../utils/api'
 import {
   importAudioIntoProject,
@@ -43,8 +43,11 @@ function fileReaderDataUrl(result: string | ArrayBuffer | null): string {
 }
 
 export function useAssetExplorerActions() {
-  const { state, dispatch } = useEditor()
-  const selection = state.inspectorAsset
+  const dispatch = useEditorDispatch()
+  const store = useEditorStore()
+  const selection = useEditorSelector((s) => s.inspectorAsset)
+  const project = useEditorSelector((s) => s.project)
+  const selectionEntityId = useEditorSelector((s) => s.selection.entityId)
   const setSelection = useCallback(
     (next: AssetExplorerSelection | null) => {
       dispatch({ type: 'SELECT_INSPECTOR_ASSET', asset: next })
@@ -56,10 +59,9 @@ export function useAssetExplorerActions() {
   const audioRef = useRef<HTMLInputElement>(null)
   const fontRef = useRef<HTMLInputElement>(null)
 
-  const project = state.project
   const selEntity =
-    project && state.selection.entityId != null
-      ? project.entities[state.selection.entityId]
+    project && selectionEntityId != null
+      ? project.entities[selectionEntityId]
       : null
 
   const showFlash = useCallback((text: string) => {
@@ -80,9 +82,9 @@ export function useAssetExplorerActions() {
         const buf = await file.arrayBuffer()
         const bytes = new Uint8Array(buf)
         let relPath: string | null = null
-        if (state.projectPath) {
+        if (store.getState().projectPath) {
           relPath = await importImageIntoProject(
-            dirName(state.projectPath),
+            dirName(store.getState().projectPath!),
             file.name,
             bytes,
           )
@@ -100,7 +102,7 @@ export function useAssetExplorerActions() {
       reader.readAsDataURL(file)
       e.target.value = ''
     },
-    [project, state.projectPath, dispatch, showFlash],
+    [project, store, dispatch, showFlash],
   )
 
   const onPickAudio = useCallback(
@@ -110,8 +112,8 @@ export function useAssetExplorerActions() {
       void (async () => {
         const bytes = new Uint8Array(await file.arrayBuffer())
         let relPath: string | null = null
-        if (state.projectPath) {
-          relPath = await importAudioIntoProject(dirName(state.projectPath), file.name, bytes)
+        if (store.getState().projectPath) {
+          relPath = await importAudioIntoProject(dirName(store.getState().projectPath!), file.name, bytes)
         }
         const path = relPath ?? `assets/audio/${file.name}`
         const asset: AudioAsset = {
@@ -125,7 +127,7 @@ export function useAssetExplorerActions() {
       })()
       e.target.value = ''
     },
-    [project, state.projectPath, dispatch, showFlash],
+    [project, store, dispatch, showFlash],
   )
 
   const onPickFont = useCallback(
@@ -135,8 +137,8 @@ export function useAssetExplorerActions() {
       void (async () => {
         const bytes = new Uint8Array(await file.arrayBuffer())
         let relPath: string | null = null
-        if (state.projectPath) {
-          relPath = await importFontIntoProject(dirName(state.projectPath), file.name, bytes)
+        if (store.getState().projectPath) {
+          relPath = await importFontIntoProject(dirName(store.getState().projectPath!), file.name, bytes)
         }
         const path = relPath ?? `assets/fonts/${file.name}`
         const asset: FontAsset = {
@@ -150,7 +152,7 @@ export function useAssetExplorerActions() {
       })()
       e.target.value = ''
     },
-    [project, state.projectPath, dispatch, showFlash],
+    [project, store, dispatch, showFlash],
   )
 
   const assignSprite = useCallback(
@@ -198,12 +200,13 @@ export function useAssetExplorerActions() {
 
   const openScript = useCallback(
     (path: string) => {
+      const { projectPath, openScripts } = store.getState()
       void openProjectScript(dispatch, {
-        projectPath: state.projectPath,
-        openScripts: state.openScripts,
+        projectPath,
+        openScripts,
       }, path)
     },
-    [dispatch, state.projectPath, state.openScripts],
+    [dispatch, store],
   )
 
   const triggerImportImage = useCallback(() => imageRef.current?.click(), [])

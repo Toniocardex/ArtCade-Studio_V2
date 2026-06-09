@@ -1,4 +1,4 @@
-import { useEditor } from '../store/editor-store'
+import { useEditorDispatch, useEditorSelector } from '../store/editor-store'
 import type { AuthoringMode } from '../types/authoring-mode'
 
 const btn = (active: boolean) =>
@@ -11,8 +11,8 @@ const btn = (active: boolean) =>
 
 /** Base vs Advanced — presentation tier (default Base). All tools stay available. */
 export default function AuthoringModeSwitch() {
-  const { state, dispatch } = useEditor()
-  const mode = state.authoringMode
+  const dispatch = useEditorDispatch()
+  const mode = useEditorSelector((s) => s.authoringMode)
 
   const set = (next: AuthoringMode) => {
     if (next !== mode) dispatch({ type: 'SET_AUTHORING_MODE', mode: next })

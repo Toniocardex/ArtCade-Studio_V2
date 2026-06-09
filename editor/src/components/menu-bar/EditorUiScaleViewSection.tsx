@@ -1,7 +1,7 @@
 import { EDITOR_UI_SCALE_VALUES } from '../../constants/editor-ui-scale'
 import { formatEditorUiScalePercent } from '../../utils/editor-ui-scale'
 import type { EditorUiScaleApi } from '../../hooks/useEditorUiScale'
-import { useEditor } from '../../store/editor-store'
+import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import { clearEditorLayoutSnapshot } from '../../utils/editor-layout-persist'
 import { useEditorLayoutContext } from '../../contexts/editor-layout-context'
 import { useWorkspaceLayoutMetricsContext } from '../../contexts/editor-layout-tier-context'
@@ -12,7 +12,9 @@ type EditorUiScaleViewSectionProps = Readonly<{
 
 /** VIEW -> Interface: UI scale, focus mode, layout reset and motion prefs. */
 export function EditorUiScaleViewSection({ uiScale }: EditorUiScaleViewSectionProps) {
-  const { state, dispatch } = useEditor()
+  const dispatch = useEditorDispatch()
+  const focusMode = useEditorSelector((s) => s.focusMode)
+  const reduceMotion = useEditorSelector((s) => s.reduceMotion)
   const layout = useEditorLayoutContext()
   const { scale, setScale, resetScale } = uiScale
   const { width, height } = useWorkspaceLayoutMetricsContext()
@@ -67,7 +69,7 @@ export function EditorUiScaleViewSection({ uiScale }: EditorUiScaleViewSectionPr
         <button
           type="button"
           role="menuitemcheckbox"
-          aria-checked={state.focusMode}
+          aria-checked={focusMode}
           className="w-full text-left px-3 py-2 text-xs text-[var(--primary)] hover:bg-[var(--surface-hover)]"
           onClick={() => dispatch({ type: 'TOGGLE_FOCUS_MODE' })}
         >
@@ -84,9 +86,9 @@ export function EditorUiScaleViewSection({ uiScale }: EditorUiScaleViewSectionPr
         <button
           type="button"
           role="menuitemcheckbox"
-          aria-checked={state.reduceMotion}
+          aria-checked={reduceMotion}
           className="w-full text-left px-3 py-2 text-xs text-[var(--primary)] hover:bg-[var(--surface-hover)]"
-          onClick={() => dispatch({ type: 'SET_REDUCE_MOTION', enabled: !state.reduceMotion })}
+          onClick={() => dispatch({ type: 'SET_REDUCE_MOTION', enabled: !reduceMotion })}
         >
           Reduce motion
         </button>

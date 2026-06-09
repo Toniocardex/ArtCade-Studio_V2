@@ -1,10 +1,10 @@
-import { useEditor } from '../../store/editor-store'
+import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import { SCENE_LAYER_NAMES } from '../../constants/scene-layers'
 
 /** Canvas toolbar — active layer (UI-only, synced with Layers panel). */
 export function ActiveLayerSelect() {
-  const { state, dispatch } = useEditor()
-  const value = state.editorActiveLayer
+  const dispatch = useEditorDispatch()
+  const value = useEditorSelector((s) => s.editorActiveLayer)
 
   return (
     <label className="flex items-center gap-1.5 text-[9px] text-[var(--muted)] shrink-0">

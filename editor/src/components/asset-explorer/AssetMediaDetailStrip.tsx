@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
-import { useEditor } from '../../store/editor-store'
+import { useEditorSelector } from '../../store/editor-store'
 import type { AudioAsset, FontAsset } from '../../types'
 import type { AssetExplorerSelection } from '../../hooks/useAssetExplorerActions'
 
@@ -9,9 +9,9 @@ export type AssetMediaDetailStripProps = Readonly<{
 }>
 
 export function AssetMediaDetailStrip({ selection }: AssetMediaDetailStripProps) {
-  const { state } = useEditor()
+  const project = useEditorSelector((s) => s.project)
+  const projectPath = useEditorSelector((s) => s.projectPath)
   const [open, setOpen] = useState(true)
-  const project = state.project
   if (!project) return null
 
   if (selection.type === 'audio') {
@@ -26,7 +26,7 @@ export function AssetMediaDetailStrip({ selection }: AssetMediaDetailStripProps)
         <p className="text-[10px] text-[var(--muted)] truncate" title={asset.path}>
           {asset.path}
         </p>
-        <AudioPreview path={asset.path} projectPath={state.projectPath} />
+        <AudioPreview path={asset.path} projectPath={projectPath} />
       </DetailShell>
     )
   }

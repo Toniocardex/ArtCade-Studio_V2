@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------------------
 
 import { useEffect } from 'react'
-import { useEditor } from '../store/editor-store'
+import { useEditorDispatch, useEditorStore } from '../store/editor-store'
 import type { Dispatch } from 'react'
 import { dispatchLogicBoardLoadWarnings } from '../utils/logic-board/logic-board-load-warnings'
 import {
@@ -198,25 +198,15 @@ async function handleKeyDown(ctx: ShortcutCtx, e: KeyboardEvent): Promise<void> 
 }
 
 export function useProjectShortcuts(): void {
-  const { state, dispatch } = useEditor()
+  const dispatch = useEditorDispatch()
+  const store = useEditorStore()
   const { flushBeforePersist } = useProjectNamePersist()
 
   useEffect(() => {
-    const ctx: ShortcutCtx = { state, dispatch, flushBeforePersist }
     const onKeyDown = (e: KeyboardEvent) => {
-      void handleKeyDown(ctx, e)
+      void handleKeyDown({ state: store.getState(), dispatch, flushBeforePersist }, e)
     }
     globalThis.addEventListener('keydown', onKeyDown)
     return () => globalThis.removeEventListener('keydown', onKeyDown)
-  }, [
-    state.openScripts,
-    state.activeScriptPath,
-    state.project,
-    state.projectPath,
-    state.projectDirty,
-    state.mode,
-    state.dialogs,
-    dispatch,
-    flushBeforePersist,
-  ])
+  }, [store, dispatch, flushBeforePersist])
 }

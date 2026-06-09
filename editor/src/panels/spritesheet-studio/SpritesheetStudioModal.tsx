@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useDraggablePanel } from './useDraggablePanel'
-import { useEditor } from '../../store/editor-store'
+import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import type { AnimationClipDef, ImageAsset } from '../../types'
 import { SpritesheetStudioLayout } from './SpritesheetStudioLayout'
 import { useSpritesheetStudioSession } from './useSpritesheetStudioSession'
@@ -12,11 +12,12 @@ type SpritesheetStudioBodyProps = Readonly<{
 }>
 
 function SpritesheetStudioBody({ asset, imageAssetId }: SpritesheetStudioBodyProps) {
-  const { state, dispatch } = useEditor()
+  const dispatch = useEditorDispatch()
+  const projectPath = useEditorSelector((s) => s.projectPath)
   useSpritesheetWasmSync(asset, true)
   const session = useSpritesheetStudioSession(
     asset,
-    state.projectPath,
+    projectPath,
     (clips: AnimationClipDef[]) => {
       dispatch({ type: 'ASSET_ADD', asset: { ...asset, id: imageAssetId, clips } })
     },
@@ -36,11 +37,13 @@ function SpritesheetStudioBody({ asset, imageAssetId }: SpritesheetStudioBodyPro
 }
 
 export function SpritesheetStudioModal() {
-  const { state, dispatch } = useEditor()
-  const { open, imageAssetId } = state.spritesheetStudio
+  const dispatch = useEditorDispatch()
+  const open = useEditorSelector((s) => s.spritesheetStudio.open)
+  const imageAssetId = useEditorSelector((s) => s.spritesheetStudio.imageAssetId)
+  const project = useEditorSelector((s) => s.project)
   const dialogRef = useRef<HTMLDialogElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
-  const asset = imageAssetId ? state.project?.assets?.[imageAssetId] : undefined
+  const asset = imageAssetId ? project?.assets?.[imageAssetId] : undefined
   const visible = open && imageAssetId != null && imageAssetId.length > 0 && asset != null
   const { panelStyle, resetPosition, headerPointerProps } = useDraggablePanel(panelRef, visible)
 

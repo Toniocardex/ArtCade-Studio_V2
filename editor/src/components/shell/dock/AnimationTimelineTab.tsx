@@ -1,13 +1,13 @@
 import { useMemo } from 'react'
 import { Pause, Play, SkipBack, SkipForward } from 'lucide-react'
-import { useEditor } from '../../../store/editor-store'
+import { useEditorDispatch, useEditorSelector } from '../../../store/editor-store'
 import { openSpritesheetStudio } from '../../../panels/spritesheet-studio/openSpritesheetStudio'
 
 /** Read-only clip summary + mockup filmstrip chrome. */
 export function AnimationTimelineTab() {
-  const { state, dispatch } = useEditor()
-  const project = state.project
-  const entityId = state.selection.entityId
+  const dispatch = useEditorDispatch()
+  const project = useEditorSelector((s) => s.project)
+  const entityId = useEditorSelector((s) => s.selection.entityId)
 
   const summary = useMemo(() => {
     if (!project || entityId == null) {

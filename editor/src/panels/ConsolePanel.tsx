@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import { useConsoleLogs, useEditor } from '../store/editor-store'
+import { useConsoleLogs, useEditorDispatch } from '../store/editor-store'
 import type { ConsoleLevel } from '../types'
 import { ConsoleFilterBar } from '../components/console/ConsoleFilterBar'
 import {
@@ -52,7 +52,7 @@ export type ConsolePanelProps = Readonly<{
 }>
 
 export default function ConsolePanel({ compact = false }: ConsolePanelProps) {
-  const { dispatch } = useEditor()
+  const dispatch = useEditorDispatch()
   const { state } = useConsoleLogs()
   const { consoleLogs } = state
   const [commandLine, setCommandLine] = useState('')

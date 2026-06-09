@@ -13,7 +13,7 @@
 
 import { Boxes, Camera, Eraser, Grid3x3, Hand, ImageIcon, Maximize2, MousePointer2, Pencil } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { useEditor } from '../../store/editor-store'
+import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import type { EditorTool } from '../../utils/runtime-sync-service'
 import { ZoomControls } from './ZoomControls'
 import { ActiveLayerSelect } from './ActiveLayerSelect'
@@ -42,8 +42,8 @@ function Divider() {
  * it into its own file would add fragmentation without any reuse benefit.
  */
 function PreviewSpawnScopeToggle() {
-  const { state, dispatch } = useEditor()
-  const spawnScope = state.previewAssetLoadScope === 'scene+spawn-prototypes'
+  const dispatch = useEditorDispatch()
+  const spawnScope = useEditorSelector((s) => s.previewAssetLoadScope === 'scene+spawn-prototypes')
   return (
     <button
       onClick={() => dispatch({
@@ -61,8 +61,8 @@ function PreviewSpawnScopeToggle() {
 }
 
 function CameraPreviewToggle() {
-  const { state, dispatch } = useEditor()
-  const enabled = state.cameraPreview
+  const dispatch = useEditorDispatch()
+  const enabled = useEditorSelector((s) => s.cameraPreview)
   return (
     <button
       onClick={() => dispatch({ type: 'EDITOR_SET_CAMERA_PREVIEW', enabled: !enabled })}
@@ -81,7 +81,7 @@ export function CanvasToolbar({
   showToolPalette = true,
   rightSlot,
 }: CanvasToolbarProps) {
-  const { dispatch } = useEditor()
+  const dispatch = useEditorDispatch()
 
   return (
     <div className="flex items-center gap-1 px-2 py-1.5

@@ -1,5 +1,5 @@
 import { Minimize2, Pause, Play, Square } from 'lucide-react'
-import { useEditor, useConsoleLogs } from '../../store/editor-store'
+import { useEditorDispatch, useEditorSelector, useConsoleLogs } from '../../store/editor-store'
 import { DEFAULT_WORLD } from '../../types'
 import { usePreviewPlayStop } from '../../hooks/usePreviewPlayStop'
 import { usePreviewPlayShortcut } from '../../hooks/usePreviewPlayShortcut'
@@ -7,9 +7,10 @@ import { ZoomControls } from './ZoomControls'
 
 /** Reduced toolbar shown in Focus mode (play/stop, speed, zoom, coords, exit). */
 export function CanvasFocusToolbar() {
-  const { state, dispatch } = useEditor()
+  const dispatch = useEditorDispatch()
+  const isPlaying = useEditorSelector((s) => s.isPlaying)
+  const project = useEditorSelector((s) => s.project)
   const { state: volatile } = useConsoleLogs()
-  const { isPlaying, project } = state
   const { cursorPos } = volatile
   const handlePlayStop = usePreviewPlayStop()
   usePreviewPlayShortcut(handlePlayStop)

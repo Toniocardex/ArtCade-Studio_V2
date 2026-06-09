@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------------------
 
 import { useMemo } from 'react'
-import { useEditor } from '../../store/editor-store'
+import { useEditorSelector } from '../../store/editor-store'
 import { allEntityTags } from '../../utils/project'
 
 const sel =
@@ -45,10 +45,10 @@ export function TagPicker({
   allowEmpty = true,
   emptyLabel = '— Any tag —',
 }: TagPickerProps) {
-  const { state } = useEditor()
+  const project = useEditorSelector((s) => s.project)
   const tags = useMemo(
-    () => tagsProp ?? (state.project ? allEntityTags(state.project) : []),
-    [tagsProp, state.project],
+    () => tagsProp ?? (project ? allEntityTags(project) : []),
+    [tagsProp, project],
   )
 
   const selectValue = tagPickerSelectValue(value, tags)

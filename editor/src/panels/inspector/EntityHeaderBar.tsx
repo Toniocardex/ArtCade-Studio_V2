@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useEditor } from '../../store/editor-store'
+import { useEditorDispatch } from '../../store/editor-store'
 import type { EntityDef } from '../../types'
 import type { InspectorBlockKey } from './entity-component-utils'
 import { Field } from './inspector-fields'
@@ -16,7 +16,7 @@ export function EntityHeaderBar({
   entity,
   onJumpToComponent,
 }: EntityHeaderBarProps) {
-  const { dispatch } = useEditor()
+  const dispatch = useEditorDispatch()
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const active = activeComponentDescriptors(entity)
 

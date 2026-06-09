@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------------------
 
 import { useCallback } from 'react'
-import { useEditor } from '../store/editor-store'
+import { useEditorDispatch, useEditorSelector } from '../store/editor-store'
 import {
   runtimeSync,
   messageForEditorApiCode,
@@ -17,10 +17,14 @@ import {
 import { makeConsoleEntry } from '../components/menu-bar/makeConsoleEntry'
 
 export function usePreviewPlayStop(): () => void {
-  const { state, dispatch } = useEditor()
-  const {
-    project, projectPath, isPlaying, mode, openScripts, dialogs, selection,
-  } = state
+  const dispatch = useEditorDispatch()
+  const project = useEditorSelector((s) => s.project)
+  const projectPath = useEditorSelector((s) => s.projectPath)
+  const isPlaying = useEditorSelector((s) => s.isPlaying)
+  const mode = useEditorSelector((s) => s.mode)
+  const openScripts = useEditorSelector((s) => s.openScripts)
+  const dialogs = useEditorSelector((s) => s.dialogs)
+  const selectionSceneId = useEditorSelector((s) => s.selection.sceneId)
 
   return useCallback(() => {
     if (!project) {
@@ -31,7 +35,7 @@ export function usePreviewPlayStop(): () => void {
       return
     }
 
-    const activeSceneId = selection.sceneId ?? project.activeSceneId
+    const activeSceneId = selectionSceneId ?? project.activeSceneId
     let mainLua: string
     if (isPlaying) {
       mainLua = getProjectWorkbenchSnapshot({
@@ -104,6 +108,6 @@ export function usePreviewPlayStop(): () => void {
     openScripts,
     project,
     projectPath,
-    selection.sceneId,
+    selectionSceneId,
   ])
 }

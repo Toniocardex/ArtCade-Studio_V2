@@ -1,11 +1,11 @@
 import { useCallback, useRef, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
-import { useEditor } from '../../store/editor-store'
+import { useEditorDispatch } from '../../store/editor-store'
 import { openDialogLibraryModal } from '../../panels/dialog/dialog-modal-api'
 import { ToolbarDropdown } from './ToolbarDropdown'
 
 export function ToolsMenu() {
-  const { dispatch } = useEditor()
+  const dispatch = useEditorDispatch()
   const [open, setOpen] = useState(false)
   const anchorRef = useRef<HTMLDivElement>(null)
   const close = useCallback(() => setOpen(false), [])

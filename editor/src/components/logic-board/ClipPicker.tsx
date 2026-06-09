@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useEditor } from '../../store/editor-store'
+import { useEditorSelector } from '../../store/editor-store'
 import {
   formatClipOption,
   listProjectClips,
@@ -27,8 +27,7 @@ export function ClipPicker({
   filterSpritePath,
   ambiguousTargetSpritePaths = false,
 }: ClipPickerProps) {
-  const { state } = useEditor()
-  const project = state.project
+  const project = useEditorSelector((s) => s.project)
   const entries = useMemo(
     () => listProjectClips(project, filterSpritePath),
     [project, filterSpritePath],

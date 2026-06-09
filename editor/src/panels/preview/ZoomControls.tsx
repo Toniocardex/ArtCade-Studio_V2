@@ -16,15 +16,15 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Minus, Plus, ChevronDown } from 'lucide-react'
-import { useEditor } from '../../store/editor-store'
+import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import { formatZoomPercent, nextZoomStep } from '../../utils/editor-zoom'
 import { zoomFitRegistry } from '../../utils/zoom-fit-registry'
 import { ZOOM_PRESETS, ZOOM_PRESET_EPSILON } from '../../constants/editor-viewport'
 
 export function ZoomControls() {
-  const { state, dispatch } = useEditor()
-  const zoom     = state.editorZoom
-  const fitMode  = state.editorZoomMode === 'fit'
+  const dispatch = useEditorDispatch()
+  const zoom = useEditorSelector((s) => s.editorZoom)
+  const fitMode = useEditorSelector((s) => s.editorZoomMode === 'fit')
 
   const [open, setOpen]       = useState(false)
   const [editing, setEditing] = useState(false)

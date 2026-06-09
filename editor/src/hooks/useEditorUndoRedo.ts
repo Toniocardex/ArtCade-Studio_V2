@@ -3,11 +3,11 @@
 // ---------------------------------------------------------------------------
 
 import { useEffect } from 'react'
-import { useEditor } from '../store/editor-store'
+import { useEditorDispatch } from '../store/editor-store'
 import { shouldIgnoreEditorShortcut } from '../utils/keyboard'
 
 export function useEditorUndoRedo(): void {
-  const { dispatch } = useEditor()
+  const dispatch = useEditorDispatch()
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {

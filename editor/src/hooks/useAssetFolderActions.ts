@@ -1,5 +1,5 @@
 import { useCallback } from 'react'
-import { useEditor } from '../store/editor-store'
+import { useEditorDispatch, useEditorSelector } from '../store/editor-store'
 import type { AssetFolderCategory } from '../types'
 import { confirmDialog } from '../utils/native-dialog'
 import { useTextPrompt } from './useTextPrompt'
@@ -9,9 +9,9 @@ import {
 } from '../utils/asset-virtual-folders'
 
 export function useAssetFolderActions() {
-  const { state, dispatch } = useEditor()
+  const dispatch = useEditorDispatch()
   const promptText = useTextPrompt()
-  const project = state.project
+  const project = useEditorSelector((s) => s.project)
 
   const foldersForCategory = useCallback(
     (category: AssetFolderCategory) =>

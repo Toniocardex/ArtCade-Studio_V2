@@ -8,7 +8,7 @@
 // ---------------------------------------------------------------------------
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useEditor } from '../store/editor-store'
+import { useEditorDispatch, useEditorSelector, useEditorStore } from '../store/editor-store'
 import {
   allClassNames,
   findLogicBoardForInstance,
@@ -162,7 +162,6 @@ type LogicBoardLuaModeProps = Readonly<{
   setPanelMode: (mode: 'visual' | 'lua') => void
   setSelectedBoardId: (id: string | null) => void
   dispatch: EditorDispatch
-  state: CoreState
   onApply: () => void
 }>
 
@@ -180,9 +179,9 @@ function LogicBoardLuaMode({
   setPanelMode,
   setSelectedBoardId,
   dispatch,
-  state,
   onApply,
 }: LogicBoardLuaModeProps) {
+  const store = useEditorStore()
   const mainPath = project.mainScriptPath
   const boardLabel = board ? logicBoardLuaCommentLabel(board) : ''
   const slice = extractBoardLuaSlice(lua, boardLabel)
@@ -244,7 +243,9 @@ function LogicBoardLuaMode({
             title={openMainTooltip}
             disabled={!!compileError}
             onClick={() => {
-              if (compileResult.ok) openMainScriptInEditor(dispatch, state, compileResult.lua)
+              if (compileResult.ok) {
+                openMainScriptInEditor(dispatch, store.getState(), compileResult.lua)
+              }
             }}
             className="px-4 py-2 rounded text-xs font-semibold border border-[var(--accent-bd)] bg-[var(--accent-bg)] text-[var(--accent-fg-on-bg)] hover:bg-[var(--accent-bg-h)] disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -257,12 +258,16 @@ function LogicBoardLuaMode({
 }
 
 export default function LogicBoardPanel() {
-  const { state, dispatch } = useEditor()
-  const project = state.project
-  const { selection } = state
+  const dispatch = useEditorDispatch()
+  const store = useEditorStore()
+  const project = useEditorSelector((s) => s.project)
+  const selection = useEditorSelector((s) => s.selection)
+  const mode = useEditorSelector((s) => s.mode)
+  const authoringMode = useEditorSelector((s) => s.authoringMode)
+  const projectPath = useEditorSelector((s) => s.projectPath)
+  const logicPreviewAppliedRevision = useEditorSelector((s) => s.logicPreviewAppliedRevision)
+  const openScripts = useEditorSelector((s) => s.openScripts)
   const runtimeReady = useRuntimeReady()
-
-  const authoringMode = state.authoringMode
   const boards = project?.logicBoards ?? []
   const [selectedBoardId, setSelectedBoardId] = useState<string | null>(
     boards[0]?.boardId ?? null,
@@ -312,12 +317,12 @@ export default function LogicBoardPanel() {
       : undefined
 
   useEffect(() => {
-    if (state.mode !== 'logic' || !project) return
+    if (mode !== 'logic' || !project) return
     const eid = selection.entityId
     if (eid == null) return
     const existing = findLogicBoardForInstance(project, eid)
     if (existing) setSelectedBoardId(existing.boardId)
-  }, [state.mode, selection.entityId, project])
+  }, [mode, selection.entityId, project])
 
   useEffect(() => {
     if (boards.length === 0) {
@@ -330,8 +335,8 @@ export default function LogicBoardPanel() {
   }, [boards, selectedBoardId])
 
   const compileResult = useMemo(
-    () => compileProjectLogic(state.project, { projectKey: state.projectPath ?? undefined }),
-    [boards, state.project, state.projectPath],
+    () => compileProjectLogic(project, { projectKey: projectPath ?? undefined }),
+    [boards, project, projectPath],
   )
   const lua = compileResult.lua
   const compileError = compileResult.compileError
@@ -349,15 +354,15 @@ export default function LogicBoardPanel() {
   const boardsRevision = logicBoardsRevision(project)
 
   useEffect(() => {
-    if (state.mode !== 'logic' || !boardsRevision) return
-    if (state.logicPreviewAppliedRevision != null) return
+    if (mode !== 'logic' || !boardsRevision) return
+    if (logicPreviewAppliedRevision != null) return
     dispatch({ type: 'LOGIC_MARK_PREVIEW_APPLIED', revision: boardsRevision })
-  }, [state.mode, state.logicPreviewAppliedRevision, boardsRevision, dispatch])
+  }, [mode, logicPreviewAppliedRevision, boardsRevision, dispatch])
 
   const needsApply = logicBoardNeedsPreviewApply(
     project,
     compileResult.ok,
-    state.logicPreviewAppliedRevision,
+    logicPreviewAppliedRevision,
   )
   const sceneBoards = useMemo(
     () => (project ? logicBoardsForScene(project, sceneId) : []),
@@ -368,9 +373,10 @@ export default function LogicBoardPanel() {
   useEffect(() => {
     if (prevBoardsRevision.current === boardsRevision) return
 
+    const state = store.getState()
     const mainPath = state.project?.mainScriptPath
     const dirtyMain = mainPath
-      ? state.openScripts.find(s => s.path === mainPath && s.isDirty)
+      ? openScripts.find(s => s.path === mainPath && s.isDirty)
       : undefined
     if (dirtyMain) return
     if (!compileResult.ok) return
@@ -378,14 +384,14 @@ export default function LogicBoardPanel() {
     prevBoardsRevision.current = boardsRevision
     syncLogicBoardToScript(dispatch, state, compileResult.lua)
     dispatch({ type: 'LOGIC_MARK_SCRIPT_SYNCED', revision: boardsRevision })
-  }, [boardsRevision, compileResult, dispatch, state])
+  }, [boardsRevision, compileResult, dispatch, store, openScripts])
 
   const handleApply = useCallback(() => {
     if (!project) return
     const ok = executeApplyLogic({
       compileResult,
       runtimeReady,
-      state,
+      state: store.getState(),
       project,
       selectionSceneId: selection.sceneId ?? undefined,
       dispatch,
@@ -397,7 +403,7 @@ export default function LogicBoardPanel() {
   }, [
     compileResult,
     runtimeReady,
-    state,
+    store,
     project,
     selection.sceneId,
     dispatch,
@@ -530,7 +536,7 @@ export default function LogicBoardPanel() {
   }, [sceneBoards, focusedEventId, editingId, dispatch])
 
   useEffect(() => {
-    if (state.mode !== 'logic' || panelMode !== 'visual') return
+    if (mode !== 'logic' || panelMode !== 'visual') return
     if (sceneBoards.length === 0 && !board) return
 
     const onKeyDown = (e: KeyboardEvent) => {
@@ -563,7 +569,7 @@ export default function LogicBoardPanel() {
     globalThis.addEventListener('keydown', onKeyDown)
     return () => globalThis.removeEventListener('keydown', onKeyDown)
   }, [
-    state.mode,
+    mode,
     panelMode,
     board,
     sceneBoards,
@@ -600,7 +606,6 @@ export default function LogicBoardPanel() {
         setPanelMode={setPanelMode}
         setSelectedBoardId={setSelectedBoardId}
         dispatch={dispatch}
-        state={state}
         onApply={handleApply}
       />
     )

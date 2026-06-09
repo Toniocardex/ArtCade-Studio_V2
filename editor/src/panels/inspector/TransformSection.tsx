@@ -1,4 +1,4 @@
-import { useEditor } from '../../store/editor-store'
+import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import type { EntityDef } from '../../types'
 import { runtimeSync } from '../../utils/runtime-sync-service'
 import { normalizeEntityPosition } from '../../utils/entity-position'
@@ -13,15 +13,19 @@ export type TransformSectionProps = Readonly<{
 }>
 
 export function TransformSection({ entity }: TransformSectionProps) {
-  const { state, dispatch } = useEditor()
+  const dispatch = useEditorDispatch()
+  const selectionSceneId = useEditorSelector((s) => s.selection.sceneId)
+  const project = useEditorSelector((s) => s.project)
+  const editorGridSize = useEditorSelector((s) => s.editorGridSize)
+  const snapToGrid = useEditorSelector((s) => s.snapToGrid)
 
   function commitTransform(next: TransformPatch) {
-    const sceneId = state.selection.sceneId ?? state.project?.activeSceneId
-    const activeScene = sceneId ? state.project?.scenes[sceneId] : undefined
-    const gridSize = state.editorGridSize || activeScene?.tilemap?.tileSize || 32
+    const sceneId = selectionSceneId ?? project?.activeSceneId
+    const activeScene = sceneId ? project?.scenes[sceneId] : undefined
+    const gridSize = editorGridSize || activeScene?.tilemap?.tileSize || 32
     const rawX = next.x ?? entity.transform.position.x
     const rawY = next.y ?? entity.transform.position.y
-    const { x, y } = normalizeEntityPosition(rawX, rawY, state.snapToGrid, gridSize)
+    const { x, y } = normalizeEntityPosition(rawX, rawY, snapToGrid, gridSize)
     const rotation = next.rotation ?? entity.transform.rotation
     const scaleX = next.scaleX ?? entity.transform.scale.x
     const scaleY = next.scaleY ?? entity.transform.scale.y

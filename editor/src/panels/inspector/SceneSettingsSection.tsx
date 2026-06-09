@@ -1,4 +1,4 @@
-import { useEditor } from '../../store/editor-store'
+import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import type { SceneDef } from '../../types'
 import {
   Field, InspectorSection, parseGridSize, parseSceneDimension,
@@ -9,8 +9,9 @@ export type SceneSettingsSectionProps = Readonly<{
 }>
 
 export function SceneSettingsSection({ scene }: SceneSettingsSectionProps) {
-  const { state, dispatch } = useEditor()
-  const gridSize = state.editorGridSize
+  const dispatch = useEditorDispatch()
+  const gridSize = useEditorSelector((s) => s.editorGridSize)
+  const snapToGrid = useEditorSelector((s) => s.snapToGrid)
 
   function commitWorld(patch: Partial<{ x: number; y: number }>) {
     dispatch({
@@ -88,7 +89,7 @@ export function SceneSettingsSection({ scene }: SceneSettingsSectionProps) {
           <label className="flex items-center gap-2 mb-2 text-[9px] text-[var(--muted)] uppercase select-none">
             <input
               type="checkbox"
-              checked={state.snapToGrid}
+              checked={snapToGrid}
               onChange={(e) => dispatch({ type: 'SET_SNAP_TO_GRID', enabled: e.target.checked })}
               className="accent-[var(--accent)]"
             /><span>Snap to grid</span>

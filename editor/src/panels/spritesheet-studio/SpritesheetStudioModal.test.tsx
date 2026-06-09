@@ -9,7 +9,8 @@ import { initialCoreState, type CoreState } from '../../store/editor-store-state
 let mockState: CoreState = initialCoreState
 
 vi.mock('../../store/editor-store', () => ({
-  useEditor: () => ({ state: mockState, dispatch: vi.fn() }),
+  useEditorDispatch: () => vi.fn(),
+  useEditorSelector: (selector: (s: CoreState) => unknown) => selector(mockState),
 }))
 
 vi.mock('./useSpritesheetWasmSync', () => ({ useSpritesheetWasmSync: vi.fn() }))

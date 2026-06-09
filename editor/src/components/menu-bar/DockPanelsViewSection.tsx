@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useEditor } from '../../store/editor-store'
+import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import {
   countVisibleDockPanels,
   DOCK_PANEL_LABELS,
@@ -49,8 +49,9 @@ function DockPanelMenuItem({
 
 /** View menu — bottom dock panel visibility toggles. */
 export function DockPanelsViewSection() {
-  const { state, dispatch } = useEditor()
-  const { dockPanelVisibility, bottomPanelCollapsed } = state
+  const dispatch = useEditorDispatch()
+  const dockPanelVisibility = useEditorSelector((s) => s.dockPanelVisibility)
+  const bottomPanelCollapsed = useEditorSelector((s) => s.bottomPanelCollapsed)
 
   const visibleCount = useMemo(
     () => countVisibleDockPanels(dockPanelVisibility),

@@ -1,6 +1,7 @@
 import { useRef, useState, useCallback } from 'react'
 import { ChevronDown, Hexagon } from 'lucide-react'
-import { useEditor } from '../../store/editor-store'
+import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
+import { canRedoProject, canUndoProject } from '../../store/project-history'
 import { FileMenu } from './FileMenu'
 import { useEditMenuActions } from './useEditMenuActions'
 import { ProjectNameField } from './ProjectNameField'
@@ -15,18 +16,18 @@ import { ToolsMenu } from './ToolsMenu'
 import { HelpMenu } from './HelpMenu'
 
 export default function MenuBar() {
-  const { state, dispatch } = useEditor()
-  const {
-    isPlaying,
-    project,
-    projectPath,
-    projectDirty,
-    openScripts,
-    activeScriptPath,
-    dialogs,
-    selection,
-    mode,
-  } = state
+  const dispatch = useEditorDispatch()
+  const isPlaying = useEditorSelector((s) => s.isPlaying)
+  const undoEnabled = useEditorSelector(canUndoProject)
+  const redoEnabled = useEditorSelector(canRedoProject)
+  const project = useEditorSelector((s) => s.project)
+  const projectPath = useEditorSelector((s) => s.projectPath)
+  const projectDirty = useEditorSelector((s) => s.projectDirty)
+  const openScripts = useEditorSelector((s) => s.openScripts)
+  const activeScriptPath = useEditorSelector((s) => s.activeScriptPath)
+  const dialogs = useEditorSelector((s) => s.dialogs)
+  const selectionSceneId = useEditorSelector((s) => s.selection.sceneId)
+  const mode = useEditorSelector((s) => s.mode)
 
   const { draft, setDraft, commitDraft, flushBeforePersist } = useProjectNamePersist()
 
@@ -50,7 +51,8 @@ export default function MenuBar() {
   })
 
   const { editItems } = useEditMenuActions({
-    state,
+    undoEnabled,
+    redoEnabled,
     dispatch,
     closeMenu: closeEditMenu,
   })
@@ -67,7 +69,7 @@ export default function MenuBar() {
     isPlaying,
     mode,
     openScripts,
-    selectionSceneId: selection.sceneId,
+    selectionSceneId,
     flushBeforePersist,
   })
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useEditor } from '../store/editor-store'
+import { useEditorSelector } from '../store/editor-store'
 import { runtimeSync } from '../utils/runtime-sync-service'
 import { scheduleBootIdleTask } from '../utils/boot-idle'
 import { useRuntimeReadiness } from './useRuntimeReadiness'
@@ -33,14 +33,12 @@ function buildStatusLine(opts: {
 }
 
 export function useEditorBootReady(): EditorBootReadyState {
-  const { state } = useEditor()
+  const projectReady = useEditorSelector((s) => s.project != null)
   const { wasmReady, engineReady } = useRuntimeReadiness()
   const [synced, setSynced] = useState(() => runtimeSync.isBootProjectSynced())
   const [fontsReady, setFontsReady] = useState(false)
   const [idleReady, setIdleReady] = useState(false)
   const [timedOut, setTimedOut] = useState(false)
-
-  const projectReady = state.project != null
 
   useEffect(() => {
     return runtimeSync.onBootProjectSyncedChange(setSynced)

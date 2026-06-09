@@ -1,5 +1,5 @@
 import { Trash2 } from 'lucide-react'
-import { useEditor } from '../../store/editor-store'
+import { useEditorDispatch } from '../../store/editor-store'
 import type { EntityDef, PhysicsComponent } from '../../types'
 import { PHYSICS_INSPECTOR } from './physics-defaults'
 import { componentBlockId } from './entity-component-utils'
@@ -42,7 +42,7 @@ export type PhysicsSectionProps = Readonly<{
 }>
 
 export function PhysicsSection({ entity }: PhysicsSectionProps) {
-  const { dispatch } = useEditor()
+  const dispatch = useEditorDispatch()
   const physics = entity.physics
   if (!physics) return null
 

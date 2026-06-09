@@ -1,7 +1,7 @@
 import type { AssetExplorerSelection } from '../../hooks/useAssetExplorerActions'
 import { AssetDetailStrip } from '../../components/asset-explorer/AssetDetailStrip'
 import { AssetMediaDetailStrip } from '../../components/asset-explorer/AssetMediaDetailStrip'
-import { useEditor } from '../../store/editor-store'
+import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import { EditorButton } from '../../components/ui/EditorButton'
 
 export type AssetInspectorSectionProps = Readonly<{
@@ -9,8 +9,8 @@ export type AssetInspectorSectionProps = Readonly<{
 }>
 
 export function AssetInspectorSection({ selection }: AssetInspectorSectionProps) {
-  const { state, dispatch } = useEditor()
-  const project = state.project
+  const dispatch = useEditorDispatch()
+  const project = useEditorSelector((s) => s.project)
 
   if (!project) {
     return (

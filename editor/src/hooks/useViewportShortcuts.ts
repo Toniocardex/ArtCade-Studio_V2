@@ -6,7 +6,7 @@
 // canvas mode (script mode owns its own CodeMirror Ctrl+= bindings).
 
 import { useEffect } from 'react'
-import { useEditor } from '../store/editor-store'
+import { useEditorDispatch, useEditorStore } from '../store/editor-store'
 import { zoomFitRegistry } from '../utils/zoom-fit-registry'
 import {
   EDITOR_ZOOM_DEFAULT, EDITOR_ZOOM_KEYBOARD_STEP,
@@ -14,14 +14,16 @@ import {
 } from '../constants/editor-viewport'
 
 export function useViewportShortcuts(): void {
-  const { state, dispatch } = useEditor()
+  const dispatch = useEditorDispatch()
+  const store = useEditorStore()
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (!e.ctrlKey) return
-      if (state.mode !== 'canvas') return
+      const { mode, editorZoom, cameraPreview } = store.getState()
+      if (mode !== 'canvas') return
 
-      const z = state.editorZoom
+      const z = editorZoom
 
       if (e.key === '0') {
         e.preventDefault()
@@ -48,11 +50,11 @@ export function useViewportShortcuts(): void {
       // Ctrl+8 — toggle camera preview (clip canvas to scene viewportSize)
       if (e.key === '8') {
         e.preventDefault()
-        dispatch({ type: 'EDITOR_SET_CAMERA_PREVIEW', enabled: !state.cameraPreview })
+        dispatch({ type: 'EDITOR_SET_CAMERA_PREVIEW', enabled: !cameraPreview })
       }
     }
 
     globalThis.addEventListener('keydown', handleKeyDown)
     return () => globalThis.removeEventListener('keydown', handleKeyDown)
-  }, [state.mode, state.editorZoom, state.cameraPreview, dispatch])
+  }, [store, dispatch])
 }

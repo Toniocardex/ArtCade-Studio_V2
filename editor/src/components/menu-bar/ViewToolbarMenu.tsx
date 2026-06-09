@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react'
 import { ChevronDown, Moon, Sun } from 'lucide-react'
-import { useEditor } from '../../store/editor-store'
+import { useEditorDispatch } from '../../store/editor-store'
 import { applyTheme, toggleTheme, type Theme } from '../../utils/theme'
 import AuthoringModeSwitch from '../AuthoringModeSwitch'
 import { openDialogLibraryModal } from '../../panels/dialog/dialog-modal-api'
@@ -15,7 +15,7 @@ function themeFromDocument(): Theme {
 }
 
 export function ViewToolbarMenu() {
-  const { dispatch } = useEditor()
+  const dispatch = useEditorDispatch()
   const uiScale = useEditorUiScaleContext()
   const [open, setOpen] = useState(false)
   const [theme, setTheme] = useState<Theme>(themeFromDocument)

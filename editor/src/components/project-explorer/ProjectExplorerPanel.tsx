@@ -17,7 +17,7 @@ import {
   MessageSquare,
 } from 'lucide-react'
 import { openDialogEditorForId } from '../../panels/dialog/dialog-modal-api'
-import { useEditor } from '../../store/editor-store'
+import { useEditorDispatch, useEditorSelector, useEditorStore } from '../../store/editor-store'
 import { assetFolderItemCount, buildProjectExplorerData } from '../../utils/project-explorer-tree'
 import { useExplorerExpanded } from '../../hooks/useExplorerExpanded'
 import { useAssetExplorerActions } from '../../hooks/useAssetExplorerActions'
@@ -63,7 +63,11 @@ export type ProjectExplorerPanelProps = Readonly<{
 }>
 
 export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectExplorerPanelProps) {
-  const { state, dispatch } = useEditor()
+  const dispatch = useEditorDispatch()
+  const store = useEditorStore()
+  const openScripts = useEditorSelector((s) => s.openScripts)
+  const projectLoadEpoch = useEditorSelector((s) => s.projectLoadEpoch)
+  const dialogs = useEditorSelector((s) => s.dialogs)
   const [search, setSearch] = useState('')
   const [contextMenu, setContextMenu] = useState<ExplorerContextMenuState | null>(null)
   const assetsAnchorRef = useRef<HTMLDivElement>(null)
@@ -76,8 +80,8 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
   const sceneId = scene.sceneId
   const project = scene.project
   const openScriptPaths = useMemo(
-    () => state.openScripts.map((s) => s.path).join('\0'),
-    [state.openScripts],
+    () => openScripts.map((s) => s.path).join('\0'),
+    [openScripts],
   )
 
   const tree = useMemo(() => {
@@ -97,7 +101,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
   useEffect(() => {
     prevTypeCountRef.current = 0
     prevAssetCountRef.current = 0
-  }, [state.projectLoadEpoch])
+  }, [projectLoadEpoch])
 
   useEffect(() => {
     if (!tree) return
@@ -954,19 +958,19 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
             open={isOpen('dialogs')}
             onToggle={() => toggle('dialogs')}
           >
-            {Object.keys(state.dialogs)
+            {Object.keys(dialogs)
               .sort((a, b) => a.localeCompare(b))
               .map((dialogId) => (
                 <TreeLeaf
                   key={dialogId}
                   label={dialogId}
                   depth={1}
-                  onClick={() => openDialogEditorForId(dispatch, state.dialogs, dialogId)}
+                  onClick={() => openDialogEditorForId(dispatch, store.getState().dialogs, dialogId)}
                   icon={<MessageSquare size={11} className="flex-shrink-0 text-[var(--accent)]" />}
                   title={`dialogs/${dialogId}.json`}
                 />
               ))}
-            {Object.keys(state.dialogs).length === 0 ? (
+            {Object.keys(dialogs).length === 0 ? (
               <p className="px-3 py-2 text-[10px] text-[var(--muted)]">No dialog scripts yet. Use View → Dialog library…</p>
             ) : null}
           </TreeSection>

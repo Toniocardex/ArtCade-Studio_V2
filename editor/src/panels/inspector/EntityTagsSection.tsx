@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
-import { useEditor } from '../../store/editor-store'
+import { useEditorDispatch } from '../../store/editor-store'
 import type { EntityDef } from '../../types'
 
 export type EntityTagsSectionProps = Readonly<{
@@ -8,7 +8,7 @@ export type EntityTagsSectionProps = Readonly<{
 }>
 
 export function EntityTagsSection({ entity }: EntityTagsSectionProps) {
-  const { dispatch } = useEditor()
+  const dispatch = useEditorDispatch()
   const [draft, setDraft] = useState('')
   const tagInputId = `entity-tag-input-${entity.id}`
 
