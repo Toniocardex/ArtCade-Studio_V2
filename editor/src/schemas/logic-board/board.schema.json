@@ -27,12 +27,25 @@
           "enabled": { "type": "boolean" },
           "onlyIfEnabled": { "type": "boolean" },
           "conditionsOperator": { "enum": ["AND", "OR", "NOT"] },
-          "trigger": { "type": "object" },
-          "conditions": { "type": "array", "items": { "type": "object" } },
-          "conditionRoot": { "type": "object" },
-          "actions": { "type": "array", "items": { "type": "object" } },
+          "trigger": {
+            "description": "Discriminated trigger union — expanded at compile time from triggers.json"
+          },
+          "conditions": {
+            "type": "array",
+            "description": "Condition union items — expanded at compile time from conditions.json"
+          },
+          "conditionRoot": {
+            "description": "Condition union — expanded at compile time from conditions.json"
+          },
+          "actions": {
+            "type": "array",
+            "description": "Action union items — expanded at compile time from actions.json"
+          },
           "elseEnabled": { "type": "boolean" },
-          "elseActions": { "type": "array", "items": { "type": "object" } }
+          "elseActions": {
+            "type": "array",
+            "description": "Action union items — expanded at compile time from actions.json"
+          }
         },
         "additionalProperties": false
       }

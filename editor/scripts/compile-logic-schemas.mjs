@@ -43,6 +43,32 @@ function resolveRefs(schema, targetSelectorSchema) {
   return s
 }
 
+/** Board-level validation: discriminated trigger/action/condition unions from catalogues. */
+function enrichBoardSchema(board, index, triggers, actions, conditions, targetSelector) {
+  const s = resolveRefs(deepClone(board), targetSelector)
+  const eventItem = s.properties?.events?.items
+  if (!eventItem?.properties) return s
+
+  const triggerUnion = {
+    oneOf: index.triggers.map((type) => resolveRefs(deepClone(triggers[type]), targetSelector)),
+  }
+  const actionUnion = {
+    oneOf: index.actions.map((type) => resolveRefs(deepClone(actions[type]), targetSelector)),
+  }
+  const conditionUnion = {
+    oneOf: index.conditions.map((type) =>
+      resolveRefs(deepClone(conditions[type]), targetSelector),
+    ),
+  }
+
+  eventItem.properties.trigger = triggerUnion
+  eventItem.properties.actions = { type: 'array', items: actionUnion }
+  eventItem.properties.conditions = { type: 'array', items: conditionUnion }
+  eventItem.properties.conditionRoot = conditionUnion
+  eventItem.properties.elseActions = { type: 'array', items: actionUnion }
+  return s
+}
+
 function safeExportName(kind, type) {
   return `validate_${kind}_${type.replace(/[^a-zA-Z0-9_]/g, '_')}`
 }
@@ -83,7 +109,12 @@ const exportNames = []
 const mapEntries = []
 
 exportNames.push('validateBoard')
-chunks.push(compileExport('validateBoard', resolveRefs(boardSchema, targetSelector)))
+chunks.push(
+  compileExport(
+    'validateBoard',
+    enrichBoardSchema(boardSchema, index, triggers, actions, conditions, targetSelector),
+  ),
+)
 
 for (const type of index.triggers) {
   const name = safeExportName('trigger', type)

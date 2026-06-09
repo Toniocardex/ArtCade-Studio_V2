@@ -6,7 +6,7 @@ add_library(artcade-editor-api STATIC
 )
 
 target_include_directories(artcade-editor-api PUBLIC include)
-target_link_libraries(artcade-editor-api PUBLIC artcade-core artcade-object-type-materialize)
+target_link_libraries(artcade-editor-api PUBLIC artcade-core artcade-object-type-materialize artcade-project-json)
 
 if(TARGET artcade-runtime-entity-gateway)
     target_link_libraries(artcade-editor-api PUBLIC artcade-runtime-entity-gateway)

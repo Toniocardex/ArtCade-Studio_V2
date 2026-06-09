@@ -1,6 +1,7 @@
 #include "../include/asset-loader.h"
 #include "zip-reader.h"
 #include "object-type-materialize.h"
+#include "physics-json.h"
 #include <nlohmann/json.hpp>
 #include <filesystem>
 #include <fstream>
@@ -216,32 +217,7 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
                 pc.groundClass   = p.value("groundClass", std::string("Ground"));
                 e.platformerController = pc;
             }
-            if (tv.contains("physics") && tv["physics"].is_object()) {
-                auto& p = tv["physics"];
-                PhysicsComponent pc;
-                const std::string bt = p.value("bodyType", std::string("Dynamic"));
-                if (bt == "Static")
-                    pc.bodyType = BodyType::Static;
-                else if (bt == "Kinematic")
-                    pc.bodyType = BodyType::Kinematic;
-                else
-                    pc.bodyType = BodyType::Dynamic;
-                if (p.contains("collider") && p["collider"].is_object()) {
-                    auto& c = p["collider"];
-                    const std::string shape = c.value("shape", std::string("Rectangle"));
-                    pc.collider.shape = (shape == "Circle")
-                        ? ColliderShape::Circle
-                        : ColliderShape::Rectangle;
-                    if (c.contains("size"))
-                        pc.collider.size = readVec2(c["size"]);
-                    if (c.contains("offset"))
-                        pc.collider.offset = readVec2(c["offset"]);
-                    pc.collider.density  = c.value("density", 1.f);
-                    pc.collider.friction = c.value("friction", 0.3f);
-                    pc.collider.isSensor = c.value("isSensor", false);
-                }
-                e.physics = pc;
-            }
+            ProjectJson::read_physics_component(tv, e.physics);
             if (!e.className.empty())
                 out.objectTypes[e.className] = std::move(e);
         }
@@ -284,32 +260,7 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
                     s.value("play_clip_on_spawn", false));
             }
 
-            if (ev.contains("physics") && ev["physics"].is_object()) {
-                auto& p = ev["physics"];
-                PhysicsComponent pc;
-                const std::string bt = p.value("bodyType", std::string("Dynamic"));
-                if (bt == "Static")
-                    pc.bodyType = BodyType::Static;
-                else if (bt == "Kinematic")
-                    pc.bodyType = BodyType::Kinematic;
-                else
-                    pc.bodyType = BodyType::Dynamic;
-                if (p.contains("collider") && p["collider"].is_object()) {
-                    auto& c = p["collider"];
-                    const std::string shape = c.value("shape", std::string("Rectangle"));
-                    pc.collider.shape = (shape == "Circle")
-                        ? ColliderShape::Circle
-                        : ColliderShape::Rectangle;
-                    if (c.contains("size"))
-                        pc.collider.size = readVec2(c["size"]);
-                    if (c.contains("offset"))
-                        pc.collider.offset = readVec2(c["offset"]);
-                    pc.collider.density  = c.value("density", 1.f);
-                    pc.collider.friction = c.value("friction", 0.3f);
-                    pc.collider.isSensor = c.value("isSensor", false);
-                }
-                e.physics = pc;
-            }
+            ProjectJson::read_physics_component(ev, e.physics);
 
             // Optional gameplay components (Phase D1) — names mirror editor TS
             if (ev.contains("sensor") && ev["sensor"].is_object()) {

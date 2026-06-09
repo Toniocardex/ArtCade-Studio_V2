@@ -74,6 +74,14 @@ describe('schema-registry', () => {
     expect(doc.valid).toBe(true)
   })
 
+  it('validateLogicBoard rejects unknown trigger types', () => {
+    const board = createLogicBoardForObjectType('Player', 'test_board')
+    board.events.push(createLogicEvent())
+    board.events[0]!.trigger = { type: 'notARealTrigger' } as never
+    const r = validateLogicBoard(board)
+    expect(r.valid).toBe(false)
+  })
+
   it('schema rejects triggers missing required user params', () => {
     // These reflect the tightened triggers.json — required+minLength.
     expect(validateTrigger({ type: 'onCollision' }).valid).toBe(false)

@@ -84,6 +84,11 @@ add_library(artcade-object-type-materialize STATIC
 )
 target_link_libraries(artcade-object-type-materialize PUBLIC artcade-core)
 
+add_library(artcade-project-json STATIC
+    src/core/physics-json.cpp
+)
+target_link_libraries(artcade-project-json PUBLIC artcade-core)
+
 # ============================================================================
 # Moduli stateless — nessuna dipendenza da Raylib o Lua.
 # Sempre compilati (Fase 3 e oltre).

@@ -327,6 +327,46 @@ mod write_path_tests {
         assert!(err.contains("outside project root") || err.contains("non-project"));
     }
 
+    /// Symlink under assets/ must not be copied into web export dist.
+    #[test]
+    fn copy_dir_recursive_rejects_symlink_escape() {
+        let (root, _) = temp_project();
+        let outside_dir = std::env::temp_dir().join(format!(
+            "artcade_copy_symlink_target_{}",
+            TEMP_SERIAL.fetch_add(1, Ordering::Relaxed)
+        ));
+        fs::create_dir_all(&outside_dir).unwrap();
+        let secret = outside_dir.join("secret.png");
+        fs::write(&secret, b"outside").unwrap();
+
+        let assets = root.join("assets");
+        fs::create_dir_all(&assets).unwrap();
+        let link = assets.join("escape.png");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::symlink;
+            symlink(&secret, &link).expect("symlink");
+        }
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs::symlink_file;
+            if symlink_file(&secret, &link).is_err() {
+                return;
+            }
+        }
+
+        let root_canon = root.canonicalize().unwrap();
+        let dst = std::env::temp_dir().join(format!(
+            "artcade_copy_dst_{}",
+            TEMP_SERIAL.fetch_add(1, Ordering::Relaxed)
+        ));
+        let err = copy_dir_recursive_bounded(&assets, &dst, &root_canon).unwrap_err();
+        assert!(
+            err.contains("symlink") || err.contains("outside project root"),
+            "expected symlink/outside-root error, got: {err}"
+        );
+    }
+
     /// Symlink under scripts/ must not bypass the project-root check.
     #[test]
     fn rejects_symlink_escape_under_scripts() {
@@ -447,14 +487,31 @@ fn apply_sdk_env(cmd: &mut Cmd) {
     }
 }
 
-fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), String> {
+/// Copy `src` tree into `dst`, refusing symlinks and paths outside `boundary_root`.
+fn copy_dir_recursive_bounded(
+    src: &Path,
+    dst: &Path,
+    boundary_root: &Path,
+) -> Result<(), String> {
     if !src.exists() {
         return Ok(());
     }
+
+    let src_canon = src
+        .canonicalize()
+        .map_err(|e| format!("canonicalize '{}': {e}", src.display()))?;
+    if !src_canon.starts_with(boundary_root) {
+        return Err(format!(
+            "refusing to copy outside project root '{}': '{}'",
+            boundary_root.display(),
+            src_canon.display()
+        ));
+    }
+
     std::fs::create_dir_all(dst)
         .map_err(|e| format!("create dir '{}': {e}", dst.display()))?;
-    for entry in std::fs::read_dir(src)
-        .map_err(|e| format!("read dir '{}': {e}", src.display()))?
+    for entry in std::fs::read_dir(&src_canon)
+        .map_err(|e| format!("read dir '{}': {e}", src_canon.display()))?
     {
         let entry = entry.map_err(|e| e.to_string())?;
         let src_path = entry.path();
@@ -462,11 +519,32 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), String> {
         let file_type = entry
             .file_type()
             .map_err(|e| format!("stat '{}': {e}", src_path.display()))?;
+        if file_type.is_symlink() {
+            return Err(format!(
+                "refusing to copy symlink during web export: '{}'",
+                src_path.display()
+            ));
+        }
+        let resolved = src_path
+            .canonicalize()
+            .map_err(|e| format!("canonicalize '{}': {e}", src_path.display()))?;
+        if !resolved.starts_with(boundary_root) {
+            return Err(format!(
+                "refusing to copy path outside project root '{}': '{}'",
+                boundary_root.display(),
+                resolved.display()
+            ));
+        }
         if file_type.is_dir() {
-            copy_dir_recursive(&src_path, &dst_path)?;
+            copy_dir_recursive_bounded(&resolved, &dst_path, boundary_root)?;
         } else if file_type.is_file() {
-            std::fs::copy(&src_path, &dst_path)
-                .map_err(|e| format!("copy '{}' to '{}': {e}", src_path.display(), dst_path.display()))?;
+            std::fs::copy(&resolved, &dst_path).map_err(|e| {
+                format!(
+                    "copy '{}' to '{}': {e}",
+                    resolved.display(),
+                    dst_path.display()
+                )
+            })?;
         }
     }
     Ok(())
@@ -844,8 +922,19 @@ async fn run_build_wasm(app: tauri::AppHandle, project_root: String) -> Result<(
 
     std::fs::copy(project_root.join("project.json"), dist_dir.join("project.json"))
         .map_err(|e| format!("copy project.json to web dist: {e}"))?;
-    copy_dir_recursive(&project_root.join("scripts"), &dist_dir.join("scripts"))?;
-    copy_dir_recursive(&project_root.join("assets"), &dist_dir.join("assets"))?;
+    let boundary_root = project_root
+        .canonicalize()
+        .map_err(|e| format!("canonicalize project root '{}': {e}", project_root.display()))?;
+    copy_dir_recursive_bounded(
+        &boundary_root.join("scripts"),
+        &dist_dir.join("scripts"),
+        &boundary_root,
+    )?;
+    copy_dir_recursive_bounded(
+        &boundary_root.join("assets"),
+        &dist_dir.join("assets"),
+        &boundary_root,
+    )?;
 
     let pack_script = resolve_pack_script(&app)?;
     let python = prefer_windowless_python(&resolve_python_exe(&app)?);

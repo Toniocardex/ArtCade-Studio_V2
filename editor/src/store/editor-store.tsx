@@ -34,8 +34,7 @@ import { logicBoardReducer } from './reducers/logic-board-reducer'
 import { dialogReducer } from './reducers/dialog-reducer'
 import { applyAuthoringModeToDocument } from '../utils/authoring-mode'
 import { ensureBootSessionReset } from '../utils/boot-session'
-import { clearLogicCompileCache } from '../utils/logic-board/logic-compile-service'
-import { clearProjectWorkbenchCache } from '../utils/project-health'
+import { runLoadProjectSideEffects } from '../utils/project-load-side-effects'
 import { TextPromptProvider } from '../components/TextPromptProvider'
 import {
   applyProjectRedo,
@@ -145,8 +144,7 @@ export function EditorProvider({ children }: { children: ReactNode }) {
   // value.
   const dispatch = useCallback((action: Action) => {
     if (action.type === 'LOAD_PROJECT') {
-      clearLogicCompileCache()
-      clearProjectWorkbenchCache()
+      runLoadProjectSideEffects()
     }
     coreDi(action)
     volDi(action)
