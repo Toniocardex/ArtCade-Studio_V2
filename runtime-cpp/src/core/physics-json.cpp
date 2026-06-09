@@ -1,20 +1,8 @@
 #include "physics-json.h"
 
+#include "json-primitives.h"
+
 namespace ArtCade::ProjectJson {
-
-namespace {
-
-Vec2 read_vec2(const nlohmann::json& j, const Vec2& fallback = {0.f, 0.f}) {
-    if (j.is_array() && j.size() >= 2) {
-        return {j[0].get<float>(), j[1].get<float>()};
-    }
-    if (j.is_object()) {
-        return {j.value("x", fallback.x), j.value("y", fallback.y)};
-    }
-    return fallback;
-}
-
-} // namespace
 
 bool read_physics_component(const nlohmann::json& entityJson,
                             PhysicsComponent& out) {

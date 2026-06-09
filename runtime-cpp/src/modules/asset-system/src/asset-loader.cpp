@@ -1,8 +1,7 @@
 #include "../include/asset-loader.h"
 #include "zip-reader.h"
 #include "object-type-materialize.h"
-#include "physics-json.h"
-#include "sprite-json.h"
+#include "entity-json.h"
 #include <nlohmann/json.hpp>
 #include <filesystem>
 #include <fstream>
@@ -199,28 +198,7 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
         for (auto& [key, tv] : objectTypesRaw->items()) {
             if (!tv.is_object()) continue;
             EntityDef e;
-            e.id        = 0;
-            e.className = tv.value("id", key);
-            e.name      = tv.value("displayName", tv.value("display_name", e.className));
-            if (tv.contains("tags") && tv["tags"].is_array())
-                e.tags = tv["tags"].get<std::vector<std::string>>();
-            ProjectJson::read_sprite_component(tv, e.sprite);
-            if (tv.contains("solid") && tv["solid"].is_object()) {
-                SolidComponent solid;
-                solid.groundClass = tv["solid"].value("groundClass", std::string("Ground"));
-                solid.surfaceKind = tv["solid"].value("surfaceKind", std::string("solid"));
-                e.solid = solid;
-            }
-            if (tv.contains("platformerController") && tv["platformerController"].is_object()) {
-                auto& p = tv["platformerController"];
-                PlatformerControllerComponent pc;
-                pc.maxSpeed      = p.value("maxSpeed", 300.f);
-                pc.jumpForce     = p.value("jumpForce", 600.f);
-                pc.customGravity = p.value("customGravity", 1500.f);
-                pc.groundClass   = p.value("groundClass", std::string("Ground"));
-                e.platformerController = pc;
-            }
-            ProjectJson::read_physics_component(tv, e.physics);
+            ProjectJson::read_object_type(tv, key, e);
             if (!e.className.empty())
                 out.objectTypes[e.className] = std::move(e);
         }
@@ -231,123 +209,7 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
         const auto& ents = j["entities"];
         auto ingest_entity = [&](const json& ev, EntityId fallbackId) {
             EntityDef e;
-            e.id        = ev.value("id", fallbackId);
-            e.name      = ev.value("name", std::string{});
-            e.className = readStringAny(ev, "className", "class_name");
-
-            if (ev.contains("tags") && ev["tags"].is_array())
-                e.tags = ev["tags"].get<std::vector<std::string>>();
-
-            if (ev.contains("transform")) {
-                auto& t = ev["transform"];
-                if (t.contains("position"))
-                    e.transform.position = readVec2(t["position"]);
-                if (t.contains("scale"))
-                    e.transform.scale = readVec2(t["scale"], {1,1});
-                e.transform.rotation = t.value("rotation", 0.f);
-            }
-
-            ProjectJson::read_sprite_component(ev, e.sprite);
-            ProjectJson::read_physics_component(ev, e.physics);
-
-            // Optional gameplay components (Phase D1) — names mirror editor TS
-            if (ev.contains("sensor") && ev["sensor"].is_object()) {
-                auto& s = ev["sensor"];
-                SensorComponent sc;
-                sc.shape     = s.value("shape", std::string("Circle"));
-                sc.radius    = s.value("radius", 120.f);
-                sc.width     = s.value("width", 64.f);
-                sc.height    = s.value("height", 64.f);
-                sc.targetTag = s.value("targetTag", std::string("player"));
-                e.sensor = sc;
-            }
-            if (ev.contains("solid") && ev["solid"].is_object()) {
-                auto& s = ev["solid"];
-                SolidComponent solid;
-                solid.groundClass = s.value("groundClass", std::string("Ground"));
-                solid.surfaceKind = s.value("surfaceKind", std::string("solid"));
-                e.solid = solid;
-            }
-            if (ev.contains("platformerController") && ev["platformerController"].is_object()) {
-                auto& p = ev["platformerController"];
-                PlatformerControllerComponent pc;
-                pc.maxSpeed      = p.value("maxSpeed", 300.f);
-                pc.jumpForce     = p.value("jumpForce", 600.f);
-                pc.customGravity = p.value("customGravity", 1500.f);
-                pc.coyoteTime    = p.value("coyoteTime", 0.15f);
-                pc.jumpBuffer    = p.value("jumpBuffer", 0.1f);
-                pc.groundClass   = p.value("groundClass", std::string("Ground"));
-                e.platformerController = pc;
-            }
-            if (ev.contains("topDownController") && ev["topDownController"].is_object()) {
-                auto& t = ev["topDownController"];
-                TopDownControllerComponent tc;
-                tc.maxSpeed       = t.value("maxSpeed", 260.f);
-                tc.acceleration   = t.value("acceleration", 1600.f);
-                tc.friction       = t.value("friction", 2200.f);
-                tc.fourDirections = t.value("fourDirections", false);
-                e.topDownController = tc;
-            }
-            if (ev.contains("linearMover") && ev["linearMover"].is_object()) {
-                auto& m = ev["linearMover"];
-                LinearMoverComponent lm;
-                lm.directionX = m.value("directionX", 1.f);
-                lm.directionY = m.value("directionY", 0.f);
-                lm.speed      = m.value("speed", 300.f);
-                e.linearMover = lm;
-            }
-            if (ev.contains("cameraTarget") && ev["cameraTarget"].is_object()) {
-                auto& c = ev["cameraTarget"];
-                CameraTargetComponent ct;
-                ct.offsetX     = c.value("offsetX", 0.f);
-                ct.offsetY     = c.value("offsetY", 0.f);
-                ct.followSpeed = c.value("followSpeed", 8.f);
-                e.cameraTarget = ct;
-            }
-            if (ev.contains("magneticItem") && ev["magneticItem"].is_object()) {
-                auto& m = ev["magneticItem"];
-                MagneticItemComponent mi;
-                mi.attractTag = m.value("attractTag", std::string("pickup"));
-                mi.radius     = m.value("radius", 200.f);
-                mi.pullSpeed  = m.value("pullSpeed", 400.f);
-                e.magneticItem = mi;
-            }
-            if (ev.contains("hordeMember") && ev["hordeMember"].is_object()) {
-                auto& h = ev["hordeMember"];
-                HordeMemberComponent hm;
-                hm.targetClass      = h.value("targetClass", std::string("Player"));
-                hm.maxSpeed         = h.value("maxSpeed", 120.f);
-                hm.separationRadius = h.value("separationRadius", 48.f);
-                hm.separationWeight = h.value("separationWeight", 1.5f);
-                hm.chaseWeight      = h.value("chaseWeight", 1.f);
-                e.hordeMember = hm;
-            }
-            if (ev.contains("health") && ev["health"].is_object()) {
-                auto& h = ev["health"];
-                HealthComponent hc;
-                hc.maxHp     = h.value("maxHp", 100.f);
-                hc.currentHp = h.value("currentHp", hc.maxHp);
-                hc.iFrames   = h.value("iFrames", 0.2f);
-                e.health = hc;
-            }
-            if (ev.contains("autoDestroy") && ev["autoDestroy"].is_object()) {
-                AutoDestroyComponent ac;
-                ac.lifespan = ev["autoDestroy"].value("lifespan", 0.f);
-                e.autoDestroy = ac;
-            }
-            if (ev.contains("dialog") && ev["dialog"].is_object()) {
-                auto& d = ev["dialog"];
-                DialogComponent dc;
-                dc.dialogId        = d.value("dialogId", "");
-                dc.startNode       = d.value("startNode", "");
-                dc.textSpeed       = d.value("textSpeed", 40.f);
-                dc.triggerMessage  = d.value("triggerMessage", "");
-                if (!dc.dialogId.empty())
-                    e.dialog = dc;
-            }
-            if (ev.contains("visible") && ev["visible"].is_boolean())
-                e.visible = ev["visible"].get<bool>();
-
+            ProjectJson::read_entity_instance(ev, fallbackId, e, false);
             if (e.id != 0)
                 out.entities[e.id] = std::move(e);
         };

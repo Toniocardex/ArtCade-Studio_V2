@@ -1,5 +1,6 @@
 // physics-json-test.cpp — shared project JSON deserializers.
 
+#include "entity-json.h"
 #include "physics-json.h"
 #include "sprite-json.h"
 
@@ -67,10 +68,51 @@ static void test_read_sprite_component_fill_color() {
     CHECK(std::abs(sprite.pivot.x - 0.25f) < 0.01f);
 }
 
+static void test_read_object_type_all_gameplay_components() {
+    const json typeJson = json::parse(R"({
+      "id": "Enemy",
+      "displayName": "Enemy",
+      "transform": { "position": { "x": 10, "y": 20 }, "scale": { "x": 1, "y": 1 }, "rotation": 0 },
+      "physics": {
+        "bodyType": "Kinematic",
+        "collider": { "shape": "Rectangle", "size": { "x": 32, "y": 32 } }
+      },
+      "sensor": { "shape": "Circle", "radius": 40 },
+      "health": { "maxHp": 50, "currentHp": 50, "iFrames": 0.1 },
+      "hordeMember": { "targetClass": "Player", "maxSpeed": 90 }
+    })");
+
+    ArtCade::EntityDef e{};
+    ArtCade::ProjectJson::read_object_type(typeJson, "Enemy", e);
+    CHECK(e.id == 0);
+    CHECK(e.className == "Enemy");
+    CHECK(std::abs(e.transform.position.x - 10.f) < 0.01f);
+    CHECK(e.physics.bodyType == ArtCade::BodyType::Kinematic);
+    CHECK(e.sensor.has_value());
+    CHECK(std::abs(e.sensor->radius - 40.f) < 0.01f);
+    CHECK(e.health.has_value());
+    CHECK(std::abs(e.health->maxHp - 50.f) < 0.01f);
+    CHECK(e.hordeMember.has_value());
+    CHECK(e.hordeMember->targetClass == "Player");
+}
+
+static void test_read_entity_instance_wasm_name_fallback() {
+    const json entity = json::parse(R"({ "id": 7, "className": "Hero" })");
+    ArtCade::EntityDef wasm{};
+    ArtCade::ProjectJson::read_entity_instance(entity, 7, wasm, true);
+    CHECK(wasm.name == "Entity_7");
+
+    ArtCade::EntityDef native{};
+    ArtCade::ProjectJson::read_entity_instance(entity, 7, native, false);
+    CHECK(native.name.empty());
+}
+
 int main() {
     test_read_physics_component_from_object_type_json();
     test_missing_physics_returns_false();
     test_read_sprite_component_fill_color();
+    test_read_object_type_all_gameplay_components();
+    test_read_entity_instance_wasm_name_fallback();
 
     std::cout << "physics-json-test: " << g_passed << " passed, "
               << g_failed << " failed\n";

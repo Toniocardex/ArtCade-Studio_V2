@@ -1,0 +1,149 @@
+#include "entity-json.h"
+
+#include "json-primitives.h"
+#include "physics-json.h"
+#include "sprite-json.h"
+
+namespace ArtCade::ProjectJson {
+
+namespace {
+
+void read_optional_gameplay_components(const nlohmann::json& j, EntityDef& e) {
+    if (j.contains("sensor") && j["sensor"].is_object()) {
+        const auto& s = j["sensor"];
+        SensorComponent sc;
+        sc.shape     = s.value("shape", std::string("Circle"));
+        sc.radius    = s.value("radius", 120.f);
+        sc.width     = s.value("width", 64.f);
+        sc.height    = s.value("height", 64.f);
+        sc.targetTag = s.value("targetTag", std::string("player"));
+        e.sensor = sc;
+    }
+    if (j.contains("solid") && j["solid"].is_object()) {
+        const auto& s = j["solid"];
+        SolidComponent solid;
+        solid.groundClass = s.value("groundClass", std::string("Ground"));
+        solid.surfaceKind = s.value("surfaceKind", std::string("solid"));
+        e.solid = solid;
+    }
+    if (j.contains("platformerController") && j["platformerController"].is_object()) {
+        const auto& p = j["platformerController"];
+        PlatformerControllerComponent pc;
+        pc.maxSpeed      = p.value("maxSpeed", 300.f);
+        pc.jumpForce     = p.value("jumpForce", 600.f);
+        pc.customGravity = p.value("customGravity", 1500.f);
+        pc.coyoteTime    = p.value("coyoteTime", 0.15f);
+        pc.jumpBuffer    = p.value("jumpBuffer", 0.1f);
+        pc.groundClass   = p.value("groundClass", std::string("Ground"));
+        e.platformerController = pc;
+    }
+    if (j.contains("topDownController") && j["topDownController"].is_object()) {
+        const auto& t = j["topDownController"];
+        TopDownControllerComponent tc;
+        tc.maxSpeed       = t.value("maxSpeed", 260.f);
+        tc.acceleration   = t.value("acceleration", 1600.f);
+        tc.friction       = t.value("friction", 2200.f);
+        tc.fourDirections = t.value("fourDirections", false);
+        e.topDownController = tc;
+    }
+    if (j.contains("linearMover") && j["linearMover"].is_object()) {
+        const auto& m = j["linearMover"];
+        LinearMoverComponent lm;
+        lm.directionX = m.value("directionX", 1.f);
+        lm.directionY = m.value("directionY", 0.f);
+        lm.speed      = m.value("speed", 300.f);
+        e.linearMover = lm;
+    }
+    if (j.contains("cameraTarget") && j["cameraTarget"].is_object()) {
+        const auto& c = j["cameraTarget"];
+        CameraTargetComponent ct;
+        ct.offsetX     = c.value("offsetX", 0.f);
+        ct.offsetY     = c.value("offsetY", 0.f);
+        ct.followSpeed = c.value("followSpeed", 8.f);
+        e.cameraTarget = ct;
+    }
+    if (j.contains("magneticItem") && j["magneticItem"].is_object()) {
+        const auto& m = j["magneticItem"];
+        MagneticItemComponent mi;
+        mi.attractTag = m.value("attractTag", std::string("pickup"));
+        mi.radius     = m.value("radius", 200.f);
+        mi.pullSpeed  = m.value("pullSpeed", 400.f);
+        e.magneticItem = mi;
+    }
+    if (j.contains("hordeMember") && j["hordeMember"].is_object()) {
+        const auto& h = j["hordeMember"];
+        HordeMemberComponent hm;
+        hm.targetClass      = h.value("targetClass", std::string("Player"));
+        hm.maxSpeed         = h.value("maxSpeed", 120.f);
+        hm.separationRadius = h.value("separationRadius", 48.f);
+        hm.separationWeight = h.value("separationWeight", 1.5f);
+        hm.chaseWeight      = h.value("chaseWeight", 1.f);
+        e.hordeMember = hm;
+    }
+    if (j.contains("health") && j["health"].is_object()) {
+        const auto& h = j["health"];
+        HealthComponent hc;
+        hc.maxHp     = h.value("maxHp", 100.f);
+        hc.currentHp = h.value("currentHp", hc.maxHp);
+        hc.iFrames   = h.value("iFrames", 0.2f);
+        e.health = hc;
+    }
+    if (j.contains("autoDestroy") && j["autoDestroy"].is_object()) {
+        AutoDestroyComponent ac;
+        ac.lifespan = j["autoDestroy"].value("lifespan", 0.f);
+        e.autoDestroy = ac;
+    }
+    if (j.contains("dialog") && j["dialog"].is_object()) {
+        const auto& d = j["dialog"];
+        DialogComponent dc;
+        dc.dialogId       = d.value("dialogId", "");
+        dc.startNode      = d.value("startNode", "");
+        dc.textSpeed      = d.value("textSpeed", 40.f);
+        dc.triggerMessage = d.value("triggerMessage", "");
+        if (!dc.dialogId.empty())
+            e.dialog = dc;
+    }
+    if (j.contains("visible") && j["visible"].is_boolean())
+        e.visible = j["visible"].get<bool>();
+}
+
+} // namespace
+
+void read_entity_components(const nlohmann::json& entityJson, EntityDef& out) {
+    if (entityJson.contains("transform") && entityJson["transform"].is_object())
+        out.transform = read_transform(entityJson["transform"]);
+    read_sprite_component(entityJson, out.sprite);
+    read_physics_component(entityJson, out.physics);
+    read_optional_gameplay_components(entityJson, out);
+}
+
+void read_entity_instance(const nlohmann::json& entityJson,
+                          EntityId fallbackId,
+                          EntityDef& out,
+                          bool use_entity_name_fallback) {
+    out.id = entityJson.value("id", fallbackId);
+    if (use_entity_name_fallback) {
+        out.name = entityJson.value(
+            "name", std::string("Entity_") + std::to_string(fallbackId));
+    } else {
+        out.name = entityJson.value("name", std::string{});
+    }
+    out.className = read_string_any(entityJson, "className", "class_name");
+    if (entityJson.contains("tags") && entityJson["tags"].is_array())
+        out.tags = entityJson["tags"].get<std::vector<std::string>>();
+    read_entity_components(entityJson, out);
+}
+
+void read_object_type(const nlohmann::json& typeJson,
+                      const std::string& mapKey,
+                      EntityDef& out) {
+    out.id = 0;
+    out.className = typeJson.value("id", mapKey);
+    out.name = typeJson.value("displayName",
+                              typeJson.value("display_name", out.className));
+    if (typeJson.contains("tags") && typeJson["tags"].is_array())
+        out.tags = typeJson["tags"].get<std::vector<std::string>>();
+    read_entity_components(typeJson, out);
+}
+
+} // namespace ArtCade::ProjectJson

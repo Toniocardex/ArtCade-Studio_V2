@@ -1,7 +1,6 @@
 #include "project-doc-parser.h"
 #include "object-type-materialize.h"
-#include "physics-json.h"
-#include "sprite-json.h"
+#include "entity-json.h"
 
 #ifdef __EMSCRIPTEN__
 
@@ -89,112 +88,9 @@ SpriteComponent parseSprite(const json& j) {
 
 EntityDef parseEntityDef(const json& j, EntityId fallbackId) {
     EntityDef e;
-    e.id        = j.value("id", static_cast<uint32_t>(fallbackId));
-    e.name      = j.value("name", std::string("Entity_") + std::to_string(fallbackId));
-    e.className = j.value("className", j.value("class_name", std::string("Unknown")));
-    if (j.contains("tags") && j["tags"].is_array())
-        for (const auto& tag : j["tags"]) e.tags.push_back(tag.get<std::string>());
-    if (j.contains("transform")) e.transform = parseTransform(j["transform"]);
-    ProjectJson::read_sprite_component(j, e.sprite);
-    ProjectJson::read_physics_component(j, e.physics);
-
-    // -- Optional gameplay components (Phase D1) — names mirror the editor TS.
-    if (j.contains("sensor") && j["sensor"].is_object()) {
-        const auto& s = j["sensor"];
-        SensorComponent sc;
-        sc.shape     = s.value("shape", std::string("Circle"));
-        sc.radius    = s.value("radius", 120.f);
-        sc.width     = s.value("width", 64.f);
-        sc.height    = s.value("height", 64.f);
-        sc.targetTag = s.value("targetTag", std::string("player"));
-        e.sensor = sc;
-    }
-    if (j.contains("solid") && j["solid"].is_object()) {
-        const auto& s = j["solid"];
-        SolidComponent solid;
-        solid.groundClass  = s.value("groundClass", std::string("Ground"));
-        solid.surfaceKind  = s.value("surfaceKind", std::string("solid"));
-        e.solid = solid;
-    }
-    if (j.contains("platformerController") && j["platformerController"].is_object()) {
-        const auto& p = j["platformerController"];
-        PlatformerControllerComponent pc;
-        pc.maxSpeed      = p.value("maxSpeed", 300.f);
-        pc.jumpForce     = p.value("jumpForce", 600.f);
-        pc.customGravity = p.value("customGravity", 1500.f);
-        pc.coyoteTime    = p.value("coyoteTime", 0.15f);
-        pc.jumpBuffer    = p.value("jumpBuffer", 0.1f);
-        pc.groundClass   = p.value("groundClass", std::string("Ground"));
-        e.platformerController = pc;
-    }
-    if (j.contains("topDownController") && j["topDownController"].is_object()) {
-        const auto& t = j["topDownController"];
-        TopDownControllerComponent tc;
-        tc.maxSpeed       = t.value("maxSpeed", 260.f);
-        tc.acceleration   = t.value("acceleration", 1600.f);
-        tc.friction       = t.value("friction", 2200.f);
-        tc.fourDirections = t.value("fourDirections", false);
-        e.topDownController = tc;
-    }
-    if (j.contains("linearMover") && j["linearMover"].is_object()) {
-        const auto& m = j["linearMover"];
-        LinearMoverComponent lm;
-        lm.directionX = m.value("directionX", 1.f);
-        lm.directionY = m.value("directionY", 0.f);
-        lm.speed      = m.value("speed", 300.f);
-        e.linearMover = lm;
-    }
-    if (j.contains("cameraTarget") && j["cameraTarget"].is_object()) {
-        const auto& c = j["cameraTarget"];
-        CameraTargetComponent ct;
-        ct.offsetX     = c.value("offsetX", 0.f);
-        ct.offsetY     = c.value("offsetY", 0.f);
-        ct.followSpeed = c.value("followSpeed", 8.f);
-        e.cameraTarget = ct;
-    }
-    if (j.contains("magneticItem") && j["magneticItem"].is_object()) {
-        const auto& m = j["magneticItem"];
-        MagneticItemComponent mi;
-        mi.attractTag = m.value("attractTag", std::string("pickup"));
-        mi.radius     = m.value("radius", 200.f);
-        mi.pullSpeed  = m.value("pullSpeed", 400.f);
-        e.magneticItem = mi;
-    }
-    if (j.contains("hordeMember") && j["hordeMember"].is_object()) {
-        const auto& h = j["hordeMember"];
-        HordeMemberComponent hm;
-        hm.targetClass      = h.value("targetClass", std::string("Player"));
-        hm.maxSpeed         = h.value("maxSpeed", 120.f);
-        hm.separationRadius = h.value("separationRadius", 48.f);
-        hm.separationWeight = h.value("separationWeight", 1.5f);
-        hm.chaseWeight      = h.value("chaseWeight", 1.f);
-        e.hordeMember = hm;
-    }
-    if (j.contains("health") && j["health"].is_object()) {
-        const auto& h = j["health"];
-        HealthComponent hc;
-        hc.maxHp     = h.value("maxHp", 100.f);
-        hc.currentHp = h.value("currentHp", hc.maxHp);
-        hc.iFrames   = h.value("iFrames", 0.2f);
-        e.health = hc;
-    }
-    if (j.contains("autoDestroy") && j["autoDestroy"].is_object()) {
-        AutoDestroyComponent ac;
-        ac.lifespan = j["autoDestroy"].value("lifespan", 0.f);
-        e.autoDestroy = ac;
-    }
-    if (j.contains("dialog") && j["dialog"].is_object()) {
-        const auto& d = j["dialog"];
-        DialogComponent dc;
-        dc.dialogId       = d.value("dialogId", "");
-        dc.startNode      = d.value("startNode", "");
-        dc.textSpeed      = d.value("textSpeed", 40.f);
-        dc.triggerMessage = d.value("triggerMessage", "");
-        if (!dc.dialogId.empty())
-            e.dialog = dc;
-    }
-    if (j.contains("visible") && j["visible"].is_boolean())
-        e.visible = j["visible"].get<bool>();
+    ProjectJson::read_entity_instance(j, fallbackId, e, true);
+    if (e.className.empty())
+        e.className = "Unknown";
     return e;
 }
 
@@ -347,10 +243,8 @@ parseObjectTypes(const json& doc) {
     if (!raw || !raw->is_object()) return objectTypes;
 
     for (auto& [key, val] : raw->items()) {
-        EntityDef e = parseEntityDef(val, 0);
-        e.id = 0;
-        e.className = val.value("id", key);
-        e.name = val.value("displayName", val.value("display_name", e.className));
+        EntityDef e;
+        ProjectJson::read_object_type(val, key, e);
         objectTypes[e.className] = std::move(e);
     }
     return objectTypes;

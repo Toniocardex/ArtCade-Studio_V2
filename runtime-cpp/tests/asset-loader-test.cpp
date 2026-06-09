@@ -187,6 +187,56 @@ static void test_object_types_snake_case_sprite_fill_color() {
     fs::remove_all(tmpDir);
 }
 
+static void test_object_types_full_gameplay_components() {
+    const fs::path tmpDir =
+        fs::temp_directory_path() / "artcade_asset_loader_v2_components";
+    fs::create_directories(tmpDir);
+    {
+        std::ofstream f(tmpDir / "project.json");
+        f << R"({
+  "projectName": "V2Components",
+  "activeSceneId": "s1",
+  "objectTypes": {
+    "Enemy": {
+      "id": "Enemy",
+      "sensor": { "shape": "Circle", "radius": 55 },
+      "health": { "maxHp": 75 },
+      "platformerController": { "maxSpeed": 220, "jumpForce": 500 }
+    }
+  },
+  "scenes": {
+    "s1": {
+      "id": "s1",
+      "name": "S1",
+      "instances": [{ "id": 1, "typeId": "Enemy", "name": "Enemy_1" }]
+    }
+  }
+})";
+    }
+
+    AssetLoader loader;
+    loader.init();
+    ProjectDoc doc;
+    CHECK(loader.loadDirectory(tmpDir.string(), doc));
+
+    const auto typeIt = doc.objectTypes.find("Enemy");
+    CHECK(typeIt != doc.objectTypes.end());
+    CHECK(typeIt->second.sensor.has_value());
+    CHECK(std::abs(typeIt->second.sensor->radius - 55.f) < 0.01f);
+    CHECK(typeIt->second.health.has_value());
+    CHECK(typeIt->second.platformerController.has_value());
+    CHECK(std::abs(typeIt->second.platformerController->maxSpeed - 220.f) < 0.01f);
+
+    const auto instIt = doc.entities.find(1);
+    CHECK(instIt != doc.entities.end());
+    CHECK(instIt->second.sensor.has_value());
+    CHECK(instIt->second.health.has_value());
+    CHECK(instIt->second.platformerController.has_value());
+
+    loader.shutdown();
+    fs::remove_all(tmpDir);
+}
+
 static void test_malformed_project_json_returns_false_without_crash() {
     const fs::path tmpDir = fs::temp_directory_path() / "artcade_asset_loader_bad_type";
     fs::create_directories(tmpDir);
@@ -212,6 +262,7 @@ int main() {
     test_physics_health_sensor_from_project_json();
     test_object_types_physics_from_project_json();
     test_object_types_snake_case_sprite_fill_color();
+    test_object_types_full_gameplay_components();
     test_invalid_hex_color_falls_back_without_crash();
     test_malformed_project_json_returns_false_without_crash();
 
