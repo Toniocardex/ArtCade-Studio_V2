@@ -35,4 +35,13 @@ void read_tilesets(const nlohmann::json& doc, std::vector<TilesetAsset>& out);
 void read_thumbnails(const nlohmann::json& doc,
                      std::unordered_map<SceneId, std::string>& out);
 
+/** Top-level project.json identity and routing fields (snake_case aware). */
+void read_project_header(const nlohmann::json& doc, ProjectDoc& out);
+
+/**
+ * Partial runtime overlay for editor preview: only keys present in @p doc are applied.
+ * Differs from read_world_settings, which applies defaults when the world block exists.
+ */
+void read_runtime_settings(const nlohmann::json& doc, ProjectRuntimeSettings& out);
+
 } // namespace ArtCade::ProjectJson

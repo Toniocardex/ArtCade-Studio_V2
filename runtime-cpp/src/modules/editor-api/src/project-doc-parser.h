@@ -25,11 +25,6 @@
 
 namespace ArtCade::ProjectDocParser {
 
-ArtCade::Vec2            parseVec2     (const nlohmann::json& j);
-ArtCade::Vec4            parseVec4     (const nlohmann::json& j);
-ArtCade::Transform       parseTransform(const nlohmann::json& j);
-ArtCade::SpriteComponent parseSprite   (const nlohmann::json& j);
-
 ArtCade::EntityDef       parseEntityDef (const nlohmann::json& j,
                                          ArtCade::EntityId fallbackId);
 ArtCade::SceneDef        parseSceneDef  (const nlohmann::json& j,

@@ -1,5 +1,6 @@
-// physics-json-test.cpp — shared project JSON deserializers.
+// project-json-test.cpp — shared artcade-project-json deserializers.
 
+#include "asset-json.h"
 #include "entity-json.h"
 #include "physics-json.h"
 #include "project-meta-json.h"
@@ -214,6 +215,70 @@ static void test_read_tilesets_array_and_world_settings() {
     CHECK(thumbs["scene_1"] == "thumbnails/scene_1.png");
 }
 
+static void test_read_runtime_settings_partial_overlay() {
+    const json doc = json::parse(R"({
+      "target_fps": 120,
+      "world": {
+        "pixels_per_meter": 80,
+        "physics_debug_draw": true
+      }
+    })");
+
+    ArtCade::ProjectRuntimeSettings runtime{};
+    runtime.gravity = 9.81f;
+    ArtCade::ProjectJson::read_runtime_settings(doc, runtime);
+    CHECK(std::abs(runtime.targetFPS - 120.f) < 0.01f);
+    CHECK(std::abs(runtime.gravity - 9.81f) < 0.01f);
+    CHECK(std::abs(runtime.pixelsPerMeter - 80.f) < 0.01f);
+    CHECK(runtime.physicsDebugDraw);
+    CHECK(runtime.physicsMode == ArtCade::PhysicsMode::Auto);
+}
+
+static void test_read_project_header_and_image_assets() {
+    const json doc = json::parse(R"({
+      "project_name": "Demo",
+      "active_scene_id": "s1",
+      "assets": {
+        "hero": {
+          "id": "hero_id",
+          "path": "sprites/hero.png",
+          "defaultPivot": { "x": 0.25, "y": 0.75 },
+          "imagePoints": [{ "id": "hand", "x": 0.5, "y": 0.5 }]
+        }
+      }
+    })");
+
+    ArtCade::ProjectDoc project{};
+    ArtCade::ProjectJson::read_project_header(doc, project);
+    CHECK(project.projectName == "Demo");
+    CHECK(project.activeSceneId == "s1");
+
+    std::vector<ArtCade::ImageAssetDef> assets;
+    ArtCade::ProjectJson::read_image_assets(doc, assets);
+    CHECK(assets.size() == 1);
+    CHECK(assets[0].assetId == "sprites/hero.png");
+    CHECK(std::abs(assets[0].defaultPivot.x - 0.25f) < 0.01f);
+    CHECK(assets[0].imagePoints.size() == 1);
+    CHECK(assets[0].imagePoints[0].id == "hand");
+}
+
+static void test_read_entities_and_scenes_maps() {
+    const json doc = json::parse(R"({
+      "entities": { "7": { "id": 7, "className": "Hero" } },
+      "scenes": { "s1": { "id": "s1", "name": "Main" } }
+    })");
+
+    std::unordered_map<ArtCade::EntityId, ArtCade::EntityDef> entities;
+    ArtCade::ProjectJson::read_entities_map(doc, entities, false);
+    CHECK(entities.size() == 1);
+    CHECK(entities[7].className == "Hero");
+
+    std::unordered_map<std::string, ArtCade::SceneDef> scenes;
+    ArtCade::ProjectJson::read_scenes_map(doc, scenes);
+    CHECK(scenes.size() == 1);
+    CHECK(scenes["s1"].name == "Main");
+}
+
 static void test_read_scene_def_defaults_when_fields_absent() {
     const json scene = json::parse(R"({ "name": "Empty" })");
     ArtCade::SceneDef s{};
@@ -244,10 +309,13 @@ int main() {
     test_read_scene_def_snake_case_and_tilemap();
     test_read_tile_palette_hex_and_snake_case();
     test_read_tilesets_array_and_world_settings();
+    test_read_runtime_settings_partial_overlay();
+    test_read_project_header_and_image_assets();
+    test_read_entities_and_scenes_maps();
     test_read_scene_def_defaults_when_fields_absent();
     test_read_entity_instance_wasm_name_fallback();
 
-    std::cout << "physics-json-test: " << g_passed << " passed, "
+    std::cout << "project-json-test: " << g_passed << " passed, "
               << g_failed << " failed\n";
     return g_failed == 0 ? 0 : 1;
 }

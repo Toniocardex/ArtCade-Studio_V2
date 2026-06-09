@@ -7,6 +7,7 @@
 
 #include <nlohmann/json.hpp>
 #include <string>
+#include <unordered_map>
 
 namespace ArtCade::ProjectJson {
 
@@ -25,5 +26,9 @@ void read_tilemap(const nlohmann::json& sceneJson, TilemapData& out);
 void read_scene_def(const nlohmann::json& sceneJson,
                     const SceneId& fallbackId,
                     SceneDef& out);
+
+/** Parses scenes array or id-keyed object map. */
+void read_scenes_map(const nlohmann::json& doc,
+                     std::unordered_map<SceneId, SceneDef>& out);
 
 } // namespace ArtCade::ProjectJson

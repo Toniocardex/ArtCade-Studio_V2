@@ -93,4 +93,26 @@ void read_scene_def(const nlohmann::json& sceneJson,
     read_tilemap(sceneJson, out.tilemap);
 }
 
+void read_scenes_map(const nlohmann::json& doc,
+                     std::unordered_map<SceneId, SceneDef>& out) {
+    out.clear();
+    if (!doc.contains("scenes"))
+        return;
+
+    const auto& scenesJson = doc["scenes"];
+    if (scenesJson.is_array()) {
+        for (const auto& item : scenesJson) {
+            SceneDef scene;
+            read_scene_def(item, "scene_" + std::to_string(out.size()), scene);
+            out[scene.id] = std::move(scene);
+        }
+    } else if (scenesJson.is_object()) {
+        for (auto& [key, val] : scenesJson.items()) {
+            SceneDef scene;
+            read_scene_def(val, key, scene);
+            out[scene.id] = std::move(scene);
+        }
+    }
+}
+
 } // namespace ArtCade::ProjectJson

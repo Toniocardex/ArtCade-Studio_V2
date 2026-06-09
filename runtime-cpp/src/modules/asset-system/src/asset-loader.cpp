@@ -1,7 +1,9 @@
 #include "../include/asset-loader.h"
 #include "zip-reader.h"
 #include "object-type-materialize.h"
+#include "asset-json.h"
 #include "entity-json.h"
+#include "json-primitives.h"
 #include "scene-json.h"
 #include "project-meta-json.h"
 #include <nlohmann/json.hpp>
@@ -15,44 +17,8 @@ using json = nlohmann::json;
 
 namespace ArtCade::Modules {
 
-// ------------------------------------------------------------------ helpers
-
-static Vec2 readVec2(const json& j, Vec2 def = {}) {
-    if (j.is_array() && j.size() >= 2)
-        return { j[0].get<float>(), j[1].get<float>() };
-    if (j.is_object())
-        return { j.value("x", def.x), j.value("y", def.y) };
-    return def;
-}
-
-static Vec4 readVec4(const json& j, Vec4 def = {1,1,1,1}) {
-    if (j.is_array() && j.size() >= 4)
-        return { j[0].get<float>(), j[1].get<float>(),
-                 j[2].get<float>(), j[3].get<float>() };
-    if (j.is_object())
-        return {
-            j.contains("r") ? j["r"].get<float>() : j.value("x", def.r),
-            j.contains("g") ? j["g"].get<float>() : j.value("y", def.g),
-            j.contains("b") ? j["b"].get<float>() : j.value("z", def.b),
-            j.contains("a") ? j["a"].get<float>() : j.value("w", def.a)
-        };
-    return def;
-}
-
-static std::string readStringAny(const json& j,
-                                 const char* camel,
-                                 const char* snake,
-                                 const std::string& def = {}) {
-    if (j.contains(camel)) return j[camel].get<std::string>();
-    if (j.contains(snake)) return j[snake].get<std::string>();
-    return def;
-}
-
-static float readFloatAny(const json& j, const char* camel, const char* snake, float def) {
-    if (j.contains(camel)) return j[camel].get<float>();
-    if (j.contains(snake)) return j[snake].get<float>();
-    return def;
-}
+using ProjectJson::read_float_any;
+using ProjectJson::read_string_any;
 
 // ------------------------------------------------------------------ lifecycle
 
@@ -150,71 +116,14 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
     try { j = json::parse(f); }
     catch (...) { return false; }
 
-    out.projectName    = readStringAny(j, "projectName", "project_name", "Untitled");
-    out.version        = j.value("version", "2.0.0");
-    out.licenseTier    = readStringAny(j, "licenseTier", "license_tier", "free");
-    out.targetFPS      = readFloatAny(j, "targetFPS", "target_fps", 60.f);
-    out.activeSceneId  = readStringAny(j, "activeSceneId", "active_scene_id");
-    out.mainScriptPath = readStringAny(j, "mainScriptPath", "main_script_path", "scripts/main.luac");
-    out.formatVersion  = j.value("formatVersion", j.value("format_version", 0));
+    ProjectJson::read_project_header(j, out);
 
     if (j.contains("world") && j["world"].is_object())
         ProjectJson::read_world_settings(j["world"], out.world);
 
-    // Object types (v2)
-    const json* objectTypesRaw = nullptr;
-    if (j.contains("objectTypes") && j["objectTypes"].is_object())
-        objectTypesRaw = &j["objectTypes"];
-    else if (j.contains("object_types") && j["object_types"].is_object())
-        objectTypesRaw = &j["object_types"];
-    if (objectTypesRaw) {
-        for (auto& [key, tv] : objectTypesRaw->items()) {
-            if (!tv.is_object()) continue;
-            EntityDef e;
-            ProjectJson::read_object_type(tv, key, e);
-            if (!e.className.empty())
-                out.objectTypes[e.className] = std::move(e);
-        }
-    }
-
-    // Entities
-    if (j.contains("entities")) {
-        const auto& ents = j["entities"];
-        auto ingest_entity = [&](const json& ev, EntityId fallbackId) {
-            EntityDef e;
-            ProjectJson::read_entity_instance(ev, fallbackId, e, false);
-            if (e.id != 0)
-                out.entities[e.id] = std::move(e);
-        };
-        if (ents.is_object()) {
-            for (auto& [key, ev] : ents.items()) {
-                const EntityId fid = static_cast<EntityId>(std::stoul(key));
-                ingest_entity(ev, fid);
-            }
-        } else if (ents.is_array()) {
-            for (const auto& ev : ents) {
-                ingest_entity(ev, static_cast<EntityId>(out.entities.size() + 1));
-            }
-        }
-    }
-
-    // Scenes
-    if (j.contains("scenes")) {
-        const auto& sc = j["scenes"];
-        auto ingest_scene = [&](const json& sv, const SceneId& fallbackId) {
-            SceneDef s;
-            ProjectJson::read_scene_def(sv, fallbackId, s);
-            out.scenes[s.id] = std::move(s);
-        };
-        if (sc.is_object()) {
-            for (auto& [key, sv] : sc.items())
-                ingest_scene(sv, key);
-        } else if (sc.is_array()) {
-            for (const auto& sv : sc)
-                ingest_scene(sv, "scene_" + std::to_string(out.scenes.size()));
-        }
-    }
-
+    ProjectJson::read_object_types_map(j, out.objectTypes);
+    ProjectJson::read_entities_map(j, out.entities, false);
+    ProjectJson::read_scenes_map(j, out.scenes);
     ProjectJson::read_thumbnails(j, out.thumbnails);
     ProjectJson::read_tile_palette(j, out.tilePalette);
     ProjectJson::read_tilesets(j, out.tilesets);
@@ -229,42 +138,7 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
             if (!libPath.empty())
                 manifestIndex_.addImageEntry(libId, libPath);
             ImageAssetDef ad;
-            ad.assetId = libPath.empty() ? libId : libPath;
-            if (av.contains("imagePoints") && av["imagePoints"].is_array()) {
-                for (const auto& pt : av["imagePoints"]) {
-                    if (!pt.is_object()) continue;
-                    ImagePointDef ip;
-                    ip.id = pt.value("id", std::string{});
-                    ip.x  = pt.value("x", 0.f);
-                    ip.y  = pt.value("y", 0.f);
-                    if (!ip.id.empty()) ad.imagePoints.push_back(ip);
-                }
-            }
-            if (av.contains("clips") && av["clips"].is_array()) {
-                for (const auto& cv : av["clips"]) {
-                    if (!cv.is_object()) continue;
-                    AnimationClipDef clip;
-                    clip.name = cv.value("name", std::string{});
-                    clip.fps  = cv.value("fps", 12.f);
-                    clip.loop = cv.value("loop", true);
-                    if (cv.contains("frames") && cv["frames"].is_array()) {
-                        for (const auto& fr : cv["frames"]) {
-                            if (!fr.is_object()) continue;
-                            AnimationFrameRect rect;
-                            rect.x = fr.value("x", 0.f);
-                            rect.y = fr.value("y", 0.f);
-                            rect.w = fr.value("w", 0.f);
-                            rect.h = fr.value("h", 0.f);
-                            if (rect.w > 0.f && rect.h > 0.f)
-                                clip.frames.push_back(rect);
-                        }
-                    }
-                    if (!clip.name.empty() && !clip.frames.empty())
-                        ad.clips.push_back(std::move(clip));
-                }
-            }
-            if (av.contains("defaultPivot"))
-                ad.defaultPivot = readVec2(av["defaultPivot"], ad.defaultPivot);
+            ProjectJson::read_image_asset(av, key, ad);
             out.imageAssets.push_back(ad);
             if (!ad.imagePoints.empty())
                 imagePointsByAsset_[ad.assetId] = ad.imagePoints;
@@ -297,8 +171,8 @@ bool AssetLoader::parseGameJson(const std::string& path, ProjectDoc& out) {
     try { j = json::parse(f); }
     catch (...) { return false; }
 
-    out.targetFPS = readFloatAny(j, "targetFPS", "target_fps", out.targetFPS);
-    out.licenseTier = readStringAny(j, "licenseTier", "license_tier", out.licenseTier);
+    out.targetFPS = read_float_any(j, "targetFPS", "target_fps", out.targetFPS);
+    out.licenseTier = read_string_any(j, "licenseTier", "license_tier", out.licenseTier);
     return true;
 }
 

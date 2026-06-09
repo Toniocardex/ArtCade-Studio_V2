@@ -50,6 +50,15 @@ std::string read_string_any(const nlohmann::json& j,
     return fallback;
 }
 
+float read_float_any(const nlohmann::json& j,
+                     const char* camel,
+                     const char* snake,
+                     float fallback) {
+    if (j.contains(camel)) return j[camel].get<float>();
+    if (j.contains(snake)) return j[snake].get<float>();
+    return fallback;
+}
+
 Transform read_transform(const nlohmann::json& j) {
     Transform t;
     if (!j.is_object()) return t;

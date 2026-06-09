@@ -19,6 +19,11 @@ std::string read_string_any(const nlohmann::json& j,
                             const char* snake,
                             const std::string& fallback = {});
 
+float read_float_any(const nlohmann::json& j,
+                     const char* camel,
+                     const char* snake,
+                     float fallback);
+
 Transform read_transform(const nlohmann::json& j);
 
 } // namespace ArtCade::ProjectJson

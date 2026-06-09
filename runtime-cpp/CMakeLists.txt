@@ -91,6 +91,7 @@ add_library(artcade-project-json STATIC
     src/core/entity-json.cpp
     src/core/scene-json.cpp
     src/core/project-meta-json.cpp
+    src/core/asset-json.cpp
 )
 target_link_libraries(artcade-project-json PUBLIC artcade-core)
 

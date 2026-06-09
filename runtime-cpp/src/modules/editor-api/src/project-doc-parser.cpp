@@ -1,5 +1,6 @@
 #include "project-doc-parser.h"
 #include "object-type-materialize.h"
+#include "asset-json.h"
 #include "entity-json.h"
 #include "scene-json.h"
 #include "project-meta-json.h"
@@ -13,80 +14,6 @@
 namespace ArtCade::ProjectDocParser {
 
 using json = nlohmann::json;
-
-Vec2 parseVec2(const json& j) {
-    Vec2 v;
-    if (j.is_array() && j.size() >= 2) {
-        v.x = j[0].get<float>();
-        v.y = j[1].get<float>();
-    } else if (j.is_object()) {
-        v.x = j.value("x", 0.f);
-        v.y = j.value("y", 0.f);
-    }
-    return v;
-}
-
-Vec3 parseVec3(const json& j) {
-    Vec3 v{1.f, 1.f, 1.f};
-    if (j.is_array() && j.size() >= 3) {
-        v.x = j[0].get<float>();
-        v.y = j[1].get<float>();
-        v.z = j[2].get<float>();
-    } else if (j.is_object()) {
-        v.x = j.value("x", j.value("r", 1.f));
-        v.y = j.value("y", j.value("g", 1.f));
-        v.z = j.value("z", j.value("b", 1.f));
-    }
-    return v;
-}
-
-Vec4 parseVec4(const json& j) {
-    Vec4 v{1.f, 1.f, 1.f, 1.f};
-    if (j.is_array() && j.size() >= 4) {
-        v.r = j[0].get<float>();
-        v.g = j[1].get<float>();
-        v.b = j[2].get<float>();
-        v.a = j[3].get<float>();
-    } else if (j.is_object()) {
-        // Accept both {r,g,b,a} (C++ serialiser) and {x,y,z,w} (TypeScript).
-        v.r = j.contains("r") ? j["r"].get<float>() : j.value("x", 1.f);
-        v.g = j.contains("g") ? j["g"].get<float>() : j.value("y", 1.f);
-        v.b = j.contains("b") ? j["b"].get<float>() : j.value("z", 1.f);
-        v.a = j.contains("a") ? j["a"].get<float>() : j.value("w", 1.f);
-    }
-    return v;
-}
-
-Transform parseTransform(const json& j) {
-    Transform t;
-    if (!j.is_object()) return t;
-    if (j.contains("position")) t.position = parseVec2(j["position"]);
-    if (j.contains("scale"))    t.scale    = parseVec2(j["scale"]);
-    t.rotation = j.value("rotation", 0.f);
-    return t;
-}
-
-SpriteComponent parseSprite(const json& j) {
-    SpriteComponent s;
-    if (!j.is_object()) return s;
-    s.spriteAssetId = j.value("spriteAssetId", j.value("sprite_asset_id", std::string{}));
-    if (j.contains("tint"))  s.tint  = parseVec4(j["tint"]);
-    if (j.contains("fillColor"))
-        s.fillColor = parseVec3(j["fillColor"]);
-    else
-        s.fillColor = { s.tint.r, s.tint.g, s.tint.b };
-    s.alpha       = j.value("alpha", 1.f);
-    s.pivotFromAsset = j.value("pivotFromAsset", true);
-    if (j.contains("pivot"))
-        s.pivot = parseVec2(j["pivot"]);
-    s.renderOrder = j.value("renderOrder", j.value("render_order", 0));
-    if (j.contains("defaultClip"))
-        s.defaultClip = j["defaultClip"].get<std::string>();
-    else if (j.contains("default_clip"))
-        s.defaultClip = j["default_clip"].get<std::string>();
-    s.playClipOnSpawn = j.value("playClipOnSpawn", j.value("play_clip_on_spawn", false));
-    return s;
-}
 
 EntityDef parseEntityDef(const json& j, EntityId fallbackId) {
     EntityDef e;
@@ -111,19 +38,10 @@ TilesetAsset parseTilesetAsset(const json& j) {
 std::unordered_map<EntityId, EntityDef>
 parseEntities(const json& doc) {
     std::unordered_map<EntityId, EntityDef> entities;
-    if (!doc.contains("entities")) return entities;
-    const auto& ents = doc["entities"];
-    if (ents.is_array()) {
-        for (const auto& item : ents) {
-            auto e = parseEntityDef(item, static_cast<EntityId>(entities.size() + 1));
-            entities[e.id] = e;
-        }
-    } else if (ents.is_object()) {
-        for (auto& [key, val] : ents.items()) {
-            const EntityId fid = static_cast<EntityId>(std::stoul(key));
-            auto e = parseEntityDef(val, fid);
-            entities[e.id] = e;
-        }
+    ProjectJson::read_entities_map(doc, entities, true);
+    for (auto& [_, entity] : entities) {
+        if (entity.className.empty())
+            entity.className = "Unknown";
     }
     return entities;
 }
@@ -131,19 +49,7 @@ parseEntities(const json& doc) {
 std::unordered_map<SceneId, SceneDef>
 parseScenes(const json& doc) {
     std::unordered_map<SceneId, SceneDef> scenes;
-    if (!doc.contains("scenes")) return scenes;
-    const auto& sc = doc["scenes"];
-    if (sc.is_array()) {
-        for (const auto& item : sc) {
-            auto s = parseSceneDef(item, "scene_" + std::to_string(scenes.size()));
-            scenes[s.id] = s;
-        }
-    } else if (sc.is_object()) {
-        for (auto& [key, val] : sc.items()) {
-            auto s = parseSceneDef(val, key);
-            scenes[s.id] = s;
-        }
-    }
+    ProjectJson::read_scenes_map(doc, scenes);
     return scenes;
 }
 
@@ -164,18 +70,7 @@ parseTilePalette(const json& doc) {
 std::unordered_map<std::string, EntityDef>
 parseObjectTypes(const json& doc) {
     std::unordered_map<std::string, EntityDef> objectTypes;
-    const json* raw = nullptr;
-    if (doc.contains("objectTypes"))
-        raw = &doc["objectTypes"];
-    else if (doc.contains("object_types"))
-        raw = &doc["object_types"];
-    if (!raw || !raw->is_object()) return objectTypes;
-
-    for (auto& [key, val] : raw->items()) {
-        EntityDef e;
-        ProjectJson::read_object_type(val, key, e);
-        objectTypes[e.className] = std::move(e);
-    }
+    ProjectJson::read_object_types_map(doc, objectTypes);
     return objectTypes;
 }
 
@@ -201,83 +96,14 @@ void materializeV2Project(
 
 std::vector<ImageAssetDef> parseImageAssets(const json& doc) {
     std::vector<ImageAssetDef> out;
-    if (!doc.contains("assets") || !doc["assets"].is_object()) return out;
-    for (auto& [key, av] : doc["assets"].items()) {
-        if (!av.is_object()) continue;
-        ImageAssetDef ad;
-        ad.assetId = av.value("path", key);
-        if (av.contains("imagePoints") && av["imagePoints"].is_array()) {
-            for (const auto& pt : av["imagePoints"]) {
-                if (!pt.is_object()) continue;
-                ImagePointDef ip;
-                ip.id = pt.value("id", std::string{});
-                ip.x  = pt.value("x", 0.f);
-                ip.y  = pt.value("y", 0.f);
-                if (!ip.id.empty()) ad.imagePoints.push_back(ip);
-            }
-        }
-        if (av.contains("defaultPivot"))
-            ad.defaultPivot = parseVec2(av["defaultPivot"]);
-        if (av.contains("clips") && av["clips"].is_array()) {
-            for (const auto& cv : av["clips"]) {
-                if (!cv.is_object()) continue;
-                AnimationClipDef clip;
-                clip.name = cv.value("name", std::string{});
-                clip.fps  = cv.value("fps", 12.f);
-                clip.loop = cv.value("loop", true);
-                if (cv.contains("frames") && cv["frames"].is_array()) {
-                    for (const auto& fr : cv["frames"]) {
-                        if (!fr.is_object()) continue;
-                        AnimationFrameRect rect;
-                        rect.x = fr.value("x", 0.f);
-                        rect.y = fr.value("y", 0.f);
-                        rect.w = fr.value("w", 0.f);
-                        rect.h = fr.value("h", 0.f);
-                        if (rect.w > 0.f && rect.h > 0.f)
-                            clip.frames.push_back(rect);
-                    }
-                }
-                if (!clip.name.empty() && !clip.frames.empty())
-                    ad.clips.push_back(std::move(clip));
-            }
-        }
-        out.push_back(std::move(ad));
-    }
+    ProjectJson::read_image_assets(doc, out);
     return out;
 }
 
 ArtCade::ProjectRuntimeSettings parseRuntimeSettings(const json& doc) {
-    ArtCade::ProjectRuntimeSettings s;
-    if (doc.contains("targetFPS"))
-        s.targetFPS = doc["targetFPS"].get<float>();
-    else if (doc.contains("target_fps"))
-        s.targetFPS = doc["target_fps"].get<float>();
-
-    if (doc.contains("world") && doc["world"].is_object()) {
-        const auto& wo = doc["world"];
-        if (wo.contains("gravity"))
-            s.gravity = wo["gravity"].get<float>();
-        if (wo.contains("pixelsPerMeter"))
-            s.pixelsPerMeter = wo["pixelsPerMeter"].get<float>();
-        else if (wo.contains("pixels_per_meter"))
-            s.pixelsPerMeter = wo["pixels_per_meter"].get<float>();
-        if (wo.contains("timeScale"))
-            s.timeScale = wo["timeScale"].get<float>();
-        else if (wo.contains("time_scale"))
-            s.timeScale = wo["time_scale"].get<float>();
-        if (wo.contains("physicsDebugDraw"))
-            s.physicsDebugDraw = wo["physicsDebugDraw"].get<bool>();
-        const std::string mode = wo.value(
-            "physicsMode",
-            wo.value("physics_mode", std::string("auto")));
-        if (mode == "off")
-            s.physicsMode = ArtCade::PhysicsMode::Off;
-        else if (mode == "on")
-            s.physicsMode = ArtCade::PhysicsMode::On;
-        else
-            s.physicsMode = ArtCade::PhysicsMode::Auto;
-    }
-    return s;
+    ArtCade::ProjectRuntimeSettings settings;
+    ProjectJson::read_runtime_settings(doc, settings);
+    return settings;
 }
 
 } // namespace ArtCade::ProjectDocParser

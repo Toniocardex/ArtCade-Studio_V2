@@ -148,8 +148,8 @@ add_test(NAME artcade_package_test COMMAND artcade_package_test)
     target_compile_definitions(asset_loader_test
         PRIVATE ARTCADE_SOURCE_ROOT="${CMAKE_SOURCE_DIR}")
 
-    artcade_test(physics_json_test
-        physics-json-test.cpp
+    artcade_test(project_json_test
+        project-json-test.cpp
         artcade-project-json)
 endif()
 

@@ -22,15 +22,6 @@ std::optional<int> parse_hex_byte(std::string_view pair) {
     return std::stoi(std::string(pair), nullptr, 16);
 }
 
-float read_float_any(const nlohmann::json& j,
-                     const char* camel,
-                     const char* snake,
-                     float fallback) {
-    if (j.contains(camel)) return j[camel].get<float>();
-    if (j.contains(snake)) return j[snake].get<float>();
-    return fallback;
-}
-
 PhysicsMode read_physics_mode(const nlohmann::json& worldJson) {
     const std::string mode = read_string_any(
         worldJson, "physicsMode", "physics_mode", "auto");
@@ -172,6 +163,47 @@ void read_thumbnails(const nlohmann::json& doc,
         if (thumbPath.is_string())
             out[sceneId] = thumbPath.get<std::string>();
     }
+}
+
+void read_project_header(const nlohmann::json& doc, ProjectDoc& out) {
+    out.projectName   = read_string_any(doc, "projectName", "project_name", "Untitled");
+    out.version       = doc.value("version", "2.0.0");
+    out.licenseTier   = read_string_any(doc, "licenseTier", "license_tier", "free");
+    out.targetFPS     = read_float_any(doc, "targetFPS", "target_fps", 60.f);
+    out.activeSceneId = read_string_any(doc, "activeSceneId", "active_scene_id");
+    out.mainScriptPath =
+        read_string_any(doc, "mainScriptPath", "main_script_path", "scripts/main.luac");
+    out.formatVersion = doc.value("formatVersion", doc.value("format_version", 0));
+}
+
+void read_runtime_settings(const nlohmann::json& doc, ProjectRuntimeSettings& out) {
+    if (doc.contains("targetFPS"))
+        out.targetFPS = doc["targetFPS"].get<float>();
+    else if (doc.contains("target_fps"))
+        out.targetFPS = doc["target_fps"].get<float>();
+
+    if (!doc.contains("world") || !doc["world"].is_object())
+        return;
+
+    const auto& worldJson = doc["world"];
+    if (worldJson.contains("gravity"))
+        out.gravity = worldJson["gravity"].get<float>();
+    if (worldJson.contains("pixelsPerMeter"))
+        out.pixelsPerMeter = worldJson["pixelsPerMeter"].get<float>();
+    else if (worldJson.contains("pixels_per_meter"))
+        out.pixelsPerMeter = worldJson["pixels_per_meter"].get<float>();
+    if (worldJson.contains("timeScale"))
+        out.timeScale = worldJson["timeScale"].get<float>();
+    else if (worldJson.contains("time_scale"))
+        out.timeScale = worldJson["time_scale"].get<float>();
+    if (worldJson.contains("physicsDebugDraw") && worldJson["physicsDebugDraw"].is_boolean())
+        out.physicsDebugDraw = worldJson["physicsDebugDraw"].get<bool>();
+    else if (worldJson.contains("physics_debug_draw")
+             && worldJson["physics_debug_draw"].is_boolean())
+        out.physicsDebugDraw = worldJson["physics_debug_draw"].get<bool>();
+
+    if (worldJson.contains("physicsMode") || worldJson.contains("physics_mode"))
+        out.physicsMode = read_physics_mode(worldJson);
 }
 
 } // namespace ArtCade::ProjectJson

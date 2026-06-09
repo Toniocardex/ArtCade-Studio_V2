@@ -146,4 +146,53 @@ void read_object_type(const nlohmann::json& typeJson,
     read_entity_components(typeJson, out);
 }
 
+void read_entities_map(const nlohmann::json& doc,
+                       std::unordered_map<EntityId, EntityDef>& out,
+                       bool use_entity_name_fallback) {
+    out.clear();
+    if (!doc.contains("entities"))
+        return;
+
+    const auto& ents = doc["entities"];
+    if (ents.is_array()) {
+        for (const auto& item : ents) {
+            EntityDef entity;
+            read_entity_instance(
+                item, static_cast<EntityId>(out.size() + 1), entity, use_entity_name_fallback);
+            if (entity.id != 0)
+                out[entity.id] = std::move(entity);
+        }
+    } else if (ents.is_object()) {
+        for (auto& [key, val] : ents.items()) {
+            const EntityId fallbackId = static_cast<EntityId>(std::stoul(key));
+            EntityDef entity;
+            read_entity_instance(val, fallbackId, entity, use_entity_name_fallback);
+            if (entity.id != 0)
+                out[entity.id] = std::move(entity);
+        }
+    }
+}
+
+void read_object_types_map(const nlohmann::json& doc,
+                            std::unordered_map<std::string, EntityDef>& out) {
+    out.clear();
+
+    const nlohmann::json* raw = nullptr;
+    if (doc.contains("objectTypes") && doc["objectTypes"].is_object())
+        raw = &doc["objectTypes"];
+    else if (doc.contains("object_types") && doc["object_types"].is_object())
+        raw = &doc["object_types"];
+    if (raw == nullptr)
+        return;
+
+    for (auto& [key, val] : raw->items()) {
+        if (!val.is_object())
+            continue;
+        EntityDef entity;
+        read_object_type(val, key, entity);
+        if (!entity.className.empty())
+            out[entity.className] = std::move(entity);
+    }
+}
+
 } // namespace ArtCade::ProjectJson

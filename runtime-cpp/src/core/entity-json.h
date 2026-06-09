@@ -7,6 +7,7 @@
 
 #include <nlohmann/json.hpp>
 #include <string>
+#include <unordered_map>
 
 namespace ArtCade::ProjectJson {
 
@@ -31,5 +32,14 @@ void read_entity_instance(const nlohmann::json& entityJson,
 void read_object_type(const nlohmann::json& typeJson,
                       const std::string& mapKey,
                       EntityDef& out);
+
+/** Parses entities array or id-keyed object map. */
+void read_entities_map(const nlohmann::json& doc,
+                       std::unordered_map<EntityId, EntityDef>& out,
+                       bool use_entity_name_fallback);
+
+/** Parses objectTypes / object_types object map. */
+void read_object_types_map(const nlohmann::json& doc,
+                            std::unordered_map<std::string, EntityDef>& out);
 
 } // namespace ArtCade::ProjectJson
