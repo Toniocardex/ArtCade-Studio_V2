@@ -2,7 +2,6 @@
 // Logic Board revision tracking — script buffer vs WASM preview.
 // ---------------------------------------------------------------------------
 
-import type { CoreState } from '../../store/editor-store-state'
 import type { ProjectDoc } from '../../types'
 import { logicBoardsRevision } from '../sync-logic-board-script'
 
@@ -28,8 +27,4 @@ export function logicBoardScriptOutOfSync(
 ): boolean {
   const boardsRevision = logicBoardsRevision(project)
   return boardsRevision !== '' && scriptSyncedRevision !== boardsRevision
-}
-
-export function logicBoardRevisionFromState(state: CoreState): string {
-  return logicBoardsRevision(state.project)
 }

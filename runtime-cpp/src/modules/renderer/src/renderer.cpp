@@ -520,6 +520,11 @@ void Renderer::invalidateFontAsset(const std::string& path) {
     impl_->fontCache.invalidate(path);
 }
 
+void Renderer::evictCachedAssets() {
+    impl_->texCache.unloadAll();
+    impl_->fontCache.unloadAll();
+}
+
 // ------------------------------------------------------------------ textures
 
 uint32_t Renderer::loadTexture(const std::string& path) {

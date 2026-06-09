@@ -412,10 +412,6 @@ export function assertLogicBoardsValid(doc: LogicBoardDoc | undefined): void {
   )
 }
 
-export function formatValidationErrors(result: ValidationResult): string {
-  return result.errors.map((e) => `${e.path}: ${e.message}`).join('\n')
-}
-
 // Type guards for schema-driven UI
 export function asTrigger(v: Record<string, unknown>): LogicTrigger {
   return v as LogicTrigger

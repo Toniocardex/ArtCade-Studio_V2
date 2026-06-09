@@ -8,6 +8,7 @@ import LeftSidebar        from './components/LeftSidebar'
 import ResizeHandle       from './components/ResizeHandle'
 import PreviewPanel       from './panels/PreviewPanel'
 import InspectorPanel     from './panels/InspectorPanel'
+import LogicBoardPanel    from './panels/LogicBoardPanel'
 import { createBlankProject } from './utils/project'
 import { starterInnkeeperScript } from './utils/dialog/dialog-file-api'
 import { DialogEditorModal } from './panels/dialog/DialogEditorModal'
@@ -34,7 +35,6 @@ import { CanvasToolRail } from './components/shell/CanvasToolRail'
 import type { EditorTool } from './utils/runtime-sync-service'
 import type { ConsoleEntry } from './types'
 
-const LogicBoardPanel = lazy(() => import('./panels/LogicBoardPanel'))
 const ScriptEditorPanel = lazy(() => import('./panels/ScriptEditorPanel'))
 const TilesetEditorPanel = lazy(() => import('./panels/TilesetEditorPanel'))
 
@@ -171,10 +171,8 @@ function CanvasView() {
 
 function LogicBoardView() {
   return (
-    <div className="flex flex-1 min-h-0 overflow-hidden bg-[var(--logic-bg)]">
-      <Suspense fallback={null}>
-        <LogicBoardPanel />
-      </Suspense>
+    <div className="flex flex-1 flex-col min-h-0 min-w-0 w-full overflow-hidden bg-[var(--logic-bg)]">
+      <LogicBoardPanel />
     </div>
   )
 }
@@ -224,13 +222,8 @@ function EditorShell({ workspaceRef }: Readonly<{ workspaceRef: RefObject<HTMLDi
           ref={workspaceRef}
           className="editor-workspace flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden"
         >
-          <div className="flex flex-1 min-h-0 overflow-hidden flex-col min-w-0">
-            <div
-              className="flex flex-1 min-h-0 overflow-hidden"
-              style={{ display: state.mode === 'canvas' ? 'flex' : 'none' }}
-            >
-              <CanvasView />
-            </div>
+          <div className="flex flex-1 min-h-0 min-w-0 overflow-hidden">
+            {state.mode === 'canvas' && <CanvasView />}
             {state.mode === 'logic' && <LogicBoardView />}
             {state.mode === 'script' && <ScriptEditorView />}
           </div>

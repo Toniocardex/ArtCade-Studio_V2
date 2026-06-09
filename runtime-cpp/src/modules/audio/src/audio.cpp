@@ -78,6 +78,12 @@ void Audio::invalidateSound(const std::string& path) {
     impl_->soundCache.erase(it);
 }
 
+void Audio::evictSoundCache() {
+    for (auto& [path, snd] : impl_->soundCache)
+        UnloadSound(snd);
+    impl_->soundCache.clear();
+}
+
 void Audio::playSound(const std::string& path, float volume, float pitch) {
     if (!impl_->deviceOpen) return;
 

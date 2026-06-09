@@ -677,6 +677,8 @@ export type RuntimeSyncService = RuntimeSyncServiceImpl
  */
 export function useRuntimeReady(): boolean {
   const [ready, setReady] = useState(() => isWasmReady())
-  useEffect(() => runtimeSync.onReadyChange(setReady), [])
+  useEffect(() => {
+    return runtimeSync.onReadyChange(setReady)
+  }, [])
   return ready
 }

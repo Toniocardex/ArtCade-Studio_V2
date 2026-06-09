@@ -115,6 +115,9 @@ public:
 
     void invalidateFontAsset(const std::string& path);
 
+    /** Drop all path-keyed textures and fonts (editor project hot-reload). */
+    void evictCachedAssets();
+
     // GPU texture management
     uint32_t loadTexture  (const std::string& filePath);
     void     unloadTexture(uint32_t handle);

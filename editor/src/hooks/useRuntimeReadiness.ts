@@ -21,8 +21,12 @@ export function useRuntimeReadiness(): RuntimeReadiness {
   const [wasmReady, setWasmReady] = useState(() => isWasmReady())
   const [engineReady, setEngineReady] = useState(() => runtimeSync.isEngineReady())
 
-  useEffect(() => runtimeSync.onReadyChange(setWasmReady), [])
-  useEffect(() => runtimeSync.onEngineReadyChange(setEngineReady), [])
+  useEffect(() => {
+    return runtimeSync.onReadyChange(setWasmReady)
+  }, [])
+  useEffect(() => {
+    return runtimeSync.onEngineReadyChange(setEngineReady)
+  }, [])
 
   const syncWasmFromBridge = useCallback(() => {
     if (!isWasmReady()) return

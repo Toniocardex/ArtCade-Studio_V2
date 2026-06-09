@@ -89,6 +89,63 @@ static void test_invalid_hex_color_falls_back_without_crash() {
     fs::remove_all(tmpDir);
 }
 
+static void test_object_types_physics_from_project_json() {
+    const fs::path tmpDir =
+        fs::temp_directory_path() / "artcade_asset_loader_v2_physics";
+    fs::create_directories(tmpDir);
+    {
+        std::ofstream f(tmpDir / "project.json");
+        f << R"({
+  "projectName": "V2Physics",
+  "activeSceneId": "s1",
+  "objectTypes": {
+    "Hero": {
+      "id": "Hero",
+      "displayName": "Hero",
+      "physics": {
+        "bodyType": "Static",
+        "collider": {
+          "shape": "Rectangle",
+          "size": { "x": 64, "y": 32 },
+          "offset": { "x": 0, "y": 0 },
+          "density": 1,
+          "friction": 0.5,
+          "isSensor": false
+        }
+      }
+    }
+  },
+  "scenes": {
+    "s1": {
+      "id": "s1",
+      "name": "S1",
+      "instances": [{ "id": 1, "typeId": "Hero", "name": "Hero_1" }]
+    }
+  }
+})";
+    }
+
+    AssetLoader loader;
+    loader.init();
+    ProjectDoc doc;
+    CHECK(loader.loadDirectory(tmpDir.string(), doc));
+
+    const auto heroType = doc.objectTypes.find("Hero");
+    CHECK(heroType != doc.objectTypes.end());
+    CHECK(heroType->second.physics.bodyType == BodyType::Static);
+    CHECK(std::abs(heroType->second.physics.collider.size.x - 64.f) < 0.01f);
+    CHECK(std::abs(heroType->second.physics.collider.size.y - 32.f) < 0.01f);
+    CHECK(std::abs(heroType->second.physics.collider.friction - 0.5f) < 0.01f);
+
+    const auto heroInst = doc.entities.find(1);
+    CHECK(heroInst != doc.entities.end());
+    CHECK(heroInst->second.physics.bodyType == BodyType::Static);
+    CHECK(std::abs(heroInst->second.physics.collider.size.x - 64.f) < 0.01f);
+
+    loader.shutdown();
+    fs::remove_all(tmpDir);
+}
+
 static void test_malformed_project_json_returns_false_without_crash() {
     const fs::path tmpDir = fs::temp_directory_path() / "artcade_asset_loader_bad_type";
     fs::create_directories(tmpDir);
@@ -112,6 +169,7 @@ static void test_malformed_project_json_returns_false_without_crash() {
 
 int main() {
     test_physics_health_sensor_from_project_json();
+    test_object_types_physics_from_project_json();
     test_invalid_hex_color_falls_back_without_crash();
     test_malformed_project_json_returns_false_without_crash();
 

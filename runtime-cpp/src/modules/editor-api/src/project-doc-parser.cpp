@@ -95,6 +95,33 @@ EntityDef parseEntityDef(const json& j, EntityId fallbackId) {
     if (j.contains("transform")) e.transform = parseTransform(j["transform"]);
     if (j.contains("sprite"))    e.sprite    = parseSprite(j["sprite"]);
 
+    if (j.contains("physics") && j["physics"].is_object()) {
+        const auto& p = j["physics"];
+        PhysicsComponent pc;
+        const std::string bt = p.value("bodyType", std::string("Dynamic"));
+        if (bt == "Static")
+            pc.bodyType = BodyType::Static;
+        else if (bt == "Kinematic")
+            pc.bodyType = BodyType::Kinematic;
+        else
+            pc.bodyType = BodyType::Dynamic;
+        if (p.contains("collider") && p["collider"].is_object()) {
+            const auto& c = p["collider"];
+            const std::string shape = c.value("shape", std::string("Rectangle"));
+            pc.collider.shape = (shape == "Circle")
+                ? ColliderShape::Circle
+                : ColliderShape::Rectangle;
+            if (c.contains("size"))
+                pc.collider.size = parseVec2(c["size"]);
+            if (c.contains("offset"))
+                pc.collider.offset = parseVec2(c["offset"]);
+            pc.collider.density  = c.value("density", 1.f);
+            pc.collider.friction = c.value("friction", 0.3f);
+            pc.collider.isSensor = c.value("isSensor", false);
+        }
+        e.physics = pc;
+    }
+
     // -- Optional gameplay components (Phase D1) — names mirror the editor TS.
     if (j.contains("sensor") && j["sensor"].is_object()) {
         const auto& s = j["sensor"];

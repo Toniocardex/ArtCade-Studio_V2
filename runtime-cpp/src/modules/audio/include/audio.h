@@ -32,6 +32,9 @@ public:
 
     void invalidateSound(const std::string& path);
 
+    /** Unload all cached SFX (editor project hot-reload). */
+    void evictSoundCache();
+
     // Music (single streaming track; replaces current)
     void playMusic  (const std::string& assetPath, bool loop = true);
     void stopMusic  ();

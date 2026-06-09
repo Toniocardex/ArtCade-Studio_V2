@@ -42,7 +42,9 @@ export function useEditorBootReady(): EditorBootReadyState {
 
   const projectReady = state.project != null
 
-  useEffect(() => runtimeSync.onBootProjectSyncedChange(setSynced), [])
+  useEffect(() => {
+    return runtimeSync.onBootProjectSyncedChange(setSynced)
+  }, [])
 
   // Track C — defer non-blocking boot bookkeeping until the main thread is idle.
   useEffect(() => scheduleBootIdleTask(() => setIdleReady(true)), [])

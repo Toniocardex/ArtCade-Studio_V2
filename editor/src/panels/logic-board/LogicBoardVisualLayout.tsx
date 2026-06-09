@@ -135,7 +135,28 @@ export function LogicBoardVisualLayout(props: LogicBoardVisualLayoutProps) {
           </div>
         </header>
         <div className="flex-1 min-h-0 overflow-auto panel-scroll p-4">
-          {focusedEvent && board ? (
+          {!board ? (
+            <div
+              className="mx-auto mt-6 max-w-md rounded-[var(--radius-md)] border border-[var(--outline)] bg-[var(--surface)] p-6 text-center shadow-sm"
+              data-testid="logic-board-empty-state"
+            >
+              <p className="text-sm font-semibold text-[var(--primary)]">No rulesheet yet</p>
+              <p className="mt-2 text-[11px] leading-relaxed text-[var(--muted)]">
+                Pick an entity in the left column and choose{' '}
+                <strong className="text-[var(--primary-soft)]">Create rulesheet</strong>, or use
+                Advanced to add a shared type rulesheet.
+              </p>
+              {canCreateForSelection && selectedEntityId != null ? (
+                <button
+                  type="button"
+                  className="mt-4 rounded border border-[var(--control-active-border)] bg-[var(--control-active-bg)] px-4 py-2 text-xs font-semibold text-[var(--control-active-fg)] shadow-sm"
+                  onClick={() => onCreateForEntity(selectedEntityId)}
+                >
+                  Create rulesheet for selected entity
+                </button>
+              ) : null}
+            </div>
+          ) : focusedEvent ? (
             <EventEditor
               event={focusedEvent}
               board={board}

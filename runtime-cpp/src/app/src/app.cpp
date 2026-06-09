@@ -391,6 +391,8 @@ void Application::applyEditorProjectCommon(
 
     if (mod_->textureManager)
         mod_->textureManager->unloadAll();
+    if (mod_->renderer)
+        mod_->renderer->evictCachedAssets();
 }
 
 // Both applyEditorProjectLoaded and applyEditorPreviewRestore replace the
@@ -402,7 +404,10 @@ void Application::applyEditorProjectCommon(
 void Application::resetGameplayRuntimeModules() {
     if (mod_->tweenManager)   mod_->tweenManager->cancelAll();
     if (mod_->spriteAnimator) mod_->spriteAnimator->clearInstances();
-    if (mod_->audio)          mod_->audio->stopAll();
+    if (mod_->audio) {
+        mod_->audio->stopAll();
+        mod_->audio->evictSoundCache();
+    }
 
     if (mod_->eventBus)         { mod_->eventBus->shutdown();         mod_->eventBus->init(); }
     if (mod_->layerManager)     { mod_->layerManager->shutdown();     mod_->layerManager->init(); }

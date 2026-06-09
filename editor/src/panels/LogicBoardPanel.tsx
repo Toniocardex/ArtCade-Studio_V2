@@ -319,6 +319,16 @@ export default function LogicBoardPanel() {
     if (existing) setSelectedBoardId(existing.boardId)
   }, [state.mode, selection.entityId, project])
 
+  useEffect(() => {
+    if (boards.length === 0) {
+      if (selectedBoardId !== null) setSelectedBoardId(null)
+      return
+    }
+    if (!selectedBoardId || !boards.some((b) => b.boardId === selectedBoardId)) {
+      setSelectedBoardId(boards[0]!.boardId)
+    }
+  }, [boards, selectedBoardId])
+
   const compileResult = useMemo(
     () => compileProjectLogic(state.project, { projectKey: state.projectPath ?? undefined }),
     [boards, state.project, state.projectPath],
