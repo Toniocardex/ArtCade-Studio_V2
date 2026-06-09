@@ -151,6 +151,12 @@ add_test(NAME artcade_package_test COMMAND artcade_package_test)
     artcade_test(project_json_test
         project-json-test.cpp
         artcade-project-json)
+
+    artcade_test(project_json_parity_test
+        project-json-parity-test.cpp
+        artcade-asset-system)
+    target_compile_definitions(project_json_parity_test
+        PRIVATE ARTCADE_SOURCE_ROOT="${CMAKE_SOURCE_DIR}")
 endif()
 
 # ============================================================================

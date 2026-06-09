@@ -1,0 +1,42 @@
+name: runtime-cpp
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'runtime-cpp/**'
+      - '.github/workflows/runtime-cpp.yml'
+  pull_request:
+    paths:
+      - 'runtime-cpp/**'
+      - '.github/workflows/runtime-cpp.yml'
+
+jobs:
+  native-tests:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: runtime-cpp
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install Ninja
+        run: choco install ninja -y
+
+      - name: Configure
+        run: >
+          cmake -S . -B build-native -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+          -DARTCADE_BUILD_TESTS=ON
+
+      - name: Build
+        run: cmake --build build-native
+
+      - name: Test
+        run: ctest --test-dir build-native --output-on-failure -C Release
