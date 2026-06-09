@@ -91,7 +91,7 @@ export function ClassNamePicker({
         )}
         {classNames.map((c) => (
           <option key={c} value={c}>
-            {classDisplayLabel(state.project, c)}
+            {classDisplayLabel(project, c)}
           </option>
         ))}
         <option value={CLASS_PICKER_OTHER}>Other…</option>

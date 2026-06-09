@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useEditorDispatch, useEditorSelector } from '../store/editor-store'
+import { useEditorDispatch, useEditorSelector, useEditorStore } from '../store/editor-store'
 import { EngineScriptEditor } from '../components/EngineScriptEditor'
 import { LogicBoardScriptConflictBanner } from '../components/LogicBoardScriptConflictBanner'
 import { compileProjectLogic } from '../utils/logic-board/logic-compile-service'
@@ -58,6 +58,7 @@ function ScriptTabBar({ paths, activePath, dirtyPaths, onSelect }: ScriptTabBarP
 
 export default function ScriptEditorPanel() {
   const dispatch = useEditorDispatch()
+  const store = useEditorStore()
   const openScripts = useEditorSelector((s) => s.openScripts)
   const activeScriptPath = useEditorSelector((s) => s.activeScriptPath)
   const project = useEditorSelector((s) => s.project)
@@ -92,7 +93,7 @@ export default function ScriptEditorPanel() {
 
   const handleRegenerate = () => {
     if (!compiledLua) return
-    syncLogicBoardToScript(dispatch, state, compiledLua)
+    syncLogicBoardToScript(dispatch, store.getState(), compiledLua)
     setDismissedConflict(false)
   }
 
