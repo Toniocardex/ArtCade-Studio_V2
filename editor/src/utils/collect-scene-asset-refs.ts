@@ -76,32 +76,12 @@ function addSpritePathFromPrototype(
   }
 }
 
-function instanceIdsInScene(project: ProjectDoc, sceneId: string): Set<number> {
-  const scene = project.scenes[sceneId]
-  const ids = new Set<number>()
-  if (!scene) return ids
-  for (const inst of scene.instances ?? []) ids.add(inst.id)
-  for (const eid of scene.entityIds ?? []) ids.add(eid)
-  return ids
-}
-
 function boardTargetsScene(
   board: LogicBoard,
   project: ProjectDoc,
   sceneId: string,
-  sceneInstanceIds: Set<number>,
 ): boolean {
   const target = board.target
-  if (target.type === 'entity_id' && target.entityId != null) {
-    return sceneInstanceIds.has(target.entityId)
-  }
-  if (target.type === 'entity_class' && target.className) {
-    const className = target.className
-    for (const ent of entitiesInScene(project, sceneId)) {
-      if (ent.className === className) return true
-    }
-    return false
-  }
   if (target.type === 'object_type' && target.objectTypeId) {
     const scene = project.scenes[sceneId]
     for (const inst of scene?.instances ?? []) {
@@ -121,10 +101,9 @@ function spawnClassNamesFromLogicBoards(
 ): string[] {
   const boards = project.logicBoards ?? []
   if (boards.length === 0) return []
-  const sceneInstanceIds = instanceIdsInScene(project, sceneId)
   const names = new Set<string>()
   for (const board of boards) {
-    if (!boardTargetsScene(board, project, sceneId, sceneInstanceIds)) continue
+    if (!boardTargetsScene(board, project, sceneId)) continue
     for (const event of board.events ?? []) {
       for (const action of event.actions ?? []) {
         collectSpawnClassName(action, names)
@@ -168,10 +147,9 @@ function collectAudioFromLogicBoards(
 ): string[] {
   const boards = project.logicBoards ?? []
   if (boards.length === 0) return []
-  const sceneInstanceIds = instanceIdsInScene(project, sceneId)
   const paths = new Set<string>()
   for (const board of boards) {
-    if (!boardTargetsScene(board, project, sceneId, sceneInstanceIds)) continue
+    if (!boardTargetsScene(board, project, sceneId)) continue
     for (const event of board.events ?? []) {
       for (const action of event.actions ?? []) {
         collectAudioPathFromAction(project, action, paths)

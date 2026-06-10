@@ -26,7 +26,7 @@ describe('collectConfigDiagnostics (board configuration)', () => {
   it('reports clickToDestroy in Else', () => {
     const board: LogicBoard = {
       boardId: 'b1',
-      target: { type: 'entity_id', entityId: 1 },
+      target: { type: 'object_type', objectTypeId: 'Player' },
       events: [{
         id: 'e1',
         enabled: true,

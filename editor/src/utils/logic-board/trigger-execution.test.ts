@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import type { LogicBoard, LogicEvent } from '../../types/logic-board'
-import type { ProjectDoc } from '../../types'
 import {
   canRegisterLifecycleDestroy,
   canRegisterLifecycleSpawn,
@@ -31,7 +30,7 @@ describe('trigger-execution', () => {
   })
 
   it('onInput pressed is event, down is polling', () => {
-    const b = board({ type: 'entity_class', className: 'Player' })
+    const b = board({ type: 'object_type', objectTypeId: 'Player' })
     const pressed = ev({
       type: 'onInput',
       keyCode: 'Space',
@@ -51,69 +50,37 @@ describe('trigger-execution', () => {
       keyCombine: 'NOT',
       eventType: 'pressed',
     })
-    expect(usesTickFallback(notHeld, board({ type: 'entity_class', className: 'P' }))).toBe(
+    expect(usesTickFallback(notHeld, board({ type: 'object_type', objectTypeId: 'P' }))).toBe(
       true,
     )
     expect(getTriggerExecutionMode(notHeld.trigger)).toBe('polling')
   })
 
-  it('onDestroy uses event when board targets a class', () => {
-    const b = board({ type: 'entity_class', className: 'Enemy' })
+  it('onDestroy uses event when board targets a type', () => {
+    const b = board({ type: 'object_type', objectTypeId: 'Enemy' })
     const event = ev({ type: 'onDestroy' })
     expect(canRegisterLifecycleDestroy(event, b)).toBe(true)
     expect(usesTickFallback(event, b)).toBe(false)
   })
 
-  it('onDestroy falls back to polling for entity_id boards without class', () => {
-    const b = board({ type: 'entity_id', entityId: 1 })
-    const event = ev({ type: 'onDestroy' })
-    expect(canRegisterLifecycleDestroy(event, b)).toBe(false)
-    expect(usesTickFallback(event, b)).toBe(true)
-  })
-
-  it('onSpawn uses event when board has entity_class target', () => {
-    const b = board({ type: 'entity_class', className: 'Bullet' })
+  it('onSpawn uses event when board has object_type target', () => {
+    const b = board({ type: 'object_type', objectTypeId: 'Bullet' })
     const event = ev({ type: 'onSpawn' })
     expect(canRegisterLifecycleSpawn(event, b)).toBe(true)
     expect(usesTickFallback(event, b)).toBe(false)
   })
 
   it('onSpawn never tick-fallbacks even when no class resolves (N3 guard)', () => {
-    // entity_id board without a project -> no resolvable className.
-    // Previously this would route to tick fallback and the generic gate
-    // path would fire actions every frame. After N3, usesTickFallback
-    // returns false unconditionally for onSpawn; emitEventRegistration
-    // returns null so the event is silently dropped instead.
-    const b = board({ type: 'entity_id', entityId: 99 })
+    // Global boards have no resolvable class; emitEventRegistration returns
+    // null so the event is silently dropped instead of polling every frame.
+    const b = board({ type: 'global' })
     const event = ev({ type: 'onSpawn' })
     expect(canRegisterLifecycleSpawn(event, b)).toBe(false)
     expect(usesTickFallback(event, b)).toBe(false)
   })
 
-  it('onDestroy on entity_id board resolves class from project', () => {
-    const b = board({ type: 'entity_id', entityId: 1 })
-    const event = ev({ type: 'onDestroy' })
-    const project = {
-      projectName: 'T',
-      version: '2.0.0',
-      targetFPS: 60,
-      activeSceneId: 's',
-      mainScriptPath: 'scripts/main.lua',
-      entities: {
-        1: {
-          id: 1, name: 'H', className: 'Player', tags: [],
-          transform: { position: { x: 0, y: 0 }, scale: { x: 1, y: 1 }, rotation: 0 },
-          sprite: { spriteAssetId: '', tint: { x: 1, y: 1, z: 1, w: 1 }, fillColor: { x: 1, y: 1, z: 1 }, alpha: 1, pivot: { x: 0.5, y: 0.5 }, renderOrder: 0 },
-        },
-      },
-      scenes: {},
-    } satisfies ProjectDoc
-    expect(canRegisterLifecycleDestroy(event, b, project)).toBe(true)
-    expect(usesTickFallback(event, b, project)).toBe(false)
-  })
-
   it('onMouseInput is always polling', () => {
-    const b = board({ type: 'entity_class', className: 'Player' })
+    const b = board({ type: 'object_type', objectTypeId: 'Player' })
     const event = ev({
       type: 'onMouseInput',
       button: 'left',
@@ -124,7 +91,7 @@ describe('trigger-execution', () => {
   })
 
   it('onObjectClick is checked continuously against the object hit area', () => {
-    const b = board({ type: 'entity_class', className: 'Button' })
+    const b = board({ type: 'object_type', objectTypeId: 'Button' })
     const event = ev({
       type: 'onObjectClick',
       button: 'left',
@@ -135,7 +102,7 @@ describe('trigger-execution', () => {
   })
 
   it('object hover triggers are checked continuously against the object hit area', () => {
-    const b = board({ type: 'entity_class', className: 'Button' })
+    const b = board({ type: 'object_type', objectTypeId: 'Button' })
     const enter = ev({ type: 'onObjectHoverEnter', radius: 32 })
     const exit = ev({ type: 'onObjectHoverExit', radius: 32 })
     expect(usesTickFallback(enter, b)).toBe(true)

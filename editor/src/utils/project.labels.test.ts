@@ -3,17 +3,14 @@ import {
   allEntityTags,
   classDisplayLabel,
   entityIdDisplayLabel,
-  findLogicBoardForEntity,
+  findLogicBoardForObjectType,
   logicBoardLabel,
   logicBoardsForScene,
   rulesheetAppliesToLabel,
 } from './project'
 import { createBlankProject } from './project-factory'
 import { createEntityDef } from './project-builders'
-import {
-  createLogicBoardForEntity,
-  createLogicBoardForObjectType,
-} from './logic-board/factory'
+import { createLogicBoardForObjectType } from './logic-board/factory'
 import type { ProjectDoc } from '../types'
 
 function miniProject(): ProjectDoc {
@@ -71,20 +68,20 @@ describe('entityIdDisplayLabel', () => {
   })
 })
 
-describe('findLogicBoardForEntity', () => {
-  it('returns board bound to entity_id', () => {
+describe('findLogicBoardForObjectType', () => {
+  it('returns the board bound to a type and undefined otherwise', () => {
     const project = {
       ...miniProject(),
-      logicBoards: [createLogicBoardForEntity(2, 'b2')],
+      logicBoards: [createLogicBoardForObjectType('Enemy', 'b2')],
     }
-    expect(findLogicBoardForEntity(project, 2)?.boardId).toBe('b2')
-    expect(findLogicBoardForEntity(project, 1)).toBeUndefined()
+    expect(findLogicBoardForObjectType(project, 'Enemy')?.boardId).toBe('b2')
+    expect(findLogicBoardForObjectType(project, 'Player')).toBeUndefined()
   })
 })
 
 describe('rulesheetAppliesToLabel', () => {
-  it('names a single entity_id rulesheet after the instance', () => {
-    const board = createLogicBoardForEntity(1, 'b1')
+  it('names a single-instance type rulesheet after the instance', () => {
+    const board = createLogicBoardForObjectType('Player', 'b1')
     expect(rulesheetAppliesToLabel(miniProject(), board)).toBe('Hero')
   })
 
@@ -105,7 +102,7 @@ describe('logicBoardsForScene', () => {
     project.scenes.scene_main.entityIds = [1, 2]
     project.logicBoards = [
       createLogicBoardForObjectType('Player', 'b_player'),
-      createLogicBoardForEntity(2, 'b_ent2'),
+      createLogicBoardForObjectType('Entity_2', 'b_ent2'),
     ]
     const ids = logicBoardsForScene(project, 'scene_main').map((b) => b.boardId)
     expect(ids).toEqual(['b_player', 'b_ent2'])
@@ -114,19 +111,19 @@ describe('logicBoardsForScene', () => {
 
 describe('logicBoardLabel', () => {
   it('prefers custom rulesheet names', () => {
-    const board = createLogicBoardForEntity(1, 'b1', 'Player controls')
+    const board = createLogicBoardForObjectType('Player', 'b1', 'Player controls')
     expect(logicBoardLabel(miniProject(), board)).toBe('Player controls')
   })
 
-  it('uses the generated compiler label for new entity_id boards', () => {
-    const board = createLogicBoardForEntity(1, 'board_mplj6t76_1')
+  it('uses the generated compiler label for new boards', () => {
+    const board = createLogicBoardForObjectType('Player', 'board_mplj6t76_1')
     expect(logicBoardLabel(miniProject(), board)).toBe('board_mplj6t76_1')
   })
 
   it('falls back to boardId for existing boards without names', () => {
     expect(logicBoardLabel(miniProject(), {
       boardId: 'old_board',
-      target: { type: 'entity_class', className: 'Enemy' },
+      target: { type: 'object_type', objectTypeId: 'Enemy' },
       events: [],
     })).toBe('old_board')
   })

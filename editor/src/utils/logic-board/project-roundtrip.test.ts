@@ -5,7 +5,7 @@ import type { LogicBoard } from '../../types/logic-board'
 
 const SAMPLE_BOARD: LogicBoard = {
   boardId: 'player_controller',
-  target: { type: 'entity_class', className: 'Player' },
+  target: { type: 'object_type', objectTypeId: 'Player' },
   events: [
     {
       id: 'jump',
@@ -49,7 +49,7 @@ describe('parseLogicBoards — defensive', () => {
       { target: {}, events: [] }, // no boardId → dropped
       {
         boardId: 'ok',
-        target: { type: 'entity_class', className: 'P' },
+        target: { type: 'object_type', objectTypeId: 'P' },
         events: [
           { id: 'a', trigger: { type: 'onUpdate' }, actions: [] }, // kept
           { id: 'b', actions: [] }, // no trigger → dropped
@@ -65,7 +65,7 @@ describe('parseLogicBoards — defensive', () => {
     const { doc, issues } = parseLogicBoardsWithIssues([
       {
         boardId: 'broken',
-        target: { type: 'entity_class', className: 'P' },
+        target: { type: 'object_type', objectTypeId: 'P' },
         events: [
           {
             id: 'bad',
@@ -80,6 +80,29 @@ describe('parseLogicBoards — defensive', () => {
     expect(doc?.[0].events).toHaveLength(1)
     expect(issues.length).toBeGreaterThan(0)
     expect(issues[0].boardId).toBe('broken')
+  })
+
+  it('rejects boards with legacy entity_id / entity_class targets (no compat)', () => {
+    const { doc, issues } = parseLogicBoardsWithIssues([
+      {
+        boardId: 'legacy_instance',
+        target: { type: 'entity_id', entityId: 7 },
+        events: [{ id: 'e', trigger: { type: 'onUpdate' }, actions: [] }],
+      },
+      {
+        boardId: 'legacy_class',
+        target: { type: 'entity_class', className: 'Coin' },
+        events: [{ id: 'e', trigger: { type: 'onUpdate' }, actions: [] }],
+      },
+      {
+        boardId: 'ok',
+        target: { type: 'object_type', objectTypeId: 'Coin' },
+        events: [{ id: 'e', trigger: { type: 'onUpdate' }, actions: [] }],
+      },
+    ])
+    expect(doc).toHaveLength(1)
+    expect(doc?.[0].boardId).toBe('ok')
+    expect(issues.map((i) => i.boardId).sort()).toEqual(['legacy_class', 'legacy_instance'])
   })
 
   it('defaults enabled to true when omitted', () => {

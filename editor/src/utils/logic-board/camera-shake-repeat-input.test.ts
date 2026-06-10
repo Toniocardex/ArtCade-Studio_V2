@@ -6,7 +6,7 @@ import { compileLogicBoard } from './compiler'
 import type { LogicBoard, LogicEvent } from '../../types/logic-board'
 
 function board(events: LogicEvent[]): LogicBoard {
-  return { boardId: 'b1', target: { type: 'entity_class', className: 'Entity_1' }, events }
+  return { boardId: 'b1', target: { type: 'object_type', objectTypeId: 'Entity_1' }, events }
 }
 
 function ev(partial: Partial<LogicEvent> & Pick<LogicEvent, 'trigger' | 'actions'>): LogicEvent {

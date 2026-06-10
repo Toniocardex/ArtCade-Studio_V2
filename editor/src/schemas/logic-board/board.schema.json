@@ -10,12 +10,12 @@
       "type": "object",
       "required": ["type"],
       "properties": {
-        "type": { "enum": ["object_type", "entity_class", "entity_id", "global", "scene"] },
-        "objectTypeId": { "type": "string" },
-        "className": { "type": "string" },
-        "entityId": { "type": "number" }
+        "type": { "enum": ["object_type", "global", "scene"] },
+        "objectTypeId": { "type": "string", "minLength": 1 }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "if": { "properties": { "type": { "const": "object_type" } } },
+      "then": { "required": ["type", "objectTypeId"] }
     },
     "events": {
       "type": "array",

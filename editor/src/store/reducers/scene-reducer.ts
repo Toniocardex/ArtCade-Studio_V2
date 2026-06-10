@@ -7,9 +7,8 @@
 
 import type { CoreState, Action, DomainReducer } from '../editor-store-state'
 import { DEFAULT_WORLD, createTilemap, resizeTilemap } from '../../types'
-import type { EntityDef, LogicBoard, SceneDef } from '../../types'
+import type { EntityDef, SceneDef } from '../../types'
 import { createSceneDef, uniqueSceneName, nextEntityId } from '../../utils/project'
-import { logicId } from '../../utils/logic-board/factory'
 import { clampEntityPositionToScene } from '../../utils/entity-position'
 import { projectAfterRemovingAsset } from '../../utils/strip-project-asset-refs'
 import { normalizeAssetRefs } from '../../utils/normalize-asset-refs'
@@ -111,19 +110,8 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
           : {}),
       }
 
-      const sourceEntityIds = new Set(srcScene.entityIds)
-      const clonedBoards: LogicBoard[] = []
-      for (const board of state.project.logicBoards ?? []) {
-        if (board.target.type !== 'entity_id' || board.target.entityId == null) continue
-        if (!sourceEntityIds.has(board.target.entityId)) continue
-        const mappedEntityId = idMap.get(board.target.entityId)
-        if (mappedEntityId == null) continue
-        const copy = JSON.parse(JSON.stringify(board)) as LogicBoard
-        copy.boardId = logicId('board')
-        copy.target = { type: 'entity_id', entityId: mappedEntityId }
-        clonedBoards.push(copy)
-      }
-
+      // Boards target object types: the duplicated instances share the same
+      // types, so existing boards already cover them — nothing to clone.
       return {
         ...state,
         project: {
@@ -133,11 +121,6 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
             ...state.project.scenes,
             [duplicated.id]: duplicated,
           },
-          ...(clonedBoards.length > 0
-            ? {
-                logicBoards: [...(state.project.logicBoards ?? []), ...clonedBoards],
-              }
-            : {}),
         },
         selection: { sceneId: duplicated.id, entityId: null },
         projectDirty: true,
@@ -162,14 +145,6 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
       const entities = Object.fromEntries(
         Object.entries(project.entities).filter(([id]) => !removedEntityIds.has(Number(id))),
       )
-      const logicBoards = (project.logicBoards ?? []).filter(
-        (b) =>
-          !(
-            b.target.type === 'entity_id' &&
-            b.target.entityId != null &&
-            removedEntityIds.has(b.target.entityId)
-          ),
-      )
       const thumbnails = project.thumbnails
         ? Object.fromEntries(
             Object.entries(project.thumbnails).filter(([sid]) => sid !== action.sceneId),
@@ -186,9 +161,6 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
           ...project,
           entities,
           scenes: remainingScenes,
-          ...(project.logicBoards != null
-            ? { logicBoards: logicBoards.length > 0 ? logicBoards : undefined }
-            : {}),
           ...(project.thumbnails != null
             ? { thumbnails: Object.keys(thumbnails ?? {}).length > 0 ? thumbnails : undefined }
             : {}),

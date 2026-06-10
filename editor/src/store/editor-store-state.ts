@@ -187,7 +187,6 @@ export type Action =
   | { type: 'ENTITY_REMOVE_PHYSICS';   entityId: number }
   | { type: 'ENTITY_SET_COMPONENT';    entityId: number; key: ComponentKey; value: object }
   | { type: 'ENTITY_REMOVE_COMPONENT'; entityId: number; key: ComponentKey }
-  | { type: 'ENTITY_ADD';        sceneId: string }
   | { type: 'OBJECT_TYPE_ADD';   displayName: string }
   | { type: 'INSTANCE_ADD_FROM_TYPE'; sceneId: string; objectTypeId: string }
   | { type: 'ENTITY_DUPLICATE';  entityId: number; sceneId: string }

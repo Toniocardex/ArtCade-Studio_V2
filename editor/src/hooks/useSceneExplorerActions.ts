@@ -3,11 +3,7 @@ import { useEditorDispatch, useEditorSelector } from '../store/editor-store'
 import type { ConsoleEntry } from '../types'
 import { confirmDialog } from '../utils/native-dialog'
 import { useTextPrompt } from './useTextPrompt'
-import {
-  createEntityDef,
-  nextEntityId,
-  objectTypeDisplayLabel,
-} from '../utils/project'
+import { slugTypeId } from '../utils/project-object-types'
 import { openLogicBoardForEntity } from '../panels/inspector/logic-board-navigation'
 
 let _explorerLogId = 900
@@ -114,16 +110,28 @@ export function useSceneExplorerActions() {
     [dispatch, project, promptText],
   )
 
-  const addEntity = useCallback(() => {
+  // Single entry point for adding objects: prompts for a name, reuses the
+  // object type when it already exists, then places an instance in the
+  // active scene (Construct-style: scene rows are instances of types).
+  const insertObject = useCallback(() => {
     if (!project || !scene) return
-    const id = nextEntityId(project)
-    const preview = createEntityDef(id)
-    dispatch({ type: 'ENTITY_ADD', sceneId })
-    dispatch({
-      type: 'LOG',
-      entry: explorerLog(`Added ${preview.name} — rename in Inspector if needed`, 'info'),
+    void promptText({
+      title: 'Insert object',
+      message: 'Object name (instances share the type, e.g. "Coin"):',
+      defaultValue: 'Object',
+    }).then((name) => {
+      if (!name) return
+      const typeId = slugTypeId(name)
+      if (!project.objectTypes?.[typeId]) {
+        dispatch({ type: 'OBJECT_TYPE_ADD', displayName: name })
+      }
+      dispatch({ type: 'INSTANCE_ADD_FROM_TYPE', sceneId, objectTypeId: typeId })
+      dispatch({
+        type: 'LOG',
+        entry: explorerLog(`Inserted ${name} (type ${typeId})`, 'info'),
+      })
     })
-  }, [scene, sceneId, project, dispatch])
+  }, [scene, sceneId, project, dispatch, promptText])
 
   const selectEntity = useCallback(
     (entityId: number) => {
@@ -163,17 +171,6 @@ export function useSceneExplorerActions() {
     [dispatch],
   )
 
-  const addEntityType = useCallback(() => {
-    void promptText({
-      title: 'New entity type',
-      message: 'Type name (reusable template):',
-      defaultValue: 'Entity',
-    }).then((name) => {
-      if (!name) return
-      dispatch({ type: 'OBJECT_TYPE_ADD', displayName: name })
-    })
-  }, [dispatch, promptText])
-
   const renameEntity = useCallback(
     (entityId: number) => {
       const ent = project?.entities[entityId]
@@ -198,60 +195,6 @@ export function useSceneExplorerActions() {
     [dispatch, project],
   )
 
-  const renameEntityType = useCallback(
-    (objectTypeId: string) => {
-      const type = project?.objectTypes?.[objectTypeId]
-      if (!type) return
-      void promptText({
-        title: 'Rename entity type',
-        message: 'Type display name:',
-        defaultValue: type.displayName,
-      }).then((name) => {
-        if (!name || name === type.displayName) return
-        dispatch({ type: 'OBJECT_TYPE_RENAME', objectTypeId, displayName: name })
-      })
-    },
-    [dispatch, project, promptText],
-  )
-
-  const deleteEntityType = useCallback(
-    (objectTypeId: string) => {
-      if (!project?.objectTypes?.[objectTypeId]) return
-      const inUse = Object.values(project.scenes).some((sc) =>
-        (sc.instances ?? []).some((i) => i.objectTypeId === objectTypeId),
-      )
-      if (inUse) {
-        dispatch({
-          type: 'LOG',
-          entry: explorerLog('Cannot delete type — instances exist in a scene.', 'warn'),
-        })
-        return
-      }
-      void confirmDialog('Delete this entity type?', {
-        title: 'Delete entity type',
-        kind: 'warning',
-      }).then((ok) => {
-        if (ok) dispatch({ type: 'OBJECT_TYPE_DELETE', objectTypeId })
-      })
-    },
-    [dispatch, project, promptText],
-  )
-
-  const placeEntityType = useCallback(
-    (objectTypeId: string) => {
-      if (!scene || !project) return
-      dispatch({ type: 'INSTANCE_ADD_FROM_TYPE', sceneId, objectTypeId })
-      dispatch({
-        type: 'LOG',
-        entry: explorerLog(
-          `Placed ${objectTypeDisplayLabel(project, objectTypeId)} in scene`,
-          'info',
-        ),
-      })
-    },
-    [dispatch, project, scene, sceneId],
-  )
-
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (mode !== 'canvas') return
@@ -259,11 +202,11 @@ export function useSceneExplorerActions() {
       if (!isInsert) return
       if (!scene) return
       e.preventDefault()
-      addEntity()
+      insertObject()
     }
     globalThis.addEventListener('keydown', handleKeyDown)
     return () => globalThis.removeEventListener('keydown', handleKeyDown)
-  }, [mode, scene, addEntity])
+  }, [mode, scene, insertObject])
 
   return {
     project,
@@ -282,16 +225,12 @@ export function useSceneExplorerActions() {
     renameScene,
     renameSceneById,
     duplicateSceneById,
-    addEntity,
+    insertObject,
     selectEntity,
     toggleEntityVisible,
     duplicateEntity,
     deleteEntity,
     openEntityLogic,
     renameEntity,
-    addEntityType,
-    renameEntityType,
-    deleteEntityType,
-    placeEntityType,
   }
 }

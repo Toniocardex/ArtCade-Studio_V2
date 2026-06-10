@@ -22,16 +22,14 @@ describe('trigger-compatibility matrix', () => {
       'onObjectClick', 'onObjectHoverEnter', 'onObjectHoverExit',
     ] as const) {
       expect(isTriggerCompatible(t, 'global')).toBe(false)
-      expect(isTriggerCompatible(t, 'entity_class')).toBe(true)
-      expect(isTriggerCompatible(t, 'entity_id')).toBe(true)
+      expect(isTriggerCompatible(t, 'object_type')).toBe(true)
     }
   })
 
   it('system + input + message triggers are valid on every target', () => {
     for (const t of ['onStart', 'onUpdate', 'onTimer', 'onInput', 'onMouseInput', 'onMessage'] as const) {
       expect(isTriggerCompatible(t, 'global')).toBe(true)
-      expect(isTriggerCompatible(t, 'entity_class')).toBe(true)
-      expect(isTriggerCompatible(t, 'entity_id')).toBe(true)
+      expect(isTriggerCompatible(t, 'object_type')).toBe(true)
     }
   })
 
@@ -56,19 +54,19 @@ describe('trigger-compatibility matrix', () => {
     expect(global).toContain('onInput')
     expect(global).toContain('onStart')
 
-    const entityClass = allowedTriggersForTarget('entity_class')
-    expect(entityClass).toContain('onSpawn')
-    expect(entityClass).toContain('onCollision')
-    expect(entityClass).toContain('onObjectClick')
-    expect(entityClass).toContain('onObjectHoverExit')
-    expect(entityClass).toContain('onInput')
+    const objectType = allowedTriggersForTarget('object_type')
+    expect(objectType).toContain('onSpawn')
+    expect(objectType).toContain('onCollision')
+    expect(objectType).toContain('onObjectClick')
+    expect(objectType).toContain('onObjectHoverExit')
+    expect(objectType).toContain('onInput')
   })
 })
 
 describe('board-level compatibility errors', () => {
   it('returns empty list for a valid board', () => {
     const b = mkBoard({
-      target: { type: 'entity_class', className: 'Player' },
+      target: { type: 'object_type', objectTypeId: 'Player' },
       events: [
         { id: 'e1', enabled: true, trigger: { type: 'onSpawn' }, actions: [] },
       ],
@@ -103,7 +101,7 @@ describe('compiler integration', () => {
 
   it('assertBoardCompatible is a noop for valid boards', () => {
     const b = mkBoard({
-      target: { type: 'entity_class', className: 'Player' },
+      target: { type: 'object_type', objectTypeId: 'Player' },
       events: [
         { id: 'e1', enabled: true, trigger: { type: 'onInput', keyCode: 'Space', eventType: 'pressed' }, actions: [] },
       ],
@@ -115,7 +113,7 @@ describe('compiler integration', () => {
 describe('eventCompatibilityError (single-event UI surface)', () => {
   it('returns null when compatible', () => {
     const ev = { id: 'x', enabled: true, trigger: { type: 'onSpawn' as const }, actions: [] }
-    expect(eventCompatibilityError(ev, 'entity_class')).toBeNull()
+    expect(eventCompatibilityError(ev, 'object_type')).toBeNull()
   })
   it('returns a human message when not', () => {
     const ev = { id: 'x', enabled: true, trigger: { type: 'onSpawn' as const }, actions: [] }

@@ -9,9 +9,7 @@
 
 import type { CoreState, Action, DomainReducer } from '../editor-store-state'
 import {
-  createEntityDef,
   nextEntityId,
-  defaultEntitySpawnPosition,
   syncObjectModelFromEntities,
 } from '../../utils/project'
 
@@ -142,26 +140,6 @@ export const entityReducer: DomainReducer = (state: CoreState, action: Action) =
         projectDirty: true,
       }
     }
-    case 'ENTITY_ADD': {
-      if (!state.project || !state.project.scenes[action.sceneId]) return state
-      const id = nextEntityId(state.project)
-      const scene = state.project.scenes[action.sceneId]
-      const spawn = defaultEntitySpawnPosition(scene, state.editorGridSize, state.snapToGrid)
-      const ent = createEntityDef(id, undefined, undefined, spawn)
-      return {
-        ...state,
-        project: syncObjectModelFromEntities({
-          ...state.project,
-          entities: { ...state.project.entities, [id]: ent },
-          scenes: {
-            ...state.project.scenes,
-            [action.sceneId]: { ...scene, entityIds: [...scene.entityIds, id] },
-          },
-        }),
-        selection: { ...state.selection, entityId: id },
-        projectDirty: true,
-      }
-    }
     case 'ENTITY_DUPLICATE': {
       if (
         !state.project ||
@@ -210,22 +188,14 @@ export const entityReducer: DomainReducer = (state: CoreState, action: Action) =
           { ...sc, entityIds: sc.entityIds.filter((i) => i !== action.entityId) },
         ]),
       )
-      const logicBoards = (state.project.logicBoards ?? []).filter(
-        (b) =>
-          !(
-            b.target.type === 'entity_id' &&
-            b.target.entityId === action.entityId
-          ),
-      )
+      // Boards live on object types, not instances: deleting an instance never
+      // removes a board (the type — and its board — survive in the catalog).
       return {
         ...state,
         project: syncObjectModelFromEntities({
           ...state.project,
           entities,
           scenes,
-          ...(state.project.logicBoards != null
-            ? { logicBoards: logicBoards.length > 0 ? logicBoards : undefined }
-            : {}),
         }),
         selection: {
           ...state.selection,

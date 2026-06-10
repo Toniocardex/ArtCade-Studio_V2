@@ -8,10 +8,10 @@ import {
   entityHasOverlapBounds,
 } from './physics-trigger-capabilities'
 
-function entityBoard(entityId: number): LogicBoard {
+function entityBoard(_entityId: number): LogicBoard {
   return {
     boardId: 'b1',
-    target: { type: 'entity_id', entityId },
+    target: { type: 'object_type', objectTypeId: 'Player' },
     events: [],
   }
 }

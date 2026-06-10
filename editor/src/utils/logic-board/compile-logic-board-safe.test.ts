@@ -9,7 +9,7 @@ describe('compileLogicBoardSafe', () => {
   it('returns lua on success', () => {
     const board: LogicBoard = {
       boardId: 'b1',
-      target: { type: 'entity_id', entityId: 1 },
+      target: { type: 'object_type', objectTypeId: 'Player' },
       events: [],
     }
     const r = compileLogicBoardSafe([board])

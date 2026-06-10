@@ -61,7 +61,7 @@ function project(): ProjectDoc {
 
 describe('component capabilities', () => {
   it('recommends actions from components on an entity board', () => {
-    const board: LogicBoard = { boardId: 'b', target: { type: 'entity_id', entityId: 1 }, events: [] }
+    const board: LogicBoard = { boardId: 'b', target: { type: 'object_type', objectTypeId: 'Player' }, events: [] }
     expect(recommendedActionTypes(project(), board)).toEqual([
       'controllerMovement',
       'moveController',
@@ -99,7 +99,7 @@ describe('component capabilities', () => {
   })
 
   it('warns when a required component is missing', () => {
-    const board: LogicBoard = { boardId: 'b', target: { type: 'entity_id', entityId: 2 }, events: [] }
+    const board: LogicBoard = { boardId: 'b', target: { type: 'object_type', objectTypeId: 'Enemy' }, events: [] }
     const req = actionRequirement(
       { type: 'damageEntity', target: 'self', amount: 5 },
       project(),
@@ -112,7 +112,7 @@ describe('component capabilities', () => {
   it('detects partial class-board component coverage', () => {
     const p = project()
     p.entities[4] = entity(4, 'Player')
-    const board: LogicBoard = { boardId: 'b', target: { type: 'entity_class', className: 'Player' }, events: [] }
+    const board: LogicBoard = { boardId: 'b', target: { type: 'object_type', objectTypeId: 'Player' }, events: [] }
     const req = conditionRequirement(
       { type: 'compareHealth', target: 'self', field: 'current', operator: '>', value: 0 },
       p,
@@ -122,7 +122,7 @@ describe('component capabilities', () => {
   })
 
   it('maps sensor triggers to SensorComponent requirements', () => {
-    const board: LogicBoard = { boardId: 'b', target: { type: 'entity_id', entityId: 3 }, events: [] }
+    const board: LogicBoard = { boardId: 'b', target: { type: 'object_type', objectTypeId: 'Zone' }, events: [] }
     expect(triggerRequirement({ type: 'onTriggerEnter', withClass: 'player' }, project(), board)).toBeNull()
   })
 
@@ -137,7 +137,7 @@ describe('component capabilities', () => {
         maxSpeed: 200, jumpForce: 400, gravity: 900, groundClass: 'Ground',
       },
     })
-    const board: LogicBoard = { boardId: 'b', target: { type: 'entity_id', entityId: 5 }, events: [] }
+    const board: LogicBoard = { boardId: 'b', target: { type: 'object_type', objectTypeId: 'Bullet' }, events: [] }
     expect(recommendedActionTypes(p, board)).toEqual([
       'controllerMovement',
       'moveController',

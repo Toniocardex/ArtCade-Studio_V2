@@ -43,7 +43,7 @@ describe('resolvePreviewMainLua', () => {
     const project = makeProject({
       logicBoards: [{
         boardId: 'b1',
-        target: { type: 'entity_class', className: 'Player' },
+        target: { type: 'object_type', objectTypeId: 'Player' },
         events: [],
       }],
     })
@@ -63,7 +63,7 @@ describe('resolvePreviewMainLua', () => {
     const project = makeProject({
       logicBoards: [{
         boardId: 'b1',
-        target: { type: 'entity_class', className: 'Player' },
+        target: { type: 'object_type', objectTypeId: 'Player' },
         events: [],
       }],
     })
@@ -82,7 +82,7 @@ describe('resolvePreviewMainLua', () => {
     const project = makeProject({
       logicBoards: [{
         boardId: 'b1',
-        target: { type: 'entity_class', className: 'Player' },
+        target: { type: 'object_type', objectTypeId: 'Player' },
         events: [],
       }],
     })
@@ -125,7 +125,7 @@ describe('resolvePreviewMainLua', () => {
     const okProject = makeProject({
       logicBoards: [{
         boardId: 'b1',
-        target: { type: 'entity_id', entityId: 1 },
+        target: { type: 'object_type', objectTypeId: 'Player' },
         events: [],
       }],
     })

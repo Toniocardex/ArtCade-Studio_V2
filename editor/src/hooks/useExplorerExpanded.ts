@@ -5,7 +5,6 @@ const STORAGE_KEY = 'artcade.explorer.expanded.v1'
 export type ExplorerExpandKey =
   | 'scenes'
   | 'entities'
-  | 'entityTypes'
   | 'assets'
   | 'dialogs'
   | `asset:${string}`
@@ -15,7 +14,6 @@ type ExpandedMap = Record<string, boolean>
 const DEFAULT_EXPANDED: ExpandedMap = {
   scenes: true,
   entities: true,
-  entityTypes: false,
   assets: false,
   dialogs: true,
   'asset:audio': true,

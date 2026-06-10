@@ -112,10 +112,6 @@ describe('buildProjectExplorerData', () => {
     expect(images?.images[0]?.name).toBe('hero.png')
   })
 
-  it('includes entity types from objectTypes', () => {
-    const data = buildProjectExplorerData(minimalProject(), 'main', '')
-    expect(data.entityTypes.some((t) => t.objectTypeId === 'enemy')).toBe(true)
-  })
 })
 
 describe('assetFolderItemCount', () => {

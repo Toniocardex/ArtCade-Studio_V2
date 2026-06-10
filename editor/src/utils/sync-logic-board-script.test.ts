@@ -105,7 +105,7 @@ describe('syncLogicBoardFromProject', () => {
         ...(minimalState().project as object),
         logicBoards: [{
           boardId: 'b1',
-          target: { type: 'entity_class', className: 'Player' },
+          target: { type: 'object_type', objectTypeId: 'Player' },
           events: [],
         }],
       } as CoreState['project'],

@@ -204,18 +204,15 @@ export interface LogicBoard {
   target: {
     /**
      * Defines what `self` means for this board's events.
-     *   • entity_class — iterate every live instance of `className` each tick
-     *   • entity_id    — bind `self` to a single specific entity
-     *   • global       — no entity context; for triggers that fire scene-wide
-     *                    (input, mouse, message, global timers). `self` is nil
-     *                    in the generated Lua, so actions targeting self are
-     *                    rejected by the validator for global boards.
-     *   • scene        — reserved/legacy; treated as global for now.
+     *   • object_type — iterate every live instance of `objectTypeId` each tick
+     *   • global      — no entity context; for triggers that fire scene-wide
+     *                   (input, mouse, message, global timers). `self` is nil
+     *                   in the generated Lua, so actions targeting self are
+     *                   rejected by the validator for global boards.
+     *   • scene       — reserved/legacy; treated as global.
      */
-    type:       'object_type' | 'entity_class' | 'entity_id' | 'global' | 'scene'
-    objectTypeId?: string             // when object_type (preferred)
-    className?: string                // when entity_class (legacy alias)
-    entityId?:  number                // when entity_id
+    type:        'object_type' | 'global' | 'scene'
+    objectTypeId?: string             // required when type === 'object_type'
   }
   events: LogicEvent[]
 }

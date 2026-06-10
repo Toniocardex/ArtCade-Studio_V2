@@ -20,11 +20,6 @@ function objectTypeSpriteAssetId(project: ProjectDoc, typeId: string): string | 
   return ot.sprite.spriteAssetId
 }
 
-function classNameExists(project: ProjectDoc, className: string): boolean {
-  if (project.objectTypes?.[className]) return true
-  return Object.values(project.entities ?? {}).some((e) => e.className === className)
-}
-
 function collectLogicBoardTargetDiagnostics(
   project: ProjectDoc,
   boards: LogicBoard[],
@@ -61,33 +56,19 @@ function collectLogicBoardTargetDiagnostics(
         })
       }
     }
-    if (t.type === 'entity_class') {
-      const cn = t.className?.trim()
-      if (!cn) {
-        out.push({
-          severity: 'error',
-          context: `board:${board.boardId}`,
-          message: `Logic Board "${label}" targets entity_class but className is empty.`,
-        })
-      } else if (!classNameExists(project, cn)) {
-        out.push({
-          severity: 'warn',
-          context: `board:${board.boardId}`,
-          message: `Logic Board "${label}" references class "${cn}" with no matching object type or entity.`,
-        })
-      }
+    // Legacy targets (entity_id / entity_class) are rejected at parse time
+    // (factory.parseBoard) — they never reach the validator. Guard anyway so a
+    // board injected programmatically with a stale shape fails loudly.
+    const rawType = (t as { type: string }).type
+    if (rawType === 'entity_id' || rawType === 'entity_class') {
+      out.push({
+        severity: 'error',
+        context: `board:${board.boardId}`,
+        message:
+          `Logic Board "${label}" uses unsupported legacy target "${rawType}" — ` +
+          `re-target it to an object type.`,
+      })
     }
-    if (t.type === 'entity_id') {
-      const eid = t.entityId
-      if (eid == null || !project.entities[eid]) {
-        out.push({
-          severity: 'error',
-          context: `board:${board.boardId}`,
-          message: `Logic Board "${label}" references missing entity id ${String(eid)}.`,
-        })
-      }
-    }
-
   }
 
   return out

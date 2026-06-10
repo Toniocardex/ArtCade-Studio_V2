@@ -29,11 +29,7 @@ export type BoardTargetType = LogicBoard['target']['type']
  * Concrete target categories the matrix discriminates. `'scene'` is treated
  * as `'global'` (legacy alias) so we don't list it separately.
  */
-const ENTITY_TARGETS: readonly BoardTargetType[] = [
-  'object_type',
-  'entity_class',
-  'entity_id',
-] as const
+const ENTITY_TARGETS: readonly BoardTargetType[] = ['object_type'] as const
 const GLOBAL_TARGETS: readonly BoardTargetType[] = ['global', 'scene'] as const
 const ALL_TARGETS: readonly BoardTargetType[] = [
   ...ENTITY_TARGETS,

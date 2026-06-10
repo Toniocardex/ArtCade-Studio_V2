@@ -1,6 +1,6 @@
 # Object Types + scene instances
 
-> **Status:** Implemented (format v2, dual-read legacy) — editor autore ancora in migrazione  
+> **Status:** Implemented (format v2) — Fasi A+B del refactor completate (Logic Board solo `object_type`, Hierarchy unificata); Fase C (Inspector → tipo) in corso  
 > **Audience:** Editor, runtime, Logic Board  
 > **Implementazione refactor (pre-release):** seguire [`OBJECT_MODEL_MIGRATION.md`](OBJECT_MODEL_MIGRATION.md) (Fasi A–D: Logic Board, Hierarchy, Inspector).
 
@@ -38,13 +38,15 @@ On load when `objectTypes` is absent:
 1. Group entities by `className`; if all `"Entity"`, group by normalized entity **name** → type id.
 2. First entity in group → `ObjectTypeDef` prototype.
 3. Each entity → `SceneInstanceDef` + scene membership from `entityIds`.
-4. `logicBoards` with `entity_class` → `object_type` when class matches a type id.
+
+`logicBoards` are **not** migrated: legacy `entity_id` / `entity_class` targets are rejected at parse time (pre-release no-compat policy) — re-target by hand to `object_type`.
 
 ## Logic Board
 
+- **Target ammessi (unico schema, 2026-06-10):** `object_type` | `global` | `scene` — `entity_id` / `entity_class` **rimossi**; progetti con board legacy vengono rifiutati al load (`parseBoard`).
 - **Target canonico:** `{ type: 'object_type', objectTypeId: 'Player' }`
 - Compiler: `pool.getAll("Player")` (unchanged Lua API)
-- Rimozione ibrido (`entity_class`, `entity_id`) e allineamento UI: **Fase A** in [`OBJECT_MODEL_MIGRATION.md`](OBJECT_MODEL_MIGRATION.md)
+- Lifecycle: delete istanza / duplicate scena **non** toccano le board (vivono sul tipo)
 
 ## Designer recipe (pickup)
 

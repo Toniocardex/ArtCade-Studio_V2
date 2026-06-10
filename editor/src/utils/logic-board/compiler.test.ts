@@ -14,7 +14,7 @@ import { createBlankProject } from '../project-factory'
 
 // Small helpers to build boards tersely.
 function board(events: LogicEvent[], className = 'Player'): LogicBoard {
-  return { boardId: 'b1', target: { type: 'entity_class', className }, events }
+  return { boardId: 'b1', target: { type: 'object_type', objectTypeId: className }, events }
 }
 function ev(partial: Partial<LogicEvent> & Pick<LogicEvent, 'trigger' | 'actions'>): LogicEvent {
   return { id: 'e1', enabled: true, ...partial }
@@ -340,22 +340,17 @@ describe('compileLogicBoard — structure', () => {
     expect(lua).toContain('for _, self in ipairs(pool.getAll("Enemy")) do')
   })
 
-  it('iterates a single-id pool for entity_id boards', () => {
+  it('iterates the type pool for object_type boards', () => {
     const lua = compileLogicBoard([
       {
         boardId: 'board_guardia',
-        target: { type: 'entity_id', entityId: 7 },
+        target: { type: 'object_type', objectTypeId: 'Guardia' },
         events: [
           ev({ trigger: { type: 'onUpdate' }, actions: [{ type: 'stopAllAudio' }] }),
         ],
       },
     ])
-    expect(lua).toContain('for _, self in ipairs({ 7 }) do')
-    // The only pool.getAll occurrence allowed is inside _logic_reg_spawn's
-    // replay loop in the prelude (helper definition, always emitted).
-    // Boards with no onSpawn must add no further pool.getAll calls.
-    const poolGetAllCount = lua.split('pool.getAll(').length - 1
-    expect(poolGetAllCount).toBe(1)
+    expect(lua).toContain('for _, self in ipairs(pool.getAll("Guardia")) do')
   })
 })
 
@@ -522,13 +517,13 @@ describe('compileLogicBoard — triggers', () => {
     expect(lua).toContain('state.add("score", 1)')
   })
 
-  it('onTimer non-repeat on entity_id board uses registration path', () => {
-    // Single-entity boards keep the cheaper time.after registration —
-    // shared vs per-instance is moot when the pool has one entry.
+  it('onTimer non-repeat on global board uses registration path', () => {
+    // Global boards have no per-entity clock: the cheaper time.after
+    // registration is correct (one shared timer for the scene).
     const lua = compileLogicBoard([
       {
         boardId: 'b1',
-        target: { type: 'entity_id', entityId: 7 },
+        target: { type: 'global' },
         events: [
           ev({
             trigger: { type: 'onTimer', seconds: 2, repeat: false },
@@ -541,11 +536,11 @@ describe('compileLogicBoard — triggers', () => {
     expect(lua).toContain('debug.log("tick")')
   })
 
-  it('onTimer repeat on entity_id board uses registration path', () => {
+  it('onTimer repeat on global board uses registration path', () => {
     const lua = compileLogicBoard([
       {
         boardId: 'b1',
-        target: { type: 'entity_id', entityId: 7 },
+        target: { type: 'global' },
         events: [
           ev({
             trigger: { type: 'onTimer', seconds: 1.5, repeat: true },
@@ -558,7 +553,7 @@ describe('compileLogicBoard — triggers', () => {
     expect(lua).toContain('debug.log("tick")')
   })
 
-  it('onTimer on entity_class board uses per-instance tick timers', () => {
+  it('onTimer on object_type board uses per-instance tick timers', () => {
     // Class-targeted board → tick path with per-self key so each entity
     // has its own clock. Avoids the "50 enemies share one 2s timer" bug.
     const lua = compileLogicBoard([
@@ -596,34 +591,6 @@ describe('compileLogicBoard — triggers', () => {
     expect(lua).toContain('local _tk = "b1:e1:" .. tostring(self)')
     expect(lua).toContain('_logic_timers[_tk] = -math.huge')
     expect(lua).not.toContain('_logic_timers[_tk] = 0')
-  })
-
-  it('onDestroy tick-fallback iterates _destroy_events with self bound', () => {
-    // entity_id board without a ProjectDoc -> no derivable className ->
-    // onDestroy goes through the fallback tick path (not lifecycle.onDestroy).
-    const lua = compileLogicBoard([
-      {
-        boardId: 'b1',
-        target: { type: 'entity_id', entityId: 99 },
-        events: [
-          ev({
-            trigger: { type: 'onDestroy' },
-            actions: [{ type: 'debugLog', message: 'bye' }],
-          }),
-        ],
-      },
-    ])
-    // Fallback must walk _destroy_events with self bound from de.entityId.
-    expect(lua).toContain('for _, de in ipairs(_destroy_events) do')
-    expect(lua).toContain('local self = de.entityId')
-    expect(lua).toContain('debug.log("bye")')
-    // The previous broken scaffolding compared de.entityId to a `self` from
-    // pool.getAll, which never matched a destroyed entity. Guard against it.
-    expect(lua).not.toContain('if de.entityId == self')
-    // No registration emit (no class to register against) — the only
-    // occurrence of the helper name is its definition in the prelude.
-    const regDestroyCount = lua.split('_logic_reg_destroy(').length - 1
-    expect(regDestroyCount).toBe(1)
   })
 
   it('onTimer repeat in tick-fallback subtracts interval to preserve cadence', () => {
@@ -707,7 +674,7 @@ describe('compileLogicBoard — actions', () => {
   it('unknown action enum produces a marker comment instead of crashing', () => {
     // moveInDirection with an unrecognised direction.
     const board1 = {
-      boardId: 'b', target: { type: 'entity_class', className: 'Player' },
+      boardId: 'b', target: { type: 'object_type', objectTypeId: 'Player' },
       events: [{
         id: 'e', enabled: true,
         trigger: { type: 'onSpawn' },
@@ -724,7 +691,7 @@ describe('compileLogicBoard — actions', () => {
 
     // Completely unknown top-level action type.
     const board2 = {
-      boardId: 'b2', target: { type: 'entity_class', className: 'Player' },
+      boardId: 'b2', target: { type: 'object_type', objectTypeId: 'Player' },
       events: [{
         id: 'e2', enabled: true,
         trigger: { type: 'onSpawn' },
@@ -742,7 +709,7 @@ describe('compileLogicBoard — realistic example', () => {
     const lua = compileLogicBoard([
       {
         boardId: 'player_controller',
-        target: { type: 'entity_class', className: 'Player' },
+        target: { type: 'object_type', objectTypeId: 'Player' },
         events: [
           ev({
             id: 'jump',
@@ -773,7 +740,7 @@ describe('compileLogicBoard — realistic example', () => {
       {
         boardId: 'board_mplxyz_1',
         name: 'Player movement',
-        target: { type: 'entity_class', className: 'Player' },
+        target: { type: 'object_type', objectTypeId: 'Player' },
         events: [
           ev({
             id: 'jump',
@@ -795,7 +762,7 @@ describe('compileLogicBoard — realistic example', () => {
       {
         boardId: 'board_stable_key',
         name: 'Player movement',
-        target: { type: 'entity_class', className: 'Player' },
+        target: { type: 'object_type', objectTypeId: 'Player' },
         events: [
           ev({
             id: 'mouse',
@@ -817,7 +784,7 @@ describe('compileLogicBoard — realistic example', () => {
       {
         boardId: 'board_multiline',
         name: 'Player\nmovement',
-        target: { type: 'entity_class', className: 'Player' },
+        target: { type: 'object_type', objectTypeId: 'Player' },
         events: [
           ev({
             trigger: { type: 'onUpdate' },
@@ -999,10 +966,10 @@ describe('Hot-reload safety — handler unsubscribe tracking', () => {
         ev({ id: 'f', trigger: { type: 'onMessage', messageName: 'hit' },
              actions: [{ type: 'debugLog', message: 'm' }] }),
       ]),
-      // onTimer on a single-entity board → registration path (time.every).
+      // onTimer on a global board → registration path (time.every).
       {
         boardId: 'b2',
-        target: { type: 'entity_id', entityId: 7 },
+        target: { type: 'global' as const },
         events: [
           ev({ id: 'e', trigger: { type: 'onTimer', seconds: 1, repeat: true },
                actions: [{ type: 'debugLog', message: 'r' }] }),
@@ -1154,32 +1121,6 @@ describe('Bug #2 — onSpawn replay for already-alive entities', () => {
   })
 })
 
-describe('N3 — onSpawn safe drop without resolvable class', () => {
-  it('emits no action code for onSpawn on entity_id board without project context', () => {
-    // Theoretical scenario: someone calls compileLogicBoard with no project.
-    // entity_id can't resolve a className without project lookup.
-    // Pre-N3: usesTickFallback returned true, falling into the generic
-    // gate path and firing actions every frame. Post-N3: the event is
-    // silently dropped (no registration, no tick body).
-    const lua = compileLogicBoard([
-      {
-        boardId: 'b1',
-        target: { type: 'entity_id', entityId: 99 },
-        events: [
-          ev({
-            trigger: { type: 'onSpawn' },
-            actions: [{ type: 'debugLog', message: 'SHOULD_NOT_APPEAR' }],
-          }),
-        ],
-      },
-    ])
-    expect(lua).not.toContain('SHOULD_NOT_APPEAR')
-    // Specifically the every-frame symptom: no per-pool for-loop over { 99 }
-    // wrapping the action.
-    expect(lua).not.toContain('debug.log("SHOULD_NOT_APPEAR")')
-  })
-})
-
 describe('Logic Components — Phase C (engine-hook triggers)', () => {
   it('onSpawn registers a lifecycle handler', () => {
     const lua = compileLogicBoard([
@@ -1192,12 +1133,12 @@ describe('Logic Components — Phase C (engine-hook triggers)', () => {
     expect(lua).toContain('debug.log("spawned")')
   })
 
-  it('onDestroy on entity_id board registers lifecycle.onDestroy via project class', () => {
+  it('onDestroy on object_type board registers lifecycle.onDestroy via project class', () => {
     const project = miniProject()
     const lua = compileLogicBoard([
       {
         boardId: 'hero',
-        target: { type: 'entity_id', entityId: 1 },
+        target: { type: 'object_type', objectTypeId: 'Player' },
         events: [
           ev({
             trigger: { type: 'onDestroy' },

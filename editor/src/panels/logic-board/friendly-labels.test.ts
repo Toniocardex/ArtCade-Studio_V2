@@ -90,19 +90,19 @@ describe('friendly-labels', () => {
     expect(s).not.toContain('spawnEntityAtPointer')
   })
 
-  it('board display shows the compiler label for shared class boards', () => {
+  it('board display shows the compiler label for shared type boards', () => {
     const board: LogicBoard = {
       boardId: 'board_mpe2dp1j_1',
-      target: { type: 'entity_class', className: 'Player' },
+      target: { type: 'object_type', objectTypeId: 'Player' },
       events: [],
     }
     expect(boardDisplayName(board, miniProject())).toBe('board_mpe2dp1j_1')
   })
 
-  it('board display shows the compiler label for entity_id boards', () => {
+  it('board display shows the compiler label for unnamed boards', () => {
     const board: LogicBoard = {
       boardId: 'board_hero',
-      target: { type: 'entity_id', entityId: 1 },
+      target: { type: 'object_type', objectTypeId: 'Player' },
       events: [],
     }
     expect(boardDisplayName(board, miniProject())).toBe('board_hero')

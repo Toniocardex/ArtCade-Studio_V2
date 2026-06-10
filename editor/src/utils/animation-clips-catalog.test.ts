@@ -79,7 +79,7 @@ describe('listProjectClips', () => {
 })
 
 describe('resolveClipContextForLogicBoard (re-exported spritePathForLogicBoardTarget)', () => {
-  it('returns sprite path for entity_id boards', () => {
+  it('returns sprite path for object_type boards', () => {
     const project: ProjectDoc = {
       ...miniProject({}),
       entities: {
@@ -103,7 +103,7 @@ describe('resolveClipContextForLogicBoard (re-exported spritePathForLogicBoardTa
     const board: LogicBoard = {
       id: 'b1',
       name: 'Hero rules',
-      target: { type: 'entity_id', entityId: 1 },
+      target: { type: 'object_type', objectTypeId: 'Player' },
       events: [],
     }
     expect(spritePathForLogicBoardTarget(project, board)).toBe('assets/hero.png')

@@ -178,7 +178,7 @@ describe('collectSceneAssetRefs', () => {
     }
     const board: LogicBoard = {
       boardId: 'spawner',
-      target: { type: 'entity_id', entityId: 1 },
+      target: { type: 'object_type', objectTypeId: 'Hero' },
       events: [
         {
           trigger: { type: 'onStart' },
@@ -201,7 +201,7 @@ describe('collectSceneAssetRefs', () => {
     }
     const board: LogicBoard = {
       boardId: 'audio',
-      target: { type: 'entity_id', entityId: 1 },
+      target: { type: 'object_type', objectTypeId: 'Hero' },
       events: [
         {
           trigger: { type: 'onStart' },

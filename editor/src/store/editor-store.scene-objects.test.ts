@@ -38,14 +38,15 @@ function st(p: ProjectDoc): CoreState {
 }
 
 describe('coreReducer — scenes & objects', () => {
-  it('ENTITY_ADD creates an entity, adds to scene, selects it', () => {
-    const s = coreReducer(st(project()), { type: 'ENTITY_ADD', sceneId: 's' })
+  it('OBJECT_TYPE_ADD + INSTANCE_ADD_FROM_TYPE creates an instance, adds to scene, selects it', () => {
+    let s = coreReducer(st(project()), { type: 'OBJECT_TYPE_ADD', displayName: 'Coin' })
+    expect(s.project!.objectTypes?.Coin).toBeDefined()
+    s = coreReducer(s, { type: 'INSTANCE_ADD_FROM_TYPE', sceneId: 's', objectTypeId: 'Coin' })
     expect(Object.keys(s.project!.entities)).toHaveLength(2)
     expect(s.project!.entities[2]).toBeDefined()
     expect(s.project!.entities[2].transform.position).toEqual({ x: 640, y: 360 })
+    expect(s.project!.entities[2].className).toBe('Coin')
     expect(s.project!.scenes.s.entityIds).toContain(2)
-    expect(s.project!.objectTypes?.Player).toBeDefined()
-    expect(s.project!.objectTypes?.Entity_2).toBeDefined()
     expect(s.project!.scenes.s.instances?.some((i) => i.id === 2)).toBe(true)
     expect(s.selection.entityId).toBe(2)
     expect(s.projectDirty).toBe(true)
@@ -67,7 +68,7 @@ describe('coreReducer — scenes & objects', () => {
     expect(s.projectDirty).toBe(true)
   })
 
-  it('ENTITY_ADD syncs objectTypes so logic boards targeting the type validate', () => {
+  it('insert flow syncs objectTypes so logic boards targeting the type validate', () => {
     const blank = parseProjectDoc(serializeProjectDoc({
       projectName: 'T',
       version: '2.0.0',
@@ -88,8 +89,9 @@ describe('coreReducer — scenes & objects', () => {
       world: { ...DEFAULT_WORLD },
     }))!
     let s = st(blank)
-    s = coreReducer(s, { type: 'ENTITY_ADD', sceneId: 's' })
     const typeId = 'Entity_1'
+    s = coreReducer(s, { type: 'OBJECT_TYPE_ADD', displayName: typeId })
+    s = coreReducer(s, { type: 'INSTANCE_ADD_FROM_TYPE', sceneId: 's', objectTypeId: typeId })
     expect(s.project!.objectTypes?.[typeId]).toBeDefined()
     s = coreReducer(s, {
       type: 'LOGIC_ADD_BOARD',
@@ -216,7 +218,7 @@ describe('coreReducer — scenes & objects', () => {
     expect(deletedStart.project!.scenes.s).toBeDefined()
   })
 
-  it('SCENE_DELETE removes orphan scene entities, thumbnails and entity logic boards', () => {
+  it('SCENE_DELETE removes orphan scene entities and thumbnails, keeps type boards', () => {
     const p: ProjectDoc = {
       ...project(),
       entities: {
@@ -240,7 +242,7 @@ describe('coreReducer — scenes & objects', () => {
       thumbnails: { scene_2: 'data:image/png;base64,x' },
       logicBoards: [{
         boardId: 'b2',
-        target: { type: 'entity_id', entityId: 2 },
+        target: { type: 'object_type', objectTypeId: 'Enemy' },
         events: [],
       }],
     }
@@ -250,14 +252,18 @@ describe('coreReducer — scenes & objects', () => {
     expect(s.project!.scenes.scene_2).toBeUndefined()
     expect(s.project!.entities[2]).toBeUndefined()
     expect(s.project!.thumbnails).toBeUndefined()
-    expect(s.project!.logicBoards).toBeUndefined()
+    // The board lives on the Enemy type, not on the deleted instance.
+    expect(s.project!.logicBoards?.map((b) => b.boardId)).toEqual(['b2'])
     expect(s.selection).toEqual({ sceneId: 's', entityId: null })
     expect(s.projectDirty).toBe(true)
   })
 
   it('actions are no-ops without project / unknown entity', () => {
     const noProj = { ...st(project()), project: null }
-    expect(coreReducer(noProj, { type: 'ENTITY_ADD', sceneId: 's' }).projectDirty).toBe(false)
+    expect(
+      coreReducer(noProj, { type: 'INSTANCE_ADD_FROM_TYPE', sceneId: 's', objectTypeId: 'X' })
+        .projectDirty,
+    ).toBe(false)
     expect(
       coreReducer(st(project()), { type: 'ENTITY_DELETE', entityId: 99 }).projectDirty,
     ).toBe(false)

@@ -11,7 +11,7 @@ import {
 } from './logic-compile-service'
 
 function entityBoard(events: LogicEvent[] = []): LogicBoard {
-  return { boardId: 'b1', target: { type: 'entity_id', entityId: 1 }, events }
+  return { boardId: 'b1', target: { type: 'object_type', objectTypeId: 'E' }, events }
 }
 
 function invalidGlobalBoard(): LogicBoard {
@@ -54,6 +54,21 @@ function project(boards: LogicBoard[], path = '/proj/game.artcade'): ProjectDoc 
         visible: true,
       },
     },
+    objectTypes: {
+      E: {
+        id: 'E',
+        displayName: 'E',
+        tags: [],
+        sprite: {
+          spriteAssetId: '',
+          tint: { x: 1, y: 1, z: 1, w: 1 },
+          fillColor: { x: 0.5, y: 0.5, z: 0.5 },
+          alpha: 1,
+          pivot: { x: 0.5, y: 0.5 },
+          renderOrder: 0,
+        },
+      },
+    },
     scenes: {
       s: {
         id: 's',
@@ -62,6 +77,13 @@ function project(boards: LogicBoard[], path = '/proj/game.artcade'): ProjectDoc 
         viewportSize: { x: 800, y: 600 },
         backgroundColor: { x: 0, y: 0, z: 0, w: 1 },
         entityIds: [1],
+        instances: [
+          {
+            id: 1,
+            objectTypeId: 'E',
+            transform: { position: { x: 0, y: 0 }, scale: { x: 1, y: 1 }, rotation: 0 },
+          },
+        ],
       },
     },
     logicBoards: boards,

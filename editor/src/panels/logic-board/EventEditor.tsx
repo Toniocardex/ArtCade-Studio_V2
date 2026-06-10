@@ -67,7 +67,10 @@ import {
   defaultTrigger,
   TRIGGER_TYPES,
 } from './options'
-import { applyClickToDestroyTrigger } from '../../utils/logic-board/click-to-destroy'
+import {
+  applyClickToDestroyTrigger,
+  isEntityBoardTarget,
+} from '../../utils/logic-board/click-to-destroy'
 import {
   destroyOtherTargetWarning,
   destroySelfOnCollisionWarning,
@@ -125,8 +128,7 @@ function actionTypesForBoard(
   board: LogicBoard | null | undefined,
   options?: { forElse?: boolean; existingActions?: readonly LogicAction[] },
 ): readonly LogicAction['type'][] {
-  const isEntity =
-    board?.target.type === 'entity_id' || board?.target.type === 'entity_class'
+  const isEntity = board != null && isEntityBoardTarget(board.target)
   let types: readonly LogicAction['type'][] = isEntity
     ? ACTION_TYPES
     : ACTION_TYPES.filter((t) => t !== 'clickToDestroy')

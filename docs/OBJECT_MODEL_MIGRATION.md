@@ -1,7 +1,7 @@
 # Migrazione modello oggetti + Logic Board — Piano master pre-release
 
-> **Status:** Piano di refactor **da eseguire** (UI, store e Logic Board non ancora allineati al target)  
-> **Data:** 2026-06-09  
+> **Status:** Fase A + Fase B **completate** (2026-06-10) — Logic Board solo `object_type`, Hierarchy unificata "Objects in scene". Fase C (edit path Inspector → tipo) e Fase D (pulizia doc) da eseguire.  
+> **Data:** 2026-06-09 (agg. 2026-06-10)  
 > **Audience:** Collaboratori editor (React/TS), reviewer, tech lead  
 > **Policy:** **Nessuna compatibilità legacy** in pre-release — un solo schema autore, niente doppi percorsi  
 > **Prerequisiti:** [`OBJECT_TYPES_ARCHITECTURE.md`](OBJECT_TYPES_ARCHITECTURE.md), [`NORTH_STAR_ARCHITECTURE.md`](NORTH_STAR_ARCHITECTURE.md) §3, [`GLOBAL_LOGIC_UI_ARCHITECTURE.md`](GLOBAL_LOGIC_UI_ARCHITECTURE.md) §0, [`LOGIC_BOARD_SPEC.md`](LOGIC_BOARD_SPEC.md)
@@ -425,31 +425,31 @@ Il formato `.artcade` / `project.json` v2 resta valido; cambia solo il **sottoin
 
 ## 8. Piano di esecuzione (ordine consigliato)
 
-### Fase A — Logic Board: schema unico (~1–2 giorni)
+### Fase A — Logic Board: schema unico ✅ (2026-06-10)
 
 **Obiettivo:** un solo target per comportamento oggetto; zero `entity_id` / `entity_class` nel codice.
 
-- [ ] Aggiornare `types/logic-board.ts` + `board.schema.json` + `compile-schemas`
-- [ ] `project-validator`: errore su target legacy
-- [ ] Rimuovere `createLogicBoardForEntity`, `findLogicBoardForEntity`, `migrateLogicBoards`
-- [ ] Semplificare `findLogicBoardForInstance`, `lua-helpers`, `trigger-compatibility`, `trigger-execution`
-- [ ] Pulire `entity-reducer` / `scene-reducer` (lifecycle board)
-- [ ] Aggiornare `LogicBoardPanel`, `RulesheetControls`, `EventEditor`
-- [ ] Convertire tutti i test Logic Board (~35 file toccati)
-- [ ] Aggiornare doc: `OBJECT_TYPES_ARCHITECTURE.md` § Logic Board, `GLOBAL_LOGIC_UI_ARCHITECTURE.md`
-- [ ] `npm test -- --run`; `npm run desktop:build`
+- [x] Aggiornare `types/logic-board.ts` + `board.schema.json` + `compile-schemas`
+- [x] `project-validator`: errore su target legacy
+- [x] Rimuovere `createLogicBoardForEntity`, `findLogicBoardForEntity`, `migrateLogicBoards`
+- [x] Semplificare `findLogicBoardForInstance`, `lua-helpers`, `trigger-compatibility`, `trigger-execution`
+- [x] Pulire `entity-reducer` / `scene-reducer` (lifecycle board)
+- [x] Aggiornare `LogicBoardPanel`, `RulesheetControls`, `EventEditor`
+- [x] Convertire tutti i test Logic Board (140 file suite verdi)
+- [x] Aggiornare doc: `OBJECT_TYPES_ARCHITECTURE.md` § Logic Board, `GLOBAL_LOGIC_UI_ARCHITECTURE.md`
+- [x] `npm test -- --run` (140/140); `npm run build` ok
 
 **Breaking:** progetti salvati con board `entity_id` non passano validazione finché non convertiti a mano a `object_type`.
 
-### Fase B — UI oggetti + creazione (~1–2 giorni)
+### Fase B — UI oggetti + creazione ✅ (2026-06-10)
 
 **Obiettivo:** un solo ingresso per aggiungere oggetti in scena.
 
-- [ ] Hierarchy: “Objects in scene” + `+ Insert object`
-- [ ] `insertObject` → `OBJECT_TYPE_ADD` + `INSTANCE_ADD_FROM_TYPE`
-- [ ] Insert tastiera → stesso flusso
-- [ ] Rimuovere Entity Types section + `ENTITY_ADD` + test associati
-- [ ] `npm test -- --run`; `npm run desktop:build`
+- [x] Hierarchy: “Objects in scene” + `+ Insert object`
+- [x] `insertObject` → `OBJECT_TYPE_ADD` + `INSTANCE_ADD_FROM_TYPE`
+- [x] Insert tastiera → stesso flusso
+- [x] Rimuovere Entity Types section + `ENTITY_ADD` + test associati
+- [x] `npm test -- --run`; `npm run build`
 
 **Non in Fase B:** refactor Inspector (Fase C).
 

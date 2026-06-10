@@ -9,11 +9,7 @@ import { createLogicEvent } from './factory'
 type ClickToDestroyAction = Extract<LogicAction, { type: 'clickToDestroy' }>
 
 export function isEntityBoardTarget(target: LogicBoard['target']): boolean {
-  return (
-    target.type === 'entity_id' ||
-    target.type === 'entity_class' ||
-    target.type === 'object_type'
-  )
+  return target.type === 'object_type'
 }
 
 export function collectClickToDestroyActions(

@@ -10,7 +10,6 @@ import type {
   SceneInstanceDef,
   Transform,
 } from '../types'
-import type { LogicBoard } from '../types/logic-board'
 import { COMPONENT_KEYS } from '../types/components'
 import { createEntityDef } from './project-builders'
 import { resolveEntitiesForRuntime } from './sprite-pivot-resolve'
@@ -226,40 +225,12 @@ export function syncObjectModelFromEntities(project: ProjectDoc): ProjectDoc {
   }
 }
 
-function migrateLogicBoards(
-  boards: LogicBoard[] | undefined,
-  entityToType: Map<number, string>,
-): LogicBoard[] | undefined {
-  if (!boards?.length) return boards
-  return boards.map((board) => {
-    const t = board.target
-    if (t.type === 'entity_id' && t.entityId != null) {
-      const typeId = entityToType.get(t.entityId)
-      if (typeId) {
-        return {
-          ...board,
-          target: { type: 'object_type' as const, objectTypeId: typeId },
-        }
-      }
-    }
-    if (t.type === 'entity_class' && t.className) {
-      return {
-        ...board,
-        target: { type: 'object_type' as const, objectTypeId: t.className },
-      }
-    }
-    return board
-  })
-}
-
+// Logic boards are NOT migrated here: legacy targets (entity_id /
+// entity_class) are rejected at parse time (logic-board/factory.parseBoard)
+// per the pre-release no-compat policy. migrateLegacyProject only lifts the
+// v1 object model (flat entities → objectTypes + instances).
 export function migrateLegacyProject(project: ProjectDoc): ProjectDoc {
   const { objectTypes, scenes } = buildObjectModelFromEntities(project)
-  const entityToType = new Map<number, string>()
-  for (const scene of Object.values(scenes)) {
-    for (const inst of scene.instances ?? []) {
-      entityToType.set(inst.id, inst.objectTypeId)
-    }
-  }
   const withModel = { ...project, objectTypes, scenes, formatVersion: PROJECT_FORMAT_V2 }
   const entities = materializeAllEntities(withModel)
   return {
@@ -268,7 +239,6 @@ export function migrateLegacyProject(project: ProjectDoc): ProjectDoc {
     objectTypes,
     scenes,
     entities,
-    logicBoards: migrateLogicBoards(project.logicBoards, entityToType),
   }
 }
 

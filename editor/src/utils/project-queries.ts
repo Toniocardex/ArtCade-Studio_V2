@@ -84,12 +84,11 @@ export function entityIdDisplayLabel(
   return e?.name ?? `Object #${entityId}`
 }
 
-/** Object-type / legacy class key on a rulesheet target (not entity_id). */
+/** Object-type key on a rulesheet target (undefined for global/scene). */
 export function logicBoardTargetTypeKey(
   target: LogicBoard['target'],
 ): string | undefined {
   if (target.type === 'object_type') return target.objectTypeId
-  if (target.type === 'entity_class') return target.className
   return undefined
 }
 
@@ -99,7 +98,7 @@ function logicBoardSharedTypeId(board: LogicBoard): string | undefined {
 
 function collectInstanceIdsForType(project: ProjectDoc, typeId: string): number[] {
   const ids: number[] = []
-  for (const scene of Object.values(project.scenes)) {
+  for (const scene of Object.values(project.scenes ?? {})) {
     for (const inst of scene.instances ?? []) {
       if (inst.objectTypeId === typeId) ids.push(inst.id)
     }
@@ -147,11 +146,6 @@ export function logicBoardTargetEntityIds(
   project: ProjectDoc,
   board: LogicBoard,
 ): number[] {
-  if (board.target.type === 'entity_id' && board.target.entityId != null) {
-    return projectEntities(project)[board.target.entityId]
-      ? [board.target.entityId]
-      : []
-  }
   const typeId = logicBoardSharedTypeId(board)
   if (!typeId) return []
 
@@ -159,17 +153,6 @@ export function logicBoardTargetEntityIds(
   for (const id of collectInstanceIdsForType(project, typeId)) ids.add(id)
   for (const id of collectLegacyEntityIdsForType(project, typeId)) ids.add(id)
   return [...ids]
-}
-
-/** Rulesheet bound to one entity instance. */
-export function findLogicBoardForEntity(
-  project: ProjectDoc | null | undefined,
-  entityId: number,
-): LogicBoard | undefined {
-  if (!project?.logicBoards) return undefined
-  return project.logicBoards.find(
-    (b) => b.target.type === 'entity_id' && b.target.entityId === entityId,
-  )
 }
 
 /** Display name for a rulesheet in dropdowns and headers. */
@@ -191,10 +174,6 @@ export function rulesheetAppliesToLabel(
   const target = board.target
   if (target.type === 'global') return 'Global'
   if (target.type === 'scene') return 'Scene'
-  if (target.type === 'entity_id' && target.entityId != null) {
-    const ent = projectEntities(project)[target.entityId]
-    return ent?.name?.trim() || `Object #${target.entityId}`
-  }
   const typeKey = logicBoardTargetTypeKey(target)
   const ids = logicBoardTargetEntityIds(project, board)
   if (ids.length === 1) {
@@ -249,7 +228,7 @@ export function findLogicBoardForObjectType(
   )
 }
 
-/** Resolve board for a scene instance: type board first, then legacy entity_id board. */
+/** Resolve board for a scene instance via its object type (no per-instance boards). */
 export function findLogicBoardForInstance(
   project: ProjectDoc | null | undefined,
   instanceId: number,
@@ -259,11 +238,8 @@ export function findLogicBoardForInstance(
     project.scenes[project.activeSceneId]?.instances?.find((i) => i.id === instanceId)
       ?.objectTypeId
     ?? project.entities[instanceId]?.className
-  if (typeId) {
-    const typeBoard = findLogicBoardForObjectType(project, typeId)
-    if (typeBoard) return typeBoard
-  }
-  return findLogicBoardForEntity(project, instanceId)
+  if (!typeId) return undefined
+  return findLogicBoardForObjectType(project, typeId)
 }
 
 /** Tags used in the project: entity.tags plus SensorComponent.targetTag values. */

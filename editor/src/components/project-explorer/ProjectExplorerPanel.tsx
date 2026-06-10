@@ -95,21 +95,11 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
     return tree.assetFolders.reduce((n, f) => n + assetFolderItemCount(f), 0)
   }, [tree])
 
-  const prevTypeCountRef = useRef(0)
   const prevAssetCountRef = useRef(0)
 
   useEffect(() => {
-    prevTypeCountRef.current = 0
     prevAssetCountRef.current = 0
   }, [projectLoadEpoch])
-
-  useEffect(() => {
-    if (!tree) return
-    if (tree.entityTypes.length > 0 && prevTypeCountRef.current === 0) {
-      setOpen('entityTypes', true)
-    }
-    prevTypeCountRef.current = tree.entityTypes.length
-  }, [tree, setOpen])
 
   useEffect(() => {
     if (totalAssets > 0 && prevAssetCountRef.current === 0) {
@@ -275,16 +265,16 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
         </TreeSection>
 
         <TreeSection
-          title="Entities"
+          title="Objects in scene"
           open={isOpen('entities')}
           onToggle={() => toggle('entities')}
           hidden={!tree.entitiesVisible}
           bodyClassName={tree.entities.length === 0 ? 'min-h-[3.25rem]' : ''}
           actions={
             <ExplorerLabelCta
-              label="Add entity"
-              title="Add entity to this scene (Insert)"
-              onClick={scene.addEntity}
+              label="Insert object"
+              title="Insert an object into this scene (Insert)"
+              onClick={scene.insertObject}
               disabled={!scene.scene}
               icon={<Plus size={12} />}
             />
@@ -295,7 +285,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
               {tree.hasSearch
                 ? 'No matches'
                 : scene.scene
-                  ? 'No entities in this scene'
+                  ? 'No objects in this scene'
                   : 'No active scene'}
             </p>
           ) : (
@@ -408,69 +398,6 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
           )}
         </TreeSection>
 
-        <TreeSection
-          title="Entity Types"
-          open={isOpen('entityTypes')}
-          onToggle={() => toggle('entityTypes')}
-          hidden={!tree.entityTypesVisible}
-          actions={
-            <ExplorerLabelCta
-              label="New type"
-              title="Create reusable entity type"
-              onClick={scene.addEntityType}
-              icon={<Plus size={12} />}
-            />
-          }
-        >
-          {tree.entityTypes.length === 0 ? (
-            <p className="text-[10px] text-[var(--muted)] italic px-2 py-1">
-              No types yet — use New type above for reusable templates.
-            </p>
-          ) : (
-            tree.entityTypes.map((t) => (
-              <div
-                key={t.objectTypeId}
-                className="flex items-center gap-1.5 px-2 py-1"
-                style={{ paddingLeft: 20 }}
-                onContextMenu={(ev) =>
-                  openExplorerContextMenu(
-                    ev,
-                    [
-                      {
-                        id: 'place',
-                        label: 'Place in scene',
-                        disabled: !scene.scene,
-                        onSelect: () => scene.placeEntityType(t.objectTypeId),
-                      },
-                      {
-                        id: 'rename',
-                        label: 'Rename type',
-                        onSelect: () => scene.renameEntityType(t.objectTypeId),
-                      },
-                      {
-                        id: 'delete',
-                        label: 'Delete type',
-                        danger: true,
-                        onSelect: () => scene.deleteEntityType(t.objectTypeId),
-                      },
-                    ],
-                    setContextMenu,
-                  )
-                }
-              >
-                <span className="flex-1 text-[10px] truncate text-[var(--text)]" title={t.objectTypeId}>
-                  {t.label}
-                </span>
-                <ExplorerLabelCta
-                  label="Place"
-                  title="Place instance in active scene"
-                  onClick={() => scene.placeEntityType(t.objectTypeId)}
-                  disabled={!scene.scene}
-                />
-              </div>
-            ))
-          )}
-        </TreeSection>
         </div>
         ) : null}
 
@@ -986,7 +913,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
       </div>
 
       <div className="px-2 py-1 border-t border-[var(--outline)] text-[9px] text-[var(--muted)] flex-shrink-0">
-        {scene.sceneCount} scenes · {tree.entities.length} entities · {tree.entityTypes.length} types
+        {scene.sceneCount} scenes · {tree.entities.length} objects
       </div>
     </div>
   )

@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { coreReducer, type CoreState } from './editor-store'
 import {
-  createLogicBoardForEntity,
   createLogicBoardForObjectType,
   createLogicEvent,
 } from '../utils/logic-board/factory'
@@ -182,16 +181,7 @@ describe('coreReducer — Logic Board CRUD', () => {
     expect(s.projectDirty).toBe(false)
   })
 
-  it('LOGIC_ADD_BOARD supports entity_id targets', () => {
-    const board = createLogicBoardForEntity(7, 'ent7')
-    const s = coreReducer(baseState(), { type: 'LOGIC_ADD_BOARD', board })
-    expect(s.project?.logicBoards?.[0].target).toEqual({
-      type: 'entity_id',
-      entityId: 7,
-    })
-  })
-
-  it('ENTITY_DELETE removes entity_id logic boards for that entity', () => {
+  it('ENTITY_DELETE keeps type boards (boards live on the type, not the instance)', () => {
     const project: ProjectDoc = {
       ...emptyProject(),
       entities: {
@@ -208,7 +198,6 @@ describe('coreReducer — Logic Board CRUD', () => {
         },
       },
       logicBoards: [
-        createLogicBoardForEntity(1, 'b1'),
         createLogicBoardForObjectType('Player', 'class'),
       ],
     }

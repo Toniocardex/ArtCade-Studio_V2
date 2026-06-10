@@ -119,7 +119,7 @@ describe('normalizeSpriteClipFields', () => {
 })
 
 describe('resolveClipContextForLogicBoard', () => {
-  it('returns spritePath for entity_id boards', () => {
+  it('returns spritePath for object_type boards', () => {
     const project: ProjectDoc = {
       ...miniProject({}),
       entities: {
@@ -143,7 +143,7 @@ describe('resolveClipContextForLogicBoard', () => {
     const board: LogicBoard = {
       id: 'b1',
       name: 'Hero rules',
-      target: { type: 'entity_id', entityId: 1 },
+      target: { type: 'object_type', objectTypeId: 'Player' },
       events: [],
     }
     expect(spritePathForLogicBoardTarget(project, board)).toBe('assets/hero.png')

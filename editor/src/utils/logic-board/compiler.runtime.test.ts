@@ -86,8 +86,8 @@ async function makeRunner(boards: LogicBoard[]) {
   const h = newHarness(
     Object.fromEntries(
       boards
-        .filter((b) => b.target.type === 'entity_class' && b.target.className)
-        .map((b) => [b.target.className as string, [1]]),
+        .filter((b) => b.target.type === 'object_type' && b.target.objectTypeId)
+        .map((b) => [b.target.objectTypeId as string, [1]]),
     ),
   )
   if (Object.keys(h.pools).length === 0) h.pools = { Player: [1] }
@@ -241,7 +241,7 @@ describe('runtime: syntax validity', () => {
     const r = await makeRunner([
       {
         boardId: 'all',
-        target: { type: 'entity_class', className: 'Player' },
+        target: { type: 'object_type', objectTypeId: 'Player' },
         events: [
           ev({ id: 's', trigger: { type: 'onStart' }, actions: [{ type: 'debugLog', message: 'init' }] }),
           ev({
@@ -287,7 +287,7 @@ describe('runtime: cameraShake', () => {
     const r = await makeRunner([
       {
         boardId: 'b',
-        target: { type: 'entity_class', className: 'Player' },
+        target: { type: 'object_type', objectTypeId: 'Player' },
         events: [
           ev({
             trigger: { type: 'onStart' },
@@ -307,7 +307,7 @@ describe('runtime: onStart runs exactly once', () => {
     const r = await makeRunner([
       {
         boardId: 'b',
-        target: { type: 'entity_class', className: 'Player' },
+        target: { type: 'object_type', objectTypeId: 'Player' },
         events: [ev({ trigger: { type: 'onStart' }, actions: [{ type: 'addVariable', key: 'n', amount: 1 }] })],
       },
     ])
@@ -324,7 +324,7 @@ describe('runtime: jump on Space pressed', () => {
     const r = await makeRunner([
       {
         boardId: 'pc',
-        target: { type: 'entity_class', className: 'Player' },
+        target: { type: 'object_type', objectTypeId: 'Player' },
         events: [
           ev({
             trigger: { type: 'onInput', keyCode: 'Space', eventType: 'pressed' },
@@ -351,7 +351,7 @@ describe('runtime: coin pickup on collision', () => {
     const r = await makeRunner([
       {
         boardId: 'pc',
-        target: { type: 'entity_class', className: 'Player' },
+        target: { type: 'object_type', objectTypeId: 'Player' },
         events: [
           ev({
             trigger: { type: 'onCollision', withClass: 'Coin' },
@@ -379,7 +379,7 @@ describe('runtime: onTimer repeat', () => {
     const r = await makeRunner([
       {
         boardId: 'b',
-        target: { type: 'entity_class', className: 'Player' },
+        target: { type: 'object_type', objectTypeId: 'Player' },
         events: [
           ev({
             trigger: { type: 'onTimer', seconds: 0.5, repeat: true },
@@ -398,7 +398,7 @@ describe('runtime: onTimer repeat', () => {
     const r = await makeRunner([
       {
         boardId: 'b',
-        target: { type: 'entity_class', className: 'Player' },
+        target: { type: 'object_type', objectTypeId: 'Player' },
         events: [
           ev({
             trigger: { type: 'onTimer', seconds: 0.3, repeat: false },
@@ -418,7 +418,7 @@ describe('runtime: conditions gate actions', () => {
     const r = await makeRunner([
       {
         boardId: 'b',
-        target: { type: 'entity_class', className: 'Player' },
+        target: { type: 'object_type', objectTypeId: 'Player' },
         events: [
           ev({
             trigger: { type: 'onUpdate' },
@@ -442,7 +442,7 @@ describe('runtime: conditions gate actions', () => {
     const r = await makeRunner([
       {
         boardId: 'b',
-        target: { type: 'entity_class', className: 'Player' },
+        target: { type: 'object_type', objectTypeId: 'Player' },
         events: [
           ev({
             trigger: { type: 'onUpdate' },
@@ -491,7 +491,7 @@ describe('runtime: disabled events are inert', () => {
     const r = await makeRunner([
       {
         boardId: 'b',
-        target: { type: 'entity_class', className: 'Player' },
+        target: { type: 'object_type', objectTypeId: 'Player' },
         events: [
           ev({ enabled: false, trigger: { type: 'onUpdate' }, actions: [{ type: 'debugLog', message: 'NO' }] }),
         ],

@@ -4,7 +4,7 @@
 > **Data:** 2026-05-26
 > **Stato:** Specifica di alto livello (logica, fisica arcade, UI) — runtime physics: custom solver (`collision_math` + Raymath) (2026-05)
 > **Audience:** Runtime C++, editor UI, game design
-> **Implementazione refactor editor (pre-release):** seguire [`OBJECT_MODEL_MIGRATION.md`](OBJECT_MODEL_MIGRATION.md) (Fasi A–D). §0 = modello target; § “Logic Board editor (entity-first)” = **obsoleto** fino ad aggiornamento Fase D.
+> **Implementazione refactor editor (pre-release):** [`OBJECT_MODEL_MIGRATION.md`](OBJECT_MODEL_MIGRATION.md) — Fasi A+B completate (2026-06-10): board solo `object_type`, Hierarchy “Objects in scene”. §0 = modello attivo; eventuali sezioni “entity-first” = storiche.
 
 Questo documento riassume le specifiche finalizzate per i sistemi di **logica**, **fisica arcade** e **interfaccia utente**.
 

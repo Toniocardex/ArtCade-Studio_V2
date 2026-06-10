@@ -38,20 +38,6 @@ export function createLogicEvent(
   }
 }
 
-/** A new board targeting a single scene entity (primary editor workflow). */
-export function createLogicBoardForEntity(
-  entityId: number,
-  boardId = logicId('board'),
-  name?: string,
-): LogicBoard {
-  return {
-    boardId,
-    name: name?.trim() || logicBoardGeneratedLabel(boardId),
-    target: { type: 'entity_id', entityId },
-    events: [],
-  }
-}
-
 /** A new board targeting an object type (primary shared behavior). */
 export function createLogicBoardForObjectType(
   objectTypeId: string,
@@ -120,17 +106,31 @@ function parseBoard(
     r.target && typeof r.target === 'object'
       ? (r.target as Record<string, unknown>)
       : {}
-  let type: LogicBoard['target']['type'] =
-    targetRaw.type === 'entity_id' ||
+
+  // Pre-release: no legacy compatibility. Boards bound to a single entity id
+  // or to the old entity_class alias are rejected — the project must be fixed
+  // by hand (re-target the board to an object type).
+  if (targetRaw.type === 'entity_id' || targetRaw.type === 'entity_class') {
+    issues.push({
+      boardId: r.boardId,
+      eventIndex: -1,
+      errors: [
+        `/target unsupported legacy target "${String(targetRaw.type)}" — ` +
+          `re-target this board to an object type ({ type: "object_type", objectTypeId })`,
+      ],
+    })
+    console.warn(
+      `[LogicBoard] Board "${r.boardId}" dropped: legacy target "${String(targetRaw.type)}" is no longer supported.`,
+    )
+    return null
+  }
+
+  const type: LogicBoard['target']['type'] =
     targetRaw.type === 'object_type' ||
     targetRaw.type === 'scene' ||
     targetRaw.type === 'global'
       ? targetRaw.type
-      : 'entity_class'
-
-  if (type === 'entity_class' && targetRaw.className) {
-    type = 'object_type'
-  }
+      : 'object_type'
 
   const boardId = r.boardId
   const events = asArray(r.events)
@@ -159,15 +159,9 @@ function parseBoard(
       ...(type === 'object_type'
         ? {
             objectTypeId: String(
-              targetRaw.objectTypeId ?? targetRaw.object_type_id ?? targetRaw.className ?? '',
+              targetRaw.objectTypeId ?? targetRaw.object_type_id ?? '',
             ),
           }
-        : {}),
-      ...(type === 'entity_class' && targetRaw.className != null
-        ? { className: String(targetRaw.className) }
-        : {}),
-      ...(targetRaw.entityId != null
-        ? { entityId: Number(targetRaw.entityId) }
         : {}),
     },
     events,

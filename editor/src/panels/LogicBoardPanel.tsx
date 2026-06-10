@@ -24,10 +24,7 @@ import {
 import { LogicBoardCompileErrorBanner } from '../components/LogicBoardCompileErrorBanner'
 import { runtimeSync, useRuntimeReady } from '../utils/runtime-sync-service'
 import { makeConsoleEntry } from '../components/menu-bar/makeConsoleEntry'
-import {
-  createLogicBoardForEntity,
-  createLogicBoardForObjectType,
-} from '../utils/logic-board/factory'
+import { createLogicBoardForObjectType } from '../utils/logic-board/factory'
 import { cloneLogicEvent } from '../utils/logic-board/clone'
 import { eventCompatibilityError } from '../utils/logic-board/trigger-compatibility'
 import {
@@ -427,9 +424,13 @@ export default function LogicBoardPanel() {
       return
     }
     const typeId = findObjectTypeForInstance(project, entityId)
-    const b = typeId
-      ? createLogicBoardForObjectType(typeId)
-      : createLogicBoardForEntity(entityId)
+    if (!typeId) {
+      console.warn(
+        `[LogicBoard] Cannot create board: object #${entityId} has no resolvable object type.`,
+      )
+      return
+    }
+    const b = createLogicBoardForObjectType(typeId)
     dispatch({ type: 'LOGIC_ADD_BOARD', board: b })
     setSelectedBoardId(b.boardId)
   }

@@ -98,9 +98,6 @@ export function poolExpr(
   target: LogicBoard['target'],
   project?: ProjectDoc | null,
 ): string {
-  if (target.type === 'entity_id' && target.entityId != null) {
-    return `{ ${target.entityId} }`
-  }
   if (project) {
     const board = compilePoolBoard(target)
     const ids = logicBoardTargetEntityIds(project, board)
@@ -119,14 +116,10 @@ export function poolExpr(
 /** Lua expression identifying the sensor source for a board's target. */
 export function sensorSourceExpr(target: {
   type: string
-  className?: string
   objectTypeId?: string
-  entityId?: number
 }): string {
   const key = logicBoardTargetTypeKey(target as LogicBoard['target'])
   if (key) return luaString(key)
-  if (target.type === 'entity_id' && target.entityId != null)
-    return String(target.entityId)
   return luaString('*')
 }
 

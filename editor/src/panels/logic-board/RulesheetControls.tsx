@@ -1,6 +1,6 @@
 import type { ProjectDoc, EntityDef } from '../../types'
 import type { LogicBoard } from '../../types/logic-board'
-import { classDisplayLabel, findLogicBoardForEntity } from '../../utils/project'
+import { classDisplayLabel, findLogicBoardForInstance } from '../../utils/project'
 
 interface RulesheetControlsProps {
   project: ProjectDoc
@@ -45,7 +45,7 @@ export function RulesheetControls({
             Rulesheet Browser
           </p>
           <p className="truncate text-[10px] text-[var(--primary-soft)]">
-            {board ? 'Entity rulesheet selected' : 'Select or create rules'}
+            {board ? 'Object rulesheet selected' : 'Select or create rules'}
           </p>
         </div>
         {board && (
@@ -73,7 +73,7 @@ export function RulesheetControls({
           {sceneEntities.map((e) => (
             <option key={e.id} value={e.id}>
               {e.name}
-              {findLogicBoardForEntity(project, e.id) ? ' / rules' : ''}
+              {findLogicBoardForInstance(project, e.id) ? ' / rules' : ''}
             </option>
           ))}
         </select>
@@ -82,10 +82,10 @@ export function RulesheetControls({
           disabled={!canCreateForSelection}
           title={
             selectedEntityId == null
-              ? 'Select an entity in the Scenes panel first'
+              ? 'Select an object in the Scenes panel first'
               : boardForSelection
-                ? 'This entity already has a rulesheet'
-                : 'Create rulesheet for selected entity'
+                ? 'This object type already has a rulesheet'
+                : 'Create rulesheet for the selected object type'
           }
           onClick={() => {
             if (selectedEntityId != null) onCreateForEntity(selectedEntityId)
@@ -105,7 +105,7 @@ export function RulesheetControls({
           Advanced - shared class rulesheet
         </summary>
         <p className="text-[10px] text-[var(--muted)] mt-1 mb-2 max-w-xl">
-          Use only when many identical objects share one behavior. Default workflow is one rulesheet per entity in the Scenes panel.
+          Rules apply to every object of the same type. For a variant (e.g. a gold coin), create a new object type and give it its own rulesheet.
         </p>
         <div className="flex items-center gap-2 flex-wrap">
           <select

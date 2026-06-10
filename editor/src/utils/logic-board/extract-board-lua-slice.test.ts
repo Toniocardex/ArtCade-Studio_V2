@@ -8,7 +8,7 @@ function board(events: LogicEvent[], overrides?: Partial<LogicBoard>): LogicBoar
   return {
     boardId: 'board_a',
     name: 'Player movement',
-    target: { type: 'entity_class', className: 'Player' },
+    target: { type: 'object_type', objectTypeId: 'Player' },
     events,
     ...overrides,
   }
@@ -58,7 +58,7 @@ describe('extractBoardLuaSlice', () => {
     const b: LogicBoard = {
       boardId: 'board_multiline',
       name: 'Player\nmovement',
-      target: { type: 'entity_class', className: 'Player' },
+      target: { type: 'object_type', objectTypeId: 'Player' },
       events: [
         ev({
           trigger: { type: 'onUpdate' },
@@ -88,7 +88,7 @@ describe('extractBoardLuaSlice', () => {
       {
         boardId: 'board_coin',
         name: 'Coins',
-        target: { type: 'entity_class', className: 'Player' },
+        target: { type: 'object_type', objectTypeId: 'Player' },
         events: [
           ev({
             id: 'coin',
@@ -102,7 +102,7 @@ describe('extractBoardLuaSlice', () => {
     const playerLabel = logicBoardLuaCommentLabel({
       boardId: 'board_a',
       name: 'Player movement',
-      target: { type: 'entity_class', className: 'Player' },
+      target: { type: 'object_type', objectTypeId: 'Player' },
       events: [],
     })
     const { text } = extractBoardLuaSlice(full, playerLabel)

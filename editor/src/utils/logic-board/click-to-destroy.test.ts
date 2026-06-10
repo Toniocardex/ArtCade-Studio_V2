@@ -11,7 +11,7 @@ import {
 } from './click-to-destroy'
 
 function board(events: LogicEvent[]): LogicBoard {
-  return { boardId: 'b1', target: { type: 'entity_id', entityId: 1 }, events }
+  return { boardId: 'b1', target: { type: 'object_type', objectTypeId: 'Player' }, events }
 }
 
 describe('click to destroy action', () => {

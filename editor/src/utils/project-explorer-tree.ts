@@ -1,5 +1,5 @@
 import type { ProjectDoc } from '../types'
-import { allObjectTypeIds, findLogicBoardForInstance, objectTypeDisplayLabel } from './project'
+import { findLogicBoardForInstance } from './project'
 
 export type AssetFolderId = 'audio' | 'fonts' | 'images' | 'scripts' | 'tilesets'
 
@@ -14,11 +14,6 @@ export type ExplorerEntityRow = Readonly<{
   name: string
   hasLogic: boolean
   visible: boolean
-}>
-
-export type ExplorerEntityTypeRow = Readonly<{
-  objectTypeId: string
-  label: string
 }>
 
 export type ExplorerScriptRow = Readonly<{
@@ -63,12 +58,10 @@ export type ExplorerAssetFolder = Readonly<{
 export type ProjectExplorerData = Readonly<{
   scenes: ExplorerSceneRow[]
   entities: ExplorerEntityRow[]
-  entityTypes: ExplorerEntityTypeRow[]
   assetFolders: ExplorerAssetFolder[]
   hasSearch: boolean
   scenesVisible: boolean
   entitiesVisible: boolean
-  entityTypesVisible: boolean
   assetsVisible: boolean
 }>
 
@@ -136,15 +129,6 @@ export function buildProjectExplorerData(
 
   const entities = entitiesAll.filter((e) =>
     matchesExplorerQuery(q, e.name, String(e.entityId), 'entity', 'entities'),
-  )
-
-  const entityTypesAll = allObjectTypeIds(project).map((objectTypeId) => ({
-    objectTypeId,
-    label: objectTypeDisplayLabel(project, objectTypeId),
-  }))
-
-  const entityTypes = entityTypesAll.filter((t) =>
-    matchesExplorerQuery(q, t.label, t.objectTypeId, 'type', 'entity types'),
   )
 
   const imagesAll = Object.values(project.assets ?? {}).map((a) => ({
@@ -222,12 +206,10 @@ export function buildProjectExplorerData(
   return {
     scenes,
     entities,
-    entityTypes,
     assetFolders,
     hasSearch,
     scenesVisible: scenes.length > 0 || !hasSearch,
     entitiesVisible: entities.length > 0 || !hasSearch,
-    entityTypesVisible: entityTypes.length > 0 || !hasSearch,
     assetsVisible: assetFolders.length > 0 || !hasSearch,
   }
 }
