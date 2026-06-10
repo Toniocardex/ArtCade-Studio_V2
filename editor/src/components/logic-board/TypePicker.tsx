@@ -2,12 +2,10 @@
 // Grouped type selector (triggers / actions / conditions) with friendly names
 // ---------------------------------------------------------------------------
 
-import { useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import type { ComponentKind } from '../../utils/logic-board/schema-registry'
 import {
-  actionCategory,
   actionDisplayName,
-  conditionCategory,
   conditionDisplayName,
   triggerDisplayName,
 } from '../../panels/logic-board/friendly-labels'
@@ -16,24 +14,14 @@ import type {
   LogicCondition,
   LogicTriggerType,
 } from '../../types/logic-board'
-import {
-  triggerExecutionTooltip,
-  triggerPickerGroup,
-} from '../../utils/logic-board/trigger-execution'
-
-const sel =
-  'w-full bg-[var(--bg)] border border-[var(--border-2)] text-[var(--text)] px-2 py-1.5 rounded text-xs'
+import { triggerExecutionTooltip } from '../../utils/logic-board/trigger-execution'
+import { LogicTypeListbox } from './logic-type-listbox'
+import { buildTypePickerGroups } from './type-picker-groups'
 
 function displayName(kind: ComponentKind, type: string): string {
   if (kind === 'trigger') return triggerDisplayName(type as LogicTriggerType)
   if (kind === 'action') return actionDisplayName(type as LogicActionType)
   return conditionDisplayName(type as LogicCondition['type'])
-}
-
-function category(kind: ComponentKind, type: string): string {
-  if (kind === 'trigger') return triggerPickerGroup(type as LogicTriggerType)
-  if (kind === 'action') return actionCategory(type as LogicActionType)
-  return conditionCategory(type as LogicCondition['type'])
 }
 
 export type TypePickerProps = Readonly<{
@@ -43,9 +31,9 @@ export type TypePickerProps = Readonly<{
   onChange: (type: string) => void
   className?: string
   recommendedTypes?: readonly string[]
-  /** Override optgroup label for recommendedTypes (e.g. "Common checks"). */
+  /** Override group label for recommendedTypes (e.g. "Common checks"). */
   recommendedGroupLabel?: string
-  /** Disabled first option when no type selected yet (e.g. "Select action…"). */
+  /** Placeholder on trigger when no type selected yet (e.g. "Select action…"). */
   placeholder?: string
   placeholderValue?: string
 }>
@@ -61,74 +49,38 @@ export function TypePicker({
   placeholder,
   placeholderValue = '',
 }: TypePickerProps) {
-  const recommendedLabel =
-    recommendedGroupLabel ??
-    (kind === 'condition' ? 'Common checks' : 'Recommended for this object')
+  const groups = useMemo(
+    () =>
+      buildTypePickerGroups(kind, types, {
+        recommendedTypes,
+        recommendedGroupLabel,
+      }),
+    [kind, recommendedGroupLabel, recommendedTypes, types],
+  )
 
-  const groups = useMemo(() => {
-    const map = new Map<string, string[]>()
-    const recommended = new Set(recommendedTypes ?? [])
-    for (const t of types) {
-      const cat = recommended.has(t) ? recommendedLabel : category(kind, t)
-      const list = map.get(cat) ?? []
-      list.push(t)
-      map.set(cat, list)
-    }
-    const order = [
-      'Common checks',
-      'Recommended for this object',
-      'Time',
-      'Object state',
-      'Contact',
-      'Zones',
-      'Input',
-      'Animation',
-      'Game messages',
-      'Every frame',
-      'Recommended',
-      'Movement',
-      'Health',
-      'AI Logic',
-      'Lifecycle',
-      'Audio',
-      'Advanced',
-    ]
-    return [...map.entries()].sort(([a], [b]) => {
-      const ia = order.indexOf(a)
-      const ib = order.indexOf(b)
-      if (ia >= 0 && ib >= 0) return ia - ib
-      if (ia >= 0) return -1
-      if (ib >= 0) return 1
-      return a.localeCompare(b)
-    })
-  }, [kind, recommendedLabel, recommendedTypes, types])
+  const resolveLabel = useCallback(
+    (type: string) => displayName(kind, type),
+    [kind],
+  )
+
+  const resolveTooltip = useCallback(
+    (type: string) =>
+      kind === 'trigger'
+        ? triggerExecutionTooltip(type as LogicTriggerType)
+        : undefined,
+    [kind],
+  )
 
   return (
-    <select
-      className={`${sel} ${className ?? ''}`}
-      value={value === '' ? placeholderValue : value}
-      onChange={(e) => onChange(e.target.value)}
-    >
-      {placeholder && (
-        <option value={placeholderValue} disabled>
-          {placeholder}
-        </option>
-      )}
-      {groups.map(([cat, items]) => (
-        <optgroup key={cat} label={cat}>
-          {items.map((t) => {
-            const tip =
-              kind === 'trigger'
-                ? triggerExecutionTooltip(t as LogicTriggerType)
-                : undefined
-            return (
-              <option key={t} value={t} title={tip}>
-                {displayName(kind, t)}
-              </option>
-            )
-          })}
-        </optgroup>
-      ))}
-    </select>
+    <LogicTypeListbox
+      groups={groups}
+      value={value}
+      onChange={onChange}
+      className={className}
+      placeholder={placeholder}
+      placeholderValue={placeholderValue}
+      resolveLabel={resolveLabel}
+      resolveTooltip={resolveTooltip}
+    />
   )
 }
