@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <iostream>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace ArtCade {
 
@@ -25,10 +26,28 @@ void materializeProjectEntities(ProjectDoc& doc) {
         [](const auto& kv) { return !kv.second.instances.empty(); });
     if (!hasInstances && !doc.entities.empty()) return;
 
+    // The editor always ships `entities` as a derived cache next to
+    // objectTypes+instances, so overlapping ids are the normal case. Only warn
+    // about entity ids no instance accounts for — those are true legacy leftovers.
     if (hasInstances && !doc.entities.empty()) {
-        std::cerr << "[Project] Warning: materializing scene instances into a project "
-                     "that also has legacy entity definitions; instance IDs override "
-                     "matching legacy entries.\n";
+        std::unordered_set<EntityId> instanceIds;
+        for (const auto& [sid, scene] : doc.scenes) {
+            (void)sid;
+            for (const SceneInstanceDef& inst : scene.instances)
+                instanceIds.insert(inst.id);
+        }
+        size_t legacyOnly = 0;
+        for (const auto& [id, def] : doc.entities) {
+            (void)def;
+            if (instanceIds.find(id) == instanceIds.end())
+                ++legacyOnly;
+        }
+        if (legacyOnly > 0) {
+            std::cerr << "[Project] Warning: " << legacyOnly
+                      << " legacy entity definition(s) have no matching scene "
+                         "instance; they will be kept as-is while instance IDs "
+                         "override matching entries.\n";
+        }
     }
 
     for (auto& [sid, scene] : doc.scenes) {
