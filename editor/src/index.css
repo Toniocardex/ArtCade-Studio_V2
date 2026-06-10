@@ -495,6 +495,28 @@ input[data-mono],
   overflow-y: auto;
 }
 
+/* Cascading root menu: short category list, flyouts must not be clipped. */
+.editor-menu-cascade {
+  overflow: visible;
+  max-height: none;
+}
+
+/* Flyout submenu anchored to a category row of the cascade root. */
+.editor-menu-flyout {
+  position: absolute;
+  left: calc(100% + 2px);
+  top: -0.25rem;
+  min-width: 220px;
+  padding: 0.25rem 0;
+  background: var(--surface);
+  border: 1px solid var(--outline-strong);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.45);
+  max-height: calc(100vh - 96px);
+  overflow-y: auto;
+  z-index: 210;
+}
+
 .editor-panel-titlebar {
   display: flex;
   align-items: center;

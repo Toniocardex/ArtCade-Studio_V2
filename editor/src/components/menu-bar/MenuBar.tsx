@@ -1,5 +1,17 @@
-import { useRef, useState, useCallback } from 'react'
-import { Menu, Moon, Sun } from 'lucide-react'
+import { useRef, useState, useCallback, useEffect } from 'react'
+import {
+  BookOpen,
+  Info,
+  Menu,
+  MessageSquare,
+  Moon,
+  Sun,
+  Pencil,
+  FolderOpen,
+  Eye,
+  Wrench,
+  CircleHelp,
+} from 'lucide-react'
 import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import { canRedoProject, canUndoProject } from '../../store/project-history'
 import { FileMenuContent } from './FileMenu'
@@ -19,24 +31,13 @@ import { applyTheme, toggleTheme, type Theme } from '../../utils/theme'
 import AuthoringModeSwitch from '../AuthoringModeSwitch'
 import { openDialogLibraryModal } from '../../panels/dialog/dialog-modal-api'
 import ModuleTabs from '../shell/ModuleTabs'
+import { MainMenuCategory, useMainMenuCascade } from './MainMenu'
 
 const DOCS_URL = 'https://github.com/Toniocardex/ArtCade-Studio_V2/blob/main/docs/README.md'
 
 function themeFromDocument(): Theme {
   const value = document.documentElement.dataset.theme
   return value === 'light' || value === 'dark' ? value : 'dark'
-}
-
-function MenuSectionLabel({ children }: Readonly<{ children: string }>) {
-  return (
-    <p className="px-4 pt-2 pb-1 text-[8px] font-bold uppercase tracking-widest text-[var(--muted)] select-none">
-      {children}
-    </p>
-  )
-}
-
-function MenuDivider() {
-  return <div className="my-1 border-t border-[var(--outline)]" />
 }
 
 const menuItemClass =
@@ -60,7 +61,15 @@ export default function MenuBar() {
 
   const [mainMenuOpen, setMainMenuOpen] = useState(false)
   const mainMenuRef = useRef<HTMLDivElement>(null)
-  const closeMainMenu = useCallback(() => setMainMenuOpen(false), [])
+  const { activeId, setActiveId } = useMainMenuCascade()
+  const closeMainMenu = useCallback(() => {
+    setMainMenuOpen(false)
+    setActiveId(null)
+  }, [setActiveId])
+  // Reset the open submenu whenever the root menu re-opens.
+  useEffect(() => {
+    if (!mainMenuOpen) setActiveId(null)
+  }, [mainMenuOpen, setActiveId])
   const uiScale = useEditorUiScaleContext()
   const [theme, setTheme] = useState<Theme>(themeFromDocument)
 
@@ -121,77 +130,124 @@ export default function MenuBar() {
           >
             <Menu size={14} />
           </button>
-          <ToolbarDropdown open={mainMenuOpen} anchorRef={mainMenuRef} onClose={closeMainMenu}>
-            <MenuSectionLabel>File</MenuSectionLabel>
-            <FileMenuContent items={fileItems} />
+          <ToolbarDropdown
+            open={mainMenuOpen}
+            anchorRef={mainMenuRef}
+            onClose={closeMainMenu}
+            className="editor-menu-cascade"
+          >
+            <MainMenuCategory
+              id="file"
+              label="File"
+              icon={<FolderOpen size={14} />}
+              activeId={activeId}
+              setActiveId={setActiveId}
+            >
+              <FileMenuContent items={fileItems} />
+            </MainMenuCategory>
+
             {project && (
-              <>
-                <MenuDivider />
-                <MenuSectionLabel>Edit</MenuSectionLabel>
+              <MainMenuCategory
+                id="edit"
+                label="Edit"
+                icon={<Pencil size={14} />}
+                activeId={activeId}
+                setActiveId={setActiveId}
+              >
                 <FileMenuContent items={editItems} />
-              </>
+              </MainMenuCategory>
             )}
-            <MenuDivider />
-            <MenuSectionLabel>View</MenuSectionLabel>
-            <div className="px-3 py-2 border-b border-[var(--outline-subtle)]">
-              <span className="text-[9px] uppercase tracking-wide text-[var(--muted)]">Authoring</span>
-              <div className="mt-2">
-                <AuthoringModeSwitch />
+
+            <MainMenuCategory
+              id="view"
+              label="View"
+              icon={<Eye size={14} />}
+              activeId={activeId}
+              setActiveId={setActiveId}
+            >
+              <div className="px-3 py-2 border-b border-[var(--outline-subtle)]">
+                <span className="text-[9px] uppercase tracking-wide text-[var(--muted)]">Authoring</span>
+                <div className="mt-2">
+                  <AuthoringModeSwitch />
+                </div>
               </div>
-            </div>
-            <EditorUiScaleViewSection uiScale={uiScale} />
-            <DockPanelsViewSection />
-            <button
-              type="button"
-              role="menuitem"
-              className={menuItemClass}
-              onClick={() => {
-                const next = toggleTheme(theme)
-                applyTheme(next)
-                setTheme(next)
-              }}
+              <EditorUiScaleViewSection uiScale={uiScale} />
+              <DockPanelsViewSection />
+              <button
+                type="button"
+                role="menuitem"
+                className={menuItemClass}
+                onClick={() => {
+                  const next = toggleTheme(theme)
+                  applyTheme(next)
+                  setTheme(next)
+                }}
+              >
+                <span className="inline-flex items-center gap-2">
+                  {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+                  {theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                </span>
+              </button>
+            </MainMenuCategory>
+
+            <MainMenuCategory
+              id="tools"
+              label="Tools"
+              icon={<Wrench size={14} />}
+              activeId={activeId}
+              setActiveId={setActiveId}
             >
-              <span className="inline-flex items-center gap-2">
-                {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
-                {theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-              </span>
-            </button>
-            <MenuDivider />
-            <MenuSectionLabel>Tools</MenuSectionLabel>
-            <button
-              type="button"
-              role="menuitem"
-              className={menuItemClass}
-              onClick={() => {
-                openDialogLibraryModal(dispatch)
-                closeMainMenu()
-              }}
+              <button
+                type="button"
+                role="menuitem"
+                className={menuItemClass}
+                onClick={() => {
+                  openDialogLibraryModal(dispatch)
+                  closeMainMenu()
+                }}
+              >
+                <span className="inline-flex items-center gap-2">
+                  <MessageSquare size={14} />
+                  Dialog library…
+                </span>
+              </button>
+            </MainMenuCategory>
+
+            <MainMenuCategory
+              id="help"
+              label="Help"
+              icon={<CircleHelp size={14} />}
+              activeId={activeId}
+              setActiveId={setActiveId}
             >
-              Dialog library…
-            </button>
-            <MenuDivider />
-            <MenuSectionLabel>Help</MenuSectionLabel>
-            <a
-              href={DOCS_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              role="menuitem"
-              className="block px-3 py-2 text-xs text-[var(--primary)] hover:bg-[var(--surface-hover)]"
-              onClick={closeMainMenu}
-            >
-              Documentation…
-            </a>
-            <button
-              type="button"
-              role="menuitem"
-              className={menuItemClass}
-              onClick={() => {
-                void navigator.clipboard?.writeText('ArtCade Studio — editor UI refactor 2026')
-                closeMainMenu()
-              }}
-            >
-              About ArtCade Studio
-            </button>
+              <a
+                href={DOCS_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                role="menuitem"
+                className="block px-3 py-2 text-xs text-[var(--primary)] hover:bg-[var(--surface-hover)]"
+                onClick={closeMainMenu}
+              >
+                <span className="inline-flex items-center gap-2">
+                  <BookOpen size={14} />
+                  Documentation…
+                </span>
+              </a>
+              <button
+                type="button"
+                role="menuitem"
+                className={menuItemClass}
+                onClick={() => {
+                  void navigator.clipboard?.writeText('ArtCade Studio — editor UI refactor 2026')
+                  closeMainMenu()
+                }}
+              >
+                <span className="inline-flex items-center gap-2">
+                  <Info size={14} />
+                  About ArtCade Studio
+                </span>
+              </button>
+            </MainMenuCategory>
           </ToolbarDropdown>
         </div>
 
