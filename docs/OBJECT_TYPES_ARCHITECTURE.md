@@ -1,7 +1,8 @@
 # Object Types + scene instances
 
-> **Status:** Implemented (format v2, dual-read legacy)  
-> **Audience:** Editor, runtime, Logic Board
+> **Status:** Implemented (format v2, dual-read legacy) — editor autore ancora in migrazione  
+> **Audience:** Editor, runtime, Logic Board  
+> **Implementazione refactor (pre-release):** seguire [`OBJECT_MODEL_MIGRATION.md`](OBJECT_MODEL_MIGRATION.md) (Fasi A–D: Logic Board, Hierarchy, Inspector).
 
 ## Model (hybrid Construct / Unity)
 
@@ -41,10 +42,9 @@ On load when `objectTypes` is absent:
 
 ## Logic Board
 
-- Preferred target: `{ type: 'object_type', objectTypeId: 'Player' }`
+- **Target canonico:** `{ type: 'object_type', objectTypeId: 'Player' }`
 - Compiler: `pool.getAll("Player")` (unchanged Lua API)
-- `entity_class` parsed as alias → `object_type`
-- `entity_id` retained for rare instance-only overrides (Advanced)
+- Rimozione ibrido (`entity_class`, `entity_id`) e allineamento UI: **Fase A** in [`OBJECT_MODEL_MIGRATION.md`](OBJECT_MODEL_MIGRATION.md)
 
 ## Designer recipe (pickup)
 
@@ -52,4 +52,4 @@ On load when `objectTypes` is absent:
 2. Logic Board on **Player** type: While touching `Coin` → Destroy objects of class `Coin`.
 3. Do not use Destroy **This object** on the player for pickup rules.
 
-See also: [GLOBAL_LOGIC_UI_ARCHITECTURE.md](GLOBAL_LOGIC_UI_ARCHITECTURE.md), [FIXED_STEP_CONTRACT.md](FIXED_STEP_CONTRACT.md).
+See also: [OBJECT_MODEL_MIGRATION.md](OBJECT_MODEL_MIGRATION.md) (roadmap refactor), [GLOBAL_LOGIC_UI_ARCHITECTURE.md](GLOBAL_LOGIC_UI_ARCHITECTURE.md), [FIXED_STEP_CONTRACT.md](FIXED_STEP_CONTRACT.md).

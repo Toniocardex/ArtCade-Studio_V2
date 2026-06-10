@@ -4,6 +4,7 @@
 > **Data:** 2026-05-26
 > **Stato:** Specifica di alto livello (logica, fisica arcade, UI) — runtime physics: custom solver (`collision_math` + Raymath) (2026-05)
 > **Audience:** Runtime C++, editor UI, game design
+> **Implementazione refactor editor (pre-release):** seguire [`OBJECT_MODEL_MIGRATION.md`](OBJECT_MODEL_MIGRATION.md) (Fasi A–D). §0 = modello target; § “Logic Board editor (entity-first)” = **obsoleto** fino ad aggiornamento Fase D.
 
 Questo documento riassume le specifiche finalizzate per i sistemi di **logica**, **fisica arcade** e **interfaccia utente**.
 
@@ -20,7 +21,7 @@ Rules live on **object types** (`project.objectTypes`), not on every scene insta
 | Logic Board target (preferred) | `{ type: "object_type", objectTypeId: "Player" }` |
 | Pickup recipe | Board on **Player**: While touching **Coin** → Destroy objects of class **Coin** (not Destroy This) |
 
-Full spec: [`OBJECT_TYPES_ARCHITECTURE.md`](OBJECT_TYPES_ARCHITECTURE.md).
+Full spec: [`OBJECT_TYPES_ARCHITECTURE.md`](OBJECT_TYPES_ARCHITECTURE.md). Piano operativo (oggi vs target, file, fasi): [`OBJECT_MODEL_MIGRATION.md`](OBJECT_MODEL_MIGRATION.md).
 
 ---
 
@@ -139,9 +140,11 @@ Su Emscripten il mouse viene scalato da CSS a framebuffer interno (`pointer-coor
 
 ---
 
-## Logic Board editor (entity-first)
+## Logic Board editor (entity-first) — obsoleto
 
-- **Default workflow:** one rulesheet per **entity in the Scenes panel** (`target.type: entity_id`). Labels use `entity.name`; renaming in Inspector updates dropdowns automatically.
+> **Target pre-release:** una rulesheet per **object type** (`target.type: object_type`), non per istanza. Dettaglio in [`OBJECT_MODEL_MIGRATION.md`](OBJECT_MODEL_MIGRATION.md) §1.2 e Fase A. Il testo sotto descrive il codice **prima** del refactor.
+
+- **Default workflow (legacy):** one rulesheet per **entity in the Scenes panel** (`target.type: entity_id`). Labels use `entity.name`; renaming in Inspector updates dropdowns automatically.
 - **On demand:** new rulesheets are created only when the user clicks **New rulesheet for selection** (no auto-board on entity add).
 - **Advanced:** class-based shared rulesheets (`entity_class`) remain supported for spawn pools and identical mass behavior; `className` on `EntityDef` is for runtime spawn/collision widgets, not board ownership.
 - **Lifecycle:** deleting an entity removes its `entity_id` rulesheet; class boards are kept.
@@ -150,6 +153,8 @@ Su Emscripten il mouse viene scalato da CSS a framebuffer interno (`pointer-coor
 
 ## Riferimenti incrociati
 
+- [`OBJECT_MODEL_MIGRATION.md`](OBJECT_MODEL_MIGRATION.md) - **roadmap refactor** oggetti + Logic Board (Fasi A–D).
+- [`OBJECT_TYPES_ARCHITECTURE.md`](OBJECT_TYPES_ARCHITECTURE.md) - formato v2 `objectTypes` + `instances`.
 - [`ArtCade_V2_Riepilogo_Suggerimenti.md`](ArtCade_V2_Riepilogo_Suggerimenti.md) - tassonomia UX 8 gruppi e roadmap editor.
 - [`ARCHITETTURA_TECNICA_ENGINE_2D.md`](ARCHITETTURA_TECNICA_ENGINE_2D.md) - pipeline di frame, fisica, sync.
 - [`TECHNICAL_OVERVIEW.md`](TECHNICAL_OVERVIEW.md) - panoramica motore e moduli.

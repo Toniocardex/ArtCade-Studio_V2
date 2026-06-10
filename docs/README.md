@@ -83,6 +83,8 @@ ENGINE_DESIGN_RECAP.md               (Progettazione engine — 25 min) ⭐
     ↓
 ENGINE_STATE_RECAP_COLLABORATORS.md  (Onboarding rapido — 10 min)
     ↓
+OBJECT_MODEL_MIGRATION.md            (Piano master pre-release: oggetti tipo+istanza + Logic Board solo object_type — 20 min) ⭐ Hierarchy/Inspector/Logic
+    ↓
 LOGIC_BOARD_SPEC.md         (Parte I: glossario Logic Board / Event / Component)
     ↓
 ARCHITECTURAL_RATIONALE.md  (Capire il contesto)
@@ -119,12 +121,13 @@ Guida specializzata         (REACT_WASM_PATTERN.md o ECS_IMPLEMENTATION_GUIDE.md
 | **PIANO_SVILUPPO_COMMERCIALE.md** | Early Access 8 settimane: stabilità editor, demo, export web, vendita | ~15min | Product / founder | ⭐ |
 | **GUIDA_INTEGRAZIONE_SPLASH_LICENZE.md** | Splash editor vs runtime; Free/Pro; `pack-artcade.py`; watermark C++ | ~10min | Editor / tooling / runtime | ⭐ |
 | **FIXED_STEP_CONTRACT.md** | Ordine `tickFixedStep`, chi scrive Transform/body, latency intent Lua, physicsMode | ~5min | C++ / gameplay | ⭐⭐ |
-| **GLOBAL_LOGIC_UI_ARCHITECTURE.md** | Sensori physics, platformer feel, azioni world, UI screen-space, text juice | ~8min | C++ / gameplay / UI | ⭐ |
+| **GLOBAL_LOGIC_UI_ARCHITECTURE.md** | Sensori physics, platformer feel, azioni world, UI screen-space, text juice; §0 allineato a object types — refactor editor → [`OBJECT_MODEL_MIGRATION.md`](OBJECT_MODEL_MIGRATION.md) | ~8min | C++ / gameplay / UI | ⭐ |
 | **DIALOG_SYSTEM.md** | Dialog System: JSON, CSV import, runtime, Logic Board | ~10min | Editor / C++ / narrative | ⭐⭐ |
 | **DIALOG_CSV_FORMAT.md** | Colonne CSV ArtCade per dialoghi | ~5min | Writers | ⭐ |
 | **ENGINE_DESIGN_RECAP.md** | Documento di progettazione engine (ECS, Logic Board, Object Types, fisica, roadmap, nomenclatura) | ~25min | **Tutti / design** | ⭐⭐⭐ |
 | **ENGINE_STATE_RECAP_COLLABORATORS.md** | Onboarding rapido + link a doc operativi | ~10min | **Tutti / onboarding** | ⭐⭐ |
-| **OBJECT_TYPES_ARCHITECTURE.md** | Object Types + scene instances (v2 project.json), merge rules, Logic Board on type | ~8min | Editor / runtime / design | ⭐⭐ |
+| **OBJECT_TYPES_ARCHITECTURE.md** | Object Types + scene instances (v2 project.json), merge rules, Logic Board on type — implementazione → [`OBJECT_MODEL_MIGRATION.md`](OBJECT_MODEL_MIGRATION.md) | ~8min | Editor / runtime / design | ⭐⭐ |
+| **OBJECT_MODEL_MIGRATION.md** | Piano master pre-release: modello oggetti unificato (Hierarchy, Inspector, store) + rimozione ibrido Logic Board (`entity_id`/`entity_class`); oggi vs target, inventario file, Fasi A–D | ~20min | Editor / React / reviewer | ⭐⭐⭐ |
 | **PHYSICS_OPTIONAL_INTEGRATION_PLAN.md** | Piano: physics opt-in, platformer kinematic (`customGravity`), skip `physics.step` in arcade | ~15min | C++ / Editor / Product | ⭐⭐ |
 | **REPORT_MIGRAZIONE_PHYSICS_SENZA_BOX2D.md** | Report team: rimozione Box2D, backend custom, impatto ruoli, test, decisioni D1–D5 | ~20min | Tutti / review migrazione | ⭐⭐ |
 | **ArtCade_V2_Riepilogo_Suggerimenti.md** | Visione UX Logic Board (8 gruppi), shader, controlli artist-friendly | ~10min | Design / product | ⭐ |
