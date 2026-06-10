@@ -295,7 +295,7 @@ game.exe test-project/ → "[App] Project loaded: ArtCade Test"
 - `raycast` — segmento vs forme, hit più vicino
 - `getContactingBodies` — point-in-shape query
 - `physics` spostato fuori dalla guardia `HAS_RAYLIB && HAS_LUA` (puro C++)
-- `build.ps1` / `build_wasm.bat` — aggiunto `-DCMAKE_POLICY_VERSION_MINIMUM=3.5`
+- `build_native.bat` / `build_wasm.bat` — aggiunto `-DCMAKE_POLICY_VERSION_MINIMUM=3.5`
 
 ### Checkpoint ✅
 ```

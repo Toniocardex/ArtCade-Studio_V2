@@ -5,7 +5,6 @@ $ErrorActionPreference = 'Stop'
 $Root = Split-Path $PSScriptRoot -Parent
 $Desktop = [Environment]::GetFolderPath('Desktop')
 $Exe = Join-Path $Root 'editor\src-tauri\target\release\artcade-editor.exe'
-$DevPs1 = Join-Path $Root 'start-desktop.ps1'
 $Wsh = New-Object -ComObject WScript.Shell
 
 function Set-Shortcut(
@@ -26,8 +25,8 @@ function Set-Shortcut(
 $devLnk = Join-Path $Desktop 'ArtCade Editor (Dev).lnk'
 Set-Shortcut `
     -Path $devLnk `
-    -Target 'powershell.exe' `
-    -Arguments "-ExecutionPolicy Bypass -NoProfile -File `"$DevPs1`"" `
+    -Target 'cmd.exe' `
+    -Arguments "/k cd /d `"$Root`" && npm run desktop:dev" `
     -WorkingDir $Root `
     -Description 'ArtCade Studio — desktop editor (Tauri dev, hot reload)'
 

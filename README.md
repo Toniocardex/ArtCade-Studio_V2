@@ -38,10 +38,8 @@ ArtCade V2/
 │   └── build-*/         # CMake output (gitignored)
 │
 ├── docs/                # Architecture & design (see docs/README.md)
-├── scripts/             # Windows helpers (clean, tauri-dev)
+├── scripts/             # Windows helpers (clean, tauri-dev, link-desktop)
 ├── UI/                  # Design mockups (reference PNGs)
-├── start-desktop.ps1    # Launch Tauri dev (alternative entry)
-├── start-webapp.ps1     # Launch Vite dev in browser
 ├── AGENTS.md            # Architecture & repo conventions (for humans + agents)
 ├── CLAUDE.md            # Same guidelines as AGENTS.md (Claude)
 ├── .cursor/rules/       # Canonical Cursor agent rules (delivery + code review)
@@ -367,20 +365,20 @@ All npm scripts below are run from the **repo root**. On Windows they invoke `.b
 | `npm run build:wasm` | `runtime-cpp\build_wasm.bat` | WASM preview bundle |
 | `npm run clean` | `scripts\clean-builds.bat` | Removes build output dirs (see below) |
 
-### Helper scripts (`scripts/`)
+### Build scripts (canonical set)
 
-| File | Role |
-|------|------|
-| `scripts/tauri-dev.bat` | Loads `VsDevCmd.bat` (x64), applies MSVC `onecore\x64` CRT workaround, runs `npm run desktop:dev` in `editor/` |
-| `scripts/link-desktop.ps1` | Desktop shortcuts: **ArtCade Editor (Dev)** + **ArtCade Editor** (release exe) |
-| `scripts/clean-builds.bat` | Deletes CMake/Vite build folders listed in [Build output paths](#build-output-paths) |
+| File | When to use |
+|------|-------------|
+| `runtime-cpp/build_native.bat` | Native C++ runtime (`npm run build:cpp`) |
+| `runtime-cpp/build_wasm.bat` | WASM preview (`npm run build:wasm`) |
+| `scripts/tauri-dev.bat` | Desktop dev on Windows — MSVC on PATH (`npm run desktop:dev`) |
+| `scripts/package-runtime-sdk.ps1` | Stages SDK zip + bootstrap scripts for Tauri (`npm run package:sdk`, part of `build:desktop`) |
+| `scripts/bootstrap-runtime-libs.ps1` | First-time / CI — restores `runtime-cpp/libs` (`npm run setup:runtime-libs`) |
+| `scripts/bootstrap-artcade-sdk.ps1` | On-demand SDK install from the editor (copied into Tauri resources by `package:sdk`) |
+| `scripts/clean-builds.bat` | Wipe build output dirs (`npm run clean`) |
+| `scripts/link-desktop.ps1` | Desktop shortcuts (`npm run desktop:link`) |
 
-### C++ scripts (`runtime-cpp/`)
-
-| File | Role |
-|------|------|
-| `runtime-cpp/build_native.bat` | Ninja + MSVC via `VsDevCmd`, configures `build-native/`, builds, runs CTest |
-| `runtime-cpp/build_wasm.bat` | Ninja + Emscripten via `emsdk_env.bat`, configures `build-wasm/`, copies artifacts to editor preview |
+`editor/src-tauri/resources/{scripts,tools,runtime-cpp-sdk.zip}` are **generated** by `npm run package:sdk` (gitignored). In dev, the editor resolves bootstrap scripts from `scripts/` at repo root.
 
 Optional flags:
 
@@ -418,7 +416,7 @@ Override paths when needed:
 ```powershell
 cd "$env:USERPROFILE\Desktop\ArtCade-Studio_V2"
 npm run desktop:dev
-# or double-click: start-desktop.bat / Desktop shortcut "ArtCade Editor (Dev)"
+# or Desktop shortcut "ArtCade Editor (Dev)" (npm run desktop:link)
 ```
 
 Uses Vite on port **5173** and compiles the Tauri shell on first run. If the port is busy: `netstat -ano | findstr ":5173"` then `Stop-Process -Id <PID> -Force`.
@@ -426,8 +424,7 @@ Uses Vite on port **5173** and compiles the Tauri shell on first run. If the por
 **Web-only editor (no Tauri/Rust):**
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File start-webapp.ps1
-# or: npm run dev
+npm run dev
 ```
 
 **Refresh runtime after C++ changes:**

@@ -145,15 +145,14 @@ ArtCade V2/
 │   ├── ARCHITECTURE_INTEGRATION.md
 │   └── LOGIC_BOARD_SPEC.md
 │
-├── scripts/                     Helper Windows (tauri-dev, clean-builds)
+├── scripts/                     Build helpers (tauri-dev, package-sdk, bootstrap, clean, link-desktop)
 │
 ├── runtime-cpp/tools/
 │   └── pack-artcade.py          Packer Python per formato .artcade
 │
 ├── README.md                    Setup, build pipeline, path di output
 ├── CLAUDE.md                    Decisioni architetturali (per AI)
-├── ROADMAP_INTEGRATIVA.md       Stato dettagliato fase per fase
-└── build.ps1                    Build script PowerShell (native)
+└── ROADMAP_INTEGRATIVA.md       Stato dettagliato fase per fase
 ```
 
 ---

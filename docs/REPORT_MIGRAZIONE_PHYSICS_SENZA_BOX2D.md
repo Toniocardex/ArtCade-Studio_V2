@@ -125,7 +125,7 @@ Coordinate: **Y-down** (screen space). Gravità default: `{0, +10}`.
 | Integrazione world | `runtime-cpp/tests/world-intent-test.cpp` |
 | Segnali entità / teardown body | `runtime-cpp/tests/entity-signals-test.cpp` |
 | Fixture manuale | `runtime-cpp/test-project/fixtures/physics-baseline/` |
-| Batch test | `runtime-cpp/run_runtime_core_tests.bat` |
+| Batch test | `runtime-cpp/build_native.bat --config Release` (CTest) |
 
 ### 3.7 Editor e Logic Board (riferimenti Box2D in UI)
 
@@ -185,7 +185,7 @@ Non obbligatorio convertire `Vec2` → `Vector2` in tutto il runtime nella prima
 
 | Ruolo | Impatto | Azione |
 |-------|---------|--------|
-| **C++ runtime** | Alto — `physics.cpp`, CMake, possibili tweak tolleranze test | Implementazione + `run_runtime_core_tests.bat` |
+| **C++ runtime** | Alto — `physics.cpp`, CMake, possibili tweak tolleranze test | Implementazione + `build_native.bat` / CTest |
 | **C++ world/gateway** | Basso — commenti, nessun cambio API pubblica atteso | Review regressioni `world-intent-test` |
 | **Lua / game-api** | Nessuno se facciata invariante | Smoke script con fixture physics-baseline |
 | **Editor TS** | Basso — label e hint | Rinominare “Box2D” → “Physics collider” (copy **English**) |
@@ -256,7 +256,7 @@ cmake --build . --config Release
 ctest -C Release --output-on-failure
 # oppure
 cd runtime-cpp
-.\run_runtime_core_tests.bat
+.\build_native.bat --config Release
 ```
 
 Test obbligatori verdi:

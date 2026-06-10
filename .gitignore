@@ -73,6 +73,9 @@ src-tauri/target/
 editor/src-tauri/target/
 dist/
 .tauri/
+editor/src-tauri/resources/scripts/
+editor/src-tauri/resources/tools/
+editor/src-tauri/resources/runtime-cpp-sdk.zip
 
 # Temp/Dev
 .env
