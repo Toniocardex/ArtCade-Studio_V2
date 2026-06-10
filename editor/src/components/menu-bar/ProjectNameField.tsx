@@ -16,7 +16,7 @@ export function ProjectNameField({
 }: ProjectNameFieldProps) {
   return (
     <label
-      className="ml-3 h-8 min-w-[180px] max-w-[320px] flex items-center gap-2 rounded border border-[var(--border)] bg-[var(--panel-3)] px-2 text-[var(--muted)]"
+      className="h-8 min-w-[8rem] max-w-[12rem] sm:min-w-[11rem] sm:max-w-[20rem] flex items-center gap-2 rounded border border-[var(--border)] bg-[var(--panel-3)] px-2 text-[var(--muted)]"
       title="Project name"
     >
       <PencilLine size={12} className="shrink-0" />

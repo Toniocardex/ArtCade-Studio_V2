@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback } from 'react'
-import { Menu, Hexagon, Moon, Sun } from 'lucide-react'
+import { Menu, Moon, Sun } from 'lucide-react'
 import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import { canRedoProject, canUndoProject } from '../../store/project-history'
 import { FileMenuContent } from './FileMenu'
@@ -195,30 +195,24 @@ export default function MenuBar() {
           </ToolbarDropdown>
         </div>
 
-        <span
-          className="hidden lg:flex h-7 w-7 items-center justify-center rounded-[var(--radius)]
-                     border border-[var(--outline)] bg-[var(--surface-3)] text-[var(--primary)]"
-          title="ArtCade Studio"
-        >
-          <Hexagon size={14} />
-        </span>
-
-        <ModuleTabs />
+        {project && (
+          <>
+            <ProjectNameField
+              value={draft}
+              committedName={project.projectName}
+              onChange={setDraft}
+              onCommit={commitDraft}
+            />
+            <span className="text-[10px] font-mono text-[var(--muted)] shrink-0 hidden sm:inline">
+              v{project.version ?? '1.0.0'}
+            </span>
+          </>
+        )}
       </div>
 
-      {project && (
-        <div className="flex items-center justify-center gap-2 min-w-0 flex-1">
-          <ProjectNameField
-            value={draft}
-            committedName={project.projectName}
-            onChange={setDraft}
-            onCommit={commitDraft}
-          />
-          <span className="text-[10px] font-mono text-[var(--muted)] shrink-0">
-            v{project.version ?? '1.0.0'}
-          </span>
-        </div>
-      )}
+      <div className="editor-toolbar-cluster editor-toolbar-module-center">
+        <ModuleTabs />
+      </div>
 
       <div className="editor-toolbar-actions">
         <BuildToolbar
