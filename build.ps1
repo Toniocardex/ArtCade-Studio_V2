@@ -1,4 +1,6 @@
-# ArtCade native build wrapper — delegates to runtime-cpp/build_native.bat (Ninja + VsDevCmd).
+# ArtCade native C++ runtime — wrapper for runtime-cpp/build_native.bat (Ninja + VsDevCmd).
+# Prefer from repo root: npm run build:cpp
+# Desktop editor: npm run desktop:dev | desktop:build | desktop:release
 param (
     [switch]$Clean,
     [switch]$NoTest,

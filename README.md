@@ -145,7 +145,7 @@ Release builds run `npm run package:sdk` before bundling so the installer ships 
 - **Very low RAM or disk** — slow preview, failed save, installer abort.
 - **GPU / driver too old** — WASM preview (WebGL) may be black or degraded.
 
-Installers are produced with `npm run tauri:build` (see [Build pipeline](#build-pipeline)).
+Installers are produced with `npm run desktop:release` (see [Build pipeline](#build-pipeline)).
 
 ---
 
@@ -180,7 +180,7 @@ Use this path if you clone the repository or modify the C++ runtime.
 | Symptom | Typical cause |
 |---------|----------------|
 | `"tauri" non è riconosciuto` / `tauri` not found | `node_modules` missing → run `npm install` |
-| `link.exe` not found | MSVC not on PATH → use `npm run tauri:dev` (loads `VsDevCmd`) or set `ARTCADE_VSDEVCMD` |
+| `link.exe` not found | MSVC not on PATH → use `npm run desktop:dev` (loads `VsDevCmd`) or set `ARTCADE_VSDEVCMD` |
 | Preview empty / WASM load error | `game.wasm` not built → `npm run build:wasm` |
 | C++ configure fails | `runtime-cpp/libs` missing → `npm run setup:runtime-libs` |
 | WASM build fails | `EMSDK` unset or wrong path |
@@ -195,7 +195,7 @@ Use this path if you clone the repository or modify the C++ runtime.
 
 | Feature | End user (installer) | Developer (full checkout) |
 |---------|----------------------|---------------------------|
-| Launch editor | Yes | Yes (`npm run tauri:dev`) |
+| Launch editor | Yes | Yes (`npm run desktop:dev`) |
 | Open / save project | Yes | Yes |
 | WASM preview | Yes (bundled) | Yes (after `build:wasm`) |
 | Logic Board → Lua | Yes | Yes |
@@ -334,7 +334,7 @@ to avoid the older Vite/esbuild advisory chain pulled in by Vitest 2.x.
 8. Start working:
 
 ```powershell
-npm run tauri:dev   # desktop editor
+npm run desktop:dev   # desktop editor
 # or
 npm run dev         # web-only editor
 ```
@@ -359,8 +359,10 @@ All npm scripts below are run from the **repo root**. On Windows they invoke `.b
 | `npm run verify` | Editor build + native runtime/tests + WASM runtime | Full clean-machine verification path |
 | `npm run build` | Logic schemas + `tsc` + Vite production build | `editor/dist/` |
 | `npm -w editor test` | Logic schemas + Vitest 4.1.7 | Editor unit tests |
-| `npm run tauri:dev` | `scripts\tauri-dev.bat` → MSVC env + `tauri dev` | Desktop editor window (hot reload) |
-| `npm run tauri:build` | `editor` → `tauri build` | `editor\src-tauri\target\release\` + MSI/NSIS under `target\release\bundle\` |
+| `npm run desktop:dev` | `scripts\tauri-dev.bat` → MSVC env + `tauri dev` | Desktop editor window (hot reload) |
+| `npm run desktop:build` | `editor` → `tauri build --no-bundle` | `editor\src-tauri\target\release\artcade-editor.exe` only |
+| `npm run desktop:release` | `editor` → `tauri build` | Same exe + MSI/NSIS under `target\release\bundle\` |
+| `npm run desktop:link` | `scripts\link-desktop.ps1` | Desktop shortcuts (Dev + release exe) |
 | `npm run build:cpp` | `runtime-cpp\build_native.bat --config Release` | Native runtime + tests |
 | `npm run build:wasm` | `runtime-cpp\build_wasm.bat` | WASM preview bundle |
 | `npm run clean` | `scripts\clean-builds.bat` | Removes build output dirs (see below) |
@@ -369,7 +371,8 @@ All npm scripts below are run from the **repo root**. On Windows they invoke `.b
 
 | File | Role |
 |------|------|
-| `scripts/tauri-dev.bat` | Loads `VsDevCmd.bat` (x64), applies MSVC `onecore\x64` CRT workaround, runs `npm run tauri:dev` in `editor/` |
+| `scripts/tauri-dev.bat` | Loads `VsDevCmd.bat` (x64), applies MSVC `onecore\x64` CRT workaround, runs `npm run desktop:dev` in `editor/` |
+| `scripts/link-desktop.ps1` | Desktop shortcuts: **ArtCade Editor (Dev)** + **ArtCade Editor** (release exe) |
 | `scripts/clean-builds.bat` | Deletes CMake/Vite build folders listed in [Build output paths](#build-output-paths) |
 
 ### C++ scripts (`runtime-cpp/`)
@@ -414,7 +417,8 @@ Override paths when needed:
 
 ```powershell
 cd "$env:USERPROFILE\Desktop\ArtCade-Studio_V2"
-npm run tauri:dev
+npm run desktop:dev
+# or double-click: start-desktop.bat / Desktop shortcut "ArtCade Editor (Dev)"
 ```
 
 Uses Vite on port **5173** and compiles the Tauri shell on first run. If the port is busy: `netstat -ano | findstr ":5173"` then `Stop-Process -Id <PID> -Force`.
@@ -433,13 +437,17 @@ npm run build:cpp    # native .exe + unit tests
 npm run build:wasm   # preview game.js + game.wasm → editor/public/runtime/
 ```
 
-**Full release-style build:**
+**Desktop app binary (daily use — no installers):**
 
 ```powershell
-npm run build:cpp
-npm run build:wasm
-npm run build
-npm run tauri:build
+npm run desktop:build
+npm run desktop:link   # refresh Desktop shortcut to artcade-editor.exe
+```
+
+**Release / shipping (MSI + NSIS — only when packaging a release):**
+
+```powershell
+npm run desktop:release
 ```
 
 ### MSVC / Rust notes

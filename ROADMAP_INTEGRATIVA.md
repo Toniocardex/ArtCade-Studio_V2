@@ -440,7 +440,7 @@ streammando i log nel `ConsolePanel` via evento `build-log`.
 ### Checkpoint ✅
 ```bash
 cd editor
-npm run tauri:dev
+npm run desktop:dev
 # File → Open Project → carica project.json
 # PLAY → PreviewPanel usa il runtime WASM in editor/public/runtime
 # BUILD .EXE → runtime-cpp/build-msvc/src/app/game.exe + game.artcade

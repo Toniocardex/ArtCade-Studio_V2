@@ -12,8 +12,10 @@
     "verify": "npm run setup:runtime-libs && npm -w editor test -- --run && npm run build && npm run build:cpp && npm run build:wasm",
     "dev": "cd editor && npm run dev",
     "build": "cd editor && npm run build",
-    "tauri:dev": "cmd /c call scripts\\tauri-dev.bat",
-    "tauri:build": "cd editor && npm run tauri:build",
+    "desktop:dev": "cmd /c call scripts\\tauri-dev.bat",
+    "desktop:build": "cd editor && npm run desktop:build",
+    "desktop:release": "cd editor && npm run desktop:release",
+    "desktop:link": "powershell -ExecutionPolicy Bypass -File scripts\\link-desktop.ps1",
     "build:cpp": "cmd /c call runtime-cpp\\build_native.bat --config Release",
     "build:wasm": "cmd /c call runtime-cpp\\build_wasm.bat",
     "clean": "cmd /c call scripts\\clean-builds.bat"

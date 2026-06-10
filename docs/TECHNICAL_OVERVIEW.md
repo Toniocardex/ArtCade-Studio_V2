@@ -1028,7 +1028,7 @@ cp build-wasm/src/app/game.{js,wasm,data} ../editor/public/runtime/
 cd editor
 npm run dev        # http://localhost:5173
 # oppure
-npm run tauri:dev  # app nativa Tauri con WebView
+npm run desktop:dev  # app nativa Tauri con WebView
 ```
 
 ---
@@ -1206,7 +1206,7 @@ Le fasi 15 e 19-23 sono implementate a livello MVP nel repository corrente. La r
 ### Aperto / prossimo lavoro
 
 - **Asset pipeline completa**: import immagini arbitrarie editor → VFS WASM/runtime packaged senza workaround manuali.
-- **Build WASM da UI**: `build-api.ts` → Tauri `run_build_wasm` (menu Build). **Ship order:** `npm run build:wasm` then `npm run tauri:build` so `editor/public/runtime/game.wasm` is bundled (see root `README.md` Build pipeline).
+- **Build WASM da UI**: `build-api.ts` → Tauri `run_build_wasm` (menu Build). **Ship order:** `npm run build:wasm` then `npm run desktop:release` so `editor/public/runtime/game.wasm` is bundled (see root `README.md` Build pipeline).
 - **LSP/diagnostica Lua**: markers errori nel CodeMirror iframe (see §11.1 spike).
 
 ### 11.1 Editor infra spike (REPL / LSP — deferred)
@@ -1306,7 +1306,7 @@ cd editor
 npm install
 npm run dev                # http://localhost:5173 (solo Vite)
 # oppure
-npm run tauri:dev          # app Tauri nativa
+npm run desktop:dev          # app Tauri nativa
 ```
 
 ### Test rapido dal browser

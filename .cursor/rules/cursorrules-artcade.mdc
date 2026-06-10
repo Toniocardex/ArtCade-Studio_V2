@@ -239,16 +239,21 @@ PowerShell: use `;` instead of `&&` for chained commands.
 
 ### 6. Build (when user asks for "all builds" or release validation)
 
-Run in order; fix failures before declaring done:
+**Default (app binary only — no MSI/NSIS):**
 
 ```powershell
 cd editor; npm test -- --run
 cd ..\runtime-cpp; .\build_wasm.bat
-cd ..\editor; npm run build
-cd ..\editor; npm run tauri:build
+cd ..\editor; npm run desktop:build
 ```
 
-- Close `artcade-editor.exe` before `tauri:build` on Windows (file lock).
+**Release installers** — only when the user explicitly asks for release/shipping validation:
+
+```powershell
+cd editor; npm run desktop:release
+```
+
+- Close `artcade-editor.exe` before `desktop:build` / `desktop:release` on Windows (file lock).
 - `game.wasm` is gitignored; `build_wasm.bat` copies to `editor/public/runtime/`.
 - If only `editor/src/` TS changed (no Rust/C++), WASM/Tauri rebuild may be skipped unless the user asked for full builds.
 
@@ -258,7 +263,7 @@ cd ..\editor; npm run tauri:build
 
 - **Editor tests:** `cd editor; npm test -- --run`
 - **WASM preview:** `cd runtime-cpp; .\build_wasm.bat`
-- **Tauri build:** close running `artcade-editor.exe` first — Windows file-locks the binary on rebuild.
+- **Desktop build:** `npm run desktop:build` (exe only). **Installers:** `npm run desktop:release` (release only). Close `artcade-editor.exe` first — Windows file-locks the binary on rebuild.
 - **Logic Board timing:**
   - Periodic gameplay → **When: Timer**
   - Finite burst, then continue → **When: Timer** + **Then: Repeat** (Times + Every seconds; `0` = instant loop)

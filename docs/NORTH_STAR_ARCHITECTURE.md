@@ -160,7 +160,7 @@ Before tagging or shipping an installer:
 1. `cd runtime-cpp && build_wasm.bat` — copies `game.js` + `game.wasm` to `editor/public/runtime/` (`.wasm` is gitignored; stale WASM is a common preview bug).
 2. `cd editor && npm test -- --run`
 3. `cd editor && npm run build`
-4. Close running `artcade-editor.exe`, then `npm run tauri:build`
+4. Close running `artcade-editor.exe`, then `npm run desktop:release` (installers) or `npm run desktop:build` (exe only)
 5. Smoke: open project, toggle **Physics collider overlay**, drag entity (rotation/scale preserved), Play blocked when health errors exist.
 
 ---

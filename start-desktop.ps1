@@ -20,6 +20,6 @@ if (-not (Test-Path (Join-Path $Root 'node_modules\vite'))) {
 
 Write-Host '[ArtCade] Starting the desktop editor (Tauri dev). First run'
 Write-Host '[ArtCade] compiles Rust and may take a few minutes.'
-npm run tauri:dev
+npm run desktop:dev
 
 Read-Host '[ArtCade] Desktop dev session stopped. Press Enter to close'

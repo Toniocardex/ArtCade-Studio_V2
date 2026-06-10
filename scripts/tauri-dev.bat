@@ -34,7 +34,7 @@ if defined VCToolsInstallDir if exist "!VCToolsInstallDir!lib\onecore\x64\oldnam
 )
 
 pushd "%ROOT%\editor" >nul
-npm run tauri:dev
+npm run desktop:dev
 set "EXIT_CODE=!ERRORLEVEL!"
 popd >nul
 exit /b !EXIT_CODE!

@@ -89,7 +89,7 @@ cmake --build . --config Release
 # Build React editor
 cd ../../editor
 npm install
-npm run tauri:build
+npm run desktop:release
 # Output: ArtCade-Editor.exe (Windows), ArtCade.dmg (macOS), .AppImage (Linux)
 
 # Build WASM (requires Emscripten)
