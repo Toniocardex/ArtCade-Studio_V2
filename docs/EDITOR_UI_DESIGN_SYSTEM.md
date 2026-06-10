@@ -164,9 +164,9 @@ Removed legacy spec aliases:
 
 ### Bottom Dock Panels
 
-Four fixed-order columns when the dock is expanded: **Debug Console**, **Animation Timeline**, **Logic Preview**, **Event Debugger**.
+Three fixed-order columns when the dock is expanded: **Debug Console**, **Animation Timeline**, **Event Debugger**.
 
-Visibility is toggled in **VIEW -> Bottom panels** and persisted in `localStorage` key `artcade.dock-panels-v1`. First run defaults to Console + Logic Preview.
+Visibility is toggled in **VIEW -> Bottom panels** and persisted in `localStorage` key `artcade.dock-panels-v2`. First run defaults to Console only.
 
 ---
 

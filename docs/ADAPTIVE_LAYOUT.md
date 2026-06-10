@@ -74,7 +74,7 @@ These answers are **final** for v1 of adaptive layout. Do not revert without exp
 
 | ID | Topic | Decision |
 |----|-------|----------|
-| **D1** | Logic Board placement | **Tab module only** — `Canvas \| Logic Board \| Script Editor` via `ModuleTabs`. Bottom dock remains **Console + Logic Preview** (and other dock panels). **No** fixed Logic Board strip under the canvas. |
+| **D1** | Logic Board placement | **Tab module only** — `Canvas \| Logic Board \| Script Editor` via `ModuleTabs`. Bottom dock is **Console** (and optional timeline / event debugger panels). **No** fixed Logic Board strip under the canvas. |
 | **D2** | Inspector in `compact` tier | **Right overlay drawer** (~280px) over the canvas. No fixed narrow inspector column. |
 | **D3** | Resolution warning banner | Show from **1280px workspace width** immediately (do not wait for Phase 4). Align `EditorViewportBanner` to doc messaging tiers over time. |
 | **D4** | UI scale mechanism | **`font-size` + `rem` / spacing tokens** via `--editor-scale` on `.editor-shell`. **No** `transform: scale()` on chrome. |
@@ -114,7 +114,7 @@ Implementers should know what already exists before adding phases.
 | Shell layout | `editor/src/App.tsx` — `EditorLayout`, `CanvasView` | Left sidebar + canvas + right inspector; `ResizeHandle` horizontal |
 | Panel width persist | `editor/src/hooks/usePersistedWidth.ts` | `localStorage` keys `artcade.sidebar-left-w-v3`, `artcade.sidebar-right-w-v3`; clamp 180–480 |
 | Default widths | `editor/src/constants/editor-layout.ts`, `:root` in `index.css` | Left 280px, right 320px, dock 280px |
-| Bottom dock | `editor/src/components/shell/BottomDock.tsx` | Resizable height `artcade.bottom-dock-h-v5`; panels: console, timeline, logic preview, events |
+| Bottom dock | `editor/src/components/shell/BottomDock.tsx` | Resizable height `artcade.bottom-dock-h-v5`; panels: console, timeline, events |
 | Module modes | `editor/src/components/shell/ModuleTabs.tsx` | `canvas` \| `logic` \| `script` — mutually exclusive full workspace |
 | Narrow banner | `editor/src/components/shell/EditorViewportBanner.tsx` | Warning if `innerWidth < 1520` — **must change to 1280** (Phase 1) |
 | VIEW menu | `editor/src/components/menu-bar/ViewToolbarMenu.tsx` | Theme toggle today — extend with Interface items |
@@ -207,7 +207,7 @@ Update `EditorViewportBanner.tsx` constant from `1520` → `1280` and prefer mea
 │ 280px    │         min 400×300               │ 320px       │
 │ default  │                                     │             │
 ├──────────┴─────────────────────────────────────┴─────────────┤
-│ BottomDock (Console | Logic Preview | …)                     │
+│ BottomDock (Console | …)                                     │
 ├──────────────────────────────────────────────────────────────┤
 │ StatusBar — zoom, grid, runtime, UI 100%                     │
 └──────────────────────────────────────────────────────────────┘
@@ -617,7 +617,7 @@ Per original doc §7 — **out of v1 scope** except stub in backlog:
 - Reattach: drag to highlight zones
 - Multi-monitor: restore position if display still connected; else clamp to primary
 
-**Candidates**: Inspector, Console, Logic Preview — **not** main WASM canvas.
+**Candidates**: Inspector, Console — **not** main WASM canvas.
 
 Do not start Phase 5 until Phases 1–4 sign-off.
 

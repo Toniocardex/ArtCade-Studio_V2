@@ -27,19 +27,18 @@ describe('dock-panel-visibility storage', () => {
 
   it('readStoredDockPanelVisibility normalizes all-false JSON', () => {
     vi.mocked(localStorage.getItem).mockReturnValue(
-      JSON.stringify({ console: false, timeline: false, logic: false, events: false }),
+      JSON.stringify({ console: false, timeline: false, events: false }),
     )
     expect(readStoredDockPanelVisibility()).toEqual(DEFAULT_DOCK_PANEL_VISIBILITY)
   })
 
   it('readStoredDockPanelVisibility keeps partial valid stored state', () => {
     vi.mocked(localStorage.getItem).mockReturnValue(
-      JSON.stringify({ console: false, logic: true }),
+      JSON.stringify({ console: false, timeline: true }),
     )
     expect(readStoredDockPanelVisibility()).toEqual({
       console: false,
-      timeline: false,
-      logic: true,
+      timeline: true,
       events: false,
     })
   })
@@ -48,7 +47,6 @@ describe('dock-panel-visibility storage', () => {
     persistDockPanelVisibility({
       console: false,
       timeline: false,
-      logic: false,
       events: false,
     })
     expect(localStorage.setItem).toHaveBeenCalledWith(
@@ -59,11 +57,11 @@ describe('dock-panel-visibility storage', () => {
 
   it('ignores unknown keys in stored JSON', () => {
     vi.mocked(localStorage.getItem).mockReturnValue(
-      JSON.stringify({ console: true, extraPanel: true }),
+      JSON.stringify({ console: true, extraPanel: true, logic: true }),
     )
     expect(readStoredDockPanelVisibility().console).toBe(true)
-    expect(readStoredDockPanelVisibility().logic).toBe(
-      DEFAULT_DOCK_PANEL_VISIBILITY.logic,
+    expect(readStoredDockPanelVisibility().timeline).toBe(
+      DEFAULT_DOCK_PANEL_VISIBILITY.timeline,
     )
   })
 })

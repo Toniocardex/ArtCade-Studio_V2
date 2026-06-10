@@ -11,7 +11,6 @@ function isDockPanelId(value: unknown): value is DockPanelId {
   return (
     value === 'console' ||
     value === 'timeline' ||
-    value === 'logic' ||
     value === 'events'
   )
 }

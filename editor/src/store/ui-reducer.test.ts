@@ -51,7 +51,11 @@ describe('uiReducer — console dock', () => {
   })
 
   it('TOGGLE_CONSOLE hides console when other dock panels are visible', () => {
-    const start = base({ bottomPanelCollapsed: false, consoleOpen: true })
+    const start = base({
+      bottomPanelCollapsed: false,
+      consoleOpen: true,
+      dockPanelVisibility: { console: true, timeline: true, events: false },
+    })
     const s = uiReducer(start, { type: 'TOGGLE_CONSOLE' })
     expect(s.dockPanelVisibility.console).toBe(false)
     expect(s.bottomPanelCollapsed).toBe(false)
@@ -62,7 +66,7 @@ describe('uiReducer — console dock', () => {
     const start = base({
       bottomPanelCollapsed: false,
       consoleOpen: true,
-      dockPanelVisibility: { console: true, timeline: false, logic: false, events: false },
+      dockPanelVisibility: { console: true, timeline: false, events: false },
     })
     const s = uiReducer(start, { type: 'TOGGLE_CONSOLE' })
     expect(s.bottomPanelCollapsed).toBe(true)
@@ -171,7 +175,7 @@ describe('uiReducer — dock panel visibility', () => {
   it('SET_DOCK_PANEL_VISIBLE persists and expands collapsed dock', () => {
     const start = base({
       bottomPanelCollapsed: true,
-      dockPanelVisibility: { console: false, timeline: false, logic: true, events: false },
+      dockPanelVisibility: { console: false, timeline: false, events: true },
     })
     const s = uiReducer(start, {
       type: 'SET_DOCK_PANEL_VISIBLE',
@@ -187,7 +191,7 @@ describe('uiReducer — dock panel visibility', () => {
   })
 
   it('cannot hide the last visible panel', () => {
-    const vis = { console: true, timeline: false, logic: false, events: false }
+    const vis = { console: true, timeline: false, events: false }
     const start = base({ dockPanelVisibility: vis })
     const s = uiReducer(start, {
       type: 'SET_DOCK_PANEL_VISIBLE',

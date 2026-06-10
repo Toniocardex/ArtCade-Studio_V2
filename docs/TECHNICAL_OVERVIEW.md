@@ -627,7 +627,7 @@ ModuleTabs (Canvas · Logic Board · Script): LogicBoardPanel · ScriptEditorPan
 |------|-------|
 | `MenuBar.tsx` | File → Open Project, Save, Build .EXE, ▶ PLAY / ■ STOP |
 | `ModuleTabs.tsx` | Canvas / Logic Board / Script module switcher |
-| `BottomDock.tsx` | Resizable bottom dock (console, animation timeline summary, logic preview) |
+| `BottomDock.tsx` | Resizable bottom dock (console, animation timeline summary, event debugger) |
 | `StatusBar.tsx` | Runtime status · cursore · entity selezionata · versioni |
 
 ### Pannelli

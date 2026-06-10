@@ -24,7 +24,7 @@ function baseState(p: ProjectDoc): CoreState {
     project: p, projectPath: null, projectDirty: false,
     selection: { entityId: 1, sceneId: 's' },
     mode: 'canvas', consoleOpen: false, bottomPanelCollapsed: true,
-    dockPanelVisibility: { console: true, timeline: false, logic: true, events: false },
+    dockPanelVisibility: { console: true, timeline: false, events: false },
     consoleAckUpToId: 0, editingTilesetId: null,
     openScripts: [], activeScriptPath: null, isPlaying: false, selectedTileCell: 1,
     editorGridSize: 32, snapToGrid: false, editorZoom: 1, editorZoomMode: 'manual', cameraPreview: false,
