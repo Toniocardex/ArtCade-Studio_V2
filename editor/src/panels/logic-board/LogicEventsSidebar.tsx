@@ -1,12 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import type { Dispatch } from 'react'
 import { ChevronDown, ChevronUp, Copy, Trash2 } from 'lucide-react'
 import type { Action } from '../../store/editor-store'
 import type { ProjectDoc } from '../../types'
-import type { LogicBoard, LogicEvent, LogicTriggerType } from '../../types/logic-board'
+import type { LogicBoard, LogicEvent } from '../../types/logic-board'
 import { TypePicker } from '../../components/logic-board/TypePicker'
-import { HierarchicalBlockPicker } from '../../components/logic-board/HierarchicalBlockPicker'
-import { HierarchicalPickerOverlay } from '../../components/logic-board/HierarchicalPickerOverlay'
 import { createLogicEvent } from '../../utils/logic-board/factory'
 import { logicBoardLabel, rulesheetAppliesToLabel } from '../../utils/project'
 import { defaultTrigger } from './options'
@@ -153,7 +151,6 @@ export function LogicEventsSidebar({
   onDeleteEvent,
   onMoveEvent,
 }: LogicEventsSidebarProps) {
-  const [pickerOpen, setPickerOpen] = useState(false)
   const groupedView = sceneBoards.length > 1
   const addBoard = board
 
@@ -236,28 +233,6 @@ export function LogicEventsSidebar({
       <div className="shrink-0 border-t border-[var(--outline)] px-2 py-2 space-y-2">
         {addBoard && (
           <>
-            <button
-              type="button"
-              className="w-full text-[10px] px-2 py-1 rounded-[var(--radius)] border border-[var(--outline)] bg-[var(--surface-2)] hover:bg-[var(--outline-faint)]"
-              onClick={() => setPickerOpen(true)}
-            >
-              Browse triggers...
-            </button>
-            <HierarchicalPickerOverlay open={pickerOpen} onClose={() => setPickerOpen(false)}>
-              <HierarchicalBlockPicker
-                kind="trigger"
-                types={allowedTriggersForTarget(addBoard.target.type)}
-                title="Add trigger"
-                pickOnSelect
-                onClose={() => setPickerOpen(false)}
-                onPick={(type) => {
-                  const ev = createLogicEvent(defaultTrigger(type as LogicTriggerType))
-                  dispatch({ type: 'LOGIC_ADD_EVENT', boardId: addBoard.boardId, event: ev })
-                  setFocusedEventId(ev.id)
-                  setPickerOpen(false)
-                }}
-              />
-            </HierarchicalPickerOverlay>
             <TypePicker
               kind="trigger"
               types={allowedTriggersForTarget(addBoard.target.type)}

@@ -3,8 +3,6 @@
 // ---------------------------------------------------------------------------
 
 import { Fragment, useEffect, useMemo, useState } from 'react'
-import { HierarchicalBlockPicker } from '../../components/logic-board/HierarchicalBlockPicker'
-import { HierarchicalPickerOverlay } from '../../components/logic-board/HierarchicalPickerOverlay'
 import type { LogicBlockSelection } from './useLogicBlockSelection'
 import {
   NEW_ACTION_NONE,
@@ -230,7 +228,6 @@ function ActionListBlock({
   emptyHint,
   forElse = false,
   hideParams,
-  useHierarchicalPicker,
   onActionSelect,
   isActionSelected,
 }: {
@@ -248,13 +245,11 @@ function ActionListBlock({
   /** When true, Click to destroy is omitted from the action picker (Else branch). */
   forElse?: boolean
   hideParams?: boolean
-  useHierarchicalPicker?: boolean
   onActionSelect?: (index: number) => void
   isActionSelected?: (index: number) => boolean
 }) {
   const insideRepeat = repeatBodyIndices(actions)
   const pickerTypes = actionTypesForBoard(board, { forElse, existingActions: actions })
-  const [pickerOpen, setPickerOpen] = useState(false)
   return (
     <>
       {actions.length === 0 && (
@@ -296,31 +291,6 @@ function ActionListBlock({
         />
       ))}
       <div className="flex flex-wrap items-center gap-2 pt-1">
-        {useHierarchicalPicker && (
-          <button
-            type="button"
-            className={btn}
-            onClick={() => setPickerOpen(true)}
-          >
-            Browse actions…
-          </button>
-        )}
-        <HierarchicalPickerOverlay
-          open={pickerOpen && (useHierarchicalPicker ?? false)}
-          onClose={() => setPickerOpen(false)}
-        >
-          <HierarchicalBlockPicker
-            kind="action"
-            types={pickerTypes}
-            title="Add action"
-            pickOnSelect
-            onClose={() => setPickerOpen(false)}
-            onPick={(type) => {
-              onChangeActions([...actions, defaultAction(type as LogicAction['type'])])
-              setPickerOpen(false)
-            }}
-          />
-        </HierarchicalPickerOverlay>
         <TypePicker
           kind="action"
           types={pickerTypes}
@@ -557,7 +527,6 @@ function SimpleConditions({
   hideParams,
   onConditionSelect,
   isConditionSelected,
-  useHierarchicalPicker,
 }: {
   event: LogicEvent
   board?: LogicBoard | null
@@ -570,11 +539,9 @@ function SimpleConditions({
   hideParams?: boolean
   onConditionSelect?: (index: number) => void
   isConditionSelected?: (index: number) => boolean
-  useHierarchicalPicker?: boolean
 }) {
   const conditions = event.conditions ?? []
   const combineOp = event.conditionsOperator ?? 'AND'
-  const [pickerOpen, setPickerOpen] = useState(false)
   const [newConditionType, setNewConditionType] = useState<NewConditionPick>(NEW_CONDITION_NONE)
 
   function appendCondition(type: LogicCondition['type']) {
@@ -695,27 +662,6 @@ function SimpleConditions({
         </div>
       )}
       <div className="flex flex-wrap items-center gap-2 pt-1">
-        {useHierarchicalPicker && (
-          <button type="button" className={btn} onClick={() => setPickerOpen(true)}>
-            Browse checks…
-          </button>
-        )}
-        <HierarchicalPickerOverlay
-          open={pickerOpen && (useHierarchicalPicker ?? false)}
-          onClose={() => setPickerOpen(false)}
-        >
-          <HierarchicalBlockPicker
-            kind="condition"
-            types={conditionTypes}
-            title="Add check"
-            pickOnSelect
-            onClose={() => setPickerOpen(false)}
-            onPick={(type) => {
-              appendCondition(type as LogicCondition['type'])
-              setPickerOpen(false)
-            }}
-          />
-        </HierarchicalPickerOverlay>
         <TypePicker
           kind="condition"
           types={conditionTypes}
@@ -961,7 +907,6 @@ export default function EventEditor({
               conditionTypes={pickerConditionTypes}
               recommendedConditions={pickerRecommendedConditions}
               hideParams={hideParams}
-              useHierarchicalPicker={inspectorMode}
               onConditionSelect={hideParams ? (i) => onBlockSelect?.({ kind: 'condition', index: i }) : undefined}
               isConditionSelected={
                 hideParams
@@ -1055,7 +1000,6 @@ export default function EventEditor({
           setNewActionType={setNewActionType}
           emptyHint="Add at least one action."
           hideParams={hideParams}
-          useHierarchicalPicker={inspectorMode}
           onActionSelect={(index) => onBlockSelect?.({ kind: 'action', index })}
           isActionSelected={(index) => isBlockSelected?.({ kind: 'action', index }) ?? false}
           onChangeActions={(actions) =>
