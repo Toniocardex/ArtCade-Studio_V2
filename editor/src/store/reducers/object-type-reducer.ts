@@ -128,6 +128,53 @@ export const objectTypeReducer: DomainReducer = (state: CoreState, action: Actio
         projectDirty: true,
       }
     }
+    case 'INSTANCE_DUPLICATE': {
+      // Duplicate in scene = new instance of the SAME type (offset placement).
+      // Never clones the EntityDef or infers a new type (Fase C contract).
+      if (!state.project || !state.project.scenes[action.sceneId]) return state
+      const scene = state.project.scenes[action.sceneId]
+      const src = scene.instances?.find((i) => i.id === action.instanceId)
+      const type = src ? state.project.objectTypes?.[src.objectTypeId] : undefined
+      if (!src || !type) return state
+      const id = nextEntityId(state.project)
+      const srcName =
+        src.instanceName ?? state.project.entities[src.id]?.name ?? type.displayName
+      const copy: SceneInstanceDef = {
+        id,
+        objectTypeId: src.objectTypeId,
+        instanceName: `${srcName}_Copy`,
+        transform: {
+          position: {
+            x: src.transform.position.x + 16,
+            y: src.transform.position.y + 16,
+          },
+          scale: { ...src.transform.scale },
+          rotation: src.transform.rotation,
+          ...(src.transform.velocity
+            ? { velocity: { ...src.transform.velocity } }
+            : {}),
+        },
+        ...(src.visible === false ? { visible: false } : {}),
+      }
+      const ent = materializeEntity(type, copy)
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          entities: { ...state.project.entities, [id]: ent },
+          scenes: {
+            ...state.project.scenes,
+            [action.sceneId]: {
+              ...scene,
+              instances: [...(scene.instances ?? []), copy],
+              entityIds: [...scene.entityIds, id],
+            },
+          },
+        },
+        selection: { ...state.selection, entityId: id },
+        projectDirty: true,
+      }
+    }
     case 'UPDATE_ENTITY_TRANSFORM': {
       if (!state.project || !state.project.entities[action.entityId]) return state
       const sceneId = state.selection.sceneId ?? state.project.activeSceneId

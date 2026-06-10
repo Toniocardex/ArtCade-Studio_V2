@@ -1,0 +1,20 @@
+Make objectTypes + instances the authoring source (Fase C)
+
+- Inspector edits (sprite, fill, physics, components, tags) now patch the
+  owning ObjectTypeDef and re-materialize every instance of that type;
+  name/visible write to the scene instance only. project.entities is a
+  derived cache, with a plain cache-write fallback for legacy entities
+  without a resolvable type.
+- ENTITY_SET_CLASSNAME re-types the instance: points it at the named type,
+  cloning the current type under the new id when missing (variant flow).
+- ENTITY_DUPLICATE replaced by INSTANCE_DUPLICATE: new instance of the SAME
+  type with offset transform - no EntityDef clone, no inferred Entity_N type.
+- ENTITY_DELETE also removes the scene instance; syncObjectModelFromEntities
+  is gone from the edit hot path (kept only for pre-v2 imports).
+- projectForSave serializes objectTypes + instances as-is for v2 projects.
+- New helpers: findSceneInstance, rematerializeInstance,
+  rematerializeAllInstancesOfType.
+- Tests: instance duplicate keeps the shared type, shared sprite edit
+  propagates to all instances, rename touches only the instance (140/140).
+
+Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>

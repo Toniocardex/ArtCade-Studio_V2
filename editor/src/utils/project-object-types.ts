@@ -265,8 +265,16 @@ export function normalizeProjectDoc(project: ProjectDoc): {
   return { project: migrated, migratedFromLegacy: true }
 }
 
-/** Prepare project for JSON save (v2 only on disk). */
+/**
+ * Prepare project for JSON save (v2 only on disk).
+ * `objectTypes` + `scenes.instances` are the authoring source (Fase C): save
+ * serializes them as-is. The legacy rebuild from flat entities only runs for
+ * projects that never went through the v2 model (no objectTypes yet).
+ */
 export function projectForSave(project: ProjectDoc): ProjectDoc {
+  if (isV2ObjectModel(project)) {
+    return { ...project, formatVersion: PROJECT_FORMAT_V2 }
+  }
   const { objectTypes, scenes } = buildObjectModelFromEntities(project)
   return {
     ...project,
@@ -274,6 +282,53 @@ export function projectForSave(project: ProjectDoc): ProjectDoc {
     objectTypes,
     scenes,
   }
+}
+
+/** Locate a scene instance by id across all scenes. */
+export function findSceneInstance(
+  project: ProjectDoc,
+  instanceId: number,
+): { sceneId: string; instance: SceneInstanceDef } | null {
+  for (const [sceneId, scene] of Object.entries(project.scenes)) {
+    const instance = scene.instances?.find((i) => i.id === instanceId)
+    if (instance) return { sceneId, instance }
+  }
+  return null
+}
+
+/** Refresh the `entities` cache entry for one instance from its type. */
+export function rematerializeInstance(
+  project: ProjectDoc,
+  instanceId: number,
+): ProjectDoc {
+  const found = findSceneInstance(project, instanceId)
+  if (!found) return project
+  const type = project.objectTypes?.[found.instance.objectTypeId]
+  if (!type) return project
+  return {
+    ...project,
+    entities: {
+      ...project.entities,
+      [instanceId]: materializeEntity(type, found.instance),
+    },
+  }
+}
+
+/** Refresh the `entities` cache for every instance of a type (shared edits). */
+export function rematerializeAllInstancesOfType(
+  project: ProjectDoc,
+  objectTypeId: string,
+): ProjectDoc {
+  const type = project.objectTypes?.[objectTypeId]
+  if (!type) return project
+  const entities = { ...project.entities }
+  for (const scene of Object.values(project.scenes)) {
+    for (const inst of scene.instances ?? []) {
+      if (inst.objectTypeId !== objectTypeId) continue
+      entities[inst.id] = materializeEntity(type, inst)
+    }
+  }
+  return { ...project, entities }
 }
 
 export function allObjectTypeIds(project: ProjectDoc | null | undefined): string[] {

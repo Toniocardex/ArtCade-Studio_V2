@@ -1,6 +1,6 @@
 # Migrazione modello oggetti + Logic Board — Piano master pre-release
 
-> **Status:** Fase A + Fase B **completate** (2026-06-10) — Logic Board solo `object_type`, Hierarchy unificata "Objects in scene". Fase C (edit path Inspector → tipo) e Fase D (pulizia doc) da eseguire.  
+> **Status:** Fasi A + B + C **completate** (2026-06-10) — Logic Board solo `object_type`, Hierarchy unificata "Objects in scene", Inspector scrive su `objectTypes` (entities = cache derivata). Resta la Fase D (pulizia doc / opzionali).  
 > **Data:** 2026-06-09 (agg. 2026-06-10)  
 > **Audience:** Collaboratori editor (React/TS), reviewer, tech lead  
 > **Policy:** **Nessuna compatibilità legacy** in pre-release — un solo schema autore, niente doppi percorsi  
@@ -453,16 +453,16 @@ Il formato `.artcade` / `project.json` v2 resta valido; cambia solo il **sottoin
 
 **Non in Fase B:** refactor Inspector (Fase C).
 
-### Fase C — Edit path oggetti (~3–5 giorni)
+### Fase C — Edit path oggetti ✅ (2026-06-10)
 
 **Obiettivo:** `objectTypes` + `instances` = sorgente autore; `entities` = cache.
 
-- [ ] `rematerializeInstance` / `rematerializeAllInstancesOfType`
-- [ ] Refactor `ENTITY_SET_*` → tipo o istanza
-- [ ] `ENTITY_DUPLICATE` → `INSTANCE_DUPLICATE`
-- [ ] Rimuovere `syncObjectModelFromEntities` da `entity-reducer`
-- [ ] `projectForSave` senza rebuild da `entities`
-- [ ] Test round-trip, duplicate 2× stesso tipo, Logic su tipo condiviso
+- [x] `rematerializeInstance` / `rematerializeAllInstancesOfType` (+ `findSceneInstance`)
+- [x] Refactor `ENTITY_SET_*` → tipo (sprite/physics/component/tag/className) o istanza (name/visible)
+- [x] `ENTITY_DUPLICATE` → `INSTANCE_DUPLICATE` (stesso tipo, offset transform)
+- [x] Rimuovere `syncObjectModelFromEntities` da `entity-reducer`
+- [x] `projectForSave` senza rebuild da `entities` (rebuild solo per progetti pre-v2)
+- [x] Test: duplicate 2× stesso tipo, edit sprite condiviso propagato, rename solo istanza
 
 ### Fase D — Pulizia doc e prodotto
 

@@ -152,7 +152,7 @@ export function useSceneExplorerActions() {
 
   const duplicateEntity = useCallback(
     (entityId: number) => {
-      dispatch({ type: 'ENTITY_DUPLICATE', entityId, sceneId })
+      dispatch({ type: 'INSTANCE_DUPLICATE', instanceId: entityId, sceneId })
     },
     [dispatch, sceneId],
   )
