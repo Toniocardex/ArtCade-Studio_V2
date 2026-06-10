@@ -18,9 +18,9 @@ export const editorTabActive =
 export const editorRowSelected =
   'bg-[var(--surface-selected-strong)] text-[var(--text-on-selected)] font-semibold'
 
-/** Primary toolbar action (Play) — flat, no accent fill. */
+/** Primary toolbar action (Play) — filled accent (mockup v2). */
 export const editorToolbarPrimary =
-  'border-[var(--outline-strong)] bg-[var(--surface-2)] text-[var(--primary)] hover:bg-[var(--surface-hover)]'
+  'border-[var(--accent)] bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] hover:border-[var(--accent-hover)]'
 
 /** Filled CTA (explorer + dialogs) — readable label on accent/surface fill. */
 export const editorCtaFilled =

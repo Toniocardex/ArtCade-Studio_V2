@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback } from 'react'
-import { Menu, Hexagon } from 'lucide-react'
+import { Menu, Hexagon, Moon, Sun } from 'lucide-react'
 import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import { canRedoProject, canUndoProject } from '../../store/project-history'
 import { FileMenuContent } from './FileMenu'
@@ -12,10 +12,20 @@ import { useBuildToolbarActions } from './useBuildToolbarActions'
 import { mapWebExportToolbar, useWebExportStatus } from './useWebExportStatus'
 import { useProjectNamePersist } from './project-name-context'
 import { usePreviewPlayShortcut } from '../../hooks/usePreviewPlayShortcut'
-import { ViewToolbarMenu } from './ViewToolbarMenu'
-import { ToolsMenu } from './ToolsMenu'
-import { HelpMenu } from './HelpMenu'
+import { DockPanelsViewSection } from './DockPanelsViewSection'
+import { EditorUiScaleViewSection } from './EditorUiScaleViewSection'
+import { useEditorUiScaleContext } from '../../contexts/editor-ui-scale-context'
+import { applyTheme, toggleTheme, type Theme } from '../../utils/theme'
+import AuthoringModeSwitch from '../AuthoringModeSwitch'
+import { openDialogLibraryModal } from '../../panels/dialog/dialog-modal-api'
 import ModuleTabs from '../shell/ModuleTabs'
+
+const DOCS_URL = 'https://github.com/Toniocardex/ArtCade-Studio_V2/blob/main/docs/README.md'
+
+function themeFromDocument(): Theme {
+  const value = document.documentElement.dataset.theme
+  return value === 'light' || value === 'dark' ? value : 'dark'
+}
 
 function MenuSectionLabel({ children }: Readonly<{ children: string }>) {
   return (
@@ -24,6 +34,13 @@ function MenuSectionLabel({ children }: Readonly<{ children: string }>) {
     </p>
   )
 }
+
+function MenuDivider() {
+  return <div className="my-1 border-t border-[var(--outline)]" />
+}
+
+const menuItemClass =
+  'w-full text-left px-3 py-2 text-xs text-[var(--primary)] hover:bg-[var(--surface-hover)]'
 
 export default function MenuBar() {
   const dispatch = useEditorDispatch()
@@ -44,6 +61,8 @@ export default function MenuBar() {
   const [mainMenuOpen, setMainMenuOpen] = useState(false)
   const mainMenuRef = useRef<HTMLDivElement>(null)
   const closeMainMenu = useCallback(() => setMainMenuOpen(false), [])
+  const uiScale = useEditorUiScaleContext()
+  const [theme, setTheme] = useState<Theme>(themeFromDocument)
 
   const { fileItems } = useFileMenuActions({
     dispatch,
@@ -107,11 +126,72 @@ export default function MenuBar() {
             <FileMenuContent items={fileItems} />
             {project && (
               <>
-                <div className="my-1 border-t border-[var(--outline)]" />
+                <MenuDivider />
                 <MenuSectionLabel>Edit</MenuSectionLabel>
                 <FileMenuContent items={editItems} />
               </>
             )}
+            <MenuDivider />
+            <MenuSectionLabel>View</MenuSectionLabel>
+            <div className="px-3 py-2 border-b border-[var(--outline-subtle)]">
+              <span className="text-[9px] uppercase tracking-wide text-[var(--muted)]">Authoring</span>
+              <div className="mt-2">
+                <AuthoringModeSwitch />
+              </div>
+            </div>
+            <EditorUiScaleViewSection uiScale={uiScale} />
+            <DockPanelsViewSection />
+            <button
+              type="button"
+              role="menuitem"
+              className={menuItemClass}
+              onClick={() => {
+                const next = toggleTheme(theme)
+                applyTheme(next)
+                setTheme(next)
+              }}
+            >
+              <span className="inline-flex items-center gap-2">
+                {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+                {theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              </span>
+            </button>
+            <MenuDivider />
+            <MenuSectionLabel>Tools</MenuSectionLabel>
+            <button
+              type="button"
+              role="menuitem"
+              className={menuItemClass}
+              onClick={() => {
+                openDialogLibraryModal(dispatch)
+                closeMainMenu()
+              }}
+            >
+              Dialog library…
+            </button>
+            <MenuDivider />
+            <MenuSectionLabel>Help</MenuSectionLabel>
+            <a
+              href={DOCS_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              role="menuitem"
+              className="block px-3 py-2 text-xs text-[var(--primary)] hover:bg-[var(--surface-hover)]"
+              onClick={closeMainMenu}
+            >
+              Documentation…
+            </a>
+            <button
+              type="button"
+              role="menuitem"
+              className={menuItemClass}
+              onClick={() => {
+                void navigator.clipboard?.writeText('ArtCade Studio — editor UI refactor 2026')
+                closeMainMenu()
+              }}
+            >
+              About ArtCade Studio
+            </button>
           </ToolbarDropdown>
         </div>
 
@@ -153,11 +233,6 @@ export default function MenuBar() {
           onBuildWeb={buildToolbar.handleBuildWeb}
           onOpenWebInBrowser={buildToolbar.handleOpenWebInBrowser}
         />
-        <div className="editor-toolbar-menus">
-          <ToolsMenu />
-          <ViewToolbarMenu />
-          <HelpMenu />
-        </div>
       </div>
     </header>
   )

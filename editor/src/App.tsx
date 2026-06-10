@@ -31,7 +31,6 @@ import { InspectorDrawer } from './components/shell/InspectorDrawer'
 import { InspectorDrawerProvider } from './contexts/inspector-drawer-context'
 import { LayoutTierSideEffects } from './components/shell/LayoutTierSideEffects'
 import { EditorUiScaleSuggestionBanner } from './components/shell/EditorUiScaleSuggestionBanner'
-import { CanvasToolRail } from './components/shell/CanvasToolRail'
 import type { EditorTool } from './utils/runtime-sync-service'
 import type { ConsoleEntry } from './types'
 
@@ -72,13 +71,11 @@ function LegacyMigrateBanner() {
 
 function CanvasView() {
   const focusMode = useEditorSelector((s) => s.focusMode)
-  const mode = useEditorSelector((s) => s.mode)
   const editingTilesetId = useEditorSelector((s) => s.editingTilesetId)
   const tier = useLayoutTier()
   const useCompactShell = tier === 'compact' || tier === 'minimal' || tier === 'unsupported'
   const showLeftRail = !focusMode && (tier === 'full' || tier === 'compact')
   const showFullSidebars = !focusMode && tier === 'full'
-  const showToolRail = showLeftRail && mode === 'canvas'
 
   const { leftW, rightW, setLeftW, setRightW, resetLeftW, resetRightW } = useEditorLayoutContext()
   const [activeTool, setActiveTool] = useState<EditorTool>('select')
@@ -90,15 +87,6 @@ function CanvasView() {
     <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
       {!focusMode && <LegacyMigrateBanner />}
       <div className="flex flex-1 min-h-0 overflow-hidden">
-      {showToolRail && (
-        <CanvasToolRail
-          activeTool={activeTool}
-          onSelectTool={setActiveTool}
-          showGuides={showEditorGuides}
-          onToggleGuides={() => setShowEditorGuides((v) => !v)}
-        />
-      )}
-
       {showLeftRail && (
         <>
           <aside
@@ -126,7 +114,7 @@ function CanvasView() {
                   onSelectTool={setActiveTool}
                   showEditorGuides={showEditorGuides}
                   onToggleGuides={() => setShowEditorGuides((v) => !v)}
-                  showToolPalette={!showToolRail}
+                  showToolPalette
                 />
               </div>
             </InspectorDrawerProvider>
@@ -139,7 +127,7 @@ function CanvasView() {
               onSelectTool={setActiveTool}
               showEditorGuides={showEditorGuides}
               onToggleGuides={() => setShowEditorGuides((v) => !v)}
-              showToolPalette={!showToolRail}
+              showToolPalette
             />
           </div>
           )}
