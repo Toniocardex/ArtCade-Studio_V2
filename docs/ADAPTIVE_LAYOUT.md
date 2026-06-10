@@ -14,7 +14,7 @@ This document is the **canonical implementation reference** for responsive edito
 |-----|------|
 | `EDITOR_UI_DESIGN_SYSTEM.md` | Tokens, themes — chrome only, not game pixels |
 | `docs/README.md` | Documentation index |
-| `new-ui/LOGIC_BOARD_UI_SPEC.md` | Logic Board module UI (full-screen tab) |
+| `LOGIC_BOARD_UX_CHARTER.md` · `LOGIC_BOARD_SPEC.md` (Parte I) | Logic Board module UI and artist-first authoring |
 
 ---
 

@@ -159,25 +159,14 @@ def convert(docx_path: Path, out_path: Path, title: str, source_name: str) -> No
 
 
 def main() -> None:
-    base = Path(r"C:\Users\Anton\Desktop\New_UI_artCade")
-    out_dir = Path(__file__).resolve().parents[2] / "docs" / "new-ui"
-    jobs = [
-        (
-            base / "ArtCade_specifica_ui_logic_board.docx",
-            out_dir / "LOGIC_BOARD_UI_SPEC.md",
-            "ArtCade — UI Canvas & Logic Board (spec)",
-        ),
-        (
-            base / "Trigger-condizioni.azioni-struttura.docx",
-            out_dir / "TRIGGER_CONDITIONS_ACTIONS_UI.md",
-            "Trigger / Conditions / Actions — struttura UI",
-        ),
-    ]
-    for docx, md, title in jobs:
-        if not docx.is_file():
-            print(f"skip missing: {docx}", file=sys.stderr)
-            continue
-        convert(docx, md, title, docx.name)
+    # The docs/new-ui/ markdown pack was retired (superseded by LOGIC_BOARD_UX_CHARTER.md
+    # and LOGIC_BOARD_SPEC.md). Do not regenerate obsolete specs into the repo.
+    print(
+        "docs/new-ui/*.md pack retired. Canonical Logic Board UI docs: "
+        "docs/LOGIC_BOARD_UX_CHARTER.md, docs/LOGIC_BOARD_SPEC.md",
+        file=sys.stderr,
+    )
+    raise SystemExit(1)
 
 
 if __name__ == "__main__":
