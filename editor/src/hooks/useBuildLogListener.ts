@@ -1,7 +1,7 @@
 // ---------------------------------------------------------------------------
 // useBuildLogListener — Tauri build-log stream → store LOG entries.
-// Lives on BottomDock (always mounted) so build output is captured even when
-// the Console tab is hidden or another tab is active.
+// Lives on EditorLayout (always mounted) so build output is captured even
+// when the debug drawer is closed or another editor view is active.
 // ---------------------------------------------------------------------------
 
 import { useEffect } from 'react'

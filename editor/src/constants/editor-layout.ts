@@ -13,7 +13,7 @@ function pxFromCssVar(name: string, fallback: number): number {
 export const EDITOR_LEFT_W_DEFAULT  = 280
 export const EDITOR_RIGHT_W_DEFAULT = 320
 export const EDITOR_DOCK_H_DEFAULT  = 300
-export const EDITOR_TOP_CHROME_H_PX = 96
+export const EDITOR_TOP_CHROME_H_PX = 52
 
 export function readEditorLeftWidthDefault(): number {
   return pxFromCssVar('--editor-left-w-default', EDITOR_LEFT_W_DEFAULT)

@@ -65,6 +65,10 @@ export function usePersistedLayout(): PersistedLayoutApi {
 
   const patch = useCallback((partial: Partial<EditorLayoutSnapshot>) => {
     setSnapshot((prev) => {
+      const dirty = Object.entries(partial).some(
+        ([key, value]) => prev[key as keyof EditorLayoutSnapshot] !== value,
+      )
+      if (!dirty) return prev
       const next = { ...prev, ...partial }
       snapshotRef.current = next
       return next
@@ -79,6 +83,7 @@ export function usePersistedLayout(): PersistedLayoutApi {
         workspaceWidth,
         reserveRightWidthForTier(tier, prev.rightW),
       )
+      if (leftW === prev.leftW) return prev
       const nextSnap = { ...prev, leftW }
       snapshotRef.current = nextSnap
       return nextSnap
@@ -90,6 +95,7 @@ export function usePersistedLayout(): PersistedLayoutApi {
       const raw = typeof next === 'function' ? next(prev.rightW) : next
       const leftReserve = tier === 'full' ? prev.leftW : 0
       const rightW = clampRightWidthInWorkspace(raw, workspaceWidth, leftReserve)
+      if (rightW === prev.rightW) return prev
       const nextSnap = { ...prev, rightW }
       snapshotRef.current = nextSnap
       return nextSnap
@@ -100,6 +106,7 @@ export function usePersistedLayout(): PersistedLayoutApi {
     setSnapshot((prev) => {
       const raw = typeof next === 'function' ? next(prev.dockH) : next
       const dockH = Math.round(raw)
+      if (dockH === prev.dockH) return prev
       const nextSnap = { ...prev, dockH }
       snapshotRef.current = nextSnap
       return nextSnap

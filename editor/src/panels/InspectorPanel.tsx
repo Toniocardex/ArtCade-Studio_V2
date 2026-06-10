@@ -5,7 +5,7 @@
 import { useCallback, useState } from 'react'
 import { shallowEqual, useEditorSelector } from '../store/editor-store'
 import { SceneSettingsSection } from './inspector/SceneSettingsSection'
-import { WorldSettingsSection } from './inspector/WorldSettingsSection'
+import { WorldSettingsSection, WorldDebugTimeSection } from './inspector/WorldSettingsSection'
 import { EntityHeaderBar } from './inspector/EntityHeaderBar'
 import { TransformSection } from './inspector/TransformSection'
 import { SpriteSection } from './inspector/SpriteSection'
@@ -99,6 +99,7 @@ export default function InspectorPanel() {
           <>
             {scene && <SceneSettingsSection scene={scene} />}
             {project && <WorldSettingsSection />}
+            {project && <WorldDebugTimeSection />}
             {!project && (
               <div className="py-8 flex items-center justify-center opacity-20">
                 <span className="text-[10px] uppercase tracking-widest">No project</span>

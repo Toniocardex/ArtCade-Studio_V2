@@ -57,6 +57,19 @@ export function WorldSettingsSection() {
           Auto skips physics for pure transform / platformer-only scenes. Sensors need On or bodies in Auto.
         </p>
       </div>
+    </InspectorSection>
+  )
+}
+
+/** Debug toggles + time scale — separate collapsed accordion so the everyday
+ *  world parameters above stay scannable (UI charter: no endless scrolling). */
+export function WorldDebugTimeSection() {
+  const dispatch = useEditorDispatch()
+  const project = useEditorSelector((s) => s.project)
+  const w = { ...DEFAULT_WORLD, ...project?.world }
+
+  return (
+    <InspectorSection label="Debug & Time">
       <label className="flex items-center gap-2 mb-2 cursor-pointer select-none">
         <input
           type="checkbox"

@@ -60,6 +60,28 @@ function PreviewSpawnScopeToggle() {
   )
 }
 
+/** Snap-to-grid checkbox — lives next to the grid/guides toggle so the two
+ *  related controls read as one group (mirrors SceneSettingsSection). */
+function SnapToGridCheckbox() {
+  const dispatch = useEditorDispatch()
+  const snapToGrid = useEditorSelector((s) => s.snapToGrid)
+  return (
+    <label
+      title="Snap entities and tiles to the editor grid"
+      className="flex items-center gap-1.5 px-1.5 py-1 rounded cursor-pointer select-none
+                 text-[10px] text-[var(--muted)] hover:text-[var(--text)] transition-colors"
+    >
+      <input
+        type="checkbox"
+        checked={snapToGrid}
+        onChange={(e) => dispatch({ type: 'SET_SNAP_TO_GRID', enabled: e.target.checked })}
+        className="accent-[var(--accent)]"
+      />
+      <span>Snap</span>
+    </label>
+  )
+}
+
 function CameraPreviewToggle() {
   const dispatch = useEditorDispatch()
   const enabled = useEditorSelector((s) => s.cameraPreview)
@@ -148,6 +170,10 @@ export function CanvasToolbar({
           <Divider />
         </>
       )}
+
+      <SnapToGridCheckbox />
+
+      <Divider />
 
       <CameraPreviewToggle />
       <PreviewSpawnScopeToggle />

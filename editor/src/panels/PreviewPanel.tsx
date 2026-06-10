@@ -25,7 +25,6 @@ import { RuntimeStatusBadge } from './preview/RuntimeStatusBadge'
 import { ProjectHealthBanner } from './preview/ProjectHealthBanner'
 import { CameraFrameOverlay } from './preview/CameraFrameOverlay'
 import { CanvasViewportWithRulers } from './preview/CanvasViewportWithRulers'
-import { CanvasFooterBar } from './preview/CanvasFooterBar'
 import { useLayoutTier } from '../contexts/editor-layout-tier-context'
 import { InspectorDrawerToggle } from '../contexts/inspector-drawer-context'
 import { useRuntimeReadiness } from '../hooks/useRuntimeReadiness'
@@ -399,8 +398,6 @@ export default function PreviewPanel({
           </div>
         </div>
       </CanvasViewportWithRulers>
-
-      {!focusMode && <CanvasFooterBar />}
     </div>
   )
 }

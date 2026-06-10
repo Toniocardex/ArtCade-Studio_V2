@@ -427,15 +427,13 @@ input[data-mono],
   --editor-dock-h-default:  calc(300px * var(--editor-scale));
   --editor-workspace-inset: calc(0.75rem * var(--editor-scale));
   --editor-toolbar-row-h:   calc(52px * var(--editor-scale));
-  --editor-module-tabs-h:   calc(44px * var(--editor-scale));
-  --editor-top-chrome-h:    calc(var(--editor-toolbar-row-h) + var(--editor-module-tabs-h));
+  --editor-top-chrome-h:    var(--editor-toolbar-row-h);
 }
 
 .editor-shell[data-layout-tier="compact"],
 .editor-shell[data-layout-tier="minimal"],
 .editor-shell[data-layout-tier="unsupported"] {
   --editor-left-w-default: calc(200px * var(--editor-scale));
-  --editor-module-tabs-h:  calc(40px * var(--editor-scale));
 }
 
 .editor-shell[data-layout-tier="minimal"],
@@ -626,17 +624,39 @@ input[data-mono],
   border-left: 1px solid var(--chrome-hairline);
 }
 
+/* Inline mode switcher inside the top bar (segmented control). */
 .editor-module-tabs {
   display: flex;
-  align-items: stretch;
-  gap: 0;
-  flex: 0 0 var(--editor-module-tabs-h);
-  min-height: var(--editor-module-tabs-h);
-  max-height: var(--editor-module-tabs-h);
-  padding: 0 var(--editor-workspace-inset);
-  border-top: 1px solid var(--chrome-hairline);
-  border-bottom: none;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  padding: 2px;
+  border: 1px solid var(--chrome-hairline);
+  border-radius: var(--radius-md);
   background: var(--module-tabs-bg);
+}
+
+.editor-module-tab {
+  height: calc(28px * var(--editor-scale));
+  padding: 0 calc(0.75rem * var(--editor-scale));
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-ui);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--muted);
+  transition: color 120ms ease, background 120ms ease, border-color 120ms ease;
+}
+
+.editor-module-tab:hover {
+  color: var(--primary);
+  background: var(--surface-hover);
+}
+
+.editor-module-tab--active {
+  color: var(--text-on-selected, var(--primary));
+  background: rgb(var(--accent-rgb) / 0.14);
+  border-color: rgb(var(--accent-rgb) / 0.45);
 }
 
 .editor-toolbar-btn {

@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
-import { Check } from 'lucide-react'
+import { Check, ChevronUp } from 'lucide-react'
 import { useEditorDispatch, useEditorSelector, useConsoleLogs } from '../store/editor-store'
+import { useEditorLayoutContext } from '../contexts/editor-layout-context'
 import { DEFAULT_WORLD } from '../types'
 import { isReady as isWasmReady } from '../utils/wasm-bridge'
 import { getProjectWorkbenchSnapshot } from '../utils/project-health'
@@ -23,6 +24,7 @@ type StatusBarProps = Readonly<{
 
 export default function StatusBar({ compact = false }: StatusBarProps) {
   const dispatch = useEditorDispatch()
+  const layout = useEditorLayoutContext()
   const { scaleLabel } = useEditorUiScaleContext()
   const { state: volatile } = useConsoleLogs()
   const project = useEditorSelector((s) => s.project)
@@ -89,6 +91,12 @@ export default function StatusBar({ compact = false }: StatusBarProps) {
     dispatch({ type: 'TOGGLE_CONSOLE' })
   }
 
+  function toggleDrawer() {
+    const collapsed = !bottomPanelCollapsed
+    layout.setDockCollapsed(collapsed)
+    dispatch({ type: 'SET_BOTTOM_PANEL_COLLAPSED', collapsed })
+  }
+
   const runtime = runtimeDisplay(isPlaying, isWasmReady())
 
   const consoleActive = !bottomPanelCollapsed && consoleOpen
@@ -115,6 +123,19 @@ export default function StatusBar({ compact = false }: StatusBarProps) {
                  text-[var(--muted)] flex-shrink-0 select-none"
     >
       <div className="flex items-center gap-4">
+        <button
+          type="button"
+          onClick={toggleDrawer}
+          title={bottomPanelCollapsed ? 'Open debug drawer' : 'Close debug drawer'}
+          aria-label={bottomPanelCollapsed ? 'Open debug drawer' : 'Close debug drawer'}
+          className="inline-flex items-center justify-center w-5 h-4 rounded
+                     text-[var(--muted)] hover:text-[var(--text)] transition-colors"
+        >
+          <ChevronUp
+            size={11}
+            className={`transition-transform ${bottomPanelCollapsed ? '' : 'rotate-180'}`}
+          />
+        </button>
         <span className={runtime.className}>
           Runtime: {runtime.text}
         </span>
@@ -125,7 +146,7 @@ export default function StatusBar({ compact = false }: StatusBarProps) {
           </>
         )}
         <span>Grid: {editorGridSize}px</span>
-        {snapToGrid && <span>Snap: ON</span>}
+        <span>Snap: {snapToGrid ? 'ON' : 'OFF'}</span>
         <span>
           Zoom: {Math.round(editorZoom * 100)}%
           {editorZoomMode === 'fit' && <span className="text-[var(--accent)]"> · FIT</span>}

@@ -2,7 +2,6 @@ import { LayoutGrid, Workflow, Code2 } from 'lucide-react'
 import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import { useLayoutTier } from '../../contexts/editor-layout-tier-context'
 import type { EditorView } from '../../types'
-import { EditorTab } from '../ui/EditorTab'
 
 const MODES: ReadonlyArray<{
   id: EditorView
@@ -14,7 +13,7 @@ const MODES: ReadonlyArray<{
   { id: 'script', label: 'Script Editor', icon: Code2 },
 ]
 
-/** Horizontal module tabs — Canvas | Logic Board | Script Editor (3 core loop). */
+/** Inline mode switcher in the top bar — Canvas | Logic Board | Script Editor. */
 export default function ModuleTabs() {
   const dispatch = useEditorDispatch()
   const mode = useEditorSelector((s) => s.mode)
@@ -26,19 +25,22 @@ export default function ModuleTabs() {
       {MODES.map(({ id, label, icon: Icon }) => {
         const active = mode === id
         return (
-          <EditorTab
+          <button
             key={id}
-            active={active}
+            type="button"
             onClick={() => dispatch({ type: 'SET_MODE', mode: id })}
             onDoubleClick={() => {
               if (id === 'canvas') dispatch({ type: 'SET_FOCUS_MODE', enabled: true })
             }}
             title={label}
-            className={`inline-flex items-center gap-2 ${iconOnly ? 'px-3 py-2.5' : 'px-4 py-2.5'}`}
+            aria-pressed={active}
+            className={`editor-module-tab inline-flex items-center gap-1.5 ${
+              active ? 'editor-module-tab--active' : ''
+            }`}
           >
             <Icon size={14} strokeWidth={active ? 2.25 : 2} aria-hidden />
             {!iconOnly && label}
-          </EditorTab>
+          </button>
         )
       })}
     </nav>

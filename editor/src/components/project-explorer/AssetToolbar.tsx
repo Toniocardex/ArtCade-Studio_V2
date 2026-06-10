@@ -12,72 +12,44 @@ export type AssetToolbarProps = Readonly<{
   onRemove: () => void
 }>
 
-function ToolbarBtn({
-  label,
+function IconBtn({
   icon,
   onClick,
   disabled,
   title,
-  className = '',
-}: Readonly<{
-  label: string
-  icon: ReactNode
-  onClick: () => void
-  disabled?: boolean
-  title?: string
-  className?: string
-}>) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      title={title ?? label}
-      className={`flex flex-col items-center justify-center gap-1 min-h-[3.25rem] px-2 py-2 rounded
-                 border border-[var(--border)] bg-[var(--panel-2)] text-[var(--muted)]
-                 hover:bg-[var(--border)] hover:text-[var(--text)] disabled:opacity-40 transition-colors
-                 ${className}`}
-    >
-      <span className="text-[var(--muted)]">{icon}</span>
-      <span className="text-[10px] leading-tight text-center font-medium">{label}</span>
-    </button>
-  )
-}
-
-function ImportBtn({
-  label,
-  hint,
-  icon,
-  onClick,
-  disabled,
   accent = false,
+  danger = false,
 }: Readonly<{
-  label: string
-  hint: string
   icon: ReactNode
   onClick: () => void
   disabled?: boolean
+  title: string
   accent?: boolean
+  danger?: boolean
 }>) {
+  let tone = 'text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--panel-2)]'
+  if (accent) tone = 'text-[var(--accent)] hover:bg-[var(--accent-bg)]'
+  if (danger) tone = 'text-[var(--danger)] hover:bg-[var(--panel-2)]'
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      title={hint}
-      className={`flex flex-col items-center justify-center gap-1 min-h-[3.5rem] px-1.5 py-2 rounded
-                 border text-center transition-colors disabled:opacity-40 ${
-        accent
-          ? 'border-[var(--accent-bd)] bg-[var(--accent-bg)] text-[var(--accent-fg-on-bg)] hover:bg-[var(--accent-bg-h)]'
-          : 'border-[var(--border-2)] bg-[var(--bg)] text-[var(--text)] hover:bg-[var(--panel-2)] hover:border-[var(--border)]'
-      }`}
+      title={title}
+      aria-label={title}
+      className={`flex items-center justify-center w-7 h-7 rounded border border-transparent
+                 hover:border-[var(--border)] disabled:opacity-40 transition-colors ${tone}`}
     >
-      <span className={accent ? 'text-[var(--accent)]' : 'text-[var(--muted)]'}>{icon}</span>
-      <span className="text-[10px] font-semibold leading-tight">{label}</span>
+      {icon}
     </button>
   )
 }
 
+function Divider() {
+  return <div className="w-px h-4 bg-[var(--border)] mx-0.5" />
+}
+
+/** Compact single-row asset actions: folder ops | import (image/audio/font) | remove. */
 export function AssetToolbar({
   disabled,
   canRemove,
@@ -89,66 +61,52 @@ export function AssetToolbar({
   onRemove,
 }: AssetToolbarProps) {
   return (
-    <div className="px-2 py-2 border-b border-[var(--border)] bg-[var(--panel-3)] space-y-2">
-      <div className="flex gap-1.5 items-stretch">
-        <ToolbarBtn
-          label="New Folder"
-          icon={<FolderPlus size={18} />}
-          onClick={onNewFolder}
-          disabled={disabled}
-          title="Create a virtual folder under Images"
-          className="flex-1 min-w-0"
-        />
-        <ToolbarBtn
-          label="Expand all"
-          icon={<Search size={18} />}
-          onClick={onFocusAssets}
-          title="Expand all asset category folders"
-          className="flex-1 min-w-0"
-        />
-        {canRemove ? (
-          <button
-            type="button"
+    <div className="flex items-center gap-0.5 px-2 py-1 border-b border-[var(--border)] bg-[var(--panel-3)]">
+      <IconBtn
+        icon={<FolderPlus size={14} />}
+        onClick={onNewFolder}
+        disabled={disabled}
+        title="New folder (under Images)"
+      />
+      <IconBtn
+        icon={<Search size={14} />}
+        onClick={onFocusAssets}
+        title="Expand all asset category folders"
+      />
+      <Divider />
+      <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--muted)] px-1 select-none">
+        Import
+      </span>
+      <IconBtn
+        icon={<ImagePlus size={14} />}
+        onClick={onImportImage}
+        disabled={disabled}
+        title="Import image (PNG, JPEG, GIF)"
+        accent
+      />
+      <IconBtn
+        icon={<Music size={14} />}
+        onClick={onImportAudio}
+        disabled={disabled}
+        title="Import audio (OGG, WAV, MP3)"
+      />
+      <IconBtn
+        icon={<Type size={14} />}
+        onClick={onImportFont}
+        disabled={disabled}
+        title="Import font (TTF, OTF)"
+      />
+      {canRemove ? (
+        <>
+          <div className="flex-1" />
+          <IconBtn
+            icon={<Trash2 size={14} />}
             onClick={onRemove}
             title="Remove selected asset (Delete)"
-            className="flex items-center justify-center min-h-[3.25rem] min-w-[2.75rem] px-2 rounded
-                       border border-[var(--border)] text-[var(--danger)]
-                       hover:bg-[var(--panel-2)] hover:border-[var(--danger)]"
-          >
-            <Trash2 size={18} />
-          </button>
-        ) : null}
-      </div>
-
-      <div className="space-y-1.5">
-        <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--muted)] px-0.5">
-          Import
-        </p>
-        <div className="grid grid-cols-3 gap-1.5 w-full">
-          <ImportBtn
-            label="Image"
-            hint="Import PNG, JPEG, or GIF"
-            icon={<ImagePlus size={16} />}
-            onClick={onImportImage}
-            disabled={disabled}
-            accent
+            danger
           />
-          <ImportBtn
-            label="Audio"
-            hint="Import OGG, WAV, or MP3"
-            icon={<Music size={16} />}
-            onClick={onImportAudio}
-            disabled={disabled}
-          />
-          <ImportBtn
-            label="Font"
-            hint="Import TTF or OTF"
-            icon={<Type size={16} />}
-            onClick={onImportFont}
-            disabled={disabled}
-          />
-        </div>
-      </div>
+        </>
+      ) : null}
     </div>
   )
 }

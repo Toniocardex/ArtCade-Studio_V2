@@ -1,7 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState, type CSSProperties, type RefObject } from 'react'
 import { EditorProvider, useEditorDispatch, useEditorSelector, useEditorStore } from './store/editor-store'
 import MenuBar            from './components/MenuBar'
-import ModuleTabs from './components/shell/ModuleTabs'
 import StatusBar          from './components/StatusBar'
 import BottomDock        from './components/shell/BottomDock'
 import LeftSidebar        from './components/LeftSidebar'
@@ -15,6 +14,7 @@ import { DialogEditorModal } from './panels/dialog/DialogEditorModal'
 import { SpritesheetStudioModal } from './panels/spritesheet-studio/SpritesheetStudioModal'
 import { triggerLayoutReflow } from './utils/layout-reflow'
 import { useProjectShortcuts } from './hooks/useProjectShortcuts'
+import { useBuildLogListener } from './hooks/useBuildLogListener'
 import { useEditorUndoRedo } from './hooks/useEditorUndoRedo'
 import { useProjectLogicBoardSync } from './hooks/useProjectLogicBoardSync'
 import { ProjectNamePersistProvider } from './components/menu-bar/project-name-context'
@@ -148,7 +148,9 @@ function CanvasView() {
               <TilesetEditorPanel />
             </Suspense>
           )}
+          {!focusMode && <BottomDock />}
         </div>
+        <StatusBar compact={focusMode} />
       </section>
 
       {showFullSidebars && (
@@ -174,17 +176,25 @@ function CanvasView() {
 function LogicBoardView() {
   return (
     <div className="flex flex-1 flex-col min-h-0 min-w-0 w-full overflow-hidden bg-[var(--logic-bg)]">
-      <LogicBoardPanel />
+      <div className="relative flex flex-1 flex-col min-h-0 min-w-0 overflow-hidden">
+        <LogicBoardPanel />
+        <BottomDock />
+      </div>
+      <StatusBar />
     </div>
   )
 }
 
 function ScriptEditorView() {
   return (
-    <div className="flex flex-1 min-h-0 overflow-hidden bg-[var(--void)]">
-      <Suspense fallback={null}>
-        <ScriptEditorPanel />
-      </Suspense>
+    <div className="flex flex-1 flex-col min-h-0 overflow-hidden bg-[var(--void)]">
+      <div className="relative flex flex-1 min-h-0 overflow-hidden">
+        <Suspense fallback={null}>
+          <ScriptEditorPanel />
+        </Suspense>
+        <BottomDock />
+      </div>
+      <StatusBar />
     </div>
   )
 }
@@ -214,7 +224,6 @@ function EditorShell({ workspaceRef }: Readonly<{ workspaceRef: RefObject<HTMLDi
         {!focusMode && (
           <header className="editor-top-chrome">
             <MenuBar />
-            <ModuleTabs />
           </header>
         )}
         {!focusMode && <EditorViewportBanner />}
@@ -231,9 +240,6 @@ function EditorShell({ workspaceRef }: Readonly<{ workspaceRef: RefObject<HTMLDi
             {mode === 'logic' && <LogicBoardView />}
             {mode === 'script' && <ScriptEditorView />}
           </div>
-
-          {!focusMode && <BottomDock />}
-          <StatusBar compact={focusMode} />
         </div>
       </EditorLayoutProvider>
     </div>
@@ -269,6 +275,9 @@ function EditorLayout() {
   useConsoleShortcut()
   useFocusModeShortcut()
   useExitFocusOnEscape()
+  // Build logs must survive view switches — BottomDock remounts per view,
+  // so the listener lives here (always mounted).
+  useBuildLogListener()
 
   useEffect(() => {
     if (mode === 'script') triggerLayoutReflow()

@@ -1,8 +1,9 @@
 import { useRef, useState, useCallback } from 'react'
-import { ChevronDown, Hexagon } from 'lucide-react'
+import { Menu, Hexagon } from 'lucide-react'
 import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import { canRedoProject, canUndoProject } from '../../store/project-history'
-import { FileMenu } from './FileMenu'
+import { FileMenuContent } from './FileMenu'
+import { ToolbarDropdown } from './ToolbarDropdown'
 import { useEditMenuActions } from './useEditMenuActions'
 import { ProjectNameField } from './ProjectNameField'
 import { BuildToolbar } from './BuildToolbar'
@@ -14,6 +15,15 @@ import { usePreviewPlayShortcut } from '../../hooks/usePreviewPlayShortcut'
 import { ViewToolbarMenu } from './ViewToolbarMenu'
 import { ToolsMenu } from './ToolsMenu'
 import { HelpMenu } from './HelpMenu'
+import ModuleTabs from '../shell/ModuleTabs'
+
+function MenuSectionLabel({ children }: Readonly<{ children: string }>) {
+  return (
+    <p className="px-4 pt-2 pb-1 text-[8px] font-bold uppercase tracking-widest text-[var(--muted)] select-none">
+      {children}
+    </p>
+  )
+}
 
 export default function MenuBar() {
   const dispatch = useEditorDispatch()
@@ -31,12 +41,9 @@ export default function MenuBar() {
 
   const { draft, setDraft, commitDraft, flushBeforePersist } = useProjectNamePersist()
 
-  const [fileMenuOpen, setFileMenuOpen] = useState(false)
-  const [editMenuOpen, setEditMenuOpen] = useState(false)
-  const fileMenuRef = useRef<HTMLDivElement>(null)
-  const editMenuRef = useRef<HTMLDivElement>(null)
-  const closeFileMenu = useCallback(() => setFileMenuOpen(false), [])
-  const closeEditMenu = useCallback(() => setEditMenuOpen(false), [])
+  const [mainMenuOpen, setMainMenuOpen] = useState(false)
+  const mainMenuRef = useRef<HTMLDivElement>(null)
+  const closeMainMenu = useCallback(() => setMainMenuOpen(false), [])
 
   const { fileItems } = useFileMenuActions({
     dispatch,
@@ -46,7 +53,7 @@ export default function MenuBar() {
     dialogs,
     openScripts,
     activeScriptPath,
-    closeMenu: closeFileMenu,
+    closeMenu: closeMainMenu,
     flushBeforePersist,
   })
 
@@ -54,7 +61,7 @@ export default function MenuBar() {
     undoEnabled,
     redoEnabled,
     dispatch,
-    closeMenu: closeEditMenu,
+    closeMenu: closeMainMenu,
   })
 
   const webExport = useWebExportStatus(projectPath, projectDirty, project?.projectName)
@@ -80,74 +87,58 @@ export default function MenuBar() {
   return (
     <header className="editor-toolbar flex items-center justify-between flex-shrink-0 z-50 select-none">
       <div className="editor-toolbar-cluster editor-toolbar-workspace-start">
-        <div className="hidden min-w-0 items-center gap-2 pr-2 text-[var(--primary)] lg:flex">
-          <span className="flex h-7 w-7 items-center justify-center rounded-[var(--radius)] border border-[var(--outline)] bg-[var(--surface-3)]">
-            <Hexagon size={14} />
-          </span>
-          <span className="truncate text-[12px] font-semibold">ArtCade Studio</span>
-        </div>
-        <div ref={fileMenuRef} className="relative">
+        <div ref={mainMenuRef} className="relative">
           <button
             type="button"
-            onClick={() => {
-              setEditMenuOpen(false)
-              setFileMenuOpen((v) => !v)
-            }}
-            className={`editor-toolbar-btn border ${
-              fileMenuOpen
+            onClick={() => setMainMenuOpen((v) => !v)}
+            title="Menu (File / Edit)"
+            aria-label="Main menu"
+            aria-expanded={mainMenuOpen}
+            className={`editor-toolbar-btn border !px-2.5 ${
+              mainMenuOpen
                 ? 'border-[var(--border-2)] bg-[var(--border)] text-[var(--text)]'
                 : 'border-[var(--border)] bg-[var(--panel-3)] text-[var(--muted)] hover:text-[var(--text)] hover:border-[var(--border-2)]'
             }`}
           >
-            File
-            <ChevronDown size={10} className={`transition-transform ${fileMenuOpen ? 'rotate-180' : ''}`} />
+            <Menu size={14} />
           </button>
-          <FileMenu
-            items={fileItems}
-            open={fileMenuOpen}
-            anchorRef={fileMenuRef}
-            onClose={closeFileMenu}
-          />
+          <ToolbarDropdown open={mainMenuOpen} anchorRef={mainMenuRef} onClose={closeMainMenu}>
+            <MenuSectionLabel>File</MenuSectionLabel>
+            <FileMenuContent items={fileItems} />
+            {project && (
+              <>
+                <div className="my-1 border-t border-[var(--outline)]" />
+                <MenuSectionLabel>Edit</MenuSectionLabel>
+                <FileMenuContent items={editItems} />
+              </>
+            )}
+          </ToolbarDropdown>
         </div>
-        {project && (
-          <div ref={editMenuRef} className="relative">
-            <button
-              type="button"
-              onClick={() => {
-                setFileMenuOpen(false)
-                setEditMenuOpen((v) => !v)
-              }}
-              className={`editor-toolbar-btn border ${
-                editMenuOpen
-                  ? 'border-[var(--border-2)] bg-[var(--border)] text-[var(--text)]'
-                  : 'border-[var(--border)] bg-[var(--panel-3)] text-[var(--muted)] hover:text-[var(--text)] hover:border-[var(--border-2)]'
-              }`}
-            >
-              Edit
-              <ChevronDown size={10} className={`transition-transform ${editMenuOpen ? 'rotate-180' : ''}`} />
-            </button>
-            <FileMenu
-              items={editItems}
-              open={editMenuOpen}
-              anchorRef={editMenuRef}
-              onClose={closeEditMenu}
-            />
-          </div>
-        )}
-        {project && (
-          <div className="flex items-center gap-2 min-w-0">
-            <ProjectNameField
-              value={draft}
-              committedName={project.projectName}
-              onChange={setDraft}
-              onCommit={commitDraft}
-            />
-            <span className="text-[10px] font-mono text-[var(--muted)] shrink-0">
-              v{project.version ?? '1.0.0'}
-            </span>
-          </div>
-        )}
+
+        <span
+          className="hidden lg:flex h-7 w-7 items-center justify-center rounded-[var(--radius)]
+                     border border-[var(--outline)] bg-[var(--surface-3)] text-[var(--primary)]"
+          title="ArtCade Studio"
+        >
+          <Hexagon size={14} />
+        </span>
+
+        <ModuleTabs />
       </div>
+
+      {project && (
+        <div className="flex items-center justify-center gap-2 min-w-0 flex-1">
+          <ProjectNameField
+            value={draft}
+            committedName={project.projectName}
+            onChange={setDraft}
+            onCommit={commitDraft}
+          />
+          <span className="text-[10px] font-mono text-[var(--muted)] shrink-0">
+            v{project.version ?? '1.0.0'}
+          </span>
+        </div>
+      )}
 
       <div className="editor-toolbar-actions">
         <BuildToolbar
