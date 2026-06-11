@@ -30,6 +30,7 @@ import { InspectorDrawerToggle } from '../contexts/inspector-drawer-context'
 import { useRuntimeReadiness } from '../hooks/useRuntimeReadiness'
 import { useEditorCanvasViewport } from '../hooks/useEditorCanvasViewport'
 import { useEditorFitZoom } from '../hooks/useEditorFitZoom'
+import { getRuntimeCanvas } from '../utils/runtime-canvas'
 
 type TransformSnapshot = {
   entityId: number
@@ -85,6 +86,7 @@ export default function PreviewPanel({
   const editorGuidesVisible = useEditorSelector((s) => s.editorGuidesVisible)
 
   const canvasRef           = useRef<HTMLCanvasElement>(null)
+  const canvasHostRef       = useRef<HTMLDivElement>(null)
   const scrollRef           = useRef<HTMLDivElement>(null)
   const sceneIdRef          = useRef<string>('')
   const projectRef          = useRef(project)
@@ -137,6 +139,20 @@ export default function PreviewPanel({
       entityId, x: nextX, y: nextY, rotation, scaleX, scaleY,
     })
   }
+
+  // Adopt the singleton runtime canvas (see utils/runtime-canvas.ts). The
+  // engine's GL context is bound to that one element forever, so the panel
+  // re-parents it instead of letting React mint a new <canvas> per mount —
+  // a fresh element would never receive a frame.
+  useLayoutEffect(() => {
+    const canvas = getRuntimeCanvas()
+    canvasRef.current = canvas
+    canvasHostRef.current?.appendChild(canvas)
+    return () => {
+      canvas.remove()
+      if (canvasRef.current === canvas) canvasRef.current = null
+    }
+  }, [])
 
   // Mount-only: wasm-bridge onReady also calls syncRuntimeUiFlags; do not run
   // every render (causes "Maximum update depth exceeded").
@@ -318,6 +334,36 @@ export default function PreviewPanel({
       : 'var(--bg)'
   })()
 
+  // The runtime canvas is a persistent DOM node React does not manage, so
+  // its presentation attributes are applied imperatively. Assigning
+  // width/height clears the framebuffer even with the same value — guard.
+  useLayoutEffect(() => {
+    const canvas = getRuntimeCanvas()
+    if (canvas.width  !== res.x) canvas.width  = res.x
+    if (canvas.height !== res.y) canvas.height = res.y
+    Object.assign(canvas.style, {
+      display:         'block',
+      position:        'absolute',
+      top:             `${canvasDY}px`,
+      left:            `${canvasDX}px`,
+      width:           `${res.x}px`,
+      height:          `${res.y}px`,
+      transform:       `scale(${zoom})`,
+      transformOrigin: '0 0',
+      background:      bgColor,
+      pointerEvents:   panActive ? 'none' : 'auto',
+    })
+  }, [res.x, res.y, canvasDX, canvasDY, zoom, bgColor, panActive])
+
+  // Suppress the browser context menu during play (right click is game input).
+  useEffect(() => {
+    if (!isPlaying) return
+    const canvas = getRuntimeCanvas()
+    const block = (e: Event) => e.preventDefault()
+    canvas.addEventListener('contextmenu', block)
+    return () => canvas.removeEventListener('contextmenu', block)
+  }, [isPlaying])
+
   return (
     <div className="editor-preview-island h-full flex flex-col bg-[var(--bg)]">
       {focusMode ? (
@@ -362,25 +408,10 @@ export default function PreviewPanel({
                 : '0 25px 50px -12px rgb(0 0 0 / 0.5)',
             }}
           >
-            <canvas
-              ref={canvasRef}
-              id="artcade-canvas"
-              width={res.x}
-              height={res.y}
-              onContextMenu={isPlaying ? (e) => e.preventDefault() : undefined}
-              style={{
-                display:         'block',
-                position:        'absolute',
-                top:             `${canvasDY}px`,
-                left:            `${canvasDX}px`,
-                width:           `${res.x}px`,
-                height:          `${res.y}px`,
-                transform:       `scale(${zoom})`,
-                transformOrigin: '0 0',
-                background:      bgColor,
-                pointerEvents:   panActive ? 'none' : 'auto',
-              }}
-            />
+            {/* Host for the persistent runtime canvas (adopted in effect above).
+                display:contents keeps .canvas-scene-frame as the canvas's
+                containing block, exactly like the former JSX <canvas>. */}
+            <div ref={canvasHostRef} style={{ display: 'contents' }} />
             {showCameraFrame && (
               <CameraFrameOverlay
                 worldSize={res}
