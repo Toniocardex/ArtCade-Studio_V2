@@ -296,6 +296,41 @@ describe('RuntimeSyncService', () => {
     expect(bridge.editorLoadProject).not.toHaveBeenCalled()
   })
 
+  it('exitPlaySession preserves engine readiness and restores edit-mode guides', () => {
+    const p = makeProject()
+    runtimeSync.notifyEngineReady()
+    runtimeSync.syncEditorChrome({
+      guides: true,
+      gridSize: 32,
+      snapToGrid: false,
+      isPlaying: false,
+    })
+    runtimeSync.syncEditorChrome({
+      guides: true,
+      gridSize: 32,
+      snapToGrid: false,
+      isPlaying: true,
+    })
+    expect(bridge.editorSetGuidesEnabled).toHaveBeenLastCalledWith(false)
+
+    expect(runtimeSync.exitPlaySession(
+      p as never,
+      'a',
+      'function tick(dt) end',
+      {},
+      '/tmp/x',
+    ).ok).toBe(true)
+    expect(runtimeSync.isEngineReady()).toBe(true)
+
+    runtimeSync.syncEditorChrome({
+      guides: true,
+      gridSize: 32,
+      snapToGrid: false,
+      isPlaying: false,
+    })
+    expect(bridge.editorSetGuidesEnabled).toHaveBeenLastCalledWith(true)
+  })
+
   it('enterPlaySession calls atomic editor_enter_play_mode', () => {
     const p = makeProject()
     const lua = 'function tick(dt) end'

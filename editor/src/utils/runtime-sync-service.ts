@@ -201,8 +201,7 @@ class RuntimeSyncServiceImpl {
     }
   }
 
-  /** Forget every cached "last sent" value. Use on project open / runtime reload. */
-  reset(): void {
+  private clearSyncCache(): void {
     this.lastLoadKey   = null
     this.lastMainLua   = null
     this.lastDialogsKey = null
@@ -216,6 +215,11 @@ class RuntimeSyncServiceImpl {
     this.lastSnapToGrid = null
     this.lastTransform.clear()
     this.lastAssetSceneId = null
+  }
+
+  /** Forget every cached "last sent" value. Use on project open / runtime reload. */
+  reset(): void {
+    this.clearSyncCache()
     this.engineReady = false
     this.bootProjectSynced = false
     for (const cb of this.engineReadyListeners) cb(false)
@@ -379,7 +383,10 @@ class RuntimeSyncServiceImpl {
       if (code !== EditorApiResult.Ok) {
         return { ok: false, code, message: messageForEditorApiCode(code) }
       }
-      this.reset()
+      // STOP reloads project state inside the same live engine. Invalidate
+      // sent-value caches, but preserve engine readiness so React can restore
+      // edit-mode chrome (grid/guides) on the isPlaying transition.
+      this.clearSyncCache()
       this.lastMode = 0
       this.lastMainLua = mainLua
       this.syncDialogs(dialogs ?? {})
