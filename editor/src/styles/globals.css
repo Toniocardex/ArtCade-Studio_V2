@@ -1,0 +1,86 @@
+/* <dialog> top layer uses UA CanvasText (often black), not body theme tokens. */
+dialog.artcade-dialog {
+  color: var(--text);
+  background: transparent;
+}
+
+/* ---------------------------------------------------------------------------
+   Globals
+   --------------------------------------------------------------------------- */
+
+* { box-sizing: border-box; }
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-app);
+  color: var(--text);
+  /* UI default = IBM Plex Sans. Technical/numeric data opts into JetBrains
+     Mono via the .font-mono utility or the [data-mono] attribute. */
+  font-family: var(--font-ui);
+  font-feature-settings: 'cv02', 'cv03', 'cv11';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Tech-data font utility. Inputs that hold coordinates, dimensions, FPS,
+   draw calls, console logs, code snippets all use this. */
+.font-mono,
+code, kbd, samp, pre,
+input[type="number"],
+input[data-mono],
+[data-mono] {
+  font-family: var(--font-mono);
+  font-feature-settings: 'zero', 'ss01';
+}
+
+/* IBM Plex Sans utility - explicit opt-in where a parent forced mono. */
+.font-ui {
+  font-family: var(--font-ui);
+}
+
+/* ---------------------------------------------------------------------------
+   Scrollbars - thin, opaque, no rounded corners
+   --------------------------------------------------------------------------- */
+
+::-webkit-scrollbar       { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 0; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+/* Preview canvas affordance - slightly thicker, still squared. */
+.canvas-scrollarea::-webkit-scrollbar       { width: 12px; height: 12px; }
+.canvas-scrollarea::-webkit-scrollbar-track { background: var(--panel); }
+.canvas-scrollarea::-webkit-scrollbar-thumb {
+  background:    var(--border-2);
+  border-radius: 0;
+  border:        2px solid var(--panel);
+}
+.canvas-scrollarea::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+.canvas-scrollarea::-webkit-scrollbar-corner     { background: var(--panel); }
+
+/* Sidebar panels: reserve gutter so thumbs do not sit under tab chrome. */
+.panel-scroll {
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
+}
+
+.asset-flash-msg {
+  animation: asset-flash-fade 3s forwards;
+}
+
+@keyframes asset-flash-fade {
+  0%, 80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes boot-bar-slide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}
+
+.animate-boot-bar {
+  animation: boot-bar-slide 1.2s ease-in-out infinite;
+}

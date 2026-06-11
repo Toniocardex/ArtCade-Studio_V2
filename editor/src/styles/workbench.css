@@ -1,0 +1,63 @@
+/* ---------------------------------------------------------------------------
+   Premium workbench skin
+   --------------------------------------------------------------------------- */
+
+.editor-shell {
+  background: var(--shell-bg);
+}
+
+.editor-chrome-panel,
+[data-panel="bottom-dock"],
+[data-panel="inspector"],
+[data-panel="logic-board"],
+[data-panel="logic-events-sidebar"],
+[data-panel="logic-inspector"],
+[data-panel="project-explorer"] {
+  background: var(--panel-bg);
+  box-shadow: var(--panel-shadow);
+}
+
+.editor-shell select,
+.editor-shell input:not([type="checkbox"]):not([type="radio"]),
+.editor-shell textarea {
+  background: var(--input-bg);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius);
+  color: var(--primary);
+}
+
+/* Chromium honours background/color on <option> inside the native popup;
+   color-scheme above handles the popup chrome itself. */
+.editor-shell select option,
+.editor-shell select optgroup {
+  background-color: var(--surface-2);
+  color: var(--primary);
+}
+
+.editor-shell select:focus,
+.editor-shell input:not([type="checkbox"]):not([type="radio"]):focus,
+.editor-shell textarea:focus {
+  outline: none;
+  border-color: var(--outline-focus);
+  box-shadow: var(--focus-ring);
+}
+
+.editor-shell button {
+  letter-spacing: 0;
+}
+
+.canvas-scrollarea {
+  background-color: var(--canvas-workspace-bg);
+  background-image:
+    var(--canvas-workspace-glow),
+    linear-gradient(var(--grid-secondary) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-secondary) 1px, transparent 1px),
+    linear-gradient(var(--grid-primary) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-primary) 1px, transparent 1px);
+  background-size: auto, 16px 16px, 16px 16px, 64px 64px, 64px 64px;
+}
+
+.editor-preview-island {
+  background: var(--preview-island-bg);
+  box-shadow: var(--preview-island-shadow);
+}

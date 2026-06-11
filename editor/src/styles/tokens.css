@@ -1,0 +1,289 @@
+/* ===========================================================================
+   ArtCade Studio - Editor UI
+   See docs/EDITOR_UI_DESIGN_SYSTEM.md
+
+   dark:  Dark Premium Anthracite - production authoring (default)
+   light: Light Premium - bright production authoring
+
+   PreviewPanel game pixels are C++/WASM - not themed here.
+   ========================================================================== */
+
+:root,
+[data-theme="dark"] {
+  /* Browser-rendered widgets (select popups, scrollbars, checkboxes) must
+     follow the app theme, not the OS preference — without this a light-mode
+     OS paints native select popups white under the dark UI. */
+  color-scheme: dark;
+
+  /* Dark Graphite (mockup v2) - VS Code-like neutral grays + blue accent. */
+  --bg-app:                 #1E1E1E;
+  --bg-window:              #252526;
+  --void:                   #1E1E1E;
+  --logic-bg:               #1E1E1E;
+  --surface:                #252526;
+  --surface-2:              #2D2D30;
+  --surface-3:              #1E1E1E;
+  --surface-hover:          #2F3136;
+  --surface-selected:       #37373D;
+  --surface-selected-strong:#3D4046;
+
+  /* Borders */
+  --outline:                #3C3C3C;
+  --outline-subtle:         rgb(60 60 60 / 0.62);
+  --outline-strong:         #4A4A4A;
+  --outline-focus:          #3B82F6;
+  --outline-faint:          rgb(60 60 60 / 0.45);
+  --chrome-hairline:        #3C3C3C;
+  --chrome-shadow:          rgb(0 0 0 / 0.42);
+  --shell-bg:
+    radial-gradient(circle at 50% -20%, rgb(255 255 255 / 0.04), transparent 34%),
+    linear-gradient(180deg, rgb(255 255 255 / 0.022), transparent 120px),
+    var(--bg-app);
+  --chrome-bg:
+    linear-gradient(180deg, rgb(255 255 255 / 0.02), transparent 58%),
+    var(--surface-2);
+  --chrome-top-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.05),
+    0 16px 32px rgb(0 0 0 / 0.3);
+  --module-tabs-bg:
+    linear-gradient(180deg, rgb(255 255 255 / 0.015), transparent),
+    var(--bg-window);
+  --rail-bg:
+    linear-gradient(180deg, rgb(255 255 255 / 0.025), transparent 42%),
+    linear-gradient(180deg, var(--bg-window), var(--bg-app));
+  --ruler-corner-bg:
+    linear-gradient(180deg, rgb(255 255 255 / 0.025), transparent),
+    var(--bg-window);
+  --ruler-bg:
+    linear-gradient(180deg, rgb(255 255 255 / 0.018), transparent),
+    var(--bg-window);
+  --panel-bg:
+    linear-gradient(180deg, rgb(255 255 255 / 0.02), transparent 180px),
+    var(--surface);
+  --panel-shadow:
+    inset 1px 0 0 rgb(255 255 255 / 0.018),
+    inset -1px 0 0 rgb(0 0 0 / 0.28);
+  --panel-titlebar-bg:
+    linear-gradient(180deg, rgb(255 255 255 / 0.025), transparent),
+    var(--surface);
+  --panel-header-bg:
+    linear-gradient(180deg, rgb(255 255 255 / 0.03), transparent),
+    var(--surface);
+  --control-bg:
+    linear-gradient(180deg, rgb(255 255 255 / 0.035), rgb(255 255 255 / 0.012)),
+    var(--surface-3);
+  --control-bg-hover:
+    linear-gradient(180deg, rgb(255 255 255 / 0.055), rgb(255 255 255 / 0.018)),
+    var(--surface);
+  --control-border:         var(--outline-faint);
+  --control-hover-border:   rgb(204 204 204 / 0.28);
+  --control-shadow:         inset 0 1px 0 rgb(255 255 255 / 0.035);
+  --control-active-bg:
+    linear-gradient(180deg, rgb(var(--accent-rgb) / 0.24), rgb(var(--accent-rgb) / 0.12));
+  --control-active-border:  rgb(var(--accent-rgb) / 0.85);
+  --control-active-fg:      var(--primary);
+  --control-active-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.08),
+    0 8px 18px rgb(0 0 0 / 0.24);
+  --input-bg:               rgb(0 0 0 / 0.22);
+  --focus-ring:             0 0 0 1px rgb(var(--accent-rgb) / 0.2);
+  --canvas-workspace-bg:    #1E1E1E;
+  --canvas-workspace-glow:
+    radial-gradient(circle at 50% 0%, rgb(255 255 255 / 0.025), transparent 38%);
+  --preview-island-bg:
+    linear-gradient(180deg, rgb(255 255 255 / 0.018), transparent 180px),
+    var(--bg-window);
+  --preview-island-shadow:  inset 0 1px 0 rgb(255 255 255 / 0.035);
+  --focus-toolbar-bg:
+    linear-gradient(180deg, rgb(255 255 255 / 0.04), transparent),
+    var(--bg-window);
+
+  /* Text */
+  --primary:                #CCCCCC;
+  --primary-soft:           #A8ADB5;
+  --muted:                  #858585;
+  --text-on-selected:       #FFFFFF;
+
+  /* Accent - blue (mockup) */
+  --accent:                 #3B82F6;
+  --accent-hover:           #60A5FA;
+  --accent-muted:           rgba(59, 130, 246, 0.16);
+
+  /* Status */
+  --info:                   #75BEFF;
+  --warn:                   #CCA700;
+  --danger:                 #F48771;
+  --danger-2:               #E0634D;
+  --success:                #4EC9B0;
+  --purple:                 var(--accent);
+
+  /* Logic Board */
+  --logic-card:             #252526;
+  --logic-block:            #2D2D30;
+
+  /* Canvas chrome */
+  --grid-primary:           #26262A;
+  --grid-secondary:         rgb(38 38 42 / 0.5);
+  --camera-frame:           #4EC9B0;
+
+  /* Shared component aliases. */
+  --tab-active-border:      var(--accent);
+
+  /* Aliases (components) */
+  --bg:          var(--void);
+  --panel:       var(--surface);
+  --panel-2:     var(--surface-2);
+  --panel-3:     var(--surface-3);
+  --border:      var(--outline);
+  --border-2:    var(--outline-strong);
+  --text:        var(--primary);
+  --text-2:      var(--primary-soft);
+  --accent-2:    var(--accent-hover);
+  --accent-bd:   var(--outline-focus);
+  --accent-bg:   var(--surface-selected-strong);
+  --accent-bg-h: var(--surface-hover);
+  --accent-fg-on-bg: var(--text-on-selected);
+  --yellow:      var(--warn);
+  --green-2:     var(--success);
+  --blue:        var(--info);
+  --pill-then-bg: var(--logic-block);
+  --pill-then-bd: var(--outline);
+  --accent-rgb:   59 130 246;
+  --accent-2-rgb: 96 165 250;
+  --bg-rgb:       30 30 30;
+  --border-rgb:   60 60 60;
+  --muted-rgb:    133 133 133;
+  --warn-rgb:     204 167 0;
+  --danger-rgb:   244 135 113;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --bg-app:                 #FAFBFC;
+  --bg-window:              #F3F5F7;
+  --void:                   #FAFBFC;
+  --logic-bg:               #F3F5F7;
+  --surface:                #FFFFFF;
+  --surface-2:              #F7F9FB;
+  --surface-3:              #F3F5F7;
+  --surface-hover:          #EEF4FF;
+  --surface-selected:       rgb(219 234 254 / 0.72);
+  --surface-selected-strong:rgb(59 130 246 / 0.18);
+
+  --outline:                #E5E7EB;
+  --outline-subtle:         rgb(229 231 235 / 0.78);
+  --outline-strong:         #D5DAE1;
+  --outline-focus:          #3B82F6;
+  --outline-faint:          rgb(100 116 139 / 0.18);
+  --chrome-hairline:        rgb(31 41 55 / 0.09);
+  --chrome-shadow:          rgb(15 23 42 / 0.12);
+  --shell-bg:
+    radial-gradient(circle at 50% -18%, rgb(59 130 246 / 0.08), transparent 34%),
+    linear-gradient(180deg, #FFFFFF 0%, var(--bg-app) 46%, #F8FAFC 100%);
+  --chrome-bg:              linear-gradient(180deg, #FFFFFF 0%, var(--bg-window) 100%);
+  --chrome-top-shadow:
+    inset 0 1px 0 #FFFFFF,
+    0 12px 28px rgb(15 23 42 / 0.08);
+  --module-tabs-bg:         linear-gradient(180deg, #FFFFFF, var(--bg-window));
+  --rail-bg:                linear-gradient(180deg, #FFFFFF, var(--bg-window));
+  --ruler-corner-bg:        linear-gradient(180deg, #FFFFFF, var(--bg-window));
+  --ruler-bg:               linear-gradient(180deg, #FFFFFF, var(--bg-window));
+  --panel-bg:
+    linear-gradient(180deg, #FFFFFF, transparent 180px),
+    var(--surface);
+  --panel-shadow:
+    inset 1px 0 0 #FFFFFF,
+    inset -1px 0 0 rgb(15 23 42 / 0.06);
+  --panel-titlebar-bg:      linear-gradient(180deg, #FFFFFF, var(--surface));
+  --panel-header-bg:        linear-gradient(180deg, #FFFFFF, var(--surface));
+  --control-bg:             #FFFFFF;
+  --control-bg-hover:       var(--surface-hover);
+  --control-border:         var(--outline);
+  --control-hover-border:   rgb(59 130 246 / 0.22);
+  --control-shadow:         inset 0 1px 0 #FFFFFF;
+  --control-active-bg:
+    linear-gradient(180deg, #DBEAFE, rgb(219 234 254 / 0.72));
+  --control-active-border:  rgb(59 130 246 / 0.42);
+  --control-active-fg:      var(--accent);
+  --control-active-shadow:
+    inset 0 1px 0 #FFFFFF,
+    0 8px 18px rgb(59 130 246 / 0.12);
+  --input-bg:               #FFFFFF;
+  --focus-ring:             0 0 0 1px rgb(var(--accent-rgb) / 0.2);
+  --canvas-workspace-bg:    #FFFFFF;
+  --canvas-workspace-glow:
+    radial-gradient(circle at 50% 0%, rgb(59 130 246 / 0.04), transparent 38%);
+  --preview-island-bg:
+    linear-gradient(180deg, rgb(59 130 246 / 0.035), transparent 180px),
+    var(--bg-window);
+  --preview-island-shadow:  inset 0 1px 0 #FFFFFF;
+  --focus-toolbar-bg:       linear-gradient(180deg, #FFFFFF, var(--bg-window));
+
+  --primary:                #1F2937;
+  --primary-soft:           #64748B;
+  --muted:                  #64748B;
+  --text-on-selected:       #1F2937;
+
+  --accent:                 #3B82F6;
+  --accent-hover:           #2563EB;
+  --accent-muted:           #DBEAFE;
+
+  --info:                   #3B82F6;
+  --warn:                   #F59E0B;
+  --danger:                 #DC2626;
+  --danger-2:               #B91C1C;
+  --success:                #16A34A;
+  --purple:                 var(--accent);
+
+  --logic-card:             #FFFFFF;
+  --logic-block:            #F7F9FB;
+
+  --grid-primary:           #E5E7EB;
+  --grid-secondary:         rgb(229 231 235 / 0.55);
+  --camera-frame:           #3B82F6;
+
+  --bg:          var(--void);
+  --panel:       var(--surface);
+  --panel-2:     var(--surface-2);
+  --panel-3:     var(--surface-3);
+  --border:      var(--outline);
+  --border-2:    var(--outline-strong);
+  --text:        var(--primary);
+  --text-2:      var(--primary-soft);
+  --accent-2:    #DBEAFE;
+  --accent-bd:   var(--accent);
+  --accent-bg:   rgb(219 234 254 / 0.8);
+  --accent-bg-h: #DBEAFE;
+  --accent-fg-on-bg: var(--primary);
+  --yellow:      var(--warn);
+  --green-2:     var(--success);
+  --blue:        var(--accent);
+  --pill-then-bg: var(--surface-3);
+  --pill-then-bd: var(--outline);
+  --accent-rgb:   59 130 246;
+  --accent-2-rgb: 219 234 254;
+  --bg-rgb:       250 251 252;
+  --border-rgb:   229 231 235;
+  --muted-rgb:    100 116 139;
+  --warn-rgb:     245 158 11;
+  --danger-rgb:   220 38 38;
+}
+
+:root {
+  --editor-workspace-inset: 0.75rem;
+  --editor-toolbar-gap: 0.5rem;
+  --editor-toolbar-build-gap: 0.625rem;
+  --editor-toolbar-menu-gap: 0.375rem;
+  --editor-toolbar-section-gap: 0.75rem;
+  --editor-left-w-default:  280px;
+  --editor-right-w-default: 320px;
+  --editor-dock-h-default:  300px;
+
+  --radius:    4px;
+  --radius-sm: 3px;
+  --radius-md: 4px;
+
+  --font-ui:   'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Courier New', Courier, monospace;
+}

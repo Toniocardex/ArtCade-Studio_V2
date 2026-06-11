@@ -1,0 +1,11 @@
+[data-logic-rule-editor] {
+  border-color: var(--outline);
+  background: var(--surface);
+}
+
+[data-logic-section] {
+  background: var(--logic-card);
+  border: 1px solid var(--outline);
+  border-radius: var(--radius-md);
+  padding: 0.65rem;
+}
