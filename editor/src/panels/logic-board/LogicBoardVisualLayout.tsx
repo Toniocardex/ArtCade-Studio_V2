@@ -1,31 +1,37 @@
-import type { Dispatch } from 'react'
+// ---------------------------------------------------------------------------
+// LogicBoardVisualLayout — single-surface rules editor.
+//
+// One centered column: rulesheet toolbar → rules list (accordion cards that
+// expand into the full When/If/Then editor in place) → variables. New rules
+// come from a categorized trigger modal; rulesheet creation lives in the
+// empty state and in the "New rulesheet" modal.
+// ---------------------------------------------------------------------------
+
+import { useEffect, useRef, useState, type Dispatch } from 'react'
+import { Plus, Trash2, X } from 'lucide-react'
 import type { Action } from '../../store/editor-store'
 import type { ProjectDoc } from '../../types'
-import type { LogicBoard, LogicEvent } from '../../types/logic-board'
-import ResizeHandle from '../../components/ResizeHandle'
-import { usePersistedWidth } from '../../hooks/usePersistedWidth'
-import { RulesheetControls } from './RulesheetControls'
-import { LogicEventsSidebar } from './LogicEventsSidebar'
-import EventEditor from './EventEditor'
+import type { LogicBoard, LogicEvent, LogicTriggerType } from '../../types/logic-board'
 import { logicBoardLabel, logicBoardsForScene } from '../../utils/project'
-import type { NewTriggerPick } from './picker-constants'
+import { allowedTriggersForTarget } from '../../utils/logic-board/trigger-compatibility'
+import { createLogicEvent } from '../../utils/logic-board/factory'
+import { defaultTrigger } from './options'
+import { scrollLogicEventRowIntoViewSoon } from '../../utils/logic-board/logic-event-list-ui'
+import { AddRuleModal } from './AddRuleModal'
+import { RulesheetCreateForm, type RulesheetCreateFormProps } from './RulesheetCreateForm'
+import { LogicRulesList } from './LogicRulesList'
+import { LogicVariablesPanel } from './LogicVariablesPanel'
 
 export type LogicBoardVisualLayoutProps = Readonly<{
   project: ProjectDoc
   sceneId: string
   board: LogicBoard | null
-  focusedEvent: LogicEvent | null
   focusedEventId: string | null
   setFocusedEventId: (id: string | null) => void
-  setSelectedBoardId: (id: string) => void
-  newTrigger: NewTriggerPick
-  setNewTrigger: (t: NewTriggerPick) => void
   sceneEntities: ReturnType<typeof import('../../utils/project').getEntitiesInScene>
   selectedEntityId: number | null
   boardForSelection: LogicBoard | undefined
   canCreateForSelection: boolean
-  advancedOpen: boolean
-  setAdvancedOpen: (v: boolean) => void
   classes: string[]
   newClass: string
   setNewClass: (v: string) => void
@@ -40,23 +46,71 @@ export type LogicBoardVisualLayoutProps = Readonly<{
   onMoveEvent: (board: LogicBoard, eventId: string, toIndex: number) => void
 }>
 
+function NewRulesheetModal({
+  onClose,
+  ...form
+}: Readonly<RulesheetCreateFormProps & { onClose: () => void }>) {
+  const dialogRef = useRef<HTMLDialogElement>(null)
+
+  useEffect(() => {
+    const el = dialogRef.current
+    if (el && !el.open) el.showModal()
+  }, [])
+
+  useEffect(() => {
+    const el = dialogRef.current
+    if (!el) return
+    const onCancel = (e: Event) => {
+      e.preventDefault()
+      onClose()
+    }
+    el.addEventListener('cancel', onCancel)
+    return () => el.removeEventListener('cancel', onCancel)
+  }, [onClose])
+
+  return (
+    <dialog
+      ref={dialogRef}
+      aria-labelledby="new-rulesheet-title"
+      aria-modal
+      className="artcade-dialog fixed inset-0 z-[210] m-0 flex h-full max-h-full w-full max-w-full items-center justify-center border-0 bg-transparent p-6 backdrop:bg-black/60"
+      onClick={(e) => {
+        if (e.target === dialogRef.current) onClose()
+      }}
+    >
+      <div className="w-full max-w-lg overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--panel)] text-[var(--text)] shadow-2xl">
+        <header className="flex items-center justify-between gap-3 border-b border-[var(--border)] bg-[var(--panel-2)] px-4 py-3">
+          <h2 id="new-rulesheet-title" className="text-sm font-semibold">
+            New rulesheet
+          </h2>
+          <button
+            type="button"
+            aria-label="Close"
+            onClick={onClose}
+            className="rounded p-1 text-[var(--muted)] hover:bg-[var(--panel-3)] hover:text-[var(--text)]"
+          >
+            <X size={16} />
+          </button>
+        </header>
+        <div className="px-4 py-4">
+          <RulesheetCreateForm {...form} />
+        </div>
+      </div>
+    </dialog>
+  )
+}
+
 export function LogicBoardVisualLayout(props: LogicBoardVisualLayoutProps) {
   const {
     project,
     sceneId,
     board,
-    focusedEvent,
     focusedEventId,
     setFocusedEventId,
-    setSelectedBoardId,
-    newTrigger,
-    setNewTrigger,
     sceneEntities,
     selectedEntityId,
     boardForSelection,
     canCreateForSelection,
-    advancedOpen,
-    setAdvancedOpen,
     classes,
     newClass,
     setNewClass,
@@ -71,110 +125,147 @@ export function LogicBoardVisualLayout(props: LogicBoardVisualLayoutProps) {
     onMoveEvent,
   } = props
 
-  const [leftW, setLeftW] = usePersistedWidth('artcade.logic-left-w-v3', 280)
-  const sceneBoards = logicBoardsForScene(project, sceneId)
+  const [addRuleOpen, setAddRuleOpen] = useState(false)
+  const [newRulesheetOpen, setNewRulesheetOpen] = useState(false)
+  const sceneBoardCount = logicBoardsForScene(project, sceneId).length
+
+  const createFormProps: RulesheetCreateFormProps = {
+    project,
+    sceneEntities,
+    selectedEntityId,
+    boardForSelection,
+    canCreateForSelection,
+    classes,
+    newClass,
+    setNewClass,
+    onSelectEntity,
+    onCreateForEntity: (entityId) => {
+      onCreateForEntity(entityId)
+      setNewRulesheetOpen(false)
+    },
+    onCreateClassRulesheet: () => {
+      onCreateClassRulesheet()
+      setNewRulesheetOpen(false)
+    },
+  }
+
+  const addRule = (type: LogicTriggerType) => {
+    if (!board) return
+    const ev = createLogicEvent(defaultTrigger(type))
+    dispatch({ type: 'LOGIC_ADD_EVENT', boardId: board.boardId, event: ev })
+    setFocusedEventId(ev.id)
+    setAddRuleOpen(false)
+    scrollLogicEventRowIntoViewSoon(ev.id)
+  }
 
   return (
-    <div className="flex flex-1 min-h-0 overflow-hidden bg-[var(--logic-bg)]">
-      <aside
-        style={{ width: leftW }}
-        className="shrink-0 border-r border-[var(--outline)] flex flex-col min-h-0 overflow-hidden bg-[var(--surface)]"
-      >
-        <RulesheetControls
-          project={project}
-          board={board}
-          sceneEntities={sceneEntities}
-          selectedEntityId={selectedEntityId}
-          boardForSelection={boardForSelection}
-          canCreateForSelection={canCreateForSelection}
-          advancedOpen={advancedOpen}
-          setAdvancedOpen={setAdvancedOpen}
-          classes={classes}
-          newClass={newClass}
-          setNewClass={setNewClass}
-          onSelectEntity={onSelectEntity}
-          onCreateForEntity={onCreateForEntity}
-          onCreateClassRulesheet={onCreateClassRulesheet}
-          onDeleteBoard={onDeleteBoard}
-        />
-        <LogicEventsSidebar
-          project={project}
-          board={board}
-          sceneBoards={sceneBoards}
-          focusedEventId={focusedEventId}
-          setFocusedEventId={setFocusedEventId}
-          setSelectedBoardId={setSelectedBoardId}
-          newTrigger={newTrigger}
-          setNewTrigger={setNewTrigger}
-          dispatch={dispatch}
-          onCloneEvent={onCloneEvent}
-          onDeleteEvent={onDeleteEvent}
-          onMoveEvent={onMoveEvent}
-        />
-      </aside>
-
-      <ResizeHandle side="left" onResize={(d) => setLeftW((w) => w + d)} />
-
-      <section className="flex-1 min-w-0 flex flex-col bg-[var(--logic-bg)] overflow-hidden">
-        <header className="shrink-0 flex items-center justify-between gap-3 px-4 py-2 border-b border-[var(--outline)] bg-[var(--surface)]">
-          <div className="min-w-0">
-            <p className="text-[9px] uppercase tracking-widest text-[var(--muted)]">Rule Editor</p>
-            <p className="truncate text-sm font-semibold text-[var(--primary)]">
-              {board ? logicBoardLabel(project, board) : 'Select a rulesheet'}
-            </p>
-          </div>
-          <div className="hidden items-center gap-2 text-[10px] text-[var(--muted)] xl:flex">
-            <span>Attached Target</span>
-            <span className="rounded border border-[var(--outline)] bg-[var(--surface-3)] px-2 py-1 text-[var(--primary-soft)]">
-              {board?.target.type ?? 'None'}
-            </span>
-          </div>
-        </header>
-        <div className="flex-1 min-h-0 overflow-auto panel-scroll p-4">
+    <div className="flex flex-1 min-h-0 flex-col overflow-hidden bg-[var(--logic-bg)]">
+      <div className="flex-1 min-h-0 overflow-auto panel-scroll">
+        <div className="mx-auto w-full max-w-[900px] px-4 py-4">
           {!board ? (
             <div
-              className="mx-auto mt-6 max-w-md rounded-[var(--radius-md)] border border-[var(--outline)] bg-[var(--surface)] p-6 text-center shadow-sm"
+              className="mx-auto mt-8 max-w-xl rounded-[var(--radius-md)] border border-[var(--outline)] bg-[var(--surface)] p-6 shadow-sm"
               data-testid="logic-board-empty-state"
             >
               <p className="text-sm font-semibold text-[var(--primary)]">No rulesheet yet</p>
-              <p className="mt-2 text-[11px] leading-relaxed text-[var(--muted)]">
-                Pick an entity in the left column and choose{' '}
-                <strong className="text-[var(--primary-soft)]">Create rulesheet</strong>, or use
-                Advanced to add a shared type rulesheet.
+              <p className="mb-4 mt-1 text-[11px] leading-relaxed text-[var(--muted)]">
+                A rulesheet holds the rules for one object type. Pick an object and create its
+                rulesheet to start adding logic.
               </p>
-              {canCreateForSelection && selectedEntityId != null ? (
-                <button
-                  type="button"
-                  className="mt-4 rounded border border-[var(--control-active-border)] bg-[var(--control-active-bg)] px-4 py-2 text-xs font-semibold text-[var(--control-active-fg)] shadow-sm"
-                  onClick={() => onCreateForEntity(selectedEntityId)}
-                >
-                  Create rulesheet for selected entity
-                </button>
-              ) : null}
-            </div>
-          ) : focusedEvent ? (
-            <div className="mx-auto w-full max-w-[860px]">
-              <EventEditor
-                event={focusedEvent}
-                board={board}
-                project={project}
-                onChange={onPatchEvent}
-              />
+              <RulesheetCreateForm {...createFormProps} />
             </div>
           ) : (
-            <div className="mx-auto mt-6 max-w-md rounded-[var(--radius-md)] border border-dashed border-[var(--outline)] p-6 text-center">
-              <p className="text-sm font-semibold text-[var(--primary)]">
-                {board.events.length === 0 ? 'No rules yet' : 'Pick a rule to edit'}
-              </p>
-              <p className="mt-2 text-[11px] leading-relaxed text-[var(--muted)]">
-                {board.events.length === 0
-                  ? 'Use "Quick add trigger" at the bottom of the left column to create the first rule.'
-                  : 'Select a rule from the list on the left. Trigger, conditions, and actions are all edited right here.'}
-              </p>
-            </div>
+            <>
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-[var(--primary)]">
+                    {logicBoardLabel(project, board)}
+                  </p>
+                  <p className="text-[10px] text-[var(--muted)]">
+                    {board.events.length === 1
+                      ? '1 rule'
+                      : `${board.events.length} rules`}
+                    {' · run top to bottom'}
+                    {sceneBoardCount > 1
+                      ? ` · ${sceneBoardCount} rulesheets in scene (switch in the header)`
+                      : ''}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setNewRulesheetOpen(true)}
+                  className="rounded border border-[var(--outline)] bg-[var(--surface-2)] px-3 py-1.5 text-xs text-[var(--text)] hover:bg-[var(--surface-hover)]"
+                >
+                  New rulesheet…
+                </button>
+                <button
+                  type="button"
+                  onClick={onDeleteBoard}
+                  title="Delete this rulesheet and all its rules"
+                  className="inline-flex items-center gap-1.5 rounded border border-[var(--outline)] px-3 py-1.5 text-xs text-[var(--muted)] hover:border-[var(--danger)] hover:text-[var(--danger)]"
+                >
+                  <Trash2 size={12} />
+                  Delete
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAddRuleOpen(true)}
+                  className="inline-flex items-center gap-1.5 rounded border border-[var(--accent-bd)] bg-[var(--accent-bg)] px-4 py-1.5 text-xs font-semibold text-[var(--accent-fg-on-bg)] hover:bg-[var(--accent-bg-h)]"
+                >
+                  <Plus size={13} />
+                  Add rule
+                </button>
+              </div>
+
+              {board.events.length === 0 ? (
+                <div className="rounded-[var(--radius-md)] border border-dashed border-[var(--outline)] p-8 text-center">
+                  <p className="text-sm font-semibold text-[var(--primary)]">No rules yet</p>
+                  <p className="mx-auto mt-1 max-w-sm text-[11px] leading-relaxed text-[var(--muted)]">
+                    A rule is <strong>When</strong> (trigger) + optional checks +{' '}
+                    <strong>Then</strong> (actions).
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setAddRuleOpen(true)}
+                    className="mt-4 inline-flex items-center gap-1.5 rounded border border-[var(--accent-bd)] bg-[var(--accent-bg)] px-4 py-2 text-xs font-semibold text-[var(--accent-fg-on-bg)] hover:bg-[var(--accent-bg-h)]"
+                  >
+                    <Plus size={13} />
+                    Add your first rule
+                  </button>
+                </div>
+              ) : (
+                <LogicRulesList
+                  project={project}
+                  board={board}
+                  focusedEventId={focusedEventId}
+                  setFocusedEventId={setFocusedEventId}
+                  dispatch={dispatch}
+                  onPatchEvent={onPatchEvent}
+                  onCloneEvent={onCloneEvent}
+                  onDeleteEvent={onDeleteEvent}
+                  onMoveEvent={onMoveEvent}
+                />
+              )}
+
+              <div className="mt-3 rounded-[var(--radius-md)] border border-[var(--outline)] bg-[var(--surface)]">
+                <LogicVariablesPanel board={board} />
+              </div>
+            </>
           )}
         </div>
-      </section>
+      </div>
+
+      {addRuleOpen && board && (
+        <AddRuleModal
+          triggerTypes={allowedTriggersForTarget(board.target.type)}
+          onPick={addRule}
+          onClose={() => setAddRuleOpen(false)}
+        />
+      )}
+
+      {newRulesheetOpen && (
+        <NewRulesheetModal {...createFormProps} onClose={() => setNewRulesheetOpen(false)} />
+      )}
     </div>
   )
 }

@@ -728,10 +728,7 @@ export default function EventEditor({
   const ambiguousTargetSpritePaths = logicBoardClipContext.ambiguousSpritePath === true
 
   return (
-    <div
-      className="space-y-3 border border-[var(--outline)] bg-[var(--surface)] p-3 rounded-[var(--radius-md)] shadow-[0_18px_40px_rgb(0_0_0_/_0.18)]"
-      data-logic-rule-editor
-    >
+    <div className="space-y-3" data-logic-rule-editor>
       <LogicBlock
         title="When"
         icon={<Zap size={13} />}

@@ -40,7 +40,6 @@ import type { LogicBoard, LogicEvent } from '../types/logic-board'
 import type { ProjectDoc } from '../types'
 import { LogicBoardLuaPreview } from './logic-board/LogicBoardLuaPreview'
 import { LogicBoardHeader } from './logic-board/LogicBoardHeader'
-import { NEW_TRIGGER_NONE, type NewTriggerPick } from './logic-board/picker-constants'
 import { LogicBoardVisualLayout } from './logic-board/LogicBoardVisualLayout'
 import {
   logicBoardsRevision,
@@ -272,9 +271,7 @@ export default function LogicBoardPanel() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [panelMode, setPanelMode] = useState<'visual' | 'lua'>('visual')
   const [showFullMain, setShowFullMain] = useState(false)
-  const [advancedOpen, setAdvancedOpen] = useState(false)
   const [newClass, setNewClass] = useState('')
-  const [newTrigger, setNewTrigger] = useState<NewTriggerPick>(NEW_TRIGGER_NONE)
   const [applyMsg, setApplyMsg] = useState<string | null>(null)
   const [focusedEventId, setFocusedEventId] = useState<string | null>(null)
   const [clipboardHint, setClipboardHint] = useState<string | null>(null)
@@ -513,13 +510,18 @@ export default function LogicBoardPanel() {
 
   useEffect(() => {
     if (!project) return
-    if (editingId != null && !findEventInBoards(sceneBoards, editingId)) {
+    // Check against the live store, not the render-captured sceneBoards: when
+    // LOGIC_ADD_EVENT and setFocusedEventId land in the same handler, this
+    // effect can run on an intermediate commit whose memoized sceneBoards
+    // predate the new event — clearing the focus that was just set.
+    const liveBoards = store.getState().project?.logicBoards ?? []
+    if (editingId != null && !findEventInBoards(liveBoards, editingId)) {
       setEditingId(null)
     }
-    if (focusedEventId != null && !findEventInBoards(sceneBoards, focusedEventId)) {
+    if (focusedEventId != null && !findEventInBoards(liveBoards, focusedEventId)) {
       setFocusedEventId(null)
     }
-  }, [boardsRevision, project, editingId, focusedEventId, sceneBoards])
+  }, [boardsRevision, project, editingId, focusedEventId, store])
 
   const deleteFocusedEvent = useCallback(() => {
     const hit = findEventInBoards(sceneBoards, focusedEventId)
@@ -615,9 +617,6 @@ export default function LogicBoardPanel() {
   const canCreateForSelection =
     selectedEntityId != null && boardForSelection == null
 
-  const focusedEvent =
-    board?.events.find((ev) => ev.id === focusedEventId) ?? null
-
   const patchFocusedEvent = (event: LogicEvent) => {
     if (!board) return
     dispatch({
@@ -676,21 +675,15 @@ export default function LogicBoardPanel() {
         project={project}
         sceneId={sceneId}
         board={board}
-        focusedEvent={focusedEvent}
         focusedEventId={focusedEventId}
         setFocusedEventId={(id) => {
           setFocusedEventId(id)
           setEditingId(id)
         }}
-        setSelectedBoardId={setSelectedBoardId}
-        newTrigger={newTrigger}
-        setNewTrigger={setNewTrigger}
         sceneEntities={sceneEntities}
         selectedEntityId={selectedEntityId}
         boardForSelection={boardForSelection}
         canCreateForSelection={canCreateForSelection}
-        advancedOpen={advancedOpen}
-        setAdvancedOpen={setAdvancedOpen}
         classes={classes}
         newClass={newClass}
         setNewClass={setNewClass}
