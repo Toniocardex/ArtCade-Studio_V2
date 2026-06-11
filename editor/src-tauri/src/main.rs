@@ -16,6 +16,7 @@
 mod build_log_filter;
 mod process_util;
 mod project_paths;
+mod project_write_paths;
 mod sdk;
 mod web_export_status;
 mod web_preview;
@@ -81,135 +82,6 @@ fn validate_absolute_path_no_dotdot(path: &str, label: &str) -> Result<PathBuf, 
     Ok(p)
 }
 
-/// Resolve `file` to a path that is provably under canonical `root` (blocks symlink escape).
-fn resolve_path_under_project_root(file: &Path, root: &Path) -> Result<PathBuf, String> {
-    let root_canon = root
-        .canonicalize()
-        .map_err(|e| format!("project_root canonicalize '{}': {e}", root.display()))?;
-
-    let resolved = if file.exists() {
-        file.canonicalize()
-            .map_err(|e| format!("path canonicalize '{}': {e}", file.display()))?
-    } else if let Some(parent) = file.parent() {
-        if parent.exists() {
-            let parent_canon = parent
-                .canonicalize()
-                .map_err(|e| format!("parent canonicalize '{}': {e}", parent.display()))?;
-            let name = file
-                .file_name()
-                .ok_or_else(|| format!("path has no file name: '{}'", file.display()))?;
-            parent_canon.join(name)
-        } else {
-            let rel = file
-                .strip_prefix(root)
-                .or_else(|_| file.strip_prefix(&root_canon).map_err(|_| ()))
-                .map_err(|_| {
-                    format!(
-                        "could not resolve path relative to project root '{}': '{}'",
-                        root.display(),
-                        file.display()
-                    )
-                })?;
-            reject_parent_dir_components(rel)?;
-            root_canon.join(rel)
-        }
-    } else {
-        return Err(format!("invalid path (no parent): '{}'", file.display()));
-    };
-
-    if !resolved.starts_with(&root_canon) {
-        return Err(format!(
-            "refusing to write outside project root '{}': '{}'",
-            root_canon.display(),
-            resolved.display()
-        ));
-    }
-
-    Ok(resolved)
-}
-
-/// Allowed writes under `project_root`: `project.json`, `scripts/**.{lua,luac}`, `dialogs/**.json`.
-fn is_allowed_project_relative(rel: &Path) -> bool {
-    if rel.as_os_str().is_empty() {
-        return false;
-    }
-
-    if rel.components().count() == 1 {
-        if let Some(Component::Normal(name)) = rel.components().next() {
-            if name.eq_ignore_ascii_case("project.json") {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    let ext = rel
-        .extension()
-        .and_then(|s| s.to_str())
-        .unwrap_or_default()
-        .to_ascii_lowercase();
-
-    let mut comps = rel.components();
-    let first = match comps.next() {
-        Some(Component::Normal(s)) => s,
-        _ => return false,
-    };
-
-    if first.eq_ignore_ascii_case("scripts") {
-        return ext == "lua" || ext == "luac";
-    }
-    if first.eq_ignore_ascii_case("dialogs") {
-        return ext == "json";
-    }
-    if first.eq_ignore_ascii_case("assets") {
-        let second = match comps.next() {
-            Some(Component::Normal(s)) => s.to_ascii_lowercase(),
-            _ => return false,
-        };
-        if second == "images" {
-            return matches!(
-                ext.as_str(),
-                "png" | "jpg" | "jpeg" | "gif" | "webp" | "bmp"
-            );
-        }
-        if second == "audio" {
-            return matches!(ext.as_str(), "ogg" | "wav" | "mp3" | "flac");
-        }
-        if second == "fonts" {
-            return matches!(ext.as_str(), "ttf" | "otf" | "woff" | "woff2");
-        }
-    }
-
-    false
-}
-
-fn validate_writable_path(path: &str, project_root: &str) -> Result<PathBuf, String> {
-    let file = validate_absolute_path_no_dotdot(path, "path")?;
-    let root = validate_absolute_path_no_dotdot(project_root, "project_root")?;
-    let root_canon = root
-        .canonicalize()
-        .map_err(|e| format!("project_root canonicalize '{}': {e}", root.display()))?;
-
-    let resolved = resolve_path_under_project_root(&file, &root)?;
-
-    let rel = resolved.strip_prefix(&root_canon).map_err(|_| {
-        format!(
-            "could not resolve path relative to project root '{}': '{}'",
-            root_canon.display(),
-            resolved.display()
-        )
-    })?;
-
-    if !is_allowed_project_relative(&rel) {
-        return Err(format!(
-            "refusing to write non-project artifact '{}'",
-            rel.display()
-        ));
-    }
-
-    Ok(resolved)
-}
-
 fn validate_build_project_root(project_root: &str) -> Result<PathBuf, String> {
     let root = validate_absolute_path_no_dotdot(project_root, "project_root")?;
     let canonical = root
@@ -235,21 +107,13 @@ fn validate_pack_output_path(output_path: &str) -> Result<PathBuf, String> {
 
 #[tauri::command]
 fn write_file(path: String, content: String, project_root: String) -> Result<(), String> {
-    let p = validate_writable_path(&path, &project_root)?;
-    if let Some(parent) = p.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|e| format!("mkdir '{}': {e}", parent.display()))?;
-    }
+    let p = project_write_paths::prepare_writable_path(&path, &project_root)?;
     std::fs::write(&p, content).map_err(|e| format!("write '{path}': {e}"))
 }
 
 #[tauri::command]
 fn write_binary_file(path: String, bytes: Vec<u8>, project_root: String) -> Result<(), String> {
-    let p = validate_writable_path(&path, &project_root)?;
-    if let Some(parent) = p.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|e| format!("mkdir '{}': {e}", parent.display()))?;
-    }
+    let p = project_write_paths::prepare_writable_path(&path, &project_root)?;
     std::fs::write(&p, bytes).map_err(|e| format!("write binary '{path}': {e}"))
 }
 
@@ -261,81 +125,18 @@ mod write_path_tests {
 
     static TEMP_SERIAL: AtomicU64 = AtomicU64::new(0);
 
-    fn temp_project() -> (PathBuf, PathBuf) {
+    fn temp_project() -> PathBuf {
         let n = TEMP_SERIAL.fetch_add(1, Ordering::Relaxed);
         let root = std::env::temp_dir().join(format!("artcade_write_test_{n}"));
         fs::create_dir_all(&root).unwrap();
         fs::write(root.join("project.json"), r#"{"projectName":"T"}"#).unwrap();
-        fs::create_dir_all(root.join("scripts")).unwrap();
-        fs::create_dir_all(root.join("dialogs")).unwrap();
-        let project_json = root.join("project.json");
-        (root, project_json)
-    }
-
-    #[test]
-    fn allows_project_json_and_scripts_and_dialogs_under_root() {
-        let (root, project_json) = temp_project();
-        let script = root.join("scripts").join("main.lua");
-        let dialog = root.join("dialogs").join("innkeeper.json");
-
-        assert!(validate_writable_path(
-            &project_json.display().to_string(),
-            &root.display().to_string()
-        )
-        .is_ok());
-        assert!(
-            validate_writable_path(&script.display().to_string(), &root.display().to_string())
-                .is_ok()
-        );
-        assert!(
-            validate_writable_path(&dialog.display().to_string(), &root.display().to_string())
-                .is_ok()
-        );
-
-        let image = root.join("assets").join("images").join("tile.png");
-        assert!(
-            validate_writable_path(&image.display().to_string(), &root.display().to_string())
-                .is_ok()
-        );
-
-        let font = root.join("assets").join("fonts").join("ui.ttf");
-        assert!(
-            validate_writable_path(&font.display().to_string(), &root.display().to_string())
-                .is_ok()
-        );
-    }
-
-    #[test]
-    fn rejects_foreign_project_json() {
-        let (root, _) = temp_project();
-        let other = std::env::temp_dir().join(format!(
-            "artcade_foreign_{}",
-            TEMP_SERIAL.fetch_add(1, Ordering::Relaxed)
-        ));
-        fs::create_dir_all(&other).unwrap();
-        let foreign = other.join("project.json");
-        fs::write(&foreign, "{}").unwrap();
-
-        let err =
-            validate_writable_path(&foreign.display().to_string(), &root.display().to_string())
-                .unwrap_err();
-        assert!(err.contains("outside project root"));
-    }
-
-    #[test]
-    fn rejects_path_outside_root() {
-        let (root, _) = temp_project();
-        let outside = std::env::temp_dir().join("artcade_outside_secret.txt");
-        let err =
-            validate_writable_path(&outside.display().to_string(), &root.display().to_string())
-                .unwrap_err();
-        assert!(err.contains("outside project root") || err.contains("non-project"));
+        root
     }
 
     /// Symlink under assets/ must not be copied into web export dist.
     #[test]
     fn copy_dir_recursive_rejects_symlink_escape() {
-        let (root, _) = temp_project();
+        let root = temp_project();
         let outside_dir = std::env::temp_dir().join(format!(
             "artcade_copy_symlink_target_{}",
             TEMP_SERIAL.fetch_add(1, Ordering::Relaxed)
@@ -369,41 +170,6 @@ mod write_path_tests {
         assert!(
             err.contains("symlink") || err.contains("outside project root"),
             "expected symlink/outside-root error, got: {err}"
-        );
-    }
-
-    /// Symlink under scripts/ must not bypass the project-root check.
-    #[test]
-    fn rejects_symlink_escape_under_scripts() {
-        let (root, _) = temp_project();
-        let outside_dir = std::env::temp_dir().join(format!(
-            "artcade_symlink_target_{}",
-            TEMP_SERIAL.fetch_add(1, Ordering::Relaxed)
-        ));
-        fs::create_dir_all(&outside_dir).unwrap();
-        let secret = outside_dir.join("secret.lua");
-        fs::write(&secret, "-- outside").unwrap();
-
-        let link = root.join("scripts").join("escape.lua");
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::symlink;
-            symlink(&secret, &link).expect("symlink");
-        }
-        #[cfg(windows)]
-        {
-            use std::os::windows::fs::symlink_file;
-            if symlink_file(&secret, &link).is_err() {
-                // Symlink creation may require elevation; skip rather than flake.
-                return;
-            }
-        }
-
-        let err = validate_writable_path(&link.display().to_string(), &root.display().to_string())
-            .unwrap_err();
-        assert!(
-            err.contains("outside project root"),
-            "expected outside-root error, got: {err}"
         );
     }
 }
