@@ -256,6 +256,11 @@ export type Action =
   | { type: 'DIALOG_CLOSE_MODAL' }
   | { type: 'SPRITESHEET_STUDIO_OPEN'; imageAssetId: string }
   | { type: 'SPRITESHEET_STUDIO_CLOSE' }
+  // ---- Layer CRUD ----
+  | { type: 'LAYER_ADD'; name: string }
+  | { type: 'LAYER_RENAME'; oldName: string; newName: string }
+  | { type: 'LAYER_DELETE'; name: string }
+  | { type: 'LAYER_MOVE'; name: string; direction: 'up' | 'down' }
 
 export type DomainReducer = (state: CoreState, action: Action) => CoreState
 

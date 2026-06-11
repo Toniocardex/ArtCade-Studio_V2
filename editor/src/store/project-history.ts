@@ -38,6 +38,7 @@ export function projectRevision(project: ProjectDoc): string {
     thumbnails: project.thumbnails,
     tilesets: project.tilesets,
     tilePalette: project.tilePalette,
+    layers: project.layers,
   })
 }
 

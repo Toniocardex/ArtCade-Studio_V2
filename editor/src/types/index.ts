@@ -16,6 +16,11 @@ import type {
   HealthComponent, AutoDestroyComponent, DialogComponent,
 } from './components'
 
+/** A named render layer. Array stored top-to-bottom (index 0 = highest priority). */
+export interface LayerDef {
+  name: string
+}
+
 export interface Vec2 { x: number; y: number }
 export interface Vec3 { x: number; y: number; z: number }
 export interface Vec4 { x: number; y: number; z: number; w: number }
@@ -259,6 +264,8 @@ export interface ProjectDoc {
   fontAssets?:    Record<string, FontAsset>
   assetVirtualFolders?: Record<string, AssetVirtualFolderDef>
   logicBoards?:   LogicBoardDoc          // visual game logic, compiled to Lua
+  /** Render layer stack — ordered highest-to-lowest priority (index 0 drawn on top). */
+  layers?:        LayerDef[]
 }
 
 // ---------------------------------------------------------------------------

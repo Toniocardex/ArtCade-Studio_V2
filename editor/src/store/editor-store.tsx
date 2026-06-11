@@ -44,6 +44,7 @@ import { sceneReducer }      from './reducers/scene-reducer'
 import { assetFolderReducer } from './reducers/asset-folder-reducer'
 import { logicBoardReducer } from './reducers/logic-board-reducer'
 import { dialogReducer } from './reducers/dialog-reducer'
+import { layerReducer } from './reducers/layer-reducer'
 import { applyAuthoringModeToDocument } from '../utils/authoring-mode'
 import { ensureBootSessionReset } from '../utils/boot-session'
 import { runLoadProjectSideEffects } from '../utils/project-load-side-effects'
@@ -85,6 +86,7 @@ export function coreReducer(state: CoreState, action: Action): CoreState {
   next = assetFolderReducer(next, action)
   next = logicBoardReducer(next, action)
   next = dialogReducer(next, action)
+  next = layerReducer(next, action)
 
   if (
     !isUndoRedoAction(action) &&

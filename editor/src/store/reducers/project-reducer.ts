@@ -15,12 +15,21 @@ import { EDITOR_BOOT_ZOOM } from '../../constants/editor-viewport'
 import { safeProjectFolderName } from '../../utils/project'
 import { emptyProjectHistory } from '../project-history'
 import { logicBoardsRevision } from '../../utils/sync-logic-board-script'
+import { DEFAULT_LAYERS } from '../../constants/scene-layers'
+import type { ProjectDoc } from '../../types'
+
+function seedLayers(project: ProjectDoc): ProjectDoc {
+  if (project.layers && project.layers.length > 0) return project
+  return { ...project, layers: DEFAULT_LAYERS }
+}
 
 export const projectReducer: DomainReducer = (state: CoreState, action: Action) => {
   switch (action.type) {
     case 'LOAD_PROJECT': {
       const firstSceneId = Object.keys(action.project.scenes)[0] ?? null
       const loadedLogicRev = logicBoardsRevision(action.project) || null
+      const seededProject = seedLayers(action.project)
+      const defaultActiveLayer = seededProject.layers![0]!.name
       // Reset editor "view" chrome so a 400% zoom, a stuck fit-mode tracking
       // or an active camera preview from the previous project don't bleed
       // into the freshly loaded one. Every load starts at identity zoom
@@ -28,7 +37,8 @@ export const projectReducer: DomainReducer = (state: CoreState, action: Action) 
       // click away for users who want to see the whole scene at once.
       return {
         ...state,
-        project:     action.project,
+        project:     seededProject,
+        editorActiveLayer: defaultActiveLayer,
         projectPath: action.path,
         projectDirty: false,
         selection:   { entityId: null, sceneId: action.project.activeSceneId || firstSceneId },

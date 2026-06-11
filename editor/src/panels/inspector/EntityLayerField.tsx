@@ -1,9 +1,7 @@
 import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
-import { SCENE_LAYER_NAMES } from '../../constants/scene-layers'
+import { DEFAULT_LAYERS } from '../../constants/scene-layers'
 import { EditorSelect } from '../../components/ui/EditorSelect'
 import type { EntityDef } from '../../types'
-
-const LAYER_OPTIONS = SCENE_LAYER_NAMES.map((name) => ({ value: name, label: name }))
 
 export type EntityLayerFieldProps = Readonly<{
   entity: EntityDef
@@ -11,9 +9,12 @@ export type EntityLayerFieldProps = Readonly<{
 
 export function EntityLayerField({ entity }: EntityLayerFieldProps) {
   const dispatch = useEditorDispatch()
+  const layers = useEditorSelector((s) => s.project?.layers ?? DEFAULT_LAYERS)
   const entityDisplayLayers = useEditorSelector((s) => s.entityDisplayLayers)
   const editorActiveLayer = useEditorSelector((s) => s.editorActiveLayer)
   const value = entityDisplayLayers[entity.id] ?? editorActiveLayer
+
+  const options = layers.map((l) => ({ value: l.name, label: l.name }))
 
   return (
     <label className="block mb-2">
@@ -28,7 +29,7 @@ export function EntityLayerField({ entity }: EntityLayerFieldProps) {
             layerName,
           })
         }
-        options={LAYER_OPTIONS}
+        options={options}
       />
     </label>
   )
