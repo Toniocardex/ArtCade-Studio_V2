@@ -6,12 +6,42 @@
 // canvas mode (script mode owns its own CodeMirror Ctrl+= bindings).
 
 import { useEffect } from 'react'
-import { useEditorDispatch, useEditorStore } from '../store/editor-store'
+import {
+  useEditorDispatch,
+  useEditorStore,
+  type Action,
+  type CoreState,
+} from '../store/editor-store'
 import { zoomFitRegistry } from '../utils/zoom-fit-registry'
+import { shouldIgnoreEditorShortcut } from '../utils/keyboard'
 import {
   EDITOR_ZOOM_DEFAULT, EDITOR_ZOOM_KEYBOARD_STEP,
   EDITOR_ZOOM_MIN, EDITOR_ZOOM_MAX,
 } from '../constants/editor-viewport'
+
+type CanvasDuplicateShortcutState = Pick<
+  CoreState,
+  'mode' | 'isPlaying' | 'selection' | 'project'
+>
+
+/** Resolve Ctrl/Cmd+D to a valid scene-instance duplicate action. */
+export function getCanvasDuplicateShortcutAction(
+  event: KeyboardEvent,
+  state: CanvasDuplicateShortcutState,
+): Action | null {
+  if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return null
+  if (event.key.toLowerCase() !== 'd') return null
+  if (shouldIgnoreEditorShortcut(event)) return null
+  if (state.mode !== 'canvas' || state.isPlaying || !state.project) return null
+
+  const instanceId = state.selection.entityId
+  const sceneId = state.selection.sceneId ?? state.project.activeSceneId
+  if (instanceId == null || !sceneId) return null
+  const scene = state.project.scenes[sceneId]
+  if (!scene?.instances?.some((instance) => instance.id === instanceId)) return null
+
+  return { type: 'INSTANCE_DUPLICATE', instanceId, sceneId }
+}
 
 export function useViewportShortcuts(): void {
   const dispatch = useEditorDispatch()
@@ -19,8 +49,16 @@ export function useViewportShortcuts(): void {
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
+      const state = store.getState()
+      const duplicateAction = getCanvasDuplicateShortcutAction(e, state)
+      if (duplicateAction) {
+        e.preventDefault()
+        dispatch(duplicateAction)
+        return
+      }
+
       if (!e.ctrlKey) return
-      const { mode, editorZoom, cameraPreview } = store.getState()
+      const { mode, editorZoom, cameraPreview } = state
       if (mode !== 'canvas') return
 
       const z = editorZoom

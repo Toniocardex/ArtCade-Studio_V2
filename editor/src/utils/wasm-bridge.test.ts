@@ -13,6 +13,7 @@ describe('bindWindowCallbacks (merge-safe)', () => {
     delete win.onTilemapPainted
     delete win.onEditorCursorWorld
     delete win.onEntitySelected
+    delete win.onEntityDuplicateRequested
     delete win.onEntityTransformChanged
     delete win.onConsoleLine
     delete win.onRuntimeProfile
@@ -21,18 +22,21 @@ describe('bindWindowCallbacks (merge-safe)', () => {
   it('binds all callbacks on first call', () => {
     const onTilemapPainted = () => {}
     const onEntitySelected = () => {}
+    const onEntityDuplicateRequested = () => {}
     const onEntityTransformChanged = () => {}
     const onConsoleLine = () => {}
 
     bindWindowCallbacks({
       onReady: () => {},
       onEntitySelected,
+      onEntityDuplicateRequested,
       onEntityTransformChanged,
       onConsoleLine,
       onTilemapPainted,
     })
 
     expect(win.onEntitySelected).toBe(onEntitySelected)
+    expect(win.onEntityDuplicateRequested).toBe(onEntityDuplicateRequested)
     expect(win.onEntityTransformChanged).toBe(onEntityTransformChanged)
     expect(win.onConsoleLine).toBe(onConsoleLine)
     expect(win.onTilemapPainted).toBe(onTilemapPainted)

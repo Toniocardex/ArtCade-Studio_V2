@@ -46,6 +46,7 @@ declare global {
     Module?: Partial<ArtCadeModule>
 
     onEntitySelected?:            (entityId: number) => void
+    onEntityDuplicateRequested?:  (entityId: number, x: number, y: number) => void
     onEntityTransformChanged?:    (entityId: number, x: number, y: number,
                                    rot: number, sx: number, sy: number) => void
     onConsoleLine?:               (message: string, level: string) => void
@@ -167,6 +168,9 @@ function cacheQuery(): string {
 export function bindWindowCallbacks(cbs: Partial<WasmCallbacks>): void {
   const g = emscriptenGlobal()
   if (cbs.onEntitySelected)         g.onEntitySelected         = cbs.onEntitySelected
+  if (cbs.onEntityDuplicateRequested) {
+    g.onEntityDuplicateRequested = cbs.onEntityDuplicateRequested
+  }
   if (cbs.onEntityTransformChanged) g.onEntityTransformChanged = cbs.onEntityTransformChanged
   if (cbs.onConsoleLine)            g.onConsoleLine            = cbs.onConsoleLine
   if (cbs.onRuntimeProfile)         g.onRuntimeProfile         = cbs.onRuntimeProfile
@@ -279,6 +283,7 @@ export function marshalString(str: string): number {
 export interface WasmCallbacks {
   onReady:                  () => void
   onEntitySelected:         (entityId: number) => void
+  onEntityDuplicateRequested: (entityId: number, x: number, y: number) => void
   onEntityTransformChanged: (entityId: number, x: number, y: number,
                              rot: number, sx: number, sy: number) => void
   onConsoleLine:            (message: string, level: string) => void

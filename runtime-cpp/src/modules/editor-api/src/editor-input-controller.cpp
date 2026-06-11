@@ -165,17 +165,30 @@ EM_BOOL EditorAPI::onMouseDown(int, const EmscriptenMouseEvent* e, void*) {
         if (RayTintWidget::onMouseDown(screenX, screenY))
             return EM_TRUE;
     }
-    s_isDragging = true;
     toScreen(e, s_lastPanScreenX, s_lastPanScreenY);
-    if (s_editorTool == ToolPan) return EM_TRUE;
+    if (s_editorTool == ToolPan) {
+        s_isDragging = true;
+        return EM_TRUE;
+    }
     float wx, wy;
     toWorld(e, wx, wy);
     s_dragStartX = wx;
     s_dragStartY = wy;
     if (s_tilePaintMode) {
         paintTileAt(s_dragStartX, s_dragStartY); // single click paints too
+        s_isDragging = true;
         return EM_TRUE;
     }
+    if (e->button == 0 && (e->ctrlKey || e->metaKey) && s_editorTool == ToolSelect) {
+        const uint32_t picked = pickEntityAt(wx, wy);
+        if (picked != 0u) {
+            snapWorldToEditorGrid(wx, wy);
+            notifyEntityDuplicateRequested(picked, wx, wy);
+        }
+        s_isDragging = false;
+        return EM_TRUE;
+    }
+    s_isDragging = true;
     // Click-to-select: pick the entity under the cursor on the canvas so
     // the user doesn't have to go through the Hierarchy panel. A hit also
     // makes it the live-drag target (onMouseMove drags s_selectedEntityId).
@@ -195,11 +208,12 @@ EM_BOOL EditorAPI::onMouseUp(int, const EmscriptenMouseEvent* e, void*) {
         RayTintWidget::onMouseUp(screenX, screenY);
         return EM_TRUE;
     }
+    const bool wasDragging = s_isDragging;
     s_isDragging = false;
     if (s_editorTool == ToolPan) return EM_TRUE;  // panning: no transform notify
     if (s_tilePaintMode)         return EM_TRUE;  // painting: no transform notify
 
-    if (s_selectedEntityId != 0u && s_entityGateway) {
+    if (wasDragging && s_selectedEntityId != 0u && s_entityGateway) {
         // P1: mouse-up must echo rotation/scale from the gateway, never {0,1,1}.
         // onMouseMove only mutates position; skip notify if transform is unknown.
         Transform transform{};

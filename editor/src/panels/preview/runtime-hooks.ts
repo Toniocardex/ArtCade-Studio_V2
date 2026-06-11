@@ -76,6 +76,16 @@ export function buildRuntimeCallbacks(deps: RuntimeCallbackDeps): WasmCallbacks 
         dispatch({ type: 'SELECT_ENTITY', entityId })
       }, { urgent: true })
     },
+    onEntityDuplicateRequested: (entityId: number, x: number, y: number) => {
+      scheduleWasmUiUpdateWhen(cancelled, () => {
+        dispatch({
+          type: 'INSTANCE_DUPLICATE',
+          instanceId: entityId,
+          sceneId: sceneIdRef.current,
+          position: { x, y },
+        })
+      }, { urgent: true })
+    },
     onEntityTransformChanged: (
       entityId: number, x: number, y: number,
       rotation: number, scaleX: number, scaleY: number,

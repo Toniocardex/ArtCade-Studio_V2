@@ -84,6 +84,42 @@ describe('coreReducer — scenes & objects', () => {
     expect(s.projectDirty).toBe(true)
   })
 
+  it('INSTANCE_DUPLICATE places the shared-type copy at an explicit canvas position', () => {
+    const s = coreReducer(st(project()), {
+      type: 'INSTANCE_DUPLICATE',
+      instanceId: 1,
+      sceneId: 's',
+      position: { x: 352, y: 224 },
+    })
+
+    const copy = s.project!.entities[2]
+    const copyInst = s.project!.scenes.s.instances?.find((instance) => instance.id === 2)
+    expect(copy.id).toBe(2)
+    expect(copy.name).toBe('A_Copy')
+    expect(copy.transform.position).toEqual({ x: 352, y: 224 })
+    expect(copyInst?.objectTypeId).toBe('Player')
+    expect(copyInst?.transform.position).toEqual({ x: 352, y: 224 })
+    expect(s.selection.entityId).toBe(2)
+  })
+
+  it('records a duplicate as one undoable project operation', () => {
+    let s = coreReducer(st(project()), {
+      type: 'INSTANCE_DUPLICATE',
+      instanceId: 1,
+      sceneId: 's',
+      position: { x: 96, y: 64 },
+    })
+    expect(s.projectHistory?.past).toHaveLength(1)
+
+    s = coreReducer(s, { type: 'PROJECT_UNDO' })
+    expect(s.project!.entities[2]).toBeUndefined()
+    expect(s.project!.scenes.s.instances).toHaveLength(1)
+
+    s = coreReducer(s, { type: 'PROJECT_REDO' })
+    expect(s.project!.entities[2]?.transform.position).toEqual({ x: 96, y: 64 })
+    expect(s.project!.scenes.s.instances).toHaveLength(2)
+  })
+
   it('shared type edit propagates to every instance (ENTITY_SET_SPRITE_FILL)', () => {
     let s = coreReducer(st(project()), { type: 'INSTANCE_DUPLICATE', instanceId: 1, sceneId: 's' })
     s = coreReducer(s, {

@@ -278,6 +278,13 @@ void EditorAPI::notifyEntitySelected(uint32_t entityId) {
     }, static_cast<int>(entityId));
 }
 
+void EditorAPI::notifyEntityDuplicateRequested(uint32_t entityId, float x, float y) {
+    EM_ASM({
+        if (typeof window.onEntityDuplicateRequested === 'function')
+            window.onEntityDuplicateRequested($0, $1, $2);
+    }, static_cast<int>(entityId), x, y);
+}
+
 void EditorAPI::notifyTransformChanged(uint32_t entityId,
     float x, float y, float rotation, float scaleX, float scaleY)
 {

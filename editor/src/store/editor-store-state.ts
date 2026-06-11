@@ -190,7 +190,12 @@ export type Action =
   | { type: 'ENTITY_REMOVE_COMPONENT'; entityId: number; key: ComponentKey }
   | { type: 'OBJECT_TYPE_ADD';   displayName: string }
   | { type: 'INSTANCE_ADD_FROM_TYPE'; sceneId: string; objectTypeId: string }
-  | { type: 'INSTANCE_DUPLICATE'; instanceId: number; sceneId: string }
+  | {
+      type: 'INSTANCE_DUPLICATE'
+      instanceId: number
+      sceneId: string
+      position?: { x: number; y: number }
+    }
   | { type: 'ENTITY_DELETE';     entityId: number }
   | { type: 'ENTITY_SET_VISIBLE'; entityId: number; visible: boolean }
   | { type: 'ENTITY_SET_NAME';    entityId: number; name: string }

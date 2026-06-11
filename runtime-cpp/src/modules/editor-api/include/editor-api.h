@@ -152,6 +152,14 @@ public:
     static void notifyEntitySelected(uint32_t entityId);
 
     /**
+     * User Ctrl/Cmd-clicked an entity in the viewport.
+     * @param entityId  source scene-instance id
+     * @param x         snapped world-space clone centre
+     * @param y         snapped world-space clone centre
+     */
+    static void notifyEntityDuplicateRequested(uint32_t entityId, float x, float y);
+
+    /**
      * Gizmo drag finished -> React updates Inspector fields.
      * Called on mouse-UP, NOT every mouse-move (Single Source of Truth rule).
      */
@@ -411,6 +419,7 @@ struct EditorAPI {
     static void setEnterPlayHandler(EditorEnterPlayHandler) {}
     static void setExitPlayHandler(EditorExitPlayHandler) {}
     static void notifyEntitySelected(uint32_t) {}
+    static void notifyEntityDuplicateRequested(uint32_t, float, float) {}
     static void notifyTransformChanged(uint32_t, float, float, float, float, float) {}
     static void notifyConsoleLine(const char*, const char* = nullptr) {}
     static void notifyRuntimeProfile(float, float, float, float, uint32_t, uint32_t) {}

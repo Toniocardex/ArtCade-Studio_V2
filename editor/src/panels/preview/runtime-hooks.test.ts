@@ -162,6 +162,26 @@ describe('buildRuntimeCallbacks', () => {
     expect(dispatch).toHaveBeenCalledWith({ type: 'SELECT_ENTITY', entityId: 42 })
   })
 
+  it('dispatches an explicitly positioned duplicate request from the canvas bridge', () => {
+    const dispatch = vi.fn()
+    const callbacks = buildRuntimeCallbacks({
+      cancelled: () => false,
+      dispatch,
+      handleRuntimeTransform: vi.fn(),
+      sceneIdRef: { current: 'scene_main' },
+      syncRuntimeUiFlags: vi.fn(),
+      makeLogEntry: (message, level) => ({ id: 1, time: '', message, level }),
+    })
+
+    callbacks.onEntityDuplicateRequested(7, 320, 192)
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'INSTANCE_DUPLICATE',
+      instanceId: 7,
+      sceneId: 'scene_main',
+      position: { x: 320, y: 192 },
+    })
+  })
+
   it('marks engine ready when EditorAPI bridge initialises', () => {
     notifyEngineReady.mockClear()
     const dispatch = vi.fn()

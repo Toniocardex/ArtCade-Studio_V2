@@ -139,15 +139,19 @@ export const objectTypeReducer: DomainReducer = (state: CoreState, action: Actio
       const id = nextEntityId(state.project)
       const srcName =
         src.instanceName ?? state.project.entities[src.id]?.name ?? type.displayName
+      const position = action.position &&
+        Number.isFinite(action.position.x) && Number.isFinite(action.position.y)
+        ? { ...action.position }
+        : {
+            x: src.transform.position.x + 16,
+            y: src.transform.position.y + 16,
+          }
       const copy: SceneInstanceDef = {
         id,
         objectTypeId: src.objectTypeId,
         instanceName: `${srcName}_Copy`,
         transform: {
-          position: {
-            x: src.transform.position.x + 16,
-            y: src.transform.position.y + 16,
-          },
+          position,
           scale: { ...src.transform.scale },
           rotation: src.transform.rotation,
           ...(src.transform.velocity
