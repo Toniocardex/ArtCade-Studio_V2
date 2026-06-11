@@ -61,6 +61,7 @@ export interface CoreState {
   // loader is responsible for keeping them populated.
   editorGridSize:   number
   snapToGrid:       boolean
+  editorGuidesVisible: boolean
   editorZoom:       number   // visual zoom (CSS transform), see constants/editor-viewport
   /**
    * 'fit'    → zoom auto-tracks the panel size: any panel resize / scene
@@ -213,6 +214,7 @@ export type Action =
   | { type: 'SCENE_SET_VIEWPORT_SIZE'; sceneId: string; x: number; y: number }
   | { type: 'EDITOR_SET_GRID_SIZE'; tileSize: number }
   | { type: 'SET_SNAP_TO_GRID'; enabled: boolean }
+  | { type: 'TOGGLE_EDITOR_GUIDES' }
   | { type: 'EDITOR_SET_ZOOM'; zoom: number }
   /** Used by fit-to-panel: applies the zoom AND keeps editorZoomMode = 'fit'. */
   | { type: 'EDITOR_SET_FIT_ZOOM'; zoom: number }
@@ -284,6 +286,7 @@ export const initialCoreState: CoreState = {
   selectedTileCell: 1,
   editorGridSize:   DEFAULT_EDITOR_GRID_SIZE,
   snapToGrid:       false,
+  editorGuidesVisible: true,
   editorZoom:       EDITOR_BOOT_ZOOM,
   editorZoomMode:   'manual',
   cameraPreview:    false,

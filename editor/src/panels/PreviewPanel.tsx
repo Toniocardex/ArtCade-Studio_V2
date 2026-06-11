@@ -53,16 +53,12 @@ function sameTransform(a: TransformSnapshot, b: TransformSnapshot): boolean {
 export type PreviewPanelProps = Readonly<{
   activeTool: EditorTool
   onSelectTool: (tool: EditorTool) => void
-  showEditorGuides: boolean
-  onToggleGuides: () => void
   showToolPalette?: boolean
 }>
 
 export default function PreviewPanel({
   activeTool,
   onSelectTool,
-  showEditorGuides,
-  onToggleGuides,
   showToolPalette = true,
 }: PreviewPanelProps) {
   // useEditorSelector reads CoreStateStore only — not VolatileContext — so
@@ -86,6 +82,7 @@ export default function PreviewPanel({
   const openScripts = useEditorSelector((s) => s.openScripts)
   const focusMode = useEditorSelector((s) => s.focusMode)
   const dialogs = useEditorSelector((s) => s.dialogs)
+  const editorGuidesVisible = useEditorSelector((s) => s.editorGuidesVisible)
 
   const canvasRef           = useRef<HTMLCanvasElement>(null)
   const scrollRef           = useRef<HTMLDivElement>(null)
@@ -254,7 +251,7 @@ export default function PreviewPanel({
     selectedEntityId: selection.entityId,
     tool: activeTool,
     selectedTileCell,
-    guides: showEditorGuides,
+    guides: editorGuidesVisible,
     gridSize: editorGridSize,
     snapToGrid,
   })
@@ -330,8 +327,6 @@ export default function PreviewPanel({
             activeTool={activeTool}
             onSelectTool={onSelectTool}
             selectedTileCell={selectedTileCell}
-            showGuides={showEditorGuides}
-            onToggleGuides={onToggleGuides}
             showToolPalette={showToolPalette}
             rightSlot={(
             <div className="flex items-center gap-2 min-w-0">

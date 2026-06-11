@@ -191,6 +191,8 @@ export const uiReducer: DomainReducer = (state: CoreState, action: Action) => {
       return state.snapToGrid === action.enabled
         ? state
         : { ...state, snapToGrid: action.enabled }
+    case 'TOGGLE_EDITOR_GUIDES':
+      return { ...state, editorGuidesVisible: !state.editorGuidesVisible }
     case 'EDITOR_SET_ZOOM': {
       const next = clampEditorZoom(action.zoom)
       if (state.editorZoom === next && state.editorZoomMode === 'manual') return state

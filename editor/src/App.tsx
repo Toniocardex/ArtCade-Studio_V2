@@ -79,7 +79,6 @@ function CanvasView() {
 
   const { leftW, rightW, setLeftW, setRightW, resetLeftW, resetRightW } = useEditorLayoutContext()
   const [activeTool, setActiveTool] = useState<EditorTool>('select')
-  const [showEditorGuides, setShowEditorGuides] = useState(true)
 
   const isEditingTileset = editingTilesetId != null
 
@@ -112,8 +111,6 @@ function CanvasView() {
                 <PreviewPanel
                   activeTool={activeTool}
                   onSelectTool={setActiveTool}
-                  showEditorGuides={showEditorGuides}
-                  onToggleGuides={() => setShowEditorGuides((v) => !v)}
                   showToolPalette
                 />
               </div>
@@ -125,8 +122,6 @@ function CanvasView() {
             <PreviewPanel
               activeTool={activeTool}
               onSelectTool={setActiveTool}
-              showEditorGuides={showEditorGuides}
-              onToggleGuides={() => setShowEditorGuides((v) => !v)}
               showToolPalette
             />
           </div>

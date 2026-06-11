@@ -18,16 +18,10 @@ import type { EditorTool } from '../../utils/runtime-sync-service'
 import { ZoomControls } from './ZoomControls'
 import { ActiveLayerSelect } from './ActiveLayerSelect'
 
-// The toolbar owns tool / guides state (local to PreviewPanel) and a free
-// right slot. Everything else (zoom, camera preview) is store-driven and
-// rendered by the dedicated child components below so we don't drill 11 props
-// through this file (TECHNICAL_DEBT_REVIEW §13).
 interface CanvasToolbarProps {
   activeTool:       EditorTool
   onSelectTool:     (tool: EditorTool) => void
   selectedTileCell: number
-  showGuides:       boolean
-  onToggleGuides:   () => void
   showToolPalette?: boolean
   rightSlot?:       ReactNode
 }
@@ -99,11 +93,12 @@ function CameraPreviewToggle() {
 }
 
 export function CanvasToolbar({
-  activeTool, onSelectTool, selectedTileCell, showGuides, onToggleGuides,
+  activeTool, onSelectTool, selectedTileCell,
   showToolPalette = true,
   rightSlot,
 }: CanvasToolbarProps) {
   const dispatch = useEditorDispatch()
+  const showGuides = useEditorSelector((s) => s.editorGuidesVisible)
 
   return (
     <div className="flex items-center gap-1 px-2 py-1.5
@@ -158,7 +153,7 @@ export function CanvasToolbar({
           <Divider />
 
           <button
-            onClick={onToggleGuides}
+            onClick={() => dispatch({ type: 'TOGGLE_EDITOR_GUIDES' })}
             title="Toggle editor guides"
             className={`p-1.5 rounded transition-colors ${
               showGuides ? 'bg-[rgb(var(--accent-2-rgb)/0.25)]' : 'hover:bg-[var(--panel-3)]'
