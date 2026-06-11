@@ -57,7 +57,7 @@ export function createSceneDef(
   }
 }
 
-/** World position for a newly added entity — centre of visible canvas or viewport. */
+/** World position for a newly added entity — inside the game viewport bounds. */
 export function defaultEntitySpawnPosition(
   scene: SceneDef,
   gridSize = DEFAULT_EDITOR_GRID_SIZE,
@@ -67,9 +67,13 @@ export function defaultEntitySpawnPosition(
   const ws = scene.worldSize ?? vp
   const clamp = (v: number, max: number) => Math.max(0, Math.min(max, v))
   const visible = getEditorVisibleWorldCenter()
-  const raw = visible ?? { x: vp.x * 0.5, y: vp.y * 0.5 }
-  const cx = clamp(raw.x, ws.x)
-  const cy = clamp(raw.y, ws.y)
+  // Clamp to viewport bounds so entities always start inside the play-visible area.
+  // The editor canvas shows the entire world, so "visible center" can be outside the
+  // game viewport (e.g. world center 640,320 vs. viewport 512×320).
+  const vpCenter = { x: vp.x * 0.5, y: vp.y * 0.5 }
+  const raw = (visible && visible.x < vp.x && visible.y < vp.y) ? visible : vpCenter
+  const cx = clamp(raw.x, vp.x - 1)
+  const cy = clamp(raw.y, vp.y - 1)
   return clampEntityPositionToScene(
     normalizeEntityPosition(cx, cy, snapToGrid, gridSize),
     ws,
