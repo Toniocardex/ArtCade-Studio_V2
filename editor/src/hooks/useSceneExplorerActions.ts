@@ -133,6 +133,16 @@ export function useSceneExplorerActions() {
     })
   }, [scene, sceneId, project, dispatch, promptText])
 
+  // Places a new instance of an existing object type in the active scene
+  // (group-level "Add instance" in the explorer).
+  const addInstanceOfType = useCallback(
+    (objectTypeId: string) => {
+      if (!project?.objectTypes?.[objectTypeId] || !scene) return
+      dispatch({ type: 'INSTANCE_ADD_FROM_TYPE', sceneId, objectTypeId })
+    },
+    [dispatch, project, scene, sceneId],
+  )
+
   const selectEntity = useCallback(
     (entityId: number) => {
       dispatch({
@@ -226,6 +236,7 @@ export function useSceneExplorerActions() {
     renameSceneById,
     duplicateSceneById,
     insertObject,
+    addInstanceOfType,
     selectEntity,
     toggleEntityVisible,
     duplicateEntity,

@@ -1,9 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Box,
   Copy,
-  Eye,
-  EyeOff,
   FileText,
   Grid3x3,
   ImagePlus,
@@ -13,7 +10,6 @@ import {
   Star,
   Trash2,
   Type,
-  Workflow,
   MessageSquare,
 } from 'lucide-react'
 import { openDialogEditorForId } from '../../panels/dialog/dialog-modal-api'
@@ -32,6 +28,7 @@ import {
   assetHiddenByVirtualFolder,
 } from './VirtualFoldersBlock'
 import { ProjectSearch } from './ProjectSearch'
+import { SceneObjectsTree } from './SceneObjectsTree'
 import { TreeSection } from './TreeSection'
 import { TreeFolder, TreeLeaf } from './TreeNode'
 import { AssetToolbar } from './AssetToolbar'
@@ -41,20 +38,12 @@ import { ImageTreeThumbnail } from '../asset-explorer/ImageTreeThumbnail'
 import {
   ExplorerActionBar,
   ExplorerLabelCta,
-  ExplorerLeafActionBtn,
 } from './explorer-cta'
 import {
   ExplorerContextMenu,
   openExplorerContextMenu,
   type ExplorerContextMenuState,
 } from './explorer-context-menu'
-
-const CLASS_COLOR: Record<string, string> = {
-  Player: 'var(--accent)',
-  Tilemap: 'var(--muted)',
-  Slime: 'var(--green-2)',
-  Enemy: 'var(--danger)',
-}
 
 export type ExplorerPane = 'scene' | 'assets' | 'all'
 
@@ -112,6 +101,16 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
     expandAllAssetFolders()
     assetsAnchorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
+
+  // Keep the group of a canvas-selected instance visible in the tree.
+  const selectionEntityId = scene.selection.entityId
+  useEffect(() => {
+    if (selectionEntityId == null || !tree) return
+    const group = tree.entityGroups.find((g) =>
+      g.instances.some((row) => row.entityId === selectionEntityId),
+    )
+    if (group) setOpen(`scene-type:${group.typeKey}`, true)
+  }, [selectionEntityId, tree, setOpen])
 
   if (!project || !tree) {
     return (
@@ -269,7 +268,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
           open={isOpen('entities')}
           onToggle={() => toggle('entities')}
           hidden={!tree.entitiesVisible}
-          bodyClassName={tree.entities.length === 0 ? 'min-h-[3.25rem]' : ''}
+          bodyClassName={tree.entityGroups.length === 0 ? 'min-h-[3.25rem]' : ''}
           actions={
             <ExplorerLabelCta
               label="Insert object"
@@ -280,7 +279,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
             />
           }
         >
-          {tree.entities.length === 0 ? (
+          {tree.entityGroups.length === 0 ? (
             <p className="text-[10px] text-[var(--muted)] italic px-2 py-1">
               {tree.hasSearch
                 ? 'No matches'
@@ -289,112 +288,16 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                   : 'No active scene'}
             </p>
           ) : (
-            tree.entities.map((e) => {
-              const entity = project.entities[e.entityId]
-              const color = entity ? (CLASS_COLOR[entity.className] ?? 'var(--muted)') : 'var(--muted)'
-              const selected = selectedEntityId === e.entityId
-              return (
-                <TreeLeaf
-                  key={e.entityId}
-                  label={e.name}
-                  depth={1}
-                  selected={selected}
-                  muted={!e.visible}
-                  onClick={() => scene.selectEntity(e.entityId)}
-                  onContextMenu={(ev) =>
-                    openExplorerContextMenu(
-                      ev,
-                      [
-                        {
-                          id: 'logic',
-                          label: 'Edit Logic Board',
-                          onSelect: () => scene.openEntityLogic(e.entityId),
-                        },
-                        {
-                          id: 'visible',
-                          label: e.visible ? 'Hide in game' : 'Show in game',
-                          onSelect: () => scene.toggleEntityVisible(e.entityId, e.visible),
-                        },
-                        {
-                          id: 'rename',
-                          label: 'Rename',
-                          onSelect: () => scene.renameEntity(e.entityId),
-                        },
-                        {
-                          id: 'duplicate',
-                          label: 'Duplicate',
-                          onSelect: () => scene.duplicateEntity(e.entityId),
-                        },
-                        {
-                          id: 'delete',
-                          label: 'Delete',
-                          danger: true,
-                          onSelect: () => scene.deleteEntity(e.entityId),
-                        },
-                      ],
-                      setContextMenu,
-                    )
-                  }
-                  icon={
-                    <Box
-                      size={11}
-                      style={{ color: selected ? 'var(--bg)' : color }}
-                      className="flex-shrink-0"
-                    />
-                  }
-                  trailing={
-                    !selected && e.hasLogic ? (
-                      <span
-                        className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-[var(--accent)]"
-                        title="Has Logic Board rules"
-                      />
-                    ) : null
-                  }
-                  actions={
-                    selected ? (
-                      <>
-                        <ExplorerLeafActionBtn
-                          title="Edit logic"
-                          onClick={(ev) => {
-                            ev.stopPropagation()
-                            scene.openEntityLogic(e.entityId)
-                          }}
-                        >
-                          <Workflow size={13} />
-                        </ExplorerLeafActionBtn>
-                        <ExplorerLeafActionBtn
-                          title={e.visible ? 'Hide in game' : 'Show in game'}
-                          onClick={(ev) => {
-                            ev.stopPropagation()
-                            scene.toggleEntityVisible(e.entityId, e.visible)
-                          }}
-                        >
-                          {e.visible ? <Eye size={13} /> : <EyeOff size={13} />}
-                        </ExplorerLeafActionBtn>
-                        <ExplorerLeafActionBtn
-                          title="Duplicate"
-                          onClick={(ev) => {
-                            ev.stopPropagation()
-                            scene.duplicateEntity(e.entityId)
-                          }}
-                        >
-                          <Copy size={13} />
-                        </ExplorerLeafActionBtn>
-                        <ExplorerLeafActionBtn
-                          title="Delete"
-                          onClick={(ev) => {
-                            ev.stopPropagation()
-                            scene.deleteEntity(e.entityId)
-                          }}
-                        >
-                          <Trash2 size={13} />
-                        </ExplorerLeafActionBtn>
-                      </>
-                    ) : undefined
-                  }
-                />
-              )
-            })
+            <SceneObjectsTree
+              groups={tree.entityGroups}
+              hasSearch={tree.hasSearch}
+              project={project}
+              scene={scene}
+              selectedEntityId={selectedEntityId}
+              isOpen={isOpen}
+              toggle={toggle}
+              setContextMenu={setContextMenu}
+            />
           )}
         </TreeSection>
 
@@ -913,7 +816,8 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
       </div>
 
       <div className="px-2 py-1 border-t border-[var(--outline)] text-[9px] text-[var(--muted)] flex-shrink-0">
-        {scene.sceneCount} scenes · {tree.entities.length} objects
+        {scene.sceneCount} scenes · {tree.entityGroups.length} types ·{' '}
+        {tree.entityGroups.reduce((n, g) => n + g.instances.length, 0)} objects
       </div>
     </div>
   )

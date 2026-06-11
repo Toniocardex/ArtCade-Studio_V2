@@ -84,13 +84,83 @@ describe('buildProjectExplorerData', () => {
     expect(level2?.isStartScene).toBe(false)
   })
 
-  it('lists entities only for active scene', () => {
+  it('lists entity groups only for active scene', () => {
     const project = minimalProject()
     const data = buildProjectExplorerData(project, 'level2', '')
-    expect(data.entities).toHaveLength(0)
+    expect(data.entityGroups).toHaveLength(0)
     const mainData = buildProjectExplorerData(project, 'main', '')
-    expect(mainData.entities).toHaveLength(1)
-    expect(mainData.entities[0]?.name).toBe('Player')
+    expect(mainData.entityGroups).toHaveLength(1)
+    expect(mainData.entityGroups[0]?.displayName).toBe('Player')
+    expect(mainData.entityGroups[0]?.instances[0]?.name).toBe('Player')
+  })
+
+  it('groups instances of the same object type under one row', () => {
+    const project = minimalProject()
+    project.entities[2] = {
+      ...project.entities[1],
+      id: 2,
+      name: 'Coin_1',
+      className: 'Coin',
+    }
+    project.entities[3] = {
+      ...project.entities[1],
+      id: 3,
+      name: 'Coin_2',
+      className: 'Coin',
+    }
+    project.scenes.main.entityIds = [1, 2, 3]
+    project.scenes.main.instances = [
+      { id: 2, objectTypeId: 'coin', transform: project.entities[2].transform },
+      { id: 3, objectTypeId: 'coin', transform: project.entities[3].transform },
+    ]
+    project.objectTypes = {
+      ...project.objectTypes,
+      coin: { id: 'coin', displayName: 'Coin', tags: [], sprite: {} },
+    }
+
+    const data = buildProjectExplorerData(project, 'main', '')
+    expect(data.entityGroups).toHaveLength(2)
+    const coinGroup = data.entityGroups.find((g) => g.typeKey === 'coin')
+    expect(coinGroup?.objectTypeId).toBe('coin')
+    expect(coinGroup?.displayName).toBe('Coin')
+    expect(coinGroup?.instances.map((i) => i.name)).toEqual(['Coin_1', 'Coin_2'])
+    // Legacy entity without an instance falls back to a class group.
+    const playerGroup = data.entityGroups.find((g) => g.typeKey === 'class:Player')
+    expect(playerGroup?.objectTypeId).toBeNull()
+    expect(playerGroup?.instances).toHaveLength(1)
+  })
+
+  it('search keeps the whole group on type-name match and filters instances otherwise', () => {
+    const project = minimalProject()
+    project.entities[2] = {
+      ...project.entities[1],
+      id: 2,
+      name: 'Coin_1',
+      className: 'Coin',
+    }
+    project.entities[3] = {
+      ...project.entities[1],
+      id: 3,
+      name: 'Coin_2',
+      className: 'Coin',
+    }
+    project.scenes.main.entityIds = [1, 2, 3]
+    project.scenes.main.instances = [
+      { id: 2, objectTypeId: 'coin', transform: project.entities[2].transform },
+      { id: 3, objectTypeId: 'coin', transform: project.entities[3].transform },
+    ]
+    project.objectTypes = {
+      ...project.objectTypes,
+      coin: { id: 'coin', displayName: 'Coin', tags: [], sprite: {} },
+    }
+
+    const byType = buildProjectExplorerData(project, 'main', 'coin')
+    expect(byType.entityGroups).toHaveLength(1)
+    expect(byType.entityGroups[0]?.instances).toHaveLength(2)
+
+    const byInstance = buildProjectExplorerData(project, 'main', 'Coin_2')
+    expect(byInstance.entityGroups).toHaveLength(1)
+    expect(byInstance.entityGroups[0]?.instances.map((i) => i.name)).toEqual(['Coin_2'])
   })
 
   it('counts asset folder items', () => {
@@ -106,7 +176,7 @@ describe('buildProjectExplorerData', () => {
   it('filters by search across sections', () => {
     const data = buildProjectExplorerData(minimalProject(), 'main', 'hero')
     expect(data.scenes).toHaveLength(0)
-    expect(data.entities).toHaveLength(0)
+    expect(data.entityGroups).toHaveLength(0)
     const images = data.assetFolders.find((f) => f.id === 'images')
     expect(images?.images).toHaveLength(1)
     expect(images?.images[0]?.name).toBe('hero.png')

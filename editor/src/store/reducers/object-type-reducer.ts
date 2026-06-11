@@ -13,6 +13,10 @@ import {
   materializeEntity,
   slugTypeId,
 } from '../../utils/project-object-types'
+import {
+  isInstanceNameTaken,
+  nextInstanceName,
+} from '../../utils/project-instance-names'
 import type { SceneInstanceDef } from '../../types'
 
 function syncInstanceTransform(
@@ -99,9 +103,13 @@ export const objectTypeReducer: DomainReducer = (state: CoreState, action: Actio
       const id = nextEntityId(state.project)
       const scene = state.project.scenes[action.sceneId]
       const spawn = defaultEntitySpawnPosition(scene, state.editorGridSize, state.snapToGrid)
+      // First instance keeps the plain type name; later ones get Name_N.
       const inst: SceneInstanceDef = {
         id,
         objectTypeId: action.objectTypeId,
+        ...(isInstanceNameTaken(state.project, type.displayName)
+          ? { instanceName: nextInstanceName(state.project, type.displayName) }
+          : {}),
         transform: {
           position: spawn,
           scale: { x: 1, y: 1 },
@@ -149,7 +157,7 @@ export const objectTypeReducer: DomainReducer = (state: CoreState, action: Actio
       const copy: SceneInstanceDef = {
         id,
         objectTypeId: src.objectTypeId,
-        instanceName: `${srcName}_Copy`,
+        instanceName: nextInstanceName(state.project, srcName),
         transform: {
           position,
           scale: { ...src.transform.scale },

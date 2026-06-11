@@ -8,6 +8,7 @@ export type ExplorerExpandKey =
   | 'assets'
   | 'dialogs'
   | `asset:${string}`
+  | `scene-type:${string}`
 
 type ExpandedMap = Record<string, boolean>
 
@@ -47,14 +48,19 @@ export function useExplorerExpanded() {
     writeExpanded(expanded)
   }, [expanded])
 
+  /**
+   * Whether a tree node is expanded. Nodes the user never toggled fall back
+   * to `defaultOpen` (sections default open; per-type scene groups pass false
+   * to start collapsed).
+   */
   const isOpen = useCallback(
-    (key: ExplorerExpandKey) => expanded[key] !== false,
+    (key: ExplorerExpandKey, defaultOpen = true) => expanded[key] ?? defaultOpen,
     [expanded],
   )
 
-  const toggle = useCallback((key: ExplorerExpandKey) => {
+  const toggle = useCallback((key: ExplorerExpandKey, defaultOpen = true) => {
     setExpanded((prev) => {
-      const open = prev[key] !== false
+      const open = prev[key] ?? defaultOpen
       return { ...prev, [key]: !open }
     })
   }, [])

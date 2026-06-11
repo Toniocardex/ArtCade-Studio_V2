@@ -16,6 +16,15 @@ export type ExplorerEntityRow = Readonly<{
   visible: boolean
 }>
 
+export type ExplorerTypeGroup = Readonly<{
+  /** Stable key for expand state: the object type id, or `class:<className>` for legacy entities without an instance. */
+  typeKey: string
+  /** Object type id when the group maps to an ObjectTypeDef; null for legacy class-based groups. */
+  objectTypeId: string | null
+  displayName: string
+  instances: ExplorerEntityRow[]
+}>
+
 export type ExplorerScriptRow = Readonly<{
   path: string
   label: string
@@ -57,7 +66,8 @@ export type ExplorerAssetFolder = Readonly<{
 
 export type ProjectExplorerData = Readonly<{
   scenes: ExplorerSceneRow[]
-  entities: ExplorerEntityRow[]
+  /** Scene objects grouped by object type (Construct-style: scene rows are instances of types). */
+  entityGroups: ExplorerTypeGroup[]
   assetFolders: ExplorerAssetFolder[]
   hasSearch: boolean
   scenesVisible: boolean
@@ -115,21 +125,7 @@ export function buildProjectExplorerData(
     matchesExplorerQuery(q, s.name, s.sceneId, 'scene', 'scenes'),
   )
 
-  const scene = project.scenes[activeSceneId]
-  const entitiesAll = (scene?.entityIds ?? [])
-    .map((id) => project.entities[id])
-    .filter((e): e is NonNullable<typeof e> => Boolean(e))
-    .map((e) => ({
-      entityId: e.id,
-      name: e.name,
-      hasLogic: Boolean(findLogicBoardForInstance(project, e.id)),
-      visible: e.visible !== false,
-    }))
-    .sort((a, b) => a.name.localeCompare(b.name))
-
-  const entities = entitiesAll.filter((e) =>
-    matchesExplorerQuery(q, e.name, String(e.entityId), 'entity', 'entities'),
-  )
+  const entityGroups = buildSceneTypeGroups(project, activeSceneId, q)
 
   const imagesAll = Object.values(project.assets ?? {}).map((a) => ({
     id: a.id,
@@ -205,13 +201,84 @@ export function buildProjectExplorerData(
 
   return {
     scenes,
-    entities,
+    entityGroups,
     assetFolders,
     hasSearch,
     scenesVisible: scenes.length > 0 || !hasSearch,
-    entitiesVisible: entities.length > 0 || !hasSearch,
+    entitiesVisible: entityGroups.length > 0 || !hasSearch,
     assetsVisible: assetFolders.length > 0 || !hasSearch,
   }
+}
+
+/**
+ * Groups the active scene's objects by object type for the explorer tree.
+ * Entities without a matching scene instance (legacy projects) fall back to a
+ * per-className group. Groups whose display name matches the query keep all
+ * instances; otherwise instances are filtered individually.
+ * @param project        loaded project document
+ * @param activeSceneId  scene whose instances are listed
+ * @param searchQuery    raw explorer search text (empty = no filtering)
+ */
+export function buildSceneTypeGroups(
+  project: ProjectDoc,
+  activeSceneId: string,
+  searchQuery: string,
+): ExplorerTypeGroup[] {
+  const scene = project.scenes[activeSceneId]
+  const instanceTypeById = new Map<number, string>()
+  for (const inst of scene?.instances ?? []) {
+    instanceTypeById.set(inst.id, inst.objectTypeId)
+  }
+
+  const groups = new Map<string, {
+    typeKey: string
+    objectTypeId: string | null
+    displayName: string
+    instances: ExplorerEntityRow[]
+  }>()
+
+  for (const id of scene?.entityIds ?? []) {
+    const entity = project.entities[id]
+    if (!entity) continue
+    const objectTypeId = instanceTypeById.get(id) ?? null
+    const typeKey = objectTypeId ?? `class:${entity.className}`
+    let group = groups.get(typeKey)
+    if (!group) {
+      const displayName = objectTypeId
+        ? project.objectTypes?.[objectTypeId]?.displayName ?? objectTypeId
+        : entity.className
+      group = { typeKey, objectTypeId, displayName, instances: [] }
+      groups.set(typeKey, group)
+    }
+    group.instances.push({
+      entityId: entity.id,
+      name: entity.name,
+      hasLogic: Boolean(findLogicBoardForInstance(project, entity.id)),
+      visible: entity.visible !== false,
+    })
+  }
+
+  return [...groups.values()]
+    .map((group) => {
+      const keepAll = matchesExplorerQuery(
+        searchQuery,
+        group.displayName,
+        group.typeKey,
+        'entity',
+        'entities',
+        'object',
+        'objects',
+      )
+      const instances = (keepAll
+        ? [...group.instances]
+        : group.instances.filter((row) =>
+            matchesExplorerQuery(searchQuery, row.name, String(row.entityId)),
+          )
+      ).sort((a, b) => a.name.localeCompare(b.name))
+      return { ...group, instances }
+    })
+    .filter((group) => group.instances.length > 0)
+    .sort((a, b) => a.displayName.localeCompare(b.displayName))
 }
 
 export function assetFolderItemCount(folder: ExplorerAssetFolder): number {

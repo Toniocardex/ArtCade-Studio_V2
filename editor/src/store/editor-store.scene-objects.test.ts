@@ -70,7 +70,7 @@ describe('coreReducer — scenes & objects', () => {
     const dup = s.project!.entities[2]
     expect(dup).toBeDefined()
     expect(dup.id).toBe(2)
-    expect(dup.name).toBe('A_Copy')
+    expect(dup.name).toBe('A_1')
     expect(dup.className).toBe('Player')
     expect(dup.transform.position).toEqual({ x: 16, y: 16 })
     // same shared type — no Entity_N inference
@@ -95,7 +95,7 @@ describe('coreReducer — scenes & objects', () => {
     const copy = s.project!.entities[2]
     const copyInst = s.project!.scenes.s.instances?.find((instance) => instance.id === 2)
     expect(copy.id).toBe(2)
-    expect(copy.name).toBe('A_Copy')
+    expect(copy.name).toBe('A_1')
     expect(copy.transform.position).toEqual({ x: 352, y: 224 })
     expect(copyInst?.objectTypeId).toBe('Player')
     expect(copyInst?.transform.position).toEqual({ x: 352, y: 224 })
@@ -133,7 +133,7 @@ describe('coreReducer — scenes & objects', () => {
     expect(s.project!.entities[2].sprite.fillColor).toEqual({ x: 1, y: 0, z: 0 })
     // Placement stays per instance.
     expect(s.project!.entities[2].transform.position).toEqual({ x: 16, y: 16 })
-    expect(s.project!.entities[2].name).toBe('A_Copy')
+    expect(s.project!.entities[2].name).toBe('A_1')
   })
 
   it('ENTITY_SET_NAME renames only the instance, not the type', () => {
