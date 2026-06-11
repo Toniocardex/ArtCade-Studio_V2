@@ -3,7 +3,6 @@
 // ---------------------------------------------------------------------------
 
 import { Fragment, useEffect, useMemo, useState } from 'react'
-import type { LogicBlockSelection } from './useLogicBlockSelection'
 import {
   NEW_ACTION_NONE,
   NEW_CONDITION_NONE,
@@ -148,7 +147,6 @@ function TriggerFields({
   contextSpritePath,
   ambiguousTargetSpritePaths,
   onChange,
-  hideParams,
 }: {
   trigger: LogicTrigger
   board?: LogicBoard | null
@@ -156,7 +154,6 @@ function TriggerFields({
   contextSpritePath?: string
   ambiguousTargetSpritePaths?: boolean
   onChange: (t: LogicTrigger) => void
-  hideParams?: boolean
 }) {
   const isSensorTrigger =
     trigger.type === 'onTriggerEnter' || trigger.type === 'onTriggerExit'
@@ -168,13 +165,7 @@ function TriggerFields({
   return (
     <>
       {trigger.type === 'onInput' ? (
-        hideParams ? (
-          <p className="text-[10px] text-[var(--muted)]">Edit key bindings in the Logic Inspector.</p>
-        ) : (
-          <OnInputTriggerFields trigger={trigger} onChange={(t) => onChange(t)} />
-        )
-      ) : hideParams ? (
-        <p className="text-[10px] text-[var(--muted)]">Edit trigger parameters in the Logic Inspector.</p>
+        <OnInputTriggerFields trigger={trigger} onChange={(t) => onChange(t)} />
       ) : (
         <SchemaParamForm
           kind="trigger"
@@ -229,9 +220,6 @@ function ActionListBlock({
   setNewActionType,
   emptyHint,
   forElse = false,
-  hideParams,
-  onActionSelect,
-  isActionSelected,
 }: {
   actions: LogicAction[]
   trigger: LogicTrigger
@@ -246,9 +234,6 @@ function ActionListBlock({
   emptyHint: string
   /** When true, Click to destroy is omitted from the action picker (Else branch). */
   forElse?: boolean
-  hideParams?: boolean
-  onActionSelect?: (index: number) => void
-  isActionSelected?: (index: number) => boolean
 }) {
   const insideRepeat = repeatBodyIndices(actions)
   const pickerTypes = actionTypesForBoard(board, { forElse, existingActions: actions })
@@ -276,9 +261,6 @@ function ActionListBlock({
             onChangeActions(next)
           }}
           onRemove={() => onChangeActions(actions.filter((_, j) => j !== i))}
-          hideParams={hideParams}
-          onSelect={() => onActionSelect?.(i)}
-          selected={isActionSelected?.(i) ?? false}
           onClone={() => {
             if (
               a.type === 'clickToDestroy' &&
@@ -341,9 +323,6 @@ function ActionCard({
   onChange,
   onClone,
   onRemove,
-  hideParams,
-  onSelect,
-  selected,
 }: {
   act: LogicAction
   trigger: LogicTrigger
@@ -358,18 +337,12 @@ function ActionCard({
   onChange: (a: LogicAction) => void
   onClone: () => void
   onRemove: () => void
-  hideParams?: boolean
-  onSelect?: () => void
-  selected?: boolean
 }) {
   const destroyOtherWarn = destroyOtherTargetWarning(act, trigger)
   const destroySelfWarn = destroySelfOnCollisionWarning(act, trigger)
   return (
     <div
-      onClick={onSelect}
-      className={`space-y-2 rounded border bg-[var(--logic-card)] p-2.5 ${onSelect ? 'cursor-pointer' : ''} ${
-        selected ? 'ring-1 ring-[var(--accent)]' : ''
-      } ${
+      className={`space-y-2 rounded border bg-[var(--logic-card)] p-2.5 ${
         nestedInRepeat
           ? 'ml-4 border-[var(--accent-bd)] border-l-2'
           : 'border-[var(--border)]'
@@ -397,7 +370,6 @@ function ActionCard({
           {actionDisplayName(act.type)}
         </span>
         <div className="flex-1" />
-        <span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
         <LogicIconButton
           title="Clone action"
           ariaLabel="Clone action"
@@ -405,8 +377,6 @@ function ActionCard({
         >
           <Copy size={13} />
         </LogicIconButton>
-        </span>
-        <span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
         <LogicIconButton
           title="Remove action"
           ariaLabel="Remove action"
@@ -415,20 +385,15 @@ function ActionCard({
         >
           <Trash2 size={13} />
         </LogicIconButton>
-        </span>
       </div>
-      {hideParams ? (
-        <p className="text-[10px] text-[var(--muted)]">Edit action parameters in the Logic Inspector.</p>
-      ) : (
-        <SchemaParamForm
-          kind="action"
-          type={act.type}
-          value={act as unknown as Record<string, unknown>}
-          onChange={(next) => onChange(next as LogicAction)}
-          contextSpritePath={contextSpritePath}
-          ambiguousTargetSpritePaths={ambiguousTargetSpritePaths}
-        />
-      )}
+      <SchemaParamForm
+        kind="action"
+        type={act.type}
+        value={act as unknown as Record<string, unknown>}
+        onChange={(next) => onChange(next as LogicAction)}
+        contextSpritePath={contextSpritePath}
+        ambiguousTargetSpritePaths={ambiguousTargetSpritePaths}
+      />
       <ComponentRequirementWarning requirement={actionRequirement(act, project, board)} />
       {destroyOtherWarn && (
         <p className="w-full text-[10px] leading-snug text-[var(--warn)]">
@@ -523,9 +488,6 @@ function SimpleConditions({
   onChange,
   conditionTypes,
   recommendedConditions,
-  hideParams,
-  onConditionSelect,
-  isConditionSelected,
 }: {
   event: LogicEvent
   board?: LogicBoard | null
@@ -535,9 +497,6 @@ function SimpleConditions({
   onChange: (e: LogicEvent) => void
   conditionTypes: readonly LogicCondition['type'][]
   recommendedConditions: readonly LogicCondition['type'][]
-  hideParams?: boolean
-  onConditionSelect?: (index: number) => void
-  isConditionSelected?: (index: number) => boolean
 }) {
   const conditions = event.conditions ?? []
   const combineOp = event.conditionsOperator ?? 'AND'
@@ -577,11 +536,7 @@ function SimpleConditions({
             </div>
           )}
         <div
-          role="presentation"
-          onClick={() => onConditionSelect?.(i)}
-          className={`flex flex-wrap items-center gap-2 rounded border border-[var(--border)] bg-[var(--logic-block)] px-2 py-1.5 ${
-            onConditionSelect ? 'cursor-pointer' : ''
-          } ${isConditionSelected?.(i) ? 'ring-1 ring-[var(--accent)]' : ''}`}
+          className="flex flex-wrap items-center gap-2 rounded border border-[var(--border)] bg-[var(--logic-block)] px-2 py-1.5"
         >
           <ConditionPolaritySelect
             negated={c.negated}
@@ -606,22 +561,18 @@ function SimpleConditions({
             }}
             className="max-w-[200px]"
           />
-          {hideParams ? (
-            <p className="text-[10px] text-[var(--muted)]">Edit check parameters in the Logic Inspector.</p>
-          ) : (
-            <SchemaParamForm
-              kind="condition"
-              type={c.type}
-              value={c as unknown as Record<string, unknown>}
-              onChange={(next) => {
-                const conds = conditions.slice()
-                conds[i] = { ...(next as LogicCondition), negated: c.negated }
-                onChange({ ...event, conditions: conds, conditionRoot: undefined })
-              }}
-              contextSpritePath={contextSpritePath}
-              ambiguousTargetSpritePaths={ambiguousTargetSpritePaths}
-            />
-          )}
+          <SchemaParamForm
+            kind="condition"
+            type={c.type}
+            value={c as unknown as Record<string, unknown>}
+            onChange={(next) => {
+              const conds = conditions.slice()
+              conds[i] = { ...(next as LogicCondition), negated: c.negated }
+              onChange({ ...event, conditions: conds, conditionRoot: undefined })
+            }}
+            contextSpritePath={contextSpritePath}
+            ambiguousTargetSpritePaths={ambiguousTargetSpritePaths}
+          />
           <ComponentRequirementWarning requirement={conditionRequirement(c, project, board)} />
           <button
             type="button"
@@ -697,19 +648,11 @@ export default function EventEditor({
   board,
   project,
   onChange,
-  onDone,
-  inspectorMode = false,
-  onBlockSelect,
-  isBlockSelected,
 }: {
   event: LogicEvent
   board?: LogicBoard | null
   project?: ProjectDoc | null
   onChange: (e: LogicEvent) => void
-  onDone?: () => void
-  inspectorMode?: boolean
-  onBlockSelect?: (sel: LogicBlockSelection) => void
-  isBlockSelected?: (block: LogicBlockSelection) => boolean
 }) {
   const authoringMode = useEditorSelector((s) => s.authoringMode)
   const [advancedConditions, setAdvancedConditions] = useState(
@@ -784,40 +727,13 @@ export default function EventEditor({
     : logicBoardClipContext.spritePath
   const ambiguousTargetSpritePaths = logicBoardClipContext.ambiguousSpritePath === true
 
-  const whenTitle = inspectorMode ? '1. Trigger' : 'When'
-  const ifTitle = inspectorMode ? '2. Conditions' : 'Also require…'
-  const thenTitle = inspectorMode ? '3. Actions' : 'Then'
-  const hideParams = inspectorMode
-
   return (
     <div
       className="space-y-3 border border-[var(--outline)] bg-[var(--surface)] p-3 rounded-[var(--radius-md)] shadow-[0_18px_40px_rgb(0_0_0_/_0.18)]"
       data-logic-rule-editor
     >
-      <div className="rounded-[var(--radius)] border border-[var(--outline)] bg-[var(--surface-2)] px-3 py-2">
-        <p className="text-[9px] font-semibold uppercase tracking-widest text-[var(--muted)]">
-          Event Settings
-        </p>
-        <div className="mt-2 flex flex-wrap items-center gap-3 text-[10px] text-[var(--muted)]">
-          <span>
-            Event <strong className="text-[var(--primary-soft)]">{event.id}</strong>
-          </span>
-          <span>
-            Enabled <strong className="text-[var(--primary-soft)]">{event.enabled ? 'true' : 'false'}</strong>
-          </span>
-        </div>
-      </div>
-      <div
-        role="button"
-        tabIndex={0}
-        className={`rounded-[var(--radius)] ${isBlockSelected?.({ kind: 'trigger' }) ? 'ring-1 ring-[var(--accent)]' : ''}`}
-        onClick={() => onBlockSelect?.({ kind: 'trigger' })}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') onBlockSelect?.({ kind: 'trigger' })
-        }}
-      >
       <LogicBlock
-        title={whenTitle}
+        title="When"
         icon={<Zap size={13} />}
         tone="when"
       >
@@ -848,14 +764,12 @@ export default function EventEditor({
           project={project}
           contextSpritePath={contextSpritePath}
           ambiguousTargetSpritePaths={ambiguousTargetSpritePaths}
-          hideParams={hideParams}
           onChange={(t) => onChange(commitEventUpdate(event, { trigger: t }))}
         />
       </LogicBlock>
-      </div>
 
       <LogicBlock
-        title={ifTitle}
+        title="Also require…"
         optional
         icon={<ListChecks size={13} />}
         tone="if"
@@ -903,13 +817,6 @@ export default function EventEditor({
               onChange={onChange}
               conditionTypes={pickerConditionTypes}
               recommendedConditions={pickerRecommendedConditions}
-              hideParams={hideParams}
-              onConditionSelect={hideParams ? (i) => onBlockSelect?.({ kind: 'condition', index: i }) : undefined}
-              isConditionSelected={
-                hideParams
-                  ? (i) => isBlockSelected?.({ kind: 'condition', index: i }) ?? false
-                  : undefined
-              }
             />
             <button
               type="button"
@@ -924,7 +831,6 @@ export default function EventEditor({
                     conditions: undefined,
                   })
                 }
-                onBlockSelect?.({ kind: 'conditionTree' })
               }}
             >
               {authoringMode === 'base'
@@ -945,40 +851,25 @@ export default function EventEditor({
                   conditions: [],
                   conditionRoot: undefined,
                 })
-                onBlockSelect?.({ kind: 'trigger' })
               }}
             >
               Back to simple checks
             </button>
-            {hideParams ? (
-              <div
-                role="presentation"
-                onClick={() => onBlockSelect?.({ kind: 'conditionTree' })}
-                className={`rounded border border-[var(--border)] px-2 py-2 cursor-pointer ${
-                  isBlockSelected?.({ kind: 'conditionTree' }) ? 'ring-1 ring-[var(--accent)]' : ''
-                }`}
-              >
-                <p className="text-[10px] text-[var(--muted)]">
-                  Nested AND/OR groups — edit parameters in the Logic Inspector.
-                </p>
-              </div>
-            ) : (
-              <ConditionTreeEditor
-                event={event}
-                onChange={onChange}
-                advanced
-                conditionTypes={pickerConditionTypes}
-                recommendedConditionTypes={pickerRecommendedConditions}
-                contextSpritePath={contextSpritePath}
-                ambiguousTargetSpritePaths={ambiguousTargetSpritePaths}
-              />
-            )}
+            <ConditionTreeEditor
+              event={event}
+              onChange={onChange}
+              advanced
+              conditionTypes={pickerConditionTypes}
+              recommendedConditionTypes={pickerRecommendedConditions}
+              contextSpritePath={contextSpritePath}
+              ambiguousTargetSpritePaths={ambiguousTargetSpritePaths}
+            />
           </>
         )}
       </LogicBlock>
 
       <LogicBlock
-        title={thenTitle}
+        title="Then"
         icon={<GitBranch size={13} />}
         tone="then"
       >
@@ -996,9 +887,6 @@ export default function EventEditor({
           newActionType={newActionType}
           setNewActionType={setNewActionType}
           emptyHint="Add at least one action."
-          hideParams={hideParams}
-          onActionSelect={(index) => onBlockSelect?.({ kind: 'action', index })}
-          isActionSelected={(index) => isBlockSelected?.({ kind: 'action', index }) ?? false}
           onChangeActions={(actions) =>
             onChange(commitEventUpdate(event, { actions }))
           }
@@ -1064,17 +952,6 @@ export default function EventEditor({
         </LogicBlock>
       )}
 
-      {!inspectorMode && onDone ? (
-        <div className="flex gap-2 pt-1">
-          <button
-            type="button"
-            className="inline-flex items-center gap-1.5 rounded border border-[var(--accent-bd)] bg-[var(--accent-bg)] px-4 py-2 text-xs font-semibold text-[var(--accent)]"
-            onClick={onDone}
-          >
-            Done
-          </button>
-        </div>
-      ) : null}
     </div>
   )
 }

@@ -7,10 +7,8 @@ import { usePersistedWidth } from '../../hooks/usePersistedWidth'
 import { RulesheetControls } from './RulesheetControls'
 import { LogicEventsSidebar } from './LogicEventsSidebar'
 import EventEditor from './EventEditor'
-import { LogicInspectorPanel } from './LogicInspectorPanel'
 import { logicBoardLabel, logicBoardsForScene } from '../../utils/project'
 import type { NewTriggerPick } from './picker-constants'
-import { useLogicBlockSelection } from './useLogicBlockSelection'
 
 export type LogicBoardVisualLayoutProps = Readonly<{
   project: ProjectDoc
@@ -74,8 +72,6 @@ export function LogicBoardVisualLayout(props: LogicBoardVisualLayoutProps) {
   } = props
 
   const [leftW, setLeftW] = usePersistedWidth('artcade.logic-left-w-v3', 280)
-  const [rightW, setRightW] = usePersistedWidth('artcade.logic-right-w-v3', 320)
-  const blockSelection = useLogicBlockSelection(focusedEventId)
   const sceneBoards = logicBoardsForScene(project, sceneId)
 
   return (
@@ -122,7 +118,7 @@ export function LogicBoardVisualLayout(props: LogicBoardVisualLayoutProps) {
       <section className="flex-1 min-w-0 flex flex-col bg-[var(--logic-bg)] overflow-hidden">
         <header className="shrink-0 flex items-center justify-between gap-3 px-4 py-2 border-b border-[var(--outline)] bg-[var(--surface)]">
           <div className="min-w-0">
-            <p className="text-[9px] uppercase tracking-widest text-[var(--muted)]">Event Editor</p>
+            <p className="text-[9px] uppercase tracking-widest text-[var(--muted)]">Rule Editor</p>
             <p className="truncate text-sm font-semibold text-[var(--primary)]">
               {board ? logicBoardLabel(project, board) : 'Select a rulesheet'}
             </p>
@@ -157,37 +153,28 @@ export function LogicBoardVisualLayout(props: LogicBoardVisualLayoutProps) {
               ) : null}
             </div>
           ) : focusedEvent ? (
-            <EventEditor
-              event={focusedEvent}
-              board={board}
-              project={project}
-              onChange={onPatchEvent}
-              inspectorMode
-              onBlockSelect={blockSelection.setSelection}
-              isBlockSelected={blockSelection.isSelected}
-            />
+            <div className="mx-auto w-full max-w-[860px]">
+              <EventEditor
+                event={focusedEvent}
+                board={board}
+                project={project}
+                onChange={onPatchEvent}
+              />
+            </div>
           ) : (
-            <p className="text-sm text-[var(--muted)] mt-8 text-center max-w-md mx-auto">
-              Select an event from the list to edit trigger, conditions, and actions.
-            </p>
+            <div className="mx-auto mt-6 max-w-md rounded-[var(--radius-md)] border border-dashed border-[var(--outline)] p-6 text-center">
+              <p className="text-sm font-semibold text-[var(--primary)]">
+                {board.events.length === 0 ? 'No rules yet' : 'Pick a rule to edit'}
+              </p>
+              <p className="mt-2 text-[11px] leading-relaxed text-[var(--muted)]">
+                {board.events.length === 0
+                  ? 'Use "Quick add trigger" at the bottom of the left column to create the first rule.'
+                  : 'Select a rule from the list on the left. Trigger, conditions, and actions are all edited right here.'}
+              </p>
+            </div>
           )}
         </div>
       </section>
-
-      <ResizeHandle side="right" onResize={(d) => setRightW((w) => w - d)} />
-
-      <aside
-        style={{ width: rightW }}
-        className="shrink-0 border-l border-[var(--outline)] min-h-0 overflow-hidden bg-[var(--surface)]"
-      >
-        <LogicInspectorPanel
-          project={project}
-          board={board}
-          event={focusedEvent}
-          selection={blockSelection.selection}
-          onPatchEvent={onPatchEvent}
-        />
-      </aside>
     </div>
   )
 }
