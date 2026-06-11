@@ -14,6 +14,11 @@
 
 :root,
 [data-theme="dark"] {
+  /* Browser-rendered widgets (select popups, scrollbars, checkboxes) must
+     follow the app theme, not the OS preference — without this a light-mode
+     OS paints native select popups white under the dark UI. */
+  color-scheme: dark;
+
   /* Dark Graphite (mockup v2) - VS Code-like neutral grays + blue accent. */
   --bg-app:                 #1E1E1E;
   --bg-window:              #252526;
@@ -157,6 +162,8 @@
 }
 
 [data-theme="light"] {
+  color-scheme: light;
+
   --bg-app:                 #FAFBFC;
   --bg-window:              #F3F5F7;
   --void:                   #FAFBFC;
@@ -898,6 +905,14 @@ input[data-mono],
   background: var(--input-bg);
   border: 1px solid var(--control-border);
   border-radius: var(--radius);
+  color: var(--primary);
+}
+
+/* Chromium honours background/color on <option> inside the native popup;
+   color-scheme above handles the popup chrome itself. */
+.editor-shell select option,
+.editor-shell select optgroup {
+  background-color: var(--surface-2);
   color: var(--primary);
 }
 
