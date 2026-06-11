@@ -291,7 +291,6 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
             <SceneObjectsTree
               groups={tree.entityGroups}
               hasSearch={tree.hasSearch}
-              project={project}
               scene={scene}
               selectedEntityId={selectedEntityId}
               isOpen={isOpen}

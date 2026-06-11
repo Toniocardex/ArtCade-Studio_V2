@@ -1,6 +1,5 @@
 import type { Dispatch, SetStateAction } from 'react'
 import { Box, Copy, Eye, EyeOff, Trash2, Workflow } from 'lucide-react'
-import type { ProjectDoc } from '../../types'
 import type { ExplorerTypeGroup } from '../../utils/project-explorer-tree'
 import type { ExplorerExpandKey } from '../../hooks/useExplorerExpanded'
 import type { useSceneExplorerActions } from '../../hooks/useSceneExplorerActions'
@@ -11,18 +10,10 @@ import {
   type ExplorerContextMenuState,
 } from './explorer-context-menu'
 
-const CLASS_COLOR: Record<string, string> = {
-  Player: 'var(--accent)',
-  Tilemap: 'var(--muted)',
-  Slime: 'var(--green-2)',
-  Enemy: 'var(--danger)',
-}
-
 export type SceneObjectsTreeProps = Readonly<{
   groups: ExplorerTypeGroup[]
   /** When the explorer search is active, groups render expanded regardless of stored state. */
   hasSearch: boolean
-  project: ProjectDoc
   scene: ReturnType<typeof useSceneExplorerActions>
   selectedEntityId: number | null
   isOpen: (key: ExplorerExpandKey, defaultOpen?: boolean) => boolean
@@ -37,7 +28,6 @@ export type SceneObjectsTreeProps = Readonly<{
 export function SceneObjectsTree({
   groups,
   hasSearch,
-  project,
   scene,
   selectedEntityId,
   isOpen,
@@ -87,7 +77,6 @@ export function SceneObjectsTree({
               <SceneInstanceLeaf
                 key={row.entityId}
                 row={row}
-                project={project}
                 scene={scene}
                 selected={selectedEntityId === row.entityId}
                 setContextMenu={setContextMenu}
@@ -102,7 +91,6 @@ export function SceneObjectsTree({
 
 type SceneInstanceLeafProps = Readonly<{
   row: ExplorerTypeGroup['instances'][number]
-  project: ProjectDoc
   scene: ReturnType<typeof useSceneExplorerActions>
   selected: boolean
   setContextMenu: Dispatch<SetStateAction<ExplorerContextMenuState | null>>
@@ -110,14 +98,10 @@ type SceneInstanceLeafProps = Readonly<{
 
 function SceneInstanceLeaf({
   row,
-  project,
   scene,
   selected,
   setContextMenu,
 }: SceneInstanceLeafProps) {
-  const entity = project.entities[row.entityId]
-  const color = entity ? (CLASS_COLOR[entity.className] ?? 'var(--muted)') : 'var(--muted)'
-
   return (
     <TreeLeaf
       label={row.name}
@@ -159,13 +143,7 @@ function SceneInstanceLeaf({
           setContextMenu,
         )
       }
-      icon={
-        <Box
-          size={11}
-          style={{ color: selected ? 'var(--bg)' : color }}
-          className="flex-shrink-0"
-        />
-      }
+      icon={<Box size={11} className="flex-shrink-0" aria-hidden />}
       trailing={
         !selected && row.hasLogic ? (
           <span
