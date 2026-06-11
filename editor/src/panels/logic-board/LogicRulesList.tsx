@@ -76,7 +76,7 @@ function RuleCardHeader({
           {String(index + 1).padStart(2, '0')}
         </span>
         <Zap size={11} className="shrink-0 text-[var(--accent)]" aria-hidden />
-        <span className="min-w-0 flex-1 truncate text-[11px] text-[var(--primary)]">
+        <span className="min-w-0 flex-1 truncate text-[11px] text-[var(--text)]">
           {eventTriggerSummaryPlain(event, project)}
         </span>
         <span className="hidden shrink-0 rounded border border-[var(--outline-subtle)] px-1.5 py-0.5 text-[8px] uppercase tracking-wider text-[var(--muted)] sm:inline">

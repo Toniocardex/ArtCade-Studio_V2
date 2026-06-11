@@ -278,16 +278,22 @@ export default function PreviewPanel({
   const vp  = selectedScene?.viewportSize ?? res
   const zoom = editorZoom
 
-  const preview = cameraPreview && (vp.x !== res.x || vp.y !== res.y)
+  // During play the engine applies ViewportPolicy::NativePlay: the canvas is
+  // resized to the scene viewport (the camera lens), not the world. The frame
+  // and canvas presentation must follow, or the engine-resized canvas sits
+  // unscaled in the corner of a world-sized frame.
+  const frame = isPlaying ? vp : res
+
+  const preview = !isPlaying && cameraPreview && (vp.x !== res.x || vp.y !== res.y)
   const showCameraFrame = !isPlaying && mode === 'canvas' && (vp.x < res.x || vp.y < res.y)
   const layout = useMemo(
     () => computeCanvasViewportLayout({
-      worldSize: res,
+      worldSize: frame,
       viewportSize: vp,
       zoom,
       preview,
     }),
-    [res.x, res.y, vp.x, vp.y, zoom, preview],
+    [frame.x, frame.y, vp.x, vp.y, zoom, preview],
   )
   const frameW = layout.contentSizePx.x
   const frameH = layout.contentSizePx.y
@@ -299,8 +305,8 @@ export default function PreviewPanel({
     dispatch,
     editorZoomMode,
     preview,
-    sceneWidth: res.x,
-    sceneHeight: res.y,
+    sceneWidth: frame.x,
+    sceneHeight: frame.y,
     viewportWidth: vp.x,
     viewportHeight: vp.y,
   })
@@ -337,23 +343,28 @@ export default function PreviewPanel({
   // The runtime canvas is a persistent DOM node React does not manage, so
   // its presentation attributes are applied imperatively. Assigning
   // width/height clears the framebuffer even with the same value — guard.
+  // During play the engine owns the attributes (SetWindowSize on play/stop),
+  // and Emscripten strips the inline CSS size when it matches the native
+  // size — so the CSS size must be re-asserted on every isPlaying flip.
   useLayoutEffect(() => {
     const canvas = getRuntimeCanvas()
-    if (canvas.width  !== res.x) canvas.width  = res.x
-    if (canvas.height !== res.y) canvas.height = res.y
+    if (!isPlaying) {
+      if (canvas.width  !== frame.x) canvas.width  = frame.x
+      if (canvas.height !== frame.y) canvas.height = frame.y
+    }
     Object.assign(canvas.style, {
       display:         'block',
       position:        'absolute',
       top:             `${canvasDY}px`,
       left:            `${canvasDX}px`,
-      width:           `${res.x}px`,
-      height:          `${res.y}px`,
+      width:           `${frame.x}px`,
+      height:          `${frame.y}px`,
       transform:       `scale(${zoom})`,
       transformOrigin: '0 0',
       background:      bgColor,
       pointerEvents:   panActive ? 'none' : 'auto',
     })
-  }, [res.x, res.y, canvasDX, canvasDY, zoom, bgColor, panActive])
+  }, [frame.x, frame.y, isPlaying, canvasDX, canvasDY, zoom, bgColor, panActive])
 
   // Suppress the browser context menu during play (right click is game input).
   useEffect(() => {
