@@ -265,8 +265,7 @@ void drawPlaceholderOutlineSilhouette(const Vec2& pos,
 std::string Renderer::resolvedTextureKey(const std::string& ref) const {
     if (ref.empty()) return ref;
     if (impl_->textureKeyResolver) {
-        const std::string resolved = impl_->textureKeyResolver(ref);
-        return resolved.empty() ? ref : resolved;
+        return impl_->textureKeyResolver(ref);
     }
     return ref;
 }

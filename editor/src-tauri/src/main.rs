@@ -29,7 +29,10 @@ use tauri_plugin_fs::FsExt;
 
 use build_log_filter::BuildLogFilter;
 use process_util::{hide_console, prefer_windowless_python};
-use sdk::{check_dependencies, resolve_pack_script, resolve_python_exe, resolve_workspace_root, sdk_emscripten_root, sdk_path_prefix};
+use sdk::{
+    check_dependencies, resolve_pack_script, resolve_python_exe, resolve_workspace_root,
+    sdk_emscripten_root, sdk_path_prefix,
+};
 
 // ---------------------------------------------------------------------------
 // Payload type for build log events
@@ -99,10 +102,7 @@ fn resolve_path_under_project_root(file: &Path, root: &Path) -> Result<PathBuf, 
         } else {
             let rel = file
                 .strip_prefix(root)
-                .or_else(|_| {
-                    file.strip_prefix(&root_canon)
-                        .map_err(|_| ())
-                })
+                .or_else(|_| file.strip_prefix(&root_canon).map_err(|_| ()))
                 .map_err(|_| {
                     format!(
                         "could not resolve path relative to project root '{}': '{}'",
@@ -176,10 +176,7 @@ fn is_allowed_project_relative(rel: &Path) -> bool {
             return matches!(ext.as_str(), "ogg" | "wav" | "mp3" | "flac");
         }
         if second == "fonts" {
-            return matches!(
-                ext.as_str(),
-                "ttf" | "otf" | "woff" | "woff2"
-            );
+            return matches!(ext.as_str(), "ttf" | "otf" | "woff" | "woff2");
         }
     }
 
@@ -219,20 +216,14 @@ fn validate_build_project_root(project_root: &str) -> Result<PathBuf, String> {
         .canonicalize()
         .map_err(|e| format!("project_root canonicalize: {e}"))?;
     if !canonical.join("project.json").is_file() {
-        return Err(format!(
-            "project.json not found in {}",
-            canonical.display()
-        ));
+        return Err(format!("project.json not found in {}", canonical.display()));
     }
     Ok(canonical)
 }
 
 fn validate_pack_output_path(output_path: &str) -> Result<PathBuf, String> {
     let p = validate_absolute_path_no_dotdot(output_path, "output_path")?;
-    let ext = p
-        .extension()
-        .and_then(|s| s.to_str())
-        .unwrap_or_default();
+    let ext = p.extension().and_then(|s| s.to_str()).unwrap_or_default();
     if !ext.eq_ignore_ascii_case("artcade") {
         return Err(format!(
             "output_path must end with .artcade, got '{}'",
@@ -287,15 +278,31 @@ mod write_path_tests {
         let script = root.join("scripts").join("main.lua");
         let dialog = root.join("dialogs").join("innkeeper.json");
 
-        assert!(validate_writable_path(&project_json.display().to_string(), &root.display().to_string()).is_ok());
-        assert!(validate_writable_path(&script.display().to_string(), &root.display().to_string()).is_ok());
-        assert!(validate_writable_path(&dialog.display().to_string(), &root.display().to_string()).is_ok());
+        assert!(validate_writable_path(
+            &project_json.display().to_string(),
+            &root.display().to_string()
+        )
+        .is_ok());
+        assert!(
+            validate_writable_path(&script.display().to_string(), &root.display().to_string())
+                .is_ok()
+        );
+        assert!(
+            validate_writable_path(&dialog.display().to_string(), &root.display().to_string())
+                .is_ok()
+        );
 
         let image = root.join("assets").join("images").join("tile.png");
-        assert!(validate_writable_path(&image.display().to_string(), &root.display().to_string()).is_ok());
+        assert!(
+            validate_writable_path(&image.display().to_string(), &root.display().to_string())
+                .is_ok()
+        );
 
         let font = root.join("assets").join("fonts").join("ui.ttf");
-        assert!(validate_writable_path(&font.display().to_string(), &root.display().to_string()).is_ok());
+        assert!(
+            validate_writable_path(&font.display().to_string(), &root.display().to_string())
+                .is_ok()
+        );
     }
 
     #[test]
@@ -309,11 +316,9 @@ mod write_path_tests {
         let foreign = other.join("project.json");
         fs::write(&foreign, "{}").unwrap();
 
-        let err = validate_writable_path(
-            &foreign.display().to_string(),
-            &root.display().to_string(),
-        )
-        .unwrap_err();
+        let err =
+            validate_writable_path(&foreign.display().to_string(), &root.display().to_string())
+                .unwrap_err();
         assert!(err.contains("outside project root"));
     }
 
@@ -321,11 +326,9 @@ mod write_path_tests {
     fn rejects_path_outside_root() {
         let (root, _) = temp_project();
         let outside = std::env::temp_dir().join("artcade_outside_secret.txt");
-        let err = validate_writable_path(
-            &outside.display().to_string(),
-            &root.display().to_string(),
-        )
-        .unwrap_err();
+        let err =
+            validate_writable_path(&outside.display().to_string(), &root.display().to_string())
+                .unwrap_err();
         assert!(err.contains("outside project root") || err.contains("non-project"));
     }
 
@@ -396,11 +399,8 @@ mod write_path_tests {
             }
         }
 
-        let err = validate_writable_path(
-            &link.display().to_string(),
-            &root.display().to_string(),
-        )
-        .unwrap_err();
+        let err = validate_writable_path(&link.display().to_string(), &root.display().to_string())
+            .unwrap_err();
         assert!(
             err.contains("outside project root"),
             "expected outside-root error, got: {err}"
@@ -408,23 +408,88 @@ mod write_path_tests {
     }
 }
 
-/// Extend plugin-fs scope to the opened project directory (parent of project.json).
-#[tauri::command]
-fn register_project_fs_scope(app: tauri::AppHandle, project_root: String) -> Result<(), String> {
-    let root = validate_absolute_path_no_dotdot(&project_root, "project_root")?;
-    if !root.is_dir() {
+fn validated_project_scope_root(project_path: &str) -> Result<PathBuf, String> {
+    let path = validate_absolute_path_no_dotdot(project_path, "project_path")?;
+    if !path.is_file() {
         return Err(format!(
-            "project_root must be an existing directory: '{}'",
-            root.display()
+            "project_path must be an existing project.json or .artcade file: '{}'",
+            path.display()
         ));
     }
-    let canon = root
+    let is_project_json = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| name.eq_ignore_ascii_case("project.json"));
+    let is_package = path
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("artcade"));
+    if !is_project_json && !is_package {
+        return Err(format!(
+            "project_path must name project.json or a .artcade package: '{}'",
+            path.display()
+        ));
+    }
+    let parent = path
+        .parent()
+        .ok_or_else(|| format!("project_path has no parent: '{}'", path.display()))?;
+    parent
         .canonicalize()
-        .map_err(|e| format!("canonicalize '{}': {e}", root.display()))?;
+        .map_err(|e| format!("canonicalize '{}': {e}", parent.display()))
+}
+
+/// Extend plugin-fs scope to the directory of a user-selected project file.
+#[tauri::command]
+fn register_project_fs_scope(app: tauri::AppHandle, project_path: String) -> Result<(), String> {
+    let canon = validated_project_scope_root(&project_path)?;
     app.fs_scope()
         .allow_directory(&canon, true)
         .map_err(|e| format!("fs scope allow_directory: {e}"))?;
     Ok(())
+}
+
+#[cfg(test)]
+mod project_scope_tests {
+    use super::*;
+    use std::fs;
+
+    fn temp_dir(name: &str) -> PathBuf {
+        let path =
+            std::env::temp_dir().join(format!("artcade_scope_{name}_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&path);
+        fs::create_dir_all(&path).unwrap();
+        path
+    }
+
+    #[test]
+    fn accepts_project_json_and_artcade_files() {
+        let temp = temp_dir("accepted");
+        let project = temp.join("project.json");
+        let package = temp.join("game.artcade");
+        fs::write(&project, "{}").unwrap();
+        fs::write(&package, []).unwrap();
+
+        assert_eq!(
+            validated_project_scope_root(project.to_str().unwrap()).unwrap(),
+            temp.canonicalize().unwrap()
+        );
+        assert_eq!(
+            validated_project_scope_root(package.to_str().unwrap()).unwrap(),
+            temp.canonicalize().unwrap()
+        );
+        let _ = fs::remove_dir_all(temp);
+    }
+
+    #[test]
+    fn rejects_arbitrary_files_and_directories() {
+        let temp = temp_dir("rejected");
+        let text = temp.join("notes.txt");
+        fs::write(&text, "secret").unwrap();
+
+        assert!(validated_project_scope_root(text.to_str().unwrap()).is_err());
+        assert!(validated_project_scope_root(temp.to_str().unwrap()).is_err());
+        let _ = fs::remove_dir_all(temp);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -443,10 +508,7 @@ async fn install_sdk(
 ) -> Result<(), String> {
     let script = sdk::bootstrap_script_path(&app)?;
     let sdk_root = sdk::sdk_root();
-    let resource_dir = app
-        .path()
-        .resource_dir()
-        .map_err(|e| e.to_string())?;
+    let resource_dir = app.path().resource_dir().map_err(|e| e.to_string())?;
     let include_ems = include_emscripten.unwrap_or(false);
 
     emit_log(
@@ -509,11 +571,7 @@ fn apply_sdk_env(cmd: &mut Cmd) {
 }
 
 /// Copy `src` tree into `dst`, refusing symlinks and paths outside `boundary_root`.
-fn copy_dir_recursive_bounded(
-    src: &Path,
-    dst: &Path,
-    boundary_root: &Path,
-) -> Result<(), String> {
+fn copy_dir_recursive_bounded(src: &Path, dst: &Path, boundary_root: &Path) -> Result<(), String> {
     if !src.exists() {
         return Ok(());
     }
@@ -529,8 +587,7 @@ fn copy_dir_recursive_bounded(
         ));
     }
 
-    std::fs::create_dir_all(dst)
-        .map_err(|e| format!("create dir '{}': {e}", dst.display()))?;
+    std::fs::create_dir_all(dst).map_err(|e| format!("create dir '{}': {e}", dst.display()))?;
     for entry in std::fs::read_dir(&src_canon)
         .map_err(|e| format!("read dir '{}': {e}", src_canon.display()))?
     {
@@ -577,7 +634,8 @@ fn write_web_shell(dist_dir: &Path, title: &str) -> Result<(), String> {
         .replace('<', "&lt;")
         .replace('>', "&gt;")
         .replace('"', "&quot;");
-    let html = format!(r#"<!doctype html>
+    let html = format!(
+        r#"<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -720,7 +778,8 @@ fn write_web_shell(dist_dir: &Path, title: &str) -> Result<(), String> {
   <script async src="game.js"></script>
 </body>
 </html>
-"#);
+"#
+    );
     let path = dist_dir.join("index.html");
     std::fs::write(&path, html).map_err(|e| format!("write '{}': {e}", path.display()))
 }
@@ -868,7 +927,11 @@ fn stream_and_wait(
                     "build-log",
                     BuildLogEntry {
                         message: line,
-                        level: if stderr_warn { "warn".into() } else { "error".into() },
+                        level: if stderr_warn {
+                            "warn".into()
+                        } else {
+                            "error".into()
+                        },
                     },
                 );
             }
@@ -888,7 +951,11 @@ async fn run_build_wasm(app: tauri::AppHandle, project_root: String) -> Result<(
 
     let workspace = resolve_workspace_root()?;
     let build_wasm = workspace.join("runtime-cpp").join("build_wasm.bat");
-    let wasm_app_dir = workspace.join("runtime-cpp").join("build-wasm").join("src").join("app");
+    let wasm_app_dir = workspace
+        .join("runtime-cpp")
+        .join("build-wasm")
+        .join("src")
+        .join("app");
     let project_root = match validate_build_project_root(&project_root) {
         Ok(p) => p,
         Err(msg) => {
@@ -941,11 +1008,17 @@ async fn run_build_wasm(app: tauri::AppHandle, project_root: String) -> Result<(
         }
     }
 
-    std::fs::copy(project_root.join("project.json"), dist_dir.join("project.json"))
-        .map_err(|e| format!("copy project.json to web dist: {e}"))?;
-    let boundary_root = project_root
-        .canonicalize()
-        .map_err(|e| format!("canonicalize project root '{}': {e}", project_root.display()))?;
+    std::fs::copy(
+        project_root.join("project.json"),
+        dist_dir.join("project.json"),
+    )
+    .map_err(|e| format!("copy project.json to web dist: {e}"))?;
+    let boundary_root = project_root.canonicalize().map_err(|e| {
+        format!(
+            "canonicalize project root '{}': {e}",
+            project_root.display()
+        )
+    })?;
     copy_dir_recursive_bounded(
         &boundary_root.join("scripts"),
         &dist_dir.join("scripts"),
@@ -1016,15 +1089,15 @@ async fn open_web_export_in_browser(
 }
 
 #[tauri::command]
-fn get_web_export_status(project_root: String, project_dirty: bool) -> web_export_status::WebExportStatus {
+fn get_web_export_status(
+    project_root: String,
+    project_dirty: bool,
+) -> web_export_status::WebExportStatus {
     match validate_build_project_root(&project_root) {
         Ok(root) => web_export_status::evaluate_web_export_status(&root, project_dirty),
         Err(_) => {
             let dist = project_paths::web_export_dist_dir(Path::new(&project_root));
-            web_export_status::WebExportStatus::new(
-                web_export_status::ExportState::Missing,
-                dist,
-            )
+            web_export_status::WebExportStatus::new(web_export_status::ExportState::Missing, dist)
         }
     }
 }

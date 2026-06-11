@@ -65,18 +65,11 @@ export function applyTauriWindowSurfaceIfNeeded(theme: Theme): void {
 }
 
 /**
- * Show the Tauri window once the React splash has painted (window starts hidden in tauri.conf.json).
- * Call on boot-gate mount — not on fade — so the full intro is visible.
- * 2× rAF + setTimeout(0) so WebView2 commits a painted frame before the native window appears.
+ * Show the Tauri window on the first browser paint after the splash commits.
  */
 export function revealTauriWindowForSplash(): void {
   if (!isTauri()) return
   requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      // lint-ignore: setTimeout — WebView2 needs a task after rAF before show().
-      globalThis.setTimeout(() => {
-        void getCurrentWindow().show()
-      }, 0)
-    })
+    void getCurrentWindow().show()
   })
 }

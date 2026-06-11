@@ -30,4 +30,18 @@ describe('project path security', () => {
 
     expect(() => validateProjectBeforeSave(project)).toThrow(/asset "Bad" path/)
   })
+
+  it('rejects audio and font paths that escape the project folder', () => {
+    const project = createBlankProject('Unsafe Media')
+    project.audioAssets = {
+      audio: { id: 'audio', name: 'Bad Audio', path: '../../secret.wav' },
+    }
+    expect(() => validateProjectBeforeSave(project)).toThrow(/audio asset "Bad Audio" path/)
+
+    project.audioAssets = {}
+    project.fontAssets = {
+      font: { id: 'font', name: 'Bad Font', path: 'C:/Windows/Fonts/secret.ttf' },
+    }
+    expect(() => validateProjectBeforeSave(project)).toThrow(/font asset "Bad Font" path/)
+  })
 })

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useLayoutEffect, useState, useRef } from 'react'
 import { ChevronUp, ChevronDown, Trash2, Plus } from 'lucide-react'
 import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import { DEFAULT_LAYERS } from '../../constants/scene-layers'
@@ -14,6 +14,10 @@ export function SceneLayersPanel() {
   const addInputRef = useRef<HTMLInputElement>(null)
   const renameInputRef = useRef<HTMLInputElement>(null)
 
+  useLayoutEffect(() => {
+    if (renamingName) renameInputRef.current?.select()
+  }, [renamingName])
+
   function handleAdd() {
     const name = addingName.trim()
     if (!name) return
@@ -25,7 +29,6 @@ export function SceneLayersPanel() {
   function startRename(name: string) {
     setRenamingName(name)
     setRenameValue(name)
-    setTimeout(() => renameInputRef.current?.select(), 0)
   }
 
   function commitRename() {

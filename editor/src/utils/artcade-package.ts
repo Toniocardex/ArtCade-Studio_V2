@@ -81,11 +81,7 @@ export async function importArtcadePackage(packagePath: string): Promise<LoadedP
 }
 
 function safeArchivePath(path: string): string | null {
-  const normalized = path.replace(/\\/g, '/').replace(/^\/+/, '')
-  if (!normalized || normalized.endsWith('/')) return null
-  if (/^[a-zA-Z]:\//.test(normalized)) return null
-  if (normalized.split('/').some((part) => part === '..' || part === '')) return null
-  return normalized
+  return path.endsWith('/') ? null : path
 }
 
 async function uniqueImportRoot(packagePath: string, projectName: string): Promise<string> {

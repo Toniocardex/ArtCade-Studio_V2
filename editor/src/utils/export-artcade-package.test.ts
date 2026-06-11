@@ -45,4 +45,14 @@ describe('buildArtcadeZipBytes round-trip', () => {
     expect(parsed.project.assets?.img1?.path).toBe('assets/images/hero.png')
     expect(parsed.manifest?.assets.some((a) => a.id === 'img1')).toBe(true)
   })
+
+  it('rejects traversal and reserved extra file paths', async () => {
+    const project = createBlankProject()
+    await expect(buildArtcadeZipBytes(project, {
+      '../secret.lua': new Uint8Array([1]),
+    })).rejects.toThrow(/extra file path/)
+    await expect(buildArtcadeZipBytes(project, {
+      'project.json': new Uint8Array([1]),
+    })).rejects.toThrow(/reserved/)
+  })
 })

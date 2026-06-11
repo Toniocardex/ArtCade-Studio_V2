@@ -121,7 +121,7 @@ describe('scaffoldNewProjectOnDisk', () => {
 
     await scaffoldNewProjectOnDisk(target, project, BLANK_MAIN_LUA)
 
-    expect(invokeMock).toHaveBeenCalledTimes(2)
+    expect(invokeMock).toHaveBeenCalledTimes(3)
 
     // 1st write — project.json with normalised path & valid JSON content.
     const [cmd0, args0] = invokeMock.mock.calls[0] as [
@@ -145,6 +145,11 @@ describe('scaffoldNewProjectOnDisk', () => {
     expect(args1.path).toBe('/tmp/games/Scaffold Test/scripts/main.lua')
     expect(args1.projectRoot).toBe('/tmp/games/Scaffold Test')
     expect(args1.content).toBe(BLANK_MAIN_LUA)
+
+    expect(invokeMock.mock.calls[2]).toEqual([
+      'register_project_fs_scope',
+      { projectPath: '/tmp/games/Scaffold Test/project.json' },
+    ])
   })
 
   it('sanitises the project folder name', async () => {

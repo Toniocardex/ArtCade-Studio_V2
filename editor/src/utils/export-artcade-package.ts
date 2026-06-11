@@ -1,13 +1,13 @@
 import { isTauri } from '@tauri-apps/api/core'
-import { readFile, writeFile, mkdir } from '@tauri-apps/plugin-fs'
+import { readFile, writeFile } from '@tauri-apps/plugin-fs'
 import type { ProjectDoc } from '../types'
 import { serializeProjectDoc } from './project-codec'
 import { collectReferencedProjectPaths } from './collect-referenced-project-paths'
 import { buildProjectAssetManifest } from './build-project-asset-manifest'
 import { joinPath, baseName } from './file-paths'
-import { dirName } from './project'
 import { bytesToArrayBuffer } from './asset-file-api'
-import { assertProjectPathsSafe } from './project-path-security'
+import { assertProjectPathsSafe, normalizeProjectRelativePath } from './project-path-security'
+import { crc32 } from './artcade-zip-io'
 
 async function sha256Hex(bytes: Uint8Array): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', bytesToArrayBuffer(bytes))
@@ -22,15 +22,6 @@ async function deflateRaw(data: Uint8Array): Promise<Uint8Array> {
     new CompressionStream('deflate-raw'),
   )
   return new Uint8Array(await new Response(stream).arrayBuffer())
-}
-
-function crc32(bytes: Uint8Array): number {
-  let crc = 0xffffffff
-  for (let i = 0; i < bytes.length; i++) {
-    crc ^= bytes[i]
-    for (let j = 0; j < 8; j++) crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0)
-  }
-  return (crc ^ 0xffffffff) >>> 0
 }
 
 interface ZipWriteEntry {
@@ -150,6 +141,7 @@ export async function buildArtcadeZipBytes(
   project: ProjectDoc,
   extraFiles: Readonly<Record<string, Uint8Array>> = {},
 ): Promise<Uint8Array> {
+  assertProjectPathsSafe(project)
   const entries: ZipWriteEntry[] = []
   const checksums: Record<string, string> = {}
   const projectJson = serializeProjectDoc(project)
@@ -158,7 +150,10 @@ export async function buildArtcadeZipBytes(
   checksums['project.json'] = await sha256Hex(projectBytes)
 
   for (const [rel, bytes] of Object.entries(extraFiles)) {
-    const norm = rel.replace(/\\/g, '/')
+    const norm = normalizeProjectRelativePath(rel, 'extra file path')
+    if (norm === 'project.json' || norm === 'manifest.json') {
+      throw new Error(`extra file path is reserved: ${norm}`)
+    }
     entries.push({ path: norm, data: bytes })
     checksums[norm] = await sha256Hex(bytes)
   }
@@ -197,7 +192,6 @@ export async function exportArtcadePackage(
     entries.push({ path: 'manifest.json', data: manifestBytes })
 
     const zip = entries.length > 3 ? await buildZipDeflate(entries) : buildZipStore(entries)
-    await mkdir(dirName(destPath), { recursive: true })
     await writeFile(destPath, zip)
     console.info(`[export] Wrote ${destPath} (${baseName(destPath)})`)
     return true

@@ -476,6 +476,61 @@ static void test_store_size_mismatch_rejected() {
     fs::remove_all(outDir);
 }
 
+static bool extractTempZip(const std::vector<uint8_t>& zip, const std::string& stem) {
+    const fs::path zipPath = fs::temp_directory_path() / (stem + ".zip");
+    const fs::path outDir = fs::temp_directory_path() / (stem + "_out");
+    fs::remove_all(outDir);
+    writeToDisk(zipPath.string(), zip);
+    const bool ok = ArtCade::zipExtractAll(zipPath.string(), outDir.string());
+    fs::remove(zipPath);
+    fs::remove_all(outDir);
+    return ok;
+}
+
+static void test_zip_integrity_checks() {
+    std::cout << "Test 8: zipExtractAll verifies CRC, names and duplicates\n";
+    const std::vector<uint8_t> payload = {'o', 'k'};
+
+    auto badCrc = MinimalZip::build({{ "file.txt", payload }});
+    const size_t dataOffset = 30u + std::string("file.txt").size();
+    badCrc[dataOffset] ^= 0xFFu;
+    CHECK(!extractTempZip(badCrc, "artcade_zip_bad_crc"));
+
+    auto localNameMismatch = MinimalZip::build({{ "file.txt", payload }});
+    localNameMismatch[30] = 'x';
+    CHECK(!extractTempZip(localNameMismatch, "artcade_zip_bad_local_name"));
+
+    const auto duplicate = MinimalZip::build({
+        { "same.txt", payload },
+        { "same.txt", payload },
+    });
+    CHECK(!extractTempZip(duplicate, "artcade_zip_duplicate"));
+}
+
+static void test_runtime_project_paths_are_sandboxed() {
+    std::cout << "Test 9: runtime asset paths stay inside the project root\n";
+    const fs::path root = fs::temp_directory_path() / "artcade_path_sandbox";
+    const fs::path outside = fs::temp_directory_path() / "artcade_outside.lua";
+    fs::remove_all(root);
+    fs::create_directories(root / "scripts");
+    writeToDisk((root / "project.json").string(), std::vector<uint8_t>{'{', '}'});
+    writeToDisk((root / "scripts" / "main.lua").string(), std::vector<uint8_t>{'o', 'k'});
+    writeToDisk(outside.string(), std::vector<uint8_t>{'n', 'o'});
+
+    AssetLoader loader;
+    loader.init();
+    ArtCade::ProjectDoc doc;
+    CHECK(loader.loadDirectory(root.string(), doc));
+    std::vector<uint8_t> bytes;
+    CHECK(loader.loadLuaBytecode("scripts/main.lua", bytes));
+    CHECK(!loader.loadLuaBytecode("../artcade_outside.lua", bytes));
+    CHECK(!loader.loadLuaBytecode(outside.string(), bytes));
+    CHECK(loader.resolveImagePath("../outside.png").empty());
+    loader.shutdown();
+    fs::remove_all(root);
+    fs::remove(outside);
+}
+
 // ---- main ------------------------------------------------------------------
 
 int main() {
@@ -488,6 +543,8 @@ int main() {
     test_directory_load_still_works();
     test_zip_slip_entry_rejected();
     test_store_size_mismatch_rejected();
+    test_zip_integrity_checks();
+    test_runtime_project_paths_are_sandboxed();
 
     std::cout << "\nResults: " << g_passed << " passed, "
               << g_failed  << " failed\n";

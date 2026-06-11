@@ -39,6 +39,14 @@ export function assertProjectPathsSafe(project: ProjectDoc): void {
     normalizeProjectRelativePath(asset.path, `asset "${asset.name}" path`)
   }
 
+  for (const asset of Object.values(project.audioAssets ?? {})) {
+    normalizeProjectRelativePath(asset.path, `audio asset "${asset.name}" path`)
+  }
+
+  for (const asset of Object.values(project.fontAssets ?? {})) {
+    normalizeProjectRelativePath(asset.path, `font asset "${asset.name}" path`)
+  }
+
   for (const tileset of Object.values(project.tilesets ?? {})) {
     if (tileset.spriteImagePath) {
       normalizeProjectRelativePath(

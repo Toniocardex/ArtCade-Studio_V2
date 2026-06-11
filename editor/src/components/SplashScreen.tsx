@@ -59,34 +59,6 @@ export default function SplashScreen({
         </div>
       </div>
 
-      <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes stream-h { 0% { left: -40vw; opacity: 0; } 50% { opacity: 1; } 100% { left: 45%; opacity: 0; } }
-        @keyframes stream-h-reverse { 0% { right: -40vw; opacity: 0; } 50% { opacity: 1; } 100% { right: 45%; opacity: 0; } }
-        @keyframes stream-v { 0% { top: -40vh; opacity: 0; } 50% { opacity: 1; } 100% { top: 45%; opacity: 0; } }
-        @keyframes stream-v-reverse { 0% { bottom: -40vh; opacity: 0; } 50% { opacity: 1; } 100% { bottom: 55%; opacity: 0; } }
-        .animate-stream-h { animation: stream-h 1s ease-in-out forwards; }
-        .animate-stream-h-reverse { animation: stream-h-reverse 1s ease-in-out forwards; }
-        .animate-stream-v { animation: stream-v 1s ease-in-out forwards; }
-        .animate-stream-v-reverse { animation: stream-v-reverse 1s ease-in-out forwards; }
-
-        @keyframes data-fly-tl { 0% { top: 10%; left: 10%; opacity: 1; } 100% { top: 45%; left: 45%; opacity: 0; scale: 0.5; } }
-        @keyframes data-fly-tr { 0% { top: 10%; right: 10%; opacity: 1; } 100% { top: 45%; right: 45%; opacity: 0; scale: 0.5; } }
-        @keyframes data-fly-bl { 0% { bottom: 10%; left: 10%; opacity: 1; } 100% { bottom: 45%; left: 45%; opacity: 0; scale: 0.5; } }
-        @keyframes data-fly-br { 0% { bottom: 10%; right: 10%; opacity: 1; } 100% { bottom: 45%; right: 45%; opacity: 0; scale: 0.5; } }
-        .animate-data-fly-tl { animation: data-fly-tl 0.8s ease-in forwards; }
-        .animate-data-fly-tr { animation: data-fly-tr 0.8s 0.2s ease-in forwards; }
-        .animate-data-fly-bl { animation: data-fly-bl 0.8s 0.1s ease-in forwards; }
-        .animate-data-fly-br { animation: data-fly-br 0.8s 0.3s ease-in forwards; }
-
-        @keyframes title-glitch-in {
-          0% { opacity: 0; transform: scale(0.92); filter: brightness(1.4); }
-          15% { opacity: 1; transform: scale(1.02) skewX(-4deg); filter: brightness(1); }
-          30% { transform: scale(1) skewX(3deg); }
-          45% { transform: skewX(0deg); }
-          100% { opacity: 1; transform: scale(1); }
-        }
-        .animate-title-glitch-in { animation: title-glitch-in 0.7s ease-out forwards; }
-      ` }} />
     </div>
   )
 }

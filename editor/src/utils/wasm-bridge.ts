@@ -185,6 +185,7 @@ export function bindWindowCallbacks(cbs: Partial<WasmCallbacks>): void {
 function attachModuleHooks(
   canvas: HTMLCanvasElement,
   cbs: WasmCallbacks,
+  onInitialized?: (module: ArtCadeModule) => void,
 ): void {
   const cacheBust = cacheQuery()
   const g = emscriptenGlobal()
@@ -208,6 +209,7 @@ function attachModuleHooks(
 
       safeCall('editor_set_mode', null, ['number'], [0])
       cbs.onReady()
+      onInitialized?.(_module)
     },
   }
 
@@ -219,8 +221,28 @@ function attachModuleHooks(
     _module.print    = (t) => cbs.onConsoleLine(t, 'info')
     _module.printErr = (t) => cbs.onConsoleLine(t, 'error')
     safeCall('editor_set_mode', null, ['number'], [0])
-    queueMicrotask(() => cbs.onReady())
+    queueMicrotask(() => {
+      cbs.onReady()
+      onInitialized?.(_module as ArtCadeModule)
+    })
   }
+}
+
+function waitForRuntimeInitialization(
+  canvas: HTMLCanvasElement,
+  cbs: WasmCallbacks,
+  timeoutMessage: string,
+): Promise<ArtCadeModule> {
+  return new Promise((resolve, reject) => {
+    const timeoutId = globalThis.setTimeout(() => {
+      wasmInitPromise = null
+      reject(new Error(timeoutMessage))
+    }, 30_000)
+    attachModuleHooks(canvas, cbs, (module) => {
+      globalThis.clearTimeout(timeoutId)
+      resolve(module)
+    })
+  })
 }
 
 function adoptExistingRuntime(
@@ -306,23 +328,11 @@ export function loadWasmRuntime(
         return mod
       })
     }
-    attachModuleHooks(canvas, cbs)
-    wasmInitPromise = new Promise((resolve, reject) => {
-      const deadline = Date.now() + 30_000
-      const tick = () => {
-        if (isWasmModuleReady()) {
-          resolve(adoptExistingRuntime(canvas, cbs))
-          return
-        }
-        if (Date.now() > deadline) {
-          wasmInitPromise = null
-          reject(new Error('[wasm-bridge] Timeout waiting for existing game.js'))
-          return
-        }
-        requestAnimationFrame(tick)
-      }
-      tick()
-    })
+    wasmInitPromise = waitForRuntimeInitialization(
+      canvas,
+      cbs,
+      '[wasm-bridge] Timeout waiting for existing game.js',
+    )
     return wasmInitPromise
   }
 
@@ -335,33 +345,25 @@ export function loadWasmRuntime(
     })
   }
 
-  attachModuleHooks(canvas, cbs)
-
   wasmInitPromise = new Promise<ArtCadeModule>((resolve, reject) => {
     const script   = document.createElement('script')
     script.id      = WASM_SCRIPT_ID
     script.src     = `${gameSrc}${cacheQuery()}`
     script.async   = true
 
-    script.onload = () => {
-      console.log('[wasm-bridge] game.js loaded.')
-      const deadline = Date.now() + 30_000
-      const tick = () => {
-        if (isWasmModuleReady()) {
-          resolve(adoptExistingRuntime(canvas, cbs))
-          return
-        }
-        if (Date.now() > deadline) {
-          wasmInitPromise = null
-          reject(new Error('[wasm-bridge] Module not ready after game.js onload'))
-          return
-        }
-        requestAnimationFrame(tick)
-      }
-      tick()
-    }
+    const timeoutId = globalThis.setTimeout(() => {
+      wasmInitPromise = null
+      reject(new Error('[wasm-bridge] Module not ready after loading game.js'))
+    }, 30_000)
+    attachModuleHooks(canvas, cbs, (module) => {
+      globalThis.clearTimeout(timeoutId)
+      resolve(module)
+    })
+
+    script.onload = () => console.log('[wasm-bridge] game.js loaded.')
 
     script.onerror = () => {
+      globalThis.clearTimeout(timeoutId)
       wasmInitPromise = null
       script.remove()
       const message = `[wasm-bridge] Failed to load WASM runtime from "${gameSrc}"`

@@ -30,7 +30,7 @@
       "csp": {
         "default-src": "'self' asset: https://asset.localhost http://asset.localhost https://tauri.localhost http://tauri.localhost tauri: customprotocol:",
         "connect-src": "ipc: http://ipc.localhost 'self' http://localhost:* https://asset.localhost http://asset.localhost https://tauri.localhost http://tauri.localhost",
-        "script-src": "'self' 'unsafe-inline' 'wasm-unsafe-eval' asset: https://asset.localhost http://asset.localhost https://tauri.localhost http://tauri.localhost blob:",
+        "script-src": "'self' 'wasm-unsafe-eval' asset: https://asset.localhost http://asset.localhost https://tauri.localhost http://tauri.localhost",
         "style-src": "'self' 'unsafe-inline'",
         "img-src": "'self' data: asset: https://asset.localhost http://asset.localhost blob:",
         "worker-src": "'self' blob: data: asset: https://asset.localhost http://asset.localhost https://tauri.localhost http://tauri.localhost",

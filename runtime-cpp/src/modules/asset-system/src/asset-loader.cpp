@@ -10,12 +10,58 @@
 #include <filesystem>
 #include <fstream>
 #include <functional>
+#include <random>
 #include <sstream>
 #include <system_error>
 
 using json = nlohmann::json;
 
 namespace ArtCade::Modules {
+
+namespace {
+
+std::optional<std::filesystem::path> createExtractionDirectory() {
+    namespace fs = std::filesystem;
+    std::random_device random;
+    std::error_code ec;
+    const fs::path tempRoot = fs::temp_directory_path(ec);
+    if (ec) return std::nullopt;
+    for (int attempt = 0; attempt < 64; ++attempt) {
+        const auto nonce = (static_cast<uint64_t>(random()) << 32u) ^ random();
+        const fs::path candidate = tempRoot / ("artcade_" + std::to_string(nonce));
+        if (fs::create_directory(candidate, ec)) return candidate;
+        if (ec && ec != std::errc::file_exists) return std::nullopt;
+        ec.clear();
+    }
+    return std::nullopt;
+}
+
+std::optional<std::string> resolveUnderRoot(const std::string& rootPath,
+                                            const std::string& relativePath) {
+    namespace fs = std::filesystem;
+    const fs::path relative(relativePath);
+    if (relative.empty() || relative.is_absolute()) return std::nullopt;
+    for (const auto& component : relative) {
+        if (component.string().find(':') != std::string::npos)
+            return std::nullopt;
+        if (component == "." || component == ".." || component.empty())
+            return std::nullopt;
+    }
+    std::error_code ec;
+    const fs::path root = fs::canonical(rootPath, ec);
+    if (ec) return std::nullopt;
+    const fs::path candidate = root / relative;
+    fs::path resolved = fs::weakly_canonical(candidate, ec);
+    if (ec) return std::nullopt;
+    const fs::path withinRoot = resolved.lexically_relative(root);
+    const auto first = withinRoot.begin();
+    if (withinRoot.empty() || withinRoot.is_absolute() ||
+        first == withinRoot.end() || *first == "..")
+        return std::nullopt;
+    return resolved.string();
+}
+
+} // namespace
 
 using ProjectJson::read_float_any;
 using ProjectJson::read_string_any;
@@ -39,11 +85,18 @@ void AssetLoader::loadManifestForRoot(const std::string& rootPath) {
 }
 
 std::string AssetLoader::resolveImagePath(const std::string& ref) const {
-    return manifestIndex_.resolveImageKey(ref);
+    const std::string relative = manifestIndex_.resolveImageKey(ref);
+    const auto resolved = resolveUnderRoot(rootPath_, relative);
+    if (relative == ref && ref.find_first_of("/\\:") == std::string::npos &&
+        resolved && !std::filesystem::exists(*resolved))
+        return ref; // Editor-uploaded texture key, not a filesystem path.
+    return resolved.value_or(std::string{});
 }
 
 std::string AssetLoader::resolveAudioPath(const std::string& ref) const {
-    return manifestIndex_.resolveAudioKey(ref);
+    const std::string relative = manifestIndex_.resolveAudioKey(ref);
+    const auto resolved = resolveUnderRoot(rootPath_, relative);
+    return resolved.value_or(std::string{});
 }
 
 bool AssetLoader::loadDirectory(const std::string& dirPath, ProjectDoc& out) {
@@ -61,15 +114,20 @@ bool AssetLoader::loadDirectory(const std::string& dirPath, ProjectDoc& out) {
 }
 
 bool AssetLoader::loadArtcade(const std::string& archivePath, ProjectDoc& out) {
-    // Build a stable temp directory derived from the archive path
-    const std::size_t h = std::hash<std::string>{}(archivePath);
     namespace fs = std::filesystem;
-    const std::string tmpDir =
-        (fs::temp_directory_path() / ("artcade_" + std::to_string(h))).string();
-
     std::error_code ec;
-    fs::remove_all(tmpDir, ec);
-    if (!extractZip(archivePath, tmpDir)) return false;
+    if (!extractTempDir_.empty()) {
+        fs::remove_all(extractTempDir_, ec);
+        extractTempDir_.clear();
+        ec.clear();
+    }
+    const auto tempDir = createExtractionDirectory();
+    if (!tempDir) return false;
+    const std::string tmpDir = tempDir->string();
+    if (!extractZip(archivePath, tmpDir)) {
+        fs::remove_all(*tempDir, ec);
+        return false;
+    }
 
     extractTempDir_ = tmpDir;
     rootPath_ = tmpDir;
@@ -86,13 +144,10 @@ bool AssetLoader::loadArtcade(const std::string& archivePath, ProjectDoc& out) {
 
 bool AssetLoader::loadLuaBytecode(const std::string& path,
                                    std::vector<uint8_t>& outBytes) {
-    // If the path is relative, resolve it against the project root
-    bool isAbsolute = !path.empty() &&
-        (path[0] == '/' || path[0] == '\\' ||
-         (path.size() > 1 && path[1] == ':'));
-    std::string fullPath = isAbsolute ? path : (rootPath_ + "/" + path);
+    const auto fullPath = resolveUnderRoot(rootPath_, path);
+    if (!fullPath) return false;
 
-    std::ifstream f(fullPath, std::ios::binary);
+    std::ifstream f(*fullPath, std::ios::binary);
     if (!f) return false;
     outBytes.assign(std::istreambuf_iterator<char>(f),
                     std::istreambuf_iterator<char>());
@@ -101,7 +156,9 @@ bool AssetLoader::loadLuaBytecode(const std::string& path,
 
 std::string AssetLoader::resolveAssetPath(const std::string& assetId,
                                           const std::string& assetType) const {
-    return rootPath_ + "/assets/" + assetType + "/" + assetId;
+    const auto resolved = resolveUnderRoot(
+        rootPath_, "assets/" + assetType + "/" + assetId);
+    return resolved.value_or(std::string{});
 }
 
 // ------------------------------------------------------------------ JSON parsing

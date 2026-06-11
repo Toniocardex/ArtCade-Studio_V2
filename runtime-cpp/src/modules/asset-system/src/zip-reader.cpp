@@ -1,257 +1,245 @@
-// =============================================================================
-// zip-reader.cpp — Minimal ZIP extractor (Phase 17)
-//
-// sinflate() is declared in external/sinfl.h and compiled in raylib/rcore.c.
-// We include the header in declaration-only mode (no SINFL_IMPLEMENTATION)
-// and rely on the raylib link for the actual symbol.
-// =============================================================================
-
 #include "zip-reader.h"
 
-// Include sinfl in declaration-only mode — implementation is in raylib/rcore.c
 #include "external/sinfl.h"
 
+#include <array>
 #include <cstdint>
-#include <cstring>
 #include <filesystem>
 #include <fstream>
-#include <vector>
 #include <string>
+#include <unordered_set>
+#include <vector>
 
 namespace ArtCade {
-
 namespace {
 
-// ---- Security limits ------------------------------------------------------
-// Cap any single decompressed entry to 256 MiB. A malicious .artcade can
-// declare uncompSize close to 4 GiB (zip-bomb): without this guard
-// `std::vector<uint8_t>(e.uncompSize)` would try to allocate it before we
-// even start inflating. 256 MiB is well above any plausible game asset.
 constexpr uint32_t kMaxEntryUncompressedBytes = 256u * 1024u * 1024u;
-constexpr uint32_t kMaxArchiveBytes           = 64u * 1024u * 1024u;
-constexpr uint64_t kMaxTotalExtractedBytes    = 512u * 1024u * 1024u;
+constexpr uint32_t kMaxArchiveBytes = 64u * 1024u * 1024u;
+constexpr uint64_t kMaxTotalExtractedBytes = 512u * 1024u * 1024u;
+constexpr uint16_t kMaxEntryCount = 10000u;
+constexpr uint32_t kCompressionRatioAllowance = 1024u * 1024u;
+constexpr uint32_t kMaxCompressionRatio = 1000u;
 
-// ---- Path sanitisation (Zip-Slip) -----------------------------------------
-// Reject entry names that would escape the destination root:
-//   • absolute paths        ("/etc/passwd",  "C:\\Windows\\…")
-//   • drive letters         ("D:foo")
-//   • UNC / device prefixes ("\\\\server\\share", "\\\\?\\…")
-//   • parent traversal      any path component equal to ".."
-// Forward slashes are the on-the-wire ZIP convention; backslashes appear in
-// archives produced by some Windows tools and must be treated the same way.
+constexpr uint32_t SIG_LOCAL = 0x04034b50u;
+constexpr uint32_t SIG_CD = 0x02014b50u;
+constexpr uint32_t SIG_EOCD = 0x06054b50u;
+
+inline uint16_t rd16(const uint8_t* p) {
+    return static_cast<uint16_t>(p[0]) |
+           (static_cast<uint16_t>(p[1]) << 8u);
+}
+
+inline uint32_t rd32(const uint8_t* p) {
+    return static_cast<uint32_t>(p[0]) |
+           (static_cast<uint32_t>(p[1]) << 8u) |
+           (static_cast<uint32_t>(p[2]) << 16u) |
+           (static_cast<uint32_t>(p[3]) << 24u);
+}
+
 bool isSafeRelativeEntryName(const std::string& name) {
-    if (name.empty()) return false;
-    if (name.front() == '/' || name.front() == '\\') return false;
-    if (name.size() >= 2 && name[1] == ':') return false; // drive letter
-    if (name.size() >= 2 && name[0] == '\\' && name[1] == '\\') return false; // UNC
+    if (name.empty() || name.front() == '/' || name.front() == '\\') return false;
+    if (name.size() >= 2 && name[1] == ':') return false;
     std::string component;
     for (char c : name) {
         if (c == '/' || c == '\\') {
-            if (component == "..") return false;
+            if (component.empty() || component == "." || component == "..") return false;
             component.clear();
         } else {
             component.push_back(c);
         }
     }
-    if (component == "..") return false;
-    return true;
+    if (component == "." || component == "..") return false;
+    return !component.empty() || name.back() == '/' || name.back() == '\\';
 }
 
-// ---- Little-endian readers ------------------------------------------------
-
-inline uint16_t rd16(const uint8_t* p) {
-    return static_cast<uint16_t>(p[0]) | (static_cast<uint16_t>(p[1]) << 8);
+uint32_t crc32(const uint8_t* data, size_t len) {
+    static const auto table = [] {
+        std::array<uint32_t, 256> values{};
+        for (uint32_t i = 0; i < values.size(); ++i) {
+            uint32_t value = i;
+            for (int bit = 0; bit < 8; ++bit) {
+                value = (value & 1u)
+                    ? (0xEDB88320u ^ (value >> 1u))
+                    : (value >> 1u);
+            }
+            values[i] = value;
+        }
+        return values;
+    }();
+    uint32_t value = 0xFFFFFFFFu;
+    for (size_t i = 0; i < len; ++i)
+        value = table[(value ^ data[i]) & 0xFFu] ^ (value >> 8u);
+    return value ^ 0xFFFFFFFFu;
 }
-
-inline uint32_t rd32(const uint8_t* p) {
-    return  static_cast<uint32_t>(p[0])
-          | (static_cast<uint32_t>(p[1]) << 8)
-          | (static_cast<uint32_t>(p[2]) << 16)
-          | (static_cast<uint32_t>(p[3]) << 24);
-}
-
-// ---- ZIP signature constants -----------------------------------------------
-
-constexpr uint32_t SIG_LOCAL  = 0x04034b50u;   // Local File Header
-constexpr uint32_t SIG_CD     = 0x02014b50u;   // Central Directory entry
-constexpr uint32_t SIG_EOCD   = 0x06054b50u;   // End of Central Directory
-
-// ---- Central Directory entry (parsed) ------------------------------------
 
 struct CDEntry {
     std::string name;
-    uint16_t    method;       // 0 = STORE, 8 = DEFLATE
-    uint32_t    compSize;
-    uint32_t    uncompSize;
-    uint32_t    localOff;     // byte offset of Local File Header in archive
+    uint16_t flags = 0;
+    uint16_t method = 0;
+    uint32_t crc = 0;
+    uint32_t compSize = 0;
+    uint32_t uncompSize = 0;
+    uint32_t localOff = 0;
 };
 
-// ---- Find EOCD and parse Central Directory --------------------------------
-
-bool findEOCD(const uint8_t* buf, size_t len, uint32_t& cdOff, uint16_t& count) {
-    // EOCD is at least 22 bytes; ZIP comment max is 65535 bytes.
-    if (len < 22) return false;
-    const size_t scanStart = len - 22;
-    const size_t scanEnd   = (len > 65535u + 22u) ? len - 65535u - 22u : 0u;
+bool findEOCD(const uint8_t* buf, size_t len, uint32_t& cdOff,
+              uint32_t& cdSize, uint16_t& count) {
+    if (len < 22u) return false;
+    const size_t scanStart = len - 22u;
+    const size_t scanEnd = len > 65535u + 22u ? len - 65535u - 22u : 0u;
 
     for (ptrdiff_t i = static_cast<ptrdiff_t>(scanStart);
-                   i >= static_cast<ptrdiff_t>(scanEnd); --i) {
-        if (rd32(buf + i) == SIG_EOCD) {
-            count = rd16(buf + i + 10);
-            cdOff = rd32(buf + i + 16);
-            return true;
-        }
+         i >= static_cast<ptrdiff_t>(scanEnd); --i) {
+        const auto offset = static_cast<size_t>(i);
+        if (rd32(buf + offset) != SIG_EOCD) continue;
+        const uint16_t commentLen = rd16(buf + offset + 20u);
+        if (offset + 22u + commentLen != len) continue;
+        if (rd16(buf + offset + 4u) != 0 || rd16(buf + offset + 6u) != 0)
+            return false;
+        if (rd16(buf + offset + 8u) != rd16(buf + offset + 10u))
+            return false;
+
+        count = rd16(buf + offset + 10u);
+        cdSize = rd32(buf + offset + 12u);
+        cdOff = rd32(buf + offset + 16u);
+        if (count == 0xFFFFu || cdSize == 0xFFFFFFFFu || cdOff == 0xFFFFFFFFu)
+            return false;
+        if (static_cast<size_t>(cdOff) > offset ||
+            static_cast<size_t>(cdSize) > offset - cdOff)
+            return false;
+        return true;
     }
     return false;
 }
 
 bool parseCentralDirectory(const uint8_t* buf, size_t len,
-                           uint32_t cdOff, uint16_t count,
+                           uint32_t cdOff, uint32_t cdSize, uint16_t count,
                            std::vector<CDEntry>& entries) {
-    if (static_cast<size_t>(cdOff) + 4 > len) return false;
-    const uint8_t* p = buf + cdOff;
+    if (count > kMaxEntryCount) return false;
+    if (static_cast<size_t>(cdOff) > len || cdSize > len - cdOff) return false;
+    const size_t cdEnd = static_cast<size_t>(cdOff) + cdSize;
+    size_t offset = cdOff;
+    std::unordered_set<std::string> names;
 
     for (uint16_t i = 0; i < count; ++i) {
-        if (p + 46 > buf + len) return false;
+        if (offset > cdEnd || cdEnd - offset < 46u) return false;
+        const uint8_t* p = buf + offset;
         if (rd32(p) != SIG_CD) return false;
 
-        CDEntry e;
-        e.method     = rd16(p + 10);
-        e.compSize   = rd32(p + 20);
-        e.uncompSize = rd32(p + 24);
-        e.localOff   = rd32(p + 42);
+        CDEntry entry;
+        entry.flags = rd16(p + 8u);
+        entry.method = rd16(p + 10u);
+        entry.crc = rd32(p + 16u);
+        entry.compSize = rd32(p + 20u);
+        entry.uncompSize = rd32(p + 24u);
+        entry.localOff = rd32(p + 42u);
+        const uint16_t nameLen = rd16(p + 28u);
+        const uint16_t extraLen = rd16(p + 30u);
+        const uint16_t commentLen = rd16(p + 32u);
+        const size_t entrySize = 46u + nameLen + extraLen + commentLen;
+        if (entrySize > cdEnd - offset) return false;
+        if ((entry.flags & 0x1u) != 0u) return false;
+        if (entry.method != 0 && entry.method != 8) return false;
+        if (entry.uncompSize > kMaxEntryUncompressedBytes) return false;
+        if (static_cast<uint64_t>(entry.uncompSize) >
+            static_cast<uint64_t>(entry.compSize) * kMaxCompressionRatio +
+                kCompressionRatioAllowance)
+            return false;
 
-        const uint16_t fnLen = rd16(p + 28);
-        const uint16_t exLen = rd16(p + 30);
-        const uint16_t cmLen = rd16(p + 32);
-
-        e.name.assign(reinterpret_cast<const char*>(p + 46), fnLen);
-        entries.push_back(std::move(e));
-
-        p += 46u + fnLen + exLen + cmLen;
-        if (p > buf + len) return false;
+        entry.name.assign(reinterpret_cast<const char*>(p + 46u), nameLen);
+        if (!isSafeRelativeEntryName(entry.name)) return false;
+        if (!names.insert(entry.name).second) return false;
+        entries.push_back(std::move(entry));
+        offset += entrySize;
     }
-    return true;
+    return offset == cdEnd;
 }
 
-// ---- Extract single file entry -------------------------------------------
-
-bool extractEntry(const uint8_t* buf, size_t len,
-                  const CDEntry& e,
+bool extractEntry(const uint8_t* buf, size_t len, const CDEntry& entry,
                   const std::filesystem::path& destRoot) {
     namespace fs = std::filesystem;
+    if (entry.name.back() == '/' || entry.name.back() == '\\') return true;
+    if (static_cast<size_t>(entry.localOff) > len || len - entry.localOff < 30u)
+        return false;
 
-    // Skip pure directory entries
-    if (e.name.empty() || e.name.back() == '/' || e.name.back() == '\\') return true;
+    const uint8_t* local = buf + entry.localOff;
+    if (rd32(local) != SIG_LOCAL) return false;
+    if (rd16(local + 6u) != entry.flags || rd16(local + 8u) != entry.method)
+        return false;
+    const uint16_t nameLen = rd16(local + 26u);
+    const uint16_t extraLen = rd16(local + 28u);
+    const size_t headerSize = 30u + nameLen + extraLen;
+    if (headerSize > len - entry.localOff) return false;
+    const std::string localName(reinterpret_cast<const char*>(local + 30u), nameLen);
+    if (localName != entry.name) return false;
 
-    // Reject malicious entry names BEFORE touching the filesystem.
-    if (!isSafeRelativeEntryName(e.name)) return false;
+    const size_t dataOffset = static_cast<size_t>(entry.localOff) + headerSize;
+    if (dataOffset > len || entry.compSize > len - dataOffset) return false;
+    const uint8_t* compressed = buf + dataOffset;
+    std::vector<uint8_t> decompressed;
+    const uint8_t* output = compressed;
 
-    // Reject zip-bomb sized entries up front (declared size only — the actual
-    // inflater is bounded by compSize on the input side).
-    if (e.uncompSize > kMaxEntryUncompressedBytes) return false;
-
-    // Locate local file header
-    if (e.localOff > len || e.localOff + 30u > len) return false;
-    const uint8_t* lh = buf + e.localOff;
-    if (rd32(lh) != SIG_LOCAL) return false;
-
-    const uint16_t lhFnLen = rd16(lh + 26);
-    const uint16_t lhExLen = rd16(lh + 28);
-    const size_t   headerSize = static_cast<size_t>(30u) + lhFnLen + lhExLen;
-    if (e.localOff + headerSize > len) return false;
-    const uint8_t* dataPtr = lh + headerSize;
-    if (static_cast<size_t>(dataPtr - buf) + e.compSize > len) return false;
+    if (entry.method == 0) {
+        if (entry.compSize != entry.uncompSize) return false;
+    } else {
+        decompressed.resize(entry.uncompSize);
+        const int result = sinflate(
+            decompressed.data(), static_cast<int>(entry.uncompSize),
+            compressed, static_cast<int>(entry.compSize));
+        if (result < 0 || static_cast<uint32_t>(result) != entry.uncompSize)
+            return false;
+        output = decompressed.data();
+    }
+    if (crc32(output, entry.uncompSize) != entry.crc) return false;
 
     std::error_code ec;
     const fs::path normalisedRoot = fs::weakly_canonical(destRoot, ec);
     if (ec) return false;
-    // Build destination path under the already-created extraction root. Use a
-    // lexical normalisation for the output path: nested parents may not exist
-    // yet, so canonicalising the final file would reject legitimate entries
-    // such as scripts/main.lua in a freshly-cleaned temp directory.
-    const fs::path normalisedOut =
-        (normalisedRoot / fs::path(e.name)).lexically_normal();
-    const fs::path rel = normalisedOut.lexically_relative(normalisedRoot);
-    {
-        auto it = rel.begin();
-        if (rel.empty() || rel.is_absolute() || it == rel.end() || *it == "..")
-            return false;
-    }
-    fs::path outPath = normalisedOut;
+    const fs::path outPath = (normalisedRoot / fs::path(entry.name)).lexically_normal();
+    const fs::path relative = outPath.lexically_relative(normalisedRoot);
+    const auto first = relative.begin();
+    if (relative.empty() || relative.is_absolute() || first == relative.end() || *first == "..")
+        return false;
     fs::create_directories(outPath.parent_path(), ec);
     if (ec) return false;
 
-    std::ofstream out(outPath, std::ios::binary | std::ios::trunc);
-    if (!out) return false;
-
-    if (e.method == 0) {
-        // STORE — raw copy (compressed size must match declared uncompressed size)
-        if (e.compSize != e.uncompSize) return false;
-        out.write(reinterpret_cast<const char*>(dataPtr),
-                  static_cast<std::streamsize>(e.compSize));
-    } else if (e.method == 8) {
-        // DEFLATE — decompress with sinflate (from raylib/rcore.c)
-        std::vector<uint8_t> decompressed(e.uncompSize);
-        const int result = sinflate(
-            decompressed.data(),
-            static_cast<int>(e.uncompSize),
-            dataPtr,
-            static_cast<int>(e.compSize));
-        if (result < 0) return false;
-        if (static_cast<uint32_t>(result) != e.uncompSize) return false;
-        out.write(reinterpret_cast<const char*>(decompressed.data()),
-                  static_cast<std::streamsize>(e.uncompSize));
-    } else {
-        return false;   // unsupported compression method
-    }
-
-    return out.good();
+    std::ofstream file(outPath, std::ios::binary | std::ios::trunc);
+    if (!file) return false;
+    file.write(reinterpret_cast<const char*>(output),
+               static_cast<std::streamsize>(entry.uncompSize));
+    return file.good();
 }
 
-} // anonymous namespace
-
-// ---- Public API -----------------------------------------------------------
+} // namespace
 
 bool zipExtractAll(const std::string& zipPath, const std::string& destDir) {
     namespace fs = std::filesystem;
-
-    // Read entire archive into memory (project ZIPs are small)
-    std::ifstream f(zipPath, std::ios::binary);
-    if (!f) return false;
-
+    std::ifstream file(zipPath, std::ios::binary);
+    if (!file) return false;
     std::vector<uint8_t> data(
-        (std::istreambuf_iterator<char>(f)),
+        (std::istreambuf_iterator<char>(file)),
         std::istreambuf_iterator<char>());
     if (data.empty() || data.size() > kMaxArchiveBytes) return false;
 
-    const uint8_t* buf = data.data();
-    const size_t   len = data.size();
-
-    // 1. Find EOCD
-    uint32_t cdOff  = 0;
-    uint16_t count  = 0;
-    if (!findEOCD(buf, len, cdOff, count)) return false;
-
-    // 2. Parse Central Directory
+    uint32_t cdOff = 0;
+    uint32_t cdSize = 0;
+    uint16_t count = 0;
+    if (!findEOCD(data.data(), data.size(), cdOff, cdSize, count)) return false;
     std::vector<CDEntry> entries;
     entries.reserve(count);
-    if (!parseCentralDirectory(buf, len, cdOff, count, entries)) return false;
+    if (!parseCentralDirectory(data.data(), data.size(), cdOff, cdSize, count, entries))
+        return false;
 
-    // 3. Create destination root
     std::error_code ec;
     fs::create_directories(destDir, ec);
     if (ec) return false;
-
-    // 4. Extract each entry (cap cumulative declared uncompressed size)
     const fs::path root(destDir);
-    uint64_t totalUncomp = 0;
-    for (const auto& e : entries) {
-        totalUncomp += static_cast<uint64_t>(e.uncompSize);
-        if (totalUncomp > kMaxTotalExtractedBytes) return false;
-        if (!extractEntry(buf, len, e, root)) return false;
+    uint64_t totalUncompressed = 0;
+    for (const auto& entry : entries) {
+        totalUncompressed += entry.uncompSize;
+        if (totalUncompressed > kMaxTotalExtractedBytes) return false;
+        if (!extractEntry(data.data(), data.size(), entry, root)) return false;
     }
-
     return true;
 }
 

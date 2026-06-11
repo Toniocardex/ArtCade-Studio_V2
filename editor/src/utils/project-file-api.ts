@@ -15,6 +15,7 @@ import { importArtcadePackage, isArtcadePackagePath, type LoadedProjectFile } fr
 import { joinPath } from './file-paths'
 import { projectRootFromProjectPath } from './project-paths'
 import { assertProjectPathsSafe, normalizeProjectRelativePath } from './project-path-security'
+import { registerProjectFsScope } from './project-fs-scope'
 
 /** Validated project write via Tauri `write_file` (requires project root). */
 export async function invokeWriteFile(
@@ -75,6 +76,7 @@ export async function loadProjectFile(path: string): Promise<ProjectDoc | null> 
   if (!isTauri()) { notAvailable('loadProjectFile'); return null }
 
   try {
+    await registerProjectFsScope(path)
     const content = await readTextFile(path)
     const project = parseProjectDoc(content)
     if (project) assertProjectPathsSafe(project)
@@ -87,6 +89,7 @@ export async function loadProjectFile(path: string): Promise<ProjectDoc | null> 
 
 /** Load either a source `project.json` or an exported `.artcade` package. */
 export async function loadProjectFromPath(path: string): Promise<LoadedProjectFile | null> {
+  if (isTauri()) await registerProjectFsScope(path)
   if (isArtcadePackagePath(path)) {
     return importArtcadePackage(path)
   }
@@ -246,6 +249,7 @@ export async function scaffoldNewProjectOnDisk(
   const scriptPath  = `${projectRoot}/${mainScriptPath}`.replace(/\\/g, '/')
 
   await invokeWriteFile(scriptPath, mainScriptBody, projectRoot)
+  await registerProjectFsScope(projectJsonPath)
 
   return projectJsonPath
 }

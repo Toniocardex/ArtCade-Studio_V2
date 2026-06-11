@@ -12,7 +12,6 @@ import { createBlankProject } from './utils/project'
 import { starterInnkeeperScript } from './utils/dialog/dialog-file-api'
 import { DialogEditorModal } from './panels/dialog/DialogEditorModal'
 import { SpritesheetStudioModal } from './panels/spritesheet-studio/SpritesheetStudioModal'
-import { triggerLayoutReflow } from './utils/layout-reflow'
 import { useProjectShortcuts } from './hooks/useProjectShortcuts'
 import { useBuildLogListener } from './hooks/useBuildLogListener'
 import { useEditorUndoRedo } from './hooks/useEditorUndoRedo'
@@ -232,7 +231,6 @@ function EditorShell({ workspaceRef }: Readonly<{ workspaceRef: RefObject<HTMLDi
 function EditorLayout() {
   const dispatch = useEditorDispatch()
   const store = useEditorStore()
-  const mode = useEditorSelector((s) => s.mode)
   const workspaceRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -261,10 +259,6 @@ function EditorLayout() {
   // Build logs must survive view switches — BottomDock remounts per view,
   // so the listener lives here (always mounted).
   useBuildLogListener()
-
-  useEffect(() => {
-    if (mode === 'script') triggerLayoutReflow()
-  }, [mode])
 
   return (
     <EditorLayoutTierProvider workspaceRef={workspaceRef}>
