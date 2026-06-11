@@ -45,6 +45,7 @@ import { assetFolderReducer } from './reducers/asset-folder-reducer'
 import { logicBoardReducer } from './reducers/logic-board-reducer'
 import { dialogReducer } from './reducers/dialog-reducer'
 import { layerReducer } from './reducers/layer-reducer'
+import { volatileReducer } from './reducers/volatile-reducer'
 import { applyAuthoringModeToDocument } from '../utils/authoring-mode'
 import { ensureBootSessionReset } from '../utils/boot-session'
 import { runLoadProjectSideEffects } from '../utils/project-load-side-effects'
@@ -101,17 +102,6 @@ export function coreReducer(state: CoreState, action: Action): CoreState {
   return next
 }
 
-function volatileReducer(state: VolatileState, action: Action): VolatileState {
-  switch (action.type) {
-    case 'LOG':
-      return { ...state, consoleLogs: [...state.consoleLogs, action.entry] }
-    case 'SET_CURSOR':
-      if (state.cursorPos.x === action.x && state.cursorPos.y === action.y) return state
-      return { ...state, cursorPos: { x: action.x, y: action.y } }
-    default:
-      return state
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Contexts
