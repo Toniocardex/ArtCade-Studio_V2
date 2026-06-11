@@ -33,7 +33,7 @@ describe('computeCanvasViewportLayout', () => {
       preview: true,
     })
     expect(layout.contentSizePx).toEqual({ x: 1024, y: 640 })
-    expect(layout.worldOriginOffset).toEqual({ x: 384, y: 160 })
+    expect(layout.worldOriginOffset).toEqual({ x: 0, y: 0 })
   })
 })
 
@@ -59,15 +59,15 @@ describe('scrollToWorld / worldToScroll', () => {
     expect(worldToScroll({ x: 0, y: 0 }, layout)).toEqual({ scrollLeft: 8, scrollTop: 8 })
   })
 
-  it('accounts for camera preview world offset', () => {
+  it('keeps camera preview anchored to the initial runtime view at world origin', () => {
     const layout = computeCanvasViewportLayout({
       worldSize: WORLD,
       viewportSize: VP,
       zoom: 1,
       preview: true,
     })
-    expect(scrollToWorld(8, 8, layout)).toEqual({ x: 384, y: 160 })
-    expect(worldToScroll({ x: 384, y: 160 }, layout)).toEqual({ scrollLeft: 8, scrollTop: 8 })
+    expect(scrollToWorld(8, 8, layout)).toEqual({ x: 0, y: 0 })
+    expect(worldToScroll({ x: 0, y: 0 }, layout)).toEqual({ scrollLeft: 8, scrollTop: 8 })
   })
 
   it('maps viewport centre to world centre when scroll aligns with padding', () => {
@@ -102,9 +102,9 @@ describe('rulerLabelsForAxis', () => {
       preview: true,
     })
     const ticks = rulerLabelsForAxis('x', 0, 800, layout)
-    expect(ticks.some(t => t.worldValue === 384)).toBe(true)
-    const at384 = ticks.find(t => t.worldValue === 384)!
-    expect(at384.positionPx).toBe(8)
+    expect(ticks.some(t => t.worldValue === 0)).toBe(true)
+    const atZero = ticks.find(t => t.worldValue === 0)!
+    expect(atZero.positionPx).toBe(8)
   })
 
   it('shifts tick positions when scrolled', () => {

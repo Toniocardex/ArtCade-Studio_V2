@@ -297,8 +297,10 @@ export default function PreviewPanel({
   )
   const frameW = layout.contentSizePx.x
   const frameH = layout.contentSizePx.y
-  const canvasDX = preview ? -Math.round(((res.x - vp.x) / 2) * zoom) : 0
-  const canvasDY = preview ? -Math.round(((res.y - vp.y) / 2) * zoom) : 0
+  // The runtime camera starts at world origin, so camera preview crops the
+  // same top-left viewport instead of a centred slice of the scene.
+  const canvasDX = 0
+  const canvasDY = 0
 
   useEditorFitZoom({
     scrollRef,

@@ -15,7 +15,7 @@ export type CanvasViewportLayout = Readonly<{
   viewportSize: Readonly<{ x: number; y: number }>
   zoom: number
   preview: boolean
-  /** World coordinates at the frame top-left (camera preview centres viewport). */
+  /** World coordinates at the frame top-left. Initial camera preview starts at (0,0). */
   worldOriginOffset: Readonly<{ x: number; y: number }>
 }>
 
@@ -46,12 +46,7 @@ export function computeCanvasViewportLayout(params: Readonly<{
     ? Math.round(viewportSize.y * z)
     : Math.round(worldSize.y * z)
 
-  const worldOriginOffset = preview
-    ? {
-        x: (worldSize.x - viewportSize.x) / 2,
-        y: (worldSize.y - viewportSize.y) / 2,
-      }
-    : { x: 0, y: 0 }
+  const worldOriginOffset = { x: 0, y: 0 }
 
   return {
     paddingPx,

@@ -24,8 +24,10 @@ export function CameraFrameOverlay({
     return null
   }
 
-  const left = fillFrame ? 0 : Math.round(((worldSize!.x - viewportSize.x) / 2) * zoom)
-  const top = fillFrame ? 0 : Math.round(((worldSize!.y - viewportSize.y) / 2) * zoom)
+  // Renderer camera coordinates use a top-left target: the initial play view
+  // covers world (0,0) through viewportSize.
+  const left = 0
+  const top = 0
   const w = Math.round(viewportSize.x * zoom)
   const h = Math.round(viewportSize.y * zoom)
 

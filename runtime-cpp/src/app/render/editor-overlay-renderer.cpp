@@ -104,8 +104,10 @@ void drawGuides(Modules::Renderer& renderer,
     const float vw = std::max(1.f, scene.viewportSize.x);
     const float vh = std::max(1.f, scene.viewportSize.y);
     if (vw < w - 0.5f || vh < h - 0.5f) {
-        const float vx = (w - vw) * 0.5f;
-        const float vy = (h - vh) * 0.5f;
+        // The runtime camera starts at target (0,0), so the initial play view
+        // covers the top-left viewport-sized region of the world.
+        const float vx = 0.f;
+        const float vy = 0.f;
         // Sage Green (#7A9C7E) — camera/viewport preview outline.
         drawRectOutline(renderer, vx, vy, vw, vh, Vec4{0.478f, 0.612f, 0.494f, 0.9f});
     }
