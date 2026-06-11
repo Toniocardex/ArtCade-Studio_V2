@@ -14,7 +14,6 @@ import { useEditorLayoutContext } from '../../contexts/editor-layout-context'
 import VerticalResizeHandle from '../VerticalResizeHandle'
 import { DockPanelChrome } from './dock/DockPanelChrome'
 import { DOCK_PANEL_REGISTRY } from './dock/dock-panel-registry'
-import { DOCK_PANEL_ORDER } from '../../constants/dock-panels'
 import { CANVAS_MIN_HEIGHT, DOCK_HEIGHT_MIN } from '../../constants/editor-layout-persist'
 import { EDITOR_DOCK_H_DEFAULT, EDITOR_TOP_CHROME_H_PX } from '../../constants/editor-layout'
 

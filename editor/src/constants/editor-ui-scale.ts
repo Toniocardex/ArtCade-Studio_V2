@@ -11,5 +11,3 @@ export const EDITOR_UI_SCALE_VALUES = [0.75, 0.85, 0.9, 1, 1.15, 1.25] as const
 export type EditorUiScale = (typeof EDITOR_UI_SCALE_VALUES)[number]
 
 export const EDITOR_UI_SCALE_DEFAULT: EditorUiScale = 1
-
-export const EDITOR_LAYOUT_MIN_WIDTH_PX = 1280

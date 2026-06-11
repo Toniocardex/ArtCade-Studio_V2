@@ -1,27 +1,13 @@
-import { EDITOR_LAYOUT_MIN_WIDTH_PX } from '../../constants/editor-ui-scale'
 import { useWorkspaceLayoutMetricsContext } from '../../contexts/editor-layout-tier-context'
 
-function bannerMessage(
-  tier: ReturnType<typeof useWorkspaceLayoutMetricsContext>['tier'],
-  width: number,
-): string | null {
-  if (tier === 'unsupported') {
-    return 'Resolution not supported — use at least 1024×600 (1366×768 recommended).'
-  }
-  if (tier === 'minimal') {
-    return 'Low resolution — some features may be hard to use. Recommended minimum: 1366×768.'
-  }
-  if (tier === 'compact' && width < EDITOR_LAYOUT_MIN_WIDTH_PX) {
-    return `Narrow window — layout is optimized for ${EDITOR_LAYOUT_MIN_WIDTH_PX}px width or wider.`
-  }
-  return null
-}
-
-/** Non-blocking hint when the editor workspace is below recommended size. */
+/**
+ * Last-resort warning, shown only below the hard minimum (1024×600) where the
+ * adaptive layout (compact shell, drawer inspector, collapsed dock) can no
+ * longer compensate. Compact/minimal tiers adapt silently — no banner.
+ */
 export function EditorViewportBanner() {
-  const { tier, width } = useWorkspaceLayoutMetricsContext()
-  const message = bannerMessage(tier, width)
-  if (!message) return null
+  const { tier } = useWorkspaceLayoutMetricsContext()
+  if (tier !== 'unsupported') return null
 
   return (
     <div
@@ -29,7 +15,7 @@ export function EditorViewportBanner() {
                  bg-[var(--surface-2)] border-b border-[var(--outline-subtle)]"
       role="status"
     >
-      {message}
+      Resolution not supported — use at least 1024×600 (1366×768 recommended).
     </div>
   )
 }
