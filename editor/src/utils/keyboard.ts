@@ -70,16 +70,27 @@ export function applyInputDelete(input: HTMLInputElement): boolean {
 
 let guardsInstalled = false
 
-/** Block browser/WebView "go back" on Backspace outside text fields. */
+/**
+ * Block browser/WebView default actions that interfere with editor shortcuts,
+ * registered in the capture phase so preventDefault() fires before any bubble
+ * listener and before WebView2's native key handling.
+ *
+ * - Backspace: prevents browser "go back" navigation
+ * - F5 (no modifier): prevents page reload so usePreviewPlayShortcut can fire
+ */
 export function installEditorKeyboardGuards(): void {
   if (guardsInstalled || globalThis.window === undefined) return
   guardsInstalled = true
   globalThis.addEventListener(
     'keydown',
     (e) => {
-      if (!isBackspaceKey(e)) return
-      if (shouldIgnoreEditorShortcut(e)) return
-      e.preventDefault()
+      if (isBackspaceKey(e)) {
+        if (!shouldIgnoreEditorShortcut(e)) e.preventDefault()
+        return
+      }
+      if ((e.key === 'F5' || e.code === 'F5') && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) {
+        e.preventDefault()
+      }
     },
     true,
   )
