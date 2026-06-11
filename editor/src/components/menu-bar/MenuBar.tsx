@@ -28,7 +28,6 @@ import { DockPanelsViewSection } from './DockPanelsViewSection'
 import { EditorUiScaleViewSection } from './EditorUiScaleViewSection'
 import { useEditorUiScaleContext } from '../../contexts/editor-ui-scale-context'
 import { applyTheme, toggleTheme, type Theme } from '../../utils/theme'
-import AuthoringModeSwitch from '../AuthoringModeSwitch'
 import { openDialogLibraryModal } from '../../panels/dialog/dialog-modal-api'
 import ModuleTabs from '../shell/ModuleTabs'
 import { MainMenuCategory, useMainMenuCascade } from './MainMenu'
@@ -56,6 +55,7 @@ export default function MenuBar() {
   const dialogs = useEditorSelector((s) => s.dialogs)
   const selectionSceneId = useEditorSelector((s) => s.selection.sceneId)
   const mode = useEditorSelector((s) => s.mode)
+  const authoringMode = useEditorSelector((s) => s.authoringMode)
 
   const { draft, setDraft, commitDraft, flushBeforePersist } = useProjectNamePersist()
 
@@ -165,12 +165,24 @@ export default function MenuBar() {
               activeId={activeId}
               setActiveId={setActiveId}
             >
-              <div className="px-3 py-2 border-b border-[var(--outline-subtle)]">
+              <div className="px-3 pt-2 pb-1 border-b border-[var(--outline-subtle)]">
                 <span className="text-[9px] uppercase tracking-wide text-[var(--muted)]">Authoring</span>
-                <div className="mt-2">
-                  <AuthoringModeSwitch />
-                </div>
               </div>
+              {(['base', 'advanced'] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={authoringMode === m}
+                  className="w-full text-left px-3 py-1.5 text-xs text-[var(--primary)] hover:bg-[var(--surface-hover)] flex items-center justify-between border-b border-[var(--outline-subtle)] last:border-b-0"
+                  onClick={() => dispatch({ type: 'SET_AUTHORING_MODE', mode: m })}
+                >
+                  <span className="capitalize">{m}</span>
+                  {authoringMode === m && (
+                    <span className="text-[var(--accent)] text-[10px]" aria-hidden>●</span>
+                  )}
+                </button>
+              ))}
               <EditorUiScaleViewSection uiScale={uiScale} />
               <DockPanelsViewSection />
               <button
