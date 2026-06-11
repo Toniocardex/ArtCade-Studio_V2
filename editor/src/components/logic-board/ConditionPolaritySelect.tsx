@@ -3,33 +3,33 @@
 // ---------------------------------------------------------------------------
 
 import { CONDITION_POLARITY_OPTIONS } from '../../utils/logic-board/condition-combine'
+import { EditorSelect } from '../ui/EditorSelect'
 
-const sel =
-  'bg-[var(--bg)] border border-[var(--border-2)] text-[var(--accent)] px-2 py-1 rounded text-xs'
+const POLARITY_OPTIONS = CONDITION_POLARITY_OPTIONS.map((o) => ({
+  value: o.value,
+  label: o.label,
+}))
 
 export type ConditionPolaritySelectProps = Readonly<{
   negated?: boolean
   onChange: (negated: boolean) => void
+  /** Wrapper layout classes (width); visual style comes from EditorSelect. */
   className?: string
 }>
 
 export function ConditionPolaritySelect({
   negated,
   onChange,
-  className = sel,
+  className = 'w-auto',
 }: ConditionPolaritySelectProps) {
   return (
-    <select
+    <EditorSelect
       className={className}
+      triggerClassName="py-1"
       value={negated ? 'not' : 'pass'}
       aria-label="Check polarity"
-      onChange={(e) => onChange(e.target.value === 'not')}
-    >
-      {CONDITION_POLARITY_OPTIONS.map((o) => (
-        <option key={o.value} value={o.value}>
-          {o.label}
-        </option>
-      ))}
-    </select>
+      onChange={(v) => onChange(v === 'not')}
+      options={POLARITY_OPTIONS}
+    />
   )
 }

@@ -16,6 +16,7 @@ import { formatPivotLabel } from '../../utils/sprite-pivot'
 import { InspectorSection, NumberField } from './inspector-fields'
 import { InspectorClipPreview } from './InspectorClipPreview'
 import { SpriteRayTintField } from './SpriteRayTintField'
+import { EditorSelect } from '../../components/ui/EditorSelect'
 
 export type SpriteSectionProps = Readonly<{
   entity: EntityDef
@@ -58,28 +59,24 @@ export function SpriteSection({ entity }: SpriteSectionProps) {
         <label htmlFor={assetSelectId} className="text-[9px] text-[var(--muted)] uppercase">
           Asset
         </label>
-        <select
+        <EditorSelect
           id={assetSelectId}
           value={entity.sprite.spriteAssetId}
-          onChange={(e) => {
-            const path = e.target.value
+          onChange={(path) => {
             const img = images.find((a) => a.path === path)
             commitSprite(spriteAssignedFromAsset(entity.sprite, img, project))
           }}
-          className="w-full bg-[var(--panel-3)] border border-[var(--border-2)] rounded px-2 py-1
-                     text-xs text-[var(--text)] focus:outline-none focus:border-[var(--accent-2)] transition-colors"
-        >
-          <option value="">(none)</option>
-          {entity.sprite.spriteAssetId &&
-            !images.some((a) => a.path === entity.sprite.spriteAssetId) && (
-              <option value={entity.sprite.spriteAssetId}>
-                {entity.sprite.spriteAssetId}
-              </option>
-            )}
-          {images.map((a) => (
-            <option key={a.id} value={a.path}>{a.name}</option>
-          ))}
-        </select>
+          triggerClassName="py-1"
+          options={[
+            { value: '', label: '(none)' },
+            // Keep a missing asset path selectable so the field shows the truth.
+            ...(entity.sprite.spriteAssetId &&
+            !images.some((a) => a.path === entity.sprite.spriteAssetId)
+              ? [{ value: entity.sprite.spriteAssetId, label: entity.sprite.spriteAssetId }]
+              : []),
+            ...images.map((a) => ({ value: a.path, label: a.name })),
+          ]}
+        />
         {images.length === 0 && (
           <p className="text-[8px] text-[rgb(var(--muted-rgb)/0.6)] mt-0.5">
             Import images in the ASSETS panel, then pick one here.
@@ -91,28 +88,24 @@ export function SpriteSection({ entity }: SpriteSectionProps) {
         <label htmlFor={defaultClipId} className="text-[9px] text-[var(--muted)] uppercase">
           Default clip
         </label>
-        <select
+        <EditorSelect
           id={defaultClipId}
           disabled={!spritePath || sheetClips.length === 0}
           value={clip?.defaultClip ?? entity.sprite.defaultClip ?? ''}
-          onChange={(e) => {
-            const defaultClip = e.target.value || undefined
+          onChange={(name) => {
+            const defaultClip = name || undefined
             commitSprite({
               defaultClip,
               playClipOnSpawn: defaultClip ? entity.sprite.playClipOnSpawn === true : false,
             })
           }}
-          className="mt-1 w-full bg-[var(--panel-3)] border border-[var(--border-2)] rounded px-2 py-1
-                     text-xs text-[var(--text)] focus:outline-none focus:border-[var(--accent-2)] transition-colors
-                     disabled:opacity-50"
-        >
-          <option value="">(none)</option>
-          {sheetClips.map((c) => (
-            <option key={c.name} value={c.name}>
-              {c.name}
-            </option>
-          ))}
-        </select>
+          className="mt-1 w-full"
+          triggerClassName="py-1"
+          options={[
+            { value: '', label: '(none)' },
+            ...sheetClips.map((c) => ({ value: c.name, label: c.name })),
+          ]}
+        />
         {!spritePath ? (
           <p className="text-[8px] text-[rgb(var(--muted-rgb)/0.6)] mt-0.5">
             Assign a sprite sheet first.

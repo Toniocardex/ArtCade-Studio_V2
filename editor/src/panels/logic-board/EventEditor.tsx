@@ -470,9 +470,6 @@ function ActionCard({
   )
 }
 
-const condSel =
-  'bg-[var(--panel-3)] border border-[var(--border-2)] text-[var(--accent)] px-2 py-1 rounded text-xs'
-
 function AlsoRequireSectionHints({
   onlyIfEnabled,
   trigger,
@@ -567,7 +564,6 @@ function SimpleConditions({
           {i > 0 && (
             <div className="flex flex-wrap items-center gap-2 py-0.5 pl-1">
               <ConditionCombineSelect
-                className={condSel}
                 value={combineOp}
                 aria-label="Combine checks"
                 onChange={(op: ConditionCombineOp) =>
@@ -647,7 +643,6 @@ function SimpleConditions({
         <div className="flex flex-wrap items-center gap-2 py-0.5 pl-1">
           <span className="text-[10px] text-[var(--muted)]">Combine</span>
           <ConditionCombineSelect
-            className={condSel}
             value={combineOp}
             aria-label="Combine checks"
             onChange={(op: ConditionCombineOp) =>

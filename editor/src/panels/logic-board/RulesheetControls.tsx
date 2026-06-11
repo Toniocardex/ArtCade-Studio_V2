@@ -1,6 +1,7 @@
 import type { ProjectDoc, EntityDef } from '../../types'
 import type { LogicBoard } from '../../types/logic-board'
 import { classDisplayLabel, findLogicBoardForInstance } from '../../utils/project'
+import { EditorSelect } from '../../components/ui/EditorSelect'
 
 interface RulesheetControlsProps {
   project: ProjectDoc
@@ -61,22 +62,21 @@ export function RulesheetControls({
 
       <div className="flex flex-col gap-2 px-3 py-2">
         <span className="text-[10px] text-[var(--muted)]">Entity</span>
-        <select
-          className="bg-[var(--bg)] border border-[var(--border-2)] text-[var(--primary-soft)] px-2 py-1 rounded text-xs min-w-[140px]"
-          value={selectedEntityId ?? ''}
-          onChange={(e) => {
-            const id = Number(e.target.value)
-            if (!Number.isNaN(id)) onSelectEntity(id)
+        <EditorSelect
+          className="w-auto min-w-[140px]"
+          triggerClassName="py-1"
+          value={selectedEntityId != null ? String(selectedEntityId) : ''}
+          onChange={(v) => {
+            const id = Number(v)
+            if (v !== '' && !Number.isNaN(id)) onSelectEntity(id)
           }}
-        >
-          <option value="">Choose entity...</option>
-          {sceneEntities.map((e) => (
-            <option key={e.id} value={e.id}>
-              {e.name}
-              {findLogicBoardForInstance(project, e.id) ? ' / rules' : ''}
-            </option>
-          ))}
-        </select>
+          placeholder="Choose entity..."
+          options={sceneEntities.map((e) => ({
+            value: String(e.id),
+            label: `${e.name}${findLogicBoardForInstance(project, e.id) ? ' / rules' : ''}`,
+          }))}
+          aria-label="Entity"
+        />
         <button
           type="button"
           disabled={!canCreateForSelection}
@@ -108,18 +108,18 @@ export function RulesheetControls({
           Rules apply to every object of the same type. For a variant (e.g. a gold coin), create a new object type and give it its own rulesheet.
         </p>
         <div className="flex items-center gap-2 flex-wrap">
-          <select
-            className="bg-[var(--bg)] border border-[var(--border-2)] text-[var(--primary-soft)] px-2 py-1 rounded text-xs"
+          <EditorSelect
+            className="w-auto min-w-[9rem]"
+            triggerClassName="py-1"
             value={newClass}
-            onChange={(e) => setNewClass(e.target.value)}
-          >
-            <option value="">Choose class...</option>
-            {classes.map((c) => (
-              <option key={c} value={c}>
-                {classDisplayLabel(project, c)}
-              </option>
-            ))}
-          </select>
+            onChange={setNewClass}
+            placeholder="Choose class..."
+            options={classes.map((c) => ({
+              value: c,
+              label: classDisplayLabel(project, c),
+            }))}
+            aria-label="Class"
+          />
           <button
             type="button"
             disabled={!newClass}

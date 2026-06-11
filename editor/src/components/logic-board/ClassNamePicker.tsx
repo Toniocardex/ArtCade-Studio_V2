@@ -5,9 +5,8 @@
 import { useMemo } from 'react'
 import { useEditorSelector } from '../../store/editor-store'
 import { allClassNames, classDisplayLabel } from '../../utils/project'
+import { EditorSelect } from '../ui/EditorSelect'
 
-const sel =
-  'bg-[var(--bg)] border border-[var(--border-2)] text-[var(--accent)] px-2 py-1 rounded text-xs'
 const inp =
   'bg-[var(--bg)] border border-[var(--border-2)] text-[var(--text)] px-2 py-1 rounded text-xs'
 
@@ -74,28 +73,24 @@ export function ClassNamePicker({
 
   return (
     <span className="flex items-center gap-1 flex-wrap">
-      <select
-        className={sel}
+      <EditorSelect
+        className="w-auto min-w-[9rem]"
+        triggerClassName="py-1"
         value={selectValue}
-        onChange={(e) => {
-          const v = e.target.value
+        onChange={(v) => {
           if (v === CLASS_PICKER_OTHER) {
             if (!otherMode) onChange('')
             return
           }
           onChange(v)
         }}
-      >
-        {allowEmpty && (
-          <option value="">{emptyLabel}</option>
-        )}
-        {classNames.map((c) => (
-          <option key={c} value={c}>
-            {classDisplayLabel(project, c)}
-          </option>
-        ))}
-        <option value={CLASS_PICKER_OTHER}>Other…</option>
-      </select>
+        options={[
+          ...(allowEmpty ? [{ value: '', label: emptyLabel }] : []),
+          ...classNames.map((c) => ({ value: c, label: classDisplayLabel(project, c) })),
+          { value: CLASS_PICKER_OTHER, label: 'Other…' },
+        ]}
+        aria-label="Object class"
+      />
       {(selectValue === CLASS_PICKER_OTHER || otherMode) && (
         <input
           className={`${inp} w-32`}

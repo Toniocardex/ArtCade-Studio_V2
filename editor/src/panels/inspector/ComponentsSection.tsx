@@ -8,6 +8,7 @@ import {
 } from './component-registry'
 import { InspectorSection } from './inspector-fields'
 import { componentBlockId } from './entity-component-utils'
+import { EditorSelect } from '../../components/ui/EditorSelect'
 import { PhysicsSection } from './PhysicsSection'
 import { DEFAULT_PHYSICS, PHYSICS_INSPECTOR } from './physics-defaults'
 import { DialogInspectorActions } from './DialogInspectorActions'
@@ -83,18 +84,16 @@ function ComponentSection({ entity, desc }: ComponentSectionProps) {
             return (
               <div key={f.key} className="mb-2">
                 <label className="text-[9px] text-[var(--muted)] uppercase">{f.label}</label>
-                <select
+                <EditorSelect
                   value={fieldStringValue(v, 'solid')}
-                  onChange={(e) => commit(f.key, e.target.value)}
-                  className="w-full bg-[var(--border)] border border-[var(--border-2)] rounded px-2 py-1
-                             text-xs text-[var(--text)] focus:outline-none focus:border-[var(--accent-2)] transition-colors"
-                >
-                  {(f.options ?? []).map((o, i) => (
-                    <option key={o} value={o}>
-                      {f.optionLabels?.[i] ?? o}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(next) => commit(f.key, next)}
+                  triggerClassName="py-1"
+                  options={(f.options ?? []).map((o, i) => ({
+                    value: o,
+                    label: f.optionLabels?.[i] ?? o,
+                  }))}
+                  aria-label={f.label}
+                />
               </div>
             )
           }
@@ -153,10 +152,10 @@ function AddComponentBar({ entity }: AddComponentBarProps) {
   if (missing.length === 0 && !showPhysics) return null
 
   return (
-    <select
+    <EditorSelect
       value=""
-      onChange={(e) => {
-        if (e.target.value === PHYSICS_INSPECTOR.key) {
+      onChange={(picked) => {
+        if (picked === PHYSICS_INSPECTOR.key) {
           dispatch({
             type: 'ENTITY_SET_PHYSICS',
             entityId: entity.id,
@@ -164,7 +163,7 @@ function AddComponentBar({ entity }: AddComponentBarProps) {
           })
           return
         }
-        const desc = COMPONENT_REGISTRY.find((d) => d.key === e.target.value as ComponentKey)
+        const desc = COMPONENT_REGISTRY.find((d) => d.key === picked as ComponentKey)
         if (desc)
           dispatch({
             type: 'ENTITY_SET_COMPONENT',
@@ -173,18 +172,16 @@ function AddComponentBar({ entity }: AddComponentBarProps) {
             value: desc.create(),
           })
       }}
-      className="w-full mb-2 bg-[var(--border)] border border-dashed border-[var(--border-2)]
-                 rounded px-2 py-1.5 text-xs text-[var(--muted)]
-                 focus:outline-none focus:border-[var(--accent-2)] transition-colors"
-    >
-      <option value="">＋ Add Component…</option>
-      {showPhysics && (
-        <option value={PHYSICS_INSPECTOR.key}>{PHYSICS_INSPECTOR.label}</option>
-      )}
-      {missing.map((d) => (
-        <option key={d.key} value={d.key}>{d.label}</option>
-      ))}
-    </select>
+      className="w-full mb-2"
+      placeholder="＋ Add Component…"
+      options={[
+        ...(showPhysics
+          ? [{ value: PHYSICS_INSPECTOR.key, label: PHYSICS_INSPECTOR.label }]
+          : []),
+        ...missing.map((d) => ({ value: d.key, label: d.label })),
+      ]}
+      aria-label="Add component"
+    />
   )
 }
 

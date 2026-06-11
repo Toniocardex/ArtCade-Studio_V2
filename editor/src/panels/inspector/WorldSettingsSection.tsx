@@ -1,6 +1,7 @@
 import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import { DEFAULT_WORLD } from '../../types'
 import { InspectorSection } from './inspector-fields'
+import { EditorSelect } from '../../components/ui/EditorSelect'
 
 const physicsModeSelectId = 'world-physics-mode'
 
@@ -37,22 +38,22 @@ export function WorldSettingsSection() {
         >
           Physics simulation
         </label>
-        <select
+        <EditorSelect
           id={physicsModeSelectId}
           value={w.physicsMode ?? 'auto'}
-          onChange={(e) =>
+          onChange={(mode) =>
             dispatch({
               type: 'WORLD_SET',
-              patch: { physicsMode: e.target.value as 'off' | 'auto' | 'on' },
+              patch: { physicsMode: mode as 'off' | 'auto' | 'on' },
             })
           }
-          className="w-full bg-[var(--panel-3)] border border-[var(--border-2)] text-[var(--text)]
-                     text-[11px] rounded px-2 py-1 focus:outline-none focus:border-[var(--accent-2)]"
-        >
-          <option value="auto">Auto (only when bodies exist)</option>
-          <option value="on">On (always step)</option>
-          <option value="off">Off (no physics step)</option>
-        </select>
+          triggerClassName="text-[11px] py-1"
+          options={[
+            { value: 'auto', label: 'Auto (only when bodies exist)' },
+            { value: 'on', label: 'On (always step)' },
+            { value: 'off', label: 'Off (no physics step)' },
+          ]}
+        />
         <p className="text-[9px] text-[var(--muted)] mt-1 leading-snug">
           Auto skips physics for pure transform / platformer-only scenes. Sensors need On or bodies in Auto.
         </p>

@@ -6,13 +6,17 @@ import {
   CONDITION_COMBINE_OPTIONS,
   type ConditionCombineOp,
 } from '../../utils/logic-board/condition-combine'
+import { EditorSelect } from '../ui/EditorSelect'
 
-const sel =
-  'bg-[var(--bg)] border border-[var(--border-2)] text-[var(--accent)] px-2 py-1 rounded text-xs'
+const COMBINE_OPTIONS = CONDITION_COMBINE_OPTIONS.map((o) => ({
+  value: o.value,
+  label: o.label,
+}))
 
 export type ConditionCombineSelectProps = Readonly<{
   value: ConditionCombineOp
   onChange: (op: ConditionCombineOp) => void
+  /** Wrapper layout classes (width); visual style comes from EditorSelect. */
   className?: string
   'aria-label'?: string
 }>
@@ -20,21 +24,17 @@ export type ConditionCombineSelectProps = Readonly<{
 export function ConditionCombineSelect({
   value,
   onChange,
-  className = sel,
+  className = 'w-auto',
   'aria-label': ariaLabel = 'Match rules',
 }: ConditionCombineSelectProps) {
   return (
-    <select
+    <EditorSelect
       className={className}
+      triggerClassName="py-1"
       value={value}
       aria-label={ariaLabel}
-      onChange={(e) => onChange(e.target.value as ConditionCombineOp)}
-    >
-      {CONDITION_COMBINE_OPTIONS.map((o) => (
-        <option key={o.value} value={o.value}>
-          {o.label}
-        </option>
-      ))}
-    </select>
+      onChange={(op) => onChange(op as ConditionCombineOp)}
+      options={COMBINE_OPTIONS}
+    />
   )
 }

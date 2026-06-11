@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import type { DialogCommand } from '../../utils/dialog/dialog-script'
 import { DialogChoiceBranchEditor, defaultCommand } from './DialogChoiceBranchEditor'
+import { EditorSelect } from '../../components/ui/EditorSelect'
 
 const inputCls =
   'w-full bg-[var(--border)] border border-[var(--border-2)] rounded px-2 py-1 text-xs text-[var(--text)] focus:outline-none focus:border-[var(--accent-2)]'
@@ -72,22 +73,18 @@ export function DialogCommandCard({
           {COMMAND_LABELS[command.type]}
         </span>
         {!nested && (
-          <select
-            className="text-[10px] ml-auto bg-[var(--panel)] border border-[var(--border)] rounded px-1 py-0.5 text-[var(--text)]"
-            value={command.type}
-            onFocus={rowFocus}
-            onMouseEnter={onMouseEnter}
-            onChange={(e) => {
-              const nextType = e.target.value
-              if (isDialogCommandType(nextType)) onChange(defaultCommand(nextType))
-            }}
-          >
-            {COMMAND_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {COMMAND_LABELS[t]}
-              </option>
-            ))}
-          </select>
+          <span className="ml-auto" onFocusCapture={rowFocus} onMouseEnter={onMouseEnter}>
+            <EditorSelect
+              className="min-w-[8.5rem]"
+              triggerClassName="text-[10px] px-1 py-0.5"
+              value={command.type}
+              onChange={(nextType) => {
+                if (isDialogCommandType(nextType)) onChange(defaultCommand(nextType))
+              }}
+              options={COMMAND_TYPES.map((t) => ({ value: t, label: COMMAND_LABELS[t] }))}
+              aria-label="Command type"
+            />
+          </span>
         )}
         <div className="flex gap-1 ml-auto">
           <IconBtn title="Move up" disabled={index === 0} onClick={onMoveUp}>
@@ -209,20 +206,22 @@ export function DialogCommandCard({
           </Field>
           <div className="flex gap-2">
             <Field label="Op">
-              <select
-                className={inputCls}
+              <EditorSelect
+                triggerClassName="py-1"
                 value={command.operation}
-                onChange={(e) =>
+                onChange={(operation) =>
                   onChange({
                     ...command,
-                    operation: e.target.value as '=' | '+=' | '-=',
+                    operation: operation as '=' | '+=' | '-=',
                   })
                 }
-              >
-                <option value="=">=</option>
-                <option value="+=">+=</option>
-                <option value="-=">-=</option>
-              </select>
+                options={[
+                  { value: '=', label: '=' },
+                  { value: '+=', label: '+=' },
+                  { value: '-=', label: '-=' },
+                ]}
+                aria-label="Operation"
+              />
             </Field>
             <Field label="Value">
               <input
@@ -257,16 +256,18 @@ export function DialogCommandCard({
           </Field>
           <div className="flex gap-2 mb-2">
             <Field label="Operator">
-              <select
-                className={inputCls}
+              <EditorSelect
+                triggerClassName="py-1"
                 value={command.operator}
-                onChange={(e) => onChange({ ...command, operator: e.target.value })}
-              >
-                <option value="==">==</option>
-                <option value="!=">!=</option>
-                <option value=">=">{'>='}</option>
-                <option value="<=">{'<='}</option>
-              </select>
+                onChange={(operator) => onChange({ ...command, operator })}
+                options={[
+                  { value: '==', label: '==' },
+                  { value: '!=', label: '!=' },
+                  { value: '>=', label: '>=' },
+                  { value: '<=', label: '<=' },
+                ]}
+                aria-label="Operator"
+              />
             </Field>
             <Field label="Value">
               <input

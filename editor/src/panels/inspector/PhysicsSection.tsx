@@ -3,6 +3,7 @@ import { useEditorDispatch } from '../../store/editor-store'
 import type { EntityDef, PhysicsComponent } from '../../types'
 import { PHYSICS_INSPECTOR } from './physics-defaults'
 import { componentBlockId } from './entity-component-utils'
+import { EditorSelect } from '../../components/ui/EditorSelect'
 
 function numInputId(entityId: number, label: string): string {
   const slug = label.toLowerCase().replace(/[^a-z0-9]+/g, '-')
@@ -94,39 +95,39 @@ export function PhysicsSection({ entity }: PhysicsSectionProps) {
         <label htmlFor={bodyTypeSelectId} className="text-[9px] text-[var(--muted)] uppercase">
           Body Type
         </label>
-        <select
+        <EditorSelect
           id={bodyTypeSelectId}
           value={physics.bodyType}
-          onChange={(e) =>
-            patch({ bodyType: e.target.value as PhysicsComponent['bodyType'] })
+          onChange={(bodyType) =>
+            patch({ bodyType: bodyType as PhysicsComponent['bodyType'] })
           }
-          className="w-full bg-[var(--border)] border border-[var(--border-2)] rounded px-2 py-1
-                     text-xs text-[var(--text)] focus:outline-none focus:border-[var(--accent-2)]"
-        >
-          <option value="Dynamic">Dynamic</option>
-          <option value="Kinematic">Kinematic</option>
-          <option value="Static">Static</option>
-        </select>
+          triggerClassName="py-1"
+          options={[
+            { value: 'Dynamic', label: 'Dynamic' },
+            { value: 'Kinematic', label: 'Kinematic' },
+            { value: 'Static', label: 'Static' },
+          ]}
+        />
       </div>
 
       <div className="mb-2">
         <label htmlFor={shapeSelectId} className="text-[9px] text-[var(--muted)] uppercase">
           Collider Shape
         </label>
-        <select
+        <EditorSelect
           id={shapeSelectId}
           value={physics.collider.shape}
-          onChange={(e) =>
+          onChange={(shape) =>
             patchCollider({
-              shape: e.target.value as PhysicsComponent['collider']['shape'],
+              shape: shape as PhysicsComponent['collider']['shape'],
             })
           }
-          className="w-full bg-[var(--border)] border border-[var(--border-2)] rounded px-2 py-1
-                     text-xs text-[var(--text)] focus:outline-none focus:border-[var(--accent-2)]"
-        >
-          <option value="Rectangle">Rectangle</option>
-          <option value="Circle">Circle</option>
-        </select>
+          triggerClassName="py-1"
+          options={[
+            { value: 'Rectangle', label: 'Rectangle' },
+            { value: 'Circle', label: 'Circle' },
+          ]}
+        />
       </div>
 
       {isCircle ? (

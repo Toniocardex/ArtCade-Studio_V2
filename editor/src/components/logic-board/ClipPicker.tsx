@@ -4,9 +4,7 @@ import {
   formatClipOption,
   listProjectClips,
 } from '../../utils/animation-clips-catalog'
-
-const sel =
-  'bg-[var(--bg)] border border-[var(--border-2)] text-[var(--accent)] px-2 py-1 rounded text-xs max-w-[14rem]'
+import { EditorSelect } from '../ui/EditorSelect'
 
 export type ClipPickerProps = Readonly<{
   value: string
@@ -59,33 +57,31 @@ export function ClipPicker({
 
   return (
     <span className="flex flex-col gap-1">
-      <select
-        className={sel}
+      <EditorSelect
+        className="w-auto max-w-[14rem]"
+        triggerClassName="py-1"
         value={inList || !value ? value : '__custom__'}
         title={value}
-        onChange={(e) => {
-          const v = e.target.value
+        onChange={(v) => {
           if (v === '__custom__') {
             if (!value) onChange('')
             return
           }
           onChange(v)
         }}
-      >
-        {allowEmpty && <option value="">{emptyLabel}</option>}
-        {entries.map((e) => (
-          <option
-            key={`${e.assetId}:${e.clipName}`}
-            value={e.clipName}
-            title={`${e.clipName} (${e.spritePath})`}
-          >
-            {formatClipOption(e.clipName, { id: e.assetId, name: e.assetLabel, path: e.spritePath }, e.assetId)}
-          </option>
-        ))}
-        {!inList && value ? (
-          <option value="__custom__">Custom: {value}</option>
-        ) : null}
-      </select>
+        options={[
+          ...(allowEmpty ? [{ value: '', label: emptyLabel }] : []),
+          ...entries.map((e) => ({
+            value: e.clipName,
+            label: formatClipOption(e.clipName, { id: e.assetId, name: e.assetLabel, path: e.spritePath }, e.assetId),
+            title: `${e.clipName} (${e.spritePath})`,
+          })),
+          ...(!inList && value
+            ? [{ value: '__custom__', label: `Custom: ${value}` }]
+            : []),
+        ]}
+        aria-label="Animation clip"
+      />
       {(!inList && value) || duplicateWarn ? (
         <input
           className="bg-[var(--bg)] border border-[var(--border-2)] text-[var(--text)] px-2 py-1 rounded text-xs w-36"

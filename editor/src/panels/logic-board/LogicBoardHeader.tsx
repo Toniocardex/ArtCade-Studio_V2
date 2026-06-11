@@ -9,6 +9,7 @@ import {
   isDeleteKey,
 } from '../../utils/keyboard'
 import { LogicBoardShortcutsHelp } from './LogicBoardShortcutsHelp'
+import { EditorSelect } from '../../components/ui/EditorSelect'
 
 export type LogicBoardPanelMode = 'visual' | 'lua'
 
@@ -58,17 +59,17 @@ export function LogicBoardHeader({
       )}
 
       {boards.length > 0 && (
-        <select
-          className="bg-[var(--surface-3)] border border-[var(--outline)] text-[var(--primary-soft)] px-2.5 py-1.5 rounded text-xs"
+        <EditorSelect
+          className="w-auto min-w-[10rem]"
           value={board?.boardId ?? ''}
-          onChange={(e) => onSelectBoard(e.target.value)}
-        >
-          {boards.map((b) => (
-            <option key={b.boardId} value={b.boardId}>
-              {boardDisplayName(b, project)}
-            </option>
-          ))}
-        </select>
+          onChange={onSelectBoard}
+          placeholder="Select rulesheet…"
+          options={boards.map((b) => ({
+            value: b.boardId,
+            label: boardDisplayName(b, project),
+          }))}
+          aria-label="Rulesheet"
+        />
       )}
 
       {board && (

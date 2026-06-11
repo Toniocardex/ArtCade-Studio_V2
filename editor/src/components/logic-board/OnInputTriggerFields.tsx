@@ -7,9 +7,8 @@ import type { ConditionCombineOp } from '../../utils/logic-board/condition-combi
 import { getKeyCombine } from '../../utils/logic-board/on-input-keys'
 import { ConditionCombineSelect } from './ConditionCombineSelect'
 import { KeyCapture, formatKeyLabel } from './KeyCapture'
+import { EditorSelect } from '../ui/EditorSelect'
 
-const sel =
-  'bg-[var(--bg)] border border-[var(--border-2)] text-[var(--accent)] px-2 py-1 rounded text-xs'
 const lbl = 'text-[10px] font-medium text-[var(--muted)]'
 const link = 'text-[var(--accent)] text-[11px] hover:underline cursor-pointer'
 const combineBadge =
@@ -97,7 +96,6 @@ export function OnInputTriggerFields({
           onChange={(keyCode) => onChange({ ...trigger, keyCode })}
         />
         <ConditionCombineSelect
-          className={sel}
           value={combine}
           aria-label="Combine keys"
           onChange={(op) =>
@@ -146,20 +144,23 @@ export function OnInputTriggerFields({
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <span className={lbl}>When</span>
-        <select
-          className={sel}
+        <EditorSelect
+          className="w-auto"
+          triggerClassName="py-1"
           value={trigger.eventType}
-          onChange={(e) =>
+          onChange={(eventType) =>
             onChange({
               ...trigger,
-              eventType: e.target.value as OnInputTrigger['eventType'],
+              eventType: eventType as OnInputTrigger['eventType'],
             })
           }
-        >
-          <option value="pressed">Just pressed</option>
-          <option value="down">Held down</option>
-          <option value="released">Just released</option>
-        </select>
+          options={[
+            { value: 'pressed', label: 'Just pressed' },
+            { value: 'down', label: 'Held down' },
+            { value: 'released', label: 'Just released' },
+          ]}
+          aria-label="When"
+        />
         <span className="text-[10px] text-[var(--muted)]">
           {eventTypeHint(trigger.eventType)}
         </span>

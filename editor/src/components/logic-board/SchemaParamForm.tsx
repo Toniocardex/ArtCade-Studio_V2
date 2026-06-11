@@ -18,9 +18,8 @@ import { KeyCapture } from './KeyCapture'
 import { ClassNamePicker } from './ClassNamePicker'
 import { ClipPicker } from './ClipPicker'
 import { TagPicker } from './TagPicker'
+import { EditorSelect } from '../ui/EditorSelect'
 
-const sel =
-  'bg-[var(--bg)] border border-[var(--border-2)] text-[var(--accent)] px-2 py-1 rounded text-xs'
 const inp =
   'bg-[var(--bg)] border border-[var(--border-2)] text-[var(--text)] px-2 py-1 rounded text-xs'
 const lbl = 'text-[10px] text-[var(--muted)]'
@@ -212,17 +211,17 @@ function renderEnumField({ kind, type, name, meta, value, onPatch }: FieldProps)
   return (
     <span key={name} className="flex items-center gap-2">
       <span className={lbl}>{fieldLabel(kind, type, name, meta)}</span>
-      <select
-        className={sel}
+      <EditorSelect
+        className="w-auto"
+        triggerClassName="py-1"
         value={enumSelectValue(value, options)}
-        onChange={(e) => onPatch(name, e.target.value)}
-      >
-        {options.map((o) => (
-          <option key={o} value={o}>
-            {enumDisplayLabel(enumCtx, o)}
-          </option>
-        ))}
-      </select>
+        onChange={(next) => onPatch(name, next)}
+        options={options.map((o) => ({
+          value: o,
+          label: enumDisplayLabel(enumCtx, o),
+        }))}
+        aria-label={fieldLabel(kind, type, name, meta)}
+      />
     </span>
   )
 }

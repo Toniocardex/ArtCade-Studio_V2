@@ -5,9 +5,8 @@
 import { useMemo } from 'react'
 import { useEditorSelector } from '../../store/editor-store'
 import { allEntityTags } from '../../utils/project'
+import { EditorSelect } from '../ui/EditorSelect'
 
-const sel =
-  'bg-[var(--bg)] border border-[var(--border-2)] text-[var(--accent)] px-2 py-1 rounded text-xs'
 const inp =
   'bg-[var(--bg)] border border-[var(--border-2)] text-[var(--text)] px-2 py-1 rounded text-xs'
 
@@ -72,26 +71,24 @@ export function TagPicker({
 
   return (
     <span className="flex items-center gap-1 flex-wrap">
-      <select
-        className={sel}
+      <EditorSelect
+        className="w-auto min-w-[8rem]"
+        triggerClassName="py-1"
         value={selectValue}
-        onChange={(e) => {
-          const v = e.target.value
+        onChange={(v) => {
           if (v === TAG_PICKER_OTHER) {
             if (!otherMode) onChange('')
             return
           }
           onChange(v)
         }}
-      >
-        {allowEmpty && <option value="">{emptyLabel}</option>}
-        {tags.map((t) => (
-          <option key={t} value={t}>
-            {t}
-          </option>
-        ))}
-        <option value={TAG_PICKER_OTHER}>Other…</option>
-      </select>
+        options={[
+          ...(allowEmpty ? [{ value: '', label: emptyLabel }] : []),
+          ...tags.map((t) => ({ value: t, label: t })),
+          { value: TAG_PICKER_OTHER, label: 'Other…' },
+        ]}
+        aria-label="Entity tag"
+      />
       {(selectValue === TAG_PICKER_OTHER || otherMode) && (
         <input
           className={`${inp} w-32`}

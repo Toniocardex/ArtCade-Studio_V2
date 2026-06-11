@@ -2,6 +2,7 @@ import type { ImageAsset } from '../../types'
 import type { SpritesheetStudioSession } from './useSpritesheetStudioSession'
 import type { SlicingMode } from '../../utils/spritesheet-studio'
 import { DefaultPivotPanel } from './DefaultPivotPanel'
+import { EditorSelect } from '../../components/ui/EditorSelect'
 
 type SlicingPanelProps = Readonly<{
   asset: ImageAsset
@@ -125,14 +126,17 @@ export function SlicingPanel({ asset, session, onPatchDefaultPivot }: SlicingPan
           </label>
           <label className="text-[10px] text-[var(--muted)]">
             Direction
-            <select
-              className="mt-1 w-full bg-[var(--bg)] border border-[var(--border-2)] rounded px-2 py-1"
+            <EditorSelect
+              className="mt-1 w-full"
+              triggerClassName="py-1"
               value={stripAxis}
-              onChange={(e) => setStripAxis(e.target.value as 'horizontal' | 'vertical')}
-            >
-              <option value="horizontal">Horizontal strip</option>
-              <option value="vertical">Vertical strip</option>
-            </select>
+              onChange={(axis) => setStripAxis(axis as 'horizontal' | 'vertical')}
+              options={[
+                { value: 'horizontal', label: 'Horizontal strip' },
+                { value: 'vertical', label: 'Vertical strip' },
+              ]}
+              aria-label="Strip direction"
+            />
           </label>
         </>
       ) : null}

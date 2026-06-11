@@ -1,9 +1,15 @@
 import type { TargetSelector } from '../../types/logic-board'
+import { EditorSelect } from '../ui/EditorSelect'
 
-const sel =
-  'bg-[var(--bg)] border border-[var(--border-2)] text-[var(--accent)] px-2 py-1 rounded text-xs'
 const inp =
   'bg-[var(--bg)] border border-[var(--border-2)] text-[var(--text)] px-2 py-1 rounded text-xs'
+
+const TARGET_KIND_OPTIONS = [
+  { value: 'self', label: 'This object' },
+  { value: 'other', label: 'Other object' },
+  { value: 'entityId', label: 'Object #' },
+  { value: 'className', label: 'Objects of class' },
+]
 
 export type TargetPickerKind = 'self' | 'other' | 'entityId' | 'className'
 
@@ -22,21 +28,18 @@ export function TargetPicker({ value, onChange }: TargetPickerProps) {
   const kind = targetPickerKind(value)
   return (
     <span className="flex items-center gap-1">
-      <select
-        className={sel}
+      <EditorSelect
+        className="w-auto"
+        triggerClassName="py-1"
         value={kind}
-        onChange={(e) => {
-          const k = e.target.value
+        onChange={(k) => {
           if (k === 'self' || k === 'other') onChange(k)
           else if (k === 'entityId') onChange({ entityId: 1 })
           else onChange({ className: '', first: true })
         }}
-      >
-        <option value="self">This object</option>
-        <option value="other">Other object</option>
-        <option value="entityId">Object #</option>
-        <option value="className">Objects of class</option>
-      </select>
+        options={TARGET_KIND_OPTIONS}
+        aria-label="Target"
+      />
       {kind === 'entityId' && typeof value === 'object' && 'entityId' in value && (
         <input
           type="number"
