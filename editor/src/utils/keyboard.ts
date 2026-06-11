@@ -71,27 +71,30 @@ export function applyInputDelete(input: HTMLInputElement): boolean {
 let guardsInstalled = false
 
 /**
- * Block browser/WebView default actions that interfere with editor shortcuts,
- * registered in the capture phase so preventDefault() fires before any bubble
- * listener and before WebView2's native key handling.
+ * Returns true when the browser/WebView native default for `e` must be
+ * suppressed at the capture phase to protect editor shortcuts.
  *
- * - Backspace: prevents browser "go back" navigation
- * - F5 (no modifier): prevents page reload so usePreviewPlayShortcut can fire
+ * - Backspace outside editable targets: prevents browser "go back" navigation.
+ * - F5 (no modifier): prevents WebView2/browser page reload so that
+ *   usePreviewPlayShortcut can handle Play/Stop in the bubble phase.
+ */
+export function shouldBlockNativeKeyDefault(e: KeyboardEvent): boolean {
+  if (isBackspaceKey(e)) return !shouldIgnoreEditorShortcut(e)
+  if ((e.key === 'F5' || e.code === 'F5') && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) return true
+  return false
+}
+
+/**
+ * Registers a capture-phase keydown guard that prevents browser/WebView native
+ * key actions (Backspace go-back, F5 reload) from firing before editor
+ * shortcut handlers reach them. Must be called once at app boot.
  */
 export function installEditorKeyboardGuards(): void {
   if (guardsInstalled || globalThis.window === undefined) return
   guardsInstalled = true
   globalThis.addEventListener(
     'keydown',
-    (e) => {
-      if (isBackspaceKey(e)) {
-        if (!shouldIgnoreEditorShortcut(e)) e.preventDefault()
-        return
-      }
-      if ((e.key === 'F5' || e.code === 'F5') && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) {
-        e.preventDefault()
-      }
-    },
+    (e) => { if (shouldBlockNativeKeyDefault(e)) e.preventDefault() },
     true,
   )
 }
