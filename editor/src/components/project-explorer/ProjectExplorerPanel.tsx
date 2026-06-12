@@ -283,17 +283,9 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
             tree.hasSearch ? (
               <p className="text-[10px] text-[var(--muted)] italic px-2 py-1">No matches</p>
             ) : scene.scene ? (
-              <div className="flex flex-col items-start gap-1.5 px-2 py-2">
-                <p className="text-[10px] text-[var(--muted)]">No objects in this scene.</p>
-                <button
-                  type="button"
-                  onClick={scene.insertObject}
-                  className="flex items-center gap-1 text-[10px] text-[var(--accent)] hover:underline"
-                >
-                  <Plus size={10} />
-                  Insert object
-                </button>
-              </div>
+              <p className="text-[10px] text-[var(--muted)] px-2 py-1">
+                No objects yet — use <strong className="font-medium text-[var(--text)]">Insert object</strong> above.
+              </p>
             ) : (
               <p className="text-[10px] text-[var(--muted)] italic px-2 py-1">No active scene</p>
             )
