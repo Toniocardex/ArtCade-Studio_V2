@@ -280,13 +280,23 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
           }
         >
           {tree.entityGroups.length === 0 ? (
-            <p className="text-[10px] text-[var(--muted)] italic px-2 py-1">
-              {tree.hasSearch
-                ? 'No matches'
-                : scene.scene
-                  ? 'No objects in this scene'
-                  : 'No active scene'}
-            </p>
+            tree.hasSearch ? (
+              <p className="text-[10px] text-[var(--muted)] italic px-2 py-1">No matches</p>
+            ) : scene.scene ? (
+              <div className="flex flex-col items-start gap-1.5 px-2 py-2">
+                <p className="text-[10px] text-[var(--muted)]">No objects in this scene.</p>
+                <button
+                  type="button"
+                  onClick={scene.insertObject}
+                  className="flex items-center gap-1 text-[10px] text-[var(--accent)] hover:underline"
+                >
+                  <Plus size={10} />
+                  Insert object
+                </button>
+              </div>
+            ) : (
+              <p className="text-[10px] text-[var(--muted)] italic px-2 py-1">No active scene</p>
+            )
           ) : (
             <SceneObjectsTree
               groups={tree.entityGroups}
@@ -366,9 +376,25 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                     }}
                   >
                     {folder.count === 0 ? (
-                      <p className="text-[10px] text-[var(--muted)] italic py-1 pl-4">
-                        No assets in this category yet.
-                      </p>
+                      <div className="flex flex-col items-start gap-1.5 py-1.5 pl-4">
+                        <p className="text-[10px] text-[var(--muted)]">No assets yet.</p>
+                        {libraryCategory === 'images' || libraryCategory === 'tilesets' ? (
+                          <button type="button" onClick={assets.triggerImportImage}
+                            className="flex items-center gap-1 text-[10px] text-[var(--accent)] hover:underline">
+                            <ImagePlus size={10} />Import image
+                          </button>
+                        ) : libraryCategory === 'audio' ? (
+                          <button type="button" onClick={assets.triggerImportAudio}
+                            className="flex items-center gap-1 text-[10px] text-[var(--accent)] hover:underline">
+                            <Music size={10} />Import audio
+                          </button>
+                        ) : libraryCategory === 'fonts' ? (
+                          <button type="button" onClick={assets.triggerImportFont}
+                            className="flex items-center gap-1 text-[10px] text-[var(--accent)] hover:underline">
+                            <Type size={10} />Import font
+                          </button>
+                        ) : null}
+                      </div>
                     ) : null}
                     {libraryCategory && folderHandlers ? (
                       <VirtualFoldersBlock
