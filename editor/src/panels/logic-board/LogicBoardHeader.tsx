@@ -2,6 +2,7 @@ import type { ProjectDoc } from '../../types'
 import type { LogicBoard } from '../../types/logic-board'
 import { boardDisplayName } from './friendly-labels'
 import { logicBoardCompilerLabel } from '../../utils/logic-board/labels'
+import { rulesheetAppliesToLabel } from '../../utils/project'
 import {
   applyInputBackspace,
   applyInputDelete,
@@ -38,27 +39,44 @@ export function LogicBoardHeader({
   needsApply,
   project,
 }: LogicBoardHeaderProps) {
-  const rulesFor = board ? boardDisplayName(board, project) : null
   const compilerLabel = board ? logicBoardCompilerLabel(board) : ''
+  const appliesTo = board ? rulesheetAppliesToLabel(project, board) : null
 
   return (
     <div className="flex-shrink-0 h-[52px] flex items-center gap-3 px-4 bg-[var(--surface)] border-b border-[var(--outline)]">
       <div className="min-w-0 pr-2">
-        <h1 className="truncate text-[13px] font-semibold text-[var(--primary)]">
-          {compilerLabel || 'Rulesheet'}
-        </h1>
+        {board ? (
+          <input
+            type="text"
+            aria-label="Rulesheet name"
+            title="Rulesheet name — the Script editor uses it to label this board's generated Lua"
+            value={compilerLabel}
+            onChange={(e) => onRenameBoard(board.boardId, e.target.value)}
+            onKeyDown={(e) => {
+              if (isBackspaceKey(e)) {
+                e.preventDefault()
+                applyInputBackspace(e.currentTarget)
+              } else if (isDeleteKey(e)) {
+                e.preventDefault()
+                applyInputDelete(e.currentTarget)
+              }
+            }}
+            className="w-52 -mx-1 px-1 py-0.5 rounded bg-transparent border border-transparent
+                       text-[13px] font-semibold text-[var(--primary)] truncate
+                       hover:border-[var(--outline)] focus:border-[var(--outline-strong)]
+                       focus:bg-[var(--surface-3)] focus:outline-none transition-colors"
+          />
+        ) : (
+          <h1 className="truncate text-[13px] font-semibold text-[var(--primary)]">
+            Rulesheet
+          </h1>
+        )}
         <p className="truncate text-[10px] text-[var(--muted)]">
-          {rulesFor ? `Attached target: ${rulesFor}` : 'No rulesheet selected'}
+          {appliesTo ? `Applies to: ${appliesTo}` : 'No rulesheet selected'}
         </p>
       </div>
 
-      {rulesFor && (
-        <span className="hidden text-[10px] text-[var(--muted)] xl:inline">
-          Compiler label <span className="text-[var(--primary-soft)]">{compilerLabel}</span>
-        </span>
-      )}
-
-      {boards.length > 0 && (
+      {boards.length > 1 && (
         <EditorSelect
           className="w-auto min-w-[10rem]"
           value={board?.boardId ?? ''}
@@ -69,26 +87,6 @@ export function LogicBoardHeader({
             label: boardDisplayName(b, project),
           }))}
           aria-label="Rulesheet"
-        />
-      )}
-
-      {board && (
-        <input
-          type="text"
-          aria-label="Rulesheet name"
-          title="Rulesheet name used in generated Lua comments"
-          value={compilerLabel}
-          onChange={(e) => onRenameBoard(board.boardId, e.target.value)}
-          onKeyDown={(e) => {
-            if (isBackspaceKey(e)) {
-              e.preventDefault()
-              applyInputBackspace(e.currentTarget)
-            } else if (isDeleteKey(e)) {
-              e.preventDefault()
-              applyInputDelete(e.currentTarget)
-            }
-          }}
-          className="w-52 bg-[var(--surface-3)] border border-[var(--outline)] text-[var(--text)] placeholder:text-[var(--muted)] px-2.5 py-1.5 rounded text-xs"
         />
       )}
 

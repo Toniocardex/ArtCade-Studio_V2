@@ -15,7 +15,7 @@ import type {
   LogicTrigger,
 } from '../../types/logic-board'
 import { validateLogicBoard, validateLogicEvent } from './schema-registry'
-import { logicBoardGeneratedLabel } from './labels'
+import { logicBoardDefaultName } from './labels'
 import { stripLegacyLogicActions } from './strip-legacy-actions'
 
 let _seq = 0
@@ -44,10 +44,11 @@ export function createLogicBoardForObjectType(
   boardId = logicId('board'),
   name?: string,
 ): LogicBoard {
+  const target = { type: 'object_type', objectTypeId } as const
   return {
     boardId,
-    name: name?.trim() || logicBoardGeneratedLabel(boardId),
-    target: { type: 'object_type', objectTypeId },
+    name: name?.trim() || logicBoardDefaultName({ boardId, target }),
+    target,
     events: [],
   }
 }

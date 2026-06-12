@@ -8,7 +8,7 @@
 
 import type { CoreState, Action, DomainReducer } from '../editor-store-state'
 import type { LogicBoard } from '../../types'
-import { logicBoardGeneratedLabel } from '../../utils/logic-board/labels'
+import { logicBoardDefaultName } from '../../utils/logic-board/labels'
 function withBoards(
   state: CoreState,
   fn: (boards: LogicBoard[]) => LogicBoard[],
@@ -38,7 +38,7 @@ export const logicBoardReducer: DomainReducer = (state: CoreState, action: Actio
           board.boardId === action.boardId
             ? {
                 ...board,
-                name: action.name.trim() || logicBoardGeneratedLabel(board.boardId),
+                name: action.name.trim() || logicBoardDefaultName(board),
               }
             : board,
         ),

@@ -115,9 +115,9 @@ describe('logicBoardLabel', () => {
     expect(logicBoardLabel(miniProject(), board)).toBe('Player controls')
   })
 
-  it('uses the generated compiler label for new boards', () => {
+  it('derives a human name from the object type for new boards', () => {
     const board = createLogicBoardForObjectType('Player', 'board_mplj6t76_1')
-    expect(logicBoardLabel(miniProject(), board)).toBe('board_mplj6t76_1')
+    expect(logicBoardLabel(miniProject(), board)).toBe('Player rules')
   })
 
   it('falls back to boardId for existing boards without names', () => {
