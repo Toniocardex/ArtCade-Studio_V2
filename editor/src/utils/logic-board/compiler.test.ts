@@ -165,6 +165,69 @@ describe('Component API actions and conditions', () => {
     expect(lua).toContain('dialog.finish()')
   })
 
+  it('emits audio volume and fade API calls plus isMusicPlaying', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({
+          trigger: { type: 'onUpdate' },
+          conditions: [{ type: 'isMusicPlaying' }],
+          actions: [
+            { type: 'setMusicVolume', volume: 0.5 },
+            { type: 'setMasterVolume', volume: 0.8 },
+            { type: 'setSfxVolume', volume: 0.7 },
+            { type: 'fadeMusic', volume: 0, seconds: 2 },
+          ],
+        }),
+      ]),
+    ])
+    expect(lua).toContain('audio.isMusicPlaying()')
+    expect(lua).toContain('audio.setMusicVolume(0.5)')
+    expect(lua).toContain('audio.setMasterVolume(0.8)')
+    expect(lua).toContain('audio.setSfxVolume(0.7)')
+    expect(lua).toContain('audio.fadeMusic(0, 2)')
+  })
+
+  it('emits onDamaged edge detection from previous-frame HP', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({
+          trigger: { type: 'onDamaged' },
+          actions: [{ type: 'playSound', path: 'assets/audio/hit.ogg' }],
+        }),
+      ]),
+    ])
+    expect(lua).toContain('local _dmg_prev = {}')
+    expect(lua).toContain('local _prev = _dmg_prev[')
+    expect(lua).toContain('if _prev ~= nil and _hc < _prev then')
+    expect(lua).toContain('audio.playSound("assets/audio/hit.ogg"')
+  })
+
+  it('emits platformer and top-down controller setter API calls', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({
+          trigger: { type: 'onUpdate' },
+          actions: [
+            { type: 'setPlatformerMaxSpeed', target: 'self', speed: 320 },
+            { type: 'setPlatformerJumpForce', target: 'self', force: 700 },
+            { type: 'setPlatformerGravity', target: 'self', gravity: 1100 },
+            { type: 'setTopDownMaxSpeed', target: 'self', speed: 260 },
+            { type: 'setTopDownAcceleration', target: 'self', acceleration: 1500 },
+            { type: 'setTopDownFriction', target: 'self', friction: 900 },
+            { type: 'setTopDownFourDirections', target: 'self', enabled: true },
+          ],
+        }),
+      ]),
+    ])
+    expect(lua).toContain('platformer.setMaxSpeed(self, 320)')
+    expect(lua).toContain('platformer.setJumpForce(self, 700)')
+    expect(lua).toContain('platformer.setGravity(self, 1100)')
+    expect(lua).toContain('topDown.setMaxSpeed(self, 260)')
+    expect(lua).toContain('topDown.setAcceleration(self, 1500)')
+    expect(lua).toContain('topDown.setFriction(self, 900)')
+    expect(lua).toContain('topDown.setFourDirections(self, true)')
+  })
+
   it('emits health API calls and compareHealth conditions', () => {
     const lua = compileLogicBoard([
       board([

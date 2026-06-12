@@ -30,6 +30,14 @@ export function actionSummaryPlain(
       return 'Pause music'
     case 'resumeMusic':
       return 'Resume music'
+    case 'setMusicVolume':
+      return `Set music volume to ${valueSummary(a.volume, project)}`
+    case 'setMasterVolume':
+      return `Set master volume to ${valueSummary(a.volume, project)}`
+    case 'setSfxVolume':
+      return `Set sound effects volume to ${valueSummary(a.volume, project)}`
+    case 'fadeMusic':
+      return `Fade music to ${valueSummary(a.volume, project)} over ${valueSummary(a.seconds, project)}s`
     case 'destroyEntity':
       return `Destroy ${who(a.target)}`
     case 'clickToDestroy': {
@@ -68,6 +76,22 @@ export function actionSummaryPlain(
       return `Stop controller movement for ${who(a.target)}`
     case 'requestPlatformerJump':
       return `Make ${who(a.target)} jump`
+    case 'setPlatformerMaxSpeed':
+      return `Set platformer max speed on ${who(a.target)} to ${valueSummary(a.speed, project)}`
+    case 'setPlatformerJumpForce':
+      return `Set platformer jump force on ${who(a.target)} to ${valueSummary(a.force, project)}`
+    case 'setPlatformerGravity':
+      return `Set platformer gravity on ${who(a.target)} to ${valueSummary(a.gravity, project)}`
+    case 'setTopDownMaxSpeed':
+      return `Set top-down max speed on ${who(a.target)} to ${valueSummary(a.speed, project)}`
+    case 'setTopDownAcceleration':
+      return `Set top-down acceleration on ${who(a.target)} to ${valueSummary(a.acceleration, project)}`
+    case 'setTopDownFriction':
+      return `Set top-down friction on ${who(a.target)} to ${valueSummary(a.friction, project)}`
+    case 'setTopDownFourDirections':
+      return a.enabled
+        ? `Constrain ${who(a.target)} to 4-direction movement`
+        : `Allow free movement for ${who(a.target)}`
     case 'damageEntity':
       return `Damage ${who(a.target)} by ${valueSummary(a.amount, project)}`
     case 'healEntity':

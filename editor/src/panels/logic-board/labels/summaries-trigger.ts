@@ -99,5 +99,7 @@ export function triggerSummaryPlain(
         : `After ${t.seconds} seconds`
     case 'onHealthDepleted':
       return 'When this object\'s health reaches zero'
+    case 'onDamaged':
+      return 'When this object takes damage'
   }
 }

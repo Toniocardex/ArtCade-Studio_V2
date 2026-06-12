@@ -41,6 +41,16 @@ public:
     void pauseMusic ();
     void resumeMusic();
 
+    /** True while the current music track is playing (not stopped/paused). */
+    bool isMusicPlaying() const;
+
+    /**
+     * Linearly fade the music volume to `target` (0–1) over `seconds`.
+     * Fading to 0 stops the track and restores the pre-fade volume, so a
+     * later playMusic starts audible again.
+     */
+    void fadeMusicTo(float target, float seconds);
+
     // Global mixer
     void setMasterVolume(float v);   // 0–1, affects all output
     void setMusicVolume (float v);   // 0–1, affects current music stream

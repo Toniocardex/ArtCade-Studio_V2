@@ -96,6 +96,14 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
       return `audio.pauseMusic()`
     case 'resumeMusic':
       return `audio.resumeMusic()`
+    case 'setMusicVolume':
+      return `audio.setMusicVolume(${numberSourceExpr(a.volume, project)})`
+    case 'setMasterVolume':
+      return `audio.setMasterVolume(${numberSourceExpr(a.volume, project)})`
+    case 'setSfxVolume':
+      return `audio.setSfxVolume(${numberSourceExpr(a.volume, project)})`
+    case 'fadeMusic':
+      return `audio.fadeMusic(${numberSourceExpr(a.volume, project)}, ${numberSourceExpr(a.seconds, project)})`
     case 'destroyEntity':
       return `entity.destroy(${target(a.target)})`
     case 'clickToDestroy':
@@ -168,6 +176,20 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
       return `movement.clearIntent(${target(a.target)})`
     case 'requestPlatformerJump':
       return `platformer.requestJump(${target(a.target)})`
+    case 'setPlatformerMaxSpeed':
+      return `platformer.setMaxSpeed(${target(a.target)}, ${numberSourceExpr(a.speed, project)})`
+    case 'setPlatformerJumpForce':
+      return `platformer.setJumpForce(${target(a.target)}, ${numberSourceExpr(a.force, project)})`
+    case 'setPlatformerGravity':
+      return `platformer.setGravity(${target(a.target)}, ${numberSourceExpr(a.gravity, project)})`
+    case 'setTopDownMaxSpeed':
+      return `topDown.setMaxSpeed(${target(a.target)}, ${numberSourceExpr(a.speed, project)})`
+    case 'setTopDownAcceleration':
+      return `topDown.setAcceleration(${target(a.target)}, ${numberSourceExpr(a.acceleration, project)})`
+    case 'setTopDownFriction':
+      return `topDown.setFriction(${target(a.target)}, ${numberSourceExpr(a.friction, project)})`
+    case 'setTopDownFourDirections':
+      return `topDown.setFourDirections(${target(a.target)}, ${a.enabled ? 'true' : 'false'})`
     case 'damageEntity':
       return `entity.damage(${target(a.target)}, ${numberSourceExpr(a.amount, project)})`
     case 'healEntity': {

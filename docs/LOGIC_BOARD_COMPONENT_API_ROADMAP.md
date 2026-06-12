@@ -37,10 +37,10 @@ Principio UI/prodotto per questi componenti →
 
 | Component | Logic Board API | Stato |
 | --- | --- | --- |
-| TopDownControllerComponent | Move left/right/up/down, stop, movement vector | Tranche 1 |
-| PlatformerControllerComponent | Move left/right, stop horizontal movement, jump | Tranche 1 |
+| TopDownControllerComponent | Move left/right/up/down, stop, movement vector; set max speed / acceleration / friction / four-directions | Tranche 1 + setter runtime (2026-06-12) |
+| PlatformerControllerComponent | Move left/right, stop horizontal movement, jump; set max speed / jump force / gravity | Tranche 1 + setter runtime (2026-06-12) |
 | SensorComponent | Trigger enter/exit su tag target | Gia disponibile |
-| HealthComponent | Damage, heal, set health, compare health | Tranche 1 |
+| HealthComponent | Damage, heal, set health, compare health; trigger onDamaged / onHealthDepleted | Tranche 1 + onDamaged (2026-06-12) |
 | CameraTargetComponent | Follow automatico deterministico, override, stop/ripristino | Integrato |
 | LinearMoverComponent | Set direction/speed, pause/resume mover | Tranche 2 |
 | MagneticItemComponent | Enable/disable, target tag, radius, pull speed | Integrato |

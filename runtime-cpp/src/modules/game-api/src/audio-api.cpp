@@ -24,6 +24,15 @@ void GameAPI::bindAudioAPI(sol::state& lua) {
         audio->setMusicVolume(mu);
         audio->setSFXVolume(sfx);
     });
+    lua.set_function("audio_setMasterVolume", [audio](float v) { audio->setMasterVolume(v); });
+    lua.set_function("audio_setMusicVolume",  [audio](float v) { audio->setMusicVolume(v);  });
+    lua.set_function("audio_setSfxVolume",    [audio](float v) { audio->setSFXVolume(v);    });
+    lua.set_function("audio_fadeMusic", [audio](float target, float seconds) {
+        audio->fadeMusicTo(target, seconds);
+    });
+    lua.set_function("audio_isMusicPlaying", [audio]() -> bool {
+        return audio->isMusicPlaying();
+    });
 
     lua.script(R"(
         audio = {}
@@ -34,6 +43,11 @@ void GameAPI::bindAudioAPI(sol::state& lua) {
         audio.resumeMusic = function()                 return audio_resumeMusic()                         end
         audio.stopAll    = function()                  return audio_stopAll()                             end
         audio.setVolume  = function(m, mu, sfx)        return audio_setVolume(m or 1, mu or 1, sfx or 1) end
+        audio.setMasterVolume = function(v)            return audio_setMasterVolume(v or 1)              end
+        audio.setMusicVolume  = function(v)            return audio_setMusicVolume(v or 1)               end
+        audio.setSfxVolume    = function(v)            return audio_setSfxVolume(v or 1)                 end
+        audio.fadeMusic       = function(v, s)         return audio_fadeMusic(v or 0, s or 1)            end
+        audio.isMusicPlaying  = function()             return audio_isMusicPlaying()                     end
     )");
 }
 

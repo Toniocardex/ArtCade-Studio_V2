@@ -46,6 +46,7 @@ export const TRIGGER_TARGET_MATRIX: Record<
   onDestroy:          ENTITY_TARGETS,
   // Health — entity-only (requires a HealthComponent, which only entity boards have).
   onHealthDepleted:   ENTITY_TARGETS,
+  onDamaged:          ENTITY_TARGETS,
   // Physics — need a specific entity to test collisions/overlaps against.
   onCollision:      ENTITY_TARGETS,
   onCollisionEnter: ENTITY_TARGETS,

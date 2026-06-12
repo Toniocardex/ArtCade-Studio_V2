@@ -106,6 +106,8 @@ function leafExpr(c: LogicCondition, project?: ProjectDoc | null): string {
       return `save.exists(${luaString(c.slot || 'main')})`
     case 'isDialogActive':
       return `dialog.isActive()`
+    case 'isMusicPlaying':
+      return `audio.isMusicPlaying()`
   }
 }
 

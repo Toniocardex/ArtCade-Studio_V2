@@ -55,6 +55,8 @@ export function defaultTrigger(type: LogicTriggerType): LogicTrigger {
       return { type: 'onDestroy' }
     case 'onHealthDepleted':
       return { type: 'onHealthDepleted' }
+    case 'onDamaged':
+      return { type: 'onDamaged' }
     case 'onInput':
       return { type: 'onInput', keyCode: 'Space', eventType: 'pressed' }
     case 'onMouseInput':
@@ -114,6 +116,8 @@ export function defaultCondition(
       return { type: 'saveExists', slot: 'main' }
     case 'isDialogActive':
       return { type: 'isDialogActive' }
+    case 'isMusicPlaying':
+      return { type: 'isMusicPlaying' }
   }
 }
 
@@ -139,6 +143,14 @@ export function defaultAction(type: LogicActionType): LogicAction {
       return { type: 'pauseMusic' }
     case 'resumeMusic':
       return { type: 'resumeMusic' }
+    case 'setMusicVolume':
+      return { type: 'setMusicVolume', volume: 1 }
+    case 'setMasterVolume':
+      return { type: 'setMasterVolume', volume: 1 }
+    case 'setSfxVolume':
+      return { type: 'setSfxVolume', volume: 1 }
+    case 'fadeMusic':
+      return { type: 'fadeMusic', volume: 0, seconds: 2 }
     case 'destroyEntity':
       return { type: 'destroyEntity', target: 'self' }
     case 'clickToDestroy':
@@ -163,6 +175,20 @@ export function defaultAction(type: LogicActionType): LogicAction {
       return { type: 'healEntity', target: 'self', amount: 10 }
     case 'setEntityHealth':
       return { type: 'setEntityHealth', target: 'self', currentHp: 100 }
+    case 'setPlatformerMaxSpeed':
+      return { type: 'setPlatformerMaxSpeed', target: 'self', speed: 300 }
+    case 'setPlatformerJumpForce':
+      return { type: 'setPlatformerJumpForce', target: 'self', force: 600 }
+    case 'setPlatformerGravity':
+      return { type: 'setPlatformerGravity', target: 'self', gravity: 1200 }
+    case 'setTopDownMaxSpeed':
+      return { type: 'setTopDownMaxSpeed', target: 'self', speed: 250 }
+    case 'setTopDownAcceleration':
+      return { type: 'setTopDownAcceleration', target: 'self', acceleration: 1500 }
+    case 'setTopDownFriction':
+      return { type: 'setTopDownFriction', target: 'self', friction: 1200 }
+    case 'setTopDownFourDirections':
+      return { type: 'setTopDownFourDirections', target: 'self', enabled: true }
     case 'setLinearMoverDirection':
       return { type: 'setLinearMoverDirection', target: 'self', directionX: 1, directionY: 0 }
     case 'setLinearMoverSpeed':

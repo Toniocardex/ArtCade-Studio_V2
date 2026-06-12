@@ -35,7 +35,7 @@ describe('trigger-compatibility matrix', () => {
 
   it('matrix is exhaustive — every LogicTriggerType has an entry', () => {
     const expectedTypes = [
-      'onStart', 'onUpdate', 'onSpawn', 'onDestroy', 'onHealthDepleted',
+      'onStart', 'onUpdate', 'onSpawn', 'onDestroy', 'onHealthDepleted', 'onDamaged',
       'onCollision', 'onCollisionEnter', 'onCollisionExit',
       'onTriggerEnter', 'onTriggerExit',
       'onAnimationEnd', 'onInput', 'onMouseInput',

@@ -85,6 +85,26 @@ function emitHealthDepletedBody(ctx: EmitCtx): string[] {
   ]
 }
 
+function emitDamagedBody(ctx: EmitCtx): string[] {
+  const { baseIndent, slugs, ev } = ctx
+  const slug = ruleKeyExpr(ev.id, slugs)
+  const i1 = baseIndent + INDENT
+  const i2 = i1 + INDENT
+  const key = `${slug} .. ":" .. tostring(self)`
+  return [
+    `${baseIndent}do`,
+    `${i1}local _hc, _ = entity.health(self)`,
+    `${i1}if _hc ~= nil then`,
+    `${i2}local _prev = _dmg_prev[${key}]`,
+    `${i2}_dmg_prev[${key}] = _hc`,
+    `${i2}if _prev ~= nil and _hc < _prev then`,
+    ...emitGuarded(ctx, i2 + INDENT),
+    `${i2}end`,
+    `${i1}end`,
+    `${baseIndent}end`,
+  ]
+}
+
 function emitSensorTriggerBody(
   ctx: EmitCtx,
   trig: Extract<LogicTrigger, { type: 'onTriggerEnter' } | { type: 'onTriggerExit' }>,
@@ -242,6 +262,8 @@ export function emitEventBody(
       return emitDestroyBody(ctx)
     case 'onHealthDepleted':
       return emitHealthDepletedBody(ctx)
+    case 'onDamaged':
+      return emitDamagedBody(ctx)
     case 'onTriggerEnter':
     case 'onTriggerExit':
       return emitSensorTriggerBody(ctx, trig)

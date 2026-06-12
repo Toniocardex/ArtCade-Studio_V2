@@ -66,6 +66,7 @@ describe('component capabilities', () => {
     expect(recommendedActionTypes(project(), board)).toEqual([
       'controllerMovement',
       'moveController',
+      'setTopDownMaxSpeed',
       'damageEntity',
       'healEntity',
       'setEntityHealth',
@@ -142,6 +143,8 @@ describe('component capabilities', () => {
       'controllerMovement',
       'moveController',
       'requestPlatformerJump',
+      'setPlatformerMaxSpeed',
+      'setPlatformerJumpForce',
       'setLinearMoverDirection',
       'setLinearMoverSpeed',
       'pauseLinearMover',

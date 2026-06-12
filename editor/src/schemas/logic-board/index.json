@@ -4,13 +4,14 @@
   "triggers": [
     "onStart", "onSpawn", "onUpdate", "onCollision", "onCollisionEnter", "onCollisionExit",
     "onTriggerEnter", "onTriggerExit",
-    "onAnimationEnd", "onDestroy", "onHealthDepleted", "onInput", "onMouseInput", "onObjectClick",
+    "onAnimationEnd", "onDestroy", "onHealthDepleted", "onDamaged", "onInput", "onMouseInput", "onObjectClick",
     "onObjectHoverEnter", "onObjectHoverExit", "onMessage", "onTimer"
   ],
   "actions": [
     "setVariable", "addVariable", "clampVariable", "multiplyVariable",
     "setPosition", "setVelocity", "playSound", "playMusic",
-    "stopAllAudio", "stopMusic", "pauseMusic", "resumeMusic", "destroyEntity",
+    "stopAllAudio", "stopMusic", "pauseMusic", "resumeMusic",
+    "setMusicVolume", "setMasterVolume", "setSfxVolume", "fadeMusic", "destroyEntity",
     "spawnEntity", "spawnEntityAtPointer", "spawnAtEntity", "emitEvent", "startDialog", "endDialog",
     "toggleLogicEvent", "applyImpulse", "applyForce", "setRotation", "setScale",
     "playAnimation", "setFlip", "setVisible", "setColorTint", "loadScene", "restartScene",
@@ -19,6 +20,8 @@
     "setTimeScale",
     "moveInDirection", "moveToward", "lookAtTarget",
     "controllerMovement", "moveController", "requestPlatformerJump",
+    "setPlatformerMaxSpeed", "setPlatformerJumpForce", "setPlatformerGravity",
+    "setTopDownMaxSpeed", "setTopDownAcceleration", "setTopDownFriction", "setTopDownFourDirections",
     "damageEntity", "healEntity", "setEntityHealth",
     "setLinearMoverDirection", "setLinearMoverSpeed", "pauseLinearMover", "resumeLinearMover",
     "setMagnetEnabled", "setMagnetTargetTag", "setMagnetRadius", "setMagnetPullSpeed",
@@ -31,7 +34,8 @@
   "conditions": [
     "compareVariable", "compareValues", "compareClass", "isKeyDown", "hasTag", "compareDistance",
     "isMouseOver", "raycastHit", "chance", "isTileAreaFree", "compareHealth", "isPlatformerGrounded",
-    "compareCount", "entityExists", "compareVelocity", "comparePosition", "saveExists", "isDialogActive"
+    "compareCount", "entityExists", "compareVelocity", "comparePosition", "saveExists", "isDialogActive",
+    "isMusicPlaying"
   ],
   "legacyConditions": ["isSpaceFree"]
 }

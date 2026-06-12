@@ -159,6 +159,76 @@ void GameAPI::bindComponentAPI(sol::state& lua) {
             return gw->setAutoDestroy(id, ad);
         });
 
+    lua.set_function("platformer_setMaxSpeed",
+        [ctx](EntityId id, float speed) -> bool {
+            auto* gw = gateway(ctx);
+            if (!gw) return false;
+            PlatformerControllerComponent pc{};
+            if (!gw->getPlatformerController(id, pc)) return false;
+            pc.maxSpeed = std::max(0.f, speed);
+            return gw->setPlatformerController(id, pc);
+        });
+
+    lua.set_function("platformer_setJumpForce",
+        [ctx](EntityId id, float force) -> bool {
+            auto* gw = gateway(ctx);
+            if (!gw) return false;
+            PlatformerControllerComponent pc{};
+            if (!gw->getPlatformerController(id, pc)) return false;
+            pc.jumpForce = std::max(0.f, force);
+            return gw->setPlatformerController(id, pc);
+        });
+
+    lua.set_function("platformer_setGravity",
+        [ctx](EntityId id, float gravity) -> bool {
+            auto* gw = gateway(ctx);
+            if (!gw) return false;
+            PlatformerControllerComponent pc{};
+            if (!gw->getPlatformerController(id, pc)) return false;
+            pc.customGravity = gravity;
+            return gw->setPlatformerController(id, pc);
+        });
+
+    lua.set_function("topDown_setMaxSpeed",
+        [ctx](EntityId id, float speed) -> bool {
+            auto* gw = gateway(ctx);
+            if (!gw) return false;
+            TopDownControllerComponent td{};
+            if (!gw->getTopDownController(id, td)) return false;
+            td.maxSpeed = std::max(0.f, speed);
+            return gw->setTopDownController(id, td);
+        });
+
+    lua.set_function("topDown_setAcceleration",
+        [ctx](EntityId id, float acceleration) -> bool {
+            auto* gw = gateway(ctx);
+            if (!gw) return false;
+            TopDownControllerComponent td{};
+            if (!gw->getTopDownController(id, td)) return false;
+            td.acceleration = std::max(0.f, acceleration);
+            return gw->setTopDownController(id, td);
+        });
+
+    lua.set_function("topDown_setFriction",
+        [ctx](EntityId id, float friction) -> bool {
+            auto* gw = gateway(ctx);
+            if (!gw) return false;
+            TopDownControllerComponent td{};
+            if (!gw->getTopDownController(id, td)) return false;
+            td.friction = std::max(0.f, friction);
+            return gw->setTopDownController(id, td);
+        });
+
+    lua.set_function("topDown_setFourDirections",
+        [ctx](EntityId id, bool enabled) -> bool {
+            auto* gw = gateway(ctx);
+            if (!gw) return false;
+            TopDownControllerComponent td{};
+            if (!gw->getTopDownController(id, td)) return false;
+            td.fourDirections = enabled;
+            return gw->setTopDownController(id, td);
+        });
+
     lua.set_function("platformer_isGrounded",
         [ctx](EntityId id) -> bool {
             auto* w = world(ctx);
@@ -167,6 +237,8 @@ void GameAPI::bindComponentAPI(sol::state& lua) {
 
     lua.script(R"(
         component = component or {}
+        platformer = platformer or {}
+        topDown = topDown or {}
         linearMover = linearMover or {}
         magnet = magnet or {}
         horde = horde or {}
@@ -234,6 +306,34 @@ void GameAPI::bindComponentAPI(sol::state& lua) {
 
         function platformer.isGrounded(entityId)
             return platformer_isGrounded(entityId)
+        end
+
+        function platformer.setMaxSpeed(entityId, speed)
+            return platformer_setMaxSpeed(entityId, speed or 0)
+        end
+
+        function platformer.setJumpForce(entityId, force)
+            return platformer_setJumpForce(entityId, force or 0)
+        end
+
+        function platformer.setGravity(entityId, gravity)
+            return platformer_setGravity(entityId, gravity or 0)
+        end
+
+        function topDown.setMaxSpeed(entityId, speed)
+            return topDown_setMaxSpeed(entityId, speed or 0)
+        end
+
+        function topDown.setAcceleration(entityId, acceleration)
+            return topDown_setAcceleration(entityId, acceleration or 0)
+        end
+
+        function topDown.setFriction(entityId, friction)
+            return topDown_setFriction(entityId, friction or 0)
+        end
+
+        function topDown.setFourDirections(entityId, enabled)
+            return topDown_setFourDirections(entityId, enabled ~= false)
         end
     )");
 }

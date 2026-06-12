@@ -134,6 +134,7 @@ export type LogicTrigger =
   | { type: 'onMessage'; messageName: string }                      // event.on listener
   | { type: 'onTimer'; seconds: number; repeat: boolean }
   | { type: 'onHealthDepleted' }                                    // edge: HP drops to ≤ 0 for the first time
+  | { type: 'onDamaged' }                                           // edge: HP decreased since last frame (a hit landed)
 
 export type LogicTriggerType = LogicTrigger['type']
 
@@ -164,6 +165,7 @@ export type LogicCondition =
   | { type: 'comparePosition'; target: TargetSelector; axis: 'x' | 'y'; operator: ComparisonOp; value: LogicValue }
   | { type: 'saveExists'; slot: string }                                                   // save.exists
   | { type: 'isDialogActive' }
+  | { type: 'isMusicPlaying' }                                      // audio.isMusicPlaying
 
 /**
  * Boolean tree for AND/OR/nested conditions (docs/LOGIC_BOARD_CONDITIONAL_DESIGN.md).
@@ -190,6 +192,10 @@ export type LogicAction =
   | { type: 'stopMusic' }
   | { type: 'pauseMusic' }
   | { type: 'resumeMusic' }
+  | { type: 'setMusicVolume'; volume: LogicValue }
+  | { type: 'setMasterVolume'; volume: LogicValue }
+  | { type: 'setSfxVolume'; volume: LogicValue }
+  | { type: 'fadeMusic'; volume: LogicValue; seconds: LogicValue }
   | { type: 'destroyEntity'; target: TargetSelector }
   | {
       type: 'clickToDestroy'
@@ -219,6 +225,13 @@ export type LogicAction =
   | { type: 'moveController'; target: TargetSelector; direction: 'left' | 'right' | 'up' | 'down' | 'stop' }
   | { type: 'clearMovementIntent'; target: TargetSelector }
   | { type: 'requestPlatformerJump'; target: TargetSelector }
+  | { type: 'setPlatformerMaxSpeed'; target: TargetSelector; speed: LogicValue }
+  | { type: 'setPlatformerJumpForce'; target: TargetSelector; force: LogicValue }
+  | { type: 'setPlatformerGravity'; target: TargetSelector; gravity: LogicValue }
+  | { type: 'setTopDownMaxSpeed'; target: TargetSelector; speed: LogicValue }
+  | { type: 'setTopDownAcceleration'; target: TargetSelector; acceleration: LogicValue }
+  | { type: 'setTopDownFriction'; target: TargetSelector; friction: LogicValue }
+  | { type: 'setTopDownFourDirections'; target: TargetSelector; enabled: boolean }
   | { type: 'damageEntity'; target: TargetSelector; amount: LogicValue }
   | { type: 'healEntity'; target: TargetSelector; amount: LogicValue }
   | { type: 'setEntityHealth'; target: TargetSelector; currentHp: LogicValue; maxHp?: LogicValue }

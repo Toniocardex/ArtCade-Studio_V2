@@ -80,6 +80,9 @@ export function conditionSummaryPlain(
     case 'isDialogActive':
       text = 'A dialog is active'
       break
+    case 'isMusicPlaying':
+      text = 'Music is playing'
+      break
   }
   return formatChip(text, negated)
 }

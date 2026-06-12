@@ -300,5 +300,17 @@
       "executionMode": "polling",
       "params": {}
     }
+  },
+  "onDamaged": {
+    "type": "object",
+    "required": ["type"],
+    "properties": { "type": { "const": "onDamaged" } },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Takes damage",
+      "category": "Health",
+      "executionMode": "polling",
+      "params": {}
+    }
   }
 }

@@ -153,6 +153,72 @@
     "additionalProperties": false,
     "x-artcade": { "label": "Resume Music", "category": "Audio", "params": {} }
   },
+  "setMusicVolume": {
+    "type": "object",
+    "required": ["type", "volume"],
+    "properties": {
+      "type": { "const": "setMusicVolume" },
+      "volume": { "$ref": "./value-source.schema.json" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Set Music Volume",
+      "category": "Audio",
+      "params": {
+        "volume": { "widget": "numberSource", "label": "Volume (0–1)" }
+      }
+    }
+  },
+  "setMasterVolume": {
+    "type": "object",
+    "required": ["type", "volume"],
+    "properties": {
+      "type": { "const": "setMasterVolume" },
+      "volume": { "$ref": "./value-source.schema.json" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Set Master Volume",
+      "category": "Audio",
+      "params": {
+        "volume": { "widget": "numberSource", "label": "Volume (0–1)" }
+      }
+    }
+  },
+  "setSfxVolume": {
+    "type": "object",
+    "required": ["type", "volume"],
+    "properties": {
+      "type": { "const": "setSfxVolume" },
+      "volume": { "$ref": "./value-source.schema.json" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Set Sound Effects Volume",
+      "category": "Audio",
+      "params": {
+        "volume": { "widget": "numberSource", "label": "Volume (0–1)" }
+      }
+    }
+  },
+  "fadeMusic": {
+    "type": "object",
+    "required": ["type", "volume", "seconds"],
+    "properties": {
+      "type": { "const": "fadeMusic" },
+      "volume": { "$ref": "./value-source.schema.json" },
+      "seconds": { "$ref": "./value-source.schema.json" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Fade Music",
+      "category": "Audio",
+      "params": {
+        "volume": { "widget": "numberSource", "label": "Target volume (0–1)" },
+        "seconds": { "widget": "numberSource", "label": "Duration (s)" }
+      }
+    }
+  },
   "playAnimation": {
     "type": "object",
     "required": ["type", "target", "clipName"],
@@ -342,6 +408,132 @@
       "category": "Movement",
       "params": {
         "target": { "widget": "target", "label": "Target" }
+      }
+    }
+  },
+  "setPlatformerMaxSpeed": {
+    "type": "object",
+    "required": ["type", "target", "speed"],
+    "properties": {
+      "type": { "const": "setPlatformerMaxSpeed" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "speed": { "$ref": "./value-source.schema.json" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Platformer Max Speed",
+      "category": "Movement",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "speed": { "widget": "numberSource", "label": "Max speed (px/s)" }
+      }
+    }
+  },
+  "setPlatformerJumpForce": {
+    "type": "object",
+    "required": ["type", "target", "force"],
+    "properties": {
+      "type": { "const": "setPlatformerJumpForce" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "force": { "$ref": "./value-source.schema.json" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Platformer Jump Force",
+      "category": "Movement",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "force": { "widget": "numberSource", "label": "Jump force (px/s)" }
+      }
+    }
+  },
+  "setPlatformerGravity": {
+    "type": "object",
+    "required": ["type", "target", "gravity"],
+    "properties": {
+      "type": { "const": "setPlatformerGravity" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "gravity": { "$ref": "./value-source.schema.json" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Platformer Gravity",
+      "category": "Movement",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "gravity": { "widget": "numberSource", "label": "Gravity (px/s²)" }
+      }
+    }
+  },
+  "setTopDownMaxSpeed": {
+    "type": "object",
+    "required": ["type", "target", "speed"],
+    "properties": {
+      "type": { "const": "setTopDownMaxSpeed" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "speed": { "$ref": "./value-source.schema.json" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Top-Down Max Speed",
+      "category": "Movement",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "speed": { "widget": "numberSource", "label": "Max speed (px/s)" }
+      }
+    }
+  },
+  "setTopDownAcceleration": {
+    "type": "object",
+    "required": ["type", "target", "acceleration"],
+    "properties": {
+      "type": { "const": "setTopDownAcceleration" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "acceleration": { "$ref": "./value-source.schema.json" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Top-Down Acceleration",
+      "category": "Movement",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "acceleration": { "widget": "numberSource", "label": "Acceleration (px/s²)" }
+      }
+    }
+  },
+  "setTopDownFriction": {
+    "type": "object",
+    "required": ["type", "target", "friction"],
+    "properties": {
+      "type": { "const": "setTopDownFriction" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "friction": { "$ref": "./value-source.schema.json" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Top-Down Friction",
+      "category": "Movement",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "friction": { "widget": "numberSource", "label": "Friction (px/s²)" }
+      }
+    }
+  },
+  "setTopDownFourDirections": {
+    "type": "object",
+    "required": ["type", "target", "enabled"],
+    "properties": {
+      "type": { "const": "setTopDownFourDirections" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "enabled": { "type": "boolean" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Top-Down 4-Directions",
+      "category": "Movement",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "enabled": { "widget": "boolean", "label": "Four directions only" }
       }
     }
   },

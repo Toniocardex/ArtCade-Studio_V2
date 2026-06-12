@@ -349,5 +349,18 @@
       "category": "Dialog",
       "params": {}
     }
+  },
+  "isMusicPlaying": {
+    "type": "object",
+    "required": ["type"],
+    "properties": {
+      "type": { "const": "isMusicPlaying" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Music Is Playing",
+      "category": "Audio",
+      "params": {}
+    }
   }
 }

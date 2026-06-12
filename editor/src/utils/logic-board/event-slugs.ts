@@ -69,6 +69,8 @@ function triggerSlugSource(t: LogicTrigger): string {
       return 'pointer_leave_object'
     case 'onHealthDepleted':
       return 'on_health_depleted'
+    case 'onDamaged':
+      return 'on_damaged'
   }
 }
 
