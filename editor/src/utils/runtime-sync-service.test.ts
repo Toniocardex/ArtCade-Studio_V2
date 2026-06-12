@@ -66,6 +66,8 @@ type Project = ReturnType<typeof makeProject>
 
 describe('RuntimeSyncService', () => {
   beforeEach(() => {
+    // Reset with WASM "unloaded" so engineReady is always cleared between cases.
+    vi.mocked(bridge.isReady).mockReturnValue(false)
     runtimeSync.reset()
     vi.mocked(bridge.isReady).mockReturnValue(true)
     vi.mocked(bridge.editorLoadProject).mockReset()
@@ -488,17 +490,32 @@ describe('RuntimeSyncService', () => {
     expect(cb).toHaveBeenLastCalledWith(true)
   })
 
-  it('reset clears boot readiness flags', () => {
+  it('reset preserves engine readiness when WASM stays loaded (project open)', () => {
     runtimeSync.notifyEngineReady()
     runtimeSync.notifyBootProjectSynced()
     const engineCb = vi.fn()
     const syncCb = vi.fn()
     runtimeSync.onEngineReadyChange(engineCb)
     runtimeSync.onBootProjectSyncedChange(syncCb)
+    vi.mocked(bridge.isReady).mockReturnValue(true)
+    runtimeSync.reset()
+    expect(runtimeSync.isEngineReady()).toBe(true)
+    expect(runtimeSync.isBootProjectSynced()).toBe(false)
+    expect(engineCb).not.toHaveBeenCalledWith(false)
+    expect(syncCb).toHaveBeenLastCalledWith(false)
+    vi.mocked(bridge.editorLoadProject).mockClear()
+    const p = makeProject()
+    expect(runtimeSync.syncProject(p as never, 'a', '/tmp/reopened/project.json')).toBe(true)
+    expect(bridge.editorLoadProject).toHaveBeenCalledTimes(1)
+  })
+
+  it('reset clears engine readiness when WASM is not loaded', () => {
+    runtimeSync.notifyEngineReady()
+    const engineCb = vi.fn()
+    runtimeSync.onEngineReadyChange(engineCb)
+    vi.mocked(bridge.isReady).mockReturnValue(false)
     runtimeSync.reset()
     expect(runtimeSync.isEngineReady()).toBe(false)
-    expect(runtimeSync.isBootProjectSynced()).toBe(false)
     expect(engineCb).toHaveBeenLastCalledWith(false)
-    expect(syncCb).toHaveBeenLastCalledWith(false)
   })
 })

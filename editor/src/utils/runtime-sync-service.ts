@@ -219,11 +219,14 @@ class RuntimeSyncServiceImpl {
 
   /** Forget every cached "last sent" value. Use on project open / runtime reload. */
   reset(): void {
+    const wasmLive = isWasmReady()
+    const preserveEngine = wasmLive && this.engineReady
     this.clearSyncCache()
-    this.engineReady = false
     this.bootProjectSynced = false
-    for (const cb of this.engineReadyListeners) cb(false)
     for (const cb of this.bootSyncedListeners) cb(false)
+    if (preserveEngine) return
+    this.engineReady = false
+    for (const cb of this.engineReadyListeners) cb(false)
   }
 
   /** PreviewPanel registers this so texture re-upload runs after STOP restore. */
