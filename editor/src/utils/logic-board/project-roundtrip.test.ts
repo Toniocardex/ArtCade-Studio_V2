@@ -61,6 +61,25 @@ describe('parseLogicBoards — defensive', () => {
     expect(boards?.[0].events).toHaveLength(1)
   })
 
+  it('migrates legacy generated names (name === boardId) to the human default', () => {
+    const boards = parseLogicBoards([
+      {
+        boardId: 'board_mqabtt1g_1',
+        name: 'board_mqabtt1g_1', // old factory persisted the id as name
+        target: { type: 'object_type', objectTypeId: 'Player' },
+        events: [],
+      },
+      {
+        boardId: 'board_x',
+        name: 'Player movement', // user-chosen names stay untouched
+        target: { type: 'object_type', objectTypeId: 'Player' },
+        events: [],
+      },
+    ])
+    expect(boards?.[0].name).toBe('Player rules')
+    expect(boards?.[1].name).toBe('Player movement')
+  })
+
   it('keeps schema-invalid events and records load issues', () => {
     const { doc, issues } = parseLogicBoardsWithIssues([
       {

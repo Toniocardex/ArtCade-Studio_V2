@@ -150,21 +150,29 @@ function parseBoard(
       return e
     })
 
+  const target: LogicBoard['target'] = {
+    type,
+    ...(type === 'object_type'
+      ? {
+          objectTypeId: String(
+            targetRaw.objectTypeId ?? targetRaw.object_type_id ?? '',
+          ),
+        }
+      : {}),
+  }
+
+  // Migration: older projects persisted the generated boardId as the name
+  // (e.g. "board_mqabtt1g_1"); re-derive the human default on load.
+  const savedName = typeof r.name === 'string' ? r.name.trim() : ''
+  const name =
+    savedName && savedName !== r.boardId
+      ? savedName
+      : logicBoardDefaultName({ boardId: r.boardId, target })
+
   const board: LogicBoard = {
     boardId: r.boardId,
-    ...(typeof r.name === 'string' && r.name.trim()
-      ? { name: r.name.trim() }
-      : {}),
-    target: {
-      type,
-      ...(type === 'object_type'
-        ? {
-            objectTypeId: String(
-              targetRaw.objectTypeId ?? targetRaw.object_type_id ?? '',
-            ),
-          }
-        : {}),
-    },
+    name,
+    target,
     events,
   }
 
