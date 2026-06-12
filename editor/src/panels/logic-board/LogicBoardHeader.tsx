@@ -1,8 +1,10 @@
+import { AlertTriangle, Check, PauseCircle, RefreshCw } from 'lucide-react'
 import type { ProjectDoc } from '../../types'
 import type { LogicBoard } from '../../types/logic-board'
 import { boardDisplayName } from './friendly-labels'
 import { logicBoardCompilerLabel } from '../../utils/logic-board/labels'
 import { rulesheetAppliesToLabel } from '../../utils/project'
+import type { LogicSyncStatus } from '../../utils/logic-board/auto-apply-status'
 import {
   applyInputBackspace,
   applyInputDelete,
@@ -21,10 +23,90 @@ interface LogicBoardHeaderProps {
   board: LogicBoard | null
   onSelectBoard: (id: string) => void
   onRenameBoard: (id: string, name: string) => void
+  /** Manual apply — only surfaced while playing (it restarts the preview). */
   onApply: () => void
+  onRetrySync: () => void
   applyMsg: string | null
-  needsApply?: boolean
+  syncStatus: LogicSyncStatus
   project: ProjectDoc
+}
+
+function SyncStatusChip({
+  status,
+  onApply,
+  onRetrySync,
+}: Readonly<{
+  status: LogicSyncStatus
+  onApply: () => void
+  onRetrySync: () => void
+}>) {
+  const chip = 'inline-flex items-center gap-1.5 text-[11px]'
+  switch (status.kind) {
+    case 'no-board':
+      return null
+    case 'synced':
+      return (
+        <span className={`${chip} text-[var(--muted)]`} title="Rules are live in the preview runtime">
+          <Check size={12} aria-hidden /> Synced
+        </span>
+      )
+    case 'syncing':
+      return (
+        <span className={`${chip} text-[var(--muted)]`} title="Compiling and hot-reloading into the preview runtime">
+          <RefreshCw size={12} className="animate-spin" aria-hidden /> Syncing…
+        </span>
+      )
+    case 'runtime-loading':
+      return (
+        <span className={`${chip} text-[var(--muted)]`} title="Changes will sync as soon as the runtime is ready">
+          <RefreshCw size={12} aria-hidden /> Waiting for runtime…
+        </span>
+      )
+    case 'compile-error':
+      return (
+        <span
+          className={`${chip} text-[var(--danger)]`}
+          title={status.detail ?? 'Fix the compile error to resume sync'}
+        >
+          <AlertTriangle size={12} aria-hidden /> Compile error
+        </span>
+      )
+    case 'paused-dirty-main':
+      return (
+        <span className={`${chip} text-[var(--warn)]`} title={status.detail}>
+          <PauseCircle size={12} aria-hidden /> Sync paused
+        </span>
+      )
+    case 'play-pending':
+      return (
+        <span className={`${chip} text-[var(--warn)]`}>
+          Changes pending
+          <button
+            type="button"
+            onClick={onApply}
+            title="Apply the new rules now — stops play and resets the preview"
+            className="rounded border border-[var(--warn)] px-2 py-1 text-[11px] font-semibold
+                       text-[var(--warn)] hover:bg-[rgb(var(--warn-rgb)/0.1)]"
+          >
+            Apply (restarts play)
+          </button>
+        </span>
+      )
+    case 'failed':
+      return (
+        <span className={`${chip} text-[var(--danger)]`} title={status.detail}>
+          <AlertTriangle size={12} aria-hidden /> Sync failed
+          <button
+            type="button"
+            onClick={onRetrySync}
+            className="rounded border border-[var(--outline-strong)] px-2 py-1 text-[11px] font-semibold
+                       text-[var(--text)] hover:bg-[var(--surface-hover)]"
+          >
+            Retry
+          </button>
+        </span>
+      )
+  }
 }
 
 export function LogicBoardHeader({
@@ -35,8 +117,9 @@ export function LogicBoardHeader({
   onSelectBoard,
   onRenameBoard,
   onApply,
+  onRetrySync,
   applyMsg,
-  needsApply,
+  syncStatus,
   project,
 }: LogicBoardHeaderProps) {
   const compilerLabel = board ? logicBoardCompilerLabel(board) : ''
@@ -92,29 +175,11 @@ export function LogicBoardHeader({
 
       <div className="flex-1" />
 
-      {needsApply && (
-        <button
-          type="button"
-          onClick={onApply}
-          className="text-[11px] text-[var(--warn)] hover:underline"
-          title="Logic changed since last Apply. Update the preview runtime."
-        >
-          Apply required
-        </button>
-      )}
-
       {applyMsg && (
         <span className="max-w-[220px] truncate text-[11px] text-[var(--muted)]">{applyMsg}</span>
       )}
 
-      <button
-        type="button"
-        title="Compile the Logic Board to Lua and hot-reload it into the running runtime"
-        onClick={onApply}
-        className="px-3 py-1.5 rounded text-xs font-semibold border border-[var(--outline-strong)] bg-[var(--surface-2)] text-[var(--primary)] hover:bg-[var(--surface-hover)]"
-      >
-        Apply
-      </button>
+      <SyncStatusChip status={syncStatus} onApply={onApply} onRetrySync={onRetrySync} />
 
       <LogicBoardShortcutsHelp />
 

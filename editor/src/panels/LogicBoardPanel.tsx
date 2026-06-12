@@ -22,8 +22,7 @@ import {
   formatConfigDiagnosticsSummary,
 } from '../utils/logic-board/logic-compile-service'
 import { LogicBoardCompileErrorBanner } from '../components/LogicBoardCompileErrorBanner'
-import { runtimeSync, useRuntimeReady } from '../utils/runtime-sync-service'
-import { makeConsoleEntry } from '../components/menu-bar/makeConsoleEntry'
+import { useRuntimeReady } from '../utils/runtime-sync-service'
 import { createLogicBoardForObjectType } from '../utils/logic-board/factory'
 import { cloneLogicEvent } from '../utils/logic-board/clone'
 import { eventCompatibilityError } from '../utils/logic-board/trigger-compatibility'
@@ -35,7 +34,9 @@ import {
   findEventInBoards,
   handleLogicBoardKey,
 } from '../utils/logic-board/logic-board-keyboard'
-import { logicBoardNeedsPreviewApply } from '../utils/logic-board/logic-board-revisions'
+import { executeApplyLogic } from '../utils/logic-board/apply-logic'
+import { useLogicAutoApply } from './logic-board/useLogicAutoApply'
+import type { LogicSyncStatus } from '../utils/logic-board/auto-apply-status'
 import type { LogicBoard, LogicEvent } from '../types/logic-board'
 import type { ProjectDoc } from '../types'
 import { LogicBoardLuaPreview } from './logic-board/LogicBoardLuaPreview'
@@ -51,98 +52,12 @@ import {
   logicBoardCompilerLabel,
   logicBoardLuaCommentLabel,
 } from '../utils/logic-board/labels'
-import type { Action, CoreState } from '../store/editor-store'
+import type { Action } from '../store/editor-store'
 import type { Dispatch } from 'react'
 
 type EditorDispatch = Dispatch<Action>
 
 type LogicClipboard = { kind: 'event'; event: LogicEvent } | null
-
-type ApplyLogicParams = Readonly<{
-  compileResult: ReturnType<typeof compileProjectLogic>
-  runtimeReady: boolean
-  state: CoreState
-  project: ProjectDoc
-  selectionSceneId: string | undefined
-  dispatch: EditorDispatch
-  flashApplyMsg: (msg: string, ms?: number) => void
-}>
-
-function executeApplyLogic({
-  compileResult,
-  runtimeReady,
-  state,
-  project,
-  selectionSceneId,
-  dispatch,
-  flashApplyMsg,
-}: ApplyLogicParams): boolean {
-  if (!compileResult.ok) {
-    flashApplyMsg('Fix Logic Board compile errors before applying.', 5000)
-    return false
-  }
-  syncLogicBoardToScript(dispatch, state, compileResult.lua)
-  if (!runtimeReady) {
-    flashApplyMsg('Runtime still loading — try again in a moment.')
-    return false
-  }
-  if (state.isPlaying) {
-    const activeSceneId = selectionSceneId ?? project.activeSceneId
-    const outcome = runtimeSync.transitionPreview('stop', {
-      project,
-      activeSceneId,
-      mainLua: compileResult.lua,
-      dialogs: state.dialogs,
-      projectPath: state.projectPath,
-    })
-    if (outcome.nextPlaying !== state.isPlaying) {
-      dispatch({ type: 'SET_PLAYING', playing: outcome.nextPlaying })
-    }
-    if (!outcome.ok) {
-      flashApplyMsg('Failed to reset preview — see console.')
-      dispatch({
-        type: 'LOG',
-        entry: makeConsoleEntry(
-          '[Logic] Apply failed while exiting play mode (runtime not ready or script reload failed).',
-          'error',
-        ),
-      })
-      return false
-    }
-    flashApplyMsg('Logic applied — preview reset to design state')
-    return true
-  }
-  runtimeSync.syncDialogs(state.dialogs)
-  const applyResult = runtimeSync.applyMainLua(compileResult.lua)
-  switch (applyResult.status) {
-    case 'reloaded':
-      flashApplyMsg('Logic applied — script hot-reloaded (press PLAY to test)')
-      return true
-    case 'unchanged':
-      flashApplyMsg('Logic already active in preview — no reload needed')
-      return true
-    case 'not_ready':
-      flashApplyMsg('Runtime still loading — try again in a moment.')
-      if (applyResult.message) {
-        dispatch({
-          type: 'LOG',
-          entry: makeConsoleEntry(`[Logic] ${applyResult.message}`, 'warn'),
-        })
-      }
-      break
-    case 'failed':
-      flashApplyMsg('Failed to apply logic — see console.')
-      dispatch({
-        type: 'LOG',
-        entry: makeConsoleEntry(
-          `[Logic] ${applyResult.message ?? 'Script hot-reload failed.'}`,
-          'error',
-        ),
-      })
-      break
-  }
-  return false
-}
 
 type LogicBoardLuaModeProps = Readonly<{
   project: ProjectDoc
@@ -155,10 +70,12 @@ type LogicBoardLuaModeProps = Readonly<{
   showFullMain: boolean
   setShowFullMain: (v: boolean | ((prev: boolean) => boolean)) => void
   applyMsg: string | null
+  syncStatus: LogicSyncStatus
   setPanelMode: (mode: 'visual' | 'lua') => void
   setSelectedBoardId: (id: string | null) => void
   dispatch: EditorDispatch
   onApply: () => void
+  onRetrySync: () => void
 }>
 
 function LogicBoardLuaMode({
@@ -172,10 +89,12 @@ function LogicBoardLuaMode({
   showFullMain,
   setShowFullMain,
   applyMsg,
+  syncStatus,
   setPanelMode,
   setSelectedBoardId,
   dispatch,
   onApply,
+  onRetrySync,
 }: LogicBoardLuaModeProps) {
   const store = useEditorStore()
   const mainPath = project.mainScriptPath
@@ -204,7 +123,9 @@ function LogicBoardLuaMode({
           dispatch({ type: 'LOGIC_RENAME_BOARD', boardId, name })
         }
         onApply={onApply}
+        onRetrySync={onRetrySync}
         applyMsg={applyMsg}
+        syncStatus={syncStatus}
         project={project}
       />
       {compileError && <LogicBoardCompileErrorBanner error={compileError} />}
@@ -353,11 +274,12 @@ export default function LogicBoardPanel() {
     dispatch({ type: 'LOGIC_MARK_PREVIEW_APPLIED', revision: boardsRevision })
   }, [mode, logicPreviewAppliedRevision, boardsRevision, dispatch])
 
-  const needsApply = logicBoardNeedsPreviewApply(
-    project,
-    compileResult.ok,
-    logicPreviewAppliedRevision,
-  )
+  const { status: syncStatus, retrySync } = useLogicAutoApply({
+    compileResult,
+    runtimeReady,
+    boardsRevision,
+    hasBoards: boards.length > 0,
+  })
   const sceneBoards = useMemo(
     () => (project ? logicBoardsForScene(project, sceneId) : []),
     [project, sceneId, boardsRevision],
@@ -606,10 +528,12 @@ export default function LogicBoardPanel() {
         showFullMain={showFullMain}
         setShowFullMain={setShowFullMain}
         applyMsg={applyMsg}
+        syncStatus={syncStatus}
         setPanelMode={setPanelMode}
         setSelectedBoardId={setSelectedBoardId}
         dispatch={dispatch}
         onApply={handleApply}
+        onRetrySync={retrySync}
       />
     )
   }
@@ -641,8 +565,9 @@ export default function LogicBoardPanel() {
           dispatch({ type: 'LOGIC_RENAME_BOARD', boardId, name })
         }
         onApply={handleApply}
+        onRetrySync={retrySync}
         applyMsg={applyMsg}
-        needsApply={needsApply}
+        syncStatus={syncStatus}
         project={project}
       />
 
