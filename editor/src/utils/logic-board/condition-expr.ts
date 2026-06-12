@@ -63,6 +63,28 @@ function leafExpr(c: LogicCondition, project?: ProjectDoc | null): string {
     }
     case 'isPlatformerGrounded':
       return `platformer.isGrounded(${targetExpr(c.target, project)})`
+    case 'compareCount':
+      return `(pool.count(${luaString(c.className)}) ${safeOp(c.operator)} ${Number(c.value) || 0})`
+    case 'entityExists':
+      return `object.exists(${targetExpr(c.target, project)})`
+    case 'compareVelocity': {
+      const t = targetExpr(c.target, project)
+      const val = Number(c.value) || 0
+      const op = safeOp(c.operator)
+      if (c.axis === 'magnitude')
+        return `(function() local _vx,_vy=entity.velocity(${t}); return (math.sqrt(_vx*_vx+_vy*_vy) ${op} ${val}) end)()`
+      const component = c.axis === 'y' ? '_vy' : '_vx'
+      return `(function() local _vx,_vy=entity.velocity(${t}); return (${component} ${op} ${val}) end)()`
+    }
+    case 'comparePosition': {
+      const t = targetExpr(c.target, project)
+      const val = Number(c.value) || 0
+      const op = safeOp(c.operator)
+      const component = c.axis === 'y' ? '_py' : '_px'
+      return `(function() local _px,_py=entity.position(${t}); return (${component} ${op} ${val}) end)()`
+    }
+    case 'saveExists':
+      return `save.exists(${luaString(c.slot || 'main')})`
   }
 }
 

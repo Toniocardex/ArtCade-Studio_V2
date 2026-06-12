@@ -4,23 +4,30 @@
   "triggers": [
     "onStart", "onSpawn", "onUpdate", "onCollision", "onCollisionEnter", "onCollisionExit",
     "onTriggerEnter", "onTriggerExit",
-    "onAnimationEnd", "onDestroy", "onInput", "onMouseInput", "onObjectClick",
+    "onAnimationEnd", "onDestroy", "onHealthDepleted", "onInput", "onMouseInput", "onObjectClick",
     "onObjectHoverEnter", "onObjectHoverExit", "onMessage", "onTimer"
   ],
   "actions": [
-    "setVariable", "addVariable", "setPosition", "setVelocity", "playSound", "playMusic",
-    "stopAllAudio", "stopMusic", "pauseMusic", "resumeMusic", "destroyEntity", "clickToDestroy", "spawnEntity", "spawnEntityAtPointer", "emitEvent", "startDialog",
+    "setVariable", "addVariable", "setVariableRandomRange", "clampVariable", "multiplyVariable",
+    "setPosition", "setVelocity", "playSound", "playMusic",
+    "stopAllAudio", "stopMusic", "pauseMusic", "resumeMusic", "destroyEntity", "clickToDestroy",
+    "spawnEntity", "spawnEntityAtPointer", "spawnAtEntity", "emitEvent", "startDialog",
     "toggleLogicEvent", "applyImpulse", "applyForce", "setRotation", "setScale",
-    "playAnimation", "setFlip", "setVisible", "setColorTint", "loadScene", "restartScene", "setCameraTarget", "cameraShake", "moveInDirection",
-    "controllerMovement", "moveController", "clearMovementIntent", "requestPlatformerJump", "damageEntity", "healEntity",
-    "setEntityHealth",
+    "playAnimation", "setFlip", "setVisible", "setColorTint", "loadScene", "restartScene",
+    "setCameraTarget", "cameraShake", "setCameraZoom", "panCamera", "setCameraPosition",
+    "setTimeScale",
+    "moveInDirection", "moveToward", "lookAtTarget",
+    "controllerMovement", "moveController", "clearMovementIntent", "requestPlatformerJump",
+    "damageEntity", "healEntity", "setEntityHealth",
     "setLinearMoverDirection", "setLinearMoverSpeed", "pauseLinearMover", "resumeLinearMover",
     "setMagnetEnabled", "setMagnetTargetTag", "setHordeTargetClass", "setHordeWeights",
     "setAutoDestroyLifespan", "cancelAutoDestroy",
+    "saveVariable", "loadVariable", "deleteSave",
     "moveByOffset", "snapToGrid", "setEntityShader", "setScreenShader", "debugLog", "wait", "repeatTimes"
   ],
   "conditions": [
     "compareVariable", "compareClass", "isKeyDown", "hasTag", "compareDistance",
-    "isMouseOver", "raycastHit", "chance", "isSpaceFree", "compareHealth", "isPlatformerGrounded"
+    "isMouseOver", "raycastHit", "chance", "isSpaceFree", "compareHealth", "isPlatformerGrounded",
+    "compareCount", "entityExists", "compareVelocity", "comparePosition", "saveExists"
   ]
 }

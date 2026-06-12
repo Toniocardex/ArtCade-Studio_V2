@@ -21,6 +21,7 @@ const TRIGGER_DESCRIPTIONS: Record<LogicTriggerType, string> = {
   onTriggerExit: 'When the object leaves a trigger zone',
   onAnimationEnd: 'When the current clip reaches its last frame',
   onDestroy: 'When an instance of this object is removed',
+  onHealthDepleted: 'Once, when the object\'s HP drops to zero for the first time',
   onInput: 'When the player presses, holds or releases a key',
   onMouseInput: 'Click, press or release anywhere in the game',
   onObjectClick: 'When the player clicks this object',
@@ -42,6 +43,11 @@ const CONDITION_DESCRIPTIONS: Record<LogicCondition['type'], string> = {
   isSpaceFree: 'No solid object occupies the area',
   compareHealth: "Compare the object's health against a value",
   isPlatformerGrounded: 'The platformer body is standing on ground',
+  compareCount: 'Number of live instances of an object type vs a value',
+  entityExists: 'Check whether a specific entity is still alive in the scene',
+  compareVelocity: 'Compare velocity (x, y, or speed) against a value',
+  comparePosition: 'Compare the x or y world position against a value',
+  saveExists: 'Check whether a save file slot exists on disk',
 }
 
 const ACTION_DESCRIPTIONS: Record<LogicActionType, string> = {
@@ -99,6 +105,19 @@ const ACTION_DESCRIPTIONS: Record<LogicActionType, string> = {
   setEntityShader: 'Apply a visual effect to this object',
   setScreenShader: 'Apply a full-screen visual effect',
   startDialog: 'Open a dialog conversation',
+  setVariableRandomRange: 'Set a variable to a random integer in [min, max]',
+  clampVariable: 'Cap a variable so it stays between min and max',
+  multiplyVariable: 'Multiply a variable by a factor',
+  saveVariable: 'Persist one variable to a named save slot on disk',
+  loadVariable: 'Read one variable back from a save slot into state',
+  deleteSave: 'Delete an entire save slot from disk',
+  setCameraZoom: 'Set the camera zoom level (1 = normal)',
+  panCamera: 'Shift the camera by a pixel offset',
+  setCameraPosition: 'Move the camera to an absolute world position',
+  setTimeScale: 'Control game speed (0 = pause, 0.5 = slow-mo, 1 = normal)',
+  spawnAtEntity: 'Create a new object at another entity\'s current position',
+  moveToward: 'Move an entity toward a target at a given speed',
+  lookAtTarget: 'Rotate an entity so it faces a target entity',
 }
 
 export function typeDescription(kind: ComponentKind, type: string): string | undefined {

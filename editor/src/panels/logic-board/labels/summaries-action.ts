@@ -157,5 +157,37 @@ export function actionSummaryPlain(
       return `Apply ${a.shader.replace(/_/g, ' ')} on screen`
     case 'startDialog':
       return `Start dialog "${a.dialogId}" on ${who(a.target)}`
+    case 'setVariableRandomRange':
+      return `Set ${a.key} to random ${a.min}–${a.max}`
+    case 'clampVariable':
+      return `Clamp ${a.key} to [${a.min}, ${a.max}]`
+    case 'multiplyVariable':
+      return `Multiply ${a.key} by ${a.factor}`
+    case 'saveVariable':
+      return `Save "${a.key}" to slot "${a.slot || 'main'}"`
+    case 'loadVariable':
+      return `Load "${a.key}" from slot "${a.slot || 'main'}"`
+    case 'deleteSave':
+      return `Delete save slot "${a.slot || 'main'}"`
+    case 'setCameraZoom':
+      return `Set camera zoom to ${a.zoom}`
+    case 'panCamera':
+      return `Pan camera by (${a.dx}, ${a.dy})`
+    case 'setCameraPosition':
+      return `Set camera to (${a.x}, ${a.y})`
+    case 'setTimeScale':
+      return a.scale === 0
+        ? 'Pause time (scale 0)'
+        : a.scale === 1
+          ? 'Reset time scale (1×)'
+          : `Set time scale to ${a.scale}×`
+    case 'spawnAtEntity':
+      return a.className
+        ? `Create "${fmtClass(a.className, project)}" at ${who(a.target)}`
+        : `Create at ${who(a.target)} — choose type`
+    case 'moveToward':
+      return `Move ${who(a.target)} toward ${who(a.toward)} at speed ${a.speed}`
+    case 'lookAtTarget':
+      return `Rotate ${who(a.target)} to face ${who(a.toward)}`
   }
 }

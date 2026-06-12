@@ -259,6 +259,53 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
       return `shaders.setEntity(${target(a.target)}, ${luaString(a.shader)})`
     case 'setScreenShader':
       return `shaders.setScreen(${luaString(a.shader)})`
+    case 'setVariableRandomRange': {
+      const min = Number(a.min) || 0
+      const max = Number(a.max) || 0
+      return `state.set(${luaString(a.key)}, math.random(${min}, ${max}))`
+    }
+    case 'clampVariable':
+      return `state.set(${luaString(a.key)}, math.max(${Number(a.min) || 0}, math.min(${Number(a.max) || 0}, state.get(${luaString(a.key)}) or 0)))`
+    case 'multiplyVariable':
+      return `state.set(${luaString(a.key)}, (state.get(${luaString(a.key)}) or 0) * ${Number(a.factor) || 0})`
+    case 'saveVariable': {
+      const slot = luaString(a.slot || 'main')
+      const key = luaString(a.key)
+      return `(function() local _sv = save.read(${slot}) or {}; _sv[${key}] = state.get(${key}); save.write(${slot}, _sv) end)()`
+    }
+    case 'loadVariable': {
+      const slot = luaString(a.slot || 'main')
+      const key = luaString(a.key)
+      return `(function() local _sv = save.read(${slot}); if _sv ~= nil and _sv[${key}] ~= nil then state.set(${key}, _sv[${key}]) end end)()`
+    }
+    case 'deleteSave':
+      return `save.delete(${luaString(a.slot || 'main')})`
+    case 'setCameraZoom':
+      return `camera.setZoom(${Number(a.zoom) || 1})`
+    case 'panCamera':
+      return `camera.move(${Number(a.dx) || 0}, ${Number(a.dy) || 0})`
+    case 'setCameraPosition':
+      return `camera.setPosition(${Number(a.x) || 0}, ${Number(a.y) || 0})`
+    case 'setTimeScale': {
+      const scale = Math.max(0, Number(a.scale) || 0)
+      return `time.setScale(${scale})`
+    }
+    case 'spawnAtEntity': {
+      const cls = luaString(a.className)
+      const t = target(a.target)
+      return `(function() local _sx, _sy = entity.position(${t}); return object.spawn(${cls}, _sx, _sy) end)()`
+    }
+    case 'moveToward': {
+      const t = target(a.target)
+      const tow = target(a.toward)
+      const spd = Number(a.speed) || 0
+      return `(function() local _tx,_ty=entity.position(${t}); local _wx,_wy=entity.position(${tow}); local _dx=_wx-_tx; local _dy=_wy-_ty; local _d=math.sqrt(_dx*_dx+_dy*_dy); if _d>0 then entity.setVelocity(${t},_dx/_d*${spd},_dy/_d*${spd}) else entity.setVelocity(${t},0,0) end end)()`
+    }
+    case 'lookAtTarget': {
+      const t = target(a.target)
+      const tow = target(a.toward)
+      return `(function() local _tx,_ty=entity.position(${t}); local _wx,_wy=entity.position(${tow}); entity.setRotation(${t},math.atan2(_wy-_ty,_wx-_tx)) end)()`
+    }
   }
   // Unknown action type (stale project.json, older runtime than the
   // editor expected, malformed payload). Emit a parseable Lua comment

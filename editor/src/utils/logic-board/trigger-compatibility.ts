@@ -42,8 +42,10 @@ export const TRIGGER_TARGET_MATRIX: Record<
 > = {
   // Lifecycle — entity-only. The runtime binds these to a class id; without
   // one the registration has nothing to attach to.
-  onSpawn:         ENTITY_TARGETS,
-  onDestroy:       ENTITY_TARGETS,
+  onSpawn:            ENTITY_TARGETS,
+  onDestroy:          ENTITY_TARGETS,
+  // Health — entity-only (requires a HealthComponent, which only entity boards have).
+  onHealthDepleted:   ENTITY_TARGETS,
   // Physics — need a specific entity to test collisions/overlaps against.
   onCollision:      ENTITY_TARGETS,
   onCollisionEnter: ENTITY_TARGETS,

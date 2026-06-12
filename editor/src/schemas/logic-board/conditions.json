@@ -198,5 +198,101 @@
         "target": { "widget": "target", "label": "Target" }
       }
     }
+  },
+  "compareCount": {
+    "type": "object",
+    "required": ["type", "className", "operator", "value"],
+    "properties": {
+      "type": { "const": "compareCount" },
+      "className": { "type": "string" },
+      "operator": { "enum": ["==", "!=", "<", "<=", ">", ">="] },
+      "value": { "type": "number" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Object Count",
+      "category": "Entities",
+      "params": {
+        "className": { "widget": "className", "label": "Object type" },
+        "operator": { "widget": "enum", "label": "Op", "options": ["==", "!=", "<", "<=", ">", ">="] },
+        "value": { "widget": "number", "label": "Count" }
+      }
+    }
+  },
+  "entityExists": {
+    "type": "object",
+    "required": ["type", "target"],
+    "properties": {
+      "type": { "const": "entityExists" },
+      "target": { "$ref": "./target-selector.schema.json" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Entity Exists",
+      "category": "Entities",
+      "params": {
+        "target": { "widget": "target", "label": "Target" }
+      }
+    }
+  },
+  "compareVelocity": {
+    "type": "object",
+    "required": ["type", "target", "axis", "operator", "value"],
+    "properties": {
+      "type": { "const": "compareVelocity" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "axis": { "enum": ["x", "y", "magnitude"] },
+      "operator": { "enum": ["==", "!=", "<", "<=", ">", ">="] },
+      "value": { "type": "number" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Velocity Check",
+      "category": "Physics",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "axis": { "widget": "enum", "label": "Axis", "options": ["x", "y", "magnitude"] },
+        "operator": { "widget": "enum", "label": "Op", "options": ["==", "!=", "<", "<=", ">", ">="] },
+        "value": { "widget": "number", "label": "Value" }
+      }
+    }
+  },
+  "comparePosition": {
+    "type": "object",
+    "required": ["type", "target", "axis", "operator", "value"],
+    "properties": {
+      "type": { "const": "comparePosition" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "axis": { "enum": ["x", "y"] },
+      "operator": { "enum": ["==", "!=", "<", "<=", ">", ">="] },
+      "value": { "type": "number" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Position Check",
+      "category": "Physics",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "axis": { "widget": "enum", "label": "Axis", "options": ["x", "y"] },
+        "operator": { "widget": "enum", "label": "Op", "options": ["==", "!=", "<", "<=", ">", ">="] },
+        "value": { "widget": "number", "label": "Value" }
+      }
+    }
+  },
+  "saveExists": {
+    "type": "object",
+    "required": ["type", "slot"],
+    "properties": {
+      "type": { "const": "saveExists" },
+      "slot": { "type": "string" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Save File Exists",
+      "category": "Save",
+      "params": {
+        "slot": { "widget": "string", "label": "Slot", "placeholder": "main" }
+      }
+    }
   }
 }

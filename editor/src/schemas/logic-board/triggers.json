@@ -288,5 +288,17 @@
         "repeat": { "widget": "boolean", "label": "Repeat" }
       }
     }
+  },
+  "onHealthDepleted": {
+    "type": "object",
+    "required": ["type"],
+    "properties": { "type": { "const": "onHealthDepleted" } },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Health reaches zero",
+      "category": "Health",
+      "executionMode": "polling",
+      "params": {}
+    }
   }
 }

@@ -53,6 +53,25 @@ export function conditionSummaryPlain(
     case 'isPlatformerGrounded':
       text = `${targetDisplayLabel(c.target, project)} is on ground`
       break
+    case 'compareCount':
+      text = `Count of "${fmtClass(c.className || '?', project)}" ${c.operator} ${c.value}`
+      break
+    case 'entityExists':
+      text = `${targetDisplayLabel(c.target, project)} exists`
+      break
+    case 'compareVelocity': {
+      const axisLabel = c.axis === 'magnitude' ? 'speed' : `velocity.${c.axis}`
+      text = `${targetDisplayLabel(c.target, project)} ${axisLabel} ${c.operator} ${c.value}`
+      break
+    }
+    case 'comparePosition': {
+      const axisLabel = `position.${c.axis}`
+      text = `${targetDisplayLabel(c.target, project)} ${axisLabel} ${c.operator} ${c.value}`
+      break
+    }
+    case 'saveExists':
+      text = `Save slot "${c.slot || 'main'}" exists`
+      break
   }
   return formatChip(text, negated)
 }

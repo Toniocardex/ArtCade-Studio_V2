@@ -97,5 +97,7 @@ export function triggerSummaryPlain(
       return t.repeat
         ? `Every ${t.seconds} seconds (repeating)`
         : `After ${t.seconds} seconds`
+    case 'onHealthDepleted':
+      return 'When this object\'s health reaches zero'
   }
 }

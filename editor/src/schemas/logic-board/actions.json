@@ -698,6 +698,240 @@
       }
     }
   },
+  "setVariableRandomRange": {
+    "type": "object",
+    "required": ["type", "key", "min", "max"],
+    "properties": {
+      "type": { "const": "setVariableRandomRange" },
+      "key": { "type": "string" },
+      "min": { "type": "number" },
+      "max": { "type": "number" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Set Variable (random range)",
+      "category": "State",
+      "params": {
+        "key": { "widget": "string", "label": "Key" },
+        "min": { "widget": "number", "label": "Min" },
+        "max": { "widget": "number", "label": "Max" }
+      }
+    }
+  },
+  "clampVariable": {
+    "type": "object",
+    "required": ["type", "key", "min", "max"],
+    "properties": {
+      "type": { "const": "clampVariable" },
+      "key": { "type": "string" },
+      "min": { "type": "number" },
+      "max": { "type": "number" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Clamp Variable",
+      "category": "State",
+      "params": {
+        "key": { "widget": "string", "label": "Key" },
+        "min": { "widget": "number", "label": "Min" },
+        "max": { "widget": "number", "label": "Max" }
+      }
+    }
+  },
+  "multiplyVariable": {
+    "type": "object",
+    "required": ["type", "key", "factor"],
+    "properties": {
+      "type": { "const": "multiplyVariable" },
+      "key": { "type": "string" },
+      "factor": { "type": "number" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Multiply Variable",
+      "category": "State",
+      "params": {
+        "key": { "widget": "string", "label": "Key" },
+        "factor": { "widget": "number", "label": "Factor" }
+      }
+    }
+  },
+  "saveVariable": {
+    "type": "object",
+    "required": ["type", "slot", "key"],
+    "properties": {
+      "type": { "const": "saveVariable" },
+      "slot": { "type": "string" },
+      "key": { "type": "string" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Save Variable to Disk",
+      "category": "Save",
+      "params": {
+        "slot": { "widget": "string", "label": "Slot", "placeholder": "main" },
+        "key": { "widget": "string", "label": "Key" }
+      }
+    }
+  },
+  "loadVariable": {
+    "type": "object",
+    "required": ["type", "slot", "key"],
+    "properties": {
+      "type": { "const": "loadVariable" },
+      "slot": { "type": "string" },
+      "key": { "type": "string" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Load Variable from Disk",
+      "category": "Save",
+      "params": {
+        "slot": { "widget": "string", "label": "Slot", "placeholder": "main" },
+        "key": { "widget": "string", "label": "Key" }
+      }
+    }
+  },
+  "deleteSave": {
+    "type": "object",
+    "required": ["type", "slot"],
+    "properties": {
+      "type": { "const": "deleteSave" },
+      "slot": { "type": "string" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Delete Save Slot",
+      "category": "Save",
+      "params": {
+        "slot": { "widget": "string", "label": "Slot", "placeholder": "main" }
+      }
+    }
+  },
+  "setCameraZoom": {
+    "type": "object",
+    "required": ["type", "zoom"],
+    "properties": {
+      "type": { "const": "setCameraZoom" },
+      "zoom": { "type": "number", "exclusiveMinimum": 0 }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Set Camera Zoom",
+      "category": "Camera",
+      "params": {
+        "zoom": { "widget": "number", "label": "Zoom (1 = normal)" }
+      }
+    }
+  },
+  "panCamera": {
+    "type": "object",
+    "required": ["type", "dx", "dy"],
+    "properties": {
+      "type": { "const": "panCamera" },
+      "dx": { "type": "number" },
+      "dy": { "type": "number" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Pan Camera",
+      "category": "Camera",
+      "params": {
+        "dx": { "widget": "number", "label": "DX" },
+        "dy": { "widget": "number", "label": "DY" }
+      }
+    }
+  },
+  "setCameraPosition": {
+    "type": "object",
+    "required": ["type", "x", "y"],
+    "properties": {
+      "type": { "const": "setCameraPosition" },
+      "x": { "type": "number" },
+      "y": { "type": "number" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Set Camera Position",
+      "category": "Camera",
+      "params": {
+        "x": { "widget": "number", "label": "X" },
+        "y": { "widget": "number", "label": "Y" }
+      }
+    }
+  },
+  "setTimeScale": {
+    "type": "object",
+    "required": ["type", "scale"],
+    "properties": {
+      "type": { "const": "setTimeScale" },
+      "scale": { "type": "number", "minimum": 0 }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Set Time Scale",
+      "category": "Time",
+      "params": {
+        "scale": { "widget": "number", "label": "Scale (1=normal, 0=pause)" }
+      }
+    }
+  },
+  "spawnAtEntity": {
+    "type": "object",
+    "required": ["type", "className", "target"],
+    "properties": {
+      "type": { "const": "spawnAtEntity" },
+      "className": { "type": "string" },
+      "target": { "$ref": "./target-selector.schema.json" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Create at Entity",
+      "category": "Objects",
+      "params": {
+        "className": { "widget": "className", "label": "Object type" },
+        "target": { "widget": "target", "label": "At position of" }
+      }
+    }
+  },
+  "moveToward": {
+    "type": "object",
+    "required": ["type", "target", "toward", "speed"],
+    "properties": {
+      "type": { "const": "moveToward" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "toward": { "$ref": "./target-selector.schema.json" },
+      "speed": { "type": "number" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Move Toward",
+      "category": "Movement",
+      "params": {
+        "target": { "widget": "target", "label": "Move" },
+        "toward": { "widget": "target", "label": "Toward" },
+        "speed": { "widget": "number", "label": "Speed (px/s)" }
+      }
+    }
+  },
+  "lookAtTarget": {
+    "type": "object",
+    "required": ["type", "target", "toward"],
+    "properties": {
+      "type": { "const": "lookAtTarget" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "toward": { "$ref": "./target-selector.schema.json" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Look At Target",
+      "category": "Movement",
+      "params": {
+        "target": { "widget": "target", "label": "Rotate" },
+        "toward": { "widget": "target", "label": "Face toward" }
+      }
+    }
+  },
   "setEntityShader": {
     "type": "object",
     "required": ["type", "target", "shader"],

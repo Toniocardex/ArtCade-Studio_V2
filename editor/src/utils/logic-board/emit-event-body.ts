@@ -64,6 +64,27 @@ function emitDestroyBody(ctx: EmitCtx): string[] {
   return emitGuarded(ctx, ctx.baseIndent)
 }
 
+function emitHealthDepletedBody(ctx: EmitCtx): string[] {
+  const { baseIndent, slugs, ev } = ctx
+  const slug = ruleKeyExpr(ev.id, slugs)
+  const i1 = baseIndent + INDENT
+  const i2 = i1 + INDENT
+  const key = `${slug} .. ":" .. tostring(self)`
+  return [
+    `${baseIndent}do`,
+    `${i1}local _hc, _ = entity.health(self)`,
+    `${i1}if _hc ~= nil then`,
+    `${i2}if _hc <= 0 and not _hpd_fired[${key}] then`,
+    `${i2}${INDENT}_hpd_fired[${key}] = true`,
+    ...emitGuarded(ctx, i2 + INDENT),
+    `${i2}elseif _hc > 0 then`,
+    `${i2}${INDENT}_hpd_fired[${key}] = nil`,
+    `${i2}end`,
+    `${i1}end`,
+    `${baseIndent}end`,
+  ]
+}
+
 function emitSensorTriggerBody(
   ctx: EmitCtx,
   trig: Extract<LogicTrigger, { type: 'onTriggerEnter' } | { type: 'onTriggerExit' }>,
@@ -219,6 +240,8 @@ export function emitEventBody(
       return []
     case 'onDestroy':
       return emitDestroyBody(ctx)
+    case 'onHealthDepleted':
+      return emitHealthDepletedBody(ctx)
     case 'onTriggerEnter':
     case 'onTriggerExit':
       return emitSensorTriggerBody(ctx, trig)

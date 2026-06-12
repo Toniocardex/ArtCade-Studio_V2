@@ -56,6 +56,7 @@ export type LogicTrigger =
   | { type: 'onObjectHoverExit'; radius?: number }
   | { type: 'onMessage'; messageName: string }                      // event.on listener
   | { type: 'onTimer'; seconds: number; repeat: boolean }
+  | { type: 'onHealthDepleted' }                                    // edge: HP drops to ≤ 0 for the first time
 
 export type LogicTriggerType = LogicTrigger['type']
 
@@ -78,6 +79,11 @@ export type LogicCondition =
   | { type: 'isSpaceFree'; x: number; y: number; w: number; h: number }
   | { type: 'compareHealth'; target: TargetSelector; field: 'current' | 'max'; operator: ComparisonOp; value: number }
   | { type: 'isPlatformerGrounded'; target: TargetSelector }
+  | { type: 'compareCount'; className: string; operator: ComparisonOp; value: number }   // pool.count
+  | { type: 'entityExists'; target: TargetSelector }                                      // object.exists
+  | { type: 'compareVelocity'; target: TargetSelector; axis: 'x' | 'y' | 'magnitude'; operator: ComparisonOp; value: number }
+  | { type: 'comparePosition'; target: TargetSelector; axis: 'x' | 'y'; operator: ComparisonOp; value: number }
+  | { type: 'saveExists'; slot: string }                                                   // save.exists
 
 /**
  * Boolean tree for AND/OR/nested conditions (docs/LOGIC_BOARD_CONDITIONAL_DESIGN.md).
@@ -174,6 +180,24 @@ export type LogicAction =
   | { type: 'snapToGrid'; target: TargetSelector; cellSize: number }
   | { type: 'setEntityShader'; target: TargetSelector; shader: string }
   | { type: 'setScreenShader'; shader: string }
+  // ── State math ────────────────────────────────────────────────────────────
+  | { type: 'setVariableRandomRange'; key: string; min: number; max: number }
+  | { type: 'clampVariable'; key: string; min: number; max: number }
+  | { type: 'multiplyVariable'; key: string; factor: number }
+  // ── Save / Load ───────────────────────────────────────────────────────────
+  | { type: 'saveVariable'; slot: string; key: string }
+  | { type: 'loadVariable'; slot: string; key: string }
+  | { type: 'deleteSave'; slot: string }
+  // ── Camera ────────────────────────────────────────────────────────────────
+  | { type: 'setCameraZoom'; zoom: number }
+  | { type: 'panCamera'; dx: number; dy: number }
+  | { type: 'setCameraPosition'; x: number; y: number }
+  // ── Time ──────────────────────────────────────────────────────────────────
+  | { type: 'setTimeScale'; scale: number }
+  // ── Entity helpers ────────────────────────────────────────────────────────
+  | { type: 'spawnAtEntity'; className: string; target: TargetSelector }
+  | { type: 'moveToward'; target: TargetSelector; toward: TargetSelector; speed: number }
+  | { type: 'lookAtTarget'; target: TargetSelector; toward: TargetSelector }
 
 export type LogicActionType = LogicAction['type']
 

@@ -35,7 +35,7 @@ describe('trigger-compatibility matrix', () => {
 
   it('matrix is exhaustive — every LogicTriggerType has an entry', () => {
     const expectedTypes = [
-      'onStart', 'onUpdate', 'onSpawn', 'onDestroy',
+      'onStart', 'onUpdate', 'onSpawn', 'onDestroy', 'onHealthDepleted',
       'onCollision', 'onCollisionEnter', 'onCollisionExit',
       'onTriggerEnter', 'onTriggerExit',
       'onAnimationEnd', 'onInput', 'onMouseInput',
@@ -43,6 +43,11 @@ describe('trigger-compatibility matrix', () => {
       'onMessage', 'onTimer',
     ]
     expect(Object.keys(TRIGGER_TARGET_MATRIX).sort()).toEqual(expectedTypes.sort())
+  })
+
+  it('onHealthDepleted is entity-only', () => {
+    expect(isTriggerCompatible('onHealthDepleted', 'object_type')).toBe(true)
+    expect(isTriggerCompatible('onHealthDepleted', 'global')).toBe(false)
   })
 
   it('allowedTriggersForTarget filters correctly', () => {

@@ -15,6 +15,7 @@ const TRIGGER_NAMES: Record<LogicTriggerType, string> = {
   onTriggerExit: 'Leaves trigger zone',
   onAnimationEnd: 'Animation finishes',
   onDestroy: 'Object is destroyed',
+  onHealthDepleted: 'Health reaches zero',
   onInput: 'Keyboard key',
   onMouseInput: 'Mouse button',
   onObjectClick: 'Object clicked',
@@ -79,6 +80,19 @@ const ACTION_NAMES: Record<LogicActionType, string> = {
   setEntityShader: 'Visual effect on object',
   setScreenShader: 'Screen effect',
   startDialog: 'Start dialog',
+  setVariableRandomRange: 'Set variable (random)',
+  clampVariable: 'Clamp variable',
+  multiplyVariable: 'Multiply variable',
+  saveVariable: 'Save variable to disk',
+  loadVariable: 'Load variable from disk',
+  deleteSave: 'Delete save slot',
+  setCameraZoom: 'Set camera zoom',
+  panCamera: 'Pan camera',
+  setCameraPosition: 'Set camera position',
+  setTimeScale: 'Set time scale',
+  spawnAtEntity: 'Create at entity',
+  moveToward: 'Move toward',
+  lookAtTarget: 'Look at target',
 }
 
 const CONDITION_NAMES: Record<LogicCondition['type'], string> = {
@@ -93,6 +107,11 @@ const CONDITION_NAMES: Record<LogicCondition['type'], string> = {
   isSpaceFree: 'Area is empty',
   compareHealth: 'Health check',
   isPlatformerGrounded: 'On ground',
+  compareCount: 'Object count',
+  entityExists: 'Entity exists',
+  compareVelocity: 'Velocity check',
+  comparePosition: 'Position check',
+  saveExists: 'Save file exists',
 }
 
 export function triggerDisplayName(type: LogicTriggerType): string {

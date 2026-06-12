@@ -53,6 +53,8 @@ export function defaultTrigger(type: LogicTriggerType): LogicTrigger {
       return { type: 'onAnimationEnd', clipName: '' }
     case 'onDestroy':
       return { type: 'onDestroy' }
+    case 'onHealthDepleted':
+      return { type: 'onHealthDepleted' }
     case 'onInput':
       return { type: 'onInput', keyCode: 'Space', eventType: 'pressed' }
     case 'onMouseInput':
@@ -96,6 +98,16 @@ export function defaultCondition(
       return { type: 'compareHealth', target: 'self', field: 'current', operator: '>', value: 0 }
     case 'isPlatformerGrounded':
       return { type: 'isPlatformerGrounded', target: 'self' }
+    case 'compareCount':
+      return { type: 'compareCount', className: '', operator: '<=', value: 5 }
+    case 'entityExists':
+      return { type: 'entityExists', target: 'self' }
+    case 'compareVelocity':
+      return { type: 'compareVelocity', target: 'self', axis: 'magnitude', operator: '>', value: 0 }
+    case 'comparePosition':
+      return { type: 'comparePosition', target: 'self', axis: 'x', operator: '>', value: 0 }
+    case 'saveExists':
+      return { type: 'saveExists', slot: 'main' }
   }
 }
 
@@ -209,6 +221,32 @@ export function defaultAction(type: LogicActionType): LogicAction {
       return { type: 'setEntityShader', target: 'self', shader: 'outline' }
     case 'setScreenShader':
       return { type: 'setScreenShader', shader: 'none' }
+    case 'setVariableRandomRange':
+      return { type: 'setVariableRandomRange', key: 'result', min: 1, max: 6 }
+    case 'clampVariable':
+      return { type: 'clampVariable', key: 'score', min: 0, max: 99 }
+    case 'multiplyVariable':
+      return { type: 'multiplyVariable', key: 'score', factor: 2 }
+    case 'saveVariable':
+      return { type: 'saveVariable', slot: 'main', key: 'score' }
+    case 'loadVariable':
+      return { type: 'loadVariable', slot: 'main', key: 'score' }
+    case 'deleteSave':
+      return { type: 'deleteSave', slot: 'main' }
+    case 'setCameraZoom':
+      return { type: 'setCameraZoom', zoom: 1.5 }
+    case 'panCamera':
+      return { type: 'panCamera', dx: 0, dy: 0 }
+    case 'setCameraPosition':
+      return { type: 'setCameraPosition', x: 0, y: 0 }
+    case 'setTimeScale':
+      return { type: 'setTimeScale', scale: 1 }
+    case 'spawnAtEntity':
+      return { type: 'spawnAtEntity', className: '', target: 'self' }
+    case 'moveToward':
+      return { type: 'moveToward', target: 'self', toward: 'other', speed: 150 }
+    case 'lookAtTarget':
+      return { type: 'lookAtTarget', target: 'self', toward: 'other' }
   }
 }
 
