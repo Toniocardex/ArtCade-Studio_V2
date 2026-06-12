@@ -51,7 +51,7 @@ export function triggerSummaryPlain(
         ? `When animation "${t.clipName}" ends`
         : 'When an animation ends'
     case 'onDestroy':
-      return 'When this object is destroyed (Destroy)'
+      return 'When this object is destroyed'
     case 'onInput': {
       const keys = getOnInputKeyCodes(t).map((c) => formatKeyLabel(c))
       const combine = getKeyCombine(t)

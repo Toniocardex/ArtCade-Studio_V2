@@ -11,7 +11,7 @@ import type { ProjectDoc } from '../../types'
 import type { LogicBoard, LogicEvent } from '../../types/logic-board'
 import EventEditor from './EventEditor'
 import LogicIconButton from '../../components/logic-board/LogicIconButton'
-import { eventTriggerSummaryPlain } from './friendly-labels'
+import { eventTriggerSummaryPlain, ruleSentenceParts } from './friendly-labels'
 import { eventVisualGroup } from '../../utils/logic-board/event-visual-group'
 
 export type LogicRulesListProps = Readonly<{
@@ -52,6 +52,7 @@ function RuleCardHeader({
   onMoveEvent: (board: LogicBoard, eventId: string, toIndex: number) => void
 }>) {
   const group = eventVisualGroup(event)
+  const sentence = expanded ? null : ruleSentenceParts(event, project)
 
   return (
     <div
@@ -76,9 +77,32 @@ function RuleCardHeader({
           {String(index + 1).padStart(2, '0')}
         </span>
         <Zap size={11} className="shrink-0 text-[var(--accent)]" aria-hidden />
-        <span className="min-w-0 flex-1 truncate text-[11px] text-[var(--text)]">
-          {eventTriggerSummaryPlain(event, project)}
-        </span>
+        {sentence ? (
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[11px] text-[var(--text)]">
+              {sentence.when}
+              {sentence.checks && (
+                <span className="text-[var(--muted)]"> — {sentence.checks}</span>
+              )}
+            </span>
+            {sentence.missingActions ? (
+              <span className="block truncate text-[10px] text-[var(--warn)]">
+                No actions yet — open the rule to add one
+              </span>
+            ) : (
+              <span
+                className="block truncate text-[10px] text-[var(--muted)]"
+                title={sentence.actions}
+              >
+                → {sentence.actions}
+              </span>
+            )}
+          </span>
+        ) : (
+          <span className="min-w-0 flex-1 truncate text-[11px] text-[var(--text)]">
+            {eventTriggerSummaryPlain(event, project)}
+          </span>
+        )}
         <span className="hidden shrink-0 rounded border border-[var(--outline-subtle)] px-1.5 py-0.5 text-[8px] uppercase tracking-wider text-[var(--muted)] sm:inline">
           {group}
         </span>

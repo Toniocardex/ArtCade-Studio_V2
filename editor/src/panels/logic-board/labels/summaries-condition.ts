@@ -19,7 +19,7 @@ export function conditionSummaryPlain(
   let text: string
   switch (c.type) {
     case 'compareVariable':
-      text = `Score ${c.key} ${c.operator} ${c.value}`
+      text = `Variable ${c.key} ${c.operator} ${c.value}`
       break
     case 'compareClass':
       text = `Touching "${fmtClass(c.className || '?', project)}"`
