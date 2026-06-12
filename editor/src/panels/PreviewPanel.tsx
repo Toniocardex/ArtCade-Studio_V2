@@ -27,6 +27,7 @@ import { CameraFrameOverlay } from './preview/CameraFrameOverlay'
 import { CanvasViewportWithRulers } from './preview/CanvasViewportWithRulers'
 import { useLayoutTier } from '../contexts/editor-layout-tier-context'
 import { InspectorDrawerToggle } from '../contexts/inspector-drawer-context'
+import { ExplorerDrawerToggle } from '../contexts/explorer-drawer-context'
 import { useRuntimeReadiness } from '../hooks/useRuntimeReadiness'
 import { useEditorCanvasViewport } from '../hooks/useEditorCanvasViewport'
 import { useEditorFitZoom } from '../hooks/useEditorFitZoom'
@@ -105,6 +106,7 @@ export default function PreviewPanel({
 
   const tier = useLayoutTier()
   const showInspectorToggle = tier !== 'full'
+  const showExplorerToggle = tier === 'minimal' || tier === 'unsupported'
 
   const { wasmReady, engineReady, syncWasmFromBridge } = useRuntimeReadiness()
   const syncRuntimeUiFlags = useCallback(() => {
@@ -389,6 +391,7 @@ export default function PreviewPanel({
             showToolPalette={showToolPalette}
             rightSlot={(
             <div className="flex items-center gap-2 min-w-0">
+              {showExplorerToggle && <ExplorerDrawerToggle />}
               {showInspectorToggle && <InspectorDrawerToggle />}
               <ProjectHealthBanner projectKey={projectPath} />
               <RuntimeStatusBadge wasmReady={wasmReady} hasProject={!!project} compact={showInspectorToggle} />

@@ -29,6 +29,8 @@ import { EditorLayoutTierProvider, useLayoutTier } from './contexts/editor-layou
 import CompactLeftSidebar from './components/shell/CompactLeftSidebar'
 import { InspectorDrawer } from './components/shell/InspectorDrawer'
 import { InspectorDrawerProvider } from './contexts/inspector-drawer-context'
+import { ExplorerDrawer } from './components/shell/ExplorerDrawer'
+import { ExplorerDrawerProvider } from './contexts/explorer-drawer-context'
 import { LayoutTierSideEffects } from './components/shell/LayoutTierSideEffects'
 import { EditorUiScaleSuggestionBanner } from './components/shell/EditorUiScaleSuggestionBanner'
 import type { EditorTool } from './utils/runtime-sync-service'
@@ -105,16 +107,19 @@ function CanvasView() {
       <section className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[var(--void)] relative">
         <div className="flex-1 min-h-0 overflow-hidden relative">
           {useCompactShell ? (
-            <InspectorDrawerProvider>
-              <InspectorDrawer />
-              <div style={{ display: isEditingTileset ? 'none' : 'contents' }}>
-                <PreviewPanel
-                  activeTool={activeTool}
-                  onSelectTool={setActiveTool}
-                  showToolPalette
-                />
-              </div>
-            </InspectorDrawerProvider>
+            <ExplorerDrawerProvider>
+              <InspectorDrawerProvider>
+                <ExplorerDrawer />
+                <InspectorDrawer />
+                <div style={{ display: isEditingTileset ? 'none' : 'contents' }}>
+                  <PreviewPanel
+                    activeTool={activeTool}
+                    onSelectTool={setActiveTool}
+                    showToolPalette
+                  />
+                </div>
+              </InspectorDrawerProvider>
+            </ExplorerDrawerProvider>
           ) : (
           <div
             style={{ display: isEditingTileset ? 'none' : 'contents' }}
