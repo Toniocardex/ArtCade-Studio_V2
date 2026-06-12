@@ -46,10 +46,10 @@ function PreviewSpawnScopeToggle() {
       })}
       title="Preload spawn prototype sprites in preview (Logic Board spawnEntity)"
       className={`p-1.5 rounded transition-colors ${
-        spawnScope ? 'bg-[rgb(var(--accent-2-rgb)/0.2)]' : 'hover:bg-[var(--panel-3)]'
+        spawnScope ? 'bg-[rgb(var(--accent-rgb)/0.18)]' : 'hover:bg-[var(--panel-3)]'
       }`}
     >
-      <Boxes size={15} color={spawnScope ? 'var(--accent-2)' : 'var(--muted)'} />
+      <Boxes size={15} color={spawnScope ? 'var(--accent)' : 'var(--muted)'} />
     </button>
   )
 }
@@ -84,10 +84,10 @@ function CameraPreviewToggle() {
       onClick={() => dispatch({ type: 'EDITOR_SET_CAMERA_PREVIEW', enabled: !enabled })}
       title="Camera preview - clip canvas to scene viewportSize (Ctrl+8)"
       className={`p-1.5 rounded transition-colors ${
-        enabled ? 'bg-[rgb(var(--accent-2-rgb)/0.2)]' : 'hover:bg-[var(--panel-3)]'
+        enabled ? 'bg-[rgb(var(--accent-rgb)/0.18)]' : 'hover:bg-[var(--panel-3)]'
       }`}
     >
-      <Camera size={15} color={enabled ? 'var(--accent-2)' : 'var(--muted)'} />
+      <Camera size={15} color={enabled ? 'var(--accent)' : 'var(--muted)'} />
     </button>
   )
 }
@@ -107,18 +107,18 @@ export function CanvasToolbar({
       {showToolPalette && (
         <>
           {([
-            { id: 'select', Icon: MousePointer2, color: 'var(--accent)', title: 'Select / move entities' },
-            { id: 'pan',    Icon: Hand,           color: 'var(--muted)',  title: 'Pan camera' },
-          ] as const).map(({ id, Icon, color, title }) => (
+            { id: 'select', Icon: MousePointer2, title: 'Select / move entities' },
+            { id: 'pan',    Icon: Hand,           title: 'Pan camera' },
+          ] as const).map(({ id, Icon, title }) => (
             <button
               key={id}
               onClick={() => onSelectTool(id)}
               title={title}
               className={`p-1.5 rounded transition-colors ${
-                activeTool === id ? 'bg-[rgb(var(--accent-rgb)/0.2)]' : 'hover:bg-[var(--panel-3)]'
+                activeTool === id ? 'bg-[rgb(var(--accent-rgb)/0.18)]' : 'hover:bg-[var(--panel-3)]'
               }`}
             >
-              <Icon size={15} color={activeTool === id ? color : 'var(--muted)'} />
+              <Icon size={15} color={activeTool === id ? 'var(--accent)' : 'var(--muted)'} />
             </button>
           ))}
 
@@ -133,10 +133,10 @@ export function CanvasToolbar({
               onClick={() => onSelectTool(id)}
               title={title}
               className={`p-1.5 rounded transition-colors ${
-                activeTool === id ? 'bg-[rgb(var(--accent-2-rgb)/0.2)]' : 'hover:bg-[var(--panel-3)]'
+                activeTool === id ? 'bg-[rgb(var(--accent-rgb)/0.18)]' : 'hover:bg-[var(--panel-3)]'
               }`}
             >
-              <Icon size={15} color={activeTool === id ? 'var(--accent-2)' : 'var(--muted)'} />
+              <Icon size={15} color={activeTool === id ? 'var(--accent)' : 'var(--muted)'} />
             </button>
           ))}
 
@@ -144,10 +144,10 @@ export function CanvasToolbar({
             onClick={() => onSelectTool('tile')}
             title={`Paint selected tileset cell ${selectedTileCell === 0 ? '(empty)' : '#' + selectedTileCell}`}
             className={`p-1.5 rounded transition-colors ${
-              activeTool === 'tile' ? 'bg-[rgb(var(--accent-2-rgb)/0.2)]' : 'hover:bg-[var(--panel-3)]'
+              activeTool === 'tile' ? 'bg-[rgb(var(--accent-rgb)/0.18)]' : 'hover:bg-[var(--panel-3)]'
             }`}
           >
-            <ImageIcon size={15} color={activeTool === 'tile' ? 'var(--accent-2)' : 'var(--muted)'} />
+            <ImageIcon size={15} color={activeTool === 'tile' ? 'var(--accent)' : 'var(--muted)'} />
           </button>
 
           <Divider />
@@ -156,10 +156,10 @@ export function CanvasToolbar({
             onClick={() => dispatch({ type: 'TOGGLE_EDITOR_GUIDES' })}
             title="Toggle editor guides"
             className={`p-1.5 rounded transition-colors ${
-              showGuides ? 'bg-[rgb(var(--accent-2-rgb)/0.25)]' : 'hover:bg-[var(--panel-3)]'
+              showGuides ? 'bg-[rgb(var(--accent-rgb)/0.18)]' : 'hover:bg-[var(--panel-3)]'
             }`}
           >
-            <Grid3x3 size={15} color={showGuides ? 'var(--accent-2)' : 'var(--muted)'} />
+            <Grid3x3 size={15} color={showGuides ? 'var(--accent)' : 'var(--muted)'} />
           </button>
 
           <Divider />

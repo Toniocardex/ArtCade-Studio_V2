@@ -12,7 +12,7 @@ function runtimeDisplay(playing: boolean, wasmReady: boolean): { text: string; c
     return { text: 'PLAYING', className: 'text-[var(--danger)]' }
   }
   if (wasmReady) {
-    return { text: 'READY', className: 'text-[var(--accent)]' }
+    return { text: 'READY', className: 'text-[var(--text)]' }
   }
   return { text: 'LOADING', className: 'text-[var(--muted)]' }
 }
