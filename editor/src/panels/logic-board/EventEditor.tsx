@@ -4,12 +4,6 @@
 
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import {
-  NEW_ACTION_NONE,
-  NEW_CONDITION_NONE,
-  type NewActionPick,
-  type NewConditionPick,
-} from './picker-constants'
-import {
   Copy,
   GitBranch,
   ListChecks,
@@ -26,6 +20,7 @@ import type {
 } from '../../types/logic-board'
 import { LogicBlock } from '../../components/logic-board/LogicBlock'
 import { TypePicker } from '../../components/logic-board/TypePicker'
+import { CatalogPicker } from '../../components/logic-board/CatalogPicker'
 import { SchemaParamForm } from '../../components/logic-board/SchemaParamForm'
 import { ConditionCombineSelect } from '../../components/logic-board/ConditionCombineSelect'
 import { ConditionPolaritySelect } from '../../components/logic-board/ConditionPolaritySelect'
@@ -78,8 +73,6 @@ import {
 const link = 'text-[var(--muted)] text-[11px] underline underline-offset-2 hover:text-[var(--text)] cursor-pointer'
 const btn =
   'inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium border border-[var(--border-2)] bg-[var(--border)] text-[var(--text)] hover:border-[var(--accent-bd)]'
-const btnDisabled =
-  'inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium border border-[var(--border-2)] bg-[var(--border)] text-[var(--muted)] opacity-50 cursor-not-allowed'
 
 function hasMovementAction(actions: readonly LogicAction[]): boolean {
   return actions.some((action) => action.type === 'controllerMovement')
@@ -216,8 +209,6 @@ function ActionListBlock({
   ambiguousTargetSpritePaths,
   recommendedTypes,
   onChangeActions,
-  newActionType,
-  setNewActionType,
   emptyHint,
   forElse = false,
 }: {
@@ -229,14 +220,13 @@ function ActionListBlock({
   ambiguousTargetSpritePaths?: boolean
   recommendedTypes: readonly string[]
   onChangeActions: (actions: LogicAction[]) => void
-  newActionType: NewActionPick
-  setNewActionType: (t: NewActionPick) => void
   emptyHint: string
   /** When true, Click to destroy is omitted from the action picker (Else branch). */
   forElse?: boolean
 }) {
   const insideRepeat = repeatBodyIndices(actions)
   const pickerTypes = actionTypesForBoard(board, { forElse, existingActions: actions })
+  const [pickerOpen, setPickerOpen] = useState(false)
   return (
     <>
       {actions.length === 0 && (
@@ -274,37 +264,36 @@ function ActionListBlock({
           }}
         />
       ))}
-      <div className="flex flex-wrap items-center gap-2 pt-1">
-        <TypePicker
-          kind="action"
-          types={pickerTypes}
-          value={newActionType}
-          onChange={(t) => setNewActionType(t as LogicAction['type'])}
-          className="max-w-[240px]"
-          recommendedTypes={recommendedTypes}
-          placeholder="Select action…"
-          placeholderValue={NEW_ACTION_NONE}
-        />
+      <div className="pt-1">
         <button
           type="button"
-          className={newActionType ? btn : btnDisabled}
-          disabled={!newActionType}
-          title={
-            newActionType
-              ? 'Add the selected action'
-              : 'Choose an action from the list first'
-          }
-          onClick={() => {
-            if (!newActionType) return
-            const next = [...actions, defaultAction(newActionType)]
-            onChangeActions(next)
-            setNewActionType(NEW_ACTION_NONE)
-          }}
+          className={btn}
+          title="Browse the action catalog"
+          onClick={() => setPickerOpen(true)}
         >
           <Plus size={13} />
           Add action
         </button>
       </div>
+      {pickerOpen && (
+        <CatalogPicker
+          kind="action"
+          title={forElse ? 'Add Else action' : 'Add action — choose what happens'}
+          subtitle={
+            forElse
+              ? 'Runs when the Also require… checks fail.'
+              : 'Runs when this rule fires and its checks pass.'
+          }
+          searchPlaceholder="Search actions… (move, sound, spawn)"
+          types={pickerTypes}
+          recommendedTypes={recommendedTypes}
+          onPick={(t) => {
+            onChangeActions([...actions, defaultAction(t as LogicAction['type'])])
+            setPickerOpen(false)
+          }}
+          onClose={() => setPickerOpen(false)}
+        />
+      )}
     </>
   )
 }
@@ -500,7 +489,7 @@ function SimpleConditions({
 }) {
   const conditions = event.conditions ?? []
   const combineOp = event.conditionsOperator ?? 'AND'
-  const [newConditionType, setNewConditionType] = useState<NewConditionPick>(NEW_CONDITION_NONE)
+  const [pickerOpen, setPickerOpen] = useState(false)
 
   function appendCondition(type: LogicCondition['type']) {
     onChange({
@@ -609,36 +598,32 @@ function SimpleConditions({
           </span>
         </div>
       )}
-      <div className="flex flex-wrap items-center gap-2 pt-1">
-        <TypePicker
-          kind="condition"
-          types={conditionTypes}
-          value={newConditionType}
-          onChange={(t) => setNewConditionType(t as LogicCondition['type'])}
-          className="max-w-[240px]"
-          recommendedTypes={recommendedConditions}
-          placeholder="Select check…"
-          placeholderValue={NEW_CONDITION_NONE}
-        />
+      <div className="pt-1">
         <button
           type="button"
-          className={newConditionType ? btn : btnDisabled}
-          disabled={!newConditionType}
-          title={
-            newConditionType
-              ? 'Add the selected check'
-              : 'Choose a check from the list first'
-          }
-          onClick={() => {
-            if (!newConditionType) return
-            appendCondition(newConditionType)
-            setNewConditionType(NEW_CONDITION_NONE)
-          }}
+          className={btn}
+          title="Browse the check catalog"
+          onClick={() => setPickerOpen(true)}
         >
           <Plus size={13} />
           Add check
         </button>
       </div>
+      {pickerOpen && (
+        <CatalogPicker
+          kind="condition"
+          title="Add check — extra requirement"
+          subtitle="The rule only fires when every check passes."
+          searchPlaceholder="Search checks… (variable, key, distance)"
+          types={conditionTypes}
+          recommendedTypes={recommendedConditions}
+          onPick={(t) => {
+            appendCondition(t as LogicCondition['type'])
+            setPickerOpen(false)
+          }}
+          onClose={() => setPickerOpen(false)}
+        />
+      )}
     </div>
   )
 }
@@ -662,9 +647,6 @@ export default function EventEditor({
   useEffect(() => {
     setAdvancedConditions(event.conditionRoot != null)
   }, [event.id, event.conditionRoot])
-  const [newActionType, setNewActionType] = useState<NewActionPick>(NEW_ACTION_NONE)
-  const [newElseActionType, setNewElseActionType] =
-    useState<NewActionPick>(NEW_ACTION_NONE)
   const recommendedTypes = recommendedTypesForTrigger(
     recommendedActionTypes(project, board),
     event.trigger,
@@ -881,8 +863,6 @@ export default function EventEditor({
           contextSpritePath={contextSpritePath}
           ambiguousTargetSpritePaths={ambiguousTargetSpritePaths}
           recommendedTypes={recommendedTypes}
-          newActionType={newActionType}
-          setNewActionType={setNewActionType}
           emptyHint="Add at least one action."
           onChangeActions={(actions) =>
             onChange(commitEventUpdate(event, { actions }))
@@ -937,8 +917,6 @@ export default function EventEditor({
               contextSpritePath={contextSpritePath}
               ambiguousTargetSpritePaths={ambiguousTargetSpritePaths}
               recommendedTypes={recommendedTypes}
-              newActionType={newElseActionType}
-              setNewActionType={setNewElseActionType}
               emptyHint="Add at least one Else action."
               forElse
               onChangeActions={(elseActions) =>

@@ -1,0 +1,108 @@
+// ---------------------------------------------------------------------------
+// One-line catalog descriptions — shown under each entry in CatalogPicker.
+// Plain language, no engine jargon; complements names.ts display names.
+// ---------------------------------------------------------------------------
+
+import type {
+  LogicActionType,
+  LogicCondition,
+  LogicTriggerType,
+} from '../../../types/logic-board'
+import type { ComponentKind } from '../../../utils/logic-board/schema-registry'
+
+const TRIGGER_DESCRIPTIONS: Record<LogicTriggerType, string> = {
+  onStart: 'Once, when the scene starts',
+  onSpawn: 'When an instance of this object is created',
+  onUpdate: 'Every frame while the game runs — use sparingly',
+  onCollision: 'Every frame while two objects overlap',
+  onCollisionEnter: 'Once, when two objects begin touching',
+  onCollisionExit: 'Once, when two objects stop touching',
+  onTriggerEnter: 'When the object crosses into a trigger zone',
+  onTriggerExit: 'When the object leaves a trigger zone',
+  onAnimationEnd: 'When the current clip reaches its last frame',
+  onDestroy: 'When an instance of this object is removed',
+  onInput: 'When the player presses, holds or releases a key',
+  onMouseInput: 'Click, press or release anywhere in the game',
+  onObjectClick: 'When the player clicks this object',
+  onObjectHoverEnter: 'When the pointer moves onto this object',
+  onObjectHoverExit: 'When the pointer moves off this object',
+  onMessage: 'When another rule broadcasts this message',
+  onTimer: 'Every N seconds, or once after a delay',
+}
+
+const CONDITION_DESCRIPTIONS: Record<LogicCondition['type'], string> = {
+  compareVariable: 'Compare a variable against a value',
+  compareClass: 'The object is touching an object of a given type',
+  isKeyDown: 'A key is currently held down',
+  hasTag: 'The object has a given tag',
+  compareDistance: 'Distance between two objects vs a value',
+  isMouseOver: 'The pointer is near this object',
+  raycastHit: 'A clear straight line exists to the target',
+  chance: 'Passes randomly with the given probability',
+  isSpaceFree: 'No solid object occupies the area',
+  compareHealth: "Compare the object's health against a value",
+  isPlatformerGrounded: 'The platformer body is standing on ground',
+}
+
+const ACTION_DESCRIPTIONS: Record<LogicActionType, string> = {
+  setVariable: 'Set a variable to a value',
+  addVariable: 'Add an amount to a variable',
+  setPosition: 'Teleport the object to x, y',
+  setVelocity: 'Set horizontal and vertical speed',
+  playSound: 'Play a one-shot sound effect',
+  playMusic: 'Start a music track',
+  stopAllAudio: 'Stop every sound and music',
+  stopMusic: 'Stop the music track',
+  pauseMusic: 'Pause the music track',
+  resumeMusic: 'Resume the paused music',
+  destroyEntity: 'Remove the object from the scene',
+  clickToDestroy: 'Destroy the object when clicked',
+  spawnEntity: 'Create a new object instance',
+  spawnEntityAtPointer: 'Create an object at the mouse position',
+  moveInDirection: 'Move at an angle and speed',
+  controllerMovement: 'Read input and move every frame',
+  moveController: 'Begin controller-driven movement',
+  clearMovementIntent: 'Stop controller-driven movement',
+  requestPlatformerJump: 'Jump if the body is grounded',
+  damageEntity: 'Subtract health from the object',
+  healEntity: 'Restore health to the object',
+  setEntityHealth: 'Set health to an exact value',
+  setLinearMoverDirection: 'Change the linear mover direction',
+  setLinearMoverSpeed: 'Change the linear mover speed',
+  pauseLinearMover: 'Pause the linear mover',
+  resumeLinearMover: 'Resume the linear mover',
+  setMagnetEnabled: 'Turn the magnet component on or off',
+  setMagnetTargetTag: 'Change which tag the magnet attracts',
+  setHordeTargetClass: 'Change which object type the horde chases',
+  setHordeWeights: 'Tune the horde steering weights',
+  setAutoDestroyLifespan: 'Destroy the object after N seconds',
+  cancelAutoDestroy: 'Cancel a pending auto destroy',
+  emitEvent: 'Broadcast a message to other rules',
+  toggleLogicEvent: 'Enable or disable another rule',
+  applyImpulse: 'One-time physics push (jump, knockback)',
+  applyForce: 'Continuous physics push while active',
+  setRotation: 'Set the rotation angle',
+  setScale: 'Set the size multiplier',
+  playAnimation: 'Play an animation clip',
+  setFlip: 'Mirror the sprite horizontally or vertically',
+  setVisible: 'Show or hide the sprite',
+  setColorTint: 'Tint the sprite with a color',
+  loadScene: 'Switch to another scene',
+  restartScene: 'Reload the current scene',
+  setCameraTarget: 'Make the camera follow an object',
+  cameraShake: 'Shake the camera briefly',
+  debugLog: 'Print a message to the console',
+  wait: 'Pause this rule for N seconds',
+  repeatTimes: 'Run the next actions N times',
+  moveByOffset: 'Nudge the object by pixels',
+  snapToGrid: 'Align the object to the grid',
+  setEntityShader: 'Apply a visual effect to this object',
+  setScreenShader: 'Apply a full-screen visual effect',
+  startDialog: 'Open a dialog conversation',
+}
+
+export function typeDescription(kind: ComponentKind, type: string): string | undefined {
+  if (kind === 'trigger') return TRIGGER_DESCRIPTIONS[type as LogicTriggerType]
+  if (kind === 'action') return ACTION_DESCRIPTIONS[type as LogicActionType]
+  return CONDITION_DESCRIPTIONS[type as LogicCondition['type']]
+}

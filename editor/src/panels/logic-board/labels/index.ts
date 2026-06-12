@@ -1,4 +1,5 @@
 export * from './names'
+export * from './descriptions'
 export * from './categories'
 export * from './fields'
 export * from './board-labels'

@@ -6,7 +6,7 @@ import type {
 
 const TRIGGER_NAMES: Record<LogicTriggerType, string> = {
   onStart: 'Game starts',
-  onSpawn: 'Create()',
+  onSpawn: 'Object is created',
   onUpdate: 'Every frame',
   onCollision: 'While touching object',
   onCollisionEnter: 'Starts touching object',
@@ -14,7 +14,7 @@ const TRIGGER_NAMES: Record<LogicTriggerType, string> = {
   onTriggerEnter: 'Enters trigger zone',
   onTriggerExit: 'Leaves trigger zone',
   onAnimationEnd: 'Animation finishes',
-  onDestroy: 'Destroy()',
+  onDestroy: 'Object is destroyed',
   onInput: 'Keyboard key',
   onMouseInput: 'Mouse button',
   onObjectClick: 'Object clicked',
