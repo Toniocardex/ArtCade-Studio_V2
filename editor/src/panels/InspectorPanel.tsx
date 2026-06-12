@@ -90,8 +90,8 @@ export default function InspectorPanel() {
         )}
 
         {mode === 'entity' && !entity && (
-          <div className="py-8 flex items-center justify-center opacity-20">
-            <span className="text-[10px] uppercase tracking-widest">Nothing to inspect</span>
+          <div className="py-10 flex flex-col items-center gap-1.5 text-center px-4">
+            <span className="text-[11px] text-[var(--muted)]">Select an object in the scene to inspect its properties.</span>
           </div>
         )}
 
@@ -101,8 +101,8 @@ export default function InspectorPanel() {
             {project && <WorldSettingsSection />}
             {project && <WorldDebugTimeSection />}
             {!project && (
-              <div className="py-8 flex items-center justify-center opacity-20">
-                <span className="text-[10px] uppercase tracking-widest">No project</span>
+              <div className="py-10 flex flex-col items-center gap-1.5 text-center px-4">
+                <span className="text-[11px] text-[var(--muted)]">No project loaded.</span>
               </div>
             )}
           </>

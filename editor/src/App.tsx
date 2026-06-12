@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState, type CSSProperties, type RefObject } from 'react'
+import { PanelErrorBoundary } from './components/PanelErrorBoundary'
 import { EditorProvider, useEditorDispatch, useEditorSelector, useEditorStore } from './store/editor-store'
 import MenuBar            from './components/MenuBar'
 import StatusBar          from './components/StatusBar'
@@ -218,9 +219,9 @@ function EditorShell({ workspaceRef }: Readonly<{ workspaceRef: RefObject<HTMLDi
           className="editor-workspace flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden"
         >
           <div className="flex flex-1 min-h-0 min-w-0 overflow-hidden">
-            {mode === 'canvas' && <CanvasView />}
-            {mode === 'logic' && <LogicBoardView />}
-            {mode === 'script' && <ScriptEditorView />}
+            {mode === 'canvas' && <PanelErrorBoundary label="Canvas"><CanvasView /></PanelErrorBoundary>}
+            {mode === 'logic' && <PanelErrorBoundary label="Logic Board"><LogicBoardView /></PanelErrorBoundary>}
+            {mode === 'script' && <PanelErrorBoundary label="Script Editor"><ScriptEditorView /></PanelErrorBoundary>}
           </div>
         </div>
       </EditorLayoutProvider>
