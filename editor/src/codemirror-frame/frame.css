@@ -17,10 +17,11 @@ body,
   min-height: 0;
 }
 
-/* @uiw/react-codemirror wraps the editor in .cm-theme - it must grow to fill
-   the flex container and shrink (min-height: 0) so CodeMirror can scroll
-   internally rather than expanding to fit all content. */
-.cm-theme {
+/* @uiw/react-codemirror wraps the editor in a div whose class depends on the
+   theme prop (.cm-theme, .cm-theme-none, .cm-theme-dark, ...) - it must grow
+   to fill the flex container and shrink (min-height: 0) so CodeMirror can
+   scroll internally rather than expanding to fit all content. */
+[class*='cm-theme'] {
   flex: 1;
   min-height: 0;
   overflow: hidden;
