@@ -13,5 +13,18 @@ export function valueSummary(value: LogicValue, project?: ProjectDoc | null): st
       return `random ${value.min} to ${value.max}`
     case 'entity':
       return `${targetDisplayLabel(value.target, project)} ${value.property}`
+    case 'component':
+      return `${targetDisplayLabel(value.target, project)} ${value.property}`
+    case 'expression': {
+      const operatorLabels = {
+        add: '+', subtract: '-', multiply: 'x', divide: '/', modulo: '%',
+        min: 'min', max: 'max', power: '^',
+      } as const
+      return value.operations.reduce(
+        (summary, operation) =>
+          `(${summary} ${operatorLabels[operation.operator]} ${valueSummary(operation.value, project)})`,
+        valueSummary(value.initial, project),
+      )
+    }
   }
 }

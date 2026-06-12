@@ -71,8 +71,14 @@ public:
      *  be called by the app driver AFTER physics->step + syncPhysics, so
      *  Lua callbacks fire on this frame's overlaps (no 1-frame lag). */
     void refreshSensorEdges();
-    /** Smooth-follow active CameraTargetComponent entities on the Renderer. */
+    /** Follow exactly one camera target. Automatic mode selects the lowest active id. */
     void tickCameraTargets(float dt);
+    /** Override CameraTargetComponent selection until stop/useAutomatic is called. */
+    bool followCameraTarget(EntityId id);
+    /** Disable automatic and explicit camera following without moving the camera. */
+    void stopCameraFollow();
+    /** Return to deterministic CameraTargetComponent selection. */
+    void useAutomaticCameraTarget();
     /** Count down AutoDestroy lifespans and queue destroys (call before flush). */
     void tickAutoDestroy(float dt);
     void flushEntityQueues();
@@ -162,6 +168,14 @@ private:
     void tickHordeMembers(float dt);
     void tickHealthCooldowns(float dt);
     void tickSensorOverlapEdges();
+
+    enum class CameraFollowMode {
+        Automatic,
+        Explicit,
+        Disabled,
+    };
+    CameraFollowMode cameraFollowMode_ = CameraFollowMode::Automatic;
+    EntityId cameraFollowTarget_ = INVALID_ENTITY;
 
     Modules::Renderer* renderer_ = nullptr;
 };

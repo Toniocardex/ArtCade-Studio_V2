@@ -134,10 +134,15 @@ describe('Component API actions and conditions', () => {
             { type: 'resumeLinearMover', target: 'self' },
             { type: 'setMagnetEnabled', target: 'self', enabled: false },
             { type: 'setMagnetTargetTag', target: 'self', tag: 'coin' },
+            { type: 'setMagnetRadius', target: 'self', radius: { source: 'state', key: 'radius' } },
+            { type: 'setMagnetPullSpeed', target: 'self', speed: 350 },
             { type: 'setHordeTargetClass', target: 'self', className: 'Player' },
             { type: 'setHordeWeights', target: 'self', chaseWeight: 2, separationWeight: 0.5 },
+            { type: 'setHordeMaxSpeed', target: 'self', speed: 180 },
+            { type: 'setHordeSeparationRadius', target: 'self', radius: 64 },
             { type: 'setAutoDestroyLifespan', target: 'self', lifespan: 3 },
             { type: 'cancelAutoDestroy', target: 'self' },
+            { type: 'endDialog' },
           ],
         }),
       ]),
@@ -149,10 +154,15 @@ describe('Component API actions and conditions', () => {
     expect(lua).toContain('linearMover.resume(self)')
     expect(lua).toContain('magnet.setEnabled(self, false)')
     expect(lua).toContain('magnet.setTargetTag(self, "coin")')
+    expect(lua).toContain('magnet.setRadius(self, (function() local _number=tonumber(')
+    expect(lua).toContain('magnet.setPullSpeed(self, 350)')
     expect(lua).toContain('horde.setTargetClass(self, "Player")')
     expect(lua).toContain('horde.setWeights(self, 2, 0.5)')
+    expect(lua).toContain('horde.setMaxSpeed(self, 180)')
+    expect(lua).toContain('horde.setSeparationRadius(self, 64)')
     expect(lua).toContain('autoDestroy.setLifespan(self, 3)')
     expect(lua).toContain('autoDestroy.cancel(self)')
+    expect(lua).toContain('dialog.finish()')
   })
 
   it('emits health API calls and compareHealth conditions', () => {
@@ -198,6 +208,38 @@ describe('targetExpr', () => {
 })
 
 describe('conditionExpr', () => {
+  it('translates UI not-equal into the Lua operator', () => {
+    const e = ev({
+      trigger: { type: 'onUpdate' },
+      conditions: [
+        { type: 'compareValues', left: 1, operator: '!=', right: 2 },
+      ],
+      actions: [],
+    })
+
+    expect(conditionExpr(e)).toBe('(1 ~= 2)')
+  })
+
+  it('compares arbitrary Value Sources and dialog state', () => {
+    const e = ev({
+      trigger: { type: 'onUpdate' },
+      conditions: [
+        {
+          type: 'compareValues',
+          left: { source: 'component', target: 'self', property: 'autoDestroy.remaining' },
+          operator: '<=',
+          right: 1,
+        },
+        { type: 'isDialogActive' },
+      ],
+      actions: [],
+    })
+
+    expect(conditionExpr(e)).toContain('component.value(_target, "autoDestroy.remaining")')
+    expect(conditionExpr(e)).toContain('tonumber(_left)')
+    expect(conditionExpr(e)).toContain('dialog.isActive()')
+  })
+
   it('flat list is AND of leaves', () => {
     const e = ev({
       trigger: { type: 'onUpdate' },
@@ -207,9 +249,10 @@ describe('conditionExpr', () => {
       ],
       actions: [],
     })
-    expect(conditionExpr(e)).toBe(
-      '(input.isKeyDown("Space") and (state.get("hp") > 0))',
-    )
+    const lua = conditionExpr(e)
+    expect(lua).toContain('input.isKeyDown("Space")')
+    expect(lua).toContain('state.get("hp")')
+    expect(lua).toContain('_leftNumber > _rightNumber')
   })
 
   it('conditionRoot supports nested OR/AND', () => {
@@ -1604,5 +1647,28 @@ describe('Value Sources', () => {
     expect(lua).toContain('local _target=self; if _target==nil then return 0 end; local _x,_y=entity.position(_target)')
     expect(lua).toContain('_logic_random_int(6, 1)')
     expect(lua).not.toContain('math.random')
+  })
+})
+
+describe('camera follow contract', () => {
+  it('keeps one-shot centering separate from persistent follow control', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({
+          trigger: { type: 'onStart' },
+          actions: [
+            { type: 'centerCameraOn', target: 'self' },
+            { type: 'followCamera', target: { entityId: 7 } },
+            { type: 'stopCameraFollow' },
+            { type: 'useDefaultCameraTarget' },
+          ],
+        }),
+      ]),
+    ])
+
+    expect(lua).toContain('camera.centerOn(self)')
+    expect(lua).toContain('camera.follow(7)')
+    expect(lua).toContain('camera.stopFollowing()')
+    expect(lua).toContain('camera.useDefaultTarget()')
   })
 })

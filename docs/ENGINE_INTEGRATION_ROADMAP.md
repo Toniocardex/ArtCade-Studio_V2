@@ -9,7 +9,7 @@ prima di proseguire, cosi il contesto non dipende dalla chat.
 **Correlato:** esposizione API Component nella Logic Board →
 `docs/LOGIC_BOARD_COMPONENT_API_ROADMAP.md`.
 
-**Ultimo allineamento:** `main` @ `20c473d` (2026-05-21).
+**Ultimo allineamento:** working tree 2026-06-12.
 
 ## Obiettivo
 
@@ -94,6 +94,10 @@ Direzione scelta:
 
 ### Prossimo step consigliato
 
+Consolidamento 2026-06-12 completato: Value Source con espressioni e letture
+Component, azioni Magnet/Horde complete, Dialog end/isActive, capability su
+Object Type e Camera Target deterministico con override/stop/resume.
+
 Runtime integration Tranche 1–10 + Solid completate.
 
 **Linea attiva:** Logic Board Component API **Tranche 3** (UI guidata:
@@ -103,8 +107,8 @@ Recommended / Component APIs / Advanced) — vedi
 Follow-up opzionali runtime:
 
 - sensor picker Logic Board UI (miglioramenti);
-- catalogo Component Core rimanenti: `OneWayPlatform`, `DamageDealer`,
-  `Collectible`, `Spawner`;
+- progettazione `SpawnerComponent` come prossimo Component continuo;
+- `DamageDealer` solo dopo un contratto overlap/cooldown per-target;
 - Advanced: `ProceduralJuiceComponent`, `GrapplingHookComponent`.
 
 ### Catalogo Component Target
@@ -134,7 +138,8 @@ Core MVP target:
   registry/gateway, sistema World con movimento transform/physics e test.
 - `CameraTargetComponent`: target camera 2D con offset, smoothing e bounds.
   **Integrato end-to-end**: Inspector, ProjectDoc, parser native/WASM,
-  registry/gateway, `World::tickCameraTargets` → Renderer, test gateway.
+  registry/gateway, selezione automatica deterministica (ID attivo piu basso),
+  override/stop/resume e test `world_intent_test`.
 - `HealthComponent`: HP + i-frames (storage EnTT + cooldown in World).
   **Integrato end-to-end**: Inspector, parser, gateway, `entity.health` /
   `entity.setHealth` / `entity.damage`, `World::tickHealthCooldowns`,
@@ -160,10 +165,11 @@ Advanced target:
 
 Ordine consigliato: completare i Core mancanti prima degli Advanced, salvo
 necessita demo specifiche. **Catalogo Core MVP runtime integrato:** Platformer,
-TopDown, Solid, LinearMover, CameraTarget, Health, AutoDestroy. **Advanced
-integrati:** MagneticItem, HordeMember. **Core ancora da progettare:**
-`OneWayPlatformComponent`, `DamageDealerComponent`, `CollectibleComponent`,
-`SpawnerComponent`. **Advanced prossimi:** ProceduralJuice, GrapplingHook.
+TopDown, Solid (incluso `surfaceKind: oneWay`), LinearMover, CameraTarget,
+Health, AutoDestroy. **Advanced integrati:** MagneticItem, HordeMember.
+`Collectible` resta una recipe Sensor + Logic Board; `DamageDealer` richiede
+prima overlap/cooldown per-target; `SpawnerComponent` e il prossimo candidato
+Core da progettare. **Advanced prossimi:** ProceduralJuice, GrapplingHook.
 
 ### Verifiche Ultima Tranche
 
@@ -543,6 +549,25 @@ Exit criteria:
 - Build C++ native + WASM.
 - `ctest`: tutti i test verdi (inclusi nuovi casi world-intent).
 - `npm.cmd test` e `npm.cmd run build` in `editor`.
+
+## Tranche 15 - Value Sources, Component Reads E Camera Contract
+
+Stato: completata (2026-06-12).
+
+- Logic Board: Value Source da state/message/entity/Component/random ed
+  espressioni numeriche deterministiche; nuova condizione `compareValues`.
+- Runtime Lua: `component.value`; setter completi per Magnet/Horde; Dialog
+  `finish`/`isActive`.
+- Camera: selezione automatica stabile, override esplicito e stop/ripristino;
+  center one-shot separato dal follow persistente.
+- Editor: capability risolte dagli Object Type anche senza istanze, warning per
+  autorita di movimento multiple e Camera Target multipli.
+
+Validazione:
+
+- Editor: `848/848` test, lint e build Vite verdi.
+- Runtime native: `26/26` test C++ e build Release verde.
+- Preview: build WASM e copia del bundle in `editor/public/runtime` verdi.
 
 ## Checklist Da Eseguire A Ogni Tranche
 

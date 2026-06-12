@@ -71,6 +71,8 @@ describe('schema-registry', () => {
     expect(ACTION_TYPES).not.toContain('clearMovementIntent')
     expect(ACTION_TYPES).not.toContain('setCameraTarget')
     expect(ACTION_TYPES).toContain('centerCameraOn')
+    expect(ACTION_TYPES).toContain('followCamera')
+    expect(ACTION_TYPES).toContain('stopCameraFollow')
     expect(CONDITION_TYPES).not.toContain('isSpaceFree')
     expect(CONDITION_TYPES).toContain('isTileAreaFree')
 
@@ -90,6 +92,19 @@ describe('schema-registry', () => {
       key: 'score',
       operator: '>=',
       value: { source: 'message', key: 'minimum', fallback: 0 },
+    }).valid).toBe(true)
+    expect(validateCondition({
+      type: 'compareValues',
+      left: {
+        source: 'expression',
+        initial: { source: 'entity', target: 'self', property: 'healthCurrent' },
+        operations: [
+          { operator: 'divide', value: { source: 'entity', target: 'self', property: 'healthMax' } },
+          { operator: 'multiply', value: 100 },
+        ],
+      },
+      operator: '<=',
+      right: 25,
     }).valid).toBe(true)
   })
 
@@ -129,6 +144,13 @@ describe('schema-registry', () => {
   it('rejects unknown action type', () => {
     const r = validateAction({ type: 'notReal', foo: 1 })
     expect(r.valid).toBe(false)
+  })
+
+  it('reports only the selected schema branch for invalid known actions', () => {
+    const r = validateAction({ type: 'setLinearMoverSpeed', target: 'self' })
+    expect(r.valid).toBe(false)
+    expect(r.errors.some((error) => error.message.includes('speed'))).toBe(true)
+    expect(r.errors.length).toBeLessThan(6)
   })
 
   it('validates nested conditionRoot OR/AND', () => {

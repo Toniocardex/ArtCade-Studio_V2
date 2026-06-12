@@ -14,7 +14,7 @@ Component dentro la Logic Board.
 Principio UI/prodotto per questi componenti →
 `docs/ARTIST_FRIENDLY_COMPONENTS.md`.
 
-**Ultimo allineamento:** `main` @ `20c473d` (2026-05-21).
+**Ultimo allineamento:** working tree 2026-06-12.
 
 ## Regola Architetturale
 
@@ -41,12 +41,13 @@ Principio UI/prodotto per questi componenti →
 | PlatformerControllerComponent | Move left/right, stop horizontal movement, jump | Tranche 1 |
 | SensorComponent | Trigger enter/exit su tag target | Gia disponibile |
 | HealthComponent | Damage, heal, set health, compare health | Tranche 1 |
-| CameraTargetComponent | Camera follows target | Gia disponibile come action generica |
+| CameraTargetComponent | Follow automatico deterministico, override, stop/ripristino | Integrato |
 | LinearMoverComponent | Set direction/speed, pause/resume mover | Tranche 2 |
-| MagneticItemComponent | Enable/disable magnet, set target tag/radius/speed | Tranche 2 |
-| HordeMemberComponent | Set target class, set chase/separation weights | Tranche 2 |
+| MagneticItemComponent | Enable/disable, target tag, radius, pull speed | Integrato |
+| HordeMemberComponent | Target class, speed, separation radius e pesi | Integrato |
 | AutoDestroyComponent | Set/cancel lifespan | Tranche 2 |
 | SolidComponent | Ground class per `isGrounded` (runtime); nessun blocco LB MVP | Nessuna azione Tranche 1; `platformer.isGrounded` in Tranche 2 |
+| DialogComponent / DialogManager | Start by ID, end active dialog, is active | Integrato |
 
 ## Tranche 1 - Capability Registry + API Esistenti
 
@@ -92,10 +93,48 @@ Completato (runtime C++ + editor):
 API esposte:
 
 - `linearMover.setDirection`, `linearMover.setSpeed`, `linearMover.pause`, `linearMover.resume`
-- `magnet.setEnabled`, `magnet.setTargetTag`
-- `horde.setTargetClass`, `horde.setWeights`
+- `magnet.setEnabled`, `magnet.setTargetTag`, `magnet.setRadius`, `magnet.setPullSpeed`
+- `horde.setTargetClass`, `horde.setWeights`, `horde.setMaxSpeed`, `horde.setSeparationRadius`
 - `autoDestroy.setLifespan`, `autoDestroy.cancel`
 - `platformer.isGrounded`
+
+## Tranche 2A - Value Sources Ed Espressioni
+
+Stato: completata (2026-06-12).
+
+- `LogicValue` supporta literal, state, message, entity, proprieta Component e
+  random deterministico.
+- Le espressioni numeriche sono catene esplicite valutate da sinistra a destra:
+  add, subtract, multiply, divide, modulo, min, max e power.
+- Divisione e modulo per zero restituiscono `0`, senza eccezioni o `NaN`.
+- `compareValues` confronta due Value Source arbitrarie.
+- Le azioni numeriche dei Component usano Value Source, non solo literal.
+- `component.value(entityId, property)` espone letture read-only con fallback
+  gestito dal compilatore.
+
+## Tranche 2B - Contratto Camera E Dialog
+
+Stato: completata (2026-06-12).
+
+- Un solo Camera Target viene applicato per frame; in automatico vince l'ID
+  attivo piu basso.
+- `centerCameraOn` resta one-shot.
+- `followCamera`, `stopCameraFollow`, `useDefaultCameraTarget` controllano il
+  follow persistente senza sovraccaricare il significato di Center.
+- Dialog espone `endDialog` e `isDialogActive`; Start dichiara esplicitamente
+  che apre un dialog graph per ID.
+
+## Decisione Sui Prossimi Component Core
+
+- `OneWayPlatformComponent`: non aggiungerlo; e gia rappresentato da
+  `SolidComponent.surfaceKind = oneWay`.
+- `CollectibleComponent`: per ora preset/authoring recipe Sensor + Logic Board,
+  non nuovo stato runtime.
+- `DamageDealerComponent`: rimandato finche il contratto sensor supporta overlap
+  per-target e cooldown senza ambiguita.
+- `SpawnerComponent`: prossimo candidato reale, ma solo dopo aver fissato campi
+  minimi (`objectType`, intervallo, limite attivo, punto/offset, enabled) e
+  semantica deterministica.
 
 ## Tranche 3 - UI Logic Board Piu Guidata
 
@@ -149,6 +188,8 @@ Obiettivi:
 | --- | --- | --- |
 | 1 — Capability registry + API esistenti | Completata | `20c473d` |
 | 2 — API runtime mancanti | Completata | (commit Tranche 2) |
+| 2A — Value Sources ed espressioni | Completata | working tree 2026-06-12 |
+| 2B — Camera e Dialog contract | Completata | working tree 2026-06-12 |
 | 3 — UI guidata | Da fare | — |
 
 Runtime prerequisiti (gia in `main` prima della Tranche 1 editor):

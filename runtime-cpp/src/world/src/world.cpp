@@ -30,6 +30,10 @@ void World::forgetEntity(EntityId id) {
     topDownRt_.erase(id);
     controlIntents_.erase(id);
     sensorWasOverlapping_.erase(id);
+    if (cameraFollowMode_ == CameraFollowMode::Explicit
+        && cameraFollowTarget_ == id) {
+        useAutomaticCameraTarget();
+    }
 }
 
 void World::clearGameplayRuntimeState() {
@@ -38,6 +42,7 @@ void World::clearGameplayRuntimeState() {
     controlIntents_.clear();
     sensorWasOverlapping_.clear();
     sensorEdgeBuffer_.clear();
+    useAutomaticCameraTarget();
 }
 
 void World::applyTilePalette(const std::vector<TilePaletteEntry>& tilePalette) {
@@ -66,6 +71,7 @@ void World::restoreDesignState(const std::vector<TilePaletteEntry>& tilePalette)
 }
 
 void World::init(const ProjectDoc& doc) {
+    clearGameplayRuntimeState();
     entityGateway_.setPhysics(&physics_);
     const std::unordered_map<std::string, EntityDef>* typesPtr =
         doc.objectTypes.empty() ? nullptr : &doc.objectTypes;
@@ -86,11 +92,7 @@ void World::shutdown() {
 
     clearTilemapPhysics();
     variables_.clear();
-    platformerRt_.clear();
-    topDownRt_.clear();
-    controlIntents_.clear();
-    sensorWasOverlapping_.clear();
-    sensorEdgeBuffer_.clear();
+    clearGameplayRuntimeState();
     activeTilemap_ = TilemapData{};
     tileMeta_.clear();
 }
@@ -153,6 +155,25 @@ std::vector<EntityId> World::activeEntityIds() const {
 
 void World::setRenderer(Modules::Renderer* renderer) {
     renderer_ = renderer;
+}
+
+bool World::followCameraTarget(EntityId id) {
+    Transform transform{};
+    if (id == INVALID_ENTITY || !entityGateway_.getTransform(id, transform))
+        return false;
+    cameraFollowMode_ = CameraFollowMode::Explicit;
+    cameraFollowTarget_ = id;
+    return true;
+}
+
+void World::stopCameraFollow() {
+    cameraFollowMode_ = CameraFollowMode::Disabled;
+    cameraFollowTarget_ = INVALID_ENTITY;
+}
+
+void World::useAutomaticCameraTarget() {
+    cameraFollowMode_ = CameraFollowMode::Automatic;
+    cameraFollowTarget_ = INVALID_ENTITY;
 }
 
 void World::tickGameplaySystems(float dt) {

@@ -26,17 +26,80 @@ export type TargetSelector =
 
 export type LogicPrimitive = number | string | boolean
 
-export type LogicValueSource =
+export type LogicComponentValueProperty =
+  | 'platformer.maxSpeed'
+  | 'platformer.jumpForce'
+  | 'platformer.customGravity'
+  | 'platformer.coyoteTime'
+  | 'platformer.jumpBuffer'
+  | 'platformer.grounded'
+  | 'topDown.maxSpeed'
+  | 'topDown.acceleration'
+  | 'topDown.friction'
+  | 'topDown.fourDirections'
+  | 'linearMover.directionX'
+  | 'linearMover.directionY'
+  | 'linearMover.speed'
+  | 'linearMover.paused'
+  | 'cameraTarget.offsetX'
+  | 'cameraTarget.offsetY'
+  | 'cameraTarget.followSpeed'
+  | 'magnet.enabled'
+  | 'magnet.attractTag'
+  | 'magnet.radius'
+  | 'magnet.pullSpeed'
+  | 'horde.targetClass'
+  | 'horde.maxSpeed'
+  | 'horde.separationRadius'
+  | 'horde.separationWeight'
+  | 'horde.chaseWeight'
+  | 'autoDestroy.lifespan'
+  | 'autoDestroy.elapsed'
+  | 'autoDestroy.remaining'
+  | 'sensor.targetTag'
+  | 'solid.groundClass'
+  | 'solid.surfaceKind'
+
+export type LogicValueAtom =
+  | LogicPrimitive
   | { source: 'state'; key: string; fallback?: LogicPrimitive }
   | {
       source: 'entity'
       target: TargetSelector
       property: 'positionX' | 'positionY' | 'velocityX' | 'velocityY' | 'speed' | 'healthCurrent' | 'healthMax'
     }
+  | {
+      source: 'component'
+      target: TargetSelector
+      property: LogicComponentValueProperty
+      fallback?: LogicPrimitive
+    }
   | { source: 'message'; key: string; fallback?: LogicPrimitive }
   | { source: 'random'; min: number; max: number }
 
-export type LogicValue = LogicPrimitive | LogicValueSource
+export type LogicExpressionOperator =
+  | 'add'
+  | 'subtract'
+  | 'multiply'
+  | 'divide'
+  | 'modulo'
+  | 'min'
+  | 'max'
+  | 'power'
+
+export interface LogicExpressionOperation {
+  operator: LogicExpressionOperator
+  value: LogicValueAtom
+}
+
+export interface LogicExpression {
+  source: 'expression'
+  initial: LogicValueAtom
+  operations: LogicExpressionOperation[]
+}
+
+export type LogicValueSource = Exclude<LogicValueAtom, LogicPrimitive> | LogicExpression
+export type LogicValue = LogicValueAtom | LogicExpression
 
 // ---------------------------------------------------------------------------
 // Triggers — WHEN the event is evaluated
@@ -84,6 +147,7 @@ export type LogicConditionNegation = { negated?: boolean }
 export type LogicCondition =
   | { type: 'compareClass'; className: string }                     // collision.touchingClass
   | { type: 'compareVariable'; key: string; operator: ComparisonOp; value: LogicValue }
+  | { type: 'compareValues'; left: LogicValue; operator: ComparisonOp; right: LogicValue }
   | { type: 'isKeyDown'; keyCode: string }                          // input.isKeyDown
   | { type: 'hasTag'; tag: string }                                 // self has object tag
   | { type: 'compareDistance'; target: TargetSelector; operator: ComparisonOp; value: number }
@@ -99,6 +163,7 @@ export type LogicCondition =
   | { type: 'compareVelocity'; target: TargetSelector; axis: 'x' | 'y' | 'magnitude'; operator: ComparisonOp; value: LogicValue }
   | { type: 'comparePosition'; target: TargetSelector; axis: 'x' | 'y'; operator: ComparisonOp; value: LogicValue }
   | { type: 'saveExists'; slot: string }                                                   // save.exists
+  | { type: 'isDialogActive' }
 
 /**
  * Boolean tree for AND/OR/nested conditions (docs/LOGIC_BOARD_CONDITIONAL_DESIGN.md).
@@ -157,18 +222,23 @@ export type LogicAction =
   | { type: 'damageEntity'; target: TargetSelector; amount: LogicValue }
   | { type: 'healEntity'; target: TargetSelector; amount: LogicValue }
   | { type: 'setEntityHealth'; target: TargetSelector; currentHp: LogicValue; maxHp?: LogicValue }
-  | { type: 'setLinearMoverDirection'; target: TargetSelector; directionX: number; directionY: number }
-  | { type: 'setLinearMoverSpeed'; target: TargetSelector; speed: number }
+  | { type: 'setLinearMoverDirection'; target: TargetSelector; directionX: LogicValue; directionY: LogicValue }
+  | { type: 'setLinearMoverSpeed'; target: TargetSelector; speed: LogicValue }
   | { type: 'pauseLinearMover'; target: TargetSelector }
   | { type: 'resumeLinearMover'; target: TargetSelector }
   | { type: 'setMagnetEnabled'; target: TargetSelector; enabled: boolean }
   | { type: 'setMagnetTargetTag'; target: TargetSelector; tag: string }
+  | { type: 'setMagnetRadius'; target: TargetSelector; radius: LogicValue }
+  | { type: 'setMagnetPullSpeed'; target: TargetSelector; speed: LogicValue }
   | { type: 'setHordeTargetClass'; target: TargetSelector; className: string }
-  | { type: 'setHordeWeights'; target: TargetSelector; chaseWeight: number; separationWeight: number }
-  | { type: 'setAutoDestroyLifespan'; target: TargetSelector; lifespan: number }
+  | { type: 'setHordeWeights'; target: TargetSelector; chaseWeight: LogicValue; separationWeight: LogicValue }
+  | { type: 'setHordeMaxSpeed'; target: TargetSelector; speed: LogicValue }
+  | { type: 'setHordeSeparationRadius'; target: TargetSelector; radius: LogicValue }
+  | { type: 'setAutoDestroyLifespan'; target: TargetSelector; lifespan: LogicValue }
   | { type: 'cancelAutoDestroy'; target: TargetSelector }
   | { type: 'emitEvent'; name: string; payloadKey?: string; payloadValue?: number | string | boolean }
   | { type: 'startDialog'; target: TargetSelector; dialogId: string }
+  | { type: 'endDialog' }
   | { type: 'toggleLogicEvent'; eventId: string; enabled: boolean }
   | { type: 'applyImpulse'; target: TargetSelector; ix: number; iy: number }
   | { type: 'applyForce'; target: TargetSelector; fx: number; fy: number }
@@ -181,6 +251,9 @@ export type LogicAction =
   | { type: 'loadScene'; sceneName: string; fadeSeconds?: number }
   | { type: 'restartScene' }
   | { type: 'centerCameraOn'; target: TargetSelector }
+  | { type: 'followCamera'; target: TargetSelector }
+  | { type: 'stopCameraFollow' }
+  | { type: 'useDefaultCameraTarget' }
   | { type: 'setCameraTarget'; target: TargetSelector }
   | { type: 'cameraShake'; trauma: number; durationSeconds?: number }
   | { type: 'debugLog'; message: string }

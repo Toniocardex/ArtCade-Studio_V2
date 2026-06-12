@@ -180,9 +180,9 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
         ? `entity.setHealth(${target(a.target)}, ${numberSourceExpr(a.currentHp, project)}, ${numberSourceExpr(a.maxHp, project)})`
         : `entity.setHealth(${target(a.target)}, ${numberSourceExpr(a.currentHp, project)})`
     case 'setLinearMoverDirection':
-      return `linearMover.setDirection(${target(a.target)}, ${Number(a.directionX) || 0}, ${Number(a.directionY) || 0})`
+      return `linearMover.setDirection(${target(a.target)}, ${numberSourceExpr(a.directionX, project)}, ${numberSourceExpr(a.directionY, project)})`
     case 'setLinearMoverSpeed':
-      return `linearMover.setSpeed(${target(a.target)}, ${Number(a.speed) || 0})`
+      return `linearMover.setSpeed(${target(a.target)}, ${numberSourceExpr(a.speed, project)})`
     case 'pauseLinearMover':
       return `linearMover.pause(${target(a.target)})`
     case 'resumeLinearMover':
@@ -191,12 +191,20 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
       return `magnet.setEnabled(${target(a.target)}, ${a.enabled ? 'true' : 'false'})`
     case 'setMagnetTargetTag':
       return `magnet.setTargetTag(${target(a.target)}, ${luaString(a.tag)})`
+    case 'setMagnetRadius':
+      return `magnet.setRadius(${target(a.target)}, ${numberSourceExpr(a.radius, project)})`
+    case 'setMagnetPullSpeed':
+      return `magnet.setPullSpeed(${target(a.target)}, ${numberSourceExpr(a.speed, project)})`
     case 'setHordeTargetClass':
       return `horde.setTargetClass(${target(a.target)}, ${luaString(a.className)})`
     case 'setHordeWeights':
-      return `horde.setWeights(${target(a.target)}, ${Number(a.chaseWeight) || 0}, ${Number(a.separationWeight) || 0})`
+      return `horde.setWeights(${target(a.target)}, ${numberSourceExpr(a.chaseWeight, project)}, ${numberSourceExpr(a.separationWeight, project)})`
+    case 'setHordeMaxSpeed':
+      return `horde.setMaxSpeed(${target(a.target)}, ${numberSourceExpr(a.speed, project)})`
+    case 'setHordeSeparationRadius':
+      return `horde.setSeparationRadius(${target(a.target)}, ${numberSourceExpr(a.radius, project)})`
     case 'setAutoDestroyLifespan':
-      return `autoDestroy.setLifespan(${target(a.target)}, ${Number(a.lifespan) || 0})`
+      return `autoDestroy.setLifespan(${target(a.target)}, ${numberSourceExpr(a.lifespan, project)})`
     case 'cancelAutoDestroy':
       return `autoDestroy.cancel(${target(a.target)})`
     case 'emitEvent':
@@ -205,6 +213,8 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
         : `event.emit(${luaString(a.name)})`
     case 'startDialog':
       return `dialog.start(${target(a.target)}, ${luaString(a.dialogId)})`
+    case 'endDialog':
+      return `dialog.finish()`
     case 'toggleLogicEvent':
       return `_logic_on[${ruleKeyExpr(a.eventId, ctx.eventSlugs)}] = ${a.enabled ? 'true' : 'false'}`
     case 'applyImpulse':
@@ -245,6 +255,12 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
     case 'centerCameraOn':
     case 'setCameraTarget':
       return `camera.centerOn(${target(a.target)})`
+    case 'followCamera':
+      return `camera.follow(${target(a.target)})`
+    case 'stopCameraFollow':
+      return `camera.stopFollowing()`
+    case 'useDefaultCameraTarget':
+      return `camera.useDefaultTarget()`
     case 'cameraShake':
       return `camera.shake(${traumaIntensity(a.trauma)}, ${shakeDurationSeconds(a.durationSeconds)})`
     case 'debugLog':

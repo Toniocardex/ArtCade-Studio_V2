@@ -1,4 +1,5 @@
 #include "../include/game-api.h"
+#include "component-value-api.h"
 #include "../../../world/include/world.h"
 #include "../../runtime-entity-gateway/include/runtime-entity-gateway.h"
 
@@ -22,6 +23,7 @@ World* world(const EngineContext& ctx) {
 
 void GameAPI::bindComponentAPI(sol::state& lua) {
     const EngineContext& ctx = ctx_;
+    bindComponentValueAPI(lua, ctx);
 
     lua.set_function("linearMover_setDirection",
         [ctx](EntityId id, float dx, float dy) -> bool {
@@ -74,6 +76,26 @@ void GameAPI::bindComponentAPI(sol::state& lua) {
             return gw->setMagneticItem(id, mag);
         });
 
+    lua.set_function("magnet_setRadius",
+        [ctx](EntityId id, float radius) -> bool {
+            auto* gw = gateway(ctx);
+            if (!gw) return false;
+            MagneticItemComponent magnet{};
+            if (!gw->getMagneticItem(id, magnet)) return false;
+            magnet.radius = std::max(0.f, radius);
+            return gw->setMagneticItem(id, magnet);
+        });
+
+    lua.set_function("magnet_setPullSpeed",
+        [ctx](EntityId id, float speed) -> bool {
+            auto* gw = gateway(ctx);
+            if (!gw) return false;
+            MagneticItemComponent magnet{};
+            if (!gw->getMagneticItem(id, magnet)) return false;
+            magnet.pullSpeed = std::max(0.f, speed);
+            return gw->setMagneticItem(id, magnet);
+        });
+
     lua.set_function("horde_setTargetClass",
         [ctx](EntityId id, const std::string& className) -> bool {
             auto* gw = gateway(ctx);
@@ -92,6 +114,26 @@ void GameAPI::bindComponentAPI(sol::state& lua) {
             if (!gw->getHordeMember(id, horde)) return false;
             horde.chaseWeight = std::max(0.f, chaseWeight);
             horde.separationWeight = std::max(0.f, separationWeight);
+            return gw->setHordeMember(id, horde);
+        });
+
+    lua.set_function("horde_setMaxSpeed",
+        [ctx](EntityId id, float speed) -> bool {
+            auto* gw = gateway(ctx);
+            if (!gw) return false;
+            HordeMemberComponent horde{};
+            if (!gw->getHordeMember(id, horde)) return false;
+            horde.maxSpeed = std::max(0.f, speed);
+            return gw->setHordeMember(id, horde);
+        });
+
+    lua.set_function("horde_setSeparationRadius",
+        [ctx](EntityId id, float radius) -> bool {
+            auto* gw = gateway(ctx);
+            if (!gw) return false;
+            HordeMemberComponent horde{};
+            if (!gw->getHordeMember(id, horde)) return false;
+            horde.separationRadius = std::max(0.f, radius);
             return gw->setHordeMember(id, horde);
         });
 
@@ -124,10 +166,15 @@ void GameAPI::bindComponentAPI(sol::state& lua) {
         });
 
     lua.script(R"(
+        component = component or {}
         linearMover = linearMover or {}
         magnet = magnet or {}
         horde = horde or {}
         autoDestroy = autoDestroy or {}
+
+        function component.value(entityId, property)
+            return component_value(entityId, property or "")
+        end
 
         function linearMover.setDirection(entityId, directionX, directionY)
             return linearMover_setDirection(entityId, directionX or 0, directionY or 0)
@@ -153,12 +200,28 @@ void GameAPI::bindComponentAPI(sol::state& lua) {
             return magnet_setTargetTag(entityId, tag or "")
         end
 
+        function magnet.setRadius(entityId, radius)
+            return magnet_setRadius(entityId, radius or 0)
+        end
+
+        function magnet.setPullSpeed(entityId, speed)
+            return magnet_setPullSpeed(entityId, speed or 0)
+        end
+
         function horde.setTargetClass(entityId, className)
             return horde_setTargetClass(entityId, className or "")
         end
 
         function horde.setWeights(entityId, chaseWeight, separationWeight)
             return horde_setWeights(entityId, chaseWeight or 0, separationWeight or 0)
+        end
+
+        function horde.setMaxSpeed(entityId, speed)
+            return horde_setMaxSpeed(entityId, speed or 0)
+        end
+
+        function horde.setSeparationRadius(entityId, radius)
+            return horde_setSeparationRadius(entityId, radius or 0)
         end
 
         function autoDestroy.setLifespan(entityId, lifespan)

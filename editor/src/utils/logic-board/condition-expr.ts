@@ -26,7 +26,14 @@ import { numberSourceExpr, valueSourceExpr } from './value-source'
  */
 const COMPARISON_OPS = new Set(['==', '~=', '<', '<=', '>', '>='])
 function safeOp(op: string): string {
+  if (op === '!=') return '~='
   return COMPARISON_OPS.has(op) ? op : '=='
+}
+
+function comparisonExpr(left: string, operator: string, right: string): string {
+  const op = safeOp(operator)
+  if (op === '==' || op === '~=') return `(${left} ${op} ${right})`
+  return `(function() local _left=${left}; local _right=${right}; local _leftNumber=tonumber(_left); local _rightNumber=tonumber(_right); if _leftNumber~=nil and _rightNumber~=nil then return (_leftNumber ${op} _rightNumber) end; if type(_left)~="string" or type(_right)~="string" then return false end; return (_left ${op} _right) end)()`
 }
 
 function leafExpr(c: LogicCondition, project?: ProjectDoc | null): string {
@@ -34,7 +41,17 @@ function leafExpr(c: LogicCondition, project?: ProjectDoc | null): string {
     case 'compareClass':
       return `collision.touchingClass(self, ${luaString(c.className)})`
     case 'compareVariable':
-      return `(state.get(${luaString(c.key)}) ${safeOp(c.operator)} ${valueSourceExpr(c.value, project)})`
+      return comparisonExpr(
+        `state.get(${luaString(c.key)})`,
+        c.operator,
+        valueSourceExpr(c.value, project),
+      )
+    case 'compareValues':
+      return comparisonExpr(
+        valueSourceExpr(c.left, project),
+        c.operator,
+        valueSourceExpr(c.right, project),
+      )
     case 'isKeyDown':
       return `input.isKeyDown(${luaString(c.keyCode)})`
     case 'hasTag':
@@ -87,6 +104,8 @@ function leafExpr(c: LogicCondition, project?: ProjectDoc | null): string {
     }
     case 'saveExists':
       return `save.exists(${luaString(c.slot || 'main')})`
+    case 'isDialogActive':
+      return `dialog.isActive()`
   }
 }
 

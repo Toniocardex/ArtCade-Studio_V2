@@ -18,6 +18,7 @@ add_library(artcade-game-api
     src/grid-api.cpp
     src/shader-api.cpp
     src/component-api.cpp
+    src/component-value-api.cpp
     src/dialog-api.cpp
 )
 target_include_directories(artcade-game-api

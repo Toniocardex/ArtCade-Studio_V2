@@ -1,49 +1,109 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "LogicValue",
-  "oneOf": [
-    { "type": "number" },
-    { "type": "string" },
-    { "type": "boolean" },
-    {
-      "type": "object",
-      "required": ["source", "key"],
-      "properties": {
-        "source": { "const": "state" },
-        "key": { "type": "string" },
-        "fallback": { "oneOf": [{ "type": "number" }, { "type": "string" }, { "type": "boolean" }] }
-      },
-      "additionalProperties": false
+  "$defs": {
+    "primitive": {
+      "oneOf": [
+        { "type": "number" },
+        { "type": "string" },
+        { "type": "boolean" }
+      ]
     },
-    {
-      "type": "object",
-      "required": ["source", "target", "property"],
-      "properties": {
-        "source": { "const": "entity" },
-        "target": { "$ref": "./target-selector.schema.json" },
-        "property": {
-          "enum": ["positionX", "positionY", "velocityX", "velocityY", "speed", "healthCurrent", "healthMax"]
+    "atom": {
+      "oneOf": [
+        { "$ref": "#/$defs/primitive" },
+        {
+          "type": "object",
+          "required": ["source", "key"],
+          "properties": {
+            "source": { "const": "state" },
+            "key": { "type": "string" },
+            "fallback": { "$ref": "#/$defs/primitive" }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["source", "target", "property"],
+          "properties": {
+            "source": { "const": "entity" },
+            "target": { "$ref": "./target-selector.schema.json" },
+            "property": {
+              "enum": ["positionX", "positionY", "velocityX", "velocityY", "speed", "healthCurrent", "healthMax"]
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["source", "target", "property"],
+          "properties": {
+            "source": { "const": "component" },
+            "target": { "$ref": "./target-selector.schema.json" },
+            "property": {
+              "enum": [
+                "platformer.maxSpeed", "platformer.jumpForce", "platformer.customGravity",
+                "platformer.coyoteTime", "platformer.jumpBuffer", "platformer.grounded",
+                "topDown.maxSpeed", "topDown.acceleration", "topDown.friction", "topDown.fourDirections",
+                "linearMover.directionX", "linearMover.directionY", "linearMover.speed", "linearMover.paused",
+                "cameraTarget.offsetX", "cameraTarget.offsetY", "cameraTarget.followSpeed",
+                "magnet.enabled", "magnet.attractTag", "magnet.radius", "magnet.pullSpeed",
+                "horde.targetClass", "horde.maxSpeed", "horde.separationRadius",
+                "horde.separationWeight", "horde.chaseWeight",
+                "autoDestroy.lifespan", "autoDestroy.elapsed", "autoDestroy.remaining",
+                "sensor.targetTag", "solid.groundClass", "solid.surfaceKind"
+              ]
+            },
+            "fallback": { "$ref": "#/$defs/primitive" }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["source", "key"],
+          "properties": {
+            "source": { "const": "message" },
+            "key": { "type": "string" },
+            "fallback": { "$ref": "#/$defs/primitive" }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["source", "min", "max"],
+          "properties": {
+            "source": { "const": "random" },
+            "min": { "type": "number" },
+            "max": { "type": "number" }
+          },
+          "additionalProperties": false
         }
-      },
-      "additionalProperties": false
-    },
+      ]
+    }
+  },
+  "oneOf": [
+    { "$ref": "#/$defs/atom" },
     {
       "type": "object",
-      "required": ["source", "key"],
+      "required": ["source", "initial", "operations"],
       "properties": {
-        "source": { "const": "message" },
-        "key": { "type": "string" },
-        "fallback": { "oneOf": [{ "type": "number" }, { "type": "string" }, { "type": "boolean" }] }
-      },
-      "additionalProperties": false
-    },
-    {
-      "type": "object",
-      "required": ["source", "min", "max"],
-      "properties": {
-        "source": { "const": "random" },
-        "min": { "type": "number" },
-        "max": { "type": "number" }
+        "source": { "const": "expression" },
+        "initial": { "$ref": "#/$defs/atom" },
+        "operations": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["operator", "value"],
+            "properties": {
+              "operator": {
+                "enum": ["add", "subtract", "multiply", "divide", "modulo", "min", "max", "power"]
+              },
+              "value": { "$ref": "#/$defs/atom" }
+            },
+            "additionalProperties": false
+          }
+        }
       },
       "additionalProperties": false
     }

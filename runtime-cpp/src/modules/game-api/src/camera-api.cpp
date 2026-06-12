@@ -16,6 +16,7 @@
 #include "../../runtime-entity-gateway/include/runtime-entity-gateway.h"
 #include "../../renderer/include/renderer.h"
 #include "../../camera-manager/include/camera-manager.h"
+#include "../../../world/include/world.h"
 
 #include <sol/sol.hpp>
 
@@ -25,6 +26,7 @@ void GameAPI::bindCameraAPI(sol::state& lua) {
     auto* renderer = ctx_.renderer;
     auto* entities = ctx_.entityGateway;
     auto* camMgr   = ctx_.cameraManager;
+    auto* world    = ctx_.world;
 
     // camera.setPosition(x, y)
     lua.set_function("camera_setPosition", [renderer](float x, float y) {
@@ -57,6 +59,16 @@ void GameAPI::bindCameraAPI(sol::state& lua) {
         renderer->setCameraCenter(transform.position);
     });
 
+    lua.set_function("camera_follow", [world](EntityId id) -> bool {
+        return world && world->followCameraTarget(id);
+    });
+    lua.set_function("camera_stopFollowing", [world]() {
+        if (world) world->stopCameraFollow();
+    });
+    lua.set_function("camera_useDefaultTarget", [world]() {
+        if (world) world->useAutomaticCameraTarget();
+    });
+
     // camera.x() / camera.y() — read back camera target
     lua.set_function("camera_x", [renderer]() -> float {
         return renderer ? renderer->getCameraPosition().x : 0.f;
@@ -83,6 +95,9 @@ void GameAPI::bindCameraAPI(sol::state& lua) {
         camera.setZoom     = function(z)       camera_setZoom(z)          end
         camera.zoomBy      = function(d)       camera_zoomBy(d)           end
         camera.centerOn    = function(id)      camera_centerOn(id)        end
+        camera.follow      = function(id) return camera_follow(id)       end
+        camera.stopFollowing = function() camera_stopFollowing()         end
+        camera.useDefaultTarget = function() camera_useDefaultTarget()   end
         camera.x           = function()  return camera_x()               end
         camera.y           = function()  return camera_y()               end
         camera.zoom        = function()  return camera_getZoom()         end

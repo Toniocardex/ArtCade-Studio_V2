@@ -33,6 +33,7 @@ const TRIGGER_DESCRIPTIONS: Record<LogicTriggerType, string> = {
 
 const CONDITION_DESCRIPTIONS: Record<LogicCondition['type'], string> = {
   compareVariable: 'Compare a variable against a value',
+  compareValues: 'Compare literals, variables, object properties, Component values, messages, or expressions',
   compareClass: 'The object is touching an object of a given type',
   isKeyDown: 'A key is currently held down',
   hasTag: 'The object has a given tag',
@@ -49,6 +50,7 @@ const CONDITION_DESCRIPTIONS: Record<LogicCondition['type'], string> = {
   compareVelocity: 'Compare velocity (x, y, or speed) against a value',
   comparePosition: 'Compare the x or y world position against a value',
   saveExists: 'Check whether a save file slot exists on disk',
+  isDialogActive: 'Check whether a dialog conversation is currently open',
 }
 
 const ACTION_DESCRIPTIONS: Record<LogicActionType, string> = {
@@ -80,8 +82,12 @@ const ACTION_DESCRIPTIONS: Record<LogicActionType, string> = {
   resumeLinearMover: 'Resume the linear mover',
   setMagnetEnabled: 'Turn the magnet component on or off',
   setMagnetTargetTag: 'Change which tag the magnet attracts',
+  setMagnetRadius: 'Change how far the magnet searches for targets',
+  setMagnetPullSpeed: 'Change how quickly targets are pulled toward the magnet',
   setHordeTargetClass: 'Change which object type the horde chases',
   setHordeWeights: 'Tune the horde steering weights',
+  setHordeMaxSpeed: 'Change the maximum horde movement speed',
+  setHordeSeparationRadius: 'Change the distance used to keep horde members apart',
   setAutoDestroyLifespan: 'Destroy the object after N seconds',
   cancelAutoDestroy: 'Cancel a pending auto destroy',
   emitEvent: 'Broadcast a message to other rules',
@@ -97,6 +103,9 @@ const ACTION_DESCRIPTIONS: Record<LogicActionType, string> = {
   loadScene: 'Switch to another scene',
   restartScene: 'Reload the current scene',
   centerCameraOn: 'Move the camera once so an object is centered',
+  followCamera: 'Continuously center the camera on an object until changed or stopped',
+  stopCameraFollow: 'Keep the camera at its current position and disable automatic follow',
+  useDefaultCameraTarget: 'Resume the deterministic Camera Target component in the active scene',
   setCameraTarget: 'Legacy name: center the camera on an object once',
   cameraShake: 'Shake the camera briefly',
   debugLog: 'Print a message to the console',
@@ -106,7 +115,8 @@ const ACTION_DESCRIPTIONS: Record<LogicActionType, string> = {
   snapToGrid: 'Align the object to the grid',
   setEntityShader: 'Apply a visual effect to this object',
   setScreenShader: 'Apply a full-screen visual effect',
-  startDialog: 'Open a dialog conversation',
+  startDialog: 'Open a specific dialog graph by its ID',
+  endDialog: 'Close the currently active dialog conversation',
   setVariableRandomRange: 'Set a variable to a random integer in [min, max]',
   clampVariable: 'Cap a variable so it stays between min and max',
   multiplyVariable: 'Multiply a variable by a factor',

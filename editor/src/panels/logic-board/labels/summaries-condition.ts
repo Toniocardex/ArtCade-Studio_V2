@@ -22,6 +22,9 @@ export function conditionSummaryPlain(
     case 'compareVariable':
       text = `Variable ${c.key} ${c.operator} ${valueSummary(c.value, project)}`
       break
+    case 'compareValues':
+      text = `${valueSummary(c.left, project)} ${c.operator} ${valueSummary(c.right, project)}`
+      break
     case 'compareClass':
       text = `Touching "${fmtClass(c.className || '?', project)}"`
       break
@@ -73,6 +76,9 @@ export function conditionSummaryPlain(
     }
     case 'saveExists':
       text = `Save slot "${c.slot || 'main'}" exists`
+      break
+    case 'isDialogActive':
+      text = 'A dialog is active'
       break
   }
   return formatChip(text, negated)

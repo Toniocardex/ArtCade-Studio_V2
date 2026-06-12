@@ -8,6 +8,7 @@ import { BLANK_MAIN_LUA } from '../project-factory'
 import { compileLogicBoard } from './compiler'
 import { findClickToDestroyErrors } from './click-to-destroy'
 import { findBoardCompatibilityErrors } from './trigger-compatibility'
+import { boardComponentWarnings } from './component-capabilities'
 import {
   collectProjectDiagnostics,
   projectDiagnosticsErrors,
@@ -64,6 +65,14 @@ function resolveProjectKey(
 export function collectConfigDiagnostics(project: ProjectDoc | null): LogicDiagnostic[] {
   const diagnostics: LogicDiagnostic[] = []
   for (const board of project?.logicBoards ?? []) {
+    for (const message of project ? boardComponentWarnings(project, board) : []) {
+      diagnostics.push({
+        boardId: board.boardId,
+        message,
+        severity: 'warn',
+        source: 'config',
+      })
+    }
     for (const err of findBoardCompatibilityErrors(board)) {
       diagnostics.push({
         boardId: board.boardId,

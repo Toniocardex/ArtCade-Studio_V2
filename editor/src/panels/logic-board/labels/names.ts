@@ -54,8 +54,12 @@ const ACTION_NAMES: Record<LogicActionType, string> = {
   resumeLinearMover: 'Resume linear mover',
   setMagnetEnabled: 'Magnet on/off',
   setMagnetTargetTag: 'Magnet tag',
+  setMagnetRadius: 'Magnet radius',
+  setMagnetPullSpeed: 'Magnet pull speed',
   setHordeTargetClass: 'Horde chase class',
   setHordeWeights: 'Horde weights',
+  setHordeMaxSpeed: 'Horde max speed',
+  setHordeSeparationRadius: 'Horde separation radius',
   setAutoDestroyLifespan: 'Auto destroy timer',
   cancelAutoDestroy: 'Cancel auto destroy',
   emitEvent: 'Send message',
@@ -71,6 +75,9 @@ const ACTION_NAMES: Record<LogicActionType, string> = {
   loadScene: 'Load level',
   restartScene: 'Restart level',
   centerCameraOn: 'Center camera on object',
+  followCamera: 'Follow object with camera',
+  stopCameraFollow: 'Stop camera follow',
+  useDefaultCameraTarget: 'Use Camera Target component',
   setCameraTarget: 'Center camera on object (legacy)',
   cameraShake: 'Camera shake',
   debugLog: 'Debug message',
@@ -80,7 +87,8 @@ const ACTION_NAMES: Record<LogicActionType, string> = {
   snapToGrid: 'Snap entity to grid (runtime)',
   setEntityShader: 'Visual effect on object',
   setScreenShader: 'Screen effect',
-  startDialog: 'Start dialog',
+  startDialog: 'Start dialog by ID',
+  endDialog: 'End active dialog',
   setVariableRandomRange: 'Set variable (random)',
   clampVariable: 'Clamp variable',
   multiplyVariable: 'Multiply variable',
@@ -98,6 +106,7 @@ const ACTION_NAMES: Record<LogicActionType, string> = {
 
 const CONDITION_NAMES: Record<LogicCondition['type'], string> = {
   compareVariable: 'Variable check',
+  compareValues: 'Compare values',
   compareClass: 'Touching type',
   isKeyDown: 'Key held',
   hasTag: 'Has tag',
@@ -114,6 +123,7 @@ const CONDITION_NAMES: Record<LogicCondition['type'], string> = {
   compareVelocity: 'Velocity check',
   comparePosition: 'Position check',
   saveExists: 'Save file exists',
+  isDialogActive: 'Dialog is active',
 }
 
 export function triggerDisplayName(type: LogicTriggerType): string {

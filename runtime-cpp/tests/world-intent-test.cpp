@@ -8,6 +8,7 @@
 #include "modules/runtime-entity-gateway/include/runtime-entity-gateway.h"
 #include "modules/physics/include/physics.h"
 #include "modules/variable-manager/include/variable-manager.h"
+#include "modules/renderer/include/renderer.h"
 #include "world/include/world.h"
 
 #include <cmath>
@@ -46,6 +47,7 @@ struct Fixture {
     RuntimeEntityGateway gw;
     Physics physics;
     VariableManager vars;
+    Renderer renderer;
     World world;
 
     Fixture()
@@ -57,6 +59,7 @@ struct Fixture {
         physics.init();
         vars.init();
         gw.setPhysics(&physics);
+        world.setRenderer(&renderer);
     }
 
     ~Fixture() {
@@ -77,6 +80,55 @@ struct Fixture {
         world.refreshSensorEdges();
     }
 };
+
+static void test_camera_target_is_deterministic_and_overridable() {
+    Fixture f;
+    f.renderer.setWindowSize(1000, 500, "test");
+    f.renderer.setSceneViewport({ 2000.f, 1000.f }, { 1000.f, 500.f });
+
+    EntityDef later = makeEntity(10, "Later");
+    later.transform.position = { 1200.f, 600.f };
+    later.cameraTarget = CameraTargetComponent{ 0.f, 0.f, 0.f };
+    EntityDef first = makeEntity(2, "First");
+    first.transform.position = { 700.f, 300.f };
+    first.cameraTarget = CameraTargetComponent{ 0.f, 0.f, 0.f };
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 10, 2 };
+    scene.worldSize = { 2000.f, 1000.f };
+    scene.viewportSize = { 1000.f, 500.f };
+
+    ProjectDoc doc;
+    doc.activeSceneId = scene.id;
+    doc.scenes = {{ scene.id, scene }};
+    doc.entities = {{ 10, later }, { 2, first }};
+    f.world.init(doc);
+
+    f.world.tickCameraTargets(0.f);
+    Vec2 center = f.renderer.getCameraCenter();
+    CHECK(std::abs(center.x - 700.f) < 0.01f);
+    CHECK(std::abs(center.y - 300.f) < 0.01f);
+
+    CHECK(f.world.followCameraTarget(10));
+    f.world.tickCameraTargets(0.f);
+    center = f.renderer.getCameraCenter();
+    CHECK(std::abs(center.x - 1200.f) < 0.01f);
+    CHECK(std::abs(center.y - 600.f) < 0.01f);
+
+    f.world.stopCameraFollow();
+    f.renderer.setCameraCenter({ 900.f, 450.f });
+    f.world.tickCameraTargets(0.f);
+    center = f.renderer.getCameraCenter();
+    CHECK(std::abs(center.x - 900.f) < 0.01f);
+    CHECK(std::abs(center.y - 450.f) < 0.01f);
+
+    f.world.useAutomaticCameraTarget();
+    f.world.tickCameraTargets(0.f);
+    center = f.renderer.getCameraCenter();
+    CHECK(std::abs(center.x - 700.f) < 0.01f);
+    CHECK(std::abs(center.y - 300.f) < 0.01f);
+}
 
 // Fase 1 — kinematic platformer without implicit physics body (physics plan §7).
 
@@ -2134,6 +2186,7 @@ static void test_restore_design_state_resets_runtime_from_doc() {
 }
 
 int main() {
+    test_camera_target_is_deterministic_and_overridable();
     test_platformer_only_has_no_implicit_physics_body();
     test_platformer_kinematic_falls_with_custom_gravity();
     test_platformer_kinematic_horizontal_movement_without_body();

@@ -1,30 +1,24 @@
-import type { LogicPrimitive, LogicValue, LogicValueSource } from '../../types/logic-board'
+import type {
+  LogicPrimitive,
+  LogicValue,
+  LogicValueAtom,
+  LogicValueSource,
+} from '../../types/logic-board'
 import { parseLogicNumber } from '../../utils/logic-board/parse-logic-number'
 import { EditorSelect } from '../ui/EditorSelect'
 import { TargetPicker } from './TargetPicker'
+import {
+  COMPONENT_PROPERTY_OPTIONS,
+  ENTITY_PROPERTY_OPTIONS,
+  EXPRESSION_OPERATOR_OPTIONS,
+  VALUE_SOURCE_OPTIONS,
+} from './value-source-options'
 
 const inputClass =
   'bg-[var(--bg)] border border-[var(--border-2)] text-[var(--text)] px-2 py-1 rounded text-xs'
 
 type SourceKind = 'literal' | LogicValueSource['source']
-
-const SOURCE_OPTIONS = [
-  { value: 'literal', label: 'Literal' },
-  { value: 'state', label: 'Variable' },
-  { value: 'entity', label: 'Object property' },
-  { value: 'message', label: 'Message field' },
-  { value: 'random', label: 'Random integer' },
-]
-
-const ENTITY_PROPERTY_OPTIONS = [
-  { value: 'positionX', label: 'Position X' },
-  { value: 'positionY', label: 'Position Y' },
-  { value: 'velocityX', label: 'Velocity X' },
-  { value: 'velocityY', label: 'Velocity Y' },
-  { value: 'speed', label: 'Speed' },
-  { value: 'healthCurrent', label: 'Current health' },
-  { value: 'healthMax', label: 'Maximum health' },
-]
+type AtomSourceKind = Exclude<SourceKind, 'expression'>
 
 function sourceKind(value: LogicValue): SourceKind {
   return typeof value === 'object' && value !== null ? value.source : 'literal'
@@ -38,7 +32,7 @@ function literalFromInput(raw: string, numeric: boolean): LogicPrimitive {
   return parsed ?? raw
 }
 
-function sourceDefault(kind: SourceKind, numeric: boolean): LogicValue {
+function atomDefault(kind: AtomSourceKind, numeric: boolean): LogicValueAtom {
   switch (kind) {
     case 'literal':
       return numeric ? 0 : ''
@@ -48,9 +42,119 @@ function sourceDefault(kind: SourceKind, numeric: boolean): LogicValue {
       return { source: 'message', key: '', fallback: numeric ? 0 : '' }
     case 'entity':
       return { source: 'entity', target: 'self', property: 'positionX' }
+    case 'component':
+      return { source: 'component', target: 'self', property: 'linearMover.speed', fallback: 0 }
     case 'random':
       return { source: 'random', min: 0, max: 1 }
   }
+}
+
+function sourceDefault(kind: SourceKind, numeric: boolean): LogicValue {
+  if (kind !== 'expression') return atomDefault(kind, numeric)
+  return {
+    source: 'expression',
+    initial: 0,
+    operations: [{ operator: 'add', value: 0 }],
+  }
+}
+
+function AtomField({
+  value,
+  numeric,
+  onChange,
+  showSource = true,
+}: Readonly<{
+  value: LogicValueAtom
+  numeric: boolean
+  onChange: (value: LogicValueAtom) => void
+  showSource?: boolean
+}>) {
+  const kind = sourceKind(value) as AtomSourceKind
+  const atomOptions = VALUE_SOURCE_OPTIONS.filter((option) => option.value !== 'expression')
+
+  return (
+    <span className="flex items-center flex-wrap gap-1">
+      {showSource && (
+        <EditorSelect
+          className="w-auto"
+          triggerClassName="py-1"
+          value={kind}
+          onChange={(next) => onChange(atomDefault(next as AtomSourceKind, numeric))}
+          options={atomOptions}
+          aria-label="Operand source"
+        />
+      )}
+      {kind === 'literal' && (
+        <input
+          className={`${inputClass} w-24`}
+          type={numeric ? 'number' : 'text'}
+          value={String(value)}
+          onChange={(event) => onChange(literalFromInput(event.target.value, numeric))}
+        />
+      )}
+      {kind === 'state' && typeof value === 'object' && value.source === 'state' && (
+        <input
+          className={`${inputClass} w-28`}
+          placeholder="Variable key"
+          value={value.key}
+          onChange={(event) => onChange({ ...value, key: event.target.value })}
+        />
+      )}
+      {kind === 'message' && typeof value === 'object' && value.source === 'message' && (
+        <input
+          className={`${inputClass} w-28`}
+          placeholder="Payload key"
+          value={value.key}
+          onChange={(event) => onChange({ ...value, key: event.target.value })}
+        />
+      )}
+      {kind === 'entity' && typeof value === 'object' && value.source === 'entity' && (
+        <>
+          <TargetPicker value={value.target} onChange={(target) => onChange({ ...value, target })} />
+          <EditorSelect
+            className="w-auto"
+            triggerClassName="py-1"
+            value={value.property}
+            onChange={(property) => onChange({ ...value, property: property as typeof value.property })}
+            options={ENTITY_PROPERTY_OPTIONS}
+            aria-label="Object property"
+          />
+        </>
+      )}
+      {kind === 'component' && typeof value === 'object' && value.source === 'component' && (
+        <>
+          <TargetPicker value={value.target} onChange={(target) => onChange({ ...value, target })} />
+          <EditorSelect
+            className="w-auto"
+            triggerClassName="py-1"
+            value={value.property}
+            onChange={(property) => onChange({ ...value, property: property as typeof value.property })}
+            options={COMPONENT_PROPERTY_OPTIONS}
+            aria-label="Component property"
+          />
+        </>
+      )}
+      {kind === 'random' && typeof value === 'object' && value.source === 'random' && (
+        <>
+          <input
+            className={`${inputClass} w-20`}
+            type="number"
+            aria-label="Minimum"
+            value={value.min}
+            onChange={(event) => onChange({ ...value, min: parseLogicNumber(event.target.value) ?? 0 })}
+          />
+          <span className="text-[10px] text-[var(--muted)]">to</span>
+          <input
+            className={`${inputClass} w-20`}
+            type="number"
+            aria-label="Maximum"
+            value={value.max}
+            onChange={(event) => onChange({ ...value, max: parseLogicNumber(event.target.value) ?? 0 })}
+          />
+        </>
+      )}
+    </span>
+  )
 }
 
 export function ValueSourceField({
@@ -65,77 +169,95 @@ export function ValueSourceField({
   const current = value ?? (numeric ? 0 : '')
   const kind = sourceKind(current)
 
+  if (kind !== 'expression' || typeof current !== 'object' || current.source !== 'expression') {
+    return (
+      <span className="flex items-center flex-wrap gap-1">
+        <EditorSelect
+          className="w-auto"
+          triggerClassName="py-1"
+          value={kind}
+          onChange={(next) => onChange(sourceDefault(next as SourceKind, numeric))}
+          options={VALUE_SOURCE_OPTIONS}
+          aria-label="Value source"
+        />
+        <AtomField
+          value={current as LogicValueAtom}
+          numeric={numeric}
+          onChange={onChange}
+          showSource={false}
+        />
+      </span>
+    )
+  }
+
   return (
-    <span className="flex items-center flex-wrap gap-1">
-      <EditorSelect
-        className="w-auto"
-        triggerClassName="py-1"
-        value={kind}
-        onChange={(next) => onChange(sourceDefault(next as SourceKind, numeric))}
-        options={SOURCE_OPTIONS}
-        aria-label="Value source"
-      />
-      {kind === 'literal' && (
-        <input
-          className={`${inputClass} w-24`}
-          type={numeric ? 'number' : 'text'}
-          value={String(current)}
-          onChange={(event) => onChange(literalFromInput(event.target.value, numeric))}
+    <span className="flex flex-col gap-1 rounded border border-[var(--border-2)] p-1">
+      <span className="flex items-center gap-1">
+        <EditorSelect
+          className="w-auto"
+          triggerClassName="py-1"
+          value="expression"
+          onChange={(next) => onChange(sourceDefault(next as SourceKind, numeric))}
+          options={VALUE_SOURCE_OPTIONS}
+          aria-label="Value source"
         />
-      )}
-      {kind === 'state' && typeof current === 'object' && current.source === 'state' && (
-        <input
-          className={`${inputClass} w-28`}
-          placeholder="Variable key"
-          value={current.key}
-          onChange={(event) => onChange({ ...current, key: event.target.value })}
+        <span className="text-[10px] text-[var(--muted)]">Start with</span>
+        <AtomField
+          value={current.initial}
+          numeric
+          onChange={(initial) => onChange({ ...current, initial })}
         />
-      )}
-      {kind === 'message' && typeof current === 'object' && current.source === 'message' && (
-        <input
-          className={`${inputClass} w-28`}
-          placeholder="Payload key"
-          value={current.key}
-          onChange={(event) => onChange({ ...current, key: event.target.value })}
-        />
-      )}
-      {kind === 'entity' && typeof current === 'object' && current.source === 'entity' && (
-        <>
-          <TargetPicker
-            value={current.target}
-            onChange={(target) => onChange({ ...current, target })}
-          />
+      </span>
+      {current.operations.map((operation, index) => (
+        <span key={index} className="flex items-center gap-1 pl-4">
           <EditorSelect
             className="w-auto"
             triggerClassName="py-1"
-            value={current.property}
-            onChange={(property) =>
-              onChange({ ...current, property: property as typeof current.property })
-            }
-            options={ENTITY_PROPERTY_OPTIONS}
-            aria-label="Object property"
+            value={operation.operator}
+            onChange={(operator) => {
+              const operations = current.operations.map((item, itemIndex) =>
+                itemIndex === index ? { ...item, operator: operator as typeof item.operator } : item,
+              )
+              onChange({ ...current, operations })
+            }}
+            options={EXPRESSION_OPERATOR_OPTIONS}
+            aria-label={`Expression operation ${index + 1}`}
           />
-        </>
-      )}
-      {kind === 'random' && typeof current === 'object' && current.source === 'random' && (
-        <>
-          <input
-            className={`${inputClass} w-20`}
-            type="number"
-            aria-label="Minimum"
-            value={current.min}
-            onChange={(event) => onChange({ ...current, min: parseLogicNumber(event.target.value) ?? 0 })}
+          <AtomField
+            value={operation.value}
+            numeric
+            onChange={(nextValue) => {
+              const operations = current.operations.map((item, itemIndex) =>
+                itemIndex === index ? { ...item, value: nextValue } : item,
+              )
+              onChange({ ...current, operations })
+            }}
           />
-          <span className="text-[10px] text-[var(--muted)]">to</span>
-          <input
-            className={`${inputClass} w-20`}
-            type="number"
-            aria-label="Maximum"
-            value={current.max}
-            onChange={(event) => onChange({ ...current, max: parseLogicNumber(event.target.value) ?? 0 })}
-          />
-        </>
-      )}
+          {current.operations.length > 1 && (
+            <button
+              type="button"
+              className="px-1 text-xs text-[var(--danger)]"
+              aria-label={`Remove expression operation ${index + 1}`}
+              onClick={() => onChange({
+                ...current,
+                operations: current.operations.filter((_, itemIndex) => itemIndex !== index),
+              })}
+            >
+              Remove
+            </button>
+          )}
+        </span>
+      ))}
+      <button
+        type="button"
+        className="self-start px-1 text-[10px] text-[var(--accent)]"
+        onClick={() => onChange({
+          ...current,
+          operations: [...current.operations, { operator: 'add', value: 0 }],
+        })}
+      >
+        + Add operation
+      </button>
     </span>
   )
 }

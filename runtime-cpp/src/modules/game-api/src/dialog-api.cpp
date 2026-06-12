@@ -27,6 +27,12 @@ void GameAPI::bindDialogAPI(sol::state& lua) {
         return dm && dm->isActive();
     });
 
+    lua.set_function("dialog_end", [dm]() -> bool {
+        if (!dm || !dm->isActive()) return false;
+        dm->endDialog();
+        return true;
+    });
+
     lua.script(R"(
         dialog = {}
         dialog.start = function(entityId, dialogId)
@@ -34,6 +40,9 @@ void GameAPI::bindDialogAPI(sol::state& lua) {
         end
         dialog.isActive = function()
             return dialog_is_active()
+        end
+        dialog.finish = function()
+            return dialog_end()
         end
     )");
 }

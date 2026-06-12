@@ -153,6 +153,26 @@
       }
     }
   },
+  "compareValues": {
+    "type": "object",
+    "required": ["type", "left", "operator", "right"],
+    "properties": {
+      "type": { "const": "compareValues" },
+      "left": { "$ref": "./value-source.schema.json" },
+      "operator": { "enum": ["==", "!=", "<", "<=", ">", ">="] },
+      "right": { "$ref": "./value-source.schema.json" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Compare Values",
+      "category": "State",
+      "params": {
+        "left": { "widget": "valueSource", "label": "Left" },
+        "operator": { "widget": "enum", "label": "Op", "options": ["==", "!=", "<", "<=", ">", ">="] },
+        "right": { "widget": "valueSource", "label": "Right" }
+      }
+    }
+  },
   "isTileAreaFree": {
     "type": "object",
     "required": ["type", "x", "y", "w", "h"],
@@ -315,6 +335,19 @@
       "params": {
         "slot": { "widget": "string", "label": "Slot", "placeholder": "main" }
       }
+    }
+  },
+  "isDialogActive": {
+    "type": "object",
+    "required": ["type"],
+    "properties": {
+      "type": { "const": "isDialogActive" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Dialog Is Active",
+      "category": "Dialog",
+      "params": {}
     }
   }
 }

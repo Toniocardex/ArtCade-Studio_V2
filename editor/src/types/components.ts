@@ -6,9 +6,9 @@
 // The visual Inspector is driven by panels/inspector/component-registry.ts,
 // which references these types — no `any`, full autocomplete + validation.
 //
-// NOTE: the C++ runtime does not yet consume these (arrives in Phase D);
-// until then they are authored/persisted in the editor and ignored by the
-// engine — no regression for projects that don't use them.
+// These fields are consumed by the native and WASM runtimes through
+// RuntimeEntityGateway; keep TypeScript, JSON parsing, C++ structs and the
+// Inspector registry aligned when adding or changing a component.
 // ---------------------------------------------------------------------------
 
 /** Physics trigger volume — fires when a tagged entity enters its area. */

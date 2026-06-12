@@ -49,11 +49,13 @@ Risolto (engine integration follow-up):
 - World platformer C++ non fa piu' polling `Input` — solo movement/jump intent da Lua.
 - Logic Board sensor picker: `TagPicker` con tag da entita' + `SensorComponent.targetTag`.
 
-Aperto (runtime components — LinearMover / CameraTarget / MagneticItem, 2026-05-21):
+Aperto (runtime components — LinearMover / CameraTarget / MagneticItem, aggiornato 2026-06-12):
 
-- Nessuna matrice documentata di **priorita' tra componenti di movimento** sulla stessa entita' (solo skip-list ad hoc in `World::tick*`).
-- `CameraTargetComponent`: piu' target attivi → l'ultimo in ordine EnTT vince senza warning editor.
-- `camera.centerOn` (Logic Board) e `CameraTargetComponent` (Inspector) sono due percorsi paralleli.
+- La priorita' runtime tra componenti di movimento usa ancora skip-list ad hoc;
+  l'editor ora segnala Object Type con piu autorita di movimento.
+- `CameraTargetComponent`: risolto; un solo target per frame, ID attivo piu
+  basso in automatico, warning editor e override esplicito.
+- `camera.centerOn` e follow persistente sono ora contratti separati.
 - `MagneticItemComponent`: costo `O(magneti × entita' con tag)`; nessun cap sul numero di magnet.
 - `CameraManager` (modulo) aggiornato ma non usato per follow — follow reale passa da `Renderer`.
 - Demo `test-project` non ancora aggiornato con i nuovi component (solo test C++).

@@ -77,9 +77,9 @@ export function actionSummaryPlain(
         ? `Set ${who(a.target)} HP to ${valueSummary(a.currentHp, project)}/${valueSummary(a.maxHp, project)}`
         : `Set ${who(a.target)} HP to ${valueSummary(a.currentHp, project)}`
     case 'setLinearMoverDirection':
-      return `Set linear mover on ${who(a.target)} to (${a.directionX}, ${a.directionY})`
+      return `Set linear mover on ${who(a.target)} to (${valueSummary(a.directionX, project)}, ${valueSummary(a.directionY, project)})`
     case 'setLinearMoverSpeed':
-      return `Set linear mover speed on ${who(a.target)} to ${a.speed}`
+      return `Set linear mover speed on ${who(a.target)} to ${valueSummary(a.speed, project)}`
     case 'pauseLinearMover':
       return `Pause linear mover on ${who(a.target)}`
     case 'resumeLinearMover':
@@ -88,12 +88,20 @@ export function actionSummaryPlain(
       return a.enabled ? `Enable magnet on ${who(a.target)}` : `Disable magnet on ${who(a.target)}`
     case 'setMagnetTargetTag':
       return `Magnet on ${who(a.target)} attracts tag "${a.tag || '?'}"`
+    case 'setMagnetRadius':
+      return `Set magnet radius on ${who(a.target)} to ${valueSummary(a.radius, project)}`
+    case 'setMagnetPullSpeed':
+      return `Set magnet pull speed on ${who(a.target)} to ${valueSummary(a.speed, project)}`
     case 'setHordeTargetClass':
       return `Horde ${who(a.target)} chases ${fmtClass(a.className, project)}`
     case 'setHordeWeights':
-      return `Horde ${who(a.target)} chase=${a.chaseWeight} separation=${a.separationWeight}`
+      return `Horde ${who(a.target)} chase=${valueSummary(a.chaseWeight, project)} separation=${valueSummary(a.separationWeight, project)}`
+    case 'setHordeMaxSpeed':
+      return `Set horde max speed on ${who(a.target)} to ${valueSummary(a.speed, project)}`
+    case 'setHordeSeparationRadius':
+      return `Set horde separation radius on ${who(a.target)} to ${valueSummary(a.radius, project)}`
     case 'setAutoDestroyLifespan':
-      return `Auto destroy ${who(a.target)} in ${a.lifespan}s`
+      return `Auto destroy ${who(a.target)} in ${valueSummary(a.lifespan, project)}s`
     case 'cancelAutoDestroy':
       return `Cancel auto destroy on ${who(a.target)}`
     case 'emitEvent':
@@ -128,6 +136,12 @@ export function actionSummaryPlain(
     case 'centerCameraOn':
     case 'setCameraTarget':
       return `Center camera on ${who(a.target)}`
+    case 'followCamera':
+      return `Follow ${who(a.target)} with camera`
+    case 'stopCameraFollow':
+      return 'Stop camera follow'
+    case 'useDefaultCameraTarget':
+      return 'Use Camera Target component'
     case 'cameraShake': {
       const dur = a.durationSeconds ?? 0.5
       return `Shake camera (intensity ${a.trauma}, ${dur}s)`
@@ -159,6 +173,8 @@ export function actionSummaryPlain(
       return `Apply ${a.shader.replace(/_/g, ' ')} on screen`
     case 'startDialog':
       return `Start dialog "${a.dialogId}" on ${who(a.target)}`
+    case 'endDialog':
+      return 'End active dialog'
     case 'setVariableRandomRange':
       return `Set ${a.key} to random ${a.min}–${a.max}`
     case 'clampVariable':

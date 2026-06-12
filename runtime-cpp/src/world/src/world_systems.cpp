@@ -8,28 +8,55 @@
 namespace ArtCade {
 
 void World::tickCameraTargets(float dt) {
-    if (!renderer_) return;
+    if (!renderer_ || cameraFollowMode_ == CameraFollowMode::Disabled) return;
 
-    entityGateway_.forEachActiveCameraTarget(
-        [this, dt](EntityId id, const CameraTargetComponent& ct) {
-            Transform transform{};
-            if (!entityGateway_.getTransform(id, transform)) return;
+    EntityId selected = cameraFollowTarget_;
+    CameraTargetComponent config{};
+    bool hasConfig = false;
 
-            const Vec2 desiredCenter = {
-                transform.position.x + ct.offsetX,
-                transform.position.y + ct.offsetY,
-            };
-            const Vec2 currentCenter = renderer_->getCameraCenter();
-            Vec2 nextCenter = desiredCenter;
-            if (ct.followSpeed > 0.f && dt > 0.f) {
-                const float t = 1.f - std::exp(-ct.followSpeed * dt);
-                nextCenter = {
-                    currentCenter.x + (desiredCenter.x - currentCenter.x) * t,
-                    currentCenter.y + (desiredCenter.y - currentCenter.y) * t,
-                };
-            }
-            renderer_->setCameraCenter(nextCenter);
-        });
+    if (cameraFollowMode_ == CameraFollowMode::Explicit) {
+        Transform transform{};
+        if (!entityGateway_.getTransform(selected, transform)) {
+            useAutomaticCameraTarget();
+            selected = INVALID_ENTITY;
+        } else {
+            hasConfig = entityGateway_.getCameraTarget(selected, config);
+        }
+    }
+
+    if (cameraFollowMode_ == CameraFollowMode::Automatic) {
+        selected = INVALID_ENTITY;
+        entityGateway_.forEachActiveCameraTarget(
+            [&](EntityId id, const CameraTargetComponent& candidate) {
+                if (selected == INVALID_ENTITY || id < selected) {
+                    selected = id;
+                    config = candidate;
+                    hasConfig = true;
+                }
+            });
+    }
+
+    if (selected == INVALID_ENTITY) return;
+    Transform transform{};
+    if (!entityGateway_.getTransform(selected, transform)) return;
+
+    const float offsetX = hasConfig ? config.offsetX : 0.f;
+    const float offsetY = hasConfig ? config.offsetY : 0.f;
+    const float followSpeed = hasConfig ? config.followSpeed : 5.f;
+    const Vec2 desiredCenter = {
+        transform.position.x + offsetX,
+        transform.position.y + offsetY,
+    };
+    const Vec2 currentCenter = renderer_->getCameraCenter();
+    Vec2 nextCenter = desiredCenter;
+    if (followSpeed > 0.f && dt > 0.f) {
+        const float t = 1.f - std::exp(-followSpeed * dt);
+        nextCenter = {
+            currentCenter.x + (desiredCenter.x - currentCenter.x) * t,
+            currentCenter.y + (desiredCenter.y - currentCenter.y) * t,
+        };
+    }
+    renderer_->setCameraCenter(nextCenter);
 }
 
 void World::tickSensorOverlapEdges() {

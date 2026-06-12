@@ -6,6 +6,7 @@ import { createBlankProject } from '../project-factory'
 import { createLogicBoardForObjectType } from './factory'
 import {
   actionRequirement,
+  boardComponentWarnings,
   conditionRequirement,
   recommendedActionTypes,
   triggerRequirement,
@@ -147,8 +148,12 @@ describe('component capabilities', () => {
       'resumeLinearMover',
       'setMagnetEnabled',
       'setMagnetTargetTag',
+      'setMagnetRadius',
+      'setMagnetPullSpeed',
       'setHordeTargetClass',
       'setHordeWeights',
+      'setHordeMaxSpeed',
+      'setHordeSeparationRadius',
       'setAutoDestroyLifespan',
       'cancelAutoDestroy',
     ])
@@ -159,5 +164,75 @@ describe('component capabilities', () => {
         board,
       ),
     ).toBeNull()
+  })
+
+  it('uses Object Type components even when the scene has no instances', () => {
+    const p = project()
+    p.objectTypes = {
+      Turret: {
+        id: 'Turret',
+        displayName: 'Turret',
+        tags: [],
+        sprite: p.entities[1]!.sprite,
+        magneticItem: { attractTag: 'coin', radius: 100, pullSpeed: 50 },
+      },
+    }
+    const board: LogicBoard = {
+      boardId: 'b',
+      target: { type: 'object_type', objectTypeId: 'Turret' },
+      events: [],
+    }
+
+    expect(actionRequirement(
+      { type: 'setMagnetRadius', target: 'self', radius: 200 },
+      p,
+      board,
+    )).toBeNull()
+    expect(recommendedActionTypes(p, board)).toContain('setMagnetPullSpeed')
+  })
+
+  it('warns when multiple Components own movement on the same Object Type', () => {
+    const p = project()
+    p.objectTypes = {
+      Player: {
+        id: 'Player',
+        displayName: 'Player',
+        tags: [],
+        sprite: p.entities[1]!.sprite,
+        topDownController: { maxSpeed: 200, acceleration: 800, friction: 800, fourDirections: false },
+        linearMover: { directionX: 1, directionY: 0, speed: 50 },
+      },
+    }
+    const board: LogicBoard = {
+      boardId: 'b',
+      target: { type: 'object_type', objectTypeId: 'Player' },
+      events: [],
+    }
+
+    expect(boardComponentWarnings(p, board)[0]).toContain('multiple movement Components')
+  })
+
+  it('explains deterministic selection when a scene has multiple camera targets', () => {
+    const p = project()
+    p.objectTypes = {
+      CameraActor: {
+        id: 'CameraActor',
+        displayName: 'Camera Actor',
+        tags: [],
+        sprite: p.entities[1]!.sprite,
+        cameraTarget: { offsetX: 0, offsetY: 0, followSpeed: 8 },
+      },
+    }
+    p.entities[1]!.className = 'CameraActor'
+    p.entities[2]!.className = 'CameraActor'
+    const board: LogicBoard = {
+      boardId: 'b',
+      target: { type: 'object_type', objectTypeId: 'CameraActor' },
+      events: [],
+    }
+
+    expect(boardComponentWarnings(p, board).some((warning) =>
+      warning.includes('lowest active entity ID'),
+    )).toBe(true)
   })
 })

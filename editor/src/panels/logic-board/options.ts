@@ -78,6 +78,8 @@ export function defaultCondition(
   switch (type) {
     case 'compareVariable':
       return { type: 'compareVariable', key: 'score', operator: '>=', value: 0 }
+    case 'compareValues':
+      return { type: 'compareValues', left: 0, operator: '>=', right: 0 }
     case 'compareClass':
       return { type: 'compareClass', className: '' }
     case 'isKeyDown':
@@ -110,6 +112,8 @@ export function defaultCondition(
       return { type: 'comparePosition', target: 'self', axis: 'x', operator: '>', value: 0 }
     case 'saveExists':
       return { type: 'saveExists', slot: 'main' }
+    case 'isDialogActive':
+      return { type: 'isDialogActive' }
   }
 }
 
@@ -171,10 +175,18 @@ export function defaultAction(type: LogicActionType): LogicAction {
       return { type: 'setMagnetEnabled', target: 'self', enabled: true }
     case 'setMagnetTargetTag':
       return { type: 'setMagnetTargetTag', target: 'self', tag: 'pickup' }
+    case 'setMagnetRadius':
+      return { type: 'setMagnetRadius', target: 'self', radius: 200 }
+    case 'setMagnetPullSpeed':
+      return { type: 'setMagnetPullSpeed', target: 'self', speed: 400 }
     case 'setHordeTargetClass':
       return { type: 'setHordeTargetClass', target: 'self', className: 'Player' }
     case 'setHordeWeights':
       return { type: 'setHordeWeights', target: 'self', chaseWeight: 1, separationWeight: 1 }
+    case 'setHordeMaxSpeed':
+      return { type: 'setHordeMaxSpeed', target: 'self', speed: 120 }
+    case 'setHordeSeparationRadius':
+      return { type: 'setHordeSeparationRadius', target: 'self', radius: 48 }
     case 'setAutoDestroyLifespan':
       return { type: 'setAutoDestroyLifespan', target: 'self', lifespan: 5 }
     case 'cancelAutoDestroy':
@@ -183,6 +195,8 @@ export function defaultAction(type: LogicActionType): LogicAction {
       return { type: 'emitEvent', name: 'my_event', payloadKey: '', payloadValue: '' }
     case 'startDialog':
       return { type: 'startDialog', target: 'self', dialogId: 'innkeeper' }
+    case 'endDialog':
+      return { type: 'endDialog' }
     case 'toggleLogicEvent':
       return { type: 'toggleLogicEvent', eventId: '', enabled: true }
     case 'applyImpulse':
@@ -209,6 +223,12 @@ export function defaultAction(type: LogicActionType): LogicAction {
       return { type: 'setCameraTarget', target: 'self' }
     case 'centerCameraOn':
       return { type: 'centerCameraOn', target: 'self' }
+    case 'followCamera':
+      return { type: 'followCamera', target: 'self' }
+    case 'stopCameraFollow':
+      return { type: 'stopCameraFollow' }
+    case 'useDefaultCameraTarget':
+      return { type: 'useDefaultCameraTarget' }
     case 'cameraShake':
       return { type: 'cameraShake', trauma: 0.35, durationSeconds: 0.5 }
     case 'debugLog':

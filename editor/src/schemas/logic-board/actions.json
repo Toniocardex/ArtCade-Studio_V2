@@ -431,8 +431,8 @@
     },
     "additionalProperties": false,
     "x-artcade": {
-      "label": "Start Dialog",
-      "category": "Messaging",
+      "label": "Start Dialog by ID",
+      "category": "Dialog",
       "params": {
         "target": { "widget": "target", "label": "NPC" },
         "dialogId": { "widget": "string", "label": "Dialog ID" }
@@ -644,6 +644,47 @@
       "label": "Center Camera On Object",
       "category": "Camera",
       "params": { "target": { "widget": "target", "label": "Target" } }
+    }
+  },
+  "followCamera": {
+    "type": "object",
+    "required": ["type", "target"],
+    "properties": {
+      "type": { "const": "followCamera" },
+      "target": { "$ref": "./target-selector.schema.json" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Follow Object with Camera",
+      "category": "Camera",
+      "params": { "target": { "widget": "target", "label": "Target" } }
+    }
+  },
+  "stopCameraFollow": {
+    "type": "object",
+    "required": ["type"],
+    "properties": { "type": { "const": "stopCameraFollow" } },
+    "additionalProperties": false,
+    "x-artcade": { "label": "Stop Camera Follow", "category": "Camera", "params": {} }
+  },
+  "useDefaultCameraTarget": {
+    "type": "object",
+    "required": ["type"],
+    "properties": { "type": { "const": "useDefaultCameraTarget" } },
+    "additionalProperties": false,
+    "x-artcade": { "label": "Use Camera Target Component", "category": "Camera", "params": {} }
+  },
+  "endDialog": {
+    "type": "object",
+    "required": ["type"],
+    "properties": {
+      "type": { "const": "endDialog" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "End Active Dialog",
+      "category": "Dialog",
+      "params": {}
     }
   },
   "cameraShake": {
@@ -1057,8 +1098,8 @@
     "properties": {
       "type": { "const": "setLinearMoverDirection" },
       "target": { "$ref": "./target-selector.schema.json" },
-      "directionX": { "type": "number" },
-      "directionY": { "type": "number" }
+      "directionX": { "$ref": "./value-source.schema.json" },
+      "directionY": { "$ref": "./value-source.schema.json" }
     },
     "additionalProperties": false,
     "x-artcade": {
@@ -1066,8 +1107,8 @@
       "category": "Movement",
       "params": {
         "target": { "widget": "target", "label": "Target" },
-        "directionX": { "widget": "number", "label": "Direction X" },
-        "directionY": { "widget": "number", "label": "Direction Y" }
+        "directionX": { "widget": "numberSource", "label": "Direction X" },
+        "directionY": { "widget": "numberSource", "label": "Direction Y" }
       }
     }
   },
@@ -1077,7 +1118,7 @@
     "properties": {
       "type": { "const": "setLinearMoverSpeed" },
       "target": { "$ref": "./target-selector.schema.json" },
-      "speed": { "type": "number" }
+      "speed": { "$ref": "./value-source.schema.json" }
     },
     "additionalProperties": false,
     "x-artcade": {
@@ -1085,7 +1126,7 @@
       "category": "Movement",
       "params": {
         "target": { "widget": "target", "label": "Target" },
-        "speed": { "widget": "number", "label": "Speed (px/s)" }
+        "speed": { "widget": "numberSource", "label": "Speed (px/s)" }
       }
     }
   },
@@ -1157,6 +1198,42 @@
       }
     }
   },
+  "setMagnetRadius": {
+    "type": "object",
+    "required": ["type", "target", "radius"],
+    "properties": {
+      "type": { "const": "setMagnetRadius" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "radius": { "$ref": "./value-source.schema.json" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Magnet Radius",
+      "category": "AI Logic",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "radius": { "widget": "numberSource", "label": "Radius (px)" }
+      }
+    }
+  },
+  "setMagnetPullSpeed": {
+    "type": "object",
+    "required": ["type", "target", "speed"],
+    "properties": {
+      "type": { "const": "setMagnetPullSpeed" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "speed": { "$ref": "./value-source.schema.json" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Magnet Pull Speed",
+      "category": "AI Logic",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "speed": { "widget": "numberSource", "label": "Pull speed (px/s)" }
+      }
+    }
+  },
   "setHordeTargetClass": {
     "type": "object",
     "required": ["type", "target", "className"],
@@ -1181,8 +1258,8 @@
     "properties": {
       "type": { "const": "setHordeWeights" },
       "target": { "$ref": "./target-selector.schema.json" },
-      "chaseWeight": { "type": "number" },
-      "separationWeight": { "type": "number" }
+      "chaseWeight": { "$ref": "./value-source.schema.json" },
+      "separationWeight": { "$ref": "./value-source.schema.json" }
     },
     "additionalProperties": false,
     "x-artcade": {
@@ -1190,8 +1267,44 @@
       "category": "AI Logic",
       "params": {
         "target": { "widget": "target", "label": "Target" },
-        "chaseWeight": { "widget": "number", "label": "Chase weight" },
-        "separationWeight": { "widget": "number", "label": "Separation weight" }
+        "chaseWeight": { "widget": "numberSource", "label": "Chase weight" },
+        "separationWeight": { "widget": "numberSource", "label": "Separation weight" }
+      }
+    }
+  },
+  "setHordeMaxSpeed": {
+    "type": "object",
+    "required": ["type", "target", "speed"],
+    "properties": {
+      "type": { "const": "setHordeMaxSpeed" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "speed": { "$ref": "./value-source.schema.json" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Horde Max Speed",
+      "category": "AI Logic",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "speed": { "widget": "numberSource", "label": "Max speed (px/s)" }
+      }
+    }
+  },
+  "setHordeSeparationRadius": {
+    "type": "object",
+    "required": ["type", "target", "radius"],
+    "properties": {
+      "type": { "const": "setHordeSeparationRadius" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "radius": { "$ref": "./value-source.schema.json" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Horde Separation Radius",
+      "category": "AI Logic",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "radius": { "widget": "numberSource", "label": "Separation radius (px)" }
       }
     }
   },
@@ -1201,7 +1314,7 @@
     "properties": {
       "type": { "const": "setAutoDestroyLifespan" },
       "target": { "$ref": "./target-selector.schema.json" },
-      "lifespan": { "type": "number" }
+      "lifespan": { "$ref": "./value-source.schema.json" }
     },
     "additionalProperties": false,
     "x-artcade": {
@@ -1209,7 +1322,7 @@
       "category": "Lifecycle",
       "params": {
         "target": { "widget": "target", "label": "Target" },
-        "lifespan": { "widget": "number", "label": "Lifespan (s)" }
+        "lifespan": { "widget": "numberSource", "label": "Lifespan (s)" }
       }
     }
   },

@@ -11,25 +11,27 @@
     "setVariable", "addVariable", "clampVariable", "multiplyVariable",
     "setPosition", "setVelocity", "playSound", "playMusic",
     "stopAllAudio", "stopMusic", "pauseMusic", "resumeMusic", "destroyEntity",
-    "spawnEntity", "spawnEntityAtPointer", "spawnAtEntity", "emitEvent", "startDialog",
+    "spawnEntity", "spawnEntityAtPointer", "spawnAtEntity", "emitEvent", "startDialog", "endDialog",
     "toggleLogicEvent", "applyImpulse", "applyForce", "setRotation", "setScale",
     "playAnimation", "setFlip", "setVisible", "setColorTint", "loadScene", "restartScene",
-    "centerCameraOn", "cameraShake", "setCameraZoom", "panCamera", "setCameraPosition",
+    "centerCameraOn", "followCamera", "stopCameraFollow", "useDefaultCameraTarget",
+    "cameraShake", "setCameraZoom", "panCamera", "setCameraPosition",
     "setTimeScale",
     "moveInDirection", "moveToward", "lookAtTarget",
     "controllerMovement", "moveController", "requestPlatformerJump",
     "damageEntity", "healEntity", "setEntityHealth",
     "setLinearMoverDirection", "setLinearMoverSpeed", "pauseLinearMover", "resumeLinearMover",
-    "setMagnetEnabled", "setMagnetTargetTag", "setHordeTargetClass", "setHordeWeights",
+    "setMagnetEnabled", "setMagnetTargetTag", "setMagnetRadius", "setMagnetPullSpeed",
+    "setHordeTargetClass", "setHordeWeights", "setHordeMaxSpeed", "setHordeSeparationRadius",
     "setAutoDestroyLifespan", "cancelAutoDestroy",
     "saveVariable", "loadVariable", "deleteSave",
     "moveByOffset", "snapToGrid", "setEntityShader", "setScreenShader", "debugLog", "wait", "repeatTimes"
   ],
   "legacyActions": ["setVariableRandomRange", "clickToDestroy", "clearMovementIntent", "setCameraTarget"],
   "conditions": [
-    "compareVariable", "compareClass", "isKeyDown", "hasTag", "compareDistance",
+    "compareVariable", "compareValues", "compareClass", "isKeyDown", "hasTag", "compareDistance",
     "isMouseOver", "raycastHit", "chance", "isTileAreaFree", "compareHealth", "isPlatformerGrounded",
-    "compareCount", "entityExists", "compareVelocity", "comparePosition", "saveExists"
+    "compareCount", "entityExists", "compareVelocity", "comparePosition", "saveExists", "isDialogActive"
   ],
   "legacyConditions": ["isSpaceFree"]
 }
