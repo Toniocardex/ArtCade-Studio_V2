@@ -128,9 +128,9 @@ export default function StatusBar({ compact = false }: StatusBarProps) {
         <span>Snap: {snapToGrid ? 'ON' : 'OFF'}</span>
         <span>
           Zoom: {Math.round(editorZoom * 100)}%
-          {editorZoomMode === 'fit' && <span className="text-[var(--accent)]"> · FIT</span>}
+          {editorZoomMode === 'fit' && <span className="text-[var(--text)]"> · FIT</span>}
         </span>
-        {cameraPreviewActive && <span className="text-[var(--accent-2)]">Camera: PREVIEW</span>}
+        {cameraPreviewActive && <span className="text-[var(--text)]">Camera: PREVIEW</span>}
         {isPlaying && showRuntimeStats && runtimeProfile.fps > 0 && (
           <span title="Lua / physics / render ms (last frame)">
             FPS: {Math.round(runtimeProfile.fps)}

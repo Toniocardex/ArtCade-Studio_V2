@@ -191,7 +191,7 @@ export default function TilesetEditorPanel() {
               <input
                 type="number" min={1} value={tileSize}
                 onChange={e => applyGrid(Math.max(1, Number(e.target.value)), margin)}
-                className="w-16 bg-[var(--border)] border border-[var(--border-2)] text-[var(--accent)]
+                className="w-16 bg-[var(--border)] border border-[var(--border-2)] text-[var(--text)]
                            text-[11px] rounded px-2 py-0.5 text-right"
               />
             </label>
@@ -200,14 +200,14 @@ export default function TilesetEditorPanel() {
               <input
                 type="number" min={0} value={margin}
                 onChange={e => applyGrid(tileSize, Math.max(0, Number(e.target.value)))}
-                className="w-16 bg-[var(--border)] border border-[var(--border-2)] text-[var(--accent)]
+                className="w-16 bg-[var(--border)] border border-[var(--border-2)] text-[var(--text)]
                            text-[11px] rounded px-2 py-0.5 text-right"
               />
             </label>
             <div className="text-[10px] text-[var(--muted)] border-t border-[var(--border)] pt-2 space-y-1">
-              <div>Grid: <span className="text-[var(--accent)]">{cols}×{rows}</span></div>
+              <div>Grid: <span className="text-[var(--text)]">{cols}×{rows}</span></div>
               <div>Brush cell:{' '}
-                <span className="text-[var(--accent-2)]">
+                <span className="text-[var(--accent)]">
                   {selectedTileCell === 0 ? 'eraser' : `#${selectedTileCell}`}
                 </span>
               </div>
@@ -217,7 +217,7 @@ export default function TilesetEditorPanel() {
               onClick={() => dispatch({ type: 'TILESET_SELECT_CELL', cellIndex: 0 })}
               className={`flex items-center gap-2 px-2 py-1.5 rounded text-xs border ${
                 selectedTileCell === 0
-                  ? 'border-[var(--accent-2)] text-[var(--accent-2)] bg-[rgb(var(--accent-2-rgb)/0.1)]'
+                  ? 'border-[var(--accent)] text-[var(--accent)] bg-[rgb(var(--accent-rgb)/0.1)]'
                   : 'border-[var(--border-2)] text-[var(--muted)] hover:text-[var(--text)]'
               }`}
             >
@@ -269,7 +269,7 @@ export default function TilesetEditorPanel() {
                     title={`cell #${cellId}`}
                     className={`border ${
                       sel
-                        ? 'border-[var(--accent-2)] bg-[rgb(var(--accent-2-rgb)/0.2)]'
+                        ? 'border-[var(--accent)] bg-[rgb(var(--accent-rgb)/0.18)]'
                         : 'border-[var(--border)] hover:border-[rgb(var(--accent-rgb)/0.5)]'
                     }`}
                   />

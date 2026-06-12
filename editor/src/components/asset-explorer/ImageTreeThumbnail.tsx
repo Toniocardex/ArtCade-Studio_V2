@@ -10,7 +10,7 @@ type ImageTreeThumbnailProps = Readonly<{
 /** Small tree icon; double-click opens Spritesheet Studio without triggering row double-click. */
 export function ImageTreeThumbnail({ asset, onOpenStudio }: ImageTreeThumbnailProps) {
   if (!asset) {
-    return <Image size={11} className="flex-shrink-0 text-[var(--accent)]" aria-hidden />
+    return <Image size={11} className="flex-shrink-0 text-[var(--muted)]" aria-hidden />
   }
 
   const openFromThumbnail = (e: MouseEvent) => {
@@ -25,7 +25,7 @@ export function ImageTreeThumbnail({ asset, onOpenStudio }: ImageTreeThumbnailPr
         title="Double-click to open Sprite Studio"
         onDoubleClick={openFromThumbnail}
       >
-        <Image size={11} className="text-[var(--accent)]" aria-hidden />
+        <Image size={11} className="text-[var(--muted)]" aria-hidden />
       </span>
     )
   }
