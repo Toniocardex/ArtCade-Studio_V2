@@ -8,7 +8,7 @@ export type LogicBlockTone = 'neutral' | 'when' | 'if' | 'then'
 
 const TONE_BORDER_CLASS: Record<LogicBlockTone, string> = {
   neutral: 'border-l-[var(--border-2)]',
-  when: 'border-l-[var(--accent-2)]',
+  when: 'border-l-[var(--accent)]',
   if: 'border-l-[var(--warn)]',
   then: 'border-l-[var(--accent)]',
 }

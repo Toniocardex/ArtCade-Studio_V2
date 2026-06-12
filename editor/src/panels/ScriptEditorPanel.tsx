@@ -47,7 +47,7 @@ function ScriptTabBar({ paths, activePath, dirtyPaths, onSelect }: ScriptTabBarP
           >
             {label}
             {dirtyPaths.has(p) && (
-              <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-2)] flex-shrink-0" />
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] flex-shrink-0" />
             )}
           </button>
         )

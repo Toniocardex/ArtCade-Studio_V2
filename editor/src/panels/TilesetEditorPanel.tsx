@@ -207,7 +207,7 @@ export default function TilesetEditorPanel() {
             <div className="text-[10px] text-[var(--muted)] border-t border-[var(--border)] pt-2 space-y-1">
               <div>Grid: <span className="text-[var(--text)]">{cols}×{rows}</span></div>
               <div>Brush cell:{' '}
-                <span className="text-[var(--accent)]">
+                <span className="text-[var(--text)]">
                   {selectedTileCell === 0 ? 'eraser' : `#${selectedTileCell}`}
                 </span>
               </div>
@@ -307,7 +307,7 @@ function TilesetHeader({ name, isStandalone, onBack }: TilesetHeaderProps) {
           title="Back to canvas"
           className="flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold
                      text-[var(--muted)] hover:text-[var(--text)] border border-[var(--border-2)]
-                     hover:border-[var(--accent-2)] transition-colors"
+                     hover:border-[var(--accent)] transition-colors"
         >
           <ArrowLeft size={11} /> Canvas
         </button>

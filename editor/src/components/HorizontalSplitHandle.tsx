@@ -62,7 +62,7 @@ export default function HorizontalSplitHandle({ onResize }: HorizontalSplitHandl
       aria-label="Resize assets panel"
       title="Drag to resize"
       className="h-1 w-full flex-shrink-0 cursor-row-resize border-0 p-0 min-w-0
-                 bg-[var(--border)] hover:bg-[var(--accent-2)] active:bg-[var(--accent-2)]
+                 bg-[var(--border)] hover:bg-[var(--accent)] active:bg-[var(--accent)]
                  transition-colors"
     />
   )

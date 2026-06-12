@@ -466,7 +466,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                                 assets.selection.id === row.id,
                               onClick: () => assets.setSelection({ type: 'audio', id: row.id }),
                               icon: (
-                                <Music size={11} className="flex-shrink-0 text-[var(--accent-2)]" />
+                                <Music size={11} className="flex-shrink-0 text-[var(--muted)]" />
                               ),
                               title: row.path,
                               extraMenuItems: [
@@ -658,7 +658,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                             setContextMenu,
                           )
                         }
-                        icon={<Music size={11} className="flex-shrink-0 text-[var(--accent-2)]" />}
+                        icon={<Music size={11} className="flex-shrink-0 text-[var(--muted)]" />}
                         title={a.path}
                       />
                     ))}

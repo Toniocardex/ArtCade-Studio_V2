@@ -75,7 +75,7 @@ import {
   destroySelfOnCollisionWarning,
 } from '../../utils/logic-board/logic-action-warnings'
 
-const link = 'text-[var(--accent)] text-[11px] hover:underline cursor-pointer'
+const link = 'text-[var(--muted)] text-[11px] underline underline-offset-2 hover:text-[var(--text)] cursor-pointer'
 const btn =
   'inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium border border-[var(--border-2)] bg-[var(--border)] text-[var(--text)] hover:border-[var(--accent-bd)]'
 const btnDisabled =

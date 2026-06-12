@@ -53,7 +53,7 @@ export function ImagePointsEditor({ asset, onPatchPoints }: ImagePointsEditorPro
       </ul>
       <button
         type="button"
-        className="text-[10px] text-[var(--accent)]"
+        className="text-[10px] text-[var(--muted)] underline underline-offset-2 hover:text-[var(--text)]"
         onClick={() => {
           onPatchPoints([
             ...points,

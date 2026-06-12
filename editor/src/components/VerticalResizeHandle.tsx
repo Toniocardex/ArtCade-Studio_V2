@@ -68,7 +68,7 @@ export default function VerticalResizeHandle({ onResize, onReset }: VerticalResi
       aria-label="Resize bottom dock"
       title="Drag to resize. Double-click for default height."
       className="editor-resize-handle editor-resize-handle-y h-[6px] w-full flex-shrink-0 cursor-row-resize border-0 p-0 min-w-0
-                 bg-[var(--border)] hover:bg-[var(--accent-2)] active:bg-[var(--accent-2)]
+                 bg-[var(--border)] hover:bg-[var(--accent)] active:bg-[var(--accent)]
                  transition-colors"
     >
       <span aria-hidden className="editor-resize-handle__ticks" />

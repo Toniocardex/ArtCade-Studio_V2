@@ -12,7 +12,7 @@ import { SchemaParamForm } from './SchemaParamForm'
 import { TypePicker } from './TypePicker'
 
 const lbl = 'text-[10px] font-medium text-[var(--muted)]'
-const link = 'text-[var(--accent)] text-[11px] hover:underline cursor-pointer'
+const link = 'text-[var(--muted)] text-[11px] underline underline-offset-2 hover:text-[var(--text)] cursor-pointer'
 const panel =
   'bg-[var(--panel)] border border-[var(--border)] rounded px-2 py-1.5'
 

@@ -26,8 +26,8 @@ export function ScriptSection({ entity }: ScriptSectionProps) {
       <Field label="Path" value={scriptPath} />
       <button
         onClick={openInEditor}
-        className="w-full mt-1 px-3 py-1 bg-[rgb(var(--accent-2-rgb)/0.1)] border border-[rgb(var(--accent-2-rgb)/0.4)]
-                   text-[var(--accent-2)] text-[10px] font-bold rounded hover:bg-[rgb(var(--accent-2-rgb)/0.2)]
+        className="w-full mt-1 px-3 py-1 bg-[var(--accent-bg)] border border-[var(--accent-bd)]
+                   text-[var(--accent)] text-[10px] font-bold rounded hover:bg-[var(--accent-bg-h)]
                    transition-colors"
       >
         OPEN IN SCRIPT EDITOR →

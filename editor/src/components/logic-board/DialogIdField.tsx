@@ -44,7 +44,7 @@ export function DialogIdField({
       />
       <button
         type="button"
-        className="text-[10px] px-2 py-1 rounded-[var(--radius)] border border-[var(--outline)] hover:bg-[var(--outline-faint)] text-[var(--accent)]"
+        className="text-[10px] px-2 py-1 rounded border border-[var(--accent-bd)] bg-[var(--accent-bg)] text-[var(--accent)] hover:bg-[var(--accent-bg-h)]"
         onClick={() => openDialogEditorForId(dispatch, store.getState().dialogs, dialogId)}
       >
         Edit dialog…

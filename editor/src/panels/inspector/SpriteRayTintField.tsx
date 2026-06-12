@@ -37,7 +37,7 @@ export function SpriteRayTintField({ entity }: SpriteRayTintFieldProps) {
           disabled={disabled || !isReady()}
           onClick={openPicker}
           className="text-[9px] px-2 py-1 rounded border border-[var(--border-2)]
-                     text-[var(--text)] hover:border-[var(--accent-2)] disabled:cursor-not-allowed
+                     text-[var(--text)] hover:border-[var(--accent)] disabled:cursor-not-allowed
                      disabled:opacity-60"
         >
           Sprite color

@@ -130,7 +130,7 @@ function ComponentSection({ entity, desc }: ComponentSectionProps) {
                   }
                 }}
                 className="w-full bg-[var(--border)] border border-[var(--border-2)] rounded px-2 py-1
-                           text-xs text-[var(--text)] focus:outline-none focus:border-[var(--accent-2)] transition-colors"
+                           text-xs text-[var(--text)] focus:outline-none focus:border-[var(--accent)] transition-colors"
               />
             </div>
           )

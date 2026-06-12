@@ -108,7 +108,7 @@ export function Field({
         defaultValue={String(value)}
         onBlur={commitFromInput}
         onKeyDown={handleKeyDown}
-        className={`editor-input font-ui ${cyan ? 'text-[var(--accent)] font-semibold' : ''}`}
+        className={`editor-input font-ui ${cyan ? 'text-[var(--text)] font-semibold' : ''}`}
       />
     </div>
   )

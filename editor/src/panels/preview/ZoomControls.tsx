@@ -92,7 +92,7 @@ export function ZoomControls() {
             }}
             placeholder="100"
             className="w-14 px-2 py-0.5 text-[10px] font-bold text-center
-                       bg-[var(--bg)] border border-[var(--accent-2)] rounded
+                       bg-[var(--bg)] border border-[var(--accent)] rounded
                        text-[var(--text)] outline-none"
           />
         )
@@ -108,7 +108,7 @@ export function ZoomControls() {
                        bg-[var(--bg)]
                        hover:bg-[var(--panel-3)] border min-w-[3.5rem] justify-center transition-colors
                        ${fitMode
-                         ? 'text-[var(--accent-2)] border-[var(--accent-2)]'
+                         ? 'text-[var(--accent)] border-[var(--accent)]'
                          : 'text-[var(--text)] border-[var(--border)]'}`}
           >
             {fitMode ? `FIT ${formatZoomPercent(zoom)}` : formatZoomPercent(zoom)}
@@ -136,7 +136,7 @@ export function ZoomControls() {
               onClick={() => { setZoom(p); setOpen(false) }}
               className={`block w-full text-left px-3 py-1 text-[10px] font-mono
                           hover:bg-[var(--panel-3)] transition-colors
-                          ${Math.abs(p - zoom) < ZOOM_PRESET_EPSILON ? 'text-[var(--accent-2)] font-bold' : 'text-[var(--text)]'}`}
+                          ${Math.abs(p - zoom) < ZOOM_PRESET_EPSILON ? 'text-[var(--accent)] font-bold' : 'text-[var(--text)]'}`}
             >
               {formatZoomPercent(p)}
             </button>
@@ -148,7 +148,7 @@ export function ZoomControls() {
             className={`block w-full text-left px-3 py-1 text-[10px] font-bold
                        hover:bg-[var(--panel-3)] transition-colors
                        ${fitMode
-                         ? 'text-[var(--accent-2)]'
+                         ? 'text-[var(--accent)]'
                          : 'text-[var(--muted)] hover:text-[var(--text)]'}`}
             title="Ctrl+9 — keeps the scene fully visible when the panel is resized"
           >

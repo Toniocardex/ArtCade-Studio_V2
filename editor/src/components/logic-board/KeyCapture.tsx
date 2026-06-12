@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 const btn =
-  'bg-[var(--bg)] border border-[var(--border-2)] text-[var(--accent)] px-2 py-1 rounded text-xs min-w-[7rem]'
+  'bg-[var(--bg)] border border-[var(--border-2)] text-[var(--text)] px-2 py-1 rounded text-xs min-w-[7rem]'
 
 export function formatKeyLabel(code: string): string {
   if (!code) return '—'

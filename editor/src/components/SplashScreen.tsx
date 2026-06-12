@@ -34,12 +34,12 @@ export default function SplashScreen({
         <div className="absolute inset-0 z-10 flex items-center justify-center opacity-70 font-mono">
           <div className="absolute h-px bg-[var(--accent)] animate-stream-h" style={{ width: '40vw', top: '45%' }} />
           <div className="absolute w-px bg-[var(--accent)] animate-stream-v" style={{ height: '40vh', left: '45%' }} />
-          <div className="absolute h-px bg-[var(--accent-2)] animate-stream-h-reverse" style={{ width: '40vw', top: '55%' }} />
-          <div className="absolute w-px bg-[var(--accent-2)] animate-stream-v-reverse" style={{ height: '40vh', left: '55%' }} />
+          <div className="absolute h-px bg-[var(--accent)] animate-stream-h-reverse" style={{ width: '40vw', top: '55%' }} />
+          <div className="absolute w-px bg-[var(--accent)] animate-stream-v-reverse" style={{ height: '40vh', left: '55%' }} />
           <div className="absolute text-[8px] text-[rgb(var(--accent-rgb)/0.5)] animate-data-fly-tl">0xAF 10101 enTT</div>
-          <div className="absolute text-[8px] text-[rgb(var(--accent-2-rgb)/0.5)] animate-data-fly-tr">Lua::vm 0011 renderer</div>
+          <div className="absolute text-[8px] text-[rgb(var(--accent-rgb)/0.5)] animate-data-fly-tr">Lua::vm 0011 renderer</div>
           <div className="absolute text-[8px] text-[rgb(var(--accent-rgb)/0.5)] animate-data-fly-bl">SYS_MSG physics_step</div>
-          <div className="absolute text-[8px] text-[rgb(var(--accent-2-rgb)/0.5)] animate-data-fly-br">0x00FF WASM_BOOT</div>
+          <div className="absolute text-[8px] text-[rgb(var(--accent-rgb)/0.5)] animate-data-fly-br">0x00FF WASM_BOOT</div>
         </div>
       )}
 

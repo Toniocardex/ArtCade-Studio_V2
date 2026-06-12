@@ -72,7 +72,7 @@ export default function ResizeHandle({ onResize, side, onReset }: ResizeHandlePr
       aria-label={`Resize ${side} sidebar`}
       title="Drag to resize. Snaps near 180, 240, 300, 360px. Double-click for default width."
       className="editor-resize-handle editor-resize-handle-x w-[6px] flex-shrink-0 cursor-col-resize border-0 p-0 min-h-0 self-stretch
-                 bg-[var(--border)] hover:bg-[var(--accent-2)] active:bg-[var(--accent-2)]
+                 bg-[var(--border)] hover:bg-[var(--accent)] active:bg-[var(--accent)]
                  transition-colors"
     >
       <span aria-hidden className="editor-resize-handle__ticks" />

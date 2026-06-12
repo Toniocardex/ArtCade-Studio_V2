@@ -58,7 +58,7 @@ export function ClipListPanel({ asset, assetId, session }: ClipListPanelProps) {
               onClick={() => setActiveClipIndex(i)}
               className={`px-2 py-0.5 rounded text-[10px] border truncate max-w-full ${
                 i === activeClipIndex
-                  ? 'border-[var(--accent)] text-[var(--accent)]'
+                  ? 'border-[var(--accent)] bg-[rgb(var(--accent-rgb)/0.18)] text-[var(--text)]'
                   : 'border-[var(--border)] text-[var(--muted)]'
               }`}
             >

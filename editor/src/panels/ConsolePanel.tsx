@@ -191,7 +191,7 @@ export default function ConsolePanel({ compact = false }: ConsolePanelProps) {
           ))
         )}
 
-        <div className="text-[var(--accent)] text-[10px] animate-pulse">&gt; _</div>
+        <div className="text-[var(--muted)] text-[10px] animate-pulse">&gt; _</div>
         <div ref={bottomRef} />
       </div>
 
@@ -217,7 +217,7 @@ export default function ConsolePanel({ compact = false }: ConsolePanelProps) {
           setCommandLine('')
         }}
       >
-        <span className="text-[var(--accent)] text-[10px]">&gt;</span>
+        <span className="text-[var(--muted)] text-[10px]">&gt;</span>
         <input
           type="text"
           value={commandLine}

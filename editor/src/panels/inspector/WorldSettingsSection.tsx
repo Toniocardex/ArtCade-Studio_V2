@@ -22,7 +22,7 @@ export function WorldSettingsSection() {
         }
         className="w-20 bg-[var(--panel-3)] border border-[var(--border-2)] text-[var(--text)]
                    text-[11px] rounded px-2 py-0.5 text-right focus:outline-none
-                   focus:border-[var(--accent-2)] transition-colors"
+                   focus:border-[var(--accent)] transition-colors"
       />
     </div>
   )
@@ -78,7 +78,7 @@ export function WorldDebugTimeSection() {
           onChange={(e) =>
             dispatch({ type: 'WORLD_SET', patch: { logicDebugTrace: e.target.checked } })
           }
-          className="accent-[var(--accent-2)]"
+          className="accent-[var(--accent)]"
         />
         <span className="text-[10px] text-[var(--text)]">Logic Board debug trace (console)</span>
       </label>
@@ -89,7 +89,7 @@ export function WorldDebugTimeSection() {
           onChange={(e) =>
             dispatch({ type: 'WORLD_SET', patch: { physicsDebugDraw: e.target.checked } })
           }
-          className="accent-[var(--accent-2)]"
+          className="accent-[var(--accent)]"
         />
         <span className="text-[10px] text-[var(--text)]">Physics collider overlay (play)</span>
       </label>
@@ -100,14 +100,14 @@ export function WorldDebugTimeSection() {
           onChange={(e) =>
             dispatch({ type: 'WORLD_SET', patch: { showRuntimeStats: e.target.checked } })
           }
-          className="accent-[var(--accent-2)]"
+          className="accent-[var(--accent)]"
         />
         <span className="text-[10px] text-[var(--text)]">Runtime stats in status bar (play)</span>
       </label>
       <div>
         <div className="flex justify-between items-center mb-1">
           <span className="text-[9px] text-[var(--muted)] uppercase">Time Scale</span>
-          <span className="text-[11px] text-[var(--accent-2)]">{w.timeScale.toFixed(1)}x</span>
+          <span className="text-[11px] text-[var(--text)]">{w.timeScale.toFixed(1)}x</span>
         </div>
         <input
           type="range"
@@ -118,7 +118,7 @@ export function WorldDebugTimeSection() {
           onChange={(e) =>
             dispatch({ type: 'WORLD_SET', patch: { timeScale: Number(e.target.value) } })
           }
-          className="w-full accent-[var(--accent-2)]"
+          className="w-full accent-[var(--accent)]"
         />
       </div>
     </InspectorSection>

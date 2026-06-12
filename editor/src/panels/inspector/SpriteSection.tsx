@@ -165,7 +165,7 @@ export function SpriteSection({ entity }: SpriteSectionProps) {
         ) : null}
         <button
           type="button"
-          className="flex items-center gap-1 text-[10px] text-[var(--accent)] w-full text-left"
+          className="flex items-center gap-1 text-[10px] text-[var(--muted)] hover:text-[var(--text)] w-full text-left"
           aria-expanded={overrideOpen}
           onClick={() => setOverrideOpen((o) => !o)}
         >

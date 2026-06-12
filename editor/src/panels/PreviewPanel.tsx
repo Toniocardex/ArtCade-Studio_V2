@@ -420,7 +420,7 @@ export default function PreviewPanel({
               width:     `${frameW}px`,
               height:    `${frameH}px`,
               boxShadow: preview
-                ? '0 0 0 2px var(--accent-2), 0 25px 50px -12px rgb(0 0 0 / 0.5)'
+                ? '0 0 0 2px var(--accent), 0 25px 50px -12px rgb(0 0 0 / 0.5)'
                 : '0 25px 50px -12px rgb(0 0 0 / 0.5)',
             }}
           >

@@ -10,7 +10,7 @@ import { KeyCapture, formatKeyLabel } from './KeyCapture'
 import { EditorSelect } from '../ui/EditorSelect'
 
 const lbl = 'text-[10px] font-medium text-[var(--muted)]'
-const link = 'text-[var(--accent)] text-[11px] hover:underline cursor-pointer'
+const link = 'text-[var(--muted)] text-[11px] underline underline-offset-2 hover:text-[var(--text)] cursor-pointer'
 const combineBadge =
   'text-[10px] font-semibold uppercase tracking-wide text-[var(--warn)] px-1'
 

@@ -163,10 +163,10 @@ export default function StatusBar({ compact = false }: StatusBarProps) {
           type="button"
           onClick={toggleConsole}
           title="Toggle console panel (Ctrl+`)"
-          className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border transition-colors ${
+          className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded transition-colors ${
             consoleActive
-              ? 'border-[rgb(var(--accent-rgb)/0.5)] text-[var(--accent)]'
-              : 'border-transparent hover:border-[var(--border)] hover:text-[var(--text)]'
+              ? 'bg-[rgb(var(--accent-rgb)/0.18)] text-[var(--text)]'
+              : 'text-[var(--muted)] hover:text-[var(--text)]'
           }`}
         >
           Console

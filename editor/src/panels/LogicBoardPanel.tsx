@@ -666,7 +666,7 @@ export default function LogicBoardPanel() {
       )}
 
       {clipboardHint ? (
-        <p className="shrink-0 px-3 py-1 text-[10px] text-[var(--accent)] border-b border-[var(--outline)]">
+        <p className="shrink-0 px-3 py-1 text-[10px] text-[var(--muted)] border-b border-[var(--outline)]">
           {clipboardHint}
         </p>
       ) : null}
