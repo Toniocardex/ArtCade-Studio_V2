@@ -11,7 +11,7 @@ import {
   type ParamWidget,
 } from '../../utils/logic-board/schema-registry'
 import { parseLogicNumber } from '../../utils/logic-board/parse-logic-number'
-import type { TargetSelector } from '../../types/logic-board'
+import type { LogicValue, TargetSelector } from '../../types/logic-board'
 import { enumDisplayLabel, fieldDisplayLabel } from '../../panels/logic-board/friendly-labels'
 import { TargetPicker } from './TargetPicker'
 import { KeyCapture } from './KeyCapture'
@@ -19,6 +19,7 @@ import { ClassNamePicker } from './ClassNamePicker'
 import { ClipPicker } from './ClipPicker'
 import { TagPicker } from './TagPicker'
 import { EditorSelect } from '../ui/EditorSelect'
+import { ValueSourceField } from './ValueSourceField'
 
 const inp =
   'bg-[var(--bg)] border border-[var(--border-2)] text-[var(--text)] px-2 py-1 rounded text-xs'
@@ -351,6 +352,19 @@ function renderStringField({ kind, type, name, meta, value, onPatch }: FieldProp
   )
 }
 
+function renderValueSourceField({ name, meta, value, onPatch }: FieldProps) {
+  return (
+    <span key={name} className="flex items-center gap-2">
+      <span className={lbl}>{meta.label}</span>
+      <ValueSourceField
+        value={value as LogicValue | undefined}
+        numeric={meta.widget === 'numberSource'}
+        onChange={(next) => onPatch(name, next)}
+      />
+    </span>
+  )
+}
+
 const FIELD_RENDERERS: Record<ParamWidget, (props: FieldProps) => ReactElement> = {
   number: renderNumberField,
   boolean: renderBooleanField,
@@ -362,6 +376,8 @@ const FIELD_RENDERERS: Record<ParamWidget, (props: FieldProps) => ReactElement> 
   entityTag: renderEntityTagField,
   animationClip: (props) => renderAnimationClipField(props),
   string: renderStringField,
+  valueSource: renderValueSourceField,
+  numberSource: renderValueSourceField,
 }
 
 export type SchemaParamFormProps = Readonly<{

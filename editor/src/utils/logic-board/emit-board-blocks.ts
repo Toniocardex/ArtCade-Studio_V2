@@ -122,7 +122,7 @@ export function pushMessageEventsInit(
     if (ev.trigger.type !== 'onMessage') continue
     const I = INDENT
     init.push(
-      `${I}_logic_reg_message(${luaString(ev.trigger.messageName)}, function()`,
+      `${I}_logic_reg_message(${luaString(ev.trigger.messageName)}, function(_message)`,
       ...messageHandlerBody(ev, board, pool, isGlobal, slugs, project, logicDebugTrace),
       `${I}end)`,
     )

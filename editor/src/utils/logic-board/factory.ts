@@ -59,6 +59,23 @@ function asArray(v: unknown): unknown[] {
   return Array.isArray(v) ? v : []
 }
 
+function migrateLegacyCondition<T extends { type: string }>(condition: T): T {
+  return condition.type === 'isSpaceFree'
+    ? { ...condition, type: 'isTileAreaFree' } as T
+    : condition
+}
+
+function migrateLegacyConditionNode(node: LogicEvent['conditionRoot']): LogicEvent['conditionRoot'] {
+  if (!node) return node
+  if (node.kind === 'leaf') {
+    return { ...node, condition: migrateLegacyCondition(node.condition) }
+  }
+  return {
+    ...node,
+    statements: node.statements.map((statement) => migrateLegacyConditionNode(statement)!),
+  }
+}
+
 function parseEvent(raw: unknown): LogicEvent | null {
   if (!raw || typeof raw !== 'object') return null
   const r = raw as Record<string, unknown>
@@ -66,17 +83,35 @@ function parseEvent(raw: unknown): LogicEvent | null {
   if (!trigger || typeof trigger !== 'object') return null
   if (typeof (trigger as Record<string, unknown>).type !== 'string') return null
 
+  const rawActions = stripLegacyLogicActions(asArray(r.actions) as LogicAction[])
+  const legacyClick = rawActions.find(
+    (action): action is Extract<LogicAction, { type: 'clickToDestroy' }> =>
+      action.type === 'clickToDestroy',
+  )
+  const actions = legacyClick
+    ? rawActions.map((action): LogicAction =>
+        action.type === 'clickToDestroy'
+          ? { type: 'destroyEntity', target: 'self' }
+          : action,
+      )
+    : rawActions
+  const migratedTrigger: LogicTrigger = legacyClick
+    ? { type: 'onObjectClick', button: legacyClick.button, radius: legacyClick.radius }
+    : trigger as LogicTrigger
+
   const event: LogicEvent = {
     id: typeof r.id === 'string' && r.id ? r.id : logicId('evt'),
     enabled: r.enabled !== false, // default true
-    trigger: trigger as LogicTrigger,
+    trigger: migratedTrigger,
     ...(typeof r.onlyIfEnabled === 'boolean'
       ? { onlyIfEnabled: r.onlyIfEnabled }
       : {}),
-    // conditions / conditionRoot are passed through as-is; the compiler has
-    // safe fallbacks for missing/empty shapes.
+    // Conditions keep their saved shape apart from canonical legacy names.
     ...(Array.isArray(r.conditions)
-      ? { conditions: r.conditions as LogicEvent['conditions'] }
+      ? {
+          conditions: (r.conditions as NonNullable<LogicEvent['conditions']>)
+            .map((condition) => migrateLegacyCondition(condition)),
+        }
       : {}),
     ...(r.conditionsOperator === 'OR' ||
     r.conditionsOperator === 'AND' ||
@@ -84,9 +119,13 @@ function parseEvent(raw: unknown): LogicEvent | null {
       ? { conditionsOperator: r.conditionsOperator }
       : {}),
     ...(r.conditionRoot && typeof r.conditionRoot === 'object'
-      ? { conditionRoot: r.conditionRoot as LogicEvent['conditionRoot'] }
+      ? {
+          conditionRoot: migrateLegacyConditionNode(
+            r.conditionRoot as LogicEvent['conditionRoot'],
+          ),
+        }
       : {}),
-    actions: stripLegacyLogicActions(asArray(r.actions) as LogicAction[]),
+    actions,
     ...(typeof r.elseEnabled === 'boolean' ? { elseEnabled: r.elseEnabled } : {}),
     ...(Array.isArray(r.elseActions)
       ? { elseActions: stripLegacyLogicActions(r.elseActions as LogicAction[]) }

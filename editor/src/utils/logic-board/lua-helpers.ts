@@ -138,5 +138,5 @@ export function luaPointerWorldPairStmt(): string {
 export function luaPointerNearSelfExpr(radius: number): string {
   const r = Math.max(0, radius)
   const r2 = r * r
-  return `(function() local mx,my=input.mouseWorld() local p=entity.position(self) local dx=mx-p.x local dy=my-p.y return (dx*dx+dy*dy) <= ${r2} end)()`
+  return `(function() local mx,my=input.mouseWorld() local px,py=entity.position(self) local dx=mx-px local dy=my-py return (dx*dx+dy*dy) <= ${r2} end)()`
 }

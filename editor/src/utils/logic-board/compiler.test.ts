@@ -885,7 +885,7 @@ describe('Logic Components — Phase A (new blocks)', () => {
              actions: [{ type: 'debugLog', message: 'hit' }] }),
       ]),
     ])
-    expect(lua).toContain('_logic_reg_message("player_hit", function()')
+    expect(lua).toContain('_logic_reg_message("player_hit", function(_message)')
     expect(lua).toContain('debug.log("hit")')
   })
 
@@ -991,7 +991,7 @@ describe('Hot-reload safety — handler unsubscribe tracking', () => {
     expect(lua).toContain('_logic_reg_sensor_enter("Player", "Coin"')
     expect(lua).toContain('_logic_reg_input_pressed("Space"')
     expect(lua).toContain('_logic_reg_timer_every(1, function()')
-    expect(lua).toContain('_logic_reg_message("hit", function()')
+    expect(lua).toContain('_logic_reg_message("hit", function(_message)')
   })
 })
 
@@ -1046,7 +1046,7 @@ describe('Global-target boards (no entity context)', () => {
         ],
       },
     ])
-    expect(lua).toContain('_logic_reg_message("level_complete", function()')
+    expect(lua).toContain('_logic_reg_message("level_complete", function(_message)')
     const closure = lua.slice(lua.indexOf('_logic_reg_message('))
     expect(closure).not.toContain('for _, self in ipairs')
   })
@@ -1576,5 +1576,33 @@ describe('logicDebugTrace', () => {
     expect(lua).toContain('[logic]')
     expect(lua).toContain('condition pass')
     expect(lua).toContain('condition fail')
+  })
+})
+
+describe('Value Sources', () => {
+  it('emits state, entity, message, and deterministic random sources', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({
+          trigger: { type: 'onMessage', messageName: 'configure' },
+          actions: [
+            { type: 'setVariable', key: 'fromState', value: { source: 'state', key: 'score' } },
+            { type: 'setVariable', key: 'fromMessage', value: { source: 'message', key: 'amount' } },
+            {
+              type: 'setVariable',
+              key: 'fromEntity',
+              value: { source: 'entity', target: 'self', property: 'positionX' },
+            },
+            { type: 'setVariable', key: 'die', value: { source: 'random', min: 6, max: 1 } },
+          ],
+        }),
+      ]),
+    ])
+    expect(lua).toContain('function(_message)')
+    expect(lua).toContain('state.get("score")')
+    expect(lua).toContain('_message["amount"]')
+    expect(lua).toContain('local _target=self; if _target==nil then return 0 end; local _x,_y=entity.position(_target)')
+    expect(lua).toContain('_logic_random_int(6, 1)')
+    expect(lua).not.toContain('math.random')
   })
 })

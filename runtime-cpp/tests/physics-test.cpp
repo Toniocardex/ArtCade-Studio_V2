@@ -206,7 +206,26 @@ int main() {
     phys.destroyBody(hHigh);
     printf("[PASS] 17. stacked dynamics settle (vy=%.3f)\n", boxVel.y);
 
+    // ---- Test 18: impulse is immediate; force is integrated over dt --------
+    phys.setGravity({ 0.f, 0.f });
+    uint32_t hForce = phys.createBody(35, makeRect(BodyType::Dynamic, 2.f, 2.f));
+    phys.applyImpulse(hForce, { 12.f, 0.f });
+    Vec2 forceVel = phys.getLinearVelocity(hForce);
+    assert(std::abs(forceVel.x - 12.f) < 0.001f);
+    phys.setLinearVelocity(hForce, { 0.f, 0.f });
+    phys.applyForce(hForce, { 12.f, 0.f });
+    forceVel = phys.getLinearVelocity(hForce);
+    assert(std::abs(forceVel.x) < 0.001f);
+    phys.step(0.5f, 2);
+    forceVel = phys.getLinearVelocity(hForce);
+    assert(std::abs(forceVel.x - 6.f) < 0.001f);
+    phys.step(0.5f, 2);
+    forceVel = phys.getLinearVelocity(hForce);
+    assert(std::abs(forceVel.x - 6.f) < 0.001f);
+    phys.destroyBody(hForce);
+    printf("[PASS] 18. impulse and force have distinct semantics\n");
+
     phys.shutdown();
-    printf("\n[physics-test] 17/17 PASSED\n");
+    printf("\n[physics-test] 18/18 PASSED\n");
     return 0;
 }

@@ -2,6 +2,7 @@ import type { ProjectDoc } from '../../../types'
 import type { LogicAction, TargetSelector } from '../../../types/logic-board'
 import { repeatIntervalSeconds } from '../../../utils/logic-board/repeat-interval'
 import { fmtClass, targetDisplayLabel } from './board-labels'
+import { valueSummary } from './value-summary'
 
 export function actionSummaryPlain(
   a: LogicAction,
@@ -10,13 +11,13 @@ export function actionSummaryPlain(
   const who = (t: TargetSelector) => targetDisplayLabel(t, project)
   switch (a.type) {
     case 'setVariable':
-      return `Set ${a.key} to ${a.value}`
+      return `Set ${a.key} to ${valueSummary(a.value, project)}`
     case 'addVariable':
-      return `Add ${a.amount} to ${a.key}`
+      return `Add ${valueSummary(a.amount, project)} to ${a.key}`
     case 'setPosition':
-      return `Move ${who(a.target)} to (${a.x}, ${a.y})`
+      return `Move ${who(a.target)} to (${valueSummary(a.x, project)}, ${valueSummary(a.y, project)})`
     case 'setVelocity':
-      return `Set ${who(a.target)} speed to (${a.vx}, ${a.vy})`
+      return `Set ${who(a.target)} speed to (${valueSummary(a.vx, project)}, ${valueSummary(a.vy, project)})`
     case 'playSound':
       return `Play sound "${a.path || '...'}"`
     case 'playMusic':
@@ -68,13 +69,13 @@ export function actionSummaryPlain(
     case 'requestPlatformerJump':
       return `Make ${who(a.target)} jump`
     case 'damageEntity':
-      return `Damage ${who(a.target)} by ${a.amount}`
+      return `Damage ${who(a.target)} by ${valueSummary(a.amount, project)}`
     case 'healEntity':
-      return `Heal ${who(a.target)} by ${a.amount}`
+      return `Heal ${who(a.target)} by ${valueSummary(a.amount, project)}`
     case 'setEntityHealth':
       return a.maxHp != null
-        ? `Set ${who(a.target)} HP to ${a.currentHp}/${a.maxHp}`
-        : `Set ${who(a.target)} HP to ${a.currentHp}`
+        ? `Set ${who(a.target)} HP to ${valueSummary(a.currentHp, project)}/${valueSummary(a.maxHp, project)}`
+        : `Set ${who(a.target)} HP to ${valueSummary(a.currentHp, project)}`
     case 'setLinearMoverDirection':
       return `Set linear mover on ${who(a.target)} to (${a.directionX}, ${a.directionY})`
     case 'setLinearMoverSpeed':
@@ -124,8 +125,9 @@ export function actionSummaryPlain(
         : `Load level "${a.sceneName || '?'}"`
     case 'restartScene':
       return 'Restart current level'
+    case 'centerCameraOn':
     case 'setCameraTarget':
-      return `Camera follows ${who(a.target)}`
+      return `Center camera on ${who(a.target)}`
     case 'cameraShake': {
       const dur = a.durationSeconds ?? 0.5
       return `Shake camera (intensity ${a.trauma}, ${dur}s)`

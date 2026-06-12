@@ -6,6 +6,7 @@ import type {
 } from '../../../types/logic-board'
 import { formatKeyLabel } from '../../../components/logic-board/KeyCapture'
 import { fmtClass, targetDisplayLabel } from './board-labels'
+import { valueSummary } from './value-summary'
 
 function formatChip(text: string, negated?: boolean): string {
   return negated ? `NOT ${text}` : text
@@ -19,7 +20,7 @@ export function conditionSummaryPlain(
   let text: string
   switch (c.type) {
     case 'compareVariable':
-      text = `Variable ${c.key} ${c.operator} ${c.value}`
+      text = `Variable ${c.key} ${c.operator} ${valueSummary(c.value, project)}`
       break
     case 'compareClass':
       text = `Touching "${fmtClass(c.className || '?', project)}"`
@@ -42,31 +43,32 @@ export function conditionSummaryPlain(
         : 'Something ahead in line of sight'
       break
     case 'chance':
-      text = `${c.percent}% chance`
+      text = `${valueSummary(c.percent, project)}% chance`
       break
+    case 'isTileAreaFree':
     case 'isSpaceFree':
-      text = `Area (${c.x}, ${c.y}) is free`
+      text = `Tile area (${valueSummary(c.x, project)}, ${valueSummary(c.y, project)}) is free`
       break
     case 'compareHealth':
-      text = `${targetDisplayLabel(c.target, project)} ${c.field === 'max' ? 'max HP' : 'HP'} ${c.operator} ${c.value}`
+      text = `${targetDisplayLabel(c.target, project)} ${c.field === 'max' ? 'max HP' : 'HP'} ${c.operator} ${valueSummary(c.value, project)}`
       break
     case 'isPlatformerGrounded':
       text = `${targetDisplayLabel(c.target, project)} is on ground`
       break
     case 'compareCount':
-      text = `Count of "${fmtClass(c.className || '?', project)}" ${c.operator} ${c.value}`
+      text = `Count of "${fmtClass(c.className || '?', project)}" ${c.operator} ${valueSummary(c.value, project)}`
       break
     case 'entityExists':
       text = `${targetDisplayLabel(c.target, project)} exists`
       break
     case 'compareVelocity': {
       const axisLabel = c.axis === 'magnitude' ? 'speed' : `velocity.${c.axis}`
-      text = `${targetDisplayLabel(c.target, project)} ${axisLabel} ${c.operator} ${c.value}`
+      text = `${targetDisplayLabel(c.target, project)} ${axisLabel} ${c.operator} ${valueSummary(c.value, project)}`
       break
     }
     case 'comparePosition': {
       const axisLabel = `position.${c.axis}`
-      text = `${targetDisplayLabel(c.target, project)} ${axisLabel} ${c.operator} ${c.value}`
+      text = `${targetDisplayLabel(c.target, project)} ${axisLabel} ${c.operator} ${valueSummary(c.value, project)}`
       break
     }
     case 'saveExists':

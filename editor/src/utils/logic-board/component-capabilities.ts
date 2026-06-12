@@ -59,13 +59,13 @@ const CAPABILITIES: CapabilityDef[] = [
 ]
 
 const ACTION_RECOMMENDATIONS: Record<ComponentKey, LogicActionType[]> = {
-  topDownController: ['controllerMovement', 'moveController', 'clearMovementIntent'],
-  platformerController: ['controllerMovement', 'moveController', 'clearMovementIntent', 'requestPlatformerJump'],
+  topDownController: ['controllerMovement', 'moveController'],
+  platformerController: ['controllerMovement', 'moveController', 'requestPlatformerJump'],
   health: ['damageEntity', 'healEntity', 'setEntityHealth'],
   sensor: [],
   solid: [],
   linearMover: ['setLinearMoverDirection', 'setLinearMoverSpeed', 'pauseLinearMover', 'resumeLinearMover'],
-  cameraTarget: ['setCameraTarget'],
+  cameraTarget: [],
   magneticItem: ['setMagnetEnabled', 'setMagnetTargetTag'],
   hordeMember: ['setHordeTargetClass', 'setHordeWeights'],
   autoDestroy: ['setAutoDestroyLifespan', 'cancelAutoDestroy'],

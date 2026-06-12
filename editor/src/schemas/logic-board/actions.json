@@ -5,7 +5,7 @@
     "properties": {
       "type": { "const": "setVariable" },
       "key": { "type": "string" },
-      "value": { "oneOf": [{ "type": "number" }, { "type": "string" }, { "type": "boolean" }] }
+      "value": { "$ref": "./value-source.schema.json" }
     },
     "additionalProperties": false,
     "x-artcade": {
@@ -13,7 +13,7 @@
       "category": "State",
       "params": {
         "key": { "widget": "string", "label": "Key" },
-        "value": { "widget": "string", "label": "Value" }
+        "value": { "widget": "valueSource", "label": "Value" }
       }
     }
   },
@@ -23,7 +23,7 @@
     "properties": {
       "type": { "const": "addVariable" },
       "key": { "type": "string" },
-      "amount": { "type": "number" }
+      "amount": { "$ref": "./value-source.schema.json" }
     },
     "additionalProperties": false,
     "x-artcade": {
@@ -31,7 +31,7 @@
       "category": "State",
       "params": {
         "key": { "widget": "string", "label": "Key" },
-        "amount": { "widget": "number", "label": "Amount" }
+        "amount": { "widget": "numberSource", "label": "Amount" }
       }
     }
   },
@@ -41,8 +41,8 @@
     "properties": {
       "type": { "const": "setPosition" },
       "target": { "$ref": "./target-selector.schema.json" },
-      "x": { "type": "number" },
-      "y": { "type": "number" }
+      "x": { "$ref": "./value-source.schema.json" },
+      "y": { "$ref": "./value-source.schema.json" }
     },
     "additionalProperties": false,
     "x-artcade": {
@@ -50,8 +50,8 @@
       "category": "Physics",
       "params": {
         "target": { "widget": "target", "label": "Target" },
-        "x": { "widget": "number", "label": "X" },
-        "y": { "widget": "number", "label": "Y" }
+        "x": { "widget": "numberSource", "label": "X" },
+        "y": { "widget": "numberSource", "label": "Y" }
       }
     }
   },
@@ -61,8 +61,8 @@
     "properties": {
       "type": { "const": "setVelocity" },
       "target": { "$ref": "./target-selector.schema.json" },
-      "vx": { "type": "number" },
-      "vy": { "type": "number" }
+      "vx": { "$ref": "./value-source.schema.json" },
+      "vy": { "$ref": "./value-source.schema.json" }
     },
     "additionalProperties": false,
     "x-artcade": {
@@ -70,8 +70,8 @@
       "category": "Physics",
       "params": {
         "target": { "widget": "target", "label": "Target" },
-        "vx": { "widget": "number", "label": "VX" },
-        "vy": { "widget": "number", "label": "VY" }
+        "vx": { "widget": "numberSource", "label": "VX" },
+        "vy": { "widget": "numberSource", "label": "VY" }
       }
     }
   },
@@ -351,7 +351,7 @@
     "properties": {
       "type": { "const": "damageEntity" },
       "target": { "$ref": "./target-selector.schema.json" },
-      "amount": { "type": "number" }
+      "amount": { "$ref": "./value-source.schema.json" }
     },
     "additionalProperties": false,
     "x-artcade": {
@@ -359,7 +359,7 @@
       "category": "Health",
       "params": {
         "target": { "widget": "target", "label": "Target" },
-        "amount": { "widget": "number", "label": "Amount" }
+        "amount": { "widget": "numberSource", "label": "Amount" }
       }
     }
   },
@@ -369,7 +369,7 @@
     "properties": {
       "type": { "const": "healEntity" },
       "target": { "$ref": "./target-selector.schema.json" },
-      "amount": { "type": "number" }
+      "amount": { "$ref": "./value-source.schema.json" }
     },
     "additionalProperties": false,
     "x-artcade": {
@@ -377,7 +377,7 @@
       "category": "Health",
       "params": {
         "target": { "widget": "target", "label": "Target" },
-        "amount": { "widget": "number", "label": "Amount" }
+        "amount": { "widget": "numberSource", "label": "Amount" }
       }
     }
   },
@@ -387,8 +387,8 @@
     "properties": {
       "type": { "const": "setEntityHealth" },
       "target": { "$ref": "./target-selector.schema.json" },
-      "currentHp": { "type": "number" },
-      "maxHp": { "type": "number" }
+      "currentHp": { "$ref": "./value-source.schema.json" },
+      "maxHp": { "$ref": "./value-source.schema.json" }
     },
     "additionalProperties": false,
     "x-artcade": {
@@ -396,8 +396,8 @@
       "category": "Health",
       "params": {
         "target": { "widget": "target", "label": "Target" },
-        "currentHp": { "widget": "number", "label": "Current HP" },
-        "maxHp": { "widget": "number", "label": "Max HP" }
+        "currentHp": { "widget": "numberSource", "label": "Current HP" },
+        "maxHp": { "widget": "numberSource", "label": "Max HP" }
       }
     }
   },
@@ -628,6 +628,20 @@
     "additionalProperties": false,
     "x-artcade": {
       "label": "Set Camera Target",
+      "category": "Camera",
+      "params": { "target": { "widget": "target", "label": "Target" } }
+    }
+  },
+  "centerCameraOn": {
+    "type": "object",
+    "required": ["type", "target"],
+    "properties": {
+      "type": { "const": "centerCameraOn" },
+      "target": { "$ref": "./target-selector.schema.json" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Center Camera On Object",
       "category": "Camera",
       "params": { "target": { "widget": "target", "label": "Target" } }
     }

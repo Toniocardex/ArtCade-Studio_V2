@@ -47,6 +47,10 @@ public:
 
     // ---- Velocity / position ------------------------------------------------
     void setLinearVelocity(uint32_t handle, const Vec2& vel);
+    /** Apply an instantaneous velocity change to a dynamic body. */
+    void applyImpulse(uint32_t handle, const Vec2& impulse);
+    /** Accumulate acceleration for the next simulation step. */
+    void applyForce(uint32_t handle, const Vec2& force);
     /** Per-entity gravity multiplier (0 = ignore world gravity, e.g. top-down). */
     void setGravityScale(uint32_t handle, float scale);
     Vec2 getLinearVelocity(uint32_t handle) const;

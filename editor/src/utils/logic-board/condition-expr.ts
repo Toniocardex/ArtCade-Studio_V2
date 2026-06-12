@@ -14,7 +14,8 @@ import type {
 } from '../../types/logic-board'
 import type { ProjectDoc } from '../../types'
 import { combineConditionExprs, wrapNegated } from './condition-combine'
-import { luaPointerNearSelfExpr, luaString, luaValue, targetExpr } from './lua-helpers'
+import { luaPointerNearSelfExpr, luaString, targetExpr } from './lua-helpers'
+import { numberSourceExpr, valueSourceExpr } from './value-source'
 
 /**
  * Whitelist of binary comparison operators that may appear in a condition.
@@ -33,7 +34,7 @@ function leafExpr(c: LogicCondition, project?: ProjectDoc | null): string {
     case 'compareClass':
       return `collision.touchingClass(self, ${luaString(c.className)})`
     case 'compareVariable':
-      return `(state.get(${luaString(c.key)}) ${safeOp(c.operator)} ${luaValue(c.value)})`
+      return `(state.get(${luaString(c.key)}) ${safeOp(c.operator)} ${valueSourceExpr(c.value, project)})`
     case 'isKeyDown':
       return `input.isKeyDown(${luaString(c.keyCode)})`
     case 'hasTag':
@@ -49,27 +50,28 @@ function leafExpr(c: LogicCondition, project?: ProjectDoc | null): string {
       const classChk = c.className
         ? ` local ok=false for _,e in ipairs(pool.getAll(${luaString(c.className)})) do if e==r.entityId then ok=true break end end if not ok then return false end`
         : ''
-      return `(function() local p=entity.position(self) local r=collision.raycast(p.x,p.y,p.x+(${dx})*(${len}),p.y+(${dy})*(${len})) if not r.hit then return false end${classChk} return true end)()`
+      return `(function() local _px,_py=entity.position(self) local r=collision.raycast(_px,_py,_px+(${dx})*(${len}),_py+(${dy})*(${len})) if not r.hit then return false end${classChk} return true end)()`
     }
     case 'chance':
-      return `(math.random(100) <= ${Number(c.percent) || 0})`
+      return `_logic_random_chance(${numberSourceExpr(c.percent, project)})`
+    case 'isTileAreaFree':
     case 'isSpaceFree':
-      return `grid.isSpaceFree(${Number(c.x) || 0}, ${Number(c.y) || 0}, ${Number(c.w) || 32}, ${Number(c.h) || 32})`
+      return `grid.isSpaceFree(${numberSourceExpr(c.x, project)}, ${numberSourceExpr(c.y, project)}, ${numberSourceExpr(c.w, project, 32)}, ${numberSourceExpr(c.h, project, 32)})`
     case 'compareHealth': {
       const target = targetExpr(c.target, project)
-      const value = Number(c.value) || 0
+      const value = numberSourceExpr(c.value, project)
       const field = c.field === 'max' ? '_m' : '_c'
       return `(function() local _c,_m=entity.health(${target}); if _c == nil then return false end return (${field} ${safeOp(c.operator)} ${value}) end)()`
     }
     case 'isPlatformerGrounded':
       return `platformer.isGrounded(${targetExpr(c.target, project)})`
     case 'compareCount':
-      return `(pool.count(${luaString(c.className)}) ${safeOp(c.operator)} ${Number(c.value) || 0})`
+      return `(pool.count(${luaString(c.className)}) ${safeOp(c.operator)} ${numberSourceExpr(c.value, project)})`
     case 'entityExists':
       return `object.exists(${targetExpr(c.target, project)})`
     case 'compareVelocity': {
       const t = targetExpr(c.target, project)
-      const val = Number(c.value) || 0
+      const val = numberSourceExpr(c.value, project)
       const op = safeOp(c.operator)
       if (c.axis === 'magnitude')
         return `(function() local _vx,_vy=entity.velocity(${t}); return (math.sqrt(_vx*_vx+_vy*_vy) ${op} ${val}) end)()`
@@ -78,7 +80,7 @@ function leafExpr(c: LogicCondition, project?: ProjectDoc | null): string {
     }
     case 'comparePosition': {
       const t = targetExpr(c.target, project)
-      const val = Number(c.value) || 0
+      const val = numberSourceExpr(c.value, project)
       const op = safeOp(c.operator)
       const component = c.axis === 'y' ? '_py' : '_px'
       return `(function() local _px,_py=entity.position(${t}); return (${component} ${op} ${val}) end)()`

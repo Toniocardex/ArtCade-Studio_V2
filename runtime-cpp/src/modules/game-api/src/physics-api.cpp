@@ -104,16 +104,14 @@ void GameAPI::bindPhysicsAPI(sol::state& lua) {
         [entities, physics](EntityId id, float ix, float iy) {
             const uint32_t handle = entities->physicsHandle(id);
             if (!entities->exists(id) || handle == 0) return;
-            auto v = physics->getLinearVelocity(handle);
-            physics->setLinearVelocity(handle, { v.x + ix, v.y + iy });
+            physics->applyImpulse(handle, { ix, iy });
         });
 
     lua.set_function("physics_applyForce",
         [entities, physics](EntityId id, float fx, float fy) {
             const uint32_t handle = entities->physicsHandle(id);
             if (!entities->exists(id) || handle == 0) return;
-            auto v = physics->getLinearVelocity(handle);
-            physics->setLinearVelocity(handle, { v.x + fx, v.y + fy });
+            physics->applyForce(handle, { fx, fy });
         });
 
     lua.script(R"(

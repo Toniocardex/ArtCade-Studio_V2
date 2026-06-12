@@ -8,16 +8,16 @@
     "onObjectHoverEnter", "onObjectHoverExit", "onMessage", "onTimer"
   ],
   "actions": [
-    "setVariable", "addVariable", "setVariableRandomRange", "clampVariable", "multiplyVariable",
+    "setVariable", "addVariable", "clampVariable", "multiplyVariable",
     "setPosition", "setVelocity", "playSound", "playMusic",
-    "stopAllAudio", "stopMusic", "pauseMusic", "resumeMusic", "destroyEntity", "clickToDestroy",
+    "stopAllAudio", "stopMusic", "pauseMusic", "resumeMusic", "destroyEntity",
     "spawnEntity", "spawnEntityAtPointer", "spawnAtEntity", "emitEvent", "startDialog",
     "toggleLogicEvent", "applyImpulse", "applyForce", "setRotation", "setScale",
     "playAnimation", "setFlip", "setVisible", "setColorTint", "loadScene", "restartScene",
-    "setCameraTarget", "cameraShake", "setCameraZoom", "panCamera", "setCameraPosition",
+    "centerCameraOn", "cameraShake", "setCameraZoom", "panCamera", "setCameraPosition",
     "setTimeScale",
     "moveInDirection", "moveToward", "lookAtTarget",
-    "controllerMovement", "moveController", "clearMovementIntent", "requestPlatformerJump",
+    "controllerMovement", "moveController", "requestPlatformerJump",
     "damageEntity", "healEntity", "setEntityHealth",
     "setLinearMoverDirection", "setLinearMoverSpeed", "pauseLinearMover", "resumeLinearMover",
     "setMagnetEnabled", "setMagnetTargetTag", "setHordeTargetClass", "setHordeWeights",
@@ -25,9 +25,11 @@
     "saveVariable", "loadVariable", "deleteSave",
     "moveByOffset", "snapToGrid", "setEntityShader", "setScreenShader", "debugLog", "wait", "repeatTimes"
   ],
+  "legacyActions": ["setVariableRandomRange", "clickToDestroy", "clearMovementIntent", "setCameraTarget"],
   "conditions": [
     "compareVariable", "compareClass", "isKeyDown", "hasTag", "compareDistance",
-    "isMouseOver", "raycastHit", "chance", "isSpaceFree", "compareHealth", "isPlatformerGrounded",
+    "isMouseOver", "raycastHit", "chance", "isTileAreaFree", "compareHealth", "isPlatformerGrounded",
     "compareCount", "entityExists", "compareVelocity", "comparePosition", "saveExists"
-  ]
+  ],
+  "legacyConditions": ["isSpaceFree"]
 }

@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "LogicValue",
+  "oneOf": [
+    { "type": "number" },
+    { "type": "string" },
+    { "type": "boolean" },
+    {
+      "type": "object",
+      "required": ["source", "key"],
+      "properties": {
+        "source": { "const": "state" },
+        "key": { "type": "string" },
+        "fallback": { "oneOf": [{ "type": "number" }, { "type": "string" }, { "type": "boolean" }] }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": ["source", "target", "property"],
+      "properties": {
+        "source": { "const": "entity" },
+        "target": { "$ref": "./target-selector.schema.json" },
+        "property": {
+          "enum": ["positionX", "positionY", "velocityX", "velocityY", "speed", "healthCurrent", "healthMax"]
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": ["source", "key"],
+      "properties": {
+        "source": { "const": "message" },
+        "key": { "type": "string" },
+        "fallback": { "oneOf": [{ "type": "number" }, { "type": "string" }, { "type": "boolean" }] }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": ["source", "min", "max"],
+      "properties": {
+        "source": { "const": "random" },
+        "min": { "type": "number" },
+        "max": { "type": "number" }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

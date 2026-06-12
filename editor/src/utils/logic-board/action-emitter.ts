@@ -7,6 +7,7 @@ import type { LogicAction } from '../../types/logic-board'
 import type { ProjectDoc } from '../../types'
 import { luaPointerWorldPairStmt, luaString, luaValue, targetExpr } from './lua-helpers'
 import { ruleKeyExpr } from './event-slugs'
+import { numberSourceExpr, valueSourceExpr } from './value-source'
 
 /** Coerce to a finite number, falling back to `fallback` for NaN/Infinity. */
 function finite(n: unknown, fallback = 0): number {
@@ -72,13 +73,13 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
   const target = (sel: Parameters<typeof targetExpr>[0]) => targetExpr(sel, project)
   switch (a.type) {
     case 'setVariable':
-      return `state.set(${luaString(a.key)}, ${luaValue(a.value)})`
+      return `state.set(${luaString(a.key)}, ${valueSourceExpr(a.value, project)})`
     case 'addVariable':
-      return `state.add(${luaString(a.key)}, ${Number(a.amount) || 0})`
+      return `state.add(${luaString(a.key)}, ${numberSourceExpr(a.amount, project)})`
     case 'setPosition':
-      return `entity.setPosition(${target(a.target)}, ${Number(a.x) || 0}, ${Number(a.y) || 0})`
+      return `entity.setPosition(${target(a.target)}, ${numberSourceExpr(a.x, project)}, ${numberSourceExpr(a.y, project)})`
     case 'setVelocity':
-      return `entity.setVelocity(${target(a.target)}, ${Number(a.vx) || 0}, ${Number(a.vy) || 0})`
+      return `entity.setVelocity(${target(a.target)}, ${numberSourceExpr(a.vx, project)}, ${numberSourceExpr(a.vy, project)})`
     case 'playSound': {
       const path = resolveAudioPath(ctx.project, a.audioAssetId, a.path)
       return `audio.playSound(${luaString(path)}, ${a.volume ?? 1}, ${a.pitch ?? 1})`
@@ -168,16 +169,16 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
     case 'requestPlatformerJump':
       return `platformer.requestJump(${target(a.target)})`
     case 'damageEntity':
-      return `entity.damage(${target(a.target)}, ${Number(a.amount) || 0})`
+      return `entity.damage(${target(a.target)}, ${numberSourceExpr(a.amount, project)})`
     case 'healEntity': {
       const t = target(a.target)
-      const amount = Number(a.amount) || 0
+      const amount = numberSourceExpr(a.amount, project)
       return `(function() local _c,_m=entity.health(${t}); if _c ~= nil then entity.setHealth(${t}, math.min(_m, _c + ${amount}), _m) end end)()`
     }
     case 'setEntityHealth':
       return a.maxHp != null
-        ? `entity.setHealth(${target(a.target)}, ${Number(a.currentHp) || 0}, ${Number(a.maxHp) || 0})`
-        : `entity.setHealth(${target(a.target)}, ${Number(a.currentHp) || 0})`
+        ? `entity.setHealth(${target(a.target)}, ${numberSourceExpr(a.currentHp, project)}, ${numberSourceExpr(a.maxHp, project)})`
+        : `entity.setHealth(${target(a.target)}, ${numberSourceExpr(a.currentHp, project)})`
     case 'setLinearMoverDirection':
       return `linearMover.setDirection(${target(a.target)}, ${Number(a.directionX) || 0}, ${Number(a.directionY) || 0})`
     case 'setLinearMoverSpeed':
@@ -241,6 +242,7 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
     }
     case 'restartScene':
       return `scene.restart()`
+    case 'centerCameraOn':
     case 'setCameraTarget':
       return `camera.centerOn(${target(a.target)})`
     case 'cameraShake':
@@ -262,7 +264,7 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
     case 'setVariableRandomRange': {
       const min = Number(a.min) || 0
       const max = Number(a.max) || 0
-      return `state.set(${luaString(a.key)}, math.random(${min}, ${max}))`
+      return `state.set(${luaString(a.key)}, _logic_random_int(${min}, ${max}))`
     }
     case 'clampVariable':
       return `state.set(${luaString(a.key)}, math.max(${Number(a.min) || 0}, math.min(${Number(a.max) || 0}, state.get(${luaString(a.key)}) or 0)))`

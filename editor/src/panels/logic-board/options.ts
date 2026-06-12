@@ -94,6 +94,8 @@ export function defaultCondition(
       return { type: 'chance', percent: 50 }
     case 'isSpaceFree':
       return { type: 'isSpaceFree', x: 0, y: 0, w: 32, h: 32 }
+    case 'isTileAreaFree':
+      return { type: 'isTileAreaFree', x: 0, y: 0, w: 32, h: 32 }
     case 'compareHealth':
       return { type: 'compareHealth', target: 'self', field: 'current', operator: '>', value: 0 }
     case 'isPlatformerGrounded':
@@ -205,6 +207,8 @@ export function defaultAction(type: LogicActionType): LogicAction {
       return { type: 'restartScene' }
     case 'setCameraTarget':
       return { type: 'setCameraTarget', target: 'self' }
+    case 'centerCameraOn':
+      return { type: 'centerCameraOn', target: 'self' }
     case 'cameraShake':
       return { type: 'cameraShake', trauma: 0.35, durationSeconds: 0.5 }
     case 'debugLog':

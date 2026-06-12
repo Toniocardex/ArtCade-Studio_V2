@@ -45,6 +45,8 @@ export type ParamWidget =
   | 'className'
   | 'entityTag'
   | 'animationClip'
+  | 'valueSource'
+  | 'numberSource'
 
 export interface ParamFieldMeta {
   widget: ParamWidget
@@ -85,6 +87,8 @@ const index = indexJson as {
   triggers: string[]
   actions: string[]
   conditions: string[]
+  legacyActions?: string[]
+  legacyConditions?: string[]
 }
 
 function getArtcade(schema: Record<string, unknown>): ArtCadeExt {

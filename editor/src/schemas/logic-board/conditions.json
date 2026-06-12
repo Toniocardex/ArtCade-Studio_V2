@@ -6,7 +6,7 @@
       "type": { "const": "compareVariable" },
       "key": { "type": "string" },
       "operator": { "enum": ["==", "!=", "<", "<=", ">", ">="] },
-      "value": { "oneOf": [{ "type": "number" }, { "type": "string" }] }
+      "value": { "$ref": "./value-source.schema.json" }
     },
     "additionalProperties": false,
     "x-artcade": {
@@ -15,7 +15,7 @@
       "params": {
         "key": { "widget": "string", "label": "Key" },
         "operator": { "widget": "enum", "label": "Op", "options": ["==", "!=", "<", "<=", ">", ">="] },
-        "value": { "widget": "string", "label": "Value" }
+        "value": { "widget": "valueSource", "label": "Value" }
       }
     }
   },
@@ -122,13 +122,13 @@
     "required": ["type", "percent"],
     "properties": {
       "type": { "const": "chance" },
-      "percent": { "type": "number" }
+      "percent": { "$ref": "./value-source.schema.json" }
     },
     "additionalProperties": false,
     "x-artcade": {
       "label": "Chance",
       "category": "State",
-      "params": { "percent": { "widget": "number", "label": "Percent" } }
+      "params": { "percent": { "widget": "numberSource", "label": "Percent" } }
     }
   },
   "isSpaceFree": {
@@ -153,6 +153,28 @@
       }
     }
   },
+  "isTileAreaFree": {
+    "type": "object",
+    "required": ["type", "x", "y", "w", "h"],
+    "properties": {
+      "type": { "const": "isTileAreaFree" },
+      "x": { "$ref": "./value-source.schema.json" },
+      "y": { "$ref": "./value-source.schema.json" },
+      "w": { "$ref": "./value-source.schema.json" },
+      "h": { "$ref": "./value-source.schema.json" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Tile Area Is Free",
+      "category": "Tilemap",
+      "params": {
+        "x": { "widget": "numberSource", "label": "X" },
+        "y": { "widget": "numberSource", "label": "Y" },
+        "w": { "widget": "numberSource", "label": "Width" },
+        "h": { "widget": "numberSource", "label": "Height" }
+      }
+    }
+  },
   "compareHealth": {
     "type": "object",
     "required": ["type", "target", "field", "operator", "value"],
@@ -161,7 +183,7 @@
       "target": { "$ref": "./target-selector.schema.json" },
       "field": { "enum": ["current", "max"] },
       "operator": { "enum": ["==", "!=", "<", "<=", ">", ">="] },
-      "value": { "type": "number" }
+      "value": { "$ref": "./value-source.schema.json" }
     },
     "additionalProperties": false,
     "x-artcade": {
@@ -179,7 +201,7 @@
           "label": "Operator",
           "options": ["==", "!=", "<", "<=", ">", ">="]
         },
-        "value": { "widget": "number", "label": "Value" }
+        "value": { "widget": "numberSource", "label": "Value" }
       }
     }
   },
@@ -206,7 +228,7 @@
       "type": { "const": "compareCount" },
       "className": { "type": "string" },
       "operator": { "enum": ["==", "!=", "<", "<=", ">", ">="] },
-      "value": { "type": "number" }
+      "value": { "$ref": "./value-source.schema.json" }
     },
     "additionalProperties": false,
     "x-artcade": {
@@ -215,7 +237,7 @@
       "params": {
         "className": { "widget": "className", "label": "Object type" },
         "operator": { "widget": "enum", "label": "Op", "options": ["==", "!=", "<", "<=", ">", ">="] },
-        "value": { "widget": "number", "label": "Count" }
+        "value": { "widget": "numberSource", "label": "Count" }
       }
     }
   },
@@ -243,7 +265,7 @@
       "target": { "$ref": "./target-selector.schema.json" },
       "axis": { "enum": ["x", "y", "magnitude"] },
       "operator": { "enum": ["==", "!=", "<", "<=", ">", ">="] },
-      "value": { "type": "number" }
+      "value": { "$ref": "./value-source.schema.json" }
     },
     "additionalProperties": false,
     "x-artcade": {
@@ -253,7 +275,7 @@
         "target": { "widget": "target", "label": "Target" },
         "axis": { "widget": "enum", "label": "Axis", "options": ["x", "y", "magnitude"] },
         "operator": { "widget": "enum", "label": "Op", "options": ["==", "!=", "<", "<=", ">", ">="] },
-        "value": { "widget": "number", "label": "Value" }
+        "value": { "widget": "numberSource", "label": "Value" }
       }
     }
   },
@@ -265,7 +287,7 @@
       "target": { "$ref": "./target-selector.schema.json" },
       "axis": { "enum": ["x", "y"] },
       "operator": { "enum": ["==", "!=", "<", "<=", ">", ">="] },
-      "value": { "type": "number" }
+      "value": { "$ref": "./value-source.schema.json" }
     },
     "additionalProperties": false,
     "x-artcade": {
@@ -275,7 +297,7 @@
         "target": { "widget": "target", "label": "Target" },
         "axis": { "widget": "enum", "label": "Axis", "options": ["x", "y"] },
         "operator": { "widget": "enum", "label": "Op", "options": ["==", "!=", "<", "<=", ">", ">="] },
-        "value": { "widget": "number", "label": "Value" }
+        "value": { "widget": "numberSource", "label": "Value" }
       }
     }
   },

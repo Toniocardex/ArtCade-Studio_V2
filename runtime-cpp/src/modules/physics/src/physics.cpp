@@ -51,6 +51,7 @@ struct Physics::Impl {
         Collider        collider;
         Vec2            position;
         Vec2            velocity;
+        Vec2            accumulatedForce;
         float           gravityScale = 1.f;
         bool            active       = true;
         bool            hasSensor    = false;
@@ -221,7 +222,8 @@ struct Physics::Impl {
         Vector2 vel = toRay(body.velocity);
         const Vector2 gravityStep = Vector2Scale(
             toRay(worldGravity), body.gravityScale * subDt);
-        vel = Vector2Add(vel, gravityStep);
+        const Vector2 forceStep = Vector2Scale(toRay(body.accumulatedForce), subDt);
+        vel = Vector2Add(Vector2Add(vel, gravityStep), forceStep);
         body.velocity = fromRay(vel);
 
         const Vec2 delta{ body.velocity.x * subDt, body.velocity.y * subDt };
@@ -306,6 +308,11 @@ void Physics::step(float dt, uint32_t substeps) {
 
         impl_->resolveCollisions();
     }
+
+    for (auto& [handle, body] : impl_->bodies) {
+        (void)handle;
+        body.accumulatedForce = {};
+    }
 }
 
 bool Physics::hasActiveBodies() const {
@@ -332,6 +339,7 @@ uint32_t Physics::createBody(EntityId entityId, const PhysicsComponent& comp) {
     entry.collider     = comp.collider;
     entry.position     = {};
     entry.velocity     = {};
+    entry.accumulatedForce = {};
     entry.gravityScale = 1.f;
     entry.active       = true;
 
@@ -376,6 +384,22 @@ void Physics::setLinearVelocity(uint32_t handle, const Vec2& vel) {
     auto it = impl_->bodies.find(handle);
     if (it != impl_->bodies.end())
         it->second.velocity = vel;
+}
+
+void Physics::applyImpulse(uint32_t handle, const Vec2& impulse) {
+    auto it = impl_->bodies.find(handle);
+    if (it == impl_->bodies.end() || it->second.bodyType != BodyType::Dynamic)
+        return;
+    it->second.velocity.x += impulse.x;
+    it->second.velocity.y += impulse.y;
+}
+
+void Physics::applyForce(uint32_t handle, const Vec2& force) {
+    auto it = impl_->bodies.find(handle);
+    if (it == impl_->bodies.end() || it->second.bodyType != BodyType::Dynamic)
+        return;
+    it->second.accumulatedForce.x += force.x;
+    it->second.accumulatedForce.y += force.y;
 }
 
 void Physics::setGravityScale(uint32_t handle, float scale) {

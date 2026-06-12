@@ -23,7 +23,7 @@ function deepClone(v) {
   return JSON.parse(JSON.stringify(v))
 }
 
-function resolveRefs(schema, targetSelectorSchema) {
+function resolveRefs(schema, referenceSchemas) {
   const s = deepClone(schema)
   const walk = (node) => {
     if (!node || typeof node !== 'object') return
@@ -32,9 +32,11 @@ function resolveRefs(schema, targetSelectorSchema) {
       return
     }
     const o = node
-    if (o.$ref === './target-selector.schema.json') {
+    const referenced = typeof o.$ref === 'string' ? referenceSchemas[o.$ref] : undefined
+    if (referenced) {
       Object.keys(o).forEach((k) => delete o[k])
-      Object.assign(o, deepClone(targetSelectorSchema))
+      Object.assign(o, deepClone(referenced))
+      walk(o)
       return
     }
     for (const v of Object.values(o)) walk(v)
@@ -44,20 +46,22 @@ function resolveRefs(schema, targetSelectorSchema) {
 }
 
 /** Board-level validation: discriminated trigger/action/condition unions from catalogues. */
-function enrichBoardSchema(board, index, triggers, actions, conditions, targetSelector) {
-  const s = resolveRefs(deepClone(board), targetSelector)
+function enrichBoardSchema(board, index, triggers, actions, conditions, references) {
+  const s = resolveRefs(deepClone(board), references)
   const eventItem = s.properties?.events?.items
   if (!eventItem?.properties) return s
 
   const triggerUnion = {
-    oneOf: index.triggers.map((type) => resolveRefs(deepClone(triggers[type]), targetSelector)),
+    oneOf: index.triggers.map((type) => resolveRefs(deepClone(triggers[type]), references)),
   }
+  const actionTypes = [...index.actions, ...(index.legacyActions ?? [])]
+  const conditionTypes = [...index.conditions, ...(index.legacyConditions ?? [])]
   const actionUnion = {
-    oneOf: index.actions.map((type) => resolveRefs(deepClone(actions[type]), targetSelector)),
+    oneOf: actionTypes.map((type) => resolveRefs(deepClone(actions[type]), references)),
   }
   const conditionUnion = {
-    oneOf: index.conditions.map((type) =>
-      resolveRefs(deepClone(conditions[type]), targetSelector),
+    oneOf: conditionTypes.map((type) =>
+      resolveRefs(deepClone(conditions[type]), references),
     ),
   }
 
@@ -103,6 +107,11 @@ const triggers = readJson('triggers.json')
 const actions = readJson('actions.json')
 const conditions = readJson('conditions.json')
 const targetSelector = readJson('target-selector.schema.json')
+const valueSource = readJson('value-source.schema.json')
+const references = {
+  './target-selector.schema.json': targetSelector,
+  './value-source.schema.json': valueSource,
+}
 
 const chunks = []
 const exportNames = []
@@ -112,28 +121,28 @@ exportNames.push('validateBoard')
 chunks.push(
   compileExport(
     'validateBoard',
-    enrichBoardSchema(boardSchema, index, triggers, actions, conditions, targetSelector),
+    enrichBoardSchema(boardSchema, index, triggers, actions, conditions, references),
   ),
 )
 
 for (const type of index.triggers) {
   const name = safeExportName('trigger', type)
   exportNames.push(name)
-  chunks.push(compileExport(name, resolveRefs(triggers[type], targetSelector)))
+  chunks.push(compileExport(name, resolveRefs(triggers[type], references)))
   mapEntries.push(`  'trigger:${type}': ${name},`)
 }
 
-for (const type of index.actions) {
+for (const type of [...index.actions, ...(index.legacyActions ?? [])]) {
   const name = safeExportName('action', type)
   exportNames.push(name)
-  chunks.push(compileExport(name, resolveRefs(actions[type], targetSelector)))
+  chunks.push(compileExport(name, resolveRefs(actions[type], references)))
   mapEntries.push(`  'action:${type}': ${name},`)
 }
 
-for (const type of index.conditions) {
+for (const type of [...index.conditions, ...(index.legacyConditions ?? [])]) {
   const name = safeExportName('condition', type)
   exportNames.push(name)
-  chunks.push(compileExport(name, resolveRefs(conditions[type], targetSelector)))
+  chunks.push(compileExport(name, resolveRefs(conditions[type], references)))
   mapEntries.push(`  'condition:${type}': ${name},`)
 }
 

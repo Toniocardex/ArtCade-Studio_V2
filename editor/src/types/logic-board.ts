@@ -24,6 +24,20 @@ export type TargetSelector =
   | { entityId: number }                    // a specific entity id
   | { className: string; first: boolean }   // a class pool (first → first match)
 
+export type LogicPrimitive = number | string | boolean
+
+export type LogicValueSource =
+  | { source: 'state'; key: string; fallback?: LogicPrimitive }
+  | {
+      source: 'entity'
+      target: TargetSelector
+      property: 'positionX' | 'positionY' | 'velocityX' | 'velocityY' | 'speed' | 'healthCurrent' | 'healthMax'
+    }
+  | { source: 'message'; key: string; fallback?: LogicPrimitive }
+  | { source: 'random'; min: number; max: number }
+
+export type LogicValue = LogicPrimitive | LogicValueSource
+
 // ---------------------------------------------------------------------------
 // Triggers — WHEN the event is evaluated
 // ---------------------------------------------------------------------------
@@ -69,20 +83,21 @@ export type LogicConditionNegation = { negated?: boolean }
 
 export type LogicCondition =
   | { type: 'compareClass'; className: string }                     // collision.touchingClass
-  | { type: 'compareVariable'; key: string; operator: ComparisonOp; value: number | string }
+  | { type: 'compareVariable'; key: string; operator: ComparisonOp; value: LogicValue }
   | { type: 'isKeyDown'; keyCode: string }                          // input.isKeyDown
   | { type: 'hasTag'; tag: string }                                 // self has object tag
   | { type: 'compareDistance'; target: TargetSelector; operator: ComparisonOp; value: number }
   | { type: 'isMouseOver'; radius?: number }                        // cursor near self
   | { type: 'raycastHit'; dirX: number; dirY: number; length: number; className?: string }
-  | { type: 'chance'; percent: number }                             // math.random(100) <= n
-  | { type: 'isSpaceFree'; x: number; y: number; w: number; h: number }
-  | { type: 'compareHealth'; target: TargetSelector; field: 'current' | 'max'; operator: ComparisonOp; value: number }
+  | { type: 'chance'; percent: LogicValue }
+  | { type: 'isTileAreaFree'; x: LogicValue; y: LogicValue; w: LogicValue; h: LogicValue }
+  | { type: 'isSpaceFree'; x: LogicValue; y: LogicValue; w: LogicValue; h: LogicValue }
+  | { type: 'compareHealth'; target: TargetSelector; field: 'current' | 'max'; operator: ComparisonOp; value: LogicValue }
   | { type: 'isPlatformerGrounded'; target: TargetSelector }
-  | { type: 'compareCount'; className: string; operator: ComparisonOp; value: number }   // pool.count
+  | { type: 'compareCount'; className: string; operator: ComparisonOp; value: LogicValue }   // pool.count
   | { type: 'entityExists'; target: TargetSelector }                                      // object.exists
-  | { type: 'compareVelocity'; target: TargetSelector; axis: 'x' | 'y' | 'magnitude'; operator: ComparisonOp; value: number }
-  | { type: 'comparePosition'; target: TargetSelector; axis: 'x' | 'y'; operator: ComparisonOp; value: number }
+  | { type: 'compareVelocity'; target: TargetSelector; axis: 'x' | 'y' | 'magnitude'; operator: ComparisonOp; value: LogicValue }
+  | { type: 'comparePosition'; target: TargetSelector; axis: 'x' | 'y'; operator: ComparisonOp; value: LogicValue }
   | { type: 'saveExists'; slot: string }                                                   // save.exists
 
 /**
@@ -100,10 +115,10 @@ export type LogicConditionNode =
 // ---------------------------------------------------------------------------
 
 export type LogicAction =
-  | { type: 'setVariable'; key: string; value: number | string | boolean }
-  | { type: 'addVariable'; key: string; amount: number }
-  | { type: 'setPosition'; target: TargetSelector; x: number; y: number }
-  | { type: 'setVelocity'; target: TargetSelector; vx: number; vy: number }
+  | { type: 'setVariable'; key: string; value: LogicValue }
+  | { type: 'addVariable'; key: string; amount: LogicValue }
+  | { type: 'setPosition'; target: TargetSelector; x: LogicValue; y: LogicValue }
+  | { type: 'setVelocity'; target: TargetSelector; vx: LogicValue; vy: LogicValue }
   | { type: 'playSound'; path?: string; audioAssetId?: string; volume?: number; pitch?: number }
   | { type: 'playMusic'; path?: string; audioAssetId?: string; loop?: boolean }
   | { type: 'stopAllAudio' }
@@ -139,9 +154,9 @@ export type LogicAction =
   | { type: 'moveController'; target: TargetSelector; direction: 'left' | 'right' | 'up' | 'down' | 'stop' }
   | { type: 'clearMovementIntent'; target: TargetSelector }
   | { type: 'requestPlatformerJump'; target: TargetSelector }
-  | { type: 'damageEntity'; target: TargetSelector; amount: number }
-  | { type: 'healEntity'; target: TargetSelector; amount: number }
-  | { type: 'setEntityHealth'; target: TargetSelector; currentHp: number; maxHp?: number }
+  | { type: 'damageEntity'; target: TargetSelector; amount: LogicValue }
+  | { type: 'healEntity'; target: TargetSelector; amount: LogicValue }
+  | { type: 'setEntityHealth'; target: TargetSelector; currentHp: LogicValue; maxHp?: LogicValue }
   | { type: 'setLinearMoverDirection'; target: TargetSelector; directionX: number; directionY: number }
   | { type: 'setLinearMoverSpeed'; target: TargetSelector; speed: number }
   | { type: 'pauseLinearMover'; target: TargetSelector }
@@ -165,6 +180,7 @@ export type LogicAction =
   | { type: 'setColorTint'; target: TargetSelector; hexColor: string; alpha?: number }
   | { type: 'loadScene'; sceneName: string; fadeSeconds?: number }
   | { type: 'restartScene' }
+  | { type: 'centerCameraOn'; target: TargetSelector }
   | { type: 'setCameraTarget'; target: TargetSelector }
   | { type: 'cameraShake'; trauma: number; durationSeconds?: number }
   | { type: 'debugLog'; message: string }
