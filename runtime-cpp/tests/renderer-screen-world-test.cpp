@@ -49,6 +49,15 @@ int main() {
     expect(near(still.x, 0.f) && near(still.y, 0.f),
            "render shake offset does not mutate authoritative camera");
 
+    renderer.setSceneViewport({ 2560.f, 1440.f }, { 1280.f, 720.f });
+    renderer.setCameraCenter({ 1280.f, 720.f });
+    const auto centered = renderer.screenToWorld(640.f, 360.f);
+    expect(near(centered.x, 1280.f) && near(centered.y, 720.f),
+           "setCameraCenter places world point at viewport center");
+    const auto cameraCenter = renderer.getCameraCenter();
+    expect(near(cameraCenter.x, 1280.f) && near(cameraCenter.y, 720.f),
+           "getCameraCenter returns visible world center");
+
     std::puts("renderer_screen_world_test: all passed");
     return 0;
 }

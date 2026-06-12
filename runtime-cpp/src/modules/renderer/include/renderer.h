@@ -135,6 +135,8 @@ private:
 public:
     // 2D camera
     void setCameraPosition(const Vec2& pos);
+    /** Center the visible viewport on a world-space point, subject to world bounds. */
+    void setCameraCenter(const Vec2& center);
     /** Visual-only offset for this frame's world pass (not clamped; does not change getCameraPosition). */
     void setRenderShakeOffset(const Vec2& offset);
     void setCameraZoom    (float zoom);
@@ -142,6 +144,8 @@ public:
     Vec2 screenToWorld    (float screenX, float screenY) const;
     Vec2 visibleWorldSize () const;
     Vec2 getCameraPosition() const;
+    /** World-space point currently shown at the center of the viewport. */
+    Vec2 getCameraCenter() const;
     float getCameraZoom()   const;
 
     uint32_t windowWidth()  const;

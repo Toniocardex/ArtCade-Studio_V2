@@ -15,20 +15,20 @@ void World::tickCameraTargets(float dt) {
             Transform transform{};
             if (!entityGateway_.getTransform(id, transform)) return;
 
-            const Vec2 desired = {
+            const Vec2 desiredCenter = {
                 transform.position.x + ct.offsetX,
                 transform.position.y + ct.offsetY,
             };
-            const Vec2 current = renderer_->getCameraPosition();
-            Vec2 next = desired;
+            const Vec2 currentCenter = renderer_->getCameraCenter();
+            Vec2 nextCenter = desiredCenter;
             if (ct.followSpeed > 0.f && dt > 0.f) {
                 const float t = 1.f - std::exp(-ct.followSpeed * dt);
-                next = {
-                    current.x + (desired.x - current.x) * t,
-                    current.y + (desired.y - current.y) * t,
+                nextCenter = {
+                    currentCenter.x + (desiredCenter.x - currentCenter.x) * t,
+                    currentCenter.y + (desiredCenter.y - currentCenter.y) * t,
                 };
             }
-            renderer_->setCameraPosition(next);
+            renderer_->setCameraCenter(nextCenter);
         });
 }
 

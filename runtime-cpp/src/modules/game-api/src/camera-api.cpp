@@ -54,7 +54,7 @@ void GameAPI::bindCameraAPI(sol::state& lua) {
         if (!renderer || !entities) return;
         Transform transform{};
         if (!entities->getTransform(id, transform)) return;
-        renderer->setCameraPosition(transform.position);
+        renderer->setCameraCenter(transform.position);
     });
 
     // camera.x() / camera.y() — read back camera target

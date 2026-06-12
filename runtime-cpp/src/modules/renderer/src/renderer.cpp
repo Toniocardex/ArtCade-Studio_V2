@@ -556,6 +556,14 @@ void Renderer::setCameraPosition(const Vec2& pos) {
     impl_->camera.target = { clamped.x, clamped.y };
 }
 
+void Renderer::setCameraCenter(const Vec2& center) {
+    const Vec2 visible = visibleWorldSize();
+    setCameraPosition({
+        center.x - visible.x * 0.5f,
+        center.y - visible.y * 0.5f,
+    });
+}
+
 void Renderer::setCameraZoom(float zoom) {
     impl_->camera.zoom = (zoom > 0.f) ? zoom : 0.01f;
     const Vec2 clamped = clampCameraTarget(
@@ -590,6 +598,14 @@ Vec2 Renderer::visibleWorldSize() const {
 
 Vec2 Renderer::getCameraPosition() const {
     return { impl_->camera.target.x, impl_->camera.target.y };
+}
+
+Vec2 Renderer::getCameraCenter() const {
+    const Vec2 visible = visibleWorldSize();
+    return {
+        impl_->camera.target.x + visible.x * 0.5f,
+        impl_->camera.target.y + visible.y * 0.5f,
+    };
 }
 
 float Renderer::getCameraZoom() const {
