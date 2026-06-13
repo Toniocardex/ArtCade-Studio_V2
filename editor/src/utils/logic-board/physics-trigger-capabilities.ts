@@ -47,7 +47,7 @@ export function collisionTriggerRequirement(
       status: 'missing',
       message:
         'Collision triggers need a target entity on this rulesheet. ' +
-        'Use Sensor zones (onTriggerEnter/Exit) or messages for global logic.',
+        'Use Trigger Areas (onTriggerEnter/Exit) or messages for global logic.',
     }
   }
 

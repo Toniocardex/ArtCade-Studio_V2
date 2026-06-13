@@ -121,7 +121,7 @@ const DIALOG: DialogComponent = {
 export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
   {
     key: 'sensor',
-    label: 'Sensor zone',
+    label: 'Trigger Area',
     color: 'var(--accent)',
     create: () => ({ ...SENSOR }),
     fields: [
@@ -143,7 +143,7 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
   },
   {
     key: 'solid',
-    label: 'Platform Surface',
+    label: 'Solid',
     description:
       'Ground for Platformer Controller (Solid or One-Way). Solid blocks on all sides (native AABB); One-Way only lands on the top edge when falling. Does not require Physics. Match Ground Class on the player.',
     color: 'var(--yellow)',
@@ -179,7 +179,7 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
     key: 'topDownController',
     label: 'Top-Down Controller',
     description:
-      'Moves with acceleration and friction. Uses an automatic collider based on the object bounds, so Solid Platform Surfaces block movement. Add Physics (Collider) only to customize the hitbox.',
+      'Moves with acceleration and friction. Uses an automatic collider based on the object bounds, so objects with the Solid component block movement. Add Physics (Collider) only to customize the hitbox.',
     color: 'var(--accent-2)',
     create: () => ({ ...TOP_DOWN }),
     fields: [
@@ -213,7 +213,7 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
   },
   {
     key: 'magneticItem',
-    label: 'Magnetic Item',
+    label: 'Magnetic Attraction',
     color: 'var(--accent)',
     create: () => ({ ...MAGNETIC_ITEM }),
     fields: [
@@ -257,7 +257,7 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
   },
   {
     key: 'text',
-    label: 'Text',
+    label: 'Text Label',
     description:
       'World-space text label (score, titles, hints). Update it from the Logic Board with Set Text — bind a variable to show live values.',
     color: 'var(--accent)',
@@ -293,7 +293,7 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
   },
   {
     key: 'gauge',
-    label: 'Gauge bar',
+    label: 'Gauge',
     description:
       'Filled bar driven by a variable — health, mana, progress. Set the variable and Max value; the fill tracks it automatically. Enable Stay on screen for a HUD bar.',
     color: 'var(--accent)',

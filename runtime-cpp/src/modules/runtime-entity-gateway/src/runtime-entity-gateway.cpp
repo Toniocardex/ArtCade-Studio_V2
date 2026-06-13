@@ -168,7 +168,7 @@ void RuntimeEntityGateway::ensurePhysicsBody(EntityId id) {
     const bool hasSolid = getSolid(id, solid);
     SensorComponent sensor{};
     const bool hasSensor = getSensor(id, sensor);
-    // Top-down movement needs a dynamic body so Platform Surface walls can
+    // Top-down movement needs a dynamic body so Solid component walls can
     // resolve contact. Without an explicit collider it uses the object bounds.
     if (!hasExplicitCollider && !hasTopDown && !hasSolid && !hasSensor)
         return;

@@ -11,7 +11,11 @@ describe('component registry', () => {
   })
 
   it('descriptorFor resolves by key', () => {
-    expect(descriptorFor('sensor')?.label).toMatch(/Sensor/)
+    expect(descriptorFor('sensor')?.label).toBe('Trigger Area')
+    expect(descriptorFor('solid')?.label).toBe('Solid')
+    expect(descriptorFor('magneticItem')?.label).toBe('Magnetic Attraction')
+    expect(descriptorFor('text')?.label).toBe('Text Label')
+    expect(descriptorFor('gauge')?.label).toBe('Gauge')
     expect(descriptorFor('health')?.color).toBeTruthy()
   })
 

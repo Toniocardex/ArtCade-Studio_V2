@@ -4,21 +4,21 @@ local function log(msg)
 end
 
 function init()
-    state.set("score", 100)
+    global.set("score", 100)
     log("init score=100")
 end
 
 function tick(dt)
-    if state.get("_smoke_done") then return end
-    local before = state.get("score")
+    if global.get("_smoke_done") then return end
+    local before = global.get("score")
     if before ~= 100 then
         log("FAIL score before load: " .. tostring(before))
-        state.set("_smoke_done", true)
+        global.set("_smoke_done", true)
         return
     end
     if scene and scene.load then
         scene.load("scene_b")
-        local after = state.get("score")
+        local after = global.get("score")
         if after == 100 then
             log("PASS scene.load preserved score")
         else
@@ -27,5 +27,5 @@ function tick(dt)
     else
         log("SKIP scene.load not bound")
     end
-    state.set("_smoke_done", true)
+    global.set("_smoke_done", true)
 end

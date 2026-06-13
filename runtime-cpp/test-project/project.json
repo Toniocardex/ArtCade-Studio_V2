@@ -10,7 +10,8 @@
     { "key": "level", "type": "number", "initialValue": 1 },
     { "key": "playerName", "type": "string", "initialValue": "Hero" },
     { "key": "hardMode", "type": "boolean", "initialValue": false },
-    { "key": "alive", "type": "number", "initialValue": 1 }
+    { "key": "alive", "type": "number", "initialValue": 1 },
+    { "key": "_smoke_done", "type": "boolean", "initialValue": false }
   ],
   "entities": {
     "1": {

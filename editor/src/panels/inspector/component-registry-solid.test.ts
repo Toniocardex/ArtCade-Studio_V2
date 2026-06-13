@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { descriptorFor } from './component-registry'
 
-describe('Platform Surface (solid) registry', () => {
+describe('Solid component registry', () => {
   it('exposes Solid | One-Way select labels', () => {
     const solid = descriptorFor('solid')
     expect(solid).toBeDefined()

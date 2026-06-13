@@ -120,7 +120,7 @@ void Application::renderActiveScene() {
                 text.size, color, text.fontPath, alignment, text.screenSpace);
         });
 
-    // Gauge bars (health / progress). Drawn after sprites; fill tracks the
+    // Gauges (health / progress). Drawn after sprites; fill tracks the
     // bound variable. When the variable is absent (edit mode) the bar is full.
     mod_->entityGateway->forEachActiveRenderable(
         [renderer = mod_->renderer.get(),
