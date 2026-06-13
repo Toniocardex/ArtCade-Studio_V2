@@ -437,11 +437,11 @@ describe('conditionExpr', () => {
 })
 
 describe('compileLogicBoard — structure', () => {
-  it('always emits tick(dt) with init guard', () => {
+  it('always emits a module tick with init guard', () => {
     const lua = compileLogicBoard([board([])])
-    expect(lua).toContain('function tick(dt)')
+    expect(lua).toContain('function module.tick(dt)')
     expect(lua).toContain('if not _init_done then')
-    expect(lua).toContain('_logic_init()')
+    expect(lua).toContain('module.initialize()')
     expect(lua).toContain('local _logic_timers = {}')
   })
 
@@ -454,8 +454,7 @@ describe('compileLogicBoard — structure', () => {
         }),
       ]),
     ])
-    expect(lua).toContain('__artcade_requires_tick = false or (__artcade_project_tick ~= nil)')
-    expect(lua).toContain('if not __artcade_requires_tick and not _init_done then')
+    expect(lua).toContain('module.requiresTick = false')
   })
 
   it('marks polling boards as requiring Lua tick', () => {
@@ -467,7 +466,7 @@ describe('compileLogicBoard — structure', () => {
         }),
       ]),
     ])
-    expect(lua).toContain('__artcade_requires_tick = true or (__artcade_project_tick ~= nil)')
+    expect(lua).toContain('module.requiresTick = true')
   })
 
   it('onStart goes into init block, not tick body', () => {
@@ -480,8 +479,8 @@ describe('compileLogicBoard — structure', () => {
         }),
       ]),
     ])
-    const initIdx = lua.indexOf('_logic_init')
-    const tickIdx = lua.indexOf('function tick')
+    const initIdx = lua.indexOf('function module.initialize')
+    const tickIdx = lua.indexOf('function module.tick')
     expect(lua).toContain('debug.log("hello")')
     // the debug.log call must appear before tick(dt) definition (i.e. in init)
     expect(lua.indexOf('debug.log("hello")')).toBeGreaterThan(initIdx)
@@ -1103,24 +1102,20 @@ describe('Logic Components — Phase B (new runtime-backed actions)', () => {
 })
 
 describe('Hot-reload safety — handler unsubscribe tracking', () => {
-  it('emits __artcade_lb_unsubs reset block above _logic_init', () => {
+  it('emits module-owned unsubscribe disposal', () => {
     const lua = compileLogicBoard([
       board([
         ev({ trigger: { type: 'onSpawn' },
              actions: [{ type: 'debugLog', message: 'spawned' }] }),
       ]),
     ])
-    // Reset block runs every script load and revokes prior subscriptions.
-    expect(lua).toContain('__artcade_lb_unsubs = __artcade_lb_unsubs or {}')
-    expect(lua).toContain('pcall(__artcade_lb_unsubs[i])')
+    expect(lua).toContain('local module = { _unsubs = {} }')
+    expect(lua).toContain('pcall(module._unsubs[i])')
     // Trackers and helpers exist.
     expect(lua).toContain('local function _logic_track(unsub)')
     expect(lua).toContain('local function _logic_bag_unsub(bag, key, fn)')
-    // Reset must occur before _logic_init definition.
-    const resetIdx = lua.indexOf('__artcade_lb_unsubs = {}')
-    const initIdx = lua.indexOf('local function _logic_init()')
-    expect(resetIdx).toBeGreaterThan(-1)
-    expect(initIdx).toBeGreaterThan(resetIdx)
+    expect(lua).toContain('function module.dispose()')
+    expect(lua).toContain('module._unsubs = {}')
   })
 
   it('wraps every event-style registration with _logic_track-aware helpers', () => {
@@ -1679,15 +1674,12 @@ describe('Defensive value coercion', () => {
         }),
       ]),
     ])
-    expect(lua).toContain('__artcade_requires_tick = false or (__artcade_project_tick ~= nil)')
-    expect(lua).toContain('if not __artcade_requires_tick and not _init_done then')
+    expect(lua).toContain('module.requiresTick = false')
     expect(lua).toContain('camera.shake(0.6, 0.5)')
-    const initDef = lua.indexOf('local function _logic_init()')
+    const initDef = lua.indexOf('function module.initialize()')
     const shakeCall = lua.indexOf('camera.shake(0.6, 0.5)')
-    const eagerInit = lua.indexOf('if not __artcade_requires_tick and not _init_done then')
     expect(shakeCall).toBeGreaterThan(initDef)
-    expect(eagerInit).toBeGreaterThan(shakeCall)
-    expect(lua.indexOf('_logic_init()', eagerInit)).toBeGreaterThan(eagerInit)
+    expect(shakeCall).toBeLessThan(lua.indexOf('function module.tick(dt)'))
   })
 
   it('setColorTint with non-numeric alpha falls back to 1', () => {

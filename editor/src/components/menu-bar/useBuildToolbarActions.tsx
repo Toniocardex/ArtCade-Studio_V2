@@ -15,6 +15,8 @@ import { makeConsoleEntry } from './makeConsoleEntry'
 import { ensureProjectOnDisk } from './ensureProjectOnDisk'
 import { planOpenWebExport } from './webExportOpen'
 import type { WebExportState } from '../../utils/api'
+import { mainScriptBodyForProjectWithStatus } from './project-script'
+import { resolveManualMainLua } from '../../utils/project-main-script'
 
 interface UseBuildToolbarActionsParams {
   dispatch: Dispatch<EditorAction>
@@ -37,6 +39,7 @@ export function useBuildToolbarActions({
   webExportState,
   refreshWebExportStatus,
   flushBeforePersist,
+  openScripts,
 }: UseBuildToolbarActionsParams) {
   const [isBuilding, setIsBuilding] = useState(false)
   const [isBuildingWeb, setIsBuildingWeb] = useState(false)
@@ -51,15 +54,30 @@ export function useBuildToolbarActions({
         dispatch({ type: 'LOG', entry: makeConsoleEntry(`[${kind}] No project loaded.`, 'warn') })
         return null
       }
-      return ensureProjectOnDisk({
+      const path = await ensureProjectOnDisk({
         kind,
         dispatch,
         project: flushed,
         projectPath,
         dialogs,
+        openScripts,
       })
+      if (!path) return null
+      const { lua, compileError } = mainScriptBodyForProjectWithStatus(
+        flushed,
+        path,
+        resolveManualMainLua(flushed, openScripts),
+      )
+      if (compileError) {
+        dispatch({
+          type: 'LOG',
+          entry: makeConsoleEntry(`[${kind}] Logic Board compile failed:\n${compileError}`, 'error'),
+        })
+        return null
+      }
+      return { path, mainLua: lua }
     },
-    [dialogs, dispatch, flushBeforePersist, projectPath],
+    [dialogs, dispatch, flushBeforePersist, openScripts, projectPath],
   )
 
   const handlePlayStop = usePreviewPlayStop()
@@ -71,14 +89,14 @@ export function useBuildToolbarActions({
       setIsBuilding(false)
       return
     }
-    const preparedBuildPath = await prepareProject('Build')
-    if (!preparedBuildPath) {
+    const prepared = await prepareProject('Build')
+    if (!prepared) {
       setIsBuilding(false)
       return
     }
     dispatch({ type: 'LOG', entry: makeConsoleEntry('[Build] Starting cmake build...', 'info') })
     try {
-      await runBuild(dirName(preparedBuildPath))
+      await runBuild(dirName(prepared.path), prepared.mainLua)
     } catch (err) {
       dispatch({ type: 'LOG', entry: makeConsoleEntry(`[Build] Failed: ${err}`, 'error') })
     } finally {
@@ -93,14 +111,14 @@ export function useBuildToolbarActions({
       setIsBuildingWeb(false)
       return
     }
-    const buildPath = await prepareProject('WASM')
-    if (!buildPath) {
+    const prepared = await prepareProject('WASM')
+    if (!prepared) {
       setIsBuildingWeb(false)
       return
     }
     dispatch({ type: 'LOG', entry: makeConsoleEntry('[WASM] Starting web export...', 'info') })
     try {
-      await runBuildWasm(dirName(buildPath))
+      await runBuildWasm(dirName(prepared.path), prepared.mainLua)
       await refreshWebExportStatus({ projectDirty: false })
       dispatch({
         type: 'LOG',

@@ -13,6 +13,7 @@ export type EngineScriptEditorProps = Readonly<{
   sourceCode: string
   theme: string
   onChange: (value: string) => void
+  readOnly?: boolean
 }>
 
 function toFrameTheme(theme: string): CmFrameThemeId {
@@ -23,6 +24,7 @@ export function EngineScriptEditor({
   sourceCode,
   theme,
   onChange,
+  readOnly = false,
 }: EngineScriptEditorProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const readyRef = useRef(false)
@@ -46,8 +48,9 @@ export function EngineScriptEditor({
       type: 'init',
       value: sourceCode,
       theme: toFrameTheme(theme),
+      readOnly,
     })
-  }, [postToFrame, theme, sourceCode])
+  }, [postToFrame, theme, sourceCode, readOnly])
 
   useEffect(() => {
     readyRef.current = false
@@ -84,6 +87,11 @@ export function EngineScriptEditor({
     if (!readyRef.current) return
     postToFrame({ type: 'set-theme', theme: toFrameTheme(theme) })
   }, [theme, postToFrame])
+
+  useEffect(() => {
+    if (!readyRef.current) return
+    postToFrame({ type: 'set-read-only', readOnly })
+  }, [readOnly, postToFrame])
 
   // External store update (Logic Board, reload, etc.) — push into iframe without remount.
   useEffect(() => {

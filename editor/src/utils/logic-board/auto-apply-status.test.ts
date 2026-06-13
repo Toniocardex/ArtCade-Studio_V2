@@ -13,7 +13,6 @@ function inputs(overrides: Partial<AutoApplyInputs> = {}): AutoApplyInputs {
     compileError: null,
     runtimeReady: true,
     isPlaying: false,
-    mainScriptDirty: false,
     applyInFlight: false,
     failedRevision: null,
     currentRevision: 'rev1',
@@ -28,10 +27,6 @@ describe('shouldAutoApply', () => {
 
   it('never fires during play (manual apply owns the destructive path)', () => {
     expect(shouldAutoApply(inputs({ isPlaying: true }))).toBe(false)
-  })
-
-  it('never fires while main.lua has manual edits', () => {
-    expect(shouldAutoApply(inputs({ mainScriptDirty: true }))).toBe(false)
   })
 
   it('never fires on compile errors or before the runtime is ready', () => {
@@ -73,12 +68,6 @@ describe('resolveLogicSyncStatus', () => {
   it('reports the manual-apply path while playing', () => {
     expect(resolveLogicSyncStatus(inputs({ isPlaying: true })).kind).toBe(
       'play-pending',
-    )
-  })
-
-  it('reports paused while main.lua is dirty', () => {
-    expect(resolveLogicSyncStatus(inputs({ mainScriptDirty: true })).kind).toBe(
-      'paused-dirty-main',
     )
   })
 

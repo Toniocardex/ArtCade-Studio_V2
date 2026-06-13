@@ -636,8 +636,8 @@ ModuleTabs (Canvas · Logic Board · Script): LogicBoardPanel · ScriptEditorPan
 | `ProjectExplorerPanel` | Sidebar sinistra unificata: albero scene, entity nella scena attiva, object types, cartelle asset fisse. Selezione entity → `editorSelectEntity()` al C++ |
 | `PreviewPanel` | **BLACK BOX**: Canvas WASM puro. Carica `game.js` una sola volta. **NEVER re-renders** durante gameplay. Input/selection/console via buffer globale |
 | `InspectorPanel` | Legge `window._selectedEntity` ogni 200ms (non real-time). Invia comandi `editorSetTransform()` al C++ su change |
-| `ScriptEditorPanel` | `EngineScriptEditor` (iframe CodeMirror) per Lua; sync da Logic Board via `update-from-logic`. Apply → `editorReloadScript()` |
-| `LogicBoardPanel` | Editor visuale eventi + anteprima Lua; `syncLogicBoardToScript()` → store + iframe |
+| `ScriptEditorPanel` | `EngineScriptEditor` (iframe CodeMirror) con My Script modificabile, Logic Board read-only e Combined Preview read-only |
+| `LogicBoardPanel` | Editor visuale eventi + anteprima Lua; apre Combined Preview senza modificare `main.lua` |
 | *(in `ProjectExplorerPanel`)* | Asset in albero per cartella (Images / Audio / Fonts / Scripts / Tilesets); dettaglio immagine in `AssetDetailStrip` |
 | `TilesetEditorPanel` | Grid tile 8×4 con flag collision e brush tool |
 | `ConsolePanel` | Drena `window._consoleLogs` ogni 100ms (non real-time). Invia comandi Lua via input al C++ |

@@ -26,7 +26,7 @@ import { confirmDialog } from '../../utils/native-dialog'
 import type { ProjectDoc } from '../../types'
 import type { FileMenuItem } from './FileMenu'
 import { makeConsoleEntry } from './makeConsoleEntry'
-import { mainScriptBodyForProject, mainScriptBodyForProjectWithStatus } from './project-script'
+import { mainScriptBodyForProjectWithStatus } from './project-script'
 import { ensureProjectOnDisk } from './ensureProjectOnDisk'
 import {
   loadDialogsFromProject,
@@ -35,6 +35,7 @@ import {
 } from '../../utils/dialog/dialog-file-api'
 import { exportArtcadePackage } from '../../utils/export-artcade-package'
 import type { DialogScript } from '../../utils/dialog/dialog-script'
+import { resolveManualMainLua } from '../../utils/project-main-script'
 
 interface UseFileMenuActionsParams {
   dispatch: Dispatch<EditorAction>
@@ -149,7 +150,7 @@ export function useFileMenuActions({
       const projectJsonPath = await scaffoldNewProjectOnDisk(
         target,
         flushed,
-        mainScriptBodyForProject(flushed, projectPath),
+        resolveManualMainLua(flushed, openScripts),
       )
       const library =
         Object.keys(dialogs).length > 0
@@ -215,6 +216,7 @@ export function useFileMenuActions({
       project: flushed,
       projectPath,
       dialogs,
+      openScripts,
     })
     if (savedPath) {
       dispatch({
@@ -241,9 +243,12 @@ export function useFileMenuActions({
     if (!(await ensureDependencies('pack'))) return
     const root = dirName(projectPath)
 
+    let mainLua = resolveManualMainLua(flushed, openScripts)
     const mainScriptPath = flushed.mainScriptPath
     if (mainScriptPath && flushed.logicBoards && flushed.logicBoards.length > 0) {
-      const { lua, compileError } = mainScriptBodyForProjectWithStatus(flushed, projectPath)
+      const result = mainScriptBodyForProjectWithStatus(flushed, projectPath, mainLua)
+      mainLua = result.lua
+      const compileError = result.compileError
       if (compileError) {
         dispatch({
           type: 'LOG',
@@ -252,16 +257,8 @@ export function useFileMenuActions({
             'error',
           ),
         })
+        return
       }
-      const absScriptPath = resolveScriptPath(projectPath, mainScriptPath)
-      await saveScript(absScriptPath, lua, projectPath)
-      dispatch({
-        type: 'UPSERT_SCRIPT',
-        path: mainScriptPath,
-        content: lua,
-        isDirty: false,
-        activate: false,
-      })
       if (!compileError) {
         dispatch({
           type: 'LOG',
@@ -272,12 +269,12 @@ export function useFileMenuActions({
 
     dispatch({ type: 'LOG', entry: makeConsoleEntry(`[Pack] Packing → ${output}`, 'info') })
     try {
-      await packProject(root, output)
+      await packProject(root, output, mainLua)
       dispatch({ type: 'LOG', entry: makeConsoleEntry('[Pack] ✓ .artcade created.', 'info') })
     } catch (err) {
       dispatch({ type: 'LOG', entry: makeConsoleEntry(`[Pack] ✗ ${err}`, 'error') })
     }
-  }, [closeMenu, dispatch, flushBeforePersist, projectPath])
+  }, [closeMenu, dispatch, flushBeforePersist, openScripts, projectPath])
 
   const handleExportArtcade = useCallback(async () => {
     closeMenu()
@@ -291,7 +288,19 @@ export function useFileMenuActions({
     dispatch({ type: 'SET_CONSOLE_OPEN', open: true })
     const root = dirName(projectPath)
     dispatch({ type: 'LOG', entry: makeConsoleEntry(`[Export] Writing → ${output}`, 'info') })
-    const ok = await exportArtcadePackage(flushed, root, output)
+    const { lua: mainLua, compileError } = mainScriptBodyForProjectWithStatus(
+      flushed,
+      projectPath,
+      resolveManualMainLua(flushed, openScripts),
+    )
+    if (compileError) {
+      dispatch({
+        type: 'LOG',
+        entry: makeConsoleEntry(`[Export] Logic Board compile failed:\n${compileError}`, 'error'),
+      })
+      return
+    }
+    const ok = await exportArtcadePackage(flushed, root, output, mainLua)
     dispatch({
       type: 'LOG',
       entry: makeConsoleEntry(
@@ -299,7 +308,7 @@ export function useFileMenuActions({
         ok ? 'info' : 'error',
       ),
     })
-  }, [closeMenu, dispatch, flushBeforePersist, projectPath])
+  }, [closeMenu, dispatch, flushBeforePersist, openScripts, projectPath])
 
   const handleNormalizeAssetRefs = useCallback(() => {
     closeMenu()

@@ -1,4 +1,4 @@
-import { AlertTriangle, Check, PauseCircle, RefreshCw } from 'lucide-react'
+import { AlertTriangle, Check, RefreshCw } from 'lucide-react'
 import type { ProjectDoc } from '../../types'
 import type { LogicBoard } from '../../types/logic-board'
 import { boardDisplayName } from './friendly-labels'
@@ -69,12 +69,6 @@ function SyncStatusChip({
           title={status.detail ?? 'Fix the compile error to resume sync'}
         >
           <AlertTriangle size={12} aria-hidden /> Compile error
-        </span>
-      )
-    case 'paused-dirty-main':
-      return (
-        <span className={`${chip} text-[var(--warn)]`} title={status.detail}>
-          <PauseCircle size={12} aria-hidden /> Sync paused
         </span>
       )
     case 'play-pending':

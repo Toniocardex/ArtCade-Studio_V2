@@ -23,7 +23,6 @@ export function getPreviewLuaSyncKey(input: PreviewLuaSyncInput): string {
   return JSON.stringify({
     projectFp: runtimeProjectFingerprint(input.project, input.project.activeSceneId),
     projectPath: input.projectPath ?? '',
-    mainDirty: Boolean(tab?.isDirty),
-    mainContent: tab?.isDirty ? tab.content : '',
+    mainContent: tab?.content ?? '',
   })
 }

@@ -13,6 +13,7 @@
 import { describe, it, expect } from 'vitest'
 import { LuaFactory } from 'wasmoon'
 import { compileLogicBoard } from './compiler'
+import { composeProjectLua } from '../project-lua-composer'
 import type { LogicBoard, LogicEvent } from '../../types/logic-board'
 
 function ev(
@@ -213,7 +214,8 @@ async function makeRunner(boards: LogicBoard[]) {
     end
   `)
 
-  const code = compileLogicBoard(boards)
+  const generatedLua = compileLogicBoard(boards)
+  const code = composeProjectLua({ manualLua: '', generatedLua }).combinedLua
   await lua.doString(code) // throws on Lua syntax error → validates syntax
   const tick = lua.global.get('tick') as (dt: number) => void
   const timeUpdate = lua.global.get('__test_time_update') as (dt: number) => void

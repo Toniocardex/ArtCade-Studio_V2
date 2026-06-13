@@ -94,8 +94,30 @@ describe('ensureProjectOnDisk', () => {
     expect(path).toBe('/tmp/games/MyGame/project.json')
     expect(saveDialogsToProject).toHaveBeenCalledOnce()
     expect(saveProjectFile).toHaveBeenCalledOnce()
+    expect(saveScript).toHaveBeenCalledOnce()
     expect(saveDialogsToProject.mock.invocationCallOrder[0]).toBeLessThan(
       saveProjectFile.mock.invocationCallOrder[0],
     )
+  })
+
+  it('does not modify main.lua while preparing an existing project for build', async () => {
+    const project = createBlankProject('MyGame')
+
+    const path = await ensureProjectOnDisk({
+      kind: 'Build',
+      dispatch,
+      project,
+      projectPath: '/tmp/games/MyGame/project.json',
+      dialogs: {},
+      openScripts: [{
+        path: project.mainScriptPath,
+        content: '-- unsaved manual changes',
+        isDirty: true,
+      }],
+    })
+
+    expect(path).toBe('/tmp/games/MyGame/project.json')
+    expect(saveProjectFile).toHaveBeenCalledOnce()
+    expect(saveScript).not.toHaveBeenCalled()
   })
 })

@@ -42,12 +42,23 @@ function baseState(project: ProjectDoc | null = emptyProject()): CoreState {
     dialogModal: { open: false, dialogId: null },
     spritesheetStudio: { open: false, imageAssetId: null },
     projectHistory: { past: [], future: [] },
-    logicScriptSyncedRevision: null,
     logicPreviewAppliedRevision: null,
   }
 }
 
 describe('coreReducer — Logic Board CRUD', () => {
+  it('opens the Script Editor in My Script unless Combined Preview is selected explicitly', () => {
+    let state: CoreState = { ...baseState(), mainScriptView: 'combined', mode: 'logic' }
+    state = coreReducer(state, { type: 'SET_MODE', mode: 'script' })
+    expect(state.mainScriptView).toBe('manual')
+    state = coreReducer(state, { type: 'SET_MAIN_SCRIPT_VIEW', view: 'combined' })
+    state = coreReducer(state, {
+      type: 'SET_ACTIVE_SCRIPT',
+      path: state.project!.mainScriptPath,
+    })
+    expect(state.mainScriptView).toBe('manual')
+  })
+
   it('LOGIC_ADD_BOARD adds a board and marks dirty', () => {
     const board = createLogicBoardForObjectType('Player', 'pc')
     const s = coreReducer(baseState(), { type: 'LOGIC_ADD_BOARD', board })
@@ -122,13 +133,8 @@ describe('coreReducer — Logic Board CRUD', () => {
     expect(s.project?.logicBoards?.[0].events).toHaveLength(1)
   })
 
-  it('LOGIC_MARK_SCRIPT_SYNCED and LOGIC_MARK_PREVIEW_APPLIED update revision fields', () => {
-    let s = coreReducer(baseState(), {
-      type: 'LOGIC_MARK_SCRIPT_SYNCED',
-      revision: 'rev-a',
-    })
-    expect(s.logicScriptSyncedRevision).toBe('rev-a')
-    s = coreReducer(s, {
+  it('LOGIC_MARK_PREVIEW_APPLIED updates the runtime revision', () => {
+    const s = coreReducer(baseState(), {
       type: 'LOGIC_MARK_PREVIEW_APPLIED',
       revision: 'rev-b',
     })

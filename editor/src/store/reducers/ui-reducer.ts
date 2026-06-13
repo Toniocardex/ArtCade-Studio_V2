@@ -95,7 +95,11 @@ export const uiReducer: DomainReducer = (state: CoreState, action: Action) => {
         inspectorLayerName: action.layerName,
       }
     case 'SET_MODE':
-      return { ...state, mode: action.mode }
+      return {
+        ...state,
+        mode: action.mode,
+        ...(action.mode === 'script' ? { mainScriptView: 'manual' as const } : {}),
+      }
     case 'TOGGLE_FOCUS_MODE': {
       const next = !state.focusMode
       return {

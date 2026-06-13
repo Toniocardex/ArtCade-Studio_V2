@@ -4,6 +4,7 @@ import { createBlankProject } from './project-factory'
 import { buildArtcadeZipBytes } from './export-artcade-package'
 import { parseArtcadePackageBytes } from './artcade-zip-parse'
 import { createEntityDef } from './project-builders'
+import { decodeZipEntryUtf8, parseZipEntries } from './artcade-zip-io'
 
 describe('exportArtcadePackage manifest', () => {
   it('buildProjectAssetManifest lists library entries with checksums', () => {
@@ -54,5 +55,32 @@ describe('buildArtcadeZipBytes round-trip', () => {
     await expect(buildArtcadeZipBytes(project, {
       'project.json': new Uint8Array([1]),
     })).rejects.toThrow(/reserved/)
+  })
+
+  it('stores combined Lua and checksums it without mutating manual source', async () => {
+    const project = createBlankProject()
+    const manualLua = 'function tick() return "manual" end'
+    const combinedLua = '-- combined\nfunction tick() return "combined" end'
+    const manualBytes = new TextEncoder().encode(manualLua)
+    const zip = await buildArtcadeZipBytes(
+      project,
+      { [project.mainScriptPath]: manualBytes },
+      combinedLua,
+    )
+    const entries = parseZipEntries(zip)
+    const mainEntry = entries.find((entry) => entry.path === project.mainScriptPath)
+    expect(mainEntry).toBeDefined()
+    expect(await decodeZipEntryUtf8(zip, mainEntry!)).toBe(combinedLua)
+    expect(new TextDecoder().decode(manualBytes)).toBe(manualLua)
+
+    const parsed = await parseArtcadePackageBytes(zip)
+    const digest = await crypto.subtle.digest(
+      'SHA-256',
+      new TextEncoder().encode(combinedLua),
+    )
+    const expectedChecksum = [...new Uint8Array(digest)]
+      .map((byte) => byte.toString(16).padStart(2, '0'))
+      .join('')
+    expect(parsed.manifest?.checksums[project.mainScriptPath]).toBe(expectedChecksum)
   })
 })

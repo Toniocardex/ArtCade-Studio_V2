@@ -91,15 +91,15 @@ export async function ensureDependencies(
  * Native compile + pack via on-demand SDK or dev checkout.
  * Streams stdout/stderr as "build-log" Tauri events.
  */
-export async function runBuild(projectRoot: string): Promise<void> {
+export async function runBuild(projectRoot: string, mainLua: string): Promise<void> {
   if (!isTauri()) { notAvailable('runBuild'); return }
 
-  await invokeTauri<void>('run_build', { projectRoot })
+  await invokeTauri<void>('run_build', { projectRoot, mainLua })
 }
 
-export async function runBuildWasm(projectRoot: string): Promise<void> {
+export async function runBuildWasm(projectRoot: string, mainLua: string): Promise<void> {
   if (!isTauri()) { notAvailable('runBuildWasm'); return }
-  await invokeTauri<void>('run_build_wasm', { projectRoot })
+  await invokeTauri<void>('run_build_wasm', { projectRoot, mainLua })
 }
 
 export type WebExportState = 'missing' | 'stale' | 'ready'
@@ -135,8 +135,12 @@ export async function openWebExportInBrowser(projectRoot: string): Promise<strin
 /**
  * Run pack-artcade.py. Streams stdout as "build-log" events.
  */
-export async function packProject(projectRoot: string, outputPath: string): Promise<void> {
+export async function packProject(
+  projectRoot: string,
+  outputPath: string,
+  mainLua: string,
+): Promise<void> {
   if (!isTauri()) { notAvailable('packProject'); return }
 
-  await invokeTauri<void>('pack_project', { projectRoot, outputPath })
+  await invokeTauri<void>('pack_project', { projectRoot, outputPath, mainLua })
 }

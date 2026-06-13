@@ -28,6 +28,8 @@ import { readEditorPreferences } from '../utils/editor-preferences'
 
 // ---- Core state (stable) ---------------------------------------------------
 
+export type MainScriptView = 'manual' | 'generated' | 'combined'
+
 export interface CoreState {
   project:          ProjectDoc | null
   projectPath:      string | null
@@ -55,6 +57,7 @@ export interface CoreState {
   editingTilesetId: string | null
   openScripts:      ScriptFile[]
   activeScriptPath: string | null
+  mainScriptView:   MainScriptView
   isPlaying:        boolean
   selectedTileCell: number   // Phase F: brush cell id (1-based, 0 = eraser)
   // Editor-only chrome (not persisted in ProjectDoc). These are REQUIRED so
@@ -101,7 +104,6 @@ export interface CoreState {
   /** Undo/redo snapshots for the full ProjectDoc (unified editor history). */
   projectHistory: ProjectHistory
   /** Last `logicBoardsRevision` written to main script via auto-sync / Apply. */
-  logicScriptSyncedRevision: string | null
   /** Last `logicBoardsRevision` hot-reloaded into the WASM preview runtime. */
   logicPreviewAppliedRevision: string | null
   /**
@@ -155,6 +157,7 @@ export type Action =
   /** Add or update script buffer without switching editor mode (Logic Board sync). */
   | { type: 'UPSERT_SCRIPT';    path: string; content: string; isDirty?: boolean; activate?: boolean }
   | { type: 'SET_ACTIVE_SCRIPT'; path: string }
+  | { type: 'SET_MAIN_SCRIPT_VIEW'; view: MainScriptView }
   | { type: 'LOG';               entry: ConsoleEntry }
   | { type: 'SET_CURSOR';        x: number; y: number }
   | {
@@ -253,7 +256,6 @@ export type Action =
   | { type: 'LOGIC_MOVE_EVENT'; boardId: string; eventId: string; toIndex: number }
   | { type: 'LOGIC_UNDO' }
   | { type: 'LOGIC_REDO' }
-  | { type: 'LOGIC_MARK_SCRIPT_SYNCED'; revision: string }
   | { type: 'LOGIC_MARK_PREVIEW_APPLIED'; revision: string }
   | { type: 'DIALOG_SET_LIBRARY'; dialogs: Record<string, DialogScript>; selectedDialogId?: string | null }
   | { type: 'DIALOG_SELECT'; dialogId: string | null }
@@ -296,6 +298,7 @@ export const initialCoreState: CoreState = {
   editingTilesetId: null,
   openScripts:      [],
   activeScriptPath: null,
+  mainScriptView:   'manual',
   isPlaying:        false,
   selectedTileCell: 1,
   editorGridSize:   DEFAULT_EDITOR_GRID_SIZE,
@@ -311,7 +314,6 @@ export const initialCoreState: CoreState = {
   dialogModal: { open: false, dialogId: null },
   spritesheetStudio: { open: false, imageAssetId: null },
   projectHistory: { past: [], future: [] },
-  logicScriptSyncedRevision: null,
   logicPreviewAppliedRevision: null,
   previewAssetLoadScope: 'scene-static',
   focusMode: false,

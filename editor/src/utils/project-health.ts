@@ -3,6 +3,8 @@
 // ---------------------------------------------------------------------------
 
 import type { ProjectDoc, ScriptFile } from '../types'
+import { composeProjectLua } from './project-lua-composer'
+import { resolveManualMainLua } from './project-main-script'
 import { BLANK_MAIN_LUA } from './project-factory'
 import { projectRevision } from '../store/project-history'
 import { getPreviewLuaSyncKey } from './preview-lua-sync'
@@ -110,37 +112,44 @@ function buildHealthFromDiagnostics(
   }
 }
 
-function mainScriptTab(
-  project: ProjectDoc,
-  openScripts: ScriptFile[],
-): ScriptFile | undefined {
-  const path = project.mainScriptPath
-  if (!path) return undefined
-  return openScripts.find((s) => s.path === path)
-}
-
 function resolvePreviewLua(
   project: ProjectDoc,
   openScripts: ScriptFile[],
   projectPath: string | null | undefined,
   compileResult: CompileProjectLogicResult | null,
 ): { lua: string; compileError: string | null } {
-  const tab = mainScriptTab(project, openScripts)
   const boards = project.logicBoards ?? []
+  const manualLua = resolveManualMainLua(project, openScripts)
 
   if (boards.length > 0) {
-    if (tab?.isDirty && tab.content) {
-      return { lua: tab.content, compileError: null }
-    }
     if (compileResult) {
-      return { lua: compileResult.lua, compileError: compileResult.compileError }
+      return {
+        lua: composeProjectLua({
+          manualLua,
+          generatedLua: compileResult.lua,
+          projectKey: projectPath,
+        }).combinedLua,
+        compileError: compileResult.compileError,
+      }
     }
     const result = compileProjectLogic(project, { projectKey: projectPath ?? undefined })
-    return { lua: result.lua, compileError: result.compileError }
+    return {
+      lua: composeProjectLua({
+        manualLua,
+        generatedLua: result.lua,
+        projectKey: projectPath,
+      }).combinedLua,
+      compileError: result.compileError,
+    }
   }
 
-  if (tab?.content) return { lua: tab.content, compileError: null }
-  return { lua: BLANK_MAIN_LUA, compileError: null }
+  return {
+    lua: composeProjectLua({
+      manualLua: manualLua || BLANK_MAIN_LUA,
+      projectKey: projectPath,
+    }).combinedLua,
+    compileError: null,
+  }
 }
 
 function workbenchCacheKey(input: ProjectWorkbenchInput): string {
@@ -167,8 +176,7 @@ function buildWorkbenchSnapshot(input: ProjectWorkbenchInput): ProjectWorkbenchS
   }
 
   const boards = project.logicBoards ?? []
-  const needsCompile = includeCompile && boards.length > 0 &&
-    !(mainScriptTab(project, openScripts)?.isDirty && mainScriptTab(project, openScripts)?.content)
+  const needsCompile = includeCompile && boards.length > 0
 
   const compileResult = needsCompile
     ? compileProjectLogic(project, { projectKey: projectPath ?? undefined })

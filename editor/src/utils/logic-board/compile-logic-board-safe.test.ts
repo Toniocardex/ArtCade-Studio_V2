@@ -2,7 +2,6 @@ import { describe, expect, it, beforeEach } from 'vitest'
 import type { LogicBoard } from '../../types/logic-board'
 import { compileLogicBoardLuaOrBlank, compileLogicBoardSafe } from './compile-logic-board-safe'
 import { clearLogicCompileCache } from './logic-compile-service'
-import { BLANK_MAIN_LUA } from '../project-factory'
 
 describe('compileLogicBoardSafe', () => {
   beforeEach(() => clearLogicCompileCache())
@@ -14,7 +13,7 @@ describe('compileLogicBoardSafe', () => {
     }
     const r = compileLogicBoardSafe([board])
     expect(r.ok).toBe(true)
-    if (r.ok) expect(r.lua).toContain('function tick')
+    if (r.ok) expect(r.lua).toContain('function module.tick')
   })
 
   it('returns error string instead of throwing', () => {
@@ -35,7 +34,7 @@ describe('compileLogicBoardSafe', () => {
     if (!r.ok) expect(r.error).toMatch(/entity rulesheets/)
   })
 
-  it('compileLogicBoardLuaOrBlank returns blank main on failure', () => {
+  it('compileLogicBoardLuaOrBlank returns empty generated source on failure', () => {
     const board = {
       boardId: 'g1',
       target: { type: 'global' as const },
@@ -47,7 +46,7 @@ describe('compileLogicBoardSafe', () => {
       }],
     }
     const { lua, error } = compileLogicBoardLuaOrBlank([board], null, { projectKey: 'safe-test' })
-    expect(lua).toBe(BLANK_MAIN_LUA)
+    expect(lua).toBe('')
     expect(error).toMatch(/entity rulesheets/)
   })
 })

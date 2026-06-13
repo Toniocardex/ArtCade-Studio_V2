@@ -4,7 +4,6 @@
 
 import type { LogicBoardDoc } from '../../types/logic-board'
 import type { ProjectDoc } from '../../types'
-import { BLANK_MAIN_LUA } from '../project-factory'
 import { compileLogicBoard } from './compiler'
 import { findClickToDestroyErrors } from './click-to-destroy'
 import { findBoardCompatibilityErrors } from './trigger-compatibility'
@@ -126,7 +125,7 @@ export function compileProjectLogic(
     const message = projectErrors.map((e) => e.message).join('\n')
     return {
       ok: false,
-      lua: lastGoodLuaByProjectKey.get(cacheKey) ?? BLANK_MAIN_LUA,
+      lua: lastGoodLuaByProjectKey.get(cacheKey) ?? '',
       diagnostics: [
         ...configDiagnostics,
         ...projectErrors.map((e) => ({
@@ -143,7 +142,7 @@ export function compileProjectLogic(
   if (boards.length === 0) {
     return {
       ok: true,
-      lua: BLANK_MAIN_LUA,
+      lua: '',
       diagnostics: configDiagnostics,
       compileError: null,
     }
@@ -173,7 +172,7 @@ export function compileProjectLogic(
     const cached = lastGoodLuaByProjectKey.get(cacheKey)
     return {
       ok: false,
-      lua: cached ?? BLANK_MAIN_LUA,
+      lua: cached ?? '',
       diagnostics: [...configDiagnostics, compileDiagnostic],
       compileError: message,
     }

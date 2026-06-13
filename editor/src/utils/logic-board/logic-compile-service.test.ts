@@ -1,7 +1,6 @@
 import { describe, expect, it, beforeEach } from 'vitest'
 import type { LogicBoard, LogicEvent } from '../../types/logic-board'
 import type { ProjectDoc } from '../../types'
-import { BLANK_MAIN_LUA } from '../project-factory'
 import {
   clearLogicCompileCache,
   collectConfigDiagnostics,
@@ -96,20 +95,20 @@ describe('compileProjectLogic', () => {
   it('returns lua on success', () => {
     const r = compileProjectLogic(project([entityBoard()]))
     expect(r.ok).toBe(true)
-    expect(r.lua).toContain('function tick')
+    expect(r.lua).toContain('function module.tick')
     expect(r.compileError).toBeNull()
   })
 
-  it('returns blank main when no boards', () => {
+  it('returns empty generated source when no boards', () => {
     const r = compileProjectLogic(project([]))
     expect(r.ok).toBe(true)
-    expect(r.lua).toBe(BLANK_MAIN_LUA)
+    expect(r.lua).toBe('')
   })
 
   it('fails with compile diagnostic and blank lua when no cache', () => {
     const r = compileProjectLogic(project([invalidGlobalBoard()]), { projectKey: 'a' })
     expect(r.ok).toBe(false)
-    expect(r.lua).toBe(BLANK_MAIN_LUA)
+    expect(r.lua).toBe('')
     expect(r.compileError).toMatch(/entity rulesheets/)
     expect(r.diagnostics.some((d) => d.source === 'compile' && d.severity === 'error')).toBe(true)
   })
@@ -130,7 +129,7 @@ describe('compileProjectLogic', () => {
     const okA = compileProjectLogic(project([entityBoard()]), { projectKey: 'a' })
     compileProjectLogic(project([invalidGlobalBoard()]), { projectKey: 'b' })
     const failB = compileProjectLogic(project([invalidGlobalBoard()]), { projectKey: 'b' })
-    expect(failB.lua).toBe(BLANK_MAIN_LUA)
+    expect(failB.lua).toBe('')
 
     const failA = compileProjectLogic(project([invalidGlobalBoard()]), { projectKey: 'a' })
     expect(failA.lua).toBe(okA.lua)

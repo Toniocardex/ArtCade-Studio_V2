@@ -14,8 +14,8 @@ export interface PreviewRestoreInput {
 
 /**
  * Resolve the main Lua pushed on PLAY / STOP / preview sync.
- * Logic Board output wins over the on-disk main.lua stub unless the user is
- * actively editing that script tab (isDirty).
+ * The returned source composes the current manual buffer with the latest
+ * valid Logic Board module.
  */
 export function resolvePreviewMainLua(input: PreviewRestoreInput): string {
   return resolvePreviewMainLuaWithStatus(input).lua
@@ -44,7 +44,7 @@ export function logLogicBoardCompileFailure(
   dispatch({
     type: 'LOG',
     entry: makeEntry(
-      `${prefix} Logic Board compile failed — using blank or open script tab:\n${compileError}`,
+      `${prefix} Logic Board compile failed - keeping the latest valid runtime source:\n${compileError}`,
       'error',
     ),
   })

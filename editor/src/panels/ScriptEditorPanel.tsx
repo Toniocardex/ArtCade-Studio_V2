@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useEditorDispatch, useEditorSelector, useEditorStore } from '../store/editor-store'
+import { useEditorDispatch, useEditorSelector } from '../store/editor-store'
 import { EngineScriptEditor } from '../components/EngineScriptEditor'
-import { LogicBoardScriptConflictBanner } from '../components/LogicBoardScriptConflictBanner'
 import { compileProjectLogic } from '../utils/logic-board/logic-compile-service'
-import { logicBoardScriptOutOfSync } from '../utils/logic-board-script-conflict'
 import { LogicBoardCompileErrorBanner } from '../components/LogicBoardCompileErrorBanner'
-import { syncLogicBoardToScript } from '../utils/sync-logic-board-script'
+import { composeProjectLua } from '../utils/project-lua-composer'
+import type { MainScriptView } from '../store/editor-store-state'
 
 /** Tracks the <html data-theme> attribute so CodeMirror follows the app theme. */
 function useThemeMode(): 'dark' | 'light' {
@@ -58,13 +57,12 @@ function ScriptTabBar({ paths, activePath, dirtyPaths, onSelect }: ScriptTabBarP
 
 export default function ScriptEditorPanel() {
   const dispatch = useEditorDispatch()
-  const store = useEditorStore()
   const openScripts = useEditorSelector((s) => s.openScripts)
   const activeScriptPath = useEditorSelector((s) => s.activeScriptPath)
+  const mainScriptView = useEditorSelector((s) => s.mainScriptView)
   const project = useEditorSelector((s) => s.project)
   const projectPath = useEditorSelector((s) => s.projectPath)
   const themeMode = useThemeMode()
-  const [dismissedConflict, setDismissedConflict] = useState(false)
 
   const currentScript = activeScriptPath
     ? openScripts.find(s => s.path === activeScriptPath)
@@ -75,37 +73,34 @@ export default function ScriptEditorPanel() {
     if (!project?.logicBoards?.length) return null
     return compileProjectLogic(project, { projectKey: projectPath ?? undefined })
   }, [project, projectPath])
-  const compiledLua = compileResult?.ok ? compileResult.lua : null
+  const hasLogicBoards = (project?.logicBoards?.length ?? 0) > 0
+  const generatedLua = hasLogicBoards ? (compileResult?.lua ?? '') : ''
   const compileError = compileResult?.compileError ?? null
 
   const mainPath = project?.mainScriptPath ?? null
-  const showConflict =
-    !dismissedConflict &&
-    !!compiledLua &&
-    !!currentScript &&
-    activeScriptPath === mainPath &&
-    (project?.logicBoards?.length ?? 0) > 0 &&
-    logicBoardScriptOutOfSync(currentScript.content, compiledLua)
+  const isMainScript = !!currentScript && activeScriptPath === mainPath
+  const composed = useMemo(
+    () => composeProjectLua({
+      manualLua: isMainScript ? currentScript.content : '',
+      generatedLua,
+      projectKey: projectPath,
+    }),
+    [currentScript?.content, generatedLua, isMainScript, projectPath],
+  )
+  const displayedSource = !isMainScript || mainScriptView === 'manual'
+    ? currentScript?.content ?? ''
+    : mainScriptView === 'generated'
+      ? generatedLua
+      : composed.combinedLua
+  const readOnly = isMainScript && mainScriptView !== 'manual'
 
-  useEffect(() => {
-    setDismissedConflict(false)
-  }, [compiledLua])
-
-  const handleRegenerate = () => {
-    if (!compiledLua) return
-    syncLogicBoardToScript(dispatch, store.getState(), compiledLua)
-    setDismissedConflict(false)
+  const selectMainView = (view: MainScriptView) => {
+    dispatch({ type: 'SET_MAIN_SCRIPT_VIEW', view })
   }
 
   return (
     <div className="h-full w-full flex-1 min-w-0 flex flex-col bg-[var(--bg)]">
       {compileError && <LogicBoardCompileErrorBanner error={compileError} />}
-      {showConflict && (
-        <LogicBoardScriptConflictBanner
-          onRegenerate={handleRegenerate}
-          onDismiss={() => setDismissedConflict(true)}
-        />
-      )}
 
       <ScriptTabBar
         paths={openScripts.map(s => s.path)}
@@ -114,14 +109,43 @@ export default function ScriptEditorPanel() {
         onSelect={path => dispatch({ type: 'SET_ACTIVE_SCRIPT', path })}
       />
 
+      {isMainScript && (
+        <div className="flex items-center gap-1 px-3 py-2 border-b border-[var(--border)] bg-[var(--panel)]">
+          {([
+            ['manual', 'My Script'],
+            ['generated', 'Logic Board'],
+            ['combined', 'Combined Preview'],
+          ] as const).map(([view, label]) => (
+            <button
+              key={view}
+              type="button"
+              onClick={() => selectMainView(view)}
+              className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${
+                mainScriptView === view
+                  ? 'bg-[var(--accent-bg)] text-[var(--accent-fg-on-bg)] border border-[var(--accent-bd)]'
+                  : 'text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--panel-3)] border border-transparent'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+          <span className="ml-auto text-[10px] text-[var(--muted)]">
+            {readOnly
+              ? 'Read-only preview generated by ArtCade'
+              : 'Edit My Script. Logic Board code is generated automatically.'}
+          </span>
+        </div>
+      )}
+
       <div className="flex-1 min-h-0 min-w-0 w-full relative bg-[var(--bg)]">
         {currentScript ? (
           <EngineScriptEditor
             key={currentScript.path}
             theme={themeMode === 'light' ? 'artcade-light' : 'artcade-dark'}
-            sourceCode={currentScript.content}
+            sourceCode={displayedSource}
+            readOnly={readOnly}
             onChange={(v) =>
-              dispatch({ type: 'UPDATE_SCRIPT', path: currentScript.path, content: v })
+              !readOnly && dispatch({ type: 'UPDATE_SCRIPT', path: currentScript.path, content: v })
             }
           />
         ) : (

@@ -26,8 +26,9 @@ describe('camera shake compile contract', () => {
       ]),
     ])
     expect(lua).toMatch(/camera\.shake\(0\.75, 0\.5\)/)
-    expect(lua.indexOf('camera.shake(0.75, 0.5)')).toBeLessThan(lua.indexOf('function tick(dt)'))
-    expect(lua).toContain('if not __artcade_requires_tick and not _init_done then')
+    expect(lua.indexOf('camera.shake(0.75, 0.5)')).toBeLessThan(lua.indexOf('function module.tick(dt)'))
+    expect(lua).toContain('module.requiresTick = false')
+    expect(lua).toContain('function module.initialize()')
   })
 
   it('onUpdate cameraShake stays in tick path', () => {
@@ -39,8 +40,8 @@ describe('camera shake compile contract', () => {
         }),
       ]),
     ])
-    expect(lua).toContain('__artcade_requires_tick = true')
-    const tickIdx = lua.indexOf('function tick(dt)')
+    expect(lua).toContain('module.requiresTick = true')
+    const tickIdx = lua.indexOf('function module.tick(dt)')
     const shakeIdx = lua.indexOf('camera.shake(0.4, 0.5)')
     expect(shakeIdx).toBeGreaterThan(tickIdx)
   })

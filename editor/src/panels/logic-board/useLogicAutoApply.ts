@@ -26,7 +26,9 @@ import {
   type AutoApplyInputs,
   type LogicSyncStatus,
 } from '../../utils/logic-board/auto-apply-status'
-import { logicBoardsRevision } from '../../utils/sync-logic-board-script'
+import { logicBoardsRevision } from '../../utils/logic-board-project-flow'
+import { composeProjectLua } from '../../utils/project-lua-composer'
+import { resolveManualMainLua } from '../../utils/project-main-script'
 
 export const AUTO_APPLY_DEBOUNCE_MS = 700
 
@@ -47,12 +49,6 @@ export function useLogicAutoApply(params: {
   const store = useEditorStore()
   const isPlaying = useEditorSelector((s) => s.isPlaying)
   const appliedRevision = useEditorSelector((s) => s.logicPreviewAppliedRevision)
-  const mainScriptDirty = useEditorSelector((s) => {
-    const mainPath = s.project?.mainScriptPath
-    return mainPath
-      ? s.openScripts.some((f) => f.path === mainPath && f.isDirty)
-      : false
-  })
   const [failedRevision, setFailedRevision] = useState<string | null>(null)
   const [inFlight, setInFlight] = useState(false)
   const timerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null)
@@ -64,7 +60,6 @@ export function useLogicAutoApply(params: {
     compileError: compileResult.compileError,
     runtimeReady,
     isPlaying,
-    mainScriptDirty,
     applyInFlight: inFlight,
     failedRevision,
     currentRevision: boardsRevision,
@@ -74,7 +69,7 @@ export function useLogicAutoApply(params: {
   useEffect(() => {
     if (!armed) return
     const revisionAtArm = boardsRevision
-    const lua = compileResult.lua
+    const generatedLua = compileResult.lua
     timerRef.current = globalThis.setTimeout(() => {
       timerRef.current = null
       // Re-validate against fresh state: the world may have changed while
@@ -82,13 +77,12 @@ export function useLogicAutoApply(params: {
       const state = store.getState()
       if (logicBoardsRevision(state.project) !== revisionAtArm) return
       if (state.isPlaying) return
-      const mainPath = state.project?.mainScriptPath
-      if (
-        mainPath &&
-        state.openScripts.some((f) => f.path === mainPath && f.isDirty)
-      ) {
-        return
-      }
+      if (!state.project) return
+      const lua = composeProjectLua({
+        manualLua: resolveManualMainLua(state.project, state.openScripts),
+        generatedLua,
+        projectKey: state.projectPath,
+      }).combinedLua
       setInFlight(true)
       const outcome = applyLogicToIdleRuntime({
         lua,

@@ -25,6 +25,7 @@ mod web_preview;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::process::{Command as Cmd, Stdio};
+use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::Emitter;
 use tauri::Manager;
 use tauri_plugin_fs::FsExt;
@@ -44,6 +45,53 @@ use sdk::{
 struct BuildLogEntry {
     message: String,
     level: String, // "info" | "warn" | "error"
+}
+
+struct MainLuaOverride {
+    path: PathBuf,
+}
+
+impl Drop for MainLuaOverride {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.path);
+    }
+}
+
+fn create_main_lua_override(source: Option<String>) -> Result<Option<MainLuaOverride>, String> {
+    let Some(source) = source else { return Ok(None) };
+    let nonce = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|e| format!("system clock error: {e}"))?
+        .as_nanos();
+    let path = std::env::temp_dir().join(format!(
+        "artcade-main-{}-{nonce}.lua",
+        std::process::id()
+    ));
+    std::fs::write(&path, source)
+        .map_err(|e| format!("write temporary combined Lua '{}': {e}", path.display()))?;
+    Ok(Some(MainLuaOverride { path }))
+}
+
+fn apply_main_lua_override(command: &mut Cmd, override_file: &Option<MainLuaOverride>) {
+    if let Some(file) = override_file {
+        command.arg("--main-script-override").arg(&file.path);
+    }
+}
+
+#[cfg(test)]
+mod main_lua_override_tests {
+    use super::create_main_lua_override;
+
+    #[test]
+    fn removes_temporary_file_when_dropped() {
+        let override_file = create_main_lua_override(Some("return true".to_string()))
+            .expect("override should be created")
+            .expect("override should exist");
+        let path = override_file.path.clone();
+        assert!(path.is_file());
+        drop(override_file);
+        assert!(!path.exists());
+    }
 }
 
 fn emit_log(app: &tauri::AppHandle, msg: &str, level: &str) {
@@ -565,7 +613,11 @@ fn write_web_shell(dist_dir: &Path, title: &str) -> Result<(), String> {
 // ---------------------------------------------------------------------------
 
 #[tauri::command]
-async fn run_build(app: tauri::AppHandle, project_root: String) -> Result<(), String> {
+async fn run_build(
+    app: tauri::AppHandle,
+    project_root: String,
+    main_lua: Option<String>,
+) -> Result<(), String> {
     let report = check_dependencies(&app);
     if !report.ready_for_native_build {
         let msg = "[Build] Missing dependencies — install the ArtCade SDK and VS Build Tools first (Build → Check dependencies).";
@@ -589,6 +641,7 @@ async fn run_build(app: tauri::AppHandle, project_root: String) -> Result<(), St
             return Err(msg);
         }
     };
+    let main_lua_override = create_main_lua_override(main_lua)?;
 
     emit_log(
         &app,
@@ -641,6 +694,7 @@ async fn run_build(app: tauri::AppHandle, project_root: String) -> Result<(), St
         .current_dir(&workspace)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
+    apply_main_lua_override(&mut pack_child, &main_lua_override);
     hide_console(&mut pack_child);
 
     let pack_child = pack_child
@@ -717,7 +771,11 @@ fn stream_and_wait(
 }
 
 #[tauri::command]
-async fn run_build_wasm(app: tauri::AppHandle, project_root: String) -> Result<(), String> {
+async fn run_build_wasm(
+    app: tauri::AppHandle,
+    project_root: String,
+    main_lua: Option<String>,
+) -> Result<(), String> {
     let report = check_dependencies(&app);
     if !report.ready_for_wasm_build {
         let msg = "[WASM] Missing runtime SDK or Emscripten — install SDK with Emscripten option.";
@@ -739,6 +797,7 @@ async fn run_build_wasm(app: tauri::AppHandle, project_root: String) -> Result<(
             return Err(msg);
         }
     };
+    let main_lua_override = create_main_lua_override(main_lua)?;
 
     emit_log(
         &app,
@@ -816,6 +875,7 @@ async fn run_build_wasm(app: tauri::AppHandle, project_root: String) -> Result<(
         .arg(&output_package)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
+    apply_main_lua_override(&mut pack_child, &main_lua_override);
     hide_console(&mut pack_child);
     let pack_child = pack_child
         .spawn()
@@ -883,6 +943,7 @@ async fn pack_project(
     app: tauri::AppHandle,
     project_root: String,
     output_path: String,
+    main_lua: Option<String>,
 ) -> Result<(), String> {
     let report = check_dependencies(&app);
     if !report.ready_for_pack {
@@ -896,6 +957,7 @@ async fn pack_project(
 
     let project_root = validate_build_project_root(&project_root)?;
     let output_path = validate_pack_output_path(&output_path)?;
+    let main_lua_override = create_main_lua_override(main_lua)?;
 
     emit_log(
         &app,
@@ -915,6 +977,7 @@ async fn pack_project(
         .arg(&output_path)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
+    apply_main_lua_override(&mut child, &main_lua_override);
     hide_console(&mut child);
     let child = child
         .spawn()

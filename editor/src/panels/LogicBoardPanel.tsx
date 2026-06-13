@@ -2,9 +2,9 @@
 // Logic Board panel — visual event-list editor.
 //
 // Entity-first: rulesheets bind to entityId by default; class boards in Advanced.
-// Script tab: per-board read-only Lua slice, optional full main, Open main.lua.
+// Script tab: per-board read-only Lua slice and Combined Preview navigation.
 //
-// All mutations go through LOGIC_*; compiled Lua syncs to mainScriptPath in store.
+// All mutations go through LOGIC_*; main.lua remains user-owned.
 // ---------------------------------------------------------------------------
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -44,9 +44,8 @@ import { LogicBoardHeader } from './logic-board/LogicBoardHeader'
 import { LogicBoardVisualLayout } from './logic-board/LogicBoardVisualLayout'
 import {
   logicBoardsRevision,
-  openMainScriptInEditor,
-  syncLogicBoardToScript,
-} from '../utils/sync-logic-board-script'
+  openCombinedMainScript,
+} from '../utils/logic-board-project-flow'
 import { extractBoardLuaSlice } from '../utils/logic-board/extract-board-lua-slice'
 import {
   logicBoardCompilerLabel,
@@ -108,8 +107,8 @@ function LogicBoardLuaMode({
     ? `Full ${mainPath}`
     : `Section of ${mainPath}`
   const openMainTooltip =
-    `Opens ${mainPath} in the Script Editor with Logic-Board–compiled Lua (all boards). ` +
-    'Open other .lua files from the entity Inspector.'
+    `Opens the read-only Combined Preview for ${mainPath}. ` +
+    'My Script remains editable and is never regenerated.'
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-[var(--bg)]">
@@ -161,12 +160,12 @@ function LogicBoardLuaMode({
             disabled={!!compileError}
             onClick={() => {
               if (compileResult.ok) {
-                openMainScriptInEditor(dispatch, store.getState(), compileResult.lua)
+                void openCombinedMainScript(dispatch, store.getState)
               }
             }}
             className="px-4 py-2 rounded text-xs font-semibold border border-[var(--accent-bd)] bg-[var(--accent-bg)] text-[var(--accent-fg-on-bg)] hover:bg-[var(--accent-bg-h)] disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Open main.lua →
+            Open Combined Preview →
           </button>
         }
       />
@@ -183,7 +182,6 @@ export default function LogicBoardPanel() {
   const authoringMode = useEditorSelector((s) => s.authoringMode)
   const projectPath = useEditorSelector((s) => s.projectPath)
   const logicPreviewAppliedRevision = useEditorSelector((s) => s.logicPreviewAppliedRevision)
-  const openScripts = useEditorSelector((s) => s.openScripts)
   const runtimeReady = useRuntimeReady()
   const boards = project?.logicBoards ?? []
   const [selectedBoardId, setSelectedBoardId] = useState<string | null>(
@@ -284,23 +282,6 @@ export default function LogicBoardPanel() {
     () => (project ? logicBoardsForScene(project, sceneId) : []),
     [project, sceneId, boardsRevision],
   )
-  const prevBoardsRevision = useRef(boardsRevision)
-
-  useEffect(() => {
-    if (prevBoardsRevision.current === boardsRevision) return
-
-    const state = store.getState()
-    const mainPath = state.project?.mainScriptPath
-    const dirtyMain = mainPath
-      ? openScripts.find(s => s.path === mainPath && s.isDirty)
-      : undefined
-    if (dirtyMain) return
-    if (!compileResult.ok) return
-
-    prevBoardsRevision.current = boardsRevision
-    syncLogicBoardToScript(dispatch, state, compileResult.lua)
-    dispatch({ type: 'LOGIC_MARK_SCRIPT_SYNCED', revision: boardsRevision })
-  }, [boardsRevision, compileResult, dispatch, store, openScripts])
 
   const handleApply = useCallback(() => {
     if (!project) return

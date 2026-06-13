@@ -116,8 +116,6 @@ export const logicBoardReducer: DomainReducer = (state: CoreState, action: Actio
     case 'LOGIC_UNDO':
     case 'LOGIC_REDO':
       return state
-    case 'LOGIC_MARK_SCRIPT_SYNCED':
-      return { ...state, logicScriptSyncedRevision: action.revision }
     case 'LOGIC_MARK_PREVIEW_APPLIED':
       return { ...state, logicPreviewAppliedRevision: action.revision }
     default:

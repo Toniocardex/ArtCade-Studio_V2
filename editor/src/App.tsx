@@ -16,7 +16,7 @@ import { SpritesheetStudioModal } from './panels/spritesheet-studio/SpritesheetS
 import { useProjectShortcuts } from './hooks/useProjectShortcuts'
 import { useBuildLogListener } from './hooks/useBuildLogListener'
 import { useEditorUndoRedo } from './hooks/useEditorUndoRedo'
-import { useProjectLogicBoardSync } from './hooks/useProjectLogicBoardSync'
+import { useProjectMainScriptLoad } from './hooks/useProjectMainScriptLoad'
 import { ProjectNamePersistProvider } from './components/menu-bar/project-name-context'
 import { useViewportShortcuts } from './hooks/useViewportShortcuts'
 import { useConsoleShortcut } from './hooks/useConsoleShortcut'
@@ -257,7 +257,7 @@ function EditorLayout() {
 
   useProjectShortcuts()
   useEditorUndoRedo()
-  useProjectLogicBoardSync()
+  useProjectMainScriptLoad()
   useViewportShortcuts()
   useConsoleShortcut()
   useFocusModeShortcut()

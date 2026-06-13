@@ -70,7 +70,6 @@ function baseState(project: ProjectDoc | null = projectWithEntity()): CoreState 
     dialogModal: { open: false, dialogId: null },
     spritesheetStudio: { open: false, imageAssetId: null },
     projectHistory: { past: [], future: [] },
-    logicScriptSyncedRevision: null,
     logicPreviewAppliedRevision: null,
     previewAssetLoadScope: 'scene-static',
   }

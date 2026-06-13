@@ -62,7 +62,11 @@ def _is_excluded_file(fname: str) -> bool:
     return any(fnmatch.fnmatch(fname, pat) for pat in EXCLUDED_PATTERNS)
 
 
-def collect_files(src_dir: str) -> list[tuple[str, str]]:
+def collect_files(
+    src_dir: str,
+    main_script_override: str | None = None,
+    main_script_rel: str | None = None,
+) -> list[tuple[str, str]]:
     """Return list of (absolute_path, archive_relative_path) for all packable files."""
     files = []
     for root, dirs, filenames in os.walk(src_dir):
@@ -73,7 +77,12 @@ def collect_files(src_dir: str) -> list[tuple[str, str]]:
                 continue
             full = os.path.join(root, fname)
             rel  = os.path.relpath(full, src_dir).replace("\\", "/")
+            if main_script_override and rel == main_script_rel:
+                continue
             files.append((full, rel))
+    if main_script_override and main_script_rel:
+        files.append((main_script_override, main_script_rel))
+        files.sort(key=lambda item: item[1])
     return files
 
 
@@ -138,7 +147,7 @@ def build_manifest(project: dict, files: list[tuple[str, str]]) -> dict:
     }
 
 
-def pack(src_dir: str, out_path: str) -> bool:
+def pack(src_dir: str, out_path: str, main_script_override: str | None = None) -> bool:
     src_dir = os.path.abspath(src_dir)
 
     if not os.path.isdir(src_dir):
@@ -154,7 +163,12 @@ def pack(src_dir: str, out_path: str) -> bool:
     if not validate_project(src_dir, project):
         return False
 
-    files = collect_files(src_dir)
+    main_script = project_value(project, "mainScriptPath", "main_script_path", "scripts/main.luac")
+    main_script_rel = main_script.replace("\\", "/").lstrip("/")
+    if main_script_override and not os.path.isfile(main_script_override):
+        print(f"[FAIL] Main script override not found: {main_script_override}", file=sys.stderr)
+        return False
+    files = collect_files(src_dir, main_script_override, main_script_rel)
     if not files:
         print("[FAIL] No files found to pack", file=sys.stderr)
         return False
@@ -184,9 +198,13 @@ def main() -> int:
     )
     parser.add_argument("src_dir", help="Project source directory (must contain project.json)")
     parser.add_argument("output",  help="Output .artcade file path")
+    parser.add_argument(
+        "--main-script-override",
+        help="File whose bytes replace mainScriptPath inside the archive",
+    )
     args = parser.parse_args()
 
-    return 0 if pack(args.src_dir, args.output) else 1
+    return 0 if pack(args.src_dir, args.output, args.main_script_override) else 1
 
 
 if __name__ == "__main__":

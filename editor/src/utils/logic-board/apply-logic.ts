@@ -14,7 +14,8 @@ import type { ProjectDoc } from '../../types'
 import type { compileProjectLogic } from './logic-compile-service'
 import { runtimeSync } from '../runtime-sync-service'
 import { makeConsoleEntry } from '../../components/menu-bar/makeConsoleEntry'
-import { syncLogicBoardToScript } from '../sync-logic-board-script'
+import { composeProjectLua } from '../project-lua-composer'
+import { resolveManualMainLua } from '../project-main-script'
 
 type EditorDispatch = Dispatch<Action>
 type CompileResult = ReturnType<typeof compileProjectLogic>
@@ -74,7 +75,11 @@ export function executeApplyLogic({
     flashApplyMsg('Fix Logic Board compile errors before applying.', 5000)
     return false
   }
-  syncLogicBoardToScript(dispatch, state, compileResult.lua)
+  const combinedLua = composeProjectLua({
+    manualLua: resolveManualMainLua(project, state.openScripts),
+    generatedLua: compileResult.lua,
+    projectKey: state.projectPath,
+  }).combinedLua
   if (!runtimeReady) {
     flashApplyMsg('Runtime still loading — try again in a moment.')
     return false
@@ -84,7 +89,7 @@ export function executeApplyLogic({
     const outcome = runtimeSync.transitionPreview('stop', {
       project,
       activeSceneId,
-      mainLua: compileResult.lua,
+      mainLua: combinedLua,
       dialogs: state.dialogs,
       projectPath: state.projectPath,
     })
@@ -106,7 +111,7 @@ export function executeApplyLogic({
     return true
   }
   const outcome = applyLogicToIdleRuntime({
-    lua: compileResult.lua,
+    lua: combinedLua,
     dialogs: state.dialogs,
     dispatch,
   })

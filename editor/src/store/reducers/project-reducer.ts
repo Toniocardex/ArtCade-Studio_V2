@@ -14,7 +14,6 @@ import type { CoreState, Action, DomainReducer } from '../editor-store-state'
 import { EDITOR_BOOT_ZOOM } from '../../constants/editor-viewport'
 import { safeProjectFolderName } from '../../utils/project'
 import { emptyProjectHistory } from '../project-history'
-import { logicBoardsRevision } from '../../utils/sync-logic-board-script'
 import { DEFAULT_LAYERS } from '../../constants/scene-layers'
 import type { ProjectDoc } from '../../types'
 
@@ -27,7 +26,6 @@ export const projectReducer: DomainReducer = (state: CoreState, action: Action) 
   switch (action.type) {
     case 'LOAD_PROJECT': {
       const firstSceneId = Object.keys(action.project.scenes)[0] ?? null
-      const loadedLogicRev = logicBoardsRevision(action.project) || null
       const seededProject = seedLayers(action.project)
       const defaultActiveLayer = seededProject.layers![0]!.name
       // Reset editor "view" chrome so a 400% zoom, a stuck fit-mode tracking
@@ -47,6 +45,7 @@ export const projectReducer: DomainReducer = (state: CoreState, action: Action) 
         entityDisplayLayers: {},
         openScripts: [],
         activeScriptPath: null,
+        mainScriptView: 'manual',
         isPlaying:   false,
         consoleAckUpToId:      0,
         editingTilesetId: null,    // reset tileset sub-view
@@ -56,7 +55,6 @@ export const projectReducer: DomainReducer = (state: CoreState, action: Action) 
         projectLoadEpoch: state.projectLoadEpoch + 1,
         legacyMigrateBanner: action.migratedFromLegacy ?? false,
         projectHistory: emptyProjectHistory(),
-        logicScriptSyncedRevision: loadedLogicRev,
         logicPreviewAppliedRevision: null,
         dialogs: action.dialogs ?? {},
         selectedDialogId:
@@ -107,6 +105,8 @@ export const projectReducer: DomainReducer = (state: CoreState, action: Action) 
         ...state,
         openScripts:      exists ? state.openScripts : [...state.openScripts, action.file],
         activeScriptPath: action.file.path,
+        mainScriptView:
+          action.file.path === state.project?.mainScriptPath ? 'manual' : state.mainScriptView,
         mode:             'script',
       }
     }
@@ -125,7 +125,13 @@ export const projectReducer: DomainReducer = (state: CoreState, action: Action) 
       }
     }
     case 'SET_ACTIVE_SCRIPT':
-      return { ...state, activeScriptPath: action.path }
+      return {
+        ...state,
+        activeScriptPath: action.path,
+        mainScriptView: 'manual',
+      }
+    case 'SET_MAIN_SCRIPT_VIEW':
+      return { ...state, mainScriptView: action.view }
     default:
       return state
   }

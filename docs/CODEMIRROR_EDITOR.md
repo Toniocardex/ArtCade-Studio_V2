@@ -1,78 +1,80 @@
-# Editor Script — CodeMirror 6 (iframe)
+# Script Editor - CodeMirror 6 (iframe)
 
-> **Versione:** 2.0 · **Data:** 2026-05-20
+> **Versione:** 2.1 - **Data:** 2026-06-13
 
-CodeMirror gira in un **documento isolato** (`codemirror-frame.html`) dentro un `<iframe>`, così Tailwind e `index.css` dell’app non toccano il layout né l’highlighting.
+CodeMirror gira in un documento isolato (`codemirror-frame.html`) dentro un
+`iframe`, quindi gli stili dell'app non interferiscono con layout e syntax
+highlighting.
 
 ## Architettura
 
-```
+```text
 ScriptEditorPanel
-  └── EngineScriptEditor (host React)
-        └── <iframe src="./codemirror-frame.html">
-              └── frame/main.tsx → @uiw/react-codemirror + Lua + tema ArtCade
+  -> EngineScriptEditor (host React)
+     -> codemirror-frame.html
+        -> codemirror-frame/main.tsx
 ```
 
-Comunicazione: `postMessage` (`src/codemirror-frame/protocol.ts`).
+La comunicazione usa `postMessage` e i tipi in
+`editor/src/codemirror-frame/protocol.ts`.
 
-| Messaggio (parent → frame) | Effetto |
-|---------------------------|---------|
-| `init` | Carica testo + tema |
-| `set-theme` | Cambia `artcade-dark` / `artcade-light` |
-| `update-from-logic` | Aggiorna testo dallo store (Logic Board, reload) senza remount iframe |
+| Messaggio parent -> frame | Effetto |
+|---|---|
+| `init` | Carica testo, tema e stato read-only |
+| `set-theme` | Cambia tema CodeMirror |
+| `set-read-only` | Aggiorna `EditorState.readOnly` e `EditorView.editable` |
+| `update-from-logic` | Aggiorna il documento virtuale senza remount |
 
-| Messaggio (frame → parent) | Effetto |
-|---------------------------|---------|
-| `ready` | Frame pronto, parent invia `init` |
-| `change` | Testo modificato → store |
+Ricerca, selezione e copia restano disponibili nelle viste read-only.
 
-## Sync Logic Board → script (non toccare senza test)
+## Viste main.lua
 
-Flusso **unidirezionale** (board → Lua testo; parsing Lua → board non è v1):
+`main.lua` espone tre viste nello Script Editor:
 
-```
-LogicBoardPanel (store LOGIC_*)
-  → compileLogicBoard(project.logicBoards)
-  → syncLogicBoardToScript()  (utils/sync-logic-board-script.ts)
-       → UPDATE_SCRIPT nello store
-       → EngineScriptEditor: postMessage update-from-logic
-  → Apply: editorReloadScript(lua) sul WASM
-```
+- **My Script**: file reale, modificabile, con dirty state e salvataggio normale.
+- **Logic Board**: Lua generato virtuale, read-only.
+- **Combined Preview**: sorgente eseguito da preview e build, read-only.
 
-- `LogicBoardPanel`: `useEffect` su revisione `logicBoards` + `handleApply` chiama sync prima del reload.
-- `lastSyncedRef` in `EngineScriptEditor` evita loop quando l’iframe emette `change` dopo un push esterno.
-- **Non implementato (v1):** parsing Lua → ricostruzione blocchi Logic Board.
+Gli script associati agli oggetti restano normali file modificabili.
+`activeScriptPath` rappresenta soltanto file reali; le viste generate non sono
+salvate nel progetto.
 
-## File
+## Composizione runtime
+
+`composeProjectLua()` costruisce un'unica sorgente eseguibile:
+
+1. definizione, cleanup e inizializzazione del modulo Logic Board;
+2. esecuzione di My Script;
+3. bootstrap ArtCade, con tick della Board prima del tick manuale.
+
+La Logic Board non scrive mai in `main.lua`. Apply, Play, preview, build e pack
+usano il sorgente combinato. Save e Save As persistono soltanto My Script.
+
+Durante hot reload, il modulo precedente esegue `dispose()` prima della nuova
+inizializzazione. Se tutte le Board vengono eliminate, il compositore rimuove
+gli handler generati e lascia attivo soltanto il tick manuale.
+
+## File principali
 
 | File | Ruolo |
-|------|--------|
-| `editor/codemirror-frame.html` | Entry HTML iframe (Vite MPA) |
-| `editor/src/codemirror-frame/main.tsx` | Editor React nel frame |
-| `editor/src/codemirror-frame/frame.css` | Solo reset minimale (no Tailwind) |
-| `editor/src/codemirror-frame/protocol.ts` | Tipi postMessage |
+|---|---|
+| `editor/codemirror-frame.html` | Entry HTML iframe |
+| `editor/src/codemirror-frame/main.tsx` | CodeMirror nel frame |
+| `editor/src/codemirror-frame/protocol.ts` | Contratto postMessage |
 | `editor/src/components/EngineScriptEditor.tsx` | Host iframe |
-| `editor/src/utils/sync-logic-board-script.ts` | Compila board → `UPDATE_SCRIPT` |
-| `editor/src/codemirror/*.ts` | Lua, tema, autocomplete (condivisi col frame) |
-
-## Build
-
-`vite.config.ts` — `rollupOptions.input` include `codemirror-frame.html`.
-
-```bash
-cd editor && npm run desktop:release
-```
-
-Output: `dist/index.html` + `dist/codemirror-frame.html` (+ chunk JS dedicati).
+| `editor/src/panels/ScriptEditorPanel.tsx` | Selettore delle tre viste |
+| `editor/src/utils/project-lua-composer.ts` | Compositore Lua centrale |
+| `editor/src/utils/logic-board-project-flow.ts` | Navigazione Board -> Combined Preview |
 
 ## Verifica
 
-1. `desktop:release` → Editor Script: righe allineate, syntax highlight Lua, tema dark/light.
-2. Cambio tab script / tema app → iframe riceve `set-theme` o remount con `key={path}`.
-3. Logic Board **Visual**: solo eventi; tab **Script**: anteprima Lua + main in store; **Apri in Editor Script** → modulo Script con tab bar; **Apply & hot-reload** aggiorna il runtime.
-4. `UPDATE_SCRIPT` da sorgente esterna (non digitazione iframe) → `update-from-logic` (anti-loop via `lastSyncedRef`).
+1. My Script resta modificabile e mantiene il proprio dirty state.
+2. Logic Board e Combined Preview non accettano modifiche o salvataggi file.
+3. Combined Preview si aggiorna dopo modifiche visuali o manuali.
+4. Open Combined Preview dalla Logic Board carica prima il buffer manuale.
+5. Apply e hot reload non modificano il contenuto di `main.lua`.
 
 ## Riferimenti
 
-- [`LOGIC_BOARD_SPEC.md`](LOGIC_BOARD_SPEC.md) — terminologia e UI target
+- [`LOGIC_BOARD_SPEC.md`](LOGIC_BOARD_SPEC.md)
 - [`REACT_WASM_PATTERN.md`](REACT_WASM_PATTERN.md)

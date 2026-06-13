@@ -104,7 +104,7 @@ Guida specializzata         (REACT_WASM_PATTERN.md o ECS_IMPLEMENTATION_GUIDE.md
 | **TECHNICAL_OVERVIEW.md** (v2.2) | Architettura completa | 45–60min | Engineers | ⭐⭐⭐ |
 | **ARCHITECTURE_INTEGRATION.md** | End-to-end flows | 15–20min | Tech leads | ⭐⭐ |
 | **REACT_WASM_PATTERN.md** | Buffering implementazione | 15–20min | React dev | ⭐⭐ |
-| **CODEMIRROR_EDITOR.md** | Editor Script CodeMirror 6 (iframe), sync Logic Board→Lua, Tauri dev/build | ~5min | React dev | ⭐ |
+| **CODEMIRROR_EDITOR.md** | Script Editor CodeMirror 6: My Script, Logic Board e Combined Preview | ~5min | React dev | ⭐ |
 | **ADAPTIVE_LAYOUT.md** | Layout adattivo workbench: scala UI, Focus, resize, tier full/compact/minimal, persistenza `WxH`, roadmap fasi 1–5 | ~20min | Editor / React | ⭐⭐⭐ |
 | **EDITOR_UI_DESIGN_SYSTEM.md** | Palette monocromatica editor (#121212–#F4F4F4), regole hover/geometry, token CSS per refactor UI | ~5min | Editor / design | ⭐⭐ |
 | **LOGIC_BOARD_UX_CHARTER.md** | Logic Board artist-first: Base/Advanced, When vs Also require…, percorsi utente | ~5min | Product / Editor | ⭐⭐⭐ |

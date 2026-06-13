@@ -140,6 +140,7 @@ async function buildZipDeflate(entries: ZipWriteEntry[]): Promise<Uint8Array> {
 export async function buildArtcadeZipBytes(
   project: ProjectDoc,
   extraFiles: Readonly<Record<string, Uint8Array>> = {},
+  mainLuaOverride?: string,
 ): Promise<Uint8Array> {
   assertProjectPathsSafe(project)
   const entries: ZipWriteEntry[] = []
@@ -149,13 +150,28 @@ export async function buildArtcadeZipBytes(
   entries.push({ path: 'project.json', data: projectBytes })
   checksums['project.json'] = await sha256Hex(projectBytes)
 
-  for (const [rel, bytes] of Object.entries(extraFiles)) {
+  const mainScriptPath = normalizeProjectRelativePath(
+    project.mainScriptPath,
+    'mainScriptPath',
+  )
+  const overrideBytes = mainLuaOverride === undefined
+    ? null
+    : new TextEncoder().encode(mainLuaOverride)
+  let mainScriptAdded = false
+
+  for (const [rel, sourceBytes] of Object.entries(extraFiles)) {
     const norm = normalizeProjectRelativePath(rel, 'extra file path')
     if (norm === 'project.json' || norm === 'manifest.json') {
       throw new Error(`extra file path is reserved: ${norm}`)
     }
+    const bytes = norm === mainScriptPath && overrideBytes ? overrideBytes : sourceBytes
     entries.push({ path: norm, data: bytes })
     checksums[norm] = await sha256Hex(bytes)
+    if (norm === mainScriptPath) mainScriptAdded = true
+  }
+  if (overrideBytes && !mainScriptAdded) {
+    entries.push({ path: mainScriptPath, data: overrideBytes })
+    checksums[mainScriptPath] = await sha256Hex(overrideBytes)
   }
 
   const manifest = buildProjectAssetManifest(project, checksums)
@@ -169,6 +185,7 @@ export async function exportArtcadePackage(
   project: ProjectDoc,
   projectRoot: string,
   destPath: string,
+  mainLuaOverride?: string,
 ): Promise<boolean> {
   if (!isTauri()) return false
   try {
@@ -182,7 +199,10 @@ export async function exportArtcadePackage(
 
     for (const rel of collectReferencedProjectPaths(project)) {
       const abs = joinPath(projectRoot, rel)
-      const bytes = await readFile(abs)
+      const bytes = rel.replace(/\\/g, '/') === project.mainScriptPath.replace(/\\/g, '/') &&
+        mainLuaOverride !== undefined
+        ? new TextEncoder().encode(mainLuaOverride)
+        : await readFile(abs)
       entries.push({ path: rel.replace(/\\/g, '/'), data: bytes })
       checksums[rel.replace(/\\/g, '/')] = await sha256Hex(bytes)
     }

@@ -20,7 +20,7 @@ import type { ConsoleEntry, ProjectDoc } from '../types'
 import type { Action as EditorAction, CoreState } from '../store/editor-store'
 import { useProjectNamePersist } from '../components/menu-bar/project-name-context'
 import { ensureProjectOnDisk } from '../components/menu-bar/ensureProjectOnDisk'
-import { mainScriptBodyForProject } from '../components/menu-bar/project-script'
+import { resolveManualMainLua } from '../utils/project-main-script'
 import { loadDialogsFromProject, starterInnkeeperScript } from '../utils/dialog/dialog-file-api'
 import { confirmDialog } from '../utils/native-dialog'
 
@@ -67,7 +67,7 @@ async function saveProjectAsFlow(ctx: ShortcutCtx): Promise<void> {
     const projectJsonPath = await scaffoldNewProjectOnDisk(
       target,
       flushed,
-      mainScriptBodyForProject(flushed, ctx.state.projectPath),
+      resolveManualMainLua(flushed, ctx.state.openScripts),
     )
     ctx.dispatch({ type: 'LOAD_PROJECT', project: flushed, path: projectJsonPath })
     ctx.dispatch({ type: 'MARK_PROJECT_SAVED' })
@@ -81,7 +81,11 @@ async function saveProjectAsFlow(ctx: ShortcutCtx): Promise<void> {
 }
 
 async function handleCtrlSave(ctx: ShortcutCtx): Promise<void> {
-  if (ctx.state.mode === 'canvas') {
+  const isVirtualMainView =
+    ctx.state.mode === 'script' &&
+    ctx.state.activeScriptPath === ctx.state.project?.mainScriptPath &&
+    ctx.state.mainScriptView !== 'manual'
+  if (ctx.state.mode === 'canvas' || isVirtualMainView) {
     const flushed = ctx.flushBeforePersist()
     if (!flushed) return
     if (!ctx.state.projectPath) {
@@ -94,6 +98,7 @@ async function handleCtrlSave(ctx: ShortcutCtx): Promise<void> {
       project: flushed,
       projectPath: ctx.state.projectPath,
       dialogs: ctx.state.dialogs,
+      openScripts: ctx.state.openScripts,
     })
     if (savedPath) {
       ctx.dispatch({

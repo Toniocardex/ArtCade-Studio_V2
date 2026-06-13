@@ -36,7 +36,8 @@ describe('resolvePreviewMainLua', () => {
       project: project as never,
       openScripts: [{ path: 'scripts/main.lua', content: '-- from tab', isDirty: false }],
     })
-    expect(lua).toBe('-- from tab')
+    expect(lua).toContain('-- from tab')
+    expect(lua).toContain('rawset(_G, "tick", __artcade_user_tick)')
   })
 
   it('prefers compiled logic boards over non-dirty main.lua tab stub', () => {
@@ -59,7 +60,7 @@ describe('resolvePreviewMainLua', () => {
     expect(lua).not.toBe(BLANK_MAIN_LUA)
   })
 
-  it('prefers dirty main script tab over logic boards', () => {
+  it('combines a dirty manual main script with logic boards', () => {
     const project = makeProject({
       logicBoards: [{
         boardId: 'b1',
@@ -75,7 +76,9 @@ describe('resolvePreviewMainLua', () => {
         isDirty: true,
       }],
     })
-    expect(lua).toBe('-- hand-edited')
+    expect(lua).toContain('-- ARTCADE: LOGIC BOARD')
+    expect(lua).toContain('-- hand-edited')
+    expect(lua).toContain('-- ARTCADE: BOOTSTRAP')
   })
 
   it('compiles logic boards when main script tab is missing', () => {
@@ -93,7 +96,9 @@ describe('resolvePreviewMainLua', () => {
   it('falls back to blank main lua when nothing else is available', () => {
     const project = makeProject({ mainScriptPath: '', logicBoards: [] })
     const lua = resolvePreviewMainLua({ project: project as never, openScripts: [] })
-    expect(lua).toBe(BLANK_MAIN_LUA)
+    expect(lua).toContain('-- main.lua  (ArtCade V2)')
+    expect(lua).toContain('function tick(dt)')
+    expect(lua).toContain('-- ARTCADE: BOOTSTRAP')
   })
 
   it('does not throw when logic boards fail to compile', () => {
@@ -115,7 +120,9 @@ describe('resolvePreviewMainLua', () => {
       projectPath: '/tmp/preview-fail.artcade',
     }
     const lua = resolvePreviewMainLua(input)
-    expect(lua).toBe(BLANK_MAIN_LUA)
+    expect(lua).toContain('-- main.lua  (ArtCade V2)')
+    expect(lua).toContain('function tick(dt)')
+    expect(lua).toContain('-- ARTCADE: BOOTSTRAP')
     const status = resolvePreviewMainLuaWithStatus(input)
     expect(status.compileError).toMatch(/entity rulesheets/)
   })

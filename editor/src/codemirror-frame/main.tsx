@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import CodeMirror from '@uiw/react-codemirror'
 import type { ReactCodeMirrorProps } from '@uiw/react-codemirror'
 import { EditorView } from '@codemirror/view'
+import { EditorState } from '@codemirror/state'
 import '@fontsource/jetbrains-mono/400.css'
 import '@fontsource/jetbrains-mono/500.css'
 import '@fontsource/jetbrains-mono/600.css'
@@ -58,6 +59,8 @@ function FrameEditor() {
   const [themeId, setThemeId] = useState<CmFrameThemeId>('artcade-dark')
   const [value, setValue] = useState('')
   const [mounted, setMounted] = useState(false)
+  const [readOnly, setReadOnly] = useState(false)
+  const readOnlyRef = useRef(false)
   const suppressChangeRef = useRef(false)
 
   const extensions = useMemo(
@@ -66,9 +69,11 @@ function FrameEditor() {
       artcadeLuaCompletion,
       WHEEL_SCROLL_EXTENSION,
       EditorView.lineWrapping,
+      EditorState.readOnly.of(readOnly),
+      EditorView.editable.of(!readOnly),
       ...themeExtensions(themeId),
     ],
-    [themeId],
+    [themeId, readOnly],
   )
 
   const postToParent = useCallback((msg: { type: 'ready' } | { type: 'change'; value: string } | { type: 'run-preview-shortcut' }) => {
@@ -98,12 +103,18 @@ function FrameEditor() {
       if (msg.type === 'init') {
         setThemeId(msg.theme)
         setValue(msg.value)
+        setReadOnly(msg.readOnly)
+        readOnlyRef.current = msg.readOnly
         setMounted(true)
       } else if (msg.type === 'set-theme') {
         setThemeId(msg.theme)
       } else if (msg.type === 'update-from-logic') {
-        suppressChangeRef.current = true
+        suppressChangeRef.current = !readOnlyRef.current
         setValue(msg.value)
+      } else if (msg.type === 'set-read-only') {
+        setReadOnly(msg.readOnly)
+        readOnlyRef.current = msg.readOnly
+        if (msg.readOnly) suppressChangeRef.current = false
       }
     }
 
@@ -126,6 +137,10 @@ function FrameEditor() {
       extensions={extensions}
       basicSetup={BASIC_SETUP}
       onChange={(v) => {
+        if (readOnly) {
+          suppressChangeRef.current = false
+          return
+        }
         setValue(v)
         if (suppressChangeRef.current) {
           suppressChangeRef.current = false
