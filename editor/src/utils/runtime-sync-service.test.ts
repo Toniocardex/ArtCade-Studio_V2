@@ -459,15 +459,16 @@ describe('RuntimeSyncService', () => {
     vi.mocked(bridge.isReady).mockReturnValue(true)
   })
 
-  it('notifyEngineReady fires listeners once', () => {
+  it('notifyEngineReady re-notifies listeners on repeat (StrictMode resubscribe)', () => {
     const cb = vi.fn()
     runtimeSync.onEngineReadyChange(cb)
     expect(runtimeSync.isEngineReady()).toBe(false)
+    expect(cb).toHaveBeenCalledWith(false)
     runtimeSync.notifyEngineReady()
     expect(runtimeSync.isEngineReady()).toBe(true)
     expect(cb).toHaveBeenCalledWith(true)
     runtimeSync.notifyEngineReady()
-    expect(cb).toHaveBeenCalledTimes(2)
+    expect(cb).toHaveBeenCalledTimes(3)
   })
 
   it('notifyEngineReady invalidates chrome cache so grid/guides resync', () => {

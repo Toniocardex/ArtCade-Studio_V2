@@ -17,6 +17,8 @@ vi.mock('../../utils/runtime-sync-service', () => ({
   runtimeSync: {
     syncProject: syncProjectMock,
     isTransitioning: isTransitioningMock,
+    isBootProjectSynced: vi.fn(() => false),
+    isEngineReady: vi.fn(() => false),
     syncPlayMode: vi.fn(),
     syncSelection: vi.fn(),
     syncEditorTool: vi.fn(),
@@ -42,6 +44,17 @@ vi.mock('../../utils/wasm-ui-scheduler', () => ({
 
 const { shouldSyncProjectToRuntime, performRuntimeProjectSync, buildRuntimeCallbacks } =
   await import('./runtime-hooks')
+
+const emptyBootSyncRef = {
+  current: {
+    project: null,
+    projectPath: null,
+    openScripts: [],
+    dialogs: {},
+    selectionSceneId: null,
+    isPlaying: false,
+  },
+}
 
 function makeProject() {
   return {
@@ -138,10 +151,12 @@ describe('buildRuntimeCallbacks', () => {
       sceneIdRef: { current: 'a' },
       syncRuntimeUiFlags: vi.fn(),
       makeLogEntry: (message, level) => ({ id: 1, time: '', message, level }),
+      bootSyncRef: emptyBootSyncRef,
     })
 
     callbacks.onReady?.()
     expect(notifyReadyChanged).toHaveBeenCalledTimes(1)
+    expect(notifyEngineReady).toHaveBeenCalledTimes(1)
     expect(dispatch).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'LOG', entry: expect.objectContaining({ level: 'info' }) }),
     )
@@ -156,6 +171,7 @@ describe('buildRuntimeCallbacks', () => {
       sceneIdRef: { current: 'a' },
       syncRuntimeUiFlags: vi.fn(),
       makeLogEntry: (message, level) => ({ id: 1, time: '', message, level }),
+      bootSyncRef: emptyBootSyncRef,
     })
 
     callbacks.onEntitySelected?.(42)
@@ -171,6 +187,7 @@ describe('buildRuntimeCallbacks', () => {
       sceneIdRef: { current: 'scene_main' },
       syncRuntimeUiFlags: vi.fn(),
       makeLogEntry: (message, level) => ({ id: 1, time: '', message, level }),
+      bootSyncRef: emptyBootSyncRef,
     })
 
     callbacks.onEntityDuplicateRequested(7, 320, 192)
@@ -192,6 +209,7 @@ describe('buildRuntimeCallbacks', () => {
       sceneIdRef: { current: 'a' },
       syncRuntimeUiFlags: vi.fn(),
       makeLogEntry: (message, level) => ({ id: 1, time: '', message, level }),
+      bootSyncRef: emptyBootSyncRef,
     })
 
     callbacks.onConsoleLine?.('[EditorAPI] Bridge initialised', 'info')

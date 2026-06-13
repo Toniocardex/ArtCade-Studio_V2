@@ -1,4 +1,4 @@
-import { useRef, useLayoutEffect, useEffect, useCallback, useMemo } from 'react'
+import { useRef, useLayoutEffect, useEffect, useCallback, useMemo, useState } from 'react'
 import { useEditorDispatch, useEditorSelector } from '../store/editor-store'
 import type { ConsoleEntry } from '../types'
 import { assetOrchestrator, imageAssetDescriptor } from '../utils/asset-orchestrator'
@@ -83,6 +83,7 @@ export default function PreviewPanel({
 
   const canvasRef           = useRef<HTMLCanvasElement>(null)
   const canvasHostRef       = useRef<HTMLDivElement>(null)
+  const [runtimeCanvasReady, setRuntimeCanvasReady] = useState(false)
   const scrollRef           = useRef<HTMLDivElement>(null)
   const sceneIdRef          = useRef<string>('')
   const projectRef          = useRef(project)
@@ -91,6 +92,14 @@ export default function PreviewPanel({
   const snapToGridRef       = useRef(false)
   const gridSizeRef         = useRef(32)
   const ignoredTransformEchoRef = useRef<TransformSnapshot | null>(null)
+  const bootSyncRef = useRef({
+    project: null as typeof project,
+    projectPath: null as typeof projectPath,
+    openScripts: [] as typeof openScripts,
+    dialogs: {} as typeof dialogs,
+    selectionSceneId: null as string | null,
+    isPlaying: false,
+  })
 
   sceneIdRef.current    = selection.sceneId ?? project?.activeSceneId ?? ''
   projectRef.current    = project
@@ -98,6 +107,14 @@ export default function PreviewPanel({
   previewScopeRef.current = previewAssetLoadScope
   snapToGridRef.current = snapToGrid
   gridSizeRef.current   = editorGridSize
+  bootSyncRef.current = {
+    project,
+    projectPath,
+    openScripts,
+    dialogs,
+    selectionSceneId: selection.sceneId,
+    isPlaying,
+  }
 
   const tier = useLayoutTier()
   const showInspectorToggle = tier !== 'full'
@@ -145,9 +162,11 @@ export default function PreviewPanel({
     const canvas = getRuntimeCanvas()
     canvasRef.current = canvas
     canvasHostRef.current?.appendChild(canvas)
+    setRuntimeCanvasReady(true)
     return () => {
       canvas.remove()
       if (canvasRef.current === canvas) canvasRef.current = null
+      setRuntimeCanvasReady(false)
     }
   }, [])
 
@@ -157,12 +176,6 @@ export default function PreviewPanel({
     syncRuntimeUiFlags()
   }, [syncRuntimeUiFlags])
 
-  useWasmRuntimeLifecycle({
-    canvasRef, mode, dispatch,
-    sceneIdRef, syncRuntimeUiFlags, handleRuntimeTransform,
-    makeLogEntry,
-  })
-
   useRuntimeProjectSync({
     project, projectPath, openScripts,
     dialogs,
@@ -171,6 +184,12 @@ export default function PreviewPanel({
     isPlaying,
     dispatch,
     makeLogEntry,
+  })
+
+  useWasmRuntimeLifecycle({
+    canvasRef, canvasReady: runtimeCanvasReady, mode, dispatch,
+    sceneIdRef, syncRuntimeUiFlags, handleRuntimeTransform,
+    makeLogEntry, bootSyncRef,
   })
 
   useRuntimeAssetUpload({

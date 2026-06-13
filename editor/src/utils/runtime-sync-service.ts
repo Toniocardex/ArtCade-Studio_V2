@@ -177,10 +177,6 @@ class RuntimeSyncServiceImpl {
   private lastAssetSyncKey: string | null = null
   private previewAssetLoadScope: CollectSceneAssetRefsOptions['scope'] = 'scene-static'
   private readonly readyListeners: Set<(ready: boolean) => void> = new Set()
-  // Seed from the actual bridge state so a Vite HMR rehydration (wasm
-  // already alive when this module is re-evaluated) does NOT trigger a
-  // duplicate "false → true" broadcast on the next genuine onReady.
-  private lastReadyEmitted:   boolean = isWasmReady()
   private engineReady = false
   private bootProjectSynced = false
   private readonly engineReadyListeners = new Set<(ready: boolean) => void>()
@@ -286,8 +282,6 @@ class RuntimeSyncServiceImpl {
   /** Called from the wasm-bridge `onReady` (or any path that toggles ready). */
   notifyReadyChanged(): void {
     const now = isWasmReady()
-    if (now === this.lastReadyEmitted) return
-    this.lastReadyEmitted = now
     for (const cb of this.readyListeners) cb(now)
   }
 
@@ -305,12 +299,13 @@ class RuntimeSyncServiceImpl {
   }
 
   notifyEngineReady(): void {
-    if (this.engineReady) return
-    this.engineReady = true
-    // Editor API just wired — force chrome channels (grid/guides) to resync.
-    this.lastGuides = null
-    this.lastGridSize = null
-    this.lastSnapToGrid = null
+    if (!this.engineReady) {
+      this.engineReady = true
+      // Editor API just wired — force chrome channels (grid/guides) to resync.
+      this.lastGuides = null
+      this.lastGridSize = null
+      this.lastSnapToGrid = null
+    }
     for (const cb of this.engineReadyListeners) cb(true)
   }
 

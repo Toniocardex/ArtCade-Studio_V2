@@ -48,12 +48,21 @@ export interface RuntimeCallbackDeps {
   sceneIdRef: MutableRefObject<string>
   syncRuntimeUiFlags: () => void
   makeLogEntry: MakeLogEntry
+  /** Latest project payload for boot sync when onReady fires before React listeners attach. */
+  bootSyncRef: MutableRefObject<{
+    project: ProjectDoc | null
+    projectPath: string | null
+    openScripts: ScriptFile[]
+    dialogs: Record<string, import('../../utils/dialog/dialog-script').DialogScript>
+    selectionSceneId: string | null
+    isPlaying: boolean
+  }>
 }
 
 export function buildRuntimeCallbacks(deps: RuntimeCallbackDeps): WasmCallbacks {
   const {
     cancelled, dispatch,
-    handleRuntimeTransform, sceneIdRef, syncRuntimeUiFlags, makeLogEntry,
+    handleRuntimeTransform, sceneIdRef, syncRuntimeUiFlags, makeLogEntry, bootSyncRef,
   } = deps
   return {
     onReady: () => {
@@ -63,6 +72,19 @@ export function buildRuntimeCallbacks(deps: RuntimeCallbackDeps): WasmCallbacks 
       // "runtime still loading" state without waiting for a re-render of
       // the preview panel.
       runtimeSync.notifyReadyChanged()
+      // EditorAPI::init runs before onRuntimeInitialized — engine API is wired
+      // here. Do not gate on cancelled(); lifecycle cleanup must not drop boot.
+      runtimeSync.notifyEngineReady()
+      const boot = bootSyncRef.current
+      if (boot.project != null) {
+        performRuntimeProjectSync({
+          ...boot,
+          wasmReady: isReady(),
+          engineReady: runtimeSync.isEngineReady(),
+          dispatch,
+          makeLogEntry,
+        })
+      }
       scheduleWasmUiUpdateWhen(cancelled, () => {
         dispatch({
           type: 'LOG',
@@ -102,9 +124,7 @@ export function buildRuntimeCallbacks(deps: RuntimeCallbackDeps): WasmCallbacks 
       if (cancelled() && !forceLog) return
       const entry = makeLogEntry(message, level)
       if (message.includes('[EditorAPI] Bridge initialised')) {
-        scheduleWasmUiUpdateWhen(cancelled, () => {
-          runtimeSync.notifyEngineReady()
-        }, { urgent: true })
+        runtimeSync.notifyEngineReady()
       }
       scheduleWasmUiUpdate(() => {
         if (cancelled() && !forceLog) return
@@ -156,6 +176,8 @@ export function buildRuntimeCallbacks(deps: RuntimeCallbackDeps): WasmCallbacks 
 
 interface LifecycleOptions {
   canvasRef: RefObject<HTMLCanvasElement | null>
+  /** Set after layout effect adopts the singleton runtime canvas. */
+  canvasReady: boolean
   mode: string
   dispatch: Dispatch<EditorAction>
   sceneIdRef: MutableRefObject<string>
@@ -165,16 +187,18 @@ interface LifecycleOptions {
     rotation: number, scaleX: number, scaleY: number,
   ) => void
   makeLogEntry: MakeLogEntry
+  bootSyncRef: RuntimeCallbackDeps['bootSyncRef']
 }
 
 export function useWasmRuntimeLifecycle(opts: LifecycleOptions): void {
   const {
-    canvasRef, mode, dispatch,
-    sceneIdRef, syncRuntimeUiFlags, handleRuntimeTransform, makeLogEntry,
+    canvasRef, canvasReady, mode, dispatch,
+    sceneIdRef, syncRuntimeUiFlags, handleRuntimeTransform, makeLogEntry, bootSyncRef,
   } = opts
 
   // ── Mount (once per dispatch identity) ────────────────────────────────────
   useEffect(() => {
+    if (!canvasReady) return
     const canvas = canvasRef.current
     if (!canvas) return
 
@@ -183,7 +207,7 @@ export function useWasmRuntimeLifecycle(opts: LifecycleOptions): void {
       cancelled: () => cancelled,
       dispatch,
       handleRuntimeTransform, sceneIdRef, syncRuntimeUiFlags,
-      makeLogEntry,
+      makeLogEntry, bootSyncRef,
     })
 
     if (isReady()) {
@@ -207,7 +231,7 @@ export function useWasmRuntimeLifecycle(opts: LifecycleOptions): void {
     // resets (boot session). Canvas/mode/callbacks are stable refs — re-running
     // on them would double-init the runtime (see docs/TECHNICAL_DEBT_REVIEW.md P1/P2).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch])
+  }, [dispatch, canvasReady])
 
   // ── Rebind canvas when returning to Canvas view ──────────────────────────
   useEffect(() => {
@@ -221,7 +245,7 @@ export function useWasmRuntimeLifecycle(opts: LifecycleOptions): void {
       cancelled: () => false,
       dispatch,
       handleRuntimeTransform, sceneIdRef, syncRuntimeUiFlags,
-      makeLogEntry,
+      makeLogEntry, bootSyncRef,
     }))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, dispatch])
@@ -273,26 +297,47 @@ export function performRuntimeProjectSync(opts: ProjectSyncOptions): void {
 }
 
 export function useRuntimeProjectSync(opts: ProjectSyncOptions): void {
+  const {
+    project, projectPath, openScripts, dialogs, selectionSceneId,
+    isPlaying, dispatch, makeLogEntry,
+  } = opts
   const previewLuaSyncKey =
-    opts.project != null
-      ? getPreviewLuaSyncKey({
-          project: opts.project,
-          openScripts: opts.openScripts,
-          projectPath: opts.projectPath,
-        })
+    project != null
+      ? getPreviewLuaSyncKey({ project, openScripts, projectPath })
       : ''
 
   useEffect(() => {
-    performRuntimeProjectSync(opts)
+    const run = () => {
+      performRuntimeProjectSync({
+        project,
+        projectPath,
+        openScripts,
+        dialogs,
+        selectionSceneId,
+        wasmReady: isReady(),
+        engineReady: runtimeSync.isEngineReady(),
+        isPlaying,
+        dispatch,
+        makeLogEntry,
+      })
+    }
+    run()
+    const unsubWasm = runtimeSync.onReadyChange(run)
+    const unsubEngine = runtimeSync.onEngineReadyChange(run)
+    return () => {
+      unsubWasm()
+      unsubEngine()
+    }
   }, [
     previewLuaSyncKey,
-    opts.dialogs,
-    opts.selectionSceneId,
-    opts.wasmReady,
-    opts.engineReady,
-    opts.isPlaying,
-    opts.dispatch,
-    opts.makeLogEntry,
+    dialogs,
+    selectionSceneId,
+    isPlaying,
+    dispatch,
+    makeLogEntry,
+    project,
+    projectPath,
+    openScripts,
   ])
 }
 
