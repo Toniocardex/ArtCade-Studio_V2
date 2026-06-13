@@ -47,6 +47,8 @@ export type ParamWidget =
   | 'animationClip'
   | 'valueSource'
   | 'numberSource'
+  | 'globalVariable'
+  | 'localVariable'
 
 export interface ParamFieldMeta {
   widget: ParamWidget
@@ -191,7 +193,7 @@ export function validateConditionNode(
   }
 }
 
-/** Default AND group with one compareVariable leaf (tree mode). */
+/** Default AND group with one general value comparison leaf (tree mode). */
 export function defaultConditionRoot(): LogicConditionNode {
   return {
     kind: 'group',
@@ -199,7 +201,7 @@ export function defaultConditionRoot(): LogicConditionNode {
     statements: [
       {
         kind: 'leaf',
-        condition: { type: 'compareVariable', key: 'score', operator: '>=', value: 0 },
+        condition: { type: 'compareValues', left: 0, operator: '>=', right: 0 },
       },
     ],
   }

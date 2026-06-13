@@ -83,15 +83,15 @@ describe('schema-registry', () => {
 
   it('validates typed Value Sources', () => {
     expect(validateAction({
-      type: 'setVariable',
+      type: 'setGlobalVariable',
       key: 'x',
       value: { source: 'entity', target: 'self', property: 'positionX' },
     }).valid).toBe(true)
     expect(validateCondition({
-      type: 'compareVariable',
-      key: 'score',
+      type: 'compareValues',
+      left: { source: 'global', key: 'score' },
       operator: '>=',
-      value: { source: 'message', key: 'minimum', fallback: 0 },
+      right: { source: 'message', key: 'minimum', fallback: 0 },
     }).valid).toBe(true)
     expect(validateCondition({
       type: 'compareValues',
@@ -160,7 +160,7 @@ describe('schema-registry', () => {
       statements: [
         {
           kind: 'leaf',
-          condition: { type: 'compareVariable', key: 'hasKey', operator: '==', value: 1 },
+          condition: { type: 'compareValues', left: { source: 'global', key: 'hasKey' }, operator: '==', right: 1 },
         },
         {
           kind: 'group',
@@ -168,7 +168,7 @@ describe('schema-registry', () => {
           statements: [
             {
               kind: 'leaf',
-              condition: { type: 'compareVariable', key: 'thief', operator: '==', value: 1 },
+              condition: { type: 'compareValues', left: { source: 'global', key: 'thief' }, operator: '==', right: 1 },
             },
             {
               kind: 'leaf',

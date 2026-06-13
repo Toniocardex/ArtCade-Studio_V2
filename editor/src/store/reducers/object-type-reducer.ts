@@ -11,13 +11,28 @@ import {
 import {
   entityToObjectType,
   materializeEntity,
+  rematerializeAllInstancesOfType,
   slugTypeId,
 } from '../../utils/project-object-types'
 import {
   isInstanceNameTaken,
   nextInstanceName,
 } from '../../utils/project-instance-names'
-import type { SceneInstanceDef } from '../../types'
+import type { GameVariableDefinition, GameVariableValue, SceneInstanceDef } from '../../types'
+
+function cleanVariableOverrides(
+  overrides: Record<string, GameVariableValue> | undefined,
+  definitions: GameVariableDefinition[],
+): Record<string, GameVariableValue> | undefined {
+  const byKey = new Map(definitions.map((definition) => [definition.key, definition.type]))
+  const entries = Object.entries(overrides ?? {}).filter(([key, value]) => {
+    const type = byKey.get(key)
+    return (type === 'number' && typeof value === 'number')
+      || (type === 'boolean' && typeof value === 'boolean')
+      || (type === 'string' && typeof value === 'string')
+  })
+  return entries.length ? Object.fromEntries(entries) : undefined
+}
 
 function syncInstanceTransform(
   sceneId: string,
@@ -60,6 +75,60 @@ export const objectTypeReducer: DomainReducer = (state: CoreState, action: Actio
           objectTypes: {
             ...state.project.objectTypes,
             [action.objectTypeId]: { ...existing, displayName },
+          },
+        },
+        projectDirty: true,
+      }
+    }
+    case 'OBJECT_TYPE_VARIABLES_SET': {
+      if (!state.project?.objectTypes?.[action.objectTypeId]) return state
+      const type = state.project.objectTypes[action.objectTypeId]
+      const scenes = Object.fromEntries(Object.entries(state.project.scenes).map(([sceneId, scene]) => [
+        sceneId,
+        {
+          ...scene,
+          instances: scene.instances?.map((instance) => instance.objectTypeId === action.objectTypeId
+            ? { ...instance, localVariableOverrides: cleanVariableOverrides(instance.localVariableOverrides, action.variables) }
+            : instance),
+        },
+      ]))
+      const project = {
+        ...state.project,
+        scenes,
+        objectTypes: {
+          ...state.project.objectTypes,
+          [action.objectTypeId]: { ...type, localVariables: action.variables },
+        },
+      }
+      return {
+        ...state,
+        project: rematerializeAllInstancesOfType(project, action.objectTypeId),
+        projectDirty: true,
+      }
+    }
+    case 'INSTANCE_VARIABLE_OVERRIDES_SET': {
+      if (!state.project?.scenes[action.sceneId]) return state
+      const scene = state.project.scenes[action.sceneId]
+      const instances = scene.instances?.map((instance) =>
+        instance.id === action.instanceId
+          ? { ...instance, localVariableOverrides: action.overrides }
+          : instance,
+      )
+      if (!instances) return state
+      const entity = state.project.entities[action.instanceId]
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          entities: entity
+            ? {
+                ...state.project.entities,
+                [action.instanceId]: { ...entity, localVariableOverrides: action.overrides },
+              }
+            : state.project.entities,
+          scenes: {
+            ...state.project.scenes,
+            [action.sceneId]: { ...scene, instances },
           },
         },
         projectDirty: true,

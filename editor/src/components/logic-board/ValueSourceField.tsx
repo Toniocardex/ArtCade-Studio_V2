@@ -7,6 +7,7 @@ import type {
 import { parseLogicNumber } from '../../utils/logic-board/parse-logic-number'
 import { EditorSelect } from '../ui/EditorSelect'
 import { TargetPicker } from './TargetPicker'
+import { VariableKeyPicker } from './VariableKeyPicker'
 import {
   COMPONENT_PROPERTY_OPTIONS,
   ENTITY_PROPERTY_OPTIONS,
@@ -36,6 +37,10 @@ function atomDefault(kind: AtomSourceKind, numeric: boolean): LogicValueAtom {
   switch (kind) {
     case 'literal':
       return numeric ? 0 : ''
+    case 'global':
+      return { source: 'global', key: '' }
+    case 'local':
+      return { source: 'local', target: 'self', key: '' }
     case 'state':
       return { source: 'state', key: '', fallback: numeric ? 0 : '' }
     case 'message':
@@ -92,13 +97,14 @@ function AtomField({
           onChange={(event) => onChange(literalFromInput(event.target.value, numeric))}
         />
       )}
-      {kind === 'state' && typeof value === 'object' && value.source === 'state' && (
-        <input
-          className={`${inputClass} w-28`}
-          placeholder="Variable key"
-          value={value.key}
-          onChange={(event) => onChange({ ...value, key: event.target.value })}
-        />
+      {kind === 'global' && typeof value === 'object' && value.source === 'global' && (
+        <VariableKeyPicker scope="global" value={value.key} onChange={(key) => onChange({ ...value, key })} />
+      )}
+      {kind === 'local' && typeof value === 'object' && value.source === 'local' && (
+        <>
+          <TargetPicker value={value.target} onChange={(target) => onChange({ ...value, target })} />
+          <VariableKeyPicker scope="local" value={value.key} onChange={(key) => onChange({ ...value, key })} />
+        </>
       )}
       {kind === 'message' && typeof value === 'object' && value.source === 'message' && (
         <input

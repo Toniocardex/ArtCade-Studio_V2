@@ -67,6 +67,8 @@ interface FpEntity {
   he?: unknown               // health
   ad?: unknown               // autoDestroy
   dg?: unknown               // dialog
+  lv?: unknown               // local variable declarations
+  lvo?: unknown              // per-instance local overrides
 }
 
 interface FpTilemap {
@@ -93,6 +95,7 @@ export interface RuntimeProjection {
   /** World settings consumed by WASM (gravity, physicsMode, physicsDebugDraw, …). */
   wd: string
   msp: string                // mainScriptPath
+  gv?: unknown               // project variable declarations
   entities: FpEntity[]
   scenes: FpScene[]
 }
@@ -153,6 +156,8 @@ function projectEntity(project: ProjectDoc, e: EntityDef): FpEntity {
     he: e.health,
     ad: e.autoDestroy,
     dg: e.dialog,
+    lv: e.localVariables,
+    lvo: e.localVariableOverrides,
   }
 }
 
@@ -187,6 +192,7 @@ export function runtimeProjectProjection(
     fps: project.targetFPS,
     wd:  worldRuntimeDigest(project.world),
     msp: project.mainScriptPath,
+    gv: project.globalVariables,
     entities: entityIds.map((id) => projectEntity(project, entities[id])),
     scenes:   sceneIds.map((id) => projectScene(project.scenes[id])),
   }
@@ -219,6 +225,7 @@ export interface RuntimeProjectPayload {
   mainScriptPath: string
   licenseTier?:   string
   world?:         ProjectDoc['world']
+  globalVariables?: ProjectDoc['globalVariables']
   entities:       ProjectDoc['entities']
   objectTypes?:   ProjectDoc['objectTypes']
   scenes:         ProjectDoc['scenes']
@@ -243,6 +250,7 @@ export function runtimeProjectPayload(
     mainScriptPath: project.mainScriptPath,
     licenseTier:    project.licenseTier,
     world:          project.world,
+    globalVariables: project.globalVariables,
     entities,
     ...(project.objectTypes && Object.keys(project.objectTypes).length > 0
       ? { objectTypes: project.objectTypes }

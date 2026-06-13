@@ -429,6 +429,31 @@ function safeCcallNumber(
   }
 }
 
+function safeCcallString(name: string, argTypes: string[], args: unknown[]): string | null {
+  if (!_module?.ccall || !_module.calledRun) return null
+  try {
+    return _module.ccall(name, 'string', argTypes, args) as string
+  } catch (err) {
+    console.warn(`[wasm-bridge] ccall('${name}') failed:`, err)
+    return null
+  }
+}
+
+export type RuntimeVariableSnapshot = {
+  globals: Record<string, number | boolean | string>
+  locals: Record<string, number | boolean | string>
+}
+
+export function editorGetVariables(entityId = 0): RuntimeVariableSnapshot | null {
+  const raw = safeCcallString('editor_get_variables_json', ['number'], [entityId])
+  if (!raw) return null
+  try {
+    return JSON.parse(raw) as RuntimeVariableSnapshot
+  } catch {
+    return null
+  }
+}
+
 function marshalThreeStrings(
   a: string,
   b: string,

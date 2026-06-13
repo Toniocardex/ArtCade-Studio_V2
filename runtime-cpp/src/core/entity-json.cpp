@@ -4,9 +4,29 @@
 #include "physics-json.h"
 #include "sprite-json.h"
 
+#include <unordered_set>
+
 namespace ArtCade::ProjectJson {
 
 namespace {
+
+bool read_variable_value(const nlohmann::json& raw,
+                         GameVariableDefinition::Type type,
+                         GameVariableValue& out) {
+    if (type == GameVariableDefinition::Type::Number && raw.is_number()) {
+        out = raw.get<double>();
+        return true;
+    }
+    if (type == GameVariableDefinition::Type::Boolean && raw.is_boolean()) {
+        out = raw.get<bool>();
+        return true;
+    }
+    if (type == GameVariableDefinition::Type::String && raw.is_string()) {
+        out = raw.get<std::string>();
+        return true;
+    }
+    return false;
+}
 
 /** "#rrggbb" → Vec4 (alpha 1); falls back to white on malformed input. */
 Vec4 parse_hex_color(const std::string& hex) {
@@ -132,6 +152,7 @@ void read_optional_gameplay_components(const nlohmann::json& j, EntityDef& e) {
         TextComponent tc;
         tc.text        = t.value("text", "");
         tc.bindKey     = t.value("bindKey", "");
+        tc.bindScope   = t.value("bindScope", std::string("global"));
         tc.format      = t.value("format", std::string("text"));
         tc.digits      = t.value("digits", 2);
         tc.prefix      = t.value("prefix", "");
@@ -149,6 +170,7 @@ void read_optional_gameplay_components(const nlohmann::json& j, EntityDef& e) {
         const auto& g = j["gauge"];
         GaugeComponent gc;
         gc.bindKey     = g.value("bindKey", "");
+        gc.bindScope   = g.value("bindScope", std::string("global"));
         gc.maxValue    = g.value("maxValue", 100.f);
         gc.width       = g.value("width", 64.f);
         gc.height      = g.value("height", 8.f);
@@ -166,12 +188,46 @@ void read_optional_gameplay_components(const nlohmann::json& j, EntityDef& e) {
 
 } // namespace
 
+void read_variable_definitions(const nlohmann::json& raw,
+                               std::vector<GameVariableDefinition>& out) {
+    out.clear();
+    if (!raw.is_array()) return;
+    std::unordered_set<std::string> seen;
+    for (const auto& item : raw) {
+        if (!item.is_object()) continue;
+        GameVariableDefinition def;
+        def.key = item.value("key", std::string{});
+        const std::string type = item.value("type", std::string{});
+        if (def.key.empty() || !seen.insert(def.key).second) continue;
+        if (type == "number") def.type = GameVariableDefinition::Type::Number;
+        else if (type == "boolean") def.type = GameVariableDefinition::Type::Boolean;
+        else if (type == "string") def.type = GameVariableDefinition::Type::String;
+        else continue;
+        if (!item.contains("initialValue")
+            || !read_variable_value(item["initialValue"], def.type, def.initialValue)) continue;
+        def.description = item.value("description", std::string{});
+        out.push_back(std::move(def));
+    }
+}
+
 void read_entity_components(const nlohmann::json& entityJson, EntityDef& out) {
     if (entityJson.contains("transform") && entityJson["transform"].is_object())
         out.transform = read_transform(entityJson["transform"]);
     read_sprite_component(entityJson, out.sprite);
     read_physics_component(entityJson, out.physics);
     read_optional_gameplay_components(entityJson, out);
+    if (entityJson.contains("localVariables"))
+        read_variable_definitions(entityJson["localVariables"], out.localVariables);
+    if (entityJson.contains("localVariableOverrides")
+        && entityJson["localVariableOverrides"].is_object()) {
+        out.localVariableOverrides.clear();
+        for (const auto& def : out.localVariables) {
+            if (!entityJson["localVariableOverrides"].contains(def.key)) continue;
+            GameVariableValue value;
+            if (read_variable_value(entityJson["localVariableOverrides"][def.key], def.type, value))
+                out.localVariableOverrides[def.key] = std::move(value);
+        }
+    }
 }
 
 void read_entity_instance(const nlohmann::json& entityJson,

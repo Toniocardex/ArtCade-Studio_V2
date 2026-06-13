@@ -73,6 +73,16 @@ export interface PhysicsComponent {
   collider: Collider
 }
 
+export type GameVariableType = 'number' | 'boolean' | 'string'
+export type GameVariableValue = number | boolean | string
+
+export interface GameVariableDefinition {
+  key: string
+  type: GameVariableType
+  initialValue: GameVariableValue
+  description?: string
+}
+
 /** Shared gameplay fields (no scene placement). `id` is the runtime pool key (= className). */
 export interface ObjectTypeDef {
   id: string
@@ -97,6 +107,7 @@ export interface ObjectTypeDef {
   text?:                 TextComponent
   gauge?:                GaugeComponent
   defaultLogicBoardId?:  string
+  localVariables?:       GameVariableDefinition[]
 }
 
 /** Scene placement of an object type. */
@@ -106,6 +117,7 @@ export interface SceneInstanceDef {
   instanceName?: string
   transform:    Transform
   visible?:     boolean
+  localVariableOverrides?: Record<string, GameVariableValue>
 }
 
 export interface EntityDef {
@@ -133,6 +145,8 @@ export interface EntityDef {
   dialog?:               DialogComponent
   text?:                 TextComponent
   gauge?:                GaugeComponent
+  localVariables?:       GameVariableDefinition[]
+  localVariableOverrides?: Record<string, GameVariableValue>
 }
 
 export interface SceneDef {
@@ -268,6 +282,7 @@ export interface ProjectDoc {
   fontAssets?:    Record<string, FontAsset>
   assetVirtualFolders?: Record<string, AssetVirtualFolderDef>
   logicBoards?:   LogicBoardDoc          // visual game logic, compiled to Lua
+  globalVariables?: GameVariableDefinition[]
   /** Render layer stack — ordered highest-to-lowest priority (index 0 drawn on top). */
   layers?:        LayerDef[]
 }

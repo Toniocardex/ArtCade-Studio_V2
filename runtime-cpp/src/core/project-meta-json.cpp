@@ -1,6 +1,7 @@
 #include "project-meta-json.h"
 
 #include "json-primitives.h"
+#include "entity-json.h"
 
 #include <cctype>
 #include <optional>
@@ -174,6 +175,13 @@ void read_project_header(const nlohmann::json& doc, ProjectDoc& out) {
     out.mainScriptPath =
         read_string_any(doc, "mainScriptPath", "main_script_path", "scripts/main.luac");
     out.formatVersion = doc.value("formatVersion", doc.value("format_version", 0));
+}
+
+void read_global_variables(const nlohmann::json& doc, ProjectDoc& out) {
+    if (doc.contains("globalVariables"))
+        read_variable_definitions(doc["globalVariables"], out.globalVariables);
+    else
+        out.globalVariables.clear();
 }
 
 void read_runtime_settings(const nlohmann::json& doc, ProjectRuntimeSettings& out) {

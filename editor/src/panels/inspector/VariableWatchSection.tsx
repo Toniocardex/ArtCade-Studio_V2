@@ -1,35 +1,55 @@
+import { useEffect, useState } from 'react'
+import { useEditorSelector } from '../../store/editor-store'
+import {
+  editorGetVariables,
+  isReady as isWasmReady,
+  type RuntimeVariableSnapshot,
+} from '../../utils/wasm-bridge'
 import { InspectorSection } from './inspector-fields'
 
-const PLACEHOLDER_VARS = [
-  { name: 'hp', value: '—' },
-  { name: 'isGrounded', value: '—' },
-  { name: 'speed', value: '—' },
-  { name: 'score', value: '—' },
-] as const
+const EMPTY: RuntimeVariableSnapshot = { globals: {}, locals: {} }
 
-/** Mockup-style variable watch (live values require runtime protocol). */
-export function VariableWatchSection() {
+function VariableRows({ values }: Readonly<{ values: RuntimeVariableSnapshot['globals'] }>) {
+  const entries = Object.entries(values).sort(([a], [b]) => a.localeCompare(b))
+  if (!entries.length) return <p className="text-[10px] text-[var(--muted)]">No declared values.</p>
   return (
-    <InspectorSection label="Variable Watch" defaultOpen>
-      <p className="text-[9px] text-[var(--muted)] mb-2 leading-snug">
-        Live values appear when runtime variable debugging is connected.
-      </p>
-      <table className="w-full text-[10px] border-collapse">
-        <thead>
-          <tr className="text-[8px] uppercase tracking-wide text-[var(--muted)] border-b border-[var(--outline)]">
-            <th className="text-left py-1 font-semibold">Name</th>
-            <th className="text-right py-1 font-semibold">Value</th>
-          </tr>
-        </thead>
-        <tbody>
-          {PLACEHOLDER_VARS.map((row) => (
-            <tr key={row.name} className="border-b border-[var(--outline-faint)]">
-              <td className="py-1 font-mono text-[var(--primary-soft)]">{row.name}</td>
-              <td className="py-1 text-right font-mono text-[var(--muted)]">{row.value}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="space-y-1 font-mono text-[10px]">
+      {entries.map(([key, value]) => (
+        <div key={key} className="grid grid-cols-[1fr_auto] gap-2">
+          <span className="truncate text-[var(--muted)]">{key}</span>
+          <span>{String(value)}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+export function VariableWatchSection({ entityId = 0 }: Readonly<{ entityId?: number }>) {
+  const isPlaying = useEditorSelector((state) => state.isPlaying)
+  const [snapshot, setSnapshot] = useState(EMPTY)
+
+  useEffect(() => {
+    if (!isPlaying || !isWasmReady()) {
+      setSnapshot(EMPTY)
+      return
+    }
+    const update = () => setSnapshot(editorGetVariables(entityId) ?? EMPTY)
+    update()
+    const timer = window.setInterval(update, 200)
+    return () => window.clearInterval(timer)
+  }, [entityId, isPlaying])
+
+  if (!isPlaying) return null
+  return (
+    <InspectorSection label="Runtime Variable Watch" defaultOpen>
+      <p className="mb-1 text-[9px] font-bold uppercase tracking-widest text-[var(--muted)]">Globals</p>
+      <VariableRows values={snapshot.globals} />
+      {entityId !== 0 && (
+        <>
+          <p className="mb-1 mt-3 text-[9px] font-bold uppercase tracking-widest text-[var(--muted)]">Object locals</p>
+          <VariableRows values={snapshot.locals} />
+        </>
+      )}
     </InspectorSection>
   )
 }

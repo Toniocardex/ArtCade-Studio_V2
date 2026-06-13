@@ -2,7 +2,7 @@
 // Project Model validation (report §21) — errors before save / play.
 // ---------------------------------------------------------------------------
 
-import type { ProjectDoc } from '../types'
+import type { GameVariableDefinition, GameVariableValue, ProjectDoc } from '../types'
 import type { LogicBoard } from '../types/logic-board'
 import { imageAssetForRef } from './resolve-image-load-key'
 
@@ -19,6 +19,52 @@ function objectTypeSpriteAssetId(project: ProjectDoc, typeId: string): string | 
   const ot = project.objectTypes?.[typeId]
   if (!ot?.sprite?.spriteAssetId) return undefined
   return ot.sprite.spriteAssetId
+}
+
+function variableValueMatches(type: GameVariableDefinition['type'], value: GameVariableValue): boolean {
+  return (type === 'number' && typeof value === 'number' && Number.isFinite(value))
+    || (type === 'boolean' && typeof value === 'boolean')
+    || (type === 'string' && typeof value === 'string')
+}
+
+function collectVariableDefinitionDiagnostics(
+  definitions: GameVariableDefinition[] | undefined,
+  context: string,
+): ProjectDiagnostic[] {
+  const out: ProjectDiagnostic[] = []
+  const seen = new Set<string>()
+  for (const definition of definitions ?? []) {
+    const key = definition.key.trim()
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) {
+      out.push({ severity: 'error', context, message: `Variable key "${definition.key}" is not a valid identifier.` })
+    }
+    if (seen.has(key)) {
+      out.push({ severity: 'error', context, message: `Duplicate variable key "${key}".` })
+    }
+    seen.add(key)
+    if (!variableValueMatches(definition.type, definition.initialValue)) {
+      out.push({ severity: 'error', context, message: `Variable "${key}" has an initial value that does not match ${definition.type}.` })
+    }
+  }
+  return out
+}
+
+function collectOverrideDiagnostics(
+  overrides: Record<string, GameVariableValue> | undefined,
+  definitions: GameVariableDefinition[] | undefined,
+  context: string,
+): ProjectDiagnostic[] {
+  const out: ProjectDiagnostic[] = []
+  const byKey = new Map((definitions ?? []).map((definition) => [definition.key, definition]))
+  for (const [key, value] of Object.entries(overrides ?? {})) {
+    const definition = byKey.get(key)
+    if (!definition) {
+      out.push({ severity: 'error', context, message: `Override references undeclared local variable "${key}".` })
+    } else if (!variableValueMatches(definition.type, value)) {
+      out.push({ severity: 'error', context, message: `Override for "${key}" does not match ${definition.type}.` })
+    }
+  }
+  return out
 }
 
 function collectLogicBoardTargetDiagnostics(
@@ -80,6 +126,8 @@ export function collectProjectDiagnostics(project: ProjectDoc): ProjectDiagnosti
   const types = project.objectTypes ?? {}
   const scenes = project.scenes ?? {}
 
+  out.push(...collectVariableDefinitionDiagnostics(project.globalVariables, 'project:variables'))
+
   if (Object.keys(scenes).length === 0) {
     out.push({
       severity: 'error',
@@ -133,6 +181,7 @@ export function collectProjectDiagnostics(project: ProjectDoc): ProjectDiagnosti
   }
 
   for (const [typeId, ot] of Object.entries(types)) {
+    out.push(...collectVariableDefinitionDiagnostics(ot.localVariables, `objectType:${typeId}`))
     const sid = ot.sprite?.spriteAssetId?.trim()
     if (sid && !imageAssetForRef(project, sid)) {
       out.push({
@@ -161,6 +210,11 @@ export function collectProjectDiagnostics(project: ProjectDoc): ProjectDiagnosti
           message: `Scene "${scene.name}": instance #${inst.id} references unknown object type "${inst.objectTypeId}".`,
         })
       } else {
+        out.push(...collectOverrideDiagnostics(
+          inst.localVariableOverrides,
+          types[inst.objectTypeId]?.localVariables,
+          `scene:${scene.id}:instance:${inst.id}`,
+        ))
         const sid = objectTypeSpriteAssetId(project, inst.objectTypeId)
         if (sid && !imageAssetForRef(project, sid)) {
           out.push({

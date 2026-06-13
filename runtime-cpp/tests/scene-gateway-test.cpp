@@ -28,6 +28,10 @@ int main() {
     sm.init();
     gw.init();
     vm.init();
+    vm.configureGlobals({
+        {"score", GameVariableDefinition::Type::Number, 0.0, {}},
+        {"lives", GameVariableDefinition::Type::Number, 0.0, {}},
+    });
     physics.init();
     gw.setPhysics(&physics);
 

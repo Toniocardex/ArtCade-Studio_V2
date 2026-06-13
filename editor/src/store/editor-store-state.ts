@@ -13,6 +13,7 @@ import type {
   ScriptFile, ProjectDoc, ConsoleEntry,
   LogicBoard, LogicEvent, ComponentKey, WorldSettings, TilesetAsset, ImageAsset,
   SpriteComponent, PhysicsComponent, Vec3, AssetFolderCategory,
+  GameVariableDefinition, GameVariableValue,
 } from '../types'
 import type { DialogScript } from '../utils/dialog/dialog-script'
 import type { InspectorAssetSelection } from '../types/inspector-selection'
@@ -166,6 +167,7 @@ export type Action =
     }
   | { type: 'DISMISS_LEGACY_MIGRATE_BANNER' }
   | { type: 'PROJECT_RENAME';    name: string }
+  | { type: 'PROJECT_VARIABLES_SET'; variables: GameVariableDefinition[] }
   | { type: 'MARK_PROJECT_SAVED' }
   | { type: 'MARK_SCRIPT_SAVED'; path: string }
   | {
@@ -209,6 +211,8 @@ export type Action =
   | { type: 'SCENE_DELETE';    sceneId: string }
   | { type: 'SCENE_DUPLICATE'; sceneId: string }
   | { type: 'OBJECT_TYPE_RENAME'; objectTypeId: string; displayName: string }
+  | { type: 'OBJECT_TYPE_VARIABLES_SET'; objectTypeId: string; variables: GameVariableDefinition[] }
+  | { type: 'INSTANCE_VARIABLE_OVERRIDES_SET'; sceneId: string; instanceId: number; overrides: Record<string, GameVariableValue> }
   | { type: 'OBJECT_TYPE_DELETE'; objectTypeId: string }
   | { type: 'PROJECT_NORMALIZE_ASSET_REFS' }
   | { type: 'ASSET_FOLDER_CREATE'; category: AssetFolderCategory; name: string }

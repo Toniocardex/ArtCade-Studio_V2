@@ -62,6 +62,9 @@ void materializeV2Project(
 /** targetFPS + world runtime fields from editor_load_project JSON. */
 ArtCade::ProjectRuntimeSettings parseRuntimeSettings(const nlohmann::json& doc);
 
+std::vector<ArtCade::GameVariableDefinition>
+parseGlobalVariables(const nlohmann::json& doc);
+
 std::vector<ArtCade::ImageAssetDef>
 parseImageAssets(const nlohmann::json& doc);
 

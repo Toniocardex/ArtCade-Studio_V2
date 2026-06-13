@@ -14,7 +14,7 @@ import { COMPONENT_KEYS } from '../types/components'
 import { createEntityDef } from './project-builders'
 import { resolveEntitiesForRuntime } from './sprite-pivot-resolve'
 
-export const PROJECT_FORMAT_V2 = 2
+export const PROJECT_FORMAT_V3 = 3
 
 const GENERIC_CLASS = new Set(['Entity', 'Unknown', ''])
 
@@ -101,6 +101,8 @@ export function materializeEntity(
   if (type.physics) ent.physics = JSON.parse(JSON.stringify(type.physics))
   if (type.scriptPath) ent.scriptPath = type.scriptPath
   ent.visible = instance.visible ?? type.visible ?? true
+  if (type.localVariables) ent.localVariables = type.localVariables.map((variable) => ({ ...variable }))
+  if (instance.localVariableOverrides) ent.localVariableOverrides = { ...instance.localVariableOverrides }
   for (const key of COMPONENT_KEYS) {
     const v = (type as unknown as Record<string, unknown>)[key]
     if (v && typeof v === 'object') {
@@ -219,7 +221,7 @@ export function syncObjectModelFromEntities(project: ProjectDoc): ProjectDoc {
   const { objectTypes, scenes } = buildObjectModelFromEntities(project)
   return {
     ...project,
-    formatVersion: PROJECT_FORMAT_V2,
+    formatVersion: PROJECT_FORMAT_V3,
     objectTypes,
     scenes,
   }
@@ -231,11 +233,11 @@ export function syncObjectModelFromEntities(project: ProjectDoc): ProjectDoc {
 // v1 object model (flat entities → objectTypes + instances).
 export function migrateLegacyProject(project: ProjectDoc): ProjectDoc {
   const { objectTypes, scenes } = buildObjectModelFromEntities(project)
-  const withModel = { ...project, objectTypes, scenes, formatVersion: PROJECT_FORMAT_V2 }
+  const withModel = { ...project, objectTypes, scenes, formatVersion: PROJECT_FORMAT_V3 }
   const entities = materializeAllEntities(withModel)
   return {
     ...project,
-    formatVersion: PROJECT_FORMAT_V2,
+    formatVersion: PROJECT_FORMAT_V3,
     objectTypes,
     scenes,
     entities,
@@ -244,7 +246,7 @@ export function migrateLegacyProject(project: ProjectDoc): ProjectDoc {
 
 export function isV2ObjectModel(project: ProjectDoc): boolean {
   return (
-    project.formatVersion === PROJECT_FORMAT_V2
+    project.formatVersion === PROJECT_FORMAT_V3
     && project.objectTypes != null
     && Object.keys(project.objectTypes).length > 0
     && Object.values(project.scenes).some((s) => (s.instances?.length ?? 0) > 0)
@@ -273,12 +275,12 @@ export function normalizeProjectDoc(project: ProjectDoc): {
  */
 export function projectForSave(project: ProjectDoc): ProjectDoc {
   if (isV2ObjectModel(project)) {
-    return { ...project, formatVersion: PROJECT_FORMAT_V2 }
+    return { ...project, formatVersion: PROJECT_FORMAT_V3 }
   }
   const { objectTypes, scenes } = buildObjectModelFromEntities(project)
   return {
     ...project,
-    formatVersion: PROJECT_FORMAT_V2,
+    formatVersion: PROJECT_FORMAT_V3,
     objectTypes,
     scenes,
   }

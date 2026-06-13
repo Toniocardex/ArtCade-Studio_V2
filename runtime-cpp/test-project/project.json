@@ -5,6 +5,13 @@
   "targetFPS": 60,
   "activeSceneId": "scene_main",
   "mainScriptPath": "scripts/main.lua",
+  "globalVariables": [
+    { "key": "score", "type": "number", "initialValue": 0 },
+    { "key": "level", "type": "number", "initialValue": 1 },
+    { "key": "playerName", "type": "string", "initialValue": "Hero" },
+    { "key": "hardMode", "type": "boolean", "initialValue": false },
+    { "key": "alive", "type": "number", "initialValue": 1 }
+  ],
   "entities": {
     "1": {
       "id": 1,

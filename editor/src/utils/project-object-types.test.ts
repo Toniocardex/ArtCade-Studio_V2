@@ -8,7 +8,7 @@ import {
   entitiesForRuntimeSync,
   materializeEntity,
   migrateLegacyProject,
-  PROJECT_FORMAT_V2,
+  PROJECT_FORMAT_V3,
   syncObjectModelFromEntities,
 } from './project-object-types'
 import { runtimeProjectFingerprint } from './runtime-fingerprint'
@@ -57,7 +57,7 @@ describe('project-object-types', () => {
         },
       },
     })
-    expect(migrated.formatVersion).toBe(PROJECT_FORMAT_V2)
+    expect(migrated.formatVersion).toBe(PROJECT_FORMAT_V3)
     expect(migrated.objectTypes?.Player).toBeDefined()
     expect(migrated.objectTypes?.Coin).toBeDefined()
     expect(migrated.scenes.scene_main.instances?.length).toBe(2)
@@ -134,7 +134,7 @@ describe('project-object-types', () => {
       },
     })
     const json = serializeProjectDoc(migrated)
-    expect(json).toMatch(/"formatVersion"\s*:\s*2/)
+    expect(json).toMatch(/"formatVersion"\s*:\s*3/)
     expect(json).toContain('"objectTypes"')
     expect(json).toContain('"instances"')
     expect(json).not.toMatch(/"entities"\s*:/)

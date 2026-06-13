@@ -102,9 +102,10 @@ export type TextFormat =
 /** Text label (score, titles, hints) rendered above the entity sprite. */
 export interface TextComponent {
   text:     string
-  /** When set, the runtime auto-updates the label each frame from this state
+  /** When set, the runtime auto-updates the label each frame from this declared
    *  variable (no onUpdate rule needed). Empty = static `text`. */
   bindKey:  string
+  bindScope?: 'global' | 'local'
   format:   TextFormat                  // applied to the bound value
   digits:   number                      // pad width (padded) / decimal places (decimals)
   prefix:   string                      // shown before the bound value
@@ -122,6 +123,7 @@ export interface TextComponent {
 /** Filled bar driven by a variable (health, mana, progress, loading). */
 export interface GaugeComponent {
   bindKey:      string                  // variable read as the current value
+  bindScope?:   'global' | 'local'
   maxValue:     number                  // value mapped to a full bar
   width:        number                  // px
   height:       number                  // px

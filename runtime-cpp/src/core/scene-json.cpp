@@ -36,6 +36,14 @@ bool read_scene_instance(const nlohmann::json& instanceJson, SceneInstanceDef& o
         out.transform = read_transform(instanceJson["transform"]);
     if (instanceJson.contains("visible") && instanceJson["visible"].is_boolean())
         out.visible = instanceJson["visible"].get<bool>();
+    if (instanceJson.contains("localVariableOverrides")
+        && instanceJson["localVariableOverrides"].is_object()) {
+        for (auto& [key, value] : instanceJson["localVariableOverrides"].items()) {
+            if (value.is_number()) out.localVariableOverrides[key] = value.get<double>();
+            else if (value.is_boolean()) out.localVariableOverrides[key] = value.get<bool>();
+            else if (value.is_string()) out.localVariableOverrides[key] = value.get<std::string>();
+        }
+    }
 
     return out.id != 0 && !out.objectTypeId.empty();
 }

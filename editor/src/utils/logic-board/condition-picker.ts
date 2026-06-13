@@ -17,7 +17,6 @@ import { CONDITION_TYPES } from '../../panels/logic-board/options'
 
 /** Shown first in the condition picker (tier 1–2). */
 export const COMMON_CONDITION_TYPES: readonly LogicCondition['type'][] = [
-  'compareVariable',
   'compareClass',
   'isPlatformerGrounded',
   'compareHealth',

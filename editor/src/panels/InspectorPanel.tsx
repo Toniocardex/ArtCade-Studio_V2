@@ -15,6 +15,8 @@ import { LogicBoardCta } from './inspector/LogicBoardCta'
 import { EntityMetadataSection } from './inspector/EntityMetadataSection'
 import { AssetInspectorSection } from './inspector/AssetInspectorSection'
 import { LayerSettingsSection } from './inspector/LayerSettingsSection'
+import { ProjectVariablesSection } from './inspector/ProjectVariablesSection'
+import { ObjectVariablesSection } from './inspector/ObjectVariablesSection'
 import { VariableWatchSection } from './inspector/VariableWatchSection'
 import {
   deriveInspectorMode,
@@ -42,6 +44,8 @@ function EntityInspector({ entity }: EntityInspectorProps) {
     <>
       <EntityHeaderBar entity={entity} onJumpToComponent={jumpToComponent} />
       <EntityMetadataSection entity={entity} />
+      <ObjectVariablesSection entity={entity} />
+      <VariableWatchSection entityId={entity.id} />
       <ComponentsSection
         entity={entity}
         open={componentsOpen}
@@ -85,7 +89,6 @@ export default function InspectorPanel() {
         {mode === 'entity' && entity && (
           <>
             <EntityInspector key={entity.id} entity={entity} />
-            <VariableWatchSection />
           </>
         )}
 
@@ -100,6 +103,8 @@ export default function InspectorPanel() {
             {scene && <SceneSettingsSection scene={scene} />}
             {project && <WorldSettingsSection />}
             {project && <WorldDebugTimeSection />}
+            {project && <ProjectVariablesSection />}
+            {project && <VariableWatchSection />}
             {!project && (
               <div className="py-10 flex flex-col items-center gap-1.5 text-center px-4">
                 <span className="text-[11px] text-[var(--muted)]">No project loaded.</span>

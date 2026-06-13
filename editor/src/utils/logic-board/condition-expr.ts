@@ -42,7 +42,7 @@ function leafExpr(c: LogicCondition, project?: ProjectDoc | null): string {
       return `collision.touchingClass(self, ${luaString(c.className)})`
     case 'compareVariable':
       return comparisonExpr(
-        `state.get(${luaString(c.key)})`,
+        `global.get(${luaString(c.key)})`,
         c.operator,
         valueSourceExpr(c.value, project),
       )

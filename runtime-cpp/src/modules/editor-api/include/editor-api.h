@@ -35,10 +35,12 @@ class Renderer;
 class DialogManager;
 class SpriteAnimator;
 class Audio;
+class VariableManager;
 }
 struct TilePaletteEntry;
 struct TilesetAsset;
 struct ProjectRuntimeSettings;
+struct GameVariableDefinition;
 
 /**
  * Callback invoked by editor_load_project AFTER the gateway has been
@@ -50,6 +52,7 @@ struct ProjectRuntimeSettings;
 using EditorProjectLoadedHandler = std::function<void(
     const std::vector<TilePaletteEntry>&,
     const std::vector<TilesetAsset>&,
+    const std::vector<GameVariableDefinition>&,
     const ProjectRuntimeSettings&)>;
 
 /** Same payload as EditorProjectLoadedHandler; used by editor_restore_from_project. */
@@ -62,6 +65,7 @@ using EditorEnterPlayHandler = EditorProjectLoadedHandler;
 using EditorExitPlayHandler = std::function<void(
     const std::vector<TilePaletteEntry>&,
     const std::vector<TilesetAsset>&,
+    const std::vector<GameVariableDefinition>&,
     const ProjectRuntimeSettings&,
     const std::string& luaSource)>;
 
@@ -123,6 +127,7 @@ public:
     static void wireSpriteAnimator(Modules::SpriteAnimator* spriteAnimator);
 
     static void wireAudio(Modules::Audio* audio);
+    static void wireVariables(Modules::VariableManager* variables);
 
     /**
      * Register the callback invoked after editor_load_project finishes
@@ -228,6 +233,7 @@ public:
     static Modules::DialogManager*        s_dialogManager;
     static Modules::SpriteAnimator*        s_spriteAnimator;
     static Modules::Audio*                 s_audio;
+    static Modules::VariableManager*       s_variables;
     static EditorProjectLoadedHandler     s_onProjectLoaded;
     static EditorPreviewRestoreHandler    s_onPreviewRestore;
     static EditorEnterPlayHandler         s_onEnterPlay;
@@ -332,6 +338,7 @@ EMSCRIPTEN_KEEPALIVE void editor_load_dialogs(const char* json_utf8);
 
 /** Returns pointer to 6 floats: fps, luaMs, physicsMs, renderMs, entityCount, physicsBodies. */
 EMSCRIPTEN_KEEPALIVE const float* editor_get_runtime_profile();
+EMSCRIPTEN_KEEPALIVE const char* editor_get_variables_json(uint32_t entityId);
 
 /** Phase F2: toggle in-scene tile painting (1 = on). */
 EMSCRIPTEN_KEEPALIVE void editor_set_tile_paint_mode(int enabled);
@@ -414,6 +421,7 @@ struct EditorAPI {
     static void wireDialog(Modules::DialogManager*) {}
     static void wireSpriteAnimator(Modules::SpriteAnimator*) {}
     static void wireAudio(Modules::Audio*) {}
+    static void wireVariables(Modules::VariableManager*) {}
     static void setProjectLoadedHandler(EditorProjectLoadedHandler) {}
     static void setPreviewRestoreHandler(EditorPreviewRestoreHandler) {}
     static void setEnterPlayHandler(EditorEnterPlayHandler) {}
@@ -453,6 +461,7 @@ struct EditorAPI {
     static Modules::DialogManager*        s_dialogManager;
     static Modules::SpriteAnimator*        s_spriteAnimator;
     static Modules::Audio*                 s_audio;
+    static Modules::VariableManager*       s_variables;
     static EditorProjectLoadedHandler     s_onProjectLoaded;
     static EditorPreviewRestoreHandler    s_onPreviewRestore;
     static EditorEnterPlayHandler         s_onEnterPlay;

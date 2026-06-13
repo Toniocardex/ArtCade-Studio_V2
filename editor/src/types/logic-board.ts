@@ -65,6 +65,9 @@ export type LogicComponentValueProperty =
 
 export type LogicValueAtom =
   | LogicPrimitive
+  | { source: 'global'; key: string }
+  | { source: 'local'; target: TargetSelector; key: string }
+  /** Pre-release legacy source; parsed projects using it fail schema validation. */
   | { source: 'state'; key: string; fallback?: LogicPrimitive }
   | {
       source: 'entity'
@@ -191,6 +194,10 @@ export type LogicAction =
   | { type: 'pauseGame' }
   | { type: 'resumeGame' }
   | { type: 'togglePause' }
+  | { type: 'setGlobalVariable'; key: string; value: LogicValue }
+  | { type: 'addGlobalVariable'; key: string; amount: LogicValue }
+  | { type: 'setLocalVariable'; target: TargetSelector; key: string; value: LogicValue }
+  | { type: 'addLocalVariable'; target: TargetSelector; key: string; amount: LogicValue }
   | { type: 'setVariable'; key: string; value: LogicValue }
   | { type: 'addVariable'; key: string; amount: LogicValue }
   | { type: 'setPosition'; target: TargetSelector; x: LogicValue; y: LogicValue }
@@ -312,8 +319,8 @@ export type LogicAction =
   | { type: 'clampVariable'; key: string; min: number; max: number }
   | { type: 'multiplyVariable'; key: string; factor: number }
   // ── Save / Load ───────────────────────────────────────────────────────────
-  | { type: 'saveVariable'; slot: string; key: string }
-  | { type: 'loadVariable'; slot: string; key: string }
+  | { type: 'saveGame'; slot: string }
+  | { type: 'loadGame'; slot: string }
   | { type: 'deleteSave'; slot: string }
   // ── Camera ────────────────────────────────────────────────────────────────
   | { type: 'setCameraZoom'; zoom: number }

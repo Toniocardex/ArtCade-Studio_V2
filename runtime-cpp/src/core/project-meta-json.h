@@ -37,6 +37,7 @@ void read_thumbnails(const nlohmann::json& doc,
 
 /** Top-level project.json identity and routing fields (snake_case aware). */
 void read_project_header(const nlohmann::json& doc, ProjectDoc& out);
+void read_global_variables(const nlohmann::json& doc, ProjectDoc& out);
 
 /**
  * Partial runtime overlay for editor preview: only keys present in @p doc are applied.

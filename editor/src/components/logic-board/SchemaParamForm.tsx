@@ -20,6 +20,7 @@ import { ClipPicker } from './ClipPicker'
 import { TagPicker } from './TagPicker'
 import { EditorSelect } from '../ui/EditorSelect'
 import { ValueSourceField } from './ValueSourceField'
+import { VariableKeyPicker } from './VariableKeyPicker'
 
 const inp =
   'bg-[var(--bg)] border border-[var(--border-2)] text-[var(--text)] px-2 py-1 rounded text-xs'
@@ -365,6 +366,16 @@ function renderValueSourceField({ name, meta, value, onPatch }: FieldProps) {
   )
 }
 
+function renderVariableField({ name, meta, value, onPatch }: FieldProps) {
+  const scope = meta.widget === 'localVariable' ? 'local' : 'global'
+  return (
+    <span key={name} className="flex items-center gap-2">
+      <span className={lbl}>{meta.label}</span>
+      <VariableKeyPicker scope={scope} value={asParamString(value)} onChange={(key) => onPatch(name, key)} />
+    </span>
+  )
+}
+
 const FIELD_RENDERERS: Record<ParamWidget, (props: FieldProps) => ReactElement> = {
   number: renderNumberField,
   boolean: renderBooleanField,
@@ -378,6 +389,8 @@ const FIELD_RENDERERS: Record<ParamWidget, (props: FieldProps) => ReactElement> 
   string: renderStringField,
   valueSource: renderValueSourceField,
   numberSource: renderValueSourceField,
+  globalVariable: renderVariableField,
+  localVariable: renderVariableField,
 }
 
 export type SchemaParamFormProps = Readonly<{

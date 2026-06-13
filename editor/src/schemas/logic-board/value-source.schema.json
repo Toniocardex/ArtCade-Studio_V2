@@ -16,9 +16,18 @@
           "type": "object",
           "required": ["source", "key"],
           "properties": {
-            "source": { "const": "state" },
-            "key": { "type": "string" },
-            "fallback": { "$ref": "#/$defs/primitive" }
+            "source": { "const": "global" },
+            "key": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["source", "target", "key"],
+          "properties": {
+            "source": { "const": "local" },
+            "target": { "$ref": "./target-selector.schema.json" },
+            "key": { "type": "string", "minLength": 1 }
           },
           "additionalProperties": false
         },

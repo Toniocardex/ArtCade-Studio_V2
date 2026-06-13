@@ -18,6 +18,7 @@ using SpawnLogCallback = std::function<void(const std::string&)>;
 // keyed by EntityId so a recycled id doesn't inherit the previous owner's
 // state (coyote timer, sensor "was overlapping", etc.).
 using EntityDestroyHandler = std::function<void(EntityId)>;
+using EntityCreatedHandler = std::function<void(EntityId, const EntityDef&)>;
 
 /** Fired after a physics body is created or destroyed via the gateway. */
 using PhysicsTopologyHandler = std::function<void()>;
@@ -54,6 +55,7 @@ public:
 
     /** Fired synchronously from destroy(id) before the entity is erased. */
     void setEntityDestroyHandler(EntityDestroyHandler cb);
+    void setEntityCreatedHandler(EntityCreatedHandler cb);
 
     /** Fired after ensurePhysicsBody / teardownPhysicsBody mutates the physics world. */
     void setPhysicsTopologyHandler(PhysicsTopologyHandler cb);
@@ -128,6 +130,7 @@ public:
     using ActiveByTagFn = std::function<void(EntityId)>;
     void forEachActiveByTag(const std::string& tag, const ActiveByTagFn& fn) const;
     std::vector<EntityId> allIds() const;
+    const std::vector<EntityId>& persistentEntityIds() const;
     std::vector<EntityId> activeSceneIds() const;
 
     // ---- System visitors (EnTT-backed, deterministic insertion order) ----
@@ -254,9 +257,11 @@ private:
 
     /** First EntityDef seen per className when the project is loaded (spawn template). */
     std::unordered_map<std::string, EntityDef> classPrototypes_;
+    std::vector<EntityId> persistentEntityIds_;
 
     SpawnLogCallback     spawnLogCallback_;
     EntityDestroyHandler   destroyHandler_;
+    EntityCreatedHandler   createdHandler_;
     PhysicsTopologyHandler physicsTopologyHandler_;
 
     void rebuildClassPrototypes(

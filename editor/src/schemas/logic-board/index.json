@@ -9,7 +9,7 @@
   ],
   "actions": [
     "pauseGame", "resumeGame", "togglePause",
-    "setVariable", "addVariable", "clampVariable", "multiplyVariable",
+    "setGlobalVariable", "addGlobalVariable", "setLocalVariable", "addLocalVariable",
     "setPosition", "setVelocity", "playSound", "playMusic",
     "stopAllAudio", "stopMusic", "pauseMusic", "resumeMusic",
     "setMusicVolume", "setMasterVolume", "setSfxVolume", "fadeMusic", "destroyEntity",
@@ -28,12 +28,12 @@
     "setMagnetEnabled", "setMagnetTargetTag", "setMagnetRadius", "setMagnetPullSpeed",
     "setHordeTargetClass", "setHordeWeights", "setHordeMaxSpeed", "setHordeSeparationRadius",
     "setAutoDestroyLifespan", "cancelAutoDestroy",
-    "saveVariable", "loadVariable", "deleteSave",
+    "saveGame", "loadGame", "deleteSave",
     "moveByOffset", "snapToGrid", "setEntityShader", "setScreenShader", "debugLog", "wait", "repeatTimes"
   ],
   "legacyActions": ["setVariableRandomRange", "clickToDestroy", "clearMovementIntent", "setCameraTarget"],
   "conditions": [
-    "compareVariable", "compareValues", "compareClass", "isKeyDown", "hasTag", "compareDistance",
+    "compareValues", "compareClass", "isKeyDown", "hasTag", "compareDistance",
     "isMouseOver", "raycastHit", "chance", "isTileAreaFree", "compareHealth", "isPlatformerGrounded",
     "compareCount", "entityExists", "compareVelocity", "comparePosition", "saveExists", "isDialogActive",
     "isMusicPlaying", "isPaused", "isOffScreen"

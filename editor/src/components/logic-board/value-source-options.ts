@@ -5,7 +5,8 @@ import type {
 
 export const VALUE_SOURCE_OPTIONS = [
   { value: 'literal', label: 'Literal' },
-  { value: 'state', label: 'Variable' },
+  { value: 'global', label: 'Global variable' },
+  { value: 'local', label: 'Object variable' },
   { value: 'entity', label: 'Object property' },
   { value: 'component', label: 'Component property' },
   { value: 'message', label: 'Message field' },

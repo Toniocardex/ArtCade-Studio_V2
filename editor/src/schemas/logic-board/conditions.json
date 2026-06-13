@@ -1,24 +1,4 @@
 {
-  "compareVariable": {
-    "type": "object",
-    "required": ["type", "key", "operator", "value"],
-    "properties": {
-      "type": { "const": "compareVariable" },
-      "key": { "type": "string" },
-      "operator": { "enum": ["==", "!=", "<", "<=", ">", ">="] },
-      "value": { "$ref": "./value-source.schema.json" }
-    },
-    "additionalProperties": false,
-    "x-artcade": {
-      "label": "Compare Variable",
-      "category": "State",
-      "params": {
-        "key": { "widget": "string", "label": "Key" },
-        "operator": { "widget": "enum", "label": "Op", "options": ["==", "!=", "<", "<=", ">", ">="] },
-        "value": { "widget": "valueSource", "label": "Value" }
-      }
-    }
-  },
   "compareClass": {
     "type": "object",
     "required": ["type", "className"],

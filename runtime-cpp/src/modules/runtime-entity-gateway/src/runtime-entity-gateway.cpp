@@ -89,6 +89,7 @@ void RuntimeEntityGateway::shutdown() {
     // before the gateway's, leaving the lambda live makes a subsequent
     // destroy(id) dereference dangling memory.
     destroyHandler_         = nullptr;
+    createdHandler_         = nullptr;
     physicsTopologyHandler_ = nullptr;
     fadePhase_ = FadePhase::None;
 }
@@ -115,6 +116,10 @@ void RuntimeEntityGateway::setSpawnLogCallback(SpawnLogCallback cb) {
 
 void RuntimeEntityGateway::setEntityDestroyHandler(EntityDestroyHandler cb) {
     destroyHandler_ = std::move(cb);
+}
+
+void RuntimeEntityGateway::setEntityCreatedHandler(EntityCreatedHandler cb) {
+    createdHandler_ = std::move(cb);
 }
 
 void RuntimeEntityGateway::setPhysicsTopologyHandler(PhysicsTopologyHandler cb) {
@@ -310,6 +315,7 @@ EntityId RuntimeEntityGateway::create(const EntityDef& def) {
 
     registry_->setSceneActive(id, entityListedInActiveScene(id));
     applyEntityDefToRegistry(id, copy);
+    if (createdHandler_) createdHandler_(id, copy);
 
     if (registry_->sceneActive(id)) {
         ensurePhysicsBody(id);
@@ -341,6 +347,7 @@ EntityId RuntimeEntityGateway::spawnFromClass(const std::string& className, floa
     const EntityId id = registry_->allocate(copy.id);
     copy.id = id;
     applyEntityDefToRegistry(id, copy);
+    if (createdHandler_) createdHandler_(id, copy);
 
     if (SceneDef* scene = sceneManager_.activeSceneMutable()) {
         if (std::find(scene->entityIds.begin(), scene->entityIds.end(), id)
@@ -760,6 +767,10 @@ std::vector<EntityId> RuntimeEntityGateway::allIds() const {
     return registry_->allIds();
 }
 
+const std::vector<EntityId>& RuntimeEntityGateway::persistentEntityIds() const {
+    return persistentEntityIds_;
+}
+
 void RuntimeEntityGateway::forEachActiveRenderable(
     const ActiveRenderableFn& fn) const
 {
@@ -861,7 +872,11 @@ bool RuntimeEntityGateway::replaceProject(
     // single source of truth for physics body teardown. Keeping a parallel
     // batch call would risk double-free if the wrapper's destroyAll
     // and per-handle destroy interact.
+    if (destroyHandler_) {
+        for (EntityId id : registry_->allIds()) destroyHandler_(id);
+    }
     registry_->clear();
+    persistentEntityIds_.clear();
     rebuildClassPrototypes(entityDefs, objectTypes);
     sceneManager_.registerScenes(scenes, entityDefs);
     for (const auto& [id, def] : entityDefs) {
@@ -873,6 +888,8 @@ bool RuntimeEntityGateway::replaceProject(
 
         registry_->setSceneActive(runtimeId, false);
         applyEntityDefToRegistry(runtimeId, copy);
+        persistentEntityIds_.push_back(runtimeId);
+        if (createdHandler_) createdHandler_(runtimeId, copy);
     }
 
     if (!activeSceneId.empty())

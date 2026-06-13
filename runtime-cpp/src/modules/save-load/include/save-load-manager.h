@@ -35,8 +35,7 @@ public:
     bool init()     override;
     void shutdown() override;
 
-    using Snapshot = VariableManager::Snapshot;
-    using Value    = VariableManager::Value;
+    using Snapshot = VariableManager::GameSnapshot;
 
     // Directory where .sav files are stored (default: "saves/")
     void setSaveDirectory(const std::string& dir);

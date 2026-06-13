@@ -92,10 +92,17 @@ void Application::renderActiveScene() {
 
             if (!hasText) return;
             std::string display = text.text;
-            if (!text.bindKey.empty() && variables && variables->exists(text.bindKey)) {
+            const bool hasBoundValue = !text.bindKey.empty() && variables
+                && (text.bindScope == "local"
+                    ? variables->entityExists(id, text.bindKey)
+                    : variables->exists(text.bindKey));
+            if (hasBoundValue) {
+                const auto boundValue = text.bindScope == "local"
+                    ? variables->getEntity(id, text.bindKey)
+                    : variables->get(text.bindKey);
                 display = text.prefix
                     + AppRender::formatTextValue(
-                        variables->get(text.bindKey), text.format, text.digits)
+                        boundValue, text.format, text.digits)
                     + text.suffix;
             } else if (!text.bindKey.empty()) {
                 display = text.prefix + text.text + text.suffix;
@@ -126,9 +133,16 @@ void Application::renderActiveScene() {
             if (gauge.width <= 0.f || gauge.height <= 0.f) return;
 
             float value = gauge.maxValue;
-            if (!gauge.bindKey.empty() && variables && variables->exists(gauge.bindKey)) {
+            const bool hasBoundValue = !gauge.bindKey.empty() && variables
+                && (gauge.bindScope == "local"
+                    ? variables->entityExists(id, gauge.bindKey)
+                    : variables->exists(gauge.bindKey));
+            if (hasBoundValue) {
+                const auto boundValue = gauge.bindScope == "local"
+                    ? variables->getEntity(id, gauge.bindKey)
+                    : variables->get(gauge.bindKey);
                 value = static_cast<float>(
-                    AppRender::variableToNumber(variables->get(gauge.bindKey)));
+                    AppRender::variableToNumber(boundValue));
             }
             float ratio = gauge.maxValue > 0.f ? value / gauge.maxValue : 0.f;
             ratio = std::clamp(ratio, 0.f, 1.f);

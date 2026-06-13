@@ -183,6 +183,7 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
     catch (...) { return false; }
 
     ProjectJson::read_project_header(j, out);
+    ProjectJson::read_global_variables(j, out);
 
     if (j.contains("world") && j["world"].is_object())
         ProjectJson::read_world_settings(j["world"], out.world);

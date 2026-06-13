@@ -29,7 +29,7 @@ describe('emitGuardedBranches', () => {
       slugs,
     ).join('\n')
     expect(lua).toMatch(
-      /if _logic_on\[RULE\.test_rule\] ~= false then[\s\S]*if \(state\.get\("hasKey"\) == 1\) then[\s\S]*else[\s\S]*end[\s\S]*end/,
+      /if _logic_on\[RULE\.test_rule\] ~= false then[\s\S]*if \(global\.get\("hasKey"\) == 1\) then[\s\S]*else[\s\S]*end[\s\S]*end/,
     )
   })
 

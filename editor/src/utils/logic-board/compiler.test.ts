@@ -379,7 +379,7 @@ describe('conditionExpr', () => {
     })
     const lua = conditionExpr(e)
     expect(lua).toContain('input.isKeyDown("Space")')
-    expect(lua).toContain('state.get("hp")')
+    expect(lua).toContain('global.get("hp")')
     expect(lua).toContain('_leftNumber > _rightNumber')
   })
 
@@ -404,7 +404,7 @@ describe('conditionExpr', () => {
       actions: [],
     })
     expect(conditionExpr(e)).toBe(
-      '((state.get("hasKey") == 1) or ((state.get("thief") == 1) and (state.get("pick") == 1)))',
+      '((global.get("hasKey") == 1) or ((global.get("thief") == 1) and (global.get("pick") == 1)))',
     )
   })
 
@@ -631,7 +631,7 @@ describe('compileLogicBoard — triggers', () => {
         }),
       ]),
     ])
-    expect(lua).toMatch(/if \(state\.get\("hasKey"\) == 1\) then/)
+    expect(lua).toMatch(/if \(global\.get\("hasKey"\) == 1\) then/)
     expect(lua).toContain('debug.log("open")')
     expect(lua).toMatch(/else[\s\S]*debug\.log\("locked"\)/)
   })
@@ -651,7 +651,7 @@ describe('compileLogicBoard — triggers', () => {
         }),
       ]),
     ])
-    expect(lua).toMatch(/not \(.*platformer\.isGrounded.*or.*state\.get/s)
+    expect(lua).toMatch(/not \(.*platformer\.isGrounded.*or.*global\.get/s)
   })
 
   it('flat conditionsOperator OR joins checks with or', () => {
@@ -685,7 +685,7 @@ describe('compileLogicBoard — triggers', () => {
     ])
     expect(lua).toContain('collision.touchingClass(self, "Coin")')
     expect(lua).toContain('_logic_on[RULE.on_collision_coin] ~= false')
-    expect(lua).toContain('state.add("score", 1)')
+    expect(lua).toContain('global.add("score", 1)')
   })
 
   it('onTimer non-repeat on global board uses registration path', () => {
@@ -805,8 +805,8 @@ describe('compileLogicBoard — actions', () => {
         }),
       ]),
     ])
-    expect(lua).toContain('state.set("lives", 3)')
-    expect(lua).toContain('state.add("score", 10)')
+    expect(lua).toContain('global.set("lives", 3)')
+    expect(lua).toContain('global.add("score", 10)')
     expect(lua).toContain('entity.setPosition(self, 5, 6)')
     expect(lua).toContain('entity.setVelocity(9, 1, -2)')
     expect(lua).toContain('audio.playSound("sfx/jump.ogg", 0.5, 1.2)')
@@ -816,7 +816,7 @@ describe('compileLogicBoard — actions', () => {
     expect(lua).toContain('object.spawn("Enemy", 100, 0)')
     expect(lua).toContain('local _mx,_my=input.mouseWorld()')
     expect(lua).toContain('object.spawn("Coin", _mx, _my)')
-    expect(lua).toContain('state.set("level", 2)')
+    expect(lua).toContain('global.set("level", 2)')
     expect(lua).toContain('event.emit("wave_cleared")')
     expect(lua).toContain('event.emit("dmg", { ["amount"] = 5 })')
     expect(lua).toContain('debug.log("done")')
@@ -902,7 +902,7 @@ describe('compileLogicBoard — realistic example', () => {
     expect(lua).toContain('_logic_reg_input_pressed("Space", function()')
     expect(lua).toContain('entity.setVelocity(self, 0, -400)')
     expect(lua).toContain('collision.touchingClass(self, "Coin")')
-    expect(lua).toContain('state.add("coins", 1)')
+    expect(lua).toContain('global.add("coins", 1)')
     expect(lua).toContain('audio.playSound("sfx/coin.ogg", 1, 1)')
   })
 
@@ -1232,7 +1232,7 @@ describe('Bug #9 — onCollisionEnter / onCollisionExit edge triggers', () => {
       ]),
     ])
     expect(lua).toContain('_logic_collision_edge(self, "Coin", true)')
-    expect(lua).toContain('state.add("score", 1)')
+    expect(lua).toContain('global.add("score", 1)')
     // The level-triggered collision.touchingClass gate must NOT be used here.
     // (collision.touchingClass appears only inside the edge helper definition.)
     const touchingCount = lua.split('collision.touchingClass(').length - 1
@@ -1724,7 +1724,7 @@ describe('Defensive value coercion', () => {
       ]),
     ])
     // The injected operator must collapse to `==`, leaving no shell payload.
-    expect(lua).toContain('(state.get("k") == 1)')
+    expect(lua).toContain('(global.get("k") == 1)')
     expect(lua).not.toContain('os.exit')
   })
 })
@@ -1770,7 +1770,7 @@ describe('Value Sources', () => {
       ]),
     ])
     expect(lua).toContain('function(_message)')
-    expect(lua).toContain('state.get("score")')
+    expect(lua).toContain('global.get("score")')
     expect(lua).toContain('_message["amount"]')
     expect(lua).toContain('local _target=self; if _target==nil then return 0 end; local _x,_y=entity.position(_target)')
     expect(lua).toContain('_logic_random_int(6, 1)')

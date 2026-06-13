@@ -139,6 +139,14 @@ export function defaultAction(type: LogicActionType): LogicAction {
       return { type: 'setVariable', key: 'score', value: 0 }
     case 'addVariable':
       return { type: 'addVariable', key: 'score', amount: 1 }
+    case 'setGlobalVariable':
+      return { type: 'setGlobalVariable', key: 'score', value: 0 }
+    case 'addGlobalVariable':
+      return { type: 'addGlobalVariable', key: 'score', amount: 1 }
+    case 'setLocalVariable':
+      return { type: 'setLocalVariable', target: 'self', key: 'health', value: 0 }
+    case 'addLocalVariable':
+      return { type: 'addLocalVariable', target: 'self', key: 'health', amount: 1 }
     case 'setPosition':
       return { type: 'setPosition', target: 'self', x: 0, y: 0 }
     case 'setVelocity':
@@ -156,7 +164,7 @@ export function defaultAction(type: LogicActionType): LogicAction {
     case 'resumeMusic':
       return { type: 'resumeMusic' }
     case 'setText':
-      return { type: 'setText', target: 'self', value: { source: 'state', key: 'score', fallback: 0 }, prefix: 'Score: ' }
+      return { type: 'setText', target: 'self', value: { source: 'global', key: 'score' }, prefix: 'Score: ' }
     case 'setTextColor':
       return { type: 'setTextColor', target: 'self', hexColor: '#ffffff' }
     case 'setMusicVolume':
@@ -293,10 +301,10 @@ export function defaultAction(type: LogicActionType): LogicAction {
       return { type: 'clampVariable', key: 'score', min: 0, max: 99 }
     case 'multiplyVariable':
       return { type: 'multiplyVariable', key: 'score', factor: 2 }
-    case 'saveVariable':
-      return { type: 'saveVariable', slot: 'main', key: 'score' }
-    case 'loadVariable':
-      return { type: 'loadVariable', slot: 'main', key: 'score' }
+    case 'saveGame':
+      return { type: 'saveGame', slot: 'main' }
+    case 'loadGame':
+      return { type: 'loadGame', slot: 'main' }
     case 'deleteSave':
       return { type: 'deleteSave', slot: 'main' }
     case 'setCameraZoom':

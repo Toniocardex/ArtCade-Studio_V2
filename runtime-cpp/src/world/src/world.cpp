@@ -19,6 +19,10 @@ World::World(Modules::RuntimeEntityGateway& gateway,
     // sensor.onEnter mis-fires, etc.
     entityGateway_.setEntityDestroyHandler([this](EntityId id) {
         forgetEntity(id);
+        variables_.destroyEntity(id);
+    });
+    entityGateway_.setEntityCreatedHandler([this](EntityId id, const EntityDef& def) {
+        variables_.createEntity(id, def.localVariables, def.localVariableOverrides);
     });
     entityGateway_.setPhysicsTopologyHandler([this] {
         syncTilemapPhysicsWithDynamics();
@@ -66,12 +70,12 @@ void World::syncAfterEditorProject(const std::vector<TilePaletteEntry>& tilePale
 }
 
 void World::restoreDesignState(const std::vector<TilePaletteEntry>& tilePalette) {
-    variables_.clear();
     syncAfterEditorProject(tilePalette);
 }
 
 void World::init(const ProjectDoc& doc) {
     clearGameplayRuntimeState();
+    variables_.configureGlobals(doc.globalVariables);
     entityGateway_.setPhysics(&physics_);
     const std::unordered_map<std::string, EntityDef>* typesPtr =
         doc.objectTypes.empty() ? nullptr : &doc.objectTypes;
@@ -88,6 +92,7 @@ void World::shutdown() {
     // `this`, and if World is destroyed before the gateway any later
     // destroy(id) on the gateway would dereference dangling memory.
     entityGateway_.setEntityDestroyHandler(nullptr);
+    entityGateway_.setEntityCreatedHandler(nullptr);
     entityGateway_.setPhysicsTopologyHandler(nullptr);
 
     clearTilemapPhysics();
@@ -134,16 +139,15 @@ bool World::hasGlobalState(const std::string& key) const {
 
 StateValue World::getGlobalState(const std::string& key) const {
     auto v = variables_.get(key);
-    if (auto* i = std::get_if<int32_t>(&v))   return StateValue{ *i };
-    if (auto* f = std::get_if<float>(&v))     return StateValue{ *f };
+    if (auto* number = std::get_if<double>(&v)) return StateValue{ static_cast<float>(*number) };
     if (auto* b = std::get_if<bool>(&v))      return StateValue{ *b };
     if (auto* s = std::get_if<std::string>(&v)) return StateValue{ *s };
     return StateValue{ 0 };
 }
 
 void World::setGlobalState(const std::string& key, const StateValue& value) {
-    if (auto* i = std::get_if<int32_t>(&value))   variables_.setInt(key, *i);
-    else if (auto* f = std::get_if<float>(&value)) variables_.setFloat(key, *f);
+    if (auto* i = std::get_if<int32_t>(&value)) variables_.set(key, static_cast<double>(*i));
+    else if (auto* f = std::get_if<float>(&value)) variables_.set(key, static_cast<double>(*f));
     else if (auto* b = std::get_if<bool>(&value))  variables_.setBool(key, *b);
     else if (auto* s = std::get_if<std::string>(&value))
         variables_.setString(key, *s);

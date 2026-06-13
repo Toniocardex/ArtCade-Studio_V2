@@ -21,15 +21,18 @@ const LUA_API_SNIPPETS: { label: string; type?: string; apply: string }[] = [
   { label: 'audio.playSound',         type: 'function', apply: 'audio.playSound("${path}", ${1.0}, ${1.0})' },
   { label: 'audio.playMusic',         type: 'function', apply: 'audio.playMusic("${path}", ${true})' },
   { label: 'audio.stopAll',           type: 'function', apply: 'audio.stopAll()' },
-  { label: 'state.get',               type: 'function', apply: 'state.get("${key}")' },
-  { label: 'state.set',               type: 'function', apply: 'state.set("${key}", ${value})' },
-  { label: 'state.add',               type: 'function', apply: 'state.add("${key}", ${1})' },
+  { label: 'global.get',              type: 'function', apply: 'global.get("${key}")' },
+  { label: 'global.set',              type: 'function', apply: 'global.set("${key}", ${value})' },
+  { label: 'global.add',              type: 'function', apply: 'global.add("${key}", ${1})' },
+  { label: 'objectvar.get',           type: 'function', apply: 'objectvar.get(${entityId}, "${key}")' },
+  { label: 'objectvar.set',           type: 'function', apply: 'objectvar.set(${entityId}, "${key}", ${value})' },
+  { label: 'objectvar.add',           type: 'function', apply: 'objectvar.add(${entityId}, "${key}", ${1})' },
   { label: 'debug.log',               type: 'function', apply: 'debug.log(${msg})' },
   { label: 'event.emit',              type: 'function', apply: 'event.emit("${name}", ${{}})' },
   { label: 'event.on',                type: 'function', apply: 'event.on("${name}", function(data)\n\t\nend)' },
   { label: 'time.elapsed',            type: 'property', apply: 'time.elapsed()' },
-  { label: 'save.write',              type: 'function', apply: 'save.write("${slot}", ${data})' },
-  { label: 'save.read',               type: 'function', apply: 'save.read("${slot}")' },
+  { label: 'save.writeGame',          type: 'function', apply: 'save.writeGame("${slot}")' },
+  { label: 'save.loadGame',           type: 'function', apply: 'save.loadGame("${slot}")' },
 ]
 
 const completions: Completion[] = LUA_API_SNIPPETS.map((s) =>

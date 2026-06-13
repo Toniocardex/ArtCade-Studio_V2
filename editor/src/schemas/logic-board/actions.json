@@ -20,38 +20,78 @@
     "additionalProperties": false,
     "x-artcade": { "label": "Toggle Pause", "category": "Time", "params": {} }
   },
-  "setVariable": {
+  "setGlobalVariable": {
     "type": "object",
     "required": ["type", "key", "value"],
     "properties": {
-      "type": { "const": "setVariable" },
-      "key": { "type": "string" },
+      "type": { "const": "setGlobalVariable" },
+      "key": { "type": "string", "minLength": 1 },
       "value": { "$ref": "./value-source.schema.json" }
     },
     "additionalProperties": false,
     "x-artcade": {
-      "label": "Set Variable",
+      "label": "Set Global Variable",
       "category": "State",
       "params": {
-        "key": { "widget": "string", "label": "Key" },
+        "key": { "widget": "globalVariable", "label": "Variable" },
         "value": { "widget": "valueSource", "label": "Value" }
       }
     }
   },
-  "addVariable": {
+  "addGlobalVariable": {
     "type": "object",
     "required": ["type", "key", "amount"],
     "properties": {
-      "type": { "const": "addVariable" },
-      "key": { "type": "string" },
+      "type": { "const": "addGlobalVariable" },
+      "key": { "type": "string", "minLength": 1 },
       "amount": { "$ref": "./value-source.schema.json" }
     },
     "additionalProperties": false,
     "x-artcade": {
-      "label": "Add Variable",
+      "label": "Add Global Variable",
       "category": "State",
       "params": {
-        "key": { "widget": "string", "label": "Key" },
+        "key": { "widget": "globalVariable", "label": "Variable" },
+        "amount": { "widget": "numberSource", "label": "Amount" }
+      }
+    }
+  },
+  "setLocalVariable": {
+    "type": "object",
+    "required": ["type", "target", "key", "value"],
+    "properties": {
+      "type": { "const": "setLocalVariable" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "key": { "type": "string", "minLength": 1 },
+      "value": { "$ref": "./value-source.schema.json" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Set Object Variable",
+      "category": "State",
+      "params": {
+        "target": { "widget": "target", "label": "Object" },
+        "key": { "widget": "localVariable", "label": "Variable" },
+        "value": { "widget": "valueSource", "label": "Value" }
+      }
+    }
+  },
+  "addLocalVariable": {
+    "type": "object",
+    "required": ["type", "target", "key", "amount"],
+    "properties": {
+      "type": { "const": "addLocalVariable" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "key": { "type": "string", "minLength": 1 },
+      "amount": { "$ref": "./value-source.schema.json" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Add Object Variable",
+      "category": "State",
+      "params": {
+        "target": { "widget": "target", "label": "Object" },
+        "key": { "widget": "localVariable", "label": "Variable" },
         "amount": { "widget": "numberSource", "label": "Amount" }
       }
     }
@@ -1080,39 +1120,35 @@
       }
     }
   },
-  "saveVariable": {
+  "saveGame": {
     "type": "object",
-    "required": ["type", "slot", "key"],
+    "required": ["type", "slot"],
     "properties": {
-      "type": { "const": "saveVariable" },
-      "slot": { "type": "string" },
-      "key": { "type": "string" }
+      "type": { "const": "saveGame" },
+      "slot": { "type": "string" }
     },
     "additionalProperties": false,
     "x-artcade": {
-      "label": "Save Variable to Disk",
+      "label": "Save Game",
       "category": "Save",
       "params": {
-        "slot": { "widget": "string", "label": "Slot", "placeholder": "main" },
-        "key": { "widget": "string", "label": "Key" }
+        "slot": { "widget": "string", "label": "Slot", "placeholder": "main" }
       }
     }
   },
-  "loadVariable": {
+  "loadGame": {
     "type": "object",
-    "required": ["type", "slot", "key"],
+    "required": ["type", "slot"],
     "properties": {
-      "type": { "const": "loadVariable" },
-      "slot": { "type": "string" },
-      "key": { "type": "string" }
+      "type": { "const": "loadGame" },
+      "slot": { "type": "string" }
     },
     "additionalProperties": false,
     "x-artcade": {
-      "label": "Load Variable from Disk",
+      "label": "Load Game",
       "category": "Save",
       "params": {
-        "slot": { "widget": "string", "label": "Slot", "placeholder": "main" },
-        "key": { "widget": "string", "label": "Key" }
+        "slot": { "widget": "string", "label": "Slot", "placeholder": "main" }
       }
     }
   },

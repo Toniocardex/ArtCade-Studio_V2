@@ -68,7 +68,7 @@ local function bindSensorHandlers()
     sensor.onEnter("Coin", "player", function(coinId, otherId, tag)
         if otherId ~= playerId then return end
         score = score + 10
-        state.set("score", score)
+        global.set("score", score)
         log("Coin collected! score=" .. tostring(score))
         entity.destroy(coinId)
         removeCoinId(coinId)
@@ -79,7 +79,7 @@ local function bindSensorHandlers()
         local cur, maxHp = entity.health(playerId)
         if not cur then
             alive = false
-            state.set("alive", 0)
+            global.set("alive", 0)
             log("PLAYER HIT by enemy " .. tostring(enemyId)
                 .. "  score=" .. tostring(score))
             return
@@ -91,7 +91,7 @@ local function bindSensorHandlers()
         local nextHp = select(1, entity.health(playerId)) or 0
         if nextHp <= 0 then
             alive = false
-            state.set("alive", 0)
+            global.set("alive", 0)
             log("PLAYER KO by enemy " .. tostring(enemyId)
                 .. "  score=" .. tostring(score))
         else
@@ -104,7 +104,7 @@ local function bindSensorHandlers()
         local cur = entity.health(playerId)
         if cur and cur > 0 then
             alive = true
-            state.set("alive", 1)
+            global.set("alive", 1)
         end
     end)
 end
@@ -184,10 +184,10 @@ local function init()
     coinIds = pool.getAll("Coin")
     log("Coins:   " .. tostring(#coinIds))
 
-    state.set("score", 0)
-    state.set("level", 1)
-    state.set("playerName", "Hero")
-    state.set("hardMode", false)
+    global.set("score", 0)
+    global.set("level", 1)
+    global.set("playerName", "Hero")
+    global.set("hardMode", false)
     bindMovementInput()
     bindSensorHandlers()
 
@@ -198,35 +198,30 @@ local function init()
         end
     end
 
-    -- Verify state.get() round-trip (was broken: always returned nil)
-    local sc = state.get("score")
-    local lv = state.get("level")
-    local nm = state.get("playerName")
-    local hm = state.get("hardMode")
-    local nx = state.get("nonexistent")
+    -- Verify declared global values.
+    local sc = global.get("score")
+    local lv = global.get("level")
+    local nm = global.get("playerName")
+    local hm = global.get("hardMode")
+    local nx = global.get("nonexistent")
     if sc == 0 and lv == 1 and nm == "Hero" and hm == false and nx == nil then
-        log("state.get() OK: score=" .. tostring(sc) .. " level=" .. tostring(lv)
+        log("global.get() OK: score=" .. tostring(sc) .. " level=" .. tostring(lv)
             .. " name=" .. tostring(nm) .. " hard=" .. tostring(hm)
             .. " nonexistent=" .. tostring(nx))
     else
-        log("state.get() FAIL: sc=" .. tostring(sc) .. " lv=" .. tostring(lv)
+        log("global.get() FAIL: sc=" .. tostring(sc) .. " lv=" .. tostring(lv)
             .. " nm=" .. tostring(nm) .. " hm=" .. tostring(hm)
             .. " nx=" .. tostring(nx))
     end
 
     -- Save/Load round-trip test (via SaveLoadManager)
     local saveSlot = "test_slot"
-    local writeOK = save.write(saveSlot, {score=42, level=3, name="Tester", alive=true})
-    log("save.write -> " .. tostring(writeOK))
-
-    local data = save.read(saveSlot)
-    if data then
-        log(string.format("save.read  -> score=%s level=%s name=%s alive=%s",
-            tostring(data.score), tostring(data.level),
-            tostring(data.name),  tostring(data.alive)))
-    else
-        log("save.read  -> nil (FAIL)")
-    end
+    global.set("score", 42)
+    local writeOK = save.writeGame(saveSlot)
+    global.set("score", 0)
+    local loadOK = save.loadGame(saveSlot)
+    log("save.writeGame/loadGame -> " .. tostring(writeOK and loadOK)
+        .. ", score=" .. tostring(global.get("score")))
 
     log("save.exists -> " .. tostring(save.exists(saveSlot)))
 

@@ -13,7 +13,7 @@ describe('condition-picker', () => {
       'base',
     )
     expect(types).not.toContain('isKeyDown')
-    expect(types).toContain('compareVariable')
+    expect(types).toContain('compareValues')
   })
 
   it('keeps isKeyDown for onInput in advanced mode', () => {

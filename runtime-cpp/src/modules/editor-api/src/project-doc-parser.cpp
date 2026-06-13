@@ -106,6 +106,12 @@ ArtCade::ProjectRuntimeSettings parseRuntimeSettings(const json& doc) {
     return settings;
 }
 
+std::vector<GameVariableDefinition> parseGlobalVariables(const json& doc) {
+    ProjectDoc project;
+    ProjectJson::read_global_variables(doc, project);
+    return std::move(project.globalVariables);
+}
+
 } // namespace ArtCade::ProjectDocParser
 
 #endif // __EMSCRIPTEN__

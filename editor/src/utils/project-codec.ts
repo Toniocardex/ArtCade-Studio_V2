@@ -3,6 +3,7 @@ import type {
   Transform, SpriteComponent, AnimationState, PhysicsComponent, PhysicsMode, WorldSettings,
   TilemapLayer, TileDef, TilesetAsset, ImageAsset, AudioAsset, FontAsset, ImagePointDef, AnimationClipDef,
   AnimationFrameRect, AssetVirtualFolderDef, AssetFolderCategory,
+  GameVariableDefinition, GameVariableValue,
 } from '../types'
 import { DEFAULT_WORLD } from '../types'
 import {
@@ -15,7 +16,7 @@ import { DEFAULT_SCENE_SIZE, DEFAULT_VIEWPORT_SIZE } from '../constants/editor-v
 import {
   normalizeProjectDoc,
   projectForSave,
-  PROJECT_FORMAT_V2,
+  PROJECT_FORMAT_V3,
 } from './project-object-types'
 import { entityToObjectType } from './project-object-types'
 
@@ -34,6 +35,46 @@ function parseComponents(r: Record<string, unknown>): Record<string, object> {
     if (v && typeof v === 'object' && !Array.isArray(v)) out[key] = v as object
   }
   return out
+}
+
+function parseVariableValue(raw: unknown, type: GameVariableDefinition['type']): GameVariableValue {
+  if (type === 'boolean') return raw === true
+  if (type === 'string') return typeof raw === 'string' ? raw : ''
+  const value = Number(raw)
+  return Number.isFinite(value) ? value : 0
+}
+
+function parseVariableDefinitions(raw: unknown): GameVariableDefinition[] | undefined {
+  if (!Array.isArray(raw)) return undefined
+  const seen = new Set<string>()
+  const out: GameVariableDefinition[] = []
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue
+    const record = item as Record<string, unknown>
+    const key = typeof record.key === 'string' ? record.key.trim() : ''
+    const type = record.type
+    if (!key || seen.has(key) || (type !== 'number' && type !== 'boolean' && type !== 'string')) continue
+    seen.add(key)
+    out.push({
+      key,
+      type,
+      initialValue: parseVariableValue(record.initialValue, type),
+      ...(typeof record.description === 'string' && record.description.trim()
+        ? { description: record.description.trim() }
+        : {}),
+    })
+  }
+  return out.length ? out : undefined
+}
+
+function parseVariableOverrides(raw: unknown): Record<string, GameVariableValue> | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined
+  const out: Record<string, GameVariableValue> = {}
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof value === 'number' && Number.isFinite(value)) out[key] = value
+    else if (typeof value === 'boolean' || typeof value === 'string') out[key] = value
+  }
+  return Object.keys(out).length ? out : undefined
 }
 
 // ---------------------------------------------------------------------------
@@ -180,6 +221,10 @@ function parseEntity(raw: unknown, fallbackId: number): EntityDef {
     physics:    parsePhysics(r.physics),
     scriptPath: r.scriptPath != null ? String(r.scriptPath) : (r.script_path != null ? String(r.script_path) : undefined),
     visible: typeof r.visible === 'boolean' ? r.visible : true,
+    localVariables: parseVariableDefinitions(r.localVariables ?? r.local_variables),
+    localVariableOverrides: parseVariableOverrides(
+      r.localVariableOverrides ?? r.local_variable_overrides,
+    ),
     ...parseComponents(r),
   }
 }
@@ -213,6 +258,9 @@ function parseInstance(raw: unknown, fallbackId: number): SceneInstanceDef | nul
     ...(r.instance_name != null ? { instanceName: String(r.instance_name) } : {}),
     transform: parseTransform(r.transform),
     ...(typeof r.visible === 'boolean' && !r.visible ? { visible: false } : {}),
+    ...(parseVariableOverrides(r.localVariableOverrides ?? r.local_variable_overrides)
+      ? { localVariableOverrides: parseVariableOverrides(r.localVariableOverrides ?? r.local_variable_overrides) }
+      : {}),
   }
 }
 
@@ -227,6 +275,7 @@ function parseObjectType(raw: unknown, fallbackId: string): ObjectTypeDef | null
   if (r.defaultLogicBoardId != null) {
     type.defaultLogicBoardId = String(r.defaultLogicBoardId)
   }
+  type.localVariables = parseVariableDefinitions(r.localVariables ?? r.local_variables)
   return type
 }
 
@@ -585,6 +634,7 @@ export function parseProjectDocWithMeta(jsonStr: string): ParseProjectDocResult 
         raw.assetVirtualFolders ?? raw.asset_virtual_folders,
       ),
       logicBoards:    logicBoardsParsed.doc,
+      globalVariables: parseVariableDefinitions(raw.globalVariables ?? raw.global_variables),
     }
 
     const { project } = normalizeProjectDoc(base)
@@ -652,6 +702,10 @@ function serializeEntity(entity: EntityDef) {
     ...(entity.scriptPath ? { scriptPath: entity.scriptPath } : {}),
     ...(entity.physics ? { physics: entity.physics } : {}),
     ...(entity.visible === false ? { visible: false } : {}),
+    ...(entity.localVariables?.length ? { localVariables: entity.localVariables } : {}),
+    ...(entity.localVariableOverrides && Object.keys(entity.localVariableOverrides).length
+      ? { localVariableOverrides: entity.localVariableOverrides }
+      : {}),
     ...Object.fromEntries(
       COMPONENT_KEYS
         .filter((k) => (entity as unknown as Record<string, unknown>)[k])
@@ -667,6 +721,9 @@ function serializeInstance(inst: SceneInstanceDef) {
     ...(inst.instanceName ? { instanceName: inst.instanceName } : {}),
     transform: serializeTransform(inst.transform),
     ...(inst.visible === false ? { visible: false } : {}),
+    ...(inst.localVariableOverrides && Object.keys(inst.localVariableOverrides).length
+      ? { localVariableOverrides: inst.localVariableOverrides }
+      : {}),
   }
 }
 
@@ -694,6 +751,7 @@ function serializeObjectType(type: ObjectTypeDef) {
     displayName: type.displayName,
     ...rest,
     ...(type.defaultLogicBoardId ? { defaultLogicBoardId: type.defaultLogicBoardId } : {}),
+    ...(type.localVariables?.length ? { localVariables: type.localVariables } : {}),
   }
 }
 
@@ -727,7 +785,7 @@ export function serializeProjectDoc(project: ProjectDoc): string {
   const json = {
     projectName:    v2.projectName,
     version:        v2.version,
-    formatVersion:  PROJECT_FORMAT_V2,
+    formatVersion:  PROJECT_FORMAT_V3,
     licenseTier:    project.licenseTier ?? 'free',
     ...(project.world ? { world: project.world } : {}),
     ...(project.tilePalette && project.tilePalette.length > 0
@@ -774,6 +832,7 @@ export function serializeProjectDoc(project: ProjectDoc): string {
     ...(v2.logicBoards && v2.logicBoards.length > 0
       ? { logicBoards: v2.logicBoards }
       : {}),
+    ...(v2.globalVariables?.length ? { globalVariables: v2.globalVariables } : {}),
   }
 
   return `${JSON.stringify(json, null, 2)}\n`

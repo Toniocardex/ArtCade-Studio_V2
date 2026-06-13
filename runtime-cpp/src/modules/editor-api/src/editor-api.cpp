@@ -24,6 +24,7 @@ Modules::Renderer*             EditorAPI::s_renderer      = nullptr;
 Modules::DialogManager*        EditorAPI::s_dialogManager = nullptr;
 Modules::SpriteAnimator*       EditorAPI::s_spriteAnimator = nullptr;
 Modules::Audio*                EditorAPI::s_audio = nullptr;
+Modules::VariableManager*      EditorAPI::s_variables = nullptr;
 EditorProjectLoadedHandler     EditorAPI::s_onProjectLoaded{};
 EditorPreviewRestoreHandler    EditorAPI::s_onPreviewRestore{};
 EditorEnterPlayHandler         EditorAPI::s_onEnterPlay{};
@@ -58,6 +59,7 @@ std::vector<std::pair<std::string, std::string>> EditorAPI::s_consoleQueue;
 #include "../../../modules/dialog/include/dialog-parser.h"
 #include "../../../modules/sprite-animator/include/sprite-animator.h"
 #include "../../../modules/sprite-animator/include/animation-clips-registry.h"
+#include "../../../modules/variable-manager/include/variable-manager.h"
 #include "../../../modules/audio/include/audio.h"
 #include "../../../modules/asset-system/include/asset-manifest-index.h"
 #include "../../../core/types.h"
@@ -164,6 +166,7 @@ Modules::Renderer*             EditorAPI::s_renderer      = nullptr;
 Modules::DialogManager*        EditorAPI::s_dialogManager = nullptr;
 Modules::SpriteAnimator*       EditorAPI::s_spriteAnimator = nullptr;
 Modules::Audio*                EditorAPI::s_audio = nullptr;
+Modules::VariableManager*      EditorAPI::s_variables = nullptr;
 EditorProjectLoadedHandler     EditorAPI::s_onProjectLoaded{};
 EditorPreviewRestoreHandler    EditorAPI::s_onPreviewRestore{};
 EditorEnterPlayHandler         EditorAPI::s_onEnterPlay{};
@@ -243,6 +246,10 @@ void EditorAPI::wireAudio(Modules::Audio* audio) {
             return s_editorAssetManifest.resolveAudioKey(ref);
         });
     }
+}
+
+void EditorAPI::wireVariables(Modules::VariableManager* variables) {
+    s_variables = variables;
 }
 
 void EditorAPI::wireDialog(Modules::DialogManager* dialogManager) {
@@ -604,24 +611,25 @@ bool loadProjectFromJson(const char* json_utf8, ProjectLoadKind kind,
 
         const ArtCade::ProjectRuntimeSettings runtimeSettings =
             Parser::parseRuntimeSettings(doc);
+        const auto globalVariables = Parser::parseGlobalVariables(doc);
 
         if (kind == ProjectLoadKind::HotSync) {
             if (ArtCade::EditorAPI::s_onProjectLoaded)
                 ArtCade::EditorAPI::s_onProjectLoaded(
-                    tilePalette, tilesets, runtimeSettings);
+                    tilePalette, tilesets, globalVariables, runtimeSettings);
         } else if (kind == ProjectLoadKind::PreviewRestore) {
             if (ArtCade::EditorAPI::s_onPreviewRestore)
                 ArtCade::EditorAPI::s_onPreviewRestore(
-                    tilePalette, tilesets, runtimeSettings);
+                    tilePalette, tilesets, globalVariables, runtimeSettings);
         } else if (kind == ProjectLoadKind::EnterPlay) {
             if (ArtCade::EditorAPI::s_onEnterPlay)
                 ArtCade::EditorAPI::s_onEnterPlay(
-                    tilePalette, tilesets, runtimeSettings);
+                    tilePalette, tilesets, globalVariables, runtimeSettings);
         } else if (kind == ProjectLoadKind::ExitPlay) {
             const std::string lua = exitPlayLua ? *exitPlayLua : std::string{};
             if (ArtCade::EditorAPI::s_onExitPlay)
                 ArtCade::EditorAPI::s_onExitPlay(
-                    tilePalette, tilesets, runtimeSettings, lua);
+                    tilePalette, tilesets, globalVariables, runtimeSettings, lua);
         }
 
         char buf[128];
@@ -814,6 +822,27 @@ EMSCRIPTEN_KEEPALIVE int editor_reload_script(const char* lua_utf8) {
 
 EMSCRIPTEN_KEEPALIVE const float* editor_get_runtime_profile() {
     return ArtCade::EditorAPI::runtimeProfileBuffer();
+}
+
+EMSCRIPTEN_KEEPALIVE const char* editor_get_variables_json(uint32_t entityId) {
+    static std::string payload;
+    nlohmann::json root = {
+        {"globals", nlohmann::json::object()},
+        {"locals", nlohmann::json::object()},
+    };
+    if (auto* variables = ArtCade::EditorAPI::s_variables) {
+        const auto encode = [](const ArtCade::GameVariableValue& value) {
+            return std::visit([](const auto& item) -> nlohmann::json { return item; }, value);
+        };
+        for (const auto& [key, value] : variables->takeSnapshot())
+            root["globals"][key] = encode(value);
+        if (entityId != ArtCade::INVALID_ENTITY) {
+            for (const auto& [key, value] : variables->takeEntitySnapshot(entityId))
+                root["locals"][key] = encode(value);
+        }
+    }
+    payload = root.dump();
+    return payload.c_str();
 }
 
 EMSCRIPTEN_KEEPALIVE void editor_load_dialogs(const char* json_utf8) {

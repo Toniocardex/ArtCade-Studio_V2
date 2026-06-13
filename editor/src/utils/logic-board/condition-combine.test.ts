@@ -47,7 +47,7 @@ describe('condition-combine', () => {
     }
     const expr = conditionExpr(ev)
     expect(expr).toMatch(/not \(platformer\.isGrounded/)
-    expect(expr).toContain('state.get("score")')
+    expect(expr).toContain('global.get("score")')
     expect(expr).toContain(' and ')
   })
 })

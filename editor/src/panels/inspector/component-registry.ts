@@ -24,7 +24,7 @@ import type {
   TopDownControllerComponent,
 } from '../../types/components'
 
-export type FieldKind = 'number' | 'text' | 'select' | 'checkbox'
+export type FieldKind = 'number' | 'text' | 'select' | 'checkbox' | 'variable'
 
 export interface FieldDescriptor {
   key:   string
@@ -85,6 +85,7 @@ const AUTODESTROY: AutoDestroyComponent = { lifespan: 0 }
 const TEXT: TextComponent = {
   text: 'New text',
   bindKey: '',
+  bindScope: 'global',
   format: 'text',
   digits: 2,
   prefix: '',
@@ -99,6 +100,7 @@ const TEXT: TextComponent = {
 }
 const GAUGE: GaugeComponent = {
   bindKey: 'hp',
+  bindScope: 'local',
   maxValue: 100,
   width: 64,
   height: 8,
@@ -262,7 +264,8 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
     create: () => ({ ...TEXT }),
     fields: [
       { key: 'text', label: 'Text', kind: 'text' },
-      { key: 'bindKey', label: 'Bind variable (empty = static)', kind: 'text' },
+      { key: 'bindScope', label: 'Variable scope', kind: 'select', options: ['global', 'local'] },
+      { key: 'bindKey', label: 'Variable key (empty = static)', kind: 'variable' },
       {
         key: 'format', label: 'Format', kind: 'select',
         options: ['text', 'integer', 'padded', 'time', 'percent', 'decimals'],
@@ -296,7 +299,8 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
     color: 'var(--accent)',
     create: () => ({ ...GAUGE }),
     fields: [
-      { key: 'bindKey', label: 'Variable', kind: 'text' },
+      { key: 'bindScope', label: 'Variable scope', kind: 'select', options: ['global', 'local'] },
+      { key: 'bindKey', label: 'Variable key', kind: 'variable' },
       { key: 'maxValue', label: 'Max value (full bar)', kind: 'number', min: 0, step: 1 },
       { key: 'width', label: 'Width (px)', kind: 'number', min: 1, step: 1 },
       { key: 'height', label: 'Height (px)', kind: 'number', min: 1, step: 1 },

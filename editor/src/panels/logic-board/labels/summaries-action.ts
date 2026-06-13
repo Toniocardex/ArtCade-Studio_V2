@@ -20,6 +20,14 @@ export function actionSummaryPlain(
       return `Set ${a.key} to ${valueSummary(a.value, project)}`
     case 'addVariable':
       return `Add ${valueSummary(a.amount, project)} to ${a.key}`
+    case 'setGlobalVariable':
+      return `Set global ${a.key} to ${valueSummary(a.value, project)}`
+    case 'addGlobalVariable':
+      return `Add ${valueSummary(a.amount, project)} to global ${a.key}`
+    case 'setLocalVariable':
+      return `Set ${who(a.target)}.${a.key} to ${valueSummary(a.value, project)}`
+    case 'addLocalVariable':
+      return `Add ${valueSummary(a.amount, project)} to ${who(a.target)}.${a.key}`
     case 'setPosition':
       return `Move ${who(a.target)} to (${valueSummary(a.x, project)}, ${valueSummary(a.y, project)})`
     case 'setVelocity':
@@ -218,10 +226,10 @@ export function actionSummaryPlain(
       return `Clamp ${a.key} to [${a.min}, ${a.max}]`
     case 'multiplyVariable':
       return `Multiply ${a.key} by ${a.factor}`
-    case 'saveVariable':
-      return `Save "${a.key}" to slot "${a.slot || 'main'}"`
-    case 'loadVariable':
-      return `Load "${a.key}" from slot "${a.slot || 'main'}"`
+    case 'saveGame':
+      return `Save game to slot "${a.slot || 'main'}"`
+    case 'loadGame':
+      return `Load game from slot "${a.slot || 'main'}"`
     case 'deleteSave':
       return `Delete save slot "${a.slot || 'main'}"`
     case 'setCameraZoom':

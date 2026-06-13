@@ -5,6 +5,7 @@
 #include <string>
 #include <variant>
 #include <vector>
+#include <variant>
 #include <unordered_map>
 
 namespace ArtCade {
@@ -18,6 +19,16 @@ using SceneId   = std::string;
 using AssetId   = std::string;
 
 constexpr EntityId INVALID_ENTITY = 0;
+
+using GameVariableValue = std::variant<double, bool, std::string>;
+
+struct GameVariableDefinition {
+    enum class Type { Number, Boolean, String };
+    std::string       key;
+    Type              type = Type::Number;
+    GameVariableValue initialValue = 0.0;
+    std::string       description;
+};
 
 // ============================================================================
 // Math (wraps glm — include glm before this header)
@@ -184,6 +195,7 @@ struct AutoDestroyComponent {
 struct TextComponent {
     std::string text;
     std::string bindKey;             // state var to auto-display; empty = static text
+    std::string bindScope = "global";
     std::string format  = "text";    // text|integer|padded|time|percent|decimals
     int         digits  = 2;         // pad width (padded) / decimal places (decimals)
     std::string prefix;              // shown before the bound value
@@ -200,6 +212,7 @@ struct TextComponent {
 /** Filled bar driven by a variable (health, mana, progress). */
 struct GaugeComponent {
     std::string bindKey;             // variable read as current value
+    std::string bindScope = "global";
     float       maxValue   = 100.f;  // value mapped to a full bar
     float       width      = 64.f;
     float       height     = 8.f;
@@ -266,6 +279,8 @@ struct EntityDef {
      *  outline). Runtime Logic Board setVisible() toggles sprite alpha. */
     bool                                         visible = true;
     EntityRuntimeFlags                           runtime;
+    std::vector<GameVariableDefinition>          localVariables;
+    std::unordered_map<std::string, GameVariableValue> localVariableOverrides;
 };
 
 // Tilemap (Scene Editor Phase D2) — field names mirror editor TS.
@@ -294,6 +309,7 @@ struct SceneInstanceDef {
     std::string instanceName;
     Transform   transform;
     bool        visible      = true;
+    std::unordered_map<std::string, GameVariableValue> localVariableOverrides;
 };
 
 struct SceneDef {
@@ -391,6 +407,7 @@ struct ProjectDoc {
     std::vector<TilesetAsset>     tilesets;      // Phase F3
     std::vector<ImageAssetDef>    imageAssets;   // editor assets + image points
     WorldSettings                 world{};
+    std::vector<GameVariableDefinition> globalVariables;
 };
 
 inline ProjectRuntimeSettings runtimeSettingsFromProjectDoc(const ProjectDoc& doc) {

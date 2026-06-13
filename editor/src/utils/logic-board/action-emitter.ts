@@ -94,10 +94,18 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
       return `time.resume()`
     case 'togglePause':
       return `time.togglePause()`
+    case 'setGlobalVariable':
+      return `global.set(${luaString(a.key)}, ${valueSourceExpr(a.value, project)})`
+    case 'addGlobalVariable':
+      return `global.add(${luaString(a.key)}, ${numberSourceExpr(a.amount, project)})`
+    case 'setLocalVariable':
+      return `objectvar.set(${target(a.target)}, ${luaString(a.key)}, ${valueSourceExpr(a.value, project)})`
+    case 'addLocalVariable':
+      return `objectvar.add(${target(a.target)}, ${luaString(a.key)}, ${numberSourceExpr(a.amount, project)})`
     case 'setVariable':
-      return `state.set(${luaString(a.key)}, ${valueSourceExpr(a.value, project)})`
+      return `global.set(${luaString(a.key)}, ${valueSourceExpr(a.value, project)})`
     case 'addVariable':
-      return `state.add(${luaString(a.key)}, ${numberSourceExpr(a.amount, project)})`
+      return `global.add(${luaString(a.key)}, ${numberSourceExpr(a.amount, project)})`
     case 'setPosition':
       return `entity.setPosition(${target(a.target)}, ${numberSourceExpr(a.x, project)}, ${numberSourceExpr(a.y, project)})`
     case 'setVelocity':
@@ -344,22 +352,16 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
     case 'setVariableRandomRange': {
       const min = Number(a.min) || 0
       const max = Number(a.max) || 0
-      return `state.set(${luaString(a.key)}, _logic_random_int(${min}, ${max}))`
+      return `global.set(${luaString(a.key)}, _logic_random_int(${min}, ${max}))`
     }
     case 'clampVariable':
-      return `state.set(${luaString(a.key)}, math.max(${Number(a.min) || 0}, math.min(${Number(a.max) || 0}, state.get(${luaString(a.key)}) or 0)))`
+      return `global.set(${luaString(a.key)}, math.max(${Number(a.min) || 0}, math.min(${Number(a.max) || 0}, global.get(${luaString(a.key)}) or 0)))`
     case 'multiplyVariable':
-      return `state.set(${luaString(a.key)}, (state.get(${luaString(a.key)}) or 0) * ${Number(a.factor) || 0})`
-    case 'saveVariable': {
-      const slot = luaString(a.slot || 'main')
-      const key = luaString(a.key)
-      return `(function() local _sv = save.read(${slot}) or {}; _sv[${key}] = state.get(${key}); save.write(${slot}, _sv) end)()`
-    }
-    case 'loadVariable': {
-      const slot = luaString(a.slot || 'main')
-      const key = luaString(a.key)
-      return `(function() local _sv = save.read(${slot}); if _sv ~= nil and _sv[${key}] ~= nil then state.set(${key}, _sv[${key}]) end end)()`
-    }
+      return `global.set(${luaString(a.key)}, (global.get(${luaString(a.key)}) or 0) * ${Number(a.factor) || 0})`
+    case 'saveGame':
+      return `save.writeGame(${luaString(a.slot || 'main')})`
+    case 'loadGame':
+      return `save.loadGame(${luaString(a.slot || 'main')})`
     case 'deleteSave':
       return `save.delete(${luaString(a.slot || 'main')})`
     case 'setCameraZoom':

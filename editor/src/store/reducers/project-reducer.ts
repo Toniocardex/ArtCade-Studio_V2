@@ -78,6 +78,14 @@ export const projectReducer: DomainReducer = (state: CoreState, action: Action) 
         projectDirty: true,
       }
     }
+    case 'PROJECT_VARIABLES_SET': {
+      if (!state.project) return state
+      return {
+        ...state,
+        project: { ...state.project, globalVariables: action.variables },
+        projectDirty: true,
+      }
+    }
     case 'MARK_PROJECT_SAVED':
       return { ...state, projectDirty: false }
     case 'MARK_SCRIPT_SAVED':

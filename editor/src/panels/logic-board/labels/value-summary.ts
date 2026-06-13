@@ -7,6 +7,10 @@ export function valueSummary(value: LogicValue, project?: ProjectDoc | null): st
   switch (value.source) {
     case 'state':
       return `variable ${value.key || '?'}`
+    case 'global':
+      return `global ${value.key || '?'}`
+    case 'local':
+      return `${targetDisplayLabel(value.target, project)}.${value.key || '?'}`
     case 'message':
       return `message.${value.key || '?'}`
     case 'random':

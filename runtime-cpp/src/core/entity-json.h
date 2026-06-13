@@ -16,6 +16,8 @@ namespace ArtCade::ProjectJson {
  * Does not modify entity identity fields (id, name, className, tags).
  */
 void read_entity_components(const nlohmann::json& entityJson, EntityDef& out);
+void read_variable_definitions(const nlohmann::json& raw,
+                               std::vector<GameVariableDefinition>& out);
 
 /**
  * Parses a scene entity instance or legacy entities-map entry.

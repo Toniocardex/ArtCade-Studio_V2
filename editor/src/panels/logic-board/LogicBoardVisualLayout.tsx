@@ -20,7 +20,6 @@ import { scrollLogicEventRowIntoViewSoon } from '../../utils/logic-board/logic-e
 import { AddRuleModal } from './AddRuleModal'
 import { RulesheetCreateForm, type RulesheetCreateFormProps } from './RulesheetCreateForm'
 import { LogicRulesList } from './LogicRulesList'
-import { LogicVariablesPanel } from './LogicVariablesPanel'
 
 export type LogicBoardVisualLayoutProps = Readonly<{
   project: ProjectDoc
@@ -247,9 +246,6 @@ export function LogicBoardVisualLayout(props: LogicBoardVisualLayoutProps) {
                 />
               )}
 
-              <div className="mt-3 rounded-[var(--radius-md)] border border-[var(--outline)] bg-[var(--surface)]">
-                <LogicVariablesPanel board={board} />
-              </div>
             </>
           )}
         </div>

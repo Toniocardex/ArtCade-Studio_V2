@@ -124,33 +124,38 @@ bool Application::initSubsystems() {
     EditorAPI::wireSpriteAnimator(mod_->spriteAnimator.get());
     mod_->entityGateway->setSpriteAnimator(mod_->spriteAnimator.get());
     EditorAPI::wireAudio(mod_->audio.get());
+    EditorAPI::wireVariables(mod_->variableManager.get());
     EditorAPI::init("#artcade-canvas");
 
 #ifdef ARTCADE_WASM
     EditorAPI::setProjectLoadedHandler(
         [this](const std::vector<TilePaletteEntry>& palette,
                const std::vector<TilesetAsset>& tilesets,
+               const std::vector<GameVariableDefinition>& variables,
                const ProjectRuntimeSettings& settings) {
-            applyEditorProjectLoaded(palette, tilesets, settings);
+            applyEditorProjectLoaded(palette, tilesets, variables, settings);
         });
     EditorAPI::setPreviewRestoreHandler(
         [this](const std::vector<TilePaletteEntry>& palette,
                const std::vector<TilesetAsset>& tilesets,
+               const std::vector<GameVariableDefinition>& variables,
                const ProjectRuntimeSettings& settings) {
-            applyEditorPreviewRestore(palette, tilesets, settings);
+            applyEditorPreviewRestore(palette, tilesets, variables, settings);
         });
     EditorAPI::setEnterPlayHandler(
         [this](const std::vector<TilePaletteEntry>& palette,
                const std::vector<TilesetAsset>& tilesets,
+               const std::vector<GameVariableDefinition>& variables,
                const ProjectRuntimeSettings& settings) {
-            applyEditorEnterPlay(palette, tilesets, settings);
+            applyEditorEnterPlay(palette, tilesets, variables, settings);
         });
     EditorAPI::setExitPlayHandler(
         [this](const std::vector<TilePaletteEntry>& palette,
                const std::vector<TilesetAsset>& tilesets,
+               const std::vector<GameVariableDefinition>& variables,
                const ProjectRuntimeSettings& settings,
                const std::string& luaSource) {
-            applyEditorExitPlay(palette, tilesets, settings, luaSource);
+            applyEditorExitPlay(palette, tilesets, variables, settings, luaSource);
         });
 #endif
 

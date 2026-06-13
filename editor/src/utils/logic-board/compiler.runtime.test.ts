@@ -92,7 +92,7 @@ async function makeRunner(boards: LogicBoard[]) {
   )
   if (Object.keys(h.pools).length === 0) h.pools = { Player: [1] }
 
-  lua.global.set('state', {
+  const variableApi = {
     get: (k: string) => h.vars[k] ?? 0,
     set: (k: string, v: number | string | boolean) => {
       h.vars[k] = v
@@ -102,7 +102,9 @@ async function makeRunner(boards: LogicBoard[]) {
       h.vars[k] = cur + n
       return h.vars[k]
     },
-  })
+  }
+  lua.global.set('state', variableApi)
+  lua.global.set('global', variableApi)
   lua.global.set('entity', {
     setVelocity: (id: number, vx: number, vy: number) =>
       h.calls.setVelocity.push({ id, vx, vy }),

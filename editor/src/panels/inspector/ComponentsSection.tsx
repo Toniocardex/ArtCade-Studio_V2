@@ -1,5 +1,5 @@
 import { Trash2 } from 'lucide-react'
-import { useEditorDispatch } from '../../store/editor-store'
+import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import type { ComponentKey, EntityDef } from '../../types'
 import { applyInputBackspace, isBackspaceKey } from '../../utils/keyboard'
 import {
@@ -27,6 +27,7 @@ type ComponentSectionProps = Readonly<{
 
 function ComponentSection({ entity, desc }: ComponentSectionProps) {
   const dispatch = useEditorDispatch()
+  const project = useEditorSelector((state) => state.project)
   const data = (entity as unknown as Record<string, unknown>)[desc.key] as
     | Record<string, unknown>
     | undefined
@@ -80,13 +81,48 @@ function ComponentSection({ entity, desc }: ComponentSectionProps) {
         .filter((f) => !f.visibleWhen || f.visibleWhen(data))
         .map((f) => {
           const v = data[f.key]
+          if (f.kind === 'variable') {
+            const scope = data.bindScope === 'local' ? 'local' : 'global'
+            const definitions = scope === 'local'
+              ? entity.localVariables ?? []
+              : project?.globalVariables ?? []
+            return (
+              <div key={f.key} className="mb-2">
+                <label className="text-[9px] text-[var(--muted)] uppercase">{f.label}</label>
+                <EditorSelect
+                  value={fieldStringValue(v)}
+                  onChange={(next) => commit(f.key, next)}
+                  triggerClassName="py-1"
+                  options={[
+                    { value: '', label: scope === 'global' ? 'No global variable' : 'No local variable' },
+                    ...definitions.map((definition) => ({
+                      value: definition.key,
+                      label: `${definition.key} (${definition.type})`,
+                    })),
+                  ]}
+                  aria-label={f.label}
+                />
+              </div>
+            )
+          }
           if (f.kind === 'select') {
             return (
               <div key={f.key} className="mb-2">
                 <label className="text-[9px] text-[var(--muted)] uppercase">{f.label}</label>
                 <EditorSelect
                   value={fieldStringValue(v, 'solid')}
-                  onChange={(next) => commit(f.key, next)}
+                  onChange={(next) => {
+                    if (f.key === 'bindScope') {
+                      dispatch({
+                        type: 'ENTITY_SET_COMPONENT',
+                        entityId: entity.id,
+                        key: desc.key,
+                        value: { ...data, bindScope: next, bindKey: '' },
+                      })
+                    } else {
+                      commit(f.key, next)
+                    }
+                  }}
                   triggerClassName="py-1"
                   options={(f.options ?? []).map((o, i) => ({
                     value: o,

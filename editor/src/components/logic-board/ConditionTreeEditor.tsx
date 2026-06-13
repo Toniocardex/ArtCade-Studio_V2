@@ -125,7 +125,7 @@ function NodeEditor({
                 ...group.statements,
                 {
                   kind: 'leaf',
-                  condition: defaultCondition('compareVariable'),
+                  condition: defaultCondition('compareValues'),
                 },
               ],
             })
@@ -147,7 +147,7 @@ function NodeEditor({
                   statements: [
                     {
                       kind: 'leaf',
-                      condition: defaultCondition('compareVariable'),
+                      condition: defaultCondition('compareValues'),
                     },
                   ],
                 },

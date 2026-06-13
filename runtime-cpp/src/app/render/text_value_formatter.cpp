@@ -9,10 +9,9 @@ namespace ArtCade::AppRender {
 namespace {
 
 std::string valueToString(const Modules::VariableManager::Value& value) {
-    if (const auto* integer = std::get_if<int32_t>(&value)) return std::to_string(*integer);
     if (const auto* boolean = std::get_if<bool>(&value)) return *boolean ? "true" : "false";
     if (const auto* text = std::get_if<std::string>(&value)) return *text;
-    if (const auto* number = std::get_if<float>(&value)) {
+    if (const auto* number = std::get_if<double>(&value)) {
         char buffer[32];
         if (std::isfinite(*number) && *number == std::floor(*number)) {
             std::snprintf(buffer, sizeof(buffer), "%lld", static_cast<long long>(*number));
@@ -25,8 +24,7 @@ std::string valueToString(const Modules::VariableManager::Value& value) {
 }
 
 double valueToNumber(const Modules::VariableManager::Value& value) {
-    if (const auto* integer = std::get_if<int32_t>(&value)) return *integer;
-    if (const auto* number = std::get_if<float>(&value)) return *number;
+    if (const auto* number = std::get_if<double>(&value)) return *number;
     if (const auto* boolean = std::get_if<bool>(&value)) return *boolean ? 1.0 : 0.0;
     if (const auto* text = std::get_if<std::string>(&value)) {
         try {

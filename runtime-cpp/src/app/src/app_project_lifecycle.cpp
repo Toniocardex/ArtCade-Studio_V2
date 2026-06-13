@@ -103,6 +103,7 @@ void Application::resetGameplayRuntimeModules() {
 void Application::applyEditorProjectLoaded(
     const std::vector<TilePaletteEntry>& tilePalette,
     const std::vector<TilesetAsset>& tilesets,
+    const std::vector<GameVariableDefinition>& variables,
     const ProjectRuntimeSettings& settings) {
     applyEditorProjectCommon(tilePalette, tilesets);
     applyRuntimeSettings(settings, ViewportPolicy::EditorPreview);
@@ -111,38 +112,45 @@ void Application::applyEditorProjectLoaded(
         mod_->dialogManager->loadDialogsFromDirectory(mod_->assetLoader->projectRoot());
     }
     resetGameplayRuntimeModules();
+    if (mod_->variableManager) mod_->variableManager->configureGlobals(variables);
     if (mod_->world) mod_->world->syncAfterEditorProject(tilePalette);
 }
 
 void Application::applyEditorPreviewRestore(
     const std::vector<TilePaletteEntry>& tilePalette,
     const std::vector<TilesetAsset>& tilesets,
+    const std::vector<GameVariableDefinition>& variables,
     const ProjectRuntimeSettings& settings) {
     applyEditorProjectCommon(tilePalette, tilesets);
     applyRuntimeSettings(settings, ViewportPolicy::EditorPreview);
     resetGameplayRuntimeModules();
+    if (mod_->variableManager) mod_->variableManager->configureGlobals(variables);
     if (mod_->world) mod_->world->restoreDesignState(tilePalette);
 }
 
 void Application::applyEditorEnterPlay(
     const std::vector<TilePaletteEntry>& tilePalette,
     const std::vector<TilesetAsset>& tilesets,
+    const std::vector<GameVariableDefinition>& variables,
     const ProjectRuntimeSettings& settings) {
     applyEditorProjectCommon(tilePalette, tilesets);
     applyRuntimeSettings(settings, ViewportPolicy::NativePlay);
     resetGameplayRuntimeModules();
+    if (mod_->variableManager) mod_->variableManager->configureGlobals(variables);
     if (mod_->world) mod_->world->syncAfterEditorProject(tilePalette);
 }
 
 void Application::applyEditorExitPlay(
     const std::vector<TilePaletteEntry>& tilePalette,
     const std::vector<TilesetAsset>& tilesets,
+    const std::vector<GameVariableDefinition>& variables,
     const ProjectRuntimeSettings& settings,
     const std::string& luaSource) {
     applyEditorProjectCommon(tilePalette, tilesets);
     applyRuntimeSettings(settings, ViewportPolicy::EditorPreview);
     if (mod_->luaHost && !luaSource.empty()) mod_->luaHost->loadLuaSource(luaSource);
     resetGameplayRuntimeModules();
+    if (mod_->variableManager) mod_->variableManager->configureGlobals(variables);
     if (mod_->world) mod_->world->restoreDesignState(tilePalette);
 }
 #endif

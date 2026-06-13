@@ -4,41 +4,64 @@
 #include <sol/sol.hpp>
 
 namespace ArtCade::Modules {
+namespace {
+
+sol::object toLua(sol::this_state state, const VariableManager::Value& value) {
+    sol::state_view lua(state);
+    if (const auto* number = std::get_if<double>(&value)) return sol::make_object(lua, *number);
+    if (const auto* boolean = std::get_if<bool>(&value)) return sol::make_object(lua, *boolean);
+    if (const auto* string = std::get_if<std::string>(&value)) return sol::make_object(lua, *string);
+    return sol::lua_nil;
+}
+
+std::optional<VariableManager::Value> fromLua(const sol::object& value) {
+    if (value.is<bool>()) return value.as<bool>();
+    if (value.is<double>()) return value.as<double>();
+    if (value.is<std::string>()) return value.as<std::string>();
+    return std::nullopt;
+}
+
+} // namespace
 
 void GameAPI::bindStateAPI(sol::state& lua) {
-    auto* vm = ctx_.variableManager;
+    auto* variables = ctx_.variableManager;
 
-    lua.set_function("state_get",
-        [vm](sol::this_state ts, const std::string& key) -> sol::object
-        {
-            if (!vm || !vm->exists(key)) return sol::lua_nil;
-            sol::state_view L(ts);
-            auto val = vm->get(key);
-            if (auto* v = std::get_if<int32_t>(&val))     return sol::make_object(L, *v);
-            if (auto* v = std::get_if<float>(&val))      return sol::make_object(L, *v);
-            if (auto* v = std::get_if<std::string>(&val)) return sol::make_object(L, *v);
-            if (auto* v = std::get_if<bool>(&val))       return sol::make_object(L, *v);
-            return sol::lua_nil;
-        });
-
-    lua.set_function("state_set", [vm](const std::string& key, const sol::object& val) {
-        if (!vm) return;
-        if (val.is<int>())         vm->setInt(key, val.as<int32_t>());
-        else if (val.is<float>())  vm->setFloat(key, val.as<float>());
-        else if (val.is<bool>())   vm->setBool(key, val.as<bool>());
-        else if (val.is<std::string>()) vm->setString(key, val.as<std::string>());
+    lua.set_function("global_get", [variables](sol::this_state state, const std::string& key) {
+        if (!variables || !variables->exists(key)) return sol::object(sol::lua_nil);
+        return toLua(state, variables->get(key));
+    });
+    lua.set_function("global_set", [variables](const std::string& key, const sol::object& value) {
+        const auto converted = fromLua(value);
+        if (variables && converted) variables->set(key, *converted);
+    });
+    lua.set_function("global_add", [variables](const std::string& key, double amount) {
+        if (!variables || !variables->exists(key)) return 0.0;
+        return static_cast<double>(variables->addFloat(key, static_cast<float>(amount)));
     });
 
-    lua.set_function("state_add", [vm](const std::string& key, float amount) -> float {
-        if (!vm) return 0.f;
-        return vm->addFloat(key, amount);
+    lua.set_function("objectvar_get", [variables](sol::this_state state, EntityId id, const std::string& key) {
+        if (!variables || !variables->entityExists(id, key)) return sol::object(sol::lua_nil);
+        return toLua(state, variables->getEntity(id, key));
+    });
+    lua.set_function("objectvar_set", [variables](EntityId id, const std::string& key, const sol::object& value) {
+        const auto converted = fromLua(value);
+        return variables && converted && variables->setEntity(id, key, *converted);
+    });
+    lua.set_function("objectvar_add", [variables](EntityId id, const std::string& key, double amount) {
+        return variables ? variables->addEntity(id, key, amount).value_or(0.0) : 0.0;
     });
 
     lua.script(R"(
-        state = {}
-        state.get = function(key)         return state_get(key)         end
-        state.set = function(key, val)    return state_set(key, val)    end
-        state.add = function(key, amount) return state_add(key, amount) end
+        global = {
+            get = global_get,
+            set = global_set,
+            add = global_add,
+        }
+        objectvar = {
+            get = objectvar_get,
+            set = objectvar_set,
+            add = objectvar_add,
+        }
     )");
 }
 
