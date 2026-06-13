@@ -119,7 +119,7 @@ const DIALOG: DialogComponent = {
 export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
   {
     key: 'sensor',
-    label: 'Sensor (Trigger Zone)',
+    label: 'Sensor zone',
     color: 'var(--accent)',
     create: () => ({ ...SENSOR }),
     fields: [
@@ -288,7 +288,7 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
   },
   {
     key: 'gauge',
-    label: 'Gauge (Bar)',
+    label: 'Gauge bar',
     description:
       'Filled bar driven by a variable — health, mana, progress. Set the variable and Max value; the fill tracks it automatically. Enable Stay on screen for a HUD bar.',
     color: 'var(--accent)',
