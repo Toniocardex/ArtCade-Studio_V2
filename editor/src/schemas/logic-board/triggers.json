@@ -312,5 +312,17 @@
       "executionMode": "polling",
       "params": {}
     }
+  },
+  "onLeaveScreen": {
+    "type": "object",
+    "required": ["type"],
+    "properties": { "type": { "const": "onLeaveScreen" } },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Leaves the screen",
+      "category": "System",
+      "executionMode": "polling",
+      "params": {}
+    }
   }
 }

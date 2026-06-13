@@ -3,7 +3,7 @@
 // Add new action types here; everything else lives in compiler.ts.
 // ---------------------------------------------------------------------------
 
-import type { LogicAction } from '../../types/logic-board'
+import type { LogicAction, LogicValue } from '../../types/logic-board'
 import type { ProjectDoc } from '../../types'
 import { luaPointerWorldPairStmt, luaString, luaValue, targetExpr } from './lua-helpers'
 import { ruleKeyExpr } from './event-slugs'
@@ -13,6 +13,22 @@ import { numberSourceExpr, valueSourceExpr } from './value-source'
 function finite(n: unknown, fallback = 0): number {
   const v = Number(n)
   return Number.isFinite(v) ? v : fallback
+}
+
+/**
+ * Wrap a spawn expression (which evaluates to the new entity id) so it also
+ * applies a launch velocity when the action provides one. Enables the classic
+ * "fire a projectile" pattern without a second rule on the spawned entity.
+ */
+function spawnWithVelocity(
+  spawnExpr: string,
+  a: { velocityX?: LogicValue; velocityY?: LogicValue },
+  project?: ProjectDoc | null,
+): string {
+  if (a.velocityX == null && a.velocityY == null) return spawnExpr
+  const vx = numberSourceExpr(a.velocityX ?? 0, project)
+  const vy = numberSourceExpr(a.velocityY ?? 0, project)
+  return `(function() local _nid = ${spawnExpr}; if _nid then entity.setVelocity(_nid, ${vx}, ${vy}) end; return _nid end)()`
 }
 
 /** Camera shake intensity 0–1 (Logic Board trauma field). */
@@ -72,6 +88,12 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
   const project = ctx.project
   const target = (sel: Parameters<typeof targetExpr>[0]) => targetExpr(sel, project)
   switch (a.type) {
+    case 'pauseGame':
+      return `time.pause()`
+    case 'resumeGame':
+      return `time.resume()`
+    case 'togglePause':
+      return `time.togglePause()`
     case 'setVariable':
       return `state.set(${luaString(a.key)}, ${valueSourceExpr(a.value, project)})`
     case 'addVariable':
@@ -110,15 +132,18 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
       return 'entity.destroy(self)'
     case 'spawnEntity': {
       const cls = luaString(a.className)
-      const spawn = a.imagePoint
+      const base = a.imagePoint
         ? `(function() local _px, _py = entity.imagePoint(self, ${luaString(a.imagePoint)}); return object.spawn(${cls}, _px, _py) end)()`
         : `object.spawn(${cls}, ${Number(a.x) || 0}, ${Number(a.y) || 0})`
-      if (!a.inheritFlip) return spawn
-      return `(function() local _nid = ${spawn}; local _sx, _sy = entity.scale(self); local _fx = (_sx < 0) and -1 or 1; entity.setScale(_nid, _fx * math.abs(_sx), math.abs(_sy)); return _nid end)()`
+      const spawn = !a.inheritFlip
+        ? base
+        : `(function() local _nid = ${base}; local _sx, _sy = entity.scale(self); local _fx = (_sx < 0) and -1 or 1; entity.setScale(_nid, _fx * math.abs(_sx), math.abs(_sy)); return _nid end)()`
+      return spawnWithVelocity(spawn, a, project)
     }
     case 'spawnEntityAtPointer': {
       const cls = luaString(a.className)
-      return `(function() ${luaPointerWorldPairStmt()}; return object.spawn(${cls}, _mx, _my) end)()`
+      const spawn = `(function() ${luaPointerWorldPairStmt()}; return object.spawn(${cls}, _mx, _my) end)()`
+      return spawnWithVelocity(spawn, a, project)
     }
     case 'moveInDirection': {
       const t = target(a.target)
@@ -246,7 +271,7 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
     case 'setRotation':
       return `entity.setRotation(${target(a.target)}, ${Number(a.angle) || 0})`
     case 'setScale':
-      return `entity.setScale(${target(a.target)}, ${Number(a.scaleX) || 0}, ${Number(a.scaleY) || 0})`
+      return `entity.setScale(${target(a.target)}, ${numberSourceExpr(a.scaleX, project)}, ${numberSourceExpr(a.scaleY, project)})`
     case 'playAnimation':
       return `animation.play(${target(a.target)}, ${luaString(a.clipName)})`
     case 'setFlip': {
@@ -350,7 +375,8 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
     case 'spawnAtEntity': {
       const cls = luaString(a.className)
       const t = target(a.target)
-      return `(function() local _sx, _sy = entity.position(${t}); return object.spawn(${cls}, _sx, _sy) end)()`
+      const spawn = `(function() local _sx, _sy = entity.position(${t}); return object.spawn(${cls}, _sx, _sy) end)()`
+      return spawnWithVelocity(spawn, a, project)
     }
     case 'moveToward': {
       const t = target(a.target)

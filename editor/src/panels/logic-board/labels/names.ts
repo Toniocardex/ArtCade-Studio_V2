@@ -24,9 +24,13 @@ const TRIGGER_NAMES: Record<LogicTriggerType, string> = {
   onObjectHoverExit: 'Pointer leaves object',
   onMessage: 'Game message',
   onTimer: 'Timer',
+  onLeaveScreen: 'Leaves the screen',
 }
 
 const ACTION_NAMES: Record<LogicActionType, string> = {
+  pauseGame: 'Pause game',
+  resumeGame: 'Resume game',
+  togglePause: 'Toggle pause',
   setVariable: 'Set score or variable',
   addVariable: 'Add to variable',
   setPosition: 'Move to position',
@@ -139,6 +143,8 @@ const CONDITION_NAMES: Record<LogicCondition['type'], string> = {
   saveExists: 'Save file exists',
   isDialogActive: 'Dialog is active',
   isMusicPlaying: 'Music is playing',
+  isPaused: 'Game is paused',
+  isOffScreen: 'Is off screen',
 }
 
 export function triggerDisplayName(type: LogicTriggerType): string {

@@ -13,7 +13,7 @@ import type {
   CameraTargetComponent,
   MagneticItemComponent,
   HordeMemberComponent,
-  HealthComponent, AutoDestroyComponent, DialogComponent, TextComponent,
+  HealthComponent, AutoDestroyComponent, DialogComponent, TextComponent, GaugeComponent,
 } from './components'
 
 /** A named render layer. Array stored top-to-bottom (index 0 = highest priority). */
@@ -95,6 +95,7 @@ export interface ObjectTypeDef {
   autoDestroy?:          AutoDestroyComponent
   dialog?:               DialogComponent
   text?:                 TextComponent
+  gauge?:                GaugeComponent
   defaultLogicBoardId?:  string
 }
 
@@ -131,6 +132,7 @@ export interface EntityDef {
   autoDestroy?:          AutoDestroyComponent
   dialog?:               DialogComponent
   text?:                 TextComponent
+  gauge?:                GaugeComponent
 }
 
 export interface SceneDef {

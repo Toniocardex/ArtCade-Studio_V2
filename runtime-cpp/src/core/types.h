@@ -197,6 +197,20 @@ struct TextComponent {
     bool        screenSpace = false; // draw fixed on screen (HUD) vs in the world
 };
 
+/** Filled bar driven by a variable (health, mana, progress). */
+struct GaugeComponent {
+    std::string bindKey;             // variable read as current value
+    float       maxValue   = 100.f;  // value mapped to a full bar
+    float       width      = 64.f;
+    float       height     = 8.f;
+    Vec4        fillColor  = {0.23f, 0.82f, 0.23f, 1.f};
+    Vec4        bgColor    = {0.13f, 0.13f, 0.13f, 1.f};
+    std::string direction  = "horizontal"; // "horizontal" | "vertical"
+    float       offsetX    = 0.f;
+    float       offsetY    = -40.f;
+    bool        screenSpace = false;
+};
+
 /** NPC / talkable — references dialogs/{dialogId}.json in project root. */
 struct DialogComponent {
     std::string dialogId;
@@ -246,6 +260,7 @@ struct EntityDef {
     std::optional<AutoDestroyComponent>          autoDestroy;
     std::optional<DialogComponent>               dialog;
     std::optional<TextComponent>                 text;
+    std::optional<GaugeComponent>                gauge;
     /** Design-time flag: when false the sprite is hidden in play / shipped
      *  builds. The editor preview always draws the sprite (with a dashed
      *  outline). Runtime Logic Board setVisible() toggles sprite alpha. */

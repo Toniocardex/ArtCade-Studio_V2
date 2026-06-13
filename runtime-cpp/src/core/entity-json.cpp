@@ -145,6 +145,21 @@ void read_optional_gameplay_components(const nlohmann::json& j, EntityDef& e) {
         tc.screenSpace = t.value("screenSpace", false);
         e.text = tc;
     }
+    if (j.contains("gauge") && j["gauge"].is_object()) {
+        const auto& g = j["gauge"];
+        GaugeComponent gc;
+        gc.bindKey     = g.value("bindKey", "");
+        gc.maxValue    = g.value("maxValue", 100.f);
+        gc.width       = g.value("width", 64.f);
+        gc.height      = g.value("height", 8.f);
+        gc.fillColor   = parse_hex_color(g.value("fillColorHex", std::string("#3ad13a")));
+        gc.bgColor     = parse_hex_color(g.value("bgColorHex", std::string("#202020")));
+        gc.direction   = g.value("direction", std::string("horizontal"));
+        gc.offsetX     = g.value("offsetX", 0.f);
+        gc.offsetY     = g.value("offsetY", -40.f);
+        gc.screenSpace = g.value("screenSpace", false);
+        e.gauge = gc;
+    }
     if (j.contains("visible") && j["visible"].is_boolean())
         e.visible = j["visible"].get<bool>();
 }

@@ -138,6 +138,7 @@ export type LogicTrigger =
   | { type: 'onTimer'; seconds: number; repeat: boolean }
   | { type: 'onHealthDepleted' }                                    // edge: HP drops to ≤ 0 for the first time
   | { type: 'onDamaged' }                                           // edge: HP decreased since last frame (a hit landed)
+  | { type: 'onLeaveScreen' }                                       // edge: entity left the camera view this frame
 
 export type LogicTriggerType = LogicTrigger['type']
 
@@ -169,6 +170,8 @@ export type LogicCondition =
   | { type: 'saveExists'; slot: string }                                                   // save.exists
   | { type: 'isDialogActive' }
   | { type: 'isMusicPlaying' }                                      // audio.isMusicPlaying
+  | { type: 'isPaused' }                                            // time.isPaused
+  | { type: 'isOffScreen'; target: TargetSelector }                 // outside the camera view
 
 /**
  * Boolean tree for AND/OR/nested conditions (docs/LOGIC_BOARD_CONDITIONAL_DESIGN.md).
@@ -185,6 +188,9 @@ export type LogicConditionNode =
 // ---------------------------------------------------------------------------
 
 export type LogicAction =
+  | { type: 'pauseGame' }
+  | { type: 'resumeGame' }
+  | { type: 'togglePause' }
   | { type: 'setVariable'; key: string; value: LogicValue }
   | { type: 'addVariable'; key: string; amount: LogicValue }
   | { type: 'setPosition'; target: TargetSelector; x: LogicValue; y: LogicValue }
@@ -213,10 +219,15 @@ export type LogicAction =
       inheritFlip?: boolean
       /** Spawn at a named point on self's sprite asset (overrides x,y when set). */
       imagePoint?: string
+      /** Optional launch velocity applied to the new entity (px/s). */
+      velocityX?: LogicValue
+      velocityY?: LogicValue
     }
   | {
       type: 'spawnEntityAtPointer'
       className: string
+      velocityX?: LogicValue
+      velocityY?: LogicValue
     }
   | {
       type: 'moveInDirection'
@@ -259,7 +270,7 @@ export type LogicAction =
   | { type: 'applyImpulse'; target: TargetSelector; ix: number; iy: number }
   | { type: 'applyForce'; target: TargetSelector; fx: number; fy: number }
   | { type: 'setRotation'; target: TargetSelector; angle: number }
-  | { type: 'setScale'; target: TargetSelector; scaleX: number; scaleY: number }
+  | { type: 'setScale'; target: TargetSelector; scaleX: LogicValue; scaleY: LogicValue }
   | { type: 'playAnimation'; target: TargetSelector; clipName: string }
   | { type: 'setFlip'; target: TargetSelector; flipX: boolean; flipY?: boolean }
   | { type: 'setVisible'; target: TargetSelector; visible: boolean }
@@ -311,7 +322,7 @@ export type LogicAction =
   // ── Time ──────────────────────────────────────────────────────────────────
   | { type: 'setTimeScale'; scale: number }
   // ── Entity helpers ────────────────────────────────────────────────────────
-  | { type: 'spawnAtEntity'; className: string; target: TargetSelector }
+  | { type: 'spawnAtEntity'; className: string; target: TargetSelector; velocityX?: LogicValue; velocityY?: LogicValue }
   | { type: 'moveToward'; target: TargetSelector; toward: TargetSelector; speed: number }
   | { type: 'lookAtTarget'; target: TargetSelector; toward: TargetSelector }
 

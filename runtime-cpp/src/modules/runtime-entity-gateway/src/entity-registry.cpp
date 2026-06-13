@@ -591,6 +591,24 @@ void EntityRegistry::setText(EntityId id,
     else   impl_->reg.remove<TextComponent>(e);
 }
 
+bool EntityRegistry::getGauge(EntityId id, GaugeComponent& out) const {
+    const entt::entity e = impl_->toEntt(id);
+    if (e == entt::null) return false;
+    if (const auto* c = impl_->reg.try_get<GaugeComponent>(e)) {
+        out = *c;
+        return true;
+    }
+    return false;
+}
+
+void EntityRegistry::setGauge(EntityId id,
+                              const std::optional<GaugeComponent>& g) {
+    const entt::entity e = impl_->toEntt(id);
+    if (e == entt::null) return;
+    if (g) impl_->reg.emplace_or_replace<GaugeComponent>(e, *g);
+    else   impl_->reg.remove<GaugeComponent>(e);
+}
+
 // ---- Physics handle -------------------------------------------------------
 
 uint32_t EntityRegistry::physicsHandle(EntityId id) const {

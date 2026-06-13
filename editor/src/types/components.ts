@@ -119,6 +119,21 @@ export interface TextComponent {
   screenSpace: boolean
 }
 
+/** Filled bar driven by a variable (health, mana, progress, loading). */
+export interface GaugeComponent {
+  bindKey:      string                  // variable read as the current value
+  maxValue:     number                  // value mapped to a full bar
+  width:        number                  // px
+  height:       number                  // px
+  fillColorHex: string                  // #rrggbb
+  bgColorHex:   string                  // #rrggbb (track behind the fill)
+  direction:    'horizontal' | 'vertical'
+  offsetX:      number                  // px from entity position
+  offsetY:      number
+  /** Draw fixed on screen (HUD) instead of in the world. */
+  screenSpace:  boolean
+}
+
 /** Talkable NPC — references `dialogs/{dialogId}.json` in the project folder. */
 export interface DialogComponent {
   dialogId: string
@@ -145,6 +160,7 @@ export interface EntityComponents {
   autoDestroy?:          AutoDestroyComponent
   dialog?:               DialogComponent
   text?:                 TextComponent
+  gauge?:                GaugeComponent
 }
 
 export type ComponentKey = keyof EntityComponents
@@ -153,5 +169,5 @@ export type ComponentKey = keyof EntityComponents
 export const COMPONENT_KEYS: ComponentKey[] = [
   'sensor', 'solid', 'platformerController', 'topDownController', 'linearMover',
   'cameraTarget', 'magneticItem', 'hordeMember', 'health', 'autoDestroy', 'dialog',
-  'text',
+  'text', 'gauge',
 ]

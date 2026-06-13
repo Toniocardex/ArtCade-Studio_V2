@@ -174,6 +174,8 @@ export function buildHeader(eventSlugs: Map<string, string>): string[] {
     '-- Per (event, entity) previous-HP memory for onDamaged edge detection.',
     '-- Key: RULE-slug .. ":" .. entityId. Fires when HP decreased since last frame.',
     'local _dmg_prev = {}',
+    '-- Per (event, entity) previous off-screen state for onLeaveScreen edge detection.',
+    'local _ls_prev = {}',
     '-- Number→string for Set Text: integral floats print as integers ("12", not "12.0").',
     'local function _logic_tostr(v)',
     `${INDENT}if type(v) == "number" then return tostring(math.tointeger(v) or v) end`,

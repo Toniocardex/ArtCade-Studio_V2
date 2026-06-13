@@ -37,6 +37,7 @@ export const POLLING_TRIGGER_TYPES: readonly LogicTriggerType[] = [
   'onCollision',
   'onHealthDepleted',
   'onDamaged',
+  'onLeaveScreen',
   'onMouseInput',
   'onObjectClick',
   'onObjectHoverEnter',
@@ -166,6 +167,7 @@ export function triggerPickerGroup(type: LogicTriggerType): string {
     case 'onDestroy':
     case 'onHealthDepleted':
     case 'onDamaged':
+    case 'onLeaveScreen':
       return 'Object state'
     case 'onCollisionEnter':
     case 'onCollisionExit':

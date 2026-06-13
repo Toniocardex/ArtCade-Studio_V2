@@ -228,6 +228,30 @@ describe('Component API actions and conditions', () => {
     expect(lua).toContain(', "time", 0)')
   })
 
+  it('emits spawn with launch velocity, pause, and off-screen checks', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({
+          trigger: { type: 'onInput', keyCode: 'Space', eventType: 'pressed' },
+          actions: [
+            { type: 'spawnEntity', className: 'Bullet', x: 0, y: 0, velocityX: 0, velocityY: -400 },
+            { type: 'pauseGame' },
+            { type: 'setScale', target: 'self', scaleX: { source: 'state', key: 'hp' }, scaleY: 1 },
+          ],
+        }),
+        ev({
+          trigger: { type: 'onLeaveScreen' },
+          actions: [{ type: 'destroyEntity', target: 'self' }],
+        }),
+      ]),
+    ])
+    expect(lua).toContain('entity.setVelocity(_nid, 0, -400)')
+    expect(lua).toContain('time.pause()')
+    expect(lua).toContain('entity.setScale(self,')
+    expect(lua).toContain('screen.isOffScreen(self)')
+    expect(lua).toContain('local _ls_prev = {}')
+  })
+
   it('emits onDamaged edge detection from previous-frame HP', () => {
     const lua = compileLogicBoard([
       board([

@@ -17,6 +17,7 @@ import type {
   MagneticItemComponent,
   HordeMemberComponent,
   PlatformerControllerComponent,
+  GaugeComponent,
   SensorComponent,
   SolidComponent,
   TextComponent,
@@ -94,6 +95,18 @@ const TEXT: TextComponent = {
   align: 'left',
   offsetX: 0,
   offsetY: 0,
+  screenSpace: false,
+}
+const GAUGE: GaugeComponent = {
+  bindKey: 'hp',
+  maxValue: 100,
+  width: 64,
+  height: 8,
+  fillColorHex: '#3ad13a',
+  bgColorHex: '#202020',
+  direction: 'horizontal',
+  offsetX: 0,
+  offsetY: -40,
   screenSpace: false,
 }
 const DIALOG: DialogComponent = {
@@ -267,6 +280,30 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
         key: 'align', label: 'Align', kind: 'select',
         options: ['left', 'center', 'right'],
         optionLabels: ['Left', 'Center', 'Right'],
+      },
+      { key: 'offsetX', label: 'Offset X (px)', kind: 'number', step: 1 },
+      { key: 'offsetY', label: 'Offset Y (px)', kind: 'number', step: 1 },
+      { key: 'screenSpace', label: 'Stay on screen (HUD)', kind: 'checkbox' },
+    ],
+  },
+  {
+    key: 'gauge',
+    label: 'Gauge (Bar)',
+    description:
+      'Filled bar driven by a variable — health, mana, progress. Set the variable and Max value; the fill tracks it automatically. Enable Stay on screen for a HUD bar.',
+    color: 'var(--accent)',
+    create: () => ({ ...GAUGE }),
+    fields: [
+      { key: 'bindKey', label: 'Variable', kind: 'text' },
+      { key: 'maxValue', label: 'Max value (full bar)', kind: 'number', min: 0, step: 1 },
+      { key: 'width', label: 'Width (px)', kind: 'number', min: 1, step: 1 },
+      { key: 'height', label: 'Height (px)', kind: 'number', min: 1, step: 1 },
+      { key: 'fillColorHex', label: 'Fill color (#rrggbb)', kind: 'text' },
+      { key: 'bgColorHex', label: 'Track color (#rrggbb)', kind: 'text' },
+      {
+        key: 'direction', label: 'Direction', kind: 'select',
+        options: ['horizontal', 'vertical'],
+        optionLabels: ['Horizontal', 'Vertical'],
       },
       { key: 'offsetX', label: 'Offset X (px)', kind: 'number', step: 1 },
       { key: 'offsetY', label: 'Offset Y (px)', kind: 'number', step: 1 },

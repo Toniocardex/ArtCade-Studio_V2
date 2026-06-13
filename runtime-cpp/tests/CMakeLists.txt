@@ -26,6 +26,13 @@ artcade_test(variable_manager_test
     variable-manager-test.cpp
     artcade-variable-manager)
 
+add_executable(text_value_formatter_test
+    text_value_formatter_test.cpp
+    ${CMAKE_SOURCE_DIR}/src/app/render/text_value_formatter.cpp)
+target_include_directories(text_value_formatter_test PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(text_value_formatter_test PRIVATE artcade-variable-manager)
+add_test(NAME text_value_formatter_test COMMAND text_value_formatter_test)
+
 artcade_test(sprite_pivot_test
     sprite-pivot-test.cpp
     artcade-core)

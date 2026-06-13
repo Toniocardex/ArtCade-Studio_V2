@@ -131,6 +131,9 @@ public:
     bool getText(EntityId id, TextComponent& out) const;
     void setText(EntityId id, const std::optional<TextComponent>& t);
 
+    bool getGauge(EntityId id, GaugeComponent& out) const;
+    void setGauge(EntityId id, const std::optional<GaugeComponent>& g);
+
     // ---- Physics handle ------------------------------------------------
 
     uint32_t physicsHandle(EntityId id) const;

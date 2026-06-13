@@ -91,6 +91,7 @@ const ACTION_RECOMMENDATIONS: Record<ComponentKey, LogicActionType[]> = {
   autoDestroy: ['setAutoDestroyLifespan', 'cancelAutoDestroy'],
   dialog: ['startDialog'],
   text: ['setText', 'setTextColor'],
+  gauge: [],
 }
 
 const MOVEMENT_AUTHORITIES: Array<{ key: ComponentKey; label: string }> = [

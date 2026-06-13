@@ -1,4 +1,25 @@
 {
+  "pauseGame": {
+    "type": "object",
+    "required": ["type"],
+    "properties": { "type": { "const": "pauseGame" } },
+    "additionalProperties": false,
+    "x-artcade": { "label": "Pause Game", "category": "Time", "params": {} }
+  },
+  "resumeGame": {
+    "type": "object",
+    "required": ["type"],
+    "properties": { "type": { "const": "resumeGame" } },
+    "additionalProperties": false,
+    "x-artcade": { "label": "Resume Game", "category": "Time", "params": {} }
+  },
+  "togglePause": {
+    "type": "object",
+    "required": ["type"],
+    "properties": { "type": { "const": "togglePause" } },
+    "additionalProperties": false,
+    "x-artcade": { "label": "Toggle Pause", "category": "Time", "params": {} }
+  },
   "setVariable": {
     "type": "object",
     "required": ["type", "key", "value"],
@@ -326,7 +347,9 @@
       "x": { "type": "number" },
       "y": { "type": "number" },
       "inheritFlip": { "type": "boolean" },
-      "imagePoint": { "type": "string" }
+      "imagePoint": { "type": "string" },
+      "velocityX": { "$ref": "./value-source.schema.json" },
+      "velocityY": { "$ref": "./value-source.schema.json" }
     },
     "additionalProperties": false,
     "x-artcade": {
@@ -337,7 +360,9 @@
         "x": { "widget": "number", "label": "X" },
         "y": { "widget": "number", "label": "Y" },
         "inheritFlip": { "widget": "boolean", "label": "Inherit flip" },
-        "imagePoint": { "widget": "string", "label": "Image point", "placeholder": "Muzzle" }
+        "imagePoint": { "widget": "string", "label": "Image point", "placeholder": "Muzzle" },
+        "velocityX": { "widget": "numberSource", "label": "Launch velocity X" },
+        "velocityY": { "widget": "numberSource", "label": "Launch velocity Y" }
       }
     }
   },
@@ -346,14 +371,18 @@
     "required": ["type", "className"],
     "properties": {
       "type": { "const": "spawnEntityAtPointer" },
-      "className": { "type": "string" }
+      "className": { "type": "string" },
+      "velocityX": { "$ref": "./value-source.schema.json" },
+      "velocityY": { "$ref": "./value-source.schema.json" }
     },
     "additionalProperties": false,
     "x-artcade": {
       "label": "Create at pointer",
       "category": "Entities",
       "params": {
-        "className": { "widget": "className", "label": "What to create" }
+        "className": { "widget": "className", "label": "What to create" },
+        "velocityX": { "widget": "numberSource", "label": "Launch velocity X" },
+        "velocityY": { "widget": "numberSource", "label": "Launch velocity Y" }
       }
     }
   },
@@ -761,8 +790,8 @@
     "properties": {
       "type": { "const": "setScale" },
       "target": { "$ref": "./target-selector.schema.json" },
-      "scaleX": { "type": "number" },
-      "scaleY": { "type": "number" }
+      "scaleX": { "$ref": "./value-source.schema.json" },
+      "scaleY": { "$ref": "./value-source.schema.json" }
     },
     "additionalProperties": false,
     "x-artcade": {
@@ -770,8 +799,8 @@
       "category": "Physics",
       "params": {
         "target": { "widget": "target", "label": "Target" },
-        "scaleX": { "widget": "number", "label": "Scale X" },
-        "scaleY": { "widget": "number", "label": "Scale Y" }
+        "scaleX": { "widget": "numberSource", "label": "Scale X" },
+        "scaleY": { "widget": "numberSource", "label": "Scale Y" }
       }
     }
   },
@@ -1177,7 +1206,9 @@
     "properties": {
       "type": { "const": "spawnAtEntity" },
       "className": { "type": "string" },
-      "target": { "$ref": "./target-selector.schema.json" }
+      "target": { "$ref": "./target-selector.schema.json" },
+      "velocityX": { "$ref": "./value-source.schema.json" },
+      "velocityY": { "$ref": "./value-source.schema.json" }
     },
     "additionalProperties": false,
     "x-artcade": {
@@ -1185,7 +1216,9 @@
       "category": "Objects",
       "params": {
         "className": { "widget": "className", "label": "Object type" },
-        "target": { "widget": "target", "label": "At position of" }
+        "target": { "widget": "target", "label": "At position of" },
+        "velocityX": { "widget": "numberSource", "label": "Launch velocity X" },
+        "velocityY": { "widget": "numberSource", "label": "Launch velocity Y" }
       }
     }
   },

@@ -62,9 +62,9 @@ struct Renderer::Impl {
 
     // Draw commands queued by Lua during tick(); flushed in endFrame().
     std::vector<DrawCmd> drawQueue;
-    // Screen-space (HUD) text, flushed after EndMode2D so the camera does
-    // not transform it — stays fixed on screen as the world scrolls.
-    std::vector<DrawCmd> screenTextQueue;
+    // Screen-space (HUD) draws (text + rects), flushed after EndMode2D so the
+    // camera does not transform them — stay fixed on screen as the world scrolls.
+    std::vector<DrawCmd> screenQueue;
     std::string screenShader;
     SpriteOutlineShader spriteOutline;
     std::function<std::string(const std::string&)> textureKeyResolver;
@@ -224,14 +224,19 @@ void Renderer::endWorldPass() {
 }
 
 void Renderer::endScreenPass() {
-    for (const auto& cmd : impl_->screenTextQueue) {
-        const std::string fontKey = resolvedFontKey(cmd.fontPath);
-        const Font* font = fontKey.empty()
-            ? nullptr
-            : impl_->fontCache.get(fontKey);
-        drawTextCommand(cmd, font);
+    for (const auto& cmd : impl_->screenQueue) {
+        Color c{ cmd.cr, cmd.cg, cmd.cb, cmd.ca };
+        if (cmd.type == DrawCmd::Type::Rect) {
+            DrawRectangleV({ cmd.x, cmd.y }, { cmd.x2, cmd.y2 }, c);
+        } else if (cmd.type == DrawCmd::Type::Text) {
+            const std::string fontKey = resolvedFontKey(cmd.fontPath);
+            const Font* font = fontKey.empty()
+                ? nullptr
+                : impl_->fontCache.get(fontKey);
+            drawTextCommand(cmd, font);
+        }
     }
-    impl_->screenTextQueue.clear();
+    impl_->screenQueue.clear();
 }
 
 void Renderer::presentScreen() {
@@ -507,13 +512,15 @@ bool Renderer::drawSpriteRegion(const AssetId& assetId,
     return true;
 }
 
-void Renderer::drawRect(float x, float y, float w, float h, const Vec4& color) {
+void Renderer::drawRect(float x, float y, float w, float h, const Vec4& color,
+                        bool screenSpace) {
     Color c = toColor(color);
     DrawCmd cmd;
     cmd.type = DrawCmd::Type::Rect;
     cmd.x = x;  cmd.y = y;  cmd.x2 = w;  cmd.y2 = h;
     cmd.cr = c.r; cmd.cg = c.g; cmd.cb = c.b; cmd.ca = c.a;
-    impl_->drawQueue.push_back(std::move(cmd));
+    (screenSpace ? impl_->screenQueue : impl_->drawQueue)
+        .push_back(std::move(cmd));
 }
 
 void Renderer::drawRectImmediate(float x, float y, float w, float h, const Vec4& color) {
@@ -552,7 +559,7 @@ void Renderer::drawText(const std::string& text, float x, float y,
     cmd.text     = text;
     cmd.fontPath = fontPath;
     cmd.cr = c.r; cmd.cg = c.g; cmd.cb = c.b; cmd.ca = c.a;
-    (screenSpace ? impl_->screenTextQueue : impl_->drawQueue)
+    (screenSpace ? impl_->screenQueue : impl_->drawQueue)
         .push_back(std::move(cmd));
 }
 

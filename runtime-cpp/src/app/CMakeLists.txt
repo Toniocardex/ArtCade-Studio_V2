@@ -1,8 +1,14 @@
 add_executable(game
     src/main.cpp
     src/app.cpp
+    src/app_bootstrap.cpp
+    src/app_loop.cpp
+    src/app_project_lifecycle.cpp
+    src/app_scene_render.cpp
     render/editor-overlay-renderer.cpp
+    render/physics_debug_renderer.cpp
     render/tilemap-renderer.cpp
+    render/text_value_formatter.cpp
     render/ray-tint-widget.cpp
 )
 target_include_directories(game PRIVATE include render)

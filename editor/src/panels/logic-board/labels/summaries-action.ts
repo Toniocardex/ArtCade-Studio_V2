@@ -10,6 +10,12 @@ export function actionSummaryPlain(
 ): string {
   const who = (t: TargetSelector) => targetDisplayLabel(t, project)
   switch (a.type) {
+    case 'pauseGame':
+      return 'Pause the game'
+    case 'resumeGame':
+      return 'Resume the game'
+    case 'togglePause':
+      return 'Toggle pause'
     case 'setVariable':
       return `Set ${a.key} to ${valueSummary(a.value, project)}`
     case 'addVariable':

@@ -80,6 +80,25 @@ void GameAPI::bindCameraAPI(sol::state& lua) {
         return renderer ? renderer->getCameraZoom() : 1.f;
     });
 
+    // screen.isOffScreen(id) — true when the entity's position is outside the
+    // current camera view. Uses screenToWorld on the viewport corners so it is
+    // correct regardless of zoom / camera anchor. Missing entity → off-screen.
+    lua.set_function("screen_isOffScreen", [renderer, entities](EntityId id) -> bool {
+        if (!renderer || !entities) return true;
+        Transform transform{};
+        if (!entities->getTransform(id, transform)) return true;
+        const Vec2 tl = renderer->screenToWorld(0.f, 0.f);
+        const Vec2 br = renderer->screenToWorld(
+            static_cast<float>(renderer->windowWidth()),
+            static_cast<float>(renderer->windowHeight()));
+        const float minX = tl.x < br.x ? tl.x : br.x;
+        const float maxX = tl.x < br.x ? br.x : tl.x;
+        const float minY = tl.y < br.y ? tl.y : br.y;
+        const float maxY = tl.y < br.y ? br.y : tl.y;
+        const Vec2 p = transform.position;
+        return p.x < minX || p.x > maxX || p.y < minY || p.y > maxY;
+    });
+
     // camera.shake(trauma) — add screen-shake trauma (0–1, stacks, decays over time)
     lua.set_function("camera_shake", [camMgr](float trauma, sol::optional<float> durationSeconds) {
         if (!camMgr || trauma <= 0.f) return;
@@ -105,6 +124,10 @@ void GameAPI::bindCameraAPI(sol::state& lua) {
             camera_shake(intensity ~= nil and intensity or 0.5,
                          duration ~= nil and duration or 0.5)
         end
+
+        screen = screen or {}
+        screen.isOffScreen = function(id) return screen_isOffScreen(id) end
+        screen.isOnScreen  = function(id) return not screen_isOffScreen(id) end
     )");
 }
 

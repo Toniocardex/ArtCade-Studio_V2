@@ -49,6 +49,16 @@ Principio UI/prodotto per questi componenti →
 | SolidComponent | Ground class per `isGrounded` (runtime); nessun blocco LB MVP | Nessuna azione Tranche 1; `platformer.isGrounded` in Tranche 2 |
 | DialogComponent / DialogManager | Start by ID, end active dialog, is active | Integrato |
 | TextComponent | Label (text, font, size, color, align, offset); auto-bind a variabile con formato (intero/zero-pad/tempo m:ss/percento/decimali) + prefix/suffix; ancoraggio schermo (HUD); Set Text con Value Source + formato, Set Text Color | Integrato (2026-06-13) |
+| GaugeComponent | Barra (vita/energia/progresso) con fill 0..max auto-bind a variabile; colore, direzione, ancoraggio schermo (HUD) | Integrato (2026-06-13) |
+
+## Basic-Complete Batch (2026-06-13)
+
+Lacune chiuse per coprire i generi arcade fondamentali:
+
+- **Barre**: `GaugeComponent` + `setScale` ora accetta Value Source (barre/scaling legati a variabili).
+- **Sparatutto**: `spawnEntity` / `spawnAtEntity` / `spawnEntityAtPointer` accettano velocità di lancio (mira il proiettile appena creato).
+- **Pausa**: azioni `pauseGame` / `resumeGame` / `togglePause` + condizione `isPaused` (time.pause memorizza lo scale precedente).
+- **Fuori schermo**: trigger `onLeaveScreen` + condizione `isOffScreen` (Renderer screenToWorld + `screen.isOffScreen`).
 
 ## Tranche 1 - Capability Registry + API Esistenti
 

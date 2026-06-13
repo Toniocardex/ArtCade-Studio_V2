@@ -20,15 +20,17 @@ enum class ViewportPolicy {
 
 
 /**
- * Application — top-level orchestrator (Layer 4).
+ * Application - top-level orchestrator (Layer 4).
  *
  * Owns all modules, wires the EngineContext, and drives the main loop.
  * main.cpp contains only:  return Application{}.run(argc, argv);
+ * Implementations are split by domain across app_bootstrap, app_loop,
+ * app_project_lifecycle, and app_scene_render.
  *
  * Responsibilities:
  *   - Module lifetime management (init order, shutdown reverse order)
  *   - Main loop (fixed-timestep accumulator)
- *   - Lua tick → Physics step → Render
+ *   - Lua tick -> Physics step -> Render
  */
 class Application {
 public:
@@ -49,7 +51,7 @@ public:
     void applyEditorProjectLoaded(const std::vector<TilePaletteEntry>& tilePalette,
                                   const std::vector<TilesetAsset>&     tilesets,
                                   const ProjectRuntimeSettings&        settings);
-    /** Called from editor_restore_from_project — reset runtime, restore design. */
+    /** Called from editor_restore_from_project: reset runtime, restore design. */
     void applyEditorPreviewRestore(const std::vector<TilePaletteEntry>& tilePalette,
                                    const std::vector<TilesetAsset>&     tilesets,
                                    const ProjectRuntimeSettings&        settings);
@@ -73,19 +75,19 @@ private:
     EngineContext ctx_;
     RuntimeProfiler profiler_;
 
-    // Top-level init — chiama i tre helper in ordine
+    // Top-level initialization delegates to dependency-ordered domain steps.
     bool initModules(const std::string& projectPath);
 
-    // Layer 0: moduli stateless + GameStateManager
+    // Layer 0: stateless modules + GameStateManager.
     bool initUtilities();
     // Layer 1-4: renderer, physics, input, audio, world, GameAPI, LuaHost
     bool initSubsystems();
-    // Layer 5: carica project.json/.artcade, inizializza world, carica script Lua
+    // Layer 5: load project data, initialize the world, and load Lua bytecode.
     bool loadProject(const std::string& projectPath);
 
     void shutdownModules();
     void mainLoop();
-    void loopIteration();      // singolo frame — usato sia dal while che dal callback WASM
+    void loopIteration();      // One frame, shared by native and WASM loops.
     /** One fixed-timestep simulation tick (gameplay, physics, lifecycle). */
     void tickFixedStep(float dt);
     /** Per-render-frame tail: profiler counts, draw, console flush, input reset. */
@@ -93,7 +95,7 @@ private:
     void renderActiveScene();
 
     float targetDt_        = 1.f / 60.f;
-    float accumulator_      = 0.f;          // persistent tra frame (necessario su WASM)
+    float accumulator_      = 0.f;          // Persistent across frames for WASM.
     bool  running_          = false;
     PhysicsMode physicsMode_ = PhysicsMode::Auto;
     std::string licenseTier_ = "free";      // from ProjectDoc, used by SplashState
@@ -102,7 +104,7 @@ private:
     std::unordered_map<std::string, ::ArtCade::TilesetAsset> tilesets_;  // Phase F3
 
 #ifdef ARTCADE_WASM
-    // Emscripten richiede una callback statica — punta all'istanza corrente
+    // Emscripten requires a static callback that forwards to the active instance.
     static Application* webInstance_;
     static void         webLoopCallback();
 #endif

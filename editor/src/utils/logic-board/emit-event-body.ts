@@ -105,6 +105,22 @@ function emitDamagedBody(ctx: EmitCtx): string[] {
   ]
 }
 
+function emitLeaveScreenBody(ctx: EmitCtx): string[] {
+  const { baseIndent, slugs, ev } = ctx
+  const slug = ruleKeyExpr(ev.id, slugs)
+  const i1 = baseIndent + INDENT
+  const key = `${slug} .. ":" .. tostring(self)`
+  return [
+    `${baseIndent}do`,
+    `${i1}local _off = screen.isOffScreen(self)`,
+    `${i1}if _off and not _ls_prev[${key}] then`,
+    ...emitGuarded(ctx, i1 + INDENT),
+    `${i1}end`,
+    `${i1}_ls_prev[${key}] = _off`,
+    `${baseIndent}end`,
+  ]
+}
+
 function emitSensorTriggerBody(
   ctx: EmitCtx,
   trig: Extract<LogicTrigger, { type: 'onTriggerEnter' } | { type: 'onTriggerExit' }>,
@@ -264,6 +280,8 @@ export function emitEventBody(
       return emitHealthDepletedBody(ctx)
     case 'onDamaged':
       return emitDamagedBody(ctx)
+    case 'onLeaveScreen':
+      return emitLeaveScreenBody(ctx)
     case 'onTriggerEnter':
     case 'onTriggerExit':
       return emitSensorTriggerBody(ctx, trig)

@@ -47,6 +47,8 @@ export const TRIGGER_TARGET_MATRIX: Record<
   // Health — entity-only (requires a HealthComponent, which only entity boards have).
   onHealthDepleted:   ENTITY_TARGETS,
   onDamaged:          ENTITY_TARGETS,
+  // Off-screen — needs a specific entity position to test against the view.
+  onLeaveScreen:      ENTITY_TARGETS,
   // Physics — need a specific entity to test collisions/overlaps against.
   onCollision:      ENTITY_TARGETS,
   onCollisionEnter: ENTITY_TARGETS,

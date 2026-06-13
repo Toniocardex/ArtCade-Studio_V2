@@ -83,6 +83,12 @@ export function conditionSummaryPlain(
     case 'isMusicPlaying':
       text = 'Music is playing'
       break
+    case 'isPaused':
+      text = 'The game is paused'
+      break
+    case 'isOffScreen':
+      text = `${targetDisplayLabel(c.target, project)} is off screen`
+      break
   }
   return formatChip(text, negated)
 }

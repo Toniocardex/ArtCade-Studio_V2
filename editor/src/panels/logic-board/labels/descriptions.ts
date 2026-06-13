@@ -23,6 +23,7 @@ const TRIGGER_DESCRIPTIONS: Record<LogicTriggerType, string> = {
   onDestroy: 'When an instance of this object is removed',
   onHealthDepleted: 'Once, when the object\'s HP drops to zero for the first time',
   onDamaged: 'Once per hit, when the object\'s HP decreases',
+  onLeaveScreen: 'Once, when the object moves outside the camera view',
   onInput: 'When the player presses, holds or releases a key',
   onMouseInput: 'Click, press or release anywhere in the game',
   onObjectClick: 'When the player clicks this object',
@@ -53,9 +54,14 @@ const CONDITION_DESCRIPTIONS: Record<LogicCondition['type'], string> = {
   saveExists: 'Check whether a save file slot exists on disk',
   isDialogActive: 'Check whether a dialog conversation is currently open',
   isMusicPlaying: 'Check whether a music track is currently playing',
+  isPaused: 'Check whether the game is currently paused',
+  isOffScreen: 'Check whether the object is outside the camera view',
 }
 
 const ACTION_DESCRIPTIONS: Record<LogicActionType, string> = {
+  pauseGame: 'Freeze gameplay (time stops; input still works)',
+  resumeGame: 'Resume gameplay after a pause',
+  togglePause: 'Pause if running, resume if paused',
   setVariable: 'Set a variable to a value',
   addVariable: 'Add an amount to a variable',
   setPosition: 'Teleport the object to x, y',

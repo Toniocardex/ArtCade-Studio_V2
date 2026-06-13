@@ -71,6 +71,8 @@ function triggerSlugSource(t: LogicTrigger): string {
       return 'on_health_depleted'
     case 'onDamaged':
       return 'on_damaged'
+    case 'onLeaveScreen':
+      return 'on_leave_screen'
   }
 }
 

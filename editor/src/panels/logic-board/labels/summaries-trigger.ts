@@ -101,5 +101,7 @@ export function triggerSummaryPlain(
       return 'When this object\'s health reaches zero'
     case 'onDamaged':
       return 'When this object takes damage'
+    case 'onLeaveScreen':
+      return 'When this object leaves the screen'
   }
 }

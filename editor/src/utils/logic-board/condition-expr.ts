@@ -108,6 +108,10 @@ function leafExpr(c: LogicCondition, project?: ProjectDoc | null): string {
       return `dialog.isActive()`
     case 'isMusicPlaying':
       return `audio.isMusicPlaying()`
+    case 'isPaused':
+      return `time.isPaused()`
+    case 'isOffScreen':
+      return `screen.isOffScreen(${targetExpr(c.target, project)})`
   }
 }
 

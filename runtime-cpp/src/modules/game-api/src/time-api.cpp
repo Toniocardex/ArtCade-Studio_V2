@@ -19,9 +19,11 @@ namespace ArtCade::Modules {
 
 void GameAPI::bindTimeAPI(sol::state& lua) {
     lua.script(R"(
-        local _gameTime = 0.0
-        local _timers   = {}
-        local _scale    = 1.0
+        local _gameTime  = 0.0
+        local _timers    = {}
+        local _scale     = 1.0
+        local _paused    = false
+        local _prevScale = 1.0   -- scale to restore on resume
 
         time = {}
 
@@ -67,9 +69,33 @@ void GameAPI::bindTimeAPI(sol::state& lua) {
         -- Read/write time scale (1.0 = normal, 0.5 = half-speed, 0 = frozen).
         function time.setScale(s)
             _scale = (s ~= nil and s >= 0) and s or 1.0
+            _paused = (_scale == 0)
         end
         function time.getScale()
             return _scale
+        end
+
+        -- Pause freezes gameplay time (timers, movement integration) while the
+        -- frame still renders and input is still polled, so an unpause rule can
+        -- run. resume() restores the pre-pause scale (slow-mo survives a pause).
+        function time.pause()
+            if not _paused then
+                if _scale > 0 then _prevScale = _scale end
+                _scale = 0
+                _paused = true
+            end
+        end
+        function time.resume()
+            if _paused then
+                _scale = (_prevScale > 0) and _prevScale or 1.0
+                _paused = false
+            end
+        end
+        function time.togglePause()
+            if _paused then time.resume() else time.pause() end
+        end
+        function time.isPaused()
+            return _paused
         end
 
         -- Called by LuaHost::tick() before the user's tick(dt).

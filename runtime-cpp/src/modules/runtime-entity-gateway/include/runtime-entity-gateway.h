@@ -105,6 +105,9 @@ public:
     bool getText(EntityId id, TextComponent& out) const;
     bool setText(EntityId id, const std::optional<TextComponent>& text);
 
+    bool getGauge(EntityId id, GaugeComponent& out) const;
+    bool setGauge(EntityId id, const std::optional<GaugeComponent>& gauge);
+
     bool getHealth(EntityId id, HealthComponent& out) const;
     bool setHealth(EntityId id, const std::optional<HealthComponent>& health);
     /** Apply damage when not in i-frames; returns false if blocked or no health. */

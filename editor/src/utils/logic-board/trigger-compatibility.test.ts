@@ -40,7 +40,7 @@ describe('trigger-compatibility matrix', () => {
       'onTriggerEnter', 'onTriggerExit',
       'onAnimationEnd', 'onInput', 'onMouseInput',
       'onObjectClick', 'onObjectHoverEnter', 'onObjectHoverExit',
-      'onMessage', 'onTimer',
+      'onMessage', 'onTimer', 'onLeaveScreen',
     ]
     expect(Object.keys(TRIGGER_TARGET_MATRIX).sort()).toEqual(expectedTypes.sort())
   })

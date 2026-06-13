@@ -57,6 +57,8 @@ export function defaultTrigger(type: LogicTriggerType): LogicTrigger {
       return { type: 'onHealthDepleted' }
     case 'onDamaged':
       return { type: 'onDamaged' }
+    case 'onLeaveScreen':
+      return { type: 'onLeaveScreen' }
     case 'onInput':
       return { type: 'onInput', keyCode: 'Space', eventType: 'pressed' }
     case 'onMouseInput':
@@ -118,11 +120,21 @@ export function defaultCondition(
       return { type: 'isDialogActive' }
     case 'isMusicPlaying':
       return { type: 'isMusicPlaying' }
+    case 'isPaused':
+      return { type: 'isPaused' }
+    case 'isOffScreen':
+      return { type: 'isOffScreen', target: 'self' }
   }
 }
 
 export function defaultAction(type: LogicActionType): LogicAction {
   switch (type) {
+    case 'pauseGame':
+      return { type: 'pauseGame' }
+    case 'resumeGame':
+      return { type: 'resumeGame' }
+    case 'togglePause':
+      return { type: 'togglePause' }
     case 'setVariable':
       return { type: 'setVariable', key: 'score', value: 0 }
     case 'addVariable':

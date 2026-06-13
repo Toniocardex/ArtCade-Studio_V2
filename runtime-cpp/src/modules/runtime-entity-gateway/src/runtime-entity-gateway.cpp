@@ -297,6 +297,7 @@ void RuntimeEntityGateway::applyEntityDefToRegistry(
         registry_->setHealth(id, std::nullopt);
     }
     registry_->setText(id, def.text);
+    registry_->setGauge(id, def.gauge);
     registry_->setIdentity(id, def.className, def.tags);
 }
 
@@ -646,6 +647,18 @@ bool RuntimeEntityGateway::setText(
 {
     if (!registry_->contains(id)) return false;
     registry_->setText(id, text);
+    return true;
+}
+
+bool RuntimeEntityGateway::getGauge(EntityId id, GaugeComponent& out) const {
+    return registry_->getGauge(id, out);
+}
+
+bool RuntimeEntityGateway::setGauge(
+    EntityId id, const std::optional<GaugeComponent>& gauge)
+{
+    if (!registry_->contains(id)) return false;
+    registry_->setGauge(id, gauge);
     return true;
 }
 

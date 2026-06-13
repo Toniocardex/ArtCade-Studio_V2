@@ -362,5 +362,34 @@
       "category": "Audio",
       "params": {}
     }
+  },
+  "isPaused": {
+    "type": "object",
+    "required": ["type"],
+    "properties": {
+      "type": { "const": "isPaused" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Game Is Paused",
+      "category": "Time",
+      "params": {}
+    }
+  },
+  "isOffScreen": {
+    "type": "object",
+    "required": ["type", "target"],
+    "properties": {
+      "type": { "const": "isOffScreen" },
+      "target": { "$ref": "./target-selector.schema.json" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Is Off Screen",
+      "category": "System",
+      "params": {
+        "target": { "widget": "target", "label": "Target" }
+      }
+    }
   }
 }
