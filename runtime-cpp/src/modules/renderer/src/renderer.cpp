@@ -25,6 +25,28 @@ struct DrawCmd {
     unsigned char cr=255, cg=255, cb=255, ca=255;  // packed colour
 };
 
+// Draw one Text command (align + font already resolved). Shared by the
+// world pass (camera space) and the screen pass (HUD).
+static void drawTextCommand(const DrawCmd& cmd, const Font* font) {
+    Color c{ cmd.cr, cmd.cg, cmd.cb, cmd.ca };
+    float drawX = cmd.x;
+    if (cmd.align != 0) {
+        const float w = font
+            ? MeasureTextEx(*font, cmd.text.c_str(),
+                            static_cast<float>(cmd.fontSize), 1.f).x
+            : static_cast<float>(MeasureText(cmd.text.c_str(), cmd.fontSize));
+        drawX -= (cmd.align == 1) ? w * 0.5f : w;
+    }
+    if (font) {
+        DrawTextEx(*font, cmd.text.c_str(), Vector2{ drawX, cmd.y },
+                   static_cast<float>(cmd.fontSize), 1.f, c);
+    } else {
+        DrawText(cmd.text.c_str(),
+                 static_cast<int>(drawX), static_cast<int>(cmd.y),
+                 cmd.fontSize, c);
+    }
+}
+
 struct Renderer::Impl {
     uint32_t    width  = 1280;
     uint32_t    height = 720;
@@ -40,6 +62,9 @@ struct Renderer::Impl {
 
     // Draw commands queued by Lua during tick(); flushed in endFrame().
     std::vector<DrawCmd> drawQueue;
+    // Screen-space (HUD) text, flushed after EndMode2D so the camera does
+    // not transform it — stays fixed on screen as the world scrolls.
+    std::vector<DrawCmd> screenTextQueue;
     std::string screenShader;
     SpriteOutlineShader spriteOutline;
     std::function<std::string(const std::string&)> textureKeyResolver;
@@ -189,30 +214,24 @@ void Renderer::endWorldPass() {
             const Font* font = fontKey.empty()
                 ? nullptr
                 : impl_->fontCache.get(fontKey);
-            float drawX = cmd.x;
-            if (cmd.align != 0) {
-                const float w = font
-                    ? MeasureTextEx(*font, cmd.text.c_str(),
-                                    static_cast<float>(cmd.fontSize), 1.f).x
-                    : static_cast<float>(
-                          MeasureText(cmd.text.c_str(), cmd.fontSize));
-                drawX -= (cmd.align == 1) ? w * 0.5f : w;
-            }
-            if (font) {
-                DrawTextEx(*font, cmd.text.c_str(),
-                           Vector2{ drawX, cmd.y },
-                           static_cast<float>(cmd.fontSize), 1.f, c);
-            } else {
-                DrawText(cmd.text.c_str(),
-                         static_cast<int>(drawX), static_cast<int>(cmd.y),
-                         cmd.fontSize, c);
-            }
+            drawTextCommand(cmd, font);
             break;
         }
         }
     }
     impl_->drawQueue.clear();
     EndMode2D();
+}
+
+void Renderer::endScreenPass() {
+    for (const auto& cmd : impl_->screenTextQueue) {
+        const std::string fontKey = resolvedFontKey(cmd.fontPath);
+        const Font* font = fontKey.empty()
+            ? nullptr
+            : impl_->fontCache.get(fontKey);
+        drawTextCommand(cmd, font);
+    }
+    impl_->screenTextQueue.clear();
 }
 
 void Renderer::presentScreen() {
@@ -222,6 +241,7 @@ void Renderer::presentScreen() {
 
 void Renderer::endFrame() {
     endWorldPass();
+    endScreenPass();
     presentScreen();
 }
 
@@ -520,7 +540,8 @@ void Renderer::drawCircle(float x, float y, float radius, const Vec4& color) {
 
 void Renderer::drawText(const std::string& text, float x, float y,
                         int fontSize, const Vec4& color,
-                        const std::string& fontPath, int align) {
+                        const std::string& fontPath, int align,
+                        bool screenSpace) {
     Color c = toColor(color);
     DrawCmd cmd;
     cmd.type     = DrawCmd::Type::Text;
@@ -531,7 +552,8 @@ void Renderer::drawText(const std::string& text, float x, float y,
     cmd.text     = text;
     cmd.fontPath = fontPath;
     cmd.cr = c.r; cmd.cg = c.g; cmd.cb = c.b; cmd.ca = c.a;
-    impl_->drawQueue.push_back(std::move(cmd));
+    (screenSpace ? impl_->screenTextQueue : impl_->drawQueue)
+        .push_back(std::move(cmd));
 }
 
 bool Renderer::registerFontFromMemory(const std::string& path,

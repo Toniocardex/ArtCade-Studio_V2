@@ -148,6 +148,19 @@ describe('asset-orchestrator', () => {
     expect(registerImage).toHaveBeenCalledTimes(1)
   })
 
+  it('re-registers an in-memory image when its bytes change at the same path', async () => {
+    const registerImage = vi.fn(() => true)
+    const { orch } = makeOrchestrator({ registerImage })
+    const p = testProject()
+    const first = { ...p.assets!.img, dataUrl: 'data:image/png;base64,AQ==' }
+    const second = { ...p.assets!.img, dataUrl: 'data:image/png;base64,Ag==' }
+
+    expect(await orch.ensureImageRegistered(p, first, '')).toBe(true)
+    expect(await orch.ensureImageRegistered(p, second, '')).toBe(true)
+    expect(registerImage).toHaveBeenCalledTimes(2)
+    expect((orch as unknown as { registered: Set<string> }).registered.size).toBe(1)
+  })
+
   it('dedupes console failure logs per path', async () => {
     const logFailure = vi.fn()
     const { orch } = makeOrchestrator({

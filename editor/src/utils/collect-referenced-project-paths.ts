@@ -40,6 +40,12 @@ export function collectReferencedProjectPaths(project: ProjectDoc): string[] {
   for (const ts of Object.values(project.tilesets ?? {})) {
     if (ts.spriteImagePath.trim()) paths.add(ts.spriteImagePath.trim())
   }
+  for (const entity of Object.values(project.entities)) {
+    if (entity.scriptPath?.trim()) paths.add(entity.scriptPath.trim())
+  }
+  for (const objectType of Object.values(project.objectTypes ?? {})) {
+    if (objectType.scriptPath?.trim()) paths.add(objectType.scriptPath.trim())
+  }
   if (project.mainScriptPath.trim()) paths.add(project.mainScriptPath.trim())
   return [...paths].sort()
 }

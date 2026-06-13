@@ -21,9 +21,8 @@ export function performRuntimeSceneAssetSync(
     options?.scope === 'scene+spawn-prototypes'
       ? { scope: 'scene-static' as const }
       : options
-  for (const sid of Object.keys(project.scenes)) {
-    if (sid !== activeSceneId) {
-      assetOrchestrator.prefetchScene(project, sid, root, prefetchOptions)
-    }
+  const siblingSceneIds = Object.keys(project.scenes).filter((sid) => sid !== activeSceneId)
+  if (siblingSceneIds.length > 0) {
+    assetOrchestrator.prefetchScenes(project, siblingSceneIds, root, prefetchOptions)
   }
 }

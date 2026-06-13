@@ -4,6 +4,7 @@
 
 import type { ProjectDoc } from '../types'
 import type { LogicBoard } from '../types/logic-board'
+import { imageAssetForRef } from './resolve-image-load-key'
 
 export type ProjectDiagnosticSeverity = 'error' | 'warn'
 
@@ -76,7 +77,6 @@ function collectLogicBoardTargetDiagnostics(
 
 export function collectProjectDiagnostics(project: ProjectDoc): ProjectDiagnostic[] {
   const out: ProjectDiagnostic[] = []
-  const assets = project.assets ?? {}
   const types = project.objectTypes ?? {}
   const scenes = project.scenes ?? {}
 
@@ -113,7 +113,7 @@ export function collectProjectDiagnostics(project: ProjectDoc): ProjectDiagnosti
   for (const [id, ent] of Object.entries(project.entities ?? {})) {
     const numId = Number(id)
     const sid = ent.sprite?.spriteAssetId?.trim()
-    if (sid && !assets[sid]) {
+    if (sid && !imageAssetForRef(project, sid)) {
       out.push({
         severity: 'error',
         context: `entity:${numId}`,
@@ -134,7 +134,7 @@ export function collectProjectDiagnostics(project: ProjectDoc): ProjectDiagnosti
 
   for (const [typeId, ot] of Object.entries(types)) {
     const sid = ot.sprite?.spriteAssetId?.trim()
-    if (sid && !assets[sid]) {
+    if (sid && !imageAssetForRef(project, sid)) {
       out.push({
         severity: 'error',
         context: `objectType:${typeId}`,
@@ -162,7 +162,7 @@ export function collectProjectDiagnostics(project: ProjectDoc): ProjectDiagnosti
         })
       } else {
         const sid = objectTypeSpriteAssetId(project, inst.objectTypeId)
-        if (sid && !assets[sid]) {
+        if (sid && !imageAssetForRef(project, sid)) {
           out.push({
             severity: 'error',
             context: `scene:${scene.id}`,

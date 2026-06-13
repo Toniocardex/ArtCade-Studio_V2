@@ -1,14 +1,9 @@
 import { useRef, useLayoutEffect, useEffect, useCallback, useMemo } from 'react'
 import { useEditorDispatch, useEditorSelector } from '../store/editor-store'
 import type { ConsoleEntry } from '../types'
-import { assetOrchestrator } from '../utils/asset-orchestrator'
+import { assetOrchestrator, imageAssetDescriptor } from '../utils/asset-orchestrator'
 import { watchProjectAssets } from '../utils/asset-watcher'
 import { dirName } from '../utils/project'
-import {
-  reloadProjectAudioAsset,
-  reloadProjectFontAsset,
-  reloadProjectImageAsset,
-} from '../utils/reload-project-asset'
 import { runtimeSync, type EditorTool } from '../utils/runtime-sync-service'
 import { DEFAULT_SCENE_SIZE } from '../constants/editor-viewport'
 import {
@@ -215,7 +210,7 @@ export default function PreviewPanel({
       if (!p) return
       const image = Object.values(p.assets ?? {}).find((a) => a.path === relPath)
       if (image) {
-        void reloadProjectImageAsset(root, image).then((ok) => {
+        void assetOrchestrator.reloadAsset(p, imageAssetDescriptor(image), root).then((ok) => {
           if (ok && !cancelled) {
             dispatch({
               type: 'LOG',
@@ -227,7 +222,11 @@ export default function PreviewPanel({
       }
       const audio = Object.values(p.audioAssets ?? {}).find((a) => a.path === relPath)
       if (audio) {
-        void reloadProjectAudioAsset(root, audio).then((ok) => {
+        void assetOrchestrator.reloadAsset(p, {
+          id: audio.id,
+          type: 'audio',
+          path: audio.path,
+        }, root).then((ok) => {
           if (ok && !cancelled) {
             dispatch({
               type: 'LOG',
@@ -239,7 +238,11 @@ export default function PreviewPanel({
       }
       const font = Object.values(p.fontAssets ?? {}).find((a) => a.path === relPath)
       if (!font) return
-      void reloadProjectFontAsset(root, font).then((ok) => {
+      void assetOrchestrator.reloadAsset(p, {
+        id: font.id,
+        type: 'font',
+        path: font.path,
+      }, root).then((ok) => {
         if (ok && !cancelled) {
           dispatch({
             type: 'LOG',

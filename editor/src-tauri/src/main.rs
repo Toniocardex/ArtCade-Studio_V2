@@ -13,6 +13,7 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod atomic_project_write;
 mod build_log_filter;
 mod process_util;
 mod project_paths;
@@ -108,13 +109,15 @@ fn validate_pack_output_path(output_path: &str) -> Result<PathBuf, String> {
 #[tauri::command]
 fn write_file(path: String, content: String, project_root: String) -> Result<(), String> {
     let p = project_write_paths::prepare_writable_path(&path, &project_root)?;
-    std::fs::write(&p, content).map_err(|e| format!("write '{path}': {e}"))
+    atomic_project_write::write_atomic(&p, content.as_bytes())
+        .map_err(|e| format!("atomic write '{path}': {e}"))
 }
 
 #[tauri::command]
 fn write_binary_file(path: String, bytes: Vec<u8>, project_root: String) -> Result<(), String> {
     let p = project_write_paths::prepare_writable_path(&path, &project_root)?;
-    std::fs::write(&p, bytes).map_err(|e| format!("write binary '{path}': {e}"))
+    atomic_project_write::write_atomic(&p, &bytes)
+        .map_err(|e| format!("atomic binary write '{path}': {e}"))
 }
 
 #[cfg(test)]
@@ -208,6 +211,13 @@ fn validated_project_scope_root(project_path: &str) -> Result<PathBuf, String> {
 #[tauri::command]
 fn register_project_fs_scope(app: tauri::AppHandle, project_path: String) -> Result<(), String> {
     let canon = validated_project_scope_root(&project_path)?;
+    if let Err(error) = atomic_project_write::cleanup_stale_project_temps(&canon) {
+        emit_log(
+            &app,
+            &format!("[File] Stale temp cleanup warning: {error}"),
+            "warn",
+        );
+    }
     app.fs_scope()
         .allow_directory(&canon, true)
         .map_err(|e| format!("fs scope allow_directory: {e}"))?;

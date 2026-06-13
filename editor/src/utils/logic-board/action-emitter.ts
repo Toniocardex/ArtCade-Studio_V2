@@ -267,7 +267,10 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
       return `entity.setTint(${target(a.target)}, ${r}, ${g}, ${b}, ${al})`
     }
     case 'setText': {
-      let expr = `_logic_tostr(${valueSourceExpr(a.value, project)})`
+      const fmt = a.format && a.format !== 'text'
+      let expr = fmt
+        ? `_logic_fmt(${valueSourceExpr(a.value, project)}, ${luaString(a.format!)}, ${finite(a.digits)})`
+        : `_logic_tostr(${valueSourceExpr(a.value, project)})`
       if (a.prefix) expr = `${luaString(a.prefix)} .. ${expr}`
       if (a.suffix) expr = `${expr} .. ${luaString(a.suffix)}`
       return `text.set(${target(a.target)}, ${expr})`

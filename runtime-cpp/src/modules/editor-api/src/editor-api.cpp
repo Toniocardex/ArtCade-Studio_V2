@@ -225,6 +225,9 @@ void EditorAPI::wireRenderer(Modules::Renderer* renderer) {
         renderer->setTextureKeyResolver([](const std::string& ref) {
             return s_editorAssetManifest.resolveImageKey(ref);
         });
+        renderer->setFontKeyResolver([](const std::string& ref) {
+            return s_editorAssetManifest.resolveFontKey(ref);
+        });
     }
     notifyConsoleLine("[EditorAPI] Engine wired to Renderer (image upload ready).", "info");
 }
@@ -235,6 +238,11 @@ void EditorAPI::wireSpriteAnimator(Modules::SpriteAnimator* spriteAnimator) {
 
 void EditorAPI::wireAudio(Modules::Audio* audio) {
     s_audio = audio;
+    if (audio) {
+        audio->setAssetPathResolver([](const std::string& ref) {
+            return s_editorAssetManifest.resolveAudioKey(ref);
+        });
+    }
 }
 
 void EditorAPI::wireDialog(Modules::DialogManager* dialogManager) {

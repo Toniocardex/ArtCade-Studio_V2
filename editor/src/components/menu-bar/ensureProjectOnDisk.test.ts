@@ -79,4 +79,23 @@ describe('ensureProjectOnDisk', () => {
     expect(path).toBeNull()
     expect(scaffoldNewProjectOnDisk).not.toHaveBeenCalled()
   })
+
+  it('commits project metadata after dialogs for an existing project', async () => {
+    const project = createBlankProject('MyGame')
+
+    const path = await ensureProjectOnDisk({
+      kind: 'save',
+      dispatch,
+      project,
+      projectPath: '/tmp/games/MyGame/project.json',
+      dialogs: {},
+    })
+
+    expect(path).toBe('/tmp/games/MyGame/project.json')
+    expect(saveDialogsToProject).toHaveBeenCalledOnce()
+    expect(saveProjectFile).toHaveBeenCalledOnce()
+    expect(saveDialogsToProject.mock.invocationCallOrder[0]).toBeLessThan(
+      saveProjectFile.mock.invocationCallOrder[0],
+    )
+  })
 })

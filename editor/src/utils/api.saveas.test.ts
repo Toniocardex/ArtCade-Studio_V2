@@ -5,8 +5,8 @@
 // The flow we want to keep working forever:
 //   1. saveProjectAsDialog() asks the user for a parent folder.
 //   2. scaffoldNewProjectOnDisk() creates <parent>/<safeProjectName>/ and
-//      writes BOTH project.json and the starter script at
-//      <projectRoot>/<mainScriptPath>, in that order, via write_file.
+//      writes BOTH the starter script and project.json, committing the
+//      metadata only after every referenced file is durable.
 //   3. The ProjectDoc passed in survives validation (no exception) and
 //      reaches `write_file` as the same JSON parseProjectDoc emits.
 //
@@ -47,13 +47,16 @@ const {
   openProjectDialog,
   saveProjectAsDialog,
   scaffoldNewProjectOnDisk,
+  importAssetFile,
 } = await import('./api')
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { createBlankProject, BLANK_MAIN_LUA, parseProjectDoc } = await import('./project')
+const { clearPendingAssets, pendingAssetCount } = await import('./pending-asset-store')
 
 describe('saveProjectAsDialog', () => {
   beforeEach(() => {
     invokeMock.mockClear()
+    clearPendingAssets()
     dialogSaveMock.mockClear()
     dialogOpenMock.mockClear()
   })
@@ -112,7 +115,9 @@ describe('openProjectDialog', () => {
 
 describe('scaffoldNewProjectOnDisk', () => {
   beforeEach(() => {
-    invokeMock.mockClear()
+    invokeMock.mockReset()
+    invokeMock.mockResolvedValue(undefined)
+    clearPendingAssets()
   })
 
   it('writes project.json AND the starter Lua script next to it', async () => {
@@ -123,33 +128,91 @@ describe('scaffoldNewProjectOnDisk', () => {
 
     expect(invokeMock).toHaveBeenCalledTimes(3)
 
-    // 1st write — project.json with normalised path & valid JSON content.
+    // 1st write - main.lua at <projectRoot>/<mainScriptPath>, slash-normalised.
     const [cmd0, args0] = invokeMock.mock.calls[0] as [
       string,
       { path: string; content: string; projectRoot: string },
     ]
     expect(cmd0).toBe('write_file')
-    expect(args0.path).toBe('/tmp/games/Scaffold Test/project.json')
+    expect(args0.path).toBe('/tmp/games/Scaffold Test/scripts/main.lua')
     expect(args0.projectRoot).toBe('/tmp/games/Scaffold Test')
-    // The serialised JSON must parse back into a valid project.
-    const round = parseProjectDoc(args0.content)
-    expect(round).not.toBeNull()
-    expect(round!.projectName).toBe('Scaffold Test')
+    expect(args0.content).toBe(BLANK_MAIN_LUA)
 
-    // 2nd write — main.lua at <projectRoot>/<mainScriptPath>, slash-normalised.
+    // 2nd write - project.json is the final durable commit point.
     const [cmd1, args1] = invokeMock.mock.calls[1] as [
       string,
       { path: string; content: string; projectRoot: string },
     ]
     expect(cmd1).toBe('write_file')
-    expect(args1.path).toBe('/tmp/games/Scaffold Test/scripts/main.lua')
+    expect(args1.path).toBe('/tmp/games/Scaffold Test/project.json')
     expect(args1.projectRoot).toBe('/tmp/games/Scaffold Test')
-    expect(args1.content).toBe(BLANK_MAIN_LUA)
+    const round = parseProjectDoc(args1.content)
+    expect(round).not.toBeNull()
+    expect(round!.projectName).toBe('Scaffold Test')
 
     expect(invokeMock.mock.calls[2]).toEqual([
       'register_project_fs_scope',
       { projectPath: '/tmp/games/Scaffold Test/project.json' },
     ])
+  })
+
+  it('flushes pending imported bytes before writing project metadata', async () => {
+    const project = createBlankProject('Pending Assets')
+    project.audioAssets = {
+      aud_theme: {
+        id: 'aud_theme', name: 'theme.ogg',
+        path: 'assets/audio/aud_theme_theme.ogg',
+      },
+    }
+    await importAssetFile({
+      kind: 'audio', id: 'aud_theme', fileName: 'theme.ogg',
+      bytes: new Uint8Array([7, 8, 9]),
+    })
+    await importAssetFile({
+      kind: 'image', id: 'img_removed', fileName: 'removed.png',
+      bytes: new Uint8Array([1]),
+    })
+
+    await scaffoldNewProjectOnDisk('/tmp/games', project, BLANK_MAIN_LUA)
+
+    expect(invokeMock.mock.calls[0]).toEqual([
+      'write_binary_file',
+      {
+        path: '/tmp/games/Pending Assets/assets/audio/aud_theme_theme.ogg',
+        bytes: [7, 8, 9],
+        projectRoot: '/tmp/games/Pending Assets',
+      },
+    ])
+    expect(invokeMock.mock.calls[1][1]).toMatchObject({
+      path: '/tmp/games/Pending Assets/scripts/main.lua',
+    })
+    expect(invokeMock.mock.calls[2][1]).toMatchObject({
+      path: '/tmp/games/Pending Assets/project.json',
+    })
+    expect(invokeMock.mock.calls.filter(([cmd]) => cmd === 'write_binary_file')).toHaveLength(1)
+    expect(pendingAssetCount()).toBe(0)
+  })
+
+  it('retains pending bytes when project metadata cannot be saved', async () => {
+    const project = createBlankProject('Retry Save')
+    project.assets = {
+      img_retry: {
+        id: 'img_retry', name: 'hero.png',
+        path: 'assets/images/img_retry_hero.png',
+      },
+    }
+    await importAssetFile({
+      kind: 'image', id: 'img_retry', fileName: 'hero.png',
+      bytes: new Uint8Array([1, 2, 3]),
+    })
+    invokeMock.mockImplementation(async (cmd: string) => {
+      if (cmd === 'write_file') throw new Error('project write failed')
+    })
+
+    await expect(
+      scaffoldNewProjectOnDisk('/tmp/games', project, BLANK_MAIN_LUA),
+    ).rejects.toThrow('project write failed')
+    expect(pendingAssetCount()).toBe(1)
   })
 
   it('sanitises the project folder name', async () => {
@@ -158,8 +221,8 @@ describe('scaffoldNewProjectOnDisk', () => {
     const savedPath = await scaffoldNewProjectOnDisk('/tmp/games', project, BLANK_MAIN_LUA)
 
     expect(savedPath).toBe('/tmp/games/Bad__Name/project.json')
-    const [, args0] = invokeMock.mock.calls[0] as [string, { path: string }]
-    expect(args0.path).toBe('/tmp/games/Bad__Name/project.json')
+    const [, args1] = invokeMock.mock.calls[1] as [string, { path: string }]
+    expect(args1.path).toBe('/tmp/games/Bad__Name/project.json')
   })
 
   it('normalises Windows-style backslashes in the derived script path', async () => {
@@ -168,7 +231,7 @@ describe('scaffoldNewProjectOnDisk', () => {
 
     await scaffoldNewProjectOnDisk(target, project, BLANK_MAIN_LUA)
 
-    const [, args1] = invokeMock.mock.calls[1] as [string, { path: string }]
+    const [, args1] = invokeMock.mock.calls[0] as [string, { path: string }]
     // Backslashes from the project root get normalised; the join uses '/'.
     expect(args1.path).toBe('C:/Users/Foo/Desktop/Win Test/scripts/main.lua')
   })

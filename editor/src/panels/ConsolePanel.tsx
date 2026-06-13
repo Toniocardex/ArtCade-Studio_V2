@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import { useConsoleLogs, useEditorDispatch } from '../store/editor-store'
+import { useConsoleLogs, useEditorDispatch, useEditorSelector } from '../store/editor-store'
 import type { ConsoleLevel } from '../types'
 import { ConsoleFilterBar } from '../components/console/ConsoleFilterBar'
 import {
@@ -10,6 +10,8 @@ import {
   type ConsoleFilterKey,
   type ConsoleLevelFilters,
 } from '../utils/console-log-filters'
+import { getProjectWorkbenchSnapshot } from '../utils/project-health'
+import { projectHealthConsoleEntries } from '../utils/project-health-console'
 
 const LEVEL_COLOR: Record<ConsoleLevel, string> = {
   info: 'var(--muted)',
@@ -55,6 +57,9 @@ export default function ConsolePanel({ compact = false }: ConsolePanelProps) {
   const dispatch = useEditorDispatch()
   const { state } = useConsoleLogs()
   const { consoleLogs } = state
+  const project = useEditorSelector((s) => s.project)
+  const projectPath = useEditorSelector((s) => s.projectPath)
+  const openScripts = useEditorSelector((s) => s.openScripts)
   const [commandLine, setCommandLine] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
   const lastScrolledLogIdRef = useRef(0)
@@ -62,19 +67,34 @@ export default function ConsolePanel({ compact = false }: ConsolePanelProps) {
   const [filters, setFilters] = useState<ConsoleLevelFilters>(readStoredFilters)
   const [search, setSearch] = useState('')
 
+  const projectLogs = useMemo(
+    () => projectHealthConsoleEntries(getProjectWorkbenchSnapshot({
+      project,
+      projectPath,
+      openScripts,
+      includeCompile: true,
+    }).health),
+    [project, projectPath, openScripts],
+  )
+
+  const allLogs = useMemo(
+    () => [...projectLogs, ...consoleLogs],
+    [projectLogs, consoleLogs],
+  )
+
   const chipCounts = useMemo(
-    () => consoleChipCounts(consoleLogs, search),
-    [consoleLogs, search],
+    () => consoleChipCounts(allLogs, search),
+    [allLogs, search],
   )
 
   const emptyMessage = useMemo(
-    () => consoleEmptyListMessage(consoleLogs, filters, search),
-    [consoleLogs, filters, search],
+    () => consoleEmptyListMessage(allLogs, filters, search),
+    [allLogs, filters, search],
   )
 
   const visibleLogs = useMemo(
-    () => filterConsoleLogs(consoleLogs, filters, search),
-    [consoleLogs, filters, search],
+    () => filterConsoleLogs(allLogs, filters, search),
+    [allLogs, filters, search],
   )
 
   const allLogText = useMemo(

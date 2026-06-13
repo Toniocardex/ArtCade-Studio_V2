@@ -1,11 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { useEditorDispatch, useEditorSelector, useEditorStore } from '../store/editor-store'
-import { importImageIntoProject } from '../utils/api'
-import {
-  importAudioIntoProject,
-  importFontIntoProject,
-} from '../utils/asset-file-api'
+import { importAssetFile } from '../utils/asset-file-api'
 import { dirName } from '../utils/project'
 import { openProjectScript } from '../utils/open-project-script'
 import {
@@ -78,26 +74,30 @@ export function useAssetExplorerActions() {
       if (!file || !project) return
       const reader = new FileReader()
       reader.onload = async () => {
-        const dataUrl = fileReaderDataUrl(reader.result)
-        const buf = await file.arrayBuffer()
-        const bytes = new Uint8Array(buf)
-        let relPath: string | null = null
-        if (store.getState().projectPath) {
-          relPath = await importImageIntoProject(
-            dirName(store.getState().projectPath!),
-            file.name,
+        try {
+          const dataUrl = fileReaderDataUrl(reader.result)
+          const bytes = new Uint8Array(await file.arrayBuffer())
+          const projectPath = store.getState().projectPath
+          const imported = await importAssetFile({
+            kind: 'image',
+            fileName: file.name,
             bytes,
-          )
+            projectRoot: projectPath ? dirName(projectPath) : null,
+          })
+          const asset: ImageAsset = {
+            id: imported.id,
+            name: file.name,
+            path: imported.path,
+            dataUrl,
+          }
+          dispatch({ type: 'ASSET_ADD', asset })
+          showFlash(imported.persisted
+            ? `Imported ${file.name}`
+            : `${file.name} (save to persist)`)
+        } catch (err) {
+          console.error('[Asset] Image import failed:', err)
+          showFlash(`Import failed: ${file.name}`)
         }
-        const path = relPath ?? `assets/images/${file.name}`
-        const asset: ImageAsset = {
-          id: `img_${Date.now().toString(36)}`,
-          name: file.name,
-          path,
-          dataUrl,
-        }
-        dispatch({ type: 'ASSET_ADD', asset })
-        showFlash(relPath ? `Imported ${file.name}` : `${file.name} (save to persist)`)
       }
       reader.readAsDataURL(file)
       e.target.value = ''
@@ -110,20 +110,28 @@ export function useAssetExplorerActions() {
       const file = e.target.files?.[0]
       if (!file || !project) return
       void (async () => {
-        const bytes = new Uint8Array(await file.arrayBuffer())
-        let relPath: string | null = null
-        if (store.getState().projectPath) {
-          relPath = await importAudioIntoProject(dirName(store.getState().projectPath!), file.name, bytes)
+        try {
+          const projectPath = store.getState().projectPath
+          const imported = await importAssetFile({
+            kind: 'audio',
+            fileName: file.name,
+            bytes: new Uint8Array(await file.arrayBuffer()),
+            projectRoot: projectPath ? dirName(projectPath) : null,
+          })
+          const asset: AudioAsset = {
+            id: imported.id,
+            name: file.name,
+            path: imported.path,
+            category: 'sfx',
+          }
+          dispatch({ type: 'AUDIO_ASSET_ADD', asset })
+          showFlash(imported.persisted
+            ? `Imported ${file.name}`
+            : `${file.name} (save to persist)`)
+        } catch (err) {
+          console.error('[Asset] Audio import failed:', err)
+          showFlash(`Import failed: ${file.name}`)
         }
-        const path = relPath ?? `assets/audio/${file.name}`
-        const asset: AudioAsset = {
-          id: `aud_${Date.now().toString(36)}`,
-          name: file.name,
-          path,
-          category: 'sfx',
-        }
-        dispatch({ type: 'AUDIO_ASSET_ADD', asset })
-        showFlash(relPath ? `Imported ${file.name}` : `${file.name} (save to persist)`)
       })()
       e.target.value = ''
     },
@@ -135,20 +143,28 @@ export function useAssetExplorerActions() {
       const file = e.target.files?.[0]
       if (!file || !project) return
       void (async () => {
-        const bytes = new Uint8Array(await file.arrayBuffer())
-        let relPath: string | null = null
-        if (store.getState().projectPath) {
-          relPath = await importFontIntoProject(dirName(store.getState().projectPath!), file.name, bytes)
+        try {
+          const projectPath = store.getState().projectPath
+          const imported = await importAssetFile({
+            kind: 'font',
+            fileName: file.name,
+            bytes: new Uint8Array(await file.arrayBuffer()),
+            projectRoot: projectPath ? dirName(projectPath) : null,
+          })
+          const asset: FontAsset = {
+            id: imported.id,
+            name: file.name,
+            path: imported.path,
+            defaultSize: 32,
+          }
+          dispatch({ type: 'FONT_ASSET_ADD', asset })
+          showFlash(imported.persisted
+            ? `Imported ${file.name}`
+            : `${file.name} (save to persist)`)
+        } catch (err) {
+          console.error('[Asset] Font import failed:', err)
+          showFlash(`Import failed: ${file.name}`)
         }
-        const path = relPath ?? `assets/fonts/${file.name}`
-        const asset: FontAsset = {
-          id: `font_${Date.now().toString(36)}`,
-          name: file.name,
-          path,
-          defaultSize: 32,
-        }
-        dispatch({ type: 'FONT_ASSET_ADD', asset })
-        showFlash(relPath ? `Imported ${file.name}` : `${file.name} (save to persist)`)
       })()
       e.target.value = ''
     },

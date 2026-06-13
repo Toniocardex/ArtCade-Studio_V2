@@ -58,6 +58,37 @@ describe('collectProjectDiagnostics', () => {
     expect(projectDiagnosticsErrors(collectProjectDiagnostics(p))).toHaveLength(0)
   })
 
+  it('accepts the image path stored by the sprite Inspector', () => {
+    const p = baseProject()
+    const spritePath = 'assets/images/walking.png'
+    p.assets = {
+      img_walking: {
+        id: 'img_walking',
+        name: 'walking.png',
+        path: spritePath,
+      },
+    }
+    p.entities[1]!.sprite.spriteAssetId = spritePath
+    p.objectTypes = {
+      Hero: {
+        id: 'Hero',
+        displayName: 'Hero',
+        tags: [],
+        sprite: { ...p.entities[1]!.sprite },
+      },
+    }
+    p.scenes.s!.entityIds = [1]
+    p.scenes.s!.instances = [{
+      id: 1,
+      objectTypeId: 'Hero',
+      instanceName: 'Hero',
+      transform: { ...p.entities[1]!.transform },
+    }]
+    delete p.entities[1]!.physics
+
+    expect(projectDiagnosticsErrors(collectProjectDiagnostics(p))).toHaveLength(0)
+  })
+
   it('flags invalid activeSceneId', () => {
     const p = baseProject()
     p.activeSceneId = 'missing'

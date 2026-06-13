@@ -161,6 +161,15 @@ std::string AssetLoader::resolveAssetPath(const std::string& assetId,
     return resolved.value_or(std::string{});
 }
 
+std::string AssetLoader::resolveFontPath(const std::string& ref) const {
+    const std::string relative = manifestIndex_.resolveFontKey(ref);
+    const auto resolved = resolveUnderRoot(rootPath_, relative);
+    if (relative == ref && ref.find_first_of("/\\:") == std::string::npos &&
+        resolved && !std::filesystem::exists(*resolved))
+        return ref;
+    return resolved.value_or(std::string{});
+}
+
 // ------------------------------------------------------------------ JSON parsing
 
 bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
@@ -199,6 +208,24 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
             out.imageAssets.push_back(ad);
             if (!ad.imagePoints.empty())
                 imagePointsByAsset_[ad.assetId] = ad.imagePoints;
+        }
+    }
+
+    if (j.contains("audioAssets") && j["audioAssets"].is_object()) {
+        for (auto& [key, av] : j["audioAssets"].items()) {
+            if (!av.is_object()) continue;
+            const std::string id = av.value("id", key);
+            const std::string assetPath = av.value("path", std::string{});
+            if (!assetPath.empty()) manifestIndex_.addAudioEntry(id, assetPath);
+        }
+    }
+
+    if (j.contains("fontAssets") && j["fontAssets"].is_object()) {
+        for (auto& [key, av] : j["fontAssets"].items()) {
+            if (!av.is_object()) continue;
+            const std::string id = av.value("id", key);
+            const std::string assetPath = av.value("path", std::string{});
+            if (!assetPath.empty()) manifestIndex_.addFontEntry(id, assetPath);
         }
     }
 

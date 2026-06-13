@@ -47,6 +47,9 @@ public:
     /** Dual-read for audio keys. */
     std::string resolveAudioPath(const std::string& ref) const;
 
+    /** Dual-read for font keys. */
+    std::string resolveFontPath(const std::string& ref) const;
+
     const AssetManifestIndex& manifestIndex() const { return manifestIndex_; }
 
     bool isDevMode() const { return devMode_; }

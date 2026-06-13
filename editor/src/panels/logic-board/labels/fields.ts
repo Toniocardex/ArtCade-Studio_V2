@@ -33,6 +33,8 @@ const FIELD_LABELS: Record<string, string> = {
   'action:setEntityHealth:currentHp': 'Current HP',
   'action:setEntityHealth:maxHp': 'Max HP',
   'action:setText:value': 'Value',
+  'action:setText:format': 'Format',
+  'action:setText:digits': 'Digits',
   'action:setText:prefix': 'Prefix',
   'action:setText:suffix': 'Suffix',
   'action:setTextColor:hexColor': 'Color',

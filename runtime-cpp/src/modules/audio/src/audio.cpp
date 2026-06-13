@@ -3,12 +3,18 @@
 #include <memory>
 #include <unordered_map>
 #include <string>
+#include <vector>
+#include <functional>
 
 namespace ArtCade::Modules {
 
 // ------------------------------------------------------------------ Pimpl
 
 struct Audio::Impl {
+    struct MemoryAudio {
+        std::vector<unsigned char> bytes;
+        std::string ext;
+    };
     float masterVolume = 1.f;
     float musicVolume  = 1.f;
     float sfxVolume    = 1.f;
@@ -25,6 +31,8 @@ struct Audio::Impl {
     float fadeRestoreVolume = 1.f;   // musicVolume before a fade-out started
 
     std::unordered_map<std::string, Sound> soundCache;
+    std::unordered_map<std::string, MemoryAudio> memoryAudio;
+    std::function<std::string(const std::string&)> assetPathResolver;
 };
 
 // ------------------------------------------------------------------ lifecycle
@@ -49,6 +57,7 @@ void Audio::shutdown() {
         UnloadMusicStream(impl_->currentMusic);
         impl_->musicLoaded = false;
     }
+    impl_->memoryAudio.clear();
     CloseAudioDevice();
     impl_->deviceOpen = false;
 }
@@ -59,11 +68,7 @@ bool Audio::registerSoundFromMemory(const std::string& path,
                                     const unsigned char* data, int len,
                                     const std::string& ext) {
     if (!impl_->deviceOpen || !data || len <= 0) return false;
-    auto it = impl_->soundCache.find(path);
-    if (it != impl_->soundCache.end()) {
-        UnloadSound(it->second);
-        impl_->soundCache.erase(it);
-    }
+    invalidateSound(path);
     const char* hint = ext.empty() ? ".wav" : ext.c_str();
     Wave wave = LoadWaveFromMemory(hint, data, len);
     if (wave.data == nullptr) return false;
@@ -74,20 +79,43 @@ bool Audio::registerSoundFromMemory(const std::string& path,
         return false;
     }
     impl_->soundCache[path] = snd;
+    impl_->memoryAudio[path] = Impl::MemoryAudio{
+        std::vector<unsigned char>(data, data + len), hint
+    };
     return true;
 }
 
+void Audio::setAssetPathResolver(
+    std::function<std::string(const std::string&)> resolver) {
+    impl_->assetPathResolver = std::move(resolver);
+}
+
 void Audio::invalidateSound(const std::string& path) {
+    if (impl_->musicLoaded && impl_->currentMusicPath == path) {
+        StopMusicStream(impl_->currentMusic);
+        UnloadMusicStream(impl_->currentMusic);
+        impl_->musicLoaded = false;
+        impl_->currentMusicPath.clear();
+    }
     auto it = impl_->soundCache.find(path);
-    if (it == impl_->soundCache.end()) return;
-    UnloadSound(it->second);
-    impl_->soundCache.erase(it);
+    if (it != impl_->soundCache.end()) {
+        UnloadSound(it->second);
+        impl_->soundCache.erase(it);
+    }
+    impl_->memoryAudio.erase(path);
 }
 
 void Audio::evictSoundCache() {
+    if (impl_->musicLoaded) {
+        StopMusicStream(impl_->currentMusic);
+        UnloadMusicStream(impl_->currentMusic);
+        impl_->musicLoaded = false;
+        impl_->currentMusicPath.clear();
+    }
     for (auto& [path, snd] : impl_->soundCache)
         UnloadSound(snd);
     impl_->soundCache.clear();
+    impl_->memoryAudio.clear();
 }
 
 void Audio::playSound(const std::string& path, float volume, float pitch) {
@@ -95,8 +123,11 @@ void Audio::playSound(const std::string& path, float volume, float pitch) {
 
     auto it = impl_->soundCache.find(path);
     if (it == impl_->soundCache.end()) {
-        if (!FileExists(path.c_str())) return;
-        impl_->soundCache[path] = LoadSound(path.c_str());
+        const std::string resolved = impl_->assetPathResolver
+            ? impl_->assetPathResolver(path)
+            : path;
+        if (resolved.empty() || !FileExists(resolved.c_str())) return;
+        impl_->soundCache[path] = LoadSound(resolved.c_str());
         it = impl_->soundCache.find(path);
     }
     Sound& snd = it->second;
@@ -109,7 +140,15 @@ void Audio::playSound(const std::string& path, float volume, float pitch) {
 
 void Audio::playMusic(const std::string& path, bool loop) {
     if (!impl_->deviceOpen) return;
-    if (!FileExists(path.c_str())) return;
+
+    const std::string resolved = impl_->assetPathResolver
+        ? impl_->assetPathResolver(path)
+        : path;
+    auto memoryIt = impl_->memoryAudio.find(path);
+    if (memoryIt == impl_->memoryAudio.end() && resolved != path)
+        memoryIt = impl_->memoryAudio.find(resolved);
+    if (memoryIt == impl_->memoryAudio.end() &&
+        (resolved.empty() || !FileExists(resolved.c_str()))) return;
 
     if (impl_->musicLoaded) {
         StopMusicStream(impl_->currentMusic);
@@ -117,8 +156,18 @@ void Audio::playMusic(const std::string& path, bool loop) {
         impl_->musicLoaded = false;
     }
 
-    impl_->currentMusic     = LoadMusicStream(path.c_str());
-    impl_->currentMusicPath = path;
+    if (memoryIt != impl_->memoryAudio.end()) {
+        const auto& source = memoryIt->second;
+        impl_->currentMusic = LoadMusicStreamFromMemory(
+            source.ext.c_str(), source.bytes.data(),
+            static_cast<int>(source.bytes.size()));
+    } else {
+        impl_->currentMusic = LoadMusicStream(resolved.c_str());
+    }
+    if (impl_->currentMusic.ctxData == nullptr) return;
+    impl_->currentMusicPath = memoryIt != impl_->memoryAudio.end()
+        ? memoryIt->first
+        : path;
     impl_->musicLoaded      = true;
 
     impl_->currentMusic.looping = loop;

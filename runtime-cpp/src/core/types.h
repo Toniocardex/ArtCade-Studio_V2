@@ -180,15 +180,21 @@ struct AutoDestroyComponent {
     float _timeAlive = 0.f;  // runtime accumulator (not serialised)
 };
 
-/** World-space text label (score, titles) drawn above the entity sprite. */
+/** Text label (score, titles) drawn above the entity sprite (or fixed on screen). */
 struct TextComponent {
     std::string text;
+    std::string bindKey;             // state var to auto-display; empty = static text
+    std::string format  = "text";    // text|integer|padded|time|percent|decimals
+    int         digits  = 2;         // pad width (padded) / decimal places (decimals)
+    std::string prefix;              // shown before the bound value
+    std::string suffix;              // shown after the bound value
     std::string fontPath;            // project-relative; empty = default font
     int         size    = 24;
     Vec4        color   = {1.f, 1.f, 1.f, 1.f};
     std::string align   = "left";    // "left" | "center" | "right"
     float       offsetX = 0.f;
     float       offsetY = 0.f;
+    bool        screenSpace = false; // draw fixed on screen (HUD) vs in the world
 };
 
 /** NPC / talkable — references dialogs/{dialogId}.json in project root. */

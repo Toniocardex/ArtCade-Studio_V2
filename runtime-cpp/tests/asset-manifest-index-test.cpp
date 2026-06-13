@@ -20,11 +20,13 @@ static int g_failed = 0;
 static void test_resolve_id_and_path() {
     AssetManifestIndex idx;
     idx.addImageEntry("img_hero", "assets/images/hero.png");
+    idx.addFontEntry("font_ui", "assets/fonts/ui.ttf");
 
     CHECK(idx.resolveImageKey("img_hero") == "assets/images/hero.png");
     CHECK(idx.resolveImageKey("assets/images/hero.png") == "assets/images/hero.png");
     CHECK(idx.resolveImageKey("assets/images/unknown.png") == "assets/images/unknown.png");
     CHECK(idx.resolveImageKey("") == "");
+    CHECK(idx.resolveFontKey("font_ui") == "assets/fonts/ui.ttf");
 }
 
 static void test_manifest_json_file() {
@@ -37,7 +39,8 @@ static void test_manifest_json_file() {
   "version": "1.0.0",
   "assets": [
     { "id": "snd1", "type": "audio", "relativePath": "assets/audio/jump.ogg" },
-    { "id": "img1", "type": "image", "relativePath": "assets/images/a.png" }
+    { "id": "img1", "type": "image", "relativePath": "assets/images/a.png" },
+    { "id": "font1", "type": "font", "relativePath": "assets/fonts/ui.ttf" }
   ]
 })";
     }
@@ -46,6 +49,7 @@ static void test_manifest_json_file() {
     CHECK(idx.loadFromJsonFile(path.string()));
     CHECK(idx.resolveImageKey("img1") == "assets/images/a.png");
     CHECK(idx.resolveAudioKey("snd1") == "assets/audio/jump.ogg");
+    CHECK(idx.resolveFontKey("font1") == "assets/fonts/ui.ttf");
 }
 
 int main() {

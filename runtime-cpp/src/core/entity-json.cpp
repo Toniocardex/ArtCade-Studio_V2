@@ -130,13 +130,19 @@ void read_optional_gameplay_components(const nlohmann::json& j, EntityDef& e) {
     if (j.contains("text") && j["text"].is_object()) {
         const auto& t = j["text"];
         TextComponent tc;
-        tc.text     = t.value("text", "");
-        tc.fontPath = t.value("fontPath", "");
-        tc.size     = t.value("size", 24);
-        tc.color    = parse_hex_color(t.value("colorHex", std::string("#ffffff")));
-        tc.align    = t.value("align", std::string("left"));
-        tc.offsetX  = t.value("offsetX", 0.f);
-        tc.offsetY  = t.value("offsetY", 0.f);
+        tc.text        = t.value("text", "");
+        tc.bindKey     = t.value("bindKey", "");
+        tc.format      = t.value("format", std::string("text"));
+        tc.digits      = t.value("digits", 2);
+        tc.prefix      = t.value("prefix", "");
+        tc.suffix      = t.value("suffix", "");
+        tc.fontPath    = t.value("fontPath", "");
+        tc.size        = t.value("size", 24);
+        tc.color       = parse_hex_color(t.value("colorHex", std::string("#ffffff")));
+        tc.align       = t.value("align", std::string("left"));
+        tc.offsetX     = t.value("offsetX", 0.f);
+        tc.offsetY     = t.value("offsetY", 0.f);
+        tc.screenSpace = t.value("screenSpace", false);
         e.text = tc;
     }
     if (j.contains("visible") && j["visible"].is_boolean())

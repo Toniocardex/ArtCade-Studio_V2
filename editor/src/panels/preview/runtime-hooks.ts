@@ -23,7 +23,6 @@ import {
   logLogicBoardCompileFailure,
   resolvePreviewMainLuaWithStatus,
 } from '../../utils/preview-restore'
-import { performRuntimeSceneAssetSync } from './runtime-asset-sync'
 import {
   scheduleWasmUiUpdate,
   scheduleWasmUiUpdateWhen,
@@ -360,8 +359,7 @@ export function useRuntimeAssetUpload(opts: AssetUploadOptions): void {
   } = opts
   useEffect(() => {
     if (!wasmReady || !engineReady || !project || !activeSceneId) return
-    performRuntimeSceneAssetSync(project, activeSceneId, projectPath, {
-      scope: previewAssetLoadScope,
-    })
+    runtimeSync.setPreviewAssetLoadScope(previewAssetLoadScope)
+    runtimeSync.syncProjectAssets(project, activeSceneId, projectPath)
   }, [project, projectPath, activeSceneId, wasmReady, engineReady, previewAssetLoadScope])
 }

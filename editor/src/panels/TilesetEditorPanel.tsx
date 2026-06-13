@@ -12,8 +12,8 @@
 import { useMemo, useRef, useState } from 'react'
 import { ImagePlus, Eraser, Trash2, ArrowLeft } from 'lucide-react'
 import { useEditorDispatch, useEditorSelector } from '../store/editor-store'
-import { editorRegisterImage } from '../utils/wasm-bridge'
-import { importImageIntoProject } from '../utils/api'
+import { assetOrchestrator } from '../utils/asset-orchestrator'
+import { importAssetFile } from '../utils/asset-file-api'
 import { dirName } from '../utils/project'
 import type { TilesetAsset, ImageAsset } from '../types'
 
@@ -26,13 +26,6 @@ function deriveGrid(imgW: number, imgH: number, tileSize: number, margin: number
 
 function fileReaderDataUrl(result: string | ArrayBuffer | null): string {
   return typeof result === 'string' ? result : ''
-}
-
-const FILE_EXT_RE = /\.[^.]+$/
-
-function fileExtension(name: string): string {
-  const match = FILE_EXT_RE.exec(name)
-  return (match?.[0] ?? '.png').toLowerCase()
 }
 
 export default function TilesetEditorPanel() {
@@ -73,46 +66,43 @@ export default function TilesetEditorPanel() {
       if (!url) return
       const img = new Image()
       img.onload = async () => {
-        setImgUrl(url)
-        setImgWH({ w: img.naturalWidth, h: img.naturalHeight })
-        const { cols, rows } = deriveGrid(
-          img.naturalWidth, img.naturalHeight, tileSize, margin,
-        )
-
-        // Persist into the project's image library (survives reopen/.artcade).
-        const buf   = await file.arrayBuffer()
-        const bytes = new Uint8Array(buf)
-        let relPath: string | null = null
-        if (projectPath) {
-          relPath = await importImageIntoProject(
-            dirName(projectPath), file.name, bytes,
+        try {
+          setImgUrl(url)
+          setImgWH({ w: img.naturalWidth, h: img.naturalHeight })
+          const { cols, rows } = deriveGrid(
+            img.naturalWidth, img.naturalHeight, tileSize, margin,
           )
-        }
-        const path = relPath ?? `assets/images/${file.name}`
+          const bytes = new Uint8Array(await file.arrayBuffer())
+          const root = projectPath ? dirName(projectPath) : ''
+          const imported = await importAssetFile({
+            kind: 'image',
+            fileName: file.name,
+            bytes,
+            projectRoot: root || null,
+          })
+          const imageAsset: ImageAsset = {
+            id: imported.id,
+            name: file.name,
+            path: imported.path,
+            dataUrl: url,
+          }
+          dispatch({ type: 'ASSET_ADD', asset: imageAsset })
 
-        const imageAsset: ImageAsset = {
-          id:   `img_${Date.now().toString(36)}`,
-          name: file.name,
-          path,
-          dataUrl: url,
-        }
-        dispatch({ type: 'ASSET_ADD', asset: imageAsset })
+          const asset: TilesetAsset = {
+            assetId: `tileset_${Date.now().toString(36)}`,
+            name: file.name.replace(/\.[^.]+$/, ''),
+            spriteImagePath: imported.path,
+            tileSize, margin, cols, rows,
+          }
+          dispatch({ type: 'TILESET_ASSET_ADD', asset })
+          if (scene)
+            dispatch({ type: 'TILEMAP_SET_TILESETID', sceneId, assetId: asset.assetId })
+          dispatch({ type: 'TILESET_SELECT_CELL', cellIndex: 1 })
 
-        const asset: TilesetAsset = {
-          assetId: `tileset_${Date.now().toString(36)}`,
-          name: file.name.replace(/\.[^.]+$/, ''),
-          spriteImagePath: path,   // references the persistent ImageAsset
-          tileSize, margin, cols, rows,
+          await assetOrchestrator.ensureImageRegistered(project, imageAsset, root)
+        } catch (err) {
+          console.error('[Tileset] Image import failed:', err)
         }
-        dispatch({ type: 'TILESET_ASSET_ADD', asset })
-        if (scene)
-          dispatch({ type: 'TILEMAP_SET_TILESETID', sceneId, assetId: asset.assetId })
-        dispatch({ type: 'TILESET_SELECT_CELL', cellIndex: 1 })
-
-        // Immediate delivery to the C++ renderer (keyed by the SAME path the
-        // runtime renders with); PreviewPanel also re-registers on reopen.
-        const ext = fileExtension(file.name)
-        editorRegisterImage(path, bytes, ext)
       }
       img.src = url
     }

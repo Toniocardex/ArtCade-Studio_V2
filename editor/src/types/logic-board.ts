@@ -264,7 +264,16 @@ export type LogicAction =
   | { type: 'setFlip'; target: TargetSelector; flipX: boolean; flipY?: boolean }
   | { type: 'setVisible'; target: TargetSelector; visible: boolean }
   | { type: 'setColorTint'; target: TargetSelector; hexColor: string; alpha?: number }
-  | { type: 'setText'; target: TargetSelector; value: LogicValue; prefix?: string; suffix?: string }
+  | {
+      type: 'setText'
+      target: TargetSelector
+      value: LogicValue
+      prefix?: string
+      suffix?: string
+      /** Number formatting; mirrors TextComponent.format (default 'text'). */
+      format?: 'text' | 'integer' | 'padded' | 'time' | 'percent' | 'decimals'
+      digits?: number
+    }
   | { type: 'setTextColor'; target: TargetSelector; hexColor: string }
   | { type: 'loadScene'; sceneName: string; fadeSeconds?: number }
   | { type: 'restartScene' }

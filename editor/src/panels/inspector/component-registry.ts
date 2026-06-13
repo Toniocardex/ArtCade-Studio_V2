@@ -83,12 +83,18 @@ const HEALTH: HealthComponent = { maxHp: 100, currentHp: 100, iFrames: 0.2 }
 const AUTODESTROY: AutoDestroyComponent = { lifespan: 0 }
 const TEXT: TextComponent = {
   text: 'New text',
+  bindKey: '',
+  format: 'text',
+  digits: 2,
+  prefix: '',
+  suffix: '',
   fontPath: '',
   size: 24,
   colorHex: '#ffffff',
   align: 'left',
   offsetX: 0,
   offsetY: 0,
+  screenSpace: false,
 }
 const DIALOG: DialogComponent = {
   dialogId: 'innkeeper',
@@ -241,6 +247,19 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
     create: () => ({ ...TEXT }),
     fields: [
       { key: 'text', label: 'Text', kind: 'text' },
+      { key: 'bindKey', label: 'Bind variable (empty = static)', kind: 'text' },
+      {
+        key: 'format', label: 'Format', kind: 'select',
+        options: ['text', 'integer', 'padded', 'time', 'percent', 'decimals'],
+        optionLabels: ['Text', 'Integer', 'Zero-padded', 'Time m:ss', 'Percent', 'Decimals'],
+        visibleWhen: (c) => !!c.bindKey,
+      },
+      {
+        key: 'digits', label: 'Digits', kind: 'number', min: 0, step: 1,
+        visibleWhen: (c) => !!c.bindKey && (c.format === 'padded' || c.format === 'decimals'),
+      },
+      { key: 'prefix', label: 'Prefix', kind: 'text', visibleWhen: (c) => !!c.bindKey },
+      { key: 'suffix', label: 'Suffix', kind: 'text', visibleWhen: (c) => !!c.bindKey },
       { key: 'fontPath', label: 'Font path (empty = default)', kind: 'text' },
       { key: 'size', label: 'Size (px)', kind: 'number', min: 4, step: 1 },
       { key: 'colorHex', label: 'Color (#rrggbb)', kind: 'text' },
@@ -251,6 +270,7 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
       },
       { key: 'offsetX', label: 'Offset X (px)', kind: 'number', step: 1 },
       { key: 'offsetY', label: 'Offset Y (px)', kind: 'number', step: 1 },
+      { key: 'screenSpace', label: 'Stay on screen (HUD)', kind: 'checkbox' },
     ],
   },
   {

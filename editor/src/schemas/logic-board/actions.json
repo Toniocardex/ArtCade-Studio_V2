@@ -245,7 +245,9 @@
       "target": { "$ref": "./target-selector.schema.json" },
       "value": { "$ref": "./value-source.schema.json" },
       "prefix": { "type": "string" },
-      "suffix": { "type": "string" }
+      "suffix": { "type": "string" },
+      "format": { "enum": ["text", "integer", "padded", "time", "percent", "decimals"] },
+      "digits": { "type": "number" }
     },
     "additionalProperties": false,
     "x-artcade": {
@@ -254,6 +256,12 @@
       "params": {
         "target": { "widget": "target", "label": "Target" },
         "value": { "widget": "valueSource", "label": "Value" },
+        "format": {
+          "widget": "enum",
+          "label": "Format",
+          "options": ["text", "integer", "padded", "time", "percent", "decimals"]
+        },
+        "digits": { "widget": "number", "label": "Digits" },
         "prefix": { "widget": "string", "label": "Prefix", "placeholder": "Score: " },
         "suffix": { "widget": "string", "label": "Suffix" }
       }

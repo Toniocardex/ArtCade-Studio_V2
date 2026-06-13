@@ -50,6 +50,7 @@ import type { DialogScript } from './dialog/dialog-script'
 import { dialogsJsonForRuntime } from './dialog/runtime-dialogs'
 import { performRuntimeSceneAssetSync } from '../panels/preview/runtime-asset-sync'
 import type { CollectSceneAssetRefsOptions } from './collect-scene-asset-refs'
+import { registerKeyForDescriptor, sceneAssetDescriptors } from './asset-orchestrator'
 
 // ---------------------------------------------------------------------------
 // Public domain types
@@ -173,7 +174,7 @@ class RuntimeSyncServiceImpl {
   private lastSnapToGrid:     boolean | null = null
   private readonly lastTransform: Map<number, EntityTransformSnapshot> = new Map()
   private assetCacheInvalidator: (() => void) | null = null
-  private lastAssetSceneId: string | null = null
+  private lastAssetSyncKey: string | null = null
   private previewAssetLoadScope: CollectSceneAssetRefsOptions['scope'] = 'scene-static'
   private readonly readyListeners: Set<(ready: boolean) => void> = new Set()
   // Seed from the actual bridge state so a Vite HMR rehydration (wasm
@@ -214,7 +215,7 @@ class RuntimeSyncServiceImpl {
     this.lastGridSize  = null
     this.lastSnapToGrid = null
     this.lastTransform.clear()
-    this.lastAssetSceneId = null
+    this.lastAssetSyncKey = null
   }
 
   /** Forget every cached "last sent" value. Use on project open / runtime reload. */
@@ -238,19 +239,30 @@ class RuntimeSyncServiceImpl {
   setPreviewAssetLoadScope(scope: CollectSceneAssetRefsOptions['scope']): void {
     if (this.previewAssetLoadScope === scope) return
     this.previewAssetLoadScope = scope
-    this.lastAssetSceneId = null
+    this.lastAssetSyncKey = null
     this.assetCacheInvalidator?.()
   }
 
-  /** Scene-scoped texture upload after project sync (Phase B). */
-  private syncSceneAssetsIfNeeded(
+  /** Binary asset upload after project sync or an asset-library edit. */
+  syncProjectAssets(
     project: ProjectDoc,
     activeSceneId: string,
     projectPath: string | null | undefined,
   ): void {
     if (!this.engineReady) return
-    if (this.lastAssetSceneId === activeSceneId) return
-    this.lastAssetSceneId = activeSceneId
+    const allSceneDescriptors = Object.keys(project.scenes).flatMap((sceneId) =>
+      sceneAssetDescriptors(project, sceneId, { scope: this.previewAssetLoadScope }),
+    )
+    const descriptorKeys = [...new Set(
+      allSceneDescriptors.map(registerKeyForDescriptor),
+    )].sort()
+    const assetKey = JSON.stringify({
+      activeSceneId,
+      scope: this.previewAssetLoadScope,
+      descriptors: descriptorKeys,
+    })
+    if (this.lastAssetSyncKey === assetKey) return
+    this.lastAssetSyncKey = assetKey
     performRuntimeSceneAssetSync(project, activeSceneId, projectPath ?? null, {
       scope: this.previewAssetLoadScope,
     })
@@ -565,7 +577,7 @@ class RuntimeSyncServiceImpl {
       if (options?.mainLua && this.reloadMainLuaIfChanged(options.mainLua) === 'failed') {
         return false
       }
-      this.syncSceneAssetsIfNeeded(project, activeSceneId, projectPath)
+      this.syncProjectAssets(project, activeSceneId, projectPath)
       return true
     }
 
@@ -576,7 +588,7 @@ class RuntimeSyncServiceImpl {
 
     const incremental = this.applyIncrementalSync(project, plan)
     this.latchProjectProjection(loadKey, projection)
-    this.syncSceneAssetsIfNeeded(project, activeSceneId, projectPath)
+    this.syncProjectAssets(project, activeSceneId, projectPath)
     return didWork || incremental
   }
 

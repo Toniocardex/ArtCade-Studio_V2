@@ -208,6 +208,26 @@ describe('Component API actions and conditions', () => {
     expect(lua).toContain('text.setColor(self, 1.0000, 0.0000, 0.0000, 1)')
   })
 
+  it('emits Set Text with a number format via _logic_fmt', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({
+          trigger: { type: 'onUpdate' },
+          actions: [
+            {
+              type: 'setText', target: 'self',
+              value: { source: 'state', key: 'time', fallback: 0 },
+              format: 'time', digits: 0,
+            },
+          ],
+        }),
+      ]),
+    ])
+    expect(lua).toContain('local function _logic_fmt(v, fmt, digits)')
+    expect(lua).toContain('text.set(self, _logic_fmt(')
+    expect(lua).toContain(', "time", 0)')
+  })
+
   it('emits onDamaged edge detection from previous-frame HP', () => {
     const lua = compileLogicBoard([
       board([

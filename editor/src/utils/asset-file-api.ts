@@ -4,13 +4,37 @@ import { readFile } from '@tauri-apps/plugin-fs'
 import { joinPath } from './file-paths'
 import { normalizeProjectRelativePath } from './project-path-security'
 import { invokeWriteBinaryFile } from './project-file-api'
+import { readPendingAsset, stagePendingAsset } from './pending-asset-store'
 
-function safeAssetFileName(fileName: string): string {
+export type ImportedAssetKind = 'image' | 'audio' | 'font'
+
+const ASSET_DIR: Record<ImportedAssetKind, string> = {
+  image: 'assets/images',
+  audio: 'assets/audio',
+  font: 'assets/fonts',
+}
+
+const ASSET_PREFIX: Record<ImportedAssetKind, string> = {
+  image: 'img',
+  audio: 'aud',
+  font: 'font',
+}
+
+let fallbackIdSequence = 0
+
+export function createAssetId(kind: ImportedAssetKind): string {
+  const uuid = globalThis.crypto?.randomUUID?.()
+  if (uuid) return `${ASSET_PREFIX[kind]}_${uuid.replace(/-/g, '')}`
+  fallbackIdSequence++
+  return `${ASSET_PREFIX[kind]}_${Date.now().toString(36)}_${fallbackIdSequence.toString(36)}`
+}
+
+export function safeAssetFileName(fileName: string): string {
   const base = fileName.replace(/\\/g, '/').split('/').pop() ?? ''
   if (!base || base === '.' || base === '..' || base.includes('..')) {
-    throw new Error('Invalid image file name.')
+    throw new Error('Invalid asset file name.')
   }
-  return base
+  return base.replace(/[^A-Za-z0-9._-]/g, '_')
 }
 
 function notAvailable(name: string): void {
@@ -54,68 +78,49 @@ export async function readImageAsDataUrl(path: string): Promise<string | null> {
   }
 }
 
+export interface ImportAssetFileOptions {
+  kind: ImportedAssetKind
+  fileName: string
+  bytes: Uint8Array
+  projectRoot?: string | null
+  id?: string
+}
+
+export interface ImportedAssetFile {
+  id: string
+  path: string
+  persisted: boolean
+}
+
 /**
- * Copy an imported image into the project's `assets/images/` folder so it
- * survives reopen / .artcade. Returns the path relative to the project root.
+ * Single import path for every binary asset. Unsaved projects retain raw
+ * bytes in memory; saved projects write the file before metadata is added.
  */
-export async function importImageIntoProject(
-  projectRoot: string,
-  fileName: string,
-  bytes: Uint8Array,
-): Promise<string | null> {
-  if (!isTauri()) { notAvailable('importImageIntoProject'); return null }
-  const safeName = safeAssetFileName(fileName)
-  const relDir  = 'assets/images'
-  const relPath = `${relDir}/${safeName}`
-  try {
-    await invokeWriteBinaryFile(joinPath(projectRoot, relPath), bytes, projectRoot)
-    return relPath
-  } catch (err) {
-    console.error('[api] importImageIntoProject failed:', err)
-    return null
-  }
-}
+export async function importAssetFile(
+  options: ImportAssetFileOptions,
+): Promise<ImportedAssetFile> {
+  if (options.bytes.length === 0) throw new Error('Cannot import an empty asset.')
+  const id = options.id ?? createAssetId(options.kind)
+  const safeName = safeAssetFileName(options.fileName)
+  const relPath = `${ASSET_DIR[options.kind]}/${id}_${safeName}`
+  const projectRoot = options.projectRoot?.trim()
 
-/** Copy an imported audio file into `assets/audio/`. */
-export async function importAudioIntoProject(
-  projectRoot: string,
-  fileName: string,
-  bytes: Uint8Array,
-): Promise<string | null> {
-  if (!isTauri()) { notAvailable('importAudioIntoProject'); return null }
-  const safeName = safeAssetFileName(fileName)
-  const relPath = `assets/audio/${safeName}`
-  try {
-    await invokeWriteBinaryFile(joinPath(projectRoot, relPath), bytes, projectRoot)
-    return relPath
-  } catch (err) {
-    console.error('[api] importAudioIntoProject failed:', err)
-    return null
+  if (projectRoot) {
+    if (!isTauri()) throw new Error('Asset persistence requires the Tauri runtime.')
+    await invokeWriteBinaryFile(joinPath(projectRoot, relPath), options.bytes, projectRoot)
+    return { id, path: relPath, persisted: true }
   }
-}
 
-/** Copy an imported font into `assets/fonts/`. */
-export async function importFontIntoProject(
-  projectRoot: string,
-  fileName: string,
-  bytes: Uint8Array,
-): Promise<string | null> {
-  if (!isTauri()) { notAvailable('importFontIntoProject'); return null }
-  const safeName = safeAssetFileName(fileName)
-  const relPath = `assets/fonts/${safeName}`
-  try {
-    await invokeWriteBinaryFile(joinPath(projectRoot, relPath), bytes, projectRoot)
-    return relPath
-  } catch (err) {
-    console.error('[api] importFontIntoProject failed:', err)
-    return null
-  }
+  stagePendingAsset(relPath, options.bytes)
+  return { id, path: relPath, persisted: false }
 }
 
 export async function readProjectFileBytes(
   projectRoot: string,
   relPath: string,
 ): Promise<Uint8Array | null> {
+  const pending = readPendingAsset(relPath)
+  if (pending) return pending
   if (!isTauri()) return null
   try {
     const safeRel = normalizeProjectRelativePath(relPath, 'asset path')

@@ -16,6 +16,22 @@ import { joinPath } from './file-paths'
 import { projectRootFromProjectPath } from './project-paths'
 import { assertProjectPathsSafe, normalizeProjectRelativePath } from './project-path-security'
 import { registerProjectFsScope } from './project-fs-scope'
+import { commitPendingAssets, flushPendingAssets } from './pending-asset-store'
+
+async function persistPendingAssets(
+  projectRoot: string,
+  project: ProjectDoc,
+): Promise<string[]> {
+  const referenced = new Set([
+    ...Object.values(project.assets ?? {}).map((asset) => asset.path),
+    ...Object.values(project.audioAssets ?? {}).map((asset) => asset.path),
+    ...Object.values(project.fontAssets ?? {}).map((asset) => asset.path),
+  ])
+  return flushPendingAssets(({ path, bytes }) =>
+    invokeWriteBinaryFile(joinPath(projectRoot, path), bytes, projectRoot),
+    (path) => referenced.has(path),
+  )
+}
 
 /** Validated project write via Tauri `write_file` (requires project root). */
 export async function invokeWriteFile(
@@ -160,7 +176,9 @@ export async function saveProjectFile(path: string, project: ProjectDoc): Promis
   validateProjectBeforeSave(project)
 
   const projectRoot = projectRootFromProjectPath(path)
+  const pendingPaths = await persistPendingAssets(projectRoot, project)
   await invokeWriteFile(path, serializeProjectDoc(project), projectRoot)
+  commitPendingAssets(pendingPaths)
 }
 
 /**
@@ -212,7 +230,7 @@ async function copyDirRecursive(src: string, dst: string): Promise<void> {
 
 /**
  * Scaffold a brand-new project on disk: creates `<parent>/<projectName>/`,
- * writes project.json inside it, and writes a starter script at
+ * writes a starter script and commits project.json last at
  * `<projectDir>/<mainScriptPath>`. Parent directories are created on demand
  * (write_file does `mkdir -p` internally).
  *
@@ -239,16 +257,18 @@ export async function scaffoldNewProjectOnDisk(
 
   validateProjectBeforeSave(project)
 
-  await invokeWriteFile(
-    projectJsonPath,
-    serializeProjectDoc(project),
-    projectRoot,
-  )
+  const pendingPaths = await persistPendingAssets(projectRoot, project)
 
   const mainScriptPath = normalizeProjectRelativePath(project.mainScriptPath, 'mainScriptPath')
   const scriptPath  = `${projectRoot}/${mainScriptPath}`.replace(/\\/g, '/')
 
   await invokeWriteFile(scriptPath, mainScriptBody, projectRoot)
+  await invokeWriteFile(
+    projectJsonPath,
+    serializeProjectDoc(project),
+    projectRoot,
+  )
+  commitPendingAssets(pendingPaths)
   await registerProjectFsScope(projectJsonPath)
 
   return projectJsonPath

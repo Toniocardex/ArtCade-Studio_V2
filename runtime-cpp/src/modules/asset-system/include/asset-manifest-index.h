@@ -25,8 +25,13 @@ public:
     std::string resolveImageKey(const std::string& ref) const;
 
     std::string resolveAudioKey(const std::string& ref) const;
+    std::string resolveFontKey(const std::string& ref) const;
 
-    bool empty() const { return imageIdToPath_.empty() && imagePaths_.empty(); }
+    bool empty() const {
+        return imageIdToPath_.empty() && imagePaths_.empty() &&
+               audioIdToPath_.empty() && audioPaths_.empty() &&
+               fontIdToPath_.empty() && fontPaths_.empty();
+    }
 
 private:
     std::unordered_map<std::string, std::string> imageIdToPath_;

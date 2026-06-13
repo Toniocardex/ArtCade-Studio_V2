@@ -90,15 +90,33 @@ export interface AutoDestroyComponent {
   lifespan: number           // s
 }
 
-/** World-space text label (score, titles, hints) rendered above the entity sprite. */
+/** How a bound numeric value (or Set Text value) is rendered as a string. */
+export type TextFormat =
+  | 'text'      // raw value, integers print without a trailing .0
+  | 'integer'   // rounded to a whole number
+  | 'padded'    // zero-padded integer to `digits` places (e.g. 000120)
+  | 'time'      // seconds → m:ss
+  | 'percent'   // rounded integer + "%"
+  | 'decimals'  // fixed `digits` decimal places
+
+/** Text label (score, titles, hints) rendered above the entity sprite. */
 export interface TextComponent {
   text:     string
+  /** When set, the runtime auto-updates the label each frame from this state
+   *  variable (no onUpdate rule needed). Empty = static `text`. */
+  bindKey:  string
+  format:   TextFormat                  // applied to the bound value
+  digits:   number                      // pad width (padded) / decimal places (decimals)
+  prefix:   string                      // shown before the bound value
+  suffix:   string                      // shown after the bound value
   fontPath: string                      // project-relative (assets/fonts/x.ttf); '' = engine default
   size:     number                      // px
   colorHex: string                      // #rrggbb
   align:    'left' | 'center' | 'right' // horizontal anchor at the entity position
   offsetX:  number                      // px from entity position
   offsetY:  number
+  /** Draw fixed on screen (HUD) instead of in the world (scrolls with camera). */
+  screenSpace: boolean
 }
 
 /** Talkable NPC — references `dialogs/{dialogId}.json` in the project folder. */

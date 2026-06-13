@@ -128,6 +128,15 @@ export function audioPathsToDescriptors(
   return out
 }
 
+export function projectAudioDescriptors(project: ProjectDoc): AssetDescriptor[] {
+  return Object.values(project.audioAssets ?? {}).flatMap((asset) => {
+    const path = asset.path?.trim()
+    return path
+      ? [{ id: asset.id, type: 'audio' as const, path, ext: extFromPath(path) }]
+      : []
+  })
+}
+
 export function projectFontDescriptors(project: ProjectDoc): AssetDescriptor[] {
   const out: AssetDescriptor[] = []
   for (const asset of Object.values(project.fontAssets ?? {})) {
@@ -150,15 +159,33 @@ export function sceneAssetDescriptors(
 ): AssetDescriptor[] {
   const imagePaths = collectSceneAssetRefs(project, sceneId, options)
   const audioPaths = collectSceneAudioRefs(project, sceneId)
-  return [
+  const descriptors = [
     ...pathsToDescriptors(project, imagePaths),
     ...audioPathsToDescriptors(project, audioPaths),
+    ...projectAudioDescriptors(project),
     ...projectFontDescriptors(project),
   ]
+  const seen = new Set<string>()
+  return descriptors.filter((desc) => {
+    const key = `${desc.type}:${desc.path}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
 }
 
 export function registerKeyForDescriptor(desc: AssetDescriptor): string {
-  return `${desc.type}:${desc.path}#${desc.dataUrl ? 'd' : 'f'}`
+  return `${desc.type}:${desc.path}#${dataUrlRevision(desc.dataUrl)}`
+}
+
+function dataUrlRevision(dataUrl: string | undefined): string {
+  if (!dataUrl) return 'file'
+  let hash = 2166136261
+  for (let i = 0; i < dataUrl.length; i++) {
+    hash ^= dataUrl.charCodeAt(i)
+    hash = Math.imul(hash, 16777619)
+  }
+  return `data:${dataUrl.length}:${(hash >>> 0).toString(36)}`
 }
 
 export function imageAssetDescriptor(asset: {
@@ -240,6 +267,31 @@ export class AssetOrchestrator {
     return result === 'loaded'
   }
 
+  private forgetRegisteredPath(type: AssetKind, path: string): void {
+    for (const [key, meta] of this.registeredMeta) {
+      if (meta.desc.type !== type || meta.desc.path !== path) continue
+      this.registered.delete(key)
+      this.registeredMeta.delete(key)
+    }
+  }
+
+  async reloadAsset(
+    project: ProjectDoc,
+    desc: AssetDescriptor,
+    projectRoot: string,
+  ): Promise<boolean> {
+    this.forgetRegisteredPath(desc.type, desc.path)
+    this.deps.invalidateAsset?.(desc.path, desc.type)
+    const result = await this.loadOne(
+      project,
+      desc,
+      projectRoot,
+      this.loadGeneration,
+      'critical',
+    )
+    return result === 'loaded'
+  }
+
   async loadScene(
     project: ProjectDoc,
     sceneId: string,
@@ -260,17 +312,26 @@ export class AssetOrchestrator {
     return result
   }
 
-  prefetchScene(
+  prefetchScenes(
     project: ProjectDoc,
-    sceneId: string,
+    sceneIds: readonly string[],
     projectRoot: string,
     options?: Pick<CollectSceneAssetRefsOptions, 'scope'>,
   ): void {
     const pfGen = ++this.prefetchGeneration
-    const descriptors = sceneAssetDescriptors(project, sceneId, options)
+    const descriptors = sceneIds.flatMap((sceneId) =>
+      sceneAssetDescriptors(project, sceneId, options),
+    )
+    const seen = new Set<string>()
+    const uniqueDescriptors = descriptors.filter((desc) => {
+      const key = `${desc.type}:${desc.path}`
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
     const run = () => {
       if (pfGen !== this.prefetchGeneration) return
-      void this.loadDescriptors(project, descriptors, projectRoot, pfGen, 'prefetch')
+      void this.loadDescriptors(project, uniqueDescriptors, projectRoot, pfGen, 'prefetch')
     }
     this.deps.scheduleIdle(run)
   }
@@ -360,15 +421,12 @@ export class AssetOrchestrator {
         this.logFailureOnce(desc.path, 'empty_bytes')
         return { reason: 'empty_bytes' }
       }
-    } else if (projectRoot) {
+    } else {
       bytes = await this.deps.readProjectFileBytes(projectRoot, desc.path)
       if (!bytes) {
         this.logFailureOnce(desc.path, 'read_failed')
         return { reason: 'read_failed' }
       }
-    } else {
-      this.logFailureOnce(desc.path, 'read_failed')
-      return { reason: 'read_failed' }
     }
 
     if (!this.isGenerationCurrent(generation, priority)) return 'cancelled'
@@ -395,6 +453,7 @@ export class AssetOrchestrator {
       return { reason: 'register_rejected' }
     }
 
+    this.forgetRegisteredPath(desc.type, desc.path)
     this.registered.add(regKey)
     this.registeredMeta.set(regKey, { desc, lastUsed: Date.now() })
     return 'loaded'

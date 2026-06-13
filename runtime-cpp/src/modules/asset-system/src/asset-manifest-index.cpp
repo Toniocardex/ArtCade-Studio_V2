@@ -83,4 +83,8 @@ std::string AssetManifestIndex::resolveAudioKey(const std::string& ref) const {
     return resolveFromMaps(ref, audioIdToPath_, audioPaths_);
 }
 
+std::string AssetManifestIndex::resolveFontKey(const std::string& ref) const {
+    return resolveFromMaps(ref, fontIdToPath_, fontPaths_);
+}
+
 } // namespace ArtCade::Modules

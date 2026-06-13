@@ -17,6 +17,19 @@ function warnOrphanOnce(ref: string): void {
   console.warn(`[Asset] Legacy orphan image reference (not in library): ${ref}`)
 }
 
+/** Resolve an image library entry from its record key, stable id, or path. */
+export function imageAssetForRef(
+  project: ProjectDoc,
+  ref: string,
+): ImageAsset | undefined {
+  const trimmed = ref.trim()
+  if (!trimmed) return undefined
+  return project.assets?.[trimmed]
+    ?? Object.values(project.assets ?? {}).find(
+      (asset) => asset.id === trimmed || asset.path === trimmed,
+    )
+}
+
 /**
  * Resolve a sprite/tileset reference to the project-relative path used as the
  * WASM texture cache key.
@@ -25,14 +38,8 @@ export function resolveImageLoadKey(project: ProjectDoc, ref: string): string {
   const trimmed = ref.trim()
   if (!trimmed) return ''
 
-  const assets = Object.values(project.assets ?? {})
-  const byId = new Map(assets.map((a) => [a.id, a]))
-  const byPath = new Map(assets.map((a) => [a.path, a]))
-
-  const byIdHit = byId.get(trimmed)
-  if (byIdHit) return byIdHit.path
-
-  if (byPath.has(trimmed)) return trimmed
+  const asset = imageAssetForRef(project, trimmed)
+  if (asset) return asset.path
 
   warnOrphanOnce(trimmed)
   return trimmed

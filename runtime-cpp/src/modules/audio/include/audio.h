@@ -3,6 +3,7 @@
 #include "../../../core/module.h"
 #include <string>
 #include <memory>
+#include <functional>
 
 namespace ArtCade::Modules {
 
@@ -29,6 +30,8 @@ public:
     bool registerSoundFromMemory(const std::string& path,
                                  const unsigned char* data, int len,
                                  const std::string& ext);
+
+    void setAssetPathResolver(std::function<std::string(const std::string&)> resolver);
 
     void invalidateSound(const std::string& path);
 

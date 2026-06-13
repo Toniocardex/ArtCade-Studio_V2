@@ -3,19 +3,19 @@ import { createBlankProject } from '../../utils/project-factory'
 import { performRuntimeSceneAssetSync } from './runtime-asset-sync'
 
 const loadScene = vi.fn(async () => ({ ok: true, loaded: [], failed: [] }))
-const prefetchScene = vi.fn()
+const prefetchScenes = vi.fn()
 
 vi.mock('../../utils/asset-orchestrator', () => ({
   assetOrchestrator: {
     loadScene: (...args: unknown[]) => loadScene(...args),
-    prefetchScene: (...args: unknown[]) => prefetchScene(...args),
+    prefetchScenes: (...args: unknown[]) => prefetchScenes(...args),
   },
 }))
 
 describe('performRuntimeSceneAssetSync', () => {
   beforeEach(() => {
     loadScene.mockClear()
-    prefetchScene.mockClear()
+    prefetchScenes.mockClear()
   })
 
   it('loads active scene and prefetches others', () => {
@@ -34,8 +34,8 @@ describe('performRuntimeSceneAssetSync', () => {
     expect(loadScene).toHaveBeenCalledWith(
       project, 'scene_main', '/proj/game.artcade', undefined,
     )
-    expect(prefetchScene).toHaveBeenCalledWith(
-      project, 'scene_b', '/proj/game.artcade', undefined,
+    expect(prefetchScenes).toHaveBeenCalledWith(
+      project, ['scene_b'], '/proj/game.artcade', undefined,
     )
   })
 
@@ -58,8 +58,8 @@ describe('performRuntimeSceneAssetSync', () => {
     expect(loadScene).toHaveBeenCalledWith(
       project, 'scene_main', '/proj/game.artcade', { scope: 'scene+spawn-prototypes' },
     )
-    expect(prefetchScene).toHaveBeenCalledWith(
-      project, 'scene_b', '/proj/game.artcade', { scope: 'scene-static' },
+    expect(prefetchScenes).toHaveBeenCalledWith(
+      project, ['scene_b'], '/proj/game.artcade', { scope: 'scene-static' },
     )
   })
 })

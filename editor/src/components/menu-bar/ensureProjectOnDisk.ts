@@ -153,9 +153,7 @@ export async function ensureProjectOnDisk(
   }
 
   try {
-    await saveProjectFile(buildPath, project)
     await saveDialogsToProject(buildPath, dialogs)
-    dispatch({ type: 'MARK_PROJECT_SAVED' })
 
     if (project.mainScriptPath && project.logicBoards?.length) {
       const { lua, compileError } = mainScriptBodyForProjectWithStatus(project, buildPath)
@@ -184,6 +182,8 @@ export async function ensureProjectOnDisk(
         })
       }
     }
+    await saveProjectFile(buildPath, project)
+    dispatch({ type: 'MARK_PROJECT_SAVED' })
   } catch (err) {
     dispatch({
       type: 'LOG',

@@ -39,12 +39,68 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstdio>
 #include <cstring>
 #include <iostream>
 #include <memory>
+#include <string>
 #include <vector>
 
 namespace {
+
+using ArtCade::Modules::VariableManager;
+
+/** Raw value → string, matching the Lua _logic_tostr path (integral → "12"). */
+std::string textValueToString(const VariableManager::Value& v) {
+    if (const auto* i = std::get_if<int32_t>(&v))     return std::to_string(*i);
+    if (const auto* b = std::get_if<bool>(&v))        return *b ? "true" : "false";
+    if (const auto* s = std::get_if<std::string>(&v)) return *s;
+    if (const auto* f = std::get_if<float>(&v)) {
+        char buf[32];
+        if (std::isfinite(*f) && *f == std::floor(*f))
+            std::snprintf(buf, sizeof(buf), "%lld",
+                          static_cast<long long>(*f));
+        else
+            std::snprintf(buf, sizeof(buf), "%g", *f);
+        return buf;
+    }
+    return "";
+}
+
+double textValueToNumber(const VariableManager::Value& v) {
+    if (const auto* i = std::get_if<int32_t>(&v)) return *i;
+    if (const auto* f = std::get_if<float>(&v))   return *f;
+    if (const auto* b = std::get_if<bool>(&v))    return *b ? 1.0 : 0.0;
+    if (const auto* s = std::get_if<std::string>(&v)) {
+        try { return std::stod(*s); } catch (...) { return 0.0; }
+    }
+    return 0.0;
+}
+
+/** Format a bound value; mirror of _logic_fmt in compiler-prelude.ts. */
+std::string formatTextValue(const VariableManager::Value& v,
+                            const std::string& fmt, int digits) {
+    if (fmt.empty() || fmt == "text") return textValueToString(v);
+    const double n = textValueToNumber(v);
+    char buf[64];
+    if (digits < 0) digits = 0;
+    if (fmt == "integer") {
+        std::snprintf(buf, sizeof(buf), "%lld", std::llround(n));
+    } else if (fmt == "padded") {
+        std::snprintf(buf, sizeof(buf), "%0*lld", digits, std::llround(n));
+    } else if (fmt == "time") {
+        long long s = std::llround(n);
+        if (s < 0) s = 0;
+        std::snprintf(buf, sizeof(buf), "%lld:%02lld", s / 60, s % 60);
+    } else if (fmt == "percent") {
+        std::snprintf(buf, sizeof(buf), "%lld%%", std::llround(n));
+    } else if (fmt == "decimals") {
+        std::snprintf(buf, sizeof(buf), "%.*f", digits, n);
+    } else {
+        return textValueToString(v);
+    }
+    return buf;
+}
 
 void drawPhysicsDebugColliders(ArtCade::Modules::Renderer& renderer,
                                ArtCade::Modules::RuntimeEntityGateway& gateway,
@@ -860,7 +916,8 @@ void Application::renderActiveScene() {
     mod_->entityGateway->forEachActiveRenderable(
         [renderer = mod_->renderer.get(),
          animator = mod_->spriteAnimator.get(),
-         inEditMode, gw = mod_->entityGateway.get()]
+         inEditMode, gw = mod_->entityGateway.get(),
+         vm = mod_->variableManager.get()]
         (EntityId id, const Transform& t, const SpriteComponent& s) {
             if (!inEditMode && s.alpha <= 0.001f)
                 return;
@@ -873,7 +930,8 @@ void Application::renderActiveScene() {
             if (inEditMode && placeholderFill)
                 alpha = 1.f;
             TextComponent text{};
-            const bool hasText = gw->getText(id, text) && !text.text.empty();
+            const bool hasText = gw->getText(id, text) &&
+                (!text.text.empty() || !text.bindKey.empty());
             // Pure text label (Text + no sprite asset): the placeholder
             // block is an editor-only placement gizmo, hidden in play.
             const bool textOnly = hasText && placeholderFill;
@@ -899,16 +957,28 @@ void Application::renderActiveScene() {
             // Text label (TextComponent). Queued via drawText, so it
             // renders above sprites; dims with the sprite in edit mode.
             if (hasText) {
+                // Auto-bind: show the live variable when running. When the
+                // variable is absent (edit mode / not yet set), fall back to
+                // the static text as a design-time preview.
+                std::string display = text.text;
+                if (!text.bindKey.empty() && vm && vm->exists(text.bindKey)) {
+                    display = text.prefix +
+                              formatTextValue(vm->get(text.bindKey),
+                                              text.format, text.digits) +
+                              text.suffix;
+                } else if (!text.bindKey.empty()) {
+                    display = text.prefix + text.text + text.suffix;
+                }
                 Vec4 c = text.color;
                 if (inEditMode && !gw->visibleInGame(id))
                     c.a *= 0.45f;
                 const int align = text.align == "center" ? 1
                                 : text.align == "right"  ? 2 : 0;
                 renderer->drawText(
-                    text.text,
+                    display,
                     t.position.x + text.offsetX,
                     t.position.y + text.offsetY,
-                    text.size, c, text.fontPath, align);
+                    text.size, c, text.fontPath, align, text.screenSpace);
             }
         });
 
@@ -967,6 +1037,7 @@ void Application::renderActiveScene() {
     }
 
     mod_->renderer->endWorldPass();
+    mod_->renderer->endScreenPass();   // HUD text (screen-space TextComponent)
     RayTintWidget::draw();
     mod_->renderer->presentScreen();
 

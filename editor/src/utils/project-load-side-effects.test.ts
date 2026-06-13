@@ -2,6 +2,7 @@ import { describe, expect, it, beforeEach } from 'vitest'
 import { getProjectWorkbenchSnapshot, clearProjectWorkbenchCache } from './project-health'
 import { runLoadProjectSideEffects } from './project-load-side-effects'
 import type { ProjectDoc } from '../types'
+import { pendingAssetCount, stagePendingAsset } from './pending-asset-store'
 
 function minimalProject(): ProjectDoc {
   return {
@@ -40,5 +41,14 @@ describe('runLoadProjectSideEffects', () => {
     const rebuilt = getProjectWorkbenchSnapshot(input)
     expect(rebuilt).not.toBe(cached)
     expect(rebuilt.health).toEqual(cached.health)
+  })
+
+  it('drops staged bytes when a different project is loaded', () => {
+    stagePendingAsset('assets/images/old.png', new Uint8Array([1]))
+    expect(pendingAssetCount()).toBe(1)
+
+    runLoadProjectSideEffects('/projects/new/project.json')
+
+    expect(pendingAssetCount()).toBe(0)
   })
 })
