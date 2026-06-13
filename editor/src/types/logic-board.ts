@@ -59,6 +59,9 @@ export type LogicComponentValueProperty =
   | 'sensor.targetTag'
   | 'solid.groundClass'
   | 'solid.surfaceKind'
+  | 'text.text'
+  | 'text.size'
+  | 'text.align'
 
 export type LogicValueAtom =
   | LogicPrimitive
@@ -261,6 +264,8 @@ export type LogicAction =
   | { type: 'setFlip'; target: TargetSelector; flipX: boolean; flipY?: boolean }
   | { type: 'setVisible'; target: TargetSelector; visible: boolean }
   | { type: 'setColorTint'; target: TargetSelector; hexColor: string; alpha?: number }
+  | { type: 'setText'; target: TargetSelector; value: LogicValue; prefix?: string; suffix?: string }
+  | { type: 'setTextColor'; target: TargetSelector; hexColor: string }
   | { type: 'loadScene'; sceneName: string; fadeSeconds?: number }
   | { type: 'restartScene' }
   | { type: 'centerCameraOn'; target: TargetSelector }

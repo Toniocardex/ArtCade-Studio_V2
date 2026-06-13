@@ -34,6 +34,8 @@ const ACTION_NAMES: Record<LogicActionType, string> = {
   playSound: 'Play sound',
   playMusic: 'Play music',
   stopAllAudio: 'Stop all audio',
+  setText: 'Set text',
+  setTextColor: 'Text color',
   setMusicVolume: 'Music volume',
   setMasterVolume: 'Master volume',
   setSfxVolume: 'Sound effects volume',

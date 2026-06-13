@@ -48,6 +48,7 @@ Principio UI/prodotto per questi componenti →
 | AutoDestroyComponent | Set/cancel lifespan | Tranche 2 |
 | SolidComponent | Ground class per `isGrounded` (runtime); nessun blocco LB MVP | Nessuna azione Tranche 1; `platformer.isGrounded` in Tranche 2 |
 | DialogComponent / DialogManager | Start by ID, end active dialog, is active | Integrato |
+| TextComponent | World-space label (text, font, size, color, align, offset); Set Text con Value Source + prefix/suffix, Set Text Color | Integrato (2026-06-13) |
 
 ## Tranche 1 - Capability Registry + API Esistenti
 

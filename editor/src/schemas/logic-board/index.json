@@ -14,7 +14,7 @@
     "setMusicVolume", "setMasterVolume", "setSfxVolume", "fadeMusic", "destroyEntity",
     "spawnEntity", "spawnEntityAtPointer", "spawnAtEntity", "emitEvent", "startDialog", "endDialog",
     "toggleLogicEvent", "applyImpulse", "applyForce", "setRotation", "setScale",
-    "playAnimation", "setFlip", "setVisible", "setColorTint", "loadScene", "restartScene",
+    "playAnimation", "setFlip", "setVisible", "setColorTint", "setText", "setTextColor", "loadScene", "restartScene",
     "centerCameraOn", "followCamera", "stopCameraFollow", "useDefaultCameraTarget",
     "cameraShake", "setCameraZoom", "panCamera", "setCameraPosition",
     "setTimeScale",

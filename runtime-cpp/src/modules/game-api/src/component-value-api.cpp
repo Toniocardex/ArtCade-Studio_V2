@@ -83,6 +83,13 @@ void bindComponentValueAPI(sol::state& lua, const EngineContext& ctx) {
                 }
             }
 
+            TextComponent text{};
+            if (gw->getText(id, text)) {
+                if (property == "text.text") return sol::make_object(state, text.text);
+                if (property == "text.size") return sol::make_object(state, text.size);
+                if (property == "text.align") return sol::make_object(state, text.align);
+            }
+
             SensorComponent sensor{};
             if (gw->getSensor(id, sensor) && property == "sensor.targetTag")
                 return sol::make_object(state, sensor.targetTag);

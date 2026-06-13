@@ -8,6 +8,30 @@ namespace ArtCade::ProjectJson {
 
 namespace {
 
+/** "#rrggbb" → Vec4 (alpha 1); falls back to white on malformed input. */
+Vec4 parse_hex_color(const std::string& hex) {
+    std::string h = hex;
+    if (!h.empty() && h[0] == '#') h = h.substr(1);
+    if (h.size() != 6) return {1.f, 1.f, 1.f, 1.f};
+    auto nibble = [](char c) -> int {
+        if (c >= '0' && c <= '9') return c - '0';
+        if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+        if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+        return -1;
+    };
+    int v[6];
+    for (int i = 0; i < 6; ++i) {
+        v[i] = nibble(h[i]);
+        if (v[i] < 0) return {1.f, 1.f, 1.f, 1.f};
+    }
+    return {
+        static_cast<float>(v[0] * 16 + v[1]) / 255.f,
+        static_cast<float>(v[2] * 16 + v[3]) / 255.f,
+        static_cast<float>(v[4] * 16 + v[5]) / 255.f,
+        1.f,
+    };
+}
+
 void read_optional_gameplay_components(const nlohmann::json& j, EntityDef& e) {
     if (j.contains("sensor") && j["sensor"].is_object()) {
         const auto& s = j["sensor"];
@@ -102,6 +126,18 @@ void read_optional_gameplay_components(const nlohmann::json& j, EntityDef& e) {
         dc.triggerMessage = d.value("triggerMessage", "");
         if (!dc.dialogId.empty())
             e.dialog = dc;
+    }
+    if (j.contains("text") && j["text"].is_object()) {
+        const auto& t = j["text"];
+        TextComponent tc;
+        tc.text     = t.value("text", "");
+        tc.fontPath = t.value("fontPath", "");
+        tc.size     = t.value("size", 24);
+        tc.color    = parse_hex_color(t.value("colorHex", std::string("#ffffff")));
+        tc.align    = t.value("align", std::string("left"));
+        tc.offsetX  = t.value("offsetX", 0.f);
+        tc.offsetY  = t.value("offsetY", 0.f);
+        e.text = tc;
     }
     if (j.contains("visible") && j["visible"].is_boolean())
         e.visible = j["visible"].get<bool>();

@@ -90,6 +90,17 @@ export interface AutoDestroyComponent {
   lifespan: number           // s
 }
 
+/** World-space text label (score, titles, hints) rendered above the entity sprite. */
+export interface TextComponent {
+  text:     string
+  fontPath: string                      // project-relative (assets/fonts/x.ttf); '' = engine default
+  size:     number                      // px
+  colorHex: string                      // #rrggbb
+  align:    'left' | 'center' | 'right' // horizontal anchor at the entity position
+  offsetX:  number                      // px from entity position
+  offsetY:  number
+}
+
 /** Talkable NPC — references `dialogs/{dialogId}.json` in the project folder. */
 export interface DialogComponent {
   dialogId: string
@@ -115,6 +126,7 @@ export interface EntityComponents {
   health?:               HealthComponent
   autoDestroy?:          AutoDestroyComponent
   dialog?:               DialogComponent
+  text?:                 TextComponent
 }
 
 export type ComponentKey = keyof EntityComponents
@@ -123,4 +135,5 @@ export type ComponentKey = keyof EntityComponents
 export const COMPONENT_KEYS: ComponentKey[] = [
   'sensor', 'solid', 'platformerController', 'topDownController', 'linearMover',
   'cameraTarget', 'magneticItem', 'hordeMember', 'health', 'autoDestroy', 'dialog',
+  'text',
 ]

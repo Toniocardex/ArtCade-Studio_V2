@@ -19,6 +19,7 @@ struct DrawCmd {
     float x2 = 0.f, y2 = 0.f;  // end (Line) or w/h (Rect)
     float r  = 0.f;             // radius (Circle)
     int   fontSize = 20;        // Text font size
+    int   align    = 0;         // Text: 0=left, 1=center, 2=right of (x,y)
     std::string text;           // Text content
     std::string fontPath;       // empty = Raylib default bitmap font
     unsigned char cr=255, cg=255, cb=255, ca=255;  // packed colour
@@ -42,6 +43,7 @@ struct Renderer::Impl {
     std::string screenShader;
     SpriteOutlineShader spriteOutline;
     std::function<std::string(const std::string&)> textureKeyResolver;
+    std::function<std::string(const std::string&)> fontKeyResolver;
 };
 
 // ------------------------------------------------------------------ helpers
@@ -183,16 +185,27 @@ void Renderer::endWorldPass() {
             DrawCircleV({ cmd.x, cmd.y }, cmd.r, c);
             break;
         case DrawCmd::Type::Text: {
-            const int px = static_cast<int>(cmd.x);
-            const int py = static_cast<int>(cmd.y);
-            if (cmd.fontPath.empty()) {
-                DrawText(cmd.text.c_str(), px, py, cmd.fontSize, c);
-            } else if (const Font* font = impl_->fontCache.get(cmd.fontPath)) {
+            const std::string fontKey = resolvedFontKey(cmd.fontPath);
+            const Font* font = fontKey.empty()
+                ? nullptr
+                : impl_->fontCache.get(fontKey);
+            float drawX = cmd.x;
+            if (cmd.align != 0) {
+                const float w = font
+                    ? MeasureTextEx(*font, cmd.text.c_str(),
+                                    static_cast<float>(cmd.fontSize), 1.f).x
+                    : static_cast<float>(
+                          MeasureText(cmd.text.c_str(), cmd.fontSize));
+                drawX -= (cmd.align == 1) ? w * 0.5f : w;
+            }
+            if (font) {
                 DrawTextEx(*font, cmd.text.c_str(),
-                           Vector2{ cmd.x, cmd.y },
+                           Vector2{ drawX, cmd.y },
                            static_cast<float>(cmd.fontSize), 1.f, c);
             } else {
-                DrawText(cmd.text.c_str(), px, py, cmd.fontSize, c);
+                DrawText(cmd.text.c_str(),
+                         static_cast<int>(drawX), static_cast<int>(cmd.y),
+                         cmd.fontSize, c);
             }
             break;
         }
@@ -274,6 +287,18 @@ void Renderer::setTextureKeyResolver(
     std::function<std::string(const std::string&)> resolver)
 {
     impl_->textureKeyResolver = std::move(resolver);
+}
+
+std::string Renderer::resolvedFontKey(const std::string& ref) const {
+    if (ref.empty()) return ref;
+    if (impl_->fontKeyResolver) return impl_->fontKeyResolver(ref);
+    return ref;
+}
+
+void Renderer::setFontKeyResolver(
+    std::function<std::string(const std::string&)> resolver)
+{
+    impl_->fontKeyResolver = std::move(resolver);
 }
 
 void Renderer::drawSprite(const AssetId& assetId,
@@ -495,13 +520,14 @@ void Renderer::drawCircle(float x, float y, float radius, const Vec4& color) {
 
 void Renderer::drawText(const std::string& text, float x, float y,
                         int fontSize, const Vec4& color,
-                        const std::string& fontPath) {
+                        const std::string& fontPath, int align) {
     Color c = toColor(color);
     DrawCmd cmd;
     cmd.type     = DrawCmd::Type::Text;
     cmd.x        = x;
     cmd.y        = y;
     cmd.fontSize = fontSize;
+    cmd.align    = align;
     cmd.text     = text;
     cmd.fontPath = fontPath;
     cmd.cr = c.r; cmd.cg = c.g; cmd.cb = c.b; cmd.ca = c.a;

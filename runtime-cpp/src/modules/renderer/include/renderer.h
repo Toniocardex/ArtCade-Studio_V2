@@ -91,9 +91,10 @@ public:
     void drawRectImmediate(float x, float y, float w, float h, const Vec4& color);
     void drawLine  (float x1, float y1, float x2, float y2, const Vec4& color);
     void drawCircle(float x, float y, float radius, const Vec4& color);
+    /** align: 0 = left of (x,y), 1 = centered on x, 2 = right of (x,y). */
     void drawText  (const std::string& text, float x, float y,
                     int fontSize, const Vec4& color,
-                    const std::string& fontPath = "");
+                    const std::string& fontPath = "", int align = 0);
 
     /**
      * Register/replace a GPU texture decoded from an in-memory image buffer
@@ -128,9 +129,11 @@ public:
      * Used by native AssetLoader manifest and WASM editor_load_project.
      */
     void setTextureKeyResolver(std::function<std::string(const std::string&)> resolver);
+    void setFontKeyResolver(std::function<std::string(const std::string&)> resolver);
 
 private:
     std::string resolvedTextureKey(const std::string& ref) const;
+    std::string resolvedFontKey(const std::string& ref) const;
 
 public:
     // 2D camera

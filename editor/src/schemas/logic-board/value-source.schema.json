@@ -51,7 +51,8 @@
                 "horde.targetClass", "horde.maxSpeed", "horde.separationRadius",
                 "horde.separationWeight", "horde.chaseWeight",
                 "autoDestroy.lifespan", "autoDestroy.elapsed", "autoDestroy.remaining",
-                "sensor.targetTag", "solid.groundClass", "solid.surfaceKind"
+                "sensor.targetTag", "solid.groundClass", "solid.surfaceKind",
+                "text.text", "text.size", "text.align"
               ]
             },
             "fallback": { "$ref": "#/$defs/primitive" }

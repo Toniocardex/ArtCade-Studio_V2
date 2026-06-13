@@ -66,6 +66,8 @@ const ACTION_DESCRIPTIONS: Record<LogicActionType, string> = {
   stopMusic: 'Stop the music track',
   pauseMusic: 'Pause the music track',
   resumeMusic: 'Resume the paused music',
+  setText: 'Change the Text label — bind a variable to show live values',
+  setTextColor: 'Change the Text label color',
   setMusicVolume: 'Change the music track volume',
   setMasterVolume: 'Change the overall game volume',
   setSfxVolume: 'Change the volume applied to sound effects',

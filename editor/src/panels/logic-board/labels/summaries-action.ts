@@ -30,6 +30,13 @@ export function actionSummaryPlain(
       return 'Pause music'
     case 'resumeMusic':
       return 'Resume music'
+    case 'setText': {
+      const v = valueSummary(a.value, project)
+      const txt = `${a.prefix ?? ''}${v}${a.suffix ?? ''}`
+      return `Set text on ${who(a.target)} to "${txt}"`
+    }
+    case 'setTextColor':
+      return `Set text color on ${who(a.target)} to ${a.hexColor || '#ffffff'}`
     case 'setMusicVolume':
       return `Set music volume to ${valueSummary(a.volume, project)}`
     case 'setMasterVolume':

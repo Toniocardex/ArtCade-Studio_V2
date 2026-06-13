@@ -573,6 +573,24 @@ void EntityRegistry::setHealth(EntityId id,
     else   impl_->reg.remove<HealthComponent>(e);
 }
 
+bool EntityRegistry::getText(EntityId id, TextComponent& out) const {
+    const entt::entity e = impl_->toEntt(id);
+    if (e == entt::null) return false;
+    if (const auto* c = impl_->reg.try_get<TextComponent>(e)) {
+        out = *c;
+        return true;
+    }
+    return false;
+}
+
+void EntityRegistry::setText(EntityId id,
+                             const std::optional<TextComponent>& t) {
+    const entt::entity e = impl_->toEntt(id);
+    if (e == entt::null) return;
+    if (t) impl_->reg.emplace_or_replace<TextComponent>(e, *t);
+    else   impl_->reg.remove<TextComponent>(e);
+}
+
 // ---- Physics handle -------------------------------------------------------
 
 uint32_t EntityRegistry::physicsHandle(EntityId id) const {

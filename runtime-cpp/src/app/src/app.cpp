@@ -264,6 +264,14 @@ bool Application::initSubsystems() {
         [loader = mod_->assetLoader.get()](const std::string& ref) {
             return loader ? loader->resolveImagePath(ref) : ref;
         });
+    mod_->renderer->setFontKeyResolver(
+        [loader = mod_->assetLoader.get()](const std::string& ref) {
+            return loader ? loader->resolveFontPath(ref) : ref;
+        });
+    mod_->audio->setAssetPathResolver(
+        [loader = mod_->assetLoader.get()](const std::string& ref) {
+            return loader ? loader->resolveAudioPath(ref) : ref;
+        });
 
     mod_->dialogManager = std::make_unique<ArtCade::Modules::DialogManager>();
     if (!mod_->dialogManager->init()) return false;
@@ -864,6 +872,12 @@ void Application::renderActiveScene() {
                 alpha *= 0.45f;
             if (inEditMode && placeholderFill)
                 alpha = 1.f;
+            TextComponent text{};
+            const bool hasText = gw->getText(id, text) && !text.text.empty();
+            // Pure text label (Text + no sprite asset): the placeholder
+            // block is an editor-only placement gizmo, hidden in play.
+            const bool textOnly = hasText && placeholderFill;
+
             const auto frame = animator ? animator->currentFrame(id)
                                         : ::ArtCade::Modules::SpriteAnimator::Frame{};
             if (frame.w > 0 && frame.h > 0) {
@@ -875,11 +889,26 @@ void Application::renderActiveScene() {
                     static_cast<float>(frame.h),
                     t.position, t.rotation, t.scale,
                     s.tint, alpha, s.pivot);
-            } else {
+            } else if (!textOnly || inEditMode) {
                 renderer->drawSprite(
                     s.spriteAssetId,
                     t.position, t.rotation, t.scale,
                     s.tint, s.fillColor, alpha, s.shaderEffect, s.pivot);
+            }
+
+            // Text label (TextComponent). Queued via drawText, so it
+            // renders above sprites; dims with the sprite in edit mode.
+            if (hasText) {
+                Vec4 c = text.color;
+                if (inEditMode && !gw->visibleInGame(id))
+                    c.a *= 0.45f;
+                const int align = text.align == "center" ? 1
+                                : text.align == "right"  ? 2 : 0;
+                renderer->drawText(
+                    text.text,
+                    t.position.x + text.offsetX,
+                    t.position.y + text.offsetY,
+                    text.size, c, text.fontPath, align);
             }
         });
 

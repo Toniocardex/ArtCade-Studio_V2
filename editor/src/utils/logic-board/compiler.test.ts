@@ -187,6 +187,27 @@ describe('Component API actions and conditions', () => {
     expect(lua).toContain('audio.fadeMusic(0, 2)')
   })
 
+  it('emits Set Text with value binding, prefix/suffix and integer formatting', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({
+          trigger: { type: 'onUpdate' },
+          actions: [
+            {
+              type: 'setText', target: 'self',
+              value: { source: 'state', key: 'score', fallback: 0 },
+              prefix: 'Score: ',
+            },
+            { type: 'setTextColor', target: 'self', hexColor: '#ff0000' },
+          ],
+        }),
+      ]),
+    ])
+    expect(lua).toContain('local function _logic_tostr(v)')
+    expect(lua).toContain('text.set(self, "Score: " .. _logic_tostr(')
+    expect(lua).toContain('text.setColor(self, 1.0000, 0.0000, 0.0000, 1)')
+  })
+
   it('emits onDamaged edge detection from previous-frame HP', () => {
     const lua = compileLogicBoard([
       board([

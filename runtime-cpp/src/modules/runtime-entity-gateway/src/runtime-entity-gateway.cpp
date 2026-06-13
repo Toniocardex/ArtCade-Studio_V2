@@ -296,6 +296,7 @@ void RuntimeEntityGateway::applyEntityDefToRegistry(
     } else {
         registry_->setHealth(id, std::nullopt);
     }
+    registry_->setText(id, def.text);
     registry_->setIdentity(id, def.className, def.tags);
 }
 
@@ -633,6 +634,18 @@ bool RuntimeEntityGateway::setAutoDestroy(
 {
     if (!registry_->contains(id)) return false;
     registry_->setAutoDestroy(id, autoDestroy);
+    return true;
+}
+
+bool RuntimeEntityGateway::getText(EntityId id, TextComponent& out) const {
+    return registry_->getText(id, out);
+}
+
+bool RuntimeEntityGateway::setText(
+    EntityId id, const std::optional<TextComponent>& text)
+{
+    if (!registry_->contains(id)) return false;
+    registry_->setText(id, text);
     return true;
 }
 

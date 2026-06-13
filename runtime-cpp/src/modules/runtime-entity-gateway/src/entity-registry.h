@@ -128,6 +128,9 @@ public:
     bool getHealth(EntityId id, HealthComponent& out) const;
     void setHealth(EntityId id, const std::optional<HealthComponent>& h);
 
+    bool getText(EntityId id, TextComponent& out) const;
+    void setText(EntityId id, const std::optional<TextComponent>& t);
+
     // ---- Physics handle ------------------------------------------------
 
     uint32_t physicsHandle(EntityId id) const;

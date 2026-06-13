@@ -59,6 +59,9 @@ export const COMPONENT_PROPERTY_OPTIONS: Array<{
   { value: 'sensor.targetTag', label: 'Sensor / Target tag' },
   { value: 'solid.groundClass', label: 'Platform surface / Ground class' },
   { value: 'solid.surfaceKind', label: 'Platform surface / Surface kind' },
+  { value: 'text.text', label: 'Text / Content' },
+  { value: 'text.size', label: 'Text / Size' },
+  { value: 'text.align', label: 'Text / Align' },
 ]
 
 export const EXPRESSION_OPERATOR_OPTIONS: Array<{

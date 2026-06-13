@@ -229,6 +229,36 @@ void GameAPI::bindComponentAPI(sol::state& lua) {
             return gw->setTopDownController(id, td);
         });
 
+    lua.set_function("text_setText",
+        [ctx](EntityId id, const std::string& str) -> bool {
+            auto* gw = gateway(ctx);
+            if (!gw) return false;
+            TextComponent tc{};
+            if (!gw->getText(id, tc)) return false;
+            tc.text = str;
+            return gw->setText(id, tc);
+        });
+
+    lua.set_function("text_setColor",
+        [ctx](EntityId id, float r, float g, float b, float a) -> bool {
+            auto* gw = gateway(ctx);
+            if (!gw) return false;
+            TextComponent tc{};
+            if (!gw->getText(id, tc)) return false;
+            tc.color = { r, g, b, a };
+            return gw->setText(id, tc);
+        });
+
+    lua.set_function("text_setSize",
+        [ctx](EntityId id, int size) -> bool {
+            auto* gw = gateway(ctx);
+            if (!gw) return false;
+            TextComponent tc{};
+            if (!gw->getText(id, tc)) return false;
+            tc.size = size > 1 ? size : 1;
+            return gw->setText(id, tc);
+        });
+
     lua.set_function("platformer_isGrounded",
         [ctx](EntityId id) -> bool {
             auto* w = world(ctx);
@@ -239,6 +269,7 @@ void GameAPI::bindComponentAPI(sol::state& lua) {
         component = component or {}
         platformer = platformer or {}
         topDown = topDown or {}
+        text = text or {}
         linearMover = linearMover or {}
         magnet = magnet or {}
         horde = horde or {}
@@ -334,6 +365,18 @@ void GameAPI::bindComponentAPI(sol::state& lua) {
 
         function topDown.setFourDirections(entityId, enabled)
             return topDown_setFourDirections(entityId, enabled ~= false)
+        end
+
+        function text.set(entityId, str)
+            return text_setText(entityId, str or "")
+        end
+
+        function text.setColor(entityId, r, g, b, a)
+            return text_setColor(entityId, r or 1, g or 1, b or 1, a or 1)
+        end
+
+        function text.setSize(entityId, size)
+            return text_setSize(entityId, size or 24)
         end
     )");
 }

@@ -266,6 +266,20 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
       const al = a.alpha == null ? 1 : finite(a.alpha, 1)
       return `entity.setTint(${target(a.target)}, ${r}, ${g}, ${b}, ${al})`
     }
+    case 'setText': {
+      let expr = `_logic_tostr(${valueSourceExpr(a.value, project)})`
+      if (a.prefix) expr = `${luaString(a.prefix)} .. ${expr}`
+      if (a.suffix) expr = `${expr} .. ${luaString(a.suffix)}`
+      return `text.set(${target(a.target)}, ${expr})`
+    }
+    case 'setTextColor': {
+      const m = /^#?([0-9a-fA-F]{6})$/.exec(a.hexColor || '')
+      const hex = m ? m[1] : 'ffffff'
+      const r = (parseInt(hex.slice(0, 2), 16) / 255).toFixed(4)
+      const g = (parseInt(hex.slice(2, 4), 16) / 255).toFixed(4)
+      const b = (parseInt(hex.slice(4, 6), 16) / 255).toFixed(4)
+      return `text.setColor(${target(a.target)}, ${r}, ${g}, ${b}, 1)`
+    }
     case 'loadScene': {
       const fade = finite(a.fadeSeconds)
       return fade > 0

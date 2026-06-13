@@ -237,6 +237,46 @@
       }
     }
   },
+  "setText": {
+    "type": "object",
+    "required": ["type", "target", "value"],
+    "properties": {
+      "type": { "const": "setText" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "value": { "$ref": "./value-source.schema.json" },
+      "prefix": { "type": "string" },
+      "suffix": { "type": "string" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Set Text",
+      "category": "Graphics",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "value": { "widget": "valueSource", "label": "Value" },
+        "prefix": { "widget": "string", "label": "Prefix", "placeholder": "Score: " },
+        "suffix": { "widget": "string", "label": "Suffix" }
+      }
+    }
+  },
+  "setTextColor": {
+    "type": "object",
+    "required": ["type", "target", "hexColor"],
+    "properties": {
+      "type": { "const": "setTextColor" },
+      "target": { "$ref": "./target-selector.schema.json" },
+      "hexColor": { "type": "string" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Set Text Color",
+      "category": "Graphics",
+      "params": {
+        "target": { "widget": "target", "label": "Target" },
+        "hexColor": { "widget": "color", "label": "Color" }
+      }
+    }
+  },
   "destroyEntity": {
     "type": "object",
     "required": ["type", "target"],

@@ -66,6 +66,8 @@ const CAPABILITIES: CapabilityDef[] = [
   { kind: 'action', type: 'setHordeWeights', feature: 'hordeMember', label: 'Horde Member' },
   { kind: 'action', type: 'setHordeMaxSpeed', feature: 'hordeMember', label: 'Horde Member' },
   { kind: 'action', type: 'setHordeSeparationRadius', feature: 'hordeMember', label: 'Horde Member' },
+  { kind: 'action', type: 'setText', feature: 'text', label: 'Text' },
+  { kind: 'action', type: 'setTextColor', feature: 'text', label: 'Text' },
   { kind: 'action', type: 'setAutoDestroyLifespan', feature: 'autoDestroy', label: 'Auto Destroy' },
   { kind: 'action', type: 'cancelAutoDestroy', feature: 'autoDestroy', label: 'Auto Destroy' },
   { kind: 'action', type: 'applyImpulse', feature: 'physics', label: 'Physics' },
@@ -88,6 +90,7 @@ const ACTION_RECOMMENDATIONS: Record<ComponentKey, LogicActionType[]> = {
   hordeMember: ['setHordeTargetClass', 'setHordeWeights', 'setHordeMaxSpeed', 'setHordeSeparationRadius'],
   autoDestroy: ['setAutoDestroyLifespan', 'cancelAutoDestroy'],
   dialog: ['startDialog'],
+  text: ['setText', 'setTextColor'],
 }
 
 const MOVEMENT_AUTHORITIES: Array<{ key: ComponentKey; label: string }> = [

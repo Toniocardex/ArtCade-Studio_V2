@@ -143,6 +143,10 @@ export function defaultAction(type: LogicActionType): LogicAction {
       return { type: 'pauseMusic' }
     case 'resumeMusic':
       return { type: 'resumeMusic' }
+    case 'setText':
+      return { type: 'setText', target: 'self', value: { source: 'state', key: 'score', fallback: 0 }, prefix: 'Score: ' }
+    case 'setTextColor':
+      return { type: 'setTextColor', target: 'self', hexColor: '#ffffff' }
     case 'setMusicVolume':
       return { type: 'setMusicVolume', volume: 1 }
     case 'setMasterVolume':

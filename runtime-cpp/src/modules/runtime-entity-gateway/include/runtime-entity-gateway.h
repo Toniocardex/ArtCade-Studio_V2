@@ -102,6 +102,9 @@ public:
     bool getAutoDestroy(EntityId id, AutoDestroyComponent& out) const;
     bool setAutoDestroy(EntityId id, const std::optional<AutoDestroyComponent>& autoDestroy);
 
+    bool getText(EntityId id, TextComponent& out) const;
+    bool setText(EntityId id, const std::optional<TextComponent>& text);
+
     bool getHealth(EntityId id, HealthComponent& out) const;
     bool setHealth(EntityId id, const std::optional<HealthComponent>& health);
     /** Apply damage when not in i-frames; returns false if blocked or no health. */

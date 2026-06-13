@@ -36,7 +36,7 @@ void GameAPI::bindTextAPI(sol::state& lua) {
         });
 
     lua.script(R"(
-        text = {}
+        text = text or {}
         -- fontPath: project-relative path (e.g. assets/fonts/ui.ttf); empty uses default font
         text.draw = function(fontPath, str, x, y, size, color)
             return text_draw(fontPath or "", str or "", x or 0, y or 0, size, color)

@@ -180,6 +180,17 @@ struct AutoDestroyComponent {
     float _timeAlive = 0.f;  // runtime accumulator (not serialised)
 };
 
+/** World-space text label (score, titles) drawn above the entity sprite. */
+struct TextComponent {
+    std::string text;
+    std::string fontPath;            // project-relative; empty = default font
+    int         size    = 24;
+    Vec4        color   = {1.f, 1.f, 1.f, 1.f};
+    std::string align   = "left";    // "left" | "center" | "right"
+    float       offsetX = 0.f;
+    float       offsetY = 0.f;
+};
+
 /** NPC / talkable — references dialogs/{dialogId}.json in project root. */
 struct DialogComponent {
     std::string dialogId;
@@ -228,6 +239,7 @@ struct EntityDef {
     std::optional<HealthComponent>               health;
     std::optional<AutoDestroyComponent>          autoDestroy;
     std::optional<DialogComponent>               dialog;
+    std::optional<TextComponent>                 text;
     /** Design-time flag: when false the sprite is hidden in play / shipped
      *  builds. The editor preview always draws the sprite (with a dashed
      *  outline). Runtime Logic Board setVisible() toggles sprite alpha. */

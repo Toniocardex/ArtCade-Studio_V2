@@ -19,6 +19,7 @@ import type {
   PlatformerControllerComponent,
   SensorComponent,
   SolidComponent,
+  TextComponent,
   TopDownControllerComponent,
 } from '../../types/components'
 
@@ -80,6 +81,15 @@ const HORDE_MEMBER: HordeMemberComponent = {
 }
 const HEALTH: HealthComponent = { maxHp: 100, currentHp: 100, iFrames: 0.2 }
 const AUTODESTROY: AutoDestroyComponent = { lifespan: 0 }
+const TEXT: TextComponent = {
+  text: 'New text',
+  fontPath: '',
+  size: 24,
+  colorHex: '#ffffff',
+  align: 'left',
+  offsetX: 0,
+  offsetY: 0,
+}
 const DIALOG: DialogComponent = {
   dialogId: 'innkeeper',
   startNode: '',
@@ -220,6 +230,27 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
     create: () => ({ ...AUTODESTROY }),
     fields: [
       { key: 'lifespan', label: 'Lifespan (s, 0=manual)', kind: 'number', min: 0, step: 0.1 },
+    ],
+  },
+  {
+    key: 'text',
+    label: 'Text',
+    description:
+      'World-space text label (score, titles, hints). Update it from the Logic Board with Set Text — bind a variable to show live values.',
+    color: 'var(--accent)',
+    create: () => ({ ...TEXT }),
+    fields: [
+      { key: 'text', label: 'Text', kind: 'text' },
+      { key: 'fontPath', label: 'Font path (empty = default)', kind: 'text' },
+      { key: 'size', label: 'Size (px)', kind: 'number', min: 4, step: 1 },
+      { key: 'colorHex', label: 'Color (#rrggbb)', kind: 'text' },
+      {
+        key: 'align', label: 'Align', kind: 'select',
+        options: ['left', 'center', 'right'],
+        optionLabels: ['Left', 'Center', 'Right'],
+      },
+      { key: 'offsetX', label: 'Offset X (px)', kind: 'number', step: 1 },
+      { key: 'offsetY', label: 'Offset Y (px)', kind: 'number', step: 1 },
     ],
   },
   {
