@@ -1,15 +1,11 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 
-// ArtCade style guide fonts — IBM Plex Sans (UI) + JetBrains Mono (tech data).
-// Imported here so Vite bundles them with the app (offline-safe for Tauri).
-import '@fontsource/ibm-plex-sans/400.css'
-import '@fontsource/ibm-plex-sans/500.css'
-import '@fontsource/ibm-plex-sans/600.css'
-import '@fontsource/ibm-plex-sans/700.css'
+// ArtCade UI font — JetBrains Mono (EDITOR_MOCKUP_TOKENS.md). Offline-safe via fontsource.
 import '@fontsource/jetbrains-mono/400.css'
 import '@fontsource/jetbrains-mono/500.css'
 import '@fontsource/jetbrains-mono/600.css'
+import '@fontsource/jetbrains-mono/700.css'
 
 import './index.css'
 import App from './App'

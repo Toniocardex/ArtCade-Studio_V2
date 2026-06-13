@@ -11,25 +11,25 @@ html, body, #root {
 }
 :root,
 [data-theme="dark"] {
-  --bg: #050505;
-  --panel: #111214;
-  --border: #24272D;
-  --text: #F2F2F2;
-  --muted: #A0A4AB;
-  --accent: #6E7684;
+  --bg: #111113;
+  --panel: #18181B;
+  --border: #27272A;
+  --text: #D4D4D8;
+  --muted: #A1A1AA;
+  --accent: #3B82F6;
 }
 [data-theme="light"] {
-  --bg: #FAFBFC;
-  --panel: #FFFFFF;
-  --border: #E5E7EB;
-  --text: #1F2937;
-  --muted: #64748B;
-  --accent: #3B82F6;
+  --bg: #E4E4E7;
+  --panel: #F4F4F5;
+  --border: #D4D4D8;
+  --text: #18181B;
+  --muted: #71717A;
+  --accent: #2563EB;
 }
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-family: 'JetBrains Mono', Consolas, Menlo, 'Liberation Mono', monospace;
 }
 
 #boot-shell {
@@ -61,7 +61,7 @@ body {
   margin: 0;
   font-size: 0.6875rem;
   color: var(--muted);
-  font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+  font-family: 'JetBrains Mono', Consolas, Menlo, 'Liberation Mono', monospace;
   text-align: center;
 }
 .boot-shell__bar {

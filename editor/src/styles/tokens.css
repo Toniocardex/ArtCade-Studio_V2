@@ -2,8 +2,8 @@
    ArtCade Studio - Editor UI
    See docs/EDITOR_UI_DESIGN_SYSTEM.md
 
-   dark:  Dark Premium Anthracite - production authoring (default)
-   light: Light Premium - bright production authoring
+   dark:  Pro Slate & Indigo (EDITOR_MOCKUP_TOKENS.md)
+   light: Studio Clean (EDITOR_MOCKUP_TOKENS.md)
 
    PreviewPanel game pixels are C++/WASM - not themed here.
    ========================================================================== */
@@ -15,25 +15,25 @@
      OS paints native select popups white under the dark UI. */
   color-scheme: dark;
 
-  /* Dark Graphite (mockup v2) - VS Code-like neutral grays + blue accent. */
-  --bg-app:                 #1E1E1E;
-  --bg-window:              #252526;
-  --void:                   #1E1E1E;
-  --logic-bg:               #1E1E1E;
-  --surface:                #252526;
-  --surface-2:              #2D2D30;
-  --surface-3:              #1E1E1E;
-  --surface-hover:          #2F3136;
-  --surface-selected:       #37373D;
-  --surface-selected-strong:#3D4046;
+  /* Pro Slate & Indigo — palette from EDITOR_MOCKUP_TOKENS.md */
+  --bg-app:                 #111113;
+  --bg-window:              #18181B;
+  --void:                   #09090B;
+  --logic-bg:               #09090B;
+  --surface:                #18181B;
+  --surface-2:              #18181B;
+  --surface-3:              #09090B;
+  --surface-hover:          #27272A;
+  --surface-selected:       #27272A;
+  --surface-selected-strong:#3F3F46;
 
   /* Borders */
-  --outline:                #3C3C3C;
-  --outline-subtle:         rgb(60 60 60 / 0.62);
-  --outline-strong:         #4A4A4A;
+  --outline:                #27272A;
+  --outline-subtle:         rgb(39 39 42 / 0.62);
+  --outline-strong:         #3F3F46;
   --outline-focus:          #3B82F6;
-  --outline-faint:          rgb(60 60 60 / 0.45);
-  --chrome-hairline:        #3C3C3C;
+  --outline-faint:          rgb(39 39 42 / 0.45);
+  --chrome-hairline:        #27272A;
   --chrome-shadow:          rgb(0 0 0 / 0.42);
   --shell-bg:
     radial-gradient(circle at 50% -20%, rgb(255 255 255 / 0.04), transparent 34%),
@@ -87,7 +87,7 @@
     0 8px 18px rgb(0 0 0 / 0.24);
   --input-bg:               rgb(0 0 0 / 0.22);
   --focus-ring:             0 0 0 1px rgb(var(--accent-rgb) / 0.2);
-  --canvas-workspace-bg:    #1E1E1E;
+  --canvas-workspace-bg:    #09090B;
   --canvas-workspace-glow:
     radial-gradient(circle at 50% 0%, rgb(255 255 255 / 0.025), transparent 38%);
   --preview-island-bg:
@@ -99,32 +99,32 @@
     var(--bg-window);
 
   /* Text */
-  --primary:                #CCCCCC;
-  --primary-soft:           #A8ADB5;
-  --muted:                  #858585;
-  --text-on-selected:       #FFFFFF;
+  --primary:                #D4D4D8;
+  --primary-soft:           #A1A1AA;
+  --muted:                  #A1A1AA;
+  --text-on-selected:       #D4D4D8;
 
-  /* Accent - blue (mockup) */
+  /* Accent */
   --accent:                 #3B82F6;
   --accent-hover:           #60A5FA;
   --accent-muted:           rgba(59, 130, 246, 0.16);
 
   /* Status */
-  --info:                   #75BEFF;
-  --warn:                   #CCA700;
-  --danger:                 #F48771;
-  --danger-2:               #E0634D;
-  --success:                #4EC9B0;
+  --info:                   #60A5FA;
+  --warn:                   #FBBF24;
+  --danger:                 #EF4444;
+  --danger-2:               #DC2626;
+  --success:                #34D399;
   --purple:                 var(--accent);
 
   /* Logic Board */
-  --logic-card:             #252526;
-  --logic-block:            #2D2D30;
+  --logic-card:             #18181B;
+  --logic-block:            #27272A;
 
   /* Canvas chrome */
-  --grid-primary:           #26262A;
-  --grid-secondary:         rgb(38 38 42 / 0.5);
-  --camera-frame:           #4EC9B0;
+  --grid-primary:           #27272A;
+  --grid-secondary:         rgb(39 39 42 / 0.5);
+  --camera-frame:           #3B82F6;
 
   /* Shared component aliases. */
   --tab-active-border:      var(--accent);
@@ -150,32 +150,32 @@
   --pill-then-bd: var(--outline);
   --accent-rgb:   59 130 246;
   --accent-2-rgb: 96 165 250;
-  --bg-rgb:       30 30 30;
-  --border-rgb:   60 60 60;
-  --muted-rgb:    133 133 133;
-  --warn-rgb:     204 167 0;
-  --danger-rgb:   244 135 113;
+  --bg-rgb:       17 17 19;
+  --border-rgb:   39 39 42;
+  --muted-rgb:    161 161 170;
+  --warn-rgb:     251 191 36;
+  --danger-rgb:   239 68 68;
 }
 
 [data-theme="light"] {
   color-scheme: light;
 
-  --bg-app:                 #FAFBFC;
-  --bg-window:              #F3F5F7;
-  --void:                   #FAFBFC;
-  --logic-bg:               #F3F5F7;
-  --surface:                #FFFFFF;
-  --surface-2:              #F7F9FB;
-  --surface-3:              #F3F5F7;
-  --surface-hover:          #EEF4FF;
-  --surface-selected:       rgb(219 234 254 / 0.72);
-  --surface-selected-strong:rgb(59 130 246 / 0.18);
+  --bg-app:                 #E4E4E7;
+  --bg-window:              #F4F4F5;
+  --void:                   #E4E4E7;
+  --logic-bg:               #F4F4F5;
+  --surface:                #F4F4F5;
+  --surface-2:              #F4F4F5;
+  --surface-3:              #FFFFFF;
+  --surface-hover:          #DBEAFE;
+  --surface-selected:       #E4E4E7;
+  --surface-selected-strong:#D4D4D8;
 
-  --outline:                #E5E7EB;
-  --outline-subtle:         rgb(229 231 235 / 0.78);
-  --outline-strong:         #D5DAE1;
-  --outline-focus:          #3B82F6;
-  --outline-faint:          rgb(100 116 139 / 0.18);
+  --outline:                #D4D4D8;
+  --outline-subtle:         rgb(212 212 216 / 0.78);
+  --outline-strong:         #A1A1AA;
+  --outline-focus:          #2563EB;
+  --outline-faint:          rgb(212 212 216 / 0.45);
   --chrome-hairline:        rgb(31 41 55 / 0.09);
   --chrome-shadow:          rgb(15 23 42 / 0.12);
   --shell-bg:
@@ -220,28 +220,28 @@
   --preview-island-shadow:  inset 0 1px 0 #FFFFFF;
   --focus-toolbar-bg:       linear-gradient(180deg, #FFFFFF, var(--bg-window));
 
-  --primary:                #1F2937;
-  --primary-soft:           #64748B;
-  --muted:                  #64748B;
-  --text-on-selected:       #1F2937;
+  --primary:                #18181B;
+  --primary-soft:           #71717A;
+  --muted:                  #71717A;
+  --text-on-selected:       #18181B;
 
-  --accent:                 #3B82F6;
-  --accent-hover:           #2563EB;
+  --accent:                 #2563EB;
+  --accent-hover:           #3B82F6;
   --accent-muted:           #DBEAFE;
 
-  --info:                   #3B82F6;
-  --warn:                   #F59E0B;
+  --info:                   #2563EB;
+  --warn:                   #B45309;
   --danger:                 #DC2626;
   --danger-2:               #B91C1C;
-  --success:                #16A34A;
+  --success:                #059669;
   --purple:                 var(--accent);
 
-  --logic-card:             #FFFFFF;
-  --logic-block:            #F7F9FB;
+  --logic-card:             #F4F4F5;
+  --logic-block:            #E4E4E7;
 
-  --grid-primary:           #E5E7EB;
-  --grid-secondary:         rgb(229 231 235 / 0.55);
-  --camera-frame:           #3B82F6;
+  --grid-primary:           #D4D4D8;
+  --grid-secondary:         rgb(212 212 216 / 0.55);
+  --camera-frame:           #2563EB;
 
   --bg:          var(--void);
   --panel:       var(--surface);
@@ -261,12 +261,12 @@
   --blue:        var(--accent);
   --pill-then-bg: var(--surface-3);
   --pill-then-bd: var(--outline);
-  --accent-rgb:   59 130 246;
+  --accent-rgb:   37 99 235;
   --accent-2-rgb: 219 234 254;
-  --bg-rgb:       250 251 252;
-  --border-rgb:   229 231 235;
-  --muted-rgb:    100 116 139;
-  --warn-rgb:     245 158 11;
+  --bg-rgb:       228 228 231;
+  --border-rgb:   212 212 216;
+  --muted-rgb:    113 113 122;
+  --warn-rgb:     180 83 9;
   --danger-rgb:   220 38 38;
 }
 
@@ -284,6 +284,6 @@
   --radius-sm: 3px;
   --radius-md: 4px;
 
-  --font-ui:   'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Courier New', Courier, monospace;
+  --font-ui:   'JetBrains Mono', 'Consolas', 'Menlo', 'Liberation Mono', monospace;
+  --font-mono: var(--font-ui);
 }

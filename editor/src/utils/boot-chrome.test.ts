@@ -3,14 +3,14 @@ import { surfaceHex, textHex, THEME_SURFACE_RGB } from './boot-chrome'
 
 describe('boot-chrome', () => {
   it('surfaceHex matches boot-surfaces.json', () => {
-    expect(surfaceHex('dark')).toBe('#050505')
-    expect(surfaceHex('light')).toBe('#FAFBFC')
-    expect(textHex('dark')).toBe('#F2F2F2')
-    expect(textHex('light')).toBe('#1F2937')
+    expect(surfaceHex('dark')).toBe('#111113')
+    expect(surfaceHex('light')).toBe('#E4E4E7')
+    expect(textHex('dark')).toBe('#D4D4D8')
+    expect(textHex('light')).toBe('#18181B')
   })
 
   it('THEME_SURFACE_RGB matches hex surfaces', () => {
-    expect(THEME_SURFACE_RGB.dark).toEqual({ red: 5, green: 5, blue: 5 })
-    expect(THEME_SURFACE_RGB.light).toEqual({ red: 250, green: 251, blue: 252 })
+    expect(THEME_SURFACE_RGB.dark).toEqual({ red: 17, green: 17, blue: 19 })
+    expect(THEME_SURFACE_RGB.light).toEqual({ red: 228, green: 228, blue: 231 })
   })
 })

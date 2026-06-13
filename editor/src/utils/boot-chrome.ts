@@ -9,7 +9,7 @@ const SURFACES: Record<Theme, Surface> = surfaces
 
 /** Same stack as `--font-ui` in index.css (splash + boot shell). */
 export const BOOT_UI_FONT_FAMILY =
-  "'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif"
+  "'JetBrains Mono', 'Consolas', 'Menlo', 'Liberation Mono', monospace"
 
 /** Matches index.css + boot-surfaces.json — Tauri window / WebView chrome. */
 export const THEME_SURFACE_RGB: Record<Theme, { red: number; green: number; blue: number }> = {

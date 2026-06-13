@@ -3,26 +3,26 @@
 (function () {
   var SURFACES = {
   "dark": {
-    "bg": "#050505",
-    "text": "#F2F2F2",
-    "panel": "#111214",
-    "border": "#24272D",
-    "muted": "#A0A4AB",
-    "accent": "#6E7684",
-    "red": 5,
-    "green": 5,
-    "blue": 5
+    "bg": "#111113",
+    "text": "#D4D4D8",
+    "panel": "#18181B",
+    "border": "#27272A",
+    "muted": "#A1A1AA",
+    "accent": "#3B82F6",
+    "red": 17,
+    "green": 17,
+    "blue": 19
   },
   "light": {
-    "bg": "#FAFBFC",
-    "text": "#1F2937",
-    "panel": "#FFFFFF",
-    "border": "#E5E7EB",
-    "muted": "#64748B",
-    "accent": "#3B82F6",
-    "red": 250,
-    "green": 251,
-    "blue": 252
+    "bg": "#E4E4E7",
+    "text": "#18181B",
+    "panel": "#F4F4F5",
+    "border": "#D4D4D8",
+    "muted": "#71717A",
+    "accent": "#2563EB",
+    "red": 228,
+    "green": 228,
+    "blue": 231
   }
 }
   var theme = 'dark'
@@ -38,6 +38,6 @@
   style.id = 'boot-chrome'
   style.textContent =
     'html,body,#root{width:100%;height:100%;margin:0;padding:0;overflow:hidden;background:' + c.bg + ';color:' + c.text + '}' +
-    '#boot-shell{position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;background:' + c.bg + ';color:' + c.text + ";font-family:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;user-select:none}"
+    '#boot-shell{position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;background:' + c.bg + ';color:' + c.text + ";font-family:'JetBrains Mono',Consolas,Menlo,Liberation Mono,monospace;user-select:none}"
   document.head.appendChild(style)
 })()

@@ -16,10 +16,9 @@ html, body, #root {
   overflow: hidden;
   background: var(--bg-app);
   color: var(--text);
-  /* UI default = IBM Plex Sans. Technical/numeric data opts into JetBrains
-     Mono via the .font-mono utility or the [data-mono] attribute. */
+  /* UI = JetBrains Mono (see --font-ui in tokens.css). */
   font-family: var(--font-ui);
-  font-feature-settings: 'cv02', 'cv03', 'cv11';
+  font-feature-settings: 'zero', 'ss01';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -35,7 +34,7 @@ input[data-mono],
   font-feature-settings: 'zero', 'ss01';
 }
 
-/* IBM Plex Sans utility - explicit opt-in where a parent forced mono. */
+/* Explicit sans override — same stack as UI in this theme. */
 .font-ui {
   font-family: var(--font-ui);
 }
