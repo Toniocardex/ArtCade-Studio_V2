@@ -12,6 +12,9 @@ set "OUTDIR=%BUILD_DIR%\src\app"
 set "EDITOR_RUNTIME=%SCRIPT_DIR%..\editor\public\runtime"
 
 if "%EMSDK%"=="" set "EMSDK=%USERPROFILE%\emsdk"
+if not exist "%EMSDK%\emsdk_env.bat" (
+    if exist "%USERPROFILE%\DevTools\emsdk\emsdk_env.bat" set "EMSDK=%USERPROFILE%\DevTools\emsdk"
+)
 set "EMSCRIPTEN=%EMSDK%\upstream\emscripten"
 
 rem Ninja: prefer PATH, fall back to the known local install.
@@ -29,9 +32,13 @@ if /I "%~1"=="--clean" (
     if exist "%BUILD_DIR%" rmdir /s /q "%BUILD_DIR%"
 )
 
-if not exist "%EMSCRIPTEN%\emcmake.bat" (
+set "EMCMAKE=%EMSCRIPTEN%\emcmake.bat"
+if not exist "!EMCMAKE!" set "EMCMAKE=%EMSCRIPTEN%\emcmake.exe"
+set "EMMAKE=%EMSCRIPTEN%\emmake.bat"
+if not exist "!EMMAKE!" set "EMMAKE=%EMSCRIPTEN%\emmake.exe"
+if not exist "!EMCMAKE!" (
     echo [FAIL] Emscripten not found. Expected:
-    echo        !EMSCRIPTEN!\emcmake.bat
+    echo        !EMSCRIPTEN!\emcmake.bat or emcmake.exe
     echo        Set EMSDK to your emsdk root and retry.
     exit /b 1
 )
@@ -64,7 +71,7 @@ if exist "%BUILD_DIR%\CMakeCache.txt" (
 )
 
 echo [WASM 2/4] Configuring CMake (Ninja)...
-call "%EMSCRIPTEN%\emcmake.bat" "%CMAKE_EXE%" ^
+call "!EMCMAKE!" "%CMAKE_EXE%" ^
     -S . ^
     -B "%BUILD_DIR%" ^
     -G Ninja ^
@@ -88,7 +95,7 @@ if exist "%OUTDIR%\game.wasm" del /q "%OUTDIR%\game.wasm"
 if exist "%OUTDIR%\game.data" del /q "%OUTDIR%\game.data"
 
 echo [WASM 3/4] Building runtime...
-call "%EMSCRIPTEN%\emmake.bat" "%CMAKE_EXE%" --build "%BUILD_DIR%" --config Release
+call "!EMMAKE!" "%CMAKE_EXE%" --build "%BUILD_DIR%" --config Release
 if errorlevel 1 (
     popd >nul
     echo [FAIL] WASM build failed.

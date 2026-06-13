@@ -176,6 +176,8 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
   {
     key: 'topDownController',
     label: 'Top-Down Controller',
+    description:
+      'Moves with acceleration and friction. Uses an automatic collider based on the object bounds, so Solid Platform Surfaces block movement. Add Physics (Collider) only to customize the hitbox.',
     color: 'var(--accent-2)',
     create: () => ({ ...TOP_DOWN }),
     fields: [

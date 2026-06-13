@@ -122,10 +122,10 @@ struct Physics::Impl {
             if (!resolveAabbSeparation(boxA, boxB, correction))
                 return;
             const Vec2 half = { correction.x * 0.5f, correction.y * 0.5f };
-            a.position.x -= half.x;
-            a.position.y -= half.y;
-            b.position.x += half.x;
-            b.position.y += half.y;
+            a.position.x += half.x;
+            a.position.y += half.y;
+            b.position.x -= half.x;
+            b.position.y -= half.y;
             zeroVelocityIntoSurface(a.velocity, correction);
             zeroVelocityIntoSurface(b.velocity, { -correction.x, -correction.y });
             return;
@@ -142,8 +142,8 @@ struct Physics::Impl {
         if (!resolveAabbSeparation(movableBox, fixedBox, correction))
             return;
 
-        movable->position.x -= correction.x;
-        movable->position.y -= correction.y;
+        movable->position.x += correction.x;
+        movable->position.y += correction.y;
         zeroVelocityIntoSurface(movable->velocity, correction);
     }
 

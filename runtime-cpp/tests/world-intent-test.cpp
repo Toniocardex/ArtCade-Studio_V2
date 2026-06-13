@@ -1346,31 +1346,48 @@ static void test_set_solid_creates_and_removes_static_body() {
     CHECK(f.gw.setTopDownController(1, topDown));
 
     CHECK(f.gw.setSolid(1, std::nullopt));
-    CHECK(f.gw.physicsHandle(1) == 0);
+    CHECK(f.gw.physicsHandle(1) != 0);
 
     CHECK(f.gw.setTopDownController(1, std::nullopt));
     CHECK(f.gw.physicsHandle(1) == 0);
 }
 
-static void test_topdown_only_has_no_implicit_physics_body() {
+static void test_topdown_implicit_body_stops_at_solid_surface() {
     Fixture f;
 
     EntityDef player = makeEntity(1, "Player");
+    player.transform.position = { 0.f, 0.f };
     TopDownControllerComponent tc;
-    tc.maxSpeed = 200.f;
+    tc.maxSpeed = 120.f;
+    tc.acceleration = 1000.f;
     player.topDownController = tc;
+
+    EntityDef wall = makeEntity(2, "Wall");
+    wall.transform.position = { 40.f, 0.f };
+    wall.solid = SolidComponent{};
 
     SceneDef scene;
     scene.id = "main";
-    scene.entityIds = { 1 };
+    scene.entityIds = { 1, 2 };
 
     ProjectDoc doc;
     doc.activeSceneId = "main";
     doc.scenes = {{ scene.id, scene }};
-    doc.entities = {{ 1, player }};
+    doc.entities = {{ 1, player }, { 2, wall }};
     f.world.init(doc);
 
-    CHECK(f.gw.physicsHandle(1) == 0);
+    CHECK(f.gw.physicsHandle(1) != 0);
+    CHECK(f.gw.physicsHandle(2) != 0);
+
+    f.world.setMovementIntent(1, 1.f, 0.f);
+    f.tickFrame(1.f);
+    f.physics.step(1.f);
+    f.world.syncPhysicsToEntities();
+
+    Transform transform{};
+    CHECK(f.gw.getTransform(1, transform));
+    CHECK(transform.position.x <= 8.1f);
+    CHECK(std::abs(f.physics.getLinearVelocity(f.gw.physicsHandle(1)).x) < 0.01f);
 }
 
 static void test_set_physics_component_replaces_body_without_leak() {
@@ -2218,7 +2235,7 @@ int main() {
     test_set_sensor_replaces_fixture_without_duplicates();
     test_set_sensor_creates_body_for_sensor_only_entity();
     test_set_solid_creates_and_removes_static_body();
-    test_topdown_only_has_no_implicit_physics_body();
+    test_topdown_implicit_body_stops_at_solid_surface();
     test_set_physics_component_replaces_body_without_leak();
     test_linear_mover_moves_transform_without_physics();
     test_linear_mover_sets_physics_velocity();

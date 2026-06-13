@@ -17,5 +17,5 @@ export const PHYSICS_INSPECTOR = {
   label: 'Physics (Collider)',
   color: 'var(--blue)',
   description:
-    'Explicit collider for overlap, raycast, and falling objects. Not required for Platformer Controller (transform-only). With platformer, body is kinematic for collisions only. Solid and Sensor create bodies without this block.',
+    'Explicit collider for overlap, raycast, falling objects, or a custom Top-Down hitbox. Top-Down uses object bounds automatically. Platformer movement is transform-only; with Physics its body is kinematic for collisions. Solid and Sensor create bodies without this block.',
 }
