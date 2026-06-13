@@ -18,8 +18,8 @@ function SpritesheetStudioBody({ asset, imageAssetId }: SpritesheetStudioBodyPro
   const session = useSpritesheetStudioSession(
     asset,
     projectPath,
-    (clips: AnimationClipDef[]) => {
-      dispatch({ type: 'ASSET_ADD', asset: { ...asset, id: imageAssetId, clips } })
+    (clips: AnimationClipDef[], coalesceKey?: string) => {
+      dispatch({ type: 'IMAGE_ASSET_SET_CLIPS', assetId: imageAssetId, clips, coalesceKey })
     },
   )
   const patchAsset = (patch: Partial<ImageAsset>) => {

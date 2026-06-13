@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { PivotMarker, pivotOffsetInRect } from '../../components/pivot/PivotMarkerOverlay'
-import type { ImageAsset } from '../../types'
+import type { AnimationClipDef, ImageAsset } from '../../types'
 import { getAssetDefaultPivot } from '../../utils/sprite-pivot-resolve'
 import { SpritesheetEnginePreview } from './SpritesheetEnginePreview'
 import type { SpritesheetStudioSession } from './useSpritesheetStudioSession'
@@ -11,45 +11,13 @@ type ClipPreviewPaneProps = Readonly<{
   session: SpritesheetStudioSession
 }>
 
+/** Routes between the live WASM preview and the CSS fallback; owns no animation state. */
 export function ClipPreviewPane({ asset, session }: ClipPreviewPaneProps) {
   const { activeClip, previewSrc } = session
-  const [previewTick, setPreviewTick] = useState(0)
-  const previewRef = useRef(0)
-
-  useEffect(() => {
-    previewRef.current = 0
-    setPreviewTick(0)
-  }, [activeClip?.name, activeClip?.frames.length])
-
-  useEffect(() => {
-    if (isReady() || !activeClip || activeClip.frames.length === 0) return
-    const fps = activeClip.fps > 0 ? activeClip.fps : 12
-    const frameMs = 1000 / fps
-    let raf = 0
-    let last = performance.now()
-    let elapsed = 0
-    const tick = (now: number) => {
-      elapsed += now - last
-      last = now
-      if (elapsed >= frameMs) {
-        elapsed = 0
-        previewRef.current = (previewRef.current + 1) % activeClip.frames.length
-        setPreviewTick(previewRef.current)
-      }
-      raf = requestAnimationFrame(tick)
-    }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
-  }, [activeClip, activeClip?.frames.length, activeClip?.fps])
-
-  const previewFrame = activeClip?.frames[previewTick]
-  const pivot = getAssetDefaultPivot(asset)
-  const fallbackScale = 5
-
   const playbackSrc = previewSrc ?? asset.dataUrl ?? ''
-  const hasPreviewSource = playbackSrc.length > 0
+  const hasFrames = (activeClip?.frames.length ?? 0) > 0
 
-  if (!previewFrame || !hasPreviewSource) {
+  if (!hasFrames || playbackSrc.length === 0) {
     return (
       <div
         className="shrink-0 p-3 border-t border-[var(--border)] bg-[var(--panel-3)] text-[10px] text-[var(--muted)]"
@@ -60,28 +28,74 @@ export function ClipPreviewPane({ asset, session }: ClipPreviewPaneProps) {
     )
   }
 
-  if (isReady()) {
-    return (
-      <div
-        className="shrink-0 p-3 border-t border-[var(--border)] bg-[var(--panel-3)]"
-        data-testid="spritesheet-preview-host"
-      >
-        <SpritesheetEnginePreview asset={asset} session={session} />
-      </div>
-    )
-  }
-
   return (
     <div
-      className="shrink-0 p-3 border-t border-[var(--border)] bg-[var(--panel-3)] flex flex-col items-center gap-2"
+      className="shrink-0 p-3 border-t border-[var(--border)] bg-[var(--panel-3)]"
       data-testid="spritesheet-preview-host"
     >
+      {isReady() ? (
+        <SpritesheetEnginePreview asset={asset} session={session} />
+      ) : (
+        <ClipPreviewCss asset={asset} clip={activeClip!} playbackSrc={playbackSrc} />
+      )}
+    </div>
+  )
+}
+
+/** CSS sprite-offset playback used until the WASM runtime is ready. */
+function ClipPreviewCss({
+  asset,
+  clip,
+  playbackSrc,
+}: Readonly<{
+  asset: ImageAsset
+  clip: AnimationClipDef
+  playbackSrc: string
+}>) {
+  const [previewTick, setPreviewTick] = useState(0)
+  const previewRef = useRef(0)
+  const fallbackScale = 5
+
+  useEffect(() => {
+    previewRef.current = 0
+    setPreviewTick(0)
+  }, [clip.name, clip.frames.length])
+
+  useEffect(() => {
+    if (clip.frames.length === 0) return
+    const fps = clip.fps > 0 ? clip.fps : 12
+    const frameMs = 1000 / fps
+    let raf = 0
+    let last = performance.now()
+    let elapsed = 0
+    const tick = (now: number) => {
+      elapsed += now - last
+      last = now
+      if (elapsed >= frameMs) {
+        elapsed = 0
+        previewRef.current = (previewRef.current + 1) % clip.frames.length
+        setPreviewTick(previewRef.current)
+      }
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [clip])
+
+  const frame = clip.frames[previewTick]
+  if (!frame) return null
+
+  const pivot = getAssetDefaultPivot(asset)
+  const pivotPx = pivotOffsetInRect(pivot, frame.w, frame.h)
+
+  return (
+    <div className="flex flex-col items-center gap-2">
       <p className="text-[10px] uppercase tracking-wider text-[var(--muted)] w-full">Clip preview</p>
       <div
         className="relative border border-[var(--border)] overflow-hidden shrink-0"
         style={{
-          width: previewFrame.w * fallbackScale,
-          height: previewFrame.h * fallbackScale,
+          width: frame.w * fallbackScale,
+          height: frame.h * fallbackScale,
           imageRendering: 'pixelated',
         }}
       >
@@ -91,18 +105,14 @@ export function ClipPreviewPane({ asset, session }: ClipPreviewPaneProps) {
           draggable={false}
           style={{
             imageRendering: 'pixelated',
-            marginLeft: -previewFrame.x,
-            marginTop: -previewFrame.y,
+            marginLeft: -frame.x,
+            marginTop: -frame.y,
           }}
         />
-        <PivotMarker
-          left={pivotOffsetInRect(pivot, previewFrame.w, previewFrame.h).left}
-          top={pivotOffsetInRect(pivot, previewFrame.w, previewFrame.h).top}
-          radius={6}
-        />
+        <PivotMarker left={pivotPx.left} top={pivotPx.top} radius={6} />
       </div>
       <span className="text-[10px] text-[var(--muted)]">
-        Frame {previewTick + 1} / {activeClip.frames.length}
+        Frame {previewTick + 1} / {clip.frames.length}
       </span>
     </div>
   )

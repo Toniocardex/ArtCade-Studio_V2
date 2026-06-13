@@ -33,7 +33,7 @@ export function AtlasGrid({ session, defaultPivot }: AtlasGridProps) {
     grid,
     effectiveCellW: cellW,
     effectiveCellH: cellH,
-    selectedKeys,
+    selectedIndices,
     toggleCell,
     setSelectionIndices,
     selectAllFrames,
@@ -180,7 +180,7 @@ export function AtlasGrid({ session, defaultPivot }: AtlasGridProps) {
                 const row = Math.floor(i / grid.cols)
                 const fr = frameForCell(col, row, cellW, cellH, imgWH)
                 const key = frameKey(fr)
-                const on = selectedKeys.has(key)
+                const on = selectedIndices.has(i)
                 const inDrag =
                   dragOverlay != null &&
                   col >= dragOverlay.colMin &&
