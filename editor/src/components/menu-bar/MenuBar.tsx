@@ -25,8 +25,7 @@ import { mapWebExportToolbar, useWebExportStatus } from './useWebExportStatus'
 import { useProjectNamePersist } from './project-name-context'
 import { usePreviewPlayShortcut } from '../../hooks/usePreviewPlayShortcut'
 import { DockPanelsViewSection } from './DockPanelsViewSection'
-import { EditorUiScaleViewSection } from './EditorUiScaleViewSection'
-import { useEditorUiScaleContext } from '../../contexts/editor-ui-scale-context'
+import { EditorViewOptionsSection } from './EditorViewOptionsSection'
 import { applyTheme, toggleTheme, type Theme } from '../../utils/theme'
 import { openDialogLibraryModal } from '../../panels/dialog/dialog-modal-api'
 import ModuleTabs from '../shell/ModuleTabs'
@@ -70,7 +69,6 @@ export default function MenuBar() {
   useEffect(() => {
     if (!mainMenuOpen) setActiveId(null)
   }, [mainMenuOpen, setActiveId])
-  const uiScale = useEditorUiScaleContext()
   const [theme, setTheme] = useState<Theme>(themeFromDocument)
 
   const { fileItems } = useFileMenuActions({
@@ -183,7 +181,7 @@ export default function MenuBar() {
                   )}
                 </button>
               ))}
-              <EditorUiScaleViewSection uiScale={uiScale} />
+              <EditorViewOptionsSection />
               <DockPanelsViewSection />
               <button
                 type="button"

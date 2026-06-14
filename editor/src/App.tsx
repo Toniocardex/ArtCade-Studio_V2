@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState, type CSSProperties, type RefObject } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState, type RefObject } from 'react'
 import { PanelErrorBoundary } from './components/PanelErrorBoundary'
 import { EditorProvider, useEditorDispatch, useEditorSelector, useEditorStore } from './store/editor-store'
 import MenuBar            from './components/MenuBar'
@@ -24,7 +24,6 @@ import { useFocusModeShortcut, useExitFocusOnEscape } from './hooks/useFocusMode
 import { useEditorLayoutContext, EditorLayoutProvider } from './contexts/editor-layout-context'
 import EditorBootGate from './components/EditorBootGate'
 import { EditorViewportBanner } from './components/shell/EditorViewportBanner'
-import { EditorUiScaleProvider, useEditorUiScaleContext } from './contexts/editor-ui-scale-context'
 import { EditorLayoutTierProvider, useLayoutTier } from './contexts/editor-layout-tier-context'
 import CompactLeftSidebar from './components/shell/CompactLeftSidebar'
 import { InspectorDrawer } from './components/shell/InspectorDrawer'
@@ -32,7 +31,7 @@ import { InspectorDrawerProvider } from './contexts/inspector-drawer-context'
 import { ExplorerDrawer } from './components/shell/ExplorerDrawer'
 import { ExplorerDrawerProvider } from './contexts/explorer-drawer-context'
 import { LayoutTierSideEffects } from './components/shell/LayoutTierSideEffects'
-import { EditorUiScaleSuggestionBanner } from './components/shell/EditorUiScaleSuggestionBanner'
+import { EditorZoomSuggestionBanner } from './components/shell/EditorZoomSuggestionBanner'
 import type { EditorTool } from './utils/runtime-sync-service'
 import type { ConsoleEntry } from './types'
 
@@ -191,12 +190,7 @@ function EditorShell({ workspaceRef }: Readonly<{ workspaceRef: RefObject<HTMLDi
   const reduceMotion = useEditorSelector((s) => s.reduceMotion)
   const focusMode = useEditorSelector((s) => s.focusMode)
   const mode = useEditorSelector((s) => s.mode)
-  const uiScale = useEditorUiScaleContext()
   const tier = useLayoutTier()
-
-  const shellStyle = {
-    '--editor-scale': String(uiScale.scale),
-  } as CSSProperties
 
   const motionClass = reduceMotion ? 'editor-reduce-motion' : ''
   const focusClass = focusMode ? 'editor-focus-mode' : ''
@@ -204,7 +198,6 @@ function EditorShell({ workspaceRef }: Readonly<{ workspaceRef: RefObject<HTMLDi
   return (
     <div
       className={`editor-shell relative flex flex-col w-full h-full bg-[var(--bg-app)] text-[var(--primary)] overflow-hidden select-none ${motionClass} ${focusClass}`}
-      style={shellStyle}
       data-layout-tier={tier}
     >
       <EditorLayoutProvider>
@@ -215,7 +208,7 @@ function EditorShell({ workspaceRef }: Readonly<{ workspaceRef: RefObject<HTMLDi
           </header>
         )}
         {!focusMode && <EditorViewportBanner />}
-        {!focusMode && <EditorUiScaleSuggestionBanner />}
+        {!focusMode && <EditorZoomSuggestionBanner />}
         <DialogEditorModal />
         <SpritesheetStudioModal />
 
@@ -277,11 +270,9 @@ export default function App() {
   return (
     <EditorProvider>
       <ProjectNamePersistProvider>
-        <EditorUiScaleProvider>
-          <EditorBootGate>
-            <EditorLayout />
-          </EditorBootGate>
-        </EditorUiScaleProvider>
+        <EditorBootGate>
+          <EditorLayout />
+        </EditorBootGate>
       </ProjectNamePersistProvider>
     </EditorProvider>
   )

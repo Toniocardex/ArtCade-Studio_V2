@@ -1,12 +1,7 @@
-import { EDITOR_UI_SCALE_VALUES } from '../../constants/editor-ui-scale'
-import { formatEditorUiScalePercent } from '../../utils/editor-ui-scale'
-import type { EditorUiScaleApi } from '../../hooks/useEditorUiScale'
 import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import { clearEditorLayoutSnapshot } from '../../utils/editor-layout-persist'
 import { useEditorLayoutContext } from '../../contexts/editor-layout-context'
 import { useWorkspaceLayoutMetricsContext } from '../../contexts/editor-layout-tier-context'
-
-type Props = Readonly<{ uiScale: EditorUiScaleApi }>
 
 function CheckRow({
   checked,
@@ -38,13 +33,12 @@ function CheckRow({
   )
 }
 
-/** VIEW → Interface: UI scale picker, focus mode, layout reset, motion prefs. */
-export function EditorUiScaleViewSection({ uiScale }: Props) {
+/** VIEW → focus mode, motion prefs, layout reset. */
+export function EditorViewOptionsSection() {
   const dispatch = useEditorDispatch()
   const focusMode = useEditorSelector((s) => s.focusMode)
   const reduceMotion = useEditorSelector((s) => s.reduceMotion)
   const layout = useEditorLayoutContext()
-  const { scale, setScale, resetScale } = uiScale
   const { width, height } = useWorkspaceLayoutMetricsContext()
 
   function resetLayoutForResolution() {
@@ -55,34 +49,7 @@ export function EditorUiScaleViewSection({ uiScale }: Props) {
   return (
     <div className="border-b border-[var(--outline-subtle)]">
       <div className="px-3 pt-2 pb-1">
-        <span className="text-[9px] uppercase tracking-wide text-[var(--muted)]">Interface</span>
-      </div>
-
-      {/* Compact segmented scale picker */}
-      <div className="px-3 pb-2 flex items-center gap-1.5">
-        <span className="text-[10px] text-[var(--muted)] shrink-0">Scale</span>
-        <div className="flex gap-0.5 flex-wrap">
-          {EDITOR_UI_SCALE_VALUES.map((value) => {
-            const active = scale === value
-            return (
-              <button
-                key={value}
-                type="button"
-                role="menuitemradio"
-                aria-checked={active}
-                title={value === 1 ? 'Default (Ctrl+Shift+0)' : `${formatEditorUiScalePercent(value)}`}
-                className={`px-1.5 py-0.5 rounded text-[10px] leading-none transition-colors ${
-                  active
-                    ? 'bg-[var(--accent-bg)] text-[var(--accent-fg-on-bg)] font-semibold'
-                    : 'text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)]'
-                }`}
-                onClick={() => setScale(value)}
-              >
-                {formatEditorUiScalePercent(value)}
-              </button>
-            )
-          })}
-        </div>
+        <span className="text-[9px] uppercase tracking-wide text-[var(--muted)]">View</span>
       </div>
 
       <CheckRow
@@ -96,15 +63,6 @@ export function EditorUiScaleViewSection({ uiScale }: Props) {
         label="Reduce motion"
         onClick={() => dispatch({ type: 'SET_REDUCE_MOTION', enabled: !reduceMotion })}
       />
-      <button
-        type="button"
-        role="menuitem"
-        title="Ctrl+Shift+= increase  ·  Ctrl+Shift+- decrease  ·  Ctrl+Shift+0 reset"
-        className="w-full text-left px-3 py-1.5 pb-2 text-xs text-[var(--primary-soft)] hover:bg-[var(--surface-hover)]"
-        onClick={resetScale}
-      >
-        Reset scale to 100%
-      </button>
       <button
         type="button"
         role="menuitem"

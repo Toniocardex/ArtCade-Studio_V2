@@ -5,7 +5,6 @@ import { DEFAULT_WORLD } from '../types'
 import { isReady as isWasmReady } from '../utils/wasm-bridge'
 import { getProjectWorkbenchSnapshot } from '../utils/project-health'
 import { useRuntimeProfilePoll } from '../hooks/useRuntimeProfilePoll'
-import { useEditorUiScaleContext } from '../contexts/editor-ui-scale-context'
 
 function runtimeDisplay(playing: boolean, wasmReady: boolean): { text: string; className: string } {
   if (playing) {
@@ -23,7 +22,6 @@ type StatusBarProps = Readonly<{
 
 export default function StatusBar({ compact = false }: StatusBarProps) {
   const dispatch = useEditorDispatch()
-  const { scaleLabel } = useEditorUiScaleContext()
   const { state: volatile } = useConsoleLogs()
   const project = useEditorSelector((s) => s.project)
   const selection = useEditorSelector((s) => s.selection)
@@ -102,7 +100,6 @@ export default function StatusBar({ compact = false }: StatusBarProps) {
       >
         <span className={runtime.className}>Runtime: {runtime.text}</span>
         <div className="flex items-center gap-3">
-          <span title="Editor interface scale">UI {scaleLabel}</span>
           <span className="font-mono">X: {cursorPos.x} Y: {cursorPos.y}</span>
         </div>
       </footer>
@@ -177,7 +174,6 @@ export default function StatusBar({ compact = false }: StatusBarProps) {
             </span>
           )}
         </button>
-        <span title="Editor interface scale (VIEW → Interface)">UI {scaleLabel}</span>
         <span>X: {cursorPos.x} Y: {cursorPos.y}</span>
         <span>Selection: {selectedName}</span>
       </div>
