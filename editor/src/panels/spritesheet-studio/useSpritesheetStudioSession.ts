@@ -7,11 +7,11 @@ import {
   revokeImagePreviewSrc,
 } from '../../utils/image-preview-src'
 import {
-  frameForCell,
+  cellIndex,
+  clampFrameRange,
   frameKey,
   frameRangeFromFrames,
   framesToSortedIndices,
-  indicesRangeToFrames,
   indicesSetToFrames,
   mergeFrameIndices,
   resolveSlicing,
@@ -48,15 +48,15 @@ export type SpritesheetStudioSession = Readonly<{
   setActiveClipIndex: (i: number) => void
   activeClip: AnimationClipDef | undefined
   clips: AnimationClipDef[]
-  selectedKeys: Set<string>
+  selectedIndices: Set<number>
   rangeUi: FrameRangeUi | null
   toggleCell: (col: number, row: number) => void
   setRange: (start: number, end: number) => void
   setSelectionIndices: (indices: readonly number[], additive: boolean) => void
   selectAllFrames: () => void
   clearSelection: () => void
-  patchActiveClip: (patch: Partial<AnimationClipDef>) => void
-  updateClips: (next: AnimationClipDef[]) => void
+  patchActiveClip: (patch: Partial<AnimationClipDef>, coalesceKey?: string) => void
+  updateClips: (next: AnimationClipDef[], coalesceKey?: string) => void
   addClip: () => void
   removeActiveClip: () => void
 }>
@@ -77,7 +77,7 @@ function inferGridCols(_clipsList: AnimationClipDef[], imgW: number, cellW: numb
 export function useSpritesheetStudioSession(
   asset: ImageAsset,
   projectPath: string | null,
-  onPatchClips: (clips: AnimationClipDef[]) => void,
+  onPatchClips: (clips: AnimationClipDef[], coalesceKey?: string) => void,
 ): SpritesheetStudioSession {
   const clips = asset.clips ?? []
   const [activeClipIndex, setActiveClipIndex] = useState(0)
@@ -218,11 +218,13 @@ export function useSpritesheetStudioSession(
     onPatchClips,
   ])
 
-  const selectedKeys = useMemo(() => {
-    const set = new Set<string>()
-    for (const fr of activeClip?.frames ?? []) set.add(frameKey(fr))
-    return set
-  }, [activeClip])
+  const selectedIndices = useMemo(
+    () =>
+      new Set(
+        framesToSortedIndices(activeClip?.frames ?? [], grid, effectiveCellW, effectiveCellH),
+      ),
+    [activeClip, grid, effectiveCellW, effectiveCellH],
+  )
 
   const rangeUi = useMemo(
     () =>
@@ -233,93 +235,72 @@ export function useSpritesheetStudioSession(
   )
 
   const updateClips = useCallback(
-    (next: AnimationClipDef[]) => {
-      onPatchClips(next.length > 0 ? next : [])
+    (next: AnimationClipDef[], coalesceKey?: string) => {
+      onPatchClips(next.length > 0 ? next : [], coalesceKey)
       setActiveClipIndex((idx) => (idx >= next.length ? Math.max(0, next.length - 1) : idx))
     },
     [onPatchClips],
   )
 
   const patchActiveClip = useCallback(
-    (patch: Partial<AnimationClipDef>) => {
+    (patch: Partial<AnimationClipDef>, coalesceKey?: string) => {
       if (!activeClip) return
       const next = [...clips]
       next[activeClipIndex] = { ...activeClip, ...patch }
-      updateClips(next)
+      updateClips(next, coalesceKey)
     },
     [activeClip, activeClipIndex, clips, updateClips],
   )
 
-  const applyIndices = useCallback(
-    (indices: readonly number[], additive: boolean) => {
-      if (!activeClip) return
-      const newFrames = indicesSetToFrames(
-        additive
-          ? mergeFrameIndices(
-              framesToSortedIndices(activeClip.frames, grid, effectiveCellW, effectiveCellH),
-              indices,
-            )
-          : indices,
-        grid,
-        effectiveCellW,
-        effectiveCellH,
-        sheet,
-      )
-      patchActiveClip({ frames: newFrames })
-    },
-    [activeClip, grid, effectiveCellW, effectiveCellH, sheet, patchActiveClip],
-  )
-
-  const toggleCell = useCallback(
-    (col: number, row: number) => {
-      if (!activeClip || effectiveCellW <= 0 || effectiveCellH <= 0) return
-      const fr = frameForCell(col, row, effectiveCellW, effectiveCellH, sheet)
-      const key = frameKey(fr)
-      const frames = [...activeClip.frames]
-      const idx = frames.findIndex((f) => frameKey(f) === key)
-      if (idx >= 0) frames.splice(idx, 1)
-      else frames.push(fr)
-      const indices = framesToSortedIndices(frames, grid, effectiveCellW, effectiveCellH)
+  // Single conversion point: index space → persisted pixel frames.
+  const commitIndices = useCallback(
+    (indices: Iterable<number>) => {
       patchActiveClip({
-        frames: indicesSetToFrames(indices, grid, effectiveCellW, effectiveCellH, sheet),
+        frames: indicesSetToFrames([...indices], grid, effectiveCellW, effectiveCellH, sheet),
       })
-    },
-    [activeClip, effectiveCellW, effectiveCellH, sheet, patchActiveClip, grid],
-  )
-
-  const setRange = useCallback(
-    (start: number, end: number) => {
-      const frames = indicesRangeToFrames(
-        start,
-        end,
-        grid,
-        effectiveCellW,
-        effectiveCellH,
-        sheet,
-      )
-      if (frames.length === 0) return
-      patchActiveClip({ frames })
     },
     [grid, effectiveCellW, effectiveCellH, sheet, patchActiveClip],
   )
 
   const setSelectionIndices = useCallback(
     (indices: readonly number[], additive: boolean) => {
-      applyIndices(indices, additive)
+      commitIndices(additive ? mergeFrameIndices([...selectedIndices], indices) : indices)
     },
-    [applyIndices],
+    [selectedIndices, commitIndices],
+  )
+
+  const toggleCell = useCallback(
+    (col: number, row: number) => {
+      if (effectiveCellW <= 0 || effectiveCellH <= 0) return
+      if (col < 0 || row < 0 || col >= grid.cols || row >= grid.rows) return
+      const idx = cellIndex(col, row, grid.cols)
+      const next = new Set(selectedIndices)
+      if (next.has(idx)) next.delete(idx)
+      else next.add(idx)
+      commitIndices(next)
+    },
+    [effectiveCellW, effectiveCellH, grid.cols, grid.rows, selectedIndices, commitIndices],
+  )
+
+  const setRange = useCallback(
+    (start: number, end: number) => {
+      const clamped = clampFrameRange(start, end, grid.totalFrames)
+      if (!clamped) return
+      const indices: number[] = []
+      for (let i = clamped.start; i <= clamped.end; i++) indices.push(i)
+      commitIndices(indices)
+    },
+    [grid.totalFrames, commitIndices],
   )
 
   const selectAllFrames = useCallback(() => {
     if (grid.totalFrames <= 0) return
-    const all = Array.from({ length: grid.totalFrames }, (_, i) => i)
-    applyIndices(all, false)
-  }, [grid.totalFrames, applyIndices])
+    commitIndices(Array.from({ length: grid.totalFrames }, (_, i) => i))
+  }, [grid.totalFrames, commitIndices])
 
   const clearSelection = useCallback(() => {
-    if (!activeClip) return
-    patchActiveClip({ frames: [] })
-  }, [activeClip, patchActiveClip])
+    commitIndices([])
+  }, [commitIndices])
 
   const addClip = useCallback(() => {
     updateClips([
@@ -359,7 +340,7 @@ export function useSpritesheetStudioSession(
     setActiveClipIndex,
     activeClip,
     clips,
-    selectedKeys,
+    selectedIndices,
     rangeUi,
     toggleCell,
     setRange,

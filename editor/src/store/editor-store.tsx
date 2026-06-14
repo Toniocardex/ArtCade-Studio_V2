@@ -97,7 +97,8 @@ export function coreReducer(state: CoreState, action: Action): CoreState {
     next !== state &&
     projectRevision(state.project) !== projectRevision(next.project)
   ) {
-    return pushProjectHistory(state, next)
+    const coalesceKey = 'coalesceKey' in action ? action.coalesceKey : undefined
+    return pushProjectHistory(state, next, coalesceKey)
   }
   return next
 }

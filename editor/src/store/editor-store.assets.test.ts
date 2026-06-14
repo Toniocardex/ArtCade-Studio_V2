@@ -177,6 +177,24 @@ describe('project.json roundtrip — assets', () => {
     expect(s.project!.assets!.img_a.clips![0].name).toBe('run')
   })
 
+  it('IMAGE_ASSET_SET_CLIPS merges clips while preserving dataUrl/path', () => {
+    let s = coreReducer(st(project()), { type: 'ASSET_ADD', asset: IMG })
+    const clips = [
+      { name: 'walk', frames: [{ x: 0, y: 0, w: 16, h: 16 }], fps: 8, loop: true },
+    ]
+    s = coreReducer(s, { type: 'IMAGE_ASSET_SET_CLIPS', assetId: 'img_a', clips })
+    expect(s.project!.assets!.img_a.clips).toEqual(clips)
+    expect(s.project!.assets!.img_a.dataUrl).toBe(IMG.dataUrl)
+    expect(s.project!.assets!.img_a.path).toBe(IMG.path)
+    expect(s.projectDirty).toBe(true)
+  })
+
+  it('IMAGE_ASSET_SET_CLIPS is a no-op when the asset is missing', () => {
+    const s0 = st(project())
+    const s = coreReducer(s0, { type: 'IMAGE_ASSET_SET_CLIPS', assetId: 'nope', clips: [] })
+    expect(s).toBe(s0)
+  })
+
   it('parseAnimationClips drops malformed clips defensively', () => {
     const raw = JSON.stringify({
       projectName: 'D', version: '2.0.0', targetFPS: 60,

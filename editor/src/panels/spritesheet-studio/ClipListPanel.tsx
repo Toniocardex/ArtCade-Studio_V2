@@ -77,7 +77,9 @@ export function ClipListPanel({ asset, assetId, session }: ClipListPanelProps) {
             <input
               className="mt-1 w-full bg-[var(--bg)] border border-[var(--border-2)] rounded px-2 py-1"
               value={activeClip.name}
-              onChange={(e) => patchActiveClip({ name: e.target.value })}
+              onChange={(e) =>
+                patchActiveClip({ name: e.target.value }, `clip-name:${activeClipIndex}`)
+              }
             />
           </label>
           {duplicateOnAsset ? (
@@ -94,7 +96,10 @@ export function ClipListPanel({ asset, assetId, session }: ClipListPanelProps) {
               className="mt-1 w-full bg-[var(--bg)] border border-[var(--border-2)] rounded px-2 py-1"
               value={activeClip.fps}
               onChange={(e) =>
-                patchActiveClip({ fps: Math.max(1, Number.parseFloat(e.target.value) || 12) })
+                patchActiveClip(
+                  { fps: Math.max(1, Number.parseFloat(e.target.value) || 12) },
+                  `clip-fps:${activeClipIndex}`,
+                )
               }
             />
           </label>

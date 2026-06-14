@@ -12,6 +12,8 @@ export const MAX_PROJECT_HISTORY = 50
 export type ProjectHistory = {
   past: ProjectDoc[]
   future: ProjectDoc[]
+  /** Key of the last coalescing edit run; consecutive edits sharing it skip a new snapshot. */
+  lastCoalesceKey?: string
 }
 
 export const emptyProjectHistory = (): ProjectHistory => ({
@@ -55,19 +57,28 @@ export function canRedoProject(state: CoreState): boolean {
 }
 
 /** Record a pre-mutation snapshot onto `nextState` (post-reducer apply). */
-export function pushProjectHistory(state: CoreState, nextState: CoreState): CoreState {
+export function pushProjectHistory(
+  state: CoreState,
+  nextState: CoreState,
+  coalesceKey?: string,
+): CoreState {
   if (!state.project || !nextState.project) return nextState
   const hist = nextState.projectHistory ?? emptyProjectHistory()
+  // Consecutive edits sharing a key belong to one run: keep its first snapshot,
+  // just drop the redo stack. A different key (or none) ends the run.
+  if (coalesceKey != null && hist.lastCoalesceKey === coalesceKey) {
+    return { ...nextState, projectHistory: { ...hist, future: [] } }
+  }
   const currentRev = projectRevision(state.project)
   const last = hist.past[hist.past.length - 1]
   if (last && projectRevision(last) === currentRev) {
-    return nextState
+    return { ...nextState, projectHistory: { ...hist, future: [], lastCoalesceKey: coalesceKey } }
   }
   const snap = cloneProject(state.project)
   const past = [...hist.past, snap].slice(-MAX_PROJECT_HISTORY)
   return {
     ...nextState,
-    projectHistory: { past, future: [] },
+    projectHistory: { past, future: [], lastCoalesceKey: coalesceKey },
   }
 }
 

@@ -333,6 +333,21 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
         projectDirty: true,
       }
     }
+    case 'IMAGE_ASSET_SET_CLIPS': {
+      const existing = state.project?.assets?.[action.assetId]
+      if (!state.project || !existing) return state
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          assets: {
+            ...state.project.assets,
+            [action.assetId]: { ...existing, clips: action.clips },
+          },
+        },
+        projectDirty: true,
+      }
+    }
     case 'AUDIO_ASSET_ADD': {
       if (!state.project) return state
       return {

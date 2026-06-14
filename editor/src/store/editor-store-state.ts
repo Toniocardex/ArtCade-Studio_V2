@@ -13,7 +13,7 @@ import type {
   ScriptFile, ProjectDoc, ConsoleEntry,
   LogicBoard, LogicEvent, ComponentKey, WorldSettings, TilesetAsset, ImageAsset,
   SpriteComponent, PhysicsComponent, Vec3, AssetFolderCategory,
-  GameVariableDefinition, GameVariableValue,
+  GameVariableDefinition, GameVariableValue, AnimationClipDef,
 } from '../types'
 import type { DialogScript } from '../utils/dialog/dialog-script'
 import type { InspectorAssetSelection } from '../types/inspector-selection'
@@ -120,6 +120,8 @@ export interface CoreState {
 export type ProjectHistory = {
   past: ProjectDoc[]
   future: ProjectDoc[]
+  /** Key of the last coalescing edit run; consecutive edits sharing it skip a new snapshot. */
+  lastCoalesceKey?: string
 }
 
 // ---- Volatile state (high-frequency) ---------------------------------------
@@ -238,6 +240,12 @@ export type Action =
   | { type: 'TILESET_ASSET_ADD';     asset: TilesetAsset }
   | { type: 'TILESET_ASSET_REMOVE';  assetId: string }
   | { type: 'ASSET_ADD';             asset: ImageAsset }
+  /**
+   * Granular clip edit: merges clips into an existing image asset (no dataUrl re-dispatch).
+   * `coalesceKey` collapses consecutive edits sharing the key into one undo entry
+   * (e.g. typing into a clip name field), leaving the run's first snapshot intact.
+   */
+  | { type: 'IMAGE_ASSET_SET_CLIPS'; assetId: string; clips: AnimationClipDef[]; coalesceKey?: string }
   | { type: 'ASSET_REMOVE';          assetId: string }
   | { type: 'AUDIO_ASSET_ADD';       asset: import('../types/index').AudioAsset }
   | { type: 'AUDIO_ASSET_REMOVE';    assetId: string }

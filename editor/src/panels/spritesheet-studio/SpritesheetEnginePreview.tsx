@@ -126,13 +126,8 @@ export function SpritesheetEnginePreview({ asset, session }: SpritesheetEnginePr
     return () => cancelAnimationFrame(raf)
   }, [activeClip, clipName, texturePath, canvasW, canvasH])
 
-  if (!activeClip || activeClip.frames.length === 0) {
-    return (
-      <p className="text-[10px] text-[var(--muted)]">
-        Select frames on the grid to preview playback.
-      </p>
-    )
-  }
+  // Callers gate on frame presence before mounting this; nothing to draw otherwise.
+  if (!activeClip || activeClip.frames.length === 0) return null
 
   return (
     <div className="flex flex-col gap-2 w-full">

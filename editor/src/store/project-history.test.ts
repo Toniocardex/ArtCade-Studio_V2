@@ -127,6 +127,56 @@ describe('project-history', () => {
     expect(s.project?.entities[1]?.transform.position).toEqual({ x: 50, y: 50 })
   })
 
+  it('IMAGE_ASSET_SET_CLIPS coalesces consecutive edits sharing a key into one undo', () => {
+    const p = projectWithEntity()
+    p.assets = { img: { id: 'img', name: 'a.png', path: 'assets/images/a.png' } }
+    let s = baseState(p)
+    const clipsNamed = (name: string) => [
+      { name, frames: [{ x: 0, y: 0, w: 8, h: 8 }], fps: 12, loop: true },
+    ]
+    for (const name of ['i', 'id', 'idle']) {
+      s = coreReducer(s, {
+        type: 'IMAGE_ASSET_SET_CLIPS',
+        assetId: 'img',
+        clips: clipsNamed(name),
+        coalesceKey: 'clip-name:0',
+      })
+    }
+    expect(s.projectHistory?.past).toHaveLength(1)
+    expect(s.project?.assets?.img.clips?.[0]?.name).toBe('idle')
+    s = coreReducer(s, { type: 'PROJECT_UNDO' })
+    expect(s.project?.assets?.img.clips).toBeUndefined()
+  })
+
+  it('IMAGE_ASSET_SET_CLIPS with a different/absent key starts a new undo entry', () => {
+    const p = projectWithEntity()
+    p.assets = { img: { id: 'img', name: 'a.png', path: 'assets/images/a.png' } }
+    let s = baseState(p)
+    s = coreReducer(s, {
+      type: 'IMAGE_ASSET_SET_CLIPS',
+      assetId: 'img',
+      clips: [{ name: 'walk', frames: [{ x: 0, y: 0, w: 8, h: 8 }], fps: 12, loop: true }],
+      coalesceKey: 'clip-name:0',
+    })
+    // A frame edit (no coalesce key) ends the run → separate snapshot.
+    s = coreReducer(s, {
+      type: 'IMAGE_ASSET_SET_CLIPS',
+      assetId: 'img',
+      clips: [
+        {
+          name: 'walk',
+          frames: [
+            { x: 0, y: 0, w: 8, h: 8 },
+            { x: 8, y: 0, w: 8, h: 8 },
+          ],
+          fps: 12,
+          loop: true,
+        },
+      ],
+    })
+    expect(s.projectHistory?.past).toHaveLength(2)
+  })
+
   it('unified undo crosses logic board and entity edits', () => {
     const board = createLogicBoardForObjectType('Box', 'pc')
     let s = coreReducer(baseState(), { type: 'LOGIC_ADD_BOARD', board })
