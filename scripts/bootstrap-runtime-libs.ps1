@@ -51,6 +51,39 @@ if (-not (Test-Path $jsonHeader)) {
         -UseBasicParsing
 }
 
+function Download-Verified($uri, $outFile, $expectedSha256) {
+    Invoke-WebRequest -Uri $uri -OutFile $outFile -UseBasicParsing
+    $actual = (Get-FileHash -Algorithm SHA256 $outFile).Hash.ToLower()
+    if ($actual -ne $expectedSha256) {
+        Remove-Item -LiteralPath $outFile -Force
+        throw "Integrity check failed for $uri`n  expected $expectedSha256`n  got      $actual"
+    }
+}
+
+# Monocypher 4.0.2 — XChaCha20-Poly1305 AEAD for .artcade encryption.
+# Pinned by SHA-256 because it is a security-sensitive dependency.
+$mcDir = Join-Path $libsDir "monocypher"
+$mcBase = "https://raw.githubusercontent.com/LoupVaillant/Monocypher/4.0.2/src"
+$mcH = Join-Path $mcDir "monocypher.h"
+$mcC = Join-Path $mcDir "monocypher.c"
+if (-not ((Test-Path $mcH) -and (Test-Path $mcC))) {
+    Write-Host "[libs] Downloading Monocypher 4.0.2 (pinned)"
+    New-Item -ItemType Directory -Force -Path $mcDir | Out-Null
+    Download-Verified "$mcBase/monocypher.h" $mcH "fcaf6ed771358bb4f40fba016f6518ae86ec02b1b877d2cc35ad92d3a26fd7b3"
+    Download-Verified "$mcBase/monocypher.c" $mcC "02174117935699d418443c75a558a287deb06ef8cf7c1adced61d9047d2f323d"
+}
+
+$mcCmake = Join-Path $mcDir "CMakeLists.txt"
+if (-not (Test-Path $mcCmake)) {
+    Write-Host "[libs] Writing Monocypher CMake target"
+    @'
+# Monocypher 4.0.2 — public-domain crypto (XChaCha20-Poly1305 AEAD).
+# Single translation unit; compiles unchanged on MSVC and Emscripten.
+add_library(monocypher STATIC monocypher.c)
+target_include_directories(monocypher PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+'@ | Set-Content -Path $mcCmake -Encoding ASCII
+}
+
 $luaCmake = Join-Path $libsDir "lua\CMakeLists.txt"
 if (-not (Test-Path $luaCmake)) {
     Write-Host "[libs] Writing Lua CMake target"

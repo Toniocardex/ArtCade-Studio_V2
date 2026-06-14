@@ -33,7 +33,6 @@ import {
   saveDialogsToProject,
   starterInnkeeperScript,
 } from '../../utils/dialog/dialog-file-api'
-import { exportArtcadePackage } from '../../utils/export-artcade-package'
 import type { DialogScript } from '../../utils/dialog/dialog-script'
 import { resolveManualMainLua } from '../../utils/project-main-script'
 
@@ -276,40 +275,6 @@ export function useFileMenuActions({
     }
   }, [closeMenu, dispatch, flushBeforePersist, openScripts, projectPath])
 
-  const handleExportArtcade = useCallback(async () => {
-    closeMenu()
-    const flushed = flushBeforePersist()
-    if (!flushed || !projectPath) {
-      dispatch({ type: 'LOG', entry: makeConsoleEntry('[Export] No project loaded.', 'warn') })
-      return
-    }
-    const output = await savePackDialog()
-    if (!output) return
-    dispatch({ type: 'SET_CONSOLE_OPEN', open: true })
-    const root = dirName(projectPath)
-    dispatch({ type: 'LOG', entry: makeConsoleEntry(`[Export] Writing → ${output}`, 'info') })
-    const { lua: mainLua, compileError } = mainScriptBodyForProjectWithStatus(
-      flushed,
-      projectPath,
-      resolveManualMainLua(flushed, openScripts),
-    )
-    if (compileError) {
-      dispatch({
-        type: 'LOG',
-        entry: makeConsoleEntry(`[Export] Logic Board compile failed:\n${compileError}`, 'error'),
-      })
-      return
-    }
-    const ok = await exportArtcadePackage(flushed, root, output, mainLua)
-    dispatch({
-      type: 'LOG',
-      entry: makeConsoleEntry(
-        ok ? '[Export] ✓ .artcade exported (referenced assets only).' : '[Export] ✗ Export failed.',
-        ok ? 'info' : 'error',
-      ),
-    })
-  }, [closeMenu, dispatch, flushBeforePersist, openScripts, projectPath])
-
   const handleNormalizeAssetRefs = useCallback(() => {
     closeMenu()
     void confirmDialog(
@@ -383,12 +348,6 @@ export function useFileMenuActions({
         icon: <Package size={12} />,
         shortcut: '',
         action: handlePackArtcade,
-      },
-      {
-        label: 'Export .artcade…',
-        icon: <Package size={12} />,
-        shortcut: '',
-        action: handleExportArtcade,
         divider: true,
       },
       {
@@ -411,7 +370,6 @@ export function useFileMenuActions({
       handleNewProject,
       handleOpenProject,
       handlePackArtcade,
-      handleExportArtcade,
       handleSaveProject,
       handleSaveProjectAs,
       handleSaveScript,

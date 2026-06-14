@@ -155,6 +155,18 @@ add_test(NAME artcade_package_test COMMAND artcade_package_test)
     target_compile_definitions(asset_loader_test
         PRIVATE ARTCADE_SOURCE_ROOT="${CMAKE_SOURCE_DIR}")
 
+    # .artcade encryption round-trip — only when Monocypher + key header exist.
+    if(ARTCADE_HAS_CRYPTO)
+        add_executable(artcade_crypto_test artcade-crypto-test.cpp)
+        target_include_directories(artcade_crypto_test PRIVATE
+            ${CMAKE_SOURCE_DIR}/src/modules/asset-system/include
+            ${CMAKE_SOURCE_DIR}/libs/monocypher
+            ${ARTCADE_GENERATED_INCLUDE_DIR})
+        target_compile_definitions(artcade_crypto_test PRIVATE ARTCADE_HAS_CRYPTO=1)
+        target_link_libraries(artcade_crypto_test PRIVATE artcade-asset-system monocypher)
+        add_test(NAME artcade_crypto_test COMMAND artcade_crypto_test)
+    endif()
+
     artcade_test(project_json_test
         project-json-test.cpp
         artcade-project-json)

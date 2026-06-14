@@ -58,6 +58,39 @@ else()
     message(STATUS "[ArtCade] Lua           : NOT FOUND — lua-runtime/game-api skipped")
 endif()
 
+# ----------------------------------------------------------------------------
+# Asset encryption — Monocypher (XChaCha20-Poly1305) + build-time key header.
+# Optional: when absent, artcade-crypto compiles as a passthrough and only
+# plaintext .artcade archives load (dev convenience). Run
+# scripts/bootstrap-runtime-libs.ps1 to fetch Monocypher.
+# ----------------------------------------------------------------------------
+set(ARTCADE_HAS_CRYPTO FALSE)
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/libs/monocypher/CMakeLists.txt)
+    add_subdirectory(libs/monocypher EXCLUDE_FROM_ALL)
+    set(ARTCADE_HAS_CRYPTO TRUE)
+    message(STATUS "[ArtCade] Monocypher    : FOUND")
+
+    find_program(ARTCADE_PYTHON NAMES python python3)
+    set(ARTCADE_GENERATED_INCLUDE_DIR ${CMAKE_BINARY_DIR}/generated)
+    file(MAKE_DIRECTORY ${ARTCADE_GENERATED_INCLUDE_DIR})
+    if(ARTCADE_PYTHON)
+        # Regenerate at every configure; the script no-ops when content is
+        # unchanged, so it does not force needless recompiles.
+        execute_process(
+            COMMAND ${ARTCADE_PYTHON}
+                    ${CMAKE_CURRENT_SOURCE_DIR}/tools/emit-asset-key-header.py
+                    ${ARTCADE_GENERATED_INCLUDE_DIR}/artcade-asset-key.h
+            RESULT_VARIABLE _key_rc)
+        if(NOT _key_rc EQUAL 0)
+            message(FATAL_ERROR "[ArtCade] Failed to generate asset-key header (rc=${_key_rc})")
+        endif()
+    else()
+        message(FATAL_ERROR "[ArtCade] Python not found — required to generate the asset-key header")
+    endif()
+else()
+    message(STATUS "[ArtCade] Monocypher    : NOT FOUND — .artcade encryption disabled (plaintext only)")
+endif()
+
 # Percorsi opzionali (non causano errori CMake se le dir non esistono)
 set(SOL2_INCLUDE_DIR          ${CMAKE_CURRENT_SOURCE_DIR}/libs/sol2/include)
 set(NLOHMANN_JSON_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libs/nlohmann-json/include)

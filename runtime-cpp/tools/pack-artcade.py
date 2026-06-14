@@ -20,11 +20,39 @@
 import argparse
 import fnmatch
 import hashlib
+import io
 import json
 import os
 import sys
 import zipfile
 from datetime import datetime, timezone
+
+from artcade_keytool import resolve_key
+
+# .artcade encryption container (must match runtime-cpp artcade-crypto.h):
+#   magic[8] "ARTCADE1" | version u8=1 | flags u8 | nonce[24] | mac[16] | ct[N]
+CRYPTO_MAGIC = b"ARTCADE1"
+CRYPTO_VERSION = 1
+CRYPTO_FLAG_ENCRYPTED = 0x01
+
+
+def encrypt_archive(plain_zip: bytes) -> bytes:
+    """Wrap a plaintext ZIP in the XChaCha20-Poly1305 .artcade container."""
+    try:
+        from nacl import bindings as nb
+    except ImportError as exc:  # pragma: no cover - environment dependent
+        raise SystemExit(
+            "[FAIL] PyNaCl is required to encrypt .artcade archives "
+            "(`pip install pynacl`). Use --no-encrypt for an unencrypted dev build."
+        ) from exc
+
+    key, _is_dev = resolve_key()
+    nonce = os.urandom(nb.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES)  # 24
+    combined = nb.crypto_aead_xchacha20poly1305_ietf_encrypt(plain_zip, b"", nonce, key)
+    # libsodium combined mode appends the 16-byte tag; Monocypher wants it split.
+    ciphertext, mac = combined[:-16], combined[-16:]
+    header = CRYPTO_MAGIC + bytes([CRYPTO_VERSION, CRYPTO_FLAG_ENCRYPTED]) + nonce + mac
+    return header + ciphertext
 
 
 EXCLUDED_DIRS = {
@@ -147,7 +175,8 @@ def build_manifest(project: dict, files: list[tuple[str, str]]) -> dict:
     }
 
 
-def pack(src_dir: str, out_path: str, main_script_override: str | None = None) -> bool:
+def pack(src_dir: str, out_path: str, main_script_override: str | None = None,
+         encrypt: bool = True) -> bool:
     src_dir = os.path.abspath(src_dir)
 
     if not os.path.isdir(src_dir):
@@ -179,16 +208,25 @@ def pack(src_dir: str, out_path: str, main_script_override: str | None = None) -
     out_dir = os.path.dirname(os.path.abspath(out_path))
     os.makedirs(out_dir, exist_ok=True)
 
-    with zipfile.ZipFile(out_path, "w",
+    # Build the ZIP in memory so it can be wrapped in the encryption container.
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w",
                          compression=zipfile.ZIP_DEFLATED,
                          compresslevel=6) as zf:
         # manifest.json first (convention: always entry #0)
         zf.writestr("manifest.json", manifest_json)
         for full, rel in files:
             zf.write(full, rel)
+    plain_zip = buf.getvalue()
 
-    size_kb = os.path.getsize(out_path) / 1024
-    print(f"[OK]  {len(files) + 1} files packed -> {out_path}  ({size_kb:.1f} KB)")
+    out_bytes = plain_zip if not encrypt else encrypt_archive(plain_zip)
+
+    with open(out_path, "wb") as f:
+        f.write(out_bytes)
+
+    size_kb = len(out_bytes) / 1024
+    tag = "plaintext" if not encrypt else "encrypted"
+    print(f"[OK]  {len(files) + 1} files packed ({tag}) -> {out_path}  ({size_kb:.1f} KB)")
     return True
 
 
@@ -202,9 +240,15 @@ def main() -> int:
         "--main-script-override",
         help="File whose bytes replace mainScriptPath inside the archive",
     )
+    parser.add_argument(
+        "--no-encrypt", action="store_true",
+        help="write a plaintext ZIP (dev only; shipped archives must be encrypted)",
+    )
     args = parser.parse_args()
 
-    return 0 if pack(args.src_dir, args.output, args.main_script_override) else 1
+    ok = pack(args.src_dir, args.output, args.main_script_override,
+              encrypt=not args.no_encrypt)
+    return 0 if ok else 1
 
 
 if __name__ == "__main__":

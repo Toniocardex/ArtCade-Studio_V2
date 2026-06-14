@@ -1,5 +1,6 @@
 #include "zip-reader.h"
 
+#include "artcade-crypto.h"
 #include "external/sinfl.h"
 
 #include <array>
@@ -220,6 +221,10 @@ bool zipExtractAll(const std::string& zipPath, const std::string& destDir) {
         (std::istreambuf_iterator<char>(file)),
         std::istreambuf_iterator<char>());
     if (data.empty() || data.size() > kMaxArchiveBytes) return false;
+
+    // Decrypt in place when the archive is an encrypted .artcade container.
+    // Plaintext ZIPs pass through untouched. A failed/forged tag aborts here.
+    if (!artcadeDecryptArchive(data)) return false;
 
     uint32_t cdOff = 0;
     uint32_t cdSize = 0;

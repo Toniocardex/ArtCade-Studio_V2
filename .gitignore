@@ -1,6 +1,9 @@
 # Local toolchain installers (not part of the project)
 .installers/
 
+# Asset-encryption secret (never commit; back up out-of-band)
+runtime-cpp/secrets/
+
 # Build artifacts
 build/
 build-*/
