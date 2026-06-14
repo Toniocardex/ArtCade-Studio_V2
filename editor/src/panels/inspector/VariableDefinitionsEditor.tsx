@@ -26,14 +26,14 @@ export function VariableDefinitionsEditor({
   return (
     <div className="space-y-2">
       {variables.map((variable, index) => (
-        <div key={`${variable.key}:${index}`} className="rounded border border-[var(--border)] p-2 space-y-1.5">
+        <div key={index} className="rounded border border-[var(--border)] p-2 space-y-1.5">
           <div className="grid grid-cols-[1fr_90px_auto] gap-1">
             <input
               className={fieldClass}
               aria-label="Variable key"
               placeholder="variable_key"
               value={variable.key}
-              onChange={(event) => patch(index, { ...variable, key: event.target.value.trim() })}
+              onChange={(event) => patch(index, { ...variable, key: event.target.value })}
             />
             <select
               className={fieldClass}
