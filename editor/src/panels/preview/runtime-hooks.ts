@@ -309,7 +309,7 @@ export function performRuntimeProjectSync(opts: ProjectSyncOptions): void {
 export function useRuntimeProjectSync(opts: ProjectSyncOptions): void {
   const {
     project, projectPath, openScripts, dialogs, selectionSceneId,
-    isPlaying,
+    wasmReady, engineReady, isPlaying,
   } = opts
   const previewLuaSyncKey =
     project != null
@@ -351,6 +351,8 @@ export function useRuntimeProjectSync(opts: ProjectSyncOptions): void {
     project,
     projectPath,
     openScripts,
+    wasmReady,
+    engineReady,
   ])
 
   // Subscribe to readiness flips ONCE (run is stable). onReadyChange/
