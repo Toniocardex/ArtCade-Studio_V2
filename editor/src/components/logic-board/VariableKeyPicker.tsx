@@ -1,4 +1,5 @@
-import { useEditorSelector } from '../../store/editor-store'
+import { shallowEqual, useEditorSelector } from '../../store/editor-store'
+import { selectGlobalVariables } from '../../store/editor-selectors'
 import { EditorSelect } from '../ui/EditorSelect'
 
 export function VariableKeyPicker({
@@ -12,12 +13,12 @@ export function VariableKeyPicker({
 }>) {
   const options = useEditorSelector((state) => {
     const definitions = scope === 'global'
-      ? state.project?.globalVariables ?? []
+      ? selectGlobalVariables(state)
       : Object.values(state.project?.objectTypes ?? {}).flatMap((type) => type.localVariables ?? [])
     return [...new Map(definitions.map((definition) => [definition.key, definition])).values()]
       .sort((a, b) => a.key.localeCompare(b.key))
       .map((definition) => ({ value: definition.key, label: definition.key }))
-  })
+  }, shallowEqual)
   return (
     <EditorSelect
       className="w-auto min-w-28"

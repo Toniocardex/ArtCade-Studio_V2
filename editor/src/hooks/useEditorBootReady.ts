@@ -3,7 +3,6 @@ import { useEditorSelector } from '../store/editor-store'
 import { runtimeSync } from '../utils/runtime-sync-service'
 import { scheduleBootIdleTask } from '../utils/boot-idle'
 import { useRuntimeReadiness } from './useRuntimeReadiness'
-
 const BOOT_TIMEOUT_MS = 20_000
 
 export interface EditorBootReadyState {
@@ -59,16 +58,6 @@ export function useEditorBootReady(): EditorBootReadyState {
   const ready =
     projectReady && wasmReady && engineReady && synced && fontsReady && idleReady
 
-  // Watchdog for stuck WASM/EditorAPI sync — not a race-condition workaround.
-  useEffect(() => {
-    if (ready) {
-      setTimedOut(false)
-      return undefined
-    }
-    const t = globalThis.setTimeout(() => setTimedOut(true), BOOT_TIMEOUT_MS)
-    return () => globalThis.clearTimeout(t)
-  }, [ready])
-
   const statusLine = useMemo(
     () => buildStatusLine({
       project: projectReady,
@@ -80,6 +69,16 @@ export function useEditorBootReady(): EditorBootReadyState {
     }),
     [projectReady, wasmReady, engineReady, synced, fontsReady, idleReady],
   )
+
+  // Watchdog for stuck WASM/EditorAPI sync — not a race-condition workaround.
+  useEffect(() => {
+    if (ready) {
+      setTimedOut(false)
+      return undefined
+    }
+    const t = globalThis.setTimeout(() => setTimedOut(true), BOOT_TIMEOUT_MS)
+    return () => globalThis.clearTimeout(t)
+  }, [ready])
 
   const retry = useCallback(() => {
     setTimedOut(false)

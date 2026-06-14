@@ -83,13 +83,15 @@ export function buildRuntimeCallbacks(deps: RuntimeCallbackDeps): WasmCallbacks 
       // editorReloadScript before it was wired (NotWired flood → render loop).
       const boot = bootSyncRef.current
       if (boot.project != null) {
-        performRuntimeProjectSync({
-          ...boot,
-          wasmReady: isReady(),
-          engineReady: runtimeSync.isEngineReady(),
-          dispatch,
-          makeLogEntry,
-        })
+        scheduleWasmUiUpdateWhen(cancelled, () => {
+          performRuntimeProjectSync({
+            ...boot,
+            wasmReady: isReady(),
+            engineReady: runtimeSync.isEngineReady(),
+            dispatch,
+            makeLogEntry,
+          })
+        }, { urgent: true })
       }
       scheduleWasmUiUpdateWhen(cancelled, () => {
         dispatch({
@@ -128,6 +130,25 @@ export function buildRuntimeCallbacks(deps: RuntimeCallbackDeps): WasmCallbacks 
       // notifyEngineReady is edge-triggered, so a repeat is a harmless no-op.
       if (message.includes('[EditorAPI] Bridge initialised')) {
         runtimeSync.notifyEngineReady()
+        // Boot sync must not run inside Module.print — reentrant editor_load_project
+        // during the print callback caused Maximum update depth (React #185).
+        const boot = bootSyncRef.current
+        if (boot.project != null) {
+          scheduleWasmUiUpdate(() => {
+            performRuntimeProjectSync({
+              project: boot.project,
+              projectPath: boot.projectPath,
+              openScripts: boot.openScripts,
+              dialogs: boot.dialogs,
+              selectionSceneId: boot.selectionSceneId,
+              isPlaying: boot.isPlaying,
+              wasmReady: isReady(),
+              engineReady: runtimeSync.isEngineReady(),
+              dispatch,
+              makeLogEntry,
+            })
+          }, { urgent: true })
+        }
       }
       // EditorAPI errors must reach the console even if an older lifecycle
       // hook marked itself cancelled (e.g. StrictMode / dispatch identity churn).
@@ -294,8 +315,12 @@ export function performRuntimeProjectSync(opts: ProjectSyncOptions): void {
     wasmReady, engineReady, isPlaying,
     dispatch, makeLogEntry,
   } = opts
-  if (!shouldSyncProjectToRuntime({ wasmReady, engineReady, project, isPlaying })) return
-  if (runtimeSync.isTransitioning()) return
+  if (!shouldSyncProjectToRuntime({ wasmReady, engineReady, project, isPlaying })) {
+    return
+  }
+  if (runtimeSync.isTransitioning()) {
+    return
+  }
   const runtimeSceneId = selectionSceneId ?? project!.activeSceneId
   const { lua: mainLua, compileError } = resolvePreviewMainLuaWithStatus({
     project: project!,

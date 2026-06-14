@@ -10,13 +10,16 @@
 
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, act, cleanup } from '@testing-library/react'
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import {
   EditorProvider,
   useEditor,
   useEditorDispatch,
   useEditorSelector,
+  shallowEqual,
 } from './editor-store'
+import { selectGlobalVariables } from './editor-selectors'
+import { createBlankProject } from '../utils/project-factory'
 
 function LegacyConsumer() {
   const renders = useRef(0)
@@ -46,6 +49,21 @@ function DispatchOnlyConsumer() {
   renders.current += 1
   useEditorDispatch()
   return <span data-testid="dispatch-only">{renders.current}</span>
+}
+
+function LoadBlankProject() {
+  const dispatch = useEditorDispatch()
+  useEffect(() => {
+    dispatch({ type: 'LOAD_PROJECT', path: null, project: createBlankProject() })
+  }, [dispatch])
+  return null
+}
+
+function GlobalVariablesConsumer() {
+  const renders = useRef(0)
+  renders.current += 1
+  const variables = useEditorSelector(selectGlobalVariables, shallowEqual)
+  return <span data-testid="global-vars">{`${renders.current}:${variables.length}`}</span>
 }
 
 describe('useEditorSelector / useEditorDispatch', () => {
@@ -102,5 +120,25 @@ describe('useEditorSelector / useEditorDispatch', () => {
     })
 
     expect(Number(getByTestId('legacy-count').textContent)).toBeGreaterThan(1)
+  })
+
+  it('selectGlobalVariables does not recurse when globalVariables is absent', () => {
+    const { getByTestId } = render(
+      <EditorProvider>
+        <LoadBlankProject />
+        <GlobalVariablesConsumer />
+        <LegacyConsumer />
+      </EditorProvider>,
+    )
+
+    act(() => {})
+
+    expect(getByTestId('global-vars').textContent).toBe('1:0')
+
+    act(() => {
+      getByTestId('legacy-zoom').click()
+    })
+
+    expect(getByTestId('global-vars').textContent).toBe('1:0')
   })
 })

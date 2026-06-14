@@ -138,10 +138,22 @@ export function EditorProvider({ children }: { children: ReactNode }) {
   const [coreState,     coreDi]  = useReducer(coreReducer,     initialCoreState)
   const [volatileState, volDi]   = useReducer(volatileReducer, initialVolatileState)
   const coreStore = useRef(createCoreStateStore(initialCoreState))
+  const mirroredCoreState = useRef(coreState)
+  const needsStoreNotify = useRef(false)
 
+  // Mirror useReducer into the external store before children call getSnapshot.
+  if (mirroredCoreState.current !== coreState) {
+    mirroredCoreState.current = coreState
+    coreStore.current.replaceStateSilent(coreState)
+    needsStoreNotify.current = true
+  }
+
+  // Notify memoized useEditorSelector subscribers after commit — not during render.
   useLayoutEffect(() => {
-    coreStore.current.setState(coreState)
-  }, [coreState])
+    if (!needsStoreNotify.current) return
+    needsStoreNotify.current = false
+    coreStore.current.notifyListeners()
+  })
 
   const dispatch = useCallback((action: Action) => {
     if (action.type === 'LOAD_PROJECT') {

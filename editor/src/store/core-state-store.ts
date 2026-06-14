@@ -9,6 +9,10 @@ export type CoreStateListener = () => void
 export interface CoreStateStore {
   getState: () => CoreState
   setState: (next: CoreState) => void
+  /** Mirror reducer output during parent render without notifying subscribers. */
+  replaceStateSilent: (next: CoreState) => void
+  /** Wake useSyncExternalStore subscribers after a silent mirror. */
+  notifyListeners: () => void
   subscribe: (listener: CoreStateListener) => () => void
 }
 
@@ -21,6 +25,13 @@ export function createCoreStateStore(initial: CoreState): CoreStateStore {
     setState: (next: CoreState) => {
       if (next === state) return
       state = next
+      for (const listener of listeners) listener()
+    },
+    replaceStateSilent: (next: CoreState) => {
+      if (next === state) return
+      state = next
+    },
+    notifyListeners: () => {
       for (const listener of listeners) listener()
     },
     subscribe: (listener: CoreStateListener) => {

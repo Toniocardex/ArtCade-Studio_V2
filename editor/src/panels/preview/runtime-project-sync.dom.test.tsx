@@ -18,6 +18,7 @@ vi.mock('../../utils/runtime-sync-service', () => ({
   runtimeSync: {
     isEngineReady: () => engineReady,
     isTransitioning: () => false,
+    isBootProjectSynced: () => false,
     onReadyChange: () => () => undefined,
     onEngineReadyChange: () => () => undefined,
     syncProject,
