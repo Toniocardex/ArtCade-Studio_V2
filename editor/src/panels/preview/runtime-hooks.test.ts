@@ -141,8 +141,9 @@ describe('performRuntimeProjectSync', () => {
 })
 
 describe('buildRuntimeCallbacks', () => {
-  it('notifies runtime readiness on onReady', () => {
+  it('signals WASM readiness on onReady, not engine readiness', () => {
     notifyReadyChanged.mockClear()
+    notifyEngineReady.mockClear()
     const dispatch = vi.fn()
     const callbacks = buildRuntimeCallbacks({
       cancelled: () => false,
@@ -156,7 +157,11 @@ describe('buildRuntimeCallbacks', () => {
 
     callbacks.onReady?.()
     expect(notifyReadyChanged).toHaveBeenCalledTimes(1)
-    expect(notifyEngineReady).toHaveBeenCalledTimes(1)
+    // Engine readiness is NOT flagged on onReady — the bridge ccalls are still
+    // NotWired there. It is driven solely by the authoritative bridge-init
+    // console signal (see the onConsoleLine test below). Flagging it here caused
+    // a premature project re-sync (NotWired flood → render loop).
+    expect(notifyEngineReady).not.toHaveBeenCalled()
     expect(dispatch).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'LOG', entry: expect.objectContaining({ level: 'info' }) }),
     )

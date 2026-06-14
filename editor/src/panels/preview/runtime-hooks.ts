@@ -11,7 +11,10 @@
 // tool palette, and React state; everything below the “runtime” surface lives
 // here.
 
-import { useEffect, type Dispatch, type MutableRefObject, type RefObject } from 'react'
+import {
+  useCallback, useEffect, useRef,
+  type Dispatch, type MutableRefObject, type RefObject,
+} from 'react'
 import {
   loadWasmRuntime, isReady,
   type WasmCallbacks,
@@ -72,9 +75,12 @@ export function buildRuntimeCallbacks(deps: RuntimeCallbackDeps): WasmCallbacks 
       // "runtime still loading" state without waiting for a re-render of
       // the preview panel.
       runtimeSync.notifyReadyChanged()
-      // EditorAPI::init runs before onRuntimeInitialized — engine API is wired
-      // here. Do not gate on cancelled(); lifecycle cleanup must not drop boot.
-      runtimeSync.notifyEngineReady()
+      // Engine (Editor API) readiness is NOT signalled here: at
+      // onRuntimeInitialized the bridge ccalls still return NotWired. EditorAPI::init
+      // emits "[EditorAPI] Bridge initialised" once the ccalls are live, and
+      // onConsoleLine turns that into notifyEngineReady() — the one authoritative
+      // signal. Flagging engine-ready here triggered a project re-sync that called
+      // editorReloadScript before it was wired (NotWired flood → render loop).
       const boot = bootSyncRef.current
       if (boot.project != null) {
         performRuntimeProjectSync({
@@ -116,6 +122,13 @@ export function buildRuntimeCallbacks(deps: RuntimeCallbackDeps): WasmCallbacks 
       }, { urgent: true })
     },
     onConsoleLine: (message: string, level: string) => {
+      // Authoritative engine-ready signal — register it BEFORE the cancelled()
+      // guard so a stale/cancelled callbacks instance (StrictMode / dispatch
+      // identity churn) can never drop boot's transition to engine-ready.
+      // notifyEngineReady is edge-triggered, so a repeat is a harmless no-op.
+      if (message.includes('[EditorAPI] Bridge initialised')) {
+        runtimeSync.notifyEngineReady()
+      }
       // EditorAPI errors must reach the console even if an older lifecycle
       // hook marked itself cancelled (e.g. StrictMode / dispatch identity churn).
       const forceLog =
@@ -123,9 +136,6 @@ export function buildRuntimeCallbacks(deps: RuntimeCallbackDeps): WasmCallbacks 
         (level === 'warn' && message.includes('[EditorAPI]'))
       if (cancelled() && !forceLog) return
       const entry = makeLogEntry(message, level)
-      if (message.includes('[EditorAPI] Bridge initialised')) {
-        runtimeSync.notifyEngineReady()
-      }
       scheduleWasmUiUpdate(() => {
         if (cancelled() && !forceLog) return
         dispatch({ type: 'LOG', entry })
@@ -299,46 +309,61 @@ export function performRuntimeProjectSync(opts: ProjectSyncOptions): void {
 export function useRuntimeProjectSync(opts: ProjectSyncOptions): void {
   const {
     project, projectPath, openScripts, dialogs, selectionSceneId,
-    isPlaying, dispatch, makeLogEntry,
+    isPlaying,
   } = opts
   const previewLuaSyncKey =
     project != null
       ? getPreviewLuaSyncKey({ project, openScripts, projectPath })
       : ''
 
+  // Latest sync inputs, read by the stable `run`. Keeping the closure stable is
+  // what lets the readiness subscription mount once (see below) instead of
+  // re-registering every render — the churn that re-entered syncProject on each
+  // subscribe (immediate callback) and drove the boot render loop.
+  const optsRef = useRef(opts)
+  optsRef.current = opts
+
+  const run = useCallback(() => {
+    const o = optsRef.current
+    performRuntimeProjectSync({
+      project: o.project,
+      projectPath: o.projectPath,
+      openScripts: o.openScripts,
+      dialogs: o.dialogs,
+      selectionSceneId: o.selectionSceneId,
+      wasmReady: isReady(),
+      engineReady: runtimeSync.isEngineReady(),
+      isPlaying: o.isPlaying,
+      dispatch: o.dispatch,
+      makeLogEntry: o.makeLogEntry,
+    })
+  }, [])
+
+  // Re-sync when project content that reaches the runtime changes.
   useEffect(() => {
-    const run = () => {
-      performRuntimeProjectSync({
-        project,
-        projectPath,
-        openScripts,
-        dialogs,
-        selectionSceneId,
-        wasmReady: isReady(),
-        engineReady: runtimeSync.isEngineReady(),
-        isPlaying,
-        dispatch,
-        makeLogEntry,
-      })
-    }
     run()
+  }, [
+    run,
+    previewLuaSyncKey,
+    dialogs,
+    selectionSceneId,
+    isPlaying,
+    project,
+    projectPath,
+    openScripts,
+  ])
+
+  // Subscribe to readiness flips ONCE (run is stable). onReadyChange/
+  // onEngineReadyChange invoke the callback immediately on subscribe, so a
+  // per-render re-subscribe previously fired syncProject on every render.
+  useEffect(() => {
     const unsubWasm = runtimeSync.onReadyChange(run)
     const unsubEngine = runtimeSync.onEngineReadyChange(run)
     return () => {
       unsubWasm()
       unsubEngine()
     }
-  }, [
-    previewLuaSyncKey,
-    dialogs,
-    selectionSceneId,
-    isPlaying,
-    dispatch,
-    makeLogEntry,
-    project,
-    projectPath,
-    openScripts,
-  ])
+  }, [run])
 }
 
 // ---------------------------------------------------------------------------

@@ -459,7 +459,7 @@ describe('RuntimeSyncService', () => {
     vi.mocked(bridge.isReady).mockReturnValue(true)
   })
 
-  it('notifyEngineReady re-notifies listeners on repeat (StrictMode resubscribe)', () => {
+  it('notifyEngineReady is edge-triggered; late subscribers still get state', () => {
     const cb = vi.fn()
     runtimeSync.onEngineReadyChange(cb)
     expect(runtimeSync.isEngineReady()).toBe(false)
@@ -467,8 +467,15 @@ describe('RuntimeSyncService', () => {
     runtimeSync.notifyEngineReady()
     expect(runtimeSync.isEngineReady()).toBe(true)
     expect(cb).toHaveBeenCalledWith(true)
+    // Repeat is a no-op: listeners are NOT re-fired, so a repeated bridge-init
+    // signal cannot re-drive project sync (the boot render-loop cause).
     runtimeSync.notifyEngineReady()
-    expect(cb).toHaveBeenCalledTimes(3)
+    expect(cb).toHaveBeenCalledTimes(2) // false + true only
+    // A listener subscribing after readiness still gets the current value
+    // immediately — the StrictMode-resubscribe path the edge-trigger preserves.
+    const late = vi.fn()
+    runtimeSync.onEngineReadyChange(late)
+    expect(late).toHaveBeenCalledWith(true)
   })
 
   it('notifyEngineReady invalidates chrome cache so grid/guides resync', () => {

@@ -183,6 +183,8 @@ class RuntimeSyncServiceImpl {
   private readonly bootSyncedListeners = new Set<(synced: boolean) => void>()
   private transitionDepth = 0
   private lastScriptReloadMessage: string | null = null
+  /** Last wasm-ready value broadcast to listeners — gates edge-triggered notify. */
+  private lastNotifiedReady: boolean | null = null
 
   /** True while PLAY/STOP/restore runs — blocks competing project sync from React effects. */
   isTransitioning(): boolean {
@@ -279,9 +281,13 @@ class RuntimeSyncServiceImpl {
     return () => { this.readyListeners.delete(cb) }
   }
 
-  /** Called from the wasm-bridge `onReady` (or any path that toggles ready). */
+  /** Called from the wasm-bridge `onReady` (or any path that toggles ready).
+   * Edge-triggered: listeners fire only when the value actually changes, so a
+   * repeated call cannot re-drive subscribers (e.g. project re-sync). */
   notifyReadyChanged(): void {
     const now = isWasmReady()
+    if (now === this.lastNotifiedReady) return
+    this.lastNotifiedReady = now
     for (const cb of this.readyListeners) cb(now)
   }
 
@@ -298,14 +304,15 @@ class RuntimeSyncServiceImpl {
     return this.lastLoadKey != null
   }
 
+  /** Edge-triggered: fires listeners only on the false→true transition, so
+   * repeated "bridge initialised" signals can't re-drive project sync. */
   notifyEngineReady(): void {
-    if (!this.engineReady) {
-      this.engineReady = true
-      // Editor API just wired — force chrome channels (grid/guides) to resync.
-      this.lastGuides = null
-      this.lastGridSize = null
-      this.lastSnapToGrid = null
-    }
+    if (this.engineReady) return
+    this.engineReady = true
+    // Editor API just wired — force chrome channels (grid/guides) to resync.
+    this.lastGuides = null
+    this.lastGridSize = null
+    this.lastSnapToGrid = null
     for (const cb of this.engineReadyListeners) cb(true)
   }
 
