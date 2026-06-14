@@ -68,11 +68,17 @@ export default function BottomDock() {
     setDockH((h) => clampDockHeight(Math.min(h, maxH)))
   }, [maxH, setDockH])
 
+  // Auto-acknowledge while the console is open. Key on the scalar max id + the
+  // ack watermark (not the array identity) so this effect cannot re-enter after
+  // acknowledging — depending on `consoleLogs` re-fired the dispatch on every
+  // list change and could exceed React's update depth during boot log churn.
+  const latestLogId = volatile.consoleLogs.length
+    ? volatile.consoleLogs[volatile.consoleLogs.length - 1]!.id
+    : 0
   useEffect(() => {
-    if (!dockExpanded || !consoleVisible || !volatile.consoleLogs.length) return
-    const maxId = Math.max(...volatile.consoleLogs.map((e) => e.id))
-    dispatch({ type: 'ACKNOWLEDGE_CONSOLE_LOGS', upToId: maxId })
-  }, [dockExpanded, consoleVisible, volatile.consoleLogs, dispatch])
+    if (!dockExpanded || !consoleVisible || latestLogId <= consoleAckUpToId) return
+    dispatch({ type: 'ACKNOWLEDGE_CONSOLE_LOGS', upToId: latestLogId })
+  }, [dockExpanded, consoleVisible, latestLogId, consoleAckUpToId, dispatch])
 
   // Show unacknowledged issues even when collapsed so the strip acts as a badge.
   const issueCount = useMemo(() => {
