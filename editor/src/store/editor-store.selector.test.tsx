@@ -54,7 +54,7 @@ function DispatchOnlyConsumer() {
 function LoadBlankProject() {
   const dispatch = useEditorDispatch()
   useEffect(() => {
-    dispatch({ type: 'LOAD_PROJECT', path: null, project: createBlankProject() })
+    dispatch({ type: 'LOAD_PROJECT', path: '', project: createBlankProject() })
   }, [dispatch])
   return null
 }
