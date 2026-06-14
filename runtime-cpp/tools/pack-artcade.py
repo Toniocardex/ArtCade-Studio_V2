@@ -27,32 +27,20 @@ import sys
 import zipfile
 from datetime import datetime, timezone
 
+import artcade_crypto
 from artcade_keytool import resolve_key
-
-# .artcade encryption container (must match runtime-cpp artcade-crypto.h):
-#   magic[8] "ARTCADE1" | version u8=1 | flags u8 | nonce[24] | mac[16] | ct[N]
-CRYPTO_MAGIC = b"ARTCADE1"
-CRYPTO_VERSION = 1
-CRYPTO_FLAG_ENCRYPTED = 0x01
 
 
 def encrypt_archive(plain_zip: bytes) -> bytes:
     """Wrap a plaintext ZIP in the XChaCha20-Poly1305 .artcade container."""
     try:
-        from nacl import bindings as nb
+        key, _is_dev = resolve_key()
+        return artcade_crypto.encrypt(plain_zip, key)
     except ImportError as exc:  # pragma: no cover - environment dependent
         raise SystemExit(
             "[FAIL] PyNaCl is required to encrypt .artcade archives "
             "(`pip install pynacl`). Use --no-encrypt for an unencrypted dev build."
         ) from exc
-
-    key, _is_dev = resolve_key()
-    nonce = os.urandom(nb.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES)  # 24
-    combined = nb.crypto_aead_xchacha20poly1305_ietf_encrypt(plain_zip, b"", nonce, key)
-    # libsodium combined mode appends the 16-byte tag; Monocypher wants it split.
-    ciphertext, mac = combined[:-16], combined[-16:]
-    header = CRYPTO_MAGIC + bytes([CRYPTO_VERSION, CRYPTO_FLAG_ENCRYPTED]) + nonce + mac
-    return header + ciphertext
 
 
 EXCLUDED_DIRS = {
