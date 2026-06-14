@@ -5,6 +5,7 @@ import {
   subscribeTextPrompt,
   TEXT_PROMPT_TEST_IDS,
 } from '../utils/text-prompt'
+import { handleControlledInputKeyDown } from '../utils/keyboard'
 
 /** Themed single-line prompt — replaces native Win32 input for editor UX. */
 export function TextPromptModal() {
@@ -102,6 +103,7 @@ export function TextPromptModal() {
             data-testid={TEXT_PROMPT_TEST_IDS.input}
             value={draft}
             onChange={(e) => setEditDraft(e.target.value)}
+            onKeyDown={(e) => handleControlledInputKeyDown(e, setEditDraft)}
             className="w-full px-3 py-2 rounded border border-[var(--border-2)] bg-[var(--bg)]
                        text-sm text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
             autoComplete="off"

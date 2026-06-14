@@ -49,6 +49,31 @@ describe('TextPromptModal', () => {
     expect(screen.queryByTestId(TEXT_PROMPT_TEST_IDS.modal)).toBeNull()
   })
 
+  it('backspace edits the draft in the prompt input', async () => {
+    const promptRef: { current: TextPromptFn | null } = { current: null }
+    render(
+      <TextPromptProvider>
+        <PromptHost promptRef={promptRef} />
+      </TextPromptProvider>,
+    )
+
+    await act(async () => {
+      void promptRef.current!({
+        title: 'Insert object',
+        message: 'Object name:',
+        defaultValue: 'Hud_score',
+      })
+    })
+
+    const input = await screen.findByTestId(TEXT_PROMPT_TEST_IDS.input) as HTMLInputElement
+    fireEvent.change(input, { target: { value: 'Coin' } })
+    input.setSelectionRange(4, 4)
+
+    fireEvent.keyDown(input, { key: 'Backspace', code: 'Backspace' })
+
+    expect(input.value).toBe('Coi')
+  })
+
   it('cancel closes without a value', async () => {
     const promptRef: { current: TextPromptFn | null } = { current: null }
     render(

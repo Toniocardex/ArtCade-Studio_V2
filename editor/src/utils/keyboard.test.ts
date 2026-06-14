@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   applyInputBackspace,
   applyInputDelete,
+  handleControlledInputKeyDown,
   isBackspaceKey,
   isDeleteKey,
 } from './keyboard'
@@ -45,5 +46,26 @@ describe('keyboard helpers', () => {
     const input = { value: 'A', selectionStart: 1, selectionEnd: 1, setSelectionRange: () => {}, dispatchEvent: () => true } as unknown as HTMLInputElement
     expect(applyInputDelete(input)).toBe(false)
     expect(input.value).toBe('A')
+  })
+
+  it('handleControlledInputKeyDown syncs state after backspace', () => {
+    const input = {
+      value: 'object',
+      selectionStart: 6,
+      selectionEnd: 6,
+      setSelectionRange: () => {},
+      dispatchEvent: () => true,
+    } as unknown as HTMLInputElement
+    let synced = input.value
+    handleControlledInputKeyDown(
+      {
+        key: 'Backspace',
+        code: 'Backspace',
+        preventDefault: () => {},
+        currentTarget: input,
+      },
+      (value) => { synced = value },
+    )
+    expect(synced).toBe('objec')
   })
 })

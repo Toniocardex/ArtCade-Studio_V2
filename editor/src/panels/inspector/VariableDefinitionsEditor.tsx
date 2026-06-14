@@ -3,6 +3,7 @@ import type {
   GameVariableType,
   GameVariableValue,
 } from '../../types'
+import { handleControlledInputKeyDown } from '../../utils/keyboard'
 
 const fieldClass = 'w-full bg-[var(--bg)] border border-[var(--border-2)] rounded px-2 py-1 text-xs'
 
@@ -34,6 +35,9 @@ export function VariableDefinitionsEditor({
               placeholder="variable_key"
               value={variable.key}
               onChange={(event) => patch(index, { ...variable, key: event.target.value })}
+              onKeyDown={(event) => handleControlledInputKeyDown(event, (key) => {
+                patch(index, { ...variable, key })
+              })}
             />
             <select
               className={fieldClass}
@@ -78,6 +82,14 @@ export function VariableDefinitionsEditor({
                   ? Number(event.target.value) || 0
                   : event.target.value,
               })}
+              onKeyDown={(event) => handleControlledInputKeyDown(event, (text) => {
+                patch(index, {
+                  ...variable,
+                  initialValue: variable.type === 'number'
+                    ? Number(text) || 0
+                    : text,
+                })
+              })}
             />
           )}
           <input
@@ -86,6 +98,9 @@ export function VariableDefinitionsEditor({
             placeholder="Description (optional)"
             value={variable.description ?? ''}
             onChange={(event) => patch(index, { ...variable, description: event.target.value })}
+            onKeyDown={(event) => handleControlledInputKeyDown(event, (description) => {
+              patch(index, { ...variable, description })
+            })}
           />
         </div>
       ))}

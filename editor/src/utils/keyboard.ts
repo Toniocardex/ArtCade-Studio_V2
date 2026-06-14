@@ -68,6 +68,32 @@ export function applyInputDelete(input: HTMLInputElement): boolean {
   return true
 }
 
+type InputKeyEvent = {
+  key: string
+  code: string
+  preventDefault: () => void
+  currentTarget: HTMLInputElement
+}
+
+/**
+ * WebView2/Tauri often blocks native Backspace/Delete on controlled inputs.
+ * Apply manual edit and push the new value into React state.
+ */
+export function handleControlledInputKeyDown(
+  e: InputKeyEvent,
+  onValue: (value: string) => void,
+): void {
+  if (isBackspaceKey(e)) {
+    e.preventDefault()
+    const input = e.currentTarget
+    if (applyInputBackspace(input)) onValue(input.value)
+  } else if (isDeleteKey(e)) {
+    e.preventDefault()
+    const input = e.currentTarget
+    if (applyInputDelete(input)) onValue(input.value)
+  }
+}
+
 let guardsInstalled = false
 
 /**

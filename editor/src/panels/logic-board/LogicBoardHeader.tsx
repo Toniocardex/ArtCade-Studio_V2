@@ -5,12 +5,7 @@ import { boardDisplayName } from './friendly-labels'
 import { logicBoardCompilerLabel } from '../../utils/logic-board/labels'
 import { rulesheetAppliesToLabel } from '../../utils/project'
 import type { LogicSyncStatus } from '../../utils/logic-board/auto-apply-status'
-import {
-  applyInputBackspace,
-  applyInputDelete,
-  isBackspaceKey,
-  isDeleteKey,
-} from '../../utils/keyboard'
+import { handleControlledInputKeyDown } from '../../utils/keyboard'
 import { LogicBoardShortcutsHelp } from './LogicBoardShortcutsHelp'
 import { EditorSelect } from '../../components/ui/EditorSelect'
 
@@ -129,15 +124,9 @@ export function LogicBoardHeader({
             title="Rulesheet name — the Script editor uses it to label this board's generated Lua"
             value={compilerLabel}
             onChange={(e) => onRenameBoard(board.boardId, e.target.value)}
-            onKeyDown={(e) => {
-              if (isBackspaceKey(e)) {
-                e.preventDefault()
-                applyInputBackspace(e.currentTarget)
-              } else if (isDeleteKey(e)) {
-                e.preventDefault()
-                applyInputDelete(e.currentTarget)
-              }
-            }}
+            onKeyDown={(e) => handleControlledInputKeyDown(e, (value) => {
+              onRenameBoard(board.boardId, value)
+            })}
             className="w-52 -mx-1 px-1 py-0.5 rounded bg-transparent border border-transparent
                        text-[13px] font-semibold text-[var(--primary)] truncate
                        hover:border-[var(--outline)] focus:border-[var(--outline-strong)]
