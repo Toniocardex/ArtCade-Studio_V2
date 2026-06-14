@@ -71,7 +71,6 @@ function baseState(project: ProjectDoc | null = projectWithEntity()): CoreState 
     spritesheetStudio: { open: false, imageAssetId: null },
     projectHistory: { past: [], future: [] },
     logicPreviewAppliedRevision: null,
-    previewAssetLoadScope: 'scene-static',
   }
 }
 

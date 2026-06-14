@@ -49,7 +49,6 @@ import type { ProjectDoc } from '../types'
 import type { DialogScript } from './dialog/dialog-script'
 import { dialogsJsonForRuntime } from './dialog/runtime-dialogs'
 import { performRuntimeSceneAssetSync } from '../panels/preview/runtime-asset-sync'
-import type { CollectSceneAssetRefsOptions } from './collect-scene-asset-refs'
 import { registerKeyForDescriptor, sceneAssetDescriptors } from './asset-orchestrator'
 
 // ---------------------------------------------------------------------------
@@ -175,7 +174,6 @@ class RuntimeSyncServiceImpl {
   private readonly lastTransform: Map<number, EntityTransformSnapshot> = new Map()
   private assetCacheInvalidator: (() => void) | null = null
   private lastAssetSyncKey: string | null = null
-  private previewAssetLoadScope: CollectSceneAssetRefsOptions['scope'] = 'scene-static'
   private readonly readyListeners: Set<(ready: boolean) => void> = new Set()
   private engineReady = false
   private bootProjectSynced = false
@@ -233,14 +231,6 @@ class RuntimeSyncServiceImpl {
     this.assetCacheInvalidator = fn
   }
 
-  /** Editor-only preview closure (spawn prototype sprites). */
-  setPreviewAssetLoadScope(scope: CollectSceneAssetRefsOptions['scope']): void {
-    if (this.previewAssetLoadScope === scope) return
-    this.previewAssetLoadScope = scope
-    this.lastAssetSyncKey = null
-    this.assetCacheInvalidator?.()
-  }
-
   /** Binary asset upload after project sync or an asset-library edit. */
   syncProjectAssets(
     project: ProjectDoc,
@@ -249,21 +239,18 @@ class RuntimeSyncServiceImpl {
   ): void {
     if (!this.engineReady) return
     const allSceneDescriptors = Object.keys(project.scenes).flatMap((sceneId) =>
-      sceneAssetDescriptors(project, sceneId, { scope: this.previewAssetLoadScope }),
+      sceneAssetDescriptors(project, sceneId),
     )
     const descriptorKeys = [...new Set(
       allSceneDescriptors.map(registerKeyForDescriptor),
     )].sort()
     const assetKey = JSON.stringify({
       activeSceneId,
-      scope: this.previewAssetLoadScope,
       descriptors: descriptorKeys,
     })
     if (this.lastAssetSyncKey === assetKey) return
     this.lastAssetSyncKey = assetKey
-    performRuntimeSceneAssetSync(project, activeSceneId, projectPath ?? null, {
-      scope: this.previewAssetLoadScope,
-    })
+    performRuntimeSceneAssetSync(project, activeSceneId, projectPath ?? null)
   }
 
   /**

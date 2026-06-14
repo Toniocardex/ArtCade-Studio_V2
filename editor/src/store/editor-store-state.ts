@@ -106,11 +106,6 @@ export interface CoreState {
   /** Last `logicBoardsRevision` written to main script via auto-sync / Apply. */
   /** Last `logicBoardsRevision` hot-reloaded into the WASM preview runtime. */
   logicPreviewAppliedRevision: string | null
-  /**
-   * Preview WASM texture/audio closure scope (see collect-scene-asset-refs).
-   * `scene+spawn-prototypes` preloads sprites for spawnEntity prototype classes.
-   */
-  previewAssetLoadScope: 'scene-static' | 'scene+spawn-prototypes'
   /** Canvas-only chromeless mode (F11); session-only, not persisted. */
   focusMode: boolean
   /** Disables tier/focus CSS transitions (persisted per user). */
@@ -233,7 +228,6 @@ export type Action =
   /** Used by fit-to-panel: applies the zoom AND keeps editorZoomMode = 'fit'. */
   | { type: 'EDITOR_SET_FIT_ZOOM'; zoom: number }
   | { type: 'EDITOR_SET_CAMERA_PREVIEW'; enabled: boolean }
-  | { type: 'EDITOR_SET_PREVIEW_ASSET_LOAD_SCOPE'; scope: 'scene-static' | 'scene+spawn-prototypes' }
   | { type: 'TILEMAP_INIT';  sceneId: string }
   | { type: 'TILEMAP_PAINT'; sceneId: string; index: number; tileId: number }
   | { type: 'TILEMAP_PAINT_CELL'; sceneId: string; col: number; row: number; tileId: number }
@@ -323,7 +317,6 @@ export const initialCoreState: CoreState = {
   spritesheetStudio: { open: false, imageAssetId: null },
   projectHistory: { past: [], future: [] },
   logicPreviewAppliedRevision: null,
-  previewAssetLoadScope: 'scene-static',
   focusMode: false,
   reduceMotion: initialEditorPrefs.reduceMotion,
 }

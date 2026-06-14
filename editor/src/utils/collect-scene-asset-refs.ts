@@ -11,12 +11,6 @@ import { materializeEntity } from './project-object-types'
 export type SceneAssetLoadKey = string
 
 export interface CollectSceneAssetRefsOptions {
-  /**
-   * scene-static (default): placed instances + tilemap in this scene only.
-   * scene+spawn-prototypes: above + sprites for types referenced by static
-   *   spawnEntity / spawnEntityAtPointer in Logic Boards tied to this scene.
-   */
-  scope?: 'scene-static' | 'scene+spawn-prototypes'
   /** Default true — hidden instances still need textures in editor preview. */
   includeHiddenInstances?: boolean
 }
@@ -56,26 +50,6 @@ function addSpritePath(keys: Set<string>, path: string | undefined): void {
   if (p) keys.add(p)
 }
 
-function addSpritePathFromPrototype(
-  project: ProjectDoc,
-  className: string,
-  keys: Set<string>,
-): void {
-  const cn = className.trim()
-  if (!cn) return
-  const type = project.objectTypes?.[cn]
-  if (type) {
-    addSpritePath(keys, type.sprite.spriteAssetId)
-    return
-  }
-  for (const ent of Object.values(project.entities)) {
-    if (ent.className === cn) {
-      addSpritePath(keys, ent.sprite.spriteAssetId)
-      return
-    }
-  }
-}
-
 function boardTargetsScene(
   board: LogicBoard,
   project: ProjectDoc,
@@ -93,36 +67,6 @@ function boardTargetsScene(
     return false
   }
   return false
-}
-
-function spawnClassNamesFromLogicBoards(
-  project: ProjectDoc,
-  sceneId: string,
-): string[] {
-  const boards = project.logicBoards ?? []
-  if (boards.length === 0) return []
-  const names = new Set<string>()
-  for (const board of boards) {
-    if (!boardTargetsScene(board, project, sceneId)) continue
-    for (const event of board.events ?? []) {
-      for (const action of event.actions ?? []) {
-        collectSpawnClassName(action, names)
-      }
-    }
-  }
-  return [...names].sort()
-}
-
-function collectSpawnClassName(action: LogicAction, names: Set<string>): void {
-  if (action.type === 'spawnEntity' && typeof action.className === 'string') {
-    const cn = action.className.trim()
-    if (cn) names.add(cn)
-    return
-  }
-  if (action.type === 'spawnEntityAtPointer' && typeof action.className === 'string') {
-    const cn = action.className.trim()
-    if (cn) names.add(cn)
-  }
 }
 
 function collectAudioPathFromAction(
@@ -176,7 +120,6 @@ export function collectSceneAssetRefs(
   const scene = project.scenes[sceneId]
   if (!scene) return []
 
-  const scope = options?.scope ?? 'scene-static'
   const includeHidden = options?.includeHiddenInstances !== false
   const keys = new Set<string>()
 
@@ -189,12 +132,6 @@ export function collectSceneAssetRefs(
   if (tsId) {
     const path = project.tilesets?.[tsId]?.spriteImagePath?.trim()
     if (path) keys.add(path)
-  }
-
-  if (scope === 'scene+spawn-prototypes') {
-    for (const className of spawnClassNamesFromLogicBoards(project, sceneId)) {
-      addSpritePathFromPrototype(project, className, keys)
-    }
   }
 
   return [...keys].sort()

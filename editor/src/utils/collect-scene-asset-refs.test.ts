@@ -158,42 +158,6 @@ describe('collectSceneAssetRefs', () => {
     expect(collectSceneAssetRefs(p, 'missing')).toEqual([])
   })
 
-  it('scene+spawn-prototypes includes spawn class sprite path', () => {
-    const p = projectWithTwoScenes()
-    p.assets = {
-      ...p.assets,
-      coin_img: { id: 'coin_img', name: 'Coin', path: 'assets/images/coin.png' },
-    }
-    p.objectTypes = {
-      ...p.objectTypes,
-      Coin: {
-        id: 'Coin',
-        displayName: 'Coin',
-        tags: [],
-        sprite: {
-          ...createEntityDef(1, 'c', 'Coin').sprite,
-          spriteAssetId: 'assets/images/coin.png',
-        },
-      },
-    }
-    const board: LogicBoard = {
-      boardId: 'spawner',
-      target: { type: 'object_type', objectTypeId: 'Hero' },
-      events: [
-        {
-          trigger: { type: 'onStart' },
-          actions: [{ type: 'spawnEntity', className: 'Coin', x: 0, y: 0 }],
-        },
-      ],
-    }
-    p.logicBoards = [board]
-    const paths = collectSceneAssetRefs(p, 'scene_main', {
-      scope: 'scene+spawn-prototypes',
-    })
-    expect(paths).toContain('assets/images/coin.png')
-    expect(paths).toContain(IMG_A)
-  })
-
   it('collectSceneAudioRefs resolves audioAssetId and legacy path', () => {
     const p = projectWithTwoScenes()
     p.audioAssets = {

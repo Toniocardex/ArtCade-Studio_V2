@@ -211,10 +211,6 @@ export const uiReducer: DomainReducer = (state: CoreState, action: Action) => {
       return state.cameraPreview === action.enabled
         ? state
         : { ...state, cameraPreview: action.enabled }
-    case 'EDITOR_SET_PREVIEW_ASSET_LOAD_SCOPE':
-      return state.previewAssetLoadScope === action.scope
-        ? state
-        : { ...state, previewAssetLoadScope: action.scope }
     case 'TILESET_SELECT_CELL':
       return { ...state, selectedTileCell: Math.max(0, action.cellIndex) }
     case 'SPRITESHEET_STUDIO_OPEN':

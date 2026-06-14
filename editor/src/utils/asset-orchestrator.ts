@@ -7,7 +7,6 @@ import { readProjectFileBytes } from './asset-file-api'
 import {
   collectSceneAssetRefs,
   collectSceneAudioRefs,
-  type CollectSceneAssetRefsOptions,
 } from './collect-scene-asset-refs'
 import {
   editorInvalidateAsset,
@@ -155,9 +154,8 @@ export function projectFontDescriptors(project: ProjectDoc): AssetDescriptor[] {
 export function sceneAssetDescriptors(
   project: ProjectDoc,
   sceneId: string,
-  options?: Pick<CollectSceneAssetRefsOptions, 'scope'>,
 ): AssetDescriptor[] {
-  const imagePaths = collectSceneAssetRefs(project, sceneId, options)
+  const imagePaths = collectSceneAssetRefs(project, sceneId)
   const audioPaths = collectSceneAudioRefs(project, sceneId)
   const descriptors = [
     ...pathsToDescriptors(project, imagePaths),
@@ -296,10 +294,9 @@ export class AssetOrchestrator {
     project: ProjectDoc,
     sceneId: string,
     projectRoot: string,
-    options?: Pick<CollectSceneAssetRefsOptions, 'scope'>,
   ): Promise<AssetLoadResult> {
     const gen = this.bumpSceneGeneration()
-    const descriptors = sceneAssetDescriptors(project, sceneId, options)
+    const descriptors = sceneAssetDescriptors(project, sceneId)
     const result = await this.loadDescriptors(
       project,
       descriptors,
@@ -316,11 +313,10 @@ export class AssetOrchestrator {
     project: ProjectDoc,
     sceneIds: readonly string[],
     projectRoot: string,
-    options?: Pick<CollectSceneAssetRefsOptions, 'scope'>,
   ): void {
     const pfGen = ++this.prefetchGeneration
     const descriptors = sceneIds.flatMap((sceneId) =>
-      sceneAssetDescriptors(project, sceneId, options),
+      sceneAssetDescriptors(project, sceneId),
     )
     const seen = new Set<string>()
     const uniqueDescriptors = descriptors.filter((desc) => {

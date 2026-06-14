@@ -420,16 +420,14 @@ interface AssetUploadOptions {
   activeSceneId: string | null
   wasmReady: boolean
   engineReady: boolean
-  previewAssetLoadScope: 'scene-static' | 'scene+spawn-prototypes'
 }
 
 export function useRuntimeAssetUpload(opts: AssetUploadOptions): void {
   const {
-    project, projectPath, activeSceneId, wasmReady, engineReady, previewAssetLoadScope,
+    project, projectPath, activeSceneId, wasmReady, engineReady,
   } = opts
   useEffect(() => {
     if (!wasmReady || !engineReady || !project || !activeSceneId) return
-    runtimeSync.setPreviewAssetLoadScope(previewAssetLoadScope)
     runtimeSync.syncProjectAssets(project, activeSceneId, projectPath)
-  }, [project, projectPath, activeSceneId, wasmReady, engineReady, previewAssetLoadScope])
+  }, [project, projectPath, activeSceneId, wasmReady, engineReady])
 }

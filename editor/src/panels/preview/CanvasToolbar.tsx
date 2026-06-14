@@ -11,7 +11,7 @@
 // group separated by a thin vertical divider. Order matches the original
 // vertical palette so muscle memory is preserved.
 
-import { Boxes, Camera, Eraser, Grid3x3, Hand, ImageIcon, Maximize2, MousePointer2, Pencil } from 'lucide-react'
+import { Camera, Eraser, Grid3x3, Hand, ImageIcon, Maximize2, MousePointer2, Pencil } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import type { EditorTool } from '../../utils/runtime-sync-service'
@@ -28,30 +28,6 @@ interface CanvasToolbarProps {
 
 function Divider() {
   return <div className="w-px h-5 bg-[var(--border)]" />
-}
-
-/**
- * Self-contained toggle that mirrors the store's `cameraPreview` flag.
- * Kept inline in CanvasToolbar because it has no other call sites; moving
- * it into its own file would add fragmentation without any reuse benefit.
- */
-function PreviewSpawnScopeToggle() {
-  const dispatch = useEditorDispatch()
-  const spawnScope = useEditorSelector((s) => s.previewAssetLoadScope === 'scene+spawn-prototypes')
-  return (
-    <button
-      onClick={() => dispatch({
-        type: 'EDITOR_SET_PREVIEW_ASSET_LOAD_SCOPE',
-        scope: spawnScope ? 'scene-static' : 'scene+spawn-prototypes',
-      })}
-      title="Preload spawn prototype sprites in preview (Logic Board spawnEntity)"
-      className={`p-1.5 rounded transition-colors ${
-        spawnScope ? 'bg-[rgb(var(--accent-rgb)/0.18)]' : 'hover:bg-[var(--panel-3)]'
-      }`}
-    >
-      <Boxes size={15} color={spawnScope ? 'var(--accent)' : 'var(--muted)'} />
-    </button>
-  )
 }
 
 /** Snap-to-grid checkbox — lives next to the grid/guides toggle so the two
@@ -171,7 +147,6 @@ export function CanvasToolbar({
       <Divider />
 
       <CameraPreviewToggle />
-      <PreviewSpawnScopeToggle />
 
       <Divider />
 

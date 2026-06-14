@@ -75,7 +75,6 @@ export default function PreviewPanel({
   const editorZoom = useEditorSelector((s) => s.editorZoom)
   const editorZoomMode = useEditorSelector((s) => s.editorZoomMode)
   const cameraPreview = useEditorSelector((s) => s.cameraPreview)
-  const previewAssetLoadScope = useEditorSelector((s) => s.previewAssetLoadScope)
   const openScripts = useEditorSelector((s) => s.openScripts)
   const focusMode = useEditorSelector((s) => s.focusMode)
   const dialogs = useEditorSelector((s) => s.dialogs)
@@ -88,7 +87,6 @@ export default function PreviewPanel({
   const sceneIdRef          = useRef<string>('')
   const projectRef          = useRef(project)
   const projectPathRef      = useRef(projectPath)
-  const previewScopeRef     = useRef(previewAssetLoadScope)
   const snapToGridRef       = useRef(false)
   const gridSizeRef         = useRef(32)
   const ignoredTransformEchoRef = useRef<TransformSnapshot | null>(null)
@@ -104,7 +102,6 @@ export default function PreviewPanel({
   sceneIdRef.current    = selection.sceneId ?? project?.activeSceneId ?? ''
   projectRef.current    = project
   projectPathRef.current = projectPath
-  previewScopeRef.current = previewAssetLoadScope
   snapToGridRef.current = snapToGrid
   gridSizeRef.current   = editorGridSize
   bootSyncRef.current = {
@@ -198,12 +195,7 @@ export default function PreviewPanel({
     activeSceneId: selection.sceneId ?? project?.activeSceneId ?? null,
     wasmReady,
     engineReady,
-    previewAssetLoadScope,
   })
-
-  useEffect(() => {
-    runtimeSync.setPreviewAssetLoadScope(previewAssetLoadScope)
-  }, [previewAssetLoadScope])
 
   useEffect(() => {
     runtimeSync.setAssetCacheInvalidator(() => {
@@ -212,7 +204,7 @@ export default function PreviewPanel({
       const sid = sceneIdRef.current
       const root = projectPathRef.current ? dirName(projectPathRef.current) : ''
       if (p && sid) {
-        void assetOrchestrator.loadScene(p, sid, root, { scope: previewScopeRef.current })
+        void assetOrchestrator.loadScene(p, sid, root)
       }
     })
     return () => runtimeSync.setAssetCacheInvalidator(null)
