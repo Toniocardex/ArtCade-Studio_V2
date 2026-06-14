@@ -48,6 +48,10 @@ export function useEditorUiScale(): EditorUiScaleApi {
   const [scale, setScaleState] = useState<EditorUiScale>(() => {
     const stored = readStoredEditorUiScale()
     if (stored) return stored
+    // When the suggestion banner is pending, do NOT pre-apply the suggestion:
+    // open at the default so "Keep X%" visibly applies it. Pre-applying made the
+    // UI already sit at the suggested scale, so the button looked like a no-op.
+    if (suggestedScale != null) return EDITOR_UI_SCALE_DEFAULT
     const { width, height } = readWorkspaceSize()
     return suggestEditorUiScale(width, height)
   })
@@ -60,13 +64,12 @@ export function useEditorUiScale(): EditorUiScaleApi {
   }, [])
 
   const acceptSuggestedScale = useCallback(() => {
-    setScaleState((prev) => {
-      writeStoredEditorUiScale(prev)
-      return prev
-    })
+    const target = suggestedScale ?? scale
+    setScaleState(target)
+    writeStoredEditorUiScale(target)
     markEditorUiScaleSuggestionSeen()
     setSuggestedScale(null)
-  }, [])
+  }, [suggestedScale, scale])
 
   const ignoreSuggestedScale = useCallback(() => {
     setScaleState(EDITOR_UI_SCALE_DEFAULT)
