@@ -15,6 +15,7 @@ vi.mock('../../utils/wasm-bridge', () => ({
   loadWasmRuntime: (...args: unknown[]) => loadWasmRuntime(...args),
   warmWasmBinary: vi.fn(),
   editorRegisterImage: vi.fn(),
+  setTextureCacheEvictedCallback: vi.fn(),
 }))
 
 vi.mock('../../utils/asset-watcher', () => ({

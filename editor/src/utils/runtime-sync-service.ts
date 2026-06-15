@@ -434,6 +434,10 @@ class RuntimeSyncServiceImpl {
       const loadKey = `${projectPath ?? ''}|${JSON.stringify(projection)}`
       this.latchProjectProjection(loadKey, projection)
       this.lastDialogsKey = dialogsJsonForRuntime(dialogs)
+      // The bridge fires _onTextureCacheEvicted → clearRegistered() synchronously inside
+      // editorEnterPlayMode. Force syncProjectAssets to re-upload by resetting the key.
+      this.lastAssetSyncKey = null
+      this.syncProjectAssets(project, activeSceneId, projectPath ?? null)
       return { ok: true, code: EditorApiResult.Ok }
     })
   }
@@ -566,6 +570,9 @@ class RuntimeSyncServiceImpl {
       if (options?.mainLua && this.reloadMainLuaIfChanged(options.mainLua) === 'failed') {
         return false
       }
+      // The bridge fires _onTextureCacheEvicted → clearRegistered() synchronously inside
+      // editorLoadProject. Force syncProjectAssets to re-upload by resetting the key.
+      this.lastAssetSyncKey = null
       this.syncProjectAssets(project, activeSceneId, projectPath)
       return true
     }

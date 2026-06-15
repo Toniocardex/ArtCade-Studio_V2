@@ -13,6 +13,7 @@ import { createBlankProject } from './utils/project'
 import { starterInnkeeperScript } from './utils/dialog/dialog-file-api'
 import { DialogEditorModal } from './panels/dialog/DialogEditorModal'
 import { SpritesheetStudioModal } from './panels/spritesheet-studio/SpritesheetStudioModal'
+import { TilesetEditorModal } from './panels/tileset-studio/TilesetEditorModal'
 import { useProjectShortcuts } from './hooks/useProjectShortcuts'
 import { useBuildLogListener } from './hooks/useBuildLogListener'
 import { useEditorUndoRedo } from './hooks/useEditorUndoRedo'
@@ -36,7 +37,6 @@ import type { EditorTool } from './utils/runtime-sync-service'
 import type { ConsoleEntry } from './types'
 
 const ScriptEditorPanel = lazy(() => import('./panels/ScriptEditorPanel'))
-const TilesetEditorPanel = lazy(() => import('./panels/TilesetEditorPanel'))
 
 let _bootLogId = 500
 function bootLog(message: string, level: ConsoleEntry['level']): ConsoleEntry {
@@ -72,7 +72,6 @@ function LegacyMigrateBanner() {
 
 function CanvasView() {
   const focusMode = useEditorSelector((s) => s.focusMode)
-  const editingTilesetId = useEditorSelector((s) => s.editingTilesetId)
   const tier = useLayoutTier()
   const useCompactShell = tier === 'compact' || tier === 'minimal' || tier === 'unsupported'
   const showLeftRail = !focusMode && (tier === 'full' || tier === 'compact')
@@ -80,8 +79,6 @@ function CanvasView() {
 
   const { leftW, rightW, setLeftW, setRightW, resetLeftW, resetRightW } = useEditorLayoutContext()
   const [activeTool, setActiveTool] = useState<EditorTool>('select')
-
-  const isEditingTileset = editingTilesetId != null
 
   return (
     <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
@@ -110,31 +107,21 @@ function CanvasView() {
               <InspectorDrawerProvider>
                 <ExplorerDrawer />
                 <InspectorDrawer />
-                <div style={{ display: isEditingTileset ? 'none' : 'contents' }}>
-                  <PreviewPanel
-                    activeTool={activeTool}
-                    onSelectTool={setActiveTool}
-                    showToolPalette
-                  />
-                </div>
+                <PreviewPanel
+                  activeTool={activeTool}
+                  onSelectTool={setActiveTool}
+                  showToolPalette
+                />
               </InspectorDrawerProvider>
             </ExplorerDrawerProvider>
           ) : (
-          <div
-            style={{ display: isEditingTileset ? 'none' : 'contents' }}
-          >
-            <PreviewPanel
-              activeTool={activeTool}
-              onSelectTool={setActiveTool}
-              showToolPalette
-            />
-          </div>
+          <PreviewPanel
+            activeTool={activeTool}
+            onSelectTool={setActiveTool}
+            showToolPalette
+          />
           )}
-          {isEditingTileset && !focusMode && (
-            <Suspense fallback={null}>
-              <TilesetEditorPanel />
-            </Suspense>
-          )}
+
           {!focusMode && <BottomDock />}
         </div>
         <StatusBar compact={focusMode} />
@@ -211,6 +198,7 @@ function EditorShell({ workspaceRef }: Readonly<{ workspaceRef: RefObject<HTMLDi
         {!focusMode && <EditorZoomSuggestionBanner />}
         <DialogEditorModal />
         <SpritesheetStudioModal />
+        <TilesetEditorModal />
 
         <div
           ref={workspaceRef}

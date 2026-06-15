@@ -8,8 +8,9 @@ import {
   isSpritesheetStudioEnterTarget,
   openSpritesheetStudio,
 } from '../panels/spritesheet-studio/openSpritesheetStudio'
-import type { AudioAsset, FontAsset, ImageAsset } from '../types'
+import type { AudioAsset, FontAsset, ImageAsset, TilesetAsset } from '../types'
 import { spriteAssignedFromAsset } from '../utils/sprite-pivot-resolve'
+import { assetOrchestrator } from '../utils/asset-orchestrator'
 import {
   isBackspaceKey,
   isInsidePanel,
@@ -54,6 +55,7 @@ export function useAssetExplorerActions() {
   const imageRef = useRef<HTMLInputElement>(null)
   const audioRef = useRef<HTMLInputElement>(null)
   const fontRef = useRef<HTMLInputElement>(null)
+  const tilesetRef = useRef<HTMLInputElement>(null)
 
   const selEntity =
     project && selectionEntityId != null
@@ -225,9 +227,71 @@ export function useAssetExplorerActions() {
     [dispatch, store],
   )
 
+  const onPickTileset = useCallback(
+    (e: ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      if (!file || !project) return
+      const reader = new FileReader()
+      reader.onload = () => {
+        const dataUrl = fileReaderDataUrl(reader.result)
+        if (!dataUrl) return
+        const img = new Image()
+        img.onload = async () => {
+          try {
+            const bytes = new Uint8Array(await file.arrayBuffer())
+            const projectPath = store.getState().projectPath
+            const root = projectPath ? dirName(projectPath) : null
+            const imported = await importAssetFile({
+              kind: 'image',
+              fileName: file.name,
+              bytes,
+              projectRoot: root,
+            })
+            const imageAsset: ImageAsset = {
+              id: imported.id,
+              name: file.name,
+              path: imported.path,
+              dataUrl,
+            }
+            dispatch({ type: 'ASSET_ADD', asset: imageAsset })
+
+            const tileSize = 32
+            const margin = 0
+            const step = tileSize + margin
+            const cols = Math.max(1, Math.floor((img.naturalWidth + margin) / step))
+            const rows = Math.max(1, Math.floor((img.naturalHeight + margin) / step))
+            const asset: TilesetAsset = {
+              assetId: `tileset_${Date.now().toString(36)}`,
+              name: file.name.replace(/\.[^.]+$/, ''),
+              spriteImagePath: imported.path,
+              tileSize,
+              margin,
+              cols,
+              rows,
+            }
+            dispatch({ type: 'TILESET_ASSET_ADD', asset })
+            dispatch({ type: 'TILESET_EDIT_OPEN', tilesetId: asset.assetId })
+            await assetOrchestrator.ensureImageRegistered(project, imageAsset, root ?? '')
+            showFlash(imported.persisted
+              ? `Tileset "${asset.name}" imported`
+              : `${file.name} (save to persist)`)
+          } catch (err) {
+            console.error('[Asset] Tileset import failed:', err)
+            showFlash(`Import failed: ${file.name}`)
+          }
+        }
+        img.src = dataUrl
+      }
+      reader.readAsDataURL(file)
+      e.target.value = ''
+    },
+    [project, store, dispatch, showFlash],
+  )
+
   const triggerImportImage = useCallback(() => imageRef.current?.click(), [])
   const triggerImportAudio = useCallback(() => audioRef.current?.click(), [])
   const triggerImportFont = useCallback(() => fontRef.current?.click(), [])
+  const triggerImportTileset = useCallback(() => tilesetRef.current?.click(), [])
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -263,15 +327,18 @@ export function useAssetExplorerActions() {
     imageRef,
     audioRef,
     fontRef,
+    tilesetRef,
     onPickImage,
     onPickAudio,
     onPickFont,
+    onPickTileset,
     assignSprite,
     removeSelection,
     openTilesetEditor,
     triggerImportImage,
     triggerImportAudio,
     triggerImportFont,
+    triggerImportTileset,
     openScript,
     canRemove: Boolean(selection && project),
   }

@@ -87,6 +87,18 @@ let _ready  = false
 let wasmInitPromise: Promise<ArtCadeModule> | null = null
 let wasmWarmPromise: Promise<void> | null = null
 let _lastBridgeError: string | null = null
+/** Fired after any C++ call that invokes evictCachedAssets() (project load / play / stop). */
+let _onTextureCacheEvicted: (() => void) | null = null
+
+/**
+ * Register a callback that runs whenever the WASM renderer evicts all cached textures.
+ * The registered function must call `assetOrchestrator.clearRegistered()` so the JS
+ * asset registry stays in sync with the C++ texture cache.
+ * Pass `null` to unregister (e.g. on component unmount).
+ */
+export function setTextureCacheEvictedCallback(fn: (() => void) | null): void {
+  _onTextureCacheEvicted = fn
+}
 
 /**
  * Start fetching game.wasm before loadWasmRuntime (pairs with index.html preload).
@@ -497,6 +509,7 @@ export function editorLoadProject(projectJson: string): void {
   } finally {
     _module._free(ptr)
   }
+  _onTextureCacheEvicted?.()
 }
 
 export function editorRestoreFromProject(projectJson: string): void {
@@ -507,6 +520,7 @@ export function editorRestoreFromProject(projectJson: string): void {
   } finally {
     _module._free(ptr)
   }
+  _onTextureCacheEvicted?.()
 }
 
 /** @returns EditorApiResult, or EDITOR_API_CCALL_FAILED on transport error. */
@@ -534,11 +548,14 @@ export function editorEnterPlayMode(
     return EDITOR_API_CCALL_FAILED
   }
   const { ptrs, free } = marshalThreeStrings(projectJson, luaSource, dialogsJson)
+  let code = EDITOR_API_CCALL_FAILED
   try {
-    return safeCcallNumber('editor_enter_play_mode', ['number', 'number', 'number'], ptrs)
+    code = safeCcallNumber('editor_enter_play_mode', ['number', 'number', 'number'], ptrs)
   } finally {
     free()
   }
+  _onTextureCacheEvicted?.()
+  return code
 }
 
 /** Atomic STOP — restore design project JSON + design-time Lua. */
@@ -549,12 +566,15 @@ export function editorExitPlayMode(projectJson: string, luaSource: string): numb
   }
   const ptrProject = marshalString(projectJson)
   const ptrLua = marshalString(luaSource)
+  let code = EDITOR_API_CCALL_FAILED
   try {
-    return safeCcallNumber('editor_exit_play_mode', ['number', 'number'], [ptrProject, ptrLua])
+    code = safeCcallNumber('editor_exit_play_mode', ['number', 'number'], [ptrProject, ptrLua])
   } finally {
     _module._free(ptrProject)
     _module._free(ptrLua)
   }
+  _onTextureCacheEvicted?.()
+  return code
 }
 
 export function editorLoadDialogs(dialogsJson: string): boolean {

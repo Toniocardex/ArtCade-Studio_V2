@@ -437,6 +437,35 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
         projectDirty: true,
       }
     }
+    case 'TILEMAP_SET_TILESIZE': {
+      const sc = state.project?.scenes[action.sceneId]
+      if (!state.project || !sc?.tilemap) return state
+      const tm = sc.tilemap
+      if (tm.tileSize === action.tileSize) return state
+      // Re-derive cols/rows from world size at new tileSize; preserve existing data where it fits.
+      const newCols = Math.min(Math.max(Math.round(sc.worldSize.x / action.tileSize), 8), 128)
+      const newRows = Math.min(Math.max(Math.round(sc.worldSize.y / action.tileSize), 6), 96)
+      const data = new Array(newCols * newRows).fill(0)
+      const copyC = Math.min(tm.cols, newCols)
+      const copyR = Math.min(tm.rows, newRows)
+      for (let r = 0; r < copyR; r++)
+        for (let c = 0; c < copyC; c++)
+          data[r * newCols + c] = tm.data[r * tm.cols + c] ?? 0
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          scenes: {
+            ...state.project.scenes,
+            [action.sceneId]: {
+              ...sc,
+              tilemap: { ...tm, tileSize: action.tileSize, cols: newCols, rows: newRows, data },
+            },
+          },
+        },
+        projectDirty: true,
+      }
+    }
     default:
       return state
   }

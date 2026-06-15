@@ -9,10 +9,9 @@
 //
 // This module centralises that decision. The fingerprint must:
 //   • include every field the C++ runtime actually consumes from ProjectDoc;
-//   • EXCLUDE `tilemap.data` — during interactive paint the runtime is the
-//     source of truth and re-loading the whole project on every cell would
-//     flood `editor_load_project` (the structure — cols/rows/tilesetAssetId —
-//     IS included so attaching a tileset re-syncs once);
+//   • represent `tilemap.data` as a cheap XOR+sum hash (`dh`) so that tile
+//     paints from the TilesetEditorModal trigger a re-sync without serialising
+//     the full array on every fingerprint call (cols/rows/tilesetAssetId kept);
 //   • be cheap to compute and stable across equal projects (object key order
 //     is normalised by sorting entity / scene ids).
 //
@@ -78,6 +77,7 @@ interface FpTilemap {
   c:   number                // cols
   r:   number                // rows
   set?: string               // tilesetAssetId
+  dh?: number                // data hash (XOR+sum of painted cells — detects tile paints)
 }
 
 interface FpScene {
@@ -165,6 +165,16 @@ function projectEntity(project: ProjectDoc, e: EntityDef): FpEntity {
   }
 }
 
+/** Position-dependent FNV-1a hash of tilemap cell data. Order-sensitive: swapping
+ *  two non-equal tiles produces a different hash, preventing stale WASM renders. */
+function tilemapDataHash(data: number[]): number {
+  let h = 2166136261
+  for (let i = 0; i < data.length; i++) {
+    h = Math.imul(h ^ (data[i] * 2654435761 + i), 16777619)
+  }
+  return h >>> 0
+}
+
 function projectScene(s: SceneDef): FpScene {
   const tm = s.tilemap
   return {
@@ -173,7 +183,13 @@ function projectScene(s: SceneDef): FpScene {
     vs: v2(s.viewportSize),
     bg: v4(s.backgroundColor),
     e:  [...s.entityIds].sort((a, b) => a - b),
-    tm: tm ? { ts: tm.tileSize, c: tm.cols, r: tm.rows, set: tm.tilesetAssetId } : undefined,
+    tm: tm ? {
+      ts:  tm.tileSize,
+      c:   tm.cols,
+      r:   tm.rows,
+      set: tm.tilesetAssetId,
+      dh:  tm.data.length > 0 ? tilemapDataHash(tm.data) : undefined,
+    } : undefined,
   }
 }
 
@@ -207,9 +223,10 @@ export function runtimeProjectProjection(
  * Two ProjectDocs that produce the same fingerprint do not need a re-sync
  * into the C++ runtime (`editor_load_project`).
  *
- * Excluded by design: `tilemap.data` (live painting echoes through React
- * separately), `thumbnails`, `logicBoards` (compiled by the save pipeline
- * before reaching the runtime), `licenseTier`. World settings via `wd`.
+ * `tilemap.data` is represented as a cheap XOR+sum hash (`dh`) so tile paints
+ * from the TilesetEditorModal trigger a re-sync without flooding on large arrays.
+ * Excluded: `thumbnails`, `logicBoards` (compiled by save pipeline), `licenseTier`.
+ * World settings via `wd`.
  */
 export function runtimeProjectFingerprint(
   project: ProjectDoc,

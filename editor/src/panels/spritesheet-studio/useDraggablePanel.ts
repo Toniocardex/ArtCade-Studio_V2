@@ -10,6 +10,8 @@ import {
 } from 'react'
 
 const STORAGE_KEY = 'artcade-spritesheet-studio-pos'
+const TILESET_STORAGE_KEY = 'artcade-tileset-studio-pos'
+export { TILESET_STORAGE_KEY }
 const MIN_PANEL_W = 320
 const MIN_PANEL_H = 240
 
@@ -38,15 +40,15 @@ function isCorruptCenterSnap(pos: PanelPos): boolean {
   return Math.abs(pos.x - cx) < 96 && Math.abs(pos.y - cy) < 96
 }
 
-function loadStoredPos(): PanelPos | null {
+function loadStoredPos(key = STORAGE_KEY): PanelPos | null {
   try {
-    const raw = sessionStorage.getItem(STORAGE_KEY)
+    const raw = sessionStorage.getItem(key)
     if (!raw) return null
     const p = JSON.parse(raw) as { x?: unknown; y?: unknown }
     if (typeof p.x !== 'number' || typeof p.y !== 'number') return null
     const pos = { x: p.x, y: p.y }
     if (isCorruptCenterSnap(pos)) {
-      sessionStorage.removeItem(STORAGE_KEY)
+      sessionStorage.removeItem(key)
       return null
     }
     return pos
@@ -76,13 +78,14 @@ export function centerPanelPosition(panelW: number, panelH: number): PanelPos {
   )
 }
 
-export function clearStoredPanelPosition(): void {
-  sessionStorage.removeItem(STORAGE_KEY)
+export function clearStoredPanelPosition(key = STORAGE_KEY): void {
+  sessionStorage.removeItem(key)
 }
 
 export function useDraggablePanel(
   panelRef: RefObject<HTMLElement | null>,
   enabled: boolean,
+  storageKey = STORAGE_KEY,
 ): Readonly<{
   pos: PanelPos | null
   panelStyle: CSSProperties | undefined
@@ -94,7 +97,7 @@ export function useDraggablePanel(
     onPointerCancel: (e: PointerEvent<HTMLElement>) => void
   }
 }> {
-  const [pos, setPos] = useState<PanelPos | null>(loadStoredPos)
+  const [pos, setPos] = useState<PanelPos | null>(() => loadStoredPos(storageKey))
   const dragRef = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(
     null,
   )
@@ -126,14 +129,14 @@ export function useDraggablePanel(
   }, [enabled, pos, panelRef, applyCenteredPosition])
 
   const resetPosition = useCallback(() => {
-    clearStoredPanelPosition()
+    clearStoredPanelPosition(storageKey)
     applyCenteredPosition()
-  }, [applyCenteredPosition])
+  }, [applyCenteredPosition, storageKey])
 
   useEffect(() => {
     if (!enabled || !pos) return
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(pos))
-  }, [enabled, pos])
+    sessionStorage.setItem(storageKey, JSON.stringify(pos))
+  }, [enabled, pos, storageKey])
 
   const endDrag = useCallback(() => {
     dragRef.current = null

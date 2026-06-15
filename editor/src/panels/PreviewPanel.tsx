@@ -27,7 +27,7 @@ import { useRuntimeReadiness } from '../hooks/useRuntimeReadiness'
 import { useEditorCanvasViewport } from '../hooks/useEditorCanvasViewport'
 import { useEditorFitZoom } from '../hooks/useEditorFitZoom'
 import { getRuntimeCanvas } from '../utils/runtime-canvas'
-import { editorSetEditCamera } from '../utils/wasm-bridge'
+import { editorSetEditCamera, setTextureCacheEvictedCallback } from '../utils/wasm-bridge'
 
 type TransformSnapshot = {
   entityId: number
@@ -200,9 +200,16 @@ export default function PreviewPanel({
     engineReady,
   })
 
+  // When any C++ call evicts the texture cache (load/play/stop), the bridge fires
+  // _onTextureCacheEvicted synchronously. Clearing the JS registry here ensures the
+  // next syncProjectAssets or assetCacheInvalidator pass re-uploads all textures.
+  useEffect(() => {
+    setTextureCacheEvictedCallback(() => assetOrchestrator.clearRegistered())
+    return () => setTextureCacheEvictedCallback(null)
+  }, [])
+
   useEffect(() => {
     runtimeSync.setAssetCacheInvalidator(() => {
-      assetOrchestrator.clearRegistered()
       const p = projectRef.current
       const sid = sceneIdRef.current
       const root = projectPathRef.current ? dirName(projectPathRef.current) : ''

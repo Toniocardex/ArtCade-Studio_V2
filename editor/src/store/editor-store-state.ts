@@ -51,9 +51,9 @@ export interface CoreState {
   dockPanelVisibility:   DockPanelVisibility
   /** Last console log id acknowledged while the console dock was visible. */
   consoleAckUpToId:      number
-  /** When non-null, swap the canvas viewport for the TilesetEditorPanel
-   *  (sub-view of mode='canvas'). Set by clicking a tileset in AssetBrowser,
-   *  cleared by the "← Canvas" back button or by LOAD_PROJECT. */
+  /** When non-null, the TilesetEditorModal opens for this tileset asset id.
+   *  Set by clicking "Open Tileset Editor" in the inspector or on import,
+   *  cleared on modal close or LOAD_PROJECT. */
   editingTilesetId: string | null
   openScripts:      ScriptFile[]
   activeScriptPath: string | null
@@ -252,6 +252,7 @@ export type Action =
   | { type: 'FONT_ASSET_ADD';        asset: import('../types/index').FontAsset }
   | { type: 'FONT_ASSET_REMOVE';     assetId: string }
   | { type: 'TILEMAP_SET_TILESETID'; sceneId: string; assetId: string }
+  | { type: 'TILEMAP_SET_TILESIZE';  sceneId: string; tileSize: number }
   | { type: 'TILESET_SELECT_CELL';   cellIndex: number }
   // ---- Logic Board CRUD (all operate on project.logicBoards) ----
   | { type: 'LOGIC_ADD_BOARD';    board: LogicBoard }

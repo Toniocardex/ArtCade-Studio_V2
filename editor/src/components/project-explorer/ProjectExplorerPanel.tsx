@@ -152,6 +152,13 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
         className="hidden"
         onChange={assets.onPickFont}
       />
+      <input
+        ref={assets.tilesetRef}
+        type="file"
+        accept="image/png,image/jpeg,image/gif"
+        className="hidden"
+        onChange={assets.onPickTileset}
+      />
 
       <ProjectSearch value={search} onChange={setSearch} />
 
@@ -370,10 +377,15 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                     {folder.count === 0 ? (
                       <div className="flex flex-col items-start gap-1.5 py-1.5 pl-4">
                         <p className="text-[10px] text-[var(--muted)]">No assets yet.</p>
-                        {libraryCategory === 'images' || libraryCategory === 'tilesets' ? (
+                        {libraryCategory === 'images' ? (
                           <button type="button" onClick={assets.triggerImportImage}
                             className="flex items-center gap-1 text-[10px] text-[var(--accent)] hover:underline">
                             <ImagePlus size={10} />Import image
+                          </button>
+                        ) : libraryCategory === 'tilesets' ? (
+                          <button type="button" onClick={assets.triggerImportTileset}
+                            className="flex items-center gap-1 text-[10px] text-[var(--accent)] hover:underline">
+                            <Grid3x3 size={10} />Import tileset
                           </button>
                         ) : libraryCategory === 'audio' ? (
                           <button type="button" onClick={assets.triggerImportAudio}
