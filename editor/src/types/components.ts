@@ -90,6 +90,8 @@ export interface AutoDestroyComponent {
   lifespan: number           // s
 }
 
+import type { TextAnchor } from '../utils/text-anchor'
+
 /** How a bound numeric value (or Set Text value) is rendered as a string. */
 export type TextFormat =
   | 'text'      // raw value, integers print without a trailing .0
@@ -113,7 +115,7 @@ export interface TextComponent {
   fontPath: string                      // project-relative (assets/fonts/x.ttf); '' = engine default
   size:     number                      // px
   colorHex: string                      // #rrggbb
-  align:    'left' | 'center' | 'right' // horizontal anchor at the entity position
+  align:    TextAnchor              // 3×3 anchor point at the entity position
   offsetX:  number                      // px from entity position
   offsetY:  number
   /** Draw fixed on screen (HUD) instead of in the world (scrolls with camera). */

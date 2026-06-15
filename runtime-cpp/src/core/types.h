@@ -203,7 +203,10 @@ struct TextComponent {
     std::string fontPath;            // project-relative; empty = default font
     int         size    = 24;
     Vec4        color   = {1.f, 1.f, 1.f, 1.f};
-    std::string align   = "left";    // "left" | "center" | "right"
+    // 3×3 anchor point at the entity position. Canonical: "{v}-{h}" with the
+    // dead-centre collapsing to "center" (e.g. "top-left", "bottom-center").
+    // Legacy horizontal-only values ("left"|"center"|"right") still parse.
+    std::string align   = "top-left";
     float       offsetX = 0.f;
     float       offsetY = 0.f;
     bool        screenSpace = false; // draw fixed on screen (HUD) vs in the world

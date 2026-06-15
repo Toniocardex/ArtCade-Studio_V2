@@ -160,7 +160,7 @@ void read_optional_gameplay_components(const nlohmann::json& j, EntityDef& e) {
         tc.fontPath    = t.value("fontPath", "");
         tc.size        = t.value("size", 24);
         tc.color       = parse_hex_color(t.value("colorHex", std::string("#ffffff")));
-        tc.align       = t.value("align", std::string("left"));
+        tc.align       = t.value("align", std::string("top-left"));
         tc.offsetX     = t.value("offsetX", 0.f);
         tc.offsetY     = t.value("offsetY", 0.f);
         tc.screenSpace = t.value("screenSpace", false);

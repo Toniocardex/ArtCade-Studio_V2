@@ -16,6 +16,29 @@
 
 namespace ArtCade {
 
+namespace {
+
+// C++ source of truth for the Text label 3×3 anchor grid. Mirrors
+// editor/src/utils/text-anchor.ts. Canonical values are "{v}-{h}" with the
+// dead-centre collapsing to "center"; legacy horizontal-only values
+// ("left"|"center"|"right") map to the top row (their original behaviour),
+// except bare "center" which now reads as true centre.
+//   hOut: 0 = left, 1 = centre, 2 = right
+//   vOut: 0 = top,  1 = middle, 2 = bottom
+void textAnchorAlign(const std::string& a, int& hOut, int& vOut) {
+    if (a.find("left") != std::string::npos)       hOut = 0;
+    else if (a.find("right") != std::string::npos) hOut = 2;
+    else                                           hOut = 1;
+
+    if (a.find("top") != std::string::npos)        vOut = 0;
+    else if (a.find("bottom") != std::string::npos) vOut = 2;
+    else if (a.find("center") != std::string::npos
+             && a != "left" && a != "right")       vOut = 1;
+    else                                           vOut = 0; // legacy left/right
+}
+
+} // namespace
+
 void Application::renderActiveScene() {
     const SceneDef* activeScene = mod_->sceneManager->activeScene();
     const Vec4 clearColor = {0.015f, 0.018f, 0.025f, 1.f};
@@ -120,14 +143,14 @@ void Application::renderActiveScene() {
 
             Vec4 color = text.color;
             if (inEditMode && !gateway->visibleInGame(id)) color.a *= 0.45f;
-            const int alignment = text.align == "center" ? 1
-                : text.align == "right" ? 2
-                : 0;
+            int hAlign = 0, vAlign = 0;
+            textAnchorAlign(text.align, hAlign, vAlign);
             renderer->drawText(
                 display,
                 transform.position.x + text.offsetX,
                 transform.position.y + text.offsetY,
-                text.size, color, text.fontPath, alignment, text.screenSpace);
+                text.size, color, text.fontPath, hAlign, text.screenSpace,
+                vAlign);
         });
 
     // Gauges (health / progress). Drawn after sprites; fill tracks the

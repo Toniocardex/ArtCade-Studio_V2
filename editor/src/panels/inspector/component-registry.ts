@@ -23,6 +23,11 @@ import type {
   TextComponent,
   TopDownControllerComponent,
 } from '../../types/components'
+import {
+  DEFAULT_TEXT_ANCHOR,
+  TEXT_ANCHORS,
+  TEXT_ANCHOR_LABELS,
+} from '../../utils/text-anchor'
 
 export type FieldKind = 'number' | 'text' | 'select' | 'checkbox' | 'variable'
 
@@ -93,7 +98,7 @@ const TEXT: TextComponent = {
   fontPath: '',
   size: 24,
   colorHex: '#ffffff',
-  align: 'left',
+  align: DEFAULT_TEXT_ANCHOR,
   offsetX: 0,
   offsetY: 0,
   screenSpace: false,
@@ -282,9 +287,9 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
       { key: 'size', label: 'Size (px)', kind: 'number', min: 4, step: 1 },
       { key: 'colorHex', label: 'Color (#rrggbb)', kind: 'text' },
       {
-        key: 'align', label: 'Align', kind: 'select',
-        options: ['left', 'center', 'right'],
-        optionLabels: ['Left', 'Center', 'Right'],
+        key: 'align', label: 'Anchor', kind: 'select',
+        options: [...TEXT_ANCHORS],
+        optionLabels: [...TEXT_ANCHOR_LABELS],
       },
       { key: 'offsetX', label: 'Offset X (px)', kind: 'number', step: 1 },
       { key: 'offsetY', label: 'Offset Y (px)', kind: 'number', step: 1 },

@@ -94,12 +94,13 @@ public:
     void drawRectImmediate(float x, float y, float w, float h, const Vec4& color);
     void drawLine  (float x1, float y1, float x2, float y2, const Vec4& color);
     void drawCircle(float x, float y, float radius, const Vec4& color);
-    /** align: 0 = left of (x,y), 1 = centered on x, 2 = right of (x,y).
+    /** align:  0 = left of (x,y), 1 = centered on x, 2 = right of (x,y).
+     *  valign: 0 = (x,y) is the top, 1 = vertically centered, 2 = bottom.
      *  screenSpace: true draws fixed on screen (HUD), after the camera pass. */
     void drawText  (const std::string& text, float x, float y,
                     int fontSize, const Vec4& color,
                     const std::string& fontPath = "", int align = 0,
-                    bool screenSpace = false);
+                    bool screenSpace = false, int valign = 0);
 
     /**
      * Register/replace a GPU texture decoded from an in-memory image buffer

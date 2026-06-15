@@ -20,6 +20,7 @@ struct DrawCmd {
     float r  = 0.f;             // radius (Circle)
     int   fontSize = 20;        // Text font size
     int   align    = 0;         // Text: 0=left, 1=center, 2=right of (x,y)
+    int   valign   = 0;         // Text: 0=top, 1=middle, 2=bottom of (x,y)
     std::string text;           // Text content
     std::string fontPath;       // empty = Raylib default bitmap font
     unsigned char cr=255, cg=255, cb=255, ca=255;  // packed colour
@@ -30,6 +31,7 @@ struct DrawCmd {
 static void drawTextCommand(const DrawCmd& cmd, const Font* font) {
     Color c{ cmd.cr, cmd.cg, cmd.cb, cmd.ca };
     float drawX = cmd.x;
+    float drawY = cmd.y;
     if (cmd.align != 0) {
         const float w = font
             ? MeasureTextEx(*font, cmd.text.c_str(),
@@ -37,12 +39,20 @@ static void drawTextCommand(const DrawCmd& cmd, const Font* font) {
             : static_cast<float>(MeasureText(cmd.text.c_str(), cmd.fontSize));
         drawX -= (cmd.align == 1) ? w * 0.5f : w;
     }
+    if (cmd.valign != 0) {
+        // Single-line label: height is the font size (MeasureTextEx.y matches it).
+        const float h = font
+            ? MeasureTextEx(*font, cmd.text.c_str(),
+                            static_cast<float>(cmd.fontSize), 1.f).y
+            : static_cast<float>(cmd.fontSize);
+        drawY -= (cmd.valign == 1) ? h * 0.5f : h;
+    }
     if (font) {
-        DrawTextEx(*font, cmd.text.c_str(), Vector2{ drawX, cmd.y },
+        DrawTextEx(*font, cmd.text.c_str(), Vector2{ drawX, drawY },
                    static_cast<float>(cmd.fontSize), 1.f, c);
     } else {
         DrawText(cmd.text.c_str(),
-                 static_cast<int>(drawX), static_cast<int>(cmd.y),
+                 static_cast<int>(drawX), static_cast<int>(drawY),
                  cmd.fontSize, c);
     }
 }
@@ -548,7 +558,7 @@ void Renderer::drawCircle(float x, float y, float radius, const Vec4& color) {
 void Renderer::drawText(const std::string& text, float x, float y,
                         int fontSize, const Vec4& color,
                         const std::string& fontPath, int align,
-                        bool screenSpace) {
+                        bool screenSpace, int valign) {
     Color c = toColor(color);
     DrawCmd cmd;
     cmd.type     = DrawCmd::Type::Text;
@@ -556,6 +566,7 @@ void Renderer::drawText(const std::string& text, float x, float y,
     cmd.y        = y;
     cmd.fontSize = fontSize;
     cmd.align    = align;
+    cmd.valign   = valign;
     cmd.text     = text;
     cmd.fontPath = fontPath;
     cmd.cr = c.r; cmd.cg = c.g; cmd.cb = c.b; cmd.ca = c.a;
