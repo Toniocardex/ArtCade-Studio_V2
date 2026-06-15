@@ -12,16 +12,30 @@ import { ChevronRight } from 'lucide-react'
 import { applyInputBackspace, isBackspaceKey } from '../../utils/keyboard'
 export { snapToGridValue } from '../../utils/entity-position'
 
+export type InspectorSectionBadge = {
+  text: string
+  color: 'green' | 'blue' | 'amber' | 'muted'
+}
+
 export type InspectorSectionProps = Readonly<{
   label: string
+  labelBadge?: InspectorSectionBadge
   defaultOpen?: boolean
   open?: boolean
   onOpenChange?: (open: boolean) => void
   children: ReactNode
 }>
 
+const BADGE_CLASS: Record<InspectorSectionBadge['color'], string> = {
+  green: 'bg-[#1a3a1a] text-[#4caf50] border border-[#2a5a2a]',
+  blue:  'bg-[#1a2a3a] text-[#64b5f6] border border-[#1e3a5f]',
+  amber: 'bg-[#3a2a0a] text-[#ffb74d] border border-[#5a3a0a]',
+  muted: 'bg-[var(--panel-3)] text-[var(--muted)] border border-[var(--border)]',
+}
+
 export function InspectorSection({
   label,
+  labelBadge,
   defaultOpen = false,
   open: controlledOpen,
   onOpenChange,
@@ -46,7 +60,14 @@ export function InspectorSection({
                    hover:text-[var(--text)] font-bold border-b border-[var(--border)] pb-1 mb-2
                    uppercase tracking-widest transition-colors"
       >
-        <span>{label}</span>
+        <span className="flex items-center gap-2">
+          {label}
+          {labelBadge && (
+            <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded normal-case tracking-wide ${BADGE_CLASS[labelBadge.color]}`}>
+              {labelBadge.text}
+            </span>
+          )}
+        </span>
         <ChevronRight size={11} className={`transition-transform ${open ? 'rotate-90' : ''}`} />
       </button>
       {open && <div>{children}</div>}

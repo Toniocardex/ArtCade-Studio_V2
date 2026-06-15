@@ -269,8 +269,12 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
     create: () => ({ ...TEXT }),
     fields: [
       { key: 'text', label: 'Text', kind: 'text' },
-      { key: 'bindScope', label: 'Variable scope', kind: 'select', options: ['global', 'local'] },
-      { key: 'bindKey', label: 'Variable key (empty = static)', kind: 'variable' },
+      {
+        key: 'bindScope', label: 'Variable scope', kind: 'select',
+        options: ['global', 'local'],
+        optionLabels: ['Global — shared across all objects', 'Local — private to this object'],
+      },
+      { key: 'bindKey', label: 'Variable (empty = static text)', kind: 'variable' },
       {
         key: 'format', label: 'Format', kind: 'select',
         options: ['text', 'integer', 'padded', 'time', 'percent', 'decimals'],
@@ -304,8 +308,12 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
     color: 'var(--accent)',
     create: () => ({ ...GAUGE }),
     fields: [
-      { key: 'bindScope', label: 'Variable scope', kind: 'select', options: ['global', 'local'] },
-      { key: 'bindKey', label: 'Variable key', kind: 'variable' },
+      {
+        key: 'bindScope', label: 'Variable scope', kind: 'select',
+        options: ['global', 'local'],
+        optionLabels: ['Global — shared across all objects', 'Local — private to this object'],
+      },
+      { key: 'bindKey', label: 'Variable', kind: 'variable' },
       { key: 'maxValue', label: 'Max value (full bar)', kind: 'number', min: 0, step: 1 },
       { key: 'width', label: 'Width (px)', kind: 'number', min: 1, step: 1 },
       { key: 'height', label: 'Height (px)', kind: 'number', min: 1, step: 1 },

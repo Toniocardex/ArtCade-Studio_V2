@@ -22,8 +22,15 @@ export function ObjectVariablesSection({ entity }: Readonly<{ entity: EntityDef 
   })
 
   return (
-    <InspectorSection label="Object Variables" defaultOpen>
-      <p className="mb-2 text-[10px] text-[var(--muted)]">Declared on the object type; every instance receives an independent copy.</p>
+    <InspectorSection
+      label="Local Variables"
+      labelBadge={{ text: 'LOCAL', color: 'green' }}
+      defaultOpen
+    >
+      <p className="mb-2 text-[10px] text-[var(--muted)]">
+        Private to this object. Each instance in the scene keeps its own independent copy.
+        Reference them in Logic Board rules with scope&nbsp;<strong>Local</strong>.
+      </p>
       <VariableDefinitionsEditor
         variables={variables}
         onChange={(next) => dispatch({
@@ -34,7 +41,12 @@ export function ObjectVariablesSection({ entity }: Readonly<{ entity: EntityDef 
       />
       {variables.length > 0 && (
         <div className="mt-3 border-t border-[var(--border)] pt-2 space-y-1">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--muted)]">Instance overrides</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--muted)] mb-1">
+            Starting values for this instance
+          </p>
+          <p className="text-[9px] text-[var(--muted)] mb-2">
+            Override the initial value for this specific instance only.
+          </p>
           {variables.map((variable) => (
             <label key={variable.key} className="grid grid-cols-[1fr_1fr_auto] items-center gap-1 text-xs">
               <span className="truncate">{variable.key}</span>
@@ -54,7 +66,7 @@ export function ObjectVariablesSection({ entity }: Readonly<{ entity: EntityDef 
               />
               <button
                 type="button"
-                className="text-[10px] text-[var(--muted)]"
+                className="text-[10px] text-[var(--muted)] hover:text-[var(--text)]"
                 onClick={() => {
                   const next = { ...overrides }
                   delete next[variable.key]
