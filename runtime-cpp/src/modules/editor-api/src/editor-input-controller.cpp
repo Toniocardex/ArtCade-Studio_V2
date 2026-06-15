@@ -93,10 +93,13 @@ void paintTileAt(float x, float y) {
 // Pick the top-most entity whose clickable box contains the world point.
 // Entities are drawn centred on transform.position; we use a generous
 // 64px (x scale) hit box so they're easy to grab in the editor viewport.
+// Text/gauge-only entities (no sprite) fall back to a fixed 32x32 hitbox.
 uint32_t pickEntityAt(float x, float y) {
     auto* gw = EditorAPI::s_entityGateway;
     if (!gw) return 0u;
     uint32_t hit = 0u;
+
+    // Pass 1: entities with sprites (sprite-scaled hitbox — takes priority).
     gw->forEachActiveRenderable([&](EntityId id, const Transform& transform, const SpriteComponent&) {
         float sx = transform.scale.x; if (sx < 0.f) sx = -sx;
         float sy = transform.scale.y; if (sy < 0.f) sy = -sy;
@@ -107,6 +110,23 @@ uint32_t pickEntityAt(float x, float y) {
         if (x >= cx - hw && x <= cx + hw && y >= cy - hh && y <= cy + hh)
             hit = id;
     });
+    if (hit != 0u) return hit;
+
+    // Pass 2: text/gauge-only entities that have no sprite (HUD elements).
+    // Use the entity's authored transform with a fixed 32x32 default hitbox.
+    for (EntityId id : gw->activeSceneIds()) {
+        SpriteComponent sprite{};
+        if (gw->getSprite(id, sprite)) continue; // covered by pass 1
+        TextComponent text{};
+        GaugeComponent gauge{};
+        if (!gw->getText(id, text) && !gw->getGauge(id, gauge)) continue;
+        Transform transform{};
+        if (!gw->getAuthoringTransform(id, transform)) continue;
+        const float cx = transform.position.x;
+        const float cy = transform.position.y;
+        if (x >= cx - 32.f && x <= cx + 32.f && y >= cy - 32.f && y <= cy + 32.f)
+            hit = id;
+    }
     return hit;
 }
 } // namespace

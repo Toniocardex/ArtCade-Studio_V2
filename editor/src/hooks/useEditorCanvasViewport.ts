@@ -116,7 +116,10 @@ export function useEditorCanvasViewport({
 
   useEffect(() => {
     const entityId = selectedEntityId
-    if (entityId == null || !project) return
+    if (entityId == null || !project) {
+      prevSelectedEntityRef.current = null
+      return
+    }
     if (prevSelectedEntityRef.current === entityId) return
     prevSelectedEntityRef.current = entityId
     const def = project.entities[entityId]
