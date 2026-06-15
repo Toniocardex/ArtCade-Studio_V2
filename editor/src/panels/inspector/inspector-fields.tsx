@@ -7,21 +7,35 @@
 // same chrome (caret + bordered title) and the same text/number inputs;
 // keeping them here avoids re-implementing keyboard handling per section.
 
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { ChevronRight } from 'lucide-react'
 import { applyInputBackspace, isBackspaceKey } from '../../utils/keyboard'
 export { snapToGridValue } from '../../utils/entity-position'
 
+type TooltipPos = { top: number; right: number }
+
 export function HelpTooltip({ text }: Readonly<{ text: string }>) {
+  const [pos, setPos] = useState<TooltipPos | null>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
+
+  const show = useCallback(() => {
+    if (!btnRef.current) return
+    const r = btnRef.current.getBoundingClientRect()
+    setPos({ top: r.top + r.height / 2, right: window.innerWidth - r.left + 8 })
+  }, [])
+
+  const hide = useCallback(() => setPos(null), [])
+
   return (
-    <div
-      className="relative group shrink-0"
-      onClick={(e) => e.stopPropagation()}
-    >
+    <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
       <button
+        ref={btnRef}
         type="button"
         tabIndex={-1}
         aria-label="More information"
+        onMouseEnter={show}
+        onMouseLeave={hide}
         className="w-3.5 h-3.5 rounded-full text-[8px] font-bold leading-none
                    flex items-center justify-center
                    border border-[var(--border)] text-[var(--muted)]
@@ -30,16 +44,18 @@ export function HelpTooltip({ text }: Readonly<{ text: string }>) {
       >
         ?
       </button>
-      <div
-        className="absolute right-0 bottom-full mb-2 z-[200] w-56 p-2 rounded
-                   bg-[var(--panel)] border border-[var(--border-2)]
-                   text-[10px] text-[var(--muted)] leading-snug
-                   normal-case tracking-normal font-normal
-                   opacity-0 group-hover:opacity-100 pointer-events-none
-                   transition-opacity duration-100"
-      >
-        {text}
-      </div>
+      {pos && createPortal(
+        <div
+          style={{ position: 'fixed', top: pos.top, right: pos.right, transform: 'translateY(-50%)', zIndex: 9999 }}
+          className="w-56 p-2 rounded pointer-events-none
+                     bg-[var(--panel)] border border-[var(--border-2)] shadow-lg
+                     text-[10px] text-[var(--muted)] leading-snug
+                     normal-case tracking-normal font-normal"
+        >
+          {text}
+        </div>,
+        document.body,
+      )}
     </div>
   )
 }
@@ -116,10 +132,11 @@ export type FieldProps = Readonly<{
   value: string | number
   onCommit?: (value: string) => void
   cyan?: boolean
+  tooltip?: string
 }>
 
 export function Field({
-  label, value, onCommit, cyan = false,
+  label, value, onCommit, cyan = false, tooltip,
 }: FieldProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const lastCommitted = useRef(String(value))
@@ -158,7 +175,10 @@ export function Field({
 
   return (
     <div className="space-y-0.5 mb-2">
-      <label className="text-[9px] text-[var(--muted)] uppercase">{label}</label>
+      <div className="flex items-center gap-1">
+        <label className="text-[9px] text-[var(--muted)] uppercase">{label}</label>
+        {tooltip && <HelpTooltip text={tooltip} />}
+      </div>
       <input
         ref={inputRef}
         type="text"

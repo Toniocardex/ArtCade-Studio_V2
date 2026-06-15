@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useEditorDispatch } from '../../store/editor-store'
 import type { EntityDef } from '../../types'
 import type { InspectorBlockKey } from './entity-component-utils'
-import { Field } from './inspector-fields'
+import { Field, HelpTooltip } from './inspector-fields'
 import { activeComponentDescriptors } from './entity-component-utils'
 import { EntityTagsSection } from './EntityTagsSection'
 import { EntityLayerField } from './EntityLayerField'
@@ -29,13 +29,11 @@ export function EntityHeaderBar({
         label="Entity Name"
         value={entity.name}
         cyan
+        tooltip="Shown in the Scenes panel and Logic Board. Rules are per entity, not per name."
         onCommit={(name) =>
           dispatch({ type: 'ENTITY_SET_NAME', entityId: entity.id, name })
         }
       />
-      <p className="text-[9px] text-[var(--muted)] -mt-1 mb-2 leading-snug">
-        Shown in the Scenes panel and Logic Board. Rules are per entity, not per name.
-      </p>
 
       {active.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-2">
@@ -59,24 +57,24 @@ export function EntityHeaderBar({
       <EntityLayerField entity={entity} />
       <EntityTagsSection entity={entity} />
 
-      <label className="flex items-center gap-2 mb-2 cursor-pointer select-none">
-        <input
-          type="checkbox"
-          checked={entity.visible !== false}
-          onChange={(e) =>
-            dispatch({
-              type: 'ENTITY_SET_VISIBLE',
-              entityId: entity.id,
-              visible: e.target.checked,
-            })
-          }
-          className="accent-[var(--accent)]"
-        />
-        <span className="text-xs text-[var(--text)]">Visible in game</span>
-      </label>
-      <p className="text-[9px] text-[var(--muted)] -mt-1 mb-2 leading-snug">
-        Hidden entities appear dimmed in the editor preview with an amber outline. Use Logic Board Set Visible for runtime effects.
-      </p>
+      <div className="flex items-center gap-2 mb-2">
+        <label className="flex items-center gap-2 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={entity.visible !== false}
+            onChange={(e) =>
+              dispatch({
+                type: 'ENTITY_SET_VISIBLE',
+                entityId: entity.id,
+                visible: e.target.checked,
+              })
+            }
+            className="accent-[var(--accent)]"
+          />
+          <span className="text-xs text-[var(--text)]">Visible in game</span>
+        </label>
+        <HelpTooltip text="Hidden entities appear dimmed in the editor preview with an amber outline. Use Logic Board Set Visible for runtime effects." />
+      </div>
 
       <details
         open={advancedOpen}
@@ -90,13 +88,11 @@ export function EntityHeaderBar({
           <Field
             label="Spawn group (className)"
             value={entity.className}
+            tooltip="Runtime pools, spawn, and collision widgets use this. Logic Board rules do not."
             onCommit={(className) =>
               dispatch({ type: 'ENTITY_SET_CLASSNAME', entityId: entity.id, className })
             }
           />
-          <p className="text-[9px] text-[var(--muted)] leading-snug">
-            Runtime pools, spawn, and collision widgets use this. Logic Board rules do not.
-          </p>
         </div>
       </details>
     </div>
