@@ -67,6 +67,8 @@ interface FpEntity {
   he?: unknown               // health
   ad?: unknown               // autoDestroy
   dg?: unknown               // dialog
+  tx?: unknown               // text label
+  gg?: unknown               // gauge
   lv?: unknown               // local variable declarations
   lvo?: unknown              // per-instance local overrides
 }
@@ -156,6 +158,8 @@ function projectEntity(project: ProjectDoc, e: EntityDef): FpEntity {
     he: e.health,
     ad: e.autoDestroy,
     dg: e.dialog,
+    tx: e.text,
+    gg: e.gauge,
     lv: e.localVariables,
     lvo: e.localVariableOverrides,
   }
