@@ -13,6 +13,18 @@ function defaultValue(type: GameVariableType): GameVariableValue {
   return 0
 }
 
+/**
+ * Variable keys compile to Lua identifiers, so they must match
+ * /^[A-Za-z_][A-Za-z0-9_]*$/. Sanitize as the user types: spaces become
+ * underscores and any other invalid character is dropped, preventing keys like
+ * "text var" that fail project validation on every compile.
+ */
+function sanitizeVariableKey(raw: string): string {
+  return raw
+    .replace(/\s+/g, '_')
+    .replace(/[^A-Za-z0-9_]/g, '')
+}
+
 export function VariableDefinitionsEditor({
   variables,
   onChange,
@@ -34,9 +46,9 @@ export function VariableDefinitionsEditor({
               aria-label="Variable key"
               placeholder="variable_key"
               value={variable.key}
-              onChange={(event) => patch(index, { ...variable, key: event.target.value })}
+              onChange={(event) => patch(index, { ...variable, key: sanitizeVariableKey(event.target.value) })}
               onKeyDown={(event) => handleControlledInputKeyDown(event, (key) => {
-                patch(index, { ...variable, key })
+                patch(index, { ...variable, key: sanitizeVariableKey(key) })
               })}
             />
             <select
