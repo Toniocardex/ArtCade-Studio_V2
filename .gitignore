@@ -40,6 +40,11 @@ Makefile
 *.js.map
 *.js~
 
+# Python (bytecode generated during build scripts)
+__pycache__/
+*.pyc
+*.pyo
+
 # Node/npm
 node_modules/
 package-lock.json
