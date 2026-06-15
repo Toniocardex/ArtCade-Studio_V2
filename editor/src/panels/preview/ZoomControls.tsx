@@ -74,7 +74,7 @@ export function ZoomControls() {
         type="button"
         onClick={() => setZoom(nextZoomStep(zoom, -1))}
         title="Zoom out (Ctrl+-)"
-        className="p-1 rounded text-[var(--muted)] hover:bg-[var(--panel-3)] hover:text-[var(--text)] transition-colors"
+        className="p-1.5 rounded text-[var(--muted)] hover:bg-[var(--panel-3)] hover:text-[var(--text)] transition-colors"
       >
         <Minus size={13} />
       </button>
@@ -120,7 +120,7 @@ export function ZoomControls() {
         type="button"
         onClick={() => setZoom(nextZoomStep(zoom, +1))}
         title="Zoom in (Ctrl++)"
-        className="p-1 rounded text-[var(--muted)] hover:bg-[var(--panel-3)] hover:text-[var(--text)] transition-colors"
+        className="p-1.5 rounded text-[var(--muted)] hover:bg-[var(--panel-3)] hover:text-[var(--text)] transition-colors"
       >
         <Plus size={13} />
       </button>

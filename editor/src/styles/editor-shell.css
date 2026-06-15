@@ -184,7 +184,7 @@
 }
 
 .editor-module-tab {
-  height: calc(28px * var(--editor-scale));
+  height: calc(26px * var(--editor-scale));
   padding: 0 calc(0.75rem * var(--editor-scale));
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
