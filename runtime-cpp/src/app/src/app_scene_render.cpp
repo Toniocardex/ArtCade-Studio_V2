@@ -68,7 +68,17 @@ void Application::renderActiveScene() {
             TextComponent text{};
             const bool hasText = gateway->getText(id, text)
                 && (!text.text.empty() || !text.bindKey.empty());
-            const bool textOnly = hasText && placeholderFill;
+
+            // An entity that carries its own visual (text label or gauge bar)
+            // shouldn't also paint the default placeholder square — in the editor
+            // the opaque square sits over the text/gauge and makes HUD layout
+            // impossible, and in game it's just clutter. Suppress it in BOTH
+            // modes when there's no real sprite. (Picking uses a fixed hit box,
+            // not the drawn square, so the entity stays selectable/draggable.)
+            GaugeComponent gaugeProbe{};
+            const bool hasGauge = gateway->getGauge(id, gaugeProbe)
+                && gaugeProbe.width > 0.f && gaugeProbe.height > 0.f;
+            const bool visualOnly = placeholderFill && (hasText || hasGauge);
 
             const auto frame = animator
                 ? animator->currentFrame(id)
@@ -82,7 +92,7 @@ void Application::renderActiveScene() {
                     static_cast<float>(frame.h),
                     transform.position, transform.rotation, transform.scale,
                     sprite.tint, alpha, sprite.pivot);
-            } else if (!textOnly || inEditMode) {
+            } else if (!visualOnly) {
                 renderer->drawSprite(
                     sprite.spriteAssetId,
                     transform.position, transform.rotation, transform.scale,
