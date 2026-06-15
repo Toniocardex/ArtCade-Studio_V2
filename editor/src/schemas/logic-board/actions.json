@@ -20,6 +20,30 @@
     "additionalProperties": false,
     "x-artcade": { "label": "Toggle Pause", "category": "Time", "params": {} }
   },
+  "modifyVariable": {
+    "type": "object",
+    "required": ["type", "scope", "op", "key", "value"],
+    "properties": {
+      "type": { "const": "modifyVariable" },
+      "scope": { "enum": ["global", "object"] },
+      "op": { "enum": ["set", "add", "subtract", "multiply", "divide"] },
+      "key": { "type": "string", "minLength": 1 },
+      "value": { "$ref": "./value-source.schema.json" },
+      "target": { "$ref": "./target-selector.schema.json" }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Modify Variable",
+      "category": "State",
+      "params": {
+        "scope": { "widget": "enum", "label": "Scope", "options": ["global", "object"] },
+        "op": { "widget": "enum", "label": "Operation", "options": ["set", "add", "subtract", "multiply", "divide"] },
+        "key": { "widget": "string", "label": "Variable" },
+        "value": { "widget": "valueSource", "label": "Value" },
+        "target": { "widget": "target", "label": "Object" }
+      }
+    }
+  },
   "setGlobalVariable": {
     "type": "object",
     "required": ["type", "key", "value"],

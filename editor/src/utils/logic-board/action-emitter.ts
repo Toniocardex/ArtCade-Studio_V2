@@ -94,6 +94,31 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
       return `time.resume()`
     case 'togglePause':
       return `time.togglePause()`
+    case 'modifyVariable': {
+      const key = luaString(a.key)
+      const num = numberSourceExpr(a.value, project)
+      if (a.scope === 'object') {
+        const t = target(a.target ?? 'self')
+        const cur = `(objectvar.get(${t}, ${key}) or 0)`
+        switch (a.op) {
+          case 'set':      return `objectvar.set(${t}, ${key}, ${valueSourceExpr(a.value, project)})`
+          case 'add':      return `objectvar.add(${t}, ${key}, ${num})`
+          case 'subtract': return `objectvar.add(${t}, ${key}, -(${num}))`
+          case 'multiply': return `objectvar.set(${t}, ${key}, ${cur} * (${num}))`
+          case 'divide':   return `objectvar.set(${t}, ${key}, ${cur} / (${num}))`
+        }
+      } else {
+        const cur = `(global.get(${key}) or 0)`
+        switch (a.op) {
+          case 'set':      return `global.set(${key}, ${valueSourceExpr(a.value, project)})`
+          case 'add':      return `global.add(${key}, ${num})`
+          case 'subtract': return `global.add(${key}, -(${num}))`
+          case 'multiply': return `global.set(${key}, ${cur} * (${num}))`
+          case 'divide':   return `global.set(${key}, ${cur} / (${num}))`
+        }
+      }
+      return unknownActionComment(a, `modifyVariable op=${String(a.op)}`)
+    }
     case 'setGlobalVariable':
       return `global.set(${luaString(a.key)}, ${valueSourceExpr(a.value, project)})`
     case 'addGlobalVariable':

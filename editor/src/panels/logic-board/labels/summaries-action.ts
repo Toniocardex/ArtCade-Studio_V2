@@ -16,6 +16,15 @@ export function actionSummaryPlain(
       return 'Resume the game'
     case 'togglePause':
       return 'Toggle pause'
+    case 'modifyVariable': {
+      const sym =
+        a.op === 'set' ? '=' :
+        a.op === 'add' ? '+=' :
+        a.op === 'subtract' ? '−=' :
+        a.op === 'multiply' ? '×=' : '÷='
+      const name = a.scope === 'object' ? `${who(a.target ?? 'self')}.${a.key}` : a.key
+      return `${name} ${sym} ${valueSummary(a.value, project)}`
+    }
     case 'setVariable':
       return `Set ${a.key} to ${valueSummary(a.value, project)}`
     case 'addVariable':

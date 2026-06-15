@@ -62,6 +62,7 @@ const ACTION_DESCRIPTIONS: Record<LogicActionType, string> = {
   pauseGame: 'Freeze gameplay (time stops; input still works)',
   resumeGame: 'Resume gameplay after a pause',
   togglePause: 'Pause if running, resume if paused',
+  modifyVariable: 'Change a variable: set, add, subtract, multiply or divide (global or per-object)',
   setVariable: 'Set a variable to a value',
   addVariable: 'Add an amount to a variable',
   setGlobalVariable: 'Set a declared project variable',

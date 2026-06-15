@@ -190,10 +190,35 @@ export type LogicConditionNode =
 // Actions — WHAT the event does (MVP: only runtime-backed actions)
 // ---------------------------------------------------------------------------
 
+/** Where a variable lives: project-wide (`global.*`) or per-entity (`objectvar.*`). */
+export type VariableScope = 'global' | 'object'
+
+/** Arithmetic applied by `modifyVariable` (=, +=, -=, *=, /=). */
+export type VariableOp = 'set' | 'add' | 'subtract' | 'multiply' | 'divide'
+
 export type LogicAction =
   | { type: 'pauseGame' }
   | { type: 'resumeGame' }
   | { type: 'togglePause' }
+  /**
+   * Unified variable mutation — one action covers every scope × operation.
+   * Replaces the older set/add{Global,Local}Variable family in the picker
+   * (those remain valid for back-compat and are migrated to this on edit).
+   *   • scope 'global' → project/global state (`global.*`)
+   *   • scope 'object' → a per-entity variable on `target` (`objectvar.*`)
+   *   • op set/add/subtract/multiply/divide, value is any LogicValue
+   *     (literal, global/object variable, or expression).
+   */
+  | {
+      type: 'modifyVariable'
+      scope: VariableScope
+      op: VariableOp
+      key: string
+      value: LogicValue
+      target?: TargetSelector
+    }
+  // Legacy granular variable actions — kept for back-compat (existing boards
+  // and the migration path); no longer offered directly in the picker.
   | { type: 'setGlobalVariable'; key: string; value: LogicValue }
   | { type: 'addGlobalVariable'; key: string; amount: LogicValue }
   | { type: 'setLocalVariable'; target: TargetSelector; key: string; value: LogicValue }

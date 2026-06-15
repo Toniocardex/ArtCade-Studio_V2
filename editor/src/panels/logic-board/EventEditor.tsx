@@ -22,6 +22,7 @@ import { LogicBlock } from '../../components/logic-board/LogicBlock'
 import { TypePicker } from '../../components/logic-board/TypePicker'
 import { CatalogPicker } from '../../components/logic-board/CatalogPicker'
 import { SchemaParamForm } from '../../components/logic-board/SchemaParamForm'
+import { ModifyVariableEditor } from '../../components/logic-board/ModifyVariableEditor'
 import { ConditionCombineSelect } from '../../components/logic-board/ConditionCombineSelect'
 import { ConditionPolaritySelect } from '../../components/logic-board/ConditionPolaritySelect'
 import { ConditionTreeEditor } from '../../components/logic-board/ConditionTreeEditor'
@@ -77,6 +78,15 @@ const btn =
 function hasMovementAction(actions: readonly LogicAction[]): boolean {
   return actions.some((action) => action.type === 'controllerMovement')
 }
+
+/** Variable-mutation actions (unified + legacy) edited via ModifyVariableEditor. */
+const VARIABLE_ACTION_TYPES = new Set<LogicAction['type']>([
+  'modifyVariable',
+  'setVariable', 'addVariable',
+  'setGlobalVariable', 'addGlobalVariable',
+  'setLocalVariable', 'addLocalVariable',
+  'multiplyVariable',
+])
 
 function actionFitsTrigger(actionType: LogicAction['type'], trigger: LogicTrigger): boolean {
   if (actionType !== 'controllerMovement') return true
@@ -375,14 +385,24 @@ function ActionCard({
           <Trash2 size={13} />
         </LogicIconButton>
       </div>
-      <SchemaParamForm
-        kind="action"
-        type={act.type}
-        value={act as unknown as Record<string, unknown>}
-        onChange={(next) => onChange(next as LogicAction)}
-        contextSpritePath={contextSpritePath}
-        ambiguousTargetSpritePaths={ambiguousTargetSpritePaths}
-      />
+      {VARIABLE_ACTION_TYPES.has(act.type)
+        ? (
+          <ModifyVariableEditor
+            action={act}
+            project={project}
+            onChange={onChange}
+          />
+        )
+        : (
+          <SchemaParamForm
+            kind="action"
+            type={act.type}
+            value={act as unknown as Record<string, unknown>}
+            onChange={(next) => onChange(next as LogicAction)}
+            contextSpritePath={contextSpritePath}
+            ambiguousTargetSpritePaths={ambiguousTargetSpritePaths}
+          />
+        )}
       <ComponentRequirementWarning requirement={actionRequirement(act, project, board)} />
       {destroyOtherWarn && (
         <p className="w-full text-[10px] leading-snug text-[var(--warn)]">

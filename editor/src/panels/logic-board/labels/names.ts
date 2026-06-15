@@ -31,6 +31,7 @@ const ACTION_NAMES: Record<LogicActionType, string> = {
   pauseGame: 'Pause game',
   resumeGame: 'Resume game',
   togglePause: 'Toggle pause',
+  modifyVariable: 'Modify variable',
   setVariable: 'Set variable',
   addVariable: 'Add to variable',
   setGlobalVariable: 'Set global variable',

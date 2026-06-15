@@ -9,7 +9,7 @@
   ],
   "actions": [
     "pauseGame", "resumeGame", "togglePause",
-    "setGlobalVariable", "addGlobalVariable", "setLocalVariable", "addLocalVariable",
+    "modifyVariable",
     "setPosition", "setVelocity", "playSound", "playMusic",
     "stopAllAudio", "stopMusic", "pauseMusic", "resumeMusic",
     "setMusicVolume", "setMasterVolume", "setSfxVolume", "fadeMusic", "destroyEntity",
@@ -31,7 +31,10 @@
     "saveGame", "loadGame", "deleteSave",
     "moveByOffset", "snapToGrid", "setEntityShader", "setScreenShader", "debugLog", "wait", "repeatTimes"
   ],
-  "legacyActions": ["setVariableRandomRange", "clickToDestroy", "clearMovementIntent", "setCameraTarget"],
+  "legacyActions": [
+    "setVariableRandomRange", "clickToDestroy", "clearMovementIntent", "setCameraTarget",
+    "setGlobalVariable", "addGlobalVariable", "setLocalVariable", "addLocalVariable"
+  ],
   "conditions": [
     "compareValues", "compareClass", "isKeyDown", "hasTag", "compareDistance",
     "isMouseOver", "raycastHit", "chance", "isTileAreaFree", "compareHealth", "isPlatformerGrounded",

@@ -135,6 +135,8 @@ export function defaultAction(type: LogicActionType): LogicAction {
       return { type: 'resumeGame' }
     case 'togglePause':
       return { type: 'togglePause' }
+    case 'modifyVariable':
+      return { type: 'modifyVariable', scope: 'global', op: 'add', key: 'score', value: 1, target: 'self' }
     case 'setVariable':
       return { type: 'setVariable', key: 'score', value: 0 }
     case 'addVariable':
