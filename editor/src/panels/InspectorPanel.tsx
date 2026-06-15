@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------------------
 
 import { useCallback, useState } from 'react'
-import { shallowEqual, useEditorSelector } from '../store/editor-store'
+import { shallowEqual, useEditorDispatch, useEditorSelector } from '../store/editor-store'
 import { SceneSettingsSection } from './inspector/SceneSettingsSection'
 import { WorldSettingsSection, WorldDebugTimeSection } from './inspector/WorldSettingsSection'
 import { EntityHeaderBar } from './inspector/EntityHeaderBar'
@@ -45,7 +45,6 @@ function EntityInspector({ entity }: EntityInspectorProps) {
       <EntityHeaderBar entity={entity} onJumpToComponent={jumpToComponent} />
       <EntityMetadataSection entity={entity} />
       <ObjectVariablesSection entity={entity} />
-      <ProjectVariablesSection />
       <VariableWatchSection entityId={entity.id} />
       <ComponentsSection
         entity={entity}
@@ -72,6 +71,7 @@ export default function InspectorPanel() {
   const sceneId = selection.sceneId ?? project?.activeSceneId
   const scene = project && sceneId ? project.scenes[sceneId] : null
 
+  const dispatch = useEditorDispatch()
   const chrome = useEditorSelector(
     (s) => inspectorChromeForMode(deriveInspectorMode(s), s),
     shallowEqual,
@@ -80,6 +80,15 @@ export default function InspectorPanel() {
   return (
     <div className="h-full flex flex-col bg-[var(--bg-window)]" data-panel="inspector">
       <div className="editor-panel-header flex-col !items-start !gap-0.5 !py-2">
+        {mode === 'entity' && (
+          <button
+            type="button"
+            onClick={() => dispatch({ type: 'SELECT_ENTITY', entityId: null })}
+            className="text-[9px] text-[var(--muted)] hover:text-[var(--accent)] transition-colors mb-0.5 flex items-center gap-1"
+          >
+            ← Scene
+          </button>
+        )}
         <span className="editor-panel-header__title">{chrome.title}</span>
         {chrome.subtitle ? (
           <span className="editor-panel-header__subtitle text-[10px]">{chrome.subtitle}</span>
