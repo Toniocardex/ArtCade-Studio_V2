@@ -11,9 +11,12 @@
 //                         clearColor, when the world is smaller than the
 //                         viewport).
 //   • drawGrid          — editor alignment grid (under entities).
-//   • drawGuides        — camera viewport bounds outline (over entities).
 //   • drawSelection     — selection box + sensor preview for the picked
 //                         entity.
+//
+// The camera viewport outline is intentionally NOT here: the editor owns it as
+// a dashed DOM overlay (CameraFrameOverlay.tsx), which stays crisp and exactly
+// scaled at any zoom where a framebuffer outline would go sub-pixel.
 //
 // House rule: the renderer never reads `EditorAPI::s_*` statics. It receives
 // an `EditorOverlayState` explicitly. This mirrors what RuntimeSyncService
@@ -50,14 +53,6 @@ void drawBackdrop(Modules::Renderer& renderer,
 void drawGrid(Modules::Renderer& renderer,
               const SceneDef& scene,
               const EditorOverlayState& state);
-
-/**
- * Camera viewport bounds outline (sage green). Skipped when overlay is off
- * or guides are disabled.
- */
-void drawGuides(Modules::Renderer& renderer,
-                const SceneDef& scene,
-                const EditorOverlayState& state);
 
 /**
  * Selection box + optional sensor preview for the currently picked entity.

@@ -717,6 +717,22 @@ export function editorSetSnapToGrid(enabled: boolean): void {
   safeCall('editor_set_snap_to_grid', null, ['number'], [enabled ? 1 : 0])
 }
 
+/**
+ * Drive the edit-mode preview camera (screen-resolution rendering).
+ * @param targetX/Y world point shown at the canvas top-left corner.
+ * @param zoom      device px per world unit (editorZoom × devicePixelRatio).
+ * @param vpW/vpH   framebuffer size in DEVICE px (the visible canvas).
+ */
+export function editorSetEditCamera(
+  targetX: number, targetY: number, zoom: number, vpW: number, vpH: number,
+): void {
+  safeCall(
+    'editor_set_edit_camera', null,
+    ['number', 'number', 'number', 'number', 'number'],
+    [targetX, targetY, zoom, Math.round(vpW), Math.round(vpH)],
+  )
+}
+
 export function editorSetTransform(
   entityId: number,
   x: number, y: number,

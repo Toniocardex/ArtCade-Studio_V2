@@ -627,6 +627,17 @@ void Renderer::setCameraZoom(float zoom) {
     impl_->camera.target = { clamped.x, clamped.y };
 }
 
+void Renderer::setEditorCamera(const Vec2& target, float zoom) {
+    // Editor preview drives the camera explicitly: the editor owns pan/zoom
+    // (scroll + zoom factor) and the visible-bounds clamping, so this setter
+    // applies target/zoom verbatim — no clampCameraTarget, no offset. The
+    // framebuffer is the visible viewport (device px) so the world is drawn at
+    // native resolution: 1px grid lines stay crisp and in-phase at any zoom.
+    impl_->camera.offset = { 0.f, 0.f };
+    impl_->camera.zoom   = (zoom > 0.f) ? zoom : 0.01f;
+    impl_->camera.target = { target.x, target.y };
+}
+
 void Renderer::panCameraByScreenDelta(float dx, float dy) {
     const float zoom = (impl_->camera.zoom > 0.f) ? impl_->camera.zoom : 1.f;
     setCameraPosition({

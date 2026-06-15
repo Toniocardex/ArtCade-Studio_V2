@@ -418,6 +418,23 @@ EMSCRIPTEN_KEEPALIVE void editor_set_snap_to_grid(int enabled) {
     ArtCade::EditorAPI::s_editorSnapEnabled = (enabled != 0);
 }
 
+EMSCRIPTEN_KEEPALIVE void editor_set_edit_camera(
+    float targetX, float targetY, float zoom, int vpW, int vpH) {
+    if (ArtCade::EditorAPI::s_mode != 0) return; // edit mode only
+    auto* r = ArtCade::EditorAPI::s_renderer;
+    if (!r) return;
+    // Resize the framebuffer to the visible canvas (device px) only when it
+    // actually changed — comparing against the live size avoids redundant
+    // SetWindowSize calls (which restripe the canvas CSS) on every pan/zoom.
+    if (vpW > 0 && vpH > 0
+        && (static_cast<uint32_t>(vpW) != r->windowWidth()
+            || static_cast<uint32_t>(vpH) != r->windowHeight())) {
+        r->setWindowSize(static_cast<uint32_t>(vpW),
+                         static_cast<uint32_t>(vpH), "ArtCade V2");
+    }
+    r->setEditorCamera({ targetX, targetY }, zoom);
+}
+
 EMSCRIPTEN_KEEPALIVE void editor_register_image(
     const char* path, const uint8_t* bytes, int len, const char* ext) {
     if (!path || !*path || !bytes || len <= 0) {
@@ -791,19 +808,12 @@ EMSCRIPTEN_KEEPALIVE void editor_set_scene_settings(
             return;
         }
 
-        if (gateway->activeSceneId() == sceneId) {
-            if (auto* r = ArtCade::EditorAPI::s_renderer) {
-                if (const ArtCade::SceneDef* sc = gateway->activeScene()) {
-                    if (sc->worldSize.x > 0.f && sc->worldSize.y > 0.f) {
-                        r->setWindowSize(
-                            static_cast<uint32_t>(sc->worldSize.x),
-                            static_cast<uint32_t>(sc->worldSize.y),
-                            "ArtCade V2");
-                    }
-                    r->setSceneViewport(sc->worldSize, sc->worldSize);
-                }
-            }
-        }
+        // NB: the framebuffer size and camera are NOT touched here. In edit
+        // mode the editor owns viewport geometry and pushes it every frame via
+        // editor_set_edit_camera (which resizes the framebuffer to the visible
+        // canvas). Calling setWindowSize/setSceneViewport here used to restripe
+        // the canvas CSS and clobber the editor camera on every inspector edit
+        // (e.g. changing the grid size) — the source of the "out of phase" grid.
 
         std::string msg = "[EditorAPI] Scene settings patched: ";
         msg += sceneId;

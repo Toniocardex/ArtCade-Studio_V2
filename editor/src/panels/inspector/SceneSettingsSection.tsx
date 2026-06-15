@@ -1,7 +1,7 @@
-import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
+import { useEditorDispatch } from '../../store/editor-store'
 import type { SceneDef } from '../../types'
 import {
-  Field, InspectorSection, parseGridSize, parseSceneDimension,
+  Field, InspectorSection, parseSceneDimension,
 } from './inspector-fields'
 
 export type SceneSettingsSectionProps = Readonly<{
@@ -10,8 +10,6 @@ export type SceneSettingsSectionProps = Readonly<{
 
 export function SceneSettingsSection({ scene }: SceneSettingsSectionProps) {
   const dispatch = useEditorDispatch()
-  const gridSize = useEditorSelector((s) => s.editorGridSize)
-  const snapToGrid = useEditorSelector((s) => s.snapToGrid)
 
   function commitWorld(patch: Partial<{ x: number; y: number }>) {
     dispatch({
@@ -28,13 +26,6 @@ export function SceneSettingsSection({ scene }: SceneSettingsSectionProps) {
       sceneId: scene.id,
       x: patch.x ?? scene.viewportSize.x,
       y: patch.y ?? scene.viewportSize.y,
-    })
-  }
-
-  function commitGridSize(value: string) {
-    dispatch({
-      type: 'EDITOR_SET_GRID_SIZE',
-      tileSize: parseGridSize(value, gridSize),
     })
   }
 
@@ -78,24 +69,8 @@ export function SceneSettingsSection({ scene }: SceneSettingsSectionProps) {
           />
         </div>
       </div>
-      <div className="mb-3">
-        <span className="text-[9px] text-[var(--muted)] uppercase block mb-0.5">Editor Grid</span>
-        <div className="grid grid-cols-2 gap-2 items-end">
-          <Field
-            label="Size (px)"
-            value={gridSize}
-            onCommit={commitGridSize}
-          />
-          <label className="flex items-center gap-2 mb-2 text-[9px] text-[var(--muted)] uppercase select-none">
-            <input
-              type="checkbox"
-              checked={snapToGrid}
-              onChange={(e) => dispatch({ type: 'SET_SNAP_TO_GRID', enabled: e.target.checked })}
-              className="accent-[var(--accent)]"
-            /><span>Snap to grid</span>
-          </label>
-        </div>
-      </div>
+      {/* Editor Grid + Rulers moved to the canvas toolbar's Viewport options
+          popover — they are editor view preferences, not scene data. */}
       {scene.tilemap && (
         <p className="text-[9px] text-[var(--muted)] leading-snug mb-3">
           Tilemap: {scene.tilemap.cols} x {scene.tilemap.rows} cells at {scene.tilemap.tileSize}px.

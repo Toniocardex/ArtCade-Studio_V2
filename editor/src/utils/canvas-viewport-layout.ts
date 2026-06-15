@@ -17,6 +17,8 @@ export type CanvasViewportLayout = Readonly<{
   preview: boolean
   /** World coordinates at the frame top-left. Initial camera preview starts at (0,0). */
   worldOriginOffset: Readonly<{ x: number; y: number }>
+  /** Base world distance between labelled ruler ticks (auto-doubled when zoomed out). */
+  rulerStep: number
 }>
 
 export type RulerTick = Readonly<{
@@ -34,10 +36,15 @@ export function computeCanvasViewportLayout(params: Readonly<{
   viewportSize: Readonly<{ x: number; y: number }>
   zoom: number
   preview: boolean
+  /** Base world distance between ruler ticks. Defaults to BASE_RULER_TICK_STEP. */
+  rulerStep?: number
 }>): CanvasViewportLayout {
   const paddingPx = EDITOR_CANVAS_PADDING_PX / 2
   const { worldSize, viewportSize, preview } = params
   const z = params.zoom > 0 ? params.zoom : 1
+  const rulerStep = params.rulerStep && params.rulerStep > 0
+    ? params.rulerStep
+    : BASE_RULER_TICK_STEP
 
   const contentW = preview
     ? Math.round(viewportSize.x * z)
@@ -57,13 +64,17 @@ export function computeCanvasViewportLayout(params: Readonly<{
     zoom: z,
     preview,
     worldOriginOffset,
+    rulerStep,
   }
 }
 
 /** World-space step between major ruler ticks; grows when zoomed out. */
-export function pickRulerTickStep(zoom: number): number {
+export function pickRulerTickStep(
+  zoom: number,
+  baseStep: number = BASE_RULER_TICK_STEP,
+): number {
   const z = zoom > 0 ? zoom : 1
-  let step = BASE_RULER_TICK_STEP
+  let step = baseStep > 0 ? baseStep : BASE_RULER_TICK_STEP
   while (step * z < MIN_TICK_SCREEN_PX && step < MAX_RULER_TICK_STEP) {
     step *= 2
   }
@@ -106,7 +117,7 @@ export function rulerLabelsForAxis(
   viewportLength: number,
   layout: CanvasViewportLayout,
 ): readonly RulerTick[] {
-  const step = pickRulerTickStep(layout.zoom)
+  const step = pickRulerTickStep(layout.zoom, layout.rulerStep)
   const z = layout.zoom
   const worldOrigin = axis === 'x' ? layout.worldOriginOffset.x : layout.worldOriginOffset.y
   const worldMax = axis === 'x' ? layout.worldSize.x : layout.worldSize.y

@@ -148,6 +148,8 @@ public:
     /** Visual-only offset for this frame's world pass (not clamped; does not change getCameraPosition). */
     void setRenderShakeOffset(const Vec2& offset);
     void setCameraZoom    (float zoom);
+    /** Editor-preview camera: apply target/zoom verbatim (no clamp/offset). */
+    void setEditorCamera  (const Vec2& target, float zoom);
     void panCameraByScreenDelta(float dx, float dy);
     Vec2 screenToWorld    (float screenX, float screenY) const;
     Vec2 visibleWorldSize () const;

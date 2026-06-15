@@ -27,6 +27,7 @@ import { useRuntimeReadiness } from '../hooks/useRuntimeReadiness'
 import { useEditorCanvasViewport } from '../hooks/useEditorCanvasViewport'
 import { useEditorFitZoom } from '../hooks/useEditorFitZoom'
 import { getRuntimeCanvas } from '../utils/runtime-canvas'
+import { editorSetEditCamera } from '../utils/wasm-bridge'
 
 type TransformSnapshot = {
   entityId: number
@@ -79,6 +80,8 @@ export default function PreviewPanel({
   const focusMode = useEditorSelector((s) => s.focusMode)
   const dialogs = useEditorSelector((s) => s.dialogs)
   const editorGuidesVisible = useEditorSelector((s) => s.editorGuidesVisible)
+  const editorRulerStep = useEditorSelector((s) => s.editorRulerStep)
+  const editorRulersVisible = useEditorSelector((s) => s.editorRulersVisible)
 
   const canvasRef           = useRef<HTMLCanvasElement>(null)
   const canvasHostRef       = useRef<HTMLDivElement>(null)
@@ -283,6 +286,9 @@ export default function PreviewPanel({
     selectedEntityId: selection.entityId,
     tool: activeTool,
     selectedTileCell,
+    // The runtime draws the alignment grid under the sprites (its native,
+    // correct z-order). The camera-viewport outline is the editor's dashed DOM
+    // overlay (CameraFrameOverlay) — the runtime no longer draws it.
     guides: editorGuidesVisible,
     gridSize: editorGridSize,
     snapToGrid,
@@ -308,15 +314,12 @@ export default function PreviewPanel({
       viewportSize: vp,
       zoom,
       preview,
+      rulerStep: editorRulerStep,
     }),
-    [frame.x, frame.y, vp.x, vp.y, zoom, preview],
+    [frame.x, frame.y, vp.x, vp.y, zoom, preview, editorRulerStep],
   )
   const frameW = layout.contentSizePx.x
   const frameH = layout.contentSizePx.y
-  // The runtime camera starts at world origin, so camera preview crops the
-  // same top-left viewport instead of a centred slice of the scene.
-  const canvasDX = 0
-  const canvasDY = 0
 
   useEditorFitZoom({
     scrollRef,
@@ -358,31 +361,95 @@ export default function PreviewPanel({
       : 'var(--bg)'
   })()
 
-  // The runtime canvas is a persistent DOM node React does not manage, so
-  // its presentation attributes are applied imperatively. Assigning
-  // width/height clears the framebuffer even with the same value — guard.
-  // During play the engine owns the attributes (SetWindowSize on play/stop),
-  // and Emscripten strips the inline CSS size when it matches the native
-  // size — so the CSS size must be re-asserted on every isPlaying flip.
-  useLayoutEffect(() => {
+  // The runtime canvas is a persistent DOM node React does not manage, so its
+  // presentation is applied imperatively.
+  //
+  //  • Edit mode: the canvas is a fixed layer the size of the visible viewport
+  //    (sticky in the scroll container). The runtime renders the panned/zoomed
+  //    world slice into it at native resolution — NO CSS transform — so the
+  //    framebuffer is never GPU-downscaled (crisp 1px grid, correct phase and
+  //    full coverage at any zoom). The framebuffer size is owned by the runtime
+  //    (editor_set_edit_camera → setWindowSize); we only set the CSS size.
+  //  • Play mode: the engine owns the framebuffer (NativePlay SetWindowSize);
+  //    the canvas is the scene-viewport size, CSS-scaled to fit.
+  const applyCanvasPresentation = useCallback(() => {
     const canvas = getRuntimeCanvas()
-    if (!isPlaying) {
-      if (canvas.width  !== frame.x) canvas.width  = frame.x
-      if (canvas.height !== frame.y) canvas.height = frame.y
-    }
-    Object.assign(canvas.style, {
+    const common = {
       display:         'block',
       position:        'absolute',
-      top:             `${canvasDY}px`,
-      left:            `${canvasDX}px`,
-      width:           `${frame.x}px`,
-      height:          `${frame.y}px`,
-      transform:       `scale(${zoom})`,
+      top:             '0px',
+      left:            '0px',
       transformOrigin: '0 0',
-      background:      bgColor,
-      pointerEvents:   panActive ? 'none' : 'auto',
+      background:       bgColor,
+      pointerEvents:    panActive ? 'none' : 'auto',
+    } as const
+    if (isPlaying) {
+      Object.assign(canvas.style, common, {
+        width:     `${frame.x}px`,
+        height:    `${frame.y}px`,
+        transform: `scale(${zoom})`,
+      })
+      return
+    }
+    const el = scrollRef.current
+    const pad = layout.paddingPx
+    const cssW = el ? Math.max(1, el.clientWidth  - pad * 2) : frame.x
+    const cssH = el ? Math.max(1, el.clientHeight - pad * 2) : frame.y
+    Object.assign(canvas.style, common, {
+      width:     `${cssW}px`,
+      height:    `${cssH}px`,
+      transform: 'none',
     })
-  }, [frame.x, frame.y, isPlaying, canvasDX, canvasDY, zoom, bgColor, panActive])
+  }, [isPlaying, frame.x, frame.y, zoom, bgColor, panActive, layout.paddingPx])
+
+  useLayoutEffect(() => {
+    applyCanvasPresentation()
+  }, [applyCanvasPresentation])
+
+  // Edit-mode preview camera: drive the runtime camera from the scroll
+  // container so the world slice under the viewport is rendered at native
+  // resolution. target = world point at the canvas top-left; zoom + viewport
+  // in device px. Re-assert the CSS afterwards because setWindowSize (fired
+  // only when the viewport px change) strips the inline canvas style on
+  // Emscripten. Picking/zoom stay consistent because target = scrollLeft/zoom
+  // matches the editor's scrollToWorld mapping.
+  const camSyncRafRef = useRef<number | null>(null)
+  const syncEditCamera = useCallback(() => {
+    const el = scrollRef.current
+    if (!el || isPlaying || !engineReady) return
+    const dpr = window.devicePixelRatio || 1
+    const pad = layout.paddingPx
+    const cssW = Math.max(1, el.clientWidth  - pad * 2)
+    const cssH = Math.max(1, el.clientHeight - pad * 2)
+    const z = zoom > 0 ? zoom : 1
+    editorSetEditCamera(
+      el.scrollLeft / z, el.scrollTop / z,
+      z * dpr, cssW * dpr, cssH * dpr,
+    )
+    applyCanvasPresentation()
+  }, [isPlaying, engineReady, zoom, layout.paddingPx, applyCanvasPresentation])
+
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el || isPlaying || !engineReady) return
+    const schedule = () => {
+      if (camSyncRafRef.current != null) return
+      camSyncRafRef.current = requestAnimationFrame(() => {
+        camSyncRafRef.current = null
+        syncEditCamera()
+      })
+    }
+    syncEditCamera()
+    el.addEventListener('scroll', schedule, { passive: true })
+    const ro = new ResizeObserver(schedule)
+    ro.observe(el)
+    return () => {
+      el.removeEventListener('scroll', schedule)
+      ro.disconnect()
+      if (camSyncRafRef.current != null) cancelAnimationFrame(camSyncRafRef.current)
+      camSyncRafRef.current = null
+    }
+  }, [isPlaying, engineReady, syncEditCamera, res.x, res.y, vp.x, vp.y, selectedSceneId])
 
   // Suppress the browser context menu during play (right click is game input).
   useEffect(() => {
@@ -417,6 +484,7 @@ export default function PreviewPanel({
       <CanvasViewportWithRulers
         scrollRef={scrollRef}
         layout={layout}
+        rulersVisible={editorRulersVisible}
         onWheel={handleWheel}
         onPointerDown={onCanvasAreaPointerDown}
         onPointerMove={onCanvasAreaPointerMove}
@@ -424,9 +492,23 @@ export default function PreviewPanel({
         onPointerCancel={onCanvasAreaPointerUp}
         style={{ cursor: panCursor }}
       >
+        {/* Sticky canvas layer — pinned to the visible viewport (0-size anchor
+            keeps it out of the scroll flow). The runtime renders the panned /
+            zoomed world slice here at native resolution; the camera follows the
+            scroll via syncEditCamera. The persistent canvas (absolute, top/left
+            0) is adopted into canvasHostRef. */}
+        <div
+          style={{ position: 'sticky', top: 0, left: 0, width: 0, height: 0, zIndex: 0 }}
+        >
+          <div ref={canvasHostRef} style={{ display: 'contents' }} />
+        </div>
+
+        {/* Scrollable spacer — drives the scrollbars and hosts the DOM overlays
+            (camera frame + edge ring), sized to world×zoom. Sits above the
+            canvas (z-index 1) but is transparent, so the canvas shows through. */}
         <div
           className="w-fit h-fit shrink-0"
-          style={{ width: frameW, height: frameH }}
+          style={{ width: frameW, height: frameH, position: 'relative', zIndex: 1 }}
         >
           <div
             className="canvas-scene-frame"
@@ -438,10 +520,6 @@ export default function PreviewPanel({
                 : '0 25px 50px -12px rgb(0 0 0 / 0.5)',
             }}
           >
-            {/* Host for the persistent runtime canvas (adopted in effect above).
-                display:contents keeps .canvas-scene-frame as the canvas's
-                containing block, exactly like the former JSX <canvas>. */}
-            <div ref={canvasHostRef} style={{ display: 'contents' }} />
             {showCameraFrame && (
               <CameraFrameOverlay
                 worldSize={res}

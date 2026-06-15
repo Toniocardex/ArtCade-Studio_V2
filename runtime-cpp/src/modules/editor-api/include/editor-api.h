@@ -355,6 +355,18 @@ EMSCRIPTEN_KEEPALIVE void editor_set_guides_enabled(int enabled);
 /** Editor-only guide/snap grid size in world pixels. Does not affect tilemap. */
 EMSCRIPTEN_KEEPALIVE void editor_set_grid_size(float tileSize);
 
+/**
+ * Editor preview camera (screen-resolution rendering). The editor owns pan/zoom
+ * via scroll + zoom factor and drives the runtime camera each frame:
+ *   targetX/Y : world point shown at the canvas top-left corner.
+ *   zoom      : device px per world unit (editorZoom × devicePixelRatio).
+ *   vpW/vpH   : framebuffer size in DEVICE px (the visible canvas). The runtime
+ *               resizes the framebuffer only when this changes, so the world is
+ *               drawn at native resolution (crisp 1px grid at any zoom).
+ */
+EMSCRIPTEN_KEEPALIVE void editor_set_edit_camera(
+    float targetX, float targetY, float zoom, int vpW, int vpH);
+
 /** Editor placement snap (magnetic drag + React commit); not gameplay grid.snapToGrid. */
 EMSCRIPTEN_KEEPALIVE void editor_set_snap_to_grid(int enabled);
 

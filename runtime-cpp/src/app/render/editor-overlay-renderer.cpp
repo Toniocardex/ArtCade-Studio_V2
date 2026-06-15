@@ -93,26 +93,6 @@ void drawGrid(Modules::Renderer& renderer,
     }
 }
 
-void drawGuides(Modules::Renderer& renderer,
-                const SceneDef& scene,
-                const EditorOverlayState& state) {
-    if (!state.inEditMode || !state.guidesEnabled) return;
-
-    const float w = std::max(1.f, scene.worldSize.x);
-    const float h = std::max(1.f, scene.worldSize.y);
-
-    const float vw = std::max(1.f, scene.viewportSize.x);
-    const float vh = std::max(1.f, scene.viewportSize.y);
-    if (vw < w - 0.5f || vh < h - 0.5f) {
-        // The runtime camera starts at target (0,0), so the initial play view
-        // covers the top-left viewport-sized region of the world.
-        const float vx = 0.f;
-        const float vy = 0.f;
-        // Sage Green (#7A9C7E) — camera/viewport preview outline.
-        drawRectOutline(renderer, vx, vy, vw, vh, Vec4{0.478f, 0.612f, 0.494f, 0.9f});
-    }
-}
-
 void drawSelection(Modules::Renderer& renderer,
                    const Transform& transform,
                    const SpriteComponent& sprite,

@@ -9,6 +9,7 @@
 import type { CoreState, Action, DomainReducer } from '../editor-store-state'
 import {
   DEFAULT_EDITOR_GRID_SIZE, EDITOR_GRID_SIZE_MAX, EDITOR_GRID_SIZE_MIN,
+  DEFAULT_EDITOR_RULER_STEP, EDITOR_RULER_STEP_MAX, EDITOR_RULER_STEP_MIN,
 } from '../../constants/editor-viewport'
 import type { DockPanelId } from '../../constants/dock-panels'
 import { clampEditorZoom } from '../../utils/editor-zoom'
@@ -191,6 +192,17 @@ export const uiReducer: DomainReducer = (state: CoreState, action: Action) => {
         : DEFAULT_EDITOR_GRID_SIZE
       return state.editorGridSize === tileSize ? state : { ...state, editorGridSize: tileSize }
     }
+    case 'EDITOR_SET_RULER_STEP': {
+      const rounded = Math.round(action.step)
+      const step = Number.isFinite(rounded)
+        ? Math.min(EDITOR_RULER_STEP_MAX, Math.max(EDITOR_RULER_STEP_MIN, rounded))
+        : DEFAULT_EDITOR_RULER_STEP
+      return state.editorRulerStep === step ? state : { ...state, editorRulerStep: step }
+    }
+    case 'SET_RULERS_VISIBLE':
+      return state.editorRulersVisible === action.visible
+        ? state
+        : { ...state, editorRulersVisible: action.visible }
     case 'SET_SNAP_TO_GRID':
       return state.snapToGrid === action.enabled
         ? state

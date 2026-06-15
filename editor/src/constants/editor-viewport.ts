@@ -46,6 +46,15 @@ export const EDITOR_GRID_SIZE_MIN = 4
 export const EDITOR_GRID_SIZE_MAX = 512
 
 /**
+ * Ruler tick spacing in world px (the world distance between two labelled
+ * ruler marks). Independent of the grid. The ruler still auto-doubles this when
+ * zoomed out so ticks never crowd below MIN_TICK_SCREEN_PX.
+ */
+export const DEFAULT_EDITOR_RULER_STEP = 64
+export const EDITOR_RULER_STEP_MIN = 8
+export const EDITOR_RULER_STEP_MAX = 1024
+
+/**
  * Default scene size used for new blank projects and as fallback when no
  * scene is selected.
  *

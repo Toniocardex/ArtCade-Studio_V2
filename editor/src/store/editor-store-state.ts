@@ -19,7 +19,7 @@ import type { DialogScript } from '../utils/dialog/dialog-script'
 import type { InspectorAssetSelection } from '../types/inspector-selection'
 import { DEFAULT_EDITOR_ACTIVE_LAYER } from '../constants/scene-layers'
 import {
-  EDITOR_BOOT_ZOOM, DEFAULT_EDITOR_GRID_SIZE,
+  EDITOR_BOOT_ZOOM, DEFAULT_EDITOR_GRID_SIZE, DEFAULT_EDITOR_RULER_STEP,
 } from '../constants/editor-viewport'
 import type { DockPanelId, DockPanelVisibility } from '../constants/dock-panels'
 import { readStoredDockPanelVisibility } from '../utils/dock-panel-visibility'
@@ -64,6 +64,10 @@ export interface CoreState {
   // consumers don't need `?? default` everywhere — the reducer / project
   // loader is responsible for keeping them populated.
   editorGridSize:   number
+  /** Ruler tick spacing in world px (independent of the grid). */
+  editorRulerStep:  number
+  /** Show/hide the canvas rulers. */
+  editorRulersVisible: boolean
   snapToGrid:       boolean
   editorGuidesVisible: boolean
   editorZoom:       number   // visual zoom (CSS transform), see constants/editor-viewport
@@ -222,6 +226,8 @@ export type Action =
   | { type: 'SCENE_SET_WORLD_SIZE'; sceneId: string; x: number; y: number }
   | { type: 'SCENE_SET_VIEWPORT_SIZE'; sceneId: string; x: number; y: number }
   | { type: 'EDITOR_SET_GRID_SIZE'; tileSize: number }
+  | { type: 'EDITOR_SET_RULER_STEP'; step: number }
+  | { type: 'SET_RULERS_VISIBLE'; visible: boolean }
   | { type: 'SET_SNAP_TO_GRID'; enabled: boolean }
   | { type: 'TOGGLE_EDITOR_GUIDES' }
   | { type: 'EDITOR_SET_ZOOM'; zoom: number }
@@ -304,6 +310,8 @@ export const initialCoreState: CoreState = {
   isPlaying:        false,
   selectedTileCell: 1,
   editorGridSize:   DEFAULT_EDITOR_GRID_SIZE,
+  editorRulerStep:  DEFAULT_EDITOR_RULER_STEP,
+  editorRulersVisible: true,
   snapToGrid:       false,
   editorGuidesVisible: true,
   editorZoom:       EDITOR_BOOT_ZOOM,

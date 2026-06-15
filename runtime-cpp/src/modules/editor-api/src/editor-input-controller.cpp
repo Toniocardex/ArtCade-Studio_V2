@@ -128,13 +128,11 @@ EM_BOOL EditorAPI::onMouseMove(int, const EmscriptenMouseEvent* e, void*) {
         RayTintWidget::onMouseMove(screenX, screenY);
         return EM_TRUE;
     }
-    if (s_editorTool == ToolPan && s_isDragging) {
-        float sx = 0.f, sy = 0.f;
-        toScreen(e, sx, sy);
-        if (s_renderer)
-            s_renderer->panCameraByScreenDelta(sx - s_lastPanScreenX, sy - s_lastPanScreenY);
-        s_lastPanScreenX = sx;
-        s_lastPanScreenY = sy;
+    if (s_editorTool == ToolPan) {
+        // Panning is owned by the editor's scroll container (it drives the
+        // scrollbars + rulers and pushes the resulting camera target back via
+        // editor_set_edit_camera). The runtime must NOT also move its camera,
+        // or the two pans compound. Just consume the event.
         return EM_TRUE;
     }
     float wx, wy;

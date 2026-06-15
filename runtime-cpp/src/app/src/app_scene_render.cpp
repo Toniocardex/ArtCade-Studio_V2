@@ -169,9 +169,9 @@ void Application::renderActiveScene() {
     const float fade = mod_->entityGateway->sceneFadeAlpha();
     if (fade > 0.f) mod_->renderer->drawFadeOverlay(fade);
 
-    if (activeScene) {
-        EditorOverlayRenderer::drawGuides(*mod_->renderer, *activeScene, overlay);
-    }
+    // The camera viewport outline is owned by the editor (dashed DOM overlay in
+    // CameraFrameOverlay.tsx), not the runtime: a DOM rectangle stays crisp and
+    // exactly scaled at every zoom, where a framebuffer outline went sub-pixel.
 
     if (overlay.inEditMode) {
         mod_->entityGateway->forEachActiveHiddenInGame(

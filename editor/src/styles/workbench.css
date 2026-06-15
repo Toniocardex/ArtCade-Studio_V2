@@ -47,14 +47,11 @@
 }
 
 .canvas-scrollarea {
+  /* The grid is drawn by the runtime, confined to the scene world and always
+     aligned to it. The workspace backdrop stays a plain colour + glow so it
+     never competes with (or drifts from) the scene grid on zoom/pan. */
   background-color: var(--canvas-workspace-bg);
-  background-image:
-    var(--canvas-workspace-glow),
-    linear-gradient(var(--grid-secondary) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-secondary) 1px, transparent 1px),
-    linear-gradient(var(--grid-primary) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-primary) 1px, transparent 1px);
-  background-size: auto, 16px 16px, 16px 16px, 64px 64px, 64px 64px;
+  background-image: var(--canvas-workspace-glow);
 }
 
 .editor-preview-island {
