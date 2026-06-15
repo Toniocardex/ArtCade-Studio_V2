@@ -1,3 +1,4 @@
+import { Plus } from 'lucide-react'
 import type {
   GameVariableDefinition,
   GameVariableType,
@@ -5,7 +6,7 @@ import type {
 } from '../../types'
 import { handleControlledInputKeyDown } from '../../utils/keyboard'
 
-const fieldClass = 'w-full bg-[var(--bg)] border border-[var(--border-2)] rounded px-2 py-1 text-xs'
+const fieldClass = 'editor-input'
 
 function defaultValue(type: GameVariableType): GameVariableValue {
   if (type === 'boolean') return false
@@ -118,13 +119,14 @@ export function VariableDefinitionsEditor({
       ))}
       <button
         type="button"
-        className="text-xs text-[var(--accent)]"
+        className="mt-1 inline-flex items-center gap-1.5 rounded border border-[var(--accent-bd)] bg-[var(--accent-bg)] px-3 py-1 text-xs font-semibold text-[var(--accent-fg-on-bg)] hover:bg-[var(--accent-bg-h)]"
         onClick={() => onChange([
           ...variables,
           { key: `variable_${variables.length + 1}`, type: 'number', initialValue: 0 },
         ])}
       >
-        + Declare variable
+        <Plus size={13} />
+        Declare variable
       </button>
     </div>
   )

@@ -20,8 +20,8 @@ export function WorldSettingsSection() {
         onChange={(e) =>
           dispatch({ type: 'WORLD_SET', patch: { [key]: Number(e.target.value) } })
         }
-        className="w-20 bg-[var(--panel-3)] border border-[var(--border-2)] text-[var(--text)]
-                   text-[11px] rounded px-2 py-0.5 text-right focus:outline-none
+        className="w-20 h-6 bg-[var(--panel-3)] border border-[var(--border-2)] text-[var(--text)]
+                   text-[11px] rounded px-2 text-right focus:outline-none
                    focus:border-[var(--accent)] transition-colors"
       />
     </div>

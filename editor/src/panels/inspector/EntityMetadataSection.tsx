@@ -1,5 +1,5 @@
 import type { EntityDef } from '../../types'
-import { SectionCollapse } from '../../components/ui/SectionCollapse'
+import { InspectorSection } from './inspector-fields'
 
 export type EntityMetadataSectionProps = Readonly<{
   entity: EntityDef
@@ -7,7 +7,7 @@ export type EntityMetadataSectionProps = Readonly<{
 
 export function EntityMetadataSection({ entity }: EntityMetadataSectionProps) {
   return (
-    <SectionCollapse title="Metadata" defaultOpen={false}>
+    <InspectorSection label="Metadata">
       <dl className="text-[10px] space-y-1.5 text-[var(--primary-soft)]">
         <div className="flex justify-between gap-2">
           <dt className="text-[var(--muted)]">Entity ID</dt>
@@ -26,6 +26,6 @@ export function EntityMetadataSection({ entity }: EntityMetadataSectionProps) {
           <dd>{entity.visible === false ? 'No' : 'Yes'}</dd>
         </div>
       </dl>
-    </SectionCollapse>
+    </InspectorSection>
   )
 }

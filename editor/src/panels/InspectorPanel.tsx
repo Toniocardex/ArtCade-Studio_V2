@@ -95,7 +95,7 @@ export default function InspectorPanel() {
         ) : null}
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-3 panel-scroll" data-panel="inspector-body">
+      <div className="flex-1 overflow-y-auto px-4 pb-3 panel-scroll" data-panel="inspector-body">
         {mode === 'entity' && entity && (
           <>
             <EntityInspector key={entity.id} entity={entity} />

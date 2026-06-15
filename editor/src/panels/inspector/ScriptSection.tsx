@@ -25,12 +25,11 @@ export function ScriptSection({ entity }: ScriptSectionProps) {
     <InspectorSection label="Script">
       <Field label="Path" value={scriptPath} />
       <button
+        type="button"
         onClick={openInEditor}
-        className="w-full mt-1 px-3 py-1 bg-[var(--accent-bg)] border border-[var(--accent-bd)]
-                   text-[var(--accent)] text-[10px] font-bold rounded hover:bg-[var(--accent-bg-h)]
-                   transition-colors"
+        className="w-full mt-1 inline-flex items-center justify-center gap-1.5 rounded border border-[var(--accent-bd)] bg-[var(--accent-bg)] px-3 py-1 text-xs font-semibold text-[var(--accent-fg-on-bg)] hover:bg-[var(--accent-bg-h)]"
       >
-        OPEN IN SCRIPT EDITOR →
+        Open in Script Editor
       </button>
     </InspectorSection>
   )

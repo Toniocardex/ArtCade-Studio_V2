@@ -165,8 +165,7 @@ function ComponentSection({ entity, desc }: ComponentSectionProps) {
                     applyInputBackspace(e.currentTarget)
                   }
                 }}
-                className="w-full bg-[var(--border)] border border-[var(--border-2)] rounded px-2 py-1
-                           text-xs text-[var(--text)] focus:outline-none focus:border-[var(--accent)] transition-colors"
+                className="editor-input"
               />
             </div>
           )

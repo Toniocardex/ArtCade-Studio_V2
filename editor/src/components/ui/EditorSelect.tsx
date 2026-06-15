@@ -253,7 +253,7 @@ export function EditorSelect({
         aria-label={ariaLabel}
         title={title}
         disabled={disabled}
-        className={`editor-listbox__trigger w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded text-xs text-left disabled:opacity-50 ${
+        className={`editor-listbox__trigger w-full flex items-center justify-between gap-2 h-6 px-2 rounded text-xs text-left disabled:opacity-50 ${
           selected ? '' : 'editor-listbox__trigger--placeholder'
         } ${triggerClassName}`.trim()}
         onClick={() => setOpen((v) => !v)}

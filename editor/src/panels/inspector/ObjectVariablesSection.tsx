@@ -51,7 +51,7 @@ export function ObjectVariablesSection({ entity }: Readonly<{ entity: EntityDef 
             <label key={variable.key} className="grid grid-cols-[1fr_1fr_auto] items-center gap-1 text-xs">
               <span className="truncate">{variable.key}</span>
               <input
-                className="bg-[var(--bg)] border border-[var(--border-2)] rounded px-2 py-1"
+                className={variable.type === 'boolean' ? 'justify-self-start' : 'editor-input'}
                 type={variable.type === 'number' ? 'number' : variable.type === 'boolean' ? 'checkbox' : 'text'}
                 checked={variable.type === 'boolean' ? Boolean(overrides[variable.key] ?? variable.initialValue) : undefined}
                 value={variable.type === 'boolean' ? undefined : String(overrides[variable.key] ?? variable.initialValue)}

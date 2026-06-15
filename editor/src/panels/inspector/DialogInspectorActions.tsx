@@ -15,8 +15,7 @@ export function DialogInspectorActions({ entity }: DialogInspectorActionsProps) 
     <button
       type="button"
       onClick={() => openDialogEditorForId(dispatch, store.getState().dialogs, dialogId)}
-      className="w-full mb-2 px-3 py-1.5 rounded text-xs font-semibold border border-[var(--purple)]/50
-                 bg-[rgb(var(--accent-rgb)/0.08)] text-[var(--purple)] hover:bg-[rgb(var(--accent-rgb)/0.15)]"
+      className="w-full mb-2 inline-flex items-center justify-center gap-1.5 rounded border border-[var(--accent-bd)] bg-[var(--accent-bg)] px-3 py-1 text-xs font-semibold text-[var(--accent-fg-on-bg)] hover:bg-[var(--accent-bg-h)]"
     >
       Edit dialog...
     </button>

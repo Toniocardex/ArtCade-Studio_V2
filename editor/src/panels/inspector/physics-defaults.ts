@@ -15,7 +15,7 @@ export const DEFAULT_PHYSICS: PhysicsComponent = {
 export const PHYSICS_INSPECTOR = {
   key: 'physics' as const,
   label: 'Physics (Collider)',
-  color: 'var(--blue)',
+  color: 'var(--accent)',
   description:
     'Explicit collider for overlap, raycast, falling objects, or a custom Top-Down hitbox. Top-Down uses object bounds automatically. Platformer movement is transform-only; with Physics its body is kinematic for collisions. Solid and Sensor create bodies without this block.',
 }

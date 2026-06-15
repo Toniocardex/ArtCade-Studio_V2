@@ -185,7 +185,7 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
     label: 'Top-Down Controller',
     description:
       'Moves with acceleration and friction. Uses an automatic collider based on the object bounds, so objects with the Solid component block movement. Add Physics (Collider) only to customize the hitbox.',
-    color: 'var(--accent-2)',
+    color: 'var(--accent)',
     create: () => ({ ...TOP_DOWN }),
     fields: [
       { key: 'maxSpeed', label: 'Max Speed (px/s)', kind: 'number', min: 0, step: 10 },
@@ -197,7 +197,7 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
   {
     key: 'linearMover',
     label: 'Linear Mover',
-    color: 'var(--blue)',
+    color: 'var(--accent)',
     create: () => ({ ...LINEAR_MOVER }),
     fields: [
       { key: 'directionX', label: 'Direction X', kind: 'number', step: 0.1 },
@@ -208,7 +208,7 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
   {
     key: 'cameraTarget',
     label: 'Camera Target',
-    color: 'var(--purple)',
+    color: 'var(--accent)',
     create: () => ({ ...CAMERA_TARGET }),
     fields: [
       { key: 'offsetX', label: 'Offset X (px)', kind: 'number', step: 1 },
@@ -333,7 +333,7 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
     key: 'dialog',
     label: 'Dialog',
     description: 'Talkable NPC — edit lines with Edit dialog, then Start Dialog on the Logic Board or dialog.start in Lua.',
-    color: 'var(--purple)',
+    color: 'var(--accent)',
     create: () => ({ ...DIALOG }),
     fields: [
       { key: 'dialogId', label: 'Dialog ID', kind: 'text' },

@@ -70,8 +70,7 @@ export function EntityTagsSection({ entity }: EntityTagsSectionProps) {
               addTag(draft)
             }
           }}
-          className="flex-1 min-w-0 bg-[var(--panel-3)] border border-[var(--border-2)] rounded px-2 py-1
-                     text-xs text-[var(--text)] focus:outline-none focus:border-[var(--accent)] transition-colors"
+          className="editor-input flex-1 min-w-0"
         />
         <button
           type="button"

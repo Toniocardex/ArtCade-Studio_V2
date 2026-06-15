@@ -31,8 +31,7 @@ function num(
         step={opts?.step ?? 1}
         onChange={(e) => onChange(Number(e.target.value))}
         onKeyDown={(e) => e.stopPropagation()}
-        className="w-full bg-[var(--border)] border border-[var(--border-2)] rounded px-2 py-1
-                   text-xs text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
+        className="editor-input"
       />
     </div>
   )
