@@ -45,6 +45,7 @@ function EntityInspector({ entity }: EntityInspectorProps) {
       <EntityHeaderBar entity={entity} onJumpToComponent={jumpToComponent} />
       <EntityMetadataSection entity={entity} />
       <ObjectVariablesSection entity={entity} />
+      <ProjectVariablesSection />
       <VariableWatchSection entityId={entity.id} />
       <ComponentsSection
         entity={entity}
