@@ -18,7 +18,9 @@ export default function ModuleTabs() {
   const dispatch = useEditorDispatch()
   const mode = useEditorSelector((s) => s.mode)
   const tier = useLayoutTier()
-  const iconOnly = tier !== 'full'
+  // Primary navigation: keep labels visible through 'compact' (a very common
+  // window width); only collapse to icon-only when space is genuinely tight.
+  const iconOnly = tier === 'minimal' || tier === 'unsupported'
 
   return (
     <nav className="editor-module-tabs" aria-label="Editor modules">
@@ -38,7 +40,7 @@ export default function ModuleTabs() {
               active ? 'editor-module-tab--active' : ''
             }`}
           >
-            <Icon size={14} strokeWidth={active ? 2.25 : 2} aria-hidden />
+            <Icon size={15} strokeWidth={active ? 2.25 : 2} aria-hidden />
             {!iconOnly && label}
           </button>
         )
