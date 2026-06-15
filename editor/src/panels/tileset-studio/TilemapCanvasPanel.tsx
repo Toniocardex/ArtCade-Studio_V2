@@ -92,11 +92,12 @@ export function TilemapCanvasPanel({ tileset, sceneId, tilemap }: Props) {
   const project      = useEditorSelector((s) => s.project)
   const selectedCell = useEditorSelector((s) => s.selectedTileCell)
 
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const imgRef    = useRef<HTMLImageElement | null>(null)
-  const [imgLoaded,  setImgLoaded]  = useState(false)
-  const [hoverCell, setHoverCell]   = useState<{ col: number; row: number } | null>(null)
-  const isPainting = useRef(false)
+  const canvasRef  = useRef<HTMLCanvasElement>(null)
+  const imgRef     = useRef<HTMLImageElement | null>(null)
+  const [imgLoaded, setImgLoaded] = useState(false)
+  const [hoverCell, setHoverCell] = useState<{ col: number; row: number } | null>(null)
+  const isPainting = useRef<'draw' | 'erase' | null>(null)
+  const lastCell   = useRef<{ col: number; row: number } | null>(null)
 
   // Load tileset image
   useEffect(() => {
@@ -122,7 +123,7 @@ export function TilemapCanvasPanel({ tileset, sceneId, tilemap }: Props) {
     drawCanvas(ctx, tilemap, tileset, imgRef.current, hoverCell, tileset.tileSize)
   }, [tilemap, tileset, hoverCell, imgLoaded])
 
-  function cellFromEvent(e: React.MouseEvent<HTMLCanvasElement>) {
+  function cellFromEvent(e: React.PointerEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current
     if (!canvas || !tilemap) return null
     const rect = canvas.getBoundingClientRect()
@@ -136,34 +137,63 @@ export function TilemapCanvasPanel({ tileset, sceneId, tilemap }: Props) {
     return { col, row }
   }
 
-  const paint = useCallback((col: number, row: number) => {
+  const paintCell = useCallback((col: number, row: number, tileId: number) => {
     if (!tilemap) return
-    const tileId = selectedCell // 0 = eraser
     dispatch({ type: 'TILEMAP_PAINT_CELL', sceneId, col, row, tileId })
-  }, [dispatch, sceneId, tilemap, selectedCell])
+  }, [dispatch, sceneId, tilemap])
 
-  function onPointerDown(e: React.MouseEvent<HTMLCanvasElement>) {
-    if (e.button !== 0) return
+  // Bresenham line: fill all cells between two grid positions so fast drags don't skip cells.
+  const paintLine = useCallback((
+    from: { col: number; row: number },
+    to:   { col: number; row: number },
+    tileId: number,
+  ) => {
+    let { col: x0, row: y0 } = from
+    const { col: x1, row: y1 } = to
+    const dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1
+    const dy = -Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1
+    let err = dx + dy
+    for (;;) {
+      paintCell(x0, y0, tileId)
+      if (x0 === x1 && y0 === y1) break
+      const e2 = 2 * err
+      if (e2 >= dy) { err += dy; x0 += sx }
+      if (e2 <= dx) { err += dx; y0 += sy }
+    }
+  }, [paintCell])
+
+  function onPointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
+    if (e.button !== 0 && e.button !== 2) return
     const cell = cellFromEvent(e)
     if (!cell) return
-    isPainting.current = true
-    ;(e.currentTarget as HTMLCanvasElement).setPointerCapture((e.nativeEvent as PointerEvent).pointerId)
-    paint(cell.col, cell.row)
+    const mode: 'draw' | 'erase' = e.button === 2 ? 'erase' : 'draw'
+    isPainting.current = mode
+    lastCell.current   = cell
+    e.currentTarget.setPointerCapture(e.pointerId)
+    paintCell(cell.col, cell.row, mode === 'erase' ? 0 : selectedCell)
   }
 
-  function onPointerMove(e: React.MouseEvent<HTMLCanvasElement>) {
+  function onPointerMove(e: React.PointerEvent<HTMLCanvasElement>) {
     const cell = cellFromEvent(e)
     setHoverCell(cell)
-    if (isPainting.current && cell) paint(cell.col, cell.row)
+    if (!isPainting.current || !cell) return
+    const from = lastCell.current
+    if (!from) { lastCell.current = cell; return }
+    if (from.col === cell.col && from.row === cell.row) return
+    const tileId = isPainting.current === 'erase' ? 0 : selectedCell
+    paintLine(from, cell, tileId)
+    lastCell.current = cell
   }
 
   function onPointerUp() {
-    isPainting.current = false
+    isPainting.current = null
+    lastCell.current   = null
   }
 
   function onPointerLeave() {
     setHoverCell(null)
-    isPainting.current = false
+    isPainting.current = null
+    lastCell.current   = null
   }
 
   // Bind tileset to scene tilemap + auto-sync tileSize
@@ -234,10 +264,13 @@ export function TilemapCanvasPanel({ tileset, sceneId, tilemap }: Props) {
             Bind tileset to scene
           </button>
         )}
-        <span className="ml-auto flex items-center gap-1.5">
-          {selectedCell === 0
-            ? <><Eraser size={11} /> Eraser</>
-            : <><MousePointer2 size={11} /> Tile #{selectedCell}</>}
+        <span className="ml-auto flex items-center gap-3">
+          <span className="flex items-center gap-1 text-[var(--muted-2,var(--muted))]">
+            {selectedCell === 0
+              ? <><Eraser size={11} /> Eraser</>
+              : <><MousePointer2 size={11} /> Tile #{selectedCell}</>}
+          </span>
+          <span className="text-[var(--muted)] opacity-60">LMB draw · RMB erase</span>
         </span>
       </div>
 
@@ -249,10 +282,11 @@ export function TilemapCanvasPanel({ tileset, sceneId, tilemap }: Props) {
           height={rows * displayCellSize}
           className="border border-[var(--border)] cursor-crosshair block"
           style={{ imageRendering: 'pixelated', userSelect: 'none' }}
-          onMouseDown={onPointerDown as unknown as React.MouseEventHandler<HTMLCanvasElement>}
-          onMouseMove={onPointerMove}
-          onMouseUp={onPointerUp}
-          onMouseLeave={onPointerLeave}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerLeave={onPointerLeave}
+          onContextMenu={(e) => e.preventDefault()}
         />
       </div>
     </div>
