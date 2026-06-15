@@ -19,22 +19,29 @@ namespace ArtCade {
 namespace {
 
 // C++ source of truth for the Text label 3×3 anchor grid. Mirrors
-// editor/src/utils/text-anchor.ts. Canonical values are "{v}-{h}" with the
-// dead-centre collapsing to "center"; legacy horizontal-only values
-// ("left"|"center"|"right") map to the top row (their original behaviour),
-// except bare "center" which now reads as true centre.
-//   hOut: 0 = left, 1 = centre, 2 = right
-//   vOut: 0 = top,  1 = middle, 2 = bottom
+// editor/src/utils/text-anchor.ts.
+//
+// Convention: anchor = the direction the text FLOWS from the entity position.
+//   "bottom-right" → text flows down-right  → entity at top-left of text
+//   "top-left"     → text flows up-left     → entity at bottom-right of text
+//   "center"       → text centered on entity
+//
+//   hOut: 0 = left-align (text to the right), 1 = centred, 2 = right-align (text to the left)
+//   vOut: 0 = top-align (text below),         1 = middle,  2 = bottom-align (text above)
 void textAnchorAlign(const std::string& a, int& hOut, int& vOut) {
-    if (a.find("left") != std::string::npos)       hOut = 0;
-    else if (a.find("right") != std::string::npos) hOut = 2;
-    else                                           hOut = 1;
+    // "left" → text flows LEFT  → entity at right edge  → hAlign=2 (right-align at pos)
+    // "right"→ text flows RIGHT → entity at left edge   → hAlign=0 (left-align at pos)
+    if (a.find("left") != std::string::npos)        hOut = 2;
+    else if (a.find("right") != std::string::npos)  hOut = 0;
+    else                                            hOut = 1;
 
-    if (a.find("top") != std::string::npos)        vOut = 0;
-    else if (a.find("bottom") != std::string::npos) vOut = 2;
-    else if (a.find("center") != std::string::npos
-             && a != "left" && a != "right")       vOut = 1;
-    else                                           vOut = 0; // legacy left/right
+    // "top"   → text flows UP   → entity at bottom edge → vAlign=2 (bottom-align at pos)
+    // "bottom"→ text flows DOWN → entity at top edge    → vAlign=0 (top-align at pos)
+    // Legacy bare "left"/"right" (no top/bottom) → vAlign=0 (text below, old behaviour)
+    if (a.find("top") != std::string::npos)         vOut = 2;
+    else if (a.find("bottom") != std::string::npos) vOut = 0;
+    else if (a == "center")                         vOut = 1;
+    else                                            vOut = 0; // legacy left/right/center
 }
 
 } // namespace

@@ -34,4 +34,5 @@ export const TEXT_ANCHOR_LABELS: readonly string[] = [
   'Bottom-left', 'Bottom-center', 'Bottom-right',
 ] as const
 
-export const DEFAULT_TEXT_ANCHOR: TextAnchor = 'top-left'
+/** Default: text flows down-right from entity position (most common for HUD labels). */
+export const DEFAULT_TEXT_ANCHOR: TextAnchor = 'bottom-right'

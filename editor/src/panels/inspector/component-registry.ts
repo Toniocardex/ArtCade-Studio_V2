@@ -98,7 +98,7 @@ const TEXT: TextComponent = {
   fontPath: '',
   size: 24,
   colorHex: '#ffffff',
-  align: DEFAULT_TEXT_ANCHOR,
+  align: DEFAULT_TEXT_ANCHOR, // 'bottom-right' — text flows down-right from entity
   offsetX: 0,
   offsetY: 0,
   screenSpace: false,
