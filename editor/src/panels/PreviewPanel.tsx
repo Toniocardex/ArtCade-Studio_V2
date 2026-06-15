@@ -505,10 +505,13 @@ export default function PreviewPanel({
 
         {/* Scrollable spacer — drives the scrollbars and hosts the DOM overlays
             (camera frame + edge ring), sized to world×zoom. Sits above the
-            canvas (z-index 1) but is transparent, so the canvas shows through. */}
+            canvas (z-index 1) but is transparent, so the canvas shows through.
+            pointerEvents:none lets clicks pass THROUGH to the runtime canvas
+            behind it, so the C++ editor controller still receives them for
+            entity picking / dragging. Every overlay here is visual-only. */}
         <div
           className="w-fit h-fit shrink-0"
-          style={{ width: frameW, height: frameH, position: 'relative', zIndex: 1 }}
+          style={{ width: frameW, height: frameH, position: 'relative', zIndex: 1, pointerEvents: 'none' }}
         >
           <div
             className="canvas-scene-frame"
