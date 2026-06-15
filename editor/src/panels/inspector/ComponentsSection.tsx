@@ -6,7 +6,7 @@ import {
   COMPONENT_REGISTRY,
   type ComponentDescriptor,
 } from './component-registry'
-import { InspectorSection } from './inspector-fields'
+import { HelpTooltip, InspectorSection } from './inspector-fields'
 import { componentBlockId } from './entity-component-utils'
 import { EditorSelect } from '../../components/ui/EditorSelect'
 import { PhysicsSection } from './PhysicsSection'
@@ -52,7 +52,10 @@ function ComponentSection({ entity, desc }: ComponentSectionProps) {
                    border-b border-[var(--border)] pb-1 mb-2 uppercase tracking-widest"
         style={{ color: desc.color }}
       >
-        <span>{desc.label}</span>
+        <span className="flex items-center gap-1.5">
+          {desc.label}
+          {desc.description && <HelpTooltip text={desc.description} />}
+        </span>
         <button
           type="button"
           title="Remove component"
@@ -68,12 +71,6 @@ function ComponentSection({ entity, desc }: ComponentSectionProps) {
           <Trash2 size={11} />
         </button>
       </div>
-
-      {desc.description ? (
-        <p className="text-[10px] text-[var(--muted)] leading-snug mb-2">
-          {desc.description}
-        </p>
-      ) : null}
 
       {desc.key === 'dialog' ? <DialogInspectorActions entity={entity} /> : null}
 

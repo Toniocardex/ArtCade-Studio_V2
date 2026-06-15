@@ -12,6 +12,38 @@ import { ChevronRight } from 'lucide-react'
 import { applyInputBackspace, isBackspaceKey } from '../../utils/keyboard'
 export { snapToGridValue } from '../../utils/entity-position'
 
+export function HelpTooltip({ text }: Readonly<{ text: string }>) {
+  return (
+    <div
+      className="relative group shrink-0"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <button
+        type="button"
+        tabIndex={-1}
+        aria-label="More information"
+        className="w-3.5 h-3.5 rounded-full text-[8px] font-bold leading-none
+                   flex items-center justify-center
+                   border border-[var(--border)] text-[var(--muted)]
+                   hover:border-[var(--accent)] hover:text-[var(--accent)]
+                   transition-colors"
+      >
+        ?
+      </button>
+      <div
+        className="absolute right-0 bottom-full mb-2 z-[200] w-56 p-2 rounded
+                   bg-[var(--panel)] border border-[var(--border-2)]
+                   text-[10px] text-[var(--muted)] leading-snug
+                   normal-case tracking-normal font-normal
+                   opacity-0 group-hover:opacity-100 pointer-events-none
+                   transition-opacity duration-100"
+      >
+        {text}
+      </div>
+    </div>
+  )
+}
+
 export type InspectorSectionBadge = {
   text: string
   color: 'green' | 'blue' | 'amber' | 'muted'
@@ -20,6 +52,7 @@ export type InspectorSectionBadge = {
 export type InspectorSectionProps = Readonly<{
   label: string
   labelBadge?: InspectorSectionBadge
+  tooltip?: string
   defaultOpen?: boolean
   open?: boolean
   onOpenChange?: (open: boolean) => void
@@ -36,6 +69,7 @@ const BADGE_CLASS: Record<InspectorSectionBadge['color'], string> = {
 export function InspectorSection({
   label,
   labelBadge,
+  tooltip,
   defaultOpen = false,
   open: controlledOpen,
   onOpenChange,
@@ -52,24 +86,26 @@ export function InspectorSection({
 
   return (
     <div className="mt-4">
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        aria-expanded={open}
-        className="w-full flex items-center justify-between text-[10px] text-[var(--muted)]
-                   hover:text-[var(--text)] font-bold border-b border-[var(--border)] pb-1 mb-2
-                   uppercase tracking-widest transition-colors"
-      >
-        <span className="flex items-center gap-2">
-          {label}
-          {labelBadge && (
-            <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded normal-case tracking-wide ${BADGE_CLASS[labelBadge.color]}`}>
-              {labelBadge.text}
-            </span>
-          )}
-        </span>
-        <ChevronRight size={11} className={`transition-transform ${open ? 'rotate-90' : ''}`} />
-      </button>
+      <div className="flex items-center gap-1.5 border-b border-[var(--border)] pb-1 mb-2">
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          aria-expanded={open}
+          className="flex-1 flex items-center justify-between text-[10px] text-[var(--muted)]
+                     hover:text-[var(--text)] font-bold uppercase tracking-widest transition-colors"
+        >
+          <span className="flex items-center gap-2">
+            {label}
+            {labelBadge && (
+              <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded normal-case tracking-wide ${BADGE_CLASS[labelBadge.color]}`}>
+                {labelBadge.text}
+              </span>
+            )}
+          </span>
+          <ChevronRight size={11} className={`transition-transform ${open ? 'rotate-90' : ''}`} />
+        </button>
+        {tooltip && <HelpTooltip text={tooltip} />}
+      </div>
       {open && <div>{children}</div>}
     </div>
   )

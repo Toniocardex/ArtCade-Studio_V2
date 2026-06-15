@@ -1,6 +1,6 @@
 import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import { DEFAULT_WORLD } from '../../types'
-import { InspectorSection } from './inspector-fields'
+import { HelpTooltip, InspectorSection } from './inspector-fields'
 import { EditorSelect } from '../../components/ui/EditorSelect'
 
 const physicsModeSelectId = 'world-physics-mode'
@@ -32,12 +32,15 @@ export function WorldSettingsSection() {
       {num('Gravity (m/s²)', 'gravity', 0.1)}
       {num('Px / Meter', 'pixelsPerMeter', 1)}
       <div className="mb-2">
-        <label
-          htmlFor={physicsModeSelectId}
-          className="text-[9px] text-[var(--muted)] uppercase block mb-1"
-        >
-          Physics simulation
-        </label>
+        <div className="flex items-center gap-1 mb-1">
+          <label
+            htmlFor={physicsModeSelectId}
+            className="text-[9px] text-[var(--muted)] uppercase"
+          >
+            Physics simulation
+          </label>
+          <HelpTooltip text="Auto skips the physics step for pure transform / platformer-only scenes. Sensors need On, or at least one body present in Auto mode." />
+        </div>
         <EditorSelect
           id={physicsModeSelectId}
           value={w.physicsMode ?? 'auto'}
@@ -47,16 +50,12 @@ export function WorldSettingsSection() {
               patch: { physicsMode: mode as 'off' | 'auto' | 'on' },
             })
           }
-          triggerClassName="text-[11px] py-1"
           options={[
             { value: 'auto', label: 'Auto (only when bodies exist)' },
             { value: 'on', label: 'On (always step)' },
             { value: 'off', label: 'Off (no physics step)' },
           ]}
         />
-        <p className="text-[9px] text-[var(--muted)] mt-1 leading-snug">
-          Auto skips physics for pure transform / platformer-only scenes. Sensors need On or bodies in Auto.
-        </p>
       </div>
     </InspectorSection>
   )

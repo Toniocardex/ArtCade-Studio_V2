@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 import { useEditorDispatch } from '../../store/editor-store'
 import type { EntityDef } from '../../types'
+import { HelpTooltip } from './inspector-fields'
 
 export type EntityTagsSectionProps = Readonly<{
   entity: EntityDef
@@ -23,15 +24,15 @@ export function EntityTagsSection({ entity }: EntityTagsSectionProps) {
 
   return (
     <div className="mb-2">
-      <label
-        htmlFor={tagInputId}
-        className="text-[9px] text-[var(--muted)] uppercase block mb-1"
-      >
-        Tags
-      </label>
-      <p className="text-[9px] text-[var(--muted)] leading-snug mb-1.5">
-        Used by sensors, filters, and lifecycle hooks. Logic Board rules use entity id, not tags.
-      </p>
+      <div className="flex items-center gap-1 mb-1.5">
+        <label
+          htmlFor={tagInputId}
+          className="text-[9px] text-[var(--muted)] uppercase"
+        >
+          Tags
+        </label>
+        <HelpTooltip text="Used by sensors, filters, and lifecycle hooks. Logic Board rules use entity id, not tags." />
+      </div>
       {entity.tags.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-2">
           {entity.tags.map((t) => (

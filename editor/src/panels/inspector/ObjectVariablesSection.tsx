@@ -1,7 +1,7 @@
 import type { EntityDef, GameVariableValue } from '../../types'
 import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import { findSceneInstance } from '../../utils/project-object-types'
-import { InspectorSection } from './inspector-fields'
+import { HelpTooltip, InspectorSection } from './inspector-fields'
 import { VariableDefinitionsEditor } from './VariableDefinitionsEditor'
 
 export function ObjectVariablesSection({ entity }: Readonly<{ entity: EntityDef }>) {
@@ -25,12 +25,9 @@ export function ObjectVariablesSection({ entity }: Readonly<{ entity: EntityDef 
     <InspectorSection
       label="Local Variables"
       labelBadge={{ text: 'LOCAL', color: 'green' }}
+      tooltip="Private to this object — each instance in the scene keeps its own independent copy. Reference in Logic Board rules with scope Local."
       defaultOpen
     >
-      <p className="mb-2 text-[10px] text-[var(--muted)]">
-        Private to this object. Each instance in the scene keeps its own independent copy.
-        Reference them in Logic Board rules with scope&nbsp;<strong>Local</strong>.
-      </p>
       <VariableDefinitionsEditor
         variables={variables}
         onChange={(next) => dispatch({
@@ -41,12 +38,12 @@ export function ObjectVariablesSection({ entity }: Readonly<{ entity: EntityDef 
       />
       {variables.length > 0 && (
         <div className="mt-3 border-t border-[var(--border)] pt-2 space-y-1">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--muted)] mb-1">
-            Starting values for this instance
-          </p>
-          <p className="text-[9px] text-[var(--muted)] mb-2">
-            Override the initial value for this specific instance only.
-          </p>
+          <div className="flex items-center gap-1 mb-1">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--muted)]">
+              Starting values for this instance
+            </p>
+            <HelpTooltip text="Override the initial value for this specific instance only. Other instances of the same object type keep the default." />
+          </div>
           {variables.map((variable) => (
             <label key={variable.key} className="grid grid-cols-[1fr_1fr_auto] items-center gap-1 text-xs">
               <span className="truncate">{variable.key}</span>

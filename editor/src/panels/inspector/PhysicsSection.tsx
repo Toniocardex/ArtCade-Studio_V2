@@ -4,6 +4,7 @@ import type { EntityDef, PhysicsComponent } from '../../types'
 import { PHYSICS_INSPECTOR } from './physics-defaults'
 import { componentBlockId } from './entity-component-utils'
 import { EditorSelect } from '../../components/ui/EditorSelect'
+import { HelpTooltip } from './inspector-fields'
 
 function numInputId(entityId: number, label: string): string {
   const slug = label.toLowerCase().replace(/[^a-z0-9]+/g, '-')
@@ -73,7 +74,10 @@ export function PhysicsSection({ entity }: PhysicsSectionProps) {
                    border-b border-[var(--border)] pb-1 mb-2 uppercase tracking-widest"
         style={{ color: PHYSICS_INSPECTOR.color }}
       >
-        <span>{PHYSICS_INSPECTOR.label}</span>
+        <span className="flex items-center gap-1.5">
+          {PHYSICS_INSPECTOR.label}
+          <HelpTooltip text={PHYSICS_INSPECTOR.description} />
+        </span>
         <button
           type="button"
           title="Remove Physics"
@@ -85,10 +89,6 @@ export function PhysicsSection({ entity }: PhysicsSectionProps) {
           <Trash2 size={11} />
         </button>
       </div>
-
-      <p className="text-[10px] text-[var(--muted)] leading-snug mb-2">
-        {PHYSICS_INSPECTOR.description}
-      </p>
 
       <div className="mb-2">
         <label htmlFor={bodyTypeSelectId} className="text-[9px] text-[var(--muted)] uppercase">
