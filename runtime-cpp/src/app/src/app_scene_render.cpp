@@ -37,11 +37,13 @@ void textAnchorAlign(const std::string& a, int& hOut, int& vOut) {
 
     // "top"   → text flows UP   → entity at bottom edge → vAlign=2 (bottom-align at pos)
     // "bottom"→ text flows DOWN → entity at top edge    → vAlign=0 (top-align at pos)
-    // Legacy bare "left"/"right" (no top/bottom) → vAlign=0 (text below, old behaviour)
+    // New 9-anchor values always have a hyphen or are exactly "center".
+    // Legacy bare "left"/"right" (no hyphen) → vAlign=0 (text below, old behaviour).
+    const bool isNewAnchor = a.find('-') != std::string::npos || a == "center";
     if (a.find("top") != std::string::npos)         vOut = 2;
     else if (a.find("bottom") != std::string::npos) vOut = 0;
-    else if (a == "center")                         vOut = 1;
-    else                                            vOut = 0; // legacy left/right/center
+    else if (isNewAnchor)                           vOut = 1; // center-left/right/"center"
+    else                                            vOut = 0; // legacy left/right
 }
 
 } // namespace
