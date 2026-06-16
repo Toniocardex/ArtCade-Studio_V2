@@ -98,7 +98,7 @@ export function TilesetEditorModal() {
     >
       <div
         ref={panelRef}
-        className="fixed flex flex-col w-[min(98vw,420px)] max-h-[min(93vh,900px)] rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--text)] shadow-2xl overflow-hidden pointer-events-auto"
+        className="fixed flex flex-col w-[min(96vw,1400px)] h-[min(90vh,820px)] rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--text)] shadow-2xl overflow-hidden pointer-events-auto"
         style={panelStyle}
         data-testid="tileset-studio-panel"
       >
@@ -136,7 +136,7 @@ export function TilesetEditorModal() {
         </header>
 
         {/* Palette only — painting happens on the WASM canvas behind the dialog */}
-        <div className="flex-1 min-h-0 overflow-auto">
+        <div className="flex-1 min-h-0 flex overflow-hidden">
           <TilePalettePanel
             tileset={tileset}
             onRemove={() => {

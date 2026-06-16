@@ -146,11 +146,11 @@ export function TilePalettePanel({ tileset, onRemove }: Props) {
   }
 
   return (
-    <div className="w-[340px] flex-shrink-0 flex flex-col border-r border-[var(--border)] bg-[var(--panel)] overflow-y-auto">
+    <div className="flex flex-1 min-h-0 overflow-hidden">
       <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/gif" className="hidden" onChange={onPickFile} />
 
-      {/* Controls */}
-      <div className="p-3 flex flex-col gap-3 border-b border-[var(--border)]">
+      {/* Left sidebar — controls */}
+      <div className="w-[260px] shrink-0 flex flex-col gap-4 p-4 border-r border-[var(--border)] bg-[var(--panel)] overflow-y-auto">
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
@@ -176,7 +176,7 @@ export function TilePalettePanel({ tileset, onRemove }: Props) {
           />
         </div>
 
-        <div className="text-[10px] text-[var(--muted)] space-y-0.5">
+        <div className="text-[10px] text-[var(--muted)] space-y-1">
           <div>Grid: <span className="text-[var(--text)]">{grid.cols}×{grid.rows}</span></div>
           <div>Brush: <span className="text-[var(--text)]">{selectedCell === 0 ? 'Eraser' : `Cell #${selectedCell}`}</span></div>
         </div>
@@ -204,8 +204,8 @@ export function TilePalettePanel({ tileset, onRemove }: Props) {
         </div>
       </div>
 
-      {/* Tile grid picker */}
-      <div className="flex-1 overflow-auto p-2">
+      {/* Right area — tile grid, fills all remaining space */}
+      <div className="flex-1 min-w-0 overflow-auto p-4">
         {imgUrl ? (
           <div className="relative inline-block border border-[var(--border)]" style={{ lineHeight: 0 }}>
             <img src={imgUrl} alt={tileset.name} className="block max-w-none" />
@@ -237,7 +237,7 @@ export function TilePalettePanel({ tileset, onRemove }: Props) {
             </div>
           </div>
         ) : (
-          <div className="flex items-center justify-center h-24 text-[var(--muted)] text-[10px] text-center px-4">
+          <div className="flex items-center justify-center h-full text-[var(--muted)] text-[11px] text-center px-8">
             {`"${tileset.name}" (${tileset.cols}×${tileset.rows}) — load image to edit`}
           </div>
         )}
