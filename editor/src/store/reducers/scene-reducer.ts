@@ -418,6 +418,26 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
         projectDirty: true,
       }
     }
+    case 'TILESET_EDIT_OPEN': {
+      // Auto-assign the tileset to the active scene, creating the tilemap layer if absent.
+      if (!state.project) return state
+      const sceneId = state.selection.sceneId ?? state.project.activeSceneId
+      const sc = sceneId ? state.project.scenes[sceneId] : undefined
+      if (!sc || !sceneId) return state
+      const tm = sc.tilemap ?? createTilemap(sc.worldSize.x, sc.worldSize.y)
+      if (sc.tilemap && tm.tilesetAssetId === action.tilesetId) return state
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          scenes: {
+            ...state.project.scenes,
+            [sceneId]: { ...sc, tilemap: { ...tm, tilesetAssetId: action.tilesetId } },
+          },
+        },
+        projectDirty: true,
+      }
+    }
     case 'TILEMAP_SET_TILESETID': {
       const sc = state.project?.scenes[action.sceneId]
       if (!state.project || !sc) return state
