@@ -276,15 +276,25 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
       const sc = state.project?.scenes[action.sceneId]
       if (!state.project || !sc) return state
       const layerName = state.editorActiveLayer
-      const layerTm = sc.tilemapLayers?.[layerName] ?? sc.tilemap
-      if (!layerTm) return state
+      // IMPORTANT: never fall back to sc.tilemap (the merged grid) — that would
+      // seed this layer with every other layer's tiles, making layers non-independent.
+      const existingLayerTm = sc.tilemapLayers?.[layerName]
+      const layerTm = existingLayerTm ?? createTilemap(sc.worldSize.x, sc.worldSize.y)
       if (action.col < 0 || action.col >= layerTm.cols ||
           action.row < 0 || action.row >= layerTm.rows) return state
       const index = action.row * layerTm.cols + action.col
       if (layerTm.data[index] === action.tileId) return state
       const data = layerTm.data.slice()
       data[index] = action.tileId
-      const updatedLayerTm: TilemapLayer = { ...layerTm, data }
+      // If auto-creating this layer entry, inherit the currently editing tileset.
+      const tilesetAssetId = existingLayerTm?.tilesetAssetId
+        ?? state.editingTilesetId
+        ?? undefined
+      const updatedLayerTm: TilemapLayer = {
+        ...layerTm,
+        data,
+        ...(tilesetAssetId != null ? { tilesetAssetId } : {}),
+      }
       const tilemapLayers = { ...(sc.tilemapLayers ?? {}), [layerName]: updatedLayerTm }
       const layerNames = (state.project.layers ?? DEFAULT_LAYERS).map(l => l.name)
       const merged = mergeTilemapLayers(layerNames, tilemapLayers) ?? updatedLayerTm
@@ -457,7 +467,7 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
       const sc = state.project?.scenes[action.sceneId]
       if (!state.project || !sc) return state
       const layerName = state.editorActiveLayer
-      const existing = sc.tilemapLayers?.[layerName] ?? sc.tilemap ?? createTilemap(sc.worldSize.x, sc.worldSize.y)
+      const existing = sc.tilemapLayers?.[layerName] ?? createTilemap(sc.worldSize.x, sc.worldSize.y)
       const layerTm: TilemapLayer = { ...existing, tilesetAssetId: action.assetId }
       const tilemapLayers = { ...(sc.tilemapLayers ?? {}), [layerName]: layerTm }
       const layerNames = (state.project.layers ?? DEFAULT_LAYERS).map(l => l.name)
