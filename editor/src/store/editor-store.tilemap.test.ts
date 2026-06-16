@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { coreReducer, type CoreState } from './editor-store'
 import { parseProjectDoc, serializeProjectDoc } from '../utils/project'
 import { createTilemap, DEFAULT_TILE_PALETTE, resizeTilemap } from '../types'
-import type { ProjectDoc } from '../types'
+import { DEFAULT_EDITOR_ACTIVE_LAYER } from '../constants/scene-layers'
 
 function project(): ProjectDoc {
   return {
@@ -26,6 +26,7 @@ function st(p: ProjectDoc): CoreState {
     editorGridSize: 32, snapToGrid: false, editorZoom: 1.0, editorZoomMode: 'manual', cameraPreview: false,
     projectLoadEpoch: 0,
     authoringMode: 'base',
+    editorActiveLayer: DEFAULT_EDITOR_ACTIVE_LAYER,
   }
 }
 
@@ -96,9 +97,11 @@ describe('coreReducer — tilemap', () => {
     // out-of-range col/row → unchanged reference
     const same = coreReducer(s, { type: 'TILEMAP_PAINT_CELL', sceneId: 's', col: 9999, row: 0, tileId: 7 })
     expect(same).toBe(s)
-    // no tilemap → no-op
+    // scene without tilemap yet → first paint auto-creates the active layer grid
     const noTm = coreReducer(st(project()), { type: 'TILEMAP_PAINT_CELL', sceneId: 's', col: 0, row: 0, tileId: 1 })
-    expect(noTm.projectDirty).toBe(false)
+    expect(noTm.projectDirty).toBe(true)
+    expect(noTm.project!.scenes.s.tilemapLayers?.[DEFAULT_EDITOR_ACTIVE_LAYER]?.data[0]).toBe(1)
+    expect(noTm.project!.scenes.s.tilemap!.data[0]).toBe(1)
   })
 
   it('no-op without project / unknown scene', () => {
