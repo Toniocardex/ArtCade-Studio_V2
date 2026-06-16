@@ -98,8 +98,17 @@ export function TilesetEditorModal() {
     >
       <div
         ref={panelRef}
-        className="fixed flex flex-col w-[min(96vw,1400px)] h-[min(90vh,820px)] rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--text)] shadow-2xl overflow-hidden pointer-events-auto"
-        style={panelStyle}
+        className="fixed flex flex-col rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--text)] shadow-2xl overflow-hidden pointer-events-auto"
+        style={{
+          ...panelStyle,
+          width: 680,
+          height: 540,
+          minWidth: 320,
+          minHeight: 260,
+          maxWidth: 'min(96vw, 1400px)',
+          maxHeight: 'min(92vh, 1000px)',
+          resize: 'both',
+        }}
         data-testid="tileset-studio-panel"
       >
         {/* Draggable header */}
