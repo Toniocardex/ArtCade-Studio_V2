@@ -19,15 +19,12 @@ const TilesetAsset* resolveTileset(
     return it != startupCache.end() ? &it->second : nullptr;
 }
 
-} // namespace
-
-void draw(Modules::Renderer& renderer,
-          const SceneDef& scene,
-          const std::vector<TilesetAsset>& liveTilesets,
-          const std::unordered_map<std::string, TilesetAsset>& startupCache,
-          const std::unordered_map<int, Vec4>& palette)
+void drawLayer(Modules::Renderer& renderer,
+               const TilemapData& tm,
+               const std::vector<TilesetAsset>& liveTilesets,
+               const std::unordered_map<std::string, TilesetAsset>& startupCache,
+               const std::unordered_map<int, Vec4>& palette)
 {
-    const auto& tm = scene.tilemap;
     if (tm.cols <= 0 || tm.rows <= 0) return;
 
     const int n = static_cast<int>(tm.data.size());
@@ -61,6 +58,27 @@ void draw(Modules::Renderer& renderer,
             }
         }
     }
+}
+
+} // namespace
+
+void draw(Modules::Renderer& renderer,
+          const SceneDef& scene,
+          const std::vector<SceneLayerDef>& layerStack,
+          const std::vector<TilesetAsset>& liveTilesets,
+          const std::unordered_map<std::string, TilesetAsset>& startupCache,
+          const std::unordered_map<int, Vec4>& palette)
+{
+    if (!scene.tilemapLayers.empty() && !layerStack.empty()) {
+        for (int i = static_cast<int>(layerStack.size()) - 1; i >= 0; --i) {
+            const auto it = scene.tilemapLayers.find(layerStack[static_cast<size_t>(i)].name);
+            if (it != scene.tilemapLayers.end())
+                drawLayer(renderer, it->second, liveTilesets, startupCache, palette);
+        }
+        return;
+    }
+
+    drawLayer(renderer, scene.tilemap, liveTilesets, startupCache, palette);
 }
 
 } // namespace ArtCade::TilemapRenderer

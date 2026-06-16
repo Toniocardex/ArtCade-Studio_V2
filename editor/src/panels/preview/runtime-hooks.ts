@@ -17,6 +17,7 @@ import {
 } from 'react'
 import {
   loadWasmRuntime, isReady,
+  editorSetActiveTileLayer,
   type WasmCallbacks,
 } from '../../utils/wasm-bridge'
 import { WASM_RUNTIME_SRC } from '../../utils/runtime-path'
@@ -404,6 +405,7 @@ interface EditorSyncOptions {
   selectedEntityId: number | null
   tool: EditorTool
   selectedTileCell: number
+  activeTileLayer: string
   guides: boolean
   gridSize: number
   snapToGrid: boolean
@@ -412,7 +414,7 @@ interface EditorSyncOptions {
 export function useRuntimeEditorSync(opts: EditorSyncOptions): void {
   const {
     wasmReady, engineReady,
-    isPlaying, selectedEntityId, tool, selectedTileCell,
+    isPlaying, selectedEntityId, tool, selectedTileCell, activeTileLayer,
     guides, gridSize, snapToGrid,
   } = opts
 
@@ -430,6 +432,11 @@ export function useRuntimeEditorSync(opts: EditorSyncOptions): void {
     if (!wasmReady || !engineReady) return
     runtimeSync.syncEditorTool(tool, selectedTileCell)
   }, [tool, selectedTileCell, wasmReady, engineReady])
+
+  useEffect(() => {
+    if (!wasmReady || !engineReady) return
+    editorSetActiveTileLayer(activeTileLayer)
+  }, [activeTileLayer, wasmReady, engineReady])
 
   useEffect(() => {
     if (!wasmReady || !engineReady) return

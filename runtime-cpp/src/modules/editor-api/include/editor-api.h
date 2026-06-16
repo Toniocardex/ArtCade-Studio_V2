@@ -209,6 +209,7 @@ public:
     static float    s_dragStartX, s_dragStartY;
     static bool     s_tilePaintMode;   // Phase F2
     static int      s_selectedTileId;  // Phase F2 (0 = eraser)
+    static std::string s_activeTileLayerName;
     static int      s_editorTool;      // 0 select, 1 pan, 2 paint, 3 erase/tile
     static bool     s_editorGuidesEnabled;
     static float    s_editorGridSize;
@@ -346,6 +347,18 @@ EMSCRIPTEN_KEEPALIVE void editor_set_tile_paint_mode(int enabled);
 /** Phase F2: set the brush tile id (0 = eraser). */
 EMSCRIPTEN_KEEPALIVE void editor_set_selected_tile(int tileId);
 
+/** Write one tile cell; optional @p layerName targets tilemapLayers (multi-layer). */
+EMSCRIPTEN_KEEPALIVE void editor_paint_tile(int col, int row, int tileId, const char* layerName);
+
+/** Push merged tilemap.data into the active scene (legacy single-layer sync). */
+EMSCRIPTEN_KEEPALIVE void editor_sync_tilemap_data(const char* dataJson);
+
+/** Push per-layer grids + merged data without a full project reload. */
+EMSCRIPTEN_KEEPALIVE void editor_sync_tilemap_layers(const char* jsonUtf8);
+
+/** Active tilemapLayers key for the C++ paintTileAt path. */
+EMSCRIPTEN_KEEPALIVE void editor_set_active_tile_layer(const char* layerName);
+
 /** Editor viewport tool: 0 select, 1 pan, 2 paint, 3 erase/tile. */
 EMSCRIPTEN_KEEPALIVE void editor_set_tool(int toolId);
 
@@ -457,6 +470,7 @@ struct EditorAPI {
     static float    s_dragStartX, s_dragStartY;
     static bool     s_tilePaintMode;
     static int      s_selectedTileId;
+    static std::string s_activeTileLayerName;
     static int      s_editorTool;
     static bool     s_editorGuidesEnabled;
     static float    s_editorGridSize;

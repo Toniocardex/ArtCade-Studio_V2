@@ -20,12 +20,15 @@ type Props = Readonly<{
   scrollRef: RefObject<HTMLDivElement | null>
   zoom: number
   tilemap: TilemapLayer | undefined
+  activeLayerName: string
   selectedTileCell: number
   sceneId: string
   dispatch: Dispatch<Action>
 }>
 
-export function TilePaintOverlay({ scrollRef, zoom, tilemap, selectedTileCell, sceneId, dispatch }: Props) {
+export function TilePaintOverlay({
+  scrollRef, zoom, tilemap, activeLayerName, selectedTileCell, sceneId, dispatch,
+}: Props) {
   // Track overlay size to match the canvas element exactly.
   const [size, setSize] = useState({ w: 0, h: 0 })
   useLayoutEffect(() => {
@@ -62,9 +65,9 @@ export function TilePaintOverlay({ scrollRef, zoom, tilemap, selectedTileCell, s
 
   const applyCell = useCallback((col: number, row: number, tileId: number) => {
     if (!tilemap) return
-    editorPaintTile(col, row, tileId)
+    editorPaintTile(col, row, tileId, activeLayerName)
     dispatch({ type: 'TILEMAP_PAINT_CELL', sceneId, col, row, tileId })
-  }, [dispatch, sceneId, tilemap])
+  }, [activeLayerName, dispatch, sceneId, tilemap])
 
   // Bresenham line: fill all cells between two positions (fast drag continuity).
   const applyLine = useCallback((

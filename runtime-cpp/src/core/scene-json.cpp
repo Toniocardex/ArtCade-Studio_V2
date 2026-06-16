@@ -48,22 +48,46 @@ bool read_scene_instance(const nlohmann::json& instanceJson, SceneInstanceDef& o
     return out.id != 0 && !out.objectTypeId.empty();
 }
 
+void read_tilemap_object(const nlohmann::json& tmJson, TilemapData& out) {
+    if (!tmJson.is_object())
+        return;
+
+    TilemapData tilemap;
+    if (tmJson.contains("tileSize"))
+        tilemap.tileSize = tmJson["tileSize"].get<float>();
+    else if (tmJson.contains("tile_size"))
+        tilemap.tileSize = tmJson["tile_size"].get<float>();
+    tilemap.cols = tmJson.value("cols", 0);
+    tilemap.rows = tmJson.value("rows", 0);
+    if (tmJson.contains("data") && tmJson["data"].is_array())
+        tilemap.data = tmJson["data"].get<std::vector<int>>();
+    tilemap.tilesetAssetId = read_string_any(tmJson, "tilesetAssetId", "tileset_asset_id");
+    out = std::move(tilemap);
+}
+
 void read_tilemap(const nlohmann::json& sceneJson, TilemapData& out) {
     if (!sceneJson.contains("tilemap") || !sceneJson["tilemap"].is_object())
         return;
+    read_tilemap_object(sceneJson["tilemap"], out);
+}
 
-    const auto& tm = sceneJson["tilemap"];
-    TilemapData tilemap;
-    if (tm.contains("tileSize"))
-        tilemap.tileSize = tm["tileSize"].get<float>();
-    else if (tm.contains("tile_size"))
-        tilemap.tileSize = tm["tile_size"].get<float>();
-    tilemap.cols = tm.value("cols", 0);
-    tilemap.rows = tm.value("rows", 0);
-    if (tm.contains("data") && tm["data"].is_array())
-        tilemap.data = tm["data"].get<std::vector<int>>();
-    tilemap.tilesetAssetId = read_string_any(tm, "tilesetAssetId", "tileset_asset_id");
-    out = std::move(tilemap);
+void read_tilemap_layers(const nlohmann::json& sceneJson,
+                         std::unordered_map<std::string, TilemapData>& out) {
+    const nlohmann::json* layersJson = nullptr;
+    if (sceneJson.contains("tilemapLayers") && sceneJson["tilemapLayers"].is_object())
+        layersJson = &sceneJson["tilemapLayers"];
+    else if (sceneJson.contains("tilemap_layers") && sceneJson["tilemap_layers"].is_object())
+        layersJson = &sceneJson["tilemap_layers"];
+    if (!layersJson)
+        return;
+
+    out.clear();
+    for (auto& [name, layerJson] : layersJson->items()) {
+        TilemapData layer;
+        read_tilemap_object(layerJson, layer);
+        if (layer.cols > 0 && layer.rows > 0)
+            out.emplace(name, std::move(layer));
+    }
 }
 
 void read_scene_def(const nlohmann::json& sceneJson,
@@ -99,6 +123,7 @@ void read_scene_def(const nlohmann::json& sceneJson,
     }
 
     read_tilemap(sceneJson, out.tilemap);
+    read_tilemap_layers(sceneJson, out.tilemapLayers);
 }
 
 void read_scenes_map(const nlohmann::json& doc,

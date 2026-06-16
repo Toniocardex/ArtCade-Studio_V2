@@ -209,6 +209,8 @@ public:
     /** Patch scene viewport/world/background on the active project snapshot. */
     bool updateSceneSettings(const SceneId& sceneId, const SceneDef& patch);
     void setTilesets(std::vector<TilesetAsset> tilesets);
+    void setSceneLayers(std::vector<SceneLayerDef> layers);
+    const std::vector<SceneLayerDef>& sceneLayers() const;
 
     bool loadScene(const SceneId& id);
     /** Fade to black, load scene, fade in. fadeSeconds <= 0 loads immediately. */

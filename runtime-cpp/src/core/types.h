@@ -295,6 +295,11 @@ struct TilemapData {
     std::string      tilesetAssetId; // Phase F3: spritesheet ref (empty = colour)
 };
 
+/** Named scene render layer (editor project.layers; index 0 = highest priority). */
+struct SceneLayerDef {
+    std::string name;
+};
+
 // Phase F3: spritesheet tileset. Cell id is 1-based, laid out L→R, T→B.
 struct TilesetAsset {
     std::string assetId;
@@ -323,7 +328,10 @@ struct SceneDef {
     Vec4                backgroundColor;
     std::vector<EntityId> entityIds;
     std::vector<SceneInstanceDef> instances;
+    /** Merged grid for physics / legacy single-layer projects. */
     TilemapData         tilemap;     // cols==0 → absent
+    /** Per-layer paint grids (editor tilemapLayers); rendered bottom→top. */
+    std::unordered_map<std::string, TilemapData> tilemapLayers;
 };
 
 struct TilePaletteEntry {
@@ -406,6 +414,7 @@ struct ProjectDoc {
     std::unordered_map<EntityId, EntityDef> entities;
     std::unordered_map<SceneId,  SceneDef>  scenes;
     std::unordered_map<SceneId,  std::string> thumbnails;
+    std::vector<SceneLayerDef>    layers;        // render stack (index 0 = on top)
     std::vector<TilePaletteEntry> tilePalette;   // Phase D2
     std::vector<TilesetAsset>     tilesets;      // Phase F3
     std::vector<ImageAssetDef>    imageAssets;   // editor assets + image points

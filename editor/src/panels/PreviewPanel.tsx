@@ -296,6 +296,7 @@ export default function PreviewPanel({
     selectedEntityId: selection.entityId,
     tool: activeTool,
     selectedTileCell,
+    activeTileLayer: editorActiveLayer,
     // The runtime draws the alignment grid under the sprites (its native,
     // correct z-order). The camera-viewport outline is the editor's dashed DOM
     // overlay (CameraFrameOverlay) — the runtime no longer draws it.
@@ -519,6 +520,7 @@ export default function PreviewPanel({
                 selectedScene?.tilemapLayers?.[editorActiveLayer] ??
                 selectedScene?.tilemap
               }
+              activeLayerName={editorActiveLayer}
               selectedTileCell={selectedTileCell}
               sceneId={selectedSceneId ?? ''}
               dispatch={dispatch}

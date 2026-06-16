@@ -722,12 +722,27 @@ export function editorSetSelectedTile(tileId: number): void {
 }
 
 /** Write a single tilemap cell directly — no texture eviction, no full project reload.
- *  Called per-cell from the React overlay fan-out for immediate WASM feedback during drag. */
-export function editorPaintTile(col: number, row: number, tileId: number): void {
-  safeCall('editor_paint_tile', null, ['number', 'number', 'number'], [col, row, tileId])
+ *  When @p layerName is set, targets that tilemapLayers grid (multi-layer render). */
+export function editorPaintTile(
+  col: number,
+  row: number,
+  tileId: number,
+  layerName?: string,
+): void {
+  const layerPtr = layerName ? marshalString(layerName) : 0
+  try {
+    safeCall(
+      'editor_paint_tile',
+      null,
+      ['number', 'number', 'number', 'number'],
+      [col, row, tileId, layerPtr],
+    )
+  } finally {
+    if (layerPtr) _module!._free(layerPtr)
+  }
 }
 
-/** Push the full tilemap.data array into the active scene without evicting textures.
+/** Push merged tilemap.data into the active scene without evicting textures.
  *  Returns true if the WASM function exists and the call succeeded; false if the
  *  runtime was not rebuilt yet (caller should fall back to editorLoadProject). */
 export function editorSyncTilemapData(data: number[]): boolean {
@@ -735,6 +750,32 @@ export function editorSyncTilemapData(data: number[]): boolean {
   const ptr = marshalString(JSON.stringify(data))
   try {
     return safeCall('editor_sync_tilemap_data', null, ['number'], [ptr])
+  } finally {
+    _module._free(ptr)
+  }
+}
+
+/** Push per-layer grids + merged data for multi-layer tilemap rendering. */
+export function editorSyncTilemapLayers(payload: {
+  layerNames: string[]
+  tilemapLayers: Record<string, unknown>
+  mergedData: number[]
+}): boolean {
+  if (!_module) return false
+  const ptr = marshalString(JSON.stringify(payload))
+  try {
+    return safeCall('editor_sync_tilemap_layers', null, ['number'], [ptr])
+  } finally {
+    _module._free(ptr)
+  }
+}
+
+/** C++ native tile-paint path: active layer name for paintTileAt. */
+export function editorSetActiveTileLayer(layerName: string): void {
+  if (!_module) return
+  const ptr = marshalString(layerName)
+  try {
+    safeCall('editor_set_active_tile_layer', null, ['number'], [ptr])
   } finally {
     _module._free(ptr)
   }

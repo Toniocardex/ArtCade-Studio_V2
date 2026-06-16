@@ -150,6 +150,29 @@ static void test_read_scene_def_snake_case_and_tilemap() {
     CHECK(s.tilemap.tilesetAssetId == "ts_grass");
 }
 
+static void test_read_scene_tilemap_layers_and_project_layers() {
+    const json scene = json::parse(R"({
+      "id": "level_1",
+      "tilemap": { "tileSize": 32, "cols": 2, "rows": 1, "data": [1, 0] },
+      "tilemapLayers": {
+        "ground": { "tileSize": 32, "cols": 2, "rows": 1, "data": [1, 0] },
+        "props":  { "tileSize": 32, "cols": 2, "rows": 1, "data": [0, 2], "tilesetAssetId": "ts_props" }
+      }
+    })");
+    ArtCade::SceneDef s{};
+    ArtCade::ProjectJson::read_scene_def(scene, "fallback", s);
+    CHECK(s.tilemapLayers.size() == 2);
+    CHECK(s.tilemapLayers.at("props").tilesetAssetId == "ts_props");
+    CHECK(s.tilemapLayers.at("props").data[1] == 2);
+
+    const json doc = json::parse(R"({ "layers": ["props", "ground"] })");
+    std::vector<ArtCade::SceneLayerDef> layers;
+    ArtCade::ProjectJson::read_scene_layers(doc, layers);
+    CHECK(layers.size() == 2);
+    CHECK(layers[0].name == "props");
+    CHECK(layers[1].name == "ground");
+}
+
 static void test_read_tile_palette_hex_and_snake_case() {
     const json doc = json::parse(R"({
       "tile_palette": [{
@@ -307,6 +330,7 @@ int main() {
     test_read_sprite_component_fill_color();
     test_read_object_type_all_gameplay_components();
     test_read_scene_def_snake_case_and_tilemap();
+    test_read_scene_tilemap_layers_and_project_layers();
     test_read_tile_palette_hex_and_snake_case();
     test_read_tilesets_array_and_world_settings();
     test_read_runtime_settings_partial_overlay();

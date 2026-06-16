@@ -6,12 +6,19 @@ import {
   runtimeProjectProjection,
   type RuntimeProjection,
 } from './runtime-fingerprint'
-import type { ProjectDoc } from '../types'
+import type { ProjectDoc, TilemapLayer } from '../types'
+
+export type TilemapLayersSyncPayload = {
+  layerNames: string[]
+  tilemapLayers: Record<string, TilemapLayer>
+  mergedData: number[]
+}
 
 export type ProjectSyncPlan =
   | { kind: 'none' }
   | { kind: 'full' }
   | { kind: 'tilemap_data_only'; data: number[] }
+  | { kind: 'tilemap_layers_only'; payload: TilemapLayersSyncPayload }
   | { kind: 'incremental'; entityIds: number[]; sceneIds: string[] }
 
 function sortedEntityIds(proj: RuntimeProjection): number[] {
@@ -20,6 +27,14 @@ function sortedEntityIds(proj: RuntimeProjection): number[] {
 
 function sceneSettingsKey(scene: RuntimeProjection['scenes'][number]): string {
   return JSON.stringify({ ws: scene.ws, vs: scene.vs, bg: scene.bg })
+}
+
+function tilemapStructKey(tm: RuntimeProjection['scenes'][number]['tm']): string {
+  return tm ? `${tm.ts}|${tm.c}|${tm.r}|${tm.set ?? ''}` : 'none'
+}
+
+function tileLayerStructKey(layer: NonNullable<RuntimeProjection['scenes'][number]['tl']>[string]): string {
+  return `${layer.ts}|${layer.c}|${layer.r}|${layer.set ?? ''}`
 }
 
 /**
@@ -40,7 +55,8 @@ export function planProjectSync(
     prev.as !== next.as ||
     prev.fps !== next.fps ||
     prev.msp !== next.msp ||
-    prev.wd !== next.wd
+    prev.wd !== next.wd ||
+    JSON.stringify(prev.lyr) !== JSON.stringify(next.lyr)
   ) {
     return { kind: 'full' }
   }
@@ -55,22 +71,46 @@ export function planProjectSync(
   }
 
   const prevScenes = new Map(prev.scenes.map((s) => [s.id, s]))
+  let tilemapLayersOnly: TilemapLayersSyncPayload | null = null
   let tilemapDataOnlyScene: { sceneId: string; data: number[] } | null = null
+
   for (const scene of next.scenes) {
     const ps = prevScenes.get(scene.id)
     if (!ps) return { kind: 'full' }
     if (JSON.stringify(ps.e) !== JSON.stringify(scene.e)) return { kind: 'full' }
+
+    if (JSON.stringify(ps.tl) !== JSON.stringify(scene.tl)) {
+      if (!ps.tl || !scene.tl) return { kind: 'full' }
+      const names = new Set([...Object.keys(ps.tl), ...Object.keys(scene.tl)])
+      for (const name of names) {
+        const a = ps.tl[name]
+        const b = scene.tl[name]
+        if (!a || !b) return { kind: 'full' }
+        if (tileLayerStructKey(a) !== tileLayerStructKey(b)) return { kind: 'full' }
+      }
+      if (tilemapLayersOnly) return { kind: 'full' }
+      const sceneDoc = project.scenes[scene.id]
+      if (!sceneDoc?.tilemapLayers || !sceneDoc.tilemap?.data) return { kind: 'full' }
+      tilemapLayersOnly = {
+        layerNames: next.lyr,
+        tilemapLayers: sceneDoc.tilemapLayers,
+        mergedData: sceneDoc.tilemap.data,
+      }
+    }
+
     if (JSON.stringify(ps.tm) !== JSON.stringify(scene.tm)) {
-      // Check if only dh (data hash) differs — all structural fields same.
-      const structKey = (tm: typeof scene.tm) =>
-        tm ? `${tm.ts}|${tm.c}|${tm.r}|${tm.set ?? ''}` : 'none'
-      if (structKey(ps.tm) !== structKey(scene.tm)) return { kind: 'full' }
-      // Only data hash changed — lightweight sync instead of full reload.
-      if (tilemapDataOnlyScene) return { kind: 'full' } // two scenes changed → full
+      if (tilemapStructKey(ps.tm) !== tilemapStructKey(scene.tm)) return { kind: 'full' }
+      // Merged grid dh also moves on layer paint — covered by tilemap_layers_only.
+      if (tilemapLayersOnly) continue
+      if (tilemapDataOnlyScene) return { kind: 'full' }
       const tileData = project.scenes[scene.id]?.tilemap?.data
       if (!tileData) return { kind: 'full' }
       tilemapDataOnlyScene = { sceneId: scene.id, data: tileData }
     }
+  }
+
+  if (tilemapLayersOnly) {
+    return { kind: 'tilemap_layers_only', payload: tilemapLayersOnly }
   }
   if (tilemapDataOnlyScene) {
     return { kind: 'tilemap_data_only', data: tilemapDataOnlyScene.data }

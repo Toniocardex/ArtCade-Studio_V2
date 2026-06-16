@@ -13,6 +13,7 @@ float    EditorAPI::s_dragStartX       = 0.f;
 float    EditorAPI::s_dragStartY       = 0.f;
 bool     EditorAPI::s_tilePaintMode    = false;
 int      EditorAPI::s_selectedTileId   = 1;
+std::string EditorAPI::s_activeTileLayerName;
 int      EditorAPI::s_editorTool       = 0;
 bool     EditorAPI::s_editorGuidesEnabled = true;
 float    EditorAPI::s_editorGridSize   = 32.f;
@@ -63,6 +64,8 @@ std::vector<std::pair<std::string, std::string>> EditorAPI::s_consoleQueue;
 #include "../../../modules/audio/include/audio.h"
 #include "../../../modules/asset-system/include/asset-manifest-index.h"
 #include "../../../core/types.h"
+#include "../../../core/scene-json.h"
+#include "../../../core/project-meta-json.h"
 
 #include "editor-input-controller.h"
 #include "editor-spritesheet-preview.h"
@@ -154,6 +157,7 @@ float    EditorAPI::s_dragStartX       = 0.f;
 float    EditorAPI::s_dragStartY       = 0.f;
 bool     EditorAPI::s_tilePaintMode    = false;
 int      EditorAPI::s_selectedTileId   = 1;
+std::string EditorAPI::s_activeTileLayerName;
 int      EditorAPI::s_editorTool       = 0;
 bool     EditorAPI::s_editorGuidesEnabled = true;
 float    EditorAPI::s_editorGridSize   = 32.f;
@@ -399,19 +403,102 @@ EMSCRIPTEN_KEEPALIVE void editor_set_selected_tile(int tileId) {
     ArtCade::EditorAPI::s_selectedTileId = tileId;
 }
 
+EMSCRIPTEN_KEEPALIVE void editor_set_active_tile_layer(const char* layerName) {
+    ArtCade::EditorAPI::s_activeTileLayerName =
+        (layerName && *layerName) ? std::string(layerName) : std::string{};
+}
+
 // Direct single-cell write — no texture eviction, no echo.
-// Called from the JS fan-out path (React overlay → editorPaintTile) for
-// immediate WASM feedback during drag without triggering a full project reload.
-EMSCRIPTEN_KEEPALIVE void editor_paint_tile(int col, int row, int tileId) {
+// When @p layerName is set, updates that layer grid and recomposites merged tilemap.
+EMSCRIPTEN_KEEPALIVE void editor_paint_tile(int col, int row, int tileId, const char* layerName) {
     auto* gw = ArtCade::EditorAPI::s_entityGateway;
     if (!gw) return;
     ArtCade::SceneDef* sc = gw->activeSceneMutable();
     if (!sc) return;
+
+    const std::string layer = (layerName && *layerName) ? std::string(layerName) : std::string{};
+    if (!layer.empty()) {
+        auto layerIt = sc->tilemapLayers.find(layer);
+        if (layerIt == sc->tilemapLayers.end()) return;
+        ArtCade::TilemapData& layerTm = layerIt->second;
+        if (col < 0 || col >= layerTm.cols || row < 0 || row >= layerTm.rows) return;
+        const int idx = row * layerTm.cols + col;
+        if (idx >= static_cast<int>(layerTm.data.size())) return;
+        layerTm.data[idx] = tileId;
+
+        const auto& stack = gw->sceneLayers();
+        if (!stack.empty()) {
+            ArtCade::TilemapData& merged = sc->tilemap;
+            if (merged.cols > 0 && merged.rows > 0) {
+                const int mi = row * merged.cols + col;
+                if (mi >= 0 && mi < static_cast<int>(merged.data.size())) {
+                    int value = 0;
+                    for (int i = static_cast<int>(stack.size()) - 1; i >= 0; --i) {
+                        auto it = sc->tilemapLayers.find(stack[static_cast<size_t>(i)].name);
+                        if (it == sc->tilemapLayers.end()) continue;
+                        const ArtCade::TilemapData& tm = it->second;
+                        if (col >= tm.cols || row >= tm.rows) continue;
+                        const int li = row * tm.cols + col;
+                        if (li < 0 || li >= static_cast<int>(tm.data.size())) continue;
+                        const int v = tm.data[li];
+                        if (v != 0) value = v;
+                    }
+                    merged.data[mi] = value;
+                }
+            }
+        }
+        return;
+    }
+
     ArtCade::TilemapData& tm = sc->tilemap;
     if (col < 0 || col >= tm.cols || row < 0 || row >= tm.rows) return;
     const int idx = row * tm.cols + col;
     if (idx >= static_cast<int>(tm.data.size())) return;
     tm.data[idx] = tileId;
+}
+
+// Full per-layer tilemap resync — no texture eviction, no full project reload.
+// JSON: { "layerNames": [...], "tilemapLayers": { name: {tileSize,cols,rows,data,...} },
+//         "mergedData": [...] }
+EMSCRIPTEN_KEEPALIVE void editor_sync_tilemap_layers(const char* jsonUtf8) {
+    if (!jsonUtf8 || !*jsonUtf8) return;
+    auto* gw = ArtCade::EditorAPI::s_entityGateway;
+    if (!gw) return;
+    ArtCade::SceneDef* sc = gw->activeSceneMutable();
+    if (!sc) return;
+
+    try {
+        const json root = json::parse(jsonUtf8);
+        if (root.contains("layerNames") && root["layerNames"].is_array()) {
+            std::vector<ArtCade::SceneLayerDef> layers;
+            for (const auto& item : root["layerNames"]) {
+                if (!item.is_string()) continue;
+                ArtCade::SceneLayerDef layer;
+                layer.name = item.get<std::string>();
+                if (!layer.name.empty()) layers.push_back(std::move(layer));
+            }
+            gw->setSceneLayers(std::move(layers));
+        }
+
+        if (root.contains("tilemapLayers") && root["tilemapLayers"].is_object()) {
+            for (auto& [name, layerJson] : root["tilemapLayers"].items()) {
+                ArtCade::TilemapData layer;
+                ArtCade::ProjectJson::read_tilemap_object(layerJson, layer);
+                if (layer.cols > 0 && layer.rows > 0)
+                    sc->tilemapLayers[name] = std::move(layer);
+            }
+        }
+
+        if (root.contains("mergedData") && root["mergedData"].is_array()) {
+            ArtCade::TilemapData& tm = sc->tilemap;
+            const int sz = tm.cols * tm.rows;
+            const auto& arr = root["mergedData"];
+            if (sz > 0 && arr.is_array() && static_cast<int>(arr.size()) == sz) {
+                for (int i = 0; i < sz; ++i)
+                    tm.data[i] = arr[i].get<int>();
+            }
+        }
+    } catch (...) {}
 }
 
 // Full tilemap data resync — no texture eviction, no full project reload.
@@ -660,6 +747,10 @@ bool loadProjectFromJson(const char* json_utf8, ProjectLoadKind kind,
             objectTypes.empty() ? nullptr : &objectTypes;
         gateway->replaceProject(sceneDefs, entityDefs, activeId, typesPtr);
         gateway->setTilesets(tilesets);
+
+        std::vector<ArtCade::SceneLayerDef> sceneLayers;
+        ArtCade::ProjectJson::read_scene_layers(doc, sceneLayers);
+        gateway->setSceneLayers(std::move(sceneLayers));
 
         const ArtCade::ProjectRuntimeSettings runtimeSettings =
             Parser::parseRuntimeSettings(doc);

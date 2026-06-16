@@ -941,6 +941,14 @@ void RuntimeEntityGateway::setTilesets(std::vector<TilesetAsset> tilesets) {
     sceneManager_.setTilesets(std::move(tilesets));
 }
 
+void RuntimeEntityGateway::setSceneLayers(std::vector<SceneLayerDef> layers) {
+    sceneManager_.setSceneLayers(std::move(layers));
+}
+
+const std::vector<SceneLayerDef>& RuntimeEntityGateway::sceneLayers() const {
+    return sceneManager_.sceneLayers();
+}
+
 bool RuntimeEntityGateway::loadScene(const SceneId& id) {
     if (!sceneManager_.loadScene(id)) return false;
     syncSceneActivation();

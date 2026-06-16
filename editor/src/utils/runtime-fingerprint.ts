@@ -80,6 +80,14 @@ interface FpTilemap {
   dh?: number                // data hash (XOR+sum of painted cells — detects tile paints)
 }
 
+interface FpTilemapLayer {
+  ts:  number
+  c:   number
+  r:   number
+  set?: string
+  dh?: number
+}
+
 interface FpScene {
   id:  string
   ws:  FpVec2                // worldSize
@@ -87,6 +95,8 @@ interface FpScene {
   bg:  FpVec4                // backgroundColor
   e:   number[]              // entityIds (sorted)
   tm?: FpTilemap
+  /** Per-layer paint grids (when scene uses tilemapLayers). */
+  tl?: Record<string, FpTilemapLayer>
 }
 
 export interface RuntimeProjection {
@@ -98,6 +108,8 @@ export interface RuntimeProjection {
   wd: string
   msp: string                // mainScriptPath
   gv?: unknown               // project variable declarations
+  /** Render stack names (index 0 = highest priority). */
+  lyr: string[]
   entities: FpEntity[]
   scenes: FpScene[]
 }
@@ -177,6 +189,20 @@ function tilemapDataHash(data: number[]): number {
 
 function projectScene(s: SceneDef): FpScene {
   const tm = s.tilemap
+  const layers = s.tilemapLayers
+  let tl: Record<string, FpTilemapLayer> | undefined
+  if (layers && Object.keys(layers).length > 0) {
+    tl = {}
+    for (const [name, layer] of Object.entries(layers)) {
+      tl[name] = {
+        ts:  layer.tileSize,
+        c:   layer.cols,
+        r:   layer.rows,
+        set: layer.tilesetAssetId,
+        dh:  layer.data.length > 0 ? tilemapDataHash(layer.data) : undefined,
+      }
+    }
+  }
   return {
     id: s.id,
     ws: v2(s.worldSize),
@@ -190,6 +216,7 @@ function projectScene(s: SceneDef): FpScene {
       set: tm.tilesetAssetId,
       dh:  tm.data.length > 0 ? tilemapDataHash(tm.data) : undefined,
     } : undefined,
+    tl,
   }
 }
 
@@ -213,6 +240,7 @@ export function runtimeProjectProjection(
     wd:  worldRuntimeDigest(project.world),
     msp: project.mainScriptPath,
     gv: project.globalVariables,
+    lyr: (project.layers ?? []).map((layer) => layer.name),
     entities: entityIds.map((id) => projectEntity(project, entities[id])),
     scenes:   sceneIds.map((id) => projectScene(project.scenes[id])),
   }
@@ -250,6 +278,7 @@ export interface RuntimeProjectPayload {
   entities:       ProjectDoc['entities']
   objectTypes?:   ProjectDoc['objectTypes']
   scenes:         ProjectDoc['scenes']
+  layers?:        ProjectDoc['layers']
   tilePalette?:   ProjectDoc['tilePalette']
   tilesets?:      ProjectDoc['tilesets']
   activeSceneId:  string
@@ -277,6 +306,7 @@ export function runtimeProjectPayload(
       ? { objectTypes: project.objectTypes }
       : {}),
     scenes:         project.scenes,
+    layers:         project.layers,
     tilePalette:    project.tilePalette,
     tilesets:       project.tilesets,
     activeSceneId,

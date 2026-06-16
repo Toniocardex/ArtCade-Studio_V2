@@ -17,6 +17,8 @@
 
 namespace ArtCade {
 
+extern "C" void editor_paint_tile(int col, int row, int tileId, const char* layerName);
+
 namespace {
 
 /** Mirrors editor/src/utils/entity-position.ts snapToGridValue (authoring only). */
@@ -83,11 +85,11 @@ void paintTileAt(float x, float y, int tileIdOverride = -1) {
     const int col = static_cast<int>(x / tm.tileSize);
     const int row = static_cast<int>(y / tm.tileSize);
     if (col < 0 || col >= tm.cols || row < 0 || row >= tm.rows) return;
-    const int idx = row * tm.cols + col;
-    if (idx < 0 || idx >= static_cast<int>(tm.data.size())) return;
     const int tid = (tileIdOverride >= 0) ? tileIdOverride : EditorAPI::s_selectedTileId;
-    if (tm.data[idx] == tid) return;
-    tm.data[idx] = tid;
+    const char* layer = EditorAPI::s_activeTileLayerName.empty()
+        ? nullptr
+        : EditorAPI::s_activeTileLayerName.c_str();
+    editor_paint_tile(col, row, tid, layer);
     EditorAPI::notifyTilemapPainted(col, row, tid);
 }
 

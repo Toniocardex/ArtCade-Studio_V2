@@ -183,6 +183,7 @@ bool Application::loadProject(const std::string& projectPath) {
     tilesets_.clear();
     for (const auto& tileset : doc.tilesets) tilesets_[tileset.assetId] = tileset;
     mod_->sceneManager->setTilesets(doc.tilesets);
+    mod_->sceneManager->setSceneLayers(doc.layers);
 
     if (!doc.mainScriptPath.empty()) {
         std::vector<uint8_t> bytecode;

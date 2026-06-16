@@ -107,4 +107,27 @@ describe('planProjectSync', () => {
     p.scenes.a.entityIds = [1, 2]
     expect(planProjectSync(prev, p as never, 'a')).toEqual({ kind: 'full' })
   })
+
+  it('plans tilemap_layers_only when a per-layer grid changes', () => {
+    const p = makeProject()
+    p.layers = [{ name: 'ground' }, { name: 'props' }]
+    p.scenes.a.tilemapLayers = {
+      ground: { tileSize: 32, cols: 2, rows: 1, data: [1, 0] },
+      props:  { tileSize: 32, cols: 2, rows: 1, data: [0, 0] },
+    }
+    p.scenes.a.tilemap = {
+      tileSize: 32, cols: 2, rows: 1, data: [1, 0],
+    }
+    const prev = runtimeProjectProjection(p as never, 'a')
+    p.scenes.a.tilemapLayers.props.data[1] = 2
+    p.scenes.a.tilemap.data[1] = 2
+    expect(planProjectSync(prev, p as never, 'a')).toEqual({
+      kind: 'tilemap_layers_only',
+      payload: {
+        layerNames: ['ground', 'props'],
+        tilemapLayers: p.scenes.a.tilemapLayers,
+        mergedData: [1, 2],
+      },
+    })
+  })
 })

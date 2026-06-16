@@ -184,6 +184,23 @@ void read_global_variables(const nlohmann::json& doc, ProjectDoc& out) {
         out.globalVariables.clear();
 }
 
+void read_scene_layers(const nlohmann::json& doc, std::vector<SceneLayerDef>& out) {
+    out.clear();
+    if (!doc.contains("layers") || !doc["layers"].is_array())
+        return;
+
+    for (const auto& item : doc["layers"]) {
+        SceneLayerDef layer;
+        if (item.is_string()) {
+            layer.name = item.get<std::string>();
+        } else if (item.is_object()) {
+            layer.name = read_string_any(item, "name", "id");
+        }
+        if (!layer.name.empty())
+            out.push_back(std::move(layer));
+    }
+}
+
 void read_runtime_settings(const nlohmann::json& doc, ProjectRuntimeSettings& out) {
     if (doc.contains("targetFPS"))
         out.targetFPS = doc["targetFPS"].get<float>();

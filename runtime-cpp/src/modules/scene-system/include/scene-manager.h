@@ -46,11 +46,18 @@ public:
     }
     const std::vector<TilesetAsset>& tilesets() const { return tilesets_; }
 
+    /** Project render stack (index 0 = highest priority / drawn last). */
+    void setSceneLayers(std::vector<SceneLayerDef> layers) {
+        sceneLayers_ = std::move(layers);
+    }
+    const std::vector<SceneLayerDef>& sceneLayers() const { return sceneLayers_; }
+
 private:
     std::unordered_map<SceneId, SceneDef>        scenes_;
     std::unordered_map<EntityId, EntityDef>      entityDefs_;
     SceneId                                      activeId_;
-    std::vector<TilesetAsset>                    tilesets_;   // Phase F3
+    std::vector<TilesetAsset>                    tilesets_;      // Phase F3
+    std::vector<SceneLayerDef>                   sceneLayers_;
 };
 
 } // namespace ArtCade::Modules

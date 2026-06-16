@@ -75,8 +75,8 @@ void Application::renderActiveScene() {
             std::max(1.f, activeScene->worldSize.y),
             activeScene->backgroundColor);
         TilemapRenderer::draw(
-            *mod_->renderer, *activeScene, mod_->sceneManager->tilesets(),
-            tilesets_, tileColors_);
+            *mod_->renderer, *activeScene, mod_->sceneManager->sceneLayers(),
+            mod_->sceneManager->tilesets(), tilesets_, tileColors_);
         EditorOverlayRenderer::drawGrid(*mod_->renderer, *activeScene, overlay);
     }
 

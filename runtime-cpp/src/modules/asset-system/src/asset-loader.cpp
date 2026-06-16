@@ -194,6 +194,7 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
     ProjectJson::read_thumbnails(j, out.thumbnails);
     ProjectJson::read_tile_palette(j, out.tilePalette);
     ProjectJson::read_tilesets(j, out.tilesets);
+    ProjectJson::read_scene_layers(j, out.layers);
 
     materializeProjectEntities(out);
 
