@@ -13,7 +13,6 @@ import { createBlankProject } from './utils/project'
 import { starterInnkeeperScript } from './utils/dialog/dialog-file-api'
 import { DialogEditorModal } from './panels/dialog/DialogEditorModal'
 import { SpritesheetStudioModal } from './panels/spritesheet-studio/SpritesheetStudioModal'
-import { TilesetEditorModal } from './panels/tileset-studio/TilesetEditorModal'
 import { useProjectShortcuts } from './hooks/useProjectShortcuts'
 import { useBuildLogListener } from './hooks/useBuildLogListener'
 import { useEditorUndoRedo } from './hooks/useEditorUndoRedo'
@@ -198,8 +197,6 @@ function EditorShell({ workspaceRef }: Readonly<{ workspaceRef: RefObject<HTMLDi
         {!focusMode && <EditorZoomSuggestionBanner />}
         <DialogEditorModal />
         <SpritesheetStudioModal />
-        <TilesetEditorModal />
-
         <div
           ref={workspaceRef}
           className="editor-workspace flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden"

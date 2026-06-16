@@ -5,7 +5,7 @@
 import type { CoreState } from '../../store/editor-store-state'
 import type { InspectorAssetSelection } from '../../types/inspector-selection'
 
-export type InspectorMode = 'scene' | 'entity' | 'layer' | 'asset'
+export type InspectorMode = 'scene' | 'entity' | 'layer' | 'asset' | 'tileset-paint'
 
 export type InspectorChrome = Readonly<{
   mode: InspectorMode
@@ -14,6 +14,7 @@ export type InspectorChrome = Readonly<{
 }>
 
 export function deriveInspectorMode(state: CoreState): InspectorMode {
+  if (state.editingTilesetId != null) return 'tileset-paint'
   if (state.selection.entityId != null) return 'entity'
   if (state.inspectorAsset != null) return 'asset'
   if (state.inspectorLayerName != null) return 'layer'
@@ -42,6 +43,16 @@ export function inspectorChromeForMode(
         mode,
         title: 'Asset Inspector',
         subtitle: label,
+      }
+    }
+    case 'tileset-paint': {
+      const ts = state.editingTilesetId
+        ? state.project?.tilesets?.[state.editingTilesetId]
+        : undefined
+      return {
+        mode,
+        title: 'Tileset Palette',
+        subtitle: ts?.name ?? '',
       }
     }
     case 'layer':
