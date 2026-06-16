@@ -3,6 +3,7 @@ import { ChevronUp, ChevronDown, Trash2, Plus } from 'lucide-react'
 import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import { DEFAULT_LAYERS } from '../../constants/scene-layers'
 import { editorRowSelected } from '../ui/editor-ui-classes'
+import { handleControlledInputKeyDown } from '../../utils/keyboard'
 
 export function SceneLayersPanel() {
   const dispatch = useEditorDispatch()
@@ -107,6 +108,7 @@ export function SceneLayersPanel() {
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') { e.preventDefault(); commitRename() }
                           if (e.key === 'Escape') { e.preventDefault(); setRenamingName(null) }
+                          handleControlledInputKeyDown(e, setRenameValue)
                         }}
                         onClick={(e) => e.stopPropagation()}
                       />
