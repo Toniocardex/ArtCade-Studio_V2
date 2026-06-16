@@ -567,9 +567,13 @@ class RuntimeSyncServiceImpl {
     if (plan.kind === 'tilemap_data_only') {
       // Only tilemap.data changed (paint stroke or undo) — no texture eviction needed.
       // Push the data array directly; skip editorLoadProject to avoid asset re-upload cost.
-      this.latchProjectProjection(loadKey, projection)
-      editorSyncTilemapData(plan.data)
-      return true
+      // Falls back to editorLoadProject when WASM hasn't been rebuilt with the new function.
+      const ok = editorSyncTilemapData(plan.data)
+      if (ok) {
+        this.latchProjectProjection(loadKey, projection)
+        return true
+      }
+      // WASM lacks editor_sync_tilemap_data → fall through to editorLoadProject below
     }
 
     if (plan.kind === 'full') {

@@ -728,12 +728,13 @@ export function editorPaintTile(col: number, row: number, tileId: number): void 
 }
 
 /** Push the full tilemap.data array into the active scene without evicting textures.
- *  Used by the sync service when only tilemap data changed (paint or undo). */
-export function editorSyncTilemapData(data: number[]): void {
-  if (!_module) return
+ *  Returns true if the WASM function exists and the call succeeded; false if the
+ *  runtime was not rebuilt yet (caller should fall back to editorLoadProject). */
+export function editorSyncTilemapData(data: number[]): boolean {
+  if (!_module) return false
   const ptr = marshalString(JSON.stringify(data))
   try {
-    safeCall('editor_sync_tilemap_data', null, ['number'], [ptr])
+    return safeCall('editor_sync_tilemap_data', null, ['number'], [ptr])
   } finally {
     _module._free(ptr)
   }
