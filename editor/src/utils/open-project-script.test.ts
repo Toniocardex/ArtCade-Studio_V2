@@ -32,16 +32,30 @@ describe('openProjectScript', () => {
   it('loads from disk before OPEN_SCRIPT when tab is new', async () => {
     vi.mocked(loadScript).mockResolvedValue('local x = 1')
     const dispatch = vi.fn()
-    await openProjectScript(
+    const opened = await openProjectScript(
       dispatch,
       { projectPath: '/proj/MyGame', openScripts: [] },
       'scripts/player.lua',
     )
+    expect(opened).toBe(true)
     expect(loadScript).toHaveBeenCalledWith('/proj/MyGame/scripts/player.lua')
     expect(dispatch).toHaveBeenCalledWith({
       type: 'OPEN_SCRIPT',
       file: { path: 'scripts/player.lua', content: 'local x = 1', isDirty: false },
     })
     expect(dispatch).toHaveBeenCalledWith({ type: 'SET_MODE', mode: 'script' })
+  })
+
+  it('aborts OPEN_SCRIPT when shouldAbort returns true after load', async () => {
+    vi.mocked(loadScript).mockResolvedValue('local x = 1')
+    const dispatch = vi.fn()
+    const opened = await openProjectScript(
+      dispatch,
+      { projectPath: '/proj/MyGame', openScripts: [] },
+      'scripts/player.lua',
+      { shouldAbort: () => true },
+    )
+    expect(opened).toBe(false)
+    expect(dispatch).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'OPEN_SCRIPT' }))
   })
 })

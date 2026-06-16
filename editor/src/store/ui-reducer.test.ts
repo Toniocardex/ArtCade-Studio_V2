@@ -208,6 +208,74 @@ describe('uiReducer — dock panel visibility', () => {
   })
 })
 
+describe('uiReducer — script editor mode', () => {
+  const scriptProject = {
+    projectName: 'T',
+    version: '2.0.0',
+    targetFPS: 60,
+    activeSceneId: 's',
+    mainScriptPath: 'scripts/main.lua',
+    entities: {
+      1: {
+        id: 1,
+        name: 'Hero',
+        className: 'Player',
+        tags: [] as string[],
+        scriptPath: 'scripts/hero.lua',
+        transform: { position: { x: 0, y: 0 }, scale: { x: 1, y: 1 }, rotation: 0 },
+        sprite: {
+          spriteAssetId: '',
+          tint: { x: 1, y: 1, z: 1, w: 1 },
+          fillColor: { x: 1, y: 1, z: 1 },
+          alpha: 1,
+          pivot: { x: 0.5, y: 0.5 },
+          renderOrder: 0,
+        },
+      },
+    },
+    scenes: {},
+  }
+
+  it('SET_MODE script activates main.lua when it is already open', () => {
+    const start = base({
+      mode: 'canvas',
+      project: { ...scriptProject, entities: {} },
+      openScripts: [{ path: 'scripts/main.lua', content: '-- main', isDirty: false }],
+      activeScriptPath: null,
+    })
+    const s = uiReducer(start, { type: 'SET_MODE', mode: 'script' })
+    expect(s.mode).toBe('script')
+    expect(s.mainScriptView).toBe('manual')
+    expect(s.activeScriptPath).toBe('scripts/main.lua')
+  })
+
+  it('SET_MODE script prefers the selected entity script over main.lua', () => {
+    const start = base({
+      mode: 'canvas',
+      project: scriptProject,
+      selection: { entityId: 1, sceneId: 's' },
+      openScripts: [
+        { path: 'scripts/main.lua', content: '-- main', isDirty: false },
+        { path: 'scripts/hero.lua', content: '-- hero', isDirty: false },
+      ],
+      activeScriptPath: 'scripts/main.lua',
+    })
+    const s = uiReducer(start, { type: 'SET_MODE', mode: 'script' })
+    expect(s.activeScriptPath).toBe('scripts/hero.lua')
+  })
+
+  it('SET_MODE logic does not change activeScriptPath', () => {
+    const start = base({
+      mode: 'script',
+      activeScriptPath: 'scripts/main.lua',
+      openScripts: [{ path: 'scripts/main.lua', content: '-- main', isDirty: false }],
+    })
+    const s = uiReducer(start, { type: 'SET_MODE', mode: 'logic' })
+    expect(s.mode).toBe('logic')
+    expect(s.activeScriptPath).toBe('scripts/main.lua')
+  })
+})
+
 describe('uiReducer — focus mode & preferences', () => {
   it('TOGGLE_FOCUS_MODE switches focus and forces canvas mode', () => {
     const start = base({ mode: 'logic', focusMode: false })

@@ -17,6 +17,7 @@ import { useProjectShortcuts } from './hooks/useProjectShortcuts'
 import { useBuildLogListener } from './hooks/useBuildLogListener'
 import { useEditorUndoRedo } from './hooks/useEditorUndoRedo'
 import { useProjectMainScriptLoad } from './hooks/useProjectMainScriptLoad'
+import { useScriptEditorActivation } from './hooks/useScriptEditorActivation'
 import { ProjectNamePersistProvider } from './components/menu-bar/project-name-context'
 import { useViewportShortcuts } from './hooks/useViewportShortcuts'
 import { useConsoleShortcut } from './hooks/useConsoleShortcut'
@@ -236,6 +237,7 @@ function EditorLayout() {
   useProjectShortcuts()
   useEditorUndoRedo()
   useProjectMainScriptLoad()
+  useScriptEditorActivation()
   useViewportShortcuts()
   useConsoleShortcut()
   useFocusModeShortcut()

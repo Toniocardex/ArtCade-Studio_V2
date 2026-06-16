@@ -28,6 +28,7 @@ import {
   type DockUiSlice,
 } from '../../utils/dock-ui-state'
 import { writeEditorPreferences } from '../../utils/editor-preferences'
+import { resolveScriptEditorActivationPath } from '../../utils/script-editor-activation'
 
 function applyDockUiChange(state: CoreState, slice: DockUiSlice): CoreState {
   if (slice.dockPanelVisibility !== state.dockPanelVisibility) {
@@ -95,12 +96,20 @@ export const uiReducer: DomainReducer = (state: CoreState, action: Action) => {
         editorActiveLayer: action.layerName,
         inspectorLayerName: action.layerName,
       }
-    case 'SET_MODE':
+    case 'SET_MODE': {
+      if (action.mode !== 'script') {
+        return { ...state, mode: action.mode }
+      }
+      const activeScriptPath = resolveScriptEditorActivationPath(state, { preferSelection: true })
       return {
         ...state,
         mode: action.mode,
-        ...(action.mode === 'script' ? { mainScriptView: 'manual' as const } : {}),
+        mainScriptView: 'manual',
+        ...(activeScriptPath && activeScriptPath !== state.activeScriptPath
+          ? { activeScriptPath }
+          : {}),
       }
+    }
     case 'TOGGLE_FOCUS_MODE': {
       const next = !state.focusMode
       return {

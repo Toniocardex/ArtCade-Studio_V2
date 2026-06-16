@@ -13,16 +13,21 @@ export type OpenScriptContext = Readonly<{
  * Open a project Lua script in the script editor. Reuses an open tab when present;
  * otherwise loads from disk before OPEN_SCRIPT (never empty buffer over existing files).
  */
+export type OpenProjectScriptOptions = Readonly<{
+  shouldAbort?: () => boolean
+}>
+
 export async function openProjectScript(
   dispatch: OpenScriptDispatch,
   ctx: OpenScriptContext,
   path: string,
-): Promise<void> {
+  options?: OpenProjectScriptOptions,
+): Promise<boolean> {
   const existing = ctx.openScripts.find((s) => s.path === path)
   if (existing) {
     dispatch({ type: 'SET_ACTIVE_SCRIPT', path })
     dispatch({ type: 'SET_MODE', mode: 'script' })
-    return
+    return true
   }
 
   let content = ''
@@ -30,15 +35,19 @@ export async function openProjectScript(
     if (ctx.projectPath) {
       const abs = resolveScriptPath(ctx.projectPath, path)
       const loaded = await loadScript(abs)
+      if (options?.shouldAbort?.()) return false
       if (loaded !== null) content = loaded
     }
   } catch (err) {
     console.warn('[openProjectScript] loadScript failed; opening empty buffer:', err)
   }
 
+  if (options?.shouldAbort?.()) return false
+
   dispatch({
     type: 'OPEN_SCRIPT',
     file: { path, content, isDirty: false },
   })
   dispatch({ type: 'SET_MODE', mode: 'script' })
+  return true
 }

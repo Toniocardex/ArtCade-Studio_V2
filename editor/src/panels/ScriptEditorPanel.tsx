@@ -5,6 +5,7 @@ import { compileProjectLogic } from '../utils/logic-board/logic-compile-service'
 import { LogicBoardCompileErrorBanner } from '../components/LogicBoardCompileErrorBanner'
 import { composeProjectLua } from '../utils/project-lua-composer'
 import type { MainScriptView } from '../store/editor-store-state'
+import { resolveScriptEditorEmptyHint } from '../utils/script-editor-activation'
 
 /** Tracks the <html data-theme> attribute so CodeMirror follows the app theme. */
 function useThemeMode(): 'dark' | 'light' {
@@ -62,12 +63,27 @@ export default function ScriptEditorPanel() {
   const mainScriptView = useEditorSelector((s) => s.mainScriptView)
   const project = useEditorSelector((s) => s.project)
   const projectPath = useEditorSelector((s) => s.projectPath)
+  const selectionEntityId = useEditorSelector((s) => s.selection.entityId)
+  const openScriptPathsKey = useEditorSelector((s) =>
+    s.openScripts.map((script) => script.path).join('\0'),
+  )
   const themeMode = useThemeMode()
 
   const currentScript = activeScriptPath
     ? openScripts.find(s => s.path === activeScriptPath)
     : undefined
   const dirtyPaths = new Set(openScripts.filter(s => s.isDirty).map(s => s.path))
+  const emptyStateHint = useMemo(() => {
+    const openScriptPaths = openScriptPathsKey.length > 0
+      ? openScriptPathsKey.split('\0')
+      : []
+    return resolveScriptEditorEmptyHint({
+      project,
+      projectPath,
+      selectionEntityId,
+      openScriptPaths,
+    })
+  }, [project, projectPath, selectionEntityId, openScriptPathsKey])
 
   const compileResult = useMemo(() => {
     if (!project?.logicBoards?.length) return null
@@ -151,10 +167,10 @@ export default function ScriptEditorPanel() {
         ) : (
           <div className="h-full flex flex-col items-center justify-center text-[var(--muted)]">
             <span className="text-[11px] uppercase tracking-widest">
-              No script open
+              No script active
             </span>
             <span className="text-[10px] mt-1 text-[rgb(var(--muted-rgb)/0.5)]">
-              Select an entity with a script in the Scenes panel
+              {emptyStateHint}
             </span>
           </div>
         )}
