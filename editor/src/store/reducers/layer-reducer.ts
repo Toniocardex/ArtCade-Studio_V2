@@ -21,7 +21,7 @@ export const layerReducer: DomainReducer = (state: CoreState, action: Action) =>
       if (layers.some((l) => l.name === name)) return state
       return {
         ...state,
-        project: { ...state.project, layers: [...layers, { name }] },
+        project: { ...state.project, layers: [{ name }, ...layers] },
         projectDirty: true,
       }
     }

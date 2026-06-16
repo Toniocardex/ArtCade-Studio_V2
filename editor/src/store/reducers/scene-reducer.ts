@@ -6,8 +6,9 @@
 // Anything that affects the renderer-visible layout of a scene lives here.
 
 import type { CoreState, Action, DomainReducer } from '../editor-store-state'
-import { DEFAULT_WORLD, createTilemap, resizeTilemap } from '../../types'
-import type { EntityDef, SceneDef } from '../../types'
+import { DEFAULT_WORLD, createTilemap, resizeTilemap, mergeTilemapLayers } from '../../types'
+import type { EntityDef, SceneDef, TilemapLayer } from '../../types'
+import { DEFAULT_LAYERS } from '../../constants/scene-layers'
 import { createSceneDef, uniqueSceneName, nextEntityId } from '../../utils/project'
 import { clampEntityPositionToScene } from '../../utils/entity-position'
 import { projectAfterRemovingAsset } from '../../utils/strip-project-asset-refs'
@@ -271,23 +272,29 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
       }
     }
     case 'TILEMAP_PAINT_CELL': {
-      // C++ painting sends (col,row); resolve to index using the layer cols.
+      // Paint into the active layer's tilemap; recompute merged tilemap for WASM.
       const sc = state.project?.scenes[action.sceneId]
-      if (!state.project || !sc?.tilemap) return state
-      const tm = sc.tilemap
-      if (action.col < 0 || action.col >= tm.cols ||
-          action.row < 0 || action.row >= tm.rows) return state
-      const index = action.row * tm.cols + action.col
-      if (tm.data[index] === action.tileId) return state
-      const data = tm.data.slice()
+      if (!state.project || !sc) return state
+      const layerName = state.editorActiveLayer
+      const layerTm = sc.tilemapLayers?.[layerName] ?? sc.tilemap
+      if (!layerTm) return state
+      if (action.col < 0 || action.col >= layerTm.cols ||
+          action.row < 0 || action.row >= layerTm.rows) return state
+      const index = action.row * layerTm.cols + action.col
+      if (layerTm.data[index] === action.tileId) return state
+      const data = layerTm.data.slice()
       data[index] = action.tileId
+      const updatedLayerTm: TilemapLayer = { ...layerTm, data }
+      const tilemapLayers = { ...(sc.tilemapLayers ?? {}), [layerName]: updatedLayerTm }
+      const layerNames = (state.project.layers ?? DEFAULT_LAYERS).map(l => l.name)
+      const merged = mergeTilemapLayers(layerNames, tilemapLayers) ?? updatedLayerTm
       return {
         ...state,
         project: {
           ...state.project,
           scenes: {
             ...state.project.scenes,
-            [action.sceneId]: { ...sc, tilemap: { ...tm, data } },
+            [action.sceneId]: { ...sc, tilemapLayers, tilemap: merged },
           },
         },
         projectDirty: true,
@@ -419,68 +426,86 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
       }
     }
     case 'TILESET_EDIT_OPEN': {
-      // Auto-assign the tileset to the active scene, creating the tilemap layer if absent.
+      // Auto-assign the tileset to the active layer of the active scene,
+      // creating the per-layer tilemap entry if absent.
       if (!state.project) return state
       const sceneId = state.selection.sceneId ?? state.project.activeSceneId
       const sc = sceneId ? state.project.scenes[sceneId] : undefined
       if (!sc || !sceneId) return state
-      const tm = sc.tilemap ?? createTilemap(sc.worldSize.x, sc.worldSize.y)
-      if (sc.tilemap && tm.tilesetAssetId === action.tilesetId) return state
+      const layerName = state.editorActiveLayer
+      const existing = sc.tilemapLayers?.[layerName]
+      if (existing && existing.tilesetAssetId === action.tilesetId) return state
+      const baseTm = existing ?? createTilemap(sc.worldSize.x, sc.worldSize.y)
+      const layerTm: TilemapLayer = { ...baseTm, tilesetAssetId: action.tilesetId }
+      const tilemapLayers = { ...sc.tilemapLayers, [layerName]: layerTm }
+      const layerNames = (state.project.layers ?? DEFAULT_LAYERS).map(l => l.name)
+      const merged = mergeTilemapLayers(layerNames, tilemapLayers)
       return {
         ...state,
         project: {
           ...state.project,
           scenes: {
             ...state.project.scenes,
-            [sceneId]: { ...sc, tilemap: { ...tm, tilesetAssetId: action.tilesetId } },
+            [sceneId]: { ...sc, tilemapLayers, tilemap: merged },
           },
         },
         projectDirty: true,
       }
     }
     case 'TILEMAP_SET_TILESETID': {
+      // Assign a tileset to the active layer (create layer entry if absent).
       const sc = state.project?.scenes[action.sceneId]
       if (!state.project || !sc) return state
-      const tm = sc.tilemap ?? createTilemap(sc.worldSize.x, sc.worldSize.y)
+      const layerName = state.editorActiveLayer
+      const existing = sc.tilemapLayers?.[layerName] ?? sc.tilemap ?? createTilemap(sc.worldSize.x, sc.worldSize.y)
+      const layerTm: TilemapLayer = { ...existing, tilesetAssetId: action.assetId }
+      const tilemapLayers = { ...(sc.tilemapLayers ?? {}), [layerName]: layerTm }
+      const layerNames = (state.project.layers ?? DEFAULT_LAYERS).map(l => l.name)
+      const merged = mergeTilemapLayers(layerNames, tilemapLayers) ?? layerTm
       return {
         ...state,
         project: {
           ...state.project,
           scenes: {
             ...state.project.scenes,
-            [action.sceneId]: {
-              ...sc,
-              tilemap: { ...tm, tilesetAssetId: action.assetId },
-            },
+            [action.sceneId]: { ...sc, tilemapLayers, tilemap: merged },
           },
         },
         projectDirty: true,
       }
     }
     case 'TILEMAP_SET_TILESIZE': {
+      // Resize all layer tilemaps to the new tileSize, preserving overlapping cells.
       const sc = state.project?.scenes[action.sceneId]
-      if (!state.project || !sc?.tilemap) return state
-      const tm = sc.tilemap
-      if (tm.tileSize === action.tileSize) return state
-      // Re-derive cols/rows from world size at new tileSize; preserve existing data where it fits.
-      const newCols = Math.min(Math.max(Math.round(sc.worldSize.x / action.tileSize), 8), 128)
-      const newRows = Math.min(Math.max(Math.round(sc.worldSize.y / action.tileSize), 6), 96)
-      const data = new Array(newCols * newRows).fill(0)
-      const copyC = Math.min(tm.cols, newCols)
-      const copyR = Math.min(tm.rows, newRows)
-      for (let r = 0; r < copyR; r++)
-        for (let c = 0; c < copyC; c++)
-          data[r * newCols + c] = tm.data[r * tm.cols + c] ?? 0
+      if (!state.project || !sc) return state
+      const resizeOne = (tm: TilemapLayer): TilemapLayer => {
+        if (tm.tileSize === action.tileSize) return tm
+        const newCols = Math.min(Math.max(Math.round(sc.worldSize.x / action.tileSize), 8), 128)
+        const newRows = Math.min(Math.max(Math.round(sc.worldSize.y / action.tileSize), 6), 96)
+        const data = new Array(newCols * newRows).fill(0)
+        const copyC = Math.min(tm.cols, newCols)
+        const copyR = Math.min(tm.rows, newRows)
+        for (let r = 0; r < copyR; r++)
+          for (let c = 0; c < copyC; c++)
+            data[r * newCols + c] = tm.data[r * tm.cols + c] ?? 0
+        return { ...tm, tileSize: action.tileSize, cols: newCols, rows: newRows, data }
+      }
+      const hasTilemapLayers = sc.tilemapLayers && Object.keys(sc.tilemapLayers).length > 0
+      if (!hasTilemapLayers && !sc.tilemap) return state
+      const tilemapLayers = hasTilemapLayers
+        ? Object.fromEntries(Object.entries(sc.tilemapLayers!).map(([k, v]) => [k, resizeOne(v)]))
+        : sc.tilemapLayers
+      const layerNames = (state.project.layers ?? DEFAULT_LAYERS).map(l => l.name)
+      const merged = tilemapLayers
+        ? (mergeTilemapLayers(layerNames, tilemapLayers) ?? resizeOne(sc.tilemap!))
+        : resizeOne(sc.tilemap!)
       return {
         ...state,
         project: {
           ...state.project,
           scenes: {
             ...state.project.scenes,
-            [action.sceneId]: {
-              ...sc,
-              tilemap: { ...tm, tileSize: action.tileSize, cols: newCols, rows: newRows, data },
-            },
+            [action.sceneId]: { ...sc, tilemapLayers, tilemap: merged },
           },
         },
         projectDirty: true,

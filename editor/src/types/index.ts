@@ -159,7 +159,8 @@ export interface SceneDef {
   entityIds:       number[]
   /** v2: scene instances (placement only). */
   instances?:      SceneInstanceDef[]
-  tilemap?:        TilemapLayer   // Scene Editor Phase C (editor-side)
+  tilemap?:        TilemapLayer                    // merged result sent to WASM (computed from tilemapLayers)
+  tilemapLayers?:  Record<string, TilemapLayer>   // per-layer paint data; layer name → grid
 }
 
 /** When the physics world steps each fixed tick. */

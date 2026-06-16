@@ -95,3 +95,43 @@ export function resizeTilemap(
     data,
   }
 }
+
+/**
+ * Composite per-layer tilemap data into a single TilemapLayer for the WASM runtime.
+ * `layerNames` is ordered highest-to-lowest priority (index 0 = renders on top).
+ * Higher-priority layers win wherever tileId !== 0; empty cells (0) fall through.
+ */
+export function mergeTilemapLayers(
+  layerNames: string[],
+  tilemapLayers: Record<string, TilemapLayer>,
+): TilemapLayer | undefined {
+  // Collect existing layers ordered highest→lowest priority
+  const ordered = layerNames
+    .map(n => tilemapLayers[n])
+    .filter((tm): tm is TilemapLayer => !!tm)
+  if (ordered.length === 0) return undefined
+
+  const ref = ordered[0]!
+  const size = ref.cols * ref.rows
+  const data = new Array<number>(size).fill(0)
+
+  // Paint bottom-up: lowest priority first, then higher layers overwrite non-zero
+  for (let li = ordered.length - 1; li >= 0; li--) {
+    const tm = ordered[li]!
+    const len = Math.min(size, tm.data.length)
+    for (let i = 0; i < len; i++) {
+      if (tm.data[i] !== 0) data[i] = tm.data[i]!
+    }
+  }
+
+  // Tileset: highest-priority layer that has one assigned
+  const tilesetLayer = ordered.find(tm => tm.tilesetAssetId)
+
+  return {
+    tileSize: ref.tileSize,
+    cols:     ref.cols,
+    rows:     ref.rows,
+    data,
+    tilesetAssetId: tilesetLayer?.tilesetAssetId,
+  }
+}

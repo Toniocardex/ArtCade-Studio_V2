@@ -78,6 +78,7 @@ export default function PreviewPanel({
   const editorZoomMode = useEditorSelector((s) => s.editorZoomMode)
   const cameraPreview = useEditorSelector((s) => s.cameraPreview)
   const editingTilesetId = useEditorSelector((s) => s.editingTilesetId)
+  const editorActiveLayer = useEditorSelector((s) => s.editorActiveLayer)
   const openScripts = useEditorSelector((s) => s.openScripts)
   const focusMode = useEditorSelector((s) => s.focusMode)
   const dialogs = useEditorSelector((s) => s.dialogs)
@@ -514,7 +515,10 @@ export default function PreviewPanel({
             <TilePaintOverlay
               scrollRef={scrollRef}
               zoom={zoom}
-              tilemap={selectedScene?.tilemap}
+              tilemap={
+                selectedScene?.tilemapLayers?.[editorActiveLayer] ??
+                selectedScene?.tilemap
+              }
               selectedTileCell={selectedTileCell}
               sceneId={selectedSceneId ?? ''}
               dispatch={dispatch}
