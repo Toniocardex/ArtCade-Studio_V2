@@ -11,6 +11,7 @@ import type { ProjectDoc } from '../types'
 export type ProjectSyncPlan =
   | { kind: 'none' }
   | { kind: 'full' }
+  | { kind: 'tilemap_data_only'; data: number[] }
   | { kind: 'incremental'; entityIds: number[]; sceneIds: string[] }
 
 function sortedEntityIds(proj: RuntimeProjection): number[] {
@@ -54,11 +55,25 @@ export function planProjectSync(
   }
 
   const prevScenes = new Map(prev.scenes.map((s) => [s.id, s]))
+  let tilemapDataOnlyScene: { sceneId: string; data: number[] } | null = null
   for (const scene of next.scenes) {
     const ps = prevScenes.get(scene.id)
     if (!ps) return { kind: 'full' }
     if (JSON.stringify(ps.e) !== JSON.stringify(scene.e)) return { kind: 'full' }
-    if (JSON.stringify(ps.tm) !== JSON.stringify(scene.tm)) return { kind: 'full' }
+    if (JSON.stringify(ps.tm) !== JSON.stringify(scene.tm)) {
+      // Check if only dh (data hash) differs — all structural fields same.
+      const structKey = (tm: typeof scene.tm) =>
+        tm ? `${tm.ts}|${tm.c}|${tm.r}|${tm.set ?? ''}` : 'none'
+      if (structKey(ps.tm) !== structKey(scene.tm)) return { kind: 'full' }
+      // Only data hash changed — lightweight sync instead of full reload.
+      if (tilemapDataOnlyScene) return { kind: 'full' } // two scenes changed → full
+      const tileData = project.scenes[scene.id]?.tilemap?.data
+      if (!tileData) return { kind: 'full' }
+      tilemapDataOnlyScene = { sceneId: scene.id, data: tileData }
+    }
+  }
+  if (tilemapDataOnlyScene) {
+    return { kind: 'tilemap_data_only', data: tilemapDataOnlyScene.data }
   }
 
   const entityUpdates: number[] = []

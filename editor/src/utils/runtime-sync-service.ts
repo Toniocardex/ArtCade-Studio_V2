@@ -36,6 +36,7 @@ import {
   editorSetSelectedTile,
   editorSetTool,
   editorSetTransform,
+  editorSyncTilemapData,
   editorUpdateEntity,
   isReady as isWasmReady,
 } from './wasm-bridge'
@@ -562,6 +563,14 @@ class RuntimeSyncServiceImpl {
     if (this.lastLoadKey === loadKey) return didWork
 
     const plan = planProjectSync(this.lastProjection, project, activeSceneId)
+
+    if (plan.kind === 'tilemap_data_only') {
+      // Only tilemap.data changed (paint stroke or undo) — no texture eviction needed.
+      // Push the data array directly; skip editorLoadProject to avoid asset re-upload cost.
+      this.latchProjectProjection(loadKey, projection)
+      editorSyncTilemapData(plan.data)
+      return true
+    }
 
     if (plan.kind === 'full') {
       this.latchProjectProjection(loadKey, projection)

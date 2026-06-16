@@ -37,6 +37,7 @@ namespace {
 std::string s_canvasSel       = "#canvas";
 float       s_lastPanScreenX  = 0.f;
 float       s_lastPanScreenY  = 0.f;
+bool        s_eraseMode       = false;
 
 enum EditorToolId {
     ToolSelect = 0,
@@ -71,8 +72,8 @@ void toWorld(const EmscriptenMouseEvent* e, float& wx, float& wy) {
 }
 
 // Paint the brush tile into the active scene's tilemap cell under (x,y).
-// Assumes canvas==world 1:1 (no pan/zoom — like entity drag).
-void paintTileAt(float x, float y) {
+// Pass tileIdOverride >= 0 to use a specific tile; -1 uses s_selectedTileId.
+void paintTileAt(float x, float y, int tileIdOverride = -1) {
     auto* gw = EditorAPI::s_entityGateway;
     if (!gw) return;
     SceneDef* sc = gw->activeSceneMutable();
@@ -84,8 +85,8 @@ void paintTileAt(float x, float y) {
     if (col < 0 || col >= tm.cols || row < 0 || row >= tm.rows) return;
     const int idx = row * tm.cols + col;
     if (idx < 0 || idx >= static_cast<int>(tm.data.size())) return;
-    const int tid = EditorAPI::s_selectedTileId;
-    if (tm.data[idx] == tid) return; // no-op: already that tile
+    const int tid = (tileIdOverride >= 0) ? tileIdOverride : EditorAPI::s_selectedTileId;
+    if (tm.data[idx] == tid) return;
     tm.data[idx] = tid;
     EditorAPI::notifyTilemapPainted(col, row, tid);
 }
@@ -158,7 +159,7 @@ EM_BOOL EditorAPI::onMouseMove(int, const EmscriptenMouseEvent* e, void*) {
     float wx, wy;
     toWorld(e, wx, wy);
     if (s_tilePaintMode) {
-        if (s_isDragging) paintTileAt(wx, wy);
+        if (s_isDragging) paintTileAt(wx, wy, s_eraseMode ? 0 : -1);
         return EM_TRUE;
     }
     if (s_isDragging && s_selectedEntityId != 0u) {
@@ -193,7 +194,8 @@ EM_BOOL EditorAPI::onMouseDown(int, const EmscriptenMouseEvent* e, void*) {
     s_dragStartX = wx;
     s_dragStartY = wy;
     if (s_tilePaintMode) {
-        paintTileAt(s_dragStartX, s_dragStartY); // single click paints too
+        s_eraseMode = (e->button == 2);
+        paintTileAt(s_dragStartX, s_dragStartY, s_eraseMode ? 0 : -1);
         s_isDragging = true;
         return EM_TRUE;
     }
@@ -228,6 +230,7 @@ EM_BOOL EditorAPI::onMouseUp(int, const EmscriptenMouseEvent* e, void*) {
     }
     const bool wasDragging = s_isDragging;
     s_isDragging = false;
+    s_eraseMode  = false;
     if (s_editorTool == ToolPan) return EM_TRUE;  // panning: no transform notify
     if (s_tilePaintMode)         return EM_TRUE;  // painting: no transform notify
 

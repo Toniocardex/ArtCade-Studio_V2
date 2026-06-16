@@ -399,6 +399,41 @@ EMSCRIPTEN_KEEPALIVE void editor_set_selected_tile(int tileId) {
     ArtCade::EditorAPI::s_selectedTileId = tileId;
 }
 
+// Direct single-cell write — no texture eviction, no echo.
+// Called from the JS fan-out path (React overlay → editorPaintTile) for
+// immediate WASM feedback during drag without triggering a full project reload.
+EMSCRIPTEN_KEEPALIVE void editor_paint_tile(int col, int row, int tileId) {
+    auto* gw = ArtCade::EditorAPI::s_entityGateway;
+    if (!gw) return;
+    ArtCade::SceneDef* sc = gw->activeSceneMutable();
+    if (!sc) return;
+    ArtCade::TilemapData& tm = sc->tilemap;
+    if (col < 0 || col >= tm.cols || row < 0 || row >= tm.rows) return;
+    const int idx = row * tm.cols + col;
+    if (idx >= static_cast<int>(tm.data.size())) return;
+    tm.data[idx] = tileId;
+}
+
+// Full tilemap data resync — no texture eviction, no full project reload.
+// Accepts a JSON array of integers matching the active scene's tilemap size.
+// Used by the JS sync path when only tilemap.data changed (paint or undo).
+EMSCRIPTEN_KEEPALIVE void editor_sync_tilemap_data(const char* dataJson) {
+    if (!dataJson || !*dataJson) return;
+    auto* gw = ArtCade::EditorAPI::s_entityGateway;
+    if (!gw) return;
+    ArtCade::SceneDef* sc = gw->activeSceneMutable();
+    if (!sc) return;
+    ArtCade::TilemapData& tm = sc->tilemap;
+    const int sz = tm.cols * tm.rows;
+    if (sz <= 0) return;
+    try {
+        const auto arr = nlohmann::json::parse(dataJson);
+        if (!arr.is_array() || static_cast<int>(arr.size()) != sz) return;
+        for (int i = 0; i < sz; ++i)
+            tm.data[i] = arr[i].get<int>();
+    } catch (...) {}
+}
+
 EMSCRIPTEN_KEEPALIVE void editor_set_tool(int toolId) {
     if (toolId < ArtCade::kToolSelect || toolId > ArtCade::kToolErase)
         toolId = ArtCade::kToolSelect;

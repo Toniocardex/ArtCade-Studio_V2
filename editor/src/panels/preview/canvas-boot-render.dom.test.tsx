@@ -16,6 +16,10 @@ vi.mock('../../utils/wasm-bridge', () => ({
   warmWasmBinary: vi.fn(),
   editorRegisterImage: vi.fn(),
   setTextureCacheEvictedCallback: vi.fn(),
+  editorPaintTile: vi.fn(),
+  editorSyncTilemapData: vi.fn(),
+  editorSetTilePaintMode: vi.fn(),
+  editorSetSelectedTile: vi.fn(),
 }))
 
 vi.mock('../../utils/asset-watcher', () => ({

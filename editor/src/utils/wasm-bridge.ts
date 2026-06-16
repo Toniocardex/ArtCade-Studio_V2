@@ -721,6 +721,24 @@ export function editorSetSelectedTile(tileId: number): void {
   safeCall('editor_set_selected_tile', null, ['number'], [tileId])
 }
 
+/** Write a single tilemap cell directly — no texture eviction, no full project reload.
+ *  Called per-cell from the React overlay fan-out for immediate WASM feedback during drag. */
+export function editorPaintTile(col: number, row: number, tileId: number): void {
+  safeCall('editor_paint_tile', null, ['number', 'number', 'number'], [col, row, tileId])
+}
+
+/** Push the full tilemap.data array into the active scene without evicting textures.
+ *  Used by the sync service when only tilemap data changed (paint or undo). */
+export function editorSyncTilemapData(data: number[]): void {
+  if (!_module) return
+  const ptr = marshalString(JSON.stringify(data))
+  try {
+    safeCall('editor_sync_tilemap_data', null, ['number'], [ptr])
+  } finally {
+    _module._free(ptr)
+  }
+}
+
 export function editorSetTool(toolId: number): void {
   safeCall('editor_set_tool', null, ['number'], [toolId])
 }

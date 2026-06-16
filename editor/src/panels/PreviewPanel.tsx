@@ -28,6 +28,7 @@ import { useEditorCanvasViewport } from '../hooks/useEditorCanvasViewport'
 import { useEditorFitZoom } from '../hooks/useEditorFitZoom'
 import { getRuntimeCanvas } from '../utils/runtime-canvas'
 import { editorSetEditCamera, setTextureCacheEvictedCallback } from '../utils/wasm-bridge'
+import { TilePaintOverlay } from './preview/TilePaintOverlay'
 
 type TransformSnapshot = {
   entityId: number
@@ -76,6 +77,7 @@ export default function PreviewPanel({
   const editorZoom = useEditorSelector((s) => s.editorZoom)
   const editorZoomMode = useEditorSelector((s) => s.editorZoomMode)
   const cameraPreview = useEditorSelector((s) => s.cameraPreview)
+  const editingTilesetId = useEditorSelector((s) => s.editingTilesetId)
   const openScripts = useEditorSelector((s) => s.openScripts)
   const focusMode = useEditorSelector((s) => s.focusMode)
   const dialogs = useEditorSelector((s) => s.dialogs)
@@ -508,6 +510,16 @@ export default function PreviewPanel({
           style={{ position: 'sticky', top: 0, left: 0, width: 0, height: 0, zIndex: 0 }}
         >
           <div ref={canvasHostRef} style={{ display: 'contents' }} />
+          {editingTilesetId && !isPlaying && (
+            <TilePaintOverlay
+              scrollRef={scrollRef}
+              zoom={zoom}
+              tilemap={selectedScene?.tilemap}
+              selectedTileCell={selectedTileCell}
+              sceneId={selectedSceneId ?? ''}
+              dispatch={dispatch}
+            />
+          )}
         </div>
 
         {/* Scrollable spacer — drives the scrollbars and hosts the DOM overlays
