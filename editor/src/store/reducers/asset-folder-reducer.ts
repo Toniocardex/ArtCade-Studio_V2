@@ -1,5 +1,9 @@
 import type { CoreState, Action, DomainReducer } from '../editor-store-state'
 import type { AssetVirtualFolderDef } from '../../types'
+import {
+  isVirtualFolderNameTaken,
+  uniqueVirtualFolderName,
+} from '../../utils/asset-virtual-folders'
 
 function nextVirtualFolderId(folders: Record<string, AssetVirtualFolderDef> | undefined): string {
   let max = 0
@@ -17,7 +21,7 @@ export const assetFolderReducer: DomainReducer = (state: CoreState, action: Acti
       const id = nextVirtualFolderId(state.project.assetVirtualFolders)
       const folder: AssetVirtualFolderDef = {
         id,
-        name: action.name.trim() || 'New Folder',
+        name: uniqueVirtualFolderName(state.project, action.category, action.name),
         category: action.category,
         assetRefs: [],
       }
@@ -83,6 +87,26 @@ export const assetFolderReducer: DomainReducer = (state: CoreState, action: Acti
       return {
         ...state,
         project: { ...state.project, assetVirtualFolders: next },
+        projectDirty: true,
+      }
+    }
+    case 'ASSET_FOLDER_RENAME': {
+      const folder = state.project?.assetVirtualFolders?.[action.folderId]
+      if (!state.project || !folder) return state
+      const name = action.name.trim() || 'New Folder'
+      if (name === folder.name) return state
+      if (isVirtualFolderNameTaken(state.project, folder.category, name, action.folderId)) {
+        return state
+      }
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          assetVirtualFolders: {
+            ...state.project.assetVirtualFolders,
+            [action.folderId]: { ...folder, name },
+          },
+        },
         projectDirty: true,
       }
     }

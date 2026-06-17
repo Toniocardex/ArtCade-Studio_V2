@@ -7,6 +7,74 @@ import type { AssetExplorerSelection } from '../hooks/useAssetExplorerActions'
 
 export type VirtualAssetRefType = 'image' | 'audio' | 'font' | 'tileset'
 
+/** Library categories that support user-created virtual folders (not scripts). */
+export const ASSET_VIRTUAL_FOLDER_CATEGORIES = [
+  'images',
+  'audio',
+  'fonts',
+  'tilesets',
+] as const
+
+export type AssetVirtualFolderCategory = (typeof ASSET_VIRTUAL_FOLDER_CATEGORIES)[number]
+
+export const ASSET_VIRTUAL_FOLDER_CATEGORY_LABELS: Record<AssetVirtualFolderCategory, string> = {
+  images: 'Images',
+  audio: 'Audio',
+  fonts: 'Fonts',
+  tilesets: 'Tilesets',
+}
+
+function normalizeVirtualFolderName(name: string): string {
+  return name.trim() || 'New Folder'
+}
+
+function virtualFolderNamesInCategory(
+  project: ProjectDoc,
+  category: AssetFolderCategory,
+  excludingFolderId?: string,
+): Set<string> {
+  const taken = new Set<string>()
+  for (const folder of Object.values(project.assetVirtualFolders ?? {})) {
+    if (folder.category !== category) continue
+    if (folder.id === excludingFolderId) continue
+    taken.add(folder.name.toLowerCase())
+  }
+  return taken
+}
+
+/**
+ * Whether a display name is already used by another virtual folder in the category.
+ * Comparison is case-insensitive.
+ */
+export function isVirtualFolderNameTaken(
+  project: ProjectDoc,
+  category: AssetFolderCategory,
+  name: string,
+  excludingFolderId?: string,
+): boolean {
+  const normalized = normalizeVirtualFolderName(name)
+  return virtualFolderNamesInCategory(project, category, excludingFolderId).has(
+    normalized.toLowerCase(),
+  )
+}
+
+/**
+ * Returns a unique folder display name within a category (auto-suffix " 2", " 3", …).
+ */
+export function uniqueVirtualFolderName(
+  project: ProjectDoc,
+  category: AssetFolderCategory,
+  baseName: string,
+  excludingFolderId?: string,
+): string {
+  const base = normalizeVirtualFolderName(baseName)
+  const taken = virtualFolderNamesInCategory(project, category, excludingFolderId)
+  if (!taken.has(base.toLowerCase())) return base
+  let i = 2
+  while (taken.has(`${base} ${i}`.toLowerCase())) i += 1
+  return `${base} ${i}`
+}
+
 export function explorerFolderIdToCategory(
   folderId: string,
 ): AssetFolderCategory | null {

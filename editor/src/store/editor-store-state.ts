@@ -232,6 +232,7 @@ export type Action =
   | { type: 'OBJECT_TYPE_DELETE'; objectTypeId: string }
   | { type: 'PROJECT_NORMALIZE_ASSET_REFS' }
   | { type: 'ASSET_FOLDER_CREATE'; category: AssetFolderCategory; name: string }
+  | { type: 'ASSET_FOLDER_RENAME'; folderId: string; name: string }
   | { type: 'ASSET_MOVE_TO_FOLDER'; folderId: string; assetType: 'image' | 'audio' | 'font' | 'tileset'; assetId: string }
   | { type: 'ASSET_UNASSIGN_FROM_FOLDERS'; assetType: 'image' | 'audio' | 'font' | 'tileset'; assetId: string }
   | { type: 'ASSET_FOLDER_DELETE'; folderId: string }

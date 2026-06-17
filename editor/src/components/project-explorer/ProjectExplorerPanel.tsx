@@ -19,7 +19,6 @@ import { useExplorerExpanded } from '../../hooks/useExplorerExpanded'
 import { useAssetExplorerActions } from '../../hooks/useAssetExplorerActions'
 import { useAssetFolderActions } from '../../hooks/useAssetFolderActions'
 import { useSceneExplorerActions } from '../../hooks/useSceneExplorerActions'
-import type { AssetFolderCategory } from '../../types'
 import { explorerFolderIdToCategory } from '../../utils/asset-virtual-folders'
 import { buildAssetFolderMenuItems } from './asset-folder-context-menus'
 import {
@@ -65,7 +64,6 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
   const scene = useSceneExplorerActions()
   const assets = useAssetExplorerActions()
   const assetFolders = useAssetFolderActions()
-  const newFolderCategoryRef = useRef<AssetFolderCategory>('images')
 
   const sceneId = scene.sceneId
   const project = scene.project
@@ -325,9 +323,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
             <AssetToolbar
               disabled={!project}
               canRemove={assets.canRemove}
-              onNewFolder={() =>
-                assetFolders.createVirtualFolder(newFolderCategoryRef.current)
-              }
+              onNewFolder={assetFolders.createVirtualFolder}
               onImportImage={assets.triggerImportImage}
               onImportTileset={assets.triggerImportTileset}
               onImportAudio={assets.triggerImportAudio}
@@ -366,7 +362,6 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                     open={folderOpen}
                     onToggle={() => {
                       toggle(folderKey)
-                      if (libraryCategory) newFolderCategoryRef.current = libraryCategory
                     }}
                   >
                     {folder.count === 0 ? (
@@ -407,6 +402,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                         onMoveToFolder={folderHandlers.onMoveToFolder}
                         onUnassign={folderHandlers.onUnassign}
                         onCreateFolder={folderHandlers.onCreateFolder}
+                        onRenameFolder={assetFolders.renameVirtualFolder}
                         onDeleteFolder={folderHandlers.onDeleteFolder}
                         resolveLeaf={(type, id) => {
                           if (type === 'image') {

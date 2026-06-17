@@ -9,6 +9,7 @@ export type TreeFolderProps = Readonly<{
   depth?: number
   open: boolean
   onToggle: () => void
+  onDoubleClick?: () => void
   onContextMenu?: (ev: React.MouseEvent) => void
   accent?: boolean
   children?: ReactNode
@@ -20,6 +21,7 @@ export function TreeFolder({
   depth = 0,
   open,
   onToggle,
+  onDoubleClick,
   onContextMenu,
   accent = false,
   children,
@@ -32,6 +34,7 @@ export function TreeFolder({
       <button
         type="button"
         onClick={onToggle}
+        onDoubleClick={onDoubleClick}
         className="w-full flex items-center gap-1 py-1 text-xs text-[var(--text)] hover:text-[var(--accent)]
                    hover:bg-[rgb(var(--border-rgb)/0.25)] rounded transition-colors"
         style={{ paddingLeft: pad }}

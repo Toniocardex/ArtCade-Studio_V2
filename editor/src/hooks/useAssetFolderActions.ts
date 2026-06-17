@@ -1,10 +1,11 @@
 import { useCallback } from 'react'
 import { useEditorDispatch, useEditorSelector } from '../store/editor-store'
-import type { AssetFolderCategory } from '../types'
 import { confirmDialog } from '../utils/native-dialog'
 import { useTextPrompt } from './useTextPrompt'
 import {
+  isVirtualFolderNameTaken,
   virtualFoldersForCategory,
+  type AssetVirtualFolderCategory,
   type VirtualAssetRefType,
 } from '../utils/asset-virtual-folders'
 
@@ -14,13 +15,13 @@ export function useAssetFolderActions() {
   const project = useEditorSelector((s) => s.project)
 
   const foldersForCategory = useCallback(
-    (category: AssetFolderCategory) =>
+    (category: AssetVirtualFolderCategory) =>
       project ? virtualFoldersForCategory(project, category) : [],
     [project],
   )
 
   const createVirtualFolder = useCallback(
-    (category: AssetFolderCategory) => {
+    (category: AssetVirtualFolderCategory) => {
       if (!project) return
       void promptText({
         title: 'New folder',
@@ -30,6 +31,36 @@ export function useAssetFolderActions() {
         if (!name) return
         dispatch({ type: 'ASSET_FOLDER_CREATE', category, name })
       })
+    },
+    [dispatch, project, promptText],
+  )
+
+  const renameVirtualFolder = useCallback(
+    (folderId: string) => {
+      const folder = project?.assetVirtualFolders?.[folderId]
+      if (!project || !folder) return
+
+      const promptRename = (message: string, defaultValue: string) => {
+        void promptText({
+          title: 'Rename folder',
+          message,
+          defaultValue,
+        }).then((name) => {
+          if (!name) return
+          const trimmed = name.trim() || 'New Folder'
+          if (trimmed === folder.name) return
+          if (isVirtualFolderNameTaken(project, folder.category, trimmed, folderId)) {
+            promptRename(
+              `A folder named "${trimmed}" already exists in ${folder.category}. Choose another name:`,
+              trimmed,
+            )
+            return
+          }
+          dispatch({ type: 'ASSET_FOLDER_RENAME', folderId, name: trimmed })
+        })
+      }
+
+      promptRename(`Folder name (${folder.category}):`, folder.name)
     },
     [dispatch, project, promptText],
   )
@@ -67,6 +98,7 @@ export function useAssetFolderActions() {
   return {
     foldersForCategory,
     createVirtualFolder,
+    renameVirtualFolder,
     moveAssetToFolder,
     unassignAssetFromFolders,
     deleteVirtualFolder,

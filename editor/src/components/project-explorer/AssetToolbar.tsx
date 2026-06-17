@@ -1,10 +1,16 @@
-import type { ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { FolderPlus, Search, ImagePlus, Grid3x3, Music, Type, Trash2 } from 'lucide-react'
+import { ToolbarDropdown } from '../menu-bar/ToolbarDropdown'
+import {
+  ASSET_VIRTUAL_FOLDER_CATEGORIES,
+  ASSET_VIRTUAL_FOLDER_CATEGORY_LABELS,
+  type AssetVirtualFolderCategory,
+} from '../../utils/asset-virtual-folders'
 
 export type AssetToolbarProps = Readonly<{
   disabled: boolean
   canRemove: boolean
-  onNewFolder: () => void
+  onNewFolder: (category: AssetVirtualFolderCategory) => void
   onImportImage: () => void
   onImportTileset: () => void
   onImportAudio: () => void
@@ -62,14 +68,43 @@ export function AssetToolbar({
   onFocusAssets,
   onRemove,
 }: AssetToolbarProps) {
+  const folderBtnRef = useRef<HTMLButtonElement>(null)
+  const [folderMenuOpen, setFolderMenuOpen] = useState(false)
+
+  const closeFolderMenu = () => setFolderMenuOpen(false)
+
   return (
     <div className="flex items-center gap-0.5 px-2 py-1 border-b border-[var(--border)] bg-[var(--panel-3)]">
-      <IconBtn
-        icon={<FolderPlus size={14} />}
-        onClick={onNewFolder}
+      <button
+        ref={folderBtnRef}
+        type="button"
+        onClick={() => setFolderMenuOpen((open) => !open)}
         disabled={disabled}
-        title="New folder (under Images)"
-      />
+        title="New folder…"
+        aria-label="New folder…"
+        className="flex items-center justify-center w-7 h-7 rounded border border-transparent
+                   text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--panel-2)]
+                   hover:border-[var(--border)] disabled:opacity-40 transition-colors"
+      >
+        <FolderPlus size={14} />
+      </button>
+      <ToolbarDropdown open={folderMenuOpen} anchorRef={folderBtnRef} onClose={closeFolderMenu}>
+        {ASSET_VIRTUAL_FOLDER_CATEGORIES.map((category) => (
+          <button
+            key={category}
+            type="button"
+            role="menuitem"
+            className="w-full text-left px-3 py-1.5 text-[11px] text-[var(--text)]
+                       hover:bg-[rgb(var(--border-rgb)/0.35)] transition-colors"
+            onClick={() => {
+              closeFolderMenu()
+              onNewFolder(category)
+            }}
+          >
+            {ASSET_VIRTUAL_FOLDER_CATEGORY_LABELS[category]}
+          </button>
+        ))}
+      </ToolbarDropdown>
       <IconBtn
         icon={<Search size={14} />}
         onClick={onFocusAssets}

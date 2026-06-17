@@ -76,6 +76,57 @@ describe('asset-folder-reducer', () => {
     expect(s.project!.assetVirtualFolders![folderId].assetRefs).toHaveLength(0)
   })
 
+  it('ASSET_FOLDER_CREATE dedupes name within category', () => {
+    let s = coreReducer(st(), {
+      type: 'ASSET_FOLDER_CREATE',
+      category: 'images',
+      name: 'New Folder',
+    })
+    s = coreReducer(s, {
+      type: 'ASSET_FOLDER_CREATE',
+      category: 'images',
+      name: 'New Folder',
+    })
+    const names = Object.values(s.project!.assetVirtualFolders ?? {}).map((f) => f.name)
+    expect(names).toEqual(['New Folder', 'New Folder 2'])
+  })
+
+  it('ASSET_FOLDER_RENAME updates display name when unique', () => {
+    let s = coreReducer(st(), {
+      type: 'ASSET_FOLDER_CREATE',
+      category: 'images',
+      name: 'Sprites',
+    })
+    const folderId = Object.keys(s.project!.assetVirtualFolders!)[0]
+    s = coreReducer(s, {
+      type: 'ASSET_FOLDER_RENAME',
+      folderId,
+      name: 'Characters',
+    })
+    expect(s.project!.assetVirtualFolders![folderId].name).toBe('Characters')
+    expect(s.projectDirty).toBe(true)
+  })
+
+  it('ASSET_FOLDER_RENAME rejects duplicate names in category', () => {
+    let s = coreReducer(st(), {
+      type: 'ASSET_FOLDER_CREATE',
+      category: 'images',
+      name: 'A',
+    })
+    s = coreReducer(s, {
+      type: 'ASSET_FOLDER_CREATE',
+      category: 'images',
+      name: 'B',
+    })
+    const folderB = Object.values(s.project!.assetVirtualFolders!).find((f) => f.name === 'B')!.id
+    s = coreReducer(s, {
+      type: 'ASSET_FOLDER_RENAME',
+      folderId: folderB,
+      name: 'A',
+    })
+    expect(s.project!.assetVirtualFolders![folderB].name).toBe('B')
+  })
+
   it('ASSET_FOLDER_DELETE removes folder entry only', () => {
     let s = coreReducer(st(), {
       type: 'ASSET_FOLDER_CREATE',

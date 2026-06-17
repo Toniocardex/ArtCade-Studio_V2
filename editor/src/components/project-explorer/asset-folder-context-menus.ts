@@ -10,14 +10,22 @@ import {
 export function buildVirtualFolderMenuItems(
   folderId: string,
   folderName: string,
-  onDelete: () => void,
+  handlers: Readonly<{
+    onRename: () => void
+    onDelete: () => void
+  }>,
 ): ExplorerContextMenuItem[] {
   return [
+    {
+      id: `rename-folder-${folderId}`,
+      label: 'Rename folder…',
+      onSelect: handlers.onRename,
+    },
     {
       id: `delete-folder-${folderId}`,
       label: `Delete folder "${folderName}"`,
       danger: true,
-      onSelect: onDelete,
+      onSelect: handlers.onDelete,
     },
   ]
 }

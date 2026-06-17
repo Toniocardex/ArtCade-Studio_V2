@@ -38,6 +38,7 @@ type VirtualFoldersBlockProps = Readonly<{
   onMoveToFolder: (folderId: string, assetType: VirtualAssetRefType, assetId: string) => void
   onUnassign: (assetType: VirtualAssetRefType, assetId: string) => void
   onCreateFolder: () => void
+  onRenameFolder: (folderId: string) => void
   onDeleteFolder: (folderId: string, folderName: string) => void
 }>
 
@@ -53,6 +54,7 @@ export function VirtualFoldersBlock({
   onMoveToFolder,
   onUnassign,
   onCreateFolder,
+  onRenameFolder,
   onDeleteFolder,
 }: VirtualFoldersBlockProps) {
   if (folders.length === 0) return null
@@ -67,12 +69,14 @@ export function VirtualFoldersBlock({
           depth={depth}
           open={isOpen(`asset:vf:${vf.id}`)}
           onToggle={() => toggle(`asset:vf:${vf.id}`)}
+          onDoubleClick={() => onRenameFolder(vf.id)}
           onContextMenu={(ev) =>
             openExplorerContextMenu(
               ev,
-              buildVirtualFolderMenuItems(vf.id, vf.name, () =>
-                onDeleteFolder(vf.id, vf.name),
-              ),
+              buildVirtualFolderMenuItems(vf.id, vf.name, {
+                onRename: () => onRenameFolder(vf.id),
+                onDelete: () => onDeleteFolder(vf.id, vf.name),
+              }),
               setContextMenu,
             )
           }
