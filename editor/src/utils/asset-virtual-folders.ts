@@ -17,6 +17,37 @@ export const ASSET_VIRTUAL_FOLDER_CATEGORIES = [
 
 export type AssetVirtualFolderCategory = (typeof ASSET_VIRTUAL_FOLDER_CATEGORIES)[number]
 
+export const VIRTUAL_ASSET_TYPE_TO_CATEGORY: Record<
+  VirtualAssetRefType,
+  AssetVirtualFolderCategory
+> = {
+  image: 'images',
+  audio: 'audio',
+  font: 'fonts',
+  tileset: 'tilesets',
+}
+
+/** Stable multi-select key for a virtual-folder asset ref. */
+export function virtualAssetRefKey(type: VirtualAssetRefType, id: string): string {
+  return `${type}:${id}`
+}
+
+/**
+ * Parses a multi-select key produced by {@link virtualAssetRefKey}.
+ * @returns ref or null when the key is malformed
+ */
+export function parseVirtualAssetRefKey(
+  key: string,
+): Readonly<{ type: VirtualAssetRefType; id: string }> | null {
+  const sep = key.indexOf(':')
+  if (sep <= 0) return null
+  const type = key.slice(0, sep) as VirtualAssetRefType
+  const id = key.slice(sep + 1)
+  if (!id) return null
+  if (type !== 'image' && type !== 'audio' && type !== 'font' && type !== 'tileset') return null
+  return { type, id }
+}
+
 export const ASSET_VIRTUAL_FOLDER_CATEGORY_LABELS: Record<AssetVirtualFolderCategory, string> = {
   images: 'Images',
   audio: 'Audio',

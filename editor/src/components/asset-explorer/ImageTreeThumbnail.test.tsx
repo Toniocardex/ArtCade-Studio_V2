@@ -14,7 +14,7 @@ const asset: ImageAsset = {
 }
 
 describe('ImageTreeThumbnail', () => {
-  it('opens studio on thumbnail click', () => {
+  it('opens studio on thumbnail double-click', () => {
     const onOpenStudio = vi.fn()
     const { container } = render(
       <ImageTreeThumbnail asset={asset} projectPath={null} onOpenStudio={onOpenStudio} />,
@@ -22,6 +22,8 @@ describe('ImageTreeThumbnail', () => {
     const thumb = container.querySelector('img')
     expect(thumb).toBeTruthy()
     fireEvent.click(thumb!)
+    expect(onOpenStudio).not.toHaveBeenCalled()
+    fireEvent.doubleClick(thumb!)
     expect(onOpenStudio).toHaveBeenCalledTimes(1)
   })
 })

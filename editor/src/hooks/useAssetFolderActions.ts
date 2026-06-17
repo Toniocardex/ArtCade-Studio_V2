@@ -5,9 +5,11 @@ import { useTextPrompt } from './useTextPrompt'
 import {
   isVirtualFolderNameTaken,
   virtualFoldersForCategory,
+  VIRTUAL_ASSET_TYPE_TO_CATEGORY,
   type AssetVirtualFolderCategory,
   type VirtualAssetRefType,
 } from '../utils/asset-virtual-folders'
+import type { AssetDragRef } from '../utils/asset-explorer-dnd'
 
 export function useAssetFolderActions() {
   const dispatch = useEditorDispatch()
@@ -81,6 +83,28 @@ export function useAssetFolderActions() {
     [dispatch, project],
   )
 
+  const moveRefsToFolder = useCallback(
+    (folderId: string, refs: readonly AssetDragRef[]) => {
+      const folder = project?.assetVirtualFolders?.[folderId]
+      if (!project || !folder || refs.length === 0) return
+      for (const ref of refs) {
+        if (VIRTUAL_ASSET_TYPE_TO_CATEGORY[ref.type] !== folder.category) continue
+        dispatch({ type: 'ASSET_MOVE_TO_FOLDER', folderId, assetType: ref.type, assetId: ref.id })
+      }
+    },
+    [dispatch, project],
+  )
+
+  const unassignRefsFromFolders = useCallback(
+    (refs: readonly AssetDragRef[]) => {
+      if (!project || refs.length === 0) return
+      for (const ref of refs) {
+        dispatch({ type: 'ASSET_UNASSIGN_FROM_FOLDERS', assetType: ref.type, assetId: ref.id })
+      }
+    },
+    [dispatch, project],
+  )
+
   const deleteVirtualFolder = useCallback(
     (folderId: string, folderName: string) => {
       if (!project?.assetVirtualFolders?.[folderId]) return
@@ -100,7 +124,9 @@ export function useAssetFolderActions() {
     createVirtualFolder,
     renameVirtualFolder,
     moveAssetToFolder,
+    moveRefsToFolder,
     unassignAssetFromFolders,
+    unassignRefsFromFolders,
     deleteVirtualFolder,
   }
 }

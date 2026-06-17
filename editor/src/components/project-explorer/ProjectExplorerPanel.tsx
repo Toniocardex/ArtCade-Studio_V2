@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Copy,
   FileText,
@@ -18,9 +18,15 @@ import { assetFolderItemCount, buildProjectExplorerData } from '../../utils/proj
 import { useExplorerExpanded } from '../../hooks/useExplorerExpanded'
 import { useAssetExplorerActions } from '../../hooks/useAssetExplorerActions'
 import { useAssetFolderActions } from '../../hooks/useAssetFolderActions'
+import { useAssetTreeMultiSelect } from '../../hooks/useAssetTreeMultiSelect'
 import { useSceneExplorerActions } from '../../hooks/useSceneExplorerActions'
-import { explorerFolderIdToCategory } from '../../utils/asset-virtual-folders'
-import { buildAssetFolderMenuItems } from './asset-folder-context-menus'
+import {
+  explorerFolderIdToCategory,
+  type AssetVirtualFolderCategory,
+  type VirtualAssetRefType,
+} from '../../utils/asset-virtual-folders'
+import { buildAssetFolderMenuItems, type AssetFolderMenuHandlers } from './asset-folder-context-menus'
+import { explorerAssetDragProps, explorerLibraryCategoryDropHandlers } from './explorer-asset-drag'
 import {
   VirtualFoldersBlock,
   assetHiddenByVirtualFolder,
@@ -65,6 +71,29 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
   const scene = useSceneExplorerActions()
   const assets = useAssetExplorerActions()
   const assetFolders = useAssetFolderActions()
+  const assetMulti = useAssetTreeMultiSelect()
+  const [libraryDropCategory, setLibraryDropCategory] = useState<AssetVirtualFolderCategory | null>(
+    null,
+  )
+
+  const makeAssetFolderMenuHandlers = useCallback(
+    (
+      category: AssetVirtualFolderCategory,
+      type: VirtualAssetRefType,
+      id: string,
+    ): AssetFolderMenuHandlers => ({
+      onMoveToFolder: (folderId) => assetFolders.moveAssetToFolder(folderId, type, id),
+      onMoveRefsToFolder: assetFolders.moveRefsToFolder,
+      onUnassign: () => assetFolders.unassignAssetFromFolders(type, id),
+      onUnassignRefs: assetFolders.unassignRefsFromFolders,
+      onCreateFolder: () => assetFolders.createVirtualFolder(category),
+    }),
+    [assetFolders],
+  )
+
+  useEffect(() => {
+    assetMulti.clearMulti()
+  }, [search, assetMulti.clearMulti])
 
   const sceneId = scene.sceneId
   const project = scene.project
@@ -358,6 +387,14 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                       onDeleteFolder: assetFolders.deleteVirtualFolder,
                     }
                   : null
+                const libraryDrop =
+                  libraryCategory != null
+                    ? explorerLibraryCategoryDropHandlers(
+                        libraryCategory,
+                        assetFolders.unassignRefsFromFolders,
+                        (active) => setLibraryDropCategory(active ? libraryCategory : null),
+                      )
+                    : null
                 return (
                   <TreeFolder
                     key={folder.id}
@@ -368,6 +405,11 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                     onToggle={() => {
                       toggle(folderKey)
                     }}
+                    dropHighlight={libraryCategory != null && libraryDropCategory === libraryCategory}
+                    onFolderDragOver={libraryDrop?.onFolderDragOver}
+                    onFolderDragEnter={libraryDrop?.onFolderDragEnter}
+                    onFolderDragLeave={libraryDrop?.onFolderDragLeave}
+                    onFolderDrop={libraryDrop?.onFolderDrop}
                   >
                     {folder.count === 0 ? (
                       <div className="flex flex-col items-start gap-1.5 py-1.5 pl-4">
@@ -404,9 +446,11 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                         isOpen={isOpen}
                         toggle={toggle}
                         setContextMenu={setContextMenu}
-                        onMoveToFolder={folderHandlers.onMoveToFolder}
-                        onUnassign={folderHandlers.onUnassign}
-                        onCreateFolder={folderHandlers.onCreateFolder}
+                        folderMenuHandlers={(type, id) =>
+                          makeAssetFolderMenuHandlers(libraryCategory, type, id)
+                        }
+                        batchRefs={assetMulti.batchRefsInCategory(libraryCategory)}
+                        onMoveRefsToFolder={assetFolders.moveRefsToFolder}
                         onRenameFolder={assetFolders.renameVirtualFolder}
                         onDeleteFolder={folderHandlers.onDeleteFolder}
                         resolveLeaf={(type, id) => {
@@ -418,12 +462,23 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                               assetType: 'image',
                               assetId: imgRow.id,
                               label: imgRow.name,
-                              selected:
-                                assets.selection?.type === 'image' &&
-                                assets.selection.id === imgRow.id,
-                              onClick: () => assets.openImageStudio(imgRow.id),
+                              selected: assetMulti.isSelected('image', imgRow.id),
+                              onClick: (e) =>
+                                assetMulti.handleAssetClick(
+                                  e,
+                                  'images',
+                                  'image',
+                                  imgRow.id,
+                                  () => assets.setSelection({ type: 'image', id: imgRow.id }),
+                                ),
+                              onDoubleClick: asset
+                                ? () => assets.openImageStudio(imgRow.id)
+                                : undefined,
+                              ...explorerAssetDragProps(
+                                assetMulti.dragRefsFor('images', 'image', imgRow.id),
+                              ),
                               title: asset
-                                ? 'Click to open Sprite Studio'
+                                ? 'Double-click to open Sprite Studio'
                                 : imgRow.path,
                               icon: (
                                 <ImageTreeThumbnail
@@ -464,10 +519,14 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                               assetType: 'audio',
                               assetId: row.id,
                               label: row.name,
-                              selected:
-                                assets.selection?.type === 'audio' &&
-                                assets.selection.id === row.id,
-                              onClick: () => assets.setSelection({ type: 'audio', id: row.id }),
+                              selected: assetMulti.isSelected('audio', row.id),
+                              onClick: (e) =>
+                                assetMulti.handleAssetClick(e, 'audio', 'audio', row.id, () =>
+                                  assets.setSelection({ type: 'audio', id: row.id }),
+                                ),
+                              ...explorerAssetDragProps(
+                                assetMulti.dragRefsFor('audio', 'audio', row.id),
+                              ),
                               icon: (
                                 <Music size={11} className="flex-shrink-0 text-[var(--muted)]" />
                               ),
@@ -490,10 +549,14 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                               assetType: 'font',
                               assetId: row.id,
                               label: row.name,
-                              selected:
-                                assets.selection?.type === 'font' &&
-                                assets.selection.id === row.id,
-                              onClick: () => assets.setSelection({ type: 'font', id: row.id }),
+                              selected: assetMulti.isSelected('font', row.id),
+                              onClick: (e) =>
+                                assetMulti.handleAssetClick(e, 'fonts', 'font', row.id, () =>
+                                  assets.setSelection({ type: 'font', id: row.id }),
+                                ),
+                              ...explorerAssetDragProps(
+                                assetMulti.dragRefsFor('fonts', 'font', row.id),
+                              ),
                               icon: <Type size={11} className="flex-shrink-0 text-[var(--warn)]" />,
                               title: row.path,
                               extraMenuItems: [
@@ -514,10 +577,18 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                             assetType: 'tileset',
                             assetId: row.assetId,
                             label: row.name,
-                            selected:
-                              assets.selection?.type === 'tileset' &&
-                              assets.selection.id === row.assetId,
-                            onClick: () => assets.openTilesetEditor(row.assetId),
+                            selected: assetMulti.isSelected('tileset', row.assetId),
+                            onClick: (e) =>
+                              assetMulti.handleAssetClick(
+                                e,
+                                'tilesets',
+                                'tileset',
+                                row.assetId,
+                                () => assets.openTilesetEditor(row.assetId),
+                              ),
+                            ...explorerAssetDragProps(
+                              assetMulti.dragRefsFor('tilesets', 'tileset', row.assetId),
+                            ),
                             icon: (
                               <TilesetTreeThumbnail
                                 tileset={tilesetAsset}
@@ -554,16 +625,28 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                       )
                       .map((img) => {
                       const asset = project.assets?.[img.id]
-                      const selected =
-                        assets.selection?.type === 'image' && assets.selection.id === img.id
                       return (
                         <TreeLeaf
                           key={img.id}
                           label={img.name}
                           depth={2}
-                          selected={selected}
+                          selected={assetMulti.isSelected('image', img.id)}
                           spritesheetStudioTrigger={Boolean(asset)}
-                          onClick={() => assets.openImageStudio(img.id)}
+                          {...explorerAssetDragProps(
+                            assetMulti.dragRefsFor('images', 'image', img.id),
+                          )}
+                          onClick={(e) =>
+                            assetMulti.handleAssetClick(
+                              e,
+                              'images',
+                              'image',
+                              img.id,
+                              () => assets.setSelection({ type: 'image', id: img.id }),
+                            )
+                          }
+                          onDoubleClick={
+                            asset ? () => assets.openImageStudio(img.id) : undefined
+                          }
                           onContextMenu={(ev) => {
                             if (!asset) return
                             openExplorerContextMenu(
@@ -573,14 +656,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                                 'images',
                                 'image',
                                 img.id,
-                                {
-                                  onMoveToFolder: (folderId) =>
-                                    assetFolders.moveAssetToFolder(folderId, 'image', img.id),
-                                  onUnassign: () =>
-                                    assetFolders.unassignAssetFromFolders('image', img.id),
-                                  onCreateFolder: () =>
-                                    assetFolders.createVirtualFolder('images'),
-                                },
+                                makeAssetFolderMenuHandlers('images', 'image', img.id),
                                 [
                                   {
                                     id: 'spritesheet-studio',
@@ -601,12 +677,13 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                                       dispatch({ type: 'ASSET_REMOVE', assetId: img.id }),
                                   },
                                 ],
+                                assetMulti.batchRefsInCategory('images'),
                               ),
                               setContextMenu,
                             )
                           }}
                           title={
-                            asset ? 'Click to open Sprite Studio' : img.path
+                            asset ? 'Double-click to open Sprite Studio' : img.path
                           }
                           icon={
                             <ImageTreeThumbnail
@@ -627,10 +704,15 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                         key={a.id}
                         label={a.name}
                         depth={2}
-                        selected={
-                          assets.selection?.type === 'audio' && assets.selection.id === a.id
+                        selected={assetMulti.isSelected('audio', a.id)}
+                        {...explorerAssetDragProps(
+                          assetMulti.dragRefsFor('audio', 'audio', a.id),
+                        )}
+                        onClick={(e) =>
+                          assetMulti.handleAssetClick(e, 'audio', 'audio', a.id, () =>
+                            assets.setSelection({ type: 'audio', id: a.id }),
+                          )
                         }
-                        onClick={() => assets.setSelection({ type: 'audio', id: a.id })}
                         onContextMenu={(ev) =>
                           openExplorerContextMenu(
                             ev,
@@ -639,13 +721,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                               'audio',
                               'audio',
                               a.id,
-                              {
-                                onMoveToFolder: (folderId) =>
-                                  assetFolders.moveAssetToFolder(folderId, 'audio', a.id),
-                                onUnassign: () =>
-                                  assetFolders.unassignAssetFromFolders('audio', a.id),
-                                onCreateFolder: () => assetFolders.createVirtualFolder('audio'),
-                              },
+                              makeAssetFolderMenuHandlers('audio', 'audio', a.id),
                               [
                                 {
                                   id: 'remove',
@@ -655,6 +731,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                                     dispatch({ type: 'AUDIO_ASSET_REMOVE', assetId: a.id }),
                                 },
                               ],
+                              assetMulti.batchRefsInCategory('audio'),
                             ),
                             setContextMenu,
                           )
@@ -672,10 +749,15 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                         key={f.id}
                         label={f.name}
                         depth={2}
-                        selected={
-                          assets.selection?.type === 'font' && assets.selection.id === f.id
+                        selected={assetMulti.isSelected('font', f.id)}
+                        {...explorerAssetDragProps(
+                          assetMulti.dragRefsFor('fonts', 'font', f.id),
+                        )}
+                        onClick={(e) =>
+                          assetMulti.handleAssetClick(e, 'fonts', 'font', f.id, () =>
+                            assets.setSelection({ type: 'font', id: f.id }),
+                          )
                         }
-                        onClick={() => assets.setSelection({ type: 'font', id: f.id })}
                         onContextMenu={(ev) =>
                           openExplorerContextMenu(
                             ev,
@@ -684,13 +766,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                               'fonts',
                               'font',
                               f.id,
-                              {
-                                onMoveToFolder: (folderId) =>
-                                  assetFolders.moveAssetToFolder(folderId, 'font', f.id),
-                                onUnassign: () =>
-                                  assetFolders.unassignAssetFromFolders('font', f.id),
-                                onCreateFolder: () => assetFolders.createVirtualFolder('fonts'),
-                              },
+                              makeAssetFolderMenuHandlers('fonts', 'font', f.id),
                               [
                                 {
                                   id: 'remove',
@@ -700,6 +776,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                                     dispatch({ type: 'FONT_ASSET_REMOVE', assetId: f.id }),
                                 },
                               ],
+                              assetMulti.batchRefsInCategory('fonts'),
                             ),
                             setContextMenu,
                           )
@@ -746,10 +823,19 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                         key={t.assetId}
                         label={t.name}
                         depth={2}
-                        selected={
-                          assets.selection?.type === 'tileset' && assets.selection.id === t.assetId
+                        selected={assetMulti.isSelected('tileset', t.assetId)}
+                        {...explorerAssetDragProps(
+                          assetMulti.dragRefsFor('tilesets', 'tileset', t.assetId),
+                        )}
+                        onClick={(e) =>
+                          assetMulti.handleAssetClick(
+                            e,
+                            'tilesets',
+                            'tileset',
+                            t.assetId,
+                            () => assets.openTilesetEditor(t.assetId),
+                          )
                         }
-                        onClick={() => assets.openTilesetEditor(t.assetId)}
                         onContextMenu={(ev) =>
                           openExplorerContextMenu(
                             ev,
@@ -758,18 +844,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                               'tilesets',
                               'tileset',
                               t.assetId,
-                              {
-                                onMoveToFolder: (folderId) =>
-                                  assetFolders.moveAssetToFolder(
-                                    folderId,
-                                    'tileset',
-                                    t.assetId,
-                                  ),
-                                onUnassign: () =>
-                                  assetFolders.unassignAssetFromFolders('tileset', t.assetId),
-                                onCreateFolder: () =>
-                                  assetFolders.createVirtualFolder('tilesets'),
-                              },
+                              makeAssetFolderMenuHandlers('tilesets', 'tileset', t.assetId),
                               [
                                 {
                                   id: 'edit',
@@ -787,6 +862,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                                     }),
                                 },
                               ],
+                              assetMulti.batchRefsInCategory('tilesets'),
                             ),
                             setContextMenu,
                           )

@@ -1,5 +1,6 @@
 import type { AssetFolderCategory, ProjectDoc } from '../../types'
 import type { ExplorerContextMenuItem } from './explorer-context-menu'
+import type { AssetDragRef } from '../../utils/asset-explorer-dnd'
 import {
   isAssetInVirtualFolder,
   virtualFolderContainingAsset,
@@ -30,24 +31,45 @@ export function buildVirtualFolderMenuItems(
   ]
 }
 
+export type AssetFolderMenuHandlers = Readonly<{
+  onMoveToFolder: (folderId: string) => void
+  onMoveRefsToFolder: (folderId: string, refs: readonly AssetDragRef[]) => void
+  onUnassign: () => void
+  onUnassignRefs: (refs: readonly AssetDragRef[]) => void
+  onCreateFolder: () => void
+}>
+
 export function buildAssetFolderMenuItems(
   project: ProjectDoc,
   category: AssetFolderCategory,
   assetType: VirtualAssetRefType,
   assetId: string,
-  handlers: Readonly<{
-    onMoveToFolder: (folderId: string) => void
-    onUnassign: () => void
-    onCreateFolder: () => void
-  }>,
+  handlers: AssetFolderMenuHandlers,
   extraItems: readonly ExplorerContextMenuItem[] = [],
+  batchRefs: readonly AssetDragRef[] = [],
 ): ExplorerContextMenuItem[] {
   const items: ExplorerContextMenuItem[] = [...extraItems]
   const folders = virtualFoldersForCategory(project, category)
   const inVirtual = isAssetInVirtualFolder(project, category, assetType, assetId)
+  const batch = batchRefs.length > 1 ? batchRefs : []
+  const batchCount = batch.length
 
   if (folders.length > 0) {
     for (const f of folders) {
+      if (batchCount > 0) {
+        const allInFolder = batch.every(
+          (ref) => virtualFolderContainingAsset(project, category, ref.type, ref.id)?.id === f.id,
+        )
+        items.push({
+          id: `move-batch-${f.id}`,
+          label: allInFolder
+            ? `${batchCount} items in folder: ${f.name}`
+            : `Move ${batchCount} items to: ${f.name}`,
+          disabled: allInFolder,
+          onSelect: () => handlers.onMoveRefsToFolder(f.id, batch),
+        })
+        continue
+      }
       const already =
         virtualFolderContainingAsset(project, category, assetType, assetId)?.id === f.id
       items.push({
@@ -65,7 +87,18 @@ export function buildAssetFolderMenuItems(
     })
   }
 
-  if (inVirtual) {
+  if (batchCount > 0) {
+    const anyInVirtual = batch.some((ref) =>
+      isAssetInVirtualFolder(project, category, ref.type, ref.id),
+    )
+    if (anyInVirtual) {
+      items.push({
+        id: 'unassign-batch',
+        label: `Remove ${batchCount} items from folder`,
+        onSelect: () => handlers.onUnassignRefs(batch),
+      })
+    }
+  } else if (inVirtual) {
     items.push({
       id: 'unassign-folder',
       label: 'Remove from folder',

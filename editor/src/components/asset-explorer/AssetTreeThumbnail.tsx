@@ -12,6 +12,8 @@ export type AssetTreeThumbnailProps = Readonly<{
   projectPath: string | null
   onOpen: () => void
   openTitle: string
+  /** Single-click opens for tilesets; images use double-click so rows stay draggable. */
+  openOn?: 'click' | 'double-click'
 }>
 
 /** Small tree icon with optional async preview from project file. */
@@ -21,6 +23,7 @@ export function AssetTreeThumbnail({
   projectPath,
   onOpen,
   openTitle,
+  openOn = 'click',
 }: AssetTreeThumbnailProps) {
   const [src, setSrc] = useState<string | null>(dataUrl ?? null)
 
@@ -63,12 +66,17 @@ export function AssetTreeThumbnail({
     onOpen()
   }
 
+  const thumbOpenProps =
+    openOn === 'double-click'
+      ? { onDoubleClick: openFromThumbnail }
+      : { onClick: openFromThumbnail }
+
   if (!src) {
     return (
       <span
         className="inline-flex flex-shrink-0"
         title={openTitle}
-        onClick={openFromThumbnail}
+        {...thumbOpenProps}
       >
         <Image size={11} className="text-[var(--muted)]" aria-hidden />
       </span>
@@ -79,10 +87,12 @@ export function AssetTreeThumbnail({
     <img
       src={src}
       alt=""
+      draggable={false}
       className="w-4 h-4 object-contain flex-shrink-0"
       style={{ imageRendering: 'pixelated' }}
       title={openTitle}
-      onClick={openFromThumbnail}
+      onDragStart={(e) => e.preventDefault()}
+      {...thumbOpenProps}
     />
   )
 }

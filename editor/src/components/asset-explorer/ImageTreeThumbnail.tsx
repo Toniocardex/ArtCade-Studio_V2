@@ -7,7 +7,7 @@ type ImageTreeThumbnailProps = Readonly<{
   onOpenStudio: () => void
 }>
 
-/** Small tree icon; click opens Spritesheet Studio without re-firing row activation. */
+/** Small tree icon; double-click opens Spritesheet Studio without re-firing row activation. */
 export function ImageTreeThumbnail({ asset, projectPath, onOpenStudio }: ImageTreeThumbnailProps) {
   return (
     <AssetTreeThumbnail
@@ -15,7 +15,8 @@ export function ImageTreeThumbnail({ asset, projectPath, onOpenStudio }: ImageTr
       dataUrl={asset?.dataUrl}
       projectPath={projectPath}
       onOpen={onOpenStudio}
-      openTitle="Click to open Sprite Studio"
+      openOn="double-click"
+      openTitle="Double-click to open Sprite Studio"
     />
   )
 }
