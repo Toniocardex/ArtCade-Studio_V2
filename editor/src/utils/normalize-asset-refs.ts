@@ -109,20 +109,6 @@ export function normalizeAssetRefs(project: ProjectDoc): NormalizeAssetRefsResul
     changed++
   }
 
-  if (next.tilesets) {
-    for (const [tid, ts] of Object.entries(next.tilesets)) {
-      const raw = ts.spriteImagePath?.trim()
-      if (!raw) continue
-      const path = resolveImageLoadKey(project, raw)
-      const lib = path
-        ? Object.values(project.assets ?? {}).find((a) => a.path === path)
-        : undefined
-      if (!lib || lib.id === raw) continue
-      next.tilesets![tid] = { ...ts, spriteImagePath: lib.id }
-      changed++
-    }
-  }
-
   const { boards, changed: audioChanged } = normalizeLogicBoardsAudio(project, next.logicBoards)
   if (audioChanged > 0) {
     next.logicBoards = boards

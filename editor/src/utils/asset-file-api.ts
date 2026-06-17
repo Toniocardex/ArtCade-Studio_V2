@@ -6,18 +6,20 @@ import { normalizeProjectRelativePath } from './project-path-security'
 import { invokeWriteBinaryFile } from './project-file-api'
 import { readPendingAsset, stagePendingAsset } from './pending-asset-store'
 
-export type ImportedAssetKind = 'image' | 'audio' | 'font'
+export type ImportedAssetKind = 'image' | 'audio' | 'font' | 'tileset'
 
 const ASSET_DIR: Record<ImportedAssetKind, string> = {
   image: 'assets/images',
   audio: 'assets/audio',
   font: 'assets/fonts',
+  tileset: 'assets/tilesets',
 }
 
 const ASSET_PREFIX: Record<ImportedAssetKind, string> = {
   image: 'img',
   audio: 'aud',
   font: 'font',
+  tileset: 'ts',
 }
 
 let fallbackIdSequence = 0

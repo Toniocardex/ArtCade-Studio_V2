@@ -19,6 +19,14 @@ describe('importAssetFile', () => {
     clearPendingAssets()
   })
 
+  it('writes tileset imports under assets/tilesets/', async () => {
+    const imported = await importAssetFile({
+      kind: 'tileset', id: 'ts_cave', fileName: 'cave_tileset.png',
+      bytes: new Uint8Array([1]), projectRoot: '/project',
+    })
+    expect(imported.path).toBe('assets/tilesets/ts_cave_cave_tileset.png')
+  })
+
   it('uses the stable id in the destination path to avoid filename collisions', async () => {
     const first = await importAssetFile({
       kind: 'image', id: 'img_one', fileName: 'hero.png',

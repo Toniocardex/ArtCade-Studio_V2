@@ -792,7 +792,14 @@ export function serializeProjectDoc(project: ProjectDoc): string {
       ? { tilePalette: project.tilePalette }
       : {}),
     ...(project.tilesets && Object.keys(project.tilesets).length > 0
-      ? { tilesets: project.tilesets }
+      ? {
+          tilesets: Object.fromEntries(
+            Object.values(project.tilesets).map((t) => {
+              const { previewDataUrl: _drop, ...persisted } = t
+              return [t.assetId, persisted]
+            }),
+          ),
+        }
       : {}),
     ...(project.assets && Object.keys(project.assets).length > 0
       ? {

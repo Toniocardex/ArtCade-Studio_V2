@@ -35,6 +35,7 @@ import { AssetToolbar } from './AssetToolbar'
 import { AssetDetailStrip } from '../asset-explorer/AssetDetailStrip'
 import { AssetMediaDetailStrip } from '../asset-explorer/AssetMediaDetailStrip'
 import { ImageTreeThumbnail } from '../asset-explorer/ImageTreeThumbnail'
+import { TilesetTreeThumbnail } from '../asset-explorer/TilesetTreeThumbnail'
 import {
   ExplorerActionBar,
   ExplorerLabelCta,
@@ -55,6 +56,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
   const dispatch = useEditorDispatch()
   const store = useEditorStore()
   const openScripts = useEditorSelector((s) => s.openScripts)
+  const projectPath = useEditorSelector((s) => s.projectPath)
   const projectLoadEpoch = useEditorSelector((s) => s.projectLoadEpoch)
   const dialogs = useEditorSelector((s) => s.dialogs)
   const [search, setSearch] = useState('')
@@ -435,6 +437,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                               icon: (
                                 <ImageTreeThumbnail
                                   asset={asset}
+                                  projectPath={projectPath}
                                   onOpenStudio={() =>
                                     openSpritesheetStudio(dispatch, project, imgRow.id)
                                   }
@@ -518,6 +521,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                           }
                           const row = folder.tilesets.find((t) => t.assetId === id)
                           if (!row) return null
+                          const tilesetAsset = project.tilesets?.[row.assetId]
                           return {
                             assetType: 'tileset',
                             assetId: row.assetId,
@@ -529,7 +533,11 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                               assets.setSelection({ type: 'tileset', id: row.assetId }),
                             onDoubleClick: () => assets.openTilesetEditor(row.assetId),
                             icon: (
-                              <Grid3x3 size={11} className="flex-shrink-0 text-[var(--purple)]" />
+                              <TilesetTreeThumbnail
+                                tileset={tilesetAsset}
+                                projectPath={projectPath}
+                                onOpenEditor={() => assets.openTilesetEditor(row.assetId)}
+                              />
                             ),
                             title: 'Double-click to open Tileset Editor',
                             extraMenuItems: [
@@ -621,6 +629,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                           icon={
                             <ImageTreeThumbnail
                               asset={asset}
+                              projectPath={projectPath}
                               onOpenStudio={() =>
                                 openSpritesheetStudio(dispatch, project, img.id)
                               }
@@ -803,7 +812,13 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                             setContextMenu,
                           )
                         }
-                        icon={<Grid3x3 size={11} className="flex-shrink-0 text-[var(--purple)]" />}
+                        icon={
+                          <TilesetTreeThumbnail
+                            tileset={project.tilesets?.[t.assetId]}
+                            projectPath={projectPath}
+                            onOpenEditor={() => assets.openTilesetEditor(t.assetId)}
+                          />
+                        }
                         title="Double-click to open Tileset Editor"
                       />
                     ))}

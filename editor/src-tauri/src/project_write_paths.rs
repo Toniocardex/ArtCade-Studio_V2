@@ -126,7 +126,7 @@ fn is_allowed_project_relative(relative: &Path) -> bool {
             Some(Component::Normal(value)) => value.to_ascii_lowercase(),
             _ => return false,
         };
-        return if second == "images" {
+        return if second == "images" || second == "tilesets" {
             matches!(
                 extension.as_str(),
                 "png" | "jpg" | "jpeg" | "gif" | "webp" | "bmp"
@@ -229,6 +229,7 @@ mod tests {
             "scripts/main.lua",
             "dialogs/innkeeper.json",
             "assets/images/tile.png",
+            "assets/tilesets/cave.png",
             "assets/audio/theme.ogg",
             "assets/fonts/ui.ttf",
         ] {

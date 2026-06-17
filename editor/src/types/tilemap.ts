@@ -40,11 +40,13 @@ export interface TilemapLayer {
 export interface TilesetAsset {
   assetId:         string  // stable id, e.g. "tileset_forest_01"
   name:            string
-  spriteImagePath: string  // path/URL to the spritesheet image
+  spriteImagePath: string  // project-relative path under assets/tilesets/
   tileSize:        number  // px per cell (square)
   margin:          number  // px gap between cells (default 0)
   cols:            number  // derived: floor((imgW + margin) / (tileSize + margin))
   rows:            number  // derived from image height
+  /** Transient in-memory preview (editor only; not persisted in project.json). */
+  previewDataUrl?: string
 }
 
 export function tilesetCellCount(t: TilesetAsset): number {

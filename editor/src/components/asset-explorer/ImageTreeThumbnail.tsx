@@ -1,43 +1,21 @@
-import type { MouseEvent } from 'react'
-import { Image } from 'lucide-react'
 import type { ImageAsset } from '../../types'
+import { AssetTreeThumbnail } from './AssetTreeThumbnail'
 
 type ImageTreeThumbnailProps = Readonly<{
   asset: ImageAsset | undefined
+  projectPath: string | null
   onOpenStudio: () => void
 }>
 
 /** Small tree icon; double-click opens Spritesheet Studio without triggering row double-click. */
-export function ImageTreeThumbnail({ asset, onOpenStudio }: ImageTreeThumbnailProps) {
-  if (!asset) {
-    return <Image size={11} className="flex-shrink-0 text-[var(--muted)]" aria-hidden />
-  }
-
-  const openFromThumbnail = (e: MouseEvent) => {
-    e.stopPropagation()
-    onOpenStudio()
-  }
-
-  if (!asset.dataUrl) {
-    return (
-      <span
-        className="inline-flex flex-shrink-0"
-        title="Double-click to open Sprite Studio"
-        onDoubleClick={openFromThumbnail}
-      >
-        <Image size={11} className="text-[var(--muted)]" aria-hidden />
-      </span>
-    )
-  }
-
+export function ImageTreeThumbnail({ asset, projectPath, onOpenStudio }: ImageTreeThumbnailProps) {
   return (
-    <img
-      src={asset.dataUrl}
-      alt=""
-      className="w-4 h-4 object-contain flex-shrink-0"
-      style={{ imageRendering: 'pixelated' }}
-      title="Double-click to open Spritesheet Studio"
-      onDoubleClick={openFromThumbnail}
+    <AssetTreeThumbnail
+      path={asset?.path}
+      dataUrl={asset?.dataUrl}
+      projectPath={projectPath}
+      onOpen={onOpenStudio}
+      openTitle="Double-click to open Sprite Studio"
     />
   )
 }

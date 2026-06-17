@@ -3,6 +3,7 @@
 // ---------------------------------------------------------------------------
 
 import type { ProjectDoc } from '../types'
+import type { TilesetAsset } from '../types/tilemap'
 import { readProjectFileBytes } from './asset-file-api'
 import {
   collectSceneAssetRefs,
@@ -253,6 +254,36 @@ export class AssetOrchestrator {
     projectRoot: string,
   ): Promise<boolean> {
     const desc = imageAssetDescriptor(asset)
+    if (this.isRegistered(desc)) return true
+    if (!this.deps.isRuntimeReady()) return false
+    const result = await this.loadOne(
+      project,
+      desc,
+      projectRoot,
+      this.loadGeneration,
+      'critical',
+    )
+    return result === 'loaded'
+  }
+
+  /**
+   * Registers a tileset sprite image with the WASM texture cache.
+   * Tileset images live under assets/tilesets/ and are not in project.assets.
+   */
+  async ensureTilesetImageRegistered(
+    project: ProjectDoc,
+    tileset: Pick<TilesetAsset, 'assetId' | 'spriteImagePath' | 'previewDataUrl'>,
+    projectRoot: string,
+  ): Promise<boolean> {
+    const path = tileset.spriteImagePath?.trim()
+    if (!path) return false
+    const desc: AssetDescriptor = {
+      id: tileset.assetId,
+      type: 'image',
+      path,
+      ext: extFromPath(path),
+      dataUrl: tileset.previewDataUrl,
+    }
     if (this.isRegistered(desc)) return true
     if (!this.deps.isRuntimeReady()) return false
     const result = await this.loadOne(

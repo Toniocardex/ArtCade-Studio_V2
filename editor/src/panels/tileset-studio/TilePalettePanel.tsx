@@ -2,9 +2,14 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { ImagePlus, Eraser, Trash2 } from 'lucide-react'
 import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import { assetOrchestrator } from '../../utils/asset-orchestrator'
-import { importAssetFile } from '../../utils/asset-file-api'
 import { dirName } from '../../utils/project'
-import type { TilesetAsset, ImageAsset } from '../../types'
+import { buildTilesetFromImageFile } from '../../utils/tileset-import'
+import {
+  isBlobPreviewSrc,
+  resolveImagePreviewSrc,
+  revokeImagePreviewSrc,
+} from '../../utils/image-preview-src'
+import type { TilesetAsset } from '../../types'
 
 type GridInputProps = Readonly<{
   label: string
@@ -78,21 +83,43 @@ export function TilePalettePanel({ tileset, onRemove }: Props) {
   const [tileSize, setTileSize] = useState(tileset.tileSize)
   const [margin,   setMargin]   = useState(tileset.margin)
 
-  // Auto-load image from in-memory ImageAsset when panel mounts or tileset changes
   useEffect(() => {
-    if (!project?.assets) return
-    const imageAsset = Object.values(project.assets).find(
-      (a) => a.path === tileset.spriteImagePath,
-    )
-    const url = imageAsset?.dataUrl
-    if (!url) { setImgUrl(null); setImgWH(null); return }
-    const img = new Image()
-    img.onload = () => { setImgUrl(url); setImgWH({ w: img.naturalWidth, h: img.naturalHeight }) }
-    img.src = url
+    let cancelled = false
     setTileSize(tileset.tileSize)
     setMargin(tileset.margin)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tileset.assetId, project?.assets])
+
+    void (async () => {
+      const src = await resolveImagePreviewSrc(
+        { path: tileset.spriteImagePath, dataUrl: tileset.previewDataUrl },
+        projectPath,
+      )
+      if (cancelled) {
+        if (isBlobPreviewSrc(src)) revokeImagePreviewSrc(src)
+        return
+      }
+      if (!src) {
+        setImgUrl(null)
+        setImgWH(null)
+        return
+      }
+      const img = new Image()
+      img.onload = () => {
+        if (cancelled) return
+        setImgUrl(src)
+        setImgWH({ w: img.naturalWidth, h: img.naturalHeight })
+      }
+      img.onerror = () => {
+        if (cancelled) return
+        setImgUrl(null)
+        setImgWH(null)
+      }
+      img.src = src
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [tileset.assetId, tileset.spriteImagePath, tileset.previewDataUrl, projectPath])
 
   const grid = useMemo(
     () => imgWH
@@ -107,7 +134,6 @@ export function TilePalettePanel({ tileset, onRemove }: Props) {
     if (!imgWH) return
     const { cols, rows } = deriveGrid(imgWH.w, imgWH.h, nextTile, nextMargin)
     dispatch({ type: 'TILESET_ASSET_ADD', asset: { ...tileset, tileSize: nextTile, margin: nextMargin, cols, rows } })
-    // Auto-sync: if the active scene tilemap is already bound to this tileset, update its cell size too
     const sceneTilemap = sceneId ? project?.scenes[sceneId]?.tilemap : undefined
     if (sceneTilemap?.tilesetAssetId === tileset.assetId && sceneTilemap.tileSize !== nextTile && sceneId) {
       dispatch({ type: 'TILEMAP_SET_TILESIZE', sceneId, tileSize: nextTile })
@@ -126,15 +152,23 @@ export function TilePalettePanel({ tileset, onRemove }: Props) {
         try {
           setImgUrl(url)
           setImgWH({ w: img.naturalWidth, h: img.naturalHeight })
-          const { cols, rows } = deriveGrid(img.naturalWidth, img.naturalHeight, tileSize, margin)
-          const bytes  = new Uint8Array(await file.arrayBuffer())
-          const root   = projectPath ? dirName(projectPath) : ''
-          const imported = await importAssetFile({ kind: 'image', fileName: file.name, bytes, projectRoot: root || null })
-          const imageAsset: ImageAsset = { id: imported.id, name: file.name, path: imported.path, dataUrl: url }
-          dispatch({ type: 'ASSET_ADD', asset: imageAsset })
-          dispatch({ type: 'TILESET_ASSET_ADD', asset: { ...tileset, spriteImagePath: imported.path, tileSize, margin, cols, rows } })
+          const bytes = new Uint8Array(await file.arrayBuffer())
+          const root = projectPath ? dirName(projectPath) : null
+          const { tileset: nextTileset } = await buildTilesetFromImageFile({
+            file,
+            bytes,
+            naturalWidth: img.naturalWidth,
+            naturalHeight: img.naturalHeight,
+            previewDataUrl: url,
+            projectRoot: root,
+            tileSize,
+            margin,
+            existingAssetId: tileset.assetId,
+            existingName: tileset.name,
+          })
+          dispatch({ type: 'TILESET_ASSET_ADD', asset: nextTileset })
           dispatch({ type: 'TILESET_SELECT_CELL', cellIndex: 1 })
-          await assetOrchestrator.ensureImageRegistered(project, imageAsset, root)
+          await assetOrchestrator.ensureTilesetImageRegistered(project, nextTileset, root ?? '')
         } catch (err) {
           console.error('[Tileset] Image replace failed:', err)
         }

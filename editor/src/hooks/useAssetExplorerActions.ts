@@ -8,9 +8,10 @@ import {
   isSpritesheetStudioEnterTarget,
   openSpritesheetStudio,
 } from '../panels/spritesheet-studio/openSpritesheetStudio'
-import type { AudioAsset, FontAsset, ImageAsset, TilesetAsset } from '../types'
+import type { AudioAsset, FontAsset, ImageAsset } from '../types'
 import { spriteAssignedFromAsset } from '../utils/sprite-pivot-resolve'
 import { assetOrchestrator } from '../utils/asset-orchestrator'
+import { buildTilesetFromImageFile } from '../utils/tileset-import'
 import {
   isBackspaceKey,
   isInsidePanel,
@@ -241,39 +242,19 @@ export function useAssetExplorerActions() {
             const bytes = new Uint8Array(await file.arrayBuffer())
             const projectPath = store.getState().projectPath
             const root = projectPath ? dirName(projectPath) : null
-            const imported = await importAssetFile({
-              kind: 'image',
-              fileName: file.name,
+            const { tileset, imported } = await buildTilesetFromImageFile({
+              file,
               bytes,
+              naturalWidth: img.naturalWidth,
+              naturalHeight: img.naturalHeight,
+              previewDataUrl: dataUrl,
               projectRoot: root,
             })
-            const imageAsset: ImageAsset = {
-              id: imported.id,
-              name: file.name,
-              path: imported.path,
-              dataUrl,
-            }
-            dispatch({ type: 'ASSET_ADD', asset: imageAsset })
-
-            const tileSize = 32
-            const margin = 0
-            const step = tileSize + margin
-            const cols = Math.max(1, Math.floor((img.naturalWidth + margin) / step))
-            const rows = Math.max(1, Math.floor((img.naturalHeight + margin) / step))
-            const asset: TilesetAsset = {
-              assetId: `tileset_${Date.now().toString(36)}`,
-              name: file.name.replace(/\.[^.]+$/, ''),
-              spriteImagePath: imported.path,
-              tileSize,
-              margin,
-              cols,
-              rows,
-            }
-            dispatch({ type: 'TILESET_ASSET_ADD', asset })
-            dispatch({ type: 'TILESET_EDIT_OPEN', tilesetId: asset.assetId })
-            await assetOrchestrator.ensureImageRegistered(project, imageAsset, root ?? '')
+            dispatch({ type: 'TILESET_ASSET_ADD', asset: tileset })
+            dispatch({ type: 'TILESET_EDIT_OPEN', tilesetId: tileset.assetId })
+            await assetOrchestrator.ensureTilesetImageRegistered(project, tileset, root ?? '')
             showFlash(imported.persisted
-              ? `Tileset "${asset.name}" imported`
+              ? `Tileset "${tileset.name}" imported`
               : `${file.name} (save to persist)`)
           } catch (err) {
             console.error('[Asset] Tileset import failed:', err)

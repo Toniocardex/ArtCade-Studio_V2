@@ -10,7 +10,7 @@ import type { LogicBoard } from '../types/logic-board'
 
 const IMG_A = 'assets/images/a.png'
 const IMG_B = 'assets/images/b.png'
-const TILE_IMG = 'assets/images/tiles.png'
+const TILE_IMG = 'assets/tilesets/tiles.png'
 
 function projectWithTwoScenes() {
   const base = migrateLegacyProject({

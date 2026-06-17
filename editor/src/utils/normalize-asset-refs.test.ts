@@ -72,4 +72,24 @@ describe('normalizeAssetRefs', () => {
       loop: true,
     })
   })
+
+  it('does not rewrite tileset spriteImagePath to image library id', () => {
+    const path = 'assets/tilesets/tiles.png'
+    const project = createBlankProject()
+    project.assets = { img1: { id: 'img1', name: 'Tiles', path: 'assets/images/tiles.png' } }
+    project.tilesets = {
+      ts1: {
+        assetId: 'ts1',
+        name: 'Tiles',
+        spriteImagePath: path,
+        tileSize: 32,
+        margin: 0,
+        cols: 4,
+        rows: 4,
+      },
+    }
+    const { changed, project: next } = normalizeAssetRefs(project)
+    expect(changed).toBe(0)
+    expect(next.tilesets!.ts1.spriteImagePath).toBe(path)
+  })
 })

@@ -94,6 +94,18 @@ describe('project.json roundtrip — tilesets (Phase F1)', () => {
     expect(again.scenes.s.tilemap!.tilesetAssetId).toBe('ts_a')
   })
 
+  it('drops transient previewDataUrl on serialize', () => {
+    const withPreview: TilesetAsset = {
+      ...TS,
+      spriteImagePath: 'assets/tilesets/forest.png',
+      previewDataUrl: 'data:image/png;base64,AA==',
+    }
+    let s = coreReducer(st(project()), { type: 'TILESET_ASSET_ADD', asset: withPreview })
+    const json = serializeProjectDoc(s.project!)
+    expect(json).not.toContain('previewDataUrl')
+    expect(parseProjectDoc(json)!.tilesets!['ts_a'].previewDataUrl).toBeUndefined()
+  })
+
   it('omits tilesets when absent (byte-identical for projects without them)', () => {
     const plain = serializeProjectDoc(project())
     expect(plain).not.toContain('"tilesets"')
