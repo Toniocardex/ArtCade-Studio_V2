@@ -77,6 +77,17 @@ export function AssetToolbar({
 
   return (
     <div className="flex items-center gap-0.5 px-2 py-1 border-b border-[var(--border)] bg-[var(--panel-3)]">
+      <IconBtn
+        icon={
+          allAssetFoldersExpanded ? <ChevronsDownUp size={14} /> : <ChevronsUpDown size={14} />
+        }
+        onClick={onToggleAssetFoldersExpand}
+        title={
+          allAssetFoldersExpanded
+            ? 'Collapse all asset folders'
+            : 'Expand all asset folders'
+        }
+      />
       <button
         ref={folderBtnRef}
         type="button"
@@ -107,17 +118,6 @@ export function AssetToolbar({
           </button>
         ))}
       </ToolbarDropdown>
-      <IconBtn
-        icon={
-          allAssetFoldersExpanded ? <ChevronsDownUp size={14} /> : <ChevronsUpDown size={14} />
-        }
-        onClick={onToggleAssetFoldersExpand}
-        title={
-          allAssetFoldersExpanded
-            ? 'Collapse all asset folders'
-            : 'Expand all asset folders'
-        }
-      />
       <Divider />
       <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--muted)] px-1 select-none">
         Import
