@@ -60,7 +60,8 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
   const [search, setSearch] = useState('')
   const [contextMenu, setContextMenu] = useState<ExplorerContextMenuState | null>(null)
   const assetsAnchorRef = useRef<HTMLDivElement>(null)
-  const { isOpen, toggle, setOpen, expandAllAssetFolders } = useExplorerExpanded()
+  const { isOpen, toggle, setOpen, allAssetLibraryFoldersExpanded, toggleAllAssetFolders } =
+    useExplorerExpanded()
   const scene = useSceneExplorerActions()
   const assets = useAssetExplorerActions()
   const assetFolders = useAssetFolderActions()
@@ -96,9 +97,12 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
     prevAssetCountRef.current = totalAssets
   }, [totalAssets, setOpen])
 
-  const focusAssets = () => {
-    expandAllAssetFolders()
-    assetsAnchorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  const toggleAssetFolderExpansion = () => {
+    const expanding = !allAssetLibraryFoldersExpanded
+    toggleAllAssetFolders()
+    if (expanding) {
+      assetsAnchorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
   }
 
   // Keep the group of a canvas-selected instance visible in the tree.
@@ -328,7 +332,8 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
               onImportTileset={assets.triggerImportTileset}
               onImportAudio={assets.triggerImportAudio}
               onImportFont={assets.triggerImportFont}
-              onFocusAssets={focusAssets}
+              allAssetFoldersExpanded={allAssetLibraryFoldersExpanded}
+              onToggleAssetFoldersExpand={toggleAssetFolderExpansion}
               onRemove={assets.removeSelection}
             />
             {assets.flash ? (

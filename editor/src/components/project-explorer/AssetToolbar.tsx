@@ -1,5 +1,5 @@
 import { useRef, useState, type ReactNode } from 'react'
-import { FolderPlus, Search, ImagePlus, Grid3x3, Music, Type, Trash2 } from 'lucide-react'
+import { ChevronsDownUp, ChevronsUpDown, FolderPlus, ImagePlus, Grid3x3, Music, Type, Trash2 } from 'lucide-react'
 import { ToolbarDropdown } from '../menu-bar/ToolbarDropdown'
 import {
   ASSET_VIRTUAL_FOLDER_CATEGORIES,
@@ -15,7 +15,8 @@ export type AssetToolbarProps = Readonly<{
   onImportTileset: () => void
   onImportAudio: () => void
   onImportFont: () => void
-  onFocusAssets: () => void
+  allAssetFoldersExpanded: boolean
+  onToggleAssetFoldersExpand: () => void
   onRemove: () => void
 }>
 
@@ -65,7 +66,8 @@ export function AssetToolbar({
   onImportTileset,
   onImportAudio,
   onImportFont,
-  onFocusAssets,
+  allAssetFoldersExpanded,
+  onToggleAssetFoldersExpand,
   onRemove,
 }: AssetToolbarProps) {
   const folderBtnRef = useRef<HTMLButtonElement>(null)
@@ -106,9 +108,15 @@ export function AssetToolbar({
         ))}
       </ToolbarDropdown>
       <IconBtn
-        icon={<Search size={14} />}
-        onClick={onFocusAssets}
-        title="Expand all asset category folders"
+        icon={
+          allAssetFoldersExpanded ? <ChevronsDownUp size={14} /> : <ChevronsUpDown size={14} />
+        }
+        onClick={onToggleAssetFoldersExpand}
+        title={
+          allAssetFoldersExpanded
+            ? 'Collapse all asset folders'
+            : 'Expand all asset folders'
+        }
       />
       <Divider />
       <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--muted)] px-1 select-none">

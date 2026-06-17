@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 const STORAGE_KEY = 'artcade.explorer.expanded.v1'
 
@@ -11,6 +11,15 @@ export type ExplorerExpandKey =
   | `scene-type:${string}`
 
 type ExpandedMap = Record<string, boolean>
+
+/** Top-level asset library categories in the project explorer tree. */
+export const ASSET_LIBRARY_FOLDER_KEYS = [
+  'asset:audio',
+  'asset:fonts',
+  'asset:images',
+  'asset:scripts',
+  'asset:tilesets',
+] as const satisfies readonly ExplorerExpandKey[]
 
 const DEFAULT_EXPANDED: ExpandedMap = {
   scenes: true,
@@ -39,6 +48,34 @@ function readExpanded(): ExpandedMap {
 function writeExpanded(map: ExpandedMap): void {
   if (globalThis.window === undefined) return
   globalThis.localStorage.setItem(STORAGE_KEY, JSON.stringify(map))
+}
+
+/** Whether every asset library category folder is expanded (matches tree `isOpen` defaults). */
+export function areAllAssetLibraryFoldersExpanded(map: ExpandedMap): boolean {
+  return ASSET_LIBRARY_FOLDER_KEYS.every((key) => map[key] ?? true)
+}
+
+export function applyExpandAllAssetFolders(prev: ExpandedMap): ExpandedMap {
+  return {
+    ...prev,
+    assets: true,
+    'asset:audio': true,
+    'asset:fonts': true,
+    'asset:images': true,
+    'asset:scripts': true,
+    'asset:tilesets': true,
+  }
+}
+
+export function applyCollapseAllAssetFolders(prev: ExpandedMap): ExpandedMap {
+  const next = { ...prev }
+  for (const key of ASSET_LIBRARY_FOLDER_KEYS) {
+    next[key] = false
+  }
+  for (const key of Object.keys(prev)) {
+    if (key.startsWith('asset:vf:')) next[key] = false
+  }
+  return next
 }
 
 export function useExplorerExpanded() {
@@ -70,16 +107,33 @@ export function useExplorerExpanded() {
   }, [])
 
   const expandAllAssetFolders = useCallback(() => {
-    setExpanded((prev) => ({
-      ...prev,
-      assets: true,
-      'asset:audio': true,
-      'asset:fonts': true,
-      'asset:images': true,
-      'asset:scripts': true,
-      'asset:tilesets': true,
-    }))
+    setExpanded(applyExpandAllAssetFolders)
   }, [])
 
-  return { isOpen, toggle, setOpen, expandAllAssetFolders }
+  const collapseAllAssetFolders = useCallback(() => {
+    setExpanded(applyCollapseAllAssetFolders)
+  }, [])
+
+  const allAssetLibraryFoldersExpanded = useMemo(
+    () => areAllAssetLibraryFoldersExpanded(expanded),
+    [expanded],
+  )
+
+  const toggleAllAssetFolders = useCallback(() => {
+    setExpanded((prev) =>
+      areAllAssetLibraryFoldersExpanded(prev)
+        ? applyCollapseAllAssetFolders(prev)
+        : applyExpandAllAssetFolders(prev),
+    )
+  }, [])
+
+  return {
+    isOpen,
+    toggle,
+    setOpen,
+    expandAllAssetFolders,
+    collapseAllAssetFolders,
+    allAssetLibraryFoldersExpanded,
+    toggleAllAssetFolders,
+  }
 }
