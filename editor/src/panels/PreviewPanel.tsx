@@ -29,7 +29,7 @@ import { useEditorFitZoom } from '../hooks/useEditorFitZoom'
 import { getRuntimeCanvas } from '../utils/runtime-canvas'
 import { editorSetEditCamera, setTextureCacheEvictedCallback } from '../utils/wasm-bridge'
 import { TilePaintOverlay } from './preview/TilePaintOverlay'
-import { createTilemap, createTilemapForNewLayer, resolveTilemapTileSize } from '../types'
+import { createTilemapForNewLayer, resolveTilemapTileSize } from '../types'
 
 type TransformSnapshot = {
   entityId: number

@@ -108,7 +108,7 @@ export function uniqueVirtualFolderName(
 
 export function explorerFolderIdToCategory(
   folderId: string,
-): AssetFolderCategory | null {
+): AssetVirtualFolderCategory | null {
   if (
     folderId === 'images' ||
     folderId === 'audio' ||

@@ -67,7 +67,6 @@ export default function InspectorPanel() {
   const inspectorAsset = useEditorSelector((s) => s.inspectorAsset)
   const inspectorLayerName = useEditorSelector((s) => s.inspectorLayerName)
   const activePaintTilesetId = useEditorSelector((s) => s.activePaintTilesetId)
-  const tilePaletteOpen = useEditorSelector((s) => s.tilePaletteOpen)
 
   const entity = (project && selection.entityId != null)
     ? project.entities[selection.entityId]
