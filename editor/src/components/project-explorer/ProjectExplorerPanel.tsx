@@ -229,6 +229,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                   depth={1}
                   selected={active}
                   onClick={() => scene.selectScene(s.sceneId)}
+                  onDoubleClick={() => scene.renameSceneById(s.sceneId)}
                   onContextMenu={(ev) =>
                     openExplorerContextMenu(
                       ev,
