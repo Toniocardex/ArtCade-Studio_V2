@@ -16,6 +16,8 @@ import { EntityMetadataSection } from './inspector/EntityMetadataSection'
 import { AssetInspectorSection } from './inspector/AssetInspectorSection'
 import { LayerSettingsSection } from './inspector/LayerSettingsSection'
 import { TilePalettePanel } from './tileset-studio/TilePalettePanel'
+import { releaseTilesetAsset } from '../utils/asset-orchestrator'
+import { isPaintSessionAligned } from '../utils/tileset-paint-session'
 import { ProjectVariablesSection } from './inspector/ProjectVariablesSection'
 import { ObjectVariablesSection } from './inspector/ObjectVariablesSection'
 import { VariableWatchSection } from './inspector/VariableWatchSection'
@@ -66,6 +68,8 @@ export default function InspectorPanel() {
   const inspectorAsset = useEditorSelector((s) => s.inspectorAsset)
   const inspectorLayerName = useEditorSelector((s) => s.inspectorLayerName)
   const editingTilesetId = useEditorSelector((s) => s.editingTilesetId)
+  const editorActiveLayer = useEditorSelector((s) => s.editorActiveLayer)
+  const paintSessionAligned = useEditorSelector((s) => isPaintSessionAligned(s))
 
   const entity = (project && selection.entityId != null)
     ? project.entities[selection.entityId]
@@ -110,12 +114,20 @@ export default function InspectorPanel() {
         ) : null}
       </div>
 
+      {isTilesetPaint && editingTileset && !paintSessionAligned && (
+        <p className="shrink-0 px-4 py-2 text-[10px] text-[var(--muted)] border-b border-[var(--border)] leading-relaxed">
+          {`"${editingTileset.name}" is not assigned to layer "${editorActiveLayer}". `}
+          Switch to an unassigned layer or open Layer settings to paint with the assigned tileset.
+        </p>
+      )}
+
       {/* Tileset palette fills the full panel with its own scroll management */}
       {isTilesetPaint && editingTileset && (
         <div className="flex-1 min-h-0 overflow-hidden" data-panel="inspector-body">
           <TilePalettePanel
             tileset={editingTileset}
             onRemove={() => {
+              releaseTilesetAsset(editingTileset)
               dispatch({ type: 'TILESET_ASSET_REMOVE', assetId: editingTileset.assetId })
               dispatch({ type: 'TILESET_EDIT_CLOSE' })
             }}

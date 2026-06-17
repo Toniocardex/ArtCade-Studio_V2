@@ -173,4 +173,20 @@ describe('asset-orchestrator', () => {
     await orch.loadDescriptors(testProject(), desc, '/p', 1, 'critical')
     expect(logFailure).toHaveBeenCalledTimes(1)
   })
+
+  it('releaseRegisteredAsset invalidates path and clears registry', () => {
+    const invalidateAsset = vi.fn()
+    const { orch } = makeOrchestrator({ invalidateAsset })
+    const path = 'assets/tilesets/old.png'
+    const desc: AssetDescriptor = { id: 'ts1', type: 'image', path }
+    const key = `image:${path}#file`
+    ;(orch as unknown as { registered: Set<string> }).registered.add(key)
+    ;(orch as unknown as { registeredMeta: Map<string, { desc: AssetDescriptor; lastUsed: number }> })
+      .registeredMeta.set(key, { desc, lastUsed: 0 })
+
+    orch.releaseRegisteredAsset(path, 'image')
+
+    expect(invalidateAsset).toHaveBeenCalledWith(path, 'image')
+    expect((orch as unknown as { registered: Set<string> }).registered.has(key)).toBe(false)
+  })
 })

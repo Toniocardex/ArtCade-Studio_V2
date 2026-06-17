@@ -10,7 +10,7 @@ import {
 } from '../panels/spritesheet-studio/openSpritesheetStudio'
 import type { AudioAsset, FontAsset, ImageAsset } from '../types'
 import { spriteAssignedFromAsset } from '../utils/sprite-pivot-resolve'
-import { assetOrchestrator } from '../utils/asset-orchestrator'
+import { assetOrchestrator, releaseTilesetAsset } from '../utils/asset-orchestrator'
 import { buildTilesetFromImageFile } from '../utils/tileset-import'
 import {
   isBackspaceKey,
@@ -202,9 +202,12 @@ export function useAssetExplorerActions() {
       case 'font':
         dispatch({ type: 'FONT_ASSET_REMOVE', assetId: selection.id })
         break
-      case 'tileset':
+      case 'tileset': {
+        const tileset = project.tilesets?.[selection.id]
+        if (tileset) releaseTilesetAsset(tileset)
         dispatch({ type: 'TILESET_ASSET_REMOVE', assetId: selection.id })
         break
+      }
     }
     dispatch({ type: 'SELECT_INSPECTOR_ASSET', asset: null })
     showFlash('Asset removed')

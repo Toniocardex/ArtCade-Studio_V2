@@ -5,6 +5,7 @@
 import type { ProjectDoc } from '../types'
 import type { TilesetAsset } from '../types/tilemap'
 import { readProjectFileBytes } from './asset-file-api'
+import { discardPendingAsset } from './pending-asset-store'
 import {
   collectSceneAssetRefs,
   collectSceneAudioRefs,
@@ -202,6 +203,21 @@ export function imageAssetDescriptor(asset: {
   }
 }
 
+/** WASM texture descriptor for a tileset spritesheet (not in project.assets). */
+export function tilesetImageDescriptor(
+  tileset: Pick<TilesetAsset, 'assetId' | 'spriteImagePath' | 'previewDataUrl'>,
+): AssetDescriptor | null {
+  const path = tileset.spriteImagePath?.trim()
+  if (!path) return null
+  return {
+    id: tileset.assetId,
+    type: 'image',
+    path,
+    ext: extFromPath(path),
+    dataUrl: tileset.previewDataUrl,
+  }
+}
+
 export class AssetOrchestrator {
   loadGeneration = 0
   prefetchGeneration = 0
@@ -275,15 +291,8 @@ export class AssetOrchestrator {
     tileset: Pick<TilesetAsset, 'assetId' | 'spriteImagePath' | 'previewDataUrl'>,
     projectRoot: string,
   ): Promise<boolean> {
-    const path = tileset.spriteImagePath?.trim()
-    if (!path) return false
-    const desc: AssetDescriptor = {
-      id: tileset.assetId,
-      type: 'image',
-      path,
-      ext: extFromPath(path),
-      dataUrl: tileset.previewDataUrl,
-    }
+    const desc = tilesetImageDescriptor(tileset)
+    if (!desc) return false
     if (this.isRegistered(desc)) return true
     if (!this.deps.isRuntimeReady()) return false
     const result = await this.loadOne(
@@ -294,6 +303,24 @@ export class AssetOrchestrator {
       'critical',
     )
     return result === 'loaded'
+  }
+
+  /** Drop JS registry entry and evict WASM texture/audio/font for @p path. */
+  releaseRegisteredAsset(path: string, type: AssetKind): void {
+    const trimmed = path.trim()
+    if (!trimmed) return
+    this.forgetRegisteredPath(type, trimmed)
+    this.deps.invalidateAsset?.(trimmed, type)
+  }
+
+  async reloadTilesetImage(
+    project: ProjectDoc,
+    tileset: Pick<TilesetAsset, 'assetId' | 'spriteImagePath' | 'previewDataUrl'>,
+    projectRoot: string,
+  ): Promise<boolean> {
+    const desc = tilesetImageDescriptor(tileset)
+    if (!desc) return false
+    return this.reloadAsset(project, desc, projectRoot)
   }
 
   private forgetRegisteredPath(type: AssetKind, path: string): void {
@@ -550,3 +577,13 @@ export function createDefaultAssetOrchestrator(): AssetOrchestrator {
 
 /** Shared preview orchestrator (PreviewPanel + RuntimeSyncService). */
 export const assetOrchestrator = createDefaultAssetOrchestrator()
+
+/** Release WASM texture + JS registry for a tileset spritesheet path. */
+export function releaseTilesetAsset(
+  tileset: Pick<TilesetAsset, 'spriteImagePath'>,
+): void {
+  const path = tileset.spriteImagePath?.trim()
+  if (!path) return
+  assetOrchestrator.releaseRegisteredAsset(path, 'image')
+  discardPendingAsset(path)
+}

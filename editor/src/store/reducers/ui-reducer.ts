@@ -29,6 +29,9 @@ import {
 } from '../../utils/dock-ui-state'
 import { writeEditorPreferences } from '../../utils/editor-preferences'
 import { resolveScriptEditorActivationPath } from '../../utils/script-editor-activation'
+import {
+  shouldClosePaintOnLayerSwitch,
+} from '../../utils/tileset-paint-session'
 
 function applyDockUiChange(state: CoreState, slice: DockUiSlice): CoreState {
   if (slice.dockPanelVisibility !== state.dockPanelVisibility) {
@@ -70,22 +73,28 @@ export const uiReducer: DomainReducer = (state: CoreState, action: Action) => {
         inspectorLayerName: null,
         selection: { ...state.selection, entityId: null },
       }
-    case 'SELECT_INSPECTOR_LAYER':
+    case 'SELECT_INSPECTOR_LAYER': {
+      const layerName = action.layerName
+      const closePaint = shouldClosePaintOnLayerSwitch(state, layerName)
       return {
         ...state,
-        inspectorLayerName: action.layerName,
-        editorActiveLayer: action.layerName ?? state.editorActiveLayer,
+        inspectorLayerName: layerName,
+        editorActiveLayer: layerName ?? state.editorActiveLayer,
         inspectorAsset: null,
         selection: { ...state.selection, entityId: null },
+        ...(closePaint ? { editingTilesetId: null } : {}),
       }
+    }
     case 'SET_EDITOR_ACTIVE_LAYER':
-      return state.editorActiveLayer === action.layerName
-        ? state
-        : {
-            ...state,
-            editorActiveLayer: action.layerName,
-            inspectorLayerName: action.layerName,
-          }
+      if (state.editorActiveLayer === action.layerName) return state
+      return {
+        ...state,
+        editorActiveLayer: action.layerName,
+        inspectorLayerName: action.layerName,
+        ...(shouldClosePaintOnLayerSwitch(state, action.layerName)
+          ? { editingTilesetId: null }
+          : {}),
+      }
     case 'ENTITY_SET_DISPLAY_LAYER':
       return {
         ...state,
@@ -187,7 +196,11 @@ export const uiReducer: DomainReducer = (state: CoreState, action: Action) => {
         ? state
         : { ...state, consoleAckUpToId: action.upToId }
     case 'TILESET_EDIT_OPEN':
-      return { ...state, editingTilesetId: action.tilesetId }
+      return {
+        ...state,
+        editingTilesetId: action.tilesetId,
+        selectedTileCell: 1,
+      }
     case 'TILESET_EDIT_CLOSE':
       return state.editingTilesetId === null
         ? state

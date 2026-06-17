@@ -4,6 +4,7 @@ import type { ConsoleEntry } from '../types'
 import { assetOrchestrator, imageAssetDescriptor } from '../utils/asset-orchestrator'
 import { watchProjectAssets } from '../utils/asset-watcher'
 import { dirName } from '../utils/project'
+import { isPaintSessionAligned } from '../utils/tileset-paint-session'
 import { runtimeSync, type EditorTool } from '../utils/runtime-sync-service'
 import { DEFAULT_SCENE_SIZE } from '../constants/editor-viewport'
 import {
@@ -124,6 +125,15 @@ export default function PreviewPanel({
   const showExplorerToggle = tier === 'minimal' || tier === 'unsupported'
 
   const { wasmReady, engineReady, syncWasmFromBridge } = useRuntimeReadiness()
+  const paintSessionAligned = useMemo(
+    () => isPaintSessionAligned({
+      project,
+      selection,
+      editorActiveLayer,
+      editingTilesetId,
+    }),
+    [project, selection, editorActiveLayer, editingTilesetId],
+  )
   const syncRuntimeUiFlags = useCallback(() => {
     syncWasmFromBridge()
   }, [syncWasmFromBridge])
@@ -224,6 +234,14 @@ export default function PreviewPanel({
   }, [])
 
   useEffect(() => {
+    if (!editingTilesetId || !wasmReady || !engineReady || !project) return
+    const tileset = project.tilesets?.[editingTilesetId]
+    if (!tileset?.spriteImagePath?.trim()) return
+    const root = projectPath ? dirName(projectPath) : ''
+    void assetOrchestrator.ensureTilesetImageRegistered(project, tileset, root)
+  }, [editingTilesetId, wasmReady, engineReady, project, projectPath])
+
+  useEffect(() => {
     const root = projectPath ? dirName(projectPath) : ''
     if (!root || !wasmReady || !engineReady) return
     let cancelled = false
@@ -251,6 +269,18 @@ export default function PreviewPanel({
           type: 'audio',
           path: audio.path,
         }, root).then((ok) => {
+          if (ok && !cancelled) {
+            dispatch({
+              type: 'LOG',
+              entry: makeLogEntry(`[Asset] Reloaded: ${relPath}`, 'info'),
+            })
+          }
+        })
+        return
+      }
+      const tileset = Object.values(p.tilesets ?? {}).find((t) => t.spriteImagePath === relPath)
+      if (tileset) {
+        void assetOrchestrator.reloadTilesetImage(p, tileset, root).then((ok) => {
           if (ok && !cancelled) {
             dispatch({
               type: 'LOG',
@@ -510,7 +540,7 @@ export default function PreviewPanel({
           style={{ position: 'sticky', top: 0, left: 0, width: 0, height: 0, zIndex: 0 }}
         >
           <div ref={canvasHostRef} style={{ display: 'contents' }} />
-          {editingTilesetId && !isPlaying && (
+          {editingTilesetId && !isPlaying && paintSessionAligned && (
             <TilePaintOverlay
               scrollRef={scrollRef}
               zoom={zoom}

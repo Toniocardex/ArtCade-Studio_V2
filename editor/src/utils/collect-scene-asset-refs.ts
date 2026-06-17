@@ -3,7 +3,8 @@
 // See docs/ASSET_PIPELINE_ARCHITECTURE.md §5.1
 // ---------------------------------------------------------------------------
 
-import type { EntityDef, ProjectDoc } from '../types'
+import type { EntityDef, ProjectDoc, SceneDef } from '../types'
+import type { TilesetAsset } from '../types/tilemap'
 import type { LogicAction, LogicBoard } from '../types/logic-board'
 import { materializeEntity } from './project-object-types'
 
@@ -48,6 +49,28 @@ export function entitiesInScene(project: ProjectDoc, sceneId: string): EntityDef
 function addSpritePath(keys: Set<string>, path: string | undefined): void {
   const p = path?.trim()
   if (p) keys.add(p)
+}
+
+/** Collect tileset image paths referenced by a scene (per-layer + legacy merged tilemap). */
+export function tilesetPathsForScene(
+  scene: SceneDef,
+  tilesets: Record<string, TilesetAsset> | undefined,
+): string[] {
+  const paths = new Set<string>()
+  if (scene.tilemapLayers) {
+    for (const layer of Object.values(scene.tilemapLayers)) {
+      const tsId = layer.tilesetAssetId?.trim()
+      if (!tsId) continue
+      const path = tilesets?.[tsId]?.spriteImagePath?.trim()
+      if (path) paths.add(path)
+    }
+  }
+  const legacyId = scene.tilemap?.tilesetAssetId?.trim()
+  if (legacyId) {
+    const path = tilesets?.[legacyId]?.spriteImagePath?.trim()
+    if (path) paths.add(path)
+  }
+  return [...paths]
 }
 
 function boardTargetsScene(
@@ -128,10 +151,8 @@ export function collectSceneAssetRefs(
     addSpritePath(keys, ent.sprite.spriteAssetId)
   }
 
-  const tsId = scene.tilemap?.tilesetAssetId
-  if (tsId) {
-    const path = project.tilesets?.[tsId]?.spriteImagePath?.trim()
-    if (path) keys.add(path)
+  for (const path of tilesetPathsForScene(scene, project.tilesets)) {
+    keys.add(path)
   }
 
   return [...keys].sort()

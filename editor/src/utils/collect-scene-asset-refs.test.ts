@@ -158,6 +158,42 @@ describe('collectSceneAssetRefs', () => {
     expect(collectSceneAssetRefs(p, 'missing')).toEqual([])
   })
 
+  it('includes tileset paths from per-layer tilemapLayers', () => {
+    const p = projectWithTwoScenes()
+    const TILE_IMG_B = 'assets/tilesets/city.png'
+    p.tilesets = {
+      ...p.tilesets,
+      ts2: {
+        assetId: 'ts2',
+        name: 'City',
+        spriteImagePath: TILE_IMG_B,
+        tileSize: 16,
+        margin: 0,
+        cols: 4,
+        rows: 4,
+      },
+    }
+    p.scenes.scene_main.tilemapLayers = {
+      Background: {
+        tileSize: 16,
+        cols: 4,
+        rows: 4,
+        data: [0, 0, 0, 0],
+        tilesetAssetId: 'ts1',
+      },
+      Ground: {
+        tileSize: 16,
+        cols: 4,
+        rows: 4,
+        data: [0, 0, 0, 0],
+        tilesetAssetId: 'ts2',
+      },
+    }
+    const refs = collectSceneAssetRefs(p, 'scene_main')
+    expect(refs).toContain(TILE_IMG)
+    expect(refs).toContain(TILE_IMG_B)
+  })
+
   it('collectSceneAudioRefs resolves audioAssetId and legacy path', () => {
     const p = projectWithTwoScenes()
     p.audioAssets = {

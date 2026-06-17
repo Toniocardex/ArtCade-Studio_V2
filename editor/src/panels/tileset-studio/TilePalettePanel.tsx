@@ -1,9 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
-import { ImagePlus, Eraser, Trash2 } from 'lucide-react'
+import { Eraser, Trash2 } from 'lucide-react'
 import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
-import { assetOrchestrator } from '../../utils/asset-orchestrator'
-import { dirName } from '../../utils/project'
-import { buildTilesetFromImageFile } from '../../utils/tileset-import'
 import {
   isBlobPreviewSrc,
   resolveImagePreviewSrc,
@@ -77,7 +74,6 @@ export function TilePalettePanel({ tileset, onRemove }: Props) {
   const selection    = useEditorSelector((s) => s.selection)
   const sceneId      = selection.sceneId ?? project?.activeSceneId ?? ''
 
-  const fileRef = useRef<HTMLInputElement>(null)
   const [imgUrl, setImgUrl] = useState<string | null>(null)
   const [imgWH,  setImgWH]  = useState<{ w: number; h: number } | null>(null)
   const [tileSize, setTileSize] = useState(tileset.tileSize)
@@ -140,61 +136,10 @@ export function TilePalettePanel({ tileset, onRemove }: Props) {
     }
   }
 
-  function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file || !project) return
-    const reader = new FileReader()
-    reader.onload = () => {
-      const url = typeof reader.result === 'string' ? reader.result : ''
-      if (!url) return
-      const img = new Image()
-      img.onload = async () => {
-        try {
-          setImgUrl(url)
-          setImgWH({ w: img.naturalWidth, h: img.naturalHeight })
-          const bytes = new Uint8Array(await file.arrayBuffer())
-          const root = projectPath ? dirName(projectPath) : null
-          const { tileset: nextTileset } = await buildTilesetFromImageFile({
-            file,
-            bytes,
-            naturalWidth: img.naturalWidth,
-            naturalHeight: img.naturalHeight,
-            previewDataUrl: url,
-            projectRoot: root,
-            tileSize,
-            margin,
-            existingAssetId: tileset.assetId,
-            existingName: tileset.name,
-          })
-          dispatch({ type: 'TILESET_ASSET_ADD', asset: nextTileset })
-          dispatch({ type: 'TILESET_SELECT_CELL', cellIndex: 1 })
-          await assetOrchestrator.ensureTilesetImageRegistered(project, nextTileset, root ?? '')
-        } catch (err) {
-          console.error('[Tileset] Image replace failed:', err)
-        }
-      }
-      img.src = url
-    }
-    reader.readAsDataURL(file)
-    e.target.value = ''
-  }
-
   return (
     <div className="flex flex-col h-full">
-      <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/gif" className="hidden" onChange={onPickFile} />
-
       {/* Controls */}
       <div className="shrink-0 flex flex-col gap-3 p-3 border-b border-[var(--border)]">
-        <button
-          type="button"
-          onClick={() => fileRef.current?.click()}
-          className="flex items-center justify-center gap-2 px-3 py-2 rounded text-xs font-semibold
-                     border border-[var(--accent-bd)] bg-[var(--accent-bg)] text-[var(--accent)]
-                     hover:bg-[var(--accent-bg-h)]"
-        >
-          <ImagePlus size={13} /> Load / replace image
-        </button>
-
         <div className="space-y-2.5">
           <GridInput
             label="Tile size"
@@ -272,7 +217,7 @@ export function TilePalettePanel({ tileset, onRemove }: Props) {
           </div>
         ) : (
           <div className="flex items-center justify-center h-24 text-[var(--muted)] text-[10px] text-center px-4">
-            {`"${tileset.name}" (${tileset.cols}×${tileset.rows}) — load image to edit`}
+            {`"${tileset.name}" (${tileset.cols}×${tileset.rows}) — import tilesets from Project Explorer (Tilesets folder)`}
           </div>
         )}
       </div>

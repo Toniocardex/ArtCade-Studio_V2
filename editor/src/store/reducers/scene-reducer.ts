@@ -13,6 +13,7 @@ import { createSceneDef, uniqueSceneName, nextEntityId } from '../../utils/proje
 import { clampEntityPositionToScene } from '../../utils/entity-position'
 import { projectAfterRemovingAsset } from '../../utils/strip-project-asset-refs'
 import { normalizeAssetRefs } from '../../utils/normalize-asset-refs'
+import { canAssignTilesetToLayer } from '../../utils/tileset-paint-session'
 
 export const sceneReducer: DomainReducer = (state: CoreState, action: Action) => {
   switch (action.type) {
@@ -436,8 +437,7 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
       }
     }
     case 'TILESET_EDIT_OPEN': {
-      // Auto-assign the tileset to the active layer of the active scene,
-      // creating the per-layer tilemap entry if absent.
+      // Auto-assign the tileset to the active layer when safe (empty or same tileset).
       if (!state.project) return state
       const sceneId = state.selection.sceneId ?? state.project.activeSceneId
       const sc = sceneId ? state.project.scenes[sceneId] : undefined
@@ -445,6 +445,7 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
       const layerName = state.editorActiveLayer
       const existing = sc.tilemapLayers?.[layerName]
       if (existing && existing.tilesetAssetId === action.tilesetId) return state
+      if (!canAssignTilesetToLayer(existing, action.tilesetId)) return state
       const baseTm = existing ?? createTilemap(sc.worldSize.x, sc.worldSize.y)
       const layerTm: TilemapLayer = { ...baseTm, tilesetAssetId: action.tilesetId }
       const tilemapLayers = { ...sc.tilemapLayers, [layerName]: layerTm }

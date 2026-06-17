@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { coreReducer, type CoreState } from './editor-store'
 import { parseProjectDoc, serializeProjectDoc } from '../utils/project'
+import { DEFAULT_EDITOR_ACTIVE_LAYER } from '../constants/scene-layers'
 import type { ProjectDoc, TilesetAsset } from '../types'
 
 const TS: TilesetAsset = {
@@ -28,6 +29,7 @@ function st(p: ProjectDoc): CoreState {
     consoleAckUpToId: 0, editingTilesetId: null,
     openScripts: [], activeScriptPath: null, isPlaying: false,
     selectedTileCell: 1,
+    editorActiveLayer: DEFAULT_EDITOR_ACTIVE_LAYER,
     editorGridSize: 32, snapToGrid: false, editorZoom: 1.0, editorZoomMode: 'manual', cameraPreview: false,
     projectLoadEpoch: 0,
     authoringMode: 'base',
@@ -71,6 +73,71 @@ describe('coreReducer — tileset (Phase F1)', () => {
     expect(s.projectDirty).toBe(false)
     s = coreReducer(s, { type: 'TILESET_SELECT_CELL', cellIndex: -3 })
     expect(s.selectedTileCell).toBe(0)
+  })
+
+  it('TILESET_EDIT_OPEN resets brush and assigns tileset to active layer', () => {
+    let s = coreReducer(st(project()), { type: 'TILESET_ASSET_ADD', asset: TS })
+    s = coreReducer(s, { type: 'TILESET_SELECT_CELL', cellIndex: 7 })
+    s = coreReducer(s, { type: 'TILESET_EDIT_OPEN', tilesetId: 'ts_a' })
+    expect(s.editingTilesetId).toBe('ts_a')
+    expect(s.selectedTileCell).toBe(1)
+    expect(s.project!.scenes.s.tilemapLayers?.[DEFAULT_EDITOR_ACTIVE_LAYER]?.tilesetAssetId).toBe('ts_a')
+  })
+
+  it('TILESET_EDIT_OPEN does not rebind layer with painted cells to another tileset', () => {
+    const TS_B: TilesetAsset = { ...TS, assetId: 'ts_b', name: 'City' }
+    let s = coreReducer(st(project()), { type: 'TILESET_ASSET_ADD', asset: TS })
+    s = coreReducer(s, { type: 'TILESET_ASSET_ADD', asset: TS_B })
+    s = coreReducer(s, { type: 'TILESET_EDIT_OPEN', tilesetId: 'ts_a' })
+    s = coreReducer(s, {
+      type: 'TILEMAP_PAINT_CELL',
+      sceneId: 's',
+      col: 0,
+      row: 0,
+      tileId: 3,
+    })
+    s = coreReducer(s, { type: 'TILESET_EDIT_OPEN', tilesetId: 'ts_b' })
+    expect(s.editingTilesetId).toBe('ts_b')
+    expect(s.project!.scenes.s.tilemapLayers?.[DEFAULT_EDITOR_ACTIVE_LAYER]?.tilesetAssetId).toBe('ts_a')
+  })
+
+  it('SET_EDITOR_ACTIVE_LAYER closes paint when target layer has a different tileset', () => {
+    const TS_B: TilesetAsset = { ...TS, assetId: 'ts_b', name: 'City' }
+    let s = coreReducer(st(project()), { type: 'TILESET_ASSET_ADD', asset: TS })
+    s = coreReducer(s, { type: 'TILESET_ASSET_ADD', asset: TS_B })
+    s = coreReducer(s, { type: 'TILESET_EDIT_OPEN', tilesetId: 'ts_a' })
+    s = coreReducer(s, {
+      type: 'TILEMAP_PAINT_CELL',
+      sceneId: 's',
+      col: 0,
+      row: 0,
+      tileId: 1,
+    })
+    s = {
+      ...s,
+      project: {
+        ...s.project!,
+        scenes: {
+          ...s.project!.scenes,
+          s: {
+            ...s.project!.scenes.s,
+            tilemapLayers: {
+              ...s.project!.scenes.s.tilemapLayers,
+              Props: {
+                tileSize: 32,
+                cols: 8,
+                rows: 4,
+                data: new Array(32).fill(0),
+                tilesetAssetId: 'ts_b',
+              },
+            },
+          },
+        },
+      },
+    }
+    s = coreReducer(s, { type: 'SET_EDITOR_ACTIVE_LAYER', layerName: 'Props' })
+    expect(s.editingTilesetId).toBeNull()
+    expect(s.editorActiveLayer).toBe('Props')
   })
 
   it('no-op without a project', () => {

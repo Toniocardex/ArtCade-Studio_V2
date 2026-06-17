@@ -10,8 +10,6 @@ export interface BuildTilesetFromImageFileOptions {
   projectRoot?: string | null
   tileSize?: number
   margin?: number
-  existingAssetId?: string
-  existingName?: string
 }
 
 export interface BuildTilesetFromImageFileResult {
@@ -40,8 +38,8 @@ export async function buildTilesetFromImageFile(
   })
 
   const tileset: TilesetAsset = {
-    assetId: options.existingAssetId ?? `tileset_${Date.now().toString(36)}`,
-    name: options.existingName ?? options.file.name.replace(/\.[^.]+$/, ''),
+    assetId: `tileset_${Date.now().toString(36)}`,
+    name: options.file.name.replace(/\.[^.]+$/, ''),
     spriteImagePath: imported.path,
     tileSize,
     margin,
