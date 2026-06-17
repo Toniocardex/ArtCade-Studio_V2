@@ -337,7 +337,13 @@ EMSCRIPTEN_KEEPALIVE const float* editor_get_runtime_profile();
 EMSCRIPTEN_KEEPALIVE const char* editor_get_variables_json(uint32_t entityId);
 
 /** Write one tile cell; optional @p layerName targets tilemapLayers (multi-layer). */
-EMSCRIPTEN_KEEPALIVE void editor_paint_tile(int col, int row, int tileId, const char* layerName);
+EMSCRIPTEN_KEEPALIVE void editor_paint_tile(
+    int col,
+    int row,
+    int tileId,
+    const char* layerName,
+    int sourceIndex,
+    const char* tilesetAssetIdUtf8);
 
 /** Push merged tilemap.data into the active scene (legacy single-layer sync). */
 EMSCRIPTEN_KEEPALIVE void editor_sync_tilemap_data(const char* dataJson);

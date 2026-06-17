@@ -288,10 +288,15 @@ describe('uiReducer — focus mode & preferences', () => {
   })
 
   it('SET_FOCUS_MODE clears tileset edit when enabling focus', () => {
-    const start = base({ editingTilesetId: 'ts_1', focusMode: false })
+    const start = base({
+      activePaintTilesetId: 'ts_1',
+      tilePaletteOpen: true,
+      focusMode: false,
+    })
     const s = uiReducer(start, { type: 'SET_FOCUS_MODE', enabled: true })
     expect(s.focusMode).toBe(true)
-    expect(s.editingTilesetId).toBeNull()
+    expect(s.activePaintTilesetId).toBeNull()
+    expect(s.tilePaletteOpen).toBe(false)
   })
 
   it('SET_REDUCE_MOTION persists preference', () => {

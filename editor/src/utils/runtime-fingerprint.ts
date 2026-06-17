@@ -85,7 +85,11 @@ interface FpTilemapLayer {
   c:   number
   r:   number
   set?: string
+  /** Ordered tileset asset ids on the layer (multi-source). */
+  src?: string[]
   dh?: number
+  /** Hash of parallel sourceIndices (detects per-cell source changes). */
+  sh?: number
 }
 
 interface FpScene {
@@ -194,12 +198,17 @@ function projectScene(s: SceneDef): FpScene {
   if (layers && Object.keys(layers).length > 0) {
     tl = {}
     for (const [name, layer] of Object.entries(layers)) {
+      const sources = layer.tilesetSources?.map((s) => s.tilesetAssetId).filter(Boolean)
       tl[name] = {
         ts:  layer.tileSize,
         c:   layer.cols,
         r:   layer.rows,
-        set: layer.tilesetAssetId,
+        set: layer.tilesetAssetId ?? layer.defaultTilesetAssetId,
+        ...(sources && sources.length > 0 ? { src: sources } : {}),
         dh:  layer.data.length > 0 ? tilemapDataHash(layer.data) : undefined,
+        sh:  layer.sourceIndices && layer.sourceIndices.length > 0
+          ? tilemapDataHash(layer.sourceIndices)
+          : undefined,
       }
     }
   }

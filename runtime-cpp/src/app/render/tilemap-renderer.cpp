@@ -19,6 +19,31 @@ const TilesetAsset* resolveTileset(
     return it != startupCache.end() ? &it->second : nullptr;
 }
 
+const TilesetAsset* resolveCellTileset(
+    const TilemapData& tm,
+    int sourceIndex,
+    const std::vector<TilesetAsset>& liveTilesets,
+    const std::unordered_map<std::string, TilesetAsset>& startupCache)
+{
+    if (sourceIndex > 0
+        && sourceIndex <= static_cast<int>(tm.tilesetSources.size())) {
+        return resolveTileset(
+            tm.tilesetSources[static_cast<size_t>(sourceIndex - 1)].tilesetAssetId,
+            liveTilesets,
+            startupCache);
+    }
+    if (!tm.tilesetAssetId.empty())
+        return resolveTileset(tm.tilesetAssetId, liveTilesets, startupCache);
+    return nullptr;
+}
+
+int cellSourceIndex(const TilemapData& tm, int idx) {
+    if (idx >= 0 && idx < static_cast<int>(tm.sourceIndices.size()))
+        return tm.sourceIndices[static_cast<size_t>(idx)];
+    if (!tm.tilesetAssetId.empty()) return 1;
+    return 0;
+}
+
 void drawLayer(Modules::Renderer& renderer,
                const TilemapData& tm,
                const std::vector<TilesetAsset>& liveTilesets,
@@ -28,7 +53,6 @@ void drawLayer(Modules::Renderer& renderer,
     if (tm.cols <= 0 || tm.rows <= 0) return;
 
     const int n = static_cast<int>(tm.data.size());
-    const TilesetAsset* ts = resolveTileset(tm.tilesetAssetId, liveTilesets, startupCache);
 
     for (int r = 0; r < tm.rows; ++r) {
         for (int c = 0; c < tm.cols; ++c) {
@@ -39,6 +63,9 @@ void drawLayer(Modules::Renderer& renderer,
 
             const float dx = c * tm.tileSize;
             const float dy = r * tm.tileSize;
+
+            const TilesetAsset* ts = resolveCellTileset(
+                tm, cellSourceIndex(tm, idx), liveTilesets, startupCache);
 
             bool drawn = false;
             if (ts && ts->cols > 0) {

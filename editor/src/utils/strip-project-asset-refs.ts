@@ -2,8 +2,9 @@
 // strip-project-asset-refs — detach project references when an asset is removed
 // ---------------------------------------------------------------------------
 
-import type { ProjectDoc } from '../types'
+import type { ProjectDoc, TilemapLayer } from '../types'
 import type { LogicAction, LogicBoard } from '../types/logic-board'
+import { scrubTilesetFromLayer } from './tilemap-layer-sources'
 
 export type RemovedAssetRef =
   | { kind: 'image'; id: string; path: string }
@@ -76,6 +77,31 @@ function removeFontRefs(project: ProjectDoc, removed: Extract<RemovedAssetRef, {
   return { ...project, fontAssets }
 }
 
+function scrubSceneTilemaps(
+  scenes: ProjectDoc['scenes'],
+  removedId: string,
+): ProjectDoc['scenes'] {
+  return Object.fromEntries(
+    Object.entries(scenes).map(([sid, sc]) => {
+      let next = sc
+      if (sc.tilemap) {
+        const tm = scrubTilesetFromLayer(sc.tilemap, removedId)
+        if (tm !== sc.tilemap) next = { ...next, tilemap: tm }
+      }
+      if (sc.tilemapLayers) {
+        const tilemapLayers = Object.fromEntries(
+          Object.entries(sc.tilemapLayers).map(([name, layer]) => [
+            name,
+            scrubTilesetFromLayer(layer, removedId),
+          ]),
+        ) as Record<string, TilemapLayer>
+        next = { ...next, tilemapLayers }
+      }
+      return [sid, next]
+    }),
+  )
+}
+
 function removeTilesetRefs(
   project: ProjectDoc,
   removed: Extract<RemovedAssetRef, { kind: 'tileset' }>,
@@ -83,13 +109,7 @@ function removeTilesetRefs(
   const tilesets = Object.fromEntries(
     Object.entries(project.tilesets ?? {}).filter(([k]) => k !== removed.id),
   )
-  const scenes = Object.fromEntries(
-    Object.entries(project.scenes).map(([sid, sc]) => {
-      if (sc.tilemap?.tilesetAssetId !== removed.id) return [sid, sc]
-      const { tilesetAssetId: _drop, ...rest } = sc.tilemap
-      return [sid, { ...sc, tilemap: rest }]
-    }),
-  )
+  const scenes = scrubSceneTilemaps(project.scenes, removed.id)
   return { ...project, tilesets, scenes }
 }
 

@@ -171,6 +171,10 @@ add_test(NAME artcade_package_test COMMAND artcade_package_test)
         project-json-test.cpp
         artcade-project-json)
 
+    artcade_test(tilemap_grid_test
+        tilemap-grid-test.cpp
+        artcade-core)
+
     artcade_test(project_json_parity_test
         project-json-parity-test.cpp
         artcade-asset-system)

@@ -29,7 +29,7 @@ export function AssetInspectorSection({ selection }: AssetInspectorSectionProps)
         <EditorButton
           type="button"
           className="w-full !text-[10px]"
-          onClick={() => dispatch({ type: 'TILESET_EDIT_OPEN', tilesetId: selection.id })}
+          onClick={() => dispatch({ type: 'TILESET_PAINT_BEGIN', tilesetId: selection.id })}
         >
           Open Tileset Editor
         </EditorButton>

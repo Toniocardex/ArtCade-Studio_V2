@@ -337,6 +337,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                 assetFolders.createVirtualFolder(newFolderCategoryRef.current)
               }
               onImportImage={assets.triggerImportImage}
+              onImportTileset={assets.triggerImportTileset}
               onImportAudio={assets.triggerImportAudio}
               onImportFont={assets.triggerImportFont}
               onFocusAssets={focusAssets}

@@ -941,6 +941,14 @@ void RuntimeEntityGateway::setTilesets(std::vector<TilesetAsset> tilesets) {
     sceneManager_.setTilesets(std::move(tilesets));
 }
 
+float RuntimeEntityGateway::tilesetTileSize(const std::string& assetId) const {
+    if (assetId.empty()) return 0.f;
+    for (const auto& ts : sceneManager_.tilesets()) {
+        if (ts.assetId == assetId) return ts.tileSize;
+    }
+    return 0.f;
+}
+
 void RuntimeEntityGateway::setSceneLayers(std::vector<SceneLayerDef> layers) {
     sceneManager_.setSceneLayers(std::move(layers));
 }

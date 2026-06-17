@@ -62,6 +62,44 @@ void read_tilemap_object(const nlohmann::json& tmJson, TilemapData& out) {
     if (tmJson.contains("data") && tmJson["data"].is_array())
         tilemap.data = tmJson["data"].get<std::vector<int>>();
     tilemap.tilesetAssetId = read_string_any(tmJson, "tilesetAssetId", "tileset_asset_id");
+    tilemap.defaultTilesetAssetId =
+        read_string_any(tmJson, "defaultTilesetAssetId", "default_tileset_asset_id");
+
+    if (tmJson.contains("sourceIndices") && tmJson["sourceIndices"].is_array())
+        tilemap.sourceIndices = tmJson["sourceIndices"].get<std::vector<int>>();
+    else if (tmJson.contains("source_indices") && tmJson["source_indices"].is_array())
+        tilemap.sourceIndices = tmJson["source_indices"].get<std::vector<int>>();
+
+    const nlohmann::json* sourcesJson = nullptr;
+    if (tmJson.contains("tilesetSources") && tmJson["tilesetSources"].is_array())
+        sourcesJson = &tmJson["tilesetSources"];
+    else if (tmJson.contains("tileset_sources") && tmJson["tileset_sources"].is_array())
+        sourcesJson = &tmJson["tileset_sources"];
+    if (sourcesJson) {
+        for (const auto& item : *sourcesJson) {
+            if (!item.is_object()) continue;
+            TilesetSourceRef ref;
+            ref.tilesetAssetId =
+                read_string_any(item, "tilesetAssetId", "tileset_asset_id");
+            if (!ref.tilesetAssetId.empty())
+                tilemap.tilesetSources.push_back(std::move(ref));
+        }
+    }
+
+    // Legacy migration: single tilesetAssetId → source 1 for painted cells.
+    if (tilemap.tilesetSources.empty() && !tilemap.tilesetAssetId.empty()) {
+        tilemap.tilesetSources.push_back({ tilemap.tilesetAssetId });
+    }
+    const int cellCount = tilemap.cols * tilemap.rows;
+    if (tilemap.sourceIndices.size() != static_cast<size_t>(cellCount) && cellCount > 0) {
+        tilemap.sourceIndices.assign(static_cast<size_t>(cellCount), 0);
+        const int legacySource = tilemap.tilesetSources.empty() ? 0 : 1;
+        for (int i = 0; i < cellCount && i < static_cast<int>(tilemap.data.size()); ++i) {
+            if (tilemap.data[static_cast<size_t>(i)] != 0)
+                tilemap.sourceIndices[static_cast<size_t>(i)] = legacySource;
+        }
+    }
+
     out = std::move(tilemap);
 }
 

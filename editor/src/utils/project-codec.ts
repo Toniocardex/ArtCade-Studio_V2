@@ -19,6 +19,7 @@ import {
   PROJECT_FORMAT_V3,
 } from './project-object-types'
 import { entityToObjectType } from './project-object-types'
+import { normalizeTilemapLayer } from './tilemap-layer-sources'
 
 // Plain mutable Vec2 helpers — DEFAULT_SCENE_SIZE is `as const`, so we wrap it
 // to hand out fresh `{x,y}` literals (callers mutate worldSize/viewportSize).
@@ -310,7 +311,11 @@ function parseScene(raw: unknown, fallbackId: string): SceneDef {
                      })(),
     ...(() => {
       const tm = parseTilemap(r.tilemap)
-      return tm ? { tilemap: tm } : {}
+      const tilemapLayers = parseTilemapLayers(r.tilemapLayers ?? r.tilemap_layers)
+      return {
+        ...(tm ? { tilemap: tm } : {}),
+        ...(tilemapLayers ? { tilemapLayers } : {}),
+      }
     })(),
   }
 }
@@ -329,7 +334,63 @@ function parseTilemap(raw: unknown): TilemapLayer | undefined {
   const layer: TilemapLayer = { tileSize, cols, rows, data }
   if (typeof r.tilesetAssetId === 'string' && r.tilesetAssetId)
     layer.tilesetAssetId = r.tilesetAssetId
-  return layer
+  if (typeof r.defaultTilesetAssetId === 'string' && r.defaultTilesetAssetId)
+    layer.defaultTilesetAssetId = r.defaultTilesetAssetId
+  const srcArr = Array.isArray(r.sourceIndices) ? (r.sourceIndices as unknown[]).map(Number) : null
+  if (srcArr) {
+    layer.sourceIndices = new Array(cols * rows)
+      .fill(0)
+      .map((_, i) => (Number.isFinite(srcArr[i]) ? srcArr[i] : 0))
+  }
+  const sourcesRaw = r.tilesetSources ?? r.tileset_sources
+  if (Array.isArray(sourcesRaw)) {
+    const sources = sourcesRaw
+      .map((item) => {
+        if (!item || typeof item !== 'object') return null
+        const o = item as Record<string, unknown>
+        const id = typeof o.tilesetAssetId === 'string'
+          ? o.tilesetAssetId
+          : typeof o.tileset_asset_id === 'string'
+            ? o.tileset_asset_id
+            : ''
+        return id ? { tilesetAssetId: id } : null
+      })
+      .filter((x): x is { tilesetAssetId: string } => x != null)
+    if (sources.length > 0) layer.tilesetSources = sources
+  }
+  return normalizeTilemapLayer(layer)
+}
+
+function parseTilemapLayers(raw: unknown): Record<string, TilemapLayer> | undefined {
+  if (!raw || typeof raw !== 'object') return undefined
+  const out: Record<string, TilemapLayer> = {}
+  for (const [name, layerRaw] of Object.entries(raw as Record<string, unknown>)) {
+    const layer = parseTilemap(layerRaw)
+    if (layer) out[name] = layer
+  }
+  return Object.keys(out).length > 0 ? out : undefined
+}
+
+function serializeTilemapLayer(layer: TilemapLayer): Record<string, unknown> {
+  const normalized = normalizeTilemapLayer(layer)
+  const base: Record<string, unknown> = {
+    tileSize: normalized.tileSize,
+    cols: normalized.cols,
+    rows: normalized.rows,
+    data: normalized.data,
+  }
+  if (normalized.tilesetSources?.length) {
+    base.tilesetSources = normalized.tilesetSources.map((s) => ({
+      tilesetAssetId: s.tilesetAssetId,
+    }))
+  }
+  if (normalized.sourceIndices?.length) {
+    base.sourceIndices = normalized.sourceIndices
+  }
+  if (normalized.defaultTilesetAssetId) {
+    base.defaultTilesetAssetId = normalized.defaultTilesetAssetId
+  }
+  return base
 }
 
 function parseImagePoints(raw: unknown): ImagePointDef[] | undefined {
@@ -756,6 +817,7 @@ function serializeObjectType(type: ObjectTypeDef) {
 }
 
 function serializeScene(scene: SceneDef) {
+  const tilemapLayers = scene.tilemapLayers
   return {
     id:              scene.id,
     name:            scene.name,
@@ -765,7 +827,17 @@ function serializeScene(scene: SceneDef) {
     ...(scene.instances?.length
       ? { instances: scene.instances.map(serializeInstance) }
       : { entityIds: scene.entityIds }),
-    ...(scene.tilemap ? { tilemap: scene.tilemap } : {}),
+    ...(scene.tilemap ? { tilemap: serializeTilemapLayer(scene.tilemap) } : {}),
+    ...(tilemapLayers && Object.keys(tilemapLayers).length > 0
+      ? {
+          tilemapLayers: Object.fromEntries(
+            Object.entries(tilemapLayers).map(([name, layer]) => [
+              name,
+              serializeTilemapLayer(layer),
+            ]),
+          ),
+        }
+      : {}),
   }
 }
 

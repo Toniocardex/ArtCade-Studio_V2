@@ -51,10 +51,16 @@ export interface CoreState {
   dockPanelVisibility:   DockPanelVisibility
   /** Last console log id acknowledged while the console dock was visible. */
   consoleAckUpToId:      number
-  /** When non-null, the TilesetEditorModal opens for this tileset asset id.
-   *  Set by clicking "Open Tileset Editor" in the inspector or on import,
-   *  cleared on modal close or LOAD_PROJECT. */
-  editingTilesetId: string | null
+  /** Active tileset brush for canvas paint (distinct from inspector asset selection). */
+  activePaintTilesetId: string | null
+  /** When true, the tileset palette panel is shown in the inspector. */
+  tilePaletteOpen: boolean
+  /** Per-layer last paint tileset (editor convenience, not persisted). */
+  lastPaintTilesetByLayer: Record<string, string>
+  /** Recently used tileset asset ids for palette quick-pick (not persisted). */
+  recentPaintTilesetIds: string[]
+  /** Transient toast when a tileset is first added to a layer's sources (not persisted). */
+  paintSourceNotice: string | null
   openScripts:      ScriptFile[]
   activeScriptPath: string | null
   mainScriptView:   MainScriptView
@@ -150,7 +156,13 @@ export type Action =
   | { type: 'SET_DOCK_PANEL_VISIBLE'; panel: DockPanelId; visible: boolean }
   | { type: 'TOGGLE_DOCK_PANEL'; panel: DockPanelId }
   | { type: 'ACKNOWLEDGE_CONSOLE_LOGS'; upToId: number }
+  | { type: 'TILESET_PAINT_BEGIN'; tilesetId: string }
+  | { type: 'TILESET_PAINT_END' }
+  | { type: 'TILESET_TOGGLE_PALETTE' }
+  | { type: 'DISMISS_PAINT_SOURCE_NOTICE' }
+  /** @deprecated Use TILESET_PAINT_BEGIN */
   | { type: 'TILESET_EDIT_OPEN'; tilesetId: string }
+  /** @deprecated Use TILESET_PAINT_END */
   | { type: 'TILESET_EDIT_CLOSE' }
   | { type: 'SET_PLAYING';       playing: boolean }
   | { type: 'UPDATE_SCRIPT';     path: string; content: string }
@@ -236,7 +248,7 @@ export type Action =
   | { type: 'EDITOR_SET_CAMERA_PREVIEW'; enabled: boolean }
   | { type: 'TILEMAP_INIT';  sceneId: string }
   | { type: 'TILEMAP_PAINT'; sceneId: string; index: number; tileId: number }
-  | { type: 'TILEMAP_PAINT_CELL'; sceneId: string; col: number; row: number; tileId: number }
+  | { type: 'TILEMAP_PAINT_CELL'; sceneId: string; col: number; row: number; tileId: number; tilesetAssetId: string }
   | { type: 'TILESET_ASSET_ADD';     asset: TilesetAsset }
   | { type: 'TILESET_ASSET_REMOVE';  assetId: string }
   | { type: 'ASSET_ADD';             asset: ImageAsset }
@@ -304,7 +316,11 @@ export const initialCoreState: CoreState = {
   bottomPanelCollapsed:  initialDockUi.bottomPanelCollapsed,
   dockPanelVisibility:   initialDockUi.dockPanelVisibility,
   consoleAckUpToId:      0,
-  editingTilesetId: null,
+  activePaintTilesetId: null,
+  tilePaletteOpen: false,
+  lastPaintTilesetByLayer: {},
+  recentPaintTilesetIds: [],
+  paintSourceNotice: null,
   openScripts:      [],
   activeScriptPath: null,
   mainScriptView:   'manual',

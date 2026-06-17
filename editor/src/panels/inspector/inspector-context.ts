@@ -14,7 +14,7 @@ export type InspectorChrome = Readonly<{
 }>
 
 export function deriveInspectorMode(state: CoreState): InspectorMode {
-  if (state.editingTilesetId != null) return 'tileset-paint'
+  if (state.tilePaletteOpen && state.activePaintTilesetId != null) return 'tileset-paint'
   if (state.selection.entityId != null) return 'entity'
   if (state.inspectorAsset != null) return 'asset'
   if (state.inspectorLayerName != null) return 'layer'
@@ -46,8 +46,8 @@ export function inspectorChromeForMode(
       }
     }
     case 'tileset-paint': {
-      const ts = state.editingTilesetId
-        ? state.project?.tilesets?.[state.editingTilesetId]
+      const ts = state.activePaintTilesetId
+        ? state.project?.tilesets?.[state.activePaintTilesetId]
         : undefined
       return {
         mode,

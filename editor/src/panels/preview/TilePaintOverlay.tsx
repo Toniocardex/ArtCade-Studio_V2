@@ -4,6 +4,7 @@ import type { RefObject } from 'react'
 import type { TilemapLayer } from '../../types'
 import type { Action } from '../../store/editor-store'
 import { editorPaintTile } from '../../utils/wasm-bridge'
+import { ensureSourceOnLayer } from '../../utils/tilemap-layer-sources'
 import { getRuntimeCanvas } from '../../utils/runtime-canvas'
 
 // ---------------------------------------------------------------------------
@@ -20,11 +21,12 @@ type Props = Readonly<{
   activeLayerName: string
   selectedTileCell: number
   sceneId: string
+  paintTilesetAssetId: string
   dispatch: Dispatch<Action>
 }>
 
 export function TilePaintOverlay({
-  scrollRef, zoom, tilemap, activeLayerName, selectedTileCell, sceneId, dispatch,
+  scrollRef, zoom, tilemap, activeLayerName, selectedTileCell, sceneId, paintTilesetAssetId, dispatch,
 }: Props) {
   // Track overlay size to match the canvas element exactly.
   const [size, setSize] = useState({ w: 0, h: 0 })
@@ -62,9 +64,20 @@ export function TilePaintOverlay({
 
   const applyCell = useCallback((col: number, row: number, tileId: number) => {
     if (!tilemap) return
-    editorPaintTile(col, row, tileId, activeLayerName)
-    dispatch({ type: 'TILEMAP_PAINT_CELL', sceneId, col, row, tileId })
-  }, [activeLayerName, dispatch, sceneId, tilemap])
+    let sourceIndex = 0
+    if (tileId > 0) {
+      sourceIndex = ensureSourceOnLayer(tilemap, paintTilesetAssetId).sourceIndex
+    }
+    editorPaintTile(col, row, tileId, activeLayerName, sourceIndex, paintTilesetAssetId)
+    dispatch({
+      type: 'TILEMAP_PAINT_CELL',
+      sceneId,
+      col,
+      row,
+      tileId,
+      tilesetAssetId: paintTilesetAssetId,
+    })
+  }, [activeLayerName, dispatch, paintTilesetAssetId, sceneId, tilemap])
 
   // Bresenham line: fill all cells between two positions (fast drag continuity).
   const applyLine = useCallback((

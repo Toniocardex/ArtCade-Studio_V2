@@ -61,6 +61,7 @@ std::vector<std::pair<std::string, std::string>> EditorAPI::s_consoleQueue;
 #include "../../../modules/audio/include/audio.h"
 #include "../../../modules/asset-system/include/asset-manifest-index.h"
 #include "../../../core/types.h"
+#include "../../../core/tilemap_grid.h"
 #include "../../../core/scene-json.h"
 #include "../../../core/project-meta-json.h"
 
@@ -361,6 +362,148 @@ void EditorAPI::flushConsoleLines() {
 
 } // namespace ArtCade
 
+namespace {
+
+float resolve_scene_tilemap_tile_size(
+    const ArtCade::SceneDef& sc,
+    ArtCade::Modules::RuntimeEntityGateway* gw,
+    const std::string& tilesetAssetId)
+{
+    if (gw && !tilesetAssetId.empty()) {
+        const float fromTileset = gw->tilesetTileSize(tilesetAssetId);
+        if (fromTileset > 0.f) return fromTileset;
+    }
+    for (const auto& [name, layer] : sc.tilemapLayers) {
+        (void)name;
+        if (layer.tileSize > 0.f) return layer.tileSize;
+    }
+    if (sc.tilemap.tileSize > 0.f) return sc.tilemap.tileSize;
+    return 32.f;
+}
+
+ArtCade::TilemapData make_empty_tile_grid(
+    const ArtCade::SceneDef& sc,
+    ArtCade::Modules::RuntimeEntityGateway* gw,
+    const std::string& tilesetAssetId)
+{
+    for (const auto& [name, layer] : sc.tilemapLayers) {
+        (void)name;
+        if (layer.cols > 0 && layer.rows > 0) {
+            ArtCade::TilemapData tm;
+            tm.tileSize = layer.tileSize;
+            tm.cols     = layer.cols;
+            tm.rows     = layer.rows;
+            const int n = tm.cols * tm.rows;
+            if (n > 0) {
+                tm.data.assign(static_cast<size_t>(n), 0);
+                tm.sourceIndices.assign(static_cast<size_t>(n), 0);
+            }
+            return tm;
+        }
+    }
+    ArtCade::TilemapData tm;
+    tm.tileSize = resolve_scene_tilemap_tile_size(sc, gw, tilesetAssetId);
+    ArtCade::TilemapGridLimits limits;
+    if (tm.tileSize != 32.f) {
+        limits.maxCols = 128;
+        limits.maxRows = 96;
+    }
+    tilemap_grid_dims_from_world(
+        sc.worldSize.x,
+        sc.worldSize.y,
+        tm.tileSize,
+        limits,
+        tm.cols,
+        tm.rows);
+    const int n = tm.cols * tm.rows;
+    if (n > 0) {
+        tm.data.assign(static_cast<size_t>(n), 0);
+        tm.sourceIndices.assign(static_cast<size_t>(n), 0);
+    }
+    return tm;
+}
+
+void ensure_merged_tilemap(ArtCade::SceneDef& sc) {
+    if (sc.tilemap.cols > 0 && sc.tilemap.rows > 0) return;
+    sc.tilemap = make_empty_tile_grid(sc, nullptr, {});
+}
+
+void ensure_tileset_source_at(
+    ArtCade::TilemapData& tm,
+    int sourceIndex,
+    const std::string& tilesetAssetId)
+{
+    if (sourceIndex <= 0 || tilesetAssetId.empty()) return;
+    while (static_cast<int>(tm.tilesetSources.size()) < sourceIndex)
+        tm.tilesetSources.push_back({});
+    auto& ref = tm.tilesetSources[static_cast<size_t>(sourceIndex - 1)];
+    if (ref.tilesetAssetId.empty())
+        ref.tilesetAssetId = tilesetAssetId;
+}
+
+int resolve_paint_source_index(
+    ArtCade::TilemapData& tm,
+    int sourceIndex,
+    const std::string& tilesetAssetId)
+{
+    if (sourceIndex > 0) {
+        ensure_tileset_source_at(tm, sourceIndex, tilesetAssetId);
+        return sourceIndex;
+    }
+    if (tilesetAssetId.empty()) return 0;
+    for (size_t i = 0; i < tm.tilesetSources.size(); ++i) {
+        if (tm.tilesetSources[i].tilesetAssetId == tilesetAssetId)
+            return static_cast<int>(i) + 1;
+    }
+    tm.tilesetSources.push_back({ tilesetAssetId });
+    return static_cast<int>(tm.tilesetSources.size());
+}
+
+ArtCade::TilemapData& ensure_tilemap_layer(
+    ArtCade::SceneDef& sc,
+    const std::string& layerName,
+    ArtCade::Modules::RuntimeEntityGateway* gw,
+    const std::string& tilesetAssetId)
+{
+    auto it = sc.tilemapLayers.find(layerName);
+    if (it != sc.tilemapLayers.end())
+        return it->second;
+    ensure_merged_tilemap(sc);
+    auto inserted = sc.tilemapLayers.emplace(
+        layerName,
+        make_empty_tile_grid(sc, gw, tilesetAssetId));
+    return inserted.first->second;
+}
+
+void recomposite_merged_cell(
+    ArtCade::SceneDef& sc,
+    const std::vector<ArtCade::SceneLayerDef>& stack,
+    int col,
+    int row)
+{
+    if (stack.empty()) return;
+    ensure_merged_tilemap(sc);
+    ArtCade::TilemapData& merged = sc.tilemap;
+    if (merged.cols <= 0 || merged.rows <= 0) return;
+    const int mi = row * merged.cols + col;
+    if (mi < 0 || mi >= static_cast<int>(merged.data.size())) return;
+
+    int value = 0;
+    for (int i = static_cast<int>(stack.size()) - 1; i >= 0; --i) {
+        auto layerIt = sc.tilemapLayers.find(stack[static_cast<size_t>(i)].name);
+        if (layerIt == sc.tilemapLayers.end()) continue;
+        const ArtCade::TilemapData& tm = layerIt->second;
+        if (col >= tm.cols || row >= tm.rows) continue;
+        const int li = row * tm.cols + col;
+        if (li < 0 || li >= static_cast<int>(tm.data.size())) continue;
+        const int v = tm.data[static_cast<size_t>(li)];
+        if (v != 0) value = v;
+    }
+    merged.data[static_cast<size_t>(mi)] = value;
+}
+
+} // namespace
+
 // =============================================================================
 // React -> C++ exported commands
 // =============================================================================
@@ -388,51 +531,49 @@ EMSCRIPTEN_KEEPALIVE void editor_set_active_tile_layer(const char* layerName) {
 
 // Direct single-cell write — no texture eviction, no echo.
 // When @p layerName is set, updates that layer grid and recomposites merged tilemap.
-EMSCRIPTEN_KEEPALIVE void editor_paint_tile(int col, int row, int tileId, const char* layerName) {
+EMSCRIPTEN_KEEPALIVE void editor_paint_tile(
+    int col,
+    int row,
+    int tileId,
+    const char* layerName,
+    int sourceIndex,
+    const char* tilesetAssetIdUtf8)
+{
     auto* gw = ArtCade::EditorAPI::s_entityGateway;
     if (!gw) return;
     ArtCade::SceneDef* sc = gw->activeSceneMutable();
     if (!sc) return;
 
-    const std::string layer = (layerName && *layerName) ? std::string(layerName) : std::string{};
+    const std::string tilesetId =
+        (tilesetAssetIdUtf8 && *tilesetAssetIdUtf8)
+            ? std::string(tilesetAssetIdUtf8)
+            : std::string{};
+    const std::string layer =
+        (layerName && *layerName) ? std::string(layerName) : std::string{};
     if (!layer.empty()) {
-        auto layerIt = sc->tilemapLayers.find(layer);
-        if (layerIt == sc->tilemapLayers.end()) return;
-        ArtCade::TilemapData& layerTm = layerIt->second;
+        ArtCade::TilemapData& layerTm = ensure_tilemap_layer(*sc, layer, gw, tilesetId);
         if (col < 0 || col >= layerTm.cols || row < 0 || row >= layerTm.rows) return;
         const int idx = row * layerTm.cols + col;
         if (idx >= static_cast<int>(layerTm.data.size())) return;
-        layerTm.data[idx] = tileId;
-
-        const auto& stack = gw->sceneLayers();
-        if (!stack.empty()) {
-            ArtCade::TilemapData& merged = sc->tilemap;
-            if (merged.cols > 0 && merged.rows > 0) {
-                const int mi = row * merged.cols + col;
-                if (mi >= 0 && mi < static_cast<int>(merged.data.size())) {
-                    int value = 0;
-                    for (int i = static_cast<int>(stack.size()) - 1; i >= 0; --i) {
-                        auto it = sc->tilemapLayers.find(stack[static_cast<size_t>(i)].name);
-                        if (it == sc->tilemapLayers.end()) continue;
-                        const ArtCade::TilemapData& tm = it->second;
-                        if (col >= tm.cols || row >= tm.rows) continue;
-                        const int li = row * tm.cols + col;
-                        if (li < 0 || li >= static_cast<int>(tm.data.size())) continue;
-                        const int v = tm.data[li];
-                        if (v != 0) value = v;
-                    }
-                    merged.data[mi] = value;
-                }
-            }
+        layerTm.data[static_cast<size_t>(idx)] = tileId;
+        if (layerTm.sourceIndices.size() != layerTm.data.size())
+            layerTm.sourceIndices.assign(layerTm.data.size(), 0);
+        if (tileId <= 0) {
+            layerTm.sourceIndices[static_cast<size_t>(idx)] = 0;
+        } else {
+            const int src = resolve_paint_source_index(layerTm, sourceIndex, tilesetId);
+            layerTm.sourceIndices[static_cast<size_t>(idx)] = src;
         }
+        recomposite_merged_cell(*sc, gw->sceneLayers(), col, row);
         return;
     }
 
+    ensure_merged_tilemap(*sc);
     ArtCade::TilemapData& tm = sc->tilemap;
     if (col < 0 || col >= tm.cols || row < 0 || row >= tm.rows) return;
     const int idx = row * tm.cols + col;
     if (idx >= static_cast<int>(tm.data.size())) return;
-    tm.data[idx] = tileId;
+    tm.data[static_cast<size_t>(idx)] = tileId;
 }
 
 // Full per-layer tilemap resync — no texture eviction, no full project reload.

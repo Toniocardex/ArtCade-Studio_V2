@@ -7,6 +7,12 @@
 // for generic physics overlap.
 // ---------------------------------------------------------------------------
 
+import {
+  TILEMAP_GRID_DEFAULT_LIMITS,
+  TILEMAP_GRID_TILESIZE_CHANGE_LIMITS,
+  computeTilemapGridDims,
+} from './tilemap-grid'
+
 /** A paintable tile in the palette. `color` is the editor preview swatch; */
 /** id 0 is reserved as "empty" and is never stored in the palette.          */
 export interface TileDef {
@@ -20,16 +26,28 @@ export interface TileDef {
   surfaceKind?: 'solid' | 'oneWay'
 }
 
+/** One tileset spritesheet registered as a paint source on a layer. */
+export interface TilesetSourceRef {
+  tilesetAssetId: string
+}
+
 /** A flat tile grid for a scene. `data` length === cols*rows, 0 = empty. */
 export interface TilemapLayer {
   tileSize: number   // px per cell
   cols:     number
   rows:     number
   data:     number[] // row-major, values are tile ids (0 = empty)
-  /** Phase F: reference to a ProjectDoc.tilesets entry. When set, tiles are
-   *  drawn as cells of that spritesheet (id = 1-based cell index); when
-   *  absent, the legacy TileDef/palette colour fallback (D2) is used. */
+  /** Parallel to data; 0 = empty; 1..N indexes tilesetSources[N-1]. */
+  sourceIndices?: number[]
+  /** Tileset spritesheets used on this layer (order defines sourceIndex). */
+  tilesetSources?: TilesetSourceRef[]
+  /**
+   * @deprecated Read only for legacy migration. New saves use tilesetSources.
+   * When set without sourceIndices, all painted cells map to source index 1.
+   */
   tilesetAssetId?: string
+  /** Optional default brush tileset for the layer (editor hint). */
+  defaultTilesetAssetId?: string
 }
 
 /**
@@ -68,8 +86,65 @@ export function createTilemap(
   worldH: number,
   tileSize = 32,
 ): TilemapLayer {
-  const cols = Math.min(Math.max(Math.round(worldW / tileSize), 8), 64)
-  const rows = Math.min(Math.max(Math.round(worldH / tileSize), 6), 48)
+  const { cols, rows } = computeTilemapGridDims(
+    worldW,
+    worldH,
+    tileSize,
+    TILEMAP_GRID_DEFAULT_LIMITS,
+  )
+  return { tileSize, cols, rows, data: new Array(cols * rows).fill(0) }
+}
+
+/**
+ * Resolve tileSize for a layer that does not exist yet.
+ * Must stay in sync with resolve_scene_tilemap_tile_size in editor-api.cpp.
+ * Priority: paint tileset → any existing layer → merged tilemap → 32.
+ */
+export function resolveTilemapTileSize(
+  project: { tilesets?: Record<string, { tileSize: number }> },
+  scene: { tilemap?: TilemapLayer; tilemapLayers?: Record<string, TilemapLayer> },
+  tilesetAssetId?: string,
+): number {
+  const fromTileset = tilesetAssetId ? project.tilesets?.[tilesetAssetId]?.tileSize : undefined
+  if (fromTileset && fromTileset > 0) return fromTileset
+  const layers = scene.tilemapLayers
+  if (layers) {
+    for (const layer of Object.values(layers)) {
+      if (layer.tileSize > 0) return layer.tileSize
+    }
+  }
+  if (scene.tilemap?.tileSize && scene.tilemap.tileSize > 0) return scene.tilemap.tileSize
+  return 32
+}
+
+/**
+ * Create an empty layer grid aligned with existing scene tilemaps.
+ * Reuses cols/rows from any existing layer so all layers stay in sync.
+ */
+export function createTilemapForNewLayer(
+  worldW: number,
+  worldH: number,
+  tileSize: number,
+  scene: { tilemapLayers?: Record<string, TilemapLayer> },
+): TilemapLayer {
+  const layers = scene.tilemapLayers
+  if (layers) {
+    for (const layer of Object.values(layers)) {
+      if (layer.cols > 0 && layer.rows > 0) {
+        const size = layer.cols * layer.rows
+        return {
+          tileSize: layer.tileSize,
+          cols: layer.cols,
+          rows: layer.rows,
+          data: new Array(size).fill(0),
+        }
+      }
+    }
+  }
+  const limits = tileSize === 32
+    ? TILEMAP_GRID_DEFAULT_LIMITS
+    : TILEMAP_GRID_TILESIZE_CHANGE_LIMITS
+  const { cols, rows } = computeTilemapGridDims(worldW, worldH, tileSize, limits)
   return { tileSize, cols, rows, data: new Array(cols * rows).fill(0) }
 }
 
@@ -84,9 +159,18 @@ export function resizeTilemap(
   const cols = Math.min(tilemap.cols, next.cols)
   const rows = Math.min(tilemap.rows, next.rows)
 
+  const sourceIndices = tilemap.sourceIndices
+    ? new Array(next.cols * next.rows).fill(0)
+    : undefined
+
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
-      data[row * next.cols + col] = tilemap.data[row * tilemap.cols + col] ?? 0
+      const dst = row * next.cols + col
+      const src = row * tilemap.cols + col
+      data[dst] = tilemap.data[src] ?? 0
+      if (sourceIndices && tilemap.sourceIndices) {
+        sourceIndices[dst] = tilemap.data[src] !== 0 ? (tilemap.sourceIndices[src] ?? 0) : 0
+      }
     }
   }
 
@@ -95,19 +179,69 @@ export function resizeTilemap(
     cols: next.cols,
     rows: next.rows,
     data,
+    ...(sourceIndices ? { sourceIndices } : {}),
   }
 }
 
 /**
- * Composite per-layer tilemap data into a single TilemapLayer for the WASM runtime.
+ * Resize a layer when tileSize changes while preserving overlapping cells.
+ * Uses wider grid caps than createTilemap (smaller tiles → more cells).
+ */
+export function resizeTilemapForTileSize(
+  tilemap: TilemapLayer,
+  worldW: number,
+  worldH: number,
+  newTileSize: number,
+): TilemapLayer {
+  if (tilemap.tileSize === newTileSize) return tilemap
+  const { cols: newCols, rows: newRows } = computeTilemapGridDims(
+    worldW,
+    worldH,
+    newTileSize,
+    TILEMAP_GRID_TILESIZE_CHANGE_LIMITS,
+  )
+  const data = new Array(newCols * newRows).fill(0)
+  const copyC = Math.min(tilemap.cols, newCols)
+  const copyR = Math.min(tilemap.rows, newRows)
+
+  const sourceIndices = tilemap.sourceIndices
+    ? new Array(newCols * newRows).fill(0)
+    : undefined
+
+  for (let row = 0; row < copyR; row++) {
+    for (let col = 0; col < copyC; col++) {
+      const dst = row * newCols + col
+      const src = row * tilemap.cols + col
+      const cell = tilemap.data[src] ?? 0
+      data[dst] = cell
+      if (sourceIndices && tilemap.sourceIndices) {
+        sourceIndices[dst] = cell !== 0 ? (tilemap.sourceIndices[src] ?? 0) : 0
+      }
+    }
+  }
+
+  return {
+    ...tilemap,
+    tileSize: newTileSize,
+    cols: newCols,
+    rows: newRows,
+    data,
+    ...(sourceIndices ? { sourceIndices } : {}),
+  }
+}
+
+/**
+ * Composite per-layer tilemap data into a single TilemapLayer for legacy physics.
  * `layerNames` is ordered highest-to-lowest priority (index 0 = renders on top).
  * Higher-priority layers win wherever tileId !== 0; empty cells (0) fall through.
+ *
+ * Merged grid carries tileId only — it does not represent multi-source intra-layer
+ * paint. Per-layer tilemapLayers + sourceIndices are authoritative for rendering.
  */
 export function mergeTilemapLayers(
   layerNames: string[],
   tilemapLayers: Record<string, TilemapLayer>,
 ): TilemapLayer | undefined {
-  // Collect existing layers ordered highest→lowest priority
   const ordered = layerNames
     .map(n => tilemapLayers[n])
     .filter((tm): tm is TilemapLayer => !!tm)
@@ -117,7 +251,6 @@ export function mergeTilemapLayers(
   const size = ref.cols * ref.rows
   const data = new Array<number>(size).fill(0)
 
-  // Paint bottom-up: lowest priority first, then higher layers overwrite non-zero
   for (let li = ordered.length - 1; li >= 0; li--) {
     const tm = ordered[li]!
     const len = Math.min(size, tm.data.length)
@@ -126,14 +259,10 @@ export function mergeTilemapLayers(
     }
   }
 
-  // Tileset: highest-priority layer that has one assigned
-  const tilesetLayer = ordered.find(tm => tm.tilesetAssetId)
-
   return {
     tileSize: ref.tileSize,
     cols:     ref.cols,
     rows:     ref.rows,
     data,
-    tilesetAssetId: tilesetLayer?.tilesetAssetId,
   }
 }

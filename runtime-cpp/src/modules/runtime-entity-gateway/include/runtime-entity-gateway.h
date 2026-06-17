@@ -209,6 +209,8 @@ public:
     /** Patch scene viewport/world/background on the active project snapshot. */
     bool updateSceneSettings(const SceneId& sceneId, const SceneDef& patch);
     void setTilesets(std::vector<TilesetAsset> tilesets);
+    /** Tile cell size for @p assetId from the loaded project tilesets; 0 if unknown. */
+    float tilesetTileSize(const std::string& assetId) const;
     void setSceneLayers(std::vector<SceneLayerDef> layers);
     const std::vector<SceneLayerDef>& sceneLayers() const;
 

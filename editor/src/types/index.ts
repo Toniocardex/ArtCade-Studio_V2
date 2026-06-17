@@ -4,6 +4,7 @@
 
 export * from './logic-board'
 export * from './components'
+export * from './tilemap-grid'
 export * from './tilemap'
 import type { LogicBoardDoc } from './logic-board'
 import type { TileDef, TilemapLayer, TilesetAsset } from './tilemap'

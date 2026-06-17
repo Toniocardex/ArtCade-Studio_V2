@@ -1,11 +1,12 @@
 import type { ReactNode } from 'react'
-import { FolderPlus, Search, ImagePlus, Music, Type, Trash2 } from 'lucide-react'
+import { FolderPlus, Search, ImagePlus, Grid3x3, Music, Type, Trash2 } from 'lucide-react'
 
 export type AssetToolbarProps = Readonly<{
   disabled: boolean
   canRemove: boolean
   onNewFolder: () => void
   onImportImage: () => void
+  onImportTileset: () => void
   onImportAudio: () => void
   onImportFont: () => void
   onFocusAssets: () => void
@@ -49,12 +50,13 @@ function Divider() {
   return <div className="w-px h-4 bg-[var(--border)] mx-0.5" />
 }
 
-/** Compact single-row asset actions: folder ops | import (image/audio/font) | remove. */
+/** Compact single-row asset actions: folder ops | import (image/tileset/audio/font) | remove. */
 export function AssetToolbar({
   disabled,
   canRemove,
   onNewFolder,
   onImportImage,
+  onImportTileset,
   onImportAudio,
   onImportFont,
   onFocusAssets,
@@ -83,6 +85,12 @@ export function AssetToolbar({
         disabled={disabled}
         title="Import image (PNG, JPEG, GIF)"
         accent
+      />
+      <IconBtn
+        icon={<Grid3x3 size={14} />}
+        onClick={onImportTileset}
+        disabled={disabled}
+        title="Import tileset (PNG, JPEG, GIF)"
       />
       <IconBtn
         icon={<Music size={14} />}

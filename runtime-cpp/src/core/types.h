@@ -287,12 +287,20 @@ struct EntityDef {
 };
 
 // Tilemap (Scene Editor Phase D2) — field names mirror editor TS.
+// Grid dimension limits: see tilemap_grid.h (sync with editor/src/types/tilemap-grid.ts).
+struct TilesetSourceRef {
+    std::string tilesetAssetId;
+};
+
 struct TilemapData {
     float            tileSize = 32.f;
     int              cols     = 0;   // 0 = no tilemap
     int              rows     = 0;
     std::vector<int> data;           // size cols*rows, row-major, 0 = empty
-    std::string      tilesetAssetId; // Phase F3: spritesheet ref (empty = colour)
+    std::vector<int> sourceIndices;  // parallel to data; 0 = empty; 1..N → tilesetSources[N-1]
+    std::vector<TilesetSourceRef> tilesetSources;
+    std::string      tilesetAssetId; // legacy migration only
+    std::string      defaultTilesetAssetId;
 };
 
 /** Named scene render layer (editor project.layers; index 0 = highest priority). */

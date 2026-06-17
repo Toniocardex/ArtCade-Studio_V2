@@ -29,9 +29,28 @@ import {
 } from '../../utils/dock-ui-state'
 import { writeEditorPreferences } from '../../utils/editor-preferences'
 import { resolveScriptEditorActivationPath } from '../../utils/script-editor-activation'
-import {
-  shouldClosePaintOnLayerSwitch,
-} from '../../utils/tileset-paint-session'
+
+const MAX_RECENT_PAINT_TILESETS = 8
+
+function beginTilesetPaint(state: CoreState, tilesetId: string): CoreState {
+  const recent = [
+    tilesetId,
+    ...state.recentPaintTilesetIds.filter((id) => id !== tilesetId),
+  ].slice(0, MAX_RECENT_PAINT_TILESETS)
+  return {
+    ...state,
+    activePaintTilesetId: tilesetId,
+    tilePaletteOpen: true,
+    selectedTileCell: 1,
+    recentPaintTilesetIds: recent,
+  }
+}
+
+function endTilesetPaint(state: CoreState): CoreState {
+  return state.activePaintTilesetId === null && !state.tilePaletteOpen
+    ? state
+    : { ...state, activePaintTilesetId: null, tilePaletteOpen: false }
+}
 
 function applyDockUiChange(state: CoreState, slice: DockUiSlice): CoreState {
   if (slice.dockPanelVisibility !== state.dockPanelVisibility) {
@@ -75,25 +94,34 @@ export const uiReducer: DomainReducer = (state: CoreState, action: Action) => {
       }
     case 'SELECT_INSPECTOR_LAYER': {
       const layerName = action.layerName
-      const closePaint = shouldClosePaintOnLayerSwitch(state, layerName)
+      const lastMap = state.activePaintTilesetId
+        ? { ...state.lastPaintTilesetByLayer, [state.editorActiveLayer]: state.activePaintTilesetId }
+        : state.lastPaintTilesetByLayer
+      const restored = layerName ? lastMap[layerName] : undefined
       return {
         ...state,
         inspectorLayerName: layerName,
         editorActiveLayer: layerName ?? state.editorActiveLayer,
         inspectorAsset: null,
         selection: { ...state.selection, entityId: null },
-        ...(closePaint ? { editingTilesetId: null } : {}),
+        lastPaintTilesetByLayer: lastMap,
+        ...(restored && state.tilePaletteOpen ? { activePaintTilesetId: restored } : {}),
       }
     }
     case 'SET_EDITOR_ACTIVE_LAYER':
       if (state.editorActiveLayer === action.layerName) return state
-      return {
-        ...state,
-        editorActiveLayer: action.layerName,
-        inspectorLayerName: action.layerName,
-        ...(shouldClosePaintOnLayerSwitch(state, action.layerName)
-          ? { editingTilesetId: null }
-          : {}),
+      {
+        const lastMap = state.activePaintTilesetId
+          ? { ...state.lastPaintTilesetByLayer, [state.editorActiveLayer]: state.activePaintTilesetId }
+          : state.lastPaintTilesetByLayer
+        const restored = lastMap[action.layerName]
+        return {
+          ...state,
+          editorActiveLayer: action.layerName,
+          inspectorLayerName: action.layerName,
+          lastPaintTilesetByLayer: lastMap,
+          ...(restored && state.tilePaletteOpen ? { activePaintTilesetId: restored } : {}),
+        }
       }
     case 'ENTITY_SET_DISPLAY_LAYER':
       return {
@@ -125,7 +153,8 @@ export const uiReducer: DomainReducer = (state: CoreState, action: Action) => {
         ...state,
         focusMode: next,
         mode: next ? 'canvas' : state.mode,
-        editingTilesetId: next ? null : state.editingTilesetId,
+        activePaintTilesetId: next ? null : state.activePaintTilesetId,
+        tilePaletteOpen: next ? false : state.tilePaletteOpen,
       }
     }
     case 'SET_FOCUS_MODE':
@@ -134,7 +163,8 @@ export const uiReducer: DomainReducer = (state: CoreState, action: Action) => {
         ...state,
         focusMode: action.enabled,
         mode: action.enabled ? 'canvas' : state.mode,
-        editingTilesetId: action.enabled ? null : state.editingTilesetId,
+        activePaintTilesetId: action.enabled ? null : state.activePaintTilesetId,
+        tilePaletteOpen: action.enabled ? false : state.tilePaletteOpen,
       }
     case 'SET_REDUCE_MOTION':
       if (state.reduceMotion === action.enabled) return state
@@ -195,16 +225,20 @@ export const uiReducer: DomainReducer = (state: CoreState, action: Action) => {
       return action.upToId <= state.consoleAckUpToId
         ? state
         : { ...state, consoleAckUpToId: action.upToId }
+    case 'TILESET_PAINT_BEGIN':
     case 'TILESET_EDIT_OPEN':
-      return {
-        ...state,
-        editingTilesetId: action.tilesetId,
-        selectedTileCell: 1,
-      }
+      return beginTilesetPaint(state, action.tilesetId)
+    case 'TILESET_PAINT_END':
     case 'TILESET_EDIT_CLOSE':
-      return state.editingTilesetId === null
+      return endTilesetPaint(state)
+    case 'TILESET_TOGGLE_PALETTE':
+      return state.activePaintTilesetId === null
         ? state
-        : { ...state, editingTilesetId: null }
+        : { ...state, tilePaletteOpen: !state.tilePaletteOpen }
+    case 'DISMISS_PAINT_SOURCE_NOTICE':
+      return state.paintSourceNotice === null
+        ? state
+        : { ...state, paintSourceNotice: null }
     case 'SET_PLAYING':
       return { ...state, isPlaying: action.playing }
     case 'EDITOR_SET_GRID_SIZE': {

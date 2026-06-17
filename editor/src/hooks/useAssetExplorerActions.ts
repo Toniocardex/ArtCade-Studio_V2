@@ -215,7 +215,7 @@ export function useAssetExplorerActions() {
 
   const openTilesetEditor = useCallback(
     (tilesetId: string) => {
-      dispatch({ type: 'TILESET_EDIT_OPEN', tilesetId })
+      dispatch({ type: 'TILESET_PAINT_BEGIN', tilesetId })
     },
     [dispatch],
   )
@@ -254,7 +254,7 @@ export function useAssetExplorerActions() {
               projectRoot: root,
             })
             dispatch({ type: 'TILESET_ASSET_ADD', asset: tileset })
-            dispatch({ type: 'TILESET_EDIT_OPEN', tilesetId: tileset.assetId })
+            dispatch({ type: 'TILESET_PAINT_BEGIN', tilesetId: tileset.assetId })
             await assetOrchestrator.ensureTilesetImageRegistered(project, tileset, root ?? '')
             showFlash(imported.persisted
               ? `Tileset "${tileset.name}" imported`

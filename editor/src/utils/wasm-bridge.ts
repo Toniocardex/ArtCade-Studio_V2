@@ -714,16 +714,20 @@ export function editorPaintTile(
   row: number,
   tileId: number,
   layerName?: string,
+  sourceIndex = 0,
+  tilesetAssetId?: string,
 ): void {
   const layerPtr = layerName ? marshalString(layerName) : 0
+  const tilesetPtr = tilesetAssetId ? marshalString(tilesetAssetId) : 0
   try {
     safeCall(
       'editor_paint_tile',
       null,
-      ['number', 'number', 'number', 'number'],
-      [col, row, tileId, layerPtr],
+      ['number', 'number', 'number', 'number', 'number', 'number'],
+      [col, row, tileId, layerPtr, sourceIndex, tilesetPtr],
     )
   } finally {
+    if (tilesetPtr) _module!._free(tilesetPtr)
     if (layerPtr) _module!._free(layerPtr)
   }
 }

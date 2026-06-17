@@ -4,7 +4,6 @@ import type { ConsoleEntry } from '../types'
 import { assetOrchestrator, imageAssetDescriptor } from '../utils/asset-orchestrator'
 import { watchProjectAssets } from '../utils/asset-watcher'
 import { dirName } from '../utils/project'
-import { isPaintSessionAligned } from '../utils/tileset-paint-session'
 import { runtimeSync, type EditorTool } from '../utils/runtime-sync-service'
 import { DEFAULT_SCENE_SIZE } from '../constants/editor-viewport'
 import {
@@ -30,6 +29,7 @@ import { useEditorFitZoom } from '../hooks/useEditorFitZoom'
 import { getRuntimeCanvas } from '../utils/runtime-canvas'
 import { editorSetEditCamera, setTextureCacheEvictedCallback } from '../utils/wasm-bridge'
 import { TilePaintOverlay } from './preview/TilePaintOverlay'
+import { createTilemap, createTilemapForNewLayer, resolveTilemapTileSize } from '../types'
 
 type TransformSnapshot = {
   entityId: number
@@ -78,7 +78,7 @@ export default function PreviewPanel({
   const editorZoom = useEditorSelector((s) => s.editorZoom)
   const editorZoomMode = useEditorSelector((s) => s.editorZoomMode)
   const cameraPreview = useEditorSelector((s) => s.cameraPreview)
-  const editingTilesetId = useEditorSelector((s) => s.editingTilesetId)
+  const activePaintTilesetId = useEditorSelector((s) => s.activePaintTilesetId)
   const editorActiveLayer = useEditorSelector((s) => s.editorActiveLayer)
   const openScripts = useEditorSelector((s) => s.openScripts)
   const focusMode = useEditorSelector((s) => s.focusMode)
@@ -125,15 +125,6 @@ export default function PreviewPanel({
   const showExplorerToggle = tier === 'minimal' || tier === 'unsupported'
 
   const { wasmReady, engineReady, syncWasmFromBridge } = useRuntimeReadiness()
-  const paintSessionAligned = useMemo(
-    () => isPaintSessionAligned({
-      project,
-      selection,
-      editorActiveLayer,
-      editingTilesetId,
-    }),
-    [project, selection, editorActiveLayer, editingTilesetId],
-  )
   const syncRuntimeUiFlags = useCallback(() => {
     syncWasmFromBridge()
   }, [syncWasmFromBridge])
@@ -234,12 +225,12 @@ export default function PreviewPanel({
   }, [])
 
   useEffect(() => {
-    if (!editingTilesetId || !wasmReady || !engineReady || !project) return
-    const tileset = project.tilesets?.[editingTilesetId]
+    if (!activePaintTilesetId || !wasmReady || !engineReady || !project) return
+    const tileset = project.tilesets?.[activePaintTilesetId]
     if (!tileset?.spriteImagePath?.trim()) return
     const root = projectPath ? dirName(projectPath) : ''
     void assetOrchestrator.ensureTilesetImageRegistered(project, tileset, root)
-  }, [editingTilesetId, wasmReady, engineReady, project, projectPath])
+  }, [activePaintTilesetId, wasmReady, engineReady, project, projectPath])
 
   useEffect(() => {
     const root = projectPath ? dirName(projectPath) : ''
@@ -336,6 +327,22 @@ export default function PreviewPanel({
 
   const selectedSceneId = selection.sceneId ?? project?.activeSceneId
   const selectedScene = project && selectedSceneId ? project.scenes[selectedSceneId] : undefined
+  const paintTilemap = useMemo(() => {
+    if (!selectedScene || !project) return undefined
+    const layerTm = selectedScene.tilemapLayers?.[editorActiveLayer]
+    if (layerTm) return layerTm
+    const tileSize = resolveTilemapTileSize(
+      project,
+      selectedScene,
+      activePaintTilesetId ?? undefined,
+    )
+    return createTilemapForNewLayer(
+      selectedScene.worldSize.x,
+      selectedScene.worldSize.y,
+      tileSize,
+      selectedScene,
+    )
+  }, [selectedScene, editorActiveLayer, activePaintTilesetId, project])
   const res = selectedScene?.worldSize ?? DEFAULT_SCENE_SIZE
   const vp  = selectedScene?.viewportSize ?? res
   const zoom = editorZoom
@@ -540,17 +547,15 @@ export default function PreviewPanel({
           style={{ position: 'sticky', top: 0, left: 0, width: 0, height: 0, zIndex: 0 }}
         >
           <div ref={canvasHostRef} style={{ display: 'contents' }} />
-          {editingTilesetId && !isPlaying && paintSessionAligned && (
+          {activePaintTilesetId && !isPlaying && (
             <TilePaintOverlay
               scrollRef={scrollRef}
               zoom={zoom}
-              tilemap={
-                selectedScene?.tilemapLayers?.[editorActiveLayer] ??
-                selectedScene?.tilemap
-              }
+              tilemap={paintTilemap}
               activeLayerName={editorActiveLayer}
               selectedTileCell={selectedTileCell}
               sceneId={selectedSceneId ?? ''}
+              paintTilesetAssetId={activePaintTilesetId}
               dispatch={dispatch}
             />
           )}

@@ -34,7 +34,8 @@ function tilemapStructKey(tm: RuntimeProjection['scenes'][number]['tm']): string
 }
 
 function tileLayerStructKey(layer: NonNullable<RuntimeProjection['scenes'][number]['tl']>[string]): string {
-  return `${layer.ts}|${layer.c}|${layer.r}|${layer.set ?? ''}`
+  const srcKey = layer.src?.length ? layer.src.join(',') : (layer.set ?? '')
+  return `${layer.ts}|${layer.c}|${layer.r}|${srcKey}`
 }
 
 /**

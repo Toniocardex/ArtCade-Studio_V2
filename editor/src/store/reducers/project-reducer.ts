@@ -48,7 +48,11 @@ export const projectReducer: DomainReducer = (state: CoreState, action: Action) 
         mainScriptView: 'manual',
         isPlaying:   false,
         consoleAckUpToId:      0,
-        editingTilesetId: null,    // reset tileset sub-view
+        activePaintTilesetId: null,
+        tilePaletteOpen: false,
+        lastPaintTilesetByLayer: {},
+        recentPaintTilesetIds: [],
+        paintSourceNotice: null,
         editorZoom:       EDITOR_BOOT_ZOOM,
         editorZoomMode:   'manual',
         cameraPreview:    false,

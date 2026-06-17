@@ -7,6 +7,7 @@ import type { EntityDef, ProjectDoc, SceneDef } from '../types'
 import type { TilesetAsset } from '../types/tilemap'
 import type { LogicAction, LogicBoard } from '../types/logic-board'
 import { materializeEntity } from './project-object-types'
+import { tilesetIdsOnLayer } from './tilemap-layer-sources'
 
 /** v1: project-relative path used as TextureCache key (same as spriteAssetId today). */
 export type SceneAssetLoadKey = string
@@ -59,10 +60,10 @@ export function tilesetPathsForScene(
   const paths = new Set<string>()
   if (scene.tilemapLayers) {
     for (const layer of Object.values(scene.tilemapLayers)) {
-      const tsId = layer.tilesetAssetId?.trim()
-      if (!tsId) continue
-      const path = tilesets?.[tsId]?.spriteImagePath?.trim()
-      if (path) paths.add(path)
+      for (const tsId of tilesetIdsOnLayer(layer)) {
+        const path = tilesets?.[tsId]?.spriteImagePath?.trim()
+        if (path) paths.add(path)
+      }
     }
   }
   const legacyId = scene.tilemap?.tilesetAssetId?.trim()

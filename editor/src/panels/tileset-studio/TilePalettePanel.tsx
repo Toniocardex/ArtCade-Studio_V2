@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { Eraser, Trash2 } from 'lucide-react'
 import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
+import { sourcesUsedOnLayer } from '../../utils/tilemap-layer-sources'
 import {
   isBlobPreviewSrc,
   resolveImagePreviewSrc,
@@ -73,6 +74,70 @@ export function TilePalettePanel({ tileset, onRemove }: Props) {
   const selectedCell = useEditorSelector((s) => s.selectedTileCell)
   const selection    = useEditorSelector((s) => s.selection)
   const sceneId      = selection.sceneId ?? project?.activeSceneId ?? ''
+  const activeLayer  = useEditorSelector((s) => s.editorActiveLayer)
+  const recentIds    = useEditorSelector((s) => s.recentPaintTilesetIds)
+  const paintId      = useEditorSelector((s) => s.activePaintTilesetId)
+
+  const usedInLayer = useMemo(() => {
+    if (!sceneId || !project?.scenes[sceneId]) return []
+    const layer = project.scenes[sceneId].tilemapLayers?.[activeLayer]
+    return layer ? sourcesUsedOnLayer(layer) : []
+  }, [sceneId, project, activeLayer])
+
+  const allTilesetIds = useMemo(
+    () => Object.keys(project?.tilesets ?? {}).sort((a, b) => {
+      const na = project?.tilesets?.[a]?.name ?? a
+      const nb = project?.tilesets?.[b]?.name ?? b
+      return na.localeCompare(nb)
+    }),
+    [project?.tilesets],
+  )
+
+  function pickTileset(id: string) {
+    if (id !== paintId) dispatch({ type: 'TILESET_PAINT_BEGIN', tilesetId: id })
+  }
+
+  function SourceList({
+    title,
+    ids,
+    empty,
+  }: Readonly<{ title: string; ids: string[]; empty?: string }>) {
+    if (ids.length === 0 && empty) {
+      return (
+        <div className="space-y-1">
+          <div className="text-[9px] text-[var(--muted)] uppercase tracking-wider">{title}</div>
+          <div className="text-[10px] text-[var(--muted)]">{empty}</div>
+        </div>
+      )
+    }
+    if (ids.length === 0) return null
+    return (
+      <div className="space-y-1">
+        <div className="text-[9px] text-[var(--muted)] uppercase tracking-wider">{title}</div>
+        <div className="flex flex-wrap gap-1">
+          {ids.map((id) => {
+            const name = project?.tilesets?.[id]?.name ?? id
+            const active = id === paintId
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => pickTileset(id)}
+                className={`px-1.5 py-0.5 rounded text-[10px] border truncate max-w-full ${
+                  active
+                    ? 'border-[var(--accent)] text-[var(--accent)] bg-[rgb(var(--accent-rgb)/0.1)]'
+                    : 'border-[var(--border-2)] text-[var(--muted)] hover:text-[var(--text)]'
+                }`}
+                title={name}
+              >
+                {name}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
 
   const [imgUrl, setImgUrl] = useState<string | null>(null)
   const [imgWH,  setImgWH]  = useState<{ w: number; h: number } | null>(null)
@@ -130,8 +195,14 @@ export function TilePalettePanel({ tileset, onRemove }: Props) {
     if (!imgWH) return
     const { cols, rows } = deriveGrid(imgWH.w, imgWH.h, nextTile, nextMargin)
     dispatch({ type: 'TILESET_ASSET_ADD', asset: { ...tileset, tileSize: nextTile, margin: nextMargin, cols, rows } })
-    const sceneTilemap = sceneId ? project?.scenes[sceneId]?.tilemap : undefined
-    if (sceneTilemap?.tilesetAssetId === tileset.assetId && sceneTilemap.tileSize !== nextTile && sceneId) {
+    const layer = sceneId ? project?.scenes[sceneId]?.tilemapLayers?.[activeLayer] : undefined
+    const usedOnLayer = layer ? sourcesUsedOnLayer(layer) : []
+    if (
+      layer &&
+      usedOnLayer.includes(tileset.assetId) &&
+      layer.tileSize !== nextTile &&
+      sceneId
+    ) {
       dispatch({ type: 'TILEMAP_SET_TILESIZE', sceneId, tileSize: nextTile })
     }
   }
@@ -140,6 +211,23 @@ export function TilePalettePanel({ tileset, onRemove }: Props) {
     <div className="flex flex-col h-full">
       {/* Controls */}
       <div className="shrink-0 flex flex-col gap-3 p-3 border-b border-[var(--border)]">
+        <div className="space-y-2.5">
+          <SourceList title="Recent" ids={recentIds.filter((id) => id !== tileset.assetId).slice(0, 6)} />
+          <SourceList
+            title="Used in layer"
+            ids={usedInLayer.filter((id) => id !== tileset.assetId)}
+            empty="No tilesets painted on this layer yet"
+          />
+          <SourceList
+            title="All project"
+            ids={allTilesetIds.filter((id) => id !== tileset.assetId)}
+          />
+        </div>
+
+        <div className="text-[10px] text-[var(--text)] font-medium truncate" title={tileset.name}>
+          {tileset.name}
+        </div>
+
         <div className="space-y-2.5">
           <GridInput
             label="Tile size"

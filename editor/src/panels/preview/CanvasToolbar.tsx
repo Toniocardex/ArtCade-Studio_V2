@@ -16,6 +16,7 @@ import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import type { EditorTool } from '../../utils/runtime-sync-service'
 import { ZoomControls } from './ZoomControls'
 import { ActiveLayerSelect } from './ActiveLayerSelect'
+import { PaintStatusChip } from './PaintStatusChip'
 import { ViewportOptionsPopover } from './ViewportOptionsPopover'
 
 interface CanvasToolbarProps {
@@ -102,6 +103,8 @@ export function CanvasToolbar({
       <ActiveLayerSelect />
 
       <Divider />
+
+      <PaintStatusChip />
 
       <ZoomControls />
 
