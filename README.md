@@ -27,7 +27,7 @@ Editor (React + Tauri)
 ArtCade V2/
 ├── editor/              # React TypeScript editor + Tauri
 │   ├── src/             # panels, store, wasm-bridge, CodeMirror iframe
-│   ├── public/runtime/  # game.js + game.wasm (preview; .wasm gitignored)
+│   ├── public/runtime/  # game.js + game.wasm (preview; build artifacts, gitignored)
 │   └── package.json
 │
 ├── runtime-cpp/         # C++ game engine (dual-compile)

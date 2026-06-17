@@ -39,6 +39,8 @@ Makefile
 *.wasm.map
 *.js.map
 *.js~
+editor/public/runtime/game.js
+editor/public/runtime/game.data
 
 # Python (bytecode generated during build scripts)
 __pycache__/
