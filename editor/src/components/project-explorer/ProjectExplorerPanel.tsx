@@ -22,7 +22,6 @@ import { useSceneExplorerActions } from '../../hooks/useSceneExplorerActions'
 import type { AssetFolderCategory } from '../../types'
 import { explorerFolderIdToCategory } from '../../utils/asset-virtual-folders'
 import { buildAssetFolderMenuItems } from './asset-folder-context-menus'
-import { openSpritesheetStudio } from '../../panels/spritesheet-studio/openSpritesheetStudio'
 import {
   VirtualFoldersBlock,
   assetHiddenByVirtualFolder,
@@ -429,20 +428,15 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                               selected:
                                 assets.selection?.type === 'image' &&
                                 assets.selection.id === imgRow.id,
-                              onClick: () =>
-                                assets.setSelection({ type: 'image', id: imgRow.id }),
-                              onDoubleClick: () =>
-                                openSpritesheetStudio(dispatch, project, imgRow.id),
+                              onClick: () => assets.openImageStudio(imgRow.id),
                               title: asset
-                                ? 'Double-click to open Sprite Studio'
+                                ? 'Click to open Sprite Studio'
                                 : imgRow.path,
                               icon: (
                                 <ImageTreeThumbnail
                                   asset={asset}
                                   projectPath={projectPath}
-                                  onOpenStudio={() =>
-                                    openSpritesheetStudio(dispatch, project, imgRow.id)
-                                  }
+                                  onOpenStudio={() => assets.openImageStudio(imgRow.id)}
                                 />
                               ),
                               spritesheetStudioTrigger: Boolean(asset),
@@ -451,8 +445,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                                     {
                                       id: 'spritesheet-studio',
                                       label: 'Open Sprite Studio',
-                                      onSelect: () =>
-                                        openSpritesheetStudio(dispatch, project, imgRow.id),
+                                      onSelect: () => assets.openImageStudio(imgRow.id),
                                     },
                                     {
                                       id: 'assign',
@@ -531,9 +524,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                             selected:
                               assets.selection?.type === 'tileset' &&
                               assets.selection.id === row.assetId,
-                            onClick: () =>
-                              assets.setSelection({ type: 'tileset', id: row.assetId }),
-                            onDoubleClick: () => assets.openTilesetEditor(row.assetId),
+                            onClick: () => assets.openTilesetEditor(row.assetId),
                             icon: (
                               <TilesetTreeThumbnail
                                 tileset={tilesetAsset}
@@ -541,7 +532,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                                 onOpenEditor={() => assets.openTilesetEditor(row.assetId)}
                               />
                             ),
-                            title: 'Double-click to open Tileset Editor',
+                            title: 'Click to open Tileset Editor',
                             extraMenuItems: [
                               {
                                 id: 'edit',
@@ -579,10 +570,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                           depth={2}
                           selected={selected}
                           spritesheetStudioTrigger={Boolean(asset)}
-                          onClick={() => assets.setSelection({ type: 'image', id: img.id })}
-                          onDoubleClick={() =>
-                            openSpritesheetStudio(dispatch, project, img.id)
-                          }
+                          onClick={() => assets.openImageStudio(img.id)}
                           onContextMenu={(ev) => {
                             if (!asset) return
                             openExplorerContextMenu(
@@ -604,8 +592,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                                   {
                                     id: 'spritesheet-studio',
                                     label: 'Open Sprite Studio',
-                                    onSelect: () =>
-                                      openSpritesheetStudio(dispatch, project, img.id),
+                                    onSelect: () => assets.openImageStudio(img.id),
                                   },
                                   {
                                     id: 'assign',
@@ -626,15 +613,13 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                             )
                           }}
                           title={
-                            asset ? 'Double-click to open Sprite Studio' : img.path
+                            asset ? 'Click to open Sprite Studio' : img.path
                           }
                           icon={
                             <ImageTreeThumbnail
                               asset={asset}
                               projectPath={projectPath}
-                              onOpenStudio={() =>
-                                openSpritesheetStudio(dispatch, project, img.id)
-                              }
+                              onOpenStudio={() => assets.openImageStudio(img.id)}
                             />
                           }
                         />
@@ -771,8 +756,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                         selected={
                           assets.selection?.type === 'tileset' && assets.selection.id === t.assetId
                         }
-                        onClick={() => assets.setSelection({ type: 'tileset', id: t.assetId })}
-                        onDoubleClick={() => assets.openTilesetEditor(t.assetId)}
+                        onClick={() => assets.openTilesetEditor(t.assetId)}
                         onContextMenu={(ev) =>
                           openExplorerContextMenu(
                             ev,
@@ -821,7 +805,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                             onOpenEditor={() => assets.openTilesetEditor(t.assetId)}
                           />
                         }
-                        title="Double-click to open Tileset Editor"
+                        title="Click to open Tileset Editor"
                       />
                     ))}
                   </TreeFolder>

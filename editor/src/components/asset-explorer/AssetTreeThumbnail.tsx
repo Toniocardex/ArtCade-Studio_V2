@@ -68,7 +68,7 @@ export function AssetTreeThumbnail({
       <span
         className="inline-flex flex-shrink-0"
         title={openTitle}
-        onDoubleClick={openFromThumbnail}
+        onClick={openFromThumbnail}
       >
         <Image size={11} className="text-[var(--muted)]" aria-hidden />
       </span>
@@ -82,7 +82,7 @@ export function AssetTreeThumbnail({
       className="w-4 h-4 object-contain flex-shrink-0"
       style={{ imageRendering: 'pixelated' }}
       title={openTitle}
-      onDoubleClick={openFromThumbnail}
+      onClick={openFromThumbnail}
     />
   )
 }

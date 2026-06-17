@@ -7,7 +7,7 @@ type TilesetTreeThumbnailProps = Readonly<{
   onOpenEditor: () => void
 }>
 
-/** Small tree icon for tilesets; double-click opens Tileset Editor. */
+/** Small tree icon for tilesets; click opens Tileset Editor. */
 export function TilesetTreeThumbnail({
   tileset,
   projectPath,
@@ -19,7 +19,7 @@ export function TilesetTreeThumbnail({
       dataUrl={tileset?.previewDataUrl}
       projectPath={projectPath}
       onOpen={onOpenEditor}
-      openTitle="Double-click to open Tileset Editor"
+      openTitle="Click to open Tileset Editor"
     />
   )
 }

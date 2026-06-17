@@ -215,9 +215,19 @@ export function useAssetExplorerActions() {
 
   const openTilesetEditor = useCallback(
     (tilesetId: string) => {
+      setSelection({ type: 'tileset', id: tilesetId })
       dispatch({ type: 'TILESET_PAINT_BEGIN', tilesetId })
     },
-    [dispatch],
+    [dispatch, setSelection],
+  )
+
+  const openImageStudio = useCallback(
+    (imageId: string) => {
+      if (!project) return
+      setSelection({ type: 'image', id: imageId })
+      openSpritesheetStudio(dispatch, project, imageId)
+    },
+    [dispatch, project, setSelection],
   )
 
   const openScript = useCallback(
@@ -290,7 +300,7 @@ export function useAssetExplorerActions() {
 
       if (shouldOpenSpritesheetStudioOnExplorerEnter(e, selection)) {
         e.preventDefault()
-        openSpritesheetStudio(dispatch, project, selection.id)
+        openImageStudio(selection.id)
         return
       }
 
@@ -300,7 +310,7 @@ export function useAssetExplorerActions() {
     }
     globalThis.addEventListener('keydown', handleKeyDown)
     return () => globalThis.removeEventListener('keydown', handleKeyDown)
-  }, [selection, project, removeSelection, dispatch])
+  }, [selection, project, removeSelection, dispatch, openImageStudio])
 
   return {
     project,
@@ -319,6 +329,7 @@ export function useAssetExplorerActions() {
     assignSprite,
     removeSelection,
     openTilesetEditor,
+    openImageStudio,
     triggerImportImage,
     triggerImportAudio,
     triggerImportFont,

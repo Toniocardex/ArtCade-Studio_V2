@@ -14,14 +14,14 @@ const asset: ImageAsset = {
 }
 
 describe('ImageTreeThumbnail', () => {
-  it('opens studio on thumbnail double-click', () => {
+  it('opens studio on thumbnail click', () => {
     const onOpenStudio = vi.fn()
     const { container } = render(
       <ImageTreeThumbnail asset={asset} projectPath={null} onOpenStudio={onOpenStudio} />,
     )
     const thumb = container.querySelector('img')
     expect(thumb).toBeTruthy()
-    fireEvent.doubleClick(thumb!)
+    fireEvent.click(thumb!)
     expect(onOpenStudio).toHaveBeenCalledTimes(1)
   })
 })
