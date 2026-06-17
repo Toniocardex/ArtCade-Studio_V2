@@ -47,7 +47,6 @@ __pycache__/
 
 # Node/npm
 node_modules/
-package-lock.json
 yarn.lock
 *.log
 artcade-vite*.log
