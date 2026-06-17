@@ -52,6 +52,7 @@ export function SceneLayersPanel() {
           onChange={(e) => setAddingName(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter') { e.preventDefault(); handleAdd() }
+            handleControlledInputKeyDown(e, setAddingName)
           }}
         />
         <button
