@@ -58,7 +58,6 @@ declare global {
       entityCount: number,
       physicsBodies: number,
     ) => void
-    onTilemapPainted?:            (col: number, row: number, tileId: number) => void
     onSpriteFillColor?:           (entityId: number, r: number, g: number, b: number) => void
     onEditorCursorWorld?:         (x: number, y: number) => void
   /** Spritesheet Studio engine preview (one frame per main-loop tick). */
@@ -168,14 +167,11 @@ function cacheQuery(): string {
 
 /**
  * Bind C++→JS callbacks onto `window`. Required callbacks are always
- * (re)assigned; OPTIONAL callbacks (e.g. `onTilemapPainted`) are only
- * overwritten when explicitly provided.
+ * (re)assigned; optional callbacks are only overwritten when explicitly provided.
  *
  * Why: callers like `PreviewPanel` invoke `loadWasmRuntime` again on canvas
- * rebind. If that rebind happens with a partial callback set, naively
- * assigning `globalThis.onTilemapPainted = cbs.onTilemapPainted` would
- * silently set it to `undefined`, breaking tilemap-paint persistence into
- * React (P1 in TECHNICAL_DEBT_REVIEW.md).
+ * rebind. If that rebind happens with a partial callback set, naively assigning
+ * optional handlers would silently set them to `undefined`.
  */
 export function bindWindowCallbacks(cbs: Partial<WasmCallbacks>): void {
   const g = emscriptenGlobal()
@@ -186,7 +182,6 @@ export function bindWindowCallbacks(cbs: Partial<WasmCallbacks>): void {
   if (cbs.onEntityTransformChanged) g.onEntityTransformChanged = cbs.onEntityTransformChanged
   if (cbs.onConsoleLine)            g.onConsoleLine            = cbs.onConsoleLine
   if (cbs.onRuntimeProfile)         g.onRuntimeProfile         = cbs.onRuntimeProfile
-  if (cbs.onTilemapPainted)         g.onTilemapPainted         = cbs.onTilemapPainted
   if (cbs.onSpriteFillColor)        g.onSpriteFillColor        = cbs.onSpriteFillColor
   if (cbs.onEditorCursorWorld)      g.onEditorCursorWorld      = cbs.onEditorCursorWorld
   // NOTE: the legacy `globalThis.onObjectUpdated(x, y)` forwarder was removed.
@@ -307,7 +302,6 @@ export interface WasmCallbacks {
     entityCount: number,
     physicsBodies: number,
   ) => void
-  onTilemapPainted?:        (col: number, row: number, tileId: number) => void
   onSpriteFillColor?:       (entityId: number, r: number, g: number, b: number) => void
   onEditorCursorWorld?:     (x: number, y: number) => void
 }
@@ -711,14 +705,6 @@ export function editorInvalidateAsset(assetKey: string, type: 'image' | 'audio' 
     _module._free(typePtr)
     _module._free(keyPtr)
   }
-}
-
-export function editorSetTilePaintMode(enabled: boolean): void {
-  safeCall('editor_set_tile_paint_mode', null, ['number'], [enabled ? 1 : 0])
-}
-
-export function editorSetSelectedTile(tileId: number): void {
-  safeCall('editor_set_selected_tile', null, ['number'], [tileId])
 }
 
 /** Write a single tilemap cell directly — no texture eviction, no full project reload.

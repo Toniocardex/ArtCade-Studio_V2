@@ -175,16 +175,6 @@ export function buildRuntimeCallbacks(deps: RuntimeCallbackDeps): WasmCallbacks 
         fps, luaMs, physicsMs, renderMs, entityCount, physicsBodies,
       })
     },
-    onTilemapPainted: (col: number, row: number, tileId: number) => {
-      if (cancelled()) return
-      const sceneId = sceneIdRef.current
-      if (!sceneId) return
-      scheduleWasmUiUpdateWhen(cancelled, () => {
-        dispatch({
-          type: 'TILEMAP_PAINT_CELL', sceneId, col, row, tileId,
-        })
-      }, { urgent: true })
-    },
     onSpriteFillColor: (entityId: number, r: number, g: number, b: number) => {
       scheduleWasmUiUpdateWhen(cancelled, () => {
         dispatch({

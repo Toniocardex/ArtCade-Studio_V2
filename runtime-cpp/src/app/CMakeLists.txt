@@ -70,8 +70,6 @@ if(EMSCRIPTEN)
         "_editor_set_scene_settings"
         "_editor_reload_script"
         "_editor_load_dialogs"
-        "_editor_set_tile_paint_mode"
-        "_editor_set_selected_tile"
         "_editor_set_active_tile_layer"
         "_editor_paint_tile"
         "_editor_sync_tilemap_data"

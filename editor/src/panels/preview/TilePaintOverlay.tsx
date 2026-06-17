@@ -7,13 +7,10 @@ import { editorPaintTile } from '../../utils/wasm-bridge'
 import { getRuntimeCanvas } from '../../utils/runtime-canvas'
 
 // ---------------------------------------------------------------------------
-// TilePaintOverlay — transparent div covering the WASM canvas.
-// Active when the TilesetEditorModal is open (!isPlaying, editingTilesetId set).
+// TilePaintOverlay — sole tile-paint input while the Tileset Editor is open.
 //
-// Fan-out model: each stroke cell is dispatched to BOTH the React store
-// (TILEMAP_PAINT_CELL → tilemap.data → fingerprint dh → tilemap_data_only sync)
-// and the WASM runtime (editorPaintTile → immediate visual feedback).
-// Right-click = erase (tileId 0). Bresenham interpolation for fast drags.
+// Fan-out per cell: editor_paint_tile (WASM visual) + TILEMAP_PAINT_CELL (React store).
+// Brush from selectedTileCell in the inspector palette. Right-click = erase (tileId 0).
 // ---------------------------------------------------------------------------
 
 type Props = Readonly<{

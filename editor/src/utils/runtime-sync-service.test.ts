@@ -23,7 +23,6 @@ vi.mock('./wasm-bridge', () => {
     editorSelectEntity:       vi.fn(),
     editorDeselect:           vi.fn(),
     editorSetTool:            vi.fn(),
-    editorSetSelectedTile:    vi.fn(),
     editorSetGuidesEnabled:   vi.fn(),
     editorSetGridSize:        vi.fn(),
     editorSetSnapToGrid:      vi.fn(),
@@ -83,7 +82,6 @@ describe('RuntimeSyncService', () => {
     vi.mocked(bridge.editorSelectEntity).mockReset()
     vi.mocked(bridge.editorDeselect).mockReset()
     vi.mocked(bridge.editorSetTool).mockReset()
-    vi.mocked(bridge.editorSetSelectedTile).mockReset()
     vi.mocked(bridge.editorSetGuidesEnabled).mockReset()
     vi.mocked(bridge.editorSetGridSize).mockReset()
     vi.mocked(bridge.editorSetTransform).mockReset()
@@ -203,7 +201,6 @@ describe('RuntimeSyncService', () => {
     runtimeSync.syncEditorTool('select')
     expect(bridge.editorSetTool).toHaveBeenCalledTimes(1)
     expect(bridge.editorSetTool).toHaveBeenLastCalledWith(0)
-    expect(bridge.editorSetSelectedTile).not.toHaveBeenCalled()
 
     runtimeSync.syncEditorTool('pan')
     expect(bridge.editorSetTool).toHaveBeenCalledTimes(2)

@@ -8,8 +8,7 @@
 //   [ viewport controls ] [ layer ] [ zoom ]        [ status ]
 //
 // Controls are grouped by purpose, each
-// group separated by a thin vertical divider. Order matches the original
-// vertical palette so muscle memory is preserved.
+// group separated by a thin vertical divider.
 
 import { Camera, Grid3x3, Hand, Maximize2, MousePointer2 } from 'lucide-react'
 import type { ReactNode } from 'react'

@@ -1,13 +1,15 @@
 #pragma once
 // =============================================================================
-// editor-input-controller  -- native canvas mouse + tile painting
+// editor-input-controller  -- native canvas mouse input
 // =============================================================================
 //
 // Extracted from editor-api.cpp during the Phase 5 split. Owns:
 //   - the canvas selector (set at init() time);
 //   - the on-screen / on-world coordinate mapping;
 //   - the mouse/key callbacks plumbed into emscripten;
-//   - paintTileAt + pickEntityAt helpers.
+//   - pickEntityAt helper.
+//
+// Tile painting input is handled in React (TilePaintOverlay -> editor_paint_tile).
 //
 // editor-api.cpp itself is now only static state, lifecycle, wiring,
 // notifications, and the EMSCRIPTEN_KEEPALIVE exports.

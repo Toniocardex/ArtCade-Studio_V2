@@ -17,8 +17,6 @@
 
 namespace ArtCade {
 
-extern "C" void editor_paint_tile(int col, int row, int tileId, const char* layerName);
-
 namespace {
 
 /** Mirrors editor/src/utils/entity-position.ts snapToGridValue (authoring only). */
@@ -39,7 +37,6 @@ namespace {
 std::string s_canvasSel       = "#canvas";
 float       s_lastPanScreenX  = 0.f;
 float       s_lastPanScreenY  = 0.f;
-bool        s_eraseMode       = false;
 
 enum EditorToolId {
     ToolSelect = 0,
@@ -69,26 +66,6 @@ void toWorld(const EmscriptenMouseEvent* e, float& wx, float& wy) {
         wx = screenX;
         wy = screenY;
     }
-}
-
-// Paint the brush tile into the active scene's tilemap cell under (x,y).
-// Pass tileIdOverride >= 0 to use a specific tile; -1 uses s_selectedTileId.
-void paintTileAt(float x, float y, int tileIdOverride = -1) {
-    auto* gw = EditorAPI::s_entityGateway;
-    if (!gw) return;
-    SceneDef* sc = gw->activeSceneMutable();
-    if (!sc) return;
-    TilemapData& tm = sc->tilemap;
-    if (tm.cols <= 0 || tm.rows <= 0 || tm.tileSize <= 0.f) return;
-    const int col = static_cast<int>(x / tm.tileSize);
-    const int row = static_cast<int>(y / tm.tileSize);
-    if (col < 0 || col >= tm.cols || row < 0 || row >= tm.rows) return;
-    const int tid = (tileIdOverride >= 0) ? tileIdOverride : EditorAPI::s_selectedTileId;
-    const char* layer = EditorAPI::s_activeTileLayerName.empty()
-        ? nullptr
-        : EditorAPI::s_activeTileLayerName.c_str();
-    editor_paint_tile(col, row, tid, layer);
-    EditorAPI::notifyTilemapPainted(col, row, tid);
 }
 
 // Pick the top-most entity whose clickable box contains the world point.
@@ -158,10 +135,6 @@ EM_BOOL EditorAPI::onMouseMove(int, const EmscriptenMouseEvent* e, void*) {
     }
     float wx, wy;
     toWorld(e, wx, wy);
-    if (s_tilePaintMode) {
-        if (s_isDragging) paintTileAt(wx, wy, s_eraseMode ? 0 : -1);
-        return EM_TRUE;
-    }
     if (s_isDragging && s_selectedEntityId != 0u) {
         snapWorldToEditorGrid(wx, wy);
         if (s_entityGateway) {
@@ -193,12 +166,6 @@ EM_BOOL EditorAPI::onMouseDown(int, const EmscriptenMouseEvent* e, void*) {
     toWorld(e, wx, wy);
     s_dragStartX = wx;
     s_dragStartY = wy;
-    if (s_tilePaintMode) {
-        s_eraseMode = (e->button == 2);
-        paintTileAt(s_dragStartX, s_dragStartY, s_eraseMode ? 0 : -1);
-        s_isDragging = true;
-        return EM_TRUE;
-    }
     if (e->button == 0 && (e->ctrlKey || e->metaKey) && s_editorTool == ToolSelect) {
         const uint32_t picked = pickEntityAt(wx, wy);
         if (picked != 0u) {
@@ -230,9 +197,7 @@ EM_BOOL EditorAPI::onMouseUp(int, const EmscriptenMouseEvent* e, void*) {
     }
     const bool wasDragging = s_isDragging;
     s_isDragging = false;
-    s_eraseMode  = false;
     if (s_editorTool == ToolPan) return EM_TRUE;  // panning: no transform notify
-    if (s_tilePaintMode)         return EM_TRUE;  // painting: no transform notify
 
     if (wasDragging && s_selectedEntityId != 0u && s_entityGateway) {
         // P1: mouse-up must echo rotation/scale from the gateway, never {0,1,1}.

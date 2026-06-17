@@ -509,7 +509,7 @@ python tools/pack-artcade.py test-project output.artcade
 - **Layout**: SCENE_VIEW (3 colonne) ↔ LOGIC_BOARD / EDITOR_SCRIPT (pannelli dedicati)
 - **Pannelli**:
   - `ProjectExplorerPanel` — sidebar unificata: scenes CRUD + entity list + asset tree
-  - `PreviewPanel` — viewport con grid CSS + tool palette (select/pan/paint/erase)
+  - `PreviewPanel` — viewport con grid CSS + tool palette (select/pan); tile paint solo da Tileset Editor (`TilePaintOverlay`)
   - `InspectorPanel` — transform/sprite/script fields, "OPEN IN LOGIC_BOARD →"
   - `ScriptEditorPanel` — Lua via iframe CodeMirror + snippet API ArtCade (`EngineScriptEditor`)
   - Asset folders in `ProjectExplorerPanel` (Images / Audio / Fonts / Scripts / Tilesets)

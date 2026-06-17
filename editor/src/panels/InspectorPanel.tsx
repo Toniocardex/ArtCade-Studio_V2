@@ -2,7 +2,7 @@
 // InspectorPanel — contextual right dock (scene / entity / asset / layer / tileset-paint)
 // ---------------------------------------------------------------------------
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { shallowEqual, useEditorDispatch, useEditorSelector } from '../store/editor-store'
 import { SceneSettingsSection } from './inspector/SceneSettingsSection'
 import { WorldSettingsSection, WorldDebugTimeSection } from './inspector/WorldSettingsSection'
@@ -16,7 +16,6 @@ import { EntityMetadataSection } from './inspector/EntityMetadataSection'
 import { AssetInspectorSection } from './inspector/AssetInspectorSection'
 import { LayerSettingsSection } from './inspector/LayerSettingsSection'
 import { TilePalettePanel } from './tileset-studio/TilePalettePanel'
-import { editorSetTilePaintMode, editorSetSelectedTile } from '../utils/wasm-bridge'
 import { ProjectVariablesSection } from './inspector/ProjectVariablesSection'
 import { ObjectVariablesSection } from './inspector/ObjectVariablesSection'
 import { VariableWatchSection } from './inspector/VariableWatchSection'
@@ -67,7 +66,6 @@ export default function InspectorPanel() {
   const inspectorAsset = useEditorSelector((s) => s.inspectorAsset)
   const inspectorLayerName = useEditorSelector((s) => s.inspectorLayerName)
   const editingTilesetId = useEditorSelector((s) => s.editingTilesetId)
-  const selectedTileCell = useEditorSelector((s) => s.selectedTileCell)
 
   const entity = (project && selection.entityId != null)
     ? project.entities[selection.entityId]
@@ -82,19 +80,6 @@ export default function InspectorPanel() {
     shallowEqual,
   )
   const mode = chrome.mode
-
-  // WASM tile paint mode — activate while tileset palette is shown in inspector.
-  useEffect(() => {
-    if (mode !== 'tileset-paint') return
-    editorSetTilePaintMode(true)
-    return () => editorSetTilePaintMode(false)
-  }, [mode])
-
-  // Keep C++ brush in sync with palette selection.
-  useEffect(() => {
-    if (mode !== 'tileset-paint') return
-    editorSetSelectedTile(selectedTileCell)
-  }, [mode, selectedTileCell])
 
   const isTilesetPaint = mode === 'tileset-paint'
 

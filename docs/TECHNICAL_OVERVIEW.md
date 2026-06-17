@@ -609,8 +609,8 @@ Design: Slate Night `#0B1121` / Neon Cyan `#00FFFF` / Neon Magenta `#FF00FF`
 │ Project     │      PreviewPanel        │    Inspector      │
 │ Explorer    │   (WebAssembly canvas)   │  (transform,      │
 │ (tree:      │   tool palette:          │   sprite, Logic   │
-│  scenes,    │   select/pan/paint/erase │   Board CTA)      │
-│  entities,  │   TilesetEditor overlay  │                   │
+│  scenes,    │   select/pan; tile paint   │   Board CTA)      │
+│  entities,  │   via Tileset Editor only  │                   │
 │  types,     │   when editing tilesets  │                   │
 │  assets)    │                          │                   │
 ├─────────────┴─────────────────────────┴───────────────────┤

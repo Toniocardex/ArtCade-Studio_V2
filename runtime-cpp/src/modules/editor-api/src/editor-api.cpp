@@ -11,8 +11,6 @@ uint32_t EditorAPI::s_selectedEntityId = 0u;
 bool     EditorAPI::s_isDragging       = false;
 float    EditorAPI::s_dragStartX       = 0.f;
 float    EditorAPI::s_dragStartY       = 0.f;
-bool     EditorAPI::s_tilePaintMode    = false;
-int      EditorAPI::s_selectedTileId   = 1;
 std::string EditorAPI::s_activeTileLayerName;
 int      EditorAPI::s_editorTool       = 0;
 bool     EditorAPI::s_editorGuidesEnabled = true;
@@ -43,8 +41,7 @@ std::vector<std::pair<std::string, std::string>> EditorAPI::s_consoleQueue;
 // only owns the static state, wiring, notifications and the
 // EMSCRIPTEN_KEEPALIVE exports.
 //
-//  • editor-input-controller.cpp owns the native mouse + tile painting code
-//    (paintTileAt / pickEntityAt / on{Mouse,Key}* callbacks).
+//  • editor-input-controller.cpp owns native mouse input (pickEntityAt / on{Mouse,Key}*).
 //  • project-doc-parser.cpp turns the JSON blob from editor_load_project()
 //    into EntityDef / SceneDef / TilesetAsset.
 // =============================================================================
@@ -155,8 +152,6 @@ uint32_t EditorAPI::s_selectedEntityId = 0u;
 bool     EditorAPI::s_isDragging       = false;
 float    EditorAPI::s_dragStartX       = 0.f;
 float    EditorAPI::s_dragStartY       = 0.f;
-bool     EditorAPI::s_tilePaintMode    = false;
-int      EditorAPI::s_selectedTileId   = 1;
 std::string EditorAPI::s_activeTileLayerName;
 int      EditorAPI::s_editorTool       = 0;
 bool     EditorAPI::s_editorGuidesEnabled = true;
@@ -333,13 +328,6 @@ void EditorAPI::notifyRuntimeProfile(const float fps,
        static_cast<int>(entityCount), static_cast<int>(physicsBodies));
 }
 
-void EditorAPI::notifyTilemapPainted(int col, int row, int tileId) {
-    EM_ASM({
-        if (typeof window.onTilemapPainted === 'function')
-            window.onTilemapPainted($0, $1, $2);
-    }, col, row, tileId);
-}
-
 void EditorAPI::notifySpriteFillColor(uint32_t entityId, float r, float g, float b) {
     EM_ASM({
         if (typeof window.onSpriteFillColor === 'function')
@@ -391,14 +379,6 @@ EMSCRIPTEN_KEEPALIVE void editor_set_mode(int mode) {
 
 EMSCRIPTEN_KEEPALIVE void editor_select_entity(uint32_t entityId) {
     ArtCade::EditorAPI::s_selectedEntityId = entityId;
-}
-
-EMSCRIPTEN_KEEPALIVE void editor_set_tile_paint_mode(int enabled) {
-    ArtCade::EditorAPI::s_tilePaintMode = (enabled != 0);
-}
-
-EMSCRIPTEN_KEEPALIVE void editor_set_selected_tile(int tileId) {
-    ArtCade::EditorAPI::s_selectedTileId = tileId;
 }
 
 EMSCRIPTEN_KEEPALIVE void editor_set_active_tile_layer(const char* layerName) {

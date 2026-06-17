@@ -183,9 +183,6 @@ public:
     static void queueConsoleLine(const char* message, const char* level = "info");
     static void flushConsoleLines();
 
-    /** Phase F2: a tile cell was painted in the scene -> React persists it. */
-    static void notifyTilemapPainted(int col, int row, int tileId);
-
     /** RayTint Apply -> React updates sprite.fillColor in the project store. */
     static void notifySpriteFillColor(uint32_t entityId, float r, float g, float b);
 
@@ -207,8 +204,6 @@ public:
     static uint32_t s_selectedEntityId;
     static bool     s_isDragging;
     static float    s_dragStartX, s_dragStartY;
-    static bool     s_tilePaintMode;   // Phase F2
-    static int      s_selectedTileId;  // Phase F2 (0 = eraser)
     static std::string s_activeTileLayerName;
     static int      s_editorTool;      // 0 select, 1 pan
     static bool     s_editorGuidesEnabled;
@@ -341,12 +336,6 @@ EMSCRIPTEN_KEEPALIVE void editor_load_dialogs(const char* json_utf8);
 EMSCRIPTEN_KEEPALIVE const float* editor_get_runtime_profile();
 EMSCRIPTEN_KEEPALIVE const char* editor_get_variables_json(uint32_t entityId);
 
-/** Phase F2: toggle in-scene tile painting (1 = on). */
-EMSCRIPTEN_KEEPALIVE void editor_set_tile_paint_mode(int enabled);
-
-/** Phase F2: set the brush tile id (0 = eraser). */
-EMSCRIPTEN_KEEPALIVE void editor_set_selected_tile(int tileId);
-
 /** Write one tile cell; optional @p layerName targets tilemapLayers (multi-layer). */
 EMSCRIPTEN_KEEPALIVE void editor_paint_tile(int col, int row, int tileId, const char* layerName);
 
@@ -356,10 +345,10 @@ EMSCRIPTEN_KEEPALIVE void editor_sync_tilemap_data(const char* dataJson);
 /** Push per-layer grids + merged data without a full project reload. */
 EMSCRIPTEN_KEEPALIVE void editor_sync_tilemap_layers(const char* jsonUtf8);
 
-/** Active tilemapLayers key for the C++ paintTileAt path. */
+/** Active tilemapLayers key for editor_paint_tile (TilePaintOverlay). */
 EMSCRIPTEN_KEEPALIVE void editor_set_active_tile_layer(const char* layerName);
 
-/** Editor viewport tool: 0 select, 1 pan. Tile paint mode is editor_set_tile_paint_mode. */
+/** Editor viewport tool: 0 select, 1 pan. */
 EMSCRIPTEN_KEEPALIVE void editor_set_tool(int toolId);
 
 /** Toggle runtime-side editor guides (world bounds / viewport / grid). */
@@ -458,7 +447,6 @@ struct EditorAPI {
     static void notifyRuntimeProfile(float, float, float, float, uint32_t, uint32_t) {}
     static void queueConsoleLine(const char*, const char* = nullptr) {}
     static void flushConsoleLines() {}
-    static void notifyTilemapPainted(int, int, int) {}
     static void notifySpriteFillColor(uint32_t, float, float, float) {}
     static void notifyCursorWorld(float, float) {}
     static void queueSpritesheetPreview(const char*, const char*, float, int, int) {}
@@ -468,8 +456,6 @@ struct EditorAPI {
     static uint32_t s_selectedEntityId;
     static bool     s_isDragging;
     static float    s_dragStartX, s_dragStartY;
-    static bool     s_tilePaintMode;
-    static int      s_selectedTileId;
     static std::string s_activeTileLayerName;
     static int      s_editorTool;
     static bool     s_editorGuidesEnabled;
