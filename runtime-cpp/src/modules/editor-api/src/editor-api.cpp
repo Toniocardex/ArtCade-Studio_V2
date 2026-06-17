@@ -204,9 +204,7 @@ namespace {
 // Tool ids accepted by editor_set_tool(); kept in this TU to validate
 // incoming values without exposing the enum from the input controller.
 constexpr int kToolSelect = 0;
-constexpr int kToolErase  = 3;
-
-bool isPaintTool(int tool) { return tool == 2 /*paint*/ || tool == 3 /*erase*/; }
+constexpr int kToolPan    = 1;
 
 } // namespace
 
@@ -522,10 +520,9 @@ EMSCRIPTEN_KEEPALIVE void editor_sync_tilemap_data(const char* dataJson) {
 }
 
 EMSCRIPTEN_KEEPALIVE void editor_set_tool(int toolId) {
-    if (toolId < ArtCade::kToolSelect || toolId > ArtCade::kToolErase)
+    if (toolId < ArtCade::kToolSelect || toolId > ArtCade::kToolPan)
         toolId = ArtCade::kToolSelect;
     ArtCade::EditorAPI::s_editorTool = toolId;
-    ArtCade::EditorAPI::s_tilePaintMode = ArtCade::isPaintTool(toolId);
 }
 
 EMSCRIPTEN_KEEPALIVE void editor_set_guides_enabled(int enabled) {

@@ -295,7 +295,6 @@ export default function PreviewPanel({
     isPlaying,
     selectedEntityId: selection.entityId,
     tool: activeTool,
-    selectedTileCell,
     activeTileLayer: editorActiveLayer,
     // The runtime draws the alignment grid under the sprites (its native,
     // correct z-order). The camera-viewport outline is the editor's dashed DOM
@@ -479,7 +478,6 @@ export default function PreviewPanel({
           <CanvasToolbar
             activeTool={activeTool}
             onSelectTool={onSelectTool}
-            selectedTileCell={selectedTileCell}
             showToolPalette={showToolPalette}
             rightSlot={(
             <div className="flex items-center gap-2 min-w-0">

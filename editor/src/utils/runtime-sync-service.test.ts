@@ -95,7 +95,7 @@ describe('RuntimeSyncService', () => {
     vi.mocked(bridge.isReady).mockReturnValue(false)
     runtimeSync.syncPlayMode(true)
     runtimeSync.syncSelection(7)
-    runtimeSync.syncEditorTool('select', 0)
+    runtimeSync.syncEditorTool('select')
     runtimeSync.syncEditorChrome({ guides: true, gridSize: 32, snapToGrid: false, isPlaying: false })
     expect(bridge.editorSetMode).not.toHaveBeenCalled()
     expect(bridge.editorSelectEntity).not.toHaveBeenCalled()
@@ -199,21 +199,18 @@ describe('RuntimeSyncService', () => {
     expect(bridge.editorDeselect).toHaveBeenCalledTimes(1)
   })
 
-  it('syncEditorTool sends tool change once and only forwards brush when painting', () => {
-    runtimeSync.syncEditorTool('select', 5)
+  it('syncEditorTool sends tool change once and dedupes repeats', () => {
+    runtimeSync.syncEditorTool('select')
     expect(bridge.editorSetTool).toHaveBeenCalledTimes(1)
+    expect(bridge.editorSetTool).toHaveBeenLastCalledWith(0)
     expect(bridge.editorSetSelectedTile).not.toHaveBeenCalled()
 
-    runtimeSync.syncEditorTool('tile', 5)
+    runtimeSync.syncEditorTool('pan')
     expect(bridge.editorSetTool).toHaveBeenCalledTimes(2)
-    expect(bridge.editorSetSelectedTile).toHaveBeenLastCalledWith(5)
+    expect(bridge.editorSetTool).toHaveBeenLastCalledWith(1)
 
-    runtimeSync.syncEditorTool('tile', 5)
+    runtimeSync.syncEditorTool('pan')
     expect(bridge.editorSetTool).toHaveBeenCalledTimes(2)
-    expect(bridge.editorSetSelectedTile).toHaveBeenCalledTimes(1)
-
-    runtimeSync.syncEditorTool('erase', 5)
-    expect(bridge.editorSetSelectedTile).toHaveBeenLastCalledWith(0)
   })
 
   it('syncEditorChrome forces guides off while playing', () => {

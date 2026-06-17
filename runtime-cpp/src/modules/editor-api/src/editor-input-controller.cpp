@@ -44,8 +44,6 @@ bool        s_eraseMode       = false;
 enum EditorToolId {
     ToolSelect = 0,
     ToolPan    = 1,
-    ToolPaint  = 2,
-    ToolErase  = 3,
 };
 
 // EmscriptenMouseEvent.targetX/Y are in CSS pixels of the (scaled) canvas

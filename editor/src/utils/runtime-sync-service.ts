@@ -33,7 +33,6 @@ import {
   editorSetSnapToGrid,
   editorSetMode,
   editorSetSceneSettings,
-  editorSetSelectedTile,
   editorSetTool,
   editorSetTransform,
   editorSyncTilemapData,
@@ -104,15 +103,12 @@ export function messageForEditorApiCode(code: number): string {
   }
 }
 
-export type EditorTool = 'select' | 'pan' | 'paint' | 'erase' | 'tile'
+export type EditorTool = 'select' | 'pan'
 
 /** Numeric ids the C++ runtime expects from `editor_set_tool`. */
 const TOOL_ID: Record<EditorTool, number> = {
   select: 0,
   pan:    1,
-  paint:  2,
-  erase:  3,
-  tile:   2,
 }
 
 export interface EditorChromeState {
@@ -169,7 +165,6 @@ class RuntimeSyncServiceImpl {
   private lastMode:           0 | 1 | null = null
   private lastSelection:      number | null | undefined = undefined
   private lastTool:           EditorTool | null = null
-  private lastTileBrush:      number | null = null
   private lastGuides:         boolean | null = null
   private lastGridSize:       number | null = null
   private lastSnapToGrid:     boolean | null = null
@@ -208,7 +203,6 @@ class RuntimeSyncServiceImpl {
     this.lastMode      = null
     this.lastSelection = undefined
     this.lastTool      = null
-    this.lastTileBrush = null
     this.lastGuides    = null
     this.lastGridSize  = null
     this.lastSnapToGrid = null
@@ -628,20 +622,11 @@ class RuntimeSyncServiceImpl {
     else editorSelectEntity(entityId)
   }
 
-  syncEditorTool(tool: EditorTool, selectedTileCell: number): void {
+  syncEditorTool(tool: EditorTool): void {
     if (!isWasmReady()) return
-    if (this.lastTool !== tool) {
-      this.lastTool = tool
-      editorSetTool(TOOL_ID[tool])
-    }
-    const painting = tool === 'tile' || tool === 'paint' || tool === 'erase'
-    if (painting) {
-      const brush = tool === 'erase' ? 0 : selectedTileCell
-      if (this.lastTileBrush !== brush) {
-        this.lastTileBrush = brush
-        editorSetSelectedTile(brush)
-      }
-    }
+    if (this.lastTool === tool) return
+    this.lastTool = tool
+    editorSetTool(TOOL_ID[tool])
   }
 
   syncEditorChrome(state: EditorChromeState): void {

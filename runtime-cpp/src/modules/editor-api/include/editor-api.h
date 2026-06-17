@@ -210,7 +210,7 @@ public:
     static bool     s_tilePaintMode;   // Phase F2
     static int      s_selectedTileId;  // Phase F2 (0 = eraser)
     static std::string s_activeTileLayerName;
-    static int      s_editorTool;      // 0 select, 1 pan, 2 paint, 3 erase/tile
+    static int      s_editorTool;      // 0 select, 1 pan
     static bool     s_editorGuidesEnabled;
     static float    s_editorGridSize;
     /** Scene-settings "Snap while editing" — live magnetism during canvas drag. */
@@ -359,7 +359,7 @@ EMSCRIPTEN_KEEPALIVE void editor_sync_tilemap_layers(const char* jsonUtf8);
 /** Active tilemapLayers key for the C++ paintTileAt path. */
 EMSCRIPTEN_KEEPALIVE void editor_set_active_tile_layer(const char* layerName);
 
-/** Editor viewport tool: 0 select, 1 pan, 2 paint, 3 erase/tile. */
+/** Editor viewport tool: 0 select, 1 pan. Tile paint mode is editor_set_tile_paint_mode. */
 EMSCRIPTEN_KEEPALIVE void editor_set_tool(int toolId);
 
 /** Toggle runtime-side editor guides (world bounds / viewport / grid). */

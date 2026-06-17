@@ -404,7 +404,6 @@ interface EditorSyncOptions {
   isPlaying: boolean
   selectedEntityId: number | null
   tool: EditorTool
-  selectedTileCell: number
   activeTileLayer: string
   guides: boolean
   gridSize: number
@@ -414,7 +413,7 @@ interface EditorSyncOptions {
 export function useRuntimeEditorSync(opts: EditorSyncOptions): void {
   const {
     wasmReady, engineReady,
-    isPlaying, selectedEntityId, tool, selectedTileCell, activeTileLayer,
+    isPlaying, selectedEntityId, tool, activeTileLayer,
     guides, gridSize, snapToGrid,
   } = opts
 
@@ -430,8 +429,8 @@ export function useRuntimeEditorSync(opts: EditorSyncOptions): void {
 
   useEffect(() => {
     if (!wasmReady || !engineReady) return
-    runtimeSync.syncEditorTool(tool, selectedTileCell)
-  }, [tool, selectedTileCell, wasmReady, engineReady])
+    runtimeSync.syncEditorTool(tool)
+  }, [tool, wasmReady, engineReady])
 
   useEffect(() => {
     if (!wasmReady || !engineReady) return

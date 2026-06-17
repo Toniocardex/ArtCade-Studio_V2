@@ -11,7 +11,7 @@
 // group separated by a thin vertical divider. Order matches the original
 // vertical palette so muscle memory is preserved.
 
-import { Camera, Eraser, Grid3x3, Hand, ImageIcon, Maximize2, MousePointer2, Pencil } from 'lucide-react'
+import { Camera, Grid3x3, Hand, Maximize2, MousePointer2 } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import type { EditorTool } from '../../utils/runtime-sync-service'
@@ -22,7 +22,6 @@ import { ViewportOptionsPopover } from './ViewportOptionsPopover'
 interface CanvasToolbarProps {
   activeTool:       EditorTool
   onSelectTool:     (tool: EditorTool) => void
-  selectedTileCell: number
   showToolPalette?: boolean
   rightSlot?:       ReactNode
 }
@@ -48,7 +47,7 @@ function CameraPreviewToggle() {
 }
 
 export function CanvasToolbar({
-  activeTool, onSelectTool, selectedTileCell,
+  activeTool, onSelectTool,
   showToolPalette = true,
   rightSlot,
 }: CanvasToolbarProps) {
@@ -76,34 +75,6 @@ export function CanvasToolbar({
               <Icon size={15} color={activeTool === id ? 'var(--accent)' : 'var(--muted)'} />
             </button>
           ))}
-
-          <Divider />
-
-          {([
-            { id: 'paint', Icon: Pencil, title: 'Paint tiles' },
-            { id: 'erase', Icon: Eraser, title: 'Erase tiles' },
-          ] as const).map(({ id, Icon, title }) => (
-            <button
-              key={id}
-              onClick={() => onSelectTool(id)}
-              title={title}
-              className={`p-1.5 rounded transition-colors ${
-                activeTool === id ? 'bg-[rgb(var(--accent-rgb)/0.18)]' : 'hover:bg-[var(--panel-3)]'
-              }`}
-            >
-              <Icon size={15} color={activeTool === id ? 'var(--accent)' : 'var(--muted)'} />
-            </button>
-          ))}
-
-          <button
-            onClick={() => onSelectTool('tile')}
-            title={`Paint selected tileset cell ${selectedTileCell === 0 ? '(empty)' : '#' + selectedTileCell}`}
-            className={`p-1.5 rounded transition-colors ${
-              activeTool === 'tile' ? 'bg-[rgb(var(--accent-rgb)/0.18)]' : 'hover:bg-[var(--panel-3)]'
-            }`}
-          >
-            <ImageIcon size={15} color={activeTool === 'tile' ? 'var(--accent)' : 'var(--muted)'} />
-          </button>
 
           <Divider />
 
