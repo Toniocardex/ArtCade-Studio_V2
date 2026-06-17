@@ -321,14 +321,6 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
             open={isOpen('assets')}
             onToggle={() => toggle('assets')}
             hidden={!tree.assetsVisible}
-            actions={
-              <ExplorerLabelCta
-                label="Import image"
-                title="Import PNG, JPEG, or GIF"
-                onClick={assets.triggerImportImage}
-                icon={<ImagePlus size={12} />}
-              />
-            }
           >
             <AssetToolbar
               disabled={!project}
