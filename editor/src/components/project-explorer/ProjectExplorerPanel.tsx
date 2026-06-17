@@ -22,11 +22,16 @@ import { useAssetTreeMultiSelect } from '../../hooks/useAssetTreeMultiSelect'
 import { useSceneExplorerActions } from '../../hooks/useSceneExplorerActions'
 import {
   explorerFolderIdToCategory,
+  virtualFolderContainingAsset,
   type AssetVirtualFolderCategory,
   type VirtualAssetRefType,
 } from '../../utils/asset-virtual-folders'
 import { buildAssetFolderMenuItems, type AssetFolderMenuHandlers } from './asset-folder-context-menus'
-import { explorerAssetDragProps, explorerLibraryCategoryDropHandlers } from './explorer-asset-drag'
+import { explorerAssetDragProps } from './explorer-asset-drag'
+import {
+  AssetTreeDnDRoot,
+  libraryCategoryFolderId,
+} from './asset-tree-dnd'
 import {
   VirtualFoldersBlock,
   assetHiddenByVirtualFolder,
@@ -72,9 +77,6 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
   const assets = useAssetExplorerActions()
   const assetFolders = useAssetFolderActions()
   const assetMulti = useAssetTreeMultiSelect()
-  const [libraryDropCategory, setLibraryDropCategory] = useState<AssetVirtualFolderCategory | null>(
-    null,
-  )
 
   const makeAssetFolderMenuHandlers = useCallback(
     (
@@ -83,9 +85,11 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
       id: string,
     ): AssetFolderMenuHandlers => ({
       onMoveToFolder: (folderId) => assetFolders.moveAssetToFolder(folderId, type, id),
-      onMoveRefsToFolder: assetFolders.moveRefsToFolder,
-      onUnassign: () => assetFolders.unassignAssetFromFolders(type, id),
-      onUnassignRefs: assetFolders.unassignRefsFromFolders,
+      onMoveRefsToFolder: (folderId, refs) =>
+        assetFolders.moveRefsToFolder(folderId, refs, { source: 'context-menu' }),
+      onUnassign: () => assetFolders.unassignAssetFromFolders(type, id, category),
+      onUnassignRefs: (refs) =>
+        assetFolders.unassignRefsFromFolders(refs, category, { source: 'context-menu' }),
       onCreateFolder: () => assetFolders.createVirtualFolder(category),
     }),
     [assetFolders],
@@ -375,6 +379,10 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
               </p>
             ) : null}
 
+            <AssetTreeDnDRoot
+              onMoveRefsToFolder={assetFolders.moveRefsToFolder}
+              onUnassignRefs={assetFolders.unassignRefsFromFolders}
+            >
             {tree.assetFolders.map((folder) => {
                 const folderKey = `asset:${folder.id}` as const
                 const folderOpen = isOpen(folderKey) || tree.hasSearch
@@ -382,34 +390,25 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                 const folderHandlers = libraryCategory
                   ? {
                       onMoveToFolder: assetFolders.moveAssetToFolder,
-                      onUnassign: assetFolders.unassignAssetFromFolders,
+                      onUnassign: (type: VirtualAssetRefType, id: string) =>
+                        assetFolders.unassignAssetFromFolders(type, id, libraryCategory),
                       onCreateFolder: () => assetFolders.createVirtualFolder(libraryCategory),
                       onDeleteFolder: assetFolders.deleteVirtualFolder,
                     }
                   : null
-                const libraryDrop =
-                  libraryCategory != null
-                    ? explorerLibraryCategoryDropHandlers(
-                        libraryCategory,
-                        assetFolders.unassignRefsFromFolders,
-                        (active) => setLibraryDropCategory(active ? libraryCategory : null),
-                      )
-                    : null
                 return (
                   <TreeFolder
                     key={folder.id}
                     label={folder.label}
                     count={folder.count}
                     depth={1}
+                    assetFolderId={
+                      libraryCategory ? libraryCategoryFolderId(libraryCategory) : undefined
+                    }
                     open={folderOpen}
                     onToggle={() => {
                       toggle(folderKey)
                     }}
-                    dropHighlight={libraryCategory != null && libraryDropCategory === libraryCategory}
-                    onFolderDragOver={libraryDrop?.onFolderDragOver}
-                    onFolderDragEnter={libraryDrop?.onFolderDragEnter}
-                    onFolderDragLeave={libraryDrop?.onFolderDragLeave}
-                    onFolderDrop={libraryDrop?.onFolderDrop}
                   >
                     {folder.count === 0 ? (
                       <div className="flex flex-col items-start gap-1.5 py-1.5 pl-4">
@@ -450,7 +449,6 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                           makeAssetFolderMenuHandlers(libraryCategory, type, id)
                         }
                         batchRefs={assetMulti.batchRefsInCategory(libraryCategory)}
-                        onMoveRefsToFolder={assetFolders.moveRefsToFolder}
                         onRenameFolder={assetFolders.renameVirtualFolder}
                         onDeleteFolder={folderHandlers.onDeleteFolder}
                         resolveLeaf={(type, id) => {
@@ -476,6 +474,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                                 : undefined,
                               ...explorerAssetDragProps(
                                 assetMulti.dragRefsFor('images', 'image', imgRow.id),
+                                virtualFolderContainingAsset(project, libraryCategory, 'image', imgRow.id)?.id ?? null,
                               ),
                               title: asset
                                 ? 'Double-click to open Sprite Studio'
@@ -526,6 +525,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                                 ),
                               ...explorerAssetDragProps(
                                 assetMulti.dragRefsFor('audio', 'audio', row.id),
+                                virtualFolderContainingAsset(project, libraryCategory, 'audio', row.id)?.id ?? null,
                               ),
                               icon: (
                                 <Music size={11} className="flex-shrink-0 text-[var(--muted)]" />
@@ -556,6 +556,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                                 ),
                               ...explorerAssetDragProps(
                                 assetMulti.dragRefsFor('fonts', 'font', row.id),
+                                virtualFolderContainingAsset(project, libraryCategory, 'font', row.id)?.id ?? null,
                               ),
                               icon: <Type size={11} className="flex-shrink-0 text-[var(--warn)]" />,
                               title: row.path,
@@ -588,6 +589,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                               ),
                             ...explorerAssetDragProps(
                               assetMulti.dragRefsFor('tilesets', 'tileset', row.assetId),
+                              virtualFolderContainingAsset(project, libraryCategory, 'tileset', row.assetId)?.id ?? null,
                             ),
                             icon: (
                               <TilesetTreeThumbnail
@@ -880,6 +882,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                   </TreeFolder>
                 )
               })}
+            </AssetTreeDnDRoot>
           </TreeSection>
 
           <TreeSection

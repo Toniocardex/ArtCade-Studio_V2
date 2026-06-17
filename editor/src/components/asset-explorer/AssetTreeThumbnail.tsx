@@ -66,16 +66,18 @@ export function AssetTreeThumbnail({
     onOpen()
   }
 
+  const passthroughPointer = openOn === 'double-click'
   const thumbOpenProps =
     openOn === 'double-click'
-      ? { onDoubleClick: openFromThumbnail }
+      ? {}
       : { onClick: openFromThumbnail }
 
   if (!src) {
     return (
       <span
-        className="inline-flex flex-shrink-0"
+        className={`inline-flex flex-shrink-0${passthroughPointer ? ' pointer-events-none' : ''}`}
         title={openTitle}
+        draggable={false}
         {...thumbOpenProps}
       >
         <Image size={11} className="text-[var(--muted)]" aria-hidden />
@@ -88,10 +90,9 @@ export function AssetTreeThumbnail({
       src={src}
       alt=""
       draggable={false}
-      className="w-4 h-4 object-contain flex-shrink-0"
+      className={`w-4 h-4 object-contain flex-shrink-0${passthroughPointer ? ' pointer-events-none' : ''}`}
       style={{ imageRendering: 'pixelated' }}
       title={openTitle}
-      onDragStart={(e) => e.preventDefault()}
       {...thumbOpenProps}
     />
   )

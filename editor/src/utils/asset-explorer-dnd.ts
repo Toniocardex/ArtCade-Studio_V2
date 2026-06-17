@@ -1,10 +1,24 @@
 import type { VirtualAssetRefType } from './asset-virtual-folders'
 
-export const ASSET_REF_DRAG_MIME = 'application/x-artcade-asset-refs'
+/** Custom MIME for ArtCade asset explorer drag-and-drop (WebView2 + browser). */
+export const ARTCADE_ASSET_DND_MIME = 'application/x-artcade-asset-refs'
+
+/** @deprecated Use {@link ARTCADE_ASSET_DND_MIME}. */
+export const ASSET_REF_DRAG_MIME = ARTCADE_ASSET_DND_MIME
 
 export type AssetDragRef = Readonly<{
   type: VirtualAssetRefType
   id: string
+}>
+
+export type AssetMoveSource = 'drag-and-drop' | 'context-menu'
+
+export type AssetDragPayloadV1 = Readonly<{
+  version: 1
+  kind: 'asset-refs'
+  operation: 'move'
+  refs: readonly AssetDragRef[]
+  sourceFolderId: string | null
 }>
 
 function isAssetDragRef(value: unknown): value is AssetDragRef {
@@ -18,34 +32,73 @@ function isAssetDragRef(value: unknown): value is AssetDragRef {
   )
 }
 
+export function isAssetDragPayloadV1(value: unknown): value is AssetDragPayloadV1 {
+  if (!value || typeof value !== 'object') return false
+  const payload = value as Partial<AssetDragPayloadV1>
+  return (
+    payload.version === 1
+    && payload.kind === 'asset-refs'
+    && payload.operation === 'move'
+    && Array.isArray(payload.refs)
+    && payload.refs.length > 0
+    && payload.refs.every(isAssetDragRef)
+    && (payload.sourceFolderId === null || typeof payload.sourceFolderId === 'string')
+  )
+}
+
+/** Builds a versioned drag payload for one or more asset refs. */
+export function createAssetDragPayloadV1(
+  refs: readonly AssetDragRef[],
+  sourceFolderId: string | null = null,
+): AssetDragPayloadV1 {
+  return {
+    version: 1,
+    kind: 'asset-refs',
+    operation: 'move',
+    refs,
+    sourceFolderId,
+  }
+}
+
 /**
- * Writes draggable asset refs to a DataTransfer (HTML5 explorer drag).
+ * Writes a versioned asset drag payload to a DataTransfer.
  * @param dataTransfer native drag payload (must not be null)
- * @param refs asset refs to move (empty array is a no-op)
+ * @param payload versioned drag payload (empty refs is a no-op)
  */
 export function writeAssetDragPayload(
   dataTransfer: DataTransfer,
-  refs: readonly AssetDragRef[],
+  payload: AssetDragPayloadV1,
 ): void {
-  if (refs.length === 0) return
-  const json = JSON.stringify(refs)
-  dataTransfer.setData(ASSET_REF_DRAG_MIME, json)
-  // WebView2/Chromium may only expose text/plain on drop; keep both in sync.
-  dataTransfer.setData('text/plain', json)
+  if (payload.refs.length === 0) return
+  const serialized = JSON.stringify(payload)
+  dataTransfer.setData(ARTCADE_ASSET_DND_MIME, serialized)
+  dataTransfer.setData('text/plain', serialized)
   dataTransfer.effectAllowed = 'move'
 }
 
 /**
- * Reads asset refs from a drop event. Returns an empty array when missing or invalid.
+ * Reads a versioned drag payload from a drop event.
+ * Accepts legacy bare ref arrays for in-session compatibility.
  */
-export function readAssetDragPayload(dataTransfer: DataTransfer): AssetDragRef[] {
-  const raw = dataTransfer.getData(ASSET_REF_DRAG_MIME) || dataTransfer.getData('text/plain')
-  if (!raw) return []
+export function readAssetDragPayload(dataTransfer: DataTransfer): AssetDragPayloadV1 | null {
+  const raw =
+    dataTransfer.getData(ARTCADE_ASSET_DND_MIME) || dataTransfer.getData('text/plain')
+  if (!raw) return null
   try {
     const parsed: unknown = JSON.parse(raw)
-    if (!Array.isArray(parsed)) return []
-    return parsed.filter(isAssetDragRef)
+    if (isAssetDragPayloadV1(parsed)) return parsed
+    if (Array.isArray(parsed)) {
+      const refs = parsed.filter(isAssetDragRef)
+      if (refs.length === 0) return null
+      return createAssetDragPayloadV1(refs, null)
+    }
+    return null
   } catch {
-    return []
+    return null
   }
+}
+
+/** Returns asset refs from a DataTransfer, or an empty array when invalid. */
+export function readAssetDragRefs(dataTransfer: DataTransfer): readonly AssetDragRef[] {
+  return readAssetDragPayload(dataTransfer)?.refs ?? []
 }

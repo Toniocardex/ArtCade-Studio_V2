@@ -5,11 +5,16 @@ import { useTextPrompt } from './useTextPrompt'
 import {
   isVirtualFolderNameTaken,
   virtualFoldersForCategory,
-  VIRTUAL_ASSET_TYPE_TO_CATEGORY,
   type AssetVirtualFolderCategory,
   type VirtualAssetRefType,
 } from '../utils/asset-virtual-folders'
-import type { AssetDragRef } from '../utils/asset-explorer-dnd'
+import type { AssetDragRef, AssetMoveSource } from '../utils/asset-explorer-dnd'
+import {
+  validateVirtualAssetMoveToFolder,
+  validateVirtualAssetUnassign,
+} from '../utils/asset-virtual-move-validation'
+
+export type { AssetMoveSource }
 
 export function useAssetFolderActions() {
   const dispatch = useEditorDispatch()
@@ -67,42 +72,52 @@ export function useAssetFolderActions() {
     [dispatch, project, promptText],
   )
 
-  const moveAssetToFolder = useCallback(
-    (folderId: string, assetType: VirtualAssetRefType, assetId: string) => {
-      if (!project) return
-      dispatch({ type: 'ASSET_MOVE_TO_FOLDER', folderId, assetType, assetId })
-    },
-    [dispatch, project],
-  )
-
-  const unassignAssetFromFolders = useCallback(
-    (assetType: VirtualAssetRefType, assetId: string) => {
-      if (!project) return
-      dispatch({ type: 'ASSET_UNASSIGN_FROM_FOLDERS', assetType, assetId })
-    },
-    [dispatch, project],
-  )
-
   const moveRefsToFolder = useCallback(
-    (folderId: string, refs: readonly AssetDragRef[]) => {
-      const folder = project?.assetVirtualFolders?.[folderId]
-      if (!project || !folder || refs.length === 0) return
+    (
+      folderId: string,
+      refs: readonly AssetDragRef[],
+      _options: { source: AssetMoveSource } = { source: 'context-menu' },
+    ) => {
+      if (!project) return
+      const validation = validateVirtualAssetMoveToFolder(project, folderId, refs)
+      if (!validation.ok) return
       for (const ref of refs) {
-        if (VIRTUAL_ASSET_TYPE_TO_CATEGORY[ref.type] !== folder.category) continue
         dispatch({ type: 'ASSET_MOVE_TO_FOLDER', folderId, assetType: ref.type, assetId: ref.id })
       }
     },
     [dispatch, project],
   )
 
+  const moveAssetToFolder = useCallback(
+    (folderId: string, assetType: VirtualAssetRefType, assetId: string) => {
+      moveRefsToFolder(folderId, [{ type: assetType, id: assetId }], { source: 'context-menu' })
+    },
+    [moveRefsToFolder],
+  )
+
   const unassignRefsFromFolders = useCallback(
-    (refs: readonly AssetDragRef[]) => {
-      if (!project || refs.length === 0) return
+    (
+      refs: readonly AssetDragRef[],
+      category: AssetVirtualFolderCategory,
+      _options: { source: AssetMoveSource } = { source: 'context-menu' },
+    ) => {
+      if (!project) return
+      const validation = validateVirtualAssetUnassign(project, category, refs)
+      if (!validation.ok) return
       for (const ref of refs) {
         dispatch({ type: 'ASSET_UNASSIGN_FROM_FOLDERS', assetType: ref.type, assetId: ref.id })
       }
     },
     [dispatch, project],
+  )
+
+  const unassignAssetFromFolders = useCallback(
+    (assetType: VirtualAssetRefType, assetId: string, category: AssetVirtualFolderCategory) => {
+      unassignRefsFromFolders([{ type: assetType, id: assetId }], category, {
+        source: 'context-menu',
+      })
+    },
+    [unassignRefsFromFolders],
   )
 
   const deleteVirtualFolder = useCallback(

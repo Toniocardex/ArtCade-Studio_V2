@@ -14,16 +14,16 @@ const asset: ImageAsset = {
 }
 
 describe('ImageTreeThumbnail', () => {
-  it('opens studio on thumbnail double-click', () => {
+  it('uses pointer passthrough so the tree row handles click and drag', () => {
     const onOpenStudio = vi.fn()
     const { container } = render(
       <ImageTreeThumbnail asset={asset} projectPath={null} onOpenStudio={onOpenStudio} />,
     )
     const thumb = container.querySelector('img')
     expect(thumb).toBeTruthy()
+    expect(thumb?.className).toContain('pointer-events-none')
     fireEvent.click(thumb!)
-    expect(onOpenStudio).not.toHaveBeenCalled()
     fireEvent.doubleClick(thumb!)
-    expect(onOpenStudio).toHaveBeenCalledTimes(1)
+    expect(onOpenStudio).not.toHaveBeenCalled()
   })
 })

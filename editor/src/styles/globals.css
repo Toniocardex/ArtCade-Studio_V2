@@ -66,6 +66,15 @@ input[data-mono],
   scrollbar-gutter: stable;
 }
 
+/* HTML5 drag source rows in asset explorer (WebView2 needs -webkit-user-drag: element). */
+.asset-tree-leaf--draggable {
+  -webkit-user-drag: element;
+  user-select: none;
+}
+.asset-tree-leaf--draggable img {
+  -webkit-user-drag: none;
+}
+
 .asset-flash-msg {
   animation: asset-flash-fade 3s forwards;
 }
