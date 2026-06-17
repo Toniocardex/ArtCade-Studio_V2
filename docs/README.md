@@ -74,6 +74,8 @@ LOGIC_BOARD_SPEC.md (Parte I glossario) · ARCHITETTURA_TECNICA_ENGINE_2D.md (§
     ↓
 ARCHITECTURE_INTEGRATION.md (End-to-end architecture)
     ↓
+CHECKLIST_SICUREZZA_QUALITA_AFFIDABILITA.md (Sicurezza, qualità, affidabilità — P0/P1/P2, gate rilascio)
+    ↓
 TECHNICAL_OVERVIEW.md       (Referenza, § 2, 4, 6, 12)
 ```
 
@@ -133,6 +135,7 @@ Guida specializzata         (REACT_WASM_PATTERN.md o ECS_IMPLEMENTATION_GUIDE.md
 | **ArtCade_V2_Riepilogo_Suggerimenti.md** | Visione UX Logic Board (8 gruppi), shader, controlli artist-friendly | ~10min | Design / product | ⭐ |
 | **LOGIC_BOARD_EDITOR_BACKLOG.md** | Backlog editor (JSON Schema fatto; wait, UX, shader) | ~3min | Editor | ⭐ |
 | **TECHNICAL_DEBT_REVIEW.md** | Debito tecnico noto (sync WASM, EditorAPI, build Tauri) | ~10min | Engineers | ⭐⭐ |
+| **CHECKLIST_SICUREZZA_QUALITA_AFFIDABILITA.md** | Checklist completa sicurezza, qualità e affidabilità (32 sezioni, P0/P1/P2, gate alpha/beta/1.0) | ~45min | Tech lead / QA / release | ⭐⭐⭐ |
 
 Setup e build pratici: **[README.md](../README.md)** (root) — pipeline, script npm, path di output.
 
@@ -169,6 +172,7 @@ Setup e build pratici: **[README.md](../README.md)** (root) — pipeline, script
 | **Audio Sandboxing** | ARCHITECTURAL_RATIONALE | §5 | Data-driven |
 | **Moduli C++** | TECHNICAL_OVERVIEW | §4 | Referenza |
 | **Integration** | ARCHITECTURE_INTEGRATION | Intera | End-to-end |
+| **Sicurezza / qualità / release** | CHECKLIST_SICUREZZA_QUALITA_AFFIDABILITA.md | Intera (32 sezioni) | Operativo |
 | **Build / setup** | README.md (root) | Build pipeline | Operativo |
 
 ---
@@ -239,7 +243,7 @@ A: TECHNICAL_OVERVIEW.md (v2.2) — è il documento di "verità" per implementaz
 ### Poi, per specializzazione
 - React dev → REACT_WASM_PATTERN.md
 - C++ dev → ECS_IMPLEMENTATION_GUIDE.md
-- Tech leads → ARCHITECTURE_INTEGRATION.md
+- Tech leads → ARCHITECTURE_INTEGRATION.md · CHECKLIST_SICUREZZA_QUALITA_AFFIDABILITA.md
 - Referenza generale → TECHNICAL_OVERVIEW.md (v2.2)
 
 ---
