@@ -1,5 +1,6 @@
 #pragma once
 
+#include "project-defaults.h"
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -331,8 +332,14 @@ struct SceneInstanceDef {
 struct SceneDef {
     SceneId             id;
     std::string         name;
-    Vec2                worldSize    = {800.f, 600.f};
-    Vec2                viewportSize = {800.f, 600.f};
+    Vec2                worldSize    = {
+        ProjectDefaults::kSceneWorldWidth,
+        ProjectDefaults::kSceneWorldHeight,
+    };
+    Vec2                viewportSize = {
+        ProjectDefaults::kSceneViewportWidth,
+        ProjectDefaults::kSceneViewportHeight,
+    };
     Vec4                backgroundColor;
     std::vector<EntityId> entityIds;
     std::vector<SceneInstanceDef> instances;

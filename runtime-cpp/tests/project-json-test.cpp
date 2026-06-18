@@ -338,8 +338,10 @@ static void test_read_scene_def_defaults_when_fields_absent() {
     ArtCade::SceneDef s{};
     ArtCade::ProjectJson::read_scene_def(scene, "scene_0", s);
     CHECK(s.id == "scene_0");
-    CHECK(std::abs(s.worldSize.x - 800.f) < 0.01f);
-    CHECK(std::abs(s.viewportSize.y - 600.f) < 0.01f);
+    CHECK(std::abs(s.worldSize.x - 1280.f) < 0.01f);
+    CHECK(std::abs(s.worldSize.y - 640.f) < 0.01f);
+    CHECK(std::abs(s.viewportSize.x - 512.f) < 0.01f);
+    CHECK(std::abs(s.viewportSize.y - 320.f) < 0.01f);
     CHECK(s.instances.empty());
     CHECK(s.tilemap.cols == 0);
 }

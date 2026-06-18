@@ -70,6 +70,8 @@ export const EDITOR_RULER_STEP_MAX = 1024
  * If you change this, also re-check DEFAULT_EDITOR_GRID_SIZE: the invariant
  * "scene size MUST be a multiple of the default grid" is what makes the
  * editor look polished out of the box.
+ *
+ * C++ mirror: runtime-cpp/src/core/project-defaults.h
  */
 export const DEFAULT_SCENE_SIZE = { x: 1280, y: 640 } as const
 

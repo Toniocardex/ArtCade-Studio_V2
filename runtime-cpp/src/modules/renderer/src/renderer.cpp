@@ -1,4 +1,5 @@
 #include "../include/renderer.h"
+#include "../../../core/project-defaults.h"
 #include "sprite-outline-shader.h"
 #include "texture-cache.h"
 #include "font-cache.h"
@@ -62,8 +63,14 @@ struct Renderer::Impl {
     uint32_t    height = 720;
     std::string title  = "ArtCade V2";
     bool        open   = false;
-    Vec2        worldSize = {1280.f, 720.f};
-    Vec2        viewportSize = {1280.f, 720.f};
+    Vec2        worldSize = {
+        ProjectDefaults::kSceneWorldWidth,
+        ProjectDefaults::kSceneWorldHeight,
+    };
+    Vec2        viewportSize = {
+        ProjectDefaults::kSceneViewportWidth,
+        ProjectDefaults::kSceneViewportHeight,
+    };
 
     Camera2D camera = {};
     Vec2 renderShakeOffset = { 0.f, 0.f };

@@ -1,12 +1,20 @@
 #include "scene-json.h"
 
 #include "json-primitives.h"
+#include "project-defaults.h"
 
 namespace ArtCade::ProjectJson {
 
 namespace {
 
-constexpr Vec2 kDefaultSceneSize{800.f, 600.f};
+constexpr Vec2 kDefaultWorldSize{
+    ProjectDefaults::kSceneWorldWidth,
+    ProjectDefaults::kSceneWorldHeight,
+};
+constexpr Vec2 kDefaultViewportSize{
+    ProjectDefaults::kSceneViewportWidth,
+    ProjectDefaults::kSceneViewportHeight,
+};
 
 void read_entity_id_list(const nlohmann::json& sceneJson, std::vector<EntityId>& out) {
     const nlohmann::json* eids = nullptr;
@@ -136,14 +144,14 @@ void read_scene_def(const nlohmann::json& sceneJson,
     out.name = sceneJson.value("name", fallbackId);
 
     if (sceneJson.contains("worldSize"))
-        out.worldSize = read_vec2(sceneJson["worldSize"], kDefaultSceneSize);
+        out.worldSize = read_vec2(sceneJson["worldSize"], kDefaultWorldSize);
     else if (sceneJson.contains("world_size"))
-        out.worldSize = read_vec2(sceneJson["world_size"], kDefaultSceneSize);
+        out.worldSize = read_vec2(sceneJson["world_size"], kDefaultWorldSize);
 
     if (sceneJson.contains("viewportSize"))
-        out.viewportSize = read_vec2(sceneJson["viewportSize"], kDefaultSceneSize);
+        out.viewportSize = read_vec2(sceneJson["viewportSize"], kDefaultViewportSize);
     else if (sceneJson.contains("viewport_size"))
-        out.viewportSize = read_vec2(sceneJson["viewport_size"], kDefaultSceneSize);
+        out.viewportSize = read_vec2(sceneJson["viewport_size"], kDefaultViewportSize);
 
     if (sceneJson.contains("backgroundColor"))
         out.backgroundColor = read_vec4(sceneJson["backgroundColor"]);
