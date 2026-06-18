@@ -5,6 +5,15 @@ import { effectiveTypeId } from './project-object-types'
 
 const compareLocale = (a: string, b: string): number => a.localeCompare(b)
 
+/** True when the entity id is listed on the given scene. */
+export function isEntityInScene(
+  project: ProjectDoc,
+  sceneId: string,
+  entityId: number,
+): boolean {
+  return project.scenes[sceneId]?.entityIds.includes(entityId) ?? false
+}
+
 /** Entities that belong to a given scene, in entityIds order. */
 export function getEntitiesInScene(project: ProjectDoc, sceneId: string): EntityDef[] {
   const scene = project.scenes[sceneId]

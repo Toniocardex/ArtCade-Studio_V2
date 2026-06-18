@@ -35,7 +35,9 @@ export type LogicBoardVisualLayoutProps = Readonly<{
   newClass: string
   setNewClass: (v: string) => void
   onSelectEntity: (entityId: number) => void
-  onCreateForEntity: (entityId: number) => void
+  onCreateRulesheet: (entityId: number) => void
+  onOpenRulesheet: (boardId: string) => void
+  onGoToCanvas: () => void
   onCreateClassRulesheet: () => void
   onDeleteBoard: () => void
   dispatch: Dispatch<Action>
@@ -114,7 +116,9 @@ export function LogicBoardVisualLayout(props: LogicBoardVisualLayoutProps) {
     newClass,
     setNewClass,
     onSelectEntity,
-    onCreateForEntity,
+    onCreateRulesheet,
+    onOpenRulesheet,
+    onGoToCanvas,
     onCreateClassRulesheet,
     onDeleteBoard,
     dispatch,
@@ -138,10 +142,12 @@ export function LogicBoardVisualLayout(props: LogicBoardVisualLayoutProps) {
     newClass,
     setNewClass,
     onSelectEntity,
-    onCreateForEntity: (entityId) => {
-      onCreateForEntity(entityId)
+    onCreateRulesheet: (entityId) => {
+      onCreateRulesheet(entityId)
       setNewRulesheetOpen(false)
     },
+    onOpenRulesheet,
+    onGoToCanvas,
     onCreateClassRulesheet: () => {
       onCreateClassRulesheet()
       setNewRulesheetOpen(false)
@@ -163,13 +169,18 @@ export function LogicBoardVisualLayout(props: LogicBoardVisualLayoutProps) {
         <div className="mx-auto w-full max-w-[900px] px-4 py-4">
           {!board ? (
             <div
-              className="mx-auto mt-8 max-w-xl rounded-[var(--radius-md)] border border-[var(--outline)] bg-[var(--surface)] p-6 shadow-sm"
+              className="mx-auto mt-8 max-w-[520px] rounded-[var(--radius-md)] border border-[var(--outline)] bg-[var(--surface)] p-6 shadow-sm"
               data-testid="logic-board-empty-state"
             >
-              <p className="text-sm font-semibold text-[var(--primary)]">No rulesheet yet</p>
+              <p className="text-sm font-semibold text-[var(--primary)]">
+                {sceneEntities.length === 0
+                  ? 'No objects in this scene'
+                  : 'Create a rulesheet'}
+              </p>
               <p className="mb-4 mt-1 text-[11px] leading-relaxed text-[var(--muted)]">
-                A rulesheet holds the rules for one object type. Pick an object and create its
-                rulesheet to start adding logic.
+                {sceneEntities.length === 0
+                  ? 'Add objects in the Canvas module before creating rules for this scene.'
+                  : 'A rulesheet holds the rules for one object type. Pick an object and create its rulesheet to start adding logic.'}
               </p>
               <RulesheetCreateForm {...createFormProps} />
             </div>

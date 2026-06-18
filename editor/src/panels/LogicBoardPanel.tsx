@@ -14,6 +14,7 @@ import {
   findLogicBoardForInstance,
   findObjectTypeForInstance,
   getEntitiesInScene,
+  isEntityInScene,
   logicBoardsForScene,
 } from '../utils/project'
 import {
@@ -75,6 +76,7 @@ type LogicBoardLuaModeProps = Readonly<{
   dispatch: EditorDispatch
   onApply: () => void
   onRetrySync: () => void
+  sceneHasObjects: boolean
 }>
 
 function LogicBoardLuaMode({
@@ -94,6 +96,7 @@ function LogicBoardLuaMode({
   dispatch,
   onApply,
   onRetrySync,
+  sceneHasObjects,
 }: LogicBoardLuaModeProps) {
   const store = useEditorStore()
   const mainPath = project.mainScriptPath
@@ -126,6 +129,7 @@ function LogicBoardLuaMode({
         applyMsg={applyMsg}
         syncStatus={syncStatus}
         project={project}
+        sceneHasObjects={sceneHasObjects}
       />
       {compileError && <LogicBoardCompileErrorBanner error={compileError} />}
       {!compileError && boardConfigWarning && (
@@ -219,15 +223,28 @@ export default function LogicBoardPanel() {
 
   const sceneId = selection.sceneId ?? project?.activeSceneId ?? ''
   const sceneEntities = project ? getEntitiesInScene(project, sceneId) : []
+  const sceneHasObjects = sceneEntities.length > 0
 
   const board =
     boards.find((b) => b.boardId === selectedBoardId) ?? boards[0] ?? null
 
   const selectedEntityId = selection.entityId
+  const selectedInScene =
+    project != null && selectedEntityId != null && sceneId
+      ? isEntityInScene(project, sceneId, selectedEntityId)
+      : false
+  const effectiveSelectedEntityId = selectedInScene ? selectedEntityId : null
   const boardForSelection =
-    project && selectedEntityId != null
-      ? findLogicBoardForInstance(project, selectedEntityId)
+    project && effectiveSelectedEntityId != null
+      ? findLogicBoardForInstance(project, effectiveSelectedEntityId)
       : undefined
+
+  useEffect(() => {
+    if (mode !== 'logic' || !project) return
+    if (selectedEntityId != null && sceneId && !selectedInScene) {
+      dispatch({ type: 'SELECT_ENTITY', entityId: null })
+    }
+  }, [mode, project, selectedEntityId, sceneId, selectedInScene, dispatch])
 
   useEffect(() => {
     if (mode !== 'logic' || !project) return
@@ -316,13 +333,8 @@ export default function LogicBoardPanel() {
     if (existing) setSelectedBoardId(existing.boardId)
   }
 
-  const createBoardForEntity = (entityId: number) => {
+  const onCreateRulesheet = (entityId: number) => {
     if (!project) return
-    const existing = findLogicBoardForInstance(project, entityId)
-    if (existing) {
-      setSelectedBoardId(existing.boardId)
-      return
-    }
     const typeId = findObjectTypeForInstance(project, entityId)
     if (!typeId) {
       console.warn(
@@ -333,6 +345,14 @@ export default function LogicBoardPanel() {
     const b = createLogicBoardForObjectType(typeId)
     dispatch({ type: 'LOGIC_ADD_BOARD', board: b })
     setSelectedBoardId(b.boardId)
+  }
+
+  const onOpenRulesheet = (boardId: string) => {
+    setSelectedBoardId(boardId)
+  }
+
+  const onGoToCanvas = () => {
+    dispatch({ type: 'SET_MODE', mode: 'canvas' })
   }
 
   const insertClonedEvent = useCallback(
@@ -515,12 +535,15 @@ export default function LogicBoardPanel() {
         dispatch={dispatch}
         onApply={handleApply}
         onRetrySync={retrySync}
+        sceneHasObjects={sceneHasObjects}
       />
     )
   }
 
   const canCreateForSelection =
-    selectedEntityId != null && boardForSelection == null
+    selectedInScene &&
+    effectiveSelectedEntityId != null &&
+    boardForSelection == null
 
   const patchFocusedEvent = (event: LogicEvent) => {
     if (!board) return
@@ -550,6 +573,7 @@ export default function LogicBoardPanel() {
         applyMsg={applyMsg}
         syncStatus={syncStatus}
         project={project}
+        sceneHasObjects={sceneHasObjects}
       />
 
       {compileError && <LogicBoardCompileErrorBanner error={compileError} />}
@@ -587,14 +611,16 @@ export default function LogicBoardPanel() {
           setEditingId(id)
         }}
         sceneEntities={sceneEntities}
-        selectedEntityId={selectedEntityId}
+        selectedEntityId={effectiveSelectedEntityId}
         boardForSelection={boardForSelection}
         canCreateForSelection={canCreateForSelection}
         classes={classes}
         newClass={newClass}
         setNewClass={setNewClass}
         onSelectEntity={selectEntityForRules}
-        onCreateForEntity={createBoardForEntity}
+        onCreateRulesheet={onCreateRulesheet}
+        onOpenRulesheet={onOpenRulesheet}
+        onGoToCanvas={onGoToCanvas}
         onCreateClassRulesheet={() => {
           const b = createLogicBoardForObjectType(newClass)
           dispatch({ type: 'LOGIC_ADD_BOARD', board: b })

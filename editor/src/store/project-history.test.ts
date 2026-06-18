@@ -210,6 +210,33 @@ describe('project-history', () => {
     expect(s.selection.entityId).toBeNull()
   })
 
+  it('PROJECT_UNDO clears selection when entity is not in the current scene', () => {
+    const p = projectWithEntity()
+    const entityOnlyInOtherScene: ProjectDoc = {
+      ...p,
+      scenes: {
+        ...p.scenes,
+        s: { ...p.scenes.s, entityIds: [] },
+        s2: {
+          id: 's2',
+          name: 'S2',
+          worldSize: { x: 800, y: 600 },
+          viewportSize: { x: 800, y: 600 },
+          backgroundColor: { x: 0, y: 0, z: 0, w: 1 },
+          entityIds: [1],
+        },
+      },
+    }
+    let s: CoreState = {
+      ...baseState(entityOnlyInOtherScene),
+      selection: { entityId: 1, sceneId: 's' },
+    }
+    s = coreReducer(s, { type: 'PROJECT_RENAME', name: 'Snapshot' })
+    s = coreReducer(s, { type: 'PROJECT_UNDO' })
+    expect(s.selection.entityId).toBeNull()
+    expect(s.selection.sceneId).toBe('s')
+  })
+
   it('caps history at MAX_PROJECT_HISTORY', () => {
     let s = baseState()
     for (let i = 0; i < MAX_PROJECT_HISTORY + 5; i++) {

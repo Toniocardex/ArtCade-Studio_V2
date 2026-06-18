@@ -6,6 +6,7 @@
 import type { CoreState } from './editor-store-state'
 import type { ProjectDoc } from '../types'
 import type { Action } from './editor-store-state'
+import { isEntityInScene } from '../utils/project-queries'
 
 export const MAX_PROJECT_HISTORY = 50
 
@@ -109,6 +110,13 @@ function reconcileSelection(
     entityId = null
   }
   let sceneId = sel.sceneId
+  if (
+    entityId !== null &&
+    sceneId &&
+    !isEntityInScene(project, sceneId, entityId)
+  ) {
+    entityId = null
+  }
   if (sceneId && !project.scenes[sceneId]) {
     sceneId = project.activeSceneId || Object.keys(project.scenes)[0] || null
   }

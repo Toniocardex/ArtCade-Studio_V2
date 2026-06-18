@@ -24,6 +24,7 @@ interface LogicBoardHeaderProps {
   applyMsg: string | null
   syncStatus: LogicSyncStatus
   project: ProjectDoc
+  sceneHasObjects?: boolean
 }
 
 function SyncStatusChip({
@@ -110,6 +111,7 @@ export function LogicBoardHeader({
   applyMsg,
   syncStatus,
   project,
+  sceneHasObjects = true,
 }: LogicBoardHeaderProps) {
   const compilerLabel = board ? logicBoardCompilerLabel(board) : ''
   const appliesTo = board ? rulesheetAppliesToLabel(project, board) : null
@@ -138,7 +140,11 @@ export function LogicBoardHeader({
           </h1>
         )}
         <p className="truncate text-[10px] text-[var(--muted)]">
-          {appliesTo ? `Applies to: ${appliesTo}` : 'No rulesheet selected'}
+          {appliesTo
+            ? `Applies to: ${appliesTo}`
+            : sceneHasObjects
+              ? 'No rulesheet selected'
+              : 'Scene has no objects'}
         </p>
       </div>
 
