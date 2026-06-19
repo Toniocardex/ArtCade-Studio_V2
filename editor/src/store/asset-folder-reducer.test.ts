@@ -11,29 +11,33 @@ describe('asset-folder-reducer', () => {
     const next = coreReducer(st(), {
       type: 'ASSET_FOLDER_CREATE',
       category: 'images',
+      usage: 'sprite',
       name: 'Sprites',
     })
     const folders = Object.values(next.project!.assetVirtualFolders ?? {})
     expect(folders).toHaveLength(1)
     expect(folders[0].name).toBe('Sprites')
     expect(folders[0].category).toBe('images')
+    expect(folders[0].usage).toBe('sprite')
     expect(next.projectDirty).toBe(true)
   })
 
   it('ASSET_MOVE_TO_FOLDER places asset only in target folder', () => {
     const base = st()
     base.project!.assets = {
-      img1: { id: 'img1', name: 'Hero', path: 'assets/images/hero.png' },
+      img1: { id: 'img1', name: 'Hero', path: 'assets/images/hero.png', usage: 'sprite' },
     }
     let s = coreReducer(base, {
       type: 'ASSET_FOLDER_CREATE',
       category: 'images',
+      usage: 'sprite',
       name: 'A',
     })
     const folderA = Object.values(s.project!.assetVirtualFolders!).find((f) => f.name === 'A')!.id
     s = coreReducer(s, {
       type: 'ASSET_FOLDER_CREATE',
       category: 'images',
+      usage: 'sprite',
       name: 'B',
     })
     const folderB = Object.values(s.project!.assetVirtualFolders!).find((f) => f.name === 'B')!.id
@@ -80,21 +84,44 @@ describe('asset-folder-reducer', () => {
     let s = coreReducer(st(), {
       type: 'ASSET_FOLDER_CREATE',
       category: 'images',
+      usage: 'sprite',
       name: 'New Folder',
     })
     s = coreReducer(s, {
       type: 'ASSET_FOLDER_CREATE',
       category: 'images',
+      usage: 'sprite',
       name: 'New Folder',
     })
     const names = Object.values(s.project!.assetVirtualFolders ?? {}).map((f) => f.name)
     expect(names).toEqual(['New Folder', 'New Folder 2'])
   })
 
+  it('ASSET_FOLDER_CREATE scopes duplicate image folder names by usage', () => {
+    let s = coreReducer(st(), {
+      type: 'ASSET_FOLDER_CREATE',
+      category: 'images',
+      usage: 'sprite',
+      name: 'Hero',
+    })
+    s = coreReducer(s, {
+      type: 'ASSET_FOLDER_CREATE',
+      category: 'images',
+      usage: 'background',
+      name: 'Hero',
+    })
+    const folders = Object.values(s.project!.assetVirtualFolders ?? {})
+    expect(folders.map((f) => `${f.usage}:${f.name}`)).toEqual([
+      'sprite:Hero',
+      'background:Hero',
+    ])
+  })
+
   it('ASSET_FOLDER_RENAME updates display name when unique', () => {
     let s = coreReducer(st(), {
       type: 'ASSET_FOLDER_CREATE',
       category: 'images',
+      usage: 'sprite',
       name: 'Sprites',
     })
     const folderId = Object.keys(s.project!.assetVirtualFolders!)[0]
@@ -111,11 +138,13 @@ describe('asset-folder-reducer', () => {
     let s = coreReducer(st(), {
       type: 'ASSET_FOLDER_CREATE',
       category: 'images',
+      usage: 'sprite',
       name: 'A',
     })
     s = coreReducer(s, {
       type: 'ASSET_FOLDER_CREATE',
       category: 'images',
+      usage: 'sprite',
       name: 'B',
     })
     const folderB = Object.values(s.project!.assetVirtualFolders!).find((f) => f.name === 'B')!.id

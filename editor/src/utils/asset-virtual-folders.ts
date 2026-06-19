@@ -2,7 +2,12 @@
 // asset-virtual-folders — helpers for Project Explorer virtual folders
 // ---------------------------------------------------------------------------
 
-import type { AssetFolderCategory, AssetVirtualFolderDef, ProjectDoc } from '../types'
+import type {
+  AssetFolderCategory,
+  AssetVirtualFolderDef,
+  ImageAssetUsage,
+  ProjectDoc,
+} from '../types'
 import type { AssetExplorerSelection } from '../hooks/useAssetExplorerActions'
 
 export type VirtualAssetRefType = 'image' | 'audio' | 'font' | 'tileset'
@@ -59,14 +64,25 @@ function normalizeVirtualFolderName(name: string): string {
   return name.trim() || 'New Folder'
 }
 
+function virtualFolderNameScopeMatches(
+  folder: AssetVirtualFolderDef,
+  category: AssetFolderCategory,
+  usage?: ImageAssetUsage,
+): boolean {
+  if (folder.category !== category) return false
+  if (category !== 'images') return true
+  return folder.usage === usage
+}
+
 function virtualFolderNamesInCategory(
   project: ProjectDoc,
   category: AssetFolderCategory,
+  usage?: ImageAssetUsage,
   excludingFolderId?: string,
 ): Set<string> {
   const taken = new Set<string>()
   for (const folder of Object.values(project.assetVirtualFolders ?? {})) {
-    if (folder.category !== category) continue
+    if (!virtualFolderNameScopeMatches(folder, category, usage)) continue
     if (folder.id === excludingFolderId) continue
     taken.add(folder.name.toLowerCase())
   }
@@ -81,10 +97,11 @@ export function isVirtualFolderNameTaken(
   project: ProjectDoc,
   category: AssetFolderCategory,
   name: string,
+  usage?: ImageAssetUsage,
   excludingFolderId?: string,
 ): boolean {
   const normalized = normalizeVirtualFolderName(name)
-  return virtualFolderNamesInCategory(project, category, excludingFolderId).has(
+  return virtualFolderNamesInCategory(project, category, usage, excludingFolderId).has(
     normalized.toLowerCase(),
   )
 }
@@ -96,10 +113,11 @@ export function uniqueVirtualFolderName(
   project: ProjectDoc,
   category: AssetFolderCategory,
   baseName: string,
+  usage?: ImageAssetUsage,
   excludingFolderId?: string,
 ): string {
   const base = normalizeVirtualFolderName(baseName)
-  const taken = virtualFolderNamesInCategory(project, category, excludingFolderId)
+  const taken = virtualFolderNamesInCategory(project, category, usage, excludingFolderId)
   if (!taken.has(base.toLowerCase())) return base
   let i = 2
   while (taken.has(`${base} ${i}`.toLowerCase())) i += 1
@@ -135,6 +153,15 @@ export function virtualFoldersForCategory(
   category: AssetFolderCategory,
 ): AssetVirtualFolderDef[] {
   return Object.values(project.assetVirtualFolders ?? {}).filter((f) => f.category === category)
+}
+
+export function imageVirtualFoldersForUsage(
+  project: ProjectDoc,
+  usage: ImageAssetUsage,
+): AssetVirtualFolderDef[] {
+  return Object.values(project.assetVirtualFolders ?? {}).filter(
+    (f) => f.category === 'images' && f.usage === usage,
+  )
 }
 
 export function isAssetInVirtualFolder(

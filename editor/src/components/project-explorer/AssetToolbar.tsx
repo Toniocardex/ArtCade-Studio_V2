@@ -102,7 +102,7 @@ export function AssetToolbar({
         <FolderPlus size={14} />
       </button>
       <ToolbarDropdown open={folderMenuOpen} anchorRef={folderBtnRef} onClose={closeFolderMenu}>
-        {ASSET_VIRTUAL_FOLDER_CATEGORIES.map((category) => (
+        {ASSET_VIRTUAL_FOLDER_CATEGORIES.filter((category) => category !== 'images').map((category) => (
           <button
             key={category}
             type="button"

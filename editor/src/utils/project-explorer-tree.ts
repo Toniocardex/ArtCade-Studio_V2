@@ -1,4 +1,5 @@
-import type { ProjectDoc } from '../types'
+import type { ImageAssetUsage, ProjectDoc } from '../types'
+import { IMAGE_ASSET_USAGE_LABELS, IMAGE_ASSET_USAGES } from '../types'
 import { findLogicBoardForInstance } from './project'
 
 export type AssetFolderId = 'audio' | 'fonts' | 'images' | 'scripts' | 'tilesets'
@@ -34,6 +35,13 @@ export type ExplorerImageRow = Readonly<{
   id: string
   name: string
   path: string
+  usage: ImageAssetUsage
+}>
+
+export type ExplorerImageUsageGroup = Readonly<{
+  usage: ImageAssetUsage
+  label: string
+  images: ExplorerImageRow[]
 }>
 
 export type ExplorerAudioRow = Readonly<{
@@ -58,6 +66,7 @@ export type ExplorerAssetFolder = Readonly<{
   label: string
   count: number
   images: ExplorerImageRow[]
+  imageUsageGroups: ExplorerImageUsageGroup[]
   audio: ExplorerAudioRow[]
   fonts: ExplorerFontRow[]
   scripts: ExplorerScriptRow[]
@@ -131,6 +140,7 @@ export function buildProjectExplorerData(
     id: a.id,
     name: a.name,
     path: a.path,
+    usage: a.usage,
   }))
   const audioAll = Object.values(project.audioAssets ?? {}).map((a) => ({
     id: a.id,
@@ -160,6 +170,11 @@ export function buildProjectExplorerData(
     const images = imagesAll
       .filter((row) => matchesExplorerQuery(q, row.name, row.path, row.id, label, 'images', 'image'))
       .sort((a, b) => a.name.localeCompare(b.name))
+    const imageUsageGroups = IMAGE_ASSET_USAGES.map((usage) => ({
+      usage,
+      label: IMAGE_ASSET_USAGE_LABELS[usage],
+      images: images.filter((row) => row.usage === usage),
+    }))
     const audio = audioAll
       .filter((row) => matchesExplorerQuery(q, row.name, row.path, row.id, label, 'audio'))
       .sort((a, b) => a.name.localeCompare(b.name))
@@ -185,6 +200,7 @@ export function buildProjectExplorerData(
       label,
       count,
       images: id === 'images' ? images : [],
+      imageUsageGroups: id === 'images' ? imageUsageGroups : [],
       audio: id === 'audio' ? audio : [],
       fonts: id === 'fonts' ? fonts : [],
       scripts: id === 'scripts' ? scripts : [],

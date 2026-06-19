@@ -25,7 +25,7 @@ export type SpriteSectionProps = Readonly<{
 export function SpriteSection({ entity }: SpriteSectionProps) {
   const dispatch = useEditorDispatch()
   const project = useEditorSelector((s) => s.project)
-  const images = Object.values(project?.assets ?? {})
+  const images = Object.values(project?.assets ?? {}).filter((asset) => asset.usage === 'sprite')
   const assetSelectId = `${entity.id}-sprite-asset`
   const [overrideOpen, setOverrideOpen] = useState(false)
 

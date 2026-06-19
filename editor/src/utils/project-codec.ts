@@ -3,9 +3,9 @@ import type {
   Transform, SpriteComponent, AnimationState, PhysicsComponent, PhysicsMode, WorldSettings,
   TilemapLayer, TileDef, TilesetAsset, ImageAsset, AudioAsset, FontAsset, ImagePointDef, AnimationClipDef,
   AnimationFrameRect, AssetVirtualFolderDef, AssetFolderCategory,
-  GameVariableDefinition, GameVariableValue,
+  GameVariableDefinition, GameVariableValue, ImageAssetUsage,
 } from '../types'
-import { DEFAULT_WORLD } from '../types'
+import { DEFAULT_WORLD, IMAGE_ASSET_USAGES } from '../types'
 import {
   parseLogicBoardsWithIssues,
   type ParseLogicBoardsResult,
@@ -448,11 +448,13 @@ function parseAssets(
     const o = v as Record<string, unknown>
     const id = String(o.id ?? key)
     const path = String(o.path ?? '')
-    if (!id || !path) continue
+    const usage = o.usage as ImageAssetUsage
+    if (!id || !path || !IMAGE_ASSET_USAGES.includes(usage)) continue
     const asset: ImageAsset = {
       id,
       name: String(o.name ?? id),
       path,
+      usage,
       // dataUrl is transient — never read from persisted JSON.
     }
     const imagePoints = parseImagePoints(o.imagePoints)
@@ -532,6 +534,8 @@ function parseAssetVirtualFolders(
     const id = String(o.id ?? key)
     const category = String(o.category ?? 'images') as AssetFolderCategory
     if (!id || !ASSET_FOLDER_CATEGORIES.includes(category)) continue
+    const usage = o.usage as ImageAssetUsage
+    if (category === 'images' && !IMAGE_ASSET_USAGES.includes(usage)) continue
     const refsRaw = o.assetRefs ?? o.asset_refs
     const assetRefs: AssetVirtualFolderDef['assetRefs'][number][] = []
     if (Array.isArray(refsRaw)) {
@@ -550,6 +554,7 @@ function parseAssetVirtualFolders(
       id,
       name: String(o.name ?? 'Folder'),
       category,
+      ...(category === 'images' ? { usage } : {}),
       assetRefs,
     }
   }
@@ -879,7 +884,7 @@ export function serializeProjectDoc(project: ProjectDoc): string {
             Object.values(project.assets).map((a) => {
               // Drop transient dataUrl; persist imagePoints + clips when set.
               const out: Record<string, unknown> = {
-                id: a.id, name: a.name, path: a.path,
+                id: a.id, name: a.name, path: a.path, usage: a.usage,
               }
               if (a.imagePoints && a.imagePoints.length > 0)
                 out.imagePoints = a.imagePoints

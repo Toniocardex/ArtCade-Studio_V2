@@ -1,5 +1,5 @@
 import type { CoreState, Action, DomainReducer } from '../editor-store-state'
-import type { AssetVirtualFolderDef } from '../../types'
+import type { AssetVirtualFolderDef, ImageAssetUsage, ProjectDoc } from '../../types'
 import {
   isVirtualFolderNameTaken,
   uniqueVirtualFolderName,
@@ -14,15 +14,99 @@ function nextVirtualFolderId(folders: Record<string, AssetVirtualFolderDef> | un
   return `folder_${max + 1}`
 }
 
+function stripImageFromFolders(
+  folders: Record<string, AssetVirtualFolderDef> | undefined,
+  assetId: string,
+): Record<string, AssetVirtualFolderDef> | undefined {
+  if (!folders) return folders
+  return Object.fromEntries(
+    Object.entries(folders).map(([fid, f]) => [
+      fid,
+      {
+        ...f,
+        assetRefs: f.assetRefs.filter((r) => !(r.type === 'image' && r.id === assetId)),
+      },
+    ]),
+  )
+}
+
+function detachImageFromSprites(project: ProjectDoc, path: string): ProjectDoc {
+  if (!path) return project
+  const clearSprite = <T extends { sprite?: { spriteAssetId: string } }>(entry: T): T =>
+    entry.sprite?.spriteAssetId === path
+      ? {
+          ...entry,
+          sprite: {
+            ...entry.sprite,
+            spriteAssetId: '',
+            defaultClip: undefined,
+            playClipOnSpawn: false,
+          },
+        }
+      : entry
+  return {
+    ...project,
+    entities: Object.fromEntries(
+      Object.entries(project.entities).map(([id, entity]) => [id, clearSprite(entity)]),
+    ),
+    ...(project.objectTypes
+      ? {
+          objectTypes: Object.fromEntries(
+            Object.entries(project.objectTypes).map(([id, type]) => [id, clearSprite(type)]),
+          ),
+        }
+      : {}),
+  }
+}
+
+function setImageUsage(
+  project: ProjectDoc,
+  assetId: string,
+  usage: ImageAssetUsage,
+  folderId?: string,
+): ProjectDoc {
+  const asset = project.assets?.[assetId]
+  if (!asset) return project
+  let folders = stripImageFromFolders(project.assetVirtualFolders, assetId)
+  if (folderId) {
+    const folder = folders?.[folderId]
+    if (folder?.category === 'images' && folder.usage === usage) {
+      folders = {
+        ...folders,
+        [folderId]: {
+          ...folder,
+          assetRefs: [...folder.assetRefs, { type: 'image', id: assetId }],
+        },
+      }
+    }
+  }
+  const next: ProjectDoc = {
+    ...project,
+    assets: {
+      ...(project.assets ?? {}),
+      [assetId]: { ...asset, usage },
+    },
+    ...(folders ? { assetVirtualFolders: folders } : {}),
+  }
+  return usage === 'sprite' ? next : detachImageFromSprites(next, asset.path)
+}
+
 export const assetFolderReducer: DomainReducer = (state: CoreState, action: Action) => {
   switch (action.type) {
     case 'ASSET_FOLDER_CREATE': {
       if (!state.project) return state
+      if (action.category === 'images' && !action.usage) return state
       const id = nextVirtualFolderId(state.project.assetVirtualFolders)
       const folder: AssetVirtualFolderDef = {
         id,
-        name: uniqueVirtualFolderName(state.project, action.category, action.name),
+        name: uniqueVirtualFolderName(
+          state.project,
+          action.category,
+          action.name,
+          action.usage,
+        ),
         category: action.category,
+        ...(action.category === 'images' ? { usage: action.usage } : {}),
         assetRefs: [],
       }
       return {
@@ -41,6 +125,13 @@ export const assetFolderReducer: DomainReducer = (state: CoreState, action: Acti
       const folders = state.project?.assetVirtualFolders
       const folder = folders?.[action.folderId]
       if (!state.project || !folder) return state
+      if (folder.category === 'images' && action.assetType === 'image' && folder.usage) {
+        return {
+          ...state,
+          project: setImageUsage(state.project, action.assetId, folder.usage, action.folderId),
+          projectDirty: true,
+        }
+      }
       const ref = { type: action.assetType, id: action.assetId } as const
       const stripped = Object.fromEntries(
         Object.entries(folders ?? {}).map(([fid, f]) => [
@@ -95,7 +186,7 @@ export const assetFolderReducer: DomainReducer = (state: CoreState, action: Acti
       if (!state.project || !folder) return state
       const name = action.name.trim() || 'New Folder'
       if (name === folder.name) return state
-      if (isVirtualFolderNameTaken(state.project, folder.category, name, action.folderId)) {
+      if (isVirtualFolderNameTaken(state.project, folder.category, name, folder.usage, action.folderId)) {
         return state
       }
       return {
@@ -117,6 +208,15 @@ export const assetFolderReducer: DomainReducer = (state: CoreState, action: Acti
       return {
         ...state,
         project: { ...state.project, assetVirtualFolders: next },
+        projectDirty: true,
+      }
+    }
+    case 'IMAGE_ASSET_SET_USAGE': {
+      const project = state.project
+      if (!project?.assets?.[action.assetId]) return state
+      return {
+        ...state,
+        project: setImageUsage(project, action.assetId, action.usage, action.folderId),
         projectDirty: true,
       }
     }

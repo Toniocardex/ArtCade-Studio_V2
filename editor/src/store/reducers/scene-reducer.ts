@@ -15,6 +15,27 @@ import { projectAfterRemovingAsset } from '../../utils/strip-project-asset-refs'
 import { normalizeAssetRefs } from '../../utils/normalize-asset-refs'
 import { ensureSourceOnLayer, normalizeTilemapLayer } from '../../utils/tilemap-layer-sources'
 
+function detachNonSpriteImageRefs(project: NonNullable<CoreState['project']>, path: string) {
+  if (!path) return project
+  const clearSprite = <T extends { sprite?: { spriteAssetId: string } }>(entry: T): T =>
+    entry.sprite?.spriteAssetId === path
+      ? { ...entry, sprite: { ...entry.sprite, spriteAssetId: '', defaultClip: undefined, playClipOnSpawn: false } }
+      : entry
+  return {
+    ...project,
+    entities: Object.fromEntries(
+      Object.entries(project.entities).map(([id, entity]) => [id, clearSprite(entity)]),
+    ),
+    ...(project.objectTypes
+      ? {
+          objectTypes: Object.fromEntries(
+            Object.entries(project.objectTypes).map(([id, type]) => [id, clearSprite(type)]),
+          ),
+        }
+      : {}),
+  }
+}
+
 export const sceneReducer: DomainReducer = (state: CoreState, action: Action) => {
   switch (action.type) {
     case 'PROJECT_NORMALIZE_ASSET_REFS': {
@@ -363,15 +384,19 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
     }
     case 'ASSET_ADD': {
       if (!state.project) return state
+      const withAsset = {
+        ...state.project,
+        assets: {
+          ...(state.project.assets ?? {}),
+          [action.asset.id]: action.asset,
+        },
+      }
+      const project = action.asset.usage === 'sprite'
+        ? withAsset
+        : detachNonSpriteImageRefs(withAsset, action.asset.path)
       return {
         ...state,
-        project: {
-          ...state.project,
-          assets: {
-            ...(state.project.assets ?? {}),
-            [action.asset.id]: action.asset,
-          },
-        },
+        project,
         projectDirty: true,
       }
     }

@@ -41,7 +41,7 @@ function minimalProject(): ProjectDoc {
       },
     },
     assets: {
-      img1: { id: 'img1', name: 'hero.png', path: 'assets/images/hero.png' },
+      img1: { id: 'img1', name: 'hero.png', path: 'assets/images/hero.png', usage: 'sprite' },
     },
     audioAssets: {
       snd1: { id: 'snd1', name: 'jump.ogg', path: 'assets/audio/jump.ogg' },
@@ -167,6 +167,8 @@ describe('buildProjectExplorerData', () => {
     const data = buildProjectExplorerData(minimalProject(), 'main', '')
     const images = data.assetFolders.find((f) => f.id === 'images')
     expect(images?.count).toBe(1)
+    expect(images?.imageUsageGroups.find((g) => g.usage === 'sprite')?.images).toHaveLength(1)
+    expect(images?.imageUsageGroups.find((g) => g.usage === 'background')?.images).toHaveLength(0)
     const audio = data.assetFolders.find((f) => f.id === 'audio')
     expect(audio?.count).toBe(1)
     const scripts = data.assetFolders.find((f) => f.id === 'scripts')
@@ -190,7 +192,11 @@ describe('assetFolderItemCount', () => {
       id: 'images' as const,
       label: 'Images',
       count: 2,
-      images: [{ id: 'a', name: 'a', path: 'p' }, { id: 'b', name: 'b', path: 'p2' }],
+      imageUsageGroups: [],
+      images: [
+        { id: 'a', name: 'a', path: 'p', usage: 'sprite' as const },
+        { id: 'b', name: 'b', path: 'p2', usage: 'background' as const },
+      ],
       audio: [],
       fonts: [],
       scripts: [],

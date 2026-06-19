@@ -10,7 +10,7 @@ describe('exportArtcadePackage manifest', () => {
   it('buildProjectAssetManifest lists library entries with checksums', () => {
     const project = createBlankProject()
     project.assets = {
-      img1: { id: 'img1', name: 'Hero', path: 'assets/images/hero.png' },
+      img1: { id: 'img1', name: 'Hero', path: 'assets/images/hero.png', usage: 'sprite' },
     }
     const manifest = buildProjectAssetManifest(project, {
       'assets/images/hero.png': 'abc123',
@@ -31,7 +31,7 @@ describe('buildArtcadeZipBytes round-trip', () => {
   it('parses project.json and manifest from exported zip', async () => {
     const project = createBlankProject()
     project.assets = {
-      img1: { id: 'img1', name: 'Hero', path: 'assets/images/hero.png' },
+      img1: { id: 'img1', name: 'Hero', path: 'assets/images/hero.png', usage: 'sprite' },
     }
     project.entities[1] = {
       ...createEntityDef(1, 'Hero', 'Player'),

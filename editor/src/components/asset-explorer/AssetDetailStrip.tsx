@@ -1,12 +1,18 @@
 import { useState } from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
-import type { ImageAsset } from '../../types'
+import {
+  IMAGE_ASSET_USAGE_LABELS,
+  IMAGE_ASSET_USAGES,
+  type ImageAsset,
+  type ImageAssetUsage,
+} from '../../types'
 import { AnimationClipsSummary } from './AnimationClipsSummary'
 import { ImageAssetPreview } from './ImageAssetPreview'
 import { openSpritesheetStudio } from '../../panels/spritesheet-studio/openSpritesheetStudio'
 import { ImagePointsEditor } from './ImagePointsEditor'
 import type { AssetExplorerSelection } from '../../hooks/useAssetExplorerActions'
+import { EditorSelect } from '../ui/EditorSelect'
 
 export type AssetDetailStripProps = Readonly<{
   selection: AssetExplorerSelection
@@ -53,11 +59,30 @@ export function AssetDetailStrip({ selection }: AssetDetailStripProps) {
             projectPath={projectPath}
             onOpenStudio={openStudio}
           />
-          <ImagePointsEditor
-            asset={asset}
-            onPatchPoints={(points) => patchImage({ imagePoints: points })}
-          />
-          <AnimationClipsSummary asset={asset} onOpenStudio={openStudio} />
+          <div>
+            <label htmlFor={`image-usage-${asset.id}`} className="text-[9px] text-[var(--muted)] uppercase">
+              Usage
+            </label>
+            <EditorSelect
+              id={`image-usage-${asset.id}`}
+              value={asset.usage}
+              onChange={(usage) => patchImage({ usage: usage as ImageAssetUsage })}
+              triggerClassName="py-1"
+              options={IMAGE_ASSET_USAGES.map((usage) => ({
+                value: usage,
+                label: IMAGE_ASSET_USAGE_LABELS[usage],
+              }))}
+            />
+          </div>
+          {asset.usage === 'sprite' ? (
+            <>
+              <ImagePointsEditor
+                asset={asset}
+                onPatchPoints={(points) => patchImage({ imagePoints: points })}
+              />
+              <AnimationClipsSummary asset={asset} onOpenStudio={openStudio} />
+            </>
+          ) : null}
         </div>
       ) : null}
     </div>

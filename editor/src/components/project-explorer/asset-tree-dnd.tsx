@@ -29,6 +29,7 @@ import {
 } from '../../utils/asset-explorer-dnd'
 
 import type { AssetVirtualFolderCategory } from '../../utils/asset-virtual-folders'
+import type { ImageAssetUsage } from '../../types'
 
 
 
@@ -43,6 +44,8 @@ export type AssetDropZone =
   | Readonly<{ kind: 'virtual-folder'; folderId: string }>
 
   | Readonly<{ kind: 'library-category'; category: AssetVirtualFolderCategory }>
+
+  | Readonly<{ kind: 'image-usage'; usage: ImageAssetUsage }>
 
 
 
@@ -61,6 +64,12 @@ export function virtualAssetFolderId(folderId: string): string {
 export function libraryCategoryFolderId(category: AssetVirtualFolderCategory): string {
 
   return `lib:${category}`
+
+}
+
+export function imageUsageFolderId(usage: ImageAssetUsage): string {
+
+  return `img-usage:${usage}`
 
 }
 
@@ -89,6 +98,20 @@ export function resolveFolderIdFromTarget(target: EventTarget | null): string | 
 
 
 export function parseFolderDropTarget(folderId: string): AssetDropZone | null {
+
+  if (folderId.startsWith('img-usage:')) {
+
+    const usage = folderId.slice('img-usage:'.length) as ImageAssetUsage
+
+    if (usage === 'sprite' || usage === 'background' || usage === 'parallax' || usage === 'ui') {
+
+      return { kind: 'image-usage', usage }
+
+    }
+
+    return null
+
+  }
 
   if (folderId.startsWith('lib:')) {
 
@@ -184,6 +207,16 @@ type AssetTreeDnDRootProps = Readonly<{
 
   ) => void
 
+  onMoveRefsToImageUsage: (
+
+    usage: ImageAssetUsage,
+
+    refs: readonly AssetDragRef[],
+
+    options: { source: AssetMoveSource },
+
+  ) => void
+
 }>
 
 
@@ -205,6 +238,8 @@ export function AssetTreeDnDRoot({
   onMoveRefsToFolder,
 
   onUnassignRefs,
+
+  onMoveRefsToImageUsage,
 
 }: AssetTreeDnDRootProps) {
   const [hoveredFolderId, setHoveredFolderId] = useState<string | null>(null)
@@ -285,13 +320,21 @@ export function AssetTreeDnDRoot({
 
       }
 
+      if (zone.kind === 'image-usage') {
+
+        onMoveRefsToImageUsage(zone.usage, payload.refs, { source: 'drag-and-drop' })
+
+        return
+
+      }
+
 
 
       onUnassignRefs(payload.refs, zone.category, { source: 'drag-and-drop' })
 
     },
 
-    [onMoveRefsToFolder, onUnassignRefs],
+    [onMoveRefsToFolder, onMoveRefsToImageUsage, onUnassignRefs],
 
   )
 

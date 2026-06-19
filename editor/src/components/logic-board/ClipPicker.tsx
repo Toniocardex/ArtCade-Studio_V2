@@ -73,7 +73,11 @@ export function ClipPicker({
           ...(allowEmpty ? [{ value: '', label: emptyLabel }] : []),
           ...entries.map((e) => ({
             value: e.clipName,
-            label: formatClipOption(e.clipName, { id: e.assetId, name: e.assetLabel, path: e.spritePath }, e.assetId),
+            label: formatClipOption(
+              e.clipName,
+              { id: e.assetId, name: e.assetLabel, path: e.spritePath, usage: 'sprite' },
+              e.assetId,
+            ),
             title: `${e.clipName} (${e.spritePath})`,
           })),
           ...(!inList && value

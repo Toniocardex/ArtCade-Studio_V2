@@ -220,10 +220,22 @@ export interface AnimationClipDef {
   loop:   boolean   // when false, fires onAnimationEnd once
 }
 
+export const IMAGE_ASSET_USAGES = ['sprite', 'background', 'parallax', 'ui'] as const
+
+export type ImageAssetUsage = (typeof IMAGE_ASSET_USAGES)[number]
+
+export const IMAGE_ASSET_USAGE_LABELS: Record<ImageAssetUsage, string> = {
+  sprite: 'Sprites',
+  background: 'Backgrounds',
+  parallax: 'Parallax',
+  ui: 'UI',
+}
+
 export interface ImageAsset {
   id:       string
   name:     string
   path:     string
+  usage:    ImageAssetUsage
   dataUrl?: string
   /** Default draw anchor for entities using this sheet (normalised 0..1). */
   defaultPivot?: Vec2
@@ -253,6 +265,8 @@ export interface AssetVirtualFolderDef {
   id: string
   name: string
   category: AssetFolderCategory
+  /** Required for image folders; custom folders live under one native image usage group. */
+  usage?: ImageAssetUsage
   assetRefs: ReadonlyArray<
     | { type: 'image'; id: string }
     | { type: 'audio'; id: string }

@@ -54,13 +54,15 @@ export function ImageAssetPreview({ asset, projectPath, onOpenStudio }: ImageAss
   }
 
   const activateStudio = () => {
+    if (asset.usage !== 'sprite') return
     onOpenStudio()
   }
+  const studioProps = asset.usage === 'sprite' ? spritesheetStudioTriggerProps : {}
 
   return (
     <button
       type="button"
-      {...spritesheetStudioTriggerProps}
+      {...studioProps}
       className="w-full rounded border border-[var(--border)] bg-[var(--bg)] p-2 flex items-center justify-center
                  hover:border-[var(--accent)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
       onDoubleClick={(e) => {
@@ -74,8 +76,8 @@ export function ImageAssetPreview({ asset, projectPath, onOpenStudio }: ImageAss
           activateStudio()
         }
       }}
-      aria-label={`Open Sprite Studio for ${asset.name}`}
-      title="Double-click or press Enter to open Sprite Studio"
+      aria-label={asset.usage === 'sprite' ? `Open Sprite Studio for ${asset.name}` : asset.name}
+      title={asset.usage === 'sprite' ? 'Double-click or press Enter to open Sprite Studio' : asset.name}
     >
       <img
         src={src}

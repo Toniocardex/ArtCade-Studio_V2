@@ -5,9 +5,11 @@ import { useTextPrompt } from './useTextPrompt'
 import {
   isVirtualFolderNameTaken,
   virtualFoldersForCategory,
+  imageVirtualFoldersForUsage,
   type AssetVirtualFolderCategory,
   type VirtualAssetRefType,
 } from '../utils/asset-virtual-folders'
+import type { ImageAssetUsage } from '../types'
 import type { AssetDragRef, AssetMoveSource } from '../utils/asset-explorer-dnd'
 import {
   validateVirtualAssetMoveToFolder,
@@ -27,16 +29,22 @@ export function useAssetFolderActions() {
     [project],
   )
 
+  const imageFoldersForUsage = useCallback(
+    (usage: ImageAssetUsage) =>
+      project ? imageVirtualFoldersForUsage(project, usage) : [],
+    [project],
+  )
+
   const createVirtualFolder = useCallback(
-    (category: AssetVirtualFolderCategory) => {
+    (category: AssetVirtualFolderCategory, usage?: ImageAssetUsage) => {
       if (!project) return
       void promptText({
         title: 'New folder',
-        message: `Folder name (${category}):`,
+        message: `Folder name (${usage ?? category}):`,
         defaultValue: 'New Folder',
       }).then((name) => {
         if (!name) return
-        dispatch({ type: 'ASSET_FOLDER_CREATE', category, name })
+        dispatch({ type: 'ASSET_FOLDER_CREATE', category, name, usage })
       })
     },
     [dispatch, project, promptText],
@@ -56,7 +64,7 @@ export function useAssetFolderActions() {
           if (!name) return
           const trimmed = name.trim() || 'New Folder'
           if (trimmed === folder.name) return
-          if (isVirtualFolderNameTaken(project, folder.category, trimmed, folderId)) {
+          if (isVirtualFolderNameTaken(project, folder.category, trimmed, folder.usage, folderId)) {
             promptRename(
               `A folder named "${trimmed}" already exists in ${folder.category}. Choose another name:`,
               trimmed,
@@ -83,6 +91,21 @@ export function useAssetFolderActions() {
       if (!validation.ok) return
       for (const ref of refs) {
         dispatch({ type: 'ASSET_MOVE_TO_FOLDER', folderId, assetType: ref.type, assetId: ref.id })
+      }
+    },
+    [dispatch, project],
+  )
+
+  const moveRefsToImageUsage = useCallback(
+    (
+      usage: ImageAssetUsage,
+      refs: readonly AssetDragRef[],
+      _options: { source: AssetMoveSource } = { source: 'context-menu' },
+    ) => {
+      if (!project) return
+      for (const ref of refs) {
+        if (ref.type !== 'image' || !project.assets?.[ref.id]) continue
+        dispatch({ type: 'IMAGE_ASSET_SET_USAGE', assetId: ref.id, usage })
       }
     },
     [dispatch, project],
@@ -136,10 +159,12 @@ export function useAssetFolderActions() {
 
   return {
     foldersForCategory,
+    imageFoldersForUsage,
     createVirtualFolder,
     renameVirtualFolder,
     moveAssetToFolder,
     moveRefsToFolder,
+    moveRefsToImageUsage,
     unassignAssetFromFolders,
     unassignRefsFromFolders,
     deleteVirtualFolder,

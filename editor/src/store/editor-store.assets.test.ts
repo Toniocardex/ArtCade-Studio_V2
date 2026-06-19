@@ -5,6 +5,7 @@ import type { ProjectDoc, ImageAsset } from '../types'
 
 const IMG: ImageAsset = {
   id: 'img_a', name: 'hero.png', path: 'assets/images/hero.png',
+  usage: 'sprite',
   dataUrl: 'data:image/png;base64,AAAA',
 }
 
@@ -96,7 +97,7 @@ describe('project.json roundtrip — assets', () => {
     expect(json).not.toContain('dataUrl')
     const again = parseProjectDoc(json)!
     expect(again.assets!['img_a']).toEqual({
-      id: 'img_a', name: 'hero.png', path: 'assets/images/hero.png',
+      id: 'img_a', name: 'hero.png', path: 'assets/images/hero.png', usage: 'sprite',
     })
   })
 
@@ -208,6 +209,7 @@ describe('project.json roundtrip — assets', () => {
       assets: {
         a: {
           id: 'a', name: 'A', path: 'assets/images/a.png',
+          usage: 'sprite',
           clips: [
             { name: '', frames: [{ x: 0, y: 0, w: 1, h: 1 }] },   // no name
             { name: 'noframes', frames: [] },                      // empty frames
@@ -289,10 +291,24 @@ describe('project.json roundtrip — assets', () => {
       projectName: 'D', version: '2.0.0',
       targetFPS: 60, activeSceneId: 's', mainScriptPath: 'scripts/main.lua',
       entities: {}, scenes: { s: { id: 's', name: 'S', entityIds: [] } },
-      assets: { bad: { id: 'bad', name: 'x' }, ok: { id: 'ok', name: 'OK', path: 'assets/images/o.png' } },
+      assets: {
+        bad: { id: 'bad', name: 'x', usage: 'sprite' },
+        invalid: { id: 'invalid', name: 'Bad Usage', path: 'assets/images/bad.png', usage: 'legacy' },
+        ok: { id: 'ok', name: 'OK', path: 'assets/images/o.png', usage: 'sprite' },
+      },
     })
     const p = parseProjectDoc(raw)!
     expect(p.assets!['ok'].path).toBe('assets/images/o.png')
     expect(p.assets!['bad']).toBeUndefined()
+    expect(p.assets!['invalid']).toBeUndefined()
+  })
+
+  it('ASSET_ADD detaches non-sprite images from object sprites', () => {
+    const s = coreReducer(st(project()), {
+      type: 'ASSET_ADD',
+      asset: { ...IMG, usage: 'background' },
+    })
+    expect(s.project!.assets!['img_a'].usage).toBe('background')
+    expect(s.project!.entities[1].sprite.spriteAssetId).toBe('')
   })
 })

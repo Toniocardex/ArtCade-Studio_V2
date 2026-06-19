@@ -78,6 +78,7 @@ describe('SpritesheetStudioModal', () => {
             id: 'img1',
             name: 'hero.png',
             path: 'assets/images/hero.png',
+            usage: 'sprite',
             dataUrl: 'data:image/png;base64,AA==',
           },
         },

@@ -26,6 +26,13 @@ export function openSpritesheetStudio(
     void alertDialog('Image asset not found.', { title: 'Sprite Studio', kind: 'warning' })
     return
   }
+  if (asset.usage !== 'sprite') {
+    void alertDialog('Sprite Studio is available for sprite images only.', {
+      title: 'Sprite Studio',
+      kind: 'warning',
+    })
+    return
+  }
   if (!asset.dataUrl && !asset.path?.trim()) {
     void alertDialog(
       'Save the project or ensure the image file is on disk before editing animations.',

@@ -13,7 +13,7 @@ import type {
   ScriptFile, ProjectDoc, ConsoleEntry,
   LogicBoard, LogicEvent, ComponentKey, WorldSettings, TilesetAsset, ImageAsset,
   SpriteComponent, PhysicsComponent, Vec3, AssetFolderCategory,
-  GameVariableDefinition, GameVariableValue, AnimationClipDef,
+  GameVariableDefinition, GameVariableValue, AnimationClipDef, ImageAssetUsage,
 } from '../types'
 import type { DialogScript } from '../utils/dialog/dialog-script'
 import type { InspectorAssetSelection } from '../types/inspector-selection'
@@ -231,11 +231,12 @@ export type Action =
   | { type: 'INSTANCE_VARIABLE_OVERRIDES_SET'; sceneId: string; instanceId: number; overrides: Record<string, GameVariableValue> }
   | { type: 'OBJECT_TYPE_DELETE'; objectTypeId: string }
   | { type: 'PROJECT_NORMALIZE_ASSET_REFS' }
-  | { type: 'ASSET_FOLDER_CREATE'; category: AssetFolderCategory; name: string }
+  | { type: 'ASSET_FOLDER_CREATE'; category: AssetFolderCategory; name: string; usage?: ImageAssetUsage }
   | { type: 'ASSET_FOLDER_RENAME'; folderId: string; name: string }
   | { type: 'ASSET_MOVE_TO_FOLDER'; folderId: string; assetType: 'image' | 'audio' | 'font' | 'tileset'; assetId: string }
   | { type: 'ASSET_UNASSIGN_FROM_FOLDERS'; assetType: 'image' | 'audio' | 'font' | 'tileset'; assetId: string }
   | { type: 'ASSET_FOLDER_DELETE'; folderId: string }
+  | { type: 'IMAGE_ASSET_SET_USAGE'; assetId: string; usage: ImageAssetUsage; folderId?: string }
   | { type: 'SCENE_SET_WORLD_SIZE'; sceneId: string; x: number; y: number }
   | { type: 'SCENE_SET_VIEWPORT_SIZE'; sceneId: string; x: number; y: number }
   | { type: 'EDITOR_SET_GRID_SIZE'; tileSize: number }

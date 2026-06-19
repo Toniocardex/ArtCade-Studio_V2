@@ -9,6 +9,7 @@ import {
   openSpritesheetStudio,
 } from '../panels/spritesheet-studio/openSpritesheetStudio'
 import type { AudioAsset, FontAsset, ImageAsset } from '../types'
+import type { ImageAssetUsage } from '../types'
 import { spriteAssignedFromAsset } from '../utils/sprite-pivot-resolve'
 import { assetOrchestrator, releaseTilesetAsset } from '../utils/asset-orchestrator'
 import { buildTilesetFromImageFile } from '../utils/tileset-import'
@@ -24,6 +25,11 @@ import type { InspectorAssetSelection } from '../types/inspector-selection'
 export type AssetExplorerSelection = InspectorAssetSelection
 
 const ASSET_PANEL_SELECTOR = '[data-panel="project-explorer"], [data-panel="assets"]'
+
+export type ImageImportTarget = Readonly<{
+  usage: ImageAssetUsage
+  folderId?: string
+}>
 
 export function shouldOpenSpritesheetStudioOnExplorerEnter(
   e: Pick<KeyboardEvent, 'key' | 'target'>,
@@ -54,6 +60,7 @@ export function useAssetExplorerActions() {
   )
   const [flash, setFlash] = useState<string | null>(null)
   const imageRef = useRef<HTMLInputElement>(null)
+  const imageImportTargetRef = useRef<ImageImportTarget>({ usage: 'sprite' })
   const audioRef = useRef<HTMLInputElement>(null)
   const fontRef = useRef<HTMLInputElement>(null)
   const tilesetRef = useRef<HTMLInputElement>(null)
@@ -75,6 +82,7 @@ export function useAssetExplorerActions() {
     (e: ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0]
       if (!file || !project) return
+      const target = imageImportTargetRef.current
       const reader = new FileReader()
       reader.onload = async () => {
         try {
@@ -91,9 +99,19 @@ export function useAssetExplorerActions() {
             id: imported.id,
             name: file.name,
             path: imported.path,
+            usage: target.usage,
             dataUrl,
           }
           dispatch({ type: 'ASSET_ADD', asset })
+          if (target.folderId) {
+            dispatch({
+              type: 'ASSET_MOVE_TO_FOLDER',
+              folderId: target.folderId,
+              assetType: 'image',
+              assetId: asset.id,
+            })
+          }
+          dispatch({ type: 'SELECT_INSPECTOR_ASSET', asset: { type: 'image', id: asset.id } })
           showFlash(imported.persisted
             ? `Imported ${file.name}`
             : `${file.name} (save to persist)`)
@@ -104,6 +122,7 @@ export function useAssetExplorerActions() {
       }
       reader.readAsDataURL(file)
       e.target.value = ''
+      imageImportTargetRef.current = { usage: 'sprite' }
     },
     [project, store, dispatch, showFlash],
   )
@@ -176,6 +195,10 @@ export function useAssetExplorerActions() {
 
   const assignSprite = useCallback(
     (asset: ImageAsset) => {
+      if (asset.usage !== 'sprite') {
+        showFlash('Only sprite images can be assigned to objects')
+        return
+      }
       if (!selEntity) {
         showFlash('Select an entity first, then double-click an image')
         return
@@ -224,10 +247,16 @@ export function useAssetExplorerActions() {
   const openImageStudio = useCallback(
     (imageId: string) => {
       if (!project) return
+      const asset = project.assets?.[imageId]
+      if (asset?.usage !== 'sprite') {
+        setSelection({ type: 'image', id: imageId })
+        showFlash('Sprite Studio is available for sprite images')
+        return
+      }
       setSelection({ type: 'image', id: imageId })
       openSpritesheetStudio(dispatch, project, imageId)
     },
-    [dispatch, project, setSelection],
+    [dispatch, project, setSelection, showFlash],
   )
 
   const openScript = useCallback(
@@ -282,7 +311,10 @@ export function useAssetExplorerActions() {
     [project, store, dispatch, showFlash],
   )
 
-  const triggerImportImage = useCallback(() => imageRef.current?.click(), [])
+  const triggerImportImage = useCallback((target?: ImageImportTarget) => {
+    imageImportTargetRef.current = target ?? { usage: 'sprite' }
+    imageRef.current?.click()
+  }, [])
   const triggerImportAudio = useCallback(() => audioRef.current?.click(), [])
   const triggerImportFont = useCallback(() => fontRef.current?.click(), [])
   const triggerImportTileset = useCallback(() => tilesetRef.current?.click(), [])
