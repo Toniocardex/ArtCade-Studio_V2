@@ -125,6 +125,22 @@ struct SolidComponent {
     std::string surfaceKind = "solid";
 };
 
+/**
+ * Explicit climb zone for the platformer controller. An entity carrying this
+ * component is climbable; the zone bbox (shape/size, like SensorComponent)
+ * decouples reach from the sprite collider, and axis selects which movement
+ * axis drives climbing. Preferred over PlatformerControllerComponent.climbClass
+ * (the className-overlap fallback), removing false positives from decorations.
+ */
+struct LadderComponent {
+    std::string shape      = "Rectangle"; // "Circle" | "Rectangle"
+    float       radius     = 64.f;        // Circle
+    float       width      = 32.f;        // Rectangle
+    float       height     = 96.f;        // Rectangle
+    std::string axis       = "vertical";  // "vertical" (movement.y) | "horizontal" (movement.x)
+    float       climbSpeed = 0.f;         // px/s; 0 = use PlatformerController.climbSpeed
+};
+
 struct PlatformerControllerComponent {
     float maxSpeed      = 300.f;
     float jumpForce     = 600.f;
@@ -273,6 +289,7 @@ struct EntityDef {
     // Optional gameplay components (Phase D1)
     std::optional<SensorComponent>               sensor;
     std::optional<SolidComponent>                solid;
+    std::optional<LadderComponent>               ladder;
     std::optional<PlatformerControllerComponent> platformerController;
     std::optional<TopDownControllerComponent>    topDownController;
     std::optional<LinearMoverComponent>          linearMover;

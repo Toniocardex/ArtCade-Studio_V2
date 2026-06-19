@@ -262,6 +262,7 @@ void RuntimeEntityGateway::applyEntityDefToRegistry(
     registry_->setPhysics(id, def.physics);
     registry_->setSensor(id, def.sensor);
     registry_->setSolid(id, def.solid);
+    registry_->setLadder(id, def.ladder);
     registry_->setPlatformer(id, def.platformerController);
     registry_->setTopDown(id, def.topDownController);
     if (def.linearMover) {
@@ -550,6 +551,18 @@ bool RuntimeEntityGateway::setSolid(EntityId id, const std::optional<SolidCompon
     return true;
 }
 
+bool RuntimeEntityGateway::getLadder(EntityId id, LadderComponent& out) const {
+    return registry_->getLadder(id, out);
+}
+
+bool RuntimeEntityGateway::setLadder(EntityId id, const std::optional<LadderComponent>& ladder) {
+    if (!registry_->contains(id)) return false;
+    // A ladder is a pure overlap zone tested by the platformer controller — no
+    // physics body to (re)build, unlike Solid.
+    registry_->setLadder(id, ladder);
+    return true;
+}
+
 bool RuntimeEntityGateway::getPlatformerController(
     EntityId id, PlatformerControllerComponent& out) const
 {
@@ -829,6 +842,12 @@ void RuntimeEntityGateway::forEachActiveSolid(
     const ActiveSolidFn& fn) const
 {
     registry_->forEachActiveSolid(fn);
+}
+
+void RuntimeEntityGateway::forEachActiveLadder(
+    const ActiveLadderFn& fn) const
+{
+    registry_->forEachActiveLadder(fn);
 }
 
 void RuntimeEntityGateway::forEachActiveAutoDestroy(

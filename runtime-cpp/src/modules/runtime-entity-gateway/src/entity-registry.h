@@ -97,6 +97,9 @@ public:
     bool getSolid(EntityId id, SolidComponent& out) const;
     void setSolid(EntityId id, const std::optional<SolidComponent>& s);
 
+    bool getLadder(EntityId id, LadderComponent& out) const;
+    void setLadder(EntityId id, const std::optional<LadderComponent>& s);
+
     bool getPlatformer(EntityId id, PlatformerControllerComponent& out) const;
     void setPlatformer(EntityId id,
                        const std::optional<PlatformerControllerComponent>& p);
@@ -215,6 +218,10 @@ public:
     using ActiveSolidFn = std::function<void(
         EntityId, const SolidComponent&)>;
     void forEachActiveSolid(const ActiveSolidFn& fn) const;
+
+    using ActiveLadderFn = std::function<void(
+        EntityId, const LadderComponent&)>;
+    void forEachActiveLadder(const ActiveLadderFn& fn) const;
 
     using ActiveAutoDestroyFn = std::function<void(
         EntityId, AutoDestroyComponent&)>;

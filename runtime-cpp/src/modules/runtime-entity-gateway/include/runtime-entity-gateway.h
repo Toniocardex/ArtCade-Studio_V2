@@ -89,6 +89,9 @@ public:
     bool setSensor(EntityId id, const std::optional<SensorComponent>& sensor);
     bool getSolid(EntityId id, SolidComponent& out) const;
     bool setSolid(EntityId id, const std::optional<SolidComponent>& solid);
+
+    bool getLadder(EntityId id, LadderComponent& out) const;
+    bool setLadder(EntityId id, const std::optional<LadderComponent>& ladder);
     bool getPlatformerController(EntityId id, PlatformerControllerComponent& out) const;
     bool setPlatformerController(EntityId id, const std::optional<PlatformerControllerComponent>& controller);
     bool getTopDownController(EntityId id, TopDownControllerComponent& out) const;
@@ -179,6 +182,10 @@ public:
     using ActiveSolidFn = std::function<void(
         EntityId, const SolidComponent&)>;
     void forEachActiveSolid(const ActiveSolidFn& fn) const;
+
+    using ActiveLadderFn = std::function<void(
+        EntityId, const LadderComponent&)>;
+    void forEachActiveLadder(const ActiveLadderFn& fn) const;
 
     using ActiveAutoDestroyFn = std::function<void(
         EntityId, AutoDestroyComponent&)>;

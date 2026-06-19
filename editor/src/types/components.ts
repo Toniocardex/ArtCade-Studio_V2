@@ -30,6 +30,22 @@ export interface SolidComponent {
   surfaceKind?: SolidSurfaceKind
 }
 
+/**
+ * Explicit climb zone for the platformer. An entity with this component is
+ * climbable; the bbox (shape/size, like Sensor) decouples reach from the
+ * sprite, and `axis` selects which movement axis drives climbing. Preferred
+ * over PlatformerControllerComponent.climbClass (the className fallback).
+ */
+export interface LadderComponent {
+  shape:       'Circle' | 'Rectangle'
+  radius:      number          // px (Circle)
+  width:       number          // px (Rectangle)
+  height:      number          // px (Rectangle)
+  axis:        'vertical' | 'horizontal'
+  /** px/s vertical climb speed; 0 = use PlatformerController.climbSpeed. */
+  climbSpeed:  number
+}
+
 /** Arcade kinematic platformer movement (coyote time, jump buffer, …). */
 export interface PlatformerControllerComponent {
   maxSpeed:      number      // px/s
@@ -156,6 +172,7 @@ export interface DialogComponent {
 export interface EntityComponents {
   sensor?:               SensorComponent
   solid?:                SolidComponent
+  ladder?:               LadderComponent
   platformerController?: PlatformerControllerComponent
   topDownController?:    TopDownControllerComponent
   linearMover?:          LinearMoverComponent
@@ -173,7 +190,7 @@ export type ComponentKey = keyof EntityComponents
 
 /** Runtime list of optional component field names (parse/serialize). */
 export const COMPONENT_KEYS: ComponentKey[] = [
-  'sensor', 'solid', 'platformerController', 'topDownController', 'linearMover',
+  'sensor', 'solid', 'ladder', 'platformerController', 'topDownController', 'linearMover',
   'cameraTarget', 'magneticItem', 'hordeMember', 'health', 'autoDestroy', 'dialog',
   'text', 'gauge',
 ]

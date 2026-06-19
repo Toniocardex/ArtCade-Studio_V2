@@ -84,6 +84,7 @@ const ACTION_RECOMMENDATIONS: Record<ComponentKey, LogicActionType[]> = {
   health: ['damageEntity', 'healEntity', 'setEntityHealth'],
   sensor: [],
   solid: [],
+  ladder: [],
   linearMover: ['setLinearMoverDirection', 'setLinearMoverSpeed', 'pauseLinearMover', 'resumeLinearMover'],
   cameraTarget: ['followCamera', 'useDefaultCameraTarget'],
   magneticItem: ['setMagnetEnabled', 'setMagnetTargetTag', 'setMagnetRadius', 'setMagnetPullSpeed'],

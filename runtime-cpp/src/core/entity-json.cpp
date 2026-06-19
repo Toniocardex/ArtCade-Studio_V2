@@ -70,6 +70,17 @@ void read_optional_gameplay_components(const nlohmann::json& j, EntityDef& e) {
         solid.surfaceKind = s.value("surfaceKind", std::string("solid"));
         e.solid = solid;
     }
+    if (j.contains("ladder") && j["ladder"].is_object()) {
+        const auto& l = j["ladder"];
+        LadderComponent lad;
+        lad.shape      = l.value("shape", std::string("Rectangle"));
+        lad.radius     = l.value("radius", 64.f);
+        lad.width      = l.value("width", 32.f);
+        lad.height     = l.value("height", 96.f);
+        lad.axis       = l.value("axis", std::string("vertical"));
+        lad.climbSpeed = l.value("climbSpeed", 0.f);
+        e.ladder = lad;
+    }
     if (j.contains("platformerController") && j["platformerController"].is_object()) {
         const auto& p = j["platformerController"];
         PlatformerControllerComponent pc;

@@ -2295,6 +2295,109 @@ static void test_platformer_jump_detaches_from_ladder() {
     CHECK(t.velocity.y < -499.f);
 }
 
+// Player + a ladder entity carrying an explicit LadderComponent (v2). The
+// player's climbClass is left empty so only the component path can engage.
+static ProjectDoc makeLadderComponentDoc(LadderComponent lad,
+                                         Vec2 playerPos = { 160.f, 180.f },
+                                         Vec2 ladderPos = { 160.f, 180.f }) {
+    PlatformerControllerComponent pc;
+    pc.customGravity = 1500.f;
+    pc.jumpForce = 500.f;
+    pc.climbSpeed = 120.f;
+    pc.climbClass = "";   // v2: detection comes from the component, not the class
+
+    EntityDef player = makeEntity(1, "Player", {"player"});
+    player.transform.position = playerPos;
+    player.platformerController = pc;
+
+    EntityDef ladder = makeEntity(2, "Ladder");
+    ladder.transform.position = ladderPos;
+    ladder.ladder = lad;
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1, 2 };
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.scenes = {{ scene.id, scene }};
+    doc.entities = {{ 1, player }, { 2, ladder }};
+    return doc;
+}
+
+static void test_ladder_component_vertical_climb() {
+    Fixture f;
+    LadderComponent lad;            // defaults: Rectangle 32x96, vertical
+    f.world.init(makeLadderComponentDoc(lad));
+
+    f.world.setMovementIntent(1, 0.f, -1.f);   // up
+    f.tickFrame(1.f / 60.f);
+
+    Transform t{};
+    CHECK(f.gw.getTransform(1, t));
+    CHECK(std::abs(t.velocity.y + 120.f) < 0.01f);   // climbs at pc.climbSpeed
+    CHECK(t.position.y < 180.f);
+}
+
+static void test_ladder_requires_component_not_classname() {
+    Fixture f;
+    // An entity of class "Ladder" WITHOUT a LadderComponent must NOT be
+    // climbable in v2 (no className inference; player climbClass is empty).
+    PlatformerControllerComponent pc;
+    pc.customGravity = 1500.f;
+    pc.climbClass = "";
+
+    EntityDef player = makeEntity(1, "Player", {"player"});
+    player.transform.position = { 160.f, 180.f };
+    player.platformerController = pc;
+
+    EntityDef decoration = makeEntity(2, "Ladder");   // class only, no component
+    decoration.transform.position = { 160.f, 180.f };
+
+    SceneDef scene; scene.id = "main"; scene.entityIds = { 1, 2 };
+    ProjectDoc doc; doc.activeSceneId = "main";
+    doc.scenes = {{ scene.id, scene }};
+    doc.entities = {{ 1, player }, { 2, decoration }};
+    f.world.init(doc);
+
+    f.world.setMovementIntent(1, 0.f, -1.f);
+    f.tickFrame(1.f / 60.f);
+
+    Transform t{};
+    CHECK(f.gw.getTransform(1, t));
+    CHECK(t.velocity.y > 0.f);   // falls: a bare "Ladder" decoration is not climbable
+}
+
+static void test_ladder_component_horizontal_axis() {
+    Fixture f;
+    LadderComponent lad;
+    lad.axis = "horizontal";
+    lad.width = 192.f;
+    f.world.init(makeLadderComponentDoc(lad));
+
+    f.world.setMovementIntent(1, 1.f, 0.f);   // traverse right
+    f.tickFrame(1.f / 60.f);
+
+    Transform t{};
+    CHECK(f.gw.getTransform(1, t));
+    CHECK(std::abs(t.velocity.y) < 0.01f);            // gravity suspended (hangs)
+    CHECK(std::abs(t.velocity.x - 300.f) < 0.01f);    // traverses at maxSpeed
+}
+
+static void test_ladder_component_climbspeed_override() {
+    Fixture f;
+    LadderComponent lad;
+    lad.climbSpeed = 200.f;        // overrides pc.climbSpeed (120)
+    f.world.init(makeLadderComponentDoc(lad));
+
+    f.world.setMovementIntent(1, 0.f, -1.f);
+    f.tickFrame(1.f / 60.f);
+
+    Transform t{};
+    CHECK(f.gw.getTransform(1, t));
+    CHECK(std::abs(t.velocity.y + 200.f) < 0.01f);
+}
+
 int main() {
     test_camera_target_is_deterministic_and_overridable();
     test_platformer_only_has_no_implicit_physics_body();
@@ -2357,6 +2460,10 @@ int main() {
     test_platformer_no_climb_without_climb_class();
     test_platformer_overlap_without_vertical_input_does_not_climb();
     test_platformer_jump_detaches_from_ladder();
+    test_ladder_component_vertical_climb();
+    test_ladder_requires_component_not_classname();
+    test_ladder_component_horizontal_axis();
+    test_ladder_component_climbspeed_override();
 
     std::cout << "world-intent-test: " << g_passed << " passed, "
               << g_failed << " failed\n";

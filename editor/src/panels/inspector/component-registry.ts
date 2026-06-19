@@ -20,6 +20,7 @@ import type {
   GaugeComponent,
   SensorComponent,
   SolidComponent,
+  LadderComponent,
   TextComponent,
   TopDownControllerComponent,
 } from '../../types/components'
@@ -64,6 +65,10 @@ const SENSOR: SensorComponent = {
 const SOLID: SolidComponent = {
   groundClass: 'Ground',
   surfaceKind: 'solid',
+}
+const LADDER: LadderComponent = {
+  shape: 'Rectangle', radius: 64, width: 32, height: 96,
+  axis: 'vertical', climbSpeed: 0,
 }
 const PLATFORMER: PlatformerControllerComponent = {
   maxSpeed: 300, jumpForce: 600, customGravity: 1500,
@@ -163,6 +168,31 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
         optionLabels: ['Solid', 'One-Way'],
       },
       { key: 'groundClass', label: 'Ground Class', kind: 'text' },
+    ],
+  },
+  {
+    key: 'ladder',
+    label: 'Ladder',
+    description:
+      'Climb zone for the Platformer Controller. The player attaches when overlapping this area and presses along its axis (gravity suspended). Bbox is independent of the sprite; use for ladders (vertical) or ropes (horizontal). No Physics body needed.',
+    color: 'var(--yellow)',
+    create: () => ({ ...LADDER }),
+    fields: [
+      { key: 'axis', label: 'Axis', kind: 'select', options: ['vertical', 'horizontal'] },
+      { key: 'shape', label: 'Zone Shape', kind: 'select', options: ['Circle', 'Rectangle'] },
+      {
+        key: 'radius', label: 'Radius (px)', kind: 'number', min: 1, step: 1,
+        visibleWhen: (c) => c.shape === 'Circle',
+      },
+      {
+        key: 'width', label: 'Width (px)', kind: 'number', min: 1, step: 1,
+        visibleWhen: (c) => c.shape === 'Rectangle',
+      },
+      {
+        key: 'height', label: 'Height (px)', kind: 'number', min: 1, step: 1,
+        visibleWhen: (c) => c.shape === 'Rectangle',
+      },
+      { key: 'climbSpeed', label: 'Climb Speed (px/s, 0 = use player)', kind: 'number', min: 0, step: 10 },
     ],
   },
   {

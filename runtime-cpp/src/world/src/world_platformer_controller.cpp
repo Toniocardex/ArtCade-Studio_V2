@@ -15,6 +15,24 @@ namespace {
 
 constexpr int kStableGroundedFrames = 2;
 
+// Climb-zone shape from a LadderComponent at the ladder entity's position.
+// Mirrors CollisionQuery::shapeFromEntity sizing (rect = full w/h, circle =
+// radius in x) so PhysicsMath::shapesOverlap reads it consistently.
+PhysicsMath::ShapeInstance ladderShape(const LadderComponent& lad,
+                                       const Transform& tf)
+{
+    PhysicsMath::ShapeInstance s;
+    s.position = tf.position;
+    if (lad.shape == "Circle") {
+        s.shape = ColliderShape::Circle;
+        s.size  = { lad.radius, lad.radius };
+    } else {
+        s.shape = ColliderShape::Rectangle;
+        s.size  = { lad.width, lad.height };
+    }
+    return s;
+}
+
 } // namespace
 
 void stepPlatformerController(World& world,
@@ -62,20 +80,48 @@ void stepPlatformerController(World& world,
         rt.jumpBufferTimer = std::max(0.f, rt.jumpBufferTimer - dt);
 
     float vx = 0.f;
-    float climbAxis = 0.f;
+    float inputX = 0.f;
+    float inputY = 0.f;
 
     if (intent && intent->hasMovement) {
-        const float axis = std::clamp(intent->movement.x, -1.f, 1.f);
-        vx = axis * pc.maxSpeed;
-        climbAxis = std::clamp(intent->movement.y, -1.f, 1.f);
+        inputX = std::clamp(intent->movement.x, -1.f, 1.f);
+        inputY = std::clamp(intent->movement.y, -1.f, 1.f);
+        vx = inputX * pc.maxSpeed;
     }
 
-    // Ladder climbing: attach while overlapping a climbClass entity and the
-    // player feeds vertical input; an empty climbClass skips the query so
-    // non-climbing platformers pay nothing.
-    const bool onLadder = !pc.climbClass.empty()
+    // Resolve the climb zone. A dedicated LadderComponent (explicit bbox + axis)
+    // takes precedence; we fall back to the v1 className overlap only when no
+    // ladder component matches, so existing projects keep working.
+    bool  onLadder         = false;
+    bool  ladderHorizontal = false;
+    float climbSpeed       = pc.climbSpeed;
+    {
+        Transform selfTf{};
+        if (world.entityGateway_.getTransform(id, selfTf)) {
+            const auto selfShape =
+                CollisionQuery::shapeFromEntity(world.entityGateway_, id);
+            world.entityGateway_.forEachActiveLadder(
+                [&](EntityId lid, const LadderComponent& lad) {
+                    if (onLadder || lid == id) return;
+                    Transform lt{};
+                    if (!world.entityGateway_.getTransform(lid, lt)) return;
+                    if (!PhysicsMath::shapesOverlap(selfShape, ladderShape(lad, lt)))
+                        return;
+                    onLadder         = true;
+                    ladderHorizontal = (lad.axis == "horizontal");
+                    climbSpeed       = (lad.climbSpeed > 0.f) ? lad.climbSpeed : pc.climbSpeed;
+                });
+        }
+    }
+    if (!onLadder && !pc.climbClass.empty()
         && CollisionQuery::firstOverlappingInClass(
-               world.entityGateway_, id, pc.climbClass) != INVALID_ENTITY;
+               world.entityGateway_, id, pc.climbClass) != INVALID_ENTITY) {
+        onLadder = true;   // v1 fallback: vertical axis, pc.climbSpeed
+    }
+
+    // Engage on input along the ladder's axis (vertical by default); this keeps
+    // a body walking past a vertical ladder from auto-grabbing it.
+    const float climbAxis = ladderHorizontal ? inputX : inputY;
     if (!onLadder)
         rt.climbing = false;
     else if (std::abs(climbAxis) > 0.f)
@@ -90,7 +136,9 @@ void stepPlatformerController(World& world,
         rt.airborneFrames  = 1;
         rt.groundedFrames  = 0;
     } else if (rt.climbing) {
-        vy = climbAxis * pc.climbSpeed;   // gravity suspended; 0 input = hang
+        // Vertical ladder: drive vy by input. Horizontal rope: suspend gravity
+        // and let the normal vx (above) carry traversal.
+        vy = ladderHorizontal ? 0.f : (climbAxis * climbSpeed);
     } else if (!stableGrounded) {
         vy += pc.customGravity * dt;
     } else if (vy > 0.f) {
