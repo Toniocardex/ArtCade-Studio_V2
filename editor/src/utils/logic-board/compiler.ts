@@ -48,6 +48,7 @@ import {
 import { buildEventSlugs } from './event-slugs'
 import { emitEventRegistration } from './emit-event-registration'
 import { buildHeader, buildTickWrapper } from './compiler-prelude'
+import { derivePreludeFeatures } from './compiler-prelude-features'
 import {
   pushDestroyTickBlock,
   pushMessageEventsInit,
@@ -240,14 +241,16 @@ export function compileLogicBoard(
   const { useSensor, useDestroy } = analyzePollingNeeds(doc, project)
   const hasPollingLogic =
     tickBlocks.length > 0 || useSensor || useDestroy
+  const preludeFeatures = derivePreludeFeatures(initBlocks, tickBlocks)
 
-  const header = buildHeader(eventSlugs)
+  const header = buildHeader(eventSlugs, preludeFeatures)
   const body = buildTickWrapper({
     tickBlocks,
     hasPollingLogic,
     useSensor,
     useDestroy,
     initBlocks,
+    frameMovement: preludeFeatures.frameMovement,
   })
 
   return header.concat(body).join('\n')

@@ -442,7 +442,7 @@ describe('compileLogicBoard — structure', () => {
     expect(lua).toContain('function module.tick(dt)')
     expect(lua).toContain('if not _init_done then')
     expect(lua).toContain('module.initialize()')
-    expect(lua).toContain('local _logic_timers = {}')
+    expect(lua).not.toContain('local _logic_timers = {}')
   })
 
   it('marks event-only boards as not requiring Lua tick when no project tick exists', () => {
@@ -455,6 +455,28 @@ describe('compileLogicBoard — structure', () => {
       ]),
     ])
     expect(lua).toContain('module.requiresTick = false')
+  })
+
+  it('keeps event-only generated Lua free of unrelated prelude helpers', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({
+          id: 'press_space',
+          trigger: { type: 'onInput', keyCode: 'Space', eventType: 'pressed' },
+          actions: [{ type: 'requestPlatformerJump', target: 'self' }],
+        }),
+      ]),
+    ])
+
+    expect(lua).toContain('_logic_reg_input_pressed("Space", function()')
+    expect(lua).toContain('platformer.requestJump(self)')
+    expect(lua).not.toContain('_logic_random_')
+    expect(lua).not.toContain('_logic_tostr')
+    expect(lua).not.toContain('_logic_collision_edge')
+    expect(lua).not.toContain('_logic_movement_known')
+    expect(lua).not.toContain('_logic_flush_movement')
+    expect(lua).not.toContain('local _logic_timers = {}')
+    expect(lua).not.toContain('local _mb = {}')
   })
 
   it('marks polling boards as requiring Lua tick', () => {
@@ -739,7 +761,7 @@ describe('compileLogicBoard — triggers', () => {
     expect(lua).toContain('_logic_timers[_tk] = _logic_timers[_tk] - 2')
     // Must NOT take the registration path for class-targeted boards.
     const everyCount = lua.split('_logic_reg_timer_every(').length - 1
-    expect(everyCount).toBe(1) // only the prelude helper definition
+    expect(everyCount).toBe(0)
   })
 
   it('onTimer in tick-fallback path parks one-shot at -math.huge after fire', () => {
@@ -1247,7 +1269,7 @@ describe('Bug #9 — onCollisionEnter / onCollisionExit edge triggers', () => {
   it('prelude defines the edge helper and the was-touching memory', () => {
     const lua = compileLogicBoard([
       board([
-        ev({ trigger: { type: 'onUpdate' },
+        ev({ trigger: { type: 'onCollisionEnter', withClass: 'Coin' },
              actions: [{ type: 'debugLog', message: 'x' }] }),
       ]),
     ])

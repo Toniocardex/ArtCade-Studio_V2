@@ -1,229 +1,117 @@
 // ---------------------------------------------------------------------------
-// Compiler scaffolding — the fixed Lua templates wrapped around the per-board
-// emit output:
-//
-//   • buildHeader:           emits an isolated __artcade_logic module with
-//                             local helpers, state, and unsubscribe tracking.
-//   • SENSOR_POLL_PREAMBLE:  builds _sensor_by_ent at the top of each tick
-//                            when any tick-fallback sensor event is present.
-//   • DESTROY_POLL_PREAMBLE: drains lifecycle.pollDestroyed() the same way.
-//   • buildTickWrapper:      exposes initialize/tick/dispose and wraps the
-//                            per-board polling blocks with movement flush.
+// Compiler scaffolding. Fixed Lua templates are emitted around per-board code,
+// but optional helpers are included only when generated blocks reference them.
 // ---------------------------------------------------------------------------
 
 import { INDENT, luaString } from './lua-helpers'
 import { RULE_TABLE } from './event-slugs'
+import type { CompilerPreludeFeatures } from './compiler-prelude-features'
+import { usesUnsubTracking } from './compiler-prelude-features'
+import {
+  ANIMATION_REGISTRATION_LINES,
+  BAG_UNSUB_LINES,
+  COLLISION_EDGE_HELPER_LINES,
+  COLLISION_EDGE_STATE_LINES,
+  COMPOSE_KEY_LINES,
+  DESTROY_REGISTRATION_LINES,
+  INPUT_PRESSED_REGISTRATION_LINES,
+  INPUT_RELEASED_REGISTRATION_LINES,
+  MESSAGE_REGISTRATION_LINES,
+  MOVEMENT_LINES,
+  RANDOM_LINES,
+  SENSOR_ENTER_REGISTRATION_LINES,
+  SENSOR_EXIT_REGISTRATION_LINES,
+  SPAWN_REGISTRATION_LINES,
+  TEXT_FORMAT_LINES,
+  TEXT_TO_STRING_LINES,
+  TIMER_AFTER_REGISTRATION_LINES,
+  TIMER_EVERY_REGISTRATION_LINES,
+  unsubTrackingLines,
+} from './compiler-prelude-templates'
+
+function ruleTableLines(eventSlugs: Map<string, string>): string[] {
+  const entries: string[] = []
+  for (const [id, slug] of eventSlugs) {
+    entries.push(`${INDENT}${slug} = ${luaString(id)},`)
+  }
+  return entries.length > 0
+    ? [`local ${RULE_TABLE} = {`, ...entries, '}']
+    : [`local ${RULE_TABLE} = {}`]
+}
+
+function stateLines(features: CompilerPreludeFeatures): string[] {
+  return [
+    'local _init_done = false',
+    ...(features.tickTimers ? ['local _logic_timers = {}   -- polling timers'] : []),
+    'local _logic_on = {}       -- event enable flags',
+    '-- Readable aliases for rule ids - used as keys into _logic_on.',
+  ]
+}
+
+function ruleMemoryLines(features: CompilerPreludeFeatures): string[] {
+  return [
+    ...(features.collisionEdge ? COLLISION_EDGE_STATE_LINES : []),
+    ...(features.healthDepletedEdge ? [
+      '-- Per (event, entity) "already fired" memory for onHealthDepleted edge detection.',
+      'local _hpd_fired = {}',
+    ] : []),
+    ...(features.damagedEdge ? [
+      '-- Per (event, entity) previous-HP memory for onDamaged edge detection.',
+      'local _dmg_prev = {}',
+    ] : []),
+    ...(features.leaveScreenEdge ? [
+      '-- Per (event, entity) previous off-screen state for onLeaveScreen edge detection.',
+      'local _ls_prev = {}',
+    ] : []),
+  ]
+}
+
+function helperLines(features: CompilerPreludeFeatures): string[] {
+  return [
+    ...(usesUnsubTracking(features) ? unsubTrackingLines() : []),
+    ...(features.random ? RANDOM_LINES : []),
+    ...(features.bagUnsub ? BAG_UNSUB_LINES : []),
+    ...(features.composeKey ? COMPOSE_KEY_LINES : []),
+    ...(features.spawnRegistration ? SPAWN_REGISTRATION_LINES : []),
+    ...(features.destroyRegistration ? DESTROY_REGISTRATION_LINES : []),
+    ...(features.animationRegistration ? ANIMATION_REGISTRATION_LINES : []),
+    ...(features.inputPressedRegistration ? INPUT_PRESSED_REGISTRATION_LINES : []),
+    ...(features.inputReleasedRegistration ? INPUT_RELEASED_REGISTRATION_LINES : []),
+    ...(features.sensorEnterRegistration ? SENSOR_ENTER_REGISTRATION_LINES : []),
+    ...(features.sensorExitRegistration ? SENSOR_EXIT_REGISTRATION_LINES : []),
+    ...(features.messageRegistration ? MESSAGE_REGISTRATION_LINES : []),
+    ...(features.timerEveryRegistration ? TIMER_EVERY_REGISTRATION_LINES : []),
+    ...(features.timerAfterRegistration ? TIMER_AFTER_REGISTRATION_LINES : []),
+  ]
+}
+
+function formattingLines(features: CompilerPreludeFeatures): string[] {
+  return [
+    ...(features.textToString || features.textFormat ? TEXT_TO_STRING_LINES : []),
+    ...(features.textFormat ? TEXT_FORMAT_LINES : []),
+    ...(features.collisionEdge ? COLLISION_EDGE_HELPER_LINES : []),
+    ...(features.frameMovement ? MOVEMENT_LINES : []),
+  ]
+}
 
 /** Header lines emitted once at the top of every compiled board script. */
-export function buildHeader(eventSlugs: Map<string, string>): string[] {
-  const ruleEntries: string[] = []
-  for (const [id, slug] of eventSlugs) {
-    ruleEntries.push(`${INDENT}${slug} = ${luaString(id)},`)
-  }
-
+export function buildHeader(
+  eventSlugs: Map<string, string>,
+  features: CompilerPreludeFeatures,
+): string[] {
   return [
     '-- AUTO-GENERATED by ArtCade Logic Board compiler.',
     '-- Read-only virtual source. Edit rules in the Logic Board.',
     '',
     'local __artcade_logic = (function()',
     `${INDENT}local module = { _unsubs = {} }`,
+    ...helperLines(features),
     '',
-    `${INDENT}local function _logic_track(unsub)`,
-    `${INDENT}if type(unsub) == "function" then`,
-    `${INDENT}${INDENT}module._unsubs[#module._unsubs + 1] = unsub`,
-    `${INDENT}end`,
-    'end',
-    '',
-    '-- Deterministic board-local PRNG. The same event sequence yields the same values',
-    '-- in native and WASM builds; malformed/reversed ranges are normalized here.',
-    'local _logic_random_state = 1831565813',
-    'local function _logic_random_unit()',
-    `${INDENT}_logic_random_state = (_logic_random_state * 1664525 + 1013904223) % 4294967296`,
-    `${INDENT}return _logic_random_state / 4294967296`,
-    'end',
-    'local function _logic_random_int(minimum, maximum)',
-    `${INDENT}local low = math.ceil(tonumber(minimum) or 0)`,
-    `${INDENT}local high = math.floor(tonumber(maximum) or 0)`,
-    `${INDENT}if low > high then low, high = high, low end`,
-    `${INDENT}return low + math.floor(_logic_random_unit() * (high - low + 1))`,
-    'end',
-    'local function _logic_random_chance(percent)',
-    `${INDENT}local chance = math.max(0, math.min(100, tonumber(percent) or 0))`,
-    `${INDENT}return _logic_random_unit() * 100 < chance`,
-    'end',
-    '',
-    '-- Remove a specific closure from a {key = {fn, fn, ...}} bag (lifecycle,',
-    '-- sensor, input, animation). Cheap linear scan — bags are tiny.',
-    'local function _logic_bag_unsub(bag, key, fn)',
-    `${INDENT}return function()`,
-    `${INDENT}${INDENT}if type(bag) ~= "table" then return end`,
-    `${INDENT}${INDENT}local list = bag[key]`,
-    `${INDENT}${INDENT}if type(list) ~= "table" then return end`,
-    `${INDENT}${INDENT}for i = #list, 1, -1 do`,
-    `${INDENT}${INDENT}${INDENT}if list[i] == fn then table.remove(list, i); return end`,
-    `${INDENT}${INDENT}end`,
-    `${INDENT}end`,
-    'end',
-    '',
-    '-- Sensor/animation bags key by source + "\\31" + target. Mirror the runtime.',
-    'local function _logic_compose_key(source, target)',
-    `${INDENT}return tostring(source or "*") .. "\\31" .. tostring(target or "*")`,
-    'end',
-    '',
-    '-- lifecycle.onSpawn only fires for entities constructed AFTER',
-    '-- registration. Entities placed in the scene at edit-time are',
-    '-- already alive when _logic_init runs, so without the replay loop',
-    "-- below they'd never trigger the rule. Hot reload also passes here:",
-    '-- if the handler is non-idempotent (e.g. spend gold), use onStart',
-    '-- instead — onSpawn is documented as fire-once-per-instance, and a',
-    "-- hot reload counts as a re-registration for each existing entity.",
-    'local function _logic_reg_spawn(cls, fn)',
-    `${INDENT}lifecycle.onSpawn(cls, fn)`,
-    `${INDENT}_logic_track(_logic_bag_unsub(lifecycle._onSpawn, cls, fn))`,
-    `${INDENT}for _, eid in ipairs(pool.getAll(cls)) do`,
-    `${INDENT}${INDENT}local ok, err = pcall(fn, eid, {})`,
-    `${INDENT}${INDENT}if not ok then`,
-    `${INDENT}${INDENT}${INDENT}debug.log("[logic] onSpawn replay error: " .. tostring(err))`,
-    `${INDENT}${INDENT}end`,
-    `${INDENT}end`,
-    'end',
-    '',
-    'local function _logic_reg_destroy(cls, fn)',
-    `${INDENT}lifecycle.onDestroy(cls, fn)`,
-    `${INDENT}_logic_track(_logic_bag_unsub(lifecycle._onDestroy, cls, fn))`,
-    'end',
-    '',
-    'local function _logic_reg_anim_end(source, clip, fn)',
-    `${INDENT}animation.onFinished(source, clip, fn)`,
-    `${INDENT}_logic_track(_logic_bag_unsub(animation._onFinished, _logic_compose_key(source, clip), fn))`,
-    'end',
-    '',
-    'local function _logic_reg_input_pressed(code, fn)',
-    `${INDENT}input.onPressed(code, fn)`,
-    `${INDENT}_logic_track(_logic_bag_unsub(input._onPressed, code, fn))`,
-    'end',
-    '',
-    'local function _logic_reg_input_released(code, fn)',
-    `${INDENT}input.onReleased(code, fn)`,
-    `${INDENT}_logic_track(_logic_bag_unsub(input._onReleased, code, fn))`,
-    'end',
-    '',
-    'local function _logic_reg_sensor_enter(source, target, fn)',
-    `${INDENT}sensor.onEnter(source, target, fn)`,
-    `${INDENT}_logic_track(_logic_bag_unsub(sensor._onEnter, _logic_compose_key(source, target), fn))`,
-    'end',
-    '',
-    'local function _logic_reg_sensor_exit(source, target, fn)',
-    `${INDENT}sensor.onExit(source, target, fn)`,
-    `${INDENT}_logic_track(_logic_bag_unsub(sensor._onExit, _logic_compose_key(source, target), fn))`,
-    'end',
-    '',
-    'local function _logic_reg_message(name, fn)',
-    `${INDENT}_logic_track(event.on(name, fn))`,
-    'end',
-    '',
-    'local function _logic_reg_timer_every(seconds, fn)',
-    `${INDENT}_logic_track(time.every(seconds, fn))`,
-    'end',
-    '',
-    "-- time.after / time.delay are one-shot and self-clean on fire; we still",
-    '-- guard hot-reload double-fire by checking a per-compile gate token.',
-    'local function _logic_reg_timer_after(seconds, fn)',
-    `${INDENT}local gate = module._unsubs`,
-    `${INDENT}time.after(seconds, function()`,
-    `${INDENT}${INDENT}if module._unsubs ~= gate then return end`,
-    `${INDENT}${INDENT}fn()`,
-    `${INDENT}end)`,
-    'end',
-    '',
-    'local _init_done = false',
-    'local _logic_timers = {}   -- polling timers',
-    'local _logic_on = {}       -- event enable flags',
-    // RULE is always declared so any `RULE.<slug>` reference emitted by
-    // ruleKeyExpr resolves to a valid binding, even if buildEventSlugs
-    // ever returns an empty map. Empty literal is valid Lua.
-    '-- Readable aliases for rule ids — used as keys into _logic_on.',
-    ...(ruleEntries.length > 0
-      ? [`local ${RULE_TABLE} = {`, ...ruleEntries, '}']
-      : [`local ${RULE_TABLE} = {}`]),
-    'local _mb = {}             -- mouse button edge state',
-    '-- Per (entity, otherClass) "was touching last frame" memory so we can',
-    '-- synthesise onCollisionEnter / onCollisionExit edges from the existing',
-    '-- collision.touchingClass polling primitive without runtime changes.',
-    '-- Stale entries (entity destroyed) are accepted — id reuse is rare and',
-    '-- the wrong-edge symptom self-corrects within one frame of re-contact.',
-    'local _collision_was_touching = {}',
-    '-- Per (event, entity) "already fired" memory for onHealthDepleted edge detection.',
-    '-- Key: RULE-slug .. ":" .. entityId. Cleared when HP climbs back above 0.',
-    'local _hpd_fired = {}',
-    '-- Per (event, entity) previous-HP memory for onDamaged edge detection.',
-    '-- Key: RULE-slug .. ":" .. entityId. Fires when HP decreased since last frame.',
-    'local _dmg_prev = {}',
-    '-- Per (event, entity) previous off-screen state for onLeaveScreen edge detection.',
-    'local _ls_prev = {}',
-    '-- Number→string for Set Text: integral floats print as integers ("12", not "12.0").',
-    'local function _logic_tostr(v)',
-    `${INDENT}if type(v) == "number" then return tostring(math.tointeger(v) or v) end`,
-    `${INDENT}return tostring(v)`,
-    'end',
-    '-- Number formatting for Set Text / bound Text labels (mirror of the C++ path).',
-    'local function _logic_fmt(v, fmt, digits)',
-    `${INDENT}if fmt == nil or fmt == "text" then return _logic_tostr(v) end`,
-    `${INDENT}local n = tonumber(v) or 0`,
-    `${INDENT}if fmt == "integer" then`,
-    `${INDENT}${INDENT}return string.format("%d", math.floor(n + 0.5))`,
-    `${INDENT}elseif fmt == "padded" then`,
-    `${INDENT}${INDENT}return string.format("%0" .. tostring(math.floor(digits or 0)) .. "d", math.floor(n + 0.5))`,
-    `${INDENT}elseif fmt == "time" then`,
-    `${INDENT}${INDENT}local s = math.floor(n + 0.5); if s < 0 then s = 0 end`,
-    `${INDENT}${INDENT}return string.format("%d:%02d", math.floor(s / 60), s % 60)`,
-    `${INDENT}elseif fmt == "percent" then`,
-    `${INDENT}${INDENT}return string.format("%d", math.floor(n + 0.5)) .. "%"`,
-    `${INDENT}elseif fmt == "decimals" then`,
-    `${INDENT}${INDENT}return string.format("%." .. tostring(math.floor(digits or 0)) .. "f", n)`,
-    `${INDENT}end`,
-    `${INDENT}return _logic_tostr(v)`,
-    'end',
-    'local function _logic_collision_edge(eid, cls, want_enter)',
-    `${INDENT}local key = tostring(eid) .. ":" .. cls`,
-    `${INDENT}local cur = collision.touchingClass(eid, cls)`,
-    `${INDENT}local prev = _collision_was_touching[key] or false`,
-    `${INDENT}_collision_was_touching[key] = cur`,
-    `${INDENT}if want_enter then return cur and not prev end`,
-    `${INDENT}return prev and not cur`,
-    'end',
-    'local _logic_movement_known = {}',
-    'local _logic_movement_frame = nil',
-    '',
-    'local function _logic_add_movement(entityId, x, y)',
-    `${INDENT}if _logic_movement_frame == nil or entityId == nil then return end`,
-    `${INDENT}local m = _logic_movement_frame[entityId]`,
-    `${INDENT}if not m then`,
-    `${INDENT}${INDENT}m = { x = 0, y = 0 }`,
-    `${INDENT}${INDENT}_logic_movement_frame[entityId] = m`,
-    `${INDENT}end`,
-    `${INDENT}m.x = m.x + x`,
-    `${INDENT}m.y = m.y + y`,
-    'end',
-    '',
-    'local function _logic_flush_movement()',
-    `${INDENT}if _logic_movement_frame == nil then return end`,
-    `${INDENT}for entityId, m in pairs(_logic_movement_frame) do`,
-    `${INDENT}${INDENT}if m.x ~= 0 or m.y ~= 0 then`,
-    `${INDENT}${INDENT}${INDENT}movement.setIntent(entityId, m.x, m.y)`,
-    `${INDENT}${INDENT}else`,
-    `${INDENT}${INDENT}${INDENT}movement.clearIntent(entityId)`,
-    `${INDENT}${INDENT}end`,
-    `${INDENT}${INDENT}_logic_movement_known[entityId] = true`,
-    `${INDENT}end`,
-    `${INDENT}for entityId, _ in pairs(_logic_movement_known) do`,
-    `${INDENT}${INDENT}if _logic_movement_frame[entityId] == nil then`,
-    `${INDENT}${INDENT}${INDENT}movement.clearIntent(entityId)`,
-    `${INDENT}${INDENT}${INDENT}_logic_movement_known[entityId] = nil`,
-    `${INDENT}${INDENT}end`,
-    `${INDENT}end`,
-    `${INDENT}_logic_movement_frame = nil`,
-    'end',
+    ...stateLines(features),
+    ...ruleTableLines(eventSlugs),
+    ...(features.mouseButtons ? ['local _mb = {}             -- mouse button edge state'] : []),
+    ...ruleMemoryLines(features),
+    ...formattingLines(features),
     '',
   ]
 }
@@ -243,9 +131,8 @@ export const DESTROY_POLL_PREAMBLE = [
 ]
 
 /**
- * Build the `tick(dt)` function body that wraps the per-board tick blocks
- * with init guard, movement frame setup, optional poll preambles, and the
- * final movement flush.
+ * Build the `tick(dt)` function body that wraps per-board tick blocks with
+ * the init guard, optional poll preambles, and optional movement flushing.
  */
 export function buildTickWrapper(args: {
   tickBlocks: string[]
@@ -253,8 +140,16 @@ export function buildTickWrapper(args: {
   useSensor: boolean
   useDestroy: boolean
   initBlocks: string[]
+  frameMovement: boolean
 }): string[] {
-  const { tickBlocks, hasPollingLogic, useSensor, useDestroy, initBlocks } = args
+  const {
+    tickBlocks,
+    hasPollingLogic,
+    useSensor,
+    useDestroy,
+    initBlocks,
+    frameMovement,
+  } = args
   return [
     'function module.initialize()',
     `${INDENT}if _init_done then return end`,
@@ -268,11 +163,11 @@ export function buildTickWrapper(args: {
     `${INDENT}if not _init_done then`,
     `${INDENT}${INDENT}module.initialize()`,
     `${INDENT}end`,
-    `${INDENT}_logic_movement_frame = {}`,
+    ...(frameMovement ? [`${INDENT}_logic_movement_frame = {}`] : []),
     ...(useSensor ? SENSOR_POLL_PREAMBLE : []),
     ...(useDestroy ? DESTROY_POLL_PREAMBLE : []),
     ...tickBlocks,
-    `${INDENT}_logic_flush_movement()`,
+    ...(frameMovement ? [`${INDENT}_logic_flush_movement()`] : []),
     'end',
     '',
     'function module.dispose()',

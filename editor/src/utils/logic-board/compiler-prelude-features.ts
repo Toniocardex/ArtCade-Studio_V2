@@ -1,0 +1,79 @@
+export interface CompilerPreludeFeatures {
+  random: boolean
+  bagUnsub: boolean
+  composeKey: boolean
+  spawnRegistration: boolean
+  destroyRegistration: boolean
+  animationRegistration: boolean
+  inputPressedRegistration: boolean
+  inputReleasedRegistration: boolean
+  sensorEnterRegistration: boolean
+  sensorExitRegistration: boolean
+  messageRegistration: boolean
+  timerEveryRegistration: boolean
+  timerAfterRegistration: boolean
+  tickTimers: boolean
+  mouseButtons: boolean
+  collisionEdge: boolean
+  healthDepletedEdge: boolean
+  damagedEdge: boolean
+  leaveScreenEdge: boolean
+  textToString: boolean
+  textFormat: boolean
+  frameMovement: boolean
+}
+
+function linesUse(lines: string[], needle: string): boolean {
+  return lines.some((line) => line.includes(needle))
+}
+
+export function derivePreludeFeatures(
+  initBlocks: string[],
+  tickBlocks: string[],
+): CompilerPreludeFeatures {
+  const lines = [...initBlocks, ...tickBlocks]
+  const bagUnsub =
+    linesUse(lines, '_logic_reg_spawn(') ||
+    linesUse(lines, '_logic_reg_destroy(') ||
+    linesUse(lines, '_logic_reg_anim_end(') ||
+    linesUse(lines, '_logic_reg_input_pressed(') ||
+    linesUse(lines, '_logic_reg_input_released(') ||
+    linesUse(lines, '_logic_reg_sensor_enter(') ||
+    linesUse(lines, '_logic_reg_sensor_exit(')
+
+  return {
+    random: linesUse(lines, '_logic_random_'),
+    bagUnsub,
+    composeKey:
+      linesUse(lines, '_logic_reg_anim_end(') ||
+      linesUse(lines, '_logic_reg_sensor_enter(') ||
+      linesUse(lines, '_logic_reg_sensor_exit('),
+    spawnRegistration: linesUse(lines, '_logic_reg_spawn('),
+    destroyRegistration: linesUse(lines, '_logic_reg_destroy('),
+    animationRegistration: linesUse(lines, '_logic_reg_anim_end('),
+    inputPressedRegistration: linesUse(lines, '_logic_reg_input_pressed('),
+    inputReleasedRegistration: linesUse(lines, '_logic_reg_input_released('),
+    sensorEnterRegistration: linesUse(lines, '_logic_reg_sensor_enter('),
+    sensorExitRegistration: linesUse(lines, '_logic_reg_sensor_exit('),
+    messageRegistration: linesUse(lines, '_logic_reg_message('),
+    timerEveryRegistration: linesUse(lines, '_logic_reg_timer_every('),
+    timerAfterRegistration: linesUse(lines, '_logic_reg_timer_after('),
+    tickTimers: linesUse(lines, '_logic_timers['),
+    mouseButtons: linesUse(lines, '_mb['),
+    collisionEdge: linesUse(lines, '_logic_collision_edge('),
+    healthDepletedEdge: linesUse(lines, '_hpd_fired['),
+    damagedEdge: linesUse(lines, '_dmg_prev['),
+    leaveScreenEdge: linesUse(lines, '_ls_prev['),
+    textToString: linesUse(lines, '_logic_tostr('),
+    textFormat: linesUse(lines, '_logic_fmt('),
+    frameMovement: linesUse(lines, '_logic_add_movement('),
+  }
+}
+
+export function usesUnsubTracking(features: CompilerPreludeFeatures): boolean {
+  return (
+    features.bagUnsub ||
+    features.messageRegistration ||
+    features.timerEveryRegistration
+  )
+}
