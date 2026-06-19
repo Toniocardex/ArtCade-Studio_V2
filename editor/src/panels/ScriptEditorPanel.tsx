@@ -4,6 +4,7 @@ import { EngineScriptEditor } from '../components/EngineScriptEditor'
 import { compileProjectLogic } from '../utils/logic-board/logic-compile-service'
 import { LogicBoardCompileErrorBanner } from '../components/LogicBoardCompileErrorBanner'
 import { composeProjectLua } from '../utils/project-lua-composer'
+import { formatGeneratedLogicLuaPreview } from '../utils/logic-board/generated-lua-preview'
 import type { MainScriptView } from '../store/editor-store-state'
 import { resolveScriptEditorEmptyHint } from '../utils/script-editor-activation'
 
@@ -91,6 +92,10 @@ export default function ScriptEditorPanel() {
   }, [project, projectPath])
   const hasLogicBoards = (project?.logicBoards?.length ?? 0) > 0
   const generatedLua = hasLogicBoards ? (compileResult?.lua ?? '') : ''
+  const generatedPreviewLua = useMemo(
+    () => formatGeneratedLogicLuaPreview(generatedLua),
+    [generatedLua],
+  )
   const compileError = compileResult?.compileError ?? null
 
   const mainPath = project?.mainScriptPath ?? null
@@ -106,7 +111,7 @@ export default function ScriptEditorPanel() {
   const displayedSource = !isMainScript || mainScriptView === 'manual'
     ? currentScript?.content ?? ''
     : mainScriptView === 'generated'
-      ? generatedLua
+      ? generatedPreviewLua
       : composed.combinedLua
   const readOnly = isMainScript && mainScriptView !== 'manual'
 

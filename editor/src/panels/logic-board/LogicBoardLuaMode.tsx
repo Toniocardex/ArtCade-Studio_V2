@@ -12,6 +12,7 @@ import type { compileProjectLogic } from '../../utils/logic-board/logic-compile-
 import { LogicBoardCompileErrorBanner } from '../../components/LogicBoardCompileErrorBanner'
 import { openCombinedMainScript } from '../../utils/logic-board-project-flow'
 import { extractBoardLuaSlice } from '../../utils/logic-board/extract-board-lua-slice'
+import { formatGeneratedLogicLuaPreview } from '../../utils/logic-board/generated-lua-preview'
 import {
   logicBoardCompilerLabel,
   logicBoardLuaCommentLabel,
@@ -64,7 +65,7 @@ export function LogicBoardLuaMode({
   const mainPath = project.mainScriptPath
   const boardLabel = board ? logicBoardLuaCommentLabel(board) : ''
   const slice = extractBoardLuaSlice(lua, boardLabel)
-  const displayLua = showFullMain ? lua : slice.text
+  const displayLua = formatGeneratedLogicLuaPreview(showFullMain ? lua : slice.text)
   const previewTitle = board
     ? `Generated · ${logicBoardCompilerLabel(board)}`
     : 'Generated script'
