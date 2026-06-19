@@ -40,6 +40,7 @@ type VirtualFoldersBlockProps = Readonly<{
   resolveLeaf: (type: VirtualAssetRefType, id: string) => VirtualFolderLeafRow | null
   setContextMenu: (state: ExplorerContextMenuState | null) => void
   folderMenuHandlers: (type: VirtualAssetRefType, id: string) => AssetFolderMenuHandlers
+  folderExtraMenuItems?: (folder: AssetVirtualFolderDef) => readonly ExplorerContextMenuItem[]
   batchRefs: readonly { type: VirtualAssetRefType; id: string }[]
   onRenameFolder: (folderId: string) => void
   onDeleteFolder: (folderId: string, folderName: string) => void
@@ -55,6 +56,7 @@ export function VirtualFoldersBlock({
   resolveLeaf,
   setContextMenu,
   folderMenuHandlers,
+  folderExtraMenuItems,
   batchRefs,
   onRenameFolder,
   onDeleteFolder,
@@ -76,10 +78,13 @@ export function VirtualFoldersBlock({
           onContextMenu={(ev) =>
             openExplorerContextMenu(
               ev,
-              buildVirtualFolderMenuItems(vf.id, vf.name, {
-                onRename: () => onRenameFolder(vf.id),
-                onDelete: () => onDeleteFolder(vf.id, vf.name),
-              }),
+              [
+                ...(folderExtraMenuItems?.(vf) ?? []),
+                ...buildVirtualFolderMenuItems(vf.id, vf.name, {
+                  onRename: () => onRenameFolder(vf.id),
+                  onDelete: () => onDeleteFolder(vf.id, vf.name),
+                }),
+              ],
               setContextMenu,
             )
           }

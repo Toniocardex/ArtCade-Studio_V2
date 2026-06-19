@@ -31,6 +31,26 @@ export type ImageImportTarget = Readonly<{
   folderId?: string
 }>
 
+export type AssetImportFolderTarget = Readonly<{
+  folderId?: string
+}>
+
+type FolderImportAssetType = 'audio' | 'font' | 'tileset'
+
+export function moveImportedAssetToFolderAction(
+  target: AssetImportFolderTarget,
+  assetType: FolderImportAssetType,
+  assetId: string,
+) {
+  if (!target.folderId) return null
+  return {
+    type: 'ASSET_MOVE_TO_FOLDER' as const,
+    folderId: target.folderId,
+    assetType,
+    assetId,
+  }
+}
+
 export function shouldOpenSpritesheetStudioOnExplorerEnter(
   e: Pick<KeyboardEvent, 'key' | 'target'>,
   selection: AssetExplorerSelection | null,
@@ -62,8 +82,11 @@ export function useAssetExplorerActions() {
   const imageRef = useRef<HTMLInputElement>(null)
   const imageImportTargetRef = useRef<ImageImportTarget>({ usage: 'sprite' })
   const audioRef = useRef<HTMLInputElement>(null)
+  const audioImportTargetRef = useRef<AssetImportFolderTarget>({})
   const fontRef = useRef<HTMLInputElement>(null)
+  const fontImportTargetRef = useRef<AssetImportFolderTarget>({})
   const tilesetRef = useRef<HTMLInputElement>(null)
+  const tilesetImportTargetRef = useRef<AssetImportFolderTarget>({})
 
   const selEntity =
     project && selectionEntityId != null
@@ -131,6 +154,7 @@ export function useAssetExplorerActions() {
     (e: ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0]
       if (!file || !project) return
+      const target = audioImportTargetRef.current
       void (async () => {
         try {
           const projectPath = store.getState().projectPath
@@ -147,6 +171,8 @@ export function useAssetExplorerActions() {
             category: 'sfx',
           }
           dispatch({ type: 'AUDIO_ASSET_ADD', asset })
+          const moveAction = moveImportedAssetToFolderAction(target, 'audio', asset.id)
+          if (moveAction) dispatch(moveAction)
           showFlash(imported.persisted
             ? `Imported ${file.name}`
             : `${file.name} (save to persist)`)
@@ -156,6 +182,7 @@ export function useAssetExplorerActions() {
         }
       })()
       e.target.value = ''
+      audioImportTargetRef.current = {}
     },
     [project, store, dispatch, showFlash],
   )
@@ -164,6 +191,7 @@ export function useAssetExplorerActions() {
     (e: ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0]
       if (!file || !project) return
+      const target = fontImportTargetRef.current
       void (async () => {
         try {
           const projectPath = store.getState().projectPath
@@ -180,6 +208,8 @@ export function useAssetExplorerActions() {
             defaultSize: 32,
           }
           dispatch({ type: 'FONT_ASSET_ADD', asset })
+          const moveAction = moveImportedAssetToFolderAction(target, 'font', asset.id)
+          if (moveAction) dispatch(moveAction)
           showFlash(imported.persisted
             ? `Imported ${file.name}`
             : `${file.name} (save to persist)`)
@@ -189,6 +219,7 @@ export function useAssetExplorerActions() {
         }
       })()
       e.target.value = ''
+      fontImportTargetRef.current = {}
     },
     [project, store, dispatch, showFlash],
   )
@@ -274,6 +305,7 @@ export function useAssetExplorerActions() {
     (e: ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0]
       if (!file || !project) return
+      const target = tilesetImportTargetRef.current
       const reader = new FileReader()
       reader.onload = () => {
         const dataUrl = fileReaderDataUrl(reader.result)
@@ -293,6 +325,12 @@ export function useAssetExplorerActions() {
               projectRoot: root,
             })
             dispatch({ type: 'TILESET_ASSET_ADD', asset: tileset })
+            const moveAction = moveImportedAssetToFolderAction(
+              target,
+              'tileset',
+              tileset.assetId,
+            )
+            if (moveAction) dispatch(moveAction)
             dispatch({ type: 'TILESET_PAINT_BEGIN', tilesetId: tileset.assetId })
             await assetOrchestrator.ensureTilesetImageRegistered(project, tileset, root ?? '')
             showFlash(imported.persisted
@@ -307,6 +345,7 @@ export function useAssetExplorerActions() {
       }
       reader.readAsDataURL(file)
       e.target.value = ''
+      tilesetImportTargetRef.current = {}
     },
     [project, store, dispatch, showFlash],
   )
@@ -315,9 +354,18 @@ export function useAssetExplorerActions() {
     imageImportTargetRef.current = target ?? { usage: 'sprite' }
     imageRef.current?.click()
   }, [])
-  const triggerImportAudio = useCallback(() => audioRef.current?.click(), [])
-  const triggerImportFont = useCallback(() => fontRef.current?.click(), [])
-  const triggerImportTileset = useCallback(() => tilesetRef.current?.click(), [])
+  const triggerImportAudio = useCallback((target?: AssetImportFolderTarget) => {
+    audioImportTargetRef.current = target ?? {}
+    audioRef.current?.click()
+  }, [])
+  const triggerImportFont = useCallback((target?: AssetImportFolderTarget) => {
+    fontImportTargetRef.current = target ?? {}
+    fontRef.current?.click()
+  }, [])
+  const triggerImportTileset = useCallback((target?: AssetImportFolderTarget) => {
+    tilesetImportTargetRef.current = target ?? {}
+    tilesetRef.current?.click()
+  }, [])
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {

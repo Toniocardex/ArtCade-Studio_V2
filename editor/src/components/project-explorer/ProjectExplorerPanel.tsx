@@ -52,6 +52,7 @@ import {
 import {
   ExplorerContextMenu,
   openExplorerContextMenu,
+  type ExplorerContextMenuItem,
   type ExplorerContextMenuState,
 } from './explorer-context-menu'
 
@@ -93,6 +94,74 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
       onCreateFolder: () => assetFolders.createVirtualFolder(category),
     }),
     [assetFolders],
+  )
+
+  const importLabelForAssetCategory = useCallback((category: AssetVirtualFolderCategory) => {
+    switch (category) {
+      case 'audio':
+        return 'Import audio here'
+      case 'fonts':
+        return 'Import font here'
+      case 'tilesets':
+        return 'Import tileset here'
+      case 'images':
+        return 'Import image here'
+    }
+  }, [])
+
+  const triggerAssetImportForCategory = useCallback(
+    (category: AssetVirtualFolderCategory, folderId?: string) => {
+      switch (category) {
+        case 'audio':
+          assets.triggerImportAudio(folderId ? { folderId } : undefined)
+          break
+        case 'fonts':
+          assets.triggerImportFont(folderId ? { folderId } : undefined)
+          break
+        case 'tilesets':
+          assets.triggerImportTileset(folderId ? { folderId } : undefined)
+          break
+        case 'images':
+          break
+      }
+    },
+    [assets.triggerImportAudio, assets.triggerImportFont, assets.triggerImportTileset],
+  )
+
+  const buildLibraryFolderMenuItems = useCallback(
+    (category: AssetVirtualFolderCategory): readonly ExplorerContextMenuItem[] => {
+      if (category === 'images') return []
+      return [
+        {
+          id: `import-${category}`,
+          label: importLabelForAssetCategory(category),
+          onSelect: () => triggerAssetImportForCategory(category),
+        },
+        {
+          id: `new-folder-${category}`,
+          label: 'New folder...',
+          onSelect: () => assetFolders.createVirtualFolder(category),
+        },
+      ]
+    },
+    [assetFolders, importLabelForAssetCategory, triggerAssetImportForCategory],
+  )
+
+  const buildVirtualFolderImportItems = useCallback(
+    (
+      category: AssetVirtualFolderCategory,
+      folderId: string,
+    ): readonly ExplorerContextMenuItem[] => {
+      if (category === 'images') return []
+      return [
+        {
+          id: `import-${folderId}`,
+          label: importLabelForAssetCategory(category),
+          onSelect: () => triggerAssetImportForCategory(category, folderId),
+        },
+      ]
+    },
+    [importLabelForAssetCategory, triggerAssetImportForCategory],
   )
 
   useEffect(() => {
@@ -360,7 +429,6 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
             <AssetToolbar
               disabled={!project}
               canRemove={assets.canRemove}
-              onNewFolder={assetFolders.createVirtualFolder}
               onImportImage={assets.triggerImportImage}
               onImportTileset={assets.triggerImportTileset}
               onImportAudio={assets.triggerImportAudio}
@@ -397,6 +465,9 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                       onDeleteFolder: assetFolders.deleteVirtualFolder,
                     }
                   : null
+                const libraryFolderMenuItems = libraryCategory
+                  ? buildLibraryFolderMenuItems(libraryCategory)
+                  : []
                 return (
                   <TreeFolder
                     key={folder.id}
@@ -410,6 +481,16 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                     onToggle={() => {
                       toggle(folderKey)
                     }}
+                    onContextMenu={
+                      libraryFolderMenuItems.length > 0
+                        ? (ev) =>
+                            openExplorerContextMenu(
+                              ev,
+                              libraryFolderMenuItems,
+                              setContextMenu,
+                            )
+                        : undefined
+                    }
                   >
                     {folder.count === 0 ? (
                       <div className="flex flex-col items-start py-1.5 pl-4">
@@ -427,6 +508,9 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                         setContextMenu={setContextMenu}
                         folderMenuHandlers={(type, id) =>
                           makeAssetFolderMenuHandlers(libraryCategory, type, id)
+                        }
+                        folderExtraMenuItems={(vf) =>
+                          buildVirtualFolderImportItems(libraryCategory, vf.id)
                         }
                         batchRefs={assetMulti.batchRefsInCategory(libraryCategory)}
                         onRenameFolder={assetFolders.renameVirtualFolder}
