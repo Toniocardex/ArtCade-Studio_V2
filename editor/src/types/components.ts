@@ -38,6 +38,8 @@ export interface PlatformerControllerComponent {
   coyoteTime:    number      // s — grace after leaving ground
   jumpBuffer:    number      // s — early jump-press tolerance
   groundClass:   string      // Solid / overlap class for isGrounded
+  climbClass:    string      // object class marking ladders ("" disables climbing)
+  climbSpeed:    number      // px/s vertical speed while climbing
 }
 
 /** Arcade top-down movement driven by movement intents. */

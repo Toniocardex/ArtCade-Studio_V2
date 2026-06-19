@@ -132,6 +132,12 @@ struct PlatformerControllerComponent {
     float coyoteTime    = 0.15f;
     float jumpBuffer    = 0.1f;
     std::string groundClass = "Ground";
+    // Ladder climbing: while overlapping an entity of climbClass and the player
+    // feeds vertical intent, gravity is suspended and the body moves at
+    // climbSpeed along Y. Empty climbClass disables the feature (no per-frame
+    // overlap query), so existing platformers cost nothing.
+    std::string climbClass = "";
+    float       climbSpeed = 120.f;   // px/s
 };
 
 struct TopDownControllerComponent {

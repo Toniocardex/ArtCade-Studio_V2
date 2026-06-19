@@ -79,6 +79,8 @@ void read_optional_gameplay_components(const nlohmann::json& j, EntityDef& e) {
         pc.coyoteTime    = p.value("coyoteTime", 0.15f);
         pc.jumpBuffer    = p.value("jumpBuffer", 0.1f);
         pc.groundClass   = p.value("groundClass", std::string("Ground"));
+        pc.climbClass    = p.value("climbClass", std::string(""));
+        pc.climbSpeed    = p.value("climbSpeed", 120.f);
         e.platformerController = pc;
     }
     if (j.contains("topDownController") && j["topDownController"].is_object()) {

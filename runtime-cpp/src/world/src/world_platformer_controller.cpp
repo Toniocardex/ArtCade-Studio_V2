@@ -4,8 +4,10 @@
 
 #include "../../modules/runtime-entity-gateway/include/runtime-entity-gateway.h"
 #include "../../modules/physics/include/physics.h"
+#include "../../modules/collision/include/entity_collision_query.h"
 
 #include <algorithm>
+#include <cmath>
 
 namespace ArtCade::WorldInternal {
 
@@ -60,19 +62,35 @@ void stepPlatformerController(World& world,
         rt.jumpBufferTimer = std::max(0.f, rt.jumpBufferTimer - dt);
 
     float vx = 0.f;
+    float climbAxis = 0.f;
 
     if (intent && intent->hasMovement) {
         const float axis = std::clamp(intent->movement.x, -1.f, 1.f);
         vx = axis * pc.maxSpeed;
+        climbAxis = std::clamp(intent->movement.y, -1.f, 1.f);
     }
 
+    // Ladder climbing: attach while overlapping a climbClass entity and the
+    // player feeds vertical input; an empty climbClass skips the query so
+    // non-climbing platformers pay nothing.
+    const bool onLadder = !pc.climbClass.empty()
+        && CollisionQuery::firstOverlappingInClass(
+               world.entityGateway_, id, pc.climbClass) != INVALID_ENTITY;
+    if (!onLadder)
+        rt.climbing = false;
+    else if (std::abs(climbAxis) > 0.f)
+        rt.climbing = true;
+
     const bool canJump = rawGrounded || rt.coyoteTimer > 0.f;
-    if (rt.jumpBufferTimer > 0.f && canJump) {
+    if (rt.jumpBufferTimer > 0.f && (canJump || rt.climbing)) {
         vy = -pc.jumpForce;
+        rt.climbing        = false;   // jumping detaches from the ladder
         rt.coyoteTimer     = 0.f;
         rt.jumpBufferTimer = 0.f;
         rt.airborneFrames  = 1;
         rt.groundedFrames  = 0;
+    } else if (rt.climbing) {
+        vy = climbAxis * pc.climbSpeed;   // gravity suspended; 0 input = hang
     } else if (!stableGrounded) {
         vy += pc.customGravity * dt;
     } else if (vy > 0.f) {
@@ -95,7 +113,8 @@ void stepPlatformerController(World& world,
 
     // Floor snap: after integration, land on the nearest Solid surface below
     // the feet (native kinematic platformer — no penetration tolerance hack).
-    if (vy >= 0.f) {
+    // Skipped while climbing so the body is not yanked to ground mid-ladder.
+    if (vy >= 0.f && !rt.climbing) {
         const PlatformerSolidContact groundAfter =
             probePlatformerSolidContact(grounding, id, pc.groundClass, vy);
         if (groundAfter.onGround) {

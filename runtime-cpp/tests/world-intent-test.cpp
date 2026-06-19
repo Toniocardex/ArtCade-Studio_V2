@@ -2202,6 +2202,99 @@ static void test_restore_design_state_resets_runtime_from_doc() {
     CHECK(!f.vars.exists("score"));
 }
 
+// ---- Ladder climbing (PlatformerController climb capability) -------------
+
+// Build a player overlapping a ladder entity. The ladder is a plain entity of
+// class "Ladder" (no solid/sensor) detected via the shared overlap query.
+static ProjectDoc makeLadderDoc(PlatformerControllerComponent pc) {
+    EntityDef player = makeEntity(1, "Player", {"player"});
+    player.transform.position = { 160.f, 180.f };
+    player.platformerController = pc;
+
+    EntityDef ladder = makeEntity(2, "Ladder");
+    ladder.transform.position = { 160.f, 180.f };
+
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = { 1, 2 };
+
+    ProjectDoc doc;
+    doc.activeSceneId = "main";
+    doc.scenes = {{ scene.id, scene }};
+    doc.entities = {{ 1, player }, { 2, ladder }};
+    return doc;
+}
+
+static void test_platformer_climbs_ladder_with_vertical_intent() {
+    Fixture f;
+    PlatformerControllerComponent pc;
+    pc.customGravity = 1500.f;
+    pc.climbClass = "Ladder";
+    pc.climbSpeed = 120.f;
+    f.world.init(makeLadderDoc(pc));
+
+    f.world.setMovementIntent(1, 0.f, -1.f);   // press up
+    f.tickFrame(1.f / 60.f);
+
+    Transform t{};
+    CHECK(f.gw.getTransform(1, t));
+    // Gravity suspended: vy is exactly the climb speed (up), not falling.
+    CHECK(std::abs(t.velocity.y + 120.f) < 0.01f);
+    CHECK(t.position.y < 180.f);
+}
+
+static void test_platformer_no_climb_without_climb_class() {
+    Fixture f;
+    PlatformerControllerComponent pc;
+    pc.customGravity = 1500.f;
+    pc.climbClass = "";                 // feature off (default)
+    f.world.init(makeLadderDoc(pc));
+
+    f.world.setMovementIntent(1, 0.f, -1.f);
+    f.tickFrame(1.f / 60.f);
+
+    Transform t{};
+    CHECK(f.gw.getTransform(1, t));
+    CHECK(t.velocity.y > 0.f);           // gravity wins, no climbing
+}
+
+static void test_platformer_overlap_without_vertical_input_does_not_climb() {
+    Fixture f;
+    PlatformerControllerComponent pc;
+    pc.customGravity = 1500.f;
+    pc.climbClass = "Ladder";
+    f.world.init(makeLadderDoc(pc));
+
+    f.world.setMovementIntent(1, 1.f, 0.f);   // horizontal only, no up/down
+    f.tickFrame(1.f / 60.f);
+
+    Transform t{};
+    CHECK(f.gw.getTransform(1, t));
+    CHECK(t.velocity.y > 0.f);           // falls: climb engages only on vertical intent
+}
+
+static void test_platformer_jump_detaches_from_ladder() {
+    Fixture f;
+    PlatformerControllerComponent pc;
+    pc.customGravity = 1500.f;
+    pc.jumpForce = 500.f;
+    pc.climbClass = "Ladder";
+    f.world.init(makeLadderDoc(pc));
+
+    // Engage climbing.
+    f.world.setMovementIntent(1, 0.f, -1.f);
+    f.tickFrame(1.f / 60.f);
+    Transform t{};
+    CHECK(f.gw.getTransform(1, t));
+    CHECK(t.velocity.y < 0.f);
+
+    // Jump while climbing detaches and applies jump impulse.
+    f.world.requestJump(1);
+    f.tickFrame(1.f / 60.f);
+    CHECK(f.gw.getTransform(1, t));
+    CHECK(t.velocity.y < -499.f);
+}
+
 int main() {
     test_camera_target_is_deterministic_and_overridable();
     test_platformer_only_has_no_implicit_physics_body();
@@ -2260,6 +2353,10 @@ int main() {
     test_platformer_passes_through_one_way_tile_when_jumping();
     test_platformer_lands_on_one_way_tile_when_falling();
     test_platformer_grounded_on_tilemap_and_solid_together();
+    test_platformer_climbs_ladder_with_vertical_intent();
+    test_platformer_no_climb_without_climb_class();
+    test_platformer_overlap_without_vertical_input_does_not_climb();
+    test_platformer_jump_detaches_from_ladder();
 
     std::cout << "world-intent-test: " << g_passed << " passed, "
               << g_failed << " failed\n";

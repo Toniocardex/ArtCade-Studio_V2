@@ -68,6 +68,7 @@ const SOLID: SolidComponent = {
 const PLATFORMER: PlatformerControllerComponent = {
   maxSpeed: 300, jumpForce: 600, customGravity: 1500,
   coyoteTime: 0.15, jumpBuffer: 0.1, groundClass: 'Ground',
+  climbClass: '', climbSpeed: 120,
 }
 const TOP_DOWN: TopDownControllerComponent = {
   maxSpeed: 260, acceleration: 1600, friction: 2200, fourDirections: false,
@@ -178,6 +179,8 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
       { key: 'coyoteTime', label: 'Coyote Time (s)', kind: 'number', min: 0, step: 0.05 },
       { key: 'jumpBuffer', label: 'Jump Buffer (s)', kind: 'number', min: 0, step: 0.05 },
       { key: 'groundClass', label: 'Ground Class', kind: 'text' },
+      { key: 'climbClass', label: 'Climb Class (ladders)', kind: 'text' },
+      { key: 'climbSpeed', label: 'Climb Speed (px/s)', kind: 'number', min: 0, step: 10 },
     ],
   },
   {

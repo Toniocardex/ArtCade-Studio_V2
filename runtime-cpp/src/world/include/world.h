@@ -125,6 +125,8 @@ private:
         /** Consecutive frames raw isGrounded() was true/false (hysteresis). */
         int groundedFrames    = 0;
         int airborneFrames    = 0;
+        /** True while the body is attached to a ladder (gravity suspended). */
+        bool climbing         = false;
     };
     std::unordered_map<EntityId, PlatformerRt> platformerRt_;
 

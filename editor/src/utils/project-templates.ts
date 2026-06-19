@@ -69,6 +69,8 @@ export function createPlatformerProject(projectName = 'Platformer'): ProjectDoc 
     coyoteTime: 0.15,
     jumpBuffer: 0.1,
     groundClass: 'Ground',
+    climbClass: '',
+    climbSpeed: 120,
   }
 
   const ground = createEntityDef(2, 'Ground', 'Ground', { x: 320, y: 340 })
