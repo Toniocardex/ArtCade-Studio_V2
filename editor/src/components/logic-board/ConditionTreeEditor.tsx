@@ -8,11 +8,15 @@ import { ConditionCombineSelect } from './ConditionCombineSelect'
 import { ConditionPolaritySelect } from './ConditionPolaritySelect'
 import { defaultConditionRoot } from '../../utils/logic-board/schema-registry'
 import { CONDITION_TYPES, defaultCondition } from '../../panels/logic-board/options'
+import { conditionDisplayName } from '../../panels/logic-board/friendly-labels'
+import { CatalogSelectButton } from './CatalogSelectButton'
+import { conditionCatalogText } from './catalog-copy'
 import { SchemaParamForm } from './SchemaParamForm'
-import { TypePicker } from './TypePicker'
 
 const lbl = 'text-[10px] font-medium text-[var(--muted)]'
 const link = 'text-[var(--muted)] text-[11px] underline underline-offset-2 hover:text-[var(--text)] cursor-pointer'
+const pickerButton =
+  'inline-flex max-w-[200px] items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium border border-[var(--border-2)] bg-[var(--border)] text-[var(--text)] hover:border-[var(--accent-bd)]'
 const panel =
   'bg-[var(--panel)] border border-[var(--border)] rounded px-2 py-1.5'
 
@@ -47,6 +51,7 @@ function NodeEditor({
 }: NodeEditorProps) {
   if (node.kind === 'leaf') {
     const cond = node.condition
+    const changeText = conditionCatalogText('change')
     return (
       <div
         className={`${panel} flex items-center flex-wrap gap-2`}
@@ -63,19 +68,23 @@ function NodeEditor({
           }
         />
         <span className={lbl}>Check</span>
-        <TypePicker
+        <CatalogSelectButton
           kind="condition"
+          label={conditionDisplayName(cond.type)}
+          buttonTitle="Change check"
+          buttonClassName={pickerButton}
+          title={changeText.title}
+          subtitle={changeText.subtitle}
+          searchPlaceholder={changeText.searchPlaceholder}
           types={conditionTypes}
           recommendedTypes={recommendedConditionTypes}
-          value={cond.type}
-          onChange={(t) =>
+          onPick={(t) =>
             onChange({
               kind: 'leaf',
               condition: defaultCondition(t as LogicCondition['type']),
               negated: node.negated,
             })
           }
-          className="max-w-[200px]"
         />
         <SchemaParamForm
           kind="condition"
@@ -101,6 +110,7 @@ function NodeEditor({
   }
 
   const group = node
+  const addText = conditionCatalogText('add')
   return (
     <div className="flex flex-col gap-1" style={{ marginLeft: depth * 12 }}>
       <div className={`${panel} flex items-center flex-wrap gap-2`}>
@@ -115,24 +125,29 @@ function NodeEditor({
             })
           }
         />
-        <button
-          type="button"
-          className={link}
-          onClick={() =>
+        <CatalogSelectButton
+          kind="condition"
+          label="+ Add check"
+          buttonTitle="Browse the check catalog"
+          buttonClassName={link}
+          title={addText.title}
+          subtitle={addText.subtitle}
+          searchPlaceholder={addText.searchPlaceholder}
+          types={conditionTypes}
+          recommendedTypes={recommendedConditionTypes}
+          onPick={(t) =>
             onChange({
               ...group,
               statements: [
                 ...group.statements,
                 {
                   kind: 'leaf',
-                  condition: defaultCondition('compareValues'),
+                  condition: defaultCondition(t as LogicCondition['type']),
                 },
               ],
             })
           }
-        >
-          + Add check
-        </button>
+        />
         <button
           type="button"
           className={link}

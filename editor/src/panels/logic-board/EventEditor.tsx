@@ -20,7 +20,11 @@ import type {
 } from '../../types/logic-board'
 import { LogicBlock } from '../../components/logic-board/LogicBlock'
 import { TypePicker } from '../../components/logic-board/TypePicker'
-import { CatalogPicker } from '../../components/logic-board/CatalogPicker'
+import { CatalogSelectButton } from '../../components/logic-board/CatalogSelectButton'
+import {
+  actionCatalogText,
+  conditionCatalogText,
+} from '../../components/logic-board/catalog-copy'
 import { SchemaParamForm } from '../../components/logic-board/SchemaParamForm'
 import { ModifyVariableEditor } from '../../components/logic-board/ModifyVariableEditor'
 import { ConditionCombineSelect } from '../../components/logic-board/ConditionCombineSelect'
@@ -30,7 +34,7 @@ import type { ConditionCombineOp } from '../../utils/logic-board/condition-combi
 import { OnInputTriggerFields } from '../../components/logic-board/OnInputTriggerFields'
 import { resolveClipContextForLogicBoard } from '../../utils/entity-clip-resolve'
 import { defaultConditionRoot } from '../../utils/logic-board/schema-registry'
-import { actionDisplayName } from './friendly-labels'
+import { actionDisplayName, conditionDisplayName } from './friendly-labels'
 import type { ProjectDoc } from '../../types'
 import type { LogicBoard } from '../../types/logic-board'
 import {
@@ -143,6 +147,16 @@ function actionTypesForBoard(
   return types
 }
 
+function actionTypesForExistingAction(
+  action: LogicAction,
+  pickerTypes: readonly LogicAction['type'][],
+): readonly LogicAction['type'][] {
+  if (action.type !== 'clickToDestroy' || pickerTypes.includes('clickToDestroy')) {
+    return pickerTypes
+  }
+  return [...pickerTypes, 'clickToDestroy']
+}
+
 function TriggerFields({
   trigger,
   board,
@@ -236,7 +250,7 @@ function ActionListBlock({
 }) {
   const insideRepeat = repeatBodyIndices(actions)
   const pickerTypes = actionTypesForBoard(board, { forElse, existingActions: actions })
-  const [pickerOpen, setPickerOpen] = useState(false)
+  const addText = actionCatalogText('add', forElse)
   return (
     <>
       {actions.length === 0 && (
@@ -275,35 +289,21 @@ function ActionListBlock({
         />
       ))}
       <div className="pt-1">
-        <button
-          type="button"
-          className={btn}
-          title="Browse the action catalog"
-          onClick={() => setPickerOpen(true)}
-        >
-          <Plus size={13} />
-          Add action
-        </button>
-      </div>
-      {pickerOpen && (
-        <CatalogPicker
+        <CatalogSelectButton
           kind="action"
-          title={forElse ? 'Add Else action' : 'Add action — choose what happens'}
-          subtitle={
-            forElse
-              ? 'Runs when the Also require… checks fail.'
-              : 'Runs when this rule fires and its checks pass.'
-          }
-          searchPlaceholder="Search actions… (move, sound, spawn)"
+          label="Add action"
+          buttonTitle="Browse the action catalog"
+          icon={<Plus size={13} />}
+          title={addText.title}
+          subtitle={addText.subtitle}
+          searchPlaceholder={addText.searchPlaceholder}
           types={pickerTypes}
           recommendedTypes={recommendedTypes}
-          onPick={(t) => {
+          onPick={(t) =>
             onChangeActions([...actions, defaultAction(t as LogicAction['type'])])
-            setPickerOpen(false)
-          }}
-          onClose={() => setPickerOpen(false)}
+          }
         />
-      )}
+      </div>
     </>
   )
 }
@@ -339,6 +339,8 @@ function ActionCard({
 }) {
   const destroyOtherWarn = destroyOtherTargetWarning(act, trigger)
   const destroySelfWarn = destroySelfOnCollisionWarning(act, trigger)
+  const actionPickerTypes = actionTypesForExistingAction(act, pickerTypes)
+  const changeText = actionCatalogText('change', forElse)
   return (
     <div
       className={`space-y-2 rounded border bg-[var(--logic-card)] p-2.5 ${
@@ -348,22 +350,20 @@ function ActionCard({
       }`}
     >
       <div className="flex flex-wrap items-center gap-2">
-        <TypePicker
+        <CatalogSelectButton
           kind="action"
-          types={
-            act.type === 'clickToDestroy'
-              ? pickerTypes.includes('clickToDestroy')
-                ? pickerTypes
-                : [...pickerTypes, 'clickToDestroy']
-              : pickerTypes
-          }
-          value={act.type}
-          onChange={(t) => {
+          label={actionDisplayName(act.type)}
+          buttonTitle="Change action"
+          buttonClassName={`${btn} max-w-[220px] justify-between`}
+          title={changeText.title}
+          subtitle={changeText.subtitle}
+          searchPlaceholder={changeText.searchPlaceholder}
+          types={actionPickerTypes}
+          recommendedTypes={recommendedTypes}
+          onPick={(t) => {
             if (forElse && t === 'clickToDestroy') return
             onChange(defaultAction(t as LogicAction['type']))
           }}
-          className="max-w-[220px]"
-          recommendedTypes={recommendedTypes}
         />
         <span className="text-[10px] text-[var(--muted)]">
           {actionDisplayName(act.type)}
@@ -488,6 +488,81 @@ function AlsoRequireSectionHints({
   )
 }
 
+function ConditionRow({
+  condition,
+  conditionTypes,
+  recommendedConditions,
+  board,
+  project,
+  contextSpritePath,
+  ambiguousTargetSpritePaths,
+  onChangeCondition,
+  onRemove,
+}: {
+  condition: LogicCondition & { negated?: boolean }
+  conditionTypes: readonly LogicCondition['type'][]
+  recommendedConditions: readonly LogicCondition['type'][]
+  board?: LogicBoard | null
+  project?: ProjectDoc | null
+  contextSpritePath?: string
+  ambiguousTargetSpritePaths?: boolean
+  onChangeCondition: (condition: LogicCondition & { negated?: boolean }) => void
+  onRemove: () => void
+}) {
+  const changeText = conditionCatalogText('change')
+
+  return (
+    <div
+      className="flex flex-wrap items-center gap-2 rounded border border-[var(--border)] bg-[var(--logic-block)] px-2 py-1.5"
+    >
+      <ConditionPolaritySelect
+        negated={condition.negated}
+        onChange={(negated) =>
+          onChangeCondition({ ...condition, negated: negated || undefined })
+        }
+      />
+      <CatalogSelectButton
+        kind="condition"
+        label={conditionDisplayName(condition.type)}
+        buttonTitle="Change check"
+        buttonClassName={`${btn} max-w-[200px] justify-between`}
+        title={changeText.title}
+        subtitle={changeText.subtitle}
+        searchPlaceholder={changeText.searchPlaceholder}
+        types={conditionTypes}
+        recommendedTypes={recommendedConditions}
+        onPick={(t) =>
+          onChangeCondition({
+            ...defaultCondition(t as LogicCondition['type']),
+            negated: condition.negated,
+          })
+        }
+      />
+      <SchemaParamForm
+        kind="condition"
+        type={condition.type}
+        value={condition as unknown as Record<string, unknown>}
+        onChange={(next) =>
+          onChangeCondition({
+            ...(next as LogicCondition),
+            negated: condition.negated,
+          })
+        }
+        contextSpritePath={contextSpritePath}
+        ambiguousTargetSpritePaths={ambiguousTargetSpritePaths}
+      />
+      <ComponentRequirementWarning requirement={conditionRequirement(condition, project, board)} />
+      <button
+        type="button"
+        className={link}
+        onClick={onRemove}
+      >
+        Remove
+      </button>
+    </div>
+  )
+}
+
 function SimpleConditions({
   event,
   board,
@@ -509,7 +584,7 @@ function SimpleConditions({
 }) {
   const conditions = event.conditions ?? []
   const combineOp = event.conditionsOperator ?? 'AND'
-  const [pickerOpen, setPickerOpen] = useState(false)
+  const addText = conditionCatalogText('add')
 
   function appendCondition(type: LogicCondition['type']) {
     onChange({
@@ -544,59 +619,27 @@ function SimpleConditions({
               />
             </div>
           )}
-        <div
-          className="flex flex-wrap items-center gap-2 rounded border border-[var(--border)] bg-[var(--logic-block)] px-2 py-1.5"
-        >
-          <ConditionPolaritySelect
-            negated={c.negated}
-            onChange={(negated) => {
-              const conds = conditions.slice()
-              conds[i] = { ...c, negated: negated || undefined }
-              onChange({ ...event, conditions: conds, conditionRoot: undefined })
-            }}
-          />
-          <TypePicker
-            kind="condition"
-            types={conditionTypes}
-            recommendedTypes={recommendedConditions}
-            value={c.type}
-            onChange={(t) => {
-              const next = conditions.slice()
-              next[i] = {
-                ...defaultCondition(t as LogicCondition['type']),
-                negated: c.negated,
-              }
-              onChange({ ...event, conditions: next, conditionRoot: undefined })
-            }}
-            className="max-w-[200px]"
-          />
-          <SchemaParamForm
-            kind="condition"
-            type={c.type}
-            value={c as unknown as Record<string, unknown>}
-            onChange={(next) => {
-              const conds = conditions.slice()
-              conds[i] = { ...(next as LogicCondition), negated: c.negated }
-              onChange({ ...event, conditions: conds, conditionRoot: undefined })
-            }}
+          <ConditionRow
+            condition={c}
+            conditionTypes={conditionTypes}
+            recommendedConditions={recommendedConditions}
+            board={board}
+            project={project}
             contextSpritePath={contextSpritePath}
             ambiguousTargetSpritePaths={ambiguousTargetSpritePaths}
-          />
-          <ComponentRequirementWarning requirement={conditionRequirement(c, project, board)} />
-          <button
-            type="button"
-            className={link}
-            onClick={() =>
+            onChangeCondition={(condition) => {
+              const conds = conditions.slice()
+              conds[i] = condition
+              onChange({ ...event, conditions: conds, conditionRoot: undefined })
+            }}
+            onRemove={() =>
               onChange({
                 ...event,
                 onlyIfEnabled: true,
                 conditions: conditions.filter((_, j) => j !== i),
               })
             }
-          >
-            Remove
-          </button>
-        </div>
+          />
         </Fragment>
       ))}
       {conditions.length === 1 && (
@@ -619,31 +662,19 @@ function SimpleConditions({
         </div>
       )}
       <div className="pt-1">
-        <button
-          type="button"
-          className={btn}
-          title="Browse the check catalog"
-          onClick={() => setPickerOpen(true)}
-        >
-          <Plus size={13} />
-          Add check
-        </button>
-      </div>
-      {pickerOpen && (
-        <CatalogPicker
+        <CatalogSelectButton
           kind="condition"
-          title="Add check — extra requirement"
-          subtitle="The rule only fires when every check passes."
-          searchPlaceholder="Search checks… (variable, key, distance)"
+          label="Add check"
+          buttonTitle="Browse the check catalog"
+          icon={<Plus size={13} />}
+          title={addText.title}
+          subtitle={addText.subtitle}
+          searchPlaceholder={addText.searchPlaceholder}
           types={conditionTypes}
           recommendedTypes={recommendedConditions}
-          onPick={(t) => {
-            appendCondition(t as LogicCondition['type'])
-            setPickerOpen(false)
-          }}
-          onClose={() => setPickerOpen(false)}
+          onPick={(t) => appendCondition(t as LogicCondition['type'])}
         />
-      )}
+      </div>
     </div>
   )
 }
