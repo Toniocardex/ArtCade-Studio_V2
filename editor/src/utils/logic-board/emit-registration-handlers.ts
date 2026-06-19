@@ -74,22 +74,55 @@ export function emitDestroyRegistration(ctx: EmitCtx): string[] | null {
   )
 }
 
-export function emitAnimationEndRegistration(ctx: EmitCtx): string[] | null {
+/** Lua expression for an animation trigger's clip filter ("*" = any clip). */
+function animClipExpr(clipName: string | undefined): string {
+  return clipName && clipName.length > 0 ? luaString(clipName) : luaString('*')
+}
+
+/**
+ * Animation triggers whose handler is a plain `(entityId, clip)` closure with
+ * no extra filtering, keyed by the prelude helper that registers them. Frame
+ * is excluded — it needs an in-closure frame guard (see below).
+ */
+const ANIM_LIFECYCLE_HELPERS: Partial<Record<LogicEvent['trigger']['type'], string>> = {
+  onAnimationEnd: '_logic_reg_anim_end',
+  onAnimationStart: '_logic_reg_anim_start',
+  onAnimationLoop: '_logic_reg_anim_loop',
+  onAnimationChange: '_logic_reg_anim_change',
+}
+
+export function emitAnimationLifecycleRegistration(ctx: EmitCtx): string[] | null {
   const trig = ctx.ev.trigger
-  if (trig.type !== 'onAnimationEnd') return null
-  const clip =
-    trig.clipName && trig.clipName.length > 0
-      ? luaString(trig.clipName)
-      : luaString('*')
+  const helper = ANIM_LIFECYCLE_HELPERS[trig.type]
+  if (!helper) return null
+  const clipName = 'clipName' in trig ? trig.clipName : undefined
   const I = INDENT
   return lifecycleHandlerLines(
     ctx.ev,
     ctx.slugs,
     ctx.project,
-    `${I}_logic_reg_anim_end(${ctx.source}, ${clip}, function(entityId, clip)`,
+    `${I}${helper}(${ctx.source}, ${animClipExpr(clipName)}, function(entityId, clip)`,
     `${I}end)`,
     ctx.logicDebugTrace,
   )
+}
+
+export function emitAnimationFrameRegistration(ctx: EmitCtx): string[] | null {
+  const trig = ctx.ev.trigger
+  if (trig.type !== 'onAnimationFrame') return null
+  // The runtime fires onFrame on every frame advance; filter to the target
+  // frame inside the closure so C++ stays clip/frame-agnostic.
+  const target = Math.max(0, Math.floor(Number(trig.frameIndex) || 0))
+  const I = INDENT
+  return [
+    `${I}_logic_reg_anim_frame(${ctx.source}, ${animClipExpr(trig.clipName)}, function(entityId, clip, frame)`,
+    `${I}${I}if frame == ${target} then`,
+    `${I}${I}${I}local self = entityId`,
+    `${I}${I}${I}local other = nil`,
+    ...emitGuardedActions(ctx.ev, I + I + I, ctx.slugs, null, ctx.project, ctx.logicDebugTrace),
+    `${I}${I}end`,
+    `${I}end)`,
+  ]
 }
 
 function pushInputRegistrationBlock(

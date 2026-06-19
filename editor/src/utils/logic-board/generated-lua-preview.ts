@@ -22,6 +22,10 @@ function rewriteRuntimeHelpers(line: string): string {
     .replace('_logic_reg_spawn(', 'lifecycle.onSpawn(')
     .replace('_logic_reg_destroy(', 'lifecycle.onDestroy(')
     .replace('_logic_reg_anim_end(', 'animation.onFinished(')
+    .replace('_logic_reg_anim_start(', 'animation.onStart(')
+    .replace('_logic_reg_anim_frame(', 'animation.onFrame(')
+    .replace('_logic_reg_anim_loop(', 'animation.onLoop(')
+    .replace('_logic_reg_anim_change(', 'animation.onChanged(')
     .replace('_logic_reg_sensor_enter(', 'sensor.onEnter(')
     .replace('_logic_reg_sensor_exit(', 'sensor.onExit(')
 }

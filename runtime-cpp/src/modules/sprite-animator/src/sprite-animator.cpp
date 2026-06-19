@@ -14,12 +14,29 @@ void SpriteAnimator::shutdown() {
     clips_.clear();
     instances_.clear();
     finishBuffer_.clear();
+    eventBuffer_.clear();
 }
 
 std::vector<SpriteAnimator::FinishEvent> SpriteAnimator::pollFinished() {
     std::vector<FinishEvent> out;
     out.swap(finishBuffer_);
     return out;
+}
+
+std::vector<SpriteAnimator::AnimEvent> SpriteAnimator::pollEvents() {
+    std::vector<AnimEvent> out;
+    out.swap(eventBuffer_);
+    return out;
+}
+
+void SpriteAnimator::setWatchedEventKinds(uint32_t mask) {
+    watchedEventKinds_ = mask;
+}
+
+void SpriteAnimator::pushEvent(AnimEventKind kind, EntityId entity,
+                               const std::string& clipName, int frameIdx) {
+    if (watchedEventKinds_ & animEventBit(kind))
+        eventBuffer_.push_back({ kind, entity, clipName, frameIdx });
 }
 
 // ------------------------------------------------------------------ clip definition
@@ -48,6 +65,13 @@ void SpriteAnimator::removeClipsExcept(const std::unordered_set<std::string>& ke
 // ------------------------------------------------------------------ instance control
 
 void SpriteAnimator::play(EntityId entity, const std::string& clipName, FinishCb onFinish) {
+    // Capture the previously playing clip (if any) before we overwrite the
+    // instance, so we can surface a Change event on a real clip switch.
+    std::string prevClip;
+    auto prevIt = instances_.find(entity);
+    if (prevIt != instances_.end() && prevIt->second.state != PlayState::Stopped)
+        prevClip = prevIt->second.clipName;
+
     AnimInstance inst;
     inst.clipName = clipName;
     inst.frameIdx = 0;
@@ -55,6 +79,10 @@ void SpriteAnimator::play(EntityId entity, const std::string& clipName, FinishCb
     inst.state    = PlayState::Playing;
     inst.onFinish = std::move(onFinish);
     instances_[entity] = std::move(inst);
+
+    pushEvent(AnimEventKind::Start, entity, clipName, 0);
+    if (!prevClip.empty() && prevClip != clipName)
+        pushEvent(AnimEventKind::Change, entity, clipName, 0);
 }
 
 void SpriteAnimator::pause(EntityId entity) {
@@ -113,6 +141,8 @@ void SpriteAnimator::update(float dt) {
             if (inst.frameIdx >= count) {
                 if (clip.loop) {
                     inst.frameIdx = 0;
+                    pushEvent(AnimEventKind::Loop, entity, inst.clipName, 0);
+                    pushEvent(AnimEventKind::Frame, entity, inst.clipName, 0);
                 } else {
                     inst.frameIdx = count - 1;
                     inst.state    = PlayState::Stopped;
@@ -121,6 +151,8 @@ void SpriteAnimator::update(float dt) {
                         inst.onFinish(entity, inst.clipName);
                     break;
                 }
+            } else {
+                pushEvent(AnimEventKind::Frame, entity, inst.clipName, inst.frameIdx);
             }
         }
     }
@@ -167,6 +199,7 @@ void SpriteAnimator::removeEntity(EntityId entity) {
 void SpriteAnimator::clearInstances() {
     instances_.clear();
     finishBuffer_.clear();
+    eventBuffer_.clear();
 }
 
 } // namespace ArtCade::Modules

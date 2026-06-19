@@ -27,6 +27,11 @@ describe('trigger-execution', () => {
     expect(triggerPickerGroup('onTriggerEnter')).toBe('Zones')
     expect(triggerPickerGroup('onObjectClick')).toBe('Input')
     expect(triggerPickerGroup('onObjectHoverEnter')).toBe('Input')
+    expect(triggerPickerGroup('onAnimationEnd')).toBe('Animation')
+    expect(triggerPickerGroup('onAnimationStart')).toBe('Animation')
+    expect(triggerPickerGroup('onAnimationFrame')).toBe('Animation')
+    expect(triggerPickerGroup('onAnimationLoop')).toBe('Animation')
+    expect(triggerPickerGroup('onAnimationChange')).toBe('Animation')
   })
 
   it('onInput pressed is event, down is polling', () => {

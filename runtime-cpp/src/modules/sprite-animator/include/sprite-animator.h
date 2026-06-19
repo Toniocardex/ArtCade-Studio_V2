@@ -92,6 +92,42 @@ public:
     /** Drain animation-finished events since last poll (non-loop clips only). */
     std::vector<FinishEvent> pollFinished();
 
+    // ------------------------------------------------------------------ generic anim events
+
+    /**
+     * Non-finish playback events surfaced to the Logic Board:
+     *   Start  — a clip began playing (play() called)
+     *   Frame  — the frame index advanced (carries the new frameIdx)
+     *   Loop   — a looping clip wrapped past its last frame
+     *   Change — play() switched to a clip different from the one playing
+     * Finish keeps its own buffer (pollFinished) for renderer/back-compat.
+     */
+    enum class AnimEventKind { Start, Frame, Loop, Change };
+
+    struct AnimEvent {
+        AnimEventKind kind;
+        EntityId      entityId = 0;
+        std::string   clipName;
+        int           frameIdx = 0;
+    };
+
+    /** Bit for an AnimEventKind within a watched-kinds mask. */
+    static constexpr uint32_t animEventBit(AnimEventKind kind) {
+        return 1u << static_cast<uint32_t>(kind);
+    }
+
+    /**
+     * Restrict which AnimEvent kinds update()/play() record. A kind whose bit
+     * is clear is never pushed, so unwatched kinds cost nothing on the
+     * per-frame path. The host sets this each frame from the set of registered
+     * Logic Board handlers; defaults to every kind enabled.
+     * @param mask  OR of animEventBit(kind) for each kind to record.
+     */
+    void setWatchedEventKinds(uint32_t mask);
+
+    /** Drain Start/Frame/Loop/Change events accumulated since the last poll. */
+    std::vector<AnimEvent> pollEvents();
+
     // Remove instance data for an entity (e.g. on entity destroy)
     void removeEntity(EntityId entity);
 
@@ -109,9 +145,15 @@ private:
         FinishCb    onFinish;
     };
 
+    /** Record an AnimEvent only if its kind is currently watched. */
+    void pushEvent(AnimEventKind kind, EntityId entity,
+                   const std::string& clipName, int frameIdx);
+
     std::unordered_map<std::string, Clip>        clips_;
     std::unordered_map<EntityId, AnimInstance>   instances_;
     std::vector<FinishEvent>                   finishBuffer_;
+    std::vector<AnimEvent>                      eventBuffer_;
+    uint32_t                                   watchedEventKinds_ = ~0u;
 };
 
 } // namespace ArtCade::Modules

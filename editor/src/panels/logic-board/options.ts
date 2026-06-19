@@ -51,6 +51,14 @@ export function defaultTrigger(type: LogicTriggerType): LogicTrigger {
       return { type: 'onTriggerExit', withClass: '' }
     case 'onAnimationEnd':
       return { type: 'onAnimationEnd', clipName: '' }
+    case 'onAnimationStart':
+      return { type: 'onAnimationStart', clipName: '' }
+    case 'onAnimationFrame':
+      return { type: 'onAnimationFrame', clipName: '', frameIndex: 0 }
+    case 'onAnimationLoop':
+      return { type: 'onAnimationLoop', clipName: '' }
+    case 'onAnimationChange':
+      return { type: 'onAnimationChange', clipName: '' }
     case 'onDestroy':
       return { type: 'onDestroy' }
     case 'onHealthDepleted':

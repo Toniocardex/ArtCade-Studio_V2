@@ -29,6 +29,10 @@ export const RECOMMENDED_TRIGGER_TYPES: readonly LogicTriggerType[] = [
   'onDestroy',
   'onMessage',
   'onAnimationEnd',
+  'onAnimationStart',
+  'onAnimationFrame',
+  'onAnimationLoop',
+  'onAnimationChange',
 ] as const
 
 /** Triggers that always (or usually) run inside tick(dt) polling. */
@@ -117,7 +121,13 @@ export function usesTickFallback(
   }
   if (trig.type === 'onTriggerEnter' || trig.type === 'onTriggerExit')
     return false
-  if (trig.type === 'onAnimationEnd') return false
+  if (
+    trig.type === 'onAnimationEnd' ||
+    trig.type === 'onAnimationStart' ||
+    trig.type === 'onAnimationFrame' ||
+    trig.type === 'onAnimationLoop' ||
+    trig.type === 'onAnimationChange'
+  ) return false
   if (trig.type === 'onSpawn') {
     // Never tick-fallback. Falling into the generic per-frame gate path
     // would make the rule fire every frame for the pool — a real
@@ -183,6 +193,10 @@ export function triggerPickerGroup(type: LogicTriggerType): string {
     case 'onObjectHoverExit':
       return 'Input'
     case 'onAnimationEnd':
+    case 'onAnimationStart':
+    case 'onAnimationFrame':
+    case 'onAnimationLoop':
+    case 'onAnimationChange':
       return 'Animation'
     case 'onMessage':
       return 'Game messages'

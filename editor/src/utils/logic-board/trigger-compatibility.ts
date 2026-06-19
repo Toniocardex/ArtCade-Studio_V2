@@ -56,7 +56,11 @@ export const TRIGGER_TARGET_MATRIX: Record<
   onTriggerEnter:   ENTITY_TARGETS,
   onTriggerExit:    ENTITY_TARGETS,
   // Graphics — tied to an entity's sprite animator.
-  onAnimationEnd:  ENTITY_TARGETS,
+  onAnimationEnd:    ENTITY_TARGETS,
+  onAnimationStart:  ENTITY_TARGETS,
+  onAnimationFrame:  ENTITY_TARGETS,
+  onAnimationLoop:   ENTITY_TARGETS,
+  onAnimationChange: ENTITY_TARGETS,
   onObjectClick:   ENTITY_TARGETS,
   onObjectHoverEnter: ENTITY_TARGETS,
   onObjectHoverExit:  ENTITY_TARGETS,

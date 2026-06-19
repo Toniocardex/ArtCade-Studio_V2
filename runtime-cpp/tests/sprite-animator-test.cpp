@@ -162,6 +162,84 @@ static void test_independent_entities() {
     std::puts("  [ok] multiple entities are independent");
 }
 
+static int countKind(const std::vector<SA::AnimEvent>& evs, SA::AnimEventKind k) {
+    int n = 0;
+    for (const auto& e : evs) if (e.kind == k) ++n;
+    return n;
+}
+
+static void test_play_emits_start_event() {
+    SA sa; sa.init();
+    sa.defineClip(makeClip("run", 4));
+    sa.play(1u, "run");
+    auto evs = sa.pollEvents();
+    assert(countKind(evs, SA::AnimEventKind::Start) == 1);
+    assert(countKind(evs, SA::AnimEventKind::Change) == 0);  // no prior clip
+    // pollEvents drains the buffer.
+    assert(sa.pollEvents().empty());
+    std::puts("  [ok] play emits a Start event (no Change on first clip)");
+}
+
+static void test_switch_clip_emits_change_event() {
+    SA sa; sa.init();
+    sa.defineClip(makeClip("idle", 2));
+    sa.defineClip(makeClip("run", 4));
+    sa.play(1u, "idle");
+    sa.pollEvents();                 // drain the idle Start
+    sa.play(1u, "run");
+    auto evs = sa.pollEvents();
+    assert(countKind(evs, SA::AnimEventKind::Start) == 1);
+    assert(countKind(evs, SA::AnimEventKind::Change) == 1);
+    std::puts("  [ok] switching to a different clip emits a Change event");
+}
+
+static void test_update_emits_frame_events() {
+    SA sa; sa.init();
+    sa.defineClip(makeClip("run", 4, 10.f));   // 0.1 s/frame
+    sa.play(1u, "run");
+    sa.pollEvents();                 // drain Start
+    sa.update(0.25f);                // advance ~2 frames
+    auto evs = sa.pollEvents();
+    assert(countKind(evs, SA::AnimEventKind::Frame) == 2);
+    assert(evs.back().frameIdx == sa.frameIndex(1u));
+    std::puts("  [ok] update emits a Frame event per advanced frame");
+}
+
+static void test_loop_emits_loop_event() {
+    SA sa; sa.init();
+    sa.defineClip(makeClip("run", 3, 10.f, true));   // 3 frames, loops
+    sa.play(1u, "run");
+    sa.pollEvents();                 // drain Start
+    sa.update(0.35f);                // 3.5 frames → one wrap
+    auto evs = sa.pollEvents();
+    assert(countKind(evs, SA::AnimEventKind::Loop) == 1);
+    std::puts("  [ok] looping clip emits a Loop event on wrap");
+}
+
+static void test_watched_kinds_gate_emission() {
+    SA sa; sa.init();
+    sa.defineClip(makeClip("run", 4, 10.f, true));
+
+    // Watch only Start: play emits Start, update emits no Frame/Loop.
+    sa.setWatchedEventKinds(SA::animEventBit(SA::AnimEventKind::Start));
+    sa.play(1u, "run");
+    sa.update(0.25f);
+    auto evs = sa.pollEvents();
+    assert(countKind(evs, SA::AnimEventKind::Start) == 1);
+    assert(countKind(evs, SA::AnimEventKind::Frame) == 0);
+    assert(countKind(evs, SA::AnimEventKind::Loop) == 0);
+
+    // Watch nothing: zero events recorded at all.
+    sa.setWatchedEventKinds(0u);
+    sa.play(2u, "run");
+    sa.update(0.25f);
+    assert(sa.pollEvents().empty());
+
+    // Frame still advances even when its event is unwatched (state is intact).
+    assert(sa.frameIndex(2u) >= 1);
+    std::puts("  [ok] watched-kinds mask gates which events are recorded");
+}
+
 int main() {
     std::puts("=== SpriteAnimator check ===");
     test_init_shutdown();
@@ -177,6 +255,11 @@ int main() {
     test_current_frame_rect();
     test_remove_entity();
     test_independent_entities();
-    std::puts("=== all 13 tests passed ===");
+    test_play_emits_start_event();
+    test_switch_clip_emits_change_event();
+    test_update_emits_frame_events();
+    test_loop_emits_loop_event();
+    test_watched_kinds_gate_emission();
+    std::puts("=== all 18 tests passed ===");
     return 0;
 }

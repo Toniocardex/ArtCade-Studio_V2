@@ -18,7 +18,8 @@ describe('trigger-compatibility matrix', () => {
   it('lifecycle/physics/animation triggers reject global boards', () => {
     for (const t of [
       'onSpawn', 'onDestroy', 'onCollision', 'onCollisionEnter', 'onCollisionExit',
-      'onTriggerEnter', 'onTriggerExit', 'onAnimationEnd',
+      'onTriggerEnter', 'onTriggerExit',
+      'onAnimationEnd', 'onAnimationStart', 'onAnimationFrame', 'onAnimationLoop', 'onAnimationChange',
       'onObjectClick', 'onObjectHoverEnter', 'onObjectHoverExit',
     ] as const) {
       expect(isTriggerCompatible(t, 'global')).toBe(false)
@@ -38,7 +39,8 @@ describe('trigger-compatibility matrix', () => {
       'onStart', 'onUpdate', 'onSpawn', 'onDestroy', 'onHealthDepleted', 'onDamaged',
       'onCollision', 'onCollisionEnter', 'onCollisionExit',
       'onTriggerEnter', 'onTriggerExit',
-      'onAnimationEnd', 'onInput', 'onMouseInput',
+      'onAnimationEnd', 'onAnimationStart', 'onAnimationFrame', 'onAnimationLoop', 'onAnimationChange',
+      'onInput', 'onMouseInput',
       'onObjectClick', 'onObjectHoverEnter', 'onObjectHoverExit',
       'onMessage', 'onTimer', 'onLeaveScreen',
     ]

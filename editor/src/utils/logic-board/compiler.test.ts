@@ -1605,6 +1605,38 @@ describe('Logic Components — Phase C (engine-hook triggers)', () => {
     expect(lua).toContain('debug.log("done")')
     expect(lua).toContain('debug.log("bye")')
   })
+
+  it('onAnimationStart/Loop/Change register their dedicated animation handlers', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({ id: 'as', trigger: { type: 'onAnimationStart', clipName: 'attack' },
+             actions: [{ type: 'debugLog', message: 'start' }] }),
+        ev({ id: 'al', trigger: { type: 'onAnimationLoop', clipName: 'walk' },
+             actions: [{ type: 'debugLog', message: 'loop' }] }),
+        ev({ id: 'ac', trigger: { type: 'onAnimationChange', clipName: 'run' },
+             actions: [{ type: 'debugLog', message: 'change' }] }),
+      ]),
+    ])
+    expect(lua).toContain('_logic_reg_anim_start("Player", "attack", function(entityId, clip)')
+    expect(lua).toContain('_logic_reg_anim_loop("Player", "walk", function(entityId, clip)')
+    expect(lua).toContain('_logic_reg_anim_change("Player", "run", function(entityId, clip)')
+    // Each helper is emitted in the prelude only when referenced.
+    expect(lua).toContain('animation.onStart(source, clip, fn)')
+    expect(lua).toContain('animation.onLoop(source, clip, fn)')
+    expect(lua).toContain('animation.onChanged(source, clip, fn)')
+  })
+
+  it('onAnimationFrame filters to the target frame inside the closure', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({ id: 'af', trigger: { type: 'onAnimationFrame', clipName: 'attack', frameIndex: 3 },
+             actions: [{ type: 'debugLog', message: 'hit' }] }),
+      ]),
+    ])
+    expect(lua).toContain('_logic_reg_anim_frame("Player", "attack", function(entityId, clip, frame)')
+    expect(lua).toContain('if frame == 3 then')
+    expect(lua).toContain('debug.log("hit")')
+  })
 })
 
 describe('RULE alias integrity', () => {

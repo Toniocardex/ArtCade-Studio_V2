@@ -145,6 +145,76 @@
       }
     }
   },
+  "onAnimationStart": {
+    "type": "object",
+    "required": ["type", "clipName"],
+    "properties": {
+      "type": { "const": "onAnimationStart" },
+      "clipName": { "type": "string", "minLength": 1 }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "On Animation Start",
+      "category": "Graphics",
+      "executionMode": "event",
+      "params": {
+        "clipName": { "widget": "animationClip", "label": "Clip", "placeholder": "attack" }
+      }
+    }
+  },
+  "onAnimationFrame": {
+    "type": "object",
+    "required": ["type", "clipName", "frameIndex"],
+    "properties": {
+      "type": { "const": "onAnimationFrame" },
+      "clipName": { "type": "string", "minLength": 1 },
+      "frameIndex": { "type": "number", "minimum": 0 }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "On Animation Frame",
+      "category": "Graphics",
+      "executionMode": "event",
+      "params": {
+        "clipName": { "widget": "animationClip", "label": "Clip", "placeholder": "attack" },
+        "frameIndex": { "widget": "number", "label": "Frame", "placeholder": "3" }
+      }
+    }
+  },
+  "onAnimationLoop": {
+    "type": "object",
+    "required": ["type", "clipName"],
+    "properties": {
+      "type": { "const": "onAnimationLoop" },
+      "clipName": { "type": "string", "minLength": 1 }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "On Animation Loop",
+      "category": "Graphics",
+      "executionMode": "event",
+      "params": {
+        "clipName": { "widget": "animationClip", "label": "Clip", "placeholder": "walk" }
+      }
+    }
+  },
+  "onAnimationChange": {
+    "type": "object",
+    "required": ["type", "clipName"],
+    "properties": {
+      "type": { "const": "onAnimationChange" },
+      "clipName": { "type": "string", "minLength": 1 }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "On Animation Change",
+      "category": "Graphics",
+      "executionMode": "event",
+      "params": {
+        "clipName": { "widget": "animationClip", "label": "Clip", "placeholder": "run" }
+      }
+    }
+  },
   "onDestroy": {
     "type": "object",
     "required": ["type"],

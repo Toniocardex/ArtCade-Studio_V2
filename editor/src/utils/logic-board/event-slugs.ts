@@ -38,6 +38,12 @@ function triggerSlugSource(t: LogicTrigger): string {
     case 'onTriggerEnter':  return t.withClass ? `on_enter_${t.withClass}` : 'on_enter_zone'
     case 'onTriggerExit':   return t.withClass ? `on_exit_${t.withClass}` : 'on_exit_zone'
     case 'onAnimationEnd':  return t.clipName ? `on_anim_end_${t.clipName}` : 'on_anim_end'
+    case 'onAnimationStart': return t.clipName ? `on_anim_start_${t.clipName}` : 'on_anim_start'
+    case 'onAnimationFrame': return t.clipName
+      ? `on_anim_frame_${t.clipName}_${t.frameIndex ?? 0}`
+      : `on_anim_frame_${t.frameIndex ?? 0}`
+    case 'onAnimationLoop': return t.clipName ? `on_anim_loop_${t.clipName}` : 'on_anim_loop'
+    case 'onAnimationChange': return t.clipName ? `on_anim_change_${t.clipName}` : 'on_anim_change'
     case 'onMessage':       return `on_msg_${t.messageName || 'unnamed'}`
     case 'onTimer':         return t.repeat ? `every_${t.seconds || 0}s` : `after_${t.seconds || 0}s`
     case 'onInput': {

@@ -79,13 +79,32 @@ export const DESTROY_REGISTRATION_LINES = [
   'end',
 ]
 
-export const ANIMATION_REGISTRATION_LINES = [
-  '',
-  'local function _logic_reg_anim_end(source, clip, fn)',
-  `${INDENT}animation.onFinished(source, clip, fn)`,
-  `${INDENT}_logic_track(_logic_bag_unsub(animation._onFinished, _logic_compose_key(source, clip), fn))`,
-  'end',
-]
+/**
+ * Build the prelude helper that registers one animation event kind and tracks
+ * its unsubscribe. `helper` is the generated Lua-local name, `method` the
+ * runtime `animation.<method>` registrant, `bag` its handler table — the three
+ * must stay aligned with animation-api.cpp.
+ */
+function animRegistrationLines(helper: string, method: string, bag: string): string[] {
+  return [
+    '',
+    `local function ${helper}(source, clip, fn)`,
+    `${INDENT}animation.${method}(source, clip, fn)`,
+    `${INDENT}_logic_track(_logic_bag_unsub(animation.${bag}, _logic_compose_key(source, clip), fn))`,
+    'end',
+  ]
+}
+
+export const ANIMATION_REGISTRATION_LINES = animRegistrationLines(
+  '_logic_reg_anim_end', 'onFinished', '_onFinished')
+export const ANIM_START_REGISTRATION_LINES = animRegistrationLines(
+  '_logic_reg_anim_start', 'onStart', '_onStart')
+export const ANIM_FRAME_REGISTRATION_LINES = animRegistrationLines(
+  '_logic_reg_anim_frame', 'onFrame', '_onFrame')
+export const ANIM_LOOP_REGISTRATION_LINES = animRegistrationLines(
+  '_logic_reg_anim_loop', 'onLoop', '_onLoop')
+export const ANIM_CHANGE_REGISTRATION_LINES = animRegistrationLines(
+  '_logic_reg_anim_change', 'onChanged', '_onChanged')
 
 export const INPUT_PRESSED_REGISTRATION_LINES = [
   '',

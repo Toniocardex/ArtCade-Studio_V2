@@ -9,7 +9,8 @@ import type { LogicBoard, LogicEvent } from '../../types/logic-board'
 import type { ProjectDoc } from '../../types'
 import { poolExpr, sensorSourceExpr, isGlobalTarget } from './lua-helpers'
 import {
-  emitAnimationEndRegistration,
+  emitAnimationFrameRegistration,
+  emitAnimationLifecycleRegistration,
   emitDestroyRegistration,
   emitOnInputRegistration,
   emitSensorRegistration,
@@ -38,7 +39,8 @@ export function emitEventRegistration(
   return (
     emitSpawnRegistration(ctx)
     ?? emitDestroyRegistration(ctx)
-    ?? emitAnimationEndRegistration(ctx)
+    ?? emitAnimationLifecycleRegistration(ctx)
+    ?? emitAnimationFrameRegistration(ctx)
     ?? emitOnInputRegistration(ctx)
     ?? emitSensorRegistration(ctx)
     ?? emitTimerRegistration(ctx)

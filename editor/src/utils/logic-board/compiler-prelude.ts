@@ -9,6 +9,10 @@ import type { CompilerPreludeFeatures } from './compiler-prelude-features'
 import { usesUnsubTracking } from './compiler-prelude-features'
 import {
   ANIMATION_REGISTRATION_LINES,
+  ANIM_START_REGISTRATION_LINES,
+  ANIM_FRAME_REGISTRATION_LINES,
+  ANIM_LOOP_REGISTRATION_LINES,
+  ANIM_CHANGE_REGISTRATION_LINES,
   BAG_UNSUB_LINES,
   COLLISION_EDGE_HELPER_LINES,
   COLLISION_EDGE_STATE_LINES,
@@ -75,6 +79,10 @@ function helperLines(features: CompilerPreludeFeatures): string[] {
     ...(features.spawnRegistration ? SPAWN_REGISTRATION_LINES : []),
     ...(features.destroyRegistration ? DESTROY_REGISTRATION_LINES : []),
     ...(features.animationRegistration ? ANIMATION_REGISTRATION_LINES : []),
+    ...(features.animStartRegistration ? ANIM_START_REGISTRATION_LINES : []),
+    ...(features.animFrameRegistration ? ANIM_FRAME_REGISTRATION_LINES : []),
+    ...(features.animLoopRegistration ? ANIM_LOOP_REGISTRATION_LINES : []),
+    ...(features.animChangeRegistration ? ANIM_CHANGE_REGISTRATION_LINES : []),
     ...(features.inputPressedRegistration ? INPUT_PRESSED_REGISTRATION_LINES : []),
     ...(features.inputReleasedRegistration ? INPUT_RELEASED_REGISTRATION_LINES : []),
     ...(features.sensorEnterRegistration ? SENSOR_ENTER_REGISTRATION_LINES : []),

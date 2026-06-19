@@ -50,6 +50,22 @@ export function triggerSummaryPlain(
       return t.clipName
         ? `When animation "${t.clipName}" ends`
         : 'When an animation ends'
+    case 'onAnimationStart':
+      return t.clipName
+        ? `When animation "${t.clipName}" starts`
+        : 'When an animation starts'
+    case 'onAnimationFrame':
+      return t.clipName
+        ? `When animation "${t.clipName}" reaches frame ${t.frameIndex ?? 0}`
+        : `When an animation reaches frame ${t.frameIndex ?? 0}`
+    case 'onAnimationLoop':
+      return t.clipName
+        ? `When animation "${t.clipName}" loops`
+        : 'When an animation loops'
+    case 'onAnimationChange':
+      return t.clipName
+        ? `When the animation changes to "${t.clipName}"`
+        : 'When the animation changes'
     case 'onDestroy':
       return 'When this object is destroyed'
     case 'onInput': {

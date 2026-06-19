@@ -123,6 +123,10 @@ export type LogicTrigger =
   | { type: 'onTriggerEnter'; withClass: string }                   // edge: started touching
   | { type: 'onTriggerExit'; withClass: string }                    // edge: stopped touching
   | { type: 'onAnimationEnd'; clipName?: string }
+  | { type: 'onAnimationStart'; clipName?: string }                 // animation.onStart (clip begins playing)
+  | { type: 'onAnimationFrame'; clipName?: string; frameIndex: number } // animation.onFrame (reaches frameIndex)
+  | { type: 'onAnimationLoop'; clipName?: string }                  // animation.onLoop (looping clip wraps)
+  | { type: 'onAnimationChange'; clipName?: string }                // animation.onChanged (switched to this clip)
   | { type: 'onDestroy' }                                           // lifecycle.onDestroy
   | {
       type: 'onInput'

@@ -5,6 +5,10 @@ export interface CompilerPreludeFeatures {
   spawnRegistration: boolean
   destroyRegistration: boolean
   animationRegistration: boolean
+  animStartRegistration: boolean
+  animFrameRegistration: boolean
+  animLoopRegistration: boolean
+  animChangeRegistration: boolean
   inputPressedRegistration: boolean
   inputReleasedRegistration: boolean
   sensorEnterRegistration: boolean
@@ -32,10 +36,12 @@ export function derivePreludeFeatures(
   tickBlocks: string[],
 ): CompilerPreludeFeatures {
   const lines = [...initBlocks, ...tickBlocks]
+  // Matches every animation helper: _logic_reg_anim_end/start/frame/loop/change.
+  const usesAnyAnim = linesUse(lines, '_logic_reg_anim_')
   const bagUnsub =
     linesUse(lines, '_logic_reg_spawn(') ||
     linesUse(lines, '_logic_reg_destroy(') ||
-    linesUse(lines, '_logic_reg_anim_end(') ||
+    usesAnyAnim ||
     linesUse(lines, '_logic_reg_input_pressed(') ||
     linesUse(lines, '_logic_reg_input_released(') ||
     linesUse(lines, '_logic_reg_sensor_enter(') ||
@@ -45,12 +51,16 @@ export function derivePreludeFeatures(
     random: linesUse(lines, '_logic_random_'),
     bagUnsub,
     composeKey:
-      linesUse(lines, '_logic_reg_anim_end(') ||
+      usesAnyAnim ||
       linesUse(lines, '_logic_reg_sensor_enter(') ||
       linesUse(lines, '_logic_reg_sensor_exit('),
     spawnRegistration: linesUse(lines, '_logic_reg_spawn('),
     destroyRegistration: linesUse(lines, '_logic_reg_destroy('),
     animationRegistration: linesUse(lines, '_logic_reg_anim_end('),
+    animStartRegistration: linesUse(lines, '_logic_reg_anim_start('),
+    animFrameRegistration: linesUse(lines, '_logic_reg_anim_frame('),
+    animLoopRegistration: linesUse(lines, '_logic_reg_anim_loop('),
+    animChangeRegistration: linesUse(lines, '_logic_reg_anim_change('),
     inputPressedRegistration: linesUse(lines, '_logic_reg_input_pressed('),
     inputReleasedRegistration: linesUse(lines, '_logic_reg_input_released('),
     sensorEnterRegistration: linesUse(lines, '_logic_reg_sensor_enter('),
