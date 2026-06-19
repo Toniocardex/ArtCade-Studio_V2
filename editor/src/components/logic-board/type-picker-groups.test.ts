@@ -31,6 +31,19 @@ describe('buildTypePickerGroups', () => {
     expect(labels).toEqual(['Time', 'Object state', 'Input'])
   })
 
+  it('keeps movement actions before movement settings and physics actions', () => {
+    const groups = buildTypePickerGroups('action', [
+      'setTopDownMaxSpeed',
+      'setVelocity',
+      'controllerMovement',
+    ])
+    expect(groups.map((g) => g.label)).toEqual([
+      'Movement',
+      'Movement settings',
+      'Physics',
+    ])
+  })
+
   it('flattenTypePickerGroups preserves group order', () => {
     const groups = buildTypePickerGroups('action', ['setVelocity', 'playSound', 'destroyEntity'], {
       recommendedTypes: ['setVelocity'],

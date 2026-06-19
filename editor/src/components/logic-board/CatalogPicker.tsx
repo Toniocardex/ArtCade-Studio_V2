@@ -57,6 +57,7 @@ const CATEGORY_ICONS: Record<string, LucideIcon> = {
   Messaging: MessageSquare,
   'Every frame': Repeat,
   Movement: Move,
+  'Movement settings': Settings2,
   Health: Heart,
   'AI Logic': Brain,
   Lifecycle: RefreshCw,

@@ -32,10 +32,17 @@ const GROUP_ORDER = [
   'Every frame',
   'Recommended',
   'Movement',
+  'Movement settings',
+  'Physics',
   'Health',
   'AI Logic',
   'Lifecycle',
   'Audio',
+  'Camera',
+  'Graphics',
+  'Entities',
+  'State',
+  'System',
   'Advanced',
 ] as const
 

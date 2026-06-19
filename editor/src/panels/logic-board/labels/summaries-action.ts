@@ -97,11 +97,11 @@ export function actionSummaryPlain(
       return `Move ${who(a.target)} ${dir} at speed ${a.speed}`
     }
     case 'controllerMovement':
-      return `Move ${who(a.target)} ${a.direction} while active`
+      return `Set ${who(a.target)} direction ${a.direction} while active`
     case 'moveController':
       return a.direction === 'stop'
-        ? `Stop controller movement for ${who(a.target)}`
-        : `Start controller movement for ${who(a.target)} ${a.direction}`
+        ? `Stop fixed movement for ${who(a.target)}`
+        : `Keep ${who(a.target)} moving ${a.direction} until changed`
     case 'clearMovementIntent':
       return `Stop controller movement for ${who(a.target)}`
     case 'requestPlatformerJump':

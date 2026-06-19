@@ -44,6 +44,8 @@ describe('friendly-labels', () => {
     expect(triggerDisplayName('onMessage')).toBe('Game message')
     expect(actionDisplayName('spawnEntity')).toBe('Create object')
     expect(actionDisplayName('spawnEntityAtPointer')).toBe('Create at pointer')
+    expect(actionDisplayName('controllerMovement')).toBe('Set direction')
+    expect(actionDisplayName('moveController')).toBe('Set fixed direction')
   })
 
   it('summarizes Space key press in plain English', () => {

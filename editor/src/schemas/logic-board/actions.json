@@ -464,7 +464,7 @@
     "additionalProperties": false,
     "x-artcade": {
       "label": "Move In Direction",
-      "category": "Physics",
+      "category": "Movement",
       "params": {
         "target": { "widget": "target", "label": "Target" },
         "direction": {
@@ -486,7 +486,7 @@
     },
     "additionalProperties": false,
     "x-artcade": {
-      "label": "Movement",
+      "label": "Set direction",
       "category": "Movement",
       "params": {
         "target": { "widget": "target", "label": "Target" },
@@ -508,7 +508,7 @@
     },
     "additionalProperties": false,
     "x-artcade": {
-      "label": "Start Controller Movement",
+      "label": "Set fixed direction",
       "category": "Movement",
       "params": {
         "target": { "widget": "target", "label": "Target" },
@@ -563,7 +563,7 @@
     "additionalProperties": false,
     "x-artcade": {
       "label": "Platformer Max Speed",
-      "category": "Movement",
+      "category": "Movement settings",
       "params": {
         "target": { "widget": "target", "label": "Target" },
         "speed": { "widget": "numberSource", "label": "Max speed (px/s)" }
@@ -581,7 +581,7 @@
     "additionalProperties": false,
     "x-artcade": {
       "label": "Platformer Jump Force",
-      "category": "Movement",
+      "category": "Movement settings",
       "params": {
         "target": { "widget": "target", "label": "Target" },
         "force": { "widget": "numberSource", "label": "Jump force (px/s)" }
@@ -599,7 +599,7 @@
     "additionalProperties": false,
     "x-artcade": {
       "label": "Platformer Gravity",
-      "category": "Movement",
+      "category": "Movement settings",
       "params": {
         "target": { "widget": "target", "label": "Target" },
         "gravity": { "widget": "numberSource", "label": "Gravity (px/s²)" }
@@ -617,7 +617,7 @@
     "additionalProperties": false,
     "x-artcade": {
       "label": "Top-Down Max Speed",
-      "category": "Movement",
+      "category": "Movement settings",
       "params": {
         "target": { "widget": "target", "label": "Target" },
         "speed": { "widget": "numberSource", "label": "Max speed (px/s)" }
@@ -635,7 +635,7 @@
     "additionalProperties": false,
     "x-artcade": {
       "label": "Top-Down Acceleration",
-      "category": "Movement",
+      "category": "Movement settings",
       "params": {
         "target": { "widget": "target", "label": "Target" },
         "acceleration": { "widget": "numberSource", "label": "Acceleration (px/s²)" }
@@ -653,7 +653,7 @@
     "additionalProperties": false,
     "x-artcade": {
       "label": "Top-Down Friction",
-      "category": "Movement",
+      "category": "Movement settings",
       "params": {
         "target": { "widget": "target", "label": "Target" },
         "friction": { "widget": "numberSource", "label": "Friction (px/s²)" }
@@ -671,7 +671,7 @@
     "additionalProperties": false,
     "x-artcade": {
       "label": "Top-Down 4-Directions",
-      "category": "Movement",
+      "category": "Movement settings",
       "params": {
         "target": { "widget": "target", "label": "Target" },
         "enabled": { "widget": "boolean", "label": "Four directions only" }
@@ -1313,7 +1313,7 @@
     "additionalProperties": false,
     "x-artcade": {
       "label": "Look At Target",
-      "category": "Movement",
+      "category": "Physics",
       "params": {
         "target": { "widget": "target", "label": "Rotate" },
         "toward": { "widget": "target", "label": "Face toward" }
@@ -1437,7 +1437,7 @@
     "additionalProperties": false,
     "x-artcade": {
       "label": "Linear Mover Direction",
-      "category": "Movement",
+      "category": "Movement settings",
       "params": {
         "target": { "widget": "target", "label": "Target" },
         "directionX": { "widget": "numberSource", "label": "Direction X" },
@@ -1456,7 +1456,7 @@
     "additionalProperties": false,
     "x-artcade": {
       "label": "Linear Mover Speed",
-      "category": "Movement",
+      "category": "Movement settings",
       "params": {
         "target": { "widget": "target", "label": "Target" },
         "speed": { "widget": "numberSource", "label": "Speed (px/s)" }
@@ -1473,7 +1473,7 @@
     "additionalProperties": false,
     "x-artcade": {
       "label": "Pause Linear Mover",
-      "category": "Movement",
+      "category": "Movement settings",
       "params": {
         "target": { "widget": "target", "label": "Target" }
       }
@@ -1489,7 +1489,7 @@
     "additionalProperties": false,
     "x-artcade": {
       "label": "Resume Linear Mover",
-      "category": "Movement",
+      "category": "Movement settings",
       "params": {
         "target": { "widget": "target", "label": "Target" }
       }

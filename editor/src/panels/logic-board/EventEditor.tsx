@@ -94,7 +94,7 @@ const VARIABLE_ACTION_TYPES = new Set<LogicAction['type']>([
 
 function actionFitsTrigger(actionType: LogicAction['type'], trigger: LogicTrigger): boolean {
   if (actionType !== 'controllerMovement') return true
-  return trigger.type === 'onInput' && trigger.eventType === 'down'
+  return trigger.type === 'onInput'
 }
 
 function recommendedTypesForTrigger(
