@@ -41,8 +41,6 @@ import { SceneObjectsTree } from './SceneObjectsTree'
 import { TreeSection } from './TreeSection'
 import { TreeFolder, TreeLeaf } from './TreeNode'
 import { AssetToolbar } from './AssetToolbar'
-import { AssetDetailStrip } from '../asset-explorer/AssetDetailStrip'
-import { AssetMediaDetailStrip } from '../asset-explorer/AssetMediaDetailStrip'
 import { ImageTreeThumbnail } from '../asset-explorer/ImageTreeThumbnail'
 import { TilesetTreeThumbnail } from '../asset-explorer/TilesetTreeThumbnail'
 import {
@@ -1048,13 +1046,6 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
               <p className="px-3 py-2 text-[10px] text-[var(--muted)]">No dialog scripts yet. Use View → Dialog library…</p>
             ) : null}
           </TreeSection>
-
-          {assets.selection?.type === 'image' ? (
-            <AssetDetailStrip selection={assets.selection} />
-          ) : null}
-          {assets.selection?.type === 'audio' || assets.selection?.type === 'font' ? (
-            <AssetMediaDetailStrip selection={assets.selection} />
-          ) : null}
         </div>
         ) : null}
       </div>
