@@ -92,13 +92,13 @@ void stepPlatformerController(World& world,
     // Resolve the climb zone. A dedicated LadderComponent (explicit bbox + axis)
     // takes precedence; we fall back to the v1 className overlap only when no
     // ladder component matches, so existing projects keep working.
+    // Resolve the climb zone. forEachActiveLadder is O(ladders) (EnTT view) and
+    // firstOverlappingInClass is indexed by class, so both probes are free when
+    // the scene has no climbable geometry — no per-frame gate needed.
     bool  onLadder         = false;
     bool  ladderHorizontal = false;
     float climbSpeed       = pc.climbSpeed;
-    // Only probe for ladders when the body could be on one — already climbing,
-    // or feeding movement input that could engage. A standing body, or any
-    // platformer in a ladderless scene, pays nothing per frame.
-    if (rt.climbing || (intent && intent->hasMovement)) {
+    {
         const auto selfShape =
             CollisionQuery::shapeFromEntity(world.entityGateway_, id);
         world.entityGateway_.forEachActiveLadder(
@@ -112,11 +112,11 @@ void stepPlatformerController(World& world,
                 ladderHorizontal = (lad.axis == "horizontal");
                 climbSpeed       = (lad.climbSpeed > 0.f) ? lad.climbSpeed : pc.climbSpeed;
             });
-        if (!onLadder && !pc.climbClass.empty()
-            && CollisionQuery::firstOverlappingInClass(
-                   world.entityGateway_, id, pc.climbClass) != INVALID_ENTITY) {
-            onLadder = true;   // v1 fallback: vertical axis, pc.climbSpeed
-        }
+    }
+    if (!onLadder && !pc.climbClass.empty()
+        && CollisionQuery::firstOverlappingInClass(
+               world.entityGateway_, id, pc.climbClass) != INVALID_ENTITY) {
+        onLadder = true;   // v1 fallback: vertical axis, pc.climbSpeed
     }
 
     // Engage on input along the ladder's axis (vertical by default); this keeps
