@@ -13,9 +13,9 @@ type ClipPreviewPaneProps = Readonly<{
 
 /** Routes between the live WASM preview and the CSS fallback; owns no animation state. */
 export function ClipPreviewPane({ asset, session }: ClipPreviewPaneProps) {
-  const { activeClip, previewSrc } = session
+  const { draftClip, previewClip, previewSrc } = session
   const playbackSrc = previewSrc ?? asset.dataUrl ?? ''
-  const hasFrames = (activeClip?.frames.length ?? 0) > 0
+  const hasFrames = (previewClip?.frames.length ?? 0) > 0
 
   if (!hasFrames || playbackSrc.length === 0) {
     return (
@@ -33,10 +33,10 @@ export function ClipPreviewPane({ asset, session }: ClipPreviewPaneProps) {
       className="shrink-0 p-3 border-t border-[var(--border)] bg-[var(--panel-3)]"
       data-testid="spritesheet-preview-host"
     >
-      {isReady() ? (
+      {isReady() && !draftClip ? (
         <SpritesheetEnginePreview asset={asset} session={session} />
       ) : (
-        <ClipPreviewCss asset={asset} clip={activeClip!} playbackSrc={playbackSrc} />
+        <ClipPreviewCss asset={asset} clip={previewClip!} playbackSrc={playbackSrc} />
       )}
     </div>
   )
@@ -103,13 +103,20 @@ function ClipPreviewCss({
           src={playbackSrc}
           alt=""
           draggable={false}
+          className="absolute max-w-none pointer-events-none"
           style={{
             imageRendering: 'pixelated',
-            marginLeft: -frame.x,
-            marginTop: -frame.y,
+            left: -frame.x * fallbackScale,
+            top: -frame.y * fallbackScale,
+            transform: `scale(${fallbackScale})`,
+            transformOrigin: '0 0',
           }}
         />
-        <PivotMarker left={pivotPx.left} top={pivotPx.top} radius={6} />
+        <PivotMarker
+          left={pivotPx.left * fallbackScale}
+          top={pivotPx.top * fallbackScale}
+          radius={6}
+        />
       </div>
       <span className="text-[10px] text-[var(--muted)]">
         Frame {previewTick + 1} / {clip.frames.length}

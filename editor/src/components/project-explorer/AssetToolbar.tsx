@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import {
   ChevronsDownUp,
   ChevronsUpDown,
+  Film,
   Grid3x3,
   ImagePlus,
   Music,
@@ -12,6 +13,7 @@ import {
 export type AssetToolbarProps = Readonly<{
   disabled: boolean
   canRemove: boolean
+  onCreateAnimatedSprite: () => void
   onImportImage: () => void
   onImportTileset: () => void
   onImportAudio: () => void
@@ -62,6 +64,7 @@ function Divider() {
 export function AssetToolbar({
   disabled,
   canRemove,
+  onCreateAnimatedSprite,
   onImportImage,
   onImportTileset,
   onImportAudio,
@@ -88,11 +91,17 @@ export function AssetToolbar({
         Import
       </span>
       <IconBtn
+        icon={<Film size={14} />}
+        onClick={onCreateAnimatedSprite}
+        disabled={disabled}
+        title="Create animated sprite"
+        accent
+      />
+      <IconBtn
         icon={<ImagePlus size={14} />}
         onClick={onImportImage}
         disabled={disabled}
         title="Import image (PNG, JPEG, GIF)"
-        accent
       />
       <IconBtn
         icon={<Grid3x3 size={14} />}

@@ -10,6 +10,7 @@ import {
   frameKey,
   frameRangeFromIndices,
   framesToSortedIndices,
+  guessStripSlicing,
   indicesInCellRect,
   indicesRangeToFrames,
   indicesSetToFrames,
@@ -87,6 +88,12 @@ describe('spritesheet-studio', () => {
     expect(strip.cols).toBe(4)
     expect(strip.rows).toBe(1)
     expect(strip.cellW).toBe(32)
+  })
+
+  it('guessStripSlicing detects simple horizontal and vertical strips', () => {
+    expect(guessStripSlicing(64, 16)).toEqual({ axis: 'horizontal', frameCount: 4 })
+    expect(guessStripSlicing(16, 64)).toEqual({ axis: 'vertical', frameCount: 4 })
+    expect(guessStripSlicing(48, 32)).toBeNull()
   })
 
   it('resolveSlicing strip mode matches strip layout', () => {

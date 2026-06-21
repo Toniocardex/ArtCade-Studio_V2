@@ -39,6 +39,8 @@ export function AtlasGrid({ session, defaultPivot }: AtlasGridProps) {
     selectAllFrames,
     clearSelection,
     activeClip,
+    draftClip,
+    clips,
   } = session
 
   const viewport = useAtlasViewport(imgWH)
@@ -50,6 +52,7 @@ export function AtlasGrid({ session, defaultPivot }: AtlasGridProps) {
 
   const scaledCellW = cellW * zoom
   const scaledCellH = cellH * zoom
+  const canEditSelection = activeClip != null || draftClip != null || clips.length === 0
 
   const pointerToCell = useCallback(
     (clientX: number, clientY: number): { col: number; row: number } | null => {
@@ -77,7 +80,7 @@ export function AtlasGrid({ session, defaultPivot }: AtlasGridProps) {
   )
 
   const onPointerDown = (e: PointerEvent, col: number, row: number) => {
-    if (!activeClip) return
+    if (!canEditSelection) return
     e.currentTarget.setPointerCapture(e.pointerId)
     pointerStartRef.current = { x: e.clientX, y: e.clientY }
     dragRef.current = { col0: col, row0: row, col1: col, row1: row, additive: e.shiftKey }
@@ -136,7 +139,7 @@ export function AtlasGrid({ session, defaultPivot }: AtlasGridProps) {
         cellLabel={`cell ${cellW}×${cellH}`}
         onSelectAll={selectAllFrames}
         onClearSelection={clearSelection}
-        canEditSelection={activeClip != null && grid.totalFrames > 0}
+        canEditSelection={canEditSelection && grid.totalFrames > 0}
       />
       <div
         ref={scrollRef}
@@ -217,7 +220,9 @@ export function AtlasGrid({ session, defaultPivot }: AtlasGridProps) {
         </div>
       </div>
       <p className="text-[9px] text-[var(--muted)] px-3 py-1 shrink-0">
-        Drag to select a rectangle. Shift+drag adds to the selection. Click toggles one cell.
+        {clips.length === 0
+          ? 'Select frames to start a new animation draft. Shift+drag adds to the selection.'
+          : 'Drag to select a rectangle. Shift+drag adds to the selection. Click toggles one cell.'}
       </p>
     </div>
   )

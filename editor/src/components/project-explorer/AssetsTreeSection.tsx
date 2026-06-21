@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from 'react'
-import { FileText, Music, Type } from 'lucide-react'
+import { FileText, Film, ImagePlus, Music, Type } from 'lucide-react'
 import type { ProjectDoc } from '../../types'
 import type { useEditorDispatch } from '../../store/editor-store'
 import type { buildProjectExplorerData } from '../../utils/project-explorer-tree'
@@ -87,6 +87,7 @@ export function AssetsTreeSection({
       <AssetToolbar
         disabled={!project}
         canRemove={assets.canRemove}
+        onCreateAnimatedSprite={assets.triggerCreateAnimatedSprite}
         onImportImage={assets.triggerImportImage}
         onImportTileset={assets.triggerImportTileset}
         onImportAudio={assets.triggerImportAudio}
@@ -427,9 +428,21 @@ export function AssetsTreeSection({
                           openExplorerContextMenu(
                             ev,
                             [
+                              ...(group.usage === 'sprite'
+                                ? [
+                                    {
+                                      id: 'create-animated-sprite',
+                                      label: 'Create animated sprite',
+                                      onSelect: () => assets.triggerCreateAnimatedSprite(),
+                                    },
+                                  ]
+                                : []),
                               {
                                 id: `import-${group.usage}`,
-                                label: 'Import image here',
+                                label:
+                                  group.usage === 'sprite'
+                                    ? 'Import still sprite'
+                                    : 'Import image here',
                                 onSelect: () => assets.triggerImportImage({ usage: group.usage }),
                               },
                               {
@@ -442,6 +455,39 @@ export function AssetsTreeSection({
                           )
                         }
                       >
+                        {group.images.length === 0 && !tree.hasSearch ? (
+                          <div className="flex flex-col items-start gap-1 py-1.5 pl-9 pr-2">
+                            {group.usage === 'sprite' ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={assets.triggerCreateAnimatedSprite}
+                                  className="inline-flex items-center gap-1.5 rounded border border-[var(--accent)] bg-[var(--accent-bg)] px-2 py-1 text-[10px] font-semibold text-[var(--accent)] hover:bg-[rgb(var(--accent-rgb)/0.18)]"
+                                >
+                                  <Film size={12} />
+                                  Create animated sprite
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => assets.triggerImportImage({ usage: 'sprite' })}
+                                  className="inline-flex items-center gap-1.5 rounded border border-[var(--border)] px-2 py-1 text-[10px] text-[var(--muted)] hover:text-[var(--text)] hover:border-[var(--border-2)]"
+                                >
+                                  <ImagePlus size={12} />
+                                  Import still sprite
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => assets.triggerImportImage({ usage: group.usage })}
+                                className="inline-flex items-center gap-1.5 rounded border border-[var(--border)] px-2 py-1 text-[10px] text-[var(--muted)] hover:text-[var(--text)] hover:border-[var(--border-2)]"
+                              >
+                                <ImagePlus size={12} />
+                                Import image
+                              </button>
+                            )}
+                          </div>
+                        ) : null}
                         {usageFolders.map((vf) => {
                           const folderImages = vf.assetRefs
                             .filter((ref) => ref.type === 'image')

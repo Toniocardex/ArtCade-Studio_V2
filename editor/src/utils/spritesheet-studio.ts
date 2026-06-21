@@ -13,6 +13,11 @@ export type SpritesheetGrid = Readonly<{
 export type SlicingMode = 'cell' | 'layout' | 'strip'
 export type StripAxis = 'horizontal' | 'vertical'
 
+export type StripSlicingGuess = Readonly<{
+  axis: StripAxis
+  frameCount: number
+}> | null
+
 export type GridRemainder = Readonly<{
   remainderW: number
   remainderH: number
@@ -95,6 +100,23 @@ export function deriveStripLayout(
     rows,
     ...deriveCellSizeFromLayout(imgW, imgH, cols, rows),
   }
+}
+
+export function guessStripSlicing(imgW: number, imgH: number): StripSlicingGuess {
+  const maxFrames = 64
+  if (imgW <= 0 || imgH <= 0) return null
+
+  const horizontalFrames = imgW % imgH === 0 ? imgW / imgH : 0
+  if (horizontalFrames >= 2 && horizontalFrames <= maxFrames && imgW > imgH) {
+    return { axis: 'horizontal', frameCount: horizontalFrames }
+  }
+
+  const verticalFrames = imgH % imgW === 0 ? imgH / imgW : 0
+  if (verticalFrames >= 2 && verticalFrames <= maxFrames && imgH > imgW) {
+    return { axis: 'vertical', frameCount: verticalFrames }
+  }
+
+  return null
 }
 
 export function resolveSlicing(

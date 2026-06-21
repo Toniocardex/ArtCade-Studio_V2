@@ -29,6 +29,7 @@ const ASSET_PANEL_SELECTOR = '[data-panel="project-explorer"], [data-panel="asse
 export type ImageImportTarget = Readonly<{
   usage: ImageAssetUsage
   folderId?: string
+  openStudioAfterImport?: boolean
 }>
 
 export type AssetImportFolderTarget = Readonly<{
@@ -135,9 +136,16 @@ export function useAssetExplorerActions() {
             })
           }
           dispatch({ type: 'SELECT_INSPECTOR_ASSET', asset: { type: 'image', id: asset.id } })
+          if (target.openStudioAfterImport) {
+            dispatch({ type: 'SPRITESHEET_STUDIO_OPEN', imageAssetId: asset.id })
+          }
           showFlash(imported.persisted
-            ? `Imported ${file.name}`
-            : `${file.name} (save to persist)`)
+            ? target.openStudioAfterImport
+              ? `Imported ${file.name} in Sprite Studio`
+              : `Imported ${file.name}`
+            : target.openStudioAfterImport
+              ? `${file.name} in Sprite Studio (save to persist)`
+              : `${file.name} (save to persist)`)
         } catch (err) {
           console.error('[Asset] Image import failed:', err)
           showFlash(`Import failed: ${file.name}`)
@@ -354,6 +362,10 @@ export function useAssetExplorerActions() {
     imageImportTargetRef.current = target ?? { usage: 'sprite' }
     imageRef.current?.click()
   }, [])
+  const triggerCreateAnimatedSprite = useCallback(() => {
+    imageImportTargetRef.current = { usage: 'sprite', openStudioAfterImport: true }
+    imageRef.current?.click()
+  }, [])
   const triggerImportAudio = useCallback((target?: AssetImportFolderTarget) => {
     audioImportTargetRef.current = target ?? {}
     audioRef.current?.click()
@@ -411,6 +423,7 @@ export function useAssetExplorerActions() {
     openTilesetEditor,
     openImageStudio,
     triggerImportImage,
+    triggerCreateAnimatedSprite,
     triggerImportAudio,
     triggerImportFont,
     triggerImportTileset,

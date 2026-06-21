@@ -2,7 +2,9 @@ import { Plus, Trash2 } from 'lucide-react'
 import type { ImageAsset } from '../../types'
 import { ExplorerLabelCta } from '../../components/project-explorer/explorer-cta'
 import { useEditorSelector } from '../../store/editor-store'
+import { validateClipDraft } from '../../utils/spritesheet-clip-draft'
 import { findDuplicateClipNameAcrossAssets } from '../../utils/spritesheet-clip-names'
+import { ClipComposerPanel } from './ClipComposerPanel'
 import { ClipPreviewPane } from './ClipPreviewPane'
 import type { SpritesheetStudioSession } from './useSpritesheetStudioSession'
 
@@ -19,10 +21,14 @@ export function ClipListPanel({ asset, assetId, session }: ClipListPanelProps) {
     activeClipIndex,
     setActiveClipIndex,
     activeClip,
+    draftClip,
     rangeUi,
     setRange,
     patchActiveClip,
+    patchDraft,
     addClip,
+    saveDraft,
+    cancelDraft,
     removeActiveClip,
     grid,
   } = session
@@ -31,6 +37,11 @@ export function ClipListPanel({ asset, assetId, session }: ClipListPanelProps) {
     project && activeClip?.name
       ? findDuplicateClipNameAcrossAssets(project, activeClip.name, assetId)
       : null
+  const duplicateDraftOnAsset =
+    project && draftClip?.name
+      ? findDuplicateClipNameAcrossAssets(project, draftClip.name, assetId)
+      : null
+  const draftValidation = validateClipDraft(draftClip, clips, duplicateDraftOnAsset)
 
   return (
     <div
@@ -38,39 +49,59 @@ export function ClipListPanel({ asset, assetId, session }: ClipListPanelProps) {
       data-testid="spritesheet-clips-column"
     >
       <div className="flex flex-col gap-3 p-3 flex-1 min-h-0 overflow-y-auto">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-[10px] uppercase tracking-wider text-[var(--muted)]">Clips</p>
-        <ExplorerLabelCta
-          label="Add clip"
-          title="Add animation clip"
-          onClick={addClip}
-          tone="primary"
-          icon={<Plus size={11} aria-hidden />}
-        />
-      </div>
-
-      {clips.length > 0 ? (
-        <div className="flex flex-wrap gap-1">
-          {clips.map((c, i) => (
-            <button
-              key={`${c.name}-${i}`}
-              type="button"
-              onClick={() => setActiveClipIndex(i)}
-              className={`px-2 py-0.5 rounded text-[10px] border truncate max-w-full ${
-                i === activeClipIndex
-                  ? 'border-[var(--accent)] bg-[rgb(var(--accent-rgb)/0.18)] text-[var(--text)]'
-                  : 'border-[var(--border)] text-[var(--muted)]'
-              }`}
-            >
-              {c.name}
-            </button>
-          ))}
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[10px] uppercase tracking-wider text-[var(--muted)]">Clips</p>
+          {clips.length > 0 && !draftClip ? (
+            <ExplorerLabelCta
+              label="New animation"
+              title="Create a new animation from selected frames"
+              onClick={addClip}
+              tone="primary"
+              icon={<Plus size={11} aria-hidden />}
+            />
+          ) : null}
         </div>
-      ) : (
-        <p className="text-[10px] text-[var(--muted)]">No clips yet. Add a clip, then select frames on the grid.</p>
-      )}
 
-      {activeClip ? (
+        {clips.length > 0 ? (
+          <div className="flex flex-wrap gap-1">
+            {clips.map((c, i) => (
+              <button
+                key={`${c.name}-${i}`}
+                type="button"
+                onClick={() => setActiveClipIndex(i)}
+                className={`px-2 py-0.5 rounded text-[10px] border truncate max-w-full ${
+                  i === activeClipIndex && !draftClip
+                    ? 'border-[var(--accent)] bg-[rgb(var(--accent-rgb)/0.18)] text-[var(--text)]'
+                    : 'border-[var(--border)] text-[var(--muted)]'
+                }`}
+                title={`${c.frames.length} frames / ${c.fps} FPS${c.loop ? ' / Loop' : ''}`}
+              >
+                {c.name}
+              </button>
+            ))}
+          </div>
+        ) : draftClip ? null : (
+          <div className="rounded border border-[var(--border)] bg-[var(--panel)] p-3 text-[10px]">
+            <p className="text-[var(--text)] font-medium">No animations yet</p>
+            <p className="mt-1 text-[var(--muted)] leading-snug">
+              Select frames on the sheet to create an animation.
+            </p>
+          </div>
+        )}
+
+        {draftClip ? (
+          <ClipComposerPanel
+            draftClip={draftClip}
+            validation={draftValidation}
+            onPatchDraft={patchDraft}
+            onSave={() => {
+              if (draftValidation.canSave) saveDraft()
+            }}
+            onCancel={cancelDraft}
+          />
+        ) : null}
+
+      {!draftClip && activeClip ? (
         <div className="space-y-2 text-[10px]">
           <label className="block text-[var(--muted)]">
             Name

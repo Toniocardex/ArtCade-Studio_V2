@@ -2,13 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { PivotMarker, pivotOffsetInRect } from '../../components/pivot/PivotMarkerOverlay'
 import type { AnimationClipDef, ImageAsset } from '../../types'
 import { getAssetDefaultPivot } from '../../utils/sprite-pivot-resolve'
-import { isReady } from '../../utils/wasm-bridge'
 import {
   clampPreviewDisplayScale,
   previewDisplayScale,
 } from '../spritesheet-studio/SpritesheetEnginePreview'
-import { SpritesheetEnginePreview } from '../spritesheet-studio/SpritesheetEnginePreview'
-import type { SpritesheetStudioSession } from '../spritesheet-studio/useSpritesheetStudioSession'
 
 type InspectorClipPreviewProps = Readonly<{
   asset: ImageAsset
@@ -22,23 +19,8 @@ export function InspectorClipPreview({ asset, clipName }: InspectorClipPreviewPr
     [asset.clips, clipName],
   )
   const playbackSrc = asset.dataUrl ?? ''
-  const wasmSession = useMemo((): SpritesheetStudioSession | null => {
-    if (!clip) return null
-    return { activeClip: clip, previewSrc: playbackSrc || null } as SpritesheetStudioSession
-  }, [clip, playbackSrc])
 
   if (!clip || clip.frames.length === 0 || !playbackSrc) return null
-
-  if (isReady() && wasmSession) {
-    return (
-      <div
-        className="mt-2 rounded border border-[var(--border)] bg-[var(--bg)] p-2"
-        data-testid="inspector-clip-preview"
-      >
-        <SpritesheetEnginePreview asset={asset} session={wasmSession} />
-      </div>
-    )
-  }
 
   return (
     <InspectorClipCssPreview
@@ -125,6 +107,8 @@ function InspectorClipCssPreview({
               imageRendering: 'pixelated',
               left: -frame.x * scale,
               top: -frame.y * scale,
+              transform: `scale(${scale})`,
+              transformOrigin: '0 0',
             }}
           />
           <PivotMarker
@@ -135,7 +119,7 @@ function InspectorClipCssPreview({
         </div>
       </div>
       <span className="text-[8px] text-[var(--muted)]">
-        {clip.name} · {previewTick + 1}/{clip.frames.length}
+        {clip.name} / {previewTick + 1}/{clip.frames.length}
       </span>
     </div>
   )
