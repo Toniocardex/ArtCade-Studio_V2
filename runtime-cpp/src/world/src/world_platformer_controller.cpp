@@ -95,28 +95,28 @@ void stepPlatformerController(World& world,
     bool  onLadder         = false;
     bool  ladderHorizontal = false;
     float climbSpeed       = pc.climbSpeed;
-    {
-        Transform selfTf{};
-        if (world.entityGateway_.getTransform(id, selfTf)) {
-            const auto selfShape =
-                CollisionQuery::shapeFromEntity(world.entityGateway_, id);
-            world.entityGateway_.forEachActiveLadder(
-                [&](EntityId lid, const LadderComponent& lad) {
-                    if (onLadder || lid == id) return;
-                    Transform lt{};
-                    if (!world.entityGateway_.getTransform(lid, lt)) return;
-                    if (!PhysicsMath::shapesOverlap(selfShape, ladderShape(lad, lt)))
-                        return;
-                    onLadder         = true;
-                    ladderHorizontal = (lad.axis == "horizontal");
-                    climbSpeed       = (lad.climbSpeed > 0.f) ? lad.climbSpeed : pc.climbSpeed;
-                });
+    // Only probe for ladders when the body could be on one — already climbing,
+    // or feeding movement input that could engage. A standing body, or any
+    // platformer in a ladderless scene, pays nothing per frame.
+    if (rt.climbing || (intent && intent->hasMovement)) {
+        const auto selfShape =
+            CollisionQuery::shapeFromEntity(world.entityGateway_, id);
+        world.entityGateway_.forEachActiveLadder(
+            [&](EntityId lid, const LadderComponent& lad) {
+                if (onLadder || lid == id) return;
+                Transform lt{};
+                if (!world.entityGateway_.getTransform(lid, lt)) return;
+                if (!PhysicsMath::shapesOverlap(selfShape, ladderShape(lad, lt)))
+                    return;
+                onLadder         = true;
+                ladderHorizontal = (lad.axis == "horizontal");
+                climbSpeed       = (lad.climbSpeed > 0.f) ? lad.climbSpeed : pc.climbSpeed;
+            });
+        if (!onLadder && !pc.climbClass.empty()
+            && CollisionQuery::firstOverlappingInClass(
+                   world.entityGateway_, id, pc.climbClass) != INVALID_ENTITY) {
+            onLadder = true;   // v1 fallback: vertical axis, pc.climbSpeed
         }
-    }
-    if (!onLadder && !pc.climbClass.empty()
-        && CollisionQuery::firstOverlappingInClass(
-               world.entityGateway_, id, pc.climbClass) != INVALID_ENTITY) {
-        onLadder = true;   // v1 fallback: vertical axis, pc.climbSpeed
     }
 
     // Engage on input along the ladder's axis (vertical by default); this keeps
