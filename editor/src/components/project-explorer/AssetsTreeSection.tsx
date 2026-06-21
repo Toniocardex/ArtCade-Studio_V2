@@ -1,5 +1,4 @@
 import type { Dispatch, SetStateAction } from 'react'
-import { FileText, Film, ImagePlus, Music, Type } from 'lucide-react'
 import type { ProjectDoc } from '../../types'
 import type { useEditorDispatch } from '../../store/editor-store'
 import type { buildProjectExplorerData } from '../../utils/project-explorer-tree'
@@ -9,31 +8,24 @@ import type { useAssetFolderActions } from '../../hooks/useAssetFolderActions'
 import type { useAssetTreeMultiSelect } from '../../hooks/useAssetTreeMultiSelect'
 import {
   explorerFolderIdToCategory,
-  virtualFolderContainingAsset,
   type VirtualAssetRefType,
 } from '../../utils/asset-virtual-folders'
-import { buildAssetFolderMenuItems } from './asset-folder-context-menus'
-import { explorerAssetDragProps } from './explorer-asset-drag'
 import {
   AssetTreeDnDRoot,
-  imageUsageFolderId,
   libraryCategoryFolderId,
-  virtualAssetFolderId,
 } from './asset-tree-dnd'
-import {
-  VirtualFoldersBlock,
-  assetHiddenByVirtualFolder,
-} from './VirtualFoldersBlock'
+import { VirtualFoldersBlock } from './VirtualFoldersBlock'
 import { TreeSection } from './TreeSection'
-import { TreeFolder, TreeLeaf } from './TreeNode'
+import { TreeFolder } from './TreeNode'
 import { AssetToolbar } from './AssetToolbar'
-import { ImageTreeThumbnail } from '../asset-explorer/ImageTreeThumbnail'
-import { TilesetTreeThumbnail } from '../asset-explorer/TilesetTreeThumbnail'
 import {
   openExplorerContextMenu,
   type ExplorerContextMenuState,
 } from './explorer-context-menu'
 import { useAssetFolderMenus } from './useAssetFolderMenus'
+import { AssetImageTree } from './AssetImageTree'
+import { resolveAssetLeaf } from './resolve-asset-leaf'
+import { AssetFolderLeaves } from './AssetFolderLeaves'
 
 export type AssetsTreeSectionProps = Readonly<{
   project: ProjectDoc
@@ -174,557 +166,46 @@ export function AssetsTreeSection({
                   batchRefs={assetMulti.batchRefsInCategory(libraryCategory)}
                   onRenameFolder={assetFolders.renameVirtualFolder}
                   onDeleteFolder={folderHandlers.onDeleteFolder}
-                  resolveLeaf={(type, id) => {
-                    if (type === 'image') {
-                      const imgRow = folder.images.find((i) => i.id === id)
-                      if (!imgRow) return null
-                      const asset = project.assets?.[imgRow.id]
-                      return {
-                        assetType: 'image',
-                        assetId: imgRow.id,
-                        label: imgRow.name,
-                        selected: assetMulti.isSelected('image', imgRow.id),
-                        onClick: (e) =>
-                          assetMulti.handleAssetClick(
-                            e,
-                            'images',
-                            'image',
-                            imgRow.id,
-                            () => assets.setSelection({ type: 'image', id: imgRow.id }),
-                          ),
-                        onDoubleClick: asset
-                          ? () => assets.openImageStudio(imgRow.id)
-                          : undefined,
-                        ...explorerAssetDragProps(
-                          assetMulti.dragRefsFor('images', 'image', imgRow.id),
-                          virtualFolderContainingAsset(project, libraryCategory, 'image', imgRow.id)?.id ?? null,
-                        ),
-                        title: asset
-                          ? 'Double-click to open Sprite Studio'
-                          : imgRow.path,
-                        icon: (
-                          <ImageTreeThumbnail
-                            asset={asset}
-                            projectPath={projectPath}
-                            onOpenStudio={() => assets.openImageStudio(imgRow.id)}
-                          />
-                        ),
-                        spritesheetStudioTrigger: Boolean(asset),
-                        extraMenuItems: asset
-                          ? [
-                              {
-                                id: 'spritesheet-studio',
-                                label: 'Open Sprite Studio',
-                                onSelect: () => assets.openImageStudio(imgRow.id),
-                              },
-                              {
-                                id: 'assign',
-                                label: 'Assign to selected entity',
-                                disabled: selectedEntityId == null,
-                                onSelect: () => assets.assignSprite(asset),
-                              },
-                              {
-                                id: 'remove',
-                                label: 'Remove image',
-                                danger: true,
-                                onSelect: () =>
-                                  dispatch({ type: 'ASSET_REMOVE', assetId: imgRow.id }),
-                              },
-                            ]
-                          : [],
-                      }
-                    }
-                    if (type === 'audio') {
-                      const row = folder.audio.find((a) => a.id === id)
-                      if (!row) return null
-                      return {
-                        assetType: 'audio',
-                        assetId: row.id,
-                        label: row.name,
-                        selected: assetMulti.isSelected('audio', row.id),
-                        onClick: (e) =>
-                          assetMulti.handleAssetClick(e, 'audio', 'audio', row.id, () =>
-                            assets.setSelection({ type: 'audio', id: row.id }),
-                          ),
-                        ...explorerAssetDragProps(
-                          assetMulti.dragRefsFor('audio', 'audio', row.id),
-                          virtualFolderContainingAsset(project, libraryCategory, 'audio', row.id)?.id ?? null,
-                        ),
-                        icon: (
-                          <Music size={11} className="flex-shrink-0 text-[var(--muted)]" />
-                        ),
-                        title: row.path,
-                        extraMenuItems: [
-                          {
-                            id: 'remove',
-                            label: 'Remove audio',
-                            danger: true,
-                            onSelect: () =>
-                              dispatch({ type: 'AUDIO_ASSET_REMOVE', assetId: row.id }),
-                          },
-                        ],
-                      }
-                    }
-                    if (type === 'font') {
-                      const row = folder.fonts.find((f) => f.id === id)
-                      if (!row) return null
-                      return {
-                        assetType: 'font',
-                        assetId: row.id,
-                        label: row.name,
-                        selected: assetMulti.isSelected('font', row.id),
-                        onClick: (e) =>
-                          assetMulti.handleAssetClick(e, 'fonts', 'font', row.id, () =>
-                            assets.setSelection({ type: 'font', id: row.id }),
-                          ),
-                        ...explorerAssetDragProps(
-                          assetMulti.dragRefsFor('fonts', 'font', row.id),
-                          virtualFolderContainingAsset(project, libraryCategory, 'font', row.id)?.id ?? null,
-                        ),
-                        icon: <Type size={11} className="flex-shrink-0 text-[var(--warn)]" />,
-                        title: row.path,
-                        extraMenuItems: [
-                          {
-                            id: 'remove',
-                            label: 'Remove font',
-                            danger: true,
-                            onSelect: () =>
-                              dispatch({ type: 'FONT_ASSET_REMOVE', assetId: row.id }),
-                          },
-                        ],
-                      }
-                    }
-                    const row = folder.tilesets.find((t) => t.assetId === id)
-                    if (!row) return null
-                    const tilesetAsset = project.tilesets?.[row.assetId]
-                    return {
-                      assetType: 'tileset',
-                      assetId: row.assetId,
-                      label: row.name,
-                      selected: assetMulti.isSelected('tileset', row.assetId),
-                      onClick: (e) =>
-                        assetMulti.handleAssetClick(
-                          e,
-                          'tilesets',
-                          'tileset',
-                          row.assetId,
-                          () => assets.openTilesetEditor(row.assetId),
-                        ),
-                      ...explorerAssetDragProps(
-                        assetMulti.dragRefsFor('tilesets', 'tileset', row.assetId),
-                        virtualFolderContainingAsset(project, libraryCategory, 'tileset', row.assetId)?.id ?? null,
-                      ),
-                      icon: (
-                        <TilesetTreeThumbnail
-                          tileset={tilesetAsset}
-                          projectPath={projectPath}
-                          onOpenEditor={() => assets.openTilesetEditor(row.assetId)}
-                        />
-                      ),
-                      title: 'Click to open Tileset Editor',
-                      extraMenuItems: [
-                        {
-                          id: 'edit',
-                          label: 'Open Tileset Editor',
-                          onSelect: () => assets.openTilesetEditor(row.assetId),
-                        },
-                        {
-                          id: 'remove',
-                          label: 'Remove tileset',
-                          danger: true,
-                          onSelect: () =>
-                            dispatch({
-                              type: 'TILESET_ASSET_REMOVE',
-                              assetId: row.assetId,
-                            }),
-                        },
-                      ],
-                    }
-                  }}
+                  resolveLeaf={(type, id) =>
+                    resolveAssetLeaf(type, id, {
+                      folder,
+                      project,
+                      projectPath,
+                      libraryCategory,
+                      assets,
+                      assetMulti,
+                      selectedEntityId,
+                      dispatch,
+                    })
+                  }
                 />
               ) : null}
-              {folder.id === 'images'
-                ? folder.imageUsageGroups.map((group) => {
-                    const usageKey = `asset:images:${group.usage}` as const
-                    const usageOpen = isOpen(usageKey) || tree.hasSearch
-                    const usageFolders = assetFolders.imageFoldersForUsage(group.usage)
-                    const imageFolderFor = (imageId: string) =>
-                      virtualFolderContainingAsset(project, 'images', 'image', imageId)
-                    const renderImageLeaf = (img: (typeof group.images)[number], depth: number) => {
-                      const asset = project.assets?.[img.id]
-                      const isSprite = asset?.usage === 'sprite'
-                      return (
-                        <TreeLeaf
-                          key={img.id}
-                          label={img.name}
-                          depth={depth}
-                          selected={assetMulti.isSelected('image', img.id)}
-                          spritesheetStudioTrigger={Boolean(asset && isSprite)}
-                          {...explorerAssetDragProps(
-                            assetMulti.dragRefsFor('images', 'image', img.id),
-                            imageFolderFor(img.id)?.id ?? null,
-                          )}
-                          onClick={(e) =>
-                            assetMulti.handleAssetClick(
-                              e,
-                              'images',
-                              'image',
-                              img.id,
-                              () => assets.setSelection({ type: 'image', id: img.id }),
-                            )
-                          }
-                          onDoubleClick={
-                            asset && isSprite ? () => assets.openImageStudio(img.id) : undefined
-                          }
-                          onContextMenu={(ev) => {
-                            if (!asset) return
-                            const imageActions = [
-                              ...(isSprite
-                                ? [
-                                    {
-                                      id: 'spritesheet-studio',
-                                      label: 'Open Sprite Studio',
-                                      onSelect: () => assets.openImageStudio(img.id),
-                                    },
-                                    {
-                                      id: 'assign',
-                                      label: 'Assign to selected entity',
-                                      disabled: selectedEntityId == null,
-                                      onSelect: () => assets.assignSprite(asset),
-                                    },
-                                  ]
-                                : []),
-                              {
-                                id: 'remove',
-                                label: 'Remove image',
-                                danger: true,
-                                onSelect: () =>
-                                  dispatch({ type: 'ASSET_REMOVE', assetId: img.id }),
-                              },
-                            ]
-                            openExplorerContextMenu(ev, imageActions, setContextMenu)
-                          }}
-                          title={isSprite ? 'Double-click to open Sprite Studio' : img.path}
-                          icon={
-                            <ImageTreeThumbnail
-                              asset={asset}
-                              projectPath={projectPath}
-                              onOpenStudio={() => assets.openImageStudio(img.id)}
-                            />
-                          }
-                        />
-                      )
-                    }
-                    return (
-                      <TreeFolder
-                        key={group.usage}
-                        label={group.label}
-                        count={group.images.length}
-                        depth={2}
-                        assetFolderId={imageUsageFolderId(group.usage)}
-                        open={usageOpen}
-                        onToggle={() => toggle(usageKey)}
-                        onContextMenu={(ev) =>
-                          openExplorerContextMenu(
-                            ev,
-                            [
-                              ...(group.usage === 'sprite'
-                                ? [
-                                    {
-                                      id: 'create-animated-sprite',
-                                      label: 'Create animated sprite',
-                                      onSelect: () => assets.triggerCreateAnimatedSprite(),
-                                    },
-                                  ]
-                                : []),
-                              {
-                                id: `import-${group.usage}`,
-                                label:
-                                  group.usage === 'sprite'
-                                    ? 'Import still sprite'
-                                    : 'Import image here',
-                                onSelect: () => assets.triggerImportImage({ usage: group.usage }),
-                              },
-                              {
-                                id: `new-folder-${group.usage}`,
-                                label: 'New folder...',
-                                onSelect: () => assetFolders.createVirtualFolder('images', group.usage),
-                              },
-                            ],
-                            setContextMenu,
-                          )
-                        }
-                      >
-                        {group.images.length === 0 && !tree.hasSearch ? (
-                          <div className="flex flex-col items-start gap-1 py-1.5 pl-9 pr-2">
-                            {group.usage === 'sprite' ? (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={assets.triggerCreateAnimatedSprite}
-                                  className="inline-flex items-center gap-1.5 rounded border border-[var(--accent)] bg-[var(--accent-bg)] px-2 py-1 text-[10px] font-semibold text-[var(--accent)] hover:bg-[rgb(var(--accent-rgb)/0.18)]"
-                                >
-                                  <Film size={12} />
-                                  Create animated sprite
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => assets.triggerImportImage({ usage: 'sprite' })}
-                                  className="inline-flex items-center gap-1.5 rounded border border-[var(--border)] px-2 py-1 text-[10px] text-[var(--muted)] hover:text-[var(--text)] hover:border-[var(--border-2)]"
-                                >
-                                  <ImagePlus size={12} />
-                                  Import still sprite
-                                </button>
-                              </>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => assets.triggerImportImage({ usage: group.usage })}
-                                className="inline-flex items-center gap-1.5 rounded border border-[var(--border)] px-2 py-1 text-[10px] text-[var(--muted)] hover:text-[var(--text)] hover:border-[var(--border-2)]"
-                              >
-                                <ImagePlus size={12} />
-                                Import image
-                              </button>
-                            )}
-                          </div>
-                        ) : null}
-                        {usageFolders.map((vf) => {
-                          const folderImages = vf.assetRefs
-                            .filter((ref) => ref.type === 'image')
-                            .map((ref) => group.images.find((img) => img.id === ref.id))
-                            .filter((img): img is (typeof group.images)[number] => Boolean(img))
-                          return (
-                            <TreeFolder
-                              key={vf.id}
-                              label={vf.name}
-                              count={folderImages.length}
-                              depth={3}
-                              assetFolderId={virtualAssetFolderId(vf.id)}
-                              open={isOpen(`asset:vf:${vf.id}`)}
-                              onToggle={() => toggle(`asset:vf:${vf.id}`)}
-                              onDoubleClick={() => assetFolders.renameVirtualFolder(vf.id)}
-                              onContextMenu={(ev) =>
-                                openExplorerContextMenu(
-                                  ev,
-                                  [
-                                    {
-                                      id: `import-${vf.id}`,
-                                      label: 'Import image here',
-                                      onSelect: () =>
-                                        assets.triggerImportImage({
-                                          usage: group.usage,
-                                          folderId: vf.id,
-                                        }),
-                                    },
-                                    {
-                                      id: `rename-${vf.id}`,
-                                      label: 'Rename folder...',
-                                      onSelect: () => assetFolders.renameVirtualFolder(vf.id),
-                                    },
-                                    {
-                                      id: `delete-${vf.id}`,
-                                      label: `Delete folder "${vf.name}"`,
-                                      danger: true,
-                                      onSelect: () => assetFolders.deleteVirtualFolder(vf.id, vf.name),
-                                    },
-                                  ],
-                                  setContextMenu,
-                                )
-                              }
-                            >
-                              {folderImages.map((img) => renderImageLeaf(img, 4))}
-                            </TreeFolder>
-                          )
-                        })}
-                        {group.images
-                          .filter((img) => !imageFolderFor(img.id))
-                          .map((img) => renderImageLeaf(img, 3))}
-                      </TreeFolder>
-                    )
-                  })
-                : null}
-              {folder.audio
-                .filter(
-                  (a) => !assetHiddenByVirtualFolder(project, 'audio', 'audio', a.id),
-                )
-                .map((a) => (
-                <TreeLeaf
-                  key={a.id}
-                  label={a.name}
-                  depth={2}
-                  selected={assetMulti.isSelected('audio', a.id)}
-                  {...explorerAssetDragProps(
-                    assetMulti.dragRefsFor('audio', 'audio', a.id),
-                  )}
-                  onClick={(e) =>
-                    assetMulti.handleAssetClick(e, 'audio', 'audio', a.id, () =>
-                      assets.setSelection({ type: 'audio', id: a.id }),
-                    )
-                  }
-                  onContextMenu={(ev) =>
-                    openExplorerContextMenu(
-                      ev,
-                      buildAssetFolderMenuItems(
-                        project,
-                        'audio',
-                        'audio',
-                        a.id,
-                        makeAssetFolderMenuHandlers('audio', 'audio', a.id),
-                        [
-                          {
-                            id: 'remove',
-                            label: 'Remove audio',
-                            danger: true,
-                            onSelect: () =>
-                              dispatch({ type: 'AUDIO_ASSET_REMOVE', assetId: a.id }),
-                          },
-                        ],
-                        assetMulti.batchRefsInCategory('audio'),
-                      ),
-                      setContextMenu,
-                    )
-                  }
-                  icon={<Music size={11} className="flex-shrink-0 text-[var(--muted)]" />}
-                  title={a.path}
+              {folder.id === 'images' ? (
+                <AssetImageTree
+                  folder={folder}
+                  project={project}
+                  projectPath={projectPath}
+                  hasSearch={tree.hasSearch}
+                  assets={assets}
+                  assetFolders={assetFolders}
+                  assetMulti={assetMulti}
+                  selectedEntityId={selectedEntityId}
+                  isOpen={isOpen}
+                  toggle={toggle}
+                  setContextMenu={setContextMenu}
+                  dispatch={dispatch}
                 />
-              ))}
-              {folder.fonts
-                .filter(
-                  (f) => !assetHiddenByVirtualFolder(project, 'fonts', 'font', f.id),
-                )
-                .map((f) => (
-                <TreeLeaf
-                  key={f.id}
-                  label={f.name}
-                  depth={2}
-                  selected={assetMulti.isSelected('font', f.id)}
-                  {...explorerAssetDragProps(
-                    assetMulti.dragRefsFor('fonts', 'font', f.id),
-                  )}
-                  onClick={(e) =>
-                    assetMulti.handleAssetClick(e, 'fonts', 'font', f.id, () =>
-                      assets.setSelection({ type: 'font', id: f.id }),
-                    )
-                  }
-                  onContextMenu={(ev) =>
-                    openExplorerContextMenu(
-                      ev,
-                      buildAssetFolderMenuItems(
-                        project,
-                        'fonts',
-                        'font',
-                        f.id,
-                        makeAssetFolderMenuHandlers('fonts', 'font', f.id),
-                        [
-                          {
-                            id: 'remove',
-                            label: 'Remove font',
-                            danger: true,
-                            onSelect: () =>
-                              dispatch({ type: 'FONT_ASSET_REMOVE', assetId: f.id }),
-                          },
-                        ],
-                        assetMulti.batchRefsInCategory('fonts'),
-                      ),
-                      setContextMenu,
-                    )
-                  }
-                  icon={<Type size={11} className="flex-shrink-0 text-[var(--warn)]" />}
-                  title={f.path}
-                />
-              ))}
-              {folder.scripts.map((s) => (
-                <TreeLeaf
-                  key={s.path}
-                  label={s.label}
-                  depth={2}
-                  onClick={() => assets.openScript(s.path)}
-                  onContextMenu={(ev) =>
-                    openExplorerContextMenu(
-                      ev,
-                      [
-                        {
-                          id: 'open',
-                          label: 'Open in script editor',
-                          onSelect: () => assets.openScript(s.path),
-                        },
-                      ],
-                      setContextMenu,
-                    )
-                  }
-                  icon={<FileText size={11} className="flex-shrink-0 text-[var(--muted)]" />}
-                  title={s.path}
-                />
-              ))}
-              {folder.tilesets
-                .filter(
-                  (t) =>
-                    !assetHiddenByVirtualFolder(
-                      project,
-                      'tilesets',
-                      'tileset',
-                      t.assetId,
-                    ),
-                )
-                .map((t) => (
-                <TreeLeaf
-                  key={t.assetId}
-                  label={t.name}
-                  depth={2}
-                  selected={assetMulti.isSelected('tileset', t.assetId)}
-                  {...explorerAssetDragProps(
-                    assetMulti.dragRefsFor('tilesets', 'tileset', t.assetId),
-                  )}
-                  onClick={(e) =>
-                    assetMulti.handleAssetClick(
-                      e,
-                      'tilesets',
-                      'tileset',
-                      t.assetId,
-                      () => assets.openTilesetEditor(t.assetId),
-                    )
-                  }
-                  onContextMenu={(ev) =>
-                    openExplorerContextMenu(
-                      ev,
-                      buildAssetFolderMenuItems(
-                        project,
-                        'tilesets',
-                        'tileset',
-                        t.assetId,
-                        makeAssetFolderMenuHandlers('tilesets', 'tileset', t.assetId),
-                        [
-                          {
-                            id: 'edit',
-                            label: 'Open Tileset Editor',
-                            onSelect: () => assets.openTilesetEditor(t.assetId),
-                          },
-                          {
-                            id: 'remove',
-                            label: 'Remove tileset',
-                            danger: true,
-                            onSelect: () =>
-                              dispatch({
-                                type: 'TILESET_ASSET_REMOVE',
-                                assetId: t.assetId,
-                              }),
-                          },
-                        ],
-                        assetMulti.batchRefsInCategory('tilesets'),
-                      ),
-                      setContextMenu,
-                    )
-                  }
-                  icon={
-                    <TilesetTreeThumbnail
-                      tileset={project.tilesets?.[t.assetId]}
-                      projectPath={projectPath}
-                      onOpenEditor={() => assets.openTilesetEditor(t.assetId)}
-                    />
-                  }
-                  title="Click to open Tileset Editor"
-                />
-              ))}
+              ) : null}
+              <AssetFolderLeaves
+                folder={folder}
+                project={project}
+                projectPath={projectPath}
+                assets={assets}
+                assetMulti={assetMulti}
+                dispatch={dispatch}
+                setContextMenu={setContextMenu}
+                makeAssetFolderMenuHandlers={makeAssetFolderMenuHandlers}
+              />
             </TreeFolder>
           )
         })}
