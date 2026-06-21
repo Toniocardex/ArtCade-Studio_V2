@@ -182,7 +182,8 @@ describe('projectJsonForRuntime', () => {
   it('includes runtime fields and omits editor-only data', () => {
     const proj = makeProject({
       logicBoards: [{ id: 'lb', name: 'Main', rules: [] }] as never,
-      assets: { img: { path: 'a.png', type: 'image' } as never },
+      // A plain image asset (no clips/points/pivot) carries no runtime data.
+      assets: { img: { id: 'img', path: 'a.png', usage: 'sprite' } as never },
     })
     const parsed = JSON.parse(projectJsonForRuntime(proj, 'scene_a')) as Record<string, unknown>
     expect(parsed.entities).toBeDefined()
@@ -190,5 +191,47 @@ describe('projectJsonForRuntime', () => {
     expect(parsed.activeSceneId).toBe('scene_a')
     expect(parsed.logicBoards).toBeUndefined()
     expect(parsed.assets).toBeUndefined()
+  })
+
+  it('syncs clip-bearing assets so the SpriteAnimator can register clips', () => {
+    const proj = makeProject({
+      assets: {
+        sheet: {
+          id: 'sheet', name: 'jump', path: 'super_jump.png', usage: 'sprite',
+          dataUrl: 'data:image/png;base64,DROP_ME',
+          clips: [{
+            name: 'super_jump', fps: 8, loop: true,
+            frames: [
+              { x: 0, y: 0, w: 16, h: 16 },
+              { x: 16, y: 0, w: 16, h: 16 },
+            ],
+          }],
+        } as never,
+      },
+    })
+    const parsed = JSON.parse(projectJsonForRuntime(proj, 'scene_a')) as {
+      assets?: Record<string, { path: string; clips?: { name: string }[]; dataUrl?: string }>
+    }
+    expect(parsed.assets?.sheet).toBeDefined()
+    expect(parsed.assets?.sheet.path).toBe('super_jump.png')
+    expect(parsed.assets?.sheet.clips?.[0].name).toBe('super_jump')
+    // Transient dataUrl must not bloat the runtime payload.
+    expect(parsed.assets?.sheet.dataUrl).toBeUndefined()
+  })
+
+  it('changes the fingerprint when clip frames are edited', () => {
+    const withClip = (frames: { x: number; y: number; w: number; h: number }[]) =>
+      makeProject({
+        assets: {
+          sheet: {
+            id: 'sheet', name: 'jump', path: 'super_jump.png', usage: 'sprite',
+            clips: [{ name: 'super_jump', fps: 8, loop: true, frames }],
+          } as never,
+        },
+      })
+    const a = withClip([{ x: 0, y: 0, w: 16, h: 16 }])
+    const b = withClip([{ x: 0, y: 0, w: 16, h: 16 }, { x: 16, y: 0, w: 16, h: 16 }])
+    expect(runtimeProjectFingerprint(a, 'scene_a'))
+      .not.toBe(runtimeProjectFingerprint(b, 'scene_a'))
   })
 })

@@ -19,10 +19,42 @@
 // For an MVP this is enough: a 100-entity scene serialises in < 1 ms on the
 // dev machine and only happens after the store actually changed.
 
-import type { EntityDef, ProjectDoc, SceneDef, Vec2, Vec4, WorldSettings } from '../types'
+import type {
+  EntityDef, ImageAsset, ProjectDoc, SceneDef, Vec2, Vec4, WorldSettings,
+} from '../types'
 import { DEFAULT_WORLD } from '../types'
 import { resolveClipForEntity } from './entity-clip-resolve'
 import { entitiesForRuntimeSync } from './project-object-types'
+
+/**
+ * Runtime-facing subset of an ImageAsset. The C++ bridge (`editor_load_project`)
+ * reads `doc.assets[*].{id,path,clips,imagePoints,defaultPivot}` to register
+ * animation clips and pivots. Only assets that carry such data are emitted so
+ * the payload stays lean. Without this the SpriteAnimator has no clips and the
+ * renderer paints the whole sheet instead of a single frame.
+ */
+type RuntimeAssetRecord = Pick<ImageAsset, 'id' | 'path'>
+  & Partial<Pick<ImageAsset, 'clips' | 'imagePoints' | 'defaultPivot'>>
+
+function assetsForRuntimeSync(
+  project: ProjectDoc,
+): Record<string, RuntimeAssetRecord> | undefined {
+  const out: Record<string, RuntimeAssetRecord> = {}
+  for (const asset of Object.values(project.assets ?? {})) {
+    const hasClips = (asset.clips?.length ?? 0) > 0
+    const hasPoints = (asset.imagePoints?.length ?? 0) > 0
+    const hasPivot = asset.defaultPivot != null
+    if (!hasClips && !hasPoints && !hasPivot) continue
+    out[asset.id] = {
+      id: asset.id,
+      path: asset.path,
+      ...(hasClips ? { clips: asset.clips } : {}),
+      ...(hasPoints ? { imagePoints: asset.imagePoints } : {}),
+      ...(hasPivot ? { defaultPivot: asset.defaultPivot } : {}),
+    }
+  }
+  return Object.keys(out).length > 0 ? out : undefined
+}
 
 interface FpVec2 { x: number; y: number }
 interface FpVec3 { x: number; y: number; z: number }
@@ -116,6 +148,8 @@ export interface RuntimeProjection {
   lyr: string[]
   entities: FpEntity[]
   scenes: FpScene[]
+  /** Clip/pivot-bearing assets — frame edits must re-sync the SpriteAnimator. */
+  ast?: Record<string, RuntimeAssetRecord>
 }
 
 /** Stable digest of runtime-facing WorldSettings (excludes editor-only flags). */
@@ -241,6 +275,7 @@ export function runtimeProjectProjection(
   const entities = entitiesForRuntimeSync(project)
   const entityIds = Object.keys(entities).map(Number).sort((a, b) => a - b)
   const sceneIds  = Object.keys(project.scenes).sort()
+  const ast = assetsForRuntimeSync(project)
   return {
     pn:  project.projectName,
     pv:  project.version,
@@ -252,6 +287,7 @@ export function runtimeProjectProjection(
     lyr: (project.layers ?? []).map((layer) => layer.name),
     entities: entityIds.map((id) => projectEntity(project, entities[id])),
     scenes:   sceneIds.map((id) => projectScene(project.scenes[id])),
+    ...(ast ? { ast } : {}),
   }
 }
 
@@ -290,6 +326,8 @@ export interface RuntimeProjectPayload {
   layers?:        ProjectDoc['layers']
   tilePalette?:   ProjectDoc['tilePalette']
   tilesets?:      ProjectDoc['tilesets']
+  /** Clip/pivot-bearing image assets so the SpriteAnimator can register clips. */
+  assets?:        Record<string, RuntimeAssetRecord>
   activeSceneId:  string
 }
 
@@ -302,6 +340,7 @@ export function runtimeProjectPayload(
   activeSceneId: string,
 ): RuntimeProjectPayload {
   const entities = entitiesForRuntimeSync(project)
+  const assets = assetsForRuntimeSync(project)
   return {
     projectName:    project.projectName,
     version:        project.version,
@@ -318,6 +357,7 @@ export function runtimeProjectPayload(
     layers:         project.layers,
     tilePalette:    project.tilePalette,
     tilesets:       project.tilesets,
+    ...(assets ? { assets } : {}),
     activeSceneId,
   }
 }
