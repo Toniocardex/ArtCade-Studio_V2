@@ -1,9 +1,9 @@
-import type { Dispatch, SetStateAction } from 'react'
+import { useCallback, type Dispatch, type SetStateAction } from 'react'
 import type { ProjectDoc } from '../../types'
 import type { useEditorDispatch } from '../../store/editor-store'
 import type { buildProjectExplorerData } from '../../utils/project-explorer-tree'
 import type { ExplorerExpandKey } from '../../hooks/useExplorerExpanded'
-import type { useAssetExplorerActions } from '../../hooks/useAssetExplorerActions'
+import type { ImageImportTarget, useAssetExplorerActions } from '../../hooks/useAssetExplorerActions'
 import type { useAssetFolderActions } from '../../hooks/useAssetFolderActions'
 import type { useAssetTreeMultiSelect } from '../../hooks/useAssetTreeMultiSelect'
 import {
@@ -13,6 +13,7 @@ import {
 import {
   AssetTreeDnDRoot,
   libraryCategoryFolderId,
+  type AssetDropZone,
 } from './asset-tree-dnd'
 import { VirtualFoldersBlock } from './VirtualFoldersBlock'
 import { TreeSection } from './TreeSection'
@@ -69,6 +70,24 @@ export function AssetsTreeSection({
     buildVirtualFolderImportItems,
   } = useAssetFolderMenus(assets, assetFolders)
 
+  // OS file drop → import images into the folder under the pointer. Images-only:
+  // dropping on a usage/image folder targets it; anywhere else falls back to sprites.
+  const handleDropFiles = useCallback(
+    (zone: AssetDropZone | null, files: readonly File[]) => {
+      let target: ImageImportTarget = { usage: 'sprite' }
+      if (zone?.kind === 'image-usage') {
+        target = { usage: zone.usage }
+      } else if (zone?.kind === 'virtual-folder') {
+        const vf = project.assetVirtualFolders?.[zone.folderId]
+        if (vf?.category === 'images') {
+          target = { usage: vf.usage ?? 'sprite', folderId: vf.id }
+        }
+      }
+      assets.importImageFiles(files, target)
+    },
+    [project, assets],
+  )
+
   return (
     <TreeSection
       title="Assets"
@@ -102,6 +121,7 @@ export function AssetsTreeSection({
         onMoveRefsToFolder={assetFolders.moveRefsToFolder}
         onMoveRefsToImageUsage={assetFolders.moveRefsToImageUsage}
         onUnassignRefs={assetFolders.unassignRefsFromFolders}
+        onDropFiles={handleDropFiles}
       >
       {tree.assetFolders.map((folder) => {
           const folderKey = `asset:${folder.id}` as const

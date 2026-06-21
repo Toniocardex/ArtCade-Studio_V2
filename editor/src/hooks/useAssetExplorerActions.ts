@@ -103,6 +103,30 @@ export function useAssetExplorerActions() {
     setFlash(null)
   }, [])
 
+  /** Core single-file image import (shared by the file picker and drag-drop). */
+  const importOneImageFile = useCallback(
+    async (file: File, target: ImageImportTarget) => {
+      if (!project) return null
+      const projectPath = store.getState().projectPath
+      const { asset, imported } = await importImageAssetFromFile({
+        file,
+        usage: target.usage,
+        projectRoot: projectPath ? dirName(projectPath) : null,
+      })
+      dispatch({ type: 'ASSET_ADD', asset })
+      if (target.folderId) {
+        dispatch({
+          type: 'ASSET_MOVE_TO_FOLDER',
+          folderId: target.folderId,
+          assetType: 'image',
+          assetId: asset.id,
+        })
+      }
+      return { asset, imported }
+    },
+    [project, store, dispatch],
+  )
+
   const onPickImage = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0]
@@ -110,21 +134,9 @@ export function useAssetExplorerActions() {
       const target = imageImportTargetRef.current
       void (async () => {
         try {
-          const projectPath = store.getState().projectPath
-          const { asset, imported } = await importImageAssetFromFile({
-            file,
-            usage: target.usage,
-            projectRoot: projectPath ? dirName(projectPath) : null,
-          })
-          dispatch({ type: 'ASSET_ADD', asset })
-          if (target.folderId) {
-            dispatch({
-              type: 'ASSET_MOVE_TO_FOLDER',
-              folderId: target.folderId,
-              assetType: 'image',
-              assetId: asset.id,
-            })
-          }
+          const result = await importOneImageFile(file, target)
+          if (!result) return
+          const { asset, imported } = result
           dispatch({ type: 'SELECT_INSPECTOR_ASSET', asset: { type: 'image', id: asset.id } })
           if (target.openStudioAfterImport) {
             dispatch({ type: 'SPRITESHEET_STUDIO_OPEN', imageAssetId: asset.id })
@@ -144,7 +156,48 @@ export function useAssetExplorerActions() {
       e.target.value = ''
       imageImportTargetRef.current = { usage: 'sprite' }
     },
-    [project, store, dispatch, showFlash],
+    [project, importOneImageFile, dispatch, showFlash],
+  )
+
+  /** Import image files dropped onto the explorer (no auto-open Studio). */
+  const importImageFiles = useCallback(
+    (files: readonly File[], target: ImageImportTarget) => {
+      if (!project || files.length === 0) return
+      const images = files.filter(
+        (f) => f.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp)$/i.test(f.name),
+      )
+      if (images.length === 0) {
+        showFlash('Only image files can be dropped here')
+        return
+      }
+      void (async () => {
+        let lastId: string | null = null
+        let ok = 0
+        let needsSave = false
+        for (const file of images) {
+          try {
+            const result = await importOneImageFile(file, target)
+            if (result) {
+              lastId = result.asset.id
+              ok += 1
+              if (!result.imported.persisted) needsSave = true
+            }
+          } catch (err) {
+            console.error('[Asset] Image drop import failed:', err)
+          }
+        }
+        if (lastId) {
+          dispatch({ type: 'SELECT_INSPECTOR_ASSET', asset: { type: 'image', id: lastId } })
+        }
+        if (ok === 0) {
+          showFlash('Import failed')
+        } else {
+          const suffix = needsSave ? ' (save to persist)' : ''
+          showFlash(ok === 1 ? `Imported ${images[0].name}${suffix}` : `Imported ${ok} images${suffix}`)
+        }
+      })()
+    },
+    [project, importOneImageFile, dispatch, showFlash],
   )
 
   const onPickAudio = useCallback(
@@ -411,6 +464,7 @@ export function useAssetExplorerActions() {
     removeSelection,
     openTilesetEditor,
     openImageStudio,
+    importImageFiles,
     triggerImportImage,
     triggerCreateAnimatedSprite,
     triggerImportAudio,

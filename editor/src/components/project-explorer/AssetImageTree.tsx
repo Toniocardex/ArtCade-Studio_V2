@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from 'react'
-import { Film, ImagePlus } from 'lucide-react'
+import { Scissors } from 'lucide-react'
 import type { ProjectDoc } from '../../types'
 import type { useEditorDispatch } from '../../store/editor-store'
 import type { buildProjectExplorerData } from '../../utils/project-explorer-tree'
@@ -87,6 +87,22 @@ export function AssetImageTree({
               onDoubleClick={
                 asset && isSprite ? () => assets.openImageStudio(img.id) : undefined
               }
+              actions={
+                asset && isSprite ? (
+                  <button
+                    type="button"
+                    title="Open in Sprite Studio"
+                    aria-label="Open in Sprite Studio"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      assets.openImageStudio(img.id)
+                    }}
+                    className="flex items-center justify-center w-5 h-5 rounded text-[var(--muted)] opacity-0 transition-opacity hover:text-[var(--accent)] hover:bg-[var(--surface-hover)] group-hover:opacity-100 focus:opacity-100"
+                  >
+                    <Scissors size={12} />
+                  </button>
+                ) : undefined
+              }
               onContextMenu={(ev) => {
                 if (!asset) return
                 const imageActions = [
@@ -167,37 +183,11 @@ export function AssetImageTree({
             }
           >
             {group.images.length === 0 && !hasSearch ? (
-              <div className="flex flex-col items-start gap-1 py-1.5 pl-9 pr-2">
-                {group.usage === 'sprite' ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={assets.triggerCreateAnimatedSprite}
-                      className="inline-flex items-center gap-1.5 rounded border border-[var(--accent)] bg-[var(--accent-bg)] px-2 py-1 text-[10px] font-semibold text-[var(--accent)] hover:bg-[rgb(var(--accent-rgb)/0.18)]"
-                    >
-                      <Film size={12} />
-                      Create animated sprite
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => assets.triggerImportImage({ usage: 'sprite' })}
-                      className="inline-flex items-center gap-1.5 rounded border border-[var(--border)] px-2 py-1 text-[10px] text-[var(--muted)] hover:text-[var(--text)] hover:border-[var(--border-2)]"
-                    >
-                      <ImagePlus size={12} />
-                      Import still sprite
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => assets.triggerImportImage({ usage: group.usage })}
-                    className="inline-flex items-center gap-1.5 rounded border border-[var(--border)] px-2 py-1 text-[10px] text-[var(--muted)] hover:text-[var(--text)] hover:border-[var(--border-2)]"
-                  >
-                    <ImagePlus size={12} />
-                    Import image
-                  </button>
-                )}
-              </div>
+              <p className="py-1.5 pl-9 pr-2 text-[10px] text-[var(--muted)]">
+                {group.usage === 'sprite'
+                  ? 'Drag sprites here, or use Import ↑'
+                  : 'Drag images here, or use Import ↑'}
+              </p>
             ) : null}
             {usageFolders.map((vf) => {
               const folderImages = vf.assetRefs

@@ -211,7 +211,7 @@ export function TreeLeaf({
 
     if (actions) {
       return (
-        <div className="flex items-center gap-0.5 w-full min-w-0">
+        <div className="group flex items-center gap-0.5 w-full min-w-0">
           <div className="flex flex-1 min-w-0">{dragLeaf}</div>
           <div className="flex items-center gap-0.5 pr-1 flex-shrink-0">{actions}</div>
         </div>

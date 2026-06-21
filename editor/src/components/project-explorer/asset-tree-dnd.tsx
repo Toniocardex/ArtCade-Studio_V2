@@ -217,6 +217,10 @@ type AssetTreeDnDRootProps = Readonly<{
 
   ) => void
 
+  /** OS file drop onto a folder row (or empty space → null zone). */
+
+  onDropFiles?: (zone: AssetDropZone | null, files: readonly File[]) => void
+
 }>
 
 
@@ -241,6 +245,8 @@ export function AssetTreeDnDRoot({
 
   onMoveRefsToImageUsage,
 
+  onDropFiles,
+
 }: AssetTreeDnDRootProps) {
   const [hoveredFolderId, setHoveredFolderId] = useState<string | null>(null)
 
@@ -254,6 +260,18 @@ export function AssetTreeDnDRoot({
 
     const folderId = resolveFolderIdFromTarget(event.target)
 
+    if (onDropFiles && event.dataTransfer.types.includes('Files')) {
+
+      event.preventDefault()
+
+      event.dataTransfer.dropEffect = 'copy'
+
+      setHoveredFolderId((prev) => (prev === folderId ? prev : folderId))
+
+      return
+
+    }
+
     if (!folderId || !containsAssetPayload(event.dataTransfer)) return
 
     event.preventDefault()
@@ -262,7 +280,7 @@ export function AssetTreeDnDRoot({
 
     setHoveredFolderId((prev) => (prev === folderId ? prev : folderId))
 
-  }, [])
+  }, [onDropFiles])
 
 
 
@@ -278,19 +296,45 @@ export function AssetTreeDnDRoot({
 
   const handleDropCapture = useCallback((event: DragEvent<HTMLDivElement>) => {
 
+    if (onDropFiles && event.dataTransfer.types.includes('Files')) {
+
+      event.preventDefault()
+
+      return
+
+    }
+
     const folderId = resolveFolderIdFromTarget(event.target)
 
     if (!folderId || !containsAssetPayload(event.dataTransfer)) return
 
     event.preventDefault()
 
-  }, [])
+  }, [onDropFiles])
 
 
 
   const handleDrop = useCallback(
 
     (event: DragEvent<HTMLDivElement>) => {
+
+      if (onDropFiles && event.dataTransfer.files && event.dataTransfer.files.length > 0) {
+
+        event.preventDefault()
+
+        setHoveredFolderId(null)
+
+        const droppedFolderId = resolveFolderIdFromTarget(event.target)
+
+        const droppedZone = droppedFolderId ? parseFolderDropTarget(droppedFolderId) : null
+
+        onDropFiles(droppedZone, Array.from(event.dataTransfer.files))
+
+        return
+
+      }
+
+
 
       const folderId = resolveFolderIdFromTarget(event.target)
 
@@ -334,7 +378,7 @@ export function AssetTreeDnDRoot({
 
     },
 
-    [onMoveRefsToFolder, onMoveRefsToImageUsage, onUnassignRefs],
+    [onMoveRefsToFolder, onMoveRefsToImageUsage, onUnassignRefs, onDropFiles],
 
   )
 
