@@ -12,9 +12,15 @@ type ClipListPanelProps = Readonly<{
   asset: ImageAsset
   assetId: string
   session: SpritesheetStudioSession
+  onNewAnimation?: () => void
 }>
 
-export function ClipListPanel({ asset, assetId, session }: ClipListPanelProps) {
+export function ClipListPanel({
+  asset,
+  assetId,
+  session,
+  onNewAnimation,
+}: ClipListPanelProps) {
   const project = useEditorSelector((s) => s.project)
   const {
     clips,
@@ -42,6 +48,7 @@ export function ClipListPanel({ asset, assetId, session }: ClipListPanelProps) {
       ? findDuplicateClipNameAcrossAssets(project, draftClip.name, assetId)
       : null
   const draftValidation = validateClipDraft(draftClip, clips, duplicateDraftOnAsset)
+  const startNewAnimation = onNewAnimation ?? addClip
 
   return (
     <div
@@ -54,8 +61,8 @@ export function ClipListPanel({ asset, assetId, session }: ClipListPanelProps) {
           {clips.length > 0 && !draftClip ? (
             <ExplorerLabelCta
               label="New animation"
-              title="Create a new animation from selected frames"
-              onClick={addClip}
+              title="Import a spritesheet and create a new animation"
+              onClick={startNewAnimation}
               tone="primary"
               icon={<Plus size={11} aria-hidden />}
             />

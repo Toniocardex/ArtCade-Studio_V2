@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { useEditorDispatch, useEditorSelector, useEditorStore } from '../store/editor-store'
 import { importAssetFile } from '../utils/asset-file-api'
+import { importImageAssetFromFile } from '../utils/image-asset-import'
 import { dirName } from '../utils/project'
 import { openProjectScript } from '../utils/open-project-script'
 import {
@@ -107,25 +108,14 @@ export function useAssetExplorerActions() {
       const file = e.target.files?.[0]
       if (!file || !project) return
       const target = imageImportTargetRef.current
-      const reader = new FileReader()
-      reader.onload = async () => {
+      void (async () => {
         try {
-          const dataUrl = fileReaderDataUrl(reader.result)
-          const bytes = new Uint8Array(await file.arrayBuffer())
           const projectPath = store.getState().projectPath
-          const imported = await importAssetFile({
-            kind: 'image',
-            fileName: file.name,
-            bytes,
+          const { asset, imported } = await importImageAssetFromFile({
+            file,
+            usage: target.usage,
             projectRoot: projectPath ? dirName(projectPath) : null,
           })
-          const asset: ImageAsset = {
-            id: imported.id,
-            name: file.name,
-            path: imported.path,
-            usage: target.usage,
-            dataUrl,
-          }
           dispatch({ type: 'ASSET_ADD', asset })
           if (target.folderId) {
             dispatch({
@@ -150,8 +140,7 @@ export function useAssetExplorerActions() {
           console.error('[Asset] Image import failed:', err)
           showFlash(`Import failed: ${file.name}`)
         }
-      }
-      reader.readAsDataURL(file)
+      })()
       e.target.value = ''
       imageImportTargetRef.current = { usage: 'sprite' }
     },

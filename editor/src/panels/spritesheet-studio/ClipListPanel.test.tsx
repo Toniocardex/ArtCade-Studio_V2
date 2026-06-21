@@ -131,4 +131,28 @@ describe('ClipListPanel', () => {
     fireEvent.change(screen.getByDisplayValue('walk'), { target: { value: 'run' } })
     expect(patchActiveClip).toHaveBeenCalledWith({ name: 'run' }, 'clip-name:0')
   })
+
+  it('routes New animation through the import flow when provided', () => {
+    const addClip = vi.fn()
+    const onNewAnimation = vi.fn()
+    render(
+      <ClipListPanel
+        asset={asset}
+        assetId={asset.id}
+        onNewAnimation={onNewAnimation}
+        session={session({
+          activeClipIndex: 0,
+          activeClip: { name: 'walk', frames: [], fps: 8, loop: true },
+          previewClip: { name: 'walk', frames: [], fps: 8, loop: true },
+          clips: [{ name: 'walk', frames: [], fps: 8, loop: true }],
+          addClip,
+        })}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /New animation/i }))
+
+    expect(onNewAnimation).toHaveBeenCalledTimes(1)
+    expect(addClip).not.toHaveBeenCalled()
+  })
 })

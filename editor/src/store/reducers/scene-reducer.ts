@@ -51,6 +51,7 @@ function spriteWithClipDefaultsForAsset(
   assetPath: string,
   clips: AnimationClipDef[],
 ): SpriteComponent {
+  if (!sprite) return sprite
   if (sprite.spriteAssetId !== assetPath) return sprite
   if (clipNameExists(clips, sprite.defaultClip)) return sprite
 

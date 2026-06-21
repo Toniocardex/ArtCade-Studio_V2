@@ -10,6 +10,7 @@ type SpritesheetStudioLayoutProps = Readonly<{
   assetId: string
   session: SpritesheetStudioSession
   onPatchDefaultPivot: (pivot: ImageAsset['defaultPivot']) => void
+  onNewAnimation: () => void
 }>
 
 export function SpritesheetStudioLayout({
@@ -17,6 +18,7 @@ export function SpritesheetStudioLayout({
   assetId,
   session,
   onPatchDefaultPivot,
+  onNewAnimation,
 }: SpritesheetStudioLayoutProps) {
   return (
     <div className="flex flex-1 min-h-0 min-w-0">
@@ -26,7 +28,12 @@ export function SpritesheetStudioLayout({
         onPatchDefaultPivot={onPatchDefaultPivot}
       />
       <AtlasGrid session={session} defaultPivot={getAssetDefaultPivot(asset)} />
-      <ClipListPanel asset={asset} assetId={assetId} session={session} />
+      <ClipListPanel
+        asset={asset}
+        assetId={assetId}
+        session={session}
+        onNewAnimation={onNewAnimation}
+      />
     </div>
   )
 }

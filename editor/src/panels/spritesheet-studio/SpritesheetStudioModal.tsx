@@ -1,7 +1,9 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { useDraggablePanel } from './useDraggablePanel'
 import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import type { AnimationClipDef, ImageAsset } from '../../types'
+import { dirName } from '../../utils/project'
+import { importImageAssetFromFile } from '../../utils/image-asset-import'
 import { SpritesheetStudioLayout } from './SpritesheetStudioLayout'
 import { useSpritesheetStudioSession } from './useSpritesheetStudioSession'
 import { useSpritesheetWasmSync } from './useSpritesheetWasmSync'
@@ -9,9 +11,18 @@ import { useSpritesheetWasmSync } from './useSpritesheetWasmSync'
 type SpritesheetStudioBodyProps = Readonly<{
   asset: ImageAsset
   imageAssetId: string
+  autoCreateDraft: boolean
+  onAutoCreateDraftConsumed: () => void
+  onNewAnimation: () => void
 }>
 
-function SpritesheetStudioBody({ asset, imageAssetId }: SpritesheetStudioBodyProps) {
+function SpritesheetStudioBody({
+  asset,
+  imageAssetId,
+  autoCreateDraft,
+  onAutoCreateDraftConsumed,
+  onNewAnimation,
+}: SpritesheetStudioBodyProps) {
   const dispatch = useEditorDispatch()
   const projectPath = useEditorSelector((s) => s.projectPath)
   useSpritesheetWasmSync(asset, true)
@@ -26,12 +37,27 @@ function SpritesheetStudioBody({ asset, imageAssetId }: SpritesheetStudioBodyPro
     dispatch({ type: 'ASSET_ADD', asset: { ...asset, id: imageAssetId, ...patch } })
   }
 
+  useEffect(() => {
+    if (!autoCreateDraft) return
+    if (session.grid.totalFrames <= 0 || session.clips.length > 0 || session.draftClip) return
+    session.selectAllFrames()
+    onAutoCreateDraftConsumed()
+  }, [
+    autoCreateDraft,
+    session.grid.totalFrames,
+    session.clips.length,
+    session.draftClip,
+    session.selectAllFrames,
+    onAutoCreateDraftConsumed,
+  ])
+
   return (
     <SpritesheetStudioLayout
       asset={asset}
       assetId={imageAssetId}
       session={session}
       onPatchDefaultPivot={(defaultPivot) => patchAsset({ defaultPivot })}
+      onNewAnimation={onNewAnimation}
     />
   )
 }
@@ -41,8 +67,11 @@ export function SpritesheetStudioModal() {
   const open = useEditorSelector((s) => s.spritesheetStudio.open)
   const imageAssetId = useEditorSelector((s) => s.spritesheetStudio.imageAssetId)
   const project = useEditorSelector((s) => s.project)
+  const projectPath = useEditorSelector((s) => s.projectPath)
   const dialogRef = useRef<HTMLDialogElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
+  const animationAssetInputRef = useRef<HTMLInputElement>(null)
+  const [autoDraftAssetId, setAutoDraftAssetId] = useState<string | null>(null)
   const asset = imageAssetId ? project?.assets?.[imageAssetId] : undefined
   const visible = open && imageAssetId != null && imageAssetId.length > 0 && asset != null
   const { panelStyle, resetPosition, headerPointerProps } = useDraggablePanel(panelRef, visible)
@@ -79,6 +108,35 @@ export function SpritesheetStudioModal() {
     dispatch({ type: 'SPRITESHEET_STUDIO_CLOSE' })
   }
 
+  const openAnimationAssetPicker = () => {
+    animationAssetInputRef.current?.click()
+  }
+
+  const onPickAnimationAsset = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file || !project) return
+
+    void (async () => {
+      try {
+        const { asset: importedAsset } = await importImageAssetFromFile({
+          file,
+          usage: 'sprite',
+          projectRoot: projectPath ? dirName(projectPath) : null,
+        })
+        dispatch({ type: 'ASSET_ADD', asset: importedAsset })
+        dispatch({
+          type: 'SELECT_INSPECTOR_ASSET',
+          asset: { type: 'image', id: importedAsset.id },
+        })
+        setAutoDraftAssetId(importedAsset.id)
+        dispatch({ type: 'SPRITESHEET_STUDIO_OPEN', imageAssetId: importedAsset.id })
+      } catch (err) {
+        console.error('[Sprite Studio] Animation image import failed:', err)
+      }
+    })()
+  }
+
   if (!visible || !asset) return null
 
   return (
@@ -88,6 +146,13 @@ export function SpritesheetStudioModal() {
       aria-modal
       className="artcade-dialog fixed inset-0 z-[200] m-0 h-full max-h-full w-full max-w-full border-0 bg-transparent p-0 backdrop:bg-black/60"
     >
+      <input
+        ref={animationAssetInputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/gif"
+        className="hidden"
+        onChange={onPickAnimationAsset}
+      />
       <div
         ref={panelRef}
         className="fixed flex flex-col w-[min(96vw,1400px)] h-[min(90vh,820px)] max-h-[calc(100vh-16px)] rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--text)] shadow-2xl overflow-hidden"
@@ -125,7 +190,13 @@ export function SpritesheetStudioModal() {
             </button>
           </div>
         </header>
-        <SpritesheetStudioBody asset={asset} imageAssetId={imageAssetId} />
+        <SpritesheetStudioBody
+          asset={asset}
+          imageAssetId={imageAssetId}
+          autoCreateDraft={autoDraftAssetId === imageAssetId}
+          onAutoCreateDraftConsumed={() => setAutoDraftAssetId(null)}
+          onNewAnimation={openAnimationAssetPicker}
+        />
       </div>
     </dialog>
   )
