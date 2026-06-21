@@ -37,6 +37,11 @@ export function resolveEffectivePivot(
   return getAssetDefaultPivot(findImageAssetByPath(assets, sprite.spriteAssetId))
 }
 
+function firstClipName(asset: ImageAsset | undefined): string | undefined {
+  return asset?.clips?.find((clip) => clip.name.trim() && clip.frames.length > 0)
+    ?.name.trim()
+}
+
 export function spriteAssignedFromAsset(
   sprite: SpriteComponent,
   asset: ImageAsset | undefined,
@@ -44,13 +49,15 @@ export function spriteAssignedFromAsset(
 ): SpriteComponent {
   const spriteAssetId = asset?.path ?? ''
   const clipFields = normalizeSpriteClipFields({ ...sprite, spriteAssetId }, project)
+  const hadDefaultClip = Boolean(sprite.defaultClip?.trim())
+  const defaultClip = clipFields.defaultClip ?? (!hadDefaultClip ? firstClipName(asset) : undefined)
   return {
     ...sprite,
     spriteAssetId,
     pivotFromAsset: true,
     pivot: getAssetDefaultPivot(asset),
-    defaultClip: clipFields.defaultClip,
-    playClipOnSpawn: clipFields.playClipOnSpawn,
+    defaultClip,
+    playClipOnSpawn: defaultClip ? clipFields.playClipOnSpawn : false,
   }
 }
 

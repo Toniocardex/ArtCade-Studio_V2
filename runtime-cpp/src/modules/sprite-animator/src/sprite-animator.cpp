@@ -175,6 +175,17 @@ SpriteAnimator::Frame SpriteAnimator::currentFrame(EntityId entity) const {
     return frames[idx];
 }
 
+SpriteAnimator::Frame SpriteAnimator::clipFrame(const std::string& clipName, int frameIdx) const {
+    auto cit = clips_.find(clipName);
+    if (cit == clips_.end()) return {};
+
+    const auto& frames = cit->second.frames;
+    if (frames.empty()) return {};
+
+    if (frameIdx < 0 || frameIdx >= static_cast<int>(frames.size())) return {};
+    return frames[static_cast<size_t>(frameIdx)];
+}
+
 std::string SpriteAnimator::currentClip(EntityId entity) const {
     auto it = instances_.find(entity);
     if (it == instances_.end() || it->second.state == PlayState::Stopped)

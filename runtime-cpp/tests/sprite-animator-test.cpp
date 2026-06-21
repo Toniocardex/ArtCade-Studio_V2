@@ -139,6 +139,16 @@ static void test_current_frame_rect() {
     std::puts("  [ok] currentFrame returns correct subrect");
 }
 
+static void test_clip_frame_rect_without_instance() {
+    SA sa; sa.init();
+    sa.defineClip(makeClip("idle", 3));
+    auto f = sa.clipFrame("idle", 1);
+    assert(f.x == 32 && f.w == 32);
+    auto missing = sa.clipFrame("idle", 9);
+    assert(missing.w == 0 && missing.h == 0);
+    std::puts("  [ok] clipFrame returns authored subrect without playback");
+}
+
 static void test_remove_entity() {
     SA sa; sa.init();
     sa.defineClip(makeClip("run", 4));
@@ -253,6 +263,7 @@ int main() {
     test_stop();
     test_seek_frame();
     test_current_frame_rect();
+    test_clip_frame_rect_without_instance();
     test_remove_entity();
     test_independent_entities();
     test_play_emits_start_event();
@@ -260,6 +271,6 @@ int main() {
     test_update_emits_frame_events();
     test_loop_emits_loop_event();
     test_watched_kinds_gate_emission();
-    std::puts("=== all 18 tests passed ===");
+    std::puts("=== all 19 tests passed ===");
     return 0;
 }

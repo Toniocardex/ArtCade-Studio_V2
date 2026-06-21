@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
-import { ChevronDown, ChevronRight } from 'lucide-react'
+import { ChevronDown, ChevronRight, Film } from 'lucide-react'
 import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import type { EntityDef } from '../../types'
 import { PivotPresetFields } from '../../components/pivot/PivotPresetFields'
 import { resolveClipForEntity } from '../../utils/entity-clip-resolve'
+import { openSpritesheetStudio } from '../spritesheet-studio/openSpritesheetStudio'
 import {
   findImageAssetByPath,
   resolveEffectivePivot,
@@ -36,6 +37,7 @@ export function SpriteSection({ entity }: SpriteSectionProps) {
   const spritePath = clip?.spritePath ?? entity.sprite.spriteAssetId
   const linkedAsset = findImageAssetByPath(project?.assets, spritePath)
   const sheetClips = clip?.clips ?? []
+  const activeDefaultClip = sheetClips.find((c) => c.name === clip?.defaultClip)
   const effectivePivot = resolveEffectivePivot(entity.sprite, project?.assets)
   const fromAsset = usesAssetPivot(entity.sprite)
   const defaultClipId = `${entity.id}-default-clip`
@@ -117,6 +119,24 @@ export function SpriteSection({ entity }: SpriteSectionProps) {
         ) : null}
         {linkedAsset && clip?.defaultClip ? (
           <InspectorClipPreview asset={linkedAsset} clipName={clip.defaultClip} />
+        ) : null}
+        {linkedAsset && sheetClips.length > 0 ? (
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <span className="text-[8px] text-[var(--muted)] leading-tight">
+              {activeDefaultClip
+                ? `${activeDefaultClip.frames.length} frames / ${activeDefaultClip.fps} FPS`
+                : `${sheetClips.length} clips`}
+            </span>
+            <button
+              type="button"
+              className="shrink-0 inline-flex items-center gap-1 rounded border border-[var(--accent-bd)] bg-[var(--accent-bg)] px-2 py-1 text-[9px] text-[var(--accent)] hover:bg-[var(--accent-bg-h)]"
+              onClick={() => openSpritesheetStudio(dispatch, project, linkedAsset.id)}
+              title="Open Sprite Studio for this sheet"
+            >
+              <Film size={12} />
+              Studio
+            </button>
+          </div>
         ) : null}
       </div>
 

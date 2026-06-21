@@ -78,6 +78,9 @@ public:
     // Current source subrect to draw (zeroed if no active instance)
     Frame currentFrame(EntityId entity) const;
 
+    /** Source subrect for an authored clip frame (zeroed if missing/out of range). */
+    Frame clipFrame(const std::string& clipName, int frameIdx) const;
+
     // Name of the playing clip ("" if stopped)
     std::string currentClip(EntityId entity) const;
 

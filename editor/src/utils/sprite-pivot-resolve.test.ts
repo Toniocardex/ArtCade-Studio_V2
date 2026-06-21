@@ -43,4 +43,25 @@ describe('sprite-pivot-resolve', () => {
     expect(next.spriteAssetId).toBe(asset.path)
     expect(next.pivot).toEqual({ x: 0.5, y: 1 })
   })
+
+  it('assigns the first authored clip when a new animated sheet is picked', () => {
+    const animated: ImageAsset = {
+      ...asset,
+      clips: [
+        { name: 'walk', frames: [{ x: 0, y: 0, w: 16, h: 16 }], fps: 8, loop: true },
+      ],
+    }
+    const base: SpriteComponent = {
+      spriteAssetId: '',
+      tint: { x: 1, y: 1, z: 1, w: 1 },
+      fillColor: { x: 1, y: 1, z: 1 },
+      alpha: 1,
+      pivotFromAsset: false,
+      pivot: { x: 0, y: 0 },
+      renderOrder: 0,
+    }
+    const next = spriteAssignedFromAsset(base, animated)
+    expect(next.defaultClip).toBe('walk')
+    expect(next.playClipOnSpawn).toBe(false)
+  })
 })

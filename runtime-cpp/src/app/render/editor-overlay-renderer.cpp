@@ -20,8 +20,10 @@ struct EntityOutlineBounds {
 /** Selection / hidden outline aligned with Renderer::drawSprite (pivot anchor). */
 EntityOutlineBounds spriteVisualBounds(Modules::Renderer& renderer,
                                        const Transform& transform,
-                                       const SpriteComponent& sprite) {
-    const Vec2 size = renderer.spriteDestinationSize(sprite.spriteAssetId, transform.scale);
+                                       const SpriteComponent& sprite,
+                                       const std::optional<Vec2>& visualSize) {
+    const Vec2 size = visualSize.value_or(
+        renderer.spriteDestinationSize(sprite.spriteAssetId, transform.scale));
     const Vec2 topLeft = SpriteDrawMath::placeholderTopLeft(
         transform.position, sprite.pivot, size.x, size.y);
     return { topLeft.x, topLeft.y, size.x, size.y };
@@ -98,7 +100,8 @@ void drawSelection(Modules::Renderer& renderer,
                    const SpriteComponent& sprite,
                    const std::optional<SensorComponent>& sensor,
                    const EditorOverlayState& state,
-                   bool hiddenInGame) {
+                   bool hiddenInGame,
+                   const std::optional<Vec2>& visualSize) {
     if (!state.inEditMode || state.selectedId == 0u) return;
 
     const Vec2 p = transform.position;
@@ -114,7 +117,7 @@ void drawSelection(Modules::Renderer& renderer,
         }
     }
 
-    const EntityOutlineBounds bounds = spriteVisualBounds(renderer, transform, sprite);
+    const EntityOutlineBounds bounds = spriteVisualBounds(renderer, transform, sprite, visualSize);
     const Vec4 sel = hiddenInGame
         ? Vec4{1.f, 0.55f, 0.1f, 1.f}
         : Vec4{1.f, 1.f, 0.f, 1.f};
@@ -123,8 +126,9 @@ void drawSelection(Modules::Renderer& renderer,
 
 void drawHiddenInGameOutline(Modules::Renderer& renderer,
                              const Transform& transform,
-                             const SpriteComponent& sprite) {
-    const EntityOutlineBounds bounds = spriteVisualBounds(renderer, transform, sprite);
+                             const SpriteComponent& sprite,
+                             const std::optional<Vec2>& visualSize) {
+    const EntityOutlineBounds bounds = spriteVisualBounds(renderer, transform, sprite, visualSize);
     const Vec4 amber{1.f, 0.55f, 0.1f, 0.75f};
     drawEntityOutline(renderer, bounds, amber);
 }

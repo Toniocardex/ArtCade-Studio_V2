@@ -4,6 +4,7 @@
 
 #include "../../modules/editor-api/include/editor-api.h"
 #include "../../modules/game-state/include/splash-state.h"
+#include "../../modules/sprite-animator/include/sprite-animator.h"
 #include "../render/editor-overlay-renderer.h"
 #include "../render/physics_debug_renderer.h"
 #include "../render/ray-tint-widget.h"
@@ -11,6 +12,7 @@
 #include "../render/tilemap-renderer.h"
 
 #include <algorithm>
+#include <cmath>
 #include <optional>
 #include <string>
 
@@ -44,6 +46,38 @@ void textAnchorAlign(const std::string& a, int& hOut, int& vOut) {
     else if (a.find("bottom") != std::string::npos) vOut = 0;
     else if (isNewAnchor)                           vOut = 1; // center-left/right/"center"
     else                                            vOut = 0; // legacy left/right
+}
+
+bool hasSpriteFrame(const Modules::SpriteAnimator::Frame& frame) {
+    return frame.w > 0 && frame.h > 0;
+}
+
+Modules::SpriteAnimator::Frame resolveSpriteFrame(
+    const Modules::SpriteAnimator* animator,
+    EntityId id,
+    const SpriteComponent& sprite,
+    bool inEditMode)
+{
+    if (!animator) return {};
+
+    const auto current = animator->currentFrame(id);
+    if (hasSpriteFrame(current)) return current;
+
+    if (inEditMode && !sprite.defaultClip.empty())
+        return animator->clipFrame(sprite.defaultClip, 0);
+
+    return {};
+}
+
+std::optional<Vec2> visualSizeForFrame(
+    const Modules::SpriteAnimator::Frame& frame,
+    const Vec2& scale)
+{
+    if (!hasSpriteFrame(frame)) return std::nullopt;
+    return Vec2{
+        static_cast<float>(frame.w) * std::abs(scale.x),
+        static_cast<float>(frame.h) * std::abs(scale.y),
+    };
 }
 
 } // namespace
@@ -112,10 +146,8 @@ void Application::renderActiveScene() {
                 && gaugeProbe.width > 0.f && gaugeProbe.height > 0.f;
             const bool visualOnly = placeholderFill && (hasText || hasGauge);
 
-            const auto frame = animator
-                ? animator->currentFrame(id)
-                : ::ArtCade::Modules::SpriteAnimator::Frame{};
-            if (frame.w > 0 && frame.h > 0) {
+            const auto frame = resolveSpriteFrame(animator, id, sprite, inEditMode);
+            if (hasSpriteFrame(frame)) {
                 renderer->drawSpriteFrame(
                     sprite.spriteAssetId,
                     static_cast<float>(frame.x),
@@ -219,13 +251,16 @@ void Application::renderActiveScene() {
         mod_->entityGateway->forEachActiveHiddenInGame(
             [renderer = mod_->renderer.get(),
              gateway = mod_->entityGateway.get(),
+             animator = mod_->spriteAnimator.get(),
              selectedId = overlay.selectedId]
             (EntityId id, const Transform& transform, const PhysicsComponent&) {
                 if (id == selectedId) return;
                 SpriteComponent sprite{};
                 if (!gateway->getSprite(id, sprite)) return;
+                const auto frame = resolveSpriteFrame(animator, id, sprite, true);
                 EditorOverlayRenderer::drawHiddenInGameOutline(
-                    *renderer, transform, sprite);
+                    *renderer, transform, sprite,
+                    visualSizeForFrame(frame, transform.scale));
             });
     }
 
@@ -241,8 +276,11 @@ void Application::renderActiveScene() {
             && mod_->entityGateway->getSprite(overlay.selectedId, sprite)) {
             const bool hiddenInGame =
                 !mod_->entityGateway->visibleInGame(overlay.selectedId);
+            const auto frame = resolveSpriteFrame(
+                mod_->spriteAnimator.get(), overlay.selectedId, sprite, overlay.inEditMode);
             EditorOverlayRenderer::drawSelection(
-                *mod_->renderer, transform, sprite, sensor, overlay, hiddenInGame);
+                *mod_->renderer, transform, sprite, sensor, overlay, hiddenInGame,
+                visualSizeForFrame(frame, transform.scale));
         }
     }
 
