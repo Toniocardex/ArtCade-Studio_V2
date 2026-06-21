@@ -81,6 +81,15 @@ public:
     /** Source subrect for an authored clip frame (zeroed if missing/out of range). */
     Frame clipFrame(const std::string& clipName, int frameIdx) const;
 
+    /** First authored frame for a sprite sheet asset (zeroed if the asset has no clips). */
+    Frame firstFrameForAsset(const std::string& assetId) const;
+
+    /** Clear asset fallback frames; clip definitions and playback instances are kept. */
+    void clearFirstFramesByAsset();
+
+    /** Store the static preview frame used when an entity has a sheet but no active clip. */
+    void setFirstFrameForAsset(const std::string& assetId, const Frame& frame);
+
     // Name of the playing clip ("" if stopped)
     std::string currentClip(EntityId entity) const;
 
@@ -153,6 +162,7 @@ private:
                    const std::string& clipName, int frameIdx);
 
     std::unordered_map<std::string, Clip>        clips_;
+    std::unordered_map<std::string, Frame>       firstFramesByAsset_;
     std::unordered_map<EntityId, AnimInstance>   instances_;
     std::vector<FinishEvent>                   finishBuffer_;
     std::vector<AnimEvent>                      eventBuffer_;

@@ -11,6 +11,7 @@ void defineClipsFromAssets(
     Modules::SpriteAnimator& animator,
     const std::vector<ImageAssetDef>& imageAssets)
 {
+    std::unordered_set<std::string> assetsWithFirstFrame;
     for (const ImageAssetDef& asset : imageAssets) {
         for (const AnimationClipDef& def : asset.clips) {
             if (def.name.empty() || def.frames.empty()) continue;
@@ -28,8 +29,13 @@ void defineClipsFromAssets(
                     static_cast<int>(r.h),
                 });
             }
-            if (!clip.frames.empty())
+            if (!clip.frames.empty()) {
+                if (!asset.assetId.empty() && assetsWithFirstFrame.count(asset.assetId) == 0) {
+                    animator.setFirstFrameForAsset(asset.assetId, clip.frames.front());
+                    assetsWithFirstFrame.insert(asset.assetId);
+                }
                 animator.defineClip(clip);
+            }
         }
     }
 }
@@ -56,6 +62,7 @@ void replaceAnimationClipsFromAssets(
         }
     }
     animator.removeClipsExcept(keep);
+    animator.clearFirstFramesByAsset();
     defineClipsFromAssets(animator, imageAssets);
 }
 

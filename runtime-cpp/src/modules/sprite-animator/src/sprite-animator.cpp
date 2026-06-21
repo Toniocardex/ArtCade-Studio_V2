@@ -6,12 +6,14 @@ namespace ArtCade::Modules {
 
 bool SpriteAnimator::init() {
     clips_.clear();
+    firstFramesByAsset_.clear();
     instances_.clear();
     return true;
 }
 
 void SpriteAnimator::shutdown() {
     clips_.clear();
+    firstFramesByAsset_.clear();
     instances_.clear();
     finishBuffer_.clear();
     eventBuffer_.clear();
@@ -51,6 +53,7 @@ bool SpriteAnimator::hasClip(const std::string& name) const {
 
 void SpriteAnimator::clearClips() {
     clips_.clear();
+    firstFramesByAsset_.clear();
 }
 
 void SpriteAnimator::removeClipsExcept(const std::unordered_set<std::string>& keep) {
@@ -184,6 +187,21 @@ SpriteAnimator::Frame SpriteAnimator::clipFrame(const std::string& clipName, int
 
     if (frameIdx < 0 || frameIdx >= static_cast<int>(frames.size())) return {};
     return frames[static_cast<size_t>(frameIdx)];
+}
+
+SpriteAnimator::Frame SpriteAnimator::firstFrameForAsset(const std::string& assetId) const {
+    auto it = firstFramesByAsset_.find(assetId);
+    if (it == firstFramesByAsset_.end()) return {};
+    return it->second;
+}
+
+void SpriteAnimator::clearFirstFramesByAsset() {
+    firstFramesByAsset_.clear();
+}
+
+void SpriteAnimator::setFirstFrameForAsset(const std::string& assetId, const Frame& frame) {
+    if (assetId.empty() || frame.w <= 0 || frame.h <= 0) return;
+    firstFramesByAsset_[assetId] = frame;
 }
 
 std::string SpriteAnimator::currentClip(EntityId entity) const {

@@ -195,6 +195,36 @@ describe('project.json roundtrip — assets', () => {
     expect(s.projectDirty).toBe(true)
   })
 
+  it('IMAGE_ASSET_SET_CLIPS assigns the first clip to linked sprites without a default clip', () => {
+    let s = coreReducer(st(project()), { type: 'ASSET_ADD', asset: IMG })
+    s = coreReducer(s, {
+      type: 'IMAGE_ASSET_SET_CLIPS',
+      assetId: 'img_a',
+      clips: [
+        { name: 'walk', frames: [{ x: 0, y: 0, w: 16, h: 16 }], fps: 8, loop: true },
+      ],
+    })
+    expect(s.project!.entities[1].sprite.defaultClip).toBe('walk')
+    expect(s.project!.entities[1].sprite.playClipOnSpawn).toBe(false)
+  })
+
+  it('IMAGE_ASSET_SET_CLIPS preserves a linked sprite default clip that still exists', () => {
+    const p = project()
+    p.entities[1].sprite.defaultClip = 'idle'
+    p.entities[1].sprite.playClipOnSpawn = true
+    let s = coreReducer(st(p), { type: 'ASSET_ADD', asset: IMG })
+    s = coreReducer(s, {
+      type: 'IMAGE_ASSET_SET_CLIPS',
+      assetId: 'img_a',
+      clips: [
+        { name: 'walk', frames: [{ x: 0, y: 0, w: 16, h: 16 }], fps: 8, loop: true },
+        { name: 'idle', frames: [{ x: 16, y: 0, w: 16, h: 16 }], fps: 8, loop: true },
+      ],
+    })
+    expect(s.project!.entities[1].sprite.defaultClip).toBe('idle')
+    expect(s.project!.entities[1].sprite.playClipOnSpawn).toBe(true)
+  })
+
   it('IMAGE_ASSET_SET_CLIPS is a no-op when the asset is missing', () => {
     const s0 = st(project())
     const s = coreReducer(s0, { type: 'IMAGE_ASSET_SET_CLIPS', assetId: 'nope', clips: [] })

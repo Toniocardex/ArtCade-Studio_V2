@@ -149,6 +149,19 @@ static void test_clip_frame_rect_without_instance() {
     std::puts("  [ok] clipFrame returns authored subrect without playback");
 }
 
+static void test_first_frame_for_asset() {
+    SA sa; sa.init();
+    sa.setFirstFrameForAsset("assets/images/walk.png", { 16, 0, 16, 16 });
+    auto f = sa.firstFrameForAsset("assets/images/walk.png");
+    assert(f.x == 16 && f.w == 16);
+    auto missing = sa.firstFrameForAsset("assets/images/missing.png");
+    assert(missing.w == 0 && missing.h == 0);
+    sa.clearFirstFramesByAsset();
+    auto cleared = sa.firstFrameForAsset("assets/images/walk.png");
+    assert(cleared.w == 0 && cleared.h == 0);
+    std::puts("  [ok] firstFrameForAsset stores static sheet fallback frames");
+}
+
 static void test_remove_entity() {
     SA sa; sa.init();
     sa.defineClip(makeClip("run", 4));
@@ -264,6 +277,7 @@ int main() {
     test_seek_frame();
     test_current_frame_rect();
     test_clip_frame_rect_without_instance();
+    test_first_frame_for_asset();
     test_remove_entity();
     test_independent_entities();
     test_play_emits_start_event();
@@ -271,6 +285,6 @@ int main() {
     test_update_emits_frame_events();
     test_loop_emits_loop_event();
     test_watched_kinds_gate_emission();
-    std::puts("=== all 19 tests passed ===");
+    std::puts("=== all 20 tests passed ===");
     return 0;
 }

@@ -7,7 +7,7 @@
 
 import type { CoreState, Action, DomainReducer } from '../editor-store-state'
 import { DEFAULT_WORLD, createTilemap, createTilemapForNewLayer, resizeTilemap, mergeTilemapLayers, resizeTilemapForTileSize, resolveTilemapTileSize } from '../../types'
-import type { EntityDef, SceneDef, TilemapLayer } from '../../types'
+import type { AnimationClipDef, EntityDef, SceneDef, SpriteComponent, TilemapLayer } from '../../types'
 import { DEFAULT_LAYERS } from '../../constants/scene-layers'
 import { createSceneDef, uniqueSceneName, nextEntityId } from '../../utils/project'
 import { clampEntityPositionToScene } from '../../utils/entity-position'
@@ -30,6 +30,56 @@ function detachNonSpriteImageRefs(project: NonNullable<CoreState['project']>, pa
       ? {
           objectTypes: Object.fromEntries(
             Object.entries(project.objectTypes).map(([id, type]) => [id, clearSprite(type)]),
+          ),
+        }
+      : {}),
+  }
+}
+
+function firstValidClipName(clips: AnimationClipDef[]): string | undefined {
+  return clips.find((clip) => clip.name.trim() && clip.frames.length > 0)?.name.trim()
+}
+
+function clipNameExists(clips: AnimationClipDef[], name: string | undefined): boolean {
+  const needle = name?.trim()
+  if (!needle) return false
+  return clips.some((clip) => clip.name.trim() === needle && clip.frames.length > 0)
+}
+
+function spriteWithClipDefaultsForAsset(
+  sprite: SpriteComponent,
+  assetPath: string,
+  clips: AnimationClipDef[],
+): SpriteComponent {
+  if (sprite.spriteAssetId !== assetPath) return sprite
+  if (clipNameExists(clips, sprite.defaultClip)) return sprite
+
+  const defaultClip = firstValidClipName(clips)
+  return {
+    ...sprite,
+    defaultClip,
+    playClipOnSpawn: defaultClip ? sprite.playClipOnSpawn === true : false,
+  }
+}
+
+function applyClipDefaultsForAsset(
+  project: NonNullable<CoreState['project']>,
+  assetPath: string,
+  clips: AnimationClipDef[],
+) {
+  const patchSprite = <T extends { sprite: SpriteComponent }>(entry: T): T => {
+    const sprite = spriteWithClipDefaultsForAsset(entry.sprite, assetPath, clips)
+    return sprite === entry.sprite ? entry : { ...entry, sprite }
+  }
+  return {
+    ...project,
+    entities: Object.fromEntries(
+      Object.entries(project.entities).map(([id, entity]) => [id, patchSprite(entity)]),
+    ),
+    ...(project.objectTypes
+      ? {
+          objectTypes: Object.fromEntries(
+            Object.entries(project.objectTypes).map(([id, type]) => [id, patchSprite(type)]),
           ),
         }
       : {}),
@@ -403,15 +453,16 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
     case 'IMAGE_ASSET_SET_CLIPS': {
       const existing = state.project?.assets?.[action.assetId]
       if (!state.project || !existing) return state
+      const projectWithClips = {
+        ...state.project,
+        assets: {
+          ...state.project.assets,
+          [action.assetId]: { ...existing, clips: action.clips },
+        },
+      }
       return {
         ...state,
-        project: {
-          ...state.project,
-          assets: {
-            ...state.project.assets,
-            [action.assetId]: { ...existing, clips: action.clips },
-          },
-        },
+        project: applyClipDefaultsForAsset(projectWithClips, existing.path, action.clips),
         projectDirty: true,
       }
     }

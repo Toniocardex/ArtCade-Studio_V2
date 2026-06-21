@@ -66,6 +66,9 @@ Modules::SpriteAnimator::Frame resolveSpriteFrame(
     if (inEditMode && !sprite.defaultClip.empty())
         return animator->clipFrame(sprite.defaultClip, 0);
 
+    if (!sprite.spriteAssetId.empty())
+        return animator->firstFrameForAsset(sprite.spriteAssetId);
+
     return {};
 }
 
