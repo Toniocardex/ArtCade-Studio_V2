@@ -430,10 +430,9 @@ class RuntimeSyncServiceImpl {
       const loadKey = `${projectPath ?? ''}|${JSON.stringify(projection)}`
       this.latchProjectProjection(loadKey, projection)
       this.lastDialogsKey = dialogsJsonForRuntime(dialogs)
-      // The bridge fires _onTextureCacheEvicted → clearRegistered() synchronously inside
-      // editorEnterPlayMode. Force syncProjectAssets to re-upload by resetting the key.
-      this.lastAssetSyncKey = null
-      this.syncProjectAssets(project, activeSceneId, projectPath ?? null)
+      // Edit→play keeps the asset set identical and the C++ runtime no longer evicts
+      // its texture cache on this transition, so the already-uploaded textures (and
+      // the JS registry that mirrors them) stay valid — no re-upload needed.
       return { ok: true, code: EditorApiResult.Ok }
     })
   }

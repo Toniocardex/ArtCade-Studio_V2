@@ -548,7 +548,10 @@ export function editorEnterPlayMode(
   } finally {
     free()
   }
-  _onTextureCacheEvicted?.()
+  // Edit→play keeps the asset set identical, so the C++ runtime no longer evicts
+  // its texture/sound caches on this transition (applyEditorEnterPlay). Firing the
+  // eviction callback here would drop the JS registry and force a needless async
+  // re-upload — the very window that flashed the placeholder square on first play.
   return code
 }
 
@@ -567,7 +570,8 @@ export function editorExitPlayMode(projectJson: string, luaSource: string): numb
     _module._free(ptrProject)
     _module._free(ptrLua)
   }
-  _onTextureCacheEvicted?.()
+  // Play→edit reuses the same textures (applyEditorExitPlay no longer evicts), so
+  // we keep the JS registry too — no eviction callback, no redundant re-upload.
   return code
 }
 

@@ -64,7 +64,8 @@ void Application::applyRuntimeSettings(const ProjectRuntimeSettings& settings,
 #ifdef ARTCADE_WASM
 void Application::applyEditorProjectCommon(
     const std::vector<TilePaletteEntry>& tilePalette,
-    const std::vector<TilesetAsset>& tilesets) {
+    const std::vector<TilesetAsset>& tilesets,
+    bool evictAssets) {
     tileColors_.clear();
     for (const auto& tile : tilePalette) tileColors_[tile.id] = tile.color;
 
@@ -72,6 +73,11 @@ void Application::applyEditorProjectCommon(
     for (const auto& tileset : tilesets) tilesets_[tileset.assetId] = tileset;
     mod_->sceneManager->setTilesets(tilesets);
 
+    // Edit↔play transitions reuse the already-uploaded textures: evicting here
+    // would blank the sprite for the first frame(s) of play until the editor's
+    // async re-upload lands (the "first play shows the placeholder square" bug).
+    // Only drop the caches when the project content may actually have changed.
+    if (!evictAssets) return;
     if (mod_->textureManager) mod_->textureManager->unloadAll();
     if (mod_->renderer) mod_->renderer->evictCachedAssets();
 }
@@ -133,7 +139,7 @@ void Application::applyEditorEnterPlay(
     const std::vector<TilesetAsset>& tilesets,
     const std::vector<GameVariableDefinition>& variables,
     const ProjectRuntimeSettings& settings) {
-    applyEditorProjectCommon(tilePalette, tilesets);
+    applyEditorProjectCommon(tilePalette, tilesets, /*evictAssets=*/false);
     applyRuntimeSettings(settings, ViewportPolicy::NativePlay);
     resetGameplayRuntimeModules();
     if (mod_->variableManager) mod_->variableManager->configureGlobals(variables);
@@ -146,7 +152,7 @@ void Application::applyEditorExitPlay(
     const std::vector<GameVariableDefinition>& variables,
     const ProjectRuntimeSettings& settings,
     const std::string& luaSource) {
-    applyEditorProjectCommon(tilePalette, tilesets);
+    applyEditorProjectCommon(tilePalette, tilesets, /*evictAssets=*/false);
     applyRuntimeSettings(settings, ViewportPolicy::EditorPreview);
     if (mod_->luaHost && !luaSource.empty()) mod_->luaHost->loadLuaSource(luaSource);
     resetGameplayRuntimeModules();

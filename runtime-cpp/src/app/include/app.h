@@ -44,9 +44,15 @@ public:
                               ViewportPolicy              policy);
 
 #ifdef ARTCADE_WASM
-    /** Shared tile setup after editor project JSON is applied (no viewport). */
+    /** Shared tile setup after editor project JSON is applied (no viewport).
+     *  @p evictAssets unloads the texture/sound caches — needed when the project
+     *  content may have changed (HotSync / restore), but NOT on edit↔play mode
+     *  transitions where the asset set is identical. Evicting there would wipe the
+     *  GPU textures and force an async JS re-upload, so the first play frame would
+     *  render the placeholder square until the upload lands. */
     void applyEditorProjectCommon(const std::vector<TilePaletteEntry>& tilePalette,
-                                  const std::vector<TilesetAsset>&     tilesets);
+                                  const std::vector<TilesetAsset>&     tilesets,
+                                  bool                                 evictAssets = true);
     /** Called from editor_load_project after the gateway swap. */
     void applyEditorProjectLoaded(const std::vector<TilePaletteEntry>& tilePalette,
                                   const std::vector<TilesetAsset>&     tilesets,
