@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Pause, Play } from 'lucide-react'
 import { PivotMarker, pivotOffsetInRect } from '../../components/pivot/PivotMarkerOverlay'
 import type { AnimationClipDef, ImageAsset } from '../../types'
 import { getAssetDefaultPivot } from '../../utils/sprite-pivot-resolve'
@@ -41,6 +42,7 @@ function InspectorClipCssPreview({
   playbackSrc: string
 }>) {
   const [previewTick, setPreviewTick] = useState(0)
+  const [playing, setPlaying] = useState(true)
   const previewRef = useRef(0)
 
   useEffect(() => {
@@ -49,7 +51,7 @@ function InspectorClipCssPreview({
   }, [clip.name, clip.frames.length])
 
   useEffect(() => {
-    if (clip.frames.length === 0) return
+    if (!playing || clip.frames.length === 0) return
     const fps = clip.fps > 0 ? clip.fps : 12
     const frameMs = 1000 / fps
     let raf = 0
@@ -67,7 +69,7 @@ function InspectorClipCssPreview({
     }
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
-  }, [clip])
+  }, [clip, playing])
 
   const frame = clip.frames[previewTick]
   if (!frame) return null
@@ -118,9 +120,20 @@ function InspectorClipCssPreview({
           />
         </div>
       </div>
-      <span className="text-[8px] text-[var(--muted)]">
-        {clip.name} / {previewTick + 1}/{clip.frames.length}
-      </span>
+      <div className="flex w-full items-center justify-between gap-2">
+        <span className="text-[8px] text-[var(--muted)]">
+          {clip.name} / {previewTick + 1}/{clip.frames.length}
+        </span>
+        <button
+          type="button"
+          onClick={() => setPlaying((p) => !p)}
+          title={playing ? 'Pause preview' : 'Play preview'}
+          aria-label={playing ? 'Pause preview' : 'Play preview'}
+          className="flex items-center justify-center w-5 h-5 rounded text-[var(--muted)] hover:text-[var(--accent)] hover:bg-[var(--surface-hover)] transition-colors"
+        >
+          {playing ? <Pause size={12} /> : <Play size={12} />}
+        </button>
+      </div>
     </div>
   )
 }

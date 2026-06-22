@@ -1,7 +1,7 @@
 /**
  * @vitest-environment happy-dom
  */
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { ImageAsset } from '../../types'
 import { InspectorClipPreview } from './InspectorClipPreview'
@@ -46,6 +46,19 @@ describe('InspectorClipPreview', () => {
     expect(img?.getAttribute('src')).toBe(previewDataUrl)
     expect(img?.style.transform).toMatch(/^scale\(/)
     expect(img?.style.transformOrigin).toBe('0 0')
+  })
+
+  it('toggles the playback control between pause and play', () => {
+    render(<InspectorClipPreview asset={spriteAsset()} clipName="idle" />)
+
+    // Starts playing → control offers Pause.
+    const pauseBtn = screen.getByRole('button', { name: 'Pause preview' })
+    fireEvent.click(pauseBtn)
+
+    // Paused → control now offers Play, and clicking resumes.
+    const playBtn = screen.getByRole('button', { name: 'Play preview' })
+    fireEvent.click(playBtn)
+    expect(screen.getByRole('button', { name: 'Pause preview' })).toBeTruthy()
   })
 
   it('does not render when the selected clip has no local playback source', () => {
