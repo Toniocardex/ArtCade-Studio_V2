@@ -362,8 +362,9 @@ void Renderer::drawSprite(const AssetId& assetId,
     const std::string texKey = resolvedTextureKey(assetId);
     const Texture2D* tex = impl_->texCache.getByPath(texKey);
     if (!tex || tex->id == 0) {
-        const float fw = kPlaceholderSpriteSize * scale.x;
-        const float fh = kPlaceholderSpriteSize * scale.y;
+        // abs(): a flipped (negative) scale must not collapse the placeholder.
+        const float fw = kPlaceholderSpriteSize * (scale.x < 0.f ? -scale.x : scale.x);
+        const float fh = kPlaceholderSpriteSize * (scale.y < 0.f ? -scale.y : scale.y);
         const unsigned char ca =
             static_cast<unsigned char>(std::clamp(alpha, 0.f, 1.f) * 255.f);
         const Color fill{
@@ -378,10 +379,17 @@ void Renderer::drawSprite(const AssetId& assetId,
         return;
     }
 
-    Rectangle src = { 0.f, 0.f, static_cast<float>(tex->width), static_cast<float>(tex->height) };
+    // Flip via a negative SOURCE rect (raylib's mirror path); keep the dest rect
+    // positive so origin/pivot/rotation stay correct. A negative dest width
+    // (from a flipped scale) collapses the quad and the sprite vanishes.
+    const float texW = static_cast<float>(tex->width);
+    const float texH = static_cast<float>(tex->height);
+    Rectangle src = { 0.f, 0.f,
+                      scale.x < 0.f ? -texW : texW,
+                      scale.y < 0.f ? -texH : texH };
     Rectangle dst = { pos.x, pos.y,
-                      tex->width  * scale.x,
-                      tex->height * scale.y };
+                      texW * (scale.x < 0.f ? -scale.x : scale.x),
+                      texH * (scale.y < 0.f ? -scale.y : scale.y) };
     const Vec2 originVec = SpriteDrawMath::drawOrigin(pivot, dst.width, dst.height);
     Vector2 origin = { originVec.x, originVec.y };
     const Color tintColor = toColor(drawTint, alpha);
@@ -431,8 +439,15 @@ void Renderer::drawSpriteFrame(const AssetId& assetId,
         return;
     }
 
-    Rectangle src = { srcX, srcY, srcW, srcH };
-    Rectangle dst = { pos.x, pos.y, srcW * scale.x, srcH * scale.y };
+    // Flip via a negative SOURCE rect (raylib mirrors the region in place); keep
+    // the dest rect positive so origin/pivot/rotation stay correct. A negative
+    // dest width (flipped scale) collapses the quad and the sprite vanishes.
+    Rectangle src = { srcX, srcY,
+                      scale.x < 0.f ? -srcW : srcW,
+                      scale.y < 0.f ? -srcH : srcH };
+    Rectangle dst = { pos.x, pos.y,
+                      srcW * (scale.x < 0.f ? -scale.x : scale.x),
+                      srcH * (scale.y < 0.f ? -scale.y : scale.y) };
     const Vec2 originVec = SpriteDrawMath::drawOrigin(pivot, dst.width, dst.height);
     Vector2 origin = { originVec.x, originVec.y };
     DrawTexturePro(*tex, src, dst, origin, rotation, toColor(tint, alpha));
