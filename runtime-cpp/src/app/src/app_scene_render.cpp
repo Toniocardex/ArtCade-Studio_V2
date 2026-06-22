@@ -52,7 +52,16 @@ bool hasSpriteFrame(const Modules::SpriteAnimator::Frame& frame) {
     return frame.w > 0 && frame.h > 0;
 }
 
-Modules::SpriteAnimator::Frame resolveSpriteFrame(
+/** Frame to draw plus the sheet it belongs to. A clip's frame rects are valid
+ *  only on the clip's own sheet, so while a clip is active the renderer must
+ *  follow `assetId` rather than the entity's static sprite — this is what lets
+ *  one object animate across sheets. Empty `assetId` → use the entity's sprite. */
+struct ResolvedSpriteDraw {
+    Modules::SpriteAnimator::Frame frame{};
+    std::string assetId;
+};
+
+ResolvedSpriteDraw resolveSpriteFrame(
     const Modules::SpriteAnimator* animator,
     EntityId id,
     const SpriteComponent& sprite,
@@ -61,13 +70,16 @@ Modules::SpriteAnimator::Frame resolveSpriteFrame(
     if (!animator) return {};
 
     const auto current = animator->currentFrame(id);
-    if (hasSpriteFrame(current)) return current;
+    if (hasSpriteFrame(current))
+        return { current, animator->currentClipAssetId(id) };
 
     if (inEditMode && !sprite.defaultClip.empty())
-        return animator->clipFrame(sprite.defaultClip, 0);
+        return { animator->clipFrame(sprite.defaultClip, 0),
+                 animator->clipAssetId(sprite.defaultClip) };
 
     if (!sprite.spriteAssetId.empty())
-        return animator->firstFrameForAsset(sprite.spriteAssetId);
+        return { animator->firstFrameForAsset(sprite.spriteAssetId),
+                 sprite.spriteAssetId };
 
     return {};
 }
@@ -149,14 +161,16 @@ void Application::renderActiveScene() {
                 && gaugeProbe.width > 0.f && gaugeProbe.height > 0.f;
             const bool visualOnly = placeholderFill && (hasText || hasGauge);
 
-            const auto frame = resolveSpriteFrame(animator, id, sprite, inEditMode);
-            if (hasSpriteFrame(frame)) {
+            const auto draw = resolveSpriteFrame(animator, id, sprite, inEditMode);
+            if (hasSpriteFrame(draw.frame)) {
+                const std::string& sheet =
+                    draw.assetId.empty() ? sprite.spriteAssetId : draw.assetId;
                 renderer->drawSpriteFrame(
-                    sprite.spriteAssetId,
-                    static_cast<float>(frame.x),
-                    static_cast<float>(frame.y),
-                    static_cast<float>(frame.w),
-                    static_cast<float>(frame.h),
+                    sheet,
+                    static_cast<float>(draw.frame.x),
+                    static_cast<float>(draw.frame.y),
+                    static_cast<float>(draw.frame.w),
+                    static_cast<float>(draw.frame.h),
                     transform.position, transform.rotation, transform.scale,
                     sprite.tint, alpha, sprite.pivot);
             } else if (!visualOnly) {
@@ -260,10 +274,10 @@ void Application::renderActiveScene() {
                 if (id == selectedId) return;
                 SpriteComponent sprite{};
                 if (!gateway->getSprite(id, sprite)) return;
-                const auto frame = resolveSpriteFrame(animator, id, sprite, true);
+                const auto draw = resolveSpriteFrame(animator, id, sprite, true);
                 EditorOverlayRenderer::drawHiddenInGameOutline(
                     *renderer, transform, sprite,
-                    visualSizeForFrame(frame, transform.scale));
+                    visualSizeForFrame(draw.frame, transform.scale));
             });
     }
 
@@ -279,11 +293,11 @@ void Application::renderActiveScene() {
             && mod_->entityGateway->getSprite(overlay.selectedId, sprite)) {
             const bool hiddenInGame =
                 !mod_->entityGateway->visibleInGame(overlay.selectedId);
-            const auto frame = resolveSpriteFrame(
+            const auto draw = resolveSpriteFrame(
                 mod_->spriteAnimator.get(), overlay.selectedId, sprite, overlay.inEditMode);
             EditorOverlayRenderer::drawSelection(
                 *mod_->renderer, transform, sprite, sensor, overlay, hiddenInGame,
-                visualSizeForFrame(frame, transform.scale));
+                visualSizeForFrame(draw.frame, transform.scale));
         }
     }
 

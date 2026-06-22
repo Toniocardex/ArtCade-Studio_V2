@@ -42,7 +42,23 @@ export function listProjectClips(
   })
   const needle = filterSpritePath?.trim()
   if (!needle) return out
-  return out.filter((e) => e.spritePath === needle)
+  // Match the object's sheet the same way the inspector / Sprite Studio do
+  // (path OR id), then accept any asset entry that resolves to the same sheet
+  // identity — path, id, or filename. A strict `path === needle` check hid clips
+  // when the object referenced a different asset entry for the same image.
+  const target = findImageAssetByPath(project.assets, needle)
+  const identities = new Set<string>([needle])
+  if (target) {
+    if (target.path) identities.add(target.path)
+    if (target.name) identities.add(target.name)
+    identities.add(target.id)
+  }
+  return out.filter(
+    (e) =>
+      identities.has(e.spritePath)
+      || identities.has(e.assetId)
+      || identities.has(e.assetLabel),
+  )
 }
 
 export function clipsForSpritePath(

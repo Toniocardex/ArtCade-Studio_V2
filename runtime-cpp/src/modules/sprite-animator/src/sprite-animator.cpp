@@ -189,6 +189,19 @@ SpriteAnimator::Frame SpriteAnimator::clipFrame(const std::string& clipName, int
     return frames[static_cast<size_t>(frameIdx)];
 }
 
+std::string SpriteAnimator::clipAssetId(const std::string& clipName) const {
+    auto cit = clips_.find(clipName);
+    return (cit != clips_.end()) ? cit->second.assetId : std::string{};
+}
+
+std::string SpriteAnimator::currentClipAssetId(EntityId entity) const {
+    // Mirror currentFrame(): a finished non-loop clip still shows its last
+    // frame, so its sheet must stay selected regardless of play state.
+    auto iit = instances_.find(entity);
+    if (iit == instances_.end()) return {};
+    return clipAssetId(iit->second.clipName);
+}
+
 SpriteAnimator::Frame SpriteAnimator::firstFrameForAsset(const std::string& assetId) const {
     auto it = firstFramesByAsset_.find(assetId);
     if (it == firstFramesByAsset_.end()) return {};

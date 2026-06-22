@@ -133,6 +133,45 @@ export function collectSceneAudioRefs(project: ProjectDoc, sceneId: string): str
   return collectAudioFromLogicBoards(project, sceneId)
 }
 
+/** Sheet path(s) holding a clip a `playAnimation` action targets. A clip may
+ *  live on a sheet different from the object's static sprite (cross-sheet
+ *  animation), so that sheet's texture must also be uploaded for preview. */
+function collectClipSheetFromAction(
+  project: ProjectDoc,
+  action: LogicAction,
+  paths: Set<string>,
+): void {
+  if (action.type !== 'playAnimation') return
+  const clipName = action.clipName?.trim()
+  if (!clipName) return
+  for (const asset of Object.values(project.assets ?? {})) {
+    if (asset.clips?.some((c) => c.name.trim() === clipName)) {
+      addSpritePath(paths, asset.path)
+    }
+  }
+}
+
+function collectClipSheetsFromLogicBoards(
+  project: ProjectDoc,
+  sceneId: string,
+): string[] {
+  const boards = project.logicBoards ?? []
+  if (boards.length === 0) return []
+  const paths = new Set<string>()
+  for (const board of boards) {
+    if (!boardTargetsScene(board, project, sceneId)) continue
+    for (const event of board.events ?? []) {
+      for (const action of event.actions ?? []) {
+        collectClipSheetFromAction(project, action, paths)
+      }
+      for (const action of event.elseActions ?? []) {
+        collectClipSheetFromAction(project, action, paths)
+      }
+    }
+  }
+  return [...paths]
+}
+
 /**
  * Deterministic list of image paths required when `sceneId` is active in preview.
  */
@@ -153,6 +192,12 @@ export function collectSceneAssetRefs(
   }
 
   for (const path of tilesetPathsForScene(scene, project.tilesets)) {
+    keys.add(path)
+  }
+
+  // Cross-sheet animation: clips a scene object can play may live on a sheet
+  // other than its static sprite — upload those sheets too.
+  for (const path of collectClipSheetsFromLogicBoards(project, sceneId)) {
     keys.add(path)
   }
 

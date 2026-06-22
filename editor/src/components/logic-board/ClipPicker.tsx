@@ -3,19 +3,36 @@ import { useEditorSelector } from '../../store/editor-store'
 import {
   formatClipOption,
   listProjectClips,
+  type ProjectClipEntry,
 } from '../../utils/animation-clips-catalog'
-import { EditorSelect } from '../ui/EditorSelect'
+import { EditorSelect, type EditorSelectGroup } from '../ui/EditorSelect'
 
 export type ClipPickerProps = Readonly<{
   value: string
   onChange: (clipName: string) => void
   allowEmpty?: boolean
   emptyLabel?: string
-  /** When set (entity rulesheet), list only clips on this sprite sheet. */
+  /** When set (entity rulesheet), the object's own sheet clips are listed first. */
   filterSpritePath?: string
   /** Target instances disagree on sprite sheet — show all clips + warning. */
   ambiguousTargetSpritePaths?: boolean
 }>
+
+function clipKey(e: ProjectClipEntry): string {
+  return `${e.clipName}::${e.spritePath}::${e.assetId}`
+}
+
+function toOption(e: ProjectClipEntry) {
+  return {
+    value: e.clipName,
+    label: formatClipOption(
+      e.clipName,
+      { id: e.assetId, name: e.assetLabel, path: e.spritePath, usage: 'sprite' },
+      e.assetId,
+    ),
+    title: `${e.clipName} (${e.spritePath})`,
+  }
+}
 
 export function ClipPicker({
   value,
@@ -26,10 +43,17 @@ export function ClipPicker({
   ambiguousTargetSpritePaths = false,
 }: ClipPickerProps) {
   const project = useEditorSelector((s) => s.project)
-  const entries = useMemo(
-    () => listProjectClips(project, filterSpritePath),
-    [project, filterSpritePath],
-  )
+
+  // Show every clip in the project so an object can play animations that live
+  // on any sheet (the picker previously hid clips not on the object's own sheet).
+  // The object's own sheet is grouped first for quick access.
+  const { entries, ownEntries, otherEntries } = useMemo(() => {
+    const all = listProjectClips(project)
+    const own = filterSpritePath ? listProjectClips(project, filterSpritePath) : []
+    const ownKeys = new Set(own.map(clipKey))
+    const others = own.length > 0 ? all.filter((e) => !ownKeys.has(clipKey(e))) : all
+    return { entries: all, ownEntries: own, otherEntries: others }
+  }, [project, filterSpritePath])
 
   const trimmed = value.trim()
   const duplicateWarn =
@@ -39,9 +63,7 @@ export function ClipPicker({
     return (
       <span className="flex flex-col gap-1">
         <span className="text-[10px] text-[var(--muted)] italic">
-          {filterSpritePath
-            ? 'No clips on this entity\'s sprite sheet. Add clips in Sprite Studio on that image.'
-            : 'No animation clips in this project. Add clips in Sprite Studio on an image sheet.'}
+          No animation clips in this project. Add clips in Sprite Studio on an image sheet.
         </span>
         <input
           className="bg-[var(--bg)] border border-[var(--border-2)] text-[var(--text)] px-2 py-1 rounded text-xs w-36"
@@ -54,6 +76,20 @@ export function ClipPicker({
   }
 
   const inList = entries.some((e) => e.clipName === value)
+
+  const emptyOption = allowEmpty ? [{ value: '', label: emptyLabel }] : []
+  const customOption =
+    !inList && value ? [{ value: '__custom__', label: `Custom: ${value}` }] : []
+
+  // Two groups (own sheet + other sheets) only when both are non-empty and we
+  // have a sheet context; otherwise a single flat list.
+  const groups: EditorSelectGroup[] =
+    ownEntries.length > 0 && otherEntries.length > 0
+      ? [
+          { label: 'This object’s sheet', options: [...emptyOption, ...ownEntries.map(toOption)] },
+          { label: 'Other sheets', options: [...otherEntries.map(toOption), ...customOption] },
+        ]
+      : [{ options: [...emptyOption, ...entries.map(toOption), ...customOption] }]
 
   return (
     <span className="flex flex-col gap-1">
@@ -69,21 +105,7 @@ export function ClipPicker({
           }
           onChange(v)
         }}
-        options={[
-          ...(allowEmpty ? [{ value: '', label: emptyLabel }] : []),
-          ...entries.map((e) => ({
-            value: e.clipName,
-            label: formatClipOption(
-              e.clipName,
-              { id: e.assetId, name: e.assetLabel, path: e.spritePath, usage: 'sprite' },
-              e.assetId,
-            ),
-            title: `${e.clipName} (${e.spritePath})`,
-          })),
-          ...(!inList && value
-            ? [{ value: '__custom__', label: `Custom: ${value}` }]
-            : []),
-        ]}
+        groups={groups}
         aria-label="Animation clip"
       />
       {(!inList && value) || duplicateWarn ? (

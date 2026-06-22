@@ -19,6 +19,7 @@ void defineClipsFromAssets(
             clip.name = def.name;
             clip.fps  = def.fps > 0.f ? def.fps : 12.f;
             clip.loop = def.loop;
+            clip.assetId = asset.assetId;
             clip.frames.reserve(def.frames.size());
             for (const AnimationFrameRect& r : def.frames) {
                 if (r.w <= 0.f || r.h <= 0.f) continue;

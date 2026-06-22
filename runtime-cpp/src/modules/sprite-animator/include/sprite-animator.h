@@ -46,6 +46,10 @@ public:
         std::vector<Frame> frames;
         float              fps    = 12.f;
         bool               loop   = true;
+        /** Sprite sheet this clip's frame rects belong to. The renderer draws
+         *  THIS sheet while the clip plays, so an entity can animate across
+         *  sheets without its frames being sliced from the wrong texture. */
+        std::string        assetId;
     };
 
     void defineClip(const Clip& clip);
@@ -80,6 +84,12 @@ public:
 
     /** Source subrect for an authored clip frame (zeroed if missing/out of range). */
     Frame clipFrame(const std::string& clipName, int frameIdx) const;
+
+    /** Sprite sheet a clip's frames belong to ("" if the clip is unknown). */
+    std::string clipAssetId(const std::string& clipName) const;
+
+    /** Sheet of the entity's currently playing clip ("" if no active instance). */
+    std::string currentClipAssetId(EntityId entity) const;
 
     /** First authored frame for a sprite sheet asset (zeroed if the asset has no clips). */
     Frame firstFrameForAsset(const std::string& assetId) const;

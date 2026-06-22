@@ -194,6 +194,29 @@ describe('collectSceneAssetRefs', () => {
     expect(refs).toContain(TILE_IMG_B)
   })
 
+  it('includes cross-sheet clip sheets referenced by playAnimation actions', () => {
+    const p = projectWithTwoScenes()
+    // 'walking' lives on IMG_B — a different sheet than Hero's sprite (IMG_A).
+    p.assets!.img_b = {
+      ...p.assets!.img_b,
+      clips: [{ name: 'walking', frames: [{ x: 0, y: 0, w: 16, h: 16 }], fps: 8, loop: true }],
+    }
+    const board: LogicBoard = {
+      boardId: 'anim',
+      target: { type: 'object_type', objectTypeId: 'Hero' },
+      events: [
+        {
+          trigger: { type: 'onStart' },
+          actions: [{ type: 'playAnimation', target: 'self', clipName: 'walking' }],
+        },
+      ],
+    }
+    p.logicBoards = [board]
+    const refs = collectSceneAssetRefs(p, 'scene_main')
+    expect(refs).toContain(IMG_A) // Hero's static sprite
+    expect(refs).toContain(IMG_B) // walking clip's sheet (cross-sheet upload)
+  })
+
   it('collectSceneAudioRefs resolves audioAssetId and legacy path', () => {
     const p = projectWithTwoScenes()
     p.audioAssets = {

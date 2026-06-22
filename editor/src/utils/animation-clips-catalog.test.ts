@@ -57,6 +57,30 @@ describe('listProjectClips', () => {
     expect(listProjectClips(project)).toHaveLength(0)
   })
 
+  it('surfaces clips from a duplicate asset entry for the same sheet (path/name)', () => {
+    // Object references entry A (1 clip); the same image was also imported as
+    // entry B with a different path but the same filename, holding more clips.
+    const project = miniProject({
+      a: {
+        id: 'a',
+        name: 'walking.png',
+        path: 'walking.png',
+        clips: [{ name: 'walking', frames: [{ x: 0, y: 0, w: 16, h: 16 }], fps: 8, loop: true }],
+      },
+      b: {
+        id: 'b',
+        name: 'walking.png',
+        path: 'sprites/walking.png',
+        clips: [
+          { name: 'idle', frames: [{ x: 0, y: 0, w: 16, h: 16 }], fps: 8, loop: true },
+          { name: 'run', frames: [{ x: 16, y: 0, w: 16, h: 16 }], fps: 12, loop: true },
+        ],
+      },
+    })
+    const rows = listProjectClips(project, 'walking.png')
+    expect(rows.map((r) => r.clipName).sort()).toEqual(['idle', 'run', 'walking'])
+  })
+
   it('filters by sprite path when provided', () => {
     const project = miniProject({
       a: {
@@ -107,6 +131,106 @@ describe('resolveClipContextForLogicBoard (re-exported spritePathForLogicBoardTa
       events: [],
     }
     expect(spritePathForLogicBoardTarget(project, board)).toBe('assets/hero.png')
+  })
+
+  it('lists ALL clips on the object sheet for the play-animation picker', () => {
+    const project: ProjectDoc = {
+      ...miniProject({
+        sheet: {
+          id: 'sheet',
+          name: 'walking.png',
+          path: 'assets/walking.png',
+          clips: [
+            { name: 'idle', frames: [{ x: 0, y: 0, w: 16, h: 16 }], fps: 8, loop: true },
+            { name: 'walk', frames: [{ x: 16, y: 0, w: 16, h: 16 }], fps: 8, loop: true },
+            { name: 'run', frames: [{ x: 32, y: 0, w: 16, h: 16 }], fps: 12, loop: true },
+          ],
+        },
+      }),
+      entities: {
+        1: {
+          id: 1,
+          name: 'Obj',
+          className: 'Object',
+          tags: [],
+          transform: { position: { x: 0, y: 0 }, scale: { x: 1, y: 1 }, rotation: 0 },
+          sprite: {
+            spriteAssetId: 'assets/walking.png',
+            tint: { x: 1, y: 1, z: 1, w: 1 },
+            fillColor: { x: 1, y: 1, z: 1 },
+            alpha: 1,
+            pivot: { x: 0.5, y: 0.5 },
+            renderOrder: 0,
+            defaultClip: 'idle',
+          },
+        },
+      },
+    }
+    const board: LogicBoard = {
+      id: 'b',
+      name: 'Object rules',
+      target: { type: 'object_type', objectTypeId: 'Object' },
+      events: [],
+    }
+    const ctx = resolveClipContextForLogicBoard(project, board)
+    const rows = listProjectClips(project, ctx.spritePath)
+    expect(rows.map((r) => r.clipName).sort()).toEqual(['idle', 'run', 'walk'])
+  })
+
+  it('lists ALL sheet clips through object-type + scene-instance materialization', () => {
+    const sprite = {
+      spriteAssetId: 'assets/walking.png',
+      tint: { x: 1, y: 1, z: 1, w: 1 },
+      fillColor: { x: 1, y: 1, z: 1 },
+      alpha: 1,
+      pivot: { x: 0.5, y: 0.5 },
+      renderOrder: 0,
+      defaultClip: 'idle',
+    }
+    const project: ProjectDoc = {
+      ...miniProject({
+        sheet: {
+          id: 'sheet',
+          name: 'walking.png',
+          path: 'assets/walking.png',
+          clips: [
+            { name: 'idle', frames: [{ x: 0, y: 0, w: 16, h: 16 }], fps: 8, loop: true },
+            { name: 'walk', frames: [{ x: 16, y: 0, w: 16, h: 16 }], fps: 8, loop: true },
+            { name: 'run', frames: [{ x: 32, y: 0, w: 16, h: 16 }], fps: 12, loop: true },
+          ],
+        },
+      }),
+      objectTypes: {
+        Object: { id: 'Object', displayName: 'Object', tags: [], sprite } as never,
+      },
+      scenes: {
+        s: {
+          id: 's',
+          name: 'Main',
+          worldSize: { x: 100, y: 100 },
+          viewportSize: { x: 100, y: 100 },
+          backgroundColor: { x: 0, y: 0, z: 0, w: 1 },
+          entityIds: [1],
+          instances: [
+            {
+              id: 1,
+              objectTypeId: 'Object',
+              transform: { position: { x: 0, y: 0 }, scale: { x: 1, y: 1 }, rotation: 0 },
+              visible: true,
+            },
+          ],
+        } as never,
+      },
+    }
+    const board: LogicBoard = {
+      id: 'b',
+      name: 'Object rules',
+      target: { type: 'object_type', objectTypeId: 'Object' },
+      events: [],
+    }
+    const ctx = resolveClipContextForLogicBoard(project, board)
+    const rows = listProjectClips(project, ctx.spritePath)
+    expect(rows.map((r) => r.clipName).sort()).toEqual(['idle', 'run', 'walk'])
   })
 
   it('returns undefined for global boards', () => {

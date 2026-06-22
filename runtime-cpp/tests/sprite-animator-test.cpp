@@ -263,6 +263,32 @@ static void test_watched_kinds_gate_emission() {
     std::puts("  [ok] watched-kinds mask gates which events are recorded");
 }
 
+static void test_clip_carries_sheet_asset_id() {
+    SA sa; sa.init();
+    SA::Clip idle = makeClip("idle", 2);
+    idle.assetId = "idle.png";
+    SA::Clip walk = makeClip("walking", 3);
+    walk.assetId = "walking.png";
+    sa.defineClip(idle);
+    sa.defineClip(walk);
+
+    // Per-clip sheet lookup is independent of any playing instance.
+    assert(sa.clipAssetId("idle") == "idle.png");
+    assert(sa.clipAssetId("walking") == "walking.png");
+    assert(sa.clipAssetId("missing").empty());
+
+    // The active clip's sheet follows what the entity is playing — this is what
+    // lets one object animate across sheets without slicing the wrong texture.
+    assert(sa.currentClipAssetId(7u).empty());
+    sa.play(7u, "walking");
+    assert(sa.currentClipAssetId(7u) == "walking.png");
+    sa.play(7u, "idle");
+    assert(sa.currentClipAssetId(7u) == "idle.png");
+
+    sa.shutdown();
+    std::puts("  [ok] clip carries its sheet assetId (cross-sheet animation)");
+}
+
 int main() {
     std::puts("=== SpriteAnimator check ===");
     test_init_shutdown();
@@ -285,6 +311,7 @@ int main() {
     test_update_emits_frame_events();
     test_loop_emits_loop_event();
     test_watched_kinds_gate_emission();
-    std::puts("=== all 20 tests passed ===");
+    test_clip_carries_sheet_asset_id();
+    std::puts("=== all 21 tests passed ===");
     return 0;
 }
