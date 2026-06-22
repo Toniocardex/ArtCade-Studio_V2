@@ -50,6 +50,11 @@ public:
     /** Optional: play defaultClip on spawn when sprite.playClipOnSpawn is set. */
     void setSpriteAnimator(SpriteAnimator* animator);
 
+    /** Re-arm playClipOnSpawn for every active entity. The editor enter-play
+     *  reset clears animator instances after entities were activated, so spawn
+     *  clips must be replayed once the gameplay modules are fresh. */
+    void replayActiveSpawnClips();
+
     /** Editor console (or tests): called after each spawnFromClass with "[Spawn] …" line. */
     void setSpawnLogCallback(SpawnLogCallback cb);
 

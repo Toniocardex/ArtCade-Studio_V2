@@ -144,6 +144,9 @@ void Application::applyEditorEnterPlay(
     resetGameplayRuntimeModules();
     if (mod_->variableManager) mod_->variableManager->configureGlobals(variables);
     if (mod_->world) mod_->world->syncAfterEditorProject(tilePalette);
+    // The reset above wiped the animator instances that replaceProject created
+    // for playClipOnSpawn entities — re-arm them now that modules are fresh.
+    if (mod_->entityGateway) mod_->entityGateway->replayActiveSpawnClips();
 }
 
 void Application::applyEditorExitPlay(

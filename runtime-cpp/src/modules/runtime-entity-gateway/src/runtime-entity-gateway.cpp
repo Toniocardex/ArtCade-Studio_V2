@@ -110,6 +110,16 @@ void RuntimeEntityGateway::maybePlaySpawnClip(EntityId id, const SpriteComponent
         spriteAnimator_->play(id, sprite.defaultClip);
 }
 
+void RuntimeEntityGateway::replayActiveSpawnClips() {
+    if (!spriteAnimator_) return;
+    for (EntityId id : registry_->allIds()) {
+        if (!registry_->sceneActive(id)) continue;
+        SpriteComponent sprite;
+        if (getSprite(id, sprite))
+            maybePlaySpawnClip(id, sprite);
+    }
+}
+
 void RuntimeEntityGateway::setSpawnLogCallback(SpawnLogCallback cb) {
     spawnLogCallback_ = std::move(cb);
 }

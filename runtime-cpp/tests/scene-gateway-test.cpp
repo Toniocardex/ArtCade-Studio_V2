@@ -4,6 +4,7 @@
 #include "modules/runtime-entity-gateway/include/runtime-entity-gateway.h"
 #include "modules/physics/include/physics.h"
 #include "modules/variable-manager/include/variable-manager.h"
+#include "modules/sprite-animator/include/sprite-animator.h"
 #include <algorithm>
 #include <iostream>
 
@@ -231,6 +232,45 @@ int main() {
     CHECK(std::abs(dragEnd.rotation - 0.75f) < 1e-4f);
     CHECK(std::abs(dragEnd.scale.x - 3.f) < 1e-4f);
     CHECK(std::abs(dragEnd.scale.y - 1.f) < 1e-4f);
+
+    // ── playClipOnSpawn re-arm after the enter-play module reset ───────────
+    // Repro: replaceProject activates the entity and plays its spawn clip, then
+    // the editor's gameplay-module reset clears animator instances. The fix is
+    // gw.replayActiveSpawnClips(), invoked after the reset on enter-play.
+    SpriteAnimator anim;
+    anim.init();
+    SpriteAnimator::Clip idleClip;
+    idleClip.name  = "idle";
+    idleClip.fps   = 8.f;
+    idleClip.loop  = true;
+    idleClip.frames = { {0, 0, 16, 16}, {16, 0, 16, 16} };
+    anim.defineClip(idleClip);
+    gw.setSpriteAnimator(&anim);
+
+    EntityDef spawnAnimated = player;           // entity id 1, active in scene_a
+    spawnAnimated.sprite.spriteAssetId  = "idle.png";
+    spawnAnimated.sprite.defaultClip    = "idle";
+    spawnAnimated.sprite.playClipOnSpawn = true;
+    CHECK(gw.updateEntity(1, spawnAnimated));
+
+    // Simulate the reset wiping animator instances created at activation time.
+    anim.clearInstances();
+    CHECK(!anim.isPlaying(1));
+
+    // The fix: replay re-arms playClipOnSpawn for every active entity.
+    gw.replayActiveSpawnClips();
+    CHECK(anim.isPlaying(1));
+    CHECK(anim.currentClip(1) == "idle");
+
+    // Entities without playClipOnSpawn must stay idle after replay.
+    EntityDef noSpawnClip = spawnAnimated;
+    noSpawnClip.sprite.playClipOnSpawn = false;
+    CHECK(gw.updateEntity(1, noSpawnClip));
+    anim.clearInstances();
+    gw.replayActiveSpawnClips();
+    CHECK(!anim.isPlaying(1));
+
+    anim.shutdown();
 
     gw.shutdown();
     sm.shutdown();
