@@ -45,7 +45,10 @@ function IconBtn({
   return (
     <button
       type="button"
-      onClick={onClick}
+      // Call with no args: several handlers take an optional target/folder
+      // parameter, and leaking the click event in as that argument breaks the
+      // import (e.g. image usage becomes undefined and the asset vanishes).
+      onClick={() => onClick()}
       disabled={disabled}
       title={title}
       aria-label={title}
