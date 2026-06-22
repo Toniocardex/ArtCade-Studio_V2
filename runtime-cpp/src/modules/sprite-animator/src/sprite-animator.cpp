@@ -75,6 +75,15 @@ void SpriteAnimator::play(EntityId entity, const std::string& clipName, FinishCb
     if (prevIt != instances_.end() && prevIt->second.state != PlayState::Stopped)
         prevClip = prevIt->second.clipName;
 
+    // Idempotent re-play: a held-key rule fires "play(clip)" every frame. If the
+    // entity is already playing that same clip, keep it advancing instead of
+    // resetting to frame 0 each frame (which would freeze the animation).
+    if (prevIt != instances_.end()
+        && prevIt->second.state == PlayState::Playing
+        && prevIt->second.clipName == clipName) {
+        return;
+    }
+
     AnimInstance inst;
     inst.clipName = clipName;
     inst.frameIdx = 0;

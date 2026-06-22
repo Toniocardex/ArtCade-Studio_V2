@@ -289,6 +289,28 @@ static void test_clip_carries_sheet_asset_id() {
     std::puts("  [ok] clip carries its sheet assetId (cross-sheet animation)");
 }
 
+static void test_replay_same_clip_does_not_restart() {
+    SA sa; sa.init();
+    sa.defineClip(makeClip("run", 4, 10.f, true)); // 0.1 s/frame, loops
+    sa.defineClip(makeClip("idle", 2, 10.f, true));
+
+    sa.play(1u, "run");
+    sa.update(0.25f);                 // advance to frame 2
+    assert(sa.frameIndex(1u) == 2);
+
+    // Re-playing the SAME clip while it's running (held-key rule firing every
+    // frame) must NOT reset it to frame 0.
+    sa.play(1u, "run");
+    assert(sa.frameIndex(1u) == 2);
+
+    // Switching to a DIFFERENT clip still restarts from frame 0.
+    sa.play(1u, "idle");
+    assert(sa.frameIndex(1u) == 0);
+
+    sa.shutdown();
+    std::puts("  [ok] re-playing the same clip keeps it advancing (no freeze)");
+}
+
 int main() {
     std::puts("=== SpriteAnimator check ===");
     test_init_shutdown();
@@ -312,6 +334,7 @@ int main() {
     test_loop_emits_loop_event();
     test_watched_kinds_gate_emission();
     test_clip_carries_sheet_asset_id();
-    std::puts("=== all 21 tests passed ===");
+    test_replay_same_clip_does_not_restart();
+    std::puts("=== all 22 tests passed ===");
     return 0;
 }
