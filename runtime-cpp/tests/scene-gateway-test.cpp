@@ -85,10 +85,19 @@ int main() {
     coinAutoDestroy.lifespan = 2.f;
     coin.autoDestroy = coinAutoDestroy;
 
+    // A legacy authored negative scale should migrate into a flip flag so scale
+    // stays pure magnitude (flip is decoupled from scale).
+    EntityDef flipped;
+    flipped.id = 3;
+    flipped.className = "Flipped";
+    flipped.name = "Flipped";
+    flipped.sprite.spriteAssetId = "sprites/hero.png";
+    flipped.transform.scale = { -1.f, 1.f };
+
     SceneDef sceneA;
     sceneA.id = "scene_a";
     sceneA.name = "A";
-    sceneA.entityIds = { 1, 2 };
+    sceneA.entityIds = { 1, 2, 3 };
 
     SceneDef sceneB;
     sceneB.id = "scene_b";
@@ -102,9 +111,20 @@ int main() {
     std::unordered_map<EntityId, EntityDef> entities{
         { player.id, player },
         { coin.id, coin },
+        { flipped.id, flipped },
     };
 
     CHECK(gw.replaceProject(scenes, entities, "scene_a"));
+
+    // Negative authored scale.x migrated to a flip flag; scale becomes magnitude.
+    SpriteComponent flippedSprite{};
+    CHECK(gw.getSprite(3, flippedSprite));
+    CHECK(flippedSprite.flipX);
+    CHECK(!flippedSprite.flipY);
+    Transform flippedTransform{};
+    CHECK(gw.getTransform(3, flippedTransform));
+    CHECK(flippedTransform.scale.x > 0.f);
+    CHECK(flippedTransform.scale.y > 0.f);
     CHECK(gw.poolCount("Player") == 1);
     CHECK(gw.poolCount("Coin") == 1);
     PlatformerControllerComponent loadedController{};

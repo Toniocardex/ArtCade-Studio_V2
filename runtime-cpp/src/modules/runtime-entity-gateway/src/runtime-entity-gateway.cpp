@@ -264,8 +264,14 @@ void RuntimeEntityGateway::applyEntityDefToRegistry(
     // handlers read sibling components without races.
     registry_->setPhysicsHandle(id, 0);
     registry_->setVisibleInGame(id, def.visible);
-    registry_->setTransform(id, def.transform);
+    // Decouple facing from scale: a negative authored scale becomes a flip flag
+    // so scale stays pure magnitude. Flip is then driven only by the flags, and
+    // Set Scale at runtime can no longer clobber a logic-set facing.
+    Transform transform = def.transform;
     SpriteComponent sprite = def.sprite;
+    if (transform.scale.x < 0.f) { sprite.flipX = !sprite.flipX; transform.scale.x = -transform.scale.x; }
+    if (transform.scale.y < 0.f) { sprite.flipY = !sprite.flipY; transform.scale.y = -transform.scale.y; }
+    registry_->setTransform(id, transform);
     if (!def.visible)
         sprite.alpha = 0.f;
     registry_->setSprite(id, sprite);

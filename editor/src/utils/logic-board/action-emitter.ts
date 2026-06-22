@@ -170,7 +170,7 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
         : `object.spawn(${cls}, ${Number(a.x) || 0}, ${Number(a.y) || 0})`
       const spawn = !a.inheritFlip
         ? base
-        : `(function() local _nid = ${base}; local _sx, _sy = entity.scale(self); local _fx = (_sx < 0) and -1 or 1; entity.setScale(_nid, _fx * math.abs(_sx), math.abs(_sy)); return _nid end)()`
+        : `(function() local _nid = ${base}; entity.setFlip(_nid, entity.flipX(self) and 'mirror' or 'normal', entity.flipY(self) and 'mirror' or 'normal'); return _nid end)()`
       return spawnWithVelocity(spawn, a, project)
     }
     case 'spawnEntityAtPointer': {
@@ -191,9 +191,9 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
         case 'right':
           return `entity.setVelocity(${t}, ${s}, 0)`
         case 'forward':
-          return `(function() local _sx, _ = entity.scale(${t}); local _d = (_sx < 0) and -1 or 1; entity.setVelocity(${t}, _d * ${s}, 0) end)()`
+          return `(function() local _d = entity.flipX(${t}) and -1 or 1; entity.setVelocity(${t}, _d * ${s}, 0) end)()`
         case 'backward':
-          return `(function() local _sx, _ = entity.scale(${t}); local _d = (_sx < 0) and -1 or 1; entity.setVelocity(${t}, -_d * ${s}, 0) end)()`
+          return `(function() local _d = entity.flipX(${t}) and -1 or 1; entity.setVelocity(${t}, -_d * ${s}, 0) end)()`
       }
       return unknownActionComment(a,
         `direction=${String((a as { direction?: unknown }).direction)}`)

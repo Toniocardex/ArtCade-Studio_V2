@@ -351,7 +351,9 @@ void Renderer::drawSprite(const AssetId& assetId,
                            const Vec3&    fillColor,
                            float          alpha,
                            const std::string& shaderEffect,
-                           const Vec2&    pivot)
+                           const Vec2&    pivot,
+                           bool           flipX,
+                           bool           flipY)
 {
     const bool outline = (shaderEffect == "outline");
 
@@ -362,7 +364,7 @@ void Renderer::drawSprite(const AssetId& assetId,
     const std::string texKey = resolvedTextureKey(assetId);
     const Texture2D* tex = impl_->texCache.getByPath(texKey);
     if (!tex || tex->id == 0) {
-        // abs(): a flipped (negative) scale must not collapse the placeholder.
+        // abs(): scale is magnitude; flip is a flag and does not size the rect.
         const float fw = kPlaceholderSpriteSize * (scale.x < 0.f ? -scale.x : scale.x);
         const float fh = kPlaceholderSpriteSize * (scale.y < 0.f ? -scale.y : scale.y);
         const unsigned char ca =
@@ -380,13 +382,13 @@ void Renderer::drawSprite(const AssetId& assetId,
     }
 
     // Flip via a negative SOURCE rect (raylib's mirror path); keep the dest rect
-    // positive so origin/pivot/rotation stay correct. A negative dest width
-    // (from a flipped scale) collapses the quad and the sprite vanishes.
+    // positive so origin/pivot/rotation stay correct. Facing comes from the flip
+    // flags, decoupled from scale (which is magnitude only).
     const float texW = static_cast<float>(tex->width);
     const float texH = static_cast<float>(tex->height);
     Rectangle src = { 0.f, 0.f,
-                      scale.x < 0.f ? -texW : texW,
-                      scale.y < 0.f ? -texH : texH };
+                      flipX ? -texW : texW,
+                      flipY ? -texH : texH };
     Rectangle dst = { pos.x, pos.y,
                       texW * (scale.x < 0.f ? -scale.x : scale.x),
                       texH * (scale.y < 0.f ? -scale.y : scale.y) };
@@ -429,22 +431,24 @@ void Renderer::drawSpriteFrame(const AssetId& assetId,
                                const Vec2&    scale,
                                const Vec4&    tint,
                                float          alpha,
-                               const Vec2&    pivot)
+                               const Vec2&    pivot,
+                               bool           flipX,
+                               bool           flipY)
 {
     const std::string texKey = resolvedTextureKey(assetId);
     const Texture2D* tex = impl_->texCache.getByPath(texKey);
     if (!tex || tex->id == 0 || srcW <= 0.f || srcH <= 0.f) {
         drawSprite(assetId, pos, rotation, scale, tint, { tint.r, tint.g, tint.b },
-                   alpha, "", pivot);
+                   alpha, "", pivot, flipX, flipY);
         return;
     }
 
     // Flip via a negative SOURCE rect (raylib mirrors the region in place); keep
-    // the dest rect positive so origin/pivot/rotation stay correct. A negative
-    // dest width (flipped scale) collapses the quad and the sprite vanishes.
+    // the dest rect positive so origin/pivot/rotation stay correct. Facing comes
+    // from the flip flags, decoupled from scale (magnitude only).
     Rectangle src = { srcX, srcY,
-                      scale.x < 0.f ? -srcW : srcW,
-                      scale.y < 0.f ? -srcH : srcH };
+                      flipX ? -srcW : srcW,
+                      flipY ? -srcH : srcH };
     Rectangle dst = { pos.x, pos.y,
                       srcW * (scale.x < 0.f ? -scale.x : scale.x),
                       srcH * (scale.y < 0.f ? -scale.y : scale.y) };

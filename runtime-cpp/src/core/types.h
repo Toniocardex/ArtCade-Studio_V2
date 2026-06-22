@@ -94,6 +94,11 @@ struct SpriteComponent {
     std::string shaderEffect;  // "" | outline | hit_flash | palette_swap | wave
     std::string defaultClip;
     bool        playClipOnSpawn = false;
+    // Facing flags, decoupled from scale: the renderer mirrors the sprite from
+    // these (scale carries only magnitude). A negative authored scale is migrated
+    // into these on entity creation so scale stays a pure size.
+    bool        flipX = false;
+    bool        flipY = false;
 };
 
 struct AnimationState {

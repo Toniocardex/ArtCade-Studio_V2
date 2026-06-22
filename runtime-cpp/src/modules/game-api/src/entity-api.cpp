@@ -68,12 +68,31 @@ void GameAPI::bindEntityAPI(sol::state& lua) {
         transform.rotation = a;
         entities->setTransform(id, transform);
     });
-    // entity.setScale(id, sx, sy)
+    // entity.setScale(id, sx, sy) — magnitude only; facing lives in flip flags,
+    // so Set Scale never clobbers a flip set via Set Flip.
     lua.set_function("entity_setScale", [entities](EntityId id, float sx, float sy) {
         Transform transform{};
         if (!entities->getTransform(id, transform)) return;
-        transform.scale = { sx, sy };
+        transform.scale = { std::abs(sx), std::abs(sy) };
         entities->setTransform(id, transform);
+    });
+
+    // entity.flipX(id) / entity.flipY(id) → current facing flag
+    lua.set_function("entity_get_flip_x", [entities](EntityId id) -> bool {
+        SpriteComponent sprite{};
+        return entities->getSprite(id, sprite) && sprite.flipX;
+    });
+    lua.set_function("entity_get_flip_y", [entities](EntityId id) -> bool {
+        SpriteComponent sprite{};
+        return entities->getSprite(id, sprite) && sprite.flipY;
+    });
+    // entity.setFlip(id, flipX, flipY) — set the facing flags directly
+    lua.set_function("entity_set_flip", [entities](EntityId id, bool fx, bool fy) {
+        SpriteComponent sprite{};
+        if (!entities->getSprite(id, sprite)) return;
+        sprite.flipX = fx;
+        sprite.flipY = fy;
+        entities->setSprite(id, sprite);
     });
 
     // entity.scale(id) → sx, sy
@@ -254,20 +273,20 @@ void GameAPI::bindEntityAPI(sol::state& lua) {
         entity.setRotation = function(id,a)     return entity_setRotation(id,a)  end
         entity.setScale    = function(id,sx,sy) return entity_setScale(id,sx,sy) end
         entity.scale       = function(id)       return entity_scale(id)           end
+        entity.flipX       = function(id)       return entity_get_flip_x(id)      end
+        entity.flipY       = function(id)       return entity_get_flip_y(id)      end
         entity.setFlip     = function(id, mx, my)
-            -- Per-axis mode: 'keep'/nil leave the axis, 'normal' un-mirror,
+            -- Per-axis facing flag: 'keep'/nil leave it, 'normal' un-mirror,
             -- 'mirror' mirror, 'toggle' invert. Legacy booleans: true=mirror,
-            -- false=normal. Magnitude (scale size) is preserved.
-            local sx, sy = entity_scale(id)
-            local ax = math.abs(sx); if ax == 0 then ax = 1 end
-            local ay = math.abs(sy); if ay == 0 then ay = 1 end
-            local function resolve(m, a, cur)
-                if m == true or m == 'mirror' then return -a
-                elseif m == false or m == 'normal' then return a
-                elseif m == 'toggle' then if cur < 0 then return a else return -a end
+            -- false=normal. Decoupled from scale (which is pure magnitude now).
+            local fx, fy = entity_get_flip_x(id), entity_get_flip_y(id)
+            local function resolve(m, cur)
+                if m == true or m == 'mirror' then return true
+                elseif m == false or m == 'normal' then return false
+                elseif m == 'toggle' then return not cur
                 else return cur end
             end
-            entity_setScale(id, resolve(mx, ax, sx), resolve(my, ay, sy))
+            entity_set_flip(id, resolve(mx, fx), resolve(my, fy))
         end
         entity.imagePoint  = function(id, pt)   return entity_imagePoint(id, pt)  end
         entity.setVisible  = function(id,v)     return entity_setVisible(id,v)   end

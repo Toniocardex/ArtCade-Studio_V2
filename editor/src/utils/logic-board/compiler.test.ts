@@ -1380,7 +1380,7 @@ describe('Logic Components — Phase C (engine-hook triggers)', () => {
     expect(lua).toContain('debug.log("out")')
   })
 
-  it('moveInDirection forward uses entity.scale sign', () => {
+  it('moveInDirection forward derives heading from the flip flag', () => {
     const lua = compileLogicBoard([
       board([
         ev({
@@ -1391,11 +1391,12 @@ describe('Logic Components — Phase C (engine-hook triggers)', () => {
         }),
       ]),
     ])
-    expect(lua).toContain('entity.scale(self)')
+    expect(lua).toContain('entity.flipX(self)')
     expect(lua).toContain('entity.setVelocity')
+    expect(lua).not.toContain('entity.scale(self)')
   })
 
-  it('spawnEntity inheritFlip copies scale sign', () => {
+  it('spawnEntity inheritFlip copies the flip flag (not the scale sign)', () => {
     const lua = compileLogicBoard([
       board([
         ev({
@@ -1406,8 +1407,9 @@ describe('Logic Components — Phase C (engine-hook triggers)', () => {
         }),
       ]),
     ])
-    expect(lua).toContain('entity.scale(self)')
-    expect(lua).toContain('entity.setScale(_nid')
+    expect(lua).toContain('entity.flipX(self)')
+    expect(lua).toContain('entity.setFlip(_nid')
+    expect(lua).not.toContain('entity.setScale(_nid')
   })
 
   it('wait.then runs before post-wait tail actions (concat semantics)', () => {

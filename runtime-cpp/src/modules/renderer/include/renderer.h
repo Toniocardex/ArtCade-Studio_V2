@@ -54,7 +54,9 @@ public:
                     const Vec3&    fillColor,
                     float          alpha,
                     const std::string& shaderEffect = "",
-                    const Vec2&    pivot = {0.5f, 0.5f});
+                    const Vec2&    pivot = {0.5f, 0.5f},
+                    bool           flipX = false,
+                    bool           flipY = false);
 
     /** Width/height `drawSprite` uses (texture pixels × scale, or 32×32 placeholder). */
     Vec2 spriteDestinationSize(const AssetId& assetId, const Vec2& scale) const;
@@ -67,7 +69,9 @@ public:
                          const Vec2&    scale,
                          const Vec4&    tint,
                          float          alpha,
-                         const Vec2&    pivot = {0.5f, 0.5f});
+                         const Vec2&    pivot = {0.5f, 0.5f},
+                         bool           flipX = false,
+                         bool           flipY = false);
 
     /**
      * Phase F3: draw a sub-rectangle (atlas cell) of a texture at a

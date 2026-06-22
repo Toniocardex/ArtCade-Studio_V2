@@ -172,13 +172,13 @@ void Application::renderActiveScene() {
                     static_cast<float>(draw.frame.w),
                     static_cast<float>(draw.frame.h),
                     transform.position, transform.rotation, transform.scale,
-                    sprite.tint, alpha, sprite.pivot);
+                    sprite.tint, alpha, sprite.pivot, sprite.flipX, sprite.flipY);
             } else if (!visualOnly) {
                 renderer->drawSprite(
                     sprite.spriteAssetId,
                     transform.position, transform.rotation, transform.scale,
                     sprite.tint, sprite.fillColor, alpha,
-                    sprite.shaderEffect, sprite.pivot);
+                    sprite.shaderEffect, sprite.pivot, sprite.flipX, sprite.flipY);
             }
 
             if (!hasText) return;
