@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from 'react'
-import { Scissors } from 'lucide-react'
+import { Film } from 'lucide-react'
 import type { ProjectDoc } from '../../types'
 import type { useEditorDispatch } from '../../store/editor-store'
 import type { buildProjectExplorerData } from '../../utils/project-explorer-tree'
@@ -99,7 +99,7 @@ export function AssetImageTree({
                     }}
                     className="flex items-center justify-center w-5 h-5 rounded text-[var(--muted)] opacity-0 transition-opacity hover:text-[var(--accent)] hover:bg-[var(--surface-hover)] group-hover:opacity-100 focus:opacity-100"
                   >
-                    <Scissors size={12} />
+                    <Film size={12} />
                   </button>
                 ) : undefined
               }
@@ -182,13 +182,6 @@ export function AssetImageTree({
               )
             }
           >
-            {group.images.length === 0 && !hasSearch ? (
-              <p className="py-1.5 pl-9 pr-2 text-[10px] text-[var(--muted)]">
-                {group.usage === 'sprite'
-                  ? 'Drag sprites here, or use Import ↑'
-                  : 'Drag images here, or use Import ↑'}
-              </p>
-            ) : null}
             {usageFolders.map((vf) => {
               const folderImages = vf.assetRefs
                 .filter((ref) => ref.type === 'image')

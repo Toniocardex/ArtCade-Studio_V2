@@ -13,17 +13,30 @@ import { ChevronRight } from 'lucide-react'
 import { applyInputBackspace, isBackspaceKey } from '../../utils/keyboard'
 export { snapToGridValue } from '../../utils/entity-position'
 
-type TooltipPos = { top: number; right: number }
+type TooltipPos = { top: number; right: number } | { top: number; left: number }
 
-export function HelpTooltip({ text }: Readonly<{ text: string }>) {
+/**
+ * "?" affordance with a portal tooltip. Defaults to opening leftward (right-side
+ * inspector); pass placement="right" in left-docked panels so the tooltip opens
+ * into the canvas instead of clipping off the left edge.
+ */
+export function HelpTooltip({
+  text,
+  placement = 'left',
+}: Readonly<{ text: string; placement?: 'left' | 'right' }>) {
   const [pos, setPos] = useState<TooltipPos | null>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
 
   const show = useCallback(() => {
     if (!btnRef.current) return
     const r = btnRef.current.getBoundingClientRect()
-    setPos({ top: r.top + r.height / 2, right: window.innerWidth - r.left + 8 })
-  }, [])
+    const top = r.top + r.height / 2
+    setPos(
+      placement === 'right'
+        ? { top, left: r.right + 8 }
+        : { top, right: window.innerWidth - r.left + 8 },
+    )
+  }, [placement])
 
   const hide = useCallback(() => setPos(null), [])
 
@@ -46,7 +59,7 @@ export function HelpTooltip({ text }: Readonly<{ text: string }>) {
       </button>
       {pos && createPortal(
         <div
-          style={{ position: 'fixed', top: pos.top, right: pos.right, transform: 'translateY(-50%)', zIndex: 9999 }}
+          style={{ position: 'fixed', ...pos, transform: 'translateY(-50%)', zIndex: 9999 }}
           className="w-56 p-2 rounded pointer-events-none
                      bg-[var(--panel)] border border-[var(--border-2)] shadow-lg
                      text-[10px] text-[var(--muted)] leading-snug

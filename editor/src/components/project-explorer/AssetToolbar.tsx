@@ -9,6 +9,7 @@ import {
   Trash2,
   Type,
 } from 'lucide-react'
+import { HelpTooltip } from '../../panels/inspector/inspector-fields'
 
 export type AssetToolbarProps = Readonly<{
   disabled: boolean
@@ -90,6 +91,10 @@ export function AssetToolbar({
       <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--muted)] px-1 select-none">
         Import
       </span>
+      <HelpTooltip
+        placement="right"
+        text="Drag image files onto a folder to import them, or use these buttons (animated sprite, image, tileset, audio, font). Double-click a sprite to open it in Sprite Studio."
+      />
       <IconBtn
         icon={<Film size={14} />}
         onClick={onCreateAnimatedSprite}
