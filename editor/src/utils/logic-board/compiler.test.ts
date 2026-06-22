@@ -165,6 +165,21 @@ describe('Component API actions and conditions', () => {
     expect(lua).toContain('dialog.finish()')
   })
 
+  it('emits lookAtTarget with the Lua 5.4 two-arg math.atan (not removed math.atan2)', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({
+          trigger: { type: 'onUpdate' },
+          actions: [
+            { type: 'lookAtTarget', target: 'self', toward: { className: 'Player', first: true } },
+          ],
+        }),
+      ]),
+    ])
+    expect(lua).toContain('math.atan(')
+    expect(lua).not.toContain('math.atan2')
+  })
+
   it('emits audio volume and fade API calls plus isMusicPlaying', () => {
     const lua = compileLogicBoard([
       board([

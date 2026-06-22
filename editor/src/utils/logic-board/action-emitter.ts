@@ -411,7 +411,8 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
     case 'lookAtTarget': {
       const t = target(a.target)
       const tow = target(a.toward)
-      return `(function() local _tx,_ty=entity.position(${t}); local _wx,_wy=entity.position(${tow}); entity.setRotation(${t},math.atan2(_wy-_ty,_wx-_tx)) end)()`
+      // Lua 5.4 removed math.atan2; math.atan(y, x) is the two-arg form.
+      return `(function() local _tx,_ty=entity.position(${t}); local _wx,_wy=entity.position(${tow}); entity.setRotation(${t},math.atan(_wy-_ty,_wx-_tx)) end)()`
     }
   }
   // Unknown action type (stale project.json, older runtime than the
