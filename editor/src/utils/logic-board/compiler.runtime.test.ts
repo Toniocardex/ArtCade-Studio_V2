@@ -269,7 +269,7 @@ describe('runtime: syntax validity', () => {
               { type: 'stopAllAudio' },
               { type: 'destroyEntity', target: { className: 'X', first: true } },
               { type: 'spawnEntity', className: 'Y', x: 0, y: 0 },
-              { type: 'setFlip', target: 'self', flipX: true },
+              { type: 'setFlip', target: 'self', flipX: 'mirror', flipY: 'keep' },
               { type: 'playAnimation', target: 'self', clipName: 'run' },
               { type: 'cameraShake', trauma: 0.5 },
             ],

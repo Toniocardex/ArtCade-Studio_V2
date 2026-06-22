@@ -307,12 +307,9 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
       return `entity.setScale(${target(a.target)}, ${numberSourceExpr(a.scaleX, project)}, ${numberSourceExpr(a.scaleY, project)})`
     case 'playAnimation':
       return `animation.play(${target(a.target)}, ${luaString(a.clipName)})`
-    case 'setFlip': {
-      const t = target(a.target)
-      const fx = a.flipX ? 'true' : 'false'
-      const fy = a.flipY != null ? (a.flipY ? 'true' : 'false') : 'nil'
-      return `entity.setFlip(${t}, ${fx}, ${fy})`
-    }
+    case 'setFlip':
+      // Per-axis mode strings: entity.setFlip resolves keep/normal/mirror/toggle.
+      return `entity.setFlip(${target(a.target)}, ${luaString(a.flipX)}, ${luaString(a.flipY)})`
     case 'setVisible':
       return `entity.setVisible(${target(a.target)}, ${a.visible ? 'true' : 'false'})`
     case 'setColorTint': {

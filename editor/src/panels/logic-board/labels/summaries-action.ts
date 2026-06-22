@@ -173,9 +173,15 @@ export function actionSummaryPlain(
     case 'playAnimation':
       return a.clipName ? `Play "${a.clipName}" on ${who(a.target)}` : `Play animation on ${who(a.target)} — choose clip`
     case 'setFlip': {
-      const xLabel = a.flipX ? 'X=on' : 'X=off'
-      const yLabel = a.flipY != null ? (a.flipY ? ' Y=on' : ' Y=off') : ''
-      return `Flip ${who(a.target)}: ${xLabel}${yLabel}`
+      const axisLabel = (mode: string, axis: string): string | null => {
+        if (mode === 'keep') return null
+        if (mode === 'toggle') return `${axis} toggle`
+        return `${axis} ${mode === 'mirror' ? 'mirror' : 'normal'}`
+      }
+      const parts = [axisLabel(a.flipX, 'X'), axisLabel(a.flipY, 'Y')].filter(Boolean)
+      return parts.length > 0
+        ? `Flip ${who(a.target)}: ${parts.join(', ')}`
+        : `Flip ${who(a.target)}: no change`
     }
     case 'setVisible':
       return a.visible ? `Show ${who(a.target)}` : `Hide ${who(a.target)}`

@@ -76,6 +76,27 @@ function migrateLegacyConditionNode(node: LogicEvent['conditionRoot']): LogicEve
   }
 }
 
+/** Set Flip legacy boolean → FlipMode (true=mirror, false=normal, absent=keep). */
+function legacyFlipMode(v: unknown): 'keep' | 'normal' | 'mirror' | 'toggle' {
+  if (v === true) return 'mirror'
+  if (v === false) return 'normal'
+  if (v === 'keep' || v === 'normal' || v === 'mirror' || v === 'toggle') return v
+  return 'keep'
+}
+
+function migrateLegacyAction(action: LogicAction): LogicAction {
+  if (action.type === 'setFlip') {
+    const raw = action as { flipX?: unknown; flipY?: unknown }
+    return {
+      type: 'setFlip',
+      target: action.target,
+      flipX: legacyFlipMode(raw.flipX),
+      flipY: legacyFlipMode(raw.flipY),
+    }
+  }
+  return action
+}
+
 function parseEvent(raw: unknown): LogicEvent | null {
   if (!raw || typeof raw !== 'object') return null
   const r = raw as Record<string, unknown>
@@ -88,13 +109,14 @@ function parseEvent(raw: unknown): LogicEvent | null {
     (action): action is Extract<LogicAction, { type: 'clickToDestroy' }> =>
       action.type === 'clickToDestroy',
   )
-  const actions = legacyClick
+  const actions = (legacyClick
     ? rawActions.map((action): LogicAction =>
         action.type === 'clickToDestroy'
           ? { type: 'destroyEntity', target: 'self' }
           : action,
       )
     : rawActions
+  ).map(migrateLegacyAction)
   const migratedTrigger: LogicTrigger = legacyClick
     ? { type: 'onObjectClick', button: legacyClick.button, radius: legacyClick.radius }
     : trigger as LogicTrigger
@@ -128,7 +150,10 @@ function parseEvent(raw: unknown): LogicEvent | null {
     actions,
     ...(typeof r.elseEnabled === 'boolean' ? { elseEnabled: r.elseEnabled } : {}),
     ...(Array.isArray(r.elseActions)
-      ? { elseActions: stripLegacyLogicActions(r.elseActions as LogicAction[]) }
+      ? {
+          elseActions: stripLegacyLogicActions(r.elseActions as LogicAction[])
+            .map(migrateLegacyAction),
+        }
       : {}),
   }
   return event

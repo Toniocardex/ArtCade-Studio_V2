@@ -270,7 +270,7 @@ export function defaultAction(type: LogicActionType): LogicAction {
     case 'playAnimation':
       return { type: 'playAnimation', target: 'self', clipName: '' }
     case 'setFlip':
-      return { type: 'setFlip', target: 'self', flipX: false }
+      return { type: 'setFlip', target: 'self', flipX: 'toggle', flipY: 'keep' }
     case 'setVisible':
       return { type: 'setVisible', target: 'self', visible: true }
     case 'setColorTint':

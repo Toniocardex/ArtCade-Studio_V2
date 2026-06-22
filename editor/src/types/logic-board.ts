@@ -24,6 +24,11 @@ export type TargetSelector =
   | { entityId: number }                    // a specific entity id
   | { className: string; first: boolean }   // a class pool (first → first match)
 
+/** Per-axis flip control for the Set Flip action.
+ *  keep = leave this axis untouched · normal = un-mirrored · mirror = mirrored ·
+ *  toggle = invert the axis' current facing. */
+export type FlipMode = 'keep' | 'normal' | 'mirror' | 'toggle'
+
 export type LogicPrimitive = number | string | boolean
 
 export type LogicComponentValueProperty =
@@ -308,7 +313,7 @@ export type LogicAction =
   | { type: 'setRotation'; target: TargetSelector; angle: number }
   | { type: 'setScale'; target: TargetSelector; scaleX: LogicValue; scaleY: LogicValue }
   | { type: 'playAnimation'; target: TargetSelector; clipName: string }
-  | { type: 'setFlip'; target: TargetSelector; flipX: boolean; flipY?: boolean }
+  | { type: 'setFlip'; target: TargetSelector; flipX: FlipMode; flipY: FlipMode }
   | { type: 'setVisible'; target: TargetSelector; visible: boolean }
   | { type: 'setColorTint'; target: TargetSelector; hexColor: string; alpha?: number }
   | {

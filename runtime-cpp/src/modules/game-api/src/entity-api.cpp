@@ -254,15 +254,20 @@ void GameAPI::bindEntityAPI(sol::state& lua) {
         entity.setRotation = function(id,a)     return entity_setRotation(id,a)  end
         entity.setScale    = function(id,sx,sy) return entity_setScale(id,sx,sy) end
         entity.scale       = function(id)       return entity_scale(id)           end
-        entity.setFlip     = function(id, fx, fy)
+        entity.setFlip     = function(id, mx, my)
+            -- Per-axis mode: 'keep'/nil leave the axis, 'normal' un-mirror,
+            -- 'mirror' mirror, 'toggle' invert. Legacy booleans: true=mirror,
+            -- false=normal. Magnitude (scale size) is preserved.
             local sx, sy = entity_scale(id)
-            local ax = math.abs(sx)
-            local ay = math.abs(sy)
-            if ax == 0 then ax = 1 end
-            if ay == 0 then ay = 1 end
-            entity_setScale(id,
-                fx and -ax or ax,
-                fy ~= nil and (fy and -ay or ay) or sy)
+            local ax = math.abs(sx); if ax == 0 then ax = 1 end
+            local ay = math.abs(sy); if ay == 0 then ay = 1 end
+            local function resolve(m, a, cur)
+                if m == true or m == 'mirror' then return -a
+                elseif m == false or m == 'normal' then return a
+                elseif m == 'toggle' then if cur < 0 then return a else return -a end
+                else return cur end
+            end
+            entity_setScale(id, resolve(mx, ax, sx), resolve(my, ay, sy))
         end
         entity.imagePoint  = function(id, pt)   return entity_imagePoint(id, pt)  end
         entity.setVisible  = function(id,v)     return entity_setVisible(id,v)   end

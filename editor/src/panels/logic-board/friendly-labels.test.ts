@@ -3,6 +3,7 @@ import {
   actionDisplayName,
   actionSummaryPlain,
   boardDisplayName,
+  enumDisplayLabel,
   triggerDisplayName,
   triggerSummaryPlain,
 } from './friendly-labels'
@@ -46,6 +47,23 @@ describe('friendly-labels', () => {
     expect(actionDisplayName('spawnEntityAtPointer')).toBe('Create at pointer')
     expect(actionDisplayName('controllerMovement')).toBe('Set direction')
     expect(actionDisplayName('moveController')).toBe('Set fixed direction')
+  })
+
+  it('labels Set Flip per-axis modes with result-oriented text', () => {
+    expect(enumDisplayLabel('action:setFlip:flipX', 'keep')).toBe("Don't change")
+    expect(enumDisplayLabel('action:setFlip:flipX', 'normal')).toBe('Normal (right)')
+    expect(enumDisplayLabel('action:setFlip:flipX', 'mirror')).toBe('Mirrored (left)')
+    expect(enumDisplayLabel('action:setFlip:flipX', 'toggle')).toBe('Toggle')
+    expect(enumDisplayLabel('action:setFlip:flipY', 'mirror')).toBe('Mirrored')
+  })
+
+  it('summarizes Set Flip per axis (mode-aware)', () => {
+    expect(actionSummaryPlain(
+      { type: 'setFlip', target: 'self', flipX: 'mirror', flipY: 'keep' },
+    )).toContain('X mirror')
+    expect(actionSummaryPlain(
+      { type: 'setFlip', target: 'self', flipX: 'keep', flipY: 'keep' },
+    )).toContain('no change')
   })
 
   it('summarizes Space key press in plain English', () => {

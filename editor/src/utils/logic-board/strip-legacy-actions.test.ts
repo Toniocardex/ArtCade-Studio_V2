@@ -24,6 +24,26 @@ describe('stripLegacyLogicActions', () => {
     ])
   })
 
+  it('migrates legacy boolean setFlip into per-axis flip modes', () => {
+    const boards = parseLogicBoards([{
+      boardId: 'legacy-flip',
+      target: { type: 'object_type', objectTypeId: 'Player' },
+      events: [{
+        id: 'e',
+        enabled: true,
+        trigger: { type: 'onStart' },
+        actions: [
+          { type: 'setFlip', target: 'self', flipX: true },            // → mirror, keep
+          { type: 'setFlip', target: 'self', flipX: false, flipY: true }, // → normal, mirror
+        ],
+      }],
+    }])
+    expect(boards?.[0]?.events[0]?.actions).toEqual([
+      { type: 'setFlip', target: 'self', flipX: 'mirror', flipY: 'keep' },
+      { type: 'setFlip', target: 'self', flipX: 'normal', flipY: 'mirror' },
+    ])
+  })
+
   it('migrates legacy event recipes while loading a saved board', () => {
     const boards = parseLogicBoards([{
       boardId: 'legacy',

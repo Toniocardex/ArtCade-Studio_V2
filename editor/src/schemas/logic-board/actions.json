@@ -870,12 +870,12 @@
   },
   "setFlip": {
     "type": "object",
-    "required": ["type", "target", "flipX"],
+    "required": ["type", "target", "flipX", "flipY"],
     "properties": {
       "type": { "const": "setFlip" },
       "target": { "$ref": "./target-selector.schema.json" },
-      "flipX": { "type": "boolean" },
-      "flipY": { "type": "boolean" }
+      "flipX": { "enum": ["keep", "normal", "mirror", "toggle"] },
+      "flipY": { "enum": ["keep", "normal", "mirror", "toggle"] }
     },
     "additionalProperties": false,
     "x-artcade": {
@@ -883,8 +883,16 @@
       "category": "Graphics",
       "params": {
         "target": { "widget": "target", "label": "Target" },
-        "flipX": { "widget": "boolean", "label": "Flip horizontal" },
-        "flipY": { "widget": "boolean", "label": "Flip vertical" }
+        "flipX": {
+          "widget": "enum",
+          "label": "Horizontal",
+          "options": ["keep", "normal", "mirror", "toggle"]
+        },
+        "flipY": {
+          "widget": "enum",
+          "label": "Vertical",
+          "options": ["keep", "normal", "mirror", "toggle"]
+        }
       }
     }
   },

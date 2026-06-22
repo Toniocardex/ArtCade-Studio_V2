@@ -125,6 +125,17 @@ export function enumDisplayLabel(context: string, value: string): string {
     if (value === 'right') return 'Right mouse'
   }
 
+  if (context.includes('setFlip')) {
+    const isX = context.endsWith('flipX')
+    const flip: Record<string, string> = {
+      keep: "Don't change",
+      normal: isX ? 'Normal (right)' : 'Normal',
+      mirror: isX ? 'Mirrored (left)' : 'Mirrored',
+      toggle: 'Toggle',
+    }
+    if (flip[value]) return flip[value]
+  }
+
   const map: Record<string, string> = {
     none: 'None',
     outline: 'Outline',
