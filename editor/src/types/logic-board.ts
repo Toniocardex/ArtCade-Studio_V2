@@ -72,8 +72,6 @@ export type LogicValueAtom =
   | LogicPrimitive
   | { source: 'global'; key: string }
   | { source: 'local'; target: TargetSelector; key: string }
-  /** Pre-release legacy source; parsed projects using it fail schema validation. */
-  | { source: 'state'; key: string; fallback?: LogicPrimitive }
   | {
       source: 'entity'
       target: TargetSelector
@@ -163,7 +161,20 @@ export type LogicConditionNegation = { negated?: boolean }
 
 export type LogicCondition =
   | { type: 'compareClass'; className: string }                     // collision.touchingClass
-  | { type: 'compareVariable'; key: string; operator: ComparisonOp; value: LogicValue }
+  /**
+   * Compare a named variable against a value. `scope` mirrors the action side
+   * (modifyVariable): omitted/'global' reads project state (`global.get`);
+   * 'object' reads a per-entity variable on `target` (`objectvar.get`, default
+   * self). Kept scope-optional so existing global-only boards stay unchanged.
+   */
+  | {
+      type: 'compareVariable'
+      key: string
+      operator: ComparisonOp
+      value: LogicValue
+      scope?: VariableScope
+      target?: TargetSelector
+    }
   | { type: 'compareValues'; left: LogicValue; operator: ComparisonOp; right: LogicValue }
   | { type: 'isKeyDown'; keyCode: string }                          // input.isKeyDown
   | { type: 'hasTag'; tag: string }                                 // self has object tag
@@ -255,8 +266,8 @@ export type LogicAction =
   | {
       type: 'spawnEntity'
       className: string
-      x: number
-      y: number
+      x: LogicValue
+      y: LogicValue
       inheritFlip?: boolean
       /** Spawn at a named point on self's sprite asset (overrides x,y when set). */
       imagePoint?: string
@@ -274,7 +285,7 @@ export type LogicAction =
       type: 'moveInDirection'
       target: TargetSelector
       direction: 'up' | 'down' | 'left' | 'right' | 'forward' | 'backward'
-      speed: number
+      speed: LogicValue
     }
   | { type: 'controllerMovement'; target: TargetSelector; direction: 'left' | 'right' | 'up' | 'down' }
   | { type: 'moveController'; target: TargetSelector; direction: 'left' | 'right' | 'up' | 'down' | 'stop' }
@@ -308,9 +319,9 @@ export type LogicAction =
   | { type: 'startDialog'; target: TargetSelector; dialogId: string }
   | { type: 'endDialog' }
   | { type: 'toggleLogicEvent'; eventId: string; enabled: boolean }
-  | { type: 'applyImpulse'; target: TargetSelector; ix: number; iy: number }
-  | { type: 'applyForce'; target: TargetSelector; fx: number; fy: number }
-  | { type: 'setRotation'; target: TargetSelector; angle: number }
+  | { type: 'applyImpulse'; target: TargetSelector; ix: LogicValue; iy: LogicValue }
+  | { type: 'applyForce'; target: TargetSelector; fx: LogicValue; fy: LogicValue }
+  | { type: 'setRotation'; target: TargetSelector; angle: LogicValue }
   | { type: 'setScale'; target: TargetSelector; scaleX: LogicValue; scaleY: LogicValue }
   | { type: 'playAnimation'; target: TargetSelector; clipName: string }
   | { type: 'setFlip'; target: TargetSelector; flipX: FlipMode; flipY: FlipMode }
@@ -334,7 +345,7 @@ export type LogicAction =
   | { type: 'stopCameraFollow' }
   | { type: 'useDefaultCameraTarget' }
   | { type: 'setCameraTarget'; target: TargetSelector }
-  | { type: 'cameraShake'; trauma: number; durationSeconds?: number }
+  | { type: 'cameraShake'; trauma: LogicValue; durationSeconds?: LogicValue }
   | { type: 'debugLog'; message: string }
   /** Pauses the action sequence; following actions run inside time.delay (or use `then`). */
   | { type: 'wait'; seconds: number; then?: LogicAction[] }
@@ -344,8 +355,8 @@ export type LogicAction =
    * linear actions (until the next Wait / Repeat) form the body.
    */
   | { type: 'repeatTimes'; count: number; intervalSeconds?: number; actions?: LogicAction[] }
-  | { type: 'moveByOffset'; target: TargetSelector; dx: number; dy: number }
-  | { type: 'snapToGrid'; target: TargetSelector; cellSize: number }
+  | { type: 'moveByOffset'; target: TargetSelector; dx: LogicValue; dy: LogicValue }
+  | { type: 'snapToGrid'; target: TargetSelector; cellSize: LogicValue }
   | { type: 'setEntityShader'; target: TargetSelector; shader: string }
   | { type: 'setScreenShader'; shader: string }
   // ── State math ────────────────────────────────────────────────────────────
@@ -357,14 +368,14 @@ export type LogicAction =
   | { type: 'loadGame'; slot: string }
   | { type: 'deleteSave'; slot: string }
   // ── Camera ────────────────────────────────────────────────────────────────
-  | { type: 'setCameraZoom'; zoom: number }
-  | { type: 'panCamera'; dx: number; dy: number }
-  | { type: 'setCameraPosition'; x: number; y: number }
+  | { type: 'setCameraZoom'; zoom: LogicValue }
+  | { type: 'panCamera'; dx: LogicValue; dy: LogicValue }
+  | { type: 'setCameraPosition'; x: LogicValue; y: LogicValue }
   // ── Time ──────────────────────────────────────────────────────────────────
-  | { type: 'setTimeScale'; scale: number }
+  | { type: 'setTimeScale'; scale: LogicValue }
   // ── Entity helpers ────────────────────────────────────────────────────────
   | { type: 'spawnAtEntity'; className: string; target: TargetSelector; velocityX?: LogicValue; velocityY?: LogicValue }
-  | { type: 'moveToward'; target: TargetSelector; toward: TargetSelector; speed: number }
+  | { type: 'moveToward'; target: TargetSelector; toward: TargetSelector; speed: LogicValue }
   | { type: 'lookAtTarget'; target: TargetSelector; toward: TargetSelector }
 
 export type LogicActionType = LogicAction['type']

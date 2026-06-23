@@ -79,7 +79,7 @@ export function actionSummaryPlain(
       if (!a.className) return 'Create object - choose what to create'
       const where = a.imagePoint
         ? `at point "${a.imagePoint}"`
-        : `at (${a.x}, ${a.y})`
+        : `at (${valueSummary(a.x, project)}, ${valueSummary(a.y, project)})`
       const flip = a.inheritFlip ? ', same facing' : ''
       return `Create "${fmtClass(a.className, project)}" ${where}${flip}`
     }
@@ -94,7 +94,7 @@ export function actionSummaryPlain(
           : a.direction === 'backward'
             ? 'backward'
             : a.direction
-      return `Move ${who(a.target)} ${dir} at speed ${a.speed}`
+      return `Move ${who(a.target)} ${dir} at speed ${valueSummary(a.speed, project)}`
     }
     case 'controllerMovement':
       return `Set ${who(a.target)} direction ${a.direction} while active`
@@ -163,13 +163,13 @@ export function actionSummaryPlain(
     case 'toggleLogicEvent':
       return `Turn rule "${a.eventId || '?'}" ${a.enabled ? 'on' : 'off'}`
     case 'applyImpulse':
-      return `Push ${who(a.target)} (${a.ix}, ${a.iy})`
+      return `Push ${who(a.target)} (${valueSummary(a.ix, project)}, ${valueSummary(a.iy, project)})`
     case 'applyForce':
       return `Apply force on ${who(a.target)}`
     case 'setRotation':
       return `Rotate ${who(a.target)}`
     case 'setScale':
-      return `Resize ${who(a.target)} to (${a.scaleX}, ${a.scaleY})`
+      return `Resize ${who(a.target)} to (${valueSummary(a.scaleX, project)}, ${valueSummary(a.scaleY, project)})`
     case 'playAnimation':
       return a.clipName ? `Play "${a.clipName}" on ${who(a.target)}` : `Play animation on ${who(a.target)} — choose clip`
     case 'setFlip': {
@@ -203,8 +203,8 @@ export function actionSummaryPlain(
     case 'useDefaultCameraTarget':
       return 'Use Camera Target component'
     case 'cameraShake': {
-      const dur = a.durationSeconds ?? 0.5
-      return `Shake camera (intensity ${a.trauma}, ${dur}s)`
+      const dur = valueSummary(a.durationSeconds ?? 0.5, project)
+      return `Shake camera (intensity ${valueSummary(a.trauma, project)}, ${dur}s)`
     }
     case 'debugLog':
       return a.message ? `Log: ${a.message}` : 'Log message'
@@ -224,9 +224,9 @@ export function actionSummaryPlain(
       return `Repeat ${n} times${pace} (${scope})`
     }
     case 'moveByOffset':
-      return `Move ${who(a.target)} by (${a.dx}, ${a.dy}) pixels`
+      return `Move ${who(a.target)} by (${valueSummary(a.dx, project)}, ${valueSummary(a.dy, project)}) pixels`
     case 'snapToGrid':
-      return `Snap ${who(a.target)} to ${a.cellSize}px grid`
+      return `Snap ${who(a.target)} to ${valueSummary(a.cellSize, project)}px grid`
     case 'setEntityShader':
       return `Apply ${a.shader.replace(/_/g, ' ')} effect on ${who(a.target)}`
     case 'setScreenShader':
@@ -248,23 +248,23 @@ export function actionSummaryPlain(
     case 'deleteSave':
       return `Delete save slot "${a.slot || 'main'}"`
     case 'setCameraZoom':
-      return `Set camera zoom to ${a.zoom}`
+      return `Set camera zoom to ${valueSummary(a.zoom, project)}`
     case 'panCamera':
-      return `Pan camera by (${a.dx}, ${a.dy})`
+      return `Pan camera by (${valueSummary(a.dx, project)}, ${valueSummary(a.dy, project)})`
     case 'setCameraPosition':
-      return `Set camera to (${a.x}, ${a.y})`
+      return `Set camera to (${valueSummary(a.x, project)}, ${valueSummary(a.y, project)})`
     case 'setTimeScale':
       return a.scale === 0
         ? 'Pause time (scale 0)'
         : a.scale === 1
           ? 'Reset time scale (1×)'
-          : `Set time scale to ${a.scale}×`
+          : `Set time scale to ${valueSummary(a.scale, project)}×`
     case 'spawnAtEntity':
       return a.className
         ? `Create "${fmtClass(a.className, project)}" at ${who(a.target)}`
         : `Create at ${who(a.target)} — choose type`
     case 'moveToward':
-      return `Move ${who(a.target)} toward ${who(a.toward)} at speed ${a.speed}`
+      return `Move ${who(a.target)} toward ${who(a.toward)} at speed ${valueSummary(a.speed, project)}`
     case 'lookAtTarget':
       return `Rotate ${who(a.target)} to face ${who(a.toward)}`
   }

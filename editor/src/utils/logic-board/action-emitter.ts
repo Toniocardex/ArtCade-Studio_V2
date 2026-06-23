@@ -31,16 +31,27 @@ function spawnWithVelocity(
   return `(function() local _nid = ${spawnExpr}; if _nid then entity.setVelocity(_nid, ${vx}, ${vy}) end; return _nid end)()`
 }
 
-/** Camera shake intensity 0–1 (Logic Board trauma field). */
-function traumaIntensity(n: unknown): number {
-  const v = finite(n, 0.35)
-  return Math.min(1, Math.max(0, v))
-}
-
-/** Shake fade-out duration in seconds (Logic Board durationSeconds). */
-function shakeDurationSeconds(n: unknown): number {
-  const v = finite(n, 0.5)
-  return Math.min(10, Math.max(0.05, v))
+/**
+ * Numeric action arg that may now be a bound LogicValue. Literals (and unset
+ * values) keep the legacy JS-side clamp so emitted Lua is byte-identical for
+ * static values; dynamic value-sources clamp at runtime in Lua instead.
+ */
+function clampedNumberArg(
+  value: LogicValue | undefined,
+  project: ProjectDoc | null | undefined,
+  opts: { min?: number; max?: number; fallback: number },
+): string {
+  const { min, max, fallback } = opts
+  if (typeof value !== 'object' || value === null) {
+    let n = finite(value, fallback)
+    if (min != null) n = Math.max(min, n)
+    if (max != null) n = Math.min(max, n)
+    return String(n)
+  }
+  let expr = numberSourceExpr(value, project, fallback)
+  if (min != null) expr = `math.max(${min}, ${expr})`
+  if (max != null) expr = `math.min(${max}, ${expr})`
+  return expr
 }
 
 /**
@@ -167,7 +178,7 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
       const cls = luaString(a.className)
       const base = a.imagePoint
         ? `(function() local _px, _py = entity.imagePoint(self, ${luaString(a.imagePoint)}); return object.spawn(${cls}, _px, _py) end)()`
-        : `object.spawn(${cls}, ${Number(a.x) || 0}, ${Number(a.y) || 0})`
+        : `object.spawn(${cls}, ${numberSourceExpr(a.x, project)}, ${numberSourceExpr(a.y, project)})`
       const spawn = !a.inheritFlip
         ? base
         : `(function() local _nid = ${base}; entity.setFlip(_nid, entity.flipX(self) and 'mirror' or 'normal', entity.flipY(self) and 'mirror' or 'normal'); return _nid end)()`
@@ -180,20 +191,20 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
     }
     case 'moveInDirection': {
       const t = target(a.target)
-      const s = Number(a.speed) || 0
+      const s = numberSourceExpr(a.speed, project)
       switch (a.direction) {
         case 'up':
-          return `entity.setVelocity(${t}, 0, ${-s})`
+          return `entity.setVelocity(${t}, 0, -(${s}))`
         case 'down':
           return `entity.setVelocity(${t}, 0, ${s})`
         case 'left':
-          return `entity.setVelocity(${t}, ${-s}, 0)`
+          return `entity.setVelocity(${t}, -(${s}), 0)`
         case 'right':
           return `entity.setVelocity(${t}, ${s}, 0)`
         case 'forward':
-          return `(function() local _d = entity.flipX(${t}) and -1 or 1; entity.setVelocity(${t}, _d * ${s}, 0) end)()`
+          return `(function() local _d = entity.flipX(${t}) and -1 or 1; entity.setVelocity(${t}, _d * (${s}), 0) end)()`
         case 'backward':
-          return `(function() local _d = entity.flipX(${t}) and -1 or 1; entity.setVelocity(${t}, -_d * ${s}, 0) end)()`
+          return `(function() local _d = entity.flipX(${t}) and -1 or 1; entity.setVelocity(${t}, -_d * (${s}), 0) end)()`
       }
       return unknownActionComment(a,
         `direction=${String((a as { direction?: unknown }).direction)}`)
@@ -298,11 +309,11 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
     case 'toggleLogicEvent':
       return `_logic_on[${ruleKeyExpr(a.eventId, ctx.eventSlugs)}] = ${a.enabled ? 'true' : 'false'}`
     case 'applyImpulse':
-      return `physics.applyImpulse(${target(a.target)}, ${Number(a.ix) || 0}, ${Number(a.iy) || 0})`
+      return `physics.applyImpulse(${target(a.target)}, ${numberSourceExpr(a.ix, project)}, ${numberSourceExpr(a.iy, project)})`
     case 'applyForce':
-      return `physics.applyForce(${target(a.target)}, ${Number(a.fx) || 0}, ${Number(a.fy) || 0})`
+      return `physics.applyForce(${target(a.target)}, ${numberSourceExpr(a.fx, project)}, ${numberSourceExpr(a.fy, project)})`
     case 'setRotation':
-      return `entity.setRotation(${target(a.target)}, ${Number(a.angle) || 0})`
+      return `entity.setRotation(${target(a.target)}, ${numberSourceExpr(a.angle, project)})`
     case 'setScale':
       return `entity.setScale(${target(a.target)}, ${numberSourceExpr(a.scaleX, project)}, ${numberSourceExpr(a.scaleY, project)})`
     case 'playAnimation':
@@ -356,7 +367,7 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
     case 'useDefaultCameraTarget':
       return `camera.useDefaultTarget()`
     case 'cameraShake':
-      return `camera.shake(${traumaIntensity(a.trauma)}, ${shakeDurationSeconds(a.durationSeconds)})`
+      return `camera.shake(${clampedNumberArg(a.trauma, project, { min: 0, max: 1, fallback: 0.35 })}, ${clampedNumberArg(a.durationSeconds, project, { min: 0.05, max: 10, fallback: 0.5 })})`
     case 'debugLog':
       return `debug.log(${luaString(a.message)})`
     case 'wait':
@@ -364,9 +375,9 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
     case 'repeatTimes':
       return `${REPEAT_TIMES_SENTINEL_PREFIX} by emitActionSequence`
     case 'moveByOffset':
-      return `grid.moveByOffset(${target(a.target)}, ${Number(a.dx) || 0}, ${Number(a.dy) || 0})`
+      return `grid.moveByOffset(${target(a.target)}, ${numberSourceExpr(a.dx, project)}, ${numberSourceExpr(a.dy, project)})`
     case 'snapToGrid':
-      return `grid.snapToGrid(${target(a.target)}, ${Number(a.cellSize) || 32})`
+      return `grid.snapToGrid(${target(a.target)}, ${numberSourceExpr(a.cellSize, project, 32)})`
     case 'setEntityShader':
       return `shaders.setEntity(${target(a.target)}, ${luaString(a.shader)})`
     case 'setScreenShader':
@@ -387,15 +398,16 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
     case 'deleteSave':
       return `save.delete(${luaString(a.slot || 'main')})`
     case 'setCameraZoom':
-      return `camera.setZoom(${Number(a.zoom) || 1})`
+      // Preserve the legacy `|| 1` guard (0 → 1) for literals; bind dynamically otherwise.
+      return typeof a.zoom === 'object' && a.zoom !== null
+        ? `camera.setZoom(${numberSourceExpr(a.zoom, project, 1)})`
+        : `camera.setZoom(${Number(a.zoom) || 1})`
     case 'panCamera':
-      return `camera.move(${Number(a.dx) || 0}, ${Number(a.dy) || 0})`
+      return `camera.move(${numberSourceExpr(a.dx, project)}, ${numberSourceExpr(a.dy, project)})`
     case 'setCameraPosition':
-      return `camera.setPosition(${Number(a.x) || 0}, ${Number(a.y) || 0})`
-    case 'setTimeScale': {
-      const scale = Math.max(0, Number(a.scale) || 0)
-      return `time.setScale(${scale})`
-    }
+      return `camera.setPosition(${numberSourceExpr(a.x, project)}, ${numberSourceExpr(a.y, project)})`
+    case 'setTimeScale':
+      return `time.setScale(${clampedNumberArg(a.scale, project, { min: 0, fallback: 0 })})`
     case 'spawnAtEntity': {
       const cls = luaString(a.className)
       const t = target(a.target)
@@ -405,8 +417,8 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
     case 'moveToward': {
       const t = target(a.target)
       const tow = target(a.toward)
-      const spd = Number(a.speed) || 0
-      return `(function() local _tx,_ty=entity.position(${t}); local _wx,_wy=entity.position(${tow}); local _dx=_wx-_tx; local _dy=_wy-_ty; local _d=math.sqrt(_dx*_dx+_dy*_dy); if _d>0 then entity.setVelocity(${t},_dx/_d*${spd},_dy/_d*${spd}) else entity.setVelocity(${t},0,0) end end)()`
+      const spd = numberSourceExpr(a.speed, project)
+      return `(function() local _tx,_ty=entity.position(${t}); local _wx,_wy=entity.position(${tow}); local _dx=_wx-_tx; local _dy=_wy-_ty; local _d=math.sqrt(_dx*_dx+_dy*_dy); if _d>0 then entity.setVelocity(${t},_dx/_d*(${spd}),_dy/_d*(${spd})) else entity.setVelocity(${t},0,0) end end)()`
     }
     case 'lookAtTarget': {
       const t = target(a.target)

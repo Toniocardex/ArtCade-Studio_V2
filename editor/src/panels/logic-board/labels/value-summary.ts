@@ -5,8 +5,6 @@ import { targetDisplayLabel } from './board-labels'
 export function valueSummary(value: LogicValue, project?: ProjectDoc | null): string {
   if (typeof value !== 'object' || value === null) return String(value)
   switch (value.source) {
-    case 'state':
-      return `variable ${value.key || '?'}`
     case 'global':
       return `global ${value.key || '?'}`
     case 'local':

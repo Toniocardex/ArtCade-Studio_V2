@@ -19,9 +19,14 @@ export function conditionSummaryPlain(
 ): string {
   let text: string
   switch (c.type) {
-    case 'compareVariable':
-      text = `Variable ${c.key} ${c.operator} ${valueSummary(c.value, project)}`
+    case 'compareVariable': {
+      const variableLabel =
+        c.scope === 'object'
+          ? `${targetDisplayLabel(c.target ?? 'self', project)} variable ${c.key}`
+          : `Variable ${c.key}`
+      text = `${variableLabel} ${c.operator} ${valueSummary(c.value, project)}`
       break
+    }
     case 'compareValues':
       text = `${valueSummary(c.left, project)} ${c.operator} ${valueSummary(c.right, project)}`
       break

@@ -408,8 +408,8 @@
     "properties": {
       "type": { "const": "spawnEntity" },
       "className": { "type": "string" },
-      "x": { "type": "number" },
-      "y": { "type": "number" },
+      "x": { "$ref": "./value-source.schema.json" },
+      "y": { "$ref": "./value-source.schema.json" },
       "inheritFlip": { "type": "boolean" },
       "imagePoint": { "type": "string" },
       "velocityX": { "$ref": "./value-source.schema.json" },
@@ -421,8 +421,8 @@
       "category": "Entities",
       "params": {
         "className": { "widget": "className", "label": "What to create" },
-        "x": { "widget": "number", "label": "X" },
-        "y": { "widget": "number", "label": "Y" },
+        "x": { "widget": "numberSource", "label": "X" },
+        "y": { "widget": "numberSource", "label": "Y" },
         "inheritFlip": { "widget": "boolean", "label": "Inherit flip" },
         "imagePoint": { "widget": "string", "label": "Image point", "placeholder": "Muzzle" },
         "velocityX": { "widget": "numberSource", "label": "Launch velocity X" },
@@ -459,7 +459,7 @@
       "direction": {
         "enum": ["up", "down", "left", "right", "forward", "backward"]
       },
-      "speed": { "type": "number" }
+      "speed": { "$ref": "./value-source.schema.json" }
     },
     "additionalProperties": false,
     "x-artcade": {
@@ -472,7 +472,7 @@
           "label": "Direction",
           "options": ["up", "down", "left", "right", "forward", "backward"]
         },
-        "speed": { "widget": "number", "label": "Speed" }
+        "speed": { "widget": "numberSource", "label": "Speed" }
       }
     }
   },
@@ -796,8 +796,8 @@
     "properties": {
       "type": { "const": "applyImpulse" },
       "target": { "$ref": "./target-selector.schema.json" },
-      "ix": { "type": "number" },
-      "iy": { "type": "number" }
+      "ix": { "$ref": "./value-source.schema.json" },
+      "iy": { "$ref": "./value-source.schema.json" }
     },
     "additionalProperties": false,
     "x-artcade": {
@@ -805,8 +805,8 @@
       "category": "Physics",
       "params": {
         "target": { "widget": "target", "label": "Target" },
-        "ix": { "widget": "number", "label": "IX" },
-        "iy": { "widget": "number", "label": "IY" }
+        "ix": { "widget": "numberSource", "label": "IX" },
+        "iy": { "widget": "numberSource", "label": "IY" }
       }
     }
   },
@@ -816,8 +816,8 @@
     "properties": {
       "type": { "const": "applyForce" },
       "target": { "$ref": "./target-selector.schema.json" },
-      "fx": { "type": "number" },
-      "fy": { "type": "number" }
+      "fx": { "$ref": "./value-source.schema.json" },
+      "fy": { "$ref": "./value-source.schema.json" }
     },
     "additionalProperties": false,
     "x-artcade": {
@@ -825,8 +825,8 @@
       "category": "Physics",
       "params": {
         "target": { "widget": "target", "label": "Target" },
-        "fx": { "widget": "number", "label": "FX" },
-        "fy": { "widget": "number", "label": "FY" }
+        "fx": { "widget": "numberSource", "label": "FX" },
+        "fy": { "widget": "numberSource", "label": "FY" }
       }
     }
   },
@@ -836,7 +836,7 @@
     "properties": {
       "type": { "const": "setRotation" },
       "target": { "$ref": "./target-selector.schema.json" },
-      "angle": { "type": "number" }
+      "angle": { "$ref": "./value-source.schema.json" }
     },
     "additionalProperties": false,
     "x-artcade": {
@@ -844,7 +844,7 @@
       "category": "Physics",
       "params": {
         "target": { "widget": "target", "label": "Target" },
-        "angle": { "widget": "number", "label": "Angle" }
+        "angle": { "widget": "numberSource", "label": "Angle" }
       }
     }
   },
@@ -1033,8 +1033,8 @@
     "required": ["type", "trauma"],
     "properties": {
       "type": { "const": "cameraShake" },
-      "trauma": { "type": "number", "minimum": 0, "maximum": 1 },
-      "durationSeconds": { "type": "number", "minimum": 0.05, "maximum": 10 }
+      "trauma": { "$ref": "./value-source.schema.json" },
+      "durationSeconds": { "$ref": "./value-source.schema.json" }
     },
     "additionalProperties": false,
     "x-artcade": {
@@ -1042,16 +1042,16 @@
       "category": "Camera",
       "params": {
         "trauma": {
-          "widget": "number",
+          "widget": "numberSource",
           "label": "Intensity (0–1)",
           "placeholder": "0.35",
-          "hint": "0 = none, 1 = full strength. Amplitude scales linearly."
+          "hint": "0 = none, 1 = full strength. Amplitude scales linearly. Clamped to 0–1 at runtime."
         },
         "durationSeconds": {
-          "widget": "number",
+          "widget": "numberSource",
           "label": "Duration (seconds)",
           "placeholder": "0.5",
-          "hint": "How long the shake takes to fade out."
+          "hint": "How long the shake takes to fade out. Clamped to 0.05–10s at runtime."
         }
       }
     }
@@ -1062,8 +1062,8 @@
     "properties": {
       "type": { "const": "moveByOffset" },
       "target": { "$ref": "./target-selector.schema.json" },
-      "dx": { "type": "number" },
-      "dy": { "type": "number" }
+      "dx": { "$ref": "./value-source.schema.json" },
+      "dy": { "$ref": "./value-source.schema.json" }
     },
     "additionalProperties": false,
     "x-artcade": {
@@ -1071,8 +1071,8 @@
       "category": "Physics",
       "params": {
         "target": { "widget": "target", "label": "Target" },
-        "dx": { "widget": "number", "label": "ΔX" },
-        "dy": { "widget": "number", "label": "ΔY" }
+        "dx": { "widget": "numberSource", "label": "ΔX" },
+        "dy": { "widget": "numberSource", "label": "ΔY" }
       }
     }
   },
@@ -1082,7 +1082,7 @@
     "properties": {
       "type": { "const": "snapToGrid" },
       "target": { "$ref": "./target-selector.schema.json" },
-      "cellSize": { "type": "number" }
+      "cellSize": { "$ref": "./value-source.schema.json" }
     },
     "additionalProperties": false,
     "x-artcade": {
@@ -1090,7 +1090,7 @@
       "category": "Physics",
       "params": {
         "target": { "widget": "target", "label": "Target" },
-        "cellSize": { "widget": "number", "label": "Cell size" }
+        "cellSize": { "widget": "numberSource", "label": "Cell size" }
       }
     }
   },
@@ -1205,14 +1205,14 @@
     "required": ["type", "zoom"],
     "properties": {
       "type": { "const": "setCameraZoom" },
-      "zoom": { "type": "number", "exclusiveMinimum": 0 }
+      "zoom": { "$ref": "./value-source.schema.json" }
     },
     "additionalProperties": false,
     "x-artcade": {
       "label": "Set Camera Zoom",
       "category": "Camera",
       "params": {
-        "zoom": { "widget": "number", "label": "Zoom (1 = normal)" }
+        "zoom": { "widget": "numberSource", "label": "Zoom (1 = normal)" }
       }
     }
   },
@@ -1221,16 +1221,16 @@
     "required": ["type", "dx", "dy"],
     "properties": {
       "type": { "const": "panCamera" },
-      "dx": { "type": "number" },
-      "dy": { "type": "number" }
+      "dx": { "$ref": "./value-source.schema.json" },
+      "dy": { "$ref": "./value-source.schema.json" }
     },
     "additionalProperties": false,
     "x-artcade": {
       "label": "Pan Camera",
       "category": "Camera",
       "params": {
-        "dx": { "widget": "number", "label": "DX" },
-        "dy": { "widget": "number", "label": "DY" }
+        "dx": { "widget": "numberSource", "label": "DX" },
+        "dy": { "widget": "numberSource", "label": "DY" }
       }
     }
   },
@@ -1239,16 +1239,16 @@
     "required": ["type", "x", "y"],
     "properties": {
       "type": { "const": "setCameraPosition" },
-      "x": { "type": "number" },
-      "y": { "type": "number" }
+      "x": { "$ref": "./value-source.schema.json" },
+      "y": { "$ref": "./value-source.schema.json" }
     },
     "additionalProperties": false,
     "x-artcade": {
       "label": "Set Camera Position",
       "category": "Camera",
       "params": {
-        "x": { "widget": "number", "label": "X" },
-        "y": { "widget": "number", "label": "Y" }
+        "x": { "widget": "numberSource", "label": "X" },
+        "y": { "widget": "numberSource", "label": "Y" }
       }
     }
   },
@@ -1257,14 +1257,14 @@
     "required": ["type", "scale"],
     "properties": {
       "type": { "const": "setTimeScale" },
-      "scale": { "type": "number", "minimum": 0 }
+      "scale": { "$ref": "./value-source.schema.json" }
     },
     "additionalProperties": false,
     "x-artcade": {
       "label": "Set Time Scale",
       "category": "Time",
       "params": {
-        "scale": { "widget": "number", "label": "Scale (1=normal, 0=pause)" }
+        "scale": { "widget": "numberSource", "label": "Scale (1=normal, 0=pause)" }
       }
     }
   },
@@ -1297,7 +1297,7 @@
       "type": { "const": "moveToward" },
       "target": { "$ref": "./target-selector.schema.json" },
       "toward": { "$ref": "./target-selector.schema.json" },
-      "speed": { "type": "number" }
+      "speed": { "$ref": "./value-source.schema.json" }
     },
     "additionalProperties": false,
     "x-artcade": {
@@ -1306,7 +1306,7 @@
       "params": {
         "target": { "widget": "target", "label": "Move" },
         "toward": { "widget": "target", "label": "Toward" },
-        "speed": { "widget": "number", "label": "Speed (px/s)" }
+        "speed": { "widget": "numberSource", "label": "Speed (px/s)" }
       }
     }
   },

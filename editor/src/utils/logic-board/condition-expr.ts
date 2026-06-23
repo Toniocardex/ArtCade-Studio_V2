@@ -40,12 +40,13 @@ function leafExpr(c: LogicCondition, project?: ProjectDoc | null): string {
   switch (c.type) {
     case 'compareClass':
       return `collision.touchingClass(self, ${luaString(c.className)})`
-    case 'compareVariable':
-      return comparisonExpr(
-        `global.get(${luaString(c.key)})`,
-        c.operator,
-        valueSourceExpr(c.value, project),
-      )
+    case 'compareVariable': {
+      const lhs =
+        c.scope === 'object'
+          ? `objectvar.get(${targetExpr(c.target ?? 'self', project)}, ${luaString(c.key)})`
+          : `global.get(${luaString(c.key)})`
+      return comparisonExpr(lhs, c.operator, valueSourceExpr(c.value, project))
+    }
     case 'compareValues':
       return comparisonExpr(
         valueSourceExpr(c.left, project),

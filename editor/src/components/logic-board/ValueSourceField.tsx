@@ -41,8 +41,6 @@ function atomDefault(kind: AtomSourceKind, numeric: boolean): LogicValueAtom {
       return { source: 'global', key: '' }
     case 'local':
       return { source: 'local', target: 'self', key: '' }
-    case 'state':
-      return { source: 'state', key: '', fallback: numeric ? 0 : '' }
     case 'message':
       return { source: 'message', key: '', fallback: numeric ? 0 : '' }
     case 'entity':

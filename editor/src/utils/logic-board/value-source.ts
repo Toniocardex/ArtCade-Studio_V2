@@ -53,10 +53,6 @@ function atomExpr(value: LogicValueAtom, project?: ProjectDoc | null): string {
       return `global.get(${luaString(value.key)})`
     case 'local':
       return `objectvar.get(${targetExpr(value.target, project)}, ${luaString(value.key)})`
-    case 'state': {
-      const fallback = fallbackExpr(value.fallback, 0)
-      return `(function() local _value=global.get(${luaString(value.key)}); if _value==nil then return ${fallback} end; return _value end)()`
-    }
     case 'message': {
       const fallback = fallbackExpr(value.fallback, 0)
       const key = luaString(value.key)

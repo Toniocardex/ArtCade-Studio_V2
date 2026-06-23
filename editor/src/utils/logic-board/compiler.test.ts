@@ -134,7 +134,7 @@ describe('Component API actions and conditions', () => {
             { type: 'resumeLinearMover', target: 'self' },
             { type: 'setMagnetEnabled', target: 'self', enabled: false },
             { type: 'setMagnetTargetTag', target: 'self', tag: 'coin' },
-            { type: 'setMagnetRadius', target: 'self', radius: { source: 'state', key: 'radius' } },
+            { type: 'setMagnetRadius', target: 'self', radius: { source: 'global', key: 'radius' } },
             { type: 'setMagnetPullSpeed', target: 'self', speed: 350 },
             { type: 'setHordeTargetClass', target: 'self', className: 'Player' },
             { type: 'setHordeWeights', target: 'self', chaseWeight: 2, separationWeight: 0.5 },
@@ -210,7 +210,7 @@ describe('Component API actions and conditions', () => {
           actions: [
             {
               type: 'setText', target: 'self',
-              value: { source: 'state', key: 'score', fallback: 0 },
+              value: { source: 'global', key: 'score' },
               prefix: 'Score: ',
             },
             { type: 'setTextColor', target: 'self', hexColor: '#ff0000' },
@@ -231,7 +231,7 @@ describe('Component API actions and conditions', () => {
           actions: [
             {
               type: 'setText', target: 'self',
-              value: { source: 'state', key: 'time', fallback: 0 },
+              value: { source: 'global', key: 'time' },
               format: 'time', digits: 0,
             },
           ],
@@ -251,7 +251,7 @@ describe('Component API actions and conditions', () => {
           actions: [
             { type: 'spawnEntity', className: 'Bullet', x: 0, y: 0, velocityX: 0, velocityY: -400 },
             { type: 'pauseGame' },
-            { type: 'setScale', target: 'self', scaleX: { source: 'state', key: 'hp' }, scaleY: 1 },
+            { type: 'setScale', target: 'self', scaleX: { source: 'global', key: 'hp' }, scaleY: 1 },
           ],
         }),
         ev({
@@ -396,6 +396,24 @@ describe('conditionExpr', () => {
     expect(lua).toContain('input.isKeyDown("Space")')
     expect(lua).toContain('global.get("hp")')
     expect(lua).toContain('_leftNumber > _rightNumber')
+  })
+
+  it('compareVariable defaults to global, object scope reads objectvar', () => {
+    const globalLua = conditionExpr(ev({
+      trigger: { type: 'onUpdate' },
+      conditions: [{ type: 'compareVariable', key: 'state', operator: '==', value: 'walk' }],
+      actions: [],
+    }))
+    expect(globalLua).toContain('global.get("state")')
+    expect(globalLua).not.toContain('objectvar.get')
+
+    const objectLua = conditionExpr(ev({
+      trigger: { type: 'onUpdate' },
+      conditions: [{ type: 'compareVariable', scope: 'object', key: 'state', operator: '==', value: 'walk' }],
+      actions: [],
+    }))
+    expect(objectLua).toContain('objectvar.get(self, "state")')
+    expect(objectLua).not.toContain('global.get("state")')
   })
 
   it('conditionRoot supports nested OR/AND', () => {
@@ -1136,6 +1154,38 @@ describe('Logic Components — Phase B (new runtime-backed actions)', () => {
     expect(lua).toContain('scene.restart()')
     expect(lua).toContain('camera.centerOn(self)')
   })
+
+  it('widened number fields bind to value sources (variables/expressions)', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({ trigger: { type: 'onUpdate' }, actions: [
+          { type: 'setRotation', target: 'self', angle: { source: 'global', key: 'aim' } },
+          { type: 'applyImpulse', target: 'self', ix: { source: 'global', key: 'kick' }, iy: 0 },
+        ] }),
+      ]),
+    ])
+    // The bound variable flows through numberSourceExpr into the call site.
+    expect(lua).toContain('global.get("aim")')
+    expect(lua).toContain('global.get("kick")')
+    expect(lua).toContain('entity.setRotation(self,')
+  })
+
+  it('cameraShake keeps literal output but clamps dynamic trauma in Lua', () => {
+    const literal = compileLogicBoard([
+      board([ev({ trigger: { type: 'onUpdate' }, actions: [{ type: 'cameraShake', trauma: 8.5 }] })]),
+    ])
+    // Literal path is byte-identical to the legacy JS-side clamp.
+    expect(literal).toContain('camera.shake(1, 0.5)')
+
+    const dynamic = compileLogicBoard([
+      board([ev({ trigger: { type: 'onUpdate' }, actions: [
+        { type: 'cameraShake', trauma: { source: 'global', key: 'hit' } },
+      ] })]),
+    ])
+    // Dynamic path moves the 0–1 clamp into the emitted Lua.
+    expect(dynamic).toContain('math.min(1, math.max(0,')
+    expect(dynamic).toContain('global.get("hit")')
+  })
 })
 
 describe('Hot-reload safety — handler unsubscribe tracking', () => {
@@ -1814,13 +1864,13 @@ describe('logicDebugTrace', () => {
 })
 
 describe('Value Sources', () => {
-  it('emits state, entity, message, and deterministic random sources', () => {
+  it('emits global, entity, message, and deterministic random sources', () => {
     const lua = compileLogicBoard([
       board([
         ev({
           trigger: { type: 'onMessage', messageName: 'configure' },
           actions: [
-            { type: 'setVariable', key: 'fromState', value: { source: 'state', key: 'score' } },
+            { type: 'setVariable', key: 'fromGlobal', value: { source: 'global', key: 'score' } },
             { type: 'setVariable', key: 'fromMessage', value: { source: 'message', key: 'amount' } },
             {
               type: 'setVariable',
