@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   computeCanvasViewportLayout,
+  edgeOffsetPx,
   pickRulerTickStep,
   rulerLabelsForAxis,
   scrollContentSizePx,
@@ -34,6 +35,48 @@ describe('computeCanvasViewportLayout', () => {
     })
     expect(layout.contentSizePx).toEqual({ x: 1024, y: 640 })
     expect(layout.worldOriginOffset).toEqual({ x: 0, y: 0 })
+  })
+
+  it('centres the frame when the viewport is larger than the scene', () => {
+    const layout = computeCanvasViewportLayout({
+      worldSize: WORLD,
+      viewportSize: VP,
+      zoom: 1,
+      preview: false,
+      clientSize: { x: 2000, y: 1000 },
+    })
+    expect(layout.contentOffsetPx).toEqual({ x: 360, y: 180 })
+    // Content + even margins exactly fill the viewport — no scrollbars.
+    expect(scrollContentSizePx(layout)).toEqual({ x: 2000, y: 1000 })
+  })
+
+  it('adds overscroll headroom when the scene overflows the viewport', () => {
+    const layout = computeCanvasViewportLayout({
+      worldSize: WORLD,
+      viewportSize: VP,
+      zoom: 1,
+      preview: false,
+      clientSize: { x: 800, y: 500 },
+      overscrollPx: 100,
+    })
+    // basePad (8) + overscroll (100) on each overflowing edge.
+    expect(layout.contentOffsetPx).toEqual({ x: 108, y: 108 })
+    expect(scrollContentSizePx(layout)).toEqual({ x: 1280 + 216, y: 640 + 216 })
+  })
+})
+
+describe('edgeOffsetPx', () => {
+  it('falls back to basePad when the client size is unknown', () => {
+    expect(edgeOffsetPx(undefined, 1280, 8, 100)).toBe(8)
+    expect(edgeOffsetPx(0, 1280, 8, 100)).toBe(8)
+  })
+
+  it('centres (even margin) when the frame fits with room to spare', () => {
+    expect(edgeOffsetPx(2000, 1280, 8, 100)).toBe(360)
+  })
+
+  it('uses basePad + overscroll when the frame overflows', () => {
+    expect(edgeOffsetPx(800, 1280, 8, 100)).toBe(108)
   })
 })
 

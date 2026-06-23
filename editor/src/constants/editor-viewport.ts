@@ -17,9 +17,12 @@ export const EDITOR_ZOOM_MAX = 8.0
 export const EDITOR_ZOOM_DEFAULT = 1.0
 
 /**
- * Zoom level applied when the editor boots a blank project and on every
- * subsequent LOAD_PROJECT. Kept separate from EDITOR_ZOOM_DEFAULT so the
- * startup policy can change without altering the Ctrl+0 identity shortcut.
+ * Pre-fit fallback zoom for the first frame of a blank project / LOAD_PROJECT.
+ * The boot policy is editorZoomMode='fit' (see editor-store-state.ts and
+ * project-reducer.ts), so useEditorFitZoom overrides this on mount once the
+ * scroll viewport has a measured size — this value only shows if the canvas
+ * has 0×0 client size. Kept separate from EDITOR_ZOOM_DEFAULT so the startup
+ * policy can change without altering the Ctrl+0 identity shortcut.
  */
 export const EDITOR_BOOT_ZOOM = 1.0
 
@@ -37,6 +40,14 @@ export const EDITOR_ZOOM_SNAP_DECIMALS = 3
 
 /** Total canvas scroll-area padding across each axis (Tailwind p-2 = 8px × 2). */
 export const EDITOR_CANVAS_PADDING_PX = 16
+
+/**
+ * Overscroll headroom past each scene edge, as a fraction of the smaller scroll
+ * viewport dimension. Lets the user scroll a little beyond the world so objects
+ * sitting on an edge stay comfortable to grab (Figma / Aseprite behaviour).
+ * Only applies when the scene is larger than the viewport.
+ */
+export const EDITOR_CANVAS_OVERSCROLL_FACTOR = 0.3
 
 /** Default editor-only guide/snap grid size in world pixels. */
 export const DEFAULT_EDITOR_GRID_SIZE = 32
@@ -58,14 +69,16 @@ export const EDITOR_RULER_STEP_MAX = 1024
  * Default scene size used for new blank projects and as fallback when no
  * scene is selected.
  *
- * 1280x640 is intentional, NOT 1280x720:
- *   • Both dimensions are exact multiples of every standard pixel-art tile
- *     size (8, 16, 32, 64, 128) — the default 32 px grid lays down 40×20
- *     perfect cells with no half-row at the bottom of the scene.
- *   • 2:1 aspect is the natural fit for platformers, top-down arcade games
- *     and side-scrollers (the genres ArtCade targets).
- *   • Width 1280 keeps HD-level horizontal resolution; height 640 trades the
- *     standard 720p vertical for grid alignment.
+ * 512×320 == DEFAULT_VIEWPORT_SIZE: a blank project is single-screen, so the
+ * whole scene IS the camera (no empty world margins, no off-camera dead space).
+ * Combined with the fit-to-view boot policy the scene fills the canvas and
+ * stays centred on open — "what you draw is what you play". Scenes that need a
+ * scrolling level (e.g. the platformer template) override worldSize explicitly.
+ *
+ *   • Still tile-aligned: 512 and 320 are exact multiples of every standard
+ *     pixel-art tile size (8, 16, 32, 64) — the default 32 px grid lays down
+ *     16×10 perfect cells with no half-row.
+ *   • 16:10 single screen suits the arcade games ArtCade targets out of the box.
  *
  * If you change this, also re-check DEFAULT_EDITOR_GRID_SIZE: the invariant
  * "scene size MUST be a multiple of the default grid" is what makes the
@@ -73,7 +86,7 @@ export const EDITOR_RULER_STEP_MAX = 1024
  *
  * C++ mirror: runtime-cpp/src/core/project-defaults.h
  */
-export const DEFAULT_SCENE_SIZE = { x: 1280, y: 640 } as const
+export const DEFAULT_SCENE_SIZE = { x: 512, y: 320 } as const
 
 /** Default camera / viewport rectangle for new scenes (mockup: 512×320 inside world). */
 export const DEFAULT_VIEWPORT_SIZE = { x: 512, y: 320 } as const

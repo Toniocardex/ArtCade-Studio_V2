@@ -5,14 +5,21 @@ import { assetOrchestrator, imageAssetDescriptor } from '../utils/asset-orchestr
 import { watchProjectAssets } from '../utils/asset-watcher'
 import { dirName } from '../utils/project'
 import { runtimeSync, type EditorTool } from '../utils/runtime-sync-service'
-import { DEFAULT_SCENE_SIZE } from '../constants/editor-viewport'
+import {
+  DEFAULT_SCENE_SIZE,
+  EDITOR_CANVAS_OVERSCROLL_FACTOR,
+  EDITOR_CANVAS_PADDING_PX,
+} from '../constants/editor-viewport'
 import {
   useWasmRuntimeLifecycle,
   useRuntimeProjectSync,
   useRuntimeAssetUpload,
   useRuntimeEditorSync,
 } from './preview/runtime-hooks'
-import { computeCanvasViewportLayout } from '../utils/canvas-viewport-layout'
+import { computeCanvasViewportLayout, scrollToWorld, worldToScroll } from '../utils/canvas-viewport-layout'
+import { zoomFitRegistry } from '../utils/zoom-fit-registry'
+import { frameSelectionRegistry } from '../utils/frame-selection-registry'
+import { computeFrameSelectionView } from '../utils/frame-selection'
 import { normalizeEntityPosition } from '../utils/entity-position'
 import { CanvasToolbar } from './preview/CanvasToolbar'
 import { CanvasFocusToolbar } from './preview/CanvasFocusToolbar'
@@ -91,6 +98,8 @@ export default function PreviewPanel({
   const canvasHostRef       = useRef<HTMLDivElement>(null)
   const [runtimeCanvasReady, setRuntimeCanvasReady] = useState(false)
   const scrollRef           = useRef<HTMLDivElement>(null)
+  // Measured scroll-viewport size — drives scene centring + edge overscroll.
+  const [clientSize, setClientSize] = useState<{ x: number; y: number } | null>(null)
   const sceneIdRef          = useRef<string>('')
   const projectRef          = useRef(project)
   const projectPathRef      = useRef(projectPath)
@@ -355,6 +364,9 @@ export default function PreviewPanel({
 
   const preview = !isPlaying && cameraPreview && (vp.x !== res.x || vp.y !== res.y)
   const showCameraFrame = !isPlaying && mode === 'canvas' && (vp.x < res.x || vp.y < res.y)
+  const overscrollPx = clientSize
+    ? Math.round(Math.min(clientSize.x, clientSize.y) * EDITOR_CANVAS_OVERSCROLL_FACTOR)
+    : 0
   const layout = useMemo(
     () => computeCanvasViewportLayout({
       worldSize: frame,
@@ -362,11 +374,34 @@ export default function PreviewPanel({
       zoom,
       preview,
       rulerStep: editorRulerStep,
+      clientSize: clientSize ?? undefined,
+      overscrollPx,
     }),
-    [frame.x, frame.y, vp.x, vp.y, zoom, preview, editorRulerStep],
+    [frame.x, frame.y, vp.x, vp.y, zoom, preview, editorRulerStep,
+     clientSize?.x, clientSize?.y, overscrollPx],
   )
   const frameW = layout.contentSizePx.x
   const frameH = layout.contentSizePx.y
+  // Offset of the scene frame from the scroll content origin. The scroll
+  // container already pads by layout.paddingPx, so the spacer only needs the
+  // extra (centring / overscroll) margin on top of that.
+  const sceneMarginX = Math.max(0, layout.contentOffsetPx.x - layout.paddingPx)
+  const sceneMarginY = Math.max(0, layout.contentOffsetPx.y - layout.paddingPx)
+
+  // Track the scroll-viewport size so the layout can centre the scene and add
+  // edge overscroll. ResizeObserver keeps it correct across panel/window resize.
+  useLayoutEffect(() => {
+    const el = scrollRef.current
+    if (!el) return undefined
+    const measure = () => setClientSize((prev) =>
+      prev && prev.x === el.clientWidth && prev.y === el.clientHeight
+        ? prev
+        : { x: el.clientWidth, y: el.clientHeight })
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
 
   useEditorFitZoom({
     scrollRef,
@@ -399,6 +434,8 @@ export default function PreviewPanel({
     project,
     isPlaying,
     activeTool,
+    clientSize,
+    overscrollPx,
   })
 
   const bgColor = (() => {
@@ -458,8 +495,10 @@ export default function PreviewPanel({
   // resolution. target = world point at the canvas top-left; zoom + viewport
   // in device px. Re-assert the CSS afterwards because setWindowSize (fired
   // only when the viewport px change) strips the inline canvas style on
-  // Emscripten. Picking/zoom stay consistent because target = scrollLeft/zoom
-  // matches the editor's scrollToWorld mapping.
+  // Emscripten. The canvas sits `pad` in from the scroll edge, so the world
+  // point at its corner = scrollToWorld(scroll, layout, {pad,pad}) — this
+  // tracks the centring / overscroll offset baked into layout.contentOffsetPx
+  // and keeps picking aligned (it collapses to scrollLeft/zoom when centred).
   const camSyncRafRef = useRef<number | null>(null)
   const syncEditCamera = useCallback(() => {
     const el = scrollRef.current
@@ -469,12 +508,13 @@ export default function PreviewPanel({
     const cssW = Math.max(1, el.clientWidth  - pad * 2)
     const cssH = Math.max(1, el.clientHeight - pad * 2)
     const z = zoom > 0 ? zoom : 1
+    const target = scrollToWorld(el.scrollLeft, el.scrollTop, layout, { x: pad, y: pad })
     editorSetEditCamera(
-      el.scrollLeft / z, el.scrollTop / z,
+      target.x, target.y,
       z * dpr, cssW * dpr, cssH * dpr,
     )
     applyCanvasPresentation()
-  }, [isPlaying, engineReady, zoom, layout.paddingPx, applyCanvasPresentation])
+  }, [isPlaying, engineReady, zoom, layout, applyCanvasPresentation])
 
   useEffect(() => {
     const el = scrollRef.current
@@ -497,6 +537,50 @@ export default function PreviewPanel({
       camSyncRafRef.current = null
     }
   }, [isPlaying, engineReady, syncEditCamera, res.x, res.y, vp.x, vp.y, selectedSceneId])
+
+  // F = frame selected: zoom in on the selected entity and centre it; with no
+  // selection, fall back to fit-the-whole-scene. Registered so useViewport
+  // shortcuts can invoke it without reaching into the panel's scroll ref.
+  const frameSelection = useCallback(() => {
+    const el = scrollRef.current
+    if (!el || isPlaying) return
+    const entityId = selection.entityId
+    const def = entityId != null ? project?.entities[entityId] : null
+    if (!def) {
+      zoomFitRegistry.invoke()
+      return
+    }
+    const { zoom: nextZoom, center } = computeFrameSelectionView({
+      position: def.transform.position,
+      scale: def.transform.scale,
+      clientW: el.clientWidth,
+      clientH: el.clientHeight,
+      paddingPx: EDITOR_CANVAS_PADDING_PX,
+    })
+    dispatch({ type: 'EDITOR_SET_ZOOM', zoom: nextZoom })
+    const nextLayout = computeCanvasViewportLayout({
+      worldSize: frame,
+      viewportSize: vp,
+      zoom: nextZoom,
+      preview,
+      clientSize: { x: el.clientWidth, y: el.clientHeight },
+      overscrollPx,
+    })
+    requestAnimationFrame(() => {
+      const node = scrollRef.current
+      if (!node) return
+      const { scrollLeft, scrollTop } = worldToScroll(center, nextLayout, {
+        x: node.clientWidth * 0.5,
+        y: node.clientHeight * 0.5,
+      })
+      const maxX = Math.max(0, node.scrollWidth - node.clientWidth)
+      const maxY = Math.max(0, node.scrollHeight - node.clientHeight)
+      node.scrollLeft = Math.min(maxX, Math.max(0, scrollLeft))
+      node.scrollTop = Math.min(maxY, Math.max(0, scrollTop))
+    })
+  }, [isPlaying, selection.entityId, project, frame.x, frame.y, vp.x, vp.y, preview, overscrollPx, dispatch])
+
+  useLayoutEffect(() => frameSelectionRegistry.register(frameSelection), [frameSelection])
 
   // Suppress the browser context menu during play (right click is game input).
   useEffect(() => {
@@ -569,7 +653,14 @@ export default function PreviewPanel({
             entity picking / dragging. Every overlay here is visual-only. */}
         <div
           className="w-fit h-fit shrink-0"
-          style={{ width: frameW, height: frameH, position: 'relative', zIndex: 1, pointerEvents: 'none' }}
+          style={{
+            width: frameW,
+            height: frameH,
+            margin: `${sceneMarginY}px ${sceneMarginX}px`,
+            position: 'relative',
+            zIndex: 1,
+            pointerEvents: 'none',
+          }}
         >
           <div
             className="canvas-scene-frame"

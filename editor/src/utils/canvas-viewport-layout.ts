@@ -31,6 +31,29 @@ const BASE_RULER_TICK_STEP = 64
 const MIN_TICK_SCREEN_PX = 24
 const MAX_RULER_TICK_STEP = 4096
 
+/**
+ * Leading-edge offset of the scene frame inside the scroll content, per axis.
+ *
+ *  • Frame smaller than the viewport → centre it: the offset is the even margin
+ *    that splits the leftover space, so the scene floats in the middle instead
+ *    of clinging to the top-left corner.
+ *  • Frame larger than the viewport → minimal `basePad` plus `overscroll`, so
+ *    the user can scroll a little past every edge (edge objects stay reachable).
+ *
+ * When `client` is unknown (e.g. before the scroll element is measured) the
+ * offset falls back to `basePad` — the original top-left-anchored behaviour.
+ */
+export function edgeOffsetPx(
+  client: number | undefined,
+  content: number,
+  basePad: number,
+  overscroll: number,
+): number {
+  if (client == null || client <= 0) return basePad
+  const center = (client - content) / 2
+  return center >= basePad ? center : basePad + Math.max(0, overscroll)
+}
+
 export function computeCanvasViewportLayout(params: Readonly<{
   worldSize: Readonly<{ x: number; y: number }>
   viewportSize: Readonly<{ x: number; y: number }>
@@ -38,6 +61,10 @@ export function computeCanvasViewportLayout(params: Readonly<{
   preview: boolean
   /** Base world distance between ruler ticks. Defaults to BASE_RULER_TICK_STEP. */
   rulerStep?: number
+  /** Scroll viewport size in device px. Enables centring / overscroll padding. */
+  clientSize?: Readonly<{ x: number; y: number }>
+  /** Extra scroll headroom past each edge when the frame overflows (device px). */
+  overscrollPx?: number
 }>): CanvasViewportLayout {
   const paddingPx = EDITOR_CANVAS_PADDING_PX / 2
   const { worldSize, viewportSize, preview } = params
@@ -53,11 +80,15 @@ export function computeCanvasViewportLayout(params: Readonly<{
     ? Math.round(viewportSize.y * z)
     : Math.round(worldSize.y * z)
 
+  const over = params.overscrollPx ?? 0
+  const offX = edgeOffsetPx(params.clientSize?.x, contentW, paddingPx, over)
+  const offY = edgeOffsetPx(params.clientSize?.y, contentH, paddingPx, over)
+
   const worldOriginOffset = { x: 0, y: 0 }
 
   return {
     paddingPx,
-    contentOffsetPx: { x: paddingPx, y: paddingPx },
+    contentOffsetPx: { x: offX, y: offY },
     contentSizePx: { x: contentW, y: contentH },
     worldSize,
     viewportSize,

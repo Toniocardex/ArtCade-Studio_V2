@@ -42,6 +42,10 @@ export type UseEditorCanvasViewportParams = Readonly<{
   project: ProjectDoc | null
   isPlaying: boolean
   activeTool: EditorTool
+  /** Scroll viewport size in device px — keeps wheel-zoom layout centred. */
+  clientSize: Readonly<{ x: number; y: number }> | null
+  /** Edge overscroll headroom (device px) mirrored from the panel layout. */
+  overscrollPx: number
 }>
 
 export type EditorCanvasViewportHandlers = Readonly<{
@@ -72,6 +76,8 @@ export function useEditorCanvasViewport({
   project,
   isPlaying,
   activeTool,
+  clientSize,
+  overscrollPx,
 }: UseEditorCanvasViewportParams): EditorCanvasViewportHandlers {
   const [isPanning, setIsPanning] = useState(false)
   const panStartRef = useRef<{
@@ -194,6 +200,8 @@ export function useEditorCanvasViewport({
       viewportSize,
       zoom: nextZoom,
       preview,
+      clientSize: clientSize ?? undefined,
+      overscrollPx,
     })
 
     requestAnimationFrame(() => {

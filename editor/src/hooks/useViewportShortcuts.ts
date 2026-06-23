@@ -13,6 +13,7 @@ import {
   type CoreState,
 } from '../store/editor-store'
 import { zoomFitRegistry } from '../utils/zoom-fit-registry'
+import { frameSelectionRegistry } from '../utils/frame-selection-registry'
 import { shouldIgnoreEditorShortcut } from '../utils/keyboard'
 import {
   EDITOR_ZOOM_DEFAULT, EDITOR_ZOOM_KEYBOARD_STEP,
@@ -54,6 +55,19 @@ export function useViewportShortcuts(): void {
       if (duplicateAction) {
         e.preventDefault()
         dispatch(duplicateAction)
+        return
+      }
+
+      // F (no modifiers) — frame the selected object, or fit the scene if
+      // nothing is selected. Standard DCC/engine "frame selected" gesture.
+      if (
+        !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey
+        && e.key.toLowerCase() === 'f'
+        && !shouldIgnoreEditorShortcut(e)
+        && state.mode === 'canvas' && !state.isPlaying
+      ) {
+        e.preventDefault()
+        frameSelectionRegistry.invoke()
         return
       }
 

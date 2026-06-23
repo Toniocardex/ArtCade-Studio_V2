@@ -334,7 +334,7 @@ export const initialCoreState: CoreState = {
   snapToGrid:       false,
   editorGuidesVisible: true,
   editorZoom:       EDITOR_BOOT_ZOOM,
-  editorZoomMode:   'manual',
+  editorZoomMode:   'fit',
   cameraPreview:    false,
   projectLoadEpoch: 0,
   authoringMode: readStoredAuthoringMode(),
