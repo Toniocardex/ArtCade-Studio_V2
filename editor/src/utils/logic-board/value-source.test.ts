@@ -44,6 +44,12 @@ describe('Value Source expressions', () => {
     }
   })
 
+  it('falls back to 0 for malformed value sources', () => {
+    const malformed = { source: 'legacyState' } as Parameters<typeof valueSourceExpr>[0]
+    expect(valueSourceExpr(malformed)).toBe('0')
+    expect(numberSourceExpr(malformed)).toContain('tonumber(0)')
+  })
+
   it('rejects non-finite numeric results at action boundaries', () => {
     const lua = numberSourceExpr({
       source: 'expression',

@@ -64,6 +64,10 @@ function atomExpr(value: LogicValueAtom, project?: ProjectDoc | null): string {
       return componentValueExpr(value, project)
     case 'random':
       return `_logic_random_int(${Number(value.min) || 0}, ${Number(value.max) || 0})`
+    default: {
+      const _exhaustive: never = value
+      return luaValue(0)
+    }
   }
 }
 
