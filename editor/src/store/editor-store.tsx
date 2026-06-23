@@ -157,7 +157,7 @@ export function EditorProvider({ children }: { children: ReactNode }) {
 
   const dispatch = useCallback((action: Action) => {
     if (action.type === 'LOAD_PROJECT') {
-      runLoadProjectSideEffects(action.path)
+      runLoadProjectSideEffects(action.path, action.project)
     }
     coreDi(action)
     volDi(action)

@@ -13,6 +13,7 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod artcade_container;
 mod atomic_project_write;
 mod build_log_filter;
 mod process_util;
@@ -166,6 +167,18 @@ fn write_binary_file(path: String, bytes: Vec<u8>, project_root: String) -> Resu
     let p = project_write_paths::prepare_writable_path(&path, &project_root)?;
     atomic_project_write::write_atomic(&p, &bytes)
         .map_err(|e| format!("atomic binary write '{path}': {e}"))
+}
+
+/// Decrypt an encrypted `.artcade` container into its inner plaintext ZIP bytes
+/// so the editor can reopen packages it produced. Plain ZIP bytes pass through
+/// unchanged, so the caller can hand any package straight to its ZIP reader.
+#[tauri::command]
+fn decrypt_artcade_container(bytes: Vec<u8>) -> Result<Vec<u8>, String> {
+    if artcade_container::is_container(&bytes) {
+        artcade_container::decrypt(&bytes)
+    } else {
+        Ok(bytes)
+    }
 }
 
 #[cfg(test)]
@@ -999,6 +1012,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             write_file,
             write_binary_file,
+            decrypt_artcade_container,
             register_project_fs_scope,
             check_dependencies_cmd,
             install_sdk,

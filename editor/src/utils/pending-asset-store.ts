@@ -22,6 +22,19 @@ export function clearPendingAssets(): void {
   pendingAssets.clear()
 }
 
+/**
+ * Drop every staged asset except the given paths. Used on project load to free
+ * bytes for assets the loaded project no longer references, while keeping
+ * not-yet-persisted bytes that it still references (otherwise a load between
+ * import and save would silently orphan those files — the lost-texture bug).
+ */
+export function retainPendingAssets(keepPaths: Iterable<string>): void {
+  const keep = keepPaths instanceof Set ? keepPaths : new Set(keepPaths)
+  for (const path of [...pendingAssets.keys()]) {
+    if (!keep.has(path)) pendingAssets.delete(path)
+  }
+}
+
 export function commitPendingAssets(paths: readonly string[]): void {
   for (const path of paths) pendingAssets.delete(path)
 }

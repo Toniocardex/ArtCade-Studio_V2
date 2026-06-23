@@ -245,11 +245,16 @@ export function migrateLegacyProject(project: ProjectDoc): ProjectDoc {
 }
 
 export function isV2ObjectModel(project: ProjectDoc): boolean {
+  // The presence of object types is the authoritative signal: per the authoring
+  // contract (entity-reducer.ts) `objectTypes` + scene `instances` ARE the
+  // source of truth and `entities` is a derived cache. Requiring placed
+  // instances (or an in-memory formatVersion, which no edit action stamps) would
+  // misclassify a typed-but-unplaced project as legacy and rebuild it from the
+  // empty flat-entities map — silently discarding its object types on save AND
+  // on load. Only projects with no object types are treated as legacy.
   return (
-    project.formatVersion === PROJECT_FORMAT_V3
-    && project.objectTypes != null
+    project.objectTypes != null
     && Object.keys(project.objectTypes).length > 0
-    && Object.values(project.scenes).some((s) => (s.instances?.length ?? 0) > 0)
   )
 }
 

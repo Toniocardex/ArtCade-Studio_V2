@@ -193,6 +193,100 @@ describe('scaffoldNewProjectOnDisk', () => {
     expect(pendingAssetCount()).toBe(0)
   })
 
+  it('recovers image bytes from dataUrl when the pending store was cleared', async () => {
+    // Reproduces the lost-texture bug: bytes are imported, then the transient
+    // pending store is wiped (e.g. a LOAD_PROJECT) before the disk-writing save.
+    // project.json still references the file, so the in-memory dataUrl must be
+    // written as a safety net instead of leaving a dangling path.
+    const project = createBlankProject('DataUrl Recovery')
+    project.assets = {
+      img_hero: {
+        id: 'img_hero', name: 'hero.png', usage: 'sprite',
+        path: 'assets/images/img_hero_hero.png',
+        dataUrl: 'data:image/png;base64,AQID', // bytes [1, 2, 3]
+      },
+    }
+    // No importAssetFile() call → pending store is empty for this path.
+
+    await scaffoldNewProjectOnDisk('/tmp/games', project, BLANK_MAIN_LUA)
+
+    const binaryWrites = invokeMock.mock.calls.filter(([cmd]) => cmd === 'write_binary_file')
+    expect(binaryWrites).toHaveLength(1)
+    expect(binaryWrites[0][1]).toEqual({
+      path: '/tmp/games/DataUrl Recovery/assets/images/img_hero_hero.png',
+      bytes: [1, 2, 3],
+      projectRoot: '/tmp/games/DataUrl Recovery',
+    })
+  })
+
+  it('does not double-write an image already flushed from the pending store', async () => {
+    const project = createBlankProject('No Double Write')
+    project.assets = {
+      img_hero: {
+        id: 'img_hero', name: 'hero.png', usage: 'sprite',
+        path: 'assets/images/img_hero_hero.png',
+        dataUrl: 'data:image/png;base64,AQID',
+      },
+    }
+    await importAssetFile({
+      kind: 'image', id: 'img_hero', fileName: 'hero.png',
+      bytes: new Uint8Array([9, 9, 9]),
+    })
+
+    await scaffoldNewProjectOnDisk('/tmp/games', project, BLANK_MAIN_LUA)
+
+    const binaryWrites = invokeMock.mock.calls.filter(([cmd]) => cmd === 'write_binary_file')
+    // Pending flush wins; the dataUrl fallback must not add a second write.
+    expect(binaryWrites).toHaveLength(1)
+    expect(binaryWrites[0][1]).toMatchObject({ bytes: [9, 9, 9] })
+  })
+
+  it('flushes pending tileset sheets referenced by project.tilesets', async () => {
+    const project = createBlankProject('Tileset Flush')
+    project.tilesets = {
+      ts_grass: {
+        assetId: 'ts_grass', name: 'grass', spriteImagePath: 'assets/tilesets/ts_grass_grass.png',
+        tileSize: 16, margin: 0, cols: 4, rows: 4,
+      },
+    }
+    await importAssetFile({
+      kind: 'tileset', id: 'ts_grass', fileName: 'grass.png',
+      bytes: new Uint8Array([4, 5, 6]),
+    })
+
+    await scaffoldNewProjectOnDisk('/tmp/games', project, BLANK_MAIN_LUA)
+
+    const binaryWrites = invokeMock.mock.calls.filter(([cmd]) => cmd === 'write_binary_file')
+    expect(binaryWrites).toHaveLength(1)
+    expect(binaryWrites[0][1]).toEqual({
+      path: '/tmp/games/Tileset Flush/assets/tilesets/ts_grass_grass.png',
+      bytes: [4, 5, 6],
+      projectRoot: '/tmp/games/Tileset Flush',
+    })
+  })
+
+  it('fails loudly instead of saving a project that references missing bytes', async () => {
+    // Asset is referenced but has no staged bytes, no dataUrl, and exists()
+    // is mocked false → the save must abort before writing project.json.
+    const project = createBlankProject('Dangling Ref')
+    project.assets = {
+      img_gone: {
+        id: 'img_gone', name: 'gone.png', usage: 'sprite',
+        path: 'assets/images/img_gone_gone.png',
+      },
+    }
+
+    await expect(
+      scaffoldNewProjectOnDisk('/tmp/games', project, BLANK_MAIN_LUA),
+    ).rejects.toThrow(/Cannot save/i)
+
+    // project.json was never written — no dangling reference on disk.
+    expect(invokeMock.mock.calls.some(([cmd, args]) =>
+      cmd === 'write_file' &&
+      (args as { path: string }).path.endsWith('project.json'),
+    )).toBe(false)
+  })
+
   it('retains pending bytes when project metadata cannot be saved', async () => {
     const project = createBlankProject('Retry Save')
     project.assets = {

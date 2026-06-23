@@ -17,20 +17,86 @@ import { projectRootFromProjectPath } from './project-paths'
 import { assertProjectPathsSafe, normalizeProjectRelativePath } from './project-path-security'
 import { registerProjectFsScope } from './project-fs-scope'
 import { commitPendingAssets, flushPendingAssets } from './pending-asset-store'
+import { referencedAssetPaths } from './referenced-asset-paths'
 
-async function persistPendingAssets(
+/** Decode a `data:...;base64,<payload>` URL into raw bytes (null if malformed). */
+function dataUrlToBytes(dataUrl: string): Uint8Array | null {
+  try {
+    const comma = dataUrl.indexOf(',')
+    if (comma < 0 || !/;base64/i.test(dataUrl.slice(0, comma))) return null
+    const bin = atob(dataUrl.slice(comma + 1))
+    const out = new Uint8Array(bin.length)
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i)
+    return out.length > 0 ? out : null
+  } catch {
+    return null
+  }
+}
+
+/** True when a project-relative asset file already exists on disk. */
+async function assetFileExists(projectRoot: string, relPath: string): Promise<boolean> {
+  try {
+    return await exists(joinPath(projectRoot, relPath))
+  } catch {
+    // Path outside the registered fs scope (e.g. a brand-new scaffold root): we
+    // can't verify, so don't block the save on it — pending/dataUrl already
+    // cover freshly-imported assets in that situation.
+    return true
+  }
+}
+
+/**
+ * Make every asset file the project references durable before project.json is
+ * committed, and fail loudly if any cannot be — so we never write a project.json
+ * that points at files which do not exist (the lost-texture bug).
+ *
+ * Three sources, in priority order:
+ *   1. Staged bytes from this session's imports (the pending store).
+ *   2. An image's in-memory `dataUrl` (kept until the project is reloaded).
+ *   3. A file already on disk from a previous save.
+ *
+ * @returns the pending paths flushed (for the caller to commit).
+ * @throws if a referenced asset has no recoverable bytes and is not on disk.
+ */
+async function persistReferencedAssets(
   projectRoot: string,
   project: ProjectDoc,
 ): Promise<string[]> {
-  const referenced = new Set([
-    ...Object.values(project.assets ?? {}).map((asset) => asset.path),
-    ...Object.values(project.audioAssets ?? {}).map((asset) => asset.path),
-    ...Object.values(project.fontAssets ?? {}).map((asset) => asset.path),
-  ])
-  return flushPendingAssets(({ path, bytes }) =>
+  const referenced = referencedAssetPaths(project)
+  const flushed = await flushPendingAssets(({ path, bytes }) =>
     invokeWriteBinaryFile(joinPath(projectRoot, path), bytes, projectRoot),
     (path) => referenced.has(path),
   )
+
+  // Track which referenced paths are now guaranteed on disk this save.
+  const persisted = new Set(flushed.filter((path) => referenced.has(path)))
+
+  // Recover freshly-imported images whose staged bytes were dropped (e.g. by a
+  // project reload between import and save) from their in-memory dataUrl.
+  for (const asset of Object.values(project.assets ?? {})) {
+    if (!asset.dataUrl || persisted.has(asset.path)) continue
+    const bytes = dataUrlToBytes(asset.dataUrl)
+    if (!bytes) continue
+    await invokeWriteBinaryFile(joinPath(projectRoot, asset.path), bytes, projectRoot)
+    persisted.add(asset.path)
+  }
+
+  // Integrity gate: anything still unaccounted for must already be on disk,
+  // otherwise the save would dangle. Surface it instead of corrupting silently.
+  const missing: string[] = []
+  for (const path of referenced) {
+    if (persisted.has(path)) continue
+    if (!(await assetFileExists(projectRoot, path))) missing.push(path)
+  }
+  if (missing.length > 0) {
+    throw new Error(
+      `Cannot save: ${missing.length} referenced asset file(s) are missing and ` +
+        `cannot be recovered (re-import the affected asset, then save again):\n` +
+        missing.map((p) => `  • ${p}`).join('\n'),
+    )
+  }
+
+  return flushed
 }
 
 /** Validated project write via Tauri `write_file` (requires project root). */
@@ -176,7 +242,7 @@ export async function saveProjectFile(path: string, project: ProjectDoc): Promis
   validateProjectBeforeSave(project)
 
   const projectRoot = projectRootFromProjectPath(path)
-  const pendingPaths = await persistPendingAssets(projectRoot, project)
+  const pendingPaths = await persistReferencedAssets(projectRoot, project)
   await invokeWriteFile(path, serializeProjectDoc(project), projectRoot)
   commitPendingAssets(pendingPaths)
 }
@@ -257,7 +323,7 @@ export async function scaffoldNewProjectOnDisk(
 
   validateProjectBeforeSave(project)
 
-  const pendingPaths = await persistPendingAssets(projectRoot, project)
+  const pendingPaths = await persistReferencedAssets(projectRoot, project)
 
   const mainScriptPath = normalizeProjectRelativePath(project.mainScriptPath, 'mainScriptPath')
   const scriptPath  = `${projectRoot}/${mainScriptPath}`.replace(/\\/g, '/')

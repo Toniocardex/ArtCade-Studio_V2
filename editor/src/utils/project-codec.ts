@@ -3,7 +3,7 @@ import type {
   Transform, SpriteComponent, AnimationState, PhysicsComponent, PhysicsMode, WorldSettings,
   TilemapLayer, TileDef, TilesetAsset, ImageAsset, AudioAsset, FontAsset, ImagePointDef, AnimationClipDef,
   AnimationFrameRect, AssetVirtualFolderDef, AssetFolderCategory,
-  GameVariableDefinition, GameVariableValue, ImageAssetUsage,
+  GameVariableDefinition, GameVariableValue, ImageAssetUsage, LayerDef,
 } from '../types'
 import { DEFAULT_WORLD, IMAGE_ASSET_USAGES } from '../types'
 import {
@@ -607,6 +607,25 @@ function parseTilePalette(raw: unknown): TileDef[] | undefined {
   return out.length ? out : undefined
 }
 
+function parseLayers(raw: unknown): LayerDef[] | undefined {
+  if (!Array.isArray(raw)) return undefined
+  const out: LayerDef[] = []
+  const seen = new Set<string>()
+  for (const item of raw) {
+    const name =
+      typeof item === 'string'
+        ? item
+        : item && typeof item === 'object'
+          ? String((item as Record<string, unknown>).name ?? '')
+          : ''
+    const trimmed = name.trim()
+    if (!trimmed || seen.has(trimmed)) continue
+    seen.add(trimmed)
+    out.push({ name: trimmed })
+  }
+  return out.length ? out : undefined
+}
+
 export interface ParseProjectDocResult {
   project: ProjectDoc
   logicBoardLoadIssues: LogicBoardLoadIssue[]
@@ -701,6 +720,7 @@ export function parseProjectDocWithMeta(jsonStr: string): ParseProjectDocResult 
       ),
       logicBoards:    logicBoardsParsed.doc,
       globalVariables: parseVariableDefinitions(raw.globalVariables ?? raw.global_variables),
+      layers:         parseLayers(raw.layers),
     }
 
     const { project } = normalizeProjectDoc(base)
@@ -917,6 +937,7 @@ export function serializeProjectDoc(project: ProjectDoc): string {
       ? { logicBoards: v2.logicBoards }
       : {}),
     ...(v2.globalVariables?.length ? { globalVariables: v2.globalVariables } : {}),
+    ...(project.layers && project.layers.length > 0 ? { layers: project.layers } : {}),
   }
 
   return `${JSON.stringify(json, null, 2)}\n`

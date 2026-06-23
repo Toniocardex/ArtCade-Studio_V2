@@ -6,6 +6,7 @@ import { dirName, parseProjectDocWithMeta, safeProjectFolderName } from './proje
 import { baseName, joinPath } from './file-paths'
 import { assertProjectPathsSafe } from './project-path-security'
 import { decodeZipEntryUtf8, inflateZipEntry, parseZipEntries } from './artcade-zip-io'
+import { invokeTauri } from './tauri-invoke'
 
 export interface LoadedProjectFile {
   project: ProjectDoc
@@ -16,6 +17,30 @@ export interface LoadedProjectFile {
 
 export function isArtcadePackagePath(path: string): boolean {
   return path.toLowerCase().endsWith('.artcade')
+}
+
+/** Magic prefix of the encrypted .artcade container (see tools/artcade_crypto.py). */
+const ARTCADE_ENCRYPTED_MAGIC = 'ARTCADE1'
+
+/** True when bytes are an encrypted .artcade container rather than a plain ZIP. */
+export function isEncryptedArtcadeContainer(bytes: Uint8Array): boolean {
+  if (bytes.length < ARTCADE_ENCRYPTED_MAGIC.length) return false
+  for (let i = 0; i < ARTCADE_ENCRYPTED_MAGIC.length; i++) {
+    if (bytes[i] !== ARTCADE_ENCRYPTED_MAGIC.charCodeAt(i)) return false
+  }
+  return true
+}
+
+/**
+ * Unwrap an encrypted .artcade container into its inner plaintext ZIP via the
+ * Rust backend (which holds the shared key). Plain ZIPs pass through unchanged.
+ */
+async function toPlainZipBytes(bytes: Uint8Array): Promise<Uint8Array> {
+  if (!isEncryptedArtcadeContainer(bytes)) return bytes
+  const plain = await invokeTauri<number[]>('decrypt_artcade_container', {
+    bytes: Array.from(bytes),
+  })
+  return new Uint8Array(plain)
 }
 
 /** True when package JSON had no objectTypes but normalize added them from legacy entities. */
@@ -43,7 +68,10 @@ export async function importArtcadePackage(packagePath: string): Promise<LoadedP
   }
 
   try {
-    const bytes = await readFile(packagePath)
+    const raw = await readFile(packagePath)
+    // Editor-produced packages are encrypted; unwrap them (plain ZIPs pass
+    // through) so opening a .artcade you packed round-trips back into the editor.
+    const bytes = await toPlainZipBytes(raw)
     const entries = parseZipEntries(bytes)
     const projectEntry = entries.find((entry) => entry.path === 'project.json')
     if (!projectEntry) {
