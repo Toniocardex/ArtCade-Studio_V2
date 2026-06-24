@@ -9,6 +9,7 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <cstdint>
 
 namespace ArtCade {
 
@@ -38,6 +39,7 @@ public:
     const DialogGraph* getGraph(const std::string& dialogId) const;
 
     bool startDialog(EntityId hostEntityId, const std::string& dialogId);
+    bool startDialog(EntityId hostEntityId, const DialogComponent& component);
     void endDialog();
 
     void tick(float dt);
@@ -57,6 +59,7 @@ private:
 
     std::unordered_map<std::string, DialogGraph> graphs_;
     std::unordered_map<std::string, std::string> locale_;
+    std::unordered_map<std::string, uint32_t> triggerSubscriptions_;
 
     struct Session {
         EntityId              hostId = 0;
@@ -77,6 +80,9 @@ private:
     void processInstantNodes();
     bool handleInput();
     void markVisited(const std::string& nodeId);
+    void clearTriggerSubscriptions();
+    void syncTriggerSubscriptions();
+    void handleTriggerMessage(const std::string& eventName);
     bool evaluateCondition(const DialogNode& node) const;
     void applySetVariable(const DialogNode& node);
 };

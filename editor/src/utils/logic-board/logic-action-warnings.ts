@@ -14,6 +14,7 @@ const TRIGGERS_WITHOUT_OTHER: ReadonlySet<LogicTrigger['type']> = new Set([
   'onUpdate',
   'onTimer',
   'onMessage',
+  'onDialogMessage',
   'onAnimationEnd',
   'onDestroy',
 ])

@@ -28,6 +28,7 @@ export const RECOMMENDED_TRIGGER_TYPES: readonly LogicTriggerType[] = [
   'onStart',
   'onDestroy',
   'onMessage',
+  'onDialogMessage',
   'onAnimationEnd',
   'onAnimationStart',
   'onAnimationFrame',
@@ -91,7 +92,7 @@ export function usesTickFallback(
   project?: ProjectDoc | null,
 ): boolean {
   const trig = ev.trigger
-  if (trig.type === 'onStart' || trig.type === 'onMessage') return false
+  if (trig.type === 'onStart' || trig.type === 'onMessage' || trig.type === 'onDialogMessage') return false
   if (
     hasFrameMovement(ev) &&
     (
@@ -199,7 +200,9 @@ export function triggerPickerGroup(type: LogicTriggerType): string {
     case 'onAnimationChange':
       return 'Animation'
     case 'onMessage':
-      return 'Game messages'
+      return 'Event Bus'
+    case 'onDialogMessage':
+      return 'Dialog'
     case 'onUpdate':
       return 'Every frame'
   }

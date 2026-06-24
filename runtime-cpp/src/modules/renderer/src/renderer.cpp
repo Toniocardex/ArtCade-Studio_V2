@@ -15,7 +15,7 @@ namespace ArtCade::Modules {
 
 // Deferred draw command — queued during tick(), flushed in endFrame().
 struct DrawCmd {
-    enum class Type { Rect, Line, Circle, Text } type = Type::Rect;
+    enum class Type { Rect, Line, Circle, Text, Image } type = Type::Rect;
     float x  = 0.f, y  = 0.f;  // position / start
     float x2 = 0.f, y2 = 0.f;  // end (Line) or w/h (Rect)
     float r  = 0.f;             // radius (Circle)
@@ -24,6 +24,7 @@ struct DrawCmd {
     int   valign   = 0;         // Text: 0=top, 1=middle, 2=bottom of (x,y)
     std::string text;           // Text content
     std::string fontPath;       // empty = Raylib default bitmap font
+    std::string assetId;        // Image texture key
     unsigned char cr=255, cg=255, cb=255, ca=255;  // packed colour
 };
 
@@ -56,6 +57,27 @@ static void drawTextCommand(const DrawCmd& cmd, const Font* font) {
                  static_cast<int>(drawX), static_cast<int>(drawY),
                  cmd.fontSize, c);
     }
+}
+
+static bool drawImageCommand(TextureCache& texCache,
+                             const std::string& textureKey,
+                             const DrawCmd& cmd) {
+    const Texture2D* tex = texCache.getByPath(textureKey);
+    if (!tex || tex->id == 0) {
+        texCache.load(textureKey);
+        tex = texCache.getByPath(textureKey);
+    }
+    if (!tex || tex->id == 0) return false;
+
+    DrawTexturePro(*tex,
+                   Rectangle{ 0.f, 0.f,
+                              static_cast<float>(tex->width),
+                              static_cast<float>(tex->height) },
+                   Rectangle{ cmd.x, cmd.y, cmd.x2, cmd.y2 },
+                   Vector2{ 0.f, 0.f },
+                   0.f,
+                   Color{ 255, 255, 255, cmd.ca });
+    return true;
 }
 
 struct Renderer::Impl {
@@ -234,6 +256,11 @@ void Renderer::endWorldPass() {
             drawTextCommand(cmd, font);
             break;
         }
+        case DrawCmd::Type::Image:
+            (void)drawImageCommand(impl_->texCache,
+                                   resolvedTextureKey(cmd.assetId),
+                                   cmd);
+            break;
         }
     }
     impl_->drawQueue.clear();
@@ -251,6 +278,10 @@ void Renderer::endScreenPass() {
                 ? nullptr
                 : impl_->fontCache.get(fontKey);
             drawTextCommand(cmd, font);
+        } else if (cmd.type == DrawCmd::Type::Image) {
+            (void)drawImageCommand(impl_->texCache,
+                                   resolvedTextureKey(cmd.assetId),
+                                   cmd);
         }
     }
     impl_->screenQueue.clear();
@@ -564,6 +595,18 @@ void Renderer::drawRect(float x, float y, float w, float h, const Vec4& color,
 
 void Renderer::drawRectImmediate(float x, float y, float w, float h, const Vec4& color) {
     DrawRectangleV({ x, y }, { w, h }, toColor(color));
+}
+
+void Renderer::drawImage(const AssetId& assetId, float x, float y, float w, float h,
+                         float alpha, bool screenSpace) {
+    if (assetId.empty() || w <= 0.f || h <= 0.f || alpha <= 0.f) return;
+    DrawCmd cmd;
+    cmd.type = DrawCmd::Type::Image;
+    cmd.x = x; cmd.y = y; cmd.x2 = w; cmd.y2 = h;
+    cmd.assetId = assetId;
+    cmd.ca = static_cast<unsigned char>(std::clamp(alpha, 0.f, 1.f) * 255.f);
+    (screenSpace ? impl_->screenQueue : impl_->drawQueue)
+        .push_back(std::move(cmd));
 }
 
 void Renderer::drawLine(float x1, float y1, float x2, float y2, const Vec4& color) {

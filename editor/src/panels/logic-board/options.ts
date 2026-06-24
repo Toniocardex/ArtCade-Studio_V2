@@ -79,6 +79,8 @@ export function defaultTrigger(type: LogicTriggerType): LogicTrigger {
       return { type: 'onObjectHoverExit', radius: 32 }
     case 'onMessage':
       return { type: 'onMessage', messageName: 'my_event' }
+    case 'onDialogMessage':
+      return { type: 'onDialogMessage', messageName: 'QuestAccepted' }
     case 'onTimer':
       return { type: 'onTimer', seconds: 1, repeat: true }
   }
@@ -234,7 +236,7 @@ export function defaultAction(type: LogicActionType): LogicAction {
     case 'emitEvent':
       return { type: 'emitEvent', name: 'my_event', payloadKey: '', payloadValue: '' }
     case 'startDialog':
-      return { type: 'startDialog', target: 'self', dialogId: 'innkeeper' }
+      return { type: 'startDialog', target: 'self', source: 'component', dialogId: '' }
     case 'endDialog':
       return { type: 'endDialog' }
     case 'toggleLogicEvent':

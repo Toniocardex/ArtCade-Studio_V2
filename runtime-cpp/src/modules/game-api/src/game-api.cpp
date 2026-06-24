@@ -1,11 +1,19 @@
 #include "../include/game-api.h"
+#include "../../event-bus/include/event-bus.h"
 
 namespace ArtCade::Modules {
 
 GameAPI::GameAPI(const EngineContext& ctx) : ctx_(ctx) {}
 
 bool GameAPI::init()     { return true; }
-void GameAPI::shutdown() {}
+void GameAPI::shutdown() {
+    if (ctx_.eventBus) {
+        for (const uint32_t token : eventBridgeTokens_)
+            ctx_.eventBus->unsubscribe(token);
+    }
+    eventBridgeTokens_.clear();
+    luaState_ = nullptr;
+}
 
 void GameAPI::registerAll(sol::state& lua) {
     luaState_ = &lua;      // cached for per-frame dispatch (lifecycle events)

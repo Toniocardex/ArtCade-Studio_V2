@@ -47,4 +47,16 @@ describe('component registry', () => {
     expect(width.visibleWhen(rect)).toBe(true)
     expect(width.visibleWhen(circle)).toBe(false)
   })
+
+  it('creates Dialog components without a hardcoded conversation', () => {
+    const dialog = descriptorFor('dialog')
+    expect(dialog).toBeDefined()
+    if (!dialog) return
+
+    expect(dialog.create()).toMatchObject({
+      dialogId: '',
+      startNode: '',
+      textSpeed: 40,
+    })
+  })
 })

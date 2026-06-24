@@ -28,7 +28,8 @@ const GROUP_ORDER = [
   'Zones',
   'Input',
   'Animation',
-  'Game messages',
+  'Dialog',
+  'Event Bus',
   'Every frame',
   'Recommended',
   'Movement',
@@ -84,7 +85,8 @@ export function buildTypePickerGroups(
   const map = new Map<string, string[]>()
 
   for (const type of types) {
-    const label = recommended.has(type) ? recommendedLabel : categoryForType(kind, type)
+    const category = categoryForType(kind, type)
+    const label = recommended.has(type) && category !== 'Dialog' ? recommendedLabel : category
     const list = map.get(label) ?? []
     list.push(type)
     map.set(label, list)

@@ -55,6 +55,7 @@ export interface ParamFieldMeta {
   label: string
   placeholder?: string
   options?: string[]
+  visibleWhen?: Record<string, string | number | boolean>
 }
 
 export interface ComponentMeta {

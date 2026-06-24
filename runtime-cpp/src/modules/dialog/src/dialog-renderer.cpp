@@ -11,6 +11,9 @@ constexpr Vec4 kNameColor    {1.f, 215.f / 255.f, 0.f, 1.f};
 constexpr Vec4 kBodyColor    {1.f, 1.f, 1.f, 1.f};
 constexpr Vec4 kChoiceActive {1.f, 1.f, 0.f, 1.f};
 constexpr Vec4 kChoiceIdle   {204.f / 255.f, 204.f / 255.f, 204.f / 255.f, 1.f};
+constexpr Vec4 kBoxColor     {0.f, 0.f, 0.f, 0.82f};
+constexpr float kPortraitSize = 96.f;
+constexpr float kPortraitGap  = 14.f;
 } // namespace
 
 void updateTypewriter(TypewriterState& tw, float dt, float charsPerSecond) {
@@ -30,23 +33,41 @@ void DialogRenderer::draw(Renderer& renderer,
                           const TypewriterState& tw,
                           const std::vector<DialogChoiceOption>* choices,
                           int selectedChoice,
-                          const std::string& /*portraitPath*/) const
+                          const std::string& portraitPath) const
 {
     const float x = config_.boxX;
     float       y = config_.boxY;
+    const bool hasPortrait = !portraitPath.empty();
+    const float contentX = x + config_.padding
+        + (hasPortrait ? kPortraitSize + kPortraitGap : 0.f);
+
+    renderer.drawRect(x, config_.boxY, config_.boxWidth, config_.boxHeight,
+                      kBoxColor, true);
+    if (hasPortrait) {
+        renderer.drawImage(portraitPath,
+                           x + config_.padding,
+                           config_.boxY + config_.padding,
+                           kPortraitSize,
+                           kPortraitSize,
+                           1.f,
+                           true);
+    }
 
     if (!characterName.empty()) {
-        renderer.drawText(characterName, x + config_.padding, y + config_.padding,
-                        config_.nameSize, kNameColor);
+        renderer.drawText(characterName, contentX, y + config_.padding,
+                        config_.nameSize, kNameColor, "", 0, true);
         y += config_.nameSize + 8.f;
     }
 
     if (!tw.visibleText.empty()) {
         renderer.drawText(tw.visibleText,
-                          x + config_.padding,
+                          contentX,
                           y + config_.padding + config_.nameSize,
                           config_.fontSize,
-                          kBodyColor);
+                          kBodyColor,
+                          "",
+                          0,
+                          true);
     }
 
     if (choices && !choices->empty()) {
@@ -59,10 +80,13 @@ void DialogRenderer::draw(Renderer& renderer,
             const Vec4& color =
                 (i == selectedChoice) ? kChoiceActive : kChoiceIdle;
             renderer.drawText(line,
-                              x + config_.padding,
+                              contentX,
                               cy,
                               config_.choiceSize,
-                              color);
+                              color,
+                              "",
+                              0,
+                              true);
             cy += config_.choiceSize + 6.f;
         }
     }

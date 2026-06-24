@@ -194,7 +194,7 @@ function TriggerFields({
         <p className="text-[10px] leading-snug text-[var(--muted)]">
           Requires physics overlap: add <strong>Physics (Collider)</strong> on this entity
           (platformer/top-down alone is not enough). Arcade without physics: use{' '}
-          <strong>Sensor</strong> (onTriggerEnter/Exit) or <strong>onMessage</strong>.
+          <strong>Sensor</strong> (onTriggerEnter/Exit) or <strong>Event Bus event</strong>.
         </p>
       )}
       {isSensorTrigger && (

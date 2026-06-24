@@ -142,6 +142,14 @@ export async function invokeWriteBinaryFile(
   await invokeTauri<void>('write_binary_file', { path, bytes: Array.from(bytes), projectRoot })
 }
 
+/** Validated project file deletion via Tauri path sandbox. */
+export async function invokeDeleteProjectFile(
+  path: string,
+  projectRoot: string,
+): Promise<void> {
+  await invokeTauri<void>('delete_project_file', { path, projectRoot })
+}
+
 function notAvailable(name: string): void {
   console.warn(`[api] ${name}: Tauri not available in browser mode`)
 }

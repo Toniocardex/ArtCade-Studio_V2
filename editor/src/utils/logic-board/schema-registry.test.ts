@@ -146,6 +146,29 @@ describe('schema-registry', () => {
     expect(r.valid).toBe(false)
   })
 
+  it('validates startDialog specific and component sources', () => {
+    expect(validateAction({
+      type: 'startDialog',
+      target: 'self',
+      dialogId: 'innkeeper',
+    }).valid).toBe(true)
+    expect(validateAction({
+      type: 'startDialog',
+      target: 'self',
+      source: 'specific',
+      dialogId: 'innkeeper',
+    }).valid).toBe(true)
+    expect(validateAction({
+      type: 'startDialog',
+      target: 'self',
+      source: 'component',
+    }).valid).toBe(true)
+    expect(validateAction({
+      type: 'startDialog',
+      target: 'self',
+    }).valid).toBe(false)
+  })
+
   it('reports only the selected schema branch for invalid known actions', () => {
     const r = validateAction({ type: 'setLinearMoverSpeed', target: 'self' })
     expect(r.valid).toBe(false)

@@ -128,7 +128,7 @@ function classifyBoardEvent(
     buckets.startEvents.push(ev)
     return
   }
-  if (kind === 'onMessage') {
+  if (kind === 'onMessage' || kind === 'onDialogMessage') {
     buckets.messageEvents.push(ev)
     return
   }

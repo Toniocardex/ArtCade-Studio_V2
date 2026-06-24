@@ -153,7 +153,7 @@ export function actionSummaryPlain(
     case 'cancelAutoDestroy':
       return `Cancel auto destroy on ${who(a.target)}`
     case 'emitEvent':
-      return `Send message "${a.name || '?'}"`
+      return `Broadcast event "${a.name || '?'}"`
     case 'toggleLogicEvent':
       return `Turn rule "${a.eventId || '?'}" ${a.enabled ? 'on' : 'off'}`
     case 'applyImpulse':
@@ -226,7 +226,9 @@ export function actionSummaryPlain(
     case 'setScreenShader':
       return `Apply ${a.shader.replace(/_/g, ' ')} on screen`
     case 'startDialog':
-      return `Start dialog "${a.dialogId}" on ${who(a.target)}`
+      return a.source === 'component'
+        ? `Start dialog from ${who(a.target)} component`
+        : `Start dialog "${a.dialogId ?? ''}" on ${who(a.target)}`
     case 'endDialog':
       return 'End active dialog'
     case 'saveGame':

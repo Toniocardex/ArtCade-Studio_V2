@@ -97,6 +97,8 @@ public:
     void drawRect  (float x, float y, float w, float h, const Vec4& color,
                     bool screenSpace = false);
     void drawRectImmediate(float x, float y, float w, float h, const Vec4& color);
+    void drawImage (const AssetId& assetId, float x, float y, float w, float h,
+                    float alpha = 1.f, bool screenSpace = false);
     void drawLine  (float x1, float y1, float x2, float y2, const Vec4& color);
     void drawCircle(float x, float y, float radius, const Vec4& color);
     /** align:  0 = left of (x,y), 1 = centered on x, 2 = right of (x,y).

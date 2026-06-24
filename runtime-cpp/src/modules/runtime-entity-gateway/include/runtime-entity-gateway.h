@@ -123,6 +123,9 @@ public:
     bool getGauge(EntityId id, GaugeComponent& out) const;
     bool setGauge(EntityId id, const std::optional<GaugeComponent>& gauge);
 
+    bool getDialog(EntityId id, DialogComponent& out) const;
+    bool setDialog(EntityId id, const std::optional<DialogComponent>& dialog);
+
     bool getHealth(EntityId id, HealthComponent& out) const;
     bool setHealth(EntityId id, const std::optional<HealthComponent>& health);
     /** Apply damage when not in i-frames; returns false if blocked or no health. */

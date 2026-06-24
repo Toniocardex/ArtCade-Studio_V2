@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { openDialogEditorForId, openDialogLibraryModal } from '../../panels/dialog/dialog-modal-api'
-import { useEditorDispatch, useEditorSelector, useEditorStore } from '../../store/editor-store'
+import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import { assetFolderItemCount, buildProjectExplorerData } from '../../utils/project-explorer-tree'
 import { useExplorerExpanded } from '../../hooks/useExplorerExpanded'
 import { useAssetExplorerActions } from '../../hooks/useAssetExplorerActions'
@@ -11,7 +10,6 @@ import { ProjectSearch } from './ProjectSearch'
 import { SceneTreeSection } from './SceneTreeSection'
 import { AssetsTreeSection } from './AssetsTreeSection'
 import { AssetFileInputs } from './AssetFileInputs'
-import { DialogsSection } from './DialogsSection'
 import {
   ExplorerContextMenu,
   type ExplorerContextMenuState,
@@ -25,11 +23,9 @@ export type ProjectExplorerPanelProps = Readonly<{
 
 export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectExplorerPanelProps) {
   const dispatch = useEditorDispatch()
-  const store = useEditorStore()
   const openScripts = useEditorSelector((s) => s.openScripts)
   const projectPath = useEditorSelector((s) => s.projectPath)
   const projectLoadEpoch = useEditorSelector((s) => s.projectLoadEpoch)
-  const dialogs = useEditorSelector((s) => s.dialogs)
   const [search, setSearch] = useState('')
   const [contextMenu, setContextMenu] = useState<ExplorerContextMenuState | null>(null)
   const assetsAnchorRef = useRef<HTMLDivElement>(null)
@@ -157,14 +153,6 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
             onToggleAssetFoldersExpand={toggleAssetFolderExpansion}
           />
 
-          <DialogsSection
-            dialogs={dialogs}
-            open={isOpen('dialogs')}
-            onToggle={() => toggle('dialogs')}
-            onOpenLibrary={() => openDialogLibraryModal(dispatch)}
-            onOpenDialog={(dialogId) =>
-              openDialogEditorForId(dispatch, store.getState().dialogs, dialogId)}
-          />
         </div>
         ) : null}
       </div>

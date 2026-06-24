@@ -322,6 +322,7 @@ void RuntimeEntityGateway::applyEntityDefToRegistry(
     }
     registry_->setText(id, def.text);
     registry_->setGauge(id, def.gauge);
+    registry_->setDialog(id, def.dialog);
     registry_->setIdentity(id, def.className, def.tags);
 }
 
@@ -696,6 +697,18 @@ bool RuntimeEntityGateway::setGauge(
 {
     if (!registry_->contains(id)) return false;
     registry_->setGauge(id, gauge);
+    return true;
+}
+
+bool RuntimeEntityGateway::getDialog(EntityId id, DialogComponent& out) const {
+    return registry_->getDialog(id, out);
+}
+
+bool RuntimeEntityGateway::setDialog(
+    EntityId id, const std::optional<DialogComponent>& dialog)
+{
+    if (!registry_->contains(id)) return false;
+    registry_->setDialog(id, dialog);
     return true;
 }
 

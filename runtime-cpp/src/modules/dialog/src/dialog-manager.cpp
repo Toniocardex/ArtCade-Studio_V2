@@ -7,6 +7,7 @@
 #include "../../time/include/time-manager.h"
 #include "../../input/include/input.h"
 #include "../../renderer/include/renderer.h"
+#include "../../runtime-entity-gateway/include/runtime-entity-gateway.h"
 
 #include <nlohmann/json.hpp>
 
@@ -22,6 +23,7 @@ bool DialogManager::init() { return true; }
 
 void DialogManager::shutdown() {
     endDialog();
+    clearTriggerSubscriptions();
     graphs_.clear();
     locale_.clear();
 }
@@ -37,6 +39,7 @@ void DialogManager::setLocaleStrings(
 }
 
 bool DialogManager::loadDialogsFromDirectory(const std::string& projectRoot) {
+    clearTriggerSubscriptions();
     graphs_.clear();
     locale_.clear();
 
@@ -77,6 +80,7 @@ bool DialogManager::loadDialogsFromDirectory(const std::string& projectRoot) {
 
 bool DialogManager::loadDialogGraphsJson(const std::string& jsonUtf8) {
     endDialog();
+    clearTriggerSubscriptions();
     graphs_.clear();
     locale_.clear();
 
@@ -142,11 +146,91 @@ bool DialogManager::startDialog(EntityId hostEntityId, const std::string& dialog
     return true;
 }
 
+bool DialogManager::startDialog(EntityId hostEntityId, const DialogComponent& component) {
+    if (session_) return false;
+    if (component.dialogId.empty()) return false;
+    const DialogGraph* g = getGraph(component.dialogId);
+    if (!g) {
+        std::cerr << "[Dialog] unknown dialogId: " << component.dialogId << "\n";
+        return false;
+    }
+
+    const std::string startNode =
+        component.startNode.empty() ? g->startNode : component.startNode;
+    if (!g->nodes.count(startNode)) {
+        std::cerr << "[Dialog] startNode not found: " << startNode << "\n";
+        return false;
+    }
+
+    Session s;
+    s.hostId     = hostEntityId;
+    s.dialogId   = component.dialogId;
+    s.textSpeed  = component.textSpeed > 0.f ? component.textSpeed : 40.f;
+    session_     = std::move(s);
+
+    if (ctx_ && ctx_->timeManager)
+        session_->pauseToken = ctx_->timeManager->pause("dialog");
+
+    advanceToNode(startNode);
+    return true;
+}
+
 void DialogManager::endDialog() {
     if (!session_) return;
     if (ctx_ && ctx_->timeManager && session_->pauseToken != 0)
         ctx_->timeManager->resume(session_->pauseToken);
     session_.reset();
+}
+
+void DialogManager::clearTriggerSubscriptions() {
+    if (ctx_ && ctx_->eventBus) {
+        for (const auto& [_, token] : triggerSubscriptions_)
+            ctx_->eventBus->unsubscribe(token);
+    }
+    triggerSubscriptions_.clear();
+}
+
+void DialogManager::syncTriggerSubscriptions() {
+    if (!ctx_ || !ctx_->eventBus || !ctx_->entityGateway) {
+        clearTriggerSubscriptions();
+        return;
+    }
+
+    std::unordered_set<std::string> needed;
+    for (const EntityId id : ctx_->entityGateway->activeSceneIds()) {
+        DialogComponent component{};
+        if (!ctx_->entityGateway->getDialog(id, component)) continue;
+        if (!component.triggerMessage.empty())
+            needed.insert(component.triggerMessage);
+    }
+
+    for (auto it = triggerSubscriptions_.begin(); it != triggerSubscriptions_.end(); ) {
+        if (needed.count(it->first)) {
+            ++it;
+            continue;
+        }
+        ctx_->eventBus->unsubscribe(it->second);
+        it = triggerSubscriptions_.erase(it);
+    }
+
+    for (const auto& eventName : needed) {
+        if (triggerSubscriptions_.count(eventName)) continue;
+        triggerSubscriptions_[eventName] = ctx_->eventBus->subscribe(
+            eventName,
+            [this, eventName](const std::any&) {
+                handleTriggerMessage(eventName);
+            });
+    }
+}
+
+void DialogManager::handleTriggerMessage(const std::string& eventName) {
+    if (session_ || !ctx_ || !ctx_->entityGateway) return;
+    for (const EntityId id : ctx_->entityGateway->activeSceneIds()) {
+        DialogComponent component{};
+        if (!ctx_->entityGateway->getDialog(id, component)) continue;
+        if (component.triggerMessage != eventName) continue;
+        if (startDialog(id, component)) return;
+    }
 }
 
 const DialogNode* DialogManager::currentNode() const {
@@ -324,6 +408,7 @@ bool DialogManager::handleInput() {
 }
 
 void DialogManager::tick(float dt) {
+    syncTriggerSubscriptions();
     if (!session_) return;
 
     handleInput();

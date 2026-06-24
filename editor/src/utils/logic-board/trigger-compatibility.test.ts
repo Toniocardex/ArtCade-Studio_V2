@@ -28,7 +28,7 @@ describe('trigger-compatibility matrix', () => {
   })
 
   it('system + input + message triggers are valid on every target', () => {
-    for (const t of ['onStart', 'onUpdate', 'onTimer', 'onInput', 'onMouseInput', 'onMessage'] as const) {
+    for (const t of ['onStart', 'onUpdate', 'onTimer', 'onInput', 'onMouseInput', 'onMessage', 'onDialogMessage'] as const) {
       expect(isTriggerCompatible(t, 'global')).toBe(true)
       expect(isTriggerCompatible(t, 'object_type')).toBe(true)
     }
@@ -42,7 +42,7 @@ describe('trigger-compatibility matrix', () => {
       'onAnimationEnd', 'onAnimationStart', 'onAnimationFrame', 'onAnimationLoop', 'onAnimationChange',
       'onInput', 'onMouseInput',
       'onObjectClick', 'onObjectHoverEnter', 'onObjectHoverExit',
-      'onMessage', 'onTimer', 'onLeaveScreen',
+      'onMessage', 'onDialogMessage', 'onTimer', 'onLeaveScreen',
     ]
     expect(Object.keys(TRIGGER_TARGET_MATRIX).sort()).toEqual(expectedTypes.sort())
   })

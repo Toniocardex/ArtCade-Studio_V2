@@ -25,10 +25,20 @@ describe('buildTypePickerGroups', () => {
     expect(groups[0]?.types).toEqual(['isKeyDown'])
   })
 
+  it('keeps dialog actions in the Dialog category even when recommended', () => {
+    const groups = buildTypePickerGroups('action', ['startDialog', 'endDialog'], {
+      recommendedTypes: ['startDialog'],
+    })
+    expect(groups).toContainEqual({
+      label: 'Dialog',
+      types: ['startDialog', 'endDialog'],
+    })
+  })
+
   it('sorts trigger groups in the canonical picker order', () => {
-    const groups = buildTypePickerGroups('trigger', ['onTimer', 'onInput', 'onSpawn'])
+    const groups = buildTypePickerGroups('trigger', ['onTimer', 'onInput', 'onMessage', 'onDialogMessage', 'onSpawn'])
     const labels = groups.map((g) => g.label)
-    expect(labels).toEqual(['Time', 'Object state', 'Input'])
+    expect(labels).toEqual(['Time', 'Object state', 'Input', 'Dialog', 'Event Bus'])
   })
 
   it('keeps movement actions before movement settings and physics actions', () => {

@@ -145,6 +145,7 @@ export type LogicTrigger =
   | { type: 'onObjectHoverEnter'; radius?: number }
   | { type: 'onObjectHoverExit'; radius?: number }
   | { type: 'onMessage'; messageName: string }                      // event.on listener
+  | { type: 'onDialogMessage'; messageName: string }                // event.on listener, dialog-facing alias
   | { type: 'onTimer'; seconds: number; repeat: boolean }
   | { type: 'onHealthDepleted' }                                    // edge: HP drops to ≤ 0 for the first time
   | { type: 'onDamaged' }                                           // edge: HP decreased since last frame (a hit landed)
@@ -313,7 +314,7 @@ export type LogicAction =
   | { type: 'setAutoDestroyLifespan'; target: TargetSelector; lifespan: LogicValue }
   | { type: 'cancelAutoDestroy'; target: TargetSelector }
   | { type: 'emitEvent'; name: string; payloadKey?: string; payloadValue?: number | string | boolean }
-  | { type: 'startDialog'; target: TargetSelector; dialogId: string }
+  | { type: 'startDialog'; target: TargetSelector; source?: 'specific' | 'component'; dialogId?: string }
   | { type: 'endDialog' }
   | { type: 'toggleLogicEvent'; eventId: string; enabled: boolean }
   | { type: 'applyImpulse'; target: TargetSelector; ix: LogicValue; iy: LogicValue }

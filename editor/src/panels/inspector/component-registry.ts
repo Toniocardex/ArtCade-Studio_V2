@@ -123,7 +123,7 @@ const GAUGE: GaugeComponent = {
   screenSpace: false,
 }
 const DIALOG: DialogComponent = {
-  dialogId: 'innkeeper',
+  dialogId: '',
   startNode: '',
   textSpeed: 40,
   triggerMessage: '',
@@ -365,15 +365,10 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
   {
     key: 'dialog',
     label: 'Dialog',
-    description: 'Talkable NPC — edit lines with Edit dialog, then Start Dialog on the Logic Board or dialog.start in Lua.',
+    description: 'Talkable NPC — assign a conversation, then start it from the Logic Board or Lua.',
     color: 'var(--accent)',
     create: () => ({ ...DIALOG }),
-    fields: [
-      { key: 'dialogId', label: 'Dialog ID', kind: 'text' },
-      { key: 'startNode', label: 'Start node override', kind: 'text' },
-      { key: 'textSpeed', label: 'Text speed (chars/s)', kind: 'number', min: 1, step: 5 },
-      { key: 'triggerMessage', label: 'Trigger message', kind: 'text' },
-    ],
+    fields: [],
   },
 ]
 

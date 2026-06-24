@@ -136,6 +136,9 @@ public:
     bool getGauge(EntityId id, GaugeComponent& out) const;
     void setGauge(EntityId id, const std::optional<GaugeComponent>& g);
 
+    bool getDialog(EntityId id, DialogComponent& out) const;
+    void setDialog(EntityId id, const std::optional<DialogComponent>& d);
+
     // ---- Physics handle ------------------------------------------------
 
     uint32_t physicsHandle(EntityId id) const;

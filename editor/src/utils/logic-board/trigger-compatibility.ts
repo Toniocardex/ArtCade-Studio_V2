@@ -8,7 +8,7 @@
 //   • Lifecycle / physics / animation (onSpawn, onDestroy, onCollision,
 //     onTriggerEnter/Exit, onAnimationEnd) → ENTITY only. The runtime
 //     binds these to a class id; a global board has no class to attach.
-//   • Input / messaging (onInput, onMouseInput, onMessage) → ALL targets.
+//   • Input / messaging (onInput, onMouseInput, onMessage, onDialogMessage) → ALL targets.
 //     On entity boards the actions fan out across the pool ("every enemy
 //     reacts to Space"), often the desired intent; on a global board they
 //     fire once with self=nil for scene-wide controls. Author picks the
@@ -71,6 +71,7 @@ export const TRIGGER_TARGET_MATRIX: Record<
   onInput:         ALL_TARGETS,
   onMouseInput:    ALL_TARGETS,
   onMessage:       ALL_TARGETS,
+  onDialogMessage: ALL_TARGETS,
   // System — no opinion on entity context.
   onStart:         ALL_TARGETS,
   onUpdate:        ALL_TARGETS,

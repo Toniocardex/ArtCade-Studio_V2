@@ -5,7 +5,7 @@
 import { isTauri } from '@tauri-apps/api/core'
 import { exists, readDir, readTextFile } from '@tauri-apps/plugin-fs'
 import { joinPath } from '../file-paths'
-import { invokeWriteFile } from '../project-file-api'
+import { invokeDeleteProjectFile, invokeWriteFile } from '../project-file-api'
 import { projectRootFromProjectPath } from '../project-paths'
 import {
   compileDialogScript,
@@ -99,6 +99,18 @@ export async function saveDialogsToProject(
   }
 
   const root = projectRootFromProjectPath(projectJsonPath)
+  const dir = joinPath(root, 'dialogs')
+  if (await exists(dir)) {
+    const expected = new Set(
+      Object.values(dialogs).map((script) => `${script.dialogId}.json`),
+    )
+    for (const entry of await readDir(dir)) {
+      const name = entry.name ?? ''
+      if (!entry.isFile || !name.endsWith('.json') || expected.has(name)) continue
+      await invokeDeleteProjectFile(joinPath(dir, name), root)
+    }
+  }
+
   for (const script of Object.values(dialogs)) {
     const graph = compileDialogScript(script)
     const path = joinPath(root, 'dialogs', `${script.dialogId}.json`)

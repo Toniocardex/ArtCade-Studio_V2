@@ -108,7 +108,9 @@ export function triggerSummaryPlain(
     case 'onObjectHoverExit':
       return 'When the pointer leaves this object'
     case 'onMessage':
-      return `When message "${t.messageName || '...'}" is received`
+      return `When Event Bus event "${t.messageName || '...'}" is received`
+    case 'onDialogMessage':
+      return `When dialog message "${t.messageName || '...'}" is received`
     case 'onTimer':
       return t.repeat
         ? `Every ${t.seconds} seconds (repeating)`

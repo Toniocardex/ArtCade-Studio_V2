@@ -33,7 +33,8 @@ const TRIGGER_DESCRIPTIONS: Record<LogicTriggerType, string> = {
   onObjectClick: 'When the player clicks this object',
   onObjectHoverEnter: 'When the pointer moves onto this object',
   onObjectHoverExit: 'When the pointer moves off this object',
-  onMessage: 'When another rule broadcasts this message',
+  onMessage: 'When an Event Bus event is broadcast',
+  onDialogMessage: 'When a dialog emits this message',
   onTimer: 'Every N seconds, or once after a delay',
 }
 
@@ -110,7 +111,7 @@ const ACTION_DESCRIPTIONS: Record<LogicActionType, string> = {
   setHordeSeparationRadius: 'Change the distance used to keep horde members apart',
   setAutoDestroyLifespan: 'Destroy the object after N seconds',
   cancelAutoDestroy: 'Cancel a pending auto destroy',
-  emitEvent: 'Broadcast a message to other rules',
+  emitEvent: 'Broadcast an Event Bus event to other rules',
   toggleLogicEvent: 'Enable or disable another rule',
   applyImpulse: 'One-time physics push (jump, knockback)',
   applyForce: 'Continuous physics push while active',
@@ -135,7 +136,7 @@ const ACTION_DESCRIPTIONS: Record<LogicActionType, string> = {
   snapToGrid: 'Align the object to the grid',
   setEntityShader: 'Apply a visual effect to this object',
   setScreenShader: 'Apply a full-screen visual effect',
-  startDialog: 'Open a specific dialog graph by its ID',
+  startDialog: 'Open a dialog from the target Dialog component, or choose a specific dialog asset',
   endDialog: 'Close the currently active dialog conversation',
   saveGame: 'Persist all declared global and placed-object variables',
   loadGame: 'Restore all declared global and placed-object variables',

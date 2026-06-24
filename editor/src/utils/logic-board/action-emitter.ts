@@ -308,7 +308,9 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
         ? `event.emit(${luaString(a.name)}, { [${luaString(a.payloadKey)}] = ${luaValue(a.payloadValue ?? '')} })`
         : `event.emit(${luaString(a.name)})`
     case 'startDialog':
-      return `dialog.start(${target(a.target)}, ${luaString(a.dialogId)})`
+      return a.source === 'component'
+        ? `dialog.startComponent(${target(a.target)})`
+        : `dialog.start(${target(a.target)}, ${luaString(a.dialogId ?? '')})`
     case 'endDialog':
       return `dialog.finish()`
     case 'toggleLogicEvent':

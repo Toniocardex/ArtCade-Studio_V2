@@ -3,6 +3,7 @@
 #include "../../../core/module.h"
 #include "../../../core/engine-context.h"
 #include <cstdint>
+#include <vector>
 
 // Forward-declare sol::state — avoids pulling sol2 into every includer
 namespace sol { class state; }
@@ -58,6 +59,7 @@ public:
 private:
     const EngineContext& ctx_;
     sol::state*          luaState_ = nullptr; // cached in registerAll()
+    std::vector<uint32_t> eventBridgeTokens_;
 
     void bindEntityAPI (sol::state& lua);
     void bindPhysicsAPI(sol::state& lua);

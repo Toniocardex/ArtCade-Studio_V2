@@ -1130,6 +1130,17 @@ describe('Logic Components — Phase A (new blocks)', () => {
     expect(lua).toContain('debug.log("hit")')
   })
 
+  it('onDialogMessage registers the same runtime message listener', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({ trigger: { type: 'onDialogMessage', messageName: 'QuestAccepted' },
+             actions: [{ type: 'debugLog', message: 'quest' }] }),
+      ]),
+    ])
+    expect(lua).toContain('_logic_reg_message("QuestAccepted", function(_message)')
+    expect(lua).toContain('debug.log("quest")')
+  })
+
   it('startDialog emits dialog.start on target entity', () => {
     const lua = compileLogicBoard([
       board([
@@ -1140,6 +1151,18 @@ describe('Logic Components — Phase A (new blocks)', () => {
       ]),
     ])
     expect(lua).toContain('dialog.start(self, "innkeeper")')
+  })
+
+  it('startDialog can emit dialog.startComponent from the target Dialog component', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({
+          trigger: { type: 'onTriggerEnter' },
+          actions: [{ type: 'startDialog', target: 'self', source: 'component' }],
+        }),
+      ]),
+    ])
+    expect(lua).toContain('dialog.startComponent(self)')
   })
 })
 

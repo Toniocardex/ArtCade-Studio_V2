@@ -23,6 +23,15 @@ void GameAPI::bindDialogAPI(sol::state& lua) {
             return dm->startDialog(hostId, dialogId);
         });
 
+    lua.set_function("dialog_start_component",
+        [dm, gw](uint32_t entityId) -> bool {
+            if (!dm || !gw) return false;
+            if (!gw->exists(entityId)) return false;
+            DialogComponent dialog{};
+            if (!gw->getDialog(entityId, dialog)) return false;
+            return dm->startDialog(entityId, dialog);
+        });
+
     lua.set_function("dialog_is_active", [dm]() -> bool {
         return dm && dm->isActive();
     });
@@ -37,6 +46,9 @@ void GameAPI::bindDialogAPI(sol::state& lua) {
         dialog = {}
         dialog.start = function(entityId, dialogId)
             return dialog_start(entityId, dialogId)
+        end
+        dialog.startComponent = function(entityId)
+            return dialog_start_component(entityId)
         end
         dialog.isActive = function()
             return dialog_is_active()

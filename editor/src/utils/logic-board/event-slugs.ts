@@ -45,6 +45,7 @@ function triggerSlugSource(t: LogicTrigger): string {
     case 'onAnimationLoop': return t.clipName ? `on_anim_loop_${t.clipName}` : 'on_anim_loop'
     case 'onAnimationChange': return t.clipName ? `on_anim_change_${t.clipName}` : 'on_anim_change'
     case 'onMessage':       return `on_msg_${t.messageName || 'unnamed'}`
+    case 'onDialogMessage': return `on_dialog_msg_${t.messageName || 'unnamed'}`
     case 'onTimer':         return t.repeat ? `every_${t.seconds || 0}s` : `after_${t.seconds || 0}s`
     case 'onInput': {
       const verb = t.eventType === 'pressed' ? 'press'

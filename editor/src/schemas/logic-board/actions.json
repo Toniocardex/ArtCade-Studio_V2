@@ -640,10 +640,10 @@
     },
     "additionalProperties": false,
     "x-artcade": {
-      "label": "Emit Event",
-      "category": "Messaging",
+      "label": "Broadcast Event",
+      "category": "Event Bus",
       "params": {
-        "name": { "widget": "string", "label": "Name" },
+        "name": { "widget": "string", "label": "Event" },
         "payloadKey": { "widget": "string", "label": "Payload key" },
         "payloadValue": { "widget": "string", "label": "Payload value" }
       }
@@ -651,19 +651,36 @@
   },
   "startDialog": {
     "type": "object",
-    "required": ["type", "target", "dialogId"],
+    "required": ["type", "target"],
     "properties": {
       "type": { "const": "startDialog" },
       "target": { "$ref": "./target-selector.schema.json" },
+      "source": { "enum": ["specific", "component"] },
       "dialogId": { "type": "string" }
     },
+    "anyOf": [
+      { "required": ["dialogId"] },
+      {
+        "required": ["source"],
+        "properties": { "source": { "const": "component" } }
+      }
+    ],
     "additionalProperties": false,
     "x-artcade": {
-      "label": "Start Dialog by ID",
+      "label": "Start Dialog",
       "category": "Dialog",
       "params": {
         "target": { "widget": "target", "label": "NPC" },
-        "dialogId": { "widget": "string", "label": "Dialog ID" }
+        "source": {
+          "widget": "enum",
+          "label": "Source",
+          "options": ["component", "specific"]
+        },
+        "dialogId": {
+          "widget": "string",
+          "label": "Dialog",
+          "visibleWhen": { "source": "specific" }
+        }
       }
     }
   },

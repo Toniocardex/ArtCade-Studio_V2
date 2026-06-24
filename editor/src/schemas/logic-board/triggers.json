@@ -332,11 +332,32 @@
     },
     "additionalProperties": false,
     "x-artcade": {
-      "label": "On Message",
-      "category": "Messaging",
+      "label": "Event Bus Event",
+      "category": "Event Bus",
       "executionMode": "event",
       "params": {
-        "messageName": { "widget": "string", "label": "Message", "placeholder": "player_hit" }
+        "messageName": { "widget": "string", "label": "Event", "placeholder": "player_hit" }
+      }
+    }
+  },
+  "onDialogMessage": {
+    "type": "object",
+    "required": ["type", "messageName"],
+    "properties": {
+      "type": { "const": "onDialogMessage" },
+      "messageName": { "type": "string", "minLength": 1 }
+    },
+    "additionalProperties": false,
+    "x-artcade": {
+      "label": "Dialog Message",
+      "category": "Dialog",
+      "executionMode": "event",
+      "params": {
+        "messageName": {
+          "widget": "string",
+          "label": "Message",
+          "placeholder": "QuestAccepted"
+        }
       }
     }
   },

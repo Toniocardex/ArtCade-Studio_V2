@@ -615,6 +615,24 @@ void EntityRegistry::setGauge(EntityId id,
     else   impl_->reg.remove<GaugeComponent>(e);
 }
 
+bool EntityRegistry::getDialog(EntityId id, DialogComponent& out) const {
+    const entt::entity e = impl_->toEntt(id);
+    if (e == entt::null) return false;
+    if (const auto* c = impl_->reg.try_get<DialogComponent>(e)) {
+        out = *c;
+        return true;
+    }
+    return false;
+}
+
+void EntityRegistry::setDialog(EntityId id,
+                               const std::optional<DialogComponent>& d) {
+    const entt::entity e = impl_->toEntt(id);
+    if (e == entt::null) return;
+    if (d) impl_->reg.emplace_or_replace<DialogComponent>(e, *d);
+    else   impl_->reg.remove<DialogComponent>(e);
+}
+
 // ---- Physics handle -------------------------------------------------------
 
 uint32_t EntityRegistry::physicsHandle(EntityId id) const {

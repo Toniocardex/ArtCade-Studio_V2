@@ -119,7 +119,7 @@ export function pushMessageEventsInit(
   logicDebugTrace?: boolean,
 ): void {
   for (const ev of messageEvents) {
-    if (ev.trigger.type !== 'onMessage') continue
+      if (ev.trigger.type !== 'onMessage' && ev.trigger.type !== 'onDialogMessage') continue
     const I = INDENT
     init.push(
       `${I}_logic_reg_message(${luaString(ev.trigger.messageName)}, function(_message)`,

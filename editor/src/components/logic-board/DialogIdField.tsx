@@ -1,10 +1,9 @@
-import { useEditorDispatch, useEditorStore } from '../../store/editor-store'
+import { useEditorDispatch, useEditorSelector, useEditorStore } from '../../store/editor-store'
 import { openDialogEditorForId } from '../../panels/dialog/dialog-modal-api'
 import type { ComponentKind } from '../../utils/logic-board/schema-registry'
 import type { ParamFieldMeta } from '../../utils/logic-board/schema-registry'
+import { EditorSelect } from '../ui/EditorSelect'
 
-const inp =
-  'bg-[var(--bg)] border border-[var(--border-2)] text-[var(--text)] px-2 py-1 rounded text-xs'
 const lbl = 'text-[10px] text-[var(--muted)]'
 
 function asParamString(value: unknown, fallback = ''): string {
@@ -32,15 +31,20 @@ export function DialogIdField({
   const dispatch = useEditorDispatch()
   const store = useEditorStore()
   const dialogId = asParamString(value)
+  const dialogs = useEditorSelector((state) => state.dialogs)
+  const dialogIds = Object.keys(dialogs).sort((a, b) => a.localeCompare(b))
 
   return (
     <span className="flex items-center gap-2 flex-wrap">
       <span className={lbl}>{label}</span>
-      <input
-        className={`${inp} w-40`}
+      <EditorSelect
+        className="w-40"
+        triggerClassName="py-1"
         value={dialogId}
-        placeholder={meta.placeholder ?? 'innkeeper'}
-        onChange={(e) => onPatch('dialogId', e.target.value)}
+        placeholder={meta.placeholder ?? 'Choose dialog'}
+        onChange={(next) => onPatch('dialogId', next)}
+        options={dialogIds.map((id) => ({ value: id, label: id }))}
+        aria-label={label}
       />
       <button
         type="button"

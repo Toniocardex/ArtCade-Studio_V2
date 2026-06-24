@@ -421,6 +421,12 @@ export function SchemaParamForm({
   return (
     <span className="flex items-center flex-wrap gap-2">
       {Object.entries(meta.params).map(([name, fieldMeta]) => {
+        if (fieldMeta.visibleWhen) {
+          const visible = Object.entries(fieldMeta.visibleWhen).every(
+            ([key, expected]) => value[key] === expected,
+          )
+          if (!visible) return null
+        }
         const fieldProps: FieldProps = {
           kind,
           type,

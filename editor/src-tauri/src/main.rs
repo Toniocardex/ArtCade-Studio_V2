@@ -169,6 +169,26 @@ fn write_binary_file(path: String, bytes: Vec<u8>, project_root: String) -> Resu
         .map_err(|e| format!("atomic binary write '{path}': {e}"))
 }
 
+#[tauri::command]
+fn delete_project_file(path: String, project_root: String) -> Result<(), String> {
+    let p = project_write_paths::prepare_writable_path(&path, &project_root)?;
+    let is_dialog_json = p
+        .extension()
+        .and_then(|value| value.to_str())
+        .is_some_and(|value| value.eq_ignore_ascii_case("json"))
+        && p.parent()
+            .and_then(|parent| parent.file_name())
+            .and_then(|value| value.to_str())
+            .is_some_and(|value| value.eq_ignore_ascii_case("dialogs"));
+    if !is_dialog_json {
+        return Err(format!("refusing to delete non-dialog artifact '{path}'"));
+    }
+    if p.exists() {
+        std::fs::remove_file(&p).map_err(|e| format!("delete file '{path}': {e}"))?;
+    }
+    Ok(())
+}
+
 /// Decrypt an encrypted `.artcade` container into its inner plaintext ZIP bytes
 /// so the editor can reopen packages it produced. Plain ZIP bytes pass through
 /// unchanged, so the caller can hand any package straight to its ZIP reader.
@@ -1012,6 +1032,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             write_file,
             write_binary_file,
+            delete_project_file,
             decrypt_artcade_container,
             register_project_fs_scope,
             check_dependencies_cmd,
