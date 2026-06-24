@@ -176,6 +176,7 @@ class RuntimeSyncServiceImpl {
   private bootProjectSynced = false
   private readonly engineReadyListeners = new Set<(ready: boolean) => void>()
   private readonly bootSyncedListeners = new Set<(synced: boolean) => void>()
+  private readonly projectReloadListeners = new Set<() => void>()
   private transitionDepth = 0
   private lastScriptReloadMessage: string | null = null
   /** Last wasm-ready value broadcast to listeners — gates edge-triggered notify. */
@@ -305,6 +306,10 @@ class RuntimeSyncServiceImpl {
     for (const cb of this.bootSyncedListeners) cb(true)
   }
 
+  private notifyProjectReloadApplied(): void {
+    for (const cb of this.projectReloadListeners) cb()
+  }
+
   onEngineReadyChange(cb: (ready: boolean) => void): () => void {
     this.engineReadyListeners.add(cb)
     cb(this.engineReady)
@@ -315,6 +320,11 @@ class RuntimeSyncServiceImpl {
     this.bootSyncedListeners.add(cb)
     cb(this.bootProjectSynced)
     return () => { this.bootSyncedListeners.delete(cb) }
+  }
+
+  onProjectReloadApplied(cb: () => void): () => void {
+    this.projectReloadListeners.add(cb)
+    return () => { this.projectReloadListeners.delete(cb) }
   }
 
   /**
@@ -589,6 +599,7 @@ class RuntimeSyncServiceImpl {
       // editorLoadProject. Force syncProjectAssets to re-upload by resetting the key.
       this.lastAssetSyncKey = null
       this.syncProjectAssets(project, activeSceneId, projectPath)
+      this.notifyProjectReloadApplied()
       return true
     }
 

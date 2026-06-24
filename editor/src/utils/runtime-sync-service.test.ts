@@ -29,6 +29,8 @@ vi.mock('./wasm-bridge', () => {
     editorSetTransform:       vi.fn(),
     editorUpdateEntity:       vi.fn(),
     editorSetSceneSettings:   vi.fn(),
+    editorSyncTilemapData:    vi.fn(() => true),
+    editorSyncTilemapLayers:  vi.fn(() => true),
     peekWasmBridgeLastError:  vi.fn(() => 'mock bridge error'),
   }
 })
@@ -87,6 +89,10 @@ describe('RuntimeSyncService', () => {
     vi.mocked(bridge.editorSetTransform).mockReset()
     vi.mocked(bridge.editorUpdateEntity).mockReset()
     vi.mocked(bridge.editorSetSceneSettings).mockReset()
+    vi.mocked(bridge.editorSyncTilemapData).mockReset()
+    vi.mocked(bridge.editorSyncTilemapData).mockReturnValue(true)
+    vi.mocked(bridge.editorSyncTilemapLayers).mockReset()
+    vi.mocked(bridge.editorSyncTilemapLayers).mockReturnValue(true)
   })
 
   it('skips every call until the runtime is ready', () => {
@@ -107,6 +113,27 @@ describe('RuntimeSyncService', () => {
     expect(bridge.editorLoadProject).toHaveBeenCalledTimes(1)
     expect(runtimeSync.syncProject(p as never, 'a', '/tmp/x')).toBe(false)
     expect(bridge.editorLoadProject).toHaveBeenCalledTimes(1)
+  })
+
+  it('notifies project reload listeners only when a full runtime reload is applied', () => {
+    const listener = vi.fn()
+    const unsubscribe = runtimeSync.onProjectReloadApplied(listener)
+    const p = makeProject()
+
+    expect(runtimeSync.syncProject(p as never, 'a', '/tmp/x')).toBe(true)
+    expect(listener).toHaveBeenCalledTimes(1)
+
+    expect(runtimeSync.syncProject(p as never, 'a', '/tmp/x')).toBe(false)
+    expect(listener).toHaveBeenCalledTimes(1)
+
+    Object.assign(p, { layers: [{ name: 'Object' }, { name: 'Background' }] })
+    expect(runtimeSync.syncProject(p as never, 'a', '/tmp/x')).toBe(true)
+    expect(listener).toHaveBeenCalledTimes(2)
+
+    unsubscribe()
+    Object.assign(p, { layers: [{ name: 'UI' }, { name: 'Object' }, { name: 'Background' }] })
+    expect(runtimeSync.syncProject(p as never, 'a', '/tmp/x')).toBe(true)
+    expect(listener).toHaveBeenCalledTimes(2)
   })
 
   it('syncProject re-loads when the fingerprint changes', () => {

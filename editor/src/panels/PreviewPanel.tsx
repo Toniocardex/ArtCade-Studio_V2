@@ -517,6 +517,22 @@ export default function PreviewPanel({
   }, [isPlaying, engineReady, zoom, layout, applyCanvasPresentation])
 
   useEffect(() => {
+    let raf: number | null = null
+    const unsubscribe = runtimeSync.onProjectReloadApplied(() => {
+      if (isPlaying) return
+      if (raf != null) cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => {
+        raf = null
+        syncEditCamera()
+      })
+    })
+    return () => {
+      unsubscribe()
+      if (raf != null) cancelAnimationFrame(raf)
+    }
+  }, [isPlaying, syncEditCamera])
+
+  useEffect(() => {
     const el = scrollRef.current
     if (!el || isPlaying || !engineReady) return
     const schedule = () => {
