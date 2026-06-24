@@ -61,7 +61,7 @@ export function CanvasToolbar({
       {showToolPalette && (
         <>
           {([
-            { id: 'select', Icon: MousePointer2, title: 'Select / move entities' },
+            { id: 'select', Icon: MousePointer2, title: 'Select / move entities. Alt+click cycles overlapping objects.' },
             { id: 'pan',    Icon: Hand,           title: 'Pan camera' },
           ] as const).map(({ id, Icon, title }) => (
             <button

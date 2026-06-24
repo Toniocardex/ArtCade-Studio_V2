@@ -13,7 +13,9 @@
 #include <emscripten/html5.h>
 
 #include <cmath>
+#include <algorithm>
 #include <string>
+#include <vector>
 
 namespace ArtCade {
 
@@ -88,14 +90,35 @@ bool entityAllowsCanvasEdit(Modules::RuntimeEntityGateway& gateway,
     return true;
 }
 
+struct PickHit {
+    uint32_t id = 0u;
+    int32_t  renderOrder = 0;
+    size_t   insertionIndex = 0u;
+};
+
+uint32_t choosePickHit(std::vector<PickHit>& hits, bool cycleOverlap) {
+    if (hits.empty()) return 0u;
+    std::stable_sort(hits.begin(), hits.end(), [](const PickHit& a, const PickHit& b) {
+        if (a.renderOrder != b.renderOrder) return a.renderOrder > b.renderOrder;
+        return a.insertionIndex > b.insertionIndex;
+    });
+    if (cycleOverlap && EditorAPI::s_selectedEntityId != 0u) {
+        for (size_t i = 0; i < hits.size(); ++i) {
+            if (hits[i].id != EditorAPI::s_selectedEntityId) continue;
+            return hits[(i + 1u) % hits.size()].id;
+        }
+    }
+    return hits.front().id;
+}
+
 // Pick the top-most entity whose clickable box contains the world point.
 // Entities are drawn centred on transform.position; we use a generous
 // 64px (x scale) hit box so they're easy to grab in the editor viewport.
 // Text/gauge-only entities (no sprite) fall back to a fixed 32x32 hitbox.
-uint32_t pickEntityAt(float x, float y) {
+uint32_t pickEntityAt(float x, float y, bool cycleOverlap) {
     auto* gw = EditorAPI::s_entityGateway;
     if (!gw) return 0u;
-    uint32_t hit = 0u;
+    std::vector<PickHit> hits;
 
     // Pass 1: entities with sprites (sprite-scaled hitbox — takes priority).
     gw->forEachActiveRenderable([&](EntityId id, const Transform& transform, const SpriteComponent& sprite) {
@@ -107,9 +130,9 @@ uint32_t pickEntityAt(float x, float y) {
         const float cx = transform.position.x;
         const float cy = transform.position.y;
         if (x >= cx - hw && x <= cx + hw && y >= cy - hh && y <= cy + hh)
-            hit = id;
+            hits.push_back(PickHit{ id, sprite.renderOrder, hits.size() });
     });
-    if (hit != 0u) return hit;
+    if (!hits.empty()) return choosePickHit(hits, cycleOverlap);
 
     // Pass 2: text/gauge-only entities that have no sprite (HUD elements).
     // Use the entity's authored transform with a fixed 32x32 default hitbox.
@@ -125,9 +148,9 @@ uint32_t pickEntityAt(float x, float y) {
         const float cx = transform.position.x;
         const float cy = transform.position.y;
         if (x >= cx - 32.f && x <= cx + 32.f && y >= cy - 32.f && y <= cy + 32.f)
-            hit = id;
+            hits.push_back(PickHit{ id, 0, hits.size() });
     }
-    return hit;
+    return choosePickHit(hits, cycleOverlap);
 }
 } // namespace
 
@@ -192,7 +215,7 @@ EM_BOOL EditorAPI::onMouseDown(int, const EmscriptenMouseEvent* e, void*) {
     s_dragStartX = wx;
     s_dragStartY = wy;
     if (e->button == 0 && (e->ctrlKey || e->metaKey) && s_editorTool == ToolSelect) {
-        const uint32_t picked = pickEntityAt(wx, wy);
+        const uint32_t picked = pickEntityAt(wx, wy, false);
         if (picked != 0u) {
             snapWorldToEditorGrid(wx, wy);
             notifyEntityDuplicateRequested(picked, wx, wy);
@@ -204,7 +227,7 @@ EM_BOOL EditorAPI::onMouseDown(int, const EmscriptenMouseEvent* e, void*) {
     // Click-to-select: pick the entity under the cursor on the canvas so
     // the user doesn't have to go through the Hierarchy panel. A hit also
     // makes it the live-drag target (onMouseMove drags s_selectedEntityId).
-    const uint32_t picked = pickEntityAt(wx, wy);
+    const uint32_t picked = pickEntityAt(wx, wy, e->altKey);
     if (picked != 0u) {
         s_selectedEntityId = picked;
         notifyEntitySelected(picked);
