@@ -5,6 +5,7 @@ import type { CoreState } from '../store/editor-store'
 import type { ProjectDoc } from '../types'
 import {
   getCanvasClipboardShortcutAction,
+  getCanvasDeleteShortcutAction,
   getCanvasDuplicateShortcutAction,
 } from './useViewportShortcuts'
 
@@ -23,6 +24,25 @@ function project(): ProjectDoc {
         tags: [],
         transform: {
           position: { x: 10, y: 20 },
+          scale: { x: 1, y: 1 },
+          rotation: 0,
+        },
+        sprite: {
+          spriteAssetId: '',
+          tint: { x: 1, y: 1, z: 1, w: 1 },
+          fillColor: { x: 1, y: 1, z: 1 },
+          alpha: 1,
+          pivot: { x: 0.5, y: 0.5 },
+          renderOrder: 0,
+        },
+      },
+      5: {
+        id: 5,
+        name: 'Gem',
+        className: 'Coin',
+        tags: [],
+        transform: {
+          position: { x: 40, y: 50 },
           scale: { x: 1, y: 1 },
           rotation: 0,
         },
@@ -58,12 +78,20 @@ function project(): ProjectDoc {
         worldSize: { x: 512, y: 320 },
         viewportSize: { x: 512, y: 320 },
         backgroundColor: { x: 0, y: 0, z: 0, w: 1 },
-        entityIds: [4],
+        entityIds: [4, 5],
         instances: [{
           id: 4,
           objectTypeId: 'Coin',
           transform: {
             position: { x: 10, y: 20 },
+            scale: { x: 1, y: 1 },
+            rotation: 0,
+          },
+        }, {
+          id: 5,
+          objectTypeId: 'Coin',
+          transform: {
+            position: { x: 40, y: 50 },
             scale: { x: 1, y: 1 },
             rotation: 0,
           },
@@ -78,7 +106,7 @@ function state(overrides: Partial<CoreState> = {}): CoreState {
     mode: 'canvas',
     isPlaying: false,
     project: project(),
-    selection: { entityId: 4, sceneId: 'scene_main' },
+    selection: { entityId: 4, entityIds: [4], sceneId: 'scene_main' },
     instanceClipboard: null,
     snapToGrid: false,
     editorGridSize: 32,
@@ -92,6 +120,51 @@ function duplicateEvent(init: KeyboardEventInit = {}): KeyboardEvent {
 
 afterEach(() => {
   if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
+})
+
+describe('getCanvasDeleteShortcutAction', () => {
+  it('deletes the selected scene instance with Delete or Backspace', () => {
+    expect(getCanvasDeleteShortcutAction(
+      new KeyboardEvent('keydown', { key: 'Delete', code: 'Delete' }),
+      state(),
+    )).toEqual({
+      type: 'ENTITY_DELETE',
+      entityId: 4,
+    })
+    expect(getCanvasDeleteShortcutAction(
+      new KeyboardEvent('keydown', { key: 'Backspace', code: 'Backspace' }),
+      state(),
+    )).toEqual({
+      type: 'ENTITY_DELETE',
+      entityId: 4,
+    })
+  })
+
+  it('deletes a multi-selection as one action', () => {
+    expect(getCanvasDeleteShortcutAction(
+      new KeyboardEvent('keydown', { key: 'Delete', code: 'Delete' }),
+      state({ selection: { entityId: 5, entityIds: [4, 5], sceneId: 'scene_main' } }),
+    )).toEqual({
+      type: 'ENTITY_DELETE_MANY',
+      entityIds: [4, 5],
+    })
+  })
+
+  it('ignores Delete while typing or playing', () => {
+    expect(getCanvasDeleteShortcutAction(
+      new KeyboardEvent('keydown', { key: 'Delete', code: 'Delete' }),
+      state({ isPlaying: true }),
+    )).toBeNull()
+
+    const input = document.createElement('input')
+    document.body.appendChild(input)
+    input.focus()
+    expect(getCanvasDeleteShortcutAction(
+      new KeyboardEvent('keydown', { key: 'Delete', code: 'Delete' }),
+      state(),
+    )).toBeNull()
+    input.remove()
+  })
 })
 
 describe('getCanvasDuplicateShortcutAction', () => {

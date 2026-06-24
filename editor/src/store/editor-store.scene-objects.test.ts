@@ -269,6 +269,26 @@ describe('coreReducer — scenes & objects', () => {
     expect(s.selection.entityIds).toEqual([])
   })
 
+  it('ENTITY_DELETE_MANY removes a multi-selection as one undoable operation', () => {
+    let s = coreReducer(st(project()), { type: 'INSTANCE_DUPLICATE', instanceId: 1, sceneId: 's' })
+    expect(s.project!.scenes.s.entityIds).toEqual([1, 2])
+
+    s = coreReducer(
+      { ...s, selection: { entityId: 2, entityIds: [1, 2], sceneId: 's' } },
+      { type: 'ENTITY_DELETE_MANY', entityIds: [1, 2] },
+    )
+
+    expect(s.project!.entities[1]).toBeUndefined()
+    expect(s.project!.entities[2]).toBeUndefined()
+    expect(s.project!.scenes.s.entityIds).toEqual([])
+    expect(s.project!.scenes.s.instances).toEqual([])
+    expect(s.selection).toEqual({ entityId: null, entityIds: [], sceneId: 's' })
+    expect(s.projectHistory?.past).toHaveLength(2)
+
+    s = coreReducer(s, { type: 'PROJECT_UNDO' })
+    expect(s.project!.scenes.s.entityIds).toEqual([1, 2])
+  })
+
   it('ENTITY_SET_NAME renames entity and marks dirty', () => {
     const s = coreReducer(st(project()), {
       type: 'ENTITY_SET_NAME', entityId: 1, name: 'Hero',

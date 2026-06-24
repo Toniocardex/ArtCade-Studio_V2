@@ -14,7 +14,7 @@ import {
 } from '../store/editor-store'
 import { zoomFitRegistry } from '../utils/zoom-fit-registry'
 import { frameSelectionRegistry } from '../utils/frame-selection-registry'
-import { shouldIgnoreEditorShortcut } from '../utils/keyboard'
+import { isBackspaceKey, isDeleteKey, shouldIgnoreEditorShortcut } from '../utils/keyboard'
 import {
   EDITOR_ZOOM_DEFAULT, EDITOR_ZOOM_KEYBOARD_STEP,
   EDITOR_ZOOM_MIN, EDITOR_ZOOM_MAX,
@@ -41,6 +41,21 @@ function selectedSceneInstance(
   const scene = state.project.scenes[sceneId]
   if (!scene?.instances?.some((instance) => instance.id === instanceId)) return null
   return { instanceId, sceneId }
+}
+
+function selectedSceneEntityIds(state: CanvasDuplicateShortcutState): number[] {
+  if (state.mode !== 'canvas' || state.isPlaying || !state.project) return []
+  const sceneId = state.selection.sceneId ?? state.project.activeSceneId
+  if (!sceneId) return []
+  const scene = state.project.scenes[sceneId]
+  if (!scene) return []
+  const validIds = new Set(scene.instances?.map((instance) => instance.id) ?? scene.entityIds)
+  const selectedIds = (state.selection.entityIds ?? []).length > 0
+    ? state.selection.entityIds
+    : (state.selection.entityId != null ? [state.selection.entityId] : [])
+  return selectedIds.filter((id, index) =>
+    validIds.has(id) && selectedIds.indexOf(id) === index,
+  )
 }
 
 function clipboardPastePosition(state: CanvasDuplicateShortcutState): { x: number; y: number } | null {
@@ -92,6 +107,20 @@ export function getCanvasClipboardShortcutAction(
   return null
 }
 
+export function getCanvasDeleteShortcutAction(
+  event: KeyboardEvent,
+  state: CanvasDuplicateShortcutState,
+): Action | null {
+  if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return null
+  if (!isDeleteKey(event) && !isBackspaceKey(event)) return null
+  if (shouldIgnoreEditorShortcut(event)) return null
+  const entityIds = selectedSceneEntityIds(state)
+  if (entityIds.length === 0) return null
+  return entityIds.length === 1
+    ? { type: 'ENTITY_DELETE', entityId: entityIds[0] }
+    : { type: 'ENTITY_DELETE_MANY', entityIds }
+}
+
 export function useViewportShortcuts(): void {
   const dispatch = useEditorDispatch()
   const store = useEditorStore()
@@ -99,6 +128,12 @@ export function useViewportShortcuts(): void {
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       const state = store.getState()
+      const deleteAction = getCanvasDeleteShortcutAction(e, state)
+      if (deleteAction) {
+        e.preventDefault()
+        dispatch(deleteAction)
+        return
+      }
       const clipboardAction = getCanvasClipboardShortcutAction(e, state)
       if (clipboardAction) {
         e.preventDefault()

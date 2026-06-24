@@ -220,6 +220,7 @@ export type Action =
   | { type: 'INSTANCE_COPY'; instanceId: number; sceneId: string }
   | { type: 'INSTANCE_PASTE'; sceneId: string; position?: { x: number; y: number } }
   | { type: 'ENTITY_DELETE';     entityId: number }
+  | { type: 'ENTITY_DELETE_MANY'; entityIds: number[] }
   | { type: 'ENTITY_SET_VISIBLE'; entityId: number; visible: boolean }
   | { type: 'ENTITY_SET_NAME';    entityId: number; name: string }
   | { type: 'ENTITY_SET_CLASSNAME'; entityId: number; className: string }

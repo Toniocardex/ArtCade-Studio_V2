@@ -213,11 +213,19 @@ export const entityReducer: DomainReducer = (state: CoreState, action: Action) =
         entities: { ...state.project.entities, [action.entityId]: rest },
       })
     }
-    case 'ENTITY_DELETE': {
-      if (!state.project || !state.project.entities[action.entityId]) return state
+    case 'ENTITY_DELETE':
+    case 'ENTITY_DELETE_MANY': {
+      if (!state.project) return state
+      const deleteIds = new Set(
+        (action.type === 'ENTITY_DELETE'
+          ? [action.entityId]
+          : action.entityIds
+        ).filter((id) => state.project?.entities[id]),
+      )
+      if (deleteIds.size === 0) return state
       const entities = Object.fromEntries(
         Object.entries(state.project.entities).filter(
-          ([k]) => Number(k) !== action.entityId,
+          ([k]) => !deleteIds.has(Number(k)),
         ),
       )
       const scenes = Object.fromEntries(
@@ -225,23 +233,23 @@ export const entityReducer: DomainReducer = (state: CoreState, action: Action) =
           sid,
           {
             ...sc,
-            entityIds: sc.entityIds.filter((i) => i !== action.entityId),
+            entityIds: sc.entityIds.filter((i) => !deleteIds.has(i)),
             ...(sc.instances
-              ? { instances: sc.instances.filter((i) => i.id !== action.entityId) }
+              ? { instances: sc.instances.filter((i) => !deleteIds.has(i.id)) }
               : {}),
           },
         ]),
       )
       // Boards and the object type survive: behavior lives on the type, and
       // the type stays in the catalog even with zero instances in scene.
-      const entityIds = (state.selection.entityIds ?? []).filter((id) => id !== action.entityId)
+      const entityIds = (state.selection.entityIds ?? []).filter((id) => !deleteIds.has(id))
       return {
         ...state,
         project: { ...state.project, entities, scenes },
         selection: {
           ...state.selection,
           entityId:
-            state.selection.entityId === action.entityId
+            state.selection.entityId != null && deleteIds.has(state.selection.entityId)
               ? (entityIds.length > 0 ? entityIds[entityIds.length - 1] : null)
               : state.selection.entityId,
           entityIds,
