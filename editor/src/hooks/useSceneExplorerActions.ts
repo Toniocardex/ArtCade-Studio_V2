@@ -158,10 +158,11 @@ export function useSceneExplorerActions() {
   )
 
   const selectEntity = useCallback(
-    (entityId: number) => {
+    (entityId: number, additive = false) => {
       dispatch({
         type: 'SELECT_ENTITY',
-        entityId: selection.entityId === entityId ? null : entityId,
+        entityId: !additive && selection.entityId === entityId ? null : entityId,
+        additive,
       })
     },
     [dispatch, selection.entityId],

@@ -259,10 +259,14 @@ describe('coreReducer — scenes & objects', () => {
   })
 
   it('ENTITY_DELETE removes from entities + all scenes + deselects', () => {
-    const s = coreReducer(st(project()), { type: 'ENTITY_DELETE', entityId: 1 })
+    const s = coreReducer(
+      { ...st(project()), selection: { entityId: 1, entityIds: [1], sceneId: 's' } },
+      { type: 'ENTITY_DELETE', entityId: 1 },
+    )
     expect(s.project!.entities[1]).toBeUndefined()
     expect(s.project!.scenes.s.entityIds).not.toContain(1)
     expect(s.selection.entityId).toBeNull()
+    expect(s.selection.entityIds).toEqual([])
   })
 
   it('ENTITY_SET_NAME renames entity and marks dirty', () => {
@@ -356,7 +360,7 @@ describe('coreReducer — scenes & objects', () => {
     expect(s.project!.scenes.scene_2.entityIds).toEqual([])
     expect(s.project!.scenes.scene_2.worldSize).toEqual({ x: 1280, y: 720 })
     expect(s.project!.activeSceneId).toBe('s')
-    expect(s.selection).toEqual({ sceneId: 'scene_2', entityId: null })
+    expect(s.selection).toEqual({ sceneId: 'scene_2', entityId: null, entityIds: [] })
     expect(s.projectDirty).toBe(true)
   })
 
@@ -433,7 +437,7 @@ describe('coreReducer — scenes & objects', () => {
     expect(s.project!.thumbnails).toBeUndefined()
     // The board lives on the Enemy type, not on the deleted instance.
     expect(s.project!.logicBoards?.map((b) => b.boardId)).toEqual(['b2'])
-    expect(s.selection).toEqual({ sceneId: 's', entityId: null })
+    expect(s.selection).toEqual({ sceneId: 's', entityId: null, entityIds: [] })
     expect(s.projectDirty).toBe(true)
   })
 

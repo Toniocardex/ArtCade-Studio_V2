@@ -103,6 +103,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
 
   const sel = scene.selection
   const selectedEntityId = sel.entityId
+  const selectedEntityIds = sel.entityIds ?? (selectedEntityId != null ? [selectedEntityId] : [])
   const showScene = explorerPane === 'all' || explorerPane === 'scene'
   const showAssets = explorerPane === 'all' || explorerPane === 'assets'
 
@@ -131,6 +132,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
             tree={tree}
             scene={scene}
             selectedEntityId={selectedEntityId}
+            selectedEntityIds={selectedEntityIds}
             isOpen={isOpen}
             toggle={toggle}
             setContextMenu={setContextMenu}

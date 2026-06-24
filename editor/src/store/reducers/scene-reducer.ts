@@ -119,7 +119,7 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
             [scene.id]: scene,
           },
         },
-        selection: { sceneId: scene.id, entityId: null },
+        selection: { sceneId: scene.id, entityId: null, entityIds: [] },
         projectDirty: true,
       }
     }
@@ -197,7 +197,7 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
             [duplicated.id]: duplicated,
           },
         },
-        selection: { sceneId: duplicated.id, entityId: null },
+        selection: { sceneId: duplicated.id, entityId: null, entityIds: [] },
         projectDirty: true,
       }
     }
@@ -229,6 +229,9 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
         state.selection.sceneId === action.sceneId
           ? Object.keys(remainingScenes)[0] ?? project.activeSceneId
           : state.selection.sceneId
+      const entityIds = (state.selection.entityIds ?? []).filter(
+        (id) => !removedEntityIds.has(id),
+      )
 
       return {
         ...state,
@@ -244,8 +247,9 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
           sceneId: nextSceneId,
           entityId:
             state.selection.entityId != null && removedEntityIds.has(state.selection.entityId)
-              ? null
+              ? (entityIds.length > 0 ? entityIds[entityIds.length - 1] : null)
               : state.selection.entityId,
+          entityIds,
         },
         projectDirty: true,
       }

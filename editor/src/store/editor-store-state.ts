@@ -35,7 +35,7 @@ export interface CoreState {
   project:          ProjectDoc | null
   projectPath:      string | null
   projectDirty:     boolean
-  selection:        { entityId: number | null; sceneId: string | null }
+  selection:        { entityId: number | null; entityIds: number[]; sceneId: string | null }
   /** Scene-local instance clipboard for canvas/hierarchy copy-paste. */
   instanceClipboard: { sceneId: string; instance: SceneInstanceDef } | null
   /** Asset-driven inspector (Project Explorer); cleared when an entity is selected. */
@@ -142,7 +142,7 @@ export interface VolatileState {
 // ---- Actions ---------------------------------------------------------------
 
 export type Action =
-  | { type: 'SELECT_ENTITY';     entityId: number | null }
+  | { type: 'SELECT_ENTITY';     entityId: number | null; additive?: boolean }
   | { type: 'SELECT_SCENE';      sceneId: string }
   | { type: 'SELECT_INSPECTOR_ASSET'; asset: InspectorAssetSelection | null }
   | { type: 'SELECT_INSPECTOR_LAYER'; layerName: string | null }
@@ -329,7 +329,7 @@ export const initialCoreState: CoreState = {
   project:          null,
   projectPath:      null,
   projectDirty:     false,
-  selection:        { entityId: null, sceneId: null },
+  selection:        { entityId: null, entityIds: [], sceneId: null },
   instanceClipboard: null,
   inspectorAsset:   null,
   inspectorLayerName: null,

@@ -30,7 +30,7 @@ describe('initialCoreState — dock boot sync', () => {
 describe('uiReducer — inspector context', () => {
   it('SELECT_INSPECTOR_ASSET clears entity and layer', () => {
     const start = base({
-      selection: { entityId: 3, sceneId: 's1' },
+      selection: { entityId: 3, entityIds: [3], sceneId: 's1' },
       inspectorLayerName: 'UI',
     })
     const s = uiReducer(start, {
@@ -39,7 +39,25 @@ describe('uiReducer — inspector context', () => {
     })
     expect(s.inspectorAsset).toEqual({ type: 'image', id: 'img_1' })
     expect(s.selection.entityId).toBeNull()
+    expect(s.selection.entityIds).toEqual([])
     expect(s.inspectorLayerName).toBeNull()
+  })
+
+  it('SELECT_ENTITY replaces or toggles the same-scene multi-selection set', () => {
+    let s = uiReducer(base(), { type: 'SELECT_ENTITY', entityId: 1 })
+    expect(s.selection).toMatchObject({ entityId: 1, entityIds: [1] })
+
+    s = uiReducer(s, { type: 'SELECT_ENTITY', entityId: 2, additive: true })
+    expect(s.selection).toMatchObject({ entityId: 2, entityIds: [1, 2] })
+
+    s = uiReducer(s, { type: 'SELECT_ENTITY', entityId: 1, additive: true })
+    expect(s.selection).toMatchObject({ entityId: 2, entityIds: [2] })
+
+    s = uiReducer(s, { type: 'SELECT_ENTITY', entityId: 1 })
+    expect(s.selection).toMatchObject({ entityId: 1, entityIds: [1] })
+
+    s = uiReducer(s, { type: 'SELECT_ENTITY', entityId: null })
+    expect(s.selection).toMatchObject({ entityId: null, entityIds: [] })
   })
 })
 

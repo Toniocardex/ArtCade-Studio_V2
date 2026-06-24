@@ -234,6 +234,7 @@ export const entityReducer: DomainReducer = (state: CoreState, action: Action) =
       )
       // Boards and the object type survive: behavior lives on the type, and
       // the type stays in the catalog even with zero instances in scene.
+      const entityIds = (state.selection.entityIds ?? []).filter((id) => id !== action.entityId)
       return {
         ...state,
         project: { ...state.project, entities, scenes },
@@ -241,8 +242,9 @@ export const entityReducer: DomainReducer = (state: CoreState, action: Action) =
           ...state.selection,
           entityId:
             state.selection.entityId === action.entityId
-              ? null
+              ? (entityIds.length > 0 ? entityIds[entityIds.length - 1] : null)
               : state.selection.entityId,
+          entityIds,
         },
         projectDirty: true,
       }

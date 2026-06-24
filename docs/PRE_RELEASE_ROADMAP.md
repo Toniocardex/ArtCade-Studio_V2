@@ -159,7 +159,7 @@ Estimated calendar (single developer, focused): **8–12 weeks**. Parallel work
 
 | ID | Work | Primary files | Done when |
 |----|------|---------------|-----------|
-| 2.1a | Extend `EditorSelection` to multi-id set (same scene) | `types/index.ts`, editor store | Ctrl+click adds/removes from selection |
+| 2.1a | Extend `EditorSelection` to multi-id set (same scene) | `editor-store-state.ts`, `ui-reducer.ts` | ✅ Done — hierarchy Ctrl/Cmd-click adds/removes from selection |
 | 2.1b | Canvas + hierarchy selection stay in sync | `useSceneExplorerActions.ts`, `runtime-sync-service.ts` | Select in tree updates canvas highlight set |
 | 2.1c | Overlap pick: Alt+click cycles hits by `renderOrder` desc | `editor-input-controller.cpp` | Documented in tooltip; test manual script |
 | 2.1d | Delete / Backspace deletes selected instance(s) | `useViewportShortcuts.ts` | Works for multi-select |

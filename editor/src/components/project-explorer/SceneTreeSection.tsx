@@ -16,6 +16,7 @@ export type SceneTreeSectionProps = Readonly<{
   tree: ReturnType<typeof buildProjectExplorerData>
   scene: ReturnType<typeof useSceneExplorerActions>
   selectedEntityId: number | null
+  selectedEntityIds?: readonly number[]
   isOpen: (key: ExplorerExpandKey, defaultOpen?: boolean) => boolean
   toggle: (key: ExplorerExpandKey, defaultOpen?: boolean) => void
   setContextMenu: Dispatch<SetStateAction<ExplorerContextMenuState | null>>
@@ -26,6 +27,7 @@ export function SceneTreeSection({
   tree,
   scene,
   selectedEntityId,
+  selectedEntityIds,
   isOpen,
   toggle,
   setContextMenu,
@@ -171,6 +173,7 @@ export function SceneTreeSection({
             hasSearch={tree.hasSearch}
             scene={scene}
             selectedEntityId={selectedEntityId}
+            selectedEntityIds={selectedEntityIds}
             isOpen={isOpen}
             toggle={toggle}
             setContextMenu={setContextMenu}

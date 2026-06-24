@@ -71,17 +71,47 @@ function setDockPanelVisibleOnState(
 
 export const uiReducer: DomainReducer = (state: CoreState, action: Action) => {
   switch (action.type) {
-    case 'SELECT_ENTITY':
+    case 'SELECT_ENTITY': {
+      if (action.entityId == null) {
+        return {
+          ...state,
+          selection: { ...state.selection, entityId: null, entityIds: [] },
+          inspectorAsset: null,
+          inspectorLayerName: null,
+        }
+      }
+      if (action.additive) {
+        const current = state.selection.entityIds ?? (
+          state.selection.entityId != null ? [state.selection.entityId] : []
+        )
+        const alreadySelected = current.includes(action.entityId)
+        const entityIds = alreadySelected
+          ? current.filter((id) => id !== action.entityId)
+          : [...current, action.entityId]
+        return {
+          ...state,
+          selection: {
+            ...state.selection,
+            entityId: alreadySelected
+              ? (entityIds.length > 0 ? entityIds[entityIds.length - 1] : null)
+              : action.entityId,
+            entityIds,
+          },
+          inspectorAsset: null,
+          inspectorLayerName: null,
+        }
+      }
       return {
         ...state,
-        selection: { ...state.selection, entityId: action.entityId },
+        selection: { ...state.selection, entityId: action.entityId, entityIds: [action.entityId] },
         inspectorAsset: null,
         inspectorLayerName: null,
       }
+    }
     case 'SELECT_SCENE':
       return {
         ...state,
-        selection: { ...state.selection, sceneId: action.sceneId, entityId: null },
+        selection: { ...state.selection, sceneId: action.sceneId, entityId: null, entityIds: [] },
         inspectorAsset: null,
         inspectorLayerName: null,
       }
@@ -90,7 +120,7 @@ export const uiReducer: DomainReducer = (state: CoreState, action: Action) => {
         ...state,
         inspectorAsset: action.asset,
         inspectorLayerName: null,
-        selection: { ...state.selection, entityId: null },
+        selection: { ...state.selection, entityId: null, entityIds: [] },
       }
     case 'SELECT_INSPECTOR_LAYER': {
       const layerName = action.layerName
@@ -103,7 +133,7 @@ export const uiReducer: DomainReducer = (state: CoreState, action: Action) => {
         inspectorLayerName: layerName,
         editorActiveLayer: layerName ?? state.editorActiveLayer,
         inspectorAsset: null,
-        selection: { ...state.selection, entityId: null },
+        selection: { ...state.selection, entityId: null, entityIds: [] },
         lastPaintTilesetByLayer: lastMap,
         ...(restored && state.tilePaletteOpen ? { activePaintTilesetId: restored } : {}),
       }

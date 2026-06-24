@@ -217,7 +217,7 @@ export const objectTypeReducer: DomainReducer = (state: CoreState, action: Actio
             },
           },
         },
-        selection: { ...state.selection, entityId: id },
+        selection: { ...state.selection, entityId: id, entityIds: [id] },
         projectDirty: true,
       }
     }
@@ -268,7 +268,7 @@ export const objectTypeReducer: DomainReducer = (state: CoreState, action: Actio
             },
           },
         },
-        selection: { ...state.selection, entityId: id },
+        selection: { ...state.selection, entityId: id, entityIds: [id] },
         projectDirty: true,
       }
     }
@@ -348,7 +348,7 @@ export const objectTypeReducer: DomainReducer = (state: CoreState, action: Actio
             },
           },
         },
-        selection: { ...state.selection, entityId: id },
+        selection: { ...state.selection, entityId: id, entityIds: [id] },
         projectDirty: true,
       }
     }

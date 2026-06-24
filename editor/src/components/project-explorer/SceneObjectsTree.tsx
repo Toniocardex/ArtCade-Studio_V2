@@ -19,6 +19,7 @@ export type SceneObjectsTreeProps = Readonly<{
   isOpen: (key: ExplorerExpandKey, defaultOpen?: boolean) => boolean
   toggle: (key: ExplorerExpandKey, defaultOpen?: boolean) => void
   setContextMenu: Dispatch<SetStateAction<ExplorerContextMenuState | null>>
+  selectedEntityIds?: readonly number[]
 }>
 
 /**
@@ -30,6 +31,7 @@ export function SceneObjectsTree({
   hasSearch,
   scene,
   selectedEntityId,
+  selectedEntityIds = selectedEntityId != null ? [selectedEntityId] : [],
   isOpen,
   toggle,
   setContextMenu,
@@ -78,7 +80,7 @@ export function SceneObjectsTree({
                 key={row.entityId}
                 row={row}
                 scene={scene}
-                selected={selectedEntityId === row.entityId}
+                selected={selectedEntityIds.includes(row.entityId)}
                 setContextMenu={setContextMenu}
               />
             ))}
@@ -108,7 +110,7 @@ function SceneInstanceLeaf({
       depth={2}
       selected={selected}
       muted={!row.visible}
-      onClick={() => scene.selectEntity(row.entityId)}
+      onClick={(ev) => scene.selectEntity(row.entityId, ev.ctrlKey || ev.metaKey)}
       onContextMenu={(ev) =>
         openExplorerContextMenu(
           ev,

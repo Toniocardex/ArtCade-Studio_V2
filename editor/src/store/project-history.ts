@@ -120,7 +120,7 @@ function reconcileSelection(
   if (sceneId && !project.scenes[sceneId]) {
     sceneId = project.activeSceneId || Object.keys(project.scenes)[0] || null
   }
-  return { entityId, sceneId }
+  return { entityId, entityIds: entityId != null ? [entityId] : [], sceneId }
 }
 
 export function restoreProject(
