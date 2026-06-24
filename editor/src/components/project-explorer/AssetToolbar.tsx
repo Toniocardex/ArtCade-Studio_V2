@@ -9,7 +9,7 @@ import {
   Trash2,
   Type,
 } from 'lucide-react'
-import { HelpTooltip } from '../../panels/inspector/inspector-fields'
+import { ExplorerRowAction } from './explorer-cta'
 
 export type AssetToolbarProps = Readonly<{
   disabled: boolean
@@ -24,39 +24,34 @@ export type AssetToolbarProps = Readonly<{
   onRemove: () => void
 }>
 
-function IconBtn({
-  icon,
+function ToolbarAction({
+  title,
   onClick,
   disabled,
-  title,
-  accent = false,
-  danger = false,
+  tone = 'default',
+  children,
 }: Readonly<{
-  icon: ReactNode
+  title: string
   onClick: () => void
   disabled?: boolean
-  title: string
-  accent?: boolean
-  danger?: boolean
+  tone?: 'default' | 'accent' | 'danger'
+  children: ReactNode
 }>) {
-  let tone = 'text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--panel-2)]'
-  if (accent) tone = 'text-[var(--accent)] hover:bg-[var(--accent-bg)]'
-  if (danger) tone = 'text-[var(--danger)] hover:bg-[var(--panel-2)]'
   return (
-    <button
-      type="button"
-      // Call with no args: several handlers take an optional target/folder
-      // parameter, and leaking the click event in as that argument breaks the
-      // import (e.g. image usage becomes undefined and the asset vanishes).
-      onClick={() => onClick()}
-      disabled={disabled}
+    <ExplorerRowAction
       title={title}
-      aria-label={title}
-      className={`flex items-center justify-center w-7 h-7 rounded border border-transparent
-                 hover:border-[var(--border)] disabled:opacity-40 transition-colors ${tone}`}
+      disabled={disabled}
+      tone={tone}
+      onClick={(ev) => {
+        ev.stopPropagation()
+        // Call with no args: several handlers take an optional target/folder
+        // parameter, and leaking the click event in as that argument breaks the
+        // import (e.g. image usage becomes undefined and the asset vanishes).
+        onClick()
+      }}
     >
-      {icon}
-    </button>
+      {children}
+    </ExplorerRowAction>
   )
 }
 
@@ -79,65 +74,63 @@ export function AssetToolbar({
 }: AssetToolbarProps) {
   return (
     <div className="flex items-center gap-0.5 px-2 py-1 border-b border-[var(--border)] bg-[var(--panel-3)]">
-      <IconBtn
-        icon={
-          allAssetFoldersExpanded ? <ChevronsDownUp size={14} /> : <ChevronsUpDown size={14} />
-        }
+      <ToolbarAction
         onClick={onToggleAssetFoldersExpand}
         title={
           allAssetFoldersExpanded
             ? 'Collapse all asset folders'
             : 'Expand all asset folders'
         }
-      />
+      >
+        {allAssetFoldersExpanded ? <ChevronsDownUp size={14} /> : <ChevronsUpDown size={14} />}
+      </ToolbarAction>
       <Divider />
-      <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--muted)] px-1 select-none">
-        Import
-      </span>
-      <HelpTooltip
-        placement="right"
-        text="Drag image files onto a folder to import them, or use these buttons (animated sprite, image, tileset, audio, font). Double-click a sprite to open it in Sprite Studio."
-      />
-      <IconBtn
-        icon={<Film size={14} />}
+      <ToolbarAction
         onClick={onCreateAnimatedSprite}
         disabled={disabled}
         title="Create animated sprite"
-        accent
-      />
-      <IconBtn
-        icon={<ImagePlus size={14} />}
+        tone="accent"
+      >
+        <Film size={14} />
+      </ToolbarAction>
+      <ToolbarAction
         onClick={onImportImage}
         disabled={disabled}
         title="Import image (PNG, JPEG, GIF)"
-      />
-      <IconBtn
-        icon={<Grid3x3 size={14} />}
+      >
+        <ImagePlus size={14} />
+      </ToolbarAction>
+      <ToolbarAction
         onClick={onImportTileset}
         disabled={disabled}
         title="Import tileset (PNG, JPEG, GIF)"
-      />
-      <IconBtn
-        icon={<Music size={14} />}
+      >
+        <Grid3x3 size={14} />
+      </ToolbarAction>
+      <ToolbarAction
         onClick={onImportAudio}
         disabled={disabled}
         title="Import audio (OGG, WAV, MP3)"
-      />
-      <IconBtn
-        icon={<Type size={14} />}
+      >
+        <Music size={14} />
+      </ToolbarAction>
+      <ToolbarAction
         onClick={onImportFont}
         disabled={disabled}
         title="Import font (TTF, OTF)"
-      />
+      >
+        <Type size={14} />
+      </ToolbarAction>
       {canRemove ? (
         <>
           <div className="flex-1" />
-          <IconBtn
-            icon={<Trash2 size={14} />}
+          <ToolbarAction
             onClick={onRemove}
             title="Remove selected asset (Delete)"
-            danger
-          />
+            tone="danger"
+          >
+            <Trash2 size={14} />
+          </ToolbarAction>
         </>
       ) : null}
     </div>

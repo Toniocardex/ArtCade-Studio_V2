@@ -28,6 +28,7 @@ export type VirtualFolderLeafRow = Readonly<{
   title?: string
   extraMenuItems?: readonly ExplorerContextMenuItem[]
   spritesheetStudioTrigger?: boolean
+  actions?: ReactNode
 }>
 
 type VirtualFoldersBlockProps = Readonly<{
@@ -129,6 +130,7 @@ export function VirtualFoldersBlock({
                 title={row.title}
                 icon={row.icon}
                 spritesheetStudioTrigger={row.spritesheetStudioTrigger}
+                actions={row.actions}
               />
             )
           })}

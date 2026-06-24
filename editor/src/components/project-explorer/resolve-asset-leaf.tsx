@@ -1,4 +1,4 @@
-import { Music, Type } from 'lucide-react'
+import { Film, Music, Pencil, Trash2, Type } from 'lucide-react'
 import type { ProjectDoc } from '../../types'
 import type { useEditorDispatch } from '../../store/editor-store'
 import type { buildProjectExplorerData } from '../../utils/project-explorer-tree'
@@ -13,6 +13,7 @@ import { explorerAssetDragProps } from './explorer-asset-drag'
 import { ImageTreeThumbnail } from '../asset-explorer/ImageTreeThumbnail'
 import { TilesetTreeThumbnail } from '../asset-explorer/TilesetTreeThumbnail'
 import type { VirtualFolderLeafRow } from './VirtualFoldersBlock'
+import { ExplorerRowAction } from './explorer-cta'
 
 type AssetFolder = ReturnType<typeof buildProjectExplorerData>['assetFolders'][number]
 
@@ -94,6 +95,30 @@ export function resolveAssetLeaf(
             },
           ]
         : [],
+      actions: asset ? (
+        <>
+          <ExplorerRowAction
+            title="Open in Sprite Studio"
+            tone={assetMulti.isSelected('image', imgRow.id) ? 'onSelected' : 'default'}
+            onClick={(ev) => {
+              ev.stopPropagation()
+              assets.openImageStudio(imgRow.id)
+            }}
+          >
+            <Film size={12} />
+          </ExplorerRowAction>
+          <ExplorerRowAction
+            title="Remove image"
+            tone={assetMulti.isSelected('image', imgRow.id) ? 'onSelected' : 'danger'}
+            onClick={(ev) => {
+              ev.stopPropagation()
+              void assets.removeAsset({ type: 'image', id: imgRow.id })
+            }}
+          >
+            <Trash2 size={12} />
+          </ExplorerRowAction>
+        </>
+      ) : undefined,
     }
   }
   if (type === 'audio') {
@@ -124,6 +149,18 @@ export function resolveAssetLeaf(
           onSelect: () => void assets.removeAsset({ type: 'audio', id: row.id }),
         },
       ],
+      actions: (
+        <ExplorerRowAction
+          title="Remove audio"
+          tone={assetMulti.isSelected('audio', row.id) ? 'onSelected' : 'danger'}
+          onClick={(ev) => {
+            ev.stopPropagation()
+            void assets.removeAsset({ type: 'audio', id: row.id })
+          }}
+        >
+          <Trash2 size={12} />
+        </ExplorerRowAction>
+      ),
     }
   }
   if (type === 'font') {
@@ -152,6 +189,18 @@ export function resolveAssetLeaf(
           onSelect: () => void assets.removeAsset({ type: 'font', id: row.id }),
         },
       ],
+      actions: (
+        <ExplorerRowAction
+          title="Remove font"
+          tone={assetMulti.isSelected('font', row.id) ? 'onSelected' : 'danger'}
+          onClick={(ev) => {
+            ev.stopPropagation()
+            void assets.removeAsset({ type: 'font', id: row.id })
+          }}
+        >
+          <Trash2 size={12} />
+        </ExplorerRowAction>
+      ),
     }
   }
   const row = folder.tilesets.find((t) => t.assetId === id)
@@ -195,5 +244,29 @@ export function resolveAssetLeaf(
         onSelect: () => void assets.removeAsset({ type: 'tileset', id: row.assetId }),
       },
     ],
+    actions: (
+      <>
+        <ExplorerRowAction
+          title="Open Tileset Editor"
+          tone={assetMulti.isSelected('tileset', row.assetId) ? 'onSelected' : 'default'}
+          onClick={(ev) => {
+            ev.stopPropagation()
+            assets.openTilesetEditor(row.assetId)
+          }}
+        >
+          <Pencil size={12} />
+        </ExplorerRowAction>
+        <ExplorerRowAction
+          title="Remove tileset"
+          tone={assetMulti.isSelected('tileset', row.assetId) ? 'onSelected' : 'danger'}
+          onClick={(ev) => {
+            ev.stopPropagation()
+            void assets.removeAsset({ type: 'tileset', id: row.assetId })
+          }}
+        >
+          <Trash2 size={12} />
+        </ExplorerRowAction>
+      </>
+    ),
   }
 }

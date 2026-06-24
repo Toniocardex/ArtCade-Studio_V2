@@ -85,6 +85,21 @@ export type TreeLeafProps = Readonly<{
   spritesheetStudioTrigger?: boolean
 }>
 
+export type ExplorerRowProps = Readonly<{
+  depth?: number
+  icon?: ReactNode
+  label: string
+  selected?: boolean
+  muted?: boolean
+  trailing?: ReactNode
+  actions?: ReactNode
+  onClick: (ev: MouseEvent) => void
+  onDoubleClick?: () => void
+  onContextMenu?: (ev: React.MouseEvent) => void
+  title?: string
+  spritesheetStudioTrigger?: boolean
+}>
+
 const leafRowClass = (selected: boolean, muted: boolean) =>
   selected
     ? editorRowSelected
@@ -101,6 +116,72 @@ function leafActivateFromKey(e: KeyboardEvent, onClick: (ev: MouseEvent) => void
     e.preventDefault()
     onClick(e as unknown as MouseEvent)
   }
+}
+
+function TreeLeafActionRail({
+  selected,
+  children,
+}: Readonly<{ selected: boolean; children: ReactNode }>) {
+  return (
+    <div
+      className={`flex items-center gap-0.5 pr-1 flex-shrink-0 transition-opacity ${
+        selected
+          ? 'opacity-100'
+          : 'opacity-0 group-hover/explorer-row:opacity-100 group-focus-within/explorer-row:opacity-100'
+      }`}
+    >
+      {children}
+    </div>
+  )
+}
+
+export function ExplorerRow({
+  label,
+  depth = 0,
+  selected = false,
+  muted = false,
+  icon,
+  trailing,
+  actions,
+  onClick,
+  onDoubleClick,
+  onContextMenu,
+  title,
+  spritesheetStudioTrigger = false,
+}: ExplorerRowProps) {
+  const pad = 12 + depth * 12
+  const studioTrigger = spritesheetStudioTrigger ? spritesheetStudioTriggerProps : undefined
+  const rowClass = `rounded text-xs transition-colors ${leafRowClass(selected, muted)}`
+  const onKeyDown = (e: KeyboardEvent) => leafActivateFromKey(e, onClick)
+  const row = (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onDoubleClick={onDoubleClick}
+      onContextMenu={onContextMenu}
+      onKeyDown={onKeyDown}
+      title={title}
+      {...studioTrigger}
+      className={`w-full flex items-center gap-1.5 py-1 pr-2 text-left ${rowClass}`}
+      style={{ paddingLeft: pad }}
+    >
+      <span className="flex-shrink-0" aria-hidden>
+        {icon}
+      </span>
+      <span className="truncate flex-1 min-w-0">{label}</span>
+      {trailing}
+    </div>
+  )
+
+  if (!actions) return row
+
+  return (
+    <div className="group/explorer-row flex items-center gap-0.5 w-full min-w-0">
+      <div className="flex flex-1 min-w-0">{row}</div>
+      <TreeLeafActionRail selected={selected}>{actions}</TreeLeafActionRail>
+    </div>
+  )
 }
 
 /**
@@ -211,9 +292,9 @@ export function TreeLeaf({
 
     if (actions) {
       return (
-        <div className="group flex items-center gap-0.5 w-full min-w-0">
+        <div className="group/explorer-row flex items-center gap-0.5 w-full min-w-0">
           <div className="flex flex-1 min-w-0">{dragLeaf}</div>
-          <div className="flex items-center gap-0.5 pr-1 flex-shrink-0">{actions}</div>
+          <TreeLeafActionRail selected={selected}>{actions}</TreeLeafActionRail>
         </div>
       )
     }
@@ -222,23 +303,19 @@ export function TreeLeaf({
   }
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
+    <ExplorerRow
+      label={label}
+      depth={depth}
+      selected={selected}
+      muted={muted}
+      icon={icon}
+      trailing={trailing}
+      actions={actions}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}
-      onKeyDown={onKeyDown}
       title={title}
-      {...studioTrigger}
-      className={`w-full flex items-center gap-1.5 py-1 pr-2 text-left ${rowClass}`}
-      style={{ paddingLeft: pad }}
-    >
-      <span className="flex-shrink-0" aria-hidden>
-        {icon}
-      </span>
-      <span className="truncate flex-1 min-w-0">{label}</span>
-      {trailing}
-    </div>
+      spritesheetStudioTrigger={spritesheetStudioTrigger}
+    />
   )
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { openDialogEditorForId } from '../../panels/dialog/dialog-modal-api'
+import { openDialogEditorForId, openDialogLibraryModal } from '../../panels/dialog/dialog-modal-api'
 import { useEditorDispatch, useEditorSelector, useEditorStore } from '../../store/editor-store'
 import { assetFolderItemCount, buildProjectExplorerData } from '../../utils/project-explorer-tree'
 import { useExplorerExpanded } from '../../hooks/useExplorerExpanded'
@@ -161,6 +161,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
             dialogs={dialogs}
             open={isOpen('dialogs')}
             onToggle={() => toggle('dialogs')}
+            onOpenLibrary={() => openDialogLibraryModal(dispatch)}
             onOpenDialog={(dialogId) =>
               openDialogEditorForId(dispatch, store.getState().dialogs, dialogId)}
           />

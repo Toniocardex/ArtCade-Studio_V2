@@ -1,9 +1,11 @@
-import { useLayoutEffect, useState, useRef } from 'react'
-import { ChevronUp, ChevronDown, Eye, EyeOff, Lock, Plus, Trash2, Unlock } from 'lucide-react'
+import { useLayoutEffect, useRef, useState } from 'react'
+import { ChevronDown, ChevronUp, Eye, EyeOff, Lock, Plus, Trash2, Unlock } from 'lucide-react'
 import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import { DEFAULT_LAYERS, layerLocked, layerVisible, sceneLayerSettings } from '../../constants/scene-layers'
 import { editorRowSelected } from '../ui/editor-ui-classes'
 import { handleControlledInputKeyDown } from '../../utils/keyboard'
+import { ExplorerRowAction } from './explorer-cta'
+import { ExplorerEmptyState } from './ExplorerEmptyState'
 
 export function SceneLayersPanel() {
   const dispatch = useEditorDispatch()
@@ -42,150 +44,176 @@ export function SceneLayersPanel() {
   }
 
   return (
-    <div className="h-full flex flex-col text-[10px] overflow-hidden">
-
-      {/* CTA — sempre in alto, come gli altri moduli */}
-      <div className="flex items-center gap-1 px-2 py-1.5 border-b border-[var(--outline-faint)] shrink-0">
+    <div className="h-full flex flex-col text-[10px] overflow-hidden bg-[var(--panel)]">
+      <div className="flex items-center gap-1 px-2 py-1.5 border-b border-[var(--border)] bg-[var(--panel-2)] shrink-0">
         <input
           ref={addInputRef}
-          className="flex-1 min-w-0 bg-[var(--surface-3)] border border-[var(--outline)] text-[var(--text)] placeholder:text-[var(--muted)] px-2 py-1 rounded text-[10px]"
-          placeholder="New layer name…"
+          className="flex-1 min-w-0 bg-[var(--bg)] border border-[var(--border-2)] text-[var(--text)] placeholder:text-[var(--muted)] px-2 py-1 rounded text-[10px] focus:outline-none focus:border-[var(--accent)]"
+          placeholder="New layer name..."
           value={addingName}
           onChange={(e) => setAddingName(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') { e.preventDefault(); handleAdd() }
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              handleAdd()
+            }
             handleControlledInputKeyDown(e, setAddingName)
           }}
         />
-        <button
-          type="button"
+        <ExplorerRowAction
           title="Add layer (Enter)"
           disabled={!addingName.trim()}
-          onClick={handleAdd}
-          className="shrink-0 p-1 rounded border border-[var(--outline)] bg-[var(--surface-2)] text-[var(--primary-soft)] hover:text-[var(--primary)] hover:border-[var(--outline-strong)] disabled:opacity-40"
+          tone="accent"
+          onClick={(ev) => {
+            ev.stopPropagation()
+            handleAdd()
+          }}
         >
-          <Plus size={12} />
-        </button>
+          <Plus size={13} />
+        </ExplorerRowAction>
       </div>
 
-      {/* Table */}
-      <div className="flex-1 overflow-auto">
-        <table className="w-full border-collapse">
-          <thead>
-            <tr className="text-[var(--muted)] uppercase tracking-wide text-[8px]">
-              <th className="text-left py-1 pl-2">Layer</th>
-              <th className="text-right py-1 pr-1 w-12">Order</th>
-              <th className="w-28" />
-            </tr>
-          </thead>
-          <tbody>
-            {layers.map((layer, idx) => {
-              const active = selectedLayerId === layer.id
-              const renderOrder = layers.length - idx
-              const isRenaming = renamingId === layer.id
-              const visible = layerVisible(sceneLayerSettings(scene, layer.id))
-              const locked = layerLocked(layer)
+      <div className="flex-1 overflow-auto px-1 py-1">
+        {layers.length === 0 ? (
+          <ExplorerEmptyState title="No layers" detail="Add a layer to organize scene rendering." />
+        ) : (
+          layers.map((layer, idx) => {
+            const active = selectedLayerId === layer.id
+            const renderOrder = layers.length - idx
+            const isRenaming = renamingId === layer.id
+            const visible = layerVisible(sceneLayerSettings(scene, layer.id))
+            const locked = layerLocked(layer)
+            const actionTone = active ? 'onSelected' : 'default'
 
-              return (
-                <tr
-                  key={layer.id}
-                  className={`border-t border-[var(--outline-faint)] group ${
-                    active ? editorRowSelected : 'hover:bg-[var(--surface-hover)] text-[var(--primary)]'
+            return (
+              <div
+                key={layer.id}
+                className={`group/explorer-row flex items-center gap-1 rounded py-1 pl-2 pr-1 ${
+                  active ? editorRowSelected : 'text-[var(--text)] hover:bg-[var(--surface-hover)]'
+                }`}
+              >
+                <div
+                  role={isRenaming ? undefined : 'button'}
+                  tabIndex={isRenaming ? undefined : 0}
+                  className="flex min-w-0 flex-1 items-center gap-1 text-left"
+                  onClick={() => {
+                    if (isRenaming) return
+                    const selecting = !active
+                    dispatch({ type: 'SELECT_INSPECTOR_LAYER', layerId: selecting ? layer.id : null })
+                    if (selecting) dispatch({ type: 'SET_EDITOR_ACTIVE_LAYER', layerId: layer.id })
+                  }}
+                  onDoubleClick={() => startRename(layer.id, layer.name)}
+                  onKeyDown={(e) => {
+                    if (isRenaming || (e.key !== 'Enter' && e.key !== ' ')) return
+                    e.preventDefault()
+                    const selecting = !active
+                    dispatch({ type: 'SELECT_INSPECTOR_LAYER', layerId: selecting ? layer.id : null })
+                    if (selecting) dispatch({ type: 'SET_EDITOR_ACTIVE_LAYER', layerId: layer.id })
+                  }}
+                >
+                  {isRenaming ? (
+                    <input
+                      ref={renameInputRef}
+                      className="w-full bg-[var(--surface-3)] border border-[var(--outline)] text-[var(--text)] px-1 py-0.5 rounded text-[10px]"
+                      value={renameValue}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      onBlur={commitRename}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          commitRename()
+                        }
+                        if (e.key === 'Escape') {
+                          e.preventDefault()
+                          setRenamingId(null)
+                        }
+                        handleControlledInputKeyDown(e, setRenameValue)
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  ) : (
+                    <span className="truncate">{layer.name}</span>
+                  )}
+                  <span className="ml-auto shrink-0 rounded border border-[var(--border)] px-1 py-0.5 font-mono text-[8px] text-[var(--muted)]">
+                    {renderOrder}
+                  </span>
+                </div>
+                <div
+                  className={`flex shrink-0 items-center gap-0.5 transition-opacity ${
+                    active
+                      ? 'opacity-100'
+                      : 'opacity-0 group-hover/explorer-row:opacity-100 group-focus-within/explorer-row:opacity-100'
                   }`}
                 >
-                  <td
-                    className="py-1.5 pl-2 cursor-pointer"
-                    onClick={() => {
-                      if (isRenaming) return
-                      const selecting = !active
-                      dispatch({ type: 'SELECT_INSPECTOR_LAYER', layerId: selecting ? layer.id : null })
-                      if (selecting) dispatch({ type: 'SET_EDITOR_ACTIVE_LAYER', layerId: layer.id })
+                  <ExplorerRowAction
+                    disabled={!sceneId}
+                    title={visible ? `Hide "${layer.name}"` : `Show "${layer.name}"`}
+                    tone={actionTone}
+                    onClick={(ev) => {
+                      ev.stopPropagation()
+                      if (!sceneId) return
+                      dispatch({
+                        type: 'SCENE_LAYER_SETTINGS_UPDATE',
+                        sceneId,
+                        layerId: layer.id,
+                        patch: { visible: !visible },
+                      })
                     }}
-                    onDoubleClick={() => startRename(layer.id, layer.name)}
                   >
-                    {isRenaming ? (
-                      <input
-                        ref={renameInputRef}
-                        className="w-full bg-[var(--surface-3)] border border-[var(--outline)] text-[var(--text)] px-1 py-0.5 rounded text-[10px]"
-                        value={renameValue}
-                        onChange={(e) => setRenameValue(e.target.value)}
-                        onBlur={commitRename}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') { e.preventDefault(); commitRename() }
-                          if (e.key === 'Escape') { e.preventDefault(); setRenamingId(null) }
-                          handleControlledInputKeyDown(e, setRenameValue)
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    ) : (
-                      layer.name
-                    )}
-                  </td>
-                  <td className="py-1.5 text-right font-mono pr-1 text-[var(--muted)]">
-                    {renderOrder}
-                  </td>
-                  <td className="py-1 pr-1">
-                    <span className="flex items-center justify-end gap-0.5">
-                      <button
-                        type="button"
-                        disabled={!sceneId}
-                        title={visible ? `Hide "${layer.name}"` : `Show "${layer.name}"`}
-                        onClick={() => sceneId && dispatch({
-                          type: 'SCENE_LAYER_SETTINGS_UPDATE',
-                          sceneId,
-                          layerId: layer.id,
-                          patch: { visible: !visible },
-                        })}
-                        className="p-0.5 rounded hover:bg-[var(--surface-3)] text-[var(--primary-soft)] hover:text-[var(--primary)] disabled:opacity-20"
-                      >
-                        {visible ? <Eye size={13} /> : <EyeOff size={13} />}
-                      </button>
-                      <button
-                        type="button"
-                        title={locked ? `Unlock "${layer.name}"` : `Lock "${layer.name}"`}
-                        onClick={() => dispatch({
-                          type: 'LAYER_SET_LOCKED',
-                          layerId: layer.id,
-                          locked: !locked,
-                        })}
-                        className="p-0.5 rounded hover:bg-[var(--surface-3)] text-[var(--primary-soft)] hover:text-[var(--primary)]"
-                      >
-                        {locked ? <Lock size={13} /> : <Unlock size={13} />}
-                      </button>
-                      <button
-                        type="button"
-                        title="Move up (higher priority)"
-                        disabled={idx === 0}
-                        onClick={() => dispatch({ type: 'LAYER_MOVE', layerId: layer.id, direction: 'up' })}
-                        className="p-0.5 rounded hover:bg-[var(--surface-3)] text-[var(--primary-soft)] hover:text-[var(--primary)] disabled:opacity-20"
-                      >
-                        <ChevronUp size={13} />
-                      </button>
-                      <button
-                        type="button"
-                        title="Move down (lower priority)"
-                        disabled={idx === layers.length - 1}
-                        onClick={() => dispatch({ type: 'LAYER_MOVE', layerId: layer.id, direction: 'down' })}
-                        className="p-0.5 rounded hover:bg-[var(--surface-3)] text-[var(--primary-soft)] hover:text-[var(--primary)] disabled:opacity-20"
-                      >
-                        <ChevronDown size={13} />
-                      </button>
-                      <button
-                        type="button"
-                        title={layers.length <= 1 ? 'Cannot delete the last layer' : `Delete "${layer.name}"`}
-                        disabled={layers.length <= 1}
-                        onClick={() => dispatch({ type: 'LAYER_DELETE', layerId: layer.id })}
-                        className="p-0.5 rounded hover:bg-[var(--surface-3)] text-[var(--muted)] hover:text-[var(--danger)] disabled:opacity-20"
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                    </span>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+                    {visible ? <Eye size={13} /> : <EyeOff size={13} />}
+                  </ExplorerRowAction>
+                  <ExplorerRowAction
+                    title={locked ? `Unlock "${layer.name}"` : `Lock "${layer.name}"`}
+                    tone={actionTone}
+                    onClick={(ev) => {
+                      ev.stopPropagation()
+                      dispatch({
+                        type: 'LAYER_SET_LOCKED',
+                        layerId: layer.id,
+                        locked: !locked,
+                      })
+                    }}
+                  >
+                    {locked ? <Lock size={13} /> : <Unlock size={13} />}
+                  </ExplorerRowAction>
+                  <ExplorerRowAction
+                    title="Move up (higher priority)"
+                    disabled={idx === 0}
+                    tone={actionTone}
+                    onClick={(ev) => {
+                      ev.stopPropagation()
+                      dispatch({ type: 'LAYER_MOVE', layerId: layer.id, direction: 'up' })
+                    }}
+                  >
+                    <ChevronUp size={13} />
+                  </ExplorerRowAction>
+                  <ExplorerRowAction
+                    title="Move down (lower priority)"
+                    disabled={idx === layers.length - 1}
+                    tone={actionTone}
+                    onClick={(ev) => {
+                      ev.stopPropagation()
+                      dispatch({ type: 'LAYER_MOVE', layerId: layer.id, direction: 'down' })
+                    }}
+                  >
+                    <ChevronDown size={13} />
+                  </ExplorerRowAction>
+                  <ExplorerRowAction
+                    title={layers.length <= 1 ? 'Cannot delete the last layer' : `Delete "${layer.name}"`}
+                    disabled={layers.length <= 1}
+                    tone={active ? 'onSelected' : 'danger'}
+                    onClick={(ev) => {
+                      ev.stopPropagation()
+                      dispatch({ type: 'LAYER_DELETE', layerId: layer.id })
+                    }}
+                  >
+                    <Trash2 size={12} />
+                  </ExplorerRowAction>
+                </div>
+              </div>
+            )
+          })
+        )}
         <p className="px-2 pt-2 pb-1 text-[9px] text-[var(--muted)] leading-relaxed">
           Top row = highest render priority. Double-click a name to rename.
         </p>

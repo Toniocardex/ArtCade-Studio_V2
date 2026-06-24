@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from 'react'
-import { FileText, Music, Type } from 'lucide-react'
+import { FileText, Music, Pencil, Trash2, Type } from 'lucide-react'
 import type { ProjectDoc } from '../../types'
 import type { useEditorDispatch } from '../../store/editor-store'
 import type { buildProjectExplorerData } from '../../utils/project-explorer-tree'
@@ -9,6 +9,7 @@ import { buildAssetFolderMenuItems } from './asset-folder-context-menus'
 import { explorerAssetDragProps } from './explorer-asset-drag'
 import { assetHiddenByVirtualFolder } from './VirtualFoldersBlock'
 import { TreeLeaf } from './TreeNode'
+import { ExplorerRowAction } from './explorer-cta'
 import { TilesetTreeThumbnail } from '../asset-explorer/TilesetTreeThumbnail'
 import {
   openExplorerContextMenu,
@@ -86,6 +87,18 @@ export function AssetFolderLeaves({
           }
           icon={<Music size={11} className="flex-shrink-0 text-[var(--muted)]" />}
           title={a.path}
+          actions={
+            <ExplorerRowAction
+              title="Remove audio"
+              tone={assetMulti.isSelected('audio', a.id) ? 'onSelected' : 'danger'}
+              onClick={(ev) => {
+                ev.stopPropagation()
+                void assets.removeAsset({ type: 'audio', id: a.id })
+              }}
+            >
+              <Trash2 size={12} />
+            </ExplorerRowAction>
+          }
         />
       ))}
       {folder.fonts
@@ -130,6 +143,18 @@ export function AssetFolderLeaves({
           }
           icon={<Type size={11} className="flex-shrink-0 text-[var(--warn)]" />}
           title={f.path}
+          actions={
+            <ExplorerRowAction
+              title="Remove font"
+              tone={assetMulti.isSelected('font', f.id) ? 'onSelected' : 'danger'}
+              onClick={(ev) => {
+                ev.stopPropagation()
+                void assets.removeAsset({ type: 'font', id: f.id })
+              }}
+            >
+              <Trash2 size={12} />
+            </ExplorerRowAction>
+          }
         />
       ))}
       {folder.scripts.map((s) => (
@@ -153,6 +178,17 @@ export function AssetFolderLeaves({
           }
           icon={<FileText size={11} className="flex-shrink-0 text-[var(--muted)]" />}
           title={s.path}
+          actions={
+            <ExplorerRowAction
+              title="Open in script editor"
+              onClick={(ev) => {
+                ev.stopPropagation()
+                assets.openScript(s.path)
+              }}
+            >
+              <FileText size={12} />
+            </ExplorerRowAction>
+          }
         />
       ))}
       {folder.tilesets
@@ -218,6 +254,30 @@ export function AssetFolderLeaves({
             />
           }
           title="Click to open Tileset Editor"
+          actions={
+            <>
+              <ExplorerRowAction
+                title="Open Tileset Editor"
+                tone={assetMulti.isSelected('tileset', t.assetId) ? 'onSelected' : 'default'}
+                onClick={(ev) => {
+                  ev.stopPropagation()
+                  assets.openTilesetEditor(t.assetId)
+                }}
+              >
+                <Pencil size={12} />
+              </ExplorerRowAction>
+              <ExplorerRowAction
+                title="Remove tileset"
+                tone={assetMulti.isSelected('tileset', t.assetId) ? 'onSelected' : 'danger'}
+                onClick={(ev) => {
+                  ev.stopPropagation()
+                  void assets.removeAsset({ type: 'tileset', id: t.assetId })
+                }}
+              >
+                <Trash2 size={12} />
+              </ExplorerRowAction>
+            </>
+          }
         />
       ))}
     </>

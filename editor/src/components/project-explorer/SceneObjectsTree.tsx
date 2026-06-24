@@ -4,7 +4,7 @@ import type { ExplorerTypeGroup } from '../../utils/project-explorer-tree'
 import type { ExplorerExpandKey } from '../../hooks/useExplorerExpanded'
 import type { useSceneExplorerActions } from '../../hooks/useSceneExplorerActions'
 import { TreeFolder, TreeLeaf } from './TreeNode'
-import { ExplorerLeafActionBtn } from './explorer-cta'
+import { ExplorerRowAction } from './explorer-cta'
 import {
   openExplorerContextMenu,
   type ExplorerContextMenuState,
@@ -166,46 +166,48 @@ function SceneInstanceLeaf({
         ) : null
       }
       actions={
-        selected ? (
-          <>
-            <ExplorerLeafActionBtn
+        <>
+            <ExplorerRowAction
               title="Edit logic"
+              tone={selected ? 'onSelected' : 'default'}
               onClick={(ev) => {
                 ev.stopPropagation()
                 scene.openEntityLogic(row.entityId)
               }}
             >
               <Workflow size={13} />
-            </ExplorerLeafActionBtn>
-            <ExplorerLeafActionBtn
+            </ExplorerRowAction>
+            <ExplorerRowAction
               title={row.visible ? 'Hide in game' : 'Show in game'}
+              tone={selected ? 'onSelected' : 'default'}
               onClick={(ev) => {
                 ev.stopPropagation()
                 scene.toggleEntityVisible(row.entityId, row.visible)
               }}
             >
               {row.visible ? <Eye size={13} /> : <EyeOff size={13} />}
-            </ExplorerLeafActionBtn>
-            <ExplorerLeafActionBtn
+            </ExplorerRowAction>
+            <ExplorerRowAction
               title="Duplicate"
+              tone={selected ? 'onSelected' : 'default'}
               onClick={(ev) => {
                 ev.stopPropagation()
                 scene.duplicateEntity(row.entityId)
               }}
             >
               <Copy size={13} />
-            </ExplorerLeafActionBtn>
-            <ExplorerLeafActionBtn
+            </ExplorerRowAction>
+            <ExplorerRowAction
               title="Delete"
+              tone={selected ? 'onSelected' : 'danger'}
               onClick={(ev) => {
                 ev.stopPropagation()
                 scene.deleteEntity(row.entityId)
               }}
             >
               <Trash2 size={13} />
-            </ExplorerLeafActionBtn>
+            </ExplorerRowAction>
           </>
-        ) : undefined
       }
     />
   )

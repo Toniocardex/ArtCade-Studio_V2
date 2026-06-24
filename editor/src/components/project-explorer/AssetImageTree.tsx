@@ -11,6 +11,7 @@ import { virtualFolderContainingAsset } from '../../utils/asset-virtual-folders'
 import { explorerAssetDragProps } from './explorer-asset-drag'
 import { imageUsageFolderId, virtualAssetFolderId } from './asset-tree-dnd'
 import { TreeFolder, TreeLeaf } from './TreeNode'
+import { ExplorerRowAction } from './explorer-cta'
 import { ImageTreeThumbnail } from '../asset-explorer/ImageTreeThumbnail'
 import {
   openExplorerContextMenu,
@@ -88,18 +89,16 @@ export function AssetImageTree({
               }
               actions={
                 asset && isSprite ? (
-                  <button
-                    type="button"
+                  <ExplorerRowAction
                     title="Open in Sprite Studio"
-                    aria-label="Open in Sprite Studio"
+                    tone={assetMulti.isSelected('image', img.id) ? 'onSelected' : 'default'}
                     onClick={(e) => {
                       e.stopPropagation()
                       assets.openImageStudio(img.id)
                     }}
-                    className="flex items-center justify-center w-5 h-5 rounded text-[var(--muted)] opacity-0 transition-opacity hover:text-[var(--accent)] hover:bg-[var(--surface-hover)] group-hover:opacity-100 focus:opacity-100"
                   >
                     <Film size={12} />
-                  </button>
+                  </ExplorerRowAction>
                 ) : undefined
               }
               onContextMenu={(ev) => {
