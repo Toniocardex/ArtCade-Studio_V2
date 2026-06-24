@@ -71,8 +71,8 @@ export function inspectorChromeForMode(
       const scene = sceneId && project ? project.scenes[sceneId] : undefined
       return {
         mode: 'scene',
-        title: 'Scene Settings',
-        subtitle: scene?.name ?? 'No scene',
+        title: scene?.name ?? 'No scene',
+        subtitle: '',
       }
     }
   }

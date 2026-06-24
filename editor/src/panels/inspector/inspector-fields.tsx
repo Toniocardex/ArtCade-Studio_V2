@@ -236,6 +236,36 @@ export function NumberField({
   )
 }
 
+export type InspectorRowProps = Readonly<{
+  label: string
+  tooltip?: string
+  /** Muted suffix rendered after the control (e.g. units like "px/m"). */
+  unit?: string
+  children: ReactNode
+}>
+
+/**
+ * Label-left / control-right field row — the single field rhythm shared across
+ * inspector sections. Replaces ad-hoc inline layouts so World, Canvas, and
+ * future sections line up identically.
+ */
+export function InspectorRow({
+  label, tooltip, unit, children,
+}: InspectorRowProps) {
+  return (
+    <div className="flex items-center justify-between gap-2 mb-2">
+      <span className="text-[9px] text-[var(--muted)] uppercase flex items-center gap-1">
+        {label}
+        {tooltip && <HelpTooltip text={tooltip} />}
+      </span>
+      <div className="flex items-center gap-1.5">
+        {children}
+        {unit && <span className="text-[9px] text-[var(--muted)] shrink-0">{unit}</span>}
+      </div>
+    </div>
+  )
+}
+
 // ---------------------------------------------------------------------------
 // Tiny shared parsers / math helpers used by multiple sections.
 // ---------------------------------------------------------------------------

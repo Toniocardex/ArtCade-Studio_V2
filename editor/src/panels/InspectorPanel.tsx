@@ -110,7 +110,15 @@ export default function InspectorPanel() {
             ← Done painting
           </button>
         )}
-        <span className="editor-panel-header__title">{chrome.title}</span>
+        <span className="editor-panel-header__title flex items-center gap-1.5">
+          {chrome.title}
+          {mode === 'scene' && scene && project?.activeSceneId === scene.id && (
+            <span className="text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide
+                             bg-[#1a3a1a] text-[#4caf50] border border-[#2a5a2a]">
+              Start
+            </span>
+          )}
+        </span>
         {chrome.subtitle ? (
           <span className="editor-panel-header__subtitle text-[10px]">{chrome.subtitle}</span>
         ) : null}

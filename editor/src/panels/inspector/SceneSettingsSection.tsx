@@ -1,76 +1,97 @@
+import { useState } from 'react'
 import { useEditorDispatch } from '../../store/editor-store'
 import type { SceneDef } from '../../types'
-import {
-  Field, InspectorSection, parseSceneDimension,
-} from './inspector-fields'
+import { InspectorRow, InspectorSection, parseSceneDimension } from './inspector-fields'
+import { DimensionField } from './DimensionField'
+import { CanvasPreview } from './CanvasPreview'
+import { SegmentedControl } from '../../components/ui/SegmentedControl'
 
 export type SceneSettingsSectionProps = Readonly<{
   scene: SceneDef
 }>
 
+type AspectPreset = Readonly<{ value: string; label: string; w: number; h: number }>
+
+const ASPECT_PRESETS: readonly AspectPreset[] = [
+  { value: '16:9', label: '16:9', w: 16, h: 9 },
+  { value: '4:3', label: '4:3', w: 4, h: 3 },
+  { value: '1:1', label: '1:1', w: 1, h: 1 },
+]
+
+const PRESET_OPTIONS = [...ASPECT_PRESETS.map((p) => ({ value: p.value, label: p.label })),
+  { value: 'custom', label: 'Custom' }]
+
+const RATIO_EPSILON = 0.02
+
+/** Identify which preset the current world ratio matches, else 'custom'. */
+function activePreset(width: number, height: number): string {
+  if (height <= 0) return 'custom'
+  const ratio = width / height
+  const hit = ASPECT_PRESETS.find((p) => Math.abs(ratio - p.w / p.h) < RATIO_EPSILON)
+  return hit?.value ?? 'custom'
+}
+
 export function SceneSettingsSection({ scene }: SceneSettingsSectionProps) {
   const dispatch = useEditorDispatch()
+  const [worldLocked, setWorldLocked] = useState(false)
+  const [viewportLocked, setViewportLocked] = useState(false)
 
-  function commitWorld(patch: Partial<{ x: number; y: number }>) {
-    dispatch({
-      type: 'SCENE_SET_WORLD_SIZE',
-      sceneId: scene.id,
-      x: patch.x ?? scene.worldSize.x,
-      y: patch.y ?? scene.worldSize.y,
-    })
+  function commitWorld(next: { width: number; height: number }) {
+    dispatch({ type: 'SCENE_SET_WORLD_SIZE', sceneId: scene.id, x: next.width, y: next.height })
   }
 
-  function commitViewport(patch: Partial<{ x: number; y: number }>) {
-    dispatch({
-      type: 'SCENE_SET_VIEWPORT_SIZE',
-      sceneId: scene.id,
-      x: patch.x ?? scene.viewportSize.x,
-      y: patch.y ?? scene.viewportSize.y,
-    })
+  function commitViewport(next: { width: number; height: number }) {
+    dispatch({ type: 'SCENE_SET_VIEWPORT_SIZE', sceneId: scene.id, x: next.width, y: next.height })
+  }
+
+  function applyPreset(value: string) {
+    if (value === 'custom') return
+    const preset = ASPECT_PRESETS.find((p) => p.value === value)
+    if (!preset) return
+    const height = parseSceneDimension(
+      String(Math.round(scene.worldSize.x * (preset.h / preset.w))),
+      scene.worldSize.y,
+    )
+    commitWorld({ width: scene.worldSize.x, height })
   }
 
   return (
-    <InspectorSection label="Scene Settings" defaultOpen>
-      <div className="mb-3">
-        <span className="text-[9px] text-[var(--muted)] uppercase block mb-0.5">Scene Size</span>
-        <div className="grid grid-cols-2 gap-2">
-          <Field
-            label="Width"
-            value={scene.worldSize.x}
-            onCommit={(value) => commitWorld({
-              x: parseSceneDimension(value, scene.worldSize.x),
-            })}
-          />
-          <Field
-            label="Height"
-            value={scene.worldSize.y}
-            onCommit={(value) => commitWorld({
-              y: parseSceneDimension(value, scene.worldSize.y),
-            })}
-          />
-        </div>
+    <InspectorSection label="Canvas" defaultOpen>
+      <CanvasPreview
+        worldWidth={scene.worldSize.x}
+        worldHeight={scene.worldSize.y}
+        viewportWidth={scene.viewportSize.x}
+        viewportHeight={scene.viewportSize.y}
+      />
+      <InspectorRow label="World" unit="px">
+        <DimensionField
+          width={scene.worldSize.x}
+          height={scene.worldSize.y}
+          locked={worldLocked}
+          onToggleLock={() => setWorldLocked((v) => !v)}
+          onCommit={commitWorld}
+        />
+      </InspectorRow>
+      <InspectorRow label="Viewport" unit="px">
+        <DimensionField
+          width={scene.viewportSize.x}
+          height={scene.viewportSize.y}
+          locked={viewportLocked}
+          onToggleLock={() => setViewportLocked((v) => !v)}
+          onCommit={commitViewport}
+        />
+      </InspectorRow>
+      <div className="mb-2">
+        <span className="text-[9px] text-[var(--muted)] uppercase block mb-1">
+          World aspect ratio
+        </span>
+        <SegmentedControl
+          aria-label="World aspect ratio preset"
+          value={activePreset(scene.worldSize.x, scene.worldSize.y)}
+          onChange={applyPreset}
+          options={PRESET_OPTIONS}
+        />
       </div>
-      <div className="mb-3">
-        <span className="text-[9px] text-[var(--muted)] uppercase block mb-0.5">Viewport</span>
-        <div className="grid grid-cols-2 gap-2">
-          <Field
-            label="Width"
-            value={scene.viewportSize.x}
-            onCommit={(value) => commitViewport({
-              x: parseSceneDimension(value, scene.viewportSize.x),
-            })}
-          />
-          <Field
-            label="Height"
-            value={scene.viewportSize.y}
-            onCommit={(value) => commitViewport({
-              y: parseSceneDimension(value, scene.viewportSize.y),
-            })}
-          />
-        </div>
-      </div>
-      {/* Editor Grid + Rulers moved to the canvas toolbar's Viewport options
-          popover — they are editor view preferences, not scene data. */}
       {scene.tilemap && (
         <p className="text-[9px] text-[var(--muted)] leading-snug mb-3">
           Tilemap: {scene.tilemap.cols} x {scene.tilemap.rows} cells at {scene.tilemap.tileSize}px.

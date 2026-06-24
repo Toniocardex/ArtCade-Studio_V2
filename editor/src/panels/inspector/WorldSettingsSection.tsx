@@ -1,18 +1,33 @@
 import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
-import { DEFAULT_WORLD } from '../../types'
-import { HelpTooltip, InspectorSection } from './inspector-fields'
-import { EditorSelect } from '../../components/ui/EditorSelect'
+import { DEFAULT_WORLD, type PhysicsMode } from '../../types'
+import { InspectorRow, InspectorSection } from './inspector-fields'
+import { SegmentedControl } from '../../components/ui/SegmentedControl'
 
-const physicsModeSelectId = 'world-physics-mode'
+const PHYSICS_OPTIONS = [
+  { value: 'off', label: 'Off' },
+  { value: 'auto', label: 'Auto' },
+  { value: 'on', label: 'On' },
+] as const
+
+const PHYSICS_HINT: Record<PhysicsMode, string> = {
+  off: 'No physics step. Pure transform / platformer logic only.',
+  auto: 'Skips physics unless at least one body exists.',
+  on: 'Always steps the solver. Needed for sensors with no bodies.',
+}
 
 export function WorldSettingsSection() {
   const dispatch = useEditorDispatch()
   const project = useEditorSelector((s) => s.project)
   const w = { ...DEFAULT_WORLD, ...project?.world }
+  const physicsMode: PhysicsMode = w.physicsMode ?? 'auto'
 
-  const num = (label: string, key: 'gravity' | 'pixelsPerMeter', step: number) => (
-    <div className="flex items-center justify-between gap-2 mb-2">
-      <span className="text-[9px] text-[var(--muted)] uppercase">{label}</span>
+  const num = (
+    label: string,
+    key: 'gravity' | 'pixelsPerMeter',
+    step: number,
+    unit: string,
+  ) => (
+    <InspectorRow label={label} unit={unit}>
       <input
         type="number"
         step={step}
@@ -20,42 +35,34 @@ export function WorldSettingsSection() {
         onChange={(e) =>
           dispatch({ type: 'WORLD_SET', patch: { [key]: Number(e.target.value) } })
         }
-        className="w-20 h-6 bg-[var(--panel-3)] border border-[var(--border-2)] text-[var(--text)]
-                   text-[11px] rounded px-2 text-right focus:outline-none
-                   focus:border-[var(--accent)] transition-colors"
+        className="editor-input w-16 text-right"
+        data-mono
       />
-    </div>
+    </InspectorRow>
   )
 
   return (
     <InspectorSection label="World Settings" defaultOpen>
-      {num('Gravity (m/s²)', 'gravity', 0.1)}
-      {num('Px / Meter', 'pixelsPerMeter', 1)}
+      {num('Gravity', 'gravity', 0.1, 'm/s²')}
+      {num('Px / Meter', 'pixelsPerMeter', 1, 'px/m')}
       <div className="mb-2">
-        <div className="flex items-center gap-1 mb-1">
-          <label
-            htmlFor={physicsModeSelectId}
-            className="text-[9px] text-[var(--muted)] uppercase"
-          >
-            Physics simulation
-          </label>
-          <HelpTooltip text="Auto skips the physics step for pure transform / platformer-only scenes. Sensors need On, or at least one body present in Auto mode." />
-        </div>
-        <EditorSelect
-          id={physicsModeSelectId}
-          value={w.physicsMode ?? 'auto'}
+        <span className="text-[9px] text-[var(--muted)] uppercase block mb-1">
+          Physics simulation
+        </span>
+        <SegmentedControl
+          aria-label="Physics simulation mode"
+          value={physicsMode}
           onChange={(mode) =>
             dispatch({
               type: 'WORLD_SET',
-              patch: { physicsMode: mode as 'off' | 'auto' | 'on' },
+              patch: { physicsMode: mode as PhysicsMode },
             })
           }
-          options={[
-            { value: 'auto', label: 'Auto (only when bodies exist)' },
-            { value: 'on', label: 'On (always step)' },
-            { value: 'off', label: 'Off (no physics step)' },
-          ]}
+          options={PHYSICS_OPTIONS}
         />
+        <p className="text-[9px] text-[var(--muted)] leading-snug mt-1">
+          {PHYSICS_HINT[physicsMode]}
+        </p>
       </div>
     </InspectorSection>
   )
