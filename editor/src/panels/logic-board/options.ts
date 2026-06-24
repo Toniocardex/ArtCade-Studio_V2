@@ -137,26 +137,14 @@ export function defaultCondition(
 
 export function defaultAction(type: LogicActionType): LogicAction {
   switch (type) {
-    case 'pauseGame':
-      return { type: 'pauseGame' }
-    case 'resumeGame':
-      return { type: 'resumeGame' }
-    case 'togglePause':
-      return { type: 'togglePause' }
+    case 'setPause':
+      return { type: 'setPause', mode: 'toggle' }
     case 'modifyVariable':
       return { type: 'modifyVariable', scope: 'global', op: 'add', key: 'score', value: 1, target: 'self' }
     case 'setVariable':
       return { type: 'setVariable', key: 'score', value: 0 }
     case 'addVariable':
       return { type: 'addVariable', key: 'score', amount: 1 }
-    case 'setGlobalVariable':
-      return { type: 'setGlobalVariable', key: 'score', value: 0 }
-    case 'addGlobalVariable':
-      return { type: 'addGlobalVariable', key: 'score', amount: 1 }
-    case 'setLocalVariable':
-      return { type: 'setLocalVariable', target: 'self', key: 'health', value: 0 }
-    case 'addLocalVariable':
-      return { type: 'addLocalVariable', target: 'self', key: 'health', amount: 1 }
     case 'setPosition':
       return { type: 'setPosition', target: 'self', x: 0, y: 0 }
     case 'setVelocity':
@@ -167,22 +155,14 @@ export function defaultAction(type: LogicActionType): LogicAction {
       return { type: 'playMusic', path: '', loop: true }
     case 'stopAllAudio':
       return { type: 'stopAllAudio' }
-    case 'stopMusic':
-      return { type: 'stopMusic' }
-    case 'pauseMusic':
-      return { type: 'pauseMusic' }
-    case 'resumeMusic':
-      return { type: 'resumeMusic' }
+    case 'controlMusic':
+      return { type: 'controlMusic', mode: 'stop' }
     case 'setText':
       return { type: 'setText', target: 'self', value: { source: 'global', key: 'score' }, prefix: 'Score: ' }
     case 'setTextColor':
       return { type: 'setTextColor', target: 'self', hexColor: '#ffffff' }
-    case 'setMusicVolume':
-      return { type: 'setMusicVolume', volume: 1 }
-    case 'setMasterVolume':
-      return { type: 'setMasterVolume', volume: 1 }
-    case 'setSfxVolume':
-      return { type: 'setSfxVolume', volume: 1 }
+    case 'setVolume':
+      return { type: 'setVolume', channel: 'music', volume: 1 }
     case 'fadeMusic':
       return { type: 'fadeMusic', volume: 0, seconds: 2 }
     case 'destroyEntity':
@@ -305,12 +285,6 @@ export function defaultAction(type: LogicActionType): LogicAction {
       return { type: 'setEntityShader', target: 'self', shader: 'outline' }
     case 'setScreenShader':
       return { type: 'setScreenShader', shader: 'none' }
-    case 'setVariableRandomRange':
-      return { type: 'setVariableRandomRange', key: 'result', min: 1, max: 6 }
-    case 'clampVariable':
-      return { type: 'clampVariable', key: 'score', min: 0, max: 99 }
-    case 'multiplyVariable':
-      return { type: 'multiplyVariable', key: 'score', factor: 2 }
     case 'saveGame':
       return { type: 'saveGame', slot: 'main' }
     case 'loadGame':

@@ -1,122 +1,52 @@
 {
-  "pauseGame": {
+  "setPause": {
     "type": "object",
-    "required": ["type"],
-    "properties": { "type": { "const": "pauseGame" } },
+    "required": ["type", "mode"],
+    "properties": {
+      "type": { "const": "setPause" },
+      "mode": { "enum": ["pause", "resume", "toggle"] }
+    },
     "additionalProperties": false,
-    "x-artcade": { "label": "Pause Game", "category": "Time", "params": {} }
-  },
-  "resumeGame": {
-    "type": "object",
-    "required": ["type"],
-    "properties": { "type": { "const": "resumeGame" } },
-    "additionalProperties": false,
-    "x-artcade": { "label": "Resume Game", "category": "Time", "params": {} }
-  },
-  "togglePause": {
-    "type": "object",
-    "required": ["type"],
-    "properties": { "type": { "const": "togglePause" } },
-    "additionalProperties": false,
-    "x-artcade": { "label": "Toggle Pause", "category": "Time", "params": {} }
+    "x-artcade": {
+      "label": "Pause / Resume Game",
+      "category": "Time",
+      "params": {
+        "mode": { "widget": "enum", "label": "Action", "options": ["pause", "resume", "toggle"] }
+      }
+    }
   },
   "modifyVariable": {
     "type": "object",
-    "required": ["type", "scope", "op", "key", "value"],
+    "required": ["type", "scope", "op", "key"],
     "properties": {
       "type": { "const": "modifyVariable" },
       "scope": { "enum": ["global", "object"] },
-      "op": { "enum": ["set", "add", "subtract", "multiply", "divide"] },
+      "op": { "enum": ["set", "add", "subtract", "multiply", "divide", "clamp"] },
       "key": { "type": "string", "minLength": 1 },
       "value": { "$ref": "./value-source.schema.json" },
+      "min": { "$ref": "./value-source.schema.json" },
+      "max": { "$ref": "./value-source.schema.json" },
       "target": { "$ref": "./target-selector.schema.json" }
     },
     "additionalProperties": false,
+    "allOf": [
+      {
+        "if": { "required": ["op"], "properties": { "op": { "const": "clamp" } } },
+        "then": { "required": ["min", "max"] },
+        "else": { "required": ["value"] }
+      }
+    ],
     "x-artcade": {
       "label": "Modify Variable",
       "category": "State",
       "params": {
         "scope": { "widget": "enum", "label": "Scope", "options": ["global", "object"] },
-        "op": { "widget": "enum", "label": "Operation", "options": ["set", "add", "subtract", "multiply", "divide"] },
+        "op": { "widget": "enum", "label": "Operation", "options": ["set", "add", "subtract", "multiply", "divide", "clamp"] },
         "key": { "widget": "string", "label": "Variable" },
         "value": { "widget": "valueSource", "label": "Value" },
+        "min": { "widget": "numberSource", "label": "Min" },
+        "max": { "widget": "numberSource", "label": "Max" },
         "target": { "widget": "target", "label": "Object" }
-      }
-    }
-  },
-  "setGlobalVariable": {
-    "type": "object",
-    "required": ["type", "key", "value"],
-    "properties": {
-      "type": { "const": "setGlobalVariable" },
-      "key": { "type": "string", "minLength": 1 },
-      "value": { "$ref": "./value-source.schema.json" }
-    },
-    "additionalProperties": false,
-    "x-artcade": {
-      "label": "Set Global Variable",
-      "category": "State",
-      "params": {
-        "key": { "widget": "globalVariable", "label": "Variable" },
-        "value": { "widget": "valueSource", "label": "Value" }
-      }
-    }
-  },
-  "addGlobalVariable": {
-    "type": "object",
-    "required": ["type", "key", "amount"],
-    "properties": {
-      "type": { "const": "addGlobalVariable" },
-      "key": { "type": "string", "minLength": 1 },
-      "amount": { "$ref": "./value-source.schema.json" }
-    },
-    "additionalProperties": false,
-    "x-artcade": {
-      "label": "Add Global Variable",
-      "category": "State",
-      "params": {
-        "key": { "widget": "globalVariable", "label": "Variable" },
-        "amount": { "widget": "numberSource", "label": "Amount" }
-      }
-    }
-  },
-  "setLocalVariable": {
-    "type": "object",
-    "required": ["type", "target", "key", "value"],
-    "properties": {
-      "type": { "const": "setLocalVariable" },
-      "target": { "$ref": "./target-selector.schema.json" },
-      "key": { "type": "string", "minLength": 1 },
-      "value": { "$ref": "./value-source.schema.json" }
-    },
-    "additionalProperties": false,
-    "x-artcade": {
-      "label": "Set Object Variable",
-      "category": "State",
-      "params": {
-        "target": { "widget": "target", "label": "Object" },
-        "key": { "widget": "localVariable", "label": "Variable" },
-        "value": { "widget": "valueSource", "label": "Value" }
-      }
-    }
-  },
-  "addLocalVariable": {
-    "type": "object",
-    "required": ["type", "target", "key", "amount"],
-    "properties": {
-      "type": { "const": "addLocalVariable" },
-      "target": { "$ref": "./target-selector.schema.json" },
-      "key": { "type": "string", "minLength": 1 },
-      "amount": { "$ref": "./value-source.schema.json" }
-    },
-    "additionalProperties": false,
-    "x-artcade": {
-      "label": "Add Object Variable",
-      "category": "State",
-      "params": {
-        "target": { "widget": "target", "label": "Object" },
-        "key": { "widget": "localVariable", "label": "Variable" },
-        "amount": { "widget": "numberSource", "label": "Amount" }
       }
     }
   },
@@ -217,71 +147,36 @@
     "additionalProperties": false,
     "x-artcade": { "label": "Stop All Audio", "category": "Audio", "params": {} }
   },
-  "stopMusic": {
+  "controlMusic": {
     "type": "object",
-    "required": ["type"],
-    "properties": { "type": { "const": "stopMusic" } },
-    "additionalProperties": false,
-    "x-artcade": { "label": "Stop Music", "category": "Audio", "params": {} }
-  },
-  "pauseMusic": {
-    "type": "object",
-    "required": ["type"],
-    "properties": { "type": { "const": "pauseMusic" } },
-    "additionalProperties": false,
-    "x-artcade": { "label": "Pause Music", "category": "Audio", "params": {} }
-  },
-  "resumeMusic": {
-    "type": "object",
-    "required": ["type"],
-    "properties": { "type": { "const": "resumeMusic" } },
-    "additionalProperties": false,
-    "x-artcade": { "label": "Resume Music", "category": "Audio", "params": {} }
-  },
-  "setMusicVolume": {
-    "type": "object",
-    "required": ["type", "volume"],
+    "required": ["type", "mode"],
     "properties": {
-      "type": { "const": "setMusicVolume" },
-      "volume": { "$ref": "./value-source.schema.json" }
+      "type": { "const": "controlMusic" },
+      "mode": { "enum": ["stop", "pause", "resume"] }
     },
     "additionalProperties": false,
     "x-artcade": {
-      "label": "Set Music Volume",
+      "label": "Control Music",
       "category": "Audio",
       "params": {
-        "volume": { "widget": "numberSource", "label": "Volume (0–1)" }
+        "mode": { "widget": "enum", "label": "Action", "options": ["stop", "pause", "resume"] }
       }
     }
   },
-  "setMasterVolume": {
+  "setVolume": {
     "type": "object",
-    "required": ["type", "volume"],
+    "required": ["type", "channel", "volume"],
     "properties": {
-      "type": { "const": "setMasterVolume" },
+      "type": { "const": "setVolume" },
+      "channel": { "enum": ["master", "music", "sfx"] },
       "volume": { "$ref": "./value-source.schema.json" }
     },
     "additionalProperties": false,
     "x-artcade": {
-      "label": "Set Master Volume",
+      "label": "Set Volume",
       "category": "Audio",
       "params": {
-        "volume": { "widget": "numberSource", "label": "Volume (0–1)" }
-      }
-    }
-  },
-  "setSfxVolume": {
-    "type": "object",
-    "required": ["type", "volume"],
-    "properties": {
-      "type": { "const": "setSfxVolume" },
-      "volume": { "$ref": "./value-source.schema.json" }
-    },
-    "additionalProperties": false,
-    "x-artcade": {
-      "label": "Set Sound Effects Volume",
-      "category": "Audio",
-      "params": {
+        "channel": { "widget": "enum", "label": "Channel", "options": ["master", "music", "sfx"] },
         "volume": { "widget": "numberSource", "label": "Volume (0–1)" }
       }
     }
@@ -1091,64 +986,6 @@
       "params": {
         "target": { "widget": "target", "label": "Target" },
         "cellSize": { "widget": "numberSource", "label": "Cell size" }
-      }
-    }
-  },
-  "setVariableRandomRange": {
-    "type": "object",
-    "required": ["type", "key", "min", "max"],
-    "properties": {
-      "type": { "const": "setVariableRandomRange" },
-      "key": { "type": "string" },
-      "min": { "type": "number" },
-      "max": { "type": "number" }
-    },
-    "additionalProperties": false,
-    "x-artcade": {
-      "label": "Set Variable (random range)",
-      "category": "State",
-      "params": {
-        "key": { "widget": "string", "label": "Key" },
-        "min": { "widget": "number", "label": "Min" },
-        "max": { "widget": "number", "label": "Max" }
-      }
-    }
-  },
-  "clampVariable": {
-    "type": "object",
-    "required": ["type", "key", "min", "max"],
-    "properties": {
-      "type": { "const": "clampVariable" },
-      "key": { "type": "string" },
-      "min": { "type": "number" },
-      "max": { "type": "number" }
-    },
-    "additionalProperties": false,
-    "x-artcade": {
-      "label": "Clamp Variable",
-      "category": "State",
-      "params": {
-        "key": { "widget": "string", "label": "Key" },
-        "min": { "widget": "number", "label": "Min" },
-        "max": { "widget": "number", "label": "Max" }
-      }
-    }
-  },
-  "multiplyVariable": {
-    "type": "object",
-    "required": ["type", "key", "factor"],
-    "properties": {
-      "type": { "const": "multiplyVariable" },
-      "key": { "type": "string" },
-      "factor": { "type": "number" }
-    },
-    "additionalProperties": false,
-    "x-artcade": {
-      "label": "Multiply Variable",
-      "category": "State",
-      "params": {
-        "key": { "widget": "string", "label": "Key" },
-        "factor": { "widget": "number", "label": "Factor" }
       }
     }
   },

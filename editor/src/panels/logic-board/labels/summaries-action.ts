@@ -10,33 +10,28 @@ export function actionSummaryPlain(
 ): string {
   const who = (t: TargetSelector) => targetDisplayLabel(t, project)
   switch (a.type) {
-    case 'pauseGame':
-      return 'Pause the game'
-    case 'resumeGame':
-      return 'Resume the game'
-    case 'togglePause':
-      return 'Toggle pause'
+    case 'setPause':
+      return a.mode === 'pause'
+        ? 'Pause the game'
+        : a.mode === 'resume'
+          ? 'Resume the game'
+          : 'Toggle pause'
     case 'modifyVariable': {
+      const name = a.scope === 'object' ? `${who(a.target ?? 'self')}.${a.key}` : a.key
+      if (a.op === 'clamp') {
+        return `Clamp ${name} to [${valueSummary(a.min ?? 0, project)}, ${valueSummary(a.max ?? 0, project)}]`
+      }
       const sym =
         a.op === 'set' ? '=' :
         a.op === 'add' ? '+=' :
         a.op === 'subtract' ? '−=' :
         a.op === 'multiply' ? '×=' : '÷='
-      const name = a.scope === 'object' ? `${who(a.target ?? 'self')}.${a.key}` : a.key
-      return `${name} ${sym} ${valueSummary(a.value, project)}`
+      return `${name} ${sym} ${valueSummary(a.value ?? 0, project)}`
     }
     case 'setVariable':
       return `Set ${a.key} to ${valueSummary(a.value, project)}`
     case 'addVariable':
       return `Add ${valueSummary(a.amount, project)} to ${a.key}`
-    case 'setGlobalVariable':
-      return `Set global ${a.key} to ${valueSummary(a.value, project)}`
-    case 'addGlobalVariable':
-      return `Add ${valueSummary(a.amount, project)} to global ${a.key}`
-    case 'setLocalVariable':
-      return `Set ${who(a.target)}.${a.key} to ${valueSummary(a.value, project)}`
-    case 'addLocalVariable':
-      return `Add ${valueSummary(a.amount, project)} to ${who(a.target)}.${a.key}`
     case 'setPosition':
       return `Move ${who(a.target)} to (${valueSummary(a.x, project)}, ${valueSummary(a.y, project)})`
     case 'setVelocity':
@@ -47,12 +42,12 @@ export function actionSummaryPlain(
       return `Play music "${a.path || '...'}"${a.loop ? ' (loop)' : ''}`
     case 'stopAllAudio':
       return 'Stop all sounds'
-    case 'stopMusic':
-      return 'Stop music'
-    case 'pauseMusic':
-      return 'Pause music'
-    case 'resumeMusic':
-      return 'Resume music'
+    case 'controlMusic':
+      return a.mode === 'stop'
+        ? 'Stop music'
+        : a.mode === 'pause'
+          ? 'Pause music'
+          : 'Resume music'
     case 'setText': {
       const v = valueSummary(a.value, project)
       const txt = `${a.prefix ?? ''}${v}${a.suffix ?? ''}`
@@ -60,12 +55,11 @@ export function actionSummaryPlain(
     }
     case 'setTextColor':
       return `Set text color on ${who(a.target)} to ${a.hexColor || '#ffffff'}`
-    case 'setMusicVolume':
-      return `Set music volume to ${valueSummary(a.volume, project)}`
-    case 'setMasterVolume':
-      return `Set master volume to ${valueSummary(a.volume, project)}`
-    case 'setSfxVolume':
-      return `Set sound effects volume to ${valueSummary(a.volume, project)}`
+    case 'setVolume': {
+      const channelLabel =
+        a.channel === 'master' ? 'master' : a.channel === 'sfx' ? 'sound effects' : 'music'
+      return `Set ${channelLabel} volume to ${valueSummary(a.volume, project)}`
+    }
     case 'fadeMusic':
       return `Fade music to ${valueSummary(a.volume, project)} over ${valueSummary(a.seconds, project)}s`
     case 'destroyEntity':
@@ -235,12 +229,6 @@ export function actionSummaryPlain(
       return `Start dialog "${a.dialogId}" on ${who(a.target)}`
     case 'endDialog':
       return 'End active dialog'
-    case 'setVariableRandomRange':
-      return `Set ${a.key} to random ${a.min}–${a.max}`
-    case 'clampVariable':
-      return `Clamp ${a.key} to [${a.min}, ${a.max}]`
-    case 'multiplyVariable':
-      return `Multiply ${a.key} by ${a.factor}`
     case 'saveGame':
       return `Save game to slot "${a.slot || 'main'}"`
     case 'loadGame':

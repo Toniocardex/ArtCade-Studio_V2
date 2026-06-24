@@ -9,11 +9,11 @@
     "onObjectHoverEnter", "onObjectHoverExit", "onMessage", "onTimer", "onLeaveScreen"
   ],
   "actions": [
-    "pauseGame", "resumeGame", "togglePause",
+    "setPause",
     "modifyVariable",
     "setPosition", "setVelocity", "playSound", "playMusic",
-    "stopAllAudio", "stopMusic", "pauseMusic", "resumeMusic",
-    "setMusicVolume", "setMasterVolume", "setSfxVolume", "fadeMusic", "destroyEntity",
+    "stopAllAudio", "controlMusic",
+    "setVolume", "fadeMusic", "destroyEntity",
     "spawnEntity", "spawnEntityAtPointer", "spawnAtEntity", "emitEvent", "startDialog", "endDialog",
     "toggleLogicEvent", "applyImpulse", "applyForce", "setRotation", "setScale",
     "playAnimation", "setFlip", "setVisible", "setColorTint", "setText", "setTextColor", "loadScene", "restartScene",
@@ -33,8 +33,7 @@
     "moveByOffset", "snapToGrid", "setEntityShader", "setScreenShader", "debugLog", "wait", "repeatTimes"
   ],
   "legacyActions": [
-    "setVariableRandomRange", "clickToDestroy", "clearMovementIntent", "setCameraTarget",
-    "setGlobalVariable", "addGlobalVariable", "setLocalVariable", "addLocalVariable"
+    "clickToDestroy", "clearMovementIntent", "setCameraTarget"
   ],
   "conditions": [
     "compareValues", "compareClass", "isKeyDown", "hasTag", "compareDistance",

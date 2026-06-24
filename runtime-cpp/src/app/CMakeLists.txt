@@ -8,6 +8,7 @@ add_executable(game
     render/editor-overlay-renderer.cpp
     render/physics_debug_renderer.cpp
     render/tilemap-renderer.cpp
+    render/parallax-renderer.cpp
     render/text_value_formatter.cpp
     render/ray-tint-widget.cpp
 )

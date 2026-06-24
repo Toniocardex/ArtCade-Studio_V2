@@ -75,6 +75,7 @@ function richProject(): ProjectDoc {
     instanceName: 'Hero #1',
     transform: { position: { x: 40, y: 80 }, scale: { x: 2, y: 2 }, rotation: 1.5 },
     visible: false,
+    layer: 'Midground',
     localVariableOverrides: { hp: 50, name: 'Override' },
   }
   p.scenes.scene_main.instances = [inst]
@@ -125,7 +126,15 @@ function richProject(): ProjectDoc {
     { key: 'score', type: 'number', initialValue: 0 },
     { key: 'paused', type: 'boolean', initialValue: false },
   ]
-  p.layers = [{ name: 'Foreground' }, { name: 'Midground' }, { name: 'Background' }]
+  p.layers = [
+    { name: 'Foreground', parallax: { x: 1.4, y: 1.2 } },
+    { name: 'Midground' },
+    {
+      name: 'Background',
+      parallax: { x: 0.3, y: 0.5 },
+      background: { imageId: 'img_sky', tileX: true, tileY: false, scrollX: 10, scrollY: 0 },
+    },
+  ]
   p.thumbnails = { scene_main: 'data:image/png;base64,AAAA' }
   p.world = { gravity: 9.8, pixelsPerMeter: 32, timeScale: 1, physicsMode: 'on' }
   return p
@@ -171,6 +180,8 @@ describe('project-codec round-trip', () => {
     expect(inst?.objectTypeId).toBe('Hero')
     expect(inst?.instanceName).toBe('Hero #1')
     expect(inst?.visible).toBe(false)
+    expect(inst?.layer).toBe('Midground')
+    expect(back.entities[1]?.layer).toBe('Midground')
     expect(inst?.localVariableOverrides).toEqual({ hp: 50, name: 'Override' })
     expect(inst?.transform.position).toEqual({ x: 40, y: 80 })
     expect(inst?.transform.scale).toEqual({ x: 2, y: 2 })
@@ -204,7 +215,15 @@ describe('project-codec round-trip', () => {
       { key: 'score', type: 'number', initialValue: 0 },
       { key: 'paused', type: 'boolean', initialValue: false },
     ])
-    expect(back.layers).toEqual([{ name: 'Foreground' }, { name: 'Midground' }, { name: 'Background' }])
+    expect(back.layers).toEqual([
+      { name: 'Foreground', parallax: { x: 1.4, y: 1.2 } },
+      { name: 'Midground' },
+      {
+        name: 'Background',
+        parallax: { x: 0.3, y: 0.5 },
+        background: { imageId: 'img_sky', tileX: true, tileY: false, scrollX: 10, scrollY: 0 },
+      },
+    ])
     expect(back.world).toMatchObject({ physicsMode: 'on', gravity: 9.8 })
     expect(back.licenseTier).toBe('pro')
     expect(back.thumbnails?.scene_main).toContain('data:image/png')

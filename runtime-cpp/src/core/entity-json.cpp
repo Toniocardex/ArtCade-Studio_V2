@@ -255,6 +255,7 @@ void read_entity_instance(const nlohmann::json& entityJson,
         out.name = entityJson.value("name", std::string{});
     }
     out.className = read_string_any(entityJson, "className", "class_name");
+    out.layer = entityJson.value("layer", std::string{});
     if (entityJson.contains("tags") && entityJson["tags"].is_array())
         out.tags = entityJson["tags"].get<std::vector<std::string>>();
     read_entity_components(entityJson, out);

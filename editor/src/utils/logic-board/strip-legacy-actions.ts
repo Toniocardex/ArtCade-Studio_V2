@@ -12,12 +12,6 @@ export function stripLegacyLogicActions(
   return actions.flatMap((action): LogicAction[] => {
     if (STRIPPED_ACTION_TYPES.has(action.type)) return []
     switch (action.type) {
-      case 'setVariableRandomRange':
-        return [{
-          type: 'setVariable',
-          key: action.key,
-          value: { source: 'random', min: action.min, max: action.max },
-        }]
       case 'clearMovementIntent':
         return [{ type: 'moveController', target: action.target, direction: 'stop' }]
       case 'setCameraTarget':

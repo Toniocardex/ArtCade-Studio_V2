@@ -2,14 +2,13 @@
 // ModifyVariableEditor — unified, friendly editor for `modifyVariable`
 // ---------------------------------------------------------------------------
 //
-// Replaces the old per-(scope×operation) action forms with a single card:
-//   Operation (= += −= ×= ÷=)  ·  Scope (Global / This object)
-//   Variable  ·  [Object target]  ·  Value (literal | variable | expression)
+// One friendly card for every variable mutation:
+//   Operation (= += −= ×= ÷= clamp)  ·  Scope (Global / This object)
+//   Variable  ·  [Object target]  ·  Value  (or Min/Max for clamp)
 //   live preview line, e.g.  Player.hp −= 10
 //
-// Legacy set/add{Global,Local}Variable instances are normalized on read and
-// migrated to `modifyVariable` on the first edit (the parent persists what we
-// emit via onChange).
+// The Dialog-system `setVariable`/`addVariable` shapes are normalized on read
+// and emitted as `modifyVariable` on the first edit.
 
 import type {
   LogicAction, LogicValue, TargetSelector, VariableOp, VariableScope,
@@ -26,32 +25,37 @@ type ModifyModel = Readonly<{
   op: VariableOp
   key: string
   value: LogicValue
+  min: LogicValue
+  max: LogicValue
   target: TargetSelector
 }>
 
-/** Map any current (possibly legacy) variable action to the unified model. */
+const MODEL_DEFAULTS = { value: 0 as LogicValue, min: 0 as LogicValue, max: 100 as LogicValue, target: 'self' as TargetSelector }
+
+/** Map any current variable action (unified or Dialog-side) to the model. */
 export function normalizeVariableAction(a: LogicAction): ModifyModel {
   switch (a.type) {
     case 'modifyVariable':
-      return { scope: a.scope, op: a.op, key: a.key, value: a.value, target: a.target ?? 'self' }
-    case 'setGlobalVariable':
+      return {
+        ...MODEL_DEFAULTS,
+        scope: a.scope, op: a.op, key: a.key,
+        value: a.value ?? 0, min: a.min ?? 0, max: a.max ?? 100,
+        target: a.target ?? 'self',
+      }
     case 'setVariable':
-      return { scope: 'global', op: 'set', key: a.key, value: a.value, target: 'self' }
-    case 'addGlobalVariable':
+      return { ...MODEL_DEFAULTS, scope: 'global', op: 'set', key: a.key, value: a.value }
     case 'addVariable':
-      return { scope: 'global', op: 'add', key: a.key, value: a.amount, target: 'self' }
-    case 'setLocalVariable':
-      return { scope: 'object', op: 'set', key: a.key, value: a.value, target: a.target }
-    case 'addLocalVariable':
-      return { scope: 'object', op: 'add', key: a.key, value: a.amount, target: a.target }
-    case 'multiplyVariable':
-      return { scope: 'global', op: 'multiply', key: a.key, value: a.factor, target: 'self' }
+      return { ...MODEL_DEFAULTS, scope: 'global', op: 'add', key: a.key, value: a.amount }
     default:
-      return { scope: 'global', op: 'add', key: 'score', value: 1, target: 'self' }
+      return { ...MODEL_DEFAULTS, scope: 'global', op: 'add', key: 'score', value: 1 }
   }
 }
 
 function toAction(m: ModifyModel): LogicAction {
+  if (m.op === 'clamp') {
+    const base = { type: 'modifyVariable' as const, scope: m.scope, op: 'clamp' as const, key: m.key, min: m.min, max: m.max }
+    return m.scope === 'object' ? { ...base, target: m.target } : base
+  }
   const base = { type: 'modifyVariable' as const, scope: m.scope, op: m.op, key: m.key, value: m.value }
   return m.scope === 'object' ? { ...base, target: m.target } : base
 }
@@ -62,6 +66,7 @@ const OP_OPTIONS = [
   { value: 'subtract', label: '−=  Subtract' },
   { value: 'multiply', label: '×=  Multiply' },
   { value: 'divide',   label: '÷=  Divide' },
+  { value: 'clamp',    label: '⊓  Clamp (min/max)' },
 ] as const
 
 const SCOPE_OPTIONS = [
@@ -123,10 +128,23 @@ export function ModifyVariableEditor({
         </label>
       )}
 
-      <label className="flex flex-col gap-0.5">
-        <span className="text-[9px] uppercase text-[var(--muted)]">Value</span>
-        <ValueSourceField value={model.value} numeric onChange={(value) => emit({ value })} />
-      </label>
+      {model.op === 'clamp' ? (
+        <div className="flex flex-wrap items-end gap-2">
+          <label className="flex flex-col gap-0.5">
+            <span className="text-[9px] uppercase text-[var(--muted)]">Min</span>
+            <ValueSourceField value={model.min} numeric onChange={(min) => emit({ min })} />
+          </label>
+          <label className="flex flex-col gap-0.5">
+            <span className="text-[9px] uppercase text-[var(--muted)]">Max</span>
+            <ValueSourceField value={model.max} numeric onChange={(max) => emit({ max })} />
+          </label>
+        </div>
+      ) : (
+        <label className="flex flex-col gap-0.5">
+          <span className="text-[9px] uppercase text-[var(--muted)]">Value</span>
+          <ValueSourceField value={model.value} numeric onChange={(value) => emit({ value })} />
+        </label>
+      )}
 
       <p className="rounded bg-[var(--panel-2)] px-2 py-1 font-mono text-[11px] text-[var(--accent)]">
         {actionSummaryPlain(toAction(model), project)}

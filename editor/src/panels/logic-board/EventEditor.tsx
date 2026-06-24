@@ -83,13 +83,10 @@ function hasMovementAction(actions: readonly LogicAction[]): boolean {
   return actions.some((action) => action.type === 'controllerMovement')
 }
 
-/** Variable-mutation actions (unified + legacy) edited via ModifyVariableEditor. */
+/** Variable-mutation actions edited via ModifyVariableEditor. */
 const VARIABLE_ACTION_TYPES = new Set<LogicAction['type']>([
   'modifyVariable',
   'setVariable', 'addVariable',
-  'setGlobalVariable', 'addGlobalVariable',
-  'setLocalVariable', 'addLocalVariable',
-  'multiplyVariable',
 ])
 
 function actionFitsTrigger(actionType: LogicAction['type'], trigger: LogicTrigger): boolean {

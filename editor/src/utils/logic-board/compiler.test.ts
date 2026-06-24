@@ -187,9 +187,9 @@ describe('Component API actions and conditions', () => {
           trigger: { type: 'onUpdate' },
           conditions: [{ type: 'isMusicPlaying' }],
           actions: [
-            { type: 'setMusicVolume', volume: 0.5 },
-            { type: 'setMasterVolume', volume: 0.8 },
-            { type: 'setSfxVolume', volume: 0.7 },
+            { type: 'setVolume', channel: 'music', volume: 0.5 },
+            { type: 'setVolume', channel: 'master', volume: 0.8 },
+            { type: 'setVolume', channel: 'sfx', volume: 0.7 },
             { type: 'fadeMusic', volume: 0, seconds: 2 },
           ],
         }),
@@ -200,6 +200,22 @@ describe('Component API actions and conditions', () => {
     expect(lua).toContain('audio.setMasterVolume(0.8)')
     expect(lua).toContain('audio.setSfxVolume(0.7)')
     expect(lua).toContain('audio.fadeMusic(0, 2)')
+  })
+
+  it('emits modifyVariable clamp as math.max/math.min for both scopes', () => {
+    const lua = compileLogicBoard([
+      board([
+        ev({
+          trigger: { type: 'onUpdate' },
+          actions: [
+            { type: 'modifyVariable', scope: 'global', op: 'clamp', key: 'score', min: 0, max: 99 },
+            { type: 'modifyVariable', scope: 'object', op: 'clamp', key: 'hp', target: 'self', min: 0, max: 100 },
+          ],
+        }),
+      ]),
+    ])
+    expect(lua).toContain('global.set("score", math.max(0, math.min(99, (global.get("score") or 0))))')
+    expect(lua).toContain('objectvar.set(self, "hp", math.max(0, math.min(100, (objectvar.get(self, "hp") or 0))))')
   })
 
   it('emits Set Text with value binding, prefix/suffix and integer formatting', () => {
@@ -250,7 +266,7 @@ describe('Component API actions and conditions', () => {
           trigger: { type: 'onInput', keyCode: 'Space', eventType: 'pressed' },
           actions: [
             { type: 'spawnEntity', className: 'Bullet', x: 0, y: 0, velocityX: 0, velocityY: -400 },
-            { type: 'pauseGame' },
+            { type: 'setPause', mode: 'pause' },
             { type: 'setScale', target: 'self', scaleX: { source: 'global', key: 'hp' }, scaleY: 1 },
           ],
         }),

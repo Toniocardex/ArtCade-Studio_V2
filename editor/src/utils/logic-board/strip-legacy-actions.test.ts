@@ -13,12 +13,10 @@ describe('stripLegacyLogicActions', () => {
 
   it('converts duplicate legacy actions to canonical forms', () => {
     const out = stripLegacyLogicActions([
-      { type: 'setVariableRandomRange', key: 'die', min: 1, max: 6 },
       { type: 'clearMovementIntent', target: 'self' },
       { type: 'setCameraTarget', target: 'self' },
     ])
     expect(out).toEqual([
-      { type: 'setVariable', key: 'die', value: { source: 'random', min: 1, max: 6 } },
       { type: 'moveController', target: 'self', direction: 'stop' },
       { type: 'centerCameraOn', target: 'self' },
     ])

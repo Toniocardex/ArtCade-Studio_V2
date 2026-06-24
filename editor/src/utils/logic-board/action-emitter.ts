@@ -99,45 +99,44 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
   const project = ctx.project
   const target = (sel: Parameters<typeof targetExpr>[0]) => targetExpr(sel, project)
   switch (a.type) {
-    case 'pauseGame':
-      return `time.pause()`
-    case 'resumeGame':
-      return `time.resume()`
-    case 'togglePause':
-      return `time.togglePause()`
+    case 'setPause': {
+      const mode = a.mode
+      switch (mode) {
+        case 'pause':  return `time.pause()`
+        case 'resume': return `time.resume()`
+        case 'toggle': return `time.togglePause()`
+      }
+      return unknownActionComment(a, `setPause mode=${String(mode)}`)
+    }
     case 'modifyVariable': {
       const key = luaString(a.key)
-      const num = numberSourceExpr(a.value, project)
+      const num = numberSourceExpr(a.value ?? 0, project)
+      const lo = numberSourceExpr(a.min ?? 0, project)
+      const hi = numberSourceExpr(a.max ?? 0, project)
       if (a.scope === 'object') {
         const t = target(a.target ?? 'self')
         const cur = `(objectvar.get(${t}, ${key}) or 0)`
         switch (a.op) {
-          case 'set':      return `objectvar.set(${t}, ${key}, ${valueSourceExpr(a.value, project)})`
+          case 'set':      return `objectvar.set(${t}, ${key}, ${valueSourceExpr(a.value ?? 0, project)})`
           case 'add':      return `objectvar.add(${t}, ${key}, ${num})`
           case 'subtract': return `objectvar.add(${t}, ${key}, -(${num}))`
           case 'multiply': return `objectvar.set(${t}, ${key}, ${cur} * (${num}))`
           case 'divide':   return `objectvar.set(${t}, ${key}, ${cur} / (${num}))`
+          case 'clamp':    return `objectvar.set(${t}, ${key}, math.max(${lo}, math.min(${hi}, ${cur})))`
         }
       } else {
         const cur = `(global.get(${key}) or 0)`
         switch (a.op) {
-          case 'set':      return `global.set(${key}, ${valueSourceExpr(a.value, project)})`
+          case 'set':      return `global.set(${key}, ${valueSourceExpr(a.value ?? 0, project)})`
           case 'add':      return `global.add(${key}, ${num})`
           case 'subtract': return `global.add(${key}, -(${num}))`
           case 'multiply': return `global.set(${key}, ${cur} * (${num}))`
           case 'divide':   return `global.set(${key}, ${cur} / (${num}))`
+          case 'clamp':    return `global.set(${key}, math.max(${lo}, math.min(${hi}, ${cur})))`
         }
       }
       return unknownActionComment(a, `modifyVariable op=${String(a.op)}`)
     }
-    case 'setGlobalVariable':
-      return `global.set(${luaString(a.key)}, ${valueSourceExpr(a.value, project)})`
-    case 'addGlobalVariable':
-      return `global.add(${luaString(a.key)}, ${numberSourceExpr(a.amount, project)})`
-    case 'setLocalVariable':
-      return `objectvar.set(${target(a.target)}, ${luaString(a.key)}, ${valueSourceExpr(a.value, project)})`
-    case 'addLocalVariable':
-      return `objectvar.add(${target(a.target)}, ${luaString(a.key)}, ${numberSourceExpr(a.amount, project)})`
     case 'setVariable':
       return `global.set(${luaString(a.key)}, ${valueSourceExpr(a.value, project)})`
     case 'addVariable':
@@ -156,18 +155,24 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
     }
     case 'stopAllAudio':
       return `audio.stopAll()`
-    case 'stopMusic':
-      return `audio.stopMusic()`
-    case 'pauseMusic':
-      return `audio.pauseMusic()`
-    case 'resumeMusic':
-      return `audio.resumeMusic()`
-    case 'setMusicVolume':
-      return `audio.setMusicVolume(${numberSourceExpr(a.volume, project)})`
-    case 'setMasterVolume':
-      return `audio.setMasterVolume(${numberSourceExpr(a.volume, project)})`
-    case 'setSfxVolume':
-      return `audio.setSfxVolume(${numberSourceExpr(a.volume, project)})`
+    case 'controlMusic': {
+      const mode = a.mode
+      switch (mode) {
+        case 'stop':   return `audio.stopMusic()`
+        case 'pause':  return `audio.pauseMusic()`
+        case 'resume': return `audio.resumeMusic()`
+      }
+      return unknownActionComment(a, `controlMusic mode=${String(mode)}`)
+    }
+    case 'setVolume': {
+      const vol = numberSourceExpr(a.volume, project)
+      switch (a.channel) {
+        case 'master': return `audio.setMasterVolume(${vol})`
+        case 'music':  return `audio.setMusicVolume(${vol})`
+        case 'sfx':    return `audio.setSfxVolume(${vol})`
+      }
+      return unknownActionComment(a, `setVolume channel=${String(a.channel)}`)
+    }
     case 'fadeMusic':
       return `audio.fadeMusic(${numberSourceExpr(a.volume, project)}, ${numberSourceExpr(a.seconds, project)})`
     case 'destroyEntity':
@@ -382,15 +387,6 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
       return `shaders.setEntity(${target(a.target)}, ${luaString(a.shader)})`
     case 'setScreenShader':
       return `shaders.setScreen(${luaString(a.shader)})`
-    case 'setVariableRandomRange': {
-      const min = Number(a.min) || 0
-      const max = Number(a.max) || 0
-      return `global.set(${luaString(a.key)}, _logic_random_int(${min}, ${max}))`
-    }
-    case 'clampVariable':
-      return `global.set(${luaString(a.key)}, math.max(${Number(a.min) || 0}, math.min(${Number(a.max) || 0}, global.get(${luaString(a.key)}) or 0)))`
-    case 'multiplyVariable':
-      return `global.set(${luaString(a.key)}, (global.get(${luaString(a.key)}) or 0) * ${Number(a.factor) || 0})`
     case 'saveGame':
       return `save.writeGame(${luaString(a.slot || 'main')})`
     case 'loadGame':

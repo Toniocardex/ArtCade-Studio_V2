@@ -66,7 +66,6 @@ describe('schema-registry', () => {
   })
 
   it('hides duplicate legacy components while preserving saved-project validation', () => {
-    expect(ACTION_TYPES).not.toContain('setVariableRandomRange')
     expect(ACTION_TYPES).not.toContain('clickToDestroy')
     expect(ACTION_TYPES).not.toContain('clearMovementIntent')
     expect(ACTION_TYPES).not.toContain('setCameraTarget')
@@ -76,14 +75,15 @@ describe('schema-registry', () => {
     expect(CONDITION_TYPES).not.toContain('isSpaceFree')
     expect(CONDITION_TYPES).toContain('isTileAreaFree')
 
-    expect(validateAction({ type: 'setVariableRandomRange', key: 'die', min: 1, max: 6 }).valid).toBe(true)
     expect(validateAction({ type: 'setCameraTarget', target: 'self' }).valid).toBe(true)
     expect(validateCondition({ type: 'isSpaceFree', x: 0, y: 0, w: 32, h: 32 }).valid).toBe(true)
   })
 
   it('validates typed Value Sources', () => {
     expect(validateAction({
-      type: 'setGlobalVariable',
+      type: 'modifyVariable',
+      scope: 'global',
+      op: 'set',
       key: 'x',
       value: { source: 'entity', target: 'self', property: 'positionX' },
     }).valid).toBe(true)

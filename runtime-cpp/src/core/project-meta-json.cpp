@@ -195,6 +195,19 @@ void read_scene_layers(const nlohmann::json& doc, std::vector<SceneLayerDef>& ou
             layer.name = item.get<std::string>();
         } else if (item.is_object()) {
             layer.name = read_string_any(item, "name", "id");
+            if (item.contains("parallax") && item["parallax"].is_object()) {
+                const auto& p = item["parallax"];
+                layer.parallax.x = p.value("x", 1.f);
+                layer.parallax.y = p.value("y", 1.f);
+            }
+            if (item.contains("background") && item["background"].is_object()) {
+                const auto& b = item["background"];
+                layer.background.imageId = read_string_any(b, "imageId", "image_id");
+                layer.background.tileX   = b.value("tileX", b.value("tile_x", true));
+                layer.background.tileY   = b.value("tileY", b.value("tile_y", true));
+                layer.background.scrollX = b.value("scrollX", b.value("scroll_x", 0.f));
+                layer.background.scrollY = b.value("scrollY", b.value("scroll_y", 0.f));
+            }
         }
         if (!layer.name.empty())
             out.push_back(std::move(layer));

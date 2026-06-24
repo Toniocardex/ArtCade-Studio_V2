@@ -269,6 +269,7 @@ void RuntimeEntityGateway::applyEntityDefToRegistry(
     // Set Scale at runtime can no longer clobber a logic-set facing.
     Transform transform = def.transform;
     SpriteComponent sprite = def.sprite;
+    sprite.layer = def.layer;
     if (transform.scale.x < 0.f) { sprite.flipX = !sprite.flipX; transform.scale.x = -transform.scale.x; }
     if (transform.scale.y < 0.f) { sprite.flipY = !sprite.flipY; transform.scale.y = -transform.scale.y; }
     registry_->setTransform(id, transform);

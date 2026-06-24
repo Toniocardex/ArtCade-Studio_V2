@@ -144,6 +144,15 @@ export function enumDisplayLabel(context: string, value: string): string {
     scanlines: 'Scanlines',
     wave: 'Wave',
     palette_swap: 'Palette swap',
+    // setVolume channels
+    master: 'Master',
+    music: 'Music',
+    sfx: 'Sound effects',
+    // setPause / controlMusic modes
+    stop: 'Stop',
+    pause: 'Pause',
+    resume: 'Resume',
+    toggle: 'Toggle',
   }
   return map[value] ?? value.replace(/_/g, ' ')
 }

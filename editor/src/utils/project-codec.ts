@@ -259,6 +259,7 @@ function parseInstance(raw: unknown, fallbackId: number): SceneInstanceDef | nul
     ...(r.instance_name != null ? { instanceName: String(r.instance_name) } : {}),
     transform: parseTransform(r.transform),
     ...(typeof r.visible === 'boolean' && !r.visible ? { visible: false } : {}),
+    ...(r.layer != null && String(r.layer).trim() ? { layer: String(r.layer) } : {}),
     ...(parseVariableOverrides(r.localVariableOverrides ?? r.local_variable_overrides)
       ? { localVariableOverrides: parseVariableOverrides(r.localVariableOverrides ?? r.local_variable_overrides) }
       : {}),
@@ -610,21 +611,55 @@ function parseTilePalette(raw: unknown): TileDef[] | undefined {
   return out.length ? out : undefined
 }
 
+function parseLayerParallax(raw: unknown): LayerDef['parallax'] {
+  if (!raw || typeof raw !== 'object') return undefined
+  const r = raw as Record<string, unknown>
+  const x = Number(r.x)
+  const y = Number(r.y)
+  const px = Number.isFinite(x) ? x : 1
+  const py = Number.isFinite(y) ? y : 1
+  // Omit the neutral default so project.json stays lean.
+  return px === 1 && py === 1 ? undefined : { x: px, y: py }
+}
+
+function parseLayerBackground(raw: unknown): LayerDef['background'] {
+  if (!raw || typeof raw !== 'object') return undefined
+  const r = raw as Record<string, unknown>
+  const imageId = String(r.imageId ?? r.image_id ?? '').trim()
+  if (!imageId) return undefined
+  const scrollX = Number(r.scrollX ?? r.scroll_x)
+  const scrollY = Number(r.scrollY ?? r.scroll_y)
+  return {
+    imageId,
+    tileX: r.tileX !== false && r.tile_x !== false,
+    tileY: r.tileY !== false && r.tile_y !== false,
+    scrollX: Number.isFinite(scrollX) ? scrollX : 0,
+    scrollY: Number.isFinite(scrollY) ? scrollY : 0,
+  }
+}
+
 function parseLayers(raw: unknown): LayerDef[] | undefined {
   if (!Array.isArray(raw)) return undefined
   const out: LayerDef[] = []
   const seen = new Set<string>()
   for (const item of raw) {
+    const isObj = !!item && typeof item === 'object'
+    const obj = isObj ? (item as Record<string, unknown>) : undefined
     const name =
       typeof item === 'string'
         ? item
-        : item && typeof item === 'object'
-          ? String((item as Record<string, unknown>).name ?? '')
+        : obj
+          ? String(obj.name ?? '')
           : ''
     const trimmed = name.trim()
     if (!trimmed || seen.has(trimmed)) continue
     seen.add(trimmed)
-    out.push({ name: trimmed })
+    const layer: LayerDef = { name: trimmed }
+    const parallax = parseLayerParallax(obj?.parallax)
+    if (parallax) layer.parallax = parallax
+    const background = parseLayerBackground(obj?.background)
+    if (background) layer.background = background
+    out.push(layer)
   }
   return out.length ? out : undefined
 }
@@ -810,6 +845,7 @@ function serializeInstance(inst: SceneInstanceDef) {
     ...(inst.instanceName ? { instanceName: inst.instanceName } : {}),
     transform: serializeTransform(inst.transform),
     ...(inst.visible === false ? { visible: false } : {}),
+    ...(inst.layer ? { layer: inst.layer } : {}),
     ...(inst.localVariableOverrides && Object.keys(inst.localVariableOverrides).length
       ? { localVariableOverrides: inst.localVariableOverrides }
       : {}),

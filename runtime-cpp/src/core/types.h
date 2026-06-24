@@ -99,6 +99,9 @@ struct SpriteComponent {
     // into these on entity creation so scale stays a pure size.
     bool        flipX = false;
     bool        flipY = false;
+    // Render layer name (set at entity creation from EntityDef.layer). Drives
+    // per-layer parallax in app_scene_render; "" = no layer / factor 1.
+    std::string layer;
 };
 
 struct AnimationState {
@@ -286,6 +289,7 @@ struct EntityDef {
     EntityId         id;
     std::string      name;
     std::string      className;
+    std::string      layer;        // render layer name ("" = none)
     std::vector<std::string> tags;
     Transform        transform;
     SpriteComponent  sprite;
@@ -332,9 +336,26 @@ struct TilemapData {
     std::string      defaultTilesetAssetId;
 };
 
+/** Per-layer parallax scroll factor (1 = moves with world, <1 = far, >1 = near). */
+struct LayerParallax {
+    float x = 1.f;
+    float y = 1.f;
+};
+
+/** Optional repeating background image painted under a layer's entities. */
+struct LayerBackground {
+    std::string imageId;        // ImageAsset id; empty = no background
+    bool        tileX   = true; // repeat horizontally to fill the view
+    bool        tileY   = true; // repeat vertically to fill the view
+    float       scrollX = 0.f;  // constant auto-scroll px/s (camera-independent)
+    float       scrollY = 0.f;
+};
+
 /** Named scene render layer (editor project.layers; index 0 = highest priority). */
 struct SceneLayerDef {
-    std::string name;
+    std::string     name;
+    LayerParallax   parallax;
+    LayerBackground background;
 };
 
 // Phase F3: spritesheet tileset. Cell id is 1-based, laid out L→R, T→B.
@@ -354,6 +375,7 @@ struct SceneInstanceDef {
     std::string instanceName;
     Transform   transform;
     bool        visible      = true;
+    std::string layer;        // render layer name ("" = none)
     std::unordered_map<std::string, GameVariableValue> localVariableOverrides;
 };
 

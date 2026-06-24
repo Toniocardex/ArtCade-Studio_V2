@@ -5,7 +5,9 @@
 #include "../../modules/editor-api/include/editor-api.h"
 #include "../../modules/game-state/include/splash-state.h"
 #include "../../modules/sprite-animator/include/sprite-animator.h"
+#include "../../modules/time/include/time-manager.h"
 #include "../render/editor-overlay-renderer.h"
+#include "../render/parallax-renderer.h"
 #include "../render/physics_debug_renderer.h"
 #include "../render/ray-tint-widget.h"
 #include "../render/text_value_formatter.h"
@@ -15,6 +17,7 @@
 #include <cmath>
 #include <optional>
 #include <string>
+#include <unordered_map>
 
 namespace ArtCade {
 
@@ -123,6 +126,12 @@ void Application::renderActiveScene() {
             std::max(1.f, activeScene->worldSize.x),
             std::max(1.f, activeScene->worldSize.y),
             activeScene->backgroundColor);
+        ParallaxRenderer::draw(
+            *mod_->renderer,
+            mod_->sceneManager->sceneLayers(),
+            mod_->renderer->getCameraPosition(),
+            mod_->renderer->visibleWorldSize(),
+            mod_->timeManager ? mod_->timeManager->now() : 0.f);
         TilemapRenderer::draw(
             *mod_->renderer, *activeScene, mod_->sceneManager->sceneLayers(),
             mod_->sceneManager->tilesets(), tilesets_, tileColors_);
@@ -130,14 +139,42 @@ void Application::renderActiveScene() {
     }
 
     const bool inEditMode = overlay.inEditMode;
+
+    // Per-layer parallax offset (play mode only): entities on a layer whose
+    // factor ≠ 1 are drawn shifted so they scroll slower/faster than the world,
+    // mirroring ParallaxRenderer's math under the single world Camera2D. Edit
+    // mode keeps true positions so picking/dragging stay aligned.
+    std::unordered_map<std::string, Vec2> parallaxByLayer;
+    if (activeScene) {
+        for (const auto& layer : mod_->sceneManager->sceneLayers()) {
+            if (layer.parallax.x != 1.f || layer.parallax.y != 1.f)
+                parallaxByLayer.emplace(layer.name, Vec2{ layer.parallax.x, layer.parallax.y });
+        }
+    }
+    const Vec2 cameraTopLeft = mod_->renderer->getCameraPosition();
+    const auto layerDrawPos =
+        [&parallaxByLayer, cameraTopLeft, inEditMode]
+        (const std::string& layer, const Vec2& worldPos) -> Vec2 {
+            if (inEditMode || layer.empty()) return worldPos;
+            const auto it = parallaxByLayer.find(layer);
+            if (it == parallaxByLayer.end()) return worldPos;
+            return {
+                worldPos.x + cameraTopLeft.x * (1.f - it->second.x),
+                worldPos.y + cameraTopLeft.y * (1.f - it->second.y),
+            };
+        };
+
     mod_->entityGateway->forEachActiveRenderable(
         [renderer = mod_->renderer.get(),
          animator = mod_->spriteAnimator.get(),
          inEditMode,
          gateway = mod_->entityGateway.get(),
-         variables = mod_->variableManager.get()]
+         variables = mod_->variableManager.get(),
+         &layerDrawPos]
         (EntityId id, const Transform& transform, const SpriteComponent& sprite) {
             if (!inEditMode && sprite.alpha <= 0.001f) return;
+
+            const Vec2 pos = layerDrawPos(sprite.layer, transform.position);
 
             float alpha = sprite.alpha;
             const bool placeholderFill = sprite.spriteAssetId.empty();
@@ -171,12 +208,12 @@ void Application::renderActiveScene() {
                     static_cast<float>(draw.frame.y),
                     static_cast<float>(draw.frame.w),
                     static_cast<float>(draw.frame.h),
-                    transform.position, transform.rotation, transform.scale,
+                    pos, transform.rotation, transform.scale,
                     sprite.tint, alpha, sprite.pivot, sprite.flipX, sprite.flipY);
             } else if (!visualOnly) {
                 renderer->drawSprite(
                     sprite.spriteAssetId,
-                    transform.position, transform.rotation, transform.scale,
+                    pos, transform.rotation, transform.scale,
                     sprite.tint, sprite.fillColor, alpha,
                     sprite.shaderEffect, sprite.pivot, sprite.flipX, sprite.flipY);
             }
@@ -205,8 +242,8 @@ void Application::renderActiveScene() {
             textAnchorAlign(text.align, hAlign, vAlign);
             renderer->drawText(
                 display,
-                transform.position.x + text.offsetX,
-                transform.position.y + text.offsetY,
+                pos.x + text.offsetX,
+                pos.y + text.offsetY,
                 text.size, color, text.fontPath, hAlign, text.screenSpace,
                 vAlign);
         });
@@ -217,8 +254,9 @@ void Application::renderActiveScene() {
         [renderer = mod_->renderer.get(),
          inEditMode,
          gateway = mod_->entityGateway.get(),
-         variables = mod_->variableManager.get()]
-        (EntityId id, const Transform& transform, const SpriteComponent&) {
+         variables = mod_->variableManager.get(),
+         &layerDrawPos]
+        (EntityId id, const Transform& transform, const SpriteComponent& sprite) {
             GaugeComponent gauge{};
             if (!gateway->getGauge(id, gauge)) return;
             if (gauge.width <= 0.f || gauge.height <= 0.f) return;
@@ -244,8 +282,9 @@ void Application::renderActiveScene() {
                 bg.a *= 0.45f;
                 fill.a *= 0.45f;
             }
-            const float gx = transform.position.x + gauge.offsetX;
-            const float gy = transform.position.y + gauge.offsetY;
+            const Vec2 gpos = layerDrawPos(sprite.layer, transform.position);
+            const float gx = gpos.x + gauge.offsetX;
+            const float gy = gpos.y + gauge.offsetY;
             renderer->drawRect(gx, gy, gauge.width, gauge.height, bg, gauge.screenSpace);
             if (gauge.direction == "vertical") {
                 const float fh = gauge.height * ratio;

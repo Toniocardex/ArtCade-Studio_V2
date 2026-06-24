@@ -1,17 +1,69 @@
+import { useEffect, useState } from 'react'
 import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import { sourcesUsedOnLayer } from '../../utils/tilemap-layer-sources'
+import { DEFAULT_LAYERS, layerParallax } from '../../constants/scene-layers'
+import { EditorSelect, type EditorSelectOption } from '../../components/ui/EditorSelect'
+import type { LayerBackground, LayerParallax } from '../../types'
 
 export type LayerSettingsSectionProps = Readonly<{
   layerName: string
   sceneName: string | undefined
 }>
 
+const inputClass =
+  'w-16 bg-[var(--surface-3)] border border-[var(--outline)] text-[var(--text)] px-1.5 py-0.5 rounded text-[10px]'
+const labelClass = 'text-[9px] text-[var(--muted)] uppercase tracking-wider'
+
+/** Number input with a local buffer so partial edits ('-', '1.') don't snap. */
+function NumField({
+  label, value, step = 0.1, onCommit,
+}: Readonly<{ label: string; value: number; step?: number; onCommit: (n: number) => void }>) {
+  const [buf, setBuf] = useState(String(value))
+  useEffect(() => { setBuf(String(value)) }, [value])
+  return (
+    <label className="flex flex-col gap-0.5">
+      <span className={labelClass}>{label}</span>
+      <input
+        type="number"
+        step={step}
+        value={buf}
+        onChange={(e) => {
+          setBuf(e.target.value)
+          const n = parseFloat(e.target.value)
+          if (Number.isFinite(n)) onCommit(n)
+        }}
+        className={inputClass}
+      />
+    </label>
+  )
+}
+
+const NO_BACKGROUND: LayerBackground = {
+  imageId: '', tileX: true, tileY: true, scrollX: 0, scrollY: 0,
+}
+
 export function LayerSettingsSection({ layerName, sceneName }: LayerSettingsSectionProps) {
   const dispatch = useEditorDispatch()
   const project = useEditorSelector((s) => s.project)
   const sceneId = useEditorSelector((s) => s.selection.sceneId ?? s.project?.activeSceneId)
-  const layer = sceneId ? project?.scenes[sceneId]?.tilemapLayers?.[layerName] : undefined
-  const usedIds = layer ? sourcesUsedOnLayer(layer) : []
+  const tilemapLayer = sceneId ? project?.scenes[sceneId]?.tilemapLayers?.[layerName] : undefined
+  const usedIds = tilemapLayer ? sourcesUsedOnLayer(tilemapLayer) : []
+
+  const renderLayer =
+    (project?.layers ?? DEFAULT_LAYERS).find((l) => l.name === layerName)
+  const parallax = layerParallax(renderLayer ?? {})
+  const bg = renderLayer?.background ?? NO_BACKGROUND
+
+  const updateParallax = (patch: Partial<LayerParallax>) =>
+    dispatch({ type: 'LAYER_UPDATE', name: layerName, patch: { parallax: { ...parallax, ...patch } } })
+  const updateBg = (patch: Partial<LayerBackground>) =>
+    dispatch({ type: 'LAYER_UPDATE', name: layerName, patch: { background: { ...bg, ...patch } } })
+
+  const imageOptions: EditorSelectOption[] = [
+    { value: '', label: 'None' },
+    ...Object.values(project?.assets ?? {}).map((a) => ({ value: a.id, label: a.name })),
+  ]
+  const hasBackground = bg.imageId.trim().length > 0
 
   return (
     <div className="space-y-3 text-[10px] text-[var(--primary-soft)]">
@@ -21,8 +73,65 @@ export function LayerSettingsSection({ layerName, sceneName }: LayerSettingsSect
           <> in <strong className="text-[var(--primary)]">{sceneName}</strong></>
         ) : null}
       </p>
+
+      {/* Parallax — applies to this layer's background and (later) its entities */}
       <div className="space-y-1">
-        <span className="text-[9px] text-[var(--muted)] uppercase tracking-wider">Tileset sources</span>
+        <span className={labelClass}>Parallax</span>
+        <div className="flex items-end gap-2">
+          <NumField label="X" value={parallax.x} onCommit={(x) => updateParallax({ x })} />
+          <NumField label="Y" value={parallax.y} onCommit={(y) => updateParallax({ y })} />
+        </div>
+        <p className="text-[9px] text-[var(--muted)] leading-relaxed">
+          1 = moves with the world · &lt;1 = far background (slower) · 0 = locked to screen · &gt;1 = foreground.
+        </p>
+      </div>
+
+      {/* Background image — repeating, scrolls with parallax + optional auto-scroll */}
+      <div className="space-y-1">
+        <span className={labelClass}>Background image</span>
+        <EditorSelect
+          value={bg.imageId}
+          onChange={(imageId) => updateBg({ imageId })}
+          options={imageOptions}
+          placeholder="None"
+          aria-label="Background image"
+        />
+        {hasBackground && (
+          <div className="space-y-1.5 pt-1">
+            <div className="flex flex-col gap-1">
+              <label className="flex items-center gap-1.5">
+                <input
+                  type="checkbox"
+                  checked={bg.tileX}
+                  onChange={(e) => updateBg({ tileX: e.target.checked })}
+                  className="accent-[var(--accent)]"
+                />
+                <span>Tile horizontally</span>
+              </label>
+              <label className="flex items-center gap-1.5">
+                <input
+                  type="checkbox"
+                  checked={bg.tileY}
+                  onChange={(e) => updateBg({ tileY: e.target.checked })}
+                  className="accent-[var(--accent)]"
+                />
+                <span>Tile vertically</span>
+              </label>
+            </div>
+            <div className="flex items-end gap-2">
+              <NumField label="Auto-scroll X" value={bg.scrollX} step={1} onCommit={(scrollX) => updateBg({ scrollX })} />
+              <NumField label="Auto-scroll Y" value={bg.scrollY} step={1} onCommit={(scrollY) => updateBg({ scrollY })} />
+            </div>
+            <p className="text-[9px] text-[var(--muted)] leading-relaxed">
+              Auto-scroll is a constant drift in px/s (independent of the camera) — e.g. drifting clouds.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Tileset sources painted on this layer */}
+      <div className="space-y-1">
+        <span className={labelClass}>Tileset sources</span>
         {usedIds.length > 0 ? (
           <ul className="space-y-1">
             {usedIds.map((id) => {
@@ -47,6 +156,7 @@ export function LayerSettingsSection({ layerName, sceneName }: LayerSettingsSect
           <p className="text-[var(--muted)]">No tilesets used on this layer yet.</p>
         )}
       </div>
+
       <p className="text-[var(--muted)] leading-relaxed">
         Rename or reorder layers in the Layers panel (left sidebar).
         Assign entities to a layer via the Layer field in the Inspector.

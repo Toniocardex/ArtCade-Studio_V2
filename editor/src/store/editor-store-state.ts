@@ -14,6 +14,7 @@ import type {
   LogicBoard, LogicEvent, ComponentKey, WorldSettings, TilesetAsset, ImageAsset,
   SpriteComponent, PhysicsComponent, Vec3, AssetFolderCategory,
   GameVariableDefinition, GameVariableValue, AnimationClipDef, ImageAssetUsage,
+  LayerParallax, LayerBackground,
 } from '../types'
 import type { DialogScript } from '../utils/dialog/dialog-script'
 import type { InspectorAssetSelection } from '../types/inspector-selection'
@@ -296,6 +297,7 @@ export type Action =
   | { type: 'LAYER_RENAME'; oldName: string; newName: string }
   | { type: 'LAYER_DELETE'; name: string }
   | { type: 'LAYER_MOVE'; name: string; direction: 'up' | 'down' }
+  | { type: 'LAYER_UPDATE'; name: string; patch: { parallax?: LayerParallax; background?: LayerBackground } }
 
 export type DomainReducer = (state: CoreState, action: Action) => CoreState
 

@@ -213,13 +213,12 @@ export type LogicConditionNode =
 /** Where a variable lives: project-wide (`global.*`) or per-entity (`objectvar.*`). */
 export type VariableScope = 'global' | 'object'
 
-/** Arithmetic applied by `modifyVariable` (=, +=, -=, *=, /=). */
-export type VariableOp = 'set' | 'add' | 'subtract' | 'multiply' | 'divide'
+/** Operation applied by `modifyVariable` (=, +=, -=, *=, /=, clamp to min/max). */
+export type VariableOp = 'set' | 'add' | 'subtract' | 'multiply' | 'divide' | 'clamp'
 
 export type LogicAction =
-  | { type: 'pauseGame' }
-  | { type: 'resumeGame' }
-  | { type: 'togglePause' }
+  /** Pause, resume, or toggle the game clock (time.pause/resume/togglePause). */
+  | { type: 'setPause'; mode: 'pause' | 'resume' | 'toggle' }
   /**
    * Unified variable mutation — one action covers every scope × operation.
    * Replaces the older set/add{Global,Local}Variable family in the picker
@@ -234,15 +233,15 @@ export type LogicAction =
       scope: VariableScope
       op: VariableOp
       key: string
-      value: LogicValue
+      /** Operand for set/add/subtract/multiply/divide (unused for clamp). */
+      value?: LogicValue
+      /** Lower/upper bounds for op 'clamp' (unused for the other ops). */
+      min?: LogicValue
+      max?: LogicValue
       target?: TargetSelector
     }
-  // Legacy granular variable actions — kept for back-compat (existing boards
-  // and the migration path); no longer offered directly in the picker.
-  | { type: 'setGlobalVariable'; key: string; value: LogicValue }
-  | { type: 'addGlobalVariable'; key: string; amount: LogicValue }
-  | { type: 'setLocalVariable'; target: TargetSelector; key: string; value: LogicValue }
-  | { type: 'addLocalVariable'; target: TargetSelector; key: string; amount: LogicValue }
+  // Internal variable actions used by the Dialog system (not offered in the
+  // Logic Board picker; modifyVariable is the authoring-facing equivalent).
   | { type: 'setVariable'; key: string; value: LogicValue }
   | { type: 'addVariable'; key: string; amount: LogicValue }
   | { type: 'setPosition'; target: TargetSelector; x: LogicValue; y: LogicValue }
@@ -250,12 +249,10 @@ export type LogicAction =
   | { type: 'playSound'; path?: string; audioAssetId?: string; volume?: number; pitch?: number }
   | { type: 'playMusic'; path?: string; audioAssetId?: string; loop?: boolean }
   | { type: 'stopAllAudio' }
-  | { type: 'stopMusic' }
-  | { type: 'pauseMusic' }
-  | { type: 'resumeMusic' }
-  | { type: 'setMusicVolume'; volume: LogicValue }
-  | { type: 'setMasterVolume'; volume: LogicValue }
-  | { type: 'setSfxVolume'; volume: LogicValue }
+  /** Stop / pause / resume the music track (audio.stop|pause|resumeMusic). */
+  | { type: 'controlMusic'; mode: 'stop' | 'pause' | 'resume' }
+  /** Set master / music / sfx volume (audio.setMaster|Music|SfxVolume). */
+  | { type: 'setVolume'; channel: 'master' | 'music' | 'sfx'; volume: LogicValue }
   | { type: 'fadeMusic'; volume: LogicValue; seconds: LogicValue }
   | { type: 'destroyEntity'; target: TargetSelector }
   | {
@@ -359,10 +356,6 @@ export type LogicAction =
   | { type: 'snapToGrid'; target: TargetSelector; cellSize: LogicValue }
   | { type: 'setEntityShader'; target: TargetSelector; shader: string }
   | { type: 'setScreenShader'; shader: string }
-  // ── State math ────────────────────────────────────────────────────────────
-  | { type: 'setVariableRandomRange'; key: string; min: number; max: number }
-  | { type: 'clampVariable'; key: string; min: number; max: number }
-  | { type: 'multiplyVariable'; key: string; factor: number }
   // ── Save / Load ───────────────────────────────────────────────────────────
   | { type: 'saveGame'; slot: string }
   | { type: 'loadGame'; slot: string }

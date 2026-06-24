@@ -17,9 +17,39 @@ import type {
   HealthComponent, AutoDestroyComponent, DialogComponent, TextComponent, GaugeComponent,
 } from './components'
 
+/**
+ * Per-layer parallax scroll factor. The layer's contents are drawn with a
+ * camera offset scaled by this factor:
+ *   • 1 = moves with the world (default, no parallax)
+ *   • <1 = far background (scrolls slower than the camera; 0 = locked to screen)
+ *   • >1 = foreground (scrolls faster than the camera)
+ * Applied independently on each axis so top-down games get depth on X and Y.
+ */
+export interface LayerParallax {
+  x: number
+  y: number
+}
+
+/**
+ * Optional repeating background image painted for a layer, before its entities.
+ * Combined with the layer's parallax factor this produces classic scrolling
+ * sky / mountains / clouds backdrops.
+ */
+export interface LayerBackground {
+  imageId: string     // ImageAsset id; '' = no background image
+  tileX:   boolean    // repeat horizontally to fill the view
+  tileY:   boolean    // repeat vertically to fill the view
+  scrollX: number     // constant auto-scroll speed px/s (independent of camera)
+  scrollY: number
+}
+
 /** A named render layer. Array stored top-to-bottom (index 0 = highest priority). */
 export interface LayerDef {
   name: string
+  /** Parallax scroll factor; defaults to { x: 1, y: 1 } when omitted. */
+  parallax?: LayerParallax
+  /** Optional repeating background image drawn under this layer's entities. */
+  background?: LayerBackground
 }
 
 export interface Vec2 { x: number; y: number }
@@ -119,6 +149,8 @@ export interface SceneInstanceDef {
   instanceName?: string
   transform:    Transform
   visible?:     boolean
+  /** Render layer this instance is drawn on (matches a ProjectDoc.layers name). */
+  layer?:       string
   localVariableOverrides?: Record<string, GameVariableValue>
 }
 
@@ -133,6 +165,8 @@ export interface EntityDef {
   physics?:    PhysicsComponent
   scriptPath?: string
   visible?:    boolean   // hidden in play when false; always drawn in editor preview
+  /** Render layer name (materialized from the scene instance). */
+  layer?:      string
   // ECS gameplay components (Scene Editor Phase A) — optional, strongly typed
   sensor?:               SensorComponent
   solid?:                SolidComponent

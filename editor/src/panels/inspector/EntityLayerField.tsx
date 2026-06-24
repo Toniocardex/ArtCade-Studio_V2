@@ -12,7 +12,7 @@ export function EntityLayerField({ entity }: EntityLayerFieldProps) {
   const layers = useEditorSelector((s) => s.project?.layers ?? DEFAULT_LAYERS)
   const entityDisplayLayers = useEditorSelector((s) => s.entityDisplayLayers)
   const editorActiveLayer = useEditorSelector((s) => s.editorActiveLayer)
-  const value = entityDisplayLayers[entity.id] ?? editorActiveLayer
+  const value = entityDisplayLayers[entity.id] ?? entity.layer ?? editorActiveLayer
 
   const options = layers.map((l) => ({ value: l.name, label: l.name }))
 
