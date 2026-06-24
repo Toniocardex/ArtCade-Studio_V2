@@ -15,7 +15,7 @@ EntityDef materializeInstance(const EntityDef& typeProto,
     e.name      = instance.instanceName.empty() ? typeProto.name : instance.instanceName;
     e.transform = instance.transform;
     e.visible   = instance.visible;
-    e.layer     = instance.layer;
+    e.layerId   = instance.layerId;
     e.localVariableOverrides = instance.localVariableOverrides;
     return e;
 }

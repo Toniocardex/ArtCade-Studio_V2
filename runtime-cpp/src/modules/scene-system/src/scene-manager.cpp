@@ -61,6 +61,36 @@ void SceneManager::patchSceneSettings(const SceneId& id, const SceneDef& patch) 
     scene.backgroundColor = patch.backgroundColor;
     if (!patch.name.empty())
         scene.name = patch.name;
+    // Per-scene layer visual overrides are pushed wholesale (always present,
+    // possibly empty) so clears propagate; replace rather than merge.
+    scene.layerSettings = patch.layerSettings;
+}
+
+int SceneManager::layerRank(const std::string& layerId) const {
+    const int count = static_cast<int>(sceneLayers_.size());
+    for (int i = 0; i < count; ++i) {
+        if (sceneLayers_[static_cast<size_t>(i)].id == layerId)
+            return count - i;
+    }
+    return 0;
+}
+
+SceneLayerSettings SceneManager::activeLayerSettings(const std::string& layerId) const {
+    const SceneDef* scene = activeScene();
+    if (scene) {
+        const auto it = scene->layerSettings.find(layerId);
+        if (it != scene->layerSettings.end())
+            return it->second;
+    }
+    return SceneLayerSettings{};  // visible, opacity 1, parallax 1, no background
+}
+
+bool SceneManager::layerLocked(const std::string& layerId) const {
+    for (const auto& layer : sceneLayers_) {
+        if (layer.id == layerId)
+            return layer.locked;
+    }
+    return false;
 }
 
 void SceneManager::removeEntityFromAllScenes(EntityId id) {

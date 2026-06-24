@@ -16,7 +16,7 @@ import {
 import { formatPivotLabel } from '../../utils/sprite-pivot'
 import { InspectorSection, NumberField } from './inspector-fields'
 import { InspectorClipPreview } from './InspectorClipPreview'
-import { SpriteRayTintField } from './SpriteRayTintField'
+import { SpriteFillColorField } from './SpriteFillColorField'
 import { EditorSelect } from '../../components/ui/EditorSelect'
 
 export type SpriteSectionProps = Readonly<{
@@ -161,7 +161,7 @@ export function SpriteSection({ entity }: SpriteSectionProps) {
         </p>
       ) : null}
 
-      <SpriteRayTintField entity={entity} />
+      <SpriteFillColorField entity={entity} />
       <div className="grid grid-cols-2 gap-2 mb-2">
         <NumberField
           label="Alpha"

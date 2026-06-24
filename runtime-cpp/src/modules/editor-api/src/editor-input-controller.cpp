@@ -3,7 +3,6 @@
 #ifdef __EMSCRIPTEN__
 
 #include "../include/editor-api.h"
-#include "../../../app/render/ray-tint-widget.h"
 #include "pointer-coords.h"
 #include "../../../modules/runtime-entity-gateway/include/runtime-entity-gateway.h"
 #include "../../../modules/renderer/include/renderer.h"
@@ -70,28 +69,53 @@ void toWorld(const EmscriptenMouseEvent* e, float& wx, float& wy) {
     }
 }
 
+// Pick gating: a layer is editable when it is NOT locked (global, per-layer)
+// AND visible in the active scene (per-scene SceneLayerSettings).
 bool layerAllowsCanvasEdit(Modules::RuntimeEntityGateway& gateway,
-                           const std::string& layerName) {
-    if (layerName.empty()) return true;
+                           const std::string& layerId) {
+    if (layerId.empty()) return true;
+    bool locked = false, found = false;
     for (const auto& layer : gateway.sceneLayers()) {
-        if (layer.name != layerName) continue;
-        return layer.visible && !layer.locked;
+        if (layer.id != layerId) continue;
+        locked = layer.locked;
+        found = true;
+        break;
     }
-    return true;
+    if (!found) return true;
+    bool visible = true;
+    if (const SceneDef* scene = gateway.activeScene()) {
+        const auto it = scene->layerSettings.find(layerId);
+        if (it != scene->layerSettings.end()) visible = it->second.visible;
+    }
+    return visible && !locked;
 }
 
 bool entityAllowsCanvasEdit(Modules::RuntimeEntityGateway& gateway,
                             EntityId id,
                             const SpriteComponent* sprite = nullptr) {
     if (sprite)
-        return layerAllowsCanvasEdit(gateway, sprite->layer);
+        return layerAllowsCanvasEdit(gateway, sprite->layerId);
     if (const EntityDef* def = gateway.getEntityDef(id))
-        return layerAllowsCanvasEdit(gateway, def->layer);
+        return layerAllowsCanvasEdit(gateway, def->layerId);
     return true;
+}
+
+// Stack rank by id (count - index, index 0 = top). Intra-layer ties break on
+// renderOrder then insertion order in choosePickHit, so no magic multiplier.
+int layerRenderPriority(Modules::RuntimeEntityGateway& gateway,
+                        const std::string& layerId) {
+    const auto& layers = gateway.sceneLayers();
+    const int layerCount = static_cast<int>(layers.size());
+    for (size_t i = 0; i < layers.size(); ++i) {
+        if (layers[i].id != layerId) continue;
+        return layerCount - static_cast<int>(i);
+    }
+    return 0;
 }
 
 struct PickHit {
     uint32_t id = 0u;
+    int      layerPriority = 0;
     int32_t  renderOrder = 0;
     size_t   insertionIndex = 0u;
 };
@@ -99,6 +123,7 @@ struct PickHit {
 uint32_t choosePickHit(std::vector<PickHit>& hits, bool cycleOverlap) {
     if (hits.empty()) return 0u;
     std::stable_sort(hits.begin(), hits.end(), [](const PickHit& a, const PickHit& b) {
+        if (a.layerPriority != b.layerPriority) return a.layerPriority > b.layerPriority;
         if (a.renderOrder != b.renderOrder) return a.renderOrder > b.renderOrder;
         return a.insertionIndex > b.insertionIndex;
     });
@@ -130,7 +155,12 @@ uint32_t pickEntityAt(float x, float y, bool cycleOverlap) {
         const float cx = transform.position.x;
         const float cy = transform.position.y;
         if (x >= cx - hw && x <= cx + hw && y >= cy - hh && y <= cy + hh)
-            hits.push_back(PickHit{ id, sprite.renderOrder, hits.size() });
+            hits.push_back(PickHit{
+                id,
+                layerRenderPriority(*gw, sprite.layerId),
+                sprite.renderOrder,
+                hits.size(),
+            });
     });
     if (!hits.empty()) return choosePickHit(hits, cycleOverlap);
 
@@ -145,10 +175,13 @@ uint32_t pickEntityAt(float x, float y, bool cycleOverlap) {
         if (!entityAllowsCanvasEdit(*gw, id)) continue;
         Transform transform{};
         if (!gw->getAuthoringTransform(id, transform)) continue;
+        int layerPriority = 0;
+        if (const EntityDef* def = gw->getEntityDef(id))
+            layerPriority = layerRenderPriority(*gw, def->layerId);
         const float cx = transform.position.x;
         const float cy = transform.position.y;
         if (x >= cx - 32.f && x <= cx + 32.f && y >= cy - 32.f && y <= cy + 32.f)
-            hits.push_back(PickHit{ id, 0, hits.size() });
+            hits.push_back(PickHit{ id, layerPriority, 0, hits.size() });
     }
     return choosePickHit(hits, cycleOverlap);
 }
@@ -164,12 +197,6 @@ EM_BOOL EditorAPI::onMouseMove(int, const EmscriptenMouseEvent* e, void*) {
         float wx = 0.f, wy = 0.f;
         toWorld(e, wx, wy);
         EditorAPI::notifyCursorWorld(wx, wy);
-    }
-    float screenX = 0.f, screenY = 0.f;
-    toScreen(e, screenX, screenY);
-    if (RayTintWidget::isActive()) {
-        RayTintWidget::onMouseMove(screenX, screenY);
-        return EM_TRUE;
     }
     if (s_editorTool == ToolPan) {
         // Panning is owned by the editor's scroll container (it drives the
@@ -199,12 +226,6 @@ EM_BOOL EditorAPI::onMouseMove(int, const EmscriptenMouseEvent* e, void*) {
 
 EM_BOOL EditorAPI::onMouseDown(int, const EmscriptenMouseEvent* e, void*) {
     if (s_mode != 0) return EM_FALSE;
-    float screenX = 0.f, screenY = 0.f;
-    toScreen(e, screenX, screenY);
-    if (RayTintWidget::isActive()) {
-        if (RayTintWidget::onMouseDown(screenX, screenY))
-            return EM_TRUE;
-    }
     toScreen(e, s_lastPanScreenX, s_lastPanScreenY);
     if (s_editorTool == ToolPan) {
         s_isDragging = true;
@@ -237,12 +258,6 @@ EM_BOOL EditorAPI::onMouseDown(int, const EmscriptenMouseEvent* e, void*) {
 
 EM_BOOL EditorAPI::onMouseUp(int, const EmscriptenMouseEvent* e, void*) {
     if (s_mode != 0) return EM_FALSE;
-    float screenX = 0.f, screenY = 0.f;
-    toScreen(e, screenX, screenY);
-    if (RayTintWidget::isActive()) {
-        RayTintWidget::onMouseUp(screenX, screenY);
-        return EM_TRUE;
-    }
     const bool wasDragging = s_isDragging;
     s_isDragging = false;
     if (s_editorTool == ToolPan) return EM_TRUE;  // panning: no transform notify
@@ -260,12 +275,8 @@ EM_BOOL EditorAPI::onMouseUp(int, const EmscriptenMouseEvent* e, void*) {
     return EM_TRUE;
 }
 
-EM_BOOL EditorAPI::onKeyDown(int, const EmscriptenKeyboardEvent* key, void*) {
+EM_BOOL EditorAPI::onKeyDown(int, const EmscriptenKeyboardEvent*, void*) {
     if (s_mode != 0) return EM_FALSE;
-    if (RayTintWidget::isActive() && key && key->keyCode == 256) { // Escape
-        RayTintWidget::close(false);
-        return EM_TRUE;
-    }
     return EM_FALSE; // don't consume — let the browser handle F5, tab, etc.
 }
 

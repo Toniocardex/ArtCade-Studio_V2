@@ -44,7 +44,7 @@ bool read_scene_instance(const nlohmann::json& instanceJson, SceneInstanceDef& o
         out.transform = read_transform(instanceJson["transform"]);
     if (instanceJson.contains("visible") && instanceJson["visible"].is_boolean())
         out.visible = instanceJson["visible"].get<bool>();
-    out.layer = instanceJson.value("layer", std::string{});
+    out.layerId = instanceJson.value("layerId", std::string{});
     if (instanceJson.contains("localVariableOverrides")
         && instanceJson["localVariableOverrides"].is_object()) {
         for (auto& [key, value] : instanceJson["localVariableOverrides"].items()) {
@@ -129,11 +129,47 @@ void read_tilemap_layers(const nlohmann::json& sceneJson,
         return;
 
     out.clear();
-    for (auto& [name, layerJson] : layersJson->items()) {
+    for (auto& [layerId, layerJson] : layersJson->items()) {
         TilemapData layer;
         read_tilemap_object(layerJson, layer);
         if (layer.cols > 0 && layer.rows > 0)
-            out.emplace(name, std::move(layer));
+            out.emplace(layerId, std::move(layer));
+    }
+}
+
+void read_scene_layer_settings(const nlohmann::json& sceneJson,
+                               std::unordered_map<std::string, SceneLayerSettings>& out) {
+    const nlohmann::json* lsJson = nullptr;
+    if (sceneJson.contains("layerSettings") && sceneJson["layerSettings"].is_object())
+        lsJson = &sceneJson["layerSettings"];
+    else if (sceneJson.contains("layer_settings") && sceneJson["layer_settings"].is_object())
+        lsJson = &sceneJson["layer_settings"];
+    if (!lsJson)
+        return;
+
+    out.clear();
+    for (auto& [layerId, item] : lsJson->items()) {
+        if (!item.is_object())
+            continue;
+        SceneLayerSettings s;
+        s.visible = item.value("visible", true);
+        s.opacity = item.value("opacity", 1.f);
+        if (s.opacity < 0.f) s.opacity = 0.f;
+        if (s.opacity > 1.f) s.opacity = 1.f;
+        if (item.contains("parallax") && item["parallax"].is_object()) {
+            const auto& p = item["parallax"];
+            s.parallax.x = p.value("x", 1.f);
+            s.parallax.y = p.value("y", 1.f);
+        }
+        if (item.contains("background") && item["background"].is_object()) {
+            const auto& b = item["background"];
+            s.background.imageId = read_string_any(b, "imageId", "image_id");
+            s.background.tileX   = b.value("tileX", b.value("tile_x", true));
+            s.background.tileY   = b.value("tileY", b.value("tile_y", true));
+            s.background.scrollX = b.value("scrollX", b.value("scroll_x", 0.f));
+            s.background.scrollY = b.value("scrollY", b.value("scroll_y", 0.f));
+        }
+        out.emplace(layerId, std::move(s));
     }
 }
 
@@ -176,6 +212,7 @@ void read_scene_def(const nlohmann::json& sceneJson,
 
     read_tilemap(sceneJson, out.tilemap);
     read_tilemap_layers(sceneJson, out.tilemapLayers);
+    read_scene_layer_settings(sceneJson, out.layerSettings);
 }
 
 void read_scenes_map(const nlohmann::json& doc,

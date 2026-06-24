@@ -27,7 +27,7 @@ export const projectReducer: DomainReducer = (state: CoreState, action: Action) 
     case 'LOAD_PROJECT': {
       const firstSceneId = Object.keys(action.project.scenes)[0] ?? null
       const seededProject = seedLayers(action.project)
-      const defaultActiveLayer = seededProject.layers![0]!.name
+      const defaultActiveLayerId = seededProject.layers![0]!.id
       // Reset editor "view" chrome so a 400% zoom, a stuck fit-mode tracking
       // or an active camera preview from the previous project don't bleed
       // into the freshly loaded one. Every load starts at identity zoom
@@ -36,14 +36,13 @@ export const projectReducer: DomainReducer = (state: CoreState, action: Action) 
       return {
         ...state,
         project:     seededProject,
-        editorActiveLayer: defaultActiveLayer,
+        editorActiveLayerId: defaultActiveLayerId,
         projectPath: action.path,
         projectDirty: false,
         selection:   { entityId: null, entityIds: [], sceneId: action.project.activeSceneId || firstSceneId },
         instanceClipboard: null,
         inspectorAsset: null,
-        inspectorLayerName: null,
-        entityDisplayLayers: {},
+        inspectorLayerId: null,
         openScripts: [],
         activeScriptPath: null,
         mainScriptView: 'manual',

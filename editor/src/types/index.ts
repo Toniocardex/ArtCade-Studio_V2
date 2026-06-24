@@ -43,13 +43,31 @@ export interface LayerBackground {
   scrollY: number
 }
 
-/** A named render layer. Array stored top-to-bottom (index 0 = highest priority). */
+/** Stable identifier of a render layer (never changes; names are display-only). */
+export type LayerId = string
+
+/**
+ * Global render layer — identity + display name + editor lock only. The stack
+ * is stored top-to-bottom (index 0 = highest render priority). Visual props
+ * (visible/opacity/parallax/background) live per-scene in {@link SceneLayerSettings}.
+ */
 export interface LayerDef {
+  /** Stable id; references (instances, scene settings, tilemaps) use this, never the name. */
+  id: LayerId
+  /** Display name; rename is O(1) because nothing references it. */
   name: string
-  /** False hides the layer in editor preview/play/export. Defaults to true. */
-  visible?: boolean
-  /** Editor-only: locked layers cannot be selected or dragged on the canvas. */
+  /** Editor-only: locked layers cannot be selected or dragged on the canvas. Not used by runtime render. */
   locked?: boolean
+}
+
+/**
+ * Per-scene visual overrides for a render layer, keyed by {@link LayerId}.
+ * A scene only stores entries that differ from the neutral defaults
+ * (visible=true, opacity=1, parallax=1:1, no background).
+ */
+export interface SceneLayerSettings {
+  /** False hides the layer in this scene (preview/play/export). Defaults to true. */
+  visible?: boolean
   /** Render alpha multiplier in [0,1]. Defaults to 1. */
   opacity?: number
   /** Parallax scroll factor; defaults to { x: 1, y: 1 } when omitted. */
@@ -155,8 +173,8 @@ export interface SceneInstanceDef {
   instanceName?: string
   transform:    Transform
   visible?:     boolean
-  /** Render layer this instance is drawn on (matches a ProjectDoc.layers name). */
-  layer?:       string
+  /** Render layer this instance is drawn on (references a ProjectDoc.layers id). Single source of truth. */
+  layerId?:     LayerId
   localVariableOverrides?: Record<string, GameVariableValue>
 }
 
@@ -171,8 +189,8 @@ export interface EntityDef {
   physics?:    PhysicsComponent
   scriptPath?: string
   visible?:    boolean   // hidden in play when false; always drawn in editor preview
-  /** Render layer name (materialized from the scene instance). */
-  layer?:      string
+  /** Render layer id (transient: materialized from the scene instance, never persisted on the entity). */
+  layerId?:    LayerId
   // ECS gameplay components (Scene Editor Phase A) — optional, strongly typed
   sensor?:               SensorComponent
   solid?:                SolidComponent
@@ -209,8 +227,10 @@ export interface SceneDef {
   entityIds:       number[]
   /** v2: scene instances (placement only). */
   instances?:      SceneInstanceDef[]
-  tilemap?:        TilemapLayer                    // merged result sent to WASM (computed from tilemapLayers)
-  tilemapLayers?:  Record<string, TilemapLayer>   // per-layer paint data; layer name → grid
+  /** Per-scene visual overrides for render layers, keyed by LayerId. */
+  layerSettings?:  Record<LayerId, SceneLayerSettings>
+  tilemap?:        TilemapLayer                       // merged result sent to WASM (computed from tilemapLayers)
+  tilemapLayers?:  Record<LayerId, TilemapLayer>      // per-layer paint data; layer id → grid
 }
 
 /** When the physics world steps each fixed tick. */

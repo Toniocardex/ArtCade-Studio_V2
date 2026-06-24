@@ -70,7 +70,7 @@ export default function InspectorPanel() {
   const project = useEditorSelector((s) => s.project)
   const selection = useEditorSelector((s) => s.selection)
   const inspectorAsset = useEditorSelector((s) => s.inspectorAsset)
-  const inspectorLayerName = useEditorSelector((s) => s.inspectorLayerName)
+  const inspectorLayerId = useEditorSelector((s) => s.inspectorLayerId)
   const activePaintTilesetId = useEditorSelector((s) => s.activePaintTilesetId)
 
   const entity = (project && selection.entityId != null)
@@ -173,9 +173,9 @@ export default function InspectorPanel() {
             <AssetInspectorSection selection={inspectorAsset} />
           )}
 
-          {mode === 'layer' && inspectorLayerName && (
+          {mode === 'layer' && inspectorLayerId && (
             <LayerSettingsSection
-              layerName={inspectorLayerName}
+              layerId={inspectorLayerId}
               sceneName={scene?.name}
             />
           )}

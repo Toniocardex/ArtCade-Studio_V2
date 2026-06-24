@@ -233,18 +233,18 @@ export function resizeTilemapForTileSize(
 
 /**
  * Composite per-layer tilemap data into a single TilemapLayer for legacy physics.
- * `layerNames` is ordered highest-to-lowest priority (index 0 = renders on top).
+ * `layerIds` is ordered highest-to-lowest priority (index 0 = renders on top).
  * Higher-priority layers win wherever tileId !== 0; empty cells (0) fall through.
  *
  * Merged grid carries tileId only — it does not represent multi-source intra-layer
  * paint. Per-layer tilemapLayers + sourceIndices are authoritative for rendering.
  */
 export function mergeTilemapLayers(
-  layerNames: string[],
+  layerIds: string[],
   tilemapLayers: Record<string, TilemapLayer>,
 ): TilemapLayer | undefined {
-  const ordered = layerNames
-    .map(n => tilemapLayers[n])
+  const ordered = layerIds
+    .map(id => tilemapLayers[id])
     .filter((tm): tm is TilemapLayer => !!tm)
   if (ordered.length === 0) return undefined
 

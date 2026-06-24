@@ -9,7 +9,8 @@ import {
 import type { ProjectDoc, TilemapLayer } from '../types'
 
 export type TilemapLayersSyncPayload = {
-  layerNames: string[]
+  /** Ordered LayerIds (index 0 = highest priority), matches tilemapLayers keys. */
+  layerIds: string[]
   tilemapLayers: Record<string, TilemapLayer>
   mergedData: number[]
 }
@@ -26,7 +27,7 @@ function sortedEntityIds(proj: RuntimeProjection): number[] {
 }
 
 function sceneSettingsKey(scene: RuntimeProjection['scenes'][number]): string {
-  return JSON.stringify({ ws: scene.ws, vs: scene.vs, bg: scene.bg })
+  return JSON.stringify({ ws: scene.ws, vs: scene.vs, bg: scene.bg, ls: scene.ls })
 }
 
 function tilemapStructKey(tm: RuntimeProjection['scenes'][number]['tm']): string {
@@ -93,7 +94,7 @@ export function planProjectSync(
       const sceneDoc = project.scenes[scene.id]
       if (!sceneDoc?.tilemapLayers || !sceneDoc.tilemap?.data) return { kind: 'full' }
       tilemapLayersOnly = {
-        layerNames: next.lyr,
+        layerIds: next.lyr.map((l) => l.id),
         tilemapLayers: sceneDoc.tilemapLayers,
         mergedData: sceneDoc.tilemap.data,
       }

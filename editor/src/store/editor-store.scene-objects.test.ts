@@ -70,6 +70,26 @@ describe('coreReducer — scenes & objects', () => {
     expect(s.projectDirty).toBe(true)
   })
 
+  it('INSTANCE_ADD_FROM_TYPE persists the active authoring layer', () => {
+    const base = {
+      ...st({
+        ...project(),
+        layers: [{ id: 'lyr_gp', name: 'Gameplay' }, { id: 'lyr_bg', name: 'Background' }],
+      }),
+      editorActiveLayerId: 'lyr_gp',
+    }
+
+    const s = coreReducer(base, {
+      type: 'INSTANCE_ADD_FROM_TYPE',
+      sceneId: 's',
+      objectTypeId: 'Player',
+    })
+
+    const inst = s.project!.scenes.s.instances?.find((i) => i.id === 2)
+    expect(inst?.layerId).toBe('lyr_gp')
+    expect(s.project!.entities[2].layerId).toBe('lyr_gp')
+  })
+
   it('OBJECT_TYPE_ADD rejects duplicate names case-insensitively', () => {
     const s0 = st(project())
     const s = coreReducer(s0, { type: 'OBJECT_TYPE_ADD', displayName: 'player' })
@@ -107,6 +127,19 @@ describe('coreReducer — scenes & objects', () => {
     expect(s.project!.scenes.s.entityIds).toEqual([1, 2])
     expect(s.selection.entityId).toBe(2)
     expect(s.projectDirty).toBe(true)
+  })
+
+  it('INSTANCE_DUPLICATE preserves the source layer assignment', () => {
+    const p = project()
+    p.layers = [{ id: 'lyr_gp', name: 'Gameplay' }, { id: 'lyr_bg', name: 'Background' }]
+    p.scenes.s.instances![0] = { ...p.scenes.s.instances![0]!, layerId: 'lyr_gp' }
+    p.entities[1] = { ...p.entities[1], layerId: 'lyr_gp' }
+
+    const s = coreReducer(st(p), { type: 'INSTANCE_DUPLICATE', instanceId: 1, sceneId: 's' })
+
+    const copyInst = s.project!.scenes.s.instances?.find((i) => i.id === 2)
+    expect(copyInst?.layerId).toBe('lyr_gp')
+    expect(s.project!.entities[2].layerId).toBe('lyr_gp')
   })
 
   it('INSTANCE_DUPLICATE places the shared-type copy at an explicit canvas position', () => {

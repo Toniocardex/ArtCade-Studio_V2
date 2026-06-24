@@ -14,11 +14,11 @@ import type {
   LogicBoard, LogicEvent, ComponentKey, WorldSettings, TilesetAsset, ImageAsset,
   SpriteComponent, PhysicsComponent, Vec3, AssetFolderCategory,
   GameVariableDefinition, GameVariableValue, AnimationClipDef, ImageAssetUsage,
-  LayerParallax, LayerBackground, SceneInstanceDef,
+  LayerId, SceneLayerSettings, SceneInstanceDef,
 } from '../types'
 import type { DialogScript } from '../utils/dialog/dialog-script'
 import type { InspectorAssetSelection } from '../types/inspector-selection'
-import { DEFAULT_EDITOR_ACTIVE_LAYER } from '../constants/scene-layers'
+import { DEFAULT_EDITOR_ACTIVE_LAYER_ID } from '../constants/scene-layers'
 import {
   EDITOR_BOOT_ZOOM, DEFAULT_EDITOR_GRID_SIZE, DEFAULT_EDITOR_RULER_STEP,
 } from '../constants/editor-viewport'
@@ -40,12 +40,10 @@ export interface CoreState {
   instanceClipboard: { sceneId: string; instance: SceneInstanceDef } | null
   /** Asset-driven inspector (Project Explorer); cleared when an entity is selected. */
   inspectorAsset:   InspectorAssetSelection | null
-  /** Layer row selected in Scene Layers panel (UI-only until layer model ships). */
-  inspectorLayerName: string | null
-  /** Active layer for canvas toolbar (UI-only until layer model ships). */
-  editorActiveLayer: string
-  /** Per-entity display layer in inspector (UI-only). */
-  entityDisplayLayers: Record<number, string>
+  /** Layer row selected in Scene Layers panel (by stable LayerId). */
+  inspectorLayerId: LayerId | null
+  /** Active layer for canvas toolbar / tile painting (by stable LayerId). */
+  editorActiveLayerId: LayerId
   mode:             EditorView
   /** True when the bottom dock is expanded and the console panel is visible. */
   consoleOpen:           boolean
@@ -58,8 +56,8 @@ export interface CoreState {
   activePaintTilesetId: string | null
   /** When true, the tileset palette panel is shown in the inspector. */
   tilePaletteOpen: boolean
-  /** Per-layer last paint tileset (editor convenience, not persisted). */
-  lastPaintTilesetByLayer: Record<string, string>
+  /** Last paint tileset per LayerId (editor convenience, not persisted). */
+  lastPaintTilesetByLayer: Record<LayerId, string>
   /** Recently used tileset asset ids for palette quick-pick (not persisted). */
   recentPaintTilesetIds: string[]
   /** Transient toast when a tileset is first added to a layer's sources (not persisted). */
@@ -145,9 +143,9 @@ export type Action =
   | { type: 'SELECT_ENTITY';     entityId: number | null; additive?: boolean }
   | { type: 'SELECT_SCENE';      sceneId: string }
   | { type: 'SELECT_INSPECTOR_ASSET'; asset: InspectorAssetSelection | null }
-  | { type: 'SELECT_INSPECTOR_LAYER'; layerName: string | null }
-  | { type: 'SET_EDITOR_ACTIVE_LAYER'; layerName: string }
-  | { type: 'ENTITY_SET_DISPLAY_LAYER'; entityId: number; layerName: string }
+  | { type: 'SELECT_INSPECTOR_LAYER'; layerId: LayerId | null }
+  | { type: 'SET_EDITOR_ACTIVE_LAYER'; layerId: LayerId }
+  | { type: 'INSTANCE_SET_LAYER'; instanceId: number; layerId: LayerId }
   | { type: 'SET_MODE';          mode: EditorView }
   | { type: 'TOGGLE_FOCUS_MODE' }
   | { type: 'SET_FOCUS_MODE';    enabled: boolean }
@@ -204,7 +202,7 @@ export type Action =
   | { type: 'PROJECT_UNDO' }
   | { type: 'PROJECT_REDO' }
   | { type: 'ENTITY_SET_SPRITE';       entityId: number; sprite: SpriteComponent }
-  | { type: 'ENTITY_SET_SPRITE_FILL';  entityId: number; fillColor: Vec3 }
+  | { type: 'ENTITY_SET_SPRITE_FILL';  entityId: number; fillColor: Vec3; coalesceKey?: string }
   | { type: 'ENTITY_SET_PHYSICS';      entityId: number; physics: PhysicsComponent }
   | { type: 'ENTITY_REMOVE_PHYSICS';   entityId: number }
   | { type: 'ENTITY_SET_COMPONENT';    entityId: number; key: ComponentKey; value: object }
@@ -301,21 +299,19 @@ export type Action =
   | { type: 'DIALOG_CLOSE_MODAL' }
   | { type: 'SPRITESHEET_STUDIO_OPEN'; imageAssetId: string }
   | { type: 'SPRITESHEET_STUDIO_CLOSE' }
-  // ---- Layer CRUD ----
+  // ---- Layer CRUD (global layers identified by stable LayerId) ----
   | { type: 'LAYER_ADD'; name: string }
-  | { type: 'LAYER_RENAME'; oldName: string; newName: string }
-  | { type: 'LAYER_DELETE'; name: string }
-  | { type: 'LAYER_MOVE'; name: string; direction: 'up' | 'down' }
+  | { type: 'LAYER_RENAME'; layerId: LayerId; name: string }
+  | { type: 'LAYER_DELETE'; layerId: LayerId }
+  | { type: 'LAYER_MOVE'; layerId: LayerId; direction: 'up' | 'down' }
+  /** Editor-only lock flag (global on the layer, not per-scene). */
+  | { type: 'LAYER_SET_LOCKED'; layerId: LayerId; locked: boolean }
+  /** Per-scene visual overrides (visible/opacity/parallax/background) for one layer. */
   | {
-      type: 'LAYER_UPDATE'
-      name: string
-      patch: {
-        visible?: boolean
-        locked?: boolean
-        opacity?: number
-        parallax?: LayerParallax
-        background?: LayerBackground
-      }
+      type: 'SCENE_LAYER_SETTINGS_UPDATE'
+      sceneId: string
+      layerId: LayerId
+      patch: Partial<SceneLayerSettings>
     }
 
 export type DomainReducer = (state: CoreState, action: Action) => CoreState
@@ -333,9 +329,8 @@ export const initialCoreState: CoreState = {
   selection:        { entityId: null, entityIds: [], sceneId: null },
   instanceClipboard: null,
   inspectorAsset:   null,
-  inspectorLayerName: null,
-  editorActiveLayer: DEFAULT_EDITOR_ACTIVE_LAYER,
-  entityDisplayLayers: {},
+  inspectorLayerId: null,
+  editorActiveLayerId: DEFAULT_EDITOR_ACTIVE_LAYER_ID,
   mode:             'canvas',
   consoleOpen:           initialDockUi.consoleOpen,
   bottomPanelCollapsed:  initialDockUi.bottomPanelCollapsed,

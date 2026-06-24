@@ -101,7 +101,7 @@ export function materializeEntity(
   if (type.physics) ent.physics = JSON.parse(JSON.stringify(type.physics))
   if (type.scriptPath) ent.scriptPath = type.scriptPath
   ent.visible = instance.visible ?? type.visible ?? true
-  if (instance.layer) ent.layer = instance.layer
+  if (instance.layerId) ent.layerId = instance.layerId
   if (type.localVariables) ent.localVariables = type.localVariables.map((variable) => ({ ...variable }))
   if (instance.localVariableOverrides) ent.localVariableOverrides = { ...instance.localVariableOverrides }
   for (const key of COMPONENT_KEYS) {
@@ -206,7 +206,7 @@ export function buildObjectModelFromEntities(project: ProjectDoc): {
         instanceName: ent.name !== objectTypes[typeId]?.displayName ? ent.name : undefined,
         transform: cloneTransform(ent.transform),
         ...(ent.visible === false ? { visible: false } : {}),
-        ...(ent.layer ? { layer: ent.layer } : {}),
+        ...(ent.layerId ? { layerId: ent.layerId } : {}),
       })
     }
     scenes[sid] = { ...scene, instances, entityIds: instances.map((i) => i.id) }

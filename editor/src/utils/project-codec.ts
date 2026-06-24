@@ -3,9 +3,10 @@ import type {
   Transform, SpriteComponent, AnimationState, PhysicsComponent, PhysicsMode, WorldSettings,
   TilemapLayer, TileDef, TilesetAsset, ImageAsset, AudioAsset, FontAsset, ImagePointDef, AnimationClipDef,
   AnimationFrameRect, AssetVirtualFolderDef, AssetFolderCategory,
-  GameVariableDefinition, GameVariableValue, ImageAssetUsage, LayerDef,
+  GameVariableDefinition, GameVariableValue, ImageAssetUsage, LayerDef, LayerId, SceneLayerSettings,
 } from '../types'
 import { DEFAULT_WORLD, IMAGE_ASSET_USAGES } from '../types'
+import { newLayerId } from '../constants/scene-layers'
 import {
   parseLogicBoardsWithIssues,
   type ParseLogicBoardsResult,
@@ -277,7 +278,7 @@ function parseInstance(raw: unknown, fallbackId: number): SceneInstanceDef | nul
     ...(r.instance_name != null ? { instanceName: String(r.instance_name) } : {}),
     transform: parseTransform(r.transform),
     ...(typeof r.visible === 'boolean' && !r.visible ? { visible: false } : {}),
-    ...(r.layer != null && String(r.layer).trim() ? { layer: String(r.layer) } : {}),
+    ...(r.layerId != null && String(r.layerId).trim() ? { layerId: String(r.layerId) } : {}),
     ...(parseVariableOverrides(r.localVariableOverrides ?? r.local_variable_overrides)
       ? { localVariableOverrides: parseVariableOverrides(r.localVariableOverrides ?? r.local_variable_overrides) }
       : {}),
@@ -334,9 +335,11 @@ function parseScene(raw: unknown, fallbackId: string): SceneDef {
     ...(() => {
       const tm = parseTilemap(r.tilemap)
       const tilemapLayers = parseTilemapLayers(r.tilemapLayers ?? r.tilemap_layers)
+      const layerSettings = parseLayerSettingsMap(r.layerSettings ?? r.layer_settings)
       return {
         ...(tm ? { tilemap: tm } : {}),
         ...(tilemapLayers ? { tilemapLayers } : {}),
+        ...(layerSettings ? { layerSettings } : {}),
       }
     })(),
   }
@@ -638,7 +641,7 @@ function parseTilePalette(raw: unknown): TileDef[] | undefined {
   return out.length ? out : undefined
 }
 
-function parseLayerParallax(raw: unknown): LayerDef['parallax'] {
+function parseLayerParallax(raw: unknown): SceneLayerSettings['parallax'] {
   if (!raw || typeof raw !== 'object') return undefined
   const r = raw as Record<string, unknown>
   const x = Number(r.x)
@@ -649,7 +652,7 @@ function parseLayerParallax(raw: unknown): LayerDef['parallax'] {
   return px === 1 && py === 1 ? undefined : { x: px, y: py }
 }
 
-function parseLayerBackground(raw: unknown): LayerDef['background'] {
+function parseLayerBackground(raw: unknown): SceneLayerSettings['background'] {
   if (!raw || typeof raw !== 'object') return undefined
   const r = raw as Record<string, unknown>
   const imageId = String(r.imageId ?? r.image_id ?? '').trim()
@@ -665,10 +668,12 @@ function parseLayerBackground(raw: unknown): LayerDef['background'] {
   }
 }
 
+/** Parse the global render layer stack ({id,name,locked} per layer). */
 function parseLayers(raw: unknown): LayerDef[] | undefined {
   if (!Array.isArray(raw)) return undefined
   const out: LayerDef[] = []
-  const seen = new Set<string>()
+  const seenIds = new Set<string>()
+  const seenNames = new Set<string>()
   for (const item of raw) {
     const isObj = !!item && typeof item === 'object'
     const obj = isObj ? (item as Record<string, unknown>) : undefined
@@ -678,23 +683,43 @@ function parseLayers(raw: unknown): LayerDef[] | undefined {
         : obj
           ? String(obj.name ?? '')
           : ''
-    const trimmed = name.trim()
-    if (!trimmed || seen.has(trimmed)) continue
-    seen.add(trimmed)
-    const layer: LayerDef = { name: trimmed }
-    if (obj?.visible === false) layer.visible = false
+    const trimmedName = name.trim()
+    if (!trimmedName || seenNames.has(trimmedName)) continue
+    let id = obj?.id != null ? String(obj.id).trim() : ''
+    if (!id || seenIds.has(id)) id = newLayerId()
+    seenIds.add(id)
+    seenNames.add(trimmedName)
+    const layer: LayerDef = { id, name: trimmedName }
     if (obj?.locked === true) layer.locked = true
-    const opacity = Number(obj?.opacity)
-    if (Number.isFinite(opacity) && opacity >= 0 && opacity < 1) {
-      layer.opacity = opacity
-    }
-    const parallax = parseLayerParallax(obj?.parallax)
-    if (parallax) layer.parallax = parallax
-    const background = parseLayerBackground(obj?.background)
-    if (background) layer.background = background
     out.push(layer)
   }
   return out.length ? out : undefined
+}
+
+/** Parse one layer's per-scene visual settings (visible/opacity/parallax/background). */
+function parseSceneLayerSettings(raw: unknown): SceneLayerSettings | undefined {
+  if (!raw || typeof raw !== 'object') return undefined
+  const r = raw as Record<string, unknown>
+  const out: SceneLayerSettings = {}
+  if (r.visible === false) out.visible = false
+  const opacity = Number(r.opacity)
+  if (Number.isFinite(opacity) && opacity >= 0 && opacity < 1) out.opacity = opacity
+  const parallax = parseLayerParallax(r.parallax)
+  if (parallax) out.parallax = parallax
+  const background = parseLayerBackground(r.background)
+  if (background) out.background = background
+  return Object.keys(out).length > 0 ? out : undefined
+}
+
+/** Parse the per-scene layerSettings map keyed by LayerId. */
+function parseLayerSettingsMap(raw: unknown): Record<LayerId, SceneLayerSettings> | undefined {
+  if (!raw || typeof raw !== 'object') return undefined
+  const out: Record<LayerId, SceneLayerSettings> = {}
+  for (const [layerId, value] of Object.entries(raw as Record<string, unknown>)) {
+    const settings = parseSceneLayerSettings(value)
+    if (settings) out[layerId] = settings
+  }
+  return Object.keys(out).length > 0 ? out : undefined
 }
 
 export interface ParseProjectDocResult {
@@ -880,7 +905,7 @@ function serializeInstance(inst: SceneInstanceDef) {
     ...(inst.instanceName ? { instanceName: inst.instanceName } : {}),
     transform: serializeTransform(inst.transform),
     ...(inst.visible === false ? { visible: false } : {}),
-    ...(inst.layer ? { layer: inst.layer } : {}),
+    ...(inst.layerId ? { layerId: inst.layerId } : {}),
     ...(inst.localVariableOverrides && Object.keys(inst.localVariableOverrides).length
       ? { localVariableOverrides: inst.localVariableOverrides }
       : {}),
@@ -931,12 +956,15 @@ function serializeScene(scene: SceneDef) {
     ...(tilemapLayers && Object.keys(tilemapLayers).length > 0
       ? {
           tilemapLayers: Object.fromEntries(
-            Object.entries(tilemapLayers).map(([name, layer]) => [
-              name,
+            Object.entries(tilemapLayers).map(([layerId, layer]) => [
+              layerId,
               serializeTilemapLayer(layer),
             ]),
           ),
         }
+      : {}),
+    ...(scene.layerSettings && Object.keys(scene.layerSettings).length > 0
+      ? { layerSettings: scene.layerSettings }
       : {}),
   }
 }

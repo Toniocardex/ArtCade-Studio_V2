@@ -1,24 +1,25 @@
 import { useLayoutEffect, useState, useRef } from 'react'
 import { ChevronUp, ChevronDown, Eye, EyeOff, Lock, Plus, Trash2, Unlock } from 'lucide-react'
 import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
-import { DEFAULT_LAYERS } from '../../constants/scene-layers'
-import { layerLocked, layerVisible } from '../../constants/scene-layers'
+import { DEFAULT_LAYERS, layerLocked, layerVisible, sceneLayerSettings } from '../../constants/scene-layers'
 import { editorRowSelected } from '../ui/editor-ui-classes'
 import { handleControlledInputKeyDown } from '../../utils/keyboard'
 
 export function SceneLayersPanel() {
   const dispatch = useEditorDispatch()
   const layers = useEditorSelector((s) => s.project?.layers ?? DEFAULT_LAYERS)
-  const selectedLayer = useEditorSelector((s) => s.inspectorLayerName)
+  const selectedLayerId = useEditorSelector((s) => s.inspectorLayerId)
+  const sceneId = useEditorSelector((s) => s.selection.sceneId ?? s.project?.activeSceneId ?? null)
+  const scene = useEditorSelector((s) => (sceneId ? s.project?.scenes[sceneId] : undefined))
   const [addingName, setAddingName] = useState('')
-  const [renamingName, setRenamingName] = useState<string | null>(null)
+  const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
   const addInputRef = useRef<HTMLInputElement>(null)
   const renameInputRef = useRef<HTMLInputElement>(null)
 
   useLayoutEffect(() => {
-    if (renamingName) renameInputRef.current?.select()
-  }, [renamingName])
+    if (renamingId) renameInputRef.current?.select()
+  }, [renamingId])
 
   function handleAdd() {
     const name = addingName.trim()
@@ -28,16 +29,16 @@ export function SceneLayersPanel() {
     addInputRef.current?.focus()
   }
 
-  function startRename(name: string) {
-    setRenamingName(name)
+  function startRename(id: string, name: string) {
+    setRenamingId(id)
     setRenameValue(name)
   }
 
   function commitRename() {
-    if (renamingName && renameValue.trim()) {
-      dispatch({ type: 'LAYER_RENAME', oldName: renamingName, newName: renameValue.trim() })
+    if (renamingId && renameValue.trim()) {
+      dispatch({ type: 'LAYER_RENAME', layerId: renamingId, name: renameValue.trim() })
     }
-    setRenamingName(null)
+    setRenamingId(null)
   }
 
   return (
@@ -79,15 +80,15 @@ export function SceneLayersPanel() {
           </thead>
           <tbody>
             {layers.map((layer, idx) => {
-              const active = selectedLayer === layer.name
-              const renderOrder = (layers.length - idx) * 100
-              const isRenaming = renamingName === layer.name
-              const visible = layerVisible(layer)
+              const active = selectedLayerId === layer.id
+              const renderOrder = layers.length - idx
+              const isRenaming = renamingId === layer.id
+              const visible = layerVisible(sceneLayerSettings(scene, layer.id))
               const locked = layerLocked(layer)
 
               return (
                 <tr
-                  key={layer.name}
+                  key={layer.id}
                   className={`border-t border-[var(--outline-faint)] group ${
                     active ? editorRowSelected : 'hover:bg-[var(--surface-hover)] text-[var(--primary)]'
                   }`}
@@ -97,10 +98,10 @@ export function SceneLayersPanel() {
                     onClick={() => {
                       if (isRenaming) return
                       const selecting = !active
-                      dispatch({ type: 'SELECT_INSPECTOR_LAYER', layerName: selecting ? layer.name : null })
-                      if (selecting) dispatch({ type: 'SET_EDITOR_ACTIVE_LAYER', layerName: layer.name })
+                      dispatch({ type: 'SELECT_INSPECTOR_LAYER', layerId: selecting ? layer.id : null })
+                      if (selecting) dispatch({ type: 'SET_EDITOR_ACTIVE_LAYER', layerId: layer.id })
                     }}
-                    onDoubleClick={() => startRename(layer.name)}
+                    onDoubleClick={() => startRename(layer.id, layer.name)}
                   >
                     {isRenaming ? (
                       <input
@@ -111,7 +112,7 @@ export function SceneLayersPanel() {
                         onBlur={commitRename}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') { e.preventDefault(); commitRename() }
-                          if (e.key === 'Escape') { e.preventDefault(); setRenamingName(null) }
+                          if (e.key === 'Escape') { e.preventDefault(); setRenamingId(null) }
                           handleControlledInputKeyDown(e, setRenameValue)
                         }}
                         onClick={(e) => e.stopPropagation()}
@@ -127,13 +128,15 @@ export function SceneLayersPanel() {
                     <span className="flex items-center justify-end gap-0.5">
                       <button
                         type="button"
+                        disabled={!sceneId}
                         title={visible ? `Hide "${layer.name}"` : `Show "${layer.name}"`}
-                        onClick={() => dispatch({
-                          type: 'LAYER_UPDATE',
-                          name: layer.name,
+                        onClick={() => sceneId && dispatch({
+                          type: 'SCENE_LAYER_SETTINGS_UPDATE',
+                          sceneId,
+                          layerId: layer.id,
                           patch: { visible: !visible },
                         })}
-                        className="p-0.5 rounded hover:bg-[var(--surface-3)] text-[var(--primary-soft)] hover:text-[var(--primary)]"
+                        className="p-0.5 rounded hover:bg-[var(--surface-3)] text-[var(--primary-soft)] hover:text-[var(--primary)] disabled:opacity-20"
                       >
                         {visible ? <Eye size={13} /> : <EyeOff size={13} />}
                       </button>
@@ -141,9 +144,9 @@ export function SceneLayersPanel() {
                         type="button"
                         title={locked ? `Unlock "${layer.name}"` : `Lock "${layer.name}"`}
                         onClick={() => dispatch({
-                          type: 'LAYER_UPDATE',
-                          name: layer.name,
-                          patch: { locked: !locked },
+                          type: 'LAYER_SET_LOCKED',
+                          layerId: layer.id,
+                          locked: !locked,
                         })}
                         className="p-0.5 rounded hover:bg-[var(--surface-3)] text-[var(--primary-soft)] hover:text-[var(--primary)]"
                       >
@@ -153,7 +156,7 @@ export function SceneLayersPanel() {
                         type="button"
                         title="Move up (higher priority)"
                         disabled={idx === 0}
-                        onClick={() => dispatch({ type: 'LAYER_MOVE', name: layer.name, direction: 'up' })}
+                        onClick={() => dispatch({ type: 'LAYER_MOVE', layerId: layer.id, direction: 'up' })}
                         className="p-0.5 rounded hover:bg-[var(--surface-3)] text-[var(--primary-soft)] hover:text-[var(--primary)] disabled:opacity-20"
                       >
                         <ChevronUp size={13} />
@@ -162,7 +165,7 @@ export function SceneLayersPanel() {
                         type="button"
                         title="Move down (lower priority)"
                         disabled={idx === layers.length - 1}
-                        onClick={() => dispatch({ type: 'LAYER_MOVE', name: layer.name, direction: 'down' })}
+                        onClick={() => dispatch({ type: 'LAYER_MOVE', layerId: layer.id, direction: 'down' })}
                         className="p-0.5 rounded hover:bg-[var(--surface-3)] text-[var(--primary-soft)] hover:text-[var(--primary)] disabled:opacity-20"
                       >
                         <ChevronDown size={13} />
@@ -171,7 +174,7 @@ export function SceneLayersPanel() {
                         type="button"
                         title={layers.length <= 1 ? 'Cannot delete the last layer' : `Delete "${layer.name}"`}
                         disabled={layers.length <= 1}
-                        onClick={() => dispatch({ type: 'LAYER_DELETE', name: layer.name })}
+                        onClick={() => dispatch({ type: 'LAYER_DELETE', layerId: layer.id })}
                         className="p-0.5 rounded hover:bg-[var(--surface-3)] text-[var(--muted)] hover:text-[var(--danger)] disabled:opacity-20"
                       >
                         <Trash2 size={12} />

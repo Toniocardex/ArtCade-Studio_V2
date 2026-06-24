@@ -75,6 +75,12 @@ public:
 
     bool exists(EntityId id) const;
     std::string className(EntityId id) const;
+    /**
+     * Authored entity definition for editor-only metadata.
+     * @param id runtime entity id
+     * @returns pointer owned by SceneManager, or nullptr when the entity is unknown
+     */
+    const EntityDef* getEntityDef(EntityId id) const;
 
     bool getTransform(EntityId id, Transform& out) const;
     /**
@@ -87,7 +93,6 @@ public:
     bool setTransform(EntityId id, Vec2 position, float rotation, Vec2 scale);
     bool getSprite(EntityId id, SpriteComponent& out) const;
     bool setSprite(EntityId id, const SpriteComponent& sprite);
-    bool setSpriteFillColor(EntityId id, float r, float g, float b);
     bool getPhysicsComponent(EntityId id, PhysicsComponent& out) const;
     bool setPhysicsComponent(EntityId id, const PhysicsComponent& physics);
     bool getSensor(EntityId id, SensorComponent& out) const;

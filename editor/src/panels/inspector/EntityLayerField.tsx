@@ -10,11 +10,13 @@ export type EntityLayerFieldProps = Readonly<{
 export function EntityLayerField({ entity }: EntityLayerFieldProps) {
   const dispatch = useEditorDispatch()
   const layers = useEditorSelector((s) => s.project?.layers ?? DEFAULT_LAYERS)
-  const entityDisplayLayers = useEditorSelector((s) => s.entityDisplayLayers)
-  const editorActiveLayer = useEditorSelector((s) => s.editorActiveLayer)
-  const value = entityDisplayLayers[entity.id] ?? entity.layer ?? editorActiveLayer
+  const editorActiveLayerId = useEditorSelector((s) => s.editorActiveLayerId)
+  const fallbackId = layers.some((l) => l.id === editorActiveLayerId)
+    ? editorActiveLayerId
+    : layers[0]?.id ?? ''
+  const value = entity.layerId ?? fallbackId
 
-  const options = layers.map((l) => ({ value: l.name, label: l.name }))
+  const options = layers.map((l) => ({ value: l.id, label: l.name }))
 
   return (
     <label className="block mb-2">
@@ -22,11 +24,11 @@ export function EntityLayerField({ entity }: EntityLayerFieldProps) {
       <EditorSelect
         className="w-full font-ui mt-0.5"
         value={value}
-        onChange={(layerName) =>
+        onChange={(layerId) =>
           dispatch({
-            type: 'ENTITY_SET_DISPLAY_LAYER',
-            entityId: entity.id,
-            layerName,
+            type: 'INSTANCE_SET_LAYER',
+            instanceId: entity.id,
+            layerId,
           })
         }
         options={options}

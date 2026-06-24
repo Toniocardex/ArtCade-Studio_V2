@@ -186,33 +186,51 @@ static void test_read_scene_tilemap_layers_and_project_layers() {
       "id": "level_1",
       "tilemap": { "tileSize": 32, "cols": 2, "rows": 1, "data": [1, 0] },
       "tilemapLayers": {
-        "ground": { "tileSize": 32, "cols": 2, "rows": 1, "data": [1, 0] },
-        "props":  { "tileSize": 32, "cols": 2, "rows": 1, "data": [0, 2], "tilesetAssetId": "ts_props" }
+        "lyr_ground": { "tileSize": 32, "cols": 2, "rows": 1, "data": [1, 0] },
+        "lyr_props":  { "tileSize": 32, "cols": 2, "rows": 1, "data": [0, 2], "tilesetAssetId": "ts_props" }
+      },
+      "layerSettings": {
+        "lyr_props": {
+          "visible": false,
+          "opacity": 0.35,
+          "parallax": { "x": 0.5, "y": 0.75 },
+          "background": { "imageId": "bg_sky", "scrollX": 12 }
+        }
       }
     })");
     ArtCade::SceneDef s{};
     ArtCade::ProjectJson::read_scene_def(scene, "fallback", s);
     CHECK(s.tilemapLayers.size() == 2);
-    CHECK(s.tilemapLayers.at("props").tilesetAssetId == "ts_props");
-    CHECK(s.tilemapLayers.at("props").data[1] == 2);
+    CHECK(s.tilemapLayers.at("lyr_props").tilesetAssetId == "ts_props");
+    CHECK(s.tilemapLayers.at("lyr_props").data[1] == 2);
 
+    // Per-scene visual settings parse by layer id (visible/opacity/parallax/bg).
+    CHECK(s.layerSettings.size() == 1);
+    const auto& props = s.layerSettings.at("lyr_props");
+    CHECK(props.visible == false);
+    CHECK(std::abs(props.opacity - 0.35f) < 0.01f);
+    CHECK(std::abs(props.parallax.x - 0.5f) < 0.01f);
+    CHECK(std::abs(props.parallax.y - 0.75f) < 0.01f);
+    CHECK(props.background.imageId == "bg_sky");
+    CHECK(std::abs(props.background.scrollX - 12.f) < 0.01f);
+
+    // Global layers carry only id/name/locked (visual props live per-scene).
     const json doc = json::parse(R"({
       "layers": [
-        { "name": "props", "visible": false, "locked": true, "opacity": 0.35 },
+        { "id": "lyr_props", "name": "Props", "locked": true },
         "ground"
       ]
     })");
     std::vector<ArtCade::SceneLayerDef> layers;
     ArtCade::ProjectJson::read_scene_layers(doc, layers);
     CHECK(layers.size() == 2);
-    CHECK(layers[0].name == "props");
-    CHECK(layers[0].visible == false);
+    CHECK(layers[0].id == "lyr_props");
+    CHECK(layers[0].name == "Props");
     CHECK(layers[0].locked == true);
-    CHECK(layers[0].opacity == 0.35f);
+    // Legacy string form: name doubles as the stable id.
+    CHECK(layers[1].id == "ground");
     CHECK(layers[1].name == "ground");
-    CHECK(layers[1].visible == true);
     CHECK(layers[1].locked == false);
-    CHECK(layers[1].opacity == 1.f);
 }
 
 static void test_read_tile_palette_hex_and_snake_case() {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseProjectDoc, serializeProjectDoc } from './project'
-import { DEFAULT_EDITOR_ACTIVE_LAYER } from '../constants/scene-layers'
+import { DEFAULT_EDITOR_ACTIVE_LAYER_ID } from '../constants/scene-layers'
 
 const BASE = {
   projectName: 'TilemapCodec',
@@ -9,7 +9,7 @@ const BASE = {
   activeSceneId: 's',
   mainScriptPath: 'scripts/main.lua',
   entities: {},
-  layers: [{ name: DEFAULT_EDITOR_ACTIVE_LAYER }],
+  layers: [{ id: DEFAULT_EDITOR_ACTIVE_LAYER_ID, name: 'Background' }],
 } as const
 
 describe('project-codec tilemap round-trip', () => {
@@ -25,7 +25,7 @@ describe('project-codec tilemap round-trip', () => {
           backgroundColor: [0, 0, 0, 1],
           entityIds: [],
           tilemapLayers: {
-            [DEFAULT_EDITOR_ACTIVE_LAYER]: {
+            [DEFAULT_EDITOR_ACTIVE_LAYER_ID]: {
               tileSize: 32,
               cols: 4,
               rows: 4,
@@ -38,7 +38,7 @@ describe('project-codec tilemap round-trip', () => {
     }
 
     const parsed = parseProjectDoc(JSON.stringify(raw))!
-    const layer = parsed.scenes.s.tilemapLayers![DEFAULT_EDITOR_ACTIVE_LAYER]!
+    const layer = parsed.scenes.s.tilemapLayers![DEFAULT_EDITOR_ACTIVE_LAYER_ID]!
     expect(layer.tilesetAssetId).toBe('ts_legacy')
     expect(layer.data[0]).toBe(1)
     expect(layer.data[2]).toBe(2)
@@ -47,7 +47,7 @@ describe('project-codec tilemap round-trip', () => {
     expect(json).toContain('"tilesetSources"')
 
     const again = parseProjectDoc(json)!
-    const saved = again.scenes.s.tilemapLayers![DEFAULT_EDITOR_ACTIVE_LAYER]!
+    const saved = again.scenes.s.tilemapLayers![DEFAULT_EDITOR_ACTIVE_LAYER_ID]!
     expect(saved.tilesetAssetId).toBeUndefined()
     expect(saved.tilesetSources).toEqual([{ tilesetAssetId: 'ts_legacy' }])
     expect(saved.sourceIndices).toHaveLength(16)
@@ -69,7 +69,7 @@ describe('project-codec tilemap round-trip', () => {
           backgroundColor: [0, 0, 0, 1],
           entityIds: [],
           tilemapLayers: {
-            [DEFAULT_EDITOR_ACTIVE_LAYER]: {
+            [DEFAULT_EDITOR_ACTIVE_LAYER_ID]: {
               tileSize: 32,
               cols: 4,
               rows: 4,
@@ -88,8 +88,8 @@ describe('project-codec tilemap round-trip', () => {
     const parsed = parseProjectDoc(JSON.stringify(raw))!
     const json = serializeProjectDoc(parsed)
     const again = parseProjectDoc(json)!
-    const before = parsed.scenes.s.tilemapLayers![DEFAULT_EDITOR_ACTIVE_LAYER]!
-    const after = again.scenes.s.tilemapLayers![DEFAULT_EDITOR_ACTIVE_LAYER]!
+    const before = parsed.scenes.s.tilemapLayers![DEFAULT_EDITOR_ACTIVE_LAYER_ID]!
+    const after = again.scenes.s.tilemapLayers![DEFAULT_EDITOR_ACTIVE_LAYER_ID]!
 
     expect(after.tilesetSources).toEqual(before.tilesetSources)
     expect(after.sourceIndices).toEqual(before.sourceIndices)

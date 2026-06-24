@@ -529,6 +529,9 @@ class RuntimeSyncServiceImpl {
         worldSize: scene.worldSize,
         viewportSize: scene.viewportSize,
         backgroundColor: scene.backgroundColor,
+        // Always send (even {}) so clearing the last per-scene override
+        // propagates to the runtime instead of leaving a stale entry.
+        layerSettings: scene.layerSettings ?? {},
       }))
     }
     return plan.entityIds.length > 0 || plan.sceneIds.length > 0

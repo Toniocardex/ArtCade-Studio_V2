@@ -12,7 +12,7 @@ describe('deriveInspectorMode', () => {
     const s = base({
       selection: { entityId: 1, sceneId: 'scene_main' },
       inspectorAsset: { type: 'image', id: 'img_a' },
-      inspectorLayerName: 'UI',
+      inspectorLayerId: 'lyr_ui',
     })
     expect(deriveInspectorMode(s)).toBe('entity')
   })
@@ -20,13 +20,13 @@ describe('deriveInspectorMode', () => {
   it('shows asset when no entity', () => {
     const s = base({
       inspectorAsset: { type: 'audio', id: 'snd_a' },
-      inspectorLayerName: 'UI',
+      inspectorLayerId: 'lyr_ui',
     })
     expect(deriveInspectorMode(s)).toBe('asset')
   })
 
   it('shows layer when only layer is selected', () => {
-    const s = base({ inspectorLayerName: 'Gameplay' })
+    const s = base({ inspectorLayerId: 'lyr_gameplay' })
     expect(deriveInspectorMode(s)).toBe('layer')
   })
 

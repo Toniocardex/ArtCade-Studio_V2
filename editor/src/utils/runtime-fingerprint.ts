@@ -20,7 +20,8 @@
 // dev machine and only happens after the store actually changed.
 
 import type {
-  EntityDef, ImageAsset, ProjectDoc, SceneDef, Vec2, Vec4, WorldSettings,
+  EntityDef, ImageAsset, LayerId, ProjectDoc, SceneDef, SceneLayerSettings,
+  Vec2, Vec4, WorldSettings,
 } from '../types'
 import { DEFAULT_WORLD } from '../types'
 import { resolveClipForEntity } from './entity-clip-resolve'
@@ -84,6 +85,7 @@ interface FpEntity {
   g:  string[]               // tags (sorted)
   t:  FpTransform
   s:  FpSprite
+  ly?: string                // render-layer id assignment (drives z-order priority)
   v?: boolean                // visibility (editor-only but affects runtime drawing)
   sp?: string                // scriptPath
   ph?: unknown               // physics — opaque, full snapshot
@@ -132,8 +134,17 @@ interface FpScene {
   bg:  FpVec4                // backgroundColor
   e:   number[]              // entityIds (sorted)
   tm?: FpTilemap
-  /** Per-layer paint grids (when scene uses tilemapLayers). */
-  tl?: Record<string, FpTilemapLayer>
+  /** Per-layer paint grids keyed by LayerId (when scene uses tilemapLayers). */
+  tl?: Record<LayerId, FpTilemapLayer>
+  /** Per-scene layer visual overrides keyed by LayerId (visible/opacity/parallax/bg). */
+  ls?: Record<LayerId, SceneLayerSettings>
+}
+
+/** Global render layer projection (index 0 = highest priority). */
+interface FpLayer {
+  id:   LayerId
+  n:    string               // display name
+  lk?:  boolean              // locked (editor-only)
 }
 
 export interface RuntimeProjection {
@@ -145,8 +156,8 @@ export interface RuntimeProjection {
   wd: string
   msp: string                // mainScriptPath
   gv?: unknown               // project variable declarations
-  /** Render stack names (index 0 = highest priority). */
-  lyr: string[]
+  /** Ordered render stack: id+name+locked (index 0 = highest priority). */
+  lyr: FpLayer[]
   entities: FpEntity[]
   scenes: FpScene[]
   /** Clip/pivot-bearing assets — frame edits must re-sync the SpriteAnimator. */
@@ -195,6 +206,7 @@ function projectEntity(project: ProjectDoc, e: EntityDef): FpEntity {
       ...(clip?.defaultClip ? { dc: clip.defaultClip } : {}),
       ...(clip?.playClipOnSpawn ? { ps: true } : {}),
     },
+    ...(e.layerId ? { ly: e.layerId } : {}),
     v:  e.visible,
     sp: e.scriptPath,
     ph: e.physics,
@@ -229,12 +241,13 @@ function tilemapDataHash(data: number[]): number {
 function projectScene(s: SceneDef): FpScene {
   const tm = s.tilemap
   const layers = s.tilemapLayers
-  let tl: Record<string, FpTilemapLayer> | undefined
+  let tl: Record<LayerId, FpTilemapLayer> | undefined
   if (layers && Object.keys(layers).length > 0) {
     tl = {}
-    for (const [name, layer] of Object.entries(layers)) {
-      const sources = layer.tilesetSources?.map((s) => s.tilesetAssetId).filter(Boolean)
-      tl[name] = {
+    for (const layerId of Object.keys(layers).sort()) {
+      const layer = layers[layerId]!
+      const sources = layer.tilesetSources?.map((src) => src.tilesetAssetId).filter(Boolean)
+      tl[layerId] = {
         ts:  layer.tileSize,
         c:   layer.cols,
         r:   layer.rows,
@@ -245,6 +258,13 @@ function projectScene(s: SceneDef): FpScene {
           ? tilemapDataHash(layer.sourceIndices)
           : undefined,
       }
+    }
+  }
+  let ls: Record<LayerId, SceneLayerSettings> | undefined
+  if (s.layerSettings && Object.keys(s.layerSettings).length > 0) {
+    ls = {}
+    for (const layerId of Object.keys(s.layerSettings).sort()) {
+      ls[layerId] = s.layerSettings[layerId]!
     }
   }
   return {
@@ -262,6 +282,7 @@ function projectScene(s: SceneDef): FpScene {
       dh:  tm.data.length > 0 ? tilemapDataHash(tm.data) : undefined,
     } : undefined,
     tl,
+    ls,
   }
 }
 
@@ -286,7 +307,11 @@ export function runtimeProjectProjection(
     wd:  worldRuntimeDigest(project.world),
     msp: project.mainScriptPath,
     gv: project.globalVariables,
-    lyr: (project.layers ?? []).map((layer) => layer.name),
+    lyr: (project.layers ?? []).map((layer) => ({
+      id: layer.id,
+      n: layer.name,
+      ...(layer.locked === true ? { lk: true } : {}),
+    })),
     entities: entityIds.map((id) => projectEntity(project, entities[id])),
     scenes:   sceneIds.map((id) => projectScene(project.scenes[id])),
     ...(ast ? { ast } : {}),

@@ -331,13 +331,6 @@ void EditorAPI::notifyRuntimeProfile(const float fps,
        static_cast<int>(entityCount), static_cast<int>(physicsBodies));
 }
 
-void EditorAPI::notifySpriteFillColor(uint32_t entityId, float r, float g, float b) {
-    EM_ASM({
-        if (typeof window.onSpriteFillColor === 'function')
-            window.onSpriteFillColor($0, $1, $2, $3);
-    }, static_cast<int>(entityId), r, g, b);
-}
-
 void EditorAPI::notifyCursorWorld(float x, float y) {
     static int lastX = 0x7fffffff;
     static int lastY = 0x7fffffff;
@@ -492,7 +485,7 @@ void recomposite_merged_cell(
 
     int value = 0;
     for (int i = static_cast<int>(stack.size()) - 1; i >= 0; --i) {
-        auto layerIt = sc.tilemapLayers.find(stack[static_cast<size_t>(i)].name);
+        auto layerIt = sc.tilemapLayers.find(stack[static_cast<size_t>(i)].id);
         if (layerIt == sc.tilemapLayers.end()) continue;
         const ArtCade::TilemapData& tm = layerIt->second;
         if (col >= tm.cols || row >= tm.rows) continue;
@@ -602,7 +595,7 @@ EMSCRIPTEN_KEEPALIVE void editor_paint_tile(
 }
 
 // Full per-layer tilemap resync — no texture eviction, no full project reload.
-// JSON: { "layerNames": [...], "tilemapLayers": { name: {tileSize,cols,rows,data,...} },
+// JSON: { "layerIds": [...], "tilemapLayers": { layerId: {tileSize,cols,rows,data,...} },
 //         "mergedData": [...] }
 EMSCRIPTEN_KEEPALIVE void editor_sync_tilemap_layers(const char* jsonUtf8) {
     if (!jsonUtf8 || !*jsonUtf8) return;
@@ -613,23 +606,31 @@ EMSCRIPTEN_KEEPALIVE void editor_sync_tilemap_layers(const char* jsonUtf8) {
 
     try {
         const json root = json::parse(jsonUtf8);
-        if (root.contains("layerNames") && root["layerNames"].is_array()) {
+        if (root.contains("layerIds") && root["layerIds"].is_array()) {
+            // Re-key the stack order by id while preserving each layer's
+            // existing name/locked (the tilemap path only carries order).
+            const auto& existing = gw->sceneLayers();
             std::vector<ArtCade::SceneLayerDef> layers;
-            for (const auto& item : root["layerNames"]) {
+            for (const auto& item : root["layerIds"]) {
                 if (!item.is_string()) continue;
+                const std::string id = item.get<std::string>();
+                if (id.empty()) continue;
                 ArtCade::SceneLayerDef layer;
-                layer.name = item.get<std::string>();
-                if (!layer.name.empty()) layers.push_back(std::move(layer));
+                layer.id = id;
+                for (const auto& prev : existing) {
+                    if (prev.id == id) { layer = prev; break; }
+                }
+                layers.push_back(std::move(layer));
             }
             gw->setSceneLayers(std::move(layers));
         }
 
         if (root.contains("tilemapLayers") && root["tilemapLayers"].is_object()) {
-            for (auto& [name, layerJson] : root["tilemapLayers"].items()) {
+            for (auto& [layerId, layerJson] : root["tilemapLayers"].items()) {
                 ArtCade::TilemapData layer;
                 ArtCade::ProjectJson::read_tilemap_object(layerJson, layer);
                 if (layer.cols > 0 && layer.rows > 0)
-                    sc->tilemapLayers[name] = std::move(layer);
+                    sc->tilemapLayers[layerId] = std::move(layer);
             }
         }
 

@@ -376,8 +376,8 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
     case 'TILEMAP_PAINT_CELL': {
       const sc = state.project?.scenes[action.sceneId]
       if (!state.project || !sc) return state
-      const layerName = state.editorActiveLayer
-      const existingLayerTm = sc.tilemapLayers?.[layerName]
+      const layerId = state.editorActiveLayerId
+      const existingLayerTm = sc.tilemapLayers?.[layerId]
       const tileSize = existingLayerTm
         ? existingLayerTm.tileSize
         : resolveTilemapTileSize(state.project, sc, action.tilesetAssetId)
@@ -416,11 +416,13 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
         data,
         sourceIndices,
       }
-      const tilemapLayers = { ...(sc.tilemapLayers ?? {}), [layerName]: updatedLayerTm }
-      const layerNames = (state.project.layers ?? DEFAULT_LAYERS).map(l => l.name)
-      const merged = mergeTilemapLayers(layerNames, tilemapLayers) ?? updatedLayerTm
+      const tilemapLayers = { ...(sc.tilemapLayers ?? {}), [layerId]: updatedLayerTm }
+      const layers = state.project.layers ?? DEFAULT_LAYERS
+      const layerIds = layers.map(l => l.id)
+      const merged = mergeTilemapLayers(layerIds, tilemapLayers) ?? updatedLayerTm
       const tilesetName =
         state.project.tilesets?.[action.tilesetAssetId]?.name ?? action.tilesetAssetId
+      const layerLabel = layers.find(l => l.id === layerId)?.name ?? layerId
       return {
         ...state,
         project: {
@@ -432,7 +434,7 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
         },
         projectDirty: true,
         paintSourceNotice: sourceAdded
-          ? `${tilesetName} added to ${layerName} sources`
+          ? `${tilesetName} added to ${layerLabel} sources`
           : state.paintSourceNotice,
       }
     }
@@ -569,8 +571,8 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
     case 'TILEMAP_SET_TILESETID': {
       const sc = state.project?.scenes[action.sceneId]
       if (!state.project || !sc) return state
-      const layerName = state.editorActiveLayer
-      const existing = sc.tilemapLayers?.[layerName]
+      const layerId = state.editorActiveLayerId
+      const existing = sc.tilemapLayers?.[layerId]
       const tileSize = existing
         ? existing.tileSize
         : resolveTilemapTileSize(state.project, sc, action.assetId)
@@ -578,9 +580,9 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
         ...(existing ?? createTilemapForNewLayer(sc.worldSize.x, sc.worldSize.y, tileSize, sc)),
         defaultTilesetAssetId: action.assetId,
       }
-      const tilemapLayers = { ...(sc.tilemapLayers ?? {}), [layerName]: layerTm }
-      const layerNames = (state.project.layers ?? DEFAULT_LAYERS).map(l => l.name)
-      const merged = mergeTilemapLayers(layerNames, tilemapLayers) ?? layerTm
+      const tilemapLayers = { ...(sc.tilemapLayers ?? {}), [layerId]: layerTm }
+      const layerIds = (state.project.layers ?? DEFAULT_LAYERS).map(l => l.id)
+      const merged = mergeTilemapLayers(layerIds, tilemapLayers) ?? layerTm
       return {
         ...state,
         project: {
@@ -604,9 +606,9 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
       const tilemapLayers = hasTilemapLayers
         ? Object.fromEntries(Object.entries(sc.tilemapLayers!).map(([k, v]) => [k, resizeOne(v)]))
         : sc.tilemapLayers
-      const layerNames = (state.project.layers ?? DEFAULT_LAYERS).map(l => l.name)
+      const layerIds = (state.project.layers ?? DEFAULT_LAYERS).map(l => l.id)
       const merged = tilemapLayers
-        ? (mergeTilemapLayers(layerNames, tilemapLayers) ?? resizeOne(sc.tilemap!))
+        ? (mergeTilemapLayers(layerIds, tilemapLayers) ?? resizeOne(sc.tilemap!))
         : resizeOne(sc.tilemap!)
       return {
         ...state,

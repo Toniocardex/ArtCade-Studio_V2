@@ -9,7 +9,6 @@
 #include "../render/editor-overlay-renderer.h"
 #include "../render/parallax-renderer.h"
 #include "../render/physics_debug_renderer.h"
-#include "../render/ray-tint-widget.h"
 #include "../render/text_value_formatter.h"
 #include "../render/tilemap-renderer.h"
 
@@ -63,6 +62,14 @@ bool hasSpriteFrame(const Modules::SpriteAnimator::Frame& frame) {
 struct ResolvedSpriteDraw {
     Modules::SpriteAnimator::Frame frame{};
     std::string assetId;
+};
+
+struct LayeredRenderable {
+    EntityId id = 0;
+    Transform transform{};
+    SpriteComponent sprite{};
+    int layerPriority = 0;
+    size_t insertionIndex = 0u;
 };
 
 ResolvedSpriteDraw resolveSpriteFrame(
@@ -134,6 +141,7 @@ void Application::renderActiveScene() {
         ParallaxRenderer::draw(
             *mod_->renderer,
             mod_->sceneManager->sceneLayers(),
+            activeScene->layerSettings,
             mod_->renderer->getCameraPosition(),
             mod_->renderer->visibleWorldSize(),
             mod_->timeManager ? mod_->timeManager->now() : 0.f);
@@ -149,43 +157,87 @@ void Application::renderActiveScene() {
     // factor ≠ 1 are drawn shifted so they scroll slower/faster than the world,
     // mirroring ParallaxRenderer's math under the single world Camera2D. Edit
     // mode keeps true positions so picking/dragging stay aligned.
-    std::unordered_map<std::string, SceneLayerDef> layerByName;
-    std::unordered_map<std::string, Vec2> parallaxByLayer;
+    // Render priority and visual gating are keyed by stable layer id. Rank is
+    // the integer stack position (count - index, index 0 = top); intra-layer
+    // ties break on sprite.renderOrder then insertion order, so no magic
+    // multiplier is needed. Visual props come from the active scene's per-scene
+    // SceneLayerSettings (visible/opacity/parallax), defaulting when absent.
+    std::unordered_map<std::string, SceneLayerSettings> settingsById;
+    std::unordered_map<std::string, int> layerRankById;
+    std::unordered_map<std::string, Vec2> parallaxById;
     if (activeScene) {
-        for (const auto& layer : mod_->sceneManager->sceneLayers()) {
-            layerByName.emplace(layer.name, layer);
-            if (layer.parallax.x != 1.f || layer.parallax.y != 1.f)
-                parallaxByLayer.emplace(layer.name, Vec2{ layer.parallax.x, layer.parallax.y });
+        const auto& layers = mod_->sceneManager->sceneLayers();
+        const int layerCount = static_cast<int>(layers.size());
+        for (size_t i = 0; i < layers.size(); ++i) {
+            const auto& layer = layers[i];
+            SceneLayerSettings settings;
+            const auto sit = activeScene->layerSettings.find(layer.id);
+            if (sit != activeScene->layerSettings.end())
+                settings = sit->second;
+            settingsById.emplace(layer.id, settings);
+            layerRankById.emplace(layer.id, layerCount - static_cast<int>(i));
+            if (settings.parallax.x != 1.f || settings.parallax.y != 1.f)
+                parallaxById.emplace(
+                    layer.id, Vec2{ settings.parallax.x, settings.parallax.y });
         }
     }
     const Vec2 cameraTopLeft = mod_->renderer->getCameraPosition();
     const auto layerDrawPos =
-        [&parallaxByLayer, cameraTopLeft, inEditMode]
-        (const std::string& layer, const Vec2& worldPos) -> Vec2 {
-            if (inEditMode || layer.empty()) return worldPos;
-            const auto it = parallaxByLayer.find(layer);
-            if (it == parallaxByLayer.end()) return worldPos;
+        [&parallaxById, cameraTopLeft, inEditMode]
+        (const std::string& layerId, const Vec2& worldPos) -> Vec2 {
+            if (inEditMode || layerId.empty()) return worldPos;
+            const auto it = parallaxById.find(layerId);
+            if (it == parallaxById.end()) return worldPos;
             return {
                 worldPos.x + cameraTopLeft.x * (1.f - it->second.x),
                 worldPos.y + cameraTopLeft.y * (1.f - it->second.y),
             };
         };
 
+    std::vector<LayeredRenderable> renderables;
+    size_t renderableIndex = 0u;
     mod_->entityGateway->forEachActiveRenderable(
+        [&renderables, &layerRankById, &renderableIndex]
+        (EntityId id, const Transform& transform, const SpriteComponent& sprite) {
+            const auto rankIt = layerRankById.find(sprite.layerId);
+            renderables.push_back(LayeredRenderable{
+                id,
+                transform,
+                sprite,
+                rankIt != layerRankById.end() ? rankIt->second : 0,
+                renderableIndex++,
+            });
+        });
+    std::stable_sort(
+        renderables.begin(),
+        renderables.end(),
+        [](const LayeredRenderable& a, const LayeredRenderable& b) {
+            if (a.layerPriority != b.layerPriority)
+                return a.layerPriority < b.layerPriority;
+            if (a.sprite.renderOrder != b.sprite.renderOrder)
+                return a.sprite.renderOrder < b.sprite.renderOrder;
+            return a.insertionIndex < b.insertionIndex;
+        });
+
+    for (const LayeredRenderable& item : renderables) {
+        const EntityId id = item.id;
+        const Transform& transform = item.transform;
+        const SpriteComponent& sprite = item.sprite;
         [renderer = mod_->renderer.get(),
          animator = mod_->spriteAnimator.get(),
          inEditMode,
          gateway = mod_->entityGateway.get(),
          variables = mod_->variableManager.get(),
-         &layerByName,
+         &settingsById,
          &layerDrawPos]
         (EntityId id, const Transform& transform, const SpriteComponent& sprite) {
             if (!inEditMode && sprite.alpha <= 0.001f) return;
-            const auto layerIt = layerByName.find(sprite.layer);
-            const SceneLayerDef* layer = layerIt != layerByName.end() ? &layerIt->second : nullptr;
+            const auto layerIt = settingsById.find(sprite.layerId);
+            const SceneLayerSettings* layer =
+                layerIt != settingsById.end() ? &layerIt->second : nullptr;
             if (layer && (!layer->visible || layer->opacity <= 0.f)) return;
 
-            const Vec2 pos = layerDrawPos(sprite.layer, transform.position);
+            const Vec2 pos = layerDrawPos(sprite.layerId, transform.position);
 
             float alpha = sprite.alpha;
             if (layer) alpha *= layer->opacity;
@@ -249,7 +301,7 @@ void Application::renderActiveScene() {
             }
 
             Vec4 color = text.color;
-            if (layer) color.a *= layer->opacity;
+            if (layer) color.a *= layer->opacity;  // per-scene layer opacity
             if (inEditMode && !gateway->visibleInGame(id)) color.a *= 0.45f;
             int hAlign = 0, vAlign = 0;
             textAnchorAlign(text.align, hAlign, vAlign);
@@ -259,20 +311,25 @@ void Application::renderActiveScene() {
                 pos.y + text.offsetY,
                 text.size, color, text.fontPath, hAlign, text.screenSpace,
                 vAlign);
-        });
+        }(id, transform, sprite);
+    }
 
     // Gauges (health / progress). Drawn after sprites; fill tracks the
     // bound variable. When the variable is absent (edit mode) the bar is full.
-    mod_->entityGateway->forEachActiveRenderable(
+    for (const LayeredRenderable& item : renderables) {
+        const EntityId id = item.id;
+        const Transform& transform = item.transform;
+        const SpriteComponent& sprite = item.sprite;
         [renderer = mod_->renderer.get(),
          inEditMode,
          gateway = mod_->entityGateway.get(),
          variables = mod_->variableManager.get(),
-         &layerByName,
+         &settingsById,
          &layerDrawPos]
         (EntityId id, const Transform& transform, const SpriteComponent& sprite) {
-            const auto layerIt = layerByName.find(sprite.layer);
-            const SceneLayerDef* layer = layerIt != layerByName.end() ? &layerIt->second : nullptr;
+            const auto layerIt = settingsById.find(sprite.layerId);
+            const SceneLayerSettings* layer =
+                layerIt != settingsById.end() ? &layerIt->second : nullptr;
             if (layer && (!layer->visible || layer->opacity <= 0.f)) return;
             GaugeComponent gauge{};
             if (!gateway->getGauge(id, gauge)) return;
@@ -303,7 +360,7 @@ void Application::renderActiveScene() {
                 bg.a *= 0.45f;
                 fill.a *= 0.45f;
             }
-            const Vec2 gpos = layerDrawPos(sprite.layer, transform.position);
+            const Vec2 gpos = layerDrawPos(sprite.layerId, transform.position);
             const float gx = gpos.x + gauge.offsetX;
             const float gy = gpos.y + gauge.offsetY;
             renderer->drawRect(gx, gy, gauge.width, gauge.height, bg, gauge.screenSpace);
@@ -315,7 +372,8 @@ void Application::renderActiveScene() {
                 renderer->drawRect(gx, gy, gauge.width * ratio, gauge.height,
                                    fill, gauge.screenSpace);
             }
-        });
+        }(id, transform, sprite);
+    }
 
     const float fade = mod_->entityGateway->sceneFadeAlpha();
     if (fade > 0.f) mod_->renderer->drawFadeOverlay(fade);
@@ -379,7 +437,6 @@ void Application::renderActiveScene() {
 
     mod_->renderer->endWorldPass();
     mod_->renderer->endScreenPass();
-    RayTintWidget::draw();
     mod_->renderer->presentScreen();
     mod_->renderer->setRenderShakeOffset({0.f, 0.f});
 }

@@ -58,7 +58,6 @@ declare global {
       entityCount: number,
       physicsBodies: number,
     ) => void
-    onSpriteFillColor?:           (entityId: number, r: number, g: number, b: number) => void
     onEditorCursorWorld?:         (x: number, y: number) => void
   /** Spritesheet Studio engine preview (one frame per main-loop tick). */
     onSpritesheetPreviewFrame?:   (
@@ -182,7 +181,6 @@ export function bindWindowCallbacks(cbs: Partial<WasmCallbacks>): void {
   if (cbs.onEntityTransformChanged) g.onEntityTransformChanged = cbs.onEntityTransformChanged
   if (cbs.onConsoleLine)            g.onConsoleLine            = cbs.onConsoleLine
   if (cbs.onRuntimeProfile)         g.onRuntimeProfile         = cbs.onRuntimeProfile
-  if (cbs.onSpriteFillColor)        g.onSpriteFillColor        = cbs.onSpriteFillColor
   if (cbs.onEditorCursorWorld)      g.onEditorCursorWorld      = cbs.onEditorCursorWorld
   // NOTE: the legacy `globalThis.onObjectUpdated(x, y)` forwarder was removed.
   // The shipping C++ runtime never emits that signal (only the smoke-test
@@ -302,7 +300,6 @@ export interface WasmCallbacks {
     entityCount: number,
     physicsBodies: number,
   ) => void
-  onSpriteFillColor?:       (entityId: number, r: number, g: number, b: number) => void
   onEditorCursorWorld?:     (x: number, y: number) => void
 }
 
@@ -758,7 +755,7 @@ export function editorSyncTilemapData(data: number[]): boolean {
 
 /** Push per-layer grids + merged data for multi-layer tilemap rendering. */
 export function editorSyncTilemapLayers(payload: {
-  layerNames: string[]
+  layerIds: string[]
   tilemapLayers: Record<string, unknown>
   mergedData: number[]
 }): boolean {
@@ -833,14 +830,6 @@ export function editorUpdateEntity(entityId: number, entityJson: string): void {
   } finally {
     _module._free(ptr)
   }
-}
-
-export function editorOpenRayTint(entityId: number): void {
-  safeCall('editor_open_raytint', null, ['number'], [entityId])
-}
-
-export function editorCloseRayTint(apply: boolean): void {
-  safeCall('editor_close_raytint', null, ['number'], [apply ? 1 : 0])
 }
 
 export function editorSetSceneSettings(sceneId: string, sceneJson: string): void {

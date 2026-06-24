@@ -269,7 +269,7 @@ void RuntimeEntityGateway::applyEntityDefToRegistry(
     // Set Scale at runtime can no longer clobber a logic-set facing.
     Transform transform = def.transform;
     SpriteComponent sprite = def.sprite;
-    sprite.layer = def.layer;
+    sprite.layerId = def.layerId;
     if (transform.scale.x < 0.f) { sprite.flipX = !sprite.flipX; transform.scale.x = -transform.scale.x; }
     if (transform.scale.y < 0.f) { sprite.flipY = !sprite.flipY; transform.scale.y = -transform.scale.y; }
     registry_->setTransform(id, transform);
@@ -473,6 +473,10 @@ std::string RuntimeEntityGateway::className(EntityId id) const {
     return registry_->className(id);
 }
 
+const EntityDef* RuntimeEntityGateway::getEntityDef(EntityId id) const {
+    return sceneManager_.getEntityDef(id);
+}
+
 bool RuntimeEntityGateway::getTransform(EntityId id, Transform& out) const {
     return registry_->getTransform(id, out);
 }
@@ -524,11 +528,6 @@ bool RuntimeEntityGateway::setSprite(EntityId id, const SpriteComponent& sprite)
     if (!registry_->contains(id)) return false;
     registry_->setSprite(id, sprite);
     return true;
-}
-
-bool RuntimeEntityGateway::setSpriteFillColor(EntityId id, float r, float g, float b) {
-    if (!registry_->contains(id)) return false;
-    return registry_->setSpriteFillColor(id, r, g, b);
 }
 
 bool RuntimeEntityGateway::getPhysicsComponent(EntityId id, PhysicsComponent& out) const {

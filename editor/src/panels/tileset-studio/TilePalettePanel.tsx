@@ -74,15 +74,15 @@ export function TilePalettePanel({ tileset, onRemove }: Props) {
   const selectedCell = useEditorSelector((s) => s.selectedTileCell)
   const selection    = useEditorSelector((s) => s.selection)
   const sceneId      = selection.sceneId ?? project?.activeSceneId ?? ''
-  const activeLayer  = useEditorSelector((s) => s.editorActiveLayer)
+  const activeLayerId = useEditorSelector((s) => s.editorActiveLayerId)
   const recentIds    = useEditorSelector((s) => s.recentPaintTilesetIds)
   const paintId      = useEditorSelector((s) => s.activePaintTilesetId)
 
   const usedInLayer = useMemo(() => {
     if (!sceneId || !project?.scenes[sceneId]) return []
-    const layer = project.scenes[sceneId].tilemapLayers?.[activeLayer]
+    const layer = project.scenes[sceneId].tilemapLayers?.[activeLayerId]
     return layer ? sourcesUsedOnLayer(layer) : []
-  }, [sceneId, project, activeLayer])
+  }, [sceneId, project, activeLayerId])
 
   const allTilesetIds = useMemo(
     () => Object.keys(project?.tilesets ?? {}).sort((a, b) => {
@@ -195,7 +195,7 @@ export function TilePalettePanel({ tileset, onRemove }: Props) {
     if (!imgWH) return
     const { cols, rows } = deriveGrid(imgWH.w, imgWH.h, nextTile, nextMargin)
     dispatch({ type: 'TILESET_ASSET_ADD', asset: { ...tileset, tileSize: nextTile, margin: nextMargin, cols, rows } })
-    const layer = sceneId ? project?.scenes[sceneId]?.tilemapLayers?.[activeLayer] : undefined
+    const layer = sceneId ? project?.scenes[sceneId]?.tilemapLayers?.[activeLayerId] : undefined
     const usedOnLayer = layer ? sourcesUsedOnLayer(layer) : []
     if (
       layer &&

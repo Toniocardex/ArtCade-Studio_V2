@@ -183,9 +183,6 @@ public:
     static void queueConsoleLine(const char* message, const char* level = "info");
     static void flushConsoleLines();
 
-    /** RayTint Apply -> React updates sprite.fillColor in the project store. */
-    static void notifySpriteFillColor(uint32_t entityId, float r, float g, float b);
-
     /** Editor viewport: mouse world position for the status bar (editor mode only). */
     static void notifyCursorWorld(float x, float y);
 
@@ -418,12 +415,6 @@ EMSCRIPTEN_KEEPALIVE int editor_preview_spritesheet_submit(
     int canvasW,
     int canvasH);
 
-/** Open RayTint picker for placeholder fill on an entity without a texture. */
-EMSCRIPTEN_KEEPALIVE void editor_open_raytint(uint32_t entityId);
-
-/** Close RayTint; apply=1 commits fill to React, apply=0 restores snapshot. */
-EMSCRIPTEN_KEEPALIVE void editor_close_raytint(int apply);
-
 } // extern "C"
 
 // =============================================================================
@@ -454,7 +445,6 @@ struct EditorAPI {
     static void notifyRuntimeProfile(float, float, float, float, uint32_t, uint32_t) {}
     static void queueConsoleLine(const char*, const char* = nullptr) {}
     static void flushConsoleLines() {}
-    static void notifySpriteFillColor(uint32_t, float, float, float) {}
     static void notifyCursorWorld(float, float) {}
     static void queueSpritesheetPreview(const char*, const char*, float, int, int) {}
     static void resetSpritesheetPreview() {}

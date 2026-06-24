@@ -77,7 +77,7 @@ export const uiReducer: DomainReducer = (state: CoreState, action: Action) => {
           ...state,
           selection: { ...state.selection, entityId: null, entityIds: [] },
           inspectorAsset: null,
-          inspectorLayerName: null,
+          inspectorLayerId: null,
         }
       }
       if (action.additive) {
@@ -98,14 +98,14 @@ export const uiReducer: DomainReducer = (state: CoreState, action: Action) => {
             entityIds,
           },
           inspectorAsset: null,
-          inspectorLayerName: null,
+          inspectorLayerId: null,
         }
       }
       return {
         ...state,
         selection: { ...state.selection, entityId: action.entityId, entityIds: [action.entityId] },
         inspectorAsset: null,
-        inspectorLayerName: null,
+        inspectorLayerId: null,
       }
     }
     case 'SELECT_SCENE':
@@ -113,25 +113,25 @@ export const uiReducer: DomainReducer = (state: CoreState, action: Action) => {
         ...state,
         selection: { ...state.selection, sceneId: action.sceneId, entityId: null, entityIds: [] },
         inspectorAsset: null,
-        inspectorLayerName: null,
+        inspectorLayerId: null,
       }
     case 'SELECT_INSPECTOR_ASSET':
       return {
         ...state,
         inspectorAsset: action.asset,
-        inspectorLayerName: null,
+        inspectorLayerId: null,
         selection: { ...state.selection, entityId: null, entityIds: [] },
       }
     case 'SELECT_INSPECTOR_LAYER': {
-      const layerName = action.layerName
+      const layerId = action.layerId
       const lastMap = state.activePaintTilesetId
-        ? { ...state.lastPaintTilesetByLayer, [state.editorActiveLayer]: state.activePaintTilesetId }
+        ? { ...state.lastPaintTilesetByLayer, [state.editorActiveLayerId]: state.activePaintTilesetId }
         : state.lastPaintTilesetByLayer
-      const restored = layerName ? lastMap[layerName] : undefined
+      const restored = layerId ? lastMap[layerId] : undefined
       return {
         ...state,
-        inspectorLayerName: layerName,
-        editorActiveLayer: layerName ?? state.editorActiveLayer,
+        inspectorLayerId: layerId,
+        editorActiveLayerId: layerId ?? state.editorActiveLayerId,
         inspectorAsset: null,
         selection: { ...state.selection, entityId: null, entityIds: [] },
         lastPaintTilesetByLayer: lastMap,
@@ -139,29 +139,19 @@ export const uiReducer: DomainReducer = (state: CoreState, action: Action) => {
       }
     }
     case 'SET_EDITOR_ACTIVE_LAYER':
-      if (state.editorActiveLayer === action.layerName) return state
+      if (state.editorActiveLayerId === action.layerId) return state
       {
         const lastMap = state.activePaintTilesetId
-          ? { ...state.lastPaintTilesetByLayer, [state.editorActiveLayer]: state.activePaintTilesetId }
+          ? { ...state.lastPaintTilesetByLayer, [state.editorActiveLayerId]: state.activePaintTilesetId }
           : state.lastPaintTilesetByLayer
-        const restored = lastMap[action.layerName]
+        const restored = lastMap[action.layerId]
         return {
           ...state,
-          editorActiveLayer: action.layerName,
-          inspectorLayerName: action.layerName,
+          editorActiveLayerId: action.layerId,
+          inspectorLayerId: action.layerId,
           lastPaintTilesetByLayer: lastMap,
           ...(restored && state.tilePaletteOpen ? { activePaintTilesetId: restored } : {}),
         }
-      }
-    case 'ENTITY_SET_DISPLAY_LAYER':
-      return {
-        ...state,
-        entityDisplayLayers: {
-          ...state.entityDisplayLayers,
-          [action.entityId]: action.layerName,
-        },
-        editorActiveLayer: action.layerName,
-        inspectorLayerName: action.layerName,
       }
     case 'SET_MODE': {
       if (action.mode !== 'script') {

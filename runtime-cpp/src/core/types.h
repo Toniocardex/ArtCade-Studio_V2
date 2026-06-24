@@ -99,9 +99,9 @@ struct SpriteComponent {
     // into these on entity creation so scale stays a pure size.
     bool        flipX = false;
     bool        flipY = false;
-    // Render layer name (set at entity creation from EntityDef.layer). Drives
-    // per-layer parallax in app_scene_render; "" = no layer / factor 1.
-    std::string layer;
+    // Render layer id (set at entity creation from EntityDef.layerId). Drives
+    // per-layer rank + parallax in app_scene_render; "" = default layer.
+    std::string layerId;
 };
 
 struct AnimationState {
@@ -289,7 +289,7 @@ struct EntityDef {
     EntityId         id;
     std::string      name;
     std::string      className;
-    std::string      layer;        // render layer name ("" = none)
+    std::string      layerId;      // render layer id ("" = default layer)
     std::vector<std::string> tags;
     Transform        transform;
     SpriteComponent  sprite;
@@ -351,11 +351,20 @@ struct LayerBackground {
     float       scrollY = 0.f;
 };
 
-/** Named scene render layer (editor project.layers; index 0 = highest priority). */
+/**
+ * Global render layer (editor project.layers; index 0 = highest priority).
+ * Identity + display name + editor lock only; visual props live per-scene in
+ * SceneLayerSettings.
+ */
 struct SceneLayerDef {
-    std::string     name;
+    std::string     id;            // stable layer id (referenced by sprites/tilemaps)
+    std::string     name;          // display only
+    bool            locked  = false; // editor-only (pick gating)
+};
+
+/** Per-scene visual overrides for a render layer (keyed by layer id). */
+struct SceneLayerSettings {
     bool            visible = true;
-    bool            locked  = false;
     float           opacity = 1.f;
     LayerParallax   parallax;
     LayerBackground background;
@@ -378,7 +387,7 @@ struct SceneInstanceDef {
     std::string instanceName;
     Transform   transform;
     bool        visible      = true;
-    std::string layer;        // render layer name ("" = none)
+    std::string layerId;      // render layer id ("" = default layer)
     std::unordered_map<std::string, GameVariableValue> localVariableOverrides;
 };
 
@@ -400,8 +409,10 @@ struct SceneDef {
     std::vector<SceneInstanceDef> instances;
     /** Merged grid for physics / legacy single-layer projects. */
     TilemapData         tilemap;     // cols==0 → absent
-    /** Per-layer paint grids (editor tilemapLayers); rendered bottom→top. */
+    /** Per-layer paint grids keyed by layer id (editor tilemapLayers). */
     std::unordered_map<std::string, TilemapData> tilemapLayers;
+    /** Per-scene visual overrides keyed by layer id (visible/opacity/parallax/bg). */
+    std::unordered_map<std::string, SceneLayerSettings> layerSettings;
 };
 
 struct TilePaletteEntry {

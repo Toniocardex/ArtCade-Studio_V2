@@ -22,9 +22,13 @@ void read_tilemap_object(const nlohmann::json& tmJson, TilemapData& out);
 /** Parses scene.tilemap when present; leaves @p out unchanged when absent. */
 void read_tilemap(const nlohmann::json& sceneJson, TilemapData& out);
 
-/** Parses scene.tilemapLayers / tilemap_layers map when present. */
+/** Parses scene.tilemapLayers / tilemap_layers map (keyed by layer id) when present. */
 void read_tilemap_layers(const nlohmann::json& sceneJson,
                          std::unordered_map<std::string, TilemapData>& out);
+
+/** Parses scene.layerSettings (per-scene visual overrides keyed by layer id). */
+void read_scene_layer_settings(const nlohmann::json& sceneJson,
+                               std::unordered_map<std::string, SceneLayerSettings>& out);
 
 /**
  * Parses a single scene object (array entry or scenes-map value).

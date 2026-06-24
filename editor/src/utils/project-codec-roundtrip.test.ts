@@ -75,12 +75,19 @@ function richProject(): ProjectDoc {
     instanceName: 'Hero #1',
     transform: { position: { x: 40, y: 80 }, scale: { x: 2, y: 2 }, rotation: 1.5 },
     visible: false,
-    layer: 'Midground',
+    layerId: 'lyr_mid',
     localVariableOverrides: { hp: 50, name: 'Override' },
   }
   p.scenes.scene_main.instances = [inst]
   p.scenes.scene_main.entityIds = [1]
   p.scenes.scene_main.backgroundColor = { x: 0.2, y: 0.3, z: 0.4, w: 1 }
+  p.scenes.scene_main.layerSettings = {
+    lyr_fg: { visible: false, opacity: 0.65, parallax: { x: 1.4, y: 1.2 } },
+    lyr_bg: {
+      parallax: { x: 0.3, y: 0.5 },
+      background: { imageId: 'img_sky', tileX: true, tileY: false, scrollX: 10, scrollY: 0 },
+    },
+  }
   p.scenes.scene_main.tilemap = {
     tileSize: 16, cols: 3, rows: 2, data: [0, 1, 2, 3, 0, 1],
     defaultTilesetAssetId: 'ts_grass',
@@ -129,13 +136,9 @@ function richProject(): ProjectDoc {
     { key: 'paused', type: 'boolean', initialValue: false },
   ]
   p.layers = [
-    { name: 'Foreground', visible: false, locked: true, opacity: 0.65, parallax: { x: 1.4, y: 1.2 } },
-    { name: 'Midground' },
-    {
-      name: 'Background',
-      parallax: { x: 0.3, y: 0.5 },
-      background: { imageId: 'img_sky', tileX: true, tileY: false, scrollX: 10, scrollY: 0 },
-    },
+    { id: 'lyr_fg', name: 'Foreground', locked: true },
+    { id: 'lyr_mid', name: 'Midground' },
+    { id: 'lyr_bg', name: 'Background' },
   ]
   p.thumbnails = { scene_main: 'data:image/png;base64,AAAA' }
   p.world = { gravity: 9.8, pixelsPerMeter: 32, timeScale: 1, physicsMode: 'on' }
@@ -182,8 +185,8 @@ describe('project-codec round-trip', () => {
     expect(inst?.objectTypeId).toBe('Hero')
     expect(inst?.instanceName).toBe('Hero #1')
     expect(inst?.visible).toBe(false)
-    expect(inst?.layer).toBe('Midground')
-    expect(back.entities[1]?.layer).toBe('Midground')
+    expect(inst?.layerId).toBe('lyr_mid')
+    expect(back.entities[1]?.layerId).toBe('lyr_mid')
     expect(inst?.localVariableOverrides).toEqual({ hp: 50, name: 'Override' })
     expect(inst?.transform.position).toEqual({ x: 40, y: 80 })
     expect(inst?.transform.scale).toEqual({ x: 2, y: 2 })
@@ -225,14 +228,17 @@ describe('project-codec round-trip', () => {
       { key: 'paused', type: 'boolean', initialValue: false },
     ])
     expect(back.layers).toEqual([
-      { name: 'Foreground', visible: false, locked: true, opacity: 0.65, parallax: { x: 1.4, y: 1.2 } },
-      { name: 'Midground' },
-      {
-        name: 'Background',
+      { id: 'lyr_fg', name: 'Foreground', locked: true },
+      { id: 'lyr_mid', name: 'Midground' },
+      { id: 'lyr_bg', name: 'Background' },
+    ])
+    expect(back.scenes.scene_main.layerSettings).toEqual({
+      lyr_fg: { visible: false, opacity: 0.65, parallax: { x: 1.4, y: 1.2 } },
+      lyr_bg: {
         parallax: { x: 0.3, y: 0.5 },
         background: { imageId: 'img_sky', tileX: true, tileY: false, scrollX: 10, scrollY: 0 },
       },
-    ])
+    })
     expect(back.world).toMatchObject({ physicsMode: 'on', gravity: 9.8 })
     expect(back.licenseTier).toBe('pro')
     expect(back.thumbnails?.scene_main).toContain('data:image/png')

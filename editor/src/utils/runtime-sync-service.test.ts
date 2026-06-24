@@ -128,12 +128,12 @@ describe('RuntimeSyncService', () => {
     expect(runtimeSync.syncProject(p as never, 'a', '/tmp/x')).toBe(false)
     expect(listener).toHaveBeenCalledTimes(1)
 
-    Object.assign(p, { layers: [{ name: 'Object' }, { name: 'Background' }] })
+    Object.assign(p, { layers: [{ id: 'lyr_obj', name: 'Object' }, { id: 'lyr_bg', name: 'Background' }] })
     expect(runtimeSync.syncProject(p as never, 'a', '/tmp/x')).toBe(true)
     expect(listener).toHaveBeenCalledTimes(2)
 
     unsubscribe()
-    Object.assign(p, { layers: [{ name: 'UI' }, { name: 'Object' }, { name: 'Background' }] })
+    Object.assign(p, { layers: [{ id: 'lyr_ui', name: 'UI' }, { id: 'lyr_obj', name: 'Object' }, { id: 'lyr_bg', name: 'Background' }] })
     expect(runtimeSync.syncProject(p as never, 'a', '/tmp/x')).toBe(true)
     expect(listener).toHaveBeenCalledTimes(2)
   })

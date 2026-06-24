@@ -8,7 +8,9 @@ import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
  */
 export function PaintStatusChip() {
   const dispatch = useEditorDispatch()
-  const activeLayer = useEditorSelector((s) => s.editorActiveLayer)
+  const activeLayer = useEditorSelector(
+    (s) => s.project?.layers?.find((l) => l.id === s.editorActiveLayerId)?.name ?? s.editorActiveLayerId,
+  )
   const paintId = useEditorSelector((s) => s.activePaintTilesetId)
   const selectedCell = useEditorSelector((s) => s.selectedTileCell)
   const project = useEditorSelector((s) => s.project)

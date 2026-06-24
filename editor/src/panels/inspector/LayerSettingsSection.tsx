@@ -7,12 +7,13 @@ import {
   layerOpacity,
   layerParallax,
   layerVisible,
+  sceneLayerSettings,
 } from '../../constants/scene-layers'
 import { EditorSelect, type EditorSelectOption } from '../../components/ui/EditorSelect'
-import type { LayerBackground, LayerParallax } from '../../types'
+import type { LayerBackground, LayerId, LayerParallax } from '../../types'
 
 export type LayerSettingsSectionProps = Readonly<{
-  layerName: string
+  layerId: LayerId
   sceneName: string | undefined
 }>
 
@@ -48,27 +49,32 @@ const NO_BACKGROUND: LayerBackground = {
   imageId: '', tileX: true, tileY: true, scrollX: 0, scrollY: 0,
 }
 
-export function LayerSettingsSection({ layerName, sceneName }: LayerSettingsSectionProps) {
+export function LayerSettingsSection({ layerId, sceneName }: LayerSettingsSectionProps) {
   const dispatch = useEditorDispatch()
   const project = useEditorSelector((s) => s.project)
   const sceneId = useEditorSelector((s) => s.selection.sceneId ?? s.project?.activeSceneId)
-  const tilemapLayer = sceneId ? project?.scenes[sceneId]?.tilemapLayers?.[layerName] : undefined
+  const scene = sceneId ? project?.scenes[sceneId] : undefined
+  const tilemapLayer = scene?.tilemapLayers?.[layerId]
   const usedIds = tilemapLayer ? sourcesUsedOnLayer(tilemapLayer) : []
 
   const renderLayer =
-    (project?.layers ?? DEFAULT_LAYERS).find((l) => l.name === layerName)
-  const parallax = layerParallax(renderLayer ?? {})
-  const visible = layerVisible(renderLayer ?? {})
+    (project?.layers ?? DEFAULT_LAYERS).find((l) => l.id === layerId)
+  const layerName = renderLayer?.name ?? layerId
+  const settings = sceneLayerSettings(scene, layerId)
+  const parallax = layerParallax(settings)
+  const visible = layerVisible(settings)
   const locked = layerLocked(renderLayer ?? {})
-  const opacity = layerOpacity(renderLayer ?? {})
-  const bg = renderLayer?.background ?? NO_BACKGROUND
+  const opacity = layerOpacity(settings)
+  const bg = settings.background ?? NO_BACKGROUND
 
+  const updateSettings = (patch: Partial<import('../../types').SceneLayerSettings>) => {
+    if (!sceneId) return
+    dispatch({ type: 'SCENE_LAYER_SETTINGS_UPDATE', sceneId, layerId, patch })
+  }
   const updateParallax = (patch: Partial<LayerParallax>) =>
-    dispatch({ type: 'LAYER_UPDATE', name: layerName, patch: { parallax: { ...parallax, ...patch } } })
+    updateSettings({ parallax: { ...parallax, ...patch } })
   const updateBg = (patch: Partial<LayerBackground>) =>
-    dispatch({ type: 'LAYER_UPDATE', name: layerName, patch: { background: { ...bg, ...patch } } })
-  const updateLayer = (patch: { visible?: boolean; locked?: boolean; opacity?: number }) =>
-    dispatch({ type: 'LAYER_UPDATE', name: layerName, patch })
+    updateSettings({ background: { ...bg, ...patch } })
 
   const imageOptions: EditorSelectOption[] = [
     { value: '', label: 'None' },
@@ -92,16 +98,16 @@ export function LayerSettingsSection({ layerName, sceneName }: LayerSettingsSect
             <input
               type="checkbox"
               checked={visible}
-              onChange={(e) => updateLayer({ visible: e.target.checked })}
+              onChange={(e) => updateSettings({ visible: e.target.checked })}
               className="accent-[var(--accent)]"
             />
-            <span>Visible in editor/play</span>
+            <span>Visible in this scene</span>
           </label>
           <label className="flex items-center gap-1.5">
             <input
               type="checkbox"
               checked={locked}
-              onChange={(e) => updateLayer({ locked: e.target.checked })}
+              onChange={(e) => dispatch({ type: 'LAYER_SET_LOCKED', layerId, locked: e.target.checked })}
               className="accent-[var(--accent)]"
             />
             <span>Locked in editor canvas</span>
@@ -111,7 +117,7 @@ export function LayerSettingsSection({ layerName, sceneName }: LayerSettingsSect
           label="Opacity"
           value={opacity}
           step={0.05}
-          onCommit={(nextOpacity) => updateLayer({ opacity: nextOpacity })}
+          onCommit={(nextOpacity) => updateSettings({ opacity: nextOpacity })}
         />
         <p className="text-[9px] text-[var(--muted)] leading-relaxed">
           Hidden layers do not draw in play. Locked layers cannot be picked or dragged on the canvas.

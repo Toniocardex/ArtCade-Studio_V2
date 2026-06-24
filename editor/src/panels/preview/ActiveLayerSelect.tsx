@@ -6,9 +6,12 @@ import { EditorSelect } from '../../components/ui/EditorSelect'
 export function ActiveLayerSelect() {
   const dispatch = useEditorDispatch()
   const layers = useEditorSelector((s) => s.project?.layers ?? DEFAULT_LAYERS)
-  const value = useEditorSelector((s) => s.editorActiveLayer)
+  const activeLayerId = useEditorSelector((s) => s.editorActiveLayerId)
+  const value = layers.some((l) => l.id === activeLayerId)
+    ? activeLayerId
+    : layers[0]?.id ?? ''
 
-  const options = layers.map((l) => ({ value: l.name, label: l.name }))
+  const options = layers.map((l) => ({ value: l.id, label: l.name }))
 
   return (
     <label className="flex items-center gap-1.5 text-[9px] text-[var(--muted)] shrink-0">
@@ -17,8 +20,8 @@ export function ActiveLayerSelect() {
         className="min-w-[6.5rem] font-ui"
         triggerClassName="py-1"
         value={value}
-        onChange={(layerName) =>
-          dispatch({ type: 'SET_EDITOR_ACTIVE_LAYER', layerName })
+        onChange={(layerId) =>
+          dispatch({ type: 'SET_EDITOR_ACTIVE_LAYER', layerId })
         }
         options={options}
         aria-label="Active layer"

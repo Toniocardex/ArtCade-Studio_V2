@@ -17,7 +17,7 @@ export function deriveInspectorMode(state: CoreState): InspectorMode {
   if (state.tilePaletteOpen && state.activePaintTilesetId != null) return 'tileset-paint'
   if (state.selection.entityId != null) return 'entity'
   if (state.inspectorAsset != null) return 'asset'
-  if (state.inspectorLayerName != null) return 'layer'
+  if (state.inspectorLayerId != null) return 'layer'
   return 'scene'
 }
 
@@ -55,12 +55,17 @@ export function inspectorChromeForMode(
         subtitle: ts?.name ?? '',
       }
     }
-    case 'layer':
+    case 'layer': {
+      const layerId = state.inspectorLayerId
+      const layerName = layerId
+        ? project?.layers?.find((l) => l.id === layerId)?.name ?? layerId
+        : ''
       return {
         mode,
         title: 'Layer Settings',
-        subtitle: state.inspectorLayerName ?? '',
+        subtitle: layerName,
       }
+    }
     default: {
       const sceneId = state.selection.sceneId ?? project?.activeSceneId
       const scene = sceneId && project ? project.scenes[sceneId] : undefined

@@ -31,7 +31,7 @@ describe('uiReducer — inspector context', () => {
   it('SELECT_INSPECTOR_ASSET clears entity and layer', () => {
     const start = base({
       selection: { entityId: 3, entityIds: [3], sceneId: 's1' },
-      inspectorLayerName: 'UI',
+      inspectorLayerId: 'lyr_ui',
     })
     const s = uiReducer(start, {
       type: 'SELECT_INSPECTOR_ASSET',
@@ -40,7 +40,7 @@ describe('uiReducer — inspector context', () => {
     expect(s.inspectorAsset).toEqual({ type: 'image', id: 'img_1' })
     expect(s.selection.entityId).toBeNull()
     expect(s.selection.entityIds).toEqual([])
-    expect(s.inspectorLayerName).toBeNull()
+    expect(s.inspectorLayerId).toBeNull()
   })
 
   it('SELECT_ENTITY replaces or toggles the same-scene multi-selection set', () => {

@@ -3,7 +3,7 @@ import { coreReducer, type CoreState } from './editor-store'
 import { parseProjectDoc, serializeProjectDoc } from '../utils/project'
 import { createTilemap, DEFAULT_TILE_PALETTE, resizeTilemap, resizeTilemapForTileSize } from '../types'
 import type { ProjectDoc, TilesetAsset } from '../types'
-import { DEFAULT_EDITOR_ACTIVE_LAYER } from '../constants/scene-layers'
+import { DEFAULT_EDITOR_ACTIVE_LAYER_ID } from '../constants/scene-layers'
 
 const TS: TilesetAsset = {
   assetId: 'ts_paint', name: 'Paint', spriteImagePath: 'p.png',
@@ -37,7 +37,7 @@ function st(p: ProjectDoc): CoreState {
     editorGridSize: 32, snapToGrid: false, editorZoom: 1.0, editorZoomMode: 'manual', cameraPreview: false,
     projectLoadEpoch: 0,
     authoringMode: 'base',
-    editorActiveLayer: DEFAULT_EDITOR_ACTIVE_LAYER,
+    editorActiveLayerId: DEFAULT_EDITOR_ACTIVE_LAYER_ID,
   }
 }
 
@@ -102,14 +102,14 @@ describe('coreReducer — tilemap', () => {
       ...s,
       project: {
         ...s.project!,
-        layers: [{ name: 'new_layer' }, { name: 'Background' }],
+        layers: [{ id: 'lyr_new', name: 'new_layer' }, { id: 'lyr_bg', name: 'Background' }],
         scenes: {
           s: {
             ...s.project!.scenes.s,
             worldSize: { x: 1280, y: 640 },
             viewportSize: { x: 1280, y: 640 },
             tilemapLayers: {
-              Background: {
+              lyr_bg: {
                 tileSize: 16,
                 cols: 80,
                 rows: 40,
@@ -119,7 +119,7 @@ describe('coreReducer — tilemap', () => {
           },
         },
       },
-      editorActiveLayer: 'new_layer',
+      editorActiveLayerId: 'lyr_new',
     }
     s = coreReducer(s, {
       type: 'TILEMAP_PAINT_CELL',
@@ -129,7 +129,7 @@ describe('coreReducer — tilemap', () => {
       tileId: 3,
       tilesetAssetId: 'ts_16',
     })
-    const layer = s.project!.scenes.s.tilemapLayers!.new_layer!
+    const layer = s.project!.scenes.s.tilemapLayers!.lyr_new!
     expect(layer.tileSize).toBe(16)
     expect(layer.cols).toBe(80)
     expect(layer.rows).toBe(40)
@@ -139,12 +139,12 @@ describe('coreReducer — tilemap', () => {
   it('TILEMAP_SET_TILESIZE preserves sourceIndices on overlapping cells', () => {
     const p: ProjectDoc = {
       ...project(),
-      layers: [{ name: 'Background' }],
+      layers: [{ id: 'lyr_bg', name: 'Background' }],
       scenes: {
         s: {
           ...project().scenes.s,
           tilemapLayers: {
-            Background: {
+            lyr_bg: {
               tileSize: 32,
               cols: 20,
               rows: 10,
@@ -156,15 +156,15 @@ describe('coreReducer — tilemap', () => {
         },
       },
     }
-    p.scenes.s.tilemapLayers!.Background!.data[5] = 4
-    p.scenes.s.tilemapLayers!.Background!.sourceIndices![5] = 1
+    p.scenes.s.tilemapLayers!.lyr_bg!.data[5] = 4
+    p.scenes.s.tilemapLayers!.lyr_bg!.sourceIndices![5] = 1
 
     const resized = coreReducer(st(p), {
       type: 'TILEMAP_SET_TILESIZE',
       sceneId: 's',
       tileSize: 16,
     })
-    const layer = resized.project!.scenes.s.tilemapLayers!.Background!
+    const layer = resized.project!.scenes.s.tilemapLayers!.lyr_bg!
     expect(layer.tileSize).toBe(16)
     expect(layer.cols).toBeGreaterThan(20)
     expect(layer.sourceIndices).toBeDefined()
@@ -231,7 +231,7 @@ describe('coreReducer — tilemap', () => {
       tilesetAssetId: 'ts_paint',
     })
     expect(noTm.projectDirty).toBe(true)
-    expect(noTm.project!.scenes.s.tilemapLayers?.[DEFAULT_EDITOR_ACTIVE_LAYER]?.data[0]).toBe(1)
+    expect(noTm.project!.scenes.s.tilemapLayers?.[DEFAULT_EDITOR_ACTIVE_LAYER_ID]?.data[0]).toBe(1)
     expect(noTm.project!.scenes.s.tilemap!.data[0]).toBe(1)
   })
 

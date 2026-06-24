@@ -10,7 +10,6 @@ add_executable(game
     render/tilemap-renderer.cpp
     render/parallax-renderer.cpp
     render/text_value_formatter.cpp
-    render/ray-tint-widget.cpp
 )
 target_include_directories(game PRIVATE include render)
 target_link_libraries(game PRIVATE
@@ -86,8 +85,6 @@ if(EMSCRIPTEN)
         "_editor_reregister_animation_clips"
         "_editor_preview_spritesheet_reset"
         "_editor_preview_spritesheet_submit"
-        "_editor_open_raytint"
-        "_editor_close_raytint"
         "_editor_get_runtime_profile"
         "_malloc"
         "_free"

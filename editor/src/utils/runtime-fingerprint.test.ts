@@ -100,6 +100,15 @@ describe('runtimeProjectFingerprint', () => {
       .not.toBe(runtimeProjectFingerprint(tinted, 'scene_a'))
   })
 
+  it('changes when the entity render layer changes (z-order re-sync)', () => {
+    const base    = makeProject()
+    const relayered = makeProject({
+      entities: { 1: makeEntity({ layerId: 'Foreground' }) },
+    })
+    expect(runtimeProjectFingerprint(base,      'scene_a'))
+      .not.toBe(runtimeProjectFingerprint(relayered, 'scene_a'))
+  })
+
   it('changes when className or tags change', () => {
     const base = makeProject()
     const renamed = makeProject({ entities: { 1: makeEntity({ className: 'Enemy' }) } })

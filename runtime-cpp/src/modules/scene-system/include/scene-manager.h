@@ -52,6 +52,13 @@ public:
     }
     const std::vector<SceneLayerDef>& sceneLayers() const { return sceneLayers_; }
 
+    /** Render rank for @p layerId (count - index; higher = drawn later). 0 if unknown. */
+    int layerRank(const std::string& layerId) const;
+    /** Per-scene visual settings for @p layerId in the active scene (defaults when absent). */
+    SceneLayerSettings activeLayerSettings(const std::string& layerId) const;
+    /** Global editor lock state for @p layerId. */
+    bool layerLocked(const std::string& layerId) const;
+
 private:
     std::unordered_map<SceneId, SceneDef>        scenes_;
     std::unordered_map<EntityId, EntityDef>      entityDefs_;

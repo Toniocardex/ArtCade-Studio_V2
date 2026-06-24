@@ -83,7 +83,7 @@ void drawLayer(Modules::Renderer& renderer,
                 const Vec4 col = (it != palette.end())
                     ? it->second : Vec4{0.5f, 0.5f, 0.5f, 1.f};
                 renderer.drawRect(dx, dy, tm.tileSize, tm.tileSize,
-                                  { col.x, col.y, col.z, col.w * opacity });
+                                  { col.r, col.g, col.b, col.a * opacity });
             }
         }
     }
@@ -101,11 +101,14 @@ void draw(Modules::Renderer& renderer,
     if (!scene.tilemapLayers.empty() && !layerStack.empty()) {
         for (int i = static_cast<int>(layerStack.size()) - 1; i >= 0; --i) {
             const auto& layer = layerStack[static_cast<size_t>(i)];
-            if (!layer.visible || layer.opacity <= 0.f) continue;
-            const auto it = scene.tilemapLayers.find(layer.name);
+            SceneLayerSettings settings;
+            const auto sit = scene.layerSettings.find(layer.id);
+            if (sit != scene.layerSettings.end()) settings = sit->second;
+            if (!settings.visible || settings.opacity <= 0.f) continue;
+            const auto it = scene.tilemapLayers.find(layer.id);
             if (it != scene.tilemapLayers.end())
                 drawLayer(renderer, it->second, liveTilesets, startupCache, palette,
-                          layer.opacity);
+                          settings.opacity);
         }
         return;
     }

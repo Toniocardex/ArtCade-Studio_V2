@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { coreReducer, type CoreState } from './editor-store'
 import { parseProjectDoc, serializeProjectDoc } from '../utils/project'
-import { DEFAULT_EDITOR_ACTIVE_LAYER } from '../constants/scene-layers'
+import { DEFAULT_EDITOR_ACTIVE_LAYER_ID } from '../constants/scene-layers'
 import type { ProjectDoc, TilesetAsset } from '../types'
 
 const TS: TilesetAsset = {
@@ -35,7 +35,7 @@ function st(p: ProjectDoc): CoreState {
     paintSourceNotice: null,
     openScripts: [], activeScriptPath: null, isPlaying: false,
     selectedTileCell: 1,
-    editorActiveLayer: DEFAULT_EDITOR_ACTIVE_LAYER,
+    editorActiveLayerId: DEFAULT_EDITOR_ACTIVE_LAYER_ID,
     editorGridSize: 32, snapToGrid: false, editorZoom: 1.0, editorZoomMode: 'manual', cameraPreview: false,
     projectLoadEpoch: 0,
     authoringMode: 'base',
@@ -63,7 +63,7 @@ describe('coreReducer — tileset (Phase F1)', () => {
   it('TILEMAP_SET_TILESETID sets default brush on active layer', () => {
     let s = coreReducer(st(project()), { type: 'TILESET_ASSET_ADD', asset: TS })
     s = coreReducer(s, { type: 'TILEMAP_SET_TILESETID', sceneId: 's', assetId: 'ts_a' })
-    const layer = s.project!.scenes.s.tilemapLayers?.[DEFAULT_EDITOR_ACTIVE_LAYER]
+    const layer = s.project!.scenes.s.tilemapLayers?.[DEFAULT_EDITOR_ACTIVE_LAYER_ID]
     expect(layer?.defaultTilesetAssetId).toBe('ts_a')
     expect(layer?.cols).toBeGreaterThan(0)
   })
@@ -81,7 +81,7 @@ describe('coreReducer — tileset (Phase F1)', () => {
     })
     s = coreReducer(s, { type: 'TILESET_ASSET_REMOVE', assetId: 'ts_a' })
     expect(s.project!.tilesets).toEqual({})
-    const layer = s.project!.scenes.s.tilemapLayers?.[DEFAULT_EDITOR_ACTIVE_LAYER]
+    const layer = s.project!.scenes.s.tilemapLayers?.[DEFAULT_EDITOR_ACTIVE_LAYER_ID]
     expect(layer?.data[0]).toBe(0)
     expect(layer?.sourceIndices?.[0]).toBe(0)
   })
@@ -116,7 +116,7 @@ describe('coreReducer — tileset (Phase F1)', () => {
       tileId: 2,
       tilesetAssetId: 'ts_b',
     })
-    const layer = s.project!.scenes.s.tilemapLayers?.[DEFAULT_EDITOR_ACTIVE_LAYER]!
+    const layer = s.project!.scenes.s.tilemapLayers?.[DEFAULT_EDITOR_ACTIVE_LAYER_ID]!
     expect(layer.data[0]).toBe(1)
     expect(layer.data[1]).toBe(2)
     expect(layer.sourceIndices?.[0]).toBe(1)
@@ -142,11 +142,11 @@ describe('coreReducer — tileset (Phase F1)', () => {
     let s = coreReducer(st(project()), { type: 'TILESET_ASSET_ADD', asset: TS })
     s = coreReducer(s, { type: 'TILESET_ASSET_ADD', asset: TS_B })
     s = coreReducer(s, { type: 'TILESET_PAINT_BEGIN', tilesetId: 'ts_a' })
-    s = coreReducer(s, { type: 'SET_EDITOR_ACTIVE_LAYER', layerName: 'Props' })
+    s = coreReducer(s, { type: 'SET_EDITOR_ACTIVE_LAYER', layerId: 'lyr_props' })
     expect(s.activePaintTilesetId).toBe('ts_a')
-    expect(s.lastPaintTilesetByLayer[DEFAULT_EDITOR_ACTIVE_LAYER]).toBe('ts_a')
+    expect(s.lastPaintTilesetByLayer[DEFAULT_EDITOR_ACTIVE_LAYER_ID]).toBe('ts_a')
     s = coreReducer(s, { type: 'TILESET_PAINT_BEGIN', tilesetId: 'ts_b' })
-    s = coreReducer(s, { type: 'SET_EDITOR_ACTIVE_LAYER', layerName: DEFAULT_EDITOR_ACTIVE_LAYER })
+    s = coreReducer(s, { type: 'SET_EDITOR_ACTIVE_LAYER', layerId: DEFAULT_EDITOR_ACTIVE_LAYER_ID })
     expect(s.activePaintTilesetId).toBe('ts_a')
   })
 })
@@ -168,7 +168,7 @@ describe('project.json roundtrip — tilesets', () => {
     expect(json).toContain('"tilesetSources"')
     expect(json).toContain('"sourceIndices"')
     const again = parseProjectDoc(json)!
-    const layer = again.scenes.s.tilemapLayers?.[DEFAULT_EDITOR_ACTIVE_LAYER]
+    const layer = again.scenes.s.tilemapLayers?.[DEFAULT_EDITOR_ACTIVE_LAYER_ID]
     expect(layer?.tilesetSources?.[0]?.tilesetAssetId).toBe('ts_a')
     expect(layer?.sourceIndices?.[0]).toBe(1)
     expect(layer?.data[0]).toBe(2)

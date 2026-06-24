@@ -19,6 +19,8 @@
 
 #include "../../core/types.h"
 
+#include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace ArtCade {
@@ -30,14 +32,16 @@ namespace ParallaxRenderer {
 /**
  * Paint every layer's repeating background image into the active world pass.
  *
- * @param renderer     active renderer (inside beginFrame/endWorldPass)
- * @param layerStack   scene layers (index 0 = highest priority / drawn last)
+ * @param renderer      active renderer (inside beginFrame/endWorldPass)
+ * @param layerStack    scene layers (index 0 = highest priority / drawn last)
+ * @param layerSettings active scene's per-layer visual overrides (keyed by id)
  * @param cameraTopLeft world point shown at the viewport top-left
  * @param viewSize      visible world size (width/height in world units)
  * @param elapsed       game-time seconds, drives the auto-scroll phase
  */
 void draw(Modules::Renderer& renderer,
           const std::vector<SceneLayerDef>& layerStack,
+          const std::unordered_map<std::string, SceneLayerSettings>& layerSettings,
           const Vec2& cameraTopLeft,
           const Vec2& viewSize,
           float elapsed);

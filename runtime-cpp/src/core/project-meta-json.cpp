@@ -192,29 +192,17 @@ void read_scene_layers(const nlohmann::json& doc, std::vector<SceneLayerDef>& ou
     for (const auto& item : doc["layers"]) {
         SceneLayerDef layer;
         if (item.is_string()) {
+            // Legacy string form: use the name as a stable id fallback.
             layer.name = item.get<std::string>();
+            layer.id   = layer.name;
         } else if (item.is_object()) {
-            layer.name = read_string_any(item, "name", "id");
-            layer.visible = item.value("visible", true);
-            layer.locked  = item.value("locked", false);
-            layer.opacity = item.value("opacity", 1.f);
-            if (layer.opacity < 0.f) layer.opacity = 0.f;
-            if (layer.opacity > 1.f) layer.opacity = 1.f;
-            if (item.contains("parallax") && item["parallax"].is_object()) {
-                const auto& p = item["parallax"];
-                layer.parallax.x = p.value("x", 1.f);
-                layer.parallax.y = p.value("y", 1.f);
-            }
-            if (item.contains("background") && item["background"].is_object()) {
-                const auto& b = item["background"];
-                layer.background.imageId = read_string_any(b, "imageId", "image_id");
-                layer.background.tileX   = b.value("tileX", b.value("tile_x", true));
-                layer.background.tileY   = b.value("tileY", b.value("tile_y", true));
-                layer.background.scrollX = b.value("scrollX", b.value("scroll_x", 0.f));
-                layer.background.scrollY = b.value("scrollY", b.value("scroll_y", 0.f));
-            }
+            layer.id     = item.value("id", std::string{});
+            layer.name   = item.value("name", std::string{});
+            layer.locked = item.value("locked", false);
+            if (layer.id.empty())
+                layer.id = layer.name;   // tolerate id-less entries
         }
-        if (!layer.name.empty())
+        if (!layer.id.empty())
             out.push_back(std::move(layer));
     }
 }

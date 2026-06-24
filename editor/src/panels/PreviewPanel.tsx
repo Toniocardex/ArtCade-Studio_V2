@@ -86,7 +86,7 @@ export default function PreviewPanel({
   const editorZoomMode = useEditorSelector((s) => s.editorZoomMode)
   const cameraPreview = useEditorSelector((s) => s.cameraPreview)
   const activePaintTilesetId = useEditorSelector((s) => s.activePaintTilesetId)
-  const editorActiveLayer = useEditorSelector((s) => s.editorActiveLayer)
+  const editorActiveLayerId = useEditorSelector((s) => s.editorActiveLayerId)
   const openScripts = useEditorSelector((s) => s.openScripts)
   const focusMode = useEditorSelector((s) => s.focusMode)
   const dialogs = useEditorSelector((s) => s.dialogs)
@@ -326,7 +326,7 @@ export default function PreviewPanel({
     selectedEntityId: selection.entityId,
     selectedEntityIds: selection.entityIds,
     tool: activeTool,
-    activeTileLayer: editorActiveLayer,
+    activeTileLayer: editorActiveLayerId,
     // The runtime draws the alignment grid under the sprites (its native,
     // correct z-order). The camera-viewport outline is the editor's dashed DOM
     // overlay (CameraFrameOverlay) — the runtime no longer draws it.
@@ -339,7 +339,7 @@ export default function PreviewPanel({
   const selectedScene = project && selectedSceneId ? project.scenes[selectedSceneId] : undefined
   const paintTilemap = useMemo(() => {
     if (!selectedScene || !project) return undefined
-    const layerTm = selectedScene.tilemapLayers?.[editorActiveLayer]
+    const layerTm = selectedScene.tilemapLayers?.[editorActiveLayerId]
     if (layerTm) return layerTm
     const tileSize = resolveTilemapTileSize(
       project,
@@ -352,7 +352,7 @@ export default function PreviewPanel({
       tileSize,
       selectedScene,
     )
-  }, [selectedScene, editorActiveLayer, activePaintTilesetId, project])
+  }, [selectedScene, editorActiveLayerId, activePaintTilesetId, project])
   const res = selectedScene?.worldSize ?? DEFAULT_SCENE_SIZE
   const vp  = selectedScene?.viewportSize ?? res
   const zoom = editorZoom
@@ -660,7 +660,7 @@ export default function PreviewPanel({
               scrollRef={scrollRef}
               zoom={zoom}
               tilemap={paintTilemap}
-              activeLayerName={editorActiveLayer}
+              activeLayerId={editorActiveLayerId}
               selectedTileCell={selectedTileCell}
               sceneId={selectedSceneId ?? ''}
               paintTilesetAssetId={activePaintTilesetId}

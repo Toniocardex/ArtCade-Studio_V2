@@ -34,6 +34,11 @@ function cleanVariableOverrides(
   return entries.length ? Object.fromEntries(entries) : undefined
 }
 
+function activeLayerPlacement(state: CoreState): Pick<SceneInstanceDef, 'layerId'> {
+  const layerId = state.editorActiveLayerId?.trim()
+  return layerId ? { layerId } : {}
+}
+
 function objectTypeNameTaken(
   project: NonNullable<CoreState['project']>,
   displayName: string,
@@ -200,6 +205,7 @@ export const objectTypeReducer: DomainReducer = (state: CoreState, action: Actio
           scale: { x: 1, y: 1 },
           rotation: 0,
         },
+        ...activeLayerPlacement(state),
       }
       const ent = materializeEntity(type, inst)
       const instances = [...(scene.instances ?? []), inst]
@@ -252,6 +258,7 @@ export const objectTypeReducer: DomainReducer = (state: CoreState, action: Actio
             : {}),
         },
         ...(src.visible === false ? { visible: false } : {}),
+        ...(src.layerId ? { layerId: src.layerId } : {}),
       }
       const ent = materializeEntity(type, copy)
       return {

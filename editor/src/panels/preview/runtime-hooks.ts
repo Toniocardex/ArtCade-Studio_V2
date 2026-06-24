@@ -175,15 +175,6 @@ export function buildRuntimeCallbacks(deps: RuntimeCallbackDeps): WasmCallbacks 
         fps, luaMs, physicsMs, renderMs, entityCount, physicsBodies,
       })
     },
-    onSpriteFillColor: (entityId: number, r: number, g: number, b: number) => {
-      scheduleWasmUiUpdateWhen(cancelled, () => {
-        dispatch({
-          type: 'ENTITY_SET_SPRITE_FILL',
-          entityId,
-          fillColor: { x: r, y: g, z: b },
-        })
-      })
-    },
     onEditorCursorWorld: (x: number, y: number) => {
       scheduleWasmUiUpdateWhen(cancelled, () => {
         dispatch({ type: 'SET_CURSOR', x, y })

@@ -33,7 +33,7 @@ public:
     void endWorldPass();
     /** Flush screen-space (HUD) text queued with drawText(screenSpace=true). */
     void endScreenPass();
-    /** Post effects and swap (after screen-space UI such as RayTint). */
+    /** Post effects and swap (after screen-space UI / HUD draws). */
     void presentScreen();
     bool shouldClose() const;
 
