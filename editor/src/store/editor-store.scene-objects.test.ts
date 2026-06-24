@@ -229,6 +229,20 @@ describe('coreReducer — scenes & objects', () => {
     expect(s.projectDirty).toBe(true)
   })
 
+  it('SCENE_SET_CAMERA_START stores the clamped initial camera position', () => {
+    // World larger than the viewport so the camera has room to move.
+    let s = coreReducer(st(project()), { type: 'SCENE_SET_WORLD_SIZE', sceneId: 's', x: 2560, y: 1440 })
+    s = coreReducer({ ...s, projectDirty: false }, {
+      type: 'SCENE_SET_CAMERA_START', sceneId: 's', x: 500, y: 300,
+    })
+    expect(s.project!.scenes.s.cameraStart).toEqual({ x: 500, y: 300 })
+    expect(s.projectDirty).toBe(true)
+
+    // Out-of-bounds drag is clamped so the viewport stays inside the world.
+    s = coreReducer(s, { type: 'SCENE_SET_CAMERA_START', sceneId: 's', x: 99999, y: 99999 })
+    expect(s.project!.scenes.s.cameraStart).toEqual({ x: 2560 - 1280, y: 1440 - 720 })
+  })
+
   it('SCENE_SET_WORLD_SIZE scales scene entity positions into the resized canvas', () => {
     const p = project()
     p.entities[1].transform.position = { x: 640, y: 360 }

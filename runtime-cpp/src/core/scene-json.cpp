@@ -153,6 +153,11 @@ void read_scene_def(const nlohmann::json& sceneJson,
     else if (sceneJson.contains("viewport_size"))
         out.viewportSize = read_vec2(sceneJson["viewport_size"], kDefaultViewportSize);
 
+    if (sceneJson.contains("cameraStart"))
+        out.cameraStart = read_vec2(sceneJson["cameraStart"], { 0.f, 0.f });
+    else if (sceneJson.contains("camera_start"))
+        out.cameraStart = read_vec2(sceneJson["camera_start"], { 0.f, 0.f });
+
     if (sceneJson.contains("backgroundColor"))
         out.backgroundColor = read_vec4(sceneJson["backgroundColor"]);
     else if (sceneJson.contains("background_color"))

@@ -128,6 +128,7 @@ interface FpScene {
   id:  string
   ws:  FpVec2                // worldSize
   vs:  FpVec2                // viewportSize
+  cs?: FpVec2                // cameraStart (initial camera view top-left)
   bg:  FpVec4                // backgroundColor
   e:   number[]              // entityIds (sorted)
   tm?: FpTilemap
@@ -250,6 +251,7 @@ function projectScene(s: SceneDef): FpScene {
     id: s.id,
     ws: v2(s.worldSize),
     vs: v2(s.viewportSize),
+    ...(s.cameraStart ? { cs: v2(s.cameraStart) } : {}),
     bg: v4(s.backgroundColor),
     e:  [...s.entityIds].sort((a, b) => a - b),
     tm: tm ? {

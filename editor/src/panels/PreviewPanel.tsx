@@ -582,6 +582,13 @@ export default function PreviewPanel({
 
   useLayoutEffect(() => frameSelectionRegistry.register(frameSelection), [frameSelection])
 
+  // Drag the camera rectangle's handle to set the scene's initial camera
+  // position. The reducer clamps to the world; the runtime honours it at play.
+  const onCameraStartDrag = useCallback((world: { x: number; y: number }) => {
+    if (!selectedSceneId) return
+    dispatch({ type: 'SCENE_SET_CAMERA_START', sceneId: selectedSceneId, x: world.x, y: world.y })
+  }, [selectedSceneId, dispatch])
+
   // Suppress the browser context menu during play (right click is game input).
   useEffect(() => {
     if (!isPlaying) return
@@ -678,6 +685,8 @@ export default function PreviewPanel({
                 viewportSize={vp}
                 zoom={zoom}
                 fillFrame={preview}
+                cameraStart={selectedScene?.cameraStart}
+                onCameraStartDrag={onCameraStartDrag}
               />
             )}
             <div className="canvas-scene-frame__edge" aria-hidden />

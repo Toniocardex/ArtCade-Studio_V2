@@ -239,6 +239,7 @@ export type Action =
   | { type: 'IMAGE_ASSET_SET_USAGE'; assetId: string; usage: ImageAssetUsage; folderId?: string }
   | { type: 'SCENE_SET_WORLD_SIZE'; sceneId: string; x: number; y: number }
   | { type: 'SCENE_SET_VIEWPORT_SIZE'; sceneId: string; x: number; y: number }
+  | { type: 'SCENE_SET_CAMERA_START'; sceneId: string; x: number; y: number }
   | { type: 'EDITOR_SET_GRID_SIZE'; tileSize: number }
   | { type: 'EDITOR_SET_RULER_STEP'; step: number }
   | { type: 'SET_RULERS_VISIBLE'; visible: boolean }

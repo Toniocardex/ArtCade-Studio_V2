@@ -157,6 +157,13 @@ export interface SceneDef {
   name:            string
   worldSize:       Vec2
   viewportSize:    Vec2
+  /**
+   * World-space top-left of the camera's initial view (the slice the player
+   * sees when the scene starts). Defaults to (0,0). The runtime snaps the
+   * gameplay camera here at scene load; game logic / follow targets may then
+   * move it. Only meaningful when the scene is larger than the viewport.
+   */
+  cameraStart?:    Vec2
   backgroundColor: Vec4
   /** Derived from `instances` for legacy code paths; kept in sync on load/save. */
   entityIds:       number[]

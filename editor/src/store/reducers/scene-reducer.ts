@@ -11,6 +11,7 @@ import type { AnimationClipDef, EntityDef, SceneDef, SpriteComponent, TilemapLay
 import { DEFAULT_LAYERS } from '../../constants/scene-layers'
 import { createSceneDef, uniqueSceneName, nextEntityId } from '../../utils/project'
 import { clampEntityPositionToScene } from '../../utils/entity-position'
+import { clampCameraStart } from '../../utils/camera-start'
 import { projectAfterRemovingAsset } from '../../utils/strip-project-asset-refs'
 import { normalizeAssetRefs } from '../../utils/normalize-asset-refs'
 import { ensureSourceOnLayer, normalizeTilemapLayer } from '../../utils/tilemap-layer-sources'
@@ -302,6 +303,24 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
           scenes: {
             ...state.project.scenes,
             [action.sceneId]: { ...sc, viewportSize },
+          },
+        },
+        projectDirty: true,
+      }
+    }
+    case 'SCENE_SET_CAMERA_START': {
+      const sc = state.project?.scenes[action.sceneId]
+      if (!state.project || !sc) return state
+      const cameraStart = clampCameraStart(sc.worldSize, sc.viewportSize, { x: action.x, y: action.y })
+      const prev = sc.cameraStart ?? { x: 0, y: 0 }
+      if (prev.x === cameraStart.x && prev.y === cameraStart.y) return state
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          scenes: {
+            ...state.project.scenes,
+            [action.sceneId]: { ...sc, cameraStart },
           },
         },
         projectDirty: true,

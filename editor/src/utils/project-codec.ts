@@ -296,6 +296,9 @@ function parseScene(raw: unknown, fallbackId: string): SceneDef {
     name:            String(r.name ?? fallbackId),
     worldSize:       toVec2(r.worldSize ?? r.world_size ?? sceneSizeArray()),
     viewportSize:    toVec2(r.viewportSize ?? r.viewport_size ?? viewportSizeArray()),
+    cameraStart:     (r.cameraStart ?? r.camera_start) != null
+                       ? toVec2(r.cameraStart ?? r.camera_start)
+                       : undefined,
     backgroundColor: toVec4(r.backgroundColor ?? r.background_color ?? [0.082, 0.090, 0.110, 1]),
     entityIds:       (() => {
                        const raw = r.entityIds ?? r.entity_ids
@@ -848,6 +851,7 @@ function serializeScene(scene: SceneDef) {
     name:            scene.name,
     worldSize:       vec2Array(scene.worldSize),
     viewportSize:    vec2Array(scene.viewportSize),
+    ...(scene.cameraStart ? { cameraStart: vec2Array(scene.cameraStart) } : {}),
     backgroundColor: vec4Array(scene.backgroundColor),
     ...(scene.instances?.length
       ? { instances: scene.instances.map(serializeInstance) }

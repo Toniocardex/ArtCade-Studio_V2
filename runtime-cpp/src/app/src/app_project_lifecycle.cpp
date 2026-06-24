@@ -59,6 +59,9 @@ void Application::applyRuntimeSettings(const ProjectRuntimeSettings& settings,
             "ArtCade V2");
     }
     mod_->renderer->setSceneViewport(scene->worldSize, scene->viewportSize);
+    // Snap the gameplay camera to the scene's authored initial view. Game logic
+    // or a follow target may move it afterwards; this is just the starting frame.
+    mod_->renderer->setCameraPosition(scene->cameraStart);
 }
 
 #ifdef ARTCADE_WASM

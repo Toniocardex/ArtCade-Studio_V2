@@ -368,6 +368,8 @@ struct SceneDef {
         ProjectDefaults::kSceneViewportWidth,
         ProjectDefaults::kSceneViewportHeight,
     };
+    /** World-space top-left of the camera's initial view (player's start view). */
+    Vec2                cameraStart  = { 0.f, 0.f };
     Vec4                backgroundColor;
     std::vector<EntityId> entityIds;
     std::vector<SceneInstanceDef> instances;
