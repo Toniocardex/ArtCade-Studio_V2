@@ -21,6 +21,9 @@ WorldInternal::GroundingContext World::groundingContext() const {
 bool World::isPlatformerGrounded(EntityId id) const {
     PlatformerControllerComponent pc{};
     if (!entityGateway_.getPlatformerController(id, pc)) return false;
+    CollisionBodyComponent body{};
+    if (entityGateway_.getCollisionBody(id, body))
+        return collisionGrounded(id);
     return WorldInternal::isGrounded(groundingContext(), id, pc.groundClass);
 }
 

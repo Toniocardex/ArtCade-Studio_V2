@@ -40,15 +40,15 @@ export function defaultTrigger(type: LogicTriggerType): LogicTrigger {
     case 'onUpdate':
       return { type: 'onUpdate' }
     case 'onCollision':
-      return { type: 'onCollision', withClass: '' }
+      return { type: 'onCollision', filter: { response: 'solid' } }
     case 'onCollisionEnter':
-      return { type: 'onCollisionEnter', withClass: '' }
+      return { type: 'onCollisionEnter', filter: { response: 'solid' } }
     case 'onCollisionExit':
-      return { type: 'onCollisionExit', withClass: '' }
+      return { type: 'onCollisionExit', filter: { response: 'solid' } }
     case 'onTriggerEnter':
-      return { type: 'onTriggerEnter', withClass: '' }
+      return { type: 'onTriggerEnter', filter: { response: 'sensor' } }
     case 'onTriggerExit':
-      return { type: 'onTriggerExit', withClass: '' }
+      return { type: 'onTriggerExit', filter: { response: 'sensor' } }
     case 'onAnimationEnd':
       return { type: 'onAnimationEnd', clipName: '' }
     case 'onAnimationStart':

@@ -1,6 +1,7 @@
 import { Trash2 } from 'lucide-react'
 import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import type { ComponentKey, EntityDef } from '../../types'
+import { COMPONENT_KEYS } from '../../types/components'
 import { applyInputBackspace, isBackspaceKey } from '../../utils/keyboard'
 import {
   COMPONENT_REGISTRY,
@@ -12,6 +13,11 @@ import { EditorSelect } from '../../components/ui/EditorSelect'
 import { PhysicsSection } from './PhysicsSection'
 import { DEFAULT_PHYSICS, PHYSICS_INSPECTOR } from './physics-defaults'
 import { DialogInspectorActions } from './DialogInspectorActions'
+
+const ACTIVE_COMPONENT_KEYS = new Set<ComponentKey>(COMPONENT_KEYS)
+const ACTIVE_COMPONENT_REGISTRY = COMPONENT_REGISTRY.filter((desc) =>
+  ACTIVE_COMPONENT_KEYS.has(desc.key),
+)
 
 function fieldStringValue(value: unknown, fallback = ''): string {
   if (typeof value === 'string') return value
@@ -179,7 +185,7 @@ type AddComponentBarProps = Readonly<{
 
 function AddComponentBar({ entity }: AddComponentBarProps) {
   const dispatch = useEditorDispatch()
-  const missing = COMPONENT_REGISTRY.filter(
+  const missing = ACTIVE_COMPONENT_REGISTRY.filter(
     (d) => !(entity as unknown as Record<string, unknown>)[d.key],
   )
   const showPhysics = !entity.physics
@@ -197,7 +203,7 @@ function AddComponentBar({ entity }: AddComponentBarProps) {
           })
           return
         }
-        const desc = COMPONENT_REGISTRY.find((d) => d.key === picked as ComponentKey)
+        const desc = ACTIVE_COMPONENT_REGISTRY.find((d) => d.key === picked as ComponentKey)
         if (desc)
           dispatch({
             type: 'ENTITY_SET_COMPONENT',
@@ -239,7 +245,7 @@ export function ComponentsSection({
     >
       <AddComponentBar entity={entity} />
       <PhysicsSection entity={entity} />
-      {COMPONENT_REGISTRY.map((desc) => (
+      {ACTIVE_COMPONENT_REGISTRY.map((desc) => (
         <ComponentSection key={desc.key} entity={entity} desc={desc} />
       ))}
     </InspectorSection>

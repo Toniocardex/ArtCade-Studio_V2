@@ -110,7 +110,7 @@ describe('project.json roundtrip with components', () => {
     const raw = JSON.stringify({
       projectName: 'D', version: '2.0.0',
       targetFPS: 60, activeSceneId: 's', mainScriptPath: 'scripts/main.lua',
-      entities: { 1: { id: 1, name: 'E', className: 'C', tags: [], health: 'bogus', sensor: { shape: 'Circle', radius: 10, width: 1, height: 1, targetTag: 't' } } },
+      entities: { 1: { id: 1, name: 'E', className: 'C', tags: [], health: 'bogus', collisionBody: { bodyType: 'static', enabled: true, shapes: [] } } },
       scenes: { s: { id: 's', name: 'S', entityIds: [1] } },
     })
     const p = parseProjectDoc(raw)
@@ -118,6 +118,6 @@ describe('project.json roundtrip with components', () => {
     if (!p) return
 
     expect(p.entities[1].health).toBeUndefined()        // string → dropped
-    expect(p.entities[1].sensor).toBeDefined()          // object → kept
+    expect(p.entities[1].collisionBody).toBeDefined()   // object kept
   })
 })

@@ -166,7 +166,7 @@ export const TIMER_AFTER_REGISTRATION_LINES = [
 ]
 
 export const COLLISION_EDGE_STATE_LINES = [
-  '-- Per (entity, otherClass) "was touching last frame" memory for',
+  '-- Per (entity, collision filter) "was touching last frame" memory for',
   '-- onCollisionEnter / onCollisionExit edges.',
   'local _collision_was_touching = {}',
 ]
@@ -201,9 +201,9 @@ export const TEXT_FORMAT_LINES = [
 ]
 
 export const COLLISION_EDGE_HELPER_LINES = [
-  'local function _logic_collision_edge(eid, cls, want_enter)',
-  `${INDENT}local key = tostring(eid) .. ":" .. cls`,
-  `${INDENT}local cur = collision.touchingClass(eid, cls)`,
+  'local function _logic_collision_edge(eid, filter_key, filter, want_enter)',
+  `${INDENT}local key = tostring(eid) .. ":" .. tostring(filter_key or "*")`,
+  `${INDENT}local cur = collision.firstTouching(eid, filter) ~= 0`,
   `${INDENT}local prev = _collision_was_touching[key] or false`,
   `${INDENT}_collision_was_touching[key] = cur`,
   `${INDENT}if want_enter then return cur and not prev end`,

@@ -9,6 +9,11 @@ import { INDENT, luaPointerNearSelfExpr, luaString } from './lua-helpers'
 import { onInputGateExpr } from './on-input-keys'
 import { emitGuardedBranches } from './emit-guarded-branches'
 import { ruleKeyExpr } from './event-slugs'
+import {
+  collisionFilterFromTrigger,
+  collisionFilterKey,
+  collisionFilterLua,
+} from './collision-filter'
 
 type EmitCtx = {
   ev: LogicEvent
@@ -36,20 +41,30 @@ function emitGuarded(
 }
 
 function collisionWhileGate(trig: Extract<LogicTrigger, { type: 'onCollision' }>): string | null {
-  const cls = trig.withClass?.trim()
-  if (!cls) return null
-  return `collision.touchingClass(self, ${luaString(cls)})`
+  const filter = collisionFilterFromTrigger(trig)
+  return `collision.firstTouching(self, ${collisionFilterLua(filter)}) ~= 0`
 }
 
 function collisionEdgeGate(
-  trig: Extract<LogicTrigger, { type: 'onCollisionEnter' } | { type: 'onCollisionExit' }>,
-): { triggerGate: string | null; withClass: string } {
-  const wantEnter = trig.type === 'onCollisionEnter' ? 'true' : 'false'
-  const withClass = trig.withClass?.trim() ?? ''
-  const triggerGate = withClass
-    ? `_logic_collision_edge(self, ${luaString(withClass)}, ${wantEnter})`
-    : null
-  return { triggerGate, withClass }
+  trig: Extract<
+    LogicTrigger,
+    | { type: 'onCollisionEnter' }
+    | { type: 'onCollisionExit' }
+    | { type: 'onTriggerEnter' }
+    | { type: 'onTriggerExit' }
+  >,
+): { triggerGate: string; filterLua: string } {
+  const wantEnter =
+    trig.type === 'onCollisionEnter' || trig.type === 'onTriggerEnter'
+      ? 'true'
+      : 'false'
+  const filter = collisionFilterFromTrigger(trig)
+  const filterLua = collisionFilterLua(filter)
+  const key = collisionFilterKey(filter)
+  return {
+    triggerGate: `_logic_collision_edge(self, ${luaString(key)}, ${filterLua}, ${wantEnter})`,
+    filterLua,
+  }
 }
 
 function mouseButtonFireExpr(
@@ -125,20 +140,7 @@ function emitSensorTriggerBody(
   ctx: EmitCtx,
   trig: Extract<LogicTrigger, { type: 'onTriggerEnter' } | { type: 'onTriggerExit' }>,
 ): string[] {
-  const { baseIndent, enableGuard } = ctx
-  const inner = baseIndent + INDENT
-  const tagGuard = trig.withClass
-    ? `se.tag == ${luaString(trig.withClass)}`
-    : 'true'
-  const edgeGuard = trig.type === 'onTriggerEnter' ? 'se.enter' : '(not se.enter)'
-  return [
-    `${baseIndent}for _, se in ipairs(_sensor_by_ent[self] or {}) do`,
-    `${baseIndent}${INDENT}if ${tagGuard} and ${edgeGuard} and ${enableGuard} then`,
-    `${inner}other = se.otherId`,
-    ...emitGuarded(ctx, inner, { skipEnable: true }),
-    `${baseIndent}${INDENT}end`,
-    `${baseIndent}end`,
-  ]
+  return emitCollisionEdgeBody(ctx, trig)
 }
 
 function emitMouseInputBody(
@@ -204,16 +206,19 @@ function emitObjectHoverBody(
 
 function emitCollisionEdgeBody(
   ctx: EmitCtx,
-  trig: Extract<LogicTrigger, { type: 'onCollisionEnter' } | { type: 'onCollisionExit' }>,
+  trig: Extract<
+    LogicTrigger,
+    | { type: 'onCollisionEnter' }
+    | { type: 'onCollisionExit' }
+    | { type: 'onTriggerEnter' }
+    | { type: 'onTriggerExit' }
+  >,
 ): string[] {
   const { baseIndent } = ctx
-  const { triggerGate, withClass } = collisionEdgeGate(trig)
-  const lines: string[] = []
-  if (withClass) {
-    lines.push(
-      `${baseIndent}other = collision.firstTouching(self, ${luaString(withClass)})`,
-    )
-  }
+  const { triggerGate, filterLua } = collisionEdgeGate(trig)
+  const lines: string[] = [
+    `${baseIndent}other = collision.firstTouching(self, ${filterLua})`,
+  ]
   lines.push(...emitGuarded(ctx, baseIndent, { triggerGate }))
   return lines
 }

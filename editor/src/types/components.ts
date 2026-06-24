@@ -46,6 +46,41 @@ export interface LadderComponent {
   climbSpeed:  number
 }
 
+export type CollisionShapeType = 'rectangle' | 'circle' | 'capsule' | 'polygon'
+export type CollisionResponse = 'solid' | 'sensor'
+export type CollisionShapeRole = 'body' | 'feet' | 'hurtbox' | 'hitbox' | 'interaction'
+export type CollisionBodyType = 'static' | 'kinematic' | 'dynamic'
+
+export interface CollisionShapePoint {
+  x: number
+  y: number
+}
+
+export interface CollisionShapeDef {
+  type: CollisionShapeType
+  response: CollisionResponse
+  role: CollisionShapeRole
+  layerId: string
+  maskLayerIds: string[]
+  offsetX: number
+  offsetY: number
+  width: number
+  height: number
+  radius: number
+  points?: CollisionShapePoint[]
+  enabled: boolean
+  oneWay: boolean
+  friction: number
+  restitution: number
+  density: number
+}
+
+export interface CollisionBodyComponent {
+  bodyType: CollisionBodyType
+  enabled: boolean
+  shapes: CollisionShapeDef[]
+}
+
 /** Arcade kinematic platformer movement (coyote time, jump buffer, …). */
 export interface PlatformerControllerComponent {
   maxSpeed:      number      // px/s
@@ -53,8 +88,6 @@ export interface PlatformerControllerComponent {
   customGravity: number      // px/s^2 (overrides world gravity)
   coyoteTime:    number      // s — grace after leaving ground
   jumpBuffer:    number      // s — early jump-press tolerance
-  groundClass:   string      // Solid / overlap class for isGrounded
-  climbClass:    string      // object class marking ladders ("" disables climbing)
   climbSpeed:    number      // px/s vertical speed while climbing
 }
 
@@ -170,6 +203,7 @@ export interface DialogComponent {
  * are surfaced through the same registry without duplicating their types.
  */
 export interface EntityComponents {
+  collisionBody?:        CollisionBodyComponent
   sensor?:               SensorComponent
   solid?:                SolidComponent
   ladder?:               LadderComponent
@@ -190,7 +224,7 @@ export type ComponentKey = keyof EntityComponents
 
 /** Runtime list of optional component field names (parse/serialize). */
 export const COMPONENT_KEYS: ComponentKey[] = [
-  'sensor', 'solid', 'ladder', 'platformerController', 'topDownController', 'linearMover',
+  'collisionBody', 'platformerController', 'topDownController', 'linearMover',
   'cameraTarget', 'magneticItem', 'hordeMember', 'health', 'autoDestroy', 'dialog',
   'text', 'gauge',
 ]

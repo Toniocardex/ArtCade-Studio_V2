@@ -37,10 +37,22 @@
   },
   "onCollision": {
     "type": "object",
-    "required": ["type", "withClass"],
+    "required": ["type"],
     "properties": {
       "type": { "const": "onCollision" },
-      "withClass": { "type": "string", "minLength": 1 }
+      "filter": {
+        "type": "object",
+        "properties": {
+          "layer": { "type": "string" },
+          "mask": { "type": "string" },
+          "role": { "type": "string" },
+          "response": { "type": "string" },
+          "tag": { "type": "string" },
+          "className": { "type": "string" }
+        },
+        "additionalProperties": false
+      },
+      "withClass": { "type": "string" }
     },
     "additionalProperties": false,
     "x-artcade": {
@@ -48,16 +60,28 @@
       "category": "Physics",
       "executionMode": "polling",
       "params": {
-        "withClass": { "widget": "className", "label": "With class" }
+        "filter": { "widget": "collisionFilter", "label": "Filter" }
       }
     }
   },
   "onCollisionEnter": {
     "type": "object",
-    "required": ["type", "withClass"],
+    "required": ["type"],
     "properties": {
       "type": { "const": "onCollisionEnter" },
-      "withClass": { "type": "string", "minLength": 1 }
+      "filter": {
+        "type": "object",
+        "properties": {
+          "layer": { "type": "string" },
+          "mask": { "type": "string" },
+          "role": { "type": "string" },
+          "response": { "type": "string" },
+          "tag": { "type": "string" },
+          "className": { "type": "string" }
+        },
+        "additionalProperties": false
+      },
+      "withClass": { "type": "string" }
     },
     "additionalProperties": false,
     "x-artcade": {
@@ -65,16 +89,28 @@
       "category": "Physics",
       "executionMode": "polling",
       "params": {
-        "withClass": { "widget": "className", "label": "With class" }
+        "filter": { "widget": "collisionFilter", "label": "Filter" }
       }
     }
   },
   "onCollisionExit": {
     "type": "object",
-    "required": ["type", "withClass"],
+    "required": ["type"],
     "properties": {
       "type": { "const": "onCollisionExit" },
-      "withClass": { "type": "string", "minLength": 1 }
+      "filter": {
+        "type": "object",
+        "properties": {
+          "layer": { "type": "string" },
+          "mask": { "type": "string" },
+          "role": { "type": "string" },
+          "response": { "type": "string" },
+          "tag": { "type": "string" },
+          "className": { "type": "string" }
+        },
+        "additionalProperties": false
+      },
+      "withClass": { "type": "string" }
     },
     "additionalProperties": false,
     "x-artcade": {
@@ -82,49 +118,65 @@
       "category": "Physics",
       "executionMode": "polling",
       "params": {
-        "withClass": { "widget": "className", "label": "With class" }
+        "filter": { "widget": "collisionFilter", "label": "Filter" }
       }
     }
   },
   "onTriggerEnter": {
     "type": "object",
-    "required": ["type", "withClass"],
+    "required": ["type"],
     "properties": {
       "type": { "const": "onTriggerEnter" },
-      "withClass": { "type": "string", "minLength": 1 }
+      "filter": {
+        "type": "object",
+        "properties": {
+          "layer": { "type": "string" },
+          "mask": { "type": "string" },
+          "role": { "type": "string" },
+          "response": { "type": "string" },
+          "tag": { "type": "string" },
+          "className": { "type": "string" }
+        },
+        "additionalProperties": false
+      },
+      "withClass": { "type": "string" }
     },
     "additionalProperties": false,
     "x-artcade": {
       "label": "On Trigger Enter",
       "category": "Physics",
-      "executionMode": "event",
+      "executionMode": "polling",
       "params": {
-        "withClass": {
-          "widget": "entityTag",
-          "label": "Target tag",
-          "placeholder": "player"
-        }
+        "filter": { "widget": "collisionFilter", "label": "Filter" }
       }
     }
   },
   "onTriggerExit": {
     "type": "object",
-    "required": ["type", "withClass"],
+    "required": ["type"],
     "properties": {
       "type": { "const": "onTriggerExit" },
-      "withClass": { "type": "string", "minLength": 1 }
+      "filter": {
+        "type": "object",
+        "properties": {
+          "layer": { "type": "string" },
+          "mask": { "type": "string" },
+          "role": { "type": "string" },
+          "response": { "type": "string" },
+          "tag": { "type": "string" },
+          "className": { "type": "string" }
+        },
+        "additionalProperties": false
+      },
+      "withClass": { "type": "string" }
     },
     "additionalProperties": false,
     "x-artcade": {
       "label": "On Trigger Exit",
       "category": "Physics",
-      "executionMode": "event",
+      "executionMode": "polling",
       "params": {
-        "withClass": {
-          "widget": "entityTag",
-          "label": "Target tag",
-          "placeholder": "player"
-        }
+        "filter": { "widget": "collisionFilter", "label": "Filter" }
       }
     }
   },

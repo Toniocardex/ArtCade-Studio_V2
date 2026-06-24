@@ -31,6 +31,15 @@ export type FlipMode = 'keep' | 'normal' | 'mirror' | 'toggle'
 
 export type LogicPrimitive = number | string | boolean
 
+export type CollisionFilter = {
+  layer?: string
+  mask?: string
+  role?: 'body' | 'feet' | 'hurtbox' | 'hitbox' | 'interaction' | string
+  response?: 'solid' | 'sensor' | string
+  tag?: string
+  className?: string
+}
+
 export type LogicComponentValueProperty =
   | 'platformer.maxSpeed'
   | 'platformer.jumpForce'
@@ -120,11 +129,11 @@ export type LogicTrigger =
   // a separate trigger.className would create a confusing second source of truth.
   | { type: 'onSpawn' }                                             // lifecycle.onSpawn
   | { type: 'onUpdate' }                                            // every tick(dt)
-  | { type: 'onCollision'; withClass: string }                      // level-triggered (every frame while touching)
-  | { type: 'onCollisionEnter'; withClass: string }                 // edge: started touching this frame
-  | { type: 'onCollisionExit'; withClass: string }                  // edge: stopped touching this frame
-  | { type: 'onTriggerEnter'; withClass: string }                   // edge: started touching
-  | { type: 'onTriggerExit'; withClass: string }                    // edge: stopped touching
+  | { type: 'onCollision'; filter?: CollisionFilter; withClass?: string }      // level-triggered
+  | { type: 'onCollisionEnter'; filter?: CollisionFilter; withClass?: string } // edge: started touching
+  | { type: 'onCollisionExit'; filter?: CollisionFilter; withClass?: string }  // edge: stopped touching
+  | { type: 'onTriggerEnter'; filter?: CollisionFilter; withClass?: string }   // sensor edge
+  | { type: 'onTriggerExit'; filter?: CollisionFilter; withClass?: string }    // sensor edge
   | { type: 'onAnimationEnd'; clipName?: string }
   | { type: 'onAnimationStart'; clipName?: string }                 // animation.onStart (clip begins playing)
   | { type: 'onAnimationFrame'; clipName?: string; frameIndex: number } // animation.onFrame (reaches frameIndex)

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../../core/types.h"
+#include "../../modules/collision/include/collision_world.h"
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -89,6 +90,21 @@ public:
 
     std::vector<EntityId> activeEntityIds() const;
 
+    void rebuildCollisionWorld();
+    bool collisionOverlap(EntityId a, EntityId b) const;
+    EntityId firstCollisionTouching(EntityId id, const CollisionWorld::Filter& filter) const;
+    CollisionWorld::RaycastResult collisionRaycast(
+        const Vec2& from,
+        const Vec2& to,
+        const CollisionWorld::Filter& filter = {}) const;
+    bool collisionGrounded(EntityId id) const;
+    void resolveKinematicCollisionBody(
+        EntityId id,
+        Transform& transform,
+        const Transform& beforeMove,
+        float& horizontalVelocity,
+        float& verticalVelocity) const;
+
     /** Drain and clear sensor enter/exit events queued since last poll. */
     std::vector<SensorEdgeEvent> pollSensorEdges();
 
@@ -145,6 +161,8 @@ private:
     /** Sensor overlap memory: entityId -> was overlapping target last frame. */
     std::unordered_map<EntityId, bool> sensorWasOverlapping_;
     std::vector<SensorEdgeEvent>       sensorEdgeBuffer_;
+    CollisionWorld::World              collisionWorld_;
+    std::vector<PhysicsLayerDef>       physicsLayers_;
 
     TilemapData  activeTilemap_;
     std::unordered_map<int, TileSurfaceMeta> tileMeta_;

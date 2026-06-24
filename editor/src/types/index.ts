@@ -9,6 +9,7 @@ export * from './tilemap'
 import type { LogicBoardDoc } from './logic-board'
 import type { TileDef, TilemapLayer, TilesetAsset } from './tilemap'
 import type {
+  CollisionBodyComponent,
   SensorComponent, SolidComponent, LadderComponent, PlatformerControllerComponent,
   TopDownControllerComponent, LinearMoverComponent,
   CameraTargetComponent,
@@ -16,6 +17,21 @@ import type {
   HordeMemberComponent,
   HealthComponent, AutoDestroyComponent, DialogComponent, TextComponent, GaugeComponent,
 } from './components'
+
+export interface PhysicsLayerDef {
+  id: string
+  name: string
+  bit: number
+  color: string
+}
+
+export interface CollisionProfileDef {
+  id: string
+  name: string
+  shapes: CollisionBodyComponent['shapes']
+  perAnimation?: Record<string, CollisionBodyComponent['shapes']>
+  perFrame?: Record<string, CollisionBodyComponent['shapes']>
+}
 
 /**
  * Per-layer parallax scroll factor. The layer's contents are drawn with a
@@ -146,6 +162,7 @@ export interface ObjectTypeDef {
   sprite:      SpriteComponent
   animation?:  AnimationState
   physics?:    PhysicsComponent
+  collisionBody?: CollisionBodyComponent
   scriptPath?: string
   visible?:    boolean
   sensor?:               SensorComponent
@@ -187,6 +204,7 @@ export interface EntityDef {
   sprite:      SpriteComponent
   animation?:  AnimationState
   physics?:    PhysicsComponent
+  collisionBody?: CollisionBodyComponent
   scriptPath?: string
   visible?:    boolean   // hidden in play when false; always drawn in editor preview
   /** Render layer id (transient: materialized from the scene instance, never persisted on the entity). */
@@ -364,6 +382,8 @@ export interface ProjectDoc {
   scenes:         Record<string, SceneDef>
   thumbnails?:    Record<string, string>
   tilePalette?:   TileDef[]              // Scene Editor Phase C (legacy colour)
+  physics?:       { layers?: PhysicsLayerDef[] }
+  collisionProfiles?: Record<string, CollisionProfileDef>
   tilesets?:      Record<string, TilesetAsset>  // Phase F: image tilesets
   assets?:        Record<string, ImageAsset>    // persistent image library
   audioAssets?:   Record<string, AudioAsset>

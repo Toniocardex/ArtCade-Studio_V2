@@ -121,7 +121,7 @@ export function usesTickFallback(
     return board.target.type === 'object_type'
   }
   if (trig.type === 'onTriggerEnter' || trig.type === 'onTriggerExit')
-    return false
+    return true
   if (
     trig.type === 'onAnimationEnd' ||
     trig.type === 'onAnimationStart' ||

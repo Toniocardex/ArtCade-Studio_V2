@@ -11,7 +11,7 @@ import {
   type ParamWidget,
 } from '../../utils/logic-board/schema-registry'
 import { parseLogicNumber } from '../../utils/logic-board/parse-logic-number'
-import type { LogicValue, TargetSelector } from '../../types/logic-board'
+import type { CollisionFilter, LogicValue, TargetSelector } from '../../types/logic-board'
 import { enumDisplayLabel, fieldDisplayLabel } from '../../panels/logic-board/friendly-labels'
 import { TargetPicker } from './TargetPicker'
 import { KeyCapture } from './KeyCapture'
@@ -376,6 +376,51 @@ function renderVariableField({ name, meta, value, onPatch }: FieldProps) {
   )
 }
 
+function renderCollisionFilterField({ name, value, onPatch }: FieldProps) {
+  const filter = (value && typeof value === 'object' ? value : {}) as CollisionFilter
+  const patchFilter = (key: keyof CollisionFilter, next: string) => {
+    const clean = next.trim()
+    const updated: CollisionFilter = { ...filter, [key]: clean || undefined }
+    onPatch(name, updated)
+  }
+
+  return (
+    <span key={name} className="flex items-center flex-wrap gap-2">
+      <span className={lbl}>Filter</span>
+      <Txt value={filter.layer ?? ''} w="w-24" placeholder="layer" onChange={(s) => patchFilter('layer', s)} />
+      <EditorSelect
+        className="w-auto"
+        triggerClassName="py-1"
+        value={filter.role ?? ''}
+        onChange={(next) => patchFilter('role', next)}
+        options={[
+          { value: '', label: 'Any role' },
+          { value: 'body', label: 'Body' },
+          { value: 'feet', label: 'Feet' },
+          { value: 'hurtbox', label: 'Hurtbox' },
+          { value: 'hitbox', label: 'Hitbox' },
+          { value: 'interaction', label: 'Interaction' },
+        ]}
+        aria-label="Collision role"
+      />
+      <EditorSelect
+        className="w-auto"
+        triggerClassName="py-1"
+        value={filter.response ?? ''}
+        onChange={(next) => patchFilter('response', next)}
+        options={[
+          { value: '', label: 'Any response' },
+          { value: 'solid', label: 'Solid' },
+          { value: 'sensor', label: 'Sensor' },
+        ]}
+        aria-label="Collision response"
+      />
+      <Txt value={filter.tag ?? ''} w="w-24" placeholder="tag" onChange={(s) => patchFilter('tag', s)} />
+      <Txt value={filter.className ?? ''} w="w-28" placeholder="class" onChange={(s) => patchFilter('className', s)} />
+    </span>
+  )
+}
+
 const FIELD_RENDERERS: Record<ParamWidget, (props: FieldProps) => ReactElement> = {
   number: renderNumberField,
   boolean: renderBooleanField,
@@ -391,6 +436,7 @@ const FIELD_RENDERERS: Record<ParamWidget, (props: FieldProps) => ReactElement> 
   numberSource: renderValueSourceField,
   globalVariable: renderVariableField,
   localVariable: renderVariableField,
+  collisionFilter: renderCollisionFilterField,
 }
 
 export type SchemaParamFormProps = Readonly<{

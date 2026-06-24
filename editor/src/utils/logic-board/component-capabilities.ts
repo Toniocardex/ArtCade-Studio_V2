@@ -81,6 +81,7 @@ const CAPABILITIES: CapabilityDef[] = [
 const ACTION_RECOMMENDATIONS: Record<ComponentKey, LogicActionType[]> = {
   topDownController: ['controllerMovement', 'moveController', 'setTopDownMaxSpeed'],
   platformerController: ['controllerMovement', 'moveController', 'requestPlatformerJump', 'setPlatformerMaxSpeed', 'setPlatformerJumpForce'],
+  collisionBody: [],
   health: ['damageEntity', 'healEntity', 'setEntityHealth'],
   sensor: [],
   solid: [],

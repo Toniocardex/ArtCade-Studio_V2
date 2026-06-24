@@ -615,6 +615,25 @@ void EntityRegistry::setGauge(EntityId id,
     else   impl_->reg.remove<GaugeComponent>(e);
 }
 
+bool EntityRegistry::getCollisionBody(EntityId id, CollisionBodyComponent& out) const {
+    const entt::entity e = impl_->toEntt(id);
+    if (e == entt::null) return false;
+    if (const auto* c = impl_->reg.try_get<CollisionBodyComponent>(e)) {
+        out = *c;
+        return true;
+    }
+    return false;
+}
+
+void EntityRegistry::setCollisionBody(
+    EntityId id,
+    const std::optional<CollisionBodyComponent>& c) {
+    const entt::entity e = impl_->toEntt(id);
+    if (e == entt::null) return;
+    if (c) impl_->reg.emplace_or_replace<CollisionBodyComponent>(e, *c);
+    else   impl_->reg.remove<CollisionBodyComponent>(e);
+}
+
 bool EntityRegistry::getDialog(EntityId id, DialogComponent& out) const {
     const entt::entity e = impl_->toEntt(id);
     if (e == entt::null) return false;
@@ -719,6 +738,20 @@ void EntityRegistry::forEachActivePhysicsBody(
         auto* t = reg.try_get<Transform>(e);
         if (!t) continue;
         fn(id, h->value, *t);
+    }
+}
+
+void EntityRegistry::forEachActiveCollisionBody(
+    const ActiveCollisionBodyFn& fn) const
+{
+    for (EntityId id : impl_->insertionOrder) {
+        const entt::entity e = impl_->toEntt(id);
+        if (e == entt::null || !impl_->reg.all_of<SceneActiveTag>(e))
+            continue;
+        const auto* transform = impl_->reg.try_get<Transform>(e);
+        const auto* body = impl_->reg.try_get<CollisionBodyComponent>(e);
+        if (transform && body)
+            fn(id, *transform, *body);
     }
 }
 

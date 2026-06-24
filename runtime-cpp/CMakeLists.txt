@@ -119,6 +119,7 @@ target_link_libraries(artcade-object-type-materialize PUBLIC artcade-core)
 
 add_library(artcade-project-json STATIC
     src/core/json-primitives.cpp
+    src/core/collision-json.cpp
     src/core/physics-json.cpp
     src/core/sprite-json.cpp
     src/core/entity-json.cpp

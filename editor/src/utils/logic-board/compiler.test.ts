@@ -744,7 +744,7 @@ describe('compileLogicBoard — triggers', () => {
     )
   })
 
-  it('onCollision withClass gates on collision.touchingClass', () => {
+  it('onCollision withClass aliases to a collision filter gate', () => {
     const lua = compileLogicBoard([
       board([
         ev({
@@ -753,8 +753,8 @@ describe('compileLogicBoard — triggers', () => {
         }),
       ]),
     ])
-    expect(lua).toContain('collision.touchingClass(self, "Coin")')
-    expect(lua).toContain('_logic_on[RULE.on_collision_coin] ~= false')
+    expect(lua).toContain('collision.firstTouching(self, { className = "Coin" }) ~= 0')
+    expect(lua).toContain('_logic_on[RULE.on_collision_layer_mask_role_response_tag_classname_coin] ~= false')
     expect(lua).toContain('global.add("score", 1)')
   })
 
@@ -971,7 +971,7 @@ describe('compileLogicBoard — realistic example', () => {
     expect(lua).toContain('-- board: player_controller')
     expect(lua).toContain('_logic_reg_input_pressed("Space", function()')
     expect(lua).toContain('entity.setVelocity(self, 0, -400)')
-    expect(lua).toContain('collision.touchingClass(self, "Coin")')
+    expect(lua).toContain('collision.firstTouching(self, { className = "Coin" }) ~= 0')
     expect(lua).toContain('global.add("coins", 1)')
     expect(lua).toContain('audio.playSound("sfx/coin.ogg", 1, 1)')
   })
@@ -1273,14 +1273,14 @@ describe('Hot-reload safety — handler unsubscribe tracking', () => {
     const occur = (needle: string) => lua.split(needle).length - 1
     expect(occur('lifecycle.onSpawn(')).toBe(1)
     expect(occur('lifecycle.onDestroy(')).toBe(1)
-    expect(occur('sensor.onEnter(')).toBe(1)
+    expect(occur('sensor.onEnter(')).toBe(0)
     expect(occur('input.onPressed(')).toBe(1)
     expect(occur('time.every(')).toBe(1)
     expect(occur('event.on(')).toBe(1)
     // Helpers are referenced from the emit sites.
     expect(lua).toContain('_logic_reg_spawn("Player"')
     expect(lua).toContain('_logic_reg_destroy("Player"')
-    expect(lua).toContain('_logic_reg_sensor_enter("Player", "Coin"')
+    expect(lua).toContain('collision.firstTouching(self, { response = "sensor", className = "Coin" })')
     expect(lua).toContain('_logic_reg_input_pressed("Space"')
     expect(lua).toContain('_logic_reg_timer_every(1, function()')
     expect(lua).toContain('_logic_reg_message("hit", function(_message)')
@@ -1352,12 +1352,9 @@ describe('Bug #9 — onCollisionEnter / onCollisionExit edge triggers', () => {
              actions: [{ type: 'addVariable', key: 'score', amount: 1 }] }),
       ]),
     ])
-    expect(lua).toContain('_logic_collision_edge(self, "Coin", true)')
+    expect(lua).toContain('_logic_collision_edge(self, "layer:|mask:|role:|response:|tag:|className:Coin", { className = "Coin" }, true)')
     expect(lua).toContain('global.add("score", 1)')
-    // The level-triggered collision.touchingClass gate must NOT be used here.
-    // (collision.touchingClass appears only inside the edge helper definition.)
-    const touchingCount = lua.split('collision.touchingClass(').length - 1
-    expect(touchingCount).toBe(1)
+    expect(lua).not.toContain('collision.touchingClass(')
   })
 
   it('emits _logic_collision_edge gate with want_enter=false for onCollisionExit', () => {
@@ -1367,7 +1364,7 @@ describe('Bug #9 — onCollisionEnter / onCollisionExit edge triggers', () => {
              actions: [{ type: 'debugLog', message: 'safe' }] }),
       ]),
     ])
-    expect(lua).toContain('_logic_collision_edge(self, "Spike", false)')
+    expect(lua).toContain('_logic_collision_edge(self, "layer:|mask:|role:|response:|tag:|className:Spike", { className = "Spike" }, false)')
   })
 
   it('prelude defines the edge helper and the was-touching memory', () => {
@@ -1378,7 +1375,7 @@ describe('Bug #9 — onCollisionEnter / onCollisionExit edge triggers', () => {
       ]),
     ])
     expect(lua).toContain('local _collision_was_touching = {}')
-    expect(lua).toContain('local function _logic_collision_edge(eid, cls, want_enter)')
+    expect(lua).toContain('local function _logic_collision_edge(eid, filter_key, filter, want_enter)')
   })
 
   it('onCollisionEnter sets other via collision.firstTouching for destroy other', () => {
@@ -1390,9 +1387,9 @@ describe('Bug #9 — onCollisionEnter / onCollisionExit edge triggers', () => {
         }),
       ]),
     ])
-    expect(lua).toContain('other = collision.firstTouching(self, "Coin")')
+    expect(lua).toContain('other = collision.firstTouching(self, { className = "Coin" })')
     expect(lua).toContain('entity.destroy(other)')
-    expect(lua).toContain('_logic_collision_edge(self, "Coin", true)')
+    expect(lua).toContain('_logic_collision_edge(self, "layer:|mask:|role:|response:|tag:|className:Coin", { className = "Coin" }, true)')
   })
 })
 
@@ -1451,9 +1448,8 @@ describe('Logic Components — Phase C (engine-hook triggers)', () => {
              actions: [{ type: 'debugLog', message: 'in' }] }),
       ]),
     ])
-    expect(lua).toContain('_logic_reg_sensor_enter("Player", "Zone", function(entityId, otherId, tag)')
-    expect(lua).toContain('local self = entityId')
-    expect(lua).toContain('local other = otherId')
+    expect(lua).toContain('collision.firstTouching(self, { response = "sensor", className = "Zone" })')
+    expect(lua).toContain('other = collision.firstTouching(self, { response = "sensor", className = "Zone" })')
     expect(lua).not.toContain('_trig')
     expect(lua).toContain('debug.log("in")')
   })
@@ -1465,7 +1461,7 @@ describe('Logic Components — Phase C (engine-hook triggers)', () => {
              actions: [{ type: 'debugLog', message: 'out' }] }),
       ]),
     ])
-    expect(lua).toContain('_logic_reg_sensor_exit("Player", "Zone", function(entityId, otherId, tag)')
+    expect(lua).toContain('collision.firstTouching(self, { response = "sensor", className = "Zone" })')
     expect(lua).toContain('debug.log("out")')
   })
 

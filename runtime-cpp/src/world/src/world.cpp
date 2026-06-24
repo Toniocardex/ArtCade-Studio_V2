@@ -67,6 +67,7 @@ void World::syncAfterEditorProject(const std::vector<TilePaletteEntry>& tilePale
     applyTilePalette(tilePalette);
     clearGameplayRuntimeState();
     rebuildTilemapPhysics();
+    rebuildCollisionWorld();
 }
 
 void World::restoreDesignState(const std::vector<TilePaletteEntry>& tilePalette) {
@@ -75,6 +76,8 @@ void World::restoreDesignState(const std::vector<TilePaletteEntry>& tilePalette)
 
 void World::init(const ProjectDoc& doc) {
     clearGameplayRuntimeState();
+    physicsLayers_ = doc.physicsLayers;
+    collisionWorld_.setLayers(physicsLayers_);
     variables_.configureGlobals(doc.globalVariables);
     entityGateway_.setPhysics(&physics_);
     const std::unordered_map<std::string, EntityDef>* typesPtr =
@@ -85,6 +88,7 @@ void World::init(const ProjectDoc& doc) {
     activeTilemap_ = TilemapData{};
 
     rebuildTilemapPhysics();
+    rebuildCollisionWorld();
 }
 
 void World::shutdown() {
@@ -100,6 +104,8 @@ void World::shutdown() {
     clearGameplayRuntimeState();
     activeTilemap_ = TilemapData{};
     tileMeta_.clear();
+    collisionWorld_.clear();
+    physicsLayers_.clear();
 }
 
 std::vector<SensorEdgeEvent> World::pollSensorEdges() {
@@ -112,6 +118,7 @@ bool World::loadScene(const SceneId& id) {
     if (!entityGateway_.loadScene(id)) return false;
     clearGameplayRuntimeState();
     rebuildTilemapPhysics();
+    rebuildCollisionWorld();
     return true;
 }
 
@@ -131,6 +138,7 @@ void World::syncPhysicsToEntities() {
             t.position = physics_.getPosition(handle);
             t.velocity = physics_.getLinearVelocity(handle);
         });
+    rebuildCollisionWorld();
 }
 
 bool World::hasGlobalState(const std::string& key) const {
@@ -155,6 +163,117 @@ void World::setGlobalState(const std::string& key, const StateValue& value) {
 
 std::vector<EntityId> World::activeEntityIds() const {
     return entityGateway_.activeSceneIds();
+}
+
+void World::rebuildCollisionWorld() {
+    collisionWorld_.clear();
+    if (physicsLayers_.empty())
+        collisionWorld_.setLayers({});
+    entityGateway_.forEachActiveCollisionBody(
+        [this](EntityId id,
+               const Transform& transform,
+               const CollisionBodyComponent& body) {
+            collisionWorld_.addEntity(id, transform, body);
+        });
+}
+
+bool World::collisionOverlap(EntityId a, EntityId b) const {
+    return collisionWorld_.overlapEntities(a, b);
+}
+
+EntityId World::firstCollisionTouching(
+    EntityId id,
+    const CollisionWorld::Filter& filter) const
+{
+    if (!filter.className.empty()) {
+        for (EntityId other : entityGateway_.poolByClass(filter.className)) {
+            if (other != id && collisionWorld_.overlapEntities(id, other, filter))
+                return other;
+        }
+        return INVALID_ENTITY;
+    }
+    if (!filter.tag.empty()) {
+        for (EntityId other : entityGateway_.byTag(filter.tag)) {
+            if (other != id && collisionWorld_.overlapEntities(id, other, filter))
+                return other;
+        }
+        return INVALID_ENTITY;
+    }
+    return collisionWorld_.firstTouching(id, filter);
+}
+
+CollisionWorld::RaycastResult World::collisionRaycast(
+    const Vec2& from,
+    const Vec2& to,
+    const CollisionWorld::Filter& filter) const
+{
+    return collisionWorld_.raycast(from, to, filter);
+}
+
+bool World::collisionGrounded(EntityId id) const {
+    return collisionWorld_.isGrounded(id);
+}
+
+void World::resolveKinematicCollisionBody(
+    EntityId id,
+    Transform& transform,
+    const Transform& beforeMove,
+    float& horizontalVelocity,
+    float& verticalVelocity) const
+{
+    CollisionBodyComponent selfBody{};
+    if (!entityGateway_.getCollisionBody(id, selfBody) || !selfBody.enabled)
+        return;
+
+    for (int pass = 0; pass < 4; ++pass) {
+        bool resolvedAny = false;
+        for (const CollisionShape& selfShape : selfBody.shapes) {
+            if (!selfShape.enabled || selfShape.response != CollisionResponse::Solid)
+                continue;
+            if (selfShape.role != CollisionShapeRole::Body
+                && selfShape.role != CollisionShapeRole::Feet)
+                continue;
+
+            const auto selfInst =
+                CollisionWorld::shapeInstance(transform, selfShape);
+            auto selfAabb = PhysicsMath::shapeWorldAabb(selfInst);
+            const auto prevAabb = PhysicsMath::shapeWorldAabb(
+                CollisionWorld::shapeInstance(beforeMove, selfShape));
+
+            entityGateway_.forEachActiveCollisionBody(
+                [&](EntityId otherId,
+                    const Transform& otherTransform,
+                    const CollisionBodyComponent& otherBody) {
+                    if (resolvedAny || otherId == id || !otherBody.enabled)
+                        return;
+                    for (const CollisionShape& otherShape : otherBody.shapes) {
+                        if (!otherShape.enabled
+                            || otherShape.response != CollisionResponse::Solid)
+                            continue;
+                        const auto otherInst =
+                            CollisionWorld::shapeInstance(otherTransform, otherShape);
+                        const auto otherAabb = PhysicsMath::shapeWorldAabb(otherInst);
+                        if (!PhysicsMath::aabbOverlap(selfAabb, otherAabb))
+                            continue;
+                        if (otherShape.oneWay
+                            && !(verticalVelocity >= 0.f
+                                 && prevAabb.maxY <= otherAabb.minY + 2.f))
+                            continue;
+
+                        Vec2 correction{};
+                        if (!PhysicsMath::resolveAabbSeparation(selfAabb, otherAabb, correction))
+                            continue;
+                        transform.position.x += correction.x;
+                        transform.position.y += correction.y;
+                        if (std::abs(correction.x) > 1e-6f) horizontalVelocity = 0.f;
+                        if (std::abs(correction.y) > 1e-6f) verticalVelocity = 0.f;
+                        resolvedAny = true;
+                        break;
+                    }
+                });
+        }
+        if (!resolvedAny) break;
+    }
 }
 
 void World::setRenderer(Modules::Renderer* renderer) {
@@ -197,6 +316,7 @@ void World::tickGameplaySystems(float dt) {
 }
 
 void World::refreshSensorEdges() {
+    rebuildCollisionWorld();
     tickSensorOverlapEdges();
 }
 
@@ -214,6 +334,7 @@ void World::snapEntityToGrid(EntityId id, float cellSize) {
     entityGateway_.setTransform(id, transform);
     if (const uint32_t handle = entityGateway_.physicsHandle(id); handle != 0)
         physics_.setPosition(handle, transform.position);
+    rebuildCollisionWorld();
 }
 
 void World::moveEntityByOffset(EntityId id, float dx, float dy) {
@@ -224,6 +345,7 @@ void World::moveEntityByOffset(EntityId id, float dx, float dy) {
     entityGateway_.setTransform(id, transform);
     if (const uint32_t handle = entityGateway_.physicsHandle(id); handle != 0)
         physics_.setPosition(handle, transform.position);
+    rebuildCollisionWorld();
 }
 
 } // namespace ArtCade

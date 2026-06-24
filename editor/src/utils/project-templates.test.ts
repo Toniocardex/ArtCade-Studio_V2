@@ -19,8 +19,9 @@ describe('project templates', () => {
   it('platformer template ships player + solid ground', () => {
     const doc = createPlatformerProject('Jump')
     expect(doc.world?.physicsMode).toBe('auto')
-    expect(doc.entities[1].platformerController?.groundClass).toBe('Ground')
-    expect(doc.entities[2].solid?.groundClass).toBe('Ground')
+    expect(doc.entities[1].platformerController).toBeDefined()
+    expect(doc.entities[1].collisionBody?.bodyType).toBe('kinematic')
+    expect(doc.entities[2].collisionBody?.shapes[0]?.layerId).toBe('ground')
     expect(doc.scenes.scene_main.entityIds).toEqual([1, 2])
     expect(doc.entities[1].physics).toBeUndefined()
   })
@@ -28,6 +29,6 @@ describe('project templates', () => {
   it('createProjectFromTemplate dispatches by id', () => {
     expect(createProjectFromTemplate('blank').entities).toEqual({})
     expect(createProjectFromTemplate('arcade').world?.physicsMode).toBe('off')
-    expect(createProjectFromTemplate('platformer').entities[2].solid).toBeDefined()
+    expect(createProjectFromTemplate('platformer').entities[2].collisionBody).toBeDefined()
   })
 })

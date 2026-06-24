@@ -29,16 +29,14 @@ describe('entity-component-utils', () => {
     const entity = {
       ...baseEntity(),
       health: { maxHp: 10, currentHp: 10, iFrames: 0.2 },
-      sensor: {
-        shape: 'Circle' as const,
-        radius: 64,
-        width: 64,
-        height: 64,
-        targetTag: 'player',
+      collisionBody: {
+        bodyType: 'static' as const,
+        enabled: true,
+        shapes: [],
       },
     }
     const keys = activeComponentDescriptors(entity).map((d) => d.key)
-    expect(keys).toEqual(['sensor', 'health'])
+    expect(keys).toEqual(['collisionBody', 'health'])
   })
 
   it('componentBlockId is stable for scroll targets', () => {

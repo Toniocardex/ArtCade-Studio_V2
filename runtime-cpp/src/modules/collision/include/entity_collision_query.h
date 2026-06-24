@@ -4,6 +4,7 @@
 // (shared by World AABB, Lua collision.*, Logic Board touchingClass).
 
 #include "collision_math.h"
+#include "collision_world.h"
 #include "../../../modules/runtime-entity-gateway/include/runtime-entity-gateway.h"
 
 #include <algorithm>
@@ -82,6 +83,18 @@ inline bool entitiesOverlap(const Modules::RuntimeEntityGateway& gateway,
     if (id1 == id2) return false;
     if (!entityParticipatesInOverlapQuery(gateway, id1)) return false;
     if (!entityParticipatesInOverlapQuery(gateway, id2)) return false;
+    Transform t1{};
+    Transform t2{};
+    CollisionBodyComponent b1{};
+    CollisionBodyComponent b2{};
+    if (gateway.getTransform(id1, t1) && gateway.getTransform(id2, t2)
+        && gateway.getCollisionBody(id1, b1) && gateway.getCollisionBody(id2, b2)) {
+        CollisionWorld::World world;
+        world.setLayers({});
+        world.addEntity(id1, t1, b1);
+        world.addEntity(id2, t2, b2);
+        return world.overlapEntities(id1, id2);
+    }
     return PhysicsMath::shapesOverlap(shapeFromEntity(gateway, id1),
                                       shapeFromEntity(gateway, id2));
 }

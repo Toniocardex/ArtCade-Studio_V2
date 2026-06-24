@@ -10,6 +10,7 @@
 import type {
   AutoDestroyComponent,
   ComponentKey,
+  CollisionBodyComponent,
   HealthComponent,
   DialogComponent,
   LinearMoverComponent,
@@ -24,6 +25,7 @@ import type {
   TextComponent,
   TopDownControllerComponent,
 } from '../../types/components'
+import { COMPONENT_KEYS } from '../../types/components'
 import {
   DEFAULT_TEXT_ANCHOR,
   TEXT_ANCHORS,
@@ -70,10 +72,30 @@ const LADDER: LadderComponent = {
   shape: 'Rectangle', radius: 64, width: 32, height: 96,
   axis: 'vertical', climbSpeed: 0,
 }
+const COLLISION_BODY: CollisionBodyComponent = {
+  bodyType: 'static',
+  enabled: true,
+  shapes: [{
+    type: 'rectangle',
+    response: 'solid',
+    role: 'body',
+    layerId: 'ground',
+    maskLayerIds: ['player', 'enemy', 'projectile'],
+    offsetX: 0,
+    offsetY: 0,
+    width: 128,
+    height: 32,
+    radius: 16,
+    enabled: true,
+    oneWay: false,
+    friction: 0.3,
+    restitution: 0,
+    density: 1,
+  }],
+}
 const PLATFORMER: PlatformerControllerComponent = {
   maxSpeed: 300, jumpForce: 600, customGravity: 1500,
-  coyoteTime: 0.15, jumpBuffer: 0.1, groundClass: 'Ground',
-  climbClass: '', climbSpeed: 120,
+  coyoteTime: 0.15, jumpBuffer: 0.1, climbSpeed: 120,
 }
 const TOP_DOWN: TopDownControllerComponent = {
   maxSpeed: 260, acceleration: 1600, friction: 2200, fourDirections: false,
@@ -129,7 +151,19 @@ const DIALOG: DialogComponent = {
   triggerMessage: '',
 }
 
-export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
+const ALL_COMPONENT_REGISTRY: ComponentDescriptor[] = [
+  {
+    key: 'collisionBody',
+    label: 'Collision Body',
+    description:
+      'Authoritative collision source for solid bodies, trigger areas, hitboxes, hurtboxes, and interaction zones.',
+    color: 'var(--yellow)',
+    create: () => ({ ...COLLISION_BODY, shapes: COLLISION_BODY.shapes.map((shape) => ({ ...shape })) }),
+    fields: [
+      { key: 'bodyType', label: 'Body Type', kind: 'select', options: ['static', 'kinematic', 'dynamic'] },
+      { key: 'enabled', label: 'Enabled', kind: 'checkbox' },
+    ],
+  },
   {
     key: 'sensor',
     label: 'Trigger Area',
@@ -208,8 +242,6 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
       { key: 'customGravity', label: 'Custom Gravity', kind: 'number', min: 0, step: 50 },
       { key: 'coyoteTime', label: 'Coyote Time (s)', kind: 'number', min: 0, step: 0.05 },
       { key: 'jumpBuffer', label: 'Jump Buffer (s)', kind: 'number', min: 0, step: 0.05 },
-      { key: 'groundClass', label: 'Ground Class', kind: 'text' },
-      { key: 'climbClass', label: 'Climb Class (ladders)', kind: 'text' },
       { key: 'climbSpeed', label: 'Climb Speed (px/s)', kind: 'number', min: 0, step: 10 },
     ],
   },
@@ -371,6 +403,11 @@ export const COMPONENT_REGISTRY: ComponentDescriptor[] = [
     fields: [],
   },
 ]
+
+const ACTIVE_COMPONENT_KEYS = new Set<ComponentKey>(COMPONENT_KEYS)
+
+export const COMPONENT_REGISTRY: ComponentDescriptor[] =
+  ALL_COMPONENT_REGISTRY.filter((desc) => ACTIVE_COMPONENT_KEYS.has(desc.key))
 
 export function descriptorFor(key: ComponentKey): ComponentDescriptor | undefined {
   return COMPONENT_REGISTRY.find((d) => d.key === key)

@@ -141,6 +141,10 @@ async function makeRunner(boards: LogicBoard[]) {
   })
   lua.global.set('collision', {
     touchingClass: (_id: number, cls: string) => h.touching.has(cls),
+    firstTouching: (_id: number, filter: string | { className?: string }) => {
+      const cls = typeof filter === 'string' ? filter : filter?.className
+      return cls && h.touching.has(cls) ? 200 : 0
+    },
   })
   lua.global.set('input', {
     isKeyDown: (k: string) => h.keysDown.has(k),

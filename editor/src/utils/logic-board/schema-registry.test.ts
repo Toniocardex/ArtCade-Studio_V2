@@ -127,10 +127,10 @@ describe('schema-registry', () => {
 
   it('schema rejects triggers missing required user params', () => {
     // These reflect the tightened triggers.json — required+minLength.
-    expect(validateTrigger({ type: 'onCollision' }).valid).toBe(false)
-    expect(validateTrigger({ type: 'onCollision', withClass: '' }).valid).toBe(false)
-    expect(validateTrigger({ type: 'onTriggerEnter' }).valid).toBe(false)
-    expect(validateTrigger({ type: 'onTriggerExit' }).valid).toBe(false)
+    expect(validateTrigger({ type: 'onCollision' }).valid).toBe(true)
+    expect(validateTrigger({ type: 'onCollision', filter: { response: 'solid' } }).valid).toBe(true)
+    expect(validateTrigger({ type: 'onTriggerEnter' }).valid).toBe(true)
+    expect(validateTrigger({ type: 'onTriggerExit', filter: { response: 'sensor' } }).valid).toBe(true)
     expect(validateTrigger({ type: 'onAnimationEnd' }).valid).toBe(false)
     expect(validateTrigger({ type: 'onAnimationEnd', clipName: '' }).valid).toBe(false)
     expect(validateTrigger({ type: 'onMessage', messageName: '' }).valid).toBe(false)

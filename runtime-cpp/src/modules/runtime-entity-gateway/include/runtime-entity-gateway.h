@@ -95,6 +95,8 @@ public:
     bool setSprite(EntityId id, const SpriteComponent& sprite);
     bool getPhysicsComponent(EntityId id, PhysicsComponent& out) const;
     bool setPhysicsComponent(EntityId id, const PhysicsComponent& physics);
+    bool getCollisionBody(EntityId id, CollisionBodyComponent& out) const;
+    bool setCollisionBody(EntityId id, const std::optional<CollisionBodyComponent>& collisionBody);
     bool getSensor(EntityId id, SensorComponent& out) const;
     bool setSensor(EntityId id, const std::optional<SensorComponent>& sensor);
     bool getSolid(EntityId id, SolidComponent& out) const;
@@ -163,6 +165,10 @@ public:
     using ActivePhysicsBodyFn = std::function<void(
         EntityId, uint32_t handle, Transform&)>;
     void forEachActivePhysicsBody(const ActivePhysicsBodyFn& fn);
+
+    using ActiveCollisionBodyFn = std::function<void(
+        EntityId, const Transform&, const CollisionBodyComponent&)>;
+    void forEachActiveCollisionBody(const ActiveCollisionBodyFn& fn) const;
 
     using ActivePlatformerFn = std::function<void(
         EntityId, const PlatformerControllerComponent&)>;

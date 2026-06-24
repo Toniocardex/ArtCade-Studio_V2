@@ -1,26 +1,25 @@
 import { describe, it, expect } from 'vitest'
 import { descriptorFor } from './component-registry'
 
-describe('Solid component registry', () => {
-  it('exposes Solid | One-Way select labels', () => {
-    const solid = descriptorFor('solid')
-    expect(solid).toBeDefined()
-    if (!solid) return
+describe('Collision Body component registry', () => {
+  it('exposes body type options', () => {
+    const collision = descriptorFor('collisionBody')
+    expect(collision).toBeDefined()
+    if (!collision) return
 
-    const surface = solid.fields.find((f) => f.key === 'surfaceKind')
-    expect(surface).toBeDefined()
-    if (!surface) return
-
-    expect(surface.options).toEqual(['solid', 'oneWay'])
-    expect(surface.optionLabels).toEqual(['Solid', 'One-Way'])
+    const bodyType = collision.fields.find((f) => f.key === 'bodyType')
+    expect(bodyType?.options).toEqual(['static', 'kinematic', 'dynamic'])
   })
 
-  it('create() defaults to solid surface', () => {
-    const solid = descriptorFor('solid')
-    expect(solid).toBeDefined()
-    if (!solid) return
+  it('create() defaults to a solid ground shape', () => {
+    const collision = descriptorFor('collisionBody')
+    expect(collision).toBeDefined()
+    if (!collision) return
 
-    const inst = solid.create()
-    expect(inst).toMatchObject({ groundClass: 'Ground', surfaceKind: 'solid' })
+    const inst = collision.create()
+    expect(inst).toMatchObject({
+      bodyType: 'static',
+      shapes: [{ layerId: 'ground', maskLayerIds: ['player', 'enemy', 'projectile'] }],
+    })
   })
 })

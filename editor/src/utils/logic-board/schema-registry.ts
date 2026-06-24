@@ -49,6 +49,7 @@ export type ParamWidget =
   | 'numberSource'
   | 'globalVariable'
   | 'localVariable'
+  | 'collisionFilter'
 
 export interface ParamFieldMeta {
   widget: ParamWidget

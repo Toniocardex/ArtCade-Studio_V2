@@ -43,6 +43,34 @@ bool hasExplicitColliderSize(const PhysicsComponent& comp) {
     return comp.collider.size.x > 2.f || comp.collider.size.y > 2.f;
 }
 
+bool applyFirstCollisionShape(PhysicsComponent& comp,
+                              const CollisionBodyComponent& body) {
+    if (!body.enabled) return false;
+    for (const CollisionShape& shape : body.shapes) {
+        if (!shape.enabled) continue;
+        comp.bodyType = body.bodyType;
+        comp.collider.offset = shape.offset;
+        comp.collider.isSensor = shape.response == CollisionResponse::Sensor;
+        comp.collider.density = shape.density;
+        comp.collider.friction = shape.friction;
+        if (shape.type == CollisionShapeType::Circle) {
+            comp.collider.shape = ColliderShape::Circle;
+            comp.collider.size = {
+                std::max(1.f, shape.radius),
+                std::max(1.f, shape.radius),
+            };
+        } else {
+            comp.collider.shape = ColliderShape::Rectangle;
+            comp.collider.size = {
+                std::max(1.f, shape.size.x),
+                std::max(1.f, shape.size.y),
+            };
+        }
+        return true;
+    }
+    return false;
+}
+
 Vec2 resolveWorldColliderSize(const Transform& transform,
                               const PhysicsComponent& comp,
                               bool hasExplicitCollider) {
@@ -169,6 +197,21 @@ void RuntimeEntityGateway::ensurePhysicsBody(EntityId id) {
     Transform transform{};
     getTransform(id, transform);
 
+    CollisionBodyComponent collisionBody{};
+    const bool hasCollisionBody = getCollisionBody(id, collisionBody);
+    if (hasCollisionBody && applyFirstCollisionShape(comp, collisionBody)) {
+        const uint32_t handle = physics_->createBody(id, comp);
+        if (handle == 0) return;
+        setPhysicsHandle(id, handle);
+        physics_->setPosition(handle, transform.position);
+        physics_->setGravityScale(
+            handle,
+            collisionBody.bodyType == BodyType::Dynamic ? 1.f : 0.f);
+        if (physicsTopologyHandler_)
+            physicsTopologyHandler_();
+        return;
+    }
+
     const bool hasExplicitCollider = hasExplicitColliderSize(comp);
     PlatformerControllerComponent platformer{};
     const bool hasPlatformer = getPlatformerController(id, platformer);
@@ -277,6 +320,7 @@ void RuntimeEntityGateway::applyEntityDefToRegistry(
         sprite.alpha = 0.f;
     registry_->setSprite(id, sprite);
     registry_->setPhysics(id, def.physics);
+    registry_->setCollisionBody(id, def.collisionBody);
     registry_->setSensor(id, def.sensor);
     registry_->setSolid(id, def.solid);
     registry_->setLadder(id, def.ladder);
@@ -700,6 +744,19 @@ bool RuntimeEntityGateway::setGauge(
     return true;
 }
 
+bool RuntimeEntityGateway::getCollisionBody(EntityId id, CollisionBodyComponent& out) const {
+    return registry_->getCollisionBody(id, out);
+}
+
+bool RuntimeEntityGateway::setCollisionBody(
+    EntityId id,
+    const std::optional<CollisionBodyComponent>& collisionBody) {
+    if (!registry_->contains(id)) return false;
+    registry_->setCollisionBody(id, collisionBody);
+    rebuildPhysicsBodyIfActive(id);
+    return true;
+}
+
 bool RuntimeEntityGateway::getDialog(EntityId id, DialogComponent& out) const {
     return registry_->getDialog(id, out);
 }
@@ -823,6 +880,12 @@ void RuntimeEntityGateway::forEachActivePhysicsBody(
     const ActivePhysicsBodyFn& fn)
 {
     registry_->forEachActivePhysicsBody(fn);
+}
+
+void RuntimeEntityGateway::forEachActiveCollisionBody(
+    const ActiveCollisionBodyFn& fn) const
+{
+    registry_->forEachActiveCollisionBody(fn);
 }
 
 void RuntimeEntityGateway::forEachActivePlatformer(

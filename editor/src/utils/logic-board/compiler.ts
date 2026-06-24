@@ -65,9 +65,10 @@ function eventNeedsSensorEdge(
   board: LogicBoard,
   project: ProjectDoc | null | undefined,
 ): boolean {
-  const type = ev.trigger.type
-  if (type !== 'onTriggerEnter' && type !== 'onTriggerExit') return false
-  return usesTickFallback(ev, board, project)
+  void ev
+  void board
+  void project
+  return false
 }
 
 function eventNeedsDestroyBuffer(

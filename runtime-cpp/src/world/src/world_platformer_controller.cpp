@@ -15,9 +15,6 @@ namespace {
 
 constexpr int kStableGroundedFrames = 2;
 
-// Climb-zone shape from a LadderComponent at the ladder entity's position.
-// Mirrors CollisionQuery::shapeFromEntity sizing (rect = full w/h, circle =
-// radius in x) so PhysicsMath::shapesOverlap reads it consistently.
 PhysicsMath::ShapeInstance ladderShape(const LadderComponent& lad,
                                        const Transform& tf)
 {
@@ -42,13 +39,16 @@ void stepPlatformerController(World& world,
 {
     auto& rt = world.platformerRt_[id];
 
-    const GroundingContext grounding = world.groundingContext();
-
     float vy = rt.velocity.y;
 
-    const PlatformerSolidContact groundBefore =
-        probePlatformerSolidContact(grounding, id, pc.groundClass, vy);
-    const bool rawGrounded = groundBefore.onGround;
+    CollisionBodyComponent authoredCollision{};
+    const bool usesCollisionBody =
+        world.entityGateway_.getCollisionBody(id, authoredCollision);
+    const GroundingContext grounding = world.groundingContext();
+    world.rebuildCollisionWorld();
+    const bool rawGrounded = usesCollisionBody
+        ? world.collisionGrounded(id)
+        : probePlatformerSolidContact(grounding, id, pc.groundClass, vy).onGround;
 
     if (rawGrounded) {
         rt.groundedFrames = std::min(rt.groundedFrames + 1, kStableGroundedFrames + 4);
@@ -95,10 +95,15 @@ void stepPlatformerController(World& world,
     // Resolve the climb zone. forEachActiveLadder is O(ladders) (EnTT view) and
     // firstOverlappingInClass is indexed by class, so both probes are free when
     // the scene has no climbable geometry — no per-frame gate needed.
-    bool  onLadder         = false;
     bool  ladderHorizontal = false;
     float climbSpeed       = pc.climbSpeed;
-    {
+    bool onLadder = false;
+    if (usesCollisionBody) {
+        CollisionWorld::Filter ladderFilter;
+        ladderFilter.role = "interaction";
+        ladderFilter.response = "sensor";
+        onLadder = world.firstCollisionTouching(id, ladderFilter) != INVALID_ENTITY;
+    } else {
         const auto selfShape =
             CollisionQuery::shapeFromEntity(world.entityGateway_, id);
         world.entityGateway_.forEachActiveLadder(
@@ -112,11 +117,11 @@ void stepPlatformerController(World& world,
                 ladderHorizontal = (lad.axis == "horizontal");
                 climbSpeed       = (lad.climbSpeed > 0.f) ? lad.climbSpeed : pc.climbSpeed;
             });
-    }
-    if (!onLadder && !pc.climbClass.empty()
-        && CollisionQuery::firstOverlappingInClass(
-               world.entityGateway_, id, pc.climbClass) != INVALID_ENTITY) {
-        onLadder = true;   // v1 fallback: vertical axis, pc.climbSpeed
+        if (!onLadder && !pc.climbClass.empty()
+            && CollisionQuery::firstOverlappingInClass(
+                   world.entityGateway_, id, pc.climbClass) != INVALID_ENTITY) {
+            onLadder = true;
+        }
     }
 
     // Engage on input along the ladder's axis (vertical by default); this keeps
@@ -153,8 +158,12 @@ void stepPlatformerController(World& world,
     transform.position.x += rt.velocity.x * dt;
     transform.position.y += rt.velocity.y * dt;
 
-    resolvePlatformerSolidSurfaces(
-        transform, grounding, id, pc.groundClass, beforeMove, vx, vy);
+    if (usesCollisionBody) {
+        world.resolveKinematicCollisionBody(id, transform, beforeMove, vx, vy);
+    } else {
+        resolvePlatformerSolidSurfaces(
+            transform, grounding, id, pc.groundClass, beforeMove, vx, vy);
+    }
     rt.velocity.x = vx;
     rt.velocity.y = vy;
     transform.velocity = rt.velocity;
@@ -163,10 +172,19 @@ void stepPlatformerController(World& world,
     // the feet (native kinematic platformer — no penetration tolerance hack).
     // Skipped while climbing so the body is not yanked to ground mid-ladder.
     if (vy >= 0.f && !rt.climbing) {
-        const PlatformerSolidContact groundAfter =
-            probePlatformerSolidContact(grounding, id, pc.groundClass, vy);
-        if (groundAfter.onGround) {
-            snapTransformFeetToSurface(transform, grounding, id, groundAfter.surfaceTopY);
+        bool groundedAfter = false;
+        if (usesCollisionBody) {
+            world.entityGateway_.setTransform(id, transform);
+            world.rebuildCollisionWorld();
+            groundedAfter = world.collisionGrounded(id);
+        } else {
+            const PlatformerSolidContact groundAfter =
+                probePlatformerSolidContact(grounding, id, pc.groundClass, vy);
+            groundedAfter = groundAfter.onGround;
+            if (groundedAfter)
+                snapTransformFeetToSurface(transform, grounding, id, groundAfter.surfaceTopY);
+        }
+        if (groundedAfter) {
             vy = 0.f;
             rt.velocity.y = 0.f;
             transform.velocity.y = 0.f;

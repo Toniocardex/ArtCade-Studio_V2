@@ -2,6 +2,7 @@
 #include "zip-reader.h"
 #include "object-type-materialize.h"
 #include "asset-json.h"
+#include "collision-json.h"
 #include "entity-json.h"
 #include "json-primitives.h"
 #include "scene-json.h"
@@ -192,6 +193,8 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
     ProjectJson::read_entities_map(j, out.entities, false);
     ProjectJson::read_scenes_map(j, out.scenes);
     ProjectJson::read_thumbnails(j, out.thumbnails);
+    ProjectJson::read_physics_layers(j, out.physicsLayers);
+    ProjectJson::read_collision_profiles(j, out.collisionProfiles);
     ProjectJson::read_tile_palette(j, out.tilePalette);
     ProjectJson::read_tilesets(j, out.tilesets);
     ProjectJson::read_scene_layers(j, out.layers);

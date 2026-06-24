@@ -68,14 +68,52 @@ export function createPlatformerProject(projectName = 'Platformer'): ProjectDoc 
     customGravity: 1500,
     coyoteTime: 0.15,
     jumpBuffer: 0.1,
-    groundClass: 'Ground',
-    climbClass: '',
     climbSpeed: 120,
+  }
+  player.collisionBody = {
+    bodyType: 'kinematic',
+    enabled: true,
+    shapes: [{
+      type: 'capsule',
+      response: 'solid',
+      role: 'body',
+      layerId: 'player',
+      maskLayerIds: ['ground', 'hazard', 'pickup', 'interaction'],
+      offsetX: 0,
+      offsetY: 0,
+      width: 28,
+      height: 36,
+      radius: 14,
+      enabled: true,
+      oneWay: false,
+      friction: 0.2,
+      restitution: 0,
+      density: 1,
+    }],
   }
 
   const ground = createEntityDef(2, 'Ground', 'Ground', { x: 320, y: 340 })
-  ground.transform.scale = { x: 20, y: 1 }
-  ground.solid = { groundClass: 'Ground', surfaceKind: 'solid' }
+  ground.collisionBody = {
+    bodyType: 'static',
+    enabled: true,
+    shapes: [{
+      type: 'rectangle',
+      response: 'solid',
+      role: 'body',
+      layerId: 'ground',
+      maskLayerIds: ['player', 'enemy', 'projectile'],
+      offsetX: 0,
+      offsetY: 0,
+      width: 640,
+      height: 32,
+      radius: 16,
+      enabled: true,
+      oneWay: false,
+      friction: 0.3,
+      restitution: 0,
+      density: 1,
+    }],
+  }
 
   return migrateLegacyProject({
     ...base,

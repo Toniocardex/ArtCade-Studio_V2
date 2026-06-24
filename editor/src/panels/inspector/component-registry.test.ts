@@ -11,8 +11,7 @@ describe('component registry', () => {
   })
 
   it('descriptorFor resolves by key', () => {
-    expect(descriptorFor('sensor')?.label).toBe('Trigger Area')
-    expect(descriptorFor('solid')?.label).toBe('Solid')
+    expect(descriptorFor('collisionBody')?.label).toBe('Collision Body')
     expect(descriptorFor('magneticItem')?.label).toBe('Magnetic Attraction')
     expect(descriptorFor('text')?.label).toBe('Text Label')
     expect(descriptorFor('gauge')?.label).toBe('Gauge')
@@ -28,24 +27,16 @@ describe('component registry', () => {
     }
   })
 
-  it('Sensor conditional fields depend on shape', () => {
-    const sensor = descriptorFor('sensor')
-    expect(sensor).toBeDefined()
-    if (!sensor) return
+  it('Collision Body defaults to an enabled static body', () => {
+    const collision = descriptorFor('collisionBody')
+    expect(collision).toBeDefined()
+    if (!collision) return
 
-    const radius = sensor.fields.find((f) => f.key === 'radius')
-    const width = sensor.fields.find((f) => f.key === 'width')
-    expect(radius?.visibleWhen).toBeDefined()
-    expect(width?.visibleWhen).toBeDefined()
-    if (!radius?.visibleWhen || !width?.visibleWhen) return
-
-    const circle = { shape: 'Circle' }
-    const rect = { shape: 'Rectangle' }
-
-    expect(radius.visibleWhen(circle)).toBe(true)
-    expect(radius.visibleWhen(rect)).toBe(false)
-    expect(width.visibleWhen(rect)).toBe(true)
-    expect(width.visibleWhen(circle)).toBe(false)
+    expect(collision.create()).toMatchObject({
+      bodyType: 'static',
+      enabled: true,
+      shapes: [{ type: 'rectangle', response: 'solid', role: 'body' }],
+    })
   })
 
   it('creates Dialog components without a hardcoded conversation', () => {

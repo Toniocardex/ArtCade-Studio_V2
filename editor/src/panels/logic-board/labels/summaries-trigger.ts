@@ -9,7 +9,28 @@ import {
   getKeyCombine,
   getOnInputKeyCodes,
 } from '../../../utils/logic-board/on-input-keys'
+import { collisionFilterFromTrigger } from '../../../utils/logic-board/collision-filter'
 import { fmtClass } from './board-labels'
+
+function collisionFilterSummary(
+  t: Extract<
+    LogicTrigger,
+    | { type: 'onCollision' }
+    | { type: 'onCollisionEnter' }
+    | { type: 'onCollisionExit' }
+    | { type: 'onTriggerEnter' }
+    | { type: 'onTriggerExit' }
+  >,
+  project?: ProjectDoc | null,
+): string {
+  const filter = collisionFilterFromTrigger(t)
+  if (filter.className) return fmtClass(filter.className, project)
+  if (filter.layer) return `layer ${filter.layer}`
+  if (filter.role) return `role ${filter.role}`
+  if (filter.tag) return `tag ${filter.tag}`
+  if (filter.response) return filter.response
+  return 'something'
+}
 
 export function eventTriggerSummaryPlain(
   event: LogicEvent,
@@ -31,21 +52,15 @@ export function triggerSummaryPlain(
     case 'onUpdate':
       return 'Every frame while playing'
     case 'onCollision':
-      return t.withClass
-        ? `While touching "${fmtClass(t.withClass, project)}"`
-        : 'While touching something'
+      return `While touching ${collisionFilterSummary(t, project)}`
     case 'onCollisionEnter':
-      return `When starting to touch "${fmtClass(t.withClass, project)}"`
+      return `When starting to touch ${collisionFilterSummary(t, project)}`
     case 'onCollisionExit':
-      return `When stopping touching "${fmtClass(t.withClass, project)}"`
+      return `When stopping touching ${collisionFilterSummary(t, project)}`
     case 'onTriggerEnter':
-      return t.withClass
-        ? `When entering zone "${fmtClass(t.withClass, project)}"`
-        : 'When entering a zone'
+      return `When entering ${collisionFilterSummary(t, project)}`
     case 'onTriggerExit':
-      return t.withClass
-        ? `When leaving zone "${fmtClass(t.withClass, project)}"`
-        : 'When leaving a zone'
+      return `When leaving ${collisionFilterSummary(t, project)}`
     case 'onAnimationEnd':
       return t.clipName
         ? `When animation "${t.clipName}" ends`

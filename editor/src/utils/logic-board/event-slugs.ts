@@ -11,6 +11,7 @@
 
 import type { LogicBoardDoc, LogicTrigger } from '../../types/logic-board'
 import { getOnInputKeyCodes } from './on-input-keys'
+import { collisionFilterFromTrigger, collisionFilterKey } from './collision-filter'
 
 /**
  * Name of the Lua-local table that maps human slugs to raw event ids. Shared
@@ -32,11 +33,16 @@ function triggerSlugSource(t: LogicTrigger): string {
     case 'onUpdate':        return 'on_update'
     case 'onSpawn':         return 'on_spawn'
     case 'onDestroy':       return 'on_destroy'
-    case 'onCollision':     return t.withClass ? `on_collision_${t.withClass}` : 'on_collision'
-    case 'onCollisionEnter': return `on_collide_enter_${t.withClass}`
-    case 'onCollisionExit':  return `on_collide_exit_${t.withClass}`
-    case 'onTriggerEnter':  return t.withClass ? `on_enter_${t.withClass}` : 'on_enter_zone'
-    case 'onTriggerExit':   return t.withClass ? `on_exit_${t.withClass}` : 'on_exit_zone'
+    case 'onCollision':
+      return `on_collision_${collisionFilterKey(collisionFilterFromTrigger(t))}`
+    case 'onCollisionEnter':
+      return `on_collide_enter_${collisionFilterKey(collisionFilterFromTrigger(t))}`
+    case 'onCollisionExit':
+      return `on_collide_exit_${collisionFilterKey(collisionFilterFromTrigger(t))}`
+    case 'onTriggerEnter':
+      return `on_enter_${collisionFilterKey(collisionFilterFromTrigger(t))}`
+    case 'onTriggerExit':
+      return `on_exit_${collisionFilterKey(collisionFilterFromTrigger(t))}`
     case 'onAnimationEnd':  return t.clipName ? `on_anim_end_${t.clipName}` : 'on_anim_end'
     case 'onAnimationStart': return t.clipName ? `on_anim_start_${t.clipName}` : 'on_anim_start'
     case 'onAnimationFrame': return t.clipName

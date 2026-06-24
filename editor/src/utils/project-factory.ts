@@ -5,6 +5,19 @@ import { DEFAULT_SCENE_SIZE, DEFAULT_VIEWPORT_SIZE } from '../constants/editor-v
 const sceneSize = (): Vec2 => ({ x: DEFAULT_SCENE_SIZE.x, y: DEFAULT_SCENE_SIZE.y })
 const viewportSize = (): Vec2 => ({ x: DEFAULT_VIEWPORT_SIZE.x, y: DEFAULT_VIEWPORT_SIZE.y })
 
+const defaultPhysicsLayers = () => ({
+  layers: [
+    { id: 'default', name: 'Default', bit: 0, color: '#8B95A7' },
+    { id: 'player', name: 'Player', bit: 1, color: '#38BDF8' },
+    { id: 'ground', name: 'Ground', bit: 2, color: '#22C55E' },
+    { id: 'enemy', name: 'Enemy', bit: 3, color: '#F97316' },
+    { id: 'pickup', name: 'Pickup', bit: 4, color: '#FBBF24' },
+    { id: 'hazard', name: 'Hazard', bit: 5, color: '#EF4444' },
+    { id: 'projectile', name: 'Projectile', bit: 6, color: '#A78BFA' },
+    { id: 'interaction', name: 'Interaction', bit: 7, color: '#14B8A6' },
+  ],
+})
+
 /**
  * Build a minimal valid ProjectDoc the editor can open immediately.
  *
@@ -33,6 +46,8 @@ export function createBlankProject(projectName = 'Untitled'): ProjectDoc {
       },
     },
     world:       { ...DEFAULT_WORLD },
+    physics:     defaultPhysicsLayers(),
+    collisionProfiles: {},
     logicBoards: [],
   }
 }

@@ -1,5 +1,6 @@
 #include "entity-json.h"
 
+#include "collision-json.h"
 #include "json-primitives.h"
 #include "physics-json.h"
 #include "sprite-json.h"
@@ -89,8 +90,6 @@ void read_optional_gameplay_components(const nlohmann::json& j, EntityDef& e) {
         pc.customGravity = p.value("customGravity", 1500.f);
         pc.coyoteTime    = p.value("coyoteTime", 0.15f);
         pc.jumpBuffer    = p.value("jumpBuffer", 0.1f);
-        pc.groundClass   = p.value("groundClass", std::string("Ground"));
-        pc.climbClass    = p.value("climbClass", std::string(""));
         pc.climbSpeed    = p.value("climbSpeed", 120.f);
         e.platformerController = pc;
     }
@@ -228,6 +227,9 @@ void read_entity_components(const nlohmann::json& entityJson, EntityDef& out) {
         out.transform = read_transform(entityJson["transform"]);
     read_sprite_component(entityJson, out.sprite);
     read_physics_component(entityJson, out.physics);
+    CollisionBodyComponent collisionBody{};
+    if (read_collision_body_component(entityJson, collisionBody))
+        out.collisionBody = std::move(collisionBody);
     read_optional_gameplay_components(entityJson, out);
     if (entityJson.contains("localVariables"))
         read_variable_definitions(entityJson["localVariables"], out.localVariables);

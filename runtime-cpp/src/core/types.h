@@ -56,6 +56,9 @@ struct Transform {
 
 enum class BodyType    { Dynamic, Static, Kinematic };
 enum class ColliderShape { Rectangle, Circle };
+enum class CollisionShapeType { Rectangle, Circle, Capsule, Polygon };
+enum class CollisionResponse { Solid, Sensor };
+enum class CollisionShapeRole { Body, Feet, Hurtbox, Hitbox, Interaction };
 
 struct Collider {
     ColliderShape shape   = ColliderShape::Rectangle;
@@ -71,6 +74,44 @@ struct PhysicsComponent {
     Collider collider;
     // Runtime compatibility mirror. Source of truth lives in RuntimeEntityGateway.
     uint32_t physicsHandle = 0;
+};
+
+struct PhysicsLayerDef {
+    std::string id = "default";
+    std::string name = "Default";
+    uint32_t    bit = 0;
+    Vec4        color = {0.55f, 0.60f, 0.70f, 1.f};
+};
+
+struct CollisionShape {
+    CollisionShapeType type = CollisionShapeType::Rectangle;
+    CollisionResponse  response = CollisionResponse::Solid;
+    CollisionShapeRole role = CollisionShapeRole::Body;
+    std::string        layerId = "default";
+    std::vector<std::string> maskLayerIds = { "default" };
+    Vec2               offset{};
+    Vec2               size{ 32.f, 32.f };
+    float              radius = 16.f;
+    std::vector<Vec2>  points;
+    bool               enabled = true;
+    bool               oneWay = false;
+    float              friction = 0.3f;
+    float              restitution = 0.f;
+    float              density = 1.f;
+};
+
+struct CollisionBodyComponent {
+    BodyType bodyType = BodyType::Static;
+    bool     enabled = true;
+    std::vector<CollisionShape> shapes;
+};
+
+struct CollisionProfileDef {
+    std::string id;
+    std::string name;
+    std::vector<CollisionShape> shapes;
+    std::unordered_map<std::string, std::vector<CollisionShape>> perAnimation;
+    std::unordered_map<std::string, std::vector<CollisionShape>> perFrame;
 };
 
 // ============================================================================
@@ -155,12 +196,11 @@ struct PlatformerControllerComponent {
     float customGravity = 1500.f;
     float coyoteTime    = 0.15f;
     float jumpBuffer    = 0.1f;
-    std::string groundClass = "Ground";
-    // Ladder climbing: while overlapping an entity of climbClass and the player
-    // feeds vertical intent, gravity is suspended and the body moves at
-    // climbSpeed along Y. Empty climbClass disables the feature (no per-frame
-    // overlap query), so existing platformers cost nothing.
+    /** Deprecated authoring residue; CollisionBody layer/mask is authoritative. */
+    std::string groundClass = "";
+    /** Deprecated authoring residue; interaction sensor shapes drive climbing. */
     std::string climbClass = "";
+    // Ladder climbing is driven by CollisionShapeRole::Interaction sensors.
     float       climbSpeed = 120.f;   // px/s
 };
 
@@ -294,6 +334,7 @@ struct EntityDef {
     Transform        transform;
     SpriteComponent  sprite;
     PhysicsComponent physics;
+    std::optional<CollisionBodyComponent> collisionBody;
     AnimationState   animation;
     // Optional gameplay components (Phase D1)
     std::optional<SensorComponent>               sensor;
@@ -496,6 +537,8 @@ struct ProjectDoc {
     std::unordered_map<SceneId,  SceneDef>  scenes;
     std::unordered_map<SceneId,  std::string> thumbnails;
     std::vector<SceneLayerDef>    layers;        // render stack (index 0 = on top)
+    std::vector<PhysicsLayerDef>  physicsLayers; // collision filtering, separate from render layers
+    std::unordered_map<std::string, CollisionProfileDef> collisionProfiles;
     std::vector<TilePaletteEntry> tilePalette;   // Phase D2
     std::vector<TilesetAsset>     tilesets;      // Phase F3
     std::vector<ImageAssetDef>    imageAssets;   // editor assets + image points
