@@ -81,12 +81,11 @@ export interface CoreState {
   /**
    * 'fit'    → zoom auto-tracks the panel size: any panel resize / scene
    *            size change recomputes editorZoom so the whole scene stays
-   *            centred and fully visible. This is the default after every
-   *            project load (and on initial boot) — it solves the "100%
-   *            doesn't fit the panel" UX issue exactly the way Figma /
-   *            Aseprite / Affinity Designer do.
+   *            centred and fully visible.
    * 'manual' → zoom is whatever the user picked (preset, +/-, wheel, typed
-   *            number, Ctrl+0). Panel resizes no longer move it.
+   *            number, Ctrl+0). Panel resizes no longer move it. This is the
+   *            initial boot and project-load mode so the canvas starts at
+   *            identity zoom (100%).
    *
    * Any explicit zoom dispatch flips this back to 'manual'. The dedicated
    * EDITOR_SET_FIT_ZOOM action is the only one that keeps the mode in 'fit'.
@@ -352,7 +351,7 @@ export const initialCoreState: CoreState = {
   snapToGrid:       false,
   editorGuidesVisible: true,
   editorZoom:       EDITOR_BOOT_ZOOM,
-  editorZoomMode:   'fit',
+  editorZoomMode:   'manual',
   cameraPreview:    false,
   projectLoadEpoch: 0,
   authoringMode: readStoredAuthoringMode(),

@@ -71,6 +71,20 @@ describe('coreReducer - project metadata', () => {
     expect(loaded.spritesheetStudio).toEqual({ open: false, imageAssetId: null })
   })
 
+  it('LOAD_PROJECT resets canvas zoom to 100% manual mode', () => {
+    const loaded = coreReducer(
+      { ...baseState(), editorZoom: 2.48, editorZoomMode: 'fit' },
+      {
+        type: 'LOAD_PROJECT',
+        project: project('Next'),
+        path: '/tmp/next.artcade',
+      },
+    )
+
+    expect(loaded.editorZoom).toBe(1)
+    expect(loaded.editorZoomMode).toBe('manual')
+  })
+
   it('falls back to Untitled when the provided name is empty', () => {
     const s = coreReducer(baseState(project('Old')), { type: 'PROJECT_RENAME', name: '   ' })
 

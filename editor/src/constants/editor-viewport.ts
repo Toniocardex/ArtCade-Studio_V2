@@ -17,12 +17,9 @@ export const EDITOR_ZOOM_MAX = 8.0
 export const EDITOR_ZOOM_DEFAULT = 1.0
 
 /**
- * Pre-fit fallback zoom for the first frame of a blank project / LOAD_PROJECT.
- * The boot policy is editorZoomMode='fit' (see editor-store-state.ts and
- * project-reducer.ts), so useEditorFitZoom overrides this on mount once the
- * scroll viewport has a measured size — this value only shows if the canvas
- * has 0×0 client size. Kept separate from EDITOR_ZOOM_DEFAULT so the startup
- * policy can change without altering the Ctrl+0 identity shortcut.
+ * Initial zoom for a blank project / LOAD_PROJECT. Kept separate from
+ * EDITOR_ZOOM_DEFAULT so boot policy can change without altering the Ctrl+0
+ * identity shortcut.
  */
 export const EDITOR_BOOT_ZOOM = 1.0
 

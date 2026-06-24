@@ -54,7 +54,7 @@ export const projectReducer: DomainReducer = (state: CoreState, action: Action) 
         recentPaintTilesetIds: [],
         paintSourceNotice: null,
         editorZoom:       EDITOR_BOOT_ZOOM,
-        editorZoomMode:   'fit',
+        editorZoomMode:   'manual',
         cameraPreview:    false,
         projectLoadEpoch: state.projectLoadEpoch + 1,
         legacyMigrateBanner: action.migratedFromLegacy ?? false,
