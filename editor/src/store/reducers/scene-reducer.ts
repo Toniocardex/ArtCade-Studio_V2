@@ -10,7 +10,7 @@ import { DEFAULT_WORLD, createTilemap, createTilemapForNewLayer, resizeTilemap, 
 import type { AnimationClipDef, EntityDef, SceneDef, SpriteComponent, TilemapLayer } from '../../types'
 import { DEFAULT_LAYERS } from '../../constants/scene-layers'
 import { createSceneDef, uniqueSceneName, nextEntityId } from '../../utils/project'
-import { clampEntityPositionToScene } from '../../utils/entity-position'
+import { clampEntityPositionToScene, snapToGridValue } from '../../utils/entity-position'
 import { clampCameraStart } from '../../utils/camera-start'
 import { projectAfterRemovingAsset } from '../../utils/strip-project-asset-refs'
 import { normalizeAssetRefs } from '../../utils/normalize-asset-refs'
@@ -311,7 +311,13 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
     case 'SCENE_SET_CAMERA_START': {
       const sc = state.project?.scenes[action.sceneId]
       if (!state.project || !sc) return state
-      const cameraStart = clampCameraStart(sc.worldSize, sc.viewportSize, { x: action.x, y: action.y })
+      const snapped = state.snapToGrid
+        ? {
+            x: snapToGridValue(action.x, state.editorGridSize),
+            y: snapToGridValue(action.y, state.editorGridSize),
+          }
+        : { x: action.x, y: action.y }
+      const cameraStart = clampCameraStart(sc.worldSize, sc.viewportSize, snapped)
       const prev = sc.cameraStart ?? { x: 0, y: 0 }
       if (prev.x === cameraStart.x && prev.y === cameraStart.y) return state
       return {

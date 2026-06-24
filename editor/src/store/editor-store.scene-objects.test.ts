@@ -243,6 +243,14 @@ describe('coreReducer — scenes & objects', () => {
     expect(s.project!.scenes.s.cameraStart).toEqual({ x: 2560 - 1280, y: 1440 - 720 })
   })
 
+  it('SCENE_SET_CAMERA_START snaps to the editor grid when snap-to-grid is on', () => {
+    let s = coreReducer(st(project()), { type: 'SCENE_SET_WORLD_SIZE', sceneId: 's', x: 2560, y: 1440 })
+    s = { ...s, snapToGrid: true, editorGridSize: 32 }
+    s = coreReducer(s, { type: 'SCENE_SET_CAMERA_START', sceneId: 's', x: 500, y: 300 })
+    // 500 → 512, 300 → 288 (nearest multiples of 32), then clamped to the world.
+    expect(s.project!.scenes.s.cameraStart).toEqual({ x: 512, y: 288 })
+  })
+
   it('SCENE_SET_WORLD_SIZE scales scene entity positions into the resized canvas', () => {
     const p = project()
     p.entities[1].transform.position = { x: 640, y: 360 }
