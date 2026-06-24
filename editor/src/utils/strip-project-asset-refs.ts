@@ -37,10 +37,15 @@ function scrubLogicBoardsForAudio(
   if (!boards || boards.length === 0) return boards
   return boards.map((board) => ({
     ...board,
-    events: (board.events ?? []).map((event) => ({
-      ...event,
-      actions: (event.actions ?? []).map((a) => scrubAudioAction(a, audioId, audioPath)),
-    })),
+    events: (board.events ?? []).map((event) => {
+      const next = {
+        ...event,
+        actions: (event.actions ?? []).map((a) => scrubAudioAction(a, audioId, audioPath)),
+      }
+      return event.elseActions
+        ? { ...next, elseActions: event.elseActions.map((a) => scrubAudioAction(a, audioId, audioPath)) }
+        : next
+    }),
   }))
 }
 
@@ -55,7 +60,15 @@ function removeImageRefs(project: ProjectDoc, removed: Extract<RemovedAssetRef, 
         : [eid, e],
     ),
   )
-  return { ...project, assets, entities }
+  if (!project.objectTypes) return { ...project, assets, entities }
+  const objectTypes = Object.fromEntries(
+    Object.entries(project.objectTypes).map(([id, type]) =>
+      type.sprite?.spriteAssetId === removed.path
+        ? [id, { ...type, sprite: { ...type.sprite, spriteAssetId: '' } }]
+        : [id, type],
+    ),
+  )
+  return { ...project, assets, entities, objectTypes }
 }
 
 function removeAudioRefs(project: ProjectDoc, removed: Extract<RemovedAssetRef, { kind: 'audio' }>): ProjectDoc {
@@ -74,7 +87,18 @@ function removeFontRefs(project: ProjectDoc, removed: Extract<RemovedAssetRef, {
   const fontAssets = Object.fromEntries(
     Object.entries(project.fontAssets ?? {}).filter(([k]) => k !== removed.id),
   )
-  return { ...project, fontAssets }
+  const clearFont = <T extends { text?: { fontPath: string } }>(entry: T): T =>
+    entry.text?.fontPath === removed.path
+      ? { ...entry, text: { ...entry.text, fontPath: '' } }
+      : entry
+  const entities = Object.fromEntries(
+    Object.entries(project.entities).map(([id, entity]) => [id, clearFont(entity)]),
+  )
+  if (!project.objectTypes) return { ...project, fontAssets, entities }
+  const objectTypes = Object.fromEntries(
+    Object.entries(project.objectTypes).map(([id, type]) => [id, clearFont(type)]),
+  )
+  return { ...project, fontAssets, entities, objectTypes }
 }
 
 function scrubSceneTilemaps(

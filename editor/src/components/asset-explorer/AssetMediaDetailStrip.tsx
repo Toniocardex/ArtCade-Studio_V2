@@ -1,14 +1,16 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
-import { useEditorSelector } from '../../store/editor-store'
+import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import type { AudioAsset, FontAsset } from '../../types'
 import type { AssetExplorerSelection } from '../../hooks/useAssetExplorerActions'
+import { Field } from '../../panels/inspector/inspector-fields'
 
 export type AssetMediaDetailStripProps = Readonly<{
   selection: AssetExplorerSelection
 }>
 
 export function AssetMediaDetailStrip({ selection }: AssetMediaDetailStripProps) {
+  const dispatch = useEditorDispatch()
   const project = useEditorSelector((s) => s.project)
   const projectPath = useEditorSelector((s) => s.projectPath)
   const [open, setOpen] = useState(true)
@@ -23,6 +25,13 @@ export function AssetMediaDetailStrip({ selection }: AssetMediaDetailStripProps)
         onToggle={() => setOpen((v) => !v)}
         title={`Audio — ${asset.name}`}
       >
+        <Field
+          label="Display Name"
+          value={asset.name}
+          onCommit={(name) =>
+            dispatch({ type: 'AUDIO_ASSET_RENAME', assetId: asset.id, name })
+          }
+        />
         <p className="text-[10px] text-[var(--muted)] truncate" title={asset.path}>
           {asset.path}
         </p>
@@ -40,6 +49,13 @@ export function AssetMediaDetailStrip({ selection }: AssetMediaDetailStripProps)
         onToggle={() => setOpen((v) => !v)}
         title={`Font — ${asset.name}`}
       >
+        <Field
+          label="Display Name"
+          value={asset.name}
+          onCommit={(name) =>
+            dispatch({ type: 'FONT_ASSET_RENAME', assetId: asset.id, name })
+          }
+        />
         <p className="text-[10px] text-[var(--muted)] truncate" title={asset.path}>
           {asset.path}
         </p>

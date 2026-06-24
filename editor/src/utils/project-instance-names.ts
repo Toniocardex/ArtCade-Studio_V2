@@ -46,3 +46,22 @@ export function isInstanceNameTaken(project: ProjectDoc, name: string): boolean 
     (scene.instances ?? []).some((inst) => inst.instanceName === name),
   )
 }
+
+/** Whether `name` is already used by another scene instance's visible display name. */
+export function isInstanceNameTakenInScene(
+  project: ProjectDoc,
+  sceneId: string,
+  name: string,
+  exceptEntityId?: number,
+): boolean {
+  const scene = project.scenes[sceneId]
+  const wanted = name.trim().toLocaleLowerCase()
+  if (!scene || !wanted) return false
+  return (scene.instances ?? []).some((instance) => {
+    if (exceptEntityId != null && instance.id === exceptEntityId) return false
+    const entity = project.entities[instance.id]
+    const type = project.objectTypes?.[instance.objectTypeId]
+    const displayName = instance.instanceName ?? entity?.name ?? type?.displayName ?? ''
+    return displayName.trim().toLocaleLowerCase() === wanted
+  })
+}

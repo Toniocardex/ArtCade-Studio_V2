@@ -28,6 +28,24 @@ const viewportSize = (): Vec2 => ({ x: DEFAULT_VIEWPORT_SIZE.x, y: DEFAULT_VIEWP
 const sceneSizeArray = (): [number, number] => [DEFAULT_SCENE_SIZE.x, DEFAULT_SCENE_SIZE.y]
 const viewportSizeArray = (): [number, number] => [DEFAULT_VIEWPORT_SIZE.x, DEFAULT_VIEWPORT_SIZE.y]
 
+export function unsupportedProjectFormatMessage(jsonStr: string): string | null {
+  try {
+    const raw = JSON.parse(jsonStr) as Record<string, unknown>
+    const versionRaw = raw.formatVersion ?? raw.format_version
+    if (versionRaw == null) return null
+    const version = Number(versionRaw)
+    if (!Number.isFinite(version) || version <= PROJECT_FORMAT_V3) return null
+    return (
+      `Cannot open this project.\n\n` +
+      `Project format v${version} is newer than this editor supports ` +
+      `(current: v${PROJECT_FORMAT_V3}).\n\n` +
+      `Update ArtCade Studio, then open the project again.`
+    )
+  } catch {
+    return null
+  }
+}
+
 /** Pass through known ECS component objects defensively (only if object). */
 function parseComponents(r: Record<string, unknown>): Record<string, object> {
   const out: Record<string, object> = {}
@@ -461,6 +479,8 @@ function parseAssets(
       usage,
       // dataUrl is transient — never read from persisted JSON.
     }
+    if (typeof o.contentHash === 'string' && o.contentHash.trim())
+      asset.contentHash = o.contentHash.trim()
     const imagePoints = parseImagePoints(o.imagePoints)
     if (imagePoints) asset.imagePoints = imagePoints
     const clips = parseAnimationClips(o.clips)
@@ -489,6 +509,8 @@ function parseAudioAssets(
       path,
       ...(cat === 'sfx' || cat === 'music' ? { category: cat } : {}),
     }
+    if (typeof o.contentHash === 'string' && o.contentHash.trim())
+      asset.contentHash = o.contentHash.trim()
     const vol = Number(o.volume)
     if (Number.isFinite(vol)) asset.volume = vol
     out[id] = asset
@@ -512,6 +534,8 @@ function parseFontAssets(
       name: String(o.name ?? id),
       path,
     }
+    if (typeof o.contentHash === 'string' && o.contentHash.trim())
+      asset.contentHash = o.contentHash.trim()
     const defaultSize = Number(o.defaultSize ?? o.default_size)
     if (Number.isFinite(defaultSize) && defaultSize > 0) asset.defaultSize = defaultSize
     out[id] = asset
@@ -579,6 +603,9 @@ function parseTilesets(
       assetId,
       name:            String(o.name ?? assetId),
       spriteImagePath: String(o.spriteImagePath ?? o.sprite_image_path ?? ''),
+      ...(typeof o.contentHash === 'string' && o.contentHash.trim()
+        ? { contentHash: o.contentHash.trim() }
+        : {}),
       tileSize:        Number(o.tileSize ?? o.tile_size ?? 32),
       margin:          Number(o.margin ?? 0),
       cols:            Number(o.cols ?? 1),
@@ -677,6 +704,8 @@ export interface ParseProjectDocResult {
 export function parseProjectDocWithMeta(jsonStr: string): ParseProjectDocResult | null {
   try {
     const raw = JSON.parse(jsonStr) as Record<string, unknown>
+    const unsupportedFormat = unsupportedProjectFormatMessage(jsonStr)
+    if (unsupportedFormat) throw new Error(unsupportedFormat)
 
     // ---- entities ----------------------------------------------------------
     // C++ may emit an array [{id,name,...}, ...] or an object {"1":{...}, ...}
@@ -946,6 +975,8 @@ export function serializeProjectDoc(project: ProjectDoc): string {
               const out: Record<string, unknown> = {
                 id: a.id, name: a.name, path: a.path, usage: a.usage,
               }
+              if (a.contentHash)
+                out.contentHash = a.contentHash
               if (a.imagePoints && a.imagePoints.length > 0)
                 out.imagePoints = a.imagePoints
               if (a.clips && a.clips.length > 0)

@@ -37,7 +37,7 @@ export function resolveAssetLeaf(
   id: string,
   ctx: ResolveAssetLeafCtx,
 ): VirtualFolderLeafRow | null {
-  const { folder, project, projectPath, libraryCategory, assets, assetMulti, selectedEntityId, dispatch } = ctx
+  const { folder, project, projectPath, libraryCategory, assets, assetMulti, selectedEntityId } = ctx
   if (type === 'image') {
     const imgRow = folder.images.find((i) => i.id === id)
     if (!imgRow) return null
@@ -90,8 +90,7 @@ export function resolveAssetLeaf(
               id: 'remove',
               label: 'Remove image',
               danger: true,
-              onSelect: () =>
-                dispatch({ type: 'ASSET_REMOVE', assetId: imgRow.id }),
+              onSelect: () => void assets.removeAsset({ type: 'image', id: imgRow.id }),
             },
           ]
         : [],
@@ -122,8 +121,7 @@ export function resolveAssetLeaf(
           id: 'remove',
           label: 'Remove audio',
           danger: true,
-          onSelect: () =>
-            dispatch({ type: 'AUDIO_ASSET_REMOVE', assetId: row.id }),
+          onSelect: () => void assets.removeAsset({ type: 'audio', id: row.id }),
         },
       ],
     }
@@ -151,8 +149,7 @@ export function resolveAssetLeaf(
           id: 'remove',
           label: 'Remove font',
           danger: true,
-          onSelect: () =>
-            dispatch({ type: 'FONT_ASSET_REMOVE', assetId: row.id }),
+          onSelect: () => void assets.removeAsset({ type: 'font', id: row.id }),
         },
       ],
     }
@@ -195,11 +192,7 @@ export function resolveAssetLeaf(
         id: 'remove',
         label: 'Remove tileset',
         danger: true,
-        onSelect: () =>
-          dispatch({
-            type: 'TILESET_ASSET_REMOVE',
-            assetId: row.assetId,
-          }),
+        onSelect: () => void assets.removeAsset({ type: 'tileset', id: row.assetId }),
       },
     ],
   }

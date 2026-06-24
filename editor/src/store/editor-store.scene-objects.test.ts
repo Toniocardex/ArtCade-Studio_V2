@@ -69,6 +69,25 @@ describe('coreReducer — scenes & objects', () => {
     expect(s.projectDirty).toBe(true)
   })
 
+  it('OBJECT_TYPE_ADD rejects duplicate names case-insensitively', () => {
+    const s0 = st(project())
+    const s = coreReducer(s0, { type: 'OBJECT_TYPE_ADD', displayName: 'player' })
+
+    expect(Object.keys(s.project!.objectTypes ?? {})).toEqual(['Player'])
+    expect(s.projectDirty).toBe(false)
+  })
+
+  it('OBJECT_TYPE_RENAME rejects a duplicate display name', () => {
+    const withCoin = coreReducer(st(project()), { type: 'OBJECT_TYPE_ADD', displayName: 'Coin' })
+    const renamed = coreReducer(withCoin, {
+      type: 'OBJECT_TYPE_RENAME',
+      objectTypeId: 'Coin',
+      displayName: 'player',
+    })
+
+    expect(renamed.project!.objectTypes!.Coin.displayName).toBe('Coin')
+  })
+
   it('INSTANCE_DUPLICATE adds a new instance of the same type, offsets, selects it', () => {
     const s = coreReducer(st(project()), { type: 'INSTANCE_DUPLICATE', instanceId: 1, sceneId: 's' })
     expect(Object.keys(s.project!.entities)).toHaveLength(2)
@@ -149,6 +168,15 @@ describe('coreReducer — scenes & objects', () => {
     expect(s.project!.objectTypes?.Player.displayName).toBe('Player')
     const inst = s.project!.scenes.s.instances?.find((i) => i.id === 2)
     expect(inst?.instanceName).toBe('Hero')
+  })
+
+  it('ENTITY_SET_NAME rejects duplicate instance names in the same scene', () => {
+    let s = coreReducer(st(project()), { type: 'INSTANCE_DUPLICATE', instanceId: 1, sceneId: 's' })
+    s = coreReducer(s, { type: 'ENTITY_SET_NAME', entityId: 2, name: 'A' })
+
+    const inst = s.project!.scenes.s.instances?.find((i) => i.id === 2)
+    expect(inst?.instanceName).toBe('A_1')
+    expect(s.project!.entities[2].name).toBe('A_1')
   })
 
   it('insert flow syncs objectTypes so logic boards targeting the type validate', () => {

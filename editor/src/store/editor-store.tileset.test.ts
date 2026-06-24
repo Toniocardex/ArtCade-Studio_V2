@@ -49,6 +49,17 @@ describe('coreReducer — tileset (Phase F1)', () => {
     expect(s.projectDirty).toBe(true)
   })
 
+  it('TILESET_ASSET_RENAME changes only the display name', () => {
+    let s = coreReducer(st(project()), { type: 'TILESET_ASSET_ADD', asset: TS })
+    s = coreReducer(s, { type: 'TILESET_ASSET_RENAME', assetId: 'ts_a', name: 'Forest Main' })
+
+    expect(s.project!.tilesets!.ts_a).toMatchObject({
+      assetId: 'ts_a',
+      name: 'Forest Main',
+      spriteImagePath: 'forest.png',
+    })
+  })
+
   it('TILEMAP_SET_TILESETID sets default brush on active layer', () => {
     let s = coreReducer(st(project()), { type: 'TILESET_ASSET_ADD', asset: TS })
     s = coreReducer(s, { type: 'TILEMAP_SET_TILESETID', sceneId: 's', assetId: 'ts_a' })

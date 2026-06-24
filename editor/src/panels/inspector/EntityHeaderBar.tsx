@@ -1,11 +1,13 @@
 import { useState } from 'react'
-import { useEditorDispatch } from '../../store/editor-store'
+import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import type { EntityDef } from '../../types'
 import type { InspectorBlockKey } from './entity-component-utils'
 import { Field, HelpTooltip } from './inspector-fields'
 import { activeComponentDescriptors } from './entity-component-utils'
 import { EntityTagsSection } from './EntityTagsSection'
 import { EntityLayerField } from './EntityLayerField'
+import { isInstanceNameTakenInScene } from '../../utils/project-instance-names'
+import { alertDialog } from '../../utils/native-dialog'
 
 export type EntityHeaderBarProps = Readonly<{
   entity: EntityDef
@@ -17,6 +19,8 @@ export function EntityHeaderBar({
   onJumpToComponent,
 }: EntityHeaderBarProps) {
   const dispatch = useEditorDispatch()
+  const project = useEditorSelector((s) => s.project)
+  const sceneId = useEditorSelector((s) => s.selection.sceneId ?? s.project?.activeSceneId ?? '')
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const active = activeComponentDescriptors(entity)
 
@@ -30,9 +34,16 @@ export function EntityHeaderBar({
         value={entity.name}
         cyan
         tooltip="Shown in the Scenes panel and Logic Board. Rules are per entity, not per name."
-        onCommit={(name) =>
+        onCommit={(name) => {
+          if (project && isInstanceNameTakenInScene(project, sceneId, name, entity.id)) {
+            void alertDialog(
+              `An object named "${name}" already exists in this scene.\n\nChoose a different instance name.`,
+              { title: 'Instance name already exists', kind: 'warning' },
+            )
+            return
+          }
           dispatch({ type: 'ENTITY_SET_NAME', entityId: entity.id, name })
-        }
+        }}
       />
 
       {active.length > 0 && (

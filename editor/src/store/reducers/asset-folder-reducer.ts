@@ -93,6 +93,70 @@ function setImageUsage(
 
 export const assetFolderReducer: DomainReducer = (state: CoreState, action: Action) => {
   switch (action.type) {
+    case 'IMAGE_ASSET_RENAME': {
+      const asset = state.project?.assets?.[action.assetId]
+      const name = action.name.trim()
+      if (!state.project || !asset || !name || name === asset.name) return state
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          assets: {
+            ...state.project.assets,
+            [action.assetId]: { ...asset, name },
+          },
+        },
+        projectDirty: true,
+      }
+    }
+    case 'AUDIO_ASSET_RENAME': {
+      const asset = state.project?.audioAssets?.[action.assetId]
+      const name = action.name.trim()
+      if (!state.project || !asset || !name || name === asset.name) return state
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          audioAssets: {
+            ...state.project.audioAssets,
+            [action.assetId]: { ...asset, name },
+          },
+        },
+        projectDirty: true,
+      }
+    }
+    case 'FONT_ASSET_RENAME': {
+      const asset = state.project?.fontAssets?.[action.assetId]
+      const name = action.name.trim()
+      if (!state.project || !asset || !name || name === asset.name) return state
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          fontAssets: {
+            ...state.project.fontAssets,
+            [action.assetId]: { ...asset, name },
+          },
+        },
+        projectDirty: true,
+      }
+    }
+    case 'TILESET_ASSET_RENAME': {
+      const asset = state.project?.tilesets?.[action.assetId]
+      const name = action.name.trim()
+      if (!state.project || !asset || !name || name === asset.name) return state
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          tilesets: {
+            ...state.project.tilesets,
+            [action.assetId]: { ...asset, name },
+          },
+        },
+        projectDirty: true,
+      }
+    }
     case 'ASSET_FOLDER_CREATE': {
       if (!state.project) return state
       if (action.category === 'images' && !action.usage) return state

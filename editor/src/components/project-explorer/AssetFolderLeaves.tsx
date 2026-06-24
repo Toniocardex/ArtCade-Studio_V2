@@ -39,7 +39,6 @@ export function AssetFolderLeaves({
   projectPath,
   assets,
   assetMulti,
-  dispatch,
   setContextMenu,
   makeAssetFolderMenuHandlers,
 }: AssetFolderLeavesProps) {
@@ -77,8 +76,7 @@ export function AssetFolderLeaves({
                     id: 'remove',
                     label: 'Remove audio',
                     danger: true,
-                    onSelect: () =>
-                      dispatch({ type: 'AUDIO_ASSET_REMOVE', assetId: a.id }),
+                    onSelect: () => void assets.removeAsset({ type: 'audio', id: a.id }),
                   },
                 ],
                 assetMulti.batchRefsInCategory('audio'),
@@ -122,8 +120,7 @@ export function AssetFolderLeaves({
                     id: 'remove',
                     label: 'Remove font',
                     danger: true,
-                    onSelect: () =>
-                      dispatch({ type: 'FONT_ASSET_REMOVE', assetId: f.id }),
+                    onSelect: () => void assets.removeAsset({ type: 'font', id: f.id }),
                   },
                 ],
                 assetMulti.batchRefsInCategory('fonts'),
@@ -205,11 +202,7 @@ export function AssetFolderLeaves({
                     id: 'remove',
                     label: 'Remove tileset',
                     danger: true,
-                    onSelect: () =>
-                      dispatch({
-                        type: 'TILESET_ASSET_REMOVE',
-                        assetId: t.assetId,
-                      }),
+                    onSelect: () => void assets.removeAsset({ type: 'tileset', id: t.assetId }),
                   },
                 ],
                 assetMulti.batchRefsInCategory('tilesets'),

@@ -22,7 +22,7 @@ import {
   type ProjectTemplateId,
 } from '../../utils/project'
 import { runtimeSync } from '../../utils/runtime-sync-service'
-import { confirmDialog } from '../../utils/native-dialog'
+import { alertDialog, confirmDialog } from '../../utils/native-dialog'
 import type { ProjectDoc } from '../../types'
 import type { FileMenuItem } from './FileMenu'
 import { makeConsoleEntry } from './makeConsoleEntry'
@@ -35,6 +35,14 @@ import {
 } from '../../utils/dialog/dialog-file-api'
 import type { DialogScript } from '../../utils/dialog/dialog-script'
 import { resolveManualMainLua } from '../../utils/project-main-script'
+
+const luaTrustWarningsShown = new Set<string>()
+
+function projectContainsLuaScripts(project: ProjectDoc): boolean {
+  if (project.mainScriptPath?.trim()) return true
+  if (Object.values(project.entities ?? {}).some((entity) => entity.scriptPath?.trim())) return true
+  return Object.values(project.objectTypes ?? {}).some((type) => type.scriptPath?.trim())
+}
 
 interface UseFileMenuActionsParams {
   dispatch: Dispatch<EditorAction>
@@ -77,10 +85,29 @@ export function useFileMenuActions({
     const path = await openProjectDialog()
     if (!path) return
     dispatch({ type: 'LOG', entry: makeConsoleEntry(`[File] Opening ${path}…`, 'info') })
-    const loaded = await loadProjectFromPath(path)
+    let loaded
+    try {
+      loaded = await loadProjectFromPath(path)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      dispatch({ type: 'LOG', entry: makeConsoleEntry(`[File] ✗ Failed to open project: ${message}`, 'error') })
+      await alertDialog(message, { title: 'Cannot open project', kind: 'error' })
+      return
+    }
     if (!loaded) {
       dispatch({ type: 'LOG', entry: makeConsoleEntry('[File] ✗ Failed to open project', 'error') })
       return
+    }
+    if (projectContainsLuaScripts(loaded.project) && !luaTrustWarningsShown.has(loaded.path)) {
+      const trusted = await confirmDialog(
+        'This project contains Lua scripts.\n\nOpen only projects from sources you trust.',
+        { title: 'Open Lua project?', kind: 'warning' },
+      )
+      if (!trusted) {
+        dispatch({ type: 'LOG', entry: makeConsoleEntry('[File] Open cancelled: Lua trust warning declined.', 'warn') })
+        return
+      }
+      luaTrustWarningsShown.add(loaded.path)
     }
     runtimeSync.reset()
     const loadedDialogs = await loadDialogsFromProject(loaded.path)
@@ -97,6 +124,15 @@ export function useFileMenuActions({
       type: 'LOG',
       entry: makeConsoleEntry(`[File] ✓ Loaded "${loaded.project.projectName}" v${loaded.project.version}`, 'info'),
     })
+    for (const warning of loaded.openWarnings ?? []) {
+      dispatch({ type: 'LOG', entry: makeConsoleEntry(`[File] ⚠ ${warning}`, 'warn') })
+    }
+    if ((loaded.openWarnings?.length ?? 0) > 0) {
+      await alertDialog(loaded.openWarnings!.join('\n\n'), {
+        title: 'Project opened with warnings',
+        kind: 'warning',
+      })
+    }
     dispatchLogicBoardLoadWarnings(dispatch, loaded.logicBoardLoadIssues, makeConsoleEntry)
   }, [closeMenu, confirmDiscardIfDirty, dispatch])
 

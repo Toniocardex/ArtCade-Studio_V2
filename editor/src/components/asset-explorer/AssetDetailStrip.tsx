@@ -13,6 +13,7 @@ import { openSpritesheetStudio } from '../../panels/spritesheet-studio/openSprit
 import { ImagePointsEditor } from './ImagePointsEditor'
 import type { AssetExplorerSelection } from '../../hooks/useAssetExplorerActions'
 import { EditorSelect } from '../ui/EditorSelect'
+import { Field } from '../../panels/inspector/inspector-fields'
 
 export type AssetDetailStripProps = Readonly<{
   selection: AssetExplorerSelection
@@ -54,6 +55,13 @@ export function AssetDetailStrip({ selection }: AssetDetailStripProps) {
       </button>
       {open ? (
         <div className="p-2 space-y-2 max-h-64 overflow-y-auto">
+          <Field
+            label="Display Name"
+            value={asset.name}
+            onCommit={(name) =>
+              dispatch({ type: 'IMAGE_ASSET_RENAME', assetId: asset.id, name })
+            }
+          />
           <ImageAssetPreview
             asset={asset}
             projectPath={projectPath}

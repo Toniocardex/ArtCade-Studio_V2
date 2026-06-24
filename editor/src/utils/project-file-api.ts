@@ -9,6 +9,7 @@ import {
   parseProjectDocWithMeta,
   safeProjectFolderName,
   serializeProjectDoc,
+  unsupportedProjectFormatMessage,
 } from './project'
 import { validateProjectBeforeSave } from './logic-board/validate-project'
 import { importArtcadePackage, isArtcadePackagePath, type LoadedProjectFile } from './artcade-package'
@@ -43,6 +44,30 @@ async function assetFileExists(projectRoot: string, relPath: string): Promise<bo
     // cover freshly-imported assets in that situation.
     return true
   }
+}
+
+async function missingReferencedAssetPaths(
+  projectRoot: string,
+  project: ProjectDoc,
+): Promise<string[]> {
+  const missing: string[] = []
+  for (const path of [...referencedAssetPaths(project)].sort()) {
+    if (!(await assetFileExists(projectRoot, path))) missing.push(path)
+  }
+  return missing
+}
+
+function formatMissingAssetOpenWarning(paths: readonly string[]): string {
+  const shown = paths.slice(0, 8).map((path) => `- ${path}`)
+  const remaining = paths.length - shown.length
+  return [
+    `Project opened with ${paths.length} missing asset file${paths.length === 1 ? '' : 's'}.`,
+    '',
+    ...shown,
+    ...(remaining > 0 ? [`- ...and ${remaining} more`] : []),
+    '',
+    'Re-import the missing assets or remove their references before saving/exporting.',
+  ].join('\n')
 }
 
 /**
@@ -178,19 +203,25 @@ export async function loadProjectFromPath(path: string): Promise<LoadedProjectFi
   if (!isTauri()) { notAvailable('loadProjectFromPath'); return null }
   try {
     const content = await readTextFile(path)
+    const unsupportedFormat = unsupportedProjectFormatMessage(content)
+    if (unsupportedFormat) throw new Error(unsupportedFormat)
     const parsed = parseProjectDocWithMeta(content)
     if (!parsed) return null
     const { project, logicBoardLoadIssues } = parsed
     assertProjectPathsSafe(project)
+    const missingAssets = await missingReferencedAssetPaths(projectRootFromProjectPath(path), project)
     return {
       project,
       path,
       migratedFromLegacy: detectMigratedFromLegacy(content, project),
       ...(logicBoardLoadIssues.length > 0 ? { logicBoardLoadIssues } : {}),
+      ...(missingAssets.length > 0
+        ? { openWarnings: [formatMissingAssetOpenWarning(missingAssets)] }
+        : {}),
     }
   } catch (err) {
     console.error('[api] loadProjectFromPath failed:', err)
-    return null
+    throw err
   }
 }
 

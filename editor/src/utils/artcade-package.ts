@@ -2,7 +2,12 @@ import { isTauri } from '@tauri-apps/api/core'
 import { readFile, writeFile, mkdir, exists } from '@tauri-apps/plugin-fs'
 import type { ProjectDoc } from '../types'
 import type { LogicBoardLoadIssue } from '../types/logic-board'
-import { dirName, parseProjectDocWithMeta, safeProjectFolderName } from './project'
+import {
+  dirName,
+  parseProjectDocWithMeta,
+  safeProjectFolderName,
+  unsupportedProjectFormatMessage,
+} from './project'
 import { baseName, joinPath } from './file-paths'
 import { assertProjectPathsSafe } from './project-path-security'
 import { decodeZipEntryUtf8, inflateZipEntry, parseZipEntries } from './artcade-zip-io'
@@ -13,6 +18,7 @@ export interface LoadedProjectFile {
   path: string
   migratedFromLegacy?: boolean
   logicBoardLoadIssues?: LogicBoardLoadIssue[]
+  openWarnings?: string[]
 }
 
 export function isArtcadePackagePath(path: string): boolean {
@@ -79,6 +85,8 @@ export async function importArtcadePackage(packagePath: string): Promise<LoadedP
     }
 
     const projectJson = await decodeZipEntryUtf8(bytes, projectEntry)
+    const unsupportedFormat = unsupportedProjectFormatMessage(projectJson)
+    if (unsupportedFormat) throw new Error(unsupportedFormat)
     const parsed = parseProjectDocWithMeta(projectJson)
     if (!parsed) {
       throw new Error('project.json inside package is invalid')

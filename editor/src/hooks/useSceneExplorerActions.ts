@@ -1,9 +1,10 @@
 import { useCallback, useEffect } from 'react'
 import { useEditorDispatch, useEditorSelector } from '../store/editor-store'
 import type { ConsoleEntry } from '../types'
-import { confirmDialog } from '../utils/native-dialog'
+import { alertDialog, confirmDialog } from '../utils/native-dialog'
 import { useTextPrompt } from './useTextPrompt'
 import { slugTypeId } from '../utils/project-object-types'
+import { isInstanceNameTakenInScene } from '../utils/project-instance-names'
 import { openLogicBoardForEntity } from '../panels/inspector/logic-board-navigation'
 
 let _explorerLogId = 900
@@ -122,9 +123,18 @@ export function useSceneExplorerActions() {
     }).then((name) => {
       if (!name) return
       const typeId = slugTypeId(name)
-      if (!project.objectTypes?.[typeId]) {
-        dispatch({ type: 'OBJECT_TYPE_ADD', displayName: name })
+      const duplicate = Object.values(project.objectTypes ?? {}).find((type) =>
+        type.id.toLocaleLowerCase() === typeId.toLocaleLowerCase()
+        || type.displayName.trim().toLocaleLowerCase() === name.trim().toLocaleLowerCase()
+      )
+      if (duplicate) {
+        void alertDialog(
+          `An object type named "${duplicate.displayName}" already exists.\n\nUse "Add instance" on that object type, or choose a different name.`,
+          { title: 'Object type already exists', kind: 'warning' },
+        )
+        return
       }
+      dispatch({ type: 'OBJECT_TYPE_ADD', displayName: name })
       dispatch({ type: 'INSTANCE_ADD_FROM_TYPE', sceneId, objectTypeId: typeId })
       dispatch({
         type: 'LOG',
@@ -191,10 +201,17 @@ export function useSceneExplorerActions() {
         defaultValue: ent.name,
       }).then((name) => {
         if (!name || name === ent.name) return
+        if (project && isInstanceNameTakenInScene(project, sceneId, name, entityId)) {
+          void alertDialog(
+            `An object named "${name}" already exists in this scene.\n\nChoose a different instance name.`,
+            { title: 'Instance name already exists', kind: 'warning' },
+          )
+          return
+        }
         dispatch({ type: 'ENTITY_SET_NAME', entityId, name })
       })
     },
-    [dispatch, project, promptText],
+    [dispatch, project, promptText, sceneId],
   )
 
   const duplicateSceneById = useCallback(

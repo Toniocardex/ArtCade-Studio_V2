@@ -22,10 +22,12 @@ export function readFileAsDataUrl(file: File): Promise<string> {
 export async function importImageAssetFromFile({
   file,
   projectRoot,
+  rejectContentHashes,
   usage,
 }: Readonly<{
   file: File
   projectRoot: string | null
+  rejectContentHashes?: ReadonlySet<string>
   usage: ImageAssetUsage
 }>): Promise<ImportedImageAsset> {
   const [dataUrl, bytes] = await Promise.all([
@@ -37,6 +39,7 @@ export async function importImageAssetFromFile({
     fileName: file.name,
     bytes,
     projectRoot,
+    rejectContentHashes,
   })
   return {
     imported,
@@ -45,6 +48,7 @@ export async function importImageAssetFromFile({
       name: file.name,
       path: imported.path,
       usage,
+      contentHash: imported.contentHash,
       dataUrl,
     },
   }

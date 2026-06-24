@@ -9,7 +9,11 @@ vi.mock('@tauri-apps/api/core', () => ({
 vi.mock('@tauri-apps/plugin-dialog', () => ({ open: vi.fn() }))
 vi.mock('@tauri-apps/plugin-fs', () => ({ readFile: vi.fn() }))
 
-const { importAssetFile, readProjectFileBytes } = await import('./asset-file-api')
+const {
+  DuplicateAssetImportError,
+  importAssetFile,
+  readProjectFileBytes,
+} = await import('./asset-file-api')
 const { clearPendingAssets, pendingAssetCount } = await import('./pending-asset-store')
 
 describe('importAssetFile', () => {
@@ -40,6 +44,40 @@ describe('importAssetFile', () => {
     expect(first.path).toBe('assets/images/img_one_hero.png')
     expect(second.path).toBe('assets/images/img_two_hero.png')
     expect(first.path).not.toBe(second.path)
+  })
+
+  it('returns a content hash for duplicate detection', async () => {
+    const first = await importAssetFile({
+      kind: 'image', id: 'img_one', fileName: 'hero.png',
+      bytes: new Uint8Array([1]), projectRoot: '/project',
+    })
+    const second = await importAssetFile({
+      kind: 'image', id: 'img_two', fileName: 'hero-copy.png',
+      bytes: new Uint8Array([1]), projectRoot: '/project',
+    })
+
+    expect(first.contentHash).toMatch(/^[a-f0-9]{64}$/)
+    expect(second.contentHash).toBe(first.contentHash)
+  })
+
+  it('rejects duplicate content before writing or staging', async () => {
+    const first = await importAssetFile({
+      kind: 'image', id: 'img_one', fileName: 'hero.png',
+      bytes: new Uint8Array([7]), projectRoot: '/project',
+    })
+    invokeMock.mockClear()
+
+    await expect(importAssetFile({
+      kind: 'image',
+      id: 'img_two',
+      fileName: 'hero-copy.png',
+      bytes: new Uint8Array([7]),
+      projectRoot: '/project',
+      rejectContentHashes: new Set([first.contentHash!]),
+    })).rejects.toBeInstanceOf(DuplicateAssetImportError)
+
+    expect(invokeMock).not.toHaveBeenCalled()
+    expect(pendingAssetCount()).toBe(0)
   })
 
   it('stages raw bytes until an unsaved project gets a root directory', async () => {

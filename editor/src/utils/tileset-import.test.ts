@@ -30,6 +30,7 @@ describe('buildTilesetFromImageFile', () => {
 
     expect(imported.path).toMatch(/^assets\/tilesets\//)
     expect(tileset.spriteImagePath).toBe(imported.path)
+    expect(tileset.contentHash).toBe(imported.contentHash)
     expect(tileset.previewDataUrl).toBe('data:image/png;base64,AA==')
     expect(tileset.cols).toBe(2)
     expect(tileset.rows).toBe(1)

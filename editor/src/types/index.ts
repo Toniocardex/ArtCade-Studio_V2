@@ -279,6 +279,7 @@ export interface ImageAsset {
   name:     string
   path:     string
   usage:    ImageAssetUsage
+  contentHash?: string
   dataUrl?: string
   /** Default draw anchor for entities using this sheet (normalised 0..1). */
   defaultPivot?: Vec2
@@ -291,6 +292,7 @@ export interface AudioAsset {
   id:       string
   name:     string
   path:     string
+  contentHash?: string
   category?: 'sfx' | 'music'
   volume?:  number
 }
@@ -299,6 +301,7 @@ export interface FontAsset {
   id:           string
   name:         string
   path:         string
+  contentHash?: string
   defaultSize?: number
 }
 

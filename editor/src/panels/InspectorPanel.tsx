@@ -17,6 +17,11 @@ import { AssetInspectorSection } from './inspector/AssetInspectorSection'
 import { LayerSettingsSection } from './inspector/LayerSettingsSection'
 import { TilePalettePanel } from './tileset-studio/TilePalettePanel'
 import { releaseTilesetAsset } from '../utils/asset-orchestrator'
+import {
+  collectProjectAssetRefs,
+  formatAssetDeleteBlockMessage,
+} from '../utils/collect-project-asset-refs'
+import { alertDialog } from '../utils/native-dialog'
 import { ProjectVariablesSection } from './inspector/ProjectVariablesSection'
 import { ObjectVariablesSection } from './inspector/ObjectVariablesSection'
 import { VariableWatchSection } from './inspector/VariableWatchSection'
@@ -115,11 +120,24 @@ export default function InspectorPanel() {
         <div className="flex-1 min-h-0 overflow-hidden" data-panel="inspector-body">
           <TilePalettePanel
             tileset={paintTileset}
-            onRemove={() => {
+            onRemove={() => void (async () => {
+              if (project) {
+                const refs = collectProjectAssetRefs(project, {
+                  kind: 'tileset',
+                  id: paintTileset.assetId,
+                })
+                if (refs.length > 0) {
+                  await alertDialog(
+                    formatAssetDeleteBlockMessage(paintTileset.name, refs),
+                    { title: 'Asset is still in use', kind: 'warning' },
+                  )
+                  return
+                }
+              }
               releaseTilesetAsset(paintTileset)
               dispatch({ type: 'TILESET_ASSET_REMOVE', assetId: paintTileset.assetId })
               dispatch({ type: 'TILESET_PAINT_END' })
-            }}
+            })()}
           />
         </div>
       )}

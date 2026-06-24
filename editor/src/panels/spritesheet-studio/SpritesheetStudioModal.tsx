@@ -4,6 +4,9 @@ import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import type { AnimationClipDef, ImageAsset } from '../../types'
 import { dirName } from '../../utils/project'
 import { importImageAssetFromFile } from '../../utils/image-asset-import'
+import { DuplicateAssetImportError } from '../../utils/asset-file-api'
+import { contentHashesForAssetKind } from '../../utils/asset-duplicate-detect'
+import { alertDialog } from '../../utils/native-dialog'
 import { SpritesheetStudioLayout } from './SpritesheetStudioLayout'
 import { useSpritesheetStudioSession } from './useSpritesheetStudioSession'
 import { useSpritesheetWasmSync } from './useSpritesheetWasmSync'
@@ -123,6 +126,7 @@ export function SpritesheetStudioModal() {
           file,
           usage: 'sprite',
           projectRoot: projectPath ? dirName(projectPath) : null,
+          rejectContentHashes: contentHashesForAssetKind(project, 'image'),
         })
         dispatch({ type: 'ASSET_ADD', asset: importedAsset })
         dispatch({
@@ -132,6 +136,13 @@ export function SpritesheetStudioModal() {
         setAutoDraftAssetId(importedAsset.id)
         dispatch({ type: 'SPRITESHEET_STUDIO_OPEN', imageAssetId: importedAsset.id })
       } catch (err) {
+        if (err instanceof DuplicateAssetImportError) {
+          await alertDialog(`"${file.name}" has already been imported.`, {
+            title: 'Asset already imported',
+            kind: 'warning',
+          })
+          return
+        }
         console.error('[Sprite Studio] Animation image import failed:', err)
       }
     })()

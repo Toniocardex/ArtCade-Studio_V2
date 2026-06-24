@@ -23,6 +23,7 @@ import {
   rematerializeInstance,
   slugTypeId,
 } from '../../utils/project-object-types'
+import { isInstanceNameTakenInScene } from '../../utils/project-instance-names'
 
 const TRANSFORM_EPS = 1e-4
 
@@ -267,6 +268,8 @@ export const entityReducer: DomainReducer = (state: CoreState, action: Action) =
       const e = state.project.entities[action.entityId]
       const name = action.name.trim()
       if (!name || name === e.name) return state
+      const sceneId = state.selection.sceneId ?? state.project.activeSceneId
+      if (isInstanceNameTakenInScene(state.project, sceneId, name, action.entityId)) return state
       const viaInstance = patchInstance(state.project, action.entityId, (inst) => ({
         ...inst,
         instanceName: name,

@@ -34,6 +34,21 @@ function cleanVariableOverrides(
   return entries.length ? Object.fromEntries(entries) : undefined
 }
 
+function objectTypeNameTaken(
+  project: NonNullable<CoreState['project']>,
+  displayName: string,
+  exceptObjectTypeId?: string,
+): boolean {
+  const wantedName = displayName.trim().toLocaleLowerCase()
+  const wantedId = slugTypeId(displayName).toLocaleLowerCase()
+  if (!wantedName) return false
+  return Object.values(project.objectTypes ?? {}).some((type) => {
+    if (type.id === exceptObjectTypeId) return false
+    return type.id.toLocaleLowerCase() === wantedId
+      || type.displayName.trim().toLocaleLowerCase() === wantedName
+  })
+}
+
 function syncInstanceTransform(
   sceneId: string,
   entityId: number,
@@ -68,6 +83,7 @@ export const objectTypeReducer: DomainReducer = (state: CoreState, action: Actio
       const existing = state.project.objectTypes[action.objectTypeId]
       const displayName = action.displayName.trim()
       if (!displayName || displayName === existing.displayName) return state
+      if (objectTypeNameTaken(state.project, displayName, action.objectTypeId)) return state
       return {
         ...state,
         project: {
@@ -151,7 +167,7 @@ export const objectTypeReducer: DomainReducer = (state: CoreState, action: Actio
     case 'OBJECT_TYPE_ADD': {
       if (!state.project) return state
       const typeId = slugTypeId(action.displayName || 'Object')
-      if (state.project.objectTypes?.[typeId]) return state
+      if (objectTypeNameTaken(state.project, action.displayName || 'Object')) return state
       const proto = entityToObjectType(
         createEntityDef(0, action.displayName || typeId, typeId),
         typeId,

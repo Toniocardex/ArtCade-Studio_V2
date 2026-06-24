@@ -8,6 +8,7 @@ export interface BuildTilesetFromImageFileOptions {
   naturalHeight: number
   previewDataUrl: string
   projectRoot?: string | null
+  rejectContentHashes?: ReadonlySet<string>
   tileSize?: number
   margin?: number
 }
@@ -35,12 +36,14 @@ export async function buildTilesetFromImageFile(
     fileName: options.file.name,
     bytes: options.bytes,
     projectRoot: options.projectRoot,
+    rejectContentHashes: options.rejectContentHashes,
   })
 
   const tileset: TilesetAsset = {
     assetId: `tileset_${Date.now().toString(36)}`,
     name: options.file.name.replace(/\.[^.]+$/, ''),
     spriteImagePath: imported.path,
+    contentHash: imported.contentHash,
     tileSize,
     margin,
     cols,

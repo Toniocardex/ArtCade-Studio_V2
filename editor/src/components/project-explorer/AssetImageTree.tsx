@@ -51,7 +51,6 @@ export function AssetImageTree({
   isOpen,
   toggle,
   setContextMenu,
-  dispatch,
 }: AssetImageTreeProps) {
   return (
     <>
@@ -125,8 +124,7 @@ export function AssetImageTree({
                     id: 'remove',
                     label: 'Remove image',
                     danger: true,
-                    onSelect: () =>
-                      dispatch({ type: 'ASSET_REMOVE', assetId: img.id }),
+                    onSelect: () => void assets.removeAsset({ type: 'image', id: img.id }),
                   },
                 ]
                 openExplorerContextMenu(ev, imageActions, setContextMenu)

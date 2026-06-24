@@ -86,12 +86,30 @@ export interface ImportAssetFileOptions {
   bytes: Uint8Array
   projectRoot?: string | null
   id?: string
+  rejectContentHashes?: ReadonlySet<string>
 }
 
 export interface ImportedAssetFile {
   id: string
   path: string
   persisted: boolean
+  contentHash?: string
+}
+
+export class DuplicateAssetImportError extends Error {
+  constructor(readonly contentHash: string) {
+    super('This asset has already been imported.')
+    this.name = 'DuplicateAssetImportError'
+  }
+}
+
+export async function hashAssetBytes(bytes: Uint8Array): Promise<string | undefined> {
+  const subtle = globalThis.crypto?.subtle
+  if (!subtle) return undefined
+  const digest = await subtle.digest('SHA-256', bytesToArrayBuffer(bytes))
+  return [...new Uint8Array(digest)]
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('')
 }
 
 /**
@@ -102,6 +120,10 @@ export async function importAssetFile(
   options: ImportAssetFileOptions,
 ): Promise<ImportedAssetFile> {
   if (options.bytes.length === 0) throw new Error('Cannot import an empty asset.')
+  const contentHash = await hashAssetBytes(options.bytes)
+  if (contentHash && options.rejectContentHashes?.has(contentHash)) {
+    throw new DuplicateAssetImportError(contentHash)
+  }
   const id = options.id ?? createAssetId(options.kind)
   const safeName = safeAssetFileName(options.fileName)
   const relPath = `${ASSET_DIR[options.kind]}/${id}_${safeName}`
@@ -110,11 +132,11 @@ export async function importAssetFile(
   if (projectRoot) {
     if (!isTauri()) throw new Error('Asset persistence requires the Tauri runtime.')
     await invokeWriteBinaryFile(joinPath(projectRoot, relPath), options.bytes, projectRoot)
-    return { id, path: relPath, persisted: true }
+    return { id, path: relPath, persisted: true, contentHash }
   }
 
   stagePendingAsset(relPath, options.bytes)
-  return { id, path: relPath, persisted: false }
+  return { id, path: relPath, persisted: false, contentHash }
 }
 
 export async function readProjectFileBytes(

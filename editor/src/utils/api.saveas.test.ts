@@ -44,6 +44,7 @@ vi.mock('@tauri-apps/plugin-fs', () => ({
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const {
+  loadProjectFromPath,
   openProjectDialog,
   saveProjectAsDialog,
   scaffoldNewProjectOnDisk,
@@ -110,6 +111,65 @@ describe('openProjectDialog', () => {
       filters?: Array<{ name: string; extensions: string[] }>
     }
     expect(opts.filters?.[0].extensions).toEqual(['json', 'artcade'])
+  })
+})
+
+describe('loadProjectFromPath', () => {
+  beforeEach(() => {
+    invokeMock.mockReset()
+    invokeMock.mockResolvedValue(undefined)
+    readTextFileMock.mockReset()
+  })
+
+  it('returns a consolidated warning when referenced asset files are missing', async () => {
+    readTextFileMock.mockResolvedValueOnce(JSON.stringify({
+      projectName: 'Missing Assets',
+      version: '1.0.0',
+      targetFPS: 60,
+      activeSceneId: 's',
+      mainScriptPath: 'scripts/main.lua',
+      entities: {},
+      scenes: {
+        s: {
+          id: 's',
+          name: 'S',
+          worldSize: [640, 360],
+          viewportSize: [640, 360],
+          backgroundColor: [0, 0, 0, 1],
+          entityIds: [],
+        },
+      },
+      assets: {
+        hero: {
+          id: 'hero',
+          name: 'hero.png',
+          path: 'assets/images/hero.png',
+          usage: 'sprite',
+        },
+      },
+    }))
+
+    const loaded = await loadProjectFromPath('/tmp/game/project.json')
+
+    expect(loaded?.openWarnings?.[0]).toContain('Project opened with 1 missing asset file')
+    expect(loaded?.openWarnings?.[0]).toContain('assets/images/hero.png')
+  })
+
+  it('rejects unsupported future project format versions with a clear message', async () => {
+    readTextFileMock.mockResolvedValueOnce(JSON.stringify({
+      projectName: 'Future',
+      version: '9.9.9',
+      formatVersion: 999,
+      targetFPS: 60,
+      activeSceneId: 's',
+      mainScriptPath: 'scripts/main.lua',
+      entities: {},
+      scenes: {},
+    }))
+
+    await expect(loadProjectFromPath('/tmp/game/project.json')).rejects.toThrow(
+      'Project format v999 is newer',
+    )
   })
 })
 

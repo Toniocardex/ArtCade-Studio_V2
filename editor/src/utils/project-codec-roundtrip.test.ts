@@ -91,6 +91,7 @@ function richProject(): ProjectDoc {
   p.assets = {
     img_hero: {
       id: 'img_hero', name: 'hero.png', path: 'assets/images/img_hero.png', usage: 'sprite',
+      contentHash: 'hash_hero',
       defaultPivot: { x: 0.5, y: 1 },
       imagePoints: [{ id: 'muzzle', x: 0.8, y: 0.2 }],
       clips: [{ name: 'idle', frames: [{ x: 0, y: 0, w: 16, h: 16 }], fps: 8, loop: true }],
@@ -99,18 +100,19 @@ function richProject(): ProjectDoc {
   p.audioAssets = {
     aud_theme: {
       id: 'aud_theme', name: 'theme.ogg', path: 'assets/audio/theme.ogg',
-      category: 'music', volume: 0.4,
+      contentHash: 'hash_theme', category: 'music', volume: 0.4,
     },
   }
   p.fontAssets = {
     font_main: {
-      id: 'font_main', name: 'main.ttf', path: 'assets/fonts/main.ttf', defaultSize: 24,
+      id: 'font_main', name: 'main.ttf', path: 'assets/fonts/main.ttf',
+      contentHash: 'hash_font', defaultSize: 24,
     },
   }
   p.tilesets = {
     ts_grass: {
       assetId: 'ts_grass', name: 'grass', spriteImagePath: 'assets/tilesets/grass.png',
-      tileSize: 16, margin: 1, cols: 8, rows: 8,
+      contentHash: 'hash_tileset', tileSize: 16, margin: 1, cols: 8, rows: 8,
     },
   }
   p.assetVirtualFolders = {
@@ -198,14 +200,21 @@ describe('project-codec round-trip', () => {
   it('preserves image asset points, clips and default pivot', () => {
     const a = back.assets?.img_hero
     expect(a?.defaultPivot).toEqual({ x: 0.5, y: 1 })
+    expect(a?.contentHash).toBe('hash_hero')
     expect(a?.imagePoints).toEqual([{ id: 'muzzle', x: 0.8, y: 0.2 }])
     expect(a?.clips?.[0]?.name).toBe('idle')
   })
 
   it('preserves audio, font, tileset and virtual folders', () => {
-    expect(back.audioAssets?.aud_theme).toMatchObject({ category: 'music', volume: 0.4 })
+    expect(back.audioAssets?.aud_theme).toMatchObject({
+      contentHash: 'hash_theme',
+      category: 'music',
+      volume: 0.4,
+    })
     expect(back.fontAssets?.font_main?.defaultSize).toBe(24)
+    expect(back.fontAssets?.font_main?.contentHash).toBe('hash_font')
     expect(back.tilesets?.ts_grass?.spriteImagePath).toBe('assets/tilesets/grass.png')
+    expect(back.tilesets?.ts_grass?.contentHash).toBe('hash_tileset')
     expect(back.assetVirtualFolders?.fld_1?.assetRefs).toEqual([{ type: 'image', id: 'img_hero' }])
   })
 

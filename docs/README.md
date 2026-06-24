@@ -74,6 +74,10 @@ LOGIC_BOARD_SPEC.md (Parte I glossario) · ARCHITETTURA_TECNICA_ENGINE_2D.md (§
     ↓
 ARCHITECTURE_INTEGRATION.md (End-to-end architecture)
     ↓
+MVP_RELEASE_GATE.md (Soglia prodotto per alpha pubblica: vertical slice, P0/P1/P2, scenario tester)
+    ↓
+PRE_RELEASE_ROADMAP.md (Roadmap operativa pre-alpha: fasi 0–5, gate, task per layer)
+    ↓
 CHECKLIST_SICUREZZA_QUALITA_AFFIDABILITA.md (Sicurezza, qualità, affidabilità — P0/P1/P2, gate rilascio)
     ↓
 TECHNICAL_OVERVIEW.md       (Referenza, § 2, 4, 6, 12)
@@ -135,6 +139,8 @@ Guida specializzata         (REACT_WASM_PATTERN.md o ECS_IMPLEMENTATION_GUIDE.md
 | **ArtCade_V2_Riepilogo_Suggerimenti.md** | Visione UX Logic Board (8 gruppi), shader, controlli artist-friendly | ~10min | Design / product | ⭐ |
 | **LOGIC_BOARD_EDITOR_BACKLOG.md** | Backlog editor (JSON Schema fatto; wait, UX, shader) | ~3min | Editor | ⭐ |
 | **TECHNICAL_DEBT_REVIEW.md** | Debito tecnico noto (sync WASM, EditorAPI, build Tauri) | ~10min | Engineers | ⭐⭐ |
+| **MVP_RELEASE_GATE.md** | Soglia prodotto per alpha pubblica: scenario tester, checklist P0/P1/P2, vertical slice completo | ~20min | Product / Tech lead / QA | ⭐⭐⭐ |
+| **PRE_RELEASE_ROADMAP.md** | Roadmap operativa verso `0.1.0-alpha`: fasi 0–5, gate di uscita, task file-level, rischi | ~25min | Product / Tech lead / implementers | ⭐⭐⭐ |
 | **CHECKLIST_SICUREZZA_QUALITA_AFFIDABILITA.md** | Checklist completa sicurezza, qualità e affidabilità (32 sezioni, P0/P1/P2, gate alpha/beta/1.0) | ~45min | Tech lead / QA / release | ⭐⭐⭐ |
 
 Setup e build pratici: **[README.md](../README.md)** (root) — pipeline, script npm, path di output.
@@ -173,6 +179,9 @@ Setup e build pratici: **[README.md](../README.md)** (root) — pipeline, script
 | **Moduli C++** | TECHNICAL_OVERVIEW | §4 | Referenza |
 | **Integration** | ARCHITECTURE_INTEGRATION | Intera | End-to-end |
 | **Sicurezza / qualità / release** | CHECKLIST_SICUREZZA_QUALITA_AFFIDABILITA.md | Intera (32 sezioni) | Operativo |
+| **Soglia prodotto MVP** | MVP_RELEASE_GATE.md | Intero (vertical slice, P0/P1/P2, release gate concreto) | Operativo |
+| **Roadmap pre-alpha** | PRE_RELEASE_ROADMAP.md | Fasi 0–5, gate, task, rischi, defer P1 | Operativo |
+| **Phase 0 workaround log** | PHASE0_WORKAROUND_LOG.md | Assessment vertical slice, catalogo workaround, decisione HUD | Operativo |
 | **Build / setup** | README.md (root) | Build pipeline | Operativo |
 
 ---

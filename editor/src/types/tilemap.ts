@@ -59,6 +59,7 @@ export interface TilesetAsset {
   assetId:         string  // stable id, e.g. "tileset_forest_01"
   name:            string
   spriteImagePath: string  // project-relative path under assets/tilesets/
+  contentHash?:    string
   tileSize:        number  // px per cell (square)
   margin:          number  // px gap between cells (default 0)
   cols:            number  // derived: floor((imgW + margin) / (tileSize + margin))

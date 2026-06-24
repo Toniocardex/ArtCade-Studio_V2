@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { useEditorDispatch, useEditorSelector, useEditorStore } from '../store/editor-store'
-import { importAssetFile } from '../utils/asset-file-api'
+import { DuplicateAssetImportError, importAssetFile } from '../utils/asset-file-api'
 import { importImageAssetFromFile } from '../utils/image-asset-import'
 import { dirName } from '../utils/project'
 import { openProjectScript } from '../utils/open-project-script'
@@ -9,11 +9,18 @@ import {
   isSpritesheetStudioEnterTarget,
   openSpritesheetStudio,
 } from '../panels/spritesheet-studio/openSpritesheetStudio'
-import type { AudioAsset, FontAsset, ImageAsset } from '../types'
+import type { AudioAsset, FontAsset, ImageAsset, ProjectDoc } from '../types'
 import type { ImageAssetUsage } from '../types'
 import { spriteAssignedFromAsset } from '../utils/sprite-pivot-resolve'
 import { assetOrchestrator, releaseTilesetAsset } from '../utils/asset-orchestrator'
 import { buildTilesetFromImageFile } from '../utils/tileset-import'
+import {
+  collectProjectAssetRefs,
+  formatAssetDeleteBlockMessage,
+  type AssetRefTarget,
+} from '../utils/collect-project-asset-refs'
+import { contentHashesForAssetKind } from '../utils/asset-duplicate-detect'
+import { alertDialog } from '../utils/native-dialog'
 import {
   isBackspaceKey,
   isInsidePanel,
@@ -38,6 +45,43 @@ export type AssetImportFolderTarget = Readonly<{
 }>
 
 type FolderImportAssetType = 'audio' | 'font' | 'tileset'
+
+function assetDeleteTarget(
+  project: ProjectDoc | null,
+  selection: AssetExplorerSelection,
+): { name: string; target: AssetRefTarget } | null {
+  if (!project) return null
+  switch (selection.type) {
+    case 'image': {
+      const asset = project.assets?.[selection.id]
+      return asset
+        ? { name: asset.name, target: { kind: 'image', id: asset.id, path: asset.path } }
+        : null
+    }
+    case 'audio': {
+      const asset = project.audioAssets?.[selection.id]
+      return asset
+        ? { name: asset.name, target: { kind: 'audio', id: asset.id, path: asset.path } }
+        : null
+    }
+    case 'font': {
+      const asset = project.fontAssets?.[selection.id]
+      return asset
+        ? { name: asset.name, target: { kind: 'font', id: asset.id, path: asset.path } }
+        : null
+    }
+    case 'tileset': {
+      const asset = project.tilesets?.[selection.id]
+      return asset
+        ? { name: asset.name, target: { kind: 'tileset', id: asset.assetId } }
+        : null
+    }
+  }
+}
+
+function isDuplicateImportError(err: unknown): boolean {
+  return err instanceof DuplicateAssetImportError
+}
 
 export function moveImportedAssetToFolderAction(
   target: AssetImportFolderTarget,
@@ -105,13 +149,18 @@ export function useAssetExplorerActions() {
 
   /** Core single-file image import (shared by the file picker and drag-drop). */
   const importOneImageFile = useCallback(
-    async (file: File, target: ImageImportTarget) => {
+    async (
+      file: File,
+      target: ImageImportTarget,
+      rejectContentHashes?: ReadonlySet<string>,
+    ) => {
       if (!project) return null
       const projectPath = store.getState().projectPath
       const { asset, imported } = await importImageAssetFromFile({
         file,
         usage: target.usage,
         projectRoot: projectPath ? dirName(projectPath) : null,
+        rejectContentHashes: rejectContentHashes ?? contentHashesForAssetKind(project, 'image'),
       })
       dispatch({ type: 'ASSET_ADD', asset })
       if (target.folderId) {
@@ -149,6 +198,10 @@ export function useAssetExplorerActions() {
               ? `${file.name} in Sprite Studio (save to persist)`
               : `${file.name} (save to persist)`)
         } catch (err) {
+          if (isDuplicateImportError(err)) {
+            showFlash(`Already imported: ${file.name}`)
+            return
+          }
           console.error('[Asset] Image import failed:', err)
           showFlash(`Import failed: ${file.name}`)
         }
@@ -174,15 +227,21 @@ export function useAssetExplorerActions() {
         let lastId: string | null = null
         let ok = 0
         let needsSave = false
+        const rejectHashes = new Set(contentHashesForAssetKind(project, 'image'))
         for (const file of images) {
           try {
-            const result = await importOneImageFile(file, target)
+            const result = await importOneImageFile(file, target, rejectHashes)
             if (result) {
               lastId = result.asset.id
               ok += 1
               if (!result.imported.persisted) needsSave = true
+              if (result.asset.contentHash) rejectHashes.add(result.asset.contentHash)
             }
           } catch (err) {
+            if (isDuplicateImportError(err)) {
+              showFlash(`Already imported: ${file.name}`)
+              continue
+            }
             console.error('[Asset] Image drop import failed:', err)
           }
         }
@@ -213,11 +272,13 @@ export function useAssetExplorerActions() {
             fileName: file.name,
             bytes: new Uint8Array(await file.arrayBuffer()),
             projectRoot: projectPath ? dirName(projectPath) : null,
+            rejectContentHashes: contentHashesForAssetKind(project, 'audio'),
           })
           const asset: AudioAsset = {
             id: imported.id,
             name: file.name,
             path: imported.path,
+            contentHash: imported.contentHash,
             category: 'sfx',
           }
           dispatch({ type: 'AUDIO_ASSET_ADD', asset })
@@ -227,6 +288,10 @@ export function useAssetExplorerActions() {
             ? `Imported ${file.name}`
             : `${file.name} (save to persist)`)
         } catch (err) {
+          if (isDuplicateImportError(err)) {
+            showFlash(`Already imported: ${file.name}`)
+            return
+          }
           console.error('[Asset] Audio import failed:', err)
           showFlash(`Import failed: ${file.name}`)
         }
@@ -250,11 +315,13 @@ export function useAssetExplorerActions() {
             fileName: file.name,
             bytes: new Uint8Array(await file.arrayBuffer()),
             projectRoot: projectPath ? dirName(projectPath) : null,
+            rejectContentHashes: contentHashesForAssetKind(project, 'font'),
           })
           const asset: FontAsset = {
             id: imported.id,
             name: file.name,
             path: imported.path,
+            contentHash: imported.contentHash,
             defaultSize: 32,
           }
           dispatch({ type: 'FONT_ASSET_ADD', asset })
@@ -264,6 +331,10 @@ export function useAssetExplorerActions() {
             ? `Imported ${file.name}`
             : `${file.name} (save to persist)`)
         } catch (err) {
+          if (isDuplicateImportError(err)) {
+            showFlash(`Already imported: ${file.name}`)
+            return
+          }
           console.error('[Asset] Font import failed:', err)
           showFlash(`Import failed: ${file.name}`)
         }
@@ -294,28 +365,46 @@ export function useAssetExplorerActions() {
     [selEntity, dispatch, showFlash],
   )
 
-  const removeSelection = useCallback(() => {
-    if (!project || !selection) return
-    switch (selection.type) {
+  const removeAsset = useCallback(async (assetSelection: AssetExplorerSelection): Promise<boolean> => {
+    if (!project) return false
+    const resolved = assetDeleteTarget(project, assetSelection)
+    if (!resolved) return false
+    const refs = collectProjectAssetRefs(project, resolved.target)
+    if (refs.length > 0) {
+      showFlash(`Cannot remove "${resolved.name}" — ${refs.length} reference${refs.length === 1 ? '' : 's'} still use it`)
+      await alertDialog(
+        formatAssetDeleteBlockMessage(resolved.name, refs),
+        { title: 'Asset is still in use', kind: 'warning' },
+      )
+      return false
+    }
+
+    switch (assetSelection.type) {
       case 'image':
-        dispatch({ type: 'ASSET_REMOVE', assetId: selection.id })
+        dispatch({ type: 'ASSET_REMOVE', assetId: assetSelection.id })
         break
       case 'audio':
-        dispatch({ type: 'AUDIO_ASSET_REMOVE', assetId: selection.id })
+        dispatch({ type: 'AUDIO_ASSET_REMOVE', assetId: assetSelection.id })
         break
       case 'font':
-        dispatch({ type: 'FONT_ASSET_REMOVE', assetId: selection.id })
+        dispatch({ type: 'FONT_ASSET_REMOVE', assetId: assetSelection.id })
         break
       case 'tileset': {
-        const tileset = project.tilesets?.[selection.id]
+        const tileset = project.tilesets?.[assetSelection.id]
         if (tileset) releaseTilesetAsset(tileset)
-        dispatch({ type: 'TILESET_ASSET_REMOVE', assetId: selection.id })
+        dispatch({ type: 'TILESET_ASSET_REMOVE', assetId: assetSelection.id })
         break
       }
     }
     dispatch({ type: 'SELECT_INSPECTOR_ASSET', asset: null })
     showFlash('Asset removed')
-  }, [project, selection, dispatch, showFlash])
+    return true
+  }, [project, dispatch, showFlash])
+
+  const removeSelection = useCallback(() => {
+    if (!selection) return
+    void removeAsset(selection)
+  }, [selection, removeAsset])
 
   const openTilesetEditor = useCallback(
     (tilesetId: string) => {
@@ -373,6 +462,7 @@ export function useAssetExplorerActions() {
               naturalHeight: img.naturalHeight,
               previewDataUrl: dataUrl,
               projectRoot: root,
+              rejectContentHashes: contentHashesForAssetKind(project, 'tileset'),
             })
             dispatch({ type: 'TILESET_ASSET_ADD', asset: tileset })
             const moveAction = moveImportedAssetToFolderAction(
@@ -387,6 +477,10 @@ export function useAssetExplorerActions() {
               ? `Tileset "${tileset.name}" imported`
               : `${file.name} (save to persist)`)
           } catch (err) {
+            if (isDuplicateImportError(err)) {
+              showFlash(`Already imported: ${file.name}`)
+              return
+            }
             console.error('[Asset] Tileset import failed:', err)
             showFlash(`Import failed: ${file.name}`)
           }
@@ -461,6 +555,7 @@ export function useAssetExplorerActions() {
     onPickFont,
     onPickTileset,
     assignSprite,
+    removeAsset,
     removeSelection,
     openTilesetEditor,
     openImageStudio,

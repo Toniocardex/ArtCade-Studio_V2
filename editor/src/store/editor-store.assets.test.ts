@@ -81,6 +81,16 @@ describe('coreReducer — image asset library', () => {
     expect(s.project!.entities[1].sprite.spriteAssetId).toBe('')
   })
 
+  it('IMAGE_ASSET_RENAME changes only the display name', () => {
+    let s = coreReducer(st(project()), { type: 'ASSET_ADD', asset: IMG })
+    s = coreReducer(s, { type: 'IMAGE_ASSET_RENAME', assetId: 'img_a', name: 'Hero idle' })
+
+    expect(s.project!.assets!.img_a.name).toBe('Hero idle')
+    expect(s.project!.assets!.img_a.id).toBe('img_a')
+    expect(s.project!.assets!.img_a.path).toBe('assets/images/hero.png')
+    expect(s.projectDirty).toBe(true)
+  })
+
   it('no-op without a project', () => {
     const s = coreReducer({ ...st(project()), project: null },
       { type: 'ASSET_ADD', asset: IMG })
@@ -276,6 +286,18 @@ describe('project.json roundtrip — assets', () => {
     expect(s.projectDirty).toBe(true)
   })
 
+  it('FONT_ASSET_RENAME changes only the display name', () => {
+    const font = { id: 'f1', name: 'A.ttf', path: 'assets/fonts/a.ttf', defaultSize: 28 }
+    let s = coreReducer(st(project()), { type: 'FONT_ASSET_ADD', asset: font })
+    s = coreReducer(s, { type: 'FONT_ASSET_RENAME', assetId: 'f1', name: 'Main UI' })
+
+    expect(s.project!.fontAssets!.f1).toMatchObject({
+      id: 'f1',
+      name: 'Main UI',
+      path: 'assets/fonts/a.ttf',
+    })
+  })
+
   it('FONT_ASSET_REMOVE deletes font entry', () => {
     const font = { id: 'f1', name: 'A.ttf', path: 'assets/fonts/a.ttf', defaultSize: 28 }
     let s = coreReducer(st(project()), { type: 'FONT_ASSET_ADD', asset: font })
@@ -314,6 +336,23 @@ describe('project.json roundtrip — assets', () => {
       volume: 1,
     })
     expect(s.projectDirty).toBe(true)
+  })
+
+  it('AUDIO_ASSET_RENAME changes only the display name', () => {
+    const audio = {
+      id: 'sfx_a',
+      name: 'coin.ogg',
+      path: 'assets/audio/coin.ogg',
+      category: 'sfx' as const,
+    }
+    let s = coreReducer(st(project()), { type: 'AUDIO_ASSET_ADD', asset: audio })
+    s = coreReducer(s, { type: 'AUDIO_ASSET_RENAME', assetId: 'sfx_a', name: 'Coin pickup' })
+
+    expect(s.project!.audioAssets!.sfx_a).toMatchObject({
+      id: 'sfx_a',
+      name: 'Coin pickup',
+      path: 'assets/audio/coin.ogg',
+    })
   })
 
   it('parseAssets is defensive (skips entries without a path)', () => {

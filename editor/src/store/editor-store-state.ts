@@ -254,8 +254,10 @@ export type Action =
   | { type: 'TILEMAP_PAINT'; sceneId: string; index: number; tileId: number }
   | { type: 'TILEMAP_PAINT_CELL'; sceneId: string; col: number; row: number; tileId: number; tilesetAssetId: string }
   | { type: 'TILESET_ASSET_ADD';     asset: TilesetAsset }
+  | { type: 'TILESET_ASSET_RENAME';  assetId: string; name: string }
   | { type: 'TILESET_ASSET_REMOVE';  assetId: string }
   | { type: 'ASSET_ADD';             asset: ImageAsset }
+  | { type: 'IMAGE_ASSET_RENAME';    assetId: string; name: string }
   /**
    * Granular clip edit: merges clips into an existing image asset (no dataUrl re-dispatch).
    * `coalesceKey` collapses consecutive edits sharing the key into one undo entry
@@ -264,8 +266,10 @@ export type Action =
   | { type: 'IMAGE_ASSET_SET_CLIPS'; assetId: string; clips: AnimationClipDef[]; coalesceKey?: string }
   | { type: 'ASSET_REMOVE';          assetId: string }
   | { type: 'AUDIO_ASSET_ADD';       asset: import('../types/index').AudioAsset }
+  | { type: 'AUDIO_ASSET_RENAME';    assetId: string; name: string }
   | { type: 'AUDIO_ASSET_REMOVE';    assetId: string }
   | { type: 'FONT_ASSET_ADD';        asset: import('../types/index').FontAsset }
+  | { type: 'FONT_ASSET_RENAME';     assetId: string; name: string }
   | { type: 'FONT_ASSET_REMOVE';     assetId: string }
   | { type: 'TILEMAP_SET_TILESETID'; sceneId: string; assetId: string }
   | { type: 'TILEMAP_SET_TILESIZE';  sceneId: string; tileSize: number }

@@ -3,6 +3,7 @@ import { AssetDetailStrip } from '../../components/asset-explorer/AssetDetailStr
 import { AssetMediaDetailStrip } from '../../components/asset-explorer/AssetMediaDetailStrip'
 import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import { EditorButton } from '../../components/ui/EditorButton'
+import { Field } from './inspector-fields'
 
 export type AssetInspectorSectionProps = Readonly<{
   selection: AssetExplorerSelection
@@ -22,7 +23,17 @@ export function AssetInspectorSection({ selection }: AssetInspectorSectionProps)
     const tileset = project.tilesets?.[selection.id]
     return (
       <div className="space-y-3 text-[10px]">
-        <p className="text-[var(--primary)] font-semibold">{tileset?.name ?? selection.id}</p>
+        {tileset ? (
+          <Field
+            label="Display Name"
+            value={tileset.name}
+            onCommit={(name) =>
+              dispatch({ type: 'TILESET_ASSET_RENAME', assetId: tileset.assetId, name })
+            }
+          />
+        ) : (
+          <p className="text-[var(--primary)] font-semibold">{selection.id}</p>
+        )}
         <p className="text-[var(--muted)]">
           Tile: {tileset?.tileSize ?? '?'}px · grid {tileset?.cols ?? '?'}×{tileset?.rows ?? '?'}
         </p>

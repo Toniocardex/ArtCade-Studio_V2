@@ -89,8 +89,33 @@ describe('projectAfterRemovingAsset', () => {
     expect(next.entities[1].sprite.spriteAssetId).toBe('')
   })
 
+  it('image: clears object type sprite paths as a safety net', () => {
+    const p = baseProject()
+    p.objectTypes = {
+      Player: {
+        id: 'Player',
+        displayName: 'Player',
+        tags: [],
+        sprite: p.entities[1].sprite,
+      },
+    }
+    const next = projectAfterRemovingAsset(p, {
+      kind: 'image',
+      id: 'img_a',
+      path: 'assets/images/hero.png',
+    })
+
+    expect(next.objectTypes!.Player.sprite.spriteAssetId).toBe('')
+  })
+
   it('audio: removes library entry and scrubs logic board actions', () => {
-    const p = { ...baseProject(), logicBoards: [boardWithAudio] }
+    const p = { ...baseProject(), logicBoards: [{
+      ...boardWithAudio,
+      events: [{
+        ...boardWithAudio.events[0],
+        elseActions: [{ type: 'playMusic', path: 'assets/audio/coin.ogg', loop: true }],
+      }],
+    }] }
     const next = projectAfterRemovingAsset(p, {
       kind: 'audio',
       id: 'sfx_a',
@@ -100,10 +125,26 @@ describe('projectAfterRemovingAsset', () => {
     const actions = next.logicBoards![0].events[0].actions
     expect(actions[0]).toEqual({ type: 'playSound', volume: 1 })
     expect(actions[1]).toEqual({ type: 'playMusic', loop: true })
+    expect(next.logicBoards![0].events[0].elseActions![0]).toEqual({ type: 'playMusic', loop: true })
   })
 
-  it('font: removes font entry only', () => {
+  it('font: removes font entry and clears Text component font paths', () => {
     const p = baseProject()
+    p.entities[1].text = {
+      text: 'Score',
+      bindKey: '',
+      format: 'raw',
+      digits: 0,
+      prefix: '',
+      suffix: '',
+      fontPath: 'assets/fonts/ui.ttf',
+      size: 24,
+      colorHex: '#ffffff',
+      align: 'top-left',
+      offsetX: 0,
+      offsetY: 0,
+      screenSpace: true,
+    }
     const next = projectAfterRemovingAsset(p, {
       kind: 'font',
       id: 'f1',
@@ -111,6 +152,7 @@ describe('projectAfterRemovingAsset', () => {
     })
     expect(next.fontAssets).toEqual({})
     expect(next.entities[1].sprite.spriteAssetId).toBe('assets/images/hero.png')
+    expect(next.entities[1].text!.fontPath).toBe('')
   })
 
   it('tileset: removes tileset and detaches scene tilemap', () => {
