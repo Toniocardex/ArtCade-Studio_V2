@@ -196,12 +196,23 @@ static void test_read_scene_tilemap_layers_and_project_layers() {
     CHECK(s.tilemapLayers.at("props").tilesetAssetId == "ts_props");
     CHECK(s.tilemapLayers.at("props").data[1] == 2);
 
-    const json doc = json::parse(R"({ "layers": ["props", "ground"] })");
+    const json doc = json::parse(R"({
+      "layers": [
+        { "name": "props", "visible": false, "locked": true, "opacity": 0.35 },
+        "ground"
+      ]
+    })");
     std::vector<ArtCade::SceneLayerDef> layers;
     ArtCade::ProjectJson::read_scene_layers(doc, layers);
     CHECK(layers.size() == 2);
     CHECK(layers[0].name == "props");
+    CHECK(layers[0].visible == false);
+    CHECK(layers[0].locked == true);
+    CHECK(layers[0].opacity == 0.35f);
     CHECK(layers[1].name == "ground");
+    CHECK(layers[1].visible == true);
+    CHECK(layers[1].locked == false);
+    CHECK(layers[1].opacity == 1.f);
 }
 
 static void test_read_tile_palette_hex_and_snake_case() {

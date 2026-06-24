@@ -48,7 +48,8 @@ void drawLayer(Modules::Renderer& renderer,
                const TilemapData& tm,
                const std::vector<TilesetAsset>& liveTilesets,
                const std::unordered_map<std::string, TilesetAsset>& startupCache,
-               const std::unordered_map<int, Vec4>& palette)
+               const std::unordered_map<int, Vec4>& palette,
+               float opacity)
 {
     if (tm.cols <= 0 || tm.rows <= 0) return;
 
@@ -75,13 +76,14 @@ void drawLayer(Modules::Renderer& renderer,
                 drawn = renderer.drawSpriteRegion(
                     ts->spriteImagePath,
                     sCol * step, sRow * step, ts->tileSize, ts->tileSize,
-                    dx, dy, tm.tileSize, tm.tileSize);
+                    dx, dy, tm.tileSize, tm.tileSize, opacity);
             }
             if (!drawn) {
                 auto it = palette.find(id);
                 const Vec4 col = (it != palette.end())
                     ? it->second : Vec4{0.5f, 0.5f, 0.5f, 1.f};
-                renderer.drawRect(dx, dy, tm.tileSize, tm.tileSize, col);
+                renderer.drawRect(dx, dy, tm.tileSize, tm.tileSize,
+                                  { col.x, col.y, col.z, col.w * opacity });
             }
         }
     }
@@ -98,14 +100,17 @@ void draw(Modules::Renderer& renderer,
 {
     if (!scene.tilemapLayers.empty() && !layerStack.empty()) {
         for (int i = static_cast<int>(layerStack.size()) - 1; i >= 0; --i) {
-            const auto it = scene.tilemapLayers.find(layerStack[static_cast<size_t>(i)].name);
+            const auto& layer = layerStack[static_cast<size_t>(i)];
+            if (!layer.visible || layer.opacity <= 0.f) continue;
+            const auto it = scene.tilemapLayers.find(layer.name);
             if (it != scene.tilemapLayers.end())
-                drawLayer(renderer, it->second, liveTilesets, startupCache, palette);
+                drawLayer(renderer, it->second, liveTilesets, startupCache, palette,
+                          layer.opacity);
         }
         return;
     }
 
-    drawLayer(renderer, scene.tilemap, liveTilesets, startupCache, palette);
+    drawLayer(renderer, scene.tilemap, liveTilesets, startupCache, palette, 1.f);
 }
 
 } // namespace ArtCade::TilemapRenderer

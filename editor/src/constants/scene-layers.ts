@@ -19,6 +19,20 @@ export function layerParallax(layer: Pick<LayerDef, 'parallax'>): LayerParallax 
   }
 }
 
+export function layerVisible(layer: Pick<LayerDef, 'visible'>): boolean {
+  return layer.visible !== false
+}
+
+export function layerLocked(layer: Pick<LayerDef, 'locked'>): boolean {
+  return layer.locked === true
+}
+
+export function layerOpacity(layer: Pick<LayerDef, 'opacity'>): number {
+  const opacity = Number(layer.opacity)
+  if (!Number.isFinite(opacity)) return 1
+  return Math.min(1, Math.max(0, opacity))
+}
+
 /** True when a layer's parallax differs from the neutral 1:1 default. */
 export function hasParallax(layer: Pick<LayerDef, 'parallax'>): boolean {
   const { x, y } = layerParallax(layer)

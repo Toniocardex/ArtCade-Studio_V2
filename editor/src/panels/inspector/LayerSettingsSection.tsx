@@ -1,7 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import { sourcesUsedOnLayer } from '../../utils/tilemap-layer-sources'
-import { DEFAULT_LAYERS, layerParallax } from '../../constants/scene-layers'
+import {
+  DEFAULT_LAYERS,
+  layerLocked,
+  layerOpacity,
+  layerParallax,
+  layerVisible,
+} from '../../constants/scene-layers'
 import { EditorSelect, type EditorSelectOption } from '../../components/ui/EditorSelect'
 import type { LayerBackground, LayerParallax } from '../../types'
 
@@ -52,12 +58,17 @@ export function LayerSettingsSection({ layerName, sceneName }: LayerSettingsSect
   const renderLayer =
     (project?.layers ?? DEFAULT_LAYERS).find((l) => l.name === layerName)
   const parallax = layerParallax(renderLayer ?? {})
+  const visible = layerVisible(renderLayer ?? {})
+  const locked = layerLocked(renderLayer ?? {})
+  const opacity = layerOpacity(renderLayer ?? {})
   const bg = renderLayer?.background ?? NO_BACKGROUND
 
   const updateParallax = (patch: Partial<LayerParallax>) =>
     dispatch({ type: 'LAYER_UPDATE', name: layerName, patch: { parallax: { ...parallax, ...patch } } })
   const updateBg = (patch: Partial<LayerBackground>) =>
     dispatch({ type: 'LAYER_UPDATE', name: layerName, patch: { background: { ...bg, ...patch } } })
+  const updateLayer = (patch: { visible?: boolean; locked?: boolean; opacity?: number }) =>
+    dispatch({ type: 'LAYER_UPDATE', name: layerName, patch })
 
   const imageOptions: EditorSelectOption[] = [
     { value: '', label: 'None' },
@@ -73,6 +84,39 @@ export function LayerSettingsSection({ layerName, sceneName }: LayerSettingsSect
           <> in <strong className="text-[var(--primary)]">{sceneName}</strong></>
         ) : null}
       </p>
+
+      <div className="space-y-1">
+        <span className={labelClass}>Layer state</span>
+        <div className="flex flex-col gap-1">
+          <label className="flex items-center gap-1.5">
+            <input
+              type="checkbox"
+              checked={visible}
+              onChange={(e) => updateLayer({ visible: e.target.checked })}
+              className="accent-[var(--accent)]"
+            />
+            <span>Visible in editor/play</span>
+          </label>
+          <label className="flex items-center gap-1.5">
+            <input
+              type="checkbox"
+              checked={locked}
+              onChange={(e) => updateLayer({ locked: e.target.checked })}
+              className="accent-[var(--accent)]"
+            />
+            <span>Locked in editor canvas</span>
+          </label>
+        </div>
+        <NumField
+          label="Opacity"
+          value={opacity}
+          step={0.05}
+          onCommit={(nextOpacity) => updateLayer({ opacity: nextOpacity })}
+        />
+        <p className="text-[9px] text-[var(--muted)] leading-relaxed">
+          Hidden layers do not draw in play. Locked layers cannot be picked or dragged on the canvas.
+        </p>
+      </div>
 
       {/* Parallax — applies to this layer's background and (later) its entities */}
       <div className="space-y-1">

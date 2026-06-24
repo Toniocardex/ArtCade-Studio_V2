@@ -129,7 +129,7 @@ function richProject(): ProjectDoc {
     { key: 'paused', type: 'boolean', initialValue: false },
   ]
   p.layers = [
-    { name: 'Foreground', parallax: { x: 1.4, y: 1.2 } },
+    { name: 'Foreground', visible: false, locked: true, opacity: 0.65, parallax: { x: 1.4, y: 1.2 } },
     { name: 'Midground' },
     {
       name: 'Background',
@@ -225,7 +225,7 @@ describe('project-codec round-trip', () => {
       { key: 'paused', type: 'boolean', initialValue: false },
     ])
     expect(back.layers).toEqual([
-      { name: 'Foreground', parallax: { x: 1.4, y: 1.2 } },
+      { name: 'Foreground', visible: false, locked: true, opacity: 0.65, parallax: { x: 1.4, y: 1.2 } },
       { name: 'Midground' },
       {
         name: 'Background',

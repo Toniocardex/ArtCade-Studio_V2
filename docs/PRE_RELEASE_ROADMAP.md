@@ -183,9 +183,9 @@ Estimated calendar (single developer, focused): **8–12 weeks**. Parallel work
 
 | ID | Work | Primary files | Done when |
 |----|------|---------------|-----------|
-| 2.4a | Add `visible`, `locked`, `opacity` to `LayerDef` | `types/index.ts`, `layer-reducer.ts` | Serialize round-trip |
-| 2.4b | Wire to render path (world layers) | `app_scene_render.cpp`, `app_project_lifecycle.cpp` | Hidden layer not drawn in play |
-| 2.4c | Editor: locked layer blocks selection/drag | `editor-input-controller.cpp` | Lock icon in `SceneLayersPanel.tsx` |
+| 2.4a | Add `visible`, `locked`, `opacity` to `LayerDef` | `types/index.ts`, `layer-reducer.ts` | ✅ Done — fields round-trip and default-clean |
+| 2.4b | Wire to render path (world layers) | `app_scene_render.cpp`, `parallax-renderer.cpp`, `tilemap-renderer.cpp` | ✅ Done — hidden layers skipped; opacity applied to entity visuals |
+| 2.4c | Editor: locked layer blocks selection/drag | `editor-input-controller.cpp`, `SceneLayersPanel.tsx` | ✅ Done — eye/lock controls; locked/hidden layers not picked or dragged |
 | 2.4d | Document parallax `0` + `screenSpace` as HUD pattern | tutorial (phase 5) | Gate §6 screen-space HUD satisfied |
 
 ### Gate 2 — exit criteria
@@ -193,7 +193,7 @@ Estimated calendar (single developer, focused): **8–12 weeks**. Parallel work
 - [ ] Multi-select 3 objects → move together → undo restores.
 - [ ] Copy/paste instance → reopen project → pasted instance persists.
 - [ ] Alt+click through stacked sprites cycles selection.
-- [ ] Layer hide → object invisible in play mode.
+- [x] Layer hide → object invisible in play mode.
 - [ ] Gate §2 wording: *"reliable selection"* and copy/paste — **signed off**.
 
 ---

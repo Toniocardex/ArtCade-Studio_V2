@@ -68,6 +68,26 @@ void toWorld(const EmscriptenMouseEvent* e, float& wx, float& wy) {
     }
 }
 
+bool layerAllowsCanvasEdit(Modules::RuntimeEntityGateway& gateway,
+                           const std::string& layerName) {
+    if (layerName.empty()) return true;
+    for (const auto& layer : gateway.sceneLayers()) {
+        if (layer.name != layerName) continue;
+        return layer.visible && !layer.locked;
+    }
+    return true;
+}
+
+bool entityAllowsCanvasEdit(Modules::RuntimeEntityGateway& gateway,
+                            EntityId id,
+                            const SpriteComponent* sprite = nullptr) {
+    if (sprite)
+        return layerAllowsCanvasEdit(gateway, sprite->layer);
+    if (const EntityDef* def = gateway.getEntityDef(id))
+        return layerAllowsCanvasEdit(gateway, def->layer);
+    return true;
+}
+
 // Pick the top-most entity whose clickable box contains the world point.
 // Entities are drawn centred on transform.position; we use a generous
 // 64px (x scale) hit box so they're easy to grab in the editor viewport.
@@ -78,7 +98,8 @@ uint32_t pickEntityAt(float x, float y) {
     uint32_t hit = 0u;
 
     // Pass 1: entities with sprites (sprite-scaled hitbox — takes priority).
-    gw->forEachActiveRenderable([&](EntityId id, const Transform& transform, const SpriteComponent&) {
+    gw->forEachActiveRenderable([&](EntityId id, const Transform& transform, const SpriteComponent& sprite) {
+        if (!entityAllowsCanvasEdit(*gw, id, &sprite)) return;
         float sx = transform.scale.x; if (sx < 0.f) sx = -sx;
         float sy = transform.scale.y; if (sy < 0.f) sy = -sy;
         const float hw = 32.f * (sx > 0.f ? sx : 1.f);
@@ -98,6 +119,7 @@ uint32_t pickEntityAt(float x, float y) {
         TextComponent text{};
         GaugeComponent gauge{};
         if (!gw->getText(id, text) && !gw->getGauge(id, gauge)) continue;
+        if (!entityAllowsCanvasEdit(*gw, id)) continue;
         Transform transform{};
         if (!gw->getAuthoringTransform(id, transform)) continue;
         const float cx = transform.position.x;
@@ -139,7 +161,10 @@ EM_BOOL EditorAPI::onMouseMove(int, const EmscriptenMouseEvent* e, void*) {
         snapWorldToEditorGrid(wx, wy);
         if (s_entityGateway) {
             Transform transform{};
-            if (s_entityGateway->getAuthoringTransform(s_selectedEntityId, transform)) {
+            if (
+                entityAllowsCanvasEdit(*s_entityGateway, s_selectedEntityId) &&
+                s_entityGateway->getAuthoringTransform(s_selectedEntityId, transform)
+            ) {
                 transform.position.x = wx;
                 transform.position.y = wy;
                 s_entityGateway->setTransform(s_selectedEntityId, transform);

@@ -144,9 +144,11 @@ void Application::renderActiveScene() {
     // factor ≠ 1 are drawn shifted so they scroll slower/faster than the world,
     // mirroring ParallaxRenderer's math under the single world Camera2D. Edit
     // mode keeps true positions so picking/dragging stay aligned.
+    std::unordered_map<std::string, SceneLayerDef> layerByName;
     std::unordered_map<std::string, Vec2> parallaxByLayer;
     if (activeScene) {
         for (const auto& layer : mod_->sceneManager->sceneLayers()) {
+            layerByName.emplace(layer.name, layer);
             if (layer.parallax.x != 1.f || layer.parallax.y != 1.f)
                 parallaxByLayer.emplace(layer.name, Vec2{ layer.parallax.x, layer.parallax.y });
         }
@@ -170,18 +172,23 @@ void Application::renderActiveScene() {
          inEditMode,
          gateway = mod_->entityGateway.get(),
          variables = mod_->variableManager.get(),
+         &layerByName,
          &layerDrawPos]
         (EntityId id, const Transform& transform, const SpriteComponent& sprite) {
             if (!inEditMode && sprite.alpha <= 0.001f) return;
+            const auto layerIt = layerByName.find(sprite.layer);
+            const SceneLayerDef* layer = layerIt != layerByName.end() ? &layerIt->second : nullptr;
+            if (layer && (!layer->visible || layer->opacity <= 0.f)) return;
 
             const Vec2 pos = layerDrawPos(sprite.layer, transform.position);
 
             float alpha = sprite.alpha;
+            if (layer) alpha *= layer->opacity;
             const bool placeholderFill = sprite.spriteAssetId.empty();
             if (inEditMode && !placeholderFill && !gateway->visibleInGame(id)) {
                 alpha *= 0.45f;
             }
-            if (inEditMode && placeholderFill) alpha = 1.f;
+            if (inEditMode && placeholderFill) alpha = layer ? layer->opacity : 1.f;
 
             TextComponent text{};
             const bool hasText = gateway->getText(id, text)
@@ -237,6 +244,7 @@ void Application::renderActiveScene() {
             }
 
             Vec4 color = text.color;
+            if (layer) color.a *= layer->opacity;
             if (inEditMode && !gateway->visibleInGame(id)) color.a *= 0.45f;
             int hAlign = 0, vAlign = 0;
             textAnchorAlign(text.align, hAlign, vAlign);
@@ -255,8 +263,12 @@ void Application::renderActiveScene() {
          inEditMode,
          gateway = mod_->entityGateway.get(),
          variables = mod_->variableManager.get(),
+         &layerByName,
          &layerDrawPos]
         (EntityId id, const Transform& transform, const SpriteComponent& sprite) {
+            const auto layerIt = layerByName.find(sprite.layer);
+            const SceneLayerDef* layer = layerIt != layerByName.end() ? &layerIt->second : nullptr;
+            if (layer && (!layer->visible || layer->opacity <= 0.f)) return;
             GaugeComponent gauge{};
             if (!gateway->getGauge(id, gauge)) return;
             if (gauge.width <= 0.f || gauge.height <= 0.f) return;
@@ -278,6 +290,10 @@ void Application::renderActiveScene() {
 
             Vec4 bg = gauge.bgColor;
             Vec4 fill = gauge.fillColor;
+            if (layer) {
+                bg.a *= layer->opacity;
+                fill.a *= layer->opacity;
+            }
             if (inEditMode && !gateway->visibleInGame(id)) {
                 bg.a *= 0.45f;
                 fill.a *= 0.45f;

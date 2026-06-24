@@ -1,6 +1,13 @@
 import type { CoreState, Action, DomainReducer } from '../editor-store-state'
 import type { EntityDef, LayerDef, ProjectDoc } from '../../types'
-import { DEFAULT_LAYERS, hasParallax, hasLayerBackground } from '../../constants/scene-layers'
+import {
+  DEFAULT_LAYERS,
+  hasLayerBackground,
+  hasParallax,
+  layerLocked,
+  layerOpacity,
+  layerVisible,
+} from '../../constants/scene-layers'
 
 function getLayers(project: ProjectDoc): LayerDef[] {
   return project.layers && project.layers.length > 0 ? project.layers : DEFAULT_LAYERS
@@ -53,6 +60,10 @@ function remapLayerRefs(project: ProjectDoc, from: string, to: string): ProjectD
 /** Drop neutral parallax / empty background so project.json stays lean. */
 function normalizeLayer(layer: LayerDef): LayerDef {
   const out: LayerDef = { name: layer.name }
+  if (!layerVisible(layer)) out.visible = false
+  if (layerLocked(layer)) out.locked = true
+  const opacity = layerOpacity(layer)
+  if (opacity !== 1) out.opacity = opacity
   if (layer.parallax && hasParallax(layer)) out.parallax = layer.parallax
   if (layer.background && hasLayerBackground(layer)) out.background = layer.background
   return out

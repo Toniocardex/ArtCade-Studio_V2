@@ -109,7 +109,7 @@ Legend: **OK** = works today without engine patches · **WORK** = doable with do
 |----|-------|------------------|-----------|
 | W-M1 | Menu = sprite + click, not Button widget | Option B pattern | Doc **5.1** |
 | W-M2 | HUD images = screen-space sprites | Same | Doc |
-| W-M3 | Layer hide/show for UI | `setVisible` on entities; layer visibility N/A | **2.4** |
+| W-M3 | Layer hide/show for UI | **Resolved in Phase 2.4:** layer visibility/lock/opacity persisted and wired to render/editor pick | **Done** |
 | W-M4 | Animation pause/stop | Re-play clip or hide sprite | **3.4b** |
 | W-M5 | Export output folder fixed to `dist/` | Accept default path | **4.3** |
 | W-M6 | No play pause | Stop and play again | **4.2** |

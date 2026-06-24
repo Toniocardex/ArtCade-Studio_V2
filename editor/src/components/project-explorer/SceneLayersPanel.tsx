@@ -1,7 +1,8 @@
 import { useLayoutEffect, useState, useRef } from 'react'
-import { ChevronUp, ChevronDown, Trash2, Plus } from 'lucide-react'
+import { ChevronUp, ChevronDown, Eye, EyeOff, Lock, Plus, Trash2, Unlock } from 'lucide-react'
 import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import { DEFAULT_LAYERS } from '../../constants/scene-layers'
+import { layerLocked, layerVisible } from '../../constants/scene-layers'
 import { editorRowSelected } from '../ui/editor-ui-classes'
 import { handleControlledInputKeyDown } from '../../utils/keyboard'
 
@@ -73,7 +74,7 @@ export function SceneLayersPanel() {
             <tr className="text-[var(--muted)] uppercase tracking-wide text-[8px]">
               <th className="text-left py-1 pl-2">Layer</th>
               <th className="text-right py-1 pr-1 w-12">Order</th>
-              <th className="w-20" />
+              <th className="w-28" />
             </tr>
           </thead>
           <tbody>
@@ -81,6 +82,8 @@ export function SceneLayersPanel() {
               const active = selectedLayer === layer.name
               const renderOrder = (layers.length - idx) * 100
               const isRenaming = renamingName === layer.name
+              const visible = layerVisible(layer)
+              const locked = layerLocked(layer)
 
               return (
                 <tr
@@ -122,6 +125,30 @@ export function SceneLayersPanel() {
                   </td>
                   <td className="py-1 pr-1">
                     <span className="flex items-center justify-end gap-0.5">
+                      <button
+                        type="button"
+                        title={visible ? `Hide "${layer.name}"` : `Show "${layer.name}"`}
+                        onClick={() => dispatch({
+                          type: 'LAYER_UPDATE',
+                          name: layer.name,
+                          patch: { visible: !visible },
+                        })}
+                        className="p-0.5 rounded hover:bg-[var(--surface-3)] text-[var(--primary-soft)] hover:text-[var(--primary)]"
+                      >
+                        {visible ? <Eye size={13} /> : <EyeOff size={13} />}
+                      </button>
+                      <button
+                        type="button"
+                        title={locked ? `Unlock "${layer.name}"` : `Lock "${layer.name}"`}
+                        onClick={() => dispatch({
+                          type: 'LAYER_UPDATE',
+                          name: layer.name,
+                          patch: { locked: !locked },
+                        })}
+                        className="p-0.5 rounded hover:bg-[var(--surface-3)] text-[var(--primary-soft)] hover:text-[var(--primary)]"
+                      >
+                        {locked ? <Lock size={13} /> : <Unlock size={13} />}
+                      </button>
                       <button
                         type="button"
                         title="Move up (higher priority)"

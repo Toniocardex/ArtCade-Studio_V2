@@ -682,6 +682,12 @@ function parseLayers(raw: unknown): LayerDef[] | undefined {
     if (!trimmed || seen.has(trimmed)) continue
     seen.add(trimmed)
     const layer: LayerDef = { name: trimmed }
+    if (obj?.visible === false) layer.visible = false
+    if (obj?.locked === true) layer.locked = true
+    const opacity = Number(obj?.opacity)
+    if (Number.isFinite(opacity) && opacity >= 0 && opacity < 1) {
+      layer.opacity = opacity
+    }
     const parallax = parseLayerParallax(obj?.parallax)
     if (parallax) layer.parallax = parallax
     const background = parseLayerBackground(obj?.background)

@@ -354,6 +354,9 @@ struct LayerBackground {
 /** Named scene render layer (editor project.layers; index 0 = highest priority). */
 struct SceneLayerDef {
     std::string     name;
+    bool            visible = true;
+    bool            locked  = false;
+    float           opacity = 1.f;
     LayerParallax   parallax;
     LayerBackground background;
 };

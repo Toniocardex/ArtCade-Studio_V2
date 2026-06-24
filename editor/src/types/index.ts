@@ -46,6 +46,12 @@ export interface LayerBackground {
 /** A named render layer. Array stored top-to-bottom (index 0 = highest priority). */
 export interface LayerDef {
   name: string
+  /** False hides the layer in editor preview/play/export. Defaults to true. */
+  visible?: boolean
+  /** Editor-only: locked layers cannot be selected or dragged on the canvas. */
+  locked?: boolean
+  /** Render alpha multiplier in [0,1]. Defaults to 1. */
+  opacity?: number
   /** Parallax scroll factor; defaults to { x: 1, y: 1 } when omitted. */
   parallax?: LayerParallax
   /** Optional repeating background image drawn under this layer's entities. */

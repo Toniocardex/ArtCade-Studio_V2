@@ -81,7 +81,8 @@ public:
      */
     bool drawSpriteRegion(const AssetId& assetId,
                           float srcX, float srcY, float srcW, float srcH,
-                          float dstX, float dstY, float dstW, float dstH);
+                          float dstX, float dstY, float dstW, float dstH,
+                          float alpha = 1.f);
 
     /**
      * Spritesheet Studio: rasterize one atlas sub-rect into RGBA8 (top-left origin).

@@ -27,6 +27,7 @@ void draw(Modules::Renderer& renderer,
     // Back-to-front: the last layer in the stack is the furthest back, so its
     // background is painted first and higher-priority layers land on top.
     for (auto it = layerStack.rbegin(); it != layerStack.rend(); ++it) {
+        if (!it->visible || it->opacity <= 0.f) continue;
         const LayerBackground& bg = it->background;
         if (bg.imageId.empty()) continue;
 
@@ -65,7 +66,7 @@ void draw(Modules::Renderer& renderer,
             for (int i = 0; i < countX; ++i) {
                 const float wx = originX + static_cast<float>(i) * tex.x;
                 renderer.drawSpriteRegion(bg.imageId, 0.f, 0.f, tex.x, tex.y,
-                                          wx, wy, tex.x, tex.y);
+                                          wx, wy, tex.x, tex.y, it->opacity);
             }
         }
     }

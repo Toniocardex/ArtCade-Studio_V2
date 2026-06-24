@@ -195,6 +195,11 @@ void read_scene_layers(const nlohmann::json& doc, std::vector<SceneLayerDef>& ou
             layer.name = item.get<std::string>();
         } else if (item.is_object()) {
             layer.name = read_string_any(item, "name", "id");
+            layer.visible = item.value("visible", true);
+            layer.locked  = item.value("locked", false);
+            layer.opacity = item.value("opacity", 1.f);
+            if (layer.opacity < 0.f) layer.opacity = 0.f;
+            if (layer.opacity > 1.f) layer.opacity = 1.f;
             if (item.contains("parallax") && item["parallax"].is_object()) {
                 const auto& p = item["parallax"];
                 layer.parallax.x = p.value("x", 1.f);

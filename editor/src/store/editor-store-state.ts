@@ -301,7 +301,17 @@ export type Action =
   | { type: 'LAYER_RENAME'; oldName: string; newName: string }
   | { type: 'LAYER_DELETE'; name: string }
   | { type: 'LAYER_MOVE'; name: string; direction: 'up' | 'down' }
-  | { type: 'LAYER_UPDATE'; name: string; patch: { parallax?: LayerParallax; background?: LayerBackground } }
+  | {
+      type: 'LAYER_UPDATE'
+      name: string
+      patch: {
+        visible?: boolean
+        locked?: boolean
+        opacity?: number
+        parallax?: LayerParallax
+        background?: LayerBackground
+      }
+    }
 
 export type DomainReducer = (state: CoreState, action: Action) => CoreState
 

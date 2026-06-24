@@ -531,7 +531,8 @@ int Renderer::captureSpriteRegionFrame(const AssetId& assetId,
 
 bool Renderer::drawSpriteRegion(const AssetId& assetId,
                                 float srcX, float srcY, float srcW, float srcH,
-                                float dstX, float dstY, float dstW, float dstH)
+                                float dstX, float dstY, float dstW, float dstH,
+                                float alpha)
 {
     const std::string texKey = resolvedTextureKey(assetId);
     const Texture2D* tex = impl_->texCache.getByPath(texKey);
@@ -544,7 +545,9 @@ bool Renderer::drawSpriteRegion(const AssetId& assetId,
 
     Rectangle src = { srcX, srcY, srcW, srcH };
     Rectangle dst = { dstX, dstY, dstW, dstH };
-    DrawTexturePro(*tex, src, dst, { 0.f, 0.f }, 0.f, WHITE);
+    const unsigned char ca =
+        static_cast<unsigned char>(std::clamp(alpha, 0.f, 1.f) * 255.f);
+    DrawTexturePro(*tex, src, dst, { 0.f, 0.f }, 0.f, Color{ 255, 255, 255, ca });
     return true;
 }
 
