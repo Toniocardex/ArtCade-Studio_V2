@@ -202,6 +202,7 @@ public:
     // Written by extern "C" exports -- public so they can be set directly
     static int      s_mode;
     static uint32_t s_selectedEntityId;
+    static std::vector<uint32_t> s_selectedEntityIds;
     static bool     s_isDragging;
     static float    s_dragStartX, s_dragStartY;
     static std::string s_activeTileLayerName;

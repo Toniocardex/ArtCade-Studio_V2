@@ -491,6 +491,13 @@ export function editorSelectEntity(entityId: number): void {
   safeCall('editor_select_entity', null, ['number'], [entityId])
 }
 
+export function editorSelectEntities(entityIds: readonly number[]): void {
+  const csv = entityIds
+    .filter((id) => Number.isInteger(id) && id > 0)
+    .join(',')
+  safeCall('editor_select_entities', null, ['string'], [csv])
+}
+
 export function editorDeselect(): void {
   safeCall('editor_deselect', null, [], [])
 }

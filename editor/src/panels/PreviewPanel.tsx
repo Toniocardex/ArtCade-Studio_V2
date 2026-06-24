@@ -324,6 +324,7 @@ export default function PreviewPanel({
     wasmReady, engineReady,
     isPlaying,
     selectedEntityId: selection.entityId,
+    selectedEntityIds: selection.entityIds,
     tool: activeTool,
     activeTileLayer: editorActiveLayer,
     // The runtime draws the alignment grid under the sprites (its native,

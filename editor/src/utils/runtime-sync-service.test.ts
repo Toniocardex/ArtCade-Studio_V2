@@ -21,6 +21,7 @@ vi.mock('./wasm-bridge', () => {
     EDITOR_API_CCALL_FAILED: -1,
     editorSetMode:            vi.fn(),
     editorSelectEntity:       vi.fn(),
+    editorSelectEntities:     vi.fn(),
     editorDeselect:           vi.fn(),
     editorSetTool:            vi.fn(),
     editorSetGuidesEnabled:   vi.fn(),
@@ -82,6 +83,7 @@ describe('RuntimeSyncService', () => {
     vi.mocked(bridge.editorExitPlayMode).mockReturnValue(0)
     vi.mocked(bridge.editorSetMode).mockReset()
     vi.mocked(bridge.editorSelectEntity).mockReset()
+    vi.mocked(bridge.editorSelectEntities).mockReset()
     vi.mocked(bridge.editorDeselect).mockReset()
     vi.mocked(bridge.editorSetTool).mockReset()
     vi.mocked(bridge.editorSetGuidesEnabled).mockReset()
@@ -222,6 +224,18 @@ describe('RuntimeSyncService', () => {
     runtimeSync.syncSelection(4)
     expect(bridge.editorSelectEntity).toHaveBeenCalledTimes(2)
     expect(bridge.editorDeselect).toHaveBeenCalledTimes(1)
+  })
+
+  it('syncSelection sends multi-selected ids as one bridge update', () => {
+    runtimeSync.syncSelection(5, [5, 3])
+    runtimeSync.syncSelection(5, [3, 5])
+
+    expect(bridge.editorSelectEntity).not.toHaveBeenCalled()
+    expect(bridge.editorSelectEntities).toHaveBeenCalledTimes(1)
+    expect(bridge.editorSelectEntities).toHaveBeenCalledWith([3, 5])
+
+    runtimeSync.syncSelection(3, [3])
+    expect(bridge.editorSelectEntity).toHaveBeenCalledWith(3)
   })
 
   it('syncEditorTool sends tool change once and dedupes repeats', () => {

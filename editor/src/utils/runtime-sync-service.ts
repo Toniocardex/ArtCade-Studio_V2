@@ -28,6 +28,7 @@ import {
   EDITOR_API_CCALL_FAILED,
   peekWasmBridgeLastError,
   editorSelectEntity,
+  editorSelectEntities,
   editorSetGridSize,
   editorSetGuidesEnabled,
   editorSetSnapToGrid,
@@ -163,7 +164,7 @@ class RuntimeSyncServiceImpl {
   private lastDialogsKey:     string | null = null
   private lastProjection:     RuntimeProjection | null = null
   private lastMode:           0 | 1 | null = null
-  private lastSelection:      number | null | undefined = undefined
+  private lastSelection:      string | undefined = undefined
   private lastTool:           EditorTool | null = null
   private lastGuides:         boolean | null = null
   private lastGridSize:       number | null = null
@@ -624,12 +625,26 @@ class RuntimeSyncServiceImpl {
     editorSetMode(next)
   }
 
-  syncSelection(entityId: number | null): void {
+  syncSelection(entityId: number | null, entityIds: readonly number[] = []): void {
     if (!isWasmReady()) return
-    if (this.lastSelection === entityId) return
-    this.lastSelection = entityId
-    if (entityId == null) editorDeselect()
-    else editorSelectEntity(entityId)
+    const selectedIdsBase = entityIds.length > 0
+      ? entityIds.filter((id, index) =>
+          Number.isInteger(id) && id > 0 && entityIds.indexOf(id) === index,
+        )
+      : (entityId != null ? [entityId] : [])
+    const selectedIds = entityId != null && selectedIdsBase.includes(entityId)
+      ? [...selectedIdsBase.filter((id) => id !== entityId), entityId]
+      : selectedIdsBase
+    const key = selectedIds.join(',')
+    if (this.lastSelection === key) return
+    this.lastSelection = key
+    if (selectedIds.length === 0) {
+      editorDeselect()
+    } else if (selectedIds.length === 1) {
+      editorSelectEntity(selectedIds[0])
+    } else {
+      editorSelectEntities(selectedIds)
+    }
   }
 
   syncEditorTool(tool: EditorTool): void {

@@ -8,6 +8,7 @@
 namespace ArtCade {
 int      EditorAPI::s_mode             = 0;
 uint32_t EditorAPI::s_selectedEntityId = 0u;
+std::vector<uint32_t> EditorAPI::s_selectedEntityIds;
 bool     EditorAPI::s_isDragging       = false;
 float    EditorAPI::s_dragStartX       = 0.f;
 float    EditorAPI::s_dragStartY       = 0.f;
@@ -150,6 +151,7 @@ namespace ArtCade {
 // ── Static state ──────────────────────────────────────────────────────────────
 int      EditorAPI::s_mode             = 0;
 uint32_t EditorAPI::s_selectedEntityId = 0u;
+std::vector<uint32_t> EditorAPI::s_selectedEntityIds;
 bool     EditorAPI::s_isDragging       = false;
 float    EditorAPI::s_dragStartX       = 0.f;
 float    EditorAPI::s_dragStartY       = 0.f;
@@ -522,6 +524,29 @@ EMSCRIPTEN_KEEPALIVE void editor_set_mode(int mode) {
 
 EMSCRIPTEN_KEEPALIVE void editor_select_entity(uint32_t entityId) {
     ArtCade::EditorAPI::s_selectedEntityId = entityId;
+    ArtCade::EditorAPI::s_selectedEntityIds =
+        entityId != 0u ? std::vector<uint32_t>{ entityId } : std::vector<uint32_t>{};
+}
+
+EMSCRIPTEN_KEEPALIVE void editor_select_entities(const char* csv) {
+    std::vector<uint32_t> ids;
+    uint32_t value = 0u;
+    bool reading = false;
+    for (const char* p = csv; p && *p; ++p) {
+        if (*p >= '0' && *p <= '9') {
+            value = value * 10u + static_cast<uint32_t>(*p - '0');
+            reading = true;
+            continue;
+        }
+        if (reading && value != 0u)
+            ids.push_back(value);
+        value = 0u;
+        reading = false;
+    }
+    if (reading && value != 0u)
+        ids.push_back(value);
+    ArtCade::EditorAPI::s_selectedEntityIds = ids;
+    ArtCade::EditorAPI::s_selectedEntityId = ids.empty() ? 0u : ids.back();
 }
 
 EMSCRIPTEN_KEEPALIVE void editor_set_active_tile_layer(const char* layerName) {
@@ -742,6 +767,7 @@ EMSCRIPTEN_KEEPALIVE void editor_register_font(
 
 EMSCRIPTEN_KEEPALIVE void editor_deselect() {
     ArtCade::EditorAPI::s_selectedEntityId = 0u;
+    ArtCade::EditorAPI::s_selectedEntityIds.clear();
 }
 
 EMSCRIPTEN_KEEPALIVE int editor_reregister_animation_clips(const char* json_utf8) {

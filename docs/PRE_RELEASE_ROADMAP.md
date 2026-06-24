@@ -160,7 +160,7 @@ Estimated calendar (single developer, focused): **8–12 weeks**. Parallel work
 | ID | Work | Primary files | Done when |
 |----|------|---------------|-----------|
 | 2.1a | Extend `EditorSelection` to multi-id set (same scene) | `editor-store-state.ts`, `ui-reducer.ts` | ✅ Done — hierarchy Ctrl/Cmd-click adds/removes from selection |
-| 2.1b | Canvas + hierarchy selection stay in sync | `useSceneExplorerActions.ts`, `runtime-sync-service.ts` | Select in tree updates canvas highlight set |
+| 2.1b | Canvas + hierarchy selection stay in sync | `runtime-sync-service.ts`, `app_scene_render.cpp` | ✅ Done — hierarchy multi-select highlights in canvas |
 | 2.1c | Overlap pick: Alt+click cycles hits by `renderOrder` desc | `editor-input-controller.cpp`, `CanvasToolbar.tsx` | ✅ Done — Alt+click cycles overlapping objects; tooltip documented |
 | 2.1d | Delete / Backspace deletes selected instance(s) | `useViewportShortcuts.ts`, `entity-reducer.ts` | ✅ Done — works for multi-select as one undoable operation |
 
@@ -192,7 +192,7 @@ Estimated calendar (single developer, focused): **8–12 weeks**. Parallel work
 
 - [ ] Multi-select 3 objects → move together → undo restores.
 - [x] Copy/paste instance → reopen project → pasted instance persists.
-- [ ] Alt+click through stacked sprites cycles selection.
+- [x] Alt+click through stacked sprites cycles selection.
 - [x] Layer hide → object invisible in play mode.
 - [ ] Gate §2 wording: *"reliable selection"* and copy/paste — **signed off**.
 

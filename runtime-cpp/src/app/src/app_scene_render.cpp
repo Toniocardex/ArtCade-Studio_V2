@@ -18,6 +18,7 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace ArtCade {
 
@@ -113,8 +114,12 @@ void Application::renderActiveScene() {
         EditorAPI::s_editorGridSize,
         EditorAPI::s_selectedEntityId,
     };
+    std::vector<EntityId> selectedEntityIds = EditorAPI::s_selectedEntityIds;
+    if (selectedEntityIds.empty() && EditorAPI::s_selectedEntityId != 0u)
+        selectedEntityIds.push_back(EditorAPI::s_selectedEntityId);
 #else
     const EditorOverlayState overlay{false, false, 0.f, 0u};
+    std::vector<EntityId> selectedEntityIds;
 #endif
 
     mod_->renderer->beginFrame(clearColor);
@@ -324,9 +329,10 @@ void Application::renderActiveScene() {
             [renderer = mod_->renderer.get(),
              gateway = mod_->entityGateway.get(),
              animator = mod_->spriteAnimator.get(),
-             selectedId = overlay.selectedId]
+             &selectedEntityIds]
             (EntityId id, const Transform& transform, const PhysicsComponent&) {
-                if (id == selectedId) return;
+                if (std::find(selectedEntityIds.begin(), selectedEntityIds.end(), id)
+                    != selectedEntityIds.end()) return;
                 SpriteComponent sprite{};
                 if (!gateway->getSprite(id, sprite)) return;
                 const auto draw = resolveSpriteFrame(animator, id, sprite, true);
@@ -336,22 +342,24 @@ void Application::renderActiveScene() {
             });
     }
 
-    if (overlay.selectedId != 0u) {
+    for (const EntityId selectedId : selectedEntityIds) {
         Transform transform{};
         SpriteComponent sprite{};
         SensorComponent sensorValue{};
         std::optional<SensorComponent> sensor;
-        if (mod_->entityGateway->getSensor(overlay.selectedId, sensorValue)) {
+        if (mod_->entityGateway->getSensor(selectedId, sensorValue)) {
             sensor = sensorValue;
         }
-        if (mod_->entityGateway->getTransform(overlay.selectedId, transform)
-            && mod_->entityGateway->getSprite(overlay.selectedId, sprite)) {
+        if (mod_->entityGateway->getTransform(selectedId, transform)
+            && mod_->entityGateway->getSprite(selectedId, sprite)) {
             const bool hiddenInGame =
-                !mod_->entityGateway->visibleInGame(overlay.selectedId);
+                !mod_->entityGateway->visibleInGame(selectedId);
             const auto draw = resolveSpriteFrame(
-                mod_->spriteAnimator.get(), overlay.selectedId, sprite, overlay.inEditMode);
+                mod_->spriteAnimator.get(), selectedId, sprite, overlay.inEditMode);
+            EditorOverlayState itemOverlay = overlay;
+            itemOverlay.selectedId = selectedId;
             EditorOverlayRenderer::drawSelection(
-                *mod_->renderer, transform, sprite, sensor, overlay, hiddenInGame,
+                *mod_->renderer, transform, sprite, sensor, itemOverlay, hiddenInGame,
                 visualSizeForFrame(draw.frame, transform.scale));
         }
     }
