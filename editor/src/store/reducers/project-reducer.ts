@@ -40,6 +40,7 @@ export const projectReducer: DomainReducer = (state: CoreState, action: Action) 
         projectPath: action.path,
         projectDirty: false,
         selection:   { entityId: null, sceneId: action.project.activeSceneId || firstSceneId },
+        instanceClipboard: null,
         inspectorAsset: null,
         inspectorLayerName: null,
         entityDisplayLayers: {},

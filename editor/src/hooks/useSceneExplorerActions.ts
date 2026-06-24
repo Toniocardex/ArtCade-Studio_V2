@@ -24,12 +24,16 @@ export function useSceneExplorerActions() {
   const promptText = useTextPrompt()
   const project = useEditorSelector((s) => s.project)
   const selection = useEditorSelector((s) => s.selection)
+  const instanceClipboard = useEditorSelector((s) => s.instanceClipboard)
+  const snapToGrid = useEditorSelector((s) => s.snapToGrid)
+  const editorGridSize = useEditorSelector((s) => s.editorGridSize)
   const mode = useEditorSelector((s) => s.mode)
   const sceneId = project ? selection.sceneId ?? project.activeSceneId : ''
   const scene = project?.scenes[sceneId]
   const sceneCount = project ? Object.keys(project.scenes).length : 0
   const isStartScene = Boolean(project && sceneId === project.activeSceneId)
   const canDeleteScene = Boolean(scene && sceneCount > 1 && !isStartScene)
+  const canPasteEntity = Boolean(instanceClipboard && instanceClipboard.sceneId === sceneId)
 
   const addScene = useCallback(() => {
     if (!project) return
@@ -177,6 +181,26 @@ export function useSceneExplorerActions() {
     [dispatch, sceneId],
   )
 
+  const copyEntity = useCallback(
+    (entityId: number) => {
+      dispatch({ type: 'INSTANCE_COPY', instanceId: entityId, sceneId })
+    },
+    [dispatch, sceneId],
+  )
+
+  const pasteEntity = useCallback(() => {
+    const offset = snapToGrid && Number.isFinite(editorGridSize) && editorGridSize > 0
+      ? editorGridSize
+      : 16
+    const position = instanceClipboard
+      ? {
+          x: instanceClipboard.instance.transform.position.x + offset,
+          y: instanceClipboard.instance.transform.position.y + offset,
+        }
+      : undefined
+    dispatch({ type: 'INSTANCE_PASTE', sceneId, position })
+  }, [dispatch, editorGridSize, instanceClipboard, sceneId, snapToGrid])
+
   const deleteEntity = useCallback(
     (entityId: number) => {
       dispatch({ type: 'ENTITY_DELETE', entityId })
@@ -242,6 +266,7 @@ export function useSceneExplorerActions() {
     selection,
     isStartScene,
     canDeleteScene,
+    canPasteEntity,
     sceneCount,
     addScene,
     selectScene,
@@ -256,6 +281,8 @@ export function useSceneExplorerActions() {
     addInstanceOfType,
     selectEntity,
     toggleEntityVisible,
+    copyEntity,
+    pasteEntity,
     duplicateEntity,
     deleteEntity,
     openEntityLogic,

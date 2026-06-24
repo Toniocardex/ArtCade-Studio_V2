@@ -168,9 +168,9 @@ Estimated calendar (single developer, focused): **8–12 weeks**. Parallel work
 
 | ID | Work | Primary files | Done when |
 |----|------|---------------|-----------|
-| 2.2a | `INSTANCE_COPY` / `INSTANCE_PASTE` in store (scene-local) | new reducer actions | Copies transform, type ref, overrides |
-| 2.2b | Ctrl+C / Ctrl+V on canvas and hierarchy | `useViewportShortcuts.ts` | Paste offsets position by grid snap |
-| 2.2c | Undo integrates copy/paste | `project-history.ts` | Undo paste removes instances |
+| 2.2a | `INSTANCE_COPY` / `INSTANCE_PASTE` in store (scene-local) | `object-type-reducer.ts`, editor store | ✅ Done — copies transform, type ref, overrides |
+| 2.2b | Ctrl+C / Ctrl+V on canvas and hierarchy | `useViewportShortcuts.ts`, scene object context menu | ✅ Done — single-selection paste offsets position |
+| 2.2c | Undo integrates copy/paste | `project-history.ts` | ✅ Done — copy is editor-only; paste is undoable |
 
 ### 2.3 Transform tools (inspector remains; canvas optional for alpha)
 
@@ -191,7 +191,7 @@ Estimated calendar (single developer, focused): **8–12 weeks**. Parallel work
 ### Gate 2 — exit criteria
 
 - [ ] Multi-select 3 objects → move together → undo restores.
-- [ ] Copy/paste instance → reopen project → pasted instance persists.
+- [x] Copy/paste instance → reopen project → pasted instance persists.
 - [ ] Alt+click through stacked sprites cycles selection.
 - [x] Layer hide → object invisible in play mode.
 - [ ] Gate §2 wording: *"reliable selection"* and copy/paste — **signed off**.

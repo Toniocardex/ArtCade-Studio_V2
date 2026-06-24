@@ -39,6 +39,7 @@ function st(p: ProjectDoc): CoreState {
   return {
     project: p, projectPath: null, projectDirty: false,
     selection: { entityId: 1, sceneId: 's' },
+    instanceClipboard: null,
     mode: 'canvas', consoleOpen: false, bottomPanelCollapsed: true,
     dockPanelVisibility: { console: true, timeline: false, events: false },
     consoleAckUpToId: 0,
@@ -142,6 +143,51 @@ describe('coreReducer — scenes & objects', () => {
     s = coreReducer(s, { type: 'PROJECT_REDO' })
     expect(s.project!.entities[2]?.transform.position).toEqual({ x: 96, y: 64 })
     expect(s.project!.scenes.s.instances).toHaveLength(2)
+  })
+
+  it('copies and pastes an instance in the same scene with undo support', () => {
+    let s = coreReducer(st(project()), { type: 'INSTANCE_COPY', instanceId: 1, sceneId: 's' })
+    expect(s.instanceClipboard?.instance.objectTypeId).toBe('Player')
+    expect(s.projectHistory?.past ?? []).toHaveLength(0)
+
+    s = coreReducer(s, { type: 'INSTANCE_PASTE', sceneId: 's' })
+
+    expect(s.project!.entities[2]).toBeDefined()
+    expect(s.project!.entities[2].name).toBe('A_1')
+    expect(s.project!.entities[2].transform.position).toEqual({ x: 16, y: 16 })
+    expect(s.project!.scenes.s.instances?.find((i) => i.id === 2)?.objectTypeId).toBe('Player')
+    expect(s.selection.entityId).toBe(2)
+    expect(s.projectHistory?.past).toHaveLength(1)
+    const reopened = parseProjectDoc(serializeProjectDoc(s.project!))!
+    expect(reopened.scenes.s.instances?.find((i) => i.id === 2)?.objectTypeId).toBe('Player')
+    expect(reopened.entities[2].transform.position).toEqual({ x: 16, y: 16 })
+
+    s = coreReducer(s, { type: 'PROJECT_UNDO' })
+    expect(s.project!.entities[2]).toBeUndefined()
+    expect(s.project!.scenes.s.instances).toHaveLength(1)
+  })
+
+  it('does not paste a scene-local clipboard into another scene', () => {
+    const withOtherScene: ProjectDoc = {
+      ...project(),
+      scenes: {
+        ...project().scenes,
+        other: {
+          id: 'other',
+          name: 'Other',
+          worldSize: { x: 1280, y: 720 },
+          viewportSize: { x: 1280, y: 720 },
+          backgroundColor: { x: 0, y: 0, z: 0, w: 1 },
+          entityIds: [],
+          instances: [],
+        },
+      },
+    }
+    let s = coreReducer(st(withOtherScene), { type: 'INSTANCE_COPY', instanceId: 1, sceneId: 's' })
+    s = coreReducer(s, { type: 'INSTANCE_PASTE', sceneId: 'other' })
+
+    expect(Object.keys(s.project!.entities)).toEqual(['1'])
+    expect(s.project!.scenes.other.instances).toHaveLength(0)
   })
 
   it('shared type edit propagates to every instance (ENTITY_SET_SPRITE_FILL)', () => {

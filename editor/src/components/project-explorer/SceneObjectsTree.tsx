@@ -129,6 +129,17 @@ function SceneInstanceLeaf({
               onSelect: () => scene.renameEntity(row.entityId),
             },
             {
+              id: 'copy',
+              label: 'Copy',
+              onSelect: () => scene.copyEntity(row.entityId),
+            },
+            {
+              id: 'paste',
+              label: 'Paste',
+              disabled: !scene.canPasteEntity,
+              onSelect: () => scene.pasteEntity(),
+            },
+            {
               id: 'duplicate',
               label: 'Duplicate',
               onSelect: () => scene.duplicateEntity(row.entityId),

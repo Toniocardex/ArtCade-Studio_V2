@@ -22,8 +22,38 @@ import {
 
 type CanvasDuplicateShortcutState = Pick<
   CoreState,
-  'mode' | 'isPlaying' | 'selection' | 'project'
+  | 'mode'
+  | 'isPlaying'
+  | 'selection'
+  | 'project'
+  | 'instanceClipboard'
+  | 'snapToGrid'
+  | 'editorGridSize'
 >
+
+function selectedSceneInstance(
+  state: CanvasDuplicateShortcutState,
+): { instanceId: number; sceneId: string } | null {
+  if (state.mode !== 'canvas' || state.isPlaying || !state.project) return null
+  const instanceId = state.selection.entityId
+  const sceneId = state.selection.sceneId ?? state.project.activeSceneId
+  if (instanceId == null || !sceneId) return null
+  const scene = state.project.scenes[sceneId]
+  if (!scene?.instances?.some((instance) => instance.id === instanceId)) return null
+  return { instanceId, sceneId }
+}
+
+function clipboardPastePosition(state: CanvasDuplicateShortcutState): { x: number; y: number } | null {
+  const clip = state.instanceClipboard
+  if (!clip) return null
+  const offset = state.snapToGrid && Number.isFinite(state.editorGridSize) && state.editorGridSize > 0
+    ? state.editorGridSize
+    : 16
+  return {
+    x: clip.instance.transform.position.x + offset,
+    y: clip.instance.transform.position.y + offset,
+  }
+}
 
 /** Resolve Ctrl/Cmd+D to a valid scene-instance duplicate action. */
 export function getCanvasDuplicateShortcutAction(
@@ -33,15 +63,33 @@ export function getCanvasDuplicateShortcutAction(
   if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return null
   if (event.key.toLowerCase() !== 'd') return null
   if (shouldIgnoreEditorShortcut(event)) return null
-  if (state.mode !== 'canvas' || state.isPlaying || !state.project) return null
+  const selected = selectedSceneInstance(state)
+  if (!selected) return null
 
-  const instanceId = state.selection.entityId
-  const sceneId = state.selection.sceneId ?? state.project.activeSceneId
-  if (instanceId == null || !sceneId) return null
-  const scene = state.project.scenes[sceneId]
-  if (!scene?.instances?.some((instance) => instance.id === instanceId)) return null
+  return { type: 'INSTANCE_DUPLICATE', instanceId: selected.instanceId, sceneId: selected.sceneId }
+}
 
-  return { type: 'INSTANCE_DUPLICATE', instanceId, sceneId }
+export function getCanvasClipboardShortcutAction(
+  event: KeyboardEvent,
+  state: CanvasDuplicateShortcutState,
+): Action | null {
+  if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return null
+  if (shouldIgnoreEditorShortcut(event)) return null
+  const key = event.key.toLowerCase()
+  if (key === 'c') {
+    const selected = selectedSceneInstance(state)
+    return selected
+      ? { type: 'INSTANCE_COPY', instanceId: selected.instanceId, sceneId: selected.sceneId }
+      : null
+  }
+  if (key === 'v') {
+    if (state.mode !== 'canvas' || state.isPlaying || !state.project) return null
+    const sceneId = state.selection.sceneId ?? state.project.activeSceneId
+    if (!sceneId || !state.project.scenes[sceneId]) return null
+    if (!state.instanceClipboard || state.instanceClipboard.sceneId !== sceneId) return null
+    return { type: 'INSTANCE_PASTE', sceneId, position: clipboardPastePosition(state) ?? undefined }
+  }
+  return null
 }
 
 export function useViewportShortcuts(): void {
@@ -51,6 +99,12 @@ export function useViewportShortcuts(): void {
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       const state = store.getState()
+      const clipboardAction = getCanvasClipboardShortcutAction(e, state)
+      if (clipboardAction) {
+        e.preventDefault()
+        dispatch(clipboardAction)
+        return
+      }
       const duplicateAction = getCanvasDuplicateShortcutAction(e, state)
       if (duplicateAction) {
         e.preventDefault()

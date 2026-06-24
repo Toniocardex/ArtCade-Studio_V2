@@ -14,7 +14,7 @@ import type {
   LogicBoard, LogicEvent, ComponentKey, WorldSettings, TilesetAsset, ImageAsset,
   SpriteComponent, PhysicsComponent, Vec3, AssetFolderCategory,
   GameVariableDefinition, GameVariableValue, AnimationClipDef, ImageAssetUsage,
-  LayerParallax, LayerBackground,
+  LayerParallax, LayerBackground, SceneInstanceDef,
 } from '../types'
 import type { DialogScript } from '../utils/dialog/dialog-script'
 import type { InspectorAssetSelection } from '../types/inspector-selection'
@@ -36,6 +36,8 @@ export interface CoreState {
   projectPath:      string | null
   projectDirty:     boolean
   selection:        { entityId: number | null; sceneId: string | null }
+  /** Scene-local instance clipboard for canvas/hierarchy copy-paste. */
+  instanceClipboard: { sceneId: string; instance: SceneInstanceDef } | null
   /** Asset-driven inspector (Project Explorer); cleared when an entity is selected. */
   inspectorAsset:   InspectorAssetSelection | null
   /** Layer row selected in Scene Layers panel (UI-only until layer model ships). */
@@ -215,6 +217,8 @@ export type Action =
       sceneId: string
       position?: { x: number; y: number }
     }
+  | { type: 'INSTANCE_COPY'; instanceId: number; sceneId: string }
+  | { type: 'INSTANCE_PASTE'; sceneId: string; position?: { x: number; y: number } }
   | { type: 'ENTITY_DELETE';     entityId: number }
   | { type: 'ENTITY_SET_VISIBLE'; entityId: number; visible: boolean }
   | { type: 'ENTITY_SET_NAME';    entityId: number; name: string }
@@ -326,6 +330,7 @@ export const initialCoreState: CoreState = {
   projectPath:      null,
   projectDirty:     false,
   selection:        { entityId: null, sceneId: null },
+  instanceClipboard: null,
   inspectorAsset:   null,
   inspectorLayerName: null,
   editorActiveLayer: DEFAULT_EDITOR_ACTIVE_LAYER,

@@ -3,7 +3,10 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import type { CoreState } from '../store/editor-store'
 import type { ProjectDoc } from '../types'
-import { getCanvasDuplicateShortcutAction } from './useViewportShortcuts'
+import {
+  getCanvasClipboardShortcutAction,
+  getCanvasDuplicateShortcutAction,
+} from './useViewportShortcuts'
 
 function project(): ProjectDoc {
   return {
@@ -76,6 +79,9 @@ function state(overrides: Partial<CoreState> = {}): CoreState {
     isPlaying: false,
     project: project(),
     selection: { entityId: 4, sceneId: 'scene_main' },
+    instanceClipboard: null,
+    snapToGrid: false,
+    editorGridSize: 32,
     ...overrides,
   } as CoreState
 }
@@ -120,5 +126,96 @@ describe('getCanvasDuplicateShortcutAction', () => {
     input.focus()
     expect(getCanvasDuplicateShortcutAction(duplicateEvent(), state())).toBeNull()
     input.remove()
+  })
+})
+
+describe('getCanvasClipboardShortcutAction', () => {
+  it('copies the selected scene instance with Ctrl+C or Cmd+C', () => {
+    expect(getCanvasClipboardShortcutAction(
+      new KeyboardEvent('keydown', { key: 'c', ctrlKey: true }),
+      state(),
+    )).toEqual({
+      type: 'INSTANCE_COPY',
+      instanceId: 4,
+      sceneId: 'scene_main',
+    })
+    expect(getCanvasClipboardShortcutAction(
+      new KeyboardEvent('keydown', { key: 'c', metaKey: true }),
+      state(),
+    )).toEqual({
+      type: 'INSTANCE_COPY',
+      instanceId: 4,
+      sceneId: 'scene_main',
+    })
+  })
+
+  it('pastes into the active scene when the clipboard belongs to that scene', () => {
+    expect(getCanvasClipboardShortcutAction(
+      new KeyboardEvent('keydown', { key: 'v', ctrlKey: true }),
+      state({
+        instanceClipboard: {
+          sceneId: 'scene_main',
+          instance: {
+            id: 4,
+            objectTypeId: 'Coin',
+            transform: {
+              position: { x: 10, y: 20 },
+              scale: { x: 1, y: 1 },
+              rotation: 0,
+            },
+          },
+        },
+      }),
+    )).toEqual({
+      type: 'INSTANCE_PASTE',
+      sceneId: 'scene_main',
+      position: { x: 26, y: 36 },
+    })
+  })
+
+  it('offsets paste by the grid size while snap-to-grid is active', () => {
+    expect(getCanvasClipboardShortcutAction(
+      new KeyboardEvent('keydown', { key: 'v', ctrlKey: true }),
+      state({
+        snapToGrid: true,
+        editorGridSize: 32,
+        instanceClipboard: {
+          sceneId: 'scene_main',
+          instance: {
+            id: 4,
+            objectTypeId: 'Coin',
+            transform: {
+              position: { x: 10, y: 20 },
+              scale: { x: 1, y: 1 },
+              rotation: 0,
+            },
+          },
+        },
+      }),
+    )).toEqual({
+      type: 'INSTANCE_PASTE',
+      sceneId: 'scene_main',
+      position: { x: 42, y: 52 },
+    })
+  })
+
+  it('ignores paste when the clipboard belongs to another scene', () => {
+    expect(getCanvasClipboardShortcutAction(
+      new KeyboardEvent('keydown', { key: 'v', ctrlKey: true }),
+      state({
+        instanceClipboard: {
+          sceneId: 'other_scene',
+          instance: {
+            id: 4,
+            objectTypeId: 'Coin',
+            transform: {
+              position: { x: 10, y: 20 },
+              scale: { x: 1, y: 1 },
+              rotation: 0,
+            },
+          },
+        },
+      }),
+    )).toBeNull()
   })
 })

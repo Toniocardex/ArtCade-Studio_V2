@@ -272,6 +272,86 @@ export const objectTypeReducer: DomainReducer = (state: CoreState, action: Actio
         projectDirty: true,
       }
     }
+    case 'INSTANCE_COPY': {
+      if (!state.project || !state.project.scenes[action.sceneId]) return state
+      const scene = state.project.scenes[action.sceneId]
+      const src = scene.instances?.find((i) => i.id === action.instanceId)
+      if (!src) return state
+      return {
+        ...state,
+        instanceClipboard: {
+          sceneId: action.sceneId,
+          instance: {
+            ...src,
+            transform: {
+              position: { ...src.transform.position },
+              scale: { ...src.transform.scale },
+              rotation: src.transform.rotation,
+              ...(src.transform.velocity
+                ? { velocity: { ...src.transform.velocity } }
+                : {}),
+            },
+            ...(src.localVariableOverrides
+              ? { localVariableOverrides: { ...src.localVariableOverrides } }
+              : {}),
+          },
+        },
+      }
+    }
+    case 'INSTANCE_PASTE': {
+      if (!state.project || !state.project.scenes[action.sceneId]) return state
+      const clip = state.instanceClipboard
+      if (!clip || clip.sceneId !== action.sceneId) return state
+      const scene = state.project.scenes[action.sceneId]
+      const type = state.project.objectTypes?.[clip.instance.objectTypeId]
+      if (!type) return state
+      const id = nextEntityId(state.project)
+      const srcName =
+        clip.instance.instanceName
+        ?? state.project.entities[clip.instance.id]?.name
+        ?? type.displayName
+      const position = action.position &&
+        Number.isFinite(action.position.x) && Number.isFinite(action.position.y)
+        ? { ...action.position }
+        : {
+            x: clip.instance.transform.position.x + 16,
+            y: clip.instance.transform.position.y + 16,
+          }
+      const pasted: SceneInstanceDef = {
+        ...clip.instance,
+        id,
+        instanceName: nextInstanceName(state.project, srcName),
+        transform: {
+          position,
+          scale: { ...clip.instance.transform.scale },
+          rotation: clip.instance.transform.rotation,
+          ...(clip.instance.transform.velocity
+            ? { velocity: { ...clip.instance.transform.velocity } }
+            : {}),
+        },
+        ...(clip.instance.localVariableOverrides
+          ? { localVariableOverrides: { ...clip.instance.localVariableOverrides } }
+          : {}),
+      }
+      const ent = materializeEntity(type, pasted)
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          entities: { ...state.project.entities, [id]: ent },
+          scenes: {
+            ...state.project.scenes,
+            [action.sceneId]: {
+              ...scene,
+              instances: [...(scene.instances ?? []), pasted],
+              entityIds: [...scene.entityIds, id],
+            },
+          },
+        },
+        selection: { ...state.selection, entityId: id },
+        projectDirty: true,
+      }
+    }
     case 'UPDATE_ENTITY_TRANSFORM': {
       if (!state.project || !state.project.entities[action.entityId]) return state
       const sceneId = state.selection.sceneId ?? state.project.activeSceneId
