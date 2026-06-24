@@ -29,6 +29,7 @@ use std::process::{Command as Cmd, Stdio};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::Emitter;
 use tauri::Manager;
+use tauri::{LogicalSize, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_fs::FsExt;
 
 use build_log_filter::BuildLogFilter;
@@ -41,6 +42,9 @@ use sdk::{
 // ---------------------------------------------------------------------------
 // Payload type for build log events
 // ---------------------------------------------------------------------------
+
+const RUNTIME_PREVIEW_LABEL: &str = "runtime-preview";
+const RUNTIME_PREVIEW_URL: &str = "index.html#/runtime-preview";
 
 #[derive(serde::Serialize, Clone)]
 struct BuildLogEntry {
@@ -103,6 +107,53 @@ fn emit_log(app: &tauri::AppHandle, msg: &str, level: &str) {
             level: level.to_string(),
         },
     );
+}
+
+fn sanitized_preview_size(width: f64, height: f64) -> LogicalSize<f64> {
+    LogicalSize::new(width.max(1.0).round(), height.max(1.0).round())
+}
+
+#[tauri::command]
+async fn open_runtime_preview_window(
+    app: tauri::AppHandle,
+    width: f64,
+    height: f64,
+) -> Result<(), String> {
+    let size = sanitized_preview_size(width, height);
+    if let Some(window) = app.get_webview_window(RUNTIME_PREVIEW_LABEL) {
+        window.set_size(size).map_err(|e| e.to_string())?;
+        window.center().map_err(|e| e.to_string())?;
+        window.show().map_err(|e| e.to_string())?;
+        window.set_focus().map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+
+    WebviewWindowBuilder::new(
+        &app,
+        RUNTIME_PREVIEW_LABEL,
+        WebviewUrl::App(RUNTIME_PREVIEW_URL.into()),
+    )
+    .title("ArtCade Runtime Preview")
+    .inner_size(size.width, size.height)
+    .resizable(true)
+    .decorations(true)
+    .center()
+    .visible(true)
+    .build()
+    .map_err(|e| e.to_string())?;
+
+    if let Some(window) = app.get_webview_window(RUNTIME_PREVIEW_LABEL) {
+        window.set_focus().map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+async fn close_runtime_preview_window(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window(RUNTIME_PREVIEW_LABEL) {
+        window.close().map_err(|e| e.to_string())?;
+    }
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------
@@ -1033,6 +1084,8 @@ fn main() {
             write_file,
             write_binary_file,
             delete_project_file,
+            open_runtime_preview_window,
+            close_runtime_preview_window,
             decrypt_artcade_container,
             register_project_fs_scope,
             check_dependencies_cmd,

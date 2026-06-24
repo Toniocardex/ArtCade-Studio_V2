@@ -139,6 +139,19 @@ static Vec2 clampCameraTarget(
     };
 }
 
+static Vec2 worldInsetOffset(
+    uint32_t width,
+    uint32_t height,
+    const Vec2& worldSize,
+    float zoom)
+{
+    const float z = (zoom > 0.f) ? zoom : 1.f;
+    return {
+        std::max(0.f, (static_cast<float>(width) - worldSize.x * z) * 0.5f),
+        std::max(0.f, (static_cast<float>(height) - worldSize.y * z) * 0.5f),
+    };
+}
+
 // ------------------------------------------------------------------ lifecycle
 
 Renderer::Renderer() : impl_(std::make_unique<Impl>()) {
@@ -205,8 +218,10 @@ void Renderer::setSceneViewport(const Vec2& worldSize, const Vec2& viewportSize)
 
     const float sx = static_cast<float>(impl_->width) / impl_->viewportSize.x;
     const float sy = static_cast<float>(impl_->height) / impl_->viewportSize.y;
-    impl_->camera.offset = { 0.f, 0.f };
     impl_->camera.zoom = std::max(0.01f, std::min(sx, sy));
+    const Vec2 inset = worldInsetOffset(
+        impl_->width, impl_->height, impl_->worldSize, impl_->camera.zoom);
+    impl_->camera.offset = { inset.x, inset.y };
     const Vec2 clamped = clampCameraTarget(
         impl_->width, impl_->height, impl_->worldSize, impl_->camera.zoom,
         { impl_->camera.target.x, impl_->camera.target.y });
@@ -689,6 +704,9 @@ bool Renderer::isTextureLoaded(const AssetId& assetId) const {
 // ------------------------------------------------------------------ camera
 
 void Renderer::setCameraPosition(const Vec2& pos) {
+    const Vec2 inset = worldInsetOffset(
+        impl_->width, impl_->height, impl_->worldSize, impl_->camera.zoom);
+    impl_->camera.offset = { inset.x, inset.y };
     const Vec2 clamped = clampCameraTarget(
         impl_->width, impl_->height, impl_->worldSize, impl_->camera.zoom, pos);
     impl_->camera.target = { clamped.x, clamped.y };
@@ -704,6 +722,9 @@ void Renderer::setCameraCenter(const Vec2& center) {
 
 void Renderer::setCameraZoom(float zoom) {
     impl_->camera.zoom = (zoom > 0.f) ? zoom : 0.01f;
+    const Vec2 inset = worldInsetOffset(
+        impl_->width, impl_->height, impl_->worldSize, impl_->camera.zoom);
+    impl_->camera.offset = { inset.x, inset.y };
     const Vec2 clamped = clampCameraTarget(
         impl_->width, impl_->height, impl_->worldSize, impl_->camera.zoom,
         { impl_->camera.target.x, impl_->camera.target.y });
@@ -750,10 +771,12 @@ Vec2 Renderer::getCameraPosition() const {
 }
 
 Vec2 Renderer::getCameraCenter() const {
-    const Vec2 visible = visibleWorldSize();
+    const float zoom = (impl_->camera.zoom > 0.f) ? impl_->camera.zoom : 1.f;
     return {
-        impl_->camera.target.x + visible.x * 0.5f,
-        impl_->camera.target.y + visible.y * 0.5f,
+        impl_->camera.target.x
+            + (static_cast<float>(impl_->width) * 0.5f - impl_->camera.offset.x) / zoom,
+        impl_->camera.target.y
+            + (static_cast<float>(impl_->height) * 0.5f - impl_->camera.offset.y) / zoom,
     };
 }
 

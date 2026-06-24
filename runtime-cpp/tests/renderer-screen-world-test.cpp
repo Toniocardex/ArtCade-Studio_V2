@@ -58,6 +58,19 @@ int main() {
     expect(near(cameraCenter.x, 1280.f) && near(cameraCenter.y, 720.f),
            "getCameraCenter returns visible world center");
 
+    renderer.setWindowSize(720, 360, "test-small-world");
+    renderer.setSceneViewport({ 640.f, 480.f }, { 720.f, 360.f });
+    renderer.setCameraPosition({ 0.f, 0.f });
+    const auto smallWorldCenter = renderer.screenToWorld(360.f, 180.f);
+    expect(near(smallWorldCenter.x, 320.f) && near(smallWorldCenter.y, 180.f),
+           "small world is centered inside wider viewport");
+    const auto smallCameraCenter = renderer.getCameraCenter();
+    expect(near(smallCameraCenter.x, 320.f) && near(smallCameraCenter.y, 180.f),
+           "small world camera center matches visual center");
+    const auto leftInset = renderer.screenToWorld(0.f, 180.f);
+    expect(leftInset.x < 0.f && near(leftInset.y, 180.f),
+           "screen margin maps outside centered small world");
+
     std::puts("renderer_screen_world_test: all passed");
     return 0;
 }

@@ -9,15 +9,20 @@ import '@fontsource/jetbrains-mono/700.css'
 
 import './index.css'
 import App from './App'
+import RuntimePreviewApp from './runtime-preview/RuntimePreviewApp'
 import { BootErrorBoundary } from './components/BootErrorBoundary'
 import { initTheme } from './utils/theme'
 import { applyTauriWindowSurfaceIfNeeded } from './utils/boot-chrome'
 import { installEditorKeyboardGuards } from './utils/keyboard'
+import { isRuntimePreviewRoute } from './utils/runtime-preview-window'
 import { installSpritesheetPreviewCallback } from './utils/spritesheet-preview-bridge'
 
 const bootTheme = initTheme()
-installEditorKeyboardGuards()
-installSpritesheetPreviewCallback()
+const runtimePreviewRoute = isRuntimePreviewRoute()
+if (!runtimePreviewRoute) {
+  installEditorKeyboardGuards()
+  installSpritesheetPreviewCallback()
+}
 applyTauriWindowSurfaceIfNeeded(bootTheme)
 
 const rootEl = document.getElementById('root')
@@ -28,7 +33,7 @@ function bootstrap() {
   root.render(
     <BootErrorBoundary>
       <StrictMode>
-        <App />
+        {runtimePreviewRoute ? <RuntimePreviewApp /> : <App />}
       </StrictMode>
     </BootErrorBoundary>,
   )

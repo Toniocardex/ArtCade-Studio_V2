@@ -1,4 +1,5 @@
 import { useRef, useLayoutEffect, useEffect, useCallback, useMemo, useState } from 'react'
+import { isTauri } from '@tauri-apps/api/core'
 import { useEditorDispatch, useEditorSelector } from '../store/editor-store'
 import type { ConsoleEntry } from '../types'
 import { assetOrchestrator, imageAssetDescriptor } from '../utils/asset-orchestrator'
@@ -46,6 +47,9 @@ type TransformSnapshot = {
   scaleX: number
   scaleY: number
 }
+
+const PLAY_STAGE_PADDING_PX = 16
+const MIN_PLAY_SCALE = 0.1
 
 function sameTransform(a: TransformSnapshot, b: TransformSnapshot): boolean {
   const epsilon = 1e-4
@@ -98,8 +102,10 @@ export default function PreviewPanel({
   const canvasHostRef       = useRef<HTMLDivElement>(null)
   const [runtimeCanvasReady, setRuntimeCanvasReady] = useState(false)
   const scrollRef           = useRef<HTMLDivElement>(null)
+  const playStageRef        = useRef<HTMLDivElement>(null)
   // Measured scroll-viewport size — drives scene centring + edge overscroll.
   const [clientSize, setClientSize] = useState<{ x: number; y: number } | null>(null)
+  const [playStageSize, setPlayStageSize] = useState<{ x: number; y: number } | null>(null)
   const sceneIdRef          = useRef<string>('')
   const projectRef          = useRef(project)
   const projectPathRef      = useRef(projectPath)
@@ -114,6 +120,7 @@ export default function PreviewPanel({
     selectionSceneId: null as string | null,
     isPlaying: false,
   })
+  const useDockedRuntimePreview = isPlaying && !isTauri()
 
   sceneIdRef.current    = selection.sceneId ?? project?.activeSceneId ?? ''
   projectRef.current    = project
@@ -126,7 +133,7 @@ export default function PreviewPanel({
     openScripts,
     dialogs,
     selectionSceneId: selection.sceneId,
-    isPlaying,
+    isPlaying: useDockedRuntimePreview,
   }
 
   const tier = useLayoutTier()
@@ -183,6 +190,14 @@ export default function PreviewPanel({
     }
   }, [])
 
+  useLayoutEffect(() => {
+    if (!runtimeCanvasReady) return
+    const host = canvasHostRef.current
+    if (!host) return
+    const canvas = getRuntimeCanvas()
+    if (canvas.parentElement !== host) host.appendChild(canvas)
+  }, [useDockedRuntimePreview, runtimeCanvasReady])
+
   // Mount-only: wasm-bridge onReady also calls syncRuntimeUiFlags; do not run
   // every render (causes "Maximum update depth exceeded").
   useLayoutEffect(() => {
@@ -194,7 +209,7 @@ export default function PreviewPanel({
     dialogs,
     selectionSceneId: selection.sceneId,
     wasmReady, engineReady,
-    isPlaying,
+    isPlaying: useDockedRuntimePreview,
     dispatch,
     makeLogEntry,
   })
@@ -322,7 +337,7 @@ export default function PreviewPanel({
   // "what reaches the runtime, when?" contract.
   useRuntimeEditorSync({
     wasmReady, engineReady,
-    isPlaying,
+    isPlaying: useDockedRuntimePreview,
     selectedEntityId: selection.entityId,
     selectedEntityIds: selection.entityIds,
     tool: activeTool,
@@ -361,10 +376,10 @@ export default function PreviewPanel({
   // resized to the scene viewport (the camera lens), not the world. The frame
   // and canvas presentation must follow, or the engine-resized canvas sits
   // unscaled in the corner of a world-sized frame.
-  const frame = isPlaying ? vp : res
+  const frame = useDockedRuntimePreview ? vp : res
 
-  const preview = !isPlaying && cameraPreview && (vp.x !== res.x || vp.y !== res.y)
-  const showCameraFrame = !isPlaying && mode === 'canvas' && (vp.x < res.x || vp.y < res.y)
+  const preview = !useDockedRuntimePreview && cameraPreview && (vp.x !== res.x || vp.y !== res.y)
+  const showCameraFrame = !useDockedRuntimePreview && mode === 'canvas' && (vp.x < res.x || vp.y < res.y)
   const overscrollPx = clientSize
     ? Math.round(Math.min(clientSize.x, clientSize.y) * EDITOR_CANVAS_OVERSCROLL_FACTOR)
     : 0
@@ -390,19 +405,45 @@ export default function PreviewPanel({
   const sceneMarginY = Math.max(0, layout.contentOffsetPx.y - layout.paddingPx)
 
   // Track the scroll-viewport size so the layout can centre the scene and add
-  // edge overscroll. ResizeObserver keeps it correct across panel/window resize.
+  // edge overscroll. In docked browser preview the scroll viewport unmounts
+  // during Play, so this observer must follow the real node lifecycle instead
+  // of staying attached to a detached element that can report 0x0.
   useLayoutEffect(() => {
+    if (useDockedRuntimePreview) return undefined
     const el = scrollRef.current
     if (!el) return undefined
-    const measure = () => setClientSize((prev) =>
+    const measure = () => {
+      const width = el.clientWidth
+      const height = el.clientHeight
+      if (width <= 0 || height <= 0) return
+      setClientSize((prev) =>
+        prev && prev.x === width && prev.y === height
+          ? prev
+          : { x: width, y: height })
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [useDockedRuntimePreview])
+
+  useLayoutEffect(() => {
+    if (!useDockedRuntimePreview) return undefined
+    const el = playStageRef.current
+    if (!el) return undefined
+    const measure = () => setPlayStageSize((prev) =>
       prev && prev.x === el.clientWidth && prev.y === el.clientHeight
         ? prev
         : { x: el.clientWidth, y: el.clientHeight })
     measure()
     const ro = new ResizeObserver(measure)
     ro.observe(el)
-    return () => ro.disconnect()
-  }, [])
+    const focusFrame = requestAnimationFrame(() => el.focus({ preventScroll: true }))
+    return () => {
+      cancelAnimationFrame(focusFrame)
+      ro.disconnect()
+    }
+  }, [useDockedRuntimePreview])
 
   useEditorFitZoom({
     scrollRef,
@@ -433,7 +474,7 @@ export default function PreviewPanel({
     selectedSceneId,
     selectedEntityId: selection.entityId,
     project,
-    isPlaying,
+    isPlaying: useDockedRuntimePreview,
     activeTool,
     clientSize,
     overscrollPx,
@@ -444,6 +485,14 @@ export default function PreviewPanel({
     return bg
       ? `rgb(${Math.round(bg.x * 255)},${Math.round(bg.y * 255)},${Math.round(bg.z * 255)})`
       : 'var(--bg)'
+  })()
+
+  const playScale = (() => {
+    if (!useDockedRuntimePreview) return zoom
+    const availableW = Math.max(1, (playStageSize?.x ?? frame.x) - PLAY_STAGE_PADDING_PX * 2)
+    const availableH = Math.max(1, (playStageSize?.y ?? frame.y) - PLAY_STAGE_PADDING_PX * 2)
+    const fit = Math.min(availableW / Math.max(1, frame.x), availableH / Math.max(1, frame.y))
+    return Math.max(MIN_PLAY_SCALE, fit)
   })()
 
   // The runtime canvas is a persistent DOM node React does not manage, so its
@@ -466,13 +515,14 @@ export default function PreviewPanel({
       left:            '0px',
       transformOrigin: '0 0',
       background:       bgColor,
-      pointerEvents:    panActive ? 'none' : 'auto',
+      pointerEvents:    useDockedRuntimePreview || !panActive ? 'auto' : 'none',
     } as const
-    if (isPlaying) {
+    if (useDockedRuntimePreview) {
       Object.assign(canvas.style, common, {
         width:     `${frame.x}px`,
         height:    `${frame.y}px`,
-        transform: `scale(${zoom})`,
+        transform: `scale(${playScale})`,
+        imageRendering: 'pixelated',
       })
       return
     }
@@ -484,8 +534,9 @@ export default function PreviewPanel({
       width:     `${cssW}px`,
       height:    `${cssH}px`,
       transform: 'none',
+      imageRendering: 'auto',
     })
-  }, [isPlaying, frame.x, frame.y, zoom, bgColor, panActive, layout.paddingPx])
+  }, [useDockedRuntimePreview, frame.x, frame.y, playScale, bgColor, panActive, layout.paddingPx])
 
   useLayoutEffect(() => {
     applyCanvasPresentation()
@@ -503,7 +554,7 @@ export default function PreviewPanel({
   const camSyncRafRef = useRef<number | null>(null)
   const syncEditCamera = useCallback(() => {
     const el = scrollRef.current
-    if (!el || isPlaying || !engineReady) return
+    if (!el || useDockedRuntimePreview || !engineReady) return
     const dpr = window.devicePixelRatio || 1
     const pad = layout.paddingPx
     const cssW = Math.max(1, el.clientWidth  - pad * 2)
@@ -515,12 +566,12 @@ export default function PreviewPanel({
       z * dpr, cssW * dpr, cssH * dpr,
     )
     applyCanvasPresentation()
-  }, [isPlaying, engineReady, zoom, layout, applyCanvasPresentation])
+  }, [useDockedRuntimePreview, engineReady, zoom, layout, applyCanvasPresentation])
 
   useEffect(() => {
     let raf: number | null = null
     const unsubscribe = runtimeSync.onProjectReloadApplied(() => {
-      if (isPlaying) return
+      if (useDockedRuntimePreview) return
       if (raf != null) cancelAnimationFrame(raf)
       raf = requestAnimationFrame(() => {
         raf = null
@@ -531,11 +582,11 @@ export default function PreviewPanel({
       unsubscribe()
       if (raf != null) cancelAnimationFrame(raf)
     }
-  }, [isPlaying, syncEditCamera])
+  }, [useDockedRuntimePreview, syncEditCamera])
 
   useEffect(() => {
     const el = scrollRef.current
-    if (!el || isPlaying || !engineReady) return
+    if (!el || useDockedRuntimePreview || !engineReady) return
     const schedule = () => {
       if (camSyncRafRef.current != null) return
       camSyncRafRef.current = requestAnimationFrame(() => {
@@ -553,14 +604,14 @@ export default function PreviewPanel({
       if (camSyncRafRef.current != null) cancelAnimationFrame(camSyncRafRef.current)
       camSyncRafRef.current = null
     }
-  }, [isPlaying, engineReady, syncEditCamera, res.x, res.y, vp.x, vp.y, selectedSceneId])
+  }, [useDockedRuntimePreview, engineReady, syncEditCamera, res.x, res.y, vp.x, vp.y, selectedSceneId])
 
   // F = frame selected: zoom in on the selected entity and centre it; with no
   // selection, fall back to fit-the-whole-scene. Registered so useViewport
   // shortcuts can invoke it without reaching into the panel's scroll ref.
   const frameSelection = useCallback(() => {
     const el = scrollRef.current
-    if (!el || isPlaying) return
+    if (!el || useDockedRuntimePreview) return
     const entityId = selection.entityId
     const def = entityId != null ? project?.entities[entityId] : null
     if (!def) {
@@ -595,7 +646,7 @@ export default function PreviewPanel({
       node.scrollLeft = Math.min(maxX, Math.max(0, scrollLeft))
       node.scrollTop = Math.min(maxY, Math.max(0, scrollTop))
     })
-  }, [isPlaying, selection.entityId, project, frame.x, frame.y, vp.x, vp.y, preview, overscrollPx, dispatch])
+  }, [useDockedRuntimePreview, selection.entityId, project, frame.x, frame.y, vp.x, vp.y, preview, overscrollPx, dispatch])
 
   useLayoutEffect(() => frameSelectionRegistry.register(frameSelection), [frameSelection])
 
@@ -608,12 +659,12 @@ export default function PreviewPanel({
 
   // Suppress the browser context menu during play (right click is game input).
   useEffect(() => {
-    if (!isPlaying) return
+    if (!useDockedRuntimePreview) return
     const canvas = getRuntimeCanvas()
     const block = (e: Event) => e.preventDefault()
     canvas.addEventListener('contextmenu', block)
     return () => canvas.removeEventListener('contextmenu', block)
-  }, [isPlaying])
+  }, [useDockedRuntimePreview])
 
   return (
     <div className="editor-preview-island h-full flex flex-col bg-[var(--bg)]">
@@ -635,6 +686,23 @@ export default function PreviewPanel({
         />
       )}
 
+      {useDockedRuntimePreview ? (
+        <div
+          ref={playStageRef}
+          tabIndex={-1}
+          className="runtime-play-stage flex-1 min-h-0 min-w-0 outline-none"
+        >
+          <div
+            className="runtime-play-host"
+            style={{
+              width: `${Math.round(frame.x * playScale)}px`,
+              height: `${Math.round(frame.y * playScale)}px`,
+            }}
+          >
+            <div ref={canvasHostRef} style={{ display: 'contents' }} />
+          </div>
+        </div>
+      ) : (
       <CanvasViewportWithRulers
         scrollRef={scrollRef}
         layout={layout}
@@ -655,7 +723,7 @@ export default function PreviewPanel({
           style={{ position: 'sticky', top: 0, left: 0, width: 0, height: 0, zIndex: 0 }}
         >
           <div ref={canvasHostRef} style={{ display: 'contents' }} />
-          {activePaintTilesetId && !isPlaying && (
+          {activePaintTilesetId && !useDockedRuntimePreview && (
             <TilePaintOverlay
               scrollRef={scrollRef}
               zoom={zoom}
@@ -710,6 +778,7 @@ export default function PreviewPanel({
           </div>
         </div>
       </CanvasViewportWithRulers>
+      )}
     </div>
   )
 }

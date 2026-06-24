@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState, type RefObject } from 'react'
+import { isTauri } from '@tauri-apps/api/core'
 import { PanelErrorBoundary } from './components/PanelErrorBoundary'
 import { EditorProvider, useEditorDispatch, useEditorSelector, useEditorStore } from './store/editor-store'
 import MenuBar            from './components/MenuBar'
@@ -22,6 +23,7 @@ import { ProjectNamePersistProvider } from './components/menu-bar/project-name-c
 import { useViewportShortcuts } from './hooks/useViewportShortcuts'
 import { useConsoleShortcut } from './hooks/useConsoleShortcut'
 import { useFocusModeShortcut, useExitFocusOnEscape } from './hooks/useFocusModeShortcut'
+import { listenRuntimePreviewClosed } from './utils/runtime-preview-window'
 import { useEditorLayoutContext, EditorLayoutProvider } from './contexts/editor-layout-context'
 import EditorBootGate from './components/EditorBootGate'
 import { EditorViewportBanner } from './components/shell/EditorViewportBanner'
@@ -245,6 +247,22 @@ function EditorLayout() {
   // Build logs must survive view switches — BottomDock remounts per view,
   // so the listener lives here (always mounted).
   useBuildLogListener()
+
+  useEffect(() => {
+    if (!isTauri()) return undefined
+    let cancelled = false
+    let unlisten: (() => void) | null = null
+    listenRuntimePreviewClosed(() => {
+      if (!cancelled) dispatch({ type: 'SET_PLAYING', playing: false })
+    }).then((fn) => {
+      if (cancelled) fn()
+      else unlisten = fn
+    })
+    return () => {
+      cancelled = true
+      unlisten?.()
+    }
+  }, [dispatch])
 
   return (
     <EditorLayoutTierProvider workspaceRef={workspaceRef}>

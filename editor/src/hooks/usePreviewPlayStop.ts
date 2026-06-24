@@ -1,19 +1,22 @@
 // ---------------------------------------------------------------------------
-// usePreviewPlayStop — shared PLAY/STOP for MenuBar and Focus toolbar
+// usePreviewPlayStop - shared PLAY/STOP for MenuBar and Focus toolbar
 // ---------------------------------------------------------------------------
 
 import { useCallback } from 'react'
+import { isTauri } from '@tauri-apps/api/core'
 import { useEditorDispatch, useEditorSelector } from '../store/editor-store'
 import {
-  runtimeSync,
   messageForEditorApiCode,
+  runtimeSync,
   type PreviewTransitionBundle,
 } from '../utils/runtime-sync-service'
 import { logLogicBoardCompileFailure } from '../utils/preview-restore'
+import { getProjectWorkbenchSnapshot } from '../utils/project-health'
+import { buildPreviewSessionBundle } from '../utils/preview-session'
 import {
-  formatHealthSummary,
-  getProjectWorkbenchSnapshot,
-} from '../utils/project-health'
+  closeRuntimePreviewSession,
+  openRuntimePreviewSession,
+} from '../utils/runtime-preview-window'
 import { makeConsoleEntry } from '../components/menu-bar/makeConsoleEntry'
 
 export function usePreviewPlayStop(): () => void {
@@ -27,6 +30,20 @@ export function usePreviewPlayStop(): () => void {
   const selectionSceneId = useEditorSelector((s) => s.selection.sceneId)
 
   return useCallback(() => {
+    if (isPlaying && isTauri()) {
+      void closeRuntimePreviewSession()
+        .catch((err) => {
+          dispatch({
+            type: 'LOG',
+            entry: makeConsoleEntry(`[Preview] Stop failed: ${String(err)}`, 'error'),
+          })
+        })
+        .finally(() => {
+          dispatch({ type: 'SET_PLAYING', playing: false })
+        })
+      return
+    }
+
     if (!project) {
       dispatch({
         type: 'LOG',
@@ -35,45 +52,68 @@ export function usePreviewPlayStop(): () => void {
       return
     }
 
-    const activeSceneId = selectionSceneId ?? project.activeSceneId
-    let mainLua: string
-    if (isPlaying) {
-      mainLua = getProjectWorkbenchSnapshot({
+    let bundle: PreviewTransitionBundle
+
+    if (!isPlaying) {
+      const built = buildPreviewSessionBundle({
+        project,
+        projectPath,
+        openScripts,
+        dialogs,
+        selectionSceneId,
+      })
+      if (!built.ok) {
+        dispatch({
+          type: 'LOG',
+          entry: makeConsoleEntry(built.message, 'error'),
+        })
+        dispatch({ type: 'SET_CONSOLE_OPEN', open: true })
+        return
+      }
+
+      logLogicBoardCompileFailure(
+        dispatch,
+        built.session.compileError,
+        makeConsoleEntry,
+      )
+
+      if (isTauri()) {
+        void openRuntimePreviewSession(built.session.viewportSize, built.session.bundle)
+          .then(() => {
+            dispatch({ type: 'SET_PLAYING', playing: true })
+            if (document.activeElement instanceof HTMLElement) {
+              document.activeElement.blur()
+            }
+          })
+          .catch((err) => {
+            dispatch({
+              type: 'LOG',
+              entry: makeConsoleEntry(`[Preview] Play failed: ${String(err)}`, 'error'),
+            })
+            dispatch({ type: 'SET_CONSOLE_OPEN', open: true })
+            dispatch({ type: 'SET_PLAYING', playing: false })
+          })
+        return
+      }
+
+      bundle = built.session.bundle
+    } else {
+      const activeSceneId = selectionSceneId ?? project.activeSceneId
+      const mainLua = getProjectWorkbenchSnapshot({
         project,
         projectPath,
         openScripts,
         includeCompile: true,
       }).previewLua.lua
-    } else {
-      const workbench = getProjectWorkbenchSnapshot({
+      bundle = {
         project,
+        activeSceneId,
+        mainLua,
+        dialogs,
         projectPath,
-        openScripts,
-        includeCompile: true,
-      })
-      if (workbench.health.blocksPlay) {
-        const summary = formatHealthSummary(workbench.health)
-        dispatch({
-          type: 'LOG',
-          entry: makeConsoleEntry(
-            `[Preview] Play blocked — fix project issues first.${summary ? `\n${summary}` : ''}`,
-            'error',
-          ),
-        })
-        dispatch({ type: 'SET_CONSOLE_OPEN', open: true })
-        return
       }
-      logLogicBoardCompileFailure(dispatch, workbench.previewLua.compileError, makeConsoleEntry)
-      mainLua = workbench.previewLua.lua
     }
 
-    const bundle: PreviewTransitionBundle = {
-      project,
-      activeSceneId,
-      mainLua,
-      dialogs,
-      projectPath,
-    }
     const outcome = runtimeSync.transitionPreview(isPlaying ? 'stop' : 'play', bundle)
 
     if (outcome.nextPlaying !== isPlaying) {
