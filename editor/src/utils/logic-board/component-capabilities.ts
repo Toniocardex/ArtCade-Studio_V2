@@ -74,8 +74,8 @@ const CAPABILITIES: CapabilityDef[] = [
   { kind: 'action', type: 'applyForce', feature: 'physics', label: 'Physics' },
   { kind: 'action', type: 'playAnimation', feature: 'animation', label: 'Animation' },
   { kind: 'trigger', type: 'onAnimationEnd', feature: 'animation', label: 'Animation' },
-  { kind: 'trigger', type: 'onTriggerEnter', feature: 'sensor', label: 'Sensor' },
-  { kind: 'trigger', type: 'onTriggerExit', feature: 'sensor', label: 'Sensor' },
+  { kind: 'trigger', type: 'onTriggerEnter', feature: 'collisionBody', label: 'Collision Body' },
+  { kind: 'trigger', type: 'onTriggerExit', feature: 'collisionBody', label: 'Collision Body' },
 ]
 
 const ACTION_RECOMMENDATIONS: Record<ComponentKey, LogicActionType[]> = {
@@ -83,9 +83,6 @@ const ACTION_RECOMMENDATIONS: Record<ComponentKey, LogicActionType[]> = {
   platformerController: ['controllerMovement', 'moveController', 'requestPlatformerJump', 'setPlatformerMaxSpeed', 'setPlatformerJumpForce'],
   collisionBody: [],
   health: ['damageEntity', 'healEntity', 'setEntityHealth'],
-  sensor: [],
-  solid: [],
-  ladder: [],
   linearMover: ['setLinearMoverDirection', 'setLinearMoverSpeed', 'pauseLinearMover', 'resumeLinearMover'],
   cameraTarget: ['followCamera', 'useDefaultCameraTarget'],
   magneticItem: ['setMagnetEnabled', 'setMagnetTargetTag', 'setMagnetRadius', 'setMagnetPullSpeed'],

@@ -122,22 +122,6 @@ export const INPUT_RELEASED_REGISTRATION_LINES = [
   'end',
 ]
 
-export const SENSOR_ENTER_REGISTRATION_LINES = [
-  '',
-  'local function _logic_reg_sensor_enter(source, target, fn)',
-  `${INDENT}sensor.onEnter(source, target, fn)`,
-  `${INDENT}_logic_track(_logic_bag_unsub(sensor._onEnter, _logic_compose_key(source, target), fn))`,
-  'end',
-]
-
-export const SENSOR_EXIT_REGISTRATION_LINES = [
-  '',
-  'local function _logic_reg_sensor_exit(source, target, fn)',
-  `${INDENT}sensor.onExit(source, target, fn)`,
-  `${INDENT}_logic_track(_logic_bag_unsub(sensor._onExit, _logic_compose_key(source, target), fn))`,
-  'end',
-]
-
 export const MESSAGE_REGISTRATION_LINES = [
   '',
   'local function _logic_reg_message(name, fn)',

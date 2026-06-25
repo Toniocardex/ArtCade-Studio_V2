@@ -169,7 +169,7 @@ function TriggerFields({
   ambiguousTargetSpritePaths?: boolean
   onChange: (t: LogicTrigger) => void
 }) {
-  const isSensorTrigger =
+  const isTriggerEdge =
     trigger.type === 'onTriggerEnter' || trigger.type === 'onTriggerExit'
   const isCollisionTrigger =
     trigger.type === 'onCollision' ||
@@ -192,15 +192,14 @@ function TriggerFields({
       )}
       {isCollisionTrigger && (
         <p className="text-[10px] leading-snug text-[var(--muted)]">
-          Requires physics overlap: add <strong>Physics (Collider)</strong> on this entity
-          (platformer/top-down alone is not enough). Arcade without physics: use{' '}
-          <strong>Sensor</strong> (onTriggerEnter/Exit) or <strong>Event Bus event</strong>.
+          Requires a <strong>Collision Body</strong> shape with solid response on this
+          entity. For non-blocking areas, use trigger enter/exit with a sensor shape.
         </p>
       )}
-      {isSensorTrigger && (
+      {isTriggerEdge && (
         <p className="text-[10px] leading-snug text-[var(--muted)]">
-          Target tag must match <code className="text-[var(--text)]">SensorComponent.targetTag</code>{' '}
-          on the zone entity (Inspector - Sensor). Leave empty to accept any tag.
+          Uses <strong>Collision Body</strong> sensor shapes and collision filters. Leave
+          target filters empty to accept any matching contact.
         </p>
       )}
       <ComponentRequirementWarning requirement={triggerRequirement(trigger, project, board)} />

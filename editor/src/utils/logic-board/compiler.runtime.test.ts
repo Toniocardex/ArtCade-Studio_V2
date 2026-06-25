@@ -140,7 +140,6 @@ async function makeRunner(boards: LogicBoard[]) {
     },
   })
   lua.global.set('collision', {
-    touchingClass: (_id: number, cls: string) => h.touching.has(cls),
     firstTouching: (_id: number, filter: string | { className?: string }) => {
       const cls = typeof filter === 'string' ? filter : filter?.className
       return cls && h.touching.has(cls) ? 200 : 0
@@ -164,11 +163,6 @@ async function makeRunner(boards: LogicBoard[]) {
     log: (m: string) => h.calls.log.push(m),
   })
 
-  lua.global.set('sensor', {
-    poll: () => [],
-    onEnter: () => {},
-    onExit: () => {},
-  })
   lua.global.set('lifecycle', {
     pollDestroyed: () => [],
     onSpawn: () => {},
@@ -280,7 +274,7 @@ describe('runtime: syntax validity', () => {
           }),
           ev({ id: 't', trigger: { type: 'onTimer', seconds: 1, repeat: true }, actions: [{ type: 'debugLog', message: 'tick' }] }),
           ev({ id: 'i', trigger: { type: 'onInput', keyCode: 'Space', eventType: 'pressed' }, actions: [{ type: 'debugLog', message: 'jump' }] }),
-          ev({ id: 'c', trigger: { type: 'onCollision', withClass: 'Coin' }, actions: [{ type: 'debugLog', message: 'hit' }] }),
+          ev({ id: 'c', trigger: { type: 'onCollision', filter: { className: 'Coin' } }, actions: [{ type: 'debugLog', message: 'hit' }] }),
         ],
       },
     ])
@@ -362,7 +356,7 @@ describe('runtime: coin pickup on collision', () => {
         target: { type: 'object_type', objectTypeId: 'Player' },
         events: [
           ev({
-            trigger: { type: 'onCollision', withClass: 'Coin' },
+            trigger: { type: 'onCollision', filter: { className: 'Coin' } },
             actions: [
               { type: 'addVariable', key: 'coins', amount: 1 },
               { type: 'playSound', path: 'sfx/coin.ogg' },

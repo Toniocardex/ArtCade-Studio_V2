@@ -2,9 +2,7 @@
 // Tilemap authoring model (Scene Editor — Phase C, editor-side).
 //
 // The grid is authored in the editor and persisted in ProjectDoc/SceneDef.
-// Runtime: tilemap render + platformer grounding use the same surface rules as
-// SolidComponent (groundClass, surfaceKind). Static physics bodies per solid tile remain
-// for generic physics overlap.
+// Runtime collision is generated from each tile's CollisionBody profile.
 // ---------------------------------------------------------------------------
 
 import {
@@ -12,6 +10,7 @@ import {
   TILEMAP_GRID_TILESIZE_CHANGE_LIMITS,
   computeTilemapGridDims,
 } from './tilemap-grid'
+import type { CollisionBodyComponent } from './components'
 
 /** A paintable tile in the palette. `color` is the editor preview swatch; */
 /** id 0 is reserved as "empty" and is never stored in the palette.          */
@@ -19,11 +18,7 @@ export interface TileDef {
   id:    number    // >= 1
   name:  string
   color: string    // hex preview colour (editor only)
-  solid: boolean    // blocks movement + platformer / physics collider when true
-  /** Matches SolidComponent.groundClass (default Ground). */
-  groundClass?: string
-  /** Matches SolidComponent.surfaceKind (default solid). */
-  surfaceKind?: 'solid' | 'oneWay'
+  collisionBody?: CollisionBodyComponent
 }
 
 /** One tileset spritesheet registered as a paint source on a layer. */
@@ -72,13 +67,61 @@ export function tilesetCellCount(t: TilesetAsset): number {
   return Math.max(0, t.cols) * Math.max(0, t.rows)
 }
 
+function tileSolidBody(oneWay: boolean): CollisionBodyComponent {
+  return {
+    bodyType: 'static',
+    enabled: true,
+    shapes: [{
+      type: 'rectangle',
+      response: 'solid',
+      role: 'body',
+      layerId: 'ground',
+      maskLayerIds: ['player', 'enemy', 'projectile'],
+      offsetX: 0,
+      offsetY: 0,
+      width: 32,
+      height: 32,
+      radius: 16,
+      enabled: true,
+      oneWay,
+      friction: 0.3,
+      restitution: 0,
+      density: 1,
+    }],
+  }
+}
+
+function tileSensorBody(layerId: string, role: 'hitbox' | 'interaction'): CollisionBodyComponent {
+  return {
+    bodyType: 'static',
+    enabled: true,
+    shapes: [{
+      type: 'rectangle',
+      response: 'sensor',
+      role,
+      layerId,
+      maskLayerIds: ['player'],
+      offsetX: 0,
+      offsetY: 0,
+      width: 32,
+      height: 32,
+      radius: 16,
+      enabled: true,
+      oneWay: false,
+      friction: 0,
+      restitution: 0,
+      density: 1,
+    }],
+  }
+}
+
 export const DEFAULT_TILE_PALETTE: TileDef[] = [
-  { id: 1, name: 'Ground', color: '#22D3EE', solid: true  },
-  { id: 2, name: 'Spike',  color: '#F87171', solid: true  },
-  { id: 3, name: 'Coin',   color: '#FBBF24', solid: false },
-  { id: 4, name: 'Wall',   color: '#9CA3AF', solid: true  },
-  { id: 5, name: 'Water',  color: '#3B82F6', solid: false },
-  { id: 6, name: 'OneWay', color: '#A78BFA', solid: true, surfaceKind: 'oneWay' },
+  { id: 1, name: 'Ground', color: '#22D3EE', collisionBody: tileSolidBody(false) },
+  { id: 2, name: 'Spike',  color: '#F87171', collisionBody: tileSensorBody('hazard', 'hitbox') },
+  { id: 3, name: 'Coin',   color: '#FBBF24', collisionBody: tileSensorBody('pickup', 'interaction') },
+  { id: 4, name: 'Wall',   color: '#9CA3AF', collisionBody: tileSolidBody(false) },
+  { id: 5, name: 'Water',  color: '#3B82F6' },
+  { id: 6, name: 'OneWay', color: '#A78BFA', collisionBody: tileSolidBody(true) },
 ]
 
 /** A fresh empty tilemap sized to the scene world (clamped to a sane range). */

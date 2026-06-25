@@ -38,11 +38,6 @@ public:
     void     destroyBody(uint32_t handle);
     /** Destroy every body in the world (editor project swap / hot-reload). */
     void     destroyAllBodies();
-    /** Replace the optional sensor fixture on a body (idempotent). */
-    bool     setSensorFixture(uint32_t bodyHandle, const SensorComponent& sensor);
-    void     clearSensorFixture(uint32_t bodyHandle);
-    /** @deprecated Use setSensorFixture — kept for existing call sites. */
-    bool     addSensorFixture(uint32_t bodyHandle, const SensorComponent& sensor);
     void     setBodyActive(uint32_t handle, bool active);
 
     // ---- Velocity / position ------------------------------------------------

@@ -11,8 +11,6 @@ export interface CompilerPreludeFeatures {
   animChangeRegistration: boolean
   inputPressedRegistration: boolean
   inputReleasedRegistration: boolean
-  sensorEnterRegistration: boolean
-  sensorExitRegistration: boolean
   messageRegistration: boolean
   timerEveryRegistration: boolean
   timerAfterRegistration: boolean
@@ -43,17 +41,13 @@ export function derivePreludeFeatures(
     linesUse(lines, '_logic_reg_destroy(') ||
     usesAnyAnim ||
     linesUse(lines, '_logic_reg_input_pressed(') ||
-    linesUse(lines, '_logic_reg_input_released(') ||
-    linesUse(lines, '_logic_reg_sensor_enter(') ||
-    linesUse(lines, '_logic_reg_sensor_exit(')
+    linesUse(lines, '_logic_reg_input_released(')
 
   return {
     random: linesUse(lines, '_logic_random_'),
     bagUnsub,
     composeKey:
-      usesAnyAnim ||
-      linesUse(lines, '_logic_reg_sensor_enter(') ||
-      linesUse(lines, '_logic_reg_sensor_exit('),
+      usesAnyAnim,
     spawnRegistration: linesUse(lines, '_logic_reg_spawn('),
     destroyRegistration: linesUse(lines, '_logic_reg_destroy('),
     animationRegistration: linesUse(lines, '_logic_reg_anim_end('),
@@ -63,8 +57,6 @@ export function derivePreludeFeatures(
     animChangeRegistration: linesUse(lines, '_logic_reg_anim_change('),
     inputPressedRegistration: linesUse(lines, '_logic_reg_input_pressed('),
     inputReleasedRegistration: linesUse(lines, '_logic_reg_input_released('),
-    sensorEnterRegistration: linesUse(lines, '_logic_reg_sensor_enter('),
-    sensorExitRegistration: linesUse(lines, '_logic_reg_sensor_exit('),
     messageRegistration: linesUse(lines, '_logic_reg_message('),
     timerEveryRegistration: linesUse(lines, '_logic_reg_timer_every('),
     timerAfterRegistration: linesUse(lines, '_logic_reg_timer_after('),

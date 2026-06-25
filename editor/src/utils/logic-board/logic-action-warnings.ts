@@ -43,7 +43,7 @@ export function destroySelfOnCollisionWarning(
     trigger.type === 'onCollision' ||
     trigger.type === 'onCollisionEnter' ||
     trigger.type === 'onCollisionExit'
-      ? trigger.withClass?.trim() ?? ''
+      ? trigger.filter?.className?.trim() ?? ''
       : ''
   if (!cls) return null
   const lower = cls.toLowerCase()

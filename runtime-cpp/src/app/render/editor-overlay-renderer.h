@@ -61,10 +61,10 @@ void drawGrid(Modules::Renderer& renderer,
 void drawSelection(Modules::Renderer& renderer,
                    const Transform& transform,
                    const SpriteComponent& sprite,
-                   const std::optional<SensorComponent>& sensor,
                    const EditorOverlayState& state,
                    bool hiddenInGame = false,
-                   const std::optional<Vec2>& visualSize = std::nullopt);
+                   const std::optional<Vec2>& visualSize = std::nullopt,
+                   const std::optional<CollisionBodyComponent>& collisionBody = std::nullopt);
 
 /**
  * Amber outline for hidden-in-game entities that are not selected (edit-mode).

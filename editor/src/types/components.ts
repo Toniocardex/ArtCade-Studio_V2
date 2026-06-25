@@ -11,41 +11,6 @@
 // Inspector registry aligned when adding or changing a component.
 // ---------------------------------------------------------------------------
 
-/** Physics trigger volume — fires when a tagged entity enters its area. */
-export interface SensorComponent {
-  shape:     'Circle' | 'Rectangle'
-  radius:    number          // px (Circle)
-  width:     number          // px (Rectangle)
-  height:    number          // px (Rectangle)
-  targetTag: string          // only entities with this tag trigger it
-}
-
-/** Platform surface kind (Construct-style Solid vs Jump-thru). */
-export type SolidSurfaceKind = 'solid' | 'oneWay'
-
-/** Static / one-way surface for platformer grounding (AABB resolve; not a physics body by itself). */
-export interface SolidComponent {
-  groundClass: string
-  /** Default `solid` when omitted (legacy projects). */
-  surfaceKind?: SolidSurfaceKind
-}
-
-/**
- * Explicit climb zone for the platformer. An entity with this component is
- * climbable; the bbox (shape/size, like Sensor) decouples reach from the
- * sprite, and `axis` selects which movement axis drives climbing. Preferred
- * over PlatformerControllerComponent.climbClass (the className fallback).
- */
-export interface LadderComponent {
-  shape:       'Circle' | 'Rectangle'
-  radius:      number          // px (Circle)
-  width:       number          // px (Rectangle)
-  height:      number          // px (Rectangle)
-  axis:        'vertical' | 'horizontal'
-  /** px/s vertical climb speed; 0 = use PlatformerController.climbSpeed. */
-  climbSpeed:  number
-}
-
 export type CollisionShapeType = 'rectangle' | 'circle' | 'capsule' | 'polygon'
 export type CollisionResponse = 'solid' | 'sensor'
 export type CollisionShapeRole = 'body' | 'feet' | 'hurtbox' | 'hitbox' | 'interaction'
@@ -78,6 +43,9 @@ export interface CollisionShapeDef {
 export interface CollisionBodyComponent {
   bodyType: CollisionBodyType
   enabled: boolean
+  /** When set, runtime resolves shapes from project.collisionProfiles[profileId]. */
+  profileId?: string
+  /** Inline shapes for non-sprite bodies (platforms). Ignored when profileId resolves. */
   shapes: CollisionShapeDef[]
 }
 
@@ -204,9 +172,6 @@ export interface DialogComponent {
  */
 export interface EntityComponents {
   collisionBody?:        CollisionBodyComponent
-  sensor?:               SensorComponent
-  solid?:                SolidComponent
-  ladder?:               LadderComponent
   platformerController?: PlatformerControllerComponent
   topDownController?:    TopDownControllerComponent
   linearMover?:          LinearMoverComponent

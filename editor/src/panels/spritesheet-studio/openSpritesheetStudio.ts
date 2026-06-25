@@ -18,6 +18,7 @@ export function openSpritesheetStudio(
   dispatch: ReturnType<typeof useEditor>['dispatch'],
   project: ProjectDoc | null,
   imageAssetId: string,
+  initialMode: 'animations' | 'collision' = 'animations',
 ): void {
   const id = imageAssetId.trim()
   if (!id || !project) return
@@ -40,5 +41,9 @@ export function openSpritesheetStudio(
     )
     return
   }
-  dispatch({ type: 'SPRITESHEET_STUDIO_OPEN', imageAssetId: id })
+  dispatch({
+    type: 'SPRITESHEET_STUDIO_OPEN',
+    imageAssetId: id,
+    ...(initialMode !== 'animations' ? { initialMode } : {}),
+  })
 }

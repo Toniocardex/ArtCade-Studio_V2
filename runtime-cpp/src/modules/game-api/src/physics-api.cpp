@@ -1,6 +1,5 @@
 #include "../include/game-api.h"
 #include "../../../world/include/world.h"
-#include "../../collision/include/entity_collision_query.h"
 #include "../../modules/runtime-entity-gateway/include/runtime-entity-gateway.h"
 #include "../../physics/include/physics.h"
 
@@ -49,30 +48,16 @@ void GameAPI::bindPhysicsAPI(sol::state& lua) {
     // collision.overlap(id1, id2) → bool (geometric; no physics body required)
     lua.set_function("collision_overlap",
         [entities, world](EntityId id1, EntityId id2) -> bool {
-            if (world) return world->collisionOverlap(id1, id2);
-            return CollisionQuery::entitiesOverlap(*entities, id1, id2);
+            (void)entities;
+            return world && world->collisionOverlap(id1, id2);
         });
 
-    // collision.touchingClass(entityId, className) → bool
-    lua.set_function("collision_touchingClass",
-        [entities, world](EntityId id, sol::object filterObj) -> bool {
-            const CollisionWorld::Filter filter = collisionFilterFrom(filterObj);
-            if (world) {
-                return world->firstCollisionTouching(id, filter) != INVALID_ENTITY;
-            }
-            return CollisionQuery::touchingClass(*entities, id, filter.className);
-        });
-
-    // collision.firstTouching(entityId, className) → entityId (0 if none)
+    // collision.firstTouching(entityId, filter) -> entityId (0 if none)
     lua.set_function("collision_firstTouching",
-        [entities, world](EntityId id, sol::object filterObj) -> int {
+        [world](EntityId id, sol::object filterObj) -> int {
             const CollisionWorld::Filter filter = collisionFilterFrom(filterObj);
-            if (world) {
-                return static_cast<int>(world->firstCollisionTouching(id, filter));
-            }
-            const EntityId other =
-                CollisionQuery::firstOverlappingInClass(*entities, id, filter.className);
-            return static_cast<int>(other);
+            if (!world) return 0;
+            return static_cast<int>(world->firstCollisionTouching(id, filter));
         });
 
     lua.set_function("collision_isGrounded",
@@ -177,7 +162,6 @@ void GameAPI::bindPhysicsAPI(sol::state& lua) {
     lua.script(R"(
         collision = {}
         collision.overlap       = function(id1, id2)     return collision_overlap(id1, id2)          end
-        collision.touchingClass = function(id, filter)   return collision_touchingClass(id, filter)   end
         collision.firstTouching = function(id, filter)   return collision_firstTouching(id, filter)   end
         collision.raycast       = function(x1,y1,x2,y2,filter) return collision_raycast(x1,y1,x2,y2,filter) end
         collision.isGrounded    = function(id)           return collision_isGrounded(id)              end

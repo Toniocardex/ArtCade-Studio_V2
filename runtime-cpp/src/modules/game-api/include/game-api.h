@@ -27,7 +27,6 @@ namespace ArtCade::Modules {
  *   event-api.cpp    — event.*  (pure-Lua EventBus)
  *   time-api.cpp     — time.*   (pure-Lua timer system)
  *   camera-api.cpp   — camera.* (via Renderer)
- *   sensor-api.cpp     — sensor.* (World overlap edges)
  *   animation-api.cpp  — animation.onFinished / animation.pollFinished
  *   lifecycle-api.cpp — lifecycle.pollDestroyed
  *   grid-api.cpp       — grid.* (snap, offset, space check)
@@ -53,7 +52,6 @@ public:
      *  in arrival order. No-op when the Lua state has not been bound yet. */
     uint32_t dispatchLifecycleEvents();
     uint32_t dispatchInputEvents();
-    uint32_t dispatchSensorEvents();
     uint32_t dispatchAnimationEvents();
 
 private:
@@ -73,7 +71,6 @@ private:
     void bindEventAPI  (sol::state& lua);
     void bindTimeAPI   (sol::state& lua);
     void bindCameraAPI (sol::state& lua);
-    void bindSensorAPI     (sol::state& lua);
     void bindAnimationAPI  (sol::state& lua);
     void bindLifecycleAPI  (sol::state& lua);
     void bindGridAPI       (sol::state& lua);

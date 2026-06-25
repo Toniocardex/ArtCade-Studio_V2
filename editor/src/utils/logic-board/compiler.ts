@@ -60,17 +60,6 @@ import {
 export { luaString, luaValue, targetExpr } from './lua-helpers'
 export { conditionExpr } from './condition-expr'
 
-function eventNeedsSensorEdge(
-  ev: LogicEvent,
-  board: LogicBoard,
-  project: ProjectDoc | null | undefined,
-): boolean {
-  void ev
-  void board
-  void project
-  return false
-}
-
 function eventNeedsDestroyBuffer(
   ev: LogicEvent,
   board: LogicBoard,
@@ -86,18 +75,16 @@ function eventNeedsDestroyBuffer(
 function analyzePollingNeeds(
   doc: LogicBoardDoc,
   project: ProjectDoc | null | undefined,
-): { useSensor: boolean; useDestroy: boolean } {
-  let useSensor = false
+): { useDestroy: boolean } {
   let useDestroy = false
   for (const board of doc) {
     for (const ev of board.events) {
       if (!ev.enabled) continue
-      if (!useSensor && eventNeedsSensorEdge(ev, board, project)) useSensor = true
       if (!useDestroy && eventNeedsDestroyBuffer(ev, board, project)) useDestroy = true
-      if (useSensor && useDestroy) return { useSensor, useDestroy }
+      if (useDestroy) return { useDestroy }
     }
   }
-  return { useSensor, useDestroy }
+  return { useDestroy }
 }
 
 type BoardPartitions = {
@@ -239,16 +226,15 @@ export function compileLogicBoard(
     }
   }
 
-  const { useSensor, useDestroy } = analyzePollingNeeds(doc, project)
+  const { useDestroy } = analyzePollingNeeds(doc, project)
   const hasPollingLogic =
-    tickBlocks.length > 0 || useSensor || useDestroy
+    tickBlocks.length > 0 || useDestroy
   const preludeFeatures = derivePreludeFeatures(initBlocks, tickBlocks)
 
   const header = buildHeader(eventSlugs, preludeFeatures)
   const body = buildTickWrapper({
     tickBlocks,
     hasPollingLogic,
-    useSensor,
     useDestroy,
     initBlocks,
     frameMovement: preludeFeatures.frameMovement,

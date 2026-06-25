@@ -10,7 +10,7 @@ import type { LogicBoardDoc } from './logic-board'
 import type { TileDef, TilemapLayer, TilesetAsset } from './tilemap'
 import type {
   CollisionBodyComponent,
-  SensorComponent, SolidComponent, LadderComponent, PlatformerControllerComponent,
+  PlatformerControllerComponent,
   TopDownControllerComponent, LinearMoverComponent,
   CameraTargetComponent,
   MagneticItemComponent,
@@ -25,9 +25,13 @@ export interface PhysicsLayerDef {
   color: string
 }
 
+export type CollisionProfileCoordinateSpace = 'frame-normalized' | 'world'
+
 export interface CollisionProfileDef {
   id: string
   name: string
+  /** How shape offsets/sizes are interpreted (sprite profiles default to frame-normalized). */
+  coordinateSpace?: CollisionProfileCoordinateSpace
   shapes: CollisionBodyComponent['shapes']
   perAnimation?: Record<string, CollisionBodyComponent['shapes']>
   perFrame?: Record<string, CollisionBodyComponent['shapes']>
@@ -136,7 +140,6 @@ export interface Collider {
   offset:  Vec2
   density:  number
   friction: number
-  isSensor: boolean
 }
 
 export interface PhysicsComponent {
@@ -165,9 +168,6 @@ export interface ObjectTypeDef {
   collisionBody?: CollisionBodyComponent
   scriptPath?: string
   visible?:    boolean
-  sensor?:               SensorComponent
-  solid?:                SolidComponent
-  ladder?:               LadderComponent
   platformerController?: PlatformerControllerComponent
   topDownController?:    TopDownControllerComponent
   linearMover?:          LinearMoverComponent
@@ -210,9 +210,6 @@ export interface EntityDef {
   /** Render layer id (transient: materialized from the scene instance, never persisted on the entity). */
   layerId?:    LayerId
   // ECS gameplay components (Scene Editor Phase A) — optional, strongly typed
-  sensor?:               SensorComponent
-  solid?:                SolidComponent
-  ladder?:               LadderComponent
   platformerController?: PlatformerControllerComponent
   topDownController?:    TopDownControllerComponent
   linearMover?:          LinearMoverComponent

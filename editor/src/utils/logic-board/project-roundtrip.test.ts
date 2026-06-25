@@ -16,7 +16,7 @@ const SAMPLE_BOARD: LogicBoard = {
     {
       id: 'coin',
       enabled: true,
-      trigger: { type: 'onCollision', withClass: 'Coin' },
+      trigger: { type: 'onCollision', filter: { className: 'Coin' } },
       conditions: [{ type: 'compareVariable', key: 'alive', operator: '==', value: 1 }],
       actions: [
         { type: 'addVariable', key: 'coins', amount: 1 },

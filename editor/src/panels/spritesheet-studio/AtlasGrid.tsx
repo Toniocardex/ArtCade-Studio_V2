@@ -1,12 +1,15 @@
 import { useCallback, useRef, useState, type PointerEvent } from 'react'
 import { PivotGridOverlay } from '../../components/pivot/PivotMarkerOverlay'
-import type { Vec2 } from '../../types'
+import type { CollisionProfileDef, Vec2 } from '../../types'
+import type { AnimationFrameRect } from '../../types'
 import {
   frameKey,
   indicesInCellRect,
   normalizeCellRect,
   frameForCell,
 } from '../../utils/spritesheet-studio'
+import { CollisionShapeOverlay } from './collision/CollisionShapeOverlay'
+import type { SpritesheetStudioMode } from './SpritesheetStudioLayout'
 import type { SpritesheetStudioSession } from './useSpritesheetStudioSession'
 import { AtlasViewportToolbar } from './AtlasViewportToolbar'
 import { useAtlasViewport } from './useAtlasViewport'
@@ -16,6 +19,11 @@ const DRAG_THRESHOLD_PX = 4
 type AtlasGridProps = Readonly<{
   session: SpritesheetStudioSession
   defaultPivot: Vec2
+  interactionMode?: SpritesheetStudioMode
+  collisionProfile?: CollisionProfileDef
+  collisionActiveShapeIndex?: number
+  collisionFrameRect?: AnimationFrameRect | null
+  onPatchCollisionProfile?: (profile: CollisionProfileDef) => void
 }>
 
 type DragState = Readonly<{
@@ -26,7 +34,15 @@ type DragState = Readonly<{
   additive: boolean
 }>
 
-export function AtlasGrid({ session, defaultPivot }: AtlasGridProps) {
+export function AtlasGrid({
+  session,
+  defaultPivot,
+  interactionMode = 'animations',
+  collisionProfile,
+  collisionActiveShapeIndex = 0,
+  collisionFrameRect = null,
+  onPatchCollisionProfile,
+}: AtlasGridProps) {
   const {
     previewSrc,
     imgWH,
@@ -52,7 +68,8 @@ export function AtlasGrid({ session, defaultPivot }: AtlasGridProps) {
 
   const scaledCellW = cellW * zoom
   const scaledCellH = cellH * zoom
-  const canEditSelection = activeClip != null || draftClip != null || clips.length === 0
+  const canEditSelection = interactionMode === 'animations'
+    && (activeClip != null || draftClip != null || clips.length === 0)
 
   const pointerToCell = useCallback(
     (clientX: number, clientY: number): { col: number; row: number } | null => {
@@ -170,7 +187,7 @@ export function AtlasGrid({ session, defaultPivot }: AtlasGridProps) {
               }}
             />
             <div
-              className="absolute inset-0 grid pointer-events-auto"
+              className={`absolute inset-0 grid ${interactionMode === 'animations' ? 'pointer-events-auto' : 'pointer-events-none'}`}
               style={{
                 gridTemplateColumns: `repeat(${grid.cols}, ${scaledCellW}px)`,
                 gridTemplateRows: `repeat(${grid.rows}, ${scaledCellH}px)`,
@@ -216,13 +233,28 @@ export function AtlasGrid({ session, defaultPivot }: AtlasGridProps) {
               cellWidth={scaledCellW}
               cellHeight={scaledCellH}
             />
+            {interactionMode === 'collision'
+              && collisionProfile
+              && onPatchCollisionProfile && (
+              <CollisionShapeOverlay
+                profile={collisionProfile}
+                activeShapeIndex={collisionActiveShapeIndex}
+                frameRect={collisionFrameRect}
+                sheetW={imgWH.w}
+                sheetH={imgWH.h}
+                zoom={zoom}
+                onPatchProfile={onPatchCollisionProfile}
+              />
+            )}
           </div>
         </div>
       </div>
       <p className="text-[9px] text-[var(--muted)] px-3 py-1 shrink-0">
-        {clips.length === 0
-          ? 'Select frames to start a new animation draft. Shift+drag adds to the selection.'
-          : 'Drag to select a rectangle. Shift+drag adds to the selection. Click toggles one cell.'}
+        {interactionMode === 'collision'
+          ? 'Drag collision boxes on the active clip frame. Layer and mask are in the right panel.'
+          : clips.length === 0
+            ? 'Select frames to start a new animation draft. Shift+drag adds to the selection.'
+            : 'Drag to select a rectangle. Shift+drag adds to the selection. Click toggles one cell.'}
       </p>
     </div>
   )

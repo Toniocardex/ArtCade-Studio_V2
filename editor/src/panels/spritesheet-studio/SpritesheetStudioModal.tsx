@@ -1,19 +1,26 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { useDraggablePanel } from './useDraggablePanel'
 import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
-import type { AnimationClipDef, ImageAsset } from '../../types'
+import type { AnimationClipDef, CollisionProfileDef, ImageAsset } from '../../types'
 import { dirName } from '../../utils/project'
 import { importImageAssetFromFile } from '../../utils/image-asset-import'
 import { DuplicateAssetImportError } from '../../utils/asset-file-api'
 import { contentHashesForAssetKind } from '../../utils/asset-duplicate-detect'
 import { alertDialog } from '../../utils/native-dialog'
-import { SpritesheetStudioLayout } from './SpritesheetStudioLayout'
+import { SegmentedControl } from '../../components/ui/SegmentedControl'
+import {
+  getCollisionProfile,
+  getOrCreateCollisionProfile,
+  inferProfileRoleForAsset,
+} from '../../utils/collision-profile'
+import { SpritesheetStudioLayout, type SpritesheetStudioMode } from './SpritesheetStudioLayout'
 import { useSpritesheetStudioSession } from './useSpritesheetStudioSession'
 import { useSpritesheetWasmSync } from './useSpritesheetWasmSync'
 
 type SpritesheetStudioBodyProps = Readonly<{
   asset: ImageAsset
   imageAssetId: string
+  initialMode?: SpritesheetStudioMode
   autoCreateDraft: boolean
   onAutoCreateDraftConsumed: () => void
   onNewAnimation: () => void
@@ -22,12 +29,16 @@ type SpritesheetStudioBodyProps = Readonly<{
 function SpritesheetStudioBody({
   asset,
   imageAssetId,
+  initialMode = 'animations',
   autoCreateDraft,
   onAutoCreateDraftConsumed,
   onNewAnimation,
 }: SpritesheetStudioBodyProps) {
   const dispatch = useEditorDispatch()
+  const project = useEditorSelector((s) => s.project)
   const projectPath = useEditorSelector((s) => s.projectPath)
+  const [mode, setMode] = useState<SpritesheetStudioMode>(initialMode)
+  const [activeShapeIndex, setActiveShapeIndex] = useState(0)
   useSpritesheetWasmSync(asset, true)
   const session = useSpritesheetStudioSession(
     asset,
@@ -39,6 +50,46 @@ function SpritesheetStudioBody({
   const patchAsset = (patch: Partial<ImageAsset>) => {
     dispatch({ type: 'ASSET_ADD', asset: { ...asset, id: imageAssetId, ...patch } })
   }
+
+  const profile = project
+    ? getCollisionProfile(project, imageAssetId)
+      ?? getOrCreateCollisionProfile(
+        project,
+        imageAssetId,
+        asset.name,
+        inferProfileRoleForAsset(project, imageAssetId),
+      )
+    : getOrCreateCollisionProfile(
+      { projectName: '', version: '1', targetFPS: 60, activeSceneId: '', mainScriptPath: '', entities: {}, scenes: {} },
+      imageAssetId,
+      asset.name,
+    )
+
+  const commitProfile = (next: CollisionProfileDef, coalesceKey?: string) => {
+    dispatch({
+      type: 'COLLISION_PROFILE_SET',
+      assetId: imageAssetId,
+      profile: next,
+      coalesceKey,
+    })
+  }
+
+  useEffect(() => {
+    setMode(initialMode)
+  }, [imageAssetId, initialMode])
+
+  useEffect(() => {
+    if (mode !== 'collision' || !project) return
+    if (getCollisionProfile(project, imageAssetId)) return
+    commitProfile(
+      getOrCreateCollisionProfile(
+        project,
+        imageAssetId,
+        asset.name,
+        inferProfileRoleForAsset(project, imageAssetId),
+      ),
+    )
+  }, [mode, project, imageAssetId, asset.name])
 
   useEffect(() => {
     if (!autoCreateDraft) return
@@ -55,13 +106,32 @@ function SpritesheetStudioBody({
   ])
 
   return (
-    <SpritesheetStudioLayout
-      asset={asset}
-      assetId={imageAssetId}
-      session={session}
-      onPatchDefaultPivot={(defaultPivot) => patchAsset({ defaultPivot })}
-      onNewAnimation={onNewAnimation}
-    />
+    <>
+      <div className="shrink-0 px-4 py-2 border-b border-[var(--border)] bg-[var(--panel-2)]">
+        <SegmentedControl
+          value={mode}
+          onChange={(value) => setMode(value as SpritesheetStudioMode)}
+          aria-label="Sprite Studio mode"
+          options={[
+            { value: 'animations', label: 'Animations' },
+            { value: 'collision', label: 'Collision' },
+          ]}
+        />
+      </div>
+      <SpritesheetStudioLayout
+        asset={asset}
+        assetId={imageAssetId}
+        project={project}
+        mode={mode}
+        session={session}
+        profile={profile}
+        activeShapeIndex={activeShapeIndex}
+        onSelectShape={setActiveShapeIndex}
+        onPatchDefaultPivot={(defaultPivot) => patchAsset({ defaultPivot })}
+        onPatchProfile={(next) => commitProfile(next, `collision:${imageAssetId}`)}
+        onNewAnimation={onNewAnimation}
+      />
+    </>
   )
 }
 
@@ -69,6 +139,7 @@ export function SpritesheetStudioModal() {
   const dispatch = useEditorDispatch()
   const open = useEditorSelector((s) => s.spritesheetStudio.open)
   const imageAssetId = useEditorSelector((s) => s.spritesheetStudio.imageAssetId)
+  const initialMode = useEditorSelector((s) => s.spritesheetStudio.initialMode)
   const project = useEditorSelector((s) => s.project)
   const projectPath = useEditorSelector((s) => s.projectPath)
   const dialogRef = useRef<HTMLDialogElement>(null)
@@ -204,6 +275,7 @@ export function SpritesheetStudioModal() {
         <SpritesheetStudioBody
           asset={asset}
           imageAssetId={imageAssetId}
+          initialMode={initialMode ?? 'animations'}
           autoCreateDraft={autoDraftAssetId === imageAssetId}
           onAutoCreateDraftConsumed={() => setAutoDraftAssetId(null)}
           onNewAnimation={openAnimationAssetPicker}

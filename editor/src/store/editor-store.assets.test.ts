@@ -235,6 +235,38 @@ describe('project.json roundtrip — assets', () => {
     expect(s.project!.entities[1].sprite.playClipOnSpawn).toBe(true)
   })
 
+  it('COLLISION_PROFILE_SET stores profile keyed by asset id', () => {
+    let s = coreReducer(st(project()), { type: 'ASSET_ADD', asset: IMG })
+    s = coreReducer(s, {
+      type: 'COLLISION_PROFILE_SET',
+      assetId: 'img_a',
+      profile: {
+        id: 'img_a',
+        name: 'hero.png',
+        coordinateSpace: 'frame-normalized',
+        shapes: [{
+          type: 'rectangle',
+          response: 'solid',
+          role: 'body',
+          layerId: 'player',
+          maskLayerIds: ['ground'],
+          offsetX: 0.1,
+          offsetY: 0.1,
+          width: 0.8,
+          height: 0.8,
+          radius: 16,
+          enabled: true,
+          oneWay: false,
+          friction: 0.2,
+          restitution: 0,
+          density: 1,
+        }],
+      },
+    })
+    expect(s.project!.collisionProfiles?.img_a?.shapes[0]?.layerId).toBe('player')
+    expect(s.projectDirty).toBe(true)
+  })
+
   it('IMAGE_ASSET_SET_CLIPS is a no-op when the asset is missing', () => {
     const s0 = st(project())
     const s = coreReducer(s0, { type: 'IMAGE_ASSET_SET_CLIPS', assetId: 'nope', clips: [] })

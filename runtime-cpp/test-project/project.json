@@ -55,6 +55,19 @@
           "size": [52, 52]
         }
       },
+      "collisionBody": {
+        "bodyType": "kinematic",
+        "enabled": true,
+        "shapes": [{
+          "type": "rectangle",
+          "response": "solid",
+          "role": "body",
+          "layerId": "player",
+          "maskLayerIds": ["pickup", "hazard"],
+          "size": [52, 52],
+          "enabled": true
+        }]
+      },
       "health": {
         "maxHp": 100,
         "currentHp": 100,
@@ -101,10 +114,18 @@
           "size": [40, 40]
         }
       },
-      "sensor": {
-        "shape": "Circle",
-        "radius": 50,
-        "targetTag": "player"
+      "collisionBody": {
+        "bodyType": "static",
+        "enabled": true,
+        "shapes": [{
+          "type": "circle",
+          "response": "sensor",
+          "role": "hitbox",
+          "layerId": "hazard",
+          "maskLayerIds": ["player"],
+          "radius": 50,
+          "enabled": true
+        }]
       }
     },
     "3": {
@@ -147,10 +168,18 @@
           "size": [40, 40]
         }
       },
-      "sensor": {
-        "shape": "Circle",
-        "radius": 50,
-        "targetTag": "player"
+      "collisionBody": {
+        "bodyType": "static",
+        "enabled": true,
+        "shapes": [{
+          "type": "circle",
+          "response": "sensor",
+          "role": "hitbox",
+          "layerId": "hazard",
+          "maskLayerIds": ["player"],
+          "radius": 50,
+          "enabled": true
+        }]
       }
     },
     "4": {
@@ -193,10 +222,18 @@
           "size": [24, 24]
         }
       },
-      "sensor": {
-        "shape": "Circle",
-        "radius": 30,
-        "targetTag": "player"
+      "collisionBody": {
+        "bodyType": "static",
+        "enabled": true,
+        "shapes": [{
+          "type": "circle",
+          "response": "sensor",
+          "role": "interaction",
+          "layerId": "pickup",
+          "maskLayerIds": ["player"],
+          "radius": 30,
+          "enabled": true
+        }]
       },
       "autoDestroy": {
         "lifespan": 20
@@ -242,10 +279,18 @@
           "size": [24, 24]
         }
       },
-      "sensor": {
-        "shape": "Circle",
-        "radius": 30,
-        "targetTag": "player"
+      "collisionBody": {
+        "bodyType": "static",
+        "enabled": true,
+        "shapes": [{
+          "type": "circle",
+          "response": "sensor",
+          "role": "interaction",
+          "layerId": "pickup",
+          "maskLayerIds": ["player"],
+          "radius": 30,
+          "enabled": true
+        }]
       },
       "autoDestroy": {
         "lifespan": 20

@@ -19,9 +19,6 @@ import type {
   HordeMemberComponent,
   PlatformerControllerComponent,
   GaugeComponent,
-  SensorComponent,
-  SolidComponent,
-  LadderComponent,
   TextComponent,
   TopDownControllerComponent,
 } from '../../types/components'
@@ -61,17 +58,6 @@ export interface ComponentDescriptor {
   fields:  FieldDescriptor[]
 }
 
-const SENSOR: SensorComponent = {
-  shape: 'Circle', radius: 120, width: 64, height: 64, targetTag: 'player',
-}
-const SOLID: SolidComponent = {
-  groundClass: 'Ground',
-  surfaceKind: 'solid',
-}
-const LADDER: LadderComponent = {
-  shape: 'Rectangle', radius: 64, width: 32, height: 96,
-  axis: 'vertical', climbSpeed: 0,
-}
 const COLLISION_BODY: CollisionBodyComponent = {
   bodyType: 'static',
   enabled: true,
@@ -156,7 +142,7 @@ const ALL_COMPONENT_REGISTRY: ComponentDescriptor[] = [
     key: 'collisionBody',
     label: 'Collision Body',
     description:
-      'Authoritative collision source for solid bodies, trigger areas, hitboxes, hurtboxes, and interaction zones.',
+      'Authoritative collision source. Edit shapes, layers, and masks in Sprite Studio when a sprite sheet is assigned; use inline shapes for static platforms.',
     color: 'var(--yellow)',
     create: () => ({ ...COLLISION_BODY, shapes: COLLISION_BODY.shapes.map((shape) => ({ ...shape })) }),
     fields: [
@@ -165,75 +151,10 @@ const ALL_COMPONENT_REGISTRY: ComponentDescriptor[] = [
     ],
   },
   {
-    key: 'sensor',
-    label: 'Trigger Area',
-    color: 'var(--accent)',
-    create: () => ({ ...SENSOR }),
-    fields: [
-      { key: 'shape', label: 'Shape', kind: 'select', options: ['Circle', 'Rectangle'] },
-      {
-        key: 'radius', label: 'Radius (px)', kind: 'number', min: 1, step: 1,
-        visibleWhen: (c) => c.shape === 'Circle',
-      },
-      {
-        key: 'width', label: 'Width (px)', kind: 'number', min: 1, step: 1,
-        visibleWhen: (c) => c.shape === 'Rectangle',
-      },
-      {
-        key: 'height', label: 'Height (px)', kind: 'number', min: 1, step: 1,
-        visibleWhen: (c) => c.shape === 'Rectangle',
-      },
-      { key: 'targetTag', label: 'Target Tag', kind: 'text' },
-    ],
-  },
-  {
-    key: 'solid',
-    label: 'Solid',
-    description:
-      'Ground for Platformer Controller (Solid or One-Way). Solid blocks on all sides (native AABB); One-Way only lands on the top edge when falling. Does not require Physics. Match Ground Class on the player.',
-    color: 'var(--yellow)',
-    create: () => ({ ...SOLID }),
-    fields: [
-      {
-        key: 'surfaceKind',
-        label: 'Surface',
-        kind: 'select',
-        options: ['solid', 'oneWay'],
-        optionLabels: ['Solid', 'One-Way'],
-      },
-      { key: 'groundClass', label: 'Ground Class', kind: 'text' },
-    ],
-  },
-  {
-    key: 'ladder',
-    label: 'Ladder',
-    description:
-      'Climb zone for the Platformer Controller. The player attaches when overlapping this area and presses along its axis (gravity suspended). Bbox is independent of the sprite; use for ladders (vertical) or ropes (horizontal). No Physics body needed.',
-    color: 'var(--yellow)',
-    create: () => ({ ...LADDER }),
-    fields: [
-      { key: 'axis', label: 'Axis', kind: 'select', options: ['vertical', 'horizontal'] },
-      { key: 'shape', label: 'Zone Shape', kind: 'select', options: ['Circle', 'Rectangle'] },
-      {
-        key: 'radius', label: 'Radius (px)', kind: 'number', min: 1, step: 1,
-        visibleWhen: (c) => c.shape === 'Circle',
-      },
-      {
-        key: 'width', label: 'Width (px)', kind: 'number', min: 1, step: 1,
-        visibleWhen: (c) => c.shape === 'Rectangle',
-      },
-      {
-        key: 'height', label: 'Height (px)', kind: 'number', min: 1, step: 1,
-        visibleWhen: (c) => c.shape === 'Rectangle',
-      },
-      { key: 'climbSpeed', label: 'Climb Speed (px/s, 0 = use player)', kind: 'number', min: 0, step: 10 },
-    ],
-  },
-  {
     key: 'platformerController',
     label: 'Platformer Controller',
     description:
-      'Arcade feel: Coyote Time and Jump Buffer. Movement is on the transform (no physics body by default). Add Physics for collision overlap, or use Solid platforms + Ground Class.',
+      'Arcade feel: Coyote Time and Jump Buffer. Movement resolves against Collision Body shapes.',
     color: 'var(--yellow)',
     create: () => ({ ...PLATFORMER }),
     fields: [

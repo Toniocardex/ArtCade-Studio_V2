@@ -41,7 +41,6 @@ function richProject(): ProjectDoc {
         offset: { x: 1, y: 2 },
         density: 1.5,
         friction: 0.3,
-        isSensor: true,
       },
     },
     scriptPath: 'scripts/hero.lua',
@@ -129,7 +128,32 @@ function richProject(): ProjectDoc {
     },
   }
   p.tilePalette = [
-    { id: 1, name: 'Dirt', color: '#8B5A2B', solid: true, surfaceKind: 'solid' },
+    {
+      id: 1,
+      name: 'Dirt',
+      color: '#8B5A2B',
+      collisionBody: {
+        bodyType: 'static',
+        enabled: true,
+        shapes: [{
+          type: 'rectangle',
+          response: 'solid',
+          role: 'body',
+          layerId: 'ground',
+          maskLayerIds: ['player'],
+          offsetX: 0,
+          offsetY: 0,
+          width: 32,
+          height: 32,
+          radius: 16,
+          enabled: true,
+          oneWay: false,
+          friction: 0.3,
+          restitution: 0,
+          density: 1,
+        }],
+      },
+    },
   ]
   p.globalVariables = [
     { key: 'score', type: 'number', initialValue: 0 },
@@ -173,7 +197,7 @@ describe('project-codec round-trip', () => {
 
   it('preserves object-type physics and local variables', () => {
     expect(back.objectTypes?.Hero.physics?.bodyType).toBe('Dynamic')
-    expect(back.objectTypes?.Hero.physics?.collider.isSensor).toBe(true)
+    expect(back.objectTypes?.Hero.physics?.collider.shape).toBe('Rectangle')
     expect(back.objectTypes?.Hero.localVariables).toEqual([
       { key: 'hp', type: 'number', initialValue: 100, description: 'health' },
       { key: 'name', type: 'string', initialValue: 'Knight' },
@@ -222,7 +246,11 @@ describe('project-codec round-trip', () => {
   })
 
   it('preserves palette, globals, layers, world and license tier', () => {
-    expect(back.tilePalette?.[0]).toMatchObject({ id: 1, name: 'Dirt', surfaceKind: 'solid' })
+    expect(back.tilePalette?.[0]).toMatchObject({ id: 1, name: 'Dirt' })
+    expect(back.tilePalette?.[0].collisionBody?.shapes[0]).toMatchObject({
+      response: 'solid',
+      layerId: 'ground',
+    })
     expect(back.globalVariables).toEqual([
       { key: 'score', type: 'number', initialValue: 0 },
       { key: 'paused', type: 'boolean', initialValue: false },

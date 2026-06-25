@@ -20,7 +20,6 @@ struct PlatformerControllerComponent;
 struct TopDownControllerComponent;
 
 namespace WorldInternal {
-struct GroundingContext;
 void stepPlatformerController(World& world,
                               EntityId id,
                               const PlatformerControllerComponent& pc,
@@ -30,14 +29,6 @@ void stepTopDownController(World& world,
                            const TopDownControllerComponent& tc,
                            float dt);
 } // namespace WorldInternal
-
-/** One sensor overlap edge detected this frame (consumed via pollSensorEdges). */
-struct SensorEdgeEvent {
-    EntityId    entityId = INVALID_ENTITY;
-    EntityId    otherId  = INVALID_ENTITY;
-    std::string targetTag;
-    bool        enter    = false;
-};
 
 /**
  * World — game-state orchestrator (Layer 3).
@@ -68,9 +59,7 @@ public:
     /** Platformer owns Transform; runs before physics.step. Kinematic collider
      *  bodies are pushed from Transform each tick — not pulled by syncPhysics. */
     void tickPlatformerControllers(float dt);
-    /** Compute sensor begin/end edges from CURRENT physics positions. Must
-     *  be called by the app driver AFTER physics->step + syncPhysics, so
-     *  Lua callbacks fire on this frame's overlaps (no 1-frame lag). */
+    /** Refresh collision contacts after physics updates. */
     void refreshSensorEdges();
     /** Follow exactly one camera target. Automatic mode selects the lowest active id. */
     void tickCameraTargets(float dt);
@@ -105,16 +94,11 @@ public:
         float& horizontalVelocity,
         float& verticalVelocity) const;
 
-    /** Drain and clear sensor enter/exit events queued since last poll. */
-    std::vector<SensorEdgeEvent> pollSensorEdges();
-
     void snapEntityToGrid(EntityId id, float cellSize);
     void moveEntityByOffset(EntityId id, float dx, float dy);
     bool isSpaceFree(float x, float y, float w, float h) const;
-    /** True when entity has PlatformerController and overlaps its groundClass. */
+    /** True when entity has PlatformerController and its feet touch solid collision. */
     bool isPlatformerGrounded(EntityId id) const;
-
-    WorldInternal::GroundingContext groundingContext() const;
 
     void setMovementIntent(EntityId id, float directionX, float directionY);
     void clearMovementIntent(EntityId id);
@@ -158,36 +142,23 @@ private:
     };
     std::unordered_map<EntityId, ControlIntent> controlIntents_;
 
-    /** Sensor overlap memory: entityId -> was overlapping target last frame. */
-    std::unordered_map<EntityId, bool> sensorWasOverlapping_;
-    std::vector<SensorEdgeEvent>       sensorEdgeBuffer_;
     CollisionWorld::World              collisionWorld_;
     std::vector<PhysicsLayerDef>       physicsLayers_;
 
     TilemapData  activeTilemap_;
     std::unordered_map<int, TileSurfaceMeta> tileMeta_;
-    std::vector<uint32_t>                    tilePhysicsHandles_;
 
     void applyTilePalette(const std::vector<TilePaletteEntry>& tilePalette);
 
-    void clearTilemapPhysics();
-    /** Tile physics bodies only when Dynamic bodies need terrain overlap (see docs). */
-    bool needsTilemapPhysicsBodies() const;
-    void rebuildTilemapPhysics();
-    /** Lazy tile bodies when first Dynamic appears; clear when none remain. */
-    void syncTilemapPhysicsWithDynamics();
     void clearGameplayRuntimeState();
     /** Drop per-entity gameplay caches when the gateway destroys entity id. */
     void forgetEntity(EntityId id);
 
-    bool isGrounded(EntityId id, const std::string& groundClass) const;
-    bool isGroundedOnSolidAabb(EntityId id, const std::string& groundClass) const;
     void tickTopDownControllers(float dt);
     void tickLinearMovers(float dt);
     void tickMagneticItems(float dt);
     void tickHordeMembers(float dt);
     void tickHealthCooldowns(float dt);
-    void tickSensorOverlapEdges();
 
     enum class CameraFollowMode {
         Automatic,

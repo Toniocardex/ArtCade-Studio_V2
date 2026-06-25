@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Project entity class picker (spawnEntity, compareClass, withClass, …)
+// Project entity class picker (spawnEntity, compareClass, collision filters, ...)
 // ---------------------------------------------------------------------------
 
 import { useMemo } from 'react'

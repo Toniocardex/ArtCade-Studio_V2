@@ -2,6 +2,8 @@
 
 #include "../../modules/renderer/include/renderer.h"
 #include "../../core/sprite-draw-math.h"
+#include "../../modules/collision/include/collision_math.h"
+#include "../../modules/collision/include/collision_world.h"
 
 #include <algorithm>
 #include <cmath>
@@ -98,22 +100,27 @@ void drawGrid(Modules::Renderer& renderer,
 void drawSelection(Modules::Renderer& renderer,
                    const Transform& transform,
                    const SpriteComponent& sprite,
-                   const std::optional<SensorComponent>& sensor,
                    const EditorOverlayState& state,
                    bool hiddenInGame,
-                   const std::optional<Vec2>& visualSize) {
+                   const std::optional<Vec2>& visualSize,
+                   const std::optional<CollisionBodyComponent>& collisionBody) {
     if (!state.inEditMode || state.selectedId == 0u) return;
 
     const Vec2 p = transform.position;
 
-    if (sensor) {
-        const Vec4 sc{0.f, 1.f, 1.f, 0.35f};
-        if (sensor->shape == "Rectangle") {
-            const float sw = sensor->width;
-            const float sh = sensor->height;
-            renderer.drawRect(p.x - sw * 0.5f, p.y - sh * 0.5f, sw, sh, sc);
-        } else {
-            renderer.drawCircle(p.x, p.y, sensor->radius, sc);
+    if (collisionBody && collisionBody->enabled) {
+        const Vec4 collisionColor{0.22f, 0.74f, 0.98f, 0.95f};
+        for (const CollisionShape& shape : collisionBody->shapes) {
+            if (!shape.enabled) continue;
+            const auto inst = CollisionWorld::shapeInstance(transform, shape);
+            const auto aabb = PhysicsMath::shapeWorldAabb(inst);
+            drawRectOutline(
+                renderer,
+                aabb.minX,
+                aabb.minY,
+                aabb.maxX - aabb.minX,
+                aabb.maxY - aabb.minY,
+                collisionColor);
         }
     }
 

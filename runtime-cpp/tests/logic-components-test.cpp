@@ -76,9 +76,8 @@ entity = {
 -- Collision stub: grounded set is controlled per-test.
 collision = {
     _groundedIds = {},
-    touchingClass = function(id, cls)
-        return collision._groundedIds[id] == true
-    end,
+    firstTouching = function(id, filter) return 0 end,
+    isGrounded = function(id) return collision._groundedIds[id] == true end,
     overlap  = function(id1, id2) return false end,
     raycast  = function(x1,y1,x2,y2) return {hit=false} end,
 }

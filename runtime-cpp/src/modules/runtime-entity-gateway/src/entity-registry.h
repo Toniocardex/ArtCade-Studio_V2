@@ -93,15 +93,6 @@ public:
     bool getCollisionBody(EntityId id, CollisionBodyComponent& out) const;
     void setCollisionBody(EntityId id, const std::optional<CollisionBodyComponent>& c);
 
-    bool getSensor(EntityId id, SensorComponent& out) const;
-    void setSensor(EntityId id, const std::optional<SensorComponent>& s);
-
-    bool getSolid(EntityId id, SolidComponent& out) const;
-    void setSolid(EntityId id, const std::optional<SolidComponent>& s);
-
-    bool getLadder(EntityId id, LadderComponent& out) const;
-    void setLadder(EntityId id, const std::optional<LadderComponent>& s);
-
     bool getPlatformer(EntityId id, PlatformerControllerComponent& out) const;
     void setPlatformer(EntityId id,
                        const std::optional<PlatformerControllerComponent>& p);
@@ -219,18 +210,6 @@ public:
     using ActiveHordeMemberFn = std::function<void(
         EntityId, const HordeMemberComponent&)>;
     void forEachActiveHordeMember(const ActiveHordeMemberFn& fn) const;
-
-    using ActiveSensorFn = std::function<void(
-        EntityId, const SensorComponent&)>;
-    void forEachActiveSensor(const ActiveSensorFn& fn) const;
-
-    using ActiveSolidFn = std::function<void(
-        EntityId, const SolidComponent&)>;
-    void forEachActiveSolid(const ActiveSolidFn& fn) const;
-
-    using ActiveLadderFn = std::function<void(
-        EntityId, const LadderComponent&)>;
-    void forEachActiveLadder(const ActiveLadderFn& fn) const;
 
     using ActiveAutoDestroyFn = std::function<void(
         EntityId, AutoDestroyComponent&)>;

@@ -130,15 +130,39 @@ describe('runtimeProjectFingerprint', () => {
     const withMover = makeProject({
       entities: { 1: makeEntity({ linearMover: { directionX: 1, directionY: 0, speed: 300 } as never }) },
     })
-    const withSolid = makeProject({
-      entities: { 1: makeEntity({ solid: { groundClass: 'Ground' } as never }) },
+    const withCollisionBody = makeProject({
+      entities: {
+        1: makeEntity({
+          collisionBody: {
+            bodyType: 'static',
+            enabled: true,
+            shapes: [{
+              type: 'rectangle',
+              response: 'solid',
+              role: 'body',
+              layerId: 'ground',
+              maskLayerIds: ['player'],
+              offsetX: 0,
+              offsetY: 0,
+              width: 32,
+              height: 32,
+              radius: 16,
+              enabled: true,
+              oneWay: false,
+              friction: 0.3,
+              restitution: 0,
+              density: 1,
+            }],
+          },
+        } as never),
+      },
     })
     expect(runtimeProjectFingerprint(base,       'scene_a'))
       .not.toBe(runtimeProjectFingerprint(withHealth, 'scene_a'))
     expect(runtimeProjectFingerprint(base,      'scene_a'))
       .not.toBe(runtimeProjectFingerprint(withMover, 'scene_a'))
     expect(runtimeProjectFingerprint(base,      'scene_a'))
-      .not.toBe(runtimeProjectFingerprint(withSolid, 'scene_a'))
+      .not.toBe(runtimeProjectFingerprint(withCollisionBody, 'scene_a'))
   })
 
   it('changes when active scene changes', () => {

@@ -59,37 +59,6 @@ void World::tickCameraTargets(float dt) {
     renderer_->setCameraCenter(nextCenter);
 }
 
-void World::tickSensorOverlapEdges() {
-    entityGateway_.forEachActiveSensor(
-        [this](EntityId id, const SensorComponent& sensor) {
-            const uint32_t handle = entityGateway_.physicsHandle(id);
-            if (handle == 0) return;
-
-            bool overlapping = false;
-            EntityId otherHit = INVALID_ENTITY;
-            const std::string& target = sensor.targetTag;
-
-            entityGateway_.forEachActiveByTag(target, [&](EntityId otherId) {
-                if (overlapping || otherId == id) return;
-                const uint32_t otherHandle = entityGateway_.physicsHandle(otherId);
-                if (otherHandle == 0) return;
-                if (physics_.areOverlapping(handle, otherHandle)) {
-                    overlapping = true;
-                    otherHit = otherId;
-                }
-            });
-
-            const bool was = sensorWasOverlapping_[id];
-            if (overlapping && !was) {
-                sensorEdgeBuffer_.push_back({ id, otherHit, target, true });
-            } else if (!overlapping && was) {
-                sensorEdgeBuffer_.push_back({ id, INVALID_ENTITY, target, false });
-            }
-
-            sensorWasOverlapping_[id] = overlapping;
-        });
-}
-
 void World::tickHordeMembers(float dt) {
     struct HordeSnap {
         EntityId              id = 0;
@@ -103,11 +72,7 @@ void World::tickHordeMembers(float dt) {
         [&](EntityId id, const HordeMemberComponent& horde) {
             // Skip entities that ALREADY have their own movement authority:
             // gameplay controllers (platformer / top-down / linear mover) own
-            // velocity directly and we must not stomp them. SolidComponent,
-            // however, is just a collision flag — having one does NOT mean
-            // the entity has its own steering. The previous code returned
-            // here for any Solid entity, which froze every horde enemy that
-            // also had collision (i.e. almost all of them).
+            // velocity directly and we must not stomp them.
             PlatformerControllerComponent platformer{};
             if (entityGateway_.getPlatformerController(id, platformer))
                 return;

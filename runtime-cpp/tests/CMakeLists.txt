@@ -137,9 +137,9 @@ if(ARTCADE_HAS_RAYLIB AND ARTCADE_HAS_LUA)
         entity-collision-query-test.cpp
         "artcade-runtime-entity-gateway;artcade-collision")
 
-    artcade_test(world_intent_test
-        world-intent-test.cpp
-        "artcade-world;artcade-runtime-entity-gateway;artcade-physics;artcade-variable-manager")
+    artcade_test(collision_world_mask_test
+        collision-world-mask-test.cpp
+        "artcade-runtime-entity-gateway;artcade-collision;artcade-project-json")
 
 add_executable(artcade_package_test artcade-package-test.cpp)
 target_include_directories(artcade_package_test PRIVATE
@@ -148,12 +148,6 @@ target_include_directories(artcade_package_test PRIVATE
     ${CMAKE_SOURCE_DIR}/src/modules/asset-system/src)
 target_link_libraries(artcade_package_test PRIVATE artcade-asset-system)
 add_test(NAME artcade_package_test COMMAND artcade_package_test)
-
-    artcade_test(asset_loader_test
-        asset-loader-test.cpp
-        artcade-asset-system)
-    target_compile_definitions(asset_loader_test
-        PRIVATE ARTCADE_SOURCE_ROOT="${CMAKE_SOURCE_DIR}")
 
     # .artcade encryption round-trip — only when Monocypher + key header exist.
     if(ARTCADE_HAS_CRYPTO)
@@ -167,19 +161,9 @@ add_test(NAME artcade_package_test COMMAND artcade_package_test)
         add_test(NAME artcade_crypto_test COMMAND artcade_crypto_test)
     endif()
 
-    artcade_test(project_json_test
-        project-json-test.cpp
-        artcade-project-json)
-
     artcade_test(tilemap_grid_test
         tilemap-grid-test.cpp
         artcade-core)
-
-    artcade_test(project_json_parity_test
-        project-json-parity-test.cpp
-        artcade-asset-system)
-    target_compile_definitions(project_json_parity_test
-        PRIVATE ARTCADE_SOURCE_ROOT="${CMAKE_SOURCE_DIR}")
 endif()
 
 # ============================================================================

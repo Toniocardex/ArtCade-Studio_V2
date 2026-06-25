@@ -87,7 +87,7 @@ describe('board-level compatibility errors', () => {
       events: [
         { id: 'spawn1', enabled: true, trigger: { type: 'onSpawn' }, actions: [] },
         { id: 'input1', enabled: true, trigger: { type: 'onInput', keyCode: 'Space', eventType: 'pressed' }, actions: [] },
-        { id: 'col1', enabled: true, trigger: { type: 'onCollision', withClass: 'Coin' }, actions: [] },
+        { id: 'col1', enabled: true, trigger: { type: 'onCollision', filter: { className: 'Coin' } }, actions: [] },
       ],
     })
     const errs = findBoardCompatibilityErrors(b)

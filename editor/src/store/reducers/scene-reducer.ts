@@ -7,7 +7,7 @@
 
 import type { CoreState, Action, DomainReducer } from '../editor-store-state'
 import { DEFAULT_WORLD, createTilemap, createTilemapForNewLayer, resizeTilemap, mergeTilemapLayers, resizeTilemapForTileSize, resolveTilemapTileSize } from '../../types'
-import type { AnimationClipDef, EntityDef, SceneDef, SpriteComponent, TilemapLayer } from '../../types'
+import type { AnimationClipDef, CollisionProfileDef, EntityDef, SceneDef, SpriteComponent, TilemapLayer } from '../../types'
 import { DEFAULT_LAYERS } from '../../constants/scene-layers'
 import { createSceneDef, uniqueSceneName, nextEntityId } from '../../utils/project'
 import { clampEntityPositionToScene, snapToGridValue } from '../../utils/entity-position'
@@ -495,6 +495,27 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
       return {
         ...state,
         project: applyClipDefaultsForAsset(projectWithClips, existing.path, action.clips),
+        projectDirty: true,
+      }
+    }
+    case 'COLLISION_PROFILE_SET': {
+      if (!state.project) return state
+      const asset = state.project.assets?.[action.assetId]
+      if (!asset) return state
+      const profile: CollisionProfileDef = {
+        ...action.profile,
+        id: action.assetId,
+        name: action.profile.name || asset.name,
+      }
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          collisionProfiles: {
+            ...(state.project.collisionProfiles ?? {}),
+            [action.assetId]: profile,
+          },
+        },
         projectDirty: true,
       }
     }

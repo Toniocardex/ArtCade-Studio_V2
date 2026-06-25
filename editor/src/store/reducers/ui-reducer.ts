@@ -304,7 +304,11 @@ export const uiReducer: DomainReducer = (state: CoreState, action: Action) => {
     case 'SPRITESHEET_STUDIO_OPEN':
       return {
         ...state,
-        spritesheetStudio: { open: true, imageAssetId: action.imageAssetId },
+        spritesheetStudio: {
+          open: true,
+          imageAssetId: action.imageAssetId,
+          ...(action.initialMode ? { initialMode: action.initialMode } : {}),
+        },
       }
     case 'SPRITESHEET_STUDIO_CLOSE':
       return state.spritesheetStudio.open

@@ -54,8 +54,6 @@ struct Physics::Impl {
         Vec2            accumulatedForce;
         float           gravityScale = 1.f;
         bool            active       = true;
-        bool            hasSensor    = false;
-        SensorComponent sensor;
     };
 
     std::unordered_map<uint32_t, BodyEntry> bodies;
@@ -77,34 +75,11 @@ struct Physics::Impl {
         return s;
     }
 
-    static ShapeInstance sensorShape(const BodyEntry& body) {
-        ShapeInstance s;
-        s.position = body.position;
-        if (body.sensor.shape == "Rectangle") {
-            s.shape = ColliderShape::Rectangle;
-            s.size  = { body.sensor.width, body.sensor.height };
-        } else {
-            s.shape = ColliderShape::Circle;
-            s.size  = { body.sensor.radius, body.sensor.radius };
-        }
-        return s;
-    }
-
     static bool shapesOverlapAny(const BodyEntry& a, const BodyEntry& b) {
-        if (shapesOverlap(mainShape(a), mainShape(b)))
-            return true;
-        if (a.hasSensor && shapesOverlap(sensorShape(a), mainShape(b)))
-            return true;
-        if (b.hasSensor && shapesOverlap(mainShape(a), sensorShape(b)))
-            return true;
-        if (a.hasSensor && b.hasSensor && shapesOverlap(sensorShape(a), sensorShape(b)))
-            return true;
-        return false;
+        return shapesOverlap(mainShape(a), mainShape(b));
     }
 
     static bool shouldResolvePair(const BodyEntry& a, const BodyEntry& b) {
-        if (a.collider.isSensor || b.collider.isSensor)
-            return false;
         return a.bodyType == BodyType::Dynamic || b.bodyType == BodyType::Dynamic;
     }
 
@@ -237,8 +212,7 @@ struct Physics::Impl {
 
             for (const auto& [handle, other] : bodies) {
                 (void)handle;
-                if (!other.active || other.bodyType == BodyType::Dynamic
-                    || other.collider.isSensor)
+                if (!other.active || other.bodyType == BodyType::Dynamic)
                     continue;
                 const RaycastHit hit =
                     raycastSegmentVsShape(from, to, mainShape(other));
@@ -352,24 +326,6 @@ void Physics::destroyBody(uint32_t handle) {
     impl_->bodies.erase(handle);
 }
 
-void Physics::clearSensorFixture(uint32_t bodyHandle) {
-    auto it = impl_->bodies.find(bodyHandle);
-    if (it == impl_->bodies.end()) return;
-    it->second.hasSensor = false;
-}
-
-bool Physics::setSensorFixture(uint32_t bodyHandle, const SensorComponent& sensor) {
-    auto it = impl_->bodies.find(bodyHandle);
-    if (it == impl_->bodies.end()) return false;
-    it->second.sensor    = sensor;
-    it->second.hasSensor = true;
-    return true;
-}
-
-bool Physics::addSensorFixture(uint32_t bodyHandle, const SensorComponent& sensor) {
-    return setSensorFixture(bodyHandle, sensor);
-}
-
 void Physics::setBodyActive(uint32_t handle, bool active) {
     auto it = impl_->bodies.find(handle);
     if (it == impl_->bodies.end()) return;
@@ -443,7 +399,7 @@ Physics::RaycastResult Physics::raycast(const Vec2& from, const Vec2& to) const 
     RaycastHit    best;
 
     for (const auto& [handle, body] : impl_->bodies) {
-        if (!body.active || body.collider.isSensor)
+        if (!body.active)
             continue;
 
         const RaycastHit hit = raycastSegmentVsShape(from, to, Impl::mainShape(body));
@@ -470,8 +426,7 @@ std::vector<uint32_t> Physics::getContactingBodies(const Vec2& point) const {
     std::vector<uint32_t> result;
     for (const auto& [handle, body] : impl_->bodies) {
         if (!body.active) continue;
-        if (pointInsideShape(point, Impl::mainShape(body))
-            || (body.hasSensor && pointInsideShape(point, Impl::sensorShape(body))))
+        if (pointInsideShape(point, Impl::mainShape(body)))
             result.push_back(handle);
     }
     return result;

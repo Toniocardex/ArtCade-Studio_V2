@@ -1,9 +1,6 @@
 import type { ComponentKind } from '../../../utils/logic-board/schema-registry'
 
 const FIELD_LABELS: Record<string, string> = {
-  'trigger:onCollision:withClass': 'Touching class',
-  'trigger:onTriggerEnter:withClass': 'Zone tag',
-  'trigger:onTriggerExit:withClass': 'Zone tag',
   'trigger:onAnimationEnd:clipName': 'Animation name',
   'trigger:onAnimationStart:clipName': 'Animation name',
   'trigger:onAnimationFrame:clipName': 'Animation name',

@@ -90,16 +90,6 @@ void bindComponentValueAPI(sol::state& lua, const EngineContext& ctx) {
                 if (property == "text.align") return sol::make_object(state, text.align);
             }
 
-            SensorComponent sensor{};
-            if (gw->getSensor(id, sensor) && property == "sensor.targetTag")
-                return sol::make_object(state, sensor.targetTag);
-
-            SolidComponent solid{};
-            if (gw->getSolid(id, solid)) {
-                if (property == "solid.groundClass") return sol::make_object(state, solid.groundClass);
-                if (property == "solid.surfaceKind") return sol::make_object(state, solid.surfaceKind);
-            }
-
             return sol::make_object(state, sol::lua_nil);
         });
 }

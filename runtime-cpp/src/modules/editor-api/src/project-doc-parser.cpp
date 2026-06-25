@@ -4,6 +4,7 @@
 #include "entity-json.h"
 #include "scene-json.h"
 #include "project-meta-json.h"
+#include "collision-json.h"
 
 #ifdef __EMSCRIPTEN__
 
@@ -110,6 +111,32 @@ std::vector<GameVariableDefinition> parseGlobalVariables(const json& doc) {
     ProjectDoc project;
     ProjectJson::read_global_variables(doc, project);
     return std::move(project.globalVariables);
+}
+
+std::vector<PhysicsLayerDef> parsePhysicsLayers(const json& doc) {
+    std::vector<PhysicsLayerDef> out;
+    ProjectJson::read_physics_layers(doc, out);
+    return out;
+}
+
+std::unordered_map<std::string, CollisionProfileDef> parseCollisionProfiles(const json& doc) {
+    std::unordered_map<std::string, CollisionProfileDef> out;
+    ProjectJson::read_collision_profiles(doc, out);
+    return out;
+}
+
+std::unordered_map<std::string, std::string> parseSpritePathToAssetId(const json& doc) {
+    std::unordered_map<std::string, std::string> out;
+    if (!doc.contains("assets") || !doc["assets"].is_object())
+        return out;
+    for (auto& [key, assetJson] : doc["assets"].items()) {
+        if (!assetJson.is_object()) continue;
+        const std::string path = assetJson.value("path", std::string{});
+        const std::string id = assetJson.value("id", key);
+        if (!path.empty())
+            out[path] = id;
+    }
+    return out;
 }
 
 } // namespace ArtCade::ProjectDocParser

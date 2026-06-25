@@ -13,10 +13,8 @@ World::World(Modules::RuntimeEntityGateway& gateway,
              Modules::VariableManager&      variables)
     : entityGateway_(gateway), physics_(ph), variables_(variables) {
     // Drop per-entity gameplay caches the moment the gateway destroys an
-    // entity. EnTT recycles ids, so without this a fresh entity reusing
-    // id N inherits the previous owner's coyote timer / jump buffer /
-    // sensor "was overlapping" memory → phantom jumps on respawn,
-    // sensor.onEnter mis-fires, etc.
+    // entity. EnTT recycles ids, so without this a fresh entity can inherit
+    // previous gameplay timers and input state.
     entityGateway_.setEntityDestroyHandler([this](EntityId id) {
         forgetEntity(id);
         variables_.destroyEntity(id);
@@ -24,16 +22,12 @@ World::World(Modules::RuntimeEntityGateway& gateway,
     entityGateway_.setEntityCreatedHandler([this](EntityId id, const EntityDef& def) {
         variables_.createEntity(id, def.localVariables, def.localVariableOverrides);
     });
-    entityGateway_.setPhysicsTopologyHandler([this] {
-        syncTilemapPhysicsWithDynamics();
-    });
 }
 
 void World::forgetEntity(EntityId id) {
     platformerRt_.erase(id);
     topDownRt_.erase(id);
     controlIntents_.erase(id);
-    sensorWasOverlapping_.erase(id);
     if (cameraFollowMode_ == CameraFollowMode::Explicit
         && cameraFollowTarget_ == id) {
         useAutomaticCameraTarget();
@@ -44,8 +38,6 @@ void World::clearGameplayRuntimeState() {
     platformerRt_.clear();
     topDownRt_.clear();
     controlIntents_.clear();
-    sensorWasOverlapping_.clear();
-    sensorEdgeBuffer_.clear();
     useAutomaticCameraTarget();
 }
 
@@ -54,11 +46,16 @@ void World::applyTilePalette(const std::vector<TilePaletteEntry>& tilePalette) {
     for (const auto& e : tilePalette) {
         if (e.id < 1) continue;
         TileSurfaceMeta m;
-        m.blocks      = e.solid;
-        m.groundClass = e.groundClass.empty() ? "Ground" : e.groundClass;
-        const std::string& kind = e.surfaceKind;
-        m.oneWay = (kind == "oneWay" || kind == "OneWay" || kind == "one-way"
-                    || kind == "One-Way");
+        m.collisionBody = e.collisionBody;
+        if (m.collisionBody) {
+            for (const CollisionShape& shape : m.collisionBody->shapes) {
+                if (!shape.enabled) continue;
+                if (shape.response == CollisionResponse::Solid) {
+                    m.blocks = true;
+                    m.oneWay = m.oneWay || shape.oneWay;
+                }
+            }
+        }
         tileMeta_[e.id] = std::move(m);
     }
 }
@@ -66,7 +63,6 @@ void World::applyTilePalette(const std::vector<TilePaletteEntry>& tilePalette) {
 void World::syncAfterEditorProject(const std::vector<TilePaletteEntry>& tilePalette) {
     applyTilePalette(tilePalette);
     clearGameplayRuntimeState();
-    rebuildTilemapPhysics();
     rebuildCollisionWorld();
 }
 
@@ -83,11 +79,12 @@ void World::init(const ProjectDoc& doc) {
     const std::unordered_map<std::string, EntityDef>* typesPtr =
         doc.objectTypes.empty() ? nullptr : &doc.objectTypes;
     entityGateway_.replaceProject(doc.scenes, doc.entities, doc.activeSceneId, typesPtr);
+    entityGateway_.setCollisionProjectData(
+        doc.physicsLayers, doc.collisionProfiles, doc.spritePathToAssetId);
 
     applyTilePalette(doc.tilePalette);
     activeTilemap_ = TilemapData{};
 
-    rebuildTilemapPhysics();
     rebuildCollisionWorld();
 }
 
@@ -99,7 +96,6 @@ void World::shutdown() {
     entityGateway_.setEntityCreatedHandler(nullptr);
     entityGateway_.setPhysicsTopologyHandler(nullptr);
 
-    clearTilemapPhysics();
     variables_.clear();
     clearGameplayRuntimeState();
     activeTilemap_ = TilemapData{};
@@ -108,16 +104,9 @@ void World::shutdown() {
     physicsLayers_.clear();
 }
 
-std::vector<SensorEdgeEvent> World::pollSensorEdges() {
-    std::vector<SensorEdgeEvent> out;
-    out.swap(sensorEdgeBuffer_);
-    return out;
-}
-
 bool World::loadScene(const SceneId& id) {
     if (!entityGateway_.loadScene(id)) return false;
     clearGameplayRuntimeState();
-    rebuildTilemapPhysics();
     rebuildCollisionWorld();
     return true;
 }
@@ -166,15 +155,86 @@ std::vector<EntityId> World::activeEntityIds() const {
 }
 
 void World::rebuildCollisionWorld() {
+    if (const SceneDef* scene = entityGateway_.activeScene())
+        activeTilemap_ = scene->tilemap;
     collisionWorld_.clear();
-    if (physicsLayers_.empty())
+    const auto& layers = entityGateway_.physicsLayers();
+    if (layers.empty())
         collisionWorld_.setLayers({});
+    else
+        collisionWorld_.setLayers(layers);
     entityGateway_.forEachActiveCollisionBody(
         [this](EntityId id,
                const Transform& transform,
                const CollisionBodyComponent& body) {
             collisionWorld_.addEntity(id, transform, body);
         });
+
+    const TilemapData& tm = activeTilemap_;
+    if (tm.cols <= 0 || tm.rows <= 0 || tm.tileSize <= 0.f)
+        return;
+
+    uint32_t tileEntityId = 0x80000000u;
+    const float ts = tm.tileSize;
+
+    auto tileAt = [&](int col, int row) -> int {
+        if (col < 0 || row < 0 || col >= tm.cols || row >= tm.rows)
+            return 0;
+        const int idx = row * tm.cols + col;
+        if (idx < 0 || idx >= static_cast<int>(tm.data.size()))
+            return 0;
+        return tm.data[idx];
+    };
+
+    auto hasCollisionTile = [&](int id) -> bool {
+        auto it = tileMeta_.find(id);
+        return it != tileMeta_.end() && it->second.collisionBody;
+    };
+
+    for (int row = 0; row < tm.rows; ++row) {
+        int col = 0;
+        while (col < tm.cols) {
+            const int tileId = tileAt(col, row);
+            if (!hasCollisionTile(tileId)) {
+                ++col;
+                continue;
+            }
+
+            const int startCol = col;
+            while (col < tm.cols && tileAt(col, row) == tileId)
+                ++col;
+
+            const TileSurfaceMeta& meta = tileMeta_.at(tileId);
+            CollisionBodyComponent body = *meta.collisionBody;
+            body.bodyType = BodyType::Static;
+            body.enabled = true;
+
+            std::vector<CollisionShape> aggregatedShapes;
+            aggregatedShapes.reserve(body.shapes.size());
+            for (const CollisionShape& shape : body.shapes) {
+                if (!shape.enabled)
+                    continue;
+                CollisionShape aggregate = shape;
+                aggregate.type = CollisionShapeType::Rectangle;
+                aggregate.offset = {};
+                aggregate.size = { (col - startCol) * ts, ts };
+                aggregate.radius = 0.f;
+                aggregate.points.clear();
+                aggregatedShapes.push_back(std::move(aggregate));
+            }
+            if (aggregatedShapes.empty())
+                continue;
+
+            body.shapes = std::move(aggregatedShapes);
+
+            Transform tileTransform{};
+            tileTransform.position = {
+                startCol * ts + (col - startCol) * ts * 0.5f,
+                row * ts + ts * 0.5f,
+            };
+            collisionWorld_.addEntity(tileEntityId++, tileTransform, body);
+        }
+    }
 }
 
 bool World::collisionOverlap(EntityId a, EntityId b) const {
@@ -222,55 +282,53 @@ void World::resolveKinematicCollisionBody(
     float& verticalVelocity) const
 {
     CollisionBodyComponent selfBody{};
-    if (!entityGateway_.getCollisionBody(id, selfBody) || !selfBody.enabled)
+    if (!entityGateway_.getResolvedCollisionBody(id, selfBody) || !selfBody.enabled)
         return;
 
     for (int pass = 0; pass < 4; ++pass) {
         bool resolvedAny = false;
-        for (const CollisionShape& selfShape : selfBody.shapes) {
-            if (!selfShape.enabled || selfShape.response != CollisionResponse::Solid)
+        for (const CollisionWorld::ShapeRef& authoredSelf : collisionWorld_.shapes()) {
+            if (authoredSelf.id != id)
                 continue;
-            if (selfShape.role != CollisionShapeRole::Body
-                && selfShape.role != CollisionShapeRole::Feet)
+            if (!authoredSelf.shape.enabled
+                || authoredSelf.shape.response != CollisionResponse::Solid)
+                continue;
+            if (authoredSelf.shape.role != CollisionShapeRole::Body
+                && authoredSelf.shape.role != CollisionShapeRole::Feet)
                 continue;
 
-            const auto selfInst =
-                CollisionWorld::shapeInstance(transform, selfShape);
-            auto selfAabb = PhysicsMath::shapeWorldAabb(selfInst);
+            CollisionWorld::ShapeRef selfRef = authoredSelf;
+            selfRef.instance =
+                CollisionWorld::shapeInstance(transform, selfRef.shape);
+            selfRef.aabb = PhysicsMath::shapeWorldAabb(selfRef.instance);
+
             const auto prevAabb = PhysicsMath::shapeWorldAabb(
-                CollisionWorld::shapeInstance(beforeMove, selfShape));
+                CollisionWorld::shapeInstance(beforeMove, selfRef.shape));
 
-            entityGateway_.forEachActiveCollisionBody(
-                [&](EntityId otherId,
-                    const Transform& otherTransform,
-                    const CollisionBodyComponent& otherBody) {
-                    if (resolvedAny || otherId == id || !otherBody.enabled)
-                        return;
-                    for (const CollisionShape& otherShape : otherBody.shapes) {
-                        if (!otherShape.enabled
-                            || otherShape.response != CollisionResponse::Solid)
-                            continue;
-                        const auto otherInst =
-                            CollisionWorld::shapeInstance(otherTransform, otherShape);
-                        const auto otherAabb = PhysicsMath::shapeWorldAabb(otherInst);
-                        if (!PhysicsMath::aabbOverlap(selfAabb, otherAabb))
-                            continue;
-                        if (otherShape.oneWay
-                            && !(verticalVelocity >= 0.f
-                                 && prevAabb.maxY <= otherAabb.minY + 2.f))
-                            continue;
+            for (const CollisionWorld::ShapeRef& other : collisionWorld_.shapes()) {
+                if (resolvedAny || other.id == id)
+                    break;
+                if (!other.shape.enabled
+                    || other.shape.response != CollisionResponse::Solid)
+                    continue;
+                if (!CollisionWorld::canCollide(selfRef, other))
+                    continue;
+                if (!PhysicsMath::aabbOverlap(selfRef.aabb, other.aabb))
+                    continue;
+                if (other.shape.oneWay
+                    && !(verticalVelocity >= 0.f
+                         && prevAabb.maxY <= other.aabb.minY + 2.f))
+                    continue;
 
-                        Vec2 correction{};
-                        if (!PhysicsMath::resolveAabbSeparation(selfAabb, otherAabb, correction))
-                            continue;
-                        transform.position.x += correction.x;
-                        transform.position.y += correction.y;
-                        if (std::abs(correction.x) > 1e-6f) horizontalVelocity = 0.f;
-                        if (std::abs(correction.y) > 1e-6f) verticalVelocity = 0.f;
-                        resolvedAny = true;
-                        break;
-                    }
-                });
+                Vec2 correction{};
+                if (!PhysicsMath::resolveAabbSeparation(selfRef.aabb, other.aabb, correction))
+                    continue;
+                transform.position.x += correction.x;
+                transform.position.y += correction.y;
+                if (std::abs(correction.x) > 1e-6f) horizontalVelocity = 0.f;
+                if (std::abs(correction.y) > 1e-6f) verticalVelocity = 0.f;
+                resolvedAny = true;
+            }
         }
         if (!resolvedAny) break;
     }
@@ -317,7 +375,7 @@ void World::tickGameplaySystems(float dt) {
 
 void World::refreshSensorEdges() {
     rebuildCollisionWorld();
-    tickSensorOverlapEdges();
+    collisionWorld_.refreshEvents();
 }
 
 void World::flushEntityQueues() {

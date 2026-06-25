@@ -1,5 +1,6 @@
 #include "project-meta-json.h"
 
+#include "collision-json.h"
 #include "json-primitives.h"
 #include "entity-json.h"
 
@@ -51,9 +52,9 @@ bool read_tile_palette_entry(const nlohmann::json& item, TilePaletteEntry& out) 
 
     out.name        = item.value("name", std::string{});
     out.color       = read_tile_palette_color(item);
-    out.solid       = item.value("solid", false);
-    out.groundClass = read_string_any(item, "groundClass", "ground_class", "Ground");
-    out.surfaceKind = read_string_any(item, "surfaceKind", "surface_kind", "solid");
+    CollisionBodyComponent body{};
+    if (read_collision_body_component(item, body))
+        out.collisionBody = std::move(body);
     return true;
 }
 

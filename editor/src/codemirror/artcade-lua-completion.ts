@@ -16,7 +16,6 @@ const LUA_API_SNIPPETS: { label: string; type?: string; apply: string }[] = [
   { label: 'input.mouseScreen',       type: 'function', apply: 'input.mouseScreen()' },
   { label: 'input.mouseWorld',        type: 'function', apply: 'input.mouseWorld()' },
   { label: 'collision.overlap',       type: 'function', apply: 'collision.overlap(${id1}, ${id2})' },
-  { label: 'collision.touchingClass', type: 'function', apply: 'collision.touchingClass(${id}, "${Ground}")' },
   { label: 'collision.firstTouching', type: 'function', apply: 'collision.firstTouching(${id}, "${Coin}")' },
   { label: 'audio.playSound',         type: 'function', apply: 'audio.playSound("${path}", ${1.0}, ${1.0})' },
   { label: 'audio.playMusic',         type: 'function', apply: 'audio.playMusic("${path}", ${true})' },

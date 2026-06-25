@@ -59,15 +59,11 @@ int main() {
     CHECK(gw.physicsHandle(2) == 0);
 
     CHECK(entitiesOverlap(gw, 1, 2));
-    CHECK(touchingClass(gw, 1, "Coin"));
-    CHECK(firstOverlappingInClass(gw, 1, "Coin") == 2);
 
     Transform far = coin.transform;
     far.position = { 400.f, 400.f };
     CHECK(gw.setTransform(2, far));
     CHECK(!entitiesOverlap(gw, 1, 2));
-    CHECK(!touchingClass(gw, 1, "Coin"));
-    CHECK(firstOverlappingInClass(gw, 1, "Coin") == INVALID_ENTITY);
 
     gw.shutdown();
     sm.shutdown();

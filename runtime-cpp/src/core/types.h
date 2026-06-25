@@ -66,7 +66,6 @@ struct Collider {
     Vec2          offset;
     float         density  = 1.f;
     float         friction = 0.3f;
-    bool          isSensor = false;
 };
 
 struct PhysicsComponent {
@@ -103,12 +102,20 @@ struct CollisionShape {
 struct CollisionBodyComponent {
     BodyType bodyType = BodyType::Static;
     bool     enabled = true;
+    std::string profileId;
     std::vector<CollisionShape> shapes;
+};
+
+enum class CollisionProfileCoordinateSpace {
+    FrameNormalized,
+    World,
 };
 
 struct CollisionProfileDef {
     std::string id;
     std::string name;
+    CollisionProfileCoordinateSpace coordinateSpace =
+        CollisionProfileCoordinateSpace::FrameNormalized;
     std::vector<CollisionShape> shapes;
     std::unordered_map<std::string, std::vector<CollisionShape>> perAnimation;
     std::unordered_map<std::string, std::vector<CollisionShape>> perFrame;
@@ -160,46 +167,12 @@ struct AnimationState {
 // produced by the editor maps 1:1 with no synonyms.
 // ============================================================================
 
-struct SensorComponent {
-    std::string shape     = "Circle";   // "Circle" | "Rectangle"
-    float       radius    = 120.f;      // Circle
-    float       width     = 64.f;       // Rectangle
-    float       height    = 64.f;       // Rectangle
-    std::string targetTag = "player";
-};
-
-struct SolidComponent {
-    std::string groundClass  = "Ground";
-    /** "solid" (default) or "oneWay" — one-way only collides when falling (vy >= 0). */
-    std::string surfaceKind = "solid";
-};
-
-/**
- * Explicit climb zone for the platformer controller. An entity carrying this
- * component is climbable; the zone bbox (shape/size, like SensorComponent)
- * decouples reach from the sprite collider, and axis selects which movement
- * axis drives climbing. Preferred over PlatformerControllerComponent.climbClass
- * (the className-overlap fallback), removing false positives from decorations.
- */
-struct LadderComponent {
-    std::string shape      = "Rectangle"; // "Circle" | "Rectangle"
-    float       radius     = 64.f;        // Circle
-    float       width      = 32.f;        // Rectangle
-    float       height     = 96.f;        // Rectangle
-    std::string axis       = "vertical";  // "vertical" (movement.y) | "horizontal" (movement.x)
-    float       climbSpeed = 0.f;         // px/s; 0 = use PlatformerController.climbSpeed
-};
-
 struct PlatformerControllerComponent {
     float maxSpeed      = 300.f;
     float jumpForce     = 600.f;
     float customGravity = 1500.f;
     float coyoteTime    = 0.15f;
     float jumpBuffer    = 0.1f;
-    /** Deprecated authoring residue; CollisionBody layer/mask is authoritative. */
-    std::string groundClass = "";
-    /** Deprecated authoring residue; interaction sensor shapes drive climbing. */
-    std::string climbClass = "";
     // Ladder climbing is driven by CollisionShapeRole::Interaction sensors.
     float       climbSpeed = 120.f;   // px/s
 };
@@ -337,9 +310,6 @@ struct EntityDef {
     std::optional<CollisionBodyComponent> collisionBody;
     AnimationState   animation;
     // Optional gameplay components (Phase D1)
-    std::optional<SensorComponent>               sensor;
-    std::optional<SolidComponent>                solid;
-    std::optional<LadderComponent>               ladder;
     std::optional<PlatformerControllerComponent> platformerController;
     std::optional<TopDownControllerComponent>    topDownController;
     std::optional<LinearMoverComponent>          linearMover;
@@ -460,17 +430,14 @@ struct TilePaletteEntry {
     int         id    = 0;
     std::string name;
     Vec4        color = {0.5f, 0.5f, 0.5f, 1.f};
-    bool        solid = false;
-    std::string groundClass  = "Ground";
-    /** "solid" (default) or "oneWay" — mirrors SolidComponent::surfaceKind. */
-    std::string surfaceKind = "solid";
+    std::optional<CollisionBodyComponent> collisionBody;
 };
 
-/** Runtime cache per tile id (from tilePalette). Used by platformer grounding. */
+/** Runtime cache per tile id (from tilePalette). */
 struct TileSurfaceMeta {
     bool        blocks      = false;
     bool        oneWay      = false;
-    std::string groundClass = "Ground";
+    std::optional<CollisionBodyComponent> collisionBody;
 };
 
 // ============================================================================
@@ -539,6 +506,7 @@ struct ProjectDoc {
     std::vector<SceneLayerDef>    layers;        // render stack (index 0 = on top)
     std::vector<PhysicsLayerDef>  physicsLayers; // collision filtering, separate from render layers
     std::unordered_map<std::string, CollisionProfileDef> collisionProfiles;
+    std::unordered_map<std::string, std::string> spritePathToAssetId;
     std::vector<TilePaletteEntry> tilePalette;   // Phase D2
     std::vector<TilesetAsset>     tilesets;      // Phase F3
     std::vector<ImageAssetDef>    imageAssets;   // editor assets + image points

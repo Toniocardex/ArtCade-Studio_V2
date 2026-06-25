@@ -39,7 +39,7 @@ function comparisonExpr(left: string, operator: string, right: string): string {
 function leafExpr(c: LogicCondition, project?: ProjectDoc | null): string {
   switch (c.type) {
     case 'compareClass':
-      return `collision.touchingClass(self, ${luaString(c.className)})`
+      return `(collision.firstTouching(self, { className = ${luaString(c.className)} }) ~= 0)`
     case 'compareVariable': {
       const lhs =
         c.scope === 'object'

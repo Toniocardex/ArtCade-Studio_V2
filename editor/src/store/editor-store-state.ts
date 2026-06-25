@@ -14,7 +14,7 @@ import type {
   LogicBoard, LogicEvent, ComponentKey, WorldSettings, TilesetAsset, ImageAsset,
   SpriteComponent, PhysicsComponent, Vec3, AssetFolderCategory,
   GameVariableDefinition, GameVariableValue, AnimationClipDef, ImageAssetUsage,
-  LayerId, SceneLayerSettings, SceneInstanceDef,
+  LayerId, SceneLayerSettings, SceneInstanceDef, CollisionProfileDef,
 } from '../types'
 import type { DialogScript } from '../utils/dialog/dialog-script'
 import type { InspectorAssetSelection } from '../types/inspector-selection'
@@ -110,7 +110,11 @@ export interface CoreState {
   selectedDialogId: string | null
   dialogModal: { open: boolean; dialogId: string | null }
   /** Spritesheet Studio modal — edits ImageAsset.clips (runtime-ready). */
-  spritesheetStudio: { open: boolean; imageAssetId: string | null }
+  spritesheetStudio: {
+    open: boolean
+    imageAssetId: string | null
+    initialMode?: 'animations' | 'collision'
+  }
   /** Undo/redo snapshots for the full ProjectDoc (unified editor history). */
   projectHistory: ProjectHistory
   /** Last `logicBoardsRevision` written to main script via auto-sync / Apply. */
@@ -266,6 +270,12 @@ export type Action =
    * (e.g. typing into a clip name field), leaving the run's first snapshot intact.
    */
   | { type: 'IMAGE_ASSET_SET_CLIPS'; assetId: string; clips: AnimationClipDef[]; coalesceKey?: string }
+  | {
+      type: 'COLLISION_PROFILE_SET'
+      assetId: string
+      profile: CollisionProfileDef
+      coalesceKey?: string
+    }
   | { type: 'ASSET_REMOVE';          assetId: string }
   | { type: 'AUDIO_ASSET_ADD';       asset: import('../types/index').AudioAsset }
   | { type: 'AUDIO_ASSET_RENAME';    assetId: string; name: string }
@@ -296,7 +306,7 @@ export type Action =
   | { type: 'DIALOG_RENAME'; fromId: string; toId: string }
   | { type: 'DIALOG_OPEN_MODAL'; dialogId: string }
   | { type: 'DIALOG_CLOSE_MODAL' }
-  | { type: 'SPRITESHEET_STUDIO_OPEN'; imageAssetId: string }
+  | { type: 'SPRITESHEET_STUDIO_OPEN'; imageAssetId: string; initialMode?: 'animations' | 'collision' }
   | { type: 'SPRITESHEET_STUDIO_CLOSE' }
   // ---- Layer CRUD (global layers identified by stable LayerId) ----
   | { type: 'LAYER_ADD'; name: string }

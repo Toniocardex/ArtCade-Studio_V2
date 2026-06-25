@@ -403,22 +403,22 @@ void Application::renderActiveScene() {
     for (const EntityId selectedId : selectedEntityIds) {
         Transform transform{};
         SpriteComponent sprite{};
-        SensorComponent sensorValue{};
-        std::optional<SensorComponent> sensor;
-        if (mod_->entityGateway->getSensor(selectedId, sensorValue)) {
-            sensor = sensorValue;
-        }
         if (mod_->entityGateway->getTransform(selectedId, transform)
             && mod_->entityGateway->getSprite(selectedId, sprite)) {
             const bool hiddenInGame =
                 !mod_->entityGateway->visibleInGame(selectedId);
+            CollisionBodyComponent collisionBody{};
+            std::optional<CollisionBodyComponent> collisionOverlay;
+            if (mod_->entityGateway->getResolvedCollisionBody(selectedId, collisionBody))
+                collisionOverlay = collisionBody;
             const auto draw = resolveSpriteFrame(
                 mod_->spriteAnimator.get(), selectedId, sprite, overlay.inEditMode);
             EditorOverlayState itemOverlay = overlay;
             itemOverlay.selectedId = selectedId;
             EditorOverlayRenderer::drawSelection(
-                *mod_->renderer, transform, sprite, sensor, itemOverlay, hiddenInGame,
-                visualSizeForFrame(draw.frame, transform.scale));
+                *mod_->renderer, transform, sprite, itemOverlay, hiddenInGame,
+                visualSizeForFrame(draw.frame, transform.scale),
+                collisionOverlay);
         }
     }
 

@@ -96,14 +96,9 @@ public:
     bool getPhysicsComponent(EntityId id, PhysicsComponent& out) const;
     bool setPhysicsComponent(EntityId id, const PhysicsComponent& physics);
     bool getCollisionBody(EntityId id, CollisionBodyComponent& out) const;
+    /** Collision body with sheet profile shapes resolved to world space. */
+    bool getResolvedCollisionBody(EntityId id, CollisionBodyComponent& out) const;
     bool setCollisionBody(EntityId id, const std::optional<CollisionBodyComponent>& collisionBody);
-    bool getSensor(EntityId id, SensorComponent& out) const;
-    bool setSensor(EntityId id, const std::optional<SensorComponent>& sensor);
-    bool getSolid(EntityId id, SolidComponent& out) const;
-    bool setSolid(EntityId id, const std::optional<SolidComponent>& solid);
-
-    bool getLadder(EntityId id, LadderComponent& out) const;
-    bool setLadder(EntityId id, const std::optional<LadderComponent>& ladder);
     bool getPlatformerController(EntityId id, PlatformerControllerComponent& out) const;
     bool setPlatformerController(EntityId id, const std::optional<PlatformerControllerComponent>& controller);
     bool getTopDownController(EntityId id, TopDownControllerComponent& out) const;
@@ -194,18 +189,6 @@ public:
         EntityId, const HordeMemberComponent&)>;
     void forEachActiveHordeMember(const ActiveHordeMemberFn& fn) const;
 
-    using ActiveSensorFn = std::function<void(
-        EntityId, const SensorComponent&)>;
-    void forEachActiveSensor(const ActiveSensorFn& fn) const;
-
-    using ActiveSolidFn = std::function<void(
-        EntityId, const SolidComponent&)>;
-    void forEachActiveSolid(const ActiveSolidFn& fn) const;
-
-    using ActiveLadderFn = std::function<void(
-        EntityId, const LadderComponent&)>;
-    void forEachActiveLadder(const ActiveLadderFn& fn) const;
-
     using ActiveAutoDestroyFn = std::function<void(
         EntityId, AutoDestroyComponent&)>;
     void forEachActiveAutoDestroy(const ActiveAutoDestroyFn& fn);
@@ -239,6 +222,12 @@ public:
     float tilesetTileSize(const std::string& assetId) const;
     void setSceneLayers(std::vector<SceneLayerDef> layers);
     const std::vector<SceneLayerDef>& sceneLayers() const;
+
+    void setCollisionProjectData(
+        std::vector<PhysicsLayerDef> layers,
+        std::unordered_map<std::string, CollisionProfileDef> profiles,
+        std::unordered_map<std::string, std::string> spritePathToAssetId);
+    const std::vector<PhysicsLayerDef>& physicsLayers() const;
 
     bool loadScene(const SceneId& id);
     /** Fade to black, load scene, fade in. fadeSeconds <= 0 loads immediately. */
@@ -294,6 +283,10 @@ private:
     EntityCreatedHandler   createdHandler_;
     PhysicsTopologyHandler physicsTopologyHandler_;
 
+    std::vector<PhysicsLayerDef> physicsLayers_;
+    std::unordered_map<std::string, CollisionProfileDef> collisionProfiles_;
+    std::unordered_map<std::string, std::string> spritePathToAssetId_;
+
     void rebuildClassPrototypes(
         const std::unordered_map<EntityId, EntityDef>& entityDefs,
         const std::unordered_map<std::string, EntityDef>* objectTypes = nullptr);
@@ -303,7 +296,6 @@ private:
     void ensurePhysicsBody(EntityId id);
     void teardownPhysicsBody(EntityId id);
     void rebuildPhysicsBodyIfActive(EntityId id);
-    void syncSensorFixture(EntityId id);
     /** Copy every EntityDef field into the registry under `id`. Single
      *  place that defines the EntityDef → component mapping; used by
      *  create(), spawnFromClass() and replaceProject() to keep them

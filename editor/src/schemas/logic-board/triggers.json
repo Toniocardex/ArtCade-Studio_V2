@@ -51,8 +51,7 @@
           "className": { "type": "string" }
         },
         "additionalProperties": false
-      },
-      "withClass": { "type": "string" }
+      }
     },
     "additionalProperties": false,
     "x-artcade": {
@@ -80,8 +79,7 @@
           "className": { "type": "string" }
         },
         "additionalProperties": false
-      },
-      "withClass": { "type": "string" }
+      }
     },
     "additionalProperties": false,
     "x-artcade": {
@@ -109,8 +107,7 @@
           "className": { "type": "string" }
         },
         "additionalProperties": false
-      },
-      "withClass": { "type": "string" }
+      }
     },
     "additionalProperties": false,
     "x-artcade": {
@@ -138,8 +135,7 @@
           "className": { "type": "string" }
         },
         "additionalProperties": false
-      },
-      "withClass": { "type": "string" }
+      }
     },
     "additionalProperties": false,
     "x-artcade": {
@@ -167,8 +163,7 @@
           "className": { "type": "string" }
         },
         "additionalProperties": false
-      },
-      "withClass": { "type": "string" }
+      }
     },
     "additionalProperties": false,
     "x-artcade": {

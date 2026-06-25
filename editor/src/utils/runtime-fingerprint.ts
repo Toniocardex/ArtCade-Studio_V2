@@ -21,7 +21,7 @@
 
 import type {
   EntityDef, ImageAsset, LayerId, ProjectDoc, SceneDef, SceneLayerSettings,
-  Vec2, Vec4, WorldSettings,
+  Vec2, Vec4, WorldSettings, CollisionProfileDef, PhysicsLayerDef,
 } from '../types'
 import { DEFAULT_WORLD } from '../types'
 import { resolveClipForEntity } from './entity-clip-resolve'
@@ -102,6 +102,7 @@ interface FpEntity {
   dg?: unknown               // dialog
   tx?: unknown               // text label
   gg?: unknown               // gauge
+  cb?: unknown               // collisionBody
   lv?: unknown               // local variable declarations
   lvo?: unknown              // per-instance local overrides
 }
@@ -162,6 +163,10 @@ export interface RuntimeProjection {
   scenes: FpScene[]
   /** Clip/pivot-bearing assets — frame edits must re-sync the SpriteAnimator. */
   ast?: Record<string, RuntimeAssetRecord>
+  /** Collision profiles keyed by image asset id. */
+  cprof?: Record<string, CollisionProfileDef>
+  /** Physics collision layer table. */
+  phys?: { layers: PhysicsLayerDef[] }
 }
 
 /** Stable digest of runtime-facing WorldSettings (excludes editor-only flags). */
@@ -210,8 +215,6 @@ function projectEntity(project: ProjectDoc, e: EntityDef): FpEntity {
     v:  e.visible,
     sp: e.scriptPath,
     ph: e.physics,
-    se: e.sensor,
-    so: e.solid,
     pc: e.platformerController,
     td: e.topDownController,
     lm: e.linearMover,
@@ -223,6 +226,7 @@ function projectEntity(project: ProjectDoc, e: EntityDef): FpEntity {
     dg: e.dialog,
     tx: e.text,
     gg: e.gauge,
+    cb: e.collisionBody,
     lv: e.localVariables,
     lvo: e.localVariableOverrides,
   }
@@ -315,6 +319,12 @@ export function runtimeProjectProjection(
     entities: entityIds.map((id) => projectEntity(project, entities[id])),
     scenes:   sceneIds.map((id) => projectScene(project.scenes[id])),
     ...(ast ? { ast } : {}),
+    ...(project.collisionProfiles && Object.keys(project.collisionProfiles).length > 0
+      ? { cprof: project.collisionProfiles }
+      : {}),
+    ...(project.physics?.layers && project.physics.layers.length > 0
+      ? { phys: { layers: project.physics.layers } }
+      : {}),
   }
 }
 
@@ -355,6 +365,8 @@ export interface RuntimeProjectPayload {
   tilesets?:      ProjectDoc['tilesets']
   /** Clip/pivot-bearing image assets so the SpriteAnimator can register clips. */
   assets?:        Record<string, RuntimeAssetRecord>
+  collisionProfiles?: ProjectDoc['collisionProfiles']
+  physics?:       ProjectDoc['physics']
   activeSceneId:  string
 }
 
@@ -385,6 +397,12 @@ export function runtimeProjectPayload(
     tilePalette:    project.tilePalette,
     tilesets:       project.tilesets,
     ...(assets ? { assets } : {}),
+    ...(project.collisionProfiles && Object.keys(project.collisionProfiles).length > 0
+      ? { collisionProfiles: project.collisionProfiles }
+      : {}),
+    ...(project.physics?.layers && project.physics.layers.length > 0
+      ? { physics: project.physics }
+      : {}),
     activeSceneId,
   }
 }

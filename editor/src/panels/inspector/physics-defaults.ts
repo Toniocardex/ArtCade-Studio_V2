@@ -8,7 +8,6 @@ export const DEFAULT_PHYSICS: PhysicsComponent = {
     offset: { x: 0, y: 0 },
     density: 1,
     friction: 0.3,
-    isSensor: false,
   },
 }
 
@@ -17,5 +16,5 @@ export const PHYSICS_INSPECTOR = {
   label: 'Physics (Collider)',
   color: 'var(--accent)',
   description:
-    'Explicit collider for overlap, raycast, falling objects, or a custom Top-Down hitbox. Top-Down uses object bounds automatically. Platformer movement is transform-only; with Physics its body is kinematic for collisions. Solid and Sensor create bodies without this block.',
+    'Arcade physics state for explicit dynamic bodies. Gameplay collision shapes live in Collision Body.',
 }

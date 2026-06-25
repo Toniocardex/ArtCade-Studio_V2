@@ -9,7 +9,7 @@
 //     record is touched (mirrors the previous "default record on first
 //     write" semantics; equivalent to value-initialized fields in the old
 //     Record struct).
-//   - SensorComponent, PlatformerControllerComponent, AutoDestroyComponent:
+//   - PlatformerControllerComponent, AutoDestroyComponent:
 //     opt-in components — emplaced when set with a non-empty optional,
 //     removed when set with std::nullopt.
 //   - SceneActiveTag : empty tag, presence == active in current scene.
@@ -378,54 +378,6 @@ void EntityRegistry::setPhysics(EntityId id, const PhysicsComponent& p) {
     if (e == entt::null) return;
     impl_->reg.emplace_or_replace<PhysicsComponent>(e, p);
     impl_->reg.emplace_or_replace<PhysicsHandleComp>(e, PhysicsHandleComp{ p.physicsHandle });
-}
-
-bool EntityRegistry::getSensor(EntityId id, SensorComponent& out) const {
-    const entt::entity e = impl_->toEntt(id);
-    if (e == entt::null) return false;
-    if (const auto* c = impl_->reg.try_get<SensorComponent>(e)) { out = *c; return true; }
-    return false;
-}
-
-void EntityRegistry::setSensor(EntityId id,
-                               const std::optional<SensorComponent>& s) {
-    const entt::entity e = impl_->toEntt(id);
-    if (e == entt::null) return;
-    if (s) impl_->reg.emplace_or_replace<SensorComponent>(e, *s);
-    else   impl_->reg.remove<SensorComponent>(e);
-}
-
-bool EntityRegistry::getSolid(EntityId id, SolidComponent& out) const {
-    const entt::entity e = impl_->toEntt(id);
-    if (e == entt::null) return false;
-    if (const auto* c = impl_->reg.try_get<SolidComponent>(e)) {
-        out = *c;
-        return true;
-    }
-    return false;
-}
-
-void EntityRegistry::setSolid(EntityId id,
-                              const std::optional<SolidComponent>& s) {
-    const entt::entity e = impl_->toEntt(id);
-    if (e == entt::null) return;
-    if (s) impl_->reg.emplace_or_replace<SolidComponent>(e, *s);
-    else   impl_->reg.remove<SolidComponent>(e);
-}
-
-bool EntityRegistry::getLadder(EntityId id, LadderComponent& out) const {
-    const entt::entity e = impl_->toEntt(id);
-    if (e == entt::null) return false;
-    if (const auto* c = impl_->reg.try_get<LadderComponent>(e)) { out = *c; return true; }
-    return false;
-}
-
-void EntityRegistry::setLadder(EntityId id,
-                               const std::optional<LadderComponent>& s) {
-    const entt::entity e = impl_->toEntt(id);
-    if (e == entt::null) return;
-    if (s) impl_->reg.emplace_or_replace<LadderComponent>(e, *s);
-    else   impl_->reg.remove<LadderComponent>(e);
 }
 
 bool EntityRegistry::getPlatformer(EntityId id,
@@ -848,52 +800,6 @@ void EntityRegistry::forEachActiveHordeMember(
         const auto* h = reg.try_get<HordeMemberComponent>(e);
         if (!h) continue;
         fn(id, *h);
-    }
-}
-
-void EntityRegistry::forEachActiveSensor(
-    const ActiveSensorFn& fn) const
-{
-    auto& reg = impl_->reg;
-    const size_t n = impl_->insertionOrder.size();
-    for (size_t i = 0; i < n; ++i) {
-        const EntityId id = impl_->insertionOrder[i];
-        const entt::entity e = impl_->toEntt(id);
-        if (e == entt::null) continue;
-        if (!reg.all_of<SceneActiveTag>(e)) continue;
-        const auto* s = reg.try_get<SensorComponent>(e);
-        if (!s) continue;
-        fn(id, *s);
-    }
-}
-
-void EntityRegistry::forEachActiveSolid(
-    const ActiveSolidFn& fn) const
-{
-    auto& reg = impl_->reg;
-    const size_t n = impl_->insertionOrder.size();
-    for (size_t i = 0; i < n; ++i) {
-        const EntityId id = impl_->insertionOrder[i];
-        const entt::entity e = impl_->toEntt(id);
-        if (e == entt::null) continue;
-        if (!reg.all_of<SceneActiveTag>(e)) continue;
-        const auto* s = reg.try_get<SolidComponent>(e);
-        if (!s) continue;
-        fn(id, *s);
-    }
-}
-
-void EntityRegistry::forEachActiveLadder(
-    const ActiveLadderFn& fn) const
-{
-    auto& reg = impl_->reg;
-    // Iterate only entities that actually carry a LadderComponent (EnTT view —
-    // O(ladders), the component-side analogue of poolByClass), instead of
-    // scanning every entity in the scene. The platformer controller calls this
-    // every frame, so a ladderless scene must cost nothing.
-    auto view = reg.view<LadderComponent, SceneActiveTag>();
-    for (const entt::entity e : view) {
-        fn(impl_->toEntityId(e), view.get<LadderComponent>(e));
     }
 }
 

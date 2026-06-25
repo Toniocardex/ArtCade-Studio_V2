@@ -1,7 +1,6 @@
 add_library(artcade-world
     src/world.cpp
     src/world_movement.cpp
-    src/world_grounding.cpp
     src/world_platformer_controller.cpp
     src/world_topdown_controller.cpp
     src/world_systems.cpp

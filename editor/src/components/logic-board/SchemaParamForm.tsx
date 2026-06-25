@@ -78,14 +78,11 @@ function repeatIntervalAllowEmpty(kind: ComponentKind, type: string, name: strin
 }
 
 function classNameAllowEmpty(kind: ComponentKind, type: string, name: string): boolean {
-  return (
-    (kind === 'trigger' && name === 'withClass') ||
-    (kind === 'condition' && type === 'raycastHit' && name === 'className')
-  )
+  return kind === 'condition' && type === 'raycastHit' && name === 'className'
 }
 
-function tagAllowEmpty(kind: ComponentKind, name: string): boolean {
-  return kind === 'trigger' && name === 'withClass'
+function tagAllowEmpty(): boolean {
+  return false
 }
 
 function patchStringField(name: string, s: string, onPatch: (key: string, val: unknown) => void): void {
@@ -290,7 +287,7 @@ function renderEntityTagField({ kind, type, name, value, onPatch }: FieldProps) 
       <TagPicker
         value={asParamString(value)}
         onChange={(s) => onPatch(name, s)}
-        allowEmpty={tagAllowEmpty(kind, name)}
+        allowEmpty={tagAllowEmpty()}
       />
     </span>
   )

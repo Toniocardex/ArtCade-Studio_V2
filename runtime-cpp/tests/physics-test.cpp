@@ -132,41 +132,7 @@ int main() {
     phys.destroyBody(h1);
     printf("[PASS] 12. destroyBody + double-destroy no-op\n");
 
-    // ---- Test 13: addSensorFixture (sensor overlap, no solid response) ----
-    uint32_t hSensorHost = phys.createBody(20, makeRect(BodyType::Dynamic, 2.f, 2.f));
-    SensorComponent sensor;
-    sensor.shape = "Rectangle";
-    sensor.width = 4.f;
-    sensor.height = 4.f;
-    assert(phys.addSensorFixture(hSensorHost, sensor));
-    uint32_t hTarget = phys.createBody(21, makeRect(BodyType::Static, 2.f, 2.f));
-    phys.setPosition(hTarget, { 0.f, 0.f });
-    for (int i = 0; i < 10; ++i)
-        phys.step(1.f / 60.f);
-    // Sensor overlaps static target at same origin; host dynamic body still exists
-    assert(phys.areOverlapping(hSensorHost, hTarget));
-    phys.destroyBody(hSensorHost);
-    phys.destroyBody(hTarget);
-    printf("[PASS] 13. addSensorFixture + overlap\n");
-
-    // ---- Test 14: setSensorFixture replaces prior sensor (no duplicate fixtures) ----
-    hSensorHost = phys.createBody(22, makeRect(BodyType::Dynamic, 2.f, 2.f));
-    sensor.radius = 4.f;
-    assert(phys.setSensorFixture(hSensorHost, sensor));
-    SensorComponent smaller = sensor;
-    smaller.radius = 2.f;
-    assert(phys.setSensorFixture(hSensorHost, smaller));
-    hTarget = phys.createBody(23, makeRect(BodyType::Static, 1.f, 1.f));
-    phys.setPosition(hTarget, { 3.f, 0.f });  // outside smaller radius, inside old
-    for (int i = 0; i < 5; ++i)
-        phys.step(1.f / 60.f);
-    assert(!phys.areOverlapping(hSensorHost, hTarget));
-    phys.clearSensorFixture(hSensorHost);
-    phys.destroyBody(hSensorHost);
-    phys.destroyBody(hTarget);
-    printf("[PASS] 14. setSensorFixture replace + clearSensorFixture\n");
-
-  // ---- Test 15: hasActiveBodies --------------------------------------------
+  // ---- Test 13: hasActiveBodies --------------------------------------------
     assert(!phys.hasActiveBodies());
     uint32_t hTmp = phys.createBody(99, makeRect(BodyType::Dynamic, 1.f, 1.f));
     assert(phys.hasActiveBodies());

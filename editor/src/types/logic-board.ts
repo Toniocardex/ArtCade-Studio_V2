@@ -70,9 +70,6 @@ export type LogicComponentValueProperty =
   | 'autoDestroy.lifespan'
   | 'autoDestroy.elapsed'
   | 'autoDestroy.remaining'
-  | 'sensor.targetTag'
-  | 'solid.groundClass'
-  | 'solid.surfaceKind'
   | 'text.text'
   | 'text.size'
   | 'text.align'
@@ -129,11 +126,11 @@ export type LogicTrigger =
   // a separate trigger.className would create a confusing second source of truth.
   | { type: 'onSpawn' }                                             // lifecycle.onSpawn
   | { type: 'onUpdate' }                                            // every tick(dt)
-  | { type: 'onCollision'; filter?: CollisionFilter; withClass?: string }      // level-triggered
-  | { type: 'onCollisionEnter'; filter?: CollisionFilter; withClass?: string } // edge: started touching
-  | { type: 'onCollisionExit'; filter?: CollisionFilter; withClass?: string }  // edge: stopped touching
-  | { type: 'onTriggerEnter'; filter?: CollisionFilter; withClass?: string }   // sensor edge
-  | { type: 'onTriggerExit'; filter?: CollisionFilter; withClass?: string }    // sensor edge
+  | { type: 'onCollision'; filter?: CollisionFilter }      // level-triggered
+  | { type: 'onCollisionEnter'; filter?: CollisionFilter } // edge: started touching
+  | { type: 'onCollisionExit'; filter?: CollisionFilter }  // edge: stopped touching
+  | { type: 'onTriggerEnter'; filter?: CollisionFilter }   // sensor edge
+  | { type: 'onTriggerExit'; filter?: CollisionFilter }    // sensor edge
   | { type: 'onAnimationEnd'; clipName?: string }
   | { type: 'onAnimationStart'; clipName?: string }                 // animation.onStart (clip begins playing)
   | { type: 'onAnimationFrame'; clipName?: string; frameIndex: number } // animation.onFrame (reaches frameIndex)
@@ -170,7 +167,7 @@ export type LogicTriggerType = LogicTrigger['type']
 export type LogicConditionNegation = { negated?: boolean }
 
 export type LogicCondition =
-  | { type: 'compareClass'; className: string }                     // collision.touchingClass
+  | { type: 'compareClass'; className: string }
   /**
    * Compare a named variable against a value. `scope` mirrors the action side
    * (modifyVariable): omitted/'global' reads project state (`global.get`);

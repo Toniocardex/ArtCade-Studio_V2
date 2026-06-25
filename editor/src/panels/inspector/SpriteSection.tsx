@@ -120,13 +120,15 @@ export function SpriteSection({ entity }: SpriteSectionProps) {
         {linkedAsset && clip?.defaultClip ? (
           <InspectorClipPreview asset={linkedAsset} clipName={clip.defaultClip} />
         ) : null}
-        {linkedAsset && sheetClips.length > 0 ? (
-          <div className="mt-2 flex items-center justify-between gap-2">
-            <span className="text-[8px] text-[var(--muted)] leading-tight">
-              {activeDefaultClip
-                ? `${activeDefaultClip.frames.length} frames / ${activeDefaultClip.fps} FPS`
-                : `${sheetClips.length} clips`}
-            </span>
+        {linkedAsset ? (
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            {sheetClips.length > 0 ? (
+              <span className="text-[8px] text-[var(--muted)] leading-tight">
+                {activeDefaultClip
+                  ? `${activeDefaultClip.frames.length} frames / ${activeDefaultClip.fps} FPS`
+                  : `${sheetClips.length} clips`}
+              </span>
+            ) : null}
             <button
               type="button"
               className="shrink-0 inline-flex items-center gap-1 rounded border border-[var(--accent-bd)] bg-[var(--accent-bg)] px-2 py-1 text-[9px] text-[var(--accent)] hover:bg-[var(--accent-bg-h)]"
@@ -136,6 +138,15 @@ export function SpriteSection({ entity }: SpriteSectionProps) {
               <Film size={12} />
               Studio
             </button>
+            {entity.collisionBody ? (
+              <button
+                type="button"
+                className="shrink-0 inline-flex items-center gap-1 rounded border border-[var(--border)] px-2 py-1 text-[9px] text-[var(--text)] hover:border-[var(--border-2)]"
+                onClick={() => openSpritesheetStudio(dispatch, project, linkedAsset.id, 'collision')}
+              >
+                Collision
+              </button>
+            ) : null}
           </div>
         ) : null}
       </div>

@@ -68,6 +68,16 @@ parseGlobalVariables(const nlohmann::json& doc);
 std::vector<ArtCade::ImageAssetDef>
 parseImageAssets(const nlohmann::json& doc);
 
+std::vector<ArtCade::PhysicsLayerDef>
+parsePhysicsLayers(const nlohmann::json& doc);
+
+std::unordered_map<std::string, ArtCade::CollisionProfileDef>
+parseCollisionProfiles(const nlohmann::json& doc);
+
+/** Maps sprite.spriteAssetId path -> library asset id for collision profile lookup. */
+std::unordered_map<std::string, std::string>
+parseSpritePathToAssetId(const nlohmann::json& doc);
+
 } // namespace ArtCade::ProjectDocParser
 
 #endif // __EMSCRIPTEN__

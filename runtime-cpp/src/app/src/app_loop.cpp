@@ -71,13 +71,7 @@ void Application::tickFixedStep(float dt) {
     if (runPhysics) mod_->world->syncPhysicsToEntities();
     mod_->world->tickCameraTargets(dt);
 
-    if (runPhysics) {
-        const auto start = Clock::now();
-        mod_->world->refreshSensorEdges();
-        const uint32_t events = mod_->gameAPI->dispatchSensorEvents();
-        profiler_.addLuaMs(elapsedMs(start));
-        profiler_.addLuaEvents(events);
-    }
+    mod_->world->refreshSensorEdges();
 
     {
         const auto start = Clock::now();

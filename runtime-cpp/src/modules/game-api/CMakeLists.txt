@@ -12,7 +12,6 @@ add_library(artcade-game-api
     src/event-api.cpp
     src/time-api.cpp
     src/camera-api.cpp
-    src/sensor-api.cpp
     src/animation-api.cpp
     src/lifecycle-api.cpp
     src/grid-api.cpp

@@ -1,5 +1,4 @@
 #include "world_internal.h"
-#include "world_grounding.h"
 #include "world_platformer_controller.h"
 #include "world_topdown_controller.h"
 
@@ -7,33 +6,10 @@
 
 namespace ArtCade {
 
-WorldInternal::GroundingContext World::groundingContext() const {
-    const bool hasTilemap =
-        activeTilemap_.cols > 0 && activeTilemap_.rows > 0;
-    return WorldInternal::GroundingContext{
-        entityGateway_,
-        physics_,
-        hasTilemap ? &activeTilemap_ : nullptr,
-        &tileMeta_,
-    };
-}
-
 bool World::isPlatformerGrounded(EntityId id) const {
     PlatformerControllerComponent pc{};
     if (!entityGateway_.getPlatformerController(id, pc)) return false;
-    CollisionBodyComponent body{};
-    if (entityGateway_.getCollisionBody(id, body))
-        return collisionGrounded(id);
-    return WorldInternal::isGrounded(groundingContext(), id, pc.groundClass);
-}
-
-bool World::isGroundedOnSolidAabb(EntityId id, const std::string& groundClass) const {
-    return WorldInternal::isGroundedOnSolidAabb(
-        groundingContext(), id, groundClass);
-}
-
-bool World::isGrounded(EntityId id, const std::string& groundClass) const {
-    return WorldInternal::isGrounded(groundingContext(), id, groundClass);
+    return collisionGrounded(id);
 }
 
 void World::tickPlatformerControllers(float dt) {

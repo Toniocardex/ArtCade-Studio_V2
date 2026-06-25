@@ -1,7 +1,6 @@
 #pragma once
 
-// entity_collision_query.h — Entity-vs-entity overlap from Transform + collider
-// (shared by World AABB, Lua collision.*, Logic Board touchingClass).
+// entity_collision_query.h - Entity-vs-entity overlap from Transform + collision shapes.
 
 #include "collision_math.h"
 #include "collision_world.h"
@@ -97,33 +96,6 @@ inline bool entitiesOverlap(const Modules::RuntimeEntityGateway& gateway,
     }
     return PhysicsMath::shapesOverlap(shapeFromEntity(gateway, id1),
                                       shapeFromEntity(gateway, id2));
-}
-
-inline bool touchingClass(const Modules::RuntimeEntityGateway& gateway,
-                          EntityId id,
-                          const std::string& className)
-{
-    if (!entityParticipatesInOverlapQuery(gateway, id)) return false;
-    for (EntityId otherId : gateway.poolByClass(className)) {
-        if (otherId == id) continue;
-        if (entitiesOverlap(gateway, id, otherId))
-            return true;
-    }
-    return false;
-}
-
-inline EntityId firstOverlappingInClass(
-    const Modules::RuntimeEntityGateway& gateway,
-    EntityId id,
-    const std::string& className)
-{
-    if (!entityParticipatesInOverlapQuery(gateway, id)) return INVALID_ENTITY;
-    for (EntityId otherId : gateway.poolByClass(className)) {
-        if (otherId == id) continue;
-        if (entitiesOverlap(gateway, id, otherId))
-            return otherId;
-    }
-    return INVALID_ENTITY;
 }
 
 } // namespace ArtCade::CollisionQuery

@@ -108,8 +108,9 @@ bool read_collision_body_component(const nlohmann::json& entityJson,
     CollisionBodyComponent body;
     body.bodyType = read_body_type(raw.value("bodyType", std::string("static")));
     body.enabled = raw.value("enabled", true);
+    body.profileId = raw.value("profileId", std::string{});
     body.shapes = read_shapes(raw.contains("shapes") ? raw["shapes"] : nlohmann::json{});
-    if (body.shapes.empty())
+    if (body.shapes.empty() && body.profileId.empty())
         body.shapes.push_back(CollisionShape{});
     out = std::move(body);
     return true;
@@ -170,6 +171,11 @@ void read_collision_profiles(
         CollisionProfileDef profile;
         profile.id = value.value("id", key);
         profile.name = value.value("name", profile.id);
+        const std::string space = value.value("coordinateSpace", std::string("frame-normalized"));
+        profile.coordinateSpace =
+            (space == "world" || space == "World")
+                ? CollisionProfileCoordinateSpace::World
+                : CollisionProfileCoordinateSpace::FrameNormalized;
         profile.shapes = read_shapes(value.contains("shapes") ? value["shapes"] : nlohmann::json{});
 
         if (value.contains("perAnimation") && value["perAnimation"].is_object()) {

@@ -31,7 +31,6 @@ bool read_physics_component(const nlohmann::json& entityJson,
             pc.collider.offset = read_vec2(c["offset"]);
         pc.collider.density  = c.value("density", 1.f);
         pc.collider.friction = c.value("friction", 0.3f);
-        pc.collider.isSensor = c.value("isSensor", false);
     }
 
     out = pc;

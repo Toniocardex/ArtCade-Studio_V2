@@ -157,14 +157,6 @@ export function PhysicsSection({ entity }: PhysicsSectionProps) {
         patchCollider({ friction }),
       { min: 0, step: 0.05 })}
 
-      <label className="flex items-center gap-2 mb-2 text-xs text-[var(--text)]">
-        <input
-          type="checkbox"
-          checked={physics.collider.isSensor}
-          onChange={(e) => patchCollider({ isSensor: e.target.checked })}
-        />
-        <span>Sensor (no solid collision)</span>
-      </label>
     </div>
   )
 }

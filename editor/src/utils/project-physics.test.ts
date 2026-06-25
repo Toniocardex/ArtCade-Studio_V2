@@ -37,7 +37,6 @@ describe('entity physics component', () => {
           offset: { x: 0, y: 4 },
           density: 1,
           friction: 0.5,
-          isSensor: false,
         },
       },
     }
@@ -60,7 +59,7 @@ describe('entity physics component', () => {
       },
       platformerController: {
         maxSpeed: 300, jumpForce: 600, customGravity: 1500,
-        coyoteTime: 0.15, jumpBuffer: 0.1, groundClass: 'Ground',
+        coyoteTime: 0.15, jumpBuffer: 0.1,
       },
     })
     const json = serializeProjectDoc(doc)

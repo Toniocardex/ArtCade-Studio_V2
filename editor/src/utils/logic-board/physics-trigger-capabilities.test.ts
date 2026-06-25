@@ -28,7 +28,6 @@ describe('physics-trigger-capabilities', () => {
         offset: { x: 0, y: 0 },
         density: 1,
         friction: 0.3,
-        isSensor: false,
       },
     }
     expect(entityHasCollisionBody(e)).toBe(true)
@@ -43,12 +42,12 @@ describe('physics-trigger-capabilities', () => {
     const player = createEntityDef(1, 'Player', 'Player')
     player.platformerController = {
       maxSpeed: 300, jumpForce: 600, customGravity: 1500,
-      coyoteTime: 0.15, jumpBuffer: 0.1, groundClass: 'Ground',
+      coyoteTime: 0.15, jumpBuffer: 0.1,
     }
     project.entities[1] = player
 
     const req = collisionTriggerRequirement(
-      { type: 'onCollisionEnter', withClass: 'Coin' },
+      { type: 'onCollisionEnter', filter: { className: 'Coin' } },
       project,
       entityBoard(1),
     )
@@ -68,14 +67,13 @@ describe('physics-trigger-capabilities', () => {
         offset: { x: 0, y: 0 },
         density: 1,
         friction: 0.3,
-        isSensor: false,
       },
     }
     project.entities[1] = player
 
     expect(
       collisionTriggerRequirement(
-        { type: 'onCollision', withClass: 'Coin' },
+        { type: 'onCollision', filter: { className: 'Coin' } },
         project,
         entityBoard(1),
       ),
@@ -88,12 +86,12 @@ describe('physics-trigger-capabilities', () => {
     const player = createEntityDef(1, 'Player', 'Player')
     player.platformerController = {
       maxSpeed: 300, jumpForce: 600, customGravity: 1500,
-      coyoteTime: 0.15, jumpBuffer: 0.1, groundClass: 'Ground',
+      coyoteTime: 0.15, jumpBuffer: 0.1,
     }
     project.entities[1] = player
 
     const req = collisionTriggerRequirement(
-      { type: 'onCollisionEnter', withClass: 'Coin' },
+      { type: 'onCollisionEnter', filter: { className: 'Coin' } },
       project,
       entityBoard(1),
     )

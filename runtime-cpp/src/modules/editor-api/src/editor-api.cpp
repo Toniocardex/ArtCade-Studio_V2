@@ -893,6 +893,11 @@ bool loadProjectFromJson(const char* json_utf8, ProjectLoadKind kind,
         gateway->replaceProject(sceneDefs, entityDefs, activeId, typesPtr);
         gateway->setTilesets(tilesets);
 
+        gateway->setCollisionProjectData(
+            Parser::parsePhysicsLayers(doc),
+            Parser::parseCollisionProfiles(doc),
+            Parser::parseSpritePathToAssetId(doc));
+
         std::vector<ArtCade::SceneLayerDef> sceneLayers;
         ArtCade::ProjectJson::read_scene_layers(doc, sceneLayers);
         gateway->setSceneLayers(std::move(sceneLayers));

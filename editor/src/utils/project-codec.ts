@@ -4,6 +4,7 @@ import type {
   TilemapLayer, TileDef, TilesetAsset, ImageAsset, AudioAsset, FontAsset, ImagePointDef, AnimationClipDef,
   AnimationFrameRect, AssetVirtualFolderDef, AssetFolderCategory,
   GameVariableDefinition, GameVariableValue, ImageAssetUsage, LayerDef, LayerId, SceneLayerSettings,
+  PhysicsLayerDef, CollisionProfileDef,
 } from '../types'
 import { DEFAULT_WORLD, IMAGE_ASSET_USAGES } from '../types'
 import { newLayerId } from '../constants/scene-layers'
@@ -13,6 +14,10 @@ import {
 } from './logic-board/factory'
 import type { LogicBoardLoadIssue } from '../types/logic-board'
 import { COMPONENT_KEYS } from '../types/components'
+import type {
+  CollisionBodyComponent,
+  CollisionShapeDef,
+} from '../types/components'
 import { DEFAULT_SCENE_SIZE, DEFAULT_VIEWPORT_SIZE } from '../constants/editor-viewport'
 import {
   normalizeProjectDoc,
@@ -213,7 +218,6 @@ function parsePhysics(raw: unknown): PhysicsComponent | undefined {
       offset:   toVec2(colliderRaw.offset),
       density:  Number(colliderRaw.density) || 0,
       friction: Number(colliderRaw.friction) || 0,
-      isSensor: Boolean(colliderRaw.isSensor ?? colliderRaw.is_sensor),
     },
   }
 }
@@ -262,7 +266,121 @@ function parseWorld(raw: unknown): WorldSettings | undefined {
     pixelsPerMeter: Number(r.pixelsPerMeter ?? DEFAULT_WORLD.pixelsPerMeter),
     timeScale:      Number(r.timeScale ?? DEFAULT_WORLD.timeScale),
     physicsMode:    parsePhysicsMode(r.physicsMode),
+    ...(typeof r.physicsDebugDraw === 'boolean' ? { physicsDebugDraw: r.physicsDebugDraw } : {}),
   }
+}
+
+function parsePhysicsLayer(raw: unknown): PhysicsLayerDef | null {
+  if (!raw || typeof raw !== 'object') return null
+  const r = raw as Record<string, unknown>
+  const id = String(r.id ?? '')
+  if (!id) return null
+  const bit = Number(r.bit)
+  return {
+    id,
+    name: String(r.name ?? id),
+    bit: Number.isFinite(bit) ? bit : 0,
+    color: String(r.color ?? '#8B95A7'),
+  }
+}
+
+function parsePhysicsLayers(doc: Record<string, unknown>): PhysicsLayerDef[] | undefined {
+  const physicsRaw = doc.physics
+  const layersRaw = physicsRaw && typeof physicsRaw === 'object'
+    ? (physicsRaw as Record<string, unknown>).layers
+    : doc.physicsLayers
+  if (!Array.isArray(layersRaw)) return undefined
+  const layers = layersRaw
+    .map(parsePhysicsLayer)
+    .filter((layer): layer is PhysicsLayerDef => layer != null)
+  return layers.length > 0 ? layers : undefined
+}
+
+function parseCollisionShape(raw: unknown): CollisionShapeDef | null {
+  if (!raw || typeof raw !== 'object') return null
+  const r = raw as Record<string, unknown>
+  const maskRaw = r.maskLayerIds ?? r.mask_layer_ids
+  const maskLayerIds = Array.isArray(maskRaw) ? maskRaw.map(String) : ['default']
+  const pointsRaw = r.points
+  const points = Array.isArray(pointsRaw)
+    ? pointsRaw
+        .filter((p): p is Record<string, unknown> => !!p && typeof p === 'object')
+        .map((p) => ({ x: Number(p.x) || 0, y: Number(p.y) || 0 }))
+    : undefined
+  return {
+    type: String(r.type ?? 'rectangle') as CollisionShapeDef['type'],
+    response: String(r.response ?? 'solid') as CollisionShapeDef['response'],
+    role: String(r.role ?? 'body') as CollisionShapeDef['role'],
+    layerId: String(r.layerId ?? r.layer_id ?? 'default'),
+    maskLayerIds,
+    offsetX: Number(r.offsetX ?? r.offset_x ?? 0) || 0,
+    offsetY: Number(r.offsetY ?? r.offset_y ?? 0) || 0,
+    width: Number(r.width ?? 32) || 32,
+    height: Number(r.height ?? 32) || 32,
+    radius: Number(r.radius ?? 16) || 16,
+    ...(points && points.length > 0 ? { points } : {}),
+    enabled: r.enabled !== false,
+    oneWay: Boolean(r.oneWay ?? r.one_way),
+    friction: Number(r.friction ?? 0.3) || 0,
+    restitution: Number(r.restitution ?? 0) || 0,
+    density: Number(r.density ?? 1) || 1,
+  }
+}
+
+function parseCollisionShapes(raw: unknown): CollisionShapeDef[] {
+  if (!Array.isArray(raw)) return []
+  return raw.map(parseCollisionShape).filter((s): s is CollisionShapeDef => s != null)
+}
+
+function parseCollisionBody(raw: unknown): CollisionBodyComponent | undefined {
+  if (!raw || typeof raw !== 'object') return undefined
+  const r = raw as Record<string, unknown>
+  return {
+    bodyType: String(r.bodyType ?? r.body_type ?? 'static') as CollisionBodyComponent['bodyType'],
+    enabled: r.enabled !== false,
+    ...(typeof r.profileId === 'string' ? { profileId: r.profileId } : {}),
+    shapes: parseCollisionShapes(r.shapes),
+  }
+}
+
+function parseCollisionProfile(key: string, raw: unknown): CollisionProfileDef | null {
+  if (!raw || typeof raw !== 'object') return null
+  const r = raw as Record<string, unknown>
+  const id = String(r.id ?? key)
+  const perAnimation: Record<string, CollisionShapeDef[]> = {}
+  const perAnimRaw = r.perAnimation ?? r.per_animation
+  if (perAnimRaw && typeof perAnimRaw === 'object') {
+    for (const [anim, shapes] of Object.entries(perAnimRaw as Record<string, unknown>))
+      perAnimation[anim] = parseCollisionShapes(shapes)
+  }
+  const perFrame: Record<string, CollisionShapeDef[]> = {}
+  const perFrameRaw = r.perFrame ?? r.per_frame
+  if (perFrameRaw && typeof perFrameRaw === 'object') {
+    for (const [frame, shapes] of Object.entries(perFrameRaw as Record<string, unknown>))
+      perFrame[frame] = parseCollisionShapes(shapes)
+  }
+  const coordinateSpace = r.coordinateSpace ?? r.coordinate_space
+  return {
+    id,
+    name: String(r.name ?? id),
+    ...(coordinateSpace === 'world' || coordinateSpace === 'frame-normalized'
+      ? { coordinateSpace }
+      : {}),
+    shapes: parseCollisionShapes(r.shapes),
+    ...(Object.keys(perAnimation).length > 0 ? { perAnimation } : {}),
+    ...(Object.keys(perFrame).length > 0 ? { perFrame } : {}),
+  }
+}
+
+function parseCollisionProfiles(doc: Record<string, unknown>): Record<string, CollisionProfileDef> | undefined {
+  const raw = doc.collisionProfiles ?? doc.collision_profiles
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined
+  const out: Record<string, CollisionProfileDef> = {}
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    const profile = parseCollisionProfile(key, value)
+    if (profile) out[profile.id] = profile
+  }
+  return Object.keys(out).length > 0 ? out : undefined
 }
 
 function parseInstance(raw: unknown, fallbackId: number): SceneInstanceDef | null {
@@ -630,12 +748,9 @@ function parseTilePalette(raw: unknown): TileDef[] | undefined {
       id,
       name: String(o.name ?? `Tile ${id}`),
       color: String(o.color ?? '#9CA3AF'),
-      solid: Boolean(o.solid),
     }
-    if (typeof o.groundClass === 'string' && o.groundClass.length > 0)
-      entry.groundClass = o.groundClass
-    const sk = o.surfaceKind
-    if (sk === 'solid' || sk === 'oneWay') entry.surfaceKind = sk
+    const collisionBody = parseCollisionBody(o.collisionBody)
+    if (collisionBody) entry.collisionBody = collisionBody
     out.push(entry)
   }
   return out.length ? out : undefined
@@ -788,6 +903,8 @@ export function parseProjectDocWithMeta(jsonStr: string): ParseProjectDocResult 
       raw.logicBoards ?? raw.logic_boards,
     )
 
+    const physicsLayers = parsePhysicsLayers(raw)
+    const collisionProfiles = parseCollisionProfiles(raw)
     const base: ProjectDoc = {
       projectName:    String(raw.projectName ?? raw.project_name ?? 'Untitled'),
       version:        String(raw.version ?? '1.0.0'),
@@ -819,6 +936,8 @@ export function parseProjectDocWithMeta(jsonStr: string): ParseProjectDocResult 
       logicBoards:    logicBoardsParsed.doc,
       globalVariables: parseVariableDefinitions(raw.globalVariables ?? raw.global_variables),
       layers:         parseLayers(raw.layers),
+      ...(physicsLayers ? { physics: { layers: physicsLayers } } : {}),
+      ...(collisionProfiles ? { collisionProfiles } : {}),
     }
 
     const { project } = normalizeProjectDoc(base)
@@ -831,6 +950,53 @@ export function parseProjectDocWithMeta(jsonStr: string): ParseProjectDocResult 
 
 export function parseProjectDoc(jsonStr: string): ProjectDoc | null {
   return parseProjectDocWithMeta(jsonStr)?.project ?? null
+}
+
+function serializeCollisionShape(shape: CollisionShapeDef) {
+  return {
+    type: shape.type,
+    response: shape.response,
+    role: shape.role,
+    layerId: shape.layerId,
+    maskLayerIds: shape.maskLayerIds,
+    offsetX: shape.offsetX,
+    offsetY: shape.offsetY,
+    width: shape.width,
+    height: shape.height,
+    radius: shape.radius,
+    ...(shape.points && shape.points.length > 0 ? { points: shape.points } : {}),
+    enabled: shape.enabled,
+    oneWay: shape.oneWay,
+    friction: shape.friction,
+    restitution: shape.restitution,
+    density: shape.density,
+  }
+}
+
+function serializeCollisionProfile(profile: CollisionProfileDef) {
+  const out: Record<string, unknown> = {
+    id: profile.id,
+    name: profile.name,
+    shapes: profile.shapes.map(serializeCollisionShape),
+  }
+  if (profile.coordinateSpace) out.coordinateSpace = profile.coordinateSpace
+  if (profile.perAnimation && Object.keys(profile.perAnimation).length > 0) {
+    out.perAnimation = Object.fromEntries(
+      Object.entries(profile.perAnimation).map(([key, shapes]) => [
+        key,
+        shapes.map(serializeCollisionShape),
+      ]),
+    )
+  }
+  if (profile.perFrame && Object.keys(profile.perFrame).length > 0) {
+    out.perFrame = Object.fromEntries(
+      Object.entries(profile.perFrame).map(([key, shapes]) => [
+        key,
+        shapes.map(serializeCollisionShape),
+      ]),
+    )
+  }
+  return out
 }
 
 function vec2Array(v: Vec2): [number, number] {
@@ -1043,6 +1209,18 @@ export function serializeProjectDoc(project: ProjectDoc): string {
       : {}),
     ...(v2.globalVariables?.length ? { globalVariables: v2.globalVariables } : {}),
     ...(project.layers && project.layers.length > 0 ? { layers: project.layers } : {}),
+    ...(project.physics?.layers && project.physics.layers.length > 0
+      ? { physics: { layers: project.physics.layers } }
+      : {}),
+    ...(project.collisionProfiles && Object.keys(project.collisionProfiles).length > 0
+      ? {
+          collisionProfiles: Object.fromEntries(
+            Object.values(project.collisionProfiles)
+              .sort((a, b) => a.id.localeCompare(b.id))
+              .map((profile) => [profile.id, serializeCollisionProfile(profile)]),
+          ),
+        }
+      : {}),
   }
 
   return `${JSON.stringify(json, null, 2)}\n`

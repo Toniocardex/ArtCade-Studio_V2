@@ -251,15 +251,13 @@ export function findLogicBoardForInstance(
   return findLogicBoardForObjectType(project, typeId)
 }
 
-/** Tags used in the project: entity.tags plus SensorComponent.targetTag values. */
+/** Tags used in the project. */
 export function allEntityTags(project: ProjectDoc): string[] {
   const set = new Set<string>()
   for (const e of Object.values(project.entities)) {
     for (const t of e.tags ?? []) {
       if (t) set.add(t)
     }
-    const sensor = e.sensor as { targetTag?: string } | undefined
-    if (sensor?.targetTag) set.add(sensor.targetTag)
   }
   return [...set].sort(compareLocale)
 }

@@ -23,8 +23,6 @@ import {
   MESSAGE_REGISTRATION_LINES,
   MOVEMENT_LINES,
   RANDOM_LINES,
-  SENSOR_ENTER_REGISTRATION_LINES,
-  SENSOR_EXIT_REGISTRATION_LINES,
   SPAWN_REGISTRATION_LINES,
   TEXT_FORMAT_LINES,
   TEXT_TO_STRING_LINES,
@@ -85,8 +83,6 @@ function helperLines(features: CompilerPreludeFeatures): string[] {
     ...(features.animChangeRegistration ? ANIM_CHANGE_REGISTRATION_LINES : []),
     ...(features.inputPressedRegistration ? INPUT_PRESSED_REGISTRATION_LINES : []),
     ...(features.inputReleasedRegistration ? INPUT_RELEASED_REGISTRATION_LINES : []),
-    ...(features.sensorEnterRegistration ? SENSOR_ENTER_REGISTRATION_LINES : []),
-    ...(features.sensorExitRegistration ? SENSOR_EXIT_REGISTRATION_LINES : []),
     ...(features.messageRegistration ? MESSAGE_REGISTRATION_LINES : []),
     ...(features.timerEveryRegistration ? TIMER_EVERY_REGISTRATION_LINES : []),
     ...(features.timerAfterRegistration ? TIMER_AFTER_REGISTRATION_LINES : []),
@@ -124,15 +120,6 @@ export function buildHeader(
   ]
 }
 
-export const SENSOR_POLL_PREAMBLE = [
-  `${INDENT}local _sensor_by_ent = {}`,
-  `${INDENT}for _, se in ipairs(sensor.poll()) do`,
-  `${INDENT}${INDENT}local eid = se.entityId`,
-  `${INDENT}${INDENT}if not _sensor_by_ent[eid] then _sensor_by_ent[eid] = {} end`,
-  `${INDENT}${INDENT}table.insert(_sensor_by_ent[eid], se)`,
-  `${INDENT}end`,
-]
-
 export const DESTROY_POLL_PREAMBLE = [
   `-- Fallback when onDestroy has no board class (prefer lifecycle.onDestroy in init)`,
   `${INDENT}local _destroy_events = lifecycle.pollDestroyed()`,
@@ -145,7 +132,6 @@ export const DESTROY_POLL_PREAMBLE = [
 export function buildTickWrapper(args: {
   tickBlocks: string[]
   hasPollingLogic: boolean
-  useSensor: boolean
   useDestroy: boolean
   initBlocks: string[]
   frameMovement: boolean
@@ -153,7 +139,6 @@ export function buildTickWrapper(args: {
   const {
     tickBlocks,
     hasPollingLogic,
-    useSensor,
     useDestroy,
     initBlocks,
     frameMovement,
@@ -172,7 +157,6 @@ export function buildTickWrapper(args: {
     `${INDENT}${INDENT}module.initialize()`,
     `${INDENT}end`,
     ...(frameMovement ? [`${INDENT}_logic_movement_frame = {}`] : []),
-    ...(useSensor ? SENSOR_POLL_PREAMBLE : []),
     ...(useDestroy ? DESTROY_POLL_PREAMBLE : []),
     ...tickBlocks,
     ...(frameMovement ? [`${INDENT}_logic_flush_movement()`] : []),

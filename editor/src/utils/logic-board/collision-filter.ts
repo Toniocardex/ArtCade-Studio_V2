@@ -16,8 +16,6 @@ export function collisionFilterFromTrigger(
   >,
 ): CollisionFilter {
   const filter: CollisionFilter = { ...(trig.filter ?? {}) }
-  if (trig.withClass && !filter.className)
-    filter.className = trig.withClass
   if ((trig.type === 'onTriggerEnter' || trig.type === 'onTriggerExit') && !filter.response)
     filter.response = 'sensor'
   return filter
@@ -39,4 +37,3 @@ export function collisionFilterLua(filter: CollisionFilter): string {
   }
   return `{ ${parts.join(', ')} }`
 }
-

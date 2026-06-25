@@ -20,7 +20,7 @@ function baseProject(): ProjectDoc {
         visible: true,
         physics: {
           bodyType: 'Dynamic',
-          collider: { shape: 'Rectangle', size: { x: 32, y: 32 }, offset: { x: 0, y: 0 }, density: 1, friction: 0.2, isSensor: false },
+          collider: { shape: 'Rectangle', size: { x: 32, y: 32 }, offset: { x: 0, y: 0 }, density: 1, friction: 0.2 },
         },
       },
     },

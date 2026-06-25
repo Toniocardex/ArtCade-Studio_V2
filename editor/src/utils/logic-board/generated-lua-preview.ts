@@ -26,8 +26,6 @@ function rewriteRuntimeHelpers(line: string): string {
     .replace('_logic_reg_anim_frame(', 'animation.onFrame(')
     .replace('_logic_reg_anim_loop(', 'animation.onLoop(')
     .replace('_logic_reg_anim_change(', 'animation.onChanged(')
-    .replace('_logic_reg_sensor_enter(', 'sensor.onEnter(')
-    .replace('_logic_reg_sensor_exit(', 'sensor.onExit(')
 }
 
 function extractBoardChunks(lua: string): string[][] {

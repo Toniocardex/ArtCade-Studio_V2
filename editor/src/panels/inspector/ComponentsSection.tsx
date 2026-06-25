@@ -13,6 +13,7 @@ import { EditorSelect } from '../../components/ui/EditorSelect'
 import { PhysicsSection } from './PhysicsSection'
 import { DEFAULT_PHYSICS, PHYSICS_INSPECTOR } from './physics-defaults'
 import { DialogInspectorActions } from './DialogInspectorActions'
+import { CollisionBodyInspectorExtras } from './CollisionBodyInspectorExtras'
 
 const ACTIVE_COMPONENT_KEYS = new Set<ComponentKey>(COMPONENT_KEYS)
 const ACTIVE_COMPONENT_REGISTRY = COMPONENT_REGISTRY.filter((desc) =>
@@ -80,6 +81,45 @@ function ComponentSection({ entity, desc }: ComponentSectionProps) {
 
       {desc.key === 'dialog' ? (
         <DialogInspectorActions entity={entity} />
+      ) : desc.key === 'collisionBody' ? (
+        <>
+          {desc.fields
+            .filter((f) => !f.visibleWhen || f.visibleWhen(data))
+            .map((f) => {
+              const v = data[f.key]
+              if (f.kind === 'select') {
+                return (
+                  <div key={f.key} className="mb-2">
+                    <label className="text-[9px] text-[var(--muted)] uppercase">{f.label}</label>
+                    <EditorSelect
+                      value={fieldStringValue(v, 'static')}
+                      onChange={(next) => commit(f.key, next)}
+                      triggerClassName="py-1"
+                      options={(f.options ?? []).map((o, i) => ({
+                        value: o,
+                        label: f.optionLabels?.[i] ?? o,
+                      }))}
+                      aria-label={f.label}
+                    />
+                  </div>
+                )
+              }
+              if (f.kind === 'checkbox') {
+                return (
+                  <label key={f.key} className="flex items-center gap-2 mb-2 text-xs text-[var(--text)]">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(v)}
+                      onChange={(e) => commit(f.key, e.target.checked)}
+                    />
+                    {f.label}
+                  </label>
+                )
+              }
+              return null
+            })}
+          <CollisionBodyInspectorExtras entity={entity} />
+        </>
       ) : (
         desc.fields
           .filter((f) => !f.visibleWhen || f.visibleWhen(data))

@@ -207,6 +207,8 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
             const std::string libId   = av.value("id", key);
             const std::string libPath = av.value("path", std::string{});
             if (!libPath.empty())
+                out.spritePathToAssetId[libPath] = libId.empty() ? key : libId;
+            if (!libPath.empty())
                 manifestIndex_.addImageEntry(libId, libPath);
             ImageAssetDef ad;
             ProjectJson::read_image_asset(av, key, ad);

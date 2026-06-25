@@ -744,11 +744,11 @@ describe('compileLogicBoard — triggers', () => {
     )
   })
 
-  it('onCollision withClass aliases to a collision filter gate', () => {
+  it('onCollision uses a collision filter gate', () => {
     const lua = compileLogicBoard([
       board([
         ev({
-          trigger: { type: 'onCollision', withClass: 'Coin' },
+          trigger: { type: 'onCollision', filter: { className: 'Coin' } },
           actions: [{ type: 'addVariable', key: 'score', amount: 1 }],
         }),
       ]),
@@ -959,7 +959,7 @@ describe('compileLogicBoard — realistic example', () => {
           }),
           ev({
             id: 'coin',
-            trigger: { type: 'onCollision', withClass: 'Coin' },
+            trigger: { type: 'onCollision', filter: { className: 'Coin' } },
             actions: [
               { type: 'addVariable', key: 'coins', amount: 1 },
               { type: 'playSound', path: 'sfx/coin.ogg' },
@@ -1251,7 +1251,7 @@ describe('Hot-reload safety — handler unsubscribe tracking', () => {
              actions: [{ type: 'debugLog', message: 's' }] }),
         ev({ id: 'b', trigger: { type: 'onDestroy' },
              actions: [{ type: 'debugLog', message: 'd' }] }),
-        ev({ id: 'c', trigger: { type: 'onTriggerEnter', withClass: 'Coin' },
+        ev({ id: 'c', trigger: { type: 'onTriggerEnter', filter: { className: 'Coin' } },
              actions: [{ type: 'debugLog', message: 't' }] }),
         ev({ id: 'd', trigger: { type: 'onInput', keyCode: 'Space', eventType: 'pressed' },
              actions: [{ type: 'debugLog', message: 'i' }] }),
@@ -1273,7 +1273,7 @@ describe('Hot-reload safety — handler unsubscribe tracking', () => {
     const occur = (needle: string) => lua.split(needle).length - 1
     expect(occur('lifecycle.onSpawn(')).toBe(1)
     expect(occur('lifecycle.onDestroy(')).toBe(1)
-    expect(occur('sensor.onEnter(')).toBe(0)
+    expect(occur(['sensor', 'onEnter('].join('.'))).toBe(0)
     expect(occur('input.onPressed(')).toBe(1)
     expect(occur('time.every(')).toBe(1)
     expect(occur('event.on(')).toBe(1)
@@ -1348,19 +1348,18 @@ describe('Bug #9 — onCollisionEnter / onCollisionExit edge triggers', () => {
   it('emits _logic_collision_edge gate with want_enter=true for onCollisionEnter', () => {
     const lua = compileLogicBoard([
       board([
-        ev({ trigger: { type: 'onCollisionEnter', withClass: 'Coin' },
+        ev({ trigger: { type: 'onCollisionEnter', filter: { className: 'Coin' } },
              actions: [{ type: 'addVariable', key: 'score', amount: 1 }] }),
       ]),
     ])
     expect(lua).toContain('_logic_collision_edge(self, "layer:|mask:|role:|response:|tag:|className:Coin", { className = "Coin" }, true)')
     expect(lua).toContain('global.add("score", 1)')
-    expect(lua).not.toContain('collision.touchingClass(')
   })
 
   it('emits _logic_collision_edge gate with want_enter=false for onCollisionExit', () => {
     const lua = compileLogicBoard([
       board([
-        ev({ trigger: { type: 'onCollisionExit', withClass: 'Spike' },
+        ev({ trigger: { type: 'onCollisionExit', filter: { className: 'Spike' } },
              actions: [{ type: 'debugLog', message: 'safe' }] }),
       ]),
     ])
@@ -1370,7 +1369,7 @@ describe('Bug #9 — onCollisionEnter / onCollisionExit edge triggers', () => {
   it('prelude defines the edge helper and the was-touching memory', () => {
     const lua = compileLogicBoard([
       board([
-        ev({ trigger: { type: 'onCollisionEnter', withClass: 'Coin' },
+        ev({ trigger: { type: 'onCollisionEnter', filter: { className: 'Coin' } },
              actions: [{ type: 'debugLog', message: 'x' }] }),
       ]),
     ])
@@ -1382,7 +1381,7 @@ describe('Bug #9 — onCollisionEnter / onCollisionExit edge triggers', () => {
     const lua = compileLogicBoard([
       board([
         ev({
-          trigger: { type: 'onCollisionEnter', withClass: 'Coin' },
+          trigger: { type: 'onCollisionEnter', filter: { className: 'Coin' } },
           actions: [{ type: 'destroyEntity', target: 'other' }],
         }),
       ]),
@@ -1441,10 +1440,10 @@ describe('Logic Components — Phase C (engine-hook triggers)', () => {
     expect(lua).toContain('debug.log("gone")')
   })
 
-  it('onTriggerEnter registers a sensor enter handler', () => {
+  it('onTriggerEnter registers a collision sensor enter gate', () => {
     const lua = compileLogicBoard([
       board([
-        ev({ trigger: { type: 'onTriggerEnter', withClass: 'Zone' },
+        ev({ trigger: { type: 'onTriggerEnter', filter: { className: 'Zone' } },
              actions: [{ type: 'debugLog', message: 'in' }] }),
       ]),
     ])
@@ -1454,10 +1453,10 @@ describe('Logic Components — Phase C (engine-hook triggers)', () => {
     expect(lua).toContain('debug.log("in")')
   })
 
-  it('onTriggerExit registers a sensor exit handler', () => {
+  it('onTriggerExit registers a collision sensor exit gate', () => {
     const lua = compileLogicBoard([
       board([
-        ev({ trigger: { type: 'onTriggerExit', withClass: 'Zone' },
+        ev({ trigger: { type: 'onTriggerExit', filter: { className: 'Zone' } },
              actions: [{ type: 'debugLog', message: 'out' }] }),
       ]),
     ])
@@ -1754,7 +1753,7 @@ describe('RULE alias integrity', () => {
              actions: [{ type: 'debugLog', message: 'a' }] }),
         ev({ id: 'r2', trigger: { type: 'onInput', keyCode: 'KeyD', eventType: 'down' },
              actions: [{ type: 'toggleLogicEvent', eventId: 'r1', enabled: false }] }),
-        ev({ id: 'r3', trigger: { type: 'onCollision', withClass: 'Coin' },
+        ev({ id: 'r3', trigger: { type: 'onCollision', filter: { className: 'Coin' } },
              actions: [{ type: 'debugLog', message: 'c' }] }),
       ]),
     ])

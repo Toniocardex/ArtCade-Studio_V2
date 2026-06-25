@@ -173,17 +173,7 @@ export function emitOnInputRegistration(ctx: EmitCtx): string[] | null {
 export function emitSensorRegistration(ctx: EmitCtx): string[] | null {
   const trig = ctx.ev.trigger
   if (trig.type !== 'onTriggerEnter' && trig.type !== 'onTriggerExit') return null
-  const helper =
-    trig.type === 'onTriggerEnter' ? '_logic_reg_sensor_enter' : '_logic_reg_sensor_exit'
-  const target = trig.withClass ? luaString(trig.withClass) : luaString('*')
-  const I = INDENT
-  return [
-    `${I}${helper}(${ctx.source}, ${target}, function(entityId, otherId, tag)`,
-    `${I}${I}local self = entityId`,
-    `${I}${I}local other = otherId`,
-    ...emitGuardedActions(ctx.ev, I + I, ctx.slugs, null, ctx.project, ctx.logicDebugTrace),
-    `${I}end)`,
-  ]
+  return null
 }
 
 function timerCallbackLines(ctx: EmitCtx): string[] {

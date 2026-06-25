@@ -42,6 +42,7 @@ local ballId     = nil
 local floorId    = nil
 local enemyData  = {}
 local moveKeys   = {}
+local wasTouchingEnemy = false
 local writeHeartbeat
 
 -- Log file handle (opened in init, closed on last frame)
@@ -64,18 +65,27 @@ local function removeCoinId(cid)
     end
 end
 
-local function bindSensorHandlers()
-    sensor.onEnter("Coin", "player", function(coinId, otherId, tag)
-        if otherId ~= playerId then return end
+local function updateCollisionInteractions()
+    if not playerId then return end
+
+    local coinId = collision.firstTouching(playerId, {
+        response = "sensor",
+        className = "Coin"
+    })
+    if coinId and coinId ~= 0 then
         score = score + 10
         global.set("score", score)
         log("Coin collected! score=" .. tostring(score))
         entity.destroy(coinId)
         removeCoinId(coinId)
-    end)
+    end
 
-    sensor.onEnter("Enemy", "player", function(enemyId, otherId, tag)
-        if otherId ~= playerId or not alive then return end
+    local enemyId = collision.firstTouching(playerId, {
+        response = "sensor",
+        className = "Enemy"
+    })
+    local touchingEnemy = enemyId and enemyId ~= 0
+    if touchingEnemy and not wasTouchingEnemy and alive then
         local cur, maxHp = entity.health(playerId)
         if not cur then
             alive = false
@@ -97,16 +107,14 @@ local function bindSensorHandlers()
         else
             log(string.format("PLAYER HIT hp=%.0f/%.0f", nextHp, maxHp))
         end
-    end)
-
-    sensor.onExit("Enemy", "player", function(enemyId, otherId, tag)
-        if otherId ~= playerId then return end
+    elseif not touchingEnemy and wasTouchingEnemy then
         local cur = entity.health(playerId)
         if cur and cur > 0 then
             alive = true
             global.set("alive", 1)
         end
-    end)
+    end
+    wasTouchingEnemy = touchingEnemy
 end
 
 local function bindMovementInput()
@@ -189,7 +197,6 @@ local function init()
     global.set("playerName", "Hero")
     global.set("hardMode", false)
     bindMovementInput()
-    bindSensorHandlers()
 
     if playerId then
         local cur, maxHp = entity.health(playerId)
@@ -387,6 +394,8 @@ function tick(dt)
         py = clamp(py + dy*SPEED*dt, PLAYER_SIZE, SCREEN_H-PLAYER_SIZE)
         entity.setPosition(playerId, px, py)
     end
+
+    updateCollisionInteractions()
 
     drawScene()
 end

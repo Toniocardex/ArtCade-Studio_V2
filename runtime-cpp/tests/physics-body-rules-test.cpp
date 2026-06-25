@@ -12,7 +12,6 @@ using ArtCade::Modules::PhysicsBodyRules;
 using ArtCade::Modules::applyPhysicsBodyRules;
 using ArtCade::Modules::resolvePhysicsBodyRules;
 using ArtCade::PhysicsComponent;
-using ArtCade::SensorComponent;
 
 static int g_passed = 0;
 static int g_failed = 0;
@@ -47,28 +46,18 @@ int main() {
     {
         EntityPhysicsFlags flags{};
         flags.hasExplicitCollider = true;
-        flags.hasSolid = true;
         flags.hasTopDown = true;
         const PhysicsBodyRules rules = resolvePhysicsBodyRules(comp, flags);
-        CHECK(rules.bodyType == BodyType::Static);
+        CHECK(rules.bodyType == BodyType::Dynamic);
         CHECK(std::abs(rules.gravityScale) < 0.001f);
     }
 
     {
         EntityPhysicsFlags flags{};
-        flags.hasSensor = true;
         const PhysicsBodyRules rules = resolvePhysicsBodyRules(comp, flags);
-        CHECK(rules.bodyType == BodyType::Static);
-        CHECK(rules.deriveColliderFromSensor);
-
-        SensorComponent sensor;
-        sensor.shape = "Rectangle";
-        sensor.width = 64.f;
-        sensor.height = 32.f;
         PhysicsComponent out{};
-        applyPhysicsBodyRules(out, rules, &sensor);
-        CHECK(out.collider.isSensor);
-        CHECK(std::abs(out.collider.size.x - 64.f) < 0.001f);
+        applyPhysicsBodyRules(out, rules);
+        CHECK(out.bodyType == BodyType::Dynamic);
     }
 
     if (g_failed == 0) {

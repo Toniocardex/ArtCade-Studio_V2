@@ -44,7 +44,27 @@ function project(): ProjectDoc {
       }),
       2: entity(2, 'Enemy'),
       3: entity(3, 'Zone', {
-        sensor: { shape: 'Circle', radius: 100, width: 64, height: 64, targetTag: 'player' },
+        collisionBody: {
+          bodyType: 'static',
+          enabled: true,
+          shapes: [{
+            type: 'rectangle',
+            response: 'sensor',
+            role: 'interaction',
+            layerId: 'interaction',
+            maskLayerIds: ['player'],
+            offsetX: 0,
+            offsetY: 0,
+            width: 64,
+            height: 64,
+            radius: 16,
+            enabled: true,
+            oneWay: false,
+            friction: 0,
+            restitution: 0,
+            density: 1,
+          }],
+        },
       }),
     },
     scenes: {
@@ -122,9 +142,9 @@ describe('component capabilities', () => {
     expect(req?.status).toBe('partial')
   })
 
-  it('maps sensor triggers to SensorComponent requirements', () => {
+  it('maps trigger edges to Collision Body requirements', () => {
     const board: LogicBoard = { boardId: 'b', target: { type: 'object_type', objectTypeId: 'Zone' }, events: [] }
-    expect(triggerRequirement({ type: 'onTriggerEnter', withClass: 'player' }, project(), board)).toBeNull()
+    expect(triggerRequirement({ type: 'onTriggerEnter', filter: { tag: 'player' } }, project(), board)).toBeNull()
   })
 
   it('recommends Tranche 2 actions from component fields', () => {
@@ -135,7 +155,7 @@ describe('component capabilities', () => {
       hordeMember: { targetClass: 'Player', chaseWeight: 1, separationWeight: 0.5 },
       autoDestroy: { lifespan: 2 },
       platformerController: {
-        maxSpeed: 200, jumpForce: 400, gravity: 900, groundClass: 'Ground',
+        maxSpeed: 200, jumpForce: 400, gravity: 900,
       },
     })
     const board: LogicBoard = { boardId: 'b', target: { type: 'object_type', objectTypeId: 'Bullet' }, events: [] }

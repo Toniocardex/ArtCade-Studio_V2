@@ -9,7 +9,7 @@
 #include <cstdint>
 #include <string>
 #include <unordered_map>
-#include <unordered_set>
+#include <utility>
 #include <vector>
 
 namespace ArtCade::CollisionWorld {
@@ -50,6 +50,23 @@ struct ContactEvent {
     std::string otherRole;
     Vec2 normal{};
     Vec2 point{};
+};
+
+struct ShapePairKey {
+    uint64_t a = 0;
+    uint64_t b = 0;
+
+    bool operator==(const ShapePairKey& other) const {
+        return a == other.a && b == other.b;
+    }
+};
+
+struct ShapePairKeyHash {
+    size_t operator()(const ShapePairKey& key) const noexcept {
+        const uint64_t mixed = key.a ^ (key.b + 0x9e3779b97f4a7c15ull
+            + (key.a << 6) + (key.a >> 2));
+        return static_cast<size_t>(mixed ^ (mixed >> 32));
+    }
 };
 
 struct LayerTable {
@@ -182,6 +199,10 @@ public:
         entityRanges_[id] = { start, shapes_.size() };
     }
 
+    const std::vector<ShapeRef>& shapes() const {
+        return shapes_;
+    }
+
     bool overlapEntities(EntityId a, EntityId b, const Filter& filter = {}) const {
         for (const ShapeRef* sa : shapesFor(a)) {
             for (const ShapeRef* sb : shapesFor(b)) {
@@ -257,7 +278,7 @@ public:
     }
 
     std::vector<ContactEvent> refreshEvents() {
-        std::unordered_set<uint64_t> current;
+        std::unordered_map<ShapePairKey, ContactEvent, ShapePairKeyHash> current;
         current.reserve(shapes_.size() * 2);
         std::vector<ContactEvent> events;
         for (size_t i = 0; i < shapes_.size(); ++i) {
@@ -266,22 +287,27 @@ public:
                 const ShapeRef& b = shapes_[j];
                 if (a.id == b.id || !canCollide(a, b)) continue;
                 if (!PhysicsMath::shapesOverlap(a.instance, b.instance)) continue;
-                const uint64_t key = pairKey(i, j);
-                current.insert(key);
-                events.push_back(makeEvent(
-                    activePairs_.count(key) ? ContactEvent::Kind::Stay : ContactEvent::Kind::Enter,
-                    a, b));
+                const ShapePairKey key = pairKey(a, b);
+                const auto previous = activePairs_.find(key);
+                ContactEvent ev = makeEvent(
+                    previous != activePairs_.end()
+                        ? ContactEvent::Kind::Stay
+                        : ContactEvent::Kind::Enter,
+                    a, b);
+                current.emplace(key, ev);
+                events.push_back(ev);
             }
         }
-        for (uint64_t key : activePairs_) {
-            if (current.count(key) == 0)
-                events.push_back(ContactEvent{ ContactEvent::Kind::Exit });
+        for (const auto& [key, previous] : activePairs_) {
+            if (current.count(key) == 0) {
+                ContactEvent exit = previous;
+                exit.kind = ContactEvent::Kind::Exit;
+                events.push_back(exit);
+            }
         }
         activePairs_ = std::move(current);
         return events;
     }
-
-    const std::vector<ShapeRef>& shapes() const { return shapes_; }
 
 private:
     std::vector<const ShapeRef*> shapesFor(EntityId id) const {
@@ -294,10 +320,16 @@ private:
         return out;
     }
 
-    static uint64_t pairKey(size_t a, size_t b) {
-        if (a > b) std::swap(a, b);
-        return (static_cast<uint64_t>(a) << 32)
-            | static_cast<uint64_t>(b & 0xffffffffu);
+    static uint64_t shapeKey(const ShapeRef& shape) {
+        return (static_cast<uint64_t>(shape.id) << 32)
+            | static_cast<uint64_t>(shape.shapeIndex & 0xffffffffu);
+    }
+
+    static ShapePairKey pairKey(const ShapeRef& a, const ShapeRef& b) {
+        uint64_t left = shapeKey(a);
+        uint64_t right = shapeKey(b);
+        if (left > right) std::swap(left, right);
+        return ShapePairKey{ left, right };
     }
 
     static ContactEvent makeEvent(ContactEvent::Kind kind,
@@ -324,7 +356,7 @@ private:
     LayerTable layers_;
     std::vector<ShapeRef> shapes_;
     std::unordered_map<EntityId, std::pair<size_t, size_t>> entityRanges_;
-    std::unordered_set<uint64_t> activePairs_;
+    std::unordered_map<ShapePairKey, ContactEvent, ShapePairKeyHash> activePairs_;
 };
 
 } // namespace ArtCade::CollisionWorld

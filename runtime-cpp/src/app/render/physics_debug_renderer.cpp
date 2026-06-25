@@ -27,9 +27,7 @@ void drawPhysicsDebug(Modules::Renderer& renderer,
             const float offsetY = collider.offset.y * scaleY;
 
             Vec4 color{0.2f, 1.f, 0.35f, 0.55f};
-            if (collider.isSensor) {
-                color = {1.f, 1.f, 0.2f, 0.5f};
-            } else if (component.bodyType == BodyType::Static) {
+            if (component.bodyType == BodyType::Static) {
                 color = {0.5f, 0.7f, 1.f, 0.5f};
             }
 

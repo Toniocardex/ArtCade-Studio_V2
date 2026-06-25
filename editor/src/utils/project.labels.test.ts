@@ -130,7 +130,7 @@ describe('logicBoardLabel', () => {
 })
 
 describe('allEntityTags', () => {
-  it('collects entity tags and sensor targetTag values', () => {
+  it('collects entity tags', () => {
     const project = miniProject()
     project.entities[1].tags = ['player', 'controllable']
     project.entities[4] = {
@@ -139,7 +139,6 @@ describe('allEntityTags', () => {
       name: 'Coin',
       className: 'Coin',
       tags: ['pickup'],
-      sensor: { shape: 'Circle', radius: 30, width: 64, height: 64, targetTag: 'player' },
     }
     expect(allEntityTags(project)).toEqual(['controllable', 'pickup', 'player'])
   })

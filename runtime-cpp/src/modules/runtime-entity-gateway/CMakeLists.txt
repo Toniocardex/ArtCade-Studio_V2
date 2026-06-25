@@ -22,6 +22,7 @@ add_library(artcade-runtime-entity-gateway
     src/runtime-entity-gateway.cpp
     src/entity-registry.cpp
     src/physics-body-rules.cpp
+    src/collision-profile-resolve.cpp
 )
 target_include_directories(artcade-runtime-entity-gateway
     PUBLIC  include
