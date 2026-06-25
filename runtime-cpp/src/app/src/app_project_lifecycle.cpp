@@ -3,6 +3,7 @@
 #include "app_modules.h"
 
 #include "../../modules/editor-api/include/editor-api.h"
+#include "../../modules/presentation/include/presentation_mode.h"
 #include "../../modules/game-state/include/splash-state.h"
 #include "../../modules/sprite-animator/include/animation-clips-registry.h"
 
@@ -49,8 +50,16 @@ void Application::applyRuntimeSettings(const ProjectRuntimeSettings& settings,
                 "ArtCade V2");
         }
         mod_->renderer->setSceneViewport(scene->worldSize, scene->worldSize);
+        mod_->renderer->setPresentationMode(
+            ArtCade::Presentation::PresentationMode::SceneEdit);
+        mod_->renderer->setGameViewCompositorEnabled(false);
         return;
     }
+
+    mod_->renderer->setPresentationMode(
+        ArtCade::Presentation::PresentationMode::PlayEmbedded);
+    mod_->renderer->setGameViewCompositorEnabled(true);
+    mod_->renderer->setOutputPolicy(settings.outputPolicy);
 
     if (scene->viewportSize.x > 0.f && scene->viewportSize.y > 0.f) {
 #ifdef ARTCADE_WASM

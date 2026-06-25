@@ -139,15 +139,26 @@ When adding a world flag, decide: **runtime sim**, **WASM preview reload**, **co
 
 ---
 
-## 9. Camera & output policy (deferred product surface)
+## 9. Camera & output policy
+
+> **Target architecture:** [`PRESENTATION_ARCHITECTURE.md`](PRESENTATION_ARCHITECTURE.md) — Shared Presentation Core, committed snapshot, explicit render passes, migration phases. This section describes **current** behaviour until that refactor lands.
 
 **Current behaviour:**
 
-- **Edit preview:** `ViewportPolicy::EditorPreview` — window = `worldSize`, 1:1 world canvas (`app.cpp`).
-- **Play (WASM/native):** `ViewportPolicy::NativePlay` — window = `viewportSize`, camera maps world → viewport.
+- **Edit preview:** `ViewportPolicy::EditorPreview` — window = `worldSize`, 1:1 world canvas (`app.cpp`). Gameplay draws **directly** to the backbuffer (`setGameViewCompositorEnabled(false)`).
+- **Play (WASM/native):** `ViewportPolicy::NativePlay` — gameplay renders into a **Game View** `RenderTexture` at `viewportSize`, then blits to the window using the project **output policy** (`setGameViewCompositorEnabled(true)`). WASM preview keeps framebuffer = `viewportSize` (policies look identical until the native window differs from the viewport). Native play may upscale the OS window via `setWindowSizeForLogicalViewport`.
+- **World bounds clip:** the world pass applies GPU `BeginScissorMode` to the screen projection of `[0, worldSize]` so letterbox bands (intra-viewport or outer compositor margins) never receive entity pixels — not CSS overlays.
 - **Editor-only:** “Camera preview” clips the React wrapper to `viewportSize` without changing WASM window size.
 
-**Not yet a user-facing “output mode”** (fit / letterbox / stretch for published builds). That belongs in project/scene export settings and `Renderer` policy — tracked in [`TECHNICAL_DEBT_REVIEW.md`](TECHNICAL_DEBT_REVIEW.md). Until then:
+**Output policy (World Settings):** `world.outputPolicy` — `fit` (default), `fill`, or `stretch`. Stored at project level, serialized in `project.json`, mirrored in `ProjectRuntimeSettings`, and included in `worldRuntimeDigest` so WASM/native play re-syncs on change.
+
+| Policy | Behaviour |
+|--------|-----------|
+| **fit** | Uniform scale `min(sx, sy)`; letterbox/pillarbox bands on the backbuffer (clear color). Recommended for pixel art. |
+| **fill** | Uniform scale `max(sx, sy)`; fills the window; crops scene edges (source crop on blit). |
+| **stretch** | Independent X/Y scale; fills the window; may distort aspect. |
+
+Edit preview ignores output policy (compositor off, 1:1 `worldSize` canvas). Letterbox bands are the outer margins produced by **fit**, not a separate mode.
 
 - `CameraManager` handles shake; **follow** often goes through `Renderer` / `CameraTargetComponent` / Logic `camera.centerOn` — document which path you use per feature.
 - Avoid adding a second hidden camera system without updating this section.

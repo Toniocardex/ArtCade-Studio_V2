@@ -6,6 +6,7 @@
 #include "pointer-coords.h"
 #include "../../../modules/runtime-entity-gateway/include/runtime-entity-gateway.h"
 #include "../../../modules/renderer/include/renderer.h"
+#include "../../../modules/presentation/include/presentation_snapshot.h"
 #include "../../../core/types.h"
 
 #include <emscripten.h>
@@ -60,9 +61,12 @@ void toWorld(const EmscriptenMouseEvent* e, float& wx, float& wy) {
     float screenX = 0.f, screenY = 0.f;
     toScreen(e, screenX, screenY);
     if (EditorAPI::s_renderer) {
-        const Vec2 world = EditorAPI::s_renderer->screenToWorld(screenX, screenY);
-        wx = world.x;
-        wy = world.y;
+        const ArtCade::Presentation::PresentationSnapshot& snapshot =
+            EditorAPI::s_renderer->committedPresentationSnapshot();
+        const ArtCade::Presentation::WorldPoint world = snapshot.surface_to_world(
+            ArtCade::Presentation::SurfacePoint{ screenX, screenY });
+        wx = static_cast<float>(world.x);
+        wy = static_cast<float>(world.y);
     } else {
         wx = screenX;
         wy = screenY;

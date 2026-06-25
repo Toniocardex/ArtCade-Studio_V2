@@ -65,6 +65,61 @@ artcade_test(tween_manager_test
     tween-manager-test.cpp
     artcade-tween-manager)
 
+add_executable(compositor_layout_test
+    compositor-layout-test.cpp
+)
+target_include_directories(compositor_layout_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/modules/presentation/include
+)
+target_link_libraries(compositor_layout_test PRIVATE artcade-presentation)
+add_test(NAME compositor_layout_test COMMAND compositor_layout_test)
+
+artcade_test(presentation_coordinate_mapper_test
+    presentation-coordinate-mapper-test.cpp
+    artcade-presentation)
+
+artcade_test(presentation_surface_metrics_test
+    presentation-surface-metrics-test.cpp
+    artcade-presentation)
+
+artcade_test(presentation_system_test
+    presentation-system-test.cpp
+    artcade-presentation)
+
+add_executable(presentation_integration_test
+    presentation-integration-test.cpp
+)
+target_include_directories(presentation_integration_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/modules/renderer/include
+    ${CMAKE_SOURCE_DIR}/src/modules/presentation/include
+)
+target_link_libraries(presentation_integration_test PRIVATE artcade-renderer)
+add_test(NAME presentation_integration_test COMMAND presentation_integration_test)
+
+add_executable(presentation_camera_modes_test
+    presentation-camera-modes-test.cpp
+)
+target_include_directories(presentation_camera_modes_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/modules/renderer/include
+    ${CMAKE_SOURCE_DIR}/src/modules/presentation/include
+)
+target_link_libraries(presentation_camera_modes_test PRIVATE artcade-renderer)
+add_test(NAME presentation_camera_modes_test COMMAND presentation_camera_modes_test)
+
+add_executable(presentation_golden_test
+    presentation-golden-test.cpp
+)
+target_include_directories(presentation_golden_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/modules/presentation/include
+    ${CMAKE_SOURCE_DIR}/src/modules/renderer/include
+)
+target_link_libraries(presentation_golden_test PRIVATE artcade-presentation)
+add_test(NAME presentation_golden_test COMMAND presentation_golden_test)
+
 artcade_test(save_load_test
     save-load-test.cpp
     "artcade-save-load;artcade-variable-manager")

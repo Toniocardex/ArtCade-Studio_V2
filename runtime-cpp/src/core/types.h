@@ -471,12 +471,20 @@ enum class PhysicsMode {
     On,
 };
 
+/** How the game viewport is scaled to the OS window / backbuffer in play. */
+enum class OutputPolicy {
+    Fit,
+    Fill,
+    Stretch,
+};
+
 struct WorldSettings {
     float       gravity           = 9.81f;
     float       pixelsPerMeter    = 100.f;
     float       timeScale         = 1.f;
     PhysicsMode physicsMode       = PhysicsMode::Auto;
     bool        physicsDebugDraw  = false;
+    OutputPolicy outputPolicy     = OutputPolicy::Fit;
 };
 
 /** Runtime timing + physics from project JSON (editor WASM + native load). */
@@ -487,6 +495,7 @@ struct ProjectRuntimeSettings {
     float       pixelsPerMeter    = 100.f;
     float       timeScale         = 1.f;
     bool        physicsDebugDraw  = false;
+    OutputPolicy outputPolicy     = OutputPolicy::Fit;
 };
 
 struct ProjectDoc {
@@ -522,6 +531,7 @@ inline ProjectRuntimeSettings runtimeSettingsFromProjectDoc(const ProjectDoc& do
     s.pixelsPerMeter     = doc.world.pixelsPerMeter;
     s.timeScale          = doc.world.timeScale;
     s.physicsDebugDraw   = doc.world.physicsDebugDraw;
+    s.outputPolicy       = doc.world.outputPolicy;
     return s;
 }
 

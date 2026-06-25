@@ -18,6 +18,7 @@ import type { Action } from '../store/editor-store'
 import type { ProjectDoc } from '../types'
 import {
   computeCanvasViewportLayout,
+  scrollForFrameOrigin,
   scrollToWorld,
   worldToScroll,
   type CanvasViewportLayout,
@@ -88,6 +89,42 @@ export function useEditorCanvasViewport({
     scrollY: number
   } | null>(null)
   const prevSelectedEntityRef = useRef<number | null>(null)
+  const scrollAlignKeyRef = useRef('')
+
+  /** Re-anchor scroll when scene size or viewport measure changes so centring padding applies. */
+  useLayoutEffect(() => {
+    if (isPlaying) return
+    const el = scrollRef.current
+    if (!el) return
+    const key = [
+      selectedSceneId ?? '',
+      worldSize.x, worldSize.y,
+      viewportSize.x, viewportSize.y,
+      clientSize?.x ?? 0, clientSize?.y ?? 0,
+      layout.contentOffsetPx.x, layout.contentOffsetPx.y,
+      layout.contentSizePx.x, layout.contentSizePx.y,
+      layout.zoom,
+    ].join(':')
+    if (scrollAlignKeyRef.current === key) return
+    scrollAlignKeyRef.current = key
+
+    const { scrollLeft, scrollTop } = scrollForFrameOrigin(layout)
+    const maxX = Math.max(0, el.scrollWidth - el.clientWidth)
+    const maxY = Math.max(0, el.scrollHeight - el.clientHeight)
+    el.scrollLeft = Math.min(maxX, Math.max(0, scrollLeft))
+    el.scrollTop = Math.min(maxY, Math.max(0, scrollTop))
+  }, [
+    isPlaying,
+    scrollRef,
+    selectedSceneId,
+    worldSize.x,
+    worldSize.y,
+    viewportSize.x,
+    viewportSize.y,
+    clientSize?.x,
+    clientSize?.y,
+    layout,
+  ])
 
   useLayoutEffect(() => {
     const el = scrollRef.current

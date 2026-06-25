@@ -14,7 +14,8 @@ namespace ArtCade::Modules {
  *   - position, rotation, zoom (all smoothly tweened via lerp)
  *   - optional follow-target (supply a getter lambda; camera lerps towards it)
  *   - screen-shake: trauma-based, decays over time
- *   - world ↔ screen coordinate conversion (pure math, no Raylib call here)
+ *   - shakeModifiers(): render-only offsets for Presentation (not authoritative position)
+ *   - world ↔ screen coordinate conversion (deprecated — use Presentation Core)
  *   - viewport bounds: the rectangle of the world visible through this camera
  *
  * The Renderer reads position()/rotation()/zoom() and applies them.
@@ -33,7 +34,9 @@ public:
     void setRotation(float radians);
     void setZoom(float zoom);
 
+    /** Authoritative simulation position (excludes shake modifiers). */
     Vec2  position() const;
+    /** Authoritative simulation rotation (excludes shake modifiers). */
     float rotation() const;
     float zoom()     const;
 
@@ -87,9 +90,11 @@ public:
     void updateShake(float dt);
 
     // ------------------------------------------------------------------ coordinate conversion
+    // Deprecated: surface↔world math belongs in Presentation Core (ADR Phase 3).
 
-    // World position → screen pixel (uses viewport origin + zoom)
+    [[deprecated("Use Presentation Core surface_to_world / world_to_surface")]]
     Vec2 worldToScreen(Vec2 world) const;
+    [[deprecated("Use Presentation Core surface_to_world / world_to_surface")]]
     Vec2 screenToWorld(Vec2 screen) const;
 
     // ------------------------------------------------------------------ viewport

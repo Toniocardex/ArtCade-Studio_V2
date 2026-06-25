@@ -2,11 +2,23 @@
 
 #include "../../../core/module.h"
 #include "../../../core/types.h"
+#include "compositor-layout.h"
+#include "../../presentation/include/presentation_snapshot.h"
+#include "../../presentation/include/presentation_mode.h"
+#include "../../presentation/include/presentation_types.h"
 #include <functional>
 #include <string>
 #include <memory>
 
 namespace ArtCade::Modules {
+
+/** Axis-aligned world bounds in framebuffer pixel space (top-left origin). */
+struct ScreenClipRect {
+    float x = 0.f;
+    float y = 0.f;
+    float width = 0.f;
+    float height = 0.f;
+};
 
 /**
  * Renderer — Raylib window + 2D draw API.
@@ -32,6 +44,28 @@ public:
                                          uint32_t logicalHeight,
                                          const std::string& title);
     void setSceneViewport(const Vec2& worldSize, const Vec2& viewportSize);
+
+    /**
+     * Projects world bounds [0, worldSize] through the active camera (incl. shake).
+     * Used for GPU scissor during the world pass and for unit tests.
+     */
+    ScreenClipRect worldScreenClipRect() const;
+
+    /** Play mode: render gameplay into a viewport-sized RT, then blit to the window. */
+    void setGameViewCompositorEnabled(bool enabled);
+
+    /** Play output scaling policy (fit / fill / stretch). */
+    void setOutputPolicy(OutputPolicy policy);
+    OutputPolicy outputPolicy() const;
+    CompositorLayout compositorLayout() const;
+
+    /** Explicit presentation mode (replaces legacy editorCameraActive). */
+    void setPresentationMode(ArtCade::Presentation::PresentationMode mode);
+    ArtCade::Presentation::PresentationMode presentationMode() const;
+
+    /** Committed presentation snapshot for the current / last refreshed frame. */
+    const ArtCade::Presentation::PresentationSnapshot& committedPresentationSnapshot() const;
+    uint64_t presentationRevision() const;
 
     // Frame lifecycle
     void beginFrame(const Vec4& clearColor);
@@ -160,8 +194,8 @@ public:
     void setCameraPosition(const Vec2& pos);
     /** Center the visible viewport on a world-space point, subject to world bounds. */
     void setCameraCenter(const Vec2& center);
-    /** Visual-only offset for this frame's world pass (not clamped; does not change getCameraPosition). */
-    void setRenderShakeOffset(const Vec2& offset);
+    /** Render-only modifiers (shake, recoil) — do not affect picking or getCameraPosition. */
+    void setGameCameraModifiers(const ArtCade::Presentation::CameraModifiers& modifiers);
     void setCameraZoom    (float zoom);
     /** Editor-preview camera: apply target/zoom verbatim (no clamp/offset). */
     void setEditorCamera  (const Vec2& target, float zoom);
@@ -184,6 +218,7 @@ public:
     void drawScreenPostEffects();
 
 private:
+    void blitGameViewToBackbuffer();
     struct Impl;
     std::unique_ptr<Impl> impl_;
 };

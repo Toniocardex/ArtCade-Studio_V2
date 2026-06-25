@@ -32,6 +32,14 @@ PhysicsMode read_physics_mode(const nlohmann::json& worldJson) {
     return PhysicsMode::Auto;
 }
 
+OutputPolicy read_output_policy(const nlohmann::json& worldJson) {
+    const std::string policy = read_string_any(
+        worldJson, "outputPolicy", "output_policy", "fit");
+    if (policy == "fill") return OutputPolicy::Fill;
+    if (policy == "stretch") return OutputPolicy::Stretch;
+    return OutputPolicy::Fit;
+}
+
 Vec4 read_tile_palette_color(const nlohmann::json& item) {
     if (!item.contains("color"))
         return hex_to_vec4("#808080");
@@ -91,6 +99,7 @@ void read_world_settings(const nlohmann::json& worldJson, WorldSettings& out) {
     out.pixelsPerMeter = read_float_any(worldJson, "pixelsPerMeter", "pixels_per_meter", 100.f);
     out.timeScale      = read_float_any(worldJson, "timeScale", "time_scale", 1.f);
     out.physicsMode    = read_physics_mode(worldJson);
+    out.outputPolicy   = read_output_policy(worldJson);
 
     if (worldJson.contains("physicsDebugDraw") && worldJson["physicsDebugDraw"].is_boolean())
         out.physicsDebugDraw = worldJson["physicsDebugDraw"].get<bool>();

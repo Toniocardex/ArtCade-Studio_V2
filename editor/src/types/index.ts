@@ -251,6 +251,9 @@ export interface SceneDef {
 /** When the physics world steps each fixed tick. */
 export type PhysicsMode = 'off' | 'auto' | 'on'
 
+/** How the game viewport is scaled to the OS window / backbuffer in play. */
+export type OutputPolicy = 'fit' | 'fill' | 'stretch'
+
 /** Global world simulation settings (Scene Editor Phase B). */
 export interface WorldSettings {
   /** When true, Logic Board compile emits debug.log traces for rule conditions. */
@@ -263,10 +266,13 @@ export interface WorldSettings {
   pixelsPerMeter: number   // metric scale, e.g. 100 px = 1 m
   timeScale:      number   // engine speed multiplier (0..2, 1 = normal)
   physicsMode?:   PhysicsMode  // default 'auto' — step only when bodies exist
+  /** Play output scaling: fit (letterbox), fill (crop), stretch. Default fit. */
+  outputPolicy?: OutputPolicy
 }
 
 export const DEFAULT_WORLD: WorldSettings = {
   gravity: 9.81, pixelsPerMeter: 100, timeScale: 1, physicsMode: 'auto',
+  outputPolicy: 'fit',
 }
 
 /**

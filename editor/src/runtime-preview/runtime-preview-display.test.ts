@@ -40,15 +40,14 @@ describe('runtime-preview-display', () => {
       .toEqual({ x: 900, y: 501 })
   })
 
-  it('returns a centered pixelated canvas style', () => {
+  it('returns a centered pixelated canvas style scaled from the logical viewport', () => {
     const style = runtimePreviewCanvasStyle(makeBundle(), { x: 1024, y: 768 })
 
-    expect(style.width).toBe('1024px')
-    expect(style.height).toBe('640px')
+    expect(style.width).toBe('512px')
+    expect(style.height).toBe('320px')
     expect(style.left).toBe('50%')
     expect(style.top).toBe('50%')
-    expect(style.transform).toBe('translate(-50%, -50%)')
-    expect(style.objectFit).toBe('fill')
+    expect(style.transform).toBe('translate(-50%, -50%) scale(2)')
     expect(style.imageRendering).toBe('pixelated')
   })
 

@@ -3,6 +3,7 @@
 #include "app_modules.h"
 
 #include "../../modules/editor-api/include/editor-api.h"
+#include "../../modules/presentation/include/presentation_types.h"
 #include "../../modules/game-state/include/splash-state.h"
 #include "../../modules/sprite-animator/include/sprite-animator.h"
 #include "../../modules/time/include/time-manager.h"
@@ -112,7 +113,12 @@ void Application::renderActiveScene() {
     const SceneDef* activeScene = mod_->sceneManager->activeScene();
     const Vec4 clearColor = {0.015f, 0.018f, 0.025f, 1.f};
 
-    mod_->renderer->setRenderShakeOffset(mod_->cameraManager->shakeOffset());
+    mod_->renderer->setGameCameraModifiers({
+        static_cast<double>(mod_->cameraManager->shakeOffset().x),
+        static_cast<double>(mod_->cameraManager->shakeOffset().y),
+        1.,
+        static_cast<double>(mod_->cameraManager->shakeRotationOffset()),
+    });
 
 #ifdef ARTCADE_WASM
     const EditorOverlayState overlay{
@@ -437,7 +443,7 @@ void Application::renderActiveScene() {
             static_cast<int>(mod_->renderer->windowHeight()));
     }
     mod_->renderer->presentScreen();
-    mod_->renderer->setRenderShakeOffset({0.f, 0.f});
+    mod_->renderer->setGameCameraModifiers({});
 }
 
 } // namespace ArtCade

@@ -54,6 +54,8 @@ std::vector<std::pair<std::string, std::string>> EditorAPI::s_consoleQueue;
 #include "../../../modules/runtime-entity-gateway/include/runtime-entity-gateway.h"
 #include "../../../modules/lua-runtime/include/lua-host.h"
 #include "../../../modules/renderer/include/renderer.h"
+#include "../../../modules/presentation/include/presentation_snapshot.h"
+#include "../../../modules/presentation/include/presentation_mode.h"
 #include "../../../modules/dialog/include/dialog-manager.h"
 #include "../../../modules/dialog/include/dialog-parser.h"
 #include "../../../modules/sprite-animator/include/sprite-animator.h"
@@ -507,6 +509,11 @@ extern "C" {
 
 EMSCRIPTEN_KEEPALIVE void editor_set_mode(int mode) {
     ArtCade::EditorAPI::s_mode = mode;
+    if (auto* renderer = ArtCade::EditorAPI::s_renderer) {
+        renderer->setPresentationMode(mode == 0
+            ? ArtCade::Presentation::PresentationMode::SceneEdit
+            : ArtCade::Presentation::PresentationMode::PlayEmbedded);
+    }
     if (auto* gw = ArtCade::EditorAPI::s_entityGateway) {
         if (mode == 1) gw->applyDesignVisibilityForPlay();
         else           gw->restoreDesignVisibilityForEdit();
@@ -699,6 +706,36 @@ EMSCRIPTEN_KEEPALIVE void editor_set_edit_camera(
                          static_cast<uint32_t>(vpH), "ArtCade V2");
     }
     r->setEditorCamera({ targetX, targetY }, zoom);
+}
+
+EMSCRIPTEN_KEEPALIVE uint64_t editor_get_presentation_revision() {
+    auto* r = ArtCade::EditorAPI::s_renderer;
+    if (!r) return 0;
+    return r->presentationRevision();
+}
+
+EMSCRIPTEN_KEEPALIVE void editor_surface_to_world(
+    float surfaceX, float surfaceY, float* outWorldX, float* outWorldY) {
+    if (!outWorldX || !outWorldY) return;
+    auto* r = ArtCade::EditorAPI::s_renderer;
+    if (!r) {
+        *outWorldX = surfaceX;
+        *outWorldY = surfaceY;
+        return;
+    }
+    const ArtCade::Presentation::WorldPoint world =
+        r->committedPresentationSnapshot().surface_to_world(
+            ArtCade::Presentation::SurfacePoint{ surfaceX, surfaceY });
+    *outWorldX = static_cast<float>(world.x);
+    *outWorldY = static_cast<float>(world.y);
+}
+
+EMSCRIPTEN_KEEPALIVE void editor_sync_play_surface(int fbW, int fbH) {
+    if (ArtCade::EditorAPI::s_mode != 1) return;
+    auto* r = ArtCade::EditorAPI::s_renderer;
+    if (!r || fbW <= 0 || fbH <= 0) return;
+    r->setWindowSize(static_cast<uint32_t>(fbW),
+                     static_cast<uint32_t>(fbH), "ArtCade V2");
 }
 
 EMSCRIPTEN_KEEPALIVE void editor_register_image(

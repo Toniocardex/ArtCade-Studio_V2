@@ -48,11 +48,22 @@ export function SceneSettingsSection({ scene }: SceneSettingsSectionProps) {
     if (value === 'custom') return
     const preset = ASPECT_PRESETS.find((p) => p.value === value)
     if (!preset) return
+    const width = scene.worldSize.x
     const height = parseSceneDimension(
-      String(Math.round(scene.worldSize.x * (preset.h / preset.w))),
+      String(Math.round(width * (preset.h / preset.w))),
       scene.worldSize.y,
     )
-    commitWorld({ width: scene.worldSize.x, height })
+    commitWorld({ width, height })
+    const camX = Math.max(0, (width - scene.viewportSize.x) / 2)
+    const camY = Math.max(0, (height - scene.viewportSize.y) / 2)
+    if (camX > 0 || camY > 0) {
+      dispatch({
+        type: 'SCENE_SET_CAMERA_START',
+        sceneId: scene.id,
+        x: camX,
+        y: camY,
+      })
+    }
   }
 
   return (

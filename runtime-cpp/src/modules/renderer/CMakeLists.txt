@@ -9,6 +9,6 @@ target_include_directories(artcade-renderer
     PRIVATE src
 )
 target_link_libraries(artcade-renderer
-    PUBLIC  artcade-core
+    PUBLIC  artcade-core artcade-presentation
     PRIVATE raylib
 )

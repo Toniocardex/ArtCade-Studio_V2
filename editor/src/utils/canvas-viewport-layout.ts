@@ -171,6 +171,14 @@ export function rulerLabelsForAxis(
   return ticks
 }
 
+/** Scroll offsets that place the scene frame origin at its layout anchor. */
+export function scrollForFrameOrigin(layout: CanvasViewportLayout): Readonly<{
+  scrollLeft: number
+  scrollTop: number
+}> {
+  return worldToScroll(layout.worldOriginOffset, layout)
+}
+
 /** Total scrollable content extent (padding + frame; top-left anchored, no centering). */
 export function scrollContentSizePx(layout: CanvasViewportLayout): Readonly<{ x: number; y: number }> {
   return {

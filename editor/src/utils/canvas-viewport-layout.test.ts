@@ -5,6 +5,7 @@ import {
   pickRulerTickStep,
   rulerLabelsForAxis,
   scrollContentSizePx,
+  scrollForFrameOrigin,
   scrollToWorld,
   worldToScroll,
 } from './canvas-viewport-layout'
@@ -48,6 +49,20 @@ describe('computeCanvasViewportLayout', () => {
     expect(layout.contentOffsetPx).toEqual({ x: 360, y: 180 })
     // Content + even margins exactly fill the viewport — no scrollbars.
     expect(scrollContentSizePx(layout)).toEqual({ x: 2000, y: 1000 })
+  })
+
+  it('centres a 4:3 world frame when the panel is taller than the scene', () => {
+    const world = { x: 512, y: 384 }
+    const layout = computeCanvasViewportLayout({
+      worldSize: world,
+      viewportSize: { x: 512, y: 320 },
+      zoom: 1,
+      preview: false,
+      clientSize: { x: 900, y: 600 },
+    })
+    expect(layout.contentOffsetPx.y).toBe(Math.round((600 - 384) / 2))
+    const anchor = scrollForFrameOrigin(layout)
+    expect(scrollToWorld(anchor.scrollLeft, anchor.scrollTop, layout)).toEqual({ x: 0, y: 0 })
   })
 
   it('adds overscroll headroom when the scene overflows the viewport', () => {

@@ -343,6 +343,13 @@ describe('coreReducer — scenes & objects', () => {
     expect(s.project!.world).toEqual({ ...DEFAULT_WORLD, gravity: 20 })
     s = coreReducer(s, { type: 'WORLD_SET', patch: { timeScale: 0.5 } })
     expect(s.project!.world).toEqual({ ...DEFAULT_WORLD, gravity: 20, timeScale: 0.5 })
+    s = coreReducer(s, { type: 'WORLD_SET', patch: { outputPolicy: 'stretch' } })
+    expect(s.project!.world).toEqual({
+      ...DEFAULT_WORLD,
+      gravity: 20,
+      timeScale: 0.5,
+      outputPolicy: 'stretch',
+    })
     expect(s.projectDirty).toBe(true)
   })
 

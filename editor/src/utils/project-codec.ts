@@ -1,6 +1,6 @@
 import type {
   ProjectDoc, EntityDef, SceneDef, SceneInstanceDef, ObjectTypeDef, Vec2, Vec3, Vec4,
-  Transform, SpriteComponent, AnimationState, PhysicsComponent, PhysicsMode, WorldSettings,
+  Transform, SpriteComponent, AnimationState, PhysicsComponent, PhysicsMode, OutputPolicy, WorldSettings,
   TilemapLayer, TileDef, TilesetAsset, ImageAsset, AudioAsset, FontAsset, ImagePointDef, AnimationClipDef,
   AnimationFrameRect, AssetVirtualFolderDef, AssetFolderCategory,
   GameVariableDefinition, GameVariableValue, ImageAssetUsage, LayerDef, LayerId, SceneLayerSettings,
@@ -258,6 +258,11 @@ function parsePhysicsMode(raw: unknown): PhysicsMode {
   return DEFAULT_WORLD.physicsMode ?? 'auto'
 }
 
+function parseOutputPolicy(raw: unknown): OutputPolicy {
+  if (raw === 'fit' || raw === 'fill' || raw === 'stretch') return raw
+  return DEFAULT_WORLD.outputPolicy ?? 'fit'
+}
+
 function parseWorld(raw: unknown): WorldSettings | undefined {
   if (!raw || typeof raw !== 'object') return undefined
   const r = raw as Record<string, unknown>
@@ -266,6 +271,7 @@ function parseWorld(raw: unknown): WorldSettings | undefined {
     pixelsPerMeter: Number(r.pixelsPerMeter ?? DEFAULT_WORLD.pixelsPerMeter),
     timeScale:      Number(r.timeScale ?? DEFAULT_WORLD.timeScale),
     physicsMode:    parsePhysicsMode(r.physicsMode),
+    outputPolicy:   parseOutputPolicy(r.outputPolicy),
     ...(typeof r.physicsDebugDraw === 'boolean' ? { physicsDebugDraw: r.physicsDebugDraw } : {}),
   }
 }

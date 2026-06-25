@@ -165,7 +165,7 @@ function richProject(): ProjectDoc {
     { id: 'lyr_bg', name: 'Background' },
   ]
   p.thumbnails = { scene_main: 'data:image/png;base64,AAAA' }
-  p.world = { gravity: 9.8, pixelsPerMeter: 32, timeScale: 1, physicsMode: 'on' }
+  p.world = { gravity: 9.8, pixelsPerMeter: 32, timeScale: 1, physicsMode: 'on', outputPolicy: 'fill' }
   return p
 }
 
@@ -267,7 +267,7 @@ describe('project-codec round-trip', () => {
         background: { imageId: 'img_sky', tileX: true, tileY: false, scrollX: 10, scrollY: 0 },
       },
     })
-    expect(back.world).toMatchObject({ physicsMode: 'on', gravity: 9.8 })
+    expect(back.world).toMatchObject({ physicsMode: 'on', gravity: 9.8, outputPolicy: 'fill' })
     expect(back.licenseTier).toBe('pro')
     expect(back.thumbnails?.scene_main).toContain('data:image/png')
   })

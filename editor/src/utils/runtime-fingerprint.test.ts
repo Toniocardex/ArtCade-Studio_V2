@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { runtimeProjectFingerprint, projectJsonForRuntime } from './runtime-fingerprint'
+import { runtimeProjectFingerprint, projectJsonForRuntime, worldRuntimeDigest } from './runtime-fingerprint'
 import type { EntityDef, ProjectDoc, SceneDef, Vec4 } from '../types'
 
 function vec(x: number, y: number) { return { x, y } }
@@ -208,6 +208,25 @@ describe('runtimeProjectFingerprint', () => {
     const withDebug = makeProject({ world: { physicsDebugDraw: true } as never })
     expect(runtimeProjectFingerprint(base, 'scene_a'))
       .not.toBe(runtimeProjectFingerprint(withDebug, 'scene_a'))
+  })
+
+  it('changes when outputPolicy changes', () => {
+    const base = makeProject()
+    const fill = makeProject({ world: { outputPolicy: 'fill' } as never })
+    expect(runtimeProjectFingerprint(base, 'scene_a'))
+      .not.toBe(runtimeProjectFingerprint(fill, 'scene_a'))
+  })
+})
+
+describe('worldRuntimeDigest', () => {
+  it('includes output policy with fit default', () => {
+    const digest = JSON.parse(worldRuntimeDigest()) as { op: string }
+    expect(digest.op).toBe('fit')
+  })
+
+  it('reflects explicit output policy', () => {
+    const digest = JSON.parse(worldRuntimeDigest({ outputPolicy: 'stretch' })) as { op: string }
+    expect(digest.op).toBe('stretch')
   })
 })
 

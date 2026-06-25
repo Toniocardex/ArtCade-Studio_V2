@@ -142,6 +142,7 @@ add_subdirectory(src/modules/layer-manager)
 add_subdirectory(src/modules/camera-manager)
 add_subdirectory(src/modules/tween-manager)
 add_subdirectory(src/modules/save-load)
+add_subdirectory(src/modules/presentation)
 
 # ============================================================================
 # Collision kernel — shared by World platformer + Physics solver

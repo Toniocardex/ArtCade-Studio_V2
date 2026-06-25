@@ -28,9 +28,8 @@ void CameraManager::setPosition(Vec2 pos) { pos_ = pos; }
 void CameraManager::setRotation(float r)  { rotation_ = r; }
 void CameraManager::setZoom(float z)      { zoom_ = z; }
 
-Vec2  CameraManager::position() const { return { pos_.x + shakeOffset_.x,
-                                                  pos_.y + shakeOffset_.y }; }
-float CameraManager::rotation() const { return rotation_ + shakeRotOffset_; }
+Vec2  CameraManager::position() const { return pos_; }
+float CameraManager::rotation() const { return rotation_; }
 float CameraManager::zoom()     const { return zoom_; }
 
 // ------------------------------------------------------------------ smooth movement

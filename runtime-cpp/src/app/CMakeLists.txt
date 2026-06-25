@@ -78,6 +78,8 @@ if(EMSCRIPTEN)
         "_editor_set_guides_enabled"
         "_editor_set_grid_size"
         "_editor_set_snap_to_grid"
+        "_editor_set_edit_camera"
+        "_editor_sync_play_surface"
         "_editor_register_image"
         "_editor_register_audio"
         "_editor_register_font"

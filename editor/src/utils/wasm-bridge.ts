@@ -811,6 +811,42 @@ export function editorSetEditCamera(
   )
 }
 
+/** Committed presentation revision from the WASM presentation core (Phase 2). */
+export function editorGetPresentationRevision(): number {
+  return Number(safeCall('editor_get_presentation_revision', 'number', [], []) ?? 0)
+}
+
+/** Surface (framebuffer) → world via committed presentation snapshot. */
+export function editorSurfaceToWorld(surfaceX: number, surfaceY: number): { x: number; y: number } {
+  const mod = _module
+  if (!mod) return { x: surfaceX, y: surfaceY }
+  const wxPtr = mod._malloc(4)
+  const wyPtr = mod._malloc(4)
+  try {
+    safeCall(
+      'editor_surface_to_world', null,
+      ['number', 'number', 'number', 'number'],
+      [surfaceX, surfaceY, wxPtr, wyPtr],
+    )
+    return {
+      x: mod.HEAPF32[wxPtr >> 2],
+      y: mod.HEAPF32[wyPtr >> 2],
+    }
+  } finally {
+    mod._free(wxPtr)
+    mod._free(wyPtr)
+  }
+}
+
+/** Re-assert play framebuffer after preview canvas layout changes (Tauri window). */
+export function editorSyncPlaySurface(fbW: number, fbH: number): void {
+  safeCall(
+    'editor_sync_play_surface', null,
+    ['number', 'number'],
+    [Math.max(1, Math.round(fbW)), Math.max(1, Math.round(fbH))],
+  )
+}
+
 export function editorSetTransform(
   entityId: number,
   x: number, y: number,

@@ -87,7 +87,17 @@ static void test_world_to_screen_center() {
     cam.setPosition({ 0.f, 0.f });
     cam.setZoom(1.f);
     // World origin should map to screen center
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4996)
+#endif
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
     auto s = cam.worldToScreen({ 0.f, 0.f });
+#pragma GCC diagnostic pop
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
     assert(approx(s.x, 640.f) && approx(s.y, 360.f));
     std::puts("  [ok] worldToScreen: world origin → screen center");
 }
@@ -98,8 +108,18 @@ static void test_screen_to_world_roundtrip() {
     cam.setPosition({ 50.f, -30.f });
     cam.setZoom(2.f);
     ArtCade::Vec2 world  = { 75.f, -15.f };
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4996)
+#endif
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
     auto screen = cam.worldToScreen(world);
     auto back   = cam.screenToWorld(screen);
+#pragma GCC diagnostic pop
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
     assert(approx(back.x, world.x, 0.01f) && approx(back.y, world.y, 0.01f));
     std::puts("  [ok] worldToScreen / screenToWorld roundtrip");
 }

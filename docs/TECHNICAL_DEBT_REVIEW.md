@@ -408,29 +408,15 @@ Estrarre:
 
 **Stato attuale:**
 
-Il renderer usa zoom uniforme `min(sx, sy)`, camera top-left e clamp sul world. Il backdrop editor risolve il bordo nero in edit mode senza cambiare runtime/play.
+Il renderer usa `compositor_layout()` con policy da `world.outputPolicy` (`fit` | `fill` | `stretch`). In play, il Game View RT (`viewportSize`) viene blittato sul backbuffer secondo la policy; in edit preview il compositor e disattivato (1:1 `worldSize`). Letterbox/pillarbox = policy `fit` (bande esterne sul clear del backbuffer).
 
-**Debito:**
+**Debito residuo:**
 
-- Non esiste ancora una policy esplicita per output finale:
-  - fit;
-  - fill/crop;
-  - letterbox;
-  - stretch.
-- Il comportamento play e quello editor potrebbero divergere senza una UI che lo spieghi.
+- Colore bande letterbox configurabile (oggi = clear color del progetto).
+- Policy per-scena (oggi solo a livello progetto / World Settings).
+- Mirror CSS in editor quando `framebuffer == viewport` (WASM preview resta visivamente uguale a `fit` finche backbuffer = viewport).
 
-**Soluzione proposta:**
-
-In futuro aggiungere `Output Policy` in Project Settings, non in Scene Settings:
-
-- `fit` default;
-- `fill`;
-- `letterbox`;
-- `stretch` solo se esplicitamente voluto.
-
-Per ora lasciare il runtime/play invariato.
-
-**Priorita:** Bassa ora, media quando si lavora su export finale.
+**Priorita:** Bassa (follow-up polish export / preview).
 
 ### 7. Tauri build pipeline
 

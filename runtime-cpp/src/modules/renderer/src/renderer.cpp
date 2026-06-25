@@ -1,4 +1,12 @@
 #include "../include/renderer.h"
+#include "../include/compositor-layout.h"
+#include "../../presentation/include/camera_compose.h"
+#include "../../presentation/include/coordinate_mapper.h"
+#include "../../presentation/include/output_policy.h"
+#include "../../presentation/include/presentation_mode.h"
+#include "../../presentation/include/presentation_types.h"
+#include "../../presentation/include/presentation_system.h"
+#include "../../presentation/include/surface_metrics.h"
 #include "../../../core/project-defaults.h"
 #include "sprite-outline-shader.h"
 #include "texture-cache.h"
@@ -11,6 +19,52 @@
 #include <vector>
 
 namespace ArtCade::Modules {
+
+namespace {
+
+using ArtCade::Presentation::OutputPlacement;
+using ArtCade::Presentation::CameraModifiers;
+using ArtCade::Presentation::EditorCamera;
+using ArtCade::Presentation::GameCameraState;
+using ArtCade::Presentation::PresentationMode;
+using ArtCade::Presentation::compose_effective_game_camera;
+using ArtCade::Presentation::view_camera_from_editor;
+using ArtCade::Presentation::view_camera_from_effective;
+using ArtCade::Presentation::SurfacePoint;
+using ArtCade::Presentation::ViewCamera2D;
+using ArtCade::Presentation::WorldPoint;
+using ArtCade::Presentation::surface_metrics_from_css;
+
+ViewCamera2D to_view_camera(const Camera2D& cam) {
+    return {
+        static_cast<double>(cam.target.x),
+        static_cast<double>(cam.target.y),
+        static_cast<double>(cam.offset.x),
+        static_cast<double>(cam.offset.y),
+        static_cast<double>(cam.zoom),
+    };
+}
+
+OutputPlacement identity_surface_placement(double surfaceW, double surfaceH) {
+    OutputPlacement placement{};
+    placement.destW = surfaceW;
+    placement.destH = surfaceH;
+    placement.srcW = surfaceW;
+    placement.srcH = surfaceH;
+    placement.scaleX = 1.;
+    placement.scaleY = 1.;
+    return placement;
+}
+
+void apply_game_modifiers_to_frame_camera(Camera2D& frameCamera,
+                                          const CameraModifiers& modifiers) {
+    const float zoom = (frameCamera.zoom > 0.f) ? frameCamera.zoom : 1.f;
+    frameCamera.offset.x += static_cast<float>(modifiers.translationOffsetX) * zoom;
+    frameCamera.offset.y += static_cast<float>(modifiers.translationOffsetY) * zoom;
+    frameCamera.rotation += static_cast<float>(modifiers.rotationOffset);
+}
+
+} // namespace
 
 // ------------------------------------------------------------------ Pimpl
 
@@ -96,6 +150,7 @@ struct Renderer::Impl {
     };
 
     Camera2D camera = {};
+    Camera2D gameViewCamera = {};
     float cameraZoom = 1.f;
     float displayScale = 1.f;
     Vec2  viewportOffset = { 0.f, 0.f };
@@ -103,7 +158,21 @@ struct Renderer::Impl {
         ProjectDefaults::kSceneViewportWidth,
         ProjectDefaults::kSceneViewportHeight,
     };
-    Vec2 renderShakeOffset = { 0.f, 0.f };
+    EditorCamera storedEditorCamera_{};
+    GameCameraState storedGameCamera_{};
+    CameraModifiers gameModifiers_{};
+    bool worldScissorActive = false;
+    bool gameViewCompositorEnabled = false;
+    bool inGameViewTexturePass = false;
+    PresentationMode presentationMode = PresentationMode::CameraPreview;
+    OutputPolicy outputPolicy = OutputPolicy::Fit;
+    CompositorLayout compositorLayout{};
+    ArtCade::Presentation::PresentationSystem presentation;
+    struct GameViewTarget {
+        RenderTexture2D rt{};
+        uint32_t w = 0;
+        uint32_t h = 0;
+    } gameView;
     TextureCache texCache;
     FontCache    fontCache;
 
@@ -118,7 +187,15 @@ struct Renderer::Impl {
     std::function<std::string(const std::string&)> fontKeyResolver;
 
     void updateWindowSizeFromRaylib();
+    void syncActiveCameraFromStores();
+    void syncPresentationState();
     void updateCameraProjection();
+    void updateGameViewCamera();
+    bool ensureGameViewTarget(uint32_t w, uint32_t h);
+    void releaseGameViewTarget();
+    void beginWorldScissor(const Camera2D& frameCamera);
+    void endWorldScissor();
+    Camera2D frameCameraWithShake() const;
     static uint32_t calculateInitialWindowScale(uint32_t logicalWidth,
                                                 uint32_t logicalHeight);
 };
@@ -132,6 +209,50 @@ static Color toColor(const Vec4& v, float extraAlpha = 1.f) {
         static_cast<unsigned char>(v.b * 255.f),
         static_cast<unsigned char>(v.a * extraAlpha * 255.f)
     };
+}
+
+static Vec2 worldToScreen(const Camera2D& cam, float wx, float wy) {
+    const float zoom = (cam.zoom > 0.f) ? cam.zoom : 1.f;
+    return {
+        (wx - cam.target.x) * zoom + cam.offset.x,
+        (wy - cam.target.y) * zoom + cam.offset.y,
+    };
+}
+
+static ScreenClipRect computeWorldScreenClipRect(const Camera2D& cam,
+                                                 const Vec2& worldSize,
+                                                 uint32_t fbW,
+                                                 uint32_t fbH) {
+    if (worldSize.x <= 0.f || worldSize.y <= 0.f || fbW == 0 || fbH == 0)
+        return {};
+
+    const Vec2 corners[4] = {
+        worldToScreen(cam, 0.f, 0.f),
+        worldToScreen(cam, worldSize.x, 0.f),
+        worldToScreen(cam, 0.f, worldSize.y),
+        worldToScreen(cam, worldSize.x, worldSize.y),
+    };
+    float minX = corners[0].x;
+    float minY = corners[0].y;
+    float maxX = corners[0].x;
+    float maxY = corners[0].y;
+    for (int i = 1; i < 4; ++i) {
+        minX = std::min(minX, corners[i].x);
+        minY = std::min(minY, corners[i].y);
+        maxX = std::max(maxX, corners[i].x);
+        maxY = std::max(maxY, corners[i].y);
+    }
+
+    const float fbWf = static_cast<float>(fbW);
+    const float fbHf = static_cast<float>(fbH);
+    const float clipX = std::max(0.f, std::floor(minX));
+    const float clipY = std::max(0.f, std::floor(minY));
+    const float clipRight = std::min(fbWf, std::ceil(maxX));
+    const float clipBottom = std::min(fbHf, std::ceil(maxY));
+    const float clipW = clipRight - clipX;
+    const float clipH = clipBottom - clipY;
+    if (clipW <= 0.f || clipH <= 0.f) return {};
+    return { clipX, clipY, clipW, clipH };
 }
 
 static Vec2 clampCameraTarget(
@@ -167,37 +288,186 @@ void Renderer::Impl::updateWindowSizeFromRaylib() {
 #endif
 }
 
+void Renderer::Impl::syncActiveCameraFromStores() {
+    if (presentationMode == PresentationMode::SceneEdit) {
+        const float zoom = static_cast<float>(
+            storedEditorCamera_.zoom > 0. ? storedEditorCamera_.zoom : 1.);
+        camera.target = {
+            static_cast<float>(storedEditorCamera_.positionX),
+            static_cast<float>(storedEditorCamera_.positionY),
+        };
+        camera.zoom = zoom;
+        cameraZoom = zoom;
+        camera.offset = { 0.f, 0.f };
+        return;
+    }
+    const float zoom = static_cast<float>(
+        storedGameCamera_.zoom > 0. ? storedGameCamera_.zoom : 1.);
+    camera.target = {
+        static_cast<float>(storedGameCamera_.positionX),
+        static_cast<float>(storedGameCamera_.positionY),
+    };
+    camera.zoom = zoom;
+    cameraZoom = zoom;
+}
+
+void Renderer::Impl::syncPresentationState() {
+    using ArtCade::Presentation::PresentationState;
+    PresentationState& state = presentation.mutable_state();
+    state.surface = surface_metrics_from_css(
+        static_cast<double>(width),
+        static_cast<double>(height),
+        1.);
+    state.surface.framebufferWidth = static_cast<double>(width);
+    state.surface.framebufferHeight = static_cast<double>(height);
+    state.logicalWidth = static_cast<double>(viewportSize.x);
+    state.logicalHeight = static_cast<double>(viewportSize.y);
+    state.outputPolicy = outputPolicy;
+    state.mode = presentationMode;
+    state.gameViewCompositorEnabled = gameViewCompositorEnabled;
+    state.editorCamera = storedEditorCamera_;
+    state.gameCamera = storedGameCamera_;
+    state.gameModifiers = gameModifiers_;
+    state.placement = compositorLayout;
+    state.useIdentityPlacement = !gameViewCompositorEnabled;
+
+    if (gameViewCompositorEnabled) {
+        const CameraModifiers noShake{};
+        const auto effective = compose_effective_game_camera(
+            state.gameCamera, noShake);
+        state.pickingCamera = view_camera_from_effective(
+            effective,
+            static_cast<double>(gameViewCamera.offset.x),
+            static_cast<double>(gameViewCamera.offset.y));
+    } else if (presentationMode == PresentationMode::SceneEdit) {
+        state.pickingCamera = view_camera_from_editor(state.editorCamera);
+    } else {
+        state.pickingCamera = to_view_camera(camera);
+    }
+}
+
 void Renderer::Impl::updateCameraProjection() {
-    const float sx = static_cast<float>(width) / viewportSize.x;
-    const float sy = static_cast<float>(height) / viewportSize.y;
-    float displayScale = std::max(0.01f, std::min(sx, sy));
-    if (displayScale >= 1.f)
-        displayScale = std::max(1.f, std::floor(displayScale));
-    this->displayScale = displayScale;
+    syncActiveCameraFromStores();
+    const float backW = static_cast<float>(width);
+    const float backH = static_cast<float>(height);
+
+    if (presentationMode == PresentationMode::SceneEdit && !gameViewCompositorEnabled) {
+        compositorLayout = ArtCade::Presentation::output_placement_compute(
+            backW, backH, viewportSize.x, viewportSize.y, OutputPolicy::Fit);
+        displayScale = 1.f;
+        viewportOffset = { 0.f, 0.f };
+        viewportDrawSize = { backW, backH };
+        updateGameViewCamera();
+        syncPresentationState();
+        presentation.refresh_snapshot();
+        return;
+    }
+
+    const OutputPolicy policy = gameViewCompositorEnabled
+        ? outputPolicy
+        : OutputPolicy::Fit;
+    compositorLayout = ArtCade::Presentation::output_placement_compute(
+        backW, backH, viewportSize.x, viewportSize.y, policy);
+    displayScale = static_cast<float>(compositorLayout.scaleX);
     viewportDrawSize = {
-        viewportSize.x * this->displayScale,
-        viewportSize.y * this->displayScale,
+        static_cast<float>(compositorLayout.destW),
+        static_cast<float>(compositorLayout.destH),
     };
     viewportOffset = {
-        (static_cast<float>(width) - viewportDrawSize.x) * 0.5f,
-        (static_cast<float>(height) - viewportDrawSize.y) * 0.5f,
+        static_cast<float>(compositorLayout.destX),
+        static_cast<float>(compositorLayout.destY),
     };
 
     const float zoom = (cameraZoom > 0.f) ? cameraZoom : 0.01f;
-    const float finalZoom = this->displayScale * zoom;
+    const float finalZoom = gameViewCompositorEnabled
+        ? zoom
+        : displayScale * zoom;
+    const Vec2 drawSize = gameViewCompositorEnabled
+        ? Vec2{ viewportSize.x, viewportSize.y }
+        : viewportDrawSize;
     const Vec2 worldInset = {
-        std::max(0.f, (viewportDrawSize.x - worldSize.x * finalZoom) * 0.5f),
-        std::max(0.f, (viewportDrawSize.y - worldSize.y * finalZoom) * 0.5f),
+        std::max(0.f, (drawSize.x - worldSize.x * finalZoom) * 0.5f),
+        std::max(0.f, (drawSize.y - worldSize.y * finalZoom) * 0.5f),
     };
-    camera.zoom = finalZoom;
-    camera.offset = {
-        viewportOffset.x + worldInset.x,
-        viewportOffset.y + worldInset.y,
-    };
+    camera.zoom = gameViewCompositorEnabled ? zoom : displayScale * zoom;
+    if (gameViewCompositorEnabled) {
+        camera.offset = { worldInset.x, worldInset.y };
+    } else {
+        camera.offset = {
+            viewportOffset.x + worldInset.x,
+            viewportOffset.y + worldInset.y,
+        };
+    }
     const Vec2 clamped = clampCameraTarget(
         viewportSize, worldSize, cameraZoom,
         { camera.target.x, camera.target.y });
     camera.target = { clamped.x, clamped.y };
+    storedGameCamera_.positionX = static_cast<double>(clamped.x);
+    storedGameCamera_.positionY = static_cast<double>(clamped.y);
+    updateGameViewCamera();
+    syncPresentationState();
+    presentation.refresh_snapshot();
+}
+
+void Renderer::Impl::updateGameViewCamera() {
+    const float zoom = (cameraZoom > 0.f) ? cameraZoom : 0.01f;
+    const Vec2 worldInset = {
+        std::max(0.f, (viewportSize.x - worldSize.x * zoom) * 0.5f),
+        std::max(0.f, (viewportSize.y - worldSize.y * zoom) * 0.5f),
+    };
+    gameViewCamera = camera;
+    gameViewCamera.zoom = zoom;
+    gameViewCamera.offset = { worldInset.x, worldInset.y };
+}
+
+bool Renderer::Impl::ensureGameViewTarget(uint32_t w, uint32_t h) {
+    const uint32_t safeW = std::max(1u, w);
+    const uint32_t safeH = std::max(1u, h);
+    if (gameView.rt.id != 0 && gameView.w == safeW && gameView.h == safeH)
+        return true;
+    releaseGameViewTarget();
+    gameView.rt = LoadRenderTexture(static_cast<int>(safeW),
+                                    static_cast<int>(safeH));
+    if (gameView.rt.id == 0) return false;
+    gameView.w = safeW;
+    gameView.h = safeH;
+    return true;
+}
+
+void Renderer::Impl::releaseGameViewTarget() {
+    if (gameView.rt.id == 0) return;
+    UnloadRenderTexture(gameView.rt);
+    gameView.rt = {};
+    gameView.w = 0;
+    gameView.h = 0;
+}
+
+Camera2D Renderer::Impl::frameCameraWithShake() const {
+    Camera2D frameCamera = camera;
+    apply_game_modifiers_to_frame_camera(frameCamera, gameModifiers_);
+    return frameCamera;
+}
+
+void Renderer::Impl::beginWorldScissor(const Camera2D& frameCamera) {
+    const uint32_t fbW = inGameViewTexturePass ? gameView.w : width;
+    const uint32_t fbH = inGameViewTexturePass ? gameView.h : height;
+    const ScreenClipRect clip = computeWorldScreenClipRect(
+        frameCamera, worldSize, fbW, fbH);
+    if (clip.width <= 0.f || clip.height <= 0.f) {
+        worldScissorActive = false;
+        return;
+    }
+    BeginScissorMode(static_cast<int>(clip.x),
+                     static_cast<int>(clip.y),
+                     static_cast<int>(clip.width),
+                     static_cast<int>(clip.height));
+    worldScissorActive = true;
+}
+
+void Renderer::Impl::endWorldScissor() {
+    if (!worldScissorActive) return;
+    EndScissorMode();
+    worldScissorActive = false;
 }
 
 uint32_t Renderer::Impl::calculateInitialWindowScale(uint32_t logicalWidth,
@@ -232,7 +502,14 @@ Renderer::~Renderer() {
 
 bool Renderer::init() {
     SetTraceLogLevel(LOG_WARNING);
+#ifndef __EMSCRIPTEN__
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+#else
+    // The editor owns canvas sizing via setWindowSize / editor_set_edit_camera.
+    // FLAG_WINDOW_RESIZABLE enables Raylib's EmscriptenResizeCallback, which
+    // stretches the framebuffer to window.innerWidth and breaks play preview.
+    SetConfigFlags(0);
+#endif
     InitWindow(static_cast<int>(impl_->width),
                static_cast<int>(impl_->height),
                impl_->title.c_str());
@@ -255,6 +532,7 @@ bool Renderer::init() {
 
 void Renderer::shutdown() {
     if (!impl_->open) return;
+    impl_->releaseGameViewTarget();
     impl_->spriteOutline.unload();
     impl_->texCache.unloadAll();
     impl_->fontCache.unloadAll();
@@ -265,16 +543,17 @@ void Renderer::shutdown() {
 // ------------------------------------------------------------------ config
 
 void Renderer::setWindowSize(uint32_t w, uint32_t h, const std::string& title) {
-    impl_->width  = w;
-    impl_->height = h;
+    impl_->width  = std::max(1u, w);
+    impl_->height = std::max(1u, h);
     impl_->title  = title;
 
     if (impl_->open) {
-        SetWindowSize(static_cast<int>(w), static_cast<int>(h));
+        SetWindowSize(static_cast<int>(impl_->width),
+                      static_cast<int>(impl_->height));
         SetWindowTitle(title.c_str());
         impl_->updateWindowSizeFromRaylib();
-        impl_->updateCameraProjection();
     }
+    impl_->updateCameraProjection();
 }
 
 void Renderer::setWindowSizeForLogicalViewport(uint32_t logicalWidth,
@@ -306,28 +585,108 @@ void Renderer::setSceneViewport(const Vec2& worldSize, const Vec2& viewportSize)
     impl_->updateCameraProjection();
 }
 
+void Renderer::setGameViewCompositorEnabled(bool enabled) {
+    impl_->gameViewCompositorEnabled = enabled;
+    if (!enabled) impl_->releaseGameViewTarget();
+    impl_->updateCameraProjection();
+}
+
+void Renderer::setOutputPolicy(OutputPolicy policy) {
+    impl_->outputPolicy = policy;
+    if (impl_->open || impl_->width > 0)
+        impl_->updateCameraProjection();
+}
+
+OutputPolicy Renderer::outputPolicy() const {
+    return impl_->outputPolicy;
+}
+
+CompositorLayout Renderer::compositorLayout() const {
+    return impl_->presentation.committed_snapshot().placement;
+}
+
+ScreenClipRect Renderer::worldScreenClipRect() const {
+    const uint32_t fbW = impl_->gameViewCompositorEnabled
+        ? std::max(1u, static_cast<uint32_t>(impl_->viewportSize.x))
+        : impl_->width;
+    const uint32_t fbH = impl_->gameViewCompositorEnabled
+        ? std::max(1u, static_cast<uint32_t>(impl_->viewportSize.y))
+        : impl_->height;
+    Camera2D cam = impl_->gameViewCompositorEnabled
+        ? impl_->gameViewCamera
+        : impl_->camera;
+    apply_game_modifiers_to_frame_camera(cam, impl_->gameModifiers_);
+    return computeWorldScreenClipRect(cam, impl_->worldSize, fbW, fbH);
+}
+
 // ------------------------------------------------------------------ frame
 
 void Renderer::clearDrawQueue() {
     impl_->drawQueue.clear();
 }
 
-void Renderer::setRenderShakeOffset(const Vec2& offset) {
-    impl_->renderShakeOffset = offset;
+void Renderer::setGameCameraModifiers(const ArtCade::Presentation::CameraModifiers& modifiers) {
+    impl_->gameModifiers_ = modifiers;
 }
 
 void Renderer::beginFrame(const Vec4& clearColor) {
     impl_->updateWindowSizeFromRaylib();
     impl_->updateCameraProjection();
+    impl_->presentation.begin_frame();
+    impl_->worldScissorActive = false;
+    impl_->inGameViewTexturePass = false;
     BeginDrawing();
+
+    if (impl_->gameViewCompositorEnabled) {
+        const uint32_t vpW = std::max(1u, static_cast<uint32_t>(impl_->viewportSize.x));
+        const uint32_t vpH = std::max(1u, static_cast<uint32_t>(impl_->viewportSize.y));
+        if (!impl_->ensureGameViewTarget(vpW, vpH)) {
+            impl_->gameViewCompositorEnabled = false;
+        }
+    }
+
+    if (impl_->gameViewCompositorEnabled) {
+        ClearBackground(toColor(clearColor));
+        BeginTextureMode(impl_->gameView.rt);
+        impl_->inGameViewTexturePass = true;
+        ClearBackground(toColor(clearColor));
+        Camera2D frameCamera = impl_->gameViewCamera;
+        apply_game_modifiers_to_frame_camera(frameCamera, impl_->gameModifiers_);
+        BeginMode2D(frameCamera);
+        impl_->beginWorldScissor(frameCamera);
+        return;
+    }
+
     ClearBackground(toColor(clearColor));
-    Camera2D frameCamera = impl_->camera;
-    // Jitter in screen pixels (world shake × zoom). Applied to offset, not target,
-    // so clampCameraTarget cannot zero it out in 1:1 editor preview viewports.
-    const float z = (frameCamera.zoom > 0.f) ? frameCamera.zoom : 1.f;
-    frameCamera.offset.x += impl_->renderShakeOffset.x * z;
-    frameCamera.offset.y += impl_->renderShakeOffset.y * z;
+    const Camera2D frameCamera = impl_->frameCameraWithShake();
     BeginMode2D(frameCamera);
+    impl_->beginWorldScissor(frameCamera);
+}
+
+void Renderer::blitGameViewToBackbuffer() {
+    if (!impl_->gameViewCompositorEnabled || impl_->gameView.rt.id == 0)
+        return;
+    const OutputPlacement& layout = impl_->presentation.committed_snapshot().placement;
+    const float srcW = layout.srcW > 0.
+        ? static_cast<float>(layout.srcW)
+        : static_cast<float>(impl_->gameView.w);
+    const float srcH = layout.srcH > 0.
+        ? static_cast<float>(layout.srcH)
+        : static_cast<float>(impl_->gameView.h);
+    const float srcX = static_cast<float>(layout.srcX);
+    const float srcY = static_cast<float>(layout.srcY);
+    DrawTexturePro(
+        impl_->gameView.rt.texture,
+        Rectangle{ srcX, srcY, srcW, -srcH },
+        Rectangle{
+            static_cast<float>(layout.destX),
+            static_cast<float>(layout.destY),
+            static_cast<float>(layout.destW),
+            static_cast<float>(layout.destH),
+        },
+        Vector2{ 0.f, 0.f },
+        0.f,
+        WHITE);
 }
 
 void Renderer::endWorldPass() {
@@ -359,7 +718,13 @@ void Renderer::endWorldPass() {
         }
     }
     impl_->drawQueue.clear();
+    impl_->endWorldScissor();
     EndMode2D();
+    if (impl_->inGameViewTexturePass) {
+        EndTextureMode();
+        impl_->inGameViewTexturePass = false;
+        blitGameViewToBackbuffer();
+    }
 }
 
 void Renderer::endScreenPass() {
@@ -420,8 +785,8 @@ void Renderer::drawFadeOverlay(float alpha) {
 
 void Renderer::drawScreenPostEffects() {
     if (impl_->screenShader.empty() || impl_->screenShader == "none") return;
-    const int w = GetScreenWidth();
-    const int h = GetScreenHeight();
+    const int w = static_cast<int>(impl_->width);
+    const int h = static_cast<int>(impl_->height);
     if (impl_->screenShader == "crt" || impl_->screenShader == "scanlines") {
         for (int y = 0; y < h; y += 4)
             DrawRectangle(0, y, w, 2, Color{ 0, 0, 0, 40 });
@@ -799,7 +1164,8 @@ bool Renderer::isTextureLoaded(const AssetId& assetId) const {
 void Renderer::setCameraPosition(const Vec2& pos) {
     const Vec2 clamped = clampCameraTarget(
         impl_->viewportSize, impl_->worldSize, impl_->cameraZoom, pos);
-    impl_->camera.target = { clamped.x, clamped.y };
+    impl_->storedGameCamera_.positionX = static_cast<double>(clamped.x);
+    impl_->storedGameCamera_.positionY = static_cast<double>(clamped.y);
     impl_->updateCameraProjection();
 }
 
@@ -811,8 +1177,20 @@ void Renderer::setCameraCenter(const Vec2& center) {
     });
 }
 
+void Renderer::setPresentationMode(ArtCade::Presentation::PresentationMode mode) {
+    impl_->presentationMode = mode;
+    if (impl_->open || impl_->width > 0)
+        impl_->updateCameraProjection();
+}
+
+ArtCade::Presentation::PresentationMode Renderer::presentationMode() const {
+    return impl_->presentationMode;
+}
+
 void Renderer::setCameraZoom(float zoom) {
-    impl_->cameraZoom = (zoom > 0.f) ? zoom : 0.01f;
+    const float safeZoom = (zoom > 0.f) ? zoom : 0.01f;
+    impl_->cameraZoom = safeZoom;
+    impl_->storedGameCamera_.zoom = static_cast<double>(safeZoom);
     impl_->updateCameraProjection();
 }
 
@@ -822,16 +1200,24 @@ void Renderer::setEditorCamera(const Vec2& target, float zoom) {
     // applies target/zoom verbatim — no clampCameraTarget, no offset. The
     // framebuffer is the visible viewport (device px) so the world is drawn at
     // native resolution: 1px grid lines stay crisp and in-phase at any zoom.
-    impl_->camera.offset = { 0.f, 0.f };
-    impl_->cameraZoom    = (zoom > 0.f) ? zoom : 0.01f;
+    impl_->presentationMode = PresentationMode::SceneEdit;
+    const float safeZoom = (zoom > 0.f) ? zoom : 0.01f;
+    impl_->storedEditorCamera_ = {
+        static_cast<double>(target.x),
+        static_cast<double>(target.y),
+        static_cast<double>(safeZoom),
+        0.,
+    };
     impl_->displayScale  = 1.f;
     impl_->viewportOffset = { 0.f, 0.f };
     impl_->viewportDrawSize = {
         static_cast<float>(impl_->width),
         static_cast<float>(impl_->height),
     };
-    impl_->camera.zoom   = impl_->cameraZoom;
-    impl_->camera.target = { target.x, target.y };
+    impl_->syncActiveCameraFromStores();
+    impl_->updateGameViewCamera();
+    impl_->syncPresentationState();
+    impl_->presentation.refresh_snapshot();
 }
 
 void Renderer::panCameraByScreenDelta(float dx, float dy) {
@@ -843,11 +1229,21 @@ void Renderer::panCameraByScreenDelta(float dx, float dy) {
 }
 
 Vec2 Renderer::screenToWorld(float screenX, float screenY) const {
-    const float zoom = (impl_->camera.zoom > 0.f) ? impl_->camera.zoom : 1.f;
+    const WorldPoint world = impl_->presentation.committed_snapshot().surface_to_world(
+        SurfacePoint{ screenX, screenY });
     return {
-        (screenX - impl_->camera.offset.x) / zoom + impl_->camera.target.x,
-        (screenY - impl_->camera.offset.y) / zoom + impl_->camera.target.y,
+        static_cast<float>(world.x),
+        static_cast<float>(world.y),
     };
+}
+
+const ArtCade::Presentation::PresentationSnapshot&
+Renderer::committedPresentationSnapshot() const {
+    return impl_->presentation.committed_snapshot();
+}
+
+uint64_t Renderer::presentationRevision() const {
+    return impl_->presentation.committed_snapshot().revision;
 }
 
 Vec2 Renderer::visibleWorldSize() const {
@@ -859,7 +1255,10 @@ Vec2 Renderer::visibleWorldSize() const {
 }
 
 Vec2 Renderer::getCameraPosition() const {
-    return { impl_->camera.target.x, impl_->camera.target.y };
+    return {
+        static_cast<float>(impl_->storedGameCamera_.positionX),
+        static_cast<float>(impl_->storedGameCamera_.positionY),
+    };
 }
 
 Vec2 Renderer::getCameraCenter() const {
@@ -875,7 +1274,7 @@ Vec2 Renderer::getCameraCenter() const {
 }
 
 float Renderer::getCameraZoom() const {
-    return impl_->cameraZoom;
+    return static_cast<float>(impl_->storedGameCamera_.zoom);
 }
 
 float Renderer::deltaTime() const {
@@ -887,6 +1286,11 @@ void Renderer::toggleBorderlessFullscreen() {
     if (!impl_->open) return;
     ToggleBorderlessWindowed();
     impl_->updateWindowSizeFromRaylib();
+    if (IsWindowState(FLAG_BORDERLESS_WINDOWED_MODE)) {
+        impl_->presentationMode = PresentationMode::PlayFullscreen;
+    } else if (impl_->gameViewCompositorEnabled) {
+        impl_->presentationMode = PresentationMode::PlayEmbedded;
+    }
     impl_->updateCameraProjection();
 #endif
 }

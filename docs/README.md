@@ -17,6 +17,8 @@
 
 Riferimento unico allineato al report struttura ArtCade, con sezione **Come differisce V2** (React, ECS, compile-to-Lua, `.artcade`). Usalo prima di proporre refactor massicci.
 
+**Presentation / viewport refactor (ADR):** [`PRESENTATION_ARCHITECTURE.md`](PRESENTATION_ARCHITECTURE.md) — Shared Presentation Core, snapshot atomica, pipeline a pass, 9 fasi di migrazione.
+
 Prosa estesa del report greenfield (italiano, riferimento storico): **`Report-Struttura-Artcade.md`**.
 
 ### 1️⃣ **ARCHITECTURAL_RATIONALE.md** — Il PERCHÉ (20–30 min) ⭐ INIZIO QUI
@@ -53,6 +55,8 @@ ARCHITECTURE_INTEGRATION.md (Scenario: "User clicks PLAY", flussi dati)
 
 #### Se sei **C++ Developer**
 ```
+PRESENTATION_ARCHITECTURE.md   (ADR: viewport, snapshot, coordinate spaces, migration)
+    ↓
 LOGIC_BOARD_SPEC.md          (Parte I glossario Logic Board / Event / Component)
     ↓
 FIXED_STEP_CONTRACT.md            (ordine tickFixedStep, Transform vs physics body)
@@ -139,6 +143,7 @@ Guida specializzata         (REACT_WASM_PATTERN.md o ECS_IMPLEMENTATION_GUIDE.md
 | **ArtCade_V2_Riepilogo_Suggerimenti.md** | Visione UX Logic Board (8 gruppi), shader, controlli artist-friendly | ~10min | Design / product | ⭐ |
 | **LOGIC_BOARD_EDITOR_BACKLOG.md** | Backlog editor (JSON Schema fatto; wait, UX, shader) | ~3min | Editor | ⭐ |
 | **TECHNICAL_DEBT_REVIEW.md** | Debito tecnico noto (sync WASM, EditorAPI, build Tauri) | ~10min | Engineers | ⭐⭐ |
+| **PRESENTATION_ARCHITECTURE.md** | ADR: Shared Presentation Core, snapshot atomica, pipeline a pass, deprecazioni, 9 fasi migrazione | ~25min | C++ / React / Tech lead | ⭐⭐⭐ |
 | **MVP_RELEASE_GATE.md** | Soglia prodotto per alpha pubblica: scenario tester, checklist P0/P1/P2, vertical slice completo | ~20min | Product / Tech lead / QA | ⭐⭐⭐ |
 | **PRE_RELEASE_ROADMAP.md** | Roadmap operativa verso `0.1.0-alpha`: fasi 0–5, gate di uscita, task file-level, rischi | ~25min | Product / Tech lead / implementers | ⭐⭐⭐ |
 | **CHECKLIST_SICUREZZA_QUALITA_AFFIDABILITA.md** | Checklist completa sicurezza, qualità e affidabilità (32 sezioni, P0/P1/P2, gate alpha/beta/1.0) | ~45min | Tech lead / QA / release | ⭐⭐⭐ |

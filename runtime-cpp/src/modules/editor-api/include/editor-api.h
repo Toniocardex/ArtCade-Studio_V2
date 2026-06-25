@@ -373,6 +373,23 @@ EMSCRIPTEN_KEEPALIVE void editor_set_grid_size(float tileSize);
 EMSCRIPTEN_KEEPALIVE void editor_set_edit_camera(
     float targetX, float targetY, float zoom, int vpW, int vpH);
 
+/** Committed presentation revision for the current frame (picking / overlay sync). */
+EMSCRIPTEN_KEEPALIVE uint64_t editor_get_presentation_revision();
+
+/**
+ * Maps framebuffer surface pixels to world using the committed presentation snapshot.
+ * @param outWorldX/outWorldY must be non-null.
+ */
+EMSCRIPTEN_KEEPALIVE void editor_surface_to_world(
+    float surfaceX, float surfaceY, float* outWorldX, float* outWorldY);
+
+/**
+ * Re-assert the play-mode framebuffer after the host resizes the preview canvas.
+ * Play mode owns logical viewport pixels; CSS may upscale without changing the
+ * backing store (runtime preview window, docked play host).
+ */
+EMSCRIPTEN_KEEPALIVE void editor_sync_play_surface(int fbW, int fbH);
+
 /** Editor placement snap (magnetic drag + React commit); not gameplay grid.snapToGrid. */
 EMSCRIPTEN_KEEPALIVE void editor_set_snap_to_grid(int enabled);
 

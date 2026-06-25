@@ -1,0 +1,107 @@
+#include "../include/view_controller.h"
+
+#include "../include/coordinate_mapper.h"
+#include "../include/surface_metrics.h"
+
+#include <algorithm>
+
+namespace ArtCade::Presentation {
+
+namespace {
+
+double safe_zoom(double zoom) {
+    return (zoom > 0.) ? zoom : 1.;
+}
+
+OutputPlacement identity_surface_placement(double surfaceW, double surfaceH) {
+    OutputPlacement placement{};
+    placement.destW = surfaceW;
+    placement.destH = surfaceH;
+    placement.srcW = surfaceW;
+    placement.srcH = surfaceH;
+    placement.scaleX = 1.;
+    placement.scaleY = 1.;
+    return placement;
+}
+
+} // namespace
+
+void ViewController::set_editor_view(EditorViewState view) {
+    editorView_ = view;
+}
+
+void ViewController::set_surface_metrics(SurfaceMetrics metrics) {
+    surface_ = metrics;
+}
+
+ViewCamera2D ViewController::editor_camera() const {
+    return {
+        editorView_.positionX,
+        editorView_.positionY,
+        0.,
+        0.,
+        safe_zoom(editorView_.zoom),
+    };
+}
+
+OutputPlacement ViewController::editor_placement() const {
+    return identity_surface_placement(surface_.framebufferWidth,
+                                      surface_.framebufferHeight);
+}
+
+void ViewController::begin_pan(SurfacePoint surface) {
+    editorView_.panActive = true;
+    editorView_.panAnchorSurfaceX = surface.x;
+    editorView_.panAnchorSurfaceY = surface.y;
+    editorView_.panAnchorPositionX = editorView_.positionX;
+    editorView_.panAnchorPositionY = editorView_.positionY;
+}
+
+void ViewController::update_pan(SurfacePoint surface) {
+    if (!editorView_.panActive)
+        return;
+    const ViewCamera2D camera = editor_camera();
+    const OutputPlacement placement = editor_placement();
+    const WorldPoint anchorWorld = world_from_surface(
+        SurfacePoint{ editorView_.panAnchorSurfaceX, editorView_.panAnchorSurfaceY },
+        placement,
+        camera);
+    const WorldPoint pointerWorld = world_from_surface(surface, placement, camera);
+    editorView_.positionX = editorView_.panAnchorPositionX
+        + (anchorWorld.x - pointerWorld.x);
+    editorView_.positionY = editorView_.panAnchorPositionY
+        + (anchorWorld.y - pointerWorld.y);
+}
+
+void ViewController::end_pan() {
+    editorView_.panActive = false;
+}
+
+void ViewController::zoom_at(SurfacePoint surface, double zoomFactor) {
+    if (!(zoomFactor > 0.))
+        return;
+    const OutputPlacement placement = editor_placement();
+    const ViewCamera2D beforeCamera = editor_camera();
+    const WorldPoint worldBefore = world_from_surface(surface, placement, beforeCamera);
+
+    editorView_.zoom = safe_zoom(editorView_.zoom * zoomFactor);
+
+    const ViewCamera2D afterCamera = editor_camera();
+    const WorldPoint worldAfter = world_from_surface(surface, placement, afterCamera);
+    editorView_.positionX += worldBefore.x - worldAfter.x;
+    editorView_.positionY += worldBefore.y - worldAfter.y;
+}
+
+void ViewController::resize_surface(double cssW, double cssH, double devicePixelRatio) {
+    surface_ = surface_metrics_from_css(cssW, cssH, devicePixelRatio);
+}
+
+void ViewController::frame_world_bounds(double, double, double, double) {
+    // Phase 2+
+}
+
+void ViewController::reset_view() {
+    // Phase 2+
+}
+
+} // namespace ArtCade::Presentation

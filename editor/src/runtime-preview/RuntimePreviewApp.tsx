@@ -22,11 +22,14 @@ import { WASM_RUNTIME_SRC } from '../utils/runtime-path'
 import {
   loadWasmRuntime,
   setTextureCacheEvictedCallback,
+  editorSyncPlaySurface,
   type WasmCallbacks,
 } from '../utils/wasm-bridge'
+import { applyRuntimeCanvasPresentation } from '../utils/runtime-canvas-presentation'
 import {
   runtimePreviewBackground,
   runtimePreviewCanvasStyle,
+  runtimePreviewLogicalSize,
   type RuntimePreviewDisplaySize,
 } from './runtime-preview-display'
 
@@ -50,6 +53,20 @@ export default function RuntimePreviewApp() {
 
   bundleRef.current = bundle
 
+  const applyPreviewCanvasPresentation = useCallback((
+    activeBundle: PreviewTransitionBundle | null,
+    size: RuntimePreviewDisplaySize,
+    syncFramebuffer: boolean,
+  ) => {
+    applyRuntimeCanvasPresentation(
+      getRuntimeCanvas(),
+      runtimePreviewCanvasStyle(activeBundle, size),
+    )
+    if (!syncFramebuffer) return
+    const logical = runtimePreviewLogicalSize(activeBundle)
+    if (logical) editorSyncPlaySurface(logical.x, logical.y)
+  }, [])
+
   const announceReady = useCallback(() => {
     if (!isTauri()) return
     void emitTo('main', RUNTIME_PREVIEW_READY_EVENT)
@@ -66,11 +83,8 @@ export default function RuntimePreviewApp() {
   }, [])
 
   useLayoutEffect(() => {
-    Object.assign(getRuntimeCanvas().style, runtimePreviewCanvasStyle(
-      bundle,
-      windowSize,
-    ))
-  }, [bundle, windowSize])
+    applyPreviewCanvasPresentation(bundle, windowSize, status === 'running')
+  }, [bundle, windowSize, status, applyPreviewCanvasPresentation])
 
   useEffect(() => {
     const onResize = () => setWindowSize({
@@ -213,10 +227,11 @@ export default function RuntimePreviewApp() {
 
       setMessage('Starting game...')
       const outcome = runtimeSync.transitionPreview('play', activeBundle)
-      Object.assign(getRuntimeCanvas().style, runtimePreviewCanvasStyle(
+      applyPreviewCanvasPresentation(
         activeBundle,
         { x: window.innerWidth, y: window.innerHeight },
-      ))
+        true,
+      )
       if (cancelled || generation !== sessionGenerationRef.current) return
       if (!outcome.ok) {
         setStatus('error')

@@ -178,6 +178,7 @@ export function worldRuntimeDigest(world?: WorldSettings): string {
     ts: w.timeScale,
     pm: w.physicsMode ?? 'auto',
     pdb: w.physicsDebugDraw === true,
+    op: w.outputPolicy ?? 'fit',
   })
 }
 

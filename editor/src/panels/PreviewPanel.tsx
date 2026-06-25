@@ -35,7 +35,18 @@ import { useRuntimeReadiness } from '../hooks/useRuntimeReadiness'
 import { useEditorCanvasViewport } from '../hooks/useEditorCanvasViewport'
 import { useEditorFitZoom } from '../hooks/useEditorFitZoom'
 import { getRuntimeCanvas } from '../utils/runtime-canvas'
-import { editorSetEditCamera, setTextureCacheEvictedCallback } from '../utils/wasm-bridge'
+import {
+  applyRuntimeCanvasPresentation,
+  playDisplaySize,
+  playFitScale,
+  playStageAvailableSize,
+  runtimeCanvasEditStyle,
+  runtimeCanvasPlayStyle,
+  RUNTIME_PLAY_MIN_SCALE,
+  RUNTIME_PLAY_STAGE_PADDING_PX,
+  sceneBackgroundCss,
+} from '../utils/runtime-canvas-presentation'
+import { editorSetEditCamera, editorSyncPlaySurface, setTextureCacheEvictedCallback } from '../utils/wasm-bridge'
 import { TilePaintOverlay } from './preview/TilePaintOverlay'
 import { createTilemapForNewLayer, resolveTilemapTileSize } from '../types'
 
@@ -47,9 +58,6 @@ type TransformSnapshot = {
   scaleX: number
   scaleY: number
 }
-
-const PLAY_STAGE_PADDING_PX = 16
-const MIN_PLAY_SCALE = 0.1
 
 function sameTransform(a: TransformSnapshot, b: TransformSnapshot): boolean {
   const epsilon = 1e-4
@@ -480,67 +488,58 @@ export default function PreviewPanel({
     overscrollPx,
   })
 
-  const bgColor = (() => {
-    const bg = selectedScene?.backgroundColor
-    return bg
-      ? `rgb(${Math.round(bg.x * 255)},${Math.round(bg.y * 255)},${Math.round(bg.z * 255)})`
-      : 'var(--bg)'
-  })()
+  const bgColor = sceneBackgroundCss(selectedScene?.backgroundColor, 'var(--bg)')
 
   const playScale = (() => {
     if (!useDockedRuntimePreview) return zoom
-    const availableW = Math.max(1, (playStageSize?.x ?? frame.x) - PLAY_STAGE_PADDING_PX * 2)
-    const availableH = Math.max(1, (playStageSize?.y ?? frame.y) - PLAY_STAGE_PADDING_PX * 2)
-    const fit = Math.min(availableW / Math.max(1, frame.x), availableH / Math.max(1, frame.y))
-    return Math.max(MIN_PLAY_SCALE, fit)
+    const stage = {
+      x: playStageSize?.x ?? frame.x,
+      y: playStageSize?.y ?? frame.y,
+    }
+    return playFitScale(
+      { x: frame.x, y: frame.y },
+      playStageAvailableSize(stage, RUNTIME_PLAY_STAGE_PADDING_PX),
+      { minScale: RUNTIME_PLAY_MIN_SCALE },
+    )
   })()
 
+  const playHostSize = playDisplaySize({ x: frame.x, y: frame.y }, playScale)
+
   // The runtime canvas is a persistent DOM node React does not manage, so its
-  // presentation is applied imperatively.
-  //
-  //  • Edit mode: the canvas is a fixed layer the size of the visible viewport
-  //    (sticky in the scroll container). The runtime renders the panned/zoomed
-  //    world slice into it at native resolution — NO CSS transform — so the
-  //    framebuffer is never GPU-downscaled (crisp 1px grid, correct phase and
-  //    full coverage at any zoom). The framebuffer size is owned by the runtime
-  //    (editor_set_edit_camera → setWindowSize); we only set the CSS size.
-  //  • Play mode: the engine owns the framebuffer (NativePlay SetWindowSize);
-  //    the canvas is the scene-viewport size, CSS-scaled to fit.
+  // presentation is applied imperatively via runtime-canvas-presentation.
   const applyCanvasPresentation = useCallback(() => {
     const canvas = getRuntimeCanvas()
-    const common = {
-      display:         'block',
-      position:        'absolute',
-      top:             '0px',
-      left:            '0px',
-      transformOrigin: '0 0',
-      background:       bgColor,
-      pointerEvents:    useDockedRuntimePreview || !panActive ? 'auto' : 'none',
-    } as const
+    const pointerEvents = useDockedRuntimePreview || !panActive ? 'auto' : 'none'
     if (useDockedRuntimePreview) {
-      Object.assign(canvas.style, common, {
-        width:     `${frame.x}px`,
-        height:    `${frame.y}px`,
-        transform: `scale(${playScale})`,
-        imageRendering: 'pixelated',
-      })
+      applyRuntimeCanvasPresentation(canvas, runtimeCanvasPlayStyle({
+        viewport: { x: frame.x, y: frame.y },
+        scale: playScale,
+        background: bgColor,
+        layout: 'docked-top-left',
+        pointerEvents,
+      }))
       return
     }
     const el = scrollRef.current
     const pad = layout.paddingPx
-    const cssW = el ? Math.max(1, el.clientWidth  - pad * 2) : frame.x
+    const cssW = el ? Math.max(1, el.clientWidth - pad * 2) : frame.x
     const cssH = el ? Math.max(1, el.clientHeight - pad * 2) : frame.y
-    Object.assign(canvas.style, common, {
-      width:     `${cssW}px`,
-      height:    `${cssH}px`,
-      transform: 'none',
-      imageRendering: 'auto',
-    })
+    applyRuntimeCanvasPresentation(canvas, runtimeCanvasEditStyle({
+      cssWidth: cssW,
+      cssHeight: cssH,
+      background: bgColor,
+      pointerEvents,
+    }))
   }, [useDockedRuntimePreview, frame.x, frame.y, playScale, bgColor, panActive, layout.paddingPx])
 
   useLayoutEffect(() => {
     applyCanvasPresentation()
   }, [applyCanvasPresentation])
+
+  useLayoutEffect(() => {
+    if (!useDockedRuntimePreview) return
+    editorSyncPlaySurface(Math.max(1, Math.round(frame.x)), Math.max(1, Math.round(frame.y)))
+  }, [useDockedRuntimePreview, frame.x, frame.y])
 
   // Edit-mode preview camera: drive the runtime camera from the scroll
   // container so the world slice under the viewport is rendered at native
@@ -695,8 +694,8 @@ export default function PreviewPanel({
           <div
             className="runtime-play-host"
             style={{
-              width: `${Math.round(frame.x * playScale)}px`,
-              height: `${Math.round(frame.y * playScale)}px`,
+              width: `${playHostSize.x}px`,
+              height: `${playHostSize.y}px`,
             }}
           >
             <div ref={canvasHostRef} style={{ display: 'contents' }} />

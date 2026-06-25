@@ -29,6 +29,7 @@ vi.mock('../../utils/wasm-bridge', () => ({
   loadWasmRuntime: (...args: unknown[]) => loadWasmRuntime(...args),
   warmWasmBinary: vi.fn(),
   editorSetEditCamera: vi.fn(),
+  editorSyncPlaySurface: vi.fn(),
   editorSetActiveTileLayer: vi.fn(),
   editorSetTool: vi.fn(),
   editorSetGuidesEnabled: vi.fn(),

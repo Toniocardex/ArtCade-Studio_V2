@@ -1,5 +1,5 @@
 import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
-import { DEFAULT_WORLD, type PhysicsMode } from '../../types'
+import { DEFAULT_WORLD, type OutputPolicy, type PhysicsMode } from '../../types'
 import { InspectorRow, InspectorSection } from './inspector-fields'
 import { SegmentedControl } from '../../components/ui/SegmentedControl'
 
@@ -15,11 +15,24 @@ const PHYSICS_HINT: Record<PhysicsMode, string> = {
   on: 'Always steps the solver. Needed for sensors with no bodies.',
 }
 
+const OUTPUT_POLICY_OPTIONS = [
+  { value: 'fit', label: 'Fit' },
+  { value: 'fill', label: 'Fill' },
+  { value: 'stretch', label: 'Stretch' },
+] as const
+
+const OUTPUT_POLICY_HINT: Record<OutputPolicy, string> = {
+  fit: 'Uniform scale with letterbox or pillarbox bands. Preserves aspect (recommended for pixel art).',
+  fill: 'Uniform scale that fills the window. Crops scene edges; no bars.',
+  stretch: 'Fills the window. May distort aspect ratio.',
+}
+
 export function WorldSettingsSection() {
   const dispatch = useEditorDispatch()
   const project = useEditorSelector((s) => s.project)
   const w = { ...DEFAULT_WORLD, ...project?.world }
   const physicsMode: PhysicsMode = w.physicsMode ?? 'auto'
+  const outputPolicy: OutputPolicy = w.outputPolicy ?? 'fit'
 
   const num = (
     label: string,
@@ -62,6 +75,25 @@ export function WorldSettingsSection() {
         />
         <p className="text-[9px] text-[var(--muted)] leading-snug mt-1">
           {PHYSICS_HINT[physicsMode]}
+        </p>
+      </div>
+      <div className="mb-2">
+        <span className="text-[9px] text-[var(--muted)] uppercase block mb-1">
+          Output policy
+        </span>
+        <SegmentedControl
+          aria-label="Output policy"
+          value={outputPolicy}
+          onChange={(policy) =>
+            dispatch({
+              type: 'WORLD_SET',
+              patch: { outputPolicy: policy as OutputPolicy },
+            })
+          }
+          options={OUTPUT_POLICY_OPTIONS}
+        />
+        <p className="text-[9px] text-[var(--muted)] leading-snug mt-1">
+          {OUTPUT_POLICY_HINT[outputPolicy]}
         </p>
       </div>
     </InspectorSection>
