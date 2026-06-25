@@ -315,6 +315,8 @@ void World::resolveKinematicCollisionBody(
                     continue;
                 if (!PhysicsMath::aabbOverlap(selfRef.aabb, other.aabb))
                     continue;
+                if (!PhysicsMath::shapesOverlap(selfRef.instance, other.instance))
+                    continue;
                 if (other.shape.oneWay
                     && !(verticalVelocity >= 0.f
                          && prevAabb.maxY <= other.aabb.minY + 2.f))

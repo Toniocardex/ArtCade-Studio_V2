@@ -150,33 +150,17 @@ inline PhysicsMath::ShapeInstance shapeInstance(
     if (shape.type == CollisionShapeType::Circle) {
         inst.shape = ColliderShape::Circle;
         inst.size = { std::max(0.5f, shape.radius), std::max(0.5f, shape.radius) };
+    } else if (shape.type == CollisionShapeType::Capsule) {
+        inst.shape = ColliderShape::Capsule;
+        inst.size = {
+            std::max(1.f, shape.size.x),
+            std::max(1.f, shape.size.y),
+        };
+    } else if (shape.type == CollisionShapeType::Polygon && shape.points.size() >= 3) {
+        inst.shape = ColliderShape::Polygon;
+        inst.points = shape.points;
     } else {
         inst.shape = ColliderShape::Rectangle;
-        if (shape.type == CollisionShapeType::Capsule) {
-            inst.size = {
-                std::max(1.f, shape.size.x),
-                std::max(1.f, shape.size.y),
-            };
-        } else if (shape.type == CollisionShapeType::Polygon && !shape.points.empty()) {
-            float minX = shape.points[0].x;
-            float maxX = shape.points[0].x;
-            float minY = shape.points[0].y;
-            float maxY = shape.points[0].y;
-            for (const Vec2& p : shape.points) {
-                minX = std::min(minX, p.x);
-                maxX = std::max(maxX, p.x);
-                minY = std::min(minY, p.y);
-                maxY = std::max(maxY, p.y);
-            }
-            inst.offset = {
-                shape.offset.x + (minX + maxX) * 0.5f,
-                shape.offset.y + (minY + maxY) * 0.5f,
-            };
-            inst.size = {
-                std::max(1.f, maxX - minX),
-                std::max(1.f, maxY - minY),
-            };
-        }
     }
     return inst;
 }
@@ -295,12 +279,23 @@ public:
             PhysicsMath::Aabb probe = feet->aabb;
             probe.minY = probe.maxY - 2.f;
             probe.maxY += 4.f;
+            PhysicsMath::ShapeInstance probeShape;
+            probeShape.shape = ColliderShape::Rectangle;
+            probeShape.position = {
+                (probe.minX + probe.maxX) * 0.5f,
+                (probe.minY + probe.maxY) * 0.5f,
+            };
+            probeShape.size = {
+                std::max(1.f, probe.maxX - probe.minX),
+                std::max(1.f, probe.maxY - probe.minY),
+            };
             for (const size_t other_index : queryAabb(probe)) {
                 const ShapeRef& other = shapes_[other_index];
                 if (other.id == id || other.shape.response != CollisionResponse::Solid)
                     continue;
                 if (!canCollide(*feet, other)) continue;
                 if (PhysicsMath::aabbOverlap(probe, other.aabb)
+                    && PhysicsMath::shapesOverlap(probeShape, other.instance)
                     && feet->aabb.maxY <= other.aabb.minY + 4.f)
                     return true;
             }

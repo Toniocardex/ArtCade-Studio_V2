@@ -50,8 +50,19 @@ CollisionShape shape_from_normalized(
 
     out.offset = { localCenterX, localCenterY };
     out.size = { worldW, worldH };
-    if (out.type == CollisionShapeType::Circle)
+    if (out.type == CollisionShapeType::Polygon && !src.points.empty()) {
+        out.offset = {};
+        out.points.clear();
+        out.points.reserve(src.points.size());
+        for (const Vec2& point : src.points) {
+            out.points.push_back({
+                ((src.offset.x + point.x) - pivot.x) * frameW * absSx,
+                ((src.offset.y + point.y) - pivot.y) * frameH * absSy,
+            });
+        }
+    } else if (out.type == CollisionShapeType::Circle) {
         out.radius = std::max(0.5f, worldW * 0.5f);
+    }
     return out;
 }
 

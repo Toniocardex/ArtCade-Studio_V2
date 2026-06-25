@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <vector>
 
 namespace ArtCade::PhysicsMath {
 
@@ -22,6 +23,7 @@ struct ShapeInstance {
     Vec2            position{};
     Vec2            offset{};
     Vec2            size{ 1.f, 1.f }; // rect: full w/h; circle: radius in x
+    std::vector<Vec2> points;         // polygon: local points from position+offset
 };
 
 inline Aabb aabbFromRect(const Vec2& center, float halfW, float halfH) {
@@ -42,6 +44,23 @@ inline Aabb shapeWorldAabb(const ShapeInstance& s) {
     if (s.shape == ColliderShape::Circle) {
         const float r = s.size.x;
         return aabbFromRect(c, r, r);
+    }
+    if (s.shape == ColliderShape::Polygon && !s.points.empty()) {
+        Aabb box{
+            c.x + s.points[0].x,
+            c.y + s.points[0].y,
+            c.x + s.points[0].x,
+            c.y + s.points[0].y,
+        };
+        for (const Vec2& p : s.points) {
+            const float x = c.x + p.x;
+            const float y = c.y + p.y;
+            box.minX = std::min(box.minX, x);
+            box.minY = std::min(box.minY, y);
+            box.maxX = std::max(box.maxX, x);
+            box.maxY = std::max(box.maxY, y);
+        }
+        return box;
     }
     return aabbFromRect(c, s.size.x * 0.5f, s.size.y * 0.5f);
 }
@@ -81,12 +100,235 @@ inline bool circleRectOverlap(const Vec2& center, float radius, const Aabb& rect
     return dx * dx + dy * dy <= radius * radius;
 }
 
+inline float dot(Vec2 a, Vec2 b) {
+    return a.x * b.x + a.y * b.y;
+}
+
+inline Vec2 subtract(Vec2 a, Vec2 b) {
+    return { a.x - b.x, a.y - b.y };
+}
+
+inline float lengthSq(Vec2 v) {
+    return dot(v, v);
+}
+
+inline Vec2 closestPointOnSegment(Vec2 p, Vec2 a, Vec2 b) {
+    const Vec2 ab = subtract(b, a);
+    const float denom = lengthSq(ab);
+    if (denom < 1e-8f) return a;
+    const float t = std::clamp(dot(subtract(p, a), ab) / denom, 0.f, 1.f);
+    return { a.x + ab.x * t, a.y + ab.y * t };
+}
+
+inline float distancePointSegmentSq(Vec2 p, Vec2 a, Vec2 b) {
+    const Vec2 closest = closestPointOnSegment(p, a, b);
+    return lengthSq(subtract(p, closest));
+}
+
+inline float orientation(Vec2 a, Vec2 b, Vec2 c) {
+    return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+}
+
+inline bool onSegment(Vec2 a, Vec2 b, Vec2 p) {
+    return p.x >= std::min(a.x, b.x) - 1e-5f
+        && p.x <= std::max(a.x, b.x) + 1e-5f
+        && p.y >= std::min(a.y, b.y) - 1e-5f
+        && p.y <= std::max(a.y, b.y) + 1e-5f;
+}
+
+inline bool segmentsIntersect(Vec2 a, Vec2 b, Vec2 c, Vec2 d) {
+    const float o1 = orientation(a, b, c);
+    const float o2 = orientation(a, b, d);
+    const float o3 = orientation(c, d, a);
+    const float o4 = orientation(c, d, b);
+    if (std::abs(o1) <= 1e-5f && onSegment(a, b, c)) return true;
+    if (std::abs(o2) <= 1e-5f && onSegment(a, b, d)) return true;
+    if (std::abs(o3) <= 1e-5f && onSegment(c, d, a)) return true;
+    if (std::abs(o4) <= 1e-5f && onSegment(c, d, b)) return true;
+    return ((o1 < 0.f) != (o2 < 0.f))
+        && ((o3 < 0.f) != (o4 < 0.f));
+}
+
+inline float distanceSegmentSegmentSq(Vec2 a, Vec2 b, Vec2 c, Vec2 d) {
+    if (segmentsIntersect(a, b, c, d)) return 0.f;
+    return std::min({
+        distancePointSegmentSq(a, c, d),
+        distancePointSegmentSq(b, c, d),
+        distancePointSegmentSq(c, a, b),
+        distancePointSegmentSq(d, a, b),
+    });
+}
+
+inline std::vector<Vec2> rectWorldPoints(const Aabb& box) {
+    return {
+        { box.minX, box.minY },
+        { box.maxX, box.minY },
+        { box.maxX, box.maxY },
+        { box.minX, box.maxY },
+    };
+}
+
+inline std::vector<Vec2> polygonWorldPoints(const ShapeInstance& s) {
+    if (s.shape == ColliderShape::Polygon && s.points.size() >= 3) {
+        const Vec2 origin = shapeCenter(s);
+        std::vector<Vec2> out;
+        out.reserve(s.points.size());
+        for (const Vec2& p : s.points)
+            out.push_back({ origin.x + p.x, origin.y + p.y });
+        return out;
+    }
+    return rectWorldPoints(shapeWorldAabb(s));
+}
+
+inline bool pointInConvexPolygon(Vec2 p, const std::vector<Vec2>& poly) {
+    if (poly.size() < 3) return false;
+    bool hasPositive = false;
+    bool hasNegative = false;
+    for (size_t i = 0; i < poly.size(); ++i) {
+        const Vec2 a = poly[i];
+        const Vec2 b = poly[(i + 1) % poly.size()];
+        const float cross = orientation(a, b, p);
+        hasPositive = hasPositive || cross > 1e-5f;
+        hasNegative = hasNegative || cross < -1e-5f;
+        if (hasPositive && hasNegative) return false;
+    }
+    return true;
+}
+
+inline void projectPolygon(const std::vector<Vec2>& poly,
+                           Vec2 axis,
+                           float& min_out,
+                           float& max_out) {
+    min_out = dot(poly[0], axis);
+    max_out = min_out;
+    for (size_t i = 1; i < poly.size(); ++i) {
+        const float value = dot(poly[i], axis);
+        min_out = std::min(min_out, value);
+        max_out = std::max(max_out, value);
+    }
+}
+
+inline bool separatedOnPolygonAxes(const std::vector<Vec2>& a,
+                                   const std::vector<Vec2>& b) {
+    for (size_t i = 0; i < a.size(); ++i) {
+        const Vec2 p1 = a[i];
+        const Vec2 p2 = a[(i + 1) % a.size()];
+        const Vec2 edge = subtract(p2, p1);
+        const Vec2 axis{ -edge.y, edge.x };
+        if (lengthSq(axis) < 1e-8f) continue;
+
+        float minA = 0.f;
+        float maxA = 0.f;
+        float minB = 0.f;
+        float maxB = 0.f;
+        projectPolygon(a, axis, minA, maxA);
+        projectPolygon(b, axis, minB, maxB);
+        if (maxA < minB || maxB < minA)
+            return true;
+    }
+    return false;
+}
+
+inline bool polygonPolygonOverlap(const std::vector<Vec2>& a,
+                                  const std::vector<Vec2>& b) {
+    if (a.size() < 3 || b.size() < 3) return false;
+    return !separatedOnPolygonAxes(a, b) && !separatedOnPolygonAxes(b, a);
+}
+
+inline float distancePointPolygonSq(Vec2 p, const std::vector<Vec2>& poly) {
+    if (pointInConvexPolygon(p, poly)) return 0.f;
+    float best = std::numeric_limits<float>::max();
+    for (size_t i = 0; i < poly.size(); ++i) {
+        const Vec2 a = poly[i];
+        const Vec2 b = poly[(i + 1) % poly.size()];
+        best = std::min(best, distancePointSegmentSq(p, a, b));
+    }
+    return best;
+}
+
+inline float distanceSegmentPolygonSq(Vec2 a, Vec2 b, const std::vector<Vec2>& poly) {
+    if (pointInConvexPolygon(a, poly) || pointInConvexPolygon(b, poly))
+        return 0.f;
+    float best = std::numeric_limits<float>::max();
+    for (size_t i = 0; i < poly.size(); ++i) {
+        const Vec2 c = poly[i];
+        const Vec2 d = poly[(i + 1) % poly.size()];
+        best = std::min(best, distanceSegmentSegmentSq(a, b, c, d));
+    }
+    return best;
+}
+
+inline bool circlePolygonOverlap(Vec2 center,
+                                 float radius,
+                                 const std::vector<Vec2>& poly) {
+    return distancePointPolygonSq(center, poly) <= radius * radius;
+}
+
+struct CapsuleSegment {
+    Vec2 a{};
+    Vec2 b{};
+    float radius = 0.5f;
+};
+
+inline CapsuleSegment capsuleSegment(const ShapeInstance& s) {
+    const Vec2 c = shapeCenter(s);
+    const float w = std::max(1.f, s.size.x);
+    const float h = std::max(1.f, s.size.y);
+    CapsuleSegment capsule;
+    if (h >= w) {
+        capsule.radius = w * 0.5f;
+        const float halfSegment = std::max(0.f, h * 0.5f - capsule.radius);
+        capsule.a = { c.x, c.y - halfSegment };
+        capsule.b = { c.x, c.y + halfSegment };
+    } else {
+        capsule.radius = h * 0.5f;
+        const float halfSegment = std::max(0.f, w * 0.5f - capsule.radius);
+        capsule.a = { c.x - halfSegment, c.y };
+        capsule.b = { c.x + halfSegment, c.y };
+    }
+    return capsule;
+}
+
+inline bool capsuleCircleOverlap(const ShapeInstance& capsuleShape,
+                                 const ShapeInstance& circleShape) {
+    const CapsuleSegment capsule = capsuleSegment(capsuleShape);
+    const Vec2 circle = shapeCenter(circleShape);
+    const float radius = capsule.radius + circleShape.size.x;
+    return distancePointSegmentSq(circle, capsule.a, capsule.b) <= radius * radius;
+}
+
+inline bool capsulePolygonOverlap(const ShapeInstance& capsuleShape,
+                                  const std::vector<Vec2>& poly) {
+    const CapsuleSegment capsule = capsuleSegment(capsuleShape);
+    return distanceSegmentPolygonSq(capsule.a, capsule.b, poly)
+        <= capsule.radius * capsule.radius;
+}
+
+inline bool capsuleCapsuleOverlap(const ShapeInstance& a, const ShapeInstance& b) {
+    const CapsuleSegment ca = capsuleSegment(a);
+    const CapsuleSegment cb = capsuleSegment(b);
+    const float radius = ca.radius + cb.radius;
+    return distanceSegmentSegmentSq(ca.a, ca.b, cb.a, cb.b) <= radius * radius;
+}
+
 inline bool shapesOverlap(const ShapeInstance& a, const ShapeInstance& b) {
     const Vec2 ca = shapeCenter(a);
     const Vec2 cb = shapeCenter(b);
 
     if (a.shape == ColliderShape::Circle && b.shape == ColliderShape::Circle)
         return circleCircleOverlap(ca, a.size.x, cb, b.size.x);
+
+    if (a.shape == ColliderShape::Capsule && b.shape == ColliderShape::Capsule)
+        return capsuleCapsuleOverlap(a, b);
+    if (a.shape == ColliderShape::Capsule && b.shape == ColliderShape::Circle)
+        return capsuleCircleOverlap(a, b);
+    if (a.shape == ColliderShape::Circle && b.shape == ColliderShape::Capsule)
+        return capsuleCircleOverlap(b, a);
+
+    if (a.shape == ColliderShape::Capsule)
+        return capsulePolygonOverlap(a, polygonWorldPoints(b));
+    if (b.shape == ColliderShape::Capsule)
+        return capsulePolygonOverlap(b, polygonWorldPoints(a));
 
     const Aabb aa = shapeWorldAabb(a);
     const Aabb ab = shapeWorldAabb(b);
@@ -95,8 +337,11 @@ inline bool shapesOverlap(const ShapeInstance& a, const ShapeInstance& b) {
         return aabbOverlap(aa, ab);
 
     if (a.shape == ColliderShape::Circle)
-        return circleRectOverlap(ca, a.size.x, ab);
-    return circleRectOverlap(cb, b.size.x, aa);
+        return circlePolygonOverlap(ca, a.size.x, polygonWorldPoints(b));
+    if (b.shape == ColliderShape::Circle)
+        return circlePolygonOverlap(cb, b.size.x, polygonWorldPoints(a));
+
+    return polygonPolygonOverlap(polygonWorldPoints(a), polygonWorldPoints(b));
 }
 
 /** Minimum translation to separate movable AABB from fixed AABB (Y-down). */
@@ -221,10 +466,94 @@ inline RaycastHit raycastSegmentVsCircle(const Vec2& from, const Vec2& to,
     return best;
 }
 
+inline bool segmentIntersectionFraction(Vec2 from,
+                                        Vec2 to,
+                                        Vec2 a,
+                                        Vec2 b,
+                                        float& fraction) {
+    const Vec2 r = subtract(to, from);
+    const Vec2 s = subtract(b, a);
+    const float denom = r.x * s.y - r.y * s.x;
+    if (std::abs(denom) < 1e-8f)
+        return false;
+    const Vec2 diff = subtract(a, from);
+    const float t = (diff.x * s.y - diff.y * s.x) / denom;
+    const float u = (diff.x * r.y - diff.y * r.x) / denom;
+    if (t < 0.f || t > 1.f || u < 0.f || u > 1.f)
+        return false;
+    fraction = t;
+    return true;
+}
+
+inline RaycastHit raycastSegmentVsPolygon(const Vec2& from,
+                                          const Vec2& to,
+                                          const std::vector<Vec2>& poly) {
+    RaycastHit best;
+    if (poly.size() < 3) return best;
+    if (pointInConvexPolygon(from, poly)) {
+        best.hit = true;
+        best.fraction = 0.f;
+        best.point = from;
+        return best;
+    }
+
+    for (size_t i = 0; i < poly.size(); ++i) {
+        float fraction = 1.f;
+        if (!segmentIntersectionFraction(
+                from, to, poly[i], poly[(i + 1) % poly.size()], fraction))
+            continue;
+        if (fraction >= best.fraction)
+            continue;
+        best.hit = true;
+        best.fraction = fraction;
+        best.point = {
+            from.x + (to.x - from.x) * fraction,
+            from.y + (to.y - from.y) * fraction,
+        };
+    }
+    return best;
+}
+
+inline RaycastHit nearerHit(RaycastHit best, RaycastHit candidate) {
+    if (!candidate.hit || candidate.fraction >= best.fraction)
+        return best;
+    return candidate;
+}
+
+inline RaycastHit raycastSegmentVsCapsule(const Vec2& from,
+                                          const Vec2& to,
+                                          const ShapeInstance& shape) {
+    const CapsuleSegment capsule = capsuleSegment(shape);
+    RaycastHit best = raycastSegmentVsCircle(from, to, capsule.a, capsule.radius);
+    best = nearerHit(best, raycastSegmentVsCircle(from, to, capsule.b, capsule.radius));
+
+    Aabb body{};
+    if (std::abs(capsule.a.x - capsule.b.x) < 1e-6f) {
+        body = {
+            capsule.a.x - capsule.radius,
+            std::min(capsule.a.y, capsule.b.y),
+            capsule.a.x + capsule.radius,
+            std::max(capsule.a.y, capsule.b.y),
+        };
+    } else {
+        body = {
+            std::min(capsule.a.x, capsule.b.x),
+            capsule.a.y - capsule.radius,
+            std::max(capsule.a.x, capsule.b.x),
+            capsule.a.y + capsule.radius,
+        };
+    }
+    return nearerHit(best, raycastSegmentVsAabb(from, to, body));
+}
+
 inline RaycastHit raycastSegmentVsShape(const Vec2& from, const Vec2& to,
                                         const ShapeInstance& shape) {
     if (shape.shape == ColliderShape::Circle)
         return raycastSegmentVsCircle(from, to, shapeCenter(shape), shape.size.x);
+    if (shape.shape == ColliderShape::Capsule)
+        return raycastSegmentVsCapsule(from, to, shape);
+    if (shape.shape == ColliderShape::Polygon)
+        return raycastSegmentVsPolygon(from, to, polygonWorldPoints(shape));
     return raycastSegmentVsAabb(from, to, shapeWorldAabb(shape));
 }
 
@@ -235,6 +564,13 @@ inline bool pointInsideShape(const Vec2& point, const ShapeInstance& shape) {
         const float dy = point.y - c.y;
         return dx * dx + dy * dy <= shape.size.x * shape.size.x;
     }
+    if (shape.shape == ColliderShape::Capsule) {
+        const CapsuleSegment capsule = capsuleSegment(shape);
+        return distancePointSegmentSq(point, capsule.a, capsule.b)
+            <= capsule.radius * capsule.radius;
+    }
+    if (shape.shape == ColliderShape::Polygon)
+        return pointInConvexPolygon(point, polygonWorldPoints(shape));
     const Aabb box = shapeWorldAabb(shape);
     return point.x >= box.minX && point.x <= box.maxX
         && point.y >= box.minY && point.y <= box.maxY;

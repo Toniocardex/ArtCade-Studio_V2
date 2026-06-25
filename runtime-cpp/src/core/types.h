@@ -55,7 +55,7 @@ struct Transform {
 // ============================================================================
 
 enum class BodyType    { Dynamic, Static, Kinematic };
-enum class ColliderShape { Rectangle, Circle };
+enum class ColliderShape { Rectangle, Circle, Capsule, Polygon };
 enum class CollisionShapeType { Rectangle, Circle, Capsule, Polygon };
 enum class CollisionResponse { Solid, Sensor };
 enum class CollisionShapeRole { Body, Feet, Hurtbox, Hitbox, Interaction };

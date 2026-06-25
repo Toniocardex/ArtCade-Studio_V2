@@ -34,6 +34,20 @@ static CollisionShape makeRectShape(
     return shape;
 }
 
+static CollisionShape makeCircleShape(
+    const std::string& layerId,
+    const std::vector<std::string>& maskIds,
+    float radius)
+{
+    CollisionShape shape;
+    shape.type = CollisionShapeType::Circle;
+    shape.layerId = layerId;
+    shape.maskLayerIds = maskIds;
+    shape.radius = radius;
+    shape.enabled = true;
+    return shape;
+}
+
 static std::vector<PhysicsLayerDef> defaultLayers() {
     return {
         { "player", "Player", 1, {} },
@@ -232,6 +246,111 @@ static void test_spatial_broadphase_does_not_duplicate_large_shape_events() {
     }
 }
 
+static void test_polygon_narrowphase_rejects_aabb_false_positive() {
+    World world;
+    world.setLayers(defaultLayers());
+
+    CollisionBodyComponent triangleBody;
+    triangleBody.bodyType = BodyType::Static;
+    CollisionShape triangle = makeRectShape("ground", { "player" });
+    triangle.type = CollisionShapeType::Polygon;
+    triangle.offset = {};
+    triangle.points = {
+        { 0.f, 0.f },
+        { 64.f, 0.f },
+        { 0.f, 64.f },
+    };
+    triangleBody.shapes.push_back(triangle);
+
+    CollisionBodyComponent playerBody;
+    playerBody.bodyType = BodyType::Kinematic;
+    playerBody.shapes.push_back(makeRectShape("player", { "ground" }, 8.f));
+
+    Transform triangleTf{};
+    triangleTf.position = { 0.f, 0.f };
+    Transform outsideTf{};
+    outsideTf.position = { 56.f, 56.f };
+    Transform insideTf{};
+    insideTf.position = { 20.f, 20.f };
+
+    world.addEntity(1, triangleTf, triangleBody);
+    world.addEntity(2, outsideTf, playerBody);
+    CHECK(!world.overlapEntities(1, 2));
+
+    world.clear();
+    world.addEntity(1, triangleTf, triangleBody);
+    world.addEntity(3, insideTf, playerBody);
+    CHECK(world.overlapEntities(1, 3));
+}
+
+static void test_polygon_raycast_hits_shape_edge() {
+    World world;
+    world.setLayers(defaultLayers());
+
+    CollisionBodyComponent triangleBody;
+    triangleBody.bodyType = BodyType::Static;
+    CollisionShape triangle = makeRectShape("ground", { "player" });
+    triangle.type = CollisionShapeType::Polygon;
+    triangle.points = {
+        { 0.f, 0.f },
+        { 64.f, 0.f },
+        { 0.f, 64.f },
+    };
+    triangleBody.shapes.push_back(triangle);
+
+    Transform triangleTf{};
+    triangleTf.position = { 0.f, 0.f };
+    world.addEntity(1, triangleTf, triangleBody);
+
+    const auto hit = world.raycast({ -16.f, 16.f }, { 16.f, 16.f });
+    CHECK(hit.hit);
+    CHECK(hit.entityId == 1);
+    CHECK(std::abs(hit.point.x) < 0.01f);
+    CHECK(std::abs(hit.point.y - 16.f) < 0.01f);
+}
+
+static void test_capsule_narrowphase_uses_rounded_caps() {
+    World world;
+    world.setLayers(defaultLayers());
+
+    CollisionBodyComponent capsuleBody;
+    capsuleBody.bodyType = BodyType::Static;
+    CollisionShape capsule = makeRectShape("ground", { "player" });
+    capsule.type = CollisionShapeType::Capsule;
+    capsule.size = { 20.f, 80.f };
+    capsuleBody.shapes.push_back(capsule);
+
+    CollisionBodyComponent circleBody;
+    circleBody.bodyType = BodyType::Kinematic;
+    circleBody.shapes.push_back(makeCircleShape("player", { "ground" }, 1.f));
+
+    Transform capsuleTf{};
+    capsuleTf.position = { 0.f, 0.f };
+    Transform cornerTf{};
+    cornerTf.position = { 9.f, 39.f };
+    Transform bottomTf{};
+    bottomTf.position = { 0.f, 39.f };
+
+    world.addEntity(1, capsuleTf, capsuleBody);
+    world.addEntity(2, cornerTf, circleBody);
+    CHECK(!world.overlapEntities(1, 2));
+
+    world.clear();
+    world.addEntity(1, capsuleTf, capsuleBody);
+    world.addEntity(3, bottomTf, circleBody);
+    CHECK(world.overlapEntities(1, 3));
+}
+
+static void test_capsule_polygon_collinear_edges_can_be_separate() {
+    const float distSq = PhysicsMath::distanceSegmentSegmentSq(
+        { 20.f, -16.f },
+        { 60.f, -16.f },
+        { -16.f, -16.f },
+        { 16.f, -16.f });
+    CHECK(distSq > 15.9f);
+    CHECK(distSq < 16.1f);
+}
+
 int main() {
     test_overlap_respects_layer_masks();
     test_resolve_profile_shapes_from_sprite_path();
@@ -239,6 +358,10 @@ int main() {
     test_contact_events_survive_world_rebuilds();
     test_spatial_broadphase_keeps_queries_deterministic();
     test_spatial_broadphase_does_not_duplicate_large_shape_events();
+    test_polygon_narrowphase_rejects_aabb_false_positive();
+    test_polygon_raycast_hits_shape_edge();
+    test_capsule_narrowphase_uses_rounded_caps();
+    test_capsule_polygon_collinear_edges_can_be_separate();
 
     if (g_failed == 0) {
         std::cout << "collision-world-mask-test: " << g_passed << " passed\n";
