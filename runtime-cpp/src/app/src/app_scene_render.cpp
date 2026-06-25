@@ -422,11 +422,6 @@ void Application::renderActiveScene() {
         }
     }
 
-    if (splash_) {
-        splash_->render(
-            static_cast<int>(mod_->renderer->windowWidth()),
-            static_cast<int>(mod_->renderer->windowHeight()));
-    }
     if (mod_->dialogManager && mod_->dialogManager->isActive()) {
         mod_->dialogManager->render();
     }
@@ -437,6 +432,11 @@ void Application::renderActiveScene() {
 
     mod_->renderer->endWorldPass();
     mod_->renderer->endScreenPass();
+    if (splash_) {
+        splash_->render(
+            static_cast<int>(mod_->renderer->windowWidth()),
+            static_cast<int>(mod_->renderer->windowHeight()));
+    }
     mod_->renderer->presentScreen();
     mod_->renderer->setRenderShakeOffset({0.f, 0.f});
 }

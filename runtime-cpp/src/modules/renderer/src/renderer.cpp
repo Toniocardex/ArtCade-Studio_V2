@@ -6,6 +6,7 @@
 #include "../../../core/sprite-draw-math.h"
 #include <raylib.h>
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <vector>
 
@@ -95,6 +96,13 @@ struct Renderer::Impl {
     };
 
     Camera2D camera = {};
+    float cameraZoom = 1.f;
+    float displayScale = 1.f;
+    Vec2  viewportOffset = { 0.f, 0.f };
+    Vec2  viewportDrawSize = {
+        ProjectDefaults::kSceneViewportWidth,
+        ProjectDefaults::kSceneViewportHeight,
+    };
     Vec2 renderShakeOffset = { 0.f, 0.f };
     TextureCache texCache;
     FontCache    fontCache;
@@ -108,6 +116,11 @@ struct Renderer::Impl {
     SpriteOutlineShader spriteOutline;
     std::function<std::string(const std::string&)> textureKeyResolver;
     std::function<std::string(const std::string&)> fontKeyResolver;
+
+    void updateWindowSizeFromRaylib();
+    void updateCameraProjection();
+    static uint32_t calculateInitialWindowScale(uint32_t logicalWidth,
+                                                uint32_t logicalHeight);
 };
 
 // ------------------------------------------------------------------ helpers
@@ -122,15 +135,14 @@ static Color toColor(const Vec4& v, float extraAlpha = 1.f) {
 }
 
 static Vec2 clampCameraTarget(
-    uint32_t width,
-    uint32_t height,
+    const Vec2& viewportSize,
     const Vec2& worldSize,
-    float zoom,
+    float cameraZoom,
     Vec2 target)
 {
-    const float z = (zoom > 0.f) ? zoom : 1.f;
-    const float visibleW = static_cast<float>(width) / z;
-    const float visibleH = static_cast<float>(height) / z;
+    const float z = (cameraZoom > 0.f) ? cameraZoom : 1.f;
+    const float visibleW = viewportSize.x / z;
+    const float visibleH = viewportSize.y / z;
     const float maxX = std::max(0.f, worldSize.x - visibleW);
     const float maxY = std::max(0.f, worldSize.y - visibleH);
     return {
@@ -139,23 +151,71 @@ static Vec2 clampCameraTarget(
     };
 }
 
-static Vec2 worldInsetOffset(
-    uint32_t width,
-    uint32_t height,
-    const Vec2& worldSize,
-    float zoom)
-{
-    const float z = (zoom > 0.f) ? zoom : 1.f;
-    return {
-        std::max(0.f, (static_cast<float>(width) - worldSize.x * z) * 0.5f),
-        std::max(0.f, (static_cast<float>(height) - worldSize.y * z) * 0.5f),
+void Renderer::Impl::updateWindowSizeFromRaylib() {
+    if (!open) return;
+    const int liveW = GetScreenWidth();
+    const int liveH = GetScreenHeight();
+    if (liveW > 0) width = static_cast<uint32_t>(liveW);
+    if (liveH > 0) height = static_cast<uint32_t>(liveH);
+}
+
+void Renderer::Impl::updateCameraProjection() {
+    const float sx = static_cast<float>(width) / viewportSize.x;
+    const float sy = static_cast<float>(height) / viewportSize.y;
+    float displayScale = std::max(0.01f, std::min(sx, sy));
+    if (displayScale >= 1.f)
+        displayScale = std::max(1.f, std::floor(displayScale));
+    this->displayScale = displayScale;
+    viewportDrawSize = {
+        viewportSize.x * this->displayScale,
+        viewportSize.y * this->displayScale,
     };
+    viewportOffset = {
+        (static_cast<float>(width) - viewportDrawSize.x) * 0.5f,
+        (static_cast<float>(height) - viewportDrawSize.y) * 0.5f,
+    };
+
+    const float zoom = (cameraZoom > 0.f) ? cameraZoom : 0.01f;
+    const float finalZoom = this->displayScale * zoom;
+    const Vec2 worldInset = {
+        std::max(0.f, (viewportDrawSize.x - worldSize.x * finalZoom) * 0.5f),
+        std::max(0.f, (viewportDrawSize.y - worldSize.y * finalZoom) * 0.5f),
+    };
+    camera.zoom = finalZoom;
+    camera.offset = {
+        viewportOffset.x + worldInset.x,
+        viewportOffset.y + worldInset.y,
+    };
+    const Vec2 clamped = clampCameraTarget(
+        viewportSize, worldSize, cameraZoom,
+        { camera.target.x, camera.target.y });
+    camera.target = { clamped.x, clamped.y };
+}
+
+uint32_t Renderer::Impl::calculateInitialWindowScale(uint32_t logicalWidth,
+                                                     uint32_t logicalHeight) {
+    constexpr float kMaxScreenUsage = 0.80f;
+    const uint32_t safeWidth = std::max(1u, logicalWidth);
+    const uint32_t safeHeight = std::max(1u, logicalHeight);
+    int monitor = 0;
+    if (IsWindowReady()) monitor = GetCurrentMonitor();
+    const int monitorWidth = GetMonitorWidth(monitor);
+    const int monitorHeight = GetMonitorHeight(monitor);
+    if (monitorWidth <= 0 || monitorHeight <= 0) return 1u;
+    const uint32_t availableWidth =
+        static_cast<uint32_t>(static_cast<float>(monitorWidth) * kMaxScreenUsage);
+    const uint32_t availableHeight =
+        static_cast<uint32_t>(static_cast<float>(monitorHeight) * kMaxScreenUsage);
+    const uint32_t scaleX = availableWidth / safeWidth;
+    const uint32_t scaleY = availableHeight / safeHeight;
+    return std::max(1u, std::min(scaleX, scaleY));
 }
 
 // ------------------------------------------------------------------ lifecycle
 
 Renderer::Renderer() : impl_(std::make_unique<Impl>()) {
     impl_->camera.zoom = 1.f;
+    impl_->updateCameraProjection();
 }
 
 Renderer::~Renderer() {
@@ -164,9 +224,13 @@ Renderer::~Renderer() {
 
 bool Renderer::init() {
     SetTraceLogLevel(LOG_WARNING);
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     InitWindow(static_cast<int>(impl_->width),
                static_cast<int>(impl_->height),
                impl_->title.c_str());
+    impl_->open = true;
+    SetWindowMinSize(static_cast<int>(impl_->viewportSize.x),
+                     static_cast<int>(impl_->viewportSize.y));
     SetTargetFPS(60);
 
     // Top-left origin: world (0,0) == screen top-left.
@@ -174,9 +238,10 @@ bool Renderer::init() {
     // (e.g. position [640, 360] == centre of a 1280×720 window).
     impl_->camera.offset = { 0.f, 0.f };
     impl_->camera.target = { 0.f, 0.f };
-    impl_->camera.zoom   = 1.f;
+    impl_->cameraZoom    = 1.f;
+    impl_->updateWindowSizeFromRaylib();
+    impl_->updateCameraProjection();
     impl_->spriteOutline.load();
-    impl_->open = true;
     return true;
 }
 
@@ -199,8 +264,18 @@ void Renderer::setWindowSize(uint32_t w, uint32_t h, const std::string& title) {
     if (impl_->open) {
         SetWindowSize(static_cast<int>(w), static_cast<int>(h));
         SetWindowTitle(title.c_str());
-        setSceneViewport(impl_->worldSize, impl_->viewportSize);
+        impl_->updateWindowSizeFromRaylib();
+        impl_->updateCameraProjection();
     }
+}
+
+void Renderer::setWindowSizeForLogicalViewport(uint32_t logicalWidth,
+                                               uint32_t logicalHeight,
+                                               const std::string& title) {
+    const uint32_t safeWidth = std::max(1u, logicalWidth);
+    const uint32_t safeHeight = std::max(1u, logicalHeight);
+    const uint32_t scale = Impl::calculateInitialWindowScale(safeWidth, safeHeight);
+    setWindowSize(safeWidth * scale, safeHeight * scale, title);
 }
 
 uint32_t Renderer::windowWidth()  const { return impl_->width;  }
@@ -216,16 +291,11 @@ void Renderer::setSceneViewport(const Vec2& worldSize, const Vec2& viewportSize)
         std::max(1.f, viewportSize.y),
     };
 
-    const float sx = static_cast<float>(impl_->width) / impl_->viewportSize.x;
-    const float sy = static_cast<float>(impl_->height) / impl_->viewportSize.y;
-    impl_->camera.zoom = std::max(0.01f, std::min(sx, sy));
-    const Vec2 inset = worldInsetOffset(
-        impl_->width, impl_->height, impl_->worldSize, impl_->camera.zoom);
-    impl_->camera.offset = { inset.x, inset.y };
-    const Vec2 clamped = clampCameraTarget(
-        impl_->width, impl_->height, impl_->worldSize, impl_->camera.zoom,
-        { impl_->camera.target.x, impl_->camera.target.y });
-    impl_->camera.target = { clamped.x, clamped.y };
+    if (impl_->open) {
+        SetWindowMinSize(static_cast<int>(impl_->viewportSize.x),
+                         static_cast<int>(impl_->viewportSize.y));
+    }
+    impl_->updateCameraProjection();
 }
 
 // ------------------------------------------------------------------ frame
@@ -239,6 +309,8 @@ void Renderer::setRenderShakeOffset(const Vec2& offset) {
 }
 
 void Renderer::beginFrame(const Vec4& clearColor) {
+    impl_->updateWindowSizeFromRaylib();
+    impl_->updateCameraProjection();
     BeginDrawing();
     ClearBackground(toColor(clearColor));
     Camera2D frameCamera = impl_->camera;
@@ -283,6 +355,11 @@ void Renderer::endWorldPass() {
 }
 
 void Renderer::endScreenPass() {
+    Camera2D screenCamera = {};
+    screenCamera.offset = { impl_->viewportOffset.x, impl_->viewportOffset.y };
+    screenCamera.target = { 0.f, 0.f };
+    screenCamera.zoom = impl_->displayScale;
+    BeginMode2D(screenCamera);
     for (const auto& cmd : impl_->screenQueue) {
         Color c{ cmd.cr, cmd.cg, cmd.cb, cmd.ca };
         if (cmd.type == DrawCmd::Type::Rect) {
@@ -299,6 +376,7 @@ void Renderer::endScreenPass() {
                                    cmd);
         }
     }
+    EndMode2D();
     impl_->screenQueue.clear();
 }
 
@@ -319,10 +397,17 @@ void Renderer::setScreenShader(const std::string& name) {
 
 void Renderer::drawFadeOverlay(float alpha) {
     if (alpha <= 0.f) return;
-    const int w = GetScreenWidth();
-    const int h = GetScreenHeight();
-    DrawRectangle(0, 0, w, h, Color{ 0, 0, 0,
-        static_cast<unsigned char>(std::min(255.f, alpha * 255.f)) });
+    DrawCmd cmd;
+    cmd.type = DrawCmd::Type::Rect;
+    cmd.x = 0.f;
+    cmd.y = 0.f;
+    cmd.x2 = impl_->viewportSize.x;
+    cmd.y2 = impl_->viewportSize.y;
+    cmd.cr = 0;
+    cmd.cg = 0;
+    cmd.cb = 0;
+    cmd.ca = static_cast<unsigned char>(std::min(255.f, alpha * 255.f));
+    impl_->screenQueue.push_back(std::move(cmd));
 }
 
 void Renderer::drawScreenPostEffects() {
@@ -704,12 +789,10 @@ bool Renderer::isTextureLoaded(const AssetId& assetId) const {
 // ------------------------------------------------------------------ camera
 
 void Renderer::setCameraPosition(const Vec2& pos) {
-    const Vec2 inset = worldInsetOffset(
-        impl_->width, impl_->height, impl_->worldSize, impl_->camera.zoom);
-    impl_->camera.offset = { inset.x, inset.y };
     const Vec2 clamped = clampCameraTarget(
-        impl_->width, impl_->height, impl_->worldSize, impl_->camera.zoom, pos);
+        impl_->viewportSize, impl_->worldSize, impl_->cameraZoom, pos);
     impl_->camera.target = { clamped.x, clamped.y };
+    impl_->updateCameraProjection();
 }
 
 void Renderer::setCameraCenter(const Vec2& center) {
@@ -721,14 +804,8 @@ void Renderer::setCameraCenter(const Vec2& center) {
 }
 
 void Renderer::setCameraZoom(float zoom) {
-    impl_->camera.zoom = (zoom > 0.f) ? zoom : 0.01f;
-    const Vec2 inset = worldInsetOffset(
-        impl_->width, impl_->height, impl_->worldSize, impl_->camera.zoom);
-    impl_->camera.offset = { inset.x, inset.y };
-    const Vec2 clamped = clampCameraTarget(
-        impl_->width, impl_->height, impl_->worldSize, impl_->camera.zoom,
-        { impl_->camera.target.x, impl_->camera.target.y });
-    impl_->camera.target = { clamped.x, clamped.y };
+    impl_->cameraZoom = (zoom > 0.f) ? zoom : 0.01f;
+    impl_->updateCameraProjection();
 }
 
 void Renderer::setEditorCamera(const Vec2& target, float zoom) {
@@ -738,7 +815,14 @@ void Renderer::setEditorCamera(const Vec2& target, float zoom) {
     // framebuffer is the visible viewport (device px) so the world is drawn at
     // native resolution: 1px grid lines stay crisp and in-phase at any zoom.
     impl_->camera.offset = { 0.f, 0.f };
-    impl_->camera.zoom   = (zoom > 0.f) ? zoom : 0.01f;
+    impl_->cameraZoom    = (zoom > 0.f) ? zoom : 0.01f;
+    impl_->displayScale  = 1.f;
+    impl_->viewportOffset = { 0.f, 0.f };
+    impl_->viewportDrawSize = {
+        static_cast<float>(impl_->width),
+        static_cast<float>(impl_->height),
+    };
+    impl_->camera.zoom   = impl_->cameraZoom;
     impl_->camera.target = { target.x, target.y };
 }
 
@@ -759,10 +843,10 @@ Vec2 Renderer::screenToWorld(float screenX, float screenY) const {
 }
 
 Vec2 Renderer::visibleWorldSize() const {
-    const float zoom = (impl_->camera.zoom > 0.f) ? impl_->camera.zoom : 1.f;
+    const float zoom = (impl_->cameraZoom > 0.f) ? impl_->cameraZoom : 1.f;
     return {
-        static_cast<float>(impl_->width) / zoom,
-        static_cast<float>(impl_->height) / zoom,
+        impl_->viewportSize.x / zoom,
+        impl_->viewportSize.y / zoom,
     };
 }
 
@@ -774,18 +858,29 @@ Vec2 Renderer::getCameraCenter() const {
     const float zoom = (impl_->camera.zoom > 0.f) ? impl_->camera.zoom : 1.f;
     return {
         impl_->camera.target.x
-            + (static_cast<float>(impl_->width) * 0.5f - impl_->camera.offset.x) / zoom,
+            + (impl_->viewportOffset.x + impl_->viewportDrawSize.x * 0.5f
+               - impl_->camera.offset.x) / zoom,
         impl_->camera.target.y
-            + (static_cast<float>(impl_->height) * 0.5f - impl_->camera.offset.y) / zoom,
+            + (impl_->viewportOffset.y + impl_->viewportDrawSize.y * 0.5f
+               - impl_->camera.offset.y) / zoom,
     };
 }
 
 float Renderer::getCameraZoom() const {
-    return impl_->camera.zoom;
+    return impl_->cameraZoom;
 }
 
 float Renderer::deltaTime() const {
     return GetFrameTime();
+}
+
+void Renderer::toggleBorderlessFullscreen() {
+#ifndef __EMSCRIPTEN__
+    if (!impl_->open) return;
+    ToggleBorderlessWindowed();
+    impl_->updateWindowSizeFromRaylib();
+    impl_->updateCameraProjection();
+#endif
 }
 
 } // namespace ArtCade::Modules

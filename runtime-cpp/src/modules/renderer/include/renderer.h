@@ -24,6 +24,13 @@ public:
 
     // Must be called before init() to configure window parameters
     void setWindowSize(uint32_t width, uint32_t height, const std::string& title);
+    /**
+     * Size the native OS window from a logical game viewport using the largest
+     * integer scale that fits comfortably on the current monitor.
+     */
+    void setWindowSizeForLogicalViewport(uint32_t logicalWidth,
+                                         uint32_t logicalHeight,
+                                         const std::string& title);
     void setSceneViewport(const Vec2& worldSize, const Vec2& viewportSize);
 
     // Frame lifecycle
@@ -169,6 +176,8 @@ public:
     uint32_t windowWidth()  const;
     uint32_t windowHeight() const;
     float    deltaTime()    const;   // wraps Raylib GetFrameTime()
+    /** Toggle borderless fullscreen on native desktop builds. No-op on WASM. */
+    void toggleBorderlessFullscreen();
 
     void setScreenShader(const std::string& name);
     void drawFadeOverlay(float alpha);

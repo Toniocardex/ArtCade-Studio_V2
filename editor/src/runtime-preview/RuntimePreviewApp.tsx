@@ -11,6 +11,7 @@ import {
   RUNTIME_PREVIEW_REQUEST_READY_EVENT,
   RUNTIME_PREVIEW_START_EVENT,
   RUNTIME_PREVIEW_STOP_EVENT,
+  toggleRuntimePreviewFullscreen,
 } from '../utils/runtime-preview-window'
 import {
   messageForEditorApiCode,
@@ -33,6 +34,7 @@ function runtimeCanvasStyle(background: string): Partial<CSSStyleDeclaration> {
     inset: '0',
     width: '100vw',
     height: '100vh',
+    objectFit: 'contain',
     background,
     imageRendering: 'pixelated',
   }
@@ -132,6 +134,19 @@ export default function RuntimePreviewApp() {
       unlistenFns.forEach((fn) => fn())
     }
   }, [announceReady])
+
+  useEffect(() => {
+    if (!isTauri()) return undefined
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'F11') return
+      event.preventDefault()
+      void toggleRuntimePreviewFullscreen().catch((err) => {
+        console.warn('[RuntimePreview] Failed to toggle fullscreen:', err)
+      })
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
 
   useEffect(() => {
     if (!canvasReady) return undefined

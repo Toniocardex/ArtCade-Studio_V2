@@ -71,6 +71,22 @@ int main() {
     expect(leftInset.x < 0.f && near(leftInset.y, 180.f),
            "screen margin maps outside centered small world");
 
+    renderer.setWindowSize(1000, 720, "test-letterbox");
+    renderer.setSceneViewport({ 640.f, 480.f }, { 320.f, 240.f });
+    renderer.setCameraPosition({ 0.f, 0.f });
+    const auto letterboxLeft = renderer.screenToWorld(0.f, 360.f);
+    expect(near(letterboxLeft.x, -20.f / 3.f) && near(letterboxLeft.y, 120.f),
+           "letterbox margin maps outside the logical viewport");
+    const auto viewportTopLeft = renderer.screenToWorld(20.f, 0.f);
+    expect(near(viewportTopLeft.x, 0.f) && near(viewportTopLeft.y, 0.f),
+           "scaled viewport starts after the letterbox offset");
+    const auto viewportCenter = renderer.screenToWorld(500.f, 360.f);
+    expect(near(viewportCenter.x, 160.f) && near(viewportCenter.y, 120.f),
+           "scaled viewport center maps to logical center");
+    const auto visible = renderer.visibleWorldSize();
+    expect(near(visible.x, 320.f) && near(visible.y, 240.f),
+           "physical window size does not change logical visible world");
+
     std::puts("renderer_screen_world_test: all passed");
     return 0;
 }

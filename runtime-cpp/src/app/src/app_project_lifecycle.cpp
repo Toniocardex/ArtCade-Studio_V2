@@ -53,10 +53,17 @@ void Application::applyRuntimeSettings(const ProjectRuntimeSettings& settings,
     }
 
     if (scene->viewportSize.x > 0.f && scene->viewportSize.y > 0.f) {
+#ifdef ARTCADE_WASM
         mod_->renderer->setWindowSize(
             static_cast<uint32_t>(scene->viewportSize.x),
             static_cast<uint32_t>(scene->viewportSize.y),
             "ArtCade V2");
+#else
+        mod_->renderer->setWindowSizeForLogicalViewport(
+            static_cast<uint32_t>(scene->viewportSize.x),
+            static_cast<uint32_t>(scene->viewportSize.y),
+            "ArtCade V2");
+#endif
     }
     mod_->renderer->setSceneViewport(scene->worldSize, scene->viewportSize);
     // Snap the gameplay camera to the scene's authored initial view. Game logic

@@ -156,6 +156,18 @@ async fn close_runtime_preview_window(app: tauri::AppHandle) -> Result<(), Strin
     Ok(())
 }
 
+#[tauri::command]
+async fn toggle_runtime_preview_fullscreen(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window(RUNTIME_PREVIEW_LABEL) {
+        let next_fullscreen = !window.is_fullscreen().map_err(|e| e.to_string())?;
+        window
+            .set_fullscreen(next_fullscreen)
+            .map_err(|e| e.to_string())?;
+        window.set_focus().map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 // ---------------------------------------------------------------------------
 // File system helpers
 // ---------------------------------------------------------------------------
@@ -1086,6 +1098,7 @@ fn main() {
             delete_project_file,
             open_runtime_preview_window,
             close_runtime_preview_window,
+            toggle_runtime_preview_fullscreen,
             decrypt_artcade_container,
             register_project_fs_scope,
             check_dependencies_cmd,

@@ -87,14 +87,12 @@ void GameAPI::bindCameraAPI(sol::state& lua) {
         if (!renderer || !entities) return true;
         Transform transform{};
         if (!entities->getTransform(id, transform)) return true;
-        const Vec2 tl = renderer->screenToWorld(0.f, 0.f);
-        const Vec2 br = renderer->screenToWorld(
-            static_cast<float>(renderer->windowWidth()),
-            static_cast<float>(renderer->windowHeight()));
-        const float minX = tl.x < br.x ? tl.x : br.x;
-        const float maxX = tl.x < br.x ? br.x : tl.x;
-        const float minY = tl.y < br.y ? tl.y : br.y;
-        const float maxY = tl.y < br.y ? br.y : tl.y;
+        const Vec2 topLeft = renderer->getCameraPosition();
+        const Vec2 visible = renderer->visibleWorldSize();
+        const float minX = topLeft.x;
+        const float maxX = topLeft.x + visible.x;
+        const float minY = topLeft.y;
+        const float maxY = topLeft.y + visible.y;
         const Vec2 p = transform.position;
         return p.x < minX || p.x > maxX || p.y < minY || p.y > maxY;
     });

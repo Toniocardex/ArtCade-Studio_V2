@@ -12,6 +12,7 @@ import RuntimePreviewApp from './RuntimePreviewApp'
 
 const listeners = new Map<string, (event: { payload: unknown }) => void>()
 const emitToMock = vi.fn(async (..._args: unknown[]) => undefined)
+const invokeTauriMock = vi.fn(async (..._args: unknown[]) => undefined)
 const destroyWindowMock = vi.fn(async () => undefined)
 let closeRequestedHandler: ((event: { preventDefault: () => void }) => Promise<void>) | null = null
 const loadSceneMock = vi.fn(async (..._args: unknown[]) => ({ ok: true, loaded: [], failed: [] }))
@@ -36,6 +37,10 @@ vi.mock('@tauri-apps/api/event', () => ({
     listeners.set(event, handler)
     return () => listeners.delete(event)
   },
+}))
+
+vi.mock('../utils/tauri-invoke', () => ({
+  invokeTauri: (...args: unknown[]) => invokeTauriMock(...args),
 }))
 
 vi.mock('@tauri-apps/api/window', () => ({
@@ -94,6 +99,7 @@ describe('RuntimePreviewApp', () => {
     closeRequestedHandler = null
     emitToMock.mockClear()
     destroyWindowMock.mockClear()
+    invokeTauriMock.mockClear()
     loadSceneMock.mockClear()
     clearRegisteredMock.mockClear()
     setTextureCacheEvictedCallbackMock.mockClear()
@@ -111,6 +117,28 @@ describe('RuntimePreviewApp', () => {
     await waitFor(() => expect(loadWasmRuntimeMock).toHaveBeenCalledTimes(1))
     await waitFor(() => expect(screen.getByText('Waiting for preview...')).toBeTruthy())
     expect(loadSceneMock).not.toHaveBeenCalled()
+  })
+
+  it('keeps the runtime canvas aspect-correct inside resized preview windows', async () => {
+    render(<RuntimePreviewApp />)
+
+    await waitFor(() => expect(loadWasmRuntimeMock).toHaveBeenCalledTimes(1))
+    const canvas = document.getElementById('runtime-canvas') as HTMLCanvasElement | null
+    expect(canvas?.style.objectFit).toBe('contain')
+    expect(canvas?.style.imageRendering).toBe('pixelated')
+  })
+
+  it('toggles fullscreen with F11 in the runtime preview window', async () => {
+    render(<RuntimePreviewApp />)
+
+    await waitFor(() => expect(loadWasmRuntimeMock).toHaveBeenCalledTimes(1))
+    const event = new KeyboardEvent('keydown', { key: 'F11', cancelable: true })
+    window.dispatchEvent(event)
+
+    expect(event.defaultPrevented).toBe(true)
+    await waitFor(() => expect(invokeTauriMock).toHaveBeenCalledWith(
+      'toggle_runtime_preview_fullscreen',
+    ))
   })
 
   it('loads scene assets and enters play after receiving a bundle', async () => {

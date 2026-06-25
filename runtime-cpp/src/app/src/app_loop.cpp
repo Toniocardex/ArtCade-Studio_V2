@@ -152,6 +152,11 @@ void Application::loopIteration() {
     if (accumulator_ > targetDt_ * 4.f) accumulator_ = targetDt_ * 4.f;
 
     mod_->input->poll();
+#ifndef ARTCADE_WASM
+    if (mod_->input->wasKeyPressed("F11")) {
+        mod_->renderer->toggleBorderlessFullscreen();
+    }
+#endif
 
 #ifdef ARTCADE_WASM
     const bool simulating = EditorAPI::s_mode == 1;
