@@ -351,6 +351,34 @@ static void test_capsule_polygon_collinear_edges_can_be_separate() {
     CHECK(distSq < 16.1f);
 }
 
+static void test_sweep_aabb_ignores_tangent_ground_motion() {
+    const PhysicsMath::Aabb player{
+        -8.f, -16.f,
+        8.f, 0.f,
+    };
+    const PhysicsMath::Aabb ground{
+        -64.f, 0.f,
+        64.f, 16.f,
+    };
+    const auto hit = PhysicsMath::sweepAabb(player, { 24.f, 0.f }, ground);
+    CHECK(!hit.hit);
+}
+
+static void test_sweep_aabb_hits_thin_wall() {
+    const PhysicsMath::Aabb projectile{
+        -1.f, -1.f,
+        1.f, 1.f,
+    };
+    const PhysicsMath::Aabb wall{
+        49.5f, -32.f,
+        50.5f, 32.f,
+    };
+    const auto hit = PhysicsMath::sweepAabb(projectile, { 100.f, 0.f }, wall);
+    CHECK(hit.hit);
+    CHECK(hit.fraction > 0.48f && hit.fraction < 0.49f);
+    CHECK(hit.normal.x < -0.5f);
+}
+
 int main() {
     test_overlap_respects_layer_masks();
     test_resolve_profile_shapes_from_sprite_path();
@@ -362,6 +390,8 @@ int main() {
     test_polygon_raycast_hits_shape_edge();
     test_capsule_narrowphase_uses_rounded_caps();
     test_capsule_polygon_collinear_edges_can_be_separate();
+    test_sweep_aabb_ignores_tangent_ground_motion();
+    test_sweep_aabb_hits_thin_wall();
 
     if (g_failed == 0) {
         std::cout << "collision-world-mask-test: " << g_passed << " passed\n";

@@ -285,6 +285,61 @@ void World::resolveKinematicCollisionBody(
     if (!entityGateway_.getResolvedCollisionBody(id, selfBody) || !selfBody.enabled)
         return;
 
+    const Vec2 delta{
+        transform.position.x - beforeMove.position.x,
+        transform.position.y - beforeMove.position.y,
+    };
+    if (std::abs(delta.x) > 1e-6f || std::abs(delta.y) > 1e-6f) {
+        bool hitAny = false;
+        PhysicsMath::SweepHit bestHit;
+        for (const CollisionWorld::ShapeRef& authoredSelf : collisionWorld_.shapes()) {
+            if (authoredSelf.id != id)
+                continue;
+            if (!authoredSelf.shape.enabled
+                || authoredSelf.shape.response != CollisionResponse::Solid)
+                continue;
+            if (authoredSelf.shape.role != CollisionShapeRole::Body
+                && authoredSelf.shape.role != CollisionShapeRole::Feet)
+                continue;
+
+            CollisionWorld::ShapeRef moving = authoredSelf;
+            moving.instance =
+                CollisionWorld::shapeInstance(beforeMove, moving.shape);
+            moving.aabb = PhysicsMath::shapeWorldAabb(moving.instance);
+
+            for (const CollisionWorld::ShapeRef& other : collisionWorld_.shapes()) {
+                if (other.id == id)
+                    continue;
+                if (!other.shape.enabled
+                    || other.shape.response != CollisionResponse::Solid)
+                    continue;
+                if (!CollisionWorld::canCollide(moving, other))
+                    continue;
+                if (other.shape.oneWay
+                    && !(verticalVelocity >= 0.f
+                         && moving.aabb.maxY <= other.aabb.minY + 2.f))
+                    continue;
+
+                const PhysicsMath::SweepHit hit =
+                    PhysicsMath::sweepAabb(moving.aabb, delta, other.aabb);
+                if (!hit.hit || hit.fraction >= bestHit.fraction)
+                    continue;
+                bestHit = hit;
+                hitAny = true;
+            }
+        }
+
+        if (hitAny) {
+            const float t = std::max(0.f, bestHit.fraction - 1e-4f);
+            transform.position.x = beforeMove.position.x + delta.x * t;
+            transform.position.y = beforeMove.position.y + delta.y * t;
+            if (std::abs(bestHit.normal.x) > 0.f)
+                horizontalVelocity = 0.f;
+            if (std::abs(bestHit.normal.y) > 0.f)
+                verticalVelocity = 0.f;
+        }
+    }
+
     for (int pass = 0; pass < 4; ++pass) {
         bool resolvedAny = false;
         for (const CollisionWorld::ShapeRef& authoredSelf : collisionWorld_.shapes()) {

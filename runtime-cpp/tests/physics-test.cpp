@@ -191,7 +191,22 @@ int main() {
     phys.destroyBody(hForce);
     printf("[PASS] 18. impulse and force have distinct semantics\n");
 
+    // ---- Test 19: dynamic CCD against a thin wall --------------------------
+    uint32_t hWall = phys.createBody(40, makeRect(BodyType::Static, 1.f, 100.f));
+    uint32_t hFast = phys.createBody(41, makeRect(BodyType::Dynamic, 2.f, 2.f));
+    phys.setPosition(hWall, { 50.f, 0.f });
+    phys.setPosition(hFast, { 0.f, 0.f });
+    phys.setLinearVelocity(hFast, { 1000.f, 0.f });
+    phys.step(0.1f);
+    Vec2 fastPos = phys.getPosition(hFast);
+    Vec2 fastVel = phys.getLinearVelocity(hFast);
+    assert(fastPos.x < 49.f);
+    assert(std::abs(fastVel.x) < 0.001f);
+    phys.destroyBody(hWall);
+    phys.destroyBody(hFast);
+    printf("[PASS] 19. dynamic CCD stops before thin wall (x=%.2f)\n", fastPos.x);
+
     phys.shutdown();
-    printf("\n[physics-test] 18/18 PASSED\n");
+    printf("\n[physics-test] 19/19 PASSED\n");
     return 0;
 }

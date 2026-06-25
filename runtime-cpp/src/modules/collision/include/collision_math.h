@@ -382,6 +382,14 @@ struct RaycastHit {
     Vec2  point{};
 };
 
+/** Result of sweeping a moving shape against a fixed shape over one delta. */
+struct SweepHit {
+    bool  hit = false;
+    float fraction = 1.f;
+    Vec2  normal{};
+    Vec2  point{};
+};
+
 /** Segment vs axis-aligned box; returns closest hit with fraction in [0,1]. */
 inline RaycastHit raycastSegmentVsAabb(const Vec2& from, const Vec2& to, const Aabb& box) {
     RaycastHit best;
@@ -464,6 +472,64 @@ inline RaycastHit raycastSegmentVsCircle(const Vec2& from, const Vec2& to,
         best.point    = { from.x + d.x * tHit, from.y + d.y * tHit };
     }
     return best;
+}
+
+/**
+ * Sweeps a moving AABB across delta against a fixed AABB.
+ * @param moving  starting world-space AABB.
+ * @param delta   movement vector over the tested step.
+ * @param fixed   stationary world-space AABB.
+ * @returns earliest blocking hit; tangent edge contact is not blocking.
+ */
+inline SweepHit sweepAabb(const Aabb& moving, const Vec2& delta, const Aabb& fixed) {
+    SweepHit hit;
+    const bool penetrating = moving.minX < fixed.maxX && moving.maxX > fixed.minX
+        && moving.minY < fixed.maxY && moving.maxY > fixed.minY;
+    if (penetrating) {
+        hit.hit = true;
+        hit.fraction = 0.f;
+        hit.point = {
+            (std::max(moving.minX, fixed.minX) + std::min(moving.maxX, fixed.maxX)) * 0.5f,
+            (std::max(moving.minY, fixed.minY) + std::min(moving.maxY, fixed.maxY)) * 0.5f,
+        };
+        return hit;
+    }
+
+    const Vec2 movingCenter{
+        (moving.minX + moving.maxX) * 0.5f,
+        (moving.minY + moving.maxY) * 0.5f,
+    };
+    const float movingHalfW = (moving.maxX - moving.minX) * 0.5f;
+    const float movingHalfH = (moving.maxY - moving.minY) * 0.5f;
+    const Aabb expanded{
+        fixed.minX - movingHalfW,
+        fixed.minY - movingHalfH,
+        fixed.maxX + movingHalfW,
+        fixed.maxY + movingHalfH,
+    };
+    const Vec2 target{
+        movingCenter.x + delta.x,
+        movingCenter.y + delta.y,
+    };
+    const RaycastHit ray = raycastSegmentVsAabb(movingCenter, target, expanded);
+    if (!ray.hit)
+        return hit;
+
+    hit.hit = true;
+    hit.fraction = ray.fraction;
+    hit.point = ray.point;
+    const float eps = 1e-5f;
+    if (std::abs(ray.point.x - expanded.minX) <= eps)
+        hit.normal = { -1.f, 0.f };
+    else if (std::abs(ray.point.x - expanded.maxX) <= eps)
+        hit.normal = { 1.f, 0.f };
+    else if (std::abs(ray.point.y - expanded.minY) <= eps)
+        hit.normal = { 0.f, -1.f };
+    else if (std::abs(ray.point.y - expanded.maxY) <= eps)
+        hit.normal = { 0.f, 1.f };
+    if (dot(delta, hit.normal) >= -1e-6f)
+        return {};
+    return hit;
 }
 
 inline bool segmentIntersectionFraction(Vec2 from,

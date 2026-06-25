@@ -207,15 +207,15 @@ struct Physics::Impl {
 
         if (moveLen > threshold && moveLen > 1e-6f) {
             const Vec2 from = body.position;
-            const Vec2 to   = { from.x + delta.x, from.y + delta.y };
-            RaycastHit     best;
+            SweepHit best;
+            const Aabb movingBox = shapeWorldAabb(mainShape(body));
 
             for (const auto& [handle, other] : bodies) {
                 (void)handle;
                 if (!other.active || other.bodyType == BodyType::Dynamic)
                     continue;
-                const RaycastHit hit =
-                    raycastSegmentVsShape(from, to, mainShape(other));
+                const SweepHit hit =
+                    sweepAabb(movingBox, delta, shapeWorldAabb(mainShape(other)));
                 if (!hit.hit || hit.fraction >= best.fraction)
                     continue;
                 best = hit;
@@ -225,10 +225,9 @@ struct Physics::Impl {
                 const float t = std::max(0.f, best.fraction - 1e-4f);
                 body.position.x = from.x + delta.x * t;
                 body.position.y = from.y + delta.y * t;
-                if (std::abs(delta.x) > 1e-6f
-                    && std::abs(delta.y) <= std::abs(delta.x))
+                if (std::abs(best.normal.x) > 0.f)
                     body.velocity.x = 0.f;
-                else if (std::abs(delta.y) > 1e-6f)
+                if (std::abs(best.normal.y) > 0.f)
                     body.velocity.y = 0.f;
                 return;
             }
