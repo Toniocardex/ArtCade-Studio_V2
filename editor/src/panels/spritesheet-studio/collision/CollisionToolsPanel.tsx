@@ -44,7 +44,7 @@ export function CollisionToolsPanel({
           >
             <span className="font-semibold">{formatShapeRoleLabel(shape.role)}</span>
             <span className="block text-[10px] text-[var(--muted)]">
-              {shape.layerId} - {shape.response}
+              {shape.type} - {shape.layerId} - {shape.response}
             </span>
           </button>
         ))}

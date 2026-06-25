@@ -7,6 +7,8 @@ import {
 } from '../../../utils/collision-profile'
 import { ROLES } from './CollisionToolsPanel'
 
+const SHAPE_TYPES: CollisionShapeDef['type'][] = ['rectangle', 'circle', 'capsule', 'polygon']
+
 type CollisionPropertiesPanelProps = Readonly<{
   project: ProjectDoc | null
   profile: CollisionProfileDef
@@ -50,6 +52,42 @@ export function CollisionPropertiesPanel({
     commit({ maskLayerIds: [...current] })
   }
 
+  function changeType(nextType: CollisionShapeDef['type']) {
+    if (nextType === 'polygon') {
+      commit({
+        type: nextType,
+        points: shape.points && shape.points.length >= 3
+          ? shape.points
+          : [
+              { x: 0, y: 0 },
+              { x: Math.max(0.1, shape.width), y: 0 },
+              { x: Math.max(0.05, shape.width * 0.5), y: Math.max(0.1, shape.height) },
+            ],
+      })
+      return
+    }
+    commit({ type: nextType })
+  }
+
+  function patchPoint(index: number, key: 'x' | 'y', value: number) {
+    const points = [...(shape.points ?? [])]
+    const point = points[index]
+    if (!point) return
+    points[index] = { ...point, [key]: value }
+    commit({ points })
+  }
+
+  function addPoint() {
+    const points = [...(shape.points ?? [])]
+    points.push({ x: shape.width * 0.5, y: shape.height * 0.5 })
+    commit({ points })
+  }
+
+  function removePoint(index: number) {
+    const points = (shape.points ?? []).filter((_, i) => i !== index)
+    commit({ points: points.length >= 3 ? points : shape.points })
+  }
+
   return (
     <aside className="w-64 shrink-0 border-l border-[var(--border)] flex flex-col min-h-0 bg-[var(--panel-2)] overflow-y-auto">
       <div className="px-3 py-2 border-b border-[var(--border)]">
@@ -58,6 +96,16 @@ export function CollisionPropertiesPanel({
         </p>
       </div>
       <div className="p-3 space-y-3 text-xs">
+        <div>
+          <label className="text-[9px] uppercase text-[var(--muted)]">Type</label>
+          <EditorSelect
+            value={shape.type}
+            onChange={(next) => changeType(next as CollisionShapeDef['type'])}
+            triggerClassName="py-1"
+            options={SHAPE_TYPES.map((type) => ({ value: type, label: type }))}
+            aria-label="Collision shape type"
+          />
+        </div>
         <div>
           <label className="text-[9px] uppercase text-[var(--muted)]">Role</label>
           <EditorSelect
@@ -122,6 +170,64 @@ export function CollisionPropertiesPanel({
             </div>
           ))}
         </div>
+        {shape.type === 'circle' && (
+          <div>
+            <label className="text-[9px] uppercase text-[var(--muted)]">Radius</label>
+            <input
+              type="number"
+              step={0.5}
+              min={0}
+              className="editor-input py-1"
+              value={shape.radius}
+              onChange={(e) => commit({ radius: Number.parseFloat(e.target.value) || 0 })}
+            />
+          </div>
+        )}
+        {shape.type === 'polygon' && (
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-[9px] uppercase text-[var(--muted)]">Polygon points</p>
+              <button
+                type="button"
+                className="text-[10px] px-2 py-0.5 rounded border border-[var(--border)] hover:border-[var(--accent)]"
+                onClick={addPoint}
+              >
+                Add
+              </button>
+            </div>
+            <div className="space-y-1 max-h-44 overflow-y-auto">
+              {(shape.points ?? []).map((point, index) => (
+                <div key={`point-${index}`} className="grid grid-cols-[1fr_1fr_auto] gap-1 items-center">
+                  <input
+                    type="number"
+                    step={0.01}
+                    className="editor-input py-1"
+                    value={point.x}
+                    onChange={(e) => patchPoint(index, 'x', Number.parseFloat(e.target.value) || 0)}
+                    aria-label={`Point ${index + 1} x`}
+                  />
+                  <input
+                    type="number"
+                    step={0.01}
+                    className="editor-input py-1"
+                    value={point.y}
+                    onChange={(e) => patchPoint(index, 'y', Number.parseFloat(e.target.value) || 0)}
+                    aria-label={`Point ${index + 1} y`}
+                  />
+                  <button
+                    type="button"
+                    className="w-7 h-7 rounded border border-[var(--border)] text-[var(--danger)] disabled:opacity-40"
+                    disabled={(shape.points?.length ?? 0) <= 3}
+                    onClick={() => removePoint(index)}
+                    aria-label={`Remove point ${index + 1}`}
+                  >
+                    x
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         <label className="flex items-center gap-2">
           <input
             type="checkbox"

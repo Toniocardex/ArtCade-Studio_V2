@@ -2,7 +2,8 @@ import { useCallback, useRef, type PointerEvent } from 'react'
 import type { CollisionProfileDef } from '../../../types'
 import type { AnimationFrameRect } from '../../../types'
 import {
-  pixelRectToShape,
+  pixelRectToShapePatch,
+  polygonClipPath,
   referenceFrameRect,
   ROLE_COLORS,
   shapeToPixelRect,
@@ -44,7 +45,7 @@ export function CollisionShapeOverlay({
   const commitRect = useCallback((rect: PixelRect) => {
     const shape = shapes[activeShapeIndex]
     if (!shape) return
-    const normalized = pixelRectToShape(rect, frame, zoom)
+    const normalized = pixelRectToShapePatch(shape, rect, frame, zoom)
     onPatchProfile(patchCollisionProfileShape(profile, activeShapeIndex, normalized))
   }, [activeShapeIndex, frame, onPatchProfile, profile, shapes, zoom])
 
@@ -103,6 +104,13 @@ export function CollisionShapeOverlay({
         const rect = shapeToPixelRect(shape, frame, zoom)
         const color = ROLE_COLORS[shape.role] ?? '#38bdf8'
         const isActive = index === activeShapeIndex
+        const clipPath = polygonClipPath(shape)
+        const borderRadius =
+          shape.type === 'circle'
+            ? '999px'
+            : shape.type === 'capsule'
+              ? '999px'
+              : undefined
         return (
           <div
             key={`collision-shape-${index}`}
@@ -113,11 +121,21 @@ export function CollisionShapeOverlay({
               width: rect.w,
               height: rect.h,
               border: `2px solid ${color}`,
-              background: isActive ? `${color}33` : `${color}1a`,
+              borderRadius,
+              background: clipPath ? 'transparent' : isActive ? `${color}33` : `${color}1a`,
               boxShadow: isActive ? `0 0 0 1px ${color}` : undefined,
             }}
             onPointerDown={onPointerDown('move', rect)}
           >
+            {clipPath && (
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  clipPath,
+                  background: isActive ? `${color}33` : `${color}1a`,
+                }}
+              />
+            )}
             {isActive && (
               <div
                 className="absolute right-0 bottom-0 w-3 h-3 translate-x-1/2 translate-y-1/2 rounded-sm cursor-se-resize"
