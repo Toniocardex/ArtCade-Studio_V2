@@ -17,18 +17,29 @@ function entityBoard(_entityId: number): LogicBoard {
 }
 
 describe('physics-trigger-capabilities', () => {
-  it('entityHasCollisionBody requires explicit collider size', () => {
+  it('entityHasCollisionBody detects enabled Collision Body shapes', () => {
     const e = createEntityDef(1)
     expect(entityHasCollisionBody(e)).toBe(false)
-    e.physics = {
-      bodyType: 'Dynamic',
-      collider: {
-        shape: 'Rectangle',
-        size: { x: 32, y: 32 },
-        offset: { x: 0, y: 0 },
+    e.collisionBody = {
+      bodyType: 'kinematic',
+      enabled: true,
+      shapes: [{
+        type: 'rectangle',
+        response: 'solid',
+        role: 'body',
+        layerId: 'player',
+        maskLayerIds: ['ground'],
+        offsetX: 0,
+        offsetY: 0,
+        width: 1,
+        height: 1,
+        radius: 16,
+        enabled: true,
+        oneWay: false,
         density: 1,
         friction: 0.3,
-      },
+        restitution: 0,
+      }],
     }
     expect(entityHasCollisionBody(e)).toBe(true)
   })
@@ -52,22 +63,18 @@ describe('physics-trigger-capabilities', () => {
       entityBoard(1),
     )
     expect(req?.status).toBe('partial')
-    expect(req?.message).toMatch(/default 32/)
+    expect(req?.message).toMatch(/default bounds/)
     expect(req?.message).not.toMatch(/require physics overlap/i)
   })
 
-  it('clears warning when physics collider present for tuning', () => {
+  it('clears warning when Collision Body present for tuning', () => {
     const project = createBlankProject('T')
     const player = createEntityDef(1, 'Player', 'Player')
-    player.physics = {
-      bodyType: 'Kinematic',
-      collider: {
-        shape: 'Rectangle',
-        size: { x: 32, y: 32 },
-        offset: { x: 0, y: 0 },
-        density: 1,
-        friction: 0.3,
-      },
+    player.collisionBody = {
+      bodyType: 'kinematic',
+      enabled: true,
+      profileId: 'hero',
+      shapes: [],
     }
     project.entities[1] = player
 

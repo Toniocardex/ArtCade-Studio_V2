@@ -13,14 +13,14 @@ export function isCollisionTrigger(type: LogicTrigger['type']): boolean {
   return COLLISION_TRIGGERS.has(type)
 }
 
-/** Explicit Physics collider size in the inspector (tuning hitbox). */
+/** Explicit Collision Body profile/shapes in the inspector (tuning hitbox). */
 export function entityHasCollisionBody(entity: EntityDef): boolean {
-  const p = entity.physics
-  if (!p) return false
-  return p.collider.size.x > 2 || p.collider.size.y > 2
+  const body = entity.collisionBody
+  if (!body?.enabled) return false
+  return Boolean(body.profileId?.trim()) || body.shapes.some(shape => shape.enabled)
 }
 
-/** Target can use geometric overlap (Transform + default or explicit collider). */
+/** Target can use geometric overlap via CollisionWorld/default authored bounds. */
 export function entityHasOverlapBounds(entity: EntityDef): boolean {
   return entity != null
 }
@@ -30,8 +30,8 @@ function targetEntityIds(project: ProjectDoc, board: LogicBoard): number[] {
 }
 
 /**
- * Logic Board hints for collision triggers — geometric overlap does not require
- * a Physics body; optional collider tunes the default 32×scale hitbox.
+ * Logic Board hints for collision triggers. CollisionWorld does not require a
+ * Physics body; Collision Body profiles/shapes tune the default authored bounds.
  */
 export function collisionTriggerRequirement(
   trigger: LogicTrigger,
@@ -62,7 +62,7 @@ export function collisionTriggerRequirement(
       label: 'Hitbox (optional)',
       status: 'partial',
       message:
-        'Overlap uses Transform bounds (default 32×scale). Add Physics (Collider) in the Inspector to tune the hitbox — not required for pickup.',
+        'Overlap uses authored default bounds. Add Collision Body in the Inspector to tune the hitbox - not required for pickup.',
     }
   }
 
@@ -71,7 +71,7 @@ export function collisionTriggerRequirement(
       label: 'Hitbox (optional)',
       status: 'partial',
       message:
-        'Some targets use the default hitbox only. Add Physics (Collider) to tune size per entity.',
+        'Some targets use default bounds only. Add Collision Body to tune size per entity.',
     }
   }
 

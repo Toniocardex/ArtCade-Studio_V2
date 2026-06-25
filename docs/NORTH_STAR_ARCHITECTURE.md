@@ -79,7 +79,8 @@ Patterns:
 - **ECS:** EnTT registry inside `RuntimeEntityGateway` / `World` — not classic OOP entity hierarchies. Rationale: [`ARCHITECTURAL_RATIONALE.md`](ARCHITECTURAL_RATIONALE.md).
 - **Modules:** `IModule` + `EngineContext` DI (`runtime-cpp/src/modules/*`).
 - **Rendering:** deferred `drawQueue` → `RaylibRenderer` (`renderer.cpp`). Gameplay code does not include `<raylib.h>`.
-- **Physics:** custom 2D solver (`physics/`, `collision/`), not Box2D.
+- **Collision:** `CollisionWorld` is the gameplay authority for CollisionBody shapes, tilemap collision, raycast/overlap/sweep queries, platformer resolution, events, and debug overlay.
+- **Physics:** optional arcade body state/solver for dynamic movement (`physics/`), not Box2D; it does not own gameplay collision masks.
 - **Logic at runtime:** Lua 5.4 (+ Game API), including Logic Board **generated** handlers.
 
 ---
@@ -132,7 +133,7 @@ When adding a world flag, decide: **runtime sim**, **WASM preview reload**, **co
 | Feature | Where |
 |---------|--------|
 | Logic rule trace | World setting `logicDebugTrace` → `debug.log` in generated Lua |
-| Physics collider overlay | World setting `physicsDebugDraw` → runtime draw (play mode) |
+| Collision overlay | World setting `physicsDebugDraw` → runtime draw from `CollisionWorld` (play mode) |
 | Frame / module timings | `RuntimeProfiler` + status bar poll (`editor_get_runtime_profile`) |
 | Lua draw helpers | `debug.drawRect`, `debug.profile()` in Game API |
 
@@ -161,7 +162,7 @@ Before tagging or shipping an installer:
 2. `cd editor && npm test -- --run`
 3. `cd editor && npm run build`
 4. Close running `artcade-editor.exe`, then `npm run desktop:release` (installers) or `npm run desktop:build` (exe only)
-5. Smoke: open project, toggle **Physics collider overlay**, drag entity (rotation/scale preserved), Play blocked when health errors exist.
+5. Smoke: open project, toggle **Collision overlay**, drag entity (rotation/scale preserved), Play blocked when health errors exist.
 
 ---
 

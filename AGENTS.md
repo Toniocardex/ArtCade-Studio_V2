@@ -179,8 +179,11 @@ pool.count(className)                  → count
 
 -- Collision
 collision.overlap(id1, id2)            → bool
-collision.raycast(x1, y1, x2, y2)      → {hit, entityId}
-collision.touchingClass(entityId, className) → bool
+collision.firstTouching(id, filter?)   → entityId | 0
+collision.raycast(x1, y1, x2, y2, filter?) → {hit, entityId, x, y, dist}
+collision.isGrounded(entityId)         → bool
+collision.hasEvent(id, kind, filter?)  → bool
+collision.events(id, kind, filter?)    → [{kind,self,other,...}]
 
 -- Input
 input.isKeyDown(keyCode)               → bool

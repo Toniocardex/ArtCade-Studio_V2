@@ -1,6 +1,6 @@
 # Fixed-step contract (ArtCade V2 runtime)
 
-Canonical order of operations for **one simulation step** in PLAY mode. Source of truth: `Application::tickFixedStep` in [`runtime-cpp/src/app/src/app.cpp`](../runtime-cpp/src/app/src/app.cpp).
+Canonical order of operations for **one simulation step** in PLAY mode. Source of truth: `Application::tickFixedStep` in [`runtime-cpp/src/app/src/app_loop.cpp`](../runtime-cpp/src/app/src/app_loop.cpp).
 
 Related: [`PHYSICS_OPTIONAL_INTEGRATION_PLAN.md`](PHYSICS_OPTIONAL_INTEGRATION_PLAN.md) (`physicsMode`), [`ARCHITETTURA_TECNICA_ENGINE_2D.md`](ARCHITETTURA_TECNICA_ENGINE_2D.md) §9 (high-level pipeline).
 
@@ -21,11 +21,11 @@ flowchart TD
   flush1[flushEntityQueues]
   physSync[syncPhysicsToEntities]
   cam[tickCameraTargets]
-  sensors[refreshSensorEdges + dispatchSensorEvents]
+  collisions[refreshCollisionEvents]
   life[dispatchLifecycleEvents]
   autoDestroy[tickAutoDestroy + flush + lifecycle again]
   clearDraw --> gameplay --> animPre --> luaTick --> dialogTick --> camShake --> platformer --> physStep
-  physStep --> flush1 --> physSync --> cam --> sensors --> life --> autoDestroy
+  physStep --> flush1 --> physSync --> cam --> collisions --> life --> autoDestroy
 ```
 
 | Step | What runs | Notes |
@@ -43,7 +43,7 @@ flowchart TD
 | 11 | `world->flushEntityQueues()` | Destroys queued from Lua before sync. |
 | 12 | **`world->syncPhysicsToEntities()`** | Physics body → `Transform` for simulated bodies (see table below). |
 | 13 | `world->tickCameraTargets(dt)` | |
-| 14 | **`world->refreshSensorEdges()`** + `dispatchSensorEvents()` | After physics + sync (same-frame overlap). |
+| 14 | **`world->refreshCollisionEvents()`** | Rebuilds `CollisionWorld` and computes native enter/stay/exit events after physics + sync. Lua/Logic Board reads these events on the next fixed tick. |
 | 15 | `dispatchLifecycleEvents()` | Spawn/destroy handlers. |
 | 16 | `tickAutoDestroy` + flush + lifecycle again | |
 | — | `eventBus->flushDeferred()` | End of step (dialog `emitEvent` + other deferred). |
@@ -86,24 +86,25 @@ See [`PHYSICS_OPTIONAL_INTEGRATION_PLAN.md`](PHYSICS_OPTIONAL_INTEGRATION_PLAN.m
 
 ---
 
-## Dual collision layers (post–custom physics refactor)
+## Collision system contract
 
-Two cooperating systems share [`collision_math.h`](../runtime-cpp/src/modules/collision/include/collision_math.h):
+[`CollisionWorld`](../runtime-cpp/src/modules/collision/include/collision_world.h) is the runtime authority for gameplay collision queries, platformer resolution, tilemap collision, debug overlay, and Logic Board collision events. It uses [`collision_math.h`](../runtime-cpp/src/modules/collision/include/collision_math.h) for rectangle/circle/capsule/convex polygon overlap, raycast, and sweep/CCD helpers.
 
-| Layer | Module | When it runs | Terrain / solids |
-|-------|--------|--------------|------------------|
-| **World platformer** | `world_grounding.cpp` | Step 8, before `physics.step` | Solid entities + **tile grid AABB** (no physics bodies required) |
-| **Physics solver** | `physics.cpp` | Step 9 | Dynamic vs static/kinematic bodies; **tile static bodies** only when `Physics::hasDynamicBodies()` |
-
-**Tilemap physics bodies:** `World::rebuildTilemapPhysics()` creates merged horizontal static rectangles (one body per solid run per row) only if at least one **Dynamic** body exists. `World::syncTilemapPhysicsWithDynamics()` also runs when the gateway creates or destroys a physics body (e.g. Lua spawn of the first Dynamic mid-scene). Platformer-only scenes use the tile grid for grounding and `isSpaceFree`; `collision.*` against tile terrain in those projects requires a Dynamic body or explicit static colliders.
-
-**Entity-vs-entity Lua (`collision.overlap`, `collision.touchingClass`, `collision.firstTouching`):** Implemented in [`entity_collision_query.h`](../runtime-cpp/src/modules/collision/include/entity_collision_query.h) from **Transform + collider** (default 32×scale when no explicit collider). **Does not require** physics bodies or `physics.step`. Same kernel as World platformer AABB. `collision.raycast` still uses physics bodies.
-
-| Feature | Layer |
+| Feature | Source |
 |---------|--------|
-| Pickup / While touching class | `collision.touchingClass` → geometric query |
-| Destroy Other on Enter | `collision.firstTouching` + compiler sets `other` |
-| Dynamic crates / impulses | Physics solver + bodies |
-| Platformer ground | World tile grid + Solid AABB |
+| Entity collision | `CollisionBody` + resolved `CollisionShape` profiles |
+| Tilemap collision | Tile palette collision profiles, aggregated into maximal rectangles when shapes are equivalent full-cell rectangles |
+| Platformer ground/walls/one-way | Kinematic sweep + `CollisionWorld` solid shapes |
+| Ladders/zones/pickups/hazards | `response=sensor` shapes with `role=interaction/hitbox/hurtbox` |
+| Dynamic arcade bodies | `PhysicsComponent` velocity/mass state, resolved against `CollisionWorld` data |
 
-**Platformer + collider:** Transform is owned by World; optional kinematic body follows transform each tick. `syncPhysicsToEntities` does not overwrite platformer transforms.
+Lua/Logic Board collision API:
+
+| API | Notes |
+|-----|-------|
+| `collision.overlap(id1, id2)` | Pair overlap through `CollisionWorld`. |
+| `collision.firstTouching(id, filter?)` | First touching entity matching `layer`, `role`, `response`, `tag`, or `className`. |
+| `collision.raycast(x1, y1, x2, y2, filter?)` | Raycast against solid collision shapes. |
+| `collision.isGrounded(id)` | Feet/body probe against solid collision shapes. |
+| `collision.hasEvent(id, kind, filter?)` | Native enter/stay/exit gate. |
+| `collision.events(id, kind, filter?)` | Current event records normalized so queried id is `self`. |

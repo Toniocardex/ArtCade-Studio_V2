@@ -255,7 +255,7 @@ export type PhysicsMode = 'off' | 'auto' | 'on'
 export interface WorldSettings {
   /** When true, Logic Board compile emits debug.log traces for rule conditions. */
   logicDebugTrace?: boolean
-  /** When true, runtime draws physics collider outlines while playing. */
+  /** When true, runtime draws CollisionWorld outlines/events while playing. */
   physicsDebugDraw?: boolean
   /** When true, status bar shows FPS and profiler timings during play. */
   showRuntimeStats?: boolean
