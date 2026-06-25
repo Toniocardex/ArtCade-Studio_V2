@@ -24,28 +24,13 @@ import {
   setTextureCacheEvictedCallback,
   type WasmCallbacks,
 } from '../utils/wasm-bridge'
+import {
+  runtimePreviewBackground,
+  runtimePreviewCanvasStyle,
+  type RuntimePreviewDisplaySize,
+} from './runtime-preview-display'
 
 type PreviewStatus = 'booting' | 'waiting' | 'loading' | 'running' | 'error'
-
-function runtimeCanvasStyle(background: string): Partial<CSSStyleDeclaration> {
-  return {
-    display: 'block',
-    position: 'absolute',
-    inset: '0',
-    width: '100vw',
-    height: '100vh',
-    objectFit: 'contain',
-    background,
-    imageRendering: 'pixelated',
-  }
-}
-
-function sceneBackground(bundle: PreviewTransitionBundle | null): string {
-  const scene = bundle?.project.scenes[bundle.activeSceneId]
-  const color = scene?.backgroundColor
-  if (!color) return '#050608'
-  return `rgb(${Math.round(color.x * 255)}, ${Math.round(color.y * 255)}, ${Math.round(color.z * 255)})`
-}
 
 export default function RuntimePreviewApp() {
   const hostRef = useRef<HTMLDivElement>(null)
@@ -58,6 +43,10 @@ export default function RuntimePreviewApp() {
   const [bundle, setBundle] = useState<PreviewTransitionBundle | null>(null)
   const [status, setStatus] = useState<PreviewStatus>('booting')
   const [message, setMessage] = useState('Loading runtime...')
+  const [windowSize, setWindowSize] = useState<RuntimePreviewDisplaySize>(() => ({
+    x: window.innerWidth,
+    y: window.innerHeight,
+  }))
 
   bundleRef.current = bundle
 
@@ -68,7 +57,6 @@ export default function RuntimePreviewApp() {
 
   useLayoutEffect(() => {
     const canvas = getRuntimeCanvas()
-    Object.assign(canvas.style, runtimeCanvasStyle(sceneBackground(bundleRef.current)))
     hostRef.current?.appendChild(canvas)
     setCanvasReady(true)
     return () => {
@@ -78,8 +66,20 @@ export default function RuntimePreviewApp() {
   }, [])
 
   useLayoutEffect(() => {
-    Object.assign(getRuntimeCanvas().style, runtimeCanvasStyle(sceneBackground(bundle)))
-  }, [bundle])
+    Object.assign(getRuntimeCanvas().style, runtimePreviewCanvasStyle(
+      bundle,
+      windowSize,
+    ))
+  }, [bundle, windowSize])
+
+  useEffect(() => {
+    const onResize = () => setWindowSize({
+      x: window.innerWidth,
+      y: window.innerHeight,
+    })
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
 
   useEffect(() => {
     if (!isTauri()) return undefined
@@ -213,6 +213,10 @@ export default function RuntimePreviewApp() {
 
       setMessage('Starting game...')
       const outcome = runtimeSync.transitionPreview('play', activeBundle)
+      Object.assign(getRuntimeCanvas().style, runtimePreviewCanvasStyle(
+        activeBundle,
+        { x: window.innerWidth, y: window.innerHeight },
+      ))
       if (cancelled || generation !== sessionGenerationRef.current) return
       if (!outcome.ok) {
         setStatus('error')
@@ -243,7 +247,7 @@ export default function RuntimePreviewApp() {
         height: '100vh',
         margin: 0,
         overflow: 'hidden',
-        background: sceneBackground(bundle),
+        background: runtimePreviewBackground(bundle),
         color: '#dfe7f5',
         fontFamily: 'JetBrains Mono, ui-monospace, monospace',
       }}

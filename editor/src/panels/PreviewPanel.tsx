@@ -379,7 +379,7 @@ export default function PreviewPanel({
   const frame = useDockedRuntimePreview ? vp : res
 
   const preview = !useDockedRuntimePreview && cameraPreview && (vp.x !== res.x || vp.y !== res.y)
-  const showCameraFrame = !useDockedRuntimePreview && mode === 'canvas' && (vp.x < res.x || vp.y < res.y)
+  const showCameraFrame = preview && mode === 'canvas' && (vp.x < res.x || vp.y < res.y)
   const overscrollPx = clientSize
     ? Math.round(Math.min(clientSize.x, clientSize.y) * EDITOR_CANVAS_OVERSCROLL_FACTOR)
     : 0
@@ -759,9 +759,7 @@ export default function PreviewPanel({
             style={{
               width:     `${frameW}px`,
               height:    `${frameH}px`,
-              boxShadow: preview
-                ? '0 0 0 2px var(--accent), 0 25px 50px -12px rgb(0 0 0 / 0.5)'
-                : '0 25px 50px -12px rgb(0 0 0 / 0.5)',
+              boxShadow: preview ? '0 0 0 2px var(--accent)' : undefined,
             }}
           >
             {showCameraFrame && (

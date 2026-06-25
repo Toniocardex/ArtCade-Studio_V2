@@ -120,11 +120,23 @@ describe('RuntimePreviewApp', () => {
   })
 
   it('keeps the runtime canvas aspect-correct inside resized preview windows', async () => {
+    vi.spyOn(runtimeSync, 'transitionPreview').mockReturnValue({
+      ok: true,
+      code: 0,
+      nextPlaying: true,
+    })
+    const bundle = makeBundle()
+
     render(<RuntimePreviewApp />)
 
     await waitFor(() => expect(loadWasmRuntimeMock).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(listeners.has(RUNTIME_PREVIEW_START_EVENT)).toBe(true))
+    dispatchStart(bundle)
+    await waitFor(() => expect(loadSceneMock).toHaveBeenCalled())
     const canvas = document.getElementById('runtime-canvas') as HTMLCanvasElement | null
-    expect(canvas?.style.objectFit).toBe('contain')
+    expect(canvas?.style.width).toBe('1024px')
+    expect(canvas?.style.height).toBe('640px')
+    expect(canvas?.style.transform).toBe('translate(-50%, -50%)')
     expect(canvas?.style.imageRendering).toBe('pixelated')
   })
 
