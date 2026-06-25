@@ -84,6 +84,10 @@ public:
     EntityId firstCollisionTouching(EntityId id, const CollisionWorld::Filter& filter) const;
     /** Number of active runtime collision shapes, useful for debug overlays/tests. */
     size_t collisionShapeCount() const;
+    /** Read-only runtime collision shapes generated from entities and tilemaps. */
+    const std::vector<CollisionWorld::ShapeRef>& collisionShapes() const;
+    /** Read-only collision events computed during the latest collision refresh. */
+    const std::vector<CollisionWorld::ContactEvent>& collisionEvents() const;
     /** Return current-frame collision events involving id, normalized so id is self. */
     std::vector<CollisionWorld::ContactEvent> collisionEventsFor(
         EntityId id,

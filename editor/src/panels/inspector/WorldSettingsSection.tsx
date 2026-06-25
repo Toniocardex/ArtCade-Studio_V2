@@ -97,7 +97,7 @@ export function WorldDebugTimeSection() {
           }
           className="accent-[var(--accent)]"
         />
-        <span className="text-[10px] text-[var(--text)]">Physics collider overlay (play)</span>
+        <span className="text-[10px] text-[var(--text)]">Collision overlay (play)</span>
       </label>
       <label className="flex items-center gap-2 mb-2 cursor-pointer select-none">
         <input

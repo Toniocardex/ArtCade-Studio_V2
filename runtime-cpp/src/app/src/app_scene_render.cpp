@@ -425,9 +425,8 @@ void Application::renderActiveScene() {
     if (mod_->dialogManager && mod_->dialogManager->isActive()) {
         mod_->dialogManager->render();
     }
-    if (EditorAPI::s_physicsDebugDraw && !overlay.inEditMode && mod_->physics) {
-        AppRender::drawPhysicsDebug(
-            *mod_->renderer, *mod_->entityGateway, *mod_->physics);
+    if (EditorAPI::s_physicsDebugDraw && !overlay.inEditMode && mod_->world) {
+        AppRender::drawCollisionDebug(*mod_->renderer, *mod_->world);
     }
 
     mod_->renderer->endWorldPass();

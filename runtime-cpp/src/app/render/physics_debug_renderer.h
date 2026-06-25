@@ -1,16 +1,17 @@
 #pragma once
 
 namespace ArtCade::Modules {
-class Physics;
 class Renderer;
-class RuntimeEntityGateway;
+}
+
+namespace ArtCade {
+class World;
 }
 
 namespace ArtCade::AppRender {
 
-/** Draw active physics colliders and velocity vectors. */
-void drawPhysicsDebug(Modules::Renderer& renderer,
-                      Modules::RuntimeEntityGateway& gateway,
-                      Modules::Physics& physics);
+/** Draw CollisionWorld shapes/events generated from entities and tilemaps. */
+void drawCollisionDebug(Modules::Renderer& renderer,
+                        const World& world);
 
 } // namespace ArtCade::AppRender

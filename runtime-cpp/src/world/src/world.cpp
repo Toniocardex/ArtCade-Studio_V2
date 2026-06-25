@@ -416,6 +416,14 @@ size_t World::collisionShapeCount() const {
     return collisionWorld_.shapes().size();
 }
 
+const std::vector<CollisionWorld::ShapeRef>& World::collisionShapes() const {
+    return collisionWorld_.shapes();
+}
+
+const std::vector<CollisionWorld::ContactEvent>& World::collisionEvents() const {
+    return collisionEvents_;
+}
+
 namespace {
 
 bool contact_kind_matches(CollisionWorld::ContactEvent::Kind eventKind,
