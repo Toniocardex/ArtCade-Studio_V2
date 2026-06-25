@@ -153,10 +153,18 @@ static Vec2 clampCameraTarget(
 
 void Renderer::Impl::updateWindowSizeFromRaylib() {
     if (!open) return;
+#ifdef __EMSCRIPTEN__
+    // In the WebView the canvas has two independent sizes: the framebuffer
+    // controlled by setWindowSize/editor_set_edit_camera, and the CSS box used
+    // by React/Tauri for preview scaling. Raylib may report the CSS-facing size
+    // here, which would make the gameplay camera apply a second display scale.
+    return;
+#else
     const int liveW = GetScreenWidth();
     const int liveH = GetScreenHeight();
     if (liveW > 0) width = static_cast<uint32_t>(liveW);
     if (liveH > 0) height = static_cast<uint32_t>(liveH);
+#endif
 }
 
 void Renderer::Impl::updateCameraProjection() {
