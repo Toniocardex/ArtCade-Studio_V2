@@ -48,6 +48,10 @@ struct ContactEvent {
     EntityId other = INVALID_ENTITY;
     std::string selfRole;
     std::string otherRole;
+    std::string selfResponse;
+    std::string otherResponse;
+    std::string selfLayerId;
+    std::string otherLayerId;
     Vec2 normal{};
     Vec2 point{};
 };
@@ -447,6 +451,10 @@ private:
         ev.other = b.id;
         ev.selfRole = roleName(a.shape.role);
         ev.otherRole = roleName(b.shape.role);
+        ev.selfResponse = responseName(a.shape.response);
+        ev.otherResponse = responseName(b.shape.response);
+        ev.selfLayerId = a.shape.layerId;
+        ev.otherLayerId = b.shape.layerId;
         ev.point = {
             (std::max(a.aabb.minX, b.aabb.minX) + std::min(a.aabb.maxX, b.aabb.maxX)) * 0.5f,
             (std::max(a.aabb.minY, b.aabb.minY) + std::min(a.aabb.maxY, b.aabb.maxY)) * 0.5f,

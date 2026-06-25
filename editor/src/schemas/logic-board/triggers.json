@@ -85,7 +85,7 @@
     "x-artcade": {
       "label": "On Collision Enter",
       "category": "Physics",
-      "executionMode": "polling",
+      "executionMode": "event",
       "params": {
         "filter": { "widget": "collisionFilter", "label": "Filter" }
       }
@@ -113,7 +113,7 @@
     "x-artcade": {
       "label": "On Collision Exit",
       "category": "Physics",
-      "executionMode": "polling",
+      "executionMode": "event",
       "params": {
         "filter": { "widget": "collisionFilter", "label": "Filter" }
       }
@@ -141,7 +141,7 @@
     "x-artcade": {
       "label": "On Trigger Enter",
       "category": "Physics",
-      "executionMode": "polling",
+      "executionMode": "event",
       "params": {
         "filter": { "widget": "collisionFilter", "label": "Filter" }
       }
@@ -169,7 +169,7 @@
     "x-artcade": {
       "label": "On Trigger Exit",
       "category": "Physics",
-      "executionMode": "polling",
+      "executionMode": "event",
       "params": {
         "filter": { "widget": "collisionFilter", "label": "Filter" }
       }

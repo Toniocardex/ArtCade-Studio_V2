@@ -71,7 +71,7 @@ void Application::tickFixedStep(float dt) {
     if (runPhysics) mod_->world->syncPhysicsToEntities();
     mod_->world->tickCameraTargets(dt);
 
-    mod_->world->refreshSensorEdges();
+    mod_->world->refreshCollisionEvents();
 
     {
         const auto start = Clock::now();

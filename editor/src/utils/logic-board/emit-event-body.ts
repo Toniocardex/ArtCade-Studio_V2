@@ -11,7 +11,6 @@ import { emitGuardedBranches } from './emit-guarded-branches'
 import { ruleKeyExpr } from './event-slugs'
 import {
   collisionFilterFromTrigger,
-  collisionFilterKey,
   collisionFilterLua,
 } from './collision-filter'
 
@@ -45,7 +44,7 @@ function collisionWhileGate(trig: Extract<LogicTrigger, { type: 'onCollision' }>
   return `collision.firstTouching(self, ${collisionFilterLua(filter)}) ~= 0`
 }
 
-function collisionEdgeGate(
+function collisionEventGate(
   trig: Extract<
     LogicTrigger,
     | { type: 'onCollisionEnter' }
@@ -53,17 +52,17 @@ function collisionEdgeGate(
     | { type: 'onTriggerEnter' }
     | { type: 'onTriggerExit' }
   >,
-): { triggerGate: string; filterLua: string } {
-  const wantEnter =
+): { triggerGate: string; filterLua: string; kind: 'enter' | 'exit' } {
+  const kind =
     trig.type === 'onCollisionEnter' || trig.type === 'onTriggerEnter'
-      ? 'true'
-      : 'false'
+      ? 'enter'
+      : 'exit'
   const filter = collisionFilterFromTrigger(trig)
   const filterLua = collisionFilterLua(filter)
-  const key = collisionFilterKey(filter)
   return {
-    triggerGate: `_logic_collision_edge(self, ${luaString(key)}, ${filterLua}, ${wantEnter})`,
+    triggerGate: `collision.hasEvent(self, ${luaString(kind)}, ${filterLua})`,
     filterLua,
+    kind,
   }
 }
 
@@ -215,9 +214,10 @@ function emitCollisionEdgeBody(
   >,
 ): string[] {
   const { baseIndent } = ctx
-  const { triggerGate, filterLua } = collisionEdgeGate(trig)
+  const { triggerGate, filterLua, kind } = collisionEventGate(trig)
   const lines: string[] = [
-    `${baseIndent}other = collision.firstTouching(self, ${filterLua})`,
+    `${baseIndent}local _collision_events = collision.events(self, ${luaString(kind)}, ${filterLua})`,
+    `${baseIndent}other = (_collision_events[1] and _collision_events[1].other) or 0`,
   ]
   lines.push(...emitGuarded(ctx, baseIndent, { triggerGate }))
   return lines

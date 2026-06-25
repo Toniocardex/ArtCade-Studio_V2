@@ -59,8 +59,8 @@ public:
     /** Platformer owns Transform; runs before physics.step. Kinematic collider
      *  bodies are pushed from Transform each tick — not pulled by syncPhysics. */
     void tickPlatformerControllers(float dt);
-    /** Refresh collision contacts after physics updates. */
-    void refreshSensorEdges();
+    /** Refresh collision enter/stay/exit contacts after physics updates. */
+    void refreshCollisionEvents();
     /** Follow exactly one camera target. Automatic mode selects the lowest active id. */
     void tickCameraTargets(float dt);
     /** Override CameraTargetComponent selection until stop/useAutomatic is called. */
@@ -82,6 +82,16 @@ public:
     void rebuildCollisionWorld();
     bool collisionOverlap(EntityId a, EntityId b) const;
     EntityId firstCollisionTouching(EntityId id, const CollisionWorld::Filter& filter) const;
+    /** Return current-frame collision events involving id, normalized so id is self. */
+    std::vector<CollisionWorld::ContactEvent> collisionEventsFor(
+        EntityId id,
+        const std::string& kind,
+        const CollisionWorld::Filter& filter) const;
+    /** Fast predicate for event gates such as Logic Board enter/exit triggers. */
+    bool hasCollisionEvent(
+        EntityId id,
+        const std::string& kind,
+        const CollisionWorld::Filter& filter) const;
     CollisionWorld::RaycastResult collisionRaycast(
         const Vec2& from,
         const Vec2& to,
@@ -143,6 +153,7 @@ private:
     std::unordered_map<EntityId, ControlIntent> controlIntents_;
 
     CollisionWorld::World              collisionWorld_;
+    std::vector<CollisionWorld::ContactEvent> collisionEvents_;
     std::vector<PhysicsLayerDef>       physicsLayers_;
 
     TilemapData  activeTilemap_;

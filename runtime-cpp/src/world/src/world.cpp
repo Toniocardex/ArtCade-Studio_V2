@@ -4,6 +4,7 @@
 #include "../../modules/variable-manager/include/variable-manager.h"
 #include "../../modules/renderer/include/renderer.h"
 
+#include <algorithm>
 #include <cmath>
 
 namespace ArtCade {
@@ -38,6 +39,7 @@ void World::clearGameplayRuntimeState() {
     platformerRt_.clear();
     topDownRt_.clear();
     controlIntents_.clear();
+    collisionEvents_.clear();
     useAutomaticCameraTarget();
 }
 
@@ -100,6 +102,7 @@ void World::shutdown() {
     clearGameplayRuntimeState();
     activeTilemap_ = TilemapData{};
     tileMeta_.clear();
+    collisionEvents_.clear();
     collisionWorld_.clear();
     physicsLayers_.clear();
 }
@@ -260,6 +263,88 @@ EntityId World::firstCollisionTouching(
         return INVALID_ENTITY;
     }
     return collisionWorld_.firstTouching(id, filter);
+}
+
+namespace {
+
+bool contact_kind_matches(CollisionWorld::ContactEvent::Kind eventKind,
+                          const std::string& kind) {
+    if (kind.empty()) return true;
+    if (kind == "enter") return eventKind == CollisionWorld::ContactEvent::Kind::Enter;
+    if (kind == "stay") return eventKind == CollisionWorld::ContactEvent::Kind::Stay;
+    if (kind == "exit") return eventKind == CollisionWorld::ContactEvent::Kind::Exit;
+    return false;
+}
+
+CollisionWorld::ContactEvent event_for_entity(
+    const CollisionWorld::ContactEvent& event,
+    EntityId id) {
+    if (event.self == id)
+        return event;
+    CollisionWorld::ContactEvent out = event;
+    out.self = event.other;
+    out.other = event.self;
+    std::swap(out.selfRole, out.otherRole);
+    std::swap(out.selfResponse, out.otherResponse);
+    std::swap(out.selfLayerId, out.otherLayerId);
+    out.normal.x = -out.normal.x;
+    out.normal.y = -out.normal.y;
+    return out;
+}
+
+} // namespace
+
+std::vector<CollisionWorld::ContactEvent> World::collisionEventsFor(
+    EntityId id,
+    const std::string& kind,
+    const CollisionWorld::Filter& filter) const
+{
+    std::vector<CollisionWorld::ContactEvent> out;
+    for (const CollisionWorld::ContactEvent& raw : collisionEvents_) {
+        if (raw.self != id && raw.other != id)
+            continue;
+        if (!contact_kind_matches(raw.kind, kind))
+            continue;
+        CollisionWorld::ContactEvent event = event_for_entity(raw, id);
+        if (!filter.layerId.empty() && event.otherLayerId != filter.layerId)
+            continue;
+        if (!filter.role.empty() && event.otherRole != filter.role)
+            continue;
+        if (!filter.response.empty() && event.otherResponse != filter.response)
+            continue;
+        if (!filter.className.empty()) {
+            bool classMatch = false;
+            for (EntityId other : entityGateway_.poolByClass(filter.className)) {
+                if (other == event.other) {
+                    classMatch = true;
+                    break;
+                }
+            }
+            if (!classMatch)
+                continue;
+        }
+        if (!filter.tag.empty()) {
+            bool tagMatch = false;
+            for (EntityId other : entityGateway_.byTag(filter.tag)) {
+                if (other == event.other) {
+                    tagMatch = true;
+                    break;
+                }
+            }
+            if (!tagMatch)
+                continue;
+        }
+        out.push_back(std::move(event));
+    }
+    return out;
+}
+
+bool World::hasCollisionEvent(
+    EntityId id,
+    const std::string& kind,
+    const CollisionWorld::Filter& filter) const
+{
+    return !collisionEventsFor(id, kind, filter).empty();
 }
 
 CollisionWorld::RaycastResult World::collisionRaycast(
@@ -424,15 +509,15 @@ void World::tickGameplaySystems(float dt) {
     tickMagneticItems(dt);
     tickHordeMembers(dt);
     tickHealthCooldowns(dt);
-    // tickSensorOverlapEdges() intentionally NOT called here — sensor
+    // Collision edge refresh intentionally runs after gameplay systems because
     // edges must be computed against fresh post-physics positions, so the
-    // app driver invokes refreshSensorEdges() after physics->step() and
+    // app driver invokes refreshCollisionEvents() after physics->step() and
     // syncPhysicsToEntities(). See Application::tickFixedStep.
 }
 
-void World::refreshSensorEdges() {
+void World::refreshCollisionEvents() {
     rebuildCollisionWorld();
-    collisionWorld_.refreshEvents();
+    collisionEvents_ = collisionWorld_.refreshEvents();
 }
 
 void World::flushEntityQueues() {

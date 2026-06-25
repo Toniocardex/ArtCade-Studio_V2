@@ -144,6 +144,14 @@ async function makeRunner(boards: LogicBoard[]) {
       const cls = typeof filter === 'string' ? filter : filter?.className
       return cls && h.touching.has(cls) ? 200 : 0
     },
+    hasEvent: (_id: number, _kind: string, filter: string | { className?: string }) => {
+      const cls = typeof filter === 'string' ? filter : filter?.className
+      return Boolean(cls && h.touching.has(cls))
+    },
+    events: (_id: number, _kind: string, filter: string | { className?: string }) => {
+      const cls = typeof filter === 'string' ? filter : filter?.className
+      return cls && h.touching.has(cls) ? [{ other: 200 }] : []
+    },
   })
   lua.global.set('input', {
     isKeyDown: (k: string) => h.keysDown.has(k),

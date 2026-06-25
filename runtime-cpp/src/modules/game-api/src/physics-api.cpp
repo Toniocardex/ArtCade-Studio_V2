@@ -38,6 +38,34 @@ CollisionWorld::Filter collisionFilterFrom(sol::object value) {
     return filter;
 }
 
+std::string contactKindName(CollisionWorld::ContactEvent::Kind kind) {
+    switch (kind) {
+    case CollisionWorld::ContactEvent::Kind::Stay: return "stay";
+    case CollisionWorld::ContactEvent::Kind::Exit: return "exit";
+    case CollisionWorld::ContactEvent::Kind::Enter:
+    default: return "enter";
+    }
+}
+
+sol::table contactEventTable(sol::state_view lua,
+                             const CollisionWorld::ContactEvent& event) {
+    sol::table tbl = lua.create_table(0, 13);
+    tbl["kind"] = contactKindName(event.kind);
+    tbl["self"] = static_cast<int>(event.self);
+    tbl["other"] = static_cast<int>(event.other);
+    tbl["selfRole"] = event.selfRole;
+    tbl["otherRole"] = event.otherRole;
+    tbl["selfResponse"] = event.selfResponse;
+    tbl["otherResponse"] = event.otherResponse;
+    tbl["selfLayer"] = event.selfLayerId;
+    tbl["otherLayer"] = event.otherLayerId;
+    tbl["normalX"] = event.normal.x;
+    tbl["normalY"] = event.normal.y;
+    tbl["x"] = event.point.x;
+    tbl["y"] = event.point.y;
+    return tbl;
+}
+
 } // namespace
 
 void GameAPI::bindPhysicsAPI(sol::state& lua) {
@@ -63,6 +91,26 @@ void GameAPI::bindPhysicsAPI(sol::state& lua) {
     lua.set_function("collision_isGrounded",
         [world](EntityId id) -> bool {
             return world && world->collisionGrounded(id);
+        });
+
+    lua.set_function("collision_hasEvent",
+        [world](EntityId id, const std::string& kind, sol::object filterObj) -> bool {
+            if (!world) return false;
+            return world->hasCollisionEvent(id, kind, collisionFilterFrom(filterObj));
+        });
+
+    lua.set_function("collision_events",
+        [world](sol::this_state ts, EntityId id, const std::string& kind, sol::object filterObj) -> sol::object {
+            sol::state_view L(ts);
+            sol::table out = L.create_table();
+            if (!world)
+                return sol::make_object(L, out);
+            const auto events = world->collisionEventsFor(
+                id, kind, collisionFilterFrom(filterObj));
+            int index = 1;
+            for (const auto& event : events)
+                out[index++] = contactEventTable(L, event);
+            return sol::make_object(L, out);
         });
 
     // collision.raycast(x1, y1, x2, y2) → {hit, entityId, x, y, dist}
@@ -165,6 +213,8 @@ void GameAPI::bindPhysicsAPI(sol::state& lua) {
         collision.firstTouching = function(id, filter)   return collision_firstTouching(id, filter)   end
         collision.raycast       = function(x1,y1,x2,y2,filter) return collision_raycast(x1,y1,x2,y2,filter) end
         collision.isGrounded    = function(id)           return collision_isGrounded(id)              end
+        collision.hasEvent      = function(id, kind, filter) return collision_hasEvent(id, kind or "stay", filter) end
+        collision.events        = function(id, kind, filter) return collision_events(id, kind or "", filter) end
 
         physics = {}
         physics.createBody    = function(id, bt, st, w, h)

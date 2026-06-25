@@ -14,8 +14,6 @@ import {
   ANIM_LOOP_REGISTRATION_LINES,
   ANIM_CHANGE_REGISTRATION_LINES,
   BAG_UNSUB_LINES,
-  COLLISION_EDGE_HELPER_LINES,
-  COLLISION_EDGE_STATE_LINES,
   COMPOSE_KEY_LINES,
   DESTROY_REGISTRATION_LINES,
   INPUT_PRESSED_REGISTRATION_LINES,
@@ -52,7 +50,6 @@ function stateLines(features: CompilerPreludeFeatures): string[] {
 
 function ruleMemoryLines(features: CompilerPreludeFeatures): string[] {
   return [
-    ...(features.collisionEdge ? COLLISION_EDGE_STATE_LINES : []),
     ...(features.healthDepletedEdge ? [
       '-- Per (event, entity) "already fired" memory for onHealthDepleted edge detection.',
       'local _hpd_fired = {}',
@@ -93,7 +90,6 @@ function formattingLines(features: CompilerPreludeFeatures): string[] {
   return [
     ...(features.textToString || features.textFormat ? TEXT_TO_STRING_LINES : []),
     ...(features.textFormat ? TEXT_FORMAT_LINES : []),
-    ...(features.collisionEdge ? COLLISION_EDGE_HELPER_LINES : []),
     ...(features.frameMovement ? MOVEMENT_LINES : []),
   ]
 }

@@ -16,7 +16,6 @@ export interface CompilerPreludeFeatures {
   timerAfterRegistration: boolean
   tickTimers: boolean
   mouseButtons: boolean
-  collisionEdge: boolean
   healthDepletedEdge: boolean
   damagedEdge: boolean
   leaveScreenEdge: boolean
@@ -62,7 +61,6 @@ export function derivePreludeFeatures(
     timerAfterRegistration: linesUse(lines, '_logic_reg_timer_after('),
     tickTimers: linesUse(lines, '_logic_timers['),
     mouseButtons: linesUse(lines, '_mb['),
-    collisionEdge: linesUse(lines, '_logic_collision_edge('),
     healthDepletedEdge: linesUse(lines, '_hpd_fired['),
     damagedEdge: linesUse(lines, '_dmg_prev['),
     leaveScreenEdge: linesUse(lines, '_ls_prev['),

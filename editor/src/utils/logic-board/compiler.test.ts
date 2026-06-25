@@ -1280,7 +1280,7 @@ describe('Hot-reload safety — handler unsubscribe tracking', () => {
     // Helpers are referenced from the emit sites.
     expect(lua).toContain('_logic_reg_spawn("Player"')
     expect(lua).toContain('_logic_reg_destroy("Player"')
-    expect(lua).toContain('collision.firstTouching(self, { response = "sensor", className = "Coin" })')
+    expect(lua).toContain('collision.hasEvent(self, "enter", { response = "sensor", className = "Coin" })')
     expect(lua).toContain('_logic_reg_input_pressed("Space"')
     expect(lua).toContain('_logic_reg_timer_every(1, function()')
     expect(lua).toContain('_logic_reg_message("hit", function(_message)')
@@ -1345,39 +1345,39 @@ describe('Global-target boards (no entity context)', () => {
 })
 
 describe('Bug #9 — onCollisionEnter / onCollisionExit edge triggers', () => {
-  it('emits _logic_collision_edge gate with want_enter=true for onCollisionEnter', () => {
+  it('emits native collision.hasEvent gate for onCollisionEnter', () => {
     const lua = compileLogicBoard([
       board([
         ev({ trigger: { type: 'onCollisionEnter', filter: { className: 'Coin' } },
              actions: [{ type: 'addVariable', key: 'score', amount: 1 }] }),
       ]),
     ])
-    expect(lua).toContain('_logic_collision_edge(self, "layer:|mask:|role:|response:|tag:|className:Coin", { className = "Coin" }, true)')
+    expect(lua).toContain('collision.hasEvent(self, "enter", { className = "Coin" })')
     expect(lua).toContain('global.add("score", 1)')
   })
 
-  it('emits _logic_collision_edge gate with want_enter=false for onCollisionExit', () => {
+  it('emits native collision.hasEvent gate for onCollisionExit', () => {
     const lua = compileLogicBoard([
       board([
         ev({ trigger: { type: 'onCollisionExit', filter: { className: 'Spike' } },
              actions: [{ type: 'debugLog', message: 'safe' }] }),
       ]),
     ])
-    expect(lua).toContain('_logic_collision_edge(self, "layer:|mask:|role:|response:|tag:|className:Spike", { className = "Spike" }, false)')
+    expect(lua).toContain('collision.hasEvent(self, "exit", { className = "Spike" })')
   })
 
-  it('prelude defines the edge helper and the was-touching memory', () => {
+  it('does not emit Lua edge memory for native collision events', () => {
     const lua = compileLogicBoard([
       board([
         ev({ trigger: { type: 'onCollisionEnter', filter: { className: 'Coin' } },
              actions: [{ type: 'debugLog', message: 'x' }] }),
       ]),
     ])
-    expect(lua).toContain('local _collision_was_touching = {}')
-    expect(lua).toContain('local function _logic_collision_edge(eid, filter_key, filter, want_enter)')
+    expect(lua).not.toContain('_collision_was_touching')
+    expect(lua).not.toContain('_logic_collision_edge')
   })
 
-  it('onCollisionEnter sets other via collision.firstTouching for destroy other', () => {
+  it('onCollisionEnter sets other from native collision event for destroy other', () => {
     const lua = compileLogicBoard([
       board([
         ev({
@@ -1386,9 +1386,10 @@ describe('Bug #9 — onCollisionEnter / onCollisionExit edge triggers', () => {
         }),
       ]),
     ])
-    expect(lua).toContain('other = collision.firstTouching(self, { className = "Coin" })')
+    expect(lua).toContain('local _collision_events = collision.events(self, "enter", { className = "Coin" })')
+    expect(lua).toContain('other = (_collision_events[1] and _collision_events[1].other) or 0')
     expect(lua).toContain('entity.destroy(other)')
-    expect(lua).toContain('_logic_collision_edge(self, "layer:|mask:|role:|response:|tag:|className:Coin", { className = "Coin" }, true)')
+    expect(lua).toContain('collision.hasEvent(self, "enter", { className = "Coin" })')
   })
 })
 
@@ -1447,8 +1448,9 @@ describe('Logic Components — Phase C (engine-hook triggers)', () => {
              actions: [{ type: 'debugLog', message: 'in' }] }),
       ]),
     ])
-    expect(lua).toContain('collision.firstTouching(self, { response = "sensor", className = "Zone" })')
-    expect(lua).toContain('other = collision.firstTouching(self, { response = "sensor", className = "Zone" })')
+    expect(lua).toContain('collision.hasEvent(self, "enter", { response = "sensor", className = "Zone" })')
+    expect(lua).toContain('local _collision_events = collision.events(self, "enter", { response = "sensor", className = "Zone" })')
+    expect(lua).toContain('other = (_collision_events[1] and _collision_events[1].other) or 0')
     expect(lua).not.toContain('_trig')
     expect(lua).toContain('debug.log("in")')
   })
@@ -1460,7 +1462,7 @@ describe('Logic Components — Phase C (engine-hook triggers)', () => {
              actions: [{ type: 'debugLog', message: 'out' }] }),
       ]),
     ])
-    expect(lua).toContain('collision.firstTouching(self, { response = "sensor", className = "Zone" })')
+    expect(lua).toContain('collision.hasEvent(self, "exit", { response = "sensor", className = "Zone" })')
     expect(lua).toContain('debug.log("out")')
   })
 
