@@ -82,6 +82,8 @@ public:
     void rebuildCollisionWorld();
     bool collisionOverlap(EntityId a, EntityId b) const;
     EntityId firstCollisionTouching(EntityId id, const CollisionWorld::Filter& filter) const;
+    /** Number of active runtime collision shapes, useful for debug overlays/tests. */
+    size_t collisionShapeCount() const;
     /** Return current-frame collision events involving id, normalized so id is self. */
     std::vector<CollisionWorld::ContactEvent> collisionEventsFor(
         EntityId id,

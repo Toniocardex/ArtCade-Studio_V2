@@ -141,6 +141,10 @@ if(ARTCADE_HAS_RAYLIB AND ARTCADE_HAS_LUA)
         collision-world-mask-test.cpp
         "artcade-runtime-entity-gateway;artcade-collision;artcade-project-json")
 
+    artcade_test(world_tilemap_collision_test
+        world-tilemap-collision-test.cpp
+        "artcade-world;artcade-scene-system;artcade-physics;artcade-variable-manager")
+
 add_executable(artcade_package_test artcade-package-test.cpp)
 target_include_directories(artcade_package_test PRIVATE
     ${CMAKE_SOURCE_DIR}/src

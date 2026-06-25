@@ -9,6 +9,104 @@
 
 namespace ArtCade {
 
+namespace {
+
+constexpr EntityId kTileCollisionEntityStart = 0x80000000u;
+
+bool nearly_equal(float a, float b, float epsilon = 0.01f) {
+    return std::fabs(a - b) <= epsilon;
+}
+
+struct TileAggregateKey {
+    CollisionResponse response = CollisionResponse::Solid;
+    CollisionShapeRole role = CollisionShapeRole::Body;
+    std::string layerId;
+    std::vector<std::string> maskLayerIds;
+    bool oneWay = false;
+    float friction = 0.f;
+    float restitution = 0.f;
+    float density = 0.f;
+
+    bool operator==(const TileAggregateKey& other) const {
+        return response == other.response
+            && role == other.role
+            && layerId == other.layerId
+            && maskLayerIds == other.maskLayerIds
+            && oneWay == other.oneWay
+            && friction == other.friction
+            && restitution == other.restitution
+            && density == other.density;
+    }
+};
+
+TileAggregateKey aggregate_key_for_shape(const CollisionShape& shape) {
+    TileAggregateKey key;
+    key.response = shape.response;
+    key.role = shape.role;
+    key.layerId = shape.layerId;
+    key.maskLayerIds = shape.maskLayerIds;
+    std::sort(key.maskLayerIds.begin(), key.maskLayerIds.end());
+    key.oneWay = shape.oneWay;
+    key.friction = shape.friction;
+    key.restitution = shape.restitution;
+    key.density = shape.density;
+    return key;
+}
+
+bool is_full_cell_rect(const CollisionShape& shape, float tileSize) {
+    if (!shape.enabled || shape.type != CollisionShapeType::Rectangle)
+        return false;
+    if (!nearly_equal(shape.offset.x, 0.f) || !nearly_equal(shape.offset.y, 0.f))
+        return false;
+    return (nearly_equal(shape.size.x, tileSize) && nearly_equal(shape.size.y, tileSize))
+        || (nearly_equal(shape.size.x, 32.f) && nearly_equal(shape.size.y, 32.f));
+}
+
+struct TileCollisionCell {
+    bool valid = false;
+    TileAggregateKey key;
+    CollisionShape shape;
+};
+
+TileCollisionCell aggregate_cell_for_tile(
+    int tileId,
+    const std::unordered_map<int, TileSurfaceMeta>& tileMeta,
+    float tileSize)
+{
+    TileCollisionCell cell;
+    auto it = tileMeta.find(tileId);
+    if (it == tileMeta.end() || !it->second.collisionBody)
+        return cell;
+    const CollisionBodyComponent& body = *it->second.collisionBody;
+    if (!body.enabled)
+        return cell;
+
+    const CollisionShape* fullCellShape = nullptr;
+    for (const CollisionShape& shape : body.shapes) {
+        if (!shape.enabled)
+            continue;
+        if (!is_full_cell_rect(shape, tileSize))
+            return cell;
+        if (fullCellShape != nullptr)
+            return cell;
+        fullCellShape = &shape;
+    }
+    if (!fullCellShape)
+        return cell;
+
+    cell.valid = true;
+    cell.key = aggregate_key_for_shape(*fullCellShape);
+    cell.shape = *fullCellShape;
+    cell.shape.type = CollisionShapeType::Rectangle;
+    cell.shape.offset = {};
+    cell.shape.size = { tileSize, tileSize };
+    cell.shape.radius = 0.f;
+    cell.shape.points.clear();
+    return cell;
+}
+
+} // namespace
+
 World::World(Modules::RuntimeEntityGateway& gateway,
              Modules::Physics&              ph,
              Modules::VariableManager&      variables)
@@ -177,7 +275,6 @@ void World::rebuildCollisionWorld() {
     if (tm.cols <= 0 || tm.rows <= 0 || tm.tileSize <= 0.f)
         return;
 
-    uint32_t tileEntityId = 0x80000000u;
     const float ts = tm.tileSize;
 
     auto tileAt = [&](int col, int row) -> int {
@@ -189,50 +286,100 @@ void World::rebuildCollisionWorld() {
         return tm.data[idx];
     };
 
-    auto hasCollisionTile = [&](int id) -> bool {
-        auto it = tileMeta_.find(id);
-        return it != tileMeta_.end() && it->second.collisionBody;
+    std::vector<TileCollisionCell> cells(static_cast<size_t>(tm.cols * tm.rows));
+    for (int row = 0; row < tm.rows; ++row) {
+        for (int col = 0; col < tm.cols; ++col) {
+            const int idx = row * tm.cols + col;
+            cells[static_cast<size_t>(idx)] =
+                aggregate_cell_for_tile(tileAt(col, row), tileMeta_, ts);
+        }
+    }
+
+    auto cellAt = [&](int col, int row) -> const TileCollisionCell& {
+        return cells[static_cast<size_t>(row * tm.cols + col)];
     };
 
+    EntityId tileEntityId = kTileCollisionEntityStart;
+    std::vector<uint8_t> consumed(cells.size(), 0);
+
     for (int row = 0; row < tm.rows; ++row) {
-        int col = 0;
-        while (col < tm.cols) {
-            const int tileId = tileAt(col, row);
-            if (!hasCollisionTile(tileId)) {
-                ++col;
+        for (int col = 0; col < tm.cols; ++col) {
+            const int idx = row * tm.cols + col;
+            if (consumed[static_cast<size_t>(idx)])
                 continue;
+            const TileCollisionCell& seed = cellAt(col, row);
+            if (!seed.valid)
+                continue;
+
+            int width = 1;
+            while (col + width < tm.cols) {
+                const int rightIdx = row * tm.cols + col + width;
+                const TileCollisionCell& right = cellAt(col + width, row);
+                if (consumed[static_cast<size_t>(rightIdx)]
+                    || !right.valid
+                    || !(right.key == seed.key))
+                    break;
+                ++width;
             }
 
-            const int startCol = col;
-            while (col < tm.cols && tileAt(col, row) == tileId)
-                ++col;
+            int height = 1;
+            bool canGrow = true;
+            while (row + height < tm.rows && canGrow) {
+                for (int x = 0; x < width; ++x) {
+                    const int growIdx = (row + height) * tm.cols + col + x;
+                    const TileCollisionCell& grow = cellAt(col + x, row + height);
+                    if (consumed[static_cast<size_t>(growIdx)]
+                        || !grow.valid
+                        || !(grow.key == seed.key)) {
+                        canGrow = false;
+                        break;
+                    }
+                }
+                if (canGrow)
+                    ++height;
+            }
 
-            const TileSurfaceMeta& meta = tileMeta_.at(tileId);
-            CollisionBodyComponent body = *meta.collisionBody;
+            for (int y = 0; y < height; ++y) {
+                for (int x = 0; x < width; ++x) {
+                    consumed[static_cast<size_t>((row + y) * tm.cols + col + x)] = 1;
+                }
+            }
+
+            CollisionBodyComponent body;
             body.bodyType = BodyType::Static;
             body.enabled = true;
-
-            std::vector<CollisionShape> aggregatedShapes;
-            aggregatedShapes.reserve(body.shapes.size());
-            for (const CollisionShape& shape : body.shapes) {
-                if (!shape.enabled)
-                    continue;
-                CollisionShape aggregate = shape;
-                aggregate.type = CollisionShapeType::Rectangle;
-                aggregate.offset = {};
-                aggregate.size = { (col - startCol) * ts, ts };
-                aggregate.radius = 0.f;
-                aggregate.points.clear();
-                aggregatedShapes.push_back(std::move(aggregate));
-            }
-            if (aggregatedShapes.empty())
-                continue;
-
-            body.shapes = std::move(aggregatedShapes);
+            CollisionShape aggregate = seed.shape;
+            aggregate.size = { width * ts, height * ts };
+            body.shapes.push_back(std::move(aggregate));
 
             Transform tileTransform{};
             tileTransform.position = {
-                startCol * ts + (col - startCol) * ts * 0.5f,
+                col * ts + width * ts * 0.5f,
+                row * ts + height * ts * 0.5f,
+            };
+            collisionWorld_.addEntity(tileEntityId++, tileTransform, body);
+        }
+    }
+
+    for (int row = 0; row < tm.rows; ++row) {
+        for (int col = 0; col < tm.cols; ++col) {
+            const TileCollisionCell& aggregateCell = cellAt(col, row);
+            if (aggregateCell.valid)
+                continue;
+            const int tileId = tileAt(col, row);
+            auto meta = tileMeta_.find(tileId);
+            if (meta == tileMeta_.end() || !meta->second.collisionBody)
+                continue;
+            if (!meta->second.collisionBody->enabled)
+                continue;
+
+            CollisionBodyComponent body = *meta->second.collisionBody;
+            body.bodyType = BodyType::Static;
+            body.enabled = true;
+
+            Transform tileTransform{};
+            tileTransform.position = {
+                col * ts + ts * 0.5f,
                 row * ts + ts * 0.5f,
             };
             collisionWorld_.addEntity(tileEntityId++, tileTransform, body);
@@ -263,6 +410,10 @@ EntityId World::firstCollisionTouching(
         return INVALID_ENTITY;
     }
     return collisionWorld_.firstTouching(id, filter);
+}
+
+size_t World::collisionShapeCount() const {
+    return collisionWorld_.shapes().size();
 }
 
 namespace {
