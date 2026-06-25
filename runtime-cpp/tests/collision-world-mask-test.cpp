@@ -177,11 +177,68 @@ static void test_contact_events_survive_world_rebuilds() {
     CHECK(events[0].other == 2);
 }
 
+static void test_spatial_broadphase_keeps_queries_deterministic() {
+    World world;
+    world.setLayers(defaultLayers());
+
+    CollisionBodyComponent playerBody;
+    playerBody.bodyType = BodyType::Kinematic;
+    playerBody.shapes.push_back(makeRectShape("player", { "ground" }, 64.f));
+
+    CollisionBodyComponent groundBody;
+    groundBody.bodyType = BodyType::Static;
+    groundBody.shapes.push_back(makeRectShape("ground", { "player" }, 64.f));
+
+    Transform playerTf{};
+    playerTf.position = { -256.f, -256.f };
+    Transform nearGroundTf{};
+    nearGroundTf.position = { -250.f, -256.f };
+    Transform farGroundTf{};
+    farGroundTf.position = { 2048.f, 2048.f };
+
+    world.addEntity(1, playerTf, playerBody);
+    world.addEntity(2, farGroundTf, groundBody);
+    world.addEntity(3, nearGroundTf, groundBody);
+
+    CHECK(world.firstTouching(1) == 3);
+    CHECK(world.overlapEntities(1, 3));
+    CHECK(!world.overlapEntities(1, 2));
+}
+
+static void test_spatial_broadphase_does_not_duplicate_large_shape_events() {
+    World world;
+    world.setLayers(defaultLayers());
+
+    Transform playerTf{};
+    playerTf.position = { 0.f, 0.f };
+    CollisionBodyComponent playerBody;
+    playerBody.bodyType = BodyType::Kinematic;
+    playerBody.shapes.push_back(makeRectShape("player", { "ground" }, 32.f));
+
+    Transform platformTf{};
+    platformTf.position = { 0.f, 0.f };
+    CollisionBodyComponent platformBody;
+    platformBody.bodyType = BodyType::Static;
+    platformBody.shapes.push_back(makeRectShape("ground", { "player" }, 512.f));
+
+    world.addEntity(1, playerTf, playerBody);
+    world.addEntity(2, platformTf, platformBody);
+
+    const auto events = world.refreshEvents();
+    CHECK(events.size() == 1);
+    if (events.size() == 1) {
+        CHECK(events[0].self == 1);
+        CHECK(events[0].other == 2);
+    }
+}
+
 int main() {
     test_overlap_respects_layer_masks();
     test_resolve_profile_shapes_from_sprite_path();
     test_read_collision_profiles_json();
     test_contact_events_survive_world_rebuilds();
+    test_spatial_broadphase_keeps_queries_deterministic();
+    test_spatial_broadphase_does_not_duplicate_large_shape_events();
 
     if (g_failed == 0) {
         std::cout << "collision-world-mask-test: " << g_passed << " passed\n";
