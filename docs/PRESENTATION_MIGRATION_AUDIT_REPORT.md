@@ -2,9 +2,11 @@
 
 > **Audience:** collaboratori che devono fare code review / audit manuale  
 > **ADR di riferimento:** [`PRESENTATION_ARCHITECTURE.md`](PRESENTATION_ARCHITECTURE.md)  
-> **Stato migrazione:** fasi **1–8 completate** · fase **9 non avviata** (render graph generico — solo se servirà)  
-> **Ultimo commit rilevante:** `d6a04ea7` — *Complete presentation pipeline ADR phases 7-8*  
-> **Data report:** 2026-06-24
+> **Stato migrazione:** fasi **1–8 implementate** · **ADR non dichiarato chiuso** (gap P0 sotto) · fase **9 non avviata**  
+> **Ultimo commit codice rilevante:** `d6a04ea7` — fasi 7–8  
+> **Addendum verifica codice:** 2026-06-24
+
+**Indice rapido addendum:** [§ 13 Gap verificati](#13-addendum-post-audit--gap-verificati-nel-codice) · [§ 14 Checklist chiusura ADR](#14-checklist-chiusura-adr-p0--p1--p2)
 
 ---
 
@@ -22,6 +24,8 @@ La migrazione in 8 fasi ha introdotto:
 6. **Parità play** tra embedded, finestra esterna, fullscreen e nativo (fase 8).
 
 **Comportamento visivo atteso:** in edit mode e in play “normale” l’utente non dovrebbe notare regressioni volute; l’unico cambiamento UX intenzionale della serie è la **fase 6** (niente scroll del mondo via DOM — pan/zoom sulla superficie fissa).
+
+**Nota (addendum):** l’implementazione è **sostanzialmente corretta** e il modello architetturale è quello giusto, ma **non** soddisfa ancora tutti i criteri di successo ADR. Vedi [§ 13 Addendum post-audit](#13-addendum-post-audit--gap-verificati-nel-codice) prima di dichiarare la migrazione chiusa.
 
 ---
 
@@ -395,12 +399,14 @@ Riferimento: [`PRESENTATION_ARCHITECTURE.md` § Success criteria](PRESENTATION_A
 
 | Criterio | Stato | Note audit |
 |----------|-------|------------|
-| Zero fit/letterbox math in `editor/src` (eccetto consumo snapshot) | **Quasi** | `playFitScale` resta come fallback se `revision == 0`; grep `playFitScale` / `floor(scale` |
+| Zero fit/letterbox math in `editor/src` (eccetto consumo snapshot) | **Non chiuso** | `playFitScale` ancora fallback se `revision === 0` (`PreviewPanel`, `runtime-preview-display.ts`) |
 | `Renderer` senza `editorCameraActive` | **Fatto** | Verificare assenza grep |
 | Un solo `screenToWorld`: snapshot | **Fatto** | `editor_surface_to_world` |
-| React rulers/overlay: un store, una revision | **Fatto** | `usePresentationSnapshot()` |
+| React rulers/overlay: un store, una revision | **Parziale** | Store ok; polling React ignora aggiornamenti placement con **stessa revision** (§ 13.1) |
+| Snapshot atomica per frame (ADR) | **Non chiuso** | `refresh_snapshot()` committa fuori da `begin_frame()` (§ 13.1) |
 | Play paths condividono `buildPipeline(snapshot, features)` | **Fatto** | Stesso builder; mode da snapshot |
-| Golden tests tutte policy e DPR≠1 | **Parziale** | Estendere se si trovano gap in audit |
+| Shake in effective camera (draw = picking) | **Non chiuso** | Picking usa `noShake` in compositor play (§ 13.7) |
+| Golden tests tutte policy e DPR≠1 + parità WASM/native exe | **Parziale** | Golden DPR/letterbox sì; `test_native_wasm_parity` = legacy vs nuovo math, non cross-target (§ 13.9) |
 
 ---
 
@@ -418,8 +424,11 @@ Attivare fase 9 solo con requisito prodotto esplicito (ADR: *Only when needed*).
 
 ## 11. Checklist audit rapida (stampabile)
 
+Checklist **esplorativa** (fasi 1–8 già mergeate). Per la chiusura ADR usare la [§ 14 Checklist chiusura ADR](#14-checklist-chiusura-adr-p0--p1--p2).
+
 ```
 □ Ho letto PRESENTATION_ARCHITECTURE.md (almeno § snapshot, modes, migration table)
+□ Ho letto § 13 Addendum di questo report
 □ Ho verificato buildPipeline vs effectiveMode su branch play e edit
 □ Ho verificato syncPlaySurface(css, css, dpr) su docked + external
 □ Ho verificato che nessun codice chiami editor_sync_play_surface a 2 argomenti
@@ -429,6 +438,286 @@ Attivare fase 9 solo con requisito prodotto esplicito (ADR: *Only when needed*).
 □ build_wasm.bat verde
 □ Smoke manuale: edit resize, play docked, play external, F11
 ```
+
+---
+
+## 13. Addendum post-audit — gap verificati nel codice
+
+> **Metodo:** review manuale del codice su `main` post-`d6a04ea7`, incrociata con osservazioni del team.  
+> **Verdetto:** il refactor non è cosmetico; il modello centrale è corretto. L’ADR **non** va dichiarato chiuso finché i **P0** di § 14 non sono risolti o esplicitamente accettati con ticket.
+
+### 13.1 Atomicità snapshot — **P0, gap confermato**
+
+**Domanda architetturale:** `refresh_snapshot()` committa subito o prepara il frame successivo?
+
+**Risposta nel codice:** committa **immediatamente** su `committedSnapshot_`, spesso **senza bump** di `revision`.
+
+| API | File | Comportamento |
+|-----|------|----------------|
+| `begin_frame()` | `presentation_system.cpp` | `revision++`, ricalcola snapshot da `state_`, push history |
+| `refresh_snapshot()` | `presentation_system.cpp` | Ricalcola da `state_`, **sovrascrive** `committedSnapshot_` con **stessa** `revision` (se `revision > 0`) |
+
+Chiamate a `refresh_snapshot()` **fuori** dal confine frame, tra cui:
+
+- `Renderer::Impl::updateCameraProjection()` (fine di ogni aggiornamento proiezione)
+- `Renderer::editorResizeSurface()` / `Renderer::syncPlaySurface()`
+- Path editor camera / view controller
+
+Ordine in `Renderer::beginFrame()`:
+
+1. `updateCameraProjection()` → `refresh_snapshot()` (stessa revision possibile)
+2. `presentation.begin_frame()` → nuova revision
+
+**Modello attuale (reale):**
+
+```
+mutate PresentationState
+  → refresh_snapshot()     // committed aggiornata subito, revision spesso invariata
+  → [render / picking / poll React]
+begin_frame()              // nuova revision solo all'inizio del draw successivo
+```
+
+**Modello ADR (target):**
+
+```
+resize / intent → mutate pendingState + markDirty
+begin_frame()   → committed = calculate(pending); revision++
+// durante il frame N: renderer, picking, overlay usano solo committed(N)
+```
+
+**Drift osservabile:**
+
+| Consumer | Cosa legge | Rischio |
+|----------|------------|---------|
+| C++ picking (`editor-input-controller`, `editor_surface_to_world`) | `committed_snapshot()` sempre fresca | Coerente con C++ mid-frame |
+| React (`runtime-sync-service` poll) | Pubblica **solo se `revision` cambia** | Placement nuovo + **stessa revision** → overlay React **stale** |
+
+Riferimenti: `runtime-cpp/src/modules/presentation/src/presentation_system.cpp`, `editor/src/utils/runtime-sync-service.ts` (`pollPresentationSnapshot`).
+
+**Fix atteso:** `refresh_snapshot` → ricalcolo **pending** only; unica commit in `begin_frame`; notifica React su ogni commit (o bump revision su ogni cambio placement significativo).
+
+---
+
+### 13.2 Pipeline a pass — **P2, debito controllato**
+
+`RenderPassId::GameView` e `::Blit` esistono ma il loop in `app_scene_render.cpp` ha `case` vuoti; capture/blit restano in:
+
+- `Renderer::beginFrame()` — GameView RT
+- `Renderer::endWorldPass()` — `RenderPasses::blit_game_view`
+
+**Formulazione corretta fase 7:**
+
+> Pass applicativi espliciti; lifecycle GameView/Blit ancora **renderer-owned**.
+
+Non richiede render graph generico (fase 9). Miglioramento futuro: `pipeline.execute(BlitPass)` con primitive renderer per open/close target.
+
+---
+
+### 13.3 `playFitScale` — **P0, seconda autorità layout**
+
+Fallback attivo quando `presentationSnapshot.revision === 0n`:
+
+- `editor/src/panels/PreviewPanel.tsx`
+- `editor/src/runtime-preview/runtime-preview-display.ts`
+
+Il poll React **salta** `revision === 0`, quindi al bootstrap TS può posizionare il canvas con `playFitScale` mentre C++ applica `OutputPolicy` al primo refresh → possibile **salto al primo frame**.
+
+**Regola ADR target:** nessun fit/letterbox/placement in TypeScript, nemmeno come fallback.
+
+**Fix atteso:** non mostrare superficie play finché `revision > 0` (loading surface), oppure init presentation C++ prima di rendere visibile il canvas.
+
+---
+
+### 13.4 ABI snapshot 64 byte — **P1, fragile**
+
+`PresentationSnapshotWasm` (`presentation_snapshot_wasm.h`):
+
+- `static_assert(sizeof == 64)` — buono per size drift
+- **Manca** `abiVersion` / `byteSize` in header
+- TS (`presentation-snapshot.ts`): parser senza guard su versione
+- `PRESENTATION_MODE_ABI` duplicato manualmente rispetto a `PresentationMode` C++
+
+**Rischio:** modifica field order in C++ compila ma corrompe letture TS.
+
+**Fix atteso:** header ABI versionato; `static_assert` su size; throw TS se version/size non supportati; test o codegen condiviso per ordinali mode.
+
+---
+
+### 13.5 Input e `presentationRevision` — **P1, contratto indefinito**
+
+ADR: `SurfacePointerEvent.presentationRevision`.
+
+Codice attuale:
+
+- `PresentationBindings::surface_to_world(system, revision, …)` + history 3 revision — **implementato**
+- `editor-input-controller.cpp` → usa solo `committed_snapshot()`, **senza** revision evento
+- Nessun campo revision negli eventi Emscripten verso il core
+
+**Comportamento implicito:** sempre snapshot corrente. Accettabile solo se documentato e testato su resize/fullscreen ai bordi.
+
+**Fix atteso:** portare revision nel payload input; core usa `find_snapshot(revision)` con fallback definito.
+
+---
+
+### 13.6 `syncPlaySurface` / DPR — **P1, direzione corretta**
+
+Modello implementato (fase 8):
+
+```
+CSS host × DPR → framebuffer
+logical viewport → GameView RT
+OutputPolicy → placement sulla superficie
+```
+
+`syncPlaySurface` confronta `fbW/H` prima di `setWindowSize` — mitigazione loop ResizeObserver.
+
+**Da verificare manualmente / test:** DPR 1.25, 1.5, 2.0; resize ripetuti; assenza oscillazione fbW/fbH.
+
+File: `renderer.cpp` (`syncPlaySurface`), `presentation-surface-metrics-test.cpp` (unit DPR, non loop host).
+
+---
+
+### 13.7 Camera shake / modifiers — **P0, incoerenza draw vs picking**
+
+In `syncPresentationState()` con compositor play:
+
+```cpp
+const CameraModifiers noShake{};
+compose_effective_game_camera(state.gameCamera, noShake);  // picking
+```
+
+In `beginFrame()` draw:
+
+```cpp
+apply_game_modifiers_to_frame_camera(frameCamera, impl_->gameModifiers_);
+```
+
+**Mondo disegnato con shake; matrici snapshot/picking senza shake** → drift in play con `CameraManager` shake attivo.
+
+**Fix atteso:** `state.gameModifiers` nella effective camera usata per `pickingCamera` e per le matrici in snapshot.
+
+---
+
+### 13.8 `drawCameraFrame` — **P1, odore contrattuale**
+
+Presente in `ViewRenderFeatures`, **non** letto da `buildPipeline`. Overlay camera frame è React (`PreviewPanel`).
+
+**Opzioni:** rimuovere il flag; oppure rinominare/documentare come hint frontend-only.
+
+---
+
+### 13.9 Parità native / WASM — **P0 test, P1 dimostrazione**
+
+| Livello | Stato |
+|---------|--------|
+| Parità **architetturale** (compositor, mode, sync surface) | Raggiunta in struttura |
+| Parità **dimostrata da test** | Incompleta |
+
+`presentation-golden-test.cpp::test_native_wasm_parity()` confronta **legacy `compositor_layout` vs `output_placement_compute`** — non WASM vs `game.exe`.
+
+**Matrice minima consigliata** (golden o integration):
+
+| Mode | Logical | Surface | DPR | Policy |
+|------|---------|---------|-----|--------|
+| Embedded | 320×240 | 900×600 | 1 | IntegerFit |
+| Embedded | 320×240 | 900×600 | 1.5 | IntegerFit |
+| External | 512×320 | 1280×720 | 1 | SmoothFit |
+| Fullscreen | 320×240 | 1920×1080 | 1 | IntegerFit |
+| Native exe | 320×240 | 1920×1080 | 1 | IntegerFit |
+
+Per ogni riga: `contentRect`, `clipRect`, `scale`, letterbox, round-trip `surfaceToWorld` / `worldToSurface` entro epsilon.
+
+---
+
+### 13.10 Riepilogo priorità
+
+| ID | Priorità | Tema | Blocca chiusura ADR? |
+|----|----------|------|----------------------|
+| 13.1 | **P0** | Snapshot commit solo a `begin_frame` | Sì |
+| 13.3 | **P0** | Eliminare `playFitScale` come layout authority | Sì |
+| 13.7 | **P0** | Shake/modifiers in effective camera | Sì |
+| 13.9 | **P0** | Golden matrix DPR / letterbox / cross-target | Sì (prove) |
+| 13.4 | P1 | ABI versionata snapshot | Hardening |
+| 13.5 | P1 | Revision su pointer events | Hardening |
+| 13.6 | P1 | Test DPR frazionario + resize loop | Hardening |
+| 13.8 | P1 | `drawCameraFrame` dead flag | Pulizia contratto |
+| 13.2 | P2 | Blit nel pipeline executor | Debito controllato |
+
+---
+
+## 14. Checklist chiusura ADR (P0 · P1 · P2)
+
+Usare questa checklist **dopo** la checklist esplorativa § 11. Ogni voce P0 deve essere **spuntata con PR + test** prima di aggiornare lo stato migrazione a “chiusa”.
+
+### P0 — Obbligatori prima di “ADR chiuso”
+
+#### P0-A · Contratto snapshot
+
+```
+□ presentation_system: resize/intent mutano solo pendingState (o state_ pre-commit)
+□ Una sola path di commit: begin_frame() → committed + revision++
+□ refresh_snapshot() rimosso o ridotto a pending-only (nessuna scrittura committed fuori begin_frame)
+□ Renderer: updateCameraProjection / syncPlaySurface / editorResizeSurface non committano snapshot
+□ React: overlay aggiornato su ogni commit (revision bump O hash placement O evento esplicito)
+□ Test: resize mid-frame → picking e React stesso placement entro stesso revision semantics documentato
+□ File review: presentation_system.cpp, renderer.cpp, runtime-sync-service.ts, presentation-store.ts
+```
+
+#### P0-B · Zero fit TypeScript
+
+```
+□ Nessun playFitScale / playDisplaySize usato per layout play quando canvas è visibile
+□ PreviewPanel: gate UI se snapshot.revision === 0 (loading surface o canvas nascosto)
+□ runtime-preview-display: stesso gate per finestra external
+□ grep editor/src: playFitScale solo in test o @deprecated senza call site layout
+□ Smoke: nessun salto dimensione al primo frame play docked + external
+```
+
+#### P0-C · Camera effective unificata
+
+```
+□ syncPresentationState: pickingCamera usa compose_effective_game_camera(gameCamera, gameModifiers)
+□ Verificato: matrici snapshot = camera usata in beginFrame per draw (compositor play)
+□ Test o smoke: shake attivo → picking allineato al draw
+□ File review: renderer.cpp syncPresentationState, beginFrame, app_scene_render setGameCameraModifiers
+```
+
+#### P0-D · Golden / parità dimostrata
+
+```
+□ Matrice § 13.9 coperta da test C++ (almeno placement + round-trip picking)
+□ Caso DPR 1.5 in integration (non solo surface_metrics unit)
+□ Caso letterbox integer (320×240 in 1920×1080) in integration
+□ Documentato cosa “native_wasm_parity” testa realmente (rename test se serve)
+□ Opzionale ma raccomandato: un test che esegue stessi input su path Renderer WASM vs native
+```
+
+### P1 — Hardening contratto (subito dopo P0)
+
+```
+□ PresentationSnapshotWasm: abiVersion + byteSize; static_assert size
+□ parsePresentationSnapshotWasm: throw su version/size mismatch
+□ Ordinali PresentationMode: test statico C++ ↔ TS o tabella generata
+□ SurfacePointerEvent (o equivalente): presentationRevision su input Emscripten
+□ find_snapshot(revision) usato nel path input con fallback documentato
+□ Test resize ripetuti + DPR 1.25 / 1.5 senza oscillazione fb dimension
+□ drawCameraFrame: rimosso da ViewRenderFeatures O rinominato hint React-only in header
+```
+
+### P2 — Pulizia architetturale (non blocca chiusura)
+
+```
+□ Valutare BlitPass eseguito da pipeline executor (non solo beginFrame/endWorldPass)
+□ Documentare in render_pipeline.h il debito “renderer-owned lifecycle” finché esiste
+□ Fase 9 (render graph) resta fuori scope finché non c’è requisito prodotto
+```
+
+### Firma reviewer (opzionale)
+
+| Reviewer | Data | P0 completi | Note |
+|----------|------|-------------|------|
+| | | □ | |
+| | | □ | |
 
 ---
 
@@ -443,4 +732,4 @@ Attivare fase 9 solo con requisito prodotto esplicito (ADR: *Only when needed*).
 
 ---
 
-*Report generato per audit interno post-migrazione fasi 7–8. Per domande sulle decisioni architetturali originali, usare l’ADR come fonte primaria; per discrepanze tra questo report e il codice, **il codice vince** — aprire issue con path + commit.*
+*Report + addendum § 13–14 per audit interno post-migrazione fasi 7–8. Per decisioni architetturali originali → ADR. Per discrepanze report/codice → **il codice vince**. Gap P0: non dichiarare migrazione chiusa finché § 14 P0 non è soddisfatta.*

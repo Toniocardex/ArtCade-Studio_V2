@@ -17,7 +17,7 @@
 
 Riferimento unico allineato al report struttura ArtCade, con sezione **Come differisce V2** (React, ECS, compile-to-Lua, `.artcade`). Usalo prima di proporre refactor massicci.
 
-**Presentation / viewport refactor (ADR):** [`PRESENTATION_ARCHITECTURE.md`](PRESENTATION_ARCHITECTURE.md) — Shared Presentation Core, snapshot atomica, pipeline a pass, 9 fasi di migrazione. **Report audit fasi 1–8 (per collaboratori):** [`PRESENTATION_MIGRATION_AUDIT_REPORT.md`](PRESENTATION_MIGRATION_AUDIT_REPORT.md).
+**Presentation / viewport refactor (ADR):** [`PRESENTATION_ARCHITECTURE.md`](PRESENTATION_ARCHITECTURE.md) — Shared Presentation Core, snapshot atomica, pipeline a pass, 9 fasi di migrazione. **Report audit + addendum gap P0/P1:** [`PRESENTATION_MIGRATION_AUDIT_REPORT.md`](PRESENTATION_MIGRATION_AUDIT_REPORT.md) (§ 13–14 checklist chiusura ADR).
 
 Prosa estesa del report greenfield (italiano, riferimento storico): **`Report-Struttura-Artcade.md`**.
 
