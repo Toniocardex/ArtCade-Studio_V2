@@ -1,6 +1,8 @@
 #include "../include/game-api.h"
 #include "../../input/include/input.h"
 #include "../../renderer/include/renderer.h"
+#include "../../presentation/include/presentation_bindings.h"
+#include "../../presentation/include/presentation_types.h"
 
 #include <functional>
 #include <sol/sol.hpp>
@@ -23,11 +25,17 @@ void GameAPI::bindInputAPI(sol::state& lua) {
         auto pos = input->mousePosition();
         return { pos.x, pos.y };
     });
-    lua.set_function("input_mouseWorld", [input, renderer]() -> std::tuple<float, float> {
-        const auto pos = input->mousePosition();
-        if (!renderer) return { pos.x, pos.y };
-        const Vec2 world = renderer->screenToWorld(pos.x, pos.y);
-        return { world.x, world.y };
+    lua.set_function("input_mouseWorld", [this, renderer]() -> std::tuple<float, float> {
+        if (!renderer || !ctx_.input) return { 0.f, 0.f };
+        const auto pos = ctx_.input->mousePosition();
+        const ArtCade::Presentation::WorldPoint world =
+            ArtCade::Presentation::PresentationBindings::surface_to_world(
+                renderer->committedPresentationSnapshot(),
+                ArtCade::Presentation::SurfacePoint{ pos.x, pos.y });
+        return {
+            static_cast<float>(world.x),
+            static_cast<float>(world.y),
+        };
     });
     lua.set_function("input_mouseButtonDown", [input](int btn) { return input->isMouseButtonDown(btn); });
 

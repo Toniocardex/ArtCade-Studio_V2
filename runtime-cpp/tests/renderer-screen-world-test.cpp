@@ -1,8 +1,10 @@
-// renderer-screen-world-test.cpp — Renderer::screenToWorld matches camera math.
+// renderer-screen-world-test.cpp — committed snapshot picking + clip math (Phase 4).
 // Uses raylib stub (no GPU window).
 
 #include "../src/modules/renderer/include/renderer.h"
 #include "../src/modules/renderer/include/compositor-layout.h"
+#include "../src/modules/presentation/include/presentation_bindings.h"
+#include "../src/modules/presentation/include/presentation_types.h"
 
 #include <cmath>
 #include <cstdio>
@@ -11,6 +13,15 @@
 using ArtCade::Modules::Renderer;
 using ArtCade::Modules::ScreenClipRect;
 using ArtCade::OutputPolicy;
+using ArtCade::Presentation::PresentationBindings;
+using ArtCade::Presentation::SurfacePoint;
+
+static ArtCade::Vec2 pickWorld(const Renderer& renderer, float x, float y) {
+    const auto world = PresentationBindings::surface_to_world(
+        renderer.committedPresentationSnapshot(),
+        SurfacePoint{ x, y });
+    return { static_cast<float>(world.x), static_cast<float>(world.y) };
+}
 
 static bool near(float a, float b, float eps = 0.001f) {
     return std::fabs(a - b) <= eps;
@@ -38,15 +49,15 @@ int main() {
     renderer.setCameraZoom(2.f);
     renderer.setCameraPosition({ 640.f, 360.f });
 
-    const auto world = renderer.screenToWorld(100.f, 200.f);
+    const auto world = pickWorld(renderer, 100.f, 200.f);
     // (screen - offset) / zoom + target; offset is 0 with top-left origin.
-    expect(near(world.x, (100.f / 2.f) + 640.f), "screenToWorld X");
-    expect(near(world.y, (200.f / 2.f) + 360.f), "screenToWorld Y");
+    expect(near(world.x, (100.f / 2.f) + 640.f), "snapshot picking X");
+    expect(near(world.y, (200.f / 2.f) + 360.f), "snapshot picking Y");
 
     renderer.setCameraPosition({ 0.f, 0.f });
     renderer.setCameraZoom(1.f);
-    const auto origin = renderer.screenToWorld(0.f, 0.f);
-    expect(near(origin.x, 0.f) && near(origin.y, 0.f), "screenToWorld at origin");
+    const auto origin = pickWorld(renderer, 0.f, 0.f);
+    expect(near(origin.x, 0.f) && near(origin.y, 0.f), "snapshot picking at origin");
 
     // 1:1 world/viewport clamps authoritative camera; shake must stay render-only.
     renderer.setSceneViewport({ 1280.f, 720.f }, { 1280.f, 720.f });
@@ -61,7 +72,7 @@ int main() {
 
     renderer.setSceneViewport({ 2560.f, 1440.f }, { 1280.f, 720.f });
     renderer.setCameraCenter({ 1280.f, 720.f });
-    const auto centered = renderer.screenToWorld(640.f, 360.f);
+    const auto centered = pickWorld(renderer, 640.f, 360.f);
     expect(near(centered.x, 1280.f) && near(centered.y, 720.f),
            "setCameraCenter places world point at viewport center");
     const auto cameraCenter = renderer.getCameraCenter();
@@ -71,26 +82,26 @@ int main() {
     renderer.setWindowSize(720, 360, "test-small-world");
     renderer.setSceneViewport({ 640.f, 480.f }, { 720.f, 360.f });
     renderer.setCameraPosition({ 0.f, 0.f });
-    const auto smallWorldCenter = renderer.screenToWorld(360.f, 180.f);
+    const auto smallWorldCenter = pickWorld(renderer, 360.f, 180.f);
     expect(near(smallWorldCenter.x, 320.f) && near(smallWorldCenter.y, 180.f),
            "small world is centered inside wider viewport");
     const auto smallCameraCenter = renderer.getCameraCenter();
     expect(near(smallCameraCenter.x, 320.f) && near(smallCameraCenter.y, 180.f),
            "small world camera center matches visual center");
-    const auto leftInset = renderer.screenToWorld(0.f, 180.f);
+    const auto leftInset = pickWorld(renderer, 0.f, 180.f);
     expect(leftInset.x < 0.f && near(leftInset.y, 180.f),
            "screen margin maps outside centered small world");
 
     renderer.setWindowSize(1000, 720, "test-letterbox");
     renderer.setSceneViewport({ 640.f, 480.f }, { 320.f, 240.f });
     renderer.setCameraPosition({ 0.f, 0.f });
-    const auto letterboxLeft = renderer.screenToWorld(0.f, 360.f);
+    const auto letterboxLeft = pickWorld(renderer, 0.f, 360.f);
     expect(near(letterboxLeft.x, -20.f / 3.f) && near(letterboxLeft.y, 120.f),
            "letterbox margin maps outside the logical viewport");
-    const auto viewportTopLeft = renderer.screenToWorld(20.f, 0.f);
+    const auto viewportTopLeft = pickWorld(renderer, 20.f, 0.f);
     expect(near(viewportTopLeft.x, 0.f) && near(viewportTopLeft.y, 0.f),
            "scaled viewport starts after the letterbox offset");
-    const auto viewportCenter = renderer.screenToWorld(500.f, 360.f);
+    const auto viewportCenter = pickWorld(renderer, 500.f, 360.f);
     expect(near(viewportCenter.x, 160.f) && near(viewportCenter.y, 120.f),
            "scaled viewport center maps to logical center");
     const auto visible = renderer.visibleWorldSize();
@@ -141,8 +152,8 @@ int main() {
     renderer.setWindowSize(512, 320, "test-editor-camera");
     renderer.setEditorCamera({ 0.f, 0.f }, 1.f);
     renderer.setWindowSize(512, 320, "test-editor-camera-refresh");
-    const auto gridOrigin = renderer.screenToWorld(0.f, 0.f);
-    const auto gridStep = renderer.screenToWorld(32.f, 32.f);
+    const auto gridOrigin = pickWorld(renderer, 0.f, 0.f);
+    const auto gridStep = pickWorld(renderer, 32.f, 32.f);
     expect(near(gridOrigin.x, 0.f) && near(gridOrigin.y, 0.f),
            "editor camera keeps 1:1 origin after projection refresh");
     expect(near(gridStep.x, 32.f) && near(gridStep.y, 32.f),

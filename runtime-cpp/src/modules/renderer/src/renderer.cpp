@@ -1228,15 +1228,6 @@ void Renderer::panCameraByScreenDelta(float dx, float dy) {
     });
 }
 
-Vec2 Renderer::screenToWorld(float screenX, float screenY) const {
-    const WorldPoint world = impl_->presentation.committed_snapshot().surface_to_world(
-        SurfacePoint{ screenX, screenY });
-    return {
-        static_cast<float>(world.x),
-        static_cast<float>(world.y),
-    };
-}
-
 const ArtCade::Presentation::PresentationSnapshot&
 Renderer::committedPresentationSnapshot() const {
     return impl_->presentation.committed_snapshot();

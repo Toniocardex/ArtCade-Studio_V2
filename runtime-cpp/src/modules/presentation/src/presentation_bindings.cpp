@@ -3,6 +3,12 @@
 namespace ArtCade::Presentation {
 
 WorldPoint PresentationBindings::surface_to_world(
+    const PresentationSnapshot& snapshot,
+    SurfacePoint surface) {
+    return snapshot.surface_to_world(surface);
+}
+
+WorldPoint PresentationBindings::surface_to_world(
     const PresentationSystem& system,
     SurfacePoint surface) {
     return system.committed_snapshot().surface_to_world(surface);

@@ -15,7 +15,7 @@ namespace ArtCade::Modules {
  *   - optional follow-target (supply a getter lambda; camera lerps towards it)
  *   - screen-shake: trauma-based, decays over time
  *   - shakeModifiers(): render-only offsets for Presentation (not authoritative position)
- *   - world ↔ screen coordinate conversion (deprecated — use Presentation Core)
+ *   - visible bounds from authoritative position + zoom (surface mapping: Presentation Core)
  *   - viewport bounds: the rectangle of the world visible through this camera
  *
  * The Renderer reads position()/rotation()/zoom() and applies them.
@@ -89,20 +89,12 @@ public:
     /** refreshShakeOffset + decayTrauma (legacy single-step helper). */
     void updateShake(float dt);
 
-    // ------------------------------------------------------------------ coordinate conversion
-    // Deprecated: surface↔world math belongs in Presentation Core (ADR Phase 3).
-
-    [[deprecated("Use Presentation Core surface_to_world / world_to_surface")]]
-    Vec2 worldToScreen(Vec2 world) const;
-    [[deprecated("Use Presentation Core surface_to_world / world_to_surface")]]
-    Vec2 screenToWorld(Vec2 screen) const;
-
     // ------------------------------------------------------------------ viewport
 
-    // Screen size must be provided so the camera can compute visible bounds
+    /** Screen size must be provided so the camera can compute visible bounds */
     void setScreenSize(float w, float h);
 
-    // Returns the world-space AABB [topLeft, bottomRight] currently visible
+    /** Returns the world-space AABB [topLeft, bottomRight] currently visible */
     void visibleBounds(Vec2& outTopLeft, Vec2& outBottomRight) const;
 
 private:

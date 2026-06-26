@@ -150,27 +150,9 @@ void CameraManager::update(float dt) {
     updateShake(dt);
 }
 
-// ------------------------------------------------------------------ coordinates
-
 void CameraManager::setScreenSize(float w, float h) {
     screenW_ = w;
     screenH_ = h;
-}
-
-Vec2 CameraManager::worldToScreen(Vec2 world) const {
-    Vec2 cam = position();
-    return {
-        (world.x - cam.x) * zoom_ + screenW_ * 0.5f,
-        (world.y - cam.y) * zoom_ + screenH_ * 0.5f
-    };
-}
-
-Vec2 CameraManager::screenToWorld(Vec2 screen) const {
-    Vec2 cam = position();
-    return {
-        (screen.x - screenW_ * 0.5f) / zoom_ + cam.x,
-        (screen.y - screenH_ * 0.5f) / zoom_ + cam.y
-    };
 }
 
 void CameraManager::visibleBounds(Vec2& tl, Vec2& br) const {

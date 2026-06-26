@@ -1,6 +1,7 @@
 // presentation-camera-modes-test.cpp — Phase 3: dual camera, explicit modes, modifiers.
 
 #include "../src/modules/renderer/include/renderer.h"
+#include "../src/modules/presentation/include/presentation_bindings.h"
 #include "../src/modules/presentation/include/presentation_mode.h"
 #include "../src/modules/presentation/include/presentation_types.h"
 
@@ -10,6 +11,7 @@
 
 using ArtCade::Modules::Renderer;
 using ArtCade::Presentation::CameraModifiers;
+using ArtCade::Presentation::PresentationBindings;
 using ArtCade::Presentation::PresentationMode;
 using ArtCade::Presentation::SurfacePoint;
 
@@ -54,11 +56,13 @@ int main() {
            "CameraPreview picking uses game camera");
 
     renderer.setGameCameraModifiers({ 30., -20., 1., 0. });
-    const auto pickWithShake = renderer.screenToWorld(200.f, 300.f);
+    const auto pickWithShake = PresentationBindings::surface_to_world(
+        renderer.committedPresentationSnapshot(), SurfacePoint{ 200., 300. });
     renderer.setGameCameraModifiers({});
-    const auto pickNoShake = renderer.screenToWorld(200.f, 300.f);
-    expect(near_eq(pickWithShake.x, pickNoShake.x)
-           && near_eq(pickWithShake.y, pickNoShake.y),
+    const auto pickNoShake = PresentationBindings::surface_to_world(
+        renderer.committedPresentationSnapshot(), SurfacePoint{ 200., 300. });
+    expect(near_eq(static_cast<float>(pickWithShake.x), static_cast<float>(pickNoShake.x))
+           && near_eq(static_cast<float>(pickWithShake.y), static_cast<float>(pickNoShake.y)),
            "shake modifiers do not affect picking");
 
     renderer.setGameViewCompositorEnabled(true);

@@ -41,4 +41,5 @@ target_link_libraries(artcade-game-api
         artcade-dialog
     PRIVATE
         lua54
+        artcade-presentation
 )

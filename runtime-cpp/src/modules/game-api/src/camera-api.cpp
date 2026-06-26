@@ -81,8 +81,7 @@ void GameAPI::bindCameraAPI(sol::state& lua) {
     });
 
     // screen.isOffScreen(id) — true when the entity's position is outside the
-    // current camera view. Uses screenToWorld on the viewport corners so it is
-    // correct regardless of zoom / camera anchor. Missing entity → off-screen.
+    // current camera view (authoritative game camera + visible world size).
     lua.set_function("screen_isOffScreen", [renderer, entities](EntityId id) -> bool {
         if (!renderer || !entities) return true;
         Transform transform{};

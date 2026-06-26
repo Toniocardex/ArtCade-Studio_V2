@@ -11,6 +11,9 @@ namespace ArtCade::Presentation {
  */
 class PresentationBindings {
 public:
+    static WorldPoint surface_to_world(const PresentationSnapshot& snapshot,
+                                       SurfacePoint surface);
+
     /**
      * Maps surface pixels to world using the active committed snapshot.
      * @param system presentation owner (must have a committed revision)

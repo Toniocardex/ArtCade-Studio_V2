@@ -200,7 +200,6 @@ public:
     /** Editor-preview camera: apply target/zoom verbatim (no clamp/offset). */
     void setEditorCamera  (const Vec2& target, float zoom);
     void panCameraByScreenDelta(float dx, float dy);
-    Vec2 screenToWorld    (float screenX, float screenY) const;
     Vec2 visibleWorldSize () const;
     Vec2 getCameraPosition() const;
     /** World-space point currently shown at the center of the viewport. */

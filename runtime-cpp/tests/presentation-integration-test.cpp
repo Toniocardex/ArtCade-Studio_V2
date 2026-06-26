@@ -1,6 +1,7 @@
 // presentation-integration-test.cpp — renderer + picking share committed snapshot (Phase 2).
 
 #include "../src/modules/renderer/include/renderer.h"
+#include "../src/modules/presentation/include/presentation_bindings.h"
 #include "../src/modules/presentation/include/presentation_mode.h"
 #include "../src/core/types.h"
 
@@ -9,6 +10,7 @@
 #include <cstdlib>
 
 using ArtCade::Modules::Renderer;
+using ArtCade::Presentation::PresentationBindings;
 using ArtCade::Presentation::SurfacePoint;
 
 static bool near_eq(float a, float b, float eps = 0.001f) {
@@ -33,13 +35,15 @@ int main() {
     const uint64_t revision = renderer.presentationRevision();
     expect(revision >= 1, "projection refresh exposes committed revision");
 
-    const auto viaRenderer = renderer.screenToWorld(100.f, 200.f);
+    const auto viaBindings = PresentationBindings::surface_to_world(
+        renderer.committedPresentationSnapshot(),
+        SurfacePoint{ 100., 200. });
     const auto& snapshot = renderer.committedPresentationSnapshot();
     expect(snapshot.revision == revision, "renderer and snapshot share revision");
     const auto viaSnapshot = snapshot.surface_to_world(SurfacePoint{ 100., 200. });
-    expect(near_eq(viaRenderer.x, static_cast<float>(viaSnapshot.x))
-           && near_eq(viaRenderer.y, static_cast<float>(viaSnapshot.y)),
-           "screenToWorld matches committed snapshot");
+    expect(near_eq(static_cast<float>(viaBindings.x), static_cast<float>(viaSnapshot.x))
+           && near_eq(static_cast<float>(viaBindings.y), static_cast<float>(viaSnapshot.y)),
+           "PresentationBindings matches committed snapshot");
 
     const auto layout = renderer.compositorLayout();
     expect(near_eq(static_cast<float>(layout.scaleX),
@@ -52,10 +56,11 @@ int main() {
     renderer.setSceneViewport({ 640.f, 480.f }, { 320.f, 240.f });
     renderer.setOutputPolicy(ArtCade::OutputPolicy::Fill);
     const auto& playSnapshot = renderer.committedPresentationSnapshot();
-    const auto playWorld = renderer.screenToWorld(960.f, 540.f);
+    const auto playWorld = PresentationBindings::surface_to_world(
+        playSnapshot, SurfacePoint{ 960., 540. });
     const auto playSnap = playSnapshot.surface_to_world(SurfacePoint{ 960., 540. });
-    expect(near_eq(playWorld.x, static_cast<float>(playSnap.x))
-           && near_eq(playWorld.y, static_cast<float>(playSnap.y)),
+    expect(near_eq(static_cast<float>(playWorld.x), static_cast<float>(playSnap.x))
+           && near_eq(static_cast<float>(playWorld.y), static_cast<float>(playSnap.y)),
            "play compositor picking uses committed snapshot");
 
     std::puts("presentation_integration_test: all passed");
