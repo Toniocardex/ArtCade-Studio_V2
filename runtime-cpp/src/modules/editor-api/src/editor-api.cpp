@@ -54,7 +54,9 @@ std::vector<std::pair<std::string, std::string>> EditorAPI::s_consoleQueue;
 #include "../../../modules/runtime-entity-gateway/include/runtime-entity-gateway.h"
 #include "../../../modules/lua-runtime/include/lua-host.h"
 #include "../../../modules/renderer/include/renderer.h"
+#include "../../../modules/presentation/include/presentation_bindings.h"
 #include "../../../modules/presentation/include/presentation_snapshot.h"
+#include "../../../modules/presentation/include/presentation_snapshot_wasm.h"
 #include "../../../modules/presentation/include/presentation_mode.h"
 #include "../../../modules/dialog/include/dialog-manager.h"
 #include "../../../modules/dialog/include/dialog-parser.h"
@@ -714,6 +716,19 @@ EMSCRIPTEN_KEEPALIVE uint64_t editor_get_presentation_revision() {
     return r->presentationRevision();
 }
 
+EMSCRIPTEN_KEEPALIVE const ArtCade::Presentation::PresentationSnapshotWasm*
+editor_get_presentation_snapshot() {
+    static ArtCade::Presentation::PresentationSnapshotWasm abi{};
+    auto* r = ArtCade::EditorAPI::s_renderer;
+    if (!r) {
+        abi = {};
+        return &abi;
+    }
+    abi = ArtCade::Presentation::snapshot_to_wasm(
+        r->committedPresentationSnapshot());
+    return &abi;
+}
+
 EMSCRIPTEN_KEEPALIVE void editor_surface_to_world(
     float surfaceX, float surfaceY, float* outWorldX, float* outWorldY) {
     if (!outWorldX || !outWorldY) return;
@@ -724,7 +739,8 @@ EMSCRIPTEN_KEEPALIVE void editor_surface_to_world(
         return;
     }
     const ArtCade::Presentation::WorldPoint world =
-        r->committedPresentationSnapshot().surface_to_world(
+        ArtCade::Presentation::PresentationBindings::surface_to_world(
+            r->committedPresentationSnapshot(),
             ArtCade::Presentation::SurfacePoint{ surfaceX, surfaceY });
     *outWorldX = static_cast<float>(world.x);
     *outWorldY = static_cast<float>(world.y);

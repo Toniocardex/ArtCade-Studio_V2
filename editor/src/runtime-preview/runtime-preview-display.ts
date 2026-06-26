@@ -1,6 +1,8 @@
 import type { PreviewTransitionBundle } from '../utils/runtime-sync-service'
+import type { PresentationSnapshot } from '../utils/presentation-snapshot'
 import {
   type DisplaySize,
+  playCssScaleFromSnapshot,
   playFitScale,
   runtimeCanvasBootStyle,
   runtimeCanvasPlayStyle,
@@ -21,6 +23,7 @@ export function runtimePreviewLogicalSize(
 export function runtimePreviewDisplaySize(
   logical: RuntimePreviewDisplaySize | null,
   windowSize: RuntimePreviewDisplaySize,
+  presentation?: PresentationSnapshot | null,
 ): RuntimePreviewDisplaySize {
   if (!logical) {
     return {
@@ -28,7 +31,9 @@ export function runtimePreviewDisplaySize(
       y: Math.max(1, Math.round(windowSize.y)),
     }
   }
-  const scale = playFitScale(logical, windowSize, { integerUpscale: true })
+  const scale = presentation && presentation.revision > 0n
+    ? playCssScaleFromSnapshot(presentation, windowSize, { integerUpscale: true })
+    : playFitScale(logical, windowSize, { integerUpscale: true })
   return {
     x: Math.max(1, Math.round(logical.x * scale)),
     y: Math.max(1, Math.round(logical.y * scale)),
@@ -43,13 +48,16 @@ export function runtimePreviewBackground(bundle: PreviewTransitionBundle | null)
 export function runtimePreviewCanvasStyle(
   bundle: PreviewTransitionBundle | null,
   windowSize: RuntimePreviewDisplaySize,
+  presentation?: PresentationSnapshot | null,
 ): Partial<CSSStyleDeclaration> {
   const logical = runtimePreviewLogicalSize(bundle)
   const background = runtimePreviewBackground(bundle)
   if (!logical) {
     return runtimeCanvasBootStyle(windowSize, background)
   }
-  const scale = playFitScale(logical, windowSize, { integerUpscale: true })
+  const scale = presentation && presentation.revision > 0n
+    ? playCssScaleFromSnapshot(presentation, windowSize, { integerUpscale: true })
+    : playFitScale(logical, windowSize, { integerUpscale: true })
   return runtimeCanvasPlayStyle({
     viewport: logical,
     scale,

@@ -1,11 +1,31 @@
 import { describe, expect, it } from 'vitest'
 import {
+  playCssScaleFromSnapshot,
   playDisplaySize,
   playFitScale,
   playStageAvailableSize,
   runtimeCanvasPlayStyle,
   sceneBackgroundCss,
 } from './runtime-canvas-presentation'
+import type { PresentationSnapshot } from './presentation-snapshot'
+
+const SNAPSHOT: PresentationSnapshot = {
+  revision: 3n,
+  effectiveMode: 'playEmbedded',
+  letterboxActive: false,
+  useIdentityPlacement: false,
+  surfaceFramebuffer: { width: 512, height: 320 },
+  logical: { width: 512, height: 320 },
+  placement: {
+    destX: 0,
+    destY: 0,
+    destW: 512,
+    destH: 320,
+    scaleX: 2,
+    scaleY: 2,
+  },
+  presentationScale: 2,
+}
 
 describe('runtime-canvas-presentation', () => {
   it('fits a logical viewport with integer upscale for floating preview', () => {
@@ -25,6 +45,15 @@ describe('runtime-canvas-presentation', () => {
       available,
       { minScale: 0.1 },
     )).toBeCloseTo(1.9375, 4)
+  })
+
+  it('derives play CSS scale from committed snapshot logical size', () => {
+    const scale = playCssScaleFromSnapshot(
+      SNAPSHOT,
+      { x: 1024, y: 768 },
+      { integerUpscale: true },
+    )
+    expect(scale).toBe(2)
   })
 
   it('formats scene background colours', () => {

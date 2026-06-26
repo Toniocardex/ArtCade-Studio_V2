@@ -7,6 +7,7 @@ add_library(artcade-presentation
     src/presentation_snapshot.cpp
     src/presentation_system.cpp
     src/presentation_bindings.cpp
+    src/presentation_snapshot_wasm.cpp
 )
 target_include_directories(artcade-presentation
     PUBLIC include

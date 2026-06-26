@@ -5,7 +5,7 @@ import type { ConsoleEntry } from '../types'
 import { assetOrchestrator, imageAssetDescriptor } from '../utils/asset-orchestrator'
 import { watchProjectAssets } from '../utils/asset-watcher'
 import { dirName } from '../utils/project'
-import { runtimeSync, type EditorTool } from '../utils/runtime-sync-service'
+import { runtimeSync, usePresentationSnapshot, type EditorTool } from '../utils/runtime-sync-service'
 import {
   DEFAULT_SCENE_SIZE,
   EDITOR_CANVAS_OVERSCROLL_FACTOR,
@@ -37,6 +37,7 @@ import { useEditorFitZoom } from '../hooks/useEditorFitZoom'
 import { getRuntimeCanvas } from '../utils/runtime-canvas'
 import {
   applyRuntimeCanvasPresentation,
+  playCssScaleFromSnapshot,
   playDisplaySize,
   playFitScale,
   playStageAvailableSize,
@@ -489,6 +490,7 @@ export default function PreviewPanel({
   })
 
   const bgColor = sceneBackgroundCss(selectedScene?.backgroundColor, 'var(--bg)')
+  const presentationSnapshot = usePresentationSnapshot()
 
   const playScale = (() => {
     if (!useDockedRuntimePreview) return zoom
@@ -496,9 +498,17 @@ export default function PreviewPanel({
       x: playStageSize?.x ?? frame.x,
       y: playStageSize?.y ?? frame.y,
     }
+    const available = playStageAvailableSize(stage, RUNTIME_PLAY_STAGE_PADDING_PX)
+    if (presentationSnapshot && presentationSnapshot.revision > 0n) {
+      return playCssScaleFromSnapshot(
+        presentationSnapshot,
+        available,
+        { minScale: RUNTIME_PLAY_MIN_SCALE },
+      )
+    }
     return playFitScale(
       { x: frame.x, y: frame.y },
-      playStageAvailableSize(stage, RUNTIME_PLAY_STAGE_PADDING_PX),
+      available,
       { minScale: RUNTIME_PLAY_MIN_SCALE },
     )
   })()

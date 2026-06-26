@@ -1,4 +1,5 @@
 import type { Vec4 } from '../types'
+import type { PresentationSnapshot } from './presentation-snapshot'
 
 /** Logical or physical pixel dimensions for runtime canvas layout. */
 export type DisplaySize = Readonly<{ x: number; y: number }>
@@ -18,6 +19,7 @@ export type PlayFitScaleOptions = Readonly<{
 
 /**
  * Computes the uniform scale that fits a logical viewport inside available space.
+ * @deprecated Prefer {@link playCssScaleFromSnapshot} when a committed snapshot exists (ADR Phase 5).
  * @param logical scene viewport in world pixels (must be > 0 on each axis)
  * @param available host area in CSS pixels
  */
@@ -31,6 +33,29 @@ export function playFitScale(
   const scaleY = available.y / Math.max(1, logical.y)
   let scale = Math.max(minScale, Math.min(scaleX, scaleY))
   if (options?.integerUpscale && scale >= 1) {
+    scale = Math.max(1, Math.floor(scale))
+  }
+  return scale
+}
+
+/**
+ * Play-mode CSS scale from a committed presentation snapshot (Phase 5).
+ * Uses snapshot logical size as authority; honours integer upscale when requested.
+ */
+export function playCssScaleFromSnapshot(
+  snapshot: PresentationSnapshot,
+  stageAvailable: DisplaySize,
+  options?: PlayFitScaleOptions,
+): number {
+  const minScale = options?.minScale ?? 0.01
+  const logicalW = Math.max(1, snapshot.logical.width)
+  const logicalH = Math.max(1, snapshot.logical.height)
+  const scaleX = stageAvailable.x / logicalW
+  const scaleY = stageAvailable.y / logicalH
+  let scale = Math.max(minScale, Math.min(scaleX, scaleY))
+  if (options?.integerUpscale && scale >= 1) {
+    const integerCap = Math.max(1, Math.floor(snapshot.presentationScale))
+    scale = Math.min(scale, integerCap)
     scale = Math.max(1, Math.floor(scale))
   }
   return scale

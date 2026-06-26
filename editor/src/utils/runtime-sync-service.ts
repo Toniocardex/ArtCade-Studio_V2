@@ -39,8 +39,16 @@ import {
   editorSyncTilemapData,
   editorSyncTilemapLayers,
   editorUpdateEntity,
+  editorReadPresentationSnapshot,
   isReady as isWasmReady,
 } from './wasm-bridge'
+import {
+  getPresentationSnapshot,
+  onPresentationChanged,
+  publishPresentationSnapshot,
+  type PresentationChangedEvent,
+} from './presentation-store'
+import type { PresentationSnapshot } from './presentation-snapshot'
 import {
   projectJsonForRuntime,
   runtimeProjectProjection,
@@ -182,6 +190,8 @@ class RuntimeSyncServiceImpl {
   private lastScriptReloadMessage: string | null = null
   /** Last wasm-ready value broadcast to listeners — gates edge-triggered notify. */
   private lastNotifiedReady: boolean | null = null
+  private presentationPollRaf: number | null = null
+  private lastPolledPresentationRevision: bigint = 0n
 
   /** True while PLAY/STOP/restore runs — blocks competing project sync from React effects. */
   isTransitioning(): boolean {
@@ -216,6 +226,8 @@ class RuntimeSyncServiceImpl {
   reset(): void {
     const wasmLive = isWasmReady()
     const preserveEngine = wasmLive && this.engineReady
+    this.stopPresentationPolling()
+    this.lastPolledPresentationRevision = 0n
     this.clearSyncCache()
     this.bootProjectSynced = false
     for (const cb of this.bootSyncedListeners) cb(false)
@@ -298,7 +310,42 @@ class RuntimeSyncServiceImpl {
     this.lastGuides = null
     this.lastGridSize = null
     this.lastSnapToGrid = null
+    this.startPresentationPolling()
     for (const cb of this.engineReadyListeners) cb(true)
+  }
+
+  /** Subscribe to committed presentation snapshots (PresentationChangedEvent). */
+  onPresentationChanged(cb: (event: PresentationChangedEvent) => void): () => void {
+    return onPresentationChanged(cb)
+  }
+
+  getPresentationSnapshot(): PresentationSnapshot | null {
+    return getPresentationSnapshot()
+  }
+
+  private startPresentationPolling(): void {
+    if (this.presentationPollRaf != null) return
+    if (typeof requestAnimationFrame !== 'function') return
+    const tick = () => {
+      this.presentationPollRaf = requestAnimationFrame(tick)
+      this.pollPresentationSnapshot()
+    }
+    this.presentationPollRaf = requestAnimationFrame(tick)
+  }
+
+  private stopPresentationPolling(): void {
+    if (this.presentationPollRaf == null) return
+    cancelAnimationFrame(this.presentationPollRaf)
+    this.presentationPollRaf = null
+  }
+
+  private pollPresentationSnapshot(): void {
+    if (!this.engineReady || !isWasmReady()) return
+    const snapshot = editorReadPresentationSnapshot()
+    if (!snapshot || snapshot.revision === 0n) return
+    if (snapshot.revision === this.lastPolledPresentationRevision) return
+    this.lastPolledPresentationRevision = snapshot.revision
+    publishPresentationSnapshot(snapshot)
   }
 
   notifyBootProjectSynced(): void {
@@ -734,4 +781,15 @@ export function useRuntimeReady(): boolean {
     return runtimeSync.onReadyChange(setReady)
   }, [])
   return ready
+}
+
+/** React hook — re-renders when the WASM presentation revision advances. */
+export function usePresentationSnapshot(): PresentationSnapshot | null {
+  const [snapshot, setSnapshot] = useState<PresentationSnapshot | null>(
+    () => runtimeSync.getPresentationSnapshot(),
+  )
+  useEffect(() => runtimeSync.onPresentationChanged((event) => {
+    setSnapshot(event.snapshot)
+  }), [])
+  return snapshot
 }

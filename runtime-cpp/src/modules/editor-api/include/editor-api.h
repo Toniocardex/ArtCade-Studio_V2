@@ -23,6 +23,8 @@
 #include <utility>
 #include <vector>
 
+#include "../../presentation/include/presentation_snapshot_wasm.h"
+
 // Forward declarations shared by both the WASM build and the native stub.
 // Keeping them outside the #ifdef avoids a class of "undeclared identifier"
 // errors when the native build of editor-api.h is included from a TU that
@@ -375,6 +377,10 @@ EMSCRIPTEN_KEEPALIVE void editor_set_edit_camera(
 
 /** Committed presentation revision for the current frame (picking / overlay sync). */
 EMSCRIPTEN_KEEPALIVE uint64_t editor_get_presentation_revision();
+
+/** Committed presentation snapshot (flat ABI; static storage — Phase 5). */
+EMSCRIPTEN_KEEPALIVE const ArtCade::Presentation::PresentationSnapshotWasm*
+editor_get_presentation_snapshot();
 
 /**
  * Maps framebuffer surface pixels to world using the committed presentation snapshot.

@@ -1,4 +1,5 @@
 import { runtimeAssetPath, WASM_BINARY_URL } from './runtime-path'
+import { parsePresentationSnapshotWasm, type PresentationSnapshot } from './presentation-snapshot'
 
 // ---------------------------------------------------------------------------
 // wasm-bridge.ts — React ↔ C++ WASM bridge
@@ -814,6 +815,15 @@ export function editorSetEditCamera(
 /** Committed presentation revision from the WASM presentation core (Phase 2). */
 export function editorGetPresentationRevision(): number {
   return Number(safeCall('editor_get_presentation_revision', 'number', [], []) ?? 0)
+}
+
+/** Reads the committed presentation snapshot ABI from WASM (Phase 5). */
+export function editorReadPresentationSnapshot(): PresentationSnapshot | null {
+  const mod = _module
+  if (!mod) return null
+  const ptr = Number(safeCall('editor_get_presentation_snapshot', 'number', [], []) ?? 0)
+  if (!ptr) return null
+  return parsePresentationSnapshotWasm(mod.HEAPU8, ptr)
 }
 
 /** Surface (framebuffer) → world via committed presentation snapshot. */

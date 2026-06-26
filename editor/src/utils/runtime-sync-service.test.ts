@@ -32,6 +32,7 @@ vi.mock('./wasm-bridge', () => {
     editorSetSceneSettings:   vi.fn(),
     editorSyncTilemapData:    vi.fn(() => true),
     editorSyncTilemapLayers:  vi.fn(() => true),
+    editorReadPresentationSnapshot: vi.fn(() => null),
     peekWasmBridgeLastError:  vi.fn(() => 'mock bridge error'),
   }
 })

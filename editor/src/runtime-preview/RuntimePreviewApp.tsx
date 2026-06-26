@@ -16,6 +16,7 @@ import {
 import {
   messageForEditorApiCode,
   runtimeSync,
+  usePresentationSnapshot,
   type PreviewTransitionBundle,
 } from '../utils/runtime-sync-service'
 import { WASM_RUNTIME_SRC } from '../utils/runtime-path'
@@ -50,6 +51,7 @@ export default function RuntimePreviewApp() {
     x: window.innerWidth,
     y: window.innerHeight,
   }))
+  const presentationSnapshot = usePresentationSnapshot()
 
   bundleRef.current = bundle
 
@@ -57,15 +59,16 @@ export default function RuntimePreviewApp() {
     activeBundle: PreviewTransitionBundle | null,
     size: RuntimePreviewDisplaySize,
     syncFramebuffer: boolean,
+    presentation = presentationSnapshot,
   ) => {
     applyRuntimeCanvasPresentation(
       getRuntimeCanvas(),
-      runtimePreviewCanvasStyle(activeBundle, size),
+      runtimePreviewCanvasStyle(activeBundle, size, presentation),
     )
     if (!syncFramebuffer) return
     const logical = runtimePreviewLogicalSize(activeBundle)
     if (logical) editorSyncPlaySurface(logical.x, logical.y)
-  }, [])
+  }, [presentationSnapshot])
 
   const announceReady = useCallback(() => {
     if (!isTauri()) return
@@ -83,8 +86,8 @@ export default function RuntimePreviewApp() {
   }, [])
 
   useLayoutEffect(() => {
-    applyPreviewCanvasPresentation(bundle, windowSize, status === 'running')
-  }, [bundle, windowSize, status, applyPreviewCanvasPresentation])
+    applyPreviewCanvasPresentation(bundle, windowSize, status === 'running', presentationSnapshot)
+  }, [bundle, windowSize, status, presentationSnapshot, applyPreviewCanvasPresentation])
 
   useEffect(() => {
     const onResize = () => setWindowSize({

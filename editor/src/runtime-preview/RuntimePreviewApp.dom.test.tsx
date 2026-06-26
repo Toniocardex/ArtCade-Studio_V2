@@ -76,6 +76,8 @@ vi.mock('../utils/wasm-bridge', () => ({
   isReady: () => true,
   loadWasmRuntime: (...args: [HTMLCanvasElement, string, never]) => loadWasmRuntimeMock(...args),
   setTextureCacheEvictedCallback: (fn: unknown) => setTextureCacheEvictedCallbackMock(fn),
+  editorSyncPlaySurface: vi.fn(),
+  editorReadPresentationSnapshot: () => null,
 }))
 
 function makeBundle(): PreviewTransitionBundle {
