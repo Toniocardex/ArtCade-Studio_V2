@@ -33,6 +33,24 @@ struct EntityVisualBounds {
     float h = 0.f;
 };
 
+/** Captured once on resize mouse-down; input to calculate_resize_transform(). */
+struct ResizeDragState {
+    EntityId           entityId = 0u;
+    ResizeHandle       handle = ResizeHandle::None;
+    Transform          startTransform{};
+    EntityVisualBounds startBounds{};
+    Vec2               baseVisualSize{};
+    Vec2               pivot{};
+};
+
+/** Authoring constraints applied during live canvas resize. */
+struct TransformConstraints {
+    bool  snapToGrid = false;
+    float gridSize = 32.f;
+    float scaleStep = 1.f;
+    float minAbsScale = 1.f;
+};
+
 namespace EditorTransformGizmo {
 
 /**
@@ -64,15 +82,15 @@ ResizeHandle hit_test_resize_handle(
     float handleSizeWorld);
 
 /**
- * Compute new scale from a corner drag. Opposite corner stays fixed in world
- * space; position is unchanged (resize around pivot — v1).
+ * Compute the full authoring transform for a corner resize drag.
+ * Snaps the moving handle (when enabled), quantizes scale, keeps the opposite
+ * corner fixed, and repositions around the sprite pivot.
  */
-Vec2 calculate_scale_from_handle(
-    ResizeHandle handle,
-    float worldX,
-    float worldY,
-    const Transform& dragStartTransform,
-    const EntityVisualBounds& dragStartBounds);
+Transform calculate_resize_transform(
+    const ResizeDragState& drag,
+    float pointerWorldX,
+    float pointerWorldY,
+    const TransformConstraints& constraints);
 
 } // namespace EditorTransformGizmo
 } // namespace ArtCade

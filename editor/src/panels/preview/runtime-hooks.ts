@@ -32,6 +32,7 @@ import {
   scheduleWasmUiUpdateWhen,
 } from '../../utils/wasm-ui-scheduler'
 import { setRuntimeProfileSample } from '../../utils/runtime-profile-buffer'
+import { queueTransformPreview } from '../../utils/transform-preview-store'
 import type { ConsoleEntry, ProjectDoc, ScriptFile } from '../../types'
 import type { Action as EditorAction } from '../../store/editor-store'
 
@@ -123,6 +124,14 @@ export function buildRuntimeCallbacks(deps: RuntimeCallbackDeps): WasmCallbacks 
       scheduleWasmUiUpdateWhen(cancelled, () => {
         handleRuntimeTransform(entityId, x, y, rotation, scaleX, scaleY)
       }, { urgent: true })
+    },
+    onEntityTransformPreview: (
+      entityId: number, x: number, y: number,
+      rotation: number, scaleX: number, scaleY: number,
+    ) => {
+      queueTransformPreview({
+        entityId, x, y, rotation, scaleX, scaleY,
+      })
     },
     onConsoleLine: (message: string, level: string) => {
       // Authoritative engine-ready signal — register it BEFORE the cancelled()

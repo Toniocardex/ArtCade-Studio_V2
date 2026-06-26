@@ -42,6 +42,14 @@ vi.mock('../../utils/wasm-ui-scheduler', () => ({
   scheduleWasmUiUpdateWhen,
 }))
 
+const queueTransformPreview = vi.fn()
+vi.mock('../../utils/transform-preview-store', () => ({
+  queueTransformPreview,
+  clearTransformPreview: vi.fn(),
+  publishTransformPreview: vi.fn(),
+  useTransformPreview: vi.fn(() => null),
+}))
+
 const { shouldSyncProjectToRuntime, performRuntimeProjectSync, buildRuntimeCallbacks } =
   await import('./runtime-hooks')
 
@@ -201,6 +209,29 @@ describe('buildRuntimeCallbacks', () => {
       instanceId: 7,
       sceneId: 'scene_main',
       position: { x: 320, y: 192 },
+    })
+  })
+
+  it('queues transform preview from onEntityTransformPreview', () => {
+    queueTransformPreview.mockClear()
+    const callbacks = buildRuntimeCallbacks({
+      cancelled: () => false,
+      dispatch: vi.fn(),
+      handleRuntimeTransform: vi.fn(),
+      sceneIdRef: { current: 'a' },
+      syncRuntimeUiFlags: vi.fn(),
+      makeLogEntry: (message, level) => ({ id: 1, time: '', message, level }),
+      bootSyncRef: emptyBootSyncRef,
+    })
+
+    callbacks.onEntityTransformPreview(3, 64, 128, 0, 2, 2)
+    expect(queueTransformPreview).toHaveBeenCalledWith({
+      entityId: 3,
+      x: 64,
+      y: 128,
+      rotation: 0,
+      scaleX: 2,
+      scaleY: 2,
     })
   })
 

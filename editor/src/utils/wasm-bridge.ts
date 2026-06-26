@@ -54,6 +54,8 @@ declare global {
     onEntityDuplicateRequested?:  (entityId: number, x: number, y: number) => void
     onEntityTransformChanged?:    (entityId: number, x: number, y: number,
                                    rot: number, sx: number, sy: number) => void
+    onEntityTransformPreview?:   (entityId: number, x: number, y: number,
+                                   rot: number, sx: number, sy: number) => void
     onConsoleLine?:               (message: string, level: string) => void
     onRuntimeProfile?:            (
       fps: number,
@@ -184,6 +186,7 @@ export function bindWindowCallbacks(cbs: Partial<WasmCallbacks>): void {
     g.onEntityDuplicateRequested = cbs.onEntityDuplicateRequested
   }
   if (cbs.onEntityTransformChanged) g.onEntityTransformChanged = cbs.onEntityTransformChanged
+  if (cbs.onEntityTransformPreview) g.onEntityTransformPreview = cbs.onEntityTransformPreview
   if (cbs.onConsoleLine)            g.onConsoleLine            = cbs.onConsoleLine
   if (cbs.onRuntimeProfile)         g.onRuntimeProfile         = cbs.onRuntimeProfile
   if (cbs.onEditorCursorWorld)      g.onEditorCursorWorld      = cbs.onEditorCursorWorld
@@ -307,6 +310,8 @@ export interface WasmCallbacks {
   onEntitySelected:         (entityId: number) => void
   onEntityDuplicateRequested: (entityId: number, x: number, y: number) => void
   onEntityTransformChanged: (entityId: number, x: number, y: number,
+                             rot: number, sx: number, sy: number) => void
+  onEntityTransformPreview: (entityId: number, x: number, y: number,
                              rot: number, sx: number, sy: number) => void
   onConsoleLine:            (message: string, level: string) => void
   onRuntimeProfile?:        (

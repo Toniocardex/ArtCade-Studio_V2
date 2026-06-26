@@ -13,6 +13,13 @@ import {
 
 const TRANSFORM_EPSILON = 1e-4
 
+function normalizeScale(value: number): number {
+  if (!Number.isFinite(value)) return 1
+
+  const sign = value < 0 ? -1 : 1
+  return sign * Math.max(1, Math.round(Math.abs(value)))
+}
+
 export type TransformSource = 'inspector' | 'canvas'
 
 export type TransformPatch = Partial<{
@@ -88,6 +95,8 @@ export function commitEntityTransform(options: {
     ...snapshot,
     x: position.x,
     y: position.y,
+    scaleX: normalizeScale(snapshot.scaleX),
+    scaleY: normalizeScale(snapshot.scaleY),
   }
 
   if (options.entity) {

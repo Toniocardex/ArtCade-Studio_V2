@@ -206,6 +206,7 @@ export default function RuntimePreviewApp() {
       onEntitySelected: () => undefined,
       onEntityDuplicateRequested: () => undefined,
       onEntityTransformChanged: () => undefined,
+      onEntityTransformPreview: () => undefined,
       onConsoleLine: (line, level) => {
         if (line.includes('[EditorAPI] Bridge initialised')) {
           runtimeSync.notifyEngineReady()

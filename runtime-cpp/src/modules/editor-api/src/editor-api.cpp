@@ -13,9 +13,7 @@ bool     EditorAPI::s_isDragging       = false;
 float    EditorAPI::s_dragStartX       = 0.f;
 float    EditorAPI::s_dragStartY       = 0.f;
 ManipulationMode EditorAPI::s_manipulationMode = ManipulationMode::None;
-ResizeHandle     EditorAPI::s_activeResizeHandle = ResizeHandle::None;
-Transform        EditorAPI::s_dragStartTransform{};
-EntityVisualBounds EditorAPI::s_dragStartBounds{};
+ResizeDragState  EditorAPI::s_resizeDragState{};
 std::string EditorAPI::s_activeTileLayerName;
 int      EditorAPI::s_editorTool       = 0;
 bool     EditorAPI::s_editorGuidesEnabled = true;
@@ -164,9 +162,7 @@ bool     EditorAPI::s_isDragging       = false;
 float    EditorAPI::s_dragStartX       = 0.f;
 float    EditorAPI::s_dragStartY       = 0.f;
 ManipulationMode EditorAPI::s_manipulationMode = ManipulationMode::None;
-ResizeHandle     EditorAPI::s_activeResizeHandle = ResizeHandle::None;
-Transform        EditorAPI::s_dragStartTransform{};
-EntityVisualBounds EditorAPI::s_dragStartBounds{};
+ResizeDragState  EditorAPI::s_resizeDragState{};
 std::string EditorAPI::s_activeTileLayerName;
 int      EditorAPI::s_editorTool       = 0;
 bool     EditorAPI::s_editorGuidesEnabled = true;
@@ -330,6 +326,15 @@ void EditorAPI::notifyTransformChanged(uint32_t entityId,
     EM_ASM({
         if (typeof window.onEntityTransformChanged === 'function')
             window.onEntityTransformChanged($0, $1, $2, $3, $4, $5);
+    }, static_cast<int>(entityId), x, y, rotation, scaleX, scaleY);
+}
+
+void EditorAPI::notifyTransformPreview(uint32_t entityId,
+    float x, float y, float rotation, float scaleX, float scaleY)
+{
+    EM_ASM({
+        if (typeof window.onEntityTransformPreview === 'function')
+            window.onEntityTransformPreview($0, $1, $2, $3, $4, $5);
     }, static_cast<int>(entityId), x, y, rotation, scaleX, scaleY);
 }
 

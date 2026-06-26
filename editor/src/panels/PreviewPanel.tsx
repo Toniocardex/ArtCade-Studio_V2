@@ -45,6 +45,7 @@ import {
   consumeRuntimeTransformEcho,
   type EntityTransformSnapshot,
 } from '../utils/entity-transform-commit'
+import { clearTransformPreview } from '../utils/transform-preview-store'
 import {
   applyRuntimeCanvasPresentation,
   playStageAvailableSize,
@@ -166,6 +167,7 @@ export default function PreviewPanel({
       gridSize: gridSizeRef.current,
       ignoreRuntimeEchoRef: ignoredTransformEchoRef,
     })
+    clearTransformPreview(entityId)
   }
 
   // Adopt the singleton runtime canvas (see utils/runtime-canvas.ts). The

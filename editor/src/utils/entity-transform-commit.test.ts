@@ -163,6 +163,32 @@ describe('entity-transform-commit', () => {
     expect(noteTransform).not.toHaveBeenCalled()
   })
 
+  it('normalizes fractional scale to integers on commit', () => {
+    const dispatch = vi.fn()
+
+    const committed = commitEntityTransform({
+      dispatch,
+      snapshot: {
+        entityId: 1,
+        x: 100,
+        y: 200,
+        rotation: 0,
+        scaleX: 2.796875,
+        scaleY: 1.4,
+      },
+      source: 'canvas',
+      snapToGrid: false,
+      gridSize: 32,
+    })
+
+    expect(committed?.scaleX).toBe(3)
+    expect(committed?.scaleY).toBe(1)
+    expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({
+      scaleX: 3,
+      scaleY: 1,
+    }))
+  })
+
   it('canvas snap correction ignores identical runtime echo', () => {
     const dispatch = vi.fn()
     const ignoreRuntimeEchoRef: { current: import('./runtime-sync-service').EntityTransformSnapshot | null } = {

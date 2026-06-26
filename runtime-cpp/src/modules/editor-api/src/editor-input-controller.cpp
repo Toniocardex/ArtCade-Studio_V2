@@ -212,13 +212,52 @@ bool tryBeginResizeAt(float wx, float wy, uint32_t entityId) {
     if (handle == ResizeHandle::None) return false;
 
     EditorAPI::s_manipulationMode = ManipulationMode::Resize;
-    EditorAPI::s_activeResizeHandle = handle;
-    EditorAPI::s_dragStartTransform = transform;
-    EditorAPI::s_dragStartBounds = bounds;
+
+    const float absScaleX = std::abs(transform.scale.x) > 1e-6f
+        ? std::abs(transform.scale.x) : 1.f;
+    const float absScaleY = std::abs(transform.scale.y) > 1e-6f
+        ? std::abs(transform.scale.y) : 1.f;
+
+    ResizeDragState dragState{};
+    dragState.entityId = entityId;
+    dragState.handle = handle;
+    dragState.startTransform = transform;
+    dragState.startBounds = bounds;
+    dragState.pivot = sprite.pivot;
+    dragState.baseVisualSize = { bounds.w / absScaleX, bounds.h / absScaleY };
+    EditorAPI::s_resizeDragState = dragState;
+
     EditorAPI::s_dragStartX = wx;
     EditorAPI::s_dragStartY = wy;
     EditorAPI::s_isDragging = true;
     return true;
+}
+
+bool transforms_equal(const Transform& a, const Transform& b) {
+    constexpr float eps = 1e-4f;
+    return std::abs(a.position.x - b.position.x) < eps
+        && std::abs(a.position.y - b.position.y) < eps
+        && std::abs(a.rotation - b.rotation) < eps
+        && std::abs(a.scale.x - b.scale.x) < eps
+        && std::abs(a.scale.y - b.scale.y) < eps;
+}
+
+void apply_live_transform(uint32_t entityId, const Transform& next) {
+    if (!EditorAPI::s_entityGateway) return;
+
+    Transform previous{};
+    if (!EditorAPI::s_entityGateway->getAuthoringTransform(entityId, previous))
+        return;
+    if (transforms_equal(previous, next)) return;
+
+    EditorAPI::s_entityGateway->setTransform(entityId, next);
+    EditorAPI::notifyTransformPreview(
+        entityId,
+        next.position.x,
+        next.position.y,
+        next.rotation,
+        next.scale.x,
+        next.scale.y);
 }
 
 } // namespace
@@ -255,15 +294,18 @@ EM_BOOL EditorAPI::onMouseMove(int, const EmscriptenMouseEvent* e, void*) {
             return EM_TRUE;
 
         if (s_manipulationMode == ManipulationMode::Resize) {
-            const Vec2 newScale = EditorTransformGizmo::calculate_scale_from_handle(
-                s_activeResizeHandle,
+            TransformConstraints constraints{};
+            constraints.snapToGrid = s_editorSnapEnabled;
+            constraints.gridSize = s_editorGridSize;
+            constraints.scaleStep = 1.f;
+            constraints.minAbsScale = 1.f;
+
+            const Transform resized = EditorTransformGizmo::calculate_resize_transform(
+                s_resizeDragState,
                 wx,
                 wy,
-                s_dragStartTransform,
-                s_dragStartBounds);
-            transform.scale.x = newScale.x;
-            transform.scale.y = newScale.y;
-            s_entityGateway->setTransform(s_selectedEntityId, transform);
+                constraints);
+            apply_live_transform(s_selectedEntityId, resized);
             return EM_TRUE;
         }
 
@@ -273,7 +315,7 @@ EM_BOOL EditorAPI::onMouseMove(int, const EmscriptenMouseEvent* e, void*) {
         snapWorldToEditorGrid(wx, wy);
         transform.position.x = wx;
         transform.position.y = wy;
-        s_entityGateway->setTransform(s_selectedEntityId, transform);
+        apply_live_transform(s_selectedEntityId, transform);
     }
     return EM_TRUE;
 }
@@ -302,7 +344,7 @@ EM_BOOL EditorAPI::onMouseDown(int, const EmscriptenMouseEvent* e, void*) {
     }
 
     s_manipulationMode = ManipulationMode::None;
-    s_activeResizeHandle = ResizeHandle::None;
+    s_resizeDragState = {};
 
     if (
         e->button == 0
@@ -332,7 +374,7 @@ EM_BOOL EditorAPI::onMouseUp(int, const EmscriptenMouseEvent* e, void*) {
     const ManipulationMode finishedMode = s_manipulationMode;
     s_isDragging = false;
     s_manipulationMode = ManipulationMode::None;
-    s_activeResizeHandle = ResizeHandle::None;
+    s_resizeDragState = {};
     if (s_editorTool == ToolPan) return EM_TRUE;  // panning: no transform notify
 
     if (

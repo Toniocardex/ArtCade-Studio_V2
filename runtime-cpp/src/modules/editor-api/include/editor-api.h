@@ -175,6 +175,14 @@ public:
         float x, float y, float rotation,
         float scaleX, float scaleY);
 
+    /**
+     * Live canvas drag preview for Inspector display only.
+     * Called on mouse-move when the quantized transform changes.
+     */
+    static void notifyTransformPreview(uint32_t entityId,
+        float x, float y, float rotation,
+        float scaleX, float scaleY);
+
     /** Engine / Lua debug.log() -> React Console panel. */
     static void notifyConsoleLine(const char* message, const char* level = "info");
     static void notifyRuntimeProfile(float fps,
@@ -206,9 +214,7 @@ public:
     static bool     s_isDragging;
     static float    s_dragStartX, s_dragStartY;
     static ManipulationMode s_manipulationMode;
-    static ResizeHandle     s_activeResizeHandle;
-    static Transform        s_dragStartTransform;
-    static EntityVisualBounds s_dragStartBounds;
+    static ResizeDragState  s_resizeDragState;
     static std::string s_activeTileLayerName;
     static int      s_editorTool;      // 0 select, 1 pan
     static bool     s_editorGuidesEnabled;
@@ -500,6 +506,7 @@ struct EditorAPI {
     static void notifyEntitySelected(uint32_t) {}
     static void notifyEntityDuplicateRequested(uint32_t, float, float) {}
     static void notifyTransformChanged(uint32_t, float, float, float, float, float) {}
+    static void notifyTransformPreview(uint32_t, float, float, float, float, float) {}
     static void notifyConsoleLine(const char*, const char* = nullptr) {}
     static void notifyRuntimeProfile(float, float, float, float, uint32_t, uint32_t) {}
     static void queueConsoleLine(const char*, const char* = nullptr) {}
@@ -514,9 +521,7 @@ struct EditorAPI {
     static bool     s_isDragging;
     static float    s_dragStartX, s_dragStartY;
     static ManipulationMode s_manipulationMode;
-    static ResizeHandle     s_activeResizeHandle;
-    static Transform        s_dragStartTransform;
-    static EntityVisualBounds s_dragStartBounds;
+    static ResizeDragState  s_resizeDragState;
     static std::string s_activeTileLayerName;
     static int      s_editorTool;
     static bool     s_editorGuidesEnabled;

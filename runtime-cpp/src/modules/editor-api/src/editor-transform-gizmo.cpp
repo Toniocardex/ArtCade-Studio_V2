@@ -10,8 +10,6 @@ namespace ArtCade::EditorTransformGizmo {
 
 namespace {
 
-constexpr float kMinVisualDimWorld = 4.f;
-
 void draw_rect_outline(Modules::Renderer& renderer,
                        float x, float y, float w, float h,
                        const Vec4& color) {
@@ -33,10 +31,6 @@ void draw_resize_handle(Modules::Renderer& renderer,
     draw_rect_outline(renderer, left, top, size, size, Vec4{0.1f, 0.1f, 0.1f, 1.f});
 }
 
-float abs_scale(float value) {
-    return std::abs(value) > 1e-6f ? std::abs(value) : 1.f;
-}
-
 bool point_in_handle(float worldX,
                      float worldY,
                      float handleX,
@@ -45,6 +39,63 @@ bool point_in_handle(float worldX,
     const float half = handleSizeWorld * 0.5f;
     return worldX >= handleX - half && worldX <= handleX + half
         && worldY >= handleY - half && worldY <= handleY + half;
+}
+
+Vec2 opposite_corner(ResizeHandle handle, const EntityVisualBounds& bounds) {
+    const float left = bounds.x;
+    const float top = bounds.y;
+    const float right = bounds.x + bounds.w;
+    const float bottom = bounds.y + bounds.h;
+    switch (handle) {
+    case ResizeHandle::TopLeft:     return { right, bottom };
+    case ResizeHandle::TopRight:    return { left, bottom };
+    case ResizeHandle::BottomLeft:  return { right, top };
+    case ResizeHandle::BottomRight: return { left, top };
+    case ResizeHandle::None:        break;
+    }
+    return { left, top };
+}
+
+Vec2 top_left_from_fixed_corner(ResizeHandle handle,
+                                Vec2 fixedCorner,
+                                Vec2 actualSize) {
+    switch (handle) {
+    case ResizeHandle::TopLeft:
+        return { fixedCorner.x - actualSize.x, fixedCorner.y - actualSize.y };
+    case ResizeHandle::TopRight:
+        return { fixedCorner.x, fixedCorner.y - actualSize.y };
+    case ResizeHandle::BottomLeft:
+        return { fixedCorner.x - actualSize.x, fixedCorner.y };
+    case ResizeHandle::BottomRight:
+        return { fixedCorner.x, fixedCorner.y };
+    case ResizeHandle::None:
+        break;
+    }
+    return fixedCorner;
+}
+
+Vec2 position_from_top_left(Vec2 topLeft, Vec2 pivot, Vec2 actualSize) {
+    const Vec2 anchor = SpriteDrawMath::clampPivot(pivot);
+    return {
+        topLeft.x + actualSize.x * anchor.x,
+        topLeft.y + actualSize.y * anchor.y,
+    };
+}
+
+float preserve_sign(float original, float magnitude) {
+    return (original < 0.f ? -1.f : 1.f) * std::abs(magnitude);
+}
+
+float quantize_scale(float value, float step, float minimum) {
+    const float safeStep = std::max(step, 1.f);
+    const float quantized = std::round(value / safeStep) * safeStep;
+    return std::max(minimum, quantized);
+}
+
+void snap_point_to_grid(Vec2& point, bool snapToGrid, float gridSize) {
+    if (!snapToGrid || gridSize <= 0.f) return;
+    point.x = std::round(point.x / gridSize) * gridSize;
+    point.y = std::round(point.y / gridSize) * gridSize;
 }
 
 } // namespace
@@ -109,58 +160,47 @@ ResizeHandle hit_test_resize_handle(
     return ResizeHandle::None;
 }
 
-Vec2 calculate_scale_from_handle(
-    ResizeHandle handle,
-    float worldX,
-    float worldY,
-    const Transform& dragStartTransform,
-    const EntityVisualBounds& dragStartBounds) {
-    const float startAbsScaleX = abs_scale(dragStartTransform.scale.x);
-    const float startAbsScaleY = abs_scale(dragStartTransform.scale.y);
-    const float baseW = dragStartBounds.w / startAbsScaleX;
-    const float baseH = dragStartBounds.h / startAbsScaleY;
-    if (baseW <= 1e-6f || baseH <= 1e-6f) {
-        return dragStartTransform.scale;
+Transform calculate_resize_transform(
+    const ResizeDragState& drag,
+    float pointerWorldX,
+    float pointerWorldY,
+    const TransformConstraints& constraints) {
+    if (drag.handle == ResizeHandle::None
+        || drag.baseVisualSize.x <= 1e-6f
+        || drag.baseVisualSize.y <= 1e-6f) {
+        return drag.startTransform;
     }
 
-    const float left = dragStartBounds.x;
-    const float top = dragStartBounds.y;
-    const float right = dragStartBounds.x + dragStartBounds.w;
-    const float bottom = dragStartBounds.y + dragStartBounds.h;
+    Vec2 movingCorner{ pointerWorldX, pointerWorldY };
+    snap_point_to_grid(movingCorner, constraints.snapToGrid, constraints.gridSize);
 
-    float newW = dragStartBounds.w;
-    float newH = dragStartBounds.h;
-
-    switch (handle) {
-    case ResizeHandle::TopLeft:
-        newW = right - worldX;
-        newH = bottom - worldY;
-        break;
-    case ResizeHandle::TopRight:
-        newW = worldX - left;
-        newH = bottom - worldY;
-        break;
-    case ResizeHandle::BottomLeft:
-        newW = right - worldX;
-        newH = worldY - top;
-        break;
-    case ResizeHandle::BottomRight:
-        newW = worldX - left;
-        newH = worldY - top;
-        break;
-    case ResizeHandle::None:
-        return dragStartTransform.scale;
-    }
-
-    newW = std::max(kMinVisualDimWorld, newW);
-    newH = std::max(kMinVisualDimWorld, newH);
-
-    const float signX = dragStartTransform.scale.x < 0.f ? -1.f : 1.f;
-    const float signY = dragStartTransform.scale.y < 0.f ? -1.f : 1.f;
-    return {
-        signX * (newW / baseW),
-        signY * (newH / baseH),
+    const Vec2 fixedCorner = opposite_corner(drag.handle, drag.startBounds);
+    const Vec2 requestedSize{
+        std::max(1e-6f, std::abs(movingCorner.x - fixedCorner.x)),
+        std::max(1e-6f, std::abs(movingCorner.y - fixedCorner.y)),
     };
+
+    const float rawScaleX = requestedSize.x / drag.baseVisualSize.x;
+    const float rawScaleY = requestedSize.y / drag.baseVisualSize.y;
+
+    const float scaleX = quantize_scale(
+        rawScaleX, constraints.scaleStep, constraints.minAbsScale);
+    const float scaleY = quantize_scale(
+        rawScaleY, constraints.scaleStep, constraints.minAbsScale);
+
+    const Vec2 actualSize{
+        drag.baseVisualSize.x * scaleX,
+        drag.baseVisualSize.y * scaleY,
+    };
+
+    const Vec2 topLeft = top_left_from_fixed_corner(
+        drag.handle, fixedCorner, actualSize);
+
+    Transform result = drag.startTransform;
+    result.scale.x = preserve_sign(drag.startTransform.scale.x, scaleX);
+    result.scale.y = preserve_sign(drag.startTransform.scale.y, scaleY);
+    result.position = position_from_top_left(topLeft, drag.pivot, actualSize);
+    return result;
 }
 
 } // namespace ArtCade::EditorTransformGizmo
