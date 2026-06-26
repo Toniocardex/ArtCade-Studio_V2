@@ -141,6 +141,35 @@ export function worldToScroll(
   }
 }
 
+/** Major ticks for one ruler axis using editor camera (fixed surface, Phase 6). */
+export function rulerLabelsForCameraAxis(
+  axis: 'x' | 'y',
+  cameraWorldOrigin: Readonly<{ x: number; y: number }>,
+  viewportLength: number,
+  layout: CanvasViewportLayout,
+): readonly RulerTick[] {
+  const step = pickRulerTickStep(layout.zoom, layout.rulerStep)
+  const z = layout.zoom
+  const worldOrigin = axis === 'x' ? cameraWorldOrigin.x : cameraWorldOrigin.y
+  const worldMax = axis === 'x' ? layout.worldSize.x : layout.worldSize.y
+
+  const worldAtEdge = worldOrigin
+  let firstTick = Math.floor(worldAtEdge / step) * step
+  if (firstTick < 0) firstTick = 0
+
+  const ticks: RulerTick[] = []
+  const maxScreen = step * z
+
+  for (let w = firstTick; w <= worldMax + step; w += step) {
+    const positionPx = (w - worldOrigin) * z
+    if (positionPx > viewportLength + maxScreen) break
+    if (positionPx < -maxScreen) continue
+    ticks.push({ worldValue: w, positionPx })
+  }
+
+  return ticks
+}
+
 /** Major ticks for one ruler axis, aligned to absolute world coordinates. */
 export function rulerLabelsForAxis(
   axis: 'x' | 'y',

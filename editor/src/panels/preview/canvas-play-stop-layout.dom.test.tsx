@@ -28,7 +28,9 @@ vi.mock('../../utils/wasm-bridge', () => ({
   isReady: () => wasmReady.value,
   loadWasmRuntime: (...args: unknown[]) => loadWasmRuntime(...args),
   warmWasmBinary: vi.fn(),
-  editorSetEditCamera: vi.fn(),
+  editorResizeSurface: vi.fn(),
+  editorSetEditorView: vi.fn(),
+  editorReadEditorView: vi.fn(() => ({ x: 0, y: 0, zoomDevice: 1 })),
   editorSyncPlaySurface: vi.fn(),
   editorSetActiveTileLayer: vi.fn(),
   editorSetTool: vi.fn(),
@@ -91,7 +93,7 @@ function installDomMetrics(tierCase: TierCase): void {
   const widthSpy = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(function clientWidth(
     this: HTMLElement,
   ) {
-    if (this.classList.contains('canvas-scrollarea')) return tierCase.scrollWidth
+    if (this.classList.contains('canvas-viewport')) return tierCase.scrollWidth
     if (this.classList.contains('runtime-play-stage')) return tierCase.scrollWidth
     if (this.dataset.testid === 'workspace') return winWidth
     return 0
@@ -99,7 +101,7 @@ function installDomMetrics(tierCase: TierCase): void {
   const heightSpy = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(function clientHeight(
     this: HTMLElement,
   ) {
-    if (this.classList.contains('canvas-scrollarea')) return tierCase.scrollHeight
+    if (this.classList.contains('canvas-viewport')) return tierCase.scrollHeight
     if (this.classList.contains('runtime-play-stage')) return tierCase.scrollHeight
     if (this.dataset.testid === 'workspace') return winHeight
     return 0
@@ -170,13 +172,7 @@ function Fixture() {
   )
 }
 
-function sceneFrameMargin(): string {
-  const frameSpacer = document.querySelector('.canvas-scene-frame')?.parentElement
-  expect(frameSpacer).toBeTruthy()
-  return frameSpacer?.style.margin ?? ''
-}
-
-describe('PreviewPanel play/stop layout centring', () => {
+describe('PreviewPanel play/stop fixed viewport', () => {
   beforeEach(() => {
     resetBootSessionMarker()
     wasmReady.value = false
@@ -203,26 +199,23 @@ describe('PreviewPanel play/stop layout centring', () => {
     { name: 'unsupported', width: 980, height: 590, scrollWidth: 640, scrollHeight: 380 },
   ]
 
-  it.each(cases)('keeps the scene centred after browser Play/Stop in $name tier', async (tierCase) => {
+  it.each(cases)('restores the fixed edit viewport after browser Play/Stop in $name tier', async (tierCase) => {
     installDomMetrics(tierCase)
     render(<Fixture />)
 
     await waitFor(() => expect(tierRef).toBe(tierCase.name))
-    await waitFor(() => expect(document.querySelector('.canvas-scene-frame')).toBeTruthy())
-    const before = sceneFrameMargin()
-    expect(before).not.toBe('0px')
-    expect(before).not.toBe('')
+    await waitFor(() => expect(document.querySelector('.canvas-viewport')).toBeTruthy())
 
     act(() => {
       dispatchRef?.({ type: 'SET_PLAYING', playing: true })
     })
     await waitFor(() => expect(document.querySelector('.runtime-play-stage')).toBeTruthy())
-    expect(document.querySelector('.canvas-scrollarea')).toBeNull()
+    expect(document.querySelector('.canvas-viewport')).toBeNull()
 
     act(() => {
       dispatchRef?.({ type: 'SET_PLAYING', playing: false })
     })
-    await waitFor(() => expect(document.querySelector('.canvas-scrollarea')).toBeTruthy())
-    await waitFor(() => expect(sceneFrameMargin()).toBe(before))
+    await waitFor(() => expect(document.querySelector('.canvas-viewport')).toBeTruthy())
+    expect(document.querySelector('.canvas-scene-frame')).toBeNull()
   })
 })

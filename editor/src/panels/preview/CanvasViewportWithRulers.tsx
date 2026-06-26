@@ -1,13 +1,14 @@
 import type { CSSProperties, ReactNode, RefObject } from 'react'
-import { useCanvasRulerScroll } from '../../hooks/useCanvasRulerScroll'
+import { useCanvasViewportSize } from '../../hooks/useCanvasViewportSize'
+import { useEditorCameraView } from '../../hooks/useEditorCameraView'
 import {
   pickRulerTickStep,
-  rulerLabelsForAxis,
+  rulerLabelsForCameraAxis,
   type CanvasViewportLayout,
 } from '../../utils/canvas-viewport-layout'
 
 export type CanvasViewportWithRulersProps = Readonly<{
-  scrollRef: RefObject<HTMLDivElement | null>
+  viewportRef: RefObject<HTMLDivElement | null>
   layout: CanvasViewportLayout
   /** Show the ruler strips (default true). */
   rulersVisible?: boolean
@@ -25,14 +26,14 @@ const RULER_SIZE = 20
 
 function RulerTicksH({
   layout,
-  scrollLeft,
+  cameraWorldOrigin,
   clientWidth,
 }: Readonly<{
   layout: CanvasViewportLayout
-  scrollLeft: number
+  cameraWorldOrigin: Readonly<{ x: number; y: number }>
   clientWidth: number
 }>) {
-  const ticks = rulerLabelsForAxis('x', scrollLeft, clientWidth, layout)
+  const ticks = rulerLabelsForCameraAxis('x', cameraWorldOrigin, clientWidth, layout)
   const stepPx = Math.max(24, Math.round(pickRulerTickStep(layout.zoom, layout.rulerStep) * layout.zoom))
 
   return (
@@ -54,14 +55,14 @@ function RulerTicksH({
 
 function RulerTicksV({
   layout,
-  scrollTop,
+  cameraWorldOrigin,
   clientHeight,
 }: Readonly<{
   layout: CanvasViewportLayout
-  scrollTop: number
+  cameraWorldOrigin: Readonly<{ x: number; y: number }>
   clientHeight: number
 }>) {
-  const ticks = rulerLabelsForAxis('y', scrollTop, clientHeight, layout)
+  const ticks = rulerLabelsForCameraAxis('y', cameraWorldOrigin, clientHeight, layout)
   const stepPx = Math.max(16, Math.round(pickRulerTickStep(layout.zoom, layout.rulerStep) * layout.zoom))
 
   return (
@@ -82,7 +83,7 @@ function RulerTicksV({
 }
 
 export function CanvasViewportWithRulers({
-  scrollRef,
+  viewportRef,
   layout,
   rulersVisible = true,
   children,
@@ -94,7 +95,9 @@ export function CanvasViewportWithRulers({
   onPointerUp,
   onPointerCancel,
 }: CanvasViewportWithRulersProps) {
-  const { scrollLeft, scrollTop, clientWidth, clientHeight } = useCanvasRulerScroll(scrollRef)
+  const { clientWidth, clientHeight } = useCanvasViewportSize(viewportRef)
+  const cameraView = useEditorCameraView()
+  const cameraWorldOrigin = { x: cameraView.x, y: cameraView.y }
   const pad = layout.paddingPx
 
   return (
@@ -107,7 +110,11 @@ export function CanvasViewportWithRulers({
             style={{ width: RULER_SIZE }}
             aria-hidden
           >
-            <RulerTicksV layout={layout} scrollTop={scrollTop} clientHeight={clientHeight} />
+            <RulerTicksV
+              layout={layout}
+              cameraWorldOrigin={cameraWorldOrigin}
+              clientHeight={clientHeight}
+            />
           </div>
         </div>
       )}
@@ -119,18 +126,22 @@ export function CanvasViewportWithRulers({
             style={{ height: RULER_SIZE }}
             aria-hidden
           >
-            <RulerTicksH layout={layout} scrollLeft={scrollLeft} clientWidth={clientWidth} />
+            <RulerTicksH
+              layout={layout}
+              cameraWorldOrigin={cameraWorldOrigin}
+              clientWidth={clientWidth}
+            />
           </div>
         )}
         <div
-          ref={scrollRef}
+          ref={viewportRef}
           tabIndex={-1}
           onWheel={onWheel}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerCancel}
-          className={`flex-1 overflow-auto canvas-scrollarea outline-none ${className}`.trim()}
+          className={`flex-1 overflow-hidden canvas-viewport outline-none relative ${className}`.trim()}
           style={{ padding: pad, ...style }}
         >
           {children}

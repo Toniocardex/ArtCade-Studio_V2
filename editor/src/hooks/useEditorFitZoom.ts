@@ -3,12 +3,12 @@
 // ---------------------------------------------------------------------------
 
 import { useCallback, useLayoutEffect, type Dispatch, type RefObject } from 'react'
-import { computeFitZoom } from '../utils/editor-zoom'
 import { zoomFitRegistry } from '../utils/zoom-fit-registry'
 import type { Action } from '../store/editor-store'
+import { editorFrameWorld } from '../utils/editor-viewport-intents'
 
 export type UseEditorFitZoomParams = Readonly<{
-  scrollRef: RefObject<HTMLDivElement | null>
+  viewportRef: RefObject<HTMLDivElement | null>
   dispatch: Dispatch<Action>
   editorZoomMode: 'fit' | 'manual'
   preview: boolean
@@ -20,10 +20,10 @@ export type UseEditorFitZoomParams = Readonly<{
 
 /**
  * Registers fit-zoom with the global shortcut registry and re-fits when the
- * scroll viewport resizes while `editorZoomMode === 'fit'`.
+ * viewport resizes while `editorZoomMode === 'fit'`.
  */
 export function useEditorFitZoom({
-  scrollRef,
+  viewportRef,
   dispatch,
   editorZoomMode,
   preview,
@@ -33,34 +33,19 @@ export function useEditorFitZoom({
   viewportHeight,
 }: UseEditorFitZoomParams): void {
   const fitZoom = useCallback(() => {
-    const el = scrollRef.current
-    if (!el) return
     const sceneW = preview ? viewportWidth : sceneWidth
     const sceneH = preview ? viewportHeight : sceneHeight
-    dispatch({
-      type: 'EDITOR_SET_FIT_ZOOM',
-      zoom: computeFitZoom(el.clientWidth, el.clientHeight, sceneW, sceneH),
-    })
-  }, [
-    scrollRef,
-    dispatch,
-    preview,
-    sceneWidth,
-    sceneHeight,
-    viewportWidth,
-    viewportHeight,
-  ])
+    editorFrameWorld(0, 0, sceneW, sceneH, dispatch, window.devicePixelRatio || 1)
+  }, [dispatch, preview, sceneWidth, sceneHeight, viewportWidth, viewportHeight])
 
   useLayoutEffect(() => zoomFitRegistry.register(fitZoom), [fitZoom])
 
   useLayoutEffect(() => {
-    if (editorZoomMode !== 'fit') return
-    const el = scrollRef.current
-    if (!el) return
-    const ro = new ResizeObserver(() => {
-      requestAnimationFrame(() => fitZoom())
-    })
+    if (editorZoomMode !== 'fit') return undefined
+    const el = viewportRef.current
+    if (!el) return undefined
+    const ro = new ResizeObserver(() => fitZoom())
     ro.observe(el)
     return () => ro.disconnect()
-  }, [editorZoomMode, fitZoom, scrollRef])
+  }, [editorZoomMode, viewportRef, fitZoom])
 }

@@ -375,6 +375,27 @@ EMSCRIPTEN_KEEPALIVE void editor_set_grid_size(float tileSize);
 EMSCRIPTEN_KEEPALIVE void editor_set_edit_camera(
     float targetX, float targetY, float zoom, int vpW, int vpH);
 
+/** Phase 6: fixed-surface editor viewport — resize only (camera via ViewController). */
+EMSCRIPTEN_KEEPALIVE void editor_resize_surface(
+    float cssW, float cssH, float devicePixelRatio);
+
+EMSCRIPTEN_KEEPALIVE void editor_begin_pan(float cssX, float cssY);
+EMSCRIPTEN_KEEPALIVE void editor_update_pan(float cssX, float cssY);
+EMSCRIPTEN_KEEPALIVE void editor_end_pan();
+
+/** Cursor-anchored zoom; @p zoomFactor multiplies device-px-per-world zoom. */
+EMSCRIPTEN_KEEPALIVE void editor_zoom_at(float cssX, float cssY, float zoomFactor);
+
+EMSCRIPTEN_KEEPALIVE void editor_frame_world_bounds(
+    float minX, float minY, float maxX, float maxY);
+
+/** Reads editor camera top-left world position and device-px-per-world zoom. */
+EMSCRIPTEN_KEEPALIVE void editor_get_editor_view(
+    float* outX, float* outY, float* outZoom);
+
+EMSCRIPTEN_KEEPALIVE void editor_set_editor_view(
+    float targetX, float targetY, float zoomDevicePx);
+
 /** Committed presentation revision for the current frame (picking / overlay sync). */
 EMSCRIPTEN_KEEPALIVE uint64_t editor_get_presentation_revision();
 

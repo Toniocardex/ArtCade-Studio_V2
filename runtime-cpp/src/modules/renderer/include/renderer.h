@@ -199,6 +199,16 @@ public:
     void setCameraZoom    (float zoom);
     /** Editor-preview camera: apply target/zoom verbatim (no clamp/offset). */
     void setEditorCamera  (const Vec2& target, float zoom);
+    /** Fixed-surface editor viewport: resize CSS canvas and preserve camera. */
+    void editorResizeSurface(float cssW, float cssH, float devicePixelRatio);
+    void editorBeginPan(float cssX, float cssY);
+    void editorUpdatePan(float cssX, float cssY);
+    void editorEndPan();
+    /** Cursor-anchored zoom; @p zoomFactor multiplies device-px-per-world zoom. */
+    void editorZoomAt(float cssX, float cssY, float zoomFactor);
+    void editorFrameWorldBounds(float minX, float minY, float maxX, float maxY);
+    void editorGetView(float* outX, float* outY, float* outZoom) const;
+    void editorSetView(float targetX, float targetY, float zoomDevicePx);
     void panCameraByScreenDelta(float dx, float dy);
     Vec2 visibleWorldSize () const;
     Vec2 getCameraPosition() const;

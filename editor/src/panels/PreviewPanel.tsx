@@ -8,7 +8,6 @@ import { dirName } from '../utils/project'
 import { runtimeSync, usePresentationSnapshot, type EditorTool } from '../utils/runtime-sync-service'
 import {
   DEFAULT_SCENE_SIZE,
-  EDITOR_CANVAS_OVERSCROLL_FACTOR,
   EDITOR_CANVAS_PADDING_PX,
 } from '../constants/editor-viewport'
 import {
@@ -17,10 +16,14 @@ import {
   useRuntimeAssetUpload,
   useRuntimeEditorSync,
 } from './preview/runtime-hooks'
-import { computeCanvasViewportLayout, scrollToWorld, worldToScroll } from '../utils/canvas-viewport-layout'
-import { zoomFitRegistry } from '../utils/zoom-fit-registry'
+import { computeCanvasViewportLayout } from '../utils/canvas-viewport-layout'
 import { frameSelectionRegistry } from '../utils/frame-selection-registry'
 import { computeFrameSelectionView } from '../utils/frame-selection'
+import {
+  editorCenterWorldPoint,
+  editorFrameWorld,
+  visibleWorldCenterFromCamera,
+} from '../utils/editor-viewport-intents'
 import { normalizeEntityPosition } from '../utils/entity-position'
 import { CanvasToolbar } from './preview/CanvasToolbar'
 import { CanvasFocusToolbar } from './preview/CanvasFocusToolbar'
@@ -32,8 +35,10 @@ import { useLayoutTier } from '../contexts/editor-layout-tier-context'
 import { InspectorDrawerToggle } from '../contexts/inspector-drawer-context'
 import { ExplorerDrawerToggle } from '../contexts/explorer-drawer-context'
 import { useRuntimeReadiness } from '../hooks/useRuntimeReadiness'
-import { useEditorCanvasViewport } from '../hooks/useEditorCanvasViewport'
+import { useEditorCameraView } from '../hooks/useEditorCameraView'
 import { useEditorFitZoom } from '../hooks/useEditorFitZoom'
+import { useEditorCanvasViewport } from '../hooks/useEditorCanvasViewport'
+import { setEditorVisibleWorldCenter } from '../utils/editor-viewport-center'
 import { getRuntimeCanvas } from '../utils/runtime-canvas'
 import {
   applyRuntimeCanvasPresentation,
@@ -47,7 +52,13 @@ import {
   RUNTIME_PLAY_STAGE_PADDING_PX,
   sceneBackgroundCss,
 } from '../utils/runtime-canvas-presentation'
-import { editorSetEditCamera, editorSyncPlaySurface, setTextureCacheEvictedCallback } from '../utils/wasm-bridge'
+import {
+  editorReadEditorView,
+  editorResizeSurface,
+  editorSetEditorView,
+  editorSyncPlaySurface,
+  setTextureCacheEvictedCallback,
+} from '../utils/wasm-bridge'
 import { TilePaintOverlay } from './preview/TilePaintOverlay'
 import { createTilemapForNewLayer, resolveTilemapTileSize } from '../types'
 
@@ -110,10 +121,8 @@ export default function PreviewPanel({
   const canvasRef           = useRef<HTMLCanvasElement>(null)
   const canvasHostRef       = useRef<HTMLDivElement>(null)
   const [runtimeCanvasReady, setRuntimeCanvasReady] = useState(false)
-  const scrollRef           = useRef<HTMLDivElement>(null)
+  const viewportRef         = useRef<HTMLDivElement>(null)
   const playStageRef        = useRef<HTMLDivElement>(null)
-  // Measured scroll-viewport size — drives scene centring + edge overscroll.
-  const [clientSize, setClientSize] = useState<{ x: number; y: number } | null>(null)
   const [playStageSize, setPlayStageSize] = useState<{ x: number; y: number } | null>(null)
   const sceneIdRef          = useRef<string>('')
   const projectRef          = useRef(project)
@@ -389,9 +398,7 @@ export default function PreviewPanel({
 
   const preview = !useDockedRuntimePreview && cameraPreview && (vp.x !== res.x || vp.y !== res.y)
   const showCameraFrame = preview && mode === 'canvas' && (vp.x < res.x || vp.y < res.y)
-  const overscrollPx = clientSize
-    ? Math.round(Math.min(clientSize.x, clientSize.y) * EDITOR_CANVAS_OVERSCROLL_FACTOR)
-    : 0
+  const editorCameraView = useEditorCameraView()
   const layout = useMemo(
     () => computeCanvasViewportLayout({
       worldSize: frame,
@@ -399,42 +406,37 @@ export default function PreviewPanel({
       zoom,
       preview,
       rulerStep: editorRulerStep,
-      clientSize: clientSize ?? undefined,
-      overscrollPx,
     }),
-    [frame.x, frame.y, vp.x, vp.y, zoom, preview, editorRulerStep,
-     clientSize?.x, clientSize?.y, overscrollPx],
+    [frame.x, frame.y, vp.x, vp.y, zoom, preview, editorRulerStep],
   )
-  const frameW = layout.contentSizePx.x
-  const frameH = layout.contentSizePx.y
-  // Offset of the scene frame from the scroll content origin. The scroll
-  // container already pads by layout.paddingPx, so the spacer only needs the
-  // extra (centring / overscroll) margin on top of that.
-  const sceneMarginX = Math.max(0, layout.contentOffsetPx.x - layout.paddingPx)
-  const sceneMarginY = Math.max(0, layout.contentOffsetPx.y - layout.paddingPx)
 
-  // Track the scroll-viewport size so the layout can centre the scene and add
-  // edge overscroll. In docked browser preview the scroll viewport unmounts
-  // during Play, so this observer must follow the real node lifecycle instead
-  // of staying attached to a detached element that can report 0x0.
   useLayoutEffect(() => {
     if (useDockedRuntimePreview) return undefined
-    const el = scrollRef.current
+    const el = viewportRef.current
     if (!el) return undefined
-    const measure = () => {
-      const width = el.clientWidth
-      const height = el.clientHeight
-      if (width <= 0 || height <= 0) return
-      setClientSize((prev) =>
-        prev && prev.x === width && prev.y === height
-          ? prev
-          : { x: width, y: height })
+    const publish = () => {
+      const center = visibleWorldCenterFromCamera(
+        { x: editorCameraView.x, y: editorCameraView.y },
+        el.clientWidth,
+        el.clientHeight,
+        zoom,
+      )
+      setEditorVisibleWorldCenter(center)
     }
-    measure()
-    const ro = new ResizeObserver(measure)
+    publish()
+    const ro = new ResizeObserver(() => publish())
     ro.observe(el)
-    return () => ro.disconnect()
-  }, [useDockedRuntimePreview])
+    return () => {
+      ro.disconnect()
+      setEditorVisibleWorldCenter(null)
+    }
+  }, [
+    useDockedRuntimePreview,
+    editorCameraView.x,
+    editorCameraView.y,
+    zoom,
+    selectedSceneId,
+  ])
 
   useLayoutEffect(() => {
     if (!useDockedRuntimePreview) return undefined
@@ -455,7 +457,7 @@ export default function PreviewPanel({
   }, [useDockedRuntimePreview])
 
   useEditorFitZoom({
-    scrollRef,
+    viewportRef,
     dispatch,
     editorZoomMode,
     preview,
@@ -473,20 +475,13 @@ export default function PreviewPanel({
     onPointerUp: onCanvasAreaPointerUp,
     onWheel: handleWheel,
   } = useEditorCanvasViewport({
-    scrollRef,
-    layout,
+    viewportRef,
     zoom,
-    preview,
-    worldSize: res,
-    viewportSize: vp,
     dispatch,
-    selectedSceneId,
     selectedEntityId: selection.entityId,
     project,
     isPlaying: useDockedRuntimePreview,
     activeTool,
-    clientSize,
-    overscrollPx,
   })
 
   const bgColor = sceneBackgroundCss(selectedScene?.backgroundColor, 'var(--bg)')
@@ -530,7 +525,7 @@ export default function PreviewPanel({
       }))
       return
     }
-    const el = scrollRef.current
+    const el = viewportRef.current
     const pad = layout.paddingPx
     const cssW = el ? Math.max(1, el.clientWidth - pad * 2) : frame.x
     const cssH = el ? Math.max(1, el.clientHeight - pad * 2) : frame.y
@@ -551,31 +546,26 @@ export default function PreviewPanel({
     editorSyncPlaySurface(Math.max(1, Math.round(frame.x)), Math.max(1, Math.round(frame.y)))
   }, [useDockedRuntimePreview, frame.x, frame.y])
 
-  // Edit-mode preview camera: drive the runtime camera from the scroll
-  // container so the world slice under the viewport is rendered at native
-  // resolution. target = world point at the canvas top-left; zoom + viewport
-  // in device px. Re-assert the CSS afterwards because setWindowSize (fired
-  // only when the viewport px change) strips the inline canvas style on
-  // Emscripten. The canvas sits `pad` in from the scroll edge, so the world
-  // point at its corner = scrollToWorld(scroll, layout, {pad,pad}) — this
-  // tracks the centring / overscroll offset baked into layout.contentOffsetPx
-  // and keeps picking aligned (it collapses to scrollLeft/zoom when centred).
-  const camSyncRafRef = useRef<number | null>(null)
-  const syncEditCamera = useCallback(() => {
-    const el = scrollRef.current
+  const syncEditorSurface = useCallback(() => {
+    const el = viewportRef.current
     if (!el || useDockedRuntimePreview || !engineReady) return
     const dpr = window.devicePixelRatio || 1
     const pad = layout.paddingPx
-    const cssW = Math.max(1, el.clientWidth  - pad * 2)
+    const cssW = Math.max(1, el.clientWidth - pad * 2)
     const cssH = Math.max(1, el.clientHeight - pad * 2)
-    const z = zoom > 0 ? zoom : 1
-    const target = scrollToWorld(el.scrollLeft, el.scrollTop, layout, { x: pad, y: pad })
-    editorSetEditCamera(
-      target.x, target.y,
-      z * dpr, cssW * dpr, cssH * dpr,
-    )
+    editorResizeSurface(cssW, cssH, dpr)
     applyCanvasPresentation()
-  }, [useDockedRuntimePreview, engineReady, zoom, layout, applyCanvasPresentation])
+  }, [useDockedRuntimePreview, engineReady, layout.paddingPx, applyCanvasPresentation])
+
+  useEffect(() => {
+    if (useDockedRuntimePreview || !engineReady) return
+    const view = editorReadEditorView()
+    const dpr = window.devicePixelRatio || 1
+    const zDevice = zoom * dpr
+    if (Math.abs(view.zoomDevice - zDevice) < 1e-4) return
+    editorSetEditorView(view.x, view.y, zDevice)
+    applyCanvasPresentation()
+  }, [zoom, useDockedRuntimePreview, engineReady, applyCanvasPresentation])
 
   useEffect(() => {
     let raf: number | null = null
@@ -584,47 +574,31 @@ export default function PreviewPanel({
       if (raf != null) cancelAnimationFrame(raf)
       raf = requestAnimationFrame(() => {
         raf = null
-        syncEditCamera()
+        syncEditorSurface()
       })
     })
     return () => {
       unsubscribe()
       if (raf != null) cancelAnimationFrame(raf)
     }
-  }, [useDockedRuntimePreview, syncEditCamera])
+  }, [useDockedRuntimePreview, syncEditorSurface])
 
   useEffect(() => {
-    const el = scrollRef.current
+    const el = viewportRef.current
     if (!el || useDockedRuntimePreview || !engineReady) return
-    const schedule = () => {
-      if (camSyncRafRef.current != null) return
-      camSyncRafRef.current = requestAnimationFrame(() => {
-        camSyncRafRef.current = null
-        syncEditCamera()
-      })
-    }
-    syncEditCamera()
-    el.addEventListener('scroll', schedule, { passive: true })
-    const ro = new ResizeObserver(schedule)
+    syncEditorSurface()
+    const ro = new ResizeObserver(() => syncEditorSurface())
     ro.observe(el)
-    return () => {
-      el.removeEventListener('scroll', schedule)
-      ro.disconnect()
-      if (camSyncRafRef.current != null) cancelAnimationFrame(camSyncRafRef.current)
-      camSyncRafRef.current = null
-    }
-  }, [useDockedRuntimePreview, engineReady, syncEditCamera, res.x, res.y, vp.x, vp.y, selectedSceneId])
+    return () => ro.disconnect()
+  }, [useDockedRuntimePreview, engineReady, syncEditorSurface, res.x, res.y, vp.x, vp.y, selectedSceneId])
 
-  // F = frame selected: zoom in on the selected entity and centre it; with no
-  // selection, fall back to fit-the-whole-scene. Registered so useViewport
-  // shortcuts can invoke it without reaching into the panel's scroll ref.
   const frameSelection = useCallback(() => {
-    const el = scrollRef.current
+    const el = viewportRef.current
     if (!el || useDockedRuntimePreview) return
     const entityId = selection.entityId
     const def = entityId != null ? project?.entities[entityId] : null
     if (!def) {
-      zoomFitRegistry.invoke()
+      editorFrameWorld(0, 0, frame.x, frame.y, dispatch, window.devicePixelRatio || 1)
       return
     }
     const { zoom: nextZoom, center } = computeFrameSelectionView({
@@ -635,27 +609,14 @@ export default function PreviewPanel({
       paddingPx: EDITOR_CANVAS_PADDING_PX,
     })
     dispatch({ type: 'EDITOR_SET_ZOOM', zoom: nextZoom })
-    const nextLayout = computeCanvasViewportLayout({
-      worldSize: frame,
-      viewportSize: vp,
-      zoom: nextZoom,
-      preview,
-      clientSize: { x: el.clientWidth, y: el.clientHeight },
-      overscrollPx,
-    })
-    requestAnimationFrame(() => {
-      const node = scrollRef.current
-      if (!node) return
-      const { scrollLeft, scrollTop } = worldToScroll(center, nextLayout, {
-        x: node.clientWidth * 0.5,
-        y: node.clientHeight * 0.5,
-      })
-      const maxX = Math.max(0, node.scrollWidth - node.clientWidth)
-      const maxY = Math.max(0, node.scrollHeight - node.clientHeight)
-      node.scrollLeft = Math.min(maxX, Math.max(0, scrollLeft))
-      node.scrollTop = Math.min(maxY, Math.max(0, scrollTop))
-    })
-  }, [useDockedRuntimePreview, selection.entityId, project, frame.x, frame.y, vp.x, vp.y, preview, overscrollPx, dispatch])
+    editorCenterWorldPoint(
+      center,
+      el.clientWidth,
+      el.clientHeight,
+      nextZoom,
+      window.devicePixelRatio || 1,
+    )
+  }, [useDockedRuntimePreview, selection.entityId, project, frame.x, frame.y, dispatch])
 
   useLayoutEffect(() => frameSelectionRegistry.register(frameSelection), [frameSelection])
 
@@ -713,7 +674,7 @@ export default function PreviewPanel({
         </div>
       ) : (
       <CanvasViewportWithRulers
-        scrollRef={scrollRef}
+        viewportRef={viewportRef}
         layout={layout}
         rulersVisible={editorRulersVisible}
         onWheel={handleWheel}
@@ -723,19 +684,10 @@ export default function PreviewPanel({
         onPointerCancel={onCanvasAreaPointerUp}
         style={{ cursor: panCursor }}
       >
-        {/* Sticky canvas layer — pinned to the visible viewport (0-size anchor
-            keeps it out of the scroll flow). The runtime renders the panned /
-            zoomed world slice here at native resolution; the camera follows the
-            scroll via syncEditCamera. The persistent canvas (absolute, top/left
-            0) is adopted into canvasHostRef. */}
-        <div
-          style={{ position: 'sticky', top: 0, left: 0, width: 0, height: 0, zIndex: 0 }}
-        >
-          <div ref={canvasHostRef} style={{ display: 'contents' }} />
+        <div className="absolute inset-0" style={{ top: layout.paddingPx, left: layout.paddingPx, right: layout.paddingPx, bottom: layout.paddingPx }}>
+          <div ref={canvasHostRef} className="absolute inset-0" style={{ display: 'contents' }} />
           {activePaintTilesetId && !useDockedRuntimePreview && (
             <TilePaintOverlay
-              scrollRef={scrollRef}
-              zoom={zoom}
               tilemap={paintTilemap}
               activeLayerId={editorActiveLayerId}
               selectedTileCell={selectedTileCell}
@@ -744,45 +696,17 @@ export default function PreviewPanel({
               dispatch={dispatch}
             />
           )}
-        </div>
-
-        {/* Scrollable spacer — drives the scrollbars and hosts the DOM overlays
-            (camera frame + edge ring), sized to world×zoom. Sits above the
-            canvas (z-index 1) but is transparent, so the canvas shows through.
-            pointerEvents:none lets clicks pass THROUGH to the runtime canvas
-            behind it, so the C++ editor controller still receives them for
-            entity picking / dragging. Every overlay here is visual-only. */}
-        <div
-          className="w-fit h-fit shrink-0"
-          style={{
-            width: frameW,
-            height: frameH,
-            margin: `${sceneMarginY}px ${sceneMarginX}px`,
-            position: 'relative',
-            zIndex: 1,
-            pointerEvents: 'none',
-          }}
-        >
-          <div
-            className="canvas-scene-frame"
-            style={{
-              width:     `${frameW}px`,
-              height:    `${frameH}px`,
-              boxShadow: preview ? '0 0 0 2px var(--accent)' : undefined,
-            }}
-          >
-            {showCameraFrame && (
-              <CameraFrameOverlay
-                worldSize={res}
-                viewportSize={vp}
-                zoom={zoom}
-                fillFrame={preview}
-                cameraStart={selectedScene?.cameraStart}
-                onCameraStartDrag={onCameraStartDrag}
-              />
-            )}
-            <div className="canvas-scene-frame__edge" aria-hidden />
-          </div>
+          {showCameraFrame && (
+            <CameraFrameOverlay
+              worldSize={res}
+              viewportSize={vp}
+              zoom={zoom}
+              fillFrame={preview}
+              cameraStart={selectedScene?.cameraStart}
+              cameraWorldOrigin={{ x: editorCameraView.x, y: editorCameraView.y }}
+              onCameraStartDrag={onCameraStartDrag}
+            />
+          )}
         </div>
       </CanvasViewportWithRulers>
       )}

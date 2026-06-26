@@ -171,7 +171,7 @@ export function useViewportShortcuts(): void {
         dispatch({ type: 'EDITOR_SET_ZOOM', zoom: EDITOR_ZOOM_DEFAULT })
         return
       }
-      // Ctrl+9 — fit to panel. PreviewPanel owns scrollRef and exposes the
+      // Ctrl+9 — fit to panel. PreviewPanel registers fit via useEditorFitZoom.
       // computation via zoomFitRegistry (a typed bridge — no DOM events).
       if (e.key === '9') {
         e.preventDefault()

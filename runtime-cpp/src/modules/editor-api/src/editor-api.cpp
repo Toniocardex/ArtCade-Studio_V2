@@ -710,6 +710,71 @@ EMSCRIPTEN_KEEPALIVE void editor_set_edit_camera(
     r->setEditorCamera({ targetX, targetY }, zoom);
 }
 
+EMSCRIPTEN_KEEPALIVE void editor_resize_surface(
+    float cssW, float cssH, float devicePixelRatio) {
+    if (ArtCade::EditorAPI::s_mode != 0) return;
+    auto* r = ArtCade::EditorAPI::s_renderer;
+    if (!r) return;
+    r->editorResizeSurface(cssW, cssH, devicePixelRatio);
+}
+
+EMSCRIPTEN_KEEPALIVE void editor_begin_pan(float cssX, float cssY) {
+    if (ArtCade::EditorAPI::s_mode != 0) return;
+    auto* r = ArtCade::EditorAPI::s_renderer;
+    if (!r) return;
+    r->editorBeginPan(cssX, cssY);
+}
+
+EMSCRIPTEN_KEEPALIVE void editor_update_pan(float cssX, float cssY) {
+    if (ArtCade::EditorAPI::s_mode != 0) return;
+    auto* r = ArtCade::EditorAPI::s_renderer;
+    if (!r) return;
+    r->editorUpdatePan(cssX, cssY);
+}
+
+EMSCRIPTEN_KEEPALIVE void editor_end_pan() {
+    if (ArtCade::EditorAPI::s_mode != 0) return;
+    auto* r = ArtCade::EditorAPI::s_renderer;
+    if (!r) return;
+    r->editorEndPan();
+}
+
+EMSCRIPTEN_KEEPALIVE void editor_zoom_at(
+    float cssX, float cssY, float zoomFactor) {
+    if (ArtCade::EditorAPI::s_mode != 0) return;
+    auto* r = ArtCade::EditorAPI::s_renderer;
+    if (!r) return;
+    r->editorZoomAt(cssX, cssY, zoomFactor);
+}
+
+EMSCRIPTEN_KEEPALIVE void editor_frame_world_bounds(
+    float minX, float minY, float maxX, float maxY) {
+    if (ArtCade::EditorAPI::s_mode != 0) return;
+    auto* r = ArtCade::EditorAPI::s_renderer;
+    if (!r) return;
+    r->editorFrameWorldBounds(minX, minY, maxX, maxY);
+}
+
+EMSCRIPTEN_KEEPALIVE void editor_get_editor_view(
+    float* outX, float* outY, float* outZoom) {
+    auto* r = ArtCade::EditorAPI::s_renderer;
+    if (!r) {
+        if (outX) *outX = 0.f;
+        if (outY) *outY = 0.f;
+        if (outZoom) *outZoom = 1.f;
+        return;
+    }
+    r->editorGetView(outX, outY, outZoom);
+}
+
+EMSCRIPTEN_KEEPALIVE void editor_set_editor_view(
+    float targetX, float targetY, float zoomDevicePx) {
+    if (ArtCade::EditorAPI::s_mode != 0) return;
+    auto* r = ArtCade::EditorAPI::s_renderer;
+    if (!r) return;
+    r->editorSetView(targetX, targetY, zoomDevicePx);
+}
+
 EMSCRIPTEN_KEEPALIVE uint64_t editor_get_presentation_revision() {
     auto* r = ArtCade::EditorAPI::s_renderer;
     if (!r) return 0;

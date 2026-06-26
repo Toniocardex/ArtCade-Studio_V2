@@ -171,7 +171,7 @@ export function runtimeCanvasBootStyle(
 
 /**
  * Edit-mode canvas: native-resolution slice with no CSS transform.
- * Framebuffer size is driven by {@link editorSetEditCamera}.
+ * Framebuffer size is driven by {@link editorResizeSurface} (Phase 6).
  */
 export function runtimeCanvasEditStyle(params: Readonly<{
   cssWidth: number

@@ -1,22 +1,16 @@
 import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 import type { Dispatch } from 'react'
-import type { RefObject } from 'react'
 import type { TilemapLayer } from '../../types'
 import type { Action } from '../../store/editor-store'
-import { editorPaintTile } from '../../utils/wasm-bridge'
+import { editorPaintTile, editorSurfaceToWorld } from '../../utils/wasm-bridge'
 import { ensureSourceOnLayer } from '../../utils/tilemap-layer-sources'
 import { getRuntimeCanvas } from '../../utils/runtime-canvas'
 
 // ---------------------------------------------------------------------------
 // TilePaintOverlay — sole tile-paint input while the Tileset Editor is open.
-//
-// Fan-out per cell: editor_paint_tile (WASM visual) + TILEMAP_PAINT_CELL (React store).
-// Brush from selectedTileCell in the inspector palette. Right-click = erase (tileId 0).
 // ---------------------------------------------------------------------------
 
 type Props = Readonly<{
-  scrollRef: RefObject<HTMLDivElement | null>
-  zoom: number
   tilemap: TilemapLayer | undefined
   activeLayerId: string
   selectedTileCell: number
@@ -26,9 +20,8 @@ type Props = Readonly<{
 }>
 
 export function TilePaintOverlay({
-  scrollRef, zoom, tilemap, activeLayerId, selectedTileCell, sceneId, paintTilesetAssetId, dispatch,
+  tilemap, activeLayerId, selectedTileCell, sceneId, paintTilesetAssetId, dispatch,
 }: Props) {
-  // Track overlay size to match the canvas element exactly.
   const [size, setSize] = useState({ w: 0, h: 0 })
   useLayoutEffect(() => {
     const canvas = getRuntimeCanvas()
@@ -47,17 +40,13 @@ export function TilePaintOverlay({
 
   function cellFromEvent(e: React.PointerEvent<HTMLDivElement>) {
     if (!tilemap) return null
-    const el = scrollRef.current
-    if (!el) return null
-    // Overlay is co-located with the WASM canvas (same sticky origin).
-    // World = (scrollLeft + cssPxFromOverlayLeft) / zoom
     const rect = e.currentTarget.getBoundingClientRect()
     const csx = e.clientX - rect.left
     const csy = e.clientY - rect.top
-    const worldX = (el.scrollLeft + csx) / zoom
-    const worldY = (el.scrollTop  + csy) / zoom
-    const col = Math.floor(worldX / tilemap.tileSize)
-    const row = Math.floor(worldY / tilemap.tileSize)
+    const dpr = window.devicePixelRatio || 1
+    const world = editorSurfaceToWorld(csx * dpr, csy * dpr)
+    const col = Math.floor(world.x / tilemap.tileSize)
+    const row = Math.floor(world.y / tilemap.tileSize)
     if (col < 0 || col >= tilemap.cols || row < 0 || row >= tilemap.rows) return null
     return { col, row }
   }

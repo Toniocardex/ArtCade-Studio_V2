@@ -798,9 +798,7 @@ export function editorSetSnapToGrid(enabled: boolean): void {
 
 /**
  * Drive the edit-mode preview camera (screen-resolution rendering).
- * @param targetX/Y world point shown at the canvas top-left corner.
- * @param zoom      device px per world unit (editorZoom × devicePixelRatio).
- * @param vpW/vpH   framebuffer size in DEVICE px (the visible canvas).
+ * @deprecated Phase 6 — prefer {@link editorResizeSurface} + ViewController intents.
  */
 export function editorSetEditCamera(
   targetX: number, targetY: number, zoom: number, vpW: number, vpH: number,
@@ -809,6 +807,74 @@ export function editorSetEditCamera(
     'editor_set_edit_camera', null,
     ['number', 'number', 'number', 'number', 'number'],
     [targetX, targetY, zoom, Math.round(vpW), Math.round(vpH)],
+  )
+}
+
+/** Fixed-surface editor viewport resize (Phase 6). */
+export function editorResizeSurface(cssW: number, cssH: number, devicePixelRatio: number): void {
+  safeCall(
+    'editor_resize_surface', null,
+    ['number', 'number', 'number'],
+    [cssW, cssH, devicePixelRatio],
+  )
+}
+
+export function editorBeginPan(cssX: number, cssY: number): void {
+  safeCall('editor_begin_pan', null, ['number', 'number'], [cssX, cssY])
+}
+
+export function editorUpdatePan(cssX: number, cssY: number): void {
+  safeCall('editor_update_pan', null, ['number', 'number'], [cssX, cssY])
+}
+
+export function editorEndPan(): void {
+  safeCall('editor_end_pan', null, [], [])
+}
+
+export function editorZoomAt(cssX: number, cssY: number, zoomFactor: number): void {
+  safeCall('editor_zoom_at', null, ['number', 'number', 'number'], [cssX, cssY, zoomFactor])
+}
+
+export function editorFrameWorldBounds(
+  minX: number, minY: number, maxX: number, maxY: number,
+): void {
+  safeCall(
+    'editor_frame_world_bounds', null,
+    ['number', 'number', 'number', 'number'],
+    [minX, minY, maxX, maxY],
+  )
+}
+
+export type EditorViewState = Readonly<{ x: number; y: number; zoomDevice: number }>
+
+/** Editor camera top-left world position + device-px-per-world zoom. */
+export function editorReadEditorView(): EditorViewState {
+  const mod = _module
+  if (!mod) return { x: 0, y: 0, zoomDevice: 1 }
+  const xPtr = mod._malloc(4)
+  const yPtr = mod._malloc(4)
+  const zPtr = mod._malloc(4)
+  try {
+    safeCall('editor_get_editor_view', null, ['number', 'number', 'number'], [xPtr, yPtr, zPtr])
+    return {
+      x: mod.HEAPF32[xPtr >> 2],
+      y: mod.HEAPF32[yPtr >> 2],
+      zoomDevice: mod.HEAPF32[zPtr >> 2],
+    }
+  } finally {
+    mod._free(xPtr)
+    mod._free(yPtr)
+    mod._free(zPtr)
+  }
+}
+
+export function editorSetEditorView(
+  targetX: number, targetY: number, zoomDevicePx: number,
+): void {
+  safeCall(
+    'editor_set_editor_view', null,
+    ['number', 'number', 'number'],
+    [targetX, targetY, zoomDevicePx],
   )
 }
 

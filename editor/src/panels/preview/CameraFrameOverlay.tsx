@@ -8,6 +8,8 @@ export type CameraFrameOverlayProps = Readonly<{
   /** When the scene frame is already clipped to the viewport (camera preview). */
   fillFrame?: boolean
   worldSize?: Vec2
+  /** Top-left world position of the editor camera (fixed surface). */
+  cameraWorldOrigin?: Vec2
   /** Top-left world position of the camera's initial view. Defaults to (0,0). */
   cameraStart?: Vec2
   /**
@@ -39,6 +41,7 @@ export function CameraFrameOverlay({
   viewportSize,
   zoom,
   fillFrame = false,
+  cameraWorldOrigin,
   cameraStart,
   onCameraStartDrag,
 }: CameraFrameOverlayProps) {
@@ -53,12 +56,15 @@ export function CameraFrameOverlay({
     return null
   }
 
+  const camX = cameraWorldOrigin?.x ?? 0
+  const camY = cameraWorldOrigin?.y ?? 0
   const startX = cameraStart?.x ?? 0
   const startY = cameraStart?.y ?? 0
-  const left = Math.round(startX * zoom)
-  const top  = Math.round(startY * zoom)
-  const w = Math.round(viewportSize.x * zoom)
-  const h = Math.round(viewportSize.y * zoom)
+  const z = zoom > 0 ? zoom : 1
+  const left = Math.round((startX - camX) * z)
+  const top  = Math.round((startY - camY) * z)
+  const w = Math.round(viewportSize.x * z)
+  const h = Math.round(viewportSize.y * z)
 
   const draggable = !!onCameraStartDrag && !fillFrame
 

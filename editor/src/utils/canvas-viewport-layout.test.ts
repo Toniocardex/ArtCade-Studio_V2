@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import {
   computeCanvasViewportLayout,
+  rulerLabelsForCameraAxis,
+  rulerLabelsForAxis,
   edgeOffsetPx,
   pickRulerTickStep,
   rulerLabelsForAxis,
@@ -175,5 +177,34 @@ describe('rulerLabelsForAxis', () => {
     const ticks = rulerLabelsForAxis('x', 64, 800, layout)
     const at64 = ticks.find(t => t.worldValue === 64)!
     expect(at64.positionPx).toBe(8)
+  })
+})
+
+describe('rulerLabelsForCameraAxis', () => {
+  const WORLD = { x: 1280, y: 640 }
+  const VP = { x: 512, y: 320 }
+
+  it('places world zero at surface origin when camera is at world zero', () => {
+    const layout = computeCanvasViewportLayout({
+      worldSize: WORLD,
+      viewportSize: VP,
+      zoom: 2,
+      preview: false,
+    })
+    const ticks = rulerLabelsForCameraAxis('x', { x: 0, y: 0 }, 400, layout)
+    const atZero = ticks.find(t => t.worldValue === 0)!
+    expect(atZero.positionPx).toBe(0)
+  })
+
+  it('offsets ticks when the editor camera pans', () => {
+    const layout = computeCanvasViewportLayout({
+      worldSize: WORLD,
+      viewportSize: VP,
+      zoom: 1,
+      preview: false,
+    })
+    const ticks = rulerLabelsForCameraAxis('x', { x: 64, y: 0 }, 800, layout)
+    const at64 = ticks.find(t => t.worldValue === 64)!
+    expect(at64.positionPx).toBe(0)
   })
 })

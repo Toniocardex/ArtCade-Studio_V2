@@ -7,6 +7,7 @@
 #include "../../presentation/include/presentation_types.h"
 #include "../../presentation/include/presentation_system.h"
 #include "../../presentation/include/surface_metrics.h"
+#include "../../presentation/include/view_controller.h"
 #include "../../../core/project-defaults.h"
 #include "sprite-outline-shader.h"
 #include "texture-cache.h"
@@ -34,6 +35,8 @@ using ArtCade::Presentation::SurfacePoint;
 using ArtCade::Presentation::ViewCamera2D;
 using ArtCade::Presentation::WorldPoint;
 using ArtCade::Presentation::surface_metrics_from_css;
+using ArtCade::Presentation::EditorViewState;
+using ArtCade::Presentation::ViewController;
 
 ViewCamera2D to_view_camera(const Camera2D& cam) {
     return {
@@ -168,6 +171,53 @@ struct Renderer::Impl {
     OutputPolicy outputPolicy = OutputPolicy::Fit;
     CompositorLayout compositorLayout{};
     ArtCade::Presentation::PresentationSystem presentation;
+    ViewController viewController;
+    float editorSurfaceDpr = 1.f;
+
+    void syncViewControllerMetrics() {
+        const double dpr = editorSurfaceDpr > 0.f
+            ? static_cast<double>(editorSurfaceDpr)
+            : 1.;
+        const double cssW = static_cast<double>(width) / dpr;
+        const double cssH = static_cast<double>(height) / dpr;
+        viewController.set_surface_metrics(
+            surface_metrics_from_css(cssW, cssH, dpr));
+    }
+
+    void syncViewControllerFromEditorCamera() {
+        EditorViewState view{};
+        view.positionX = storedEditorCamera_.positionX;
+        view.positionY = storedEditorCamera_.positionY;
+        view.zoom = storedEditorCamera_.zoom > 0.
+            ? storedEditorCamera_.zoom
+            : 1.;
+        viewController.set_editor_view(view);
+        syncViewControllerMetrics();
+    }
+
+    void applyViewControllerToEditorCamera() {
+        const EditorViewState& view = viewController.editor_view();
+        storedEditorCamera_.positionX = view.positionX;
+        storedEditorCamera_.positionY = view.positionY;
+        storedEditorCamera_.zoom = view.zoom > 0. ? view.zoom : 1.;
+        presentationMode = PresentationMode::SceneEdit;
+        displayScale = 1.f;
+        viewportOffset = { 0.f, 0.f };
+        viewportDrawSize = {
+            static_cast<float>(width),
+            static_cast<float>(height),
+        };
+        syncActiveCameraFromStores();
+        updateGameViewCamera();
+        syncPresentationState();
+        presentation.refresh_snapshot();
+    }
+
+    static SurfacePoint css_to_surface(float cssX, float cssY, float dpr) {
+        const double scale = dpr > 0.f ? static_cast<double>(dpr) : 1.;
+        return { static_cast<double>(cssX) * scale,
+                 static_cast<double>(cssY) * scale };
+    }
     struct GameViewTarget {
         RenderTexture2D rt{};
         uint32_t w = 0;
@@ -1218,6 +1268,93 @@ void Renderer::setEditorCamera(const Vec2& target, float zoom) {
     impl_->updateGameViewCamera();
     impl_->syncPresentationState();
     impl_->presentation.refresh_snapshot();
+    impl_->syncViewControllerFromEditorCamera();
+}
+
+void Renderer::editorResizeSurface(float cssW, float cssH, float devicePixelRatio) {
+    const float safeDpr = devicePixelRatio > 0.f ? devicePixelRatio : 1.f;
+    impl_->editorSurfaceDpr = safeDpr;
+    const uint32_t fbW = static_cast<uint32_t>(
+        std::max(1., std::round(static_cast<double>(cssW) * static_cast<double>(safeDpr))));
+    const uint32_t fbH = static_cast<uint32_t>(
+        std::max(1., std::round(static_cast<double>(cssH) * static_cast<double>(safeDpr))));
+    if (fbW != impl_->width || fbH != impl_->height) {
+        setWindowSize(fbW, fbH, "ArtCade V2");
+    }
+    impl_->syncViewControllerFromEditorCamera();
+    impl_->viewController.resize_surface(
+        static_cast<double>(cssW),
+        static_cast<double>(cssH),
+        static_cast<double>(safeDpr));
+    impl_->syncPresentationState();
+    impl_->presentation.refresh_snapshot();
+}
+
+void Renderer::editorBeginPan(float cssX, float cssY) {
+    if (impl_->presentationMode != PresentationMode::SceneEdit)
+        return;
+    impl_->syncViewControllerFromEditorCamera();
+    const SurfacePoint surface = impl_->css_to_surface(
+        cssX, cssY, impl_->editorSurfaceDpr);
+    impl_->viewController.begin_pan(surface);
+    impl_->applyViewControllerToEditorCamera();
+}
+
+void Renderer::editorUpdatePan(float cssX, float cssY) {
+    if (impl_->presentationMode != PresentationMode::SceneEdit)
+        return;
+    const SurfacePoint surface = impl_->css_to_surface(
+        cssX, cssY, impl_->editorSurfaceDpr);
+    impl_->viewController.update_pan(surface);
+    impl_->applyViewControllerToEditorCamera();
+}
+
+void Renderer::editorEndPan() {
+    if (impl_->presentationMode != PresentationMode::SceneEdit)
+        return;
+    impl_->viewController.end_pan();
+}
+
+void Renderer::editorZoomAt(float cssX, float cssY, float zoomFactor) {
+    if (impl_->presentationMode != PresentationMode::SceneEdit)
+        return;
+    if (!(zoomFactor > 0.f))
+        return;
+    impl_->syncViewControllerFromEditorCamera();
+    const SurfacePoint surface = impl_->css_to_surface(
+        cssX, cssY, impl_->editorSurfaceDpr);
+    impl_->viewController.zoom_at(surface, static_cast<double>(zoomFactor));
+    impl_->applyViewControllerToEditorCamera();
+}
+
+void Renderer::editorFrameWorldBounds(float minX, float minY,
+                                      float maxX, float maxY) {
+    if (impl_->presentationMode != PresentationMode::SceneEdit)
+        impl_->presentationMode = PresentationMode::SceneEdit;
+    impl_->syncViewControllerFromEditorCamera();
+    impl_->viewController.frame_world_bounds(
+        static_cast<double>(minX),
+        static_cast<double>(minY),
+        static_cast<double>(maxX),
+        static_cast<double>(maxY));
+    impl_->applyViewControllerToEditorCamera();
+}
+
+void Renderer::editorGetView(float* outX, float* outY, float* outZoom) const {
+    if (outX)
+        *outX = static_cast<float>(impl_->storedEditorCamera_.positionX);
+    if (outY)
+        *outY = static_cast<float>(impl_->storedEditorCamera_.positionY);
+    if (outZoom) {
+        const double zoom = impl_->storedEditorCamera_.zoom > 0.
+            ? impl_->storedEditorCamera_.zoom
+            : 1.;
+        *outZoom = static_cast<float>(zoom);
+    }
+}
+
+void Renderer::editorSetView(float targetX, float targetY, float zoomDevicePx) {
+    setEditorCamera({ targetX, targetY }, zoomDevicePx);
 }
 
 void Renderer::panCameraByScreenDelta(float dx, float dy) {

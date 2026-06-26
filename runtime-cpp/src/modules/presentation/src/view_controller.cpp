@@ -96,12 +96,30 @@ void ViewController::resize_surface(double cssW, double cssH, double devicePixel
     surface_ = surface_metrics_from_css(cssW, cssH, devicePixelRatio);
 }
 
-void ViewController::frame_world_bounds(double, double, double, double) {
-    // Phase 2+
+void ViewController::frame_world_bounds(double minX, double minY,
+                                        double maxX, double maxY) {
+    const double boundsW = std::max(0., maxX - minX);
+    const double boundsH = std::max(0., maxY - minY);
+    if (boundsW <= 0. || boundsH <= 0.)
+        return;
+
+    const double fbW = surface_.framebufferWidth > 0.
+        ? surface_.framebufferWidth
+        : 1.;
+    const double fbH = surface_.framebufferHeight > 0.
+        ? surface_.framebufferHeight
+        : 1.;
+    const double scaleX = fbW / boundsW;
+    const double scaleY = fbH / boundsH;
+    editorView_.zoom = std::min(scaleX, scaleY);
+    editorView_.positionX = minX;
+    editorView_.positionY = minY;
 }
 
 void ViewController::reset_view() {
-    // Phase 2+
+    editorView_.positionX = 0.;
+    editorView_.positionY = 0.;
+    editorView_.zoom = 1.;
 }
 
 } // namespace ArtCade::Presentation
