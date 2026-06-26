@@ -100,17 +100,56 @@ export type RuntimeCanvasPlayLayout = 'docked-top-left' | 'floating-centered'
 
 /**
  * Imperative play-mode canvas presentation.
- * Framebuffer size is owned by the runtime ({@link setWindowSize} / NativePlay);
- * CSS only scales the logical viewport to fit the host.
+ * When {@link hostSize} is set, the canvas fills the compositor surface (Phase 8);
+ * otherwise CSS scales the logical viewport (legacy fallback).
  */
 export function runtimeCanvasPlayStyle(params: Readonly<{
   viewport: DisplaySize
   scale: number
+  hostSize?: DisplaySize
   background: string
   layout: RuntimeCanvasPlayLayout
   pointerEvents?: 'auto' | 'none'
 }>): Partial<CSSStyleDeclaration> {
-  const { viewport, scale, background, layout, pointerEvents } = params
+  const { viewport, scale, hostSize, background, layout, pointerEvents } = params
+  const pointer = pointerEvents ? { pointerEvents } : {}
+
+  if (hostSize) {
+    const w = Math.max(1, Math.round(hostSize.x))
+    const h = Math.max(1, Math.round(hostSize.y))
+    if (layout === 'floating-centered') {
+      return {
+        display: 'block',
+        position: 'absolute',
+        inset: 'auto',
+        left: '50%',
+        top: '50%',
+        right: 'auto',
+        bottom: 'auto',
+        width: `${w}px`,
+        height: `${h}px`,
+        transform: 'translate(-50%, -50%)',
+        transformOrigin: 'center center',
+        background,
+        imageRendering: 'pixelated',
+        ...pointer,
+      }
+    }
+    return {
+      display: 'block',
+      position: 'absolute',
+      top: '0px',
+      left: '0px',
+      width: `${w}px`,
+      height: `${h}px`,
+      transform: 'none',
+      transformOrigin: '0 0',
+      background,
+      imageRendering: 'pixelated',
+      ...pointer,
+    }
+  }
+
   const common = {
     display: 'block' as const,
     position: 'absolute' as const,

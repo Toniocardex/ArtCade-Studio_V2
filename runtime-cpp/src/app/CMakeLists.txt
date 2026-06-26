@@ -15,6 +15,7 @@ add_executable(game
     render/passes/debug_pass.cpp
     render/passes/scene_background_pass.cpp
     render/passes/scene_entities_pass.cpp
+    render/sprite_frame_resolve.cpp
 )
 target_include_directories(game PRIVATE include render render/passes)
 target_link_libraries(game PRIVATE
@@ -96,6 +97,7 @@ if(EMSCRIPTEN)
         "_editor_get_presentation_snapshot"
         "_editor_surface_to_world"
         "_editor_sync_play_surface"
+        "_editor_set_play_presentation"
         "_editor_register_image"
         "_editor_register_audio"
         "_editor_register_font"

@@ -1,6 +1,7 @@
 #include "gizmo_pass.h"
 
 #include "../editor-overlay-renderer.h"
+#include "../sprite_frame_resolve.h"
 #include "../../../modules/runtime-entity-gateway/include/runtime-entity-gateway.h"
 #include "../../../modules/sprite-animator/include/sprite-animator.h"
 
@@ -13,43 +14,11 @@ namespace {
 
 using Modules::SpriteAnimator;
 
-bool hasSpriteFrame(const SpriteAnimator::Frame& frame) {
-    return frame.w > 0 && frame.h > 0;
-}
-
-struct ResolvedSpriteDraw {
-    SpriteAnimator::Frame frame{};
-    std::string assetId;
-};
-
-ResolvedSpriteDraw resolveSpriteFrame(
-    const SpriteAnimator* animator,
-    EntityId id,
-    const SpriteComponent& sprite,
-    bool inEditMode)
-{
-    if (!animator) return {};
-
-    const auto current = animator->currentFrame(id);
-    if (hasSpriteFrame(current))
-        return { current, animator->currentClipAssetId(id) };
-
-    if (inEditMode && !sprite.defaultClip.empty())
-        return { animator->clipFrame(sprite.defaultClip, 0),
-                 animator->clipAssetId(sprite.defaultClip) };
-
-    if (!sprite.spriteAssetId.empty())
-        return { animator->firstFrameForAsset(sprite.spriteAssetId),
-                 sprite.spriteAssetId };
-
-    return {};
-}
-
 std::optional<Vec2> visualSizeForFrame(
     const SpriteAnimator::Frame& frame,
     const Vec2& scale)
 {
-    if (!hasSpriteFrame(frame)) return std::nullopt;
+    if (!AppRender::sprite_frame_has_pixels(frame)) return std::nullopt;
     return Vec2{
         static_cast<float>(frame.w) * std::abs(scale.x),
         static_cast<float>(frame.h) * std::abs(scale.y),
@@ -77,7 +46,7 @@ void execute_gizmo_pass(SceneFrameContext& ctx) {
                     != selectedEntityIds.end()) return;
                 SpriteComponent sprite{};
                 if (!gateway->getSprite(id, sprite)) return;
-                const auto draw = resolveSpriteFrame(animator, id, sprite, true);
+                const auto draw = AppRender::sprite_frame_resolve(animator, id, sprite, true);
                 EditorOverlayRenderer::drawHiddenInGameOutline(
                     *renderer, transform, sprite,
                     visualSizeForFrame(draw.frame, transform.scale));
@@ -97,7 +66,7 @@ void execute_gizmo_pass(SceneFrameContext& ctx) {
         std::optional<CollisionBodyComponent> collisionOverlay;
         if (ctx.entityGateway->getResolvedCollisionBody(selectedId, collisionBody))
             collisionOverlay = collisionBody;
-        const auto draw = resolveSpriteFrame(
+        const auto draw = AppRender::sprite_frame_resolve(
             ctx.spriteAnimator, selectedId, sprite, ctx.overlay.inEditMode);
         EditorOverlayState itemOverlay = ctx.overlay;
         itemOverlay.selectedId = selectedId;

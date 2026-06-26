@@ -9,15 +9,32 @@
 namespace ArtCade::Modules {
 
 /**
+ * Full per-frame render plan: app-layer pass order plus renderer lifecycle passes.
+ * GameView capture and Blit are flagged here for documentation; Renderer executes them.
+ */
+struct RenderPipeline {
+    std::vector<RenderPassId> appPassOrder;
+    bool captureGameView = false;
+    bool blitGameView    = false;
+};
+
+/**
  * Builds the ordered pass list for a frame from presentation + features.
- * GameView RT capture and Blit run inside Renderer frame lifecycle.
  */
 class RenderPipelineBuilder {
 public:
-    static std::vector<RenderPassId> build_pass_order(
+    static RenderPipeline buildPipeline(
         const ArtCade::Presentation::PresentationSnapshot& presentation,
         const ViewRenderFeatures& features,
         bool hasActiveScene);
+
+    /** Returns {@link RenderPipeline::appPassOrder} only. */
+    static std::vector<RenderPassId> build_pass_order(
+        const ArtCade::Presentation::PresentationSnapshot& presentation,
+        const ViewRenderFeatures& features,
+        bool hasActiveScene) {
+        return buildPipeline(presentation, features, hasActiveScene).appPassOrder;
+    }
 };
 
 } // namespace ArtCade::Modules

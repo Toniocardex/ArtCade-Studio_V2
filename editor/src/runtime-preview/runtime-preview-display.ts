@@ -55,12 +55,12 @@ export function runtimePreviewCanvasStyle(
   if (!logical) {
     return runtimeCanvasBootStyle(windowSize, background)
   }
-  const scale = presentation && presentation.revision > 0n
-    ? playCssScaleFromSnapshot(presentation, windowSize, { integerUpscale: true })
-    : playFitScale(logical, windowSize, { integerUpscale: true })
+  const hostSize = runtimePreviewDisplaySize(logical, windowSize, presentation)
+  const scale = hostSize.x / Math.max(1, logical.x)
   return runtimeCanvasPlayStyle({
     viewport: logical,
     scale,
+    hostSize,
     background,
     layout: 'floating-centered',
   })

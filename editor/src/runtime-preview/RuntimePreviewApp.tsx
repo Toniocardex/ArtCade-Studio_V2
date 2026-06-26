@@ -23,6 +23,7 @@ import { WASM_RUNTIME_SRC } from '../utils/runtime-path'
 import {
   loadWasmRuntime,
   setTextureCacheEvictedCallback,
+  editorSetPlayPresentation,
   editorSyncPlaySurface,
   type WasmCallbacks,
 } from '../utils/wasm-bridge'
@@ -30,6 +31,7 @@ import { applyRuntimeCanvasPresentation } from '../utils/runtime-canvas-presenta
 import {
   runtimePreviewBackground,
   runtimePreviewCanvasStyle,
+  runtimePreviewDisplaySize,
   runtimePreviewLogicalSize,
   type RuntimePreviewDisplaySize,
 } from './runtime-preview-display'
@@ -67,7 +69,10 @@ export default function RuntimePreviewApp() {
     )
     if (!syncFramebuffer) return
     const logical = runtimePreviewLogicalSize(activeBundle)
-    if (logical) editorSyncPlaySurface(logical.x, logical.y)
+    if (!logical) return
+    const host = runtimePreviewDisplaySize(logical, size, presentation)
+    const dpr = window.devicePixelRatio || 1
+    editorSyncPlaySurface(host.x, host.y, dpr)
   }, [presentationSnapshot])
 
   const announceReady = useCallback(() => {
@@ -166,6 +171,28 @@ export default function RuntimePreviewApp() {
   }, [])
 
   useEffect(() => {
+    if (!isTauri() || !wasmReady) return undefined
+    const runtimeWindow = getCurrentWindow()
+    let cancelled = false
+
+    const syncPresentationMode = async () => {
+      if (cancelled) return
+      const fullscreen = await runtimeWindow.isFullscreen()
+      editorSetPlayPresentation(fullscreen ? 'playFullscreen' : 'playExternal')
+    }
+
+    void syncPresentationMode()
+    const unlistenPromise = runtimeWindow.onResized(() => {
+      void syncPresentationMode()
+    })
+
+    return () => {
+      cancelled = true
+      void unlistenPromise.then((unlisten) => unlisten())
+    }
+  }, [wasmReady])
+
+  useEffect(() => {
     if (!canvasReady) return undefined
     let cancelled = false
     const callbacks: WasmCallbacks = {
@@ -229,6 +256,7 @@ export default function RuntimePreviewApp() {
       }
 
       setMessage('Starting game...')
+      editorSetPlayPresentation('playExternal')
       const outcome = runtimeSync.transitionPreview('play', activeBundle)
       applyPreviewCanvasPresentation(
         activeBundle,

@@ -914,13 +914,23 @@ export function editorSurfaceToWorld(surfaceX: number, surfaceY: number): { x: n
   }
 }
 
-/** Re-assert play framebuffer after preview canvas layout changes (Tauri window). */
-export function editorSyncPlaySurface(fbW: number, fbH: number): void {
+/** Re-assert play surface after host layout changes (CSS size × DPR, Phase 8). */
+export function editorSyncPlaySurface(
+  cssW: number,
+  cssH: number,
+  devicePixelRatio = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1,
+): void {
   safeCall(
     'editor_sync_play_surface', null,
-    ['number', 'number'],
-    [Math.max(1, Math.round(fbW)), Math.max(1, Math.round(fbH))],
+    ['number', 'number', 'number'],
+    [Math.max(1, cssW), Math.max(1, cssH), devicePixelRatio],
   )
+}
+
+/** PlayEmbedded / PlayExternal / PlayFullscreen before or during play. */
+export function editorSetPlayPresentation(mode: 'playEmbedded' | 'playExternal' | 'playFullscreen'): void {
+  const abi = { playEmbedded: 2, playExternal: 3, playFullscreen: 4 } as const
+  safeCall('editor_set_play_presentation', null, ['number'], [abi[mode]])
 }
 
 export function editorSetTransform(

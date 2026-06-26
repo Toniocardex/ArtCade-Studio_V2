@@ -46,6 +46,8 @@ vi.mock('../utils/tauri-invoke', () => ({
 vi.mock('@tauri-apps/api/window', () => ({
   getCurrentWindow: () => ({
     destroy: () => destroyWindowMock(),
+    isFullscreen: async () => false,
+    onResized: async () => () => undefined,
     onCloseRequested: async (handler: (event: { preventDefault: () => void }) => Promise<void>) => {
       closeRequestedHandler = handler
       return () => {
@@ -77,6 +79,7 @@ vi.mock('../utils/wasm-bridge', () => ({
   loadWasmRuntime: (...args: [HTMLCanvasElement, string, never]) => loadWasmRuntimeMock(...args),
   setTextureCacheEvictedCallback: (fn: unknown) => setTextureCacheEvictedCallbackMock(fn),
   editorSyncPlaySurface: vi.fn(),
+  editorSetPlayPresentation: vi.fn(),
   editorReadPresentationSnapshot: () => null,
 }))
 
@@ -136,9 +139,9 @@ describe('RuntimePreviewApp', () => {
     dispatchStart(bundle)
     await waitFor(() => expect(loadSceneMock).toHaveBeenCalled())
     const canvas = document.getElementById('runtime-canvas') as HTMLCanvasElement | null
-    expect(canvas?.style.width).toBe('512px')
-    expect(canvas?.style.height).toBe('320px')
-    expect(canvas?.style.transform).toBe('translate(-50%, -50%) scale(2)')
+    expect(canvas?.style.width).toBe('1024px')
+    expect(canvas?.style.height).toBe('640px')
+    expect(canvas?.style.transform).toBe('translate(-50%, -50%)')
     expect(canvas?.style.imageRendering).toBe('pixelated')
   })
 

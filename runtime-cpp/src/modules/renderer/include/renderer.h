@@ -202,6 +202,11 @@ public:
     void setEditorCamera  (const Vec2& target, float zoom);
     /** Fixed-surface editor viewport: resize CSS canvas and preserve camera. */
     void editorResizeSurface(float cssW, float cssH, float devicePixelRatio);
+    /**
+     * Play-mode surface resize: CSS host size × DPR → framebuffer; refreshes compositor snapshot.
+     * Used by embedded, external, and fullscreen play (ADR Phase 8).
+     */
+    void syncPlaySurface(float cssW, float cssH, float devicePixelRatio);
     void editorBeginPan(float cssX, float cssY);
     void editorUpdatePan(float cssX, float cssY);
     void editorEndPan();

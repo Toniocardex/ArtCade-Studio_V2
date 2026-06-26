@@ -1291,6 +1291,29 @@ void Renderer::editorResizeSurface(float cssW, float cssH, float devicePixelRati
     impl_->presentation.refresh_snapshot();
 }
 
+void Renderer::syncPlaySurface(float cssW, float cssH, float devicePixelRatio) {
+    const float safeDpr = devicePixelRatio > 0.f ? devicePixelRatio : 1.f;
+    impl_->editorSurfaceDpr = safeDpr;
+    const uint32_t fbW = static_cast<uint32_t>(std::max(
+        1., std::round(static_cast<double>(cssW) * static_cast<double>(safeDpr))));
+    const uint32_t fbH = static_cast<uint32_t>(std::max(
+        1., std::round(static_cast<double>(cssH) * static_cast<double>(safeDpr))));
+    if (fbW != impl_->width || fbH != impl_->height)
+        setWindowSize(fbW, fbH, "ArtCade V2");
+
+    using ArtCade::Presentation::PresentationState;
+    PresentationState& state = impl_->presentation.mutable_state();
+    state.surface = ArtCade::Presentation::surface_metrics_from_css(
+        static_cast<double>(cssW),
+        static_cast<double>(cssH),
+        static_cast<double>(safeDpr));
+    state.surface.framebufferWidth = static_cast<double>(fbW);
+    state.surface.framebufferHeight = static_cast<double>(fbH);
+    impl_->syncPresentationState();
+    impl_->updateCameraProjection();
+    impl_->presentation.refresh_snapshot();
+}
+
 void Renderer::editorBeginPan(float cssX, float cssY) {
     if (impl_->presentationMode != PresentationMode::SceneEdit)
         return;

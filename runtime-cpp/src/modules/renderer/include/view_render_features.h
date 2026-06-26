@@ -11,6 +11,8 @@ struct ViewRenderFeatures {
     bool drawGizmos        = false;
     bool drawSelection     = false;
     bool drawPhysicsDebug  = false;
+    /** Camera frame overlay — rendered in React, not C++ passes. */
+    bool drawCameraFrame   = false;
 };
 
 } // namespace ArtCade::Modules

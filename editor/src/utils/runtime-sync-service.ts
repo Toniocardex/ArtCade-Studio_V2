@@ -33,6 +33,7 @@ import {
   editorSetGuidesEnabled,
   editorSetSnapToGrid,
   editorSetMode,
+  editorSetPlayPresentation,
   editorSetSceneSettings,
   editorSetTool,
   editorSetTransform,
@@ -672,6 +673,7 @@ class RuntimeSyncServiceImpl {
     const next: 0 | 1 = isPlaying ? 1 : 0
     if (this.lastMode === next) return
     this.lastMode = next
+    if (next === 1) editorSetPlayPresentation('playEmbedded')
     editorSetMode(next)
   }
 

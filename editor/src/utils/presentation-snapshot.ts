@@ -20,6 +20,15 @@ const MODE_FROM_ABI: readonly PresentationMode[] = [
   'playFullscreen',
 ]
 
+/** WASM {@link PresentationMode} ordinal for `editor_set_play_presentation`. */
+export const PRESENTATION_MODE_ABI: Record<PresentationMode, number> = {
+  sceneEdit: 0,
+  cameraPreview: 1,
+  playEmbedded: 2,
+  playExternal: 3,
+  playFullscreen: 4,
+}
+
 export type PresentationPlacement = Readonly<{
   destX: number
   destY: number

@@ -69,8 +69,8 @@ void Application::renderActiveScene() {
     const RenderPipeline::ViewRenderFeatures features = build_view_features(overlay);
     const auto& presentation = mod_->renderer->committedPresentationSnapshot();
     const std::vector<RenderPipeline::RenderPassId> passOrder =
-        RenderPipeline::RenderPipelineBuilder::build_pass_order(
-            presentation, features, activeScene != nullptr);
+        RenderPipeline::RenderPipelineBuilder::buildPipeline(
+            presentation, features, activeScene != nullptr).appPassOrder;
 
     SceneFrameContext frameCtx{};
     frameCtx.renderer = mod_->renderer.get();
@@ -107,6 +107,9 @@ void Application::renderActiveScene() {
         case RenderPipeline::RenderPassId::Debug:
             if (mod_->world)
                 AppRenderPasses::execute_debug_pass(*mod_->renderer, *mod_->world);
+            break;
+        case RenderPipeline::RenderPassId::GameView:
+        case RenderPipeline::RenderPassId::Blit:
             break;
         }
     }

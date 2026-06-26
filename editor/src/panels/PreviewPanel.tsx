@@ -519,6 +519,7 @@ export default function PreviewPanel({
       applyRuntimeCanvasPresentation(canvas, runtimeCanvasPlayStyle({
         viewport: { x: frame.x, y: frame.y },
         scale: playScale,
+        hostSize: playHostSize,
         background: bgColor,
         layout: 'docked-top-left',
         pointerEvents,
@@ -543,8 +544,9 @@ export default function PreviewPanel({
 
   useLayoutEffect(() => {
     if (!useDockedRuntimePreview) return
-    editorSyncPlaySurface(Math.max(1, Math.round(frame.x)), Math.max(1, Math.round(frame.y)))
-  }, [useDockedRuntimePreview, frame.x, frame.y])
+    const dpr = window.devicePixelRatio || 1
+    editorSyncPlaySurface(playHostSize.x, playHostSize.y, dpr)
+  }, [useDockedRuntimePreview, playHostSize.x, playHostSize.y])
 
   const syncEditorSurface = useCallback(() => {
     const el = viewportRef.current

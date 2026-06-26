@@ -1,5 +1,6 @@
 #include "scene_entities_pass.h"
 
+#include "../sprite_frame_resolve.h"
 #include "../text_value_formatter.h"
 #include "../../../modules/renderer/include/renderer.h"
 #include "../../../modules/runtime-entity-gateway/include/runtime-entity-gateway.h"
@@ -32,15 +33,6 @@ void textAnchorAlign(const std::string& a, int& hOut, int& vOut) {
     else                                            vOut = 0;
 }
 
-bool hasSpriteFrame(const SpriteAnimator::Frame& frame) {
-    return frame.w > 0 && frame.h > 0;
-}
-
-struct ResolvedSpriteDraw {
-    SpriteAnimator::Frame frame{};
-    std::string assetId;
-};
-
 struct LayeredRenderable {
     EntityId id = 0;
     Transform transform{};
@@ -48,29 +40,6 @@ struct LayeredRenderable {
     int layerPriority = 0;
     size_t insertionIndex = 0u;
 };
-
-ResolvedSpriteDraw resolveSpriteFrame(
-    const SpriteAnimator* animator,
-    EntityId id,
-    const SpriteComponent& sprite,
-    bool inEditMode)
-{
-    if (!animator) return {};
-
-    const auto current = animator->currentFrame(id);
-    if (hasSpriteFrame(current))
-        return { current, animator->currentClipAssetId(id) };
-
-    if (inEditMode && !sprite.defaultClip.empty())
-        return { animator->clipFrame(sprite.defaultClip, 0),
-                 animator->clipAssetId(sprite.defaultClip) };
-
-    if (!sprite.spriteAssetId.empty())
-        return { animator->firstFrameForAsset(sprite.spriteAssetId),
-                 sprite.spriteAssetId };
-
-    return {};
-}
 
 } // namespace
 
@@ -174,8 +143,8 @@ void execute_scene_entities_pass(SceneFrameContext& ctx) {
                 && gaugeProbe.width > 0.f && gaugeProbe.height > 0.f;
             const bool visualOnly = placeholderFill && (hasText || hasGauge);
 
-            const auto draw = resolveSpriteFrame(animator, id, sprite, inEditMode);
-            if (hasSpriteFrame(draw.frame)) {
+            const auto draw = AppRender::sprite_frame_resolve(animator, id, sprite, inEditMode);
+            if (AppRender::sprite_frame_has_pixels(draw.frame)) {
                 const std::string& sheet =
                     draw.assetId.empty() ? sprite.spriteAssetId : draw.assetId;
                 renderer->drawSpriteFrame(

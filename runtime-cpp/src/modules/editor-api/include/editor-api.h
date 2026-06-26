@@ -411,11 +411,14 @@ EMSCRIPTEN_KEEPALIVE void editor_surface_to_world(
     float surfaceX, float surfaceY, float* outWorldX, float* outWorldY);
 
 /**
- * Re-assert the play-mode framebuffer after the host resizes the preview canvas.
- * Play mode owns logical viewport pixels; CSS may upscale without changing the
- * backing store (runtime preview window, docked play host).
+ * Sync play-mode surface: CSS host size × DPR → framebuffer and compositor snapshot.
+ * @param cssW/cssH host area in CSS pixels (not logical viewport size)
  */
-EMSCRIPTEN_KEEPALIVE void editor_sync_play_surface(int fbW, int fbH);
+EMSCRIPTEN_KEEPALIVE void editor_sync_play_surface(
+    float cssW, float cssH, float devicePixelRatio);
+
+/** Select play presentation variant (PlayEmbedded / PlayExternal / PlayFullscreen). */
+EMSCRIPTEN_KEEPALIVE void editor_set_play_presentation(int mode);
 
 /** Editor placement snap (magnetic drag + React commit); not gameplay grid.snapToGrid. */
 EMSCRIPTEN_KEEPALIVE void editor_set_snap_to_grid(int enabled);

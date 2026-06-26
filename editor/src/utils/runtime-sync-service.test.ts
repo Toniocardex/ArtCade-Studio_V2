@@ -20,6 +20,7 @@ vi.mock('./wasm-bridge', () => {
     EditorApiResult: { Ok: 0, JsonError: 1, LuaError: 2, NotWired: 3 },
     EDITOR_API_CCALL_FAILED: -1,
     editorSetMode:            vi.fn(),
+    editorSetPlayPresentation: vi.fn(),
     editorSelectEntity:       vi.fn(),
     editorSelectEntities:     vi.fn(),
     editorDeselect:           vi.fn(),
@@ -83,6 +84,7 @@ describe('RuntimeSyncService', () => {
     vi.mocked(bridge.editorExitPlayMode).mockReset()
     vi.mocked(bridge.editorExitPlayMode).mockReturnValue(0)
     vi.mocked(bridge.editorSetMode).mockReset()
+    vi.mocked(bridge.editorSetPlayPresentation).mockReset()
     vi.mocked(bridge.editorSelectEntity).mockReset()
     vi.mocked(bridge.editorSelectEntities).mockReset()
     vi.mocked(bridge.editorDeselect).mockReset()
@@ -213,6 +215,8 @@ describe('RuntimeSyncService', () => {
     runtimeSync.syncPlayMode(true)
     runtimeSync.syncPlayMode(false)
     expect(bridge.editorSetMode).toHaveBeenCalledTimes(2)
+    expect(bridge.editorSetPlayPresentation).toHaveBeenCalledTimes(1)
+    expect(bridge.editorSetPlayPresentation).toHaveBeenCalledWith('playEmbedded')
     expect(bridge.editorSetMode).toHaveBeenNthCalledWith(1, 1)
     expect(bridge.editorSetMode).toHaveBeenNthCalledWith(2, 0)
   })

@@ -179,6 +179,18 @@ EditorEnterPlayHandler         EditorAPI::s_onEnterPlay{};
 EditorExitPlayHandler          EditorAPI::s_onExitPlay{};
 std::vector<std::pair<std::string, std::string>> EditorAPI::s_consoleQueue;
 
+Presentation::PresentationMode s_playPresentationMode =
+    Presentation::PresentationMode::PlayEmbedded;
+
+Presentation::PresentationMode parse_play_presentation_mode(int mode) {
+    using Presentation::PresentationMode;
+    if (mode < static_cast<int>(PresentationMode::PlayEmbedded)
+        || mode > static_cast<int>(PresentationMode::PlayFullscreen)) {
+        return PresentationMode::PlayEmbedded;
+    }
+    return static_cast<PresentationMode>(mode);
+}
+
 namespace {
 float s_runtimeProfile[6] = {};
 } // namespace
@@ -509,12 +521,20 @@ void recomposite_merged_cell(
 
 extern "C" {
 
+EMSCRIPTEN_KEEPALIVE void editor_set_play_presentation(int mode) {
+    ArtCade::s_playPresentationMode = ArtCade::parse_play_presentation_mode(mode);
+    if (ArtCade::EditorAPI::s_mode != 1)
+        return;
+    if (auto* renderer = ArtCade::EditorAPI::s_renderer)
+        renderer->setPresentationMode(ArtCade::s_playPresentationMode);
+}
+
 EMSCRIPTEN_KEEPALIVE void editor_set_mode(int mode) {
     ArtCade::EditorAPI::s_mode = mode;
     if (auto* renderer = ArtCade::EditorAPI::s_renderer) {
         renderer->setPresentationMode(mode == 0
             ? ArtCade::Presentation::PresentationMode::SceneEdit
-            : ArtCade::Presentation::PresentationMode::PlayEmbedded);
+            : ArtCade::s_playPresentationMode);
     }
     if (auto* gw = ArtCade::EditorAPI::s_entityGateway) {
         if (mode == 1) gw->applyDesignVisibilityForPlay();
@@ -811,12 +831,12 @@ EMSCRIPTEN_KEEPALIVE void editor_surface_to_world(
     *outWorldY = static_cast<float>(world.y);
 }
 
-EMSCRIPTEN_KEEPALIVE void editor_sync_play_surface(int fbW, int fbH) {
+EMSCRIPTEN_KEEPALIVE void editor_sync_play_surface(
+    float cssW, float cssH, float devicePixelRatio) {
     if (ArtCade::EditorAPI::s_mode != 1) return;
     auto* r = ArtCade::EditorAPI::s_renderer;
-    if (!r || fbW <= 0 || fbH <= 0) return;
-    r->setWindowSize(static_cast<uint32_t>(fbW),
-                     static_cast<uint32_t>(fbH), "ArtCade V2");
+    if (!r || cssW <= 0.f || cssH <= 0.f) return;
+    r->syncPlaySurface(cssW, cssH, devicePixelRatio);
 }
 
 EMSCRIPTEN_KEEPALIVE void editor_register_image(
@@ -1102,6 +1122,8 @@ EMSCRIPTEN_KEEPALIVE int editor_enter_play_mode(
         return luaResult;
 
     ArtCade::EditorAPI::s_mode = 1;
+    if (auto* renderer = ArtCade::EditorAPI::s_renderer)
+        renderer->setPresentationMode(ArtCade::s_playPresentationMode);
     if (auto* gw = ArtCade::EditorAPI::s_entityGateway)
         gw->applyDesignVisibilityForPlay();
     ArtCade::EditorAPI::notifyConsoleLine("[EditorAPI] Mode: PLAY", "info");
