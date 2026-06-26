@@ -44,6 +44,7 @@ import {
   isReady as isWasmReady,
 } from './wasm-bridge'
 import {
+  clearPresentationSnapshot,
   getPresentationSnapshot,
   onPresentationChanged,
   publishPresentationSnapshot,
@@ -55,6 +56,7 @@ import {
   type RuntimeProjection,
 } from './runtime-fingerprint'
 import { planProjectSync, type ProjectSyncPlan } from './runtime-sync-diff'
+import { entitiesForRuntimeSync } from './project-object-types'
 import type { ProjectDoc } from '../types'
 import type { DialogScript } from './dialog/dialog-script'
 import { dialogsJsonForRuntime } from './dialog/runtime-dialogs'
@@ -228,10 +230,15 @@ class RuntimeSyncServiceImpl {
     const preserveEngine = wasmLive && this.engineReady
     this.stopPresentationPolling()
     this.lastPolledPresentationRevision = 0n
+    clearPresentationSnapshot()
     this.clearSyncCache()
     this.bootProjectSynced = false
     for (const cb of this.bootSyncedListeners) cb(false)
-    if (preserveEngine) return
+    if (preserveEngine) {
+      this.startPresentationPolling()
+      this.pollPresentationSnapshot()
+      return
+    }
     this.engineReady = false
     for (const cb of this.engineReadyListeners) cb(false)
   }
@@ -341,11 +348,15 @@ class RuntimeSyncServiceImpl {
 
   private pollPresentationSnapshot(): void {
     if (!this.engineReady || !isWasmReady()) return
-    const snapshot = editorReadPresentationSnapshot()
-    if (!snapshot || snapshot.revision === 0n) return
-    if (snapshot.revision === this.lastPolledPresentationRevision) return
-    this.lastPolledPresentationRevision = snapshot.revision
-    publishPresentationSnapshot(snapshot)
+    try {
+      const snapshot = editorReadPresentationSnapshot()
+      if (!snapshot || snapshot.revision === 0n) return
+      if (snapshot.revision === this.lastPolledPresentationRevision) return
+      this.lastPolledPresentationRevision = snapshot.revision
+      publishPresentationSnapshot(snapshot)
+    } catch (err) {
+      console.warn('[runtime-sync] presentation snapshot poll failed:', err)
+    }
   }
 
   notifyBootProjectSynced(): void {
@@ -554,8 +565,9 @@ class RuntimeSyncServiceImpl {
 
   private applyIncrementalSync(project: ProjectDoc, plan: ProjectSyncPlan): boolean {
     if (plan.kind !== 'incremental') return false
+    const runtimeEntities = entitiesForRuntimeSync(project)
     for (const entityId of plan.entityIds) {
-      const def = project.entities[entityId]
+      const def = runtimeEntities[entityId]
       if (!def) continue
       editorUpdateEntity(entityId, JSON.stringify(def))
       const t = def.transform
@@ -569,7 +581,7 @@ class RuntimeSyncServiceImpl {
       })
     }
     for (const sceneId of plan.sceneIds) {
-      const scene = project.scenes[sceneId]
+      const scene = project.scenes?.[sceneId]
       if (!scene) continue
       editorSetSceneSettings(sceneId, JSON.stringify({
         id: scene.id,

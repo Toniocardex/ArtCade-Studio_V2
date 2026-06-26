@@ -40,10 +40,10 @@ export default function StatusBar({ compact = false }: StatusBarProps) {
   const { cursorPos, consoleLogs } = volatile
 
   const selectedName = (selection.entityId != null && project)
-    ? (project.entities[selection.entityId]?.name ?? 'Unknown')
+    ? (project.entities?.[selection.entityId]?.name ?? 'Unknown')
     : 'None'
   const sceneId = selection.sceneId ?? project?.activeSceneId
-  const scene = project && sceneId ? project.scenes[sceneId] : undefined
+  const scene = project && sceneId ? project.scenes?.[sceneId] : undefined
 
   const cameraPreviewActive = !!(
     cameraPreview && scene &&

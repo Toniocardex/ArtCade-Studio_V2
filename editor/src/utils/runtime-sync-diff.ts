@@ -91,7 +91,7 @@ export function planProjectSync(
         if (tileLayerStructKey(a) !== tileLayerStructKey(b)) return { kind: 'full' }
       }
       if (tilemapLayersOnly) return { kind: 'full' }
-      const sceneDoc = project.scenes[scene.id]
+      const sceneDoc = project.scenes?.[scene.id]
       if (!sceneDoc?.tilemapLayers || !sceneDoc.tilemap?.data) return { kind: 'full' }
       tilemapLayersOnly = {
         layerIds: next.lyr.map((l) => l.id),
@@ -105,7 +105,7 @@ export function planProjectSync(
       // Merged grid dh also moves on layer paint — covered by tilemap_layers_only.
       if (tilemapLayersOnly) continue
       if (tilemapDataOnlyScene) return { kind: 'full' }
-      const tileData = project.scenes[scene.id]?.tilemap?.data
+      const tileData = project.scenes?.[scene.id]?.tilemap?.data
       if (!tileData) return { kind: 'full' }
       tilemapDataOnlyScene = { sceneId: scene.id, data: tileData }
     }

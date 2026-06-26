@@ -21,10 +21,11 @@ export function useCanvasViewportSize(
     }
 
     const publish = () => {
-      setSize({
-        clientWidth: el.clientWidth,
-        clientHeight: el.clientHeight,
-      })
+      setSize((prev) =>
+        prev.clientWidth === el.clientWidth && prev.clientHeight === el.clientHeight
+          ? prev
+          : { clientWidth: el.clientWidth, clientHeight: el.clientHeight },
+      )
     }
 
     publish()

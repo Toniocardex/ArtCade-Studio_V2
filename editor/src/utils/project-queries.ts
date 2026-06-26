@@ -11,22 +11,22 @@ export function isEntityInScene(
   sceneId: string,
   entityId: number,
 ): boolean {
-  return project.scenes[sceneId]?.entityIds.includes(entityId) ?? false
+  return project.scenes?.[sceneId]?.entityIds.includes(entityId) ?? false
 }
 
 /** Entities that belong to a given scene, in entityIds order. */
 export function getEntitiesInScene(project: ProjectDoc, sceneId: string): EntityDef[] {
-  const scene = project.scenes[sceneId]
+  const scene = project.scenes?.[sceneId]
   if (!scene) return []
   return scene.entityIds
-    .map(id => project.entities[id])
+    .map(id => project.entities?.[id])
     .filter((e): e is EntityDef => Boolean(e))
 }
 
 /** Active scene, falling back to the first scene available. */
 export function getActiveScene(project: ProjectDoc, sceneId?: string | null): SceneDef | undefined {
-  return project.scenes[sceneId ?? project.activeSceneId]
-    ?? Object.values(project.scenes)[0]
+  return project.scenes?.[sceneId ?? project.activeSceneId]
+    ?? Object.values(project.scenes ?? {})[0]
 }
 
 /** Human-readable label: "Hero (Player)" */
@@ -89,7 +89,7 @@ export function entityIdDisplayLabel(
   entityId: number,
 ): string {
   if (!project) return `Object #${entityId}`
-  const e = project.entities[entityId]
+  const e = project.entities?.[entityId]
   return e?.name ?? `Object #${entityId}`
 }
 
@@ -244,9 +244,9 @@ export function findLogicBoardForInstance(
 ): LogicBoard | undefined {
   if (!project) return undefined
   const typeId =
-    project.scenes[project.activeSceneId]?.instances?.find((i) => i.id === instanceId)
+    project.scenes?.[project.activeSceneId]?.instances?.find((i) => i.id === instanceId)
       ?.objectTypeId
-    ?? project.entities[instanceId]?.className
+    ?? project.entities?.[instanceId]?.className
   if (!typeId) return undefined
   return findLogicBoardForObjectType(project, typeId)
 }

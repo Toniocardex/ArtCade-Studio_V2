@@ -23,8 +23,10 @@ import {
   normalizeProjectDoc,
   projectForSave,
   PROJECT_FORMAT_V3,
+  PROJECT_FORMAT_V4,
 } from './project-object-types'
-import { entityToObjectType } from './project-object-types'
+import { entityToObjectType, PROJECT_FORMAT_V4 } from './project-object-types'
+import { PROTOTYPE_SPRITE_SIZE } from './prototype-sprite'
 import { normalizeTilemapLayer } from './tilemap-layer-sources'
 
 // Plain mutable Vec2 helpers — DEFAULT_SCENE_SIZE is `as const`, so we wrap it
@@ -40,11 +42,11 @@ export function unsupportedProjectFormatMessage(jsonStr: string): string | null 
     const versionRaw = raw.formatVersion ?? raw.format_version
     if (versionRaw == null) return null
     const version = Number(versionRaw)
-    if (!Number.isFinite(version) || version <= PROJECT_FORMAT_V3) return null
+    if (!Number.isFinite(version) || version <= PROJECT_FORMAT_V4) return null
     return (
       `Cannot open this project.\n\n` +
       `Project format v${version} is newer than this editor supports ` +
-      `(current: v${PROJECT_FORMAT_V3}).\n\n` +
+      `(current: v${PROJECT_FORMAT_V4}).\n\n` +
       `Update ArtCade Studio, then open the project again.`
     )
   } catch {
@@ -160,13 +162,16 @@ function parseTransform(raw: unknown): Transform {
 function parseSprite(raw: unknown): SpriteComponent {
   if (!raw || typeof raw !== 'object') {
     return {
-      spriteAssetId: '', tint: { x: 1, y: 1, z: 1, w: 1 },
+      spriteAssetId: null, tint: { x: 1, y: 1, z: 1, w: 1 },
       fillColor: { x: 1, y: 1, z: 1 },
       alpha: 1, pivotFromAsset: true, pivot: { x: 0.5, y: 0.5 }, renderOrder: 0,
     }
   }
   const r = raw as Record<string, unknown>
-  const spriteAssetId = String(r.spriteAssetId ?? r.sprite_asset_id ?? '')
+  const rawId = r.spriteAssetId ?? r.sprite_asset_id
+  const spriteAssetId = rawId == null || rawId === ''
+    ? null
+    : (String(rawId).trim() || null)
   const tint = toVec4(r.tint ?? [1, 1, 1, 1])
   const fillColor = r.fillColor != null
     ? toVec3(r.fillColor)
@@ -613,6 +618,24 @@ function parseAssets(
     const clips = parseAnimationClips(o.clips)
     if (clips) asset.clips = clips
     if (o.defaultPivot != null) asset.defaultPivot = toVec2(o.defaultPivot)
+    if (o.source === 'imported' || o.source === 'generated') asset.source = o.source
+    if (o.generated && typeof o.generated === 'object') {
+      const g = o.generated as Record<string, unknown>
+      const baseColor = g.baseColor != null ? toVec3(g.baseColor) : { x: 1, y: 1, z: 1 }
+      asset.generated = {
+        generator: 'prototype-sprite',
+        width: Number(g.width) || PROTOTYPE_SPRITE_SIZE,
+        height: Number(g.height) || PROTOTYPE_SPRITE_SIZE,
+        temporary: g.temporary !== false,
+        shape: 'rectangle',
+        baseColor,
+        ...(typeof g.ownerTypeId === 'string' ? { ownerTypeId: g.ownerTypeId } : {}),
+        ...(g.modified === true ? { modified: true } : {}),
+      }
+    }
+    if (typeof o.dataUrl === 'string' && o.dataUrl.startsWith('data:image/')) {
+      asset.dataUrl = o.dataUrl
+    }
     out[id] = asset
   }
   return Object.keys(out).length ? out : undefined
@@ -1157,7 +1180,7 @@ export function serializeProjectDoc(project: ProjectDoc): string {
   const json = {
     projectName:    v2.projectName,
     version:        v2.version,
-    formatVersion:  PROJECT_FORMAT_V3,
+    formatVersion:  PROJECT_FORMAT_V4,
     licenseTier:    project.licenseTier ?? 'free',
     ...(project.world ? { world: project.world } : {}),
     ...(project.tilePalette && project.tilePalette.length > 0
@@ -1177,18 +1200,27 @@ export function serializeProjectDoc(project: ProjectDoc): string {
       ? {
           assets: Object.fromEntries(
             Object.values(project.assets).map((a) => {
-              // Drop transient dataUrl; persist imagePoints + clips when set.
               const out: Record<string, unknown> = {
                 id: a.id, name: a.name, path: a.path, usage: a.usage,
               }
               if (a.contentHash)
                 out.contentHash = a.contentHash
+              if (a.source) out.source = a.source
+              if (a.generated) {
+                out.generated = {
+                  ...a.generated,
+                  baseColor: vec3Array(a.generated.baseColor),
+                }
+              }
               if (a.imagePoints && a.imagePoints.length > 0)
                 out.imagePoints = a.imagePoints
               if (a.clips && a.clips.length > 0)
                 out.clips = a.clips
               if (a.defaultPivot != null)
                 out.defaultPivot = vec2Array(a.defaultPivot)
+              if (a.source === 'generated' && a.dataUrl?.startsWith('data:image/')) {
+                out.dataUrl = a.dataUrl
+              }
               return [a.id, out]
             }),
           ),

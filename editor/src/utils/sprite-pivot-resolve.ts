@@ -14,12 +14,13 @@ export function usesAssetPivot(sprite: SpriteComponent): boolean {
 
 export function findImageAssetByPath(
   assets: Record<string, ImageAsset> | undefined,
-  spritePath: string,
+  spriteRef: string,
 ): ImageAsset | undefined {
-  if (!assets || !spritePath) return undefined
-  const byPath = Object.values(assets).find((a) => a.path === spritePath)
+  if (!assets || !spriteRef) return undefined
+  const byPath = Object.values(assets).find((a) => a.path === spriteRef)
   if (byPath) return byPath
-  return assets[spritePath]
+  return assets[spriteRef]
+    ?? Object.values(assets).find((a) => a.id === spriteRef)
 }
 
 export function getAssetDefaultPivot(asset: ImageAsset | undefined): Vec2 {
@@ -34,7 +35,9 @@ export function resolveEffectivePivot(
   if (!usesAssetPivot(sprite)) {
     return clampPivot(sprite.pivot)
   }
-  return getAssetDefaultPivot(findImageAssetByPath(assets, sprite.spriteAssetId))
+  return getAssetDefaultPivot(
+    findImageAssetByPath(assets, sprite.spriteAssetId ?? ''),
+  )
 }
 
 function firstClipName(asset: ImageAsset | undefined): string | undefined {
@@ -47,7 +50,7 @@ export function spriteAssignedFromAsset(
   asset: ImageAsset | undefined,
   project?: ProjectDoc | null,
 ): SpriteComponent {
-  const spriteAssetId = asset?.path ?? ''
+  const spriteAssetId = asset?.id ?? null
   const clipFields = normalizeSpriteClipFields({ ...sprite, spriteAssetId }, project)
   const hadDefaultClip = Boolean(sprite.defaultClip?.trim())
   const defaultClip = clipFields.defaultClip ?? (!hadDefaultClip ? firstClipName(asset) : undefined)

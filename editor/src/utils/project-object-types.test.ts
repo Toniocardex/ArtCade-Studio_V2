@@ -8,6 +8,7 @@ import {
   entitiesForRuntimeSync,
   materializeEntity,
   migrateLegacyProject,
+  normalizeProjectDoc,
   PROJECT_FORMAT_V3,
   syncObjectModelFromEntities,
 } from './project-object-types'
@@ -93,7 +94,7 @@ describe('project-object-types', () => {
     expect(ent.transform.position).toEqual({ x: 1, y: 2 })
   })
 
-  it('entitiesForRuntimeSync uses project.entities overrides over type prototype', () => {
+  it('entitiesForRuntimeSync ignores stale v3 entity cache rows', () => {
     const migrated = migrateLegacyProject({
       ...createBlankProject(),
       entities: {
@@ -107,6 +108,7 @@ describe('project-object-types', () => {
       },
     })
     const fpBase = runtimeProjectFingerprint(migrated, 'scene_main')
+    migrated.entities[20_4160] = createEntityDef(20_4160, 'Stale', 'Stale')
     migrated.entities[1] = {
       ...migrated.entities[1],
       sprite: {
@@ -116,8 +118,55 @@ describe('project-object-types', () => {
       },
     }
     const synced = entitiesForRuntimeSync(migrated)
-    expect(synced[1].sprite.pivot).toEqual({ x: 0.5, y: 1 })
-    expect(runtimeProjectFingerprint(migrated, 'scene_main')).not.toBe(fpBase)
+    expect(synced[20_4160]).toBeUndefined()
+    expect(synced[1].sprite.pivot).toEqual(migrated.objectTypes!.Player.sprite.pivot)
+    expect(runtimeProjectFingerprint(migrated, 'scene_main')).toBe(fpBase)
+  })
+
+  it('normalizeProjectDoc rewrites legacy sprite paths to stable asset ids on load', () => {
+    const base = createBlankProject('PathNorm')
+    const { project } = normalizeProjectDoc({
+      ...base,
+      formatVersion: 4,
+      assets: {
+        img_hero: {
+          id: 'img_hero',
+          name: 'hero.png',
+          path: 'assets/images/hero.png',
+          usage: 'sprite',
+        },
+      },
+      objectTypes: {
+        Player: {
+          id: 'Player',
+          displayName: 'Player',
+          tags: [],
+          sprite: {
+            spriteAssetId: 'assets/images/hero.png',
+            tint: { x: 1, y: 1, z: 1, w: 1 },
+            fillColor: { x: 1, y: 1, z: 1 },
+            alpha: 1,
+            pivot: { x: 0.5, y: 0.5 },
+            renderOrder: 0,
+          },
+        },
+      },
+      scenes: {
+        scene_main: {
+          ...base.scenes.scene_main,
+          instances: [
+            {
+              id: 1,
+              objectTypeId: 'Player',
+              instanceName: 'Hero',
+              transform: { position: { x: 0, y: 0 }, scale: { x: 1, y: 1 }, rotation: 0 },
+            },
+          ],
+        },
+      },
+    })
+    expect(project.objectTypes!.Player.sprite.spriteAssetId).toBe('img_hero')
+    expect(project.entities[1].sprite.spriteAssetId).toBe('img_hero')
   })
 
   it('serialize v2 omits flat entities map', () => {
@@ -134,7 +183,7 @@ describe('project-object-types', () => {
       },
     })
     const json = serializeProjectDoc(migrated)
-    expect(json).toMatch(/"formatVersion"\s*:\s*3/)
+    expect(json).toMatch(/"formatVersion"\s*:\s*4/)
     expect(json).toContain('"objectTypes"')
     expect(json).toContain('"instances"')
     expect(json).not.toMatch(/"entities"\s*:/)

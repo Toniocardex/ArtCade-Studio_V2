@@ -4,7 +4,7 @@
 
 import type { ProjectDoc } from '../types'
 import type { LogicAction, LogicBoard, LogicEvent } from '../types/logic-board'
-import { resolveImageLoadKey } from './resolve-image-load-key'
+import { imageAssetForRef } from './sprite-asset-ref'
 
 export type NormalizeAssetRefsResult = Readonly<{
   changed: number
@@ -97,16 +97,29 @@ export function normalizeAssetRefs(project: ProjectDoc): NormalizeAssetRefsResul
   for (const [eid, ent] of Object.entries(next.entities)) {
     const raw = ent.sprite?.spriteAssetId?.trim()
     if (!raw) continue
-    const path = resolveImageLoadKey(project, raw)
-    const lib = path
-      ? Object.values(project.assets ?? {}).find((a) => a.path === path)
-      : undefined
+    const lib = imageAssetForRef(project, raw)
     if (!lib || lib.id === raw) continue
     next.entities[Number(eid)] = {
       ...ent,
       sprite: { ...ent.sprite, spriteAssetId: lib.id },
     }
     changed++
+  }
+
+  if (next.objectTypes) {
+    const objectTypes = { ...next.objectTypes }
+    for (const [typeId, type] of Object.entries(objectTypes)) {
+      const raw = type.sprite?.spriteAssetId?.trim()
+      if (!raw) continue
+      const lib = imageAssetForRef(project, raw)
+      if (!lib || lib.id === raw) continue
+      objectTypes[typeId] = {
+        ...type,
+        sprite: { ...type.sprite, spriteAssetId: lib.id },
+      }
+      changed++
+    }
+    next.objectTypes = objectTypes
   }
 
   const { boards, changed: audioChanged } = normalizeLogicBoardsAudio(project, next.logicBoards)

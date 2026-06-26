@@ -194,7 +194,7 @@ export function collectProjectDiagnostics(project: ProjectDoc): ProjectDiagnosti
 
   for (const scene of Object.values(project.scenes ?? {})) {
     for (const eid of scene.entityIds ?? []) {
-      if (!project.entities[eid]) {
+      if (!project.entities?.[eid]) {
         out.push({
           severity: 'error',
           context: `scene:${scene.id}`,

@@ -49,6 +49,7 @@ import { volatileReducer } from './reducers/volatile-reducer'
 import { applyAuthoringModeToDocument } from '../utils/authoring-mode'
 import { ensureBootSessionReset } from '../utils/boot-session'
 import { runLoadProjectSideEffects } from '../utils/project-load-side-effects'
+import { normalizeProjectDoc } from '../utils/project-object-types'
 import { TextPromptProvider } from '../components/TextPromptProvider'
 import {
   applyProjectRedo,
@@ -157,7 +158,16 @@ export function EditorProvider({ children }: { children: ReactNode }) {
 
   const dispatch = useCallback((action: Action) => {
     if (action.type === 'LOAD_PROJECT') {
-      runLoadProjectSideEffects(action.path, action.project)
+      const normalized = normalizeProjectDoc(action.project)
+      const normalizedAction: Action = {
+        ...action,
+        project: normalized.project,
+        migratedFromLegacy: action.migratedFromLegacy ?? normalized.migratedFromLegacy,
+      }
+      runLoadProjectSideEffects(action.path, normalizedAction.project)
+      coreDi(normalizedAction)
+      volDi(normalizedAction)
+      return
     }
     coreDi(action)
     volDi(action)

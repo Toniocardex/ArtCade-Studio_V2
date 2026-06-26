@@ -12,9 +12,12 @@ import type {
 } from '../types'
 import { COMPONENT_KEYS } from '../types/components'
 import { createEntityDef } from './project-builders'
+import { migrateProjectToPrototypeSprites, hydrateGeneratedAssetDataUrls } from './prototype-sprite'
+import { normalizeAssetRefs } from './normalize-asset-refs'
 import { resolveEntitiesForRuntime } from './sprite-pivot-resolve'
 
 export const PROJECT_FORMAT_V3 = 3
+export const PROJECT_FORMAT_V4 = 4
 
 const GENERIC_CLASS = new Set(['Entity', 'Unknown', ''])
 
@@ -116,7 +119,7 @@ export function materializeEntity(
 export function materializeAllEntities(project: ProjectDoc): Record<number, EntityDef> {
   const out: Record<number, EntityDef> = {}
   const types = project.objectTypes ?? {}
-  for (const scene of Object.values(project.scenes)) {
+  for (const scene of Object.values(project.scenes ?? {})) {
     for (const inst of scene.instances ?? []) {
       const type = types[inst.objectTypeId]
       if (!type) continue
@@ -128,21 +131,16 @@ export function materializeAllEntities(project: ProjectDoc): Record<number, Enti
 
 /**
  * Authoritative entity map for WASM sync / runtime fingerprint.
- * With object types, materialize instances from type+placement, then overlay
- * `project.entities` (Inspector overrides: pivot, tint, components, …).
+ * With object types, materialize only from `objectTypes` + scene `instances`.
+ * `project.entities` is a derived cache; overlaying it here can resurrect stale
+ * rows and desync the runtime payload from the scene model.
  */
 export function entitiesForRuntimeSync(project: ProjectDoc): Record<number, EntityDef> {
   const hasObjectTypes =
     project.objectTypes != null && Object.keys(project.objectTypes).length > 0
   const merged = hasObjectTypes
-    ? (() => {
-        const out = materializeAllEntities(project)
-        for (const ent of Object.values(project.entities)) {
-          out[ent.id] = ent
-        }
-        return out
-      })()
-    : project.entities
+    ? materializeAllEntities(project)
+    : (project.entities ?? {})
 
   return resolveEntitiesForRuntime(merged, project.assets)
 }
@@ -152,7 +150,7 @@ function syncSceneEntityIds(scene: SceneDef): void {
 }
 
 function syncAllSceneEntityIds(project: ProjectDoc): void {
-  for (const scene of Object.values(project.scenes)) {
+  for (const scene of Object.values(project.scenes ?? {})) {
     syncSceneEntityIds(scene)
   }
 }
@@ -178,7 +176,7 @@ export function buildObjectModelFromEntities(project: ProjectDoc): {
   const typePrototypes = new Map<string, EntityDef>()
   const baseToTypeId = new Map<string, string>()
 
-  for (const ent of Object.values(project.entities)) {
+  for (const ent of Object.values(project.entities ?? {})) {
     const baseId = effectiveTypeId(ent)
     if (!baseToTypeId.has(baseId)) {
       baseToTypeId.set(baseId, uniqueTypeId(baseId, usedTypeIds))
@@ -194,10 +192,10 @@ export function buildObjectModelFromEntities(project: ProjectDoc): {
   }
 
   const scenes: Record<string, SceneDef> = {}
-  for (const [sid, scene] of Object.entries(project.scenes)) {
+  for (const [sid, scene] of Object.entries(project.scenes ?? {})) {
     const instances: SceneInstanceDef[] = []
     for (const eid of scene.entityIds) {
-      const ent = project.entities[eid]
+      const ent = project.entities?.[eid]
       const typeId = entityToTypeId.get(eid)
       if (!ent || !typeId) continue
       instances.push({
@@ -266,9 +264,20 @@ export function normalizeProjectDoc(project: ProjectDoc): {
   migratedFromLegacy: boolean
 } {
   if (isV2ObjectModel(project)) {
-    const entities = materializeAllEntities(project)
-    syncAllSceneEntityIds(project)
-    return { project: { ...project, entities }, migratedFromLegacy: false }
+    let normalized = project
+    const fmt = project.formatVersion ?? 0
+    if (fmt < PROJECT_FORMAT_V4) {
+      const migrated = migrateProjectToPrototypeSprites(normalized)
+      normalized = {
+        ...(migrated.changed ? migrated.project : normalized),
+        formatVersion: PROJECT_FORMAT_V4,
+      }
+    }
+    normalized = hydrateGeneratedAssetDataUrls(normalized)
+    normalized = normalizeAssetRefs(normalized).project
+    const entities = materializeAllEntities(normalized)
+    syncAllSceneEntityIds(normalized)
+    return { project: { ...normalized, entities }, migratedFromLegacy: false }
   }
   const migrated = migrateLegacyProject(project)
   return { project: migrated, migratedFromLegacy: true }
@@ -282,12 +291,12 @@ export function normalizeProjectDoc(project: ProjectDoc): {
  */
 export function projectForSave(project: ProjectDoc): ProjectDoc {
   if (isV2ObjectModel(project)) {
-    return { ...project, formatVersion: PROJECT_FORMAT_V3 }
+    return { ...project, formatVersion: PROJECT_FORMAT_V4 }
   }
   const { objectTypes, scenes } = buildObjectModelFromEntities(project)
   return {
     ...project,
-    formatVersion: PROJECT_FORMAT_V3,
+    formatVersion: PROJECT_FORMAT_V4,
     objectTypes,
     scenes,
   }
@@ -298,7 +307,7 @@ export function findSceneInstance(
   project: ProjectDoc,
   instanceId: number,
 ): { sceneId: string; instance: SceneInstanceDef } | null {
-  for (const [sceneId, scene] of Object.entries(project.scenes)) {
+  for (const [sceneId, scene] of Object.entries(project.scenes ?? {})) {
     const instance = scene.instances?.find((i) => i.id === instanceId)
     if (instance) return { sceneId, instance }
   }
@@ -317,7 +326,7 @@ export function rematerializeInstance(
   return {
     ...project,
     entities: {
-      ...project.entities,
+      ...(project.entities ?? {}),
       [instanceId]: materializeEntity(type, found.instance),
     },
   }
@@ -330,8 +339,8 @@ export function rematerializeAllInstancesOfType(
 ): ProjectDoc {
   const type = project.objectTypes?.[objectTypeId]
   if (!type) return project
-  const entities = { ...project.entities }
-  for (const scene of Object.values(project.scenes)) {
+  const entities = { ...(project.entities ?? {}) }
+  for (const scene of Object.values(project.scenes ?? {})) {
     for (const inst of scene.instances ?? []) {
       if (inst.objectTypeId !== objectTypeId) continue
       entities[inst.id] = materializeEntity(type, inst)
@@ -349,10 +358,10 @@ export function findObjectTypeForInstance(
   project: ProjectDoc,
   instanceId: number,
 ): string | null {
-  for (const scene of Object.values(project.scenes)) {
+  for (const scene of Object.values(project.scenes ?? {})) {
     const inst = scene.instances?.find((i) => i.id === instanceId)
     if (inst) return inst.objectTypeId
   }
-  const ent = project.entities[instanceId]
+  const ent = project.entities?.[instanceId]
   return ent ? effectiveTypeId(ent) : null
 }

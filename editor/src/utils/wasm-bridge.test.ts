@@ -122,7 +122,7 @@ describe('presentation ccall readers', () => {
       calledRun: boolean
       ccall: (...args: unknown[]) => unknown
       HEAPU8: Uint8Array
-      HEAPF32: Float32Array
+      HEAPF32?: Float32Array
       _malloc: (n: number) => number
       _free: (ptr: number) => void
     }
@@ -180,5 +180,52 @@ describe('presentation ccall readers', () => {
       effectiveMode: 'playEmbedded',
       surfaceFramebuffer: { width: 1200, height: 900 },
     })
+  })
+
+  it('reads editor view from the wasm memory buffer when HEAPF32 is not exported', async () => {
+    const heap = new Uint8Array(128)
+    const view = new DataView(heap.buffer)
+    const ptrs = [16, 20, 24]
+
+    g.Module = {
+      calledRun: true,
+      ccall: (name: unknown, _returnType: unknown, _argTypes: unknown, args: unknown) => {
+        if (name !== 'editor_get_editor_view') return 0
+        const [xPtr, yPtr, zPtr] = args as number[]
+        view.setFloat32(xPtr, 12.5, true)
+        view.setFloat32(yPtr, -4.25, true)
+        view.setFloat32(zPtr, 2, true)
+        return undefined
+      },
+      HEAPU8: heap,
+      _malloc: () => ptrs.shift() ?? 0,
+      _free: () => {},
+    }
+
+    const { editorReadEditorView } = await import('./wasm-bridge')
+    expect(editorReadEditorView()).toEqual({ x: 12.5, y: -4.25, zoomDevice: 2 })
+  })
+
+  it('reads surface-to-world results from the wasm memory buffer when HEAPF32 is not exported', async () => {
+    const heap = new Uint8Array(128)
+    const view = new DataView(heap.buffer)
+    const ptrs = [32, 36]
+
+    g.Module = {
+      calledRun: true,
+      ccall: (name: unknown, _returnType: unknown, _argTypes: unknown, args: unknown) => {
+        if (name !== 'editor_surface_to_world') return 0
+        const [_surfaceX, _surfaceY, wxPtr, wyPtr] = args as number[]
+        view.setFloat32(wxPtr, 100.5, true)
+        view.setFloat32(wyPtr, 240.25, true)
+        return undefined
+      },
+      HEAPU8: heap,
+      _malloc: () => ptrs.shift() ?? 0,
+      _free: () => {},
+    }
+
+    const { editorSurfaceToWorld } = await import('./wasm-bridge')
+    expect(editorSurfaceToWorld(10, 20)).toEqual({ x: 100.5, y: 240.25 })
   })
 })

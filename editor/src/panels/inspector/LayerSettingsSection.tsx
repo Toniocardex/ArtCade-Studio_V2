@@ -53,7 +53,7 @@ export function LayerSettingsSection({ layerId, sceneName }: LayerSettingsSectio
   const dispatch = useEditorDispatch()
   const project = useEditorSelector((s) => s.project)
   const sceneId = useEditorSelector((s) => s.selection.sceneId ?? s.project?.activeSceneId)
-  const scene = sceneId ? project?.scenes[sceneId] : undefined
+  const scene = sceneId ? project?.scenes?.[sceneId] : undefined
   const tilemapLayer = scene?.tilemapLayers?.[layerId]
   const usedIds = tilemapLayer ? sourcesUsedOnLayer(tilemapLayer) : []
 

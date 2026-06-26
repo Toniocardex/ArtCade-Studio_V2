@@ -40,6 +40,7 @@ vi.mock('./wasm-bridge', () => {
 
 const bridge = await import('./wasm-bridge')
 const { runtimeSync } = await import('./runtime-sync-service')
+const { getPresentationSnapshot, resetPresentationStoreForTests } = await import('./presentation-store')
 
 function makeProject() {
   const project = {
@@ -98,6 +99,9 @@ describe('RuntimeSyncService', () => {
     vi.mocked(bridge.editorSyncTilemapData).mockReturnValue(true)
     vi.mocked(bridge.editorSyncTilemapLayers).mockReset()
     vi.mocked(bridge.editorSyncTilemapLayers).mockReturnValue(true)
+    vi.mocked(bridge.editorReadPresentationSnapshot).mockReset()
+    vi.mocked(bridge.editorReadPresentationSnapshot).mockReturnValue(null)
+    resetPresentationStoreForTests()
   })
 
   it('skips every call until the runtime is ready', () => {
@@ -555,6 +559,31 @@ describe('RuntimeSyncService', () => {
     const p = makeProject()
     expect(runtimeSync.syncProject(p as never, 'a', '/tmp/reopened/project.json')).toBe(true)
     expect(bridge.editorLoadProject).toHaveBeenCalledTimes(1)
+  })
+
+  it('reset with live engine repolls presentation after clearing the store', () => {
+    runtimeSync.notifyEngineReady()
+    const snap = {
+      revision: 4n,
+      effectiveMode: 'playExternal' as const,
+      letterboxActive: false,
+      useIdentityPlacement: false,
+      surfaceFramebuffer: { width: 1024, height: 768 },
+      logical: { width: 512, height: 512 },
+      placement: {
+        destX: 0,
+        destY: 0,
+        destW: 1024,
+        destH: 768,
+        scaleX: 2,
+        scaleY: 2,
+      },
+      presentationScale: 2,
+    }
+    vi.mocked(bridge.editorReadPresentationSnapshot).mockReturnValue(snap)
+    runtimeSync.reset()
+    expect(runtimeSync.isEngineReady()).toBe(true)
+    expect(getPresentationSnapshot()).toEqual(snap)
   })
 
   it('reset clears engine readiness when WASM is not loaded', () => {

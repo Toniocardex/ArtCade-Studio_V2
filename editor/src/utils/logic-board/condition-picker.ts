@@ -39,7 +39,7 @@ function entityHasComponent(
   entityId: number,
   key: ComponentKey,
 ): boolean {
-  return project.entities[entityId]?.[key] != null
+  return project.entities?.[entityId]?.[key] != null
 }
 
 function leafTypesFromNode(node: LogicConditionNode): LogicCondition['type'][] {

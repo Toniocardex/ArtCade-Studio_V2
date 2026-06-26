@@ -5,6 +5,7 @@ import { collectProjectDiagnostics, projectDiagnosticsErrors } from '../utils/pr
 import { createLogicBoardForObjectType } from '../utils/logic-board/factory'
 import { DEFAULT_WORLD } from '../types'
 import type { ProjectDoc } from '../types'
+import { buildObjectTypeAddAction } from '../utils/prototype-sprite'
 
 function project(): ProjectDoc {
   return {
@@ -14,14 +15,14 @@ function project(): ProjectDoc {
     objectTypes: {
       Player: {
         id: 'Player', displayName: 'Player', tags: [],
-        sprite: { spriteAssetId: '', tint: { x: 1, y: 1, z: 1, w: 1 }, fillColor: { x: 1, y: 1, z: 1 }, alpha: 1, pivot: { x: 0.5, y: 0.5 }, renderOrder: 0 },
+        sprite: { spriteAssetId: null, tint: { x: 1, y: 1, z: 1, w: 1 }, fillColor: { x: 1, y: 1, z: 1 }, alpha: 1, pivot: { x: 0.5, y: 0.5 }, renderOrder: 0 },
       },
     },
     entities: {
       1: {
         id: 1, name: 'A', className: 'Player', tags: [],
         transform: { position: { x: 0, y: 0 }, scale: { x: 1, y: 1 }, rotation: 0 },
-        sprite: { spriteAssetId: '', tint: { x: 1, y: 1, z: 1, w: 1 }, fillColor: { x: 1, y: 1, z: 1 }, alpha: 1, pivot: { x: 0.5, y: 0.5 }, renderOrder: 0 },
+        sprite: { spriteAssetId: null, tint: { x: 1, y: 1, z: 1, w: 1 }, fillColor: { x: 1, y: 1, z: 1 }, alpha: 1, pivot: { x: 0.5, y: 0.5 }, renderOrder: 0 },
       },
     },
     scenes: {
@@ -57,8 +58,9 @@ function st(p: ProjectDoc): CoreState {
 
 describe('coreReducer — scenes & objects', () => {
   it('OBJECT_TYPE_ADD + INSTANCE_ADD_FROM_TYPE creates an instance, adds to scene, selects it', () => {
-    let s = coreReducer(st(project()), { type: 'OBJECT_TYPE_ADD', displayName: 'Coin' })
+    let s = coreReducer(st(project()), buildObjectTypeAddAction('Coin'))
     expect(s.project!.objectTypes?.Coin).toBeDefined()
+    expect(s.project!.assets?.gen_proto_Coin).toBeDefined()
     s = coreReducer(s, { type: 'INSTANCE_ADD_FROM_TYPE', sceneId: 's', objectTypeId: 'Coin' })
     expect(Object.keys(s.project!.entities)).toHaveLength(2)
     expect(s.project!.entities[2]).toBeDefined()
@@ -92,14 +94,14 @@ describe('coreReducer — scenes & objects', () => {
 
   it('OBJECT_TYPE_ADD rejects duplicate names case-insensitively', () => {
     const s0 = st(project())
-    const s = coreReducer(s0, { type: 'OBJECT_TYPE_ADD', displayName: 'player' })
+    const s = coreReducer(s0, buildObjectTypeAddAction('player'))
 
     expect(Object.keys(s.project!.objectTypes ?? {})).toEqual(['Player'])
     expect(s.projectDirty).toBe(false)
   })
 
   it('OBJECT_TYPE_RENAME rejects a duplicate display name', () => {
-    const withCoin = coreReducer(st(project()), { type: 'OBJECT_TYPE_ADD', displayName: 'Coin' })
+    const withCoin = coreReducer(st(project()), buildObjectTypeAddAction('Coin'))
     const renamed = coreReducer(withCoin, {
       type: 'OBJECT_TYPE_RENAME',
       objectTypeId: 'Coin',
@@ -280,7 +282,7 @@ describe('coreReducer — scenes & objects', () => {
     }))!
     let s = st(blank)
     const typeId = 'Entity_1'
-    s = coreReducer(s, { type: 'OBJECT_TYPE_ADD', displayName: typeId })
+    s = coreReducer(s, buildObjectTypeAddAction(typeId))
     s = coreReducer(s, { type: 'INSTANCE_ADD_FROM_TYPE', sceneId: 's', objectTypeId: typeId })
     expect(s.project!.objectTypes?.[typeId]).toBeDefined()
     s = coreReducer(s, {
@@ -469,7 +471,7 @@ describe('coreReducer — scenes & objects', () => {
         2: {
           id: 2, name: 'B', className: 'Enemy', tags: [],
           transform: { position: { x: 1, y: 1 }, scale: { x: 1, y: 1 }, rotation: 0 },
-          sprite: { spriteAssetId: '', tint: { x: 1, y: 1, z: 1, w: 1 }, fillColor: { x: 1, y: 1, z: 1 }, alpha: 1, pivot: { x: 0.5, y: 0.5 }, renderOrder: 0 },
+          sprite: { spriteAssetId: null, tint: { x: 1, y: 1, z: 1, w: 1 }, fillColor: { x: 1, y: 1, z: 1 }, alpha: 1, pivot: { x: 0.5, y: 0.5 }, renderOrder: 0 },
         },
       },
       scenes: {

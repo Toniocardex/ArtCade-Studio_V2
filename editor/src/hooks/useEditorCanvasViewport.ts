@@ -90,7 +90,7 @@ export function useEditorCanvasViewport({
     }
     if (prevSelectedEntityRef.current === entityId) return
     prevSelectedEntityRef.current = entityId
-    const def = project.entities[entityId]
+    const def = project.entities?.[entityId]
     if (!def) return
     const el = viewportRef.current
     if (!el) return

@@ -118,7 +118,7 @@ if(EMSCRIPTEN)
         -sUSE_GLFW=3
         -sALLOW_MEMORY_GROWTH=1
         -sFORCE_FILESYSTEM=1
-        "-sEXPORTED_RUNTIME_METHODS=[\"ccall\",\"cwrap\",\"UTF8ToString\",\"lengthBytesUTF8\",\"stringToUTF8\",\"HEAPU8\"]"
+        "-sEXPORTED_RUNTIME_METHODS=[\"ccall\",\"cwrap\",\"UTF8ToString\",\"lengthBytesUTF8\",\"stringToUTF8\",\"HEAPU8\",\"HEAPF32\"]"
         "-sEXPORTED_FUNCTIONS=[${_FUNS_STR}]"
         -sASYNCIFY=0
         -O2

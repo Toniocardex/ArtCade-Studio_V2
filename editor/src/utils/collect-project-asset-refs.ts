@@ -2,6 +2,7 @@ import type { EntityDef, ProjectDoc } from '../types'
 import type { LogicAction } from '../types/logic-board'
 import type { TilemapLayer } from '../types/tilemap'
 import { tilesetIdsOnLayer } from './tilemap-layer-sources'
+import { imageAssetForRef } from './sprite-asset-ref'
 
 export type AssetRefKind = 'image' | 'audio' | 'font' | 'tileset'
 
@@ -34,14 +35,27 @@ function entityLabel(entity: EntityDef, fallback: string): string {
   return entity.name?.trim() || entity.className?.trim() || fallback
 }
 
+function entityUsesImageAsset(
+  project: ProjectDoc,
+  entity: EntityDef,
+  target: Extract<AssetRefTarget, { kind: 'image' }>,
+): boolean {
+  const ref = entity.sprite?.spriteAssetId?.trim()
+  if (!ref) return false
+  if (ref === target.id || ref === target.path) return true
+  const asset = imageAssetForRef(project, ref)
+  return asset?.id === target.id || asset?.path === target.path
+}
+
 function collectEntityRefs(
+  project: ProjectDoc,
   entity: EntityDef,
   target: AssetRefTarget,
   refs: ProjectAssetReference[],
   seen: Set<string>,
   location: string,
 ): void {
-  if (target.kind === 'image' && entity.sprite?.spriteAssetId?.trim() === target.path) {
+  if (target.kind === 'image' && entityUsesImageAsset(project, entity, target)) {
     pushRef(refs, seen, 'image', 'sprite texture', location)
   }
   if (target.kind === 'font' && entity.text?.fontPath?.trim() === target.path) {
@@ -97,6 +111,7 @@ export function collectProjectAssetRefs(
 
   for (const [typeId, type] of Object.entries(project.objectTypes ?? {})) {
     collectEntityRefs(
+      project,
       { ...type, id: -1, name: type.displayName, className: type.id, transform: {
         position: { x: 0, y: 0 },
         scale: { x: 1, y: 1 },
@@ -111,6 +126,7 @@ export function collectProjectAssetRefs(
 
   for (const [id, entity] of Object.entries(project.entities ?? {})) {
     collectEntityRefs(
+      project,
       entity,
       target,
       refs,

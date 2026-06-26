@@ -5,6 +5,7 @@
 import type { ProjectDoc, TilemapLayer } from '../types'
 import type { LogicAction, LogicBoard } from '../types/logic-board'
 import { scrubTilesetFromLayer } from './tilemap-layer-sources'
+import { detachImageAssetFromSprites } from './sprite-asset-ref'
 
 export type RemovedAssetRef =
   | { kind: 'image'; id: string; path: string }
@@ -53,22 +54,11 @@ function removeImageRefs(project: ProjectDoc, removed: Extract<RemovedAssetRef, 
   const assets = Object.fromEntries(
     Object.entries(project.assets ?? {}).filter(([k]) => k !== removed.id),
   )
-  const entities = Object.fromEntries(
-    Object.entries(project.entities).map(([eid, e]) =>
-      e.sprite?.spriteAssetId === removed.path
-        ? [eid, { ...e, sprite: { ...e.sprite, spriteAssetId: '' } }]
-        : [eid, e],
-    ),
+  const detached = detachImageAssetFromSprites(
+    { ...project, assets },
+    { id: removed.id, path: removed.path },
   )
-  if (!project.objectTypes) return { ...project, assets, entities }
-  const objectTypes = Object.fromEntries(
-    Object.entries(project.objectTypes).map(([id, type]) =>
-      type.sprite?.spriteAssetId === removed.path
-        ? [id, { ...type, sprite: { ...type.sprite, spriteAssetId: '' } }]
-        : [id, type],
-    ),
-  )
-  return { ...project, assets, entities, objectTypes }
+  return detached
 }
 
 function removeAudioRefs(project: ProjectDoc, removed: Extract<RemovedAssetRef, { kind: 'audio' }>): ProjectDoc {

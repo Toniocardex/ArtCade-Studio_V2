@@ -108,9 +108,11 @@ export interface Transform {
 }
 
 export interface SpriteComponent {
-  spriteAssetId: string
+  /** Stable image library id, or null for intentional no visual. Never a filesystem path. */
+  spriteAssetId: string | null
   tint:          Vec4    // texture multiply when spriteAssetId is set
-  fillColor:     Vec3    // opaque RGB placeholder when no sprite image
+  /** Legacy placeholder RGB; preserved on migration — prototype sprites use ImageAsset.generated.baseColor. */
+  fillColor:     Vec3
   alpha:         number
   /** When true (default), runtime uses ImageAsset.defaultPivot for this sprite path. */
   pivotFromAsset?: boolean
@@ -321,11 +323,26 @@ export const IMAGE_ASSET_USAGE_LABELS: Record<ImageAssetUsage, string> = {
   ui: 'UI',
 }
 
+export type ImageAssetSource = 'imported' | 'generated'
+
+export interface GeneratedPrototypeSpriteMetadata {
+  generator: 'prototype-sprite'
+  width: number
+  height: number
+  temporary: boolean
+  shape: 'rectangle'
+  baseColor: Vec3
+  ownerTypeId?: string
+  modified?: boolean
+}
+
 export interface ImageAsset {
   id:       string
   name:     string
   path:     string
   usage:    ImageAssetUsage
+  source?:  ImageAssetSource
+  generated?: GeneratedPrototypeSpriteMetadata
   contentHash?: string
   dataUrl?: string
   /** Default draw anchor for entities using this sheet (normalised 0..1). */

@@ -26,6 +26,7 @@ import type {
 import { DEFAULT_WORLD } from '../types'
 import { resolveClipForEntity } from './entity-clip-resolve'
 import { entitiesForRuntimeSync } from './project-object-types'
+import { resolveSpriteLoadKey } from './sprite-asset-ref'
 
 /**
  * Runtime-facing subset of an ImageAsset. The C++ bridge (`editor_load_project`)
@@ -68,9 +69,9 @@ interface FpTransform {
 }
 
 interface FpSprite {
-  a: string                  // spriteAssetId
+  a: string                  // resolved texture load key (never raw asset id)
   t: FpVec4                  // tint
-  fc: FpVec3                 // fillColor
+  fc: FpVec3                 // fillColor (legacy; runtime ignores for draw)
   o: number                  // alpha
   p: FpVec2                  // pivot
   z: number                  // renderOrder
@@ -203,7 +204,7 @@ function projectEntity(project: ProjectDoc, e: EntityDef): FpEntity {
     g:  [...e.tags].sort(),
     t:  { px: t.position.x, py: t.position.y, r: t.rotation, sx: t.scale.x, sy: t.scale.y },
     s:  {
-      a: s.spriteAssetId,
+      a: resolveSpriteLoadKey(project, s),
       t: v4(s.tint),
       fc: v3(s.fillColor),
       o: s.alpha,
@@ -317,8 +318,14 @@ export function runtimeProjectProjection(
       n: layer.name,
       ...(layer.locked === true ? { lk: true } : {}),
     })),
-    entities: entityIds.map((id) => projectEntity(project, entities[id])),
-    scenes:   sceneIds.map((id) => projectScene(project.scenes[id])),
+    entities: entityIds
+      .map((id) => entities[id])
+      .filter((entity): entity is EntityDef => Boolean(entity))
+      .map((entity) => projectEntity(project, entity)),
+    scenes: sceneIds
+      .map((id) => project.scenes?.[id])
+      .filter((scene): scene is SceneDef => Boolean(scene))
+      .map(projectScene),
     ...(ast ? { ast } : {}),
     ...(project.collisionProfiles && Object.keys(project.collisionProfiles).length > 0
       ? { cprof: project.collisionProfiles }

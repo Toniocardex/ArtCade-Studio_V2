@@ -12,7 +12,7 @@ export function SceneLayersPanel() {
   const layers = useEditorSelector((s) => s.project?.layers ?? DEFAULT_LAYERS)
   const selectedLayerId = useEditorSelector((s) => s.inspectorLayerId)
   const sceneId = useEditorSelector((s) => s.selection.sceneId ?? s.project?.activeSceneId ?? null)
-  const scene = useEditorSelector((s) => (sceneId ? s.project?.scenes[sceneId] : undefined))
+  const scene = useEditorSelector((s) => (sceneId ? s.project?.scenes?.[sceneId] : undefined))
   const [addingName, setAddingName] = useState('')
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')

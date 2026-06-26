@@ -40,7 +40,7 @@ export interface ArtCadeModule {
   _malloc(size: number): number
   _free(ptr: number): void
   HEAPU8: Uint8Array
-  HEAPF32: Float32Array
+  HEAPF32?: Float32Array
 
   print?:    (text: string) => void
   printErr?: (text: string) => void
@@ -284,6 +284,18 @@ export function marshalString(str: string): number {
   const ptr   = _module._malloc(bytes)
   _module.stringToUTF8(str, ptr, bytes)
   return ptr
+}
+
+function moduleHeapF32(mod: ArtCadeModule): Float32Array | null {
+  const heapU8 = mod.HEAPU8
+  if (!heapU8?.buffer) {
+    _lastBridgeError = 'WASM runtime memory view HEAPU8 is unavailable.'
+    return null
+  }
+  if (mod.HEAPF32?.buffer === heapU8.buffer) {
+    return mod.HEAPF32
+  }
+  return new Float32Array(heapU8.buffer)
 }
 
 // ---------------------------------------------------------------------------
@@ -859,11 +871,15 @@ export function editorReadEditorView(): EditorViewState {
   const yPtr = mod._malloc(4)
   const zPtr = mod._malloc(4)
   try {
-    safeCall('editor_get_editor_view', null, ['number', 'number', 'number'], [xPtr, yPtr, zPtr])
+    if (!safeCall('editor_get_editor_view', null, ['number', 'number', 'number'], [xPtr, yPtr, zPtr])) {
+      return { x: 0, y: 0, zoomDevice: 1 }
+    }
+    const heapF32 = moduleHeapF32(mod)
+    if (!heapF32) return { x: 0, y: 0, zoomDevice: 1 }
     return {
-      x: mod.HEAPF32[xPtr >> 2],
-      y: mod.HEAPF32[yPtr >> 2],
-      zoomDevice: mod.HEAPF32[zPtr >> 2],
+      x: heapF32[xPtr >> 2],
+      y: heapF32[yPtr >> 2],
+      zoomDevice: heapF32[zPtr >> 2],
     }
   } finally {
     mod._free(xPtr)
@@ -894,7 +910,14 @@ export function editorReadPresentationSnapshot(): PresentationSnapshot | null {
   if (!mod) return null
   const ptr = safeCcallNumber('editor_get_presentation_snapshot', [], [])
   if (ptr <= 0) return null
-  return parsePresentationSnapshotWasm(mod.HEAPU8, ptr)
+  try {
+    return parsePresentationSnapshotWasm(mod.HEAPU8, ptr)
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err)
+    _lastBridgeError = `Presentation snapshot parse failed: ${detail}`
+    console.warn('[wasm-bridge] presentation snapshot parse failed:', err)
+    return null
+  }
 }
 
 /** Surface (framebuffer) → world via committed presentation snapshot. */
@@ -911,17 +934,27 @@ export function editorSurfaceToWorld(
     const revision = presentationRevision && presentationRevision > 0n
       ? Number(presentationRevision)
       : 0
-    const fn = revision > 0 ? 'editor_surface_to_world_at_revision' : 'editor_surface_to_world'
-    const argTypes = revision > 0
-      ? ['number', 'number', 'number', 'number', 'number']
-      : ['number', 'number', 'number', 'number']
-    const args = revision > 0
-      ? [surfaceX, surfaceY, revision, wxPtr, wyPtr]
-      : [surfaceX, surfaceY, wxPtr, wyPtr]
-    safeCall(fn, null, argTypes, args)
+    let ok = false
+    if (revision > 0) {
+      ok = safeCall(
+        'editor_surface_to_world_at_revision', null,
+        ['number', 'number', 'number', 'number', 'number'],
+        [surfaceX, surfaceY, revision, wxPtr, wyPtr],
+      )
+    }
+    if (!ok) {
+      ok = safeCall(
+        'editor_surface_to_world', null,
+        ['number', 'number', 'number', 'number'],
+        [surfaceX, surfaceY, wxPtr, wyPtr],
+      )
+    }
+    if (!ok) return { x: surfaceX, y: surfaceY }
+    const heapF32 = moduleHeapF32(mod)
+    if (!heapF32) return { x: surfaceX, y: surfaceY }
     return {
-      x: mod.HEAPF32[wxPtr >> 2],
-      y: mod.HEAPF32[wyPtr >> 2],
+      x: heapF32[wxPtr >> 2],
+      y: heapF32[wyPtr >> 2],
     }
   } finally {
     mod._free(wxPtr)

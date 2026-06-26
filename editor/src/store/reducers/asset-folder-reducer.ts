@@ -4,6 +4,7 @@ import {
   isVirtualFolderNameTaken,
   uniqueVirtualFolderName,
 } from '../../utils/asset-virtual-folders'
+import { detachImageAssetFromSprites } from '../../utils/sprite-asset-ref'
 
 function nextVirtualFolderId(folders: Record<string, AssetVirtualFolderDef> | undefined): string {
   let max = 0
@@ -30,33 +31,8 @@ function stripImageFromFolders(
   )
 }
 
-function detachImageFromSprites(project: ProjectDoc, path: string): ProjectDoc {
-  if (!path) return project
-  const clearSprite = <T extends { sprite?: { spriteAssetId: string } }>(entry: T): T =>
-    entry.sprite?.spriteAssetId === path
-      ? {
-          ...entry,
-          sprite: {
-            ...entry.sprite,
-            spriteAssetId: '',
-            defaultClip: undefined,
-            playClipOnSpawn: false,
-          },
-        }
-      : entry
-  return {
-    ...project,
-    entities: Object.fromEntries(
-      Object.entries(project.entities).map(([id, entity]) => [id, clearSprite(entity)]),
-    ),
-    ...(project.objectTypes
-      ? {
-          objectTypes: Object.fromEntries(
-            Object.entries(project.objectTypes).map(([id, type]) => [id, clearSprite(type)]),
-          ),
-        }
-      : {}),
-  }
+function detachImageFromSprites(project: ProjectDoc, assetId: string, path: string): ProjectDoc {
+  return detachImageAssetFromSprites(project, { id: assetId, path })
 }
 
 function setImageUsage(
@@ -88,7 +64,7 @@ function setImageUsage(
     },
     ...(folders ? { assetVirtualFolders: folders } : {}),
   }
-  return usage === 'sprite' ? next : detachImageFromSprites(next, asset.path)
+  return usage === 'sprite' ? next : detachImageFromSprites(next, assetId, asset.path)
 }
 
 export const assetFolderReducer: DomainReducer = (state: CoreState, action: Action) => {

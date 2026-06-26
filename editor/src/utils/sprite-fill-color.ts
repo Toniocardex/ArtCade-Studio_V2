@@ -2,7 +2,8 @@ import type { Vec3 } from '../types'
 
 export const DEFAULT_FILL_COLOR: Vec3 = { x: 1, y: 1, z: 1 }
 
-export function hasSpriteImageAsset(spriteAssetId: string): boolean {
+export function hasSpriteImageAsset(spriteAssetId: string | null | undefined): boolean {
+  if (spriteAssetId == null) return false
   return spriteAssetId.trim().length > 0
 }
 

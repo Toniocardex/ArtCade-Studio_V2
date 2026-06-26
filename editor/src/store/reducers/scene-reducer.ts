@@ -15,78 +15,17 @@ import { clampCameraStart } from '../../utils/camera-start'
 import { projectAfterRemovingAsset } from '../../utils/strip-project-asset-refs'
 import { normalizeAssetRefs } from '../../utils/normalize-asset-refs'
 import { ensureSourceOnLayer, normalizeTilemapLayer } from '../../utils/tilemap-layer-sources'
-
-function detachNonSpriteImageRefs(project: NonNullable<CoreState['project']>, path: string) {
-  if (!path) return project
-  const clearSprite = <T extends { sprite?: { spriteAssetId: string } }>(entry: T): T =>
-    entry.sprite?.spriteAssetId === path
-      ? { ...entry, sprite: { ...entry.sprite, spriteAssetId: '', defaultClip: undefined, playClipOnSpawn: false } }
-      : entry
-  return {
-    ...project,
-    entities: Object.fromEntries(
-      Object.entries(project.entities).map(([id, entity]) => [id, clearSprite(entity)]),
-    ),
-    ...(project.objectTypes
-      ? {
-          objectTypes: Object.fromEntries(
-            Object.entries(project.objectTypes).map(([id, type]) => [id, clearSprite(type)]),
-          ),
-        }
-      : {}),
-  }
-}
-
-function firstValidClipName(clips: AnimationClipDef[]): string | undefined {
-  return clips.find((clip) => clip.name.trim() && clip.frames.length > 0)?.name.trim()
-}
-
-function clipNameExists(clips: AnimationClipDef[], name: string | undefined): boolean {
-  const needle = name?.trim()
-  if (!needle) return false
-  return clips.some((clip) => clip.name.trim() === needle && clip.frames.length > 0)
-}
-
-function spriteWithClipDefaultsForAsset(
-  sprite: SpriteComponent,
-  assetPath: string,
-  clips: AnimationClipDef[],
-): SpriteComponent {
-  if (!sprite) return sprite
-  if (sprite.spriteAssetId !== assetPath) return sprite
-  if (clipNameExists(clips, sprite.defaultClip)) return sprite
-
-  const defaultClip = firstValidClipName(clips)
-  return {
-    ...sprite,
-    defaultClip,
-    playClipOnSpawn: defaultClip ? sprite.playClipOnSpawn === true : false,
-  }
-}
-
-function applyClipDefaultsForAsset(
-  project: NonNullable<CoreState['project']>,
-  assetPath: string,
-  clips: AnimationClipDef[],
-) {
-  const patchSprite = <T extends { sprite: SpriteComponent }>(entry: T): T => {
-    const sprite = spriteWithClipDefaultsForAsset(entry.sprite, assetPath, clips)
-    return sprite === entry.sprite ? entry : { ...entry, sprite }
-  }
-  return {
-    ...project,
-    entities: Object.fromEntries(
-      Object.entries(project.entities).map(([id, entity]) => [id, patchSprite(entity)]),
-    ),
-    ...(project.objectTypes
-      ? {
-          objectTypes: Object.fromEntries(
-            Object.entries(project.objectTypes).map(([id, type]) => [id, patchSprite(type)]),
-          ),
-        }
-      : {}),
-  }
-}
+import {
+  isGeneratedPrototypeAsset,
+  resetPrototypeSpriteAsset,
+  clearSpriteClipFields,
+  patchObjectTypeSpritesUsingAsset,
+} from '../../utils/prototype-sprite'
+import { rematerializeAllInstancesOfType } from '../../utils/project-object-types'
+import {
+  applyClipDefaultsForImageAsset,
+  detachImageAssetFromSprites,
+} from '../../utils/sprite-asset-ref'
 
 export const sceneReducer: DomainReducer = (state: CoreState, action: Action) => {
   switch (action.type) {
@@ -108,7 +47,7 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
     case 'SCENE_ADD_EMPTY': {
       if (!state.project) return state
       const sourceSceneId = action.sourceSceneId ?? state.selection.sceneId ?? state.project.activeSceneId
-      const sourceScene = state.project.scenes[sourceSceneId]
+      const sourceScene = state.project.scenes?.[sourceSceneId]
       const scene = createSceneDef(state.project, sourceScene, action.name)
       return {
         ...state,
@@ -124,7 +63,7 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
       }
     }
     case 'SCENE_RENAME': {
-      const scene = state.project?.scenes[action.sceneId]
+      const scene = state.project?.scenes?.[action.sceneId]
       if (!state.project || !scene) return state
       const name = uniqueSceneName(state.project, action.name, action.sceneId)
       if (!name || name === scene.name) return state
@@ -141,7 +80,7 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
       }
     }
     case 'SCENE_SET_START': {
-      if (!state.project || !state.project.scenes[action.sceneId]) return state
+      if (!state.project || !state.project.scenes?.[action.sceneId]) return state
       if (state.project.activeSceneId === action.sceneId) return state
       return {
         ...state,
@@ -150,7 +89,7 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
       }
     }
     case 'SCENE_DUPLICATE': {
-      const srcScene = state.project?.scenes[action.sceneId]
+      const srcScene = state.project?.scenes?.[action.sceneId]
       if (!state.project || !srcScene) return state
       const newSceneMeta = createSceneDef(state.project, srcScene, `${srcScene.name} Copy`)
       const entities = { ...state.project.entities }
@@ -158,7 +97,7 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
       const newEntityIds: number[] = []
 
       for (const eid of srcScene.entityIds) {
-        const ent = state.project.entities[eid]
+        const ent = state.project.entities?.[eid]
         if (!ent) continue
         const newId = nextEntityId({ ...state.project, entities })
         const clone: EntityDef = JSON.parse(JSON.stringify(ent))
@@ -203,13 +142,13 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
     }
     case 'SCENE_DELETE': {
       const project = state.project
-      const scene = project?.scenes[action.sceneId]
+      const scene = project?.scenes?.[action.sceneId]
       if (!project || !scene) return state
-      if (Object.keys(project.scenes).length <= 1) return state
+      if (Object.keys(project.scenes ?? {}).length <= 1) return state
       if (project.activeSceneId === action.sceneId) return state
 
       const remainingScenes = Object.fromEntries(
-        Object.entries(project.scenes).filter(([sid]) => sid !== action.sceneId),
+        Object.entries(project.scenes ?? {}).filter(([sid]) => sid !== action.sceneId),
       )
       const remainingReferencedEntityIds = new Set(
         Object.values(remainingScenes).flatMap((sc) => sc.entityIds),
@@ -218,7 +157,7 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
         scene.entityIds.filter((id) => !remainingReferencedEntityIds.has(id)),
       )
       const entities = Object.fromEntries(
-        Object.entries(project.entities).filter(([id]) => !removedEntityIds.has(Number(id))),
+        Object.entries(project.entities ?? {}).filter(([id]) => !removedEntityIds.has(Number(id))),
       )
       const thumbnails = project.thumbnails
         ? Object.fromEntries(
@@ -255,7 +194,7 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
       }
     }
     case 'SCENE_SET_WORLD_SIZE': {
-      const sc = state.project?.scenes[action.sceneId]
+      const sc = state.project?.scenes?.[action.sceneId]
       if (!state.project || !sc) return state
       const worldSize = { x: action.x, y: action.y }
       if (sc.worldSize.x === worldSize.x && sc.worldSize.y === worldSize.y) return state
@@ -263,7 +202,7 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
       const scaleY = sc.worldSize.y > 0 ? worldSize.y / sc.worldSize.y : 1
       const resizedEntityIds = new Set(sc.entityIds)
       const entities = Object.fromEntries(
-        Object.entries(state.project.entities).map(([id, entity]) => {
+        Object.entries(state.project.entities ?? {}).map(([id, entity]) => {
           if (!resizedEntityIds.has(Number(id))) return [id, entity]
           const position = clampEntityPositionToScene({
             x: entity.transform.position.x * scaleX,
@@ -296,7 +235,7 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
       }
     }
     case 'SCENE_SET_VIEWPORT_SIZE': {
-      const sc = state.project?.scenes[action.sceneId]
+      const sc = state.project?.scenes?.[action.sceneId]
       if (!state.project || !sc) return state
       const viewportSize = { x: action.x, y: action.y }
       if (sc.viewportSize.x === viewportSize.x && sc.viewportSize.y === viewportSize.y) return state
@@ -313,7 +252,7 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
       }
     }
     case 'SCENE_SET_CAMERA_START': {
-      const sc = state.project?.scenes[action.sceneId]
+      const sc = state.project?.scenes?.[action.sceneId]
       if (!state.project || !sc) return state
       const snapped = state.snapToGrid
         ? {
@@ -337,7 +276,7 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
       }
     }
     case 'TILEMAP_INIT': {
-      const sc = state.project?.scenes[action.sceneId]
+      const sc = state.project?.scenes?.[action.sceneId]
       if (!state.project || !sc) return state
       const tm = createTilemap(sc.worldSize.x, sc.worldSize.y)
       return {
@@ -353,7 +292,7 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
       }
     }
     case 'TILEMAP_PAINT': {
-      const sc = state.project?.scenes[action.sceneId]
+      const sc = state.project?.scenes?.[action.sceneId]
       if (!state.project || !sc) return state
       // auto-create the layer on first paint
       const tm = sc.tilemap ?? createTilemap(sc.worldSize.x, sc.worldSize.y)
@@ -374,7 +313,7 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
       }
     }
     case 'TILEMAP_PAINT_CELL': {
-      const sc = state.project?.scenes[action.sceneId]
+      const sc = state.project?.scenes?.[action.sceneId]
       if (!state.project || !sc) return state
       const layerId = state.editorActiveLayerId
       const existingLayerTm = sc.tilemapLayers?.[layerId]
@@ -475,7 +414,42 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
       }
       const project = action.asset.usage === 'sprite'
         ? withAsset
-        : detachNonSpriteImageRefs(withAsset, action.asset.path)
+        : detachImageAssetFromSprites(withAsset, {
+            id: action.asset.id,
+            path: action.asset.path,
+          })
+      return {
+        ...state,
+        project,
+        projectDirty: true,
+      }
+    }
+    case 'IMAGE_ASSET_RESET_PROTOTYPE': {
+      const existing = state.project?.assets?.[action.assetId]
+      if (!state.project || !existing || !isGeneratedPrototypeAsset(existing)) return state
+      const type = state.project.objectTypes?.[action.typeId]
+      const resetAsset = resetPrototypeSpriteAsset({
+        asset: existing,
+        typeId: action.typeId,
+        typeName: action.typeName,
+        legacyFillColor: type?.sprite.fillColor,
+      })
+      const collisionProfiles = { ...(state.project.collisionProfiles ?? {}) }
+      delete collisionProfiles[action.assetId]
+      let project: NonNullable<CoreState['project']> = {
+        ...state.project,
+        assets: { ...state.project.assets, [action.assetId]: resetAsset },
+        collisionProfiles: Object.keys(collisionProfiles).length > 0 ? collisionProfiles : undefined,
+      }
+      const patched = patchObjectTypeSpritesUsingAsset(
+        project,
+        action.assetId,
+        clearSpriteClipFields,
+      )
+      project = patched.project
+      for (const typeId of patched.typeIds) {
+        project = rematerializeAllInstancesOfType(project, typeId)
+      }
       return {
         ...state,
         project,
@@ -494,7 +468,11 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
       }
       return {
         ...state,
-        project: applyClipDefaultsForAsset(projectWithClips, existing.path, action.clips),
+        project: applyClipDefaultsForImageAsset(
+          projectWithClips,
+          { id: existing.id, path: existing.path },
+          action.clips,
+        ),
         projectDirty: true,
       }
     }
@@ -590,7 +568,7 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
       }
     }
     case 'TILEMAP_SET_TILESETID': {
-      const sc = state.project?.scenes[action.sceneId]
+      const sc = state.project?.scenes?.[action.sceneId]
       if (!state.project || !sc) return state
       const layerId = state.editorActiveLayerId
       const existing = sc.tilemapLayers?.[layerId]
@@ -618,7 +596,7 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
     }
     case 'TILEMAP_SET_TILESIZE': {
       // Resize all layer tilemaps to the new tileSize, preserving overlapping cells.
-      const sc = state.project?.scenes[action.sceneId]
+      const sc = state.project?.scenes?.[action.sceneId]
       if (!state.project || !sc) return state
       const resizeOne = (tm: TilemapLayer): TilemapLayer =>
         resizeTilemapForTileSize(tm, sc.worldSize.x, sc.worldSize.y, action.tileSize)

@@ -29,7 +29,7 @@ export function inspectorChromeForMode(
   switch (mode) {
     case 'entity': {
       const id = state.selection.entityId
-      const entity = id != null && project ? project.entities[id] : undefined
+      const entity = id != null && project ? project.entities?.[id] : undefined
       return {
         mode,
         title: 'Entity Inspector',
@@ -68,7 +68,7 @@ export function inspectorChromeForMode(
     }
     default: {
       const sceneId = state.selection.sceneId ?? project?.activeSceneId
-      const scene = sceneId && project ? project.scenes[sceneId] : undefined
+      const scene = sceneId && project ? project.scenes?.[sceneId] : undefined
       return {
         mode: 'scene',
         title: scene?.name ?? 'No scene',

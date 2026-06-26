@@ -3,7 +3,7 @@ import { useEditorDispatch, useEditorSelector } from '../store/editor-store'
 import type { ConsoleEntry } from '../types'
 import { alertDialog, confirmDialog } from '../utils/native-dialog'
 import { useTextPrompt } from './useTextPrompt'
-import { slugTypeId } from '../utils/project-object-types'
+import { buildObjectTypeAddAction } from '../utils/prototype-sprite'
 import { isInstanceNameTakenInScene } from '../utils/project-instance-names'
 import { openLogicBoardForEntity } from '../panels/inspector/logic-board-navigation'
 
@@ -29,7 +29,7 @@ export function useSceneExplorerActions() {
   const editorGridSize = useEditorSelector((s) => s.editorGridSize)
   const mode = useEditorSelector((s) => s.mode)
   const sceneId = project ? selection.sceneId ?? project.activeSceneId : ''
-  const scene = project?.scenes[sceneId]
+  const scene = project?.scenes?.[sceneId]
   const sceneCount = project ? Object.keys(project.scenes).length : 0
   const isStartScene = Boolean(project && sceneId === project.activeSceneId)
   const canDeleteScene = Boolean(scene && sceneCount > 1 && !isStartScene)
@@ -73,7 +73,7 @@ export function useSceneExplorerActions() {
   const deleteSceneById = useCallback(
     (targetSceneId: string) => {
       if (!project) return
-      const target = project.scenes[targetSceneId]
+      const target = project.scenes?.[targetSceneId]
       if (!target) return
       const isStart = targetSceneId === project.activeSceneId
       if (sceneCount <= 1 || isStart) return
@@ -101,7 +101,7 @@ export function useSceneExplorerActions() {
 
   const renameSceneById = useCallback(
     (targetSceneId: string) => {
-      const target = project?.scenes[targetSceneId]
+      const target = project?.scenes?.[targetSceneId]
       if (!target) return
       void promptText({
         title: 'Rename scene',
@@ -138,11 +138,12 @@ export function useSceneExplorerActions() {
         )
         return
       }
-      dispatch({ type: 'OBJECT_TYPE_ADD', displayName: name })
-      dispatch({ type: 'INSTANCE_ADD_FROM_TYPE', sceneId, objectTypeId: typeId })
+      const addAction = buildObjectTypeAddAction(name)
+      dispatch(addAction)
+      dispatch({ type: 'INSTANCE_ADD_FROM_TYPE', sceneId, objectTypeId: addAction.typeId })
       dispatch({
         type: 'LOG',
-        entry: explorerLog(`Inserted ${name} (type ${typeId})`, 'info'),
+        entry: explorerLog(`Inserted ${name} (type ${addAction.typeId})`, 'info'),
       })
     })
   }, [scene, sceneId, project, dispatch, promptText])
@@ -218,7 +219,7 @@ export function useSceneExplorerActions() {
 
   const renameEntity = useCallback(
     (entityId: number) => {
-      const ent = project?.entities[entityId]
+      const ent = project?.entities?.[entityId]
       if (!ent) return
       void promptText({
         title: 'Rename entity',
@@ -241,7 +242,7 @@ export function useSceneExplorerActions() {
 
   const duplicateSceneById = useCallback(
     (targetSceneId: string) => {
-      if (!project?.scenes[targetSceneId]) return
+      if (!project?.scenes?.[targetSceneId]) return
       dispatch({ type: 'SCENE_DUPLICATE', sceneId: targetSceneId })
     },
     [dispatch, project],

@@ -54,12 +54,12 @@ export function isInstanceNameTakenInScene(
   name: string,
   exceptEntityId?: number,
 ): boolean {
-  const scene = project.scenes[sceneId]
+  const scene = project.scenes?.[sceneId]
   const wanted = name.trim().toLocaleLowerCase()
   if (!scene || !wanted) return false
   return (scene.instances ?? []).some((instance) => {
     if (exceptEntityId != null && instance.id === exceptEntityId) return false
-    const entity = project.entities[instance.id]
+    const entity = project.entities?.[instance.id]
     const type = project.objectTypes?.[instance.objectTypeId]
     const displayName = instance.instanceName ?? entity?.name ?? type?.displayName ?? ''
     return displayName.trim().toLocaleLowerCase() === wanted

@@ -6,14 +6,14 @@ import { assertLogicBoardsValid } from './schema-registry'
 export function validateProjectBeforeSave(project: ProjectDoc): void {
   assertProjectPathsSafe(project)
   assertProjectDiagnosticsClean(project)
-  if (Object.keys(project.scenes).length === 0) {
+  if (Object.keys(project.scenes ?? {}).length === 0) {
     throw new Error('Project must contain at least one scene.')
   }
-  if (!project.scenes[project.activeSceneId]) {
+  if (!project.scenes?.[project.activeSceneId]) {
     throw new Error(`Start scene "${project.activeSceneId}" does not exist.`)
   }
   const types = project.objectTypes ?? {}
-  for (const scene of Object.values(project.scenes)) {
+  for (const scene of Object.values(project.scenes ?? {})) {
     for (const inst of scene.instances ?? []) {
       if (!types[inst.objectTypeId]) {
         throw new Error(

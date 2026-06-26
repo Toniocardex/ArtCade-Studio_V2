@@ -3,6 +3,7 @@ import { readFile, writeFile } from '@tauri-apps/plugin-fs'
 import type { ProjectDoc } from '../types'
 import { serializeProjectDoc } from './project-codec'
 import { collectReferencedProjectPaths } from './collect-referenced-project-paths'
+import { generatedAssetBytesFromProject } from './prototype-sprite'
 import { buildProjectAssetManifest } from './build-project-asset-manifest'
 import { joinPath, baseName } from './file-paths'
 import { bytesToArrayBuffer } from './asset-file-api'
@@ -174,6 +175,15 @@ export async function buildArtcadeZipBytes(
     checksums[mainScriptPath] = await sha256Hex(overrideBytes)
   }
 
+  for (const rel of collectReferencedProjectPaths(project)) {
+    const norm = rel.replace(/\\/g, '/')
+    if (extraFiles[norm] || extraFiles[rel]) continue
+    const generatedBytes = generatedAssetBytesFromProject(project, norm)
+    if (!generatedBytes) continue
+    entries.push({ path: norm, data: generatedBytes })
+    checksums[norm] = await sha256Hex(generatedBytes)
+  }
+
   const manifest = buildProjectAssetManifest(project, checksums)
   const manifestBytes = new TextEncoder().encode(JSON.stringify(manifest, null, 2))
   entries.push({ path: 'manifest.json', data: manifestBytes })
@@ -198,13 +208,15 @@ export async function exportArtcadePackage(
     checksums['project.json'] = await sha256Hex(projectBytes)
 
     for (const rel of collectReferencedProjectPaths(project)) {
+      const norm = rel.replace(/\\/g, '/')
+      const generatedBytes = generatedAssetBytesFromProject(project, norm)
       const abs = joinPath(projectRoot, rel)
-      const bytes = rel.replace(/\\/g, '/') === project.mainScriptPath.replace(/\\/g, '/') &&
-        mainLuaOverride !== undefined
-        ? new TextEncoder().encode(mainLuaOverride)
-        : await readFile(abs)
-      entries.push({ path: rel.replace(/\\/g, '/'), data: bytes })
-      checksums[rel.replace(/\\/g, '/')] = await sha256Hex(bytes)
+      const bytes = generatedBytes
+        ?? (norm === project.mainScriptPath.replace(/\\/g, '/') && mainLuaOverride !== undefined
+          ? new TextEncoder().encode(mainLuaOverride)
+          : await readFile(abs))
+      entries.push({ path: norm, data: bytes })
+      checksums[norm] = await sha256Hex(bytes)
     }
 
     const manifest = buildProjectAssetManifest(project, checksums)

@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { coreReducer, type CoreState } from './editor-store'
 import type { ProjectDoc } from '../types'
 import { DEFAULT_DOCK_PANEL_VISIBILITY } from '../constants/dock-panels'
+import { createBlankProject } from '../utils/project-factory'
+import { createEntityDef } from '../utils/project-builders'
+import { migrateLegacyProject } from '../utils/project-object-types'
 
 function project(name = 'Original'): ProjectDoc {
   return {
@@ -83,6 +86,29 @@ describe('coreReducer - project metadata', () => {
 
     expect(loaded.editorZoom).toBe(1)
     expect(loaded.editorZoomMode).toBe('manual')
+  })
+
+  it('LOAD_PROJECT rematerializes v3 entities from object types and drops stale cache rows', () => {
+    const loadedProject = migrateLegacyProject({
+      ...createBlankProject('Loaded'),
+      entities: { 1: createEntityDef(1, 'Player', 'Player') },
+      scenes: {
+        scene_main: {
+          ...createBlankProject().scenes.scene_main,
+          entityIds: [1],
+        },
+      },
+    })
+    loadedProject.entities[20_4160] = createEntityDef(20_4160, 'Stale', 'Stale')
+
+    const loaded = coreReducer(baseState(), {
+      type: 'LOAD_PROJECT',
+      project: loadedProject,
+      path: '/tmp/loaded.artcade',
+    })
+
+    expect(loaded.project?.entities[1]?.className).toBe('Player')
+    expect(loaded.project?.entities[20_4160]).toBeUndefined()
   })
 
   it('falls back to Untitled when the provided name is empty', () => {

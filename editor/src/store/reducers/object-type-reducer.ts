@@ -14,6 +14,8 @@ import {
   rematerializeAllInstancesOfType,
   slugTypeId,
 } from '../../utils/project-object-types'
+import { gcUnusedGeneratedPrototypeAssets } from '../../utils/prototype-sprite'
+import { spriteAssignedFromAsset } from '../../utils/sprite-pivot-resolve'
 import {
   isInstanceNameTaken,
   nextInstanceName,
@@ -59,9 +61,9 @@ function syncInstanceTransform(
   entityId: number,
   project: NonNullable<CoreState['project']>,
 ): SceneInstanceDef[] | undefined {
-  const scene = project.scenes[sceneId]
+  const scene = project.scenes?.[sceneId]
   const inst = scene?.instances?.find((i) => i.id === entityId)
-  const ent = project.entities[entityId]
+  const ent = project.entities?.[entityId]
   if (!inst || !ent) return scene?.instances
   return scene.instances!.map((i) =>
     i.id === entityId
@@ -104,7 +106,7 @@ export const objectTypeReducer: DomainReducer = (state: CoreState, action: Actio
     case 'OBJECT_TYPE_VARIABLES_SET': {
       if (!state.project?.objectTypes?.[action.objectTypeId]) return state
       const type = state.project.objectTypes[action.objectTypeId]
-      const scenes = Object.fromEntries(Object.entries(state.project.scenes).map(([sceneId, scene]) => [
+      const scenes = Object.fromEntries(Object.entries(state.project.scenes ?? {}).map(([sceneId, scene]) => [
         sceneId,
         {
           ...scene,
@@ -128,15 +130,15 @@ export const objectTypeReducer: DomainReducer = (state: CoreState, action: Actio
       }
     }
     case 'INSTANCE_VARIABLE_OVERRIDES_SET': {
-      if (!state.project?.scenes[action.sceneId]) return state
-      const scene = state.project.scenes[action.sceneId]
+      const scene = state.project?.scenes?.[action.sceneId]
+      if (!state.project || !scene) return state
       const instances = scene.instances?.map((instance) =>
         instance.id === action.instanceId
           ? { ...instance, localVariableOverrides: action.overrides }
           : instance,
       )
       if (!instances) return state
-      const entity = state.project.entities[action.instanceId]
+      const entity = state.project.entities?.[action.instanceId]
       return {
         ...state,
         project: {
@@ -157,24 +159,33 @@ export const objectTypeReducer: DomainReducer = (state: CoreState, action: Actio
     }
     case 'OBJECT_TYPE_DELETE': {
       if (!state.project?.objectTypes?.[action.objectTypeId]) return state
-      const inUse = Object.values(state.project.scenes).some((sc) =>
+      const inUse = Object.values(state.project.scenes ?? {}).some((sc) =>
         (sc.instances ?? []).some((i) => i.objectTypeId === action.objectTypeId),
       )
       if (inUse) return state
       const objectTypes = { ...state.project.objectTypes }
       delete objectTypes[action.objectTypeId]
+      const project = gcUnusedGeneratedPrototypeAssets({
+        ...state.project,
+        objectTypes,
+      })
       return {
         ...state,
-        project: { ...state.project, objectTypes },
+        project,
         projectDirty: true,
       }
     }
     case 'OBJECT_TYPE_ADD': {
       if (!state.project) return state
-      const typeId = slugTypeId(action.displayName || 'Object')
-      if (objectTypeNameTaken(state.project, action.displayName || 'Object')) return state
+      const { typeId, displayName, prototypeAsset } = action
+      if (objectTypeNameTaken(state.project, displayName)) return state
+      if (state.project.objectTypes?.[typeId]) return state
+      const base = createEntityDef(0, displayName || typeId, typeId)
       const proto = entityToObjectType(
-        createEntityDef(0, action.displayName || typeId, typeId),
+        {
+          ...base,
+          sprite: spriteAssignedFromAsset(base.sprite, prototypeAsset),
+        },
         typeId,
       )
       return {
@@ -182,16 +193,17 @@ export const objectTypeReducer: DomainReducer = (state: CoreState, action: Actio
         project: {
           ...state.project,
           objectTypes: { ...state.project.objectTypes, [typeId]: proto },
+          assets: { ...(state.project.assets ?? {}), [prototypeAsset.id]: prototypeAsset },
         },
         projectDirty: true,
       }
     }
     case 'INSTANCE_ADD_FROM_TYPE': {
-      if (!state.project || !state.project.scenes[action.sceneId]) return state
+      const scene = state.project?.scenes?.[action.sceneId]
+      if (!state.project || !scene) return state
       const type = state.project.objectTypes?.[action.objectTypeId]
       if (!type) return state
       const id = nextEntityId(state.project)
-      const scene = state.project.scenes[action.sceneId]
       const spawn = defaultEntitySpawnPosition(scene, state.editorGridSize, state.snapToGrid)
       // First instance keeps the plain type name; later ones get Name_N.
       const inst: SceneInstanceDef = {
@@ -230,14 +242,14 @@ export const objectTypeReducer: DomainReducer = (state: CoreState, action: Actio
     case 'INSTANCE_DUPLICATE': {
       // Duplicate in scene = new instance of the SAME type (offset placement).
       // Never clones the EntityDef or infers a new type (Fase C contract).
-      if (!state.project || !state.project.scenes[action.sceneId]) return state
-      const scene = state.project.scenes[action.sceneId]
+      const scene = state.project?.scenes?.[action.sceneId]
+      if (!state.project || !scene) return state
       const src = scene.instances?.find((i) => i.id === action.instanceId)
       const type = src ? state.project.objectTypes?.[src.objectTypeId] : undefined
       if (!src || !type) return state
       const id = nextEntityId(state.project)
       const srcName =
-        src.instanceName ?? state.project.entities[src.id]?.name ?? type.displayName
+        src.instanceName ?? state.project.entities?.[src.id]?.name ?? type.displayName
       const position = action.position &&
         Number.isFinite(action.position.x) && Number.isFinite(action.position.y)
         ? { ...action.position }
@@ -280,8 +292,8 @@ export const objectTypeReducer: DomainReducer = (state: CoreState, action: Actio
       }
     }
     case 'INSTANCE_COPY': {
-      if (!state.project || !state.project.scenes[action.sceneId]) return state
-      const scene = state.project.scenes[action.sceneId]
+      const scene = state.project?.scenes?.[action.sceneId]
+      if (!state.project || !scene) return state
       const src = scene.instances?.find((i) => i.id === action.instanceId)
       if (!src) return state
       return {
@@ -306,16 +318,16 @@ export const objectTypeReducer: DomainReducer = (state: CoreState, action: Actio
       }
     }
     case 'INSTANCE_PASTE': {
-      if (!state.project || !state.project.scenes[action.sceneId]) return state
+      const scene = state.project?.scenes?.[action.sceneId]
+      if (!state.project || !scene) return state
       const clip = state.instanceClipboard
       if (!clip || clip.sceneId !== action.sceneId) return state
-      const scene = state.project.scenes[action.sceneId]
       const type = state.project.objectTypes?.[clip.instance.objectTypeId]
       if (!type) return state
       const id = nextEntityId(state.project)
       const srcName =
         clip.instance.instanceName
-        ?? state.project.entities[clip.instance.id]?.name
+        ?? state.project.entities?.[clip.instance.id]?.name
         ?? type.displayName
       const position = action.position &&
         Number.isFinite(action.position.x) && Number.isFinite(action.position.y)
@@ -360,8 +372,11 @@ export const objectTypeReducer: DomainReducer = (state: CoreState, action: Actio
       }
     }
     case 'UPDATE_ENTITY_TRANSFORM': {
-      if (!state.project || !state.project.entities[action.entityId]) return state
+      const entity = state.project?.entities?.[action.entityId]
+      if (!state.project || !entity) return state
       const sceneId = state.selection.sceneId ?? state.project.activeSceneId
+      const scene = state.project.scenes?.[sceneId]
+      if (!scene) return state
       const instances = syncInstanceTransform(sceneId, action.entityId, state.project)
       if (!instances) return state
       return {
@@ -370,7 +385,7 @@ export const objectTypeReducer: DomainReducer = (state: CoreState, action: Actio
           ...state.project,
           scenes: {
             ...state.project.scenes,
-            [sceneId]: { ...state.project.scenes[sceneId], instances },
+            [sceneId]: { ...scene, instances },
           },
         },
       }

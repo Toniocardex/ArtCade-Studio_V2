@@ -20,6 +20,7 @@ import { computeCanvasViewportLayout } from '../utils/canvas-viewport-layout'
 import { frameSelectionRegistry } from '../utils/frame-selection-registry'
 import { computeFrameSelectionView } from '../utils/frame-selection'
 import {
+  editorCenterSceneViewport,
   editorCenterWorldPoint,
   editorFrameWorld,
   visibleWorldCenterFromCamera,
@@ -113,6 +114,7 @@ export default function PreviewPanel({
   const editorGuidesVisible = useEditorSelector((s) => s.editorGuidesVisible)
   const editorRulerStep = useEditorSelector((s) => s.editorRulerStep)
   const editorRulersVisible = useEditorSelector((s) => s.editorRulersVisible)
+  const projectLoadEpoch = useEditorSelector((s) => s.projectLoadEpoch)
 
   const canvasRef           = useRef<HTMLCanvasElement>(null)
   const canvasHostRef       = useRef<HTMLDivElement>(null)
@@ -126,6 +128,7 @@ export default function PreviewPanel({
   const snapToGridRef       = useRef(false)
   const gridSizeRef         = useRef(32)
   const ignoredTransformEchoRef = useRef<TransformSnapshot | null>(null)
+  const sceneViewportCenterKeyRef = useRef<string | null>(null)
   const bootSyncRef = useRef({
     project: null as typeof project,
     projectPath: null as typeof projectPath,
@@ -365,7 +368,7 @@ export default function PreviewPanel({
   })
 
   const selectedSceneId = selection.sceneId ?? project?.activeSceneId
-  const selectedScene = project && selectedSceneId ? project.scenes[selectedSceneId] : undefined
+  const selectedScene = project && selectedSceneId ? project.scenes?.[selectedSceneId] : undefined
   const paintTilemap = useMemo(() => {
     if (!selectedScene || !project) return undefined
     const layerTm = selectedScene.tilemapLayers?.[editorActiveLayerId]
@@ -395,6 +398,11 @@ export default function PreviewPanel({
   const preview = !useDockedRuntimePreview && cameraPreview && (vp.x !== res.x || vp.y !== res.y)
   const showCameraFrame = preview && mode === 'canvas' && (vp.x < res.x || vp.y < res.y)
   const editorCameraView = useEditorCameraView()
+
+  useEffect(() => {
+    sceneViewportCenterKeyRef.current = null
+  }, [selectedSceneId, projectLoadEpoch])
+
   const layout = useMemo(
     () => computeCanvasViewportLayout({
       worldSize: frame,
@@ -491,8 +499,10 @@ export default function PreviewPanel({
     x: playStageSize?.x ?? frame.x,
     y: playStageSize?.y ?? frame.y,
   }
-  const playAvailableSize = playStageAvailableSize(playStage, RUNTIME_PLAY_STAGE_PADDING_PX)
-  const playHostSize = playAvailableSize
+  const playHostSize = useMemo(
+    () => playStageAvailableSize(playStage, RUNTIME_PLAY_STAGE_PADDING_PX),
+    [playStage.x, playStage.y],
+  )
 
   // The runtime canvas is a persistent DOM node React does not manage, so its
   // presentation is applied imperatively via runtime-canvas-presentation.
@@ -551,7 +561,26 @@ export default function PreviewPanel({
     const cssH = Math.max(1, el.clientHeight - pad * 2)
     editorResizeSurface(cssW, cssH, dpr)
     applyCanvasPresentation()
-  }, [useDockedRuntimePreview, engineReady, layout.paddingPx, applyCanvasPresentation])
+
+    if (selection.entityId == null && selectedSceneId) {
+      const centerKey = `${projectLoadEpoch}:${selectedSceneId}`
+      if (sceneViewportCenterKeyRef.current !== centerKey) {
+        editorCenterSceneViewport(vp, el.clientWidth, el.clientHeight, zoom, dpr)
+        sceneViewportCenterKeyRef.current = centerKey
+      }
+    }
+  }, [
+    useDockedRuntimePreview,
+    engineReady,
+    layout.paddingPx,
+    applyCanvasPresentation,
+    selection.entityId,
+    selectedSceneId,
+    projectLoadEpoch,
+    vp.x,
+    vp.y,
+    zoom,
+  ])
 
   useEffect(() => {
     if (useDockedRuntimePreview || !engineReady) return
@@ -592,7 +621,7 @@ export default function PreviewPanel({
     const el = viewportRef.current
     if (!el || useDockedRuntimePreview) return
     const entityId = selection.entityId
-    const def = entityId != null ? project?.entities[entityId] : null
+    const def = entityId != null ? project?.entities?.[entityId] : null
     if (!def) {
       editorFrameWorld(0, 0, frame.x, frame.y, dispatch, window.devicePixelRatio || 1)
       return

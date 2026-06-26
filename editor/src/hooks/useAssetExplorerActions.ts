@@ -136,7 +136,7 @@ export function useAssetExplorerActions() {
 
   const selEntity =
     project && selectionEntityId != null
-      ? project.entities[selectionEntityId]
+      ? project.entities?.[selectionEntityId]
       : null
 
   const showFlash = useCallback((text: string) => {

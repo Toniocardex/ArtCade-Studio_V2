@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import type { EntityDef } from '../../types'
-import { useEditorDispatch } from '../../store/editor-store'
+import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import {
   fillColorToHex,
   hasSpriteImageAsset,
   hexToFillColor,
 } from '../../utils/sprite-fill-color'
+import { isGeneratedPrototypeAsset, patchPrototypeSpriteColor } from '../../utils/prototype-sprite'
+import { imageAssetForRef } from '../../utils/sprite-asset-ref'
 
 export type SpriteFillColorFieldProps = Readonly<{
   entity: EntityDef
@@ -14,18 +16,23 @@ export type SpriteFillColorFieldProps = Readonly<{
 const HEX_PATTERN = /^#?[0-9a-fA-F]{6}$/
 
 /**
- * Inspector control for a placeholder sprite's fill color (objects without a
- * texture asset). Edits dispatch ENTITY_SET_SPRITE_FILL with a per-entity
- * coalesce key so a continuous scrub collapses into a single undo step and
- * the runtime preview updates live through the normal project sync.
+ * Fill color for legacy placeholders, or prototype sprite base color when assigned
+ * to a generated asset.
  */
 export function SpriteFillColorField({ entity }: SpriteFillColorFieldProps) {
   const dispatch = useEditorDispatch()
-  const disabled = hasSpriteImageAsset(entity.sprite.spriteAssetId)
-  const hex = fillColorToHex(entity.sprite.fillColor)
+  const project = useEditorSelector((s) => s.project)
+  const spriteRef = entity.sprite.spriteAssetId
+  const linkedAsset = project && spriteRef
+    ? imageAssetForRef(project, spriteRef)
+    : undefined
+  const isPrototype = isGeneratedPrototypeAsset(linkedAsset)
+  const disabled = hasSpriteImageAsset(spriteRef) && !isPrototype
+  const colorSource = isPrototype && linkedAsset?.generated?.baseColor
+    ? linkedAsset.generated.baseColor
+    : entity.sprite.fillColor
+  const hex = fillColorToHex(colorSource)
 
-  // Local draft lets the user type a partial hex without the store rejecting
-  // intermediate keystrokes. While not editing, it mirrors the committed value.
   const [draft, setDraft] = useState(hex)
   const editingRef = useRef(false)
 
@@ -36,6 +43,13 @@ export function SpriteFillColorField({ entity }: SpriteFillColorFieldProps) {
   function commit(nextHex: string) {
     const fillColor = hexToFillColor(nextHex)
     if (!fillColor) return
+    if (isPrototype && linkedAsset) {
+      dispatch({
+        type: 'ASSET_ADD',
+        asset: patchPrototypeSpriteColor(linkedAsset, fillColor),
+      })
+      return
+    }
     dispatch({
       type: 'ENTITY_SET_SPRITE_FILL',
       entityId: entity.id,
@@ -61,15 +75,17 @@ export function SpriteFillColorField({ entity }: SpriteFillColorFieldProps) {
     else setDraft(hex)
   }
 
+  const label = isPrototype ? 'Prototype color' : 'Fill color (no asset)'
+
   return (
     <div className={`mb-2 ${disabled ? 'opacity-50' : ''}`}>
       <span className="text-[9px] text-[var(--muted)] uppercase block mb-1">
-        Fill color (no asset)
+        {label}
       </span>
       <div className="flex items-center gap-2">
         <input
           type="color"
-          aria-label="Fill color"
+          aria-label={label}
           disabled={disabled}
           value={hex}
           onChange={(e) => onPickerChange(e.target.value)}
@@ -78,7 +94,7 @@ export function SpriteFillColorField({ entity }: SpriteFillColorFieldProps) {
         />
         <input
           type="text"
-          aria-label="Fill color hex"
+          aria-label={`${label} hex`}
           disabled={disabled}
           value={draft}
           maxLength={7}
@@ -96,6 +112,10 @@ export function SpriteFillColorField({ entity }: SpriteFillColorFieldProps) {
       {disabled ? (
         <p className="text-[8px] text-[var(--muted)] mt-1 leading-snug">
           Fill color applies only to placeholder objects without a sprite asset.
+        </p>
+      ) : isPrototype ? (
+        <p className="text-[8px] text-[var(--muted)] mt-1 leading-snug">
+          Edits the generated prototype color. Use Promote when ready for a real sprite file.
         </p>
       ) : null}
     </div>

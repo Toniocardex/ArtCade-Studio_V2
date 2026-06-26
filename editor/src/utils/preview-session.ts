@@ -30,7 +30,7 @@ export function buildPreviewSessionBundle(
   input: PreviewSessionInput,
 ): PreviewSessionBuildResult {
   const activeSceneId = input.selectionSceneId ?? input.project.activeSceneId
-  const scene = input.project.scenes[activeSceneId]
+  const scene = input.project.scenes?.[activeSceneId]
   const workbench = getProjectWorkbenchSnapshot({
     project: input.project,
     projectPath: input.projectPath,

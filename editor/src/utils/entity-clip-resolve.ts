@@ -52,7 +52,7 @@ export function resolveClipForEntity(
   const entity =
     entityOverride ??
     entitiesForRuntimeSync(project)[entityId] ??
-    project.entities[entityId]
+    project.entities?.[entityId]
   if (!entity) return undefined
 
   const spritePath = entity.sprite.spriteAssetId?.trim() ?? ''

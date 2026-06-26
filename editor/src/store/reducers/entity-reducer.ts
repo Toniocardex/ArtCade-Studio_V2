@@ -58,14 +58,15 @@ function patchInstance(
 ): ProjectDoc | null {
   const found = findSceneInstance(project, entityId)
   if (!found) return null
-  const scene = project.scenes[found.sceneId]
+  const scene = project.scenes?.[found.sceneId]
+  if (!scene?.instances) return null
   const next: ProjectDoc = {
     ...project,
     scenes: {
       ...project.scenes,
       [found.sceneId]: {
         ...scene,
-        instances: scene.instances!.map((i) =>
+        instances: scene.instances.map((i) =>
           i.id === entityId ? patch(i) : i,
         ),
       },
@@ -83,8 +84,8 @@ export const entityReducer: DomainReducer = (state: CoreState, action: Action) =
   switch (action.type) {
     case 'UPDATE_ENTITY_TRANSFORM': {
       if (state.isPlaying) return state
-      if (!state.project || !state.project.entities[action.entityId]) return state
-      const entity = state.project.entities[action.entityId]
+      const entity = state.project?.entities?.[action.entityId]
+      if (state.isPlaying || !state.project || !entity) return state
       const t = entity.transform
       const unchanged =
         Math.abs(t.position.x - action.x)      < TRANSFORM_EPS &&
@@ -116,13 +117,13 @@ export const entityReducer: DomainReducer = (state: CoreState, action: Action) =
       }
     }
     case 'ENTITY_SET_SPRITE': {
-      if (!state.project || !state.project.entities[action.entityId]) return state
+      const entity = state.project?.entities?.[action.entityId]
+      if (!state.project || !entity) return state
       const viaType = patchTypeForInstance(state.project, action.entityId, (type) => ({
         ...type,
         sprite: action.sprite,
       }))
       if (viaType) return withProject(state, viaType)
-      const entity = state.project.entities[action.entityId]
       return withProject(state, {
         ...state.project,
         entities: {
@@ -132,13 +133,13 @@ export const entityReducer: DomainReducer = (state: CoreState, action: Action) =
       })
     }
     case 'ENTITY_SET_SPRITE_FILL': {
-      if (!state.project || !state.project.entities[action.entityId]) return state
+      const entity = state.project?.entities?.[action.entityId]
+      if (!state.project || !entity) return state
       const viaType = patchTypeForInstance(state.project, action.entityId, (type) => ({
         ...type,
         sprite: { ...type.sprite, fillColor: action.fillColor },
       }))
       if (viaType) return withProject(state, viaType)
-      const entity = state.project.entities[action.entityId]
       return withProject(state, {
         ...state.project,
         entities: {
@@ -151,13 +152,13 @@ export const entityReducer: DomainReducer = (state: CoreState, action: Action) =
       })
     }
     case 'ENTITY_SET_PHYSICS': {
-      if (!state.project || !state.project.entities[action.entityId]) return state
+      const entity = state.project?.entities?.[action.entityId]
+      if (!state.project || !entity) return state
       const viaType = patchTypeForInstance(state.project, action.entityId, (type) => ({
         ...type,
         physics: action.physics,
       }))
       if (viaType) return withProject(state, viaType)
-      const entity = state.project.entities[action.entityId]
       return withProject(state, {
         ...state.project,
         entities: {
@@ -167,13 +168,13 @@ export const entityReducer: DomainReducer = (state: CoreState, action: Action) =
       })
     }
     case 'ENTITY_REMOVE_PHYSICS': {
-      if (!state.project || !state.project.entities[action.entityId]) return state
+      const entity = state.project?.entities?.[action.entityId]
+      if (!state.project || !entity) return state
       const viaType = patchTypeForInstance(state.project, action.entityId, (type) => {
         const { physics: _removed, ...rest } = type
         return rest
       })
       if (viaType) return withProject(state, viaType)
-      const entity = state.project.entities[action.entityId]
       const { physics: _removed, ...rest } = entity
       return withProject(state, {
         ...state.project,
@@ -181,13 +182,13 @@ export const entityReducer: DomainReducer = (state: CoreState, action: Action) =
       })
     }
     case 'ENTITY_SET_COMPONENT': {
-      if (!state.project || !state.project.entities[action.entityId]) return state
+      const entity = state.project?.entities?.[action.entityId]
+      if (!state.project || !entity) return state
       const viaType = patchTypeForInstance(state.project, action.entityId, (type) => ({
         ...type,
         [action.key]: action.value,
       }))
       if (viaType) return withProject(state, viaType)
-      const entity = state.project.entities[action.entityId]
       return withProject(state, {
         ...state.project,
         entities: {
@@ -197,14 +198,14 @@ export const entityReducer: DomainReducer = (state: CoreState, action: Action) =
       })
     }
     case 'ENTITY_REMOVE_COMPONENT': {
-      if (!state.project || !state.project.entities[action.entityId]) return state
+      const entity = state.project?.entities?.[action.entityId]
+      if (!state.project || !entity) return state
       const viaType = patchTypeForInstance(state.project, action.entityId, (type) =>
         Object.fromEntries(
           Object.entries(type).filter(([k]) => k !== action.key),
         ) as unknown as ObjectTypeDef,
       )
       if (viaType) return withProject(state, viaType)
-      const entity = state.project.entities[action.entityId]
       const rest = Object.fromEntries(
         Object.entries(entity).filter(([k]) => k !== action.key),
       ) as typeof entity
@@ -220,7 +221,7 @@ export const entityReducer: DomainReducer = (state: CoreState, action: Action) =
         (action.type === 'ENTITY_DELETE'
           ? [action.entityId]
           : action.entityIds
-        ).filter((id) => state.project?.entities[id]),
+        ).filter((id) => state.project?.entities?.[id]),
       )
       if (deleteIds.size === 0) return state
       const entities = Object.fromEntries(
@@ -229,7 +230,7 @@ export const entityReducer: DomainReducer = (state: CoreState, action: Action) =
         ),
       )
       const scenes = Object.fromEntries(
-        Object.entries(state.project.scenes).map(([sid, sc]) => [
+        Object.entries(state.project.scenes ?? {}).map(([sid, sc]) => [
           sid,
           {
             ...sc,
@@ -258,13 +259,13 @@ export const entityReducer: DomainReducer = (state: CoreState, action: Action) =
       }
     }
     case 'ENTITY_SET_VISIBLE': {
-      if (!state.project || !state.project.entities[action.entityId]) return state
+      const e = state.project?.entities?.[action.entityId]
+      if (!state.project || !e) return state
       const viaInstance = patchInstance(state.project, action.entityId, (inst) => ({
         ...inst,
         visible: action.visible,
       }))
       if (viaInstance) return withProject(state, viaInstance)
-      const e = state.project.entities[action.entityId]
       return withProject(state, {
         ...state.project,
         entities: {
@@ -274,8 +275,8 @@ export const entityReducer: DomainReducer = (state: CoreState, action: Action) =
       })
     }
     case 'ENTITY_SET_NAME': {
-      if (!state.project || !state.project.entities[action.entityId]) return state
-      const e = state.project.entities[action.entityId]
+      const e = state.project?.entities?.[action.entityId]
+      if (!state.project || !e) return state
       const name = action.name.trim()
       if (!name || name === e.name) return state
       const sceneId = state.selection.sceneId ?? state.project.activeSceneId
@@ -297,7 +298,8 @@ export const entityReducer: DomainReducer = (state: CoreState, action: Action) =
       // Re-type the instance: point it at the type named `className`,
       // creating that type (cloned from the current one) when missing.
       // This is the "variant" flow — CoinGold = new type, never an override.
-      if (!state.project || !state.project.entities[action.entityId]) return state
+      const currentEntity = state.project?.entities?.[action.entityId]
+      if (!state.project || !currentEntity) return state
       const className = action.className.trim()
       if (!className) return state
       const found = findSceneInstance(state.project, action.entityId)
@@ -306,7 +308,7 @@ export const entityReducer: DomainReducer = (state: CoreState, action: Action) =
         ? state.project.objectTypes?.[currentTypeId]
         : undefined
       if (!found || !currentType) {
-        const e = state.project.entities[action.entityId]
+        const e = currentEntity
         if (className === e.className) return state
         return withProject(state, {
           ...state.project,
@@ -336,10 +338,10 @@ export const entityReducer: DomainReducer = (state: CoreState, action: Action) =
       return retargeted ? withProject(state, retargeted) : state
     }
     case 'ENTITY_ADD_TAG': {
-      if (!state.project || !state.project.entities[action.entityId]) return state
+      const e = state.project?.entities?.[action.entityId]
+      if (!state.project || !e) return state
       const tag = action.tag.trim()
       if (!tag) return state
-      const e = state.project.entities[action.entityId]
       if (e.tags.includes(tag)) return state
       const viaType = patchTypeForInstance(state.project, action.entityId, (type) =>
         type.tags.includes(tag) ? type : { ...type, tags: [...type.tags, tag] },
@@ -354,8 +356,8 @@ export const entityReducer: DomainReducer = (state: CoreState, action: Action) =
       })
     }
     case 'ENTITY_REMOVE_TAG': {
-      if (!state.project || !state.project.entities[action.entityId]) return state
-      const e = state.project.entities[action.entityId]
+      const e = state.project?.entities?.[action.entityId]
+      if (!state.project || !e) return state
       if (!e.tags.includes(action.tag)) return state
       const viaType = patchTypeForInstance(state.project, action.entityId, (type) => ({
         ...type,

@@ -106,7 +106,7 @@ function reconcileSelection(
 ): CoreState['selection'] {
   const sel = state.selection
   let entityId = sel.entityId
-  if (entityId !== null && !project.entities[entityId]) {
+  if (entityId !== null && !project.entities?.[entityId]) {
     entityId = null
   }
   let sceneId = sel.sceneId
@@ -117,8 +117,8 @@ function reconcileSelection(
   ) {
     entityId = null
   }
-  if (sceneId && !project.scenes[sceneId]) {
-    sceneId = project.activeSceneId || Object.keys(project.scenes)[0] || null
+  if (sceneId && !project.scenes?.[sceneId]) {
+    sceneId = project.activeSceneId || Object.keys(project.scenes ?? {})[0] || null
   }
   return { entityId, entityIds: entityId != null ? [entityId] : [], sceneId }
 }

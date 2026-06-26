@@ -54,6 +54,23 @@ export function editorCenterWorldPoint(
   )
 }
 
+/** Centres the scene viewport origin in the editor surface (100% zoom, no fit). */
+export function editorCenterSceneViewport(
+  viewportSize: Readonly<{ x: number; y: number }>,
+  clientWidth: number,
+  clientHeight: number,
+  editorZoom: number,
+  devicePixelRatio: number,
+): void {
+  editorCenterWorldPoint(
+    { x: viewportSize.x * 0.5, y: viewportSize.y * 0.5 },
+    clientWidth,
+    clientHeight,
+    editorZoom,
+    devicePixelRatio,
+  )
+}
+
 /** Frames world bounds in the editor viewport (fit / Home). */
 export function editorFrameWorld(
   minX: number,

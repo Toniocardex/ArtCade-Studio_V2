@@ -21,7 +21,7 @@ export function TransformSection({ entity }: TransformSectionProps) {
 
   function commitTransform(next: TransformPatch) {
     const sceneId = selectionSceneId ?? project?.activeSceneId
-    const activeScene = sceneId ? project?.scenes[sceneId] : undefined
+    const activeScene = sceneId ? project?.scenes?.[sceneId] : undefined
     const gridSize = editorGridSize || activeScene?.tilemap?.tileSize || 32
     const rawX = next.x ?? entity.transform.position.x
     const rawY = next.y ?? entity.transform.position.y

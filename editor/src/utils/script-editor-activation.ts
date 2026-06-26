@@ -14,7 +14,7 @@ function entityOpenScriptPath(state: CoreState): string | null {
   if (!state.project) return null
   const entityId = state.selection.entityId
   if (entityId == null) return null
-  const entityScript = state.project.entities[entityId]?.scriptPath?.trim()
+  const entityScript = state.project.entities?.[entityId]?.scriptPath?.trim()
   if (!entityScript) return null
   return openScriptPaths(state).has(entityScript) ? entityScript : null
 }
@@ -55,7 +55,7 @@ export function resolveScriptEditorTargetPath(state: CoreState): string | null {
 
   const entityId = state.selection.entityId
   if (entityId != null) {
-    const entityScript = state.project.entities[entityId]?.scriptPath?.trim()
+    const entityScript = state.project.entities?.[entityId]?.scriptPath?.trim()
     if (entityScript) return entityScript
   }
 
@@ -76,7 +76,7 @@ export function resolveScriptEditorEmptyHint(input: ScriptEditorEmptyHintInput):
   if (!project) return 'Open a script from the Project panel.'
 
   const openPaths = new Set(openScriptPaths)
-  const entity = selectionEntityId != null ? project.entities[selectionEntityId] : undefined
+  const entity = selectionEntityId != null ? project.entities?.[selectionEntityId] : undefined
 
   if (entity) {
     const entityScript = entity.scriptPath?.trim()

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  clearPresentationSnapshot,
   getPresentationSnapshot,
   onPresentationChanged,
   publishPresentationSnapshot,
@@ -34,6 +35,18 @@ describe('presentation-store', () => {
     expect(publishPresentationSnapshot(SAMPLE)).toBe(false)
     expect(count).toBe(1)
     expect(getPresentationSnapshot()?.revision).toBe(1n)
+    unsub()
+  })
+
+  it('clearPresentationSnapshot drops committed state without removing listeners', () => {
+    resetPresentationStoreForTests()
+    publishPresentationSnapshot(SAMPLE)
+    let count = 0
+    const unsub = onPresentationChanged(() => { count++ })
+    clearPresentationSnapshot()
+    expect(getPresentationSnapshot()).toBeNull()
+    publishPresentationSnapshot({ ...SAMPLE, revision: 2n })
+    expect(count).toBe(1)
     unsub()
   })
 })

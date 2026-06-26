@@ -4,6 +4,8 @@ namespace ArtCade::Presentation {
 
 PresentationSnapshotWasm snapshot_to_wasm(const PresentationSnapshot& snapshot) {
     PresentationSnapshotWasm abi{};
+    abi.abiVersion = PRESENTATION_SNAPSHOT_ABI_VERSION;
+    abi.byteSize = PRESENTATION_SNAPSHOT_WASM_SIZE;
     abi.revision = snapshot.revision;
     abi.effectiveMode = static_cast<uint32_t>(snapshot.effectiveMode);
     if (snapshot.letterboxActive) abi.flags |= 1u;

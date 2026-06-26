@@ -74,10 +74,10 @@ export default function InspectorPanel() {
   const activePaintTilesetId = useEditorSelector((s) => s.activePaintTilesetId)
 
   const entity = (project && selection.entityId != null)
-    ? project.entities[selection.entityId]
+    ? project.entities?.[selection.entityId] ?? null
     : null
   const sceneId = selection.sceneId ?? project?.activeSceneId
-  const scene = project && sceneId ? project.scenes[sceneId] : null
+  const scene = project && sceneId ? project.scenes?.[sceneId] ?? null : null
   const paintTileset = activePaintTilesetId ? project?.tilesets?.[activePaintTilesetId] : undefined
 
   const dispatch = useEditorDispatch()

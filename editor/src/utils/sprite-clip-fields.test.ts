@@ -108,7 +108,7 @@ describe('sprite clip fields', () => {
       assets: { b: asset },
     }
     const next = spriteAssignedFromAsset(baseEntity().sprite, asset, project)
-    expect(next.spriteAssetId).toBe('other.png')
+    expect(next.spriteAssetId).toBe('b')
     expect(next.defaultClip).toBeUndefined()
     expect(next.playClipOnSpawn).toBe(false)
   })

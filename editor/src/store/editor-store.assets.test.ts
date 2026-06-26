@@ -18,7 +18,7 @@ function project(): ProjectDoc {
       1: {
         id: 1, name: 'A', className: 'Player', tags: [],
         transform: { position: { x: 0, y: 0 }, scale: { x: 1, y: 1 }, rotation: 0 },
-        sprite: { spriteAssetId: 'assets/images/hero.png', tint: { x: 1, y: 1, z: 1, w: 1 }, fillColor: { x: 1, y: 1, z: 1 }, alpha: 1, pivot: { x: 0.5, y: 0.5 }, renderOrder: 0 },
+        sprite: { spriteAssetId: 'img_a', tint: { x: 1, y: 1, z: 1, w: 1 }, fillColor: { x: 1, y: 1, z: 1 }, alpha: 1, pivot: { x: 0.5, y: 0.5 }, renderOrder: 0 },
       },
     },
     scenes: {
@@ -78,7 +78,15 @@ describe('coreReducer — image asset library', () => {
     let s = coreReducer(st(project()), { type: 'ASSET_ADD', asset: IMG })
     s = coreReducer(s, { type: 'ASSET_REMOVE', assetId: 'img_a' })
     expect(s.project!.assets).toEqual({})
-    expect(s.project!.entities[1].sprite.spriteAssetId).toBe('')
+    expect(s.project!.entities[1].sprite.spriteAssetId).toBeNull()
+  })
+
+  it('ASSET_REMOVE detaches sprites linked by legacy path', () => {
+    const p = project()
+    p.entities[1].sprite.spriteAssetId = 'assets/images/hero.png'
+    let s = coreReducer(st(p), { type: 'ASSET_ADD', asset: IMG })
+    s = coreReducer(s, { type: 'ASSET_REMOVE', assetId: 'img_a' })
+    expect(s.project!.entities[1].sprite.spriteAssetId).toBeNull()
   })
 
   it('IMAGE_ASSET_RENAME changes only the display name', () => {
@@ -203,6 +211,18 @@ describe('project.json roundtrip — assets', () => {
     expect(s.project!.assets!.img_a.dataUrl).toBe(IMG.dataUrl)
     expect(s.project!.assets!.img_a.path).toBe(IMG.path)
     expect(s.projectDirty).toBe(true)
+  })
+
+  it('IMAGE_ASSET_SET_CLIPS assigns the first clip to sprites linked by asset id', () => {
+    let s = coreReducer(st(project()), { type: 'ASSET_ADD', asset: IMG })
+    s = coreReducer(s, {
+      type: 'IMAGE_ASSET_SET_CLIPS',
+      assetId: 'img_a',
+      clips: [
+        { name: 'walk', frames: [{ x: 0, y: 0, w: 16, h: 16 }], fps: 8, loop: true },
+      ],
+    })
+    expect(s.project!.entities[1].sprite.defaultClip).toBe('walk')
   })
 
   it('IMAGE_ASSET_SET_CLIPS assigns the first clip to linked sprites without a default clip', () => {
@@ -410,6 +430,6 @@ describe('project.json roundtrip — assets', () => {
       asset: { ...IMG, usage: 'background' },
     })
     expect(s.project!.assets!['img_a'].usage).toBe('background')
-    expect(s.project!.entities[1].sprite.spriteAssetId).toBe('')
+    expect(s.project!.entities[1].sprite.spriteAssetId).toBeNull()
   })
 })

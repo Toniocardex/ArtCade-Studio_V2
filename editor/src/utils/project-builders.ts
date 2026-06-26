@@ -10,14 +10,14 @@ const defaultViewportSize = (): Vec2 => ({ x: DEFAULT_VIEWPORT_SIZE.x, y: DEFAUL
 
 /** Next free numeric entity id for a project. */
 export function nextEntityId(project: ProjectDoc): number {
-  const ids = Object.keys(project.entities).map(Number).filter(Number.isFinite)
+  const ids = Object.keys(project.entities ?? {}).map(Number).filter(Number.isFinite)
   return (ids.length ? Math.max(...ids) : 0) + 1
 }
 
 /** Next stable scene id. Keeps legacy ids such as scene_main untouched. */
 export function nextSceneId(project: ProjectDoc): string {
   let i = 2
-  while (project.scenes[`scene_${i}`]) i += 1
+  while (project.scenes?.[`scene_${i}`]) i += 1
   return `scene_${i}`
 }
 
@@ -29,7 +29,7 @@ export function uniqueSceneName(
 ): string {
   const base = baseName.trim() || 'Scene'
   const taken = new Set(
-    Object.values(project.scenes)
+    Object.values(project.scenes ?? {})
       .filter((s) => s.id !== excludingSceneId)
       .map((s) => s.name),
   )
@@ -46,7 +46,7 @@ export function createSceneDef(
   name?: string,
 ): SceneDef {
   const id = nextSceneId(project)
-  const numericSuffix = id.match(/(\d+)$/)?.[1] ?? String(Object.keys(project.scenes).length + 1)
+  const numericSuffix = id.match(/(\d+)$/)?.[1] ?? String(Object.keys(project.scenes ?? {}).length + 1)
   return {
     id,
     name: uniqueSceneName(project, name ?? `Scene ${numericSuffix}`, id),
@@ -95,7 +95,7 @@ export function createEntityDef(
       rotation: 0,
     },
     sprite: {
-      spriteAssetId: '', tint: { x: 1, y: 1, z: 1, w: 1 },
+      spriteAssetId: null, tint: { x: 1, y: 1, z: 1, w: 1 },
       fillColor: { x: 1, y: 1, z: 1 },
       alpha: 1, pivotFromAsset: true, pivot: { x: 0.5, y: 0.5 }, renderOrder: 0,
     },

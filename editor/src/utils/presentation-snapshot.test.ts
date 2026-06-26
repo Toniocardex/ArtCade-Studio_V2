@@ -54,4 +54,23 @@ describe('presentation-snapshot', () => {
     expect(() => parsePresentationSnapshotWasm(heap, 0))
       .toThrow('Unsupported presentation mode ABI: 99')
   })
+
+  it('parses pre-v1 WASM layout when byteSize is zero', () => {
+    const heap = new Uint8Array(64)
+    const view = new DataView(heap.buffer)
+    view.setBigUint64(0, 9n, true)
+    view.setUint32(8, 0, true)
+    view.setUint32(12, 0, true)
+    view.setFloat32(16, 800, true)
+    view.setFloat32(20, 600, true)
+    view.setFloat32(24, 320, true)
+    view.setFloat32(28, 180, true)
+    view.setFloat32(56, 1.5, true)
+
+    const snap = parsePresentationSnapshotWasm(heap, 0)
+    expect(snap.revision).toBe(9n)
+    expect(snap.effectiveMode).toBe('sceneEdit')
+    expect(snap.surfaceFramebuffer).toEqual({ width: 800, height: 600 })
+    expect(snap.presentationScale).toBe(1.5)
+  })
 })

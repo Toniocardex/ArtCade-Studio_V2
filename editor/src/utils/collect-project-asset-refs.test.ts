@@ -39,7 +39,7 @@ function baseProject(): ProjectDoc {
 
 function objectTypeWithSprite(): ObjectTypeDef {
   const entity = createEntityDef(1, 'Player', 'Player', { x: 0, y: 0 })
-  entity.sprite.spriteAssetId = 'assets/images/hero.png'
+  entity.sprite.spriteAssetId = 'hero'
   return {
     id: 'Player',
     displayName: 'Player',

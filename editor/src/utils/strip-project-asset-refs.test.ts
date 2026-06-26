@@ -86,7 +86,7 @@ describe('projectAfterRemovingAsset', () => {
       path: 'assets/images/hero.png',
     })
     expect(next.assets).toEqual({})
-    expect(next.entities[1].sprite.spriteAssetId).toBe('')
+    expect(next.entities[1].sprite.spriteAssetId).toBeNull()
   })
 
   it('image: clears object type sprite paths as a safety net', () => {
@@ -105,7 +105,7 @@ describe('projectAfterRemovingAsset', () => {
       path: 'assets/images/hero.png',
     })
 
-    expect(next.objectTypes!.Player.sprite.spriteAssetId).toBe('')
+    expect(next.objectTypes!.Player.sprite.spriteAssetId).toBeNull()
   })
 
   it('audio: removes library entry and scrubs logic board actions', () => {

@@ -40,7 +40,7 @@ describe('sprite-pivot-resolve', () => {
     }
     const next = spriteAssignedFromAsset(base, asset)
     expect(next.pivotFromAsset).toBe(true)
-    expect(next.spriteAssetId).toBe(asset.path)
+    expect(next.spriteAssetId).toBe(asset.id)
     expect(next.pivot).toEqual({ x: 0.5, y: 1 })
   })
 

@@ -949,20 +949,10 @@ void Renderer::drawSprite(const AssetId& assetId,
     const std::string texKey = resolvedTextureKey(assetId);
     const Texture2D* tex = impl_->texCache.getByPath(texKey);
     if (!tex || tex->id == 0) {
-        // abs(): scale is magnitude; flip is a flag and does not size the rect.
-        const float fw = kPlaceholderSpriteSize * (scale.x < 0.f ? -scale.x : scale.x);
-        const float fh = kPlaceholderSpriteSize * (scale.y < 0.f ? -scale.y : scale.y);
-        const unsigned char ca =
-            static_cast<unsigned char>(std::clamp(alpha, 0.f, 1.f) * 255.f);
-        const Color fill{
-            static_cast<unsigned char>(std::clamp(fillColor.x, 0.f, 1.f) * 255.f),
-            static_cast<unsigned char>(std::clamp(fillColor.y, 0.f, 1.f) * 255.f),
-            static_cast<unsigned char>(std::clamp(fillColor.z, 0.f, 1.f) * 255.f),
-            ca };
-        if (outline)
-            drawPlaceholderOutlineSilhouette(pos, pivot, fw, fh, tint.a * alpha);
-        const Vec2 topLeft = SpriteDrawMath::placeholderTopLeft(pos, pivot, fw, fh);
-        DrawRectangleV({ topLeft.x, topLeft.y }, { fw, fh }, fill);
+        impl_->texCache.load(texKey);
+        tex = impl_->texCache.getByPath(texKey);
+    }
+    if (!tex || tex->id == 0) {
         return;
     }
 

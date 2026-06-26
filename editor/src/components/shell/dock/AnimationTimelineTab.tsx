@@ -13,7 +13,7 @@ export function AnimationTimelineTab() {
     if (!project || entityId == null) {
       return { clipName: null as string | null, frames: 0, fps: 10, spriteId: null as string | null }
     }
-    const entity = project.entities[entityId]
+    const entity = project.entities?.[entityId]
     const spriteId = entity?.sprite?.spriteAssetId
     if (!spriteId) {
       return { clipName: null, frames: 0, fps: 10, spriteId: null }

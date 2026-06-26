@@ -56,6 +56,42 @@ export type PresentationChangedEvent = Readonly<{
   snapshot: PresentationSnapshot
 }>
 
+/** Pre-v1 WASM layout (revision at byte 0, no abi header). */
+function parseLegacyPresentationSnapshotWasm(
+  heap: Uint8Array,
+  ptr: number,
+): PresentationSnapshot {
+  const view = new DataView(heap.buffer, heap.byteOffset + ptr, 60)
+  const revision = view.getBigUint64(0, true)
+  const modeOrdinal = view.getUint32(8, true)
+  const effectiveMode = MODE_FROM_ABI[modeOrdinal] ?? 'sceneEdit'
+  const flags = view.getUint32(12, true)
+  const scaleX = view.getFloat32(48, true)
+  return {
+    revision,
+    effectiveMode,
+    letterboxActive: (flags & 1) !== 0,
+    useIdentityPlacement: (flags & 2) !== 0,
+    surfaceFramebuffer: {
+      width: view.getFloat32(16, true),
+      height: view.getFloat32(20, true),
+    },
+    logical: {
+      width: view.getFloat32(24, true),
+      height: view.getFloat32(28, true),
+    },
+    placement: {
+      destX: view.getFloat32(32, true),
+      destY: view.getFloat32(36, true),
+      destW: view.getFloat32(40, true),
+      destH: view.getFloat32(44, true),
+      scaleX,
+      scaleY: view.getFloat32(52, true),
+    },
+    presentationScale: view.getFloat32(56, true) || scaleX,
+  }
+}
+
 /**
  * Parses the WASM static buffer returned by `editor_get_presentation_snapshot`.
  * @param heap wasm module HEAPU8
@@ -68,6 +104,9 @@ export function parsePresentationSnapshotWasm(
   const view = new DataView(heap.buffer, heap.byteOffset + ptr, PRESENTATION_SNAPSHOT_WASM_BYTE_SIZE)
   const abiVersion = view.getUint32(0, true)
   const byteSize = view.getUint32(4, true)
+  if (byteSize === 0 && abiVersion > 0 && abiVersion < 1_000_000) {
+    return parseLegacyPresentationSnapshotWasm(heap, ptr)
+  }
   if (abiVersion !== PRESENTATION_SNAPSHOT_ABI_VERSION) {
     throw new Error(`Unsupported presentation ABI: ${abiVersion}`)
   }

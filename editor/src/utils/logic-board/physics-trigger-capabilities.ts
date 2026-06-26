@@ -52,11 +52,11 @@ export function collisionTriggerRequirement(
   }
 
   const withBounds = ids.filter((id) =>
-    entityHasOverlapBounds(project.entities[id]),
+    entityHasOverlapBounds(project.entities?.[id]),
   )
   if (withBounds.length !== ids.length) return null
 
-  const tuned = ids.filter((id) => entityHasCollisionBody(project.entities[id]))
+  const tuned = ids.filter((id) => entityHasCollisionBody(project.entities?.[id]))
   if (tuned.length === 0) {
     return {
       label: 'Hitbox (optional)',

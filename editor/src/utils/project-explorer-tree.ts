@@ -240,7 +240,7 @@ export function buildSceneTypeGroups(
   activeSceneId: string,
   searchQuery: string,
 ): ExplorerTypeGroup[] {
-  const scene = project.scenes[activeSceneId]
+  const scene = project.scenes?.[activeSceneId]
   const instanceTypeById = new Map<number, string>()
   for (const inst of scene?.instances ?? []) {
     instanceTypeById.set(inst.id, inst.objectTypeId)
@@ -254,7 +254,7 @@ export function buildSceneTypeGroups(
   }>()
 
   for (const id of scene?.entityIds ?? []) {
-    const entity = project.entities[id]
+    const entity = project.entities?.[id]
     if (!entity) continue
     const objectTypeId = instanceTypeById.get(id) ?? null
     const typeKey = objectTypeId ?? `class:${entity.className}`

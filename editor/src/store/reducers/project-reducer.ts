@@ -16,6 +16,7 @@ import { safeProjectFolderName } from '../../utils/project'
 import { emptyProjectHistory } from '../project-history'
 import { DEFAULT_LAYERS } from '../../constants/scene-layers'
 import type { ProjectDoc } from '../../types'
+import { normalizeProjectDoc } from '../../utils/project-object-types'
 
 function seedLayers(project: ProjectDoc): ProjectDoc {
   if (project.layers && project.layers.length > 0) return project
@@ -25,8 +26,9 @@ function seedLayers(project: ProjectDoc): ProjectDoc {
 export const projectReducer: DomainReducer = (state: CoreState, action: Action) => {
   switch (action.type) {
     case 'LOAD_PROJECT': {
-      const firstSceneId = Object.keys(action.project.scenes)[0] ?? null
-      const seededProject = seedLayers(action.project)
+      const normalized = normalizeProjectDoc(action.project)
+      const firstSceneId = Object.keys(normalized.project.scenes)[0] ?? null
+      const seededProject = seedLayers(normalized.project)
       const defaultActiveLayerId = seededProject.layers![0]!.id
       // Reset editor "view" chrome so a 400% zoom, a stuck fit-mode tracking
       // or an active camera preview from the previous project don't bleed
@@ -39,7 +41,7 @@ export const projectReducer: DomainReducer = (state: CoreState, action: Action) 
         editorActiveLayerId: defaultActiveLayerId,
         projectPath: action.path,
         projectDirty: false,
-        selection:   { entityId: null, entityIds: [], sceneId: action.project.activeSceneId || firstSceneId },
+        selection:   { entityId: null, entityIds: [], sceneId: seededProject.activeSceneId || firstSceneId },
         instanceClipboard: null,
         inspectorAsset: null,
         inspectorLayerId: null,
@@ -57,7 +59,7 @@ export const projectReducer: DomainReducer = (state: CoreState, action: Action) 
         editorZoomMode:   'manual',
         cameraPreview:    false,
         projectLoadEpoch: state.projectLoadEpoch + 1,
-        legacyMigrateBanner: action.migratedFromLegacy ?? false,
+        legacyMigrateBanner: action.migratedFromLegacy ?? normalized.migratedFromLegacy,
         projectHistory: emptyProjectHistory(),
         logicPreviewAppliedRevision: null,
         dialogs: action.dialogs ?? {},

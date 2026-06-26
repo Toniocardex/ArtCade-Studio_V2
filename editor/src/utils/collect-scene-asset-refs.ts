@@ -7,6 +7,7 @@ import type { EntityDef, ProjectDoc, SceneDef } from '../types'
 import type { TilesetAsset } from '../types/tilemap'
 import type { LogicAction, LogicBoard } from '../types/logic-board'
 import { materializeEntity } from './project-object-types'
+import { resolveSpriteLoadKey } from './sprite-asset-ref'
 import { tilesetIdsOnLayer } from './tilemap-layer-sources'
 
 /** v1: project-relative path used as TextureCache key (same as spriteAssetId today). */
@@ -19,7 +20,7 @@ export interface CollectSceneAssetRefsOptions {
 
 /** Resolved entities for one scene (v2 materialize + overlay, v1 entityIds). */
 export function entitiesInScene(project: ProjectDoc, sceneId: string): EntityDef[] {
-  const scene = project.scenes[sceneId]
+  const scene = project.scenes?.[sceneId]
   if (!scene) return []
 
   const hasObjectTypes =
@@ -32,7 +33,7 @@ export function entitiesInScene(project: ProjectDoc, sceneId: string): EntityDef
       const type = types[inst.objectTypeId]
       if (!type) continue
       let ent = materializeEntity(type, inst)
-      const overlay = project.entities[inst.id]
+      const overlay = project.entities?.[inst.id]
       if (overlay) ent = overlay
       out.push(ent)
     }
@@ -41,7 +42,7 @@ export function entitiesInScene(project: ProjectDoc, sceneId: string): EntityDef
 
   const out: EntityDef[] = []
   for (const eid of scene.entityIds ?? []) {
-    const ent = project.entities[eid]
+    const ent = project.entities?.[eid]
     if (ent) out.push(ent)
   }
   return out
@@ -81,7 +82,7 @@ function boardTargetsScene(
 ): boolean {
   const target = board.target
   if (target.type === 'object_type' && target.objectTypeId) {
-    const scene = project.scenes[sceneId]
+    const scene = project.scenes?.[sceneId]
     for (const inst of scene?.instances ?? []) {
       if (inst.objectTypeId === target.objectTypeId) return true
     }
@@ -129,7 +130,7 @@ function collectAudioFromLogicBoards(
 
 /** Audio paths referenced by Logic Boards tied to this scene (preview registration). */
 export function collectSceneAudioRefs(project: ProjectDoc, sceneId: string): string[] {
-  if (!project.scenes[sceneId]) return []
+  if (!project.scenes?.[sceneId]) return []
   return collectAudioFromLogicBoards(project, sceneId)
 }
 
@@ -180,7 +181,7 @@ export function collectSceneAssetRefs(
   sceneId: string,
   options?: CollectSceneAssetRefsOptions,
 ): SceneAssetLoadKey[] {
-  const scene = project.scenes[sceneId]
+  const scene = project.scenes?.[sceneId]
   if (!scene) return []
 
   const includeHidden = options?.includeHiddenInstances !== false
@@ -188,7 +189,7 @@ export function collectSceneAssetRefs(
 
   for (const ent of entitiesInScene(project, sceneId)) {
     if (!includeHidden && ent.visible === false) continue
-    addSpritePath(keys, ent.sprite.spriteAssetId)
+    addSpritePath(keys, resolveSpriteLoadKey(project, ent.sprite))
   }
 
   for (const path of tilesetPathsForScene(scene, project.tilesets)) {

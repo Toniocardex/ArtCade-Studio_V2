@@ -113,11 +113,11 @@ export function inferProfileRoleForAsset(
   const asset = project.assets?.[assetId]
   if (!asset) return 'player'
   for (const entity of Object.values(project.entities ?? {})) {
-    if (entity.sprite?.spriteAssetId !== asset.path) continue
+    if (entity.sprite?.spriteAssetId !== asset.id) continue
     if (entity.tags?.includes('player')) return 'player'
   }
   for (const type of Object.values(project.objectTypes ?? {})) {
-    if (type.sprite?.spriteAssetId !== asset.path) continue
+    if (type.sprite?.spriteAssetId === asset.id) continue
     if (type.tags?.includes('player')) return 'player'
   }
   return asset.usage === 'sprite' ? 'player' : 'ground'

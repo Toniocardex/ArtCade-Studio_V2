@@ -76,6 +76,7 @@ describe('runtime-preview-display', () => {
     expect(style.top).toBe('50%')
     expect(style.transform).toBe('translate(-50%, -50%)')
     expect(style.imageRendering).toBe('pixelated')
+    expect(style.visibility).toBe('visible')
   })
 
   it('hides the compositor canvas before the first committed snapshot', () => {

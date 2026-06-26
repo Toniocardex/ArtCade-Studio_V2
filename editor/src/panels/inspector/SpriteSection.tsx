@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { ChevronDown, ChevronRight, Film } from 'lucide-react'
+import { useMemo, useState, useCallback } from 'react'
+import { ChevronDown, ChevronRight, Film, RotateCcw, Upload } from 'lucide-react'
 import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import type { EntityDef } from '../../types'
 import { PivotPresetFields } from '../../components/pivot/PivotPresetFields'
@@ -14,6 +14,14 @@ import {
   usesAssetPivot,
 } from '../../utils/sprite-pivot-resolve'
 import { formatPivotLabel } from '../../utils/sprite-pivot'
+import {
+  isGeneratedPrototypeAsset,
+  promotePrototypeAssetToImported,
+  prototypeHasUserEdits,
+} from '../../utils/prototype-sprite'
+import { imageAssetForRef } from '../../utils/sprite-asset-ref'
+import { confirmDialog, alertDialog } from '../../utils/native-dialog'
+import { editorInvalidateAsset } from '../../utils/wasm-bridge'
 import { InspectorSection, NumberField } from './inspector-fields'
 import { InspectorClipPreview } from './InspectorClipPreview'
 import { SpriteFillColorField } from './SpriteFillColorField'
@@ -26,6 +34,7 @@ export type SpriteSectionProps = Readonly<{
 export function SpriteSection({ entity }: SpriteSectionProps) {
   const dispatch = useEditorDispatch()
   const project = useEditorSelector((s) => s.project)
+  const projectPath = useEditorSelector((s) => s.projectPath)
   const images = Object.values(project?.assets ?? {}).filter((asset) => asset.usage === 'sprite')
   const assetSelectId = `${entity.id}-sprite-asset`
   const [overrideOpen, setOverrideOpen] = useState(false)
@@ -34,8 +43,13 @@ export function SpriteSection({ entity }: SpriteSectionProps) {
     () => resolveClipForEntity(project, entity.id, entity),
     [project, entity],
   )
-  const spritePath = clip?.spritePath ?? entity.sprite.spriteAssetId
-  const linkedAsset = findImageAssetByPath(project?.assets, spritePath)
+  const spriteRef = clip?.spritePath ?? entity.sprite.spriteAssetId ?? ''
+  const linkedAsset = imageAssetForRef(project, spriteRef)
+    ?? findImageAssetByPath(project?.assets, spriteRef)
+  const isPrototype = isGeneratedPrototypeAsset(linkedAsset)
+  const objectType = project?.objectTypes?.[entity.className]
+  const typeId = entity.className
+  const typeName = objectType?.displayName ?? entity.name
   const sheetClips = clip?.clips ?? []
   const activeDefaultClip = sheetClips.find((c) => c.name === clip?.defaultClip)
   const effectivePivot = resolveEffectivePivot(entity.sprite, project?.assets)
@@ -55,6 +69,50 @@ export function SpriteSection({ entity }: SpriteSectionProps) {
     ? `From sheet — ${formatPivotLabel(effectivePivot)}`
     : `Override — ${formatPivotLabel(entity.sprite.pivot)}`
 
+  const onPromotePrototype = useCallback(async () => {
+    if (!linkedAsset || !isPrototype || !project) return
+    const ok = await confirmDialog(
+      'Promote writes this prototype to the project as a real PNG sprite file.\n\n'
+      + 'Animation clips and collision shapes on this sheet are kept.',
+      { title: 'Promote prototype sprite', kind: 'info' },
+    )
+    if (!ok) return
+    try {
+      const oldPath = linkedAsset.path
+      const promoted = await promotePrototypeAssetToImported({
+        asset: linkedAsset,
+        projectRoot: projectPath,
+        displayName: typeName,
+      })
+      dispatch({ type: 'ASSET_ADD', asset: promoted })
+      if (oldPath !== promoted.path) {
+        editorInvalidateAsset(oldPath, 'image')
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Promote failed.'
+      await alertDialog(message, { title: 'Promote prototype sprite', kind: 'error' })
+    }
+  }, [dispatch, isPrototype, linkedAsset, project, projectPath, typeName])
+
+  const onResetPrototype = useCallback(async () => {
+    if (!linkedAsset || !isPrototype || !project) return
+    if (prototypeHasUserEdits(project, linkedAsset)) {
+      const ok = await confirmDialog(
+        'Reset restores the default colored rectangle and removes clips, '
+        + 'collision shapes, and color edits on this prototype.',
+        { title: 'Reset prototype sprite', kind: 'warning' },
+      )
+      if (!ok) return
+    }
+    dispatch({
+      type: 'IMAGE_ASSET_RESET_PROTOTYPE',
+      assetId: linkedAsset.id,
+      typeId,
+      typeName,
+    })
+    editorInvalidateAsset(linkedAsset.path, 'image')
+  }, [dispatch, isPrototype, linkedAsset, project, typeId, typeName])
+
   return (
     <InspectorSection label="Sprite">
       <div className="mb-2">
@@ -63,22 +121,61 @@ export function SpriteSection({ entity }: SpriteSectionProps) {
         </label>
         <EditorSelect
           id={assetSelectId}
-          value={entity.sprite.spriteAssetId}
-          onChange={(path) => {
-            const img = images.find((a) => a.path === path)
-            commitSprite(spriteAssignedFromAsset(entity.sprite, img, project))
+          value={entity.sprite.spriteAssetId ?? ''}
+          onChange={(assetId) => {
+            const img = assetId
+              ? (project?.assets?.[assetId]
+                ?? images.find((a) => a.id === assetId))
+              : undefined
+            commitSprite(
+              assetId
+                ? spriteAssignedFromAsset(entity.sprite, img, project)
+                : { ...entity.sprite, spriteAssetId: null, defaultClip: undefined, playClipOnSpawn: false },
+            )
           }}
           triggerClassName="py-1"
           options={[
             { value: '', label: '(none)' },
-            // Keep a missing asset path selectable so the field shows the truth.
             ...(entity.sprite.spriteAssetId &&
-            !images.some((a) => a.path === entity.sprite.spriteAssetId)
-              ? [{ value: entity.sprite.spriteAssetId, label: entity.sprite.spriteAssetId }]
+            !images.some((a) => a.id === entity.sprite.spriteAssetId)
+              ? [{
+                  value: entity.sprite.spriteAssetId,
+                  label: `${entity.sprite.spriteAssetId} (missing)`,
+                }]
               : []),
-            ...images.map((a) => ({ value: a.path, label: a.name })),
+            ...images.map((a) => ({
+              value: a.id,
+              label: isGeneratedPrototypeAsset(a) ? `${a.name} (prototype)` : a.name,
+            })),
           ]}
         />
+        {isPrototype ? (
+          <div className="mt-1.5 space-y-1">
+            <p className="text-[8px] text-[var(--accent)] leading-snug">
+              Prototype sprite — edit color below, open Studio for clips, or promote to a real file.
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 rounded border border-[var(--accent-bd)] bg-[var(--accent-bg)] px-2 py-1 text-[9px] text-[var(--accent)] hover:bg-[var(--accent-bg-h)]"
+                onClick={() => void onPromotePrototype()}
+                title="Write prototype pixels to assets/images/ as an imported sprite"
+              >
+                <Upload size={11} />
+                Promote
+              </button>
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 rounded border border-[var(--border)] px-2 py-1 text-[9px] text-[var(--text)] hover:border-[var(--border-2)]"
+                onClick={() => void onResetPrototype()}
+                title="Restore factory rectangle and clear Studio edits"
+              >
+                <RotateCcw size={11} />
+                Reset prototype
+              </button>
+            </div>
+          </div>
+        ) : null}
         {images.length === 0 && (
           <p className="text-[8px] text-[rgb(var(--muted-rgb)/0.6)] mt-0.5">
             Import images in the ASSETS panel, then pick one here.
@@ -92,7 +189,7 @@ export function SpriteSection({ entity }: SpriteSectionProps) {
         </label>
         <EditorSelect
           id={defaultClipId}
-          disabled={!spritePath || sheetClips.length === 0}
+          disabled={!spriteRef || sheetClips.length === 0}
           value={clip?.defaultClip ?? entity.sprite.defaultClip ?? ''}
           onChange={(name) => {
             const defaultClip = name || undefined
@@ -108,7 +205,7 @@ export function SpriteSection({ entity }: SpriteSectionProps) {
             ...sheetClips.map((c) => ({ value: c.name, label: c.name })),
           ]}
         />
-        {!spritePath ? (
+        {!spriteRef ? (
           <p className="text-[8px] text-[rgb(var(--muted-rgb)/0.6)] mt-0.5">
             Assign a sprite sheet first.
           </p>

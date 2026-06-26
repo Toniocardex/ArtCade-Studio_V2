@@ -38,7 +38,7 @@ function selectedSceneInstance(
   const instanceId = state.selection.entityId
   const sceneId = state.selection.sceneId ?? state.project.activeSceneId
   if (instanceId == null || !sceneId) return null
-  const scene = state.project.scenes[sceneId]
+  const scene = state.project.scenes?.[sceneId]
   if (!scene?.instances?.some((instance) => instance.id === instanceId)) return null
   return { instanceId, sceneId }
 }
@@ -47,7 +47,7 @@ function selectedSceneEntityIds(state: CanvasDuplicateShortcutState): number[] {
   if (state.mode !== 'canvas' || state.isPlaying || !state.project) return []
   const sceneId = state.selection.sceneId ?? state.project.activeSceneId
   if (!sceneId) return []
-  const scene = state.project.scenes[sceneId]
+  const scene = state.project.scenes?.[sceneId]
   if (!scene) return []
   const validIds = new Set(scene.instances?.map((instance) => instance.id) ?? scene.entityIds)
   const selectedIds = (state.selection.entityIds ?? []).length > 0
@@ -100,7 +100,7 @@ export function getCanvasClipboardShortcutAction(
   if (key === 'v') {
     if (state.mode !== 'canvas' || state.isPlaying || !state.project) return null
     const sceneId = state.selection.sceneId ?? state.project.activeSceneId
-    if (!sceneId || !state.project.scenes[sceneId]) return null
+    if (!sceneId || !state.project.scenes?.[sceneId]) return null
     if (!state.instanceClipboard || state.instanceClipboard.sceneId !== sceneId) return null
     return { type: 'INSTANCE_PASTE', sceneId, position: clipboardPastePosition(state) ?? undefined }
   }

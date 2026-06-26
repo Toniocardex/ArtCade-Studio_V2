@@ -63,9 +63,12 @@ export function runtimePreviewCanvasStyle(
     }
   }
   const hostSize = runtimePreviewDisplaySize(logical, windowSize, presentation)
-  return runtimeCanvasPlayStyle({
-    hostSize,
-    background,
-    layout: 'floating-centered',
-  })
+  return {
+    ...runtimeCanvasPlayStyle({
+      hostSize,
+      background,
+      layout: 'floating-centered',
+    }),
+    visibility: 'visible',
+  }
 }

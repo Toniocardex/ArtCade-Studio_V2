@@ -114,12 +114,12 @@ function ownersForSelector(
     const objectType = typeId ? project.objectTypes?.[typeId] : undefined
     if (objectType) return [objectType]
     return logicBoardTargetEntityIds(project, board)
-      .map((id) => project.entities[id])
+      .map((id) => project.entities?.[id])
       .filter((entity): entity is NonNullable<typeof entity> => entity != null)
   }
   if (target === 'other') return null
   if ('entityId' in target) {
-    const entity = project.entities[target.entityId]
+    const entity = project.entities?.[target.entityId]
     return entity ? [entity] : []
   }
   const objectType = project.objectTypes?.[target.className]
@@ -248,7 +248,7 @@ export function boardComponentWarnings(project: ProjectDoc, board: LogicBoard): 
     const scene = project.scenes?.[project.activeSceneId]
     const cameraTargetIds = new Set<number>()
     for (const id of scene?.entityIds ?? []) {
-      const entity = project.entities[id]
+      const entity = project.entities?.[id]
       const type = entity ? project.objectTypes?.[entity.className] : undefined
       if (entity?.cameraTarget || type?.cameraTarget) cameraTargetIds.add(id)
     }

@@ -19,7 +19,7 @@ function fallbackLayerId(layers: LayerDef[]): LayerId {
 function assignInstanceLayer(project: ProjectDoc, instanceId: number, layerId: LayerId): ProjectDoc {
   let touched = false
   const scenes = Object.fromEntries(
-    Object.entries(project.scenes).map(([sid, scene]) => {
+    Object.entries(project.scenes ?? {}).map(([sid, scene]) => {
       if (!scene.instances?.some((i) => i.id === instanceId && i.layerId !== layerId)) return [sid, scene]
       touched = true
       return [sid, {
@@ -28,7 +28,7 @@ function assignInstanceLayer(project: ProjectDoc, instanceId: number, layerId: L
       }]
     }),
   )
-  const ent = project.entities[instanceId]
+  const ent = project.entities?.[instanceId]
   const entities = ent && ent.layerId !== layerId
     ? { ...project.entities, [instanceId]: { ...ent, layerId } }
     : project.entities
@@ -49,7 +49,7 @@ function purgeLayer(
 ): ProjectDoc {
   const layerIds = layers.map((l) => l.id)
   const scenes: Record<string, SceneDef> = {}
-  for (const [sid, scene] of Object.entries(project.scenes)) {
+  for (const [sid, scene] of Object.entries(project.scenes ?? {})) {
     let next: SceneDef = scene
     if (scene.instances?.some((i) => i.layerId === removedId)) {
       next = {
@@ -76,7 +76,7 @@ function purgeLayer(
   }
   const entities: Record<number, EntityDef> = {}
   let eTouched = false
-  for (const [id, ent] of Object.entries(project.entities)) {
+  for (const [id, ent] of Object.entries(project.entities ?? {})) {
     if (ent.layerId === removedId) { eTouched = true; entities[Number(id)] = { ...ent, layerId: fallbackId } }
     else entities[Number(id)] = ent
   }
@@ -90,7 +90,7 @@ function updateSceneLayerSettings(
   layerId: LayerId,
   patch: Partial<SceneLayerSettings>,
 ): ProjectDoc {
-  const scene = project.scenes[sceneId]
+  const scene = project.scenes?.[sceneId]
   if (!scene) return project
   const current = scene.layerSettings?.[layerId] ?? {}
   const normalized = normalizeSceneLayerSettings({ ...current, ...patch })

@@ -30,8 +30,13 @@ export function onPresentationChanged(
   return () => { listeners.delete(listener) }
 }
 
+/** Drops the committed snapshot (e.g. before a new play session). Listeners stay subscribed. */
+export function clearPresentationSnapshot(): void {
+  committed = null
+}
+
 /** Test helper — clears store state. */
 export function resetPresentationStoreForTests(): void {
-  committed = null
+  clearPresentationSnapshot()
   listeners.clear()
 }

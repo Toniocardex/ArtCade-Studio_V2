@@ -152,7 +152,7 @@ describe('resolveClipContextForLogicBoard', () => {
     })
   })
 
-  it('flags ambiguous sprite paths when instances disagree', () => {
+  it('ignores stale entity-cache sprite disagreements for v3 object-type boards', () => {
     const project: ProjectDoc = {
       ...miniProject({
         hero: { id: 'hero', name: 'hero.png', path: 'assets/hero.png' },
@@ -220,8 +220,8 @@ describe('resolveClipContextForLogicBoard', () => {
       events: [],
     }
     expect(resolveClipContextForLogicBoard(project, board)).toEqual({
-      ambiguousSpritePath: true,
+      spritePath: 'assets/hero.png',
     })
-    expect(spritePathForLogicBoardTarget(project, board)).toBeUndefined()
+    expect(spritePathForLogicBoardTarget(project, board)).toBe('assets/hero.png')
   })
 })

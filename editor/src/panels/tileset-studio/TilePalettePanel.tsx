@@ -79,8 +79,8 @@ export function TilePalettePanel({ tileset, onRemove }: Props) {
   const paintId      = useEditorSelector((s) => s.activePaintTilesetId)
 
   const usedInLayer = useMemo(() => {
-    if (!sceneId || !project?.scenes[sceneId]) return []
-    const layer = project.scenes[sceneId].tilemapLayers?.[activeLayerId]
+    if (!sceneId || !project?.scenes?.[sceneId]) return []
+    const layer = project.scenes?.[sceneId]?.tilemapLayers?.[activeLayerId]
     return layer ? sourcesUsedOnLayer(layer) : []
   }, [sceneId, project, activeLayerId])
 
@@ -195,7 +195,7 @@ export function TilePalettePanel({ tileset, onRemove }: Props) {
     if (!imgWH) return
     const { cols, rows } = deriveGrid(imgWH.w, imgWH.h, nextTile, nextMargin)
     dispatch({ type: 'TILESET_ASSET_ADD', asset: { ...tileset, tileSize: nextTile, margin: nextMargin, cols, rows } })
-    const layer = sceneId ? project?.scenes[sceneId]?.tilemapLayers?.[activeLayerId] : undefined
+    const layer = sceneId ? project?.scenes?.[sceneId]?.tilemapLayers?.[activeLayerId] : undefined
     const usedOnLayer = layer ? sourcesUsedOnLayer(layer) : []
     if (
       layer &&

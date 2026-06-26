@@ -128,11 +128,11 @@ void execute_scene_entities_pass(SceneFrameContext& ctx) {
 
             float alpha = sprite.alpha;
             if (layer) alpha *= layer->opacity;
-            const bool placeholderFill = sprite.spriteAssetId.empty();
-            if (inEditMode && !placeholderFill && !gateway->visibleInGame(id)) {
+            const bool hasSpriteSheet = !sprite.spriteAssetId.empty();
+            if (inEditMode && hasSpriteSheet && !gateway->visibleInGame(id)) {
                 alpha *= 0.45f;
             }
-            if (inEditMode && placeholderFill) alpha = layer ? layer->opacity : 1.f;
+            if (inEditMode && !hasSpriteSheet) alpha = layer ? layer->opacity : 1.f;
 
             TextComponent text{};
             const bool hasText = gateway->getText(id, text)
@@ -141,7 +141,7 @@ void execute_scene_entities_pass(SceneFrameContext& ctx) {
             GaugeComponent gaugeProbe{};
             const bool hasGauge = gateway->getGauge(id, gaugeProbe)
                 && gaugeProbe.width > 0.f && gaugeProbe.height > 0.f;
-            const bool visualOnly = placeholderFill && (hasText || hasGauge);
+            const bool visualOnly = !hasSpriteSheet && (hasText || hasGauge);
 
             const auto draw = AppRender::sprite_frame_resolve(animator, id, sprite, inEditMode);
             if (AppRender::sprite_frame_has_pixels(draw.frame)) {
@@ -155,7 +155,7 @@ void execute_scene_entities_pass(SceneFrameContext& ctx) {
                     static_cast<float>(draw.frame.h),
                     pos, transform.rotation, transform.scale,
                     sprite.tint, alpha, sprite.pivot, sprite.flipX, sprite.flipY);
-            } else if (!visualOnly) {
+            } else if (hasSpriteSheet && !visualOnly) {
                 renderer->drawSprite(
                     sprite.spriteAssetId,
                     pos, transform.rotation, transform.scale,
