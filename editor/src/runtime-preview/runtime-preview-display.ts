@@ -2,14 +2,18 @@ import type { PreviewTransitionBundle } from '../utils/runtime-sync-service'
 import type { PresentationSnapshot } from '../utils/presentation-snapshot'
 import {
   type DisplaySize,
-  playCssScaleFromSnapshot,
-  playFitScale,
   runtimeCanvasBootStyle,
   runtimeCanvasPlayStyle,
   sceneBackgroundCss,
 } from '../utils/runtime-canvas-presentation'
 
 export type RuntimePreviewDisplaySize = DisplaySize
+
+function isRuntimePreviewSnapshot(presentation: PresentationSnapshot | null | undefined): presentation is PresentationSnapshot {
+  return presentation != null
+    && presentation.revision > 0n
+    && (presentation.effectiveMode === 'playExternal' || presentation.effectiveMode === 'playFullscreen')
+}
 
 export function runtimePreviewLogicalSize(
   bundle: PreviewTransitionBundle | null,
@@ -23,7 +27,7 @@ export function runtimePreviewLogicalSize(
 export function runtimePreviewDisplaySize(
   logical: RuntimePreviewDisplaySize | null,
   windowSize: RuntimePreviewDisplaySize,
-  presentation?: PresentationSnapshot | null,
+  _presentation?: PresentationSnapshot | null,
 ): RuntimePreviewDisplaySize {
   if (!logical) {
     return {
@@ -31,12 +35,9 @@ export function runtimePreviewDisplaySize(
       y: Math.max(1, Math.round(windowSize.y)),
     }
   }
-  const scale = presentation && presentation.revision > 0n
-    ? playCssScaleFromSnapshot(presentation, windowSize, { integerUpscale: true })
-    : playFitScale(logical, windowSize, { integerUpscale: true })
   return {
-    x: Math.max(1, Math.round(logical.x * scale)),
-    y: Math.max(1, Math.round(logical.y * scale)),
+    x: Math.max(1, Math.round(windowSize.x)),
+    y: Math.max(1, Math.round(windowSize.y)),
   }
 }
 
@@ -55,11 +56,14 @@ export function runtimePreviewCanvasStyle(
   if (!logical) {
     return runtimeCanvasBootStyle(windowSize, background)
   }
+  if (!isRuntimePreviewSnapshot(presentation)) {
+    return {
+      ...runtimeCanvasBootStyle(windowSize, background),
+      visibility: 'hidden',
+    }
+  }
   const hostSize = runtimePreviewDisplaySize(logical, windowSize, presentation)
-  const scale = hostSize.x / Math.max(1, logical.x)
   return runtimeCanvasPlayStyle({
-    viewport: logical,
-    scale,
     hostSize,
     background,
     layout: 'floating-centered',

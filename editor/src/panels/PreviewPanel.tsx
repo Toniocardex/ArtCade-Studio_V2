@@ -42,13 +42,9 @@ import { setEditorVisibleWorldCenter } from '../utils/editor-viewport-center'
 import { getRuntimeCanvas } from '../utils/runtime-canvas'
 import {
   applyRuntimeCanvasPresentation,
-  playCssScaleFromSnapshot,
-  playDisplaySize,
-  playFitScale,
   playStageAvailableSize,
   runtimeCanvasEditStyle,
   runtimeCanvasPlayStyle,
-  RUNTIME_PLAY_MIN_SCALE,
   RUNTIME_PLAY_STAGE_PADDING_PX,
   sceneBackgroundCss,
 } from '../utils/runtime-canvas-presentation'
@@ -486,29 +482,17 @@ export default function PreviewPanel({
 
   const bgColor = sceneBackgroundCss(selectedScene?.backgroundColor, 'var(--bg)')
   const presentationSnapshot = usePresentationSnapshot()
+  const playSnapshotReady =
+    presentationSnapshot !== null
+    && presentationSnapshot.revision > 0n
+    && presentationSnapshot.effectiveMode === 'playEmbedded'
 
-  const playScale = (() => {
-    if (!useDockedRuntimePreview) return zoom
-    const stage = {
-      x: playStageSize?.x ?? frame.x,
-      y: playStageSize?.y ?? frame.y,
-    }
-    const available = playStageAvailableSize(stage, RUNTIME_PLAY_STAGE_PADDING_PX)
-    if (presentationSnapshot && presentationSnapshot.revision > 0n) {
-      return playCssScaleFromSnapshot(
-        presentationSnapshot,
-        available,
-        { minScale: RUNTIME_PLAY_MIN_SCALE },
-      )
-    }
-    return playFitScale(
-      { x: frame.x, y: frame.y },
-      available,
-      { minScale: RUNTIME_PLAY_MIN_SCALE },
-    )
-  })()
-
-  const playHostSize = playDisplaySize({ x: frame.x, y: frame.y }, playScale)
+  const playStage = {
+    x: playStageSize?.x ?? frame.x,
+    y: playStageSize?.y ?? frame.y,
+  }
+  const playAvailableSize = playStageAvailableSize(playStage, RUNTIME_PLAY_STAGE_PADDING_PX)
+  const playHostSize = playAvailableSize
 
   // The runtime canvas is a persistent DOM node React does not manage, so its
   // presentation is applied imperatively via runtime-canvas-presentation.
@@ -516,14 +500,15 @@ export default function PreviewPanel({
     const canvas = getRuntimeCanvas()
     const pointerEvents = useDockedRuntimePreview || !panActive ? 'auto' : 'none'
     if (useDockedRuntimePreview) {
-      applyRuntimeCanvasPresentation(canvas, runtimeCanvasPlayStyle({
-        viewport: { x: frame.x, y: frame.y },
-        scale: playScale,
-        hostSize: playHostSize,
-        background: bgColor,
-        layout: 'docked-top-left',
-        pointerEvents,
-      }))
+      applyRuntimeCanvasPresentation(canvas, {
+        ...runtimeCanvasPlayStyle({
+          hostSize: playHostSize,
+          background: bgColor,
+          layout: 'docked-top-left',
+          pointerEvents,
+        }),
+        visibility: playSnapshotReady ? 'visible' : 'hidden',
+      })
       return
     }
     const el = viewportRef.current
@@ -536,7 +521,16 @@ export default function PreviewPanel({
       background: bgColor,
       pointerEvents,
     }))
-  }, [useDockedRuntimePreview, frame.x, frame.y, playScale, bgColor, panActive, layout.paddingPx])
+  }, [
+    useDockedRuntimePreview,
+    frame.x,
+    frame.y,
+    playHostSize,
+    bgColor,
+    panActive,
+    layout.paddingPx,
+    playSnapshotReady,
+  ])
 
   useLayoutEffect(() => {
     applyCanvasPresentation()

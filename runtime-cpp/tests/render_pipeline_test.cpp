@@ -52,6 +52,8 @@ int main() {
         RenderPipelineBuilder::buildPipeline(snapshot, allOn, true);
     assert(playPipeline.captureGameView);
     assert(playPipeline.blitGameView);
+    assert(contains(playPipeline.appPassOrder, RenderPassId::GameView));
+    assert(contains(playPipeline.appPassOrder, RenderPassId::Blit));
     assert(!contains(playPipeline.appPassOrder, RenderPassId::Grid));
     assert(!contains(playPipeline.appPassOrder, RenderPassId::Gizmo));
 

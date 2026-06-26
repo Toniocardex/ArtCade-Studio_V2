@@ -47,9 +47,8 @@ import {
   getPresentationSnapshot,
   onPresentationChanged,
   publishPresentationSnapshot,
-  type PresentationChangedEvent,
 } from './presentation-store'
-import type { PresentationSnapshot } from './presentation-snapshot'
+import type { PresentationChangedEvent, PresentationSnapshot } from './presentation-snapshot'
 import {
   projectJsonForRuntime,
   runtimeProjectProjection,

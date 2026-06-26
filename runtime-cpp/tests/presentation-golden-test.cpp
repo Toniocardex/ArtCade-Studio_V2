@@ -161,7 +161,7 @@ void test_picking_edges() {
            "negative surface coords map outside logical viewport");
 }
 
-void test_native_wasm_parity() {
+void test_legacy_layout_parity() {
     const float inputs[][4] = {
         { 1920.f, 1080.f, 320.f, 240.f },
         { 512.f, 320.f, 512.f, 288.f },
@@ -187,6 +187,49 @@ void test_native_wasm_parity() {
     }
 }
 
+void test_play_policy_matrix() {
+    struct Case {
+        double logicalW;
+        double logicalH;
+        double cssW;
+        double cssH;
+        double dpr;
+        OutputPolicy policy;
+    };
+    const Case cases[] = {
+        { 320., 240., 900., 600., 1., OutputPolicy::Fit },
+        { 320., 240., 900., 600., 1.5, OutputPolicy::Fit },
+        { 512., 320., 1280., 720., 1., OutputPolicy::Fit },
+        { 320., 240., 1920., 1080., 1., OutputPolicy::Fit },
+        { 512., 320., 1280., 720., 1., OutputPolicy::Fill },
+        { 320., 240., 900., 600., 1.25, OutputPolicy::Stretch },
+    };
+    const ViewCamera2D camera{ 0., 0., 0., 0., 1. };
+    for (const Case& c : cases) {
+        const SurfaceMetrics metrics = surface_metrics_from_css(c.cssW, c.cssH, c.dpr);
+        const OutputPlacement placement = output_placement_compute(
+            metrics.framebufferWidth,
+            metrics.framebufferHeight,
+            c.logicalW,
+            c.logicalH,
+            c.policy);
+        expect(placement.destW > 0. && placement.destH > 0.,
+               "policy matrix content rect is non-empty");
+        expect(placement.scaleX > 0. && placement.scaleY > 0.,
+               "policy matrix scale is positive");
+        expect(placement.destX >= 0. && placement.destY >= 0.,
+               "policy matrix letterbox offset is non-negative");
+        const SurfacePoint sample{
+            placement.destX + placement.destW * 0.5,
+            placement.destY + placement.destH * 0.5,
+        };
+        const WorldPoint world = world_from_surface(sample, placement, camera);
+        const SurfacePoint back = surface_from_world(world, placement, camera);
+        expect(near_eq(back.x, sample.x) && near_eq(back.y, sample.y),
+               "policy matrix surface/world round-trip");
+    }
+}
+
 } // namespace
 
 int main() {
@@ -197,7 +240,8 @@ int main() {
     test_zoom_at_cursor();
     test_resize_preserves_editor_camera();
     test_picking_edges();
-    test_native_wasm_parity();
+    test_legacy_layout_parity();
+    test_play_policy_matrix();
     std::puts("presentation_golden_test: all passed");
     return 0;
 }

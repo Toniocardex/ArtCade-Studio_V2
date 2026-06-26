@@ -1,5 +1,9 @@
 import { runtimeAssetPath, WASM_BINARY_URL } from './runtime-path'
-import { parsePresentationSnapshotWasm, type PresentationSnapshot } from './presentation-snapshot'
+import {
+  parsePresentationSnapshotWasm,
+  PRESENTATION_MODE_ABI,
+  type PresentationSnapshot,
+} from './presentation-snapshot'
 
 // ---------------------------------------------------------------------------
 // wasm-bridge.ts — React ↔ C++ WASM bridge
@@ -880,30 +884,41 @@ export function editorSetEditorView(
 
 /** Committed presentation revision from the WASM presentation core (Phase 2). */
 export function editorGetPresentationRevision(): number {
-  return Number(safeCall('editor_get_presentation_revision', 'number', [], []) ?? 0)
+  const revision = safeCcallNumber('editor_get_presentation_revision', [], [])
+  return revision > 0 ? revision : 0
 }
 
 /** Reads the committed presentation snapshot ABI from WASM (Phase 5). */
 export function editorReadPresentationSnapshot(): PresentationSnapshot | null {
   const mod = _module
   if (!mod) return null
-  const ptr = Number(safeCall('editor_get_presentation_snapshot', 'number', [], []) ?? 0)
-  if (!ptr) return null
+  const ptr = safeCcallNumber('editor_get_presentation_snapshot', [], [])
+  if (ptr <= 0) return null
   return parsePresentationSnapshotWasm(mod.HEAPU8, ptr)
 }
 
 /** Surface (framebuffer) → world via committed presentation snapshot. */
-export function editorSurfaceToWorld(surfaceX: number, surfaceY: number): { x: number; y: number } {
+export function editorSurfaceToWorld(
+  surfaceX: number,
+  surfaceY: number,
+  presentationRevision?: bigint,
+): { x: number; y: number } {
   const mod = _module
   if (!mod) return { x: surfaceX, y: surfaceY }
   const wxPtr = mod._malloc(4)
   const wyPtr = mod._malloc(4)
   try {
-    safeCall(
-      'editor_surface_to_world', null,
-      ['number', 'number', 'number', 'number'],
-      [surfaceX, surfaceY, wxPtr, wyPtr],
-    )
+    const revision = presentationRevision && presentationRevision > 0n
+      ? Number(presentationRevision)
+      : 0
+    const fn = revision > 0 ? 'editor_surface_to_world_at_revision' : 'editor_surface_to_world'
+    const argTypes = revision > 0
+      ? ['number', 'number', 'number', 'number', 'number']
+      : ['number', 'number', 'number', 'number']
+    const args = revision > 0
+      ? [surfaceX, surfaceY, revision, wxPtr, wyPtr]
+      : [surfaceX, surfaceY, wxPtr, wyPtr]
+    safeCall(fn, null, argTypes, args)
     return {
       x: mod.HEAPF32[wxPtr >> 2],
       y: mod.HEAPF32[wyPtr >> 2],
@@ -929,8 +944,7 @@ export function editorSyncPlaySurface(
 
 /** PlayEmbedded / PlayExternal / PlayFullscreen before or during play. */
 export function editorSetPlayPresentation(mode: 'playEmbedded' | 'playExternal' | 'playFullscreen'): void {
-  const abi = { playEmbedded: 2, playExternal: 3, playFullscreen: 4 } as const
-  safeCall('editor_set_play_presentation', null, ['number'], [abi[mode]])
+  safeCall('editor_set_play_presentation', null, ['number'], [PRESENTATION_MODE_ABI[mode]])
 }
 
 export function editorSetTransform(

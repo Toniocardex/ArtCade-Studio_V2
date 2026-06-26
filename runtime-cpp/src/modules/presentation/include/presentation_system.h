@@ -23,10 +23,11 @@ public:
     void begin_frame();
 
     /**
-     * Recomputes committed snapshot from current state without bumping revision.
-     * Used when projection changes outside begin_frame (e.g. resize before draw).
+     * Recomputes the draft snapshot from current state without changing the
+     * committed frame. Rendering, picking, and overlays continue to read the
+     * previous committed snapshot until begin_frame().
      */
-    void refresh_snapshot();
+    void refresh_pending_snapshot();
 
     const PresentationSnapshot& committed_snapshot() const {
         return committedSnapshot_;

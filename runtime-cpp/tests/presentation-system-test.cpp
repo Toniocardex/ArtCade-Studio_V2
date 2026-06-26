@@ -47,23 +47,22 @@ static PresentationState sample_state() {
 int main() {
     PresentationSystem system;
     system.mutable_state() = sample_state();
-    system.refresh_snapshot();
-    expect(system.committed_snapshot().revision == 1,
-           "refresh_snapshot assigns initial revision");
-    expect(system.pending_snapshot().revision == system.committed_snapshot().revision,
-           "pending snapshot mirrors committed after refresh");
+    system.refresh_pending_snapshot();
+    expect(system.committed_snapshot().revision == 0,
+           "refresh_pending_snapshot does not commit");
+    expect(system.pending_snapshot().revision == 1,
+           "pending snapshot prepares the next revision");
 
+    system.begin_frame();
     const uint64_t revisionA = system.committed_snapshot().revision;
+    expect(revisionA == 1, "begin_frame commits first revision");
+
     system.begin_frame();
     const uint64_t revisionB = system.committed_snapshot().revision;
-    expect(revisionB > revisionA, "begin_frame bumps revision");
+    expect(revisionB > revisionA, "begin_frame keeps monotonic revisions");
 
-    system.begin_frame();
-    const uint64_t revisionC = system.committed_snapshot().revision;
-    expect(revisionC > revisionB, "begin_frame keeps monotonic revisions");
-
-    const PresentationSnapshot* found = system.find_snapshot(revisionB);
-    expect(found != nullptr && found->revision == revisionB,
+    const PresentationSnapshot* found = system.find_snapshot(revisionA);
+    expect(found != nullptr && found->revision == revisionA,
            "revision history retains prior snapshot");
 
     const WorldPoint world = system.committed_snapshot().surface_to_world(

@@ -18,7 +18,6 @@ PresentationSnapshotWasm snapshot_to_wasm(const PresentationSnapshot& snapshot) 
     abi.destH = static_cast<float>(snapshot.placement.destH);
     abi.scaleX = static_cast<float>(snapshot.placement.scaleX);
     abi.scaleY = static_cast<float>(snapshot.placement.scaleY);
-    abi.presentationScale = static_cast<float>(snapshot.presentationScale);
     return abi;
 }
 

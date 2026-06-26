@@ -3,11 +3,11 @@
 namespace ArtCade::Presentation {
 
 enum class PresentationMode {
-    SceneEdit,
-    CameraPreview,
-    PlayEmbedded,
-    PlayExternal,
-    PlayFullscreen,
+    SceneEdit = 0,
+    CameraPreview = 1,
+    PlayEmbedded = 2,
+    PlayExternal = 3,
+    PlayFullscreen = 4,
 };
 
 } // namespace ArtCade::Presentation

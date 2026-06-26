@@ -3,6 +3,7 @@
 #include "../../presentation/include/camera_compose.h"
 #include "../../presentation/include/coordinate_mapper.h"
 #include "../../presentation/include/output_policy.h"
+#include "../../presentation/include/presentation_bindings.h"
 #include "../../presentation/include/presentation_mode.h"
 #include "../../presentation/include/presentation_types.h"
 #include "../../presentation/include/presentation_system.h"
@@ -31,15 +32,13 @@ using ArtCade::Presentation::GameCameraState;
 using ArtCade::Presentation::PresentationMode;
 using ArtCade::Presentation::compose_effective_game_camera;
 using ArtCade::Presentation::view_camera_from_editor;
-using ArtCade::Presentation::view_camera_from_effective;
 using ArtCade::Presentation::SurfacePoint;
 using ArtCade::Presentation::ViewCamera2D;
-using ArtCade::Presentation::WorldPoint;
 using ArtCade::Presentation::surface_metrics_from_css;
 using ArtCade::Presentation::EditorViewState;
 using ArtCade::Presentation::ViewController;
 
-ViewCamera2D to_view_camera(const Camera2D& cam) {
+ViewCamera2D view_camera_from_raylib(const Camera2D& cam) {
     return {
         static_cast<double>(cam.target.x),
         static_cast<double>(cam.target.y),
@@ -62,10 +61,16 @@ OutputPlacement identity_surface_placement(double surfaceW, double surfaceH) {
 
 void apply_game_modifiers_to_frame_camera(Camera2D& frameCamera,
                                           const CameraModifiers& modifiers) {
-    const float zoom = (frameCamera.zoom > 0.f) ? frameCamera.zoom : 1.f;
-    frameCamera.offset.x += static_cast<float>(modifiers.translationOffsetX) * zoom;
-    frameCamera.offset.y += static_cast<float>(modifiers.translationOffsetY) * zoom;
-    frameCamera.rotation += static_cast<float>(modifiers.rotationOffset);
+    GameCameraState base{};
+    base.positionX = static_cast<double>(frameCamera.target.x);
+    base.positionY = static_cast<double>(frameCamera.target.y);
+    base.zoom = static_cast<double>(frameCamera.zoom);
+    base.rotation = static_cast<double>(frameCamera.rotation);
+    const auto effective = compose_effective_game_camera(base, modifiers);
+    frameCamera.target.x = static_cast<float>(effective.positionX);
+    frameCamera.target.y = static_cast<float>(effective.positionY);
+    frameCamera.zoom = static_cast<float>(effective.zoom);
+    frameCamera.rotation = static_cast<float>(effective.rotation);
 }
 
 } // namespace
@@ -166,6 +171,7 @@ struct Renderer::Impl {
     GameCameraState storedGameCamera_{};
     CameraModifiers gameModifiers_{};
     bool worldScissorActive = false;
+    bool worldModeActive = false;
     bool gameViewCompositorEnabled = false;
     bool inGameViewTexturePass = false;
     PresentationMode presentationMode = PresentationMode::CameraPreview;
@@ -174,15 +180,27 @@ struct Renderer::Impl {
     ArtCade::Presentation::PresentationSystem presentation;
     ViewController viewController;
     float editorSurfaceDpr = 1.f;
+    double surfaceCssWidth = 0.;
+    double surfaceCssHeight = 0.;
 
-    void syncViewControllerMetrics() {
+    ArtCade::Presentation::SurfaceMetrics currentSurfaceMetrics() const {
         const double dpr = editorSurfaceDpr > 0.f
             ? static_cast<double>(editorSurfaceDpr)
             : 1.;
-        const double cssW = static_cast<double>(width) / dpr;
-        const double cssH = static_cast<double>(height) / dpr;
-        viewController.set_surface_metrics(
-            surface_metrics_from_css(cssW, cssH, dpr));
+        const double cssW = surfaceCssWidth > 0.
+            ? surfaceCssWidth
+            : static_cast<double>(width) / dpr;
+        const double cssH = surfaceCssHeight > 0.
+            ? surfaceCssHeight
+            : static_cast<double>(height) / dpr;
+        auto metrics = surface_metrics_from_css(cssW, cssH, dpr);
+        metrics.framebufferWidth = static_cast<double>(width);
+        metrics.framebufferHeight = static_cast<double>(height);
+        return metrics;
+    }
+
+    void syncViewControllerMetrics() {
+        viewController.set_surface_metrics(currentSurfaceMetrics());
     }
 
     void syncViewControllerFromEditorCamera() {
@@ -211,7 +229,7 @@ struct Renderer::Impl {
         syncActiveCameraFromStores();
         updateGameViewCamera();
         syncPresentationState();
-        presentation.refresh_snapshot();
+        presentation.refresh_pending_snapshot();
     }
 
     static SurfacePoint css_to_surface(float cssX, float cssY, float dpr) {
@@ -365,12 +383,7 @@ void Renderer::Impl::syncActiveCameraFromStores() {
 void Renderer::Impl::syncPresentationState() {
     using ArtCade::Presentation::PresentationState;
     PresentationState& state = presentation.mutable_state();
-    state.surface = surface_metrics_from_css(
-        static_cast<double>(width),
-        static_cast<double>(height),
-        1.);
-    state.surface.framebufferWidth = static_cast<double>(width);
-    state.surface.framebufferHeight = static_cast<double>(height);
+    state.surface = currentSurfaceMetrics();
     state.logicalWidth = static_cast<double>(viewportSize.x);
     state.logicalHeight = static_cast<double>(viewportSize.y);
     state.outputPolicy = outputPolicy;
@@ -383,17 +396,15 @@ void Renderer::Impl::syncPresentationState() {
     state.useIdentityPlacement = !gameViewCompositorEnabled;
 
     if (gameViewCompositorEnabled) {
-        const CameraModifiers noShake{};
-        const auto effective = compose_effective_game_camera(
-            state.gameCamera, noShake);
-        state.pickingCamera = view_camera_from_effective(
-            effective,
-            static_cast<double>(gameViewCamera.offset.x),
-            static_cast<double>(gameViewCamera.offset.y));
+        Camera2D frameCamera = gameViewCamera;
+        apply_game_modifiers_to_frame_camera(frameCamera, state.gameModifiers);
+        state.pickingCamera = view_camera_from_raylib(frameCamera);
     } else if (presentationMode == PresentationMode::SceneEdit) {
         state.pickingCamera = view_camera_from_editor(state.editorCamera);
     } else {
-        state.pickingCamera = to_view_camera(camera);
+        Camera2D frameCamera = camera;
+        apply_game_modifiers_to_frame_camera(frameCamera, state.gameModifiers);
+        state.pickingCamera = view_camera_from_raylib(frameCamera);
     }
 }
 
@@ -410,7 +421,7 @@ void Renderer::Impl::updateCameraProjection() {
         viewportDrawSize = { backW, backH };
         updateGameViewCamera();
         syncPresentationState();
-        presentation.refresh_snapshot();
+        presentation.refresh_pending_snapshot();
         return;
     }
 
@@ -457,7 +468,7 @@ void Renderer::Impl::updateCameraProjection() {
     storedGameCamera_.positionY = static_cast<double>(clamped.y);
     updateGameViewCamera();
     syncPresentationState();
-    presentation.refresh_snapshot();
+    presentation.refresh_pending_snapshot();
 }
 
 void Renderer::Impl::updateGameViewCamera() {
@@ -597,6 +608,9 @@ void Renderer::setWindowSize(uint32_t w, uint32_t h, const std::string& title) {
     impl_->width  = std::max(1u, w);
     impl_->height = std::max(1u, h);
     impl_->title  = title;
+    impl_->editorSurfaceDpr = 1.f;
+    impl_->surfaceCssWidth = 0.;
+    impl_->surfaceCssHeight = 0.;
 
     if (impl_->open) {
         SetWindowSize(static_cast<int>(impl_->width),
@@ -680,37 +694,49 @@ void Renderer::setGameCameraModifiers(const ArtCade::Presentation::CameraModifie
     impl_->gameModifiers_ = modifiers;
 }
 
-void Renderer::beginFrame(const Vec4& clearColor) {
+void Renderer::commitPresentationFrame() {
     impl_->updateWindowSizeFromRaylib();
     impl_->updateCameraProjection();
-    impl_->presentation.begin_frame();
-    impl_->worldScissorActive = false;
-    impl_->inGameViewTexturePass = false;
-    BeginDrawing();
-
-    if (impl_->gameViewCompositorEnabled) {
+    if (impl_->gameViewCompositorEnabled && impl_->open) {
         const uint32_t vpW = std::max(1u, static_cast<uint32_t>(impl_->viewportSize.x));
         const uint32_t vpH = std::max(1u, static_cast<uint32_t>(impl_->viewportSize.y));
         if (!impl_->ensureGameViewTarget(vpW, vpH)) {
             impl_->gameViewCompositorEnabled = false;
+            impl_->updateCameraProjection();
         }
     }
+    impl_->presentation.begin_frame();
+}
+
+void Renderer::beginFrame(const Vec4& clearColor) {
+    commitPresentationFrame();
+    impl_->worldScissorActive = false;
+    impl_->worldModeActive = false;
+    impl_->inGameViewTexturePass = false;
+    BeginDrawing();
 
     if (impl_->gameViewCompositorEnabled) {
         ClearBackground(toColor(clearColor));
-        BeginTextureMode(impl_->gameView.rt);
-        impl_->inGameViewTexturePass = true;
-        ClearBackground(toColor(clearColor));
-        Camera2D frameCamera = impl_->gameViewCamera;
-        apply_game_modifiers_to_frame_camera(frameCamera, impl_->gameModifiers_);
-        BeginMode2D(frameCamera);
-        impl_->beginWorldScissor(frameCamera);
         return;
     }
 
     ClearBackground(toColor(clearColor));
     const Camera2D frameCamera = impl_->frameCameraWithShake();
     BeginMode2D(frameCamera);
+    impl_->worldModeActive = true;
+    impl_->beginWorldScissor(frameCamera);
+}
+
+void Renderer::beginGameViewPass(const Vec4& clearColor) {
+    if (!impl_->gameViewCompositorEnabled || impl_->gameView.rt.id == 0)
+        return;
+    BeginTextureMode(impl_->gameView.rt);
+    impl_->inGameViewTexturePass = true;
+    ClearBackground(toColor(clearColor));
+    Camera2D frameCamera = impl_->gameViewCamera;
+    apply_game_modifiers_to_frame_camera(frameCamera, impl_->gameModifiers_);
+    BeginMode2D(frameCamera);
+    impl_->worldModeActive = true;
     impl_->beginWorldScissor(frameCamera);
 }
 
@@ -741,6 +767,10 @@ void Renderer::blitGameViewToBackbuffer() {
 }
 
 void Renderer::endWorldPass() {
+    if (!impl_->worldModeActive) {
+        impl_->drawQueue.clear();
+        return;
+    }
     for (const auto& cmd : impl_->drawQueue) {
         Color c{ cmd.cr, cmd.cg, cmd.cb, cmd.ca };
         switch (cmd.type) {
@@ -771,10 +801,10 @@ void Renderer::endWorldPass() {
     impl_->drawQueue.clear();
     impl_->endWorldScissor();
     EndMode2D();
+    impl_->worldModeActive = false;
     if (impl_->inGameViewTexturePass) {
         EndTextureMode();
         impl_->inGameViewTexturePass = false;
-        RenderPasses::blit_game_view(*this);
     }
 }
 
@@ -1268,13 +1298,12 @@ void Renderer::setEditorCamera(const Vec2& target, float zoom) {
     impl_->syncActiveCameraFromStores();
     impl_->updateGameViewCamera();
     impl_->syncPresentationState();
-    impl_->presentation.refresh_snapshot();
+    impl_->presentation.refresh_pending_snapshot();
     impl_->syncViewControllerFromEditorCamera();
 }
 
 void Renderer::editorResizeSurface(float cssW, float cssH, float devicePixelRatio) {
     const float safeDpr = devicePixelRatio > 0.f ? devicePixelRatio : 1.f;
-    impl_->editorSurfaceDpr = safeDpr;
     const uint32_t fbW = static_cast<uint32_t>(
         std::max(1., std::round(static_cast<double>(cssW) * static_cast<double>(safeDpr))));
     const uint32_t fbH = static_cast<uint32_t>(
@@ -1282,18 +1311,20 @@ void Renderer::editorResizeSurface(float cssW, float cssH, float devicePixelRati
     if (fbW != impl_->width || fbH != impl_->height) {
         setWindowSize(fbW, fbH, "ArtCade V2");
     }
+    impl_->editorSurfaceDpr = safeDpr;
+    impl_->surfaceCssWidth = static_cast<double>(cssW);
+    impl_->surfaceCssHeight = static_cast<double>(cssH);
     impl_->syncViewControllerFromEditorCamera();
     impl_->viewController.resize_surface(
         static_cast<double>(cssW),
         static_cast<double>(cssH),
         static_cast<double>(safeDpr));
     impl_->syncPresentationState();
-    impl_->presentation.refresh_snapshot();
+    impl_->presentation.refresh_pending_snapshot();
 }
 
 void Renderer::syncPlaySurface(float cssW, float cssH, float devicePixelRatio) {
     const float safeDpr = devicePixelRatio > 0.f ? devicePixelRatio : 1.f;
-    impl_->editorSurfaceDpr = safeDpr;
     const uint32_t fbW = static_cast<uint32_t>(std::max(
         1., std::round(static_cast<double>(cssW) * static_cast<double>(safeDpr))));
     const uint32_t fbH = static_cast<uint32_t>(std::max(
@@ -1301,17 +1332,12 @@ void Renderer::syncPlaySurface(float cssW, float cssH, float devicePixelRatio) {
     if (fbW != impl_->width || fbH != impl_->height)
         setWindowSize(fbW, fbH, "ArtCade V2");
 
-    using ArtCade::Presentation::PresentationState;
-    PresentationState& state = impl_->presentation.mutable_state();
-    state.surface = ArtCade::Presentation::surface_metrics_from_css(
-        static_cast<double>(cssW),
-        static_cast<double>(cssH),
-        static_cast<double>(safeDpr));
-    state.surface.framebufferWidth = static_cast<double>(fbW);
-    state.surface.framebufferHeight = static_cast<double>(fbH);
+    impl_->editorSurfaceDpr = safeDpr;
+    impl_->surfaceCssWidth = static_cast<double>(cssW);
+    impl_->surfaceCssHeight = static_cast<double>(cssH);
     impl_->syncPresentationState();
     impl_->updateCameraProjection();
-    impl_->presentation.refresh_snapshot();
+    impl_->presentation.refresh_pending_snapshot();
 }
 
 void Renderer::editorBeginPan(float cssX, float cssY) {
@@ -1396,6 +1422,14 @@ Renderer::committedPresentationSnapshot() const {
 
 uint64_t Renderer::presentationRevision() const {
     return impl_->presentation.committed_snapshot().revision;
+}
+
+ArtCade::Presentation::WorldPoint Renderer::surfaceToWorldAtRevision(
+    float surfaceX, float surfaceY, uint64_t revision) const {
+    return ArtCade::Presentation::PresentationBindings::surface_to_world(
+        impl_->presentation,
+        revision,
+        ArtCade::Presentation::SurfacePoint{ surfaceX, surfaceY });
 }
 
 Vec2 Renderer::visibleWorldSize() const {

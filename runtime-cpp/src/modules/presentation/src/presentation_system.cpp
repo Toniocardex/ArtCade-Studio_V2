@@ -40,18 +40,8 @@ void PresentationSystem::begin_frame() {
     push_history(committedSnapshot_);
 }
 
-void PresentationSystem::refresh_snapshot() {
-    uint64_t revision = committedSnapshot_.revision;
-    if (revision == 0)
-        revision = nextRevision_++;
-    pendingSnapshot_ = calculate_snapshot(state_, revision);
-    committedSnapshot_ = pendingSnapshot_;
-    if (historyCount_ == 0) {
-        push_history(committedSnapshot_);
-        return;
-    }
-    if (history_[0].revision == revision)
-        history_[0] = committedSnapshot_;
+void PresentationSystem::refresh_pending_snapshot() {
+    pendingSnapshot_ = calculate_snapshot(state_, nextRevision_);
 }
 
 const PresentationSnapshot* PresentationSystem::find_snapshot(

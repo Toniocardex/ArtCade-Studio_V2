@@ -795,10 +795,10 @@ EMSCRIPTEN_KEEPALIVE void editor_set_editor_view(
     r->editorSetView(targetX, targetY, zoomDevicePx);
 }
 
-EMSCRIPTEN_KEEPALIVE uint64_t editor_get_presentation_revision() {
+EMSCRIPTEN_KEEPALIVE double editor_get_presentation_revision() {
     auto* r = ArtCade::EditorAPI::s_renderer;
-    if (!r) return 0;
-    return r->presentationRevision();
+    if (!r) return 0.;
+    return static_cast<double>(r->presentationRevision());
 }
 
 EMSCRIPTEN_KEEPALIVE const ArtCade::Presentation::PresentationSnapshotWasm*
@@ -827,6 +827,27 @@ EMSCRIPTEN_KEEPALIVE void editor_surface_to_world(
         ArtCade::Presentation::PresentationBindings::surface_to_world(
             r->committedPresentationSnapshot(),
             ArtCade::Presentation::SurfacePoint{ surfaceX, surfaceY });
+    *outWorldX = static_cast<float>(world.x);
+    *outWorldY = static_cast<float>(world.y);
+}
+
+EMSCRIPTEN_KEEPALIVE void editor_surface_to_world_at_revision(
+    float surfaceX,
+    float surfaceY,
+    double revision,
+    float* outWorldX,
+    float* outWorldY) {
+    if (!outWorldX || !outWorldY) return;
+    auto* r = ArtCade::EditorAPI::s_renderer;
+    if (!r) {
+        *outWorldX = surfaceX;
+        *outWorldY = surfaceY;
+        return;
+    }
+    const uint64_t committedRevision =
+        revision > 0. ? static_cast<uint64_t>(revision) : 0u;
+    const ArtCade::Presentation::WorldPoint world =
+        r->surfaceToWorldAtRevision(surfaceX, surfaceY, committedRevision);
     *outWorldX = static_cast<float>(world.x);
     *outWorldY = static_cast<float>(world.y);
 }

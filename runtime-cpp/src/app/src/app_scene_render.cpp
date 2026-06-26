@@ -66,12 +66,6 @@ void Application::renderActiveScene() {
     std::vector<EntityId> selectedEntityIds;
 #endif
 
-    const RenderPipeline::ViewRenderFeatures features = build_view_features(overlay);
-    const auto& presentation = mod_->renderer->committedPresentationSnapshot();
-    const std::vector<RenderPipeline::RenderPassId> passOrder =
-        RenderPipeline::RenderPipelineBuilder::buildPipeline(
-            presentation, features, activeScene != nullptr).appPassOrder;
-
     SceneFrameContext frameCtx{};
     frameCtx.renderer = mod_->renderer.get();
     frameCtx.spriteAnimator = mod_->spriteAnimator.get();
@@ -89,9 +83,19 @@ void Application::renderActiveScene() {
         : 0.f;
 
     mod_->renderer->beginFrame(clearColor);
+    const RenderPipeline::ViewRenderFeatures features = build_view_features(overlay);
+    const auto& presentation = mod_->renderer->committedPresentationSnapshot();
+    const std::vector<RenderPipeline::RenderPassId> passOrder =
+        RenderPipeline::RenderPipelineBuilder::buildPipeline(
+            presentation, features, activeScene != nullptr).appPassOrder;
 
+    bool worldPassEnded = false;
+    bool dialogRendered = false;
     for (const RenderPipeline::RenderPassId passId : passOrder) {
         switch (passId) {
+        case RenderPipeline::RenderPassId::GameView:
+            mod_->renderer->beginGameViewPass(clearColor);
+            break;
         case RenderPipeline::RenderPassId::SceneBackdrop:
             AppRenderPasses::execute_scene_background_pass(frameCtx);
             break;
@@ -108,16 +112,23 @@ void Application::renderActiveScene() {
             if (mod_->world)
                 AppRenderPasses::execute_debug_pass(*mod_->renderer, *mod_->world);
             break;
-        case RenderPipeline::RenderPassId::GameView:
         case RenderPipeline::RenderPassId::Blit:
+            if (mod_->dialogManager && mod_->dialogManager->isActive()) {
+                mod_->dialogManager->render();
+                dialogRendered = true;
+            }
+            mod_->renderer->endWorldPass();
+            mod_->renderer->blitGameViewToBackbuffer();
+            worldPassEnded = true;
             break;
         }
     }
 
-    if (mod_->dialogManager && mod_->dialogManager->isActive())
+    if (!dialogRendered && mod_->dialogManager && mod_->dialogManager->isActive())
         mod_->dialogManager->render();
 
-    mod_->renderer->endWorldPass();
+    if (!worldPassEnded)
+        mod_->renderer->endWorldPass();
     mod_->renderer->endScreenPass();
     if (splash_) {
         splash_->render(

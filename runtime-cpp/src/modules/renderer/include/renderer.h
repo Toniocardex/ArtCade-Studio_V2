@@ -64,12 +64,21 @@ public:
     void setPresentationMode(ArtCade::Presentation::PresentationMode mode);
     ArtCade::Presentation::PresentationMode presentationMode() const;
 
-    /** Committed presentation snapshot for the current / last refreshed frame. */
+    /** Committed presentation snapshot for the current frame. */
     const ArtCade::Presentation::PresentationSnapshot& committedPresentationSnapshot() const;
     uint64_t presentationRevision() const;
+    /**
+     * Commits presentation state for one frame without touching Raylib draw state.
+     * Tests and render planning use this when they need an atomic snapshot.
+     */
+    void commitPresentationFrame();
+    ArtCade::Presentation::WorldPoint surfaceToWorldAtRevision(
+        float surfaceX, float surfaceY, uint64_t revision) const;
 
     // Frame lifecycle
     void beginFrame(const Vec4& clearColor);
+    /** Begin the GameView RT pass when the pipeline schedules RenderPassId::GameView. */
+    void beginGameViewPass(const Vec4& clearColor);
     void endFrame();
     /** Flush world draw queue and leave 2D camera mode (screen-space draws follow). */
     void endWorldPass();
@@ -195,7 +204,7 @@ public:
     void setCameraPosition(const Vec2& pos);
     /** Center the visible viewport on a world-space point, subject to world bounds. */
     void setCameraCenter(const Vec2& center);
-    /** Render-only modifiers (shake, recoil) — do not affect picking or getCameraPosition. */
+    /** Frame camera modifiers (shake, recoil); included in draw and presentation picking. */
     void setGameCameraModifiers(const ArtCade::Presentation::CameraModifiers& modifiers);
     void setCameraZoom    (float zoom);
     /** Editor-preview camera: apply target/zoom verbatim (no clamp/offset). */
@@ -203,7 +212,7 @@ public:
     /** Fixed-surface editor viewport: resize CSS canvas and preserve camera. */
     void editorResizeSurface(float cssW, float cssH, float devicePixelRatio);
     /**
-     * Play-mode surface resize: CSS host size × DPR → framebuffer; refreshes compositor snapshot.
+     * Play-mode surface resize: CSS host size x DPR -> framebuffer; commits on the next frame.
      * Used by embedded, external, and fullscreen play (ADR Phase 8).
      */
     void syncPlaySurface(float cssW, float cssH, float devicePixelRatio);

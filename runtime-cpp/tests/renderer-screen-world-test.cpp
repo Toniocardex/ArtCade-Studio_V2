@@ -16,7 +16,8 @@ using ArtCade::OutputPolicy;
 using ArtCade::Presentation::PresentationBindings;
 using ArtCade::Presentation::SurfacePoint;
 
-static ArtCade::Vec2 pickWorld(const Renderer& renderer, float x, float y) {
+static ArtCade::Vec2 pickWorld(Renderer& renderer, float x, float y) {
+    renderer.commitPresentationFrame();
     const auto world = PresentationBindings::surface_to_world(
         renderer.committedPresentationSnapshot(),
         SurfacePoint{ x, y });
@@ -69,6 +70,7 @@ int main() {
     const auto still = renderer.getCameraPosition();
     expect(near(still.x, 0.f) && near(still.y, 0.f),
            "render shake offset does not mutate authoritative camera");
+    renderer.setGameCameraModifiers({});
 
     renderer.setSceneViewport({ 2560.f, 1440.f }, { 1280.f, 720.f });
     renderer.setCameraCenter({ 1280.f, 720.f });
@@ -139,6 +141,7 @@ int main() {
     renderer.setCameraZoom(1.f);
     const auto expectedFill = ArtCade::Modules::compositor_layout(
         1920.f, 1080.f, 320.f, 240.f, OutputPolicy::Fill);
+    renderer.commitPresentationFrame();
     const auto layoutFill = renderer.compositorLayout();
     expect(near(layoutFill.destW, expectedFill.destW)
            && near(layoutFill.destH, expectedFill.destH),
@@ -158,6 +161,21 @@ int main() {
            "editor camera keeps 1:1 origin after projection refresh");
     expect(near(gridStep.x, 32.f) && near(gridStep.y, 32.f),
            "editor camera keeps 1:1 grid spacing on tall framebuffer");
+
+    renderer.setGameViewCompositorEnabled(true);
+    renderer.setPresentationMode(ArtCade::Presentation::PresentationMode::PlayEmbedded);
+    renderer.setSceneViewport({ 640.f, 480.f }, { 320.f, 240.f });
+    renderer.syncPlaySurface(900.f, 600.f, 1.5f);
+    renderer.commitPresentationFrame();
+    const auto& dprSnapshot = renderer.committedPresentationSnapshot();
+    expect(near(static_cast<float>(dprSnapshot.surface.cssWidth), 900.f)
+           && near(static_cast<float>(dprSnapshot.surface.cssHeight), 600.f),
+           "syncPlaySurface preserves CSS host size");
+    expect(near(static_cast<float>(dprSnapshot.surface.framebufferWidth), 1350.f)
+           && near(static_cast<float>(dprSnapshot.surface.framebufferHeight), 900.f),
+           "syncPlaySurface rounds CSS times DPR into framebuffer size");
+    expect(near(static_cast<float>(dprSnapshot.surface.devicePixelRatio), 1.5f),
+           "syncPlaySurface preserves fractional DPR");
 
     std::puts("renderer_screen_world_test: all passed");
     return 0;

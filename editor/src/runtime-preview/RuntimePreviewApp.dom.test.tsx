@@ -124,7 +124,7 @@ describe('RuntimePreviewApp', () => {
     expect(loadSceneMock).not.toHaveBeenCalled()
   })
 
-  it('keeps the runtime canvas aspect-correct inside resized preview windows', async () => {
+  it('uses the full preview window as the runtime host surface', async () => {
     vi.spyOn(runtimeSync, 'transitionPreview').mockReturnValue({
       ok: true,
       code: 0,
@@ -140,9 +140,10 @@ describe('RuntimePreviewApp', () => {
     await waitFor(() => expect(loadSceneMock).toHaveBeenCalled())
     const canvas = document.getElementById('runtime-canvas') as HTMLCanvasElement | null
     expect(canvas?.style.width).toBe('1024px')
-    expect(canvas?.style.height).toBe('640px')
+    expect(canvas?.style.height).toBe('768px')
     expect(canvas?.style.transform).toBe('translate(-50%, -50%)')
     expect(canvas?.style.imageRendering).toBe('pixelated')
+    expect(canvas?.style.visibility).toBe('hidden')
   })
 
   it('toggles fullscreen with F11 in the runtime preview window', async () => {

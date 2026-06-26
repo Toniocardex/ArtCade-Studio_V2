@@ -33,6 +33,9 @@ RenderPipeline RenderPipelineBuilder::buildPipeline(
         presentation_uses_game_view_compositor(presentation.effectiveMode);
     pipeline.blitGameView = pipeline.captureGameView;
 
+    if (pipeline.captureGameView)
+        pipeline.appPassOrder.push_back(RenderPassId::GameView);
+
     pipeline.appPassOrder.push_back(RenderPassId::SceneBackdrop);
 
     const bool editorOverlays =
@@ -47,6 +50,9 @@ RenderPipeline RenderPipelineBuilder::buildPipeline(
 
     if (features.drawPhysicsDebug)
         pipeline.appPassOrder.push_back(RenderPassId::Debug);
+
+    if (pipeline.blitGameView)
+        pipeline.appPassOrder.push_back(RenderPassId::Blit);
 
     return pipeline;
 }

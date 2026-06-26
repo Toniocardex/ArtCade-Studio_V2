@@ -397,7 +397,7 @@ EMSCRIPTEN_KEEPALIVE void editor_set_editor_view(
     float targetX, float targetY, float zoomDevicePx);
 
 /** Committed presentation revision for the current frame (picking / overlay sync). */
-EMSCRIPTEN_KEEPALIVE uint64_t editor_get_presentation_revision();
+EMSCRIPTEN_KEEPALIVE double editor_get_presentation_revision();
 
 /** Committed presentation snapshot (flat ABI; static storage — Phase 5). */
 EMSCRIPTEN_KEEPALIVE const ArtCade::Presentation::PresentationSnapshotWasm*
@@ -409,6 +409,13 @@ editor_get_presentation_snapshot();
  */
 EMSCRIPTEN_KEEPALIVE void editor_surface_to_world(
     float surfaceX, float surfaceY, float* outWorldX, float* outWorldY);
+
+EMSCRIPTEN_KEEPALIVE void editor_surface_to_world_at_revision(
+    float surfaceX,
+    float surfaceY,
+    double revision,
+    float* outWorldX,
+    float* outWorldY);
 
 /**
  * Sync play-mode surface: CSS host size × DPR → framebuffer and compositor snapshot.

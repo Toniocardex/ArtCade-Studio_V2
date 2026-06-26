@@ -32,6 +32,7 @@ int main() {
     renderer.setCameraZoom(2.f);
     renderer.setCameraPosition({ 640.f, 360.f });
 
+    renderer.commitPresentationFrame();
     const uint64_t revision = renderer.presentationRevision();
     expect(revision >= 1, "projection refresh exposes committed revision");
 
@@ -55,6 +56,7 @@ int main() {
     renderer.setWindowSize(1920, 1080, "integration-fill");
     renderer.setSceneViewport({ 640.f, 480.f }, { 320.f, 240.f });
     renderer.setOutputPolicy(ArtCade::OutputPolicy::Fill);
+    renderer.commitPresentationFrame();
     const auto& playSnapshot = renderer.committedPresentationSnapshot();
     const auto playWorld = PresentationBindings::surface_to_world(
         playSnapshot, SurfacePoint{ 960., 540. });

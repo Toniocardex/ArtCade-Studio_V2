@@ -17,19 +17,6 @@ EffectiveGameCamera compose_effective_game_camera(
     };
 }
 
-ViewCamera2D view_camera_from_effective(const EffectiveGameCamera& camera,
-                                        double offsetX,
-                                        double offsetY) {
-    const double zoom = (camera.zoom > 0.) ? camera.zoom : 1.;
-    return {
-        camera.positionX,
-        camera.positionY,
-        offsetX,
-        offsetY,
-        zoom,
-    };
-}
-
 ViewCamera2D view_camera_from_editor(const EditorCamera& camera) {
     const double zoom = (camera.zoom > 0.) ? camera.zoom : 1.;
     return {

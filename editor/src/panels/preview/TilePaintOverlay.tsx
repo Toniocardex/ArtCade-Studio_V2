@@ -5,6 +5,7 @@ import type { Action } from '../../store/editor-store'
 import { editorPaintTile, editorSurfaceToWorld } from '../../utils/wasm-bridge'
 import { ensureSourceOnLayer } from '../../utils/tilemap-layer-sources'
 import { getRuntimeCanvas } from '../../utils/runtime-canvas'
+import { usePresentationSnapshot } from '../../utils/runtime-sync-service'
 
 // ---------------------------------------------------------------------------
 // TilePaintOverlay — sole tile-paint input while the Tileset Editor is open.
@@ -23,6 +24,7 @@ export function TilePaintOverlay({
   tilemap, activeLayerId, selectedTileCell, sceneId, paintTilesetAssetId, dispatch,
 }: Props) {
   const [size, setSize] = useState({ w: 0, h: 0 })
+  const presentationSnapshot = usePresentationSnapshot()
   useLayoutEffect(() => {
     const canvas = getRuntimeCanvas()
     const update = () => {
@@ -44,7 +46,7 @@ export function TilePaintOverlay({
     const csx = e.clientX - rect.left
     const csy = e.clientY - rect.top
     const dpr = window.devicePixelRatio || 1
-    const world = editorSurfaceToWorld(csx * dpr, csy * dpr)
+    const world = editorSurfaceToWorld(csx * dpr, csy * dpr, presentationSnapshot?.revision)
     const col = Math.floor(world.x / tilemap.tileSize)
     const row = Math.floor(world.y / tilemap.tileSize)
     if (col < 0 || col >= tilemap.cols || row < 0 || row >= tilemap.rows) return null

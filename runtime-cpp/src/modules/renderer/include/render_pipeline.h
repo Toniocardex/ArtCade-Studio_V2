@@ -8,10 +8,7 @@
 
 namespace ArtCade::Modules {
 
-/**
- * Full per-frame render plan: app-layer pass order plus renderer lifecycle passes.
- * GameView capture and Blit are flagged here for documentation; Renderer executes them.
- */
+/** Full per-frame render plan: app-layer pass order plus compositor lifecycle passes. */
 struct RenderPipeline {
     std::vector<RenderPassId> appPassOrder;
     bool captureGameView = false;
