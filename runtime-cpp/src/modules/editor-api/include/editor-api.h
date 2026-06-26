@@ -436,7 +436,7 @@ EMSCRIPTEN_KEEPALIVE void editor_set_snap_to_grid(int enabled);
  * (must match TilesetAsset.spriteImagePath). `bytes` is the raw encoded
  * image file (PNG/JPG/...); `ext` is the file-type hint, e.g. ".png".
  */
-EMSCRIPTEN_KEEPALIVE void editor_register_image(
+EMSCRIPTEN_KEEPALIVE int editor_register_image(
     const char* path, const uint8_t* bytes, int len, const char* ext);
 
 EMSCRIPTEN_KEEPALIVE void editor_register_audio(

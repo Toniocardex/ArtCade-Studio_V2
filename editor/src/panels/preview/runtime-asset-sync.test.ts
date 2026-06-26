@@ -18,7 +18,7 @@ describe('performRuntimeSceneAssetSync', () => {
     prefetchScenes.mockClear()
   })
 
-  it('loads active scene and prefetches others', () => {
+  it('loads active scene and prefetches others', async () => {
     const project = {
       ...createBlankProject(),
       scenes: {
@@ -30,7 +30,7 @@ describe('performRuntimeSceneAssetSync', () => {
         },
       },
     }
-    performRuntimeSceneAssetSync(project, 'scene_main', '/proj/game.artcade/project.json')
+    await performRuntimeSceneAssetSync(project, 'scene_main', '/proj/game.artcade/project.json')
     expect(loadScene).toHaveBeenCalledWith(
       project, 'scene_main', '/proj/game.artcade',
     )

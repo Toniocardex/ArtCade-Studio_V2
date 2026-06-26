@@ -291,7 +291,7 @@ interface ProjectSyncOptions {
 }
 
 /** Imperative project → WASM sync (testable; used by useRuntimeProjectSync). */
-export function performRuntimeProjectSync(opts: ProjectSyncOptions): void {
+export async function performRuntimeProjectSync(opts: ProjectSyncOptions): Promise<void> {
   const {
     project, projectPath, openScripts, dialogs, selectionSceneId,
     wasmReady, engineReady, isPlaying,
@@ -310,7 +310,7 @@ export function performRuntimeProjectSync(opts: ProjectSyncOptions): void {
     projectPath,
   })
   logLogicBoardCompileFailure(dispatch, compileError, makeLogEntry)
-  runtimeSync.syncProject(project!, runtimeSceneId, projectPath, { mainLua, dialogs })
+  await runtimeSync.syncProject(project!, runtimeSceneId, projectPath, { mainLua, dialogs })
 }
 
 export function useRuntimeProjectSync(opts: ProjectSyncOptions): void {
@@ -331,18 +331,17 @@ export function useRuntimeProjectSync(opts: ProjectSyncOptions): void {
   optsRef.current = opts
 
   const run = useCallback(() => {
-    const o = optsRef.current
-    performRuntimeProjectSync({
-      project: o.project,
-      projectPath: o.projectPath,
-      openScripts: o.openScripts,
-      dialogs: o.dialogs,
-      selectionSceneId: o.selectionSceneId,
+    void performRuntimeProjectSync({
+      project: optsRef.current.project,
+      projectPath: optsRef.current.projectPath,
+      openScripts: optsRef.current.openScripts,
+      dialogs: optsRef.current.dialogs,
+      selectionSceneId: optsRef.current.selectionSceneId,
       wasmReady: isReady(),
       engineReady: runtimeSync.isEngineReady(),
-      isPlaying: o.isPlaying,
-      dispatch: o.dispatch,
-      makeLogEntry: o.makeLogEntry,
+      isPlaying: optsRef.current.isPlaying,
+      dispatch: optsRef.current.dispatch,
+      makeLogEntry: optsRef.current.makeLogEntry,
     })
   }, [])
 

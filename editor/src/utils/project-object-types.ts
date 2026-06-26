@@ -12,7 +12,10 @@ import type {
 } from '../types'
 import { COMPONENT_KEYS } from '../types/components'
 import { createEntityDef } from './project-builders'
-import { migrateProjectToPrototypeSprites, hydrateGeneratedAssetDataUrls } from './prototype-sprite'
+import {
+  migrateProjectToPrototypeSprites,
+} from './prototype-sprite'
+import { normalizePrototypeSprites } from './prototype-sprite-resolve'
 import { normalizeAssetRefs } from './normalize-asset-refs'
 import { resolveEntitiesForRuntime } from './sprite-pivot-resolve'
 
@@ -273,7 +276,8 @@ export function normalizeProjectDoc(project: ProjectDoc): {
         formatVersion: PROJECT_FORMAT_V4,
       }
     }
-    normalized = hydrateGeneratedAssetDataUrls(normalized)
+    const protoNorm = normalizePrototypeSprites(normalized)
+    normalized = protoNorm.project
     normalized = normalizeAssetRefs(normalized).project
     const entities = materializeAllEntities(normalized)
     syncAllSceneEntityIds(normalized)

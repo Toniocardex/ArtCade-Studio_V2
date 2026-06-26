@@ -98,9 +98,9 @@ describe('shouldSyncProjectToRuntime', () => {
 })
 
 describe('performRuntimeProjectSync', () => {
-  it('calls runtimeSync.syncProject with compiled main Lua', () => {
+  it('calls runtimeSync.syncProject with compiled main Lua', async () => {
     syncProjectMock.mockClear()
-    performRuntimeProjectSync({
+    await performRuntimeProjectSync({
       project: makeProject() as never,
       projectPath: '/tmp/p/project.json',
       openScripts: [],
@@ -120,10 +120,10 @@ describe('performRuntimeProjectSync', () => {
     )
   })
 
-  it('skips sync while runtime transition is in progress', () => {
+  it('skips sync while runtime transition is in progress', async () => {
     syncProjectMock.mockClear()
     isTransitioningMock.mockReturnValue(true)
-    performRuntimeProjectSync({
+    await performRuntimeProjectSync({
       project: makeProject() as never,
       projectPath: null,
       openScripts: [],

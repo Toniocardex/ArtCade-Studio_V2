@@ -14,7 +14,7 @@ import {
   rematerializeAllInstancesOfType,
   slugTypeId,
 } from '../../utils/project-object-types'
-import { gcUnusedGeneratedPrototypeAssets } from '../../utils/prototype-sprite'
+import { gcUnusedGeneratedPrototypeAssets, syncGeneratedPrototypeAsset } from '../../utils/prototype-sprite'
 import { spriteAssignedFromAsset } from '../../utils/sprite-pivot-resolve'
 import {
   isInstanceNameTaken,
@@ -180,11 +180,12 @@ export const objectTypeReducer: DomainReducer = (state: CoreState, action: Actio
       const { typeId, displayName, prototypeAsset } = action
       if (objectTypeNameTaken(state.project, displayName)) return state
       if (state.project.objectTypes?.[typeId]) return state
+      const syncedPrototype = syncGeneratedPrototypeAsset(prototypeAsset, typeId)
       const base = createEntityDef(0, displayName || typeId, typeId)
       const proto = entityToObjectType(
         {
           ...base,
-          sprite: spriteAssignedFromAsset(base.sprite, prototypeAsset),
+          sprite: spriteAssignedFromAsset(base.sprite, syncedPrototype),
         },
         typeId,
       )
@@ -193,7 +194,7 @@ export const objectTypeReducer: DomainReducer = (state: CoreState, action: Actio
         project: {
           ...state.project,
           objectTypes: { ...state.project.objectTypes, [typeId]: proto },
-          assets: { ...(state.project.assets ?? {}), [prototypeAsset.id]: prototypeAsset },
+          assets: { ...(state.project.assets ?? {}), [syncedPrototype.id]: syncedPrototype },
         },
         projectDirty: true,
       }

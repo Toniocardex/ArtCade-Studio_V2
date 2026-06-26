@@ -4,6 +4,7 @@ import type { ConsoleEntry } from '../types'
 import { alertDialog, confirmDialog } from '../utils/native-dialog'
 import { useTextPrompt } from './useTextPrompt'
 import { buildObjectTypeAddAction } from '../utils/prototype-sprite'
+import { slugTypeId } from '../utils/project-object-types'
 import { isInstanceNameTakenInScene } from '../utils/project-instance-names'
 import { openLogicBoardForEntity } from '../panels/inspector/logic-board-navigation'
 

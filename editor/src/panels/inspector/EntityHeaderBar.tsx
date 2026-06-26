@@ -7,6 +7,7 @@ import { activeComponentDescriptors } from './entity-component-utils'
 import { EntityTagsSection } from './EntityTagsSection'
 import { EntityLayerField } from './EntityLayerField'
 import { isInstanceNameTakenInScene } from '../../utils/project-instance-names'
+import { buildEntityRetypeAction } from '../../utils/entity-retype'
 import { alertDialog } from '../../utils/native-dialog'
 
 export type EntityHeaderBarProps = Readonly<{
@@ -100,9 +101,12 @@ export function EntityHeaderBar({
             label="Spawn group (className)"
             value={entity.className}
             tooltip="Runtime pools, spawn, and collision widgets use this. Logic Board rules do not."
-            onCommit={(className) =>
-              dispatch({ type: 'ENTITY_SET_CLASSNAME', entityId: entity.id, className })
-            }
+            onCommit={(className) => {
+              if (!project) return
+              const action = buildEntityRetypeAction(project, entity.id, className)
+              if (!action) return
+              dispatch(action)
+            }}
           />
         </div>
       </details>

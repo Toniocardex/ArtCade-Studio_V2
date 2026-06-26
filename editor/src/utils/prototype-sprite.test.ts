@@ -2,20 +2,54 @@ import { describe, expect, it } from 'vitest'
 import {
   buildObjectTypeAddAction,
   buildPromotedPrototypeAsset,
+  ensurePrototypeSpriteForObjectType,
   generatePrototypeSpriteAsset,
   prototypeAssetIdForType,
+  prototypeAssetMatchesType,
   prototypeSpriteVirtualPath,
   isGeneratedPrototypeAsset,
   patchPrototypeSpriteColor,
   resetPrototypeSpriteAsset,
   prototypeHasUserEdits,
   clearSpriteClipFields,
+  resolvePrototypeBaseColor,
 } from './prototype-sprite'
+import {
+  resolveImageAssetDataUrl,
+} from './prototype-sprite-resolve'
+import { fillColorToHex } from './sprite-fill-color'
 import { resolveSpriteLoadKey, spriteAssetRef, spriteReferencesImageAsset, detachImageAssetFromSprites } from './sprite-asset-ref'
 import { resolveImageLoadKey } from './resolve-image-load-key'
 import type { ProjectDoc } from '../types'
 
 describe('prototype-sprite', () => {
+  it('resolvePrototypeBaseColor uses palette for unmodified Object type', () => {
+    const asset = generatePrototypeSpriteAsset({ typeId: 'Object', typeName: 'Object' })
+    const resolved = resolvePrototypeBaseColor(asset, 'Object')
+    expect(fillColorToHex(resolved).toUpperCase()).toBe('#00BCD4')
+  })
+
+  it('resolvePrototypeBaseColor derives owner type id from gen_proto_ asset id', () => {
+    const asset = generatePrototypeSpriteAsset({ typeId: 'Object', typeName: 'Object' })
+    const stripped = {
+      ...asset,
+      generated: {
+        ...asset.generated!,
+        ownerTypeId: undefined,
+        baseColor: { x: 46 / 255, y: 204 / 255, z: 113 / 255 },
+        modified: false,
+      },
+    }
+    expect(fillColorToHex(resolvePrototypeBaseColor(stripped)).toUpperCase()).toBe('#00BCD4')
+    expect(resolveImageAssetDataUrl(stripped)?.startsWith('data:image/png')).toBe(true)
+  })
+
+  it('resolvePrototypeBaseColor keeps user-edited color when modified', () => {
+    const asset = generatePrototypeSpriteAsset({ typeId: 'Object', typeName: 'Object' })
+    const edited = patchPrototypeSpriteColor(asset, { x: 46 / 255, y: 204 / 255, z: 113 / 255 })
+    expect(fillColorToHex(resolvePrototypeBaseColor(edited, 'Object')).toUpperCase()).toBe('#2ECC71')
+  })
+
   it('buildObjectTypeAddAction materializes prototype asset with stable ids', () => {
     const action = buildObjectTypeAddAction('Coin')
     expect(action.type).toBe('OBJECT_TYPE_ADD')
@@ -92,6 +126,62 @@ describe('prototype-sprite', () => {
     })
     expect(next.defaultClip).toBeUndefined()
     expect(next.playClipOnSpawn).toBe(false)
+  })
+
+  it('prototypeAssetMatchesType requires gen_proto_{typeId} id and owner', () => {
+    const objectAsset = generatePrototypeSpriteAsset({ typeId: 'Object', typeName: 'Object' })
+    const object1Asset = generatePrototypeSpriteAsset({ typeId: 'Object1', typeName: 'Object1' })
+    expect(prototypeAssetMatchesType(objectAsset, 'Object')).toBe(true)
+    expect(prototypeAssetMatchesType(object1Asset, 'Object')).toBe(false)
+    expect(prototypeAssetMatchesType(objectAsset, 'Object_p')).toBe(false)
+  })
+
+  it('ensurePrototypeSpriteForObjectType repairs shared prototype refs', () => {
+    const shared = generatePrototypeSpriteAsset({ typeId: 'Object', typeName: 'Object' })
+    const typeSprite = {
+      spriteAssetId: shared.id,
+      tint: { x: 1, y: 1, z: 1, w: 1 },
+      fillColor: { x: 1, y: 1, z: 1 },
+      alpha: 1,
+      pivot: { x: 0.5, y: 0.5 },
+      renderOrder: 0,
+    }
+    const project: ProjectDoc = {
+      projectName: 'T',
+      version: '1',
+      targetFPS: 60,
+      activeSceneId: 's',
+      mainScriptPath: 'scripts/main.lua',
+      assets: { [shared.id]: shared },
+      entities: {},
+      scenes: {},
+      objectTypes: {
+        Object: {
+          id: 'Object',
+          displayName: 'Object',
+          tags: [],
+          sprite: typeSprite,
+        },
+        Object_p: {
+          id: 'Object_p',
+          displayName: 'Object_p',
+          tags: [],
+          sprite: { ...typeSprite },
+        },
+      },
+    }
+    const { project: repaired, changed } = ensurePrototypeSpriteForObjectType(
+      project,
+      'Object_p',
+      project.objectTypes!.Object_p,
+    )
+    expect(changed).toBe(true)
+    const boundId = repaired.objectTypes!.Object_p.sprite.spriteAssetId
+    expect(boundId).toBe(prototypeAssetIdForType('Object_p'))
+    expect(boundId).not.toBe(shared.id)
+    expect(prototypeAssetMatchesType(repaired.assets![boundId!], 'Object_p')).toBe(true)
+    expect(fillColorToHex(resolvePrototypeBaseColor(repaired.assets![boundId!], 'Object_p')).toUpperCase())
+      .toBe('#9B59B6')
   })
 })
 

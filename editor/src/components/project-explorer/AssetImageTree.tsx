@@ -132,6 +132,7 @@ export function AssetImageTree({
               icon={
                 <ImageTreeThumbnail
                   asset={asset}
+                  project={project}
                   projectPath={projectPath}
                   onOpenStudio={() => assets.openImageStudio(img.id)}
                 />

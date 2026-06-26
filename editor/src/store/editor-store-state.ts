@@ -23,6 +23,7 @@ import {
   EDITOR_BOOT_ZOOM, DEFAULT_EDITOR_GRID_SIZE, DEFAULT_EDITOR_RULER_STEP,
 } from '../constants/editor-viewport'
 import type { DockPanelId, DockPanelVisibility } from '../constants/dock-panels'
+import type { EntityRetypeAction } from '../utils/entity-retype'
 import { readStoredDockPanelVisibility } from '../utils/dock-panel-visibility'
 import { createInitialDockUiSlice } from '../utils/dock-ui-state'
 import { readEditorPreferences } from '../utils/editor-preferences'
@@ -229,7 +230,7 @@ export type Action =
   | { type: 'ENTITY_DELETE_MANY'; entityIds: number[] }
   | { type: 'ENTITY_SET_VISIBLE'; entityId: number; visible: boolean }
   | { type: 'ENTITY_SET_NAME';    entityId: number; name: string }
-  | { type: 'ENTITY_SET_CLASSNAME'; entityId: number; className: string }
+  | EntityRetypeAction
   | { type: 'ENTITY_ADD_TAG';     entityId: number; tag: string }
   | { type: 'ENTITY_REMOVE_TAG'; entityId: number; tag: string }
   | { type: 'WORLD_SET';         patch: Partial<WorldSettings> }

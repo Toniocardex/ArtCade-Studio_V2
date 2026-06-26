@@ -5,9 +5,6 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 ;(globalThis as unknown as { window: Record<string, unknown> }).window =
   (globalThis as unknown as { window?: Record<string, unknown> }).window ?? {}
 
-// Stub wasm-bridge before the service module evaluates. `runtimeSync` is built
-// on top of the wrappers in this mock so every assertion can be done by
-// counting calls and inspecting args.
 vi.mock('./wasm-bridge', () => {
   return {
     isReady: vi.fn(() => true),
@@ -37,6 +34,10 @@ vi.mock('./wasm-bridge', () => {
     peekWasmBridgeLastError:  vi.fn(() => 'mock bridge error'),
   }
 })
+
+vi.mock('../panels/preview/runtime-asset-sync', () => ({
+  performRuntimeSceneAssetSync: vi.fn(() => Promise.resolve()),
+}))
 
 const bridge = await import('./wasm-bridge')
 const { runtimeSync } = await import('./runtime-sync-service')
@@ -116,81 +117,81 @@ describe('RuntimeSyncService', () => {
     expect(bridge.editorSetGuidesEnabled).not.toHaveBeenCalled()
   })
 
-  it('syncProject loads once and skips when the fingerprint is unchanged', () => {
+  it('syncProject loads once and skips when the fingerprint is unchanged', async () => {
     const p = makeProject()
-    expect(runtimeSync.syncProject(p as never, 'a', '/tmp/x')).toBe(true)
+    expect(await runtimeSync.syncProject(p as never, 'a', '/tmp/x')).toBe(true)
     expect(bridge.editorLoadProject).toHaveBeenCalledTimes(1)
-    expect(runtimeSync.syncProject(p as never, 'a', '/tmp/x')).toBe(false)
+    expect(await runtimeSync.syncProject(p as never, 'a', '/tmp/x')).toBe(false)
     expect(bridge.editorLoadProject).toHaveBeenCalledTimes(1)
   })
 
-  it('notifies project reload listeners only when a full runtime reload is applied', () => {
+  it('notifies project reload listeners only when a full runtime reload is applied', async () => {
     const listener = vi.fn()
     const unsubscribe = runtimeSync.onProjectReloadApplied(listener)
     const p = makeProject()
 
-    expect(runtimeSync.syncProject(p as never, 'a', '/tmp/x')).toBe(true)
+    expect(await runtimeSync.syncProject(p as never, 'a', '/tmp/x')).toBe(true)
     expect(listener).toHaveBeenCalledTimes(1)
 
-    expect(runtimeSync.syncProject(p as never, 'a', '/tmp/x')).toBe(false)
+    expect(await runtimeSync.syncProject(p as never, 'a', '/tmp/x')).toBe(false)
     expect(listener).toHaveBeenCalledTimes(1)
 
     Object.assign(p, { layers: [{ id: 'lyr_obj', name: 'Object' }, { id: 'lyr_bg', name: 'Background' }] })
-    expect(runtimeSync.syncProject(p as never, 'a', '/tmp/x')).toBe(true)
+    expect(await runtimeSync.syncProject(p as never, 'a', '/tmp/x')).toBe(true)
     expect(listener).toHaveBeenCalledTimes(2)
 
     unsubscribe()
     Object.assign(p, { layers: [{ id: 'lyr_ui', name: 'UI' }, { id: 'lyr_obj', name: 'Object' }, { id: 'lyr_bg', name: 'Background' }] })
-    expect(runtimeSync.syncProject(p as never, 'a', '/tmp/x')).toBe(true)
+    expect(await runtimeSync.syncProject(p as never, 'a', '/tmp/x')).toBe(true)
     expect(listener).toHaveBeenCalledTimes(2)
   })
 
-  it('syncProject re-loads when the fingerprint changes', () => {
+  it('syncProject re-loads when the fingerprint changes', async () => {
     const p: Project = makeProject()
-    runtimeSync.syncProject(p as never, 'a', '/tmp/x')
+    await runtimeSync.syncProject(p as never, 'a', '/tmp/x')
     p.entities[1].sprite.tint = { x: 1, y: 0, z: 0, w: 1 }
-    expect(runtimeSync.syncProject(p as never, 'a', '/tmp/x')).toBe(true)
+    expect(await runtimeSync.syncProject(p as never, 'a', '/tmp/x')).toBe(true)
     expect(bridge.editorUpdateEntity).toHaveBeenCalledTimes(1)
     expect(bridge.editorUpdateEntity).toHaveBeenCalledWith(1, expect.any(String))
     expect(bridge.editorLoadProject).toHaveBeenCalledTimes(1)
   })
 
-  it('syncProject uses editor_set_scene_settings for viewport-only edits', () => {
+  it('syncProject uses editor_set_scene_settings for viewport-only edits', async () => {
     const p: Project = makeProject()
-    runtimeSync.syncProject(p as never, 'a', '/tmp/x')
+    await runtimeSync.syncProject(p as never, 'a', '/tmp/x')
     p.scenes.a.viewportSize = { x: 1024, y: 768 }
-    expect(runtimeSync.syncProject(p as never, 'a', '/tmp/x')).toBe(true)
+    expect(await runtimeSync.syncProject(p as never, 'a', '/tmp/x')).toBe(true)
     expect(bridge.editorSetSceneSettings).toHaveBeenCalledTimes(1)
     expect(bridge.editorSetSceneSettings).toHaveBeenCalledWith('a', expect.any(String))
     expect(bridge.editorLoadProject).toHaveBeenCalledTimes(1)
   })
 
-  it('syncProject full-reloads when entity membership changes', () => {
+  it('syncProject full-reloads when entity membership changes', async () => {
     const p: Project = makeProject()
-    runtimeSync.syncProject(p as never, 'a', '/tmp/x')
+    await runtimeSync.syncProject(p as never, 'a', '/tmp/x')
     ;(p.entities as Record<number, (typeof p.entities)[1]>)[2] = {
       ...p.entities[1],
       id: 2,
       name: 'E2',
     }
     p.scenes.a.entityIds = [1, 2]
-    expect(runtimeSync.syncProject(p as never, 'a', '/tmp/x')).toBe(true)
+    expect(await runtimeSync.syncProject(p as never, 'a', '/tmp/x')).toBe(true)
     expect(bridge.editorLoadProject).toHaveBeenCalledTimes(2)
     expect(bridge.editorUpdateEntity).not.toHaveBeenCalled()
   })
 
-  it('syncProject hot-reloads main Lua when only the script changes', () => {
+  it('syncProject hot-reloads main Lua when only the script changes', async () => {
     const p = makeProject()
-    runtimeSync.syncProject(p as never, 'a', '/tmp/x', { mainLua: 'function tick(dt) end' })
+    await runtimeSync.syncProject(p as never, 'a', '/tmp/x', { mainLua: 'function tick(dt) end' })
     vi.mocked(bridge.editorReloadScript).mockClear()
-    expect(runtimeSync.syncProject(p as never, 'a', '/tmp/x', {
+    expect(await runtimeSync.syncProject(p as never, 'a', '/tmp/x', {
       mainLua: '-- logic v2',
     })).toBe(true)
     expect(bridge.editorLoadProject).toHaveBeenCalledTimes(1)
     expect(bridge.editorReloadScript).toHaveBeenCalledWith('-- logic v2')
   })
 
-  it('syncProject full-reload hot-reloads main Lua when provided', () => {
+  it('syncProject full-reload hot-reloads main Lua when provided', async () => {
     const p = makeProject()
     ;(p.entities as Record<number, (typeof p.entities)[1]>)[2] = {
       ...p.entities[1],
@@ -198,15 +199,15 @@ describe('RuntimeSyncService', () => {
       name: 'E2',
     }
     p.scenes.a.entityIds = [1, 2]
-    runtimeSync.syncProject(p as never, 'a', '/tmp/x', { mainLua: 'function tick(dt) end' })
+    await runtimeSync.syncProject(p as never, 'a', '/tmp/x', { mainLua: 'function tick(dt) end' })
     expect(bridge.editorLoadProject).toHaveBeenCalledTimes(1)
     expect(bridge.editorReloadScript).toHaveBeenCalledWith('function tick(dt) end')
   })
 
-  it('syncProject omits logicBoards from runtime JSON payload', () => {
+  it('syncProject omits logicBoards from runtime JSON payload', async () => {
     const p = makeProject()
     Object.assign(p, { logicBoards: [{ id: 'lb', name: 'Main', rules: [] }] })
-    runtimeSync.syncProject(p as never, 'a', '/tmp/x')
+    await runtimeSync.syncProject(p as never, 'a', '/tmp/x')
     const json = vi.mocked(bridge.editorLoadProject).mock.calls[0][0]
     const parsed = JSON.parse(json) as Record<string, unknown>
     expect(parsed.logicBoards).toBeUndefined()
@@ -328,17 +329,17 @@ describe('RuntimeSyncService', () => {
     expect(bridge.editorSetMode).toHaveBeenCalledTimes(2)
   })
 
-  it('exitPlaySession calls atomic editor_exit_play_mode and latches projection', () => {
+  it('exitPlaySession calls atomic editor_exit_play_mode and latches projection', async () => {
     const p = makeProject()
     const invalidator = vi.fn()
     runtimeSync.setAssetCacheInvalidator(invalidator)
-    runtimeSync.syncProject(p as never, 'a', '/tmp/x')
+    await runtimeSync.syncProject(p as never, 'a', '/tmp/x')
     vi.mocked(bridge.editorExitPlayMode).mockClear()
     expect(runtimeSync.exitPlaySession(p as never, 'a', 'function tick(dt) end', {}, '/tmp/x').ok).toBe(true)
     expect(bridge.editorExitPlayMode).toHaveBeenCalledTimes(1)
     expect(invalidator).toHaveBeenCalledTimes(1)
     vi.mocked(bridge.editorLoadProject).mockClear()
-    expect(runtimeSync.syncProject(p as never, 'a', '/tmp/x')).toBe(false)
+    expect(await runtimeSync.syncProject(p as never, 'a', '/tmp/x')).toBe(false)
     expect(bridge.editorLoadProject).not.toHaveBeenCalled()
   })
 
@@ -422,11 +423,11 @@ describe('RuntimeSyncService', () => {
     expect(bridge.editorReloadScript).not.toHaveBeenCalled()
   })
 
-  it('applyMainLua reloads once and syncProject skips duplicate Lua', () => {
+  it('applyMainLua reloads once and syncProject skips duplicate Lua', async () => {
     const p = makeProject()
     const luaV1 = 'function tick(dt) end'
     const luaV2 = '-- logic v2'
-    runtimeSync.syncProject(p as never, 'a', '/tmp/x')
+    await runtimeSync.syncProject(p as never, 'a', '/tmp/x')
     vi.mocked(bridge.editorReloadScript).mockClear()
 
     expect(runtimeSync.applyMainLua(luaV1)).toEqual({ status: 'reloaded' })
@@ -436,7 +437,7 @@ describe('RuntimeSyncService', () => {
     expect(runtimeSync.applyMainLua(luaV1)).toEqual({ status: 'unchanged' })
     expect(bridge.editorReloadScript).not.toHaveBeenCalled()
 
-    expect(runtimeSync.syncProject(p as never, 'a', '/tmp/x', { mainLua: luaV1 })).toBe(false)
+    expect(await runtimeSync.syncProject(p as never, 'a', '/tmp/x', { mainLua: luaV1 })).toBe(false)
     expect(bridge.editorReloadScript).not.toHaveBeenCalled()
 
     expect(runtimeSync.applyMainLua(luaV2)).toEqual({ status: 'reloaded' })
@@ -531,18 +532,18 @@ describe('RuntimeSyncService', () => {
     expect(bridge.editorSetGuidesEnabled).toHaveBeenCalledTimes(2)
   })
 
-  it('notifyBootProjectSynced fires when projection latches via syncProject', () => {
+  it('notifyBootProjectSynced fires when projection latches via syncProject', async () => {
     const cb = vi.fn()
     runtimeSync.onBootProjectSyncedChange(cb)
     expect(runtimeSync.isBootProjectSynced()).toBe(false)
     const p = makeProject()
-    runtimeSync.syncProject(p as never, 'a', '/tmp/x', { mainLua: 'function tick(dt) end' })
+    await runtimeSync.syncProject(p as never, 'a', '/tmp/x', { mainLua: 'function tick(dt) end' })
     expect(runtimeSync.hasProjectProjectionLatched()).toBe(true)
     expect(runtimeSync.isBootProjectSynced()).toBe(true)
     expect(cb).toHaveBeenLastCalledWith(true)
   })
 
-  it('reset preserves engine readiness when WASM stays loaded (project open)', () => {
+  it('reset preserves engine readiness when WASM stays loaded (project open)', async () => {
     runtimeSync.notifyEngineReady()
     runtimeSync.notifyBootProjectSynced()
     const engineCb = vi.fn()
@@ -557,7 +558,7 @@ describe('RuntimeSyncService', () => {
     expect(syncCb).toHaveBeenLastCalledWith(false)
     vi.mocked(bridge.editorLoadProject).mockClear()
     const p = makeProject()
-    expect(runtimeSync.syncProject(p as never, 'a', '/tmp/reopened/project.json')).toBe(true)
+    expect(await runtimeSync.syncProject(p as never, 'a', '/tmp/reopened/project.json')).toBe(true)
     expect(bridge.editorLoadProject).toHaveBeenCalledTimes(1)
   })
 

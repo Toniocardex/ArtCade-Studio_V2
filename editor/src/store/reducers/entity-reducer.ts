@@ -21,9 +21,9 @@ import {
   findSceneInstance,
   rematerializeAllInstancesOfType,
   rematerializeInstance,
-  slugTypeId,
 } from '../../utils/project-object-types'
 import { isInstanceNameTakenInScene } from '../../utils/project-instance-names'
+import { assertPrototypeOwnership } from '../../utils/entity-retype'
 
 const TRANSFORM_EPS = 1e-4
 
@@ -294,46 +294,31 @@ export const entityReducer: DomainReducer = (state: CoreState, action: Action) =
         },
       })
     }
-    case 'ENTITY_SET_CLASSNAME': {
-      // Re-type the instance: point it at the type named `className`,
-      // creating that type (cloned from the current one) when missing.
-      // This is the "variant" flow — CoinGold = new type, never an override.
-      const currentEntity = state.project?.entities?.[action.entityId]
-      if (!state.project || !currentEntity) return state
-      const className = action.className.trim()
-      if (!className) return state
-      const found = findSceneInstance(state.project, action.entityId)
-      const currentTypeId = found?.instance.objectTypeId
-      const currentType = currentTypeId
-        ? state.project.objectTypes?.[currentTypeId]
-        : undefined
-      if (!found || !currentType) {
-        const e = currentEntity
-        if (className === e.className) return state
-        return withProject(state, {
-          ...state.project,
-          entities: {
-            ...state.project.entities,
-            [action.entityId]: { ...e, className },
+    case 'ENTITY_RETYPE': {
+      if (!state.project) return state
+      let project: ProjectDoc = state.project
+      if (action.prototypeAsset) {
+        project = {
+          ...project,
+          assets: {
+            ...(project.assets ?? {}),
+            [action.prototypeAsset.id]: action.prototypeAsset,
           },
-        })
-      }
-      const nextTypeId = slugTypeId(className)
-      if (nextTypeId === currentTypeId) return state
-      const nextType: ObjectTypeDef =
-        state.project.objectTypes?.[nextTypeId]
-        ?? {
-          ...JSON.parse(JSON.stringify(currentType)),
-          id: nextTypeId,
-          displayName: className,
         }
-      const withType: ProjectDoc = {
-        ...state.project,
-        objectTypes: { ...state.project.objectTypes, [nextTypeId]: nextType },
       }
-      const retargeted = patchInstance(withType, action.entityId, (inst) => ({
+      if (action.newObjectType) {
+        project = {
+          ...project,
+          objectTypes: {
+            ...(project.objectTypes ?? {}),
+            [action.targetTypeId]: action.newObjectType,
+          },
+        }
+        assertPrototypeOwnership(project, action.targetTypeId)
+      }
+      const retargeted = patchInstance(project, action.entityId, (inst) => ({
         ...inst,
-        objectTypeId: nextTypeId,
+        objectTypeId: action.targetTypeId,
       }))
       return retargeted ? withProject(state, retargeted) : state
     }

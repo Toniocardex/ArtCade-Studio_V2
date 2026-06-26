@@ -17,9 +17,11 @@ import { normalizeAssetRefs } from '../../utils/normalize-asset-refs'
 import { ensureSourceOnLayer, normalizeTilemapLayer } from '../../utils/tilemap-layer-sources'
 import {
   isGeneratedPrototypeAsset,
+  prototypeOwnerTypeIdFromAsset,
   resetPrototypeSpriteAsset,
   clearSpriteClipFields,
   patchObjectTypeSpritesUsingAsset,
+  syncGeneratedPrototypeAsset,
 } from '../../utils/prototype-sprite'
 import { rematerializeAllInstancesOfType } from '../../utils/project-object-types'
 import {
@@ -405,18 +407,24 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
     }
     case 'ASSET_ADD': {
       if (!state.project) return state
+      const storedAsset = isGeneratedPrototypeAsset(action.asset)
+        ? syncGeneratedPrototypeAsset(
+          action.asset,
+          prototypeOwnerTypeIdFromAsset(action.asset),
+        )
+        : action.asset
       const withAsset = {
         ...state.project,
         assets: {
           ...(state.project.assets ?? {}),
-          [action.asset.id]: action.asset,
+          [storedAsset.id]: storedAsset,
         },
       }
-      const project = action.asset.usage === 'sprite'
+      const project = storedAsset.usage === 'sprite'
         ? withAsset
         : detachImageAssetFromSprites(withAsset, {
-            id: action.asset.id,
-            path: action.asset.path,
+            id: storedAsset.id,
+            path: storedAsset.path,
           })
       return {
         ...state,
@@ -427,12 +435,10 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
     case 'IMAGE_ASSET_RESET_PROTOTYPE': {
       const existing = state.project?.assets?.[action.assetId]
       if (!state.project || !existing || !isGeneratedPrototypeAsset(existing)) return state
-      const type = state.project.objectTypes?.[action.typeId]
       const resetAsset = resetPrototypeSpriteAsset({
         asset: existing,
         typeId: action.typeId,
         typeName: action.typeName,
-        legacyFillColor: type?.sprite.fillColor,
       })
       const collisionProfiles = { ...(state.project.collisionProfiles ?? {}) }
       delete collisionProfiles[action.assetId]

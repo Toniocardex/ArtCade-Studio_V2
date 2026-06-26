@@ -8,6 +8,7 @@ import type { ImportedAssetFile } from './asset-file-api'
 import { importAssetFile } from './asset-file-api'
 import { hexToFillColor } from './sprite-fill-color'
 import { slugTypeId } from './project-object-types'
+import { pngBytesToDataUrl, solidColorPngBytes } from './solid-color-png'
 
 export const PROTOTYPE_SPRITE_SIZE = 32
 export const GENERATED_PROTOTYPE_PATH_PREFIX = '__generated__/prototype/'
@@ -25,6 +26,23 @@ export function prototypeSpriteVirtualPath(assetId: string): string {
 /** Stable generated asset id for an object type's prototype sprite. */
 export function prototypeAssetIdForType(typeId: string): string {
   return `gen_proto_${typeId}`
+}
+
+const GEN_PROTO_ID_PREFIX = 'gen_proto_'
+
+/**
+ * Owning object type id for palette lookup: persisted metadata, then stable asset id.
+ */
+export function prototypeOwnerTypeIdFromAsset(
+  asset: Pick<ImageAsset, 'id' | 'generated'>,
+): string | undefined {
+  const fromMeta = asset.generated?.ownerTypeId?.trim()
+  if (fromMeta) return fromMeta
+  if (asset.id.startsWith(GEN_PROTO_ID_PREFIX)) {
+    const typeId = asset.id.slice(GEN_PROTO_ID_PREFIX.length).trim()
+    if (typeId) return typeId
+  }
+  return undefined
 }
 
 /** Deterministic accent color from object type id (editor preview + migration). */
@@ -46,21 +64,12 @@ export function generatePrototypeSpriteDataUrl(
   height: number,
   color: Vec3,
 ): string {
-  if (typeof document !== 'undefined') {
-    const canvas = document.createElement('canvas')
-    canvas.width = width
-    canvas.height = height
-    const ctx = canvas.getContext('2d')
-    if (ctx) {
-      const r = Math.round(color.x * 255)
-      const g = Math.round(color.y * 255)
-      const b = Math.round(color.b * 255)
-      ctx.fillStyle = `rgb(${r},${g},${b})`
-      ctx.fillRect(0, 0, width, height)
-      return canvas.toDataURL('image/png')
-    }
-  }
-  return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+  const r = Math.round(color.x * 255)
+  const g = Math.round(color.y * 255)
+  const b = Math.round(color.z * 255)
+  const bytes = solidColorPngBytes(width, height, r, g, b)
+  const dataUrl = pngBytesToDataUrl(bytes)
+  return dataUrl
 }
 
 export interface GeneratePrototypeSpriteAssetOptions {
@@ -104,8 +113,79 @@ export function generatePrototypeSpriteAsset(
 }
 
 export function isGeneratedPrototypeAsset(asset: ImageAsset | undefined): boolean {
-  return asset?.source === 'generated'
-    && asset.generated?.generator === 'prototype-sprite'
+  if (!asset) return false
+  if (asset.source === 'generated' && asset.generated?.generator === 'prototype-sprite') {
+    return true
+  }
+  return asset.id.startsWith('gen_proto_')
+    || asset.path.startsWith(GENERATED_PROTOTYPE_PATH_PREFIX)
+}
+
+/**
+ * True when a generated prototype asset is the dedicated sprite for `typeId`
+ * (stable id `gen_proto_{typeId}` and matching owner metadata).
+ */
+export function prototypeAssetMatchesType(
+  asset: ImageAsset | undefined,
+  typeId: string,
+): boolean {
+  if (!asset || !isGeneratedPrototypeAsset(asset)) return false
+  const trimmed = typeId.trim()
+  if (!trimmed) return false
+  if (asset.id !== prototypeAssetIdForType(trimmed)) return false
+  return prototypeOwnerTypeIdFromAsset(asset) === trimmed
+}
+
+/**
+ * Canonical RGB for a generated prototype: user-edited color when modified,
+ * otherwise the deterministic palette entry for the owning object type.
+ */
+export function resolvePrototypeBaseColor(
+  asset: ImageAsset,
+  fallbackTypeId?: string,
+): Vec3 {
+  const meta = asset.generated
+  const ownerTypeId =
+    prototypeOwnerTypeIdFromAsset(asset)
+    || fallbackTypeId?.trim()
+    || ''
+  if (!meta) {
+    return ownerTypeId ? colorFromObjectTypeId(ownerTypeId) : { x: 1, y: 1, z: 1 }
+  }
+  if (meta.modified) {
+    return meta.baseColor
+  }
+  const resolved = ownerTypeId ? colorFromObjectTypeId(ownerTypeId) : meta.baseColor
+  return resolved
+}
+
+/** Keep generated metadata, PNG bytes, and preview uploads in sync. */
+export function syncGeneratedPrototypeAsset(
+  asset: ImageAsset,
+  fallbackTypeId?: string,
+): ImageAsset {
+  if (!isGeneratedPrototypeAsset(asset) || !asset.generated) return asset
+  const meta = asset.generated
+  const ownerTypeId =
+    prototypeOwnerTypeIdFromAsset(asset)
+    || fallbackTypeId?.trim()
+    || ''
+  const baseColor = resolvePrototypeBaseColor(asset, ownerTypeId || fallbackTypeId)
+  const dataUrl = generatePrototypeSpriteDataUrl(meta.width, meta.height, baseColor)
+  const sameColor = meta.baseColor.x === baseColor.x
+    && meta.baseColor.y === baseColor.y
+    && meta.baseColor.z === baseColor.z
+  const sameOwner = !ownerTypeId || meta.ownerTypeId?.trim() === ownerTypeId
+  if (sameColor && sameOwner && asset.dataUrl === dataUrl) return asset
+  return {
+    ...asset,
+    generated: {
+      ...meta,
+      ...(ownerTypeId && !meta.ownerTypeId?.trim() ? { ownerTypeId } : {}),
+      baseColor: { ...baseColor },
+    },
+    dataUrl,
+  }
 }
 
 export type ObjectTypeAddAction = Extract<Action, { type: 'OBJECT_TYPE_ADD' }>
@@ -169,8 +249,10 @@ export function ensurePrototypeSpriteForObjectType(
   if (ref) {
     const existing = project.assets?.[ref]
       ?? Object.values(project.assets ?? {}).find((a) => a.id === ref || a.path === ref)
-    if (existing) {
-      if (type.sprite.spriteAssetId === existing.id) return { project, changed: false }
+    if (existing && !isGeneratedPrototypeAsset(existing)) {
+      if (type.sprite.spriteAssetId === existing.id) {
+        return { project, changed: false }
+      }
       const objectTypes = {
         ...project.objectTypes!,
         [typeId]: {
@@ -183,12 +265,40 @@ export function ensurePrototypeSpriteForObjectType(
         changed: true,
       }
     }
+    if (existing && prototypeAssetMatchesType(existing, typeId)) {
+      const synced = syncGeneratedPrototypeAsset(existing, typeId)
+      const assets = { ...(project.assets ?? {}), [synced.id]: synced }
+      const refFix = type.sprite.spriteAssetId !== synced.id
+      const assetSync = synced !== existing
+      if (!refFix && !assetSync) {
+        return { project, changed: false }
+      }
+      return {
+        project: {
+          ...project,
+          ...(refFix
+            ? {
+                objectTypes: {
+                  ...project.objectTypes!,
+                  [typeId]: {
+                    ...type,
+                    sprite: { ...type.sprite, spriteAssetId: synced.id, pivotFromAsset: true },
+                  },
+                },
+              }
+            : {}),
+          assets,
+        },
+        changed: true,
+      }
+    }
   }
 
+  // Prototype tint is palette-driven (ADR); legacy sprite.fillColor was a placeholder
+  // rectangle tint and must not become the generated PNG baseColor on migration.
   const prototypeAsset = generatePrototypeSpriteAsset({
     typeId,
     typeName: type.displayName,
-    baseColor: type.sprite.fillColor,
   })
   const objectTypes = {
     ...project.objectTypes!,
@@ -259,14 +369,12 @@ export function resetPrototypeSpriteAsset(options: {
   asset: ImageAsset
   typeId: string
   typeName: string
-  legacyFillColor?: Vec3
 }): ImageAsset {
-  const { asset, typeId, typeName, legacyFillColor } = options
+  const { asset, typeId, typeName } = options
   if (!isGeneratedPrototypeAsset(asset)) return asset
   const fresh = generatePrototypeSpriteAsset({
     typeId,
     typeName,
-    baseColor: legacyFillColor ?? colorFromObjectTypeId(typeId),
   })
   return {
     ...fresh,
@@ -321,13 +429,13 @@ export function hydrateGeneratedAssetDataUrls(project: ProjectDoc): ProjectDoc {
   const assets = { ...(project.assets ?? {}) }
   let changed = false
   for (const [key, asset] of Object.entries(assets)) {
-    if (!isGeneratedPrototypeAsset(asset) || asset.dataUrl) continue
-    const meta = asset.generated
-    if (!meta) continue
-    assets[key] = {
-      ...asset,
-      dataUrl: generatePrototypeSpriteDataUrl(meta.width, meta.height, meta.baseColor),
-    }
+    if (!isGeneratedPrototypeAsset(asset)) continue
+    const synced = syncGeneratedPrototypeAsset(
+      asset,
+      prototypeOwnerTypeIdFromAsset(asset),
+    )
+    if (synced === asset) continue
+    assets[key] = synced
     changed = true
   }
   return changed ? { ...project, assets } : project
@@ -344,7 +452,10 @@ export function generatedAssetBytesFromProject(
   return assetBytesFromDataUrl(asset.dataUrl)
 }
 
-export function migrateProjectToPrototypeSprites(project: ProjectDoc): {
+/**
+ * Ensure every object type owns `gen_proto_{typeId}` (repairs shared / legacy refs).
+ */
+export function rebindAllObjectTypePrototypeSprites(project: ProjectDoc): {
   project: ProjectDoc
   changed: boolean
 } {
@@ -354,12 +465,6 @@ export function migrateProjectToPrototypeSprites(project: ProjectDoc): {
   let next = project
   let changed = false
   for (const [typeId, type] of Object.entries(project.objectTypes)) {
-    const ref = type.sprite.spriteAssetId?.trim()
-    const resolved = ref
-      ? (next.assets?.[ref]
-        ?? Object.values(next.assets ?? {}).find((a) => a.id === ref || a.path === ref))
-      : undefined
-    if (resolved && ref === resolved.id) continue
     const result = ensurePrototypeSpriteForObjectType(next, typeId, type)
     if (result.changed) {
       next = result.project
@@ -367,6 +472,13 @@ export function migrateProjectToPrototypeSprites(project: ProjectDoc): {
     }
   }
   return { project: next, changed }
+}
+
+export function migrateProjectToPrototypeSprites(project: ProjectDoc): {
+  project: ProjectDoc
+  changed: boolean
+} {
+  return rebindAllObjectTypePrototypeSprites(project)
 }
 
 /** Clear clip spawn fields after prototype reset or promote-side effects. */

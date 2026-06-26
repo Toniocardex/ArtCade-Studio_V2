@@ -254,6 +254,15 @@ class RuntimeSyncServiceImpl {
     activeSceneId: string,
     projectPath: string | null | undefined,
   ): void {
+    void this.syncProjectAssetsNow(project, activeSceneId, projectPath)
+  }
+
+  /** Await scene textures in WASM before the next editor frame draws them. */
+  async syncProjectAssetsNow(
+    project: ProjectDoc,
+    activeSceneId: string,
+    projectPath: string | null | undefined,
+  ): Promise<void> {
     if (!this.engineReady) return
     const allSceneDescriptors = Object.keys(project.scenes).flatMap((sceneId) =>
       sceneAssetDescriptors(project, sceneId),
@@ -267,7 +276,7 @@ class RuntimeSyncServiceImpl {
     })
     if (this.lastAssetSyncKey === assetKey) return
     this.lastAssetSyncKey = assetKey
-    performRuntimeSceneAssetSync(project, activeSceneId, projectPath ?? null)
+    await performRuntimeSceneAssetSync(project, activeSceneId, projectPath ?? null)
   }
 
   /**
@@ -616,8 +625,17 @@ class RuntimeSyncServiceImpl {
     activeSceneId: string,
     projectPath: string | null,
     options?: SyncProjectOptions,
-  ): boolean {
-    if (!isWasmReady()) return false
+  ): Promise<boolean> {
+    if (!isWasmReady()) return Promise.resolve(false)
+    return this.syncProjectInner(project, activeSceneId, projectPath, options)
+  }
+
+  private async syncProjectInner(
+    project: ProjectDoc,
+    activeSceneId: string,
+    projectPath: string | null,
+    options?: SyncProjectOptions,
+  ): Promise<boolean> {
     let didWork = false
     if (options?.dialogs && this.syncDialogs(options.dialogs)) didWork = true
     if (options?.mainLua && this.reloadMainLuaIfChanged(options.mainLua) === 'reloaded') {
@@ -661,7 +679,7 @@ class RuntimeSyncServiceImpl {
       // The bridge fires _onTextureCacheEvicted → clearRegistered() synchronously inside
       // editorLoadProject. Force syncProjectAssets to re-upload by resetting the key.
       this.lastAssetSyncKey = null
-      this.syncProjectAssets(project, activeSceneId, projectPath)
+      await this.syncProjectAssetsNow(project, activeSceneId, projectPath)
       this.notifyProjectReloadApplied()
       return true
     }
@@ -673,7 +691,7 @@ class RuntimeSyncServiceImpl {
 
     const incremental = this.applyIncrementalSync(project, plan)
     this.latchProjectProjection(loadKey, projection)
-    this.syncProjectAssets(project, activeSceneId, projectPath)
+    await this.syncProjectAssetsNow(project, activeSceneId, projectPath)
     return didWork || incremental
   }
 

@@ -2,7 +2,7 @@
 // asset-orchestrator — scene-scoped WASM image upload (Phase A/B)
 // ---------------------------------------------------------------------------
 
-import type { ProjectDoc } from '../types'
+import type { ProjectDoc, ImageAsset } from '../types'
 import type { TilesetAsset } from '../types/tilemap'
 import { readProjectFileBytes } from './asset-file-api'
 import { discardPendingAsset } from './pending-asset-store'
@@ -22,6 +22,8 @@ import {
   resolveImageLoadKey,
   resetResolveImageLoadKeyWarnings,
 } from './resolve-image-load-key'
+import { GENERATED_PROTOTYPE_PATH_PREFIX } from './prototype-sprite'
+import { resolveImageAssetDataUrl } from './prototype-sprite-resolve'
 import type {
   AssetDescriptor,
   AssetKind,
@@ -88,7 +90,7 @@ export function pathsToDescriptors(
         type: 'image',
         path: asset.path,
         ext: extFromPath(asset.path),
-        dataUrl: asset.dataUrl,
+        dataUrl: resolveImageAssetDataUrl(asset, project),
       })
     } else {
       warnMissingFromLibraryOnce(path)
@@ -188,18 +190,15 @@ function dataUrlRevision(dataUrl: string | undefined): string {
   return `data:${dataUrl.length}:${(hash >>> 0).toString(36)}`
 }
 
-export function imageAssetDescriptor(asset: {
-  id: string
-  path: string
-  dataUrl?: string
-}): AssetDescriptor {
+export function imageAssetDescriptor(asset: Pick<ImageAsset, 'id' | 'path' | 'dataUrl' | 'source' | 'generated'>): AssetDescriptor {
   const path = asset.path?.trim() || asset.id
+  const dataUrl = resolveImageAssetDataUrl(asset as ImageAsset)
   return {
     id: asset.id,
     type: 'image',
     path,
     ext: extFromPath(path),
-    dataUrl: asset.dataUrl,
+    dataUrl,
   }
 }
 
@@ -484,6 +483,13 @@ export class AssetOrchestrator {
     }
 
     if (!this.isGenerationCurrent(generation, priority)) return 'cancelled'
+
+    if (desc.type === 'image' && desc.path.startsWith(GENERATED_PROTOTYPE_PATH_PREFIX)) {
+      this.deps.invalidateAsset?.(desc.path, 'image')
+      if (desc.id.trim() && desc.id !== desc.path) {
+        this.deps.invalidateAsset?.(desc.id, 'image')
+      }
+    }
 
     if (!bytes || bytes.length === 0) {
       this.logFailureOnce(desc.path, 'empty_bytes')

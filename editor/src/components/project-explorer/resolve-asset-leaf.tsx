@@ -69,6 +69,7 @@ export function resolveAssetLeaf(
       icon: (
         <ImageTreeThumbnail
           asset={asset}
+          project={project}
           projectPath={projectPath}
           onOpenStudio={() => assets.openImageStudio(imgRow.id)}
         />

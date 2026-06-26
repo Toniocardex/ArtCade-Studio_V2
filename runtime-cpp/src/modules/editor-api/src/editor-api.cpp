@@ -860,18 +860,18 @@ EMSCRIPTEN_KEEPALIVE void editor_sync_play_surface(
     r->syncPlaySurface(cssW, cssH, devicePixelRatio);
 }
 
-EMSCRIPTEN_KEEPALIVE void editor_register_image(
+EMSCRIPTEN_KEEPALIVE int editor_register_image(
     const char* path, const uint8_t* bytes, int len, const char* ext) {
     if (!path || !*path || !bytes || len <= 0) {
         ArtCade::EditorAPI::notifyConsoleLine(
             "[EditorAPI] editor_register_image: invalid arguments.", "warn");
-        return;
+        return 0;
     }
     auto* r = ArtCade::EditorAPI::s_renderer;
     if (!r) {
         ArtCade::EditorAPI::notifyConsoleLine(
             "[EditorAPI] editor_register_image: Renderer not wired yet.", "warn");
-        return;
+        return 0;
     }
     const std::string fileExt = (ext && *ext) ? ext : ".png";
     const bool ok = r->registerImageFromMemory(
@@ -880,11 +880,12 @@ EMSCRIPTEN_KEEPALIVE void editor_register_image(
         std::string msg = "[EditorAPI] Tileset image uploaded: ";
         msg += path;
         ArtCade::EditorAPI::notifyConsoleLine(msg.c_str(), "info");
-    } else {
-        std::string msg = "[EditorAPI] Failed to decode image: ";
-        msg += path;
-        ArtCade::EditorAPI::notifyConsoleLine(msg.c_str(), "error");
+        return 1;
     }
+    std::string msg = "[EditorAPI] Failed to decode image: ";
+    msg += path;
+    ArtCade::EditorAPI::notifyConsoleLine(msg.c_str(), "error");
+    return 0;
 }
 
 EMSCRIPTEN_KEEPALIVE void editor_register_audio(

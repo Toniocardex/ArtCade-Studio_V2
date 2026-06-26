@@ -19,6 +19,7 @@ import {
   promotePrototypeAssetToImported,
   prototypeHasUserEdits,
 } from '../../utils/prototype-sprite'
+import { findSceneInstance } from '../../utils/project-object-types'
 import { imageAssetForRef } from '../../utils/sprite-asset-ref'
 import { confirmDialog, alertDialog } from '../../utils/native-dialog'
 import { editorInvalidateAsset } from '../../utils/wasm-bridge'
@@ -47,8 +48,11 @@ export function SpriteSection({ entity }: SpriteSectionProps) {
   const linkedAsset = imageAssetForRef(project, spriteRef)
     ?? findImageAssetByPath(project?.assets, spriteRef)
   const isPrototype = isGeneratedPrototypeAsset(linkedAsset)
-  const objectType = project?.objectTypes?.[entity.className]
-  const typeId = entity.className
+  const ownerTypeId =
+    findSceneInstance(project, entity.id)?.instance.objectTypeId
+    ?? entity.className
+  const objectType = project?.objectTypes?.[ownerTypeId]
+  const typeId = ownerTypeId
   const typeName = objectType?.displayName ?? entity.name
   const sheetClips = clip?.clips ?? []
   const activeDefaultClip = sheetClips.find((c) => c.name === clip?.defaultClip)
@@ -145,7 +149,7 @@ export function SpriteSection({ entity }: SpriteSectionProps) {
               : []),
             ...images.map((a) => ({
               value: a.id,
-              label: isGeneratedPrototypeAsset(a) ? `${a.name} (prototype)` : a.name,
+              label: a.name,
             })),
           ]}
         />
@@ -269,7 +273,11 @@ export function SpriteSection({ entity }: SpriteSectionProps) {
         </p>
       ) : null}
 
-      <SpriteFillColorField entity={entity} />
+      <SpriteFillColorField
+        entity={entity}
+        linkedAsset={linkedAsset}
+        isPrototype={isPrototype}
+      />
       <div className="grid grid-cols-2 gap-2 mb-2">
         <NumberField
           label="Alpha"

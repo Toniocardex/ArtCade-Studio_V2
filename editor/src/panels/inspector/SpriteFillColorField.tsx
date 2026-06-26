@@ -1,16 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
-import type { EntityDef } from '../../types'
+import type { EntityDef, ImageAsset } from '../../types'
 import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import {
   fillColorToHex,
   hasSpriteImageAsset,
   hexToFillColor,
 } from '../../utils/sprite-fill-color'
-import { isGeneratedPrototypeAsset, patchPrototypeSpriteColor } from '../../utils/prototype-sprite'
-import { imageAssetForRef } from '../../utils/sprite-asset-ref'
+import { patchPrototypeSpriteColor } from '../../utils/prototype-sprite'
+import { resolvePrototypeSpriteForInstance } from '../../utils/prototype-sprite-resolve'
 
 export type SpriteFillColorFieldProps = Readonly<{
   entity: EntityDef
+  linkedAsset?: ImageAsset
+  isPrototype: boolean
 }>
 
 const HEX_PATTERN = /^#?[0-9a-fA-F]{6}$/
@@ -19,18 +21,19 @@ const HEX_PATTERN = /^#?[0-9a-fA-F]{6}$/
  * Fill color for legacy placeholders, or prototype sprite base color when assigned
  * to a generated asset.
  */
-export function SpriteFillColorField({ entity }: SpriteFillColorFieldProps) {
+export function SpriteFillColorField({
+  entity,
+  linkedAsset,
+  isPrototype,
+}: SpriteFillColorFieldProps) {
   const dispatch = useEditorDispatch()
   const project = useEditorSelector((s) => s.project)
   const spriteRef = entity.sprite.spriteAssetId
-  const linkedAsset = project && spriteRef
-    ? imageAssetForRef(project, spriteRef)
-    : undefined
-  const isPrototype = isGeneratedPrototypeAsset(linkedAsset)
   const disabled = hasSpriteImageAsset(spriteRef) && !isPrototype
-  const colorSource = isPrototype && linkedAsset?.generated?.baseColor
-    ? linkedAsset.generated.baseColor
-    : entity.sprite.fillColor
+  const protoView = isPrototype && project
+    ? resolvePrototypeSpriteForInstance(project, entity.id)
+    : null
+  const colorSource = protoView?.baseColor ?? entity.sprite.fillColor
   const hex = fillColorToHex(colorSource)
 
   const [draft, setDraft] = useState(hex)
@@ -43,10 +46,14 @@ export function SpriteFillColorField({ entity }: SpriteFillColorFieldProps) {
   function commit(nextHex: string) {
     const fillColor = hexToFillColor(nextHex)
     if (!fillColor) return
-    if (isPrototype && linkedAsset) {
+    if (isPrototype) {
+      const asset =
+        (protoView?.assetId ? project?.assets?.[protoView.assetId] : undefined)
+        ?? linkedAsset
+      if (!asset) return
       dispatch({
         type: 'ASSET_ADD',
-        asset: patchPrototypeSpriteColor(linkedAsset, fillColor),
+        asset: patchPrototypeSpriteColor(asset, fillColor),
       })
       return
     }

@@ -617,12 +617,12 @@ export function editorRegisterImage(
   const dataPtr = _module._malloc(bytes.length)
   try {
     _module.HEAPU8.set(bytes, dataPtr)
-    return safeCall(
+    const ok = safeCcallNumber(
       'editor_register_image',
-      null,
       ['number', 'number', 'number', 'number'],
       [pathPtr, dataPtr, bytes.length, extPtr],
     )
+    return ok === 1
   } finally {
     _module._free(dataPtr)
     _module._free(extPtr)
