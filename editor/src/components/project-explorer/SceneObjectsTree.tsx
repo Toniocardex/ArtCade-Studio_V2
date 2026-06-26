@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from 'react'
-import { Box, Copy, Eye, EyeOff, Trash2, Workflow } from 'lucide-react'
+import { Box, Copy, Eye, EyeOff, MoreHorizontal, Plus, Trash2, Workflow } from 'lucide-react'
 import type { ExplorerTypeGroup } from '../../utils/project-explorer-tree'
 import type { ExplorerExpandKey } from '../../hooks/useExplorerExpanded'
 import type { useSceneExplorerActions } from '../../hooks/useSceneExplorerActions'
@@ -22,6 +22,38 @@ export type SceneObjectsTreeProps = Readonly<{
   selectedEntityIds?: readonly number[]
 }>
 
+function objectTypeMenuItems(
+  group: ExplorerTypeGroup,
+  scene: ReturnType<typeof useSceneExplorerActions>,
+) {
+  const objectTypeId = group.objectTypeId
+  if (!objectTypeId) return []
+
+  return [
+    {
+      id: 'add-instance',
+      label: 'Add instance',
+      onSelect: () => scene.addInstanceOfType(objectTypeId),
+    },
+    {
+      id: 'rename-type',
+      label: 'Rename object type',
+      onSelect: () => scene.renameObjectType(objectTypeId),
+    },
+    {
+      id: 'logic',
+      label: 'Open Logic Board',
+      onSelect: () => scene.openObjectTypeLogic(objectTypeId),
+    },
+    {
+      id: 'delete-type',
+      label: 'Delete object',
+      danger: true,
+      onSelect: () => scene.requestDeleteObject({ kind: 'object-type', objectTypeId }),
+    },
+  ]
+}
+
 /**
  * "Objects in scene" tree body: one collapsible folder per object type, with
  * the scene instances of that type as leaf rows (Construct-style grouping).
@@ -41,7 +73,8 @@ export function SceneObjectsTree({
       {groups.map((group) => {
         const groupKey = `scene-type:${group.typeKey}` as const
         const groupOpen = isOpen(groupKey, false) || hasSearch
-        const firstInstanceId = group.instances[0]?.entityId
+        const typeMenuItems = objectTypeMenuItems(group, scene)
+
         return (
           <TreeFolder
             key={group.typeKey}
@@ -50,40 +83,58 @@ export function SceneObjectsTree({
             depth={1}
             open={groupOpen}
             onToggle={() => toggle(groupKey, false)}
-            onContextMenu={(ev) =>
-              openExplorerContextMenu(
-                ev,
-                [
-                  {
-                    id: 'add-instance',
-                    label: 'Add instance',
-                    disabled: !group.objectTypeId,
-                    onSelect: () => {
-                      if (group.objectTypeId) scene.addInstanceOfType(group.objectTypeId)
-                    },
-                  },
-                  {
-                    id: 'logic',
-                    label: 'Edit Logic Board',
-                    disabled: firstInstanceId == null,
-                    onSelect: () => {
-                      if (firstInstanceId != null) scene.openEntityLogic(firstInstanceId)
-                    },
-                  },
-                ],
-                setContextMenu,
-              )
+            trailing={
+              group.hasLogic ? (
+                <span
+                  className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-[var(--accent)]"
+                  title="Has Logic Board rules"
+                />
+              ) : null
+            }
+            onContextMenu={(ev) => {
+              if (typeMenuItems.length === 0) return
+              openExplorerContextMenu(ev, typeMenuItems, setContextMenu)
+            }}
+            actions={
+              group.objectTypeId ? (
+                <>
+                  <ExplorerRowAction
+                    title="Add instance"
+                    onClick={(ev) => {
+                      ev.stopPropagation()
+                      scene.addInstanceOfType(group.objectTypeId!)
+                    }}
+                  >
+                    <Plus size={13} />
+                  </ExplorerRowAction>
+                  <ExplorerRowAction
+                    title="Object type actions"
+                    onClick={(ev) => {
+                      ev.stopPropagation()
+                      openExplorerContextMenu(ev, typeMenuItems, setContextMenu)
+                    }}
+                  >
+                    <MoreHorizontal size={13} />
+                  </ExplorerRowAction>
+                </>
+              ) : undefined
             }
           >
-            {group.instances.map((row) => (
-              <SceneInstanceLeaf
-                key={row.entityId}
-                row={row}
-                scene={scene}
-                selected={selectedEntityIds.includes(row.entityId)}
-                setContextMenu={setContextMenu}
-              />
-            ))}
+            {group.instances.length === 0 ? (
+              <div className="py-1 pr-2 text-[10px] text-[var(--muted)]" style={{ paddingLeft: 32 }}>
+                No instances in this scene
+              </div>
+            ) : (
+              group.instances.map((row) => (
+                <SceneInstanceLeaf
+                  key={row.entityId}
+                  row={row}
+                  scene={scene}
+                  selected={selectedEntityIds.includes(row.entityId)}
+                  setContextMenu={setContextMenu}
+                />
+              ))
+            )}
           </TreeFolder>
         )
       })}
@@ -127,7 +178,7 @@ function SceneInstanceLeaf({
             },
             {
               id: 'rename',
-              label: 'Rename',
+              label: 'Rename instance',
               onSelect: () => scene.renameEntity(row.entityId),
             },
             {
@@ -143,14 +194,14 @@ function SceneInstanceLeaf({
             },
             {
               id: 'duplicate',
-              label: 'Duplicate',
+              label: 'Duplicate instance',
               onSelect: () => scene.duplicateEntity(row.entityId),
             },
             {
               id: 'delete',
-              label: 'Delete',
+              label: 'Delete instance',
               danger: true,
-              onSelect: () => scene.deleteEntity(row.entityId),
+              onSelect: () => scene.requestDeleteObject({ kind: 'instance', entityId: row.entityId }),
             },
           ],
           setContextMenu,
@@ -188,7 +239,7 @@ function SceneInstanceLeaf({
               {row.visible ? <Eye size={13} /> : <EyeOff size={13} />}
             </ExplorerRowAction>
             <ExplorerRowAction
-              title="Duplicate"
+              title="Duplicate instance"
               tone={selected ? 'onSelected' : 'default'}
               onClick={(ev) => {
                 ev.stopPropagation()
@@ -198,11 +249,11 @@ function SceneInstanceLeaf({
               <Copy size={13} />
             </ExplorerRowAction>
             <ExplorerRowAction
-              title="Delete"
+              title="Delete instance"
               tone={selected ? 'onSelected' : 'danger'}
               onClick={(ev) => {
                 ev.stopPropagation()
-                scene.deleteEntity(row.entityId)
+                scene.requestDeleteObject({ kind: 'instance', entityId: row.entityId })
               }}
             >
               <Trash2 size={13} />

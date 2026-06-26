@@ -118,6 +118,14 @@ export const logicBoardReducer: DomainReducer = (state: CoreState, action: Actio
       return state
     case 'LOGIC_MARK_PREVIEW_APPLIED':
       return { ...state, logicPreviewAppliedRevision: action.revision }
+    case 'OBJECT_TYPE_DELETE':
+      return withBoards(state, (boards) =>
+        boards.filter(
+          (board) =>
+            board.target.type !== 'object_type'
+            || board.target.objectTypeId !== action.objectTypeId,
+        ),
+      )
     default:
       return state
   }

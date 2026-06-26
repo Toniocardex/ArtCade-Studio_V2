@@ -11,7 +11,8 @@ import {
   materializeEntity,
   rematerializeAllInstancesOfType,
 } from '../../utils/project-object-types'
-import { gcUnusedGeneratedPrototypeAssets, syncGeneratedPrototypeAsset } from '../../utils/prototype-sprite'
+import { syncGeneratedPrototypeAsset } from '../../utils/prototype-sprite'
+import { deleteObjectTypeCascade } from '../../utils/object-type-delete'
 import { assertPrototypeOwnership } from '../../utils/entity-retype'
 import {
   createDefaultObjectType,
@@ -153,19 +154,25 @@ export const objectTypeReducer: DomainReducer = (state: CoreState, action: Actio
     }
     case 'OBJECT_TYPE_DELETE': {
       if (!state.project?.objectTypes?.[action.objectTypeId]) return state
-      const inUse = Object.values(state.project.scenes ?? {}).some((sc) =>
-        (sc.instances ?? []).some((i) => i.objectTypeId === action.objectTypeId),
-      )
-      if (inUse) return state
-      const objectTypes = { ...state.project.objectTypes }
-      delete objectTypes[action.objectTypeId]
-      const project = gcUnusedGeneratedPrototypeAssets({
-        ...state.project,
-        objectTypes,
-      })
+
+      const result = deleteObjectTypeCascade(state.project, action.objectTypeId)
+      const deletedIds = new Set(result.deletedEntityIds)
+      const entityIds = (state.selection.entityIds ?? []).filter((id) => !deletedIds.has(id))
+      const clearClipboard =
+        state.instanceClipboard?.instance.objectTypeId === action.objectTypeId
+
       return {
         ...state,
-        project,
+        project: result.project,
+        selection: {
+          ...state.selection,
+          entityIds,
+          entityId:
+            state.selection.entityId != null && deletedIds.has(state.selection.entityId)
+              ? (entityIds.length > 0 ? entityIds[entityIds.length - 1]! : null)
+              : state.selection.entityId,
+        },
+        ...(clearClipboard ? { instanceClipboard: null } : {}),
         projectDirty: true,
       }
     }

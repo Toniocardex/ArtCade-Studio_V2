@@ -84,14 +84,20 @@ describe('buildProjectExplorerData', () => {
     expect(level2?.isStartScene).toBe(false)
   })
 
-  it('lists entity groups only for active scene', () => {
+  it('lists catalog object types even when the active scene has no instances', () => {
     const project = minimalProject()
     const data = buildProjectExplorerData(project, 'level2', '')
-    expect(data.entityGroups).toHaveLength(0)
+    expect(data.entityGroups).toHaveLength(1)
+    expect(data.entityGroups[0]?.displayName).toBe('Enemy')
+    expect(data.entityGroups[0]?.instances).toHaveLength(0)
+
     const mainData = buildProjectExplorerData(project, 'main', '')
-    expect(mainData.entityGroups).toHaveLength(1)
-    expect(mainData.entityGroups[0]?.displayName).toBe('Player')
-    expect(mainData.entityGroups[0]?.instances[0]?.name).toBe('Player')
+    expect(mainData.entityGroups.length).toBeGreaterThanOrEqual(2)
+    const playerGroup = mainData.entityGroups.find((g) => g.typeKey === 'class:Player')
+    expect(playerGroup?.objectTypeId).toBeNull()
+    expect(playerGroup?.instances[0]?.name).toBe('Player')
+    const enemyGroup = mainData.entityGroups.find((g) => g.typeKey === 'enemy')
+    expect(enemyGroup?.instances).toHaveLength(0)
   })
 
   it('groups instances of the same object type under one row', () => {
@@ -119,11 +125,13 @@ describe('buildProjectExplorerData', () => {
     }
 
     const data = buildProjectExplorerData(project, 'main', '')
-    expect(data.entityGroups).toHaveLength(2)
+    expect(data.entityGroups).toHaveLength(3)
     const coinGroup = data.entityGroups.find((g) => g.typeKey === 'coin')
     expect(coinGroup?.objectTypeId).toBe('coin')
     expect(coinGroup?.displayName).toBe('Coin')
     expect(coinGroup?.instances.map((i) => i.name)).toEqual(['Coin_1', 'Coin_2'])
+    const enemyGroup = data.entityGroups.find((g) => g.typeKey === 'enemy')
+    expect(enemyGroup?.instances).toHaveLength(0)
     // Legacy entity without an instance falls back to a class group.
     const playerGroup = data.entityGroups.find((g) => g.typeKey === 'class:Player')
     expect(playerGroup?.objectTypeId).toBeNull()

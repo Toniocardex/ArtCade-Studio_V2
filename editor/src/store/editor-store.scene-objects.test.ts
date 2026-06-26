@@ -111,6 +111,44 @@ describe('coreReducer — scenes & objects', () => {
     expect(renamed.project!.objectTypes!.Coin.displayName).toBe('Coin')
   })
 
+  it('OBJECT_TYPE_DELETE removes logic boards targeting the deleted type', () => {
+    const withCoin = coreReducer(st(project()), buildObjectTypeAddAction('Coin'))
+    const withBoard = coreReducer(withCoin, {
+      type: 'LOGIC_ADD_BOARD',
+      board: createLogicBoardForObjectType('Coin'),
+    })
+    expect(withBoard.project!.logicBoards?.some(
+      (board) => board.target.objectTypeId === 'Coin',
+    )).toBe(true)
+
+    const deleted = coreReducer(withBoard, {
+      type: 'OBJECT_TYPE_DELETE',
+      objectTypeId: 'Coin',
+    })
+
+    expect(deleted.project!.objectTypes!.Coin).toBeUndefined()
+    expect(deleted.project!.logicBoards?.some(
+      (board) => board.target.objectTypeId === 'Coin',
+    )).toBe(false)
+    expect(deleted.projectDirty).toBe(true)
+  })
+
+  it('OBJECT_TYPE_DELETE cascades through all scene instances and clears selection', () => {
+    const withDup = coreReducer(st(project()), { type: 'INSTANCE_DUPLICATE', instanceId: 1, sceneId: 's' })
+    const deleted = coreReducer(withDup, {
+      type: 'OBJECT_TYPE_DELETE',
+      objectTypeId: 'Player',
+    })
+
+    expect(deleted.project!.objectTypes!.Player).toBeUndefined()
+    expect(Object.keys(deleted.project!.entities)).toHaveLength(0)
+    expect(deleted.project!.scenes.s.instances).toHaveLength(0)
+    expect(deleted.project!.scenes.s.entityIds).toHaveLength(0)
+    expect(deleted.selection.entityId).toBeNull()
+    expect(deleted.selection.entityIds).toEqual([])
+    expect(deleted.projectDirty).toBe(true)
+  })
+
   it('INSTANCE_DUPLICATE adds a new instance of the same type, offsets, selects it', () => {
     const s = coreReducer(st(project()), { type: 'INSTANCE_DUPLICATE', instanceId: 1, sceneId: 's' })
     expect(Object.keys(s.project!.entities)).toHaveLength(2)

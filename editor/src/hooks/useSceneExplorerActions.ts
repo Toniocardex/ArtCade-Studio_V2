@@ -7,9 +7,21 @@ import {
   buildCreateObjectAction,
   createObjectErrorMessage,
 } from '../utils/object-create'
+import { slugTypeId } from '../utils/project-object-types'
+import {
+  findObjectTypeByDisplayName,
+  objectTypeInstanceCountInScene,
+} from '../utils/object-type-usage'
+import {
+  requestDeleteObject,
+  type DeleteObjectTarget,
+} from '../utils/object-delete-request'
 import { defaultEntitySpawnPosition } from '../utils/project'
 import { isInstanceNameTakenInScene } from '../utils/project-instance-names'
-import { openLogicBoardForEntity } from '../panels/inspector/logic-board-navigation'
+import {
+  openLogicBoardForEntity,
+  openLogicBoardForObjectType,
+} from '../panels/inspector/logic-board-navigation'
 
 let _explorerLogId = 900
 
@@ -137,6 +149,28 @@ export function useSceneExplorerActions() {
         position: spawn,
       })
       if (!result.ok) {
+        const existingType =
+          findObjectTypeByDisplayName(project, name)
+          ?? project.objectTypes?.[slugTypeId(name)]
+        if (
+          existingType
+          && objectTypeInstanceCountInScene(project, sceneId, existingType.id) === 0
+          && (result.error === 'duplicate-name' || result.error === 'duplicate-type-id')
+        ) {
+          void confirmDialog(
+            `"${existingType.displayName}" already exists but has no instances in the current scene.\n\nAdd an instance of this object type?`,
+            { title: 'Object type already exists', kind: 'info' },
+          ).then((ok) => {
+            if (ok) {
+              dispatch({
+                type: 'INSTANCE_ADD_FROM_TYPE',
+                sceneId,
+                objectTypeId: existingType.id,
+              })
+            }
+          })
+          return
+        }
         void alertDialog(createObjectErrorMessage(result.error, name), {
           title: result.error === 'duplicate-type-id'
             ? 'Object type id already exists'
@@ -208,11 +242,35 @@ export function useSceneExplorerActions() {
     dispatch({ type: 'INSTANCE_PASTE', sceneId, position })
   }, [dispatch, editorGridSize, instanceClipboard, sceneId, snapToGrid])
 
-  const deleteEntity = useCallback(
-    (entityId: number) => {
-      dispatch({ type: 'ENTITY_DELETE', entityId })
+  const requestDeleteObjectTarget = useCallback(
+    (target: DeleteObjectTarget) => {
+      void requestDeleteObject({ dispatch, project: project ?? null, target })
     },
-    [dispatch],
+    [dispatch, project],
+  )
+
+  const renameObjectType = useCallback(
+    (objectTypeId: string) => {
+      const type = project?.objectTypes?.[objectTypeId]
+      if (!type) return
+      void promptText({
+        title: 'Rename object type',
+        message: 'Object type name:',
+        defaultValue: type.displayName,
+      }).then((displayName) => {
+        if (!displayName || displayName === type.displayName) return
+        dispatch({ type: 'OBJECT_TYPE_RENAME', objectTypeId, displayName })
+      })
+    },
+    [dispatch, project, promptText],
+  )
+
+  const openObjectTypeLogic = useCallback(
+    (objectTypeId: string) => {
+      if (!project) return
+      openLogicBoardForObjectType(dispatch, project, objectTypeId, sceneId)
+    },
+    [dispatch, project, sceneId],
   )
 
   const openEntityLogic = useCallback(
@@ -227,8 +285,8 @@ export function useSceneExplorerActions() {
       const ent = project?.entities?.[entityId]
       if (!ent) return
       void promptText({
-        title: 'Rename entity',
-        message: 'Entity name:',
+        title: 'Rename instance',
+        message: 'Instance name:',
         defaultValue: ent.name,
       }).then((name) => {
         if (!name || name === ent.name) return
@@ -291,7 +349,9 @@ export function useSceneExplorerActions() {
     copyEntity,
     pasteEntity,
     duplicateEntity,
-    deleteEntity,
+    requestDeleteObject: requestDeleteObjectTarget,
+    renameObjectType,
+    openObjectTypeLogic,
     openEntityLogic,
     renameEntity,
   }

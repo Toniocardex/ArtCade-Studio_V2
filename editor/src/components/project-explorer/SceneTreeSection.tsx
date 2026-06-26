@@ -62,13 +62,13 @@ export function SceneTreeSection({
         {tree.entityGroups.length === 0 ? (
           tree.hasSearch ? (
             <ExplorerEmptyState title="No matches" detail="Clear search to browse objects." />
-          ) : scene.scene ? (
-            <ExplorerEmptyState
-              title="No objects yet"
-              detail="Use the add button above to insert the first object."
-            />
-          ) : (
+          ) : !scene.scene ? (
             <ExplorerEmptyState title="No active scene" detail="Select a scene to show its objects." />
+          ) : (
+            <ExplorerEmptyState
+              title="No object types yet"
+              detail="Use the add button above to create the first object type."
+            />
           )
         ) : (
           <SceneObjectsTree

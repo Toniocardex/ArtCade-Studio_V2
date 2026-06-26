@@ -15,6 +15,9 @@ export type TreeFolderProps = Readonly<{
   /** Folder row id for delegated DnD (`data-asset-folder-id` on the header button). */
   assetFolderId?: string
   accent?: boolean
+  /** Icon buttons on the folder row (add / overflow menu). */
+  actions?: ReactNode
+  trailing?: ReactNode
   children?: ReactNode
 }>
 
@@ -28,37 +31,51 @@ export function TreeFolder({
   onContextMenu,
   assetFolderId,
   accent = false,
+  actions,
+  trailing,
   children,
 }: TreeFolderProps) {
   const pad = 8 + depth * 12
   const FolderIcon = open ? FolderOpen : Folder
   const dropHighlight = useAssetTreeDropHighlight(assetFolderId)
 
+  const header = (
+    <button
+      type="button"
+      data-asset-folder-id={assetFolderId}
+      onClick={onToggle}
+      onDoubleClick={onDoubleClick}
+      className={`w-full flex items-center gap-1 py-1 text-xs text-[var(--text)] hover:text-[var(--accent)]
+                 hover:bg-[rgb(var(--border-rgb)/0.25)] rounded transition-colors
+                 ${dropHighlight ? 'ring-1 ring-[var(--accent)] bg-[rgb(var(--accent-rgb)/0.12)]' : ''}`}
+      style={{ paddingLeft: pad }}
+      aria-expanded={open}
+    >
+      {open ? (
+        <ChevronDown size={10} className="text-[var(--muted)] flex-shrink-0" />
+      ) : (
+        <ChevronRight size={10} className="text-[var(--muted)] flex-shrink-0" />
+      )}
+      <FolderIcon
+        size={12}
+        className={`flex-shrink-0 ${accent ? 'text-[var(--accent)]' : 'text-[var(--muted)]'}`}
+      />
+      <span className="truncate">{label}</span>
+      {trailing}
+      <span className="text-[10px] text-[var(--muted)] ml-auto tabular-nums">({count})</span>
+    </button>
+  )
+
   return (
     <div onContextMenu={onContextMenu}>
-      <button
-        type="button"
-        data-asset-folder-id={assetFolderId}
-        onClick={onToggle}
-        onDoubleClick={onDoubleClick}
-        className={`w-full flex items-center gap-1 py-1 text-xs text-[var(--text)] hover:text-[var(--accent)]
-                   hover:bg-[rgb(var(--border-rgb)/0.25)] rounded transition-colors
-                   ${dropHighlight ? 'ring-1 ring-[var(--accent)] bg-[rgb(var(--accent-rgb)/0.12)]' : ''}`}
-        style={{ paddingLeft: pad }}
-        aria-expanded={open}
-      >
-        {open ? (
-          <ChevronDown size={10} className="text-[var(--muted)] flex-shrink-0" />
-        ) : (
-          <ChevronRight size={10} className="text-[var(--muted)] flex-shrink-0" />
-        )}
-        <FolderIcon
-          size={12}
-          className={`flex-shrink-0 ${accent ? 'text-[var(--accent)]' : 'text-[var(--muted)]'}`}
-        />
-        <span className="truncate">{label}</span>
-        <span className="text-[10px] text-[var(--muted)] ml-auto pr-2 tabular-nums">({count})</span>
-      </button>
+      {actions ? (
+        <div className="group/explorer-row flex items-center gap-0.5 w-full min-w-0">
+          <div className="flex flex-1 min-w-0">{header}</div>
+          <TreeLeafActionRail selected={false}>{actions}</TreeLeafActionRail>
+        </div>
+      ) : (
+        header
+      )}
       {open && children ? (
         <div className="border-l border-[var(--border)] ml-3">{children}</div>
       ) : null}

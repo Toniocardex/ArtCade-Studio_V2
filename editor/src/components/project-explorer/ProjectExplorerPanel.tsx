@@ -158,8 +158,8 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
       </div>
 
       <div className="px-2 py-1 border-t border-[var(--outline)] text-[9px] text-[var(--muted)] flex-shrink-0">
-        {scene.sceneCount} scenes · {tree.entityGroups.length} types ·{' '}
-        {tree.entityGroups.reduce((n, g) => n + g.instances.length, 0)} objects
+        {scene.sceneCount} scenes · {Object.keys(project.objectTypes ?? {}).length} types ·{' '}
+        {scene.scene?.instances?.length ?? 0} instances
       </div>
     </div>
   )

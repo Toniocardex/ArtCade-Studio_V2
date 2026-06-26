@@ -1,6 +1,6 @@
 import type { ImageAssetUsage, ProjectDoc } from '../types'
 import { IMAGE_ASSET_USAGE_LABELS, IMAGE_ASSET_USAGES } from '../types'
-import { findLogicBoardForInstance } from './project'
+import { findLogicBoardForInstance, findLogicBoardForObjectType } from './project'
 
 export type AssetFolderId = 'audio' | 'fonts' | 'images' | 'scripts' | 'tilesets'
 
@@ -23,6 +23,8 @@ export type ExplorerTypeGroup = Readonly<{
   /** Object type id when the group maps to an ObjectTypeDef; null for legacy class-based groups. */
   objectTypeId: string | null
   displayName: string
+  /** True when a Logic Board targets this object type. */
+  hasLogic: boolean
   instances: ExplorerEntityRow[]
 }>
 
@@ -228,12 +230,9 @@ export function buildProjectExplorerData(
 
 /**
  * Groups the active scene's objects by object type for the explorer tree.
- * Entities without a matching scene instance (legacy projects) fall back to a
- * per-className group. Groups whose display name matches the query keep all
- * instances; otherwise instances are filtered individually.
- * @param project        loaded project document
- * @param activeSceneId  scene whose instances are listed
- * @param searchQuery    raw explorer search text (empty = no filtering)
+ * Every catalog object type is listed even when the active scene has zero
+ * instances of that type. Legacy entities without a scene instance fall back
+ * to a per-className group.
  */
 export function buildSceneTypeGroups(
   project: ProjectDoc,
@@ -246,35 +245,60 @@ export function buildSceneTypeGroups(
     instanceTypeById.set(inst.id, inst.objectTypeId)
   }
 
-  const groups = new Map<string, {
-    typeKey: string
-    objectTypeId: string | null
-    displayName: string
-    instances: ExplorerEntityRow[]
-  }>()
+  const instancesByTypeId = new Map<string, ExplorerEntityRow[]>()
 
   for (const id of scene?.entityIds ?? []) {
     const entity = project.entities?.[id]
     if (!entity) continue
-    const objectTypeId = instanceTypeById.get(id) ?? null
-    const typeKey = objectTypeId ?? `class:${entity.className}`
-    let group = groups.get(typeKey)
-    if (!group) {
-      const displayName = objectTypeId
-        ? project.objectTypes?.[objectTypeId]?.displayName ?? objectTypeId
-        : entity.className
-      group = { typeKey, objectTypeId, displayName, instances: [] }
-      groups.set(typeKey, group)
-    }
-    group.instances.push({
+    const objectTypeId = instanceTypeById.get(id)
+    if (!objectTypeId) continue
+
+    const rows = instancesByTypeId.get(objectTypeId) ?? []
+    rows.push({
       entityId: entity.id,
       name: entity.name,
       hasLogic: Boolean(findLogicBoardForInstance(project, entity.id)),
       visible: entity.visible !== false,
     })
+    instancesByTypeId.set(objectTypeId, rows)
   }
 
-  return [...groups.values()]
+  const catalogGroups: ExplorerTypeGroup[] = Object.values(project.objectTypes ?? {})
+    .map((type) => ({
+      typeKey: type.id,
+      objectTypeId: type.id,
+      displayName: type.displayName,
+      hasLogic: Boolean(findLogicBoardForObjectType(project, type.id)),
+      instances: instancesByTypeId.get(type.id) ?? [],
+    }))
+
+  const legacyGroups: ExplorerTypeGroup[] = []
+  const legacyByClass = new Map<string, ExplorerEntityRow[]>()
+  for (const id of scene?.entityIds ?? []) {
+    const entity = project.entities?.[id]
+    if (!entity || instanceTypeById.has(id)) continue
+    const rows = legacyByClass.get(entity.className) ?? []
+    rows.push({
+      entityId: entity.id,
+      name: entity.name,
+      hasLogic: Boolean(findLogicBoardForInstance(project, entity.id)),
+      visible: entity.visible !== false,
+    })
+    legacyByClass.set(entity.className, rows)
+  }
+  for (const [className, instances] of legacyByClass) {
+    legacyGroups.push({
+      typeKey: `class:${className}`,
+      objectTypeId: null,
+      displayName: className,
+      hasLogic: instances.some((row) => row.hasLogic),
+      instances,
+    })
+  }
+
+  const q = normalizeExplorerQuery(searchQuery)
+
+  return [...catalogGroups, ...legacyGroups]
     .map((group) => {
       const keepAll = matchesExplorerQuery(
         searchQuery,
@@ -293,7 +317,19 @@ export function buildSceneTypeGroups(
       ).sort((a, b) => a.name.localeCompare(b.name))
       return { ...group, instances }
     })
-    .filter((group) => group.instances.length > 0)
+    .filter((group) => {
+      if (!q) return true
+      if (group.instances.length > 0) return true
+      return matchesExplorerQuery(
+        searchQuery,
+        group.displayName,
+        group.typeKey,
+        'entity',
+        'entities',
+        'object',
+        'objects',
+      )
+    })
     .sort((a, b) => a.displayName.localeCompare(b.displayName))
 }
 

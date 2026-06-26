@@ -36,7 +36,7 @@ function sceneActions() {
     copyEntity: vi.fn(),
     pasteEntity: vi.fn(),
     duplicateEntity: vi.fn(),
-    deleteEntity: vi.fn(),
+    requestDeleteObject: vi.fn(),
     openEntityLogic: vi.fn(),
     renameEntity: vi.fn(),
   }
