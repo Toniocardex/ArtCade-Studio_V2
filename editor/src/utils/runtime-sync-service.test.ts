@@ -156,6 +156,28 @@ describe('RuntimeSyncService', () => {
     expect(bridge.editorLoadProject).toHaveBeenCalledTimes(1)
   })
 
+  it('syncProject skips editorUpdateEntity when transform was already pushed', async () => {
+    const p: Project = makeProject()
+    await runtimeSync.syncProject(p as never, 'a', '/tmp/x')
+    vi.mocked(bridge.editorUpdateEntity).mockClear()
+    vi.mocked(bridge.editorSetTransform).mockClear()
+
+    runtimeSync.syncEntityTransform({
+      entityId: 1,
+      x: 100,
+      y: 50,
+      rotation: 0,
+      scaleX: 1,
+      scaleY: 1,
+    })
+    expect(bridge.editorSetTransform).toHaveBeenCalledTimes(1)
+
+    p.entities[1].transform.position = { x: 100, y: 50 }
+
+    expect(await runtimeSync.syncProject(p as never, 'a', '/tmp/x')).toBe(false)
+    expect(bridge.editorUpdateEntity).not.toHaveBeenCalled()
+  })
+
   it('syncProject uses editor_set_scene_settings for viewport-only edits', async () => {
     const p: Project = makeProject()
     await runtimeSync.syncProject(p as never, 'a', '/tmp/x')

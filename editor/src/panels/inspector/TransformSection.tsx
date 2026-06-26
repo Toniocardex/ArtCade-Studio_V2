@@ -1,12 +1,11 @@
 import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import type { EntityDef } from '../../types'
-import { runtimeSync } from '../../utils/runtime-sync-service'
-import { normalizeEntityPosition } from '../../utils/entity-position'
+import {
+  commitEntityTransform,
+  transformSnapshotFromEntity,
+  type TransformPatch,
+} from '../../utils/entity-transform-commit'
 import { InspectorSection, NumberField } from './inspector-fields'
-
-type TransformPatch = Partial<{
-  x: number; y: number; rotation: number; scaleX: number; scaleY: number
-}>
 
 export type TransformSectionProps = Readonly<{
   entity: EntityDef
@@ -19,19 +18,19 @@ export function TransformSection({ entity }: TransformSectionProps) {
   const editorGridSize = useEditorSelector((s) => s.editorGridSize)
   const snapToGrid = useEditorSelector((s) => s.snapToGrid)
 
-  function commitTransform(next: TransformPatch) {
+  function commitTransform(patch: TransformPatch) {
     const sceneId = selectionSceneId ?? project?.activeSceneId
-    const activeScene = sceneId ? project?.scenes?.[sceneId] : undefined
-    const gridSize = editorGridSize || activeScene?.tilemap?.tileSize || 32
-    const rawX = next.x ?? entity.transform.position.x
-    const rawY = next.y ?? entity.transform.position.y
-    const { x, y } = normalizeEntityPosition(rawX, rawY, snapToGrid, gridSize)
-    const rotation = next.rotation ?? entity.transform.rotation
-    const scaleX = next.scaleX ?? entity.transform.scale.x
-    const scaleY = next.scaleY ?? entity.transform.scale.y
+    const scene = sceneId ? project?.scenes?.[sceneId] : undefined
+    const gridSize = editorGridSize || scene?.tilemap?.tileSize || 32
 
-    dispatch({ type: 'UPDATE_ENTITY_TRANSFORM', entityId: entity.id, x, y, rotation, scaleX, scaleY })
-    runtimeSync.syncEntityTransform({ entityId: entity.id, x, y, rotation, scaleX, scaleY })
+    commitEntityTransform({
+      dispatch,
+      snapshot: transformSnapshotFromEntity(entity, patch),
+      source: 'inspector',
+      snapToGrid,
+      gridSize,
+      entity,
+    })
   }
 
   return (

@@ -572,22 +572,51 @@ class RuntimeSyncServiceImpl {
     this.notifyBootProjectSynced()
   }
 
-  private applyIncrementalSync(project: ProjectDoc, plan: ProjectSyncPlan): boolean {
+  private entityProjectionDeltaIsTransformOnly(
+    prev: RuntimeProjection['entities'][number] | undefined,
+    next: RuntimeProjection['entities'][number] | undefined,
+  ): boolean {
+    if (!prev || !next || prev.id !== next.id) return false
+    const { t: _prevTransform, ...prevRest } = prev
+    const { t: _nextTransform, ...nextRest } = next
+    return JSON.stringify(prevRest) === JSON.stringify(nextRest)
+  }
+
+  private applyIncrementalSync(
+    project: ProjectDoc,
+    plan: ProjectSyncPlan,
+    prevProjection: RuntimeProjection | null,
+    nextProjection: RuntimeProjection,
+  ): boolean {
     if (plan.kind !== 'incremental') return false
     const runtimeEntities = entitiesForRuntimeSync(project)
+    const prevEnt = new Map(prevProjection?.entities.map((e) => [e.id, e]) ?? [])
+    const nextEnt = new Map(nextProjection.entities.map((e) => [e.id, e]))
+    let didWork = false
     for (const entityId of plan.entityIds) {
       const def = runtimeEntities[entityId]
       if (!def) continue
-      editorUpdateEntity(entityId, JSON.stringify(def))
-      const t = def.transform
-      this.lastTransform.set(entityId, {
+      const snap: EntityTransformSnapshot = {
         entityId,
-        x: t.position.x,
-        y: t.position.y,
-        rotation: t.rotation,
-        scaleX: t.scale.x,
-        scaleY: t.scale.y,
-      })
+        x: def.transform.position.x,
+        y: def.transform.position.y,
+        rotation: def.transform.rotation,
+        scaleX: def.transform.scale.x,
+        scaleY: def.transform.scale.y,
+      }
+      const prev = this.lastTransform.get(entityId)
+      const pe = prevEnt.get(entityId)
+      const ne = nextEnt.get(entityId)
+      if (
+        prev
+        && sameTransform(prev, snap)
+        && this.entityProjectionDeltaIsTransformOnly(pe, ne)
+      ) {
+        continue
+      }
+      editorUpdateEntity(entityId, JSON.stringify(def))
+      this.lastTransform.set(entityId, snap)
+      didWork = true
     }
     for (const sceneId of plan.sceneIds) {
       const scene = project.scenes?.[sceneId]
@@ -601,8 +630,9 @@ class RuntimeSyncServiceImpl {
         // propagates to the runtime instead of leaving a stale entry.
         layerSettings: scene.layerSettings ?? {},
       }))
+      didWork = true
     }
-    return plan.entityIds.length > 0 || plan.sceneIds.length > 0
+    return didWork
   }
 
   /** True if the runtime is ready to accept commands. */
@@ -689,7 +719,7 @@ class RuntimeSyncServiceImpl {
       return didWork
     }
 
-    const incremental = this.applyIncrementalSync(project, plan)
+    const incremental = this.applyIncrementalSync(project, plan, this.lastProjection, projection)
     this.latchProjectProjection(loadKey, projection)
     await this.syncProjectAssetsNow(project, activeSceneId, projectPath)
     return didWork || incremental

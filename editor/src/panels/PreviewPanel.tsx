@@ -25,7 +25,6 @@ import {
   editorFrameWorld,
   visibleWorldCenterFromCamera,
 } from '../utils/editor-viewport-intents'
-import { normalizeEntityPosition } from '../utils/entity-position'
 import { CanvasToolbar } from './preview/CanvasToolbar'
 import { CanvasFocusToolbar } from './preview/CanvasFocusToolbar'
 import { RuntimeStatusBadge } from './preview/RuntimeStatusBadge'
@@ -41,6 +40,11 @@ import { useEditorFitZoom } from '../hooks/useEditorFitZoom'
 import { useEditorCanvasViewport } from '../hooks/useEditorCanvasViewport'
 import { setEditorVisibleWorldCenter } from '../utils/editor-viewport-center'
 import { getRuntimeCanvas } from '../utils/runtime-canvas'
+import {
+  commitEntityTransform,
+  consumeRuntimeTransformEcho,
+  type EntityTransformSnapshot,
+} from '../utils/entity-transform-commit'
 import {
   applyRuntimeCanvasPresentation,
   playStageAvailableSize,
@@ -58,25 +62,6 @@ import {
 } from '../utils/wasm-bridge'
 import { TilePaintOverlay } from './preview/TilePaintOverlay'
 import { createTilemapForNewLayer, resolveTilemapTileSize } from '../types'
-
-type TransformSnapshot = {
-  entityId: number
-  x: number
-  y: number
-  rotation: number
-  scaleX: number
-  scaleY: number
-}
-
-function sameTransform(a: TransformSnapshot, b: TransformSnapshot): boolean {
-  const epsilon = 1e-4
-  return a.entityId === b.entityId &&
-    Math.abs(a.x - b.x) < epsilon &&
-    Math.abs(a.y - b.y) < epsilon &&
-    Math.abs(a.rotation - b.rotation) < epsilon &&
-    Math.abs(a.scaleX - b.scaleX) < epsilon &&
-    Math.abs(a.scaleY - b.scaleY) < epsilon
-}
 
 export type PreviewPanelProps = Readonly<{
   activeTool: EditorTool
@@ -127,7 +112,7 @@ export default function PreviewPanel({
   const projectPathRef      = useRef(projectPath)
   const snapToGridRef       = useRef(false)
   const gridSizeRef         = useRef(32)
-  const ignoredTransformEchoRef = useRef<TransformSnapshot | null>(null)
+  const ignoredTransformEchoRef = useRef<EntityTransformSnapshot | null>(null)
   const sceneViewportCenterKeyRef = useRef<string | null>(null)
   const bootSyncRef = useRef({
     project: null as typeof project,
@@ -166,28 +151,20 @@ export default function PreviewPanel({
     entityId: number, x: number, y: number,
     rotation: number, scaleX: number, scaleY: number,
   ) {
-    const incoming: TransformSnapshot = { entityId, x, y, rotation, scaleX, scaleY }
-    if (ignoredTransformEchoRef.current && sameTransform(ignoredTransformEchoRef.current, incoming)) {
-      ignoredTransformEchoRef.current = null
+    const incoming: EntityTransformSnapshot = {
+      entityId, x, y, rotation, scaleX, scaleY,
+    }
+    if (consumeRuntimeTransformEcho(ignoredTransformEchoRef, incoming)) {
       return
     }
 
-    const { x: nextX, y: nextY } = normalizeEntityPosition(
-      x, y, snapToGridRef.current, gridSizeRef.current,
-    )
-    const snapped: TransformSnapshot = { entityId, x: nextX, y: nextY, rotation, scaleX, scaleY }
-
-    if (nextX !== x || nextY !== y) {
-      ignoredTransformEchoRef.current = snapped
-      runtimeSync.syncEntityTransform(snapped)
-    } else {
-      // Mark this value as already in sync so a later React-side edit at
-      // the same position does not bounce back to the runtime.
-      runtimeSync.noteTransform(snapped)
-    }
-    dispatch({
-      type: 'UPDATE_ENTITY_TRANSFORM',
-      entityId, x: nextX, y: nextY, rotation, scaleX, scaleY,
+    commitEntityTransform({
+      dispatch,
+      snapshot: incoming,
+      source: 'canvas',
+      snapToGrid: snapToGridRef.current,
+      gridSize: gridSizeRef.current,
+      ignoreRuntimeEchoRef: ignoredTransformEchoRef,
     })
   }
 
