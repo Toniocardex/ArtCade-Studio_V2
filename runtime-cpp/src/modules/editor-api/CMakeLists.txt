@@ -2,6 +2,7 @@ add_library(artcade-editor-api STATIC
     src/editor-api.cpp
     src/editor-input-controller.cpp
     src/editor-spritesheet-preview.cpp
+    src/editor-transform-gizmo.cpp
     src/project-doc-parser.cpp
 )
 

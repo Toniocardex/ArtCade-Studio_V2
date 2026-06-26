@@ -24,6 +24,7 @@
 #include <vector>
 
 #include "../../presentation/include/presentation_snapshot_wasm.h"
+#include "editor-transform-gizmo.h"
 
 // Forward declarations shared by both the WASM build and the native stub.
 // Keeping them outside the #ifdef avoids a class of "undeclared identifier"
@@ -167,7 +168,7 @@ public:
     static void notifyEntityDuplicateRequested(uint32_t entityId, float x, float y);
 
     /**
-     * Gizmo drag finished -> React updates Inspector fields.
+     * Canvas manipulation finished (move or resize) -> React commits once.
      * Called on mouse-UP, NOT every mouse-move (Single Source of Truth rule).
      */
     static void notifyTransformChanged(uint32_t entityId,
@@ -204,6 +205,10 @@ public:
     static std::vector<uint32_t> s_selectedEntityIds;
     static bool     s_isDragging;
     static float    s_dragStartX, s_dragStartY;
+    static ManipulationMode s_manipulationMode;
+    static ResizeHandle     s_activeResizeHandle;
+    static Transform        s_dragStartTransform;
+    static EntityVisualBounds s_dragStartBounds;
     static std::string s_activeTileLayerName;
     static int      s_editorTool;      // 0 select, 1 pan
     static bool     s_editorGuidesEnabled;
@@ -508,6 +513,10 @@ struct EditorAPI {
     static std::vector<uint32_t> s_selectedEntityIds;
     static bool     s_isDragging;
     static float    s_dragStartX, s_dragStartY;
+    static ManipulationMode s_manipulationMode;
+    static ResizeHandle     s_activeResizeHandle;
+    static Transform        s_dragStartTransform;
+    static EntityVisualBounds s_dragStartBounds;
     static std::string s_activeTileLayerName;
     static int      s_editorTool;
     static bool     s_editorGuidesEnabled;

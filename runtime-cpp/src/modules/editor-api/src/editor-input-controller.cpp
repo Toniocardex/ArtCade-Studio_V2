@@ -3,6 +3,7 @@
 #ifdef __EMSCRIPTEN__
 
 #include "../include/editor-api.h"
+#include "../include/editor-transform-gizmo.h"
 #include "pointer-coords.h"
 #include "../../../modules/runtime-entity-gateway/include/runtime-entity-gateway.h"
 #include "../../../modules/renderer/include/renderer.h"
@@ -188,6 +189,38 @@ uint32_t pickEntityAt(float x, float y, bool cycleOverlap) {
     }
     return choosePickHit(hits, cycleOverlap);
 }
+
+bool tryBeginResizeAt(float wx, float wy, uint32_t entityId) {
+    if (!EditorAPI::s_entityGateway || !EditorAPI::s_renderer || entityId == 0u)
+        return false;
+    if (!entityAllowsCanvasEdit(*EditorAPI::s_entityGateway, entityId))
+        return false;
+
+    Transform transform{};
+    SpriteComponent sprite{};
+    if (!EditorAPI::s_entityGateway->getAuthoringTransform(entityId, transform))
+        return false;
+    if (!EditorAPI::s_entityGateway->getSprite(entityId, sprite))
+        return false;
+
+    const EntityVisualBounds bounds = EditorTransformGizmo::entity_visual_bounds(
+        *EditorAPI::s_renderer, transform, sprite);
+    const float handleSize = EditorTransformGizmo::resize_handle_world_size(
+        *EditorAPI::s_renderer);
+    const ResizeHandle handle = EditorTransformGizmo::hit_test_resize_handle(
+        wx, wy, bounds, handleSize);
+    if (handle == ResizeHandle::None) return false;
+
+    EditorAPI::s_manipulationMode = ManipulationMode::Resize;
+    EditorAPI::s_activeResizeHandle = handle;
+    EditorAPI::s_dragStartTransform = transform;
+    EditorAPI::s_dragStartBounds = bounds;
+    EditorAPI::s_dragStartX = wx;
+    EditorAPI::s_dragStartY = wy;
+    EditorAPI::s_isDragging = true;
+    return true;
+}
+
 } // namespace
 
 // =============================================================================
@@ -210,19 +243,37 @@ EM_BOOL EditorAPI::onMouseMove(int, const EmscriptenMouseEvent* e, void*) {
     }
     float wx, wy;
     toWorld(e, wx, wy);
-    if (s_isDragging && s_selectedEntityId != 0u) {
-        snapWorldToEditorGrid(wx, wy);
-        if (s_entityGateway) {
-            Transform transform{};
-            if (
-                entityAllowsCanvasEdit(*s_entityGateway, s_selectedEntityId) &&
-                s_entityGateway->getAuthoringTransform(s_selectedEntityId, transform)
-            ) {
-                transform.position.x = wx;
-                transform.position.y = wy;
-                s_entityGateway->setTransform(s_selectedEntityId, transform);
-            }
+    if (s_isDragging && s_selectedEntityId != 0u && s_entityGateway) {
+        if (
+            !entityAllowsCanvasEdit(*s_entityGateway, s_selectedEntityId)
+        ) {
+            return EM_TRUE;
         }
+
+        Transform transform{};
+        if (!s_entityGateway->getAuthoringTransform(s_selectedEntityId, transform))
+            return EM_TRUE;
+
+        if (s_manipulationMode == ManipulationMode::Resize) {
+            const Vec2 newScale = EditorTransformGizmo::calculate_scale_from_handle(
+                s_activeResizeHandle,
+                wx,
+                wy,
+                s_dragStartTransform,
+                s_dragStartBounds);
+            transform.scale.x = newScale.x;
+            transform.scale.y = newScale.y;
+            s_entityGateway->setTransform(s_selectedEntityId, transform);
+            return EM_TRUE;
+        }
+
+        if (s_manipulationMode != ManipulationMode::Move)
+            return EM_TRUE;
+
+        snapWorldToEditorGrid(wx, wy);
+        transform.position.x = wx;
+        transform.position.y = wy;
+        s_entityGateway->setTransform(s_selectedEntityId, transform);
     }
     return EM_TRUE;
 }
@@ -232,6 +283,7 @@ EM_BOOL EditorAPI::onMouseDown(int, const EmscriptenMouseEvent* e, void*) {
     toScreen(e, s_lastPanScreenX, s_lastPanScreenY);
     if (s_editorTool == ToolPan) {
         s_isDragging = true;
+        s_manipulationMode = ManipulationMode::None;
         return EM_TRUE;
     }
     float wx, wy;
@@ -245,8 +297,22 @@ EM_BOOL EditorAPI::onMouseDown(int, const EmscriptenMouseEvent* e, void*) {
             notifyEntityDuplicateRequested(picked, wx, wy);
         }
         s_isDragging = false;
+        s_manipulationMode = ManipulationMode::None;
         return EM_TRUE;
     }
+
+    s_manipulationMode = ManipulationMode::None;
+    s_activeResizeHandle = ResizeHandle::None;
+
+    if (
+        e->button == 0
+        && s_editorTool == ToolSelect
+        && s_selectedEntityId != 0u
+        && tryBeginResizeAt(wx, wy, s_selectedEntityId)
+    ) {
+        return EM_TRUE;
+    }
+
     s_isDragging = true;
     // Click-to-select: pick the entity under the cursor on the canvas so
     // the user doesn't have to go through the Hierarchy panel. A hit also
@@ -254,6 +320,7 @@ EM_BOOL EditorAPI::onMouseDown(int, const EmscriptenMouseEvent* e, void*) {
     const uint32_t picked = pickEntityAt(wx, wy, e->altKey);
     if (picked != 0u) {
         s_selectedEntityId = picked;
+        s_manipulationMode = ManipulationMode::Move;
         notifyEntitySelected(picked);
     }
     return EM_TRUE;
@@ -262,12 +329,19 @@ EM_BOOL EditorAPI::onMouseDown(int, const EmscriptenMouseEvent* e, void*) {
 EM_BOOL EditorAPI::onMouseUp(int, const EmscriptenMouseEvent* e, void*) {
     if (s_mode != 0) return EM_FALSE;
     const bool wasDragging = s_isDragging;
+    const ManipulationMode finishedMode = s_manipulationMode;
     s_isDragging = false;
+    s_manipulationMode = ManipulationMode::None;
+    s_activeResizeHandle = ResizeHandle::None;
     if (s_editorTool == ToolPan) return EM_TRUE;  // panning: no transform notify
 
-    if (wasDragging && s_selectedEntityId != 0u && s_entityGateway) {
+    if (
+        wasDragging
+        && finishedMode != ManipulationMode::None
+        && s_selectedEntityId != 0u
+        && s_entityGateway
+    ) {
         // P1: mouse-up must echo rotation/scale from the gateway, never {0,1,1}.
-        // onMouseMove only mutates position; skip notify if transform is unknown.
         Transform transform{};
         if (s_entityGateway->getAuthoringTransform(s_selectedEntityId, transform))
             notifyTransformChanged(s_selectedEntityId,

@@ -11,8 +11,8 @@
 //                         clearColor, when the world is smaller than the
 //                         viewport).
 //   • drawGrid          — editor alignment grid (under entities).
-//   • drawSelection     — selection box + sensor preview for the picked
-//                         entity.
+//   • drawSelection     — selection box, corner resize handles, and optional
+//                         sensor preview for the picked entity.
 //
 // The camera viewport outline is intentionally NOT here: the editor owns it as
 // a dashed DOM overlay (CameraFrameOverlay.tsx), which stays crisp and exactly
@@ -55,7 +55,8 @@ void drawGrid(Modules::Renderer& renderer,
               const EditorOverlayState& state);
 
 /**
- * Selection box + optional sensor preview for the currently picked entity.
+ * Selection box, corner resize handles, and optional sensor preview for the
+ * currently picked entity.
  * Uses amber when `hiddenInGame` (visible in editor, hidden in play).
  */
 void drawSelection(Modules::Renderer& renderer,

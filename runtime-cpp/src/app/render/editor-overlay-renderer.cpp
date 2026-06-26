@@ -1,7 +1,7 @@
 #include "editor-overlay-renderer.h"
 
+#include "../../modules/editor-api/include/editor-transform-gizmo.h"
 #include "../../modules/renderer/include/renderer.h"
-#include "../../core/sprite-draw-math.h"
 #include "../../modules/collision/include/collision_math.h"
 #include "../../modules/collision/include/collision_world.h"
 
@@ -12,40 +12,6 @@ namespace ArtCade::EditorOverlayRenderer {
 
 namespace {
 
-struct EntityOutlineBounds {
-    float x = 0.f;
-    float y = 0.f;
-    float w = 0.f;
-    float h = 0.f;
-};
-
-/** Selection / hidden outline aligned with Renderer::drawSprite (pivot anchor). */
-EntityOutlineBounds spriteVisualBounds(Modules::Renderer& renderer,
-                                       const Transform& transform,
-                                       const SpriteComponent& sprite,
-                                       const std::optional<Vec2>& visualSize) {
-    const Vec2 size = visualSize.value_or(
-        renderer.spriteDestinationSize(sprite.spriteAssetId, transform.scale));
-    const Vec2 topLeft = SpriteDrawMath::placeholderTopLeft(
-        transform.position, sprite.pivot, size.x, size.y);
-    return { topLeft.x, topLeft.y, size.x, size.y };
-}
-
-// Rectangle outline drawn as four 2-world-pixel-thick filled rects, fully
-// contained inside [x,y]-[x+w,y+h]. Rationale:
-//
-//   • drawLine() in raylib renders 1px lines that sit on the framebuffer
-//     boundary when called at y=h / x=w — they get clipped by the WebGL
-//     viewport on Emscripten. Same quirk that drawSelection() documents.
-//
-//   • A 1px-thick drawRect inset by 1 covers row h-1, but at low CSS zoom
-//     (canvas internal 1280x640 displayed e.g. at 80% = 0.8 CSS px / world
-//     px) a single-pixel line becomes sub-pixel and can blend with the
-//     surrounding container border, looking "missing" on the bottom/right.
-//
-//   • 2 world-pixels thick is the same value drawSelection uses; renders
-//     reliably from 25% to 400% zoom and on both native + WASM, with no
-//     framebuffer edge clip and no sub-pixel disappearance.
 void drawRectOutline(Modules::Renderer& renderer,
                      float x, float y, float w, float h,
                      const Vec4& color) {
@@ -57,7 +23,7 @@ void drawRectOutline(Modules::Renderer& renderer,
 }
 
 void drawEntityOutline(Modules::Renderer& renderer,
-                       const EntityOutlineBounds& bounds,
+                       const EntityVisualBounds& bounds,
                        const Vec4& color) {
     drawRectOutline(renderer, bounds.x, bounds.y, bounds.w, bounds.h, color);
 }
@@ -124,18 +90,23 @@ void drawSelection(Modules::Renderer& renderer,
         }
     }
 
-    const EntityOutlineBounds bounds = spriteVisualBounds(renderer, transform, sprite, visualSize);
+    const EntityVisualBounds bounds = EditorTransformGizmo::entity_visual_bounds(
+        renderer, transform, sprite, visualSize);
     const Vec4 sel = hiddenInGame
         ? Vec4{1.f, 0.55f, 0.1f, 1.f}
         : Vec4{1.f, 1.f, 0.f, 1.f};
     drawEntityOutline(renderer, bounds, sel);
+
+    const float handleSize = EditorTransformGizmo::resize_handle_world_size(renderer);
+    EditorTransformGizmo::draw_resize_handles(renderer, bounds, handleSize);
 }
 
 void drawHiddenInGameOutline(Modules::Renderer& renderer,
                              const Transform& transform,
                              const SpriteComponent& sprite,
                              const std::optional<Vec2>& visualSize) {
-    const EntityOutlineBounds bounds = spriteVisualBounds(renderer, transform, sprite, visualSize);
+    const EntityVisualBounds bounds = EditorTransformGizmo::entity_visual_bounds(
+        renderer, transform, sprite, visualSize);
     const Vec4 amber{1.f, 0.55f, 0.1f, 0.75f};
     drawEntityOutline(renderer, bounds, amber);
 }
