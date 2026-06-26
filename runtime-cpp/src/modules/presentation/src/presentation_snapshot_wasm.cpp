@@ -20,6 +20,14 @@ PresentationSnapshotWasm snapshot_to_wasm(const PresentationSnapshot& snapshot) 
     abi.destH = static_cast<float>(snapshot.placement.destH);
     abi.scaleX = static_cast<float>(snapshot.placement.scaleX);
     abi.scaleY = static_cast<float>(snapshot.placement.scaleY);
+    abi.editorViewOriginX = static_cast<float>(snapshot.editorViewOriginX);
+    abi.editorViewOriginY = static_cast<float>(snapshot.editorViewOriginY);
+    abi.surfacePixelsPerWorldUnit =
+        static_cast<float>(snapshot.surfacePixelsPerWorldUnit);
+    abi.visibleWorldMinX = static_cast<float>(snapshot.visibleWorldMinX);
+    abi.visibleWorldMinY = static_cast<float>(snapshot.visibleWorldMinY);
+    abi.visibleWorldMaxX = static_cast<float>(snapshot.visibleWorldMaxX);
+    abi.visibleWorldMaxY = static_cast<float>(snapshot.visibleWorldMaxY);
     return abi;
 }
 

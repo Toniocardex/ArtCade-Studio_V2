@@ -602,6 +602,9 @@ describe('RuntimeSyncService', () => {
         scaleY: 2,
       },
       presentationScale: 2,
+      editorViewOrigin: { x: 0, y: 0 },
+      surfacePixelsPerWorldUnit: 2,
+      visibleWorldBounds: { minX: 0, minY: 0, maxX: 1024, maxY: 768 },
     }
     vi.mocked(bridge.editorReadPresentationSnapshot).mockReturnValue(snap)
     runtimeSync.reset()

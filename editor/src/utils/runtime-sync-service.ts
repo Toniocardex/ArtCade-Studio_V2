@@ -339,6 +339,11 @@ class RuntimeSyncServiceImpl {
     return getPresentationSnapshot()
   }
 
+  /** Pulls the latest committed snapshot from WASM into the presentation store. */
+  syncPresentationSnapshotNow(): void {
+    this.pollPresentationSnapshot()
+  }
+
   private startPresentationPolling(): void {
     if (this.presentationPollRaf != null) return
     if (typeof requestAnimationFrame !== 'function') return

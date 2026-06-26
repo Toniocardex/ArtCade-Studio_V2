@@ -20,6 +20,15 @@ struct PresentationSnapshot {
     ViewCamera2D pickingCamera{};
     double presentationScale = 1.;
     bool letterboxActive = false;
+    /** Editor camera top-left in world space (SceneEdit). */
+    double editorViewOriginX = 0.;
+    double editorViewOriginY = 0.;
+    /** Surface pixels per world unit at the committed frame. */
+    double surfacePixelsPerWorldUnit = 1.;
+    double visibleWorldMinX = 0.;
+    double visibleWorldMinY = 0.;
+    double visibleWorldMaxX = 0.;
+    double visibleWorldMaxY = 0.;
 
     /**
      * Maps framebuffer coordinates to world using this snapshot's placement

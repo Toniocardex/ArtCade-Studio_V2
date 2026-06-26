@@ -16,9 +16,14 @@ struct PresentationState {
     EditorCamera editorCamera{};
     GameCameraState gameCamera{};
     CameraModifiers gameModifiers{};
+    /** Scene world size used for play-mode picking inset (raw input). */
+    double worldWidth = 1.;
+    double worldHeight = 1.;
+    /** @deprecated Written only by legacy paths; solver overwrites in snapshot. */
     OutputPlacement placement{};
     /** When true, picking maps surface 1:1 (editor direct framebuffer). */
     bool useIdentityPlacement = false;
+    /** @deprecated Written only by legacy paths; solver overwrites in snapshot. */
     ViewCamera2D pickingCamera{};
 };
 

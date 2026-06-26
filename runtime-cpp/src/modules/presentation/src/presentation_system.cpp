@@ -1,6 +1,6 @@
 #include "../include/presentation_system.h"
 
-#include "../include/output_policy.h"
+#include "../include/presentation_solver.h"
 
 #include <algorithm>
 
@@ -9,21 +9,7 @@ namespace ArtCade::Presentation {
 PresentationSnapshot PresentationSystem::calculate_snapshot(
     const PresentationState& state,
     uint64_t revision) {
-    PresentationSnapshot snapshot{};
-    snapshot.revision = revision;
-    snapshot.effectiveMode = state.mode;
-    snapshot.surface = state.surface;
-    snapshot.logicalWidth = state.logicalWidth;
-    snapshot.logicalHeight = state.logicalHeight;
-    snapshot.placement = state.placement;
-    snapshot.useIdentityPlacement = state.useIdentityPlacement;
-    snapshot.pickingCamera = state.pickingCamera;
-    snapshot.presentationScale = state.placement.scaleX;
-    snapshot.letterboxActive = state.placement.destX > 0.
-        || state.placement.destY > 0.
-        || state.placement.destW < state.surface.framebufferWidth
-        || state.placement.destH < state.surface.framebufferHeight;
-    return snapshot;
+    return solve_presentation_snapshot(state, revision);
 }
 
 void PresentationSystem::push_history(const PresentationSnapshot& snapshot) {

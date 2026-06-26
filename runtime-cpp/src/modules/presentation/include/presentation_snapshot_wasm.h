@@ -7,8 +7,9 @@
 
 namespace ArtCade::Presentation {
 
-constexpr uint32_t PRESENTATION_SNAPSHOT_ABI_VERSION = 1;
-constexpr uint32_t PRESENTATION_SNAPSHOT_WASM_SIZE = 64;
+constexpr uint32_t PRESENTATION_SNAPSHOT_ABI_VERSION = 2;
+constexpr uint32_t PRESENTATION_SNAPSHOT_WASM_SIZE_V1 = 64;
+constexpr uint32_t PRESENTATION_SNAPSHOT_WASM_SIZE = 96;
 
 /**
  * Flat WASM/JS ABI for a committed PresentationSnapshot.
@@ -31,6 +32,14 @@ struct PresentationSnapshotWasm {
     float destH = 0.f;
     float scaleX = 1.f;
     float scaleY = 1.f;
+    float editorViewOriginX = 0.f;
+    float editorViewOriginY = 0.f;
+    float surfacePixelsPerWorldUnit = 1.f;
+    float visibleWorldMinX = 0.f;
+    float visibleWorldMinY = 0.f;
+    float visibleWorldMaxX = 0.f;
+    float visibleWorldMaxY = 0.f;
+    uint32_t reserved = 0;
 };
 #pragma pack(pop)
 

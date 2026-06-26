@@ -38,6 +38,9 @@ const SNAPSHOT: PresentationSnapshot = {
     scaleY: 2,
   },
   presentationScale: 2,
+  editorViewOrigin: { x: 0, y: 0 },
+  surfacePixelsPerWorldUnit: 2,
+  visibleWorldBounds: { minX: 0, minY: 0, maxX: 512, maxY: 320 },
 }
 
 describe('runtime-preview-display', () => {

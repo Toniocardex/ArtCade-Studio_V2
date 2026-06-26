@@ -147,11 +147,11 @@ describe('presentation ccall readers', () => {
   })
 
   it('reads presentation snapshots from the ccall pointer', async () => {
-    const heap = new Uint8Array(160)
+    const heap = new Uint8Array(192)
     const ptr = 64
     const view = new DataView(heap.buffer)
-    view.setUint32(ptr + 0, 1, true)
-    view.setUint32(ptr + 4, 64, true)
+    view.setUint32(ptr + 0, 2, true)
+    view.setUint32(ptr + 4, 96, true)
     view.setBigUint64(ptr + 8, 7n, true)
     view.setUint32(ptr + 16, 2, true)
     view.setUint32(ptr + 20, 1, true)
@@ -165,6 +165,13 @@ describe('presentation ccall readers', () => {
     view.setFloat32(ptr + 52, 360, true)
     view.setFloat32(ptr + 56, 2, true)
     view.setFloat32(ptr + 60, 2, true)
+    view.setFloat32(ptr + 64, 100, true)
+    view.setFloat32(ptr + 68, 50, true)
+    view.setFloat32(ptr + 72, 2, true)
+    view.setFloat32(ptr + 76, 0, true)
+    view.setFloat32(ptr + 80, 0, true)
+    view.setFloat32(ptr + 84, 640, true)
+    view.setFloat32(ptr + 88, 360, true)
 
     g.Module = {
       calledRun: true,

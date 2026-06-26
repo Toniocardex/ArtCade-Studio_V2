@@ -1,42 +1,33 @@
 import { useEffect, useState } from 'react'
-import { onPresentationChanged } from '../utils/presentation-store'
-import { editorReadEditorView, type EditorViewState } from '../utils/wasm-bridge'
+import { getPresentationSnapshot, onPresentationChanged } from '../utils/presentation-store'
+import {
+  DEFAULT_EDITOR_CAMERA_VIEW,
+  editorViewFromSnapshot,
+} from '../utils/editor-camera-from-snapshot'
+import type { EditorViewState } from '../utils/wasm-bridge'
 import { runtimeSync } from '../utils/runtime-sync-service'
 
-const DEFAULT_VIEW: EditorViewState = { x: 0, y: 0, zoomDevice: 1 }
+function readEditorViewFromStore(): EditorViewState {
+  const snapshot = getPresentationSnapshot()
+  if (!snapshot) return DEFAULT_EDITOR_CAMERA_VIEW
+  return editorViewFromSnapshot(snapshot)
+}
 
 /**
- * Re-renders when the WASM editor camera advances (presentation revision).
+ * Re-renders when the committed presentation snapshot advances.
+ * Reads editor camera fields from the same revision as rulers and overlays.
  */
 export function useEditorCameraView(): EditorViewState {
-  const [view, setView] = useState<EditorViewState>(() => {
-    try {
-      return editorReadEditorView()
-    } catch {
-      return DEFAULT_VIEW
-    }
-  })
+  const [view, setView] = useState<EditorViewState>(readEditorViewFromStore)
 
   useEffect(() => {
-    const publish = () => {
-      try {
-        setView(editorReadEditorView())
-      } catch {
-        setView(DEFAULT_VIEW)
-      }
-    }
+    const publish = () => setView(readEditorViewFromStore())
     publish()
     return onPresentationChanged(() => publish())
   }, [])
 
   useEffect(() => runtimeSync.onReadyChange((ready) => {
-    if (ready) {
-      try {
-        setView(editorReadEditorView())
-      } catch {
-        setView(DEFAULT_VIEW)
-      }
-    }
+    if (ready) setView(readEditorViewFromStore())
   }), [])
 
   return view
