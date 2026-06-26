@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { EntityDef, ImageAsset } from '../../types'
 import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import {
@@ -15,11 +15,9 @@ export type SpriteFillColorFieldProps = Readonly<{
   isPrototype: boolean
 }>
 
-const HEX_PATTERN = /^#?[0-9a-fA-F]{6}$/
-
 /**
  * Fill color for legacy placeholders, or prototype sprite base color when assigned
- * to a generated asset.
+ * to a generated asset. Picker and hex edits stay local until Apply (or hex blur).
  */
 export function SpriteFillColorField({
   entity,
@@ -37,49 +35,43 @@ export function SpriteFillColorField({
   const hex = fillColorToHex(colorSource)
 
   const [draft, setDraft] = useState(hex)
-  const editingRef = useRef(false)
 
   useEffect(() => {
-    if (!editingRef.current) setDraft(hex)
+    setDraft(hex)
   }, [hex])
 
-  function commit(nextHex: string) {
-    const fillColor = hexToFillColor(nextHex)
-    if (!fillColor) return
+  const pendingFill = hexToFillColor(draft)
+  const isDirty = pendingFill != null && fillColorToHex(pendingFill) !== hex
+
+  function applyColor() {
+    const fillColor = hexToFillColor(draft)
+    if (!fillColor) {
+      setDraft(hex)
+      return
+    }
+
     if (isPrototype) {
       const asset =
-        (protoView?.assetId ? project?.assets?.[protoView.assetId] : undefined)
+        (protoView?.assetId
+          ? project?.assets?.[protoView.assetId]
+          : undefined)
         ?? linkedAsset
+
       if (!asset) return
+
       dispatch({
         type: 'ASSET_ADD',
         asset: patchPrototypeSpriteColor(asset, fillColor),
       })
       return
     }
+
     dispatch({
       type: 'ENTITY_SET_SPRITE_FILL',
       entityId: entity.id,
       fillColor,
       coalesceKey: `fill:${entity.id}`,
     })
-  }
-
-  function onPickerChange(value: string) {
-    setDraft(value)
-    commit(value)
-  }
-
-  function onHexInput(value: string) {
-    editingRef.current = true
-    setDraft(value)
-    if (HEX_PATTERN.test(value)) commit(value)
-  }
-
-  function onHexBlur() {
-    editingRef.current = false
-    if (HEX_PATTERN.test(draft)) commit(draft)
-    else setDraft(hex)
   }
 
   const label = isPrototype ? 'Prototype color' : 'Fill color (no asset)'
@@ -94,8 +86,8 @@ export function SpriteFillColorField({
           type="color"
           aria-label={label}
           disabled={disabled}
-          value={hex}
-          onChange={(e) => onPickerChange(e.target.value)}
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
           className="w-8 h-7 shrink-0 rounded border border-[var(--border-2)]
                      bg-transparent p-0 cursor-pointer disabled:cursor-not-allowed"
         />
@@ -106,15 +98,25 @@ export function SpriteFillColorField({
           value={draft}
           maxLength={7}
           spellCheck={false}
-          onChange={(e) => onHexInput(e.target.value)}
-          onBlur={onHexBlur}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') e.currentTarget.blur()
+          onChange={(event) => setDraft(event.target.value)}
+          onBlur={applyColor}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') applyColor()
           }}
           className="flex-1 min-w-0 text-xs font-mono uppercase text-[var(--text)]
                      bg-[var(--panel-3)] border border-[var(--border-2)] rounded px-2 py-1
                      outline-none focus:border-[var(--accent)] disabled:cursor-not-allowed"
         />
+        <button
+          type="button"
+          disabled={disabled || !isDirty}
+          onClick={applyColor}
+          className="shrink-0 rounded border border-[var(--border)] px-2 py-1 text-[9px]
+                     text-[var(--text)] hover:border-[var(--border-2)]
+                     disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          Apply
+        </button>
       </div>
       {disabled ? (
         <p className="text-[8px] text-[var(--muted)] mt-1 leading-snug">

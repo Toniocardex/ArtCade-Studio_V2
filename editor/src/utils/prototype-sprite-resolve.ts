@@ -52,7 +52,10 @@ function buildPrototypeView(options: {
   const baseColor = bindingOk && asset
     ? resolvePrototypeBaseColor(asset, typeId)
     : colorFromObjectTypeId(typeId)
-  const dataUrl = generatePrototypeSpriteDataUrl(width, height, baseColor)
+  const dataUrl =
+    bindingOk && asset?.dataUrl
+      ? asset.dataUrl
+      : generatePrototypeSpriteDataUrl(width, height, baseColor)
 
   return { typeId, assetId, loadPath, baseColor, dataUrl, bindingOk }
 }

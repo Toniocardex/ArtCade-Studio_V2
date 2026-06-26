@@ -88,6 +88,7 @@ export function generatePrototypeSpriteAsset(
   const typeName = options.typeName.trim() || typeId
   const width = options.width ?? PROTOTYPE_SPRITE_SIZE
   const height = options.height ?? PROTOTYPE_SPRITE_SIZE
+  const hasExplicitColor = options.baseColor !== undefined
   const baseColor = options.baseColor ?? colorFromObjectTypeId(typeId)
   const id = prototypeAssetIdForType(typeId)
   const path = prototypeSpriteVirtualPath(id)
@@ -105,7 +106,7 @@ export function generatePrototypeSpriteAsset(
       shape: 'rectangle',
       baseColor: { ...baseColor },
       ownerTypeId: typeId,
-      modified: false,
+      modified: hasExplicitColor,
     },
     dataUrl: generatePrototypeSpriteDataUrl(width, height, baseColor),
     defaultPivot: { x: 0.5, y: 0.5 },

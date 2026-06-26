@@ -3,8 +3,11 @@ import { useEditorDispatch, useEditorSelector } from '../store/editor-store'
 import type { ConsoleEntry } from '../types'
 import { alertDialog, confirmDialog } from '../utils/native-dialog'
 import { useTextPrompt } from './useTextPrompt'
-import { buildObjectTypeAddAction } from '../utils/prototype-sprite'
-import { slugTypeId } from '../utils/project-object-types'
+import {
+  buildCreateObjectAction,
+  createObjectErrorMessage,
+} from '../utils/object-create'
+import { defaultEntitySpawnPosition } from '../utils/project'
 import { isInstanceNameTakenInScene } from '../utils/project-instance-names'
 import { openLogicBoardForEntity } from '../panels/inspector/logic-board-navigation'
 
@@ -116,9 +119,8 @@ export function useSceneExplorerActions() {
     [dispatch, project, promptText],
   )
 
-  // Single entry point for adding objects: prompts for a name, reuses the
-  // object type when it already exists, then places an instance in the
-  // active scene (Construct-style: scene rows are instances of types).
+  // Single entry point for adding objects: prompts for a name, creates a new
+  // object type + first scene instance atomically (Construct-style hierarchy).
   const insertObject = useCallback(() => {
     if (!project || !scene) return
     void promptText({
@@ -127,27 +129,29 @@ export function useSceneExplorerActions() {
       defaultValue: 'Object',
     }).then((name) => {
       if (!name) return
-      const typeId = slugTypeId(name)
-      const duplicate = Object.values(project.objectTypes ?? {}).find((type) =>
-        type.id.toLocaleLowerCase() === typeId.toLocaleLowerCase()
-        || type.displayName.trim().toLocaleLowerCase() === name.trim().toLocaleLowerCase()
-      )
-      if (duplicate) {
-        void alertDialog(
-          `An object type named "${duplicate.displayName}" already exists.\n\nUse "Add instance" on that object type, or choose a different name.`,
-          { title: 'Object type already exists', kind: 'warning' },
-        )
+      const spawn = defaultEntitySpawnPosition(scene, editorGridSize, snapToGrid)
+      const result = buildCreateObjectAction({
+        project,
+        sceneId,
+        displayName: name,
+        position: spawn,
+      })
+      if (!result.ok) {
+        void alertDialog(createObjectErrorMessage(result.error, name), {
+          title: result.error === 'duplicate-type-id'
+            ? 'Object type id already exists'
+            : 'Object type already exists',
+          kind: 'warning',
+        })
         return
       }
-      const addAction = buildObjectTypeAddAction(name)
-      dispatch(addAction)
-      dispatch({ type: 'INSTANCE_ADD_FROM_TYPE', sceneId, objectTypeId: addAction.typeId })
+      dispatch(result.action)
       dispatch({
         type: 'LOG',
-        entry: explorerLog(`Inserted ${name} (type ${addAction.typeId})`, 'info'),
+        entry: explorerLog(`Inserted ${name} (type ${result.action.objectType.id})`, 'info'),
       })
     })
-  }, [scene, sceneId, project, dispatch, promptText])
+  }, [scene, sceneId, project, dispatch, promptText, editorGridSize, snapToGrid])
 
   // Places a new instance of an existing object type in the active scene
   // (group-level "Add instance" in the explorer).

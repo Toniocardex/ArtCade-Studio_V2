@@ -91,6 +91,7 @@ describe('prototype-sprite-resolve (SSOT)', () => {
     expect(dataUrl).toBe(fromType!.dataUrl)
     expect(fromType!.bindingOk).toBe(true)
     expect(fromType!.assetId).toBe(prototypeAssetIdForType('Object_p'))
+    expect(fromType!.dataUrl).toBe(asset.dataUrl)
   })
 
   it('normalizePrototypeSprites repairs bindings then hydrates assets', () => {

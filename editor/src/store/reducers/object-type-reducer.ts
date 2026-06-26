@@ -4,18 +4,19 @@
 
 import type { CoreState, Action, DomainReducer } from '../editor-store-state'
 import {
-  createEntityDef,
   defaultEntitySpawnPosition,
   nextEntityId,
 } from '../../utils/project'
 import {
-  entityToObjectType,
   materializeEntity,
   rematerializeAllInstancesOfType,
-  slugTypeId,
 } from '../../utils/project-object-types'
 import { gcUnusedGeneratedPrototypeAssets, syncGeneratedPrototypeAsset } from '../../utils/prototype-sprite'
-import { spriteAssignedFromAsset } from '../../utils/sprite-pivot-resolve'
+import { assertPrototypeOwnership } from '../../utils/entity-retype'
+import {
+  createDefaultObjectType,
+  objectTypeCreateBlocked,
+} from '../../utils/object-create'
 import {
   isInstanceNameTaken,
   nextInstanceName,
@@ -46,14 +47,7 @@ function objectTypeNameTaken(
   displayName: string,
   exceptObjectTypeId?: string,
 ): boolean {
-  const wantedName = displayName.trim().toLocaleLowerCase()
-  const wantedId = slugTypeId(displayName).toLocaleLowerCase()
-  if (!wantedName) return false
-  return Object.values(project.objectTypes ?? {}).some((type) => {
-    if (type.id === exceptObjectTypeId) return false
-    return type.id.toLocaleLowerCase() === wantedId
-      || type.displayName.trim().toLocaleLowerCase() === wantedName
-  })
+  return objectTypeCreateBlocked(project, displayName, exceptObjectTypeId) !== null
 }
 
 function syncInstanceTransform(
@@ -175,20 +169,80 @@ export const objectTypeReducer: DomainReducer = (state: CoreState, action: Actio
         projectDirty: true,
       }
     }
+    case 'OBJECT_CREATE': {
+      if (!state.project) return state
+      const project = state.project
+      const typeId = action.objectType.id
+      const instanceId = action.instance.id
+      const scene = project.scenes?.[action.sceneId]
+      if (!scene) return state
+      if (objectTypeCreateBlocked(project, action.objectType.displayName)) return state
+      if (project.entities?.[instanceId]) return state
+      if (scene.instances?.some((i) => i.id === instanceId)) return state
+
+      const syncedPrototype = syncGeneratedPrototypeAsset(action.prototypeAsset, typeId)
+      const objectType = createDefaultObjectType({
+        typeId,
+        displayName: action.objectType.displayName,
+        prototypeAsset: syncedPrototype,
+      })
+      const instance: SceneInstanceDef = {
+        ...action.instance,
+        ...activeLayerPlacement(state),
+      }
+
+      const nextProject = {
+        ...project,
+        assets: {
+          ...(project.assets ?? {}),
+          [syncedPrototype.id]: syncedPrototype,
+        },
+        objectTypes: {
+          ...(project.objectTypes ?? {}),
+          [typeId]: objectType,
+        },
+        scenes: {
+          ...project.scenes,
+          [action.sceneId]: {
+            ...scene,
+            instances: [...(scene.instances ?? []), instance],
+            entityIds: [...(scene.entityIds ?? []), instanceId],
+          },
+        },
+      }
+
+      assertPrototypeOwnership(nextProject, typeId)
+
+      const materialized = materializeEntity(objectType, instance)
+
+      return {
+        ...state,
+        project: {
+          ...nextProject,
+          entities: {
+            ...(project.entities ?? {}),
+            [instanceId]: materialized,
+          },
+        },
+        selection: {
+          ...state.selection,
+          entityId: instanceId,
+          entityIds: [instanceId],
+          sceneId: action.sceneId,
+        },
+        projectDirty: true,
+      }
+    }
     case 'OBJECT_TYPE_ADD': {
       if (!state.project) return state
       const { typeId, displayName, prototypeAsset } = action
-      if (objectTypeNameTaken(state.project, displayName)) return state
-      if (state.project.objectTypes?.[typeId]) return state
+      if (objectTypeCreateBlocked(state.project, displayName)) return state
       const syncedPrototype = syncGeneratedPrototypeAsset(prototypeAsset, typeId)
-      const base = createEntityDef(0, displayName || typeId, typeId)
-      const proto = entityToObjectType(
-        {
-          ...base,
-          sprite: spriteAssignedFromAsset(base.sprite, syncedPrototype),
-        },
+      const proto = createDefaultObjectType({
         typeId,
-      )
+        displayName: displayName || typeId,
+        prototypeAsset: syncedPrototype,
+      })
       return {
         ...state,
         project: {

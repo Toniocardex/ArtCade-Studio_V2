@@ -2,9 +2,10 @@
 // entity-retype — prematerialized retype / variant creation (prototype ownership)
 // ---------------------------------------------------------------------------
 
-import type { ImageAsset, ObjectTypeDef, ProjectDoc, SpriteComponent } from '../types'
+import type { ImageAsset, ObjectTypeDef, ProjectDoc } from '../types'
 import { findSceneInstance, slugTypeId } from './project-object-types'
 import { imageAssetForRef } from './sprite-asset-ref'
+import { createDefaultObjectType } from './object-create'
 import {
   generatePrototypeSpriteAsset,
   isGeneratedPrototypeAsset,
@@ -80,22 +81,32 @@ export function buildEntityRetypeAction(
   const sourceRef = sourceType.sprite.spriteAssetId?.trim()
   const sourceAsset = sourceRef ? imageAssetForRef(project, sourceRef) : undefined
 
-  let prototypeAsset: ImageAsset | undefined
-  let sprite: SpriteComponent = cloneJson(sourceType.sprite)
-
   if (isGeneratedPrototypeAsset(sourceAsset)) {
-    prototypeAsset = syncGeneratedPrototypeAsset(
+    const prototypeAsset = syncGeneratedPrototypeAsset(
       generatePrototypeSpriteAsset({
         typeId: targetTypeId,
         typeName: trimmed,
       }),
       targetTypeId,
     )
-    sprite = {
-      ...sprite,
-      spriteAssetId: prototypeAsset.id,
-      fillColor: { ...prototypeAsset.generated!.baseColor },
-      pivotFromAsset: true,
+    const { sprite } = createDefaultObjectType({
+      typeId: targetTypeId,
+      displayName: trimmed,
+      prototypeAsset,
+    })
+    const newObjectType: ObjectTypeDef = {
+      ...cloneJson(sourceType),
+      id: targetTypeId,
+      displayName: trimmed,
+      sprite,
+    }
+    return {
+      type: 'ENTITY_RETYPE',
+      entityId,
+      targetTypeId,
+      targetDisplayName: trimmed,
+      newObjectType,
+      prototypeAsset,
     }
   }
 
@@ -103,7 +114,6 @@ export function buildEntityRetypeAction(
     ...cloneJson(sourceType),
     id: targetTypeId,
     displayName: trimmed,
-    sprite,
   }
 
   return {
@@ -112,6 +122,5 @@ export function buildEntityRetypeAction(
     targetTypeId,
     targetDisplayName: trimmed,
     newObjectType,
-    prototypeAsset,
   }
 }

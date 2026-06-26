@@ -24,6 +24,7 @@ import {
 } from '../constants/editor-viewport'
 import type { DockPanelId, DockPanelVisibility } from '../constants/dock-panels'
 import type { EntityRetypeAction } from '../utils/entity-retype'
+import type { ObjectCreateAction } from '../utils/object-create'
 import { readStoredDockPanelVisibility } from '../utils/dock-panel-visibility'
 import { createInitialDockUiSlice } from '../utils/dock-ui-state'
 import { readEditorPreferences } from '../utils/editor-preferences'
@@ -217,6 +218,7 @@ export type Action =
       displayName: string
       prototypeAsset: ImageAsset
     }
+  | ObjectCreateAction
   | { type: 'INSTANCE_ADD_FROM_TYPE'; sceneId: string; objectTypeId: string }
   | {
       type: 'INSTANCE_DUPLICATE'
