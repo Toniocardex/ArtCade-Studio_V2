@@ -16,7 +16,6 @@ export type DeleteObjectTarget =
   | { kind: 'object-type'; objectTypeId: string }
 
 function objectTypeDeleteMessage(
-  displayName: string,
   instanceCount: number,
   sceneCount: number,
 ): string {
@@ -75,7 +74,7 @@ export async function requestDeleteObject(options: {
   const sceneCount = countScenesWithObjectTypeInstances(project, target.objectTypeId)
 
   const confirmed = await confirmDialog(
-    objectTypeDeleteMessage(type.displayName, instanceCount, sceneCount),
+    objectTypeDeleteMessage(instanceCount, sceneCount),
     {
       title: `Delete object "${type.displayName}"?`,
       kind: 'warning',

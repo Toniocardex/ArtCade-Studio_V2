@@ -74,7 +74,7 @@ export function defaultEntitySpawnPosition(
   const raw = (visible && visible.x < vp.x && visible.y < vp.y) ? visible : vpCenter
   const cx = clamp(raw.x, vp.x - 1)
   const cy = clamp(raw.y, vp.y - 1)
-  const normalized = normalizeEntityPosition(cx, cy, true, gridSize)
+  const normalized = normalizeEntityPosition(cx, cy, snapToGrid, gridSize)
   const spawn = clampEntityPositionToScene(normalized, ws)
   return spawn
 }

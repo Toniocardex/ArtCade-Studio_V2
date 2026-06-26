@@ -45,11 +45,12 @@ export function SpriteSection({ entity }: SpriteSectionProps) {
     [project, entity],
   )
   const spriteRef = clip?.spritePath ?? entity.sprite.spriteAssetId ?? ''
-  const linkedAsset = imageAssetForRef(project, spriteRef)
-    ?? findImageAssetByPath(project?.assets, spriteRef)
+  const linkedAsset = project
+    ? (imageAssetForRef(project, spriteRef) ?? findImageAssetByPath(project.assets, spriteRef))
+    : undefined
   const isPrototype = isGeneratedPrototypeAsset(linkedAsset)
   const ownerTypeId =
-    findSceneInstance(project, entity.id)?.instance.objectTypeId
+    (project ? findSceneInstance(project, entity.id)?.instance.objectTypeId : undefined)
     ?? entity.className
   const objectType = project?.objectTypes?.[ownerTypeId]
   const typeId = ownerTypeId

@@ -22,10 +22,9 @@ import { DEFAULT_SCENE_SIZE, DEFAULT_VIEWPORT_SIZE } from '../constants/editor-v
 import {
   normalizeProjectDoc,
   projectForSave,
-  PROJECT_FORMAT_V3,
   PROJECT_FORMAT_V4,
+  entityToObjectType,
 } from './project-object-types'
-import { entityToObjectType, PROJECT_FORMAT_V4 } from './project-object-types'
 import { PROTOTYPE_SPRITE_SIZE } from './prototype-sprite'
 import { normalizeTilemapLayer } from './tilemap-layer-sources'
 

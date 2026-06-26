@@ -7,7 +7,7 @@
 
 import type { CoreState, Action, DomainReducer } from '../editor-store-state'
 import { DEFAULT_WORLD, createTilemap, createTilemapForNewLayer, resizeTilemap, mergeTilemapLayers, resizeTilemapForTileSize, resolveTilemapTileSize } from '../../types'
-import type { AnimationClipDef, CollisionProfileDef, EntityDef, SceneDef, SpriteComponent, TilemapLayer } from '../../types'
+import type { CollisionProfileDef, EntityDef, SceneDef, TilemapLayer } from '../../types'
 import { DEFAULT_LAYERS } from '../../constants/scene-layers'
 import { createSceneDef, uniqueSceneName, nextEntityId } from '../../utils/project'
 import { clampEntityPositionToScene, snapToGridValue } from '../../utils/entity-position'

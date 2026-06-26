@@ -6,10 +6,8 @@ import type { Dispatch, MutableRefObject } from 'react'
 import type { Action } from '../store/editor-store-state'
 import type { EntityDef } from '../types'
 import { normalizeEntityPosition } from './entity-position'
-import {
-  runtimeSync,
-  type EntityTransformSnapshot,
-} from './runtime-sync-service'
+import { runtimeSync, type EntityTransformSnapshot } from './runtime-sync-service'
+export type { EntityTransformSnapshot } from './runtime-sync-service'
 
 const TRANSFORM_EPSILON = 1e-4
 
