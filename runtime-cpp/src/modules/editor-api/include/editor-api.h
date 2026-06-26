@@ -400,6 +400,10 @@ EMSCRIPTEN_KEEPALIVE void editor_zoom_at(float cssX, float cssY, float zoomFacto
 EMSCRIPTEN_KEEPALIVE void editor_frame_world_bounds(
     float minX, float minY, float maxX, float maxY);
 
+/** Frames the selected entity (F shortcut) via ViewController. */
+EMSCRIPTEN_KEEPALIVE void editor_frame_selection(
+    float posX, float posY, float scaleX, float scaleY);
+
 /** Reads editor camera top-left world position and device-px-per-world zoom. */
 EMSCRIPTEN_KEEPALIVE void editor_get_editor_view(
     float* outX, float* outY, float* outZoom);

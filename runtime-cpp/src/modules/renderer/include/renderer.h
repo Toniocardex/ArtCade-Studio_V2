@@ -6,6 +6,8 @@
 #include "../../presentation/include/presentation_snapshot.h"
 #include "../../presentation/include/presentation_mode.h"
 #include "../../presentation/include/presentation_types.h"
+#include "../../presentation/include/editor_viewport_controller.h"
+#include "../../presentation/include/editor_viewport_navigation.h"
 #include "view_render_features.h"
 #include <functional>
 #include <string>
@@ -216,14 +218,15 @@ public:
      * Used by embedded, external, and fullscreen play (ADR Phase 8).
      */
     void syncPlaySurface(float cssW, float cssH, float devicePixelRatio);
-    void editorBeginPan(float cssX, float cssY);
-    void editorUpdatePan(float cssX, float cssY);
-    void editorEndPan();
-    /** Cursor-anchored zoom; @p zoomFactor multiplies device-px-per-world zoom. */
-    void editorZoomAt(float cssX, float cssY, float zoomFactor);
-    void editorFrameWorldBounds(float minX, float minY, float maxX, float maxY);
-    void editorGetView(float* outX, float* outY, float* outZoom) const;
-    void editorSetView(float targetX, float targetY, float zoomDevicePx);
+
+    /** Editor navigation session owned by the presentation controller. */
+    ArtCade::Presentation::EditorViewportController& editorViewport() noexcept;
+    ArtCade::Presentation::EditorViewportHost& editorViewportHost() noexcept;
+    void editorNavigationPrepare();
+    void editorNavigationCommit(bool refreshProjection = true);
+    ArtCade::Presentation::SurfaceMetrics editorSurfaceMetrics() const;
+    bool editorSceneEditActive() const;
+
     void panCameraByScreenDelta(float dx, float dy);
     Vec2 visibleWorldSize () const;
     Vec2 getCameraPosition() const;

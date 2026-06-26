@@ -11,7 +11,6 @@ using ArtCade::Presentation::PresentationSnapshot;
 using ArtCade::Presentation::PresentationState;
 using ArtCade::Presentation::PresentationSystem;
 using ArtCade::Presentation::SurfacePoint;
-using ArtCade::Presentation::ViewCamera2D;
 using ArtCade::Presentation::WorldPoint;
 using ArtCade::Presentation::surface_metrics_from_css;
 using ArtCade::OutputPolicy;
@@ -31,16 +30,12 @@ static PresentationState sample_state() {
     state.surface = surface_metrics_from_css(1920., 1080., 1.);
     state.logicalWidth = 320.;
     state.logicalHeight = 240.;
+    state.worldWidth = 1280.;
+    state.worldHeight = 720.;
     state.gameViewCompositorEnabled = true;
-    state.placement.destX = 320.;
-    state.placement.destY = 60.;
-    state.placement.destW = 1280.;
-    state.placement.destH = 960.;
-    state.placement.scaleX = 4.;
-    state.placement.scaleY = 4.;
-    state.placement.srcW = 320.;
-    state.placement.srcH = 240.;
-    state.pickingCamera = ViewCamera2D{ 0., 0., 0., 0., 1. };
+    state.gameCamera.positionX = 640.;
+    state.gameCamera.positionY = 360.;
+    state.gameCamera.zoom = 1.;
     return state;
 }
 
@@ -52,6 +47,8 @@ int main() {
            "refresh_pending_snapshot does not commit");
     expect(system.pending_snapshot().revision == 1,
            "pending snapshot prepares the next revision");
+    expect(system.pending_snapshot().placement.destW > 0.,
+           "solver computes placement from raw inputs");
 
     system.begin_frame();
     const uint64_t revisionA = system.committed_snapshot().revision;

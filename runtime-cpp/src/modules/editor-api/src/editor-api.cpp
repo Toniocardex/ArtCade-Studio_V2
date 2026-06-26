@@ -60,6 +60,8 @@ std::vector<std::pair<std::string, std::string>> EditorAPI::s_consoleQueue;
 #include "../../../modules/presentation/include/presentation_snapshot.h"
 #include "../../../modules/presentation/include/presentation_snapshot_wasm.h"
 #include "../../../modules/presentation/include/presentation_mode.h"
+#include "../../../modules/presentation/include/editor_viewport_navigation.h"
+#include "../../../modules/presentation/include/editor_zoom_policy.h"
 #include "../../../modules/dialog/include/dialog-manager.h"
 #include "../../../modules/dialog/include/dialog-parser.h"
 #include "../../../modules/sprite-animator/include/sprite-animator.h"
@@ -754,30 +756,44 @@ EMSCRIPTEN_KEEPALIVE void editor_resize_surface(
 EMSCRIPTEN_KEEPALIVE void editor_begin_pan(float cssX, float cssY) {
     if (ArtCade::EditorAPI::s_mode != 0) return;
     auto* r = ArtCade::EditorAPI::s_renderer;
-    if (!r) return;
-    r->editorBeginPan(cssX, cssY);
+    if (!r || !r->editorSceneEditActive()) return;
+    r->editorNavigationPrepare();
+    const auto& host = r->editorViewportHost();
+    const auto surface = ArtCade::Presentation::editor_viewport_css_to_surface(
+        cssX, cssY, host.editorSurfaceDpr);
+    r->editorViewport().begin_pan(surface);
+    r->editorNavigationCommit();
 }
 
 EMSCRIPTEN_KEEPALIVE void editor_update_pan(float cssX, float cssY) {
     if (ArtCade::EditorAPI::s_mode != 0) return;
     auto* r = ArtCade::EditorAPI::s_renderer;
-    if (!r) return;
-    r->editorUpdatePan(cssX, cssY);
+    if (!r || !r->editorSceneEditActive()) return;
+    const auto& host = r->editorViewportHost();
+    const auto surface = ArtCade::Presentation::editor_viewport_css_to_surface(
+        cssX, cssY, host.editorSurfaceDpr);
+    r->editorViewport().update_pan(surface);
+    r->editorNavigationCommit();
 }
 
 EMSCRIPTEN_KEEPALIVE void editor_end_pan() {
     if (ArtCade::EditorAPI::s_mode != 0) return;
     auto* r = ArtCade::EditorAPI::s_renderer;
-    if (!r) return;
-    r->editorEndPan();
+    if (!r || !r->editorSceneEditActive()) return;
+    r->editorViewport().end_pan();
 }
 
 EMSCRIPTEN_KEEPALIVE void editor_zoom_at(
     float cssX, float cssY, float zoomFactor) {
     if (ArtCade::EditorAPI::s_mode != 0) return;
     auto* r = ArtCade::EditorAPI::s_renderer;
-    if (!r) return;
-    r->editorZoomAt(cssX, cssY, zoomFactor);
+    if (!r || !r->editorSceneEditActive() || !(zoomFactor > 0.f)) return;
+    r->editorNavigationPrepare();
+    const auto& host = r->editorViewportHost();
+    const auto surface = ArtCade::Presentation::editor_viewport_css_to_surface(
+        cssX, cssY, host.editorSurfaceDpr);
+    r->editorViewport().zoom_at(surface, static_cast<double>(zoomFactor));
+    r->editorNavigationCommit();
 }
 
 EMSCRIPTEN_KEEPALIVE void editor_frame_world_bounds(
@@ -785,7 +801,32 @@ EMSCRIPTEN_KEEPALIVE void editor_frame_world_bounds(
     if (ArtCade::EditorAPI::s_mode != 0) return;
     auto* r = ArtCade::EditorAPI::s_renderer;
     if (!r) return;
-    r->editorFrameWorldBounds(minX, minY, maxX, maxY);
+    if (!r->editorSceneEditActive())
+        r->setPresentationMode(ArtCade::Presentation::PresentationMode::SceneEdit);
+    r->editorNavigationPrepare();
+    r->editorViewport().frame_world_bounds(
+        static_cast<double>(minX),
+        static_cast<double>(minY),
+        static_cast<double>(maxX),
+        static_cast<double>(maxY));
+    r->editorNavigationCommit(true);
+}
+
+EMSCRIPTEN_KEEPALIVE void editor_frame_selection(
+    float posX, float posY, float scaleX, float scaleY) {
+    if (ArtCade::EditorAPI::s_mode != 0) return;
+    auto* r = ArtCade::EditorAPI::s_renderer;
+    if (!r) return;
+    if (!r->editorSceneEditActive())
+        r->setPresentationMode(ArtCade::Presentation::PresentationMode::SceneEdit);
+    r->editorNavigationPrepare();
+    r->editorViewport().frame_selection_at(
+        static_cast<double>(posX),
+        static_cast<double>(posY),
+        static_cast<double>(scaleX),
+        static_cast<double>(scaleY),
+        ArtCade::Presentation::kEditorCanvasPaddingPx);
+    r->editorNavigationCommit(true);
 }
 
 EMSCRIPTEN_KEEPALIVE void editor_get_editor_view(
@@ -797,7 +838,15 @@ EMSCRIPTEN_KEEPALIVE void editor_get_editor_view(
         if (outZoom) *outZoom = 1.f;
         return;
     }
-    r->editorGetView(outX, outY, outZoom);
+    const auto& camera = r->editorViewportHost().editorCamera;
+    if (outX)
+        *outX = static_cast<float>(camera.positionX);
+    if (outY)
+        *outY = static_cast<float>(camera.positionY);
+    if (outZoom) {
+        const double zoom = camera.zoom > 0. ? camera.zoom : 1.;
+        *outZoom = static_cast<float>(zoom);
+    }
 }
 
 EMSCRIPTEN_KEEPALIVE void editor_set_editor_view(
@@ -805,7 +854,7 @@ EMSCRIPTEN_KEEPALIVE void editor_set_editor_view(
     if (ArtCade::EditorAPI::s_mode != 0) return;
     auto* r = ArtCade::EditorAPI::s_renderer;
     if (!r) return;
-    r->editorSetView(targetX, targetY, zoomDevicePx);
+    r->setEditorCamera({ targetX, targetY }, zoomDevicePx);
 }
 
 EMSCRIPTEN_KEEPALIVE double editor_get_presentation_revision() {

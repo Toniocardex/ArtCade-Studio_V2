@@ -113,8 +113,8 @@ EntityVisualBounds entity_visual_bounds(
 }
 
 float resize_handle_world_size(Modules::Renderer& renderer, float screenPx) {
-    float zoom = 1.f;
-    renderer.editorGetView(nullptr, nullptr, &zoom);
+    const auto& camera = renderer.editorViewportHost().editorCamera;
+    float zoom = static_cast<float>(camera.zoom > 0. ? camera.zoom : 1.);
     if (!(zoom > 1e-6f)) zoom = 1.f;
     return screenPx / zoom;
 }

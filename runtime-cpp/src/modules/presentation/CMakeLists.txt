@@ -9,6 +9,9 @@ add_library(artcade-presentation
     src/presentation_system.cpp
     src/presentation_bindings.cpp
     src/presentation_snapshot_wasm.cpp
+    src/editor_viewport_controller.cpp
+    src/presentation_state_sync.cpp
+    src/editor_viewport_navigation.cpp
 )
 target_include_directories(artcade-presentation
     PUBLIC include
