@@ -6,6 +6,7 @@
 #include "../../presentation/include/presentation_snapshot.h"
 #include "../../presentation/include/presentation_mode.h"
 #include "../../presentation/include/presentation_types.h"
+#include "view_render_features.h"
 #include <functional>
 #include <string>
 #include <memory>
@@ -226,8 +227,10 @@ public:
     void drawFadeOverlay(float alpha);
     void drawScreenPostEffects();
 
-private:
+    /** Phase 7 Blit pass — GameView RT → backbuffer using committed placement. */
     void blitGameViewToBackbuffer();
+
+private:
     struct Impl;
     std::unique_ptr<Impl> impl_;
 };

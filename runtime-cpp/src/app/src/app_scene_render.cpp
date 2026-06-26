@@ -4,107 +4,38 @@
 
 #include "../../modules/editor-api/include/editor-api.h"
 #include "../../modules/presentation/include/presentation_types.h"
+#include "render_pass_id.h"
+#include "render_pipeline.h"
+#include "view_render_features.h"
 #include "../../modules/game-state/include/splash-state.h"
-#include "../../modules/sprite-animator/include/sprite-animator.h"
-#include "../../modules/time/include/time-manager.h"
-#include "../render/editor-overlay-renderer.h"
-#include "../render/parallax-renderer.h"
-#include "../render/physics_debug_renderer.h"
-#include "../render/text_value_formatter.h"
-#include "../render/tilemap-renderer.h"
 
-#include <algorithm>
-#include <cmath>
-#include <optional>
-#include <string>
-#include <unordered_map>
+#include "passes/debug_pass.h"
+#include "passes/grid_pass.h"
+#include "passes/gizmo_pass.h"
+#include "passes/scene_background_pass.h"
+#include "passes/scene_entities_pass.h"
+#include "scene_frame_context.h"
+
 #include <vector>
 
 namespace ArtCade {
 
+namespace RenderPipeline = ArtCade::Modules;
+
 namespace {
-
-// C++ source of truth for the Text label 3×3 anchor grid. Mirrors
-// editor/src/utils/text-anchor.ts.
-//
-// Convention: anchor = the direction the text FLOWS from the entity position.
-//   "bottom-right" → text flows down-right  → entity at top-left of text
-//   "top-left"     → text flows up-left     → entity at bottom-right of text
-//   "center"       → text centered on entity
-//
-//   hOut: 0 = left-align (text to the right), 1 = centred, 2 = right-align (text to the left)
-//   vOut: 0 = top-align (text below),         1 = middle,  2 = bottom-align (text above)
-void textAnchorAlign(const std::string& a, int& hOut, int& vOut) {
-    // "left" → text flows LEFT  → entity at right edge  → hAlign=2 (right-align at pos)
-    // "right"→ text flows RIGHT → entity at left edge   → hAlign=0 (left-align at pos)
-    if (a.find("left") != std::string::npos)        hOut = 2;
-    else if (a.find("right") != std::string::npos)  hOut = 0;
-    else                                            hOut = 1;
-
-    // "top"   → text flows UP   → entity at bottom edge → vAlign=2 (bottom-align at pos)
-    // "bottom"→ text flows DOWN → entity at top edge    → vAlign=0 (top-align at pos)
-    // New 9-anchor values always have a hyphen or are exactly "center".
-    // Legacy bare "left"/"right" (no hyphen) → vAlign=0 (text below, old behaviour).
-    const bool isNewAnchor = a.find('-') != std::string::npos || a == "center";
-    if (a.find("top") != std::string::npos)         vOut = 2;
-    else if (a.find("bottom") != std::string::npos) vOut = 0;
-    else if (isNewAnchor)                           vOut = 1; // center-left/right/"center"
-    else                                            vOut = 0; // legacy left/right
-}
-
-bool hasSpriteFrame(const Modules::SpriteAnimator::Frame& frame) {
-    return frame.w > 0 && frame.h > 0;
-}
-
-/** Frame to draw plus the sheet it belongs to. A clip's frame rects are valid
- *  only on the clip's own sheet, so while a clip is active the renderer must
- *  follow `assetId` rather than the entity's static sprite — this is what lets
- *  one object animate across sheets. Empty `assetId` → use the entity's sprite. */
-struct ResolvedSpriteDraw {
-    Modules::SpriteAnimator::Frame frame{};
-    std::string assetId;
-};
-
-struct LayeredRenderable {
-    EntityId id = 0;
-    Transform transform{};
-    SpriteComponent sprite{};
-    int layerPriority = 0;
-    size_t insertionIndex = 0u;
-};
-
-ResolvedSpriteDraw resolveSpriteFrame(
-    const Modules::SpriteAnimator* animator,
-    EntityId id,
-    const SpriteComponent& sprite,
-    bool inEditMode)
-{
-    if (!animator) return {};
-
-    const auto current = animator->currentFrame(id);
-    if (hasSpriteFrame(current))
-        return { current, animator->currentClipAssetId(id) };
-
-    if (inEditMode && !sprite.defaultClip.empty())
-        return { animator->clipFrame(sprite.defaultClip, 0),
-                 animator->clipAssetId(sprite.defaultClip) };
-
-    if (!sprite.spriteAssetId.empty())
-        return { animator->firstFrameForAsset(sprite.spriteAssetId),
-                 sprite.spriteAssetId };
-
-    return {};
-}
-
-std::optional<Vec2> visualSizeForFrame(
-    const Modules::SpriteAnimator::Frame& frame,
-    const Vec2& scale)
-{
-    if (!hasSpriteFrame(frame)) return std::nullopt;
-    return Vec2{
-        static_cast<float>(frame.w) * std::abs(scale.x),
-        static_cast<float>(frame.h) * std::abs(scale.y),
-    };
+RenderPipeline::ViewRenderFeatures build_view_features(
+    const EditorOverlayState& overlay) {
+    RenderPipeline::ViewRenderFeatures features{};
+    features.drawGrid = overlay.inEditMode && overlay.guidesEnabled;
+    features.drawGizmos = overlay.inEditMode;
+    features.drawSelection = overlay.inEditMode && overlay.selectedId != 0u;
+#ifdef ARTCADE_WASM
+    features.drawPhysicsDebug =
+        EditorAPI::s_physicsDebugDraw && !overlay.inEditMode;
+#else
+    features.drawPhysicsDebug = false;
+#endif
+    return features;
 }
 
 } // namespace
@@ -135,305 +66,53 @@ void Application::renderActiveScene() {
     std::vector<EntityId> selectedEntityIds;
 #endif
 
+    const RenderPipeline::ViewRenderFeatures features = build_view_features(overlay);
+    const auto& presentation = mod_->renderer->committedPresentationSnapshot();
+    const std::vector<RenderPipeline::RenderPassId> passOrder =
+        RenderPipeline::RenderPipelineBuilder::build_pass_order(
+            presentation, features, activeScene != nullptr);
+
+    SceneFrameContext frameCtx{};
+    frameCtx.renderer = mod_->renderer.get();
+    frameCtx.spriteAnimator = mod_->spriteAnimator.get();
+    frameCtx.entityGateway = mod_->entityGateway.get();
+    frameCtx.variableManager = mod_->variableManager.get();
+    frameCtx.sceneManager = mod_->sceneManager.get();
+    frameCtx.timeManager = mod_->timeManager.get();
+    frameCtx.activeScene = activeScene;
+    frameCtx.overlay = overlay;
+    frameCtx.selectedEntityIds = &selectedEntityIds;
+    frameCtx.tilesets = &tilesets_;
+    frameCtx.tileColors = &tileColors_;
+    frameCtx.sceneFadeAlpha = mod_->entityGateway
+        ? mod_->entityGateway->sceneFadeAlpha()
+        : 0.f;
+
     mod_->renderer->beginFrame(clearColor);
 
-    if (activeScene) {
-        EditorOverlayRenderer::drawBackdrop(*mod_->renderer, *activeScene, overlay);
-        mod_->renderer->drawRectImmediate(
-            0.f, 0.f,
-            std::max(1.f, activeScene->worldSize.x),
-            std::max(1.f, activeScene->worldSize.y),
-            activeScene->backgroundColor);
-        ParallaxRenderer::draw(
-            *mod_->renderer,
-            mod_->sceneManager->sceneLayers(),
-            activeScene->layerSettings,
-            mod_->renderer->getCameraPosition(),
-            mod_->renderer->visibleWorldSize(),
-            mod_->timeManager ? mod_->timeManager->now() : 0.f);
-        TilemapRenderer::draw(
-            *mod_->renderer, *activeScene, mod_->sceneManager->sceneLayers(),
-            mod_->sceneManager->tilesets(), tilesets_, tileColors_);
-        EditorOverlayRenderer::drawGrid(*mod_->renderer, *activeScene, overlay);
-    }
-
-    const bool inEditMode = overlay.inEditMode;
-
-    // Per-layer parallax offset (play mode only): entities on a layer whose
-    // factor ≠ 1 are drawn shifted so they scroll slower/faster than the world,
-    // mirroring ParallaxRenderer's math under the single world Camera2D. Edit
-    // mode keeps true positions so picking/dragging stay aligned.
-    // Render priority and visual gating are keyed by stable layer id. Rank is
-    // the integer stack position (count - index, index 0 = top); intra-layer
-    // ties break on sprite.renderOrder then insertion order, so no magic
-    // multiplier is needed. Visual props come from the active scene's per-scene
-    // SceneLayerSettings (visible/opacity/parallax), defaulting when absent.
-    std::unordered_map<std::string, SceneLayerSettings> settingsById;
-    std::unordered_map<std::string, int> layerRankById;
-    std::unordered_map<std::string, Vec2> parallaxById;
-    if (activeScene) {
-        const auto& layers = mod_->sceneManager->sceneLayers();
-        const int layerCount = static_cast<int>(layers.size());
-        for (size_t i = 0; i < layers.size(); ++i) {
-            const auto& layer = layers[i];
-            SceneLayerSettings settings;
-            const auto sit = activeScene->layerSettings.find(layer.id);
-            if (sit != activeScene->layerSettings.end())
-                settings = sit->second;
-            settingsById.emplace(layer.id, settings);
-            layerRankById.emplace(layer.id, layerCount - static_cast<int>(i));
-            if (settings.parallax.x != 1.f || settings.parallax.y != 1.f)
-                parallaxById.emplace(
-                    layer.id, Vec2{ settings.parallax.x, settings.parallax.y });
-        }
-    }
-    const Vec2 cameraTopLeft = mod_->renderer->getCameraPosition();
-    const auto layerDrawPos =
-        [&parallaxById, cameraTopLeft, inEditMode]
-        (const std::string& layerId, const Vec2& worldPos) -> Vec2 {
-            if (inEditMode || layerId.empty()) return worldPos;
-            const auto it = parallaxById.find(layerId);
-            if (it == parallaxById.end()) return worldPos;
-            return {
-                worldPos.x + cameraTopLeft.x * (1.f - it->second.x),
-                worldPos.y + cameraTopLeft.y * (1.f - it->second.y),
-            };
-        };
-
-    std::vector<LayeredRenderable> renderables;
-    size_t renderableIndex = 0u;
-    mod_->entityGateway->forEachActiveRenderable(
-        [&renderables, &layerRankById, &renderableIndex]
-        (EntityId id, const Transform& transform, const SpriteComponent& sprite) {
-            const auto rankIt = layerRankById.find(sprite.layerId);
-            renderables.push_back(LayeredRenderable{
-                id,
-                transform,
-                sprite,
-                rankIt != layerRankById.end() ? rankIt->second : 0,
-                renderableIndex++,
-            });
-        });
-    std::stable_sort(
-        renderables.begin(),
-        renderables.end(),
-        [](const LayeredRenderable& a, const LayeredRenderable& b) {
-            if (a.layerPriority != b.layerPriority)
-                return a.layerPriority < b.layerPriority;
-            if (a.sprite.renderOrder != b.sprite.renderOrder)
-                return a.sprite.renderOrder < b.sprite.renderOrder;
-            return a.insertionIndex < b.insertionIndex;
-        });
-
-    for (const LayeredRenderable& item : renderables) {
-        const EntityId id = item.id;
-        const Transform& transform = item.transform;
-        const SpriteComponent& sprite = item.sprite;
-        [renderer = mod_->renderer.get(),
-         animator = mod_->spriteAnimator.get(),
-         inEditMode,
-         gateway = mod_->entityGateway.get(),
-         variables = mod_->variableManager.get(),
-         &settingsById,
-         &layerDrawPos]
-        (EntityId id, const Transform& transform, const SpriteComponent& sprite) {
-            if (!inEditMode && sprite.alpha <= 0.001f) return;
-            const auto layerIt = settingsById.find(sprite.layerId);
-            const SceneLayerSettings* layer =
-                layerIt != settingsById.end() ? &layerIt->second : nullptr;
-            if (layer && (!layer->visible || layer->opacity <= 0.f)) return;
-
-            const Vec2 pos = layerDrawPos(sprite.layerId, transform.position);
-
-            float alpha = sprite.alpha;
-            if (layer) alpha *= layer->opacity;
-            const bool placeholderFill = sprite.spriteAssetId.empty();
-            if (inEditMode && !placeholderFill && !gateway->visibleInGame(id)) {
-                alpha *= 0.45f;
-            }
-            if (inEditMode && placeholderFill) alpha = layer ? layer->opacity : 1.f;
-
-            TextComponent text{};
-            const bool hasText = gateway->getText(id, text)
-                && (!text.text.empty() || !text.bindKey.empty());
-
-            // An entity that carries its own visual (text label or gauge bar)
-            // shouldn't also paint the default placeholder square — in the editor
-            // the opaque square sits over the text/gauge and makes HUD layout
-            // impossible, and in game it's just clutter. Suppress it in BOTH
-            // modes when there's no real sprite. (Picking uses a fixed hit box,
-            // not the drawn square, so the entity stays selectable/draggable.)
-            GaugeComponent gaugeProbe{};
-            const bool hasGauge = gateway->getGauge(id, gaugeProbe)
-                && gaugeProbe.width > 0.f && gaugeProbe.height > 0.f;
-            const bool visualOnly = placeholderFill && (hasText || hasGauge);
-
-            const auto draw = resolveSpriteFrame(animator, id, sprite, inEditMode);
-            if (hasSpriteFrame(draw.frame)) {
-                const std::string& sheet =
-                    draw.assetId.empty() ? sprite.spriteAssetId : draw.assetId;
-                renderer->drawSpriteFrame(
-                    sheet,
-                    static_cast<float>(draw.frame.x),
-                    static_cast<float>(draw.frame.y),
-                    static_cast<float>(draw.frame.w),
-                    static_cast<float>(draw.frame.h),
-                    pos, transform.rotation, transform.scale,
-                    sprite.tint, alpha, sprite.pivot, sprite.flipX, sprite.flipY);
-            } else if (!visualOnly) {
-                renderer->drawSprite(
-                    sprite.spriteAssetId,
-                    pos, transform.rotation, transform.scale,
-                    sprite.tint, sprite.fillColor, alpha,
-                    sprite.shaderEffect, sprite.pivot, sprite.flipX, sprite.flipY);
-            }
-
-            if (!hasText) return;
-            std::string display = text.text;
-            const bool hasBoundValue = !text.bindKey.empty() && variables
-                && (text.bindScope == "local"
-                    ? variables->entityExists(id, text.bindKey)
-                    : variables->exists(text.bindKey));
-            if (hasBoundValue) {
-                const auto boundValue = text.bindScope == "local"
-                    ? variables->getEntity(id, text.bindKey)
-                    : variables->get(text.bindKey);
-                display = text.prefix
-                    + AppRender::formatTextValue(
-                        boundValue, text.format, text.digits)
-                    + text.suffix;
-            } else if (!text.bindKey.empty()) {
-                display = text.prefix + text.text + text.suffix;
-            }
-
-            Vec4 color = text.color;
-            if (layer) color.a *= layer->opacity;  // per-scene layer opacity
-            if (inEditMode && !gateway->visibleInGame(id)) color.a *= 0.45f;
-            int hAlign = 0, vAlign = 0;
-            textAnchorAlign(text.align, hAlign, vAlign);
-            renderer->drawText(
-                display,
-                pos.x + text.offsetX,
-                pos.y + text.offsetY,
-                text.size, color, text.fontPath, hAlign, text.screenSpace,
-                vAlign);
-        }(id, transform, sprite);
-    }
-
-    // Gauges (health / progress). Drawn after sprites; fill tracks the
-    // bound variable. When the variable is absent (edit mode) the bar is full.
-    for (const LayeredRenderable& item : renderables) {
-        const EntityId id = item.id;
-        const Transform& transform = item.transform;
-        const SpriteComponent& sprite = item.sprite;
-        [renderer = mod_->renderer.get(),
-         inEditMode,
-         gateway = mod_->entityGateway.get(),
-         variables = mod_->variableManager.get(),
-         &settingsById,
-         &layerDrawPos]
-        (EntityId id, const Transform& transform, const SpriteComponent& sprite) {
-            const auto layerIt = settingsById.find(sprite.layerId);
-            const SceneLayerSettings* layer =
-                layerIt != settingsById.end() ? &layerIt->second : nullptr;
-            if (layer && (!layer->visible || layer->opacity <= 0.f)) return;
-            GaugeComponent gauge{};
-            if (!gateway->getGauge(id, gauge)) return;
-            if (gauge.width <= 0.f || gauge.height <= 0.f) return;
-
-            float value = gauge.maxValue;
-            const bool hasBoundValue = !gauge.bindKey.empty() && variables
-                && (gauge.bindScope == "local"
-                    ? variables->entityExists(id, gauge.bindKey)
-                    : variables->exists(gauge.bindKey));
-            if (hasBoundValue) {
-                const auto boundValue = gauge.bindScope == "local"
-                    ? variables->getEntity(id, gauge.bindKey)
-                    : variables->get(gauge.bindKey);
-                value = static_cast<float>(
-                    AppRender::variableToNumber(boundValue));
-            }
-            float ratio = gauge.maxValue > 0.f ? value / gauge.maxValue : 0.f;
-            ratio = std::clamp(ratio, 0.f, 1.f);
-
-            Vec4 bg = gauge.bgColor;
-            Vec4 fill = gauge.fillColor;
-            if (layer) {
-                bg.a *= layer->opacity;
-                fill.a *= layer->opacity;
-            }
-            if (inEditMode && !gateway->visibleInGame(id)) {
-                bg.a *= 0.45f;
-                fill.a *= 0.45f;
-            }
-            const Vec2 gpos = layerDrawPos(sprite.layerId, transform.position);
-            const float gx = gpos.x + gauge.offsetX;
-            const float gy = gpos.y + gauge.offsetY;
-            renderer->drawRect(gx, gy, gauge.width, gauge.height, bg, gauge.screenSpace);
-            if (gauge.direction == "vertical") {
-                const float fh = gauge.height * ratio;
-                renderer->drawRect(gx, gy + (gauge.height - fh), gauge.width, fh,
-                                   fill, gauge.screenSpace);
-            } else {
-                renderer->drawRect(gx, gy, gauge.width * ratio, gauge.height,
-                                   fill, gauge.screenSpace);
-            }
-        }(id, transform, sprite);
-    }
-
-    const float fade = mod_->entityGateway->sceneFadeAlpha();
-    if (fade > 0.f) mod_->renderer->drawFadeOverlay(fade);
-
-    // The camera viewport outline is owned by the editor (dashed DOM overlay in
-    // CameraFrameOverlay.tsx), not the runtime: a DOM rectangle stays crisp and
-    // exactly scaled at every zoom, where a framebuffer outline went sub-pixel.
-
-    if (overlay.inEditMode) {
-        mod_->entityGateway->forEachActiveHiddenInGame(
-            [renderer = mod_->renderer.get(),
-             gateway = mod_->entityGateway.get(),
-             animator = mod_->spriteAnimator.get(),
-             &selectedEntityIds]
-            (EntityId id, const Transform& transform, const PhysicsComponent&) {
-                if (std::find(selectedEntityIds.begin(), selectedEntityIds.end(), id)
-                    != selectedEntityIds.end()) return;
-                SpriteComponent sprite{};
-                if (!gateway->getSprite(id, sprite)) return;
-                const auto draw = resolveSpriteFrame(animator, id, sprite, true);
-                EditorOverlayRenderer::drawHiddenInGameOutline(
-                    *renderer, transform, sprite,
-                    visualSizeForFrame(draw.frame, transform.scale));
-            });
-    }
-
-    for (const EntityId selectedId : selectedEntityIds) {
-        Transform transform{};
-        SpriteComponent sprite{};
-        if (mod_->entityGateway->getTransform(selectedId, transform)
-            && mod_->entityGateway->getSprite(selectedId, sprite)) {
-            const bool hiddenInGame =
-                !mod_->entityGateway->visibleInGame(selectedId);
-            CollisionBodyComponent collisionBody{};
-            std::optional<CollisionBodyComponent> collisionOverlay;
-            if (mod_->entityGateway->getResolvedCollisionBody(selectedId, collisionBody))
-                collisionOverlay = collisionBody;
-            const auto draw = resolveSpriteFrame(
-                mod_->spriteAnimator.get(), selectedId, sprite, overlay.inEditMode);
-            EditorOverlayState itemOverlay = overlay;
-            itemOverlay.selectedId = selectedId;
-            EditorOverlayRenderer::drawSelection(
-                *mod_->renderer, transform, sprite, itemOverlay, hiddenInGame,
-                visualSizeForFrame(draw.frame, transform.scale),
-                collisionOverlay);
+    for (const RenderPipeline::RenderPassId passId : passOrder) {
+        switch (passId) {
+        case RenderPipeline::RenderPassId::SceneBackdrop:
+            AppRenderPasses::execute_scene_background_pass(frameCtx);
+            break;
+        case RenderPipeline::RenderPassId::Grid:
+            AppRenderPasses::execute_grid_pass(frameCtx);
+            break;
+        case RenderPipeline::RenderPassId::SceneEntities:
+            AppRenderPasses::execute_scene_entities_pass(frameCtx);
+            break;
+        case RenderPipeline::RenderPassId::Gizmo:
+            AppRenderPasses::execute_gizmo_pass(frameCtx);
+            break;
+        case RenderPipeline::RenderPassId::Debug:
+            if (mod_->world)
+                AppRenderPasses::execute_debug_pass(*mod_->renderer, *mod_->world);
+            break;
         }
     }
 
-    if (mod_->dialogManager && mod_->dialogManager->isActive()) {
+    if (mod_->dialogManager && mod_->dialogManager->isActive())
         mod_->dialogManager->render();
-    }
-    if (EditorAPI::s_physicsDebugDraw && !overlay.inEditMode && mod_->world) {
-        AppRender::drawCollisionDebug(*mod_->renderer, *mod_->world);
-    }
 
     mod_->renderer->endWorldPass();
     mod_->renderer->endScreenPass();

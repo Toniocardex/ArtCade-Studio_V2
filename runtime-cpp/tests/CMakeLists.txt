@@ -109,6 +109,15 @@ target_include_directories(presentation_camera_modes_test PRIVATE
 target_link_libraries(presentation_camera_modes_test PRIVATE artcade-renderer)
 add_test(NAME presentation_camera_modes_test COMMAND presentation_camera_modes_test)
 
+add_executable(render_pipeline_test render_pipeline_test.cpp)
+target_include_directories(render_pipeline_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/modules/renderer/include
+    ${CMAKE_SOURCE_DIR}/src/modules/presentation/include
+)
+target_link_libraries(render_pipeline_test PRIVATE artcade-renderer)
+add_test(NAME render_pipeline_test COMMAND render_pipeline_test)
+
 add_executable(presentation_golden_test
     presentation-golden-test.cpp
 )

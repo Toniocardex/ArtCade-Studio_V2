@@ -10,8 +10,13 @@ add_executable(game
     render/tilemap-renderer.cpp
     render/parallax-renderer.cpp
     render/text_value_formatter.cpp
+    render/passes/grid_pass.cpp
+    render/passes/gizmo_pass.cpp
+    render/passes/debug_pass.cpp
+    render/passes/scene_background_pass.cpp
+    render/passes/scene_entities_pass.cpp
 )
-target_include_directories(game PRIVATE include render)
+target_include_directories(game PRIVATE include render render/passes)
 target_link_libraries(game PRIVATE
     artcade-world
     artcade-game-api

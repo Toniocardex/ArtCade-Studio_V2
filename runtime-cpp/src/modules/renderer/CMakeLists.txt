@@ -1,5 +1,7 @@
 add_library(artcade-renderer
     src/renderer.cpp
+    src/render_pipeline.cpp
+    src/passes/blit_pass.cpp
     src/sprite-outline-shader.cpp
     src/texture-cache.cpp
     src/font-cache.cpp

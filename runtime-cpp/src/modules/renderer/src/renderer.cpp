@@ -8,6 +8,7 @@
 #include "../../presentation/include/presentation_system.h"
 #include "../../presentation/include/surface_metrics.h"
 #include "../../presentation/include/view_controller.h"
+#include "../include/passes/blit_pass.h"
 #include "../../../core/project-defaults.h"
 #include "sprite-outline-shader.h"
 #include "texture-cache.h"
@@ -773,7 +774,7 @@ void Renderer::endWorldPass() {
     if (impl_->inGameViewTexturePass) {
         EndTextureMode();
         impl_->inGameViewTexturePass = false;
-        blitGameViewToBackbuffer();
+        RenderPasses::blit_game_view(*this);
     }
 }
 
