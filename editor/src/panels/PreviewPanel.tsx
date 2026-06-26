@@ -461,8 +461,6 @@ export default function PreviewPanel({
     viewportRef,
     zoom,
     dispatch,
-    selectedEntityId: selection.entityId,
-    project,
     isPlaying: useDockedRuntimePreview,
     activeTool,
   })
@@ -540,25 +538,29 @@ export default function PreviewPanel({
     const cssH = Math.max(1, el.clientHeight - pad * 2)
     editorResizeSurface(cssW, cssH, dpr)
     applyCanvasPresentation()
-
-    if (selection.entityId == null && selectedSceneId) {
-      const centerKey = `${projectLoadEpoch}:${selectedSceneId}`
-      if (sceneViewportCenterKeyRef.current !== centerKey) {
-        editorCenterSceneViewport(vp, el.clientWidth, el.clientHeight, zoom, dpr)
-        sceneViewportCenterKeyRef.current = centerKey
-      }
-    }
   }, [
     useDockedRuntimePreview,
     engineReady,
     layout.paddingPx,
     applyCanvasPresentation,
-    selection.entityId,
+  ])
+
+  useEffect(() => {
+    const el = viewportRef.current
+    if (!el || useDockedRuntimePreview || !engineReady || !selectedSceneId) return
+    if (selection.entityId != null) return
+
+    const centerKey = `${projectLoadEpoch}:${selectedSceneId}`
+    if (sceneViewportCenterKeyRef.current === centerKey) return
+    sceneViewportCenterKeyRef.current = centerKey
+
+    const dpr = window.devicePixelRatio || 1
+    editorCenterSceneViewport(vp, el.clientWidth, el.clientHeight, zoom, dpr)
+  }, [
+    useDockedRuntimePreview,
+    engineReady,
     selectedSceneId,
     projectLoadEpoch,
-    vp.x,
-    vp.y,
-    zoom,
   ])
 
   useEffect(() => {

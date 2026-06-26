@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// useEditorCanvasViewport — pan, wheel zoom, frame entity (fixed surface)
+// useEditorCanvasViewport — pan and wheel zoom on the fixed editor surface
 // ---------------------------------------------------------------------------
 
 import {
@@ -11,25 +11,19 @@ import {
 } from 'react'
 import { EDITOR_ZOOM_WHEEL_FACTOR } from '../constants/editor-viewport'
 import type { Action } from '../store/editor-store'
-import type { ProjectDoc } from '../types'
 import {
   editorBeginPan,
   editorEndPan,
   editorUpdatePan,
   editorZoomAt,
 } from '../utils/wasm-bridge'
-import {
-  editorCenterWorldPoint,
-  syncEditorZoomFromWasm,
-} from '../utils/editor-viewport-intents'
+import { syncEditorZoomFromWasm } from '../utils/editor-viewport-intents'
 import type { EditorTool } from '../utils/runtime-sync-service'
 
 export type UseEditorCanvasViewportParams = Readonly<{
   viewportRef: RefObject<HTMLDivElement | null>
   zoom: number
   dispatch: Dispatch<Action>
-  selectedEntityId: number | null | undefined
-  project: ProjectDoc | null
   isPlaying: boolean
   activeTool: EditorTool
 }>
@@ -60,10 +54,8 @@ function viewportLocalPoint(
 
 export function useEditorCanvasViewport({
   viewportRef,
-  zoom,
+  zoom: _zoom,
   dispatch,
-  selectedEntityId,
-  project,
   isPlaying,
   activeTool,
 }: UseEditorCanvasViewportParams): EditorCanvasViewportHandlers {
@@ -73,7 +65,6 @@ export function useEditorCanvasViewport({
     clientX: number
     clientY: number
   } | null>(null)
-  const prevSelectedEntityRef = useRef<number | null>(null)
 
   useEffect(() => {
     if (!isPlaying) return
@@ -81,28 +72,6 @@ export function useEditorCanvasViewport({
     if (!el) return
     requestAnimationFrame(() => el.focus({ preventScroll: true }))
   }, [isPlaying, viewportRef])
-
-  useEffect(() => {
-    const entityId = selectedEntityId
-    if (entityId == null || !project) {
-      prevSelectedEntityRef.current = null
-      return
-    }
-    if (prevSelectedEntityRef.current === entityId) return
-    prevSelectedEntityRef.current = entityId
-    const def = project.entities?.[entityId]
-    if (!def) return
-    const el = viewportRef.current
-    if (!el) return
-    const dpr = window.devicePixelRatio || 1
-    editorCenterWorldPoint(
-      def.transform.position,
-      el.clientWidth,
-      el.clientHeight,
-      zoom,
-      dpr,
-    )
-  }, [selectedEntityId, project, viewportRef, zoom])
 
   function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
     const el = viewportRef.current
