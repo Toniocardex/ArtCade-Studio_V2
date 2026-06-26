@@ -866,6 +866,17 @@ export function editorFrameWorldBounds(
   )
 }
 
+/** Frames the selected entity (F) via native ViewController policy. */
+export function editorFrameSelection(
+  posX: number, posY: number, scaleX: number, scaleY: number,
+): void {
+  safeCall(
+    'editor_frame_selection', null,
+    ['number', 'number', 'number', 'number'],
+    [posX, posY, scaleX, scaleY],
+  )
+}
+
 export type EditorViewState = Readonly<{ x: number; y: number; zoomDevice: number }>
 
 /** Editor camera top-left world position + device-px-per-world zoom. */

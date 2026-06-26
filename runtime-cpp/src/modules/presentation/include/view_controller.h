@@ -30,8 +30,18 @@ public:
     /** Updates surface metrics only; editor camera world position is preserved. */
     void resize_surface(double cssW, double cssH, double devicePixelRatio);
 
-    /** Phase 2+: frame visible world bounds. No-op stub in Phase 1. */
+    /** Frames world bounds to fill the editor surface (no inner padding). */
     void frame_world_bounds(double minX, double minY, double maxX, double maxY);
+
+    /**
+     * Frames a selection centred on world position, widened by entity scale.
+     * @param paddingPx inner padding subtracted from surface size before fit
+     */
+    void frame_selection_at(double posX,
+                            double posY,
+                            double scaleX,
+                            double scaleY,
+                            double paddingPx);
 
     /** Phase 2+: reset editor view. No-op stub in Phase 1. */
     void reset_view();
@@ -42,6 +52,12 @@ private:
 
     ViewCamera2D editor_camera() const;
     OutputPlacement editor_placement() const;
+
+    void frame_world_bounds_with_padding(double minX,
+                                         double minY,
+                                         double maxX,
+                                         double maxY,
+                                         double paddingPx);
 };
 
 } // namespace ArtCade::Presentation

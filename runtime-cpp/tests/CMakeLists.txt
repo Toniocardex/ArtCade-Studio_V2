@@ -87,6 +87,14 @@ artcade_test(presentation_system_test
     presentation-system-test.cpp
     artcade-presentation)
 
+artcade_test(frame_selection_test
+    frame-selection-test.cpp
+    artcade-presentation)
+
+artcade_test(editor_zoom_policy_test
+    editor-zoom-policy-test.cpp
+    artcade-presentation)
+
 add_executable(presentation_integration_test
     presentation-integration-test.cpp
 )

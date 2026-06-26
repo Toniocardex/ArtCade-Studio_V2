@@ -1,6 +1,8 @@
 #include "../include/view_controller.h"
 
 #include "../include/coordinate_mapper.h"
+#include "../include/editor_zoom_policy.h"
+#include "../include/frame_selection.h"
 #include "../include/surface_metrics.h"
 
 #include <algorithm>
@@ -84,7 +86,7 @@ void ViewController::zoom_at(SurfacePoint surface, double zoomFactor) {
     const ViewCamera2D beforeCamera = editor_camera();
     const WorldPoint worldBefore = world_from_surface(surface, placement, beforeCamera);
 
-    editorView_.zoom = safe_zoom(editorView_.zoom * zoomFactor);
+    editorView_.zoom = editor_zoom_clamp(editorView_.zoom * zoomFactor);
 
     const ViewCamera2D afterCamera = editor_camera();
     const WorldPoint worldAfter = world_from_surface(surface, placement, afterCamera);
@@ -98,6 +100,25 @@ void ViewController::resize_surface(double cssW, double cssH, double devicePixel
 
 void ViewController::frame_world_bounds(double minX, double minY,
                                         double maxX, double maxY) {
+    frame_world_bounds_with_padding(minX, minY, maxX, maxY, 0.);
+}
+
+void ViewController::frame_selection_at(double posX,
+                                        double posY,
+                                        double scaleX,
+                                        double scaleY,
+                                        double paddingPx) {
+    const FrameWorldBounds bounds =
+        frame_selection_world_bounds(posX, posY, scaleX, scaleY);
+    frame_world_bounds_with_padding(
+        bounds.minX, bounds.minY, bounds.maxX, bounds.maxY, paddingPx);
+}
+
+void ViewController::frame_world_bounds_with_padding(double minX,
+                                                     double minY,
+                                                     double maxX,
+                                                     double maxY,
+                                                     double paddingPx) {
     const double boundsW = std::max(0., maxX - minX);
     const double boundsH = std::max(0., maxY - minY);
     if (boundsW <= 0. || boundsH <= 0.)
@@ -109,9 +130,11 @@ void ViewController::frame_world_bounds(double minX, double minY,
     const double fbH = surface_.framebufferHeight > 0.
         ? surface_.framebufferHeight
         : 1.;
-    const double scaleX = fbW / boundsW;
-    const double scaleY = fbH / boundsH;
-    editorView_.zoom = std::min(scaleX, scaleY);
+    const double availW = std::max(1., fbW - paddingPx);
+    const double availH = std::max(1., fbH - paddingPx);
+    const double scaleX = availW / boundsW;
+    const double scaleY = availH / boundsH;
+    editorView_.zoom = editor_zoom_clamp(std::min(scaleX, scaleY));
     editorView_.positionX = minX;
     editorView_.positionY = minY;
 }

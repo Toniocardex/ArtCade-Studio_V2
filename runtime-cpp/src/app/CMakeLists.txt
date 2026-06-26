@@ -91,6 +91,7 @@ if(EMSCRIPTEN)
         "_editor_end_pan"
         "_editor_zoom_at"
         "_editor_frame_world_bounds"
+        "_editor_frame_selection"
         "_editor_get_editor_view"
         "_editor_set_editor_view"
         "_editor_get_presentation_revision"

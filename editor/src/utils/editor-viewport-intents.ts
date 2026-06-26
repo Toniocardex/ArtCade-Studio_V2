@@ -1,8 +1,11 @@
 import type { Dispatch } from 'react'
 import type { Action } from '../store/editor-store'
+import { editorZoomCssFromSnapshot } from './editor-camera-from-snapshot'
+import { getPresentationSnapshot } from './presentation-store'
+import { runtimeSync } from './runtime-sync-service'
 import {
+  editorFrameSelection,
   editorFrameWorldBounds,
-  editorReadEditorView,
   editorSetEditorView,
 } from './wasm-bridge'
 
@@ -13,13 +16,15 @@ export function editorZoomCssFromDevice(zoomDevice: number, devicePixelRatio: nu
   return z / dpr
 }
 
-/** Pushes committed WASM editor zoom into the React store when it changed. */
+/** Pushes committed presentation zoom into the React store when it changed. */
 export function syncEditorZoomFromWasm(
   dispatch: Dispatch<Action>,
   devicePixelRatio: number,
 ): void {
-  const view = editorReadEditorView()
-  const cssZoom = editorZoomCssFromDevice(view.zoomDevice, devicePixelRatio)
+  runtimeSync.syncPresentationSnapshotNow()
+  const snapshot = getPresentationSnapshot()
+  if (!snapshot) return
+  const cssZoom = editorZoomCssFromSnapshot(snapshot, devicePixelRatio)
   dispatch({ type: 'EDITOR_SET_ZOOM', zoom: cssZoom })
 }
 
@@ -81,5 +86,21 @@ export function editorFrameWorld(
   devicePixelRatio: number,
 ): void {
   editorFrameWorldBounds(minX, minY, maxX, maxY)
+  syncEditorZoomFromWasm(dispatch, devicePixelRatio)
+}
+
+/** Frames the selected entity (F) and syncs React zoom from WASM. */
+export function editorFrameSelectionEntity(
+  position: Readonly<{ x: number; y: number }>,
+  scale: Readonly<{ x?: number; y?: number }> | undefined,
+  dispatch: Dispatch<Action>,
+  devicePixelRatio: number,
+): void {
+  editorFrameSelection(
+    position.x,
+    position.y,
+    scale?.x ?? 1,
+    scale?.y ?? 1,
+  )
   syncEditorZoomFromWasm(dispatch, devicePixelRatio)
 }

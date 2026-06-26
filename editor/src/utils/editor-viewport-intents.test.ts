@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { editorFrameSelectionEntity } from './editor-viewport-intents'
+import { syncEditorZoomFromWasm } from './editor-viewport-intents'
 import type { PresentationSnapshot } from './presentation-snapshot'
 
 const SAMPLE: PresentationSnapshot = {
@@ -23,12 +23,6 @@ const SAMPLE: PresentationSnapshot = {
   visibleWorldBounds: { minX: 0, minY: 0, maxX: 400, maxY: 300 },
 }
 
-vi.mock('./wasm-bridge', () => ({
-  editorFrameSelection: vi.fn(),
-  editorFrameWorldBounds: vi.fn(),
-  editorSetEditorView: vi.fn(),
-}))
-
 vi.mock('./runtime-sync-service', () => ({
   runtimeSync: {
     syncPresentationSnapshotNow: vi.fn(),
@@ -39,18 +33,10 @@ vi.mock('./presentation-store', () => ({
   getPresentationSnapshot: vi.fn(() => SAMPLE),
 }))
 
-const bridge = await import('./wasm-bridge')
-
-describe('frame selection navigation', () => {
-  it('delegates entity framing to WASM and syncs zoom from the presentation snapshot', () => {
+describe('syncEditorZoomFromWasm', () => {
+  it('reads zoom from the presentation snapshot store', () => {
     const dispatch = vi.fn()
-    editorFrameSelectionEntity(
-      { x: 240, y: 130 },
-      { x: 4, y: 1 },
-      dispatch,
-      2,
-    )
-    expect(bridge.editorFrameSelection).toHaveBeenCalledWith(240, 130, 4, 1)
+    syncEditorZoomFromWasm(dispatch, 2)
     expect(dispatch).toHaveBeenCalledWith({ type: 'EDITOR_SET_ZOOM', zoom: 2 })
   })
 })

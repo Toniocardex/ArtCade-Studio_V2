@@ -8,7 +8,6 @@ import { dirName } from '../utils/project'
 import { runtimeSync, usePresentationSnapshot, type EditorTool } from '../utils/runtime-sync-service'
 import {
   DEFAULT_SCENE_SIZE,
-  EDITOR_CANVAS_PADDING_PX,
 } from '../constants/editor-viewport'
 import {
   useWasmRuntimeLifecycle,
@@ -18,10 +17,9 @@ import {
 } from './preview/runtime-hooks'
 import { computeCanvasViewportLayout } from '../utils/canvas-viewport-layout'
 import { frameSelectionRegistry } from '../utils/frame-selection-registry'
-import { computeFrameSelectionView } from '../utils/frame-selection'
 import {
   editorCenterSceneViewport,
-  editorCenterWorldPoint,
+  editorFrameSelectionEntity,
   editorFrameWorld,
   visibleWorldCenterFromCamera,
 } from '../utils/editor-viewport-intents'
@@ -55,7 +53,6 @@ import {
   sceneBackgroundCss,
 } from '../utils/runtime-canvas-presentation'
 import {
-  editorReadEditorView,
   editorResizeSurface,
   editorSetEditorView,
   editorSyncPlaySurface,
@@ -565,13 +562,12 @@ export default function PreviewPanel({
 
   useEffect(() => {
     if (useDockedRuntimePreview || !engineReady) return
-    const view = editorReadEditorView()
     const dpr = window.devicePixelRatio || 1
     const zDevice = zoom * dpr
-    if (Math.abs(view.zoomDevice - zDevice) < 1e-4) return
-    editorSetEditorView(view.x, view.y, zDevice)
+    if (Math.abs(editorCameraView.zoomDevice - zDevice) < 1e-4) return
+    editorSetEditorView(editorCameraView.x, editorCameraView.y, zDevice)
     applyCanvasPresentation()
-  }, [zoom, useDockedRuntimePreview, engineReady, applyCanvasPresentation])
+  }, [zoom, useDockedRuntimePreview, engineReady, applyCanvasPresentation, editorCameraView.x, editorCameraView.y, editorCameraView.zoomDevice])
 
   useEffect(() => {
     let raf: number | null = null
@@ -603,25 +599,12 @@ export default function PreviewPanel({
     if (!el || useDockedRuntimePreview) return
     const entityId = selection.entityId
     const def = entityId != null ? project?.entities?.[entityId] : null
+    const dpr = window.devicePixelRatio || 1
     if (!def) {
-      editorFrameWorld(0, 0, frame.x, frame.y, dispatch, window.devicePixelRatio || 1)
+      editorFrameWorld(0, 0, frame.x, frame.y, dispatch, dpr)
       return
     }
-    const { zoom: nextZoom, center } = computeFrameSelectionView({
-      position: def.transform.position,
-      scale: def.transform.scale,
-      clientW: el.clientWidth,
-      clientH: el.clientHeight,
-      paddingPx: EDITOR_CANVAS_PADDING_PX,
-    })
-    dispatch({ type: 'EDITOR_SET_ZOOM', zoom: nextZoom })
-    editorCenterWorldPoint(
-      center,
-      el.clientWidth,
-      el.clientHeight,
-      nextZoom,
-      window.devicePixelRatio || 1,
-    )
+    editorFrameSelectionEntity(def.transform.position, def.transform.scale, dispatch, dpr)
   }, [useDockedRuntimePreview, selection.entityId, project, frame.x, frame.y, dispatch])
 
   useLayoutEffect(() => frameSelectionRegistry.register(frameSelection), [frameSelection])
