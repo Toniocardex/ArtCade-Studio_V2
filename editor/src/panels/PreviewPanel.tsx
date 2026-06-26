@@ -15,8 +15,9 @@ import {
   useRuntimeAssetUpload,
   useRuntimeEditorSync,
 } from './preview/runtime-hooks'
-import { computeCanvasViewportLayout } from '../utils/canvas-viewport-layout'
+import { buildEditorRulerMetrics } from '../utils/editor-ruler-metrics'
 import { frameSelectionRegistry } from '../utils/frame-selection-registry'
+import { visibleWorldCenterFromSnapshot } from '../utils/editor-camera-from-snapshot'
 import {
   editorCenterSceneViewport,
   editorFrameSelectionEntity,
@@ -374,20 +375,20 @@ export default function PreviewPanel({
   const preview = !useDockedRuntimePreview && cameraPreview && (vp.x !== res.x || vp.y !== res.y)
   const showCameraFrame = preview && mode === 'canvas' && (vp.x < res.x || vp.y < res.y)
   const editorCameraView = useEditorCameraView()
+  const presentationSnapshot = usePresentationSnapshot()
 
   useEffect(() => {
     sceneViewportCenterKeyRef.current = null
   }, [selectedSceneId, projectLoadEpoch])
 
-  const layout = useMemo(
-    () => computeCanvasViewportLayout({
-      worldSize: frame,
-      viewportSize: vp,
-      zoom,
-      preview,
+  const rulerMetrics = useMemo(
+    () => buildEditorRulerMetrics({
+      presentationSnapshot,
+      fallbackZoom: zoom,
       rulerStep: editorRulerStep,
+      worldSize: frame,
     }),
-    [frame.x, frame.y, vp.x, vp.y, zoom, preview, editorRulerStep],
+    [presentationSnapshot, zoom, editorRulerStep, frame.x, frame.y],
   )
 
   useLayoutEffect(() => {
@@ -395,12 +396,14 @@ export default function PreviewPanel({
     const el = viewportRef.current
     if (!el) return undefined
     const publish = () => {
-      const center = visibleWorldCenterFromCamera(
-        { x: editorCameraView.x, y: editorCameraView.y },
-        el.clientWidth,
-        el.clientHeight,
-        zoom,
-      )
+      const center = presentationSnapshot?.visibleWorldBounds
+        ? visibleWorldCenterFromSnapshot(presentationSnapshot)
+        : visibleWorldCenterFromCamera(
+          { x: editorCameraView.x, y: editorCameraView.y },
+          el.clientWidth,
+          el.clientHeight,
+          zoom,
+        )
       setEditorVisibleWorldCenter(center)
     }
     publish()
@@ -412,6 +415,7 @@ export default function PreviewPanel({
     }
   }, [
     useDockedRuntimePreview,
+    presentationSnapshot,
     editorCameraView.x,
     editorCameraView.y,
     zoom,
@@ -463,7 +467,6 @@ export default function PreviewPanel({
   })
 
   const bgColor = sceneBackgroundCss(selectedScene?.backgroundColor, 'var(--bg)')
-  const presentationSnapshot = usePresentationSnapshot()
   const playSnapshotReady =
     presentationSnapshot !== null
     && presentationSnapshot.revision > 0n
@@ -496,7 +499,7 @@ export default function PreviewPanel({
       return
     }
     const el = viewportRef.current
-    const pad = layout.paddingPx
+    const pad = rulerMetrics.paddingPx
     const cssW = el ? Math.max(1, el.clientWidth - pad * 2) : frame.x
     const cssH = el ? Math.max(1, el.clientHeight - pad * 2) : frame.y
     applyRuntimeCanvasPresentation(canvas, runtimeCanvasEditStyle({
@@ -512,7 +515,7 @@ export default function PreviewPanel({
     playHostSize,
     bgColor,
     panActive,
-    layout.paddingPx,
+    rulerMetrics.paddingPx,
     playSnapshotReady,
   ])
 
@@ -530,7 +533,7 @@ export default function PreviewPanel({
     const el = viewportRef.current
     if (!el || useDockedRuntimePreview || !engineReady) return
     const dpr = window.devicePixelRatio || 1
-    const pad = layout.paddingPx
+    const pad = rulerMetrics.paddingPx
     const cssW = Math.max(1, el.clientWidth - pad * 2)
     const cssH = Math.max(1, el.clientHeight - pad * 2)
     editorResizeSurface(cssW, cssH, dpr)
@@ -538,7 +541,7 @@ export default function PreviewPanel({
   }, [
     useDockedRuntimePreview,
     engineReady,
-    layout.paddingPx,
+    rulerMetrics.paddingPx,
     applyCanvasPresentation,
   ])
 
@@ -664,7 +667,7 @@ export default function PreviewPanel({
       ) : (
       <CanvasViewportWithRulers
         viewportRef={viewportRef}
-        layout={layout}
+        rulerMetrics={rulerMetrics}
         rulersVisible={editorRulersVisible}
         onWheel={handleWheel}
         onPointerDown={onCanvasAreaPointerDown}
@@ -673,7 +676,7 @@ export default function PreviewPanel({
         onPointerCancel={onCanvasAreaPointerUp}
         style={{ cursor: panCursor }}
       >
-        <div className="absolute inset-0" style={{ top: layout.paddingPx, left: layout.paddingPx, right: layout.paddingPx, bottom: layout.paddingPx }}>
+        <div className="absolute inset-0" style={{ top: rulerMetrics.paddingPx, left: rulerMetrics.paddingPx, right: rulerMetrics.paddingPx, bottom: rulerMetrics.paddingPx }}>
           <div ref={canvasHostRef} className="absolute inset-0" style={{ display: 'contents' }} />
           {activePaintTilesetId && !useDockedRuntimePreview && (
             <TilePaintOverlay

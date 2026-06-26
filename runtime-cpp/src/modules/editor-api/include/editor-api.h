@@ -237,6 +237,8 @@ public:
     static Modules::RuntimeEntityGateway* s_entityGateway;
     static Modules::LuaHost*              s_luaHost;
     static Modules::Renderer*             s_renderer;
+    /** Revision captured by the browser at pointer-event time (0 = use committed). */
+    static uint64_t                       s_pointerPresentationRevision;
     static Modules::DialogManager*        s_dialogManager;
     static Modules::SpriteAnimator*        s_spriteAnimator;
     static Modules::Audio*                 s_audio;
@@ -413,6 +415,7 @@ EMSCRIPTEN_KEEPALIVE void editor_set_editor_view(
 
 /** Committed presentation revision for the current frame (picking / overlay sync). */
 EMSCRIPTEN_KEEPALIVE double editor_get_presentation_revision();
+EMSCRIPTEN_KEEPALIVE void editor_set_pointer_presentation_revision(double revision);
 
 /** Committed presentation snapshot (flat ABI; static storage — Phase 5). */
 EMSCRIPTEN_KEEPALIVE const ArtCade::Presentation::PresentationSnapshotWasm*
@@ -540,6 +543,8 @@ struct EditorAPI {
     static Modules::RuntimeEntityGateway* s_entityGateway;
     static Modules::LuaHost*              s_luaHost;
     static Modules::Renderer*             s_renderer;
+    /** Revision captured by the browser at pointer-event time (0 = use committed). */
+    static uint64_t                       s_pointerPresentationRevision;
     static Modules::DialogManager*        s_dialogManager;
     static Modules::SpriteAnimator*        s_spriteAnimator;
     static Modules::Audio*                 s_audio;

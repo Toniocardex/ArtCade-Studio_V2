@@ -23,6 +23,7 @@ bool     EditorAPI::s_physicsDebugDraw  = false;
 Modules::RuntimeEntityGateway* EditorAPI::s_entityGateway = nullptr;
 Modules::LuaHost*              EditorAPI::s_luaHost       = nullptr;
 Modules::Renderer*             EditorAPI::s_renderer      = nullptr;
+uint64_t                       EditorAPI::s_pointerPresentationRevision = 0u;
 Modules::DialogManager*        EditorAPI::s_dialogManager = nullptr;
 Modules::SpriteAnimator*       EditorAPI::s_spriteAnimator = nullptr;
 Modules::Audio*                EditorAPI::s_audio = nullptr;
@@ -175,6 +176,7 @@ bool     EditorAPI::s_physicsDebugDraw  = false;
 Modules::RuntimeEntityGateway* EditorAPI::s_entityGateway = nullptr;
 Modules::LuaHost*              EditorAPI::s_luaHost       = nullptr;
 Modules::Renderer*             EditorAPI::s_renderer      = nullptr;
+uint64_t                       EditorAPI::s_pointerPresentationRevision = 0u;
 Modules::DialogManager*        EditorAPI::s_dialogManager = nullptr;
 Modules::SpriteAnimator*       EditorAPI::s_spriteAnimator = nullptr;
 Modules::Audio*                EditorAPI::s_audio = nullptr;
@@ -861,6 +863,11 @@ EMSCRIPTEN_KEEPALIVE double editor_get_presentation_revision() {
     auto* r = ArtCade::EditorAPI::s_renderer;
     if (!r) return 0.;
     return static_cast<double>(r->presentationRevision());
+}
+
+EMSCRIPTEN_KEEPALIVE void editor_set_pointer_presentation_revision(double revision) {
+    ArtCade::EditorAPI::s_pointerPresentationRevision =
+        revision > 0. ? static_cast<uint64_t>(revision) : 0u;
 }
 
 EMSCRIPTEN_KEEPALIVE const ArtCade::Presentation::PresentationSnapshotWasm*

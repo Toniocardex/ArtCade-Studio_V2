@@ -920,6 +920,19 @@ export function editorGetPresentationRevision(): number {
   return revision > 0 ? revision : 0
 }
 
+/**
+ * Tags the next Emscripten canvas pointer sample with a presentation revision
+ * captured by the browser at event time.
+ */
+export function editorSetPointerPresentationRevision(revision: bigint): void {
+  if (revision <= 0n) return
+  safeCall(
+    'editor_set_pointer_presentation_revision', null,
+    ['number'],
+    [Number(revision)],
+  )
+}
+
 /** Reads the committed presentation snapshot ABI from WASM (Phase 5). */
 export function editorReadPresentationSnapshot(): PresentationSnapshot | null {
   const mod = _module

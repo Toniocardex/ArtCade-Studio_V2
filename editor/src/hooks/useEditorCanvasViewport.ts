@@ -11,9 +11,11 @@ import {
 } from 'react'
 import { EDITOR_ZOOM_WHEEL_FACTOR } from '../constants/editor-viewport'
 import type { Action } from '../store/editor-store'
+import { captureSurfacePointerEvent } from '../utils/surface-pointer-event'
 import {
   editorBeginPan,
   editorEndPan,
+  editorSetPointerPresentationRevision,
   editorUpdatePan,
   editorZoomAt,
 } from '../utils/wasm-bridge'
@@ -43,13 +45,10 @@ function panCursorStyle(isPanning: boolean, tool: EditorTool): string {
   return 'default'
 }
 
-function viewportLocalPoint(
-  el: HTMLDivElement,
-  clientX: number,
-  clientY: number,
-): Readonly<{ x: number; y: number }> {
-  const rect = el.getBoundingClientRect()
-  return { x: clientX - rect.left, y: clientY - rect.top }
+function tagPointerRevision(el: HTMLDivElement, clientX: number, clientY: number) {
+  const event = captureSurfacePointerEvent(el, clientX, clientY)
+  editorSetPointerPresentationRevision(event.presentationRevision)
+  return event.positionCss
 }
 
 export function useEditorCanvasViewport({
@@ -81,7 +80,7 @@ export function useEditorCanvasViewport({
 
     e.preventDefault()
     el.setPointerCapture(e.pointerId)
-    const local = viewportLocalPoint(el, e.clientX, e.clientY)
+    const local = tagPointerRevision(el, e.clientX, e.clientY)
     editorBeginPan(local.x, local.y)
     panStartRef.current = {
       pointerId: e.pointerId,
@@ -95,7 +94,7 @@ export function useEditorCanvasViewport({
     const pan = panStartRef.current
     const el = viewportRef.current
     if (!pan || !el) return
-    const local = viewportLocalPoint(el, e.clientX, e.clientY)
+    const local = tagPointerRevision(el, e.clientX, e.clientY)
     editorUpdatePan(local.x, local.y)
   }
 
@@ -115,7 +114,7 @@ export function useEditorCanvasViewport({
     const el = viewportRef.current
     if (!el) return
 
-    const local = viewportLocalPoint(el, e.clientX, e.clientY)
+    const local = tagPointerRevision(el, e.clientX, e.clientY)
     const factor = e.deltaY < 0 ? EDITOR_ZOOM_WHEEL_FACTOR : 1 / EDITOR_ZOOM_WHEEL_FACTOR
     editorZoomAt(local.x, local.y, factor)
     syncEditorZoomFromWasm(dispatch, window.devicePixelRatio || 1)

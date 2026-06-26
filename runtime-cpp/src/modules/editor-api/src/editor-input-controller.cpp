@@ -61,7 +61,9 @@ void toWorld(const EmscriptenMouseEvent* e, float& wx, float& wy) {
     float screenX = 0.f, screenY = 0.f;
     toScreen(e, screenX, screenY);
     if (EditorAPI::s_renderer) {
-        const uint64_t revision = EditorAPI::s_renderer->presentationRevision();
+        uint64_t revision = EditorAPI::s_pointerPresentationRevision;
+        if (revision == 0u)
+            revision = EditorAPI::s_renderer->presentationRevision();
         const ArtCade::Presentation::WorldPoint world =
             EditorAPI::s_renderer->surfaceToWorldAtRevision(
                 screenX, screenY, revision);

@@ -23,6 +23,20 @@ export function editorViewFromSnapshot(
   }
 }
 
+/**
+ * Visible world centre from committed snapshot bounds (same revision as overlays).
+ * @param snapshot committed presentation snapshot
+ */
+export function visibleWorldCenterFromSnapshot(
+  snapshot: PresentationSnapshot,
+): Readonly<{ x: number; y: number }> {
+  const bounds = snapshot.visibleWorldBounds
+  return {
+    x: (bounds.minX + bounds.maxX) * 0.5,
+    y: (bounds.minY + bounds.maxY) * 0.5,
+  }
+}
+
 /** CSS zoom from snapshot world-units-per-css-pixel field. */
 export function editorZoomCssFromSnapshot(
   snapshot: PresentationSnapshot,

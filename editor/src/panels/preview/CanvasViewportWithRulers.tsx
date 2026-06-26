@@ -4,12 +4,12 @@ import { useEditorCameraView } from '../../hooks/useEditorCameraView'
 import {
   pickRulerTickStep,
   rulerLabelsForCameraAxis,
-  type CanvasViewportLayout,
-} from '../../utils/canvas-viewport-layout'
+  type EditorRulerMetrics,
+} from '../../utils/editor-ruler-metrics'
 
 export type CanvasViewportWithRulersProps = Readonly<{
   viewportRef: RefObject<HTMLDivElement | null>
-  layout: CanvasViewportLayout
+  rulerMetrics: EditorRulerMetrics
   /** Show the ruler strips (default true). */
   rulersVisible?: boolean
   children: ReactNode
@@ -25,16 +25,16 @@ export type CanvasViewportWithRulersProps = Readonly<{
 const RULER_SIZE = 20
 
 function RulerTicksH({
-  layout,
+  metrics,
   cameraWorldOrigin,
   clientWidth,
 }: Readonly<{
-  layout: CanvasViewportLayout
+  metrics: EditorRulerMetrics
   cameraWorldOrigin: Readonly<{ x: number; y: number }>
   clientWidth: number
 }>) {
-  const ticks = rulerLabelsForCameraAxis('x', cameraWorldOrigin, clientWidth, layout)
-  const stepPx = Math.max(24, Math.round(pickRulerTickStep(layout.zoom, layout.rulerStep) * layout.zoom))
+  const ticks = rulerLabelsForCameraAxis('x', cameraWorldOrigin, clientWidth, metrics)
+  const stepPx = Math.max(24, Math.round(pickRulerTickStep(metrics.zoom, metrics.rulerStep) * metrics.zoom))
 
   return (
     <>
@@ -54,16 +54,16 @@ function RulerTicksH({
 }
 
 function RulerTicksV({
-  layout,
+  metrics,
   cameraWorldOrigin,
   clientHeight,
 }: Readonly<{
-  layout: CanvasViewportLayout
+  metrics: EditorRulerMetrics
   cameraWorldOrigin: Readonly<{ x: number; y: number }>
   clientHeight: number
 }>) {
-  const ticks = rulerLabelsForCameraAxis('y', cameraWorldOrigin, clientHeight, layout)
-  const stepPx = Math.max(16, Math.round(pickRulerTickStep(layout.zoom, layout.rulerStep) * layout.zoom))
+  const ticks = rulerLabelsForCameraAxis('y', cameraWorldOrigin, clientHeight, metrics)
+  const stepPx = Math.max(16, Math.round(pickRulerTickStep(metrics.zoom, metrics.rulerStep) * metrics.zoom))
 
   return (
     <>
@@ -84,7 +84,7 @@ function RulerTicksV({
 
 export function CanvasViewportWithRulers({
   viewportRef,
-  layout,
+  rulerMetrics,
   rulersVisible = true,
   children,
   className = '',
@@ -98,7 +98,7 @@ export function CanvasViewportWithRulers({
   const { clientWidth, clientHeight } = useCanvasViewportSize(viewportRef)
   const cameraView = useEditorCameraView()
   const cameraWorldOrigin = { x: cameraView.x, y: cameraView.y }
-  const pad = layout.paddingPx
+  const pad = rulerMetrics.paddingPx
 
   return (
     <div className="flex-1 flex min-h-0 min-w-0 canvas-viewport-rulers">
@@ -111,7 +111,7 @@ export function CanvasViewportWithRulers({
             aria-hidden
           >
             <RulerTicksV
-              layout={layout}
+              metrics={rulerMetrics}
               cameraWorldOrigin={cameraWorldOrigin}
               clientHeight={clientHeight}
             />
@@ -127,7 +127,7 @@ export function CanvasViewportWithRulers({
             aria-hidden
           >
             <RulerTicksH
-              layout={layout}
+              metrics={rulerMetrics}
               cameraWorldOrigin={cameraWorldOrigin}
               clientWidth={clientWidth}
             />
