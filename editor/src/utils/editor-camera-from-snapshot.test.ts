@@ -3,6 +3,7 @@ import {
   DEFAULT_EDITOR_CAMERA_VIEW,
   editorViewFromSnapshot,
   editorZoomCssFromSnapshot,
+  visibleWorldCenterFromSnapshot,
 } from './editor-camera-from-snapshot'
 import type { PresentationSnapshot } from './presentation-snapshot'
 
@@ -54,5 +55,9 @@ describe('editor-camera-from-snapshot', () => {
 
   it('exports stable default view', () => {
     expect(DEFAULT_EDITOR_CAMERA_VIEW).toEqual({ x: 0, y: 0, zoomDevice: 1 })
+  })
+
+  it('derives visible world centre from snapshot bounds', () => {
+    expect(visibleWorldCenterFromSnapshot(SAMPLE)).toEqual({ x: 200, y: 150 })
   })
 })

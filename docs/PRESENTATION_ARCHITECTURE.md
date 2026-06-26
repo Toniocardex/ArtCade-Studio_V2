@@ -571,12 +571,12 @@ public:
 
 ## Success criteria
 
-- [ ] Zero fit/letterbox math in `editor/src` (except snapshot consumption)
-- [ ] `Renderer` has no `editorCameraActive` or view-policy branches
-- [ ] One `screenToWorld` path: `PresentationSnapshot`
-- [ ] React rulers and camera overlay read one store revision
+- [x] Zero fit/letterbox math in `editor/src` (except snapshot consumption)
+- [x] `Renderer` has no `editorCameraActive` or view-policy branches
+- [x] One `screenToWorld` path: `PresentationSnapshot`
+- [x] React rulers and camera overlay read one store revision
 - [ ] Play embedded, external window, and native exe share `buildPipeline(snapshot, features)`
-- [ ] Golden tests cover all output policies and DPR ≠ 1
+- [x] Golden tests cover all output policies and DPR ≠ 1
 
 ---
 

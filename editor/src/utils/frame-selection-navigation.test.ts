@@ -51,6 +51,7 @@ describe('frame selection navigation', () => {
       2,
     )
     expect(bridge.editorFrameSelection).toHaveBeenCalledWith(240, 130, 4, 1)
+    expect(bridge.editorSetEditorView).not.toHaveBeenCalled()
     expect(dispatch).toHaveBeenCalledWith({ type: 'EDITOR_SET_ZOOM', zoom: 2 })
   })
 })

@@ -2,6 +2,9 @@
 
 #include "../src/modules/presentation/include/coordinate_mapper.h"
 #include "../src/modules/presentation/include/output_policy.h"
+#include "../src/modules/presentation/include/presentation_mode.h"
+#include "../src/modules/presentation/include/presentation_solver.h"
+#include "../src/modules/presentation/include/presentation_state.h"
 #include "../src/modules/presentation/include/surface_metrics.h"
 #include "../src/modules/presentation/include/view_controller.h"
 #include "../src/modules/renderer/include/compositor-layout.h"
@@ -14,12 +17,16 @@ using ArtCade::Presentation::CssPoint;
 using ArtCade::Presentation::EditorViewState;
 using ArtCade::Presentation::LogicalPoint;
 using ArtCade::Presentation::OutputPlacement;
+using ArtCade::Presentation::PresentationMode;
+using ArtCade::Presentation::PresentationSnapshot;
+using ArtCade::Presentation::PresentationState;
 using ArtCade::Presentation::SurfaceMetrics;
 using ArtCade::Presentation::SurfacePoint;
 using ArtCade::Presentation::ViewCamera2D;
 using ArtCade::Presentation::ViewController;
 using ArtCade::Presentation::WorldPoint;
 using ArtCade::Presentation::output_placement_compute;
+using ArtCade::Presentation::solve_presentation_snapshot;
 using ArtCade::Presentation::surface_metrics_from_css;
 using ArtCade::Presentation::surface_point_from_css;
 using ArtCade::OutputPolicy;
@@ -187,6 +194,60 @@ void test_legacy_layout_parity() {
     }
 }
 
+PresentationState scene_edit_state(double cssW, double cssH, double dpr) {
+    PresentationState state{};
+    state.mode = PresentationMode::SceneEdit;
+    state.surface = surface_metrics_from_css(cssW, cssH, dpr);
+    state.logicalWidth = cssW;
+    state.logicalHeight = cssH;
+    state.gameViewCompositorEnabled = false;
+    state.editorCamera.positionX = 100.;
+    state.editorCamera.positionY = 50.;
+    state.editorCamera.zoom = 2.;
+    return state;
+}
+
+void test_solver_scene_edit_snapshot_fields() {
+    const PresentationSnapshot snapshot =
+        solve_presentation_snapshot(scene_edit_state(800., 600., 2.), 7u);
+    expect(snapshot.revision == 7u, "solver copies revision");
+    expect(snapshot.effectiveMode == PresentationMode::SceneEdit,
+           "solver preserves SceneEdit mode");
+    expect(near_eq(snapshot.editorViewOriginX, 100.)
+           && near_eq(snapshot.editorViewOriginY, 50.),
+           "solver exposes editor view origin");
+    expect(near_eq(snapshot.surfacePixelsPerWorldUnit, 2.),
+           "solver exposes surface pixels per world unit");
+    expect(snapshot.visibleWorldMaxX > snapshot.visibleWorldMinX
+           && snapshot.visibleWorldMaxY > snapshot.visibleWorldMinY,
+           "solver fills visible world bounds");
+}
+
+void test_solver_dpr_matrix_no_drift() {
+    const double dprs[] = { 1., 1.25, 1.5, 2. };
+    for (double dpr : dprs) {
+        const PresentationSnapshot snapshot =
+            solve_presentation_snapshot(scene_edit_state(800., 600., dpr), 1u);
+        const SurfacePoint sample{ snapshot.surface.framebufferWidth * 0.5,
+                                   snapshot.surface.framebufferHeight * 0.5 };
+        const WorldPoint world = snapshot.surface_to_world(sample);
+        const SurfacePoint back = snapshot.world_to_surface(world);
+        expect(near_eq(back.x, sample.x) && near_eq(back.y, sample.y),
+               "solver snapshot round-trip at DPR sample");
+    }
+}
+
+void test_solver_picking_matches_revision() {
+    const PresentationSnapshot snapshot =
+        solve_presentation_snapshot(scene_edit_state(1024., 768., 1.), 42u);
+    const SurfacePoint cursor{ 512., 384. };
+    const WorldPoint world = snapshot.surface_to_world(cursor);
+    const SurfacePoint back = snapshot.world_to_surface(world);
+    expect(near_eq(back.x, cursor.x) && near_eq(back.y, cursor.y),
+           "committed snapshot picking round-trip");
+    expect(snapshot.revision == 42u, "picking snapshot revision is stable");
+}
+
 void test_play_policy_matrix() {
     struct Case {
         double logicalW;
@@ -241,6 +302,9 @@ int main() {
     test_resize_preserves_editor_camera();
     test_picking_edges();
     test_legacy_layout_parity();
+    test_solver_scene_edit_snapshot_fields();
+    test_solver_dpr_matrix_no_drift();
+    test_solver_picking_matches_revision();
     test_play_policy_matrix();
     std::puts("presentation_golden_test: all passed");
     return 0;

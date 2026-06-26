@@ -733,3 +733,24 @@ Usare questa checklist **dopo** la checklist esplorativa § 11. Ogni voce P0 dev
 ---
 
 *Report + addendum § 13–14 per audit interno post-migrazione fasi 7–8. Per decisioni architetturali originali → ADR. Per discrepanze report/codice → **il codice vince**. Gap P0: non dichiarare migrazione chiusa finché § 14 P0 non è soddisfatta.*
+
+---
+
+## 15. Consolidation PR1–PR6 (2026-06-24)
+
+| PR | Stato | Deliverable |
+|----|-------|-------------|
+| PR1 | ✅ | Selection ≠ camera; pan/zoom only via ViewController |
+| PR2 | ✅ | `presentation_solver`, ABI v2 (96 B), `presentation-store`, `useEditorCameraView` |
+| PR3 | ✅ | `EditorViewportController`, `presentation_state_sync`, navigation prepare/commit |
+| PR4 | ✅ | `frame_selection` nativo, `editor_zoom_policy`, F-key framing |
+| PR5 | ✅ | `editor-ruler-metrics.ts`; rimosso scroll legacy; `SurfacePointerEvent` + `editor_set_pointer_presentation_revision` |
+| PR6 | ✅ | `presentation-golden-test` esteso (solver + DPR matrix); `presentation-golden.test.ts`; ADR success criteria aggiornati |
+
+**DoD PR5:** `grep scrollToWorld editor/src` → zero call site.
+
+**DoD PR6:** golden C++ (placement, letterbox, DPR 1/1.25/1.5/2, solver round-trip) + test TS (camera/ruler revision parity, frame vs selection).
+
+**P1 aggiornati in codice:** `SurfacePointerEvent` (`surface_pointer_event.h` + TS), `PresentationSnapshotWasm` ABI version/size, `parsePresentationSnapshotWasm` strict parse.
+
+**Aperto (fuori scope PR6):** `buildPipeline(snapshot, features)` cross-target native exe; P0 checklist §14 completa.
