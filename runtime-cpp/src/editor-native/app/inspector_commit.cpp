@@ -43,4 +43,24 @@ EditorOperationResult commitInspectorPositionX(EditorCoordinator& coordinator,
     return coordinator.execute(SetEntityPositionCommand{entityId, next});
 }
 
+EditorOperationResult commitInspectorPositionY(EditorCoordinator& coordinator,
+                                               EntityId           entityId,
+                                               const std::string& text) {
+    const std::optional<float> parsed = parseNumberField(text);
+    if (!parsed) {
+        const auto result = EditorOperationResult::failure("Position Y is not a number");
+        coordinator.logError(result.error);
+        return result;
+    }
+    const SceneInstanceDef* instance =
+        coordinator.document().findInstanceInActiveScene(entityId);
+    if (!instance) {
+        const auto result = EditorOperationResult::failure("No selected instance");
+        coordinator.logError(result.error);
+        return result;
+    }
+    const Vec2 next{instance->transform.position.x, *parsed};
+    return coordinator.execute(SetEntityPositionCommand{entityId, next});
+}
+
 } // namespace ArtCade::EditorNative

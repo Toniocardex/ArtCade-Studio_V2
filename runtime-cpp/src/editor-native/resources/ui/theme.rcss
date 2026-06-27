@@ -1,0 +1,43 @@
+/* theme.rcss — colours and typography (dark premium / anthracite, §21). */
+
+body {
+    font-family: "Segoe UI";
+    font-size: 13px;
+    color: #c7ccd6;
+}
+
+/* Type scale */
+.panel-header {
+    font-size: 11px;
+    font-weight: bold;
+    color: #8b92a0;
+    /* letter-spacing emulated via uppercase content in markup */
+}
+
+.brand {
+    color: #6f7785;
+}
+
+/* Accent */
+.accent { color: #4f8cdb; }
+
+/* Scrollable areas */
+.tree, .console, .inspector {
+    overflow-y: auto;
+}
+
+scrollbarvertical {
+    width: 8px;
+}
+scrollbarvertical slidertrack {
+    background-color: #15171c;
+}
+scrollbarvertical sliderbar {
+    background-color: #343a46;
+    border-radius: 4px;
+    margin-left: 2px;
+    margin-right: 2px;
+}
+scrollbarvertical sliderbar:hover {
+    background-color: #444c5a;
+}

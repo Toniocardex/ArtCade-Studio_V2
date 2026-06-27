@@ -130,13 +130,6 @@ add_library(artcade-project-json STATIC
 target_link_libraries(artcade-project-json PUBLIC artcade-core)
 
 # ============================================================================
-# Native editor spike (RmlUi evaluation) — authoring core only.
-# No Raylib / Lua / RmlUi dependency, so it is always built and unit-tested.
-# The RmlUi host/window/viewport target is added later behind its own option.
-# ============================================================================
-add_subdirectory(src/editor-native)
-
-# ============================================================================
 # Moduli stateless — nessuna dipendenza da Raylib o Lua.
 # Sempre compilati (Fase 3 e oltre).
 # ============================================================================
@@ -197,6 +190,18 @@ endif()
 # include editor-api.h without any Emscripten dependency.
 # ============================================================================
 add_subdirectory(src/modules/editor-api)
+
+# ============================================================================
+# Native editor spike (RmlUi evaluation).
+#   artcade-editor-core   — authoring logic only (no Raylib/Lua/RmlUi); always
+#                           built and unit-tested.
+#   artcade-editor-native — RmlUi host + window + viewport; built only when
+#                           -DARTCADE_BUILD_NATIVE_EDITOR=ON (needs Raylib +
+#                           a fetched RmlUi). Default OFF so the normal runtime
+#                           and the web editor build is never affected.
+# Added after the Raylib block so the editor target can see the `raylib` target.
+# ============================================================================
+add_subdirectory(src/editor-native)
 
 # ============================================================================
 # Smoke Tests — validate the full React ↔ WASM bridge architecture.

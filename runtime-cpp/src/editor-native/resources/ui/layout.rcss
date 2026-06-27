@@ -1,0 +1,80 @@
+/* layout.rcss — fixed split layout, three splitters, transparent viewport hole.
+   The scene is drawn by raylib before RmlUi; every region that should reveal it
+   (body, workspace, viewport) is transparent, while panels are opaque. */
+
+body {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background-color: transparent;
+}
+
+#menubar {
+    height: 30px;
+    display: flex;
+    flex-direction: row;
+    background-color: #16181d;
+    border-bottom: 1px #2a2e38;
+}
+
+#toolbar {
+    height: 42px;
+    display: flex;
+    flex-direction: row;
+    background-color: #1b1e25;
+    border-bottom: 1px #2a2e38;
+}
+
+#workspace {
+    flex: 1;
+    display: flex;
+    flex-direction: row;
+    background-color: transparent;
+}
+
+#left-col {
+    width: 264px;
+    min-width: 180px;
+    max-width: 480px;
+    display: flex;
+    flex-direction: column;
+}
+
+#viewport {
+    flex: 1;
+    background-color: transparent;
+}
+
+#right-col {
+    width: 320px;
+    min-width: 220px;
+    max-width: 520px;
+    display: flex;
+    flex-direction: column;
+}
+
+#console {
+    height: 184px;
+    min-height: 80px;
+    max-height: 600px;
+    display: flex;
+    flex-direction: column;
+    background-color: #181a20;
+    border-top: 1px #2a2e38;
+}
+
+/* Splitters */
+.vsplit {
+    width: 5px;
+    background-color: #15171c;
+    drag: drag;
+}
+.vsplit:hover { background-color: #4f8cdb; }
+
+.hsplit {
+    height: 5px;
+    background-color: #15171c;
+    drag: drag;
+}
+.hsplit:hover { background-color: #4f8cdb; }

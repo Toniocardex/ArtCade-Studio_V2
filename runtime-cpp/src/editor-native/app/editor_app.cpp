@@ -1,0 +1,128 @@
+#include "editor-native/app/editor_app.h"
+
+#include "editor-native/app/editor_coordinator.h"
+#include "editor-native/app/editor_input.h"
+#include "editor-native/app/input_routing.h"
+#include "editor-native/app/rml_host.h"
+#include "editor-native/commands/editor_intent.h"
+#include "editor-native/demo/demo_project.h"
+#include "editor-native/ui/editor_ui.h"
+#include "editor-native/view/scene_view.h"
+
+#include <RmlUi/Core/Element.h>
+#include <RmlUi/Core/ElementDocument.h>
+
+#include <raylib.h>
+
+#include <cstring>
+#include <string>
+
+namespace ArtCade::EditorNative {
+
+namespace {
+
+ViewportRect viewportRectFromDocument(Rml::ElementDocument* document) {
+    ViewportRect rect;
+    if (!document) return rect;
+    if (Rml::Element* vp = document->GetElementById("viewport")) {
+        const Rml::Vector2f off = vp->GetAbsoluteOffset();
+        rect.x = static_cast<int>(off.x);
+        rect.y = static_cast<int>(off.y);
+        rect.width  = static_cast<int>(vp->GetClientWidth());
+        rect.height = static_cast<int>(vp->GetClientHeight());
+    }
+    return rect;
+}
+
+void routeViewportInput(EditorCoordinator& coordinator, const ViewportRect& rect,
+                        const RmlInputResult& rml) {
+    // Inside the viewport region we are not over a panel; a focused text field
+    // still blocks the viewport (prompt §19 / §24.16).
+    const ViewportInputContext ctx{
+        rect.contains(GetMouseX(), GetMouseY()),
+        /*rmlConsumedEvent*/ false,
+        rml.textFocus,
+        /*rmlPopupOpen*/ false,
+    };
+    if (!shouldViewportReceiveInput(ctx)) return;
+
+    const SceneId active = coordinator.document().activeSceneId();
+    const float zoom = coordinator.sceneView(active).zoom;
+
+    const float wheel = GetMouseWheelMove();
+    if (wheel != 0.0f)
+        coordinator.apply(SetViewportZoomIntent{active, zoom * (1.0f + wheel * 0.1f)});
+
+    if (IsMouseButtonDown(MOUSE_BUTTON_MIDDLE) || IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
+        const Vector2 d = GetMouseDelta();
+        coordinator.apply(PanViewportIntent{active, {-d.x / zoom, -d.y / zoom}});
+    }
+}
+
+} // namespace
+
+int EditorApp::run(int argc, char** argv) {
+    // Optional one-shot screenshot mode: "--shot <path>" renders a few frames,
+    // captures the framebuffer and exits. Used to verify the shell renders.
+    std::string shotPath;
+    for (int i = 1; i < argc; ++i) {
+        if (std::strcmp(argv[i], "--shot") == 0 && i + 1 < argc) shotPath = argv[i + 1];
+    }
+
+    EditorCoordinator coordinator(makeDemoProject());
+
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_MSAA_4X_HINT | FLAG_VSYNC_HINT);
+    InitWindow(1340, 840, "ArtCade - Native Editor (RmlUi spike)");
+    SetExitKey(KEY_NULL);
+    SetTargetFPS(60);
+
+    const float dpi = GetWindowScaleDPI().x;
+    RmlHost host;
+    if (!host.initialize(GetScreenWidth(), GetScreenHeight(), dpi > 0.f ? dpi : 1.f,
+                         "resources/ui/editor_shell.rml")) {
+        TraceLog(LOG_ERROR, "[editor] failed to load resources/ui/editor_shell.rml");
+        host.shutdown();
+        CloseWindow();
+        return 1;
+    }
+
+    EditorUi ui(coordinator, host.document());
+    ui.bind();
+    // Default focus so the inspector shows the headline Position fields.
+    coordinator.apply(SelectEntityIntent{1});
+    coordinator.logInfo("ArtCade native editor ready (RmlUi spike).");
+    SceneView sceneView;
+
+    int frame = 0;
+    while (!WindowShouldClose()) {
+        if (IsWindowResized())
+            host.resize(GetScreenWidth(), GetScreenHeight(), GetWindowScaleDPI().x);
+        if (IsKeyPressed(KEY_F8)) host.toggleDebugger();
+
+        const RmlInputResult rml = pumpRmlInput(host.context());
+        const ViewportRect rect = viewportRectFromDocument(host.document());
+        routeViewportInput(coordinator, rect, rml);
+
+        ui.processFrame();
+        host.update();
+
+        BeginDrawing();
+        ClearBackground(Color{15, 16, 20, 255});
+        const SceneId active = coordinator.document().activeSceneId();
+        sceneView.render(coordinator.document(), coordinator.sceneView(active),
+                         coordinator.selection(), rect);
+        host.render();
+        EndDrawing();
+
+        if (!shotPath.empty() && ++frame == 12) {
+            TakeScreenshot(shotPath.c_str());
+            break;
+        }
+    }
+
+    host.shutdown();
+    CloseWindow();
+    return 0;
+}
+
+} // namespace ArtCade::EditorNative

@@ -1,0 +1,79 @@
+/* panels.rcss — panel surfaces and headers. */
+
+.panel {
+    background-color: #1a1c22;
+}
+
+#left-col {
+    border-right: 1px #2a2e38;
+}
+#right-col {
+    border-left: 1px #2a2e38;
+}
+
+.panel-header {
+    display: block;
+    height: 26px;
+    padding: 7px 12px 0 12px;
+    background-color: #20232b;
+    border-bottom: 1px #2a2e38;
+}
+
+.assets-stub {
+    display: block;
+    padding: 10px 12px;
+    color: #6f7785;
+    font-size: 12px;
+}
+
+/* Console */
+.console {
+    display: block;
+    flex: 1;
+    padding: 6px 10px;
+    font-family: "Consolas";
+    font-size: 12px;
+}
+.log {
+    display: block;
+    padding: 1px 0;
+    color: #aab1bd;
+}
+.log-info    { color: #aab1bd; }
+.log-warning { color: #d8c06a; }
+.log-error   { color: #e08a86; }
+
+/* Inspector body */
+.inspector {
+    display: block;
+    flex: 1;
+    padding: 8px 12px;
+}
+.inspector-empty {
+    color: #6f7785;
+    padding: 6px 0;
+}
+.prop-group-title {
+    display: block;
+    margin-top: 8px;
+    margin-bottom: 6px;
+    font-size: 11px;
+    font-weight: bold;
+    color: #7f8794;
+}
+.prop-row {
+    display: flex;
+    flex-direction: row;
+    height: 26px;
+    margin-bottom: 5px;
+}
+.prop-label {
+    width: 96px;
+    color: #9aa1ad;
+    padding-top: 5px;
+}
+.prop-readonly {
+    flex: 1;
+    padding-top: 5px;
+    color: #c7ccd6;
+}

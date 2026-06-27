@@ -36,4 +36,9 @@ EditorOperationResult commitInspectorPositionX(EditorCoordinator& coordinator,
                                                EntityId           entityId,
                                                const std::string& text);
 
+/** As commitInspectorPositionX, for the Y axis (keeps the current X). */
+EditorOperationResult commitInspectorPositionY(EditorCoordinator& coordinator,
+                                               EntityId           entityId,
+                                               const std::string& text);
+
 } // namespace ArtCade::EditorNative
