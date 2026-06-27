@@ -22,6 +22,12 @@ artcade_test(event_bus_test
     event-bus-test.cpp
     artcade-event-bus)
 
+# Native editor authoring core — architectural guarantees (prompt §24).
+# No Raylib / RmlUi, so it is always built and run.
+artcade_test(editor_core_test
+    editor-core-test.cpp
+    artcade-editor-core)
+
 artcade_test(variable_manager_test
     variable-manager-test.cpp
     artcade-variable-manager)

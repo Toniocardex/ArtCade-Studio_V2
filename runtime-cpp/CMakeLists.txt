@@ -130,6 +130,13 @@ add_library(artcade-project-json STATIC
 target_link_libraries(artcade-project-json PUBLIC artcade-core)
 
 # ============================================================================
+# Native editor spike (RmlUi evaluation) — authoring core only.
+# No Raylib / Lua / RmlUi dependency, so it is always built and unit-tested.
+# The RmlUi host/window/viewport target is added later behind its own option.
+# ============================================================================
+add_subdirectory(src/editor-native)
+
+# ============================================================================
 # Moduli stateless — nessuna dipendenza da Raylib o Lua.
 # Sempre compilati (Fase 3 e oltre).
 # ============================================================================
