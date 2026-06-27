@@ -19,14 +19,18 @@
 #include "scene_frame_context.h"
 #include "scene_frame_snapshot.h"
 
-#include <cassert>
 #include <vector>
+
+#ifndef NDEBUG
+#include <cassert>
+#endif
 
 namespace ArtCade {
 
 namespace RenderPipeline = ArtCade::Modules;
 
 namespace {
+
 RenderPipeline::ViewRenderFeatures build_view_features(
     const EditorOverlayState& overlay) {
     RenderPipeline::ViewRenderFeatures features{};
@@ -42,11 +46,15 @@ RenderPipeline::ViewRenderFeatures build_view_features(
     return features;
 }
 
-/** Marks the tilemap-alias window; debug builds assert re-entrancy and balance. */
+#ifndef NDEBUG
+/**
+ * Tilemap-alias window: frame build → beginFrame → render passes → present.
+ * Debug builds only; release has no runtime guard.
+ */
 struct SceneFrameRenderScope {
     bool& active;
     explicit SceneFrameRenderScope(bool& flag) : active(flag) {
-        assert(!active && "scene frame render passes must not nest");
+        assert(!active && "scene frame render scope must not nest");
         active = true;
     }
     ~SceneFrameRenderScope() {
@@ -54,10 +62,15 @@ struct SceneFrameRenderScope {
         active = false;
     }
 };
+#endif
 
 } // namespace
 
 void Application::renderActiveScene() {
+#ifndef NDEBUG
+    SceneFrameRenderScope renderScope(sceneFrameRenderActive_);
+#endif
+
     applyPendingSceneInvalidations();
 
     const SceneDef* activeScene = mod_->sceneManager->activeScene();
@@ -132,9 +145,6 @@ void Application::renderActiveScene() {
     frameCtx.selectedEntityIds = &selectedEntityIds;
     frameCtx.tilesets = &tilesets_;
     frameCtx.tileColors = &tileColors_;
-
-    // Tilemap pointers in frameSnapshot alias SceneDef until this scope ends.
-    SceneFrameRenderScope renderScope(sceneFrameRenderActive_);
 
     bool worldPassEnded = false;
     bool dialogRendered = false;
