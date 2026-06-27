@@ -45,6 +45,10 @@ void EditorViewportController::frame_selection_at(double posX,
     viewController_.frame_selection_at(posX, posY, scaleX, scaleY, paddingPx);
 }
 
+void EditorViewportController::reset_view() {
+    viewController_.reset_view();
+}
+
 void EditorViewportController::set_editor_view(const EditorViewState& view) {
     viewController_.set_editor_view(view);
 }

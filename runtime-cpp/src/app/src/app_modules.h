@@ -13,6 +13,7 @@
 #include "../../modules/layer-manager/include/layer-manager.h"
 #include "../../modules/lua-runtime/include/lua-host.h"
 #include "../../modules/physics/include/physics.h"
+#include "../../modules/presentation/include/editor_viewport_service.h"
 #include "../../modules/renderer/include/renderer.h"
 #include "../../modules/runtime-entity-gateway/include/runtime-entity-gateway.h"
 #include "../../modules/save-load/include/save-load-manager.h"
@@ -30,6 +31,7 @@ namespace ArtCade {
 
 /** Internal ownership table shared only by Application implementation units. */
 struct Application::Modules {
+    std::unique_ptr<ArtCade::Presentation::EditorViewportService> editorViewport;
     std::unique_ptr<ArtCade::Modules::Renderer> renderer;
     std::unique_ptr<ArtCade::Modules::Physics> physics;
     std::unique_ptr<ArtCade::Modules::Input> input;

@@ -40,6 +40,9 @@ class SpriteAnimator;
 class Audio;
 class VariableManager;
 }
+namespace Presentation {
+class EditorViewportService;
+}
 struct TilePaletteEntry;
 struct TilesetAsset;
 struct ProjectRuntimeSettings;
@@ -122,6 +125,12 @@ public:
      * cache. Called by Application after the Renderer is initialised.
      */
     static void wireRenderer(Modules::Renderer* renderer);
+
+    /**
+     * Wire the editor viewport owned by Application. Navigation intents target
+     * this service directly; Renderer holds a non-owning pointer for sync only.
+     */
+    static void wireEditorViewport(Presentation::EditorViewportService* viewport);
 
     /** Wire DialogManager so editor_load_dialogs() can register preview graphs. */
     static void wireDialog(Modules::DialogManager* dialogManager);
@@ -237,6 +246,7 @@ public:
     static Modules::RuntimeEntityGateway* s_entityGateway;
     static Modules::LuaHost*              s_luaHost;
     static Modules::Renderer*             s_renderer;
+    static Presentation::EditorViewportService* s_viewport;
     /** Revision captured by the browser at pointer-event time (0 = use committed). */
     static uint64_t                       s_pointerPresentationRevision;
     static Modules::DialogManager*        s_dialogManager;
@@ -502,6 +512,7 @@ struct EditorAPI {
     static void wireEngine(Modules::RuntimeEntityGateway*) {}
     static void wireLua(Modules::LuaHost*) {}
     static void wireRenderer(Modules::Renderer*) {}
+    static void wireEditorViewport(Presentation::EditorViewportService*) {}
     static void wireDialog(Modules::DialogManager*) {}
     static void wireSpriteAnimator(Modules::SpriteAnimator*) {}
     static void wireAudio(Modules::Audio*) {}
@@ -543,6 +554,7 @@ struct EditorAPI {
     static Modules::RuntimeEntityGateway* s_entityGateway;
     static Modules::LuaHost*              s_luaHost;
     static Modules::Renderer*             s_renderer;
+    static Presentation::EditorViewportService* s_viewport;
     /** Revision captured by the browser at pointer-event time (0 = use committed). */
     static uint64_t                       s_pointerPresentationRevision;
     static Modules::DialogManager*        s_dialogManager;

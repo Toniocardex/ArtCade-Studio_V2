@@ -31,7 +31,7 @@ endif()
 
 if(EMSCRIPTEN)
     target_compile_definitions(artcade-editor-api PRIVATE ARTCADE_WASM)
-    target_link_libraries(artcade-editor-api PUBLIC artcade-input)
+    target_link_libraries(artcade-editor-api PUBLIC artcade-input artcade-presentation)
     if(TARGET artcade-renderer)
         target_link_libraries(artcade-editor-api PRIVATE artcade-renderer)
     endif()

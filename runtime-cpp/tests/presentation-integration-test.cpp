@@ -1,8 +1,10 @@
 // presentation-integration-test.cpp — renderer + picking share committed snapshot (Phase 2).
 
 #include "../src/modules/renderer/include/renderer.h"
+#include "../src/modules/presentation/include/editor_viewport_service.h"
 #include "../src/modules/presentation/include/presentation_bindings.h"
 #include "../src/modules/presentation/include/presentation_mode.h"
+#include "presentation_test_helpers.h"
 #include "../src/core/types.h"
 
 #include <cmath>
@@ -11,7 +13,14 @@
 
 using ArtCade::Modules::Renderer;
 using ArtCade::Presentation::PresentationBindings;
+using ArtCade::Presentation::EditorViewportService;
 using ArtCade::Presentation::SurfacePoint;
+
+static void commitPresentationFrame(
+    Renderer& renderer,
+    EditorViewportService& viewport) {
+    commit_presentation_frame(renderer, viewport);
+}
 
 static bool near_eq(float a, float b, float eps = 0.001f) {
     return std::fabs(a - b) <= eps;
@@ -26,20 +35,22 @@ static void expect(bool ok, const char* msg) {
 }
 
 int main() {
+    ArtCade::Presentation::EditorViewportService viewport;
     Renderer renderer;
     renderer.setWindowSize(1280, 720, "integration-test");
     renderer.setSceneViewport({ 1280.f, 720.f }, { 1280.f, 720.f });
+    viewport.set_presentation_mode(ArtCade::Presentation::PresentationMode::CameraPreview);
     renderer.setCameraZoom(2.f);
     renderer.setCameraPosition({ 640.f, 360.f });
 
-    renderer.commitPresentationFrame();
-    const uint64_t revision = renderer.presentationRevision();
+    commitPresentationFrame(renderer, viewport);
+    const uint64_t revision = viewport.presentation_revision();
     expect(revision >= 1, "projection refresh exposes committed revision");
 
     const auto viaBindings = PresentationBindings::surface_to_world(
-        renderer.committedPresentationSnapshot(),
+        viewport.committed_snapshot(),
         SurfacePoint{ 100., 200. });
-    const auto& snapshot = renderer.committedPresentationSnapshot();
+    const auto& snapshot = viewport.committed_snapshot();
     expect(snapshot.revision == revision, "renderer and snapshot share revision");
     const auto viaSnapshot = snapshot.surface_to_world(SurfacePoint{ 100., 200. });
     expect(near_eq(static_cast<float>(viaBindings.x), static_cast<float>(viaSnapshot.x))
@@ -52,12 +63,12 @@ int main() {
            "compositorLayout reads committed placement");
 
     renderer.setGameViewCompositorEnabled(true);
-    renderer.setPresentationMode(ArtCade::Presentation::PresentationMode::PlayEmbedded);
+    viewport.set_presentation_mode(ArtCade::Presentation::PresentationMode::PlayEmbedded);
     renderer.setWindowSize(1920, 1080, "integration-fill");
     renderer.setSceneViewport({ 640.f, 480.f }, { 320.f, 240.f });
     renderer.setOutputPolicy(ArtCade::OutputPolicy::Fill);
-    renderer.commitPresentationFrame();
-    const auto& playSnapshot = renderer.committedPresentationSnapshot();
+    commitPresentationFrame(renderer, viewport);
+    const auto& playSnapshot = viewport.committed_snapshot();
     const auto playWorld = PresentationBindings::surface_to_world(
         playSnapshot, SurfacePoint{ 960., 540. });
     const auto playSnap = playSnapshot.surface_to_world(SurfacePoint{ 960., 540. });

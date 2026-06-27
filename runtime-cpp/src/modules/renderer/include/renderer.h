@@ -6,8 +6,7 @@
 #include "../../presentation/include/presentation_snapshot.h"
 #include "../../presentation/include/presentation_mode.h"
 #include "../../presentation/include/presentation_types.h"
-#include "../../presentation/include/editor_viewport_controller.h"
-#include "../../presentation/include/editor_viewport_navigation.h"
+#include "../../presentation/include/presentation_state_sync.h"
 #include "view_render_features.h"
 #include <functional>
 #include <string>
@@ -62,23 +61,27 @@ public:
     OutputPolicy outputPolicy() const;
     CompositorLayout compositorLayout() const;
 
-    /** Explicit presentation mode (replaces legacy editorCameraActive). */
-    void setPresentationMode(ArtCade::Presentation::PresentationMode mode);
-    ArtCade::Presentation::PresentationMode presentationMode() const;
-
-    /** Committed presentation snapshot for the current frame. */
+    /** Read-only view of the last snapshot passed to beginFrame(). */
     const ArtCade::Presentation::PresentationSnapshot& committedPresentationSnapshot() const;
     uint64_t presentationRevision() const;
+
     /**
-     * Commits presentation state for one frame without touching Raylib draw state.
-     * Tests and render planning use this when they need an atomic snapshot.
+     * Collects simulation-owned inputs for Presentation Core (game camera,
+     * world size, output policy). Editor camera/mode/surface come from
+     * EditorViewportService::sync_from_renderer().
      */
-    void commitPresentationFrame();
-    ArtCade::Presentation::WorldPoint surfaceToWorldAtRevision(
-        float surfaceX, float surfaceY, uint64_t revision) const;
+    ArtCade::Presentation::PresentationStateInputs gatherPresentationInputs() const;
+
+    /**
+     * Applies a committed snapshot to Raylib camera state (read-only consumer).
+     * @param presentation immutable frame snapshot from EditorViewportService
+     */
+    void applyFramePresentation(
+        const ArtCade::Presentation::PresentationSnapshot& presentation);
 
     // Frame lifecycle
-    void beginFrame(const Vec4& clearColor);
+    void beginFrame(const ArtCade::Presentation::PresentationSnapshot& presentation,
+                    const Vec4& clearColor);
     /** Begin the GameView RT pass when the pipeline schedules RenderPassId::GameView. */
     void beginGameViewPass(const Vec4& clearColor);
     void endFrame();
@@ -209,23 +212,11 @@ public:
     /** Frame camera modifiers (shake, recoil); included in draw and presentation picking. */
     void setGameCameraModifiers(const ArtCade::Presentation::CameraModifiers& modifiers);
     void setCameraZoom    (float zoom);
-    /** Editor-preview camera: apply target/zoom verbatim (no clamp/offset). */
-    void setEditorCamera  (const Vec2& target, float zoom);
-    /** Fixed-surface editor viewport: resize CSS canvas and preserve camera. */
-    void editorResizeSurface(float cssW, float cssH, float devicePixelRatio);
     /**
-     * Play-mode surface resize: CSS host size x DPR -> framebuffer; commits on the next frame.
-     * Used by embedded, external, and fullscreen play (ADR Phase 8).
+     * Resizes the OS framebuffer from CSS host size × DPR (play preview).
+     * Surface metrics for presentation are stored via EditorViewportService.
      */
-    void syncPlaySurface(float cssW, float cssH, float devicePixelRatio);
-
-    /** Editor navigation session owned by the presentation controller. */
-    ArtCade::Presentation::EditorViewportController& editorViewport() noexcept;
-    ArtCade::Presentation::EditorViewportHost& editorViewportHost() noexcept;
-    void editorNavigationPrepare();
-    void editorNavigationCommit(bool refreshProjection = true);
-    ArtCade::Presentation::SurfaceMetrics editorSurfaceMetrics() const;
-    bool editorSceneEditActive() const;
+    void resizePlayFramebuffer(float cssW, float cssH, float devicePixelRatio);
 
     void panCameraByScreenDelta(float dx, float dy);
     Vec2 visibleWorldSize () const;
@@ -237,8 +228,8 @@ public:
     uint32_t windowWidth()  const;
     uint32_t windowHeight() const;
     float    deltaTime()    const;   // wraps Raylib GetFrameTime()
-    /** Toggle borderless fullscreen on native desktop builds. No-op on WASM. */
-    void toggleBorderlessFullscreen();
+    /** Toggle borderless fullscreen on native desktop builds. Returns effective play mode. */
+    ArtCade::Presentation::PresentationMode toggleBorderlessFullscreen();
 
     void setScreenShader(const std::string& name);
     void drawFadeOverlay(float alpha);

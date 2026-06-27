@@ -82,7 +82,8 @@ PresentationSnapshot solve_presentation_snapshot(const PresentationState& state,
     snapshot.surface = state.surface;
     snapshot.logicalWidth = state.logicalWidth;
     snapshot.logicalHeight = state.logicalHeight;
-    snapshot.useIdentityPlacement = !state.gameViewCompositorEnabled;
+    snapshot.useIdentityPlacement = state.mode == PresentationMode::SceneEdit
+        && !state.gameViewCompositorEnabled;
 
     const double fbW = state.surface.framebufferWidth;
     const double fbH = state.surface.framebufferHeight;
@@ -93,8 +94,7 @@ PresentationSnapshot solve_presentation_snapshot(const PresentationState& state,
 
     if (state.mode == PresentationMode::SceneEdit
         && !state.gameViewCompositorEnabled) {
-        snapshot.placement = output_placement_compute(
-            fbW, fbH, logicalW, logicalH, OutputPolicy::Fit);
+        snapshot.placement = identity_surface_placement(fbW, fbH);
         snapshot.pickingCamera = view_camera_from_editor(state.editorCamera);
         snapshot.editorViewOriginX = state.editorCamera.positionX;
         snapshot.editorViewOriginY = state.editorCamera.positionY;

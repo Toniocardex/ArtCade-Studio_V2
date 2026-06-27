@@ -50,13 +50,13 @@ void Application::applyRuntimeSettings(const ProjectRuntimeSettings& settings,
                 "ArtCade V2");
         }
         mod_->renderer->setSceneViewport(scene->worldSize, scene->worldSize);
-        mod_->renderer->setPresentationMode(
+        mod_->editorViewport->set_presentation_mode(
             ArtCade::Presentation::PresentationMode::SceneEdit);
         mod_->renderer->setGameViewCompositorEnabled(false);
         return;
     }
 
-    mod_->renderer->setPresentationMode(
+    mod_->editorViewport->set_presentation_mode(
         ArtCade::Presentation::PresentationMode::PlayEmbedded);
     mod_->renderer->setGameViewCompositorEnabled(true);
     mod_->renderer->setOutputPolicy(settings.outputPolicy);

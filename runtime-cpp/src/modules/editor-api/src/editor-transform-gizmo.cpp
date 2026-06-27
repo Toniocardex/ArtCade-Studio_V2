@@ -1,5 +1,7 @@
 #include "../include/editor-transform-gizmo.h"
 
+#include "../include/editor-api.h"
+#include "../../../modules/presentation/include/editor_viewport_service.h"
 #include "../../../modules/renderer/include/renderer.h"
 #include "../../../core/sprite-draw-math.h"
 
@@ -113,7 +115,9 @@ EntityVisualBounds entity_visual_bounds(
 }
 
 float resize_handle_world_size(Modules::Renderer& renderer, float screenPx) {
-    const auto& camera = renderer.editorViewportHost().editorCamera;
+    (void)renderer;
+    if (!EditorAPI::s_viewport) return screenPx;
+    const auto& camera = EditorAPI::s_viewport->host().editorCamera;
     float zoom = static_cast<float>(camera.zoom > 0. ? camera.zoom : 1.);
     if (!(zoom > 1e-6f)) zoom = 1.f;
     return screenPx / zoom;

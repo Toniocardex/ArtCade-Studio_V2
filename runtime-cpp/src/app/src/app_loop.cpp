@@ -148,7 +148,9 @@ void Application::loopIteration() {
     mod_->input->poll();
 #ifndef ARTCADE_WASM
     if (mod_->input->wasKeyPressed("F11")) {
-        mod_->renderer->toggleBorderlessFullscreen();
+        const auto mode = mod_->renderer->toggleBorderlessFullscreen();
+        if (mod_->editorViewport)
+            mod_->editorViewport->set_presentation_mode(mode);
     }
 #endif
 

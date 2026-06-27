@@ -35,6 +35,8 @@ public:
                             double scaleY,
                             double paddingPx);
 
+    void reset_view();
+
     void set_editor_view(const EditorViewState& view);
     EditorViewState editor_view() const;
 

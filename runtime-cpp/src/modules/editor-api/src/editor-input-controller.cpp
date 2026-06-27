@@ -5,6 +5,7 @@
 #include "../include/editor-api.h"
 #include "../include/editor-transform-gizmo.h"
 #include "pointer-coords.h"
+#include "../../../modules/presentation/include/presentation_bindings.h"
 #include "../../../modules/runtime-entity-gateway/include/runtime-entity-gateway.h"
 #include "../../../modules/renderer/include/renderer.h"
 #include "../../../core/types.h"
@@ -60,12 +61,12 @@ void toScreen(const EmscriptenMouseEvent* e, float& sxOut, float& syOut) {
 void toWorld(const EmscriptenMouseEvent* e, float& wx, float& wy) {
     float screenX = 0.f, screenY = 0.f;
     toScreen(e, screenX, screenY);
-    if (EditorAPI::s_renderer) {
+    if (EditorAPI::s_viewport) {
         uint64_t revision = EditorAPI::s_pointerPresentationRevision;
         if (revision == 0u)
-            revision = EditorAPI::s_renderer->presentationRevision();
+            revision = EditorAPI::s_viewport->presentation_revision();
         const ArtCade::Presentation::WorldPoint world =
-            EditorAPI::s_renderer->surfaceToWorldAtRevision(
+            EditorAPI::s_viewport->surface_to_world_at_revision(
                 screenX, screenY, revision);
         wx = static_cast<float>(world.x);
         wy = static_cast<float>(world.y);

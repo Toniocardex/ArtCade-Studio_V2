@@ -50,6 +50,8 @@ bool Application::initUtilities() {
 }
 
 bool Application::initSubsystems() {
+    mod_->editorViewport =
+        std::make_unique<ArtCade::Presentation::EditorViewportService>();
     mod_->renderer = std::make_unique<ArtCade::Modules::Renderer>();
     mod_->physics = std::make_unique<ArtCade::Modules::Physics>();
     mod_->input = std::make_unique<ArtCade::Modules::Input>();
@@ -120,6 +122,7 @@ bool Application::initSubsystems() {
     EditorAPI::wireEngine(mod_->entityGateway.get());
     EditorAPI::wireLua(mod_->luaHost.get());
     EditorAPI::wireRenderer(mod_->renderer.get());
+    EditorAPI::wireEditorViewport(mod_->editorViewport.get());
     EditorAPI::wireDialog(mod_->dialogManager.get());
     EditorAPI::wireSpriteAnimator(mod_->spriteAnimator.get());
     mod_->entityGateway->setSpriteAnimator(mod_->spriteAnimator.get());

@@ -7,13 +7,15 @@
 namespace ArtCade::Presentation {
 
 /**
- * Mutable editor-navigation context owned by Renderer::Impl.
+ * Mutable editor-navigation context owned by EditorViewportService (Application).
  * Editor WASM targets this through editor_viewport_navigation helpers.
  */
 struct EditorViewportHost {
     EditorCamera editorCamera{};
     PresentationMode presentationMode = PresentationMode::SceneEdit;
     float editorSurfaceDpr = 1.f;
+    double surfaceCssWidth = 0.;
+    double surfaceCssHeight = 0.;
 
     bool scene_edit_active() const {
         return presentationMode == PresentationMode::SceneEdit;

@@ -4,6 +4,7 @@
 
 #include "../../modules/editor-api/include/editor-api.h"
 #include "../../modules/presentation/include/presentation_types.h"
+#include "../../modules/presentation/include/editor_viewport_service.h"
 #include "render_pass_id.h"
 #include "render_pipeline.h"
 #include "view_render_features.h"
@@ -39,6 +40,15 @@ RenderPipeline::ViewRenderFeatures build_view_features(
 }
 
 } // namespace
+
+void Application::commitPresentationFrame() {
+    if (!mod_->renderer || !mod_->editorViewport) return;
+    mod_->editorViewport->sync_from_renderer(
+        mod_->renderer->gatherPresentationInputs(),
+        mod_->renderer->windowWidth(),
+        mod_->renderer->windowHeight());
+    mod_->editorViewport->begin_frame();
+}
 
 void Application::renderActiveScene() {
     const SceneDef* activeScene = mod_->sceneManager->activeScene();
@@ -82,9 +92,10 @@ void Application::renderActiveScene() {
         ? mod_->entityGateway->sceneFadeAlpha()
         : 0.f;
 
-    mod_->renderer->beginFrame(clearColor);
+    commitPresentationFrame();
+    const auto& presentation = mod_->editorViewport->committed_snapshot();
+    mod_->renderer->beginFrame(presentation, clearColor);
     const RenderPipeline::ViewRenderFeatures features = build_view_features(overlay);
-    const auto& presentation = mod_->renderer->committedPresentationSnapshot();
     const std::vector<RenderPipeline::RenderPassId> passOrder =
         RenderPipeline::RenderPipelineBuilder::buildPipeline(
             presentation, features, activeScene != nullptr).appPassOrder;

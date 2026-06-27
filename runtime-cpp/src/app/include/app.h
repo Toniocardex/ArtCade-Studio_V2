@@ -103,6 +103,8 @@ private:
     /** Per-render-frame tail: profiler counts, draw, console flush, input reset. */
     void tickFrameEnd();
     void renderActiveScene();
+    /** Sole presentation commit path before each rendered frame. */
+    void commitPresentationFrame();
 
     float targetDt_        = 1.f / 60.f;
     float accumulator_      = 0.f;          // Persistent across frames for WASM.
