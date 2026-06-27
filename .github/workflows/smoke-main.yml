@@ -40,12 +40,9 @@ jobs:
         run: choco install ninja -y
 
       - name: Configure native tests
+        shell: cmd
         working-directory: runtime-cpp
-        run: >
-          cmake -S . -B build-native -G Ninja
-          -DCMAKE_BUILD_TYPE=Release
-          -DCMAKE_POLICY_VERSION_MINIMUM=3.5
-          -DARTCADE_BUILD_TESTS=ON
+        run: cmake -S . -B build-native -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DARTCADE_BUILD_TESTS=ON
 
       - name: Build native tests
         working-directory: runtime-cpp
