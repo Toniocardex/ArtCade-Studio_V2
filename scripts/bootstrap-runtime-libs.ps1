@@ -51,9 +51,24 @@ if (-not (Test-Path $jsonHeader)) {
         -UseBasicParsing
 }
 
+function Get-Sha256Hex([string]$path) {
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $stream = [System.IO.File]::OpenRead($path)
+        try {
+            $bytes = $sha.ComputeHash($stream)
+            return ([BitConverter]::ToString($bytes) -replace '-', '').ToLower()
+        } finally {
+            $stream.Close()
+        }
+    } finally {
+        $sha.Dispose()
+    }
+}
+
 function Download-Verified($uri, $outFile, $expectedSha256) {
     Invoke-WebRequest -Uri $uri -OutFile $outFile -UseBasicParsing
-    $actual = (Get-FileHash -Algorithm SHA256 $outFile).Hash.ToLower()
+    $actual = Get-Sha256Hex $outFile
     if ($actual -ne $expectedSha256) {
         Remove-Item -LiteralPath $outFile -Force
         throw "Integrity check failed for $uri`n  expected $expectedSha256`n  got      $actual"

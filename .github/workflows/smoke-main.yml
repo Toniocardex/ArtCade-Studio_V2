@@ -32,7 +32,7 @@ jobs:
         run: npm -w editor test -- --run
 
       - name: Bootstrap runtime libs
-        run: npm run setup:runtime-libs
+        run: pwsh -ExecutionPolicy Bypass -File scripts/bootstrap-runtime-libs.ps1
 
       - uses: ilammy/msvc-dev-cmd@v1
 
