@@ -53,19 +53,19 @@ Professional contract status for release blockers. Each item is **Not started**,
 |------|-------|-------------------|
 | UI runtime (menu/HUD) | Not started | Canvas UI distinct from editor chrome |
 | Input actions | Not started | Action map, not raw key codes in Logic Board |
-| Golden project `platformer-basic` | Not started | Vertical slice + CI smoke |
+| Golden project `platformer-basic` | Not started | Vertical slice + local smoke script |
 
 ## Tests / Gates
 
 | Gate | State |
 |------|-------|
-| `smoke-main` (editor + C++ + WASM + desktop) | Partial — pinned Emscripten 5.0.7 |
+| Local verify (`npm test`, C++ ctest, WASM, desktop) | Partial — manual / `npm run verify` |
 | Editor unit tests (1200+) | Release-ready |
 | Scene/lifecycle C++ tests | Release-ready |
 
 ## Current release blockers (ordered)
 
-1. `smoke-main` green on GitHub Actions
+1. Project boot sync confirmed (runtime loads scene before JS latch)
 2. Project save backup + recovery UX
 3. Migration chain with fixtures
 4. Stable asset ID contract end-to-end
