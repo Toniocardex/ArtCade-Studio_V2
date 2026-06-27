@@ -40,9 +40,8 @@ export function visibleWorldCenterFromSnapshot(
 /** CSS zoom from snapshot world-units-per-css-pixel field. */
 export function editorZoomCssFromSnapshot(
   snapshot: PresentationSnapshot,
-  devicePixelRatio: number,
+  _devicePixelRatio: number,
 ): number {
-  const dpr = devicePixelRatio > 0 ? devicePixelRatio : 1
   const z = snapshot.surfacePixelsPerWorldUnit > 0
     ? snapshot.surfacePixelsPerWorldUnit
     : 1
