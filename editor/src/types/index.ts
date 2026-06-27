@@ -388,7 +388,13 @@ export interface AssetVirtualFolderDef {
 export interface ProjectDoc {
   projectName:    string
   version:        string
-  /** 2 = objectTypes + scene instances on disk; entities are materialized in memory. */
+  /** Stable document identity; persisted across renames and moves. */
+  projectId?:     string
+  /** Persisted schema revision (`projectFormatVersion` on disk). */
+  projectFormatVersion?: number
+  /** ArtCade Studio build that last saved this file (not a schema version). */
+  engineVersion?: string
+  /** Legacy alias of `projectFormatVersion`; kept for runtime compatibility. */
   formatVersion?: number
   licenseTier?:   'free' | 'pro'
   world?:         WorldSettings

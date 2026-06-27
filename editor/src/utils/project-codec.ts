@@ -25,6 +25,10 @@ import {
   PROJECT_FORMAT_V4,
   entityToObjectType,
 } from './project-object-types'
+import {
+  CURRENT_PROJECT_FORMAT_VERSION,
+  EDITOR_ENGINE_VERSION,
+} from './project-format'
 import { PROTOTYPE_SPRITE_SIZE } from './prototype-sprite'
 import { normalizeTilemapLayer } from './tilemap-layer-sources'
 
@@ -38,14 +42,18 @@ const viewportSizeArray = (): [number, number] => [DEFAULT_VIEWPORT_SIZE.x, DEFA
 export function unsupportedProjectFormatMessage(jsonStr: string): string | null {
   try {
     const raw = JSON.parse(jsonStr) as Record<string, unknown>
-    const versionRaw = raw.formatVersion ?? raw.format_version
+    const versionRaw =
+      raw.projectFormatVersion
+      ?? raw.project_format_version
+      ?? raw.formatVersion
+      ?? raw.format_version
     if (versionRaw == null) return null
     const version = Number(versionRaw)
-    if (!Number.isFinite(version) || version <= PROJECT_FORMAT_V4) return null
+    if (!Number.isFinite(version) || version <= CURRENT_PROJECT_FORMAT_VERSION) return null
     return (
       `Cannot open this project.\n\n` +
       `Project format v${version} is newer than this editor supports ` +
-      `(current: v${PROJECT_FORMAT_V4}).\n\n` +
+      `(current: v${CURRENT_PROJECT_FORMAT_VERSION}).\n\n` +
       `Update ArtCade Studio, then open the project again.`
     )
   } catch {
@@ -926,6 +934,9 @@ export function parseProjectDocWithMeta(jsonStr: string): ParseProjectDocResult 
     }
 
     const formatVersion = Number(raw.formatVersion ?? raw.format_version) || undefined
+    const projectFormatVersion = Number(
+      raw.projectFormatVersion ?? raw.project_format_version ?? formatVersion,
+    ) || undefined
 
     const logicBoardsParsed: ParseLogicBoardsResult = parseLogicBoardsWithIssues(
       raw.logicBoards ?? raw.logic_boards,
@@ -936,6 +947,17 @@ export function parseProjectDocWithMeta(jsonStr: string): ParseProjectDocResult 
     const base: ProjectDoc = {
       projectName:    String(raw.projectName ?? raw.project_name ?? 'Untitled'),
       version:        String(raw.version ?? '1.0.0'),
+      ...(typeof raw.projectId === 'string' && raw.projectId.trim()
+        ? { projectId: raw.projectId.trim() }
+        : typeof raw.project_id === 'string' && raw.project_id.trim()
+          ? { projectId: String(raw.project_id).trim() }
+          : {}),
+      ...(projectFormatVersion ? { projectFormatVersion } : {}),
+      ...(typeof raw.engineVersion === 'string' && raw.engineVersion.trim()
+        ? { engineVersion: raw.engineVersion.trim() }
+        : typeof raw.engine_version === 'string' && raw.engine_version.trim()
+          ? { engineVersion: String(raw.engine_version).trim() }
+          : {}),
       ...(formatVersion ? { formatVersion } : {}),
       licenseTier:    (() => {
                        const tier = String(raw.licenseTier ?? raw.license_tier ?? 'free')
@@ -1177,6 +1199,9 @@ export function serializeProjectDoc(project: ProjectDoc): string {
   )
 
   const json = {
+    projectFormatVersion: CURRENT_PROJECT_FORMAT_VERSION,
+    projectId:          v2.projectId ?? crypto.randomUUID(),
+    engineVersion:      EDITOR_ENGINE_VERSION,
     projectName:    v2.projectName,
     version:        v2.version,
     formatVersion:  PROJECT_FORMAT_V4,

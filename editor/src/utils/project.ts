@@ -5,6 +5,8 @@
 // focused modules grouped by responsibility.
 // ---------------------------------------------------------------------------
 
+export * from './project-format'
+export * from './project-document'
 export * from './project-builders'
 export * from './project-codec'
 export * from './project-factory'

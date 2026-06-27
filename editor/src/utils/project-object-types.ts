@@ -18,9 +18,10 @@ import {
 import { normalizePrototypeSprites } from './prototype-sprite-resolve'
 import { normalizeAssetRefs } from './normalize-asset-refs'
 import { resolveEntitiesForRuntime } from './sprite-pivot-resolve'
+import { PROJECT_FORMAT_V4 } from './project-format'
 
 export const PROJECT_FORMAT_V3 = 3
-export const PROJECT_FORMAT_V4 = 4
+export { PROJECT_FORMAT_V4 }
 
 const GENERIC_CLASS = new Set(['Entity', 'Unknown', ''])
 

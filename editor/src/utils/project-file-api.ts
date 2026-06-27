@@ -6,11 +6,14 @@ import type { ProjectDoc } from '../types'
 import {
   dirName,
   parseProjectDoc,
-  parseProjectDocWithMeta,
   safeProjectFolderName,
   serializeProjectDoc,
-  unsupportedProjectFormatMessage,
 } from './project'
+import {
+  loadProjectDocument,
+  ProjectLoadError,
+  validateSerializedProjectDocument,
+} from './project-document'
 import { validateProjectBeforeSave } from './logic-board/validate-project'
 import { importArtcadePackage, isArtcadePackagePath, type LoadedProjectFile } from './artcade-package'
 import { joinPath } from './file-paths'
@@ -183,10 +186,11 @@ export async function loadProjectFile(path: string): Promise<ProjectDoc | null> 
   try {
     await registerProjectFsScope(path)
     const content = await readTextFile(path)
-    const project = parseProjectDoc(content)
-    if (project) assertProjectPathsSafe(project)
+    const { project } = loadProjectDocument(content)
+    assertProjectPathsSafe(project)
     return project
   } catch (err) {
+    if (err instanceof ProjectLoadError) throw err
     console.error('[api] loadProjectFile failed:', err)
     return null
   }
@@ -201,10 +205,7 @@ export async function loadProjectFromPath(path: string): Promise<LoadedProjectFi
   if (!isTauri()) { notAvailable('loadProjectFromPath'); return null }
   try {
     const content = await readTextFile(path)
-    const unsupportedFormat = unsupportedProjectFormatMessage(content)
-    if (unsupportedFormat) throw new Error(unsupportedFormat)
-    const parsed = parseProjectDocWithMeta(content)
-    if (!parsed) return null
+    const parsed = loadProjectDocument(content)
     const { project, logicBoardLoadIssues } = parsed
     assertProjectPathsSafe(project)
     const missingAssets = await missingReferencedAssetPaths(projectRootFromProjectPath(path), project)
@@ -271,7 +272,9 @@ export async function saveProjectFile(path: string, project: ProjectDoc): Promis
 
   const projectRoot = projectRootFromProjectPath(path)
   const pendingPaths = await persistReferencedAssets(projectRoot, project)
-  await invokeWriteFile(path, serializeProjectDoc(project), projectRoot)
+  const serialized = serializeProjectDoc(project)
+  validateSerializedProjectDocument(serialized)
+  await invokeWriteFile(path, serialized, projectRoot)
   commitPendingAssets(pendingPaths)
 }
 
