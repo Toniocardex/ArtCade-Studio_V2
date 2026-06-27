@@ -162,7 +162,6 @@ export function EditorProvider({ children }: { children: ReactNode }) {
       const normalizedAction: Action = {
         ...action,
         project: normalized.project,
-        migratedFromLegacy: action.migratedFromLegacy ?? normalized.migratedFromLegacy,
       }
       runLoadProjectSideEffects(action.path, normalizedAction.project)
       coreDi(normalizedAction)

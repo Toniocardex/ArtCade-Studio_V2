@@ -59,7 +59,6 @@ export const projectReducer: DomainReducer = (state: CoreState, action: Action) 
         editorZoomMode:   'manual',
         cameraPreview:    false,
         projectLoadEpoch: state.projectLoadEpoch + 1,
-        legacyMigrateBanner: action.migratedFromLegacy ?? normalized.migratedFromLegacy,
         projectHistory: emptyProjectHistory(),
         logicPreviewAppliedRevision: null,
         dialogs: action.dialogs ?? {},
@@ -70,8 +69,6 @@ export const projectReducer: DomainReducer = (state: CoreState, action: Action) 
         spritesheetStudio: { open: false, imageAssetId: null },
       }
     }
-    case 'DISMISS_LEGACY_MIGRATE_BANNER':
-      return { ...state, legacyMigrateBanner: false }
     case 'PROJECT_RENAME': {
       if (!state.project) return state
       const projectName = safeProjectFolderName(action.name, 'Untitled')

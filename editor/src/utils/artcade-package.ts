@@ -16,7 +16,6 @@ import { invokeTauri } from './tauri-invoke'
 export interface LoadedProjectFile {
   project: ProjectDoc
   path: string
-  migratedFromLegacy?: boolean
   logicBoardLoadIssues?: LogicBoardLoadIssue[]
   openWarnings?: string[]
 }
@@ -49,24 +48,6 @@ async function toPlainZipBytes(bytes: Uint8Array): Promise<Uint8Array> {
   return new Uint8Array(plain)
 }
 
-/** True when package JSON had no objectTypes but normalize added them from legacy entities. */
-export function detectLegacyMigrationFromPackageJson(
-  projectJson: string,
-  project: ProjectDoc,
-): boolean {
-  let raw: { objectTypes?: unknown; object_types?: unknown }
-  try {
-    raw = JSON.parse(projectJson) as { objectTypes?: unknown; object_types?: unknown }
-  } catch {
-    return false
-  }
-  return (
-    !raw.objectTypes
-    && !raw.object_types
-    && Boolean(project.objectTypes && Object.keys(project.objectTypes).length > 0)
-  )
-}
-
 export async function importArtcadePackage(packagePath: string): Promise<LoadedProjectFile | null> {
   if (!isTauri()) {
     console.warn('[api] importArtcadePackage: Tauri not available in browser mode')
@@ -93,7 +74,6 @@ export async function importArtcadePackage(packagePath: string): Promise<LoadedP
     }
     const { project, logicBoardLoadIssues } = parsed
     assertProjectPathsSafe(project)
-    const migratedFromLegacy = detectLegacyMigrationFromPackageJson(projectJson, project)
 
     const importRoot = await uniqueImportRoot(packagePath, project.projectName)
     for (const entry of entries) {
@@ -107,7 +87,6 @@ export async function importArtcadePackage(packagePath: string): Promise<LoadedP
     return {
       project,
       path: joinPath(importRoot, 'project.json'),
-      ...(migratedFromLegacy ? { migratedFromLegacy: true } : {}),
       ...(logicBoardLoadIssues.length > 0 ? { logicBoardLoadIssues } : {}),
     }
   } catch (err) {

@@ -103,8 +103,6 @@ export interface CoreState {
    * runtime reset, etc.).
    */
   projectLoadEpoch: number
-  /** True once after opening a legacy project upgraded to format v2 in memory. */
-  legacyMigrateBanner?: boolean
   /** UI presentation tier: guidance/density only (see LOGIC_BOARD_UX_CHARTER). */
   authoringMode: AuthoringMode
   /** Dialog scripts keyed by dialogId (persisted as dialogs/*.json). */
@@ -183,11 +181,9 @@ export type Action =
       type: 'LOAD_PROJECT'
       project: ProjectDoc
       path: string
-      migratedFromLegacy?: boolean
       dialogs?: Record<string, DialogScript>
       selectedDialogId?: string | null
     }
-  | { type: 'DISMISS_LEGACY_MIGRATE_BANNER' }
   | { type: 'PROJECT_RENAME';    name: string }
   | { type: 'PROJECT_VARIABLES_SET'; variables: GameVariableDefinition[] }
   | { type: 'MARK_PROJECT_SAVED' }

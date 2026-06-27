@@ -346,8 +346,11 @@
 .editor-statusbar {
   min-height: 1.625em;
   padding: 0.25em 1.25em;
-  border-top: 1px solid var(--border);
-  background: var(--bg-window);
+  /* Accent band: a small, permanent splash of the editor's blue so the dark
+     shell isn't uniformly flat. Muted tint + a stronger top edge to lift it
+     off the canvas — same recipe as the (now retired) migration banner. */
+  border-top: 1px solid rgb(var(--accent-rgb) / 0.5);
+  background: var(--accent-muted);
   font-family: var(--font-mono);
   font-size: 0.6875em;
   color: var(--muted);

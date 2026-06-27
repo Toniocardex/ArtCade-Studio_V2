@@ -116,7 +116,6 @@ export function useFileMenuActions({
       type: 'LOAD_PROJECT',
       project: loaded.project,
       path: loaded.path,
-      migratedFromLegacy: loaded.migratedFromLegacy,
       dialogs: loadedDialogs,
       selectedDialogId: dialogIds[0] ?? null,
     })

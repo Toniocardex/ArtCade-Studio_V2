@@ -24,11 +24,6 @@ export const PROJECT_FORMAT_V4 = 4
 
 const GENERIC_CLASS = new Set(['Entity', 'Unknown', ''])
 
-/** Editor-only flag after legacy import (not persisted). */
-export type ProjectLoadMeta = {
-  migratedFromLegacy?: boolean
-}
-
 export function effectiveTypeId(entity: EntityDef): string {
   const cn = entity.className?.trim() ?? ''
   if (cn && !GENERIC_CLASS.has(cn)) return cn
@@ -262,10 +257,7 @@ export function isV2ObjectModel(project: ProjectDoc): boolean {
 }
 
 /** Normalize after parse: ensure v2 fields + materialized entities cache. */
-export function normalizeProjectDoc(project: ProjectDoc): {
-  project: ProjectDoc
-  migratedFromLegacy: boolean
-} {
+export function normalizeProjectDoc(project: ProjectDoc): { project: ProjectDoc } {
   if (isV2ObjectModel(project)) {
     let normalized = project
     const fmt = project.formatVersion ?? 0
@@ -281,10 +273,10 @@ export function normalizeProjectDoc(project: ProjectDoc): {
     normalized = normalizeAssetRefs(normalized).project
     const entities = materializeAllEntities(normalized)
     syncAllSceneEntityIds(normalized)
-    return { project: { ...normalized, entities }, migratedFromLegacy: false }
+    return { project: { ...normalized, entities } }
   }
   const migrated = migrateLegacyProject(project)
-  return { project: migrated, migratedFromLegacy: true }
+  return { project: migrated }
 }
 
 /**
