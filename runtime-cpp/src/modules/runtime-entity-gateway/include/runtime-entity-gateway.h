@@ -260,6 +260,16 @@ public:
 
     bool isEntityActiveInScene(EntityId id) const;
 
+    /**
+     * Restores entity state for @p sceneId from current authored definitions.
+     * Destroys all runtime entities owned by the scene, recreates authored
+     * instances, then syncs activation. Does not touch camera, collision
+     * world, renderer, or global managers.
+     * @param sceneId target scene (must exist in SceneManager)
+     * @returns false when the scene is unknown or restore fails
+     */
+    bool restoreSceneFromAuthoring(const SceneId& sceneId);
+
 private:
     SceneManager&  sceneManager_;
     Physics*       physics_ = nullptr;
@@ -285,6 +295,9 @@ private:
 
     SceneLifecycleService* lifecycle_ = nullptr;
 
+    std::unordered_map<SceneId, std::vector<EntityId>> sceneAuthoredEntityIds_;
+    std::unordered_map<EntityId, SceneId> entitySceneOwner_;
+
     std::vector<PhysicsLayerDef> physicsLayers_;
     std::unordered_map<std::string, CollisionProfileDef> collisionProfiles_;
     std::unordered_map<std::string, std::string> spritePathToAssetId_;
@@ -305,6 +318,12 @@ private:
     void applyEntityDefToRegistry(EntityId id, const EntityDef& def);
     /** After registry apply; before lifecycle Lua drain in the same frame. */
     void maybePlaySpawnClip(EntityId id, const SpriteComponent& sprite);
+    void captureSceneOwnershipFromScenes(
+        const std::unordered_map<SceneId, SceneDef>& scenes);
+    std::vector<EntityId> entitiesOwnedByScene(const SceneId& sceneId) const;
+    EntityId createAuthoredEntityForScene(
+        EntityId authoredId, const EntityDef& def, const SceneId& sceneId);
+    void assignEntitySceneOwner(EntityId id, const SceneId& sceneId);
 };
 
 } // namespace ArtCade::Modules

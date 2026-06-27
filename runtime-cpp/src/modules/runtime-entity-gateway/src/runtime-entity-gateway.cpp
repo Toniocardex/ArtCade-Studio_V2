@@ -145,6 +145,80 @@ bool RuntimeEntityGateway::entityListedInActiveScene(EntityId id) const {
            != scene->entityIds.end();
 }
 
+void RuntimeEntityGateway::captureSceneOwnershipFromScenes(
+    const std::unordered_map<SceneId, SceneDef>& scenes)
+{
+    for (const auto& [sceneId, sceneDef] : scenes) {
+        sceneAuthoredEntityIds_[sceneId] = sceneDef.entityIds;
+        for (EntityId entityId : sceneDef.entityIds)
+            entitySceneOwner_[entityId] = sceneId;
+    }
+}
+
+void RuntimeEntityGateway::assignEntitySceneOwner(
+    EntityId id, const SceneId& sceneId)
+{
+    if (id == 0 || sceneId.empty()) return;
+    entitySceneOwner_[id] = sceneId;
+}
+
+std::vector<EntityId> RuntimeEntityGateway::entitiesOwnedByScene(
+    const SceneId& sceneId) const
+{
+    std::vector<EntityId> out;
+    for (const auto& [entityId, owner] : entitySceneOwner_) {
+        if (owner == sceneId)
+            out.push_back(entityId);
+    }
+    return out;
+}
+
+EntityId RuntimeEntityGateway::createAuthoredEntityForScene(
+    EntityId authoredId, const EntityDef& def, const SceneId& sceneId)
+{
+    EntityDef copy = def;
+    copy.runtime.sceneActive = false;
+    copy.physics.physicsHandle = 0;
+    const EntityId runtimeId = registry_->allocate(authoredId);
+    copy.id = runtimeId;
+
+    assignEntitySceneOwner(runtimeId, sceneId);
+    registry_->setSceneActive(
+        runtimeId, sceneManager_.activeSceneId() == sceneId);
+    applyEntityDefToRegistry(runtimeId, copy);
+    if (createdHandler_) createdHandler_(runtimeId, copy);
+
+    if (registry_->sceneActive(runtimeId)) {
+        ensurePhysicsBody(runtimeId);
+        maybePlaySpawnClip(runtimeId, copy.sprite);
+    }
+    return runtimeId;
+}
+
+bool RuntimeEntityGateway::restoreSceneFromAuthoring(const SceneId& sceneId) {
+    if (!sceneManager_.getScene(sceneId)) return false;
+
+    const auto authoredIt = sceneAuthoredEntityIds_.find(sceneId);
+    if (authoredIt == sceneAuthoredEntityIds_.end()) return false;
+
+    const std::vector<EntityId> toDestroy = entitiesOwnedByScene(sceneId);
+    for (EntityId id : toDestroy)
+        destroy(id);
+
+    SceneDef* mutableScene = sceneManager_.getSceneMutable(sceneId);
+    if (!mutableScene) return false;
+    mutableScene->entityIds = authoredIt->second;
+
+    for (EntityId authoredId : authoredIt->second) {
+        const EntityDef* def = sceneManager_.getEntityDef(authoredId);
+        if (!def) continue;
+        createAuthoredEntityForScene(authoredId, *def, sceneId);
+    }
+
+    syncSceneActivation();
+    return true;
+}
+
 bool RuntimeEntityGateway::isEntityActiveInScene(EntityId id) const {
     return registry_->contains(id) && registry_->sceneActive(id);
 }
@@ -315,6 +389,15 @@ EntityId RuntimeEntityGateway::create(const EntityDef& def) {
     applyEntityDefToRegistry(id, copy);
     if (createdHandler_) createdHandler_(id, copy);
 
+    if (const SceneId owner = sceneManager_.activeSceneId(); !owner.empty()) {
+        assignEntitySceneOwner(id, owner);
+        if (SceneDef* scene = sceneManager_.activeSceneMutable()) {
+            if (std::find(scene->entityIds.begin(), scene->entityIds.end(), id)
+                == scene->entityIds.end())
+                scene->entityIds.push_back(id);
+        }
+    }
+
     if (registry_->sceneActive(id)) {
         ensurePhysicsBody(id);
         maybePlaySpawnClip(id, copy.sprite);
@@ -352,6 +435,7 @@ EntityId RuntimeEntityGateway::spawnFromClass(const std::string& className, floa
             == scene->entityIds.end())
             scene->entityIds.push_back(id);
     }
+    assignEntitySceneOwner(id, sceneManager_.activeSceneId());
     activateEntity(id);
 
     char buf[96];
@@ -373,6 +457,7 @@ void RuntimeEntityGateway::destroy(EntityId id) {
     // so anything not cleaned here leaks across recycled lifetimes.
     if (destroyHandler_) destroyHandler_(id);
 
+    entitySceneOwner_.erase(id);
     sceneManager_.removeEntityFromAllScenes(id);
     // No explicit teardownPhysicsBody: registry_->erase fires the
     // on_destroy<PhysicsHandleComp> signal which frees the physics body
@@ -897,6 +982,7 @@ void RuntimeEntityGateway::registerScenes(
     const std::unordered_map<EntityId, EntityDef>& /*entityDefs*/)
 {
     sceneManager_.registerScenes(scenes, {});
+    captureSceneOwnershipFromScenes(scenes);
 }
 
 bool RuntimeEntityGateway::replaceProject(
@@ -916,8 +1002,11 @@ bool RuntimeEntityGateway::replaceProject(
     }
     registry_->clear();
     persistentEntityIds_.clear();
+    entitySceneOwner_.clear();
+    sceneAuthoredEntityIds_.clear();
     rebuildClassPrototypes(entityDefs, objectTypes);
     sceneManager_.registerScenes(scenes, entityDefs);
+    captureSceneOwnershipFromScenes(scenes);
     for (const auto& [id, def] : entityDefs) {
         EntityDef copy = def;
         copy.runtime.sceneActive = false;
