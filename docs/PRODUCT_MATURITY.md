@@ -8,7 +8,7 @@ Professional contract status for release blockers. Each item is **Not started**,
 |------|-------|-------------------|
 | Project format version + validator | Partial | `projectFormatVersion`, `projectId`, `engineVersion` on save; `loadProjectDocument()` with distinct errors |
 | Atomic safe-save + backup | Partial | `.bak` rotation on save; recovery prompt on open |
-| Migration chain | Not started | Explicit `migrateVnToVm` + fixtures per version |
+| Migration chain | Partial | Explicit `migrateVnToVm` + fixtures v0–v3 |
 | Recovery at startup | Partial | User chooses recovery / saved / discard on open |
 
 ## Authoring Integrity

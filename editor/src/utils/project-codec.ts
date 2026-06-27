@@ -26,6 +26,9 @@ import {
   entityToObjectType,
 } from './project-object-types'
 import {
+  migrateProjectDocToVersion,
+} from './project-migrations'
+import {
   CURRENT_PROJECT_FORMAT_VERSION,
   EDITOR_ENGINE_VERSION,
 } from './project-format'
@@ -883,7 +886,15 @@ export interface ParseProjectDocResult {
  * Handles Vec2/Vec4 as either `[x,y]` arrays or `{x,y}` objects.
  * Returns null if the JSON is invalid or missing required fields.
  */
-export function parseProjectDocWithMeta(jsonStr: string): ParseProjectDocResult | null {
+export type ParseProjectDocOptions = {
+  /** On-disk format revision before JSON envelope migration (load pipeline). */
+  migrationFromVersion?: number
+}
+
+export function parseProjectDocWithMeta(
+  jsonStr: string,
+  options?: ParseProjectDocOptions,
+): ParseProjectDocResult | null {
   try {
     const raw = JSON.parse(jsonStr) as Record<string, unknown>
     const unsupportedFormat = unsupportedProjectFormatMessage(jsonStr)
@@ -990,7 +1001,9 @@ export function parseProjectDocWithMeta(jsonStr: string): ParseProjectDocResult 
       ...(collisionProfiles ? { collisionProfiles } : {}),
     }
 
-    const { project } = normalizeProjectDoc(base)
+    const { project } = normalizeProjectDoc(base, {
+      migrationFromVersion: options?.migrationFromVersion,
+    })
     return { project, logicBoardLoadIssues: logicBoardsParsed.issues }
   } catch (err) {
     console.error('[project-codec] Failed to parse project.json:', err)
@@ -998,8 +1011,11 @@ export function parseProjectDocWithMeta(jsonStr: string): ParseProjectDocResult 
   }
 }
 
-export function parseProjectDoc(jsonStr: string): ProjectDoc | null {
-  return parseProjectDocWithMeta(jsonStr)?.project ?? null
+export function parseProjectDoc(
+  jsonStr: string,
+  options?: ParseProjectDocOptions,
+): ProjectDoc | null {
+  return parseProjectDocWithMeta(jsonStr, options)?.project ?? null
 }
 
 function serializeCollisionShape(shape: CollisionShapeDef) {

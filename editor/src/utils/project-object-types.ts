@@ -12,13 +12,10 @@ import type {
 } from '../types'
 import { COMPONENT_KEYS } from '../types/components'
 import { createEntityDef } from './project-builders'
-import {
-  migrateProjectToPrototypeSprites,
-} from './prototype-sprite'
-import { normalizePrototypeSprites } from './prototype-sprite-resolve'
 import { normalizeAssetRefs } from './normalize-asset-refs'
 import { resolveEntitiesForRuntime } from './sprite-pivot-resolve'
 import { PROJECT_FORMAT_V4 } from './project-format'
+import { migrateProjectDocToVersion } from './project-migrations'
 
 export const PROJECT_FORMAT_V3 = 3
 export { PROJECT_FORMAT_V4 }
@@ -257,27 +254,26 @@ export function isV2ObjectModel(project: ProjectDoc): boolean {
   )
 }
 
-/** Normalize after parse: ensure v2 fields + materialized entities cache. */
-export function normalizeProjectDoc(project: ProjectDoc): { project: ProjectDoc } {
-  if (isV2ObjectModel(project)) {
-    let normalized = project
-    const fmt = project.formatVersion ?? 0
-    if (fmt < PROJECT_FORMAT_V4) {
-      const migrated = migrateProjectToPrototypeSprites(normalized)
-      normalized = {
-        ...(migrated.changed ? migrated.project : normalized),
-        formatVersion: PROJECT_FORMAT_V4,
-      }
-    }
-    const protoNorm = normalizePrototypeSprites(normalized)
-    normalized = protoNorm.project
-    normalized = normalizeAssetRefs(normalized).project
-    const entities = materializeAllEntities(normalized)
-    syncAllSceneEntityIds(normalized)
-    return { project: { ...normalized, entities } }
-  }
-  const migrated = migrateLegacyProject(project)
-  return { project: migrated }
+function finalizeProjectDoc(project: ProjectDoc): ProjectDoc {
+  if (!isV2ObjectModel(project)) return project
+  const normalized = normalizeAssetRefs(project).project
+  const entities = materializeAllEntities(normalized)
+  syncAllSceneEntityIds(normalized)
+  return { ...normalized, entities }
+}
+
+/** Normalize after parse: explicit format migration + materialized entities cache. */
+export function normalizeProjectDoc(
+  project: ProjectDoc,
+  options?: { migrationFromVersion?: number },
+): { project: ProjectDoc } {
+  const stampedVersion = project.projectFormatVersion ?? project.formatVersion ?? 0
+  const fromVersion = options?.migrationFromVersion ?? stampedVersion
+  const effectiveFrom = !isV2ObjectModel(project) && fromVersion <= 1
+    ? 1
+    : fromVersion
+  const migrated = migrateProjectDocToVersion(project, effectiveFrom)
+  return { project: finalizeProjectDoc(migrated) }
 }
 
 /**

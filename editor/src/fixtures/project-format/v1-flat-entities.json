@@ -1,0 +1,45 @@
+{
+  "projectName": "Fixture V1",
+  "version": "1.0.0",
+  "formatVersion": 1,
+  "targetFPS": 60,
+  "activeSceneId": "scene_main",
+  "mainScriptPath": "scripts/main.lua",
+  "entities": {
+    "1": {
+      "id": 1,
+      "name": "Player",
+      "className": "Player",
+      "transform": {
+        "position": { "x": 10, "y": 20 },
+        "scale": { "x": 1, "y": 1 },
+        "rotation": 0
+      },
+      "sprite": {
+        "spriteAssetId": "",
+        "tint": { "x": 1, "y": 1, "z": 1, "w": 1 },
+        "fillColor": { "x": 0.3, "y": 0.6, "z": 1 },
+        "alpha": 1,
+        "pivot": { "x": 0.5, "y": 0.5 },
+        "renderOrder": 0
+      }
+    }
+  },
+  "scenes": {
+    "scene_main": {
+      "id": "scene_main",
+      "name": "Main Scene",
+      "worldSize": { "x": 1280, "y": 720 },
+      "viewportSize": { "x": 1280, "y": 720 },
+      "backgroundColor": { "x": 0.082, "y": 0.09, "z": 0.11, "w": 1 },
+      "entityIds": [1]
+    }
+  },
+  "world": {
+    "gravity": 9.8,
+    "pixelsPerMeter": 32,
+    "timeScale": 1,
+    "physicsMode": "auto",
+    "outputPolicy": "fit"
+  }
+}

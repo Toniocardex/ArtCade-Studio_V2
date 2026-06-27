@@ -19,6 +19,9 @@ import {
   CURRENT_PROJECT_FORMAT_VERSION,
   EDITOR_ENGINE_VERSION,
 } from './project-format'
+import {
+  migrateProjectJsonRoot,
+} from './project-migrations'
 
 export { CURRENT_PROJECT_FORMAT_VERSION, EDITOR_ENGINE_VERSION } from './project-format'
 
@@ -98,7 +101,9 @@ function ensureProjectId(project: ProjectDoc, raw: Record<string, unknown>): Pro
 }
 
 function ensureDocumentMetadata(project: ProjectDoc, raw: Record<string, unknown>): ProjectDoc {
-  const projectFormatVersion = resolveProjectFormatVersion(raw) || undefined
+  const rawVersion = resolveProjectFormatVersion(raw)
+  const migratedVersion = project.projectFormatVersion ?? project.formatVersion ?? 0
+  const projectFormatVersion = Math.max(rawVersion, migratedVersion) || undefined
   const engineVersion =
     typeof raw.engineVersion === 'string' && raw.engineVersion.trim()
       ? raw.engineVersion.trim()
@@ -121,7 +126,12 @@ export function loadProjectDocument(jsonStr: string): ParseProjectDocResult {
   const raw = parseProjectJsonRoot(jsonStr)
   assertProjectFormatReadable(jsonStr)
 
-  const parsed = parseProjectDocWithMeta(jsonStr)
+  const migration = migrateProjectJsonRoot(raw)
+  const migratedJson = JSON.stringify(migration.raw)
+
+  const parsed = parseProjectDocWithMeta(migratedJson, {
+    migrationFromVersion: migration.fromVersion,
+  })
   if (!parsed) {
     throw new ProjectLoadError(
       'schema_invalid',
@@ -131,7 +141,7 @@ export function loadProjectDocument(jsonStr: string): ParseProjectDocResult {
 
   return {
     ...parsed,
-    project: ensureDocumentMetadata(parsed.project, raw),
+    project: ensureDocumentMetadata(parsed.project, migration.raw),
   }
 }
 
