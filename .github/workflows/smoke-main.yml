@@ -1,4 +1,5 @@
 # Minimal smoke gate on main: editor TS, WASM ABI, desktop build, native C++ tests.
+# Emscripten version must match the local toolchain validated by the team (see README).
 name: smoke-main
 
 on:
@@ -6,6 +7,9 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+
+env:
+  EMSDK_VERSION: "5.0.7"
 
 jobs:
   smoke:
@@ -51,15 +55,22 @@ jobs:
         working-directory: runtime-cpp
         run: ctest --test-dir build-native --output-on-failure -C Release
 
-      - name: Setup Emscripten
-        uses: mymindd/install-emsdk@v1
-        with:
-          version: latest
-
-      - name: Build WASM
+      - name: Setup Emscripten and build WASM
         shell: cmd
         working-directory: runtime-cpp
-        run: build_wasm.bat
+        run: |
+          git clone --depth 1 https://github.com/emscripten-core/emsdk.git "%RUNNER_TEMP%\emsdk"
+          call "%RUNNER_TEMP%\emsdk\emsdk.bat" install %EMSDK_VERSION%
+          call "%RUNNER_TEMP%\emsdk\emsdk.bat" activate %EMSDK_VERSION%
+          call "%RUNNER_TEMP%\emsdk\emsdk_env.bat"
+          set EMSDK=%RUNNER_TEMP%\emsdk
+          call build_wasm.bat
+
+      - name: Verify WASM outputs
+        shell: cmd
+        run: |
+          if not exist editor\public\runtime\game.wasm exit /b 1
+          if not exist editor\public\runtime\game.js exit /b 1
 
       - name: Desktop build
         run: npm run desktop:build
