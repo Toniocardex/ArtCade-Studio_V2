@@ -22,8 +22,8 @@ Professional contract status for release blockers. Each item is **Not started**,
 
 | Item | State | Definition of Done |
 |------|-------|-------------------|
-| Stable asset IDs | Partial | Image assets have `id`; path-only references still exist in places |
-| Rename/move without broken refs | Partial | Project-relative paths validated; full ID indirection pending |
+| Stable asset IDs | Partial | Save rewrites path refs to library ids; validator blocks path aliases |
+| Rename/move without broken refs | Partial | Path security skips stable ids; tileset paths still file-relative |
 
 ## Runtime Parity
 
@@ -53,7 +53,7 @@ Professional contract status for release blockers. Each item is **Not started**,
 |------|-------|-------------------|
 | UI runtime (menu/HUD) | Not started | Canvas UI distinct from editor chrome |
 | Input actions | Not started | Action map, not raw key codes in Logic Board |
-| Golden project `platformer-basic` | Not started | Vertical slice + local smoke script |
+| Golden project `platformer-basic` | Partial | `examples/platformer-basic/project.json` + load/validate test |
 
 ## Tests / Gates
 

@@ -14,6 +14,7 @@ import { COMPONENT_KEYS } from '../types/components'
 import { createEntityDef } from './project-builders'
 import { normalizeAssetRefs } from './normalize-asset-refs'
 import { resolveEntitiesForRuntime } from './sprite-pivot-resolve'
+import { normalizeAssetRefs } from './normalize-asset-refs'
 import { PROJECT_FORMAT_V4 } from './project-format'
 import { migrateProjectDocToVersion } from './project-migrations'
 
@@ -283,12 +284,13 @@ export function normalizeProjectDoc(
  * projects that never went through the v2 model (no objectTypes yet).
  */
 export function projectForSave(project: ProjectDoc): ProjectDoc {
-  if (isV2ObjectModel(project)) {
-    return { ...project, formatVersion: PROJECT_FORMAT_V4 }
+  const withStableRefs = normalizeAssetRefs(project).project
+  if (isV2ObjectModel(withStableRefs)) {
+    return { ...withStableRefs, formatVersion: PROJECT_FORMAT_V4 }
   }
-  const { objectTypes, scenes } = buildObjectModelFromEntities(project)
+  const { objectTypes, scenes } = buildObjectModelFromEntities(withStableRefs)
   return {
-    ...project,
+    ...withStableRefs,
     formatVersion: PROJECT_FORMAT_V4,
     objectTypes,
     scenes,

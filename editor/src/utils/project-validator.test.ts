@@ -58,7 +58,7 @@ describe('collectProjectDiagnostics', () => {
     expect(projectDiagnosticsErrors(collectProjectDiagnostics(p))).toHaveLength(0)
   })
 
-  it('accepts the image path stored by the sprite Inspector', () => {
+  it('flags path-shaped sprite refs when a stable library id exists', () => {
     const p = baseProject()
     const spritePath = 'assets/images/walking.png'
     p.assets = {
@@ -86,7 +86,8 @@ describe('collectProjectDiagnostics', () => {
     }]
     delete p.entities[1]!.physics
 
-    expect(projectDiagnosticsErrors(collectProjectDiagnostics(p))).toHaveLength(0)
+    const errors = projectDiagnosticsErrors(collectProjectDiagnostics(p))
+    expect(errors.some((e) => e.message.includes('stable asset id "img_walking"'))).toBe(true)
   })
 
   it('flags invalid activeSceneId', () => {

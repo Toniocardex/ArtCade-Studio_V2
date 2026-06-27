@@ -4,6 +4,7 @@
 
 import type { GameVariableDefinition, GameVariableValue, ProjectDoc } from '../types'
 import type { LogicBoard } from '../types/logic-board'
+import { stableImageAssetIdForRef } from './asset-ref-contract'
 import { imageAssetForRef } from './resolve-image-load-key'
 
 export type ProjectDiagnosticSeverity = 'error' | 'warn'
@@ -13,6 +14,24 @@ export interface ProjectDiagnostic {
   severity: ProjectDiagnosticSeverity
   /** Entity id, scene id, asset id, or board id when applicable. */
   context?: string
+}
+
+function collectPathBasedSpriteRefDiagnostics(
+  project: ProjectDoc,
+  context: string,
+  ref: string | undefined,
+  label: string,
+): ProjectDiagnostic[] {
+  const trimmed = ref?.trim()
+  if (!trimmed) return []
+  const stableId = stableImageAssetIdForRef(project, trimmed)
+  if (!stableId || stableId === trimmed) return []
+  return [{
+    severity: 'error',
+    context,
+    message:
+      `${label} uses path "${trimmed}" — save with stable asset id "${stableId}" instead.`,
+  }]
 }
 
 function objectTypeSpriteAssetId(project: ProjectDoc, typeId: string): string | undefined {
@@ -168,6 +187,12 @@ export function collectProjectDiagnostics(project: ProjectDoc): ProjectDiagnosti
         message: `Entity "${ent.name}" (#${numId}) references missing image asset "${sid}".`,
       })
     }
+    out.push(...collectPathBasedSpriteRefDiagnostics(
+      project,
+      `entity:${numId}`,
+      sid,
+      `Entity "${ent.name}" (#${numId})`,
+    ))
     const body = ent.physics?.bodyType
     if (body === 'Dynamic' || body === 'Kinematic') {
       if (!ent.physics?.collider) {
@@ -190,6 +215,12 @@ export function collectProjectDiagnostics(project: ProjectDoc): ProjectDiagnosti
         message: `Object type "${ot.displayName}" references missing image asset "${sid}".`,
       })
     }
+    out.push(...collectPathBasedSpriteRefDiagnostics(
+      project,
+      `objectType:${typeId}`,
+      sid,
+      `Object type "${ot.displayName}"`,
+    ))
   }
 
   for (const scene of Object.values(project.scenes ?? {})) {

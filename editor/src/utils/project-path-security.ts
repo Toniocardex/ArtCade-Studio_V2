@@ -1,4 +1,6 @@
 import type { ProjectDoc } from '../types'
+import { imageAssetForRef } from './resolve-image-load-key'
+import { isPathLikeAssetRef, isStableImageAssetRef } from './asset-ref-contract'
 
 const ABSOLUTE_PATH_RE = /^(?:[a-zA-Z]:[/\\]|[/\\]|\\\\)/
 const CONTROL_CHAR_RE = /[\u0000-\u001f]/
@@ -30,8 +32,16 @@ export function assertProjectPathsSafe(project: ProjectDoc): void {
     if (entity.scriptPath) {
       normalizeProjectRelativePath(entity.scriptPath, `entity "${entity.name}" scriptPath`)
     }
-    if (entity.sprite?.spriteAssetId) {
-      normalizeProjectRelativePath(entity.sprite.spriteAssetId, `entity "${entity.name}" spriteAssetId`)
+    const spriteRef = entity.sprite?.spriteAssetId?.trim()
+    if (spriteRef && isPathLikeAssetRef(spriteRef) && !isStableImageAssetRef(project, spriteRef)) {
+      normalizeProjectRelativePath(spriteRef, `entity "${entity.name}" spriteAssetId`)
+    }
+  }
+
+  for (const type of Object.values(project.objectTypes ?? {})) {
+    const spriteRef = type.sprite?.spriteAssetId?.trim()
+    if (spriteRef && isPathLikeAssetRef(spriteRef) && !isStableImageAssetRef(project, spriteRef)) {
+      normalizeProjectRelativePath(spriteRef, `object type "${type.displayName}" spriteAssetId`)
     }
   }
 

@@ -1,0 +1,235 @@
+{
+  "projectFormatVersion": 4,
+  "projectId": "golden-platformer-basic",
+  "engineVersion": "2.0.0",
+  "projectName": "Platformer Basic",
+  "version": "1.0.0",
+  "formatVersion": 4,
+  "licenseTier": "free",
+  "world": {
+    "gravity": 9.81,
+    "pixelsPerMeter": 100,
+    "timeScale": 1,
+    "physicsMode": "auto",
+    "outputPolicy": "fit"
+  },
+  "targetFPS": 60,
+  "activeSceneId": "scene_main",
+  "mainScriptPath": "scripts/main.lua",
+  "objectTypes": {
+    "Ground": {
+      "id": "Ground",
+      "displayName": "Ground",
+      "tags": [],
+      "sprite": {
+        "spriteAssetId": null,
+        "tint": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "fillColor": [
+          1,
+          1,
+          1
+        ],
+        "alpha": 1,
+        "renderOrder": 0,
+        "pivotFromAsset": true
+      },
+      "collisionBody": {
+        "bodyType": "static",
+        "enabled": true,
+        "shapes": [
+          {
+            "type": "rectangle",
+            "response": "solid",
+            "role": "body",
+            "layerId": "ground",
+            "maskLayerIds": [
+              "player",
+              "enemy",
+              "projectile"
+            ],
+            "offsetX": 0,
+            "offsetY": 0,
+            "width": 640,
+            "height": 32,
+            "radius": 16,
+            "enabled": true,
+            "oneWay": false,
+            "friction": 0.3,
+            "restitution": 0,
+            "density": 1
+          }
+        ]
+      }
+    },
+    "Player": {
+      "id": "Player",
+      "displayName": "Player",
+      "tags": [
+        "player"
+      ],
+      "sprite": {
+        "spriteAssetId": null,
+        "tint": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "fillColor": [
+          1,
+          1,
+          1
+        ],
+        "alpha": 1,
+        "renderOrder": 0,
+        "pivotFromAsset": true
+      },
+      "collisionBody": {
+        "bodyType": "kinematic",
+        "enabled": true,
+        "shapes": [
+          {
+            "type": "capsule",
+            "response": "solid",
+            "role": "body",
+            "layerId": "player",
+            "maskLayerIds": [
+              "ground",
+              "hazard",
+              "pickup",
+              "interaction"
+            ],
+            "offsetX": 0,
+            "offsetY": 0,
+            "width": 28,
+            "height": 36,
+            "radius": 14,
+            "enabled": true,
+            "oneWay": false,
+            "friction": 0.2,
+            "restitution": 0,
+            "density": 1
+          }
+        ]
+      },
+      "platformerController": {
+        "maxSpeed": 300,
+        "jumpForce": 600,
+        "customGravity": 1500,
+        "coyoteTime": 0.15,
+        "jumpBuffer": 0.1,
+        "climbSpeed": 120
+      }
+    }
+  },
+  "scenes": {
+    "scene_main": {
+      "id": "scene_main",
+      "name": "Main Scene",
+      "worldSize": [
+        512,
+        320
+      ],
+      "viewportSize": [
+        512,
+        320
+      ],
+      "backgroundColor": [
+        0.082,
+        0.09,
+        0.11,
+        1
+      ],
+      "instances": [
+        {
+          "id": 1,
+          "objectTypeId": "Player",
+          "transform": {
+            "position": [
+              200,
+              120
+            ],
+            "scale": [
+              1,
+              1
+            ],
+            "rotation": 0
+          }
+        },
+        {
+          "id": 2,
+          "objectTypeId": "Ground",
+          "transform": {
+            "position": [
+              320,
+              340
+            ],
+            "scale": [
+              1,
+              1
+            ],
+            "rotation": 0
+          }
+        }
+      ]
+    }
+  },
+  "physics": {
+    "layers": [
+      {
+        "id": "default",
+        "name": "Default",
+        "bit": 0,
+        "color": "#8B95A7"
+      },
+      {
+        "id": "player",
+        "name": "Player",
+        "bit": 1,
+        "color": "#38BDF8"
+      },
+      {
+        "id": "ground",
+        "name": "Ground",
+        "bit": 2,
+        "color": "#22C55E"
+      },
+      {
+        "id": "enemy",
+        "name": "Enemy",
+        "bit": 3,
+        "color": "#F97316"
+      },
+      {
+        "id": "pickup",
+        "name": "Pickup",
+        "bit": 4,
+        "color": "#FBBF24"
+      },
+      {
+        "id": "hazard",
+        "name": "Hazard",
+        "bit": 5,
+        "color": "#EF4444"
+      },
+      {
+        "id": "projectile",
+        "name": "Projectile",
+        "bit": 6,
+        "color": "#A78BFA"
+      },
+      {
+        "id": "interaction",
+        "name": "Interaction",
+        "bit": 7,
+        "color": "#14B8A6"
+      }
+    ]
+  }
+}
+
