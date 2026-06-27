@@ -1,0 +1,65 @@
+# Minimal smoke gate on main: editor TS, WASM ABI, desktop build, native C++ tests.
+name: smoke-main
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  smoke:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Editor tests
+        run: npm -w editor test -- --run
+
+      - name: Bootstrap runtime libs
+        run: npm run setup:runtime-libs
+
+      - uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install Ninja
+        run: choco install ninja -y
+
+      - name: Configure native tests
+        working-directory: runtime-cpp
+        run: >
+          cmake -S . -B build-native -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+          -DARTCADE_BUILD_TESTS=ON
+
+      - name: Build native tests
+        working-directory: runtime-cpp
+        run: cmake --build build-native
+
+      - name: Run C++ tests
+        working-directory: runtime-cpp
+        run: ctest --test-dir build-native --output-on-failure -C Release
+
+      - name: Setup Emscripten
+        uses: mymindd/install-emsdk@v1
+        with:
+          version: latest
+
+      - name: Build WASM
+        shell: cmd
+        working-directory: runtime-cpp
+        run: build_wasm.bat
+
+      - name: Desktop build
+        run: npm run desktop:build
