@@ -79,6 +79,14 @@ void Application::applyRuntimeSettings(const ProjectRuntimeSettings& settings,
 }
 
 #ifdef ARTCADE_WASM
+void Application::onProjectReplaced() {
+    if (!mod_->sceneMutation) return;
+    mod_->sceneMutation->bump_revision();
+    pendingSceneInvalidations_ |=
+        ArtCade::Modules::SceneInvalidation::SceneActivation
+        | ArtCade::Modules::SceneInvalidation::Collision;
+}
+
 void Application::applyEditorProjectCommon(
     const std::vector<TilePaletteEntry>& tilePalette,
     const std::vector<TilesetAsset>& tilesets,
@@ -90,12 +98,7 @@ void Application::applyEditorProjectCommon(
     for (const auto& tileset : tilesets) tilesets_[tileset.assetId] = tileset;
     mod_->sceneManager->setTilesets(tilesets);
 
-    if (mod_->sceneMutation) {
-        mod_->sceneMutation->bump_revision();
-        pendingSceneInvalidations_ |=
-            ArtCade::Modules::SceneInvalidation::SceneActivation
-            | ArtCade::Modules::SceneInvalidation::Collision;
-    }
+    onProjectReplaced();
 
     // Edit↔play transitions reuse the already-uploaded textures: evicting here
     // would blank the sprite for the first frame(s) of play until the editor's

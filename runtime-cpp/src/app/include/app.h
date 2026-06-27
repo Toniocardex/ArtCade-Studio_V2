@@ -56,6 +56,8 @@ public:
     void applyEditorProjectCommon(const std::vector<TilePaletteEntry>& tilePalette,
                                   const std::vector<TilesetAsset>&     tilesets,
                                   bool                                 evictAssets = true);
+    /** Single revision bump + invalidation queue after a full project replace. */
+    void onProjectReplaced();
     /** Called from editor_load_project after the gateway swap. */
     void applyEditorProjectLoaded(const std::vector<TilePaletteEntry>& tilePalette,
                                   const std::vector<TilesetAsset>&     tilesets,
