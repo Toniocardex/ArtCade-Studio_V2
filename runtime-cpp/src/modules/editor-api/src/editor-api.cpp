@@ -234,60 +234,6 @@ const float* EditorAPI::runtimeProfileBuffer() {
     return s_runtimeProfile;
 }
 
-namespace {
-
-// Tool ids accepted by editor_set_tool(); kept in this TU to validate
-// incoming values without exposing the enum from the input controller.
-constexpr int kToolSelect = 0;
-constexpr int kToolPan    = 1;
-
-constexpr ArtCade::Modules::SceneInvalidation kTilemapRuntimeInvalidation =
-    ArtCade::Modules::SceneInvalidation::TilemapGeometry
-    | ArtCade::Modules::SceneInvalidation::TilemapData
-    | ArtCade::Modules::SceneInvalidation::Collision
-    | ArtCade::Modules::SceneInvalidation::RenderData;
-
-void editor_queue_tilemap_runtime_invalidation() {
-    if (ArtCade::EditorAPI::s_queueSceneInvalidations)
-        ArtCade::EditorAPI::s_queueSceneInvalidations(kTilemapRuntimeInvalidation);
-}
-
-void editor_sync_viewport_pending() {
-    auto* vp = ArtCade::EditorAPI::s_viewport;
-    auto* r = ArtCade::EditorAPI::s_renderer;
-    auto* gw = ArtCade::EditorAPI::s_entityGateway;
-    if (!vp || !r) return;
-    const ArtCade::SceneDef* scene = gw ? gw->activeScene() : nullptr;
-    vp->sync_from_scene(
-        scene,
-        r->gatherSimulationPresentationInputs(),
-        r->windowWidth(),
-        r->windowHeight());
-    vp->refresh_pending_snapshot();
-}
-
-void editor_nav_prepare() {
-    auto* vp = ArtCade::EditorAPI::s_viewport;
-    auto* r = ArtCade::EditorAPI::s_renderer;
-    if (!vp || !r) return;
-    vp->navigation_prepare(r->windowWidth(), r->windowHeight());
-}
-
-void editor_nav_commit() {
-    auto* vp = ArtCade::EditorAPI::s_viewport;
-    if (!vp) return;
-    vp->navigation_commit();
-}
-
-void editor_enter_scene_edit_if_needed() {
-    auto* vp = ArtCade::EditorAPI::s_viewport;
-    if (!vp || vp->scene_edit_active()) return;
-    vp->host().enter_scene_edit();
-    vp->set_presentation_mode(ArtCade::Presentation::PresentationMode::SceneEdit);
-}
-
-} // namespace
-
 // ── Engine wiring ─────────────────────────────────────────────────────────────
 void EditorAPI::wireEngine(Modules::RuntimeEntityGateway* gateway) {
     s_entityGateway = gateway;
@@ -628,6 +574,56 @@ void recomposite_merged_cell(
     merged.data[static_cast<size_t>(mi)] = value;
 }
 
+// Tool ids accepted by editor_set_tool(); kept in this TU to validate
+// incoming values without exposing the enum from the input controller.
+constexpr int kEditorToolSelect = 0;
+constexpr int kEditorToolPan    = 1;
+
+constexpr ArtCade::Modules::SceneInvalidation kTilemapRuntimeInvalidation =
+    ArtCade::Modules::SceneInvalidation::TilemapGeometry
+    | ArtCade::Modules::SceneInvalidation::TilemapData
+    | ArtCade::Modules::SceneInvalidation::Collision
+    | ArtCade::Modules::SceneInvalidation::RenderData;
+
+void editor_queue_tilemap_runtime_invalidation() {
+    if (ArtCade::EditorAPI::s_queueSceneInvalidations)
+        ArtCade::EditorAPI::s_queueSceneInvalidations(kTilemapRuntimeInvalidation);
+}
+
+void editor_sync_viewport_pending() {
+    auto* vp = ArtCade::EditorAPI::s_viewport;
+    auto* r = ArtCade::EditorAPI::s_renderer;
+    auto* gw = ArtCade::EditorAPI::s_entityGateway;
+    if (!vp || !r) return;
+    const ArtCade::SceneDef* scene = gw ? gw->activeScene() : nullptr;
+    vp->sync_from_scene(
+        scene,
+        r->gatherSimulationPresentationInputs(),
+        r->windowWidth(),
+        r->windowHeight());
+    vp->refresh_pending_snapshot();
+}
+
+void editor_nav_prepare() {
+    auto* vp = ArtCade::EditorAPI::s_viewport;
+    auto* r = ArtCade::EditorAPI::s_renderer;
+    if (!vp || !r) return;
+    vp->navigation_prepare(r->windowWidth(), r->windowHeight());
+}
+
+void editor_nav_commit() {
+    auto* vp = ArtCade::EditorAPI::s_viewport;
+    if (!vp) return;
+    vp->navigation_commit();
+}
+
+void editor_enter_scene_edit_if_needed() {
+    auto* vp = ArtCade::EditorAPI::s_viewport;
+    if (!vp || vp->scene_edit_active()) return;
+    vp->host().enter_scene_edit();
+    vp->set_presentation_mode(ArtCade::Presentation::PresentationMode::SceneEdit);
+}
+
 } // namespace
 
 // =============================================================================
@@ -813,8 +809,8 @@ EMSCRIPTEN_KEEPALIVE void editor_sync_tilemap_data(const char* dataJson) {
 }
 
 EMSCRIPTEN_KEEPALIVE void editor_set_tool(int toolId) {
-    if (toolId < ArtCade::kToolSelect || toolId > ArtCade::kToolPan)
-        toolId = ArtCade::kToolSelect;
+    if (toolId < kEditorToolSelect || toolId > kEditorToolPan)
+        toolId = kEditorToolSelect;
     ArtCade::EditorAPI::s_editorTool = toolId;
 }
 

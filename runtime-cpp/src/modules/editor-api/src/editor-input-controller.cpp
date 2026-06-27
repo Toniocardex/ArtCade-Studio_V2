@@ -5,6 +5,7 @@
 #include "../include/editor-api.h"
 #include "../include/editor-transform-gizmo.h"
 #include "pointer-coords.h"
+#include "../../../modules/presentation/include/editor_viewport_service.h"
 #include "../../../modules/presentation/include/presentation_bindings.h"
 #include "../../../modules/runtime-entity-gateway/include/runtime-entity-gateway.h"
 #include "../../../modules/renderer/include/renderer.h"
