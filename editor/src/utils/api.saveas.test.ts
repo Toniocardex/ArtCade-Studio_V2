@@ -117,7 +117,10 @@ describe('openProjectDialog', () => {
 describe('loadProjectFromPath', () => {
   beforeEach(() => {
     invokeMock.mockReset()
-    invokeMock.mockResolvedValue(undefined)
+    invokeMock.mockImplementation(async (cmd: string) => {
+      if (cmd === 'inspect_project_save_artifacts') return []
+      return undefined
+    })
     readTextFileMock.mockReset()
   })
 

@@ -51,6 +51,7 @@ import { ensureBootSessionReset } from '../utils/boot-session'
 import { runLoadProjectSideEffects } from '../utils/project-load-side-effects'
 import { normalizeProjectDoc } from '../utils/project-object-types'
 import { TextPromptProvider } from '../components/TextPromptProvider'
+import { ProjectSaveRecoveryModal } from '../components/ProjectSaveRecoveryModal'
 import {
   applyProjectRedo,
   applyProjectUndo,
@@ -182,6 +183,7 @@ export function EditorProvider({ children }: { children: ReactNode }) {
           <VolatileContext.Provider value={volatileValue}>
             <TextPromptProvider>
               {children}
+              <ProjectSaveRecoveryModal />
             </TextPromptProvider>
           </VolatileContext.Provider>
         </CoreContext.Provider>

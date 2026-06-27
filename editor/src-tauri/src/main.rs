@@ -221,15 +221,60 @@ fn validate_pack_output_path(output_path: &str) -> Result<PathBuf, String> {
 #[tauri::command]
 fn write_file(path: String, content: String, project_root: String) -> Result<(), String> {
     let p = project_write_paths::prepare_writable_path(&path, &project_root)?;
-    atomic_project_write::write_atomic(&p, content.as_bytes())
-        .map_err(|e| format!("atomic write '{path}': {e}"))
+    atomic_project_write::write_atomic(&p, content.as_bytes()).map_err(|error| {
+        format!(
+            "Save failed.\nThe original project was not modified.\n{}",
+            format_atomic_write_error(&path, error)
+        )
+    })
 }
 
 #[tauri::command]
 fn write_binary_file(path: String, bytes: Vec<u8>, project_root: String) -> Result<(), String> {
     let p = project_write_paths::prepare_writable_path(&path, &project_root)?;
-    atomic_project_write::write_atomic(&p, &bytes)
-        .map_err(|e| format!("atomic binary write '{path}': {e}"))
+    atomic_project_write::write_atomic(&p, &bytes).map_err(|error| {
+        format!(
+            "Save failed.\nThe original file was not modified.\n{}",
+            format_atomic_write_error(&path, error)
+        )
+    })
+}
+
+fn format_atomic_write_error(path: &str, error: std::io::Error) -> String {
+    match error.kind() {
+        std::io::ErrorKind::PermissionDenied => {
+            format!("The folder is not writable ({path}): {error}")
+        }
+        std::io::ErrorKind::AlreadyExists => {
+            format!("A temporary recovery file already exists ({path}): {error}")
+        }
+        std::io::ErrorKind::WriteZero | std::io::ErrorKind::UnexpectedEof => {
+            format!("The disk may be full ({path}): {error}")
+        }
+        _ => format!("{path}: {error}"),
+    }
+}
+
+#[tauri::command]
+fn inspect_project_save_artifacts(project_json_path: String) -> Result<Vec<atomic_project_write::ProjectSaveArtifact>, String> {
+    let path = validate_absolute_path_no_dotdot(&project_json_path, "project_json_path")?;
+    if !path.is_file() {
+        return Err(format!(
+            "project_json_path must be an existing file: '{}'",
+            path.display()
+        ));
+    }
+    atomic_project_write::inspect_project_save_artifacts(&path)
+        .map_err(|error| format!("inspect project save artifacts: {error}"))
+}
+
+#[tauri::command]
+fn discard_project_save_recovery(path: String, project_root: String) -> Result<(), String> {
+    let p = project_write_paths::prepare_writable_path(&path, &project_root)?;
+    if p.exists() {
+        std::fs::remove_file(&p).map_err(|error| format!("discard recovery file '{path}': {error}"))?;
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -1096,6 +1141,8 @@ fn main() {
             write_file,
             write_binary_file,
             delete_project_file,
+            inspect_project_save_artifacts,
+            discard_project_save_recovery,
             open_runtime_preview_window,
             close_runtime_preview_window,
             toggle_runtime_preview_fullscreen,

@@ -89,6 +89,94 @@ fn sync_parent_directory(_destination: &Path) -> io::Result<()> {
     Ok(())
 }
 
+fn backup_path_for(destination: &Path) -> PathBuf {
+    let parent = destination.parent().unwrap_or_else(|| Path::new("."));
+    let file_name = destination
+        .file_name()
+        .unwrap_or_else(|| OsStr::new("project.json"));
+    let mut backup_name = OsString::from(file_name);
+    backup_name.push(".bak");
+    parent.join(backup_name)
+}
+
+fn file_modified_unix_ms(path: &Path) -> io::Result<u64> {
+    let modified = path.metadata()?.modified()?;
+    Ok(modified
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64)
+}
+
+fn is_recovery_temp_for(destination: &Path, candidate: &Path) -> bool {
+    if !is_atomic_temp_file(candidate) {
+        return false;
+    }
+    let Some(dest_name) = destination.file_name().and_then(OsStr::to_str) else {
+        return false;
+    };
+    let Some(temp_name) = candidate.file_name().and_then(OsStr::to_str) else {
+        return false;
+    };
+    temp_name
+        .strip_prefix('.')
+        .is_some_and(|rest| rest.starts_with(dest_name))
+}
+
+/// On-disk artifacts that may exist beside a project file after save or crash.
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectSaveArtifact {
+    pub kind: &'static str,
+    pub path: String,
+    pub modified_unix_ms: u64,
+    pub size_bytes: u64,
+}
+
+pub fn inspect_project_save_artifacts(destination: &Path) -> io::Result<Vec<ProjectSaveArtifact>> {
+    let parent = destination
+        .parent()
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "destination has no parent"))?;
+    let mut artifacts = Vec::new();
+
+    let push_file = |kind: &'static str, path: &Path, out: &mut Vec<ProjectSaveArtifact>| {
+        if let Ok(metadata) = path.metadata() {
+            if metadata.is_file() {
+                out.push(ProjectSaveArtifact {
+                    kind,
+                    path: path.to_string_lossy().into_owned(),
+                    modified_unix_ms: file_modified_unix_ms(path).unwrap_or(0),
+                    size_bytes: metadata.len(),
+                });
+            }
+        }
+    };
+
+    push_file("saved", destination, &mut artifacts);
+    push_file("backup", &backup_path_for(destination), &mut artifacts);
+
+    if parent.is_dir() {
+        if let Ok(entries) = fs::read_dir(parent) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_file() && is_recovery_temp_for(destination, &path) {
+                    push_file("temp", &path, &mut artifacts);
+                }
+            }
+        }
+    }
+
+    artifacts.sort_by(|left, right| right.modified_unix_ms.cmp(&left.modified_unix_ms));
+    Ok(artifacts)
+}
+
+fn rotate_backup(destination: &Path) -> io::Result<()> {
+    if !destination.is_file() {
+        return Ok(());
+    }
+    let backup = backup_path_for(destination);
+    fs::copy(destination, &backup).map(|_| ())
+}
+
 pub fn write_atomic(destination: &Path, bytes: &[u8]) -> io::Result<()> {
     let temp = temp_path_for(destination)?;
     let result = (|| {
@@ -97,6 +185,7 @@ pub fn write_atomic(destination: &Path, bytes: &[u8]) -> io::Result<()> {
         file.flush()?;
         file.sync_all()?;
         drop(file);
+        rotate_backup(destination)?;
         replace_file(&temp, destination)?;
         sync_parent_directory(destination)
     })();
@@ -176,7 +265,8 @@ mod tests {
         write_atomic(&destination, b"second").unwrap();
 
         assert_eq!(fs::read(&destination).unwrap(), b"second");
-        assert_eq!(fs::read_dir(&root).unwrap().count(), 1);
+        assert_eq!(fs::read_dir(&root).unwrap().count(), 2);
+        assert!(root.join("project.json.bak").is_file());
         let _ = fs::remove_dir_all(root);
     }
 
@@ -196,6 +286,35 @@ mod tests {
         assert!(nested.join("hero.png").is_file());
         assert!(nested.join(".unrelated.tmp").is_file());
         assert!(nested.join(".notes.artcade-tmp-user-file").is_file());
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn creates_backup_on_replace() {
+        let root = temp_dir("backup");
+        let destination = root.join("project.json");
+
+        write_atomic(&destination, b"first").unwrap();
+        write_atomic(&destination, b"second").unwrap();
+
+        assert_eq!(fs::read(&destination).unwrap(), b"second");
+        assert_eq!(fs::read(root.join("project.json.bak")).unwrap(), b"first");
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn inspect_lists_saved_backup_and_temp_artifacts() {
+        let root = temp_dir("inspect");
+        let destination = root.join("project.json");
+        fs::write(&destination, b"saved").unwrap();
+        fs::write(root.join("project.json.bak"), b"backup").unwrap();
+        fs::write(root.join(".project.json.artcade-tmp-1-9"), b"temp").unwrap();
+
+        let artifacts = inspect_project_save_artifacts(&destination).unwrap();
+        let kinds: Vec<_> = artifacts.iter().map(|item| item.kind).collect();
+        assert!(kinds.contains(&"saved"));
+        assert!(kinds.contains(&"backup"));
+        assert!(kinds.contains(&"temp"));
         let _ = fs::remove_dir_all(root);
     }
 }

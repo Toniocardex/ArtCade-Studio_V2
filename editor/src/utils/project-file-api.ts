@@ -20,6 +20,7 @@ import { joinPath } from './file-paths'
 import { projectRootFromProjectPath } from './project-paths'
 import { assertProjectPathsSafe, normalizeProjectRelativePath } from './project-path-security'
 import { registerProjectFsScope } from './project-fs-scope'
+import { resolveProjectJsonOpenPath } from './project-save-recovery'
 import { commitPendingAssets, flushPendingAssets } from './pending-asset-store'
 import { referencedAssetPaths } from './referenced-asset-paths'
 
@@ -204,14 +205,20 @@ export async function loadProjectFromPath(path: string): Promise<LoadedProjectFi
   }
   if (!isTauri()) { notAvailable('loadProjectFromPath'); return null }
   try {
-    const content = await readTextFile(path)
+    const openPath = isArtcadePackagePath(path)
+      ? path
+      : await resolveProjectJsonOpenPath(path)
+    const content = await readTextFile(openPath)
     const parsed = loadProjectDocument(content)
     const { project, logicBoardLoadIssues } = parsed
     assertProjectPathsSafe(project)
-    const missingAssets = await missingReferencedAssetPaths(projectRootFromProjectPath(path), project)
+    const missingAssets = await missingReferencedAssetPaths(
+      projectRootFromProjectPath(openPath),
+      project,
+    )
     return {
       project,
-      path,
+      path: openPath,
       ...(logicBoardLoadIssues.length > 0 ? { logicBoardLoadIssues } : {}),
       ...(missingAssets.length > 0
         ? { openWarnings: [formatMissingAssetOpenWarning(missingAssets)] }
@@ -274,7 +281,14 @@ export async function saveProjectFile(path: string, project: ProjectDoc): Promis
   const pendingPaths = await persistReferencedAssets(projectRoot, project)
   const serialized = serializeProjectDoc(project)
   validateSerializedProjectDocument(serialized)
-  await invokeWriteFile(path, serialized, projectRoot)
+  try {
+    await invokeWriteFile(path, serialized, projectRoot)
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err)
+    throw new Error(detail.includes('Save failed.')
+      ? detail
+      : `Save failed.\nThe original project was not modified.\n${detail}`)
+  }
   commitPendingAssets(pendingPaths)
 }
 

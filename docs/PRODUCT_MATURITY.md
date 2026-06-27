@@ -7,9 +7,9 @@ Professional contract status for release blockers. Each item is **Not started**,
 | Item | State | Definition of Done |
 |------|-------|-------------------|
 | Project format version + validator | Partial | `projectFormatVersion`, `projectId`, `engineVersion` on save; `loadProjectDocument()` with distinct errors |
-| Atomic safe-save + backup | Partial | Rust `write_atomic` in use; `.bak` rotation + user-facing recovery UI not done |
+| Atomic safe-save + backup | Partial | `.bak` rotation on save; recovery prompt on open |
 | Migration chain | Not started | Explicit `migrateVnToVm` + fixtures per version |
-| Recovery at startup | Not started | User chooses among `.json`, `.tmp`, `.bak` |
+| Recovery at startup | Partial | User chooses recovery / saved / discard on open |
 
 ## Authoring Integrity
 
