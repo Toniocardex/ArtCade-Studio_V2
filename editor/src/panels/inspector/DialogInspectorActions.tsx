@@ -138,7 +138,7 @@ export function DialogInspectorActions({ entity }: DialogInspectorActionsProps) 
   return (
     <div className="space-y-2">
       <div>
-        <label className="text-[9px] text-[var(--muted)] uppercase">Conversation</label>
+        <label className="text-[11px] text-[var(--muted)]">Conversation</label>
         <div className="mt-1 flex items-center gap-1.5">
           <EditorSelect
             value={data.dialogId}
@@ -193,7 +193,7 @@ export function DialogInspectorActions({ entity }: DialogInspectorActionsProps) 
       )}
 
       <div>
-        <label className="text-[9px] text-[var(--muted)] uppercase">Start node</label>
+        <label className="text-[11px] text-[var(--muted)]">Start node</label>
         <EditorSelect
           value={data.startNode ?? ''}
           placeholder="Dialog default"
@@ -209,7 +209,7 @@ export function DialogInspectorActions({ entity }: DialogInspectorActionsProps) 
       </div>
 
       <div>
-        <label className="text-[9px] text-[var(--muted)] uppercase">Text speed</label>
+        <label className="text-[11px] text-[var(--muted)]">Text speed</label>
         <input
           type="number"
           min={1}

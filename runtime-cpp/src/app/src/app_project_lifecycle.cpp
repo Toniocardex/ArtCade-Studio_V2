@@ -49,7 +49,7 @@ void Application::applyRuntimeSettings(const ProjectRuntimeSettings& settings,
                 static_cast<uint32_t>(scene->worldSize.y),
                 "ArtCade V2");
         }
-        mod_->renderer->setSceneViewport(scene->worldSize, scene->worldSize);
+        mod_->renderer->setFrameSceneGeometry(scene->worldSize, scene->worldSize);
         mod_->editorViewport->set_presentation_mode(
             ArtCade::Presentation::PresentationMode::SceneEdit);
         mod_->renderer->setGameViewCompositorEnabled(false);
@@ -74,7 +74,7 @@ void Application::applyRuntimeSettings(const ProjectRuntimeSettings& settings,
             "ArtCade V2");
 #endif
     }
-    mod_->renderer->setSceneViewport(scene->worldSize, scene->viewportSize);
+    mod_->renderer->setFrameSceneGeometry(scene->worldSize, scene->viewportSize);
     // Snap the gameplay camera to the scene's authored initial view. Game logic
     // or a follow target may move it afterwards; this is just the starting frame.
     mod_->renderer->setCameraPosition(scene->cameraStart);
@@ -132,6 +132,8 @@ void Application::applyEditorProjectLoaded(
     const ProjectRuntimeSettings& settings) {
     applyEditorProjectCommon(tilePalette, tilesets);
     applyRuntimeSettings(settings, ViewportPolicy::EditorPreview);
+
+    if (mod_->sceneMutation) mod_->sceneMutation->bump_revision();
 
     if (mod_->dialogManager && mod_->assetLoader) {
         mod_->dialogManager->loadDialogsFromDirectory(mod_->assetLoader->projectRoot());

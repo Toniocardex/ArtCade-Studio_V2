@@ -4,8 +4,8 @@
 // =============================================================================
 //
 // Extracted from app.cpp::renderActiveScene() during the post-phase-6 split.
-// Walks per-layer `SceneDef::tilemapLayers` bottom→top (using project.layers
-// stack), falling back to merged `SceneDef::tilemap` for legacy projects.
+// Walks per-layer tilemap grids bottom→top (using project.layers stack),
+// falling back to merged tilemap for legacy projects.
 //
 //   1. If the layer references a tileset and the tileset is found in the
 //      live SceneManager list (or the startup fallback cache), draw the
@@ -36,14 +36,16 @@ namespace TilemapRenderer {
 /**
  * Draw scene tilemaps into the active renderer frame.
  *
- * When @p layerStack and `scene.tilemapLayers` are present, each layer is drawn
+ * When @p layerStack and @p tilemapLayers are present, each layer is drawn
  * bottom→top (index 0 in @p layerStack is painted last). Otherwise draws the
- * merged `scene.tilemap` grid (legacy / single-layer projects).
+ * merged @p mergedTilemap grid (legacy / single-layer projects).
  *
  * Skips id == 0 cells (empty). Spritesheet region preferred over palette colour.
  */
 void draw(Modules::Renderer& renderer,
-          const SceneDef& scene,
+          const TilemapData& mergedTilemap,
+          const std::unordered_map<std::string, TilemapData>& tilemapLayers,
+          const std::unordered_map<std::string, SceneLayerSettings>& layerSettings,
           const std::vector<SceneLayerDef>& layerStack,
           const std::vector<TilesetAsset>& liveTilesets,
           const std::unordered_map<std::string, TilesetAsset>& startupCache,

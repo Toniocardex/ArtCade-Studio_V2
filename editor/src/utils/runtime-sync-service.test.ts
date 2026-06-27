@@ -28,6 +28,8 @@ vi.mock('./wasm-bridge', () => {
     editorSetTransform:       vi.fn(),
     editorUpdateEntity:       vi.fn(),
     editorSetSceneSettings:   vi.fn(),
+    editorBeginAuthoringSyncBatch: vi.fn(),
+    editorEndAuthoringSyncBatch:   vi.fn(),
     editorSyncTilemapData:    vi.fn(() => true),
     editorSyncTilemapLayers:  vi.fn(() => true),
     editorReadPresentationSnapshot: vi.fn(() => null),

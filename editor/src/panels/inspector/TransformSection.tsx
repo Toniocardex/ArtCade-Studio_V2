@@ -53,21 +53,21 @@ export function TransformSection({ entity }: TransformSectionProps) {
   return (
     <InspectorSection label="Transform" defaultOpen>
       <div className="mb-2">
-        <span className="text-[9px] text-[var(--muted)] uppercase block mb-0.5">Position</span>
+        <span className="text-[11px] text-[var(--muted)] block mb-0.5">Position</span>
         <div className="grid grid-cols-2 gap-2">
           <NumberField label="X" step={1} value={displayed.x} onCommit={x => commitTransform({ x })} />
           <NumberField label="Y" step={1} value={displayed.y} onCommit={y => commitTransform({ y })} />
         </div>
       </div>
       <div className="mb-2">
-        <span className="text-[9px] text-[var(--muted)] uppercase block mb-0.5">Scale</span>
+        <span className="text-[11px] text-[var(--muted)] block mb-0.5">Scale</span>
         <div className="grid grid-cols-2 gap-2">
           <NumberField label="X" step={1} value={displayed.scaleX} onCommit={scaleX => commitTransform({ scaleX })} />
           <NumberField label="Y" step={1} value={displayed.scaleY} onCommit={scaleY => commitTransform({ scaleY })} />
         </div>
       </div>
       <div className="mb-2">
-        <span className="text-[9px] text-[var(--muted)] uppercase block mb-0.5">Rotation</span>
+        <span className="text-[11px] text-[var(--muted)] block mb-0.5">Rotation</span>
         <NumberField label="Radians" value={displayed.rotation} onCommit={rotation => commitTransform({ rotation })} />
       </div>
     </InspectorSection>

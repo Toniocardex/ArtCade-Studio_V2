@@ -111,14 +111,12 @@ struct Renderer::Impl {
     RenderResources resources;
     CaptureService capture;
 
-    Vec2 worldSize = {
-        ProjectDefaults::kSceneWorldWidth,
-        ProjectDefaults::kSceneWorldHeight,
-    };
-    Vec2 viewportSize = {
+    Vec2 committedWorldSize_{};
+    Vec2 committedLogicalViewport_{
         ProjectDefaults::kSceneViewportWidth,
         ProjectDefaults::kSceneViewportHeight,
     };
+    bool committedGeometryActive_ = false;
 
     Camera2D camera = {};
     Camera2D gameViewCamera = {};
@@ -152,6 +150,8 @@ struct Renderer::Impl {
     void begin_world_scissor(const Camera2D& frameCamera);
     void end_world_scissor();
     Camera2D frame_camera_with_shake() const;
+    Vec2 scene_world_bounds() const;
+    Vec2 scene_logical_viewport() const;
 };
 
 } // namespace ArtCade::Modules

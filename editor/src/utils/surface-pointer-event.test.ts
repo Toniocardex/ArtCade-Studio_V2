@@ -2,6 +2,10 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { captureSurfacePointerEvent } from './surface-pointer-event'
 import * as presentationStore from './presentation-store'
 
+vi.mock('./wasm-bridge', () => ({
+  editorGetSceneRevision: () => 12,
+}))
+
 describe('surface-pointer-event', () => {
   beforeEach(() => {
     vi.spyOn(presentationStore, 'getPresentationSnapshot').mockReturnValue({
@@ -33,6 +37,7 @@ describe('surface-pointer-event', () => {
     const event = captureSurfacePointerEvent(el, 110, 220)
     expect(event.positionCss).toEqual({ x: 100, y: 200 })
     expect(event.presentationRevision).toBe(99n)
+    expect(event.sceneRevision).toBe(12n)
   })
 
   it('uses revision 0 when no snapshot is committed', () => {
@@ -52,5 +57,6 @@ describe('surface-pointer-event', () => {
     } as HTMLElement
 
     expect(captureSurfacePointerEvent(el, 5, 5).presentationRevision).toBe(0n)
+    expect(captureSurfacePointerEvent(el, 5, 5).sceneRevision).toBe(12n)
   })
 })

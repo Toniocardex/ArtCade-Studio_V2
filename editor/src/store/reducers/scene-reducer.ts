@@ -23,7 +23,10 @@ import {
   patchObjectTypeSpritesUsingAsset,
   syncGeneratedPrototypeAsset,
 } from '../../utils/prototype-sprite'
-import { rematerializeAllInstancesOfType } from '../../utils/project-object-types'
+import {
+  rematerializeAllInstancesOfType,
+  rematerializeSceneInstances,
+} from '../../utils/project-object-types'
 import {
   applyClipDefaultsForImageAsset,
   detachImageAssetFromSprites,
@@ -202,39 +205,68 @@ export const sceneReducer: DomainReducer = (state: CoreState, action: Action) =>
       if (sc.worldSize.x === worldSize.x && sc.worldSize.y === worldSize.y) return state
       const scaleX = sc.worldSize.x > 0 ? worldSize.x / sc.worldSize.x : 1
       const scaleY = sc.worldSize.y > 0 ? worldSize.y / sc.worldSize.y : 1
-      const resizedEntityIds = new Set(sc.entityIds)
-      const entities = Object.fromEntries(
-        Object.entries(state.project.entities ?? {}).map(([id, entity]) => {
-          if (!resizedEntityIds.has(Number(id))) return [id, entity]
-          const position = clampEntityPositionToScene({
-            x: entity.transform.position.x * scaleX,
-            y: entity.transform.position.y * scaleY,
-          }, worldSize)
-          return [id, {
-            ...entity,
-            transform: {
-              ...entity.transform,
-              position,
-            },
-          }]
-        }),
-      )
-      return {
-        ...state,
-        project: {
-          ...state.project,
-          entities,
-          scenes: {
-            ...state.project.scenes,
-            [action.sceneId]: {
-              ...sc,
-              worldSize,
-              ...(sc.tilemap ? { tilemap: resizeTilemap(sc.tilemap, worldSize.x, worldSize.y) } : {}),
-            },
-          },
-        },
-        projectDirty: true,
+      const scalePos = (p: { x: number; y: number }) =>
+        clampEntityPositionToScene({ x: p.x * scaleX, y: p.y * scaleY }, worldSize)
+
+      // Resize the per-layer tilemaps (the primary system) AND the legacy/merged
+      // tilemap, then re-merge — the old code only touched `tilemap`, leaving
+      // tilemapLayers at the previous cols/rows after a world resize.
+      const hasTilemapLayers = sc.tilemapLayers && Object.keys(sc.tilemapLayers).length > 0
+      const tilemapLayers = hasTilemapLayers
+        ? Object.fromEntries(
+            Object.entries(sc.tilemapLayers!).map(([k, v]) => [k, resizeTilemap(v, worldSize.x, worldSize.y)]),
+          )
+        : sc.tilemapLayers
+      const layerIds = (state.project.layers ?? DEFAULT_LAYERS).map((l) => l.id)
+      const tilemap = sc.tilemap
+        ? (tilemapLayers
+            ? (mergeTilemapLayers(layerIds, tilemapLayers) ?? resizeTilemap(sc.tilemap, worldSize.x, worldSize.y))
+            : resizeTilemap(sc.tilemap, worldSize.x, worldSize.y))
+        : sc.tilemap
+
+      // Placement source of truth = scene.instances. Scale it there (not just the
+      // derived `entities` cache) so the runtime — which materializes from
+      // instances — keeps the new positions instead of resurrecting the old ones.
+      const hasInstances = (sc.instances?.length ?? 0) > 0
+      const nextScene: SceneDef = {
+        ...sc,
+        worldSize,
+        ...(hasInstances
+          ? {
+              instances: sc.instances!.map((inst) => ({
+                ...inst,
+                transform: { ...inst.transform, position: scalePos(inst.transform.position) },
+              })),
+            }
+          : {}),
+        ...(tilemapLayers ? { tilemapLayers } : {}),
+        ...(tilemap ? { tilemap } : {}),
       }
+
+      let project: NonNullable<CoreState['project']> = {
+        ...state.project,
+        scenes: { ...state.project.scenes, [action.sceneId]: nextScene },
+      }
+      if (hasInstances) {
+        // Re-derive the cache from the scaled instances (instances → cache contract).
+        project = rematerializeSceneInstances(project, action.sceneId)
+      } else {
+        // Legacy projects (no object types / no instances) treat the flat
+        // `entities` map as their source — scale it directly.
+        const resizedEntityIds = new Set(sc.entityIds)
+        project = {
+          ...project,
+          entities: Object.fromEntries(
+            Object.entries(project.entities ?? {}).map(([id, entity]) =>
+              resizedEntityIds.has(Number(id))
+                ? [id, { ...entity, transform: { ...entity.transform, position: scalePos(entity.transform.position) } }]
+                : [id, entity],
+            ),
+          ),
+        }
+      }
+
+      return { ...state, project, projectDirty: true }
     }
     case 'SCENE_SET_VIEWPORT_SIZE': {
       const sc = state.project?.scenes?.[action.sceneId]

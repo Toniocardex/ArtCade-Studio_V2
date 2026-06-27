@@ -8,9 +8,26 @@
 
 namespace ArtCade::Modules {
 
+Vec2 Renderer::Impl::scene_world_bounds() const {
+    if (committedGeometryActive_) return committedWorldSize_;
+    return {
+        ProjectDefaults::kSceneWorldWidth,
+        ProjectDefaults::kSceneWorldHeight,
+    };
+}
+
+Vec2 Renderer::Impl::scene_logical_viewport() const {
+    if (committedGeometryActive_) return committedLogicalViewport_;
+    return {
+        ProjectDefaults::kSceneViewportWidth,
+        ProjectDefaults::kSceneViewportHeight,
+    };
+}
+
 namespace {
 
 using ArtCade::Presentation::PresentationMode;
+using ArtCade::Presentation::PresentationSimulationInputs;
 using ArtCade::Presentation::PresentationStateInputs;
 using ArtCade::Presentation::ViewCamera2D;
 
@@ -91,8 +108,9 @@ void Renderer::Impl::begin_world_scissor(const Camera2D& frameCamera) {
     const uint32_t fbH = inGameViewTexturePass
         ? resources.game_view_height()
         : surface.height();
+    const Vec2& bounds = scene_world_bounds();
     const ScreenClipRect clip = renderer_compute_world_clip(
-        frameCamera, worldSize, fbW, fbH);
+        frameCamera, bounds, fbW, fbH);
     if (clip.width <= 0.f || clip.height <= 0.f) {
         worldScissorActive = false;
         return;
@@ -119,17 +137,19 @@ void Renderer::setGameCameraModifiers(
     impl_->gameModifiers_ = modifiers;
 }
 
-PresentationStateInputs Renderer::gatherPresentationInputs() const {
-    PresentationStateInputs inputs{};
-    inputs.logicalWidth = static_cast<double>(impl_->viewportSize.x);
-    inputs.logicalHeight = static_cast<double>(impl_->viewportSize.y);
-    inputs.worldWidth = static_cast<double>(impl_->worldSize.x);
-    inputs.worldHeight = static_cast<double>(impl_->worldSize.y);
-    inputs.outputPolicy = impl_->outputPolicy;
-    inputs.gameViewCompositorEnabled = impl_->gameViewCompositorEnabled;
-    inputs.gameCamera = impl_->storedGameCamera_;
-    inputs.gameModifiers = impl_->gameModifiers_;
-    return inputs;
+PresentationSimulationInputs Renderer::gatherSimulationPresentationInputs() const {
+    PresentationSimulationInputs sim{};
+    sim.outputPolicy = impl_->outputPolicy;
+    sim.gameViewCompositorEnabled = impl_->gameViewCompositorEnabled;
+    sim.gameCamera = impl_->storedGameCamera_;
+    sim.gameModifiers = impl_->gameModifiers_;
+    const Vec2 logical = impl_->scene_logical_viewport();
+    const Vec2 world = impl_->scene_world_bounds();
+    sim.fallbackLogicalWidth = static_cast<double>(logical.x);
+    sim.fallbackLogicalHeight = static_cast<double>(logical.y);
+    sim.fallbackWorldWidth = static_cast<double>(world.x);
+    sim.fallbackWorldHeight = static_cast<double>(world.y);
+    return sim;
 }
 
 void Renderer::applyFramePresentation(
@@ -146,8 +166,9 @@ void Renderer::beginFrame(
     impl_->hasCommittedPresentation_ = true;
     impl_->surface.sync_size_from_raylib();
     if (impl_->gameViewCompositorEnabled && impl_->surface.is_open()) {
-        const uint32_t vpW = std::max(1u, static_cast<uint32_t>(impl_->viewportSize.x));
-        const uint32_t vpH = std::max(1u, static_cast<uint32_t>(impl_->viewportSize.y));
+        const Vec2 logical = impl_->scene_logical_viewport();
+        const uint32_t vpW = std::max(1u, static_cast<uint32_t>(logical.x));
+        const uint32_t vpH = std::max(1u, static_cast<uint32_t>(logical.y));
         if (!impl_->resources.ensure_game_view_target(vpW, vpH))
             impl_->gameViewCompositorEnabled = false;
     }
@@ -277,8 +298,8 @@ void Renderer::drawFadeOverlay(float alpha) {
     cmd.type = DrawCmd::Type::Rect;
     cmd.x = 0.f;
     cmd.y = 0.f;
-    cmd.x2 = impl_->viewportSize.x;
-    cmd.y2 = impl_->viewportSize.y;
+    cmd.x2 = impl_->scene_logical_viewport().x;
+    cmd.y2 = impl_->scene_logical_viewport().y;
     cmd.cr = 0;
     cmd.cg = 0;
     cmd.cb = 0;

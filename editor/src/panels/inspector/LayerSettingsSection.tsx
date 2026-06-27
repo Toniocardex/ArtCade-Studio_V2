@@ -19,7 +19,7 @@ export type LayerSettingsSectionProps = Readonly<{
 
 const inputClass =
   'w-16 bg-[var(--surface-3)] border border-[var(--outline)] text-[var(--text)] px-1.5 py-0.5 rounded text-[10px]'
-const labelClass = 'text-[9px] text-[var(--muted)] uppercase tracking-wider'
+const labelClass = 'text-[11px] text-[var(--muted)]'
 
 /** Number input with a local buffer so partial edits ('-', '1.') don't snap. */
 function NumField({

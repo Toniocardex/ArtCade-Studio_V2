@@ -121,7 +121,7 @@ export function SpriteSection({ entity }: SpriteSectionProps) {
   return (
     <InspectorSection label="Sprite">
       <div className="mb-2">
-        <label htmlFor={assetSelectId} className="text-[9px] text-[var(--muted)] uppercase">
+        <label htmlFor={assetSelectId} className="text-[11px] text-[var(--muted)]">
           Asset
         </label>
         <EditorSelect
@@ -189,7 +189,7 @@ export function SpriteSection({ entity }: SpriteSectionProps) {
       </div>
 
       <div className="mb-2">
-        <label htmlFor={defaultClipId} className="text-[9px] text-[var(--muted)] uppercase">
+        <label htmlFor={defaultClipId} className="text-[11px] text-[var(--muted)]">
           Default clip
         </label>
         <EditorSelect
@@ -293,7 +293,7 @@ export function SpriteSection({ entity }: SpriteSectionProps) {
       </div>
 
       <div className="mb-2 rounded border border-[var(--border)] bg-[var(--panel-3)] p-2">
-        <p className="text-[9px] text-[var(--muted)] uppercase mb-1">Pivot</p>
+        <p className="text-[11px] text-[var(--muted)] mb-1">Pivot</p>
         <p className="text-[10px] text-[var(--text)] mb-2">{pivotSummary}</p>
         {fromAsset && linkedAsset ? (
           <p className="text-[8px] text-[var(--muted)] mb-2 leading-snug">

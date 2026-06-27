@@ -3,7 +3,7 @@ import { coreReducer, type CoreState } from './editor-store'
 import { parseProjectDoc, serializeProjectDoc } from '../utils/project'
 import { collectProjectDiagnostics, projectDiagnosticsErrors } from '../utils/project-validator'
 import { createLogicBoardForObjectType } from '../utils/logic-board/factory'
-import { DEFAULT_WORLD } from '../types'
+import { DEFAULT_WORLD, createTilemap } from '../types'
 import type { ProjectDoc } from '../types'
 import { buildObjectTypeAddAction } from '../utils/prototype-sprite'
 
@@ -429,28 +429,66 @@ describe('coreReducer — scenes & objects', () => {
     expect(s.project!.scenes.s.cameraStart).toEqual({ x: 512, y: 288 })
   })
 
-  it('SCENE_SET_WORLD_SIZE scales scene entity positions into the resized canvas', () => {
+  it('SCENE_SET_WORLD_SIZE scales placement on the instance source, deriving the cache', () => {
     const p = project()
+    // Placement lives on the authoring source (scene.instances); `entities` is
+    // a derived cache. Both start aligned, as a real project keeps them.
+    p.scenes.s.instances![0].transform.position = { x: 640, y: 360 }
     p.entities[1].transform.position = { x: 640, y: 360 }
 
     const s = coreReducer(st(p), {
       type: 'SCENE_SET_WORLD_SIZE', sceneId: 's', x: 640, y: 360,
     })
 
+    // Source of truth scaled…
+    expect(s.project!.scenes.s.instances![0].transform.position).toEqual({ x: 320, y: 180 })
+    // …and the derived cache reflects it (would survive a rematerialize / sync).
     expect(s.project!.entities[1].transform.position).toEqual({ x: 320, y: 180 })
     expect(s.project!.scenes.s.worldSize).toEqual({ x: 640, y: 360 })
     expect(s.projectDirty).toBe(true)
   })
 
-  it('SCENE_SET_WORLD_SIZE keeps resized entities inside a small canvas inset', () => {
+  it('SCENE_SET_WORLD_SIZE keeps resized placement inside a small canvas inset', () => {
     const p = project()
-    p.entities[1].transform.position = { x: 1280, y: 720 }
+    p.scenes.s.instances![0].transform.position = { x: 1280, y: 720 }
 
     const s = coreReducer(st(p), {
       type: 'SCENE_SET_WORLD_SIZE', sceneId: 's', x: 64, y: 64,
     })
 
+    expect(s.project!.scenes.s.instances![0].transform.position).toEqual({ x: 32, y: 32 })
     expect(s.project!.entities[1].transform.position).toEqual({ x: 32, y: 32 })
+  })
+
+  it('SCENE_SET_WORLD_SIZE does not leave the instance source stale (P0.2 regression)', () => {
+    const p = project()
+    p.scenes.s.instances![0].transform.position = { x: 1000, y: 500 }
+    p.entities[1].transform.position = { x: 1000, y: 500 }
+
+    const s = coreReducer(st(p), {
+      type: 'SCENE_SET_WORLD_SIZE', sceneId: 's', x: 2560, y: 1440,
+    })
+
+    // The instance (what the runtime materializes from) must move, not just the
+    // cache — the old reducer scaled `entities` only, so the change was lost on
+    // the next rematerialize.
+    expect(s.project!.scenes.s.instances![0].transform.position).toEqual({ x: 2000, y: 1000 })
+  })
+
+  it('SCENE_SET_WORLD_SIZE resizes per-layer tilemaps to the new world', () => {
+    const p = project()
+    const layer = createTilemap(1280, 720, 32)
+    p.scenes.s.tilemapLayers = { Background: layer }
+    p.scenes.s.tilemap = layer
+
+    const s = coreReducer(st(p), {
+      type: 'SCENE_SET_WORLD_SIZE', sceneId: 's', x: 640, y: 360,
+    })
+
+    const resized = s.project!.scenes.s.tilemapLayers!.Background
+    const expected = createTilemap(640, 360, 32)
+    expect(resized.cols).toBe(expected.cols)
+    expect(resized.rows).toBe(expected.rows)
   })
 
   it('SCENE_ADD_EMPTY creates an inherited empty scene and selects it', () => {

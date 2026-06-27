@@ -6,7 +6,7 @@
 #include "../../presentation/include/presentation_snapshot.h"
 #include "../../presentation/include/presentation_mode.h"
 #include "../../presentation/include/presentation_types.h"
-#include "../../presentation/include/presentation_state_sync.h"
+#include "../../presentation/include/presentation_input_builder.h"
 #include "view_render_features.h"
 #include <functional>
 #include <string>
@@ -45,11 +45,15 @@ public:
     void setWindowSizeForLogicalViewport(uint32_t logicalWidth,
                                          uint32_t logicalHeight,
                                          const std::string& title);
-    void setSceneViewport(const Vec2& worldSize, const Vec2& viewportSize);
+    /**
+     * Commits scene geometry for the current frame (from SceneFrameSnapshot).
+     * Replaces the removed setSceneViewport(); not a mutable scene authority.
+     */
+    void setFrameSceneGeometry(const Vec2& worldSize, const Vec2& logicalViewport);
 
     /**
-     * Projects world bounds [0, worldSize] through the active camera (incl. shake).
-     * Used for GPU scissor during the world pass and for unit tests.
+     * Projects world bounds through the active camera (incl. shake).
+     * Uses geometry from the last setFrameSceneGeometry() call.
      */
     ScreenClipRect worldScreenClipRect() const;
 
@@ -67,10 +71,11 @@ public:
 
     /**
      * Collects simulation-owned inputs for Presentation Core (game camera,
-     * world size, output policy). Editor camera/mode/surface come from
-     * EditorViewportService::sync_from_renderer().
+     * output policy, compositor). Scene geometry comes from SceneDef via
+     * presentation_build_inputs() / FrameCoordinator.
      */
-    ArtCade::Presentation::PresentationStateInputs gatherPresentationInputs() const;
+    ArtCade::Presentation::PresentationSimulationInputs
+    gatherSimulationPresentationInputs() const;
 
     /**
      * Applies a committed snapshot to Raylib camera state (read-only consumer).

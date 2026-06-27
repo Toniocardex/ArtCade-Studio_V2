@@ -189,8 +189,9 @@ void GameAPI::bindEntityAPI(sol::state& lua) {
             else
                 entities->loadScene(name);
         });
-    lua.set_function("scene_restart", [entities]() {
-        if (entities) entities->loadScene(entities->activeSceneId());
+    lua.set_function("scene_restart", [entities](sol::optional<float> fadeSec) {
+        if (!entities) return;
+        entities->requestRestartScene(fadeSec.value_or(0.f));
     });
 
     // pool.getAll(className) → table of ids

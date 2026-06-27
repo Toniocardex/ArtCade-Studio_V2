@@ -1,5 +1,7 @@
 #include "scene_background_pass.h"
 
+#include "../scene_frame_snapshot.h"
+
 #include "../editor-overlay-renderer.h"
 #include "../parallax-renderer.h"
 #include "../tilemap-renderer.h"
@@ -11,27 +13,31 @@
 namespace ArtCade::AppRenderPasses {
 
 void execute_scene_background_pass(SceneFrameContext& ctx) {
-    if (!ctx.activeScene || !ctx.sceneManager || !ctx.renderer)
+    if (!ctx.frameSnapshot || !ctx.sceneManager || !ctx.renderer)
         return;
 
+    const SceneFrameSnapshot& frame = *ctx.frameSnapshot;
+
     EditorOverlayRenderer::drawBackdrop(
-        *ctx.renderer, *ctx.activeScene, ctx.overlay);
+        *ctx.renderer, frame.backgroundColor, frame.overlay);
     ctx.renderer->drawRectImmediate(
         0.f, 0.f,
-        std::max(1.f, ctx.activeScene->worldSize.x),
-        std::max(1.f, ctx.activeScene->worldSize.y),
-        ctx.activeScene->backgroundColor);
+        std::max(1.f, frame.worldSize.x),
+        std::max(1.f, frame.worldSize.y),
+        frame.backgroundColor);
     ParallaxRenderer::draw(
         *ctx.renderer,
         ctx.sceneManager->sceneLayers(),
-        ctx.activeScene->layerSettings,
+        frame.layerSettings,
         ctx.renderer->getCameraPosition(),
         ctx.renderer->visibleWorldSize(),
         ctx.timeManager ? ctx.timeManager->now() : 0.f);
     if (ctx.tilesets && ctx.tileColors) {
         TilemapRenderer::draw(
             *ctx.renderer,
-            *ctx.activeScene,
+            frame.tilemap,
+            frame.tilemapLayers,
+            frame.layerSettings,
             ctx.sceneManager->sceneLayers(),
             ctx.sceneManager->tilesets(),
             *ctx.tilesets,

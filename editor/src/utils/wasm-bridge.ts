@@ -920,6 +920,12 @@ export function editorGetPresentationRevision(): number {
   return revision > 0 ? revision : 0
 }
 
+/** Committed scene revision from the last SceneFrameSnapshot (PR6). */
+export function editorGetSceneRevision(): number {
+  const revision = safeCcallNumber('editor_get_scene_revision', [], [])
+  return revision > 0 ? revision : 0
+}
+
 /**
  * Tags the next Emscripten canvas pointer sample with a presentation revision
  * captured by the browser at event time.
@@ -928,6 +934,19 @@ export function editorSetPointerPresentationRevision(revision: bigint): void {
   if (revision <= 0n) return
   safeCall(
     'editor_set_pointer_presentation_revision', null,
+    ['number'],
+    [Number(revision)],
+  )
+}
+
+/**
+ * Tags the next Emscripten canvas pointer sample with the scene revision
+ * captured by the browser at event time.
+ */
+export function editorSetPointerSceneRevision(revision: bigint): void {
+  if (revision <= 0n) return
+  safeCall(
+    'editor_set_pointer_scene_revision', null,
     ['number'],
     [Number(revision)],
   )
@@ -1040,6 +1059,14 @@ export function editorSetSceneSettings(sceneId: string, sceneJson: string): void
     _module._free(jsonPtr)
     _module._free(idPtr)
   }
+}
+
+export function editorBeginAuthoringSyncBatch(): void {
+  safeCall('editor_begin_authoring_sync_batch', null, [], [])
+}
+
+export function editorEndAuthoringSyncBatch(): void {
+  safeCall('editor_end_authoring_sync_batch', null, [], [])
 }
 
 // All cross-channel sync orchestration now lives in

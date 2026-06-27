@@ -35,6 +35,8 @@ import {
   editorSetMode,
   editorSetPlayPresentation,
   editorSetSceneSettings,
+  editorBeginAuthoringSyncBatch,
+  editorEndAuthoringSyncBatch,
   editorSetTool,
   editorSetTransform,
   editorSyncTilemapData,
@@ -598,7 +600,9 @@ class RuntimeSyncServiceImpl {
     const prevEnt = new Map(prevProjection?.entities.map((e) => [e.id, e]) ?? [])
     const nextEnt = new Map(nextProjection.entities.map((e) => [e.id, e]))
     let didWork = false
-    for (const entityId of plan.entityIds) {
+    editorBeginAuthoringSyncBatch()
+    try {
+      for (const entityId of plan.entityIds) {
       const def = runtimeEntities[entityId]
       if (!def) continue
       const snap: EntityTransformSnapshot = {
@@ -636,6 +640,9 @@ class RuntimeSyncServiceImpl {
         layerSettings: scene.layerSettings ?? {},
       }))
       didWork = true
+    }
+    } finally {
+      editorEndAuthoringSyncBatch()
     }
     return didWork
   }
@@ -685,10 +692,25 @@ class RuntimeSyncServiceImpl {
     const plan = planProjectSync(this.lastProjection, project, activeSceneId)
 
     if (plan.kind === 'tilemap_layers_only') {
-      const ok = editorSyncTilemapLayers(plan.payload)
-      if (ok) {
-        this.latchProjectProjection(loadKey, projection)
-        return true
+      editorBeginAuthoringSyncBatch()
+      try {
+        const scene = project.scenes?.[activeSceneId]
+        if (scene) {
+          editorSetSceneSettings(activeSceneId, JSON.stringify({
+            id: scene.id,
+            worldSize: scene.worldSize,
+            viewportSize: scene.viewportSize,
+            backgroundColor: scene.backgroundColor,
+            layerSettings: scene.layerSettings ?? {},
+          }))
+        }
+        const ok = editorSyncTilemapLayers(plan.payload)
+        if (ok) {
+          this.latchProjectProjection(loadKey, projection)
+          return true
+        }
+      } finally {
+        editorEndAuthoringSyncBatch()
       }
     }
 

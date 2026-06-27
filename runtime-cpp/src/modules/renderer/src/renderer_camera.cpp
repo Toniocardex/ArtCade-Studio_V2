@@ -7,7 +7,10 @@ namespace ArtCade::Modules {
 
 void Renderer::setCameraPosition(const Vec2& pos) {
     const Vec2 clamped = renderer_clamp_camera_target(
-        impl_->viewportSize, impl_->worldSize, impl_->cameraZoom, pos);
+        impl_->scene_logical_viewport(),
+        impl_->scene_world_bounds(),
+        impl_->cameraZoom,
+        pos);
     impl_->storedGameCamera_.positionX = static_cast<double>(clamped.x);
     impl_->storedGameCamera_.positionY = static_cast<double>(clamped.y);
 }
@@ -49,8 +52,8 @@ Vec2 Renderer::visibleWorldSize() const {
         ? static_cast<float>(impl_->storedGameCamera_.zoom)
         : 1.f;
     return {
-        impl_->viewportSize.x / zoom,
-        impl_->viewportSize.y / zoom,
+        impl_->scene_logical_viewport().x / zoom,
+        impl_->scene_logical_viewport().y / zoom,
     };
 }
 

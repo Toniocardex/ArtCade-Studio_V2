@@ -15,7 +15,9 @@
 #include "passes/gizmo_pass.h"
 #include "passes/scene_background_pass.h"
 #include "passes/scene_entities_pass.h"
+#include "frame_coordinator.h"
 #include "scene_frame_context.h"
+#include "scene_frame_snapshot.h"
 
 #include <vector>
 
@@ -41,16 +43,9 @@ RenderPipeline::ViewRenderFeatures build_view_features(
 
 } // namespace
 
-void Application::commitPresentationFrame() {
-    if (!mod_->renderer || !mod_->editorViewport) return;
-    mod_->editorViewport->sync_from_renderer(
-        mod_->renderer->gatherPresentationInputs(),
-        mod_->renderer->windowWidth(),
-        mod_->renderer->windowHeight());
-    mod_->editorViewport->begin_frame();
-}
-
 void Application::renderActiveScene() {
+    applyPendingSceneInvalidations();
+
     const SceneDef* activeScene = mod_->sceneManager->activeScene();
     const Vec4 clearColor = {0.015f, 0.018f, 0.025f, 1.f};
 
@@ -76,29 +71,44 @@ void Application::renderActiveScene() {
     std::vector<EntityId> selectedEntityIds;
 #endif
 
+    const float sceneFadeAlpha = mod_->entityGateway
+        ? mod_->entityGateway->sceneFadeAlpha()
+        : 0.f;
+
+    const uint64_t sceneRevision = mod_->sceneMutation
+        ? mod_->sceneMutation->revision()
+        : 0u;
+
+    const SceneFrameSnapshot frameSnapshot = frame_coordinator_build_frame({
+        ++frameNumber_,
+        sceneRevision,
+        activeScene,
+        mod_->renderer.get(),
+        mod_->editorViewport.get(),
+        overlay,
+        sceneFadeAlpha,
+    });
+
+    mod_->renderer->beginFrame(frameSnapshot.presentation, clearColor);
+    const RenderPipeline::ViewRenderFeatures features =
+        build_view_features(frameSnapshot.overlay);
+    const std::vector<RenderPipeline::RenderPassId> passOrder =
+        RenderPipeline::RenderPipelineBuilder::buildPipeline(
+            frameSnapshot.presentation,
+            features,
+            activeScene != nullptr).appPassOrder;
+
     SceneFrameContext frameCtx{};
+    frameCtx.frameSnapshot = &frameSnapshot;
     frameCtx.renderer = mod_->renderer.get();
     frameCtx.spriteAnimator = mod_->spriteAnimator.get();
     frameCtx.entityGateway = mod_->entityGateway.get();
     frameCtx.variableManager = mod_->variableManager.get();
     frameCtx.sceneManager = mod_->sceneManager.get();
     frameCtx.timeManager = mod_->timeManager.get();
-    frameCtx.activeScene = activeScene;
-    frameCtx.overlay = overlay;
     frameCtx.selectedEntityIds = &selectedEntityIds;
     frameCtx.tilesets = &tilesets_;
     frameCtx.tileColors = &tileColors_;
-    frameCtx.sceneFadeAlpha = mod_->entityGateway
-        ? mod_->entityGateway->sceneFadeAlpha()
-        : 0.f;
-
-    commitPresentationFrame();
-    const auto& presentation = mod_->editorViewport->committed_snapshot();
-    mod_->renderer->beginFrame(presentation, clearColor);
-    const RenderPipeline::ViewRenderFeatures features = build_view_features(overlay);
-    const std::vector<RenderPipeline::RenderPassId> passOrder =
-        RenderPipeline::RenderPipelineBuilder::buildPipeline(
-            presentation, features, activeScene != nullptr).appPassOrder;
 
     bool worldPassEnded = false;
     bool dialogRendered = false;

@@ -8,6 +8,7 @@
 
 namespace ArtCade::Modules {
     class RuntimeEntityGateway;
+    class SceneLifecycleService;
     class Physics;
     class VariableManager;
     class Renderer;
@@ -34,13 +35,16 @@ void stepTopDownController(World& world,
  * World — game-state orchestrator (Layer 3).
  *
  * Global blackboard: VariableManager (Lua state.* / save.*).
- * Scene activation: RuntimeEntityGateway::syncSceneActivation on loadScene.
+ * Scene activation: SceneLifecycleService (when wired) or gateway fallback.
  */
 class World {
 public:
     World(Modules::RuntimeEntityGateway& entityGateway,
           Modules::Physics&              physics,
           Modules::VariableManager&      variables);
+
+    /** Non-owning; set by Application so loadScene routes through lifecycle. */
+    void setSceneLifecycleService(Modules::SceneLifecycleService* lifecycle);
 
     void setRenderer(Modules::Renderer* renderer);
 
@@ -50,6 +54,9 @@ public:
     /** Preview STOP: reset global state + gameplay maps without reloading Lua. */
     void restoreDesignState(const std::vector<TilePaletteEntry>& tilePalette);
     void shutdown();
+
+    /** Clears per-scene gameplay caches after SceneLifecycleService commits a load. */
+    void onSceneActivated();
 
     bool    loadScene(const SceneId& id);
     SceneId activeSceneId() const;
@@ -186,6 +193,7 @@ private:
     EntityId cameraFollowTarget_ = INVALID_ENTITY;
 
     Modules::Renderer* renderer_ = nullptr;
+    Modules::SceneLifecycleService* lifecycle_ = nullptr;
 };
 
 } // namespace ArtCade

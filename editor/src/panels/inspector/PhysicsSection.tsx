@@ -21,7 +21,7 @@ function num(
   const inputId = numInputId(entityId, label)
   return (
     <div className="mb-2">
-      <label htmlFor={inputId} className="text-[9px] text-[var(--muted)] uppercase">
+      <label htmlFor={inputId} className="text-[11px] text-[var(--muted)]">
         {label}
       </label>
       <input
@@ -91,7 +91,7 @@ export function PhysicsSection({ entity }: PhysicsSectionProps) {
       </div>
 
       <div className="mb-2">
-        <label htmlFor={bodyTypeSelectId} className="text-[9px] text-[var(--muted)] uppercase">
+        <label htmlFor={bodyTypeSelectId} className="text-[11px] text-[var(--muted)]">
           Body Type
         </label>
         <EditorSelect
@@ -110,7 +110,7 @@ export function PhysicsSection({ entity }: PhysicsSectionProps) {
       </div>
 
       <div className="mb-2">
-        <label htmlFor={shapeSelectId} className="text-[9px] text-[var(--muted)] uppercase">
+        <label htmlFor={shapeSelectId} className="text-[11px] text-[var(--muted)]">
           Collider Shape
         </label>
         <EditorSelect

@@ -90,10 +90,9 @@ bool layerAllowsCanvasEdit(Modules::RuntimeEntityGateway& gateway,
     }
     if (!found) return true;
     bool visible = true;
-    if (const SceneDef* scene = gateway.activeScene()) {
-        const auto it = scene->layerSettings.find(layerId);
-        if (it != scene->layerSettings.end()) visible = it->second.visible;
-    }
+    const auto& layerSettings = EditorAPI::committed_scene_layer_settings();
+    const auto it = layerSettings.find(layerId);
+    if (it != layerSettings.end()) visible = it->second.visible;
     return visible && !locked;
 }
 

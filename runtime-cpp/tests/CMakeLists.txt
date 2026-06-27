@@ -194,6 +194,71 @@ if(ARTCADE_HAS_RAYLIB AND ARTCADE_HAS_LUA)
         renderer-screen-world-test.cpp
         artcade-renderer)
 
+    add_executable(scene_mutation_geometry_test
+        scene-mutation-geometry-test.cpp
+    )
+    target_include_directories(scene_mutation_geometry_test PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/src/modules/renderer/include
+        ${CMAKE_SOURCE_DIR}/src/modules/presentation/include
+    )
+    target_link_libraries(scene_mutation_geometry_test PRIVATE
+        artcade-renderer
+        artcade-scene-system
+    )
+    add_test(NAME scene_mutation_geometry_test COMMAND scene_mutation_geometry_test)
+
+    artcade_test(presentation_input_builder_test
+        presentation-input-builder-test.cpp
+        artcade-presentation)
+
+    add_executable(frame_coordinator_test
+        frame-coordinator-test.cpp
+        ${CMAKE_SOURCE_DIR}/src/app/render/frame_coordinator.cpp
+        ${CMAKE_SOURCE_DIR}/src/app/render/scene_frame_builder.cpp
+    )
+    target_include_directories(frame_coordinator_test PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/src/app/render
+        ${CMAKE_SOURCE_DIR}/src/modules/renderer/include
+        ${CMAKE_SOURCE_DIR}/src/modules/presentation/include
+        ${CMAKE_SOURCE_DIR}/src/modules/editor-api/include
+    )
+    target_link_libraries(frame_coordinator_test PRIVATE
+        artcade-renderer
+        artcade-presentation
+        artcade-scene-system
+        artcade-editor-api
+    )
+    add_test(NAME frame_coordinator_test COMMAND frame_coordinator_test)
+
+    artcade_test(scene_invalidation_test
+        scene-invalidation-test.cpp
+        artcade-scene-system)
+
+    artcade_test(scene_mutation_batch_test
+        scene-mutation-batch-test.cpp
+        artcade-scene-system)
+
+    artcade_test(scene_lifecycle_test
+        scene-lifecycle-test.cpp
+        "artcade-scene-system;artcade-runtime-entity-gateway;artcade-physics")
+
+    add_executable(scene_frame_snapshot_test
+        scene-frame-snapshot-test.cpp
+        ${CMAKE_SOURCE_DIR}/src/app/render/scene_frame_builder.cpp
+    )
+    target_include_directories(scene_frame_snapshot_test PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/src/app/render
+        ${CMAKE_SOURCE_DIR}/src/modules/presentation/include
+    )
+    target_link_libraries(scene_frame_snapshot_test PRIVATE
+        artcade-presentation
+        artcade-renderer
+    )
+    add_test(NAME scene_frame_snapshot_test COMMAND scene_frame_snapshot_test)
+
     artcade_test(scene_gateway_test
         scene-gateway-test.cpp
         "artcade-runtime-entity-gateway;artcade-physics;artcade-variable-manager")

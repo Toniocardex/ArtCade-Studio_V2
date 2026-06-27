@@ -40,7 +40,7 @@ int main() {
     ArtCade::Presentation::EditorViewportService viewport;
     Renderer renderer;
     renderer.setWindowSize(1280, 720, "camera-modes");
-    renderer.setSceneViewport({ 2560.f, 1440.f }, { 1280.f, 720.f });
+    renderer.setFrameSceneGeometry({ 2560.f, 1440.f }, { 1280.f, 720.f });
     viewport.set_presentation_mode(PresentationMode::CameraPreview);
     renderer.setCameraZoom(2.f);
     renderer.setCameraPosition({ 100.f, 50.f });
@@ -58,7 +58,7 @@ int main() {
            "SceneEdit picking uses editor camera");
 
     viewport.set_presentation_mode(PresentationMode::CameraPreview);
-    renderer.setSceneViewport({ 1280.f, 720.f }, { 1280.f, 720.f });
+    renderer.setFrameSceneGeometry({ 1280.f, 720.f }, { 1280.f, 720.f });
     renderer.setWindowSize(1280, 720, "camera-modes-refresh");
     commitPresentationFrame(renderer, viewport);
     const auto& playSnapshot = viewport.committed_snapshot();
@@ -82,7 +82,7 @@ int main() {
     renderer.setGameViewCompositorEnabled(true);
     viewport.set_presentation_mode(PresentationMode::PlayEmbedded);
     renderer.setWindowSize(1920, 1080, "play-embedded");
-    renderer.setSceneViewport({ 640.f, 480.f }, { 320.f, 240.f });
+    renderer.setFrameSceneGeometry({ 640.f, 480.f }, { 320.f, 240.f });
     renderer.setCameraPosition({ 0.f, 0.f });
     expect(viewport.presentation_mode() == PresentationMode::PlayEmbedded,
            "explicit PlayEmbedded mode is preserved");

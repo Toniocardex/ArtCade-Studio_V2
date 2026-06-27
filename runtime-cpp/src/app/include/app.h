@@ -3,6 +3,9 @@
 #include "../../core/engine-context.h"
 #include "../../core/runtime-profiler.h"
 #include "../../core/types.h"
+#include "../../modules/scene-system/include/scene-invalidation.h"
+#include "../../modules/scene-system/include/scene-mutation-result.h"
+#include "../../modules/scene-system/include/scene-lifecycle-result.h"
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -103,8 +106,40 @@ private:
     /** Per-render-frame tail: profiler counts, draw, console flush, input reset. */
     void tickFrameEnd();
     void renderActiveScene();
-    /** Sole presentation commit path before each rendered frame. */
-    void commitPresentationFrame();
+
+    /**
+     * Post-mutation handler registered with EditorAPI (composition root).
+     * Coalesces invalidation flags; rebuild runs at the next frame boundary.
+     */
+    void handleSceneMutation(const ArtCade::Modules::SceneMutationResult& result);
+
+    /**
+     * Post-transition handler for SceneLifecycleService commits.
+     * Coalesces invalidation flags; rebuild runs at the next frame boundary.
+     */
+    void handleSceneTransition(const ArtCade::Modules::SceneTransitionResult& result);
+
+    /** Queues invalidation flags (tilemap/entity sync paths). */
+    void queueSceneInvalidations(ArtCade::Modules::SceneInvalidation flags);
+
+    void beginAuthoringSyncBatch();
+    void endAuthoringSyncBatch();
+
+    /** Consumes coalesced invalidations before presentation commit (PR3). */
+    void applyPendingSceneInvalidations();
+
+    /** Refreshes pending presentation from scene-authoritative inputs. */
+    void refreshPresentationPending();
+
+    ArtCade::Modules::SceneInvalidation pendingSceneInvalidations_ =
+        ArtCade::Modules::SceneInvalidation::None;
+
+    ArtCade::Modules::SceneInvalidation pendingAuthoringInvalidations_ =
+        ArtCade::Modules::SceneInvalidation::None;
+
+    int authoringSyncBatchDepth_ = 0;
+
+    uint64_t frameNumber_ = 0;
 
     float targetDt_        = 1.f / 60.f;
     float accumulator_      = 0.f;          // Persistent across frames for WASM.

@@ -20,10 +20,15 @@
 #include <cstdint>
 #include <functional>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
 #include "../../presentation/include/presentation_snapshot_wasm.h"
+#include "../../../core/types.h"
+#include "../../scene-system/include/scene-mutation-result.h"
+#include "../../scene-system/include/scene-patch.h"
+#include "../../scene-system/include/scene-invalidation.h"
 #include "editor-transform-gizmo.h"
 
 // Forward declarations shared by both the WASM build and the native stub.
@@ -74,6 +79,28 @@ using EditorExitPlayHandler = std::function<void(
     const std::vector<GameVariableDefinition>&,
     const ProjectRuntimeSettings&,
     const std::string& luaSource)>;
+
+/** Frame-boundary scene commit for picking (layer visibility) and revision export. */
+struct EditorSceneFrameCommit {
+    uint64_t sceneRevision = 0;
+    std::unordered_map<std::string, SceneLayerSettings> layerSettings;
+};
+
+/** Applies a normalized scene patch; registered by Application. */
+using SceneMutationApplyFn = std::function<Modules::SceneMutationResult(
+    const SceneId&,
+    const Modules::ScenePatch&,
+    Modules::SceneMutationOrigin)>;
+
+/** Post-mutation callback; Application owns renderer/presentation coordination. */
+using SceneMutationHandler = std::function<void(const Modules::SceneMutationResult&)>;
+
+/** Queue declarative invalidations from non-mutation editor sync paths. */
+using SceneInvalidationQueueHandler = std::function<void(Modules::SceneInvalidation)>;
+
+using AuthoringSyncBatchHandler = std::function<void()>;
+
+using SceneMutationBatchOpenPredicate = std::function<bool()>;
 
 /** Return codes for editor_enter_play_mode / editor_exit_play_mode / editor_reload_script. */
 enum EditorApiResult : int {
@@ -132,6 +159,15 @@ public:
      */
     static void wireEditorViewport(Presentation::EditorViewportService* viewport);
 
+    /**
+     * Commits the immutable scene frame used for picking and revision export.
+     * Called once per frame from Application after SceneFrameSnapshot is built.
+     */
+    static void commit_scene_frame(const EditorSceneFrameCommit& frame);
+    /** Layer visibility map from the last commit_scene_frame call. */
+    static const std::unordered_map<std::string, SceneLayerSettings>&
+    committed_scene_layer_settings();
+
     /** Wire DialogManager so editor_load_dialogs() can register preview graphs. */
     static void wireDialog(Modules::DialogManager* dialogManager);
 
@@ -160,6 +196,23 @@ public:
 
     /** After editor_exit_play_mode JSON is applied (Lua applied in handler). */
     static void setExitPlayHandler(EditorExitPlayHandler handler);
+
+    /**
+     * Register scene mutation apply + post-mutation handlers.
+     * EditorAPI stays an adapter; Application is the composition root.
+     */
+    static void setSceneMutationBridge(
+        SceneMutationApplyFn apply,
+        SceneMutationHandler onResult);
+
+    static void setSceneInvalidationQueueHandler(SceneInvalidationQueueHandler handler);
+
+    static void setAuthoringSyncBatchHandlers(
+        AuthoringSyncBatchHandler onBegin,
+        AuthoringSyncBatchHandler onEnd);
+
+    /** When true, scene mutation callbacks defer until end_authoring_sync_batch(). */
+    static void setSceneMutationBatchOpenPredicate(SceneMutationBatchOpenPredicate predicate);
 
     // -------------------------------------------------------------------------
     // C++ -> React notifications (Smoke Test 3)
@@ -249,6 +302,10 @@ public:
     static Presentation::EditorViewportService* s_viewport;
     /** Revision captured by the browser at pointer-event time (0 = use committed). */
     static uint64_t                       s_pointerPresentationRevision;
+    /** Scene revision captured with the pointer sample (0 = use committed frame). */
+    static uint64_t                       s_pointerSceneRevision;
+    /** Last SceneFrameSnapshot::sceneRevision (frame-boundary geometry authority). */
+    static uint64_t                       s_sceneFrameRevision;
     static Modules::DialogManager*        s_dialogManager;
     static Modules::SpriteAnimator*        s_spriteAnimator;
     static Modules::Audio*                 s_audio;
@@ -257,6 +314,12 @@ public:
     static EditorPreviewRestoreHandler    s_onPreviewRestore;
     static EditorEnterPlayHandler         s_onEnterPlay;
     static EditorExitPlayHandler          s_onExitPlay;
+    static SceneMutationApplyFn           s_applySceneMutation;
+    static SceneMutationHandler           s_onSceneMutation;
+    static SceneInvalidationQueueHandler  s_queueSceneInvalidations;
+    static AuthoringSyncBatchHandler      s_onAuthoringSyncBatchBegin;
+    static AuthoringSyncBatchHandler      s_onAuthoringSyncBatchEnd;
+    static SceneMutationBatchOpenPredicate s_isSceneMutationBatchOpen;
     static std::vector<std::pair<std::string, std::string>> s_consoleQueue;
 
     // Native input callbacks -- bypass the JS thread entirely (Smoke Test 2)
@@ -338,6 +401,13 @@ EMSCRIPTEN_KEEPALIVE void editor_update_entity(
  */
 EMSCRIPTEN_KEEPALIVE void editor_set_scene_settings(
     const char* sceneId, const char* json_utf8);
+
+/**
+ * Coalesce incremental authoring sync (scene + entities + tilemap) into one
+ * sceneRevision bump and one invalidation pass at end_authoring_sync_batch().
+ */
+EMSCRIPTEN_KEEPALIVE void editor_begin_authoring_sync_batch();
+EMSCRIPTEN_KEEPALIVE void editor_end_authoring_sync_batch();
 
 /**
  * Hot-reload game logic from the Logic Board editor.
@@ -425,7 +495,10 @@ EMSCRIPTEN_KEEPALIVE void editor_set_editor_view(
 
 /** Committed presentation revision for the current frame (picking / overlay sync). */
 EMSCRIPTEN_KEEPALIVE double editor_get_presentation_revision();
+/** Committed scene revision from SceneFrameSnapshot (geometry authority for picking). */
+EMSCRIPTEN_KEEPALIVE double editor_get_scene_revision();
 EMSCRIPTEN_KEEPALIVE void editor_set_pointer_presentation_revision(double revision);
+EMSCRIPTEN_KEEPALIVE void editor_set_pointer_scene_revision(double revision);
 
 /** Committed presentation snapshot (flat ABI; static storage — Phase 5). */
 EMSCRIPTEN_KEEPALIVE const ArtCade::Presentation::PresentationSnapshotWasm*
@@ -513,6 +586,12 @@ struct EditorAPI {
     static void wireLua(Modules::LuaHost*) {}
     static void wireRenderer(Modules::Renderer*) {}
     static void wireEditorViewport(Presentation::EditorViewportService*) {}
+    static void commit_scene_frame(const EditorSceneFrameCommit&) {}
+    static const std::unordered_map<std::string, SceneLayerSettings>&
+    committed_scene_layer_settings() {
+        static const std::unordered_map<std::string, SceneLayerSettings> empty;
+        return empty;
+    }
     static void wireDialog(Modules::DialogManager*) {}
     static void wireSpriteAnimator(Modules::SpriteAnimator*) {}
     static void wireAudio(Modules::Audio*) {}
@@ -521,6 +600,11 @@ struct EditorAPI {
     static void setPreviewRestoreHandler(EditorPreviewRestoreHandler) {}
     static void setEnterPlayHandler(EditorEnterPlayHandler) {}
     static void setExitPlayHandler(EditorExitPlayHandler) {}
+    static void setSceneMutationBridge(SceneMutationApplyFn, SceneMutationHandler) {}
+    static void setSceneInvalidationQueueHandler(SceneInvalidationQueueHandler) {}
+    static void setAuthoringSyncBatchHandlers(
+        AuthoringSyncBatchHandler, AuthoringSyncBatchHandler) {}
+    static void setSceneMutationBatchOpenPredicate(SceneMutationBatchOpenPredicate) {}
     static void notifyEntitySelected(uint32_t) {}
     static void notifyEntityDuplicateRequested(uint32_t, float, float) {}
     static void notifyTransformChanged(uint32_t, float, float, float, float, float) {}
@@ -557,6 +641,10 @@ struct EditorAPI {
     static Presentation::EditorViewportService* s_viewport;
     /** Revision captured by the browser at pointer-event time (0 = use committed). */
     static uint64_t                       s_pointerPresentationRevision;
+    /** Scene revision captured with the pointer sample (0 = use committed frame). */
+    static uint64_t                       s_pointerSceneRevision;
+    /** Last SceneFrameSnapshot::sceneRevision (frame-boundary geometry authority). */
+    static uint64_t                       s_sceneFrameRevision;
     static Modules::DialogManager*        s_dialogManager;
     static Modules::SpriteAnimator*        s_spriteAnimator;
     static Modules::Audio*                 s_audio;

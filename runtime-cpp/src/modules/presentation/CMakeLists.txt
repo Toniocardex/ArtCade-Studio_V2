@@ -12,6 +12,7 @@ add_library(artcade-presentation
     src/editor_viewport_controller.cpp
     src/frame_selection.cpp
     src/presentation_state_sync.cpp
+    src/presentation_input_builder.cpp
     src/editor_viewport_navigation.cpp
     src/editor_viewport_service.cpp
     src/editor_zoom_policy.cpp

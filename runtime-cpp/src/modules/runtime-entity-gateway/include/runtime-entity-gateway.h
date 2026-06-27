@@ -24,6 +24,7 @@ using EntityCreatedHandler = std::function<void(EntityId, const EntityDef&)>;
 using PhysicsTopologyHandler = std::function<void()>;
 
 class SceneManager;
+class SceneLifecycleService;
 class Physics;
 class EntityRegistry;
 class SpriteAnimator;
@@ -229,9 +230,14 @@ public:
         std::unordered_map<std::string, std::string> spritePathToAssetId);
     const std::vector<PhysicsLayerDef>& physicsLayers() const;
 
+    /** Non-owning; set by Application composition root (PR4 lifecycle). */
+    void set_scene_lifecycle_service(SceneLifecycleService* lifecycle);
+
     bool loadScene(const SceneId& id);
     /** Fade to black, load scene, fade in. fadeSeconds <= 0 loads immediately. */
     void requestLoadScene(const SceneId& id, float fadeSeconds = 0.f);
+    /** Reloads the active scene, with optional fade. */
+    void requestRestartScene(float fadeSeconds = 0.f);
     void tickSceneTransition(float dt);
     /** 0 = no overlay, 1 = full black (for fade). */
     float sceneFadeAlpha() const;
@@ -268,12 +274,6 @@ private:
     std::vector<DestroyedEvent>  destroyBuffer_;
     std::vector<LifecycleEvent>  lifecycleQueue_;
 
-    SceneId  pendingSceneId_;
-    float    fadeDuration_  = 0.f;
-    float    fadeElapsed_   = 0.f;
-    enum class FadePhase { None, Out, In };
-    FadePhase fadePhase_     = FadePhase::None;
-
     /** First EntityDef seen per className when the project is loaded (spawn template). */
     std::unordered_map<std::string, EntityDef> classPrototypes_;
     std::vector<EntityId> persistentEntityIds_;
@@ -282,6 +282,8 @@ private:
     EntityDestroyHandler   destroyHandler_;
     EntityCreatedHandler   createdHandler_;
     PhysicsTopologyHandler physicsTopologyHandler_;
+
+    SceneLifecycleService* lifecycle_ = nullptr;
 
     std::vector<PhysicsLayerDef> physicsLayers_;
     std::unordered_map<std::string, CollisionProfileDef> collisionProfiles_;

@@ -92,28 +92,30 @@ void drawLayer(Modules::Renderer& renderer,
 } // namespace
 
 void draw(Modules::Renderer& renderer,
-          const SceneDef& scene,
+          const TilemapData& mergedTilemap,
+          const std::unordered_map<std::string, TilemapData>& tilemapLayers,
+          const std::unordered_map<std::string, SceneLayerSettings>& layerSettings,
           const std::vector<SceneLayerDef>& layerStack,
           const std::vector<TilesetAsset>& liveTilesets,
           const std::unordered_map<std::string, TilesetAsset>& startupCache,
           const std::unordered_map<int, Vec4>& palette)
 {
-    if (!scene.tilemapLayers.empty() && !layerStack.empty()) {
+    if (!tilemapLayers.empty() && !layerStack.empty()) {
         for (int i = static_cast<int>(layerStack.size()) - 1; i >= 0; --i) {
             const auto& layer = layerStack[static_cast<size_t>(i)];
             SceneLayerSettings settings;
-            const auto sit = scene.layerSettings.find(layer.id);
-            if (sit != scene.layerSettings.end()) settings = sit->second;
+            const auto sit = layerSettings.find(layer.id);
+            if (sit != layerSettings.end()) settings = sit->second;
             if (!settings.visible || settings.opacity <= 0.f) continue;
-            const auto it = scene.tilemapLayers.find(layer.id);
-            if (it != scene.tilemapLayers.end())
+            const auto it = tilemapLayers.find(layer.id);
+            if (it != tilemapLayers.end())
                 drawLayer(renderer, it->second, liveTilesets, startupCache, palette,
                           settings.opacity);
         }
         return;
     }
 
-    drawLayer(renderer, scene.tilemap, liveTilesets, startupCache, palette, 1.f);
+    drawLayer(renderer, mergedTilemap, liveTilesets, startupCache, palette, 1.f);
 }
 
 } // namespace ArtCade::TilemapRenderer

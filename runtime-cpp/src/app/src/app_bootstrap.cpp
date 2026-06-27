@@ -3,6 +3,8 @@
 #include "app_modules.h"
 
 #include "../../modules/editor-api/include/editor-api.h"
+#include "../../modules/scene-system/include/scene-mutation-result.h"
+#include "../../modules/scene-system/include/scene-patch.h"
 
 #include <memory>
 #include <string>
@@ -72,14 +74,35 @@ bool Application::initSubsystems() {
     mod_->sceneManager = std::make_unique<ArtCade::Modules::SceneManager>();
     if (!mod_->sceneManager->init()) return false;
 
+    mod_->sceneMutation = std::make_unique<ArtCade::Modules::SceneMutationService>(
+        *mod_->sceneManager);
+
     mod_->entityGateway = std::make_unique<ArtCade::Modules::RuntimeEntityGateway>(
         *mod_->sceneManager);
     if (!mod_->entityGateway->init()) return false;
+
+    mod_->sceneLifecycle = std::make_unique<ArtCade::Modules::SceneLifecycleService>(
+        *mod_->sceneManager,
+        *mod_->sceneMutation,
+        [gw = mod_->entityGateway.get()]() {
+            if (!gw) return false;
+            gw->syncSceneActivation();
+            return true;
+        });
+    mod_->sceneLifecycle->set_transition_handler(
+        [this](const ArtCade::Modules::SceneTransitionResult& result) {
+            handleSceneTransition(result);
+        });
+    mod_->entityGateway->set_scene_lifecycle_service(mod_->sceneLifecycle.get());
 
     mod_->world = std::make_unique<World>(
         *mod_->entityGateway, *mod_->physics, *mod_->variableManager);
     mod_->entityGateway->setPhysics(mod_->physics.get());
     mod_->world->setRenderer(mod_->renderer.get());
+    mod_->sceneLifecycle->set_gameplay_reset_handler([this]() {
+        if (mod_->world) mod_->world->onSceneActivated();
+    });
+    mod_->world->setSceneLifecycleService(mod_->sceneLifecycle.get());
 
     ctx_.renderer = mod_->renderer.get();
     ctx_.physics = mod_->physics.get();
@@ -131,6 +154,26 @@ bool Application::initSubsystems() {
     EditorAPI::init("#artcade-canvas");
 
 #ifdef ARTCADE_WASM
+    EditorAPI::setSceneMutationBridge(
+        [this](const SceneId& sceneId,
+               const ArtCade::Modules::ScenePatch& patch,
+               ArtCade::Modules::SceneMutationOrigin origin) {
+            return mod_->sceneMutation->apply(sceneId, patch, origin);
+        },
+        [this](const ArtCade::Modules::SceneMutationResult& result) {
+            handleSceneMutation(result);
+        });
+    EditorAPI::setSceneInvalidationQueueHandler(
+        [this](const ArtCade::Modules::SceneInvalidation flags) {
+            queueSceneInvalidations(flags);
+        });
+    EditorAPI::setAuthoringSyncBatchHandlers(
+        [this]() { beginAuthoringSyncBatch(); },
+        [this]() { endAuthoringSyncBatch(); });
+    EditorAPI::setSceneMutationBatchOpenPredicate(
+        [this]() {
+            return mod_->sceneMutation && mod_->sceneMutation->batch_open();
+        });
     EditorAPI::setProjectLoadedHandler(
         [this](const std::vector<TilePaletteEntry>& palette,
                const std::vector<TilesetAsset>& tilesets,
@@ -172,7 +215,16 @@ void Application::shutdownModules() {
     if (mod_->gameAPI) { mod_->gameAPI->shutdown(); mod_->gameAPI.reset(); }
     if (mod_->dialogManager) { mod_->dialogManager->shutdown(); mod_->dialogManager.reset(); }
     if (mod_->world) { mod_->world->shutdown(); mod_->world.reset(); }
-    if (mod_->entityGateway) { mod_->entityGateway->shutdown(); mod_->entityGateway.reset(); }
+    if (mod_->entityGateway) {
+        mod_->entityGateway->set_scene_lifecycle_service(nullptr);
+        mod_->entityGateway->shutdown();
+        mod_->entityGateway.reset();
+    }
+    if (mod_->sceneLifecycle) {
+        mod_->sceneLifecycle->cancel_transition();
+        mod_->sceneLifecycle.reset();
+    }
+    if (mod_->sceneMutation) mod_->sceneMutation.reset();
     if (mod_->sceneManager) { mod_->sceneManager->shutdown(); mod_->sceneManager.reset(); }
     if (mod_->assetLoader) { mod_->assetLoader->shutdown(); mod_->assetLoader.reset(); }
     if (mod_->audio) { mod_->audio->shutdown(); mod_->audio.reset(); }

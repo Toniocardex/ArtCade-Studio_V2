@@ -27,7 +27,7 @@ export function EntityTagsSection({ entity }: EntityTagsSectionProps) {
       <div className="flex items-center gap-1 mb-1.5">
         <label
           htmlFor={tagInputId}
-          className="text-[9px] text-[var(--muted)] uppercase"
+          className="text-[11px] text-[var(--muted)]"
         >
           Tags
         </label>

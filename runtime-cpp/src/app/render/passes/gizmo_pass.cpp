@@ -28,17 +28,18 @@ std::optional<Vec2> visualSizeForFrame(
 } // namespace
 
 void execute_gizmo_pass(SceneFrameContext& ctx) {
-    if (!ctx.overlay.inEditMode || !ctx.entityGateway || !ctx.selectedEntityIds
+    if (!ctx.frameSnapshot || !ctx.entityGateway || !ctx.selectedEntityIds
         || !ctx.renderer)
         return;
 
-    const bool inEditMode = ctx.overlay.inEditMode;
+    const EditorOverlayState& overlay = ctx.frameSnapshot->overlay;
+    if (!overlay.inEditMode) return;
     auto* renderer = ctx.renderer;
     auto* gateway = ctx.entityGateway;
     auto* animator = ctx.spriteAnimator;
     const auto& selectedEntityIds = *ctx.selectedEntityIds;
 
-    if (inEditMode) {
+    if (overlay.inEditMode) {
         ctx.entityGateway->forEachActiveHiddenInGame(
             [renderer, gateway, animator, &selectedEntityIds]
             (EntityId id, const Transform& transform, const PhysicsComponent&) {
@@ -67,8 +68,8 @@ void execute_gizmo_pass(SceneFrameContext& ctx) {
         if (ctx.entityGateway->getResolvedCollisionBody(selectedId, collisionBody))
             collisionOverlay = collisionBody;
         const auto draw = AppRender::sprite_frame_resolve(
-            ctx.spriteAnimator, selectedId, sprite, ctx.overlay.inEditMode);
-        EditorOverlayState itemOverlay = ctx.overlay;
+            ctx.spriteAnimator, selectedId, sprite, overlay.inEditMode);
+        EditorOverlayState itemOverlay = overlay;
         itemOverlay.selectedId = selectedId;
         EditorOverlayRenderer::drawSelection(
             *ctx.renderer, transform, sprite, itemOverlay, hiddenInGame,

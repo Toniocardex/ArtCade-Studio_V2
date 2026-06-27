@@ -2,6 +2,7 @@
 #include "../include/physics-body-rules.h"
 #include "entity-registry.h"
 #include "collision-profile-resolve.h"
+#include "../../scene-system/include/scene-lifecycle-service.h"
 #include "../../scene-system/include/scene-manager.h"
 #include "../../physics/include/physics.h"
 #include "../../sprite-animator/include/sprite-animator.h"
@@ -92,7 +93,7 @@ void RuntimeEntityGateway::shutdown() {
     destroyHandler_         = nullptr;
     createdHandler_         = nullptr;
     physicsTopologyHandler_ = nullptr;
-    fadePhase_ = FadePhase::None;
+    lifecycle_ = nullptr;
 }
 
 void RuntimeEntityGateway::setPhysics(Physics* physics) {
@@ -828,6 +829,11 @@ const std::vector<PhysicsLayerDef>& RuntimeEntityGateway::physicsLayers() const 
     return physicsLayers_;
 }
 
+void RuntimeEntityGateway::set_scene_lifecycle_service(
+    SceneLifecycleService* lifecycle) {
+    lifecycle_ = lifecycle;
+}
+
 void RuntimeEntityGateway::forEachActivePlatformer(
     const ActivePlatformerFn& fn) const
 {
@@ -990,48 +996,39 @@ const std::vector<SceneLayerDef>& RuntimeEntityGateway::sceneLayers() const {
 }
 
 bool RuntimeEntityGateway::loadScene(const SceneId& id) {
+    if (lifecycle_) return lifecycle_->load_immediate(id).changed;
     if (!sceneManager_.loadScene(id)) return false;
     syncSceneActivation();
     return true;
 }
 
 void RuntimeEntityGateway::requestLoadScene(const SceneId& id, float fadeSeconds) {
+    if (lifecycle_) {
+        lifecycle_->request_load(id, fadeSeconds);
+        return;
+    }
     if (fadeSeconds <= 0.f) {
         loadScene(id);
         return;
     }
-    pendingSceneId_ = id;
-    fadeDuration_   = fadeSeconds;
-    fadeElapsed_    = 0.f;
-    fadePhase_      = FadePhase::Out;
+    loadScene(id);
+}
+
+void RuntimeEntityGateway::requestRestartScene(float fadeSeconds) {
+    if (lifecycle_) {
+        lifecycle_->request_restart(fadeSeconds);
+        return;
+    }
+    loadScene(activeSceneId());
 }
 
 void RuntimeEntityGateway::tickSceneTransition(float dt) {
-    if (fadePhase_ == FadePhase::None) return;
-
-    fadeElapsed_ += dt;
-    const float half = fadeDuration_ * 0.5f;
-
-    if (fadePhase_ == FadePhase::Out) {
-        if (fadeElapsed_ >= half) {
-            loadScene(pendingSceneId_);
-            fadePhase_   = FadePhase::In;
-            fadeElapsed_ = 0.f;
-        }
-    } else if (fadePhase_ == FadePhase::In) {
-        if (fadeElapsed_ >= half) {
-            fadePhase_ = FadePhase::None;
-        }
-    }
+    if (lifecycle_) lifecycle_->tick(dt);
 }
 
 float RuntimeEntityGateway::sceneFadeAlpha() const {
-    if (fadePhase_ == FadePhase::None || fadeDuration_ <= 0.f) return 0.f;
-    const float half = fadeDuration_ * 0.5f;
-    if (half <= 0.f) return 0.f;
-    if (fadePhase_ == FadePhase::Out)
-        return std::min(1.f, fadeElapsed_ / half);
-    return std::max(0.f, 1.f - fadeElapsed_ / half);
+    if (lifecycle_) return lifecycle_->scene_fade_alpha();
+    return 0.f;
 }
 
 std::vector<RuntimeEntityGateway::DestroyedEvent>

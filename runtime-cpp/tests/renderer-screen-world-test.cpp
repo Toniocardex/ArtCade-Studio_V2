@@ -57,7 +57,7 @@ int main() {
     ArtCade::Presentation::EditorViewportService viewport;
     Renderer renderer;
     renderer.setWindowSize(1280, 720, "test");
-    renderer.setSceneViewport({ 1280.f, 720.f }, { 1280.f, 720.f });
+    renderer.setFrameSceneGeometry({ 1280.f, 720.f }, { 1280.f, 720.f });
     viewport.set_presentation_mode(ArtCade::Presentation::PresentationMode::CameraPreview);
     renderer.setCameraZoom(2.f);
     renderer.setCameraPosition({ 640.f, 360.f });
@@ -73,7 +73,7 @@ int main() {
     expect(near(origin.x, 0.f) && near(origin.y, 0.f), "snapshot picking at origin");
 
     // 1:1 world/viewport clamps authoritative camera; shake must stay render-only.
-    renderer.setSceneViewport({ 1280.f, 720.f }, { 1280.f, 720.f });
+    renderer.setFrameSceneGeometry({ 1280.f, 720.f }, { 1280.f, 720.f });
     renderer.setCameraPosition({ 12.f, 8.f });
     const auto clamped = renderer.getCameraPosition();
     expect(near(clamped.x, 0.f) && near(clamped.y, 0.f),
@@ -84,7 +84,7 @@ int main() {
            "render shake offset does not mutate authoritative camera");
     renderer.setGameCameraModifiers({});
 
-    renderer.setSceneViewport({ 2560.f, 1440.f }, { 1280.f, 720.f });
+    renderer.setFrameSceneGeometry({ 2560.f, 1440.f }, { 1280.f, 720.f });
     renderer.setCameraCenter({ 1280.f, 720.f });
     const auto centered = pickWorld(renderer, viewport, 640.f, 360.f);
     expect(near(centered.x, 1280.f) && near(centered.y, 720.f),
@@ -94,7 +94,7 @@ int main() {
            "getCameraCenter returns visible world center");
 
     renderer.setWindowSize(720, 360, "test-small-world");
-    renderer.setSceneViewport({ 640.f, 480.f }, { 720.f, 360.f });
+    renderer.setFrameSceneGeometry({ 640.f, 480.f }, { 720.f, 360.f });
     renderer.setCameraPosition({ 0.f, 0.f });
     const auto smallWorldCenter = pickWorld(renderer, viewport, 360.f, 180.f);
     expect(near(smallWorldCenter.x, 320.f) && near(smallWorldCenter.y, 180.f),
@@ -107,7 +107,7 @@ int main() {
            "screen margin maps outside centered small world");
 
     renderer.setWindowSize(1000, 720, "test-letterbox");
-    renderer.setSceneViewport({ 640.f, 480.f }, { 320.f, 240.f });
+    renderer.setFrameSceneGeometry({ 640.f, 480.f }, { 320.f, 240.f });
     viewport.set_presentation_mode(ArtCade::Presentation::PresentationMode::CameraPreview);
     renderer.setGameViewCompositorEnabled(false);
     renderer.setCameraPosition({ 0.f, 0.f });
@@ -127,7 +127,7 @@ int main() {
     renderer.setGameCameraModifiers({});
     renderer.setGameViewCompositorEnabled(false);
     renderer.setWindowSize(1280, 720, "test-full-clip");
-    renderer.setSceneViewport({ 1280.f, 720.f }, { 1280.f, 720.f });
+    renderer.setFrameSceneGeometry({ 1280.f, 720.f }, { 1280.f, 720.f });
     renderer.setCameraPosition({ 0.f, 0.f });
     renderer.setCameraZoom(1.f);
     applyCommittedFrame(renderer, viewport);
@@ -135,7 +135,7 @@ int main() {
                "world=viewport clip covers the full framebuffer");
 
     renderer.setWindowSize(512, 320, "test-16-9-clip");
-    renderer.setSceneViewport({ 512.f, 288.f }, { 512.f, 320.f });
+    renderer.setFrameSceneGeometry({ 512.f, 288.f }, { 512.f, 320.f });
     renderer.setCameraPosition({ 0.f, 0.f });
     renderer.setCameraZoom(1.f);
     applyCommittedFrame(renderer, viewport);
@@ -144,7 +144,7 @@ int main() {
 
     renderer.setGameViewCompositorEnabled(true);
     renderer.setWindowSize(1000, 720, "test-gameview-clip");
-    renderer.setSceneViewport({ 640.f, 480.f }, { 320.f, 240.f });
+    renderer.setFrameSceneGeometry({ 640.f, 480.f }, { 320.f, 240.f });
     renderer.setCameraPosition({ 0.f, 0.f });
     renderer.setCameraZoom(1.f);
     applyCommittedFrame(renderer, viewport);
@@ -153,7 +153,7 @@ int main() {
 
     renderer.setWindowSize(1920, 1080, "test-fill-compositor");
     viewport.set_presentation_mode(ArtCade::Presentation::PresentationMode::PlayEmbedded);
-    renderer.setSceneViewport({ 640.f, 480.f }, { 320.f, 240.f });
+    renderer.setFrameSceneGeometry({ 640.f, 480.f }, { 320.f, 240.f });
     renderer.setOutputPolicy(OutputPolicy::Fill);
     renderer.setCameraPosition({ 0.f, 0.f });
     renderer.setCameraZoom(1.f);
@@ -169,7 +169,7 @@ int main() {
            "fill scale matches compositor_layout");
 
     renderer.setGameViewCompositorEnabled(false);
-    renderer.setSceneViewport({ 512.f, 288.f }, { 512.f, 288.f });
+    renderer.setFrameSceneGeometry({ 512.f, 288.f }, { 512.f, 288.f });
     renderer.setWindowSize(512, 320, "test-editor-camera");
     viewport.set_presentation_mode(ArtCade::Presentation::PresentationMode::SceneEdit);
     viewport.set_editor_camera(0., 0., 1.);
@@ -183,7 +183,7 @@ int main() {
 
     renderer.setGameViewCompositorEnabled(true);
     viewport.set_presentation_mode(ArtCade::Presentation::PresentationMode::PlayEmbedded);
-    renderer.setSceneViewport({ 640.f, 480.f }, { 320.f, 240.f });
+    renderer.setFrameSceneGeometry({ 640.f, 480.f }, { 320.f, 240.f });
     renderer.resizePlayFramebuffer(900.f, 600.f, 1.5f);
     viewport.sync_play_surface(900., 600., 1.5, renderer.windowWidth(), renderer.windowHeight());
     commit_presentation_frame(renderer, viewport);
@@ -196,6 +196,28 @@ int main() {
            "syncPlaySurface rounds CSS times DPR into framebuffer size");
     expect(near(static_cast<float>(dprSnapshot.surface.devicePixelRatio), 1.5f),
            "syncPlaySurface preserves fractional DPR");
+
+    // PR8: geometry commits via setFrameSceneGeometry (no autonomous renderer store).
+    renderer.setGameViewCompositorEnabled(false);
+    renderer.setWindowSize(2048, 320, "test-frame-world-size");
+    viewport.set_presentation_mode(ArtCade::Presentation::PresentationMode::SceneEdit);
+    viewport.set_editor_camera(0., 0., 1.);
+    renderer.setFrameSceneGeometry({ 512.f, 320.f }, { 2048.f, 320.f });
+    renderer.setCameraPosition({ 0.f, 0.f });
+    renderer.setCameraZoom(1.f);
+    applyCommittedFrame(renderer, viewport);
+    const float narrowClipW = renderer.worldScreenClipRect().width;
+    expect(near(narrowClipW, 512.f), "512 world bounds yield 512px scissor at 1:1");
+    renderer.setFrameSceneGeometry({ 2048.f, 320.f }, { 2048.f, 320.f });
+    applyCommittedFrame(renderer, viewport);
+    const float wideClipW = renderer.worldScreenClipRect().width;
+    expect(near(wideClipW, 2048.f),
+           "2048 world bounds widen scissor to framebuffer width");
+    expect(wideClipW > narrowClipW, "wider world bounds widen scissor");
+    renderer.setFrameSceneGeometry({ 0.f, 0.f }, { 0.f, 0.f });
+    applyCommittedFrame(renderer, viewport);
+    expect(near(renderer.worldScreenClipRect().width, 512.f),
+           "clearing frame geometry falls back to project defaults");
 
     std::puts("renderer_screen_world_test: all passed");
     return 0;

@@ -90,7 +90,7 @@ function ComponentSection({ entity, desc }: ComponentSectionProps) {
               if (f.kind === 'select') {
                 return (
                   <div key={f.key} className="mb-2">
-                    <label className="text-[9px] text-[var(--muted)] uppercase">{f.label}</label>
+                    <label className="text-[11px] text-[var(--muted)]">{f.label}</label>
                     <EditorSelect
                       value={fieldStringValue(v, 'static')}
                       onChange={(next) => commit(f.key, next)}
@@ -132,7 +132,7 @@ function ComponentSection({ entity, desc }: ComponentSectionProps) {
                 : project?.globalVariables ?? []
               return (
                 <div key={f.key} className="mb-2">
-                  <label className="text-[9px] text-[var(--muted)] uppercase">{f.label}</label>
+                  <label className="text-[11px] text-[var(--muted)]">{f.label}</label>
                   <EditorSelect
                     value={fieldStringValue(v)}
                     onChange={(next) => commit(f.key, next)}
@@ -152,7 +152,7 @@ function ComponentSection({ entity, desc }: ComponentSectionProps) {
             if (f.kind === 'select') {
               return (
                 <div key={f.key} className="mb-2">
-                  <label className="text-[9px] text-[var(--muted)] uppercase">{f.label}</label>
+                  <label className="text-[11px] text-[var(--muted)]">{f.label}</label>
                   <EditorSelect
                     value={fieldStringValue(v, 'solid')}
                     onChange={(next) => {
@@ -192,7 +192,7 @@ function ComponentSection({ entity, desc }: ComponentSectionProps) {
             const isNum = f.kind === 'number'
             return (
               <div key={f.key} className="mb-2">
-                <label className="text-[9px] text-[var(--muted)] uppercase">{f.label}</label>
+                <label className="text-[11px] text-[var(--muted)]">{f.label}</label>
                 <input
                   type={isNum ? 'number' : 'text'}
                   value={isNum ? Number(v ?? 0) : fieldStringValue(v)}

@@ -14,12 +14,13 @@ Renderer::~Renderer() {
 }
 
 bool Renderer::init() {
+    const Vec2 logical = impl_->scene_logical_viewport();
     if (!impl_->surface.open(
             impl_->surface.width(),
             impl_->surface.height(),
             impl_->surface.title(),
-            static_cast<uint32_t>(impl_->viewportSize.x),
-            static_cast<uint32_t>(impl_->viewportSize.y))) {
+            static_cast<uint32_t>(logical.x),
+            static_cast<uint32_t>(logical.y))) {
         return false;
     }
 
@@ -51,20 +52,27 @@ void Renderer::setWindowSizeForLogicalViewport(uint32_t logicalWidth,
 uint32_t Renderer::windowWidth() const { return impl_->surface.width(); }
 uint32_t Renderer::windowHeight() const { return impl_->surface.height(); }
 
-void Renderer::setSceneViewport(const Vec2& worldSize, const Vec2& viewportSize) {
-    impl_->worldSize = {
+void Renderer::setFrameSceneGeometry(const Vec2& worldSize,
+                                     const Vec2& logicalViewport) {
+    if (worldSize.x <= 0.f || worldSize.y <= 0.f
+        || logicalViewport.x <= 0.f || logicalViewport.y <= 0.f) {
+        impl_->committedGeometryActive_ = false;
+        return;
+    }
+    impl_->committedWorldSize_ = {
         std::max(1.f, worldSize.x),
         std::max(1.f, worldSize.y),
     };
-    impl_->viewportSize = {
-        std::max(1.f, viewportSize.x),
-        std::max(1.f, viewportSize.y),
+    impl_->committedLogicalViewport_ = {
+        std::max(1.f, logicalViewport.x),
+        std::max(1.f, logicalViewport.y),
     };
+    impl_->committedGeometryActive_ = true;
 
     if (impl_->surface.is_open()) {
         impl_->surface.set_min_viewport_size(
-            static_cast<uint32_t>(impl_->viewportSize.x),
-            static_cast<uint32_t>(impl_->viewportSize.y));
+            static_cast<uint32_t>(impl_->committedLogicalViewport_.x),
+            static_cast<uint32_t>(impl_->committedLogicalViewport_.y));
     }
 }
 
@@ -86,16 +94,18 @@ CompositorLayout Renderer::compositorLayout() const {
 }
 
 ScreenClipRect Renderer::worldScreenClipRect() const {
+    const Vec2 logical = impl_->scene_logical_viewport();
     const uint32_t fbW = impl_->gameViewCompositorEnabled
-        ? std::max(1u, static_cast<uint32_t>(impl_->viewportSize.x))
+        ? std::max(1u, static_cast<uint32_t>(logical.x))
         : impl_->surface.width();
     const uint32_t fbH = impl_->gameViewCompositorEnabled
-        ? std::max(1u, static_cast<uint32_t>(impl_->viewportSize.y))
+        ? std::max(1u, static_cast<uint32_t>(logical.y))
         : impl_->surface.height();
     Camera2D cam = impl_->gameViewCompositorEnabled
         ? impl_->gameViewCamera
         : impl_->camera;
-    return renderer_compute_world_clip(cam, impl_->worldSize, fbW, fbH);
+    return renderer_compute_world_clip(
+        cam, impl_->scene_world_bounds(), fbW, fbH);
 }
 
 bool Renderer::shouldClose() const {

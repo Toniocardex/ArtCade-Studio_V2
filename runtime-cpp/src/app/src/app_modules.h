@@ -18,6 +18,8 @@
 #include "../../modules/runtime-entity-gateway/include/runtime-entity-gateway.h"
 #include "../../modules/save-load/include/save-load-manager.h"
 #include "../../modules/scene-system/include/scene-manager.h"
+#include "../../modules/scene-system/include/scene-mutation-service.h"
+#include "../../modules/scene-system/include/scene-lifecycle-service.h"
 #include "../../modules/sprite-animator/include/sprite-animator.h"
 #include "../../modules/texture-manager/include/texture-manager.h"
 #include "../../modules/time/include/time-manager.h"
@@ -38,6 +40,8 @@ struct Application::Modules {
     std::unique_ptr<ArtCade::Modules::Audio> audio;
     std::unique_ptr<ArtCade::Modules::LuaHost> luaHost;
     std::unique_ptr<ArtCade::Modules::SceneManager> sceneManager;
+    std::unique_ptr<ArtCade::Modules::SceneMutationService> sceneMutation;
+    std::unique_ptr<ArtCade::Modules::SceneLifecycleService> sceneLifecycle;
     std::unique_ptr<ArtCade::Modules::RuntimeEntityGateway> entityGateway;
     std::unique_ptr<ArtCade::Modules::AssetLoader> assetLoader;
     std::unique_ptr<ArtCade::Modules::GameAPI> gameAPI;

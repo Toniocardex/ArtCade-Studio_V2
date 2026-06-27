@@ -92,8 +92,8 @@ export function SceneSettingsSection({ scene }: SceneSettingsSectionProps) {
           onCommit={commitViewport}
         />
       </InspectorRow>
-      <div className="mb-2">
-        <span className="text-[9px] text-[var(--muted)] uppercase block mb-1">
+      <div className="mt-3 mb-2">
+        <span className="text-[11px] text-[var(--muted)] block mb-1.5">
           World aspect ratio
         </span>
         <SegmentedControl

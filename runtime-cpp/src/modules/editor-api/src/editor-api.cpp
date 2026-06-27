@@ -25,6 +25,8 @@ Modules::LuaHost*              EditorAPI::s_luaHost       = nullptr;
 Modules::Renderer*             EditorAPI::s_renderer      = nullptr;
 Presentation::EditorViewportService* EditorAPI::s_viewport = nullptr;
 uint64_t                       EditorAPI::s_pointerPresentationRevision = 0u;
+uint64_t                       EditorAPI::s_pointerSceneRevision = 0u;
+uint64_t                       EditorAPI::s_sceneFrameRevision = 0u;
 Modules::DialogManager*        EditorAPI::s_dialogManager = nullptr;
 Modules::SpriteAnimator*       EditorAPI::s_spriteAnimator = nullptr;
 Modules::Audio*                EditorAPI::s_audio = nullptr;
@@ -180,6 +182,8 @@ Modules::LuaHost*              EditorAPI::s_luaHost       = nullptr;
 Modules::Renderer*             EditorAPI::s_renderer      = nullptr;
 Presentation::EditorViewportService* EditorAPI::s_viewport = nullptr;
 uint64_t                       EditorAPI::s_pointerPresentationRevision = 0u;
+uint64_t                       EditorAPI::s_pointerSceneRevision = 0u;
+uint64_t                       EditorAPI::s_sceneFrameRevision = 0u;
 Modules::DialogManager*        EditorAPI::s_dialogManager = nullptr;
 Modules::SpriteAnimator*       EditorAPI::s_spriteAnimator = nullptr;
 Modules::Audio*                EditorAPI::s_audio = nullptr;
@@ -188,6 +192,12 @@ EditorProjectLoadedHandler     EditorAPI::s_onProjectLoaded{};
 EditorPreviewRestoreHandler    EditorAPI::s_onPreviewRestore{};
 EditorEnterPlayHandler         EditorAPI::s_onEnterPlay{};
 EditorExitPlayHandler          EditorAPI::s_onExitPlay{};
+SceneMutationApplyFn           EditorAPI::s_applySceneMutation{};
+SceneMutationHandler           EditorAPI::s_onSceneMutation{};
+SceneInvalidationQueueHandler  EditorAPI::s_queueSceneInvalidations{};
+AuthoringSyncBatchHandler      EditorAPI::s_onAuthoringSyncBatchBegin{};
+AuthoringSyncBatchHandler      EditorAPI::s_onAuthoringSyncBatchEnd{};
+SceneMutationBatchOpenPredicate EditorAPI::s_isSceneMutationBatchOpen{};
 std::vector<std::pair<std::string, std::string>> EditorAPI::s_consoleQueue;
 
 Presentation::PresentationMode s_playPresentationMode =
@@ -231,12 +241,26 @@ namespace {
 constexpr int kToolSelect = 0;
 constexpr int kToolPan    = 1;
 
+constexpr ArtCade::Modules::SceneInvalidation kTilemapRuntimeInvalidation =
+    ArtCade::Modules::SceneInvalidation::TilemapGeometry
+    | ArtCade::Modules::SceneInvalidation::TilemapData
+    | ArtCade::Modules::SceneInvalidation::Collision
+    | ArtCade::Modules::SceneInvalidation::RenderData;
+
+void editor_queue_tilemap_runtime_invalidation() {
+    if (ArtCade::EditorAPI::s_queueSceneInvalidations)
+        ArtCade::EditorAPI::s_queueSceneInvalidations(kTilemapRuntimeInvalidation);
+}
+
 void editor_sync_viewport_pending() {
     auto* vp = ArtCade::EditorAPI::s_viewport;
     auto* r = ArtCade::EditorAPI::s_renderer;
+    auto* gw = ArtCade::EditorAPI::s_entityGateway;
     if (!vp || !r) return;
-    vp->sync_from_renderer(
-        r->gatherPresentationInputs(),
+    const ArtCade::SceneDef* scene = gw ? gw->activeScene() : nullptr;
+    vp->sync_from_scene(
+        scene,
+        r->gatherSimulationPresentationInputs(),
         r->windowWidth(),
         r->windowHeight());
     vp->refresh_pending_snapshot();
@@ -297,6 +321,20 @@ void EditorAPI::wireEditorViewport(Presentation::EditorViewportService* viewport
     s_viewport = viewport;
 }
 
+namespace {
+std::unordered_map<std::string, SceneLayerSettings> s_committedSceneLayerSettings;
+} // namespace
+
+void EditorAPI::commit_scene_frame(const EditorSceneFrameCommit& frame) {
+    s_sceneFrameRevision = frame.sceneRevision;
+    s_committedSceneLayerSettings = frame.layerSettings;
+}
+
+const std::unordered_map<std::string, SceneLayerSettings>&
+EditorAPI::committed_scene_layer_settings() {
+    return s_committedSceneLayerSettings;
+}
+
 void EditorAPI::wireSpriteAnimator(Modules::SpriteAnimator* spriteAnimator) {
     s_spriteAnimator = spriteAnimator;
 }
@@ -333,6 +371,28 @@ void EditorAPI::setEnterPlayHandler(EditorEnterPlayHandler handler) {
 
 void EditorAPI::setExitPlayHandler(EditorExitPlayHandler handler) {
     s_onExitPlay = std::move(handler);
+}
+
+void EditorAPI::setSceneMutationBridge(
+    SceneMutationApplyFn apply, SceneMutationHandler onResult) {
+    s_applySceneMutation = std::move(apply);
+    s_onSceneMutation = std::move(onResult);
+}
+
+void EditorAPI::setSceneInvalidationQueueHandler(
+    SceneInvalidationQueueHandler handler) {
+    s_queueSceneInvalidations = std::move(handler);
+}
+
+void EditorAPI::setAuthoringSyncBatchHandlers(
+    AuthoringSyncBatchHandler onBegin, AuthoringSyncBatchHandler onEnd) {
+    s_onAuthoringSyncBatchBegin = std::move(onBegin);
+    s_onAuthoringSyncBatchEnd = std::move(onEnd);
+}
+
+void EditorAPI::setSceneMutationBatchOpenPredicate(
+    SceneMutationBatchOpenPredicate predicate) {
+    s_isSceneMutationBatchOpen = std::move(predicate);
 }
 
 // ── Init / Shutdown ───────────────────────────────────────────────────────────
@@ -728,6 +788,7 @@ EMSCRIPTEN_KEEPALIVE void editor_sync_tilemap_layers(const char* jsonUtf8) {
             }
         }
     } catch (...) {}
+    editor_queue_tilemap_runtime_invalidation();
 }
 
 // Full tilemap data resync — no texture eviction, no full project reload.
@@ -748,6 +809,7 @@ EMSCRIPTEN_KEEPALIVE void editor_sync_tilemap_data(const char* dataJson) {
         for (int i = 0; i < sz; ++i)
             tm.data[i] = arr[i].get<int>();
     } catch (...) {}
+    editor_queue_tilemap_runtime_invalidation();
 }
 
 EMSCRIPTEN_KEEPALIVE void editor_set_tool(int toolId) {
@@ -927,8 +989,17 @@ EMSCRIPTEN_KEEPALIVE double editor_get_presentation_revision() {
     return static_cast<double>(vp->presentation_revision());
 }
 
+EMSCRIPTEN_KEEPALIVE double editor_get_scene_revision() {
+    return static_cast<double>(ArtCade::EditorAPI::s_sceneFrameRevision);
+}
+
 EMSCRIPTEN_KEEPALIVE void editor_set_pointer_presentation_revision(double revision) {
     ArtCade::EditorAPI::s_pointerPresentationRevision =
+        revision > 0. ? static_cast<uint64_t>(revision) : 0u;
+}
+
+EMSCRIPTEN_KEEPALIVE void editor_set_pointer_scene_revision(double revision) {
+    ArtCade::EditorAPI::s_pointerSceneRevision =
         revision > 0. ? static_cast<uint64_t>(revision) : 0u;
 }
 
@@ -1364,6 +1435,16 @@ EMSCRIPTEN_KEEPALIVE void editor_update_entity(
     }
 }
 
+EMSCRIPTEN_KEEPALIVE void editor_begin_authoring_sync_batch() {
+    if (ArtCade::EditorAPI::s_onAuthoringSyncBatchBegin)
+        ArtCade::EditorAPI::s_onAuthoringSyncBatchBegin();
+}
+
+EMSCRIPTEN_KEEPALIVE void editor_end_authoring_sync_batch() {
+    if (ArtCade::EditorAPI::s_onAuthoringSyncBatchEnd)
+        ArtCade::EditorAPI::s_onAuthoringSyncBatchEnd();
+}
+
 EMSCRIPTEN_KEEPALIVE void editor_set_scene_settings(
     const char* sceneId, const char* json_utf8)
 {
@@ -1372,31 +1453,40 @@ EMSCRIPTEN_KEEPALIVE void editor_set_scene_settings(
             "[EditorAPI] editor_set_scene_settings: invalid arguments.", "warn");
         return;
     }
-    auto* gateway = ArtCade::EditorAPI::s_entityGateway;
-    if (!gateway) {
+    if (!ArtCade::EditorAPI::s_applySceneMutation) {
         ArtCade::EditorAPI::notifyConsoleLine(
-            "[EditorAPI] editor_set_scene_settings: engine not wired yet.", "warn");
+            "[EditorAPI] editor_set_scene_settings: mutation bridge not wired.", "warn");
         return;
     }
 
     try {
         const json doc = json::parse(json_utf8);
         namespace Parser = ArtCade::ProjectDocParser;
-        auto patch = Parser::parseSceneDef(doc, sceneId);
+        const auto parsed = Parser::parseSceneDef(doc, sceneId);
+        const auto patch = ArtCade::Modules::ScenePatch::from_projection(parsed);
 
-        if (!gateway->updateSceneSettings(sceneId, patch)) {
+        const auto result = ArtCade::EditorAPI::s_applySceneMutation(
+            sceneId,
+            patch,
+            ArtCade::Modules::SceneMutationOrigin::EditorProjection);
+
+        if (result.error == ArtCade::Modules::SceneMutationError::SceneNotFound) {
             std::string msg = "[EditorAPI] editor_set_scene_settings: unknown scene ";
             msg += sceneId;
             ArtCade::EditorAPI::notifyConsoleLine(msg.c_str(), "warn");
             return;
         }
+        if (result.error == ArtCade::Modules::SceneMutationError::InvalidPatch) {
+            ArtCade::EditorAPI::notifyConsoleLine(
+                "[EditorAPI] editor_set_scene_settings: invalid patch.", "warn");
+            return;
+        }
 
-        // NB: the framebuffer size and camera are NOT touched here. In edit
-        // mode the editor owns viewport geometry and pushes it every frame via
-        // editor_set_edit_camera (which resizes the framebuffer to the visible
-        // canvas). Calling setWindowSize/setSceneViewport here used to restripe
-        // the canvas CSS and clobber the editor camera on every inspector edit
-        // (e.g. changing the grid size) — the source of the "out of phase" grid.
+        const bool deferMutation =
+            ArtCade::EditorAPI::s_isSceneMutationBatchOpen
+            && ArtCade::EditorAPI::s_isSceneMutationBatchOpen();
+        if (result.changed && ArtCade::EditorAPI::s_onSceneMutation && !deferMutation)
+            ArtCade::EditorAPI::s_onSceneMutation(result);
 
         std::string msg = "[EditorAPI] Scene settings patched: ";
         msg += sceneId;

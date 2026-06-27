@@ -4,8 +4,13 @@ add_executable(game
     src/app_bootstrap.cpp
     src/app_loop.cpp
     src/app_project_lifecycle.cpp
+    src/app_scene_mutation.cpp
+    src/app_scene_lifecycle.cpp
+    src/app_scene_invalidation.cpp
     src/app_scene_render.cpp
     render/editor-overlay-renderer.cpp
+    render/scene_frame_builder.cpp
+    render/frame_coordinator.cpp
     render/physics_debug_renderer.cpp
     render/tilemap-renderer.cpp
     render/parallax-renderer.cpp
@@ -74,6 +79,8 @@ if(EMSCRIPTEN)
         "_editor_set_transform"
         "_editor_update_entity"
         "_editor_set_scene_settings"
+        "_editor_begin_authoring_sync_batch"
+        "_editor_end_authoring_sync_batch"
         "_editor_reload_script"
         "_editor_load_dialogs"
         "_editor_set_active_tile_layer"
@@ -95,7 +102,9 @@ if(EMSCRIPTEN)
         "_editor_get_editor_view"
         "_editor_set_editor_view"
         "_editor_get_presentation_revision"
+        "_editor_get_scene_revision"
         "_editor_set_pointer_presentation_revision"
+        "_editor_set_pointer_scene_revision"
         "_editor_get_presentation_snapshot"
         "_editor_surface_to_world"
         "_editor_surface_to_world_at_revision"

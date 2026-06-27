@@ -1,4 +1,5 @@
 #include "../include/world.h"
+#include "../../modules/scene-system/include/scene-lifecycle-service.h"
 #include "../../modules/runtime-entity-gateway/include/runtime-entity-gateway.h"
 #include "../../modules/physics/include/physics.h"
 #include "../../modules/variable-manager/include/variable-manager.h"
@@ -205,7 +206,21 @@ void World::shutdown() {
     physicsLayers_.clear();
 }
 
+void World::onSceneActivated() {
+    clearGameplayRuntimeState();
+}
+
+void World::setSceneLifecycleService(Modules::SceneLifecycleService* lifecycle) {
+    lifecycle_ = lifecycle;
+}
+
 bool World::loadScene(const SceneId& id) {
+    if (lifecycle_) {
+        const auto result = lifecycle_->load_immediate(id);
+        if (!result.changed) return false;
+        rebuildCollisionWorld();
+        return true;
+    }
     if (!entityGateway_.loadScene(id)) return false;
     clearGameplayRuntimeState();
     rebuildCollisionWorld();

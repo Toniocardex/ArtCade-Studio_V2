@@ -58,8 +58,8 @@ export function WorldSettingsSection() {
     <InspectorSection label="World Settings" defaultOpen>
       {num('Gravity', 'gravity', 0.1, 'm/s²')}
       {num('Px / Meter', 'pixelsPerMeter', 1, 'px/m')}
-      <div className="mb-2">
-        <span className="text-[9px] text-[var(--muted)] uppercase block mb-1">
+      <div className="mt-3 mb-2">
+        <span className="text-[11px] text-[var(--muted)] block mb-1.5">
           Physics simulation
         </span>
         <SegmentedControl
@@ -77,8 +77,8 @@ export function WorldSettingsSection() {
           {PHYSICS_HINT[physicsMode]}
         </p>
       </div>
-      <div className="mb-2">
-        <span className="text-[9px] text-[var(--muted)] uppercase block mb-1">
+      <div className="mt-3 mb-2">
+        <span className="text-[11px] text-[var(--muted)] block mb-1.5">
           Output policy
         </span>
         <SegmentedControl
@@ -144,7 +144,7 @@ export function WorldDebugTimeSection() {
       </label>
       <div>
         <div className="flex justify-between items-center mb-1">
-          <span className="text-[9px] text-[var(--muted)] uppercase">Time Scale</span>
+          <span className="text-[11px] text-[var(--muted)]">Time Scale</span>
           <span className="text-[11px] text-[var(--text)]">{w.timeScale.toFixed(1)}x</span>
         </div>
         <input

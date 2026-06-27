@@ -5,9 +5,11 @@
 
 inline void commit_presentation_frame(
     ArtCade::Modules::Renderer& renderer,
-    ArtCade::Presentation::EditorViewportService& viewport) {
-    viewport.sync_from_renderer(
-        renderer.gatherPresentationInputs(),
+    ArtCade::Presentation::EditorViewportService& viewport,
+    const ArtCade::SceneDef* scene = nullptr) {
+    viewport.sync_from_scene(
+        scene,
+        renderer.gatherSimulationPresentationInputs(),
         renderer.windowWidth(),
         renderer.windowHeight());
     viewport.begin_frame();

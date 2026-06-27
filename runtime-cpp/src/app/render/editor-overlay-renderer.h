@@ -43,13 +43,22 @@ namespace EditorOverlayRenderer {
 
 /** Solid scene background filling the visible viewport. Edit-mode only. */
 void drawBackdrop(Modules::Renderer& renderer,
-                  const SceneDef& scene,
+                  const Vec4& backgroundColor,
                   const EditorOverlayState& state);
 
 /**
  * Alignment grid (ivory, low alpha). Drawn under entity sprites so solid
  * placeholder fills are not crossed by guide lines.
  */
+void drawGrid(Modules::Renderer& renderer,
+              const Vec2& worldSize,
+              const EditorOverlayState& state);
+
+/** @deprecated Use geometry overloads; retained for transitional callers. */
+void drawBackdrop(Modules::Renderer& renderer,
+                  const SceneDef& scene,
+                  const EditorOverlayState& state);
+
 void drawGrid(Modules::Renderer& renderer,
               const SceneDef& scene,
               const EditorOverlayState& state);

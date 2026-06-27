@@ -114,16 +114,20 @@ export function InspectorSection({
   }
 
   return (
-    <div className="mt-4">
-      <div className="flex items-center gap-1.5 border-b border-[var(--border)] pb-1 mb-2">
+    <div className="mt-5 first:mt-3">
+      <div className="flex items-center gap-1.5 mb-2.5">
         <button
           type="button"
           onClick={() => setOpen(!open)}
           aria-expanded={open}
-          className="flex-1 flex items-center justify-between text-[10px] text-[var(--muted)]
-                     hover:text-[var(--text)] font-bold uppercase tracking-widest transition-colors"
+          className="flex-1 flex items-center justify-between text-[10px] text-[var(--text)]
+                     hover:text-[var(--accent)] font-bold uppercase tracking-widest transition-colors"
         >
           <span className="flex items-center gap-2">
+            <span
+              aria-hidden
+              className="w-[3px] h-[11px] rounded-sm bg-[var(--accent)] shrink-0"
+            />
             {label}
             {labelBadge && (
               <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded normal-case tracking-wide ${BADGE_CLASS[labelBadge.color]}`}>
@@ -189,7 +193,7 @@ export function Field({
   return (
     <div className="space-y-0.5 mb-2">
       <div className="flex items-center gap-1">
-        <label className="text-[9px] text-[var(--muted)] uppercase">{label}</label>
+        <label className="text-[11px] text-[var(--muted)]">{label}</label>
         {tooltip && <HelpTooltip text={tooltip} />}
       </div>
       <input
@@ -216,7 +220,7 @@ export function NumberField({
 }: NumberFieldProps) {
   return (
     <div>
-      <label className="text-[9px] text-[var(--muted)] uppercase tracking-wide">{label}</label>
+      <label className="text-[11px] text-[var(--muted)]">{label}</label>
       <input
         type="number"
         step={step}
@@ -254,13 +258,13 @@ export function InspectorRow({
 }: InspectorRowProps) {
   return (
     <div className="flex items-center justify-between gap-2 mb-2">
-      <span className="text-[9px] text-[var(--muted)] uppercase flex items-center gap-1">
+      <span className="text-[11px] text-[var(--muted)] flex items-center gap-1">
         {label}
         {tooltip && <HelpTooltip text={tooltip} />}
       </span>
       <div className="flex items-center gap-1.5">
         {children}
-        {unit && <span className="text-[9px] text-[var(--muted)] shrink-0">{unit}</span>}
+        {unit && <span className="text-[10px] text-[var(--muted)] shrink-0">{unit}</span>}
       </div>
     </div>
   )

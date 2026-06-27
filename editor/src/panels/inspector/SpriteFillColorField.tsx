@@ -78,7 +78,7 @@ export function SpriteFillColorField({
 
   return (
     <div className={`mb-2 ${disabled ? 'opacity-50' : ''}`}>
-      <span className="text-[9px] text-[var(--muted)] uppercase block mb-1">
+      <span className="text-[11px] text-[var(--muted)] block mb-1">
         {label}
       </span>
       <div className="flex items-center gap-2">

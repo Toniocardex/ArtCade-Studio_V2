@@ -328,6 +328,24 @@ export function rematerializeInstance(
   }
 }
 
+/** Refresh the `entities` cache for every instance in one scene (bulk placement
+ *  edits like a world resize). Mirrors the entity-reducer's instances → cache
+ *  contract for an operation that touches many instances at once. */
+export function rematerializeSceneInstances(
+  project: ProjectDoc,
+  sceneId: string,
+): ProjectDoc {
+  const scene = project.scenes?.[sceneId]
+  if (!scene) return project
+  const entities = { ...(project.entities ?? {}) }
+  for (const inst of scene.instances ?? []) {
+    const type = project.objectTypes?.[inst.objectTypeId]
+    if (!type) continue
+    entities[inst.id] = materializeEntity(type, inst)
+  }
+  return { ...project, entities }
+}
+
 /** Refresh the `entities` cache for every instance of a type (shared edits). */
 export function rematerializeAllInstancesOfType(
   project: ProjectDoc,

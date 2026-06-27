@@ -31,7 +31,7 @@ void drawEntityOutline(Modules::Renderer& renderer,
 } // namespace
 
 void drawBackdrop(Modules::Renderer& renderer,
-                  const SceneDef& scene,
+                  const Vec4& backgroundColor,
                   const EditorOverlayState& state) {
     if (!state.inEditMode) return;
     const Vec2 cam     = renderer.getCameraPosition();
@@ -40,16 +40,16 @@ void drawBackdrop(Modules::Renderer& renderer,
         cam.x, cam.y,
         std::max(1.f, visible.x),
         std::max(1.f, visible.y),
-        scene.backgroundColor);
+        backgroundColor);
 }
 
 void drawGrid(Modules::Renderer& renderer,
-              const SceneDef& scene,
+              const Vec2& worldSize,
               const EditorOverlayState& state) {
     if (!state.inEditMode || !state.guidesEnabled) return;
 
-    const float w = std::max(1.f, scene.worldSize.x);
-    const float h = std::max(1.f, scene.worldSize.y);
+    const float w = std::max(1.f, worldSize.x);
+    const float h = std::max(1.f, worldSize.y);
 
     // Avorio Leggero (#EAEAEA) — engineering grid, no neon glow.
     // 0.22 alpha: visible on dark bg (0.082) without dominating the scene.
@@ -61,6 +61,18 @@ void drawGrid(Modules::Renderer& renderer,
         for (float y = step; y < h; y += step)
             renderer.drawLine(0.f, y, w, y, grid);
     }
+}
+
+void drawBackdrop(Modules::Renderer& renderer,
+                  const SceneDef& scene,
+                  const EditorOverlayState& state) {
+    drawBackdrop(renderer, scene.backgroundColor, state);
+}
+
+void drawGrid(Modules::Renderer& renderer,
+              const SceneDef& scene,
+              const EditorOverlayState& state) {
+    drawGrid(renderer, scene.worldSize, state);
 }
 
 void drawSelection(Modules::Renderer& renderer,

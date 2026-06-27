@@ -20,7 +20,7 @@ export function EntityLayerField({ entity }: EntityLayerFieldProps) {
 
   return (
     <label className="block mb-2">
-      <span className="text-[9px] text-[var(--muted)] uppercase">Layer</span>
+      <span className="text-[11px] text-[var(--muted)]">Layer</span>
       <EditorSelect
         className="w-full font-ui mt-0.5"
         value={value}

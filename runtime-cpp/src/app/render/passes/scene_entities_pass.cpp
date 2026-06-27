@@ -1,5 +1,7 @@
 #include "scene_entities_pass.h"
 
+#include "../scene_frame_snapshot.h"
+
 #include "../sprite_frame_resolve.h"
 #include "../text_value_formatter.h"
 #include "../../../modules/renderer/include/renderer.h"
@@ -44,11 +46,14 @@ struct LayeredRenderable {
 } // namespace
 
 void execute_scene_entities_pass(SceneFrameContext& ctx) {
-    if (!ctx.activeScene || !ctx.entityGateway || !ctx.sceneManager
+    if (!ctx.frameSnapshot || !ctx.entityGateway || !ctx.sceneManager
         || !ctx.renderer)
         return;
 
-    const bool inEditMode = ctx.overlay.inEditMode;
+    const SceneFrameSnapshot& frame = *ctx.frameSnapshot;
+    if (frame.sceneId.empty()) return;
+
+    const bool inEditMode = frame.overlay.inEditMode;
     std::unordered_map<std::string, SceneLayerSettings> settingsById;
     std::unordered_map<std::string, int> layerRankById;
     std::unordered_map<std::string, Vec2> parallaxById;
@@ -58,8 +63,8 @@ void execute_scene_entities_pass(SceneFrameContext& ctx) {
     for (size_t i = 0; i < layers.size(); ++i) {
         const auto& layer = layers[i];
         SceneLayerSettings settings;
-        const auto sit = ctx.activeScene->layerSettings.find(layer.id);
-        if (sit != ctx.activeScene->layerSettings.end())
+        const auto sit = frame.layerSettings.find(layer.id);
+        if (sit != frame.layerSettings.end())
             settings = sit->second;
         settingsById.emplace(layer.id, settings);
         layerRankById.emplace(layer.id, layerCount - static_cast<int>(i));
@@ -254,8 +259,8 @@ void execute_scene_entities_pass(SceneFrameContext& ctx) {
         }(id, transform, sprite);
     }
 
-    if (ctx.sceneFadeAlpha > 0.f)
-        ctx.renderer->drawFadeOverlay(ctx.sceneFadeAlpha);
+    if (frame.sceneFadeAlpha > 0.f)
+        ctx.renderer->drawFadeOverlay(frame.sceneFadeAlpha);
 }
 
 } // namespace ArtCade::AppRenderPasses
