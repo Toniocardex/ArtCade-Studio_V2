@@ -8,7 +8,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 vi.mock('./wasm-bridge', () => {
   return {
     isReady: vi.fn(() => true),
-    editorLoadProject:        vi.fn(),
+    editorLoadProject:        vi.fn(() => 0),
     editorLoadDialogs:        vi.fn(),
     editorRestoreFromProject: vi.fn(),
     editorReloadScript:       vi.fn(() => 0),
@@ -79,6 +79,7 @@ describe('RuntimeSyncService', () => {
     runtimeSync.reset()
     vi.mocked(bridge.isReady).mockReturnValue(true)
     vi.mocked(bridge.editorLoadProject).mockReset()
+    vi.mocked(bridge.editorLoadProject).mockReturnValue(0)
     vi.mocked(bridge.editorLoadDialogs).mockReset()
     vi.mocked(bridge.editorRestoreFromProject).mockReset()
     vi.mocked(bridge.editorReloadScript).mockReset()
@@ -105,6 +106,7 @@ describe('RuntimeSyncService', () => {
     vi.mocked(bridge.editorReadPresentationSnapshot).mockReset()
     vi.mocked(bridge.editorReadPresentationSnapshot).mockReturnValue(null)
     resetPresentationStoreForTests()
+    runtimeSync.notifyEngineReady()
   })
 
   it('skips every call until the runtime is ready', () => {
@@ -117,6 +119,37 @@ describe('RuntimeSyncService', () => {
     expect(bridge.editorSelectEntity).not.toHaveBeenCalled()
     expect(bridge.editorSetTool).not.toHaveBeenCalled()
     expect(bridge.editorSetGuidesEnabled).not.toHaveBeenCalled()
+  })
+
+  it('skips syncProject until engine is wired', async () => {
+    vi.mocked(bridge.isReady).mockReturnValue(false)
+    runtimeSync.reset()
+    vi.mocked(bridge.isReady).mockReturnValue(true)
+    vi.mocked(bridge.editorLoadProject).mockClear()
+    vi.mocked(bridge.editorLoadProject).mockReturnValue(0)
+    const p = makeProject()
+    expect(await runtimeSync.syncProject(p as never, 'a', '/tmp/x')).toBe(false)
+    expect(bridge.editorLoadProject).not.toHaveBeenCalled()
+    expect(runtimeSync.hasProjectProjectionLatched()).toBe(false)
+  })
+
+  it('does not latch projection when editor_load_project returns NotWired', async () => {
+    vi.mocked(bridge.editorLoadProject).mockReturnValue(3)
+    const p = makeProject()
+    expect(await runtimeSync.syncProject(p as never, 'a', '/tmp/x')).toBe(false)
+    expect(runtimeSync.hasProjectProjectionLatched()).toBe(false)
+    expect(runtimeSync.isBootProjectSynced()).toBe(false)
+    vi.mocked(bridge.editorLoadProject).mockReturnValue(0)
+    expect(await runtimeSync.syncProject(p as never, 'a', '/tmp/x')).toBe(true)
+    expect(bridge.editorLoadProject).toHaveBeenCalledTimes(2)
+    expect(runtimeSync.hasProjectProjectionLatched()).toBe(true)
+  })
+
+  it('does not latch projection when editor_load_project returns JsonError', async () => {
+    vi.mocked(bridge.editorLoadProject).mockReturnValue(1)
+    const p = makeProject()
+    expect(await runtimeSync.syncProject(p as never, 'a', '/tmp/x')).toBe(false)
+    expect(runtimeSync.hasProjectProjectionLatched()).toBe(false)
   })
 
   it('syncProject loads once and skips when the fingerprint is unchanged', async () => {
@@ -230,7 +263,14 @@ describe('RuntimeSyncService', () => {
 
   it('syncProject omits logicBoards from runtime JSON payload', async () => {
     const p = makeProject()
-    Object.assign(p, { logicBoards: [{ id: 'lb', name: 'Main', rules: [] }] })
+    Object.assign(p, {
+      logicBoards: [{
+        id: 'lb',
+        name: 'Main',
+        target: { type: 'scene', sceneId: 'a' },
+        rules: [],
+      }],
+    })
     await runtimeSync.syncProject(p as never, 'a', '/tmp/x')
     const json = vi.mocked(bridge.editorLoadProject).mock.calls[0][0]
     const parsed = JSON.parse(json) as Record<string, unknown>
@@ -529,6 +569,9 @@ describe('RuntimeSyncService', () => {
   })
 
   it('notifyEngineReady is edge-triggered; late subscribers still get state', () => {
+    vi.mocked(bridge.isReady).mockReturnValue(false)
+    runtimeSync.reset()
+    vi.mocked(bridge.isReady).mockReturnValue(true)
     const cb = vi.fn()
     runtimeSync.onEngineReadyChange(cb)
     expect(runtimeSync.isEngineReady()).toBe(false)
@@ -548,6 +591,8 @@ describe('RuntimeSyncService', () => {
   })
 
   it('notifyEngineReady invalidates chrome cache so grid/guides resync', () => {
+    vi.mocked(bridge.isReady).mockReturnValue(false)
+    runtimeSync.reset()
     vi.mocked(bridge.isReady).mockReturnValue(true)
     runtimeSync.syncEditorChrome({ guides: true, gridSize: 32, snapToGrid: false, isPlaying: false })
     expect(bridge.editorSetGuidesEnabled).toHaveBeenCalledTimes(1)

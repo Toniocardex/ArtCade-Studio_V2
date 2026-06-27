@@ -521,15 +521,21 @@ export function editorDeselect(): void {
   safeCall('editor_deselect', null, [], [])
 }
 
-export function editorLoadProject(projectJson: string): void {
-  if (!_module) return
+export function editorLoadProject(projectJson: string): number {
+  if (!_module) {
+    _lastBridgeError = 'WASM module is not loaded.'
+    return EDITOR_API_CCALL_FAILED
+  }
   const ptr = marshalString(projectJson)
   try {
-    safeCall('editor_load_project', null, ['number'], [ptr])
+    const code = safeCcallNumber('editor_load_project', ['number'], [ptr])
+    if (code === EditorApiResult.Ok) {
+      _onTextureCacheEvicted?.()
+    }
+    return code
   } finally {
     _module._free(ptr)
   }
-  _onTextureCacheEvicted?.()
 }
 
 export function editorRestoreFromProject(projectJson: string): void {

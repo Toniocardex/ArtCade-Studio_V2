@@ -141,7 +141,7 @@ export default function PreviewPanel({
   const showInspectorToggle = tier !== 'full'
   const showExplorerToggle = tier === 'minimal' || tier === 'unsupported'
 
-  const { wasmReady, engineReady, syncWasmFromBridge } = useRuntimeReadiness()
+  const { wasmReady, engineReady, bootProjectSynced, syncWasmFromBridge } = useRuntimeReadiness()
   const syncRuntimeUiFlags = useCallback(() => {
     syncWasmFromBridge()
   }, [syncWasmFromBridge])
@@ -642,7 +642,12 @@ export default function PreviewPanel({
               {showExplorerToggle && <ExplorerDrawerToggle />}
               {showInspectorToggle && <InspectorDrawerToggle />}
               <ProjectHealthBanner projectKey={projectPath} />
-              <RuntimeStatusBadge wasmReady={wasmReady} hasProject={!!project} compact={showInspectorToggle} />
+              <RuntimeStatusBadge
+                wasmReady={wasmReady}
+                hasProject={!!project}
+                projectSynced={bootProjectSynced}
+                compact={showInspectorToggle}
+              />
             </div>
           )}
         />

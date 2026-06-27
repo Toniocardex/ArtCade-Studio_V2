@@ -349,8 +349,9 @@ EMSCRIPTEN_KEEPALIVE void editor_deselect();
  * Hot-reload project data from React.
  * json_utf8: null-terminated UTF-8 JSON string (marshalled by wasm-bridge.ts).
  * Parses with nlohmann/json and calls SceneManager::registerScenes().
+ * @return EditorApiResult (0 = ok).
  */
-EMSCRIPTEN_KEEPALIVE void editor_load_project(const char* json_utf8);
+EMSCRIPTEN_KEEPALIVE int editor_load_project(const char* json_utf8);
 
 /**
  * Preview STOP (legacy): reload ProjectDoc; Lua is not reset here — use

@@ -7,8 +7,10 @@ import { useRuntimeReadiness } from './useRuntimeReadiness'
 
 const onReadyChange = vi.fn()
 const onEngineReadyChange = vi.fn()
+const onBootProjectSyncedChange = vi.fn()
 let wasmReady = false
 let engineReady = false
+let bootProjectSynced = false
 
 vi.mock('../utils/wasm-bridge', () => ({
   isReady: () => wasmReady,
@@ -27,14 +29,22 @@ vi.mock('../utils/runtime-sync-service', () => ({
       cb(engineReady)
       return () => { onEngineReadyChange.mockClear() }
     },
+    isBootProjectSynced: () => bootProjectSynced,
+    onBootProjectSyncedChange: (cb: (synced: boolean) => void) => {
+      onBootProjectSyncedChange(cb)
+      cb(bootProjectSynced)
+      return () => { onBootProjectSyncedChange.mockClear() }
+    },
   },
 }))
 
 beforeEach(() => {
   wasmReady = false
   engineReady = false
+  bootProjectSynced = false
   onReadyChange.mockClear()
   onEngineReadyChange.mockClear()
+  onBootProjectSyncedChange.mockClear()
 })
 
 describe('useRuntimeReadiness', () => {

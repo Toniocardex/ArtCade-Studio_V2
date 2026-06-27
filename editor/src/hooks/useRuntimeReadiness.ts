@@ -13,6 +13,8 @@ import { runtimeSync } from '../utils/runtime-sync-service'
 export type RuntimeReadiness = {
   wasmReady: boolean
   engineReady: boolean
+  /** True after the first successful editor_load_project latch. */
+  bootProjectSynced: boolean
   /** Mount/HMR path when the wasm singleton is alive before React onReady fires. */
   syncWasmFromBridge: () => void
 }
@@ -20,6 +22,9 @@ export type RuntimeReadiness = {
 export function useRuntimeReadiness(): RuntimeReadiness {
   const [wasmReady, setWasmReady] = useState(() => isWasmReady())
   const [engineReady, setEngineReady] = useState(() => runtimeSync.isEngineReady())
+  const [bootProjectSynced, setBootProjectSynced] = useState(
+    () => runtimeSync.isBootProjectSynced(),
+  )
 
   useEffect(() => {
     return runtimeSync.onReadyChange(setWasmReady)
@@ -27,11 +32,14 @@ export function useRuntimeReadiness(): RuntimeReadiness {
   useEffect(() => {
     return runtimeSync.onEngineReadyChange(setEngineReady)
   }, [])
+  useEffect(() => {
+    return runtimeSync.onBootProjectSyncedChange(setBootProjectSynced)
+  }, [])
 
   const syncWasmFromBridge = useCallback(() => {
     if (!isWasmReady()) return
     setWasmReady((w) => (w ? w : true))
   }, [])
 
-  return { wasmReady, engineReady, syncWasmFromBridge }
+  return { wasmReady, engineReady, bootProjectSynced, syncWasmFromBridge }
 }

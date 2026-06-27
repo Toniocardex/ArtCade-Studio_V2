@@ -668,7 +668,7 @@ class RuntimeSyncServiceImpl {
     projectPath: string | null,
     options?: SyncProjectOptions,
   ): Promise<boolean> {
-    if (!isWasmReady()) return Promise.resolve(false)
+    if (!isWasmReady() || !this.engineReady) return Promise.resolve(false)
     return this.syncProjectInner(project, activeSceneId, projectPath, options)
   }
 
@@ -727,8 +727,17 @@ class RuntimeSyncServiceImpl {
     }
 
     if (plan.kind === 'full') {
+      const code = editorLoadProject(
+        projectJsonForRuntime(project, activeSceneId),
+      )
+      if (code === EDITOR_API_CCALL_FAILED || code !== EditorApiResult.Ok) {
+        console.warn(
+          '[runtime-sync] Project load rejected:',
+          messageForEditorApiCode(code),
+        )
+        return false
+      }
       this.latchProjectProjection(loadKey, projection)
-      editorLoadProject(projectJsonForRuntime(project, activeSceneId))
       // Full load does not push Lua; follow with hot-reload when script is provided.
       if (options?.mainLua && this.reloadMainLuaIfChanged(options.mainLua) === 'failed') {
         return false
