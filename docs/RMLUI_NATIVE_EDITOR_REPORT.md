@@ -72,8 +72,8 @@ logic* and *presentation*:
   `EditorIntent`, `EditorCoordinator`, `EditorInvalidation`, `SelectionState`,
   `EditorUiState`, `CommandStack`, `PlaySession`, `input_routing`,
   `inspector_commit`.
-- `artcade-editor-native` (exe, opt-in): `RmlHost` / `RmlRenderer` /
-  `RmlSystem`, `EditorApp`, `editor_input`, `SceneView`, `EditorUi` +
+- `artcade-editor-native` (exe, opt-in): `RmlHost` / `RmlSystem`,
+  RmlUi's GL3 renderer, `EditorApp`, `editor_input`, `SceneView`, `EditorUi` +
   `HierarchyPanel` / `InspectorPanel` / `ConsolePanel`, RML/RCSS resources.
 
 ### Modification flow (observed in code)
@@ -103,22 +103,25 @@ editor-native source.
 
 ### RmlUi backend used
 
-**Custom `Rml::RenderInterface` over raylib's `rlgl`** (plan Option 1, not the
-sample GL3 backend). RmlUi compiled geometry is replayed with
-`rlBegin(RL_TRIANGLES)` / `rlVertex2f` / `rlColor4ub`; textures (incl. FreeType
-glyph atlases via `GenerateTexture`) are raylib `Texture2D`; clipping is
-raylib's scissor. Result: **one window, one GL context, one GL loader
-(raylib's)** — the second-GL-loader problem never arises.
+**RmlUi official OpenGL 3 renderer adapted to raylib's existing GL context.**
+The initial custom `rlgl` backend rendered solid UI quads, but glyph quads could
+degrade into missing-glyph blocks. The spike now compiles
+`Backends/RmlUi_Renderer_GL3.cpp` directly into `artcade-editor-native` and
+uses raylib's `external/glad.h` as the GL loader through
+`RMLUI_GL3_CUSTOM_LOADER`. Result: **one window, one GL context, one GL loader
+(raylib's glad)** while delegating glyph atlas sampling, shader setup, clipping,
+and blend state to the backend RmlUi ships and tests.
 
 ### Raylib / OpenGL integration
 
 raylib (5.0, desktop GL 3.3) owns the window and the frame. Each frame:
-`BeginDrawing` → `ClearBackground` → `SceneView` draws the scene into the
-viewport rect (scissored) → `RmlHost::render()` wraps `context_->Render()` in
-`BeginBlendMode(BLEND_ALPHA_PREMULTIPLY)` (RmlUi vertices are premultiplied) →
-`EndDrawing`. The viewport is a transparent RmlUi element, so the
-pre-drawn scene shows through the "hole" while panels paint opaquely on top.
-No nested `BeginDrawing`, no render-texture round trip (Option 3 not needed).
+`BeginDrawing` -> `ClearBackground` -> `SceneView` draws the scene into the
+viewport rect (scissored) -> `RmlHost::render()` calls
+`RenderInterface_GL3::BeginFrame()`, `context_->Render()`, and
+`RenderInterface_GL3::EndFrame()` -> `EndDrawing`. The viewport is a transparent
+RmlUi element, so the pre-drawn scene shows through the "hole" while panels
+paint opaquely on top. No nested `BeginDrawing`, no render-texture round trip
+(Option 3 not needed).
 
 ### Input routing
 
@@ -155,14 +158,21 @@ serialization or project scan. (No profiling harness was added — out of scope.
 - Impact: none negative; the demo and any future loader produce a `ProjectDoc`.
 - Tests added: `editor-core-test` §24.1/5/6/11 exercise it.
 
-**Fonts loaded from the system, not bundled.**
+**Fonts are bundled, not loaded from the system.**
 - Initial plan implied bundled fonts under `resources/fonts/`.
-- Evidence: shipping a TTF binary is out of scope for a spike and FreeType needs
-  a real face.
-- Decision: load `Segoe UI` / `Consolas` from `C:/Windows/Fonts` at runtime.
-- Motivation: zero binary assets committed; immediate, legible rendering.
-- Impact: Windows-only for now; documented in `THIRD_PARTY_NOTICES.md`.
-- Tests added: none (presentation-only); covered by the runtime smoke capture.
+- Evidence: system font paths made the spike Windows-specific and masked
+  font-family / weight mismatches.
+- Decision: bundle Inter 4.1 static TTF faces (`Regular`, `Medium`,
+  `SemiBold`, `Bold`) under
+  `runtime-cpp/src/editor-native/resources/fonts/inter/`, load them once from
+  the executable-adjacent `resources` root, and fail initialization when a
+  required face is missing.
+- Motivation: deterministic typography, no network or OS font dependency, and
+  commercial-friendly licensing.
+- Impact: packaging now copies fonts with the rest of `resources/`; notices
+  document Inter and its OFL license.
+- Tests added: CMake configure-time required-font checks plus screenshot smoke
+  capture.
 
 **Phases bundled into fewer commits.**
 - The plan listed commits 3–7 (host, shell, panels, viewport). They are
@@ -190,17 +200,39 @@ Out of scope here, required before replacing the web editor:
    modules (the runtime already supports this).
 4. **Inspector breadth**: components beyond Transform; selection in the viewport
    (picking, drag gizmo).
-5. **Font hinting/crispness**: the system fonts render slightly soft at 13px;
-   evaluate RmlUi font sizing / a bundled hinted family.
+5. **Font DPI validation**: Inter renders correctly in the smoke capture; run
+   the full 100/125/150/200% DPI matrix before treating the spike as product
+   ready.
 6. **Undo/redo UI**, multi-selection, tile painting, Logic Board — explicitly
    deferred (plan §9).
 
 None of these threaten the architecture; they are additive against the proven
 core.
 
+## Font rendering validation
+
+| Field | Result |
+| --- | --- |
+| Main font | Inter 4.1 static TTF |
+| Loaded weights | 400 Regular, 500 Medium, 600 SemiBold, 700 Bold |
+| Fallback | None yet; ASCII editor spike copy only |
+| Font engine | RmlUi default FreeType engine |
+| Graphics backend | RmlUi official GL3 backend using raylib glad loader |
+| Resource root | Absolute path from `GetApplicationDirectory() / "resources"` |
+| Window tested | 1340 x 840 smoke capture |
+| DPI tested | Current Windows scale only |
+| Screenshot | `docs/rmlui-inter-font-shot.png` |
+| Outcome | PASS WITH LIMITATIONS |
+
+The previous glyph-block issue is fixed in the smoke capture: menu, toolbar,
+scene tabs, hierarchy, inspector, and console text render as readable Inter
+glyphs. Remaining validation before productization: 100/125/150/200% DPI,
+resize stress, cross-monitor DPI movement, and optional Unicode fallback.
+
 ## Debt introduced
 
-- Windows-only system-font path (one function, clearly flagged).
+- The older custom `rml_renderer` files remain as an inactive spike artifact;
+  the native editor target now uses RmlUi's GL3 backend.
 - `SceneView` duplicates a little of `EditorOverlayRenderer`'s intent rather
   than reusing it — deliberate, to avoid linking the full render pipeline into
   the spike. Folding them together is item 2 above.
@@ -230,8 +262,8 @@ core.
 New files describe responsibilities; no `manager`, `service`, `helper`, `utils`,
 `common`, `bridge`, `sync`, or `handler` in any new filename or class.
 
-- `rml_` prefix only on the three genuinely RmlUi-bound files: `rml_host`,
-  `rml_renderer`, `rml_system`. Panels are toolkit-neutral
+- `rml_` prefix remains on the RmlUi-bound host/system files: `rml_host`,
+  `rml_system`. The older `rml_renderer` file is inactive spike residue. Panels are toolkit-neutral
   (`hierarchy_panel`, `inspector_panel`, `console_panel`).
 - File ↔ class correspondence holds (`editor_coordinator.* → EditorCoordinator`,
   `scene_view.* → SceneView`, `project_document.* → ProjectDocument`, …).

@@ -5,6 +5,7 @@
     padding: 7px 12px 0 12px;
     height: 30px;
     color: #aab1bd;
+    font-weight: 500;
 }
 .menu-item:hover { background-color: #20232b; }
 
@@ -12,6 +13,7 @@
     display: inline-block;
     padding: 7px 14px 0 14px;
     height: 30px;
+    font-weight: 500;
 }
 
 /* Toolbar */
@@ -24,6 +26,7 @@
     border: 1px #333a45;
     border-radius: 3px;
     color: #cdd2db;
+    font-weight: 500;
 }
 .tool-btn:hover  { background-color: #2f3640; border-color: #41617f; }
 .tool-btn:active { background-color: #24507f; border-color: #4f8cdb; }
@@ -40,6 +43,7 @@
     padding: 9px 0 0 12px;
     color: #7f8794;
     font-size: 12px;
+    font-weight: 500;
 }
 
 /* Scene tabs */
@@ -57,11 +61,13 @@
     border-radius: 3px;
     color: #9aa1ad;
     background-color: #21252d;
+    font-weight: 500;
 }
 .tab:hover  { background-color: #2a2f39; }
 .tab.active {
     color: #eaf1fb;
     background-color: #2c4a72;
+    font-weight: 600;
 }
 
 /* Hierarchy tree */

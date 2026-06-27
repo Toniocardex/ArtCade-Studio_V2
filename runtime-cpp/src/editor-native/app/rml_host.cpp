@@ -1,5 +1,7 @@
 #include "editor-native/app/rml_host.h"
 
+#include "editor-native/ui/editor_fonts.h"
+
 #include <RmlUi/Core.h>
 #include <RmlUi/Debugger.h>
 
@@ -7,34 +9,25 @@
 
 namespace ArtCade::EditorNative {
 
-namespace {
-
-// Spike shortcut: load system fonts by absolute path so we do not ship a binary
-// TTF. A released editor would bundle a libre family (e.g. Inter + JetBrains
-// Mono) under resources/fonts and load those instead.
-void loadEditorFonts() {
-    struct Face { const char* path; bool fallback; };
-    const Face faces[] = {
-        {"C:/Windows/Fonts/segoeui.ttf",  true},
-        {"C:/Windows/Fonts/segoeuib.ttf", false},
-        {"C:/Windows/Fonts/consola.ttf",  false},
-    };
-    for (const Face& face : faces) {
-        if (FileExists(face.path)) Rml::LoadFontFace(face.path, face.fallback);
-    }
-}
-
-} // namespace
-
 bool RmlHost::initialize(int width, int height, float dpRatio,
+                         const std::filesystem::path& resourceRoot,
                          const std::string& documentPath) {
     if (initialized_) return true;
 
     Rml::SetSystemInterface(&system_);
     Rml::SetRenderInterface(&renderer_);
     if (!Rml::Initialise()) return false;
+    if (!renderer_) {
+        Rml::Shutdown();
+        return false;
+    }
 
-    loadEditorFonts();
+    const FontLoadResult fontResult = loadEditorFonts(resourceRoot);
+    if (!fontResult.ok) {
+        TraceLog(LOG_ERROR, "[editor] %s", fontResult.error.c_str());
+        Rml::Shutdown();
+        return false;
+    }
 
     context_ = Rml::CreateContext("editor", Rml::Vector2i(width, height));
     if (!context_) {
@@ -42,9 +35,11 @@ bool RmlHost::initialize(int width, int height, float dpRatio,
         return false;
     }
     context_->SetDensityIndependentPixelRatio(dpRatio);
+    renderer_.SetViewport(width, height);
     Rml::Debugger::Initialise(context_);
 
-    document_ = context_->LoadDocument(documentPath);
+    const std::filesystem::path fullDocumentPath = resourceRoot / documentPath;
+    document_ = context_->LoadDocument(fullDocumentPath.string());
     if (document_) document_->Show();
 
     initialized_ = true;
@@ -55,6 +50,7 @@ void RmlHost::resize(int width, int height, float dpRatio) {
     if (!context_) return;
     context_->SetDimensions(Rml::Vector2i(width, height));
     context_->SetDensityIndependentPixelRatio(dpRatio);
+    renderer_.SetViewport(width, height);
 }
 
 void RmlHost::update() {
@@ -63,10 +59,9 @@ void RmlHost::update() {
 
 void RmlHost::render() {
     if (!context_) return;
-    // RmlUi vertices carry premultiplied alpha; blend accordingly.
-    BeginBlendMode(BLEND_ALPHA_PREMULTIPLY);
+    renderer_.BeginFrame();
     context_->Render();
-    EndBlendMode();
+    renderer_.EndFrame();
 }
 
 void RmlHost::toggleDebugger() {

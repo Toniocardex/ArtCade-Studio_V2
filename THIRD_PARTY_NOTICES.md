@@ -27,12 +27,14 @@ files under `runtime-cpp/libs/`.
 
 ---
 
-### Fonts
-
-The spike loads the system fonts **Segoe UI** and **Consolas** from
-`C:/Windows/Fonts` at runtime; no font binaries are redistributed in this
-repository. A shipped editor would bundle an openly licensed family (e.g. Inter
-+ JetBrains Mono) under `runtime-cpp/src/editor-native/resources/fonts/` and
-load those instead, adding their licenses here.
+## Inter 4.1
+- Purpose: local native editor UI font family.
+- License: SIL Open Font License 1.1.
+- Source: https://github.com/rsms/inter (release `v4.1`).
+- Bundled files:
+  `runtime-cpp/src/editor-native/resources/fonts/inter/Inter-Regular.ttf`,
+  `Inter-Medium.ttf`, `Inter-SemiBold.ttf`, and `Inter-Bold.ttf`.
+- Full text:
+  [`runtime-cpp/src/editor-native/resources/fonts/inter/LICENSE.txt`](runtime-cpp/src/editor-native/resources/fonts/inter/LICENSE.txt)
 
 The ArtCade project license itself is unchanged (`LICENSE`).

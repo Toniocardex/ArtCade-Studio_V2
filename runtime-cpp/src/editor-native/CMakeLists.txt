@@ -38,6 +38,19 @@ if(ARTCADE_BUILD_NATIVE_EDITOR)
             "[ArtCade] ARTCADE_BUILD_NATIVE_EDITOR requires Raylib (libs/raylib).")
     endif()
 
+    set(ARTCADE_EDITOR_REQUIRED_FONTS
+        resources/fonts/inter/Inter-Regular.ttf
+        resources/fonts/inter/Inter-Medium.ttf
+        resources/fonts/inter/Inter-SemiBold.ttf
+        resources/fonts/inter/Inter-Bold.ttf
+        resources/fonts/inter/LICENSE.txt
+    )
+    foreach(_font IN LISTS ARTCADE_EDITOR_REQUIRED_FONTS)
+        if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${_font}")
+            message(FATAL_ERROR "[ArtCade] Missing native editor font resource: ${_font}")
+        endif()
+    endforeach()
+
     include(FetchContent)
 
     # -- FreeType: RmlUi's default font engine. Trim every optional dependency
@@ -73,12 +86,13 @@ if(ARTCADE_BUILD_NATIVE_EDITOR)
     add_executable(artcade-editor-native
         app/main.cpp
         app/editor_app.cpp
+        ${rmlui_SOURCE_DIR}/Backends/RmlUi_Renderer_GL3.cpp
         app/rml_system.cpp
-        app/rml_renderer.cpp
         app/rml_host.cpp
         app/editor_input.cpp
         view/scene_view.cpp
         ui/editor_ui.cpp
+        ui/editor_fonts.cpp
         ui/hierarchy_panel.cpp
         ui/inspector_panel.cpp
         ui/console_panel.cpp
@@ -86,6 +100,10 @@ if(ARTCADE_BUILD_NATIVE_EDITOR)
     )
     target_include_directories(artcade-editor-native PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/..   # runtime-cpp/src
+        ${rmlui_SOURCE_DIR}/Backends
+    )
+    target_compile_definitions(artcade-editor-native PRIVATE
+        RMLUI_GL3_CUSTOM_LOADER="external/glad.h"
     )
     target_link_libraries(artcade-editor-native PRIVATE
         artcade-editor-core

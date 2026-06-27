@@ -1,8 +1,10 @@
 #pragma once
 
-#include "editor-native/app/rml_renderer.h"
 #include "editor-native/app/rml_system.h"
 
+#include <RmlUi_Renderer_GL3.h>
+
+#include <filesystem>
 #include <string>
 
 namespace Rml {
@@ -20,6 +22,7 @@ namespace ArtCade::EditorNative {
 class RmlHost {
 public:
     bool initialize(int width, int height, float dpRatio,
+                    const std::filesystem::path& resourceRoot,
                     const std::string& documentPath);
     void resize(int width, int height, float dpRatio);
     void update();
@@ -33,7 +36,7 @@ public:
 
 private:
     RmlSystem             system_;
-    RmlRenderer           renderer_;
+    RenderInterface_GL3   renderer_;
     Rml::Context*         context_     = nullptr;
     Rml::ElementDocument* document_    = nullptr;
     bool                  initialized_ = false;

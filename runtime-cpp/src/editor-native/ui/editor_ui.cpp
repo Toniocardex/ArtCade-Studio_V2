@@ -119,8 +119,8 @@ void EditorUi::refreshToolbar() {
     Rml::Element* status = document_->GetElementById("toolbar-status");
     if (!status) return;
     const SceneDef* scene = coordinator_.document().activeScene();
-    std::string text = scene ? scene->name : std::string("—");
-    text += playing_ ? "  ·  PLAYING" : "  ·  EDIT";
+    std::string text = scene ? scene->name : std::string("-");
+    text += playing_ ? "  -  PLAYING" : "  -  EDIT";
     status->SetInnerRML(escapeRml(text));
 }
 
@@ -158,7 +158,7 @@ void EditorUi::handleAction(const std::string& action, const std::string& arg,
         if (playing_) {
             playSession_.reset();
             playing_ = false;
-            coordinator_.logInfo("Stopped — back to authoring document");
+            coordinator_.logInfo("Stopped - back to authoring document");
             refreshToolbar();
         }
     }

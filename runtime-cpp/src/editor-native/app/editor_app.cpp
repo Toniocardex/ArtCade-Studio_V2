@@ -15,6 +15,7 @@
 #include <raylib.h>
 
 #include <cstring>
+#include <filesystem>
 #include <string>
 
 namespace ArtCade::EditorNative {
@@ -59,6 +60,10 @@ void routeViewportInput(EditorCoordinator& coordinator, const ViewportRect& rect
     }
 }
 
+std::filesystem::path editorResourceRoot() {
+    return std::filesystem::path(GetApplicationDirectory()) / "resources";
+}
+
 } // namespace
 
 int EditorApp::run(int argc, char** argv) {
@@ -77,10 +82,12 @@ int EditorApp::run(int argc, char** argv) {
     SetTargetFPS(60);
 
     const float dpi = GetWindowScaleDPI().x;
+    const std::filesystem::path resourceRoot = editorResourceRoot();
     RmlHost host;
     if (!host.initialize(GetScreenWidth(), GetScreenHeight(), dpi > 0.f ? dpi : 1.f,
-                         "resources/ui/editor_shell.rml")) {
-        TraceLog(LOG_ERROR, "[editor] failed to load resources/ui/editor_shell.rml");
+                         resourceRoot, "ui/editor_shell.rml")) {
+        TraceLog(LOG_ERROR, "[editor] failed to load native editor resources from %s",
+                 resourceRoot.string().c_str());
         host.shutdown();
         CloseWindow();
         return 1;

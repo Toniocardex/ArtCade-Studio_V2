@@ -11,7 +11,7 @@
         <span class="menu-item">File</span>
         <span class="menu-item">Edit</span>
         <span class="menu-item">View</span>
-        <span class="brand">ArtCade &middot; Native Editor</span>
+        <span class="brand">ArtCade - Native Editor</span>
     </div>
 
     <div id="toolbar">
@@ -31,7 +31,7 @@
             <div id="scene-tabs" class="scene-tabs"></div>
             <div id="hierarchy-list" class="tree"></div>
             <div class="panel-header">ASSETS</div>
-            <div class="assets-stub">Sprites &middot; Audio &middot; Fonts</div>
+            <div class="assets-stub">Sprites - Audio - Fonts</div>
         </div>
 
         <div id="split-left" class="vsplit" data-action="resize-left"></div>
