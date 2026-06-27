@@ -19,6 +19,7 @@
 #include "scene_frame_context.h"
 #include "scene_frame_snapshot.h"
 
+#include <cassert>
 #include <vector>
 
 namespace ArtCade {
@@ -40,6 +41,19 @@ RenderPipeline::ViewRenderFeatures build_view_features(
 #endif
     return features;
 }
+
+/** Marks the tilemap-alias window; debug builds assert re-entrancy and balance. */
+struct SceneFrameRenderScope {
+    bool& active;
+    explicit SceneFrameRenderScope(bool& flag) : active(flag) {
+        assert(!active && "scene frame render passes must not nest");
+        active = true;
+    }
+    ~SceneFrameRenderScope() {
+        assert(active && "scene frame render scope ended out of balance");
+        active = false;
+    }
+};
 
 } // namespace
 
@@ -118,6 +132,9 @@ void Application::renderActiveScene() {
     frameCtx.selectedEntityIds = &selectedEntityIds;
     frameCtx.tilesets = &tilesets_;
     frameCtx.tileColors = &tileColors_;
+
+    // Tilemap pointers in frameSnapshot alias SceneDef until this scope ends.
+    SceneFrameRenderScope renderScope(sceneFrameRenderActive_);
 
     bool worldPassEnded = false;
     bool dialogRendered = false;

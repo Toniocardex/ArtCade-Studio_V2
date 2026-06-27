@@ -140,6 +140,13 @@ private:
 
     bool resetCameraOnNextFrame_ = false;
 
+    /**
+     * True while SceneFrameSnapshot render passes are executing.
+     * Tilemap pointers in the snapshot alias SceneDef; no scene mutation,
+     * project replace, or tilemap resize may run until this clears.
+     */
+    bool sceneFrameRenderActive_ = false;
+
     float targetDt_        = 1.f / 60.f;
     float accumulator_      = 0.f;          // Persistent across frames for WASM.
     bool  running_          = false;

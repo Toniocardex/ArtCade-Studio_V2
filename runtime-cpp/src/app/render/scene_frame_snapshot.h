@@ -12,10 +12,13 @@ namespace ArtCade {
  * Immutable per-frame scene + presentation truth for render passes and overlays.
  *
  * Contract (single-threaded, synchronous frame loop):
- * - Scalars and layerSettings are copied at build time.
- * - Tilemap pointers alias the active SceneDef; scene mutations must complete
- *   before scene_frame_build() and must not run during render passes.
- * - Entity transforms are read from the registry post-flush, not snapshotted.
+ *   mutation + entity flush → scene_frame_build() → render passes → end frame
+ *
+ * While render passes run, the active SceneDef (including tilemap storage)
+ * must not be mutated by scene patch, project replace, tilemap resize, or
+ * scene load. Scalars and layerSettings are copied at build time; tilemap
+ * pointers alias SceneDef until the pass scope ends.
+ * Entity transforms are read from the registry post-flush, not snapshotted.
  */
 struct SceneFrameSnapshot {
     uint64_t frameNumber = 0;
