@@ -12,17 +12,10 @@
 #include <cstdlib>
 
 using ArtCade::Modules::Renderer;
-using ArtCade::Presentation::CameraModifiers;
 using ArtCade::Presentation::PresentationBindings;
 using ArtCade::Presentation::EditorViewportService;
 using ArtCade::Presentation::PresentationMode;
 using ArtCade::Presentation::SurfacePoint;
-
-static void commitPresentationFrame(
-    Renderer& renderer,
-    EditorViewportService& viewport) {
-    commit_presentation_frame(renderer, viewport);
-}
 
 static bool near_eq(float a, float b, float eps = 0.001f) {
     return std::fabs(a - b) <= eps;
@@ -39,17 +32,22 @@ static void expect(bool ok, const char* msg) {
 int main() {
     ArtCade::Presentation::EditorViewportService viewport;
     Renderer renderer;
+    const ArtCade::Vec2 frameSize{ 1280.f, 720.f };
+    ArtCade::SceneDef scene{};
+    scene.worldSize = frameSize;
+    scene.viewportSize = frameSize;
+
     renderer.setWindowSize(1280, 720, "camera-modes");
-    viewport.set_presentation_mode(PresentationMode::CameraPreview);
     renderer.setCameraZoom(2.f);
     renderer.setCameraPosition({ 100.f, 50.f });
 
+    viewport.set_presentation_mode(PresentationMode::SceneEdit);
     viewport.set_editor_camera(400., 300., 1.5);
     const auto gamePos = renderer.getCameraPosition();
     expect(near_eq(gamePos.x, 100.f) && near_eq(gamePos.y, 50.f),
            "setEditorCamera does not overwrite authoritative game camera");
 
-    commitPresentationFrame(renderer, viewport);
+    commit_presentation_frame(renderer, viewport, &scene);
     const auto& editSnapshot = viewport.committed_snapshot();
     const auto editPick = editSnapshot.surface_to_world(SurfacePoint{ 0., 0. });
     expect(near_eq(static_cast<float>(editPick.x), 400.f)
@@ -58,7 +56,7 @@ int main() {
 
     viewport.set_presentation_mode(PresentationMode::CameraPreview);
     renderer.setWindowSize(1280, 720, "camera-modes-refresh");
-    commitPresentationFrame(renderer, viewport);
+    commit_presentation_frame(renderer, viewport, &scene);
     const auto& playSnapshot = viewport.committed_snapshot();
     const auto playPick = playSnapshot.surface_to_world(SurfacePoint{ 0., 0. });
     expect(near_eq(static_cast<float>(playPick.x), 100.f)
@@ -66,11 +64,11 @@ int main() {
            "CameraPreview picking uses game camera");
 
     renderer.setGameCameraModifiers({ 30., -20., 1., 0. });
-    commitPresentationFrame(renderer, viewport);
+    commit_presentation_frame(renderer, viewport, &scene);
     const auto pickWithShake = PresentationBindings::surface_to_world(
         viewport.committed_snapshot(), SurfacePoint{ 200., 300. });
     renderer.setGameCameraModifiers({});
-    commitPresentationFrame(renderer, viewport);
+    commit_presentation_frame(renderer, viewport, &scene);
     const auto pickNoShake = PresentationBindings::surface_to_world(
         viewport.committed_snapshot(), SurfacePoint{ 200., 300. });
     expect(!near_eq(static_cast<float>(pickWithShake.x), static_cast<float>(pickNoShake.x))
@@ -81,6 +79,7 @@ int main() {
     viewport.set_presentation_mode(PresentationMode::PlayEmbedded);
     renderer.setWindowSize(1920, 1080, "play-embedded");
     renderer.setCameraPosition({ 0.f, 0.f });
+    commit_presentation_frame(renderer, viewport, &scene);
     expect(viewport.presentation_mode() == PresentationMode::PlayEmbedded,
            "explicit PlayEmbedded mode is preserved");
 
