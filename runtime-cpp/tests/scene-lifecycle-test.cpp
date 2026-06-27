@@ -11,6 +11,7 @@
 #include <cstdio>
 #include <cstdlib>
 
+using ArtCade::SceneId;
 using ArtCade::Modules::SceneInvalidation;
 using ArtCade::Modules::SceneLifecycleService;
 using ArtCade::Modules::SceneManager;
@@ -46,6 +47,7 @@ int main() {
     SceneMutationService mutations(scenes);
     RuntimeEntityGateway gateway(scenes);
     gateway.init();
+    gateway.registerScenes({ { "a", sceneA }, { "b", sceneB } }, {});
     ArtCade::Modules::Physics physics;
     physics.init();
     gateway.setPhysics(&physics);
@@ -60,6 +62,10 @@ int main() {
     });
     gateway.set_scene_lifecycle_service(&lifecycle);
 
+    lifecycle.set_restore_handler([&gateway](const SceneId& sceneId) {
+        return gateway.restoreSceneFromAuthoring(sceneId);
+    });
+
     const auto immediate = lifecycle.load_immediate("b");
     expect(immediate.changed, "immediate load succeeds");
     expect(immediate.sceneRevision == 1u, "immediate load bumps revision");
@@ -73,6 +79,12 @@ int main() {
     expect(reactivate.changed, "reactivate with zero fade reloads");
     expect(reactivate.sceneRevision == 2u, "reactivate bumps revision");
 
+    const auto restart = lifecycle.request_restart(0.f);
+    expect(restart.changed, "restart with zero fade succeeds");
+    expect(restart.sceneRevision == 3u, "restart bumps revision");
+    expect(restart.sceneRevision != reactivate.sceneRevision,
+           "restart and reactivate are distinct commits");
+
     const auto badFade = lifecycle.request_load("missing", 2.f);
     expect(badFade.error == ArtCade::Modules::SceneTransitionError::SceneNotFound,
            "invalid fade target returns not found");
@@ -85,7 +97,7 @@ int main() {
 
     lifecycle.tick(1.1f);
     expect(scenes.activeSceneId() == "a", "fade midpoint commits load");
-    expect(lastTransition.sceneRevision == 3u, "fade commit bumps revision");
+    expect(lastTransition.sceneRevision == 4u, "fade commit bumps revision");
 
     lifecycle.tick(1.1f);
     expect(!lifecycle.transition_active(), "fade completes");

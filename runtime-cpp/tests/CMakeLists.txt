@@ -198,6 +198,14 @@ artcade_test(scene_mutation_diff_test
     scene-mutation-diff-test.cpp
     artcade-scene-system)
 
+artcade_test(scene_restart_test
+    scene-restart-test.cpp
+    "artcade-scene-system;artcade-runtime-entity-gateway;artcade-physics;artcade-variable-manager")
+
+artcade_test(scene_lifecycle_test
+    scene-lifecycle-test.cpp
+    "artcade-scene-system;artcade-runtime-entity-gateway;artcade-physics")
+
 # ============================================================================
 # Fase 17: .artcade ZIP round-trip — richiede artcade-asset-system
 # (compilato solo quando Raylib + Lua sono presenti, come asset-system stesso)
@@ -244,10 +252,6 @@ if(ARTCADE_HAS_RAYLIB AND ARTCADE_HAS_LUA)
         artcade-editor-api
     )
     add_test(NAME frame_coordinator_test COMMAND frame_coordinator_test)
-
-    artcade_test(scene_lifecycle_test
-        scene-lifecycle-test.cpp
-        "artcade-scene-system;artcade-runtime-entity-gateway;artcade-physics")
 
     add_executable(scene_frame_snapshot_test
         scene-frame-snapshot-test.cpp

@@ -87,6 +87,35 @@ int main() {
                "viewport-only does not emit Collision");
     }
 
+    {
+        SceneManager scenes;
+        setup_scene(scenes);
+        SceneMutationService mutation(scenes);
+        const uint64_t rev0 = mutation.revision();
+
+        ScenePatch patch = ScenePatch::from_projection(*scenes.activeScene());
+        const auto result = mutation.apply("s", patch);
+        expect(!result.changed, "identical full patch is no-op");
+        expect(result.sceneRevision == rev0, "identical patch keeps revision");
+        expect(result.invalidations == SceneInvalidation::None,
+               "identical patch emits no invalidations");
+    }
+
+    {
+        SceneManager scenes;
+        setup_scene(scenes);
+        SceneMutationService mutation(scenes);
+
+        ScenePatch patch{};
+        patch.worldSize = { 1024.f, 768.f };
+        patch.hasWorldSize = true;
+
+        const auto result = mutation.apply("s", patch);
+        expect(result.changed, "world-size patch changes scene");
+        expect(scene_invalidation_has(result.invalidations, SceneInvalidation::Collision),
+               "world-size patch emits Collision");
+    }
+
     std::puts("scene_mutation_diff_test: all passed");
     return 0;
 }
