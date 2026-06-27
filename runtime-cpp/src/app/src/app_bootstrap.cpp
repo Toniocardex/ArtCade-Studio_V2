@@ -100,6 +100,10 @@ bool Application::initSubsystems() {
     mod_->sceneLifecycle->set_gameplay_reset_handler([this]() {
         if (mod_->world) mod_->world->onSceneActivated();
     });
+    mod_->sceneLifecycle->set_restore_handler(
+        [gw = mod_->entityGateway.get()](const SceneId& sceneId) {
+            return gw && gw->restoreSceneFromAuthoring(sceneId);
+        });
     mod_->world->setSceneLifecycleService(mod_->sceneLifecycle.get());
 
     ctx_.renderer = mod_->renderer.get();

@@ -234,9 +234,9 @@ public:
     bool loadScene(const SceneId& id);
     /** Fade to black, load scene, fade in. fadeSeconds <= 0 loads immediately. */
     void requestLoadScene(const SceneId& id, float fadeSeconds = 0.f);
-    /** Reloads the active scene, with optional fade. */
+    /** Re-activates the active scene (sync + gameplay reset). Does not restore layout. */
     void requestReactivateScene(float fadeSeconds = 0.f);
-    /** @deprecated Does not restore authored layout; calls requestReactivateScene. */
+    /** Restores authored entity layout, then activation sync and gameplay reset. */
     void requestRestartScene(float fadeSeconds = 0.f);
     void tickSceneTransition(float dt);
     /** 0 = no overlay, 1 = full black (for fade). */

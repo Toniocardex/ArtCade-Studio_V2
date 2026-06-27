@@ -1104,7 +1104,12 @@ void RuntimeEntityGateway::requestReactivateScene(float fadeSeconds) {
 }
 
 void RuntimeEntityGateway::requestRestartScene(float fadeSeconds) {
-    requestReactivateScene(fadeSeconds);
+    if (lifecycle_) {
+        lifecycle_->request_restart(fadeSeconds);
+        return;
+    }
+    if (!restoreSceneFromAuthoring(activeSceneId())) return;
+    syncSceneActivation();
 }
 
 void RuntimeEntityGateway::tickSceneTransition(float dt) {

@@ -307,7 +307,7 @@ void GameAPI::bindEntityAPI(sol::state& lua) {
         scene = {}
         scene.load       = function(name, fade) return scene_load(name, fade) end
         scene.reactivate = function(fade)      return scene_reactivate(fade) end
-        scene.restart    = function(fade)      return scene_reactivate(fade) end
+        scene.restart    = function(fade)      return scene_restart(fade) end
 
         pool = {}
         pool.getAll = function(cls)  return pool_getAll(cls)  end
