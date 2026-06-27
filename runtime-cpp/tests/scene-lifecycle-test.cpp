@@ -38,6 +38,7 @@ int main() {
     ArtCade::SceneDef sceneB = sceneA;
     sceneB.id = "b";
     sceneB.worldSize = { 800.f, 600.f };
+    sceneB.cameraStart = { 100.f, 50.f };
 
     scenes.registerScenes({ { "a", sceneA }, { "b", sceneB } }, {});
     scenes.loadScene("a");
@@ -53,10 +54,7 @@ int main() {
     SceneLifecycleService lifecycle(
         scenes,
         mutations,
-        [&gateway]() {
-            gateway.syncSceneActivation();
-            return true;
-        });
+        [&gateway]() { gateway.syncSceneActivation(); });
     lifecycle.set_transition_handler([&lastTransition](const SceneTransitionResult& r) {
         lastTransition = r;
     });
@@ -71,9 +69,15 @@ int main() {
             lastTransition.invalidations, SceneInvalidation::SceneActivation),
         "transition handler receives activation invalidation");
 
-    const auto restart = lifecycle.request_restart(0.f);
-    expect(restart.changed, "restart with zero fade reloads");
-    expect(restart.sceneRevision == 2u, "restart bumps revision");
+    const auto reactivate = lifecycle.request_reactivate(0.f);
+    expect(reactivate.changed, "reactivate with zero fade reloads");
+    expect(reactivate.sceneRevision == 2u, "reactivate bumps revision");
+
+    const auto badFade = lifecycle.request_load("missing", 2.f);
+    expect(badFade.error == ArtCade::Modules::SceneTransitionError::SceneNotFound,
+           "invalid fade target returns not found");
+    expect(!lifecycle.transition_active(), "invalid fade does not start transition");
+    expect(scenes.activeSceneId() == "b", "active scene unchanged after bad fade");
 
     lifecycle.request_load("a", 2.f);
     expect(lifecycle.transition_active(), "fade request starts transition");

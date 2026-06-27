@@ -18,20 +18,32 @@ bool vec4_equal(const Vec4& a, const Vec4& b) {
     return a.r == b.r && a.g == b.g && a.b == b.b && a.a == b.a;
 }
 
-SceneInvalidation invalidations_for_patch(const ScenePatch& patch) {
-    SceneInvalidation flags = SceneInvalidation::None;
-    if (patch.hasWorldSize || patch.hasViewportSize) {
-        flags |= SceneInvalidation::Geometry;
-        flags |= SceneInvalidation::Presentation;
-        flags |= SceneInvalidation::TilemapGeometry;
-        flags |= SceneInvalidation::Collision;
-        flags |= SceneInvalidation::RenderData;
+bool layer_background_equal(const LayerBackground& a, const LayerBackground& b) {
+    return a.imageId == b.imageId
+        && a.tileX == b.tileX
+        && a.tileY == b.tileY
+        && a.scrollX == b.scrollX
+        && a.scrollY == b.scrollY;
+}
+
+bool layer_settings_equal(const SceneLayerSettings& a, const SceneLayerSettings& b) {
+    return a.visible == b.visible
+        && a.opacity == b.opacity
+        && a.parallax.x == b.parallax.x
+        && a.parallax.y == b.parallax.y
+        && layer_background_equal(a.background, b.background);
+}
+
+bool layer_settings_map_equal(
+    const std::unordered_map<std::string, SceneLayerSettings>& a,
+    const std::unordered_map<std::string, SceneLayerSettings>& b) {
+    if (a.size() != b.size()) return false;
+    for (const auto& [key, lhs] : a) {
+        const auto it = b.find(key);
+        if (it == b.end() || !layer_settings_equal(lhs, it->second))
+            return false;
     }
-    if (patch.hasBackground || patch.hasName || patch.hasLayerSettings)
-        flags |= SceneInvalidation::Metadata;
-    if (patch.hasBackground || patch.hasLayerSettings)
-        flags |= SceneInvalidation::RenderData;
-    return flags;
+    return true;
 }
 
 } // namespace
@@ -70,8 +82,7 @@ SceneMutationResult SceneMutationService::commit_batch() {
 
 SceneMutationResult SceneMutationService::apply(
     const SceneId& sceneId,
-    const ScenePatch& patch,
-    SceneMutationOrigin /*origin*/)
+    const ScenePatch& patch)
 {
     SceneMutationResult result{};
     result.sceneId = sceneId;
@@ -92,16 +103,20 @@ SceneMutationResult SceneMutationService::apply(
     }
 
     bool changed = false;
+    SceneInvalidation flags = SceneInvalidation::None;
 
     if (patch.hasWorldSize && !vec2_equal(scene->worldSize, patch.worldSize)) {
         scene->worldSize = patch.worldSize;
         changed = true;
+        flags |= SceneInvalidation::Collision;
     }
-    if (patch.hasViewportSize && !vec2_equal(scene->viewportSize, patch.viewportSize)) {
+    if (patch.hasViewportSize
+        && !vec2_equal(scene->viewportSize, patch.viewportSize)) {
         scene->viewportSize = patch.viewportSize;
         changed = true;
     }
-    if (patch.hasBackground && !vec4_equal(scene->backgroundColor, patch.backgroundColor)) {
+    if (patch.hasBackground
+        && !vec4_equal(scene->backgroundColor, patch.backgroundColor)) {
         scene->backgroundColor = patch.backgroundColor;
         changed = true;
     }
@@ -109,7 +124,8 @@ SceneMutationResult SceneMutationService::apply(
         scene->name = patch.name;
         changed = true;
     }
-    if (patch.hasLayerSettings) {
+    if (patch.hasLayerSettings
+        && !layer_settings_map_equal(scene->layerSettings, patch.layerSettings)) {
         scene->layerSettings = patch.layerSettings;
         changed = true;
     }
@@ -119,7 +135,7 @@ SceneMutationResult SceneMutationService::apply(
         return result;
     }
 
-    const SceneInvalidation patchFlags = invalidations_for_patch(patch);
+    const SceneInvalidation patchFlags = flags;
 
     if (batchOpen_) {
         batchChanged_ = true;

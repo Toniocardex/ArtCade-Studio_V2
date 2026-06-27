@@ -128,9 +128,6 @@ private:
     /** Consumes coalesced invalidations before presentation commit (PR3). */
     void applyPendingSceneInvalidations();
 
-    /** Refreshes pending presentation from scene-authoritative inputs. */
-    void refreshPresentationPending();
-
     ArtCade::Modules::SceneInvalidation pendingSceneInvalidations_ =
         ArtCade::Modules::SceneInvalidation::None;
 
@@ -140,6 +137,8 @@ private:
     int authoringSyncBatchDepth_ = 0;
 
     uint64_t frameNumber_ = 0;
+
+    bool resetCameraOnNextFrame_ = false;
 
     float targetDt_        = 1.f / 60.f;
     float accumulator_      = 0.f;          // Persistent across frames for WASM.

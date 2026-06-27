@@ -14,16 +14,11 @@ struct PresentationSimulationInputs {
     bool gameViewCompositorEnabled = false;
     GameCameraState gameCamera{};
     CameraModifiers gameModifiers{};
-    /** Used when @p scene is null (transitional — removed in PR8). */
-    double fallbackLogicalWidth = 1.;
-    double fallbackLogicalHeight = 1.;
-    double fallbackWorldWidth = 1.;
-    double fallbackWorldHeight = 1.;
 };
 
 /**
  * Builds presentation inputs from authoritative scene geometry + simulation state.
- * @param scene active SceneDef (nullptr uses @p sim fallbacks)
+ * @param scene active SceneDef (nullptr uses ProjectDefaults)
  * @param sim renderer-owned camera / policy / compositor flags
  */
 PresentationStateInputs presentation_build_inputs(

@@ -104,7 +104,6 @@ if(EMSCRIPTEN)
         "_editor_get_presentation_revision"
         "_editor_get_scene_revision"
         "_editor_set_pointer_presentation_revision"
-        "_editor_set_pointer_scene_revision"
         "_editor_get_presentation_snapshot"
         "_editor_surface_to_world"
         "_editor_surface_to_world_at_revision"

@@ -5,11 +5,6 @@
 
 namespace ArtCade::Modules {
 
-enum class SceneMutationOrigin {
-    EditorProjection,
-    Gameplay,
-};
-
 enum class SceneMutationError {
     None,
     SceneNotFound,

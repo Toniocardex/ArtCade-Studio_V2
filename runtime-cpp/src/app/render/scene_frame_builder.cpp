@@ -18,8 +18,8 @@ SceneFrameSnapshot scene_frame_build(const SceneFrameBuildInput& input) {
     snap.logicalViewport = input.activeScene->viewportSize;
     snap.backgroundColor = input.activeScene->backgroundColor;
     snap.layerSettings = input.activeScene->layerSettings;
-    snap.tilemap = input.activeScene->tilemap;
-    snap.tilemapLayers = input.activeScene->tilemapLayers;
+    snap.tilemap = &input.activeScene->tilemap;
+    snap.tilemapLayers = &input.activeScene->tilemapLayers;
     return snap;
 }
 

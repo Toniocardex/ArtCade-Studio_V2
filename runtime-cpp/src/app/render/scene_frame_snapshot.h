@@ -9,8 +9,13 @@
 namespace ArtCade {
 
 /**
- * Immutable per-frame scene + presentation truth for render passes, picking, and overlays.
- * Built once per frame after invalidations are applied and presentation is committed.
+ * Immutable per-frame scene + presentation truth for render passes and overlays.
+ *
+ * Contract (single-threaded, synchronous frame loop):
+ * - Scalars and layerSettings are copied at build time.
+ * - Tilemap pointers alias the active SceneDef; scene mutations must complete
+ *   before scene_frame_build() and must not run during render passes.
+ * - Entity transforms are read from the registry post-flush, not snapshotted.
  */
 struct SceneFrameSnapshot {
     uint64_t frameNumber = 0;
@@ -29,10 +34,10 @@ struct SceneFrameSnapshot {
 
     float sceneFadeAlpha = 0.f;
 
-    /** Merged grid for physics / legacy single-layer projects. */
-    TilemapData tilemap;
-    /** Per-layer paint grids keyed by layer id. */
-    std::unordered_map<std::string, TilemapData> tilemapLayers;
+    /** Merged grid for physics / legacy single-layer projects (aliases SceneDef). */
+    const TilemapData* tilemap = nullptr;
+    /** Per-layer paint grids keyed by layer id (aliases SceneDef). */
+    const std::unordered_map<std::string, TilemapData>* tilemapLayers = nullptr;
 };
 
 struct SceneFrameBuildInput {

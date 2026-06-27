@@ -23,18 +23,8 @@ namespace {
 
 
 constexpr SceneInvalidation kActivationInvalidations =
-
     SceneInvalidation::SceneActivation
-
-    | SceneInvalidation::Geometry
-
-    | SceneInvalidation::Presentation
-
-    | SceneInvalidation::Collision
-
-    | SceneInvalidation::RenderData
-
-    | SceneInvalidation::EntityProjection;
+    | SceneInvalidation::Collision;
 
 
 
@@ -114,10 +104,7 @@ bool SceneLifecycleService::commit_load(
 
     }
 
-    if (!activationSync_ || !activationSync_()) {
-        out.error = SceneTransitionError::SceneNotFound;
-        return false;
-    }
+    if (activationSync_) activationSync_();
     if (gameplayReset_) gameplayReset_();
     out = make_success(sceneId);
 
@@ -151,7 +138,12 @@ SceneTransitionResult SceneLifecycleService::request_load(
 
     if (fadeSeconds <= 0.f) return load_immediate(sceneId);
 
-
+    if (!scenes_.getScene(sceneId)) {
+        SceneTransitionResult notFound{};
+        notFound.error = SceneTransitionError::SceneNotFound;
+        notFound.sceneId = sceneId;
+        return notFound;
+    }
 
     pendingSceneId_ = sceneId;
 
@@ -173,11 +165,21 @@ SceneTransitionResult SceneLifecycleService::request_load(
 
 
 
-SceneTransitionResult SceneLifecycleService::request_restart(
+SceneTransitionResult SceneLifecycleService::request_reactivate(
 
     float fadeSeconds) {
 
     return request_load(scenes_.activeSceneId(), fadeSeconds);
+
+}
+
+
+
+SceneTransitionResult SceneLifecycleService::request_restart(
+
+    float fadeSeconds) {
+
+    return request_reactivate(fadeSeconds);
 
 }
 

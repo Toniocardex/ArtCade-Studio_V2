@@ -143,12 +143,6 @@ PresentationSimulationInputs Renderer::gatherSimulationPresentationInputs() cons
     sim.gameViewCompositorEnabled = impl_->gameViewCompositorEnabled;
     sim.gameCamera = impl_->storedGameCamera_;
     sim.gameModifiers = impl_->gameModifiers_;
-    const Vec2 logical = impl_->scene_logical_viewport();
-    const Vec2 world = impl_->scene_world_bounds();
-    sim.fallbackLogicalWidth = static_cast<double>(logical.x);
-    sim.fallbackLogicalHeight = static_cast<double>(logical.y);
-    sim.fallbackWorldWidth = static_cast<double>(world.x);
-    sim.fallbackWorldHeight = static_cast<double>(world.y);
     return sim;
 }
 
@@ -159,9 +153,36 @@ void Renderer::applyFramePresentation(
     impl_->apply_frame_presentation(presentation);
 }
 
+void Renderer::commitFrameGeometry(const Vec2& worldSize,
+                                   const Vec2& logicalViewport) {
+    if (worldSize.x <= 0.f || worldSize.y <= 0.f
+        || logicalViewport.x <= 0.f || logicalViewport.y <= 0.f) {
+        impl_->committedGeometryActive_ = false;
+        return;
+    }
+    impl_->committedWorldSize_ = {
+        std::max(1.f, worldSize.x),
+        std::max(1.f, worldSize.y),
+    };
+    impl_->committedLogicalViewport_ = {
+        std::max(1.f, logicalViewport.x),
+        std::max(1.f, logicalViewport.y),
+    };
+    impl_->committedGeometryActive_ = true;
+    if (impl_->surface.is_open()) {
+        impl_->surface.set_min_viewport_size(
+            static_cast<uint32_t>(impl_->committedLogicalViewport_.x),
+            static_cast<uint32_t>(impl_->committedLogicalViewport_.y));
+    }
+}
+
 void Renderer::beginFrame(
     const ArtCade::Presentation::PresentationSnapshot& presentation,
+    const Vec2& worldSize,
+    const Vec2& logicalViewport,
     const Vec4& clearColor) {
+    commitFrameGeometry(worldSize, logicalViewport);
+
     impl_->lastCommittedPresentation_ = presentation;
     impl_->hasCommittedPresentation_ = true;
     impl_->surface.sync_size_from_raylib();

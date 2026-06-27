@@ -85,9 +85,7 @@ bool Application::initSubsystems() {
         *mod_->sceneManager,
         *mod_->sceneMutation,
         [gw = mod_->entityGateway.get()]() {
-            if (!gw) return false;
-            gw->syncSceneActivation();
-            return true;
+            if (gw) gw->syncSceneActivation();
         });
     mod_->sceneLifecycle->set_transition_handler(
         [this](const ArtCade::Modules::SceneTransitionResult& result) {
@@ -156,9 +154,8 @@ bool Application::initSubsystems() {
 #ifdef ARTCADE_WASM
     EditorAPI::setSceneMutationBridge(
         [this](const SceneId& sceneId,
-               const ArtCade::Modules::ScenePatch& patch,
-               ArtCade::Modules::SceneMutationOrigin origin) {
-            return mod_->sceneMutation->apply(sceneId, patch, origin);
+               const ArtCade::Modules::ScenePatch& patch) {
+            return mod_->sceneMutation->apply(sceneId, patch);
         },
         [this](const ArtCade::Modules::SceneMutationResult& result) {
             handleSceneMutation(result);

@@ -9,7 +9,6 @@ import type { EditorTool } from '../utils/runtime-sync-service'
 const editorCenterWorldPointMock = vi.fn()
 const syncEditorZoomFromWasmMock = vi.fn()
 const editorSetPointerPresentationRevisionMock = vi.fn()
-const editorSetPointerSceneRevisionMock = vi.fn()
 const editorZoomAtMock = vi.fn()
 const captureSurfacePointerEventMock = vi.fn()
 
@@ -25,8 +24,6 @@ vi.mock('../utils/wasm-bridge', () => ({
   editorZoomAt: (...args: unknown[]) => editorZoomAtMock(...args),
   editorSetPointerPresentationRevision: (...args: unknown[]) =>
     editorSetPointerPresentationRevisionMock(...args),
-  editorSetPointerSceneRevision: (...args: unknown[]) =>
-    editorSetPointerSceneRevisionMock(...args),
 }))
 
 vi.mock('../utils/surface-pointer-event', () => ({
@@ -70,13 +67,11 @@ describe('useEditorCanvasViewport', () => {
     editorCenterWorldPointMock.mockReset()
     syncEditorZoomFromWasmMock.mockReset()
     editorSetPointerPresentationRevisionMock.mockReset()
-    editorSetPointerSceneRevisionMock.mockReset()
     editorZoomAtMock.mockReset()
     captureSurfacePointerEventMock.mockReset()
     captureSurfacePointerEventMock.mockReturnValue({
       positionCss: { x: 120, y: 80 },
       presentationRevision: 77n,
-      sceneRevision: 5n,
     })
   })
 
@@ -101,7 +96,6 @@ describe('useEditorCanvasViewport', () => {
     })
     expect(captureSurfacePointerEventMock).toHaveBeenCalled()
     expect(editorSetPointerPresentationRevisionMock).toHaveBeenCalledWith(77n)
-    expect(editorSetPointerSceneRevisionMock).toHaveBeenCalledWith(5n)
     expect(editorZoomAtMock).toHaveBeenCalledWith(120, 80, expect.any(Number))
   })
 })

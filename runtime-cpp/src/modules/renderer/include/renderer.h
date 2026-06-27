@@ -46,14 +46,14 @@ public:
                                          uint32_t logicalHeight,
                                          const std::string& title);
     /**
-     * Commits scene geometry for the current frame (from SceneFrameSnapshot).
-     * Replaces the removed setSceneViewport(); not a mutable scene authority.
+     * Commits per-frame scene geometry (world bounds and logical viewport).
+     * Called by beginFrame(); tests may call directly for clip math without drawing.
      */
-    void setFrameSceneGeometry(const Vec2& worldSize, const Vec2& logicalViewport);
+    void commitFrameGeometry(const Vec2& worldSize, const Vec2& logicalViewport);
 
     /**
      * Projects world bounds through the active camera (incl. shake).
-     * Uses geometry from the last setFrameSceneGeometry() call.
+     * Uses geometry from the last commitFrameGeometry() / beginFrame() call.
      */
     ScreenClipRect worldScreenClipRect() const;
 
@@ -86,6 +86,8 @@ public:
 
     // Frame lifecycle
     void beginFrame(const ArtCade::Presentation::PresentationSnapshot& presentation,
+                    const Vec2& worldSize,
+                    const Vec2& logicalViewport,
                     const Vec4& clearColor);
     /** Begin the GameView RT pass when the pipeline schedules RenderPassId::GameView. */
     void beginGameViewPass(const Vec4& clearColor);

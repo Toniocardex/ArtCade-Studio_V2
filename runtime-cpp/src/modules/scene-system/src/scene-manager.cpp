@@ -50,22 +50,6 @@ const EntityDef* SceneManager::getEntityDef(EntityId id) const {
     return (it != entityDefs_.end()) ? &it->second : nullptr;
 }
 
-void SceneManager::patchSceneSettings(const SceneId& id, const SceneDef& patch) {
-    auto it = scenes_.find(id);
-    if (it == scenes_.end()) return;
-    SceneDef& scene = it->second;
-    if (patch.worldSize.x > 0.f && patch.worldSize.y > 0.f)
-        scene.worldSize = patch.worldSize;
-    if (patch.viewportSize.x > 0.f && patch.viewportSize.y > 0.f)
-        scene.viewportSize = patch.viewportSize;
-    scene.backgroundColor = patch.backgroundColor;
-    if (!patch.name.empty())
-        scene.name = patch.name;
-    // Per-scene layer visual overrides are pushed wholesale (always present,
-    // possibly empty) so clears propagate; replace rather than merge.
-    scene.layerSettings = patch.layerSettings;
-}
-
 int SceneManager::layerRank(const std::string& layerId) const {
     const int count = static_cast<int>(sceneLayers_.size());
     for (int i = 0; i < count; ++i) {

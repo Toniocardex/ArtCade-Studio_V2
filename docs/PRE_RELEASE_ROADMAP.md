@@ -217,7 +217,7 @@ Estimated calendar (single developer, focused): **8–12 weeks**. Parallel work
 
 | ID | Work | Primary files | Done when |
 |----|------|---------------|-----------|
-| 3.2a | `scene.restart()` reloads instances from saved `SceneDef` | `world.cpp`, `runtime-entity-gateway.cpp` | Position after play resets to saved |
+| 3.2a | `scene.reactivate()` reloads active scene instances (not full authoring restore) | `scene-lifecycle-service.cpp`, `entity-api.cpp` | `scene.restart` is deprecated alias; full layout restore tracked separately |
 | 3.2b | Scene change clears scene-scoped state (when 3.3 lands) | `World::loadScene` | No stale entities from previous scene |
 | 3.2c | Editor stop-play calls same restore path as 3.2a | `editor-api.cpp` | STOP ≡ restart to design state |
 

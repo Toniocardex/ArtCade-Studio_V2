@@ -189,6 +189,10 @@ void GameAPI::bindEntityAPI(sol::state& lua) {
             else
                 entities->loadScene(name);
         });
+    lua.set_function("scene_reactivate", [entities](sol::optional<float> fadeSec) {
+        if (!entities) return;
+        entities->requestReactivateScene(fadeSec.value_or(0.f));
+    });
     lua.set_function("scene_restart", [entities](sol::optional<float> fadeSec) {
         if (!entities) return;
         entities->requestRestartScene(fadeSec.value_or(0.f));
@@ -301,8 +305,9 @@ void GameAPI::bindEntityAPI(sol::state& lua) {
         entity.damage      = function(id,amt)    return entity_damage(id,amt)     end
 
         scene = {}
-        scene.load    = function(name, fade) return scene_load(name, fade) end
-        scene.restart = function()     return scene_restart()  end
+        scene.load       = function(name, fade) return scene_load(name, fade) end
+        scene.reactivate = function(fade)      return scene_reactivate(fade) end
+        scene.restart    = function(fade)      return scene_reactivate(fade) end
 
         pool = {}
         pool.getAll = function(cls)  return pool_getAll(cls)  end

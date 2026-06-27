@@ -6,7 +6,6 @@
 #include <cstdlib>
 
 using ArtCade::Modules::SceneInvalidation;
-using ArtCade::Modules::scene_invalidation_collision_mask;
 using ArtCade::Modules::scene_invalidation_has;
 using ArtCade::Modules::scene_invalidation_needs_collision_rebuild;
 
@@ -20,22 +19,19 @@ static void expect(bool ok, const char* msg) {
 
 int main() {
     SceneInvalidation batch = SceneInvalidation::None;
-    batch |= SceneInvalidation::Geometry;
-    batch |= SceneInvalidation::Presentation;
+    batch |= SceneInvalidation::SceneActivation;
     batch |= SceneInvalidation::Collision;
-    batch |= SceneInvalidation::TilemapGeometry;
 
-    expect(scene_invalidation_has(batch, SceneInvalidation::Geometry),
-           "coalesced batch retains geometry");
+    expect(scene_invalidation_has(batch, SceneInvalidation::SceneActivation),
+           "coalesced batch retains activation");
+    expect(scene_invalidation_has(batch, SceneInvalidation::Collision),
+           "coalesced batch retains collision");
     expect(scene_invalidation_needs_collision_rebuild(batch),
-           "coalesced batch requests one collision rebuild pass");
-    expect(scene_invalidation_collision_mask()
-               == (SceneInvalidation::Collision
-                   | SceneInvalidation::TilemapGeometry
-                   | SceneInvalidation::TilemapData),
-           "collision mask is stable");
+           "collision flag requests rebuild pass");
+    expect(!scene_invalidation_needs_collision_rebuild(SceneInvalidation::SceneActivation),
+           "activation alone does not request collision rebuild");
 
-  {
+    {
         SceneInvalidation consumed = batch;
         batch = SceneInvalidation::None;
         expect(consumed != SceneInvalidation::None, "consume clears pending accumulator");

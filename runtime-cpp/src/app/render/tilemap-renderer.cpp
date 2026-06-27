@@ -92,30 +92,35 @@ void drawLayer(Modules::Renderer& renderer,
 } // namespace
 
 void draw(Modules::Renderer& renderer,
-          const TilemapData& mergedTilemap,
-          const std::unordered_map<std::string, TilemapData>& tilemapLayers,
+          const TilemapData* mergedTilemap,
+          const std::unordered_map<std::string, TilemapData>* tilemapLayers,
           const std::unordered_map<std::string, SceneLayerSettings>& layerSettings,
           const std::vector<SceneLayerDef>& layerStack,
           const std::vector<TilesetAsset>& liveTilesets,
           const std::unordered_map<std::string, TilesetAsset>& startupCache,
           const std::unordered_map<int, Vec4>& palette)
 {
-    if (!tilemapLayers.empty() && !layerStack.empty()) {
+    static const TilemapData kEmptyTilemap{};
+    static const std::unordered_map<std::string, TilemapData> kEmptyLayers{};
+    const TilemapData& merged = mergedTilemap ? *mergedTilemap : kEmptyTilemap;
+    const auto& layers = tilemapLayers ? *tilemapLayers : kEmptyLayers;
+
+    if (!layers.empty() && !layerStack.empty()) {
         for (int i = static_cast<int>(layerStack.size()) - 1; i >= 0; --i) {
             const auto& layer = layerStack[static_cast<size_t>(i)];
             SceneLayerSettings settings;
             const auto sit = layerSettings.find(layer.id);
             if (sit != layerSettings.end()) settings = sit->second;
             if (!settings.visible || settings.opacity <= 0.f) continue;
-            const auto it = tilemapLayers.find(layer.id);
-            if (it != tilemapLayers.end())
+            const auto it = layers.find(layer.id);
+            if (it != layers.end())
                 drawLayer(renderer, it->second, liveTilesets, startupCache, palette,
                           settings.opacity);
         }
         return;
     }
 
-    drawLayer(renderer, mergedTilemap, liveTilesets, startupCache, palette, 1.f);
+    drawLayer(renderer, merged, liveTilesets, startupCache, palette, 1.f);
 }
 
 } // namespace ArtCade::TilemapRenderer

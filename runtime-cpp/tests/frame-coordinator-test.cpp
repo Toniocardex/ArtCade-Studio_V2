@@ -76,8 +76,6 @@ int main() {
 
     renderer.setWindowSize(1280, 720, "frame-coordinator-test");
 
-    renderer.setFrameSceneGeometry({ 512.f, 320.f }, { 512.f, 320.f });
-
 
 
     ArtCade::Presentation::EditorViewportService viewport;
@@ -127,12 +125,6 @@ int main() {
         2048.f),
 
            "coordinator committed scene-authoritative presentation");
-
-    const auto simAfter = renderer.gatherSimulationPresentationInputs();
-    expect(near_eq(static_cast<float>(simAfter.fallbackWorldWidth), 2048.f),
-           "renderer world geometry committed from snapshot");
-    expect(near_eq(static_cast<float>(simAfter.fallbackLogicalWidth), 800.f),
-           "renderer logical viewport committed from snapshot");
 
 
 

@@ -1,16 +1,13 @@
 import { getPresentationSnapshot } from './presentation-store'
-import { editorGetSceneRevision } from './wasm-bridge'
 
 /**
- * Browser pointer sample tagged with presentation + scene revisions at capture time.
+ * Browser pointer sample tagged with presentation revision at capture time.
  * Mirrors C++ {@link SurfacePointerEvent} (ADR Phase 5 / PR6).
  */
 export type SurfacePointerEvent = Readonly<{
   /** Viewport-local CSS position (padding edge, not framebuffer). */
   positionCss: Readonly<{ x: number; y: number }>
   presentationRevision: bigint
-  /** Committed scene revision from SceneFrameSnapshot (geometry authority). */
-  sceneRevision: bigint
 }>
 
 /**
@@ -26,10 +23,8 @@ export function captureSurfacePointerEvent(
 ): SurfacePointerEvent {
   const rect = el.getBoundingClientRect()
   const snapshot = getPresentationSnapshot()
-  const sceneRevision = BigInt(Math.max(0, editorGetSceneRevision()))
   return {
     positionCss: { x: clientX - rect.left, y: clientY - rect.top },
     presentationRevision: snapshot?.revision ?? 0n,
-    sceneRevision,
   }
 }

@@ -17,14 +17,10 @@ public:
 
     /**
      * Validates and commits @p patch to the runtime SceneDef for @p sceneId.
-     * @param origin EditorProjection trusts normalized authoring patches;
-     *               Gameplay may apply additional runtime policy in later phases.
-     * @return mutation result; revision is unchanged on failure
+     * Invalidation flags reflect fields that actually changed.
+     * @return mutation result; revision is unchanged on failure or no-op apply
      */
-    SceneMutationResult apply(
-        const SceneId& sceneId,
-        const ScenePatch& patch,
-        SceneMutationOrigin origin);
+    SceneMutationResult apply(const SceneId& sceneId, const ScenePatch& patch);
 
     /** Monotonic revision bumped on every successful scene mutation. */
     uint64_t revision() const { return revision_; }

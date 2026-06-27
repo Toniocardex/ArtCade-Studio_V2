@@ -35,8 +35,6 @@ public:
     /** Merge an entity def into the project snapshot (editor incremental sync). */
     void              upsertEntityDef(EntityId id, const EntityDef& def);
     const EntityDef*  getEntityDef(EntityId id) const;
-    /** Patch scene metadata without replacing entityIds or tilemap.data. */
-    void              patchSceneSettings(const SceneId& id, const SceneDef& patch);
 
     // Phase F3: project-level tileset assets (spritesheets). Set at startup
     // from the ProjectDoc and refreshed on editor hot-reload so the render

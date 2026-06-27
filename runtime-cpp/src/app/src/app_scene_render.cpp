@@ -79,6 +79,11 @@ void Application::renderActiveScene() {
         ? mod_->sceneMutation->revision()
         : 0u;
 
+    if (resetCameraOnNextFrame_ && activeScene && mod_->renderer) {
+        mod_->renderer->setCameraPosition(activeScene->cameraStart);
+        resetCameraOnNextFrame_ = false;
+    }
+
     const SceneFrameSnapshot frameSnapshot = frame_coordinator_build_frame({
         ++frameNumber_,
         sceneRevision,
@@ -89,7 +94,11 @@ void Application::renderActiveScene() {
         sceneFadeAlpha,
     });
 
-    mod_->renderer->beginFrame(frameSnapshot.presentation, clearColor);
+    mod_->renderer->beginFrame(
+        frameSnapshot.presentation,
+        frameSnapshot.worldSize,
+        frameSnapshot.logicalViewport,
+        clearColor);
     const RenderPipeline::ViewRenderFeatures features =
         build_view_features(frameSnapshot.overlay);
     const std::vector<RenderPipeline::RenderPassId> passOrder =

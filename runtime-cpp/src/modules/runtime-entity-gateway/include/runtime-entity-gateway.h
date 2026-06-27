@@ -216,8 +216,6 @@ public:
                         const std::unordered_map<std::string, EntityDef>* objectTypes = nullptr);
     /** Apply a single EntityDef without clearing the registry (editor sync). */
     bool updateEntity(EntityId id, const EntityDef& def);
-    /** Patch scene viewport/world/background on the active project snapshot. */
-    bool updateSceneSettings(const SceneId& sceneId, const SceneDef& patch);
     void setTilesets(std::vector<TilesetAsset> tilesets);
     /** Tile cell size for @p assetId from the loaded project tilesets; 0 if unknown. */
     float tilesetTileSize(const std::string& assetId) const;
@@ -237,6 +235,8 @@ public:
     /** Fade to black, load scene, fade in. fadeSeconds <= 0 loads immediately. */
     void requestLoadScene(const SceneId& id, float fadeSeconds = 0.f);
     /** Reloads the active scene, with optional fade. */
+    void requestReactivateScene(float fadeSeconds = 0.f);
+    /** @deprecated Does not restore authored layout; calls requestReactivateScene. */
     void requestRestartScene(float fadeSeconds = 0.f);
     void tickSceneTransition(float dt);
     /** 0 = no overlay, 1 = full black (for fade). */

@@ -1,5 +1,7 @@
 #include "../include/presentation_input_builder.h"
 
+#include "../../../core/project-defaults.h"
+
 #include <algorithm>
 
 namespace ArtCade::Presentation {
@@ -23,18 +25,14 @@ PresentationStateInputs presentation_build_inputs(
         inputs.worldHeight = static_cast<double>(
             std::max(1.f, scene->worldSize.y));
     } else {
-        inputs.logicalWidth = sim.fallbackLogicalWidth > 0.
-            ? sim.fallbackLogicalWidth
-            : 1.;
-        inputs.logicalHeight = sim.fallbackLogicalHeight > 0.
-            ? sim.fallbackLogicalHeight
-            : 1.;
-        inputs.worldWidth = sim.fallbackWorldWidth > 0.
-            ? sim.fallbackWorldWidth
-            : 1.;
-        inputs.worldHeight = sim.fallbackWorldHeight > 0.
-            ? sim.fallbackWorldHeight
-            : 1.;
+        inputs.logicalWidth = static_cast<double>(
+            ProjectDefaults::kSceneViewportWidth);
+        inputs.logicalHeight = static_cast<double>(
+            ProjectDefaults::kSceneViewportHeight);
+        inputs.worldWidth = static_cast<double>(
+            ProjectDefaults::kSceneWorldWidth);
+        inputs.worldHeight = static_cast<double>(
+            ProjectDefaults::kSceneWorldHeight);
     }
     return inputs;
 }

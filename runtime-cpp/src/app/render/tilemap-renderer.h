@@ -43,8 +43,8 @@ namespace TilemapRenderer {
  * Skips id == 0 cells (empty). Spritesheet region preferred over palette colour.
  */
 void draw(Modules::Renderer& renderer,
-          const TilemapData& mergedTilemap,
-          const std::unordered_map<std::string, TilemapData>& tilemapLayers,
+          const TilemapData* mergedTilemap,
+          const std::unordered_map<std::string, TilemapData>* tilemapLayers,
           const std::unordered_map<std::string, SceneLayerSettings>& layerSettings,
           const std::vector<SceneLayerDef>& layerStack,
           const std::vector<TilesetAsset>& liveTilesets,

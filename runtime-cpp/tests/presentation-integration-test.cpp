@@ -38,7 +38,6 @@ int main() {
     ArtCade::Presentation::EditorViewportService viewport;
     Renderer renderer;
     renderer.setWindowSize(1280, 720, "integration-test");
-    renderer.setFrameSceneGeometry({ 1280.f, 720.f }, { 1280.f, 720.f });
     viewport.set_presentation_mode(ArtCade::Presentation::PresentationMode::CameraPreview);
     renderer.setCameraZoom(2.f);
     renderer.setCameraPosition({ 640.f, 360.f });
@@ -65,7 +64,6 @@ int main() {
     renderer.setGameViewCompositorEnabled(true);
     viewport.set_presentation_mode(ArtCade::Presentation::PresentationMode::PlayEmbedded);
     renderer.setWindowSize(1920, 1080, "integration-fill");
-    renderer.setFrameSceneGeometry({ 640.f, 480.f }, { 320.f, 240.f });
     renderer.setOutputPolicy(ArtCade::OutputPolicy::Fill);
     commitPresentationFrame(renderer, viewport);
     const auto& playSnapshot = viewport.committed_snapshot();

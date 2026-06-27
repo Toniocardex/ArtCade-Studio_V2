@@ -25,7 +25,6 @@ Modules::LuaHost*              EditorAPI::s_luaHost       = nullptr;
 Modules::Renderer*             EditorAPI::s_renderer      = nullptr;
 Presentation::EditorViewportService* EditorAPI::s_viewport = nullptr;
 uint64_t                       EditorAPI::s_pointerPresentationRevision = 0u;
-uint64_t                       EditorAPI::s_pointerSceneRevision = 0u;
 uint64_t                       EditorAPI::s_sceneFrameRevision = 0u;
 Modules::DialogManager*        EditorAPI::s_dialogManager = nullptr;
 Modules::SpriteAnimator*       EditorAPI::s_spriteAnimator = nullptr;
@@ -182,7 +181,6 @@ Modules::LuaHost*              EditorAPI::s_luaHost       = nullptr;
 Modules::Renderer*             EditorAPI::s_renderer      = nullptr;
 Presentation::EditorViewportService* EditorAPI::s_viewport = nullptr;
 uint64_t                       EditorAPI::s_pointerPresentationRevision = 0u;
-uint64_t                       EditorAPI::s_pointerSceneRevision = 0u;
 uint64_t                       EditorAPI::s_sceneFrameRevision = 0u;
 Modules::DialogManager*        EditorAPI::s_dialogManager = nullptr;
 Modules::SpriteAnimator*       EditorAPI::s_spriteAnimator = nullptr;
@@ -580,10 +578,7 @@ constexpr int kEditorToolSelect = 0;
 constexpr int kEditorToolPan    = 1;
 
 constexpr ArtCade::Modules::SceneInvalidation kTilemapRuntimeInvalidation =
-    ArtCade::Modules::SceneInvalidation::TilemapGeometry
-    | ArtCade::Modules::SceneInvalidation::TilemapData
-    | ArtCade::Modules::SceneInvalidation::Collision
-    | ArtCade::Modules::SceneInvalidation::RenderData;
+    ArtCade::Modules::SceneInvalidation::Collision;
 
 void editor_queue_tilemap_runtime_invalidation() {
     if (ArtCade::EditorAPI::s_queueSceneInvalidations)
@@ -991,11 +986,6 @@ EMSCRIPTEN_KEEPALIVE double editor_get_scene_revision() {
 
 EMSCRIPTEN_KEEPALIVE void editor_set_pointer_presentation_revision(double revision) {
     ArtCade::EditorAPI::s_pointerPresentationRevision =
-        revision > 0. ? static_cast<uint64_t>(revision) : 0u;
-}
-
-EMSCRIPTEN_KEEPALIVE void editor_set_pointer_scene_revision(double revision) {
-    ArtCade::EditorAPI::s_pointerSceneRevision =
         revision > 0. ? static_cast<uint64_t>(revision) : 0u;
 }
 
@@ -1463,8 +1453,7 @@ EMSCRIPTEN_KEEPALIVE void editor_set_scene_settings(
 
         const auto result = ArtCade::EditorAPI::s_applySceneMutation(
             sceneId,
-            patch,
-            ArtCade::Modules::SceneMutationOrigin::EditorProjection);
+            patch);
 
         if (result.error == ArtCade::Modules::SceneMutationError::SceneNotFound) {
             std::string msg = "[EditorAPI] editor_set_scene_settings: unknown scene ";

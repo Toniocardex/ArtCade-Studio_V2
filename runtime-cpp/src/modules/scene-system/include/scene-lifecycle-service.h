@@ -20,7 +20,7 @@ class SceneMutationService;
 
 
 
-using SceneActivationSyncFn = std::function<bool()>;
+using SceneActivationSyncFn = std::function<void()>;
 
 using SceneTransitionHandlerFn = std::function<void(const SceneTransitionResult&)>;
 /** Clears per-scene gameplay runtime state after activation (World maps, camera follow, …). */
@@ -83,8 +83,10 @@ public:
 
 
 
-    /** Reloads the active scene (restart), with optional fade. */
+    /** Re-activates the active scene (sync + gameplay reset). Does not restore authored layout. */
+    SceneTransitionResult request_reactivate(float fadeSeconds);
 
+    /** @deprecated Use request_reactivate(); does not restore destroyed/spawned entities. */
     SceneTransitionResult request_restart(float fadeSeconds);
 
 

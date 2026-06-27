@@ -49,7 +49,6 @@ void Application::applyRuntimeSettings(const ProjectRuntimeSettings& settings,
                 static_cast<uint32_t>(scene->worldSize.y),
                 "ArtCade V2");
         }
-        mod_->renderer->setFrameSceneGeometry(scene->worldSize, scene->worldSize);
         mod_->editorViewport->set_presentation_mode(
             ArtCade::Presentation::PresentationMode::SceneEdit);
         mod_->renderer->setGameViewCompositorEnabled(false);
@@ -74,7 +73,6 @@ void Application::applyRuntimeSettings(const ProjectRuntimeSettings& settings,
             "ArtCade V2");
 #endif
     }
-    mod_->renderer->setFrameSceneGeometry(scene->worldSize, scene->viewportSize);
     // Snap the gameplay camera to the scene's authored initial view. Game logic
     // or a follow target may move it afterwards; this is just the starting frame.
     mod_->renderer->setCameraPosition(scene->cameraStart);
@@ -91,6 +89,13 @@ void Application::applyEditorProjectCommon(
     tilesets_.clear();
     for (const auto& tileset : tilesets) tilesets_[tileset.assetId] = tileset;
     mod_->sceneManager->setTilesets(tilesets);
+
+    if (mod_->sceneMutation) {
+        mod_->sceneMutation->bump_revision();
+        pendingSceneInvalidations_ |=
+            ArtCade::Modules::SceneInvalidation::SceneActivation
+            | ArtCade::Modules::SceneInvalidation::Collision;
+    }
 
     // Edit↔play transitions reuse the already-uploaded textures: evicting here
     // would blank the sprite for the first frame(s) of play until the editor's
@@ -132,8 +137,6 @@ void Application::applyEditorProjectLoaded(
     const ProjectRuntimeSettings& settings) {
     applyEditorProjectCommon(tilePalette, tilesets);
     applyRuntimeSettings(settings, ViewportPolicy::EditorPreview);
-
-    if (mod_->sceneMutation) mod_->sceneMutation->bump_revision();
 
     if (mod_->dialogManager && mod_->assetLoader) {
         mod_->dialogManager->loadDialogsFromDirectory(mod_->assetLoader->projectRoot());

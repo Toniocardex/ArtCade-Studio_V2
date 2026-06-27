@@ -89,8 +89,7 @@ struct EditorSceneFrameCommit {
 /** Applies a normalized scene patch; registered by Application. */
 using SceneMutationApplyFn = std::function<Modules::SceneMutationResult(
     const SceneId&,
-    const Modules::ScenePatch&,
-    Modules::SceneMutationOrigin)>;
+    const Modules::ScenePatch&)>;
 
 /** Post-mutation callback; Application owns renderer/presentation coordination. */
 using SceneMutationHandler = std::function<void(const Modules::SceneMutationResult&)>;
@@ -302,8 +301,6 @@ public:
     static Presentation::EditorViewportService* s_viewport;
     /** Revision captured by the browser at pointer-event time (0 = use committed). */
     static uint64_t                       s_pointerPresentationRevision;
-    /** Scene revision captured with the pointer sample (0 = use committed frame). */
-    static uint64_t                       s_pointerSceneRevision;
     /** Last SceneFrameSnapshot::sceneRevision (frame-boundary geometry authority). */
     static uint64_t                       s_sceneFrameRevision;
     static Modules::DialogManager*        s_dialogManager;
@@ -498,7 +495,6 @@ EMSCRIPTEN_KEEPALIVE double editor_get_presentation_revision();
 /** Committed scene revision from SceneFrameSnapshot (geometry authority for picking). */
 EMSCRIPTEN_KEEPALIVE double editor_get_scene_revision();
 EMSCRIPTEN_KEEPALIVE void editor_set_pointer_presentation_revision(double revision);
-EMSCRIPTEN_KEEPALIVE void editor_set_pointer_scene_revision(double revision);
 
 /** Committed presentation snapshot (flat ABI; static storage — Phase 5). */
 EMSCRIPTEN_KEEPALIVE const ArtCade::Presentation::PresentationSnapshotWasm*
@@ -641,8 +637,6 @@ struct EditorAPI {
     static Presentation::EditorViewportService* s_viewport;
     /** Revision captured by the browser at pointer-event time (0 = use committed). */
     static uint64_t                       s_pointerPresentationRevision;
-    /** Scene revision captured with the pointer sample (0 = use committed frame). */
-    static uint64_t                       s_pointerSceneRevision;
     /** Last SceneFrameSnapshot::sceneRevision (frame-boundary geometry authority). */
     static uint64_t                       s_sceneFrameRevision;
     static Modules::DialogManager*        s_dialogManager;

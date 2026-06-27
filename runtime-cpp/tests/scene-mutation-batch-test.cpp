@@ -8,7 +8,6 @@
 #include <cstdlib>
 
 using ArtCade::Modules::SceneManager;
-using ArtCade::Modules::SceneMutationOrigin;
 using ArtCade::Modules::SceneMutationService;
 using ArtCade::Modules::ScenePatch;
 
@@ -39,14 +38,14 @@ int main() {
     ScenePatch geometry{};
     geometry.worldSize = { 1024.f, 320.f };
     geometry.hasWorldSize = true;
-    const auto first = mutation.apply("s", geometry, SceneMutationOrigin::EditorProjection);
+    const auto first = mutation.apply("s", geometry);
     expect(first.changed, "first batch apply mutates scene");
     expect(mutation.revision() == 0u, "revision not bumped mid-batch");
 
     ScenePatch metadata{};
     metadata.backgroundColor = { 0.1f, 0.2f, 0.3f, 1.f };
     metadata.hasBackground = true;
-    const auto second = mutation.apply("s", metadata, SceneMutationOrigin::EditorProjection);
+    const auto second = mutation.apply("s", metadata);
     expect(second.changed, "second batch apply mutates scene");
     expect(mutation.revision() == 0u, "revision still deferred");
 
@@ -55,12 +54,12 @@ int main() {
     expect(committed.sceneRevision == 1u, "batch commits a single revision");
     expect(
         ArtCade::Modules::scene_invalidation_has(
-            committed.invalidations, ArtCade::Modules::SceneInvalidation::Geometry),
-        "batch merges geometry invalidation");
+            committed.invalidations, ArtCade::Modules::SceneInvalidation::Collision),
+        "batch merges collision invalidation");
     expect(
-        ArtCade::Modules::scene_invalidation_has(
-            committed.invalidations, ArtCade::Modules::SceneInvalidation::Metadata),
-        "batch merges metadata invalidation");
+        !ArtCade::Modules::scene_invalidation_has(
+            committed.invalidations, ArtCade::Modules::SceneInvalidation::SceneActivation),
+        "background patch does not emit activation");
 
     std::puts("scene_mutation_batch_test: all passed");
     return 0;

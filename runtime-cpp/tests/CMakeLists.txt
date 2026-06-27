@@ -185,6 +185,19 @@ artcade_test(logic_components_test
     logic-components-test.cpp
     artcade-lua-runtime)
 
+# Scene mutation / invalidation (stateless — no Raylib)
+artcade_test(scene_invalidation_test
+    scene-invalidation-test.cpp
+    artcade-scene-system)
+
+artcade_test(scene_mutation_batch_test
+    scene-mutation-batch-test.cpp
+    artcade-scene-system)
+
+artcade_test(scene_mutation_diff_test
+    scene-mutation-diff-test.cpp
+    artcade-scene-system)
+
 # ============================================================================
 # Fase 17: .artcade ZIP round-trip — richiede artcade-asset-system
 # (compilato solo quando Raylib + Lua sono presenti, come asset-system stesso)
@@ -231,14 +244,6 @@ if(ARTCADE_HAS_RAYLIB AND ARTCADE_HAS_LUA)
         artcade-editor-api
     )
     add_test(NAME frame_coordinator_test COMMAND frame_coordinator_test)
-
-    artcade_test(scene_invalidation_test
-        scene-invalidation-test.cpp
-        artcade-scene-system)
-
-    artcade_test(scene_mutation_batch_test
-        scene-mutation-batch-test.cpp
-        artcade-scene-system)
 
     artcade_test(scene_lifecycle_test
         scene-lifecycle-test.cpp

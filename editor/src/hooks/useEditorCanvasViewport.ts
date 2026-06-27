@@ -16,7 +16,6 @@ import {
   editorBeginPan,
   editorEndPan,
   editorSetPointerPresentationRevision,
-  editorSetPointerSceneRevision,
   editorUpdatePan,
   editorZoomAt,
 } from '../utils/wasm-bridge'
@@ -49,7 +48,6 @@ function panCursorStyle(isPanning: boolean, tool: EditorTool): string {
 function tagPointerRevision(el: HTMLDivElement, clientX: number, clientY: number) {
   const event = captureSurfacePointerEvent(el, clientX, clientY)
   editorSetPointerPresentationRevision(event.presentationRevision)
-  editorSetPointerSceneRevision(event.sceneRevision)
   return event.positionCss
 }
 

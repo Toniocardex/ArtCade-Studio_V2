@@ -967,14 +967,6 @@ bool RuntimeEntityGateway::updateEntity(EntityId id, const EntityDef& def) {
     return true;
 }
 
-bool RuntimeEntityGateway::updateSceneSettings(
-    const SceneId& sceneId, const SceneDef& patch)
-{
-    if (!sceneManager_.getScene(sceneId)) return false;
-    sceneManager_.patchSceneSettings(sceneId, patch);
-    return true;
-}
-
 void RuntimeEntityGateway::setTilesets(std::vector<TilesetAsset> tilesets) {
     sceneManager_.setTilesets(std::move(tilesets));
 }
@@ -1014,12 +1006,16 @@ void RuntimeEntityGateway::requestLoadScene(const SceneId& id, float fadeSeconds
     loadScene(id);
 }
 
-void RuntimeEntityGateway::requestRestartScene(float fadeSeconds) {
+void RuntimeEntityGateway::requestReactivateScene(float fadeSeconds) {
     if (lifecycle_) {
-        lifecycle_->request_restart(fadeSeconds);
+        lifecycle_->request_reactivate(fadeSeconds);
         return;
     }
     loadScene(activeSceneId());
+}
+
+void RuntimeEntityGateway::requestRestartScene(float fadeSeconds) {
+    requestReactivateScene(fadeSeconds);
 }
 
 void RuntimeEntityGateway::tickSceneTransition(float dt) {

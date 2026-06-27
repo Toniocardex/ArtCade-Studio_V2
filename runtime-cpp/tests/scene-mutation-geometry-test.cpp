@@ -14,7 +14,6 @@
 
 using ArtCade::Modules::Renderer;
 using ArtCade::Modules::SceneManager;
-using ArtCade::Modules::SceneMutationOrigin;
 using ArtCade::Modules::SceneMutationService;
 using ArtCade::Modules::ScenePatch;
 using ArtCade::Presentation::EditorViewportService;
@@ -32,35 +31,6 @@ static void expect(bool ok, const char* msg) {
     std::printf("  [ok] %s\n", msg);
 }
 
-static void apply_pending_scene_invalidations(
-    ArtCade::Modules::SceneInvalidation& pending,
-    SceneManager& scenes,
-    Renderer& renderer,
-    EditorViewportService& viewport) {
-    const auto flags = pending;
-    pending = ArtCade::Modules::SceneInvalidation::None;
-    if (flags == ArtCade::Modules::SceneInvalidation::None) return;
-
-    if (ArtCade::Modules::scene_invalidation_has(
-            flags, ArtCade::Modules::SceneInvalidation::Geometry)
-        || ArtCade::Modules::scene_invalidation_has(
-            flags, ArtCade::Modules::SceneInvalidation::Presentation)) {
-        viewport.sync_from_scene(
-            scenes.activeScene(),
-            renderer.gatherSimulationPresentationInputs(),
-            renderer.windowWidth(),
-            renderer.windowHeight());
-        viewport.refresh_pending_snapshot();
-    }
-}
-
-static void queue_scene_mutation(
-    const ArtCade::Modules::SceneMutationResult& result,
-    ArtCade::Modules::SceneInvalidation& pending) {
-    if (!result.changed) return;
-    pending |= result.invalidations;
-}
-
 int main() {
     SceneManager scenes;
     scenes.init();
@@ -75,7 +45,6 @@ int main() {
 
     Renderer renderer;
     renderer.setWindowSize(1280, 720, "scene-mutation-geometry-test");
-    renderer.setFrameSceneGeometry({ 512.f, 320.f }, { 512.f, 320.f });
     renderer.setCameraZoom(1.5f);
     renderer.setCameraPosition({ 100.f, 50.f });
 
@@ -89,14 +58,13 @@ int main() {
     patch.viewportSize = { 512.f, 320.f };
     patch.hasViewportSize = true;
 
-    const auto result = mutation.apply(
-        "s", patch, SceneMutationOrigin::EditorProjection);
+    const auto result = mutation.apply("s", patch);
     expect(result.changed, "world resize mutates scene");
     expect(result.sceneRevision >= 1u, "scene revision increments");
     expect(
         ArtCade::Modules::scene_invalidation_has(
-            result.invalidations, ArtCade::Modules::SceneInvalidation::Geometry),
-        "geometry invalidation emitted");
+            result.invalidations, ArtCade::Modules::SceneInvalidation::Collision),
+        "collision invalidation emitted");
 
     const auto* active = scenes.activeScene();
     expect(active != nullptr, "active scene exists");
@@ -112,12 +80,6 @@ int main() {
     EditorViewportService viewport;
     viewport.set_presentation_mode(
         ArtCade::Presentation::PresentationMode::SceneEdit);
-    ArtCade::Modules::SceneInvalidation pending =
-        ArtCade::Modules::SceneInvalidation::None;
-    queue_scene_mutation(result, pending);
-    apply_pending_scene_invalidations(pending, scenes, renderer, viewport);
-    expect(pending == ArtCade::Modules::SceneInvalidation::None,
-           "invalidations consumed at frame boundary");
 
     commit_presentation_frame(renderer, viewport, active);
     const auto& snapshot = viewport.committed_snapshot();
@@ -127,10 +89,6 @@ int main() {
             active, renderer.gatherSimulationPresentationInputs()).worldWidth),
         2048.f),
            "presentation inputs still report 2048 after commit");
-
-    renderer.setFrameSceneGeometry(active->worldSize, active->viewportSize);
-    const auto clip = renderer.worldScreenClipRect();
-    expect(clip.width > 500.f, "scissor width reflects widened world");
 
     expect(near_eq(renderer.getCameraZoom(), zoomBefore), "camera zoom unchanged");
     expect(near_eq(renderer.getCameraPosition().x, cameraBefore.x)

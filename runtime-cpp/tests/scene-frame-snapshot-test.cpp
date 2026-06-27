@@ -1,4 +1,4 @@
-// scene-frame-snapshot-test.cpp — immutable frame snapshot captures scene geometry.
+// scene-frame-snapshot-test.cpp — frame snapshot captures scene geometry and tilemap views.
 
 #include "../src/app/render/scene_frame_snapshot.h"
 #include "../src/modules/presentation/include/presentation_snapshot.h"
@@ -53,22 +53,25 @@ int main() {
     expect(snap.logicalViewport.y == 600.f, "logical viewport snapshotted");
     expect(snap.backgroundColor.g == 0.2f, "background color snapshotted");
     expect(snap.layerSettings.at("fg").visible == false, "layer settings snapshotted");
-    expect(snap.tilemap.data.size() == 2u && snap.tilemap.data[0] == 1,
-           "merged tilemap snapshotted");
-    expect(snap.tilemapLayers.at("bg").data.size() == 4u,
-           "per-layer tilemap snapshotted");
+    expect(snap.tilemap == &scene.tilemap, "merged tilemap aliases SceneDef");
+    expect(snap.tilemapLayers == &scene.tilemapLayers, "layer tilemaps alias SceneDef");
+    expect(snap.tilemap->data.size() == 2u && snap.tilemap->data[0] == 1,
+           "merged tilemap readable via pointer");
+    expect(snap.tilemapLayers->at("bg").data.size() == 4u,
+           "per-layer tilemap readable via pointer");
     expect(snap.overlay.gridSize == 16.f, "overlay copied");
 
     scene.worldSize.x = 512.f;
     scene.layerSettings["fg"].visible = true;
     scene.tilemap.data[0] = 99;
     scene.tilemapLayers["bg"].data[0] = 99;
-    expect(snap.worldSize.x == 2048.f, "snapshot immutable after scene mutation");
+    expect(snap.worldSize.x == 2048.f, "scalar snapshot immutable after scene mutation");
     expect(snap.layerSettings.at("fg").visible == false,
-           "layer settings immutable after scene mutation");
-    expect(snap.tilemap.data[0] == 1, "tilemap immutable after scene mutation");
-    expect(snap.tilemapLayers.at("bg").data[0] == 3,
-           "per-layer tilemap immutable after scene mutation");
+           "layer settings copy immutable after scene mutation");
+    expect(snap.tilemap->data[0] == 99,
+           "tilemap pointer aliases live SceneDef storage");
+    expect(snap.tilemapLayers->at("bg").data[0] == 99,
+           "per-layer tilemap pointer aliases live SceneDef storage");
 
     std::puts("scene_frame_snapshot_test: all passed");
     return 0;

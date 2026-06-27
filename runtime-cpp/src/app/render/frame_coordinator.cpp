@@ -37,14 +37,6 @@ SceneFrameSnapshot frame_coordinator_build_frame(const FrameCoordinatorInput& in
     assert(snap.presentationRevision == snap.presentation.revision);
 #endif
 
-    const Vec2 frameWorld = input.activeScene
-        ? snap.worldSize
-        : Vec2{0.f, 0.f};
-    const Vec2 logical = input.activeScene
-        ? snap.logicalViewport
-        : Vec2{0.f, 0.f};
-    input.renderer->setFrameSceneGeometry(frameWorld, logical);
-
     EditorAPI::commit_scene_frame({
         snap.sceneRevision,
         snap.layerSettings,

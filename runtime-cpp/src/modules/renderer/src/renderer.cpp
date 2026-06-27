@@ -52,30 +52,6 @@ void Renderer::setWindowSizeForLogicalViewport(uint32_t logicalWidth,
 uint32_t Renderer::windowWidth() const { return impl_->surface.width(); }
 uint32_t Renderer::windowHeight() const { return impl_->surface.height(); }
 
-void Renderer::setFrameSceneGeometry(const Vec2& worldSize,
-                                     const Vec2& logicalViewport) {
-    if (worldSize.x <= 0.f || worldSize.y <= 0.f
-        || logicalViewport.x <= 0.f || logicalViewport.y <= 0.f) {
-        impl_->committedGeometryActive_ = false;
-        return;
-    }
-    impl_->committedWorldSize_ = {
-        std::max(1.f, worldSize.x),
-        std::max(1.f, worldSize.y),
-    };
-    impl_->committedLogicalViewport_ = {
-        std::max(1.f, logicalViewport.x),
-        std::max(1.f, logicalViewport.y),
-    };
-    impl_->committedGeometryActive_ = true;
-
-    if (impl_->surface.is_open()) {
-        impl_->surface.set_min_viewport_size(
-            static_cast<uint32_t>(impl_->committedLogicalViewport_.x),
-            static_cast<uint32_t>(impl_->committedLogicalViewport_.y));
-    }
-}
-
 void Renderer::setGameViewCompositorEnabled(bool enabled) {
     impl_->gameViewCompositorEnabled = enabled;
     if (!enabled) impl_->resources.release_game_view_target();
