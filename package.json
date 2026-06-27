@@ -9,7 +9,7 @@
   ],
   "scripts": {
     "setup:runtime-libs": "powershell -ExecutionPolicy Bypass -File scripts\\bootstrap-runtime-libs.ps1",
-    "verify": "npm run setup:runtime-libs && npm -w editor test -- --run && npm run build && npm run build:cpp && npm run build:wasm",
+    "verify": "npm run setup:runtime-libs && npm -w editor run test:project-safety && npm -w editor test -- --run && npm run build && npm run build:cpp && npm run build:wasm",
     "dev": "cd editor && npm run dev",
     "build": "cd editor && npm run build",
     "desktop:dev": "cmd /c call scripts\\tauri-dev.bat",

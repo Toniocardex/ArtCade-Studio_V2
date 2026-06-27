@@ -4,7 +4,7 @@
 
 import type { GameVariableDefinition, GameVariableValue, ProjectDoc } from '../types'
 import type { LogicBoard } from '../types/logic-board'
-import { stableImageAssetIdForRef } from './asset-ref-contract'
+import { stableAudioAssetIdForRef, stableImageAssetIdForRef } from './asset-ref-contract'
 import { imageAssetForRef } from './resolve-image-load-key'
 
 export type ProjectDiagnosticSeverity = 'error' | 'warn'
@@ -32,6 +32,32 @@ function collectPathBasedSpriteRefDiagnostics(
     message:
       `${label} uses path "${trimmed}" — save with stable asset id "${stableId}" instead.`,
   }]
+}
+
+function collectLogicBoardAssetRefDiagnostics(
+  project: ProjectDoc,
+  boards: LogicBoard[],
+): ProjectDiagnostic[] {
+  const out: ProjectDiagnostic[] = []
+  for (const board of boards) {
+    const label = board.name?.trim() || board.boardId
+    for (const event of board.events ?? []) {
+      for (const action of [...(event.actions ?? []), ...(event.elseActions ?? [])]) {
+        if (action.type !== 'playSound' && action.type !== 'playMusic') continue
+        const pathRaw = action.path?.trim()
+        const stableId = stableAudioAssetIdForRef(project, pathRaw ?? action.audioAssetId ?? '')
+        if (!stableId || stableId === action.audioAssetId) continue
+        out.push({
+          severity: 'error',
+          context: `board:${board.boardId}`,
+          message:
+            `Logic board "${label}" uses audio path "${pathRaw}" — ` +
+            `save with stable asset id "${stableId}" instead.`,
+        })
+      }
+    }
+  }
+  return out
 }
 
 function objectTypeSpriteAssetId(project: ProjectDoc, typeId: string): string | undefined {
@@ -176,6 +202,7 @@ export function collectProjectDiagnostics(project: ProjectDoc): ProjectDiagnosti
   }
 
   out.push(...collectLogicBoardTargetDiagnostics(project, project.logicBoards ?? []))
+  out.push(...collectLogicBoardAssetRefDiagnostics(project, project.logicBoards ?? []))
 
   for (const [id, ent] of Object.entries(project.entities ?? {})) {
     const numId = Number(id)

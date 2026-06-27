@@ -7,6 +7,15 @@ import { imageAssetForRef } from './resolve-image-load-key'
 
 const PATH_LIKE_REF_RE = /[/\\]/
 
+function audioAssetForRef(project: ProjectDoc, ref: string) {
+  const trimmed = ref.trim()
+  if (!trimmed) return undefined
+  return project.audioAssets?.[trimmed]
+    ?? Object.values(project.audioAssets ?? {}).find(
+      (asset) => asset.id === trimmed || asset.path === trimmed,
+    )
+}
+
 /** True when a reference string looks like a project-relative file path. */
 export function isPathLikeAssetRef(ref: string): boolean {
   return PATH_LIKE_REF_RE.test(ref.trim())
@@ -32,6 +41,28 @@ export function stableImageAssetIdForRef(
   const trimmed = ref.trim()
   if (!trimmed) return null
   const asset = imageAssetForRef(project, trimmed)
+  if (!asset) return null
+  if (asset.id === trimmed) return asset.id
+  if (isPathLikeAssetRef(trimmed)) return asset.id
+  return null
+}
+
+/** True when `ref` is already a stable audio library id. */
+export function isStableAudioAssetRef(project: ProjectDoc, ref: string): boolean {
+  const trimmed = ref.trim()
+  if (!trimmed || isPathLikeAssetRef(trimmed)) return false
+  const asset = audioAssetForRef(project, trimmed)
+  return asset?.id === trimmed
+}
+
+/** When an audio ref is path-shaped but resolves to a library row, return the stable id. */
+export function stableAudioAssetIdForRef(
+  project: ProjectDoc,
+  ref: string,
+): string | null {
+  const trimmed = ref.trim()
+  if (!trimmed) return null
+  const asset = audioAssetForRef(project, trimmed)
   if (!asset) return null
   if (asset.id === trimmed) return asset.id
   if (isPathLikeAssetRef(trimmed)) return asset.id

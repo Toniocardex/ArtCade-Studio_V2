@@ -13,6 +13,7 @@
     "preview": "vite preview",
     "lint": "tsc --noEmit",
     "test": "npm run compile-schemas && vitest run",
+    "test:project-safety": "npm run compile-schemas && vitest run project-document project-migrations project-save-recovery project-persist project-golden asset-ref-contract normalize-asset-refs",
     "test:watch": "vitest",
     "import-dialog": "node scripts/import-dialog-csv.mjs",
     "tauri": "tauri",

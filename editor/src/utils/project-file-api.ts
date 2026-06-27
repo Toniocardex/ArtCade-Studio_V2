@@ -12,8 +12,8 @@ import {
 import {
   loadProjectDocument,
   ProjectLoadError,
-  validateSerializedProjectDocument,
 } from './project-document'
+import { prepareSerializedProjectDocument } from './project-persist'
 import { validateProjectBeforeSave } from './logic-board/validate-project'
 import { importArtcadePackage, isArtcadePackagePath, type LoadedProjectFile } from './artcade-package'
 import { joinPath } from './file-paths'
@@ -186,7 +186,8 @@ export async function loadProjectFile(path: string): Promise<ProjectDoc | null> 
 
   try {
     await registerProjectFsScope(path)
-    const content = await readTextFile(path)
+    const openPath = await resolveProjectJsonOpenPath(path)
+    const content = await readTextFile(openPath)
     const { project } = loadProjectDocument(content)
     assertProjectPathsSafe(project)
     return project
@@ -205,10 +206,9 @@ export async function loadProjectFromPath(path: string): Promise<LoadedProjectFi
   }
   if (!isTauri()) { notAvailable('loadProjectFromPath'); return null }
   try {
-    const openPath = isArtcadePackagePath(path)
-      ? path
-      : await resolveProjectJsonOpenPath(path)
-    const content = await readTextFile(openPath)
+    const savedContent = await readTextFile(path)
+    const openPath = await resolveProjectJsonOpenPath(path, [], savedContent)
+    const content = openPath === path ? savedContent : await readTextFile(openPath)
     const parsed = loadProjectDocument(content)
     const { project, logicBoardLoadIssues } = parsed
     assertProjectPathsSafe(project)
@@ -279,8 +279,7 @@ export async function saveProjectFile(path: string, project: ProjectDoc): Promis
 
   const projectRoot = projectRootFromProjectPath(path)
   const pendingPaths = await persistReferencedAssets(projectRoot, project)
-  const serialized = serializeProjectDoc(project)
-  validateSerializedProjectDocument(serialized)
+  const serialized = prepareSerializedProjectDocument(project)
   try {
     await invokeWriteFile(path, serialized, projectRoot)
   } catch (err) {
@@ -376,7 +375,7 @@ export async function scaffoldNewProjectOnDisk(
   await invokeWriteFile(scriptPath, mainScriptBody, projectRoot)
   await invokeWriteFile(
     projectJsonPath,
-    serializeProjectDoc(project),
+    prepareSerializedProjectDocument(project),
     projectRoot,
   )
   commitPendingAssets(pendingPaths)

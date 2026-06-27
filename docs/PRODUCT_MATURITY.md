@@ -6,24 +6,24 @@ Professional contract status for release blockers. Each item is **Not started**,
 
 | Item | State | Definition of Done |
 |------|-------|-------------------|
-| Project format version + validator | Partial | `projectFormatVersion`, `projectId`, `engineVersion` on save; `loadProjectDocument()` with distinct errors |
-| Atomic safe-save + backup | Partial | `.bak` rotation on save; recovery prompt on open |
-| Migration chain | Partial | Explicit `migrateVnToVm` + fixtures v0–v3 |
-| Recovery at startup | Partial | User chooses recovery / saved / discard on open |
+| Project format version + validator | Release-ready | `projectFormatVersion`, `projectId`, `engineVersion` on save; `loadProjectDocument()` with distinct errors |
+| Atomic safe-save + backup | Release-ready | `.bak` rotation on save; recovery prompt on open |
+| Migration chain | Release-ready | Explicit `migrateVnToVm` + fixtures v0–v4 |
+| Recovery at startup | Release-ready | User chooses recovery / saved / discard on open; backup offered when `project.json` is unreadable |
 
 ## Authoring Integrity
 
 | Item | State | Definition of Done |
 |------|-------|-------------------|
 | Universal undo/redo | Partial | Core reducers exist; not all authoring paths transactional |
-| Validation before save/play | Partial | `validateProjectBeforeSave` + serialized round-trip |
+| Validation before save/play | Release-ready | `prepareSerializedProjectDocument` on save/scaffold; play uses `collectSaveValidationErrors` |
 
 ## Asset Identity
 
 | Item | State | Definition of Done |
 |------|-------|-------------------|
-| Stable asset IDs | Partial | Save rewrites path refs to library ids; validator blocks path aliases |
-| Rename/move without broken refs | Partial | Path security skips stable ids; tileset paths still file-relative |
+| Stable asset IDs | Release-ready | Save rewrites sprite/audio path refs to library ids; validator blocks path aliases |
+| Rename/move without broken refs | Release-ready | Display-name rename by stable id; path security skips library ids; tileset sheets stay path-keyed in library rows |
 
 ## Runtime Parity
 
@@ -31,7 +31,7 @@ Professional contract status for release blockers. Each item is **Not started**,
 |------|-------|-------------------|
 | Frame / presentation commit | Release-ready | `SceneFrameSnapshot` + `beginFrame()` single path |
 | Scene lifecycle | Release-ready | `reactivate` ≠ `restart`; `restoreSceneFromAuthoring` |
-| Edit / Play / WASM parity | Partial | Golden projects not yet in CI |
+| Edit / Play / WASM parity | Partial | Golden project has local smoke gate (`npm run test:project-safety`) |
 
 ## Export Reliability
 
@@ -53,21 +53,18 @@ Professional contract status for release blockers. Each item is **Not started**,
 |------|-------|-------------------|
 | UI runtime (menu/HUD) | Not started | Canvas UI distinct from editor chrome |
 | Input actions | Not started | Action map, not raw key codes in Logic Board |
-| Golden project `platformer-basic` | Partial | `examples/platformer-basic/project.json` + load/validate test |
+| Golden project `platformer-basic` | Release-ready | `examples/platformer-basic/` tree + load/validate/round-trip/fingerprint tests |
 
 ## Tests / Gates
 
 | Gate | State |
 |------|-------|
-| Local verify (`npm test`, C++ ctest, WASM, desktop) | Partial — manual / `npm run verify` |
+| Local verify (`npm run verify`) | Release-ready — runs `test:project-safety` then full editor tests + builds |
 | Editor unit tests (1200+) | Release-ready |
 | Scene/lifecycle C++ tests | Release-ready |
 
 ## Current release blockers (ordered)
 
-1. Project boot sync confirmed (runtime loads scene before JS latch)
-2. Project save backup + recovery UX
-3. Migration chain with fixtures
-4. Stable asset ID contract end-to-end
-5. Export preflight for Windows + HTML5
-6. Golden project in CI
+1. Export preflight for Windows + HTML5
+2. Universal undo/redo across all authoring paths
+3. UI runtime + input actions for complete game workflows

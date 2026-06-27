@@ -64,4 +64,21 @@ describe('asset-ref-contract', () => {
 
     expect(() => assertProjectDiagnosticsClean(project)).toThrow(/stable asset id "img_hero"/)
   })
+
+  it('blocks logic board audio path aliases when a stable id exists', () => {
+    const path = 'assets/audio/coin.ogg'
+    const project = createBlankProject()
+    project.audioAssets = { sfx_coin: { id: 'sfx_coin', name: 'Coin', path } }
+    project.logicBoards = [{
+      boardId: 'global',
+      name: 'Global',
+      target: { type: 'global' },
+      events: [{
+        id: 'ev1',
+        trigger: { type: 'onStart' },
+        actions: [{ type: 'playSound', path, volume: 1 }],
+      }],
+    }]
+    expect(() => assertProjectDiagnosticsClean(project)).toThrow(/stable asset id "sfx_coin"/)
+  })
 })

@@ -8,8 +8,11 @@ import { createBlankProject } from './project-factory'
 import { createEntityDef } from './project-builders'
 import {
   migrateDocV1ToV3,
+  migrateDocV2ToV3,
   migrateProjectJsonRoot,
   migrateV0ToV1,
+  migrateV1ToV2,
+  migrateV2ToV3,
   migrateV3ToV4,
 } from './project-migrations'
 import { PROJECT_FORMAT_V3 } from './project-object-types'
@@ -43,6 +46,32 @@ describe('project-migrations', () => {
     expect(result.fromVersion).toBe(1)
     expect(result.toVersion).toBe(1)
     expect(result.steps).toEqual([])
+  })
+
+  it('migrateV1ToV2 and migrateV2ToV3 stamp envelope versions', () => {
+    const v1 = JSON.parse(readFixture('v1-flat-entities.json')) as Record<string, unknown>
+    expect(migrateV1ToV2(v1).formatVersion).toBe(2)
+    const v2 = JSON.parse(readFixture('v2-object-types.json')) as Record<string, unknown>
+    expect(migrateV2ToV3(v2).formatVersion).toBe(3)
+  })
+
+  it('migrateDocV2ToV3 materializes entity cache for object-type projects', () => {
+    const loaded = loadProjectDocument(readFixture('v2-object-types.json'))
+    const stripped = {
+      ...loaded.project,
+      formatVersion: 2,
+      projectFormatVersion: 2,
+      entities: {},
+    }
+    const migrated = migrateDocV2ToV3(stripped)
+    expect(migrated.formatVersion).toBe(PROJECT_FORMAT_V3)
+    expect(migrated.entities[1]?.className).toBe('Player')
+  })
+
+  it('loads committed v4 envelope fixture without migration steps', () => {
+    const loaded = loadProjectDocument(readFixture('v4-envelope.json'))
+    expect(loaded.project.projectFormatVersion).toBe(CURRENT_PROJECT_FORMAT_VERSION)
+    expect(loaded.project.projectId).toBe('fixture-v4-envelope')
   })
 
   it('migrateDocV1ToV3 lifts flat entities into object types', () => {

@@ -5,6 +5,7 @@ import {
   type ProjectRecoveryChoice,
 } from './project-save-recovery-prompt'
 import { projectRootFromProjectPath } from './project-paths'
+import { isProjectJsonReadable } from './project-persist'
 
 export type ProjectSaveArtifactKind = 'saved' | 'backup' | 'temp'
 
@@ -32,11 +33,27 @@ export async function inspectProjectSaveArtifacts(
 export function findNewerRecoveryCandidate(
   artifacts: readonly ProjectSaveArtifact[],
 ): ProjectSaveArtifact | null {
+  return findRecoveryCandidate(artifacts)
+}
+
+/**
+ * Pick backup/temp when it is newer than project.json or when project.json is unreadable.
+ */
+export function findRecoveryCandidate(
+  artifacts: readonly ProjectSaveArtifact[],
+  options?: { savedReadable?: boolean },
+): ProjectSaveArtifact | null {
   const saved = artifacts.find((item) => item.kind === 'saved')
   const recoveryCandidates = artifacts.filter(
     (item) => item.kind === 'backup' || item.kind === 'temp',
   )
   if (recoveryCandidates.length === 0) return null
+
+  if (options?.savedReadable === false) {
+    const backup = recoveryCandidates.find((item) => item.kind === 'backup')
+    return backup ?? recoveryCandidates[0]
+  }
+
   const newest = recoveryCandidates[0]
   if (!saved) return newest
   if (newest.modifiedUnixMs > saved.modifiedUnixMs) return newest
@@ -55,18 +72,23 @@ export async function discardProjectSaveRecovery(
 }
 
 /**
- * When a newer backup/temp exists than project.json, ask the user which file to open.
+ * When backup/temp is newer than project.json, or project.json is unreadable, ask the user.
+ * @param savedContent when provided, avoids a second disk read of project.json
  * @returns absolute path to load
  */
 export async function resolveProjectJsonOpenPath(
   projectJsonPath: string,
   artifacts: readonly ProjectSaveArtifact[] = [],
+  savedContent?: string,
 ): Promise<string> {
   const inspected = artifacts.length > 0
     ? [...artifacts]
     : await inspectProjectSaveArtifacts(projectJsonPath)
   const listed = inspected ?? []
-  const recovery = findNewerRecoveryCandidate(listed)
+  const savedReadable = savedContent != null
+    ? isProjectJsonReadable(savedContent)
+    : true
+  const recovery = findRecoveryCandidate(listed, { savedReadable })
   if (!recovery) return projectJsonPath
 
   const choice = await requestProjectSaveRecoveryChoice(

@@ -10,10 +10,10 @@ import { projectRevision } from '../store/project-history'
 import { getPreviewLuaSyncKey } from './preview-lua-sync'
 import {
   collectProjectDiagnostics,
-  projectDiagnosticsErrors,
   projectDiagnosticsWarnings,
   type ProjectDiagnostic,
 } from './project-validator'
+import { collectSaveValidationErrors } from './project-persist'
 import {
   collectConfigDiagnostics,
   compileProjectLogic,
@@ -78,8 +78,13 @@ function buildHealthFromDiagnostics(
   compileResult: CompileProjectLogicResult | null,
 ): ProjectHealth {
   const projectDiags = collectProjectDiagnostics(project)
-  const errors: HealthIssue[] = projectDiagnosticsErrors(projectDiags).map(mapProject)
   const warnings: HealthIssue[] = projectDiagnosticsWarnings(projectDiags).map(mapProject)
+
+  const errors: HealthIssue[] = collectSaveValidationErrors(project).map((message) => ({
+    severity: 'error' as const,
+    message,
+    source: 'project' as const,
+  }))
 
   for (const d of collectConfigDiagnostics(project)) {
     const issue = mapLogic(d)
