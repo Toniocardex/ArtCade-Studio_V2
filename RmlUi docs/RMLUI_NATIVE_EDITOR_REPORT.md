@@ -3,13 +3,6 @@
 Companion to [`RMLUI_NATIVE_EDITOR_PLAN.md`](RMLUI_NATIVE_EDITOR_PLAN.md).
 This reports what was actually built, verified, and learned.
 
-![Native RmlUi editor](rmlui-native-editor.png)
-
-*Live capture of `artcade-editor-native`: menu/toolbar, Hierarchy with scene
-tabs + entity tree (Player selected), the real ArtCade scene rendered in the
-viewport hole, the Inspector showing the selected entity's Position fields, and
-the Console — all RmlUi, native, no WebView/WASM.*
-
 ---
 
 ## Verdict
@@ -278,7 +271,6 @@ core.
 | Resource root | Absolute path from `GetApplicationDirectory() / "resources"` |
 | Window tested | 1340 x 840 smoke capture |
 | DPI tested | Current Windows scale only |
-| Screenshot | `docs/rmlui-inter-font-shot.png` |
 | Outcome | PASS WITH LIMITATIONS |
 
 The previous glyph-block issue is fixed in the smoke capture: menu, toolbar,
