@@ -137,6 +137,7 @@ paletto o sblocca la capability in corso.
 | Play Current Scene | WASM bridge / preview path | `EditorCoordinator::playCurrentScene` (guarded by `canPlayCurrentScene`) | Done | No |
 | Project file I/O | React/Tauri file path | `readProjectTextFile` + `loadProjectFromText` + atomic save, wired to GUI Open/Save/Save As (native pickers; app clears texture cache on replace) | Done | No |
 | Runtime viewport | WASM/runtime preview | `SceneFrameSnapshot` + derived texture cache | In progress | No |
+| Viewport pick + drag | React canvas pointer handlers | `pickEntityAt` + `SelectEntityIntent`; drag preview local, one `SetEntityPositionCommand` on release | Done | No |
 | Play materialization | WASM bridge / preview path | `PlaySession` from `ProjectDocument` once at Start Play | In progress | No |
 | Sprite Renderer component | React Inspector | `sprite_commands` + `inspector_actions` (instance-scoped) | Done | No |
 | BoxCollider2D component | React Inspector / physics form | `box_collider_commands` on `EntityDef.boxCollider2D` | Done | No |
@@ -361,6 +362,35 @@ Escape
 Incomplete or invalid values (`"-"`, `"."`, `"1e"`, `"nan"`, `"inf"`,
 `"12px"`) do not change the revision, do not enter undo history, and do not
 invalidate panels. `"12."` is accepted at commit as `12.0`.
+
+## Viewport pick and drag baseline
+
+The viewport's world<->screen mapping has a single source, `SceneViewCamera`
+(`makeSceneViewCamera` + `screenToWorld`), shared by the renderer and picking so
+a click maps to exactly what is drawn. The renderer builds its Raylib `Camera2D`
+from it; picking inverts the same transform. `pickEntityAt` is a pure query on
+`SceneFrameSnapshot` (sprite occludes placeholder, later draw order wins).
+
+Selection and move follow the existing command/intent split — no new authority,
+no command per mouse move:
+
+```text
+left press in viewport
+-> screenToWorld -> pickEntityAt
+-> SelectEntityIntent (INVALID clears selection)
+-> capture start mouse-world + entity authoring position   (local drag state)
+
+drag
+-> local preview only: the draw path offsets the dragged entity in its snapshot
+-> no command, no revision, no invalidation
+
+left release
+-> one SetEntityPositionCommand(start position + world delta)  (zero delta: none)
+```
+
+The drag state is transient presentation owned by the application; it never
+enters `ProjectDocument`. Pick + drag is Edit-mode only; Play keeps its own input
+path. `pickEntityAt` and `screenToWorld` are unit-tested in `editor-core`.
 
 ## Feature Template
 

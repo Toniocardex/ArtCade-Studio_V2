@@ -65,10 +65,11 @@ void SceneView::render(const SceneFrameSnapshot& frame,
     }
 
     const Vector2 world{frame.worldSize.x, frame.worldSize.y};
+    const SceneViewCamera vc = makeSceneViewCamera(rect, view, frame.worldSize);
     Camera2D cam{};
-    cam.offset = Vector2{rect.x + rect.width * 0.5f, rect.y + rect.height * 0.5f};
-    cam.target = Vector2{world.x * 0.5f + view.pan.x, world.y * 0.5f + view.pan.y};
-    cam.zoom = view.zoom;
+    cam.offset = Vector2{vc.offset.x, vc.offset.y};
+    cam.target = Vector2{vc.target.x, vc.target.y};
+    cam.zoom = vc.zoom;
     cam.rotation = 0.f;
 
     BeginMode2D(cam);

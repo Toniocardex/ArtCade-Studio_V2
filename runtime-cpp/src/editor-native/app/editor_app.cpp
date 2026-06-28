@@ -7,6 +7,7 @@
 #include "editor-native/app/project_file.h"
 #include "editor-native/app/rml_host.h"
 #include "editor-native/commands/editor_intent.h"
+#include "editor-native/commands/entity_commands.h"
 #include "editor-native/demo/demo_project.h"
 #include "editor-native/model/play_session.h"
 #include "editor-native/model/scene_frame_snapshot.h"
@@ -66,6 +67,57 @@ void routeViewportInput(EditorCoordinator& coordinator, const ViewportRect& rect
     if (IsMouseButtonDown(MOUSE_BUTTON_MIDDLE) || IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
         const Vector2 d = GetMouseDelta();
         coordinator.apply(PanViewportIntent{active, {-d.x / zoom, -d.y / zoom}});
+    }
+}
+
+// Transient viewport drag state — local presentation only (prompt §3: "valori
+// temporanei durante un drag"). It never enters ProjectDocument; the single
+// SetEntityPositionCommand is issued once, on release.
+struct ViewportDrag {
+    bool     active = false;
+    EntityId entity = INVALID_ENTITY;
+    Vec2     startMouseWorld{};
+    Vec2     startEntityPos{};
+};
+
+// Edit-mode pick + drag: press hit-tests and selects; release commits one move.
+// Motion between press and release is shown as a local preview by the draw path,
+// not as a stream of commands.
+void routeViewportPickDrag(EditorCoordinator& coordinator, const ViewportRect& rect,
+                           const RmlInputResult& rml, ViewportDrag& drag) {
+    const SceneId active = coordinator.state().activeSceneId;
+    const SceneFrameSnapshot frame = collectSceneFrameSnapshot(
+        coordinator.document(), active, coordinator.selection().primaryEntity);
+    const SceneViewCamera cam =
+        makeSceneViewCamera(rect, coordinator.sceneView(active), frame.worldSize);
+    const Vec2 mouse{static_cast<float>(GetMouseX()), static_cast<float>(GetMouseY())};
+
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        const ViewportInputContext ctx{rect.contains(GetMouseX(), GetMouseY()),
+                                       /*rmlConsumedEvent*/ false, rml.textFocus,
+                                       /*rmlPopupOpen*/ false};
+        if (shouldViewportReceiveInput(ctx)) {
+            const Vec2 world = screenToWorld(cam, mouse);
+            const EntityId picked = pickEntityAt(frame, world);
+            coordinator.apply(SelectEntityIntent{picked});   // INVALID clears selection
+            if (picked != INVALID_ENTITY) {
+                if (const SceneInstanceDef* inst =
+                        coordinator.document().findInstanceInScene(active, picked)) {
+                    drag = ViewportDrag{true, picked, world, inst->transform.position};
+                }
+            }
+        }
+    }
+
+    if (drag.active && IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
+        const Vec2 world = screenToWorld(cam, mouse);
+        const Vec2 delta{world.x - drag.startMouseWorld.x, world.y - drag.startMouseWorld.y};
+        if (delta.x != 0.f || delta.y != 0.f) {
+            coordinator.execute(SetEntityPositionCommand{
+                active, drag.entity,
+                Vec2{drag.startEntityPos.x + delta.x, drag.startEntityPos.y + delta.y}});
+        }
+        drag = ViewportDrag{};
     }
 }
 
@@ -174,6 +226,7 @@ int EditorApp::run(int argc, char** argv) {
     coordinator.logInfo("ArtCade Studio ready.");
     SceneView sceneView;
     TextureCache textureCache;
+    ViewportDrag drag;
 
     // Project I/O is owned by the application: it holds the texture cache it must
     // clear when the document is replaced, and the platform file pickers. The UI
@@ -223,7 +276,11 @@ int EditorApp::run(int argc, char** argv) {
         const RmlInputResult rml = pumpRmlInput(host.context());
         const ViewportRect rect = viewportRectFromDocument(host.document());
         routeViewportInput(coordinator, rect, rml);
-        routePlaySmokeInput(coordinator, rml);
+        if (coordinator.isPlaying()) {
+            routePlaySmokeInput(coordinator, rml);
+        } else {
+            routeViewportPickDrag(coordinator, rect, rml, drag);
+        }
 
         ui.processFrame();
         host.update();
@@ -233,10 +290,23 @@ int EditorApp::run(int argc, char** argv) {
         const PlaySession* playSession = coordinator.playSession();
         const SceneId active = playSession ? playSession->sceneId()
                                            : coordinator.state().activeSceneId;
-        const SceneFrameSnapshot snapshot = playSession
+        SceneFrameSnapshot snapshot = playSession
             ? collectSceneFrameSnapshot(*playSession)
             : collectSceneFrameSnapshot(coordinator.document(), active,
                                         coordinator.selection().primaryEntity);
+        if (!playSession && drag.active) {
+            // Local drag preview: offset the dragged entity by the live delta so
+            // the move is visible before the single command lands on release.
+            const SceneViewCamera cam =
+                makeSceneViewCamera(rect, coordinator.sceneView(active), snapshot.worldSize);
+            const Vec2 cur = screenToWorld(cam, Vec2{static_cast<float>(GetMouseX()),
+                                                     static_cast<float>(GetMouseY())});
+            const Vec2 d{cur.x - drag.startMouseWorld.x, cur.y - drag.startMouseWorld.y};
+            for (SceneFrameEntity& e : snapshot.entities)
+                if (e.entityId == drag.entity) { e.bounds.x += d.x; e.bounds.y += d.y; }
+            for (SceneFrameSprite& s : snapshot.sprites)
+                if (s.entityId == drag.entity) { s.destination.x += d.x; s.destination.y += d.y; }
+        }
         const auto textureRequests = playSession
             ? textureRequestsFor(playSession->assets(), resourceRoot)
             : textureRequestsFor(coordinator.document().data(), resourceRoot);

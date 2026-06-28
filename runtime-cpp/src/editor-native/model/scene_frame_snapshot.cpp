@@ -112,4 +112,24 @@ SceneFrameSnapshot collectSceneFrameSnapshot(const PlaySession& session) {
     return snapshot;
 }
 
+namespace {
+
+bool rectContains(const SceneFrameRect& r, Vec2 p) {
+    return p.x >= r.x && p.x <= r.x + r.width
+        && p.y >= r.y && p.y <= r.y + r.height;
+}
+
+} // namespace
+
+EntityId pickEntityAt(const SceneFrameSnapshot& frame, Vec2 worldPoint) {
+    // Placeholders draw first, then sprites; the last drawn item that contains
+    // the point is on top, so let later hits override earlier ones.
+    EntityId hit = INVALID_ENTITY;
+    for (const SceneFrameEntity& entity : frame.entities)
+        if (rectContains(entity.bounds, worldPoint)) hit = entity.entityId;
+    for (const SceneFrameSprite& sprite : frame.sprites)
+        if (sprite.visible && rectContains(sprite.destination, worldPoint)) hit = sprite.entityId;
+    return hit;
+}
+
 } // namespace ArtCade::EditorNative

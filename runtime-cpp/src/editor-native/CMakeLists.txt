@@ -19,6 +19,7 @@ add_library(artcade-editor-core STATIC
     model/box_collider_view.cpp
     model/scene_frame_snapshot.cpp
     model/sprite_render_view.cpp
+    view/scene_view_camera.cpp
     commands/box_collider_commands.cpp
     commands/entity_commands.cpp
     commands/scene_commands.cpp

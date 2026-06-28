@@ -50,4 +50,9 @@ SceneFrameSnapshot collectSceneFrameSnapshot(const ProjectDocument& document,
                                              EntityId selectedEntity);
 SceneFrameSnapshot collectSceneFrameSnapshot(const PlaySession& session);
 
+// Topmost entity whose drawn representation contains the world point, or
+// INVALID_ENTITY. A sprite occludes a placeholder; later draw order wins. Pure
+// query on the frame — no document, no renderer.
+EntityId pickEntityAt(const SceneFrameSnapshot& frame, Vec2 worldPoint);
+
 } // namespace ArtCade::EditorNative

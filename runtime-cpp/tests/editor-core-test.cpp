@@ -20,6 +20,7 @@
 #include "editor-native/model/box_collider_view.h"
 #include "editor-native/model/scene_frame_snapshot.h"
 #include "editor-native/model/sprite_render_view.h"
+#include "editor-native/view/scene_view_camera.h"
 
 #include <filesystem>
 #include <fstream>
@@ -1437,6 +1438,46 @@ int main() {
         CHECK(c.document().isDirty() == dirtyBefore);
         CHECK(c.undoSize() == undoBefore);
         CHECK(c.document().findInstanceInScene(kSceneA, kHero)->transform.position.x == 10.f);
+    }
+
+    // == Viewport camera transform + picking ==================================
+
+    // -- screenToWorld inverts the renderer camera ----------------------------
+    {
+        ViewportRect rect{100, 50, 800, 600};
+        EditorSceneViewState view;
+        view.zoom = 2.f;
+        view.pan = Vec2{10.f, -20.f};
+        const SceneViewCamera cam = makeSceneViewCamera(rect, view, Vec2{640.f, 480.f});
+        // Viewport centre maps to the camera target (world centre + pan).
+        const Vec2 centre = screenToWorld(cam, Vec2{500.f, 350.f});
+        CHECK(centre.x == 330.f);   // 640/2 + 10
+        CHECK(centre.y == 220.f);   // 480/2 - 20
+        // Two screen pixels right of centre is 1 world unit at zoom 2.
+        const Vec2 off = screenToWorld(cam, Vec2{502.f, 350.f});
+        CHECK(off.x == 331.f);
+    }
+
+    // -- pickEntityAt: topmost hit; miss returns INVALID ----------------------
+    {
+        SceneFrameSnapshot f;
+        f.hasScene = true;
+        f.entities.push_back(SceneFrameEntity{7, "A", {}, SceneFrameRect{0, 0, 50, 50}, false});
+        f.entities.push_back(SceneFrameEntity{8, "B", {}, SceneFrameRect{40, 40, 50, 50}, false});
+        CHECK(pickEntityAt(f, Vec2{10.f, 10.f}) == 7);
+        CHECK(pickEntityAt(f, Vec2{45.f, 45.f}) == 8);   // overlap -> later wins
+        CHECK(pickEntityAt(f, Vec2{200.f, 200.f}) == INVALID_ENTITY);
+    }
+
+    // -- pickEntityAt: a visible sprite occludes a placeholder ----------------
+    {
+        SceneFrameSnapshot f;
+        f.hasScene = true;
+        f.entities.push_back(SceneFrameEntity{1, "P", {}, SceneFrameRect{0, 0, 50, 50}, false});
+        f.sprites.push_back(SceneFrameSprite{2, "img", SceneFrameRect{10, 10, 50, 50}, {}, true, false});
+        f.sprites.push_back(SceneFrameSprite{3, "img", SceneFrameRect{10, 10, 50, 50}, {}, false, false});
+        CHECK(pickEntityAt(f, Vec2{20.f, 20.f}) == 2);   // sprite over placeholder
+        CHECK(pickEntityAt(f, Vec2{5.f, 5.f}) == 1);     // invisible sprite ignored
     }
 
     // == Start-scene invariant: scenes exist => startSceneId is valid ==========
