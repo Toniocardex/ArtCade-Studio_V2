@@ -6,6 +6,50 @@ nativo RmlUi. La migrazione procede per feature/caso d'uso, non per pannello.
 Regola: se il vecchio percorso React confligge con
 `RMLUI_MIGRATION_CONTRACT.md`, vince il contratto.
 
+## Paletti architetturali (perche' esiste questa migrazione)
+
+L'editor React e' diventato troppo complesso non per quantita' di feature, ma
+per *forma*: piu' fonti di verita' per lo stesso dato, piu' entry point per la
+stessa operazione, orchestratori e sync che tenevano allineate copie che non
+sarebbero dovute esistere.
+
+Il nuovo editor esiste per eliminare quella forma, non per riprodurla in C++.
+Ogni operazione — creare un'entita', rinominarla, spostarla, creare o eliminare
+una scena, cambiare un asset, gestire un componente — deve rispettare questi
+paletti, sempre, non solo nello spike:
+
+1. **Una sola fonte di verita'.** `ProjectDocument` e' l'unica autorita'
+   persistente per scene, entita', componenti, asset, Logic Board e variabili.
+   Nessun `UiProjectModel`, `InspectorModel` o `RuntimeCopy` autorevole in
+   parallelo. I pannelli leggono via query e modificano solo via comando.
+2. **Un solo entry point per operazione.** Ogni operazione passa per esattamente
+   un percorso: `execute(EditorCommand)` se entra in salvataggio/undo,
+   `apply(EditorIntent)` se tocca solo il workspace. Mai una seconda strada
+   "diretta" per la stessa modifica.
+3. **Un solo coordinatore.** `EditorCoordinator` e' l'unico punto di
+   coordinamento. Niente catene pannello -> pannello, callback circolari,
+   event bus string-based, service locator.
+4. **Nessuna sincronizzazione.** Niente sync service, polling dello stato
+   authoring, fingerprint, readiness flag tra oggetti dello stesso processo,
+   retry per modifiche locali, refresh globale per frame, serializzazione
+   interna tra moduli. L'invalidazione e' esplicita, tipizzata e consumata una
+   volta per frame.
+5. **Il flusso deve restare spiegabile in una riga.** Il test di riferimento di
+   ogni feature e': `evento UI -> command/intent -> ProjectDocument/EditorState
+   -> invalidazione mirata -> frame successivo`. Se serve un diagramma con piu'
+   di un ramo per spiegare una singola modifica, la feature va semplificata,
+   non portata com'e'.
+
+Regola pratica, prima di aggiungere qualunque classe: *"elimina complessita'
+reale o nasconde un nuovo percorso di sincronizzazione?"*. In caso di dubbio:
+la soluzione piu' diretta, tipizzata e locale.
+
+Dettaglio normativo completo in `RMLUI_MIGRATION_CONTRACT.md` (§Autorita',
+§Direzione delle dipendenze, §Divieti) e nel prompt di refactor
+`ARTCADE_RMLUI_CLAUDE_REFACTOR_PROMPT.md` (§2, §3, §25). Questi paletti non sono
+criteri del solo spike: valgono per ogni feature di ogni fase qui sotto, finche'
+il vecchio editor non e' rimosso.
+
 ## Fasi
 
 1. Fondazioni: `ProjectDocument`, `EditorState`, `SelectionState`,
