@@ -22,6 +22,7 @@ enum class EditorInvalidation : uint32_t {
     Console   = 1u << 4,
     Toolbar   = 1u << 5,
     Project   = 1u << 6,
+    Layout    = 1u << 7,
 };
 
 constexpr EditorInvalidation operator|(EditorInvalidation a, EditorInvalidation b) {

@@ -5,11 +5,11 @@
 namespace ArtCade::EditorNative {
 
 ProjectDocument::ProjectDocument(ProjectDoc doc)
-    : doc_(std::move(doc)), activeSceneId_(doc_.activeSceneId) {
-    // If the document declares no active scene, focus the first available one so
-    // the viewport always has something to show.
-    if (activeSceneId_.empty() && !doc_.scenes.empty()) {
-        activeSceneId_ = doc_.scenes.begin()->first;
+    : doc_(std::move(doc)) {
+    // Legacy ProjectDoc still names the gameplay start scene `activeSceneId`.
+    // Treat it as persistent project data, not the editor's opened scene.
+    if (doc_.activeSceneId.empty() && !doc_.scenes.empty()) {
+        doc_.activeSceneId = doc_.scenes.begin()->first;
     }
 }
 
@@ -22,17 +22,14 @@ bool ProjectDocument::hasScene(const SceneId& id) const {
     return doc_.scenes.find(id) != doc_.scenes.end();
 }
 
-const SceneDef* ProjectDocument::activeScene() const {
-    return findScene(activeSceneId_);
-}
-
-SceneDef* ProjectDocument::activeSceneMutable() {
-    const auto it = doc_.scenes.find(activeSceneId_);
+SceneDef* ProjectDocument::mutableScene(const SceneId& id) {
+    const auto it = doc_.scenes.find(id);
     return it == doc_.scenes.end() ? nullptr : &it->second;
 }
 
-const SceneInstanceDef* ProjectDocument::findInstanceInActiveScene(EntityId id) const {
-    const SceneDef* scene = activeScene();
+const SceneInstanceDef* ProjectDocument::findInstanceInScene(const SceneId& sceneId,
+                                                             EntityId id) const {
+    const SceneDef* scene = findScene(sceneId);
     if (!scene) return nullptr;
     for (const auto& instance : scene->instances) {
         if (instance.id == id) return &instance;
@@ -40,8 +37,9 @@ const SceneInstanceDef* ProjectDocument::findInstanceInActiveScene(EntityId id) 
     return nullptr;
 }
 
-SceneInstanceDef* ProjectDocument::mutableInstanceInActiveScene(EntityId id) {
-    SceneDef* scene = activeSceneMutable();
+SceneInstanceDef* ProjectDocument::mutableInstanceInScene(const SceneId& sceneId,
+                                                          EntityId id) {
+    SceneDef* scene = mutableScene(sceneId);
     if (!scene) return nullptr;
     for (auto& instance : scene->instances) {
         if (instance.id == id) return &instance;
@@ -56,38 +54,31 @@ void ProjectDocument::markDirty() {
 
 void ProjectDocument::replace(ProjectDoc doc) {
     doc_ = std::move(doc);
-    activeSceneId_ = doc_.activeSceneId;
-    if (activeSceneId_.empty() && !doc_.scenes.empty()) {
-        activeSceneId_ = doc_.scenes.begin()->first;
+    if (doc_.activeSceneId.empty() && !doc_.scenes.empty()) {
+        doc_.activeSceneId = doc_.scenes.begin()->first;
     }
     ++replaceCount_;
     markDirty();
 }
 
-bool ProjectDocument::setActiveScene(const SceneId& id) {
-    if (!hasScene(id)) return false;
-    activeSceneId_ = id;   // editorial focus only — no Replace, no dirty
-    return true;
-}
-
-bool ProjectDocument::setInstancePosition(EntityId id, Vec2 position) {
-    SceneInstanceDef* instance = mutableInstanceInActiveScene(id);
+bool ProjectDocument::setInstancePosition(const SceneId& sceneId, EntityId id, Vec2 position) {
+    SceneInstanceDef* instance = mutableInstanceInScene(sceneId, id);
     if (!instance) return false;
     instance->transform.position = position;
     markDirty();
     return true;
 }
 
-bool ProjectDocument::setInstanceName(EntityId id, std::string name) {
-    SceneInstanceDef* instance = mutableInstanceInActiveScene(id);
+bool ProjectDocument::setInstanceName(const SceneId& sceneId, EntityId id, std::string name) {
+    SceneInstanceDef* instance = mutableInstanceInScene(sceneId, id);
     if (!instance) return false;
     instance->instanceName = std::move(name);
     markDirty();
     return true;
 }
 
-bool ProjectDocument::setActiveSceneBackground(Vec4 color) {
-    SceneDef* scene = activeSceneMutable();
+bool ProjectDocument::setSceneBackground(const SceneId& sceneId, Vec4 color) {
+    SceneDef* scene = mutableScene(sceneId);
     if (!scene) return false;
     scene->backgroundColor = color;
     markDirty();
@@ -108,8 +99,8 @@ bool ProjectDocument::deleteScene(const SceneId& id) {
     const auto it = doc_.scenes.find(id);
     if (it == doc_.scenes.end()) return false;
     doc_.scenes.erase(it);
-    if (activeSceneId_ == id) {
-        activeSceneId_ = doc_.scenes.empty() ? SceneId{} : doc_.scenes.begin()->first;
+    if (doc_.activeSceneId == id) {
+        doc_.activeSceneId = doc_.scenes.empty() ? SceneId{} : doc_.scenes.begin()->first;
     }
     markDirty();
     return true;

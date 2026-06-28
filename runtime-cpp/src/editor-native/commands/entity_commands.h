@@ -8,19 +8,20 @@
 namespace ArtCade::EditorNative {
 
 // =============================================================================
-// Entity authoring commands — operate on a SceneInstanceDef in the active scene.
+// Entity authoring commands — operate on a SceneInstanceDef in an explicit scene.
 // =============================================================================
 
 /** Move one instance. Invalidates Inspector | Viewport (prompt §24.4). */
 class SetEntityPositionCommand final : public EditorCommand {
 public:
-    SetEntityPositionCommand(EntityId id, Vec2 position);
+    SetEntityPositionCommand(SceneId sceneId, EntityId id, Vec2 position);
 
     EditorOperationResult apply(ProjectDocument& document) override;
     EditorOperationResult undo(ProjectDocument& document) override;
     const char* name() const override { return "SetEntityPosition"; }
 
 private:
+    SceneId  sceneId_;
     EntityId id_;
     Vec2     newPosition_;
     Vec2     oldPosition_{};
@@ -30,13 +31,14 @@ private:
 /** Rename one instance. Invalidates Hierarchy | Inspector. */
 class RenameEntityCommand final : public EditorCommand {
 public:
-    RenameEntityCommand(EntityId id, std::string name);
+    RenameEntityCommand(SceneId sceneId, EntityId id, std::string name);
 
     EditorOperationResult apply(ProjectDocument& document) override;
     EditorOperationResult undo(ProjectDocument& document) override;
     const char* name() const override { return "RenameEntity"; }
 
 private:
+    SceneId     sceneId_;
     EntityId    id_;
     std::string newName_;
     std::string oldName_;

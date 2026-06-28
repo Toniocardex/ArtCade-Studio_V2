@@ -31,8 +31,9 @@ EditorOperationResult commitInspectorPositionX(EditorCoordinator& coordinator,
         return result;
     }
 
+    const SceneId& sceneId = coordinator.state().activeSceneId;
     const SceneInstanceDef* instance =
-        coordinator.document().findInstanceInActiveScene(entityId);
+        coordinator.document().findInstanceInScene(sceneId, entityId);
     if (!instance) {
         const auto result = EditorOperationResult::failure("No selected instance");
         coordinator.logError(result.error);
@@ -40,7 +41,7 @@ EditorOperationResult commitInspectorPositionX(EditorCoordinator& coordinator,
     }
 
     const Vec2 next{*parsed, instance->transform.position.y};
-    return coordinator.execute(SetEntityPositionCommand{entityId, next});
+    return coordinator.execute(SetEntityPositionCommand{sceneId, entityId, next});
 }
 
 EditorOperationResult commitInspectorPositionY(EditorCoordinator& coordinator,
@@ -52,15 +53,16 @@ EditorOperationResult commitInspectorPositionY(EditorCoordinator& coordinator,
         coordinator.logError(result.error);
         return result;
     }
+    const SceneId& sceneId = coordinator.state().activeSceneId;
     const SceneInstanceDef* instance =
-        coordinator.document().findInstanceInActiveScene(entityId);
+        coordinator.document().findInstanceInScene(sceneId, entityId);
     if (!instance) {
         const auto result = EditorOperationResult::failure("No selected instance");
         coordinator.logError(result.error);
         return result;
     }
     const Vec2 next{instance->transform.position.x, *parsed};
-    return coordinator.execute(SetEntityPositionCommand{entityId, next});
+    return coordinator.execute(SetEntityPositionCommand{sceneId, entityId, next});
 }
 
 } // namespace ArtCade::EditorNative

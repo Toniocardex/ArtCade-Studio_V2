@@ -31,12 +31,13 @@ const Vec3* fillFor(const ProjectDocument& document, const std::string& typeId) 
 } // namespace
 
 void SceneView::render(const ProjectDocument& document,
+                       const SceneId& sceneId,
                        const EditorSceneViewState& view,
                        const SelectionState& selection,
                        const ViewportRect& rect) const {
     if (!rect.valid()) return;
 
-    const SceneDef* scene = document.activeScene();
+    const SceneDef* scene = document.findScene(sceneId);
 
     BeginScissorMode(rect.x, rect.y, rect.width, rect.height);
 

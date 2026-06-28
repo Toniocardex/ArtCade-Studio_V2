@@ -9,7 +9,7 @@
 namespace ArtCade::EditorNative {
 
 // =============================================================================
-// EditorUiState — small, non-persistent workspace state (prompt §14).
+// EditorUiState — small, non-persistent UI layout/filter state (prompt §14).
 //
 // This is the only state panels are allowed to own beyond pure transient
 // visuals. It holds NO authoring data (no scenes, entities, components). Panel
@@ -17,17 +17,10 @@ namespace ArtCade::EditorNative {
 // ProjectDocument.
 // =============================================================================
 
-/** Per-scene editor camera (prompt §14). Stored by SceneId, not the gameplay camera. */
-struct EditorSceneViewState {
-    Vec2  pan{};
-    float zoom = 1.0f;
-};
-
 namespace PanelLimits {
 constexpr float kLeftMin    = 180.0f, kLeftMax    = 480.0f;
 constexpr float kRightMin   = 220.0f, kRightMax   = 520.0f;
 constexpr float kConsoleMin = 80.0f,  kConsoleMax = 600.0f;
-constexpr float kZoomMin    = 0.1f,   kZoomMax    = 8.0f;
 } // namespace PanelLimits
 
 struct EditorUiState {
@@ -38,6 +31,7 @@ struct EditorUiState {
     std::string hierarchyFilter;
     std::string assetFilter;
 
+    bool consoleVisible = true;
     std::unordered_set<EntityId> expandedHierarchyItems;
 
     bool transformSectionExpanded = true;
@@ -48,6 +42,5 @@ struct EditorUiState {
 inline float clampLeftPanel(float v)    { return std::clamp(v, PanelLimits::kLeftMin,    PanelLimits::kLeftMax); }
 inline float clampRightPanel(float v)   { return std::clamp(v, PanelLimits::kRightMin,   PanelLimits::kRightMax); }
 inline float clampConsole(float v)      { return std::clamp(v, PanelLimits::kConsoleMin, PanelLimits::kConsoleMax); }
-inline float clampZoom(float v)         { return std::clamp(v, PanelLimits::kZoomMin,    PanelLimits::kZoomMax); }
 
 } // namespace ArtCade::EditorNative

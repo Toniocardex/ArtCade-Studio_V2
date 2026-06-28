@@ -47,7 +47,7 @@ void routeViewportInput(EditorCoordinator& coordinator, const ViewportRect& rect
     };
     if (!shouldViewportReceiveInput(ctx)) return;
 
-    const SceneId active = coordinator.document().activeSceneId();
+    const SceneId active = coordinator.state().activeSceneId;
     const float zoom = coordinator.sceneView(active).zoom;
 
     const float wheel = GetMouseWheelMove();
@@ -115,8 +115,8 @@ int EditorApp::run(int argc, char** argv) {
 
         BeginDrawing();
         ClearBackground(Color{15, 16, 20, 255});
-        const SceneId active = coordinator.document().activeSceneId();
-        sceneView.render(coordinator.document(), coordinator.sceneView(active),
+        const SceneId active = coordinator.state().activeSceneId;
+        sceneView.render(coordinator.document(), active, coordinator.sceneView(active),
                          coordinator.selection(), rect);
         host.render();
         EndDrawing();

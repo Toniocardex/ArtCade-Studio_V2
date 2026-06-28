@@ -19,6 +19,10 @@ Riferimento unico allineato al report struttura ArtCade, con sezione **Come diff
 
 **Presentation / viewport refactor (ADR):** [`PRESENTATION_ARCHITECTURE.md`](PRESENTATION_ARCHITECTURE.md) — Shared Presentation Core, snapshot atomica, pipeline a pass, 9 fasi di migrazione. **Report audit + addendum gap P0/P1:** [`PRESENTATION_MIGRATION_AUDIT_REPORT.md`](PRESENTATION_MIGRATION_AUDIT_REPORT.md) (§ 13–14 checklist chiusura ADR).
 
+**Migrazione editor React -> RmlUi:** [`RMLUI_MIGRATION_CONTRACT.md`](RMLUI_MIGRATION_CONTRACT.md) — contratto breve e vincolante: se una feature React esistente confligge con il contratto, durante il porting vince il contratto.
+
+**Matrice migrazione editor nativo:** [`NATIVE_EDITOR_MIGRATION.md`](NATIVE_EDITOR_MIGRATION.md) — tracking per feature/caso d'uso, con vecchia autorità, nuova autorità, stato e rimozione del vecchio percorso.
+
 Prosa estesa del report greenfield (italiano, riferimento storico): **`Report-Struttura-Artcade.md`**.
 
 ### 1️⃣ **ARCHITECTURAL_RATIONALE.md** — Il PERCHÉ (20–30 min) ⭐ INIZIO QUI

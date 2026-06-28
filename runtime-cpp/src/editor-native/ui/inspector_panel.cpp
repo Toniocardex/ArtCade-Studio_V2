@@ -38,7 +38,8 @@ void InspectorPanel::refresh(Rml::ElementDocument* document,
 
     const EntityId selected = coordinator.selection().primaryEntity;
     const SceneInstanceDef* inst =
-        coordinator.document().findInstanceInActiveScene(selected);
+        coordinator.document().findInstanceInScene(coordinator.state().activeSceneId,
+                                                   selected);
 
     if (!inst) {
         body->SetInnerRML("<p class=\"inspector-empty\">Select an entity</p>");

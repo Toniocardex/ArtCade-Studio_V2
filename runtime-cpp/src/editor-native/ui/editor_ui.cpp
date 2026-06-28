@@ -118,7 +118,7 @@ void EditorUi::refreshToolbar() {
     if (!document_) return;
     Rml::Element* status = document_->GetElementById("toolbar-status");
     if (!status) return;
-    const SceneDef* scene = coordinator_.document().activeScene();
+    const SceneDef* scene = coordinator_.document().findScene(coordinator_.state().activeSceneId);
     std::string text = scene ? scene->name : std::string("-");
     text += playing_ ? "  -  PLAYING" : "  -  EDIT";
     status->SetInnerRML(escapeRml(text));
@@ -139,17 +139,18 @@ void EditorUi::handleAction(const std::string& action, const std::string& arg,
         commitInspectorPositionY(coordinator_, selected, value);
     } else if (action == "commit-name") {
         if (selected != INVALID_ENTITY && !value.empty())
-            coordinator_.execute(RenameEntityCommand{selected, value});
+            coordinator_.execute(
+                RenameEntityCommand{coordinator_.state().activeSceneId, selected, value});
     } else if (action == "undo") {
         coordinator_.undo();
     } else if (action == "zoom-in" || action == "zoom-out") {
-        const SceneId active = coordinator_.document().activeSceneId();
+        const SceneId active = coordinator_.state().activeSceneId;
         const float current = coordinator_.sceneView(active).zoom;
         const float factor = (action == "zoom-in") ? 1.2f : (1.0f / 1.2f);
         coordinator_.apply(SetViewportZoomIntent{active, current * factor});
     } else if (action == "play") {
         if (!playing_) {
-            playSession_ = PlaySession::fromDocument(coordinator_.document());
+            playSession_ = PlaySession::startProject(coordinator_.document());
             playing_ = true;
             coordinator_.logInfo("Play started (document untouched)");
             refreshToolbar();

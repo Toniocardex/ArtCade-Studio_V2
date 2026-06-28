@@ -11,7 +11,7 @@ class ProjectDocument;
 // =============================================================================
 // PlaySession — the runtime side of Play/Stop (prompt §8).
 //
-// Built FROM the authoring document by copying the active scene's instances
+// Built FROM the authoring document by copying an explicit editor/play scene's instances
 // into a mutable runtime list. The simulation mutates the session freely; the
 // document is never touched. Stop is just destroying the session (RAII) and
 // returning to the untouched document — no JSON reload, no scene sync, no
@@ -22,8 +22,11 @@ class ProjectDocument;
 // =============================================================================
 class PlaySession {
 public:
-    /** Snapshot the active scene of @p document into an independent session. */
-    static PlaySession fromDocument(const ProjectDocument& document);
+    /** Snapshot the gameplay start scene from @p document into an independent session. */
+    static PlaySession startProject(const ProjectDocument& document);
+
+    /** Snapshot the editor-selected scene from @p document into an independent session. */
+    static PlaySession startActiveScene(const ProjectDocument& document, const SceneId& sceneId);
 
     const SceneId& sceneId() const { return sceneId_; }
 

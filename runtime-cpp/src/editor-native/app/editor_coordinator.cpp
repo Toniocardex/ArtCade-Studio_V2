@@ -16,9 +16,17 @@ constexpr EditorInvalidation kSceneChangeInvalidation =
     kSelectionInvalidation | EditorInvalidation::Toolbar;
 } // namespace
 
+EditorCoordinator::EditorCoordinator(ProjectDoc doc)
+    : document_(std::move(doc)) {
+    state_.activeSceneId = document_.startSceneId();
+    if (state_.activeSceneId.empty() && !document_.data().scenes.empty()) {
+        state_.activeSceneId = document_.data().scenes.begin()->first;
+    }
+}
+
 const EditorSceneViewState& EditorCoordinator::sceneView(const SceneId& id) const {
-    const auto it = sceneViews_.find(id);
-    return it == sceneViews_.end() ? defaultSceneView_ : it->second;
+    const auto it = state_.sceneViews.find(id);
+    return it == state_.sceneViews.end() ? defaultSceneView_ : it->second;
 }
 
 // ----------------------------------------------------------------------------
@@ -52,7 +60,11 @@ EditorOperationResult EditorCoordinator::undo() {
 // Intent path — workspace state only; never the ProjectDocument, never undo.
 // ----------------------------------------------------------------------------
 EditorOperationResult EditorCoordinator::apply(const SelectEntityIntent& intent) {
-    selection_.primaryEntity = intent.entityId;
+    if (intent.entityId != INVALID_ENTITY
+        && !document_.findInstanceInScene(state_.activeSceneId, intent.entityId)) {
+        return EditorOperationResult::failure("Unknown entity id in active scene");
+    }
+    state_.selection.primaryEntity = intent.entityId;
     accumulate(kSelectionInvalidation);
     return EditorOperationResult::success(kSelectionInvalidation);
 }
@@ -61,23 +73,23 @@ EditorOperationResult EditorCoordinator::apply(const SelectSceneIntent& intent) 
     if (!document_.hasScene(intent.sceneId)) {
         return EditorOperationResult::failure("Unknown scene id");
     }
-    // Editorial focus only — Select, not Replace. No serialization, no reload.
-    document_.setActiveScene(intent.sceneId);
-    selection_.clear();
+    // Editorial focus only — workspace state, not ProjectDocument.
+    state_.activeSceneId = intent.sceneId;
+    state_.selection.clear();
     // Ensure a per-scene view state exists (restored on return to this scene).
-    sceneViews_.try_emplace(intent.sceneId);
+    state_.sceneViews.try_emplace(intent.sceneId);
     accumulate(kSceneChangeInvalidation);
     return EditorOperationResult::success(kSceneChangeInvalidation);
 }
 
 EditorOperationResult EditorCoordinator::apply(const SetViewportZoomIntent& intent) {
-    sceneViews_[intent.sceneId].zoom = clampZoom(intent.zoom);
+    state_.sceneViews[intent.sceneId].zoom = clampZoom(intent.zoom);
     accumulate(EditorInvalidation::Viewport);
     return EditorOperationResult::success(EditorInvalidation::Viewport);
 }
 
 EditorOperationResult EditorCoordinator::apply(const PanViewportIntent& intent) {
-    EditorSceneViewState& view = sceneViews_[intent.sceneId];
+    EditorSceneViewState& view = state_.sceneViews[intent.sceneId];
     view.pan.x += intent.delta.x;
     view.pan.y += intent.delta.y;
     accumulate(EditorInvalidation::Viewport);
@@ -88,6 +100,18 @@ EditorOperationResult EditorCoordinator::apply(const SetHierarchyFilterIntent& i
     uiState_.hierarchyFilter = intent.filter;
     accumulate(EditorInvalidation::Hierarchy);
     return EditorOperationResult::success(EditorInvalidation::Hierarchy);
+}
+
+EditorOperationResult EditorCoordinator::apply(const SetActiveToolIntent& intent) {
+    state_.activeTool = intent.tool;
+    return EditorOperationResult::success(EditorInvalidation::Toolbar);
+}
+
+EditorOperationResult EditorCoordinator::apply(const ToggleConsoleIntent&) {
+    uiState_.consoleVisible = !uiState_.consoleVisible;
+    const EditorInvalidation inv = EditorInvalidation::Layout | EditorInvalidation::Viewport;
+    accumulate(inv);
+    return EditorOperationResult::success(inv);
 }
 
 EditorOperationResult EditorCoordinator::apply(const ResizePanelIntent& intent) {
@@ -103,7 +127,9 @@ EditorOperationResult EditorCoordinator::apply(const ResizePanelIntent& intent) 
             break;
     }
     // A splitter drag relays out the shell but refreshes no panel content.
-    return EditorOperationResult::success(EditorInvalidation::None);
+    const EditorInvalidation inv = EditorInvalidation::Layout | EditorInvalidation::Viewport;
+    accumulate(inv);
+    return EditorOperationResult::success(inv);
 }
 
 // ----------------------------------------------------------------------------

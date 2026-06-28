@@ -25,16 +25,17 @@ private:
     std::string name_;
 };
 
-/** Set the active scene's background colour. Invalidates Viewport. */
+/** Set one scene's background colour. Invalidates Viewport. */
 class SetSceneBackgroundCommand final : public EditorCommand {
 public:
-    explicit SetSceneBackgroundCommand(Vec4 color);
+    SetSceneBackgroundCommand(SceneId sceneId, Vec4 color);
 
     EditorOperationResult apply(ProjectDocument& document) override;
     EditorOperationResult undo(ProjectDocument& document) override;
     const char* name() const override { return "SetSceneBackground"; }
 
 private:
+    SceneId sceneId_;
     Vec4 newColor_;
     Vec4 oldColor_{};
     bool captured_ = false;

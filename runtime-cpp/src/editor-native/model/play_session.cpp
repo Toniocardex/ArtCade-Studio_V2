@@ -4,10 +4,20 @@
 
 namespace ArtCade::EditorNative {
 
-PlaySession PlaySession::fromDocument(const ProjectDocument& document) {
+PlaySession PlaySession::startProject(const ProjectDocument& document) {
     PlaySession session;
-    session.sceneId_ = document.activeSceneId();
-    if (const SceneDef* scene = document.activeScene()) {
+    session.sceneId_ = document.startSceneId();
+    if (const SceneDef* scene = document.findScene(session.sceneId_)) {
+        session.instances_ = scene->instances;   // deep copy — independent of the document
+    }
+    return session;
+}
+
+PlaySession PlaySession::startActiveScene(const ProjectDocument& document,
+                                          const SceneId& sceneId) {
+    PlaySession session;
+    session.sceneId_ = sceneId;
+    if (const SceneDef* scene = document.findScene(sceneId)) {
         session.instances_ = scene->instances;   // deep copy — independent of the document
     }
     return session;

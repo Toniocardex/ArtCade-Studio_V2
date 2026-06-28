@@ -35,6 +35,7 @@ void HierarchyPanel::refresh(Rml::ElementDocument* document,
                              const EditorCoordinator& coordinator) const {
     if (!document) return;
     const ProjectDocument& doc = coordinator.document();
+    const SceneId& activeSceneId = coordinator.state().activeSceneId;
 
     // -- Scene tabs (sorted by id for a stable order) --------------------------
     std::map<SceneId, std::string> scenesSorted;
@@ -42,7 +43,7 @@ void HierarchyPanel::refresh(Rml::ElementDocument* document,
 
     std::string tabs;
     for (const auto& [id, name] : scenesSorted) {
-        const bool active = (id == doc.activeSceneId());
+        const bool active = (id == activeSceneId);
         tabs += "<div class=\"tab";
         if (active) tabs += " active";
         tabs += "\" data-action=\"select-scene\" data-arg=\"" + escapeRml(id) + "\">";
@@ -56,7 +57,7 @@ void HierarchyPanel::refresh(Rml::ElementDocument* document,
     const EntityId selected = coordinator.selection().primaryEntity;
 
     std::string rows;
-    if (const SceneDef* scene = doc.activeScene()) {
+    if (const SceneDef* scene = doc.findScene(activeSceneId)) {
         for (const SceneInstanceDef& inst : scene->instances) {
             if (!matchesFilter(inst.instanceName, filter)) continue;
             rows += "<div class=\"tree-row";

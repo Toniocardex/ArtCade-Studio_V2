@@ -23,7 +23,8 @@ EditorOperationResult CreateSceneCommand::apply(ProjectDocument& document) {
         return EditorOperationResult::failure("Failed to create scene");
     }
     return EditorOperationResult::success(EditorInvalidation::Hierarchy
-                                          | EditorInvalidation::Project);
+                                          | EditorInvalidation::Project,
+                                          DomainChange::sceneAdded(id_));
 }
 
 EditorOperationResult CreateSceneCommand::undo(ProjectDocument& document) {
@@ -31,35 +32,38 @@ EditorOperationResult CreateSceneCommand::undo(ProjectDocument& document) {
         return EditorOperationResult::failure("Cannot undo scene creation");
     }
     return EditorOperationResult::success(EditorInvalidation::Hierarchy
-                                          | EditorInvalidation::Project);
+                                          | EditorInvalidation::Project,
+                                          DomainChange::sceneRemoved(id_));
 }
 
 // ----------------------------------------------------------------------------
 // SetSceneBackgroundCommand
 // ----------------------------------------------------------------------------
-SetSceneBackgroundCommand::SetSceneBackgroundCommand(Vec4 color)
-    : newColor_(color) {}
+SetSceneBackgroundCommand::SetSceneBackgroundCommand(SceneId sceneId, Vec4 color)
+    : sceneId_(std::move(sceneId)), newColor_(color) {}
 
 EditorOperationResult SetSceneBackgroundCommand::apply(ProjectDocument& document) {
-    const SceneDef* scene = document.activeScene();
+    const SceneDef* scene = document.findScene(sceneId_);
     if (!scene) {
-        return EditorOperationResult::failure("No active scene");
+        return EditorOperationResult::failure("No target scene");
     }
     if (!captured_) {
         oldColor_ = scene->backgroundColor;
         captured_ = true;
     }
-    if (!document.setActiveSceneBackground(newColor_)) {
+    if (!document.setSceneBackground(sceneId_, newColor_)) {
         return EditorOperationResult::failure("Failed to set background");
     }
-    return EditorOperationResult::success(EditorInvalidation::Viewport);
+    return EditorOperationResult::success(
+        EditorInvalidation::Viewport, DomainChange::sceneChanged(sceneId_));
 }
 
 EditorOperationResult SetSceneBackgroundCommand::undo(ProjectDocument& document) {
-    if (!captured_ || !document.setActiveSceneBackground(oldColor_)) {
+    if (!captured_ || !document.setSceneBackground(sceneId_, oldColor_)) {
         return EditorOperationResult::failure("Cannot undo background change");
     }
-    return EditorOperationResult::success(EditorInvalidation::Viewport);
+    return EditorOperationResult::success(
+        EditorInvalidation::Viewport, DomainChange::sceneChanged(sceneId_));
 }
 
 } // namespace ArtCade::EditorNative

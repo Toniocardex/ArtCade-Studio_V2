@@ -1,6 +1,6 @@
 #pragma once
 
-#include "editor-native/model/editor_ui_state.h"
+#include "editor-native/model/editor_state.h"
 #include "editor-native/model/selection_state.h"
 
 namespace ArtCade::EditorNative {
@@ -22,7 +22,7 @@ struct ViewportRect {
 };
 
 // =============================================================================
-// SceneView — draws the active SceneDef of the document into a viewport rect
+// SceneView — draws the editor-selected SceneDef into a viewport rect
 // with the per-scene pan/zoom, clipped by scissor. Reads the document; never
 // owns it (prompt §13/§24.10). Uses raylib directly (no engine pipeline) so the
 // spike target stays lean.
@@ -30,6 +30,7 @@ struct ViewportRect {
 class SceneView {
 public:
     void render(const ProjectDocument& document,
+                const SceneId& sceneId,
                 const EditorSceneViewState& view,
                 const SelectionState& selection,
                 const ViewportRect& rect) const;

@@ -5,9 +5,9 @@
 #include "editor-native/commands/editor_command.h"
 #include "editor-native/commands/editor_intent.h"
 #include "editor-native/commands/editor_operation_result.h"
+#include "editor-native/model/editor_state.h"
 #include "editor-native/model/editor_ui_state.h"
 #include "editor-native/model/project_document.h"
-#include "editor-native/model/selection_state.h"
 
 #include <memory>
 #include <string>
@@ -26,7 +26,7 @@ struct ConsoleMessage {
 // =============================================================================
 // EditorCoordinator — the one and only coordinator (prompt §5).
 //
-// Owns the ProjectDocument, SelectionState, EditorUiState and per-scene view
+// Owns the ProjectDocument, EditorState, SelectionState, EditorUiState and per-scene view
 // state. Executes commands, applies intents, accumulates explicit invalidation
 // and exposes read-only queries to the panels. It draws nothing, contains no
 // RML/RCSS, owns no renderer, and is not a service locator.
@@ -38,18 +38,18 @@ struct ConsoleMessage {
 class EditorCoordinator {
 public:
     EditorCoordinator() = default;
-    explicit EditorCoordinator(ProjectDoc doc) : document_(std::move(doc)) {}
+    explicit EditorCoordinator(ProjectDoc doc);
 
     // ---- queries -------------------------------------------------------------
     const ProjectDocument& document()  const { return document_; }
-    ProjectDocument&       document()        { return document_; }
-    const SelectionState&  selection() const { return selection_; }
+    const SelectionState&  selection() const { return state_.selection; }
     const EditorUiState&   uiState()   const { return uiState_; }
+    const EditorState&     state()     const { return state_; }
     const EditorSceneViewState& sceneView(const SceneId& id) const;
     const std::vector<ConsoleMessage>& consoleLog() const { return console_; }
 
     // ---- command path (authoring; undoable) ---------------------------------
-    /** Run a command by value, e.g. execute(SetEntityPositionCommand{id, pos}). */
+    /** Run a command by value, e.g. execute(SetEntityPositionCommand{scene, id, pos}). */
     template <class CommandT>
     EditorOperationResult execute(CommandT command) {
         return executeOwned(std::make_unique<CommandT>(std::move(command)));
@@ -64,6 +64,8 @@ public:
     EditorOperationResult apply(const SetViewportZoomIntent& intent);
     EditorOperationResult apply(const PanViewportIntent& intent);
     EditorOperationResult apply(const SetHierarchyFilterIntent& intent);
+    EditorOperationResult apply(const SetActiveToolIntent& intent);
+    EditorOperationResult apply(const ToggleConsoleIntent& intent);
     EditorOperationResult apply(const ResizePanelIntent& intent);
 
     // ---- console -------------------------------------------------------------
@@ -82,9 +84,8 @@ private:
     void appendConsole(ConsoleMessage::Level level, std::string text);
 
     ProjectDocument                                  document_;
-    SelectionState                                   selection_;
+    EditorState                                      state_;
     EditorUiState                                    uiState_;
-    std::unordered_map<SceneId, EditorSceneViewState> sceneViews_;
     EditorSceneViewState                             defaultSceneView_{};
     CommandStack                                     history_;
     std::vector<ConsoleMessage>                      console_;

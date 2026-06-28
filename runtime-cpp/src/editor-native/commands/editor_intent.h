@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/types.h"
+#include "editor-native/model/editor_state.h"
 
 #include <string>
 
@@ -33,6 +34,12 @@ struct PanViewportIntent {
 struct SetHierarchyFilterIntent {
     std::string filter;
 };
+
+struct SetActiveToolIntent {
+    EditorTool tool = EditorTool::Select;
+};
+
+struct ToggleConsoleIntent {};
 
 struct ResizePanelIntent {
     enum class Panel { Left, Right, Console };

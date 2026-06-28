@@ -70,9 +70,9 @@ if(ARTCADE_BUILD_NATIVE_EDITOR)
     endif()
 
     # -- RmlUi (pinned). No samples, static, FreeType font engine.
-    # No samples → RmlUi builds only RmlCore + RmlDebugger; no backend library is
-    # produced (we supply our own RenderInterface over rlgl), so RMLUI_BACKEND is
-    # left at its default and never linked.
+    # No samples → RmlUi builds only RmlCore + RmlDebugger. The native editor
+    # compiles RmlUi's official GL3 renderer directly and uses raylib's glad
+    # loader through RMLUI_GL3_CUSTOM_LOADER.
     set(BUILD_SHARED_LIBS   OFF CACHE BOOL "" FORCE)
     set(RMLUI_SAMPLES       OFF CACHE BOOL "" FORCE)
     set(RMLUI_BACKEND       "auto" CACHE STRING "" FORCE)  # validated only; not built (samples off)

@@ -112,6 +112,38 @@ uses raylib's `external/glad.h` as the GL loader through
 (raylib's glad)** while delegating glyph atlas sampling, shader setup, clipping,
 and blend state to the backend RmlUi ships and tests.
 
+### Graphics ownership boundary
+
+Final decision: **ArtCade customizes the UI and the application integration, not
+RmlUi's internal graphics pipeline.** The earlier custom `rlgl` renderer
+duplicated high-risk backend responsibilities without adding ArtCade-specific
+value. A wrong texture binding, shader state, atlas upload, clip mask, or blend
+mode is enough for RmlUi text to turn into solid glyph blocks while plain UI
+quads still render.
+
+ArtCade owns:
+
+- RmlUi context lifetime.
+- Frame order.
+- Resize and DPI propagation.
+- Input routing.
+- Resource paths.
+- Initialization and shutdown.
+
+`RenderInterface_GL3` owns:
+
+- Font texture upload and sampling.
+- RmlUi shader setup.
+- Texture handles.
+- Compiled geometry.
+- Blend state.
+- Scissor and clip masks.
+- OpenGL state transitions required by RmlUi.
+- Texture and geometry release.
+
+Do not progressively copy parts of the GL3 backend back into a custom `rlgl`
+renderer. That would recreate the same failure surface this fix removed.
+
 ### Raylib / OpenGL integration
 
 raylib (5.0, desktop GL 3.3) owns the window and the frame. Each frame:
@@ -122,6 +154,31 @@ viewport rect (scissored) -> `RmlHost::render()` calls
 RmlUi element, so the pre-drawn scene shows through the "hole" while panels
 paint opaquely on top. No nested `BeginDrawing`, no render-texture round trip
 (Option 3 not needed).
+
+Recommended frame order:
+
+```cpp
+pollInput();
+updateWindowMetrics();
+routeInputToRml();
+
+editorCoordinator.applyPendingOperations();
+editorUi.applyInvalidations();
+
+rmlContext->Update();
+
+BeginDrawing();
+
+renderSceneViewport();
+
+// Explicit graphics boundary: raylib viewport first, RmlUi GL3 second.
+renderRmlUi();
+
+EndDrawing();
+```
+
+The important invariant is: raylib viewport -> explicit graphics boundary ->
+RmlUi GL3, with no second window, no second GL context, and no second main loop.
 
 ### Input routing
 
@@ -228,6 +285,26 @@ The previous glyph-block issue is fixed in the smoke capture: menu, toolbar,
 scene tabs, hierarchy, inspector, and console text render as readable Inter
 glyphs. Remaining validation before productization: 100/125/150/200% DPI,
 resize stress, cross-monitor DPI movement, and optional Unicode fallback.
+
+### Font regression checklist
+
+- [x] Brand readable.
+- [x] Menu readable.
+- [x] Scene tabs readable.
+- [x] Toolbar readable.
+- [x] Hierarchy readable.
+- [x] Inspector readable.
+- [x] Console readable.
+- [x] Text input readable in the current smoke capture.
+- [x] Inter Regular loaded.
+- [x] Inter Medium loaded.
+- [x] Inter SemiBold loaded.
+- [x] Inter Bold loaded.
+- [ ] Resize stress without corrupted glyphs.
+- [ ] DPI 100%, 125%, 150%, and 200%.
+- [ ] Viewport remains correct after UI rendering.
+- [ ] UI remains correct after viewport rendering.
+- [ ] No OpenGL debug errors.
 
 ## Debt introduced
 

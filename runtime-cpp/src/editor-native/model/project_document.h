@@ -7,6 +7,11 @@
 
 namespace ArtCade::EditorNative {
 
+class CreateSceneCommand;
+class RenameEntityCommand;
+class SetEntityPositionCommand;
+class SetSceneBackgroundCommand;
+
 // =============================================================================
 // ProjectDocument — the single authoring authority of the native editor.
 //
@@ -16,11 +21,10 @@ namespace ArtCade::EditorNative {
 //
 // Three structural verbs map to the runtime projection (prompt §7):
 //   replace()        — Replace: open / recovery / import / full swap
-//   setActiveScene() — Select : editorial focus, NOT an authoring mutation
-//   setInstance*()   — Patch  : local mutation of one instance
+//   setInstance*()   — Patch  : local mutation of one instance in an explicit scene
 //
 // `replaceCount()` and `revision()` are observable spies so tests can prove a
-// selection or scene change performs neither a Replace nor a serialization.
+// selection or editor scene change performs neither a Replace nor a serialization.
 // =============================================================================
 class ProjectDocument {
 public:
@@ -29,11 +33,10 @@ public:
 
     // ---- queries (read-only) -------------------------------------------------
     const ProjectDoc&        data() const { return doc_; }
-    const SceneId&           activeSceneId() const { return activeSceneId_; }
-    const SceneDef*          activeScene() const;
+    const SceneId&           startSceneId() const { return doc_.activeSceneId; }
     const SceneDef*          findScene(const SceneId& id) const;
     bool                     hasScene(const SceneId& id) const;
-    const SceneInstanceDef*  findInstanceInActiveScene(EntityId id) const;
+    const SceneInstanceDef*  findInstanceInScene(const SceneId& sceneId, EntityId id) const;
 
     bool      isDirty()      const { return dirty_; }
     uint64_t  revision()     const { return revision_; }
@@ -43,25 +46,24 @@ public:
     /** Full document swap. The only place replaceCount is bumped. */
     void replace(ProjectDoc doc);
 
-    // ---- Select (editorial focus; no authoring mutation) --------------------
-    /** Switch the edited scene. Returns false for an unknown id. Never Replaces,
-     *  never serializes, never marks the document dirty. */
-    bool setActiveScene(const SceneId& id);
+private:
+    friend class CreateSceneCommand;
+    friend class RenameEntityCommand;
+    friend class SetEntityPositionCommand;
+    friend class SetSceneBackgroundCommand;
 
     // ---- Patch (authoring mutations; called by commands) --------------------
-    bool setInstancePosition(EntityId id, Vec2 position);
-    bool setInstanceName(EntityId id, std::string name);
-    bool setActiveSceneBackground(Vec4 color);
+    bool setInstancePosition(const SceneId& sceneId, EntityId id, Vec2 position);
+    bool setInstanceName(const SceneId& sceneId, EntityId id, std::string name);
+    bool setSceneBackground(const SceneId& sceneId, Vec4 color);
     bool createScene(const SceneId& id, const std::string& name);
     bool deleteScene(const SceneId& id);
 
-private:
-    SceneDef*         activeSceneMutable();
-    SceneInstanceDef* mutableInstanceInActiveScene(EntityId id);
+    SceneDef*         mutableScene(const SceneId& id);
+    SceneInstanceDef* mutableInstanceInScene(const SceneId& sceneId, EntityId id);
     void              markDirty();
 
     ProjectDoc doc_{};
-    SceneId    activeSceneId_{};
     bool       dirty_        = false;
     uint64_t   revision_     = 0;
     uint32_t   replaceCount_ = 0;
