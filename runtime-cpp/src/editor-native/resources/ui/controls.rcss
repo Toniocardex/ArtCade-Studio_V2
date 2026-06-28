@@ -16,6 +16,7 @@
 }
 .menu-item {
     display: inline-block;
+    position: relative;
     height: 22px;
     line-height: 22px;
     padding: 0 10px;
@@ -27,6 +28,34 @@
     transition: background-color 0.1s, color 0.1s;
 }
 .menu-item:hover { background-color: #222226; color: #d4d4d8; }
+
+/* -- File menu dropdown (open state is local visual state, hover-driven) ---- */
+.menu-dropdown {
+    display: none;
+    position: absolute;
+    top: 25px;
+    left: 0;
+    z-index: 100;
+    min-width: 168px;
+    padding: 4px;
+    background-color: #1c1c1f;
+    border: 1px #323236;
+    border-radius: 6px;
+}
+.menu-item:hover .menu-dropdown { display: block; }
+.menu-entry {
+    display: block;
+    height: 28px;
+    line-height: 28px;
+    padding: 0 10px;
+    border-radius: 4px;
+    color: #a1a1aa;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: background-color 0.1s, color 0.1s;
+}
+.menu-entry:hover { background-color: #222226; color: #d4d4d8; }
 
 /* -- Toolbar buttons — flat ------------------------------------------------ */
 .tool-btn {
