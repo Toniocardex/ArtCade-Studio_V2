@@ -243,6 +243,10 @@ bool EditorCoordinator::translateRuntimeEntity(EntityId id, Vec2 delta) {
     return playSession_->translateEntity(id, delta);
 }
 
+void EditorCoordinator::advanceRuntime(float dt) {
+    if (playSession_) playSession_->advance(dt);
+}
+
 // ----------------------------------------------------------------------------
 // Intent path — workspace state only; never the ProjectDocument, never undo.
 // ----------------------------------------------------------------------------

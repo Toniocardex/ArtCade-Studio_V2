@@ -138,6 +138,7 @@ paletto o sblocca la capability in corso.
 | Project file I/O | React/Tauri file path | `readProjectTextFile` + `loadProjectFromText` + atomic save, wired to GUI Open/Save/Save As (native pickers; app clears texture cache on replace) | Done | No |
 | Runtime viewport | WASM/runtime preview | `SceneFrameSnapshot` + derived texture cache | In progress | No |
 | Viewport pick + drag | React canvas pointer handlers | `pickEntityAt` + `SelectEntityIntent`; drag preview local, one `SetEntityPositionCommand` on release | Done | No |
+| Authored runtime motion | Logic Board / Lua runtime | `EntityDef.linearMover` -> `RuntimeEntity.velocity` -> `PlaySession::advance` via `advanceRuntime` (demo-authored; GUI edit + persist pending) | In progress | No |
 | Play materialization | WASM bridge / preview path | `PlaySession` from `ProjectDocument` once at Start Play | In progress | No |
 | Sprite Renderer component | React Inspector | `sprite_commands` + `inspector_actions` (instance-scoped) | Done | No |
 | BoxCollider2D component | React Inspector / physics form | `box_collider_commands` on `EntityDef.boxCollider2D` | Done | No |
@@ -316,29 +317,37 @@ The toolbar should label the runtime target, for example `PLAYING - Scene A`.
 That label is derived from `PlaySession::scene()` and exists only to avoid UX
 ambiguity when the workspace active scene changes during Play.
 
-The first runtime mutation is intentionally minimal and flows through one narrow
-coordinator entry point, not a mutable session handle:
+Runtime mutations flow through narrow coordinator entry points, never a mutable
+session handle. Two exist:
 
 ```text
-Raylib input
--> application computes Vec2 delta
--> EditorCoordinator::translateRuntimeEntity(entityId, delta)
--> PlaySession::translateEntity(entityId, delta)
+EditorCoordinator::translateRuntimeEntity(id, delta)   // explicit single move
+EditorCoordinator::advanceRuntime(dt)                  // authored-motion tick
+-> PlaySession::translateEntity / PlaySession::advance
 -> RuntimeEntity.transform.position
 -> Play SceneFrameSnapshot
 ```
 
-It is not an `EditorCommand` and it does not touch `ProjectDocument`, undo,
-revision, dirty state or JSON. The coordinator exposes the session read-only
+Neither is an `EditorCommand`; neither touches `ProjectDocument`, undo, revision,
+dirty state or JSON. The coordinator exposes the session read-only
 (`const PlaySession*`) and keeps the mutable surface private, so panels, toolbar
 and shortcuts cannot open parallel mutation paths. `Stop` destroys the session,
 so the next Play starts again from the authoring document.
 
-The WASD/arrow mapping that drives the first runtime entity (`routePlaySmokeInput`
-in `editor_app`) is a temporary smoke harness to verify the slice visually, not
-engine behaviour. Real runtime motion will come from authoring (a Logic
-Board/Lua action on the transform); the harness is to be replaced or removed
-once verified, so no project silently gains an undefined movement rule.
+The first *authored* runtime behaviour is linear motion, driven by data rather
+than a hardcoded loop rule (the earlier WASD smoke harness is removed):
+
+```text
+EntityDef.linearMover (canonical component, object type)
+-> materialize: RuntimeEntity.velocity = normalize(direction) * max(0, speed)
+-> advanceRuntime(dt): position += velocity * dt   (each Play frame)
+-> Play SceneFrameSnapshot
+```
+
+The runtime integrates whatever the authoring document declares; `editor_app`
+holds no per-entity movement rule. Editing the mover from the GUI and persisting
+it are deliberate follow-ups — the component is currently authored in the demo
+project, so there is no save/load data-loss path yet.
 
 ## RmlUi input commit baseline
 

@@ -20,6 +20,7 @@ struct RuntimeEntity {
     EntityId id = INVALID_ENTITY;
     std::string name;
     Transform transform;
+    Vec2 velocity{};   // world units/second, resolved from authoring at materialize
     Vec3 fillColor{0.47f, 0.49f, 0.52f};
     std::optional<RuntimeSpriteComponent> sprite;
 };
@@ -62,6 +63,10 @@ public:
     RuntimeEntity* findEntity(EntityId id);
     const RuntimeEntity* findEntity(EntityId id) const;
     bool translateEntity(EntityId id, Vec2 delta);
+
+    // Runtime simulation step: integrates each entity's authored velocity into
+    // its transform. Pure runtime mutation — never touches ProjectDocument.
+    void advance(float dt);
 
 private:
     static std::optional<PlaySession> materialize(const ProjectDocument& document,

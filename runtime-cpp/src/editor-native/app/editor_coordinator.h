@@ -88,6 +88,10 @@ public:
     // is rejected by the session (unknown entity, non-finite delta).
     bool translateRuntimeEntity(EntityId id, Vec2 delta);
 
+    // Runtime simulation step for the active Play session (authored motion).
+    // No-op when not playing; never an EditorCommand, never touches the document.
+    void advanceRuntime(float dt);
+
     // ---- intent path (workspace/editor state) -------------------------------
     EditorOperationResult apply(const SelectEntityIntent& intent);
     EditorOperationResult apply(const SelectSceneIntent& intent);

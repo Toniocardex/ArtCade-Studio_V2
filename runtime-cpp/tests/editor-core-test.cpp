@@ -125,6 +125,19 @@ static ProjectDoc makeInvalidStartDoc() {
     return doc;
 }
 
+// makeInheritedDoc plus an authored LinearMover on the "Hero" object type, so the
+// kHero instance drifts during Play. Direction is deliberately non-unit (3,0) to
+// exercise normalization.
+static ProjectDoc makeMoverDoc() {
+    ProjectDoc doc = makeInheritedDoc();
+    LinearMoverComponent lm;
+    lm.directionX = 3.f;
+    lm.directionY = 0.f;
+    lm.speed = 100.f;
+    doc.objectTypes.at("Hero").linearMover = lm;
+    return doc;
+}
+
 static ProjectDoc makeEmptyDoc() {
     ProjectDoc doc;
     doc.projectName = "empty";
@@ -1438,6 +1451,59 @@ int main() {
         CHECK(c.document().isDirty() == dirtyBefore);
         CHECK(c.undoSize() == undoBefore);
         CHECK(c.document().findInstanceInScene(kSceneA, kHero)->transform.position.x == 10.f);
+    }
+
+    // == Authored runtime motion (LinearMover) ================================
+
+    // -- materialize resolves authored direction*speed (normalized) -----------
+    {
+        EditorCoordinator c{makeMoverDoc()};
+        CHECK(c.playProject().ok);
+        c.consumeInvalidations();                 // Start Play Toolbar|Viewport|Console
+        const RuntimeEntity* hero = c.playSession()->findEntity(kHero);
+        CHECK(hero != nullptr);
+        CHECK(hero->velocity.x == 100.f);         // (3,0) normalized -> (1,0) * 100
+        CHECK(hero->velocity.y == 0.f);
+        CHECK(hero->transform.position.x == 10.f);
+
+        c.advanceRuntime(0.5f);
+        const RuntimeEntity* moved = c.playSession()->findEntity(kHero);
+        CHECK(moved->transform.position.x == 60.f);   // 10 + 100 * 0.5
+        CHECK(moved->transform.position.y == 20.f);
+        // Runtime tick, not authoring: document untouched, no invalidation.
+        CHECK(c.document().findInstanceInScene(kSceneA, kHero)->transform.position.x == 10.f);
+        CHECK(c.consumeInvalidations() == EditorInvalidation::None);
+    }
+
+    // -- an entity without a mover has zero velocity and does not drift --------
+    {
+        EditorCoordinator c{makeInheritedDoc()};
+        CHECK(c.playProject().ok);
+        const RuntimeEntity* hero = c.playSession()->findEntity(kHero);
+        CHECK(hero->velocity.x == 0.f);
+        CHECK(hero->velocity.y == 0.f);
+        c.advanceRuntime(1.0f);
+        CHECK(c.playSession()->findEntity(kHero)->transform.position.x == 10.f);
+    }
+
+    // -- a paused mover resolves to zero velocity -----------------------------
+    {
+        ProjectDoc doc = makeMoverDoc();
+        doc.objectTypes.at("Hero").linearMover->_paused = true;
+        EditorCoordinator c{doc};
+        CHECK(c.playProject().ok);
+        CHECK(c.playSession()->findEntity(kHero)->velocity.x == 0.f);
+    }
+
+    // -- advanceRuntime is inert when not playing -----------------------------
+    {
+        EditorCoordinator c{makeMoverDoc()};
+        const uint64_t revisionBefore = c.document().revision();
+        c.consumeInvalidations();
+        CHECK(!c.isPlaying());
+        c.advanceRuntime(1.0f);
+        CHECK(c.document().revision() == revisionBefore);
+        CHECK(c.consumeInvalidations() == EditorInvalidation::None);
     }
 
     // == Viewport camera transform + picking ==================================

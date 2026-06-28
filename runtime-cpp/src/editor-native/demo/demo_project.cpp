@@ -49,6 +49,15 @@ ProjectDoc makeDemoProject() {
     doc.objectTypes.at("Coin").sprite.spriteAssetId = "img-coin";
     doc.objectTypes.at("Enemy").sprite.spriteAssetId = "img-enemy";
 
+    // Authored runtime behaviour: the Patroller drifts left during Play. This is
+    // data, not code in the loop — the runtime integrates whatever the authoring
+    // document declares (canonical LinearMoverComponent).
+    LinearMoverComponent patrol;
+    patrol.directionX = -1.f;
+    patrol.directionY = 0.f;
+    patrol.speed = 90.f;
+    doc.objectTypes.at("Enemy").linearMover = patrol;
+
     SceneDef a;
     a.id = "scene-a";
     a.name = "Level 1";
