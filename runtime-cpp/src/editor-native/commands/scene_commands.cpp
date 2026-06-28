@@ -37,6 +37,41 @@ EditorOperationResult CreateSceneCommand::undo(ProjectDocument& document) {
 }
 
 // ----------------------------------------------------------------------------
+// DeleteSceneCommand
+// ----------------------------------------------------------------------------
+DeleteSceneCommand::DeleteSceneCommand(SceneId id)
+    : id_(std::move(id)) {}
+
+EditorOperationResult DeleteSceneCommand::apply(ProjectDocument& document) {
+    const SceneDef* scene = document.findScene(id_);
+    if (!scene) {
+        return EditorOperationResult::failure("No scene to delete");
+    }
+    if (!captured_) {
+        removed_       = *scene;                 // snapshot instances + settings
+        previousStart_ = document.startSceneId();
+        captured_      = true;
+    }
+    if (!document.deleteScene(id_)) {
+        return EditorOperationResult::failure("Failed to delete scene");
+    }
+    return EditorOperationResult::success(EditorInvalidation::Hierarchy
+                                          | EditorInvalidation::Viewport
+                                          | EditorInvalidation::Project,
+                                          DomainChange::sceneRemoved(id_));
+}
+
+EditorOperationResult DeleteSceneCommand::undo(ProjectDocument& document) {
+    if (!captured_ || !document.restoreScene(removed_, previousStart_)) {
+        return EditorOperationResult::failure("Cannot undo scene deletion");
+    }
+    return EditorOperationResult::success(EditorInvalidation::Hierarchy
+                                          | EditorInvalidation::Viewport
+                                          | EditorInvalidation::Project,
+                                          DomainChange::sceneAdded(id_));
+}
+
+// ----------------------------------------------------------------------------
 // SetSceneBackgroundCommand
 // ----------------------------------------------------------------------------
 SetSceneBackgroundCommand::SetSceneBackgroundCommand(SceneId sceneId, Vec4 color)

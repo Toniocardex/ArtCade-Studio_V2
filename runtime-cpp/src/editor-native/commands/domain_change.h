@@ -54,6 +54,20 @@ struct DomainChange {
         change.entityId = entity;
         return change;
     }
+    static DomainChange entityAdded(SceneId scene, EntityId entity) {
+        DomainChange change;
+        change.kind = DomainChangeKind::EntityAdded;
+        change.sceneId = std::move(scene);
+        change.entityId = entity;
+        return change;
+    }
+    static DomainChange entityRemoved(SceneId scene, EntityId entity) {
+        DomainChange change;
+        change.kind = DomainChangeKind::EntityRemoved;
+        change.sceneId = std::move(scene);
+        change.entityId = entity;
+        return change;
+    }
 };
 
 } // namespace ArtCade::EditorNative

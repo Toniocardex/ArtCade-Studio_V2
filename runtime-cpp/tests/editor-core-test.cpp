@@ -688,6 +688,111 @@ int main() {
         CHECK(c.document().findScene(kSceneA)->backgroundColor.r == 0.1f);
     }
 
+    // -- CreateEntityCommand: add, invalidation, DomainChange, undo -------------
+    {
+        EditorCoordinator c{makeDoc()};
+        const auto r = c.execute(
+            CreateEntityCommand{kSceneA, 100, "Enemy", "Enemy 1", {5.f, 6.f}});
+        CHECK(r.ok);
+        CHECK(r.change.kind == DomainChangeKind::EntityAdded);
+        CHECK(r.change.entityId == 100);
+        CHECK(c.consumeInvalidations()
+              == (EditorInvalidation::Hierarchy | EditorInvalidation::Viewport));
+        const SceneInstanceDef* added = c.document().findInstanceInScene(kSceneA, 100);
+        CHECK(added != nullptr);
+        CHECK(added->objectTypeId == "Enemy");
+        CHECK(added->transform.position.x == 5.f);
+        // Undo removes exactly the placed instance.
+        CHECK(c.canUndo());
+        c.undo();
+        CHECK(c.document().findInstanceInScene(kSceneA, 100) == nullptr);
+    }
+
+    // -- CreateEntityCommand: invalid input does not mutate or invalidate ------
+    {
+        EditorCoordinator c{makeDoc()};
+        c.consumeInvalidations();
+        const uint64_t revBefore = c.document().revision();
+        // Each failed command returns no invalidation of its own (§24.3); the
+        // coordinator only raises a Console error, never a structural flag.
+        CHECK(c.execute(CreateEntityCommand{kSceneA, kHero, "Dup", "Dup", {}}).invalidation
+              == EditorInvalidation::None);                                       // id clash
+        CHECK(!c.execute(CreateEntityCommand{kSceneA, 0, "Enemy", "E", {}}).ok);  // zero id
+        CHECK(!c.execute(CreateEntityCommand{kSceneA, 5, "", "E", {}}).ok);       // empty type
+        CHECK(!c.execute(CreateEntityCommand{"missing", 5, "Enemy", "E", {}}).ok);// no scene
+        const EditorInvalidation inv = c.consumeInvalidations();
+        CHECK(!has(inv, EditorInvalidation::Hierarchy));
+        CHECK(!has(inv, EditorInvalidation::Viewport));
+        CHECK(c.document().revision() == revBefore);                  // state untouched
+        CHECK(!c.canUndo());
+        CHECK(c.document().findScene(kSceneA)->instances.size() == 1); // only kHero
+    }
+
+    // -- DeleteEntityCommand: remove, then undo restores order -----------------
+    {
+        EditorCoordinator c{makeDoc()};
+        // Two more instances so order restoration is observable.
+        CHECK(c.execute(CreateEntityCommand{kSceneA, 101, "Enemy", "E1", {}}).ok);
+        CHECK(c.execute(CreateEntityCommand{kSceneA, 102, "Enemy", "E2", {}}).ok);
+        // instances: [kHero, 101, 102]; delete the middle one.
+        const auto r = c.execute(DeleteEntityCommand{kSceneA, 101});
+        CHECK(r.ok);
+        CHECK(r.change.kind == DomainChangeKind::EntityRemoved);
+        CHECK(c.document().findInstanceInScene(kSceneA, 101) == nullptr);
+        CHECK(c.document().findScene(kSceneA)->instances.size() == 2);
+        // Undo restores it at its original index (1), not appended at the end.
+        c.undo();
+        const auto& instances = c.document().findScene(kSceneA)->instances;
+        CHECK(instances.size() == 3);
+        CHECK(instances[1].id == 101);
+    }
+
+    // -- DeleteEntityCommand: missing instance fails without side effects ------
+    {
+        EditorCoordinator c{makeDoc()};
+        c.consumeInvalidations();
+        const uint64_t revBefore = c.document().revision();
+        const auto r = c.execute(DeleteEntityCommand{kSceneA, 9999});
+        CHECK(!r.ok);
+        CHECK(r.invalidation == EditorInvalidation::None);
+        const EditorInvalidation inv = c.consumeInvalidations();
+        CHECK(!has(inv, EditorInvalidation::Hierarchy));
+        CHECK(!has(inv, EditorInvalidation::Viewport));
+        CHECK(c.document().revision() == revBefore);
+        CHECK(!c.canUndo());
+    }
+
+    // -- DeleteSceneCommand: removes scene + instances, undo is exact ----------
+    {
+        EditorCoordinator c{makeDoc()};
+        // kSceneA is the start scene and holds kHero.
+        CHECK(c.document().startSceneId() == kSceneA);
+        const auto r = c.execute(DeleteSceneCommand{kSceneA});
+        CHECK(r.ok);
+        CHECK(r.change.kind == DomainChangeKind::SceneRemoved);
+        CHECK(c.consumeInvalidations() == (EditorInvalidation::Hierarchy
+                                           | EditorInvalidation::Viewport
+                                           | EditorInvalidation::Project));
+        CHECK(!c.document().hasScene(kSceneA));
+        // Deleting the start scene reassigns it to a surviving scene.
+        CHECK(c.document().startSceneId() == kSceneB);
+        // Undo restores the scene, its instance, and the original start scene.
+        c.undo();
+        CHECK(c.document().hasScene(kSceneA));
+        CHECK(c.document().findInstanceInScene(kSceneA, kHero) != nullptr);
+        CHECK(c.document().startSceneId() == kSceneA);
+    }
+
+    // -- DeleteSceneCommand: structural commands never trigger a Replace -------
+    {
+        EditorCoordinator c{makeDoc()};
+        const uint32_t replacesBefore = c.document().replaceCount();
+        CHECK(c.execute(CreateEntityCommand{kSceneA, 200, "Enemy", "E", {}}).ok);
+        CHECK(c.execute(DeleteEntityCommand{kSceneA, 200}).ok);
+        CHECK(c.execute(DeleteSceneCommand{kSceneB}).ok);
+        CHECK(c.document().replaceCount() == replacesBefore); // Patch, not Replace
+    }
+
     std::cout << "editor-core-test: " << g_passed << " passed, "
               << g_failed << " failed\n";
     return g_failed == 0 ? 0 : 1;

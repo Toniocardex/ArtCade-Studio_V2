@@ -1,5 +1,6 @@
 #include "editor-native/model/project_document.h"
 
+#include <algorithm>
 #include <utility>
 
 namespace ArtCade::EditorNative {
@@ -105,6 +106,53 @@ bool ProjectDocument::deleteScene(const SceneId& id) {
     }
     markDirty();
     return true;
+}
+
+bool ProjectDocument::restoreScene(SceneDef scene, const SceneId& startSceneId) {
+    if (scene.id.empty() || hasScene(scene.id)) return false;
+    const SceneId id = scene.id;
+    doc_.scenes.emplace(id, std::move(scene));
+    doc_.activeSceneId = startSceneId;
+    markDirty();
+    return true;
+}
+
+bool ProjectDocument::createInstance(const SceneId& sceneId, SceneInstanceDef instance) {
+    SceneDef* scene = mutableScene(sceneId);
+    if (!scene) return false;
+    for (const auto& existing : scene->instances) {
+        if (existing.id == instance.id) return false; // id unique within scene
+    }
+    scene->instances.push_back(std::move(instance));
+    markDirty();
+    return true;
+}
+
+bool ProjectDocument::insertInstance(const SceneId& sceneId, std::size_t index,
+                                     SceneInstanceDef instance) {
+    SceneDef* scene = mutableScene(sceneId);
+    if (!scene) return false;
+    for (const auto& existing : scene->instances) {
+        if (existing.id == instance.id) return false;
+    }
+    const std::size_t clamped = std::min(index, scene->instances.size());
+    scene->instances.insert(scene->instances.begin() + static_cast<std::ptrdiff_t>(clamped),
+                            std::move(instance));
+    markDirty();
+    return true;
+}
+
+bool ProjectDocument::deleteInstance(const SceneId& sceneId, EntityId id) {
+    SceneDef* scene = mutableScene(sceneId);
+    if (!scene) return false;
+    for (auto it = scene->instances.begin(); it != scene->instances.end(); ++it) {
+        if (it->id == id) {
+            scene->instances.erase(it);
+            markDirty();
+            return true;
+        }
+    }
+    return false;
 }
 
 } // namespace ArtCade::EditorNative

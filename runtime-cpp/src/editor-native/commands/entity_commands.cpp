@@ -11,7 +11,93 @@ constexpr EditorInvalidation kPositionInvalidation =
     EditorInvalidation::Inspector | EditorInvalidation::Viewport;
 constexpr EditorInvalidation kRenameInvalidation =
     EditorInvalidation::Hierarchy | EditorInvalidation::Inspector;
+constexpr EditorInvalidation kStructureInvalidation =
+    EditorInvalidation::Hierarchy | EditorInvalidation::Viewport;
 } // namespace
+
+// ----------------------------------------------------------------------------
+// CreateEntityCommand
+// ----------------------------------------------------------------------------
+CreateEntityCommand::CreateEntityCommand(SceneId sceneId, EntityId id,
+                                         std::string objectTypeId,
+                                         std::string instanceName, Vec2 position)
+    : sceneId_(std::move(sceneId)), id_(id),
+      objectTypeId_(std::move(objectTypeId)),
+      instanceName_(std::move(instanceName)), position_(position) {}
+
+EditorOperationResult CreateEntityCommand::apply(ProjectDocument& document) {
+    if (id_ == 0) {
+        return EditorOperationResult::failure("Entity id cannot be zero");
+    }
+    if (objectTypeId_.empty()) {
+        return EditorOperationResult::failure("Object type id cannot be empty");
+    }
+    if (!document.findScene(sceneId_)) {
+        return EditorOperationResult::failure("No target scene");
+    }
+    if (document.findInstanceInScene(sceneId_, id_)) {
+        return EditorOperationResult::failure("An instance with that id already exists");
+    }
+    SceneInstanceDef instance;
+    instance.id                 = id_;
+    instance.objectTypeId       = objectTypeId_;
+    instance.instanceName       = instanceName_;
+    instance.transform.position = position_;
+    if (!document.createInstance(sceneId_, std::move(instance))) {
+        return EditorOperationResult::failure("Failed to create instance");
+    }
+    return EditorOperationResult::success(kStructureInvalidation,
+                                          DomainChange::entityAdded(sceneId_, id_));
+}
+
+EditorOperationResult CreateEntityCommand::undo(ProjectDocument& document) {
+    if (!document.deleteInstance(sceneId_, id_)) {
+        return EditorOperationResult::failure("Cannot undo instance creation");
+    }
+    return EditorOperationResult::success(kStructureInvalidation,
+                                          DomainChange::entityRemoved(sceneId_, id_));
+}
+
+// ----------------------------------------------------------------------------
+// DeleteEntityCommand
+// ----------------------------------------------------------------------------
+DeleteEntityCommand::DeleteEntityCommand(SceneId sceneId, EntityId id)
+    : sceneId_(std::move(sceneId)), id_(id) {}
+
+EditorOperationResult DeleteEntityCommand::apply(ProjectDocument& document) {
+    const SceneDef* scene = document.findScene(sceneId_);
+    if (!scene) {
+        return EditorOperationResult::failure("No target scene");
+    }
+    if (!captured_) {
+        bool found = false;
+        for (std::size_t i = 0; i < scene->instances.size(); ++i) {
+            if (scene->instances[i].id == id_) {
+                removed_  = scene->instances[i];
+                index_    = i;
+                found     = true;
+                break;
+            }
+        }
+        if (!found) {
+            return EditorOperationResult::failure("No instance with that id in the target scene");
+        }
+        captured_ = true;
+    }
+    if (!document.deleteInstance(sceneId_, id_)) {
+        return EditorOperationResult::failure("Failed to delete instance");
+    }
+    return EditorOperationResult::success(kStructureInvalidation,
+                                          DomainChange::entityRemoved(sceneId_, id_));
+}
+
+EditorOperationResult DeleteEntityCommand::undo(ProjectDocument& document) {
+    if (!captured_ || !document.insertInstance(sceneId_, index_, removed_)) {
+        return EditorOperationResult::failure("Cannot undo instance deletion");
+    }
+    return EditorOperationResult::success(kStructureInvalidation,
+                                          DomainChange::entityAdded(sceneId_, id_));
+}
 
 // ----------------------------------------------------------------------------
 // SetEntityPositionCommand

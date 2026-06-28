@@ -2,12 +2,16 @@
 
 #include "core/types.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <string>
 
 namespace ArtCade::EditorNative {
 
+class CreateEntityCommand;
 class CreateSceneCommand;
+class DeleteEntityCommand;
+class DeleteSceneCommand;
 class EditorCoordinator;
 class RenameEntityCommand;
 class SetEntityPositionCommand;
@@ -49,7 +53,10 @@ public:
     void replace(ProjectDoc doc);
 
 private:
+    friend class CreateEntityCommand;
     friend class CreateSceneCommand;
+    friend class DeleteEntityCommand;
+    friend class DeleteSceneCommand;
     friend class EditorCoordinator;
     friend class RenameEntityCommand;
     friend class SetEntityPositionCommand;
@@ -61,6 +68,14 @@ private:
     bool setSceneBackground(const SceneId& sceneId, Vec4 color);
     bool createScene(const SceneId& id, const std::string& name);
     bool deleteScene(const SceneId& id);
+    // Restore a previously deleted scene with its instances and the start-scene
+    // id that was active before deletion — the exact inverse of deleteScene.
+    bool restoreScene(SceneDef scene, const SceneId& startSceneId);
+    // Instance structural verbs. createInstance appends; insertInstance places at
+    // a captured index so DeleteEntityCommand undo restores the original order.
+    bool createInstance(const SceneId& sceneId, SceneInstanceDef instance);
+    bool insertInstance(const SceneId& sceneId, std::size_t index, SceneInstanceDef instance);
+    bool deleteInstance(const SceneId& sceneId, EntityId id);
     void replaceClean(ProjectDocument replacement);
     void markSaved();
 
