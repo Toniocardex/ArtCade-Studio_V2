@@ -1,13 +1,11 @@
 #pragma once
 
 #include "editor-native/commands/editor_invalidation.h"
-#include "editor-native/model/play_session.h"
 #include "editor-native/ui/console_panel.h"
 #include "editor-native/ui/hierarchy_panel.h"
 #include "editor-native/ui/inspector_panel.h"
 
 #include <memory>
-#include <optional>
 #include <string>
 
 namespace Rml { class ElementDocument; class EventListener; }
@@ -35,7 +33,7 @@ public:
     void bind();           // attach the listener + do the initial full refresh
     void processFrame();   // consume invalidations and refresh affected panels
 
-    bool isPlaying() const { return playing_; }
+    bool isPlaying() const;
 
     // Called by the listener; routes one UI interaction to command/intent.
     void handleAction(const std::string& action, const std::string& arg,
@@ -55,8 +53,6 @@ private:
     InspectorPanel                      inspector_;
     ConsolePanel                        console_;
     std::unique_ptr<Rml::EventListener> listener_;
-    std::optional<PlaySession>          playSession_;
-    bool                                playing_ = false;
 };
 
 } // namespace ArtCade::EditorNative

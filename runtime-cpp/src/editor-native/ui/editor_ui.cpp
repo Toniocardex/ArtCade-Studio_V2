@@ -115,14 +115,28 @@ void EditorUi::applyInvalidations(EditorInvalidation flags) {
         refreshToolbar();
 }
 
+bool EditorUi::isPlaying() const { return coordinator_.isPlaying(); }
+
 void EditorUi::refreshToolbar() {
     if (!document_) return;
-    Rml::Element* status = document_->GetElementById("toolbar-status");
-    if (!status) return;
-    const SceneDef* scene = coordinator_.document().findScene(coordinator_.state().activeSceneId);
-    std::string text = scene ? scene->name : std::string("-");
-    text += playing_ ? "  -  PLAYING" : "  -  EDIT";
-    status->SetInnerRML(escapeRml(text));
+    const bool playing = coordinator_.isPlaying();
+
+    if (Rml::Element* status = document_->GetElementById("toolbar-status")) {
+        const SceneDef* scene =
+            coordinator_.document().findScene(coordinator_.state().activeSceneId);
+        std::string text = scene ? scene->name : std::string("-");
+        text += playing ? "  -  PLAYING" : "  -  EDIT";
+        status->SetInnerRML(escapeRml(text));
+    }
+
+    // Play affordances derive straight from the authorities — never stored.
+    const auto setEnabled = [&](const char* id, bool enabled) {
+        if (Rml::Element* el = document_->GetElementById(id))
+            el->SetClass("disabled", !enabled);
+    };
+    setEnabled("btn-play-project", !playing && coordinator_.canPlayProject());
+    setEnabled("btn-play-scene",   !playing && coordinator_.canPlayCurrentScene());
+    setEnabled("btn-stop",         playing);
 }
 
 void EditorUi::handleAction(const std::string& action, const std::string& arg,
@@ -158,20 +172,12 @@ void EditorUi::handleAction(const std::string& action, const std::string& arg,
         const float current = coordinator_.sceneView(active).zoom;
         const float factor = (action == "zoom-in") ? 1.2f : (1.0f / 1.2f);
         coordinator_.apply(SetViewportZoomIntent{active, current * factor});
-    } else if (action == "play") {
-        if (!playing_) {
-            playSession_ = PlaySession::startProject(coordinator_.document());
-            playing_ = true;
-            coordinator_.logInfo("Play started (document untouched)");
-            refreshToolbar();
-        }
+    } else if (action == "play-project") {
+        coordinator_.playProject();        // guarded; no-op without a valid start scene
+    } else if (action == "play-current-scene") {
+        coordinator_.playCurrentScene();   // guarded; no-op without an active scene
     } else if (action == "stop") {
-        if (playing_) {
-            playSession_.reset();
-            playing_ = false;
-            coordinator_.logInfo("Stopped - back to authoring document");
-            refreshToolbar();
-        }
+        coordinator_.stopPlaying();
     }
 }
 

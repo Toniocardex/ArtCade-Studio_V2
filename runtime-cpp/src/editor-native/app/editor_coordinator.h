@@ -7,9 +7,11 @@
 #include "editor-native/commands/editor_operation_result.h"
 #include "editor-native/model/editor_state.h"
 #include "editor-native/model/editor_ui_state.h"
+#include "editor-native/model/play_session.h"
 #include "editor-native/model/project_document.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -61,6 +63,23 @@ public:
     EditorOperationResult replaceProject(ProjectDocument replacement);
     EditorOperationResult markProjectSaved();
 
+    // ---- Play / Stop (runtime session; the document is never mutated) --------
+    // The two modes have distinct targets: Play Project uses the document's
+    // start scene, Play Current Scene uses the editor's active scene. Each is
+    // available only when its target identifies an existing scene; the guard
+    // lives here, not only in the toolbar, so a shortcut, menu or programmatic
+    // call cannot bypass it. A rejected Play mutates nothing and invalidates
+    // nothing (no session, no revision, no dirty, no invalidation).
+    bool isPlaying()            const { return playSession_.has_value(); }
+    bool canPlayProject()       const;
+    bool canPlayCurrentScene()  const;
+    const PlaySession* playSession() const {
+        return playSession_ ? &*playSession_ : nullptr;
+    }
+    EditorOperationResult playProject();
+    EditorOperationResult playCurrentScene();
+    EditorOperationResult stopPlaying();
+
     // ---- intent path (workspace/editor state) -------------------------------
     EditorOperationResult apply(const SelectEntityIntent& intent);
     EditorOperationResult apply(const SelectSceneIntent& intent);
@@ -101,6 +120,7 @@ private:
     EditorSceneViewState                             defaultSceneView_{};
     CommandStack                                     history_;
     std::vector<ConsoleMessage>                      console_;
+    std::optional<PlaySession>                       playSession_;
     EditorInvalidation                               pending_ = EditorInvalidation::None;
 };
 

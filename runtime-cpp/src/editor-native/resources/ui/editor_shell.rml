@@ -15,8 +15,9 @@
     </div>
 
     <div id="toolbar">
-        <button class="tool-btn" data-action="play">Play</button>
-        <button class="tool-btn" data-action="stop">Stop</button>
+        <button id="btn-play-project" class="tool-btn" data-action="play-project">Play Project</button>
+        <button id="btn-play-scene" class="tool-btn" data-action="play-current-scene">Play Scene</button>
+        <button id="btn-stop" class="tool-btn" data-action="stop">Stop</button>
         <span class="tool-sep"></span>
         <button class="tool-btn" data-action="undo">Undo</button>
         <span class="tool-sep"></span>

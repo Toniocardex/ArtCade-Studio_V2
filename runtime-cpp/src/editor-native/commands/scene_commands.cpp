@@ -12,6 +12,15 @@ namespace ArtCade::EditorNative {
 CreateSceneCommand::CreateSceneCommand(SceneId id, std::string name)
     : id_(std::move(id)), name_(std::move(name)) {}
 
+namespace {
+// Adding or removing a scene changes the scene list (Hierarchy), the project
+// (Project), what the viewport may show (Viewport) and — because it can change
+// the start scene or the set of valid Play targets — the toolbar (Toolbar).
+constexpr EditorInvalidation kSceneStructureInvalidation =
+    EditorInvalidation::Hierarchy | EditorInvalidation::Viewport
+    | EditorInvalidation::Project | EditorInvalidation::Toolbar;
+} // namespace
+
 EditorOperationResult CreateSceneCommand::apply(ProjectDocument& document) {
     if (id_.empty()) {
         return EditorOperationResult::failure("Scene id cannot be empty");
@@ -22,8 +31,7 @@ EditorOperationResult CreateSceneCommand::apply(ProjectDocument& document) {
     if (!document.createScene(id_, name_)) {
         return EditorOperationResult::failure("Failed to create scene");
     }
-    return EditorOperationResult::success(EditorInvalidation::Hierarchy
-                                          | EditorInvalidation::Project,
+    return EditorOperationResult::success(kSceneStructureInvalidation,
                                           DomainChange::sceneAdded(id_));
 }
 
@@ -31,8 +39,7 @@ EditorOperationResult CreateSceneCommand::undo(ProjectDocument& document) {
     if (!document.deleteScene(id_)) {
         return EditorOperationResult::failure("Cannot undo scene creation");
     }
-    return EditorOperationResult::success(EditorInvalidation::Hierarchy
-                                          | EditorInvalidation::Project,
+    return EditorOperationResult::success(kSceneStructureInvalidation,
                                           DomainChange::sceneRemoved(id_));
 }
 
@@ -55,9 +62,7 @@ EditorOperationResult DeleteSceneCommand::apply(ProjectDocument& document) {
     if (!document.deleteScene(id_)) {
         return EditorOperationResult::failure("Failed to delete scene");
     }
-    return EditorOperationResult::success(EditorInvalidation::Hierarchy
-                                          | EditorInvalidation::Viewport
-                                          | EditorInvalidation::Project,
+    return EditorOperationResult::success(kSceneStructureInvalidation,
                                           DomainChange::sceneRemoved(id_));
 }
 
@@ -65,9 +70,7 @@ EditorOperationResult DeleteSceneCommand::undo(ProjectDocument& document) {
     if (!captured_ || !document.restoreScene(removed_, previousStart_)) {
         return EditorOperationResult::failure("Cannot undo scene deletion");
     }
-    return EditorOperationResult::success(EditorInvalidation::Hierarchy
-                                          | EditorInvalidation::Viewport
-                                          | EditorInvalidation::Project,
+    return EditorOperationResult::success(kSceneStructureInvalidation,
                                           DomainChange::sceneAdded(id_));
 }
 

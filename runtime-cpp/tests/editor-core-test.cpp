@@ -771,10 +771,12 @@ int main() {
         const auto r = c.execute(DeleteSceneCommand{kSceneA});
         CHECK(r.ok);
         CHECK(r.change.kind == DomainChangeKind::SceneRemoved);
-        // The command declares its own structural flags …
+        // The command declares its own structural flags (incl. Toolbar: the set
+        // of valid Play targets can change) …
         CHECK(r.invalidation == (EditorInvalidation::Hierarchy
                                  | EditorInvalidation::Viewport
-                                 | EditorInvalidation::Project));
+                                 | EditorInvalidation::Project
+                                 | EditorInvalidation::Toolbar));
         // … and the coordinator augments them after reconciling the workspace
         // (the active scene changed, so Inspector and Toolbar refresh too).
         const EditorInvalidation consumed = c.consumeInvalidations();
@@ -1047,6 +1049,109 @@ int main() {
         CHECK(deleteSelectedEntity(c).ok);
         CHECK(deleteScene(c, kSceneB).ok);
         CHECK(c.document().replaceCount() == replacesBefore);   // Patch, never Replace
+    }
+
+    // == Play guards: an action without a valid target must be unavailable =====
+    // The guard lives in the coordinator (the point that creates the session),
+    // so a shortcut, menu or programmatic call cannot bypass a disabled button.
+
+    // -- (1)(2)(3)(4) Empty project: both modes unavailable and rejected -------
+    {
+        EditorCoordinator c{ProjectDoc{}};             // zero scenes
+        CHECK(c.document().data().scenes.empty());
+        CHECK(!c.canPlayProject());                    // (1)
+        CHECK(!c.canPlayCurrentScene());               // (2)
+        c.consumeInvalidations();
+        const auto r = c.playProject();
+        CHECK(!r.ok);                                  // (3) application-level rejection
+        CHECK(!c.isPlaying());                         // (4) no PlaySession created
+        CHECK(c.playSession() == nullptr);
+        CHECK(c.consumeInvalidations() == EditorInvalidation::None); // nothing invalidated
+    }
+
+    // -- (5) Creating the first scene invalidates the Toolbar ------------------
+    {
+        EditorCoordinator c{ProjectDoc{}};
+        c.consumeInvalidations();
+        CHECK(c.execute(CreateSceneCommand{"scene-1", "Scene 1"}).ok);
+        CHECK(has(c.consumeInvalidations(), EditorInvalidation::Toolbar));
+    }
+
+    // -- (6) Play Project enables when the start scene is valid ----------------
+    {
+        EditorCoordinator c{makeDoc()};                // startSceneId == kSceneA
+        CHECK(c.canPlayProject());
+        const auto r = c.playProject();
+        CHECK(r.ok);
+        CHECK(c.isPlaying());
+        CHECK(c.playSession() != nullptr);
+        CHECK(c.playSession()->sceneId() == kSceneA);  // Play Project target = start scene
+        // Play does not touch the authoring document.
+        CHECK(!c.document().isDirty());
+    }
+
+    // -- (7) Without an active scene, Play Current Scene stays disabled --------
+    {
+        EditorCoordinator c{ProjectDoc{}};
+        CHECK(c.state().activeSceneId.empty());
+        CHECK(!c.canPlayCurrentScene());
+        CHECK(!c.playCurrentScene().ok);
+        CHECK(!c.isPlaying());
+    }
+
+    // -- (8) Selecting a scene enables Play Current Scene ----------------------
+    {
+        EditorCoordinator c{makeDoc()};
+        CHECK(c.apply(SelectSceneIntent{kSceneB}).ok);
+        CHECK(c.canPlayCurrentScene());
+        const auto r = c.playCurrentScene();
+        CHECK(r.ok);
+        CHECK(c.playSession()->sceneId() == kSceneB);  // target = active scene
+    }
+
+    // -- (9) Deleting the last scene disables both modes in the same cycle -----
+    {
+        EditorCoordinator c{makeDoc()};
+        CHECK(c.execute(DeleteSceneCommand{kSceneA}).ok);
+        CHECK(c.execute(DeleteSceneCommand{kSceneB}).ok);
+        CHECK(c.document().data().scenes.empty());
+        CHECK(!c.canPlayProject());
+        CHECK(!c.canPlayCurrentScene());
+    }
+
+    // -- (10) A direct (shortcut/programmatic) Play cannot bypass the guard ----
+    {
+        EditorCoordinator c{ProjectDoc{}};
+        CHECK(!c.playProject().ok);        // no button involved — the app path itself rejects
+        CHECK(!c.playCurrentScene().ok);
+        CHECK(!c.isPlaying());
+    }
+
+    // -- (11) A dangling startSceneId prevents Play Project --------------------
+    {
+        EditorCoordinator c{makeInvalidStartDoc()};    // startSceneId references no scene
+        CHECK(!c.document().hasScene(c.document().startSceneId()));
+        CHECK(!c.canPlayProject());
+        CHECK(!c.playProject().ok);
+    }
+
+    // -- (12) A dangling activeSceneId prevents Play Current Scene -------------
+    {
+        EditorCoordinator c{makeInvalidStartDoc()};    // active scene also dangling
+        CHECK(!c.document().hasScene(c.state().activeSceneId));
+        CHECK(!c.canPlayCurrentScene());
+        CHECK(!c.playCurrentScene().ok);
+    }
+
+    // -- Play/Stop round-trip: Stop only while playing, document untouched -----
+    {
+        EditorCoordinator c{makeDoc()};
+        CHECK(!c.stopPlaying().ok);        // not playing yet
+        CHECK(c.playProject().ok);
+        CHECK(c.isPlaying());
+        CHECK(c.stopPlaying().ok);
+        CHECK(!c.isPlaying());
+        CHECK(!c.document().isDirty());    // never mutated by Play/Stop
     }
 
     std::cout << "editor-core-test: " << g_passed << " passed, "

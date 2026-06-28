@@ -85,8 +85,8 @@ il vecchio editor non e' rimosso.
 | Workspace reconciliation | React effects/listeners | `EditorCoordinator::reconcileWorkspace` (same op) | Done | No |
 | Undo | React/editor history path | `CommandStack` | Partial | No |
 | Project replace/load boundary | React/Tauri file path | `EditorCoordinator::replaceProject(ProjectDocument)` | In progress | No |
-| Play Project | WASM bridge / preview path | `PlaySession::startProject` from `ProjectDocument.startSceneId` | Partial | No |
-| Play Current Scene | WASM bridge / preview path | `PlaySession::startActiveScene` from `EditorState.activeSceneId` | Partial | No |
+| Play Project | WASM bridge / preview path | `EditorCoordinator::playProject` (guarded by `canPlayProject`) | Done | No |
+| Play Current Scene | WASM bridge / preview path | `EditorCoordinator::playCurrentScene` (guarded by `canPlayCurrentScene`) | Done | No |
 | Project file I/O | React/Tauri file path | `readProjectTextFile` + `loadProjectFromText` + atomic save | In progress | No |
 | Runtime viewport | WASM/runtime preview | `SceneFrameSnapshot` or minimal projection | Planned | No |
 | Components inspector | React Inspector | Feature commands + read-only queries | Planned | No |

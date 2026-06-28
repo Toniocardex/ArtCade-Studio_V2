@@ -135,6 +135,55 @@ EditorOperationResult EditorCoordinator::markProjectSaved() {
 }
 
 // ----------------------------------------------------------------------------
+// Play / Stop
+// ----------------------------------------------------------------------------
+bool EditorCoordinator::canPlayProject() const {
+    const SceneId& sceneId = document_.startSceneId();
+    return !sceneId.empty() && document_.hasScene(sceneId);
+}
+
+bool EditorCoordinator::canPlayCurrentScene() const {
+    const SceneId& sceneId = state_.activeSceneId;
+    return !sceneId.empty() && document_.hasScene(sceneId);
+}
+
+EditorOperationResult EditorCoordinator::playProject() {
+    if (isPlaying()) {
+        return EditorOperationResult::failure("Already playing");
+    }
+    if (!canPlayProject()) {
+        return EditorOperationResult::failure("Cannot play project: no valid start scene");
+    }
+    playSession_.emplace(PlaySession::startProject(document_));
+    logInfo("Play project started (document untouched)");
+    accumulate(EditorInvalidation::Toolbar);
+    return EditorOperationResult::success(EditorInvalidation::Toolbar);
+}
+
+EditorOperationResult EditorCoordinator::playCurrentScene() {
+    if (isPlaying()) {
+        return EditorOperationResult::failure("Already playing");
+    }
+    if (!canPlayCurrentScene()) {
+        return EditorOperationResult::failure("Cannot play current scene: no active scene");
+    }
+    playSession_.emplace(PlaySession::startActiveScene(document_, state_.activeSceneId));
+    logInfo("Play current scene started (document untouched)");
+    accumulate(EditorInvalidation::Toolbar);
+    return EditorOperationResult::success(EditorInvalidation::Toolbar);
+}
+
+EditorOperationResult EditorCoordinator::stopPlaying() {
+    if (!isPlaying()) {
+        return EditorOperationResult::failure("Not playing");
+    }
+    playSession_.reset();   // RAII: back to the untouched authoring document
+    logInfo("Stopped - back to authoring document");
+    accumulate(EditorInvalidation::Toolbar);
+    return EditorOperationResult::success(EditorInvalidation::Toolbar);
+}
+
+// ----------------------------------------------------------------------------
 // Intent path — workspace state only; never the ProjectDocument, never undo.
 // ----------------------------------------------------------------------------
 EditorOperationResult EditorCoordinator::apply(const SelectEntityIntent& intent) {

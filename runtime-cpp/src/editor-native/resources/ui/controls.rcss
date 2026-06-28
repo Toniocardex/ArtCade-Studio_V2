@@ -30,6 +30,11 @@
 }
 .tool-btn:hover  { background-color: #2f3640; border-color: #41617f; }
 .tool-btn:active { background-color: #24507f; border-color: #4f8cdb; }
+.tool-btn.disabled {
+    color: #5a606b;
+    background-color: #21252d;
+    border-color: #2a2e38;
+}
 
 .tool-sep {
     display: inline-block;
