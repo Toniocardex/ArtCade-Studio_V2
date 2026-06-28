@@ -20,6 +20,26 @@ body {
 
 .accent { color: #3b82f6; }
 
+/* Icon glyphs (Tabler Icons, PUA codepoints). Size tracks the surrounding text
+   (a touch larger); colour inherits. Always normal weight — the icon font has
+   a single face. */
+.icon {
+    font-family: tabler-icons;
+    font-weight: normal;
+    font-size: 1.2em;
+    vertical-align: middle;
+    margin-right: 6px;
+}
+/* Hierarchy row type icon — muted, slightly smaller gap. */
+.row-icon {
+    color: #6b7280;
+    font-size: 1.25em;
+    margin-right: 8px;
+}
+.tree-row.selected .row-icon { color: #93b4f5; }
+/* Start-scene star marker. */
+.ico-start { color: #eab308; }
+
 /* Scrollable areas */
 .tree, .console, .inspector { overflow-y: auto; }
 

@@ -20,6 +20,11 @@ std::string num(float v) {
     return buf;
 }
 
+// Tabler icon glyph span (PUA codepoint passed as an RML char reference).
+std::string icon(const char* cp) {
+    return std::string("<span class=\"icon\">") + cp + "</span>";
+}
+
 std::string field(const char* label, const char* action, const std::string& value) {
     std::string row = "<div class=\"prop-row\"><span class=\"prop-label\">";
     row += label;
@@ -48,17 +53,17 @@ void InspectorPanel::refresh(Rml::ElementDocument* document,
     }
 
     std::string html;
-    html += "<div class=\"prop-group-title\">Identity</div>";
+    html += "<div class=\"prop-group-title\">" + icon("&#xeb34;") + "Identity</div>";
     html += field("Name", "commit-name", inst->instanceName);
     html += "<div class=\"prop-row\"><span class=\"prop-label\">Type</span>"
             "<span class=\"prop-readonly\">" + escapeRml(inst->objectTypeId) + "</span></div>";
 
-    html += "<div class=\"prop-group-title\">Transform</div>";
+    html += "<div class=\"prop-group-title\">" + icon("&#xf22f;") + "Transform</div>";
     html += field("Position X", "commit-pos-x", num(inst->transform.position.x));
     html += field("Position Y", "commit-pos-y", num(inst->transform.position.y));
 
     // -- Sprite Renderer component --------------------------------------------
-    html += "<div class=\"prop-group-title\">Sprite Renderer</div>";
+    html += "<div class=\"prop-group-title\">" + icon("&#xeb0a;") + "Sprite Renderer</div>";
     const SpriteRenderView resolved =
         resolveSpriteRenderer(coordinator.document(), coordinator.state().activeSceneId, selected);
     if (!inst->spriteRenderer.has_value()) {
@@ -71,10 +76,10 @@ void InspectorPanel::refresh(Rml::ElementDocument* document,
                   + (resolved.assetId.empty() ? std::string("(none)") : escapeRml(resolved.assetId))
                   + "</span></div>";
             html += "<button class=\"panel-btn\" data-action=\"add-sprite-renderer\">"
-                    "Add Override</button>";
+                    "<span class=\"icon\">&#xeb0b;</span>Add Override</button>";
         } else {
             html += "<button class=\"panel-btn\" data-action=\"add-sprite-renderer\">"
-                    "Add Sprite Renderer</button>";
+                    "<span class=\"icon\">&#xeb0b;</span>Add Sprite Renderer</button>";
         }
     } else {
         const SpriteRendererComponent& sr = *inst->spriteRenderer;
@@ -103,11 +108,11 @@ void InspectorPanel::refresh(Rml::ElementDocument* document,
         html += "</div>";
 
         html += "<button class=\"panel-btn\" data-action=\"remove-sprite-renderer\">"
-                "Remove Component</button>";
+                "<span class=\"icon\">&#xeb41;</span>Remove Component</button>";
     }
 
     // -- Box Collider 2D component (object-type owned) ------------------------
-    html += "<div class=\"prop-group-title\">Box Collider 2D</div>";
+    html += "<div class=\"prop-group-title\">" + icon("&#xeca9;") + "Box Collider 2D</div>";
     html += "<div class=\"prop-row\"><span class=\"prop-label\">Scope</span>"
             "<span class=\"prop-readonly\">Shared by object type</span></div>";
     const auto& types = coordinator.document().data().objectTypes;
@@ -117,7 +122,7 @@ void InspectorPanel::refresh(Rml::ElementDocument* document,
             ? &*typeIt->second.boxCollider2D : nullptr;
     if (!collider) {
         html += "<button class=\"panel-btn\" data-action=\"add-box-collider\">"
-                "Add Box Collider</button>";
+                "<span class=\"icon\">&#xeb0b;</span>Add Box Collider</button>";
     } else {
         html += "<div class=\"prop-row\"><span class=\"prop-label\">Enabled</span>"
                 "<button class=\"panel-btn\" data-action=\"toggle-box-enabled\">";
@@ -135,7 +140,7 @@ void InspectorPanel::refresh(Rml::ElementDocument* document,
         html += field("Size H", "commit-box-size-y", num(collider->size.y));
 
         html += "<button class=\"panel-btn\" data-action=\"remove-box-collider\">"
-                "Remove Component</button>";
+                "<span class=\"icon\">&#xeb41;</span>Remove Component</button>";
     }
 
     body->SetInnerRML(html);

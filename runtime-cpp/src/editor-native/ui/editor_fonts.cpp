@@ -28,11 +28,13 @@ constexpr std::array<FontFace, 4> kRequiredFonts{{
 // if a face is missing or unreadable the UI falls back to Inter rather than
 // failing to start. Static .ttf only — this FreeType build has zlib/brotli off
 // and cannot decode .woff/.woff2.
-constexpr std::array<FontFace, 4> kOptionalFonts{{
+constexpr std::array<FontFace, 5> kOptionalFonts{{
     {"fonts/jetbrains-mono/JetBrainsMono-Regular.ttf",  "JetBrains Mono Regular",  Rml::Style::FontWeight::Normal, false},
     {"fonts/jetbrains-mono/JetBrainsMono-Medium.ttf",   "JetBrains Mono Medium",   static_cast<Rml::Style::FontWeight>(500), false},
     {"fonts/jetbrains-mono/JetBrainsMono-SemiBold.ttf", "JetBrains Mono SemiBold", static_cast<Rml::Style::FontWeight>(600), false},
     {"fonts/jetbrains-mono/JetBrainsMono-Bold.ttf",     "JetBrains Mono Bold",     Rml::Style::FontWeight::Bold, false},
+    // Tabler Icons (MIT) — icon glyphs in the Private Use Area, family "tabler-icons".
+    {"fonts/tabler/tabler-icons.ttf",                   "Tabler Icons",            Rml::Style::FontWeight::Normal, false},
 }};
 
 } // namespace

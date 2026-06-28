@@ -25,6 +25,16 @@ bool matchesFilter(const std::string& name, const std::string& filter) {
     return lower(name).find(lower(filter)) != std::string::npos;
 }
 
+// Tabler icon glyph (PUA codepoint) for a hierarchy row, chosen by object type.
+const char* typeIcon(const std::string& typeId) {
+    const std::string t = lower(typeId);
+    if (t.find("player") != std::string::npos) return "&#xeb4d;"; // user
+    if (t.find("crate")  != std::string::npos) return "&#xea45;"; // box
+    if (t.find("coin")   != std::string::npos) return "&#xeb82;"; // coin
+    if (t.find("enemy")  != std::string::npos) return "&#xeb8e;"; // ghost
+    return "&#xfa97;";                                            // cube (default)
+}
+
 void setHtml(Rml::ElementDocument* document, const char* id, const std::string& html) {
     if (Rml::Element* el = document->GetElementById(id)) el->SetInnerRML(html);
 }
@@ -48,8 +58,8 @@ void HierarchyPanel::refresh(Rml::ElementDocument* document,
         tabs += "<div class=\"tab";
         if (active) tabs += " active";
         tabs += "\" data-action=\"select-scene\" data-arg=\"" + escapeRml(id) + "\">";
-        // ASCII start-scene marker (the spike font ships ASCII glyphs only).
-        if (id == startSceneId) tabs += "* ";
+        // Star icon marks the start scene.
+        if (id == startSceneId) tabs += "<span class=\"icon ico-start\">&#xeb2e;</span>";
         tabs += escapeRml(name);
         tabs += "</div>";
     }
@@ -68,6 +78,9 @@ void HierarchyPanel::refresh(Rml::ElementDocument* document,
             if (inst.id == selected) rows += " selected";
             rows += "\" data-action=\"select-entity\" data-arg=\""
                   + std::to_string(inst.id) + "\">";
+            rows += "<span class=\"icon row-icon\">";
+            rows += typeIcon(inst.objectTypeId);
+            rows += "</span>";
             rows += "<span class=\"row-name\">" + escapeRml(inst.instanceName) + "</span>";
             rows += "<span class=\"row-type\">" + escapeRml(inst.objectTypeId) + "</span>";
             rows += "</div>";
