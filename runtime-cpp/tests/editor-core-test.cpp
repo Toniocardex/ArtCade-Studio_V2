@@ -1561,6 +1561,95 @@ int main() {
         CHECK(c.undoSize() == undoBefore + 1);
     }
 
+    // == Object type persistence (the gate before more inherited components) ===
+
+    // -- (1) A base component on the object type survives reload --------------
+    {
+        EditorCoordinator c{makeInheritedDoc()};   // object type "Hero" sprite=img-hero
+        const std::filesystem::path dir = testTempDir();
+        const std::filesystem::path path = dir / "ot-base.artcade-project";
+        CHECK(saveProjectToFile(c, path).ok);
+
+        EditorCoordinator reloaded{makeReplacementDoc()};
+        CHECK(loadProjectFromFile(reloaded, path).ok);
+        CHECK(reloaded.document().data().objectTypes.count("Hero") == 1);
+        const SpriteRenderView v = resolveSpriteRenderer(reloaded.document(), kSceneA, kHero);
+        CHECK(v.present);
+        CHECK(v.origin == ComponentOrigin::EntityDefinition);  // inherited, restored
+        CHECK(v.assetId == "img-hero");
+    }
+
+    // -- (2) An override still prevails after reload --------------------------
+    {
+        EditorCoordinator c{makeInheritedDoc()};
+        CHECK(c.execute(AddSpriteRendererCommand{kSceneA, kHero}).ok);
+        CHECK(c.execute(SetSpriteRendererAssetCommand{kSceneA, kHero, "img-alt"}).ok);
+        const std::filesystem::path dir = testTempDir();
+        const std::filesystem::path path = dir / "ot-override.artcade-project";
+        CHECK(saveProjectToFile(c, path).ok);
+
+        EditorCoordinator reloaded{makeReplacementDoc()};
+        CHECK(loadProjectFromFile(reloaded, path).ok);
+        const SpriteRenderView v = resolveSpriteRenderer(reloaded.document(), kSceneA, kHero);
+        CHECK(v.origin == ComponentOrigin::InstanceOverride);
+        CHECK(v.assetId == "img-alt");
+    }
+
+    // -- (3) Removing the override falls back to the base even after reload ----
+    {
+        EditorCoordinator c{makeInheritedDoc()};
+        CHECK(c.execute(AddSpriteRendererCommand{kSceneA, kHero}).ok);
+        CHECK(c.execute(SetSpriteRendererAssetCommand{kSceneA, kHero, "img-alt"}).ok);
+        CHECK(c.execute(RemoveSpriteRendererCommand{kSceneA, kHero}).ok);
+        const std::filesystem::path dir = testTempDir();
+        const std::filesystem::path path = dir / "ot-removed.artcade-project";
+        CHECK(saveProjectToFile(c, path).ok);
+
+        EditorCoordinator reloaded{makeReplacementDoc()};
+        CHECK(loadProjectFromFile(reloaded, path).ok);
+        const SceneInstanceDef* inst = reloaded.document().findInstanceInScene(kSceneA, kHero);
+        CHECK(!inst->spriteRenderer.has_value());                       // no override persisted
+        const SpriteRenderView v = resolveSpriteRenderer(reloaded.document(), kSceneA, kHero);
+        CHECK(v.origin == ComponentOrigin::EntityDefinition);          // back to base
+        CHECK(v.assetId == "img-hero");
+    }
+
+    // -- (4) An instance with a dangling objectTypeId is rejected -------------
+    {
+        ProjectDoc doc = makeInheritedDoc();          // has the "Hero" catalog
+        SceneInstanceDef ghost;
+        ghost.id = 999;
+        ghost.objectTypeId = "Ghost";                 // not in the catalog
+        ghost.instanceName = "Ghost";
+        doc.scenes.at(kSceneA).instances.push_back(ghost);
+        CHECK(!ProjectValidator::validate(ProjectDocument{doc}).ok);
+    }
+
+    // -- (5) Duplicate object type ids are rejected on deserialize ------------
+    {
+        const std::string dup =
+            R"({"scenes":[],"objectTypes":[{"id":"A"},{"id":"A"}]})";
+        CHECK(!ProjectSerializer::deserialize(dup).ok);
+    }
+
+    // -- (6) The serializer does not copy the base component into instances ----
+    {
+        EditorCoordinator c{makeInheritedDoc()};      // kHero inherits, has no override
+        const auto ser = ProjectSerializer::serialize(c.document());
+        CHECK(ser.ok);
+        // The instance has no override, so no per-instance spriteRenderer block.
+        CHECK(ser.value.find("spriteRenderer") == std::string::npos);
+        const auto de = ProjectSerializer::deserialize(ser.value);
+        CHECK(de.ok);
+        CHECK(!de.value.findInstanceInScene(kSceneA, kHero)->spriteRenderer.has_value());
+    }
+
+    // -- A catalog-less minimal project still validates (objectTypeId is a label)
+    {
+        // makeDoc has instances referencing "Hero" but defines no object types.
+        CHECK(ProjectValidator::validate(ProjectDocument{makeDoc()}).ok);
+    }
+
     std::cout << "editor-core-test: " << g_passed << " passed, "
               << g_failed << " failed\n";
     return g_failed == 0 ? 0 : 1;

@@ -91,6 +91,7 @@ il vecchio editor non e' rimosso.
 | Project file I/O | React/Tauri file path | `readProjectTextFile` + `loadProjectFromText` + atomic save | In progress | No |
 | Runtime viewport | WASM/runtime preview | `SceneFrameSnapshot` or minimal projection | Planned | No |
 | Sprite Renderer component | React Inspector | `sprite_commands` + `inspector_actions` (instance-scoped) | Done | No |
+| Object type persistence | React project store | `ProjectSerializer` minimal subset + referential validation | Done | No |
 | Components inspector | React Inspector | Feature commands + read-only queries | In progress | No |
 | Asset references | React asset stores | `AssetId` -> `ProjectDoc.imageAssets`, validated | In progress | No |
 | Logic Board | React Logic Board state | Logic Board document + commands | Planned | No |
@@ -114,6 +115,15 @@ Override means "drop the override and fall back to the inherited component"**, n
 disable is ever needed, `optional` is not enough — it would take an explicit
 `Inherit | Override | Disabled` mode — but that is deliberately not introduced
 without a concrete use case.
+
+Object types now persist (minimal subset: `id`, `name`, `visible`, `sprite`
+asset + fill — not the full `EntityDef` bag). So an inherited sprite survives
+save/reload, an override still prevails after reload, and removing the override
+falls back to the base after reload. The validator rejects a duplicate object
+type id (on deserialize) and, when a catalog exists, an instance whose
+`objectTypeId` is dangling. The serializer never copies the inherited component
+into each instance. The format addition is backward-compatible (a file without
+`objectTypes` loads with an empty catalog), so no schema bump is required yet.
 
 Mutation detection is revision-based, not flag-based: `executeOwned` compares
 `ProjectDocument::revision()` before and after `apply()`. A command changed the

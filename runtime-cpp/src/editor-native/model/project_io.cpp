@@ -15,6 +15,10 @@ nlohmann::json vec2ToJson(const Vec2& v) {
     return nlohmann::json{{"x", v.x}, {"y", v.y}};
 }
 
+nlohmann::json vec3ToJson(const Vec3& v) {
+    return nlohmann::json{{"x", v.x}, {"y", v.y}, {"z", v.z}};
+}
+
 std::string readString(const nlohmann::json& object, const char* camel,
                        const char* snake = nullptr,
                        const std::string& fallback = {}) {
@@ -49,6 +53,15 @@ Vec4 readVec4(const nlohmann::json& value, Vec4 fallback = {}) {
         readFloat(value, "g", fallback.g),
         readFloat(value, "b", fallback.b),
         readFloat(value, "a", fallback.a),
+    };
+}
+
+Vec3 readVec3(const nlohmann::json& value, Vec3 fallback = {}) {
+    if (!value.is_object()) return fallback;
+    return Vec3{
+        readFloat(value, "x", fallback.x),
+        readFloat(value, "y", fallback.y),
+        readFloat(value, "z", fallback.z),
     };
 }
 
@@ -163,6 +176,21 @@ nlohmann::json instanceToJson(const SceneInstanceDef& instance) {
     return json;
 }
 
+// Minimal object-type persistence: only the fields the native editor resolves
+// or renders (id, name, visible, sprite asset + fill). The full EntityDef bag is
+// deliberately not serialized by the spike.
+nlohmann::json objectTypeToJson(const std::string& id, const EntityDef& def) {
+    return nlohmann::json{
+        {"id", id},
+        {"name", def.name},
+        {"visible", def.visible},
+        {"sprite", nlohmann::json{
+            {"spriteAssetId", def.sprite.spriteAssetId},
+            {"fillColor", vec3ToJson(def.sprite.fillColor)},
+        }},
+    };
+}
+
 nlohmann::json sceneToJson(const SceneDef& scene) {
     nlohmann::json instances = nlohmann::json::array();
     for (const SceneInstanceDef& instance : scene.instances) {
@@ -199,6 +227,30 @@ DeserializeResult ProjectSerializer::deserialize(std::string_view source) {
     doc.formatVersion = root.value("formatVersion", root.value("format_version", 0));
     readScenes(root, doc);
 
+    if (root.contains("objectTypes") && root["objectTypes"].is_array()) {
+        std::unordered_set<std::string> seenTypeIds;
+        for (const auto& item : root["objectTypes"]) {
+            if (!item.is_object()) continue;
+            const std::string id = readString(item, "id", "className");
+            if (id.empty()) continue;
+            if (!seenTypeIds.insert(id).second) {
+                return DeserializeResult::failure("Duplicate object type id");
+            }
+            EntityDef def;
+            def.className = id;
+            def.name = readString(item, "name", nullptr, id);
+            def.visible = item.value("visible", true);
+            if (item.contains("sprite") && item["sprite"].is_object()) {
+                const auto& sprite = item["sprite"];
+                def.sprite.spriteAssetId = readString(sprite, "spriteAssetId", "sprite_asset_id");
+                if (sprite.contains("fillColor")) {
+                    def.sprite.fillColor = readVec3(sprite["fillColor"], def.sprite.fillColor);
+                }
+            }
+            doc.objectTypes.emplace(id, std::move(def));
+        }
+    }
+
     if (root.contains("imageAssets") && root["imageAssets"].is_array()) {
         for (const auto& item : root["imageAssets"]) {
             if (!item.is_object()) continue;
@@ -220,6 +272,11 @@ SerializeResult ProjectSerializer::serialize(const ProjectDocument& document) {
         scenes.push_back(sceneToJson(scene));
     }
 
+    nlohmann::json objectTypes = nlohmann::json::array();
+    for (const auto& [id, def] : doc.objectTypes) {
+        objectTypes.push_back(objectTypeToJson(id, def));
+    }
+
     nlohmann::json imageAssets = nlohmann::json::array();
     for (const ImageAssetDef& asset : doc.imageAssets) {
         imageAssets.push_back(nlohmann::json{{"assetId", asset.assetId}});
@@ -234,6 +291,7 @@ SerializeResult ProjectSerializer::serialize(const ProjectDocument& document) {
         {"targetFPS", doc.targetFPS},
         {"mainScriptPath", doc.mainScriptPath},
         {"scenes", std::move(scenes)},
+        {"objectTypes", std::move(objectTypes)},
         {"imageAssets", std::move(imageAssets)},
     };
     return SerializeResult::success(root.dump(2));
@@ -272,6 +330,13 @@ DeserializeResult ProjectValidator::validate(ProjectDocument document) {
             }
             if (instance.objectTypeId.empty()) {
                 return DeserializeResult::failure("Entity objectTypeId cannot be empty");
+            }
+            // When the project defines an object-type catalog, every instance must
+            // reference an existing type (a dangling reference is rejected). A
+            // catalog-less minimal project leaves objectTypeId as a free label.
+            if (!data.objectTypes.empty()
+                && data.objectTypes.find(instance.objectTypeId) == data.objectTypes.end()) {
+                return DeserializeResult::failure("Instance references a missing object type");
             }
             // A sprite renderer's asset reference must resolve to an image asset.
             if (instance.spriteRenderer.has_value()) {
