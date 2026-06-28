@@ -10,6 +10,10 @@ namespace ArtCade::EditorNative {
 
 std::optional<float> parseNumberField(const std::string& text) {
     if (text.empty()) return std::nullopt;
+    const char last = text.back();
+    if (last == 'e' || last == 'E' || last == '+' || last == '-') {
+        return std::nullopt; // still an edit buffer, not a committed number
+    }
     try {
         std::size_t consumed = 0;
         const float value = std::stof(text, &consumed);

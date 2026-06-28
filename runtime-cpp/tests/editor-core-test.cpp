@@ -11,21 +11,25 @@
 #include "editor-native/app/project_file.h"
 #include "editor-native/app/project_load.h"
 #include "editor-native/app/inspector_actions.h"
+#include "editor-native/commands/box_collider_commands.h"
 #include "editor-native/commands/entity_commands.h"
 #include "editor-native/commands/scene_commands.h"
 #include "editor-native/commands/sprite_commands.h"
 #include "editor-native/model/project_io.h"
 #include "editor-native/model/play_session.h"
+#include "editor-native/model/box_collider_view.h"
 #include "editor-native/model/sprite_render_view.h"
 
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <limits>
 #include <string>
 #include <system_error>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 using namespace ArtCade;
 using namespace ArtCade::EditorNative;
@@ -622,7 +626,15 @@ int main() {
         CHECK(c.document().revision() == revBefore);           // untouched
         CHECK(c.document().findInstanceInScene(kSceneA, kHero)->transform.position.x == 10.f);
         CHECK(parseNumberField("12.5").has_value());
+        CHECK(parseNumberField("12.").has_value());
+        CHECK(*parseNumberField("12.") == 12.f);
+        CHECK(!parseNumberField("-").has_value());
+        CHECK(!parseNumberField(".").has_value());
+        CHECK(!parseNumberField("1e").has_value());
+        CHECK(!parseNumberField("nan").has_value());
+        CHECK(!parseNumberField("inf").has_value());
         CHECK(!parseNumberField("12.5xz").has_value());
+        CHECK(!parseNumberField("12px").has_value());
         CHECK(!parseNumberField("").has_value());
     }
 
@@ -1648,6 +1660,192 @@ int main() {
     {
         // makeDoc has instances referencing "Hero" but defines no object types.
         CHECK(ProjectValidator::validate(ProjectDocument{makeDoc()}).ok);
+    }
+
+    // == BoxCollider2D component: object type only ============================
+
+    // -- (1) Add targets objectTypeId, not scene/entity -----------------------
+    {
+        EditorCoordinator c{makeInheritedDoc()};
+        const uint32_t replacesBefore = c.document().replaceCount();
+        const auto r = c.execute(AddBoxColliderCommand{"Hero"});
+        CHECK(r.ok);
+        CHECK(r.change.kind == DomainChangeKind::ComponentAdded);
+        CHECK(r.change.componentKind == ComponentKind::BoxCollider2D);
+        CHECK(r.change.objectTypeId == "Hero");
+        CHECK(r.change.entityId == INVALID_ENTITY);
+        CHECK(c.document().data().objectTypes.at("Hero").boxCollider2D.has_value());
+        CHECK(!c.document().findInstanceInScene(kSceneA, kHero)->spriteRenderer.has_value());
+        CHECK(c.document().replaceCount() == replacesBefore);
+        CHECK(c.undoSize() == 1);
+
+        const uint64_t revBeforeDuplicate = c.document().revision();
+        const std::size_t undoBeforeDuplicate = c.undoSize();
+        c.consumeInvalidations();
+        CHECK(c.execute(AddBoxColliderCommand{"Hero"}).ok);
+        CHECK(c.document().revision() == revBeforeDuplicate);
+        CHECK(c.undoSize() == undoBeforeDuplicate);
+        CHECK(c.consumeInvalidations() == EditorInvalidation::None);
+    }
+
+    // -- (2) Setters validate finite/positive values and invalidate narrowly --
+    {
+        EditorCoordinator c{makeInheritedDoc()};
+        CHECK(c.execute(AddBoxColliderCommand{"Hero"}).ok);
+        c.consumeInvalidations();
+
+        CHECK(c.execute(SetBoxColliderOffsetCommand{"Hero", Vec2{4.f, -6.f}}).ok);
+        CHECK(c.consumeInvalidations()
+              == (EditorInvalidation::Inspector | EditorInvalidation::Viewport));
+        CHECK(c.document().data().objectTypes.at("Hero").boxCollider2D->offset.x == 4.f);
+        CHECK(c.document().data().objectTypes.at("Hero").boxCollider2D->offset.y == -6.f);
+
+        const uint64_t revBeforeBadSize = c.document().revision();
+        CHECK(!c.execute(SetBoxColliderSizeCommand{"Hero", Vec2{0.f, 10.f}}).ok);
+        CHECK(c.document().revision() == revBeforeBadSize);
+        CHECK(!c.execute(SetBoxColliderSizeCommand{"Hero", Vec2{-1.f, 10.f}}).ok);
+        CHECK(!c.execute(SetBoxColliderSizeCommand{
+            "Hero", Vec2{std::numeric_limits<float>::quiet_NaN(), 10.f}}).ok);
+        CHECK(!c.execute(SetBoxColliderSizeCommand{
+            "Hero", Vec2{std::numeric_limits<float>::infinity(), 10.f}}).ok);
+        CHECK(!c.execute(SetBoxColliderOffsetCommand{
+            "Hero", Vec2{std::numeric_limits<float>::quiet_NaN(), 0.f}}).ok);
+        CHECK(c.document().revision() == revBeforeBadSize);
+        CHECK(c.execute(SetBoxColliderSizeCommand{"Hero", Vec2{64.f, 24.f}}).ok);
+        CHECK(c.document().data().objectTypes.at("Hero").boxCollider2D->size.x == 64.f);
+        CHECK(c.document().data().objectTypes.at("Hero").boxCollider2D->size.y == 24.f);
+    }
+
+    // -- (3) No-op setters do not mutate or enter undo ------------------------
+    {
+        EditorCoordinator c{makeInheritedDoc()};
+        CHECK(c.execute(AddBoxColliderCommand{"Hero"}).ok);
+        const uint64_t rev = c.document().revision();
+        const std::size_t undo = c.undoSize();
+        CHECK(c.execute(SetBoxColliderEnabledCommand{"Hero", true}).ok);
+        CHECK(c.document().revision() == rev);
+        CHECK(c.undoSize() == undo);
+        CHECK(c.execute(SetBoxColliderOffsetCommand{"Hero", Vec2{0.f, 0.f}}).ok);
+        CHECK(c.document().revision() == rev);
+        CHECK(c.undoSize() == undo);
+        CHECK(c.execute(SetBoxColliderSizeCommand{"Hero", Vec2{32.f, 32.f}}).ok);
+        CHECK(c.document().revision() == rev);
+        CHECK(c.undoSize() == undo);
+    }
+
+    // -- (4) Undo restores exact object-type component state ------------------
+    {
+        EditorCoordinator c{makeInheritedDoc()};
+        CHECK(c.execute(AddBoxColliderCommand{"Hero"}).ok);
+        CHECK(c.execute(SetBoxColliderSizeCommand{"Hero", Vec2{80.f, 30.f}}).ok);
+        CHECK(c.execute(SetBoxColliderTriggerCommand{"Hero", true}).ok);
+        CHECK(c.execute(RemoveBoxColliderCommand{"Hero"}).ok);
+        CHECK(!c.document().data().objectTypes.at("Hero").boxCollider2D.has_value());
+        c.undo();
+        const BoxCollider2DComponent& collider =
+            *c.document().data().objectTypes.at("Hero").boxCollider2D;
+        CHECK(collider.size.x == 80.f);
+        CHECK(collider.size.y == 30.f);
+        CHECK(collider.isTrigger);
+    }
+
+    // -- (5) Inspector action resolves selection -> objectTypeId --------------
+    {
+        EditorCoordinator c{makeInheritedDoc()};
+        c.apply(SelectEntityIntent{kHero});
+        const std::size_t undoBefore = c.undoSize();
+        CHECK(addBoxCollider(c).ok);
+        CHECK(c.undoSize() == undoBefore + 1);
+        CHECK(c.document().data().objectTypes.at("Hero").boxCollider2D.has_value());
+
+        EditorCoordinator empty{makeInheritedDoc()};
+        CHECK(!addBoxCollider(empty).ok);
+        CHECK(empty.undoSize() == 0);
+    }
+
+    // -- (6) Bounds projection updates every instance of the same object type -
+    {
+        ProjectDoc doc = makeInheritedDoc();
+        SceneInstanceDef second;
+        second.id = 314;
+        second.objectTypeId = "Hero";
+        second.instanceName = "Hero 2";
+        second.transform.position = {100.f, 200.f};
+        doc.scenes.at(kSceneA).instances.push_back(second);
+
+        EditorCoordinator c{doc};
+        CHECK(c.execute(AddBoxColliderCommand{"Hero"}).ok);
+        CHECK(c.execute(SetBoxColliderOffsetCommand{"Hero", Vec2{2.f, 3.f}}).ok);
+        CHECK(c.execute(SetBoxColliderSizeCommand{"Hero", Vec2{10.f, 20.f}}).ok);
+
+        c.execute(CreateEntityCommand{kSceneA, 777, "Enemy", "Enemy", {300.f, 400.f}});
+
+        const std::vector<SceneFrameCollider> bounds =
+            collectBoxColliderBounds(c.document(), kSceneA, kHero);
+        CHECK(bounds.size() == 2);
+        CHECK(bounds[0].worldBounds.width == 10.f);
+        CHECK(bounds[0].worldBounds.height == 20.f);
+        CHECK(bounds[0].worldBounds.x == 7.f);
+        CHECK(bounds[0].worldBounds.y == 13.f);
+        CHECK(bounds[0].selected);
+        CHECK(bounds[0].enabled);
+        CHECK(bounds[1].worldBounds.x == 97.f);
+        CHECK(bounds[1].worldBounds.y == 193.f);
+        CHECK(!bounds[1].selected);
+
+        CHECK(c.execute(SetBoxColliderTriggerCommand{"Hero", true}).ok);
+        const std::vector<SceneFrameCollider> triggerBounds =
+            collectBoxColliderBounds(c.document(), kSceneA, INVALID_ENTITY);
+        CHECK(triggerBounds.size() == 2);
+        CHECK(triggerBounds[0].isTrigger);
+
+        CHECK(c.execute(SetBoxColliderEnabledCommand{"Hero", false}).ok);
+        CHECK(collectBoxColliderBounds(c.document(), kSceneA, INVALID_ENTITY).empty());
+        CHECK(c.document().data().objectTypes.at("Hero").boxCollider2D.has_value());
+        c.undo();
+        CHECK(collectBoxColliderBounds(c.document(), kSceneA, INVALID_ENTITY).size() == 2);
+    }
+
+    // -- (7) Save/reload persists object-type collider, never per instance ----
+    {
+        EditorCoordinator c{makeInheritedDoc()};
+        CHECK(c.execute(AddBoxColliderCommand{"Hero"}).ok);
+        CHECK(c.execute(SetBoxColliderOffsetCommand{"Hero", Vec2{5.f, 6.f}}).ok);
+        CHECK(c.execute(SetBoxColliderSizeCommand{"Hero", Vec2{70.f, 32.f}}).ok);
+        CHECK(c.execute(SetBoxColliderEnabledCommand{"Hero", false}).ok);
+        CHECK(c.execute(SetBoxColliderTriggerCommand{"Hero", true}).ok);
+
+        const auto ser = ProjectSerializer::serialize(c.document());
+        CHECK(ser.ok);
+        CHECK(ser.value.find("boxCollider2D") != std::string::npos);
+        CHECK(ser.value.find("spriteRenderer") == std::string::npos);
+        const std::size_t instancePos = ser.value.find("\"instances\"");
+        const std::size_t colliderPos = ser.value.find("boxCollider2D");
+        CHECK(colliderPos < instancePos);
+
+        const std::filesystem::path dir = testTempDir();
+        const std::filesystem::path path = dir / "box-collider.artcade-project";
+        CHECK(saveProjectToFile(c, path).ok);
+
+        EditorCoordinator reloaded{makeReplacementDoc()};
+        CHECK(loadProjectFromFile(reloaded, path).ok);
+        const auto& type = reloaded.document().data().objectTypes.at("Hero");
+        CHECK(type.boxCollider2D.has_value());
+        CHECK(type.boxCollider2D->offset.x == 5.f);
+        CHECK(type.boxCollider2D->offset.y == 6.f);
+        CHECK(type.boxCollider2D->size.x == 70.f);
+        CHECK(type.boxCollider2D->size.y == 32.f);
+        CHECK(!type.boxCollider2D->enabled);
+        CHECK(type.boxCollider2D->isTrigger);
+    }
+
+    // -- (8) Invalid persisted collider is rejected during validation ---------
+    {
+        const std::string bad =
+            R"({"activeSceneId":"s","scenes":[{"id":"s","instances":[{"id":1,"objectTypeId":"Hero","instanceName":"Hero"}]}],"objectTypes":[{"id":"Hero","boxCollider2D":{"size":{"x":-1,"y":10}}}]})";
+        const auto loaded = ProjectSerializer::deserialize(bad);
+        CHECK(loaded.ok);
+        CHECK(!ProjectValidator::validate(std::move(loaded.value)).ok);
     }
 
     std::cout << "editor-core-test: " << g_passed << " passed, "

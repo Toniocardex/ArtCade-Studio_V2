@@ -1,5 +1,6 @@
 #include "editor-native/view/scene_view.h"
 
+#include "editor-native/model/box_collider_view.h"
 #include "editor-native/model/project_document.h"
 #include "editor-native/model/sprite_render_view.h"
 
@@ -76,6 +77,8 @@ void SceneView::render(const ProjectDocument& document,
     DrawRectangleLinesEx(Rectangle{0, 0, world.x, world.y}, linePx, Color{86, 134, 214, 220});
 
     // Instances as placeholder quads, coloured by object type.
+    const std::vector<SceneFrameCollider> colliderBounds =
+        collectBoxColliderBounds(document, sceneId, selection.primaryEntity);
     for (const SceneInstanceDef& inst : scene->instances) {
         const Vec2 pos = inst.transform.position;
         const Vec2 scl = inst.transform.scale;
@@ -97,6 +100,21 @@ void SceneView::render(const ProjectDocument& document,
         if (sprite.present && !sprite.assetId.empty()) {
             const Rectangle inner{box.x + w * 0.3f, box.y + h * 0.3f, w * 0.4f, h * 0.4f};
             DrawRectangleRec(inner, Color{86, 134, 214, a8});
+        }
+
+        for (const SceneFrameCollider& collider : colliderBounds) {
+            if (collider.entityId != inst.id) continue;
+            const Rectangle bounds{
+                collider.worldBounds.x,
+                collider.worldBounds.y,
+                collider.worldBounds.width,
+                collider.worldBounds.height,
+            };
+            const Color color = collider.isTrigger
+                ? Color{86, 180, 235, 210}
+                : Color{88, 220, 140, 210};
+            DrawRectangleLinesEx(bounds, (collider.selected ? 2.2f : 1.5f) / cam.zoom, color);
+            break;
         }
 
         if (inst.id == selection.primaryEntity) {

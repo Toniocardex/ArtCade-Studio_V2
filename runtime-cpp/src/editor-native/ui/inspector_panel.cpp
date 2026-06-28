@@ -106,6 +106,38 @@ void InspectorPanel::refresh(Rml::ElementDocument* document,
                 "Remove Component</button>";
     }
 
+    // -- Box Collider 2D component (object-type owned) ------------------------
+    html += "<div class=\"prop-group-title\">Box Collider 2D</div>";
+    html += "<div class=\"prop-row\"><span class=\"prop-label\">Scope</span>"
+            "<span class=\"prop-readonly\">Shared by object type</span></div>";
+    const auto& types = coordinator.document().data().objectTypes;
+    const auto typeIt = types.find(inst->objectTypeId);
+    const BoxCollider2DComponent* collider =
+        (typeIt != types.end() && typeIt->second.boxCollider2D)
+            ? &*typeIt->second.boxCollider2D : nullptr;
+    if (!collider) {
+        html += "<button class=\"panel-btn\" data-action=\"add-box-collider\">"
+                "Add Box Collider</button>";
+    } else {
+        html += "<div class=\"prop-row\"><span class=\"prop-label\">Enabled</span>"
+                "<button class=\"panel-btn\" data-action=\"toggle-box-enabled\">";
+        html += collider->enabled ? "On" : "Off";
+        html += "</button></div>";
+
+        html += "<div class=\"prop-row\"><span class=\"prop-label\">Trigger</span>"
+                "<button class=\"panel-btn\" data-action=\"toggle-box-trigger\">";
+        html += collider->isTrigger ? "On" : "Off";
+        html += "</button></div>";
+
+        html += field("Offset X", "commit-box-offset-x", num(collider->offset.x));
+        html += field("Offset Y", "commit-box-offset-y", num(collider->offset.y));
+        html += field("Size W", "commit-box-size-x", num(collider->size.x));
+        html += field("Size H", "commit-box-size-y", num(collider->size.y));
+
+        html += "<button class=\"panel-btn\" data-action=\"remove-box-collider\">"
+                "Remove Component</button>";
+    }
+
     body->SetInnerRML(html);
 }
 

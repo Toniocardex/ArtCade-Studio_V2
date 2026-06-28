@@ -91,6 +91,7 @@ il vecchio editor non e' rimosso.
 | Project file I/O | React/Tauri file path | `readProjectTextFile` + `loadProjectFromText` + atomic save | In progress | No |
 | Runtime viewport | WASM/runtime preview | `SceneFrameSnapshot` or minimal projection | Planned | No |
 | Sprite Renderer component | React Inspector | `sprite_commands` + `inspector_actions` (instance-scoped) | Done | No |
+| BoxCollider2D component | React Inspector / physics form | `box_collider_commands` on `EntityDef.boxCollider2D` | Done | No |
 | Object type persistence | React project store | `ProjectSerializer` minimal subset + referential validation | Done | No |
 | Components inspector | React Inspector | Feature commands + read-only queries | In progress | No |
 | Asset references | React asset stores | `AssetId` -> `ProjectDoc.imageAssets`, validated | In progress | No |
@@ -130,6 +131,48 @@ Mutation detection is revision-based, not flag-based: `executeOwned` compares
 project iff the revision moved; debug asserts pin the contract (a failed command
 must not mutate; a no-op must declare no change and no invalidation; a mutating
 command must declare both).
+
+## Component ownership matrix
+
+The native editor now covers three ownership shapes, intentionally:
+
+```text
+Transform       -> instance only
+Sprite Renderer -> object type inheritance + optional instance override
+BoxCollider2D   -> object type only, shared by every instance of that type
+```
+
+`BoxCollider2D` lives on `EntityDef.boxCollider2D` and is edited through
+commands that target the object type id directly. The selected instance is used
+only by the Inspector to discover the authoritative object type. There is no
+per-instance override, no `resolve*` layer, and the serializer never writes the
+collider into `SceneInstanceDef`. The viewport consumes projected
+`SceneFrameCollider` values (`entityId`, world bounds, enabled/trigger/selected
+flags) from `collectBoxColliderBounds(...)`; draw code does not re-read
+`EntityDef` to interpret collider ownership.
+
+## RmlUi input commit baseline
+
+Inspector text and number fields use RmlUi as a local edit buffer. Typing does
+not create commands and does not mutate `ProjectDocument`.
+
+```text
+input/change
+-> local control buffer only
+
+Enter or blur
+-> parse/validate/normalize
+-> compare with authoritative value
+-> typed Command only when valid and different
+
+Escape
+-> restore authoritative value
+-> no Command
+```
+
+Incomplete or invalid values (`"-"`, `"."`, `"1e"`, `"nan"`, `"inf"`,
+`"12px"`) do not change the revision, do not enter undo history, and do not
+invalidate panels. `"12."` is accepted at commit as `12.0`.
 
 ## Feature Template
 

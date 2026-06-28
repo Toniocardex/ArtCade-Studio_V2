@@ -8,15 +8,21 @@
 
 namespace ArtCade::EditorNative {
 
+class AddBoxColliderCommand;
 class AddSpriteRendererCommand;
 class CreateEntityCommand;
 class CreateSceneCommand;
 class DeleteEntityCommand;
 class DeleteSceneCommand;
 class EditorCoordinator;
+class RemoveBoxColliderCommand;
 class RemoveSpriteRendererCommand;
 class RenameEntityCommand;
 class SetEntityPositionCommand;
+class SetBoxColliderEnabledCommand;
+class SetBoxColliderOffsetCommand;
+class SetBoxColliderSizeCommand;
+class SetBoxColliderTriggerCommand;
 class SetSceneBackgroundCommand;
 class SetSpriteRendererAssetCommand;
 class SetSpriteRendererVisibleCommand;
@@ -60,15 +66,21 @@ public:
     void replace(ProjectDoc doc);
 
 private:
+    friend class AddBoxColliderCommand;
     friend class AddSpriteRendererCommand;
     friend class CreateEntityCommand;
     friend class CreateSceneCommand;
     friend class DeleteEntityCommand;
     friend class DeleteSceneCommand;
     friend class EditorCoordinator;
+    friend class RemoveBoxColliderCommand;
     friend class RemoveSpriteRendererCommand;
     friend class RenameEntityCommand;
     friend class SetEntityPositionCommand;
+    friend class SetBoxColliderEnabledCommand;
+    friend class SetBoxColliderOffsetCommand;
+    friend class SetBoxColliderSizeCommand;
+    friend class SetBoxColliderTriggerCommand;
     friend class SetSceneBackgroundCommand;
     friend class SetSpriteRendererAssetCommand;
     friend class SetSpriteRendererVisibleCommand;
@@ -96,6 +108,13 @@ private:
     bool removeSpriteRenderer(const SceneId& sceneId, EntityId id);
     bool setSpriteRendererVisible(const SceneId& sceneId, EntityId id, bool visible);
     bool setSpriteRendererAsset(const SceneId& sceneId, EntityId id, AssetId assetId);
+    // BoxCollider2D is authored on the object type only; instances never store it.
+    bool addBoxCollider(const std::string& objectTypeId, BoxCollider2DComponent component);
+    bool removeBoxCollider(const std::string& objectTypeId);
+    bool setBoxColliderOffset(const std::string& objectTypeId, Vec2 offset);
+    bool setBoxColliderSize(const std::string& objectTypeId, Vec2 size);
+    bool setBoxColliderEnabled(const std::string& objectTypeId, bool enabled);
+    bool setBoxColliderTrigger(const std::string& objectTypeId, bool isTrigger);
     void replaceClean(ProjectDocument replacement);
     void markSaved();
 

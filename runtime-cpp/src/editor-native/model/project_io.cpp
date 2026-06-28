@@ -2,6 +2,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <cmath>
 #include <unordered_set>
 #include <utility>
 
@@ -180,7 +181,7 @@ nlohmann::json instanceToJson(const SceneInstanceDef& instance) {
 // or renders (id, name, visible, sprite asset + fill). The full EntityDef bag is
 // deliberately not serialized by the spike.
 nlohmann::json objectTypeToJson(const std::string& id, const EntityDef& def) {
-    return nlohmann::json{
+    nlohmann::json json{
         {"id", id},
         {"name", def.name},
         {"visible", def.visible},
@@ -189,6 +190,15 @@ nlohmann::json objectTypeToJson(const std::string& id, const EntityDef& def) {
             {"fillColor", vec3ToJson(def.sprite.fillColor)},
         }},
     };
+    if (def.boxCollider2D.has_value()) {
+        json["boxCollider2D"] = nlohmann::json{
+            {"offset", vec2ToJson(def.boxCollider2D->offset)},
+            {"size", vec2ToJson(def.boxCollider2D->size)},
+            {"enabled", def.boxCollider2D->enabled},
+            {"isTrigger", def.boxCollider2D->isTrigger},
+        };
+    }
+    return json;
 }
 
 nlohmann::json sceneToJson(const SceneDef& scene) {
@@ -246,6 +256,23 @@ DeserializeResult ProjectSerializer::deserialize(std::string_view source) {
                 if (sprite.contains("fillColor")) {
                     def.sprite.fillColor = readVec3(sprite["fillColor"], def.sprite.fillColor);
                 }
+            }
+            if (item.contains("boxCollider2D") && item["boxCollider2D"].is_object()) {
+                const auto& collider = item["boxCollider2D"];
+                BoxCollider2DComponent component;
+                if (collider.contains("offset")) {
+                    component.offset = readVec2(collider["offset"], component.offset);
+                }
+                if (collider.contains("size")) {
+                    component.size = readVec2(collider["size"], component.size);
+                }
+                if (collider.contains("enabled") && collider["enabled"].is_boolean()) {
+                    component.enabled = collider["enabled"].get<bool>();
+                }
+                if (collider.contains("isTrigger") && collider["isTrigger"].is_boolean()) {
+                    component.isTrigger = collider["isTrigger"].get<bool>();
+                }
+                def.boxCollider2D = component;
             }
             doc.objectTypes.emplace(id, std::move(def));
         }
@@ -356,6 +383,17 @@ DeserializeResult ProjectValidator::validate(ProjectDocument document) {
         if (!assetId.empty() && !document.hasImageAsset(assetId)) {
             return DeserializeResult::failure(
                 "Object type sprite references a missing image asset");
+        }
+        if (def.boxCollider2D.has_value()) {
+            const Vec2 size = def.boxCollider2D->size;
+            if (!std::isfinite(def.boxCollider2D->offset.x)
+                || !std::isfinite(def.boxCollider2D->offset.y)
+                || !std::isfinite(size.x)
+                || !std::isfinite(size.y)
+                || size.x <= 0.f
+                || size.y <= 0.f) {
+                return DeserializeResult::failure("BoxCollider2D size must be positive");
+            }
         }
     }
 

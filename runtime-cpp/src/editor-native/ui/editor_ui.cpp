@@ -9,10 +9,13 @@
 #include <RmlUi/Core/Context.h>
 #include <RmlUi/Core/Element.h>
 #include <RmlUi/Core/ElementDocument.h>
+#include <RmlUi/Core/Elements/ElementFormControl.h>
 #include <RmlUi/Core/Event.h>
 #include <RmlUi/Core/EventListener.h>
+#include <RmlUi/Core/Input.h>
 
 #include <cstdlib>
+#include <optional>
 #include <string>
 
 namespace ArtCade::EditorNative {
@@ -42,6 +45,17 @@ std::string attribute(Rml::Element* element, const char* name) {
     return element ? element->GetAttribute<Rml::String>(name, Rml::String()) : std::string();
 }
 
+std::string formValue(Rml::Element* element, Rml::Event& event) {
+    if (auto* control = rmlui_dynamic_cast<Rml::ElementFormControl*>(element))
+        return control->GetValue();
+    return event.GetParameter<Rml::String>("value", Rml::String());
+}
+
+void restoreFormValue(Rml::Element* element) {
+    if (auto* control = rmlui_dynamic_cast<Rml::ElementFormControl*>(element))
+        control->SetValue(attribute(element, "value"));
+}
+
 } // namespace
 
 class EditorUi::Listener final : public Rml::EventListener {
@@ -50,10 +64,12 @@ public:
 
     void ProcessEvent(Rml::Event& event) override {
         std::string action, arg;
+        Rml::Element* actionElement = nullptr;
         for (Rml::Element* e = event.GetTargetElement(); e; e = e->GetParentNode()) {
             action = attribute(e, "data-action");
             if (!action.empty()) {
                 arg = attribute(e, "data-arg");
+                actionElement = e;
                 break;
             }
         }
@@ -69,11 +85,21 @@ public:
                                    event.GetParameter<float>("mouse_y", 0.f));
             return;
         }
-        // Commit actions fire on value change; everything else on click.
-        if (isCommit && type != "change") return;
+        // Text edits stay local while typing. Commit only on blur or explicit Enter.
+        if (isCommit) {
+            const int key = event.GetParameter<int>("key_identifier", 0);
+            if (type == "keydown" && key == Rml::Input::KI_ESCAPE) {
+                restoreFormValue(actionElement);
+                event.StopPropagation();
+                return;
+            }
+            const bool enter = type == "keydown"
+                && (key == Rml::Input::KI_RETURN || key == Rml::Input::KI_NUMPADENTER);
+            if (type != "blur" && !enter) return;
+        }
         if (!isCommit && type != "click") return;
 
-        const std::string value = event.GetParameter<Rml::String>("value", Rml::String());
+        const std::string value = formValue(actionElement, event);
         ui_.handleAction(action, arg, value);
     }
 
@@ -91,7 +117,8 @@ void EditorUi::bind() {
     if (!document_) return;
     listener_ = std::make_unique<Listener>(*this);
     document_->AddEventListener("click", listener_.get());
-    document_->AddEventListener("change", listener_.get());
+    document_->AddEventListener("blur", listener_.get(), true);
+    document_->AddEventListener("keydown", listener_.get(), true);
     document_->AddEventListener("drag", listener_.get());
 
     // Initial full paint of every panel.
@@ -171,6 +198,45 @@ void EditorUi::handleAction(const std::string& action, const std::string& arg,
             setSpriteRendererVisible(coordinator_, !inst->spriteRenderer->visible);
     } else if (action == "set-sprite-asset") {
         setSpriteRendererAsset(coordinator_, arg);   // arg = assetId ("" clears)
+    } else if (action == "add-box-collider") {
+        addBoxCollider(coordinator_);
+    } else if (action == "remove-box-collider") {
+        removeBoxCollider(coordinator_);
+    } else if (action == "toggle-box-enabled" || action == "toggle-box-trigger") {
+        const SceneInstanceDef* inst = coordinator_.document().findInstanceInScene(
+            coordinator_.state().activeSceneId, coordinator_.selection().primaryEntity);
+        if (inst) {
+            const auto& types = coordinator_.document().data().objectTypes;
+            const auto typeIt = types.find(inst->objectTypeId);
+            if (typeIt != types.end() && typeIt->second.boxCollider2D) {
+                const BoxCollider2DComponent& collider = *typeIt->second.boxCollider2D;
+                if (action == "toggle-box-enabled")
+                    setBoxColliderEnabled(coordinator_, !collider.enabled);
+                else
+                    setBoxColliderTrigger(coordinator_, !collider.isTrigger);
+            }
+        }
+    } else if (action == "commit-box-offset-x" || action == "commit-box-offset-y"
+               || action == "commit-box-size-x" || action == "commit-box-size-y") {
+        const SceneInstanceDef* inst = coordinator_.document().findInstanceInScene(
+            coordinator_.state().activeSceneId, coordinator_.selection().primaryEntity);
+        if (inst) {
+            const auto& types = coordinator_.document().data().objectTypes;
+            const auto typeIt = types.find(inst->objectTypeId);
+            if (typeIt != types.end() && typeIt->second.boxCollider2D) {
+                const BoxCollider2DComponent& collider = *typeIt->second.boxCollider2D;
+                const std::optional<float> parsed = parseNumberField(value);
+                if (!parsed.has_value()) return;
+                if (action == "commit-box-offset-x")
+                    setBoxColliderOffset(coordinator_, Vec2{*parsed, collider.offset.y});
+                else if (action == "commit-box-offset-y")
+                    setBoxColliderOffset(coordinator_, Vec2{collider.offset.x, *parsed});
+                else if (action == "commit-box-size-x")
+                    setBoxColliderSize(coordinator_, Vec2{*parsed, collider.size.y});
+                else
+                    setBoxColliderSize(coordinator_, Vec2{collider.size.x, *parsed});
+            }
+        }
     } else if (action == "commit-pos-x") {
         commitInspectorPositionX(coordinator_, selected, value);
     } else if (action == "commit-pos-y") {

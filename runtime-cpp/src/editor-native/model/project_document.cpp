@@ -203,4 +203,53 @@ bool ProjectDocument::setSpriteRendererAsset(const SceneId& sceneId, EntityId id
     return true;
 }
 
+bool ProjectDocument::addBoxCollider(const std::string& objectTypeId,
+                                     BoxCollider2DComponent component) {
+    auto it = doc_.objectTypes.find(objectTypeId);
+    if (it == doc_.objectTypes.end() || it->second.boxCollider2D.has_value()) return false;
+    it->second.boxCollider2D = component;
+    markDirty();
+    return true;
+}
+
+bool ProjectDocument::removeBoxCollider(const std::string& objectTypeId) {
+    auto it = doc_.objectTypes.find(objectTypeId);
+    if (it == doc_.objectTypes.end() || !it->second.boxCollider2D.has_value()) return false;
+    it->second.boxCollider2D.reset();
+    markDirty();
+    return true;
+}
+
+bool ProjectDocument::setBoxColliderOffset(const std::string& objectTypeId, Vec2 offset) {
+    auto it = doc_.objectTypes.find(objectTypeId);
+    if (it == doc_.objectTypes.end() || !it->second.boxCollider2D.has_value()) return false;
+    it->second.boxCollider2D->offset = offset;
+    markDirty();
+    return true;
+}
+
+bool ProjectDocument::setBoxColliderSize(const std::string& objectTypeId, Vec2 size) {
+    auto it = doc_.objectTypes.find(objectTypeId);
+    if (it == doc_.objectTypes.end() || !it->second.boxCollider2D.has_value()) return false;
+    it->second.boxCollider2D->size = size;
+    markDirty();
+    return true;
+}
+
+bool ProjectDocument::setBoxColliderEnabled(const std::string& objectTypeId, bool enabled) {
+    auto it = doc_.objectTypes.find(objectTypeId);
+    if (it == doc_.objectTypes.end() || !it->second.boxCollider2D.has_value()) return false;
+    it->second.boxCollider2D->enabled = enabled;
+    markDirty();
+    return true;
+}
+
+bool ProjectDocument::setBoxColliderTrigger(const std::string& objectTypeId, bool isTrigger) {
+    auto it = doc_.objectTypes.find(objectTypeId);
+    if (it == doc_.objectTypes.end() || !it->second.boxCollider2D.has_value()) return false;
+    it->second.boxCollider2D->isTrigger = isTrigger;
+    markDirty();
+    return true;
+}
+
 } // namespace ArtCade::EditorNative

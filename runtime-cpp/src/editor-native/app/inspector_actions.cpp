@@ -1,6 +1,7 @@
 #include "editor-native/app/inspector_actions.h"
 
 #include "editor-native/app/editor_coordinator.h"
+#include "editor-native/commands/box_collider_commands.h"
 #include "editor-native/commands/sprite_commands.h"
 
 namespace ArtCade::EditorNative {
@@ -12,6 +13,15 @@ bool selectedTarget(const EditorCoordinator& coordinator, SceneId& sceneId, Enti
     sceneId = coordinator.state().activeSceneId;
     id      = coordinator.selection().primaryEntity;
     return !sceneId.empty() && id != INVALID_ENTITY;
+}
+
+bool selectedObjectType(const EditorCoordinator& coordinator, std::string& objectTypeId) {
+    SceneId sceneId; EntityId id;
+    if (!selectedTarget(coordinator, sceneId, id)) return false;
+    const SceneInstanceDef* instance = coordinator.document().findInstanceInScene(sceneId, id);
+    if (!instance || instance->objectTypeId.empty()) return false;
+    objectTypeId = instance->objectTypeId;
+    return true;
 }
 } // namespace
 
@@ -45,6 +55,54 @@ EditorOperationResult setSpriteRendererAsset(EditorCoordinator& coordinator, con
         return EditorOperationResult::failure("No selected entity");
     }
     return coordinator.execute(SetSpriteRendererAssetCommand{sceneId, id, assetId});
+}
+
+EditorOperationResult addBoxCollider(EditorCoordinator& coordinator) {
+    std::string objectTypeId;
+    if (!selectedObjectType(coordinator, objectTypeId)) {
+        return EditorOperationResult::failure("No selected object type");
+    }
+    return coordinator.execute(AddBoxColliderCommand{objectTypeId});
+}
+
+EditorOperationResult removeBoxCollider(EditorCoordinator& coordinator) {
+    std::string objectTypeId;
+    if (!selectedObjectType(coordinator, objectTypeId)) {
+        return EditorOperationResult::failure("No selected object type");
+    }
+    return coordinator.execute(RemoveBoxColliderCommand{objectTypeId});
+}
+
+EditorOperationResult setBoxColliderOffset(EditorCoordinator& coordinator, Vec2 offset) {
+    std::string objectTypeId;
+    if (!selectedObjectType(coordinator, objectTypeId)) {
+        return EditorOperationResult::failure("No selected object type");
+    }
+    return coordinator.execute(SetBoxColliderOffsetCommand{objectTypeId, offset});
+}
+
+EditorOperationResult setBoxColliderSize(EditorCoordinator& coordinator, Vec2 size) {
+    std::string objectTypeId;
+    if (!selectedObjectType(coordinator, objectTypeId)) {
+        return EditorOperationResult::failure("No selected object type");
+    }
+    return coordinator.execute(SetBoxColliderSizeCommand{objectTypeId, size});
+}
+
+EditorOperationResult setBoxColliderEnabled(EditorCoordinator& coordinator, bool enabled) {
+    std::string objectTypeId;
+    if (!selectedObjectType(coordinator, objectTypeId)) {
+        return EditorOperationResult::failure("No selected object type");
+    }
+    return coordinator.execute(SetBoxColliderEnabledCommand{objectTypeId, enabled});
+}
+
+EditorOperationResult setBoxColliderTrigger(EditorCoordinator& coordinator, bool isTrigger) {
+    std::string objectTypeId;
+    if (!selectedObjectType(coordinator, objectTypeId)) {
+        return EditorOperationResult::failure("No selected object type");
+    }
+    return coordinator.execute(SetBoxColliderTriggerCommand{objectTypeId, isTrigger});
 }
 
 } // namespace ArtCade::EditorNative

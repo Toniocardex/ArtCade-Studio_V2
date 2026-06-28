@@ -27,4 +27,11 @@ EditorOperationResult setSpriteRendererVisible(EditorCoordinator& coordinator, b
 /** Set the selected sprite renderer's image asset ("" clears it). */
 EditorOperationResult setSpriteRendererAsset(EditorCoordinator& coordinator, const AssetId& assetId);
 
+EditorOperationResult addBoxCollider(EditorCoordinator& coordinator);
+EditorOperationResult removeBoxCollider(EditorCoordinator& coordinator);
+EditorOperationResult setBoxColliderOffset(EditorCoordinator& coordinator, Vec2 offset);
+EditorOperationResult setBoxColliderSize(EditorCoordinator& coordinator, Vec2 size);
+EditorOperationResult setBoxColliderEnabled(EditorCoordinator& coordinator, bool enabled);
+EditorOperationResult setBoxColliderTrigger(EditorCoordinator& coordinator, bool isTrigger);
+
 } // namespace ArtCade::EditorNative

@@ -146,6 +146,44 @@ La UI puo' modificare stato visuale locale senza intent. Per esempio, la
 digitazione in un `NumberField` resta nel controllo finche' non viene eseguito
 il commit; il commit crea il command.
 
+Regola definitiva per gli input RmlUi:
+
+```text
+input event
+-> aggiorna soltanto il buffer locale del controllo
+
+Enter o blur
+-> valida e normalizza
+-> confronta con il valore autorevole
+-> esegue un Command solo se il valore e' valido e diverso
+
+Escape
+-> annulla il buffer
+-> ripristina il valore autorevole
+-> nessun Command
+
+input incompleto o invalido
+-> nessun Command
+-> nessuna revision
+-> nessun undo
+-> nessuna invalidazione
+```
+
+`change` di RmlUi non equivale a una mutazione del dominio. E' il commit
+applicativo, non la semplice modifica del testo, a costruire un `EditorCommand`.
+
+Esempi numerici:
+
+```text
+"12."  -> commit valido come 12.0
+"-"    -> incompleto
+"."    -> incompleto
+"1e"   -> incompleto
+"nan"  -> invalido
+"inf"  -> invalido
+"12px" -> invalido
+```
+
 ## Coordinator
 
 `EditorCoordinator` e' un facade applicativo, non un monolite.

@@ -272,6 +272,13 @@ struct GaugeComponent {
 };
 
 /** NPC / talkable — references dialogs/{dialogId}.json in project root. */
+struct BoxCollider2DComponent {
+    Vec2 offset;
+    Vec2 size{32.f, 32.f};
+    bool enabled = true;
+    bool isTrigger = false;
+};
+
 struct DialogComponent {
     std::string dialogId;
     std::string startNode;       // optional override; empty = graph startNode
@@ -321,6 +328,7 @@ struct EntityDef {
     std::optional<DialogComponent>               dialog;
     std::optional<TextComponent>                 text;
     std::optional<GaugeComponent>                gauge;
+    std::optional<BoxCollider2DComponent>        boxCollider2D;
     /** Design-time flag: when false the sprite is hidden in play / shipped
      *  builds. The editor preview always draws the sprite (with a dashed
      *  outline). Runtime Logic Board setVisible() toggles sprite alpha. */

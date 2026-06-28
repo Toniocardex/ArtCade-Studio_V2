@@ -25,12 +25,14 @@ enum class DomainChangeKind {
 enum class ComponentKind {
     None,
     SpriteRenderer,
+    BoxCollider2D,
 };
 
 struct DomainChange {
     DomainChangeKind kind = DomainChangeKind::None;
     SceneId          sceneId;
     EntityId         entityId = INVALID_ENTITY;
+    std::string      objectTypeId;
     ComponentKind    componentKind = ComponentKind::None;
 
     bool isNone() const { return kind == DomainChangeKind::None; }
@@ -107,6 +109,30 @@ struct DomainChange {
         change.kind = DomainChangeKind::ComponentChanged;
         change.sceneId = std::move(scene);
         change.entityId = entity;
+        change.componentKind = component;
+        return change;
+    }
+    static DomainChange objectTypeComponentAdded(std::string objectType,
+                                                 ComponentKind component) {
+        DomainChange change;
+        change.kind = DomainChangeKind::ComponentAdded;
+        change.objectTypeId = std::move(objectType);
+        change.componentKind = component;
+        return change;
+    }
+    static DomainChange objectTypeComponentRemoved(std::string objectType,
+                                                   ComponentKind component) {
+        DomainChange change;
+        change.kind = DomainChangeKind::ComponentRemoved;
+        change.objectTypeId = std::move(objectType);
+        change.componentKind = component;
+        return change;
+    }
+    static DomainChange objectTypeComponentChanged(std::string objectType,
+                                                   ComponentKind component) {
+        DomainChange change;
+        change.kind = DomainChangeKind::ComponentChanged;
+        change.objectTypeId = std::move(objectType);
         change.componentKind = component;
         return change;
     }
