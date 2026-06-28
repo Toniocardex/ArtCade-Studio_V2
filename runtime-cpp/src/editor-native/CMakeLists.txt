@@ -93,7 +93,7 @@ if(ARTCADE_BUILD_NATIVE_EDITOR)
         GIT_SHALLOW    TRUE)
     FetchContent_MakeAvailable(rmlui)
 
-    add_executable(artcade-editor-native
+    set(ARTCADE_EDITOR_NATIVE_SOURCES
         app/main.cpp
         app/editor_app.cpp
         ${rmlui_SOURCE_DIR}/Backends/RmlUi_Renderer_GL3.cpp
@@ -109,6 +109,20 @@ if(ARTCADE_BUILD_NATIVE_EDITOR)
         ui/console_panel.cpp
         demo/demo_project.cpp
     )
+    if(WIN32)
+        list(APPEND ARTCADE_EDITOR_NATIVE_SOURCES artcade_editor_native.rc)
+    endif()
+
+    add_executable(artcade-editor-native
+        ${ARTCADE_EDITOR_NATIVE_SOURCES}
+    )
+    if(WIN32)
+        set_target_properties(artcade-editor-native PROPERTIES
+            WIN32_EXECUTABLE TRUE)
+        if(MSVC)
+            target_link_options(artcade-editor-native PRIVATE /ENTRY:mainCRTStartup)
+        endif()
+    endif()
     target_include_directories(artcade-editor-native PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/..   # runtime-cpp/src
         ${rmlui_SOURCE_DIR}/Backends

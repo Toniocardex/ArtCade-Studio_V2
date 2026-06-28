@@ -67,6 +67,17 @@ std::filesystem::path editorResourceRoot() {
     return std::filesystem::path(GetApplicationDirectory()) / "resources";
 }
 
+void applyWindowIcon(const std::filesystem::path& resourceRoot) {
+    const std::string iconPath = (resourceRoot / "app-icon.png").string();
+    Image icon = LoadImage(iconPath.c_str());
+    if (!icon.data) {
+        TraceLog(LOG_WARNING, "[editor] failed to load window icon: %s", iconPath.c_str());
+        return;
+    }
+    SetWindowIcon(icon);
+    UnloadImage(icon);
+}
+
 std::unordered_map<AssetId, ImageAssetDef> imageAssetMap(const ProjectDoc& doc) {
     std::unordered_map<AssetId, ImageAssetDef> out;
     for (const ImageAssetDef& asset : doc.imageAssets) {
@@ -89,12 +100,13 @@ int EditorApp::run(int argc, char** argv) {
 
     SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_MSAA_4X_HINT | FLAG_VSYNC_HINT);
     InitWindow(1340, 840, "ArtCade Studio");
+    const std::filesystem::path resourceRoot = editorResourceRoot();
+    applyWindowIcon(resourceRoot);
     MaximizeWindow();
     SetExitKey(KEY_NULL);
     SetTargetFPS(60);
 
     const float dpi = GetWindowScaleDPI().x;
-    const std::filesystem::path resourceRoot = editorResourceRoot();
     RmlHost host;
     if (!host.initialize(GetScreenWidth(), GetScreenHeight(), dpi > 0.f ? dpi : 1.f,
                          resourceRoot, "ui/editor_shell.rml")) {
