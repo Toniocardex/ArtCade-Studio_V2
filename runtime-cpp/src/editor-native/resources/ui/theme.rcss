@@ -1,43 +1,37 @@
-/* theme.rcss — colours and typography (dark premium / anthracite, §21). */
+/* theme.rcss — ArtCade Studio dark theme (zinc + blue accent).
+   Flat surfaces, low radius, single-accent selection. Palette mirrors the
+   ArtCade web style guide and the native UI mockup. */
 
 body {
-    font-family: Inter;
-    font-size: 14px;
-    color: #c7ccd6;
-}
-
-/* Type scale */
-.panel-header {
+    font-family: JetBrains Mono;
     font-size: 11px;
-    font-weight: 600;
-    color: #8b92a0;
-    /* letter-spacing emulated via uppercase content in markup */
+    font-weight: 400;
+    color: #d4d4d8;
 }
 
-.brand {
-    color: #6f7785;
+/* Section / panel eyebrow labels — tracked uppercase, muted. */
+.panel-header {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: #52525b;
 }
 
-/* Accent */
-.accent { color: #4f8cdb; }
+.accent { color: #3b82f6; }
 
 /* Scrollable areas */
-.tree, .console, .inspector {
-    overflow-y: auto;
-}
+.tree, .console, .inspector { overflow-y: auto; }
 
-scrollbarvertical {
-    width: 8px;
-}
-scrollbarvertical slidertrack {
-    background-color: #15171c;
-}
+scrollbarvertical { width: 10px; }
+scrollbarvertical slidertrack { background-color: #111113; }
 scrollbarvertical sliderbar {
-    background-color: #343a46;
-    border-radius: 4px;
+    background-color: #27272a;
+    border-radius: 3px;
     margin-left: 2px;
     margin-right: 2px;
+    min-height: 32px;
+    transition: background-color 0.1s;
 }
-scrollbarvertical sliderbar:hover {
-    background-color: #444c5a;
-}
+scrollbarvertical sliderbar:hover  { background-color: #3f3f46; }
+scrollbarvertical sliderbar:active { background-color: #3b82f6; }

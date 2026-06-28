@@ -479,6 +479,7 @@ struct AnimationClipDef {
 
 struct ImageAssetDef {
     std::string assetId;
+    std::string sourcePath; // authoring/import path resolved by derived rendering resources.
     Vec2 defaultPivot = {0.5f, 0.5f};
     std::vector<ImagePointDef> imagePoints;
     std::vector<AnimationClipDef> clips;

@@ -1,6 +1,5 @@
 /* layout.rcss — fixed split layout, three splitters, transparent viewport hole.
-   The scene is drawn by raylib before RmlUi; every region that should reveal it
-   (body, workspace, viewport) is transparent, while panels are opaque. */
+   Flat surfaces; raylib draws the scene behind the transparent viewport. */
 
 body {
     width: 100%;
@@ -14,16 +13,20 @@ body {
     height: 30px;
     display: flex;
     flex-direction: row;
-    background-color: #16181d;
-    border-bottom: 1px #2a2e38;
+    align-items: center;
+    padding: 0 6px;
+    background-color: #18181b;
+    border-bottom: 1px #27272a;
 }
 
 #toolbar {
-    height: 42px;
+    height: 44px;
     display: flex;
     flex-direction: row;
-    background-color: #1b1e25;
-    border-bottom: 1px #2a2e38;
+    align-items: center;
+    padding: 0 10px;
+    background-color: #18181b;
+    border-bottom: 1px #27272a;
 }
 
 #workspace {
@@ -35,7 +38,7 @@ body {
 
 #left-col {
     width: 264px;
-    min-width: 180px;
+    min-width: 200px;
     max-width: 480px;
     display: flex;
     flex-direction: column;
@@ -47,34 +50,38 @@ body {
 }
 
 #right-col {
-    width: 320px;
-    min-width: 220px;
+    width: 312px;
+    min-width: 240px;
     max-width: 520px;
     display: flex;
     flex-direction: column;
 }
 
 #console {
-    height: 184px;
+    height: 176px;
     min-height: 80px;
     max-height: 600px;
     display: flex;
     flex-direction: column;
-    background-color: #181a20;
-    border-top: 1px #2a2e38;
+    background-color: #161619;
+    border-top: 1px #27272a;
 }
 
-/* Splitters */
+/* Splitters — slim, light up to accent on hover/drag. */
 .vsplit {
     width: 5px;
-    background-color: #15171c;
+    background-color: #0e0e10;
     drag: drag;
+    transition: background-color 0.1s;
 }
-.vsplit:hover { background-color: #4f8cdb; }
+.vsplit:hover  { background-color: #3b82f6; }
+.vsplit:active { background-color: #60a0ff; }
 
 .hsplit {
     height: 5px;
-    background-color: #15171c;
+    background-color: #0e0e10;
     drag: drag;
+    transition: background-color 0.1s;
 }
-.hsplit:hover { background-color: #4f8cdb; }
+.hsplit:hover  { background-color: #3b82f6; }
+.hsplit:active { background-color: #60a0ff; }

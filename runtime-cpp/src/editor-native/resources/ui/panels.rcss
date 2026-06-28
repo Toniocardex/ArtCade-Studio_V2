@@ -1,78 +1,78 @@
-/* panels.rcss — panel surfaces and headers. */
+/* panels.rcss — panel surfaces, headers, console rows, inspector sections. */
 
-.panel {
-    background-color: #1a1c22;
-}
+.panel { background-color: #18181b; }
 
-#left-col {
-    border-right: 1px #2a2e38;
-}
-#right-col {
-    border-left: 1px #2a2e38;
-}
+#left-col  { border-right: 1px #27272a; }
+#right-col { border-left: 1px #27272a; }
 
 .panel-header {
     display: block;
-    height: 26px;
-    padding: 7px 12px 0 12px;
-    background-color: #20232b;
-    border-bottom: 1px #2a2e38;
+    height: 32px;
+    line-height: 32px;
+    padding: 0 12px;
+    background-color: #18181b;
+    border-bottom: 1px #27272a;
 }
 
 .assets-stub {
     display: block;
     padding: 10px 12px;
-    color: #6f7785;
-    font-size: 12px;
+    color: #52525b;
+    font-size: 11px;
 }
 
 /* Console */
 .console {
     display: block;
     flex: 1;
-    padding: 6px 10px;
-    font-size: 12px;
+    padding: 8px 12px;
+    font-size: 11px;
 }
-.log {
-    display: block;
-    padding: 1px 0;
-    color: #aab1bd;
-}
-.log-info    { color: #aab1bd; }
-.log-warning { color: #d8c06a; }
-.log-error   { color: #e08a86; }
+.log { display: block; padding: 2px 0; color: #a1a1aa; }
+.log-info    { color: #a1a1aa; }
+.log-warning { color: #d8b44a; }
+.log-error   { color: #e5706b; }
 
-/* Inspector body */
+/* Inspector */
 .inspector {
     display: block;
     flex: 1;
-    padding: 8px 12px;
+    padding: 0 14px 14px 14px;
 }
 .inspector-empty {
-    color: #6f7785;
-    padding: 6px 0;
+    color: #52525b;
+    padding: 14px 0;
 }
+
+/* Section eyebrow + bottom hairline (flat, no accent outline). */
 .prop-group-title {
     display: block;
-    margin-top: 8px;
+    height: 28px;
+    line-height: 28px;
+    margin-top: 14px;
     margin-bottom: 6px;
-    font-size: 11px;
-    font-weight: 600;
-    color: #7f8794;
+    border-bottom: 1px #27272a;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.1px;
+    text-transform: uppercase;
+    color: #8a8a93;
 }
+
 .prop-row {
     display: flex;
     flex-direction: row;
-    height: 26px;
+    align-items: center;
+    height: 28px;
     margin-bottom: 5px;
 }
 .prop-label {
-    width: 96px;
-    color: #9aa1ad;
-    padding-top: 5px;
+    width: 92px;
+    color: #8a8a93;
+    font-size: 11px;
 }
 .prop-readonly {
     flex: 1;
-    padding-top: 5px;
-    color: #c7ccd6;
+    color: #d4d4d8;
+    font-size: 12px;
 }

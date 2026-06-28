@@ -18,6 +18,7 @@
 #include "editor-native/model/project_io.h"
 #include "editor-native/model/play_session.h"
 #include "editor-native/model/box_collider_view.h"
+#include "editor-native/model/scene_frame_snapshot.h"
 #include "editor-native/model/sprite_render_view.h"
 
 #include <filesystem>
@@ -97,8 +98,8 @@ static ProjectDoc makeReplacementDoc() {
 // the sprite-renderer slice.
 static ProjectDoc makeSpriteDoc() {
     ProjectDoc doc = makeDoc();
-    ImageAssetDef hero;  hero.assetId = "img-hero";  doc.imageAssets.push_back(hero);
-    ImageAssetDef alt;   alt.assetId  = "img-alt";   doc.imageAssets.push_back(alt);
+    ImageAssetDef hero;  hero.assetId = "img-hero";  hero.sourcePath = "sprites/hero.ppm";  doc.imageAssets.push_back(hero);
+    ImageAssetDef alt;   alt.assetId  = "img-alt";   alt.sourcePath = "sprites/alt.ppm";   doc.imageAssets.push_back(alt);
     TilesetAsset tiles;  tiles.assetId = "tiles-1";  doc.tilesets.push_back(tiles); // not an image
     return doc;
 }
@@ -1429,6 +1430,7 @@ int main() {
         CHECK(inst->spriteRenderer->imageAssetId == "img-hero");
         CHECK(inst->spriteRenderer->visible == false);
         CHECK(de.value.hasImageAsset("img-hero"));             // catalog round-tripped
+        CHECK(de.value.data().imageAssets[0].sourcePath == "sprites/hero.ppm");
     }
 
     // -- (12) Real save/reload preserves the component ------------------------
@@ -1445,6 +1447,7 @@ int main() {
         const SceneInstanceDef* inst = reloaded.document().findInstanceInScene(kSceneA, kHero);
         CHECK(inst != nullptr && inst->spriteRenderer.has_value());
         CHECK(inst->spriteRenderer->imageAssetId == "img-hero");
+        CHECK(reloaded.document().data().imageAssets[0].sourcePath == "sprites/hero.ppm");
     }
 
     // -- (13) No Inspector/workspace state leaks into the serialized project ---
@@ -1490,6 +1493,14 @@ int main() {
         CHECK(v.present);
         CHECK(v.origin == ComponentOrigin::EntityDefinition);
         CHECK(v.assetId == "img-hero");
+        const SceneFrameSnapshot frame =
+            collectSceneFrameSnapshot(c.document(), kSceneA, kHero);
+        CHECK(frame.hasScene);
+        CHECK(frame.sprites.size() == 1);
+        CHECK(frame.sprites[0].entityId == kHero);
+        CHECK(frame.sprites[0].assetId == "img-hero");
+        CHECK(frame.sprites[0].visible);
+        CHECK(frame.sprites[0].selected);
     }
 
     // -- (2)(5) An instance override prevails over the inherited component -----
@@ -1502,6 +1513,23 @@ int main() {
         const SpriteRenderView v = resolveSpriteRenderer(c.document(), kSceneA, kHero);
         CHECK(v.origin == ComponentOrigin::InstanceOverride);    // (5) distinguished: override
         CHECK(v.assetId == "img-alt");                           // (2) override wins
+        const SceneFrameSnapshot frame =
+            collectSceneFrameSnapshot(c.document(), kSceneA, INVALID_ENTITY);
+        CHECK(frame.sprites.size() == 1);
+        CHECK(frame.sprites[0].assetId == "img-alt");
+    }
+
+    // -- Snapshot keeps invisible sprites non-drawable without consulting UI ---
+    {
+        EditorCoordinator c{makeInheritedDoc()};
+        CHECK(c.execute(AddSpriteRendererCommand{kSceneA, kHero}).ok);
+        CHECK(c.execute(SetSpriteRendererAssetCommand{kSceneA, kHero, "img-alt"}).ok);
+        CHECK(c.execute(SetSpriteRendererVisibleCommand{kSceneA, kHero, false}).ok);
+        const SceneFrameSnapshot frame =
+            collectSceneFrameSnapshot(c.document(), kSceneA, INVALID_ENTITY);
+        CHECK(frame.sprites.size() == 1);
+        CHECK(frame.sprites[0].assetId == "img-alt");
+        CHECK(!frame.sprites[0].visible);
     }
 
     // -- (3) Removing the override falls back to the inherited component -------

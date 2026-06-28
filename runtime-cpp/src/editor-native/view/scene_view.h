@@ -1,14 +1,14 @@
 #pragma once
 
 #include "editor-native/model/editor_state.h"
-#include "editor-native/model/selection_state.h"
+#include "editor-native/model/scene_frame_snapshot.h"
 
 namespace ArtCade::EditorNative {
 
-class ProjectDocument;
+class TextureCache;
 
-// The viewport's pixel rectangle inside the window (prompt §13). RmlUi knows
-// only this rect; it never touches the renderer.
+// The viewport's pixel rectangle inside the window. RmlUi knows only this rect;
+// it never touches the renderer.
 struct ViewportRect {
     int x = 0;
     int y = 0;
@@ -21,19 +21,15 @@ struct ViewportRect {
     }
 };
 
-// =============================================================================
-// SceneView — draws the editor-selected SceneDef into a viewport rect
-// with the per-scene pan/zoom, clipped by scissor. Reads the document; never
-// owns it (prompt §13/§24.10). Uses raylib directly (no engine pipeline) so the
-// spike target stays lean.
-// =============================================================================
+// SceneView draws an immutable scene frame projection into a viewport rect.
+// It never reads ProjectDocument or editor panels during draw; GPU resources are
+// queried through TextureCache, a derived rendering cache.
 class SceneView {
 public:
-    void render(const ProjectDocument& document,
-                const SceneId& sceneId,
+    void render(const SceneFrameSnapshot& frame,
                 const EditorSceneViewState& view,
-                const SelectionState& selection,
-                const ViewportRect& rect) const;
+                const ViewportRect& rect,
+                const TextureCache& textures) const;
 };
 
 } // namespace ArtCade::EditorNative

@@ -17,6 +17,7 @@ add_library(artcade-editor-core STATIC
     model/project_io.cpp
     model/play_session.cpp
     model/box_collider_view.cpp
+    model/scene_frame_snapshot.cpp
     model/sprite_render_view.cpp
     commands/box_collider_commands.cpp
     commands/entity_commands.cpp
@@ -99,6 +100,7 @@ if(ARTCADE_BUILD_NATIVE_EDITOR)
         app/rml_system.cpp
         app/rml_host.cpp
         app/editor_input.cpp
+        view/texture_cache.cpp
         view/scene_view.cpp
         ui/editor_ui.cpp
         ui/editor_fonts.cpp
@@ -126,6 +128,13 @@ if(ARTCADE_BUILD_NATIVE_EDITOR)
         COMMAND ${CMAKE_COMMAND} -E copy_directory
             ${CMAKE_CURRENT_SOURCE_DIR}/resources
             $<TARGET_FILE_DIR:artcade-editor-native>/resources
+        COMMAND ${CMAKE_COMMAND} -E make_directory
+            $<TARGET_FILE_DIR:artcade-editor-native>/resources/sprites
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${CMAKE_CURRENT_SOURCE_DIR}/../../../samples/rpg_spritesheet_32px.png
+            ${CMAKE_CURRENT_SOURCE_DIR}/../../../samples/rpg_spritesheet_32px_alpha_check.png
+            ${CMAKE_CURRENT_SOURCE_DIR}/../../../samples/rpg_spritesheet_complete.png
+            $<TARGET_FILE_DIR:artcade-editor-native>/resources/sprites
         COMMENT "[editor-native] copying RML/RCSS resources")
 
     message(STATUS "[ArtCade] Native editor : ENABLED (RmlUi 6.1 + FreeType)")

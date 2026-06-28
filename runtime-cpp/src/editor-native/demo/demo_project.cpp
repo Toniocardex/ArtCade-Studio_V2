@@ -22,6 +22,13 @@ SceneInstanceDef instance(EntityId id, const std::string& type,
     return inst;
 }
 
+ImageAssetDef imageAsset(const std::string& id, const std::string& path) {
+    ImageAssetDef asset;
+    asset.assetId = id;
+    asset.sourcePath = path;
+    return asset;
+}
+
 } // namespace
 
 ProjectDoc makeDemoProject() {
@@ -33,6 +40,14 @@ ProjectDoc makeDemoProject() {
     doc.objectTypes.emplace("Crate",  objectType("Crate",  {0.74f, 0.55f, 0.34f}));
     doc.objectTypes.emplace("Coin",   objectType("Coin",   {0.92f, 0.80f, 0.32f}));
     doc.objectTypes.emplace("Enemy",  objectType("Enemy",  {0.82f, 0.39f, 0.40f}));
+    doc.imageAssets.push_back(imageAsset("img-player", "sprites/rpg_spritesheet_32px.png"));
+    doc.imageAssets.push_back(imageAsset("img-crate", "sprites/rpg_spritesheet_32px_alpha_check.png"));
+    doc.imageAssets.push_back(imageAsset("img-coin", "sprites/rpg_spritesheet_complete.png"));
+    doc.imageAssets.push_back(imageAsset("img-enemy", "sprites/rpg_spritesheet_32px.png"));
+    doc.objectTypes.at("Player").sprite.spriteAssetId = "img-player";
+    doc.objectTypes.at("Crate").sprite.spriteAssetId = "img-crate";
+    doc.objectTypes.at("Coin").sprite.spriteAssetId = "img-coin";
+    doc.objectTypes.at("Enemy").sprite.spriteAssetId = "img-enemy";
 
     SceneDef a;
     a.id = "scene-a";

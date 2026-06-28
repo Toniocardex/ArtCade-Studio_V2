@@ -7,23 +7,38 @@
 namespace ArtCade::EditorNative {
 namespace {
 
-struct RequiredFont {
+struct FontFace {
     const char* relativePath;
     const char* label;
     Rml::Style::FontWeight weight;
+    bool fallback;
 };
 
-constexpr std::array<RequiredFont, 4> kRequiredFonts{{
-    {"fonts/inter/Inter-Regular.ttf",  "Inter Regular",  Rml::Style::FontWeight::Normal},
-    {"fonts/inter/Inter-Medium.ttf",   "Inter Medium",   static_cast<Rml::Style::FontWeight>(500)},
-    {"fonts/inter/Inter-SemiBold.ttf", "Inter SemiBold", static_cast<Rml::Style::FontWeight>(600)},
-    {"fonts/inter/Inter-Bold.ttf",     "Inter Bold",     Rml::Style::FontWeight::Bold},
+// Inter — guaranteed Latin coverage. Required; the Regular face is registered as
+// the global fallback so any missing glyph (or a missing primary family) still
+// renders instead of disappearing.
+constexpr std::array<FontFace, 4> kRequiredFonts{{
+    {"fonts/inter/Inter-Regular.ttf",  "Inter Regular",  Rml::Style::FontWeight::Normal, true},
+    {"fonts/inter/Inter-Medium.ttf",   "Inter Medium",   static_cast<Rml::Style::FontWeight>(500), false},
+    {"fonts/inter/Inter-SemiBold.ttf", "Inter SemiBold", static_cast<Rml::Style::FontWeight>(600), false},
+    {"fonts/inter/Inter-Bold.ttf",     "Inter Bold",     Rml::Style::FontWeight::Bold, false},
+}};
+
+// JetBrains Mono — primary UI family (matches the ArtCade style guide). Optional:
+// if a face is missing or unreadable the UI falls back to Inter rather than
+// failing to start. Static .ttf only — this FreeType build has zlib/brotli off
+// and cannot decode .woff/.woff2.
+constexpr std::array<FontFace, 4> kOptionalFonts{{
+    {"fonts/jetbrains-mono/JetBrainsMono-Regular.ttf",  "JetBrains Mono Regular",  Rml::Style::FontWeight::Normal, false},
+    {"fonts/jetbrains-mono/JetBrainsMono-Medium.ttf",   "JetBrains Mono Medium",   static_cast<Rml::Style::FontWeight>(500), false},
+    {"fonts/jetbrains-mono/JetBrainsMono-SemiBold.ttf", "JetBrains Mono SemiBold", static_cast<Rml::Style::FontWeight>(600), false},
+    {"fonts/jetbrains-mono/JetBrainsMono-Bold.ttf",     "JetBrains Mono Bold",     Rml::Style::FontWeight::Bold, false},
 }};
 
 } // namespace
 
 FontLoadResult loadEditorFonts(const std::filesystem::path& resourceRoot) {
-    for (const RequiredFont& font : kRequiredFonts) {
+    for (const FontFace& font : kRequiredFonts) {
         const std::filesystem::path path = resourceRoot / font.relativePath;
         if (!std::filesystem::exists(path)) {
             return {
@@ -33,12 +48,27 @@ FontLoadResult loadEditorFonts(const std::filesystem::path& resourceRoot) {
             };
         }
 
-        if (!Rml::LoadFontFace(path.string(), false, font.weight)) {
+        if (!Rml::LoadFontFace(path.string(), font.fallback, font.weight)) {
             return {
                 false,
                 std::string("RmlUi failed to load font: ") + font.label +
                     " (" + path.string() + ")"
             };
+        }
+    }
+
+    for (const FontFace& font : kOptionalFonts) {
+        const std::filesystem::path path = resourceRoot / font.relativePath;
+        if (!std::filesystem::exists(path)) {
+            Rml::Log::Message(Rml::Log::LT_WARNING,
+                "[editor] optional font missing, falling back to Inter: %s",
+                path.string().c_str());
+            continue;
+        }
+        if (!Rml::LoadFontFace(path.string(), font.fallback, font.weight)) {
+            Rml::Log::Message(Rml::Log::LT_WARNING,
+                "[editor] optional font failed to load, falling back to Inter: %s",
+                path.string().c_str());
         }
     }
 

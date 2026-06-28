@@ -6,8 +6,10 @@
 #include "editor-native/app/rml_host.h"
 #include "editor-native/commands/editor_intent.h"
 #include "editor-native/demo/demo_project.h"
+#include "editor-native/model/scene_frame_snapshot.h"
 #include "editor-native/ui/editor_ui.h"
 #include "editor-native/view/scene_view.h"
+#include "editor-native/view/texture_cache.h"
 
 #include <RmlUi/Core/Element.h>
 #include <RmlUi/Core/ElementDocument.h>
@@ -17,6 +19,7 @@
 #include <cstring>
 #include <filesystem>
 #include <string>
+#include <unordered_map>
 
 namespace ArtCade::EditorNative {
 
@@ -64,6 +67,14 @@ std::filesystem::path editorResourceRoot() {
     return std::filesystem::path(GetApplicationDirectory()) / "resources";
 }
 
+std::unordered_map<AssetId, ImageAssetDef> imageAssetMap(const ProjectDoc& doc) {
+    std::unordered_map<AssetId, ImageAssetDef> out;
+    for (const ImageAssetDef& asset : doc.imageAssets) {
+        out.emplace(asset.assetId, asset);
+    }
+    return out;
+}
+
 } // namespace
 
 int EditorApp::run(int argc, char** argv) {
@@ -77,7 +88,8 @@ int EditorApp::run(int argc, char** argv) {
     EditorCoordinator coordinator(makeDemoProject());
 
     SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_MSAA_4X_HINT | FLAG_VSYNC_HINT);
-    InitWindow(1340, 840, "ArtCade - Native Editor (RmlUi spike)");
+    InitWindow(1340, 840, "ArtCade Studio");
+    MaximizeWindow();
     SetExitKey(KEY_NULL);
     SetTargetFPS(60);
 
@@ -97,8 +109,9 @@ int EditorApp::run(int argc, char** argv) {
     ui.bind();
     // Default focus so the inspector shows the headline Position fields.
     coordinator.apply(SelectEntityIntent{1});
-    coordinator.logInfo("ArtCade native editor ready (RmlUi spike).");
+    coordinator.logInfo("ArtCade Studio ready.");
     SceneView sceneView;
+    TextureCache textureCache{resourceRoot};
 
     int frame = 0;
     while (!WindowShouldClose()) {
@@ -116,8 +129,11 @@ int EditorApp::run(int argc, char** argv) {
         BeginDrawing();
         ClearBackground(Color{15, 16, 20, 255});
         const SceneId active = coordinator.state().activeSceneId;
-        sceneView.render(coordinator.document(), active, coordinator.sceneView(active),
-                         coordinator.selection(), rect);
+        const SceneFrameSnapshot snapshot = collectSceneFrameSnapshot(
+            coordinator.document(), active, coordinator.selection().primaryEntity);
+        const auto assets = imageAssetMap(coordinator.document().data());
+        textureCache.prepare(snapshot.sprites, assets);
+        sceneView.render(snapshot, coordinator.sceneView(active), rect, textureCache);
         host.render();
         EndDrawing();
 
@@ -127,6 +143,7 @@ int EditorApp::run(int argc, char** argv) {
         }
     }
 
+    textureCache.clear();
     host.shutdown();
     CloseWindow();
     return 0;

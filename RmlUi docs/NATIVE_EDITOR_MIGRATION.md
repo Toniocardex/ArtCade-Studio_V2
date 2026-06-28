@@ -89,12 +89,12 @@ il vecchio editor non e' rimosso.
 | Play Project | WASM bridge / preview path | `EditorCoordinator::playProject` (guarded by `canPlayProject`) | Done | No |
 | Play Current Scene | WASM bridge / preview path | `EditorCoordinator::playCurrentScene` (guarded by `canPlayCurrentScene`) | Done | No |
 | Project file I/O | React/Tauri file path | `readProjectTextFile` + `loadProjectFromText` + atomic save | In progress | No |
-| Runtime viewport | WASM/runtime preview | `SceneFrameSnapshot` or minimal projection | Planned | No |
+| Runtime viewport | WASM/runtime preview | `SceneFrameSnapshot` + derived texture cache | In progress | No |
 | Sprite Renderer component | React Inspector | `sprite_commands` + `inspector_actions` (instance-scoped) | Done | No |
 | BoxCollider2D component | React Inspector / physics form | `box_collider_commands` on `EntityDef.boxCollider2D` | Done | No |
 | Object type persistence | React project store | `ProjectSerializer` minimal subset + referential validation | Done | No |
 | Components inspector | React Inspector | Feature commands + read-only queries | In progress | No |
-| Asset references | React asset stores | `AssetId` -> `ProjectDoc.imageAssets`, validated | In progress | No |
+| Asset references | React asset stores | `AssetId` -> `ProjectDoc.imageAssets.sourcePath`, validated | In progress | No |
 | Logic Board | React Logic Board state | Logic Board document + commands | Planned | No |
 
 ## Component resolution (sprite renderer)
@@ -150,6 +150,38 @@ collider into `SceneInstanceDef`. The viewport consumes projected
 `SceneFrameCollider` values (`entityId`, world bounds, enabled/trigger/selected
 flags) from `collectBoxColliderBounds(...)`; draw code does not re-read
 `EntityDef` to interpret collider ownership.
+
+## Edit viewport texture baseline
+
+The Edit viewport renders from an immutable projection:
+
+```text
+ProjectDocument + EditorState
+-> SceneFrameSnapshot
+-> SceneView
+```
+
+`SceneFrameSnapshot` contains entity placeholders, `SceneFrameSprite` draw
+items, and `SceneFrameCollider` overlays. It carries `AssetId`, destination
+bounds, visibility, and selection state, but no `Texture2D` and no GPU handle.
+
+Texture resources are derived and non-authoritative:
+
+```text
+SceneFrameSprite.assetId
+-> ImageAssetDef.sourcePath
+-> TextureCache
+-> DrawTexturePro
+```
+
+`TextureCache` belongs to the native rendering layer. It loads synchronously,
+records failed loads to avoid retrying every frame, unloads while the Raylib
+context is still valid, and is not serialized. Missing source paths or missing
+files produce a diagnostic placeholder; they do not mutate the document.
+
+The renderer must not query `ProjectDocument`, `EditorCoordinator`, RmlUi
+controls, or panels during draw. Asset catalog lookup happens before drawing;
+`SceneView` receives only `SceneFrameSnapshot` and `TextureCache`.
 
 ## RmlUi input commit baseline
 

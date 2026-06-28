@@ -285,6 +285,7 @@ DeserializeResult ProjectSerializer::deserialize(std::string_view source) {
             if (assetId.empty()) continue;
             ImageAssetDef asset;
             asset.assetId = assetId;
+            asset.sourcePath = readString(item, "sourcePath", "source_path");
             doc.imageAssets.push_back(std::move(asset));
         }
     }
@@ -306,7 +307,10 @@ SerializeResult ProjectSerializer::serialize(const ProjectDocument& document) {
 
     nlohmann::json imageAssets = nlohmann::json::array();
     for (const ImageAssetDef& asset : doc.imageAssets) {
-        imageAssets.push_back(nlohmann::json{{"assetId", asset.assetId}});
+        imageAssets.push_back(nlohmann::json{
+            {"assetId", asset.assetId},
+            {"sourcePath", asset.sourcePath},
+        });
     }
 
     nlohmann::json root{
