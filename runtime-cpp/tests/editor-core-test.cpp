@@ -1154,6 +1154,124 @@ int main() {
         CHECK(!c.document().isDirty());    // never mutated by Play/Stop
     }
 
+    // == Start-scene invariant: scenes exist => startSceneId is valid ==========
+
+    // -- (1)(2)(3) First scene becomes the start scene; workspace untouched ----
+    {
+        EditorCoordinator c{ProjectDoc{}};
+        CHECK(c.document().startSceneId().empty());
+        const SceneId activeBefore = c.state().activeSceneId;
+        CHECK(c.execute(CreateSceneCommand{"scene-1", "Scene 1"}).ok);
+        CHECK(c.document().startSceneId() == "scene-1");   // (1) invariant maintained
+        CHECK(c.state().activeSceneId == activeBefore);    // (2) no auto-select
+        CHECK(!c.state().selection.hasEntity());           // (3) selection untouched
+    }
+
+    // -- (4) Undo of the first scene restores an empty start scene -------------
+    {
+        EditorCoordinator c{ProjectDoc{}};
+        CHECK(c.execute(CreateSceneCommand{"scene-1", "Scene 1"}).ok);
+        c.undo();
+        CHECK(c.document().data().scenes.empty());
+        CHECK(c.document().startSceneId().empty());
+    }
+
+    // -- (5) Creating a second scene does not change the start scene -----------
+    {
+        EditorCoordinator c{ProjectDoc{}};
+        CHECK(c.execute(CreateSceneCommand{"scene-1", "Scene 1"}).ok);
+        CHECK(c.execute(CreateSceneCommand{"scene-2", "Scene 2"}).ok);
+        CHECK(c.document().startSceneId() == "scene-1");   // unchanged
+    }
+
+    // -- (6)(7)(8)(9) After the first scene: valid, saveable, playable ---------
+    {
+        EditorCoordinator c{ProjectDoc{}};
+        CHECK(c.execute(CreateSceneCommand{"scene-1", "Scene 1"}).ok);
+        // (6) the document now satisfies the validator (start scene is valid).
+        CHECK(ProjectValidator::validate(ProjectDocument{c.document().data()}).ok);
+        // (7) and saves successfully.
+        const std::filesystem::path dir = testTempDir();
+        const auto saved = saveProjectToFile(c, dir / "first.artcade-project");
+        CHECK(saved.ok);
+        // (8) Play Project is available, (9) Play Current Scene is not (no active scene).
+        CHECK(c.canPlayProject());
+        CHECK(!c.canPlayCurrentScene());
+    }
+
+    // -- (10) SetStartScene (valid) changes only the document ------------------
+    {
+        EditorCoordinator c{makeDoc()};                    // start scene = kSceneA
+        const SceneId activeBefore = c.state().activeSceneId;
+        c.apply(SelectEntityIntent{kHero});
+        const auto r = c.execute(SetStartSceneCommand{kSceneB});
+        CHECK(r.ok);
+        CHECK(c.document().startSceneId() == kSceneB);
+        CHECK(c.state().activeSceneId == activeBefore);    // workspace unchanged
+        CHECK(c.state().selection.primaryEntity == kHero); // selection unchanged
+    }
+
+    // -- (11) SetStartScene to the current start is a no-op (no undo, no rev) --
+    {
+        EditorCoordinator c{makeDoc()};
+        const uint64_t revBefore = c.document().revision();
+        c.consumeInvalidations();
+        const auto r = c.execute(SetStartSceneCommand{kSceneA}); // already the start
+        CHECK(r.ok);
+        CHECK(c.document().revision() == revBefore);       // no mutation
+        CHECK(!c.canUndo());                               // not recorded
+        CHECK(c.consumeInvalidations() == EditorInvalidation::None);
+    }
+
+    // -- (12) SetStartScene to a missing scene fails without structural change -
+    {
+        EditorCoordinator c{makeDoc()};
+        const uint64_t revBefore = c.document().revision();
+        c.consumeInvalidations();
+        const auto r = c.execute(SetStartSceneCommand{"missing"});
+        CHECK(!r.ok);
+        CHECK(c.document().startSceneId() == kSceneA);     // unchanged
+        CHECK(c.document().revision() == revBefore);
+        CHECK(!c.canUndo());
+        const EditorInvalidation inv = c.consumeInvalidations();
+        CHECK(!has(inv, EditorInvalidation::Hierarchy));
+        CHECK(!has(inv, EditorInvalidation::Toolbar));
+        CHECK(!has(inv, EditorInvalidation::Project));
+    }
+
+    // -- (13)(14) Undo restores the previous start; Hierarchy+Toolbar refresh --
+    {
+        EditorCoordinator c{makeDoc()};
+        c.consumeInvalidations();
+        CHECK(c.execute(SetStartSceneCommand{kSceneB}).ok);
+        const EditorInvalidation inv = c.consumeInvalidations();
+        CHECK(has(inv, EditorInvalidation::Hierarchy));    // (14)
+        CHECK(has(inv, EditorInvalidation::Toolbar));      // (14)
+        c.undo();                                          // (13)
+        CHECK(c.document().startSceneId() == kSceneA);
+    }
+
+    // -- (15) SetStartScene is a Patch, never a Replace ------------------------
+    {
+        EditorCoordinator c{makeDoc()};
+        const uint32_t replacesBefore = c.document().replaceCount();
+        CHECK(c.execute(SetStartSceneCommand{kSceneB}).ok);
+        CHECK(c.document().replaceCount() == replacesBefore);
+    }
+
+    // -- (16) Save/reload preserves the chosen start scene --------------------
+    {
+        EditorCoordinator c{makeDoc()};
+        CHECK(c.execute(SetStartSceneCommand{kSceneB}).ok);
+        const std::filesystem::path dir = testTempDir();
+        const std::filesystem::path path = dir / "start.artcade-project";
+        CHECK(saveProjectToFile(c, path).ok);
+
+        EditorCoordinator reloaded{makeReplacementDoc()};
+        CHECK(loadProjectFromFile(reloaded, path).ok);
+        CHECK(reloaded.document().startSceneId() == kSceneB);
+    }
+
     std::cout << "editor-core-test: " << g_passed << " passed, "
               << g_failed << " failed\n";
     return g_failed == 0 ? 0 : 1;

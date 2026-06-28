@@ -87,6 +87,14 @@ bool ProjectDocument::setSceneBackground(const SceneId& sceneId, Vec4 color) {
     return true;
 }
 
+bool ProjectDocument::setStartSceneId(const SceneId& sceneId) {
+    // startSceneId is the persisted doc.activeSceneId (legacy field name).
+    if (!sceneId.empty() && !hasScene(sceneId)) return false;
+    doc_.activeSceneId = sceneId;
+    markDirty();
+    return true;
+}
+
 bool ProjectDocument::createScene(const SceneId& id, const std::string& name) {
     if (id.empty() || hasScene(id)) return false;
     SceneDef scene;

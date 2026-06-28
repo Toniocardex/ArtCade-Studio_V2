@@ -12,6 +12,7 @@ enum class DomainChangeKind {
     SceneAdded,
     SceneRemoved,
     SceneChanged,
+    StartSceneChanged,
     EntityAdded,
     EntityRemoved,
     EntityChanged,
@@ -44,6 +45,12 @@ struct DomainChange {
     static DomainChange sceneChanged(SceneId scene) {
         DomainChange change;
         change.kind = DomainChangeKind::SceneChanged;
+        change.sceneId = std::move(scene);
+        return change;
+    }
+    static DomainChange startSceneChanged(SceneId scene) {
+        DomainChange change;
+        change.kind = DomainChangeKind::StartSceneChanged;
         change.sceneId = std::move(scene);
         return change;
     }

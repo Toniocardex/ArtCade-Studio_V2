@@ -38,6 +38,7 @@ void HierarchyPanel::refresh(Rml::ElementDocument* document,
     const SceneId& activeSceneId = coordinator.state().activeSceneId;
 
     // -- Scene tabs (sorted by id for a stable order) --------------------------
+    const SceneId& startSceneId = doc.startSceneId();
     std::map<SceneId, std::string> scenesSorted;
     for (const auto& [id, scene] : doc.data().scenes) scenesSorted[id] = scene.name;
 
@@ -47,6 +48,8 @@ void HierarchyPanel::refresh(Rml::ElementDocument* document,
         tabs += "<div class=\"tab";
         if (active) tabs += " active";
         tabs += "\" data-action=\"select-scene\" data-arg=\"" + escapeRml(id) + "\">";
+        // ASCII start-scene marker (the spike font ships ASCII glyphs only).
+        if (id == startSceneId) tabs += "* ";
         tabs += escapeRml(name);
         tabs += "</div>";
     }
@@ -84,6 +87,8 @@ void HierarchyPanel::refresh(Rml::ElementDocument* document,
     setEnabled("btn-del-scene",  hasActiveScene);
     setEnabled("btn-add-entity", hasActiveScene);
     setEnabled("btn-del-entity", hasSelection);
+    // "Start" sets the active scene as start scene — pointless if it already is.
+    setEnabled("btn-set-start",  hasActiveScene && activeSceneId != startSceneId);
     // btn-add-scene is always available.
 }
 

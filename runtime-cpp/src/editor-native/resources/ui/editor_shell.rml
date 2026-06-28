@@ -33,6 +33,7 @@
             <div class="panel-actions">
                 <button id="btn-add-scene" class="panel-btn" data-action="add-scene">+ Scene</button>
                 <button id="btn-del-scene" class="panel-btn" data-action="delete-scene">- Scene</button>
+                <button id="btn-set-start" class="panel-btn" data-action="set-start-scene">Start</button>
                 <button id="btn-add-entity" class="panel-btn" data-action="add-entity">+ Entity</button>
                 <button id="btn-del-entity" class="panel-btn" data-action="delete-entity">- Entity</button>
             </div>

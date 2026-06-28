@@ -11,7 +11,12 @@ namespace ArtCade::EditorNative {
 // Scene authoring commands.
 // =============================================================================
 
-/** Create an empty scene. Invalidates Hierarchy | Project. */
+/**
+ * Create an empty scene. Invalidates Hierarchy | Viewport | Project | Toolbar.
+ * When it is the project's first scene it also becomes the start scene, so the
+ * invariant "scenes exist => startSceneId is valid" holds (ProjectValidator).
+ * This is not auto-selection: the workspace active scene is left untouched.
+ */
 class CreateSceneCommand final : public EditorCommand {
 public:
     CreateSceneCommand(SceneId id, std::string name);
@@ -23,6 +28,27 @@ public:
 private:
     SceneId     id_;
     std::string name_;
+    SceneId     previousStart_{};       // start scene before this command
+    bool        assignedStart_ = false; // did this command set the start scene?
+};
+
+/**
+ * Choose which existing scene is the gameplay start scene. Persistent domain
+ * change (not a workspace selection). Invalidates Hierarchy | Toolbar | Project.
+ * Setting the scene that is already the start is a no-op that does not enter undo.
+ */
+class SetStartSceneCommand final : public EditorCommand {
+public:
+    explicit SetStartSceneCommand(SceneId nextSceneId);
+
+    EditorOperationResult apply(ProjectDocument& document) override;
+    EditorOperationResult undo(ProjectDocument& document) override;
+    const char* name() const override { return "SetStartScene"; }
+
+private:
+    SceneId next_;
+    SceneId previous_;
+    bool    captured_ = false;
 };
 
 /** Delete a scene with its instances. Invalidates Hierarchy | Viewport | Project. */

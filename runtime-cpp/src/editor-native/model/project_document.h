@@ -16,6 +16,7 @@ class EditorCoordinator;
 class RenameEntityCommand;
 class SetEntityPositionCommand;
 class SetSceneBackgroundCommand;
+class SetStartSceneCommand;
 
 // =============================================================================
 // ProjectDocument — the single authoring authority of the native editor.
@@ -61,11 +62,15 @@ private:
     friend class RenameEntityCommand;
     friend class SetEntityPositionCommand;
     friend class SetSceneBackgroundCommand;
+    friend class SetStartSceneCommand;
 
     // ---- Patch (authoring mutations; called by commands) --------------------
     bool setInstancePosition(const SceneId& sceneId, EntityId id, Vec2 position);
     bool setInstanceName(const SceneId& sceneId, EntityId id, std::string name);
     bool setSceneBackground(const SceneId& sceneId, Vec4 color);
+    // The persisted gameplay start scene. Empty is allowed only when there are
+    // no scenes; a non-empty id must reference an existing scene.
+    bool setStartSceneId(const SceneId& sceneId);
     bool createScene(const SceneId& id, const std::string& name);
     bool deleteScene(const SceneId& id);
     // Restore a previously deleted scene with its instances and the start-scene

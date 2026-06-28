@@ -57,7 +57,13 @@ EditorOperationResult EditorCoordinator::executeOwned(
     }
     accumulate(result.invalidation);
     accumulate(reconcileWorkspace());   // keep EditorState valid in the same op
-    history_.push(std::move(command));
+    // A successful command that changed nothing (a no-op, e.g. setting the start
+    // scene to the scene that is already the start) is not recorded and is not
+    // undoable.
+    if (result.invalidation != EditorInvalidation::None
+        || result.change.kind != DomainChangeKind::None) {
+        history_.push(std::move(command));
+    }
     return result;
 }
 

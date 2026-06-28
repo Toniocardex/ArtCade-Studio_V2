@@ -28,8 +28,16 @@ EditorOperationResult CreateSceneCommand::apply(ProjectDocument& document) {
     if (document.hasScene(id_)) {
         return EditorOperationResult::failure("A scene with that id already exists");
     }
+    const bool wasFirstScene = document.data().scenes.empty();
+    previousStart_ = document.startSceneId();
     if (!document.createScene(id_, name_)) {
         return EditorOperationResult::failure("Failed to create scene");
+    }
+    // Keep the persisted invariant: a project that has scenes has a valid start
+    // scene. The very first scene becomes it (the workspace is left untouched).
+    if (wasFirstScene) {
+        document.setStartSceneId(id_);
+        assignedStart_ = true;
     }
     return EditorOperationResult::success(kSceneStructureInvalidation,
                                           DomainChange::sceneAdded(id_));
@@ -39,8 +47,49 @@ EditorOperationResult CreateSceneCommand::undo(ProjectDocument& document) {
     if (!document.deleteScene(id_)) {
         return EditorOperationResult::failure("Cannot undo scene creation");
     }
+    if (assignedStart_) {
+        document.setStartSceneId(previousStart_);   // empty again for the first scene
+    }
     return EditorOperationResult::success(kSceneStructureInvalidation,
                                           DomainChange::sceneRemoved(id_));
+}
+
+// ----------------------------------------------------------------------------
+// SetStartSceneCommand
+// ----------------------------------------------------------------------------
+SetStartSceneCommand::SetStartSceneCommand(SceneId nextSceneId)
+    : next_(std::move(nextSceneId)) {}
+
+EditorOperationResult SetStartSceneCommand::apply(ProjectDocument& document) {
+    if (!document.hasScene(next_)) {
+        return EditorOperationResult::failure("No such scene to set as start");
+    }
+    if (document.startSceneId() == next_) {
+        // Already the start scene: succeed but change nothing, so the coordinator
+        // records no undo entry and bumps no revision.
+        return EditorOperationResult::success(EditorInvalidation::None);
+    }
+    if (!captured_) {
+        previous_ = document.startSceneId();
+        captured_ = true;
+    }
+    if (!document.setStartSceneId(next_)) {
+        return EditorOperationResult::failure("Failed to set start scene");
+    }
+    return EditorOperationResult::success(EditorInvalidation::Hierarchy
+                                          | EditorInvalidation::Toolbar
+                                          | EditorInvalidation::Project,
+                                          DomainChange::startSceneChanged(next_));
+}
+
+EditorOperationResult SetStartSceneCommand::undo(ProjectDocument& document) {
+    if (!captured_ || !document.setStartSceneId(previous_)) {
+        return EditorOperationResult::failure("Cannot undo start scene change");
+    }
+    return EditorOperationResult::success(EditorInvalidation::Hierarchy
+                                          | EditorInvalidation::Toolbar
+                                          | EditorInvalidation::Project,
+                                          DomainChange::startSceneChanged(previous_));
 }
 
 // ----------------------------------------------------------------------------

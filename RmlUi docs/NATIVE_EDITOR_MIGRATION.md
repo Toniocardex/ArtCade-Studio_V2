@@ -82,6 +82,7 @@ il vecchio editor non e' rimosso.
 | Entity create | TS project/store path | `CreateEntityCommand` -> `ProjectDocument` | Done | No |
 | Entity delete | TS project/store path | `DeleteEntityCommand` -> `ProjectDocument` (index-faithful undo) | Done | No |
 | Hierarchy add/delete wiring | React Hierarchy buttons | `hierarchy_actions` (UI-free) -> `EditorCoordinator` | Done | No |
+| Start scene | TS project/store path | `SetStartSceneCommand`; first scene auto-keeps invariant | Done | No |
 | Workspace reconciliation | React effects/listeners | `EditorCoordinator::reconcileWorkspace` (same op) | Done | No |
 | Undo | React/editor history path | `CommandStack` | Partial | No |
 | Project replace/load boundary | React/Tauri file path | `EditorCoordinator::replaceProject(ProjectDocument)` | In progress | No |

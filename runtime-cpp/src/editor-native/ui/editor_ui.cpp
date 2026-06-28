@@ -157,6 +157,8 @@ void EditorUi::handleAction(const std::string& action, const std::string& arg,
         addEntity(coordinator_);
     } else if (action == "delete-entity") {
         deleteSelectedEntity(coordinator_);
+    } else if (action == "set-start-scene") {
+        setStartScene(coordinator_, arg.empty() ? coordinator_.state().activeSceneId : arg);
     } else if (action == "commit-pos-x") {
         commitInspectorPositionX(coordinator_, selected, value);
     } else if (action == "commit-pos-y") {

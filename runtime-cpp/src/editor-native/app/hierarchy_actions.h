@@ -40,6 +40,9 @@ EditorOperationResult addScene(EditorCoordinator& coordinator);
 /** Delete @p sceneId. The coordinator reconciles the workspace afterwards. */
 EditorOperationResult deleteScene(EditorCoordinator& coordinator, const SceneId& sceneId);
 
+/** Make @p sceneId the gameplay start scene (no-op if it already is). */
+EditorOperationResult setStartScene(EditorCoordinator& coordinator, const SceneId& sceneId);
+
 /** Place a new instance in the active scene. Does not change the selection. */
 EditorOperationResult addEntity(EditorCoordinator& coordinator);
 

@@ -57,6 +57,13 @@ EditorOperationResult deleteScene(EditorCoordinator& coordinator, const SceneId&
     return coordinator.execute(DeleteSceneCommand{sceneId});
 }
 
+EditorOperationResult setStartScene(EditorCoordinator& coordinator, const SceneId& sceneId) {
+    if (!coordinator.document().hasScene(sceneId)) {
+        return EditorOperationResult::failure("No scene to set as start");
+    }
+    return coordinator.execute(SetStartSceneCommand{sceneId});
+}
+
 EditorOperationResult addEntity(EditorCoordinator& coordinator) {
     const SceneId& sceneId = coordinator.state().activeSceneId;
     if (sceneId.empty() || !coordinator.document().hasScene(sceneId)) {
