@@ -5,6 +5,7 @@
 #include "editor-native/ui/hierarchy_panel.h"
 #include "editor-native/ui/inspector_panel.h"
 
+#include <functional>
 #include <memory>
 #include <string>
 
@@ -35,6 +36,15 @@ public:
 
     bool isPlaying() const;
 
+    // Project file operations live in the application layer (it owns the texture
+    // cache it must clear on replace, and the platform file pickers). The UI
+    // only triggers them; it never touches files or the renderer. Unset handlers
+    // make the corresponding toolbar action a no-op.
+    using ProjectFileRequest = std::function<void()>;
+    void setProjectFileHandlers(ProjectFileRequest open,
+                                ProjectFileRequest save,
+                                ProjectFileRequest saveAs);
+
     // Called by the listener; routes one UI interaction to command/intent.
     void handleAction(const std::string& action, const std::string& arg,
                       const std::string& value);
@@ -53,6 +63,9 @@ private:
     InspectorPanel                      inspector_;
     ConsolePanel                        console_;
     std::unique_ptr<Rml::EventListener> listener_;
+    ProjectFileRequest                  openProjectRequest_;
+    ProjectFileRequest                  saveProjectRequest_;
+    ProjectFileRequest                  saveProjectAsRequest_;
 };
 
 } // namespace ArtCade::EditorNative

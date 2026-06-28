@@ -17,6 +17,7 @@
 #include <cstdlib>
 #include <optional>
 #include <string>
+#include <utility>
 
 namespace ArtCade::EditorNative {
 
@@ -145,6 +146,14 @@ void EditorUi::applyInvalidations(EditorInvalidation flags) {
 
 bool EditorUi::isPlaying() const { return coordinator_.isPlaying(); }
 
+void EditorUi::setProjectFileHandlers(ProjectFileRequest open,
+                                      ProjectFileRequest save,
+                                      ProjectFileRequest saveAs) {
+    openProjectRequest_   = std::move(open);
+    saveProjectRequest_   = std::move(save);
+    saveProjectAsRequest_ = std::move(saveAs);
+}
+
 void EditorUi::refreshToolbar() {
     if (!document_) return;
     const bool playing = coordinator_.isPlaying();
@@ -262,6 +271,12 @@ void EditorUi::handleAction(const std::string& action, const std::string& arg,
         coordinator_.playCurrentScene();   // guarded; no-op without an active scene
     } else if (action == "stop") {
         coordinator_.stopPlaying();
+    } else if (action == "open-project") {
+        if (openProjectRequest_) openProjectRequest_();
+    } else if (action == "save-project") {
+        if (saveProjectRequest_) saveProjectRequest_();
+    } else if (action == "save-project-as") {
+        if (saveProjectAsRequest_) saveProjectAsRequest_();
     }
 }
 

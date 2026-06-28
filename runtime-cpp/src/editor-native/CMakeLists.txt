@@ -100,6 +100,7 @@ if(ARTCADE_BUILD_NATIVE_EDITOR)
         app/rml_system.cpp
         app/rml_host.cpp
         app/editor_input.cpp
+        app/file_dialog.cpp
         view/texture_cache.cpp
         view/scene_view.cpp
         ui/editor_ui.cpp
@@ -136,6 +137,10 @@ if(ARTCADE_BUILD_NATIVE_EDITOR)
         RmlUi::Core
         RmlUi::Debugger
     )
+    if(WIN32)
+        # comdlg32: GetOpenFileName/GetSaveFileName for the native file pickers.
+        target_link_libraries(artcade-editor-native PRIVATE comdlg32)
+    endif()
 
     # Copy the RML/RCSS/fonts next to the executable so it runs from the build dir.
     add_custom_command(TARGET artcade-editor-native POST_BUILD

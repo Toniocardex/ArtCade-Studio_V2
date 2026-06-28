@@ -135,7 +135,7 @@ paletto o sblocca la capability in corso.
 | Project replace/load boundary | React/Tauri file path | `EditorCoordinator::replaceProject(ProjectDocument)` | In progress | No |
 | Play Project | WASM bridge / preview path | `EditorCoordinator::playProject` (guarded by `canPlayProject`) | Done | No |
 | Play Current Scene | WASM bridge / preview path | `EditorCoordinator::playCurrentScene` (guarded by `canPlayCurrentScene`) | Done | No |
-| Project file I/O | React/Tauri file path | `readProjectTextFile` + `loadProjectFromText` + atomic save | In progress | No |
+| Project file I/O | React/Tauri file path | `readProjectTextFile` + `loadProjectFromText` + atomic save, wired to GUI Open/Save/Save As (native pickers; app clears texture cache on replace) | Done | No |
 | Runtime viewport | WASM/runtime preview | `SceneFrameSnapshot` + derived texture cache | In progress | No |
 | Play materialization | WASM bridge / preview path | `PlaySession` from `ProjectDocument` once at Start Play | In progress | No |
 | Sprite Renderer component | React Inspector | `sprite_commands` + `inspector_actions` (instance-scoped) | Done | No |

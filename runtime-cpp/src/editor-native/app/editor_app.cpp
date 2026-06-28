@@ -2,7 +2,9 @@
 
 #include "editor-native/app/editor_coordinator.h"
 #include "editor-native/app/editor_input.h"
+#include "editor-native/app/file_dialog.h"
 #include "editor-native/app/input_routing.h"
+#include "editor-native/app/project_file.h"
 #include "editor-native/app/rml_host.h"
 #include "editor-native/commands/editor_intent.h"
 #include "editor-native/demo/demo_project.h"
@@ -19,6 +21,7 @@
 
 #include <cstring>
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <unordered_map>
 
@@ -171,6 +174,45 @@ int EditorApp::run(int argc, char** argv) {
     coordinator.logInfo("ArtCade Studio ready.");
     SceneView sceneView;
     TextureCache textureCache;
+
+    // Project I/O is owned by the application: it holds the texture cache it must
+    // clear when the document is replaced, and the platform file pickers. The UI
+    // only requests these operations; it never touches files or the renderer.
+    std::filesystem::path currentProjectPath;
+    const auto saveTo = [&](const std::filesystem::path& path) {
+        const ProjectSaveResult result = saveProjectToFile(coordinator, path);
+        if (!result.ok) {
+            coordinator.logError("Save failed: " + result.error.message);
+            return;
+        }
+        currentProjectPath = path;
+        coordinator.logInfo("Saved " + path.filename().string());
+    };
+    ui.setProjectFileHandlers(
+        [&]() {  // Open
+            const std::optional<std::filesystem::path> picked = openProjectFileDialog();
+            if (!picked) return;  // cancelled
+            const ProjectLoadResult result = loadProjectFromFile(coordinator, *picked);
+            if (!result.ok) {
+                coordinator.logError("Open failed: " + result.error.message);
+                return;
+            }
+            textureCache.clear();  // explicit app path consuming ProjectReplaced
+            currentProjectPath = *picked;
+            coordinator.logInfo("Opened " + picked->filename().string());
+        },
+        [&]() {  // Save (Save As when no current path)
+            if (currentProjectPath.empty()) {
+                if (const auto picked = saveProjectFileDialog(currentProjectPath))
+                    saveTo(*picked);
+            } else {
+                saveTo(currentProjectPath);
+            }
+        },
+        [&]() {  // Save As
+            if (const auto picked = saveProjectFileDialog(currentProjectPath))
+                saveTo(*picked);
+        });
 
     int frame = 0;
     while (!WindowShouldClose()) {
