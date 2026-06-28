@@ -60,7 +60,6 @@ public:
     std::vector<RuntimeEntity>& entities() { return scene_.entities; }
     const std::vector<RuntimeEntity>& entities() const { return scene_.entities; }
     RuntimeEntity* findEntity(EntityId id);
-    const RuntimeEntity* findEntity(EntityId id) const;
     bool translateEntity(EntityId id, Vec2 delta);
 
 private:
